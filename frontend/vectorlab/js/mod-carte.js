@@ -4,6 +4,7 @@
 // Terrarium (grille de hauteurs dans doc.geo + image ombrée dans le
 // magasin), vectoriser les courbes de niveau, découper en tuiles par palier
 // et ouvrir l'impression 3D en mode relief. Logique PURE en tête (banc).
+import { dzi } from "./mod-icones.js";
 import { gpx_parser, cadrage, echelle_libelle, courbes_niveau, ombrage, profil_stats, profil_svg } from "./mod-geo.js";
 import { op_geo_importer, op_geo_relief, op_geo_courbes, op_geo_tuiles, op_calque_ajouter,
          op_calque_reordonner, op_calque_opacite } from "./mod-doc.js";
@@ -62,16 +63,16 @@ export function initCarte(VL) {
     const R = g && g.relief;
     hote.innerHTML = `
       <p class="carte-libelle" id="carteLibelle">${libelle_carte(g, etat.doc.unites)}</p>
-      <div class="ap-ligne"><button id="carteImporter" class="primaire" title="Un fichier .gpx : traces, points nommés, emprise — projetés en mètres et cadrés dans la page">⬆ Importer un GPX…</button>
+      <div class="ap-ligne"><button id="carteImporter" class="primaire" title="Un fichier .gpx : traces, points nommés, emprise — projetés en mètres et cadrés dans la page">${dzi("dz-action-importer", 16)}Importer un GPX…</button>
         <input type="file" id="carteGpxInput" accept=".gpx,application/gpx+xml" hidden/></div>
-      <div class="ap-ligne"><button id="carteFond" ${g ? "" : "disabled"} title="Fond OpenStreetMap assemblé par le backend (cache disque) et posé en calque « fond » — © OpenStreetMap contributors">🗺 Fond de carte OSM</button>
-        <button id="carteRelief" ${g ? "" : "disabled"} title="Relief Terrarium (AWS Open Data, sans clé) : grille de hauteurs dans le document + image ombrée en calque « relief »">⛰ Relief</button></div>
+      <div class="ap-ligne"><button id="carteFond" ${g ? "" : "disabled"} title="Fond OpenStreetMap assemblé par le backend (cache disque) et posé en calque « fond » — © OpenStreetMap contributors">${dzi("dz-media-fond-carte", 16)}Fond de carte OSM</button>
+        <button id="carteRelief" ${g ? "" : "disabled"} title="Relief Terrarium (AWS Open Data, sans clé) : grille de hauteurs dans le document + image ombrée en calque « relief »">${dzi("dz-lab3d-relief", 16)}Relief</button></div>
       <div class="ap-ligne"><span>Courbes</span><input type="number" id="cartePas" value="50" min="1" step="1" title="Pas des courbes de niveau (m)"/>
-        <button id="carteCourbes" ${R ? "" : "disabled"} title="Vectorise les courbes de niveau (marching squares) — de vrais chemins">≋ Courbes</button></div>
+        <button id="carteCourbes" ${R ? "" : "disabled"} title="Vectorise les courbes de niveau (marching squares) — de vrais chemins">${dzi("dz-edit-courbes-niveau", 16)}Courbes</button></div>
       <div class="ap-ligne"><span>Tuiles</span><input type="number" id="carteTuilePas" value="40" min="8" step="1" title="Rayon de l'hexagone (px)"/>
         <input type="number" id="carteReliefMm" value="10" min="1" step="0.5" title="Relief total du plateau (mm)"/>
-        <button id="carteTuiles" ${R ? "" : "disabled"} title="Quadrillage hexagonal sur l'emprise : chaque tuile prend le terrain de son palier d'altitude et une hauteur en mm">⬡ Découper</button></div>
-      <div class="ap-ligne"><button id="carteImprimer" ${R ? "" : "disabled"} title="Aperçu 3D de la plaque en relief (exagération, socle, gravure du tracé) puis STL / dalles">🖨 Aperçu 3D / Imprimer</button></div>
+        <button id="carteTuiles" ${R ? "" : "disabled"} title="Quadrillage hexagonal sur l'emprise : chaque tuile prend le terrain de son palier d'altitude et une hauteur en mm">${dzi("dz-edit-grille-hex", 16)}Découper</button></div>
+      <div class="ap-ligne"><button id="carteImprimer" ${R ? "" : "disabled"} title="Aperçu 3D de la plaque en relief (exagération, socle, gravure du tracé) puis STL / dalles">${dzi("dz-lab3d-impression-3d", 16)}Aperçu 3D / Imprimer</button></div>
       ${profil_html(g)}
       ${g && g.attribution ? `<p class="carte-attribution">${g.attribution}</p>` : ""}
       ${R ? `<p class="carte-attribution">relief ${R.w} × ${R.h} · ${Math.round(R.min)} → ${Math.round(R.max)} m · ${R.pasM} m/cellule · zoom ${R.zoom ?? g.zoom}</p>` : ""}`;

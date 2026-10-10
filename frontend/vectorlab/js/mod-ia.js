@@ -19,6 +19,7 @@
 // Le parsage, le filtrage et la pose des tracés restent ceux du panneau
 // de verre (mod-vitrail.iaPoser) : une seule voie d'écriture au document.
 
+import { dzi } from "./mod-icones.js";
 export function initIA(VL) {
   const { $, etat } = VL;
   let moteurs = null;            // [{moteur, modeles[], defaut}] — null si inconnu
@@ -80,7 +81,7 @@ export function initIA(VL) {
       <div class="ia-tete" data-poigne="1">
         <span class="ia-titre">Illustration IA</span>
         <span class="ia-sp"></span>
-        <button class="ia-x" data-act="fermer" title="Fermer (Échap)">×</button>
+        <button class="ia-x" data-act="fermer" title="Fermer (Échap)" aria-label="Fermer (Échap)">${dzi("dz-action-fermer", 16)}</button>
       </div>
       <div class="ia-fil">${fil.length ? fil.map((m) => `
         <div class="ia-msg ${m.role}${m.err ? " err" : ""}">${
@@ -113,7 +114,7 @@ export function initIA(VL) {
             : sans ? "Aucune clé de modèle de langage (Réglages)"
             : "APPEL PAYANT sur votre clé " + nomMoteur(choisi)
               + " — quelques centièmes de centime"}"
-          >${busy ? "…" : "Générer"}</button>
+          >${dzi("dz-media-generer-image", 16)}${busy ? "…" : "Générer"}</button>
       </div>`;
     const t = $("#iaTexte");
     if (t && !busy && !sans) t.focus();

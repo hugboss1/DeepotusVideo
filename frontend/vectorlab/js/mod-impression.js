@@ -17,6 +17,7 @@ import { hex_centre, hex_sommets } from "./mod-grille.js";
 import { POLICES, texte_vers_d } from "./mod-texte3d.js";
 import { plaque, graver, dalles, sous_grille, ruban, tenons, cle } from "./mod-relief.js";
 import { chemin_parser } from "./mod-doc.js";
+import { dzi } from "./mod-icones.js";
 
 /* ── pur ── */
 const num = (v, def) => {
@@ -271,8 +272,8 @@ export function initImpression(VL) {
       pieces: c.pieces.length, ignores: c.ignores }) + ` · volume ${Math.round(volume_de(c.tous) / 1000)} cm³`
       + (c.notes && c.notes.length ? ` · ${c.notes.join(" · ")}` : "");
     const large = Math.max(...c.bbox.map(([a, b]) => b - a));
-    $("#impGarde").textContent = large > 256
-      ? `⚠ ${Math.round(large)} mm dépasse le plateau de 256 mm — le lot par tuile imprime pièce à pièce` : "";
+    $("#impGarde").innerHTML = large > 256
+      ? dzi("dz-etat-avertissement", 16) + `${Math.round(large)} mm dépasse le plateau de 256 mm — le lot par tuile imprime pièce à pièce` : "";
     $("#impUnStl").disabled = false;
     $("#impLot").disabled = !(r.mode === "tuiles" || r.mode === "pixelart" || (r.mode === "relief" && c.pieces.length > 1));
     return courant;
@@ -340,7 +341,7 @@ export function initImpression(VL) {
     const mode = modeInitial || (pixelId && doc.pixelart && doc.pixelart.calque ? "pixelart" : aHex ? "tuiles" : (etat.selection.length ? "logo" : "calques"));
     const largeurDefaut = doc.geo && doc.geo.emprise_px ? Math.round(doc.geo.emprise_px.w * s) : 150;
     dlg.innerHTML = `<div class="vl-dlg-boite imp-boite">
-      <div class="vl-dlg-tete"><b>Impression 3D</b><span class="imp-doc">${Math.round(doc.taille.w * s)} × ${Math.round(doc.taille.h * s)} mm à ${dpi} dpi · plateau 256 mm</span><span class="spacer"></span><button id="impFermer" title="Fermer">✕</button></div>
+      <div class="vl-dlg-tete"><b>Impression 3D</b><span class="imp-doc">${Math.round(doc.taille.w * s)} × ${Math.round(doc.taille.h * s)} mm à ${dpi} dpi · plateau 256 mm</span><span class="spacer"></span><button id="impFermer" title="Fermer" aria-label="Fermer">${dzi("dz-action-fermer", 16)}</button></div>
       <div class="imp-corps">
         <div class="imp-regles">
           <label>Mode <select id="impMode">

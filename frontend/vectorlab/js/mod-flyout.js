@@ -11,20 +11,21 @@ import { FORMES } from "./mod-formes.js";
 import { op_symbole_creer, op_instance_poser, op_style, terrains_de } from "./mod-doc.js";
 import { PROFILS } from "./mod-pinceauvec.js";
 import { MODES } from "./mod-tranches.js";
+import { dzi } from "./mod-icones.js";
 
 /* ── bâtisseurs purs ── */
-const GLYPHES = { polygone: "⬠", hexagone: "⬡", etoile: "☆", engrenage: "⚙", fleche: "➜", donut: "◎", spirale: "๑" };
+const ICONES_FORMES = { polygone: "dz-outil-vec-polygone", hexagone: "dz-outil-vec-hexagone", etoile: "dz-outil-vec-etoile", engrenage: "dz-outil-vec-engrenage", fleche: "dz-outil-vec-fleche", donut: "dz-outil-vec-donut", spirale: "dz-outil-vec-spirale" };
 export function flyout_formes(formes, courante) {
-  return (formes || []).map((f) => ({ id: f.id, libelle: f.nom, glyphe: GLYPHES[f.id] || "◇", actif: f.id === courante }));
+  return (formes || []).map((f) => ({ id: f.id, libelle: f.nom, icone: ICONES_FORMES[f.id] || "dz-etat-inconnu", actif: f.id === courante }));
 }
 export function flyout_symboles(symboles) {
   const entrees = Object.entries(symboles || {}).map(([id, s]) => ({ id, libelle: s.nom || id, detail: `${(s.objets || []).length} objet${(s.objets || []).length > 1 ? "s" : ""}`, action: "poser" }));
   if (!entrees.length) entrees.push({ id: "", libelle: "aucun symbole", detail: "", action: "", desactive: true });
-  entrees.push({ id: "", libelle: "Créer depuis la sélection", detail: "", action: "creer" });
+  entrees.push({ id: "", libelle: "Créer depuis la sélection", detail: "", action: "creer", icone: "dz-action-ajouter" });
   return entrees;
 }
-export function flyout_choix(liste, courant, { glyphes = {} } = {}) {
-  return (liste || []).map((x) => ({ id: x.id, libelle: x.nom || x.libelle || x.id, glyphe: glyphes[x.id] || "", actif: x.id === courant, action: "choix" }));
+export function flyout_choix(liste, courant, { icones = {} } = {}) {
+  return (liste || []).map((x) => ({ id: x.id, libelle: x.nom || x.libelle || x.id, icone: icones[x.id] || "", actif: x.id === courant, action: "choix" }));
 }
 export function flyout_presets(valeurs, courante, unite = "") {
   const vals = (valeurs || []).slice();
@@ -39,7 +40,7 @@ export function flyout_polices(polices, courante) {
   return (polices || []).map((p) => ({ id: p.id, libelle: p.famille, famille: p.famille, detail: src[p.source] || "", actif: p.famille === courante, action: "police" }));
 }
 export function flyout_actions(liste, disponible = () => true) {
-  return (liste || []).map((a) => ({ id: a.id, libelle: a.libelle, glyphe: a.glyphe || "", cible: a.cible, action: "cible", desactive: !disponible(a.cible) }));
+  return (liste || []).map((a) => ({ id: a.id, libelle: a.libelle, icone: a.icone || "", cible: a.cible, action: "cible", desactive: !disponible(a.cible) }));
 }
 // réglages de style : chaque valeur porte son patch {cle: v} (ou f(v))
 export function flyout_reglages(valeurs, courante, cle, unite = "", f = (v) => v) {
@@ -55,20 +56,20 @@ export function flyout_position(bouton, taille, fenetre, marge = 6) {
 
 /* ── registre : outil → {titre, entrees, choisir(entree)} — `c` = contexte
    {etat, existe(sel), cliquer(sel), setOutil, executer, toast, rendre} ── */
-const AL = [["gauche", "⇤ Aligner à gauche"], ["centreH", "⇔ Centrer horizontalement"], ["droite", "⇥ Aligner à droite"], ["haut", "⇧ Aligner en haut"], ["centreV", "⇕ Centrer verticalement"], ["bas", "⇩ Aligner en bas"]];
-const ORDRE = [["devant", "⤒ Tout devant"], ["avant", "↑ Un cran devant"], ["arriere", "↓ Un cran derrière"], ["derriere", "⤓ Tout derrière"]];
-const BOOL = [["union", "∪ Union"], ["soustraction", "⊖ Soustraction"], ["intersection", "∩ Intersection"], ["division", "⧉ Division"]];
+const AL = [["gauche", "Aligner à gauche", "dz-edit-aligner-gauche"], ["centreH", "Centrer horizontalement", "dz-edit-aligner-centre-h"], ["droite", "Aligner à droite", "dz-edit-aligner-droite"], ["haut", "Aligner en haut", "dz-edit-aligner-haut"], ["centreV", "Centrer verticalement", "dz-edit-aligner-centre-v"], ["bas", "Aligner en bas", "dz-edit-aligner-bas"]];
+const ORDRE = [["devant", "Tout devant", "dz-edit-premier-plan"], ["avant", "Un cran devant", "dz-edit-monter"], ["arriere", "Un cran derrière", "dz-edit-descendre"], ["derriere", "Tout derrière", "dz-edit-arriere-plan"]];
+const BOOL = [["union", "Union", "dz-edit-union"], ["soustraction", "Soustraction", "dz-edit-soustraire"], ["intersection", "Intersection", "dz-edit-intersection"], ["division", "Division", "dz-edit-division"]];
 export const MENUS = {
   forme: (c) => ({ titre: "Forme paramétrique", entrees: flyout_formes(FORMES, c.etat.formeCourante), choisir: (e) => {
     c.etat.formeCourante = e.id; c.setOutil("forme"); c.toast(`forme « ${e.libelle} » : cliquer pour la poser (rayon 40) ou glisser depuis le centre`); c.rendre(); } }),
   symbole: (c) => {
     const S = (c.actions && c.actions.symboles) || {}, symboles = (c.etat.doc && c.etat.doc.symboles) || {};
     return { titre: "Symboles", entrees: [...flyout_symboles(symboles),
-      { id: "detacher", libelle: "⇣ Détacher l'instance sélectionnée", action: "detacher", desactive: !(S.instanceSel && S.instanceSel()) },
+      { id: "detacher", libelle: "Détacher l'instance sélectionnée", icone: "dz-edit-detacher", action: "detacher", desactive: !(S.instanceSel && S.instanceSel()) },
       ...(S.edition && S.edition()
-        ? [{ id: "terminer", libelle: "✓ Terminer l'édition du symbole", action: "terminer" }, { id: "abandonner", libelle: "↺ Abandonner l'édition", action: "abandonner" }]
-        : [{ id: "ouvrir", libelle: "✎ Modifier en place (double-clic sur une instance)", action: "ouvrir", desactive: !(S.instanceSel && S.instanceSel()) }]),
-      ...Object.entries(symboles).map(([sid, sy]) => ({ id: sid, libelle: `✕ Supprimer « ${sy.nom || sid} »`, action: "supprimer" }))], choisir: (e) => {
+        ? [{ id: "terminer", libelle: "Terminer l'édition du symbole", icone: "dz-action-valider", action: "terminer" }, { id: "abandonner", libelle: "Abandonner l'édition", icone: "dz-action-abandonner", action: "abandonner" }]
+        : [{ id: "ouvrir", libelle: "Modifier en place (double-clic sur une instance)", icone: "dz-action-modifier", action: "ouvrir", desactive: !(S.instanceSel && S.instanceSel()) }]),
+      ...Object.entries(symboles).map(([sid, sy]) => ({ id: sid, libelle: `Supprimer « ${sy.nom || sid} »`, icone: "dz-action-supprimer", action: "supprimer" }))], choisir: (e) => {
       if (e.action === "poser") { const id = c.executer(op_instance_poser, c.etat.calqueActif, e.id, 24, 24); if (id) { c.setOutil("select"); c.selectionner([id]); } }
       else if (e.action === "creer") {
         if (!c.etat.selection.length) { c.toast("sélectionner d'abord les objets du symbole", true); return; }
@@ -83,15 +84,15 @@ export const MENUS = {
   },
   select: (c) => {
     const A = (c.actions && c.actions.selection) || {}, p = A.peut ? A.peut() : { n: c.etat.selection.length, groupe: false };
-    const e = (id, libelle, ok, fn) => ({ id, libelle, action: "fn", fn, desactive: !ok });
+    const e = (id, libelle, ok, fn, icone = "") => ({ id, libelle, icone, action: "fn", fn, desactive: !ok });
     return { titre: "Sélection", entrees: [
-      ...AL.map(([k, l]) => e("al-" + k, l, p.n >= 1, () => A.aligner(k))),
-      e("dist-h", "⇹ Distribuer horizontalement", p.n >= 3, () => A.distribuer("h")), e("dist-v", "⇳ Distribuer verticalement", p.n >= 3, () => A.distribuer("v")),
-      e("mir-h", "⇄ Miroir horizontal", p.n >= 1, () => A.miroir("h")), e("mir-v", "⇅ Miroir vertical", p.n >= 1, () => A.miroir("v")),
-      e("dup", "⧉ Dupliquer (Ctrl+D)", p.n >= 1, () => A.dupliquer()),
-      ...ORDRE.map(([k, l]) => e("or-" + k, l, p.n >= 1, () => A.ordre(k))),
-      e("grouper", "Grouper", p.n >= 2, () => A.grouper()), e("degrouper", "Dégrouper", !!p.groupe, () => A.degrouper()),
-      ...BOOL.map(([k, l]) => e("bo-" + k, l, p.n >= 2, () => A.booleen(k))),
+      ...AL.map(([k, l, ic]) => e("al-" + k, l, p.n >= 1, () => A.aligner(k), ic)),
+      e("dist-h", "Distribuer horizontalement", p.n >= 3, () => A.distribuer("h"), "dz-edit-distribuer-h"), e("dist-v", "Distribuer verticalement", p.n >= 3, () => A.distribuer("v"), "dz-edit-distribuer-v"),
+      e("mir-h", "Miroir horizontal", p.n >= 1, () => A.miroir("h"), "dz-edit-miroir-h"), e("mir-v", "Miroir vertical", p.n >= 1, () => A.miroir("v"), "dz-edit-miroir-v"),
+      e("dup", "Dupliquer (Ctrl+D)", p.n >= 1, () => A.dupliquer(), "dz-action-dupliquer"),
+      ...ORDRE.map(([k, l, ic]) => e("or-" + k, l, p.n >= 1, () => A.ordre(k), ic)),
+      e("grouper", "Grouper", p.n >= 2, () => A.grouper(), "dz-edit-grouper"), e("degrouper", "Dégrouper", !!p.groupe, () => A.degrouper(), "dz-edit-degrouper"),
+      ...BOOL.map(([k, l, ic]) => e("bo-" + k, l, p.n >= 2, () => A.booleen(k), ic)),
     ], choisir: (x) => x.fn && x.fn() };
   },
   noeuds: (c) => {
@@ -104,7 +105,7 @@ export const MENUS = {
     const t = c.etat.typo || { polices: [], courante: "" };
     const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null;
     const courante = sel && sel.objet.type === "texte" ? (sel.objet.style || {}).police : (t.polices.find((p) => p.id === t.courante) || {}).famille;
-    return { titre: "Typographies", entrees: [...flyout_polices(t.polices, courante), { id: "deposer", libelle: "⬆ Déposer une police…", action: "deposer" }], choisir: (e) => {
+    return { titre: "Typographies", entrees: [...flyout_polices(t.polices, courante), { id: "deposer", libelle: "Déposer une police…", icone: "dz-action-importer", action: "deposer" }], choisir: (e) => {
       if (e.action === "deposer") { c.cliquer("#txDeposer") || c.toast("ouvrir le panneau Texte pour déposer une police", true); return; }
       c.etat.typo.courante = e.id;
       if (sel && (sel.objet.type === "texte" || sel.objet.type === "cadre")) c.style([sel.objet.id], { police: e.famille });
@@ -114,14 +115,14 @@ export const MENUS = {
   crayon: (c) => MENUS.pinceauv(c),
   pinceauv: (c) => {
     const pv = c.etat.pinceauv || { profil: "fuseau", largeur: 8 };
-    return { titre: "Pinceau vectoriel", entrees: [...flyout_choix(PROFILS, pv.profil, { glyphes: { plat: "▬", fuseau: "◆", calligraphie: "✒" } }), ...flyout_presets([4, 8, 16, 24], pv.largeur, "px")], choisir: (e) => {
+    return { titre: "Pinceau vectoriel", entrees: [...flyout_choix(PROFILS, pv.profil, { icones: { plat: "dz-outil-vec-profil-plat", fuseau: "dz-outil-vec-profil-fuseau", calligraphie: "dz-outil-vec-profil-calligraphie" } }), ...flyout_presets([4, 8, 16, 24], pv.largeur, "px")], choisir: (e) => {
       if (e.action === "choix") pv.profil = e.id; else pv.largeur = e.valeur;
       c.setOutil("pinceauv"); c.rendre();
     } };
   },
   gomme: (c) => ({ titre: "Gomme vectorielle", entrees: flyout_presets([6, 12, 24, 48], c.etat.gommeLargeur, "px"), choisir: (e) => { c.etat.gommeLargeur = e.valeur; c.setOutil("gomme"); c.rendre(); } }),
   coin: (c) => ({ titre: "Coins arrondis", entrees: flyout_presets([5, 10, 20, 40], c.etat.coinRayon, "px"), choisir: (e) => { c.etat.coinRayon = e.valeur; c.setOutil("coin"); c.rendre(); } }),
-  tuiles: (c) => ({ titre: "Terrains", entrees: [...flyout_terrains(c.etat.doc ? terrains_de(c.etat.doc) : {}, c.etat.terrainCourant), { id: "plateau", libelle: "⬡ Générer le plateau…", action: "plateau" }], choisir: (e) => {
+  tuiles: (c) => ({ titre: "Terrains", entrees: [...flyout_terrains(c.etat.doc ? terrains_de(c.etat.doc) : {}, c.etat.terrainCourant), { id: "plateau", libelle: "Générer le plateau…", icone: "dz-edit-grille-hex", action: "plateau" }], choisir: (e) => {
     if (e.action === "plateau") { c.ouvrirSection("plateauDetails"); return; }
     c.etat.terrainCourant = e.id; c.setOutil("tuiles"); c.rendre(); } }),
   "px-pinceau": (c) => MENUS._pxPinceau(c, "px-pinceau"),
@@ -156,14 +157,14 @@ export const MENUS = {
   image: (c) => {
     const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null, img = sel && sel.objet.type === "image";
     const I = (c.actions && c.actions.image) || {};
-    const e = (id, libelle, fn) => ({ id, libelle, action: "fn", fn, desactive: !fn });
+    const e = (id, libelle, fn, icone) => ({ id, libelle, icone, action: "fn", fn, desactive: !fn });
     return { titre: "Image", entrees: [
-      e("biblio", "📚 Bibliothèque…", I.biblio), e("fichier", "⬆ Fichier…", I.fichier), e("coller", "📋 Presse-papiers", I.coller), e("generer", "✦ Générer…", I.generer),
+      e("biblio", "Bibliothèque…", I.biblio, "dz-action-choisir-bibliotheque"), e("fichier", "Fichier…", I.fichier, "dz-action-importer"), e("coller", "Presse-papiers", I.coller, "dz-action-coller"), e("generer", "Générer…", I.generer, "dz-media-generer-image"),
       ...flyout_actions([
-        { id: "vectoriser", libelle: "◇ Vectoriser cette image…", cible: "#imVectoriser" }, { id: "entiere", libelle: "↺ Image entière (sans rognage)", cible: "#imRognerRaz" },
-        { id: "verrou", libelle: img && sel.objet.verrou ? "🔓 Déverrouiller" : "🔒 Verrouiller", cible: "#imVerrou" },
+        { id: "vectoriser", libelle: "Vectoriser cette image…", icone: "dz-edit-vectoriser", cible: "#imVectoriser" }, { id: "entiere", libelle: "Image entière (sans rognage)", icone: "dz-action-reinitialiser", cible: "#imRognerRaz" },
+        { id: "verrou", libelle: img && sel.objet.verrou ? "Déverrouiller" : "Verrouiller", icone: img && sel.objet.verrou ? "dz-etat-libre" : "dz-etat-verrouille", cible: "#imVerrou" },
       ], (cible) => img && c.existe(cible)),
-      { id: "pixels", libelle: "🖌 Éditer les pixels (persona Pixel)", action: "pixels", desactive: !img },
+      { id: "pixels", libelle: "Éditer les pixels (persona Pixel)", icone: "dz-nav-espace-pixel", action: "pixels", desactive: !img },
     ], choisir: (e) => { if (e.action === "pixels") c.pixels(); else if (e.action === "fn") e.fn && e.fn(); else c.cliquer(e.cible); } };
   },
   apparence: (c) => {
@@ -171,14 +172,14 @@ export const MENUS = {
     const s = sel ? (sel.objet.style || {}) : (c.etat.styleCourant || {});
     const n = c.etat.selection.length;
     return { titre: "Apparence", entrees: [
-      ...flyout_actions([{ id: "fond", libelle: "■ Couleur de fond…", cible: "#apFond" }, { id: "sansfond", libelle: "∅ Sans fond", cible: "#apFondAucun" },
-        { id: "contour", libelle: "□ Couleur de contour…", cible: "#apContour" }, { id: "sanscontour", libelle: "∅ Sans contour", cible: "#apContourAucun" }], c.existe),
+      ...flyout_actions([{ id: "fond", libelle: "Couleur de fond…", icone: "dz-edit-couleur-fond", cible: "#apFond" }, { id: "sansfond", libelle: "Sans fond", icone: "dz-edit-sans-couleur", cible: "#apFondAucun" },
+        { id: "contour", libelle: "Couleur de contour…", icone: "dz-edit-couleur-contour", cible: "#apContour" }, { id: "sanscontour", libelle: "Sans contour", icone: "dz-edit-sans-couleur", cible: "#apContourAucun" }], c.existe),
       ...flyout_reglages([1, 2, 4, 8], +s.epaisseur || 2, "epaisseur", "px d'épaisseur"),
       ...flyout_reglages([100, 75, 50, 25], Math.round((s.opacite ?? 1) * 100), "opacite", "% d'opacité", (v) => v / 100),
-      ...flyout_actions([{ id: "gradl", libelle: "▤ Dégradé linéaire", cible: "#apGradL" }, { id: "gradr", libelle: "◉ Dégradé radial", cible: "#apGradR" },
-        { id: "conique", libelle: "◔ Dégradé conique", cible: "#a2Conique" }, { id: "transp", libelle: "◧ Transparence", cible: "#a2Transp" },
-        { id: "motif", libelle: "▦ Motif", cible: "#a2Motif" }], (cible) => n >= 1 && c.existe(cible)),
-      { id: "ombre", libelle: "☁ Effet : ombre externe", action: "effet", valeur: "ombre", desactive: !n }, { id: "lueur", libelle: "✺ Effet : lueur", action: "effet", valeur: "lueur", desactive: !n },
+      ...flyout_actions([{ id: "gradl", libelle: "Dégradé linéaire", icone: "dz-edit-degrade-lineaire", cible: "#apGradL" }, { id: "gradr", libelle: "Dégradé radial", icone: "dz-edit-degrade-radial", cible: "#apGradR" },
+        { id: "conique", libelle: "Dégradé conique", icone: "dz-edit-degrade-conique", cible: "#a2Conique" }, { id: "transp", libelle: "Transparence", icone: "dz-outil-vec-transparence", cible: "#a2Transp" },
+        { id: "motif", libelle: "Motif", icone: "dz-edit-motif", cible: "#a2Motif" }], (cible) => n >= 1 && c.existe(cible)),
+      { id: "ombre", libelle: "Effet : ombre externe", icone: "dz-edit-effet", action: "effet", valeur: "ombre", desactive: !n }, { id: "lueur", libelle: "Effet : lueur", icone: "dz-edit-effet", action: "effet", valeur: "lueur", desactive: !n },
     ], choisir: (e) => {
       if (e.action === "style") c.style(c.etat.selection.slice(), e.patch);
       else if (e.action === "effet") { const sel2 = document.querySelector("#a2FxType"); if (sel2) { sel2.value = e.valeur; c.cliquer("#a2FxPlus"); } }
@@ -187,7 +188,7 @@ export const MENUS = {
   },
   tranche: (c) => {
     const ex = c.etat.exportPlus || { mode: "document" };
-    return { titre: "Tranches d'export", entrees: [...flyout_choix(MODES, ex.mode).map((e) => ({ ...e, libelle: e.libelle })), { id: "effacer", libelle: "✕ Effacer les tranches dessinées", action: "effacer", desactive: !(c.etat.tranches || []).length }], choisir: (e) => {
+    return { titre: "Tranches d'export", entrees: [...flyout_choix(MODES, ex.mode).map((e) => ({ ...e, libelle: e.libelle })), { id: "effacer", libelle: "Effacer les tranches dessinées", icone: "dz-action-vider", action: "effacer", desactive: !(c.etat.tranches || []).length }], choisir: (e) => {
       if (e.action === "effacer") { c.etat.tranches = []; c.rendre(); return; }
       ex.mode = e.id; if (e.id === "dessinees") c.setOutil("tranche"); c.rendre();
     } };
@@ -221,7 +222,7 @@ export function initFlyout(VL) {
     ouvertPour = bouton;
     hote.innerHTML = `<div class="fo-titre">${esc(menu.titre)}</div>` + menu.entrees.map((e, i) =>
       `<button class="fo-item${e.actif ? " actif" : ""}" data-i="${i}" ${e.desactive ? "disabled" : ""}${e.famille ? ` style="font-family:&quot;${esc(e.famille)}&quot;"` : ""}>`
-      + (e.couleur ? `<span class="fo-pastille" style="background:${esc(e.couleur)}"></span>` : e.glyphe ? `<span class="fo-glyphe">${e.glyphe}</span>` : "")
+      + (e.couleur ? `<span class="fo-pastille" style="background:${esc(e.couleur)}"></span>` : e.icone ? `<span class="fo-glyphe">${dzi(e.icone, 16)}</span>` : "")
       + `<span class="fo-lib">${esc(e.libelle)}</span>${e.detail ? `<small>${esc(e.detail)}</small>` : ""}</button>`).join("");
     hote.hidden = false;
     const r = bouton.getBoundingClientRect();
@@ -230,16 +231,16 @@ export function initFlyout(VL) {
     hote.querySelectorAll(".fo-item").forEach((b) => b.addEventListener("click", () => { const e = menu.entrees[+b.dataset.i]; fermer(); menu.choisir(e); }));
   }
   // les boutons Image et Apparence (persona Vecteur) — ils ne sont que des menus
-  for (const [nom, glyphe, titre] of [["image", "🖼", "Image — poser (Bibliothèque, fichier, presse-papiers, génération), vectoriser, rogner, verrou, pixels (menu)"], ["apparence", "🎨", "Apparence — fond, contour, épaisseur, opacité, dégradés, motif, effets (menu)"]]) {
+  for (const [nom, titre] of [["image", "Image — poser (Bibliothèque, fichier, presse-papiers, génération), vectoriser, rogner, verrou, pixels (menu)"], ["apparence", "Apparence — fond, contour, épaisseur, opacité, dégradés, motif, effets (menu)"]]) {
     const b = document.createElement("button");
-    b.dataset.outil = nom; b.dataset.menu = nom; b.title = titre; b.textContent = glyphe;
+    b.dataset.outil = nom; b.dataset.menu = nom; b.title = titre;   // l'icône : mod-barreoutils (ICONES)
     b.addEventListener("click", (ev) => { ev.stopPropagation(); ouvrir(b, nom); });
     $("#outils").appendChild(b);
   }
   // le bouton Symboles (persona Vecteur) — il n'est qu'un menu
   {
     const b = document.createElement("button");
-    b.dataset.outil = "symbole"; b.dataset.menu = "symbole"; b.title = "Symboles — poser une instance ou créer un symbole depuis la sélection (menu)"; b.textContent = "⧈";
+    b.dataset.outil = "symbole"; b.dataset.menu = "symbole"; b.title = "Symboles — poser une instance ou créer un symbole depuis la sélection (menu)";   // l'icône : mod-barreoutils
     b.addEventListener("click", (ev) => { ev.stopPropagation(); ouvrir(b, "symbole"); });
     $("#outils").appendChild(b);
   }

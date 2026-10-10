@@ -71,11 +71,13 @@ const meta = (sur) => ({
      !h.includes("vignette.png") && h.includes("bib-sans"), h);
 }
 {
-  ok("bibLigne : badge chapitre",
-     bibLigne(meta({ chapter_id: "ch1" })).includes("⚓"));
-  ok("bibLigne : badge cartes",
-     bibLigne(meta({ deck_id: "deck_1" })).includes("🂠"));
-  ok("bibLigne : badge bibliothèque", bibLigne(meta({})).includes("◇"));
+  // G3 : les badges portent l'icône de la suite Deepotus Glyph (plus d'emoji ni de glyphe)
+  const ch = bibLigne(meta({ chapter_id: "ch1" })), ca = bibLigne(meta({ deck_id: "deck_1" })), bi = bibLigne(meta({}));
+  ok("bibLigne : badge chapitre", ch.includes("#dz-nav-chapitres") && ch.includes("chapitre") && !ch.includes("⚓"), ch);
+  ok("bibLigne : badge cartes", ca.includes("#dz-cat-cartes") && ca.includes("cartes") && !ca.includes("🂠"), ca);
+  ok("bibLigne : badge bibliothèque", bi.includes("#dz-nav-bibliotheque") && bi.includes("bibliothèque") && !bi.includes("◇"), bi);
+  const sv = bibLigne(meta({ vignette: false }));
+  ok("bibLigne sans vignette : l'icône dz-etat-sans-apercu, plus le glyphe ◧", sv.includes("#dz-etat-sans-apercu") && !sv.includes("◧"), sv);
 }
 
 /* ── bibVide : l'état vide nomme les filtres actifs ── */

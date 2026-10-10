@@ -4,7 +4,7 @@
 // « Configuration du document… » (taille, dpi, unité, fond — UNE commande)
 // et « Paramètres de l'appli… » (bulles, pas de grille, aimantation —
 // dz_vl_params, relus à l'ouverture). Traduit et délègue.
-import { icone_svg } from "./mod-icones.js";
+import { icone_svg, dzi } from "./mod-icones.js";
 import { libelle_selection, champs_de, appliquer_champ, params_lire, params_poser, params_serialiser } from "./mod-contexte.js";
 import { FORMES } from "./mod-formes.js";
 import { PROFILS } from "./mod-pinceauvec.js";
@@ -41,7 +41,7 @@ export function initBarreContexte(VL) {
       }
       prefixePrec = null;
       if (c.type === "bascule") return `<label class="cb-champ"><input type="checkbox" data-champ="${c.id}" ${c.valeur ? "checked" : ""}/>${esc(c.libelle)}</label>`;
-      if (c.type === "couleur") return `<label class="cb-champ cb-couleur"${c.titre ? ` title="${esc(c.titre)}"` : ""}><span>${esc(c.libelle)}</span><input type="color" data-champ="${c.id}" value="${c.valeur || "#000000"}"${c.valeur ? "" : ' class="vide"'}/><button type="button" class="cb-vider" data-vider="${c.id}" title="Transparent (la gomme)">∅</button></label>`;
+      if (c.type === "couleur") return `<label class="cb-champ cb-couleur"${c.titre ? ` title="${esc(c.titre)}"` : ""}><span>${esc(c.libelle)}</span><input type="color" data-champ="${c.id}" value="${c.valeur || "#000000"}"${c.valeur ? "" : ' class="vide"'}/><button type="button" class="cb-vider" data-vider="${c.id}" title="Transparent (la gomme)" aria-label="Transparent (la gomme)">${dzi("dz-edit-sans-couleur", 16)}</button></label>`;
       if (c.type === "select") return `<label class="cb-champ"><span>${esc(c.libelle)}</span><select data-champ="${c.id}">${c.options.map((o) => `<option value="${esc(o.id)}"${o.id === c.valeur ? " selected" : ""}>${esc(o.libelle)}</option>`).join("")}</select></label>`;
       return `<label class="cb-champ"><span>${esc(c.libelle)}</span><input type="number" data-champ="${c.id}" value="${c.valeur}" min="${c.min}" max="${c.max}" step="${c.pas}"/></label>`;
     }).join("");
@@ -79,7 +79,7 @@ export function initBarreContexte(VL) {
   function dialogue(id, titre, corps, onOk) {
     let dlg = $("#" + id);
     if (!dlg) { dlg = document.createElement("div"); dlg.id = id; dlg.className = "vl-dlg"; document.body.appendChild(dlg); }
-    dlg.innerHTML = `<div class="vl-dlg-boite cfg-boite"><div class="vl-dlg-tete"><b>${esc(titre)}</b><span class="spacer"></span><button data-x title="Fermer">✕</button></div><div class="cfg-corps">${corps}</div><div class="tr-pied"><button data-x>Annuler</button><button class="primaire" data-ok>OK</button></div></div>`;
+    dlg.innerHTML = `<div class="vl-dlg-boite cfg-boite"><div class="vl-dlg-tete"><b>${esc(titre)}</b><span class="spacer"></span><button data-x title="Fermer" aria-label="Fermer">${dzi("dz-action-fermer", 16)}</button></div><div class="cfg-corps">${corps}</div><div class="tr-pied"><button data-x>Annuler</button><button class="primaire" data-ok>OK</button></div></div>`;
     dlg.classList.remove("hidden");
     const fermer = () => dlg.classList.add("hidden");
     dlg.querySelectorAll("[data-x]").forEach((b) => b.addEventListener("click", fermer));

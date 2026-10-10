@@ -12,6 +12,7 @@ import { op_style, op_ordre, op_grouper, op_degrouper, op_degrade_creer,
   from "./mod-doc.js";
 import { op_booleen, op_division, op_contour } from "./mod-bool.js";
 import { POLICES } from "./mod-texte3d.js";
+import { dzi } from "./mod-icones.js";
 
 const POINTILLES = [["", "plein"], ["6 4", "tirets"], ["2 3", "points"]];
 const JOINTS = ["round", "miter", "bevel"];
@@ -118,9 +119,9 @@ export function initStyle(VL) {
                 data-hex="${fondCouleur}"
                 title="Couleur de fond — ouvre le nuancier (RGB, CMJN, hex, palettes)"></button>
         <button id="apFondAucun" class="${s.fond === "none" ? "actif" : ""}"
-                title="Sans fond">∅</button>
-        <button id="apGradL" title="Dégradé linéaire (sélection unique)">▤</button>
-        <button id="apGradR" title="Dégradé radial (sélection unique)">◉</button>
+                title="Sans fond" aria-label="Sans fond">${dzi("dz-edit-sans-couleur", 16)}</button>
+        <button id="apGradL" title="Dégradé linéaire (sélection unique)" aria-label="Dégradé linéaire">${dzi("dz-edit-degrade-lineaire", 16)}</button>
+        <button id="apGradR" title="Dégradé radial (sélection unique)" aria-label="Dégradé radial">${dzi("dz-edit-degrade-radial", 16)}</button>
       </div>
       <div class="ap-ligne"><span>Contour</span>
         <button class="nu-pastille" id="apContour"
@@ -129,7 +130,7 @@ export function initStyle(VL) {
                 title="Couleur de contour — ouvre le nuancier"></button>
         <button id="apContourAucun"
                 class="${!s.contour || s.contour === "none" ? "actif" : ""}"
-                title="Sans contour">∅</button>
+                title="Sans contour" aria-label="Sans contour">${dzi("dz-edit-sans-couleur", 16)}</button>
         <input type="number" id="apEpaisseur" min="0.5" max="200" step="0.5"
                value="${s.epaisseur ?? 2}" title="Épaisseur"/>
       </div>
@@ -148,8 +149,8 @@ export function initStyle(VL) {
       <div class="ap-ligne"><span>Incliner</span>
         <input type="number" id="apKx" step="1" value="0" title="Inclinaison horizontale skewX (°)"/>
         <input type="number" id="apKy" step="1" value="0" title="Inclinaison verticale skewY (°)"/>
-        <button id="apIncliner" ${sel ? "" : "disabled"} title="Incline la sélection autour du pivot (⌖ déplaçable sur la scène)">↗</button>
-        <button id="apPivotRaz" title="Ramène le pivot au centre de la sélection">⌖</button>
+        <button id="apIncliner" ${sel ? "" : "disabled"} title="Incline la sélection autour du pivot (⌖ déplaçable sur la scène)" aria-label="Incliner la sélection">${dzi("dz-edit-incliner", 16)}</button>
+        <button id="apPivotRaz" title="Ramène le pivot au centre de la sélection" aria-label="Ramène le pivot au centre de la sélection">${dzi("dz-edit-pivot", 16)}</button>
       </div>
       <div class="ap-ligne"><span>Puissance</span>
         <input type="number" id="apPn" min="1" max="200" value="3" title="Nombre de copies"/>
@@ -159,7 +160,7 @@ export function initStyle(VL) {
       <div class="ap-ligne"><span></span>
         <input type="number" id="apProt" step="1" value="0" title="Rotation par copie (°)"/>
         <input type="number" id="apPech" step="0.05" min="0.05" value="1" title="Échelle par copie"/>
-        <button id="apPuissance" ${sel ? "" : "disabled"} title="Duplication puissance : n copies qui répètent la transformation (nombre, décalage X · Y, rotation, échelle)">×n</button>
+        <button id="apPuissance" ${sel ? "" : "disabled"} title="Duplication puissance : n copies qui répètent la transformation (nombre, décalage X · Y, rotation, échelle)" aria-label="Duplication puissance">${dzi("dz-action-dupliquer", 16)}</button>
       </div>
       <div class="ap-ligne"><span>Attribut</span>
         ${["fond", "contour", "type"].map((k) => `<button data-attr="${k}" ${sel === 1 ? "" : "disabled"} title="Sélectionner tous les objets de même ${k}">${k}</button>`).join("")}
@@ -182,9 +183,9 @@ export function initStyle(VL) {
                   title="Couleur du stop — ouvre le nuancier"></button>
           <input type="number" data-stopt="${i}" min="0" max="100"
                  value="${Math.round(st.t * 100)}"/>%
-          <button data-stopx="${i}" title="Retirer ce stop">✕</button>
+          <button data-stopx="${i}" title="Retirer ce stop" aria-label="Retirer ce stop">${dzi("dz-action-supprimer", 16)}</button>
         </div>`).join("")}
-        <button id="apStopPlus" title="Ajouter un stop médian">＋ stop</button>
+        <button id="apStopPlus" title="Ajouter un stop médian">${dzi("dz-action-ajouter", 16)}stop</button>
       </div>` : ""}`;
 
     if (b) {
