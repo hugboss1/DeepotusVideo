@@ -1,0 +1,30 @@
+{
+  "titre": {
+    "fr": "Rendre la vidéo",
+    "en": "Render the video"
+  },
+  "legende": {
+    "fr": "Rendre… ouvre le panneau de rendu : preset de sortie, cadence, loudness, plage, file de rendus.",
+    "en": "Render… opens the render panel: output preset, frame rate, loudness, range, render queue."
+  },
+  "captures": [
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.4,
+      "bulle": {
+        "fr": "Choisissez le preset, puis rendez ou mettez en file",
+        "en": "Pick the preset, then render or queue"
+      }
+    }
+  ]
+}

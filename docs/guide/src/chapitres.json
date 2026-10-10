@@ -234,7 +234,8 @@
       "ecrans": [
         "Montage — Édition et timeline",
         "Montage — Interface, médias et projets"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "montage-finitions",
@@ -248,7 +249,8 @@
         "Montage — Couleur",
         "Montage — Audio",
         "Montage — Transitions, titres et propriétés de plan"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "montage-livrer",
@@ -260,7 +262,8 @@
       "anciens": [],
       "ecrans": [
         "Montage — Livraison"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "planificateur",
