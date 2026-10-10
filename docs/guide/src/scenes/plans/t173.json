@@ -1,0 +1,296 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "python scripts/guide/semer_atelier.py http://127.0.0.1:8809 (chapitre « Le phare de Brume-Noire », 3 plans, Mara + le phare) ; python scripts/guide/semer_sons.py (2 sons importés)",
+ "scenes": [
+  {
+   "scene": "chapitres/modes",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Deux façons de travailler",
+    "en": "Two ways of working"
+   },
+   "legende": {
+    "fr": "Chapitres propose le flux d'origine (Épisodes) ou l'Atelier Chapitre complet.",
+    "en": "Chapters offers the original flow (Episodes) or the full Chapter Workshop."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Chapitres",
+      "en": "texte:Chapters"
+     },
+     "apres": 1800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "modes"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Ouvrir le flux d'origine",
+      "en": "contient:Open the original flow"
+     },
+     "bulle": {
+      "fr": "Le flux d'origine : du texte à l'épisode narré",
+      "en": "The original flow: from text to narrated episode"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Entrer dans l'Atelier",
+      "en": "contient:Enter the Workshop"
+     },
+     "bulle": {
+      "fr": "L'Atelier : manuscrit, bible, storyboard",
+      "en": "The Workshop: manuscript, bible, storyboard"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "chapitres/episodes",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Les quatre étapes d'un épisode",
+    "en": "The four steps of an episode"
+   },
+   "legende": {
+    "fr": "Épisodes : script et voix, scènes, illustrations, assemblage.",
+    "en": "Episodes: script and voice, scenes, illustrations, assembly."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Chapitres",
+      "en": "texte:Chapters"
+     },
+     "apres": 1800
+    },
+    {
+     "clic": {
+      "fr": "contient:Ouvrir le flux d'origine",
+      "en": "contient:Open the original flow"
+     },
+     "apres": 2000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "etape1"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:1 · Script & voix",
+      "en": "texte:1 · Script & voice"
+     },
+     "bulle": {
+      "fr": "Quatre étapes, de gauche à droite",
+      "en": "Four steps, left to right"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Importer .txt / .docx / .pdf",
+      "en": "texte:Upload .txt / .docx / .pdf"
+     },
+     "bulle": {
+      "fr": "Collez le texte ou importez un fichier",
+      "en": "Paste the text or upload a file"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "curseur": {
+      "fr": "texte:Générer la narration",
+      "en": "texte:Generate narration"
+     },
+     "bulle": {
+      "fr": "La voix lit tout le chapitre",
+      "en": "The voice reads the whole chapter"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "chapitres/atelier",
+   "url": "/atelier/",
+   "titre": {
+    "fr": "L'Atelier Chapitre",
+    "en": "The Chapter Workshop"
+   },
+   "legende": {
+    "fr": "Le texte du chapitre au centre, la bible à droite ; Script, Scénario et Storyboard en haut.",
+    "en": "The chapter text in the centre, the bible on the right; Script, Screenplay and Storyboard at the top."
+   },
+   "captures": [
+    {
+     "nom": "script",
+     "etapes": [
+      {
+       "attente": 1500
+      }
+     ]
+    },
+    {
+     "nom": "storyboard",
+     "etapes": [
+      {
+       "clic": "texte:Storyboard",
+       "apres": 2000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "texte:Script",
+     "bulle": {
+      "fr": "Trois modes : script, scénario, storyboard",
+      "en": "Three modes: script, screenplay, storyboard"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "contient:BIBLE",
+     "bulle": {
+      "fr": "La bible : personnages, lieux, objets…",
+      "en": "The bible: characters, places, objects…"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "texte:Animatique",
+     "bulle": {
+      "fr": "Le storyboard, puis l'animatique gratuite",
+      "en": "The storyboard, then the free animatic"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/audio",
+   "clip": "css:main",
+   "titre": {
+    "fr": "L'écran Son & VFX",
+    "en": "The Sound & VFX screen"
+   },
+   "legende": {
+    "fr": "Les générateurs en haut ; voix off dirigée, effets sonores et post-traitement dessous.",
+    "en": "The generators at the top; directed voiceover, sound effects and post-processing below."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "audio"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:GÉNÉRATEURS",
+      "en": "contient:GENERATORS"
+     },
+     "bulle": {
+      "fr": "Musique, bruitages, voix, particules, post : le prix est dit",
+      "en": "Music, effects, voice, particles, post: the price is shown"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:VOIX OFF DIRIGÉE",
+      "en": "contient:DIRECTED VOICE-OVER"
+     },
+     "bulle": {
+      "fr": "Diriger le jeu de la voix",
+      "en": "Direct the voice's acting"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/tiroir",
+   "titre": {
+    "fr": "Le tiroir Sons",
+    "en": "The Sounds drawer"
+   },
+   "legende": {
+    "fr": "Bibliothèque, puce Audio : le tiroir Sons, avec sa recherche, ses filtres et ses actions.",
+    "en": "Library, Audio chip: the Sounds drawer, with its search, filters and actions."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Bibliothèque",
+      "en": "texte:Library"
+     },
+     "apres": 2000
+    },
+    {
+     "js": "[...document.querySelectorAll('button,[role=tab]')].find(b=>(b.innerText||'').trim().split(/\\s+/)[0]==='Audio').click()",
+     "attente": 2000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "tiroir"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Tous",
+      "en": "texte:All"
+     },
+     "bulle": {
+      "fr": "Tous les sons, puis par sorte : SFX, voix, musique",
+      "en": "All sounds, then by kind: SFX, voice, music"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "texte:nappe-phare.wav",
+      "en": "texte:nappe-phare.wav"
+     },
+     "bulle": {
+      "fr": "Chaque son : écouter, taguer, améliorer, séparer",
+      "en": "Each sound: listen, tag, enhance, split"
+     }
+    }
+   ]
+  }
+ ]
+}

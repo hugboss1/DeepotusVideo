@@ -1,0 +1,50 @@
+{
+  "titre": {
+    "fr": "Deux façons de travailler",
+    "en": "Two ways of working"
+  },
+  "legende": {
+    "fr": "Chapitres propose le flux d'origine (Épisodes) ou l'Atelier Chapitre complet.",
+    "en": "Chapters offers the original flow (Episodes) or the full Chapter Workshop."
+  },
+  "captures": [
+    {
+      "fr": "modes.fr.webp",
+      "en": "modes.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        43,
+        249,
+        370,
+        28
+      ],
+      "bulle": {
+        "fr": "Le flux d'origine : du texte à l'épisode narré",
+        "en": "The original flow: from text to narrated episode"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        467,
+        249,
+        370,
+        28
+      ],
+      "bulle": {
+        "fr": "L'Atelier : manuscrit, bible, storyboard",
+        "en": "The Workshop: manuscript, bible, storyboard"
+      }
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "titre": {
+    "fr": "Les quatre étapes d'un épisode",
+    "en": "The four steps of an episode"
+  },
+  "legende": {
+    "fr": "Épisodes : script et voix, scènes, illustrations, assemblage.",
+    "en": "Episodes: script and voice, scenes, illustrations, assembly."
+  },
+  "captures": [
+    {
+      "fr": "etape1.fr.webp",
+      "en": "etape1.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        188,
+        236,
+        115,
+        40
+      ],
+      "bulle": {
+        "fr": "Quatre étapes, de gauche à droite",
+        "en": "Four steps, left to right"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        202,
+        635,
+        189,
+        38
+      ],
+      "bulle": {
+        "fr": "Collez le texte ou importez un fichier",
+        "en": "Paste the text or upload a file"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "curseur": [
+        282,
+        796
+      ],
+      "bulle": {
+        "fr": "La voix lit tout le chapitre",
+        "en": "The voice reads the whole chapter"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        188,
+        236,
+        121,
+        40
+      ],
+      "bulle": {
+        "fr": "Quatre étapes, de gauche à droite",
+        "en": "Four steps, left to right"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        202,
+        635,
+        179,
+        38
+      ],
+      "bulle": {
+        "fr": "Collez le texte ou importez un fichier",
+        "en": "Paste the text or upload a file"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "curseur": [
+        279,
+        796
+      ],
+      "bulle": {
+        "fr": "La voix lit tout le chapitre",
+        "en": "The voice reads the whole chapter"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

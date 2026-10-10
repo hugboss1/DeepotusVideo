@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Le tiroir Sons",
+    "en": "The Sounds drawer"
+  },
+  "legende": {
+    "fr": "Bibliothèque, puce Audio : le tiroir Sons, avec sa recherche, ses filtres et ses actions.",
+    "en": "Library, Audio chip: the Sounds drawer, with its search, filters and actions."
+  },
+  "captures": [
+    {
+      "fr": "tiroir.fr.webp",
+      "en": "tiroir.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1392,
+        275,
+        48,
+        39
+      ],
+      "bulle": {
+        "fr": "Tous les sons, puis par sorte : SFX, voix, musique",
+        "en": "All sounds, then by kind: SFX, voice, music"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        298,
+        420,
+        1142,
+        27
+      ],
+      "bulle": {
+        "fr": "Chaque son : écouter, taguer, améliorer, séparer",
+        "en": "Each sound: listen, tag, enhance, split"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1330,
+        275,
+        39,
+        39
+      ],
+      "bulle": {
+        "fr": "Tous les sons, puis par sorte : SFX, voix, musique",
+        "en": "All sounds, then by kind: SFX, voice, music"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        298,
+        420,
+        1064,
+        27
+      ],
+      "bulle": {
+        "fr": "Chaque son : écouter, taguer, améliorer, séparer",
+        "en": "Each sound: listen, tag, enhance, split"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

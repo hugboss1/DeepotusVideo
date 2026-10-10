@@ -1,20 +1,40 @@
-<p>You have a story to tell — a chapter, a lore drop, a serialised novel. The <strong>Episodes</strong> page turns a block of text into a <strong>narrated, illustrated vertical video</strong>, scene by scene, ready for the Scheduler. Open it from the sidebar (<strong>Episodes</strong>). A clickable stepper walks you through four steps.</p>
+<p class="chapeau-chap">You will turn a text, a chapter or a novel into a narrated, illustrated video, scene by scene, and prepare its storyboard before paying for any render. Free up to narration and pictures; their cost is shown beforehand.</p>
 
-<h3>Step 1 — the chapter &amp; its narration</h3>
-<div class="step"><span class="n">1</span><div>Give the episode a <strong>title</strong>, then <strong>paste your text</strong> or <em>Upload</em> a <code>.txt</code>, <code>.docx</code> or <code>.pdf</code> — the text is extracted for you.</div></div>
-<div class="step"><span class="n">2</span><div>Pick a <strong>voice</strong> and a <strong>language</strong> (preview a voice with ▶).</div></div>
-<div class="step"><span class="n">3</span><div><em>Generate narration</em> → the whole chapter is read by ElevenLabs and saved to the audio Library. Long chapters are split and stitched back together automatically.</div></div>
+<h3>Two ways of working</h3>
+<figure class="scene" data-scene="chapitres/modes"></figure>
+<p>Open <b class="ui">Chapters</b> in the rail. The <strong>original flow</strong> (Episodes) goes straight from text to narrated video in four steps. The <strong>Chapter Workshop</strong> is the full space: manuscript, bible of characters and places, screenplay, storyboard, animatic.</p>
 
-<h3>Step 2 — the storyboard (scenes)</h3>
-<p>A video needs shots. The app cuts your chapter into <strong>scenes</strong>, each one a bit of text + its own illustration.</p>
-<div class="step"><span class="n">1</span><div>Choose the split: <strong>By paragraph</strong> (verbatim, instant) or <strong>By AI</strong> (the AI groups the text into visual beats and writes a rich illustration prompt for each). You can <strong>generate both and compare</strong> before locking one in.</div></div>
-<div class="step"><span class="n">2</span><div><strong>Edit freely:</strong> tweak each scene's text and its illustration prompt, reorder them (↑ ↓), add or remove scenes (＋ / ✕).</div></div>
+<h3>An episode in four steps</h3>
+<figure class="scene" data-scene="chapitres/episodes"></figure>
+<ol class="etapes">
+<li><strong>Script and voice</strong>: give a title, paste the text or upload a .txt, .docx or .pdf. Pick the voice and language, then <b class="ui">Generate narration</b>: the whole chapter is read and stored in the audio Library.</li>
+<li><strong>Scenes</strong>: split the text by paragraph (word for word) or by AI (into visual beats, with an illustration prompt). Edit, reorder, add or remove scenes.</li>
+<li><strong>Illustrations</strong>: one picture per scene, with the model of your choice. For each scene, pick the animation: slow camera move (Ken Burns), real Seedance clip or still picture.</li>
+<li><strong>Assembly and export</strong>: a quote gives the price of the Seedance scenes, then the episode is cut on its narration. If a Seedance scene fails, it falls back to a camera move and you are told.</li>
+</ol>
+<p>At the top, <b class="ui">New</b>, <b class="ui">Open</b> and <b class="ui">Save</b> manage your episodes; a dot marks what is not saved. <b class="ui">Narrate scenes</b> never pays again for a scene already narrated with the same text, voice and language.</p>
 
-<h3>Step 3 — illustrations &amp; motion</h3>
-<div class="step"><span class="n">1</span><div><em>Generate all illustrations</em> (or one at a time): one image per scene, with your chosen image model (FLUX or GPT Image).</div></div>
-<div class="step"><span class="n">2</span><div>Per scene, pick the <strong>motion</strong>: <strong>Ken Burns</strong> (a slow cinematic zoom/pan, default), <strong>Seedance</strong> (a true animated clip) or <strong>Still</strong> (a fixed image).</div></div>
+<h3>The Chapter Workshop</h3>
+<figure class="scene" data-scene="chapitres/atelier"></figure>
+<p>The Workshop is not translated yet: its buttons below are quoted as they appear, in French.</p>
+<ol class="etapes">
+<li><strong>Script</strong>: write or import the chapter text; <b class="ui">Manuscrit</b> imports a whole novel, split into chapters, and fills the bible. Recognised names are highlighted.</li>
+<li><strong>Bible</strong>, on the right: characters, places, objects, dates, moods, sets. Each entry has its description, its picture sheet and, for a character, its voice and temperament.</li>
+<li><strong>Screenplay</strong>: <b class="ui">Adapter (IA)</b> (adapt with AI) rewrites the chapter as a screenplay without touching the manuscript; <b class="ui">Voice-over</b> has each scene read by its character's voice.</li>
+<li><strong>Storyboard</strong>: <b class="ui">Découper (IA)</b> (split with AI) or <b class="ui">Paragraphes</b> (paragraphs) creates the shots, with their framing, camera, duration and the entities in them.</li>
+<li><b class="ui">Animatique</b> (animatic) cuts the shots into a rehearsal video, silent and free, to watch before paying for a render. It then goes into a new Edit project, as a full film or a 30 s reel.</li>
+</ol>
 
-<h3>Step 4 — assemble &amp; send</h3>
-<div class="step"><span class="n">1</span><div><em>Assemble the episode</em>: each scene's illustration is animated over its slice of narration, then all scenes are concatenated into one vertical video — follow it in the Job Dock.</div></div>
-<div class="step"><span class="n">2</span><div>Preview the result, then <em>Send to Scheduler</em> → a draft post on <strong>YouTube</strong> and <strong>Instagram</strong>, ready to caption and schedule.</div></div>
-<div class="tip">Serialising a novel? Keep the same persona and voice across the series for consistency, then publish one episode per day from the Scheduler.</div>
+<h3>Go further</h3>
+<div class="cartes">
+<article><i data-dz="dz-nav-versions"></i><h4>Versions</h4><p>Every time the text is overwritten, a copy is kept (ten at most): compare, restore, copy.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>Exports</h4><p>The manuscript as .docx or PDF, the screenplay in industry format, the storyboard as a PDF with four shots per page.</p></article>
+<article><i data-dz="dz-action-importer"></i><h4>Import a screenplay</h4><p>A Fountain or Final Draft file replaces the scenes (the old screenplay is kept) or is added after them.</p></article>
+<article><i data-dz="dz-media-generer-image"></i><h4>Production picture</h4><p>A shot's picture is generated with the characters' views as references; the cost is stated and confirmed.</p></article>
+<article><i data-dz="dz-media-apparitions"></i><h4>Appearances</h4><p>A bible entry lists its mentions, shots and scenes; one click opens the shot in the storyboard.</p></article>
+<article><i data-dz="dz-nav-episodes"></i><h4>To an episode</h4><p><b class="ui">Épisode</b> (episode) creates a narrated episode (one shot, one scene) without paying anything; narration and render then start in Episodes.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Rewriting a selection in the bible's tone, generating a production picture or adding the animatic's guide voice is paid: the cost is always stated and confirmed first.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>A chapter taken to your phone is read-only on the PC, with a banner; see <a href="#mobile">Drive it from your phone</a>.</p></aside>
