@@ -49,7 +49,8 @@
       "anciens": [],
       "ecrans": [
         "Application (coque, comportements transversaux)"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "installer",
@@ -63,7 +64,8 @@
       ],
       "ecrans": [
         "Traduction FR/EN de l'interface"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "cles",
@@ -75,7 +77,8 @@
       "anciens": [
         "c11"
       ],
-      "ecrans": []
+      "ecrans": [],
+      "etat": "migre"
     },
     {
       "id": "budget",
@@ -100,7 +103,8 @@
       ],
       "ecrans": [
         "Réglages (Settings)"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "transfert",
@@ -112,7 +116,8 @@
       "anciens": [
         "c16"
       ],
-      "ecrans": []
+      "ecrans": [],
+      "etat": "migre"
     },
     {
       "id": "mobile",
@@ -142,7 +147,8 @@
       ],
       "ecrans": [
         "Quick"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "studio",
@@ -157,7 +163,8 @@
       ],
       "ecrans": [
         "Studio (éditeur de nœuds)"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "modeles",
@@ -171,7 +178,8 @@
       ],
       "ecrans": [
         "Templates (Modèles)"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "chapitres",
@@ -186,7 +194,8 @@
       "ecrans": [
         "Épisodes (Chapitres)",
         "Atelier / Chapitres (manuscrit, storyboard, bible)"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "son-vfx",
@@ -262,7 +271,8 @@
       ],
       "ecrans": [
         "Scheduler (planificateur de publications)"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "comptes",
@@ -274,7 +284,8 @@
       "anciens": [
         "c12"
       ],
-      "ecrans": []
+      "ecrans": [],
+      "etat": "migre"
     },
     {
       "id": "news",
@@ -372,7 +383,8 @@
       ],
       "ecrans": [
         "Game Assets — onglet Assets 2D et palettes partagées"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "spritelab",
@@ -410,7 +422,8 @@
       ],
       "ecrans": [
         "Card Forge (éditeur de cartes à jouer)"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "forge3d",
@@ -424,7 +437,8 @@
       ],
       "ecrans": [
         "3D Studio / Moteurs 3D"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "matieres",
@@ -450,7 +464,8 @@
       ],
       "ecrans": [
         "Établi (atelier 3D avant impression)"
-      ]
+      ],
+      "etat": "migre"
     },
     {
       "id": "impression3d",
@@ -462,7 +477,8 @@
       "anciens": [
         "c20"
       ],
-      "ecrans": []
+      "ecrans": [],
+      "etat": "migre"
     },
     {
       "id": "plateau",
@@ -484,7 +500,8 @@
       "fr": "Parcours complets, de l'idée au post",
       "en": "End-to-end recipes, from idea to post",
       "anciens": [],
-      "ecrans": []
+      "ecrans": [],
+      "etat": "migre"
     },
     {
       "id": "icones",
@@ -519,7 +536,8 @@
       "anciens": [
         "c14"
       ],
-      "ecrans": []
+      "ecrans": [],
+      "etat": "migre"
     }
   ]
 }

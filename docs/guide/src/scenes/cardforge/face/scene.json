@@ -1,0 +1,15 @@
+{
+  "titre": {"fr": "Le module Face du Card Forge", "en": "The Card Forge Face module"},
+  "legende": {"fr": "Le module Face : format et définition en haut, catalogue de 108 illustrations, jauge de définition effective.",
+              "en": "The Face module: format and resolution at the top, a 108-illustration catalog, the effective-resolution gauge."},
+  "captures": ["face.png"],
+  "taille": [1500, 950],
+  "temps": [
+    {"capture": 0, "duree": 2.6, "surligne": [8, 50, 676, 52], "voile": true,
+     "bulle": {"fr": "Choisissez le format et la définition : ils valent pour tout le jeu", "en": "Pick the format and resolution: they apply to the whole deck"}, "ancre": [220, 104]},
+    {"capture": 0, "duree": 2.4, "curseur": [736, 360], "clic": true, "surligne": [588, 346, 298, 27],
+     "bulle": {"fr": "Le catalogue propose 108 illustrations prêtes", "en": "The catalog offers 108 ready-made illustrations"}, "ancre": [736, 380]},
+    {"capture": 0, "duree": 3.0, "surligne": [588, 162, 895, 171], "voile": true,
+     "bulle": {"fr": "La jauge dit si l'image est assez fine pour l'impression", "en": "The gauge tells you if the picture is sharp enough to print"}, "ancre": [1000, 335]}
+  ]
+}

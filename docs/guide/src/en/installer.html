@@ -1,0 +1,33 @@
+<p>Double-click the <strong>Deepotus Video Gen</strong> icon on the Desktop. The app starts silently (no black window), then your browser opens on the studio. On first launch a 5-step wizard guides you: persona, providers, channels. Replay it anytime (command palette <span class="k">⌘K</span> → "Replay onboarding").</p>
+<img class="shot" src="img/onboarding.png" alt="First-run wizard">
+<p class="cap">The first-run wizard. The "Generators" step lists your providers, including the <strong>Ollama (local LLM)</strong> option.</p>
+<div class="step"><span class="n">1</span><div>The app is <strong>BYO keys</strong>: you use your own API accounts. Only one is <strong>required</strong> to start — <strong>fal.ai</strong> (it makes both images <em>and</em> video clips). Create it at <code>fal.ai/dashboard/keys</code>.</div></div>
+<div class="step"><span class="n">2</span><div>Paste your keys in <strong>Settings → API keys</strong>, hit <em>Save</em>, then restart the app. The pills top-right (<code>fal</code> / <code>heygen</code> / <code>voice</code>) turn <strong>green</strong> when a key is active.</div></div>
+<img class="shot" src="img/settings-keys.png" alt="Settings - API keys">
+<p class="cap">Settings → API keys: each key has a field, a status and a Save button. At the bottom, the <strong>Local LLM (Ollama)</strong> card (chapter 11).</p>
+<h3>How much does it cost? (ballpark)</h3>
+<table>
+  <tr><th>Action</th><th>Service</th><th>Indicative cost</th></tr>
+  <tr><td>Create an image</td><td>fal.ai (FLUX)</td><td>≈ $0.003</td></tr>
+  <tr><td>10 s cinematic clip</td><td>fal.ai (Seedance)</td><td>≈ $0.30–0.60</td></tr>
+  <tr><td>1 min talking avatar</td><td>HeyGen</td><td>≈ 6 credits</td></tr>
+  <tr><td>Voiceover / narration</td><td>ElevenLabs</td><td>≈ per characters · free tier available</td></tr>
+  <tr><td>Upload your own video / sound</td><td>—</td><td>free</td></tr>
+  <tr><td>News summary / marketing plan</td><td>Anthropic / OpenAI / Gemini / Ollama</td><td>≈ $0.01 / free (Ollama)</td></tr>
+  <tr><td>Publish to Telegram / X</td><td>—</td><td>free / your X credits</td></tr>
+</table>
+
+<h3>Which key unlocks what?</h3>
+<table>
+  <tr><th>API key</th><th>Required?</th><th>What it unlocks</th></tr>
+  <tr><td><strong>fal.ai</strong></td><td><strong>Required</strong></td><td>Images (FLUX) <em>and</em> video clips (Seedance) — the only key you need to start.</td></tr>
+  <tr><td><strong>HeyGen</strong></td><td>Optional</td><td>Talking avatars (video type ②) and avatar + clip compositions.</td></tr>
+  <tr><td><strong>ElevenLabs</strong></td><td>Optional</td><td>Voiceover / narration — for your UGC videos <strong>and the Episodes feature</strong> (chapter 7), saved straight to the audio Library.</td></tr>
+  <tr><td><strong>Anthropic, OpenAI or Gemini</strong><br>(any one is enough)</td><td>Optional</td><td>News summaries, marketing plans <strong>and genuinely AI-written scripts</strong> (News, Studio &amp; Episode storyboards). Without a key: deterministic brand-template version.</td></tr>
+  <tr><td><strong>Ollama</strong> (local LLM)</td><td>Optional</td><td>Same AI uses as above, <strong>100% local and free</strong> (chapter 11).</td></tr>
+  <tr><td><strong>X</strong> (4 keys)</td><td>Optional</td><td>Auto-publishing to X/Twitter (chapter 12).</td></tr>
+  <tr><td><strong>Telegram</strong> (bot token)</td><td>Optional</td><td>Auto-publishing to a Telegram channel.</td></tr>
+</table>
+<p class="cap">Tip: start with <strong>fal.ai</strong> alone, then add keys as you explore avatars, voiceover, AI and publishing.</p>
+
+<div class="warn">Costs are billed by your providers, not the app. Watch your credits on their dashboards. Your keys, files and database stay <strong>on your machine</strong> (<code>%LOCALAPPDATA%\DeepotusVideoGenData</code>) — they survive updates and reinstalls.</div>
