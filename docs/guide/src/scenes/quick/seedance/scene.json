@@ -1,0 +1,118 @@
+{
+  "titre": {
+    "fr": "Un clip animé avec Quick",
+    "en": "An animated clip with Quick"
+  },
+  "legende": {
+    "fr": "Quick, onglet Seedance : l'image de départ, les paramètres, le coût estimé, puis Générer.",
+    "en": "Quick, Seedance tab: the start image, the parameters, the estimated cost, then Generate."
+  },
+  "captures": [
+    {
+      "fr": "source.fr.webp",
+      "en": "source.en.webp"
+    },
+    {
+      "fr": "parametres.fr.webp",
+      "en": "parametres.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        342,
+        343,
+        28
+      ],
+      "bulle": {
+        "fr": "Glissez l'image à animer",
+        "en": "Drop the picture to animate"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        495,
+        343,
+        28
+      ],
+      "bulle": {
+        "fr": "Modèle, durée et format",
+        "en": "Model, duration and format"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        8,
+        814,
+        74,
+        29
+      ],
+      "voile": true,
+      "bulle": {
+        "fr": "Le coût s'affiche avant de cliquer",
+        "en": "The cost is shown before you click"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        342,
+        343,
+        28
+      ],
+      "bulle": {
+        "fr": "Glissez l'image à animer",
+        "en": "Drop the picture to animate"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        495,
+        343,
+        28
+      ],
+      "bulle": {
+        "fr": "Modèle, durée et format",
+        "en": "Model, duration and format"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        8,
+        814,
+        56,
+        29
+      ],
+      "voile": true,
+      "bulle": {
+        "fr": "Le coût s'affiche avant de cliquer",
+        "en": "The cost is shown before you click"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

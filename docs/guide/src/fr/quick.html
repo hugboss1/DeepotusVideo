@@ -1,65 +1,50 @@
-<h3 id="c2">Créer vos premières images</h3>
-<p>Onglet <strong>Library</strong> : votre bibliothèque d'images, de rendus vidéo, de sons et de captions. C'est ici que tout atterrit.</p>
-<img class="shot" src="img/library.png" alt="Library">
-<p class="cap">Library : créer une image (FLUX), le <strong>gestionnaire de prompt</strong>, <strong>Upload image</strong> et <strong>Upload video</strong> (votre propre clip). Survolez un rendu pour le lire.</p>
-<div class="step"><span class="n">1</span><div>Champ <em>« Describe an image to create »</em> → décrivez en une phrase, Entrée. L'image FLUX (~3 s) atterrit directement dans la bibliothèque.</div></div>
-<div class="step"><span class="n">2</span><div>À court d'inspiration ? Cliquez <strong>Prompt manager</strong> : choisissez des ingrédients (sujet, ambiance, lumière, mouvement…), « Random », ou « Refine with AI », puis <em>Use this prompt</em> — il <strong>remplace</strong> le champ pour un résultat plus personnel.</div></div>
-<div class="step"><span class="n">3</span><div>Vous avez déjà des visuels ? <strong>Upload image</strong> (ou glissez-déposez n'importe où). Pour vos vidéos, voir le chapitre 5 ; pour vos sons, le chapitre 6.</div></div>
-<div class="tip">Exemples de prompts : « mascotte pieuvre rouge néon, fond abyssal, style cinéma » · « graphique de marché stylisé, ambiance bioluminescente » · « trône sous-marin, rayons de lumière, 9:16 ».</div>
+<p class="chapeau-chap">Vous saurez sortir une vidéo verticale en quelques minutes : un clip animé à partir d'une image, un avatar qui dit votre texte, les deux ensemble, ou une voix off. Payant selon le fournisseur ; le coût s'affiche avant de cliquer.</p>
 
-<h3 id="c3">Vidéo type ① — le clip cinématique (Seedance)</h3>
-<p>Onglet <strong>Quick</strong>, mode <strong>Seedance</strong> : une image + un prompt = un clip cinématique vertical.</p>
-<img class="shot" src="img/quick-seedance.png" alt="Quick - Seedance">
-<p class="cap">Quick / Seedance : sources à gauche, aperçu au format réel à droite, coût estimé avant de lancer.</p>
-<div class="step"><span class="n">1</span><div>Choisissez l'image de départ. Optionnel : une image de fin pour une transition.</div></div>
-<div class="step"><span class="n">2</span><div>Écrivez le prompt de mouvement, prenez un <em>template</em>, ou ouvrez le <strong>générateur de prompt</strong> (il écrase le prompt par défaut). Réglez style, durée (5–60 s), format (9:16 par défaut).</div></div>
-<div class="step"><span class="n">3</span><div><em>Generate</em> → suivez la progression dans le <strong>Job Dock</strong> (bandeau du bas). 30–45 s plus tard, le rendu est dans Library.</div></div>
-<div class="tip"><strong>Renommer un rendu :</strong> dans le Job Dock, cliquez le crayon ✏️ à côté du nom (ou lisez-le d'abord en cliquant ▶). Le nouveau nom se reflète aussitôt dans la Library et les sélecteurs.</div>
+<h3>Avant de commencer</h3>
+<p>Quick a quatre onglets : <b class="ui">Seedance</b> (clip animé), <b class="ui">HeyGen</b> (avatar qui parle), <b class="ui">Composition</b> (avatar et clip ensemble) et <b class="ui">Voix off</b>. Un onglet reste grisé tant que la clé de son fournisseur manque : fal.ai pour Seedance, HeyGen pour l'avatar (chapitre <a href="#cles">Brancher ses clés</a>). La voix off peut aussi tourner gratuitement sur votre PC avec Voicebox.</p>
 
-<h3 id="c4">Vidéo type ② — l'avatar parlant (HeyGen)</h3>
-<p>Toujours dans <strong>Quick</strong>, mode <strong>HeyGen</strong> : un script lu par un avatar.</p>
-<img class="shot" src="img/quick-heygen.png" alt="Quick - HeyGen">
-<p class="cap">Quick / HeyGen : sélection avatar + voix, upload de votre photo pour un avatar perso, script.</p>
-<div class="step"><span class="n">1</span><div>Choisissez un avatar et une voix dans les listes (champ de recherche disponible).</div></div>
-<div class="step"><span class="n">2</span><div><strong>Créez votre propre avatar :</strong> bouton <em>Upload photo</em> → votre photo (PNG/JPG) devient un avatar parlant en ~30 s, sélectionné automatiquement.</div></div>
-<div class="step"><span class="n">3</span><div>Écrivez le script (jusqu'à 4 900 caractères), <em>Generate</em>. Comptez 1 à 3 minutes.</div></div>
+<h3>Animer une image en clip</h3>
+<figure class="scene" data-scene="quick/seedance"></figure>
+<ol class="etapes">
+<li>Ouvrez <b class="ui">Quick</b>, onglet <b class="ui">Seedance</b>.</li>
+<li>Choisissez l'<strong>image de départ</strong> : glissez-la sur la zone ou cliquez <b class="ui">Parcourir les vignettes…</b> pour la prendre dans la Bibliothèque. Une <strong>image de fin</strong> est facultative ; si le modèle choisi n'en accepte pas, le champ le dit et nomme les modèles qui l'acceptent.</li>
+<li>Écrivez ce qui doit bouger, ou partez d'un <strong>gabarit de prompt</strong>, ou cliquez <b class="ui">Ouvrir le générateur de prompts</b>.</li>
+<li>Dans <strong>Paramètres</strong>, réglez le modèle, la durée et le format (9:16 par défaut).</li>
+<li>Lisez le <strong>coût estimé</strong>, puis cliquez le bouton <strong>Générer</strong>. Le rendu passe par la file de rendus, en haut à droite, et arrive dans la Bibliothèque.</li>
+</ol>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Avec le modèle par défaut, Seedance 2.5 en 720p, une seconde coûte environ <span class="prix">0,47 $</span> : un clip de 10 s revient à environ <span class="prix">4,73 $</span>. Une durée plus courte ou un autre modèle coûte moins ; le coût estimé se met à jour à chaque réglage.</p></aside>
 
-<h4>⏱ Le premier chargement des avatars — pourquoi il prend ~1 minute</h4>
-<p>HeyGen met à votre disposition un <strong>très grand catalogue</strong> — souvent <strong>plus de 1 000 avatars</strong> et 2 000 voix. La toute première fois que l'application demande cette liste, le serveur de HeyGen peut prendre <strong>jusqu'à une minute</strong> pour répondre. <strong>C'est une lenteur du service HeyGen lui-même</strong>, pas un bug de l'application, pas un problème de clé, et pas un souci de réseau ou d'antivirus.</p>
-<p>Pour que vous n'ayez pas à attendre, l'application <strong>précharge la liste en arrière-plan dès le démarrage</strong> : le temps que vous arriviez sur l'onglet HeyGen, les avatars sont en général <strong>déjà là</strong>. Une fois récupérée, la liste est <strong>mise en cache</strong> — toutes les ouvertures suivantes sont <strong>instantanées</strong>.</p>
-<img class="shot" src="img/heygen-avatars.png" alt="Quick / HeyGen — liste d'avatars chargée + chronologie du chargement">
-<p class="cap">À gauche : l'onglet HeyGen une fois chargé (1 281 avatars, champ de recherche, sélecteurs avatar &amp; voix). À droite : pourquoi le premier chargement prend ~1 min — préchargé au démarrage, puis instantané.</p>
-<div class="tip"><strong>Si vous ouvrez l'onglet juste après le lancement :</strong> la liste peut afficher « chargement… » pendant un court instant (jusqu'à ~1 min, <strong>une seule fois</strong>). Laissez-la se remplir, puis tout devient immédiat — y compris après avoir créé votre propre avatar (la liste se rafraîchit toute seule). Le <strong>statut HeyGen</strong> en haut à droite et dans Settings reste, lui, <strong>toujours instantané</strong> : il vérifie votre clé et vos crédits sans charger le catalogue entier.</div>
+<h3>Diriger la caméra</h3>
+<figure class="scene" data-scene="quick/camera"></figure>
+<ol class="etapes">
+<li>Dépliez <strong>Caméra (curseurs)</strong> : six curseurs (avancer, tourner, monter…) deviennent une phrase adaptée au modèle, ajoutée au prompt. Elle s'affiche avant le rendu.</li>
+<li>Pour choisir à l'œil, cliquez <b class="ui">Galerie</b> : onze mouvements de caméra en trois styles, en petites animations calculées sur votre PC. C'est un aide-mémoire, pas une promesse de ce que fera le modèle.</li>
+</ol>
 
-<p>Le mode <strong>Composition</strong> combine les deux : clip Seedance + avatar HeyGen dans une seule vidéo (séquentiel ou écran partagé). L'<strong>anti-coupure</strong> est automatique : l'avatar finit toujours sa phrase.</p>
+<h3>Faire parler un avatar</h3>
+<ol class="etapes">
+<li>Onglet <b class="ui">HeyGen</b> : choisissez un avatar et sa voix. Les listes s'affichent tout de suite, depuis une copie gardée sur votre PC et rafraîchie en fond.</li>
+<li>Pour un avatar à votre image, importez une photo : elle devient un avatar qui parle, choisi automatiquement.</li>
+<li>Écrivez le script, puis générez. Les pauses de votre texte sont respectées.</li>
+</ol>
+<p>Les vidéos passent par HeyGen et son moteur Avatar III, choisi selon l'avatar. Le solde HeyGen s'affiche en dollars. Comptez environ <span class="prix">0,24 $</span> la minute aux tarifs par défaut.</p>
 
-<h3 id="c5">Vidéo type ③ — votre propre vidéo (UGC)</h3>
-<p>Beaucoup de créateurs se filment au téléphone — un selfie, une réaction, un déballage. Deepotus accueille ces clips bruts (<strong>UGC</strong>, <em>user-generated content</em>) et les marie à vos animations.</p>
-<div class="step"><span class="n">1</span><div><strong>Le plus simple :</strong> Library → <strong>Upload video</strong>. Votre clip est importé, sa durée réelle est mesurée, et il apparaît dans l'onglet <em>Renders</em> comme n'importe quel rendu — réutilisable partout (Scheduler, Studio).</div></div>
-<div class="step"><span class="n">2</span><div><strong>Dans le Studio :</strong> faites glisser un nœud <strong>UGC video</strong> sur le canevas, cliquez-le, puis <em>Upload your video</em>. Une miniature peuple le nœud.</div></div>
-<img class="shot" src="img/studio-ugc.png" alt="Studio - composition UGC + durée master">
-<p class="cap">Studio : le starter <strong>« UGC + animation »</strong>. À droite, le nœud <strong>UGC video</strong> avec l'interrupteur <strong>⏱ Duration master</strong>.</p>
-<h4>La durée « master » — l'idée clé</h4>
-<p>Quand vous activez <strong>⏱ Duration master</strong> sur votre clip, c'est <strong>sa durée réelle</strong> qui commande la vidéo finale. Les animations générées (Seedance) sont alors calibrées autour de votre clip : plus besoin de deviner « combien de secondes ? ». Vous parlez 12 secondes face caméra → la composition fait 12 secondes, votre animation d'illustration suit. C'est l'équivalent, pour vos propres vidéos, de l'anti-coupure des avatars.</p>
-<div class="tip"><strong>Recette éclair :</strong> Studio → starter « UGC + animation » → uploadez votre clip dans le nœud UGC video (master activé) → connectez une Image + Seedance comme moitié animée → <em>Run</em>. Sortie : votre vidéo en bas, l'animation en haut, le tout à la durée de votre clip.</div>
+<h3>Composer et doubler</h3>
+<div class="cartes">
+<article><i data-dz="dz-cat-composition"></i><h4>Composition</h4><p>Un avatar et un clip dans la même vidéo, l'un après l'autre ou côte à côte (partage vertical ou horizontal).</p></article>
+<article><i data-dz="dz-media-voix"></i><h4>Voix off</h4><p>Choisissez le fournisseur à chaque génération : Voicebox, sur votre PC et gratuit, ou ElevenLabs. Un fournisseur absent est refusé, jamais remplacé en silence.</p></article>
+<article><i data-dz="dz-media-piste-audio"></i><h4>Musique sous la voix</h4><p>Quand un rendu a une voix et une musique, la musique baisse toute seule sous la voix.</p></article>
+<article><i data-dz="dz-media-sous-titres"></i><h4>Sous-titres gravés</h4><p><b class="ui">Sous-titrer le rendu</b> : caler un texte que vous fournissez est gratuit ; la transcription automatique est payante et ne part que si vous la cochez.</p></article>
+</div>
 
-<h3 id="c6">Audio, voix off &amp; musique</h3>
-<p>Le son fait la vidéo. Deepotus possède désormais tout un <strong>volet audio</strong> : importez vos propres sons, transformez un texte en <strong>voix off</strong>, et posez une <strong>musique de fond</strong> sous n'importe quel rendu.</p>
+<h3>Aller plus loin</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-enregistrer-modele"></i><h4>Presets</h4><p>En tête de chaque onglet, enregistrez vos réglages sous un nom et réappliquez-les d'un clic.</p></article>
+<article><i data-dz="dz-media-avatar"></i><h4>Lip-sync</h4><p>Synchronise les lèvres du clip sur une voix off (Kling, payant) ; bornes et prix sont affichés avant.</p></article>
+<article><i data-dz="dz-action-rouvrir-quick"></i><h4>Rouvrir dans Quick</h4><p>Chaque rendu garde ses réglages : <b class="ui">Rouvrir dans Quick</b>, depuis la Bibliothèque ou la file de rendus, les remet tels quels.</p></article>
+<article><i data-dz="dz-media-timeline-allonger"></i><h4>Prolonger un clip</h4><p>Depuis <strong>Envoyer vers</strong>, <b class="ui">Prolonger</b> ajoute environ 7 s générées à un clip déjà rendu, avec ou sans son ; le prix est sur chaque bouton.</p></article>
+</div>
 
-<h4>La bibliothèque audio</h4>
-<p>La <strong>Library</strong> dispose d'un onglet <strong>Audio</strong> à côté des Images et des Renders. Il rassemble tous les sons : fichiers importés, voix off générées et pistes musicales.</p>
-<div class="step"><span class="n">1</span><div><strong>Importer un son :</strong> le bouton <em>Importer un son</em> (ou glissez-déposez sur l'onglet Audio) → choisissez un <code>.mp3</code> / <code>.wav</code> / <code>.m4a</code> (et plus). Sa durée est mesurée ; il apparaît dans l'onglet Audio, lisible sur place, réutilisable partout.</div></div>
-<div class="step"><span class="n">2</span><div>L'onglet Audio liste aussi chaque <strong>voix off que vous générez</strong> : vos narrations et vos pistes importées vivent côte à côte.</div></div>
-<div class="tip">L'onglet Audio renvoie vers quelques <strong>banques de musique libres de droits</strong> (Pixabay Music, Freesound, Free Music Archive, YouTube Audio Library). N'ajoutez que de la musique que vous avez le droit d'utiliser — Deepotus ne peut pas embarquer de musique sous licence à votre place.</div>
-
-<h4>Voix off (ElevenLabs)</h4>
-<p>Transformez un texte en narration naturelle avec votre clé <strong>ElevenLabs</strong>.</p>
-<div class="step"><span class="n">1</span><div>Dans <strong>Quick</strong>, ouvrez l'onglet <strong>Voice Over</strong> : une voix off <strong>seule</strong> (aucune image, aucune vidéo), parfaite pour narrer par-dessus vos propres visuels. Écrivez un texte bref (jusqu'à 2 500 caractères — narration plus longue : passez par les Chapitres), choisissez la <strong>langue</strong> ; le compteur et le <strong>coût estimé</strong> se mettent à jour en direct.</div></div>
-<div class="step"><span class="n">2</span><div>Choisissez une voix dans la <strong>liste défilante</strong> (▶ pour préécouter, champ de filtre) ou gardez la <strong>voix par défaut de l'app</strong>, et sauvegardez vos combinaisons voix + langue en <strong>castings</strong> réutilisables (★ Sauver). <em>Générer la voix</em> → le mp3 s'écoute sur place et est <strong>enregistré dans Library → Audio</strong>, prêt à réutiliser (Studio, Épisodes, Scheduler).</div></div>
-<div class="warn"><strong>Offre gratuite ElevenLabs :</strong> les voix « premade » intégrées (George, Sarah…) fonctionnent via l'API. Les voix personnalisées « library / community » nécessitent un forfait ElevenLabs payant — l'app vous prévient clairement quand une voix choisie est réservée au payant.</div>
-
-<h4>Musique de fond (BGM)</h4>
-<p>Posez un lit musical sous votre vidéo — l'app le mixe pour vous.</p>
-<div class="step"><span class="n">1</span><div><strong>Dans le Studio :</strong> ajoutez un nœud <strong>Piste audio</strong>, choisissez une piste dans la bibliothèque audio (avec un aperçu sur place), réglez son <strong>volume</strong> et activez <strong>boucler sur la durée</strong>. Reliez-le au nœud Render.</div></div>
-<div class="step"><span class="n">2</span><div><strong>Sur le rendu simple aussi :</strong> vous pouvez attacher une piste de fond avant de générer, sans passer par le Studio.</div></div>
-<div class="step"><span class="n">3</span><div>La piste est automatiquement <strong>bouclée ou rognée à la durée exacte</strong> de la vidéo finale, puis mixée sous la voix/le clip. <em>Run</em> — votre rendu revient avec sa musique.</div></div>
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Quitter Quick puis y revenir retrouve vos réglages en cours.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Pour une image fixe, passez par la Bibliothèque : <b class="ui">Créer l'image</b>, avec le <b class="ui">Gestionnaire de prompts</b>. Pour votre propre vidéo filmée, <b class="ui">Importer une vidéo</b> dans la Bibliothèque, puis le nœud Vidéo UGC du <a href="#studio">Studio</a>.</p></aside>

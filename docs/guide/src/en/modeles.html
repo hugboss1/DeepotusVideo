@@ -1,6 +1,43 @@
-<p><strong>Templates</strong> tab: ready-made 9:16 layouts (news reel + avatar + brand strip, split-screen, PIP corner, triptych…). Each thumbnail reflects its <strong>real region layout</strong> — they're all different.</p>
-<img class="shot" src="img/templates.png" alt="Templates">
-<p class="cap">Templates: gallery of layouts (distinct thumbnails), spatial editor on the right (drag regions or their handles).</p>
-<div class="step"><span class="n">1</span><div>Click a thumbnail: the right editor shows its regions. Move them, resize them.</div></div>
-<div class="step"><span class="n">2</span><div><em>Save layout</em> stores your version — it <strong>appears immediately</strong> in the gallery. <em>New template</em> creates a blank one.</div></div>
-<div class="step"><span class="n">3</span><div><em>Open in Studio</em> switches to the node editor for deeper editing.</div></div>
+<p class="chapeau-chap">You will start from a ready-made layout, touch it up (slots, masks, texts, animations), adapt it to another format and dress it in your brand. Free; only renders of AI-generated slots cost money.</p>
+
+<h3>Pick a template</h3>
+<figure class="scene" data-scene="modeles/galerie"></figure>
+<ol class="etapes">
+<li>Open <b class="ui">Templates</b> in the rail. The gallery shows a real picture of each layout; the search field filters by name or tag.</li>
+<li>Click a card to open it in the editor, or create a blank one with <strong>New</strong> and a format (9:16, 16:9, 1:1, 4:5).</li>
+<li>For the same layout in another format, <strong>Reflow to</strong> creates a copy with a before / after preview; the original does not change.</li>
+</ol>
+
+<h3>Touch up a layout</h3>
+<figure class="scene" data-scene="modeles/editeur"></figure>
+<ol class="etapes">
+<li>Click a slot on the canvas: drag its body to move it, its handles to resize it. The inspector, on the right, shows its settings.</li>
+<li><strong>Mask</strong> gives a picture or video slot a shape: rounded, ellipse, polygon (triangle, diamond, hexagon, star, or your own points), cut-out windows, soft edge, coloured rim.</li>
+<li><strong>Animation</strong> brings the slot in and out with a fade, slide or pop, with duration, delay and curve. <b class="ui">Replay on canvas</b> shows it.</li>
+<li><strong>Add</strong> places a text, a ticker, a separator, the brand, a badge or a component.</li>
+<li><b class="ui">Save layout</b>, then <b class="ui">Open in Studio</b> to fill it in and render it.</li>
+</ol>
+
+<h3>Polish the texts</h3>
+<div class="cartes">
+<article><i data-dz="dz-media-texte"></i><h4>Ready-made styles</h4><p>Social subtitle, neon, banner, gradient title; or your own settings: outline, shadow, rounded background, gradient.</p></article>
+<article><i data-dz="dz-edit-orientation-texte"></i><h4>Text that fits</h4><p>The text stays in its slot: it wraps, then shrinks down to a minimum size.</p></article>
+<article><i data-dz="dz-media-titre"></i><h4>Text on arc</h4><p>Sets a title as an arch or a smile; an arc too large is reduced to fit.</p></article>
+<article><i data-dz="dz-action-apercu"></i><h4>Exact preview</h4><p>Renders the slot with the real render engine, to see the final result.</p></article>
+</div>
+
+<h3>Dress it with your brand</h3>
+<p>Templates use your <strong>brand kit</strong>: name, colours, logo. Kits are managed in <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Branding</b></span> (chapter <a href="#reglages">Settings, personas and branding</a>). A render keeps the kit active when it was sent, even if you switch while it computes.</p>
+
+<h3>Go further</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-enregistrer-modele"></i><h4>Components</h4><p><b class="ui">Save as component</b> turns slots into a reusable group; each instance can change its texts and colours, then go back to the component.</p></article>
+<article><i data-dz="dz-media-image"></i><h4>Preview sample</h4><p>A Library picture fills a slot for thumbnails and picture export; never for the video render.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>Export</h4><p><b class="ui">Export image</b> as PNG, JPEG or WebP (it lands in the Library), or as an SVG to drop into Figma.</p></article>
+<article><i data-dz="dz-nav-vectorlab"></i><h4>To the Vectorlab</h4><p><b class="ui">Open in the Vectorlab</b> opens the layout as an editable vector document.</p></article>
+<article><i data-dz="dz-reseau-figma"></i><h4>From Figma</h4><p><b class="ui">Import a Figma frame…</b> turns it into an editable template; the number of Figma calls is announced beforehand (Figma key required).</p></article>
+<article><i data-dz="dz-media-avatar"></i><h4>Avatar in the right format</h4><p>A HeyGen avatar is generated in the format closest to its slot: no empty band, no cut-off head.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>In the Studio, the layout node shows the transition planned by the template as long as you do not pick another. The “cyan flash” transition is a real colour flash, of your choice.</p></aside>
