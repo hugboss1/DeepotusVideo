@@ -12,7 +12,7 @@ const _bandes = (s) => { let n = 0, dedans = false; for (const v of s) { if (v >
 // grille uniforme : cols = bandes en x, rows = bandes en y ; sans colonne
 // vide on rend 1 × 1 — l'utilisateur saisit, on n'invente jamais
 export function grille_detecter(img) {
-  if (!img || !(img.w > 0) || !(img.h > 0)) throw new Error("feuille : image vide");
+  if (!img || !(img.w > 0) || !(img.h > 0)) throw new Error(__dzT9("sprites.sp2_fm.vide", "feuille : image vide"));
   const cols = Math.max(1, _bandes(_alphaCols(img))), rows = Math.max(1, _bandes(_alphaRows(img)));
   return { cols, rows, cell_w: Math.floor(img.w / cols), cell_h: Math.floor(img.h / rows) };
 }
@@ -58,7 +58,7 @@ export const MODES_ALIGNEMENT = ["deux", "x", "pieds"];
 // sur ceux de la PREMIÈRE case sélectionnée (« Auto Align » de l'Analyzer :
 // les feuilles d'IA tremblent) ; borné à la cellule, jamais hors champ
 export function aligner_frames(img, g, sel, mode = "deux") {
-  if (!MODES_ALIGNEMENT.includes(mode)) throw new Error(`alignement : mode ${mode} inconnu (deux, x, pieds)`);
+  if (!MODES_ALIGNEMENT.includes(mode)) throw new Error(__dzT9("sprites.sp2_fm.mode_inconnu", "alignement : mode {mode} inconnu (deux, x, pieds)", { mode }));
   const n = g.cols * g.rows, out = [];
   let ref = null;
   for (let i = 0; i < n; i++) {
@@ -82,10 +82,10 @@ export function aligner_frames(img, g, sel, mode = "deux") {
 export const MODES_SECTION = ["boucle", "pingpong", "inverse"];
 export function section_definir(sections, s, nFrames) {
   const nom = String(s.nom || "").trim();
-  if (!nom) throw new Error("section : nom requis");
+  if (!nom) throw new Error(__dzT9("sprites.sp2_fm.nom_requis", "section : nom requis"));
   const debut = Math.floor(+s.debut), fin = Math.floor(+s.fin);
-  if (!(debut >= 0) || !(fin >= debut) || fin >= nFrames) throw new Error(`section : bornes 0 ≤ début ≤ fin < ${nFrames}`);
-  if (!MODES_SECTION.includes(s.mode)) throw new Error("section : mode boucle, pingpong ou inverse");
+  if (!(debut >= 0) || !(fin >= debut) || fin >= nFrames) throw new Error(__dzT9("sprites.sp2_fm.bornes", "section : bornes 0 ≤ début ≤ fin < {n}", { n: nFrames }));
+  if (!MODES_SECTION.includes(s.mode)) throw new Error(__dzT9("sprites.sp2_fm.mode_section", "section : mode boucle, pingpong ou inverse"));
   const out = (sections || []).filter((x) => x.nom !== nom);
   out.push({ nom, debut, fin, mode: s.mode });
   return out;
@@ -118,3 +118,5 @@ export function feuille_recomposer(img, g, offsets) {
   }
   return out;
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

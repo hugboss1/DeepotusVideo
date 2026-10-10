@@ -9,6 +9,7 @@ Une <option> native ne peut pas porter d'icône dessinée : l'origine d'un élé
 Run : & $PY tests/test_icones_listes.py   (depuis backend/)
 """
 import pathlib, re, shutil, subprocess, sys
+import sys as _s9, pathlib as _p9; _s9.path.insert(0, str(_p9.Path(__file__).resolve().parent)); import _labs_avant_l9  # noqa: E402,F401  (t149 : Spritelab, Tile Lab, Studio3D, Plateau, lib3d d'avant la traduction L9)
 
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent

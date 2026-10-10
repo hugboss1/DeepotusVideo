@@ -31,7 +31,7 @@ export function nomLibre(prefixe, pris) {
 /* un os au glisser : de la base `a` vers le bout `b`. Un clic (moins de 2 px) pose un os court dressé (90°). Il
    s'accroche à l'os sélectionné (sinon à la racine) et devient la sélection : on pose une chaîne d'un geste à l'autre. */
 export function ajouterOs(s, a, b) {
-  if (s.bones.length >= MAX_OS) throw new Error(`${MAX_OS} os au plus`);
+  if (s.bones.length >= MAX_OS) throw new Error(__dzT9("sprites.sp2_skm.max_os", "{n} os au plus", { n: MAX_OS }));
   const x = borne(a.x, 0, s.cw), y = borne(a.y, 0, s.ch);
   const dx = borne(b.x, 0, s.cw) - x, dy = borne(b.y, 0, s.ch) - y;
   const long = Math.hypot(dx, dy);
@@ -46,8 +46,8 @@ export function ajouterOs(s, a, b) {
 
 /* une pièce au glisser : boîte entière, rognée à la case, accrochée à l'os sélectionné (ou au dernier posé) */
 export function ajouterPiece(s, a, b) {
-  if (!s.bones.length) throw new Error("pose d'abord un os : une pièce s'accroche à un os");
-  if (s.pieces.length >= MAX_PIECES) throw new Error(`${MAX_PIECES} pièces au plus`);
+  if (!s.bones.length) throw new Error(__dzT9("sprites.sp2_skm.os_dabord", "pose d'abord un os : une pièce s'accroche à un os"));
+  if (s.pieces.length >= MAX_PIECES) throw new Error(__dzT9("sprites.sp2_skm.max_pieces", "{n} pièces au plus", { n: MAX_PIECES }));
   const x0 = Math.max(0, Math.floor(Math.min(a.x, b.x))), y0 = Math.max(0, Math.floor(Math.min(a.y, b.y)));
   const x1 = Math.min(s.cw, Math.ceil(Math.max(a.x, b.x))), y1 = Math.min(s.ch, Math.ceil(Math.max(a.y, b.y)));
   if (x1 - x0 < 2 || y1 - y0 < 2) return null;
@@ -102,3 +102,5 @@ export function corps(s) {
            bones: s.bones.map(({ name, parent, x, y, length, rotation }) => ({ name, parent, x, y, length, rotation })),
            pieces: s.pieces.map(({ name, bone, x, y, w, h }) => ({ name, bone, x, y, w, h })) };
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

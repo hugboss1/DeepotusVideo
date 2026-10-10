@@ -8,7 +8,7 @@ const _tampon = (w, h) => ({ w, h, data: new Uint8ClampedArray(w * h * 4) });
 const _chevauche = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 export function tuiles_detecter(img, { min = 2 } = {}) {
-  if (!img || !(img.w > 0) || !(img.h > 0)) throw new Error("feuille : image vide");
+  if (!img || !(img.w > 0) || !(img.h > 0)) throw new Error(__dzT9("tuiles.tl1_ft.image_vide", "feuille : image vide"));
   const { w, h, data } = img, vu = new Uint8Array(w * h);
   let boites = [];
   const pile = [];
@@ -69,7 +69,7 @@ function _copier(dst, src, sx, sy, sw, sh, dx, dy) {
 
 // chaque tuile CENTRÉE dans une cellule uniforme (cell + pad), `cols` colonnes
 export function feuille_alignee(img, tuiles, { cell_w, cell_h, cols = 8, pad = 0 } = {}) {
-  if (!tuiles || !tuiles.length) throw new Error("feuille : aucune tuile");
+  if (!tuiles || !tuiles.length) throw new Error(__dzT9("tuiles.tl1_ft.aucune_tuile", "feuille : aucune tuile"));
   const cw = Math.max(1, (cell_w | 0) + 2 * pad), ch = Math.max(1, (cell_h | 0) + 2 * pad);
   const nc = Math.max(1, Math.min(tuiles.length, cols | 0)), nr = Math.ceil(tuiles.length / nc);
   const out = _tampon(cw * nc, ch * nr), index = [];
@@ -113,3 +113,5 @@ export function placement_rendre(img, tuiles, placements, g) {
   }
   return out;
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

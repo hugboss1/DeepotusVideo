@@ -6,6 +6,29 @@
 "use strict";
 
 const $ = (s) => document.querySelector(s);
+/* t149 (traduction L9) : passe unique au chargement, en anglais seulement — (1) les <option> fixes de la page
+   (la surcouche n'entre pas dans <select>) ; (2) les textes de la page saisis en « contexte » (sens propre au
+   lab, la surcouche les ignore) : texte exact d'un nœud ou d'un title/placeholder -> dzT(clé), clés de cette
+   page seulement. */
+(function () {
+  if (typeof document === "undefined" || typeof dzLang !== "function" || dzLang() !== "en") return;
+  const tr = window.__dzI18n && window.__dzI18n.traduire;
+  if (tr) for (const o of document.querySelectorAll("select option")) { const t = tr(o.textContent); if (t) o.textContent = t; }
+  if (tr) for (const im of document.querySelectorAll("img[alt]")) { const t = tr(im.alt); if (t) im.alt = t; }   // alt : hors surcouche
+  const D = window.DZ_I18N || {}, idx = {}, nrm = (s) => String(s).replace(/\s+/g, " ").trim();
+  for (const k in D) if (k.startsWith("tuiles.tlh_") && D[k] && D[k].contexte) idx[nrm(D[k].fr)] = k;
+  // la surcouche a pu passer AVANT : le texte qu'elle a posé (« Plateau » -> Board du Vectorlab) est reconnu aussi
+  if (tr) for (const f of Object.keys(idx)) { const e = tr(f); if (e && !idx[nrm(e)]) idx[nrm(e)] = idx[f]; }
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let x = w.nextNode(); x; x = w.nextNode()) {
+    const k = idx[nrm(x.nodeValue)];
+    if (k) x.nodeValue = x.nodeValue.match(/^\s*/)[0] + dzT(k) + x.nodeValue.match(/\s*$/)[0];
+  }
+  for (const el of document.querySelectorAll("[title],[placeholder]")) for (const a of ["title", "placeholder"]) {
+    const v = el.getAttribute(a), k = v && idx[nrm(v)];
+    if (k) el.setAttribute(a, dzT(k));
+  }
+})();
 const api = {
   async get(p) { const r = await fetch("/api" + p); if (!r.ok) throw new Error(await r.text()); return r.json(); },
   async send(m, p, body) {
@@ -45,7 +68,7 @@ async function loadImages() {
     libImages = (await api.get("/images")).images || [];
     renderImgGrid(); if (typeof renderFeuilleGrid === "function") renderFeuilleGrid();
   } catch (e) {
-    $("#imgGrid").innerHTML = `<div class="empty-note">Library indisponible : ${esc(e.message)}</div>`;
+    $("#imgGrid").innerHTML = `<div class="empty-note">${__dzT9("tuiles.tl1_lib.indispo", "Library indisponible : {msg}", { msg: esc(e.message) })}</div>`;
   }
 }
 function renderImgGrid() {
@@ -56,12 +79,12 @@ function renderImgGrid() {
     `<img loading="lazy" data-fn="${esc(im.filename)}" title="${esc(im.filename)}"
           src="/api/images/${encodeURIComponent(im.filename)}"
           class="${im.filename === selImage ? "sel" : ""}">`).join("")
-    || `<div class="empty-note">Aucune image${q ? " pour « " + esc(q) + " »" : " dans la Library"}.</div>`;
+    || `<div class="empty-note">${q ? __dzT9("tuiles.tl1_lib.aucune_pour", "Aucune image pour « {q} ».", { q: esc(q) }) : __dzT9("tuiles.tl1_lib.aucune_lib", "Aucune image dans la Library.")}</div>`;
   g.querySelectorAll("img").forEach(el => el.onclick = () => {
     selImage = el.dataset.fn;
     g.querySelectorAll("img").forEach(x => x.classList.toggle("sel", x === el));
     const chip = $("#srcChip");
-    chip.textContent = "Source : " + selImage;
+    chip.textContent = __dzT9("tuiles.tl1_src.source", "Source : {fn}", { fn: selImage });
     chip.classList.add("set");
     updateRunEnabled();
   });
@@ -104,7 +127,7 @@ function loadImg(src) {
   return new Promise((res, rej) => {
     const im = new Image();
     im.onload = () => res(im);
-    im.onerror = () => rej(new Error("image illisible : " + src));
+    im.onerror = () => rej(new Error(__dzT9("tuiles.tl1_img.illisible", "image illisible : {src}", { src: src })));
     im.src = src;
   });
 }
@@ -125,7 +148,7 @@ async function run() {
   busy = true; updateRunEnabled();
   const st = $("#runStatus");
   try {
-    setStatus(st, "Tuile seamless…");
+    setStatus(st, __dzT9("tuiles.tl1_run.seamless", "Tuile seamless…"));
     const body = {
       op: "seamless", filename: selImage,
       method: $("#method").value,
@@ -138,13 +161,13 @@ async function run() {
 
     const px = pixelOpts();
     if (px) {
-      setStatus(st, "Pixel-art…");
+      setStatus(st, __dzT9("tuiles.tl1_run.pixel", "Pixel-art…"));
       const d2 = await api.send("POST", "/images/process",
         Object.assign({ op: "pixel", filename: finalName }, px));
       finalName = d2.images[0];
     }
 
-    setStatus(st, "Pavage + score…");
+    setStatus(st, __dzT9("tuiles.tl1_run.pavage", "Pavage + score…"));
     const img = await loadImg("/api/images/" + encodeURIComponent(finalName) + "?t=" + Date.now());
     const after = px ? seamScoreClient(img) : d.seam_after;
 
@@ -162,10 +185,10 @@ async function run() {
     result = { filename: finalName, before: d.seam_before, after };
     updateStudioBtn();
     clearStatus(st);
-    toastOk(`Tuile prête : raccord ${d.seam_before} → ${after}`, ` (Library : ${finalName})`);
+    toastOk(__dzT9("tuiles.tl1_run.prete", "Tuile prête : raccord {avant} → {apres}", { avant: d.seam_before, apres: after }), __dzT9("tuiles.tl1_run.prete_lib", " (Library : {fichier})", { fichier: finalName }));
   } catch (e) {
-    setStatus(st, "Échec : " + e.message, true);
-    toast("Tuile échouée : " + e.message, true);
+    setStatus(st, __dzT9("tuiles.tl1_x.echec", "Échec : {msg}", { msg: e.message }), true);
+    toast(__dzT9("tuiles.tl1_run.echouee", "Tuile échouée : {msg}", { msg: e.message }), true);
   }
   busy = false; updateRunEnabled();
 }
@@ -188,7 +211,7 @@ function toStudio() {
     };
     p.dispatchEvent(new p.CustomEvent("deepotus:navigate",
                                       { detail: { view: "studio" } }));
-  } catch (e) { toast("Ouverture du Studio impossible : " + e.message, true); }
+  } catch (e) { toast(__dzT9("tuiles.tl1_studio.impossible", "Ouverture du Studio impossible : {msg}", { msg: e.message }), true); }
 }
 
 /* ───────── wiring ───────── */
@@ -231,7 +254,7 @@ function tlMode(m) {
   $("#feuilleOut").classList.toggle("hidden", m !== "feuille");
   $("#jeuOut").classList.toggle("hidden", m !== "jeu"); $("#formesOut").classList.toggle("hidden", m !== "formes");
   document.querySelector(".out-pane .pane-head h2").textContent =
-    { seamless: "Tuile seamless", feuille: "Feuille de tuiles", jeu: "Jeu de tuiles", formes: "Tuile de forme", peintre: "Peintre" }[m] || "Tile Lab";
+    { seamless: __dzT9("tuiles.tl1_mode.seamless", "Tuile seamless"), feuille: __dzT9("tuiles.tl1_mode.feuille", "Feuille de tuiles"), jeu: __dzT9("tuiles.tl1_mode.jeu", "Jeu de tuiles"), formes: __dzT9("tuiles.tl1_mode.forme", "Tuile de forme"), peintre: __dzT9("tuiles.tl1_mode.peintre", "Peintre") }[m] || "Tile Lab";
   document.dispatchEvent(new CustomEvent("tl-mode", { detail: m }));
 }
 const tlTampon = (im) => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext("2d"); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height); return { w: c.width, h: c.height, data: d.data }; };
@@ -239,9 +262,9 @@ const tlCanvasDe = (t) => { const c = document.createElement("canvas"); c.width 
 async function feuilleOuvrir(src, filename) {
   const im = new Image(); im.crossOrigin = "anonymous";
   // onload plutôt que decode() : decode() reste SUSPENDU quand l'onglet est caché (mesuré au lot 5)
-  await new Promise((res, rej) => { im.onload = () => res(); im.onerror = () => rej(new Error("image illisible : " + String(src).slice(0, 60))); im.src = src; });
+  await new Promise((res, rej) => { im.onload = () => res(); im.onerror = () => rej(new Error(__dzT9("tuiles.tl1_img.illisible", "image illisible : {src}", { src: String(src).slice(0, 60) }))); im.src = src; });
   F.img = im; F.tampon = tlTampon(im); F.filename = filename; F.placements = []; F.sel = -1;
-  $("#srcChip").textContent = "Feuille : " + filename; $("#srcChip").classList.add("set");
+  $("#srcChip").textContent = __dzT9("tuiles.tl1_src.feuille", "Feuille : {fn}", { fn: filename }); $("#srcChip").classList.add("set");
   tlMode("feuille"); detecter();
 }
 function detecter() {
@@ -249,7 +272,7 @@ function detecter() {
   F.placements = []; F.sel = F.tuiles.length ? 0 : -1;
   const tc = TLF.taille_commune(F.tuiles); if (tc.w) { $("#tlCellW").value = tc.w; $("#tlCellH").value = $("#tlGrilleType").value === "iso" ? Math.max(1, Math.round(tc.w / 2)) : tc.h; }
   lireGrille(); rendreTuiles(); rendrePlacement();
-  $("#outInfo").textContent = `${F.tampon.w}×${F.tampon.h} · ${F.tuiles.length} tuiles · commune ${tc.w}×${tc.h}`;
+  $("#outInfo").textContent = __dzT9("tuiles.tl1_f.info", "{w}×{h} · {n} tuiles · commune {cw}×{ch}", { w: F.tampon.w, h: F.tampon.h, n: F.tuiles.length, cw: tc.w, ch: tc.h });
 }
 function lireGrille() {
   F.grille = { type: $("#tlGrilleType").value, cols: Math.max(1, parseInt($("#tlCols").value, 10) || 1), rows: Math.max(1, parseInt($("#tlRows").value, 10) || 1),
@@ -257,9 +280,9 @@ function lireGrille() {
 }
 function rendreTuiles() {
   const h = $("#tlTuiles"); $("#tlTuilesCount").textContent = String(F.tuiles.length);
-  if (!F.tuiles.length) { h.innerHTML = `<div class="empty-note">Aucune tuile (planche opaque ? côté min trop grand ?)</div>`; return; }
+  if (!F.tuiles.length) { h.innerHTML = `<div class="empty-note">${__dzT9("tuiles.tl1_f.aucune", "Aucune tuile (planche opaque ? côté min trop grand ?)")}</div>`; return; }
   const posees = new Set(F.placements.map((p) => p.tuile));
-  h.innerHTML = F.tuiles.map((t, i) => `<canvas class="tl-tuile${i === F.sel ? " sel" : ""}${posees.has(i) ? " placee" : ""}" data-i="${i}" width="56" height="56" title="${t.nom} · ${t.w}×${t.h} en (${t.x},${t.y})"></canvas>`).join("");
+  h.innerHTML = F.tuiles.map((t, i) => `<canvas class="tl-tuile${i === F.sel ? " sel" : ""}${posees.has(i) ? " placee" : ""}" data-i="${i}" width="56" height="56" title="${__dzT9("tuiles.tl1_f.tuile_titre", "{nom} · {w}×{h} en ({x},{y})", { nom: t.nom, w: t.w, h: t.h, x: t.x, y: t.y })}"></canvas>`).join("");
   h.querySelectorAll(".tl-tuile").forEach((cv) => {
     const t = F.tuiles[+cv.dataset.i], x = cv.getContext("2d"); x.imageSmoothingEnabled = false;
     const k = Math.min(56 / t.w, 56 / t.h, 4); x.drawImage(F.img, t.x, t.y, t.w, t.h, (56 - t.w * k) / 2, (56 - t.h * k) / 2, t.w * k, t.h * k);
@@ -296,30 +319,30 @@ const tlTelecharger = (blob, nom) => { const a = document.createElement("a"); a.
 const tlPng = (t) => new Promise((r) => tlCanvasDe(t).toBlob(r, "image/png"));
 const tlBase = () => (F.filename || "feuille").replace(/\.\w+$/, "");
 function feuilleAlignee() { const tc = TLF.taille_commune(F.tuiles); return TLF.feuille_alignee(F.tampon, F.tuiles, { cell_w: tc.w, cell_h: tc.h, cols: parseInt($("#tlExpCols").value, 10) || 8, pad: parseInt($("#tlExpPad").value, 10) || 0 }); }
-async function dlFeuille() { if (!F.tuiles.length) return toast("aucune tuile", true); const f = feuilleAlignee(), tc = TLF.taille_commune(F.tuiles); tlTelecharger(await tlPng(f.img), tlBase() + "_alignee.png"); tlTelecharger(new Blob([JSON.stringify({ cellule: tc, pad: parseInt($("#tlExpPad").value, 10) || 0, cols: parseInt($("#tlExpCols").value, 10) || 8, feuille: { w: f.img.w, h: f.img.h }, tuiles: f.index }, null, 2)], { type: "application/json" }), tlBase() + "_alignee.json"); toast(`feuille alignée ${f.img.w}×${f.img.h}, ${f.index.length} tuiles`); }
+async function dlFeuille() { if (!F.tuiles.length) return toast(__dzT9("tuiles.tl1_f.aucune_tuile", "aucune tuile"), true); const f = feuilleAlignee(), tc = TLF.taille_commune(F.tuiles); tlTelecharger(await tlPng(f.img), tlBase() + "_alignee.png"); tlTelecharger(new Blob([JSON.stringify({ cellule: tc, pad: parseInt($("#tlExpPad").value, 10) || 0, cols: parseInt($("#tlExpCols").value, 10) || 8, feuille: { w: f.img.w, h: f.img.h }, tuiles: f.index }, null, 2)], { type: "application/json" }), tlBase() + "_alignee.json"); toast(__dzT9("tuiles.tl1_f.alignee", "feuille alignée {w}×{h}, {n} tuiles", { w: f.img.w, h: f.img.h, n: f.index.length })); }
 async function dlTileset() { const R = TLF.placement_rendre(F.tampon, F.tuiles, F.placements, F.grille); tlTelecharger(await tlPng(R), tlBase() + "_tileset.png"); tlTelecharger(new Blob([JSON.stringify({ grille: F.grille, placements: TLF.placement_index(F.placements, F.grille) }, null, 2)], { type: "application/json" }), tlBase() + "_tileset.json"); toast(`tileset ${R.w}×${R.h}, ${F.placements.length} placements`); }
 // lot 5 : les tuiles séparées partent en UN zip (store, pur JS) — plus de rafale
 async function dlTuiles() {
-  if (!F.tuiles.length) return toast("aucune tuile", true);
+  if (!F.tuiles.length) return toast(__dzT9("tuiles.tl1_f.aucune_tuile", "aucune tuile"), true);
   const entrees = [];
   for (const t of F.tuiles) { const im = { w: t.w, h: t.h, data: new Uint8ClampedArray(t.w * t.h * 4) }; for (let y = 0; y < t.h; y++) im.data.set(F.tampon.data.subarray(((t.y + y) * F.tampon.w + t.x) * 4, ((t.y + y) * F.tampon.w + t.x + t.w) * 4), y * t.w * 4); entrees.push({ nom: `${t.nom}.png`, data: new Uint8Array(await (await tlPng(im)).arrayBuffer()) }); }
   const zip = DZ_ZIP.zip_store(entrees);
   tlTelecharger(new Blob([zip], { type: "application/zip" }), `${tlBase()}_tuiles.zip`);
-  toast(`${entrees.length} tuile(s) dans ${tlBase()}_tuiles.zip`);
+  toast(__dzT9("tuiles.tl1_f.zip", "{n} tuile(s) dans {fichier}", { n: entrees.length, fichier: tlBase() + "_tuiles.zip" }));
 }
 // lot 5 : réordonnancement — la tuile choisie glisse, les placements suivent
 function deplacerTuile(delta) {
-  if (F.sel < 0) return toast("choisis une tuile", true);
+  if (F.sel < 0) return toast(__dzT9("tuiles.tl1_f.choisis", "choisis une tuile"), true);
   const i = F.sel, j = i + delta; if (j < 0 || j >= F.tuiles.length) return;
   F.tuiles = TLF.tuiles_deplacer(F.tuiles, i, delta);
   F.placements = F.placements.map((p) => ({ ...p, tuile: p.tuile === i ? j : p.tuile === j ? i : p.tuile }));
   F.sel = j; rendreTuiles(); rendrePlacement();
 }
-async function saveLib() { if (!F.tuiles.length) return toast("aucune tuile", true); try { const f = feuilleAlignee(); const fd = new FormData(); fd.append("file", await tlPng(f.img), `tiles_feuille_${Date.now()}.png`); const r = await fetch("/api/images/upload", { method: "POST", body: fd }); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.detail || r.statusText); toast(`sauvé en Library : ${d.filename}`); loadImages(); } catch (e) { toast(e.message, true); } }
+async function saveLib() { if (!F.tuiles.length) return toast(__dzT9("tuiles.tl1_f.aucune_tuile", "aucune tuile"), true); try { const f = feuilleAlignee(); const fd = new FormData(); fd.append("file", await tlPng(f.img), `tiles_feuille_${Date.now()}.png`); const r = await fetch("/api/images/upload", { method: "POST", body: fd }); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.detail || r.statusText); toast(__dzT9("tuiles.tl1_f.sauve", "sauvé en Library : {fichier}", { fichier: d.filename })); loadImages(); } catch (e) { toast(e.message, true); } }
 function renderFeuilleGrid() {
   const q = ($("#feuilleSearch").value || "").toLowerCase(), g = $("#feuilleGrid");
   const list = libImages.filter((im) => !q || im.filename.toLowerCase().includes(q));
-  g.innerHTML = list.slice(0, 120).map((im) => `<img loading="lazy" data-fn="${esc(im.filename)}" title="${esc(im.filename)}" src="/api/images/${encodeURIComponent(im.filename)}">`).join("") || `<div class="empty-note">Aucune image.</div>`;
+  g.innerHTML = list.slice(0, 120).map((im) => `<img loading="lazy" data-fn="${esc(im.filename)}" title="${esc(im.filename)}" src="/api/images/${encodeURIComponent(im.filename)}">`).join("") || `<div class="empty-note">${__dzT9("tuiles.tl1_lib.aucune", "Aucune image.")}</div>`;
   g.querySelectorAll("img").forEach((el) => el.onclick = () => feuilleOuvrir(`/api/images/${encodeURIComponent(el.dataset.fn)}`, el.dataset.fn).catch((e) => toast(e.message, true)));
 }
 function feuilleWire() {
@@ -343,7 +366,7 @@ window.__tl = Object.assign(window.__tl || {}, {   // lot 4 : ne pas écraser la
   },
   select(fn) {
     selImage = fn;
-    $("#srcChip").textContent = "Source : " + fn;
+    $("#srcChip").textContent = __dzT9("tuiles.tl1_src.source", "Source : {fn}", { fn: fn });
     $("#srcChip").classList.add("set");
     updateRunEnabled();
     if (libImages.length) renderImgGrid();   // t139 : la vignette choisie par un envoi est surlignée (liste déjà chargée)
@@ -355,3 +378,5 @@ window.__tl = Object.assign(window.__tl || {}, {   // lot 4 : ne pas écraser la
   wire();
   loadImages();
 })();
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

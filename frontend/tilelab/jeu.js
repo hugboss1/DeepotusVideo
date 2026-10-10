@@ -60,7 +60,7 @@
     const liste = tout.filter((m) => !q || m.nom.toLowerCase().includes(q)).slice(0, 160);
     const g = $(sel);
     g.innerHTML = liste.map((m, k) => `<img loading="lazy" data-k="${k}" title="${esc(m.nom)}" src="${m.vignette}">`).join("")
-      || `<div class="empty-note">${src === "forge" ? "Aucune matière du Material Forge avec une couleur de base." : "Aucune image dans la Library."}</div>`;
+      || `<div class="empty-note">${src === "forge" ? __dzT9("tuiles.tl1_jeu.aucune_matiere", "Aucune matière du Material Forge avec une couleur de base.") : __dzT9("tuiles.tl1_lib.aucune_lib", "Aucune image dans la Library.")}</div>`;
     g.querySelectorAll("img").forEach((el) => { el.onclick = () => choisir(liste[+el.dataset.k]); });
   }
   function poserSlot(el, m) {
@@ -92,10 +92,10 @@
 
   async function fabriquer() {
     const st = $("#jeuStatus");
-    if (!(etat.a && etat.b)) return statut(st, "Choisis deux matières (A puis B).", true);
+    if (!(etat.a && etat.b)) return statut(st, __dzT9("tuiles.tl1_jeu.deux", "Choisis deux matières (A puis B)."), true);
     try {
       $("#jeuRun").disabled = true;
-      statut(st, "Fabrication du jeu…");
+      statut(st, __dzT9("tuiles.tl1_jeu.fabrication", "Fabrication du jeu…"));
       const d = await api.post("/tiles/jeu", {
         matiere_a: specDe(etat.a), matiere_b: specDe(etat.b),
         jeu: $("#jeuKind").value, cote: parseInt($("#jeuCote").value, 10),
@@ -104,12 +104,12 @@
       });
       etat.tid = d.tid; etat.jeu = d;
       $("#jeuAtlas").src = `/api/tiles/${d.tid}/fichier/atlas.png?t=${Date.now()}`;
-      $("#jeuInfo").textContent = `${d.tuiles} tuiles · ${d.colonnes}×${d.rangees} · raccord ${d.raccord}`;
+      $("#jeuInfo").textContent = __dzT9("tuiles.tl1_jeu.info", "{n} tuiles · {c}×{r} · raccord {raccord}", { n: d.tuiles, c: d.colonnes, r: d.rangees, raccord: d.raccord });
       $("#jeuVide").classList.add("hidden"); $("#jeuCorps").classList.remove("hidden");
-      $("#jeuMesures").innerHTML = `<span class="hint">Pas encore mesuré.</span>`;
+      $("#jeuMesures").innerHTML = `<span class="hint">${__dzT9("tuiles.tl1_jeu.pas_mesure", "Pas encore mesuré.")}</span>`;
       vider(st);
       await apercu(1);
-    } catch (e) { statut(st, "Échec : " + e.message, true); }
+    } catch (e) { statut(st, __dzT9("tuiles.tl1_x.echec", "Échec : {msg}", { msg: e.message }), true); }
     finally { $("#jeuRun").disabled = !(etat.a && etat.b); }
   }
 
@@ -118,30 +118,30 @@
     const st = $("#jeuStatus");
     const g = graine || 1 + Math.floor(Math.random() * 99999);
     try {
-      statut(st, "Aperçu…");
+      statut(st, __dzT9("tuiles.tl1_jeu.apercu", "Aperçu…"));
       const d = await api.post(`/tiles/${etat.tid}/apercu`, {
         cases: parseInt($("#jeuCases").value, 10), densite: parseFloat($("#jeuDensite").value), graine: g,
       });
       // la répétition se mesure sur CETTE carte : on garde sa graine, ses cases et sa densité
       etat.graineApercu = d.graine; etat.apercu = d;
       $("#jeuApercu").src = d.url + "?t=" + Date.now();
-      $("#jeuApercuInfo").textContent = `${d.cases}×${d.cases} · graine ${d.graine}`;
+      $("#jeuApercuInfo").textContent = __dzT9("tuiles.tl1_jeu.apercu_info", "{n}×{n} · graine {graine}", { n: d.cases, graine: d.graine });
       vider(st);
-    } catch (e) { statut(st, "Échec : " + e.message, true); }
+    } catch (e) { statut(st, __dzT9("tuiles.tl1_x.echec", "Échec : {msg}", { msg: e.message }), true); }
   }
 
   const PUCES = [
     // [clé de la mesure, clé du verdict, clé du seuil, libellé, sens du seuil]
-    ["raccord", "raccord", "raccord", "raccord", "≤"],
-    ["repetition", "repetition", "repetition", "répétition", "<"],
-    ["eclairage_max", "eclairage", "eclairage", "éclairage", "≤"],
-    ["ecart_eclairage", "ecart_eclairage", "ecart_eclairage", "écart d'éclairage", "≤"],
+    ["raccord", "raccord", "raccord", __dzT9("tuiles.tl1_mes.raccord", "raccord"), "≤"],
+    ["repetition", "repetition", "repetition", __dzT9("tuiles.tl1_mes.repetition", "répétition"), "<"],
+    ["eclairage_max", "eclairage", "eclairage", __dzT9("tuiles.tl1_mes.eclairage", "éclairage"), "≤"],
+    ["ecart_eclairage", "ecart_eclairage", "ecart_eclairage", __dzT9("tuiles.tl1_mes.ecart", "écart d'éclairage"), "≤"],
   ];
   async function mesurer() {
     if (!etat.tid) return;
     const st = $("#jeuStatus");
     try {
-      statut(st, "Mesures…");
+      statut(st, __dzT9("tuiles.tl1_jeu.mesures", "Mesures…"));
       const ap = etat.apercu || {};
       const d = await api.post(`/tiles/${etat.tid}/mesures`,
                                { graine: etat.graineApercu || 1, cases: ap.cases, densite: ap.densite });
@@ -149,17 +149,17 @@
         `<span class="tl-chip ${d.verdict[v] === "ok" ? "good" : "warn"}" title="${d.verdict[v]}">` +
         `${nom} <b>${d[k]}</b> <i>${sens} ${d.seuils[s]}</i></span>`).join("");
       vider(st);
-    } catch (e) { statut(st, "Échec : " + e.message, true); }
+    } catch (e) { statut(st, __dzT9("tuiles.tl1_x.echec", "Échec : {msg}", { msg: e.message }), true); }
   }
 
   async function exporter(tid, format, st) {
     if (!tid) return;
     try {
-      statut(st, "Export " + format + "…");
+      statut(st, __dzT9("tuiles.tl1_exp.encours", "Export {format}…", { format: format }));
       const d = await api.post(`/tiles/${tid}/export`, { format });
       telecharger(d.url, d.fichier);
-      statut(st, `${d.fichier} écrit (${d.octets} o) — pose-le à côté de atlas.png`);
-    } catch (e) { statut(st, "Échec : " + e.message, true); }
+      statut(st, __dzT9("tuiles.tl1_exp.ecrit", "{fichier} écrit ({octets} o) — pose-le à côté de atlas.png", { fichier: d.fichier, octets: d.octets }));
+    } catch (e) { statut(st, __dzT9("tuiles.tl1_x.echec", "Échec : {msg}", { msg: e.message }), true); }
   }
   const atlas = (tid) => tid && telecharger(`/api/tiles/${tid}/fichier/atlas.png`, "atlas.png");
 
@@ -172,10 +172,10 @@
 
   async function fabriquerForme() {
     const st = $("#formeStatus");
-    if (!etat.matiere) return statut(st, "Choisis une matière.", true);
+    if (!etat.matiere) return statut(st, __dzT9("tuiles.tl1_forme.choisis", "Choisis une matière."), true);
     try {
       $("#formeRun").disabled = true;
-      statut(st, "Fabrication…");
+      statut(st, __dzT9("tuiles.tl1_forme.fabrication", "Fabrication…"));
       const d = await api.post("/tiles/jeu", {
         matiere_a: specDe(etat.matiere), forme: $("#formeKind").value,
         cote: parseInt($("#formeCote").value, 10), nom: $("#formeKind").value,
@@ -183,14 +183,14 @@
       etat.forme = d.tid; etat.formeMeta = d;
       const img = $("#formeImg");
       await new Promise((res, rej) => {        // onload plutôt que decode() : decode() reste suspendu en onglet caché
-        img.onload = res; img.onerror = () => rej(new Error("tuile illisible"));
+        img.onload = res; img.onerror = () => rej(new Error(__dzT9("tuiles.tl1_forme.illisible", "tuile illisible")));
         img.src = `/api/tiles/${d.tid}/fichier/atlas.png?t=${Date.now()}`;
       });
-      $("#formeInfo").textContent = `${d.largeur}×${d.hauteur} · raccord ${d.raccord}`;
+      $("#formeInfo").textContent = __dzT9("tuiles.tl1_forme.info", "{w}×{h} · raccord {raccord}", { w: d.largeur, h: d.hauteur, raccord: d.raccord });
       $("#formeVide").classList.add("hidden"); $("#formeCorps").classList.remove("hidden");
       paver(img, d);
       vider(st);
-    } catch (e) { statut(st, "Échec : " + e.message, true); }
+    } catch (e) { statut(st, __dzT9("tuiles.tl1_x.echec", "Échec : {msg}", { msg: e.message }), true); }
     finally { $("#formeRun").disabled = !etat.matiere; }
   }
 
@@ -221,26 +221,26 @@
     const d = await api.get("/bible/entities?kind=place").catch(() => ({ entities: [] }));
     const lieux = d.entities || [];
     $("#lieuSel").innerHTML = lieux.length
-      ? lieux.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}${e.ref_image ? "" : " (sans planche)"}</option>`).join("")
-      : `<option value="">aucun lieu dans la bible</option>`;
+      ? lieux.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}${e.ref_image ? "" : __dzT9("tuiles.tl1_lieu.sans_planche", " (sans planche)")}</option>`).join("")
+      : `<option value="">${__dzT9("tuiles.tl1_lieu.aucun_opt", "aucun lieu dans la bible")}</option>`;
     $("#lieuRun").disabled = !lieux.length;
   }
   async function promptLieu() {
     const st = $("#jeuStatus");
     const eid = $("#lieuSel").value;
-    if (!eid) return statut(st, "Aucun lieu dans la bible.", true);
+    if (!eid) return statut(st, __dzT9("tuiles.tl1_lieu.aucun", "Aucun lieu dans la bible."), true);
     try {
       const d = await api.post("/tiles/prompt-lieu", { entity_id: eid, surface: $("#lieuSurface").value });
       $("#lieuPrompt").value = d.prompt;
       $("#lieuPalette").innerHTML = d.palette.map((c) => `<span style="background:${esc(c)}" title="${esc(c)}"></span>`).join("")
-        || `<span class="hint">${d.planche ? "" : "lieu sans planche : palette libre"}</span>`;
+        || `<span class="hint">${d.planche ? "" : __dzT9("tuiles.tl1_lieu.palette_libre", "lieu sans planche : palette libre")}</span>`;
       $("#lieuCopier").disabled = false;
       vider(st);
-    } catch (e) { statut(st, "Échec : " + e.message, true); }
+    } catch (e) { statut(st, __dzT9("tuiles.tl1_x.echec", "Échec : {msg}", { msg: e.message }), true); }
   }
   async function copierLieu() {
-    try { await navigator.clipboard.writeText($("#lieuPrompt").value); statut($("#jeuStatus"), "Prompt copié — colle-le dans le générateur d'images."); }
-    catch (e) { $("#lieuPrompt").select(); statut($("#jeuStatus"), "Copie refusée par le navigateur : le prompt est sélectionné, Ctrl+C.", true); }
+    try { await navigator.clipboard.writeText($("#lieuPrompt").value); statut($("#jeuStatus"), __dzT9("tuiles.tl1_lieu.copie", "Prompt copié — colle-le dans le générateur d'images.")); }
+    catch (e) { $("#lieuPrompt").select(); statut($("#jeuStatus"), __dzT9("tuiles.tl1_lieu.copie_refusee", "Copie refusée par le navigateur : le prompt est sélectionné, Ctrl+C."), true); }
   }
 
   /* ── branchements ─────────────────────────────────────────────────────────────────────────────────────────── */
@@ -269,7 +269,7 @@
   document.addEventListener("tl-mode", (e) => {
     if ((e.detail === "jeu" || e.detail === "formes") && !etat.charge) {
       chargerLieux();
-      charger().catch((err) => statut($(e.detail === "jeu" ? "#jeuStatus" : "#formeStatus"), "Library : " + err.message, true));
+      charger().catch((err) => statut($(e.detail === "jeu" ? "#jeuStatus" : "#formeStatus"), __dzT9("tuiles.tl1_lib.erreur", "Library : {msg}", { msg: err.message }), true));
     }
   });
 
@@ -277,3 +277,5 @@
   window.__tljeu = { get etat() { return etat; }, charger, choisirJeu, choisirForme, fabriquer, apercu, mesurer,
                      fabriquerForme, exporter };
 })();
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

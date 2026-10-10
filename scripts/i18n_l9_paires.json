@@ -1,0 +1,3686 @@
+{
+ "base": "7f99c72c",
+ "fichiers": {
+  "spritelab/spritelab.js": [
+   {
+    "pos": 366,
+    "avant": "const $ = (s) => document.querySelector(s);",
+    "apres": "const $ = (s) => document.querySelector(s);\r\n/* t149 (traduction L9) : passe unique au chargement, en anglais seulement — (1) les <option> fixes de la page\r\n   (la surcouche n'entre pas dans <select>) ; (2) les textes de la page saisis en « contexte » (sens propre au\r\n   lab, la surcouche les ignore) : texte exact d'un nœud ou d'un title/placeholder -> dzT(clé), clés de cette\r\n   page seulement. */\r\n(function () {\r\n  if (typeof document === \"undefined\" || typeof dzLang !== \"function\" || dzLang() !== \"en\") return;\r\n  const tr = window.__dzI18n && window.__dzI18n.traduire;\r\n  if (tr) for (const o of document.querySelectorAll(\"select option\")) { const t = tr(o.textContent); if (t) o.textContent = t; }\r\n  if (tr) for (const im of document.querySelectorAll(\"img[alt]\")) { const t = tr(im.alt); if (t) im.alt = t; }   // alt : hors surcouche\r\n  const D = window.DZ_I18N || {}, idx = {}, nrm = (s) => String(s).replace(/\\s+/g, \" \").trim();\r\n  for (const k in D) if (k.startsWith(\"sprites.sph_\") && D[k] && D[k].contexte) idx[nrm(D[k].fr)] = k;\r\n  // la surcouche a pu passer AVANT : le texte qu'elle a posé (« Plateau » -> Board du Vectorlab) est reconnu aussi\r\n  if (tr) for (const f of Object.keys(idx)) { const e = tr(f); if (e && !idx[nrm(e)]) idx[nrm(e)] = idx[f]; }\r\n  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);\r\n  for (let x = w.nextNode(); x; x = w.nextNode()) {\r\n    const k = idx[nrm(x.nodeValue)];\r\n    if (k) x.nodeValue = x.nodeValue.match(/^\\s*/)[0] + dzT(k) + x.nodeValue.match(/\\s*$/)[0];\r\n  }\r\n  for (const el of document.querySelectorAll(\"[title],[placeholder]\")) for (const a of [\"title\", \"placeholder\"]) {\r\n    const v = el.getAttribute(a), k = v && idx[nrm(v)];\r\n    if (k) el.setAttribute(a, dzT(k));\r\n  }\r\n})();",
+    "groupe": "integration"
+   },
+   {
+    "pos": 4027,
+    "avant": "\"délai dépassé\"",
+    "apres": "__dzT9(\"sprites.sp1_x.delai\", \"délai dépassé\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 5911,
+    "avant": "src ? \"Source : \" + src.label : \"aucune source\"",
+    "apres": "src ? __dzT9(\"sprites.sp1_src.source\", \"Source : {label}\", { label: src.label }) : __dzT9(\"sprites.sp1_src.aucune\", \"aucune source\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 6366,
+    "avant": "Library indisponible : ${esc(e.message)}",
+    "apres": "${__dzT9(\"sprites.sp1_img.lib_indispo\", \"Library indisponible : {err}\", { err: esc(e.message) })}",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 6897,
+    "avant": "<div class=\"empty-note\">Aucune image${q ? \" pour « \" + esc(q) + \" »\" : \" dans la Library\"}.",
+    "apres": "<div class=\"empty-note\">${q ? __dzT9(\"sprites.sp1_img.aucune_q\", \"Aucune image pour « {q} ».\", { q: esc(q) }) : __dzT9(\"sprites.sp1_img.aucune_lib\", \"Aucune image dans la Library.\")}",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 7269,
+    "avant": "\"Choisis d'abord une image de la Library.\"",
+    "apres": "__dzT9(\"sprites.sp1_anim.choisis_image\", \"Choisis d'abord une image de la Library.\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 7406,
+    "avant": "\"Décris l'action à animer (ex : walks in place).\"",
+    "apres": "__dzT9(\"sprites.sp1_anim.decris\", \"Décris l'action à animer (ex : walks in place).\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 7577,
+    "avant": "\"Lancement Seedance…\"",
+    "apres": "__dzT9(\"sprites.sp1_anim.lancement\", \"Lancement Seedance…\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 8482,
+    "avant": "\"job Seedance introuvable dans la file\"",
+    "apres": "__dzT9(\"sprites.sp1_anim.job_introuvable\", \"job Seedance introuvable dans la file\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 8592,
+    "avant": "`Seedance : ${jj.current_step || jj.status}…`",
+    "apres": "__dzT9(\"sprites.sp1_anim.etape\", \"Seedance : {etape}…\", { etape: jj.current_step || jj.status })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 8723,
+    "avant": "\"génération échouée\"",
+    "apres": "__dzT9(\"sprites.sp1_x.gen_echouee\", \"génération échouée\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 8779,
+    "avant": "\"Animation prête — extraction des frames…\"",
+    "apres": "__dzT9(\"sprites.sp1_anim.prete\", \"Animation prête — extraction des frames…\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 8965,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"sprites.sp1_x.echec\", \"Échec : {err}\", { err: e.message })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 9007,
+    "avant": "\"Animer a échoué : \" + e.message",
+    "apres": "__dzT9(\"sprites.sp1_anim.echoue\", \"Animer a échoué : {err}\", { err: e.message })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 9535,
+    "avant": "Renders indisponibles : ${esc(e.message)}",
+    "apres": "${__dzT9(\"sprites.sp1_rd.indispo\", \"Renders indisponibles : {err}\", { err: esc(e.message) })}",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 10295,
+    "avant": "<div class=\"empty-note\">Aucun render vidéo terminé.</div>",
+    "apres": "<div class=\"empty-note\">${__dzT9(\"sprites.sp1_rd.aucun\", \"Aucun render vidéo terminé.\")}</div>",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 10838,
+    "avant": "`Envoi de ${file.name}…`",
+    "apres": "__dzT9(\"sprites.sp1_vid.envoi\", \"Envoi de {nom}…\", { nom: file.name })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 11140,
+    "avant": "`Importée : ${d.filename} (${d.duration_s || \"?\"} s)`",
+    "apres": "__dzT9(\"sprites.sp1_vid.importee\", \"Importée : {nom} ({d} s)\", { nom: d.filename, d: d.duration_s || \"?\" })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 11302,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"sprites.sp1_x.echec\", \"Échec : {err}\", { err: e.message })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 11344,
+    "avant": "\"Upload échoué : \" + e.message",
+    "apres": "__dzT9(\"sprites.sp1_vid.echoue\", \"Upload échoué : {err}\", { err: e.message })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 11976,
+    "avant": "Extraction des frames… (locale, gratuite)",
+    "apres": "${__dzT9(\"sprites.sp1_strip.extraction\", \"Extraction des frames… (locale, gratuite)\")}",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 12475,
+    "avant": "\"extraction échouée\"",
+    "apres": "__dzT9(\"sprites.sp1_strip.extr_echouee\", \"extraction échouée\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 12993,
+    "avant": "<div class=\"empty-note\">Extraction échouée : ${esc(e.message)}",
+    "apres": "<div class=\"empty-note\">${__dzT9(\"sprites.sp1_strip.echec_extr\", \"Extraction échouée : {err}\", { err: esc(e.message) })}",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 13116,
+    "avant": "\"Extraction échouée : \" + e.message",
+    "apres": "__dzT9(\"sprites.sp1_strip.echec_extr\", \"Extraction échouée : {err}\", { err: e.message })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 13412,
+    "avant": "title=\"frame ${i} — clic : garder/enlever, Shift-clic : plage\"",
+    "apres": "title=\"${__dzT9(\"sprites.sp1_strip.frame_titre\", \"frame {i} — clic : garder/enlever, Shift-clic : plage\", { i })}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 14411,
+    "avant": "`${keptIndices().length}/${stripN} gardées`",
+    "apres": "__dzT9(\"sprites.sp1_strip.gardees\", \"{n}/{total} gardées\", { n: keptIndices().length, total: stripN })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 16338,
+    "avant": "\" placeholder=\"idle\" maxlength=\"32\" title=\"Nom de l'animation (lettres, chiffres, espace, _ ou -)\"",
+    "apres": "\" placeholder=\"idle\" maxlength=\"32\" title=\"${__dzT9(\"sprites.sp1_tag.nom\", \"Nom de l'animation (lettres, chiffres, espace, _ ou -)\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 16532,
+    "avant": "\" title=\"Première frame gardée\"",
+    "apres": "\" title=\"${__dzT9(\"sprites.sp1_tag.premiere\", \"Première frame gardée\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 16655,
+    "avant": "\" title=\"Dernière frame gardée\">\r\n      <select class=\"tdir\" title=\"Sens de lecture\"",
+    "apres": "\" title=\"${__dzT9(\"sprites.sp1_tag.derniere\", \"Dernière frame gardée\")}\">\r\n      <select class=\"tdir\" title=\"${__dzT9(\"sprites.sp1_tag.sens\", \"Sens de lecture\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 16842,
+    "avant": ".join(\"\")}\r\n      </select>\r\n      <button class=\"del\" type=\"button\" title=\"Retirer ce tag\" aria-label=\"Retirer ce tag\"",
+    "apres": ".join(\"\")}\r\n      </select>\r\n      <button class=\"del\" type=\"button\" title=\"${__dzT9(\"sprites.sp1_tag.retirer\", \"Retirer ce tag\")}\" aria-label=\"${__dzT9(\"sprites.sp1_tag.retirer\", \"Retirer ce tag\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 18164,
+    "avant": "\"Réglages fps/max modifiés — frames ré-extraites. Vérifie ta sélection puis relance.\"",
+    "apres": "__dzT9(\"sprites.sp1_gen.reextraites\", \"Réglages fps/max modifiés — frames ré-extraites. Vérifie ta sélection puis relance.\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 18351,
+    "avant": "\"Garde au moins une frame dans le filmstrip.\"",
+    "apres": "__dzT9(\"sprites.sp1_gen.au_moins_une\", \"Garde au moins une frame dans le filmstrip.\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 19091,
+    "avant": "\"Job lancé…\"",
+    "apres": "__dzT9(\"sprites.sp1_gen.lance\", \"Job lancé…\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 19365,
+    "avant": "\"génération échouée\"",
+    "apres": "__dzT9(\"sprites.sp1_x.gen_echouee\", \"génération échouée\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 19562,
+    "avant": "\"Sprite sheet généré\"",
+    "apres": "__dzT9(\"sprites.sp1_gen.genere\", \"Sprite sheet généré\")",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 19622,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"sprites.sp1_x.echec\", \"Échec : {err}\", { err: e.message })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 19664,
+    "avant": "\"Génération échouée : \" + e.message",
+    "apres": "__dzT9(\"sprites.sp1_gen.echouee\", \"Génération échouée : {err}\", { err: e.message })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 20381,
+    "avant": "(m.pixel.colors + \" coul.\")",
+    "apres": "__dzT9(\"sprites.sp1_out.coul\", \"{n} coul.\", { n: m.pixel.colors })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 22612,
+    "avant": "n + \" image(s)\"",
+    "apres": "__dzT9(\"sprites.sp1_ed.images\", \"{n} image(s)\", { n })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 22841,
+    "avant": "#${src}</div>\r\n      <div class=\"ops\">\r\n        <button data-op=\"left\" title=\"Vers la gauche\" aria-label=\"Vers la gauche\"",
+    "apres": "#${src}</div>\r\n      <div class=\"ops\">\r\n        <button data-op=\"left\" title=\"${__dzT9(\"sprites.sp1_ed.gauche\", \"Vers la gauche\")}\" aria-label=\"${__dzT9(\"sprites.sp1_ed.gauche\", \"Vers la gauche\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 23077,
+    "avant": "title=\"Dupliquer\" aria-label=\"Dupliquer\"",
+    "apres": "title=\"${__dzT9(\"sprites.sp1_ed.dupliquer\", \"Dupliquer\")}\" aria-label=\"${__dzT9(\"sprites.sp1_ed.dupliquer\", \"Dupliquer\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 23190,
+    "avant": "16 })}</button>\r\n        <button data-op=\"del\" title=\"Supprimer\" aria-label=\"Supprimer\"",
+    "apres": "16 })}</button>\r\n        <button data-op=\"del\" title=\"${__dzT9(\"sprites.sp1_ed.supprimer\", \"Supprimer\")}\" aria-label=\"${__dzT9(\"sprites.sp1_ed.supprimer\", \"Supprimer\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 23347,
+    "avant": "16 })}</button>\r\n        <button data-op=\"right\" title=\"Vers la droite\" aria-label=\"Vers la droite\"",
+    "apres": "16 })}</button>\r\n        <button data-op=\"right\" title=\"${__dzT9(\"sprites.sp1_ed.droite\", \"Vers la droite\")}\" aria-label=\"${__dzT9(\"sprites.sp1_ed.droite\", \"Vers la droite\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 26144,
+    "avant": "`frame ${hb.frame} · ${hb.rects[hb.frame].length} rect. · ${n} au total`",
+    "apres": "__dzT9(\"sprites.sp1_hb.info\", \"frame {f} · {r} rect. · {n} au total\", { f: hb.frame, r: hb.rects[hb.frame].length, n })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 27206,
+    "avant": "`enregistré · ${r.rectangles} rectangle(s)`",
+    "apres": "__dzT9(\"sprites.sp1_hb.enregistre\", \"enregistré · {n} rectangle(s)\", { n: r.rectangles })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 28102,
+    "avant": "`${window.SLH.MAX_PAR_FRAME} rectangles au plus par frame`",
+    "apres": "__dzT9(\"sprites.sp1_hb.max\", \"{n} rectangles au plus par frame\", { n: window.SLH.MAX_PAR_FRAME })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 28446,
+    "avant": "`${window.SLH.copier(hb)} rectangle(s) copié(s)`",
+    "apres": "__dzT9(\"sprites.sp1_hb.copies\", \"{n} rectangle(s) copié(s)\", { n: window.SLH.copier(hb) })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 29627,
+    "avant": "`${window.SLH.copier(hb)} rectangle(s) copié(s)`",
+    "apres": "__dzT9(\"sprites.sp1_hb.copies\", \"{n} rectangle(s) copié(s)\", { n: window.SLH.copier(hb) })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 32750,
+    "avant": "`${sk.bones.length} os · ${sk.pieces.length} pièce(s)`",
+    "apres": "__dzT9(\"sprites.sp1_sk.info\", \"{os} os · {pieces} pièce(s)\", { os: sk.bones.length, pieces: sk.pieces.length })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 32976,
+    "avant": "data-os=\"${escA(b.name)}\">\r\n      <span class=\"sk-ico\" title=\"Choisir cet os : les prochains os et pièces s'y accrochent\"",
+    "apres": "data-os=\"${escA(b.name)}\">\r\n      <span class=\"sk-ico\" title=\"${__dzT9(\"sprites.sp1_sk.choisir_os\", \"Choisir cet os : les prochains os et pièces s'y accrochent\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 33198,
+    "avant": "\" maxlength=\"32\" title=\"Nom de l'os (lettres, chiffres, _ ou -)\"",
+    "apres": "\" maxlength=\"32\" title=\"${__dzT9(\"sprites.sp1_sk.nom_os\", \"Nom de l'os (lettres, chiffres, _ ou -)\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 33336,
+    "avant": "°</span>\r\n      <button class=\"sk-del\" title=\"Supprimer cet os, ses enfants et leurs pièces\" aria-label=\"Supprimer cet os, ses enfants et leurs pièces\"",
+    "apres": "°</span>\r\n      <button class=\"sk-del\" title=\"${__dzT9(\"sprites.sp1_sk.suppr_os\", \"Supprimer cet os, ses enfants et leurs pièces\")}\" aria-label=\"${__dzT9(\"sprites.sp1_sk.suppr_os\", \"Supprimer cet os, ses enfants et leurs pièces\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 33766,
+    "avant": "\" maxlength=\"32\" title=\"Nom de la pièce — c'est aussi le nom de son PNG\"",
+    "apres": "\" maxlength=\"32\" title=\"${__dzT9(\"sprites.sp1_sk.nom_piece\", \"Nom de la pièce — c'est aussi le nom de son PNG\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 33898,
+    "avant": "</span>\r\n      <button class=\"sk-del\" title=\"Supprimer cette pièce\" aria-label=\"Supprimer cette pièce\"",
+    "apres": "</span>\r\n      <button class=\"sk-del\" title=\"${__dzT9(\"sprites.sp1_sk.suppr_piece\", \"Supprimer cette pièce\")}\" aria-label=\"${__dzT9(\"sprites.sp1_sk.suppr_piece\", \"Supprimer cette pièce\")}\"",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 34193,
+    "avant": "aucun os — glisse sur la case avec l'outil ${dzIcone(\"dz-lab3d-os\", { taille: 16 })} Os",
+    "apres": "${__dzT9(\"sprites.sp1_sk.aucun_os\", \"aucun os — glisse sur la case avec l'outil\")} ${dzIcone(\"dz-lab3d-os\", { taille: 16 })} ${__dzT9(\"sprites.sp1_sk.outil_os\", \"Os\")}",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 34615,
+    "avant": "\"Nom refusé : 1 à 32 caractères (lettres, chiffres, _ ou -), unique\" + (os ? \", et pas « root »\" : \"\")",
+    "apres": "(os ? __dzT9(\"sprites.sp1_sk.nom_refuse_os\", \"Nom refusé : 1 à 32 caractères (lettres, chiffres, _ ou -), unique, et pas « root »\") : __dzT9(\"sprites.sp1_sk.nom_refuse\", \"Nom refusé : 1 à 32 caractères (lettres, chiffres, _ ou -), unique\"))",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 34916,
+    "avant": "`${r.os} os et ${r.pieces} pièce(s) retirés`",
+    "apres": "__dzT9(\"sprites.sp1_sk.retires\", \"{os} os et {pieces} pièce(s) retirés\", { os: r.os, pieces: r.pieces })",
+    "groupe": "sp1"
+   },
+   {
+    "pos": 35508,
+    "avant": "\"Découpe des pièces et écriture du rig…\"",
+    "apres": "__dzT9(\"sprites.sp2_sk.ecriture\", \"Découpe des pièces et écriture du rig…\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 35886,
+    "avant": "`rig écrit · ${d.bones} os (racine comprise) · ${d.slots} pièce(s) · hash ${d.hash} — le ZIP emporte spine/`",
+    "apres": "__dzT9(\"sprites.sp2_sk.ecrit\", \"rig écrit · {os} os (racine comprise) · {pieces} pièce(s) · hash {hash} — le ZIP emporte spine/\", { os: d.bones, pieces: d.slots, hash: d.hash })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 36033,
+    "avant": "\"Échec : \"",
+    "apres": "__dzT9(\"sprites.sp2_com.echec\", \"Échec : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 36929,
+    "avant": "\"Boîte trop petite : glisse sur au moins 2 px\"",
+    "apres": "__dzT9(\"sprites.sp2_sk.boite_petite\", \"Boîte trop petite : glisse sur au moins 2 px\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 37461,
+    "avant": "\"Réassemblage…\"",
+    "apres": "__dzT9(\"sprites.sp2_ed.reassemblage\", \"Réassemblage…\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 37853,
+    "avant": "\"Feuille réassemblée\"",
+    "apres": "__dzT9(\"sprites.sp2_ed.reassemblee\", \"Feuille réassemblée\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 37876,
+    "avant": "\" — local, gratuit\"",
+    "apres": "__dzT9(\"sprites.sp2_com.local_gratuit\", \" — local, gratuit\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 37934,
+    "avant": "\"Échec : \"",
+    "apres": "__dzT9(\"sprites.sp2_com.echec\", \"Échec : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 41446,
+    "avant": "`Sheet copié dans la Library${",
+    "apres": "`${__dzT9(\"sprites.sp2_lib.copie\", \"Sheet copié dans la Library\")}${",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 41521,
+    "avant": "\" — réutilisable dans le Studio (nœud Image).\"",
+    "apres": "__dzT9(\"sprites.sp2_lib.reutilisable\", \" — réutilisable dans le Studio (nœud Image).\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 41593,
+    "avant": "\"Save to Library échoué : \"",
+    "apres": "__dzT9(\"sprites.sp2_lib.save_echoue\", \"Save to Library échoué : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 42746,
+    "avant": "\"Ouverture du Studio impossible : \"",
+    "apres": "__dzT9(\"sprites.sp2_lib.studio_impossible\", \"Ouverture du Studio impossible : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 44320,
+    "avant": "`<div class=\"empty-note\">Bible indisponible : ${esc(e.message)}</div>`",
+    "apres": "`<div class=\"empty-note\">${__dzT9(\"sprites.sp2_bible.indispo\", \"Bible indisponible : {msg}\", { msg: esc(e.message) })}</div>`",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 44748,
+    "avant": "<div class=\"rm\">planche${e.model3d_job ? ' · <span class=\"ent-3d\">modèle 3D</span>' : \"\"}</div>",
+    "apres": "<div class=\"rm\">${__dzT9(\"sprites.sp2_bible.planche\", \"planche\")}${e.model3d_job ? ' · <span class=\"ent-3d\">' + __dzT9(\"sprites.sp2_bible.modele3d\", \"modèle 3D\") + '</span>' : \"\"}</div>",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 44876,
+    "avant": "<div class=\"empty-note\">Aucun personnage avec une planche — génère-la dans l'Atelier (Planche).</div>",
+    "apres": "<div class=\"empty-note\">${__dzT9(\"sprites.sp2_bible.aucun\", \"Aucun personnage avec une planche — génère-la dans l'Atelier (Planche).\")}</div>",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 45322,
+    "avant": "\"Ce personnage n'a pas de modèle 3D — génère-le dans Assets 3D, ou découpe la planche (4 directions)\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.pas_3d\", \"Ce personnage n'a pas de modèle 3D — génère-le dans Assets 3D, ou découpe la planche (4 directions)\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 45431,
+    "avant": "\"Rend le modèle 3D sous 8 angles et en fait une feuille de 8 directions (local, gratuit)\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.rend_3d\", \"Rend le modèle 3D sous 8 angles et en fait une feuille de 8 directions (local, gratuit)\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 45845,
+    "avant": "\"assemblage échoué\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.assemblage_echoue\", \"assemblage échoué\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 46232,
+    "avant": "\"Découpe de la planche…\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.decoupe\", \"Découpe de la planche…\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 46569,
+    "avant": "\"4 directions depuis la planche\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.quatre_dir\", \"4 directions depuis la planche\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 46603,
+    "avant": "\" — gratuit, local\"",
+    "apres": "__dzT9(\"sprites.sp2_com.gratuit_local\", \" — gratuit, local\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 46664,
+    "avant": "\"Échec : \"",
+    "apres": "__dzT9(\"sprites.sp2_com.echec\", \"Échec : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 47189,
+    "avant": "\"modèle 3D illisible\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.illisible\", \"modèle 3D illisible\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 47264,
+    "avant": "\"délai dépassé au chargement du modèle 3D\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.delai\", \"délai dépassé au chargement du modèle 3D\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 48102,
+    "avant": "\"model-viewer n'est pas chargé\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.mv_absent\", \"model-viewer n'est pas chargé\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 48155,
+    "avant": "\"Chargement du modèle 3D…\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.chargement\", \"Chargement du modèle 3D…\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 48908,
+    "avant": "`vue ${nom} refusée (${r.status})`",
+    "apres": "__dzT9(\"sprites.sp2_bible.vue_refusee\", \"vue {nom} refusée ({statut})\", { nom, statut: r.status })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 49038,
+    "avant": "`Capture ${k + 1}/8 (${nom})…`",
+    "apres": "__dzT9(\"sprites.sp2_bible.capture\", \"Capture {k}/8 ({nom})…\", { k: k + 1, nom })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 49251,
+    "avant": "\"Assemblage de la feuille…\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.assemblage\", \"Assemblage de la feuille…\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 49420,
+    "avant": "\"8 directions\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.huit_dir\", \"8 directions\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 49436,
+    "avant": "\" — rendu opaque, clé chroma locale appliquée\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.opaque\", \" — rendu opaque, clé chroma locale appliquée\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 49487,
+    "avant": "\"8 directions\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.huit_dir\", \"8 directions\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 49503,
+    "avant": "\" — rendu déjà détouré\"",
+    "apres": "__dzT9(\"sprites.sp2_bible.detoure\", \" — rendu déjà détouré\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 49568,
+    "avant": "\"Échec : \"",
+    "apres": "__dzT9(\"sprites.sp2_com.echec\", \"Échec : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 50257,
+    "avant": "\" title=\"Ajouter « ${escA(p.v)} » au prompt\"",
+    "apres": "\" title=\"${__dzT9(\"sprites.sp2_pm.ajouter\", \"Ajouter « {v} » au prompt\", { v: escA(p.v) })}\"",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 50383,
+    "avant": "`<span class=\"hint\">aucun mot-clé dans la persona</span>`",
+    "apres": "`<span class=\"hint\">${__dzT9(\"sprites.sp2_pm.aucun_mot\", \"aucun mot-clé dans la persona\")}</span>`",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 51222,
+    "avant": "\"Décris d'abord le sprite.\"",
+    "apres": "__dzT9(\"sprites.sp2_pm.decris\", \"Décris d'abord le sprite.\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 51367,
+    "avant": "\"Génération des images…\"",
+    "apres": "__dzT9(\"sprites.sp2_pm.generation\", \"Génération des images…\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 51626,
+    "avant": "\"aucune image rendue\"",
+    "apres": "__dzT9(\"sprites.sp2_pm.aucune_rendue\", \"aucune image rendue\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 52032,
+    "avant": "`${noms.length} image(s) du prompt`",
+    "apres": "__dzT9(\"sprites.sp2_pm.images_prompt\", \"{n} image(s) du prompt\", { n: noms.length })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 52085,
+    "avant": "`${noms.length} image(s) générée(s)`",
+    "apres": "__dzT9(\"sprites.sp2_pm.generees\", \"{n} image(s) générée(s)\", { n: noms.length })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 52123,
+    "avant": "\" — détourage en clé chroma (local) ; choisis tes frames puis génère le sheet\"",
+    "apres": "__dzT9(\"sprites.sp2_pm.detourage\", \" — détourage en clé chroma (local) ; choisis tes frames puis génère le sheet\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 52240,
+    "avant": "\"Échec : \"",
+    "apres": "__dzT9(\"sprites.sp2_com.echec\", \"Échec : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 54187,
+    "avant": "`<div class=\"empty-note\">Catalogue indisponible : ${esc(e.message)}</div>`",
+    "apres": "`<div class=\"empty-note\">${__dzT9(\"sprites.sp2_st.indispo\", \"Catalogue indisponible : {msg}\", { msg: esc(e.message) })}</div>`",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 54389,
+    "avant": "item.frames + \" images\"",
+    "apres": "__dzT9(\"sprites.sp2_st.n_images\", \"{n} images\", { n: item.frames })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 54947,
+    "avant": "`<div class=\"empty-note\">Catalogue de démarrage absent —\r\n      lance <code>python scripts/build_starter_catalog.py --fetch</code> puis relance l'app.</div>`",
+    "apres": "`<div class=\"empty-note\">${__dzT9(\"sprites.sp2_st.absent\", \"Catalogue de démarrage absent — lance {cmd} puis relance l'app.\", { cmd: \"<code>python scripts/build_starter_catalog.py --fetch</code>\" })}</div>`",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 55160,
+    "avant": "d.presets.length + \" effets\"",
+    "apres": "__dzT9(\"sprites.sp2_st.n_effets\", \"{n} effets\", { n: d.presets.length })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 55947,
+    "avant": "\"Job lancé…\"",
+    "apres": "__dzT9(\"sprites.sp2_st.lance\", \"Job lancé…\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 56291,
+    "avant": "\"génération échouée\"",
+    "apres": "__dzT9(\"sprites.sp2_com.gen_echouee\", \"génération échouée\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 56488,
+    "avant": "\"Sprite prêt\"",
+    "apres": "__dzT9(\"sprites.sp2_st.pret\", \"Sprite prêt\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 56503,
+    "avant": "\" — gratuit, généré en local\"",
+    "apres": "__dzT9(\"sprites.sp2_st.gratuit_local\", \" — gratuit, généré en local\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 56571,
+    "avant": "\"Échec : \"",
+    "apres": "__dzT9(\"sprites.sp2_com.echec\", \"Échec : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 56613,
+    "avant": "\"Génération échouée : \"",
+    "apres": "__dzT9(\"sprites.sp2_st.gen_echouee\", \"Génération échouée : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 61860,
+    "avant": "\"image illisible : \"",
+    "apres": "__dzT9(\"sprites.sp2_f.illisible\", \"image illisible : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 62228,
+    "avant": "\"Feuille : \"",
+    "apres": "__dzT9(\"sprites.sp2_f.chip\", \"Feuille : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 62980,
+    "avant": "· cases ${F.g.cell_w}",
+    "apres": "· ${__dzT9(\"sprites.sp2_f.cases\", \"cases\")} ${F.g.cell_w}",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 64180,
+    "avant": "title=\"Retirer\" aria-label=\"Retirer\"",
+    "apres": "title=\"${__dzT9(\"sprites.sp2_f.retirer\", \"Retirer\")}\" aria-label=\"${__dzT9(\"sprites.sp2_f.retirer\", \"Retirer\")}\"",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 64294,
+    "avant": "`<div class=\"hint\">aucune section — sélectionne des cases puis « + depuis la sélection »</div>`",
+    "apres": "`<div class=\"hint\">${__dzT9(\"sprites.sp2_f.aucune_section\", \"aucune section — sélectionne des cases puis « + depuis la sélection »\")}</div>`",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 69652,
+    "avant": "\"sélectionne des cases d'abord\"",
+    "apres": "__dzT9(\"sprites.sp2_f.selectionne\", \"sélectionne des cases d'abord\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 70081,
+    "avant": "\"manifest copié\"",
+    "apres": "__dzT9(\"sprites.sp2_f.copie\", \"manifest copié\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 70120,
+    "avant": "\"presse-papiers refusé : \"",
+    "apres": "__dzT9(\"sprites.sp2_f.presse_papiers\", \"presse-papiers refusé : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 70760,
+    "avant": "`sauvé en Library : ${d.filename} — « Envoyer vers » le Vectorlab depuis la Library`",
+    "apres": "__dzT9(\"sprites.sp2_f.sauve\", \"sauvé en Library : {f} — « Envoyer vers » le Vectorlab depuis la Library\", { f: d.filename })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 71341,
+    "avant": "<div class=\"empty-note\">Aucune image${q ? \" pour « \" + esc(q) + \" »\" : \" dans la Library\"}.",
+    "apres": "<div class=\"empty-note\">${q ? __dzT9(\"sprites.sp2_f.aucune_q\", \"Aucune image pour « {q} ».\", { q: esc(q) }) : __dzT9(\"sprites.sp2_f.aucune_lib\", \"Aucune image dans la Library.\")}",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 73524,
+    "avant": "\"Génération en cours retrouvée…\"",
+    "apres": "__dzT9(\"sprites.sp2_rest.retrouvee\", \"Génération en cours retrouvée…\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 73769,
+    "avant": "\"génération échouée\"",
+    "apres": "__dzT9(\"sprites.sp2_com.gen_echouee\", \"génération échouée\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 73880,
+    "avant": "\"Sprite sheet généré\"",
+    "apres": "__dzT9(\"sprites.sp2_rest.genere\", \"Sprite sheet généré\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 73948,
+    "avant": "\"Échec : \"",
+    "apres": "__dzT9(\"sprites.sp2_com.echec\", \"Échec : \")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 74297,
+    "avant": "\"Dernier sheet rechargé\"",
+    "apres": "__dzT9(\"sprites.sp2_rest.recharge\", \"Dernier sheet rechargé\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 75263,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "spritelab/directions.js": [
+   {
+    "pos": 2618,
+    "avant": "`${ORBITES.length} vues attendues, ${Array.isArray(noms) ? noms.length : 0} reçues`",
+    "apres": "__dzT9(\"sprites.sp2_dir.vues\", \"{n} vues attendues, {recu} reçues\", { n: ORBITES.length, recu: Array.isArray(noms) ? noms.length : 0 })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 4635,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "spritelab/feuille.js": [
+   {
+    "pos": 1245,
+    "avant": "\"feuille : image vide\"",
+    "apres": "__dzT9(\"sprites.sp2_fm.vide\", \"feuille : image vide\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 3613,
+    "avant": "`alignement : mode ${mode} inconnu (deux, x, pieds)`",
+    "apres": "__dzT9(\"sprites.sp2_fm.mode_inconnu\", \"alignement : mode {mode} inconnu (deux, x, pieds)\", { mode })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 4824,
+    "avant": "\"section : nom requis\"",
+    "apres": "__dzT9(\"sprites.sp2_fm.nom_requis\", \"section : nom requis\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 4989,
+    "avant": "`section : bornes 0 ≤ début ≤ fin < ${nFrames}`",
+    "apres": "__dzT9(\"sprites.sp2_fm.bornes\", \"section : bornes 0 ≤ début ≤ fin < {n}\", { n: nFrames })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 5095,
+    "avant": "\"section : mode boucle, pingpong ou inverse\"",
+    "apres": "__dzT9(\"sprites.sp2_fm.mode_section\", \"section : mode boucle, pingpong ou inverse\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 7040,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "spritelab/palettes.js": [
+   {
+    "pos": 2769,
+    "avant": ">Adaptative (N couleurs)</option>",
+    "apres": ">${__dzT9(\"sprites.sp2_pal.adaptative\", \"Adaptative (N couleurs)\")}</option>",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 2955,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "spritelab/skeleton.js": [
+   {
+    "pos": 1794,
+    "avant": "`${MAX_OS} os au plus`",
+    "apres": "__dzT9(\"sprites.sp2_skm.max_os\", \"{n} os au plus\", { n: MAX_OS })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 2544,
+    "avant": "\"pose d'abord un os : une pièce s'accroche à un os\"",
+    "apres": "__dzT9(\"sprites.sp2_skm.os_dabord\", \"pose d'abord un os : une pièce s'accroche à un os\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 2652,
+    "avant": "`${MAX_PIECES} pièces au plus`",
+    "apres": "__dzT9(\"sprites.sp2_skm.max_pieces\", \"{n} pièces au plus\", { n: MAX_PIECES })",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 5051,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "spritelab/zip.js": [
+   {
+    "pos": 790,
+    "avant": "\"zip : aucune entrée\"",
+    "apres": "__dzT9(\"sprites.sp2_zip.aucune\", \"zip : aucune entrée\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 1013,
+    "avant": "\"zip : nom d'entrée vide\"",
+    "apres": "__dzT9(\"sprites.sp2_zip.nom_vide\", \"zip : nom d'entrée vide\")",
+    "groupe": "sp2"
+   },
+   {
+    "pos": 2956,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "tilelab/tilelab.js": [
+   {
+    "pos": 376,
+    "avant": "const $ = (s) => document.querySelector(s);",
+    "apres": "const $ = (s) => document.querySelector(s);\r\n/* t149 (traduction L9) : passe unique au chargement, en anglais seulement — (1) les <option> fixes de la page\r\n   (la surcouche n'entre pas dans <select>) ; (2) les textes de la page saisis en « contexte » (sens propre au\r\n   lab, la surcouche les ignore) : texte exact d'un nœud ou d'un title/placeholder -> dzT(clé), clés de cette\r\n   page seulement. */\r\n(function () {\r\n  if (typeof document === \"undefined\" || typeof dzLang !== \"function\" || dzLang() !== \"en\") return;\r\n  const tr = window.__dzI18n && window.__dzI18n.traduire;\r\n  if (tr) for (const o of document.querySelectorAll(\"select option\")) { const t = tr(o.textContent); if (t) o.textContent = t; }\r\n  if (tr) for (const im of document.querySelectorAll(\"img[alt]\")) { const t = tr(im.alt); if (t) im.alt = t; }   // alt : hors surcouche\r\n  const D = window.DZ_I18N || {}, idx = {}, nrm = (s) => String(s).replace(/\\s+/g, \" \").trim();\r\n  for (const k in D) if (k.startsWith(\"tuiles.tlh_\") && D[k] && D[k].contexte) idx[nrm(D[k].fr)] = k;\r\n  // la surcouche a pu passer AVANT : le texte qu'elle a posé (« Plateau » -> Board du Vectorlab) est reconnu aussi\r\n  if (tr) for (const f of Object.keys(idx)) { const e = tr(f); if (e && !idx[nrm(e)]) idx[nrm(e)] = idx[f]; }\r\n  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);\r\n  for (let x = w.nextNode(); x; x = w.nextNode()) {\r\n    const k = idx[nrm(x.nodeValue)];\r\n    if (k) x.nodeValue = x.nodeValue.match(/^\\s*/)[0] + dzT(k) + x.nodeValue.match(/\\s*$/)[0];\r\n  }\r\n  for (const el of document.querySelectorAll(\"[title],[placeholder]\")) for (const a of [\"title\", \"placeholder\"]) {\r\n    const v = el.getAttribute(a), k = v && idx[nrm(v)];\r\n    if (k) el.setAttribute(a, dzT(k));\r\n  }\r\n})();",
+    "groupe": "integration"
+   },
+   {
+    "pos": 2124,
+    "avant": "`<div class=\"empty-note\">Library indisponible : ${esc(e.message)}</div>`",
+    "apres": "`<div class=\"empty-note\">${__dzT9(\"tuiles.tl1_lib.indispo\", \"Library indisponible : {msg}\", { msg: esc(e.message) })}</div>`",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 2679,
+    "avant": "`<div class=\"empty-note\">Aucune image${q ? \" pour « \" + esc(q) + \" »\" : \" dans la Library\"}.</div>`",
+    "apres": "`<div class=\"empty-note\">${q ? __dzT9(\"tuiles.tl1_lib.aucune_pour\", \"Aucune image pour « {q} ».\", { q: esc(q) }) : __dzT9(\"tuiles.tl1_lib.aucune_lib\", \"Aucune image dans la Library.\")}</div>`",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 3014,
+    "avant": "\"Source : \" + selImage",
+    "apres": "__dzT9(\"tuiles.tl1_src.source\", \"Source : {fn}\", { fn: selImage })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 4629,
+    "avant": "\"image illisible : \" + src",
+    "apres": "__dzT9(\"tuiles.tl1_img.illisible\", \"image illisible : {src}\", { src: src })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 5219,
+    "avant": "\"Tuile seamless…\"",
+    "apres": "__dzT9(\"tuiles.tl1_run.seamless\", \"Tuile seamless…\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 5665,
+    "avant": "\"Pixel-art…\"",
+    "apres": "__dzT9(\"tuiles.tl1_run.pixel\", \"Pixel-art…\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 5868,
+    "avant": "\"Pavage + score…\"",
+    "apres": "__dzT9(\"tuiles.tl1_run.pavage\", \"Pavage + score…\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 6668,
+    "avant": "toastOk(`Tuile prête : raccord ${d.seam_before} → ${after}`, ` (Library : ${finalName})`);",
+    "apres": "toastOk(__dzT9(\"tuiles.tl1_run.prete\", \"Tuile prête : raccord {avant} → {apres}\", { avant: d.seam_before, apres: after }), __dzT9(\"tuiles.tl1_run.prete_lib\", \" (Library : {fichier})\", { fichier: finalName }));",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 6795,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_x.echec\", \"Échec : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 6837,
+    "avant": "\"Tuile échouée : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_run.echouee\", \"Tuile échouée : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 7653,
+    "avant": "\"Ouverture du Studio impossible : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_studio.impossible\", \"Ouverture du Studio impossible : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 10272,
+    "avant": "\"Tuile seamless\"",
+    "apres": "__dzT9(\"tuiles.tl1_mode.seamless\", \"Tuile seamless\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 10299,
+    "avant": "\"Feuille de tuiles\"",
+    "apres": "__dzT9(\"tuiles.tl1_mode.feuille\", \"Feuille de tuiles\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 10325,
+    "avant": "\"Jeu de tuiles\"",
+    "apres": "__dzT9(\"tuiles.tl1_mode.jeu\", \"Jeu de tuiles\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 10350,
+    "avant": "\"Tuile de forme\"",
+    "apres": "__dzT9(\"tuiles.tl1_mode.forme\", \"Tuile de forme\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 10377,
+    "avant": "\"Peintre\"",
+    "apres": "__dzT9(\"tuiles.tl1_mode.peintre\", \"Peintre\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 11278,
+    "avant": "\"image illisible : \" + String(src).slice(0, 60)",
+    "apres": "__dzT9(\"tuiles.tl1_img.illisible\", \"image illisible : {src}\", { src: String(src).slice(0, 60) })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 11472,
+    "avant": "\"Feuille : \" + filename",
+    "apres": "__dzT9(\"tuiles.tl1_src.feuille\", \"Feuille : {fn}\", { fn: filename })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 12024,
+    "avant": "`${F.tampon.w}×${F.tampon.h} · ${F.tuiles.length} tuiles · commune ${tc.w}×${tc.h}`",
+    "apres": "__dzT9(\"tuiles.tl1_f.info\", \"{w}×{h} · {n} tuiles · commune {cw}×{ch}\", { w: F.tampon.w, h: F.tampon.h, n: F.tuiles.length, cw: tc.w, ch: tc.h })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 12600,
+    "avant": "`<div class=\"empty-note\">Aucune tuile (planche opaque ? côté min trop grand ?)</div>`",
+    "apres": "`<div class=\"empty-note\">${__dzT9(\"tuiles.tl1_f.aucune\", \"Aucune tuile (planche opaque ? côté min trop grand ?)\")}</div>`",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 12922,
+    "avant": "title=\"${t.nom} · ${t.w}×${t.h} en (${t.x},${t.y})\"",
+    "apres": "title=\"${__dzT9(\"tuiles.tl1_f.tuile_titre\", \"{nom} · {w}×{h} en ({x},{y})\", { nom: t.nom, w: t.w, h: t.h, x: t.x, y: t.y })}\"",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 16576,
+    "avant": "\"aucune tuile\"",
+    "apres": "__dzT9(\"tuiles.tl1_f.aucune_tuile\", \"aucune tuile\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 16999,
+    "avant": "toast(`feuille alignée ${f.img.w}×${f.img.h}, ${f.index.length} tuiles`)",
+    "apres": "toast(__dzT9(\"tuiles.tl1_f.alignee\", \"feuille alignée {w}×{h}, {n} tuiles\", { w: f.img.w, h: f.img.h, n: f.index.length }))",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 17647,
+    "avant": "\"aucune tuile\"",
+    "apres": "__dzT9(\"tuiles.tl1_f.aucune_tuile\", \"aucune tuile\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 18194,
+    "avant": "toast(`${entrees.length} tuile(s) dans ${tlBase()}_tuiles.zip`)",
+    "apres": "toast(__dzT9(\"tuiles.tl1_f.zip\", \"{n} tuile(s) dans {fichier}\", { n: entrees.length, fichier: tlBase() + \"_tuiles.zip\" }))",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 18405,
+    "avant": "\"choisis une tuile\"",
+    "apres": "__dzT9(\"tuiles.tl1_f.choisis\", \"choisis une tuile\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 18792,
+    "avant": "\"aucune tuile\"",
+    "apres": "__dzT9(\"tuiles.tl1_f.aucune_tuile\", \"aucune tuile\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 19123,
+    "avant": "toast(`sauvé en Library : ${d.filename}`)",
+    "apres": "toast(__dzT9(\"tuiles.tl1_f.sauve\", \"sauvé en Library : {fichier}\", { fichier: d.filename }))",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 19621,
+    "avant": "`<div class=\"empty-note\">Aucune image.</div>`",
+    "apres": "`<div class=\"empty-note\">${__dzT9(\"tuiles.tl1_lib.aucune\", \"Aucune image.\")}</div>`",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 21785,
+    "avant": "\"Source : \" + fn",
+    "apres": "__dzT9(\"tuiles.tl1_src.source\", \"Source : {fn}\", { fn: fn })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 22070,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "tilelab/jeu.js": [
+   {
+    "pos": 3651,
+    "avant": "\"Aucune matière du Material Forge avec une couleur de base.\"",
+    "apres": "__dzT9(\"tuiles.tl1_jeu.aucune_matiere\", \"Aucune matière du Material Forge avec une couleur de base.\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 3714,
+    "avant": "\"Aucune image dans la Library.\"",
+    "apres": "__dzT9(\"tuiles.tl1_lib.aucune_lib\", \"Aucune image dans la Library.\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 5218,
+    "avant": "\"Choisis deux matières (A puis B).\"",
+    "apres": "__dzT9(\"tuiles.tl1_jeu.deux\", \"Choisis deux matières (A puis B).\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 5328,
+    "avant": "\"Fabrication du jeu…\"",
+    "apres": "__dzT9(\"tuiles.tl1_jeu.fabrication\", \"Fabrication du jeu…\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 5879,
+    "avant": "`${d.tuiles} tuiles · ${d.colonnes}×${d.rangees} · raccord ${d.raccord}`",
+    "apres": "__dzT9(\"tuiles.tl1_jeu.info\", \"{n} tuiles · {c}×{r} · raccord {raccord}\", { n: d.tuiles, c: d.colonnes, r: d.rangees, raccord: d.raccord })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 6078,
+    "avant": "`<span class=\"hint\">Pas encore mesuré.</span>`",
+    "apres": "`<span class=\"hint\">${__dzT9(\"tuiles.tl1_jeu.pas_mesure\", \"Pas encore mesuré.\")}</span>`",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 6198,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_x.echec\", \"Échec : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 6489,
+    "avant": "\"Aperçu…\"",
+    "apres": "__dzT9(\"tuiles.tl1_jeu.apercu\", \"Aperçu…\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 6931,
+    "avant": "`${d.cases}×${d.cases} · graine ${d.graine}`",
+    "apres": "__dzT9(\"tuiles.tl1_jeu.apercu_info\", \"{n}×{n} · graine {graine}\", { n: d.cases, graine: d.graine })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 7025,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_x.echec\", \"Échec : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 7170,
+    "avant": "[\"raccord\", \"raccord\", \"raccord\", \"raccord\", \"≤\"],",
+    "apres": "[\"raccord\", \"raccord\", \"raccord\", __dzT9(\"tuiles.tl1_mes.raccord\", \"raccord\"), \"≤\"],",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 7269,
+    "avant": "\"répétition\"",
+    "apres": "__dzT9(\"tuiles.tl1_mes.repetition\", \"répétition\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 7338,
+    "avant": "\"éclairage\"",
+    "apres": "__dzT9(\"tuiles.tl1_mes.eclairage\", \"éclairage\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 7420,
+    "avant": "\"écart d'éclairage\"",
+    "apres": "__dzT9(\"tuiles.tl1_mes.ecart\", \"écart d'éclairage\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 7573,
+    "avant": "\"Mesures…\"",
+    "apres": "__dzT9(\"tuiles.tl1_jeu.mesures\", \"Mesures…\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 8096,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_x.echec\", \"Échec : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 8234,
+    "avant": "\"Export \" + format + \"…\"",
+    "apres": "__dzT9(\"tuiles.tl1_exp.encours\", \"Export {format}…\", { format: format })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 8386,
+    "avant": "`${d.fichier} écrit (${d.octets} o) — pose-le à côté de atlas.png`",
+    "apres": "__dzT9(\"tuiles.tl1_exp.ecrit\", \"{fichier} écrit ({octets} o) — pose-le à côté de atlas.png\", { fichier: d.fichier, octets: d.octets })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 8485,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_x.echec\", \"Échec : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 8985,
+    "avant": "\"Choisis une matière.\"",
+    "apres": "__dzT9(\"tuiles.tl1_forme.choisis\", \"Choisis une matière.\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 9084,
+    "avant": "\"Fabrication…\"",
+    "apres": "__dzT9(\"tuiles.tl1_forme.fabrication\", \"Fabrication…\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 9575,
+    "avant": "\"tuile illisible\"",
+    "apres": "__dzT9(\"tuiles.tl1_forme.illisible\", \"tuile illisible\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 9720,
+    "avant": "`${d.largeur}×${d.hauteur} · raccord ${d.raccord}`",
+    "apres": "__dzT9(\"tuiles.tl1_forme.info\", \"{w}×{h} · raccord {raccord}\", { w: d.largeur, h: d.hauteur, raccord: d.raccord })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 9935,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_x.echec\", \"Échec : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 11459,
+    "avant": "\" (sans planche)\"",
+    "apres": "__dzT9(\"tuiles.tl1_lieu.sans_planche\", \" (sans planche)\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 11507,
+    "avant": "`<option value=\"\">aucun lieu dans la bible</option>`",
+    "apres": "`<option value=\"\">${__dzT9(\"tuiles.tl1_lieu.aucun_opt\", \"aucun lieu dans la bible\")}</option>`",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 11748,
+    "avant": "\"Aucun lieu dans la bible.\"",
+    "apres": "__dzT9(\"tuiles.tl1_lieu.aucun\", \"Aucun lieu dans la bible.\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 12128,
+    "avant": "\"lieu sans planche : palette libre\"",
+    "apres": "__dzT9(\"tuiles.tl1_lieu.palette_libre\", \"lieu sans planche : palette libre\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 12264,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_x.echec\", \"Échec : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 12431,
+    "avant": "\"Prompt copié — colle-le dans le générateur d'images.\"",
+    "apres": "__dzT9(\"tuiles.tl1_lieu.copie\", \"Prompt copié — colle-le dans le générateur d'images.\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 12558,
+    "avant": "\"Copie refusée par le navigateur : le prompt est sélectionné, Ctrl+C.\"",
+    "apres": "__dzT9(\"tuiles.tl1_lieu.copie_refusee\", \"Copie refusée par le navigateur : le prompt est sélectionné, Ctrl+C.\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 14290,
+    "avant": "\"Library : \" + err.message",
+    "apres": "__dzT9(\"tuiles.tl1_lib.erreur\", \"Library : {msg}\", { msg: err.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 14554,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "tilelab/peintre.js": [
+   {
+    "pos": 3948,
+    "avant": "\"Fabrique d'abord un jeu dans le mode \" + dzIcone(\"dz-edit-autotuile\", { taille: 16 }) + \" Jeu : le peintre pose SES tuiles.\"",
+    "apres": "__dzT9(\"tuiles.tl1_pe.sans_jeu\", \"Fabrique d'abord un jeu dans le mode {icone} Jeu : le peintre pose SES tuiles.\", { icone: dzIcone(\"dz-edit-autotuile\", { taille: 16 }) })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 4227,
+    "avant": "\"Composition…\"",
+    "apres": "__dzT9(\"tuiles.tl1_pe.composition\", \"Composition…\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 4926,
+    "avant": "`${P.larg}×${P.haut} · ${terrain} case(s) de terrain · composée par Python`",
+    "apres": "__dzT9(\"tuiles.tl1_pe.info\", \"{l}×{h} · {n} case(s) de terrain · composée par Python\", { l: P.larg, h: P.haut, n: terrain })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 5049,
+    "avant": "\"Échec : \" + e.message",
+    "apres": "__dzT9(\"tuiles.tl1_x.echec\", \"Échec : {msg}\", { msg: e.message })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 5179,
+    "avant": "`jeu ${j.jeu.jeu || \"\"} · ${j.jeu.cote || \"?\"} px · ${j.tid}`",
+    "apres": "__dzT9(\"tuiles.tl1_pe.jeu\", \"jeu {jeu} · {cote} px · {tid}\", { jeu: j.jeu.jeu || \"\", cote: j.jeu.cote || \"?\", tid: j.tid })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 5276,
+    "avant": "\"aucun jeu — fabrique-le dans le mode \" + dzIcone(\"dz-edit-autotuile\", { taille: 16 }) + \" Jeu\"",
+    "apres": "__dzT9(\"tuiles.tl1_pe.aucun_jeu\", \"aucun jeu — fabrique-le dans le mode {icone} Jeu\", { icone: dzIcone(\"dz-edit-autotuile\", { taille: 16 }) })",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 6461,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "tilelab/feuille_tuiles.js": [
+   {
+    "pos": 754,
+    "avant": "\"feuille : image vide\"",
+    "apres": "__dzT9(\"tuiles.tl1_ft.image_vide\", \"feuille : image vide\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 3815,
+    "avant": "\"feuille : aucune tuile\"",
+    "apres": "__dzT9(\"tuiles.tl1_ft.aucune_tuile\", \"feuille : aucune tuile\")",
+    "groupe": "tl1"
+   },
+   {
+    "pos": 6159,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "studio3d/studio3d.js": [
+   {
+    "pos": 1001,
+    "avant": "const $ = (s) => document.querySelector(s);",
+    "apres": "const $ = (s) => document.querySelector(s);\r\n/* t149 (traduction L9) : passe unique au chargement, en anglais seulement — (1) les <option> fixes de la page\r\n   (la surcouche n'entre pas dans <select>) ; (2) les textes de la page saisis en « contexte » (sens propre au\r\n   lab, la surcouche les ignore) : texte exact d'un nœud ou d'un title/placeholder -> dzT(clé), clés de cette\r\n   page seulement. */\r\n(function () {\r\n  if (typeof document === \"undefined\" || typeof dzLang !== \"function\" || dzLang() !== \"en\") return;\r\n  const tr = window.__dzI18n && window.__dzI18n.traduire;\r\n  if (tr) for (const o of document.querySelectorAll(\"select option\")) { const t = tr(o.textContent); if (t) o.textContent = t; }\r\n  if (tr) for (const im of document.querySelectorAll(\"img[alt]\")) { const t = tr(im.alt); if (t) im.alt = t; }   // alt : hors surcouche\r\n  const D = window.DZ_I18N || {}, idx = {}, nrm = (s) => String(s).replace(/\\s+/g, \" \").trim();\r\n  for (const k in D) if (k.startsWith(\"studio3d.s3b_page.\") && D[k] && D[k].contexte) idx[nrm(D[k].fr)] = k;\r\n  // la surcouche a pu passer AVANT : le texte qu'elle a posé (« Plateau » -> Board du Vectorlab) est reconnu aussi\r\n  if (tr) for (const f of Object.keys(idx)) { const e = tr(f); if (e && !idx[nrm(e)]) idx[nrm(e)] = idx[f]; }\r\n  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);\r\n  for (let x = w.nextNode(); x; x = w.nextNode()) {\r\n    const k = idx[nrm(x.nodeValue)];\r\n    if (k) x.nodeValue = x.nodeValue.match(/^\\s*/)[0] + dzT(k) + x.nodeValue.match(/\\s*$/)[0];\r\n  }\r\n  for (const el of document.querySelectorAll(\"[title],[placeholder]\")) for (const a of [\"title\", \"placeholder\"]) {\r\n    const v = el.getAttribute(a), k = v && idx[nrm(v)];\r\n    if (k) el.setAttribute(a, dzT(k));\r\n  }\r\n})();",
+    "groupe": "integration"
+   },
+   {
+    "pos": 2112,
+    "avant": "\"00 · réf.\"",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.k_ref\", \"00 · réf.\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 2245,
+    "avant": "\"01 · maillage\"",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.k_maillage\", \"01 · maillage\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 2551,
+    "avant": "\"03 · topologie\"",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.k_topologie\", \"03 · topologie\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 2692,
+    "avant": "\"04 · squelette\"",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.k_squelette\", \"04 · squelette\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 3626,
+    "avant": "\"07 · établi\"",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.k_etabli\", \"07 · établi\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 15904,
+    "avant": "\"L'Établi\"",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.letabli\", \"L'Établi\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 15983,
+    "avant": "\"parties · rig · versions\"",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.etabli_sous\", \"parties · rig · versions\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 16079,
+    "avant": ">en attente</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_noeud.en_attente\", \"en attente\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 16279,
+    "avant": "\")} ouvrir</span>",
+    "apres": "\")} ${__dzT9(\"studio3d.s3a_noeud.ouvrir\", \"ouvrir\")}</span>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 17863,
+    "avant": "\"Prompt de scène\"",
+    "apres": "__dzT9(\"studio3d.s3a_titre.prompt_scene\", \"Prompt de scène\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 17906,
+    "avant": "\"Image de départ\"",
+    "apres": "__dzT9(\"studio3d.s3a_titre.image_depart\", \"Image de départ\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 17953,
+    "avant": "\"Maillage brut\"",
+    "apres": "__dzT9(\"studio3d.s3a_titre.maillage_brut\", \"Maillage brut\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 17998,
+    "avant": "`Texture PBR ${c.textureResolution}`",
+    "apres": "__dzT9(\"studio3d.s3a_titre.texture_pbr\", \"Texture PBR {res}\", { res: c.textureResolution })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 18239,
+    "avant": "`${c.animationActions.length} action${c.animationActions.length > 1 ? \"s\" : \"\"} Meshy`",
+    "apres": "(c.animationActions.length > 1 ? __dzT9(\"studio3d.s3a_titre.actions_plusieurs\", \"{n} actions Meshy\", { n: c.animationActions.length }) : __dzT9(\"studio3d.s3a_titre.actions_un\", \"{n} action Meshy\", { n: c.animationActions.length }))",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 18354,
+    "avant": "\"Livrables\"",
+    "apres": "__dzT9(\"studio3d.s3a_titre.livrables\", \"Livrables\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 18463,
+    "avant": "`texte · ${c.prompt.length} car.`",
+    "apres": "__dzT9(\"studio3d.s3a_titre.texte_car\", \"texte · {n} car.\", { n: c.prompt.length })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 18537,
+    "avant": "\"aucune · optionnel\"",
+    "apres": "__dzT9(\"studio3d.s3a_titre.aucune_optionnel\", \"aucune · optionnel\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 19658,
+    "avant": "\"image + texte\"",
+    "apres": "__dzT9(\"studio3d.s3a_param.image_texte\", \"image + texte\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 19676,
+    "avant": "\"texte\"",
+    "apres": "__dzT9(\"studio3d.s3a_param.texte\", \"texte\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 19712,
+    "avant": "`${c.prompt.length} car.`",
+    "apres": "__dzT9(\"studio3d.s3a_param.car\", \"{n} car.\", { n: c.prompt.length })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 19784,
+    "avant": "\"absente\"",
+    "apres": "__dzT9(\"studio3d.s3a_param.absente\", \"absente\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 21639,
+    "avant": "\"1 cr · demandé\"",
+    "apres": "__dzT9(\"studio3d.s3a_param.cr_demande\", \"1 cr · demandé\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 25045,
+    "avant": "\"Une série Meshy tourne dans cette page : aller à l'Établi \"\r\n                  + \"l'interrompt, et les crédits déjà consommés ne reviennent \"\r\n                  + \"pas. Ta configuration, elle, sera retrouvée au retour. \"\r\n                  + \"Quitter quand même ?\"",
+    "apres": "__dzT9(\"studio3d.s3a_etabli.quitter\", \"Une série Meshy tourne dans cette page : aller à l'Établi l'interrompt, et les crédits déjà consommés ne reviennent pas. Ta configuration, elle, sera retrouvée au retour. Quitter quand même ?\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 25985,
+    "avant": "\"Ouvrir l'Établi : parties, rig, versions, export moteurs\"",
+    "apres": "__dzT9(\"studio3d.s3a_etabli.ouvrir_titre\", \"Ouvrir l'Établi : parties, rig, versions, export moteurs\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 26722,
+    "avant": "\"Pipeline complet Meshy : maillage, texture, remesh, rig, animations\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.meshy_titre\", \"Pipeline complet Meshy : maillage, texture, remesh, rig, animations\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 26801,
+    "avant": "\"Moteur fal une passe (image → mesh) — vit dans Game Assets 3D\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.fal_titre\", \"Moteur fal une passe (image → mesh) — vit dans Game Assets 3D\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 27036,
+    "avant": "\"simulateur local actif (MESHY_MOCK) · pipeline complet sans crédits\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.note_mock\", \"simulateur local actif (MESHY_MOCK) · pipeline complet sans crédits\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 27137,
+    "avant": "\"abonnement actif · text→3D, image→3D, remesh, rig, animation, retexture\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.note_actif\", \"abonnement actif · text→3D, image→3D, remesh, rig, animation, retexture\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 27222,
+    "avant": "\"clé absente — Réglages → « Meshy 6 (3D) », ou MESHY_MOCK=1 pour la démo\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.note_cle\", \"clé absente — Réglages → « Meshy 6 (3D) », ou MESHY_MOCK=1 pour la démo\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 27304,
+    "avant": "\"moteur fal · une passe image → mesh, pas de rig ni d'animation, export limité\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.note_fal\", \"moteur fal · une passe image → mesh, pas de rig ni d'animation, export limité\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 27860,
+    "avant": "\"Pause\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.pause\", \"Pause\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 27870,
+    "avant": "\"Lecture\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.lecture\", \"Lecture\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 27976,
+    "avant": "\"Relancer\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.relancer\", \"Relancer\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 27989,
+    "avant": "\"Lancer\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.lancer\", \"Lancer\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28118,
+    "avant": "\"Sélectionne Meshy — les moteurs fal vivent dans Game Assets 3D\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.run_selection\", \"Sélectionne Meshy — les moteurs fal vivent dans Game Assets 3D\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28210,
+    "avant": "\"Configure MESHY_API_KEY dans Réglages (ou MESHY_MOCK=1)\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.run_cle\", \"Configure MESHY_API_KEY dans Réglages (ou MESHY_MOCK=1)\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28287,
+    "avant": "\"Série en cours…\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.serie_en_cours\", \"Série en cours…\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28307,
+    "avant": "\"Le coût estimé est détaillé avant tout lancement\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.run_cout\", \"Le coût estimé est détaillé avant tout lancement\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28560,
+    "avant": "\"maillage prêt\"",
+    "apres": "__dzT9(\"studio3d.s3a_tete.maillage_pret\", \"maillage prêt\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28588,
+    "avant": "\"maillage en cours\"",
+    "apres": "__dzT9(\"studio3d.s3a_tete.maillage_en_cours\", \"maillage en cours\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28610,
+    "avant": "`${Math.round(S.cfg.targetPolycount / 1000)} k cible`",
+    "apres": "__dzT9(\"studio3d.s3a_tete.k_cible\", \"{k} k cible\", { k: Math.round(S.cfg.targetPolycount / 1000) })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28680,
+    "avant": "\"prêt\"",
+    "apres": "__dzT9(\"studio3d.s3a_tete.pret\", \"prêt\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28744,
+    "avant": "\"série terminée\"",
+    "apres": "__dzT9(\"studio3d.s3a_tete.serie_terminee\", \"série terminée\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 28809,
+    "avant": "\"échec — voir journal\"",
+    "apres": "__dzT9(\"studio3d.s3a_tete.echec_journal\", \"échec — voir journal\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 29173,
+    "avant": "\"série terminée\"",
+    "apres": "__dzT9(\"studio3d.s3a_tete.serie_terminee\", \"série terminée\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 29192,
+    "avant": "`reste ${Math.floor(rem / 60)} m ${String(Math.round(rem % 60)).padStart(2, \"0\")} s`",
+    "apres": "__dzT9(\"studio3d.s3a_tete.reste\", \"reste {m} m {s} s\", { m: Math.floor(rem / 60), s: String(Math.round(rem % 60)).padStart(2, \"0\") })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 31095,
+    "avant": "\"en attente\"",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.en_attente\", \"en attente\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 31148,
+    "avant": "`génération ${p.progress || 0} %`",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.generation_pct\", \"génération {p} %\", { p: p.progress || 0 })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 31184,
+    "avant": "\"maillage prêt\"",
+    "apres": "__dzT9(\"studio3d.s3a_tete.maillage_pret\", \"maillage prêt\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 34338,
+    "avant": ">aucune tâche Meshy — lance une série pour peupler le journal</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_journal.vide\", \"aucune tâche Meshy — lance une série pour peupler le journal\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 34534,
+    "avant": "`${act.queued} tâches`",
+    "apres": "__dzT9(\"studio3d.s3a_journal.taches_n\", \"{n} tâches\", { n: act.queued })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 34559,
+    "avant": "\"0 tâche\"",
+    "apres": "__dzT9(\"studio3d.s3a_journal.zero_tache\", \"0 tâche\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 35295,
+    "avant": "`${an.phase === \"source\" ? 0 : phaseCredits(an.phase).cr} crédits`",
+    "apres": "__dzT9(\"studio3d.s3a_journal.credits_n\", \"{n} crédits\", { n: an.phase === \"source\" ? 0 : phaseCredits(an.phase).cr })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 36019,
+    "avant": ">aucune action — double-clic sur 05 · animation</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_journal.actions_vide\", \"aucune action — double-clic sur 05 · animation\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 37155,
+    "avant": "\"riggé + animé\"",
+    "apres": "__dzT9(\"studio3d.s3a_apercu.rigge_anime\", \"riggé + animé\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 37183,
+    "avant": "\"modèle texturé\"",
+    "apres": "__dzT9(\"studio3d.s3a_apercu.modele_texture\", \"modèle texturé\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 37220,
+    "avant": "\"maillage nu\"",
+    "apres": "__dzT9(\"studio3d.s3a_apercu.maillage_nu\", \"maillage nu\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 37276,
+    "avant": "\"en génération\"",
+    "apres": "__dzT9(\"studio3d.s3a_apercu.en_generation\", \"en génération\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 37294,
+    "avant": "\"en attente\"",
+    "apres": "__dzT9(\"studio3d.s3a_noeud.en_attente\", \"en attente\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 38165,
+    "avant": "`Lancer · ${fmtCr(est.total)}`",
+    "apres": "`${__dzT9(\"studio3d.s3a_rail.lancer\", \"Lancer\")} · ${fmtCr(est.total)}`",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 38253,
+    "avant": "\"Simulateur local : aucune tâche réelle, aucun crédit consommé.\"",
+    "apres": "__dzT9(\"studio3d.s3a_conf.note_mock\", \"Simulateur local : aucune tâche réelle, aucun crédit consommé.\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 38325,
+    "avant": "\"Le coût réel comptabilisé est le consumed_credits de chaque tâche (une tâche échouée est remboursée).\"",
+    "apres": "__dzT9(\"studio3d.s3a_conf.note_reel\", \"Le coût réel comptabilisé est le consumed_credits de chaque tâche (une tâche échouée est remboursée).\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 38832,
+    "avant": "`Série terminée — ${fmtCr(run.state.consumedCredits)} consommés`",
+    "apres": "__dzT9(\"studio3d.s3a_conf.serie_terminee\", \"Série terminée — {cr} consommés\", { cr: fmtCr(run.state.consumedCredits) })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 38951,
+    "avant": "\"Crédits Meshy insuffisants (402) — série bloquée\"",
+    "apres": "__dzT9(\"studio3d.s3a_conf.credits_insuffisants\", \"Crédits Meshy insuffisants (402) — série bloquée\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 39027,
+    "avant": "\"Quota Meshy atteint (429) — réessaie plus tard\"",
+    "apres": "__dzT9(\"studio3d.s3a_conf.quota\", \"Quota Meshy atteint (429) — réessaie plus tard\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 39078,
+    "avant": "`Échec : ${e.message}`",
+    "apres": "__dzT9(\"studio3d.s3a_conf.echec\", \"Échec : {msg}\", { msg: e.message })",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 39702,
+    "avant": "\"00 · prompt — source de la série\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.titre_prompt\", \"00 · prompt — source de la série\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 39797,
+    "avant": "\"Nom de l'asset\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.nom_asset\", \"Nom de l'asset\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 39886,
+    "avant": "\"Prompt de scène\"",
+    "apres": "__dzT9(\"studio3d.s3a_titre.prompt_scene\", \"Prompt de scène\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 39973,
+    "avant": "\"Source du maillage\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.source_maillage\", \"Source du maillage\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 40091,
+    "avant": ">texte → /v2/text-to-3d (preview + refine)</option>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.src_texte\", \"texte → /v2/text-to-3d (preview + refine)\")}</option>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 40217,
+    "avant": ">image → /v1/image-to-3d (passe unique)</option>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.src_image\", \"image → /v1/image-to-3d (passe unique)\")}</option>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 40318,
+    "avant": ">La source image exige une image de départ (nœud 00 · réf.).</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.note_source\", \"La source image exige une image de départ (nœud 00 · réf.).\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 40620,
+    "avant": "\"Pas d'image de départ — source texte conservée\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.pas_image\", \"Pas d'image de départ — source texte conservée\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 40747,
+    "avant": "\"00 · réf. — image de départ (Library)\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.titre_ref\", \"00 · réf. — image de départ (Library)\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 41389,
+    "avant": ">Library vide — génère ou importe une image d'abord.</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.library_vide\", \"Library vide — génère ou importe une image d'abord.\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 41460,
+    "avant": "<div class=\"fld-note\">L'image est transmise à Meshy en data URI via le proxy — elle ne quitte pas la machine autrement. <b>Vider :</b> re-sélectionner l'image active.</div>",
+    "apres": "<div class=\"fld-note\">${__dzT9(\"studio3d.s3a_ed.note_transmise\", \"L'image est transmise à Meshy en data URI via le proxy — elle ne quitte pas la machine autrement.\")} <b>${__dzT9(\"studio3d.s3a_ed.vider\", \"Vider :\")}</b> ${__dzT9(\"studio3d.s3a_ed.reselectionner\", \"re-sélectionner l'image active.\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 42183,
+    "avant": "\"01 · maillage — text/image-to-3d\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.titre_maillage\", \"01 · maillage — text/image-to-3d\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 42687,
+    "avant": ">a-pose (meilleur rig)</option>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.apose\", \"a-pose (meilleur rig)\")}</option>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 42850,
+    "avant": ">libre</option>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.libre\", \"libre\")}</option>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 43269,
+    "avant": ">meshy-7 : même grille que meshy-6 (20 cr le preview, 30 cr texturé), alignement image→3D supérieur ; ultra +5 cr (Forge 3D des cartes). meshy-6 : sortie haute précision souvent &gt; 300 000 faces → remesh obligatoire avant le rig. meshy-5 : 5 cr.</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.note_modeles\", \"meshy-7 : même grille que meshy-6 (20 cr le preview, 30 cr texturé), alignement image→3D supérieur ; ultra +5 cr (Forge 3D des cartes). meshy-6 : sortie haute précision souvent &gt; 300 000 faces → remesh obligatoire avant le rig. meshy-5 : 5 cr.\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 43823,
+    "avant": "\"02 · texture — refine PBR\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.titre_texture\", \"02 · texture — refine PBR\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 44010,
+    "avant": "> Texturer (refine — 10 cr en 2k/4k, 15 cr en 8k)</label>",
+    "apres": "> ${__dzT9(\"studio3d.s3a_ed.texturer\", \"Texturer (refine — 10 cr en 2k/4k, 15 cr en 8k)\")}</label>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 44507,
+    "avant": "\"texture_prompt (optionnel)\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.texture_prompt\", \"texture_prompt (optionnel)\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 44644,
+    "avant": ">8k : interdit la topologie quad et supprime la carte d'émission.</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.note_8k\", \"8k : interdit la topologie quad et supprime la carte d'émission.\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 45027,
+    "avant": "\"8k : topologie repassée en triangle (contrainte Meshy)\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.toast_8k\", \"8k : topologie repassée en triangle (contrainte Meshy)\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 45165,
+    "avant": "\"03 · topologie — remesh\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.titre_remesh\", \"03 · topologie — remesh\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 45348,
+    "avant": "> Remesh (5 cr) — obligatoire au-delà de 300 000 faces avant le rig</label>",
+    "apres": "> ${__dzT9(\"studio3d.s3a_ed.remesh\", \"Remesh (5 cr) — obligatoire au-delà de 300 000 faces avant le rig\")}</label>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 46062,
+    "avant": "\"04 · squelette — auto-rig\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.titre_rig\", \"04 · squelette — auto-rig\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 46241,
+    "avant": "> Auto-rig humanoïde (5 cr) — modèle texturé, face vers +Z</label>",
+    "apres": "> ${__dzT9(\"studio3d.s3a_ed.autorig\", \"Auto-rig humanoïde (5 cr) — modèle texturé, face vers +Z\")}</label>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 46460,
+    "avant": ">Sans rig, les actions d'animation sont sautées (et retirées de l'estimé).</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.note_sans_rig\", \"Sans rig, les actions d'animation sont sautées (et retirées de l'estimé).\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 46772,
+    "avant": "\"05 · animation — actions de la bibliothèque Meshy\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.titre_anim\", \"05 · animation — actions de la bibliothèque Meshy\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 47062,
+    "avant": "\"nom\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.nom\", \"nom\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 47144,
+    "avant": "\"retirer\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.retirer\", \"retirer\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 47195,
+    "avant": ">garder</option><option value=\"1\">retirer</option>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.garder\", \"garder\")}</option><option value=\"1\">${__dzT9(\"studio3d.s3a_ed.retirer\", \"retirer\")}</option>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 47331,
+    "avant": "\"nouvelle action_id\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.nouvelle_action\", \"nouvelle action_id\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 47388,
+    "avant": "placeholder=\"ex. 7\"",
+    "apres": "placeholder=\"${__dzT9(\"studio3d.s3a_ed.ex7\", \"ex. 7\")}\"",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 47424,
+    "avant": "\"nom\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.nom\", \"nom\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 47658,
+    "avant": ">3 cr par action. Une tâche /v1/animations par action, enchaînées sur le rig.</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.note_anim\", \"3 cr par action. Une tâche /v1/animations par action, enchaînées sur le rig.\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 48455,
+    "avant": "\"06 · export — livrables\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.titre_export\", \"06 · export — livrables\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 48811,
+    "avant": "\" — natif, gratuit\"",
+    "apres": "__dzT9(\"studio3d.s3a_ed.natif_gratuit\", \" — natif, gratuit\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 48882,
+    "avant": ">target_formats réduit le temps de tâche : ne demander que ce qu'on exporte.</div>",
+    "apres": ">${__dzT9(\"studio3d.s3a_ed.note_export\", \"target_formats réduit le temps de tâche : ne demander que ce qu'on exporte.\")}</div>",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 51824,
+    "avant": "\"Série en cours — ↺ disponible à la fin\"",
+    "apres": "__dzT9(\"studio3d.s3a_rail.rejouer_attente\", \"Série en cours — ↺ disponible à la fin\")",
+    "groupe": "s3a"
+   },
+   {
+    "pos": 54095,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "studio3d/vues.js": [
+   {
+    "pos": 1272,
+    "avant": "\"aucun jeu de vues choisi\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.refus_aucun\", \"aucun jeu de vues choisi\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1336,
+    "avant": "\"déjà tiré : le maillage existe — prépare un nouveau jeu pour retirer\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.refus_tire\", \"déjà tiré : le maillage existe — prépare un nouveau jeu pour retirer\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1430,
+    "avant": "\"une opération tourne sur ce jeu — attends qu'elle finisse\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.refus_occupe\", \"une opération tourne sur ce jeu — attends qu'elle finisse\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1545,
+    "avant": "\"aucune vue exploitable : rejoue-en au moins une\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.refus_vide\", \"aucune vue exploitable : rejoue-en au moins une\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2493,
+    "avant": "\"personnage\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.personnage\", \"personnage\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2508,
+    "avant": "\"objet\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.objet\", \"objet\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2534,
+    "avant": "\" · a déjà un maillage\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.a_maillage\", \" · a déjà un maillage\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2591,
+    "avant": "`<option value=\"\">aucune entité avec planche</option>`",
+    "apres": "`<option value=\"\">${__dzT9(\"studio3d.s3b_vues.aucune_entite\", \"aucune entité avec planche\")}</option>`",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 3742,
+    "avant": "<optgroup label=\"Téléphone\">",
+    "apres": "<optgroup label=\"${__dzT9(\"studio3d.s3b_vues.telephone\", \"Téléphone\")}\">",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 3851,
+    "avant": "<optgroup label=\"Bibliothèque\">",
+    "apres": "<optgroup label=\"${__dzT9(\"studio3d.s3b_vues.bibliotheque\", \"Bibliothèque\")}\">",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 4426,
+    "avant": "`<option value=\"\">Bibliothèque vide</option>`",
+    "apres": "`<option value=\"\">${__dzT9(\"studio3d.s3b_vues.biblio_vide\", \"Bibliothèque vide\")}</option>`",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5041,
+    "avant": "\"service local absent\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.local_absent\", \"service local absent\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5066,
+    "avant": "\"clé fal absente\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.cle_fal_absente\", \"clé fal absente\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5498,
+    "avant": "\"tiré\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.tire\", \"tiré\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5507,
+    "avant": "\"en attente\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.en_attente\", \"en attente\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5533,
+    "avant": "` · ${j.ratees} ratée(s)`",
+    "apres": "` · ${__dzT9(\"studio3d.s3b_vues.ratees\", \"{n} ratée(s)\", { n: j.ratees })}`",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5592,
+    "avant": "`<option value=\"\">aucun jeu de vues</option>`",
+    "apres": "`<option value=\"\">${__dzT9(\"studio3d.s3b_vues.aucun_jeu\", \"aucun jeu de vues\")}</option>`",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5905,
+    "avant": "`Préparer ${n} vue${n > 1 ? \"s\" : \"\"} · ${usd(d.total_usd)}`",
+    "apres": "n > 1 ? __dzT9(\"studio3d.s3b_vues.preparer.plusieurs\", \"Préparer {n} vues · {prix}\", { n: n, prix: usd(d.total_usd) }) : __dzT9(\"studio3d.s3b_vues.preparer.un\", \"Préparer {n} vue · {prix}\", { n: n, prix: usd(d.total_usd) })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6062,
+    "avant": "`Préparer ${n} vues`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.preparer_sans_prix\", \"Préparer {n} vues\", { n: n })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6263,
+    "avant": "\"choisis une image de la Bibliothèque\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.choisis_image\", \"choisis une image de la Bibliothèque\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6510,
+    "avant": "`Générer ${n} vue(s) de « ${fn} » (Seedream) : ${prix}.\\nAucun moteur 3D ne tourne à cette étape : tu `\r\n    + `regardes, rejoues ou détoures les vues, PUIS tu tires.`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.confirmer_preparer\", \"Générer {n} vue(s) de « {fn} » (Seedream) : {prix}.\\nAucun moteur 3D ne tourne à cette étape : tu regardes, rejoues ou détoures les vues, PUIS tu tires.\", { n: n, fn: fn, prix: prix })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6688,
+    "avant": "\"Vues d'abord\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.titre\", \"Vues d'abord\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6708,
+    "avant": "`Payer ${prix}`",
+    "apres": "__dzT9(\"studio3d.s3b.payer\", \"Payer {prix}\", { prix: prix })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6931,
+    "avant": "\"vues en préparation…\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.en_preparation\", \"vues en préparation…\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 7051,
+    "avant": "`échec : ${j.error || \"?\"}`",
+    "apres": "__dzT9(\"studio3d.s3b.echec\", \"échec : {e}\", { e: j.error || \"?\" })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 7314,
+    "avant": "\"aucune entité de la bible avec planche\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.aucune_entite_bible\", \"aucune entité de la bible avec planche\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 7552,
+    "avant": "`vues reprises de la planche (${r.source === \"recette\" ? \"panneaux d'origine\" : \"découpe\"}) — gratuit`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.reprises\", \"vues reprises de la planche ({src}) — gratuit\", { src: r.source === \"recette\" ? __dzT9(\"studio3d.s3b_vues.panneaux_origine\", \"panneaux d'origine\") : __dzT9(\"studio3d.s3b_vues.decoupe\", \"découpe\") })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 7677,
+    "avant": "\"vues de la planche…\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.de_la_planche\", \"vues de la planche…\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 7796,
+    "avant": "`échec : ${j.error || \"?\"}`",
+    "apres": "__dzT9(\"studio3d.s3b.echec\", \"échec : {e}\", { e: j.error || \"?\" })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 8238,
+    "avant": "\"choisis au moins la photo de face\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.choisis_face\", \"choisis au moins la photo de face\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 8474,
+    "avant": "`jeu de vues depuis ${Object.keys(vues).length} photo(s) — gratuit`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.depuis_photos\", \"jeu de vues depuis {n} photo(s) — gratuit\", { n: Object.keys(vues).length })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 8564,
+    "avant": "\"vues depuis les photos…\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.des_photos\", \"vues depuis les photos…\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 8687,
+    "avant": "`échec : ${j.error || \"?\"}`",
+    "apres": "__dzT9(\"studio3d.s3b.echec\", \"échec : {e}\", { e: j.error || \"?\" })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 9228,
+    "avant": "\"Tirer · —\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.tirer_vide\", \"Tirer · —\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 9572,
+    "avant": "\" target=\"_blank\" rel=\"noopener\" title=\"Ouvrir la vue en grand\"",
+    "apres": "\" target=\"_blank\" rel=\"noopener\" title=\"${__dzT9(\"studio3d.s3b_vues.ouvrir_grand\", \"Ouvrir la vue en grand\")}\"",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 9717,
+    "avant": "alt=\"vue ${v.index}\"",
+    "apres": "alt=\"${__dzT9(\"studio3d.s3b_vues.vue_n\", \"vue {i}\", { i: v.index })}\"",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 9783,
+    "avant": ">vue absente<",
+    "apres": ">${__dzT9(\"studio3d.s3b_vues.absente\", \"vue absente\")}<",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 9903,
+    "avant": "`vue ${v.index}`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.vue_n\", \"vue {i}\", { i: v.index })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 9946,
+    "avant": "\" · planche\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.o_planche\", \" · planche\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 9982,
+    "avant": "\" · photo\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.o_photo\", \" · photo\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 10139,
+    "avant": "\">ratée</b>",
+    "apres": "\">${__dzT9(\"studio3d.s3b_vues.ratee\", \"ratée\")}</b>",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 10344,
+    "avant": "\" title=\"Régénérer CETTE vue seulement, avec un prompt corrigé\" aria-label=\"Régénérer cette vue\"",
+    "apres": "\" title=\"${__dzT9(\"studio3d.s3b_vues.rej_title\", \"Régénérer CETTE vue seulement, avec un prompt corrigé\")}\" aria-label=\"${__dzT9(\"studio3d.s3b_vues.rej_aria\", \"Régénérer cette vue\")}\"",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 10560,
+    "avant": " title=\"Retirer le fond — local, gratuit\" aria-label=\"Retirer le fond\"",
+    "apres": " title=\"${__dzT9(\"studio3d.s3b_vues.det_title\", \"Retirer le fond — local, gratuit\")}\" aria-label=\"${__dzT9(\"studio3d.s3b_vues.det_aria\", \"Retirer le fond\")}\"",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 10821,
+    "avant": "\"Déjà tiré\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.deja_tire\", \"Déjà tiré\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 10835,
+    "avant": "`Tirer · ${info.engine}`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.tirer_moteur\", \"Tirer · {moteur}\", { moteur: info.engine })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 10884,
+    "avant": "\"Lancer le moteur 3D sur ces vues\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.tirer_title\", \"Lancer le moteur 3D sur ces vues\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 11165,
+    "avant": "`Prompt de la vue ${i} (${v.cle || \"\"}) — Seedream, ${usd(d.total_usd)} :`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.prompt_vue\", \"Prompt de la vue {i} ({cle}) — Seedream, {prix} :\", { i: i, cle: v.cle || \"\", prix: usd(d.total_usd) })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 11255,
+    "avant": "`Rejouer la vue ${i}`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.rejouer_titre\", \"Rejouer la vue {i}\", { i: i })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 11306,
+    "avant": "`Payer ${usd(d.total_usd)}`",
+    "apres": "__dzT9(\"studio3d.s3b.payer\", \"Payer {prix}\", { prix: usd(d.total_usd) })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 11401,
+    "avant": "\"un prompt vide ne se rejoue pas\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.prompt_vide\", \"un prompt vide ne se rejoue pas\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 11586,
+    "avant": "`vue ${i} en cours…`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.vue_en_cours\", \"vue {i} en cours…\", { i: i })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 11711,
+    "avant": "`échec : ${j.error || \"?\"}`",
+    "apres": "__dzT9(\"studio3d.s3b.echec\", \"échec : {e}\", { e: j.error || \"?\" })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 11916,
+    "avant": "`vue ${i} détourée (local, gratuit${r.methode ? ` · ${r.methode}` : \"\"})`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.detouree\", \"vue {i} détourée (local, gratuit{m})\", { i: i, m: r.methode ? ` · ${r.methode}` : \"\" })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 12791,
+    "avant": "`${max} des ${gardees} images validées (${info.engine} en prend au plus ${max})`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.part_max\", \"{max} des {n} images validées ({moteur} en prend au plus {max})\", { max: max, n: gardees, moteur: info.engine })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 12879,
+    "avant": "`${gardees} image(s) validée(s)`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.part\", \"{n} image(s) validée(s)\", { n: gardees })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 12937,
+    "avant": "`Tirer ${info.engine} sur ${part} : ${usd(d.total_usd)}.\\n`",
+    "apres": "__dzT9(\"studio3d.s3b_vues.confirmer_tir\", \"Tirer {moteur} sur {part} : {prix}.\", { moteur: info.engine, part: part, prix: usd(d.total_usd) }) + \"\\n\"",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 13081,
+    "avant": "`Les vues viennent ${info.vues.some((v) => v.role === \"photo\") ? \"de photos\" : \"de la planche\"} (aucune génération) : seul le moteur est facturé.`",
+    "apres": "(info.vues.some((v) => v.role === \"photo\") ? __dzT9(\"studio3d.s3b_vues.gratuites_photos\", \"Les vues viennent de photos (aucune génération) : seul le moteur est facturé.\") : __dzT9(\"studio3d.s3b_vues.gratuites_planche\", \"Les vues viennent de la planche (aucune génération) : seul le moteur est facturé.\"))",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 13237,
+    "avant": "\"Les vues sont déjà payées : seul le moteur est facturé.\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.deja_payees\", \"Les vues sont déjà payées : seul le moteur est facturé.\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 13321,
+    "avant": "`\r\nLe maillage rejoindra la fiche de l'entité de la bible.`",
+    "apres": "\"\\n\" + __dzT9(\"studio3d.s3b_vues.rejoindra\", \"Le maillage rejoindra la fiche de l'entité de la bible.\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 13397,
+    "avant": "\"Tirer le maillage\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.titre_tir\", \"Tirer le maillage\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 13422,
+    "avant": "`Payer ${usd(d.total_usd)}`",
+    "apres": "__dzT9(\"studio3d.s3b.payer\", \"Payer {prix}\", { prix: usd(d.total_usd) })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 13565,
+    "avant": "\"moteur en cours…\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.moteur_en_cours\", \"moteur en cours…\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 13685,
+    "avant": "\"maillage prêt — dans la liste de l'atelier ci-dessus et dans Game Assets 3D\"",
+    "apres": "__dzT9(\"studio3d.s3b_vues.maillage_pret\", \"maillage prêt — dans la liste de l'atelier ci-dessus et dans Game Assets 3D\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 13765,
+    "avant": "`échec : ${j.error || \"?\"}`",
+    "apres": "__dzT9(\"studio3d.s3b.echec\", \"échec : {e}\", { e: j.error || \"?\" })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 15554,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "studio3d/fal.js": [
+   {
+    "pos": 2184,
+    "avant": "\"devis indisponible\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.devis_indispo\", \"devis indisponible\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2230,
+    "avant": "\"clé Meshy absente — Réglages → « Meshy 6 (3D) »\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.cle_meshy\", \"clé Meshy absente — Réglages → « Meshy 6 (3D) »\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2303,
+    "avant": "\"clé fal absente — Réglages : le maillage passe par le stockage fal pour que Meshy le lise\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.cle_fal\", \"clé fal absente — Réglages : le maillage passe par le stockage fal pour que Meshy le lise\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2423,
+    "avant": "\"géométrie non approuvée — valide le volume dans Game Assets 3D d'abord\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.non_approuve\", \"géométrie non approuvée — valide le volume dans Game Assets 3D d'abord\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2523,
+    "avant": "\"maillage sans texture — Meshy ne rigge que des modèles texturés\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.sans_texture\", \"maillage sans texture — Meshy ne rigge que des modèles texturés\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 3130,
+    "avant": "`<option value=\"\">aucun job Game Assets 3D</option>`",
+    "apres": "`<option value=\"\">${__dzT9(\"studio3d.s3b_fal.aucun_job\", \"aucun job Game Assets 3D\")}</option>`",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 4191,
+    "avant": " · local, gratuit</option>`",
+    "apres": " · ${__dzT9(\"studio3d.s3b_fal.local_gratuit\", \"local, gratuit\")}</option>`",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 4501,
+    "avant": "\"déjà convertis : \"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.deja_convertis\", \"déjà convertis : \")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5089,
+    "avant": "`Convertir « ${F.job} » en ${fmt} chez Meshy : ${c.credits_meshy} crédit pour la tâche.\\n${c.pourquoi_pas_local}`",
+    "apres": "__dzT9(\"studio3d.s3b_fal.confirmer_conv\", \"Convertir « {job} » en {fmt} chez Meshy : {cr} crédit pour la tâche.\", { job: F.job, fmt: fmt, cr: c.credits_meshy }) + \"\\n\" + c.pourquoi_pas_local",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5220,
+    "avant": "\"Conversion Meshy\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.conv_titre\", \"Conversion Meshy\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5244,
+    "avant": "`Payer ${c.credits_meshy} cr`",
+    "apres": "__dzT9(\"studio3d.s3b.payer_cr\", \"Payer {cr} cr\", { cr: c.credits_meshy })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5418,
+    "avant": "\"en file…\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.en_file\", \"en file…\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5523,
+    "avant": "`${fmt} prêt`",
+    "apres": "__dzT9(\"studio3d.s3b_fal.fmt_pret\", \"{fmt} prêt\", { fmt: fmt })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 5539,
+    "avant": "`échec : ${j.error || \"?\"}`",
+    "apres": "__dzT9(\"studio3d.s3b.echec\", \"échec : {e}\", { e: j.error || \"?\" })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6034,
+    "avant": "`conversion ${fmt} → ${r.status}`",
+    "apres": "__dzT9(\"studio3d.s3b_fal.conv_statut\", \"conversion {fmt} → {st}\", { fmt: fmt, st: r.status })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6266,
+    "avant": "`${fmt} téléchargé`",
+    "apres": "__dzT9(\"studio3d.s3b_fal.fmt_telecharge\", \"{fmt} téléchargé\", { fmt: fmt })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6458,
+    "avant": "`import de ${fichier.name}…`",
+    "apres": "__dzT9(\"studio3d.s3b_fal.import_de\", \"import de {nom}…\", { nom: fichier.name })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 6841,
+    "avant": "`Modèle importé : ${j.job}`",
+    "apres": "__dzT9(\"studio3d.s3b_fal.importe\", \"Modèle importé : {job}\", { job: j.job })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 7110,
+    "avant": "title=\"Action ${esc(id)} de la bibliothèque Meshy · 3 cr\"",
+    "apres": "title=\"${__dzT9(\"studio3d.s3b_fal.action_title\", \"Action {id} de la bibliothèque Meshy · 3 cr\", { id: esc(id) })}\"",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 7576,
+    "avant": "\"Rig Meshy · aucun job\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.rig_aucun\", \"Rig Meshy · aucun job\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 7635,
+    "avant": "\"aucun job Game Assets 3D\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.aucun_job\", \"aucun job Game Assets 3D\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 8055,
+    "avant": "\" · remesh requis (> 300 000 faces)\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.remesh\", \" · remesh requis (> 300 000 faces)\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 10471,
+    "avant": "`Rigger « ${F.job} » chez Meshy : ${cr} crédits (~$${Number(d.total_usd || 0).toFixed(2)}).\\n${detail}`",
+    "apres": "__dzT9(\"studio3d.s3b_fal.confirmer_rig\", \"Rigger « {job} » chez Meshy : {cr} crédits (~${usd}).\", { job: F.job, cr: cr, usd: Number(d.total_usd || 0).toFixed(2) }) + \"\\n\" + detail",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 10607,
+    "avant": "`Payer ${cr} cr`",
+    "apres": "__dzT9(\"studio3d.s3b.payer_cr\", \"Payer {cr} cr\", { cr: cr })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 10885,
+    "avant": "\"en file…\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.en_file\", \"en file…\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 11022,
+    "avant": "`échec : ${j.error || \"?\"}`",
+    "apres": "__dzT9(\"studio3d.s3b.echec\", \"échec : {e}\", { e: j.error || \"?\" })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 11094,
+    "avant": "\"riggé · clips rapatriés\"",
+    "apres": "__dzT9(\"studio3d.s3b_fal.rigge\", \"riggé · clips rapatriés\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 12004,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "studio3d/local.js": [
+   {
+    "pos": 850,
+    "avant": "\"carte inconnue\"",
+    "apres": "__dzT9(\"studio3d.s3b_local.carte_inconnue\", \"carte inconnue\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 886,
+    "avant": "${c.vram_mo} Mo (",
+    "apres": "${c.vram_mo} ${__dzT9(\"studio3d.s3b.mo\", \"Mo\")} (",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 975,
+    "avant": "`<b>Service GPU local prêt</b>",
+    "apres": "`<b>${__dzT9(\"studio3d.s3b_local.pret\", \"Service GPU local prêt\")}</b>",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1024,
+    "avant": "\"forme et texture\"",
+    "apres": "__dzT9(\"studio3d.s3b_local.forme_texture\", \"forme et texture\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1045,
+    "avant": "\"forme seule\"",
+    "apres": "__dzT9(\"studio3d.s3b_local.forme_seule\", \"forme seule\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1100,
+    "avant": "`<b>Service GPU local absent</b> (${esc(d.url)}) — le moteur « Hunyuan3D 2.1 (local) » reste grisé. `",
+    "apres": "`${__dzT9(\"studio3d.s3b_local.absent\", \"<b>Service GPU local absent</b> ({url}) — le moteur « Hunyuan3D 2.1 (local) » reste grisé.\", { url: esc(d.url) })} `",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1211,
+    "avant": "`Carte : ${carte}. ${esc(dec.pourquoi)} Pour l'activer : lancer Hunyuan3D 2.1 à côté, adresse dans LOCAL3D_URL (.env).`",
+    "apres": "`${__dzT9(\"studio3d.s3b_local.carte\", \"Carte : {carte}.\", { carte: carte })} ${esc(dec.pourquoi)} ${__dzT9(\"studio3d.s3b_local.activer\", \"Pour l'activer : lancer Hunyuan3D 2.1 à côté, adresse dans LOCAL3D_URL (.env).\")}`",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1404,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "studio3d/banc.js": [
+   {
+    "pos": 1446,
+    "avant": "${b.sujets} sujet(s) · ",
+    "apres": "${__dzT9(\"studio3d.s3b_banc.sujets\", \"{n} sujet(s)\", { n: b.sujets })} · ",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1567,
+    "avant": ".toFixed(1)} Mo · ",
+    "apres": ".toFixed(1)} ${__dzT9(\"studio3d.s3b.mo\", \"Mo\")} · ",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1619,
+    "avant": " $ · étanche ${b.ferme_sur}/${b.mesures}</span>`",
+    "apres": " $ · ${__dzT9(\"studio3d.s3b_banc.etanche\", \"étanche {a}/{b}\", { a: b.ferme_sur, b: b.mesures })}</span>`",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1677,
+    "avant": "`<span class=\"jamais\">jamais mesuré chez nous</span>`",
+    "apres": "`<span class=\"jamais\">${__dzT9(\"studio3d.s3b_banc.jamais\", \"jamais mesuré chez nous\")}</span>`",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 1823,
+    "avant": "\"choisis d'abord un job dans l'atelier ci-dessus\"",
+    "apres": "__dzT9(\"studio3d.s3b_banc.choisis_job\", \"choisis d'abord un job dans l'atelier ci-dessus\")",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2078,
+    "avant": "`rangé au banc : ${r.sujet} / ${r.moteur} · ${Number(r.tris).toLocaleString(\"fr-FR\")} tris (gratuit)`",
+    "apres": "__dzT9(\"studio3d.s3b_banc.range\", \"rangé au banc : {sujet} / {moteur} · {tris} tris (gratuit)\", { sujet: r.sujet, moteur: r.moteur, tris: Number(r.tris).toLocaleString(\"fr-FR\") })",
+    "groupe": "s3b"
+   },
+   {
+    "pos": 2359,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "plateau/plateau.js": [
+   {
+    "pos": 1261,
+    "avant": "const $ = (s) => document.querySelector(s);",
+    "apres": "const $ = (s) => document.querySelector(s);\r\n/* t149 (traduction L9) : passe unique au chargement, en anglais seulement — (1) les <option> fixes de la page\r\n   (la surcouche n'entre pas dans <select>) ; (2) les textes de la page saisis en « contexte » (sens propre au\r\n   lab, la surcouche les ignore) : texte exact d'un nœud ou d'un title/placeholder -> dzT(clé), clés de cette\r\n   page seulement. */\r\n(function () {\r\n  if (typeof document === \"undefined\" || typeof dzLang !== \"function\" || dzLang() !== \"en\") return;\r\n  const tr = window.__dzI18n && window.__dzI18n.traduire;\r\n  if (tr) for (const o of document.querySelectorAll(\"select option\")) { const t = tr(o.textContent); if (t) o.textContent = t; }\r\n  if (tr) for (const im of document.querySelectorAll(\"img[alt]\")) { const t = tr(im.alt); if (t) im.alt = t; }   // alt : hors surcouche\r\n  const D = window.DZ_I18N || {}, idx = {}, nrm = (s) => String(s).replace(/\\s+/g, \" \").trim();\r\n  for (const k in D) if (k.startsWith(\"plateau.plh_\") && D[k] && D[k].contexte) idx[nrm(D[k].fr)] = k;\r\n  // la surcouche a pu passer AVANT : le texte qu'elle a posé (« Plateau » -> Board du Vectorlab) est reconnu aussi\r\n  if (tr) for (const f of Object.keys(idx)) { const e = tr(f); if (e && !idx[nrm(e)]) idx[nrm(e)] = idx[f]; }\r\n  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);\r\n  for (let x = w.nextNode(); x; x = w.nextNode()) {\r\n    const k = idx[nrm(x.nodeValue)];\r\n    if (k) x.nodeValue = x.nodeValue.match(/^\\s*/)[0] + dzT(k) + x.nodeValue.match(/\\s*$/)[0];\r\n  }\r\n  for (const el of document.querySelectorAll(\"[title],[placeholder]\")) for (const a of [\"title\", \"placeholder\"]) {\r\n    const v = el.getAttribute(a), k = v && idx[nrm(v)];\r\n    if (k) el.setAttribute(a, dzT(k));\r\n  }\r\n})();",
+    "groupe": "integration"
+   },
+   {
+    "pos": 7061,
+    "avant": "`« ${inst.nom} » : ${e.message}`",
+    "apres": "__dzT9(\"plateau.pl_err.instance\", \"« {nom} » : {msg}\", { nom: inst.nom, msg: e.message })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 7699,
+    "avant": "`${n.toLocaleString(\"fr-FR\")} triangles dans la scène`",
+    "apres": "__dzT9(\"plateau.pl_scene.tris\", \"{n} triangles dans la scène\", { n: n.toLocaleString(\"fr-FR\") })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 8066,
+    "avant": "${i.role}${i.source.kind === \"proxy\" ? \"\" : \" · \" + i.niveau}",
+    "apres": "${({ sujet: __dzT9(\"plateau.pl_role.sujet\", \"sujet\"), decor: __dzT9(\"plateau.pl_role.decor\", \"decor\"), repere: __dzT9(\"plateau.pl_role.repere\", \"repere\") })[i.role] || i.role}${i.source.kind === \"proxy\" ? \"\" : \" · \" + (({ allege: __dzT9(\"plateau.pl_niv.allege\", \"allege\"), plein: __dzT9(\"plateau.pl_niv.plein\", \"plein\") })[i.niveau] || i.niveau)}",
+    "groupe": "pl"
+   },
+   {
+    "pos": 8683,
+    "avant": "\" aria-label=\"Nom de l'instance\">",
+    "apres": "\" aria-label=\"${__dzT9(\"plateau.pl_fiche.nom\", \"Nom de l'instance\")}\">",
+    "groupe": "pl"
+   },
+   {
+    "pos": 8747,
+    "avant": "<span>Rôle</span>",
+    "apres": "<span>${__dzT9(\"plateau.pl_fiche.role\", \"Rôle\")}</span>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 8843,
+    "avant": "<option ${r === i.role ? \"selected\" : \"\"}>${r}</option>",
+    "apres": "<option value=\"${r}\" ${r === i.role ? \"selected\" : \"\"}>${({ sujet: __dzT9(\"plateau.pl_role.sujet\", \"sujet\"), decor: __dzT9(\"plateau.pl_role.decor\", \"decor\"), repere: __dzT9(\"plateau.pl_role.repere\", \"repere\") })[r]}</option>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 8963,
+    "avant": "<select class=\"champ\" data-k=\"niveau\" title=\"allégé : 2 500 triangles (gltfpack) ; plein : le maillage tel quel\"",
+    "apres": "<select class=\"champ\" data-k=\"niveau\" title=\"${__dzT9(\"plateau.pl_fiche.niveau_t\", \"allégé : 2 500 triangles (gltfpack) ; plein : le maillage tel quel\")}\"",
+    "groupe": "pl"
+   },
+   {
+    "pos": 9110,
+    "avant": "<option ${n === i.niveau ? \"selected\" : \"\"}>${n}</option>",
+    "apres": "<option value=\"${n}\" ${n === i.niveau ? \"selected\" : \"\"}>${({ allege: __dzT9(\"plateau.pl_niv.allege\", \"allege\"), plein: __dzT9(\"plateau.pl_niv.plein\", \"plein\") })[n]}</option>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 9447,
+    "avant": "<span>échelle</span>",
+    "apres": "<span>${__dzT9(\"plateau.pl_fiche.echelle\", \"échelle\")}</span>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 9564,
+    "avant": "<span>l h p</span>",
+    "apres": "<span>${__dzT9(\"plateau.pl_fiche.lhp\", \"l h p\")}</span>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 9717,
+    "avant": "\" m mesurés\"",
+    "apres": "__dzT9(\"plateau.pl_fiche.m_mesures\", \" m mesurés\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 9732,
+    "avant": "\"dims mesurées à la pose\"",
+    "apres": "__dzT9(\"plateau.pl_fiche.dims_pose\", \"dims mesurées à la pose\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 9766,
+    "avant": "\r\n    <div class=\"ligne\"><button class=\"btn\" id=\"btnDup\">Dupliquer</button><button class=\"btn\" id=\"btnSuppr\" title=\"Retirer l'instance (un second clic confirme)\">Retirer</button>",
+    "apres": "\r\n    <div class=\"ligne\"><button class=\"btn\" id=\"btnDup\">${__dzT9(\"plateau.pl_fiche.dupliquer\", \"Dupliquer\")}</button><button class=\"btn\" id=\"btnSuppr\" title=\"${__dzT9(\"plateau.pl_fiche.retirer_t\", \"Retirer l'instance (un second clic confirme)\")}\">${__dzT9(\"plateau.pl_fiche.retirer\", \"Retirer\")}</button>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 10267,
+    "avant": "\"Retirer ?\"",
+    "apres": "__dzT9(\"plateau.pl_fiche.retirer_arme\", \"Retirer ?\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 10339,
+    "avant": "\"Retirer\"",
+    "apres": "__dzT9(\"plateau.pl_fiche.retirer\", \"Retirer\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 11816,
+    "avant": "\" (copie)\"",
+    "apres": "__dzT9(\"plateau.pl_fiche.copie\", \" (copie)\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 13241,
+    "avant": "maillage… (${ents.length + jobs.length})",
+    "apres": "${__dzT9(\"plateau.pl_src.maillage_n\", \"maillage… ({n})\", { n: ents.length + jobs.length })}",
+    "groupe": "pl"
+   },
+   {
+    "pos": 13317,
+    "avant": "<optgroup label=\"Entités de la bible\">",
+    "apres": "<optgroup label=\"${__dzT9(\"plateau.pl_src.entites\", \"Entités de la bible\")}\">",
+    "groupe": "pl"
+   },
+   {
+    "pos": 13427,
+    "avant": "<optgroup label=\"Maillages 3D\">",
+    "apres": "<optgroup label=\"${__dzT9(\"plateau.pl_src.maillages3d\", \"Maillages 3D\")}\">",
+    "groupe": "pl"
+   },
+   {
+    "pos": 13521,
+    "avant": "`maillages : ${e.message}`",
+    "apres": "__dzT9(\"plateau.pl_err.maillages\", \"maillages : {msg}\", { msg: e.message })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 14806,
+    "avant": "\"enregistré\"",
+    "apres": "__dzT9(\"plateau.pl_etat.enregistre\", \"enregistré\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 14845,
+    "avant": "`enregistrement : ${e.message}`",
+    "apres": "__dzT9(\"plateau.pl_err.enregistrement\", \"enregistrement : {msg}\", { msg: e.message })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 15710,
+    "avant": "\"scène\"",
+    "apres": "__dzT9(\"plateau.pl_scene.defaut\", \"scène\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 16291,
+    "avant": "<span>plan <b>",
+    "apres": "<span>${__dzT9(\"plateau.pl_lect.plan\", \"plan\")} <b>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 16357,
+    "avant": "'<span class=\"ko\">sujet hors cadre</span>'",
+    "apres": "'<span class=\"ko\">' + __dzT9(\"plateau.pl_lect.hors_cadre\", \"sujet hors cadre\") + '</span>'",
+    "groupe": "pl"
+   },
+   {
+    "pos": 16439,
+    "avant": "<span class=\"k\">mesuré</span>",
+    "apres": "<span class=\"k\">${__dzT9(\"plateau.pl_mes.mesure\", \"mesuré\")}</span>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 16534,
+    "avant": "seuils : ${",
+    "apres": "${__dzT9(\"plateau.pl_mes.seuils\", \"seuils :\")} ${",
+    "groupe": "pl"
+   },
+   {
+    "pos": 16710,
+    "avant": "\">plan écrit : ${esc(m.plan.shot_type)}",
+    "apres": "\">${__dzT9(\"plateau.pl_mes.plan_ecrit\", \"plan écrit : {v}\", { v: esc(m.plan.shot_type) })}",
+    "groupe": "pl"
+   },
+   {
+    "pos": 16766,
+    "avant": "` — le cadre donne ${esc(m.shot_type)}`",
+    "apres": "__dzT9(\"plateau.pl_mes.cadre_donne\", \" — le cadre donne {v}\", { v: esc(m.shot_type) })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 18044,
+    "avant": "\" aria-label=\"easing du segment\">",
+    "apres": "\" aria-label=\"${__dzT9(\"plateau.pl_kf.easing\", \"easing du segment\")}\">",
+    "groupe": "pl"
+   },
+   {
+    "pos": 18215,
+    "avant": "\" title=\"Retirer ce keyframe\" aria-label=\"Retirer ce keyframe\">",
+    "apres": "\" title=\"${__dzT9(\"plateau.pl_kf.retirer\", \"Retirer ce keyframe\")}\" aria-label=\"${__dzT9(\"plateau.pl_kf.retirer\", \"Retirer ce keyframe\")}\">",
+    "groupe": "pl"
+   },
+   {
+    "pos": 19863,
+    "avant": "\"deux keyframes au moins pour lire un mouvement\"",
+    "apres": "__dzT9(\"plateau.pl_kf.deux_min\", \"deux keyframes au moins pour lire un mouvement\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 21046,
+    "avant": "<span class=\"k\">mesuré</span>",
+    "apres": "<span class=\"k\">${__dzT9(\"plateau.pl_mes.mesure\", \"mesuré\")}</span>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 21135,
+    "avant": "<div class=\"k\">attribut proposé : ${m.attributs.map(esc).join(\", \")}",
+    "apres": "<div class=\"k\">${__dzT9(\"plateau.pl_mvt.attribut\", \"attribut proposé : {v}\", { v: m.attributs.map(esc).join(\", \") })}",
+    "groupe": "pl"
+   },
+   {
+    "pos": 21278,
+    "avant": "\">plan écrit : ${esc(m.plan.camera_move)}",
+    "apres": "\">${__dzT9(\"plateau.pl_mes.plan_ecrit\", \"plan écrit : {v}\", { v: esc(m.plan.camera_move) })}",
+    "groupe": "pl"
+   },
+   {
+    "pos": 21336,
+    "avant": "\" — écart\"",
+    "apres": "__dzT9(\"plateau.pl_mvt.ecart\", \" — écart\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 21851,
+    "avant": "\"composition…\"",
+    "apres": "__dzT9(\"plateau.pl_glb.encours\", \"composition…\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 22252,
+    "avant": "`GLB v${d.version} : ${d.rapport.tris_total.toLocaleString(\"fr-FR\")} triangles, ${Math.round(d.bytes / 1024)} Ko`",
+    "apres": "__dzT9(\"plateau.pl_glb.fait\", \"GLB v{v} : {tris} triangles, {ko} Ko\", { v: d.version, tris: d.rapport.tris_total.toLocaleString(\"fr-FR\"), ko: Math.round(d.bytes / 1024) })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 22390,
+    "avant": "`composition : ${e.message}`",
+    "apres": "__dzT9(\"plateau.pl_err.composition\", \"composition : {msg}\", { msg: e.message })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 23939,
+    "avant": "\"posez au moins un keyframe : la capture se fait au premier et au dernier\"",
+    "apres": "__dzT9(\"plateau.pl_cap.kf_min\", \"posez au moins un keyframe : la capture se fait au premier et au dernier\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 24208,
+    "avant": "<div class=\"k\">début</div>",
+    "apres": "<div class=\"k\">${__dzT9(\"plateau.pl_cap.debut\", \"début\")}</div>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 24280,
+    "avant": "\" alt=\"cadre de début\">\r\n      <div class=\"k\">fin</div>",
+    "apres": "\" alt=\"${__dzT9(\"plateau.pl_cap.debut_alt\", \"cadre de début\")}\">\r\n      <div class=\"k\">${__dzT9(\"plateau.pl_cap.fin\", \"fin\")}</div>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 24383,
+    "avant": "alt=\"cadre de fin\"",
+    "apres": "alt=\"${__dzT9(\"plateau.pl_cap.fin_alt\", \"cadre de fin\")}\"",
+    "groupe": "pl"
+   },
+   {
+    "pos": 24415,
+    "avant": "\"cadres capturés dans la Bibliothèque (Plateau 3D)\"",
+    "apres": "__dzT9(\"plateau.pl_cap.faits\", \"cadres capturés dans la Bibliothèque (Plateau 3D)\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 24491,
+    "avant": "`capture : ${e.message}`",
+    "apres": "__dzT9(\"plateau.pl_err.capture\", \"capture : {msg}\", { msg: e.message })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 25690,
+    "avant": "<div class=\"avert\">Cette scène n'est liée à aucun plan : ouvrez-la depuis le storyboard (${ico(\"dz-nav-plateau\")}).",
+    "apres": "<div class=\"avert\">${__dzT9(\"plateau.pl_plan.non_lie\", \"Cette scène n'est liée à aucun plan : ouvrez-la depuis le storyboard ({ico}).\", { ico: ico(\"dz-nav-plateau\") })}",
+    "groupe": "pl"
+   },
+   {
+    "pos": 25928,
+    "avant": "Rien à proposer : mesurez, posez des keyframes ou capturez d'abord.",
+    "apres": "${__dzT9(\"plateau.pl_plan.rien\", \"Rien à proposer : mesurez, posez des keyframes ou capturez d'abord.\")}",
+    "groupe": "pl"
+   },
+   {
+    "pos": 26175,
+    "avant": "\"type de plan mesuré au premier keyframe (le cadrage d'ouverture)\"",
+    "apres": "__dzT9(\"plateau.pl_plan.type_premier\", \"type de plan mesuré au premier keyframe (le cadrage d'ouverture)\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 26244,
+    "avant": "\"type de plan mesuré sur le cadre courant\"",
+    "apres": "__dzT9(\"plateau.pl_plan.type_courant\", \"type de plan mesuré sur le cadre courant\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 26518,
+    "avant": "<button class=\"btn primaire\" id=\"btnConfirmer\">Écrire ${d.change.length} champ${d.change.length > 1 ? \"s\" : \"\"} dans le plan",
+    "apres": "<button class=\"btn primaire\" id=\"btnConfirmer\">${d.change.length > 1 ? __dzT9(\"plateau.pl_plan.ecrire_plusieurs\", \"Écrire {n} champs dans le plan\", { n: d.change.length }) : __dzT9(\"plateau.pl_plan.ecrire_un\", \"Écrire {n} champ dans le plan\", { n: d.change.length })}",
+    "groupe": "pl"
+   },
+   {
+    "pos": 26656,
+    "avant": "<div class=\"k\">le plan porte déjà ces valeurs</div>",
+    "apres": "<div class=\"k\">${__dzT9(\"plateau.pl_plan.deja\", \"le plan porte déjà ces valeurs\")}</div>",
+    "groupe": "pl"
+   },
+   {
+    "pos": 26947,
+    "avant": "<div>Plan mis à jour : ${r.change.join(\", \")}.",
+    "apres": "<div>${__dzT9(\"plateau.pl_plan.maj\", \"Plan mis à jour : {champs}.\", { champs: r.change.join(\", \") })}",
+    "groupe": "pl"
+   },
+   {
+    "pos": 27384,
+    "avant": "`plan ${P.plan.idx + 1} · ${P.plan.shot_type} · ${f2(P.plan.duration_s)} s`",
+    "apres": "__dzT9(\"plateau.pl_chip.plan\", \"plan {n} · {type} · {d} s\", { n: P.plan.idx + 1, type: P.plan.shot_type, d: f2(P.plan.duration_s) })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 27462,
+    "avant": "\"aucun plan lié\"",
+    "apres": "__dzT9(\"plateau.pl_chip.aucun\", \"aucun plan lié\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 28187,
+    "avant": "`ouverture : ${e.message}`",
+    "apres": "__dzT9(\"plateau.pl_err.ouverture\", \"ouverture : {msg}\", { msg: e.message })",
+    "groupe": "pl"
+   },
+   {
+    "pos": 28825,
+    "avant": "\"prêt\"",
+    "apres": "__dzT9(\"plateau.pl_etat.pret\", \"prêt\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 28943,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "plateau/calc.js": [
+   {
+    "pos": 997,
+    "avant": "\"focale ou capteur hors bornes\"",
+    "apres": "__dzT9(\"plateau.pl_calc.focale\", \"focale ou capteur hors bornes\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 1246,
+    "avant": "\"fov ou capteur hors bornes\"",
+    "apres": "__dzT9(\"plateau.pl_calc.fov\", \"fov ou capteur hors bornes\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 2087,
+    "avant": "\"caméra confondue avec sa cible\"",
+    "apres": "__dzT9(\"plateau.pl_calc.confondue\", \"caméra confondue avec sa cible\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 2641,
+    "avant": "\"au moins un keyframe\"",
+    "apres": "__dzT9(\"plateau.pl_calc.un_kf\", \"au moins un keyframe\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 4266,
+    "avant": "\"preset inconnu\"",
+    "apres": "__dzT9(\"plateau.pl_calc.preset\", \"preset inconnu\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 4708,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
+  "lib3d/selection.js": [
+   {
+    "pos": 5863,
+    "avant": "\"maillage\"",
+    "apres": "__dzT9(\"lib3d.pl_sel.maillage\", \"maillage\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 6403,
+    "avant": "\"matériau\"",
+    "apres": "__dzT9(\"lib3d.pl_sel.materiau\", \"matériau\")",
+    "groupe": "pl"
+   },
+   {
+    "pos": 14956,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ]
+ },
+ "gardes": [
+  {
+   "fichier": "plateau/plateau.js",
+   "ligne": 375,
+   "texte": "\"image/png\"",
+   "raison": "type MIME",
+   "groupe": "pl",
+   "pos": [
+    23172
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 102,
+   "texte": "\"prophète pieuvre, armure de corail, pose héroïque, style créature marine cinématographique\"",
+   "raison": "prompt par défaut envoyé à Meshy (contenu utilisateur, mémorisé en session)",
+   "groupe": "s3a",
+   "pos": [
+    6234
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 762,
+   "texte": "\"asset_3d\"",
+   "raison": "nom d'asset par défaut enregistré (nom de job, de fichier)",
+   "groupe": "s3a",
+   "pos": [
+    40453
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 864,
+   "texte": "`action_${nid}`",
+   "raison": "nom d'action par défaut enregistré dans la configuration",
+   "groupe": "s3a",
+   "pos": [
+    48277
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 34,
+   "texte": "\"--c-image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    2086
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 38,
+   "texte": "\"--c-image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    2382
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 61,
+   "texte": "\"--c-image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    4036
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 79,
+   "texte": "\"--c-image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    5205,
+    5225
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 82,
+   "texte": "\"preview:image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    5331
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 82,
+   "texte": "\"/v1/image-to-3d\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    5348
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 92,
+   "texte": "\"/v1/image-to-3d\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    5859
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 92,
+   "texte": "\"/v1/multi-image-to-3d\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    5899
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 331,
+   "texte": "\"image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    18600
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 331,
+   "texte": "\"v1 · image-to-3d\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    18610
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 340,
+   "texte": "\"image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    18931
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 340,
+   "texte": "\"preview:image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    18956
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 360,
+   "texte": "\"image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    19648
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 365,
+   "texte": "\"image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    19884
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 726,
+   "texte": "\"image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    38621
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 758,
+   "texte": "\"image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    40168,
+    40190
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 765,
+   "texte": "\"image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    40569
+   ]
+  },
+  {
+   "fichier": "studio3d/studio3d.js",
+   "ligne": 782,
+   "texte": "\"image\"",
+   "raison": "valeur technique (variable CSS, source comparée, route ou clé d'API Meshy, nom d'endpoint affiché) : non traduite",
+   "groupe": "s3a",
+   "pos": [
+    41797
+   ]
+  },
+  {
+   "fichier": "studio3d/index.html",
+   "ligne": 136,
+   "texte": "meshy · meshy-6",
+   "raison": "nom de fournisseur et de modèle (réécrit par studio3d.js)",
+   "groupe": "s3b",
+   "pos": [
+    10717
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 24,
+   "texte": "\"static camera, character animation loop, plain solid green background, full body visible\"",
+   "raison": "suffixe de prompt envoyé au générateur vidéo",
+   "groupe": "sp1",
+   "pos": [
+    1244
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 165,
+   "texte": "\", \"",
+   "raison": "séparateur du prompt envoyé au générateur",
+   "groupe": "sp1",
+   "pos": [
+    7801
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 186,
+   "texte": "\"render \"",
+   "raison": "étiquette de source identique dans les deux langues",
+   "groupe": "sp1",
+   "pos": [
+    8891
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 221,
+   "texte": "\"render \"",
+   "raison": "étiquette de source identique dans les deux langues",
+   "groupe": "sp1",
+   "pos": [
+    10661
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 264,
+   "texte": "\"Sprites · extraction \"",
+   "raison": "titre du job envoyé au serveur",
+   "groupe": "sp1",
+   "pos": [
+    12300
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 393,
+   "texte": "\"Sprites · \"",
+   "raison": "titre du job envoyé au serveur",
+   "groupe": "sp1",
+   "pos": [
+    18830
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 738,
+   "texte": "\"os\"",
+   "raison": "valeur d'outil comparée (sk.outil), pas affichée",
+   "groupe": "sp2",
+   "pos": [
+    36833
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 862,
+   "texte": "\"spritesheet.graph\"",
+   "raison": "nom du graphe ouvert dans le Studio (identifiant)",
+   "groupe": "sp2",
+   "pos": [
+    42420
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 1191,
+   "texte": "\"anim\"",
+   "raison": "nom de tag par défaut écrit dans le manifeste et les exports moteur",
+   "groupe": "sp2",
+   "pos": [
+    58510
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 1311,
+   "texte": "\"feuille\"",
+   "raison": "nom de fichier par défaut des téléchargements",
+   "groupe": "sp2",
+   "pos": [
+    68367
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 1325,
+   "texte": "\"_alignee.png\"",
+   "raison": "suffixe de nom de fichier",
+   "groupe": "sp2",
+   "pos": [
+    70409
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 707,
+   "texte": "\"#squelette .sk-outil\"",
+   "raison": "sélecteur CSS",
+   "groupe": "sp2",
+   "pos": [
+    35233
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 744,
+   "texte": "\"#squelette .sk-outil\"",
+   "raison": "sélecteur CSS",
+   "groupe": "sp2",
+   "pos": [
+    37144
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 863,
+   "texte": "\"Image\"",
+   "raison": "type de nœud du graphe Studio",
+   "groupe": "sp2",
+   "pos": [
+    42477
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 881,
+   "texte": "\"image\"",
+   "raison": "type de source comparé",
+   "groupe": "sp2",
+   "pos": [
+    43358
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 883,
+   "texte": "\"image\"",
+   "raison": "nom d'onglet interne",
+   "groupe": "sp2",
+   "pos": [
+    43443
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 990,
+   "texte": "\"image/png\"",
+   "raison": "type MIME",
+   "groupe": "sp2",
+   "pos": [
+    48781
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 1029,
+   "texte": "\"image\"",
+   "raison": "kind envoyé à /cost/estimate",
+   "groupe": "sp2",
+   "pos": [
+    50819
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 1069,
+   "texte": "\"image\"",
+   "raison": "nom d'onglet interne comparé",
+   "groupe": "sp2",
+   "pos": [
+    52860
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 1108,
+   "texte": " style=\"background-image:url(",
+   "raison": "attribut style CSS",
+   "groupe": "sp2",
+   "pos": [
+    54593
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 1309,
+   "texte": "\"image/png\"",
+   "raison": "type MIME",
+   "groupe": "sp2",
+   "pos": [
+    68115
+   ]
+  },
+  {
+   "fichier": "spritelab/spritelab.js",
+   "ligne": 1355,
+   "texte": "\"Sprites · extraction\"",
+   "raison": "préfixe de titre de job comparé (startsWith) aux jobs du serveur",
+   "groupe": "sp2",
+   "pos": [
+    72795
+   ]
+  },
+  {
+   "fichier": "spritelab/directions.js",
+   "ligne": 52,
+   "texte": "\"Sprites · 8 directions · \"",
+   "raison": "titre de job envoyé au serveur",
+   "groupe": "sp2",
+   "pos": [
+    3092
+   ]
+  },
+  {
+   "fichier": "spritelab/directions.js",
+   "ligne": 63,
+   "texte": "\"pixel art sprite, chunky readable pixels, limited flat palette, crisp 1px dark outline, \"",
+   "raison": "prompt anglais envoyé au générateur d'images",
+   "groupe": "sp2",
+   "pos": [
+    3656
+   ]
+  },
+  {
+   "fichier": "spritelab/directions.js",
+   "ligne": 64,
+   "texte": "\"no anti-aliasing, plain solid green background, full body in frame, centered, no text, no watermark\"",
+   "raison": "prompt anglais envoyé au générateur d'images",
+   "groupe": "sp2",
+   "pos": [
+    3752
+   ]
+  },
+  {
+   "fichier": "spritelab/directions.js",
+   "ligne": 81,
+   "texte": "\"palette accent \"",
+   "raison": "fragment de prompt envoyé au générateur",
+   "groupe": "sp2",
+   "pos": [
+    4568
+   ]
+  },
+  {
+   "fichier": "spritelab/feuille.js",
+   "ligne": 82,
+   "texte": "\"boucle\"",
+   "raison": "valeur de mode stockée/comparée",
+   "groupe": "sp2",
+   "pos": [
+    4661
+   ]
+  },
+  {
+   "fichier": "spritelab/skeleton.js",
+   "ligne": 38,
+   "texte": "\"os\"",
+   "raison": "préfixe de nom d'os écrit dans le rig Spine exporté",
+   "groupe": "sp2",
+   "pos": [
+    2014
+   ]
+  },
+  {
+   "fichier": "tilelab/tilelab.js",
+   "ligne": 159,
+   "texte": "\" · pixel\"",
+   "raison": "suffixe technique (mode pixel), identique en anglais",
+   "groupe": "tl1",
+   "pos": [
+    6439
+   ]
+  },
+  {
+   "fichier": "tilelab/tilelab.js",
+   "ligne": 234,
+   "texte": "\"Tile Lab\"",
+   "raison": "nom propre du lab",
+   "groupe": "tl1",
+   "pos": [
+    10395
+   ]
+  },
+  {
+   "fichier": "tilelab/tilelab.js",
+   "ligne": 297,
+   "texte": "\"feuille\"",
+   "raison": "nom de fichier par défaut des téléchargements",
+   "groupe": "tl1",
+   "pos": [
+    16231
+   ]
+  },
+  {
+   "fichier": "tilelab/jeu.js",
+   "ligne": 136,
+   "texte": "\"repetition\"",
+   "raison": "clés de mesure/verdict/seuil renvoyées par le serveur",
+   "groupe": "tl1",
+   "pos": [
+    7227,
+    7241,
+    7255
+   ]
+  },
+  {
+   "fichier": "tilelab/jeu.js",
+   "ligne": 137,
+   "texte": "\"eclairage\"",
+   "raison": "clés de verdict/seuil renvoyées par le serveur",
+   "groupe": "tl1",
+   "pos": [
+    7312,
+    7325
+   ]
+  },
+  {
+   "fichier": "tilelab/jeu.js",
+   "ligne": 164,
+   "texte": "\"atlas.png\"",
+   "raison": "nom du fichier téléchargé (écrit par le backend)",
+   "groupe": "tl1",
+   "pos": [
+    8607
+   ]
+  },
+  {
+   "fichier": "tilelab/tilelab.js",
+   "ligne": 185,
+   "texte": "\"Image\"",
+   "raison": "type de nœud du graphe Studio (valeur interne)",
+   "groupe": "tl1",
+   "pos": [
+    7388
+   ]
+  },
+  {
+   "fichier": "tilelab/tilelab.js",
+   "ligne": 296,
+   "texte": "\"image/png\"",
+   "raison": "type MIME",
+   "groupe": "tl1",
+   "pos": [
+    16179
+   ]
+  },
+  {
+   "fichier": "tilelab/jeu.js",
+   "ligne": 48,
+   "texte": "\"image\"",
+   "raison": "source d'une matière (valeur comparée)",
+   "groupe": "tl1",
+   "pos": [
+    2613
+   ]
+  },
+  {
+   "fichier": "tilelab/jeu.js",
+   "ligne": 106,
+   "texte": "`/api/tiles/${d.tid}/fichier/atlas.png?t=${Date.now()}`",
+   "raison": "URL d'API",
+   "groupe": "tl1",
+   "pos": [
+    5787
+   ]
+  },
+  {
+   "fichier": "tilelab/jeu.js",
+   "ligne": 164,
+   "texte": "`/api/tiles/${tid}/fichier/atlas.png`",
+   "raison": "URL d'API",
+   "groupe": "tl1",
+   "pos": [
+    8568
+   ]
+  },
+  {
+   "fichier": "tilelab/jeu.js",
+   "ligne": 187,
+   "texte": "`/api/tiles/${d.tid}/fichier/atlas.png?t=${Date.now()}`",
+   "raison": "URL d'API",
+   "groupe": "tl1",
+   "pos": [
+    9615
+   ]
+  },
+  {
+   "fichier": "tilelab/jeu.js",
+   "ligne": 253,
+   "texte": "\"forme\"",
+   "raison": "nom de mode interne",
+   "groupe": "tl1",
+   "pos": [
+    13115
+   ]
+  },
+  {
+   "fichier": "tilelab/jeu.js",
+   "ligne": 254,
+   "texte": "\"forme\"",
+   "raison": "nom de mode interne",
+   "groupe": "tl1",
+   "pos": [
+    13180
+   ]
+  }
+ ]
+}

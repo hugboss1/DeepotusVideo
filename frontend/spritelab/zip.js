@@ -9,12 +9,12 @@ export function crc32(bytes) {
   return (c ^ 0xFFFFFFFF) >>> 0;
 }
 export function zip_store(entrees) {
-  if (!entrees || !entrees.length) throw new Error("zip : aucune entrée");
+  if (!entrees || !entrees.length) throw new Error(__dzT9("sprites.sp2_zip.aucune", "zip : aucune entrée"));
   const enc = new TextEncoder(), locaux = [], centraux = [];
   let offset = 0;
   for (const e of entrees) {
     const nom = enc.encode(String(e.nom || ""));
-    if (!nom.length) throw new Error("zip : nom d'entrée vide");
+    if (!nom.length) throw new Error(__dzT9("sprites.sp2_zip.nom_vide", "zip : nom d'entrée vide"));
     const data = e.data instanceof Uint8Array ? e.data : new Uint8Array(e.data || []);
     const crc = crc32(data);
     const loc = new Uint8Array(30 + nom.length + data.length), dv = new DataView(loc.buffer);
@@ -39,3 +39,5 @@ export function zip_store(entrees) {
   for (const b of [...locaux, ...centraux, fin]) { out.set(b, p); p += b.length; }
   return out;
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }
