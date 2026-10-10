@@ -98,14 +98,20 @@
 
         <h3>3. Le Personnage</h3>
         <select id="rPerso"></select>
+        <p class="aide">Une seule personne est remplacée par prise : les modèles de fal n'acceptent qu'un Personnage.</p>
 
         <h3>4. Le décor ou la consigne</h3>
         <div id="rPre" class="puces" role="group" aria-label="Préréglages"></div>
         <textarea id="rConsigne" rows="2" maxlength="500" placeholder="Consigne libre (en anglais de préférence), ex. a red leather jacket"></textarea>
+        <div class="actions">
+          <button id="rDecrire" type="button" class="btn" disabled title="Une image de la prise est décrite par l'IA de vision (le lieu seul) ; relisez la consigne avant de lancer">
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-apercu"></use></svg>Proposer une consigne d'après la prise
+          </button>
+        </div>
         <div class="ligne">
           <label class="champ court">Résolution <select id="rRes"></select></label>
           <label class="champ court" id="rOrientChamp">Orientation
-            <select id="rOrient"><option value="video" data-t="avatar.recast.orient_video">celle de la vidéo</option><option value="image" data-t="avatar.recast.orient_image">celle de l'image</option></select>
+            <select id="rOrient"><option value="video" data-t="avatar.recast.orient_video">celle de la vidéo</option><option value="image" data-t="avatar.recast.orient_image">celle de l'image (10 s au plus)</option></select>
           </label>
         </div>
 

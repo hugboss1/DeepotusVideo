@@ -194,6 +194,33 @@ async def recast_lancer(body: dict | None = None):
     return await _recast(body if isinstance(body, dict) else {})
 
 
+@router.post("/recast/decrire")
+async def recast_decrire(body: dict | None = None):
+    """t168e : {source} -> {consigne, fournisseur, devis_usd} : une image du milieu de la prise décrite par le LLM de
+    vision (le lieu seul, jamais les personnes), proposée comme consigne de décor — à RELIRE avant le tir. Payant."""
+    import asyncio
+    from app.services import recast_service as RS, fal_video_tools as FV
+    b = body if isinstance(body, dict) else {}
+    src, _parent = await _source_video(b.get("source") if isinstance(b.get("source"), dict) else {})
+    if src is None:
+        raise HTTPException(404, "Vidéo source introuvable (rendu sans vidéo, ou dépôt inconnu).")
+    fournisseur = RS.fournisseur_vision()
+    if fournisseur is None:
+        raise HTTPException(400, "Aucune clé Anthropic ni OpenAI (Réglages → clés API) : écrivez la consigne vous-même.")
+    info = await asyncio.to_thread(FV.probe, src)
+    if not info.get("width"):
+        raise HTTPException(415, "Vidéo source illisible.")
+    garde = await _PLAF.verifier({"kind": "llm", "provider": fournisseur, "in_tok": RS.DECRIRE_TOK["in"],
+                                  "out_tok": RS.DECRIRE_TOK["out"]}, "studio", ref=f"recast-decrire:{src.name}")
+    try:
+        consigne = await RS.decrire_decor(src, info, fournisseur)
+    except Exception as e:  # noqa: BLE001 — réseau, quota, réponse vide : dit tel quel
+        raise HTTPException(502, f"Description impossible : {str(e)[:200]}")
+    from app.services import plafonds as _plaf
+    await _plaf.rattacher(garde["lignes"], f"recast-decrire:{src.name}")
+    return {"consigne": consigne, "fournisseur": fournisseur, "devis_usd": garde["devis"]["total_usd"]}
+
+
 @router.get("/recast/brouillons")
 async def recast_brouillons():
     """t168c : les brouillons qu'on peut finaliser, avec la résolution finale et son prix à la seconde."""

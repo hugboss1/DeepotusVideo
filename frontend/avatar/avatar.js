@@ -186,6 +186,11 @@
     $("rDevis").textContent = d ? T("avatar.recast.devis", { total: usd(prix * d), duree: sec(d), prix: usdS(prix) }) : T("avatar.recast.prix_s", { prix: usdS(prix) });
     var dureeOk = !d || (d >= cat.duree.min && d <= cat.duree.max);
     if (d && !dureeOk) $("rSourceInfo").textContent = T("avatar.recast.trop_long", { duree: sec(d), min: cat.duree.min, max: cat.duree.max });
+    // t168e : Kling en orientation « celle de l'image » prend 10 s au plus (doc fal)
+    if (dureeOk && d && etat.modele.indexOf("mouvement") === 0 && $("rOrient").value === "image" && d > 10) {
+      dureeOk = false; $("rSourceInfo").textContent = T("avatar.recast.kling_image_10s", { duree: sec(d) });
+    }
+    $("rDecrire").disabled = !etat.source;
     var consigneOk = !(etat.modele === "objet" && !$("rConsigne").value.trim() && !etat.pre);
     $("rLancer").disabled = !(etat.source && dureeOk && consigneOk && (!m.personnage || $("rPerso").value));
     // t168c : brouillon 480p (Wan, Lucy : fal y prend une graine) ; Kling n'en a pas, le bouton le dit
@@ -242,6 +247,18 @@
     majRecast();
   }
   $("rLancer").addEventListener("click", function () { lancerRecast(false); });
+  // t168e : une consigne de décor proposée d'après une image de la prise (LLM de vision, payant, sous plafond)
+  $("rDecrire").addEventListener("click", async function () {
+    $("rDecrire").disabled = true; msg("rMsg", T("avatar.recast.description"));
+    try {
+      var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
+      var d = await lire(await fetch(API + "/recast/decrire", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: src }) }));
+      $("rConsigne").value = d.consigne; $("rConsigne").focus();
+      msg("rMsg", T("avatar.recast.consigne_proposee", { usd: usd(d.devis_usd) }));
+    } catch (e) { msg("rMsg", e.message, true); }
+    majRecast();
+  });
   $("rBrouillon").addEventListener("click", function () { lancerRecast(true); });
 
   // t168c : les brouillons finalisables (recette gardée par le serveur), relus à chaque brouillon terminé
