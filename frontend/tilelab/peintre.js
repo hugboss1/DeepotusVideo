@@ -80,10 +80,10 @@
 
   async function composer() {
     const j = jeuCourant();
-    if (!j) return statut("Fabrique d'abord un jeu dans le mode " + dzIcone("dz-edit-autotuile", { taille: 16 }) + " Jeu : le peintre pose SES tuiles.", true, true);
+    if (!j) return statut(__dzT9("tuiles.tl1_pe.sans_jeu", "Fabrique d'abord un jeu dans le mode {icone} Jeu : le peintre pose SES tuiles.", { icone: dzIcone("dz-edit-autotuile", { taille: 16 }) }), true, true);
     const n = ++P.envoi;                       // seule la dernière réponse s'affiche (coups de pinceau rapides)
     try {
-      statut("Composition…");
+      statut(__dzT9("tuiles.tl1_pe.composition", "Composition…"));
       const r = await fetch(`/api/tiles/${encodeURIComponent(j.tid)}/carte`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ grille: P.grille, graine: parseInt($("#peGraine").value, 10) || 1 }),
@@ -95,14 +95,14 @@
       $("#pePng").href = d.url; $("#peJson").href = d.json;
       $("#peResultat").classList.remove("hidden");
       const terrain = P.grille.reduce((a, l) => a + l.reduce((b, v) => b + v, 0), 0);
-      statut(`${P.larg}×${P.haut} · ${terrain} case(s) de terrain · composée par Python`);
-    } catch (e) { if (n === P.envoi) statut("Échec : " + e.message, true); }
+      statut(__dzT9("tuiles.tl1_pe.info", "{l}×{h} · {n} case(s) de terrain · composée par Python", { l: P.larg, h: P.haut, n: terrain }));
+    } catch (e) { if (n === P.envoi) statut(__dzT9("tuiles.tl1_x.echec", "Échec : {msg}", { msg: e.message }), true); }
   }
 
   function entrer() {
     const j = jeuCourant();
-    if (j) $("#peJeu").textContent = `jeu ${j.jeu.jeu || ""} · ${j.jeu.cote || "?"} px · ${j.tid}`;
-    else $("#peJeu").innerHTML = "aucun jeu — fabrique-le dans le mode " + dzIcone("dz-edit-autotuile", { taille: 16 }) + " Jeu";
+    if (j) $("#peJeu").textContent = __dzT9("tuiles.tl1_pe.jeu", "jeu {jeu} · {cote} px · {tid}", { jeu: j.jeu.jeu || "", cote: j.jeu.cote || "?", tid: j.tid });
+    else $("#peJeu").innerHTML = __dzT9("tuiles.tl1_pe.aucun_jeu", "aucun jeu — fabrique-le dans le mode {icone} Jeu", { icone: dzIcone("dz-edit-autotuile", { taille: 16 }) });
     if (j && j.tid !== P.tid) { P.tid = j.tid; $("#peResultat").classList.add("hidden"); }
     if (!P.grille.length) nouvelleGrille(); else dessiner();
   }
@@ -124,3 +124,5 @@
 
   window.__tlpeintre = { get etat() { return P; }, composer, nouvelleGrille, ligneCases };
 })();
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

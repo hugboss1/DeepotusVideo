@@ -84,3 +84,21 @@ def titres(gabarits: list, lang) -> list:
     if lang == "fr":
         return gabarits
     return [dict(g, label=_t(f"titres.gabarit.{g.get('id')}", g.get("label"), lang)) for g in gabarits]
+
+
+def particules(payload: dict, lang) -> dict:
+    """t149 (traduction L9) — /particles/presets, le « Catalogue de démarrage » du Spritelab : {presets:[{id,name,type,
+    desc,…}], anims:[{id,name,…}]} -> copie traduite (clés particules.<id>.nom/desc/type, particules.anim.<id>.nom,
+    écrites par scripts/i18n_l9_serveur.py)."""
+    lang = _lang(lang)
+    if lang == "fr":
+        return payload
+    out = copy.deepcopy(payload)
+    for p in out.get("presets", []):
+        i = p.get("id")
+        p["name"] = _t(f"particules.{i}.nom", p.get("name"), lang)
+        p["desc"] = _t(f"particules.{i}.desc", p.get("desc"), lang)
+        p["type"] = _t(f"particules.{i}.type", p.get("type"), lang)
+    for a in out.get("anims", []):
+        a["name"] = _t(f"particules.anim.{a.get('id')}.nom", a.get("name"), lang)
+    return out

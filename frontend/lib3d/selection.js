@@ -112,7 +112,7 @@ export function inventaire(api) {
     if (!o.isMesh || !o.geometry) return;
     const g = o.geometry;
     maillages.push({
-      nom: o.name || "maillage", uuid: o.uuid,
+      nom: o.name || __dzT9("lib3d.pl_sel.maillage", "maillage"), uuid: o.uuid,
       /* Compté ICI, à partir des tampons — jamais lu sur un disque. C'est ce
          qui autorise le panneau à l'interpoler tel quel : contrairement aux
          `triangles` du registre (tâche 4), ce nombre EST un nombre. */
@@ -121,7 +121,7 @@ export function inventaire(api) {
     });
     for (const m of materiauxDe(o)) {
       if (!materiaux.has(m.uuid)) {
-        materiaux.set(m.uuid, { nom: m.name || "matériau", uuid: m.uuid, objets: [] });
+        materiaux.set(m.uuid, { nom: m.name || __dzT9("lib3d.pl_sel.materiau", "matériau"), uuid: m.uuid, objets: [] });
       }
       materiaux.get(m.uuid).objets.push(o.uuid);
     }
@@ -282,3 +282,5 @@ function toucheDe(h) {
     : null;
   return { point: h.point.clone(), normale, distance: h.distance, face: h.face };
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

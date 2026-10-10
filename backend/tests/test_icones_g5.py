@@ -18,6 +18,7 @@ ou frontend/tilelab/ et qui portent une `cle_finale` (124 sites ; les 14 autres 
 Run : & $PY tests/test_icones_g5.py   (depuis backend/)
 """
 import collections, json, pathlib, re, shutil, subprocess, sys
+import sys as _s9, pathlib as _p9; _s9.path.insert(0, str(_p9.Path(__file__).resolve().parent)); import _labs_avant_l9  # noqa: E402,F401  (t149 : Spritelab, Tile Lab, Studio3D, Plateau, lib3d d'avant la traduction L9)
 
 sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 

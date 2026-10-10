@@ -39,11 +39,11 @@ function esc(s) {
 
 /* la raison pour laquelle le rig ne peut pas partir, ou "" */
 export function refus(d) {
-  if (!d) return "devis indisponible";
-  if (!d.meshy) return "clé Meshy absente — Réglages → « Meshy 6 (3D) »";
-  if (!d.fal) return "clé fal absente — Réglages : le maillage passe par le stockage fal pour que Meshy le lise";
-  if (!d.approuve) return "géométrie non approuvée — valide le volume dans Game Assets 3D d'abord";
-  if (!d.texture) return "maillage sans texture — Meshy ne rigge que des modèles texturés";
+  if (!d) return __dzT9("studio3d.s3b_fal.devis_indispo", "devis indisponible");
+  if (!d.meshy) return __dzT9("studio3d.s3b_fal.cle_meshy", "clé Meshy absente — Réglages → « Meshy 6 (3D) »");
+  if (!d.fal) return __dzT9("studio3d.s3b_fal.cle_fal", "clé fal absente — Réglages : le maillage passe par le stockage fal pour que Meshy le lise");
+  if (!d.approuve) return __dzT9("studio3d.s3b_fal.non_approuve", "géométrie non approuvée — valide le volume dans Game Assets 3D d'abord");
+  if (!d.texture) return __dzT9("studio3d.s3b_fal.sans_texture", "maillage sans texture — Meshy ne rigge que des modèles texturés");
   return "";
 }
 
@@ -54,7 +54,7 @@ export async function chargerJobs(choix) {
   const sel = $("#falJob");
   sel.innerHTML = F.jobs.length
     ? F.jobs.map((j) => `<option value="${esc(j.id)}">${esc(j.nom)} · ${esc(j.moteur || "?")} · v${esc(j.etapes[j.etapes.length - 1].version || "?")}</option>`).join("")
-    : `<option value="">aucun job Game Assets 3D</option>`;
+    : `<option value="">${__dzT9("studio3d.s3b_fal.aucun_job", "aucun job Game Assets 3D")}</option>`;
   F.job = choix && F.jobs.some((j) => j.id === choix) ? choix : (F.jobs[0] ? F.jobs[0].id : null);
   if (F.job) sel.value = F.job;
   await rafraichirDevis();
@@ -73,13 +73,13 @@ export async function rafraichirConversion() {
   F.caps = c;
   if (!fmt.dataset.pret) {
     fmt.dataset.pret = "1";
-    fmt.innerHTML = c.local_export.map((f) => `<option value="${esc(f)}">${esc(f)} · local, gratuit</option>`).join("")
+    fmt.innerHTML = c.local_export.map((f) => `<option value="${esc(f)}">${esc(f)} · ${__dzT9("studio3d.s3b_fal.local_gratuit", "local, gratuit")}</option>`).join("")
       + c.meshy.map((f) => `<option value="${esc(f)}">${esc(f)} · Meshy, ${esc(c.credits_meshy)} cr</option>`).join("");
     $("#cvNote").textContent = c.pourquoi_pas_local;
   }
   go.disabled = false;
   $("#cvConvertis").innerHTML = (c.convertis || []).length
-    ? "déjà convertis : " + c.convertis.map((f) => `<a href="/api/assets/3d/${encodeURIComponent(F.job)}/convert/${encodeURIComponent(f)}" download>${esc(f)}</a>`).join(" · ")
+    ? __dzT9("studio3d.s3b_fal.deja_convertis", "déjà convertis : ") + c.convertis.map((f) => `<a href="/api/assets/3d/${encodeURIComponent(F.job)}/convert/${encodeURIComponent(f)}" download>${esc(f)}</a>`).join(" · ")
     : "";
 }
 
@@ -93,12 +93,12 @@ export async function convertir(confirmer, toast) {
   const fmt = $("#cvFmt").value, c = F.caps;
   if (!F.job || !c || !fmt) return;
   if (c.meshy.includes(fmt)) {
-    if (!await confirmer(`Convertir « ${F.job} » en ${fmt} chez Meshy : ${c.credits_meshy} crédit pour la tâche.\n${c.pourquoi_pas_local}`,
-      { titre: "Conversion Meshy", ok: `Payer ${c.credits_meshy} cr` })) return;
+    if (!await confirmer(__dzT9("studio3d.s3b_fal.confirmer_conv", "Convertir « {job} » en {fmt} chez Meshy : {cr} crédit pour la tâche.", { job: F.job, fmt: fmt, cr: c.credits_meshy }) + "\n" + c.pourquoi_pas_local,
+      { titre: __dzT9("studio3d.s3b_fal.conv_titre", "Conversion Meshy"), ok: __dzT9("studio3d.s3b.payer_cr", "Payer {cr} cr", { cr: c.credits_meshy }) })) return;
     const r = await jpost(`/api/assets/3d/${encodeURIComponent(F.job)}/convert`, { format: fmt });
-    $("#cvEtat").textContent = "en file…";
+    $("#cvEtat").textContent = __dzT9("studio3d.s3b_fal.en_file", "en file…");
     suivre(r.job_id, async (j) => {
-      $("#cvEtat").textContent = j.status === "done" ? `${fmt} prêt` : `échec : ${j.error || "?"}`;
+      $("#cvEtat").textContent = j.status === "done" ? __dzT9("studio3d.s3b_fal.fmt_pret", "{fmt} prêt", { fmt: fmt }) : __dzT9("studio3d.s3b.echec", "échec : {e}", { e: j.error || "?" });
       await rafraichirConversion();
     }, "#cvEtat");
     return;
@@ -107,24 +107,24 @@ export async function convertir(confirmer, toast) {
   const r = await fetch(`/api/assets/3d/${encodeURIComponent(F.job)}/convert`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ format: fmt, cible_mm: (fmt === "stl" || fmt === "3mf") ? mm : null }) });
-  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || `conversion ${fmt} → ${r.status}`); }
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || __dzT9("studio3d.s3b_fal.conv_statut", "conversion {fmt} → {st}", { fmt: fmt, st: r.status })); }
   const cd = r.headers.get("content-disposition") || "";
   const m = /filename="([^"]+)"/.exec(cd);
   telecharger(await r.blob(), m ? m[1] : `${F.job}.${fmt}`);
-  $("#cvEtat").textContent = `${fmt} téléchargé`;
+  $("#cvEtat").textContent = __dzT9("studio3d.s3b_fal.fmt_telecharge", "{fmt} téléchargé", { fmt: fmt });
 }
 
 export async function importer(fichier, toast) {
   if (!fichier) return;
   const fd = new FormData();
   fd.append("file", fichier);
-  $("#cvEtat").textContent = `import de ${fichier.name}…`;
+  $("#cvEtat").textContent = __dzT9("studio3d.s3b_fal.import_de", "import de {nom}…", { nom: fichier.name });
   const r = await fetch("/api/assets/3d/importer", { method: "POST", body: fd });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.detail || `import → ${r.status}`);
   $("#cvEtat").textContent = `${fichier.name} → job ${j.job} (${Number(j.triangles).toLocaleString("fr-FR")} tris)`;
   await chargerJobs(j.job);
-  toast(`Modèle importé : ${j.job}`);
+  toast(__dzT9("studio3d.s3b_fal.importe", "Modèle importé : {job}", { job: j.job }));
 }
 
 export function dessinerActions(connues) {
@@ -132,7 +132,7 @@ export function dessinerActions(connues) {
   if (box.dataset.pret) return;
   box.dataset.pret = "1";
   box.innerHTML = Object.entries(connues || {}).map(([id, nom]) =>
-    `<label class="rig-act" title="Action ${esc(id)} de la bibliothèque Meshy · 3 cr"><input type="checkbox" value="${esc(id)}"> ${esc(nom)}</label>`).join("");
+    `<label class="rig-act" title="${__dzT9("studio3d.s3b_fal.action_title", "Action {id} de la bibliothèque Meshy · 3 cr", { id: esc(id) })}"><input type="checkbox" value="${esc(id)}"> ${esc(nom)}</label>`).join("");
   box.querySelectorAll("input").forEach((i) => i.addEventListener("change", () => {
     if (i.checked) F.actions.add(Number(i.value)); else F.actions.delete(Number(i.value));
     rafraichirDevis();
@@ -141,14 +141,14 @@ export function dessinerActions(connues) {
 
 export async function rafraichirDevis() {
   const btn = $("#btnRig");
-  if (!F.job) { libeller(btn, "dz-lab3d-rig", "Rig Meshy · aucun job"); btn.disabled = true; btn.title = "aucun job Game Assets 3D"; return; }
+  if (!F.job) { libeller(btn, "dz-lab3d-rig", __dzT9("studio3d.s3b_fal.rig_aucun", "Rig Meshy · aucun job")); btn.disabled = true; btn.title = __dzT9("studio3d.s3b_fal.aucun_job", "aucun job Game Assets 3D"); return; }
   try {
     const acts = [...F.actions].sort((a, b) => a - b).join(",");
     const d = await jget(`/api/assets/3d/${encodeURIComponent(F.job)}/rig/devis?actions=${encodeURIComponent(acts)}`);
     F.devis = d;
     dessinerActions(d.actions_connues);
     $("#falJobNote").textContent = `${d.fichier} · ${Number(d.tris).toLocaleString("fr-FR")} tris`
-      + (d.remesh_requis ? " · remesh requis (> 300 000 faces)" : "");
+      + (d.remesh_requis ? __dzT9("studio3d.s3b_fal.remesh", " · remesh requis (> 300 000 faces)") : "");
     const cr = (d.credits && d.credits.meshy) || 0;
     const non = refus(d);
     libeller(btn, "dz-lab3d-rig", `Rig Meshy · ${cr} cr`);
@@ -205,17 +205,17 @@ export async function lancerRig(confirmer, toast) {
   if (non) { toast(non); return; }
   const cr = (d.credits && d.credits.meshy) || 0;
   const detail = (d.breakdown || []).map((l) => `· ${l.label} : ${l.units} cr`).join("\n");
-  if (!await confirmer(`Rigger « ${F.job} » chez Meshy : ${cr} crédits (~$${Number(d.total_usd || 0).toFixed(2)}).\n${detail}`,
-    { titre: "Rig Meshy", ok: `Payer ${cr} cr` })) return;
+  if (!await confirmer(__dzT9("studio3d.s3b_fal.confirmer_rig", "Rigger « {job} » chez Meshy : {cr} crédits (~${usd}).", { job: F.job, cr: cr, usd: Number(d.total_usd || 0).toFixed(2) }) + "\n" + detail,
+    { titre: "Rig Meshy", ok: __dzT9("studio3d.s3b.payer_cr", "Payer {cr} cr", { cr: cr }) })) return;
   const btn = $("#btnRig");
   btn.disabled = true;
   const h = Number($("#rigH").value) || 1.7;
   const r = await jpost(`/api/assets/3d/${encodeURIComponent(F.job)}/rig`, { height_m: h, actions: [...F.actions] });
-  $("#rigEtat").textContent = "en file…";
+  $("#rigEtat").textContent = __dzT9("studio3d.s3b_fal.en_file", "en file…");
   suivre(r.job_id, async (j) => {
     await rafraichirDevis();
-    if (j.status !== "done") { $("#rigEtat").textContent = `échec : ${j.error || "?"}`; return; }
-    $("#rigEtat").textContent = "riggé · clips rapatriés";
+    if (j.status !== "done") { $("#rigEtat").textContent = __dzT9("studio3d.s3b.echec", "échec : {e}", { e: j.error || "?" }); return; }
+    $("#rigEtat").textContent = __dzT9("studio3d.s3b_fal.rigge", "riggé · clips rapatriés");
     await montrerAnimations();
   });
 }
@@ -235,3 +235,5 @@ export function brancher({ confirmer, toast }) {
     importer(f, toast).catch((e) => { $("#cvEtat").textContent = ""; toast(String(e.message || e)); });
   });
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

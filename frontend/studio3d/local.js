@@ -15,10 +15,12 @@ export async function charger() {
   const l = (d.providers || []).find((p) => p.id === "local3d") || {};
   const c = l.carte || {};
   const dec = l.decision || {};
-  const carte = `${esc(c.nom || "carte inconnue")}${c.vram_mo ? ` · ${c.vram_mo} Mo (${esc(c.source)})` : ""}`;
+  const carte = `${esc(c.nom || __dzT9("studio3d.s3b_local.carte_inconnue", "carte inconnue"))}${c.vram_mo ? ` · ${c.vram_mo} ${__dzT9("studio3d.s3b.mo", "Mo")} (${esc(c.source)})` : ""}`;
   $("#falLocal").innerHTML = l.ready
-    ? `<b>Service GPU local prêt</b> — ${dec.texture ? "forme et texture" : "forme seule"}. ${carte}. ${esc(dec.pourquoi)}`
-    : `<b>Service GPU local absent</b> (${esc(d.url)}) — le moteur « Hunyuan3D 2.1 (local) » reste grisé. `
-      + `Carte : ${carte}. ${esc(dec.pourquoi)} Pour l'activer : lancer Hunyuan3D 2.1 à côté, adresse dans LOCAL3D_URL (.env).`
+    ? `<b>${__dzT9("studio3d.s3b_local.pret", "Service GPU local prêt")}</b> — ${dec.texture ? __dzT9("studio3d.s3b_local.forme_texture", "forme et texture") : __dzT9("studio3d.s3b_local.forme_seule", "forme seule")}. ${carte}. ${esc(dec.pourquoi)}`
+    : `${__dzT9("studio3d.s3b_local.absent", "<b>Service GPU local absent</b> ({url}) — le moteur « Hunyuan3D 2.1 (local) » reste grisé.", { url: esc(d.url) })} `
+      + `${__dzT9("studio3d.s3b_local.carte", "Carte : {carte}.", { carte: carte })} ${esc(dec.pourquoi)} ${__dzT9("studio3d.s3b_local.activer", "Pour l'activer : lancer Hunyuan3D 2.1 à côté, adresse dans LOCAL3D_URL (.env).")}`
       + (c.avertissement ? ` <i>${esc(c.avertissement)}</i>` : "");
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

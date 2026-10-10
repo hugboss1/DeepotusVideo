@@ -12,12 +12,12 @@ const RAD = Math.PI / 180;
 
 export function fovDeFocale(focaleMm, capteurMm = 14.2) {
   const f = Number(focaleMm), c = Number(capteurMm);
-  if (!(f > 0) || !(c > 0)) throw new Error("focale ou capteur hors bornes");
+  if (!(f > 0) || !(c > 0)) throw new Error(__dzT9("plateau.pl_calc.focale", "focale ou capteur hors bornes"));
   return 2 * Math.atan(c / (2 * f)) / RAD;
 }
 export function focaleDeFov(fovDeg, capteurMm = 14.2) {
   const a = Number(fovDeg), c = Number(capteurMm);
-  if (!(a > 0) || !(a < 180) || !(c > 0)) throw new Error("fov ou capteur hors bornes");
+  if (!(a > 0) || !(a < 180) || !(c > 0)) throw new Error(__dzT9("plateau.pl_calc.fov", "fov ou capteur hors bornes"));
   return c / (2 * Math.tan(a * RAD / 2));
 }
 export function positionCamera(orbit, target) {
@@ -30,7 +30,7 @@ export function positionCamera(orbit, target) {
 export function orbitDeCamera(pos, target, thetaPres) {
   const d = [pos[0] - target[0], pos[1] - target[1], pos[2] - target[2]];
   const r = Math.hypot(d[0], d[1], d[2]);
-  if (!(r > 1e-9)) throw new Error("caméra confondue avec sa cible");
+  if (!(r > 1e-9)) throw new Error(__dzT9("plateau.pl_calc.confondue", "caméra confondue avec sa cible"));
   let th = Math.atan2(d[0], d[2]) / RAD;
   const ph = Math.acos(Math.max(-1, Math.min(1, d[1] / r))) / RAD;
   if (Number.isFinite(thetaPres)) th += 360 * Math.round((thetaPres - th) / 360);
@@ -43,7 +43,7 @@ export function ease(u, nom) {
   return u;
 }
 export function interpoler(kfs, t) {
-  if (!Array.isArray(kfs) || !kfs.length) throw new Error("au moins un keyframe");
+  if (!Array.isArray(kfs) || !kfs.length) throw new Error(__dzT9("plateau.pl_calc.un_kf", "au moins un keyframe"));
   const fige = (k) => ({ orbit: k.orbit.slice(), target: k.target.slice(), fov: k.fov });
   if (kfs.length === 1 || t <= kfs[0].t) return fige(kfs[0]);
   if (t >= kfs[kfs.length - 1].t) return fige(kfs[kfs.length - 1]);
@@ -68,7 +68,7 @@ export function preset(nom, cam, duree) {
   if (nom === "travelling") b.orbit[2] = Math.max(0.3, a.orbit[2] * 0.4);
   else if (nom === "orbite90") b.orbit[0] = a.orbit[0] + 90;
   else if (nom === "grue") { a.orbit[1] = 50; b.orbit[1] = 88; }
-  else if (nom !== "fixe") throw new Error("preset inconnu");
+  else if (nom !== "fixe") throw new Error(__dzT9("plateau.pl_calc.preset", "preset inconnu"));
   return nom === "fixe" ? [a] : [a, b];
 }
 export function trianglesProxy(forme) {
@@ -76,3 +76,5 @@ export function trianglesProxy(forme) {
      affiché AVANT de composer ; le GLB composé utilise les primitives du serveur, son rapport fait foi */
   return { boite: 12, sphere: 2 * 24 * 16 - 2 * 24, cylindre: 4 * 24, capsule: 2 * 24 * (2 * 8 + 1) }[forme] || 0;
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }
