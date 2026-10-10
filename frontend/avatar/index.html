@@ -119,6 +119,32 @@
         </div>
       </div>
       <div class="liste">
+        <div class="carte decor">
+          <h2>Décor seul</h2>
+          <p class="aide">Le sujet de la vidéo source est détouré, puis posé sur un nouveau fond. Le jeu, la voix et la taille ne changent pas.</p>
+          <div class="ligne">
+            <label class="champ court">Fond
+              <select id="dType">
+                <option value="couleur">Couleur unie</option>
+                <option value="image">Image de la Bibliothèque</option>
+                <option value="video">Vidéo déposée</option>
+              </select>
+            </label>
+            <label class="champ court" id="dCouleurChamp">Couleur <input id="dCouleur" type="color" value="#00b140"></label>
+            <label class="champ" id="dImageChamp" hidden>Image <select id="dImage"></select></label>
+            <div id="dVideoChamp" hidden class="champ">
+              <span>Vidéo de fond</span>
+              <div id="dDepot" class="depot petit" tabindex="0" role="button" aria-label="Choisir une vidéo de fond"><span>Déposer une vidéo de fond</span>
+                <input id="dFichier" type="file" accept="video/mp4,video/quicktime,video/webm" hidden></div>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="dLancer" type="button" class="btn plein" disabled>
+              <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-lancer"></use></svg>Changer le décor
+            </button>
+            <span id="dMsg" class="msg" aria-live="polite"></span>
+          </div>
+        </div>
         <h2>Rendus Recast</h2>
         <div id="rJobs" class="jobs"></div>
       </div>

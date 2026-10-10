@@ -179,6 +179,7 @@
     var consigneOk = !(etat.modele === "objet" && !$("rConsigne").value.trim() && !etat.pre);
     $("rLancer").disabled = !(etat.source && dureeOk && consigneOk && (!m.personnage || $("rPerso").value));
     $("rVoixSeule").disabled = !(etat.source && aVoix);
+    majDecor();
   }
   ["rPerso", "rRes", "rConsigne", "rOrient", "rVoix"].forEach(function (id) { $(id).addEventListener("input", majRecast); });
 
@@ -231,7 +232,48 @@
     majRecast();
   });
 
-  var LIB = { queued: "En file", uploading_image: "Envoi", generating_video: "Rendu chez fal", downloading_video: "Téléchargement", generating_voiceover: "Voix", done: "Terminé", failed: "Échec" };
+  // ── G3 : le décor seul (détourage BiRefNet + composition locale) ──
+  var fondVideo = null;
+  function majDecor() {
+    var t = $("dType").value;
+    $("dCouleurChamp").hidden = t !== "couleur"; $("dImageChamp").hidden = t !== "image"; $("dVideoChamp").hidden = t !== "video";
+    var pret = t === "couleur" || (t === "image" && $("dImage").value) || (t === "video" && fondVideo);
+    $("dLancer").disabled = !(etat.source && pret);
+  }
+  ["dType", "dImage", "dCouleur"].forEach(function (id) { $(id).addEventListener("input", majDecor); });
+  zoneDepot($("dDepot"), $("dFichier"), async function (fs) {
+    var f = fs[0]; if (!f) return;
+    msg("dMsg", "Envoi du fond…");
+    try {
+      var fd = new FormData(); fd.append("fichier", f, f.name);
+      fondVideo = (await lire(await fetch(API + "/recast/source", { method: "POST", body: fd }))).depot;
+      msg("dMsg", "Fond : " + f.name);
+    } catch (e) { fondVideo = null; msg("dMsg", e.message, true); }
+    majDecor();
+  });
+  $("dLancer").addEventListener("click", async function () {
+    $("dLancer").disabled = true; msg("dMsg", "Lancement…");
+    var t = $("dType").value;
+    var fond = t === "couleur" ? { couleur: $("dCouleur").value } : t === "image" ? { image: $("dImage").value } : { video: fondVideo };
+    try {
+      var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
+      var d = await lire(await fetch(API + "/decor", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: src, fond: fond }) }));
+      msg("dMsg", d.devis_usd ? "Lancé : " + usd(d.devis_usd) + " réservés (détourage)." : "Lancé. Prix du détourage BiRefNet à mesurer : fal n'affiche pas de tarif ; lis-le sur ton tableau de bord fal après ce rendu.");
+      suivre(d.job_id);
+    } catch (e) { msg("dMsg", e.message, true); }
+    majDecor();
+  });
+  async function chargerImages() {
+    try {
+      var d = await lire(await fetch("/api/images"));
+      var s = $("dImage"); s.textContent = "";
+      (d.images || []).slice().sort(function (a, b) { return (b.mtime || 0) - (a.mtime || 0); }).slice(0, 200)
+        .forEach(function (i) { s.appendChild(el("option", { value: i.filename, text: i.filename })); });
+    } catch (e) { /* liste facultative */ }
+  }
+
+  var LIB = { queued: "En file", uploading_image: "Envoi", generating_video: "Rendu chez fal", downloading_video: "Téléchargement", generating_voiceover: "Voix", merging: "Composition", done: "Terminé", failed: "Échec" };
   function carteJob(j) {
     var id = jid(j), box = etat.suivis[id];
     if (!box) {
@@ -285,6 +327,7 @@
       construireRecast();
       await chargerPersos();
       await chargerRendus();
+      await chargerImages();
       var o = null; try { o = localStorage.getItem("dz_avatar_onglet"); } catch (x) { /* rien */ }
       var b = o && document.querySelector('.onglet[data-onglet="' + o + '"]'); if (b) b.click();
     } catch (x) { msg("pMsg", "Le serveur ne répond pas : " + x.message, true); }

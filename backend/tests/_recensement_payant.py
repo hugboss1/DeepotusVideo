@@ -51,7 +51,9 @@ PUITS = {
     "_run_manuscript_job", "_run_adapt_job", "_run_bible_model3d",
     "ouvrir_session_direct",   # t161 : le jeton client Decart (le Direct, facturé à la seconde)
     "lancer_recast",
-    "lancer_voix",   # t163 : voix -> voix (ElevenLabs Voice Changer)
+    "lancer_voix",
+    "lancer_decor",   # t164 : le décor différé (BiRefNet vidéo, fal)
+      # t163 : voix -> voix (ElevenLabs Voice Changer)
       # t162 : le Recast différé (Wan Animate, Kling Motion Control, Lucy Edit — fal)
 }
 GARDES = {"_plafond", "_PLAF.verifier"}   # `verifier` nu est ambigu (cards/face : `sw.verifier` de la fiche de style)

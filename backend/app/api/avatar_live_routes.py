@@ -248,3 +248,31 @@ async def voix_convertir(body: dict | None = None):
     garde = await _PLAF.verifier(prep["op"], "studio", ref=f"voix:{src.name}")
     job_id = await AV.lancer_voix(prep, garde["lignes"], parent, bool(b.get("debruiter")))
     return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"], "voice_id": prep["voice_id"]}
+
+
+# ── G3 (t164, 10/10/2026) : le décor différé — détourer (BiRefNet, fal) puis composer en local sur un fond ────────
+
+@router.post("/decor")
+async def decor_composer(body: dict | None = None):
+    """{source: {job_id}|{depot}, fond: {couleur: "#rrggbb"}|{image: nom}|{video: dépôt}} -> {job_id, devis_usd}."""
+    import asyncio
+    from app.services import decor_service as DS, fal_video_tools as FV
+    b = body if isinstance(body, dict) else {}
+    fond = b.get("fond") if isinstance(b.get("fond"), dict) else {}
+    if not DS.fond_valide(fond):
+        raise HTTPException(400, "Fond illisible : une couleur #rrggbb, une image de la Bibliothèque ou une vidéo déposée.")
+    src, parent = await _source_video(b.get("source") if isinstance(b.get("source"), dict) else {})
+    if src is None:
+        raise HTTPException(404, "Vidéo source introuvable (rendu sans vidéo, ou dépôt inconnu).")
+    from app.config import settings
+    if not (settings.FAL_KEY or "").strip():
+        raise HTTPException(400, "fal.ai : aucune clé configurée (Réglages → clés API) — rien n'a été lancé.")
+    info = await asyncio.to_thread(FV.probe, src)
+    if not info.get("width") or not info.get("duration_s"):
+        raise HTTPException(415, "Vidéo source illisible.")
+    if float(info["duration_s"]) > 120:
+        raise HTTPException(400, f"La prise fait {info['duration_s']:.1f} s : le décor différé prend jusqu'à 120 s.")
+    garde = await _PLAF.verifier({"kind": "matte", "duration_s": float(info["duration_s"])}, "studio",
+                                 ref=f"decor:{src.name}")
+    job_id = await DS.lancer_decor(src, fond, info, garde["lignes"], parent)
+    return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"]}
