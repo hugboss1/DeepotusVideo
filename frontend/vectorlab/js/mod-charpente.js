@@ -3,6 +3,7 @@
 // résumé du document, aide Raccourcis (F1). Traduit et délègue aux
 // actions existantes (VL.*, VL.actions.<module>, boutons par id) — ne
 // calcule rien : les données sont dans les deux modules feuilles.
+import { T as vlT } from "./mod-i18n.js";
 import { MENUS_BARRE, menus_construire, raccourci_de } from "./mod-menus.js";
 import { phrase_statut, statut_html, onglet_document, pagination } from "./mod-statut.js";
 import { op_calque_supprimer, op_calque_renommer, op_calque_verrou, op_calque_visible, op_supprimer } from "./mod-doc.js";
@@ -36,8 +37,8 @@ export function initCharpente(VL) {
     expPng2: { peut: () => !!etat.doc, faire: () => clic("#expPng2") },
     expPrint3d: { peut: () => !!etat.doc, faire: () => clic("#expPrint3d") },
     expBible: { peut: () => !!etat.doc, faire: () => clic("#expBible") },
-    configDoc: { peut: () => !!etat.doc, faire: () => VL.configurerDocument ? VL.configurerDocument() : VL.toast("configuration du document : lot R5", true) },
-    parametres: { peut: () => true, faire: () => VL.parametresAppli ? VL.parametresAppli() : VL.toast("paramètres de l'appli : lot R5", true) },
+    configDoc: { peut: () => !!etat.doc, faire: () => VL.configurerDocument ? VL.configurerDocument() : VL.toast(vlT("vectorlab.charpente.config_r5"), true) },
+    parametres: { peut: () => true, faire: () => VL.parametresAppli ? VL.parametresAppli() : VL.toast(vlT("vectorlab.charpente.params_r5"), true) },
     annuler: { peut: () => !!etat.doc && etat.histo.peutAnnuler(), faire: () => VL.annuler() },
     refaire: { peut: () => !!etat.doc && etat.histo.peutRefaire(), faire: () => VL.refaire() },
     toutSelectionner: { peut: () => !!etat.doc, faire: () => VL.setSelection(etat.doc.calques.filter((c) => c.visible && !c.verrou).flatMap((c) => c.objets.map((o) => o.id))) },
@@ -63,8 +64,8 @@ export function initCharpente(VL) {
     degrouper: { peut: () => !!(A().selection && A().selection.peut && A().selection.peut().groupe), faire: () => A().selection.degrouper() },
     pxEditer: { peut: () => !!etat.doc, faire: () => { VL.setPersona("pixel"); setTimeout(() => clic("#pxEditer"), 60); } },
     calqueNouveau: { peut: () => !!etat.doc, faire: () => clic("#btnCalquePlus") },
-    calqueRenommer: { peut: () => !!calqueActif(), faire: async () => { const c = calqueActif(); const nom = await VL.dialogue.saisir("Nom du calque :", { valeur: c.nom || "", titre: "Renommer le calque", valider: "Renommer" }); if (nom !== null) VL.executer(op_calque_renommer, c.id, nom); } },
-    calqueSupprimer: { peut: () => !!(etat.doc && etat.doc.calques.length > 1 && calqueActif()), faire: async () => { const c = calqueActif(); if (await VL.dialogue.confirmer(`Supprimer le calque « ${c.nom} » et ses objets ?`, { ok: "Supprimer", danger: true })) { VL.executer(op_calque_supprimer, c.id); if (!calqueActif()) { etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id; VL.rendre(); } } } },
+    calqueRenommer: { peut: () => !!calqueActif(), faire: async () => { const c = calqueActif(); const nom = await VL.dialogue.saisir(vlT("vectorlab.charpente.nom_calque"), { valeur: c.nom || "", titre: vlT("vectorlab.charpente.renommer_calque"), valider: vlT("vectorlab.charpente.renommer") }); if (nom !== null) VL.executer(op_calque_renommer, c.id, nom); } },
+    calqueSupprimer: { peut: () => !!(etat.doc && etat.doc.calques.length > 1 && calqueActif()), faire: async () => { const c = calqueActif(); if (await VL.dialogue.confirmer(vlT("vectorlab.charpente.calque_supprimer_q", { nom: c.nom }), { ok: vlT("vectorlab.charpente.supprimer"), danger: true })) { VL.executer(op_calque_supprimer, c.id); if (!calqueActif()) { etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id; VL.rendre(); } } } },
     calqueVerrou: { peut: () => !!calqueActif(), faire: () => { const c = calqueActif(); VL.executer(op_calque_verrou, c.id, !c.verrou); } },
     calqueOeil: { peut: () => !!calqueActif(), faire: () => { const c = calqueActif(); VL.executer(op_calque_visible, c.id, !c.visible); } },
     zoomAjuster: { peut: () => !!etat.doc, faire: () => VL.zoomAjuster() },
@@ -73,7 +74,7 @@ export function initCharpente(VL) {
     aimant: { peut: () => true, faire: () => clic("#btnAimant") },
     raccourcis: { peut: () => true, faire: () => ouvrirRaccourcis() },
     guide: { peut: () => true, faire: () => window.open("/guide/", "_blank") },
-    apropos: { peut: () => true, faire: () => VL.toast("Vectorlab — Deepotus Video Gen : éditeur vectoriel et raster, charpente Affinity") },
+    apropos: { peut: () => true, faire: () => VL.toast(vlT("vectorlab.charpente.apropos")) },
   };
   function resoudre(action) {
     if (T[action]) return T[action];
@@ -121,8 +122,8 @@ export function initCharpente(VL) {
     let dlg = $("#raccDlg");
     if (!dlg) { dlg = document.createElement("div"); dlg.id = "raccDlg"; dlg.className = "vl-dlg"; document.body.appendChild(dlg); }
     const lignes = MENUS_BARRE.flatMap((m) => m.entrees.filter((x) => x !== "-" && x.raccourci).map((x) => `<tr><td>${esc(m.titre)}</td><td>${esc(x.libelle)}</td><td><kbd>${esc(raccourci_de(x))}</kbd></td></tr>`)).join("");
-    const outils = [["V", "Déplacer"], ["P", "Plume"], ["B", "Crayon"], ["J", "Pinceau vectoriel"], ["R", "Rectangle"], ["E", "Ellipse"], ["L", "Ligne"], ["F", "Forme"], ["N", "Nœuds"], ["C", "Coin"], ["X", "Couteau"], ["W", "Gomme"], ["S", "Shape Builder"], ["T", "Texte"], ["M", "Mesure"], ["I", "Pipette"], ["K", "Tuiles"], ["G", "Grille"], ["Espace", "Main (panoramique)"], ["Ctrl+0", "Zoom : ajuster"], ["Ctrl+1", "Zoom : 100 %"]].map(([k, l]) => `<tr><td>Outils</td><td>${l}</td><td><kbd>${k}</kbd></td></tr>`).join("");
-    dlg.innerHTML = `<div class="vl-dlg-boite racc-boite"><div class="vl-dlg-tete"><b>Raccourcis clavier</b><span class="spacer"></span><button id="raccFermer" title="Fermer" aria-label="Fermer">${dzi("dz-action-fermer", 16)}</button></div><div class="racc-corps"><table>${lignes}${outils}</table></div></div>`;
+    const outils = [["V", vlT("vectorlab.charpente.o_deplacer")], ["P", vlT("vectorlab.charpente.o_plume")], ["B", vlT("vectorlab.charpente.o_crayon")], ["J", vlT("vectorlab.charpente.o_pinceau")], ["R", "Rectangle"], ["E", "Ellipse"], ["L", vlT("vectorlab.charpente.o_ligne")], ["F", vlT("vectorlab.charpente.o_forme")], ["N", vlT("vectorlab.charpente.o_noeuds")], ["C", vlT("vectorlab.charpente.o_coin")], ["X", vlT("vectorlab.charpente.o_couteau")], ["W", vlT("vectorlab.charpente.o_gomme")], ["S", "Shape Builder"], ["T", vlT("vectorlab.charpente.o_texte")], ["M", vlT("vectorlab.charpente.o_mesure")], ["I", vlT("vectorlab.charpente.o_pipette")], ["K", vlT("vectorlab.charpente.o_tuiles")], ["G", vlT("vectorlab.charpente.o_grille")], [vlT("vectorlab.charpente.k_espace"), vlT("vectorlab.charpente.o_main")], ["Ctrl+0", vlT("vectorlab.charpente.o_zoom_ajuster")], ["Ctrl+1", vlT("vectorlab.charpente.o_zoom_cent")]].map(([k, l]) => `<tr><td>${vlT("vectorlab.charpente.outils")}</td><td>${l}</td><td><kbd>${k}</kbd></td></tr>`).join("");
+    dlg.innerHTML = `<div class="vl-dlg-boite racc-boite"><div class="vl-dlg-tete"><b>${vlT("vectorlab.charpente.raccourcis")}</b><span class="spacer"></span><button id="raccFermer" title="${vlT("vectorlab.charpente.fermer")}" aria-label="${vlT("vectorlab.charpente.fermer")}">${dzi("dz-action-fermer", 16)}</button></div><div class="racc-corps"><table>${lignes}${outils}</table></div></div>`;
     dlg.classList.remove("hidden");
     $("#raccFermer").addEventListener("click", () => dlg.classList.add("hidden"));
     dlg.addEventListener("click", (ev) => { if (ev.target === dlg) dlg.classList.add("hidden"); });
@@ -135,7 +136,7 @@ export function initCharpente(VL) {
     const t = $("#docTitle"); if (t) t.textContent = onglet_document(etat.meta, etat.zoom, etat.sale);
     const d = etat.doc, pd = $("#pbDoc"), pc = $("#pbCotes"), sp = $("#sbPages");
     if (pd) { const u = VL.unites(); pd.textContent = d ? `${d.taille.w} × ${d.taille.h}px, ${(d.taille.w * d.taille.h / 1e6).toFixed(2)}MP, ${u.affichage} · ${u.dpi} dpi` : ""; }
-    if (pc) { const b = d && etat.selection.length ? VL.bboxSelectionDoc() : null; pc.textContent = b ? VL.cote("rect", { w: b.w, h: b.h }) : "Pas de données"; }   /* libelle_mesure ne connaît que rect / ellipse / segment / delta */
+    if (pc) { const b = d && etat.selection.length ? VL.bboxSelectionDoc() : null; pc.textContent = b ? VL.cote("rect", { w: b.w, h: b.h }) : vlT("vectorlab.charpente.pas_de_donnees"); }   /* libelle_mesure ne connaît que rect / ellipse / segment / delta */
     if (sp) sp.innerHTML = `${dzi("dz-action-element-precedent", 16)}<span>${pagination(d ? d.planches : [], etat.plancheCourante)}</span>${dzi("dz-action-element-suivant", 16)}`;
   }
   VL.majStatut = () => { const h = $("#hintOutil"); if (!h) return; h.innerHTML = statut_html(phrase_statut(etat.outil, etat.selection.length, VL.hints || {})); };

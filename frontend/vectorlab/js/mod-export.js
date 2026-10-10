@@ -5,6 +5,7 @@
 // ajoute l'export 2× aux inspiration_images d'une entité — le
 // conditionnement de planche reste l'opt-in payant de la machinerie en
 // place, rien ne tire ici.
+import { T } from "./mod-i18n.js";
 import { compilerSVG } from "./mod-doc.js";
 import { image_hrefs, image_rev_max } from "./mod-image.js";
 
@@ -21,11 +22,11 @@ export function initExport(VL) {
     const carte = new Map();
     for (const href of image_hrefs(doc)) {
       const r = await fetch(VL.imageUrl(href, image_rev_max(doc, href)), { cache: "no-store" });   // lot E : jamais un PNG périmé
-      if (!r.ok) throw new Error(`image ${href} introuvable (${r.status})`);
+      if (!r.ok) throw new Error(T("vectorlab.export.image_introuvable", { href, status: r.status }));
       const b = await r.blob();
       carte.set(href, await new Promise((res, rej) => {
         const fr = new FileReader();
-        fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error("lecture image"));
+        fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error(T("vectorlab.export.lecture_image")));
         fr.readAsDataURL(b);
       }));
     }
@@ -40,7 +41,7 @@ export function initExport(VL) {
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
-    VL.toast(`SVG stocké : ${d.filename}`);
+    VL.toast(T("vectorlab.export.svg_stocke", { f: d.filename }));
     window.open("/api/vector/docs/" + encodeURIComponent(etat.docId)
                 + "/export.svg", "_blank");
   }
@@ -61,12 +62,12 @@ export function initExport(VL) {
         cv.getContext("2d").drawImage(img, 0, 0, w, h);
         URL.revokeObjectURL(url);
         cv.toBlob((png) => png ? res(png)
-                              : rej(new Error("rasterisation vide")),
+                              : rej(new Error(T("vectorlab.export.rasterisation_vide"))),
                   "image/png");
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        rej(new Error("SVG non décodable par le navigateur"));
+        rej(new Error(T("vectorlab.export.svg_navigateur")));
       };
       img.src = url;
     });
@@ -83,7 +84,7 @@ export function initExport(VL) {
     const r = await fetch("/api/images/upload", { method: "POST", body: fd });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
-    VL.toast(`${d.filename} déposé dans la Library (${k}×)`);
+    VL.toast(T("vectorlab.export.png_depose", { f: d.filename, k }));
     return d.filename;
   }
 
@@ -97,34 +98,33 @@ export function initExport(VL) {
       + encodeURIComponent(etat.docId) + "/vignette", {
       method: "POST", headers: { "Content-Type": "image/png" }, body: png,
     });
-    if (!r.ok) throw new Error("vignette : " + r.status);
+    if (!r.ok) throw new Error(T("vectorlab.export.err_vignette", { s: r.status }));
   }
 
   async function versBible() {
     const ents = (await VL.api.get("/bible/entities")).entities || [];
     if (!ents.length) {
-      VL.toast("aucune entité dans la bible — crée-la dans l'Atelier", true);
+      VL.toast(T("vectorlab.export.bible_vide"), true);
       return;
     }
     const liste = ents.map((e, i) => `${i + 1}) [${e.kind}] ${e.name}`)
       .join("\n");
-    const rep = await VL.dialogue.saisir("Lier l'export 2× à quelle entité ?\n" + liste, { valeur: "1", titre: "Vers la bible", valider: "Lier" });
+    const rep = await VL.dialogue.saisir(T("vectorlab.export.bible_question") + "\n" + liste, { valeur: "1", titre: T("vectorlab.export.bible_titre"), valider: T("vectorlab.export.bible_lier") });
     if (rep === null) return;
     const e = ents[(+rep || 0) - 1];
-    if (!e) { VL.toast("numéro d'entité inconnu", true); return; }
+    if (!e) { VL.toast(T("vectorlab.export.bible_inconnu"), true); return; }
     const fn = await exporterPNG(2);
     const insp = [...(e.inspiration_images || []), fn];
     await VL.api.put("/bible/entities/" + encodeURIComponent(e.id),
                      { inspiration_images: insp });
-    VL.toast(`ajouté aux inspirations de « ${e.name} » — les planches `
-             + "peuvent s'y conditionner (tir opt-in)");
+    VL.toast(T("vectorlab.export.bible_ajoute", { nom: e.name }));
   }
 
   /* ── impression 3D : la voie du lot D — le dialogue de mod-impression.js
      (modes calques / tuiles / logo, aperçu 3D, un STL ou un lot). Le
      prompt() de la phase 3 du plan slicer a déménagé là-bas. */
   function imprimer3D() {
-    if (!VL.impression) throw new Error("impression 3D indisponible (module non chargé)");
+    if (!VL.impression) throw new Error(T("vectorlab.export.print3d_indispo"));
     VL.impression();
   }
 

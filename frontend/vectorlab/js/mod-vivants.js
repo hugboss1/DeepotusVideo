@@ -9,6 +9,7 @@
 // changent dans la même étape d'historique, et un Ctrl+Z les défait ensemble. Seule une empreinte qui a changé
 // coûte un recalcul. Une source disparue, ou un retrait qui viderait la forme, laisse le dérivé à son dernier
 // état — jamais une exception au rendu.
+import { T } from "./mod-i18n.js";
 import { forme_d } from "./mod-formes.js";
 import { contour_d } from "./mod-bool.js";
 
@@ -56,8 +57,8 @@ export function derives_rafraichir(doc) {
 // le dérivé redevient un objet ordinaire : il ne suit plus sa source
 export function op_derive_detacher(doc, id) {
   const o = _index(doc).get(id);
-  if (!o) throw new Error(`objet introuvable: ${id}`);
+  if (!o) throw new Error(T("vectorlab.vivants.err_introuvable", { id }));
   if (o.derive) { delete o.derive; return; }
   if (o.type === "textechemin" && o.chemin) { delete o.chemin; delete o.empreinte; return; }
-  throw new Error(`${id} : ni contour vivant ni texte lié à un chemin`);
+  throw new Error(T("vectorlab.vivants.err_detacher", { id }));
 }

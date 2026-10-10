@@ -5,6 +5,8 @@
 // + index JSON, bande de cadres, pelure d'oignon. Module FEUILLE, tampons
 // {w, h, data} comme mod-pixel.
 
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 const _tampon = (w, h) => ({ w, h, data: new Uint8ClampedArray(w * h * 4) });
 const _hex = (r, g, b) => "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0").toUpperCase()).join("");
 function _rgb(hex) {
@@ -92,7 +94,7 @@ export function palette_extraire(img, n = 16) {
   return [...out];
 }
 export function quantifier(img, palette) {
-  if (!palette || !palette.length) throw new Error("quantifier : palette vide");
+  if (!palette || !palette.length) throw new Error(T("vectorlab.pixelart.err_quantifier"));
   const pal = palette.map(_rgb), d = img.data;
   for (let i = 0; i < img.w * img.h; i++) {
     if (d[i * 4 + 3] === 0) continue;
@@ -110,7 +112,7 @@ export function quantifier(img, palette) {
 const _BAYER4 = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
 const _plusProche = (pal, r, g, b) => { let best = pal[0], d0 = Infinity; for (const c of pal) { const d = (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2; if (d < d0) { d0 = d; best = c; } } return best; };
 export function dither_ordonne(img, palette, force = 32) {
-  if (!palette || !palette.length) throw new Error("tramage : palette vide");
+  if (!palette || !palette.length) throw new Error(T("vectorlab.pixelart.err_tramage"));
   const pal = palette.map(_rgb), out = { w: img.w, h: img.h, data: new Uint8ClampedArray(img.data) };
   for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
     const k = (y * img.w + x) * 4;
@@ -122,7 +124,7 @@ export function dither_ordonne(img, palette, force = 32) {
   return out;
 }
 export function dither_floyd(img, palette) {
-  if (!palette || !palette.length) throw new Error("tramage : palette vide");
+  if (!palette || !palette.length) throw new Error(T("vectorlab.pixelart.err_tramage"));
   const pal = palette.map(_rgb), out = { w: img.w, h: img.h, data: new Uint8ClampedArray(img.data) };
   const err = new Float32Array(img.w * img.h * 3);
   const diffuser = (x, y, e, f) => { if (x < 0 || x >= img.w || y >= img.h) return; const j = (y * img.w + x) * 3; err[j] += e[0] * f; err[j + 1] += e[1] * f; err[j + 2] += e[2] * f; };
@@ -138,7 +140,7 @@ export function dither_floyd(img, palette) {
 }
 export const DITHERS = ["aucun", "ordonne", "floyd"];
 export function rasteriser(img, { cible_w, palette = null, dither = "aucun" } = {}) {
-  if (!(cible_w >= 1)) throw new Error("rastériser : largeur cible ≥ 1");
+  if (!(cible_w >= 1)) throw new Error(T("vectorlab.pixelart.err_rasteriser"));
   if (!DITHERS.includes(dither)) throw new Error("rastériser : tramage aucun, ordonne ou floyd");
   const p = pixeliser(img, Math.round(cible_w));
   if (!palette || !palette.length) return p;
@@ -146,7 +148,7 @@ export function rasteriser(img, { cible_w, palette = null, dither = "aucun" } = 
 }
 export function pixeliser(img, cible_w) {
   const w = Math.round(cible_w);
-  if (!(w >= 1)) throw new Error("pixeliser : largeur cible ≥ 1 requise");
+  if (!(w >= 1)) throw new Error(T("vectorlab.pixelart.err_pixeliser"));
   const h = Math.max(1, Math.round(img.h * w / img.w)), out = _tampon(w, h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const sx = Math.min(img.w - 1, Math.floor(x * img.w / w)), sy = Math.min(img.h - 1, Math.floor(y * img.h / h));   // coin haut-gauche du bloc (plus proche voisin)
@@ -172,9 +174,9 @@ function _copier(dst, src, ox, oy) {
   for (let y = 0; y < src.h; y++) dst.data.set(src.data.subarray(y * src.w * 4, (y + 1) * src.w * 4), ((oy + y) * dst.w + ox) * 4);
 }
 export function feuille_tuiles(tuiles, colonnes = 8) {
-  if (!tuiles || !tuiles.length) throw new Error("feuille : aucune tuile");
+  if (!tuiles || !tuiles.length) throw new Error(T("vectorlab.pixelart.err_feuille_vide"));
   const { w, h } = tuiles[0].img;
-  if (tuiles.some((t) => t.img.w !== w || t.img.h !== h)) throw new Error("feuille : toutes les tuiles doivent avoir la même taille");
+  if (tuiles.some((t) => t.img.w !== w || t.img.h !== h)) throw new Error(T("vectorlab.pixelart.err_feuille_taille"));
   const cols = Math.max(1, Math.min(tuiles.length, colonnes | 0)), lignes = Math.ceil(tuiles.length / cols);
   const img = _tampon(w * cols, h * lignes), index = [];
   tuiles.forEach((t, i) => {
@@ -185,7 +187,7 @@ export function feuille_tuiles(tuiles, colonnes = 8) {
   return { img, index };
 }
 export function bande(imgs) {
-  if (!imgs || !imgs.length) throw new Error("bande : aucun cadre");
+  if (!imgs || !imgs.length) throw new Error(T("vectorlab.pixelart.err_bande"));
   const h = Math.max(...imgs.map((i) => i.h)), w = imgs.reduce((s, i) => s + i.w, 0), out = _tampon(w, h);
   let x = 0;
   for (const im of imgs) { _copier(out, im, x, 0); x += im.w; }
@@ -394,7 +396,7 @@ export function accentuer(img, force = 1) {
   return out;
 }
 export function agrandir(img, k) {
-  const n = Math.round(+k); if (!(n >= 1)) throw new Error("agrandir : facteur ≥ 1");
+  const n = Math.round(+k); if (!(n >= 1)) throw new Error(T("vectorlab.pixelart.err_agrandir"));
   const out = _tampon(img.w * n, img.h * n);
   for (let y = 0; y < out.h; y++) for (let x = 0; x < out.w; x++) {
     const i = ((y / n | 0) * img.w + (x / n | 0)) * 4, j = (y * out.w + x) * 4;

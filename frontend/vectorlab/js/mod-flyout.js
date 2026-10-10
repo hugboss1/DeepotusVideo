@@ -7,6 +7,7 @@
 // seau, baguette, sélections), Tranche. Les actions DÉLÈGUENT aux
 // commandes et aux boutons des panneaux existants — rien de nouveau au
 // modèle. La partie haute (bâtisseurs, registre) est PURE.
+import { T } from "./mod-i18n.js";
 import { FORMES } from "./mod-formes.js";
 import { op_symbole_creer, op_instance_poser, op_style, terrains_de } from "./mod-doc.js";
 import { PROFILS } from "./mod-pinceauvec.js";
@@ -19,9 +20,9 @@ export function flyout_formes(formes, courante) {
   return (formes || []).map((f) => ({ id: f.id, libelle: f.nom, icone: ICONES_FORMES[f.id] || "dz-etat-inconnu", actif: f.id === courante }));
 }
 export function flyout_symboles(symboles) {
-  const entrees = Object.entries(symboles || {}).map(([id, s]) => ({ id, libelle: s.nom || id, detail: `${(s.objets || []).length} objet${(s.objets || []).length > 1 ? "s" : ""}`, action: "poser" }));
-  if (!entrees.length) entrees.push({ id: "", libelle: "aucun symbole", detail: "", action: "", desactive: true });
-  entrees.push({ id: "", libelle: "Créer depuis la sélection", detail: "", action: "creer", icone: "dz-action-ajouter" });
+  const entrees = Object.entries(symboles || {}).map(([id, s]) => ({ id, libelle: s.nom || id, detail: T((s.objets || []).length > 1 ? "vectorlab.flyout.n_objets_plusieurs" : "vectorlab.flyout.n_objets_un", { n: (s.objets || []).length }), action: "poser" }));
+  if (!entrees.length) entrees.push({ id: "", libelle: T("vectorlab.flyout.aucun_symbole"), detail: "", action: "", desactive: true });
+  entrees.push({ id: "", libelle: T("vectorlab.flyout.creer_depuis_sel"), detail: "", action: "creer", icone: "dz-action-ajouter" });
   return entrees;
 }
 export function flyout_choix(liste, courant, { icones = {} } = {}) {
@@ -36,7 +37,7 @@ export function flyout_terrains(terrains, courant) {
   return Object.entries(terrains || {}).map(([id, f]) => ({ id, libelle: f.nom || id, couleur: f.couleur, detail: `${+f.hauteur_mm || 0} mm`, actif: id === courant, action: "choix" }));
 }
 export function flyout_polices(polices, courante) {
-  const src = { lib: "bibliothèque", user: "déposée", systeme: "système" };
+  const src = { lib: T("vectorlab.flyout.src_lib"), user: T("vectorlab.flyout.src_user"), systeme: T("vectorlab.flyout.src_systeme") };
   return (polices || []).map((p) => ({ id: p.id, libelle: p.famille, famille: p.famille, detail: src[p.source] || "", actif: p.famille === courante, action: "police" }));
 }
 export function flyout_actions(liste, disponible = () => true) {
@@ -56,25 +57,25 @@ export function flyout_position(bouton, taille, fenetre, marge = 6) {
 
 /* ── registre : outil → {titre, entrees, choisir(entree)} — `c` = contexte
    {etat, existe(sel), cliquer(sel), setOutil, executer, toast, rendre} ── */
-const AL = [["gauche", "Aligner à gauche", "dz-edit-aligner-gauche"], ["centreH", "Centrer horizontalement", "dz-edit-aligner-centre-h"], ["droite", "Aligner à droite", "dz-edit-aligner-droite"], ["haut", "Aligner en haut", "dz-edit-aligner-haut"], ["centreV", "Centrer verticalement", "dz-edit-aligner-centre-v"], ["bas", "Aligner en bas", "dz-edit-aligner-bas"]];
-const ORDRE = [["devant", "Tout devant", "dz-edit-premier-plan"], ["avant", "Un cran devant", "dz-edit-monter"], ["arriere", "Un cran derrière", "dz-edit-descendre"], ["derriere", "Tout derrière", "dz-edit-arriere-plan"]];
-const BOOL = [["union", "Union", "dz-edit-union"], ["soustraction", "Soustraction", "dz-edit-soustraire"], ["intersection", "Intersection", "dz-edit-intersection"], ["division", "Division", "dz-edit-division"]];
+const AL = [["gauche", T("vectorlab.flyout.al_gauche"), "dz-edit-aligner-gauche"], ["centreH", T("vectorlab.flyout.al_centre_h"), "dz-edit-aligner-centre-h"], ["droite", T("vectorlab.flyout.al_droite"), "dz-edit-aligner-droite"], ["haut", T("vectorlab.flyout.al_haut"), "dz-edit-aligner-haut"], ["centreV", T("vectorlab.flyout.al_centre_v"), "dz-edit-aligner-centre-v"], ["bas", T("vectorlab.flyout.al_bas"), "dz-edit-aligner-bas"]];
+const ORDRE = [["devant", T("vectorlab.flyout.ordre_devant"), "dz-edit-premier-plan"], ["avant", T("vectorlab.flyout.ordre_avant"), "dz-edit-monter"], ["arriere", T("vectorlab.flyout.ordre_arriere"), "dz-edit-descendre"], ["derriere", T("vectorlab.flyout.ordre_derriere"), "dz-edit-arriere-plan"]];
+const BOOL = [["union", "Union", "dz-edit-union"], ["soustraction", T("vectorlab.flyout.bool_soustraction"), "dz-edit-soustraire"], ["intersection", T("vectorlab.flyout.bool_intersection"), "dz-edit-intersection"], ["division", T("vectorlab.flyout.bool_division"), "dz-edit-division"]];
 export const MENUS = {
-  forme: (c) => ({ titre: "Forme paramétrique", entrees: flyout_formes(FORMES, c.etat.formeCourante), choisir: (e) => {
-    c.etat.formeCourante = e.id; c.setOutil("forme"); c.toast(`forme « ${e.libelle} » : cliquer pour la poser (rayon 40) ou glisser depuis le centre`); c.rendre(); } }),
+  forme: (c) => ({ titre: T("vectorlab.flyout.titre_forme"), entrees: flyout_formes(FORMES, c.etat.formeCourante), choisir: (e) => {
+    c.etat.formeCourante = e.id; c.setOutil("forme"); c.toast(T("vectorlab.flyout.forme_toast", { nom: e.libelle })); c.rendre(); } }),
   symbole: (c) => {
     const S = (c.actions && c.actions.symboles) || {}, symboles = (c.etat.doc && c.etat.doc.symboles) || {};
-    return { titre: "Symboles", entrees: [...flyout_symboles(symboles),
-      { id: "detacher", libelle: "Détacher l'instance sélectionnée", icone: "dz-edit-detacher", action: "detacher", desactive: !(S.instanceSel && S.instanceSel()) },
+    return { titre: T("vectorlab.flyout.titre_symboles"), entrees: [...flyout_symboles(symboles),
+      { id: "detacher", libelle: T("vectorlab.flyout.detacher"), icone: "dz-edit-detacher", action: "detacher", desactive: !(S.instanceSel && S.instanceSel()) },
       ...(S.edition && S.edition()
-        ? [{ id: "terminer", libelle: "Terminer l'édition du symbole", icone: "dz-action-valider", action: "terminer" }, { id: "abandonner", libelle: "Abandonner l'édition", icone: "dz-action-abandonner", action: "abandonner" }]
-        : [{ id: "ouvrir", libelle: "Modifier en place (double-clic sur une instance)", icone: "dz-action-modifier", action: "ouvrir", desactive: !(S.instanceSel && S.instanceSel()) }]),
-      ...Object.entries(symboles).map(([sid, sy]) => ({ id: sid, libelle: `Supprimer « ${sy.nom || sid} »`, icone: "dz-action-supprimer", action: "supprimer" }))], choisir: (e) => {
+        ? [{ id: "terminer", libelle: T("vectorlab.flyout.terminer"), icone: "dz-action-valider", action: "terminer" }, { id: "abandonner", libelle: T("vectorlab.flyout.abandonner"), icone: "dz-action-abandonner", action: "abandonner" }]
+        : [{ id: "ouvrir", libelle: T("vectorlab.flyout.ouvrir"), icone: "dz-action-modifier", action: "ouvrir", desactive: !(S.instanceSel && S.instanceSel()) }]),
+      ...Object.entries(symboles).map(([sid, sy]) => ({ id: sid, libelle: T("vectorlab.flyout.symbole_supprimer", { nom: sy.nom || sid }), icone: "dz-action-supprimer", action: "supprimer" }))], choisir: (e) => {
       if (e.action === "poser") { const id = c.executer(op_instance_poser, c.etat.calqueActif, e.id, 24, 24); if (id) { c.setOutil("select"); c.selectionner([id]); } }
       else if (e.action === "creer") {
-        if (!c.etat.selection.length) { c.toast("sélectionner d'abord les objets du symbole", true); return; }
+        if (!c.etat.selection.length) { c.toast(T("vectorlab.flyout.creer_sans_sel"), true); return; }
         const sid = c.executer(op_symbole_creer, c.etat.selection.slice(), undefined);
-        if (sid) c.toast(`symbole ${sid} créé — le menu Symboles le pose`);
+        if (sid) c.toast(T("vectorlab.flyout.symbole_cree", { sid }));
       } else if (e.action === "detacher") S.detacher && S.detacher();
       else if (e.action === "ouvrir") S.ouvrir && S.ouvrir();
       else if (e.action === "terminer") S.terminer && S.terminer();
@@ -85,28 +86,28 @@ export const MENUS = {
   select: (c) => {
     const A = (c.actions && c.actions.selection) || {}, p = A.peut ? A.peut() : { n: c.etat.selection.length, groupe: false };
     const e = (id, libelle, ok, fn, icone = "") => ({ id, libelle, icone, action: "fn", fn, desactive: !ok });
-    return { titre: "Sélection", entrees: [
+    return { titre: T("vectorlab.flyout.titre_selection"), entrees: [
       ...AL.map(([k, l, ic]) => e("al-" + k, l, p.n >= 1, () => A.aligner(k), ic)),
-      e("dist-h", "Distribuer horizontalement", p.n >= 3, () => A.distribuer("h"), "dz-edit-distribuer-h"), e("dist-v", "Distribuer verticalement", p.n >= 3, () => A.distribuer("v"), "dz-edit-distribuer-v"),
-      e("mir-h", "Miroir horizontal", p.n >= 1, () => A.miroir("h"), "dz-edit-miroir-h"), e("mir-v", "Miroir vertical", p.n >= 1, () => A.miroir("v"), "dz-edit-miroir-v"),
-      e("dup", "Dupliquer (Ctrl+D)", p.n >= 1, () => A.dupliquer(), "dz-action-dupliquer"),
+      e("dist-h", T("vectorlab.flyout.dist_h"), p.n >= 3, () => A.distribuer("h"), "dz-edit-distribuer-h"), e("dist-v", T("vectorlab.flyout.dist_v"), p.n >= 3, () => A.distribuer("v"), "dz-edit-distribuer-v"),
+      e("mir-h", T("vectorlab.flyout.miroir_h"), p.n >= 1, () => A.miroir("h"), "dz-edit-miroir-h"), e("mir-v", T("vectorlab.flyout.miroir_v"), p.n >= 1, () => A.miroir("v"), "dz-edit-miroir-v"),
+      e("dup", T("vectorlab.flyout.dupliquer"), p.n >= 1, () => A.dupliquer(), "dz-action-dupliquer"),
       ...ORDRE.map(([k, l, ic]) => e("or-" + k, l, p.n >= 1, () => A.ordre(k), ic)),
-      e("grouper", "Grouper", p.n >= 2, () => A.grouper(), "dz-edit-grouper"), e("degrouper", "Dégrouper", !!p.groupe, () => A.degrouper(), "dz-edit-degrouper"),
+      e("grouper", T("vectorlab.flyout.grouper"), p.n >= 2, () => A.grouper(), "dz-edit-grouper"), e("degrouper", T("vectorlab.flyout.degrouper"), !!p.groupe, () => A.degrouper(), "dz-edit-degrouper"),
       ...BOOL.map(([k, l, ic]) => e("bo-" + k, l, p.n >= 2, () => A.booleen(k), ic)),
     ], choisir: (x) => x.fn && x.fn() };
   },
   noeuds: (c) => {
     const A = (c.actions && c.actions.noeuds) || {}, p = A.peut ? A.peut() : {};
     const e = (id, libelle, ok, fn) => ({ id, libelle, action: "fn", fn, desactive: !ok });
-    return { titre: "Nœuds", entrees: [e("diviser", "Diviser le segment", !!p.ancre, () => A.diviser()), e("inverser", "Inverser le sens", !!p.chemin, () => A.inverser()),
-      e("joindre", "Joindre deux chemins", !!p.deux, () => A.joindre()), e("coins", "Arrondir les coins", !!p.sel, () => A.coins())], choisir: (x) => x.fn && x.fn() };
+    return { titre: T("vectorlab.flyout.titre_noeuds"), entrees: [e("diviser", T("vectorlab.flyout.diviser"), !!p.ancre, () => A.diviser()), e("inverser", T("vectorlab.flyout.inverser_sens"), !!p.chemin, () => A.inverser()),
+      e("joindre", T("vectorlab.flyout.joindre"), !!p.deux, () => A.joindre()), e("coins", T("vectorlab.flyout.arrondir"), !!p.sel, () => A.coins())], choisir: (x) => x.fn && x.fn() };
   },
   texte: (c) => {
     const t = c.etat.typo || { polices: [], courante: "" };
     const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null;
     const courante = sel && sel.objet.type === "texte" ? (sel.objet.style || {}).police : (t.polices.find((p) => p.id === t.courante) || {}).famille;
-    return { titre: "Typographies", entrees: [...flyout_polices(t.polices, courante), { id: "deposer", libelle: "Déposer une police…", icone: "dz-action-importer", action: "deposer" }], choisir: (e) => {
-      if (e.action === "deposer") { c.cliquer("#txDeposer") || c.toast("ouvrir le panneau Texte pour déposer une police", true); return; }
+    return { titre: T("vectorlab.flyout.titre_typo"), entrees: [...flyout_polices(t.polices, courante), { id: "deposer", libelle: T("vectorlab.flyout.deposer_police"), icone: "dz-action-importer", action: "deposer" }], choisir: (e) => {
+      if (e.action === "deposer") { c.cliquer("#txDeposer") || c.toast(T("vectorlab.flyout.deposer_toast"), true); return; }
       c.etat.typo.courante = e.id;
       if (sel && (sel.objet.type === "texte" || sel.objet.type === "cadre")) c.style([sel.objet.id], { police: e.famille });
       else { c.setOutil("texte"); c.rendre(); }
@@ -115,22 +116,22 @@ export const MENUS = {
   crayon: (c) => MENUS.pinceauv(c),
   pinceauv: (c) => {
     const pv = c.etat.pinceauv || { profil: "fuseau", largeur: 8 };
-    return { titre: "Pinceau vectoriel", entrees: [...flyout_choix(PROFILS, pv.profil, { icones: { plat: "dz-outil-vec-profil-plat", fuseau: "dz-outil-vec-profil-fuseau", calligraphie: "dz-outil-vec-profil-calligraphie" } }), ...flyout_presets([4, 8, 16, 24], pv.largeur, "px")], choisir: (e) => {
+    return { titre: T("vectorlab.flyout.titre_pinceauv"), entrees: [...flyout_choix(PROFILS, pv.profil, { icones: { plat: "dz-outil-vec-profil-plat", fuseau: "dz-outil-vec-profil-fuseau", calligraphie: "dz-outil-vec-profil-calligraphie" } }), ...flyout_presets([4, 8, 16, 24], pv.largeur, "px")], choisir: (e) => {
       if (e.action === "choix") pv.profil = e.id; else pv.largeur = e.valeur;
       c.setOutil("pinceauv"); c.rendre();
     } };
   },
-  gomme: (c) => ({ titre: "Gomme vectorielle", entrees: flyout_presets([6, 12, 24, 48], c.etat.gommeLargeur, "px"), choisir: (e) => { c.etat.gommeLargeur = e.valeur; c.setOutil("gomme"); c.rendre(); } }),
-  coin: (c) => ({ titre: "Coins arrondis", entrees: flyout_presets([5, 10, 20, 40], c.etat.coinRayon, "px"), choisir: (e) => { c.etat.coinRayon = e.valeur; c.setOutil("coin"); c.rendre(); } }),
-  tuiles: (c) => ({ titre: "Terrains", entrees: [...flyout_terrains(c.etat.doc ? terrains_de(c.etat.doc) : {}, c.etat.terrainCourant), { id: "plateau", libelle: "Générer le plateau…", icone: "dz-edit-grille-hex", action: "plateau" }], choisir: (e) => {
+  gomme: (c) => ({ titre: T("vectorlab.flyout.titre_gomme"), entrees: flyout_presets([6, 12, 24, 48], c.etat.gommeLargeur, "px"), choisir: (e) => { c.etat.gommeLargeur = e.valeur; c.setOutil("gomme"); c.rendre(); } }),
+  coin: (c) => ({ titre: T("vectorlab.flyout.titre_coin"), entrees: flyout_presets([5, 10, 20, 40], c.etat.coinRayon, "px"), choisir: (e) => { c.etat.coinRayon = e.valeur; c.setOutil("coin"); c.rendre(); } }),
+  tuiles: (c) => ({ titre: "Terrains", entrees: [...flyout_terrains(c.etat.doc ? terrains_de(c.etat.doc) : {}, c.etat.terrainCourant), { id: "plateau", libelle: T("vectorlab.flyout.plateau"), icone: "dz-edit-grille-hex", action: "plateau" }], choisir: (e) => {
     if (e.action === "plateau") { c.ouvrirSection("plateauDetails"); return; }
     c.etat.terrainCourant = e.id; c.setOutil("tuiles"); c.rendre(); } }),
   "px-pinceau": (c) => MENUS._pxPinceau(c, "px-pinceau"),
   "px-gomme": (c) => MENUS._pxPinceau(c, "px-gomme"),
   _pxPinceau: (c, outil) => {
     const px = c.etat.px || { rayon: 4, durete: 1 };
-    return { titre: outil === "px-gomme" ? "Gomme raster" : "Pinceau raster", entrees: [...flyout_presets([1, 2, 4, 8, 16], px.rayon, "px"),
-      { id: "nette", libelle: "Dureté nette", action: "durete", valeur: 1, actif: px.durete >= 1 }, { id: "douce", libelle: "Dureté douce", action: "durete", valeur: 0.3, actif: px.durete < 1 }], choisir: (e) => {
+    return { titre: outil === "px-gomme" ? T("vectorlab.flyout.titre_px_gomme") : T("vectorlab.flyout.titre_px_pinceau"), entrees: [...flyout_presets([1, 2, 4, 8, 16], px.rayon, "px"),
+      { id: "nette", libelle: T("vectorlab.flyout.durete_nette"), action: "durete", valeur: 1, actif: px.durete >= 1 }, { id: "douce", libelle: T("vectorlab.flyout.durete_douce"), action: "durete", valeur: 0.3, actif: px.durete < 1 }], choisir: (e) => {
       if (e.action === "preset") px.rayon = e.valeur; else px.durete = e.valeur;
       c.setOutil(outil); c.rendre();
     } };
@@ -139,8 +140,8 @@ export const MENUS = {
   "px-baguette": (c) => MENUS._pxTolerance(c, "px-baguette"),
   _pxTolerance: (c, outil) => {
     const px = c.etat.px || { tolerance: 16, global: false };
-    return { titre: outil === "px-seau" ? "Seau" : "Baguette magique", entrees: [...flyout_presets([0, 16, 48, 96], px.tolerance, "de tolérance"),
-      ...(outil === "px-seau" ? [{ id: "global", libelle: "Global (tous les pixels semblables)", action: "global", actif: !!px.global }] : [])], choisir: (e) => {
+    return { titre: outil === "px-seau" ? T("vectorlab.flyout.titre_seau") : T("vectorlab.flyout.titre_baguette"), entrees: [...flyout_presets([0, 16, 48, 96], px.tolerance, T("vectorlab.flyout.unite_tolerance")),
+      ...(outil === "px-seau" ? [{ id: "global", libelle: T("vectorlab.flyout.global"), action: "global", actif: !!px.global }] : [])], choisir: (e) => {
       if (e.action === "preset") px.tolerance = e.valeur; else px.global = !px.global;
       c.setOutil(outil); c.rendre();
     } };
@@ -150,36 +151,36 @@ export const MENUS = {
   _pxSelection: (c, outil) => {
     const A = (c.actions && c.actions.pixel) || {}, p = A.peut ? A.peut() : {};
     const e = (id, libelle, ok, fn) => ({ id, libelle, action: "fn", fn, desactive: !ok });
-    return { titre: "Sélection raster", entrees: [e("tout", "Tout", !!p.tampon, () => A.tout()), e("aucune", "Aucune", !!p.masque, () => A.aucune()), e("inverser", "Inverser", !!p.masque, () => A.inverser()),
-      e("croitre", "Croître d'un pixel", !!p.masque, () => A.croitre()), e("contracter", "Contracter d'un pixel", !!p.masque, () => A.contracter()), e("couleur", "Par couleur courante", !!p.tampon, () => A.couleur())],
+    return { titre: T("vectorlab.flyout.titre_px_sel"), entrees: [e("tout", T("vectorlab.flyout.sel_tout"), !!p.tampon, () => A.tout()), e("aucune", T("vectorlab.flyout.sel_aucune"), !!p.masque, () => A.aucune()), e("inverser", T("vectorlab.flyout.sel_inverser"), !!p.masque, () => A.inverser()),
+      e("croitre", T("vectorlab.flyout.croitre"), !!p.masque, () => A.croitre()), e("contracter", T("vectorlab.flyout.contracter"), !!p.masque, () => A.contracter()), e("couleur", T("vectorlab.flyout.par_couleur"), !!p.tampon, () => A.couleur())],
       choisir: (x) => { c.setOutil(outil); x.fn && x.fn(); } };
   },
   image: (c) => {
     const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null, img = sel && sel.objet.type === "image";
     const I = (c.actions && c.actions.image) || {};
     const e = (id, libelle, fn, icone) => ({ id, libelle, icone, action: "fn", fn, desactive: !fn });
-    return { titre: "Image", entrees: [
-      e("biblio", "Bibliothèque…", I.biblio, "dz-action-choisir-bibliotheque"), e("fichier", "Fichier…", I.fichier, "dz-action-importer"), e("coller", "Presse-papiers", I.coller, "dz-action-coller"), e("generer", "Générer…", I.generer, "dz-media-generer-image"),
+    return { titre: T("vectorlab.flyout.titre_image"), entrees: [
+      e("biblio", T("vectorlab.flyout.biblio"), I.biblio, "dz-action-choisir-bibliotheque"), e("fichier", T("vectorlab.flyout.fichier"), I.fichier, "dz-action-importer"), e("coller", T("vectorlab.flyout.coller"), I.coller, "dz-action-coller"), e("generer", T("vectorlab.flyout.generer"), I.generer, "dz-media-generer-image"),
       ...flyout_actions([
-        { id: "vectoriser", libelle: "Vectoriser cette image…", icone: "dz-edit-vectoriser", cible: "#imVectoriser" }, { id: "entiere", libelle: "Image entière (sans rognage)", icone: "dz-action-reinitialiser", cible: "#imRognerRaz" },
-        { id: "verrou", libelle: img && sel.objet.verrou ? "Déverrouiller" : "Verrouiller", icone: img && sel.objet.verrou ? "dz-etat-libre" : "dz-etat-verrouille", cible: "#imVerrou" },
+        { id: "vectoriser", libelle: T("vectorlab.flyout.vectoriser"), icone: "dz-edit-vectoriser", cible: "#imVectoriser" }, { id: "entiere", libelle: T("vectorlab.flyout.entiere"), icone: "dz-action-reinitialiser", cible: "#imRognerRaz" },
+        { id: "verrou", libelle: img && sel.objet.verrou ? T("vectorlab.flyout.deverrouiller") : T("vectorlab.flyout.verrouiller"), icone: img && sel.objet.verrou ? "dz-etat-libre" : "dz-etat-verrouille", cible: "#imVerrou" },
       ], (cible) => img && c.existe(cible)),
-      { id: "pixels", libelle: "Éditer les pixels (persona Pixel)", icone: "dz-nav-espace-pixel", action: "pixels", desactive: !img },
+      { id: "pixels", libelle: T("vectorlab.flyout.pixels"), icone: "dz-nav-espace-pixel", action: "pixels", desactive: !img },
     ], choisir: (e) => { if (e.action === "pixels") c.pixels(); else if (e.action === "fn") e.fn && e.fn(); else c.cliquer(e.cible); } };
   },
   apparence: (c) => {
     const sel = c.etat.selection.length === 1 ? c.objetDe(c.etat.selection[0]) : null;
     const s = sel ? (sel.objet.style || {}) : (c.etat.styleCourant || {});
     const n = c.etat.selection.length;
-    return { titre: "Apparence", entrees: [
-      ...flyout_actions([{ id: "fond", libelle: "Couleur de fond…", icone: "dz-edit-couleur-fond", cible: "#apFond" }, { id: "sansfond", libelle: "Sans fond", icone: "dz-edit-sans-couleur", cible: "#apFondAucun" },
-        { id: "contour", libelle: "Couleur de contour…", icone: "dz-edit-couleur-contour", cible: "#apContour" }, { id: "sanscontour", libelle: "Sans contour", icone: "dz-edit-sans-contour", cible: "#apContourAucun" }], c.existe),
-      ...flyout_reglages([1, 2, 4, 8], +s.epaisseur || 2, "epaisseur", "px d'épaisseur"),
-      ...flyout_reglages([100, 75, 50, 25], Math.round((s.opacite ?? 1) * 100), "opacite", "% d'opacité", (v) => v / 100),
-      ...flyout_actions([{ id: "gradl", libelle: "Dégradé linéaire", icone: "dz-edit-degrade-lineaire", cible: "#apGradL" }, { id: "gradr", libelle: "Dégradé radial", icone: "dz-edit-degrade-radial", cible: "#apGradR" },
-        { id: "conique", libelle: "Dégradé conique", icone: "dz-edit-degrade-conique", cible: "#a2Conique" }, { id: "transp", libelle: "Transparence", icone: "dz-outil-vec-transparence", cible: "#a2Transp" },
-        { id: "motif", libelle: "Motif", icone: "dz-edit-motif", cible: "#a2Motif" }], (cible) => n >= 1 && c.existe(cible)),
-      { id: "ombre", libelle: "Effet : ombre externe", icone: "dz-edit-effet", action: "effet", valeur: "ombre", desactive: !n }, { id: "lueur", libelle: "Effet : lueur", icone: "dz-edit-effet", action: "effet", valeur: "lueur", desactive: !n },
+    return { titre: T("vectorlab.flyout.titre_apparence"), entrees: [
+      ...flyout_actions([{ id: "fond", libelle: T("vectorlab.flyout.couleur_fond"), icone: "dz-edit-couleur-fond", cible: "#apFond" }, { id: "sansfond", libelle: T("vectorlab.flyout.sans_fond"), icone: "dz-edit-sans-couleur", cible: "#apFondAucun" },
+        { id: "contour", libelle: T("vectorlab.flyout.couleur_contour"), icone: "dz-edit-couleur-contour", cible: "#apContour" }, { id: "sanscontour", libelle: T("vectorlab.flyout.sans_contour"), icone: "dz-edit-sans-contour", cible: "#apContourAucun" }], c.existe),
+      ...flyout_reglages([1, 2, 4, 8], +s.epaisseur || 2, "epaisseur", T("vectorlab.flyout.unite_epaisseur")),
+      ...flyout_reglages([100, 75, 50, 25], Math.round((s.opacite ?? 1) * 100), "opacite", T("vectorlab.flyout.unite_opacite"), (v) => v / 100),
+      ...flyout_actions([{ id: "gradl", libelle: T("vectorlab.flyout.grad_lineaire"), icone: "dz-edit-degrade-lineaire", cible: "#apGradL" }, { id: "gradr", libelle: T("vectorlab.flyout.grad_radial"), icone: "dz-edit-degrade-radial", cible: "#apGradR" },
+        { id: "conique", libelle: T("vectorlab.flyout.grad_conique"), icone: "dz-edit-degrade-conique", cible: "#a2Conique" }, { id: "transp", libelle: T("vectorlab.flyout.transparence"), icone: "dz-outil-vec-transparence", cible: "#a2Transp" },
+        { id: "motif", libelle: T("vectorlab.flyout.motif"), icone: "dz-edit-motif", cible: "#a2Motif" }], (cible) => n >= 1 && c.existe(cible)),
+      { id: "ombre", libelle: T("vectorlab.flyout.effet_ombre"), icone: "dz-edit-effet", action: "effet", valeur: "ombre", desactive: !n }, { id: "lueur", libelle: T("vectorlab.flyout.effet_lueur"), icone: "dz-edit-effet", action: "effet", valeur: "lueur", desactive: !n },
     ], choisir: (e) => {
       if (e.action === "style") c.style(c.etat.selection.slice(), e.patch);
       else if (e.action === "effet") { const sel2 = document.querySelector("#a2FxType"); if (sel2) { sel2.value = e.valeur; c.cliquer("#a2FxPlus"); } }
@@ -188,7 +189,7 @@ export const MENUS = {
   },
   tranche: (c) => {
     const ex = c.etat.exportPlus || { mode: "document" };
-    return { titre: "Tranches d'export", entrees: [...flyout_choix(MODES, ex.mode).map((e) => ({ ...e, libelle: e.libelle })), { id: "effacer", libelle: "Effacer les tranches dessinées", icone: "dz-action-vider", action: "effacer", desactive: !(c.etat.tranches || []).length }], choisir: (e) => {
+    return { titre: T("vectorlab.flyout.titre_tranches"), entrees: [...flyout_choix(MODES, ex.mode).map((e) => ({ ...e, libelle: e.libelle })), { id: "effacer", libelle: T("vectorlab.flyout.effacer_tranches"), icone: "dz-action-vider", action: "effacer", desactive: !(c.etat.tranches || []).length }], choisir: (e) => {
       if (e.action === "effacer") { c.etat.tranches = []; c.rendre(); return; }
       ex.mode = e.id; if (e.id === "dessinees") c.setOutil("tranche"); c.rendre();
     } };
@@ -231,7 +232,7 @@ export function initFlyout(VL) {
     hote.querySelectorAll(".fo-item").forEach((b) => b.addEventListener("click", () => { const e = menu.entrees[+b.dataset.i]; fermer(); menu.choisir(e); }));
   }
   // les boutons Image et Apparence (persona Vecteur) — ils ne sont que des menus
-  for (const [nom, titre] of [["image", "Image — poser (Bibliothèque, fichier, presse-papiers, génération), vectoriser, rogner, verrou, pixels (menu)"], ["apparence", "Apparence — fond, contour, épaisseur, opacité, dégradés, motif, effets (menu)"]]) {
+  for (const [nom, titre] of [["image", T("vectorlab.flyout.bulle_image")], ["apparence", T("vectorlab.flyout.bulle_apparence")]]) {
     const b = document.createElement("button");
     b.dataset.outil = nom; b.dataset.menu = nom; b.title = titre;   // l'icône : mod-barreoutils (ICONES)
     b.addEventListener("click", (ev) => { ev.stopPropagation(); ouvrir(b, nom); });
@@ -240,7 +241,7 @@ export function initFlyout(VL) {
   // le bouton Symboles (persona Vecteur) — il n'est qu'un menu
   {
     const b = document.createElement("button");
-    b.dataset.outil = "symbole"; b.dataset.menu = "symbole"; b.title = "Symboles — poser une instance ou créer un symbole depuis la sélection (menu)";   // l'icône : mod-barreoutils
+    b.dataset.outil = "symbole"; b.dataset.menu = "symbole"; b.title = T("vectorlab.flyout.bulle_symboles");   // l'icône : mod-barreoutils
     b.addEventListener("click", (ev) => { ev.stopPropagation(); ouvrir(b, "symbole"); });
     $("#outils").appendChild(b);
   }

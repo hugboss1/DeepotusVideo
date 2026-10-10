@@ -5,6 +5,8 @@
 // tuiles XYZ (Terrarium / OSM), marching squares pour les courbes de
 // niveau, échantillonnage, paliers, ombrage (Horn, azimut 315°, 45°).
 // Module FEUILLE : aucun import, aucun DOM.
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 export const R_TERRE = 6378137;
 const RAD = Math.PI / 180;
 
@@ -18,7 +20,7 @@ function _attr(attrs, nom) {
 }
 function _point(attrs, corps) {
   const lat = parseFloat(_attr(attrs, "lat")), lon = parseFloat(_attr(attrs, "lon"));
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error("GPX : un point sans lat/lon numériques");
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error(T("vectorlab.geo.err_point"));
   const e = /<ele>\s*([^<]*)<\/ele>/.exec(corps || "");
   const ele = e && Number.isFinite(parseFloat(e[1])) ? parseFloat(e[1]) : null;
   const n = /<name>([^<]*)<\/name>/.exec(corps || "");
@@ -27,7 +29,7 @@ function _point(attrs, corps) {
 const _RE_PT = /<(trkpt|rtept|wpt)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/\1>)/g;
 export function gpx_parser(xml) {
   const s = String(xml || "");
-  if (!/<gpx\b/i.test(s)) throw new Error("GPX : pas un fichier GPX (balise <gpx> absente)");
+  if (!/<gpx\b/i.test(s)) throw new Error(T("vectorlab.geo.err_fichier"));
   const traces = [], points = [];
   // les segments : chaque <trkseg> et chaque <rte> est UNE trace
   const blocs = s.match(/<(trkseg|rte)\b[\s\S]*?<\/\1>/g) || [];
@@ -38,7 +40,7 @@ export function gpx_parser(xml) {
   }
   for (const m of s.matchAll(_RE_PT)) if (m[1] === "wpt") points.push(_point(m[2], m[3]));
   const tous = [...traces.flat(), ...points];
-  if (!tous.length) throw new Error("GPX : aucun point (trkpt, rtept, wpt)");
+  if (!tous.length) throw new Error(T("vectorlab.geo.err_aucun"));
   const emprise = { minLat: Infinity, maxLat: -Infinity, minLon: Infinity, maxLon: -Infinity };
   for (const p of tous) {
     emprise.minLat = Math.min(emprise.minLat, p.lat); emprise.maxLat = Math.max(emprise.maxLat, p.lat);
@@ -79,7 +81,7 @@ export function profil_svg(p, w = 300, h = 100) {
   const r = (v) => Math.round(v * 10) / 10;
   const d = p.d.map((v, k) => `${k ? "L" : "M"}${r(X(v))} ${r(Y(p.ele[k]))}`).join(" ");
   const km = st.longueur_m >= 1000 ? `${r(st.longueur_m / 1000)} km` : `${Math.round(st.longueur_m)} m`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" class="profil-alti" role="img" aria-label="profil altimétrique">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" class="profil-alti" role="img" aria-label="${T("vectorlab.geo.profil")}">`
     + `<path class="profil-ligne" d="${d}" fill="none" stroke="currentColor" stroke-width="1.5"/>`
     + `<text x="${m.g - 3}" y="${m.h + 4}" text-anchor="end" font-size="9">${Math.round(st.max)}</text>`
     + `<text x="${m.g - 3}" y="${h - m.b}" text-anchor="end" font-size="9">${Math.round(st.min)}</text>`

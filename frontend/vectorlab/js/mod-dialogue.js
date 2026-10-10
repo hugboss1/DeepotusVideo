@@ -5,15 +5,16 @@
 // VL.dialogue.{confirmer, informer, saisir} — toutes asynchrones — rendues
 // dans #vlDlg avec le patron .vl-dlg-boite / .vl-dlg-tete de mod-impression.
 
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 export function dialogue_spec(type, message, o = {}) {
   const t = ["confirmer", "informer", "saisir"].includes(type) ? type : "informer";
   const corps = String(message ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
-  const titre = o.titre || { confirmer: "Confirmer", informer: "Information", saisir: "Saisie" }[t];
-  const okLib = o.ok || o.valider || (t === "informer" ? "Fermer" : "OK");
+  const titre = o.titre || { confirmer: T("vectorlab.dialogue.confirmer"), informer: T("vectorlab.dialogue.information"), saisir: T("vectorlab.dialogue.saisie") }[t];
+  const okLib = o.ok || o.valider || (t === "informer" ? T("vectorlab.dialogue.fermer") : "OK");
   const boutons = t === "informer"
     ? [{ role: "ok", libelle: okLib, danger: false }]
-    : [{ role: "annuler", libelle: o.annuler || "Annuler", danger: false },
+    : [{ role: "annuler", libelle: o.annuler || T("vectorlab.dialogue.annuler"), danger: false },
        { role: "ok", libelle: okLib, danger: !!o.danger }];
   const champ = t === "saisir" ? { valeur: String(o.valeur ?? ""), placeholder: o.placeholder || "" } : null;
   const defaut = (t === "confirmer" && o.danger) ? "annuler" : "ok";
@@ -58,7 +59,7 @@ export function initDialogue(VL) {
     return new Promise((resoudre) => {
       courant = { resoudre, spec };
       hote.innerHTML = `<div class="vl-dlg-boite vl-dlg-petite" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
-        <div class="vl-dlg-tete"><b>${esc(spec.titre)}</b><span class="spacer"></span><button data-role="${spec.type === "informer" ? "ok" : "annuler"}" title="Fermer" aria-label="Fermer">${dzi("dz-action-fermer", 16)}</button></div>
+        <div class="vl-dlg-tete"><b>${esc(spec.titre)}</b><span class="spacer"></span><button data-role="${spec.type === "informer" ? "ok" : "annuler"}" title="${T("vectorlab.dialogue.fermer")}" aria-label="${T("vectorlab.dialogue.fermer")}">${dzi("dz-action-fermer", 16)}</button></div>
         <div class="vl-dlg-corps">${spec.corps.map((l) => `<p>${esc(l)}</p>`).join("")}${spec.champ ? `<input type="text" value="${esc(spec.champ.valeur)}" placeholder="${esc(spec.champ.placeholder)}">` : ""}</div>
         <div class="vl-dlg-pied">${spec.boutons.map((b) => `<button data-role="${b.role}" class="${b.danger ? "vl-dlg-danger" : ""}${b.role === spec.defaut ? " vl-dlg-defaut" : ""}">${esc(b.libelle)}</button>`).join("")}</div>
       </div>`;

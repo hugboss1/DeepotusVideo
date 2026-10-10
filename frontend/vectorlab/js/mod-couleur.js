@@ -5,10 +5,11 @@
 // (initCouleur) ne touche le document qu'à l'appel.
 
 /* ── pur : conversions ── */
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 export function hexVersRgb(hex) {
   const m = /^#([0-9A-Fa-f]{6})$/.exec(String(hex || ""));
-  if (!m) throw new Error(`couleur attendue en #RRGGBB : ${hex}`);
+  if (!m) throw new Error(T("vectorlab.couleur.err_hex_en", { hex }));
   const v = parseInt(m[1], 16);
   return { r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 };
 }
@@ -102,15 +103,15 @@ export function cmjnVersRgb({ c, m, j, n }) {
    palette (l'aller-retour HSL arrondit), les autres teintes tournent sur le
    cercle chromatique ; le monochrome décline la luminosité. */
 export const HARMONIES = [
-  { id: "complementaire", libelle: "Complémentaire" },
-  { id: "analogue", libelle: "Analogue" },
-  { id: "triade", libelle: "Triade" },
-  { id: "tetrade", libelle: "Tétrade" },
-  { id: "monochrome", libelle: "Monochrome" },
+  { id: "complementaire", libelle: T("vectorlab.couleur.harm_complementaire") },
+  { id: "analogue", libelle: T("vectorlab.couleur.harm_analogue") },
+  { id: "triade", libelle: T("vectorlab.couleur.harm_triade") },
+  { id: "tetrade", libelle: T("vectorlab.couleur.harm_tetrade") },
+  { id: "monochrome", libelle: T("vectorlab.couleur.harm_monochrome") },
 ];
 export function palette_harmonique(hex, type) {
-  if (!/^#[0-9A-Fa-f]{6}$/.test(String(hex || ""))) throw new Error(`couleur #RRGGBB attendue : ${hex}`);
-  if (!HARMONIES.some((h) => h.id === type)) throw new Error(`harmonie inconnue : ${type}`);
+  if (!/^#[0-9A-Fa-f]{6}$/.test(String(hex || ""))) throw new Error(T("vectorlab.couleur.err_hex", { v: hex }));
+  if (!HARMONIES.some((h) => h.id === type)) throw new Error(T("vectorlab.couleur.harm_inconnue", { type }));
   const base = String(hex).toUpperCase();
   const hsl = rgbVersHsl(hexVersRgb(base));
   const tourner = (deg) => rgbVersHex(hslVersRgb({ h: hsl.h + deg, s: hsl.s, l: hsl.l })).toUpperCase();
@@ -146,7 +147,7 @@ export function op_palette_ajouter(doc, hex) {
   const h = _hexNorme(hex);
   if (!Array.isArray(doc.palette)) doc.palette = [];
   if (doc.palette.some((x) => String(x).toUpperCase() === h)) {
-    throw new Error(`déjà dans la palette : ${h}`);
+    throw new Error(T("vectorlab.couleur.deja_palette", { h }));
   }
   doc.palette.push(h);
   return h;
@@ -156,7 +157,7 @@ export function op_palette_retirer(doc, hex) {
   const h = _hexNorme(hex);
   const p = Array.isArray(doc.palette) ? doc.palette : [];
   const i = p.findIndex((x) => String(x).toUpperCase() === h);
-  if (i < 0) throw new Error(`absente de la palette : ${h}`);
+  if (i < 0) throw new Error(T("vectorlab.couleur.absente_palette", { h }));
   p.splice(i, 1);
 }
 
@@ -172,39 +173,39 @@ export function initCouleur(VL) {
     hote.id = "nuancier";
     hote.className = "hidden";
     hote.innerHTML = `
-      <canvas id="nuSV" width="188" height="132" title="Saturation / valeur"></canvas>
-      <vl-curseur-couleur id="nuH" mode="teinte" value="0" title="Teinte"></vl-curseur-couleur>
+      <canvas id="nuSV" width="188" height="132" title="${T("vectorlab.couleur.sv")}"></canvas>
+      <vl-curseur-couleur id="nuH" mode="teinte" value="0" title="${T("vectorlab.couleur.teinte")}"></vl-curseur-couleur>
       <div class="nu-ligne">
-        <span class="nu-bloc" id="nuAvant" title="Couleur d'origine"></span>
-        <span class="nu-bloc" id="nuApres" title="Nouvelle couleur"></span>
+        <span class="nu-bloc" id="nuAvant" title="${T("vectorlab.couleur.origine")}"></span>
+        <span class="nu-bloc" id="nuApres" title="${T("vectorlab.couleur.nouvelle")}"></span>
         <input id="nuHex" type="text" maxlength="7" spellcheck="false"
-               title="Hexadécimal #RRGGBB"/>
+               title="${T("vectorlab.couleur.hexa")}"/>
       </div>
       <div class="nu-ligne nu-champs">
         <label>R<input data-rgb="r" type="number" min="0" max="255"/></label>
-        <label>V<input data-rgb="g" type="number" min="0" max="255"/></label>
+        <label>${T("vectorlab.couleur.canal_v")}<input data-rgb="g" type="number" min="0" max="255"/></label>
         <label>B<input data-rgb="b" type="number" min="0" max="255"/></label>
       </div>
       <div class="nu-ligne nu-champs"
-           title="CMJN indicatif — conversion naïve, sans profil ICC">
+           title="${T("vectorlab.couleur.cmjn_titre")}">
         <label>C<input data-cmjn="c" type="number" min="0" max="100"/></label>
         <label>M<input data-cmjn="m" type="number" min="0" max="100"/></label>
-        <label>J<input data-cmjn="j" type="number" min="0" max="100"/></label>
-        <label>N<input data-cmjn="n" type="number" min="0" max="100"/></label>
+        <label>${T("vectorlab.couleur.canal_j")}<input data-cmjn="j" type="number" min="0" max="100"/></label>
+        <label>${T("vectorlab.couleur.canal_n")}<input data-cmjn="n" type="number" min="0" max="100"/></label>
       </div>
-      <div class="nu-tete">Palette du document
+      <div class="nu-tete">${T("vectorlab.couleur.palette_doc")}
         <button id="nuPalPlus"
-          title="Ajouter la couleur courante à la palette du document (annulable, sauvée avec lui)" aria-label="Ajouter la couleur courante à la palette du document">${dzi("dz-action-ajouter", 16)}</button>
+          title="${T("vectorlab.couleur.pal_plus_titre")}" aria-label="${T("vectorlab.couleur.pal_plus")}">${dzi("dz-action-ajouter", 16)}</button>
       </div>
       <div id="nuPalDoc" class="nu-sw"
-           title="Clic : prendre — clic droit : retirer de la palette"></div>
-      <div class="nu-tete">Nuances</div>
+           title="${T("vectorlab.couleur.paldoc_titre")}"></div>
+      <div class="nu-tete">${T("vectorlab.couleur.nuances")}</div>
       <div id="nuPalDef" class="nu-sw"></div>
-      <div class="nu-tete">Récentes</div>
+      <div class="nu-tete">${T("vectorlab.couleur.recentes")}</div>
       <div id="nuRecentes" class="nu-sw"></div>
       <div class="nu-ligne nu-fin">
-        <button id="nuOk" class="primaire">Appliquer</button>
-        <button id="nuAnnul">Annuler</button>
+        <button id="nuOk" class="primaire">${T("vectorlab.couleur.appliquer")}</button>
+        <button id="nuAnnul">${T("vectorlab.couleur.annuler")}</button>
       </div>`;
     document.body.appendChild(hote);
 
@@ -230,7 +231,7 @@ export function initCouleur(VL) {
       conteneur.innerHTML = liste.map((h) =>
         `<button class="nu-case" data-hex="${h}"${retirables
           ? ' data-retirable="1"' : ""} style="background:${h}" title="${h}${
-          retirables ? " — clic droit : retirer" : ""}"></button>`).join("")
+          retirables ? T("vectorlab.couleur.clic_droit_retirer") : ""}"></button>`).join("")
         || '<span class="nu-vide">—</span>';
     }
     function synchroniser() {

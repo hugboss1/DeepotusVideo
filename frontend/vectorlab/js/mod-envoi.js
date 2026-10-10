@@ -3,13 +3,14 @@
 // Sans document ouvert : un document NEUF à la taille de l'image est créé, puis ouvert avec `?doc=…&img=…` ; une fois
 // le document chargé, l'image y est posée (calque actif) et `img` quitte l'URL. Logique PURE exportée
 // (qa/envoi.test.mjs).
+import { T } from "./mod-i18n.js";
 import { recevoir } from "../../shared/dz-envoi.js";
 import { docVierge } from "./mod-biblio.js";
 
 export const COTE_MAX = 8192;            // borne de la création (parseTaille de mod-biblio)
 
 export function tailleDoc(w, h) {
-  if (!(Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0)) throw new Error("taille de l'image illisible");
+  if (!(Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0)) throw new Error(T("vectorlab.envoi.taille_illisible"));
   const k = Math.min(1, COTE_MAX / Math.max(w, h));
   return { w: Math.max(1, Math.round(w * k)), h: Math.max(1, Math.round(h * k)) };
 }
@@ -35,7 +36,7 @@ function dimensions(nom) {
   return new Promise((res, rej) => {
     const im = new Image();
     im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight });
-    im.onerror = () => rej(new Error(`Bibliothèque : « ${nom} » introuvable`));
+    im.onerror = () => rej(new Error(T("vectorlab.envoi.introuvable", { nom })));
     im.src = "/api/images/" + encodeURIComponent(nom);
   });
 }
@@ -57,7 +58,7 @@ export function initEnvoi(VL) {
       location.replace(suite(d.id, r.image));
       return true;
     } catch (e) {
-      VL.toast(`Envoi vers le Vectorlab : ${e.message}`, true);
+      VL.toast(T("vectorlab.envoi.echec", { m: e.message }), true);
       return false;
     }
   };

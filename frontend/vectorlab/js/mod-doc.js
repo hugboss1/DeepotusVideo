@@ -3,6 +3,7 @@
 // sert l'écran, l'export et le banc qa/ node. Le JSON est la vérité ; le
 // SVG n'en est qu'une projection.
 
+import { T } from "./mod-i18n.js";
 import { grille_normaliser, hex_centre, hex_d, hex_depuis_point, grille_cellules }
   from "./mod-grille.js";
 import { zoom_pour, echantillon_moyen, paliers_bornes, palier, profil_trace } from "./mod-geo.js";
@@ -16,25 +17,25 @@ const escAttr = (v) => String(v)
 
 /* ── lot C (D3) : la fiche de terrains — défauts fusionnés avec doc.terrains ── */
 export const TERRAINS_DEFAUT = Object.freeze({
-  mer:      Object.freeze({ nom: "Mer",      couleur: "#2B5F9E", hauteur_mm: 0, motif: "" }),
-  plaine:   Object.freeze({ nom: "Plaine",   couleur: "#7FB069", hauteur_mm: 2, motif: "" }),
-  foret:    Object.freeze({ nom: "Forêt",    couleur: "#3F7D3A", hauteur_mm: 3, motif: "" }),
-  colline:  Object.freeze({ nom: "Colline",  couleur: "#B08D57", hauteur_mm: 5, motif: "" }),
-  montagne: Object.freeze({ nom: "Montagne", couleur: "#8A8A8A", hauteur_mm: 8, motif: "" }),
+  mer:      Object.freeze({ nom: T("vectorlab.doc.terrain_mer"),      couleur: "#2B5F9E", hauteur_mm: 0, motif: "" }),
+  plaine:   Object.freeze({ nom: T("vectorlab.doc.terrain_plaine"),   couleur: "#7FB069", hauteur_mm: 2, motif: "" }),
+  foret:    Object.freeze({ nom: T("vectorlab.doc.terrain_foret"),    couleur: "#3F7D3A", hauteur_mm: 3, motif: "" }),
+  colline:  Object.freeze({ nom: T("vectorlab.doc.terrain_colline"),  couleur: "#B08D57", hauteur_mm: 5, motif: "" }),
+  montagne: Object.freeze({ nom: T("vectorlab.doc.terrain_montagne"), couleur: "#8A8A8A", hauteur_mm: 8, motif: "" }),
 });
 const _CLE_TERRAIN = /^[a-z0-9_-]+$/;
 function _validerTerrain(k, f) {
-  if (!_CLE_TERRAIN.test(k)) throw new Error(`terrain: clé « ${k} » ([a-z0-9_-])`);
-  if (!f || typeof f !== "object") throw new Error(`terrain ${k}: fiche requise`);
+  if (!_CLE_TERRAIN.test(k)) throw new Error(T("vectorlab.doc.terrain_cle", { k }));
+  if (!f || typeof f !== "object") throw new Error(T("vectorlab.doc.terrain_fiche", { k }));
   if (f.couleur !== undefined && !/^#[0-9A-Fa-f]{3,8}$/.test(f.couleur)) {
-    throw new Error(`terrain ${k}: couleur hex`);
+    throw new Error(T("vectorlab.doc.terrain_couleur", { k }));
   }
   if (f.hauteur_mm !== undefined && !(+f.hauteur_mm >= 0)) {
     throw new Error(`terrain ${k}: hauteur_mm ≥ 0`);
   }
   // t122 : le motif est l'un des motifs de l'Apparence (lot F), ou "" — aucun
   if (f.motif !== undefined && f.motif !== "" && !MOTIFS.some((m) => m.id === f.motif)) {
-    throw new Error(`terrain ${k}: motif (aucun, ${MOTIFS.map((m) => m.id).join(", ")})`);
+    throw new Error(T("vectorlab.doc.terrain_motif", { k, liste: MOTIFS.map((m) => m.id).join(", ") }));
   }
 }
 
@@ -74,7 +75,7 @@ export function op_terrain_definir(doc, cle, fiche) {
 }
 export function op_terrain_supprimer(doc, cle) {
   if (!doc.terrains || !doc.terrains[cle]) {
-    throw new Error(`terrain ${cle}: pas de surcharge à retirer`);
+    throw new Error(T("vectorlab.doc.terrain_sans_surcharge", { cle }));
   }
   delete doc.terrains[cle];
   if (!Object.keys(doc.terrains).length) delete doc.terrains;
@@ -82,7 +83,7 @@ export function op_terrain_supprimer(doc, cle) {
 function _validerCadre(c, ou) {
   if (!c || typeof c !== "object" || !(c.w > 0) || !(c.h > 0)
       || !Number.isFinite(+c.x) || !Number.isFinite(+c.y)) {
-    throw new Error(`${ou}: cadre {x, y, w > 0, h > 0}`);
+    throw new Error(T("vectorlab.doc.cadre_requis", { ou }));
   }
 }
 const _GRILLE_TUILE_DEFAUT = Object.freeze({ type: "hex", pas: 32, sous: 1, orientation: "pointe",
@@ -98,65 +99,65 @@ export function grille_tuiles(doc) { return _grilleHex(doc); }
    taille native ; `rognage` = fenêtre en px NATIFS ; `verrou` = ignoré
    par toutes les commandes de sélection. */
 function _validerRognage(r, nat, ou) {
-  if (!r || typeof r !== "object") throw new Error(`${ou}: rognage {x,y,w,h}`);
+  if (!r || typeof r !== "object") throw new Error(T("vectorlab.doc.rognage_requis", { ou }));
   const { x, y, w, h } = r;
   if (!(x >= 0) || !(y >= 0) || !(w > 0) || !(h > 0)
       || x + w > nat.w + 1e-6 || y + h > nat.h + 1e-6) {
-    throw new Error(`${ou}: rognage hors de l'image native`);
+    throw new Error(T("vectorlab.doc.rognage_hors", { ou }));
   }
 }
 const _PX = /^[0-9a-f]{16}$/;                 // t124 : l'empreinte des pixels (sha256 tronqué, serveur)
 function _validerObjets(objs, ou) {
   for (const o of objs) {
     if (o.type === "image") {
-      if (typeof o.href !== "string" || !o.href) throw new Error(`image ${o.id}: href requis`);
-      if (!o.nat || !(o.nat.w > 0) || !(o.nat.h > 0)) throw new Error(`image ${o.id}: nat {w,h} positif requis`);
-      if (!(o.w > 0) || !(o.h > 0)) throw new Error(`image ${o.id}: taille positive requise`);
+      if (typeof o.href !== "string" || !o.href) throw new Error(T("vectorlab.doc.image_href", { id: o.id }));
+      if (!o.nat || !(o.nat.w > 0) || !(o.nat.h > 0)) throw new Error(T("vectorlab.doc.image_nat", { id: o.id }));
+      if (!(o.w > 0) || !(o.h > 0)) throw new Error(T("vectorlab.doc.image_taille", { id: o.id }));
       if (o.rognage !== undefined) _validerRognage(o.rognage, o.nat, `image ${o.id}`);
-      if (o.rev !== undefined && !(Number.isInteger(o.rev) && o.rev >= 0)) throw new Error(`image ${o.id}: rev entier ≥ 0`);
-      if (o.px !== undefined && !_PX.test(o.px)) throw new Error(`image ${o.id}: px = empreinte (16 hex)`);
+      if (o.rev !== undefined && !(Number.isInteger(o.rev) && o.rev >= 0)) throw new Error(T("vectorlab.doc.image_rev", { id: o.id }));
+      if (o.px !== undefined && !_PX.test(o.px)) throw new Error(T("vectorlab.doc.image_px", { id: o.id }));
     }
     if (o.type === "forme") {
-      if (!(o.r > 0)) throw new Error(`forme ${o.id}: rayon > 0 requis`);
+      if (!(o.r > 0)) throw new Error(T("vectorlab.doc.forme_rayon", { id: o.id }));
       forme_params_valider(o.forme, o.params);
     }
     if (o.type === "tuile") {
       if (!Number.isInteger(o.q) || !Number.isInteger(o.r)) {
-        throw new Error(`tuile ${o.id}: q et r entiers requis`);
+        throw new Error(T("vectorlab.doc.tuile_qr", { id: o.id }));
       }
-      if (typeof o.terrain !== "string" || !o.terrain) throw new Error(`tuile ${o.id}: terrain requis`);
+      if (typeof o.terrain !== "string" || !o.terrain) throw new Error(T("vectorlab.doc.tuile_terrain", { id: o.id }));
       if (o.hauteur_mm !== undefined && !(o.hauteur_mm >= 0)) {
-        throw new Error(`tuile ${o.id}: hauteur_mm ≥ 0`);
+        throw new Error(T("vectorlab.doc.tuile_hauteur", { id: o.id }));
       }
     }
     if ((o.type === "texte" || o.type === "cadre" || o.type === "textechemin") && o.style) {
       // R11 : italique / souligné booléens, graisse = normal | bold | 100..900
-      if (o.style.italique !== undefined && typeof o.style.italique !== "boolean") throw new Error(`${o.type} ${o.id}: italique booléen`);
-      if (o.style.souligne !== undefined && typeof o.style.souligne !== "boolean") throw new Error(`${o.type} ${o.id}: souligne booléen`);
+      if (o.style.italique !== undefined && typeof o.style.italique !== "boolean") throw new Error(T("vectorlab.doc.italique_booleen", { type: o.type, id: o.id }));
+      if (o.style.souligne !== undefined && typeof o.style.souligne !== "boolean") throw new Error(T("vectorlab.doc.souligne_booleen", { type: o.type, id: o.id }));
       if (o.style.graisse !== undefined && !(["normal", "bold", "bolder", "lighter"].includes(String(o.style.graisse)) || /^[1-9]00$/.test(String(o.style.graisse)))) throw new Error(`${o.type} ${o.id}: graisse normal|bold|100..900`);
     }
     if (o.type === "texte" && o.style) {
-      if (o.style.ancre !== undefined && !["start", "middle", "end"].includes(o.style.ancre)) throw new Error(`texte ${o.id}: ancre start|middle|end`);
-      if (o.style.interligne !== undefined && !(o.style.interligne > 0)) throw new Error(`texte ${o.id}: interligne > 0`);
+      if (o.style.ancre !== undefined && !["start", "middle", "end"].includes(o.style.ancre)) throw new Error(T("vectorlab.doc.texte_ancre", { id: o.id }));
+      if (o.style.interligne !== undefined && !(o.style.interligne > 0)) throw new Error(T("vectorlab.doc.texte_interligne", { id: o.id }));
     }
     if (o.type === "cadre") {
-      if (!(o.w > 0) || !(o.h > 0)) throw new Error(`cadre ${o.id}: taille positive requise`);
-      if (typeof o.contenu !== "string") throw new Error(`cadre ${o.id}: contenu texte requis`);
+      if (!(o.w > 0) || !(o.h > 0)) throw new Error(T("vectorlab.doc.cadre_taille", { id: o.id }));
+      if (typeof o.contenu !== "string") throw new Error(T("vectorlab.doc.cadre_contenu", { id: o.id }));
     }
     if (o.type === "textechemin") {
-      if (typeof o.d !== "string" || !o.d) throw new Error(`textechemin ${o.id}: d requis`);
-      if (typeof o.contenu !== "string") throw new Error(`textechemin ${o.id}: contenu texte requis`);
-      if (o.decalage !== undefined && !(o.decalage >= 0 && o.decalage <= 100)) throw new Error(`textechemin ${o.id}: decalage 0..100`);
+      if (typeof o.d !== "string" || !o.d) throw new Error(T("vectorlab.doc.textechemin_d", { id: o.id }));
+      if (typeof o.contenu !== "string") throw new Error(T("vectorlab.doc.textechemin_contenu", { id: o.id }));
+      if (o.decalage !== undefined && !(o.decalage >= 0 && o.decalage <= 100)) throw new Error(T("vectorlab.doc.textechemin_decalage", { id: o.id }));
     }
     if (o.type === "instance") {
-      if (typeof o.symbole !== "string" || !o.symbole) throw new Error(`instance ${o.id}: symbole requis`);
-      if (!Number.isFinite(+o.x) || !Number.isFinite(+o.y)) throw new Error(`instance ${o.id}: x, y requis`);
+      if (typeof o.symbole !== "string" || !o.symbole) throw new Error(T("vectorlab.doc.instance_symbole", { id: o.id }));
+      if (!Number.isFinite(+o.x) || !Number.isFinite(+o.y)) throw new Error(T("vectorlab.doc.instance_xy", { id: o.id }));
       if (!((o.sx === undefined || o.sx > 0) && (o.sy === undefined || o.sy > 0))) throw new Error(`instance ${o.id}: sx, sy > 0`);
     }
     if (o.type === "groupe") {
       _validerObjets(o.enfants || [], ou);
       if (o.clip !== undefined && !(o.enfants || []).some((e) => e.id === o.clip)) {
-        throw new Error(`groupe ${o.id}: clip doit désigner un enfant`);
+        throw new Error(T("vectorlab.doc.groupe_clip", { id: o.id }));
       }
     }
     if (o.style) _validerStyleAvance(o.style, `${o.type} ${o.id}`);
@@ -170,22 +171,22 @@ const _NOM_GLOBAL = /^[A-Za-z0-9_-]+$/;
 const _HEX6 = /^#[0-9A-Fa-f]{6}$/;
 function _validerStyleAvance(s, ou) {
   if (s.effets !== undefined) { try { effets_valider(s.effets); } catch (e) { throw new Error(`${ou}: ${e.message}`); } }
-  if (s.fusion !== undefined && !MODES_FUSION.includes(s.fusion)) throw new Error(`${ou}: mode de fusion inconnu ${s.fusion}`);
+  if (s.fusion !== undefined && !MODES_FUSION.includes(s.fusion)) throw new Error(T("vectorlab.doc.fusion_inconnue_ou", { ou, mode: s.fusion }));
   if (s.contours !== undefined) {
-    if (!Array.isArray(s.contours)) throw new Error(`${ou}: contours = liste`);
+    if (!Array.isArray(s.contours)) throw new Error(T("vectorlab.doc.contours_liste", { ou }));
     for (const c of s.contours) {
-      if (!c || !(c.epaisseur > 0)) throw new Error(`${ou}: contour {couleur, epaisseur > 0}`);
-      if (!(_HEX6.test(String(c.couleur)) || /^glob:/.test(String(c.couleur)))) throw new Error(`${ou}: couleur de contour invalide`);
+      if (!c || !(c.epaisseur > 0)) throw new Error(T("vectorlab.doc.contour_requis", { ou }));
+      if (!(_HEX6.test(String(c.couleur)) || /^glob:/.test(String(c.couleur)))) throw new Error(T("vectorlab.doc.contour_couleur", { ou }));
     }
   }
-  if (s.masque !== undefined && !/^grad:.+/.test(String(s.masque))) throw new Error(`${ou}: masque = grad:<id>`);
+  if (s.masque !== undefined && !/^grad:.+/.test(String(s.masque))) throw new Error(T("vectorlab.doc.masque_grad", { ou }));
 }
 function _validerRefsMasques(doc) {
   const degs = doc.degrades || {};
   const visiter = (objs) => {
     for (const o of objs || []) {
       const m = o.style && o.style.masque;
-      if (m && !degs[m.slice(5)]) throw new Error(`${o.id}: masque ${m} inconnu`);
+      if (m && !degs[m.slice(5)]) throw new Error(T("vectorlab.doc.masque_inconnu", { id: o.id, m }));
       if (o.type === "groupe") visiter(o.enfants);
     }
   };
@@ -193,17 +194,17 @@ function _validerRefsMasques(doc) {
 }
 
 export function parserDoc(doc) {
-  if (!doc || typeof doc !== "object") throw new Error("document: objet requis");
-  if (!doc.v) throw new Error("document: champ v requis");
+  if (!doc || typeof doc !== "object") throw new Error(T("vectorlab.doc.doc_objet"));
+  if (!doc.v) throw new Error(T("vectorlab.doc.doc_v"));
   if (!doc.taille || !(doc.taille.w > 0) || !(doc.taille.h > 0)) {
-    throw new Error("document: taille {w,h} positive requise");
+    throw new Error(T("vectorlab.doc.doc_taille"));
   }
-  if (!Array.isArray(doc.calques)) throw new Error("document: calques[] requis");
+  if (!Array.isArray(doc.calques)) throw new Error(T("vectorlab.doc.doc_calques"));
   for (const c of doc.calques) {
-    if (!c.id) throw new Error("calque sans id");
-    if (!Array.isArray(c.objets)) throw new Error(`calque ${c.id}: objets[] requis`);
+    if (!c.id) throw new Error(T("vectorlab.doc.calque_sans_id"));
+    if (!Array.isArray(c.objets)) throw new Error(T("vectorlab.doc.calque_objets", { id: c.id }));
     // relooking Affinity (R3) : mode de fusion de CALQUE optionnel (16 modes SVG)
-    if (c.fusion !== undefined && !MODES_FUSION.includes(c.fusion)) throw new Error(`calque ${c.id}: mode de fusion inconnu ${c.fusion}`);
+    if (c.fusion !== undefined && !MODES_FUSION.includes(c.fusion)) throw new Error(T("vectorlab.doc.calque_fusion", { id: c.id, mode: c.fusion }));
   }
   for (const c of doc.calques) _validerObjets(c.objets, c.id);
   // éditeur complet (E1) : deux champs OPTIONNELS rétro-compatibles —
@@ -213,59 +214,59 @@ export function parserDoc(doc) {
     if (!u || typeof u !== "object"
         || !["px", "mm", "cm", "in"].includes(u.affichage)
         || !(+u.dpi > 0)) {
-      throw new Error("document: unites {affichage px|mm|cm|in, dpi>0}");
+      throw new Error(T("vectorlab.doc.doc_unites"));
     }
   }
   if (doc.palette !== undefined && !Array.isArray(doc.palette)) {
-    throw new Error("document: palette = liste de couleurs");
+    throw new Error(T("vectorlab.doc.doc_palette"));
   }
   if (doc.reperes !== undefined) _validerReperes(doc.reperes, doc.taille);
   // lot C : grille du document, fiche de terrains, planches
   if (doc.grille !== undefined) grille_normaliser(doc.grille);
   if (doc.terrains !== undefined) {
     if (!doc.terrains || typeof doc.terrains !== "object" || Array.isArray(doc.terrains)) {
-      throw new Error("document: terrains = {cle: fiche}");
+      throw new Error(T("vectorlab.doc.doc_terrains"));
     }
     for (const [k, f] of Object.entries(doc.terrains)) _validerTerrain(k, f);
   }
   if (doc.planches !== undefined) {
-    if (!Array.isArray(doc.planches)) throw new Error("document: planches = liste");
+    if (!Array.isArray(doc.planches)) throw new Error(T("vectorlab.doc.doc_planches"));
     for (const p of doc.planches) {
-      if (!p || !p.id) throw new Error("planche sans id");
-      _validerCadre(p, `planche ${p.id}`);
+      if (!p || !p.id) throw new Error(T("vectorlab.doc.planche_sans_id"));
+      _validerCadre(p, T("vectorlab.doc.ou_planche", { id: p.id }));
     }
   }
   if (doc.geo !== undefined) _validerGeo(doc.geo);
   if (doc.pixelart !== undefined) _validerPixelart(doc.pixelart);
   // lot F : motifs, couleurs globales, masques de transparence
   if (doc.motifs !== undefined) {
-    if (!doc.motifs || typeof doc.motifs !== "object" || Array.isArray(doc.motifs)) throw new Error("document: motifs = {id: motif}");
-    for (const [id, m] of Object.entries(doc.motifs)) { try { motif_valider(m); } catch (e) { throw new Error(`motif ${id}: ${e.message}`); } }
+    if (!doc.motifs || typeof doc.motifs !== "object" || Array.isArray(doc.motifs)) throw new Error(T("vectorlab.doc.doc_motifs"));
+    for (const [id, m] of Object.entries(doc.motifs)) { try { motif_valider(m); } catch (e) { throw new Error(T("vectorlab.doc.motif_erreur", { id, msg: e.message })); } }
   }
   if (doc.couleursGlobales !== undefined) {
-    if (!doc.couleursGlobales || typeof doc.couleursGlobales !== "object" || Array.isArray(doc.couleursGlobales)) throw new Error("document: couleursGlobales = {nom: hex}");
+    if (!doc.couleursGlobales || typeof doc.couleursGlobales !== "object" || Array.isArray(doc.couleursGlobales)) throw new Error(T("vectorlab.doc.doc_globales"));
     for (const [n, h] of Object.entries(doc.couleursGlobales)) {
-      if (!_NOM_GLOBAL.test(n) || !_HEX6.test(String(h))) throw new Error(`couleur globale ${n}: nom [A-Za-z0-9_-] et #RRGGBB`);
+      if (!_NOM_GLOBAL.test(n) || !_HEX6.test(String(h))) throw new Error(T("vectorlab.doc.globale_nom_hex", { n }));
     }
   }
   _validerRefsMasques(doc);
   if (doc.styles !== undefined) {
-    if (!doc.styles || typeof doc.styles !== "object" || Array.isArray(doc.styles)) throw new Error("document: styles = {nom: style}");
+    if (!doc.styles || typeof doc.styles !== "object" || Array.isArray(doc.styles)) throw new Error(T("vectorlab.doc.doc_styles"));
     for (const [n, st] of Object.entries(doc.styles)) {
-      if (!_NOM_GLOBAL.test(n) || !st || typeof st !== "object") throw new Error(`style ${n}: nom [A-Za-z0-9_-] et objet`);
+      if (!_NOM_GLOBAL.test(n) || !st || typeof st !== "object") throw new Error(T("vectorlab.doc.style_nom_objet", { n }));
       _validerStyleAvance(st, `style ${n}`);
     }
   }
   if (doc.symboles !== undefined) {
-    if (!doc.symboles || typeof doc.symboles !== "object" || Array.isArray(doc.symboles)) throw new Error("document: symboles = {id: symbole}");
+    if (!doc.symboles || typeof doc.symboles !== "object" || Array.isArray(doc.symboles)) throw new Error(T("vectorlab.doc.doc_symboles"));
     for (const [id, sy] of Object.entries(doc.symboles)) {
-      if (!sy || !Array.isArray(sy.objets)) throw new Error(`symbole ${id}: objets[] requis`);
-      _validerCadre(sy.bbox, `symbole ${id}`);
-      _validerObjets(sy.objets, `symbole ${id}`);
+      if (!sy || !Array.isArray(sy.objets)) throw new Error(T("vectorlab.doc.symbole_objets", { id }));
+      _validerCadre(sy.bbox, T("vectorlab.doc.ou_symbole", { id }));
+      _validerObjets(sy.objets, T("vectorlab.doc.ou_symbole", { id }));
     }
   }
   _visiterObjets(doc, (o) => {
-    if (o.type === "instance" && !(doc.symboles && doc.symboles[o.symbole])) throw new Error(`instance ${o.id}: symbole ${o.symbole} inconnu`);
+    if (o.type === "instance" && !(doc.symboles && doc.symboles[o.symbole])) throw new Error(T("vectorlab.doc.instance_symbole_inconnu", { id: o.id, symbole: o.symbole }));
   });
   return doc;
 }
@@ -451,21 +452,20 @@ export function chemin_parser(d) {
     if (/^[A-Za-z]$/.test(t)) {
       if (!(t in ARITE)) {
         if (t.toUpperCase() in ARITE) {
-          throw new Error(`chemin: commande relative '${t}' non supportée `
-                          + "(v1: M/L/C/Q/Z absolus)");
+          throw new Error(T("vectorlab.doc.chemin_relatif", { t }));
         }
-        throw new Error(`chemin: commande inconnue '${t}'`);
+        throw new Error(T("vectorlab.doc.chemin_commande_inconnue", { t }));
       }
       cmd = t;
       i++;
       if (cmd === "Z") { segs.push({ c: "Z", p: [] }); cmd = null; }
       continue;
     }
-    if (cmd === null) throw new Error("chemin: nombre sans commande");
+    if (cmd === null) throw new Error(T("vectorlab.doc.chemin_nombre_seul"));
     const p = [];
     for (let k = 0; k < ARITE[cmd]; k++, i++) {
       if (i >= jetons.length || /^[A-Za-z]$/.test(jetons[i])) {
-        throw new Error(`chemin: arité de ${cmd} incomplète`);
+        throw new Error(T("vectorlab.doc.chemin_arite", { cmd }));
       }
       p.push(Number(jetons[i]));
     }
@@ -489,7 +489,7 @@ export function chemin_serialiser(segs) {
 
 function _calque(doc, calqueId) {
   const c = doc.calques.find((x) => x.id === calqueId);
-  if (!c) throw new Error(`calque inconnu: ${calqueId}`);
+  if (!c) throw new Error(T("vectorlab.doc.calque_inconnu", { id: calqueId }));
   return c;
 }
 
@@ -534,7 +534,7 @@ const _idLibre = idLibre;
 
 export function op_ajouter(doc, calqueId, objet) {
   const c = _calque(doc, calqueId);
-  if (c.verrou) throw new Error(`calque verrouillé: ${calqueId}`);
+  if (c.verrou) throw new Error(T("vectorlab.doc.calque_verrouille", { id: calqueId }));
   const pris = _idsPris(doc);
   const id = (objet.id && !pris.has(objet.id)) ? objet.id : _idLibre(doc);
   c.objets.push({ ...objet, id });
@@ -706,11 +706,11 @@ function _trouverPath(doc, id) {
     if (c.verrou) continue;
     const o = c.objets.find((x) => x.id === id);
     if (o) {
-      if (o.type !== "path") throw new Error(`objet ${id}: pas un chemin`);
+      if (o.type !== "path") throw new Error(T("vectorlab.doc.pas_un_chemin", { id }));
       return o;
     }
   }
-  throw new Error(`chemin introuvable (ou calque verrouillé): ${id}`);
+  throw new Error(T("vectorlab.doc.chemin_introuvable", { id }));
 }
 
 function _porteurs(segs) {
@@ -743,7 +743,7 @@ export function op_noeud_deplacer(doc, id, iAncre, dx, dy) {
   const segs = _segsDe(o);
   const noeuds = _porteurs(segs);
   const k = noeuds[iAncre];
-  if (k === undefined) throw new Error(`ancre ${iAncre} hors chemin`);
+  if (k === undefined) throw new Error(T("vectorlab.doc.ancre_hors", { i: iAncre }));
   const s = segs[k];
   s.p[s.p.length - 2] += dx;
   s.p[s.p.length - 1] += dy;
@@ -761,7 +761,7 @@ export function op_noeud_convertir(doc, id, iAncre) {
   const segs = _segsDe(o);
   const noeuds = _porteurs(segs);
   const k = noeuds[iAncre];
-  if (k === undefined) throw new Error(`ancre ${iAncre} hors chemin`);
+  if (k === undefined) throw new Error(T("vectorlab.doc.ancre_hors", { i: iAncre }));
   const ferme = segs.some((s) => s.c === "Z");
   const s = segs[k];
   const f = _fin(s);
@@ -812,7 +812,7 @@ export function op_noeud_supprimer(doc, id, iAncre) {
   const segs = _segsDe(o);
   const noeuds = _porteurs(segs);
   const k = noeuds[iAncre];
-  if (k === undefined) throw new Error(`ancre ${iAncre} hors chemin`);
+  if (k === undefined) throw new Error(T("vectorlab.doc.ancre_hors", { i: iAncre }));
   segs.splice(k, 1);
   if (iAncre === 0) {
     if (segs.length && segs[0].c !== "Z") {
@@ -871,7 +871,7 @@ export function op_calque_verrou(doc, id, verrou) {
 export function op_calque_supprimer(doc, id) {
   const c = _calque(doc, id);
   if (doc.calques.length <= 1) {
-    throw new Error("un document garde au moins un calque");
+    throw new Error(T("vectorlab.doc.dernier_calque"));
   }
   doc.calques.splice(doc.calques.indexOf(c), 1);
 }
@@ -897,7 +897,7 @@ export function op_calque_opacite(doc, id, opacite) {
    Calques (« Normal ▾ ») ; `normal` RETIRE le champ (absent = normal) */
 export const MODES_FUSION_CALQUE = MODES_FUSION;
 export function op_calque_fusion(doc, id, mode) {
-  if (!MODES_FUSION.includes(mode)) throw new Error(`mode de fusion inconnu: ${mode}`);
+  if (!MODES_FUSION.includes(mode)) throw new Error(T("vectorlab.doc.fusion_inconnue", { mode }));
   const c = _calque(doc, id);
   if (mode === "normal") delete c.fusion; else c.fusion = mode;
 }
@@ -927,7 +927,7 @@ export function op_grouper(doc, ids) {
     }
   }
   if (cibles.length < 2) {
-    throw new Error("grouper: au moins deux objets déverrouillés");
+    throw new Error(T("vectorlab.doc.grouper_deux"));
   }
   const hote = cibles[cibles.length - 1].calque;
   for (const { calque, objet } of cibles) {
@@ -945,7 +945,7 @@ export function op_degrouper(doc, id) {
     const i = c.objets.findIndex((o) => o.id === id);
     if (i >= 0) {
       const g = c.objets[i];
-      if (g.type !== "groupe") throw new Error(`${id}: pas un groupe`);
+      if (g.type !== "groupe") throw new Error(T("vectorlab.doc.pas_un_groupe", { id }));
       const enfants = g.enfants || [];
       if (g.transform) {              // le transform du groupe suit les enfants
         for (const e of enfants) {
@@ -957,12 +957,12 @@ export function op_degrouper(doc, id) {
       return enfants.map((e) => e.id);
     }
   }
-  throw new Error(`groupe introuvable (ou calque verrouillé): ${id}`);
+  throw new Error(T("vectorlab.doc.groupe_introuvable", { id }));
 }
 
 export function op_ordre(doc, ids, mode) {
   if (!["devant", "derriere", "avant", "arriere"].includes(mode)) {
-    throw new Error(`ordre: mode inconnu ${mode}`);
+    throw new Error(T("vectorlab.doc.ordre_mode", { mode }));
   }
   const voulu = new Set(ids);
   for (const c of doc.calques) {
@@ -1004,13 +1004,13 @@ function _degrades(doc) {
 }
 function _degrade(doc, id) {
   const g = _degrades(doc)[id];
-  if (!g) throw new Error(`degrade inconnu: ${id}`);
+  if (!g) throw new Error(T("vectorlab.doc.degrade_inconnu", { id }));
   return g;
 }
 
 export function op_degrade_creer(doc, spec) {
   if (!spec || !_TYPES_DEGRADE.has(spec.type)) {
-    throw new Error("degrade: type invalide (lineaire|radial)");
+    throw new Error(T("vectorlab.doc.degrade_type"));
   }
   const stops = (Array.isArray(spec.stops) && spec.stops.length >= 2)
     ? spec.stops
@@ -1026,7 +1026,7 @@ export function op_degrade_creer(doc, spec) {
   } else {
     g.cx = +(spec.cx ?? 0); g.cy = +(spec.cy ?? 0); g.r = +(spec.r ?? 1);
     if (spec.type === "conique") {
-      if (!(g.r > 0)) throw new Error("degrade conique: rayon > 0");
+      if (!(g.r > 0)) throw new Error(T("vectorlab.doc.degrade_conique"));
       g.angle = +(spec.angle ?? 0);
     }
   }
@@ -1037,12 +1037,12 @@ export function op_degrade_creer(doc, spec) {
 // lot F : dégradé de TRANSPARENCE = un masque de luminance blanc → noir
 // posé sur la bbox de la sélection ; le style référence « grad:<id> »
 export function op_degrade_transparence(doc, ids, bbox) {
-  if (!bbox || !(bbox.w > 0) || !(bbox.h > 0)) throw new Error("transparence : bbox requise");
+  if (!bbox || !(bbox.w > 0) || !(bbox.h > 0)) throw new Error(T("vectorlab.doc.transparence_bbox"));
   const id = op_degrade_creer(doc, { type: "lineaire", x1: bbox.x, y1: bbox.y + bbox.h / 2, x2: bbox.x + bbox.w, y2: bbox.y + bbox.h / 2,
     stops: [{ t: 0, couleur: "#FFFFFF" }, { t: 1, couleur: "#000000" }] });
   let n = 0;
   for (const { objet } of _objetsCibles(doc, ids)) { objet.style = { ...(objet.style || {}), masque: `grad:${id}` }; n++; }
-  if (!n) { delete doc.degrades[id]; throw new Error("transparence : rien à masquer"); }
+  if (!n) { delete doc.degrades[id]; throw new Error(T("vectorlab.doc.transparence_rien")); }
   return id;
 }
 
@@ -1067,25 +1067,25 @@ export function op_motif_creer(doc, spec) {
   return "m" + n;
 }
 export function op_motif_modifier(doc, id, patch) {
-  if (!doc.motifs || !doc.motifs[id]) throw new Error(`motif inconnu: ${id}`);
+  if (!doc.motifs || !doc.motifs[id]) throw new Error(T("vectorlab.doc.motif_inconnu", { id }));
   const m = { ...doc.motifs[id], ...(patch || {}) };
   motif_valider(m);
   doc.motifs[id] = m;
 }
 export function op_motif_supprimer(doc, id) {
-  if (!doc.motifs || !doc.motifs[id]) throw new Error(`motif inconnu: ${id}`);
+  if (!doc.motifs || !doc.motifs[id]) throw new Error(T("vectorlab.doc.motif_inconnu", { id }));
   delete doc.motifs[id];
   _visiterObjets(doc, (o) => { if (o.style && o.style.fond === `motif:${id}`) o.style.fond = "none"; });
 }
 export function op_couleur_globale_definir(doc, nom, hex) {
-  if (!_NOM_GLOBAL.test(String(nom || ""))) throw new Error("couleur globale : nom [A-Za-z0-9_-] requis");
-  if (!_HEX6.test(String(hex || ""))) throw new Error("couleur globale : #RRGGBB requis");
+  if (!_NOM_GLOBAL.test(String(nom || ""))) throw new Error(T("vectorlab.doc.globale_nom"));
+  if (!_HEX6.test(String(hex || ""))) throw new Error(T("vectorlab.doc.globale_hex"));
   if (!doc.couleursGlobales) doc.couleursGlobales = {};
   doc.couleursGlobales[nom] = String(hex).toUpperCase();
 }
 // supprimer RÉSOUT chaque référence en hex : jamais de référence pendante
 export function op_couleur_globale_supprimer(doc, nom) {
-  if (!doc.couleursGlobales || !doc.couleursGlobales[nom]) throw new Error(`couleur globale inconnue: ${nom}`);
+  if (!doc.couleursGlobales || !doc.couleursGlobales[nom]) throw new Error(T("vectorlab.doc.globale_inconnue", { nom }));
   const hex = doc.couleursGlobales[nom], ref = `glob:${nom}`;
   const res = (v) => (v === ref ? hex : v);
   _visiterObjets(doc, (o) => {
@@ -1102,7 +1102,7 @@ export function op_couleur_globale_supprimer(doc, nom) {
 // écrêtage vectoriel (« coller dans ») : un groupe {clip} dont le premier
 // enfant est le conteneur ; les contenus sont rognés par sa géométrie
 export function op_ecreter(doc, idConteneur, ids) {
-  if (!Array.isArray(ids) || !ids.length) throw new Error("écrêter : rien à rogner");
+  if (!Array.isArray(ids) || !ids.length) throw new Error(T("vectorlab.doc.ecreter_rien"));
   const voulu = new Set(ids);
   let hote = null, conteneur = null;
   const contenus = [];
@@ -1113,8 +1113,8 @@ export function op_ecreter(doc, idConteneur, ids) {
       else if (voulu.has(o.id)) contenus.push({ calque: c, objet: o });
     }
   }
-  if (!conteneur) throw new Error(`écrêter : conteneur introuvable ${idConteneur}`);
-  if (!contenus.length) throw new Error("écrêter : contenus introuvables");
+  if (!conteneur) throw new Error(T("vectorlab.doc.ecreter_conteneur", { id: idConteneur }));
+  if (!contenus.length) throw new Error(T("vectorlab.doc.ecreter_contenus"));
   for (const { calque, objet } of contenus) calque.objets.splice(calque.objets.indexOf(objet), 1);
   const iC = hote.objets.indexOf(conteneur);
   hote.objets.splice(iC, 1);
@@ -1128,25 +1128,25 @@ export function op_desecreter(doc, id) {
     const i = c.objets.findIndex((o) => o.id === id);
     if (i >= 0) {
       const g = c.objets[i];
-      if (g.type !== "groupe" || !g.clip) throw new Error(`${id}: pas un groupe écrêté`);
+      if (g.type !== "groupe" || !g.clip) throw new Error(T("vectorlab.doc.pas_ecrete", { id }));
       c.objets.splice(i, 1, ...g.enfants);
       return g.enfants.map((e) => e.id);
     }
   }
-  throw new Error(`groupe écrêté introuvable: ${id}`);
+  throw new Error(T("vectorlab.doc.ecrete_introuvable", { id }));
 }
 export const bbox_objet = (o, doc) => _bboxObjet(o, doc);
 
 /* ── lot F : cadre de texte et texte sur chemin ── */
 function _trouverType(doc, id, types) {
   for (const { objet } of _objetsCibles(doc, [id])) {
-    if (!types.includes(objet.type)) throw new Error(`${id}: ${types.join("|")} attendu, pas ${objet.type}`);
+    if (!types.includes(objet.type)) throw new Error(T("vectorlab.doc.type_attendu", { id, types: types.join("|"), type: objet.type }));
     return objet;
   }
-  throw new Error(`objet introuvable: ${id}`);
+  throw new Error(T("vectorlab.doc.objet_introuvable", { id }));
 }
 export function op_texte_en_cadre(doc, id, w, h) {
-  if (!(w > 0) || !(h > 0)) throw new Error("cadre : taille positive requise");
+  if (!(w > 0) || !(h > 0)) throw new Error(T("vectorlab.doc.cadre_taille_seule"));
   const o = _trouverType(doc, id, ["texte"]);
   const corps = Number((o.style && o.style.corps) || 16);
   o.type = "cadre"; o.y = o.y - corps; o.w = +w; o.h = +h;
@@ -1162,27 +1162,27 @@ export function op_texte_sur_chemin(doc, idTexte, idChemin) {
   if (c.transform) o.transform = c.transform;
 }
 export function op_textechemin_decalage(doc, id, pct) {
-  if (!(pct >= 0 && pct <= 100)) throw new Error("décalage : 0 à 100 %");
+  if (!(pct >= 0 && pct <= 100)) throw new Error(T("vectorlab.doc.decalage_bornes"));
   _trouverType(doc, id, ["textechemin"]).decalage = +pct;
 }
 
 /* ── lot F : styles d'objet (copie à l'application) ── */
 const _clone = (v) => JSON.parse(JSON.stringify(v));
 export function op_style_definir(doc, nom, style) {
-  if (!_NOM_GLOBAL.test(String(nom || ""))) throw new Error("style : nom [A-Za-z0-9_-] requis");
-  if (!style || typeof style !== "object") throw new Error("style : objet requis");
+  if (!_NOM_GLOBAL.test(String(nom || ""))) throw new Error(T("vectorlab.doc.style_nom"));
+  if (!style || typeof style !== "object") throw new Error(T("vectorlab.doc.style_objet"));
   _validerStyleAvance(style, `style ${nom}`);
   if (!doc.styles) doc.styles = {};
   doc.styles[nom] = _clone(style);
 }
 export function op_style_appliquer(doc, ids, nom) {
-  if (!doc.styles || !doc.styles[nom]) throw new Error(`style inconnu: ${nom}`);
+  if (!doc.styles || !doc.styles[nom]) throw new Error(T("vectorlab.doc.style_inconnu", { nom }));
   let n = 0;
   for (const { objet } of _objetsCibles(doc, ids)) { objet.style = { ...(objet.style || {}), ..._clone(doc.styles[nom]) }; n++; }
   return n;
 }
 export function op_style_supprimer(doc, nom) {
-  if (!doc.styles || !doc.styles[nom]) throw new Error(`style inconnu: ${nom}`);
+  if (!doc.styles || !doc.styles[nom]) throw new Error(T("vectorlab.doc.style_inconnu", { nom }));
   delete doc.styles[nom];
   if (!Object.keys(doc.styles).length) delete doc.styles;
 }
@@ -1197,7 +1197,7 @@ export function op_symbole_creer(doc, ids, nom) {
     if (c.verrou) continue;
     for (const o of c.objets) if (voulu.has(o.id)) cibles.push({ calque: c, objet: o });
   }
-  if (!cibles.length) throw new Error("symbole : aucun objet");
+  if (!cibles.length) throw new Error(T("vectorlab.doc.symbole_vide_creer"));
   const bs = cibles.map((t) => _bboxObjet(t.objet, doc)).filter(Boolean);
   const x0 = Math.min(...bs.map((b) => b.x)), y0 = Math.min(...bs.map((b) => b.y));
   const bbox = { x: x0, y: y0, w: Math.max(0.01, Math.max(...bs.map((b) => b.x + b.w)) - x0), h: Math.max(0.01, Math.max(...bs.map((b) => b.y + b.h)) - y0) };
@@ -1214,14 +1214,14 @@ export function op_symbole_creer(doc, ids, nom) {
   return sid;
 }
 export function op_instance_poser(doc, calqueId, sid, x, y) {
-  if (!doc.symboles || !doc.symboles[sid]) throw new Error(`symbole inconnu: ${sid}`);
+  if (!doc.symboles || !doc.symboles[sid]) throw new Error(T("vectorlab.doc.symbole_inconnu", { id: sid }));
   return op_ajouter(doc, calqueId, { type: "instance", symbole: sid, x: +x, y: +y, sx: 1, sy: 1, style: {} });
 }
 export function op_symbole_modifier(doc, sid, fn) {
-  if (!doc.symboles || !doc.symboles[sid]) throw new Error(`symbole inconnu: ${sid}`);
+  if (!doc.symboles || !doc.symboles[sid]) throw new Error(T("vectorlab.doc.symbole_inconnu", { id: sid }));
   const sym = doc.symboles[sid];
   fn(sym.objets, sym);
-  _validerObjets(sym.objets, `symbole ${sid}`);
+  _validerObjets(sym.objets, T("vectorlab.doc.ou_symbole", { id: sid }));
 }
 export function op_symbole_detacher(doc, idInstance) {
   for (const c of doc.calques) {
@@ -1229,9 +1229,9 @@ export function op_symbole_detacher(doc, idInstance) {
     const i = c.objets.findIndex((o) => o.id === idInstance);
     if (i < 0) continue;
     const inst = c.objets[i];
-    if (inst.type !== "instance") throw new Error(`${idInstance}: pas une instance`);
+    if (inst.type !== "instance") throw new Error(T("vectorlab.doc.pas_instance", { id: idInstance }));
     const sym = doc.symboles && doc.symboles[inst.symbole];
-    if (!sym) throw new Error(`symbole inconnu: ${inst.symbole}`);
+    if (!sym) throw new Error(T("vectorlab.doc.symbole_inconnu", { id: inst.symbole }));
     const av = sym.bbox, ap = _bboxObjet(inst, doc);
     c.objets.splice(i, 1);
     // copies à ids NEUFS (insérées une à une : _idLibre voit chaque id posé),
@@ -1240,7 +1240,7 @@ export function op_symbole_detacher(doc, idInstance) {
     copies.forEach((o, k) => { o.id = _idLibre(doc); _mapperObjet(o, av, ap, doc); c.objets.splice(i + k, 0, o); });
     return copies.map((o) => o.id);
   }
-  throw new Error(`instance introuvable: ${idInstance}`);
+  throw new Error(T("vectorlab.doc.instance_introuvable", { id: idInstance }));
 }
 /* ── t123 : un symbole s'édite EN PLACE. « Ouvrir » copie ses objets, à la place et à l'échelle de l'instance,
    dans un calque d'édition (l'instance éditée est masquée au rendu) ; on les modifie comme des objets ordinaires ;
@@ -1251,14 +1251,14 @@ function _cadreInstance(inst, sym) {
   return { x: +inst.x + sx * b.x, y: +inst.y + sy * b.y, w: sx * b.w, h: sy * b.h };
 }
 export function op_symbole_ouvrir(doc, idInstance) {
-  if (doc.edition) throw new Error(`un symbole est déjà en édition (${doc.edition.sid}) : le terminer d'abord`);
+  if (doc.edition) throw new Error(T("vectorlab.doc.symbole_deja_edite", { sid: doc.edition.sid }));
   for (let ic = 0; ic < doc.calques.length; ic++) {
     const inst = doc.calques[ic].objets.find((o) => o.id === idInstance);
     if (!inst) continue;
-    if (inst.type !== "instance") throw new Error(`${idInstance}: pas une instance`);
+    if (inst.type !== "instance") throw new Error(T("vectorlab.doc.pas_instance", { id: idInstance }));
     const sym = doc.symboles && doc.symboles[inst.symbole];
-    if (!sym) throw new Error(`symbole inconnu: ${inst.symbole}`);
-    if (inst.transform) throw new Error("instance tournée ou inclinée : l'éditer en place la déformerait — la remettre droite, ou la détacher");
+    if (!sym) throw new Error(T("vectorlab.doc.symbole_inconnu", { id: inst.symbole }));
+    if (inst.transform) throw new Error(T("vectorlab.doc.instance_tournee"));
     const cadre = _cadreInstance(inst, sym), cid = `__symbole_${inst.symbole}`;
     const cal = { id: cid, nom: `Symbole : ${sym.nom || inst.symbole}`, visible: true, verrou: false, objets: [] };
     doc.calques.splice(ic + 1, 0, cal);
@@ -1267,18 +1267,18 @@ export function op_symbole_ouvrir(doc, idInstance) {
     doc.edition = { sid: inst.symbole, instance: idInstance, calque: cid, cadre, bbox: { ...sym.bbox } };
     return cid;
   }
-  throw new Error(`instance introuvable: ${idInstance}`);
+  throw new Error(T("vectorlab.doc.instance_introuvable", { id: idInstance }));
 }
 export function op_symbole_fermer(doc) {
   const ed = doc.edition;
-  if (!ed) throw new Error("aucune édition de symbole en cours");
+  if (!ed) throw new Error(T("vectorlab.doc.aucune_edition"));
   const i = doc.calques.findIndex((c) => c.id === ed.calque);
   const sym = doc.symboles && doc.symboles[ed.sid];
   if (i < 0 || !sym) { delete doc.edition; return 0; }    // calque ou symbole disparu : on sort, sans rien écrire
   const objets = _clone(doc.calques[i].objets);
-  if (!objets.length) throw new Error("un symbole ne peut pas être vide — Abandonner, ou supprimer le symbole");
+  if (!objets.length) throw new Error(T("vectorlab.doc.symbole_vide"));
   for (const o of objets) _mapperObjet(o, ed.cadre, ed.bbox, doc);
-  _validerObjets(objets, `symbole ${ed.sid}`);
+  _validerObjets(objets, T("vectorlab.doc.ou_symbole", { id: ed.sid }));
   const bs = objets.map((o) => _bboxObjet(o, doc)).filter(Boolean);
   const x0 = Math.min(...bs.map((b) => b.x)), y0 = Math.min(...bs.map((b) => b.y));
   sym.objets = objets;
@@ -1289,16 +1289,16 @@ export function op_symbole_fermer(doc) {
 }
 export function op_symbole_abandonner(doc) {
   const ed = doc.edition;
-  if (!ed) throw new Error("aucune édition de symbole en cours");
+  if (!ed) throw new Error(T("vectorlab.doc.aucune_edition"));
   const i = doc.calques.findIndex((c) => c.id === ed.calque);
   if (i >= 0) doc.calques.splice(i, 1);
   delete doc.edition;
 }
 export function op_symbole_supprimer(doc, sid) {
-  if (!doc.symboles || !doc.symboles[sid]) throw new Error(`symbole inconnu: ${sid}`);
+  if (!doc.symboles || !doc.symboles[sid]) throw new Error(T("vectorlab.doc.symbole_inconnu", { id: sid }));
   let n = 0;
   _visiterObjets(doc, (o) => { if (o.type === "instance" && o.symbole === sid) n++; });
-  if (n) throw new Error(`symbole ${sid} : ${n} instance(s) encore posée(s)`);
+  if (n) throw new Error(T(n > 1 ? "vectorlab.doc.symbole_poses_plusieurs" : "vectorlab.doc.symbole_poses_un", { sid, n }));
   delete doc.symboles[sid];
   if (!Object.keys(doc.symboles).length) delete doc.symboles;
 }
@@ -1311,7 +1311,7 @@ export function op_degrade_stop_ajouter(doc, id, stop) {
 
 export function op_degrade_stop_modifier(doc, id, i, patch) {
   const g = _degrade(doc, id);
-  if (i < 0 || i >= g.stops.length) throw new Error(`stop ${i} hors bornes`);
+  if (i < 0 || i >= g.stops.length) throw new Error(T("vectorlab.doc.stop_hors", { i }));
   for (const k of ["t", "couleur", "opacite"]) {
     if (patch && k in patch) g.stops[i][k] = patch[k];
   }
@@ -1319,8 +1319,8 @@ export function op_degrade_stop_modifier(doc, id, i, patch) {
 
 export function op_degrade_stop_supprimer(doc, id, i) {
   const g = _degrade(doc, id);
-  if (g.stops.length <= 2) throw new Error("un degrade garde au moins deux stops");
-  if (i < 0 || i >= g.stops.length) throw new Error(`stop ${i} hors bornes`);
+  if (g.stops.length <= 2) throw new Error(T("vectorlab.doc.degrade_deux_stops"));
+  if (i < 0 || i >= g.stops.length) throw new Error(T("vectorlab.doc.stop_hors", { i }));
   g.stops.splice(i, 1);
 }
 
@@ -1344,14 +1344,14 @@ export class Historique {
   _clone(doc) { return JSON.parse(JSON.stringify(doc)); }
   instantane(nom, doc) {
     const n = String(nom || "").trim();
-    if (!n) throw new Error("instantané : un nom est requis");
+    if (!n) throw new Error(T("vectorlab.doc.instantane_nom"));
     this._instantanes.set(n, this._clone(doc));
     return n;
   }
   instantanes() { return [...this._instantanes.keys()]; }
   restaurer(nom) {
     const d = this._instantanes.get(String(nom));
-    if (!d) throw new Error(`instantané inconnu : ${nom}`);
+    if (!d) throw new Error(T("vectorlab.doc.instantane_inconnu", { nom }));
     return this._clone(d);
   }
   capturer(doc) {
@@ -1362,12 +1362,12 @@ export class Historique {
   peutAnnuler() { return this._avant.length > 0; }
   peutRefaire() { return this._apres.length > 0; }
   annuler(courant) {
-    if (!this.peutAnnuler()) throw new Error("rien à annuler");
+    if (!this.peutAnnuler()) throw new Error(T("vectorlab.doc.rien_annuler"));
     this._apres.push(this._clone(courant));
     return this._avant.pop();
   }
   refaire(courant) {
-    if (!this.peutRefaire()) throw new Error("rien à refaire");
+    if (!this.peutRefaire()) throw new Error(T("vectorlab.doc.rien_refaire"));
     this._avant.push(this._clone(courant));
     return this._apres.pop();
   }
@@ -1394,7 +1394,7 @@ export function aimanter(v, { pas = 0, guides = [] } = {}, tol = 0) {
 }
 
 function _axeGuides(doc, axe) {
-  if (axe !== "v" && axe !== "h") throw new Error(`axe de guide inconnu: ${axe}`);
+  if (axe !== "v" && axe !== "h") throw new Error(T("vectorlab.doc.guide_axe", { axe }));
   if (!doc.guides) doc.guides = { v: [], h: [] };
   if (!Array.isArray(doc.guides[axe])) doc.guides[axe] = [];
   return doc.guides[axe];
@@ -1408,7 +1408,7 @@ export function op_guide_ajouter(doc, axe, pos) {
 
 export function op_guide_deplacer(doc, axe, i, pos) {
   const g = _axeGuides(doc, axe);
-  if (i < 0 || i >= g.length) throw new Error(`guide ${axe}[${i}] hors bornes`);
+  if (i < 0 || i >= g.length) throw new Error(T("vectorlab.doc.guide_hors", { axe, i }));
   g[i] = Number(pos);
 }
 
@@ -1418,7 +1418,7 @@ export function op_guide_deplacer(doc, axe, i, pos) {
 
 export function op_dupliquer(doc, ids, dx = 12, dy = 12) {
   const cibles = [..._objetsCibles(doc, ids)];
-  if (!cibles.length) throw new Error("rien à dupliquer");
+  if (!cibles.length) throw new Error(T("vectorlab.doc.rien_dupliquer"));
   const pris = _idsPris(doc);
   let n = 1;
   const idNeuf = () => {
@@ -1464,9 +1464,9 @@ export function op_dupliquer(doc, ids, dx = 12, dy = 12) {
 }
 
 export function op_miroir(doc, ids, axe, bbox) {
-  if (axe !== "h" && axe !== "v") throw new Error(`miroir: axe h|v, pas ${axe}`);
+  if (axe !== "h" && axe !== "v") throw new Error(T("vectorlab.doc.miroir_axe", { axe }));
   if (!bbox || !(bbox.w >= 0) || !(bbox.h >= 0)) {
-    throw new Error("miroir: bbox de référence requise");
+    throw new Error(T("vectorlab.doc.miroir_bbox"));
   }
   const cx = bbox.x + bbox.w / 2, cy = bbox.y + bbox.h / 2;
   const H = axe === "h";
@@ -1494,7 +1494,7 @@ export function op_miroir(doc, ids, axe, bbox) {
   };
   const objets = [..._objetsCibles(doc, ids)].map((t) => t.objet);
   for (const o of objets) refl(o);
-  if (!objets.length) throw new Error("rien à réfléchir");
+  if (!objets.length) throw new Error(T("vectorlab.doc.rien_refleter"));
   for (const g of _gradsDeCibles(doc, objets)) {
     _gradMapper(g, H ? fx : (X) => X, H ? (Y) => Y : fy);
   }
@@ -1505,11 +1505,11 @@ const _ALIGNEMENTS = new Set(["gauche", "centreH", "droite",
                               "haut", "centreV", "bas"]);
 
 export function op_aligner(doc, paires, mode, ref) {
-  if (!_ALIGNEMENTS.has(mode)) throw new Error(`aligner: mode inconnu ${mode}`);
+  if (!_ALIGNEMENTS.has(mode)) throw new Error(T("vectorlab.doc.aligner_mode", { mode }));
   if (!Array.isArray(paires) || !paires.length) {
-    throw new Error("aligner: rien à aligner");
+    throw new Error(T("vectorlab.doc.aligner_rien"));
   }
-  if (!ref || !(ref.w >= 0)) throw new Error("aligner: référence requise");
+  if (!ref || !(ref.w >= 0)) throw new Error(T("vectorlab.doc.aligner_ref"));
   for (const { id, bbox } of paires) {
     let dx = 0, dy = 0;
     if (mode === "gauche") dx = ref.x - bbox.x;
@@ -1523,9 +1523,9 @@ export function op_aligner(doc, paires, mode, ref) {
 }
 
 export function op_distribuer(doc, paires, axe) {
-  if (axe !== "h" && axe !== "v") throw new Error(`distribuer: axe h|v, pas ${axe}`);
+  if (axe !== "h" && axe !== "v") throw new Error(T("vectorlab.doc.distribuer_axe", { axe }));
   if (!Array.isArray(paires) || paires.length < 3) {
-    throw new Error("distribuer: 3 objets au moins");
+    throw new Error(T("vectorlab.doc.distribuer_trois"));
   }
   const H = axe === "h";
   const tri = paires.slice().sort((a, b) =>
@@ -1547,7 +1547,7 @@ export function op_distribuer(doc, paires, axe) {
 
 export function op_rect_rayon(doc, ids, rayon) {
   const r = +rayon;
-  if (!(r >= 0)) throw new Error("rayon: valeur ≥ 0 requise");
+  if (!(r >= 0)) throw new Error(T("vectorlab.doc.rayon_valeur"));
   let n = 0;
   for (const { objet } of _objetsCibles(doc, ids)) {
     if (objet.type !== "rect") continue;
@@ -1555,13 +1555,13 @@ export function op_rect_rayon(doc, ids, rayon) {
     else objet.rx = Math.min(r, Math.min(objet.w, objet.h) / 2);
     n++;
   }
-  if (!n) throw new Error("aucun rectangle dans la sélection");
+  if (!n) throw new Error(T("vectorlab.doc.aucun_rectangle"));
   return n;
 }
 
 export function op_guide_supprimer(doc, axe, i) {
   const g = _axeGuides(doc, axe);
-  if (i < 0 || i >= g.length) throw new Error(`guide ${axe}[${i}] hors bornes`);
+  if (i < 0 || i >= g.length) throw new Error(T("vectorlab.doc.guide_hors", { axe, i }));
   g.splice(i, 1);
 }
 
@@ -1572,23 +1572,23 @@ const _CLES_REPERES = ["fondPerdu", "zoneSure"];
 
 function _validerReperes(r, taille) {
   if (!r || typeof r !== "object" || Array.isArray(r)) {
-    throw new Error("document: reperes {fondPerdu?, zoneSure?}");
+    throw new Error(T("vectorlab.doc.doc_reperes"));
   }
   for (const k of Object.keys(r)) {
-    if (!_CLES_REPERES.includes(k)) throw new Error(`reperes: clé inconnue ${k}`);
+    if (!_CLES_REPERES.includes(k)) throw new Error(T("vectorlab.doc.reperes_cle", { k }));
     const v = r[k];
     if (!Array.isArray(v) || v.length !== 2 || !(v[0] >= 0) || !(v[1] >= 0)
         || v[0] >= taille.w / 2 || v[1] >= taille.h / 2) {
-      throw new Error(`reperes.${k}: [ox, oy] ≥ 0 et sous la demi-page`);
+      throw new Error(T("vectorlab.doc.reperes_valeur", { k }));
     }
   }
 }
 
 export function op_reperes(doc, patch) {
-  if (!patch || typeof patch !== "object") throw new Error("reperes: patch requis");
+  if (!patch || typeof patch !== "object") throw new Error(T("vectorlab.doc.reperes_patch"));
   const r = { ...(doc.reperes || {}) };
   for (const [k, v] of Object.entries(patch)) {
-    if (!_CLES_REPERES.includes(k)) throw new Error(`reperes: clé inconnue ${k}`);
+    if (!_CLES_REPERES.includes(k)) throw new Error(T("vectorlab.doc.reperes_cle", { k }));
     if (v === null || v === undefined) { delete r[k]; continue; }
     r[k] = typeof v === "number" ? [v, v] : v;
   }
@@ -1623,11 +1623,11 @@ function _trouverImage(doc, id) {
   for (const c of doc.calques) {
     const o = c.objets.find((x) => x.id === id);
     if (o) {
-      if (o.type !== "image") throw new Error(`objet ${id}: pas une image`);
+      if (o.type !== "image") throw new Error(T("vectorlab.doc.pas_image", { id }));
       return o;
     }
   }
-  throw new Error(`image introuvable: ${id}`);
+  throw new Error(T("vectorlab.doc.image_introuvable", { id }));
 }
 
 export function op_image_rogner(doc, id, rognage) {
@@ -1649,8 +1649,8 @@ export function op_image_verrou(doc, id, verrou) {
 // si bien qu'un Ctrl+Z sait quels pixels remettre (mod-pixelui, pixels_a_restaurer)
 export function op_image_rev(doc, id, rev, px) {
   const o = _trouverImage(doc, id);
-  if (!(Number.isInteger(rev) && rev >= 0)) throw new Error(`image ${id}: rev entier ≥ 0`);
-  if (px !== undefined && !_PX.test(px)) throw new Error(`image ${id}: px = empreinte (16 hex)`);
+  if (!(Number.isInteger(rev) && rev >= 0)) throw new Error(T("vectorlab.doc.image_rev", { id }));
+  if (px !== undefined && !_PX.test(px)) throw new Error(T("vectorlab.doc.image_px", { id }));
   if (rev > 0) o.rev = rev; else delete o.rev;
   if (px) o.px = px; else delete o.px;
 }
@@ -1661,44 +1661,44 @@ const _CLES_PIXELART = ["tuile", "palette", "symetrie", "iso", "modele", "calque
 const _HEX = /^#[0-9A-Fa-f]{6}$/;
 function _validerPixelart(p) {
   if (!p || typeof p !== "object" || Array.isArray(p)) throw new Error("document: pixelart {tuile?, palette?, symetrie?}");
-  for (const k of Object.keys(p)) if (!_CLES_PIXELART.includes(k)) throw new Error(`pixelart: clé inconnue ${k}`);
+  for (const k of Object.keys(p)) if (!_CLES_PIXELART.includes(k)) throw new Error(T("vectorlab.doc.pixelart_cle", { k }));
   if (p.tuile !== undefined) {
     const t = p.tuile;
     if (!t || !(Number.isInteger(t.w) && t.w >= 1) || !(Number.isInteger(t.h) && t.h >= 1)) {
-      throw new Error("pixelart.tuile: {w, h} entiers ≥ 1");
+      throw new Error(T("vectorlab.doc.pixelart_tuile"));
     }
   }
   if (p.palette !== undefined) {
     if (!Array.isArray(p.palette) || p.palette.some((c) => !_HEX.test(String(c)))) {
-      throw new Error("pixelart.palette: liste de couleurs #RRGGBB");
+      throw new Error(T("vectorlab.doc.pixelart_palette"));
     }
   }
   if (p.symetrie !== undefined && (!p.symetrie || typeof p.symetrie !== "object")) {
     throw new Error("pixelart.symetrie: {h, v}");
   }
-  if (p.iso !== undefined && typeof p.iso !== "boolean") throw new Error("pixelart.iso: booléen");
+  if (p.iso !== undefined && typeof p.iso !== "boolean") throw new Error(T("vectorlab.doc.pixelart_iso"));
   if (p.modele !== undefined) {
     const m = p.modele;
     if (!m || typeof m !== "object" || !(typeof m.id === "string" && m.id) || !(Number.isInteger(m.cellule) && m.cellule >= 1)) {
-      throw new Error("pixelart.modele: {id (chaîne), cellule (entier ≥ 1)}");
+      throw new Error(T("vectorlab.doc.pixelart_modele"));
     }
   }
-  if (p.calque !== undefined && !(typeof p.calque === "string" && p.calque)) throw new Error("pixelart.calque: id (chaîne)");
+  if (p.calque !== undefined && !(typeof p.calque === "string" && p.calque)) throw new Error(T("vectorlab.doc.pixelart_calque"));
   if (p.paires !== undefined) {   // lot 5 : plusieurs modèles — [{modele, cellule, calque | null}]
-    if (!Array.isArray(p.paires)) throw new Error("pixelart.paires: liste de {modele, cellule, calque}");
+    if (!Array.isArray(p.paires)) throw new Error(T("vectorlab.doc.pixelart_paires_liste"));
     for (const q of p.paires) {
       if (!q || typeof q !== "object" || !(typeof q.modele === "string" && q.modele) || !(Number.isInteger(q.cellule) && q.cellule >= 1)
           || (q.calque !== null && q.calque !== undefined && !(typeof q.calque === "string" && q.calque))) {
-        throw new Error("pixelart.paires: {modele (chaîne), cellule (entier ≥ 1), calque (id ou null)}");
+        throw new Error(T("vectorlab.doc.pixelart_paires"));
       }
     }
   }
 }
 export function op_pixelart(doc, patch) {
-  if (!patch || typeof patch !== "object") throw new Error("pixelart: patch requis");
+  if (!patch || typeof patch !== "object") throw new Error(T("vectorlab.doc.pixelart_patch"));
   const p = { ...(doc.pixelart || {}) };
   for (const [k, v] of Object.entries(patch)) {
-    if (!_CLES_PIXELART.includes(k)) throw new Error(`pixelart: clé inconnue ${k}`);
+    if (!_CLES_PIXELART.includes(k)) throw new Error(T("vectorlab.doc.pixelart_cle", { k }));
     if (v === null || v === undefined) { delete p[k]; continue; }
     if (k === "tuile") p.tuile = { w: v.w, h: v.h };
     else if (k === "palette") p.palette = Array.isArray(v) ? v.map((c) => String(c).toUpperCase()) : v;
@@ -1716,7 +1716,7 @@ export function op_pixelart(doc, patch) {
    dans un calque NEUF au-dessus — une commande, une entrée d'historique. */
 export function op_vectoriser_poser(doc, objets, nom) {
   if (!Array.isArray(objets) || !objets.length) {
-    throw new Error("rien à vectoriser (image vide ou seuil trop haut)");
+    throw new Error(T("vectorlab.doc.rien_vectoriser"));
   }
   const calqueId = op_calque_ajouter(doc, nom || "vectorisé");
   const ids = objets.map((o) => op_ajouter(doc, calqueId, { ...o, id: undefined }));
@@ -1730,13 +1730,13 @@ export function op_texte_vectoriser(doc, id, d) {
   // Texte & logo : une LISTE [{car, d}] = un chemin par glyphe → le texte
   // devient un groupe (même id) de chemins aux ids neufs
   if (Array.isArray(d)) {
-    if (!d.length) throw new Error("vectoriser : aucun glyphe (texte vide ou police muette)");
+    if (!d.length) throw new Error(T("vectorlab.doc.vectoriser_glyphe"));
     for (const c of doc.calques) {
       if (c.verrou) continue;
       const i = c.objets.findIndex((o) => o.id === id);
       if (i < 0) continue;
       const o = c.objets[i];
-      if (o.type !== "texte") throw new Error(`${id}: pas un texte`);
+      if (o.type !== "texte") throw new Error(T("vectorlab.doc.pas_texte", { id }));
       const s = { ...(o.style || {}) };
       for (const k of ["police", "corps", "graisse", "interlettrage", "interligne", "ancre"]) delete s[k];
       if (!s.fond || s.fond === "none") s.fond = s.contour || "#1F1512";
@@ -1750,17 +1750,17 @@ export function op_texte_vectoriser(doc, id, d) {
       }
       return ids;
     }
-    throw new Error(`texte introuvable (ou calque verrouillé): ${id}`);
+    throw new Error(T("vectorlab.doc.texte_introuvable", { id }));
   }
   if (typeof d !== "string" || !d.trim()) {
-    throw new Error("vectoriser : chemin vide (texte vide ou police muette)");
+    throw new Error(T("vectorlab.doc.vectoriser_vide"));
   }
   for (const c of doc.calques) {
     if (c.verrou) continue;
     const i = c.objets.findIndex((o) => o.id === id);
     if (i < 0) continue;
     const o = c.objets[i];
-    if (o.type !== "texte") throw new Error(`${id}: pas un texte`);
+    if (o.type !== "texte") throw new Error(T("vectorlab.doc.pas_texte", { id }));
     const s = { ...(o.style || {}) };
     for (const k of ["police", "corps", "graisse", "interlettrage"]) delete s[k];
     if (!s.fond || s.fond === "none") s.fond = s.contour || "#1F1512";
@@ -1769,13 +1769,13 @@ export function op_texte_vectoriser(doc, id, d) {
                     ...(o.transform ? { transform: o.transform } : {}) };
     return o.id;
   }
-  throw new Error(`texte introuvable (ou calque verrouillé): ${id}`);
+  throw new Error(T("vectorlab.doc.texte_introuvable", { id }));
 }
 
 /* ── grille du document (lot C) : une commande, un patch fusionné ── */
 export function op_grille(doc, patch) {
   if (patch === null || patch === undefined) { delete doc.grille; return; }
-  if (typeof patch !== "object") throw new Error("grille: patch objet requis");
+  if (typeof patch !== "object") throw new Error(T("vectorlab.doc.grille_patch"));
   doc.grille = grille_normaliser({ ...(doc.grille || {}), ...patch });
 }
 
@@ -1790,10 +1790,10 @@ export function tuile_a(doc, q, r) {
 // le pinceau : peint la tuile existante (calque déverrouillé), pose la
 // manquante dans le calque cible — un geste = une commande
 export function op_tuiles_peindre(doc, calqueId, cellules, terrain) {
-  if (!Array.isArray(cellules) || !cellules.length) throw new Error("pinceau: aucune cellule");
-  if (!terrains_de(doc)[terrain]) throw new Error(`pinceau: terrain inconnu ${terrain}`);
+  if (!Array.isArray(cellules) || !cellules.length) throw new Error(T("vectorlab.doc.pinceau_cellule"));
+  if (!terrains_de(doc)[terrain]) throw new Error(T("vectorlab.doc.pinceau_terrain", { terrain }));
   const c = _calque(doc, calqueId);
-  if (c.verrou) throw new Error(`calque verrouillé: ${calqueId}`);
+  if (c.verrou) throw new Error(T("vectorlab.doc.calque_verrouille", { id: calqueId }));
   const peintes = [], posees = [], vues = new Set();
   for (const cel of cellules) {
     const k = cel.q + "," + cel.r;
@@ -1820,7 +1820,7 @@ export function op_tuiles_peindre(doc, calqueId, cellules, terrain) {
 // un calque de tuiles ; numérotation axiale optionnelle dans un second calque
 export function op_plateau_generer(doc, spec) {
   const terrain = spec.terrain || "plaine";
-  if (!terrains_de(doc)[terrain]) throw new Error(`plateau: terrain inconnu ${terrain}`);
+  if (!terrains_de(doc)[terrain]) throw new Error(T("vectorlab.doc.plateau_terrain", { terrain }));
   const cellules = grille_cellules(spec);          // refuse les specs invalides
   if (!doc.grille || doc.grille.type !== "hex") {
     doc.grille = grille_normaliser({ type: "hex", pas: +spec.pas || 32,
@@ -1849,7 +1849,7 @@ export function planche_de(doc, id) {
   return (doc.planches || []).find((p) => p.id === id) || null;
 }
 export function op_planche_ajouter(doc, spec) {
-  _validerCadre(spec, "planche");
+  _validerCadre(spec, T("vectorlab.doc.ou_planche_seul"));
   if (!doc.planches) doc.planches = [];
   const pris = new Set(doc.planches.map((p) => p.id));
   let n = 1;
@@ -1861,14 +1861,14 @@ export function op_planche_ajouter(doc, spec) {
 }
 export function op_planche_modifier(doc, id, patch) {
   const p = planche_de(doc, id);
-  if (!p) throw new Error(`planche inconnue: ${id}`);
+  if (!p) throw new Error(T("vectorlab.doc.planche_inconnue", { id }));
   const neuf = { ...p, ...(patch || {}) };
-  _validerCadre(neuf, `planche ${id}`);
+  _validerCadre(neuf, T("vectorlab.doc.ou_planche", { id }));
   Object.assign(p, { nom: String(neuf.nom), x: +neuf.x, y: +neuf.y, w: +neuf.w, h: +neuf.h });
 }
 export function op_planche_supprimer(doc, id) {
   const p = planche_de(doc, id);
-  if (!p) throw new Error(`planche inconnue: ${id}`);
+  if (!p) throw new Error(T("vectorlab.doc.planche_inconnue", { id }));
   doc.planches.splice(doc.planches.indexOf(p), 1);
   if (!doc.planches.length) delete doc.planches;
 }
@@ -1883,26 +1883,26 @@ export function planches_guides(doc) {
    emprise, emprise_px, attribution?, relief? {w, h, min, max, pasM,
    hauteurs[w·h]}} — les hauteurs sont des DONNÉES (pas des pixels) ── */
 function _validerEmprise(e, ou) {
-  if (!e || typeof e !== "object") throw new Error(`${ou}: emprise requise`);
+  if (!e || typeof e !== "object") throw new Error(T("vectorlab.doc.emprise_requise", { ou }));
   for (const k of ["minLat", "maxLat", "minLon", "maxLon"]) {
-    if (!Number.isFinite(e[k])) throw new Error(`${ou}: emprise.${k} numérique`);
+    if (!Number.isFinite(e[k])) throw new Error(T("vectorlab.doc.emprise_numerique", { ou, k }));
   }
-  if (!(e.minLat <= e.maxLat) || !(e.minLon <= e.maxLon)) throw new Error(`${ou}: emprise inversée`);
+  if (!(e.minLat <= e.maxLat) || !(e.minLon <= e.maxLon)) throw new Error(T("vectorlab.doc.emprise_inversee", { ou }));
 }
 function _validerRelief(r) {
-  if (!r || typeof r !== "object") throw new Error("geo.relief: objet requis");
+  if (!r || typeof r !== "object") throw new Error(T("vectorlab.doc.relief_objet"));
   if (!(Number.isInteger(r.w) && r.w >= 2 && Number.isInteger(r.h) && r.h >= 2)) {
-    throw new Error("geo.relief: w et h entiers ≥ 2");
+    throw new Error(T("vectorlab.doc.relief_wh"));
   }
   if (!Array.isArray(r.hauteurs) || r.hauteurs.length !== r.w * r.h) {
-    throw new Error("geo.relief: hauteurs = w·h nombres");
+    throw new Error(T("vectorlab.doc.relief_hauteurs"));
   }
   if (!Number.isFinite(r.min) || !Number.isFinite(r.max) || !(r.pasM > 0)) {
     throw new Error("geo.relief: min, max, pasM > 0");
   }
 }
 function _validerGeo(g) {
-  if (!g || typeof g !== "object") throw new Error("document: geo = objet");
+  if (!g || typeof g !== "object") throw new Error(T("vectorlab.doc.doc_geo"));
   if (!Array.isArray(g.centre) || g.centre.length !== 2 || !g.centre.every(Number.isFinite)) {
     throw new Error("geo: centre [lat, lon]");
   }
@@ -1911,14 +1911,14 @@ function _validerGeo(g) {
   if (g.emprise_px !== undefined) _validerCadre(g.emprise_px, "geo.emprise_px");
   if (g.relief !== undefined) _validerRelief(g.relief);
   if (g.parcours !== undefined) {
-    if (!Array.isArray(g.parcours)) throw new Error("geo.parcours: liste");
+    if (!Array.isArray(g.parcours)) throw new Error(T("vectorlab.doc.parcours_liste"));
     for (const p of g.parcours) {
       const n = p && Array.isArray(p.xy) ? p.xy.length : 0;
       if (n < 2 || !Array.isArray(p.d) || !Array.isArray(p.ele) || p.d.length !== n || p.ele.length !== n) {
-        throw new Error("geo.parcours: xy, d, ele de même longueur ≥ 2");
+        throw new Error(T("vectorlab.doc.parcours_longueur"));
       }
       if (!p.xy.every((q) => Array.isArray(q) && q.length === 2 && q.every(Number.isFinite))
-          || !p.d.every(Number.isFinite) || !p.ele.every(Number.isFinite)) throw new Error("geo.parcours: nombres");
+          || !p.d.every(Number.isFinite) || !p.ele.every(Number.isFinite)) throw new Error(T("vectorlab.doc.parcours_nombres"));
     }
   }
 }
@@ -1928,8 +1928,8 @@ const _dDe = (pts) => "M " + pts.map(([x, y]) => `${nbc(x)} ${nbc(y)}`).join(" L
 
 // gpx = sortie de gpx_parser, cadre = sortie de cadrage (vers_px)
 export function op_geo_importer(doc, gpx, cadre) {
-  if (!gpx || !(gpx.n > 0)) throw new Error("import GPX : aucun point");
-  _validerEmprise(gpx.emprise, "import GPX");
+  if (!gpx || !(gpx.n > 0)) throw new Error(T("vectorlab.doc.gpx_aucun_point"));
+  _validerEmprise(gpx.emprise, T("vectorlab.doc.ou_import_gpx"));
   const e = gpx.emprise;
   const no = cadre.vers_px(e.maxLat, e.minLon), se = cadre.vers_px(e.minLat, e.maxLon);
   const emprise_px = { x: Math.min(no[0], se[0]), y: Math.min(no[1], se[1]),
@@ -1967,7 +1967,7 @@ export function op_geo_importer(doc, gpx, cadre) {
 }
 
 export function op_geo_relief(doc, relief) {
-  if (!doc.geo) throw new Error("relief : importer d'abord un GPX (doc.geo absent)");
+  if (!doc.geo) throw new Error(T("vectorlab.doc.relief_sans_gpx"));
   _validerRelief(relief);
   doc.geo.relief = { w: relief.w, h: relief.h, min: +relief.min, max: +relief.max, pasM: +relief.pasM,
                      hauteurs: relief.hauteurs.map((v) => Math.round(v * 10) / 10),
@@ -1977,7 +1977,7 @@ export function op_geo_relief(doc, relief) {
 
 export function op_geo_courbes(doc, lignes_px, pas) {
   const lignes = (lignes_px || []).filter((l) => l && l.length >= 2);
-  if (!lignes.length) throw new Error("courbes : aucune ligne à ce pas");
+  if (!lignes.length) throw new Error(T("vectorlab.doc.courbes_aucune"));
   const calqueId = op_calque_ajouter(doc, `courbes ${pas} m`);
   for (const l of lignes) {
     op_ajouter(doc, calqueId, { type: "path", d: _dDe(l),
@@ -1991,7 +1991,7 @@ export function op_geo_courbes(doc, lignes_px, pas) {
 const _TERRAINS_PALIERS = ["mer", "plaine", "foret", "colline", "montagne"];
 export function op_geo_tuiles(doc, spec = {}) {
   const geo = doc.geo;
-  if (!geo || !geo.relief) throw new Error("tuiles : charger d'abord le relief");
+  if (!geo || !geo.relief) throw new Error(T("vectorlab.doc.tuiles_sans_relief"));
   const pas = +spec.pas > 0 ? +spec.pas : 40;
   const relief_mm = +spec.relief_mm > 0 ? +spec.relief_mm : 10;
   const E = geo.emprise_px;
@@ -2026,16 +2026,16 @@ function _trouverForme(doc, id) {
     if (c.verrou) continue;
     const o = c.objets.find((x) => x.id === id);
     if (o) {
-      if (o.type !== "forme") throw new Error(`objet ${id}: pas une forme paramétrique`);
+      if (o.type !== "forme") throw new Error(T("vectorlab.doc.pas_forme", { id }));
       return { calque: c, objet: o };
     }
   }
-  throw new Error(`forme introuvable (ou calque verrouillé): ${id}`);
+  throw new Error(T("vectorlab.doc.forme_introuvable", { id }));
 }
 export function op_forme_param(doc, id, patch) {
   const { objet } = _trouverForme(doc, id);
   const neuf = { ...objet, ...(patch || {}), params: { ...objet.params, ...((patch || {}).params || {}) } };
-  if (!(neuf.r > 0)) throw new Error("forme : rayon > 0 requis");
+  if (!(neuf.r > 0)) throw new Error(T("vectorlab.doc.forme_rayon_seul"));
   forme_params_valider(neuf.forme, neuf.params);
   Object.assign(objet, neuf);
 }
@@ -2051,7 +2051,7 @@ export function op_forme_en_chemin(doc, id) {
 // inclinaison (skew) autour d'un pivot — composée devant, comme op_tourner
 export function op_incliner(doc, ids, kx, ky, cx, cy) {
   const ax = +kx || 0, ay = +ky || 0;
-  if (Math.abs(ax) >= 89 || Math.abs(ay) >= 89) throw new Error("inclinaison : angle sous 89°");
+  if (Math.abs(ax) >= 89 || Math.abs(ay) >= 89) throw new Error(T("vectorlab.doc.inclinaison_angle"));
   if (!ax && !ay) return;
   const t = `translate(${nbc(cx)} ${nbc(cy)})` + (ax ? ` skewX(${nbc(ax)})` : "") + (ay ? ` skewY(${nbc(ay)})` : "")
           + ` translate(${nbc(-cx)} ${nbc(-cy)})`;
@@ -2093,9 +2093,9 @@ function _bboxObjet(o, doc) {
 // (décalage, rotation cumulée, échelle cumulée autour de son centre)
 export function op_dupliquer_puissance(doc, ids, n, pas = {}) {
   const N = +n;
-  if (!(Number.isInteger(N) && N >= 1 && N <= 200)) throw new Error("puissance : n entier de 1 à 200");
+  if (!(Number.isInteger(N) && N >= 1 && N <= 200)) throw new Error(T("vectorlab.doc.puissance_n"));
   const dx = +pas.dx || 0, dy = +pas.dy || 0, rot = +pas.rotation || 0, ech = pas.echelle === undefined ? 1 : +pas.echelle;
-  if (!(ech > 0)) throw new Error("puissance : échelle > 0");
+  if (!(ech > 0)) throw new Error(T("vectorlab.doc.puissance_echelle"));
   let sources = ids.slice();
   const out = [];
   for (let k = 1; k <= N; k++) {
@@ -2126,10 +2126,10 @@ export function op_dupliquer_puissance(doc, ids, n, pas = {}) {
 // une valeur avec la référence — fond, contour, epaisseur ou type
 const _ATTRIBUTS = new Set(["fond", "contour", "epaisseur", "type"]);
 export function selection_par_attribut(doc, refId, cle) {
-  if (!_ATTRIBUTS.has(cle)) throw new Error(`attribut inconnu : ${cle}`);
+  if (!_ATTRIBUTS.has(cle)) throw new Error(T("vectorlab.doc.attribut_inconnu", { cle }));
   let ref = null;
   for (const c of doc.calques) { const o = c.objets.find((x) => x.id === refId); if (o) ref = o; }
-  if (!ref) throw new Error(`référence introuvable : ${refId}`);
+  if (!ref) throw new Error(T("vectorlab.doc.reference_introuvable", { id: refId }));
   const val = (o) => cle === "type" ? o.type : (o.style || {})[cle];
   const cible = val(ref);
   const out = [];
@@ -2144,15 +2144,15 @@ export function selection_par_attribut(doc, refId, cle) {
 // l'entrée commence par un opérateur, absolu sinon ; jamais d'évaluation libre
 export function formule(valeur, texte) {
   const t = String(texte ?? "").trim().replace(/,/g, ".");
-  if (!t) throw new Error("formule : vide");
-  if (!/^[0-9+\-*/(). %]+$/.test(t)) throw new Error("formule : caractères non numériques");
-  if (/\*\*|\/\/|%[0-9(]/.test(t)) throw new Error("formule : opérateur inconnu");
+  if (!t) throw new Error(T("vectorlab.doc.formule_vide"));
+  if (!/^[0-9+\-*/(). %]+$/.test(t)) throw new Error(T("vectorlab.doc.formule_caracteres"));
+  if (/\*\*|\/\/|%[0-9(]/.test(t)) throw new Error(T("vectorlab.doc.formule_operateur"));
   const evaluer = (expr) => {
     const e = expr.replace(/%/g, "");
-    if (!/^[0-9+\-*/(). ]+$/.test(e) || !/[0-9]/.test(e)) throw new Error("formule : illisible");
+    if (!/^[0-9+\-*/(). ]+$/.test(e) || !/[0-9]/.test(e)) throw new Error(T("vectorlab.doc.formule_illisible"));
     let v;
-    try { v = Function(`"use strict"; return (${e});`)(); } catch { throw new Error("formule : illisible"); }
-    if (!Number.isFinite(v)) throw new Error("formule : résultat non fini");
+    try { v = Function(`"use strict"; return (${e});`)(); } catch { throw new Error(T("vectorlab.doc.formule_illisible")); }
+    if (!Number.isFinite(v)) throw new Error(T("vectorlab.doc.formule_non_fini"));
     return v;
   };
   const op = t[0];
@@ -2162,9 +2162,9 @@ export function formule(valeur, texte) {
     const v = evaluer(reste);
     if (op === "+") return pourcent ? valeur * (1 + v / 100) : valeur + v;
     if (op === "-") return pourcent ? valeur * (1 - v / 100) : valeur - v;
-    if (pourcent) throw new Error("formule : % seulement avec + ou −");
+    if (pourcent) throw new Error(T("vectorlab.doc.formule_pourcent"));
     if (op === "*") return valeur * v;
-    if (v === 0) throw new Error("formule : division par zéro");
+    if (v === 0) throw new Error(T("vectorlab.doc.formule_zero"));
     return valeur / v;
   }
   const v = evaluer(t);
@@ -2253,7 +2253,7 @@ export function compilerSVG(doc, opts = {}) {
   // lot C : un cadre (planche) devient le viewBox — le fond reste celui de
   // la page entière, le viewBox rogne
   let cadre = { x: 0, y: 0, w, h };
-  if (opts.cadre) { _validerCadre(opts.cadre, "cadre"); cadre = opts.cadre; }
+  if (opts.cadre) { _validerCadre(opts.cadre, T("vectorlab.doc.ou_cadre")); cadre = opts.cadre; }
   const fond = doc.fond
     ? `<rect x="0" y="0" width="${w}" height="${h}"`
       + ` fill="${escAttr(doc.fond)}" data-fond="1"/>`

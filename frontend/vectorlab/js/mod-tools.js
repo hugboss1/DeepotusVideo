@@ -2,6 +2,7 @@
 // intention en UNE commande pure (mod-doc) exécutée à la fin (pointerup) ;
 // pendant le geste, seuls des APERÇUS bougent (overlay ou attributs DOM
 // provisoires). Aucune mutation du document hors VL.executer.
+import { T } from "./mod-i18n.js";
 import { op_ajouter, op_supprimer, op_deplacer, op_redimensionner, op_tourner,
          op_noeud_convertir, op_noeud_supprimer,
          op_guide_ajouter, op_guide_deplacer, op_guide_supprimer, op_style,
@@ -160,7 +161,7 @@ export function initOutils(VL) {
           if (etat.selection.length) {
             VL.executer(op_style, etat.selection.slice(), pioche);
           } else {
-            VL.toast("style adopté — les nouveaux objets le prendront");
+            VL.toast(T("vectorlab.outils.style_adopte"));
             VL.surSelection();
           }
         }
@@ -230,7 +231,7 @@ export function initOutils(VL) {
       // UNE commande au relâcher (peint l'existant, pose le manquant)
       const g = VL.grilleDoc();
       if (!g || g.type !== "hex") {
-        VL.toast("pinceau : poser d'abord une grille hexagonale (panneau Plateau)", true);
+        VL.toast(T("vectorlab.outils.pinceau_sans_grille"), true);
         return;
       }
       const cel = hex_depuis_point(dx, dy, g);
@@ -244,7 +245,7 @@ export function initOutils(VL) {
       const [ax, ay] = VL.aimantePt(dx, dy);
       if (VL.poserTexte) { VL.poserTexte(ax, ay); ev.preventDefault(); return; }   // Texte & logo : édition en place
       ev.preventDefault();
-      VL.dialogue.saisir("Texte :", { valeur: "", titre: "Texte" }).then((contenu) => {
+      VL.dialogue.saisir(T("vectorlab.outils.saisir_texte"), { valeur: "", titre: T("vectorlab.outils.texte_titre") }).then((contenu) => {
       if (contenu) {
         const sc = etat.styleCourant;
         const fill = (sc.fond && sc.fond !== "none"
@@ -513,7 +514,7 @@ export function initOutils(VL) {
       if (fin && fin.d && fin.d !== g.d0) {
         VL.executer((doc) => {
           const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === g.id);
-          if (!o) throw new Error("chemin introuvable");
+          if (!o) throw new Error(T("vectorlab.outils.chemin_introuvable"));
           o.d = fin.d;
         });
       } else VL.rendre();
@@ -522,7 +523,7 @@ export function initOutils(VL) {
       else VL.rendreOverlay();
     } else if (g.type === "tuiles") {
       const r = VL.executer(op_tuiles_peindre, etat.calqueActif, g.cellules, etat.terrainCourant);
-      if (r) VL.toast(`${r.peintes.length} tuile(s) peinte(s), ${r.posees.length} posée(s)`);
+      if (r) VL.toast(T("vectorlab.outils.tuiles_peintes", { p: r.peintes.length, q: r.posees.length }));
     } else if (g.type === "guide-move") {
       if (g.pos === null) return;
       const r = stage.getBoundingClientRect();
@@ -558,12 +559,12 @@ export function initOutils(VL) {
         // t123 : double-clic sur une instance = éditer son symbole EN PLACE
         if (o && o.type === "instance" && VL.actions && VL.actions.symboles && VL.actions.symboles.ouvrir) { VL.actions.symboles.ouvrir(o.id); return; }
         if (o && o.type === "texte") {
-          VL.dialogue.saisir("Texte :", { valeur: o.contenu || "", titre: "Texte" }).then((contenu) => {
+          VL.dialogue.saisir(T("vectorlab.outils.saisir_texte"), { valeur: o.contenu || "", titre: T("vectorlab.outils.texte_titre") }).then((contenu) => {
           if (contenu !== null) {
             const cibleId = o.id;
             VL.executer((doc) => {
               const c = _objetProfond(doc, cibleId);
-              if (!c) throw new Error("texte introuvable");
+              if (!c) throw new Error(T("vectorlab.outils.texte_introuvable"));
               c.contenu = contenu;
             });
           }
@@ -754,18 +755,18 @@ export function initOutils(VL) {
   };
   // la barre d'indice du handoff : une phrase par outil, coin bas-gauche
   const HINTS = {
-    select: "glisser pour déplacer · poignées pour redimensionner · Suppr pour retirer",
-    plume: "clic = ancre, glisser = poignées · double-clic ou Entrée = finir",
-    rect: "glisser pour tracer · Maj contraint au carré",
-    ellipse: "glisser pour tracer · Maj contraint au cercle",
-    ligne: "glisser d'un point à l'autre · Maj = angles 45°",
-    noeuds: "cliquer une pièce · glisser ses ancres",
-    mesure: "glisser pour lire longueur, angle et Δ — ne crée rien",
-    pipette: "cliquer l'objet source : son style va à la sélection",
-    texte: "cliquer la page pour écrire",
-    tuiles: "cliquer ou glisser sur les cellules : peint le terrain courant, pose la tuile manquante (K)",
-    vitrail: "glisser sur la page pour tracer la baie",
-    ia: "décrire l'illustration dans le panneau Vitrail",
+    select: T("vectorlab.outils.hint_select"),
+    plume: T("vectorlab.outils.hint_plume"),
+    rect: T("vectorlab.outils.hint_rect"),
+    ellipse: T("vectorlab.outils.hint_ellipse"),
+    ligne: T("vectorlab.outils.hint_ligne"),
+    noeuds: T("vectorlab.outils.hint_noeuds"),
+    mesure: T("vectorlab.outils.hint_mesure"),
+    pipette: T("vectorlab.outils.hint_pipette"),
+    texte: T("vectorlab.outils.hint_texte"),
+    tuiles: T("vectorlab.outils.hint_tuiles"),
+    vitrail: T("vectorlab.outils.hint_vitrail"),
+    ia: T("vectorlab.outils.hint_ia"),
   };
   VL.hints = Object.assign(VL.hints || {}, HINTS);   // la barre d'état (mod-charpente) lit les phrases ici
   function majHint() {

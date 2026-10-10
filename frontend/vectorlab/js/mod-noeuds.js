@@ -3,6 +3,7 @@
 // inverser le sens d'un chemin, joindre deux chemins ouverts, arrondir les
 // coins (Q tangent), choisir des ancres au rectangle. Sur le d canonique de
 // mod-doc (chemin_parser / chemin_serialiser). PUR.
+import { T } from "./mod-i18n.js";
 import { chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
 import { forme_d } from "./mod-formes.js";
 
@@ -11,11 +12,11 @@ function _path(doc, id) {
     if (c.verrou) continue;
     const o = c.objets.find((x) => x.id === id);
     if (o) {
-      if (o.type !== "path") throw new Error(`objet ${id}: pas un chemin`);
+      if (o.type !== "path") throw new Error(T("vectorlab.noeuds.err_pas_chemin", { id }));
       return { calque: c, objet: o };
     }
   }
-  throw new Error(`chemin introuvable (ou calque verrouillé): ${id}`);
+  throw new Error(T("vectorlab.noeuds.err_introuvable", { id }));
 }
 const _porteurs = (segs) => segs.map((s, k) => (s.c === "Z" ? -1 : k)).filter((k) => k >= 0);
 const _fin = (s) => [s.p[s.p.length - 2], s.p[s.p.length - 1]];
@@ -52,7 +53,7 @@ export function op_noeuds_aligner(doc, id, indices, mode) {
   const { objet } = _path(doc, id);
   const segs = chemin_parser(objet.d), noeuds = _porteurs(segs);
   const idx = _indices(indices, noeuds.length);
-  if (idx.length < 2) throw new Error("aligner : deux ancres au moins");
+  if (idx.length < 2) throw new Error(T("vectorlab.noeuds.err_aligner"));
   const [axe, agg] = _MODES[mode];
   const vals = idx.map((i) => _fin(segs[noeuds[i]])[axe === "x" ? 0 : 1]);
   const cible = agg === "min" ? Math.min(...vals) : agg === "max" ? Math.max(...vals)
@@ -65,7 +66,7 @@ export function op_noeuds_aligner(doc, id, indices, mode) {
 }
 
 export function op_noeuds_transformer(doc, id, indices, av, ap) {
-  if (!(av.w > 0) || !(av.h > 0)) throw new Error("transformer : boîte de départ vide");
+  if (!(av.w > 0) || !(av.h > 0)) throw new Error(T("vectorlab.noeuds.err_transformer"));
   const { objet } = _path(doc, id);
   const segs = chemin_parser(objet.d), noeuds = _porteurs(segs);
   const idx = _indices(indices, noeuds.length);
@@ -84,7 +85,7 @@ export function op_noeuds_transformer(doc, id, indices, av, ap) {
 export function op_noeud_inserer(doc, id, i, t = 0.5) {
   const { objet } = _path(doc, id);
   const segs = chemin_parser(objet.d), noeuds = _porteurs(segs);
-  if (!(Number.isInteger(i) && i >= 1 && i < noeuds.length)) throw new Error("diviser : choisir une ancre après la première");
+  if (!(Number.isInteger(i) && i >= 1 && i < noeuds.length)) throw new Error(T("vectorlab.noeuds.err_diviser"));
   const k = noeuds[i], s = segs[k];
   const [x0, y0] = _fin(segs[noeuds[i - 1]]);
   const u = Math.min(0.95, Math.max(0.05, +t || 0.5));
@@ -100,7 +101,7 @@ export function op_noeud_inserer(doc, id, i, t = 0.5) {
     const [x1, y1, x2, y2] = s.p;
     const ax = L(x0, x1), ay = L(y0, y1), bx = L(x1, x2), by = L(y1, y2), mx = L(ax, bx), my = L(ay, by);
     segs.splice(k, 1, { c: "Q", p: [ax, ay, mx, my] }, { c: "Q", p: [bx, by, x2, y2] });
-  } else throw new Error("diviser : segment non divisible");
+  } else throw new Error(T("vectorlab.noeuds.err_diviser_seg"));
   objet.d = chemin_serialiser(segs);
   return i;
 }
@@ -123,8 +124,8 @@ export function op_chemin_inverser(doc, id) {
 export function op_chemins_joindre(doc, idA, idB) {
   const a = _path(doc, idA), b = _path(doc, idB);
   const sa = chemin_parser(a.objet.d), sb = chemin_parser(b.objet.d);
-  if (sa.some((s) => s.c === "Z") || sb.some((s) => s.c === "Z")) throw new Error("joindre : les deux chemins doivent être ouverts");
-  if (!sb.length || sb[0].c !== "M") throw new Error("joindre : chemin B sans départ");
+  if (sa.some((s) => s.c === "Z") || sb.some((s) => s.c === "Z")) throw new Error(T("vectorlab.noeuds.err_joindre_ouverts"));
+  if (!sb.length || sb[0].c !== "M") throw new Error(T("vectorlab.noeuds.err_joindre_depart"));
   sa.push({ c: "L", p: sb[0].p.slice() }, ...sb.slice(1));
   a.objet.d = chemin_serialiser(sa);
   b.calque.objets.splice(b.calque.objets.indexOf(b.objet), 1);
@@ -134,7 +135,7 @@ export function op_chemins_joindre(doc, idA, idB) {
 // coins arrondis : entre deux segments DROITS, l'ancre devient Q tangent
 export function op_coins_arrondir(doc, ids, rayon) {
   const r = +rayon;
-  if (!(r > 0)) throw new Error("coins : rayon > 0 requis");
+  if (!(r > 0)) throw new Error(T("vectorlab.noeuds.err_coins"));
   let n = 0;
   for (const id of ids) {
     // un rectangle ou une forme paramétrique devient d'abord un chemin (le

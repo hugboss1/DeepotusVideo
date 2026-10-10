@@ -19,6 +19,7 @@
 // Le parsage, le filtrage et la pose des tracés restent ceux du panneau
 // de verre (mod-vitrail.iaPoser) : une seule voie d'écriture au document.
 
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 export function initIA(VL) {
   const { $, etat } = VL;
@@ -70,8 +71,8 @@ export function initIA(VL) {
     const sans = moteurs !== null && !dispo.length;
     const muet = sans && injoignable;
     const vide = sans ? (muet
-      ? "moteurs introuvables — relancer l'application"
-      : "aucune clé configurée") : "";
+      ? T("vectorlab.ia.moteurs_introuvables")
+      : T("vectorlab.ia.aucune_cle")) : "";
     const choisi = actif && dispo.some((m) => m.moteur === actif) ? actif
       : (dispo[0] ? dispo[0].moteur : "");
     const mods = modelesDe(choisi);
@@ -79,42 +80,38 @@ export function initIA(VL) {
       : (mods[0] || "");
     el.innerHTML = `
       <div class="ia-tete" data-poigne="1">
-        <span class="ia-titre">Illustration IA</span>
+        <span class="ia-titre">${T("vectorlab.ia.titre")}</span>
         <span class="ia-sp"></span>
-        <button class="ia-x" data-act="fermer" title="Fermer (Échap)" aria-label="Fermer (Échap)">${dzi("dz-action-fermer", 16)}</button>
+        <button class="ia-x" data-act="fermer" title="${T("vectorlab.ia.fermer")}" aria-label="${T("vectorlab.ia.fermer")}">${dzi("dz-action-fermer", 16)}</button>
       </div>
       <div class="ia-fil">${fil.length ? fil.map((m) => `
         <div class="ia-msg ${m.role}${m.err ? " err" : ""}">${
           String(m.texte).replace(/[<&]/g, "")}</div>`).join("") : `
-        <div class="ia-vide">Décrivez l'illustration : « un iris de vitrail »,
-        « un poulpe stylisé », « une rosace à six pétales ». Le moteur rend
-        des masses de verre découpées — pas un dessin d'atelier.</div>`}
+        <div class="ia-vide">${T("vectorlab.ia.vide")}</div>`}
       </div>
       <div class="ia-bas">
-        <label class="ia-moteur">moteur
+        <label class="ia-moteur">${T("vectorlab.ia.moteur")}
           <select id="iaMoteur" ${sans ? "disabled" : ""}
-            title="Le moteur qui va dépenser VOTRE clé — la demande ne se replie jamais sur un autre">
+            title="${T("vectorlab.ia.moteur_aide")}">
             ${sans ? `<option>${vide}</option>`
               : dispo.map((m) => `<option value="${m.moteur}"${
                   m.moteur === choisi ? " selected" : ""}>${m.moteur
                   }</option>`).join("")}
           </select></label>
-        <label class="ia-moteur">modèle
+        <label class="ia-moteur">${T("vectorlab.ia.modele")}
           <select id="iaModele" ${sans ? "disabled" : ""}
-            title="Le modèle exact qui va produire le SVG. Un petit modèle rend des masses grossières : pour une illustration reconnaissable, prenez le plus capable de la liste.">
+            title="${T("vectorlab.ia.modele_aide")}">
             ${sans ? `<option>—</option>` : modelesDe(choisi).map((x) => `
               <option value="${x}"${x === modeleChoisi ? " selected" : ""}>${
                 x}</option>`).join("")}
           </select></label>
-        <textarea id="iaTexte" rows="2" placeholder="décrire une illustration…"
+        <textarea id="iaTexte" rows="2" placeholder="${T("vectorlab.ia.placeholder")}"
           ${sans ? "disabled" : ""}></textarea>
         <button id="iaGo" class="primaire" ${sans || busy ? "disabled" : ""}
-          title="${muet ? "La route des moteurs ne répond pas — relancez "
-              + "DeepotusVideoGen (le reste de l'éditeur marche hors ligne)"
-            : sans ? "Aucune clé de modèle de langage (Réglages)"
-            : "APPEL PAYANT sur votre clé " + nomMoteur(choisi)
-              + " — quelques centièmes de centime"}"
-          >${dzi("dz-media-generer-image", 16)}${busy ? "…" : "Générer"}</button>
+          title="${muet ? T("vectorlab.ia.route_muette")
+            : sans ? T("vectorlab.ia.sans_cle")
+            : T("vectorlab.ia.payant", { moteur: nomMoteur(choisi) })}"
+          >${dzi("dz-media-generer-image", 16)}${busy ? "…" : T("vectorlab.ia.generer")}</button>
       </div>`;
     const t = $("#iaTexte");
     if (t && !busy && !sans) t.focus();
@@ -144,7 +141,7 @@ export function initIA(VL) {
     const t = $("#iaTexte"), sel = $("#iaMoteur");
     const q = (t && t.value || "").trim();
     if (!q) {
-      fil.push({ role: "machine", texte: "décrire d'abord l'illustration",
+      fil.push({ role: "machine", texte: T("vectorlab.ia.decrire_dabord"),
                  err: true });
       rendre();
       return;
@@ -161,7 +158,7 @@ export function initIA(VL) {
       catch (e) { /* stockage indisponible */ }
     }
     fil.push({ role: "moi", texte: q });
-    fil.push({ role: "machine", texte: "génération… (" + nomMoteur(actif) + ")" });
+    fil.push({ role: "machine", texte: T("vectorlab.ia.generation", { moteur: nomMoteur(actif) }) });
     busy = true;
     rendre();
     let issue;
@@ -173,11 +170,7 @@ export function initIA(VL) {
       if (!r.ok) throw new Error(d.detail || r.statusText);
       const n = VL.iaPoser ? VL.iaPoser(d, q) : 0;
       issue = { role: "machine",
-                texte: `${n} formes posées · ${d.provider}`
-                  + (d.modele ? ` · ${d.modele}` : "")
-                  + ` — sélectionnées sur la page : déplaçables et `
-                  + `redimensionnables comme une forme ; « Dégrouper » les `
-                  + `rend indépendantes, l'outil Nœuds édite leurs points` };
+                texte: T("vectorlab.ia.posees", { n, fournisseur: d.provider, modele: d.modele ? ` · ${d.modele}` : "" }) };
     } catch (e) {
       issue = { role: "machine", texte: String(e.message || e).slice(0, 200),
                 err: true };

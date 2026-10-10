@@ -1,3 +1,4 @@
+import { T } from "./mod-i18n.js";
 // mod-extrude.js — impression 3D (phase 3 du plan slicer) : un multi
 // polygone (la forme aplatie/unie d'un calque) devient un PRISME fermé —
 // capots triangulés par oreilles (ponts de trous), murs par segment —
@@ -61,7 +62,7 @@ function _pont(poly, trou) {
       meilleur = { x, i, a, b };
     }
   }
-  if (!meilleur) throw new Error("extrusion : trou hors de son contour");
+  if (!meilleur) throw new Error(T("vectorlab.extrude.err_trou"));
   let iVis = (meilleur.a[0] > meilleur.b[0])
     ? meilleur.i : (meilleur.i + 1) % poly.length;
   // un sommet REFLEX dans le triangle M-I-P vole la visibilité (earcut) :
@@ -149,7 +150,7 @@ export function trianguler(multi) {
 /* ── le prisme fermé : capots (haut +Z, bas inversé) + murs par segment ── */
 export function extruder(multi, hauteur, zBase = 0) {
   const h = +hauteur;
-  if (!(h > 0)) throw new Error("extrusion : hauteur > 0 requise");
+  if (!(h > 0)) throw new Error(T("vectorlab.extrude.err_hauteur"));
   const z0 = +zBase || 0;
   const tris3d = [];
   for (const anneaux of multi) {

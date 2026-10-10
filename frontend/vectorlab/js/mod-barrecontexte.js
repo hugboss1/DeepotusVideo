@@ -4,6 +4,7 @@
 // « Configuration du document… » (taille, dpi, unité, fond — UNE commande)
 // et « Paramètres de l'appli… » (bulles, pas de grille, aimantation —
 // dz_vl_params, relus à l'ouverture). Traduit et délègue.
+import { T } from "./mod-i18n.js";
 import { icone_svg, dzi } from "./mod-icones.js";
 import { libelle_selection, champs_de, appliquer_champ, params_lire, params_poser, params_serialiser } from "./mod-contexte.js";
 import { FORMES } from "./mod-formes.js";
@@ -41,7 +42,7 @@ export function initBarreContexte(VL) {
       }
       prefixePrec = null;
       if (c.type === "bascule") return `<label class="cb-champ"><input type="checkbox" data-champ="${c.id}" ${c.valeur ? "checked" : ""}/>${esc(c.libelle)}</label>`;
-      if (c.type === "couleur") return `<label class="cb-champ cb-couleur"${c.titre ? ` title="${esc(c.titre)}"` : ""}><span>${esc(c.libelle)}</span><input type="color" data-champ="${c.id}" value="${c.valeur || "#000000"}"${c.valeur ? "" : ' class="vide"'}/><button type="button" class="cb-vider" data-vider="${c.id}" title="Transparent (la gomme)" aria-label="Transparent (la gomme)">${dzi("dz-edit-sans-couleur", 16)}</button></label>`;
+      if (c.type === "couleur") return `<label class="cb-champ cb-couleur"${c.titre ? ` title="${esc(c.titre)}"` : ""}><span>${esc(c.libelle)}</span><input type="color" data-champ="${c.id}" value="${c.valeur || "#000000"}"${c.valeur ? "" : ' class="vide"'}/><button type="button" class="cb-vider" data-vider="${c.id}" title="${T("vectorlab.barre.transparent")}" aria-label="${T("vectorlab.barre.transparent")}">${dzi("dz-edit-sans-couleur", 16)}</button></label>`;
       if (c.type === "select") return `<label class="cb-champ"><span>${esc(c.libelle)}</span><select data-champ="${c.id}">${c.options.map((o) => `<option value="${esc(o.id)}"${o.id === c.valeur ? " selected" : ""}>${esc(o.libelle)}</option>`).join("")}</select></label>`;
       return `<label class="cb-champ"><span>${esc(c.libelle)}</span><input type="number" data-champ="${c.id}" value="${c.valeur}" min="${c.min}" max="${c.max}" step="${c.pas}"/></label>`;
     }).join("");
@@ -79,7 +80,7 @@ export function initBarreContexte(VL) {
   function dialogue(id, titre, corps, onOk) {
     let dlg = $("#" + id);
     if (!dlg) { dlg = document.createElement("div"); dlg.id = id; dlg.className = "vl-dlg"; document.body.appendChild(dlg); }
-    dlg.innerHTML = `<div class="vl-dlg-boite cfg-boite"><div class="vl-dlg-tete"><b>${esc(titre)}</b><span class="spacer"></span><button data-x title="Fermer" aria-label="Fermer">${dzi("dz-action-fermer", 16)}</button></div><div class="cfg-corps">${corps}</div><div class="tr-pied"><button data-x>Annuler</button><button class="primaire" data-ok>OK</button></div></div>`;
+    dlg.innerHTML = `<div class="vl-dlg-boite cfg-boite"><div class="vl-dlg-tete"><b>${esc(titre)}</b><span class="spacer"></span><button data-x title="${T("vectorlab.barre.fermer")}" aria-label="${T("vectorlab.barre.fermer")}">${dzi("dz-action-fermer", 16)}</button></div><div class="cfg-corps">${corps}</div><div class="tr-pied"><button data-x>${T("vectorlab.barre.annuler")}</button><button class="primaire" data-ok>OK</button></div></div>`;
     dlg.classList.remove("hidden");
     const fermer = () => dlg.classList.add("hidden");
     dlg.querySelectorAll("[data-x]").forEach((b) => b.addEventListener("click", fermer));
@@ -89,13 +90,13 @@ export function initBarreContexte(VL) {
   function configurerDocument() {
     if (!etat.doc) return;
     const d = etat.doc, u = VL.unites();
-    dialogue("cfgDlg", "Configuration du document", `
-      <label>Largeur (px)<input type="number" id="cfgW" min="1" max="20000" value="${+d.taille.w}"/></label>
-      <label>Hauteur (px)<input type="number" id="cfgH" min="1" max="20000" value="${+d.taille.h}"/></label>
-      <label>Résolution (dpi)<input type="number" id="cfgDpi" min="36" max="1200" value="${u.dpi}"/></label>
-      <label>Unité d'affichage<select id="cfgUnite">${UNITES.map((x) => `<option value="${x}"${x === u.affichage ? " selected" : ""}>${x}</option>`).join("")}</select></label>
-      <label>Fond de page<span class="cfg-fond"><input type="checkbox" id="cfgFondOn" ${d.fond ? "checked" : ""}/><input type="color" id="cfgFond" value="${d.fond && /^#[0-9a-f]{6}$/i.test(d.fond) ? d.fond : "#ffffff"}"/></span></label>
-      <p class="px-note">Une seule commande, annulable (Ctrl+Z) ; les objets ne bougent pas.</p>`, (dlg) => {
+    dialogue("cfgDlg", T("vectorlab.barre.cfg_titre"), `
+      <label>${T("vectorlab.barre.cfg_largeur")}<input type="number" id="cfgW" min="1" max="20000" value="${+d.taille.w}"/></label>
+      <label>${T("vectorlab.barre.cfg_hauteur")}<input type="number" id="cfgH" min="1" max="20000" value="${+d.taille.h}"/></label>
+      <label>${T("vectorlab.barre.cfg_dpi")}<input type="number" id="cfgDpi" min="36" max="1200" value="${u.dpi}"/></label>
+      <label>${T("vectorlab.barre.cfg_unite")}<select id="cfgUnite">${UNITES.map((x) => `<option value="${x}"${x === u.affichage ? " selected" : ""}>${x}</option>`).join("")}</select></label>
+      <label>${T("vectorlab.barre.cfg_fond")}<span class="cfg-fond"><input type="checkbox" id="cfgFondOn" ${d.fond ? "checked" : ""}/><input type="color" id="cfgFond" value="${d.fond && /^#[0-9a-f]{6}$/i.test(d.fond) ? d.fond : "#ffffff"}"/></span></label>
+      <p class="px-note">${T("vectorlab.barre.cfg_note")}</p>`, (dlg) => {
       const w = Math.max(1, +dlg.querySelector("#cfgW").value || 1), h = Math.max(1, +dlg.querySelector("#cfgH").value || 1);
       const dpi = Math.max(36, +dlg.querySelector("#cfgDpi").value || 96), unite = dlg.querySelector("#cfgUnite").value;
       const fondOn = dlg.querySelector("#cfgFondOn").checked, fond = dlg.querySelector("#cfgFond").value;
@@ -110,11 +111,11 @@ export function initBarreContexte(VL) {
     if (ba && etat.aimantObjets !== params.aimant) { etat.aimantObjets = params.aimant; ba.classList.toggle("actif", params.aimant); }
   }
   function parametresAppli() {
-    dialogue("paramDlg", "Paramètres de l'appli", `
-      <label><input type="checkbox" id="prBulles" ${params.bulles ? "checked" : ""}/> Bulles d'information au survol</label>
-      <label>Pas de grille par défaut (px)<input type="number" id="prGrille" min="1" max="512" value="${params.grillePas}"/></label>
-      <label><input type="checkbox" id="prAimant" ${params.aimant ? "checked" : ""}/> Aimantation aux objets à l'ouverture</label>
-      <p class="px-note">Mémorisés dans ce navigateur (dz_vl_params).</p>`, (dlg) => {
+    dialogue("paramDlg", T("vectorlab.barre.params_titre"), `
+      <label><input type="checkbox" id="prBulles" ${params.bulles ? "checked" : ""}/> ${T("vectorlab.barre.params_bulles")}</label>
+      <label>${T("vectorlab.barre.params_grille")}<input type="number" id="prGrille" min="1" max="512" value="${params.grillePas}"/></label>
+      <label><input type="checkbox" id="prAimant" ${params.aimant ? "checked" : ""}/> ${T("vectorlab.barre.params_aimant")}</label>
+      <p class="px-note">${T("vectorlab.barre.params_note")}</p>`, (dlg) => {
       params = params_poser(params, "bulles", dlg.querySelector("#prBulles").checked);
       params = params_poser(params, "grillePas", +dlg.querySelector("#prGrille").value);
       params = params_poser(params, "aimant", dlg.querySelector("#prAimant").checked);

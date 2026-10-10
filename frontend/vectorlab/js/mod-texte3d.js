@@ -1,6 +1,7 @@
 // mod-texte3d.js — lot D : le texte devient des CHEMINS (D4) par
 // opentype.js vendorisé — donc extrudable et booléen. PUR : la police est
 // fournie (opentype.Font), les commandes deviennent un d canonique.
+import { T } from "./mod-i18n.js";
 import { chemin_parser, chemin_serialiser } from "./mod-doc.js";
 
 // les polices du dist dont la licence est claire (Google Fonts, OFL) —
@@ -33,7 +34,7 @@ export function commandes_vers_d(cmds) {
       case "Q": parts.push(`Q ${c.x1} ${c.y1} ${c.x} ${c.y}`); break;
       case "C": parts.push(`C ${c.x1} ${c.y1} ${c.x2} ${c.y2} ${c.x} ${c.y}`); break;
       case "Z": parts.push("Z"); break;
-      default: throw new Error(`glyphe : commande ${c.type} inconnue`);
+      default: throw new Error(T("vectorlab.texte.glyphe_commande", { type: c.type }));
     }
   }
   return parts.length ? chemin_serialiser(chemin_parser(parts.join(" "))) : "";
