@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "L'écran News",
+    "en": "The News screen"
+  },
+  "legende": {
+    "fr": "Les flux à gauche, les articles classés au centre, le Composer à droite.",
+    "en": "Feeds on the left, ranked articles in the middle, Compose on the right."
+  },
+  "captures": [
+    {
+      "fr": "ecran.fr.webp",
+      "en": "ecran.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        812,
+        187,
+        71,
+        27
+      ],
+      "bulle": {
+        "fr": "Repris par trois médias : tendance",
+        "en": "Picked up by three outlets: trending"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        744,
+        64,
+        113,
+        34
+      ],
+      "bulle": {
+        "fr": "Les écartés du filtre, motifs au survol",
+        "en": "Filtered-out items, reasons on hover"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        931,
+        62,
+        119,
+        38
+      ],
+      "bulle": {
+        "fr": "Le score est gratuit ; l'IA, sur demande",
+        "en": "The score is free; AI on request"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        812,
+        187,
+        66,
+        27
+      ],
+      "bulle": {
+        "fr": "Repris par trois médias : tendance",
+        "en": "Picked up by three outlets: trending"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        703,
+        64,
+        113,
+        34
+      ],
+      "bulle": {
+        "fr": "Les écartés du filtre, motifs au survol",
+        "en": "Filtered-out items, reasons on hover"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        888,
+        62,
+        100,
+        38
+      ],
+      "bulle": {
+        "fr": "Le score est gratuit ; l'IA, sur demande",
+        "en": "The score is free; AI on request"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
