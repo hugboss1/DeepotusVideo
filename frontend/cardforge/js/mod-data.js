@@ -62,10 +62,10 @@
      n'existent pas dans le CSV : elles sont calculees a l'expansion des
      quantites, donc mappables comme n'importe quelle colonne. */
   const VIRT = [
-    { k: "#n", label: "n° de copie", hint: "1, 2, 3… dans la ligne" },
-    { k: "#N", label: "copies de la ligne", hint: "la quantité de cette ligne" },
-    { k: "#i", label: "n° de carte", hint: "1 … total du deck" },
-    { k: "#T", label: "total du deck", hint: "le même sur toutes les cartes" },
+    { k: "#n", label: dzT("cartes.data1.v_copie"), hint: dzT("cartes.data1.v_copie_h") },
+    { k: "#N", label: dzT("cartes.data1.v_copies"), hint: dzT("cartes.data1.v_copies_h") },
+    { k: "#i", label: dzT("cartes.data1.v_carte"), hint: dzT("cartes.data1.v_carte_h") },
+    { k: "#T", label: dzT("cartes.data1.v_total"), hint: dzT("cartes.data1.v_total_h") },
   ];
 
   /* AUTO-MAPPAGE — IL N'Y A PLUS DE TABLE DE SYNONYMES ICI.
@@ -83,10 +83,10 @@
 
   const SEPS = [
     { v: "auto", label: "auto" },
-    { v: ",", label: "virgule" },
-    { v: ";", label: "point-virgule" },
-    { v: "\t", label: "tabulation" },
-    { v: "|", label: "barre" },
+    { v: ",", label: dzT("cartes.data1.sep_virgule") },
+    { v: ";", label: dzT("cartes.data1.sep_pv") },
+    { v: "\t", label: dzT("cartes.data1.sep_tab") },
+    { v: "|", label: dzT("cartes.data1.sep_barre") },
   ];
   const ENCS = [
     { v: "auto", label: "auto" },
@@ -278,14 +278,14 @@
     REDO.length = 0;
   }
   function undo() {
-    if (!UNDO.length) { M.toast("rien à annuler"); return; }
+    if (!UNDO.length) { M.toast(dzT("cartes.data1.rien_annuler")); return; }
     REDO.push(snap());
     T = JSON.parse(UNDO.pop());
     commit(); render(); schedule(0);
-    M.toast("annulé — " + UNDO.length + " étape(s) restante(s)");
+    M.toast(dzT("cartes.data1.annule", { n: UNDO.length }));
   }
   function redo() {
-    if (!REDO.length) { M.toast("rien à rétablir"); return; }
+    if (!REDO.length) { M.toast(dzT("cartes.data1.rien_retablir")); return; }
     UNDO.push(snap());
     T = JSON.parse(REDO.pop());
     commit(); render(); schedule(0);
@@ -403,7 +403,7 @@
       M.setCards((r && r.cards && r.cards.length) ? r.cards : [{}]);
     } catch (e) {
       if (seq !== SEQ) return;
-      if (e && e.missing) { MISSING = true; ERR = "backend /api/cards/…/data absent"; }
+      if (e && e.missing) { MISSING = true; ERR = dzT("cartes.data1.backend_absent"); }
       else ERR = String((e && e.message) || e);
       LAST = null;
     }
@@ -436,7 +436,7 @@
   async function importBytes(buf, name, opt) {
     const o = opt || {};
     const t0 = now();
-    M.busy(true, "lecture de " + (name || "la table") + "…");
+    M.busy(true, dzT("cartes.data1.lecture", { nom: name || dzT("cartes.data1.la_table") }));
     try {
       /* UN FICHIER NEUF EST TOUJOURS RELU EN « AUTO ». Reprendre le
          separateur force au fichier PRECEDENT ferait decouper un .tsv sur des
@@ -493,9 +493,9 @@
         total: ms,
       };
       paintMeter();
-      M.toast(T.rows.length + " ligne(s) importée(s) en " + Math.round(ms) + " ms — "
-        + (r.table.workbook ? (r.table.encoding_label || "classeur")
-          : ("séparateur " + sepLabel(T.sep) + ", "
+      M.toast(dzT("cartes.data1.importe", { n: T.rows.length, ms: Math.round(ms) })
+        + (r.table.workbook ? (r.table.encoding_label || dzT("cartes.data1.classeur"))
+          : (dzT("cartes.data1.separateur", { sep: sepLabel(T.sep) }) + ", "
             + (r.table.encoding_label || r.table.encoding))));
     } catch (e) {
       if (e && e.missing) { MISSING = true; render(); }
@@ -507,7 +507,7 @@
     await importBytes(enc.encode(String(text)).buffer, name, opt);
   }
   async function applyTable(tb, name, preset) {
-    if (!tb || !Array.isArray(tb.columns)) throw new Error("réponse d'analyse illisible");
+    if (!tb || !Array.isArray(tb.columns)) throw new Error(dzT("cartes.data1.reponse_illisible"));
     pushUndo();
     T.columns = tb.columns.map(String);
     T.rows = (tb.rows || []).map((r) => r.map((c) => String(c == null ? "" : c)));
@@ -593,14 +593,14 @@
        venir de la table de maintenant : les quatre autres sont rendus par le
        moteur, donc ceux de la construction precedente tant qu'elle n'est pas
        revenue. Eteindre les cinq ferait douter d'un chiffre juste. */
-    b.appendChild(h("div", "cf-data-mnum cf-data-mrows", '<b class="cf-data-mv">0</b><i class="cf-data-ml">lignes</i>'));
-    b.appendChild(h("div", "cf-data-mnum", '<b class="cf-data-mv">0</b><i class="cf-data-ml">retenues</i>'));
-    b.appendChild(h("div", "cf-data-mnum cf-data-mcards", '<b class="cf-data-mv">0</b><i class="cf-data-ml">cartes</i>'));
+    b.appendChild(h("div", "cf-data-mnum cf-data-mrows", '<b class="cf-data-mv">0</b><i class="cf-data-ml">' + dzT("cartes.data1.m_lignes") + '</i>'));
+    b.appendChild(h("div", "cf-data-mnum", '<b class="cf-data-mv">0</b><i class="cf-data-ml">' + dzT("cartes.data1.m_retenues") + '</i>'));
+    b.appendChild(h("div", "cf-data-mnum cf-data-mcards", '<b class="cf-data-mv">0</b><i class="cf-data-ml">' + dzT("cartes.data1.m_cartes") + '</i>'));
     /* LE QUATRIEME COMPTEUR, celui qui manquait : combien de slots la carte
        remplit AVEC LE TEXTE DU GABARIT. Il est a cote des trois autres, en
        gros, pas dans une pastille grise de la taille d'un nom de fichier. */
     b.appendChild(h("div", "cf-data-mnum cf-data-mgab",
-      '<b class="cf-data-mv">—</b><i class="cf-data-ml">slots au gabarit</i>'));
+      '<b class="cf-data-mv">—</b><i class="cf-data-ml">' + dzT("cartes.data1.m_gab") + '</i>'));
     /* LE 5e COMPTEUR, ET C'EST LE PLUS IMPORTANT : combien d'EMPLACEMENTS
        fabriques partent sur le tirage entier. « 5 slots » ne dit pas l'ampleur,
        et c'est ce nombre-la qui decide si on part en production.
@@ -613,7 +613,7 @@
        Huit de trop, 36 % d'exageration. Le moteur compte desormais, et rend
        les deux parts de l'addition. */
     b.appendChild(h("div", "cf-data-mnum cf-data-mfab",
-      '<b class="cf-data-mv">—</b><i class="cf-data-ml">champs inventés</i>'));
+      '<b class="cf-data-mv">—</b><i class="cf-data-ml">' + dzT("cartes.data1.m_fab") + '</i>'));
     const tags = h("div", "cf-data-mtags");
     b.appendChild(tags);
     /* LE DECOUPAGE DU TEMPS EST ECRIT, PAS CACHE DANS UNE INFOBULLE : une
@@ -648,8 +648,8 @@
     gab.classList.toggle("good", au && !nGab && !!nEvit);
     const gl = gab.querySelector(".cf-data-ml");
     gl.textContent = (au && au.blank_mode)
-      ? (nEvit ? "slots au gabarit (" + nEvit + " neutralisé(s))" : "slots au gabarit")
-      : "slots au gabarit";
+      ? (nEvit ? dzT("cartes.data1.m_gab_neutr", { n: nEvit }) : dzT("cartes.data1.m_gab"))
+      : dzT("cartes.data1.m_gab");
     /* LES DEUX COMPTES DE SLOTS SE RECONCILIENT ICI, PAR ECRIT. Ce compteur
        vaut 6 pendant que le grand livre juste dessous en affiche 5, et rien ne
        le disait : ils ne repondent pas a la meme question. Le grand livre
@@ -659,20 +659,13 @@
        justes qui se contredisent a l'oeil valent deux chiffres faux. */
     if (au) {
       const seul = au.n_slots_template_hole_only || 0;
-      gab.title = (nGab || nEvit)
-        + " = " + au.n_slots_unfed_template + " slot(s) qu'aucune colonne "
-        + "n'alimente" + (seul ? (" + " + seul + " slot(s) pourtant mappé(s) "
-          + "dont la colonne a des cellules vides (" + (au.slots_template_hole_only
-            || []).map(slotLabel).join(", ") + ")") : "")
-        + ". Le grand livre ci-dessous en compte "
-        + au.n_slots_unfed_template + " : il classe les colonnes, pas les "
-        + "prises de parole."
+      gab.title = dzT("cartes.data1.gab_t_base", { tot: nGab || nEvit, n: au.n_slots_unfed_template })
+        + (seul ? dzT("cartes.data1.gab_t_seul", { n: seul, slots: (au.slots_template_hole_only
+            || []).map(slotLabel).join(", ") }) : "")
+        + dzT("cartes.data1.gab_t_livre", { n: au.n_slots_unfed_template })
         + (au.blank_mode
-          ? (" Mode « laisser vide » actif : le gabarit ne reprend la main "
-            + "nulle part, soit " + (au.n_fabricated_avoided || 0)
-            + " emplacement(s) évité(s) sur l'ensemble du tirage.")
-          : " Mode « texte du gabarit » : ces slots impriment la valeur de "
-            + "démonstration de la pièce 03.");
+          ? dzT("cartes.data1.gab_t_vide", { n: au.n_fabricated_avoided || 0 })
+          : dzT("cartes.data1.gab_t_texte"));
     } else gab.title = "";
     /* CHAMPS INVENTES : le compte du MOTEUR, carte par carte. L'addition est
        ecrite dans l'infobulle avec ses deux parts, et la seule qui se
@@ -697,10 +690,9 @@
       if (title) e.title = title;
       t.appendChild(e);
     };
-    if (PENDING && st) add("recalcul en cours — les 4 compteurs sont ceux de la "
-      + "construction précédente", "warn");
+    if (PENDING && st) add(dzT("cartes.data1.recalcul"), "warn");
     if (T.columns.length) {
-      add(T.columns.length + " colonnes");
+      add(dzT("cartes.data1.n_colonnes", { n: T.columns.length }));
       /* UN CLASSEUR N'A NI SEPARATEUR NI ENCODAGE DE TEXTE. Afficher
          « séparateur point-virgule · UTF-8 » sur un .xlsx serait un chiffre
          faux de plus. */
@@ -711,8 +703,8 @@
          defaut heureuse, et le critique le reprochait a juste titre. */
       if (!wb) {
         const auto = LASTTABLE ? (LASTTABLE.sep_auto !== false) : false;
-        add("séparateur " + sepLabel(T.sep)
-          + (LASTTABLE ? (auto ? " (deviné)" : " (imposé)") : ""));
+        add(dzT("cartes.data1.separateur", { sep: sepLabel(T.sep) })
+          + (LASTTABLE ? (auto ? dzT("cartes.data1.devine") : dzT("cartes.data1.impose")) : ""));
       }
       /* Apres un rechargement de page LASTTABLE est nul (il n'est pas
          persiste) : on retombe sur l'etiquette lisible du reglage RETENU. Il
@@ -720,19 +712,18 @@
          (table saisie a la main, collee), on l'ECRIT. */
       const encName = encLabel();
       add(encName + (LASTTABLE
-        ? (LASTTABLE.enc_auto !== false ? " (deviné)" : " (imposé)") : ""),
+        ? (LASTTABLE.enc_auto !== false ? dzT("cartes.data1.devine") : dzT("cartes.data1.impose")) : ""),
       encTone());
-      if (st && st.disabled) add(st.disabled + " désactivée(s)", "warn");
+      if (st && st.disabled) add(dzT("cartes.data1.n_desactivees", { n: st.disabled }), "warn");
       /* LIGNES MAL FORMEES — un compteur SEPARE de celui du filtre. « Ligne
          refusee par ma condition » et « ligne que je n'ai pas su lire » n'ont
          rien a voir, et la seconde n'existait pas : `Echo;1;9;99;77` perdait
          99 et 77 avec zero avertissement. */
       if (LASTTABLE && LASTTABLE.n_ragged_long) {
-        add(LASTTABLE.n_ragged_long + " ligne(s) trop longue(s) — "
-          + LASTTABLE.n_values_lost + " valeur(s) perdue(s)", "err");
+        add(dzT("cartes.data1.trop_longues", { n: LASTTABLE.n_ragged_long, perdues: LASTTABLE.n_values_lost }), "err");
       }
       if (LASTTABLE && LASTTABLE.n_ragged_short) {
-        add(LASTTABLE.n_ragged_short + " ligne(s) trop courte(s), complétée(s)", "warn");
+        add(dzT("cartes.data1.trop_courtes", { n: LASTTABLE.n_ragged_short }), "warn");
       }
       /* Le SEUIL de la spec porte sur l'import (« 200 lignes en moins de
          2 s »), pas sur la reconstruction : les deux chiffres sont affiches
@@ -750,31 +741,26 @@
          « tenu » sur une mesure qui ne le tenait pas. Vert seulement a partir
          de 200 lignes ; rouge des qu'on depasse 2 s, quel que soit le nombre
          de lignes ; neutre entre les deux, et le texte dit sur quoi il porte. */
-      if (IMPORT_MS) add("import " + IMPORTED_N + " ligne(s) en "
-        + Math.round(IMPORT_MS) + " ms",
+      if (IMPORT_MS) add(dzT("cartes.data1.import_n", { n: IMPORTED_N, ms: Math.round(IMPORT_MS) }),
       (IMPORT_MS >= 2000 ? "err" : (IMPORTED_N >= 200 ? "ok" : "")),
-      "Le seuil du cahier des charges porte sur 200 lignes en moins de 2 s. "
-      + "Mesure ici : " + IMPORTED_N + " ligne(s) en " + Math.round(IMPORT_MS)
-      + " ms, octets lus compris et première frame peinte comprise."
+      dzT("cartes.data1.seuil", { n: IMPORTED_N, ms: Math.round(IMPORT_MS) })
       + (IMPORTED_N < 200
-        ? " Cette mesure ne porte PAS sur 200 lignes : le jeu « Charge » de "
-          + "l'écran vide les fournit."
-        : " Le seuil est tenu sur le nombre de lignes qu'il nomme."));
+        ? dzT("cartes.data1.seuil_non")
+        : dzT("cartes.data1.seuil_oui")));
       if (BUILD_MS) add("build " + Math.round(BUILD_MS) + " ms");
       if (T.src) add(T.src);
       if (LASTEXPORT) add(LASTEXPORT.txt, LASTEXPORT.ok ? "ok" : "err");
-      if (LASTTABLE && LASTTABLE.mojibake) add("accents douteux", "err");
+      if (LASTTABLE && LASTTABLE.mojibake) add(dzT("cartes.data1.accents_douteux"), "err");
       /* LE MOT DU CADRE MONTE DANS LA BARRE DES COMPTEURS. Il ne sort d'aucun
          slot, donc aucun des cinq chiffres ne le porte : sans cette pastille
          il faudrait descendre lire le bandeau pour apprendre que sept cartes
          sur dix partent avec un mot faux. */
       if (au && au.frame && au.frame.n_clash) {
-        add("cadre : « " + au.frame.word + " » contredit " + au.frame.col
-          + " sur " + au.frame.n_clash + " / " + au.frame.n_cards + " cartes",
+        add(dzT("cartes.data1.cadre_contredit", { mot: au.frame.word, col: au.frame.col, n: au.frame.n_clash, total: au.frame.n_cards }),
         "err");
       }
     } else {
-      add("aucune donnée — déposez un CSV, un classeur, ou chargez un exemple");
+      add(dzT("cartes.data1.aucune_donnee"));
     }
     if (ERR) add(ERR, "err");
     if (st && st.warnings) st.warnings.forEach((w) => add(w, "warn"));
@@ -786,7 +772,7 @@
     if (REFS.expdeck) {
       const nc = st ? st.n_cards : 0;
       REFS.expdeck.innerHTML = ICO("dz-action-exporter", 16, "cf-ic") + (nc
-        ? ("Exporter le deck — " + nc + " carte(s)") : "Exporter le deck");
+        ? dzT("cartes.data1.exporter_deck_n", { n: nc }) : dzT("cartes.data1.exporter_deck"));
       REFS.expdeck.disabled = !nc;
     }
   }
@@ -804,16 +790,10 @@
       : (au.n_fabricated || 0);
     const a = au.n_fab_unfed || 0, b = au.n_fab_holes || 0;
     const nc = (st && st.n_cards) ? st.n_cards : 0;
-    const somme = (a + b === tot) ? "" : " [somme incohérente : "
-      + a + " + " + b + " ≠ " + tot + " — ne rien conclure de ce chiffre]";
-    return (au.blank_mode ? "Auraient été fabriqués : " : "Fabriqués : ")
-      + au.n_slots_unfed_template + " slot(s) qu'aucune colonne n'alimente × "
-      + nc + " carte(s) = " + a
-      + " · + " + b + " emplacement(s) laissés vides par une colonne pourtant "
-      + "posée = " + tot + " au total, compté carte par carte par le moteur "
-      + "(jamais un produit)." + somme
-      + (au.blank_mode ? " Le mode « laisser vide » les a tous neutralisés : "
-        + "le fichier livré n'en porte aucun." : "");
+    const somme = (a + b === tot) ? "" : dzT("cartes.data1.somme_incoherente", { a: a, b: b, tot: tot });
+    return (au.blank_mode ? dzT("cartes.data1.fab_auraient") : dzT("cartes.data1.fab_fabriques"))
+      + dzT("cartes.data1.fab_detail", { n: au.n_slots_unfed_template, nc: nc, a: a, b: b, tot: tot }) + somme
+      + (au.blank_mode ? dzT("cartes.data1.fab_neutralises") : "");
   }
   function isWorkbook() {
     return T.enc === "xlsx" || T.enc === "ods";
@@ -824,9 +804,9 @@
     if (LASTTABLE && LASTTABLE.encoding_label) return LASTTABLE.encoding_label;
     const f = ENCS.filter((e) => e.v === T.enc)[0];
     if (f && f.v !== "auto") return f.label;
-    if (T.enc === "xlsx") return "classeur .xlsx";
-    if (T.enc === "ods") return "classeur .ods";
-    return "encodage non déterminé (table saisie ici)";
+    if (T.enc === "xlsx") return dzT("cartes.data1.classeur_xlsx");
+    if (T.enc === "ods") return dzT("cartes.data1.classeur_ods");
+    return dzT("cartes.data1.enc_indetermine");
   }
   function encTone() {
     if (T.enc === "cp1252") return "warn";
@@ -867,14 +847,9 @@
     if (eng != null) {
       const s = [TIMING.b64, eng, net, TIMING.apply, TIMING.paint]
         .reduce((a, x) => a + rv(x), 0);
-      somme = " · <i>somme des cinq postes affichés : " + r(s)
-        + " (arrondis)</i>";
+      somme = " · <i>" + dzT("cartes.data1.t_somme", { s: r(s) }) + "</i>";
     }
-    return "où passent ces " + r(TIMING.total) + " : base64 <b>" + r(TIMING.b64)
-      + "</b> · moteur <b>" + r(eng)
-      + "</b> · trajet HTTP <b>" + r(net)
-      + "</b> · table dans le DOM <b>" + r(TIMING.apply)
-      + "</b> · première frame peinte <b>" + r(TIMING.paint) + "</b>" + somme;
+    return dzT("cartes.data1.t_detail", { total: r(TIMING.total), b64: r(TIMING.b64), moteur: r(eng), net: r(net), dom: r(TIMING.apply), peint: r(TIMING.paint) }) + somme;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -908,13 +883,12 @@
     if (!T.columns.length) {
       g.className = "cf-data-audit muted";
       g.appendChild(h("p", "cf-data-aline",
-        "Aucune table : la carte affichée est <b>entièrement</b> celle du gabarit "
-        + "de la pièce 03. Le contrôle du mappage s'allume dès qu'un fichier entre."));
+        dzT("cartes.data1.audit_vide")));
       return;
     }
     if (!au) {
       g.className = "cf-data-audit muted";
-      g.appendChild(h("p", "cf-data-aline", "Contrôle du mappage : en attente de la construction…"));
+      g.appendChild(h("p", "cf-data-aline", dzT("cartes.data1.audit_attente")));
       return;
     }
     const talk = au.slots_unfed_template || [];
@@ -956,19 +930,15 @@
        denominateurs, une strate plus bas. Une case a zero permanente, elle,
        serait du bruit. */
     const ghost = au.n_cols_to_ghost
-      ? [{ n: au.n_cols_to_ghost, what: "vers un slot disparu", bad: true,
-        title: (au.cols_to_ghost || []).join(", ")
-          + " — ces colonnes visent un slot qui n'existe plus dans « 03 "
-          + "Typographie » : elles n'alimentent rien, reposez-les" }]
+      ? [{ n: au.n_cols_to_ghost, what: dzT("cartes.data1.vers_slot_disparu"), bad: true,
+        title: dzT("cartes.data1.ghost_t", { cols: (au.cols_to_ghost || []).join(", ") }) }]
       : [];
-    led.appendChild(line("colonnes du fichier", au.n_cols, [
-      { n: au.n_cols_to_slots, what: "vers un slot", good: true,
+    led.appendChild(line(dzT("cartes.data1.cols_fichier"), au.n_cols, [
+      { n: au.n_cols_to_slots, what: dzT("cartes.data1.vers_slot"), good: true,
         title: (au.cols_to_slots || []).join(", ") },
     ].concat(ghost, [
-      { n: au.n_cols_to_reserved, what: "vers un champ réservé",
-        title: (au.cols_to_reserved || []).join(", ")
-          + " — art / dos / identifiant ne sont pas des slots de texte : "
-          + "c'est TOUT l'écart entre « posées » et « alimentés »" },
+      { n: au.n_cols_to_reserved, what: dzT("cartes.data1.vers_reserve"),
+        title: dzT("cartes.data1.reserve_t", { cols: (au.cols_to_reserved || []).join(", ") }) },
       /* UNE COLONNE, UNE CASE : quand la colonne de quantite est AUSSI mappee
          vers un slot, elle est comptee a gauche et ce compteur-ci reste a
          zero. Sans cette phrase, l'ecran affiche « quantité 0 » a cote d'un
@@ -976,17 +946,16 @@
          contredisent a l'oeil, exactement le reproche des trois
          denominateurs. */
       { n: au.n_cols_qty, what: au.qty_also_mapped
-        ? "quantité (comptée à gauche)" : "quantité",
+        ? dzT("cartes.data1.qty_gauche") : dzT("cartes.data1.qty"),
       title: au.qty_also_mapped
-        ? ("« " + String(T.qty_col || "") + " » sert de quantité ET alimente un "
-          + "slot : elle est comptée une seule fois, dans « vers un slot ».")
+        ? dzT("cartes.data1.qty_aussi_t", { col: String(T.qty_col || "") })
         : (au.cols_qty || []).join(", ") },
-      { n: au.n_cols_idle, what: "sans emploi", bad: !!au.n_cols_idle,
+      { n: au.n_cols_idle, what: dzT("cartes.data1.sans_emploi"), bad: !!au.n_cols_idle,
         title: (au.cols_unmapped || []).join(", ") },
     ])));
     if (au.slots_known) {
-      led.appendChild(line("slots de la carte", au.n_slots, [
-        { n: au.n_slots_fed, what: "du fichier", good: true,
+      led.appendChild(line(dzT("cartes.data1.slots_carte"), au.n_slots, [
+        { n: au.n_slots_fed, what: dzT("cartes.data1.du_fichier"), good: true,
           title: (au.slots_fed || []).map(slotLabel).join(", ") },
         /* « SANS COLONNE » EST DANS L'ETIQUETTE, ET C'EST LA RECONCILIATION.
            Ce compteur-ci en affichait 5 pendant que celui du haut en affichait
@@ -995,31 +964,25 @@
            mappe parle quand meme sur les cartes a cellule vide). Le mot
            manquant valait un chiffre faux. */
         { n: au.n_slots_unfed_template,
-          what: au.blank_mode ? "sans colonne, laissés vides"
-            : "sans colonne, au gabarit",
+          what: au.blank_mode ? dzT("cartes.data1.sans_col_vides")
+            : dzT("cartes.data1.sans_col_gab"),
           bad: !au.blank_mode && !!au.n_slots_unfed_template,
           good: !!(au.blank_mode && au.n_slots_unfed_template),
           title: talk.map(slotLabel).join(", ")
             + (au.n_slots_template_hole_only
-              ? (" — le compteur du haut en annonce "
-                + (au.n_slots_unfed_template + au.n_slots_template_hole_only)
-                + " : il ajoute " + au.n_slots_template_hole_only
-                + " slot(s) pourtant mappé(s) dont la colonne a des cellules "
-                + "vides (" + (au.slots_template_hole_only || [])
-                  .map(slotLabel).join(", ") + ")")
+              ? dzT("cartes.data1.haut_annonce", { tot: au.n_slots_unfed_template + au.n_slots_template_hole_only,
+                n: au.n_slots_template_hole_only,
+                slots: (au.slots_template_hole_only || []).map(slotLabel).join(", ") })
               : "") },
-        { n: au.n_slots_unfed_blank, what: "vides de toute façon",
-          title: mute.map(slotLabel).join(", ")
-            + " — sans donnée ET sans texte de démonstration : ils n'impriment "
-            + "rien, ils ne sont donc PAS comptés comme fabriqués" },
+        { n: au.n_slots_unfed_blank, what: dzT("cartes.data1.vides_toute_facon"),
+          title: dzT("cartes.data1.muets_t", { slots: mute.map(slotLabel).join(", ") }) },
       ]));
       if (au.n_slots_hidden) {
         led.appendChild(h("p", "cf-data-aline muted",
-          "<b>" + au.n_slots_hidden + "</b> slot(s) masqué(s) dans « 03 "
-          + "Typographie » — hors compte : la carte ne les dessine pas."));
+          dzT("cartes.data1.masques", { n: au.n_slots_hidden })));
       }
     } else {
-      led.appendChild(h("p", "cf-data-aline", "slots de la pièce 03 non publiés"));
+      led.appendChild(h("p", "cf-data-aline", dzT("cartes.data1.slots_non_publies")));
     }
     g.appendChild(led);
 
@@ -1034,17 +997,14 @@
     on(bk, "change", () => {
       BLANKMODE = bk.checked;
       M.toast(BLANKMODE
-        ? "les slots sans donnée resteront vides sur les cartes"
-        : "ATTENTION : les slots sans donnée impriment le texte de démonstration "
-        + "du gabarit, indiscernable d'une vraie valeur", !BLANKMODE);
+        ? dzT("cartes.data1.toast_vide")
+        : dzT("cartes.data1.toast_gabarit"), !BLANKMODE);
       schedule(0);
     });
     mode.appendChild(bk);
     mode.appendChild(h("span", "cf-data-blankt",
-      "Laisser <b>vides</b> les slots sans donnée"));
-    mode.title = "Décoché, la pièce 03 imprime son texte de démonstration à la "
-      + "place de la donnée manquante — même typographie, même aplomb qu'une "
-      + "vraie valeur, sur toutes les cartes du tirage.";
+      dzT("cartes.data1.laisser_vides")));
+    mode.title = dzT("cartes.data1.laisser_vides_t");
     head.appendChild(mode);
     /* ═══ LE BOUTON QUI VA CHERCHER LA REPONSE DANS LE FICHIER ═══════════════
        « 0 valeur inventée » est une affirmation du MOTEUR sur `card.fields`.
@@ -1055,11 +1015,9 @@
        courant, puis dans l'autre — et compare les deux PNG livres pixel par
        pixel. Le chiffre affiche est alors une difference d'octets, pas une
        intention. */
-    const mb = h("button", "btn sm cf-data-b cf-data-mesb", "Mesurer sur la carte livrée");
+    const mb = h("button", "btn sm cf-data-b cf-data-mesb", dzT("cartes.data1.mesurer"));
     mb.type = "button";
-    mb.title = "Rend la carte affichée dans les deux modes et compare les deux "
-      + "fichiers PNG pixel par pixel. Le compteur ci-dessus parle de "
-      + "card.fields ; cette mesure parle du fichier.";
+    mb.title = dzT("cartes.data1.mesurer_t");
     on(mb, "click", () => measureDelivered(mb));
     head.appendChild(mb);
     /* LA PORTEE EST ECRITE DANS LA PHRASE — c'est la correction, et elle tient
@@ -1068,18 +1026,10 @@
        « RARE » sur les dix. Le chiffre etait juste, sa portee etait tue. Un
        chiffre sans sa portee se fait lire pour ce qu'il n'est pas. */
     const hint = h("span", "cf-data-ahint", fabriques
-      ? ("<b>" + fabriques + "</b> valeur(s) que personne n'a écrite partiraient "
-        + "à l'impression — <b>" + au.n_fab_unfed + "</b> venant de "
-        + au.n_slots_unfed_template + " slot(s) sans colonne sur les "
-        + (st.n_cards || 0) + " carte(s), <b>" + au.n_fab_holes
-        + "</b> de cellules vides sur une colonne posée")
+      ? dzT("cartes.data1.hint_fab", { n: fabriques, unfed: au.n_fab_unfed, slots: au.n_slots_unfed_template, nc: st.n_cards || 0, holes: au.n_fab_holes })
       : (au.blank_mode && au.n_template_avoided
-        ? ("<b>0</b> valeur inventée <b>dans les slots</b> sur les "
-          + (st.n_cards || 0) + " carte(s) — " + au.n_template_avoided
-          + " slot(s) du gabarit neutralisé(s), soit <b>"
-          + (au.n_fabricated_avoided || 0) + "</b> emplacement(s) qui auraient "
-          + "été fabriqués")
-        : "aucun slot ne fabrique de valeur"));
+        ? dzT("cartes.data1.hint_zero", { nc: st.n_cards || 0, n: au.n_template_avoided, evites: au.n_fabricated_avoided || 0 })
+        : dzT("cartes.data1.aucun_fab")));
     hint.title = fabSum(au, st);
     head.appendChild(hint);
     g.appendChild(head);
@@ -1092,10 +1042,10 @@
     if (talk.length || mute.length) {
       const box = h("div", "cf-data-aslots");
       box.appendChild(h("div", "lbl", talk.length
-        ? ("Slots sans donnée dont le gabarit a un texte — " + (BLANKMODE
-          ? "laissés vides sur les " + (st.n_cards || 0) + " carte(s) :"
-          : "voici ce qui s'imprime sur les " + (st.n_cards || 0) + " carte(s) :"))
-        : "Slots sans donnée (le gabarit n'a rien à imprimer non plus) :"));
+        ? (BLANKMODE
+          ? dzT("cartes.data1.slots_txt_vides", { nc: st.n_cards || 0 })
+          : dzT("cartes.data1.slots_txt_imprime", { nc: st.n_cards || 0 }))
+        : dzT("cartes.data1.slots_muets")));
       talk.concat(mute).forEach((id) => box.appendChild(unfedChip(id)));
       g.appendChild(box);
     }
@@ -1103,13 +1053,12 @@
       const box = h("div", "cf-data-aholes");
       holes.forEach((x) => {
         box.appendChild(h("p", "cf-data-aline",
-          "Colonne <code>" + esc(x.col) + "</code> → <b>" + esc(slotLabel(x.slot))
-          + "</b> : <b>" + x.n_cards + "</b> carte(s) ont la cellule vide — "
+          dzT("cartes.data1.trou_col", { col: esc(x.col), slot: esc(slotLabel(x.slot)), n: x.n_cards })
           + (x.template
             ? (BLANKMODE
-              ? "laissées vides (sans le mode ci-dessus, le gabarit y reprendrait la main)."
-              : "<b>sur celles-là le gabarit reprend la main</b>.")
-            : "le gabarit n'a rien à y mettre non plus : elles restent vides.")));
+              ? dzT("cartes.data1.trou_vides")
+              : dzT("cartes.data1.trou_gabarit"))
+            : dzT("cartes.data1.trou_rien"))));
       });
       g.appendChild(box);
     }
@@ -1117,7 +1066,7 @@
       (o) => T.columns.indexOf(o.col) >= 0 && !T.map[o.col] && o.col !== T.qty_col) : [];
     if (orph.length) {
       const box = h("div", "cf-data-aorph");
-      box.appendChild(h("div", "lbl", "Colonnes du fichier qui n'entrent dans aucune carte :"));
+      box.appendChild(h("div", "lbl", dzT("cartes.data1.orphelines")));
       orph.forEach((o) => {
         const p = h("div", "cf-data-aline");
         p.appendChild(h("code", "", esc(o.col)));
@@ -1139,7 +1088,7 @@
         if (free.length) {
           const sel = h("select", "cf-data-sel cf-data-osel");
           const o0 = document.createElement("option");
-          o0.value = ""; o0.textContent = "poser ici sur…";
+          o0.value = ""; o0.textContent = dzT("cartes.data1.poser_ici");
           sel.appendChild(o0);
           free.forEach((s) => {
             const op = document.createElement("option");
@@ -1147,7 +1096,7 @@
             sel.appendChild(op);
           });
           const oq = document.createElement("option");
-          oq.value = "#qty"; oq.textContent = "▸ colonne de quantité";
+          oq.value = "#qty"; oq.textContent = dzT("cartes.data1.col_qty");
           sel.appendChild(oq);
           on(sel, "change", () => {
             if (!sel.value) return;
@@ -1179,28 +1128,17 @@
     const p = h("p", "cf-data-frameline");
     let etat = "muted", txt = "";
     if (!fr.col) {
-      txt = "Le <b>cadre</b> (pièce 02) imprime « <b>" + esc(fr.word)
-        + "</b> » sur les <b>" + n + "</b> carte(s) : ce mot ne passe par aucun "
-        + "slot et ne vient d'aucune colonne — aucune colonne de rareté dans "
-        + "ce fichier, c'est donc un choix de mise en page, pas une donnée.";
+      txt = dzT("cartes.data1.cadre_sans_col", { mot: esc(fr.word), n: n });
     } else if (fr.n_clash > 0) {
       etat = "bad";
-      txt = "Le <b>cadre</b> (pièce 02) imprime « <b>" + esc(fr.word)
-        + "</b> » sur les <b>" + n + "</b> carte(s), et la colonne <code>"
-        + esc(fr.col) + "</code> dit autre chose sur <b>" + fr.n_clash
-        + "</b> d'entre elles"
+      txt = dzT("cartes.data1.cadre_clash", { mot: esc(fr.word), n: n, col: esc(fr.col), k: fr.n_clash })
         + (fr.clash && fr.clash.length
           ? (" — " + fr.clash.map((c) => esc(c.v) + " × " + c.n).join(", "))
           : "")
-        + ". Ce mot ne passe par aucun slot : cette pièce ne peut pas "
-        + "l'éteindre, il se règle dans « 02 Cadre » (bandeau, ou rareté du "
-        + "cadre). Tant qu'il est là, <b>" + fr.n_clash + "</b> carte(s) "
-        + "partiraient avec un mot que le fichier contredit.";
+        + dzT("cartes.data1.cadre_clash_fin", { k: fr.n_clash });
     } else {
       etat = "good";
-      txt = "Le <b>cadre</b> (pièce 02) imprime « <b>" + esc(fr.word)
-        + "</b> » sur les <b>" + n + "</b> carte(s) et la colonne <code>"
-        + esc(fr.col) + "</code> dit la même chose sur toutes : rien à signaler.";
+      txt = dzT("cartes.data1.cadre_ok", { mot: esc(fr.word), n: n, col: esc(fr.col) });
     }
     p.className = "cf-data-frameline " + etat;
     p.innerHTML = txt;
@@ -1224,11 +1162,11 @@
     c.appendChild(h("span", "cf-data-usv" + (t ? "" : " empty"),
       t ? ((BLANKMODE ? "<s>" : "") + "« "
         + esc(t.length > 34 ? t.slice(0, 33) + "…" : t) + " »"
-        + (BLANKMODE ? "</s> laissé vide" : ""))
-        : "rien à imprimer"));
+        + (BLANKMODE ? "</s> " + dzT("cartes.data1.laisse_vide") : ""))
+        : dzT("cartes.data1.rien_imprimer")));
     const sel = h("select", "cf-data-sel cf-data-usel");
     const o0 = document.createElement("option");
-    o0.value = ""; o0.textContent = "alimenter avec…";
+    o0.value = ""; o0.textContent = dzT("cartes.data1.alimenter");
     sel.appendChild(o0);
     T.columns.forEach((col) => {
       if (T.map[col]) return;
@@ -1338,16 +1276,16 @@
   }
   async function measureDelivered(btn) {
     if (!LAST || !LAST.cards || !LAST.cards.length) {
-      M.toast("construisez d'abord le deck", true); return;
+      M.toast(dzT("cartes.data1.construire_dabord"), true); return;
     }
     if (typeof createImageBitmap !== "function") {
-      M.toast("ce moteur ne sait pas relire un PNG : mesure impossible", true);
+      M.toast(dzT("cartes.data1.png_illisible"), true);
       return;
     }
     const was = BLANKMODE;
     const i = CF.current();
     if (btn) btn.disabled = true;
-    M.busy(true, "rendu de la carte dans les deux modes…");
+    M.busy(true, dzT("cartes.data1.rendu_deux_modes"));
     const t0 = now();
     try {
       /* DEUX RENDUS DU MEME ETAT D'ABORD, ET ON COMPTE L'ECART. Une police ou
@@ -1364,7 +1302,7 @@
       BLANKMODE = was;
       await rebuild();
       if (a.w !== b.w || a.h !== b.h) {
-        throw new Error("les deux rendus n'ont pas la même toile");
+        throw new Error(dzT("cartes.data1.toiles_differentes"));
       }
       const diff = countDiff(a.px, b.px);
       /* le fichier RELLEMENT livre part au moteur : c'est celui du mode
@@ -1393,7 +1331,7 @@
         ms: now() - t0,
       };
       paintDeliv();
-      M.toast(diff + " pixel(s) d'écart entre les deux fichiers de carte");
+      M.toast(dzT("cartes.data1.ecart_px", { n: diff }));
     } catch (e) {
       /* on remet le mode ET le deck : sortir d'ici sur le tirage au gabarit
          parce que la mesure a echoue, ce serait livrer l'inverse de ce que la
@@ -1402,7 +1340,7 @@
       schedule(0);
       DELIV = { err: String((e && e.message) || e) };
       paintDeliv();
-      M.toast("mesure impossible : " + DELIV.err, true);
+      M.toast(dzT("cartes.data1.mesure_impossible", { err: DELIV.err }), true);
     } finally {
       M.busy(false);
       if (btn) btn.disabled = false;
@@ -1413,20 +1351,15 @@
      ne montrait ni son calcul, ni un fichier. Le calcul est desormais ecrit en
      permanence, et le fichier vient s'y confronter des qu'on mesure. */
   function geomText(G) {
-    return "À <b>" + G.dpi + " DPI</b>, re-dérivé des millimètres : coupe "
-      + G.g.trim_mm[0] + " × " + G.g.trim_mm[1] + " mm → <b>" + G.trim[0]
-      + " × " + G.trim[1] + " px</b> · + 2 × " + G.bleed_mm
-      + " mm de fond perdu → toile <b>" + G.canvas[0] + " × " + G.canvas[1]
-      + " px</b> · − 2 × " + G.safe_mm + " mm → zone sûre <b>" + G.safe[0]
-      + " × " + G.safe[1] + " px</b>"
-      + (G.same ? "" : " — <b>la table du CORE annonce autre chose ("
-        + G.g.canvas_px[0] + " × " + G.g.canvas_px[1] + ")</b>");
+    return dzT("cartes.data1.geom", { dpi: G.dpi, tw: G.g.trim_mm[0], th: G.g.trim_mm[1], pw: G.trim[0],
+        ph: G.trim[1], bleed: G.bleed_mm, cw: G.canvas[0], ch: G.canvas[1], safe: G.safe_mm,
+        sw: G.safe[0], sh: G.safe[1] })
+      + (G.same ? "" : dzT("cartes.data1.geom_core", { w: G.g.canvas_px[0], h: G.g.canvas_px[1] }));
   }
   function geomLine() {
     const G = geomProof();
     if (!G) return "";
-    return geomText(G) + ". Aucun fichier mesuré pour l'instant : le bouton "
-      + "ci-dessus en rend deux et les lit octet par octet.";
+    return geomText(G) + dzT("cartes.data1.geom_aucun");
   }
   function paintDeliv() {
     const p = REFS.deliv;
@@ -1439,7 +1372,7 @@
     }
     if (DELIV.err) {
       p.className = "cf-data-deliv bad";
-      p.innerHTML = "mesure sur la carte livrée impossible — " + esc(DELIV.err);
+      p.innerHTML = dzT("cartes.data1.deliv_err", { err: esc(DELIV.err) });
       return;
     }
     const d = DELIV;
@@ -1458,14 +1391,9 @@
     const fc = (d.fabCard == null) ? d.slots : d.fabCard;
     let bad = "";
     if (d.blank && fc > 0 && d.diff <= d.noise) {
-      bad = "CONTRADICTION — le moteur annonce " + fc + " emplacement(s) du "
-        + "gabarit neutralisé(s) sur CETTE carte, et pourtant le fichier ne "
-        + "change pas plus que le plancher de bruit quand on rend le gabarit. "
-        + "L'un des deux ment : ne pas partir à l'impression sur ce compte.";
+      bad = dzT("cartes.data1.contra_neutr", { n: fc });
     } else if (d.blank && fc === 0 && d.diff > d.noise) {
-      bad = "CONTRADICTION — le moteur n'annonce aucun emplacement au gabarit "
-        + "sur cette carte, et pourtant " + d.diff + " pixel(s) changent quand "
-        + "on le laisse parler. Le compteur ne voit pas tout ce qui s'imprime.";
+      bad = dzT("cartes.data1.contra_aucun", { n: d.diff });
     }
     /* LES DEUX LECTEURS DU MEME FICHIER, CONFRONTES. Le desaccord est le seul
        cas ou aucun des deux chiffres ne vaut : on le dit avant tout le reste. */
@@ -1473,10 +1401,7 @@
     if (R && R.ok && R.ihdr && ih
       && (R.ihdr.w !== ih.w || R.ihdr.h !== ih.h || R.ihdr.bits !== ih.bits)) {
       bad = (bad ? bad + " " : "")
-        + "CONTRADICTION — l'écran lit " + ih.w + " × " + ih.h + " / "
-        + ih.bits + " bits dans l'en-tête et le moteur lit " + R.ihdr.w + " × "
-        + R.ihdr.h + " / " + R.ihdr.bits + " bits dans le MÊME fichier. "
-        + "Aucun des deux ne vaut tant que ce n'est pas expliqué.";
+        + dzT("cartes.data1.contra_ihdr", { w: ih.w, h: ih.h, bits: ih.bits, rw: R.ihdr.w, rh: R.ihdr.h, rbits: R.ihdr.bits });
     }
     const ok = !bad && ih && ih.w === cw && ih.h === chh;
     p.className = "cf-data-deliv " + (bad ? "bad" : (ok ? "ok" : "warn"));
@@ -1492,89 +1417,63 @@
       inv = " · <b>" + tot + "</b> chunks (" + k.map(
         (x) => x + " ×" + R.chunk_counts[x]).join(", ") + ")";
     }
-    L.push("<b>Carte " + (d.i + 1) + " telle qu'elle est livrée</b>, lue octet "
-      + "par octet : PNG <b>" + gr(d.n) + "</b> octets" + inv + ".");
+    L.push(dzT("cartes.data1.d_carte", { i: d.i + 1, n: gr(d.n) }) + inv + ".");
     /* 2. l'en-tete, DIT POUR CE QU'IL EST */
-    L.push("En-tête IHDR : <b>" + (ih ? (ih.w + " × " + ih.h) : "illisible")
-      + " px</b>"
+    L.push(dzT("cartes.data1.d_ihdr", { dim: ih ? (ih.w + " × " + ih.h) : dzT("cartes.data1.illisible") })
       + (R && R.ihdr ? (", " + esc(R.ihdr.color_label) + " (type "
-        + R.ihdr.color + ")" + (R.ihdr.interlace ? ", entrelacé"
-          : ", non entrelacé")) : "")
-      + ", <b>" + (ih ? ih.bits : "?") + " bits/canal ANNONCÉS</b> — un "
-      + "en-tête est une déclaration.");
+        + R.ihdr.color + ")" + (R.ihdr.interlace ? dzT("cartes.data1.entrelace")
+          : dzT("cartes.data1.non_entrelace"))) : "")
+      + dzT("cartes.data1.d_bits", { bits: ih ? ih.bits : "?" }));
     /* 3. la profondeur EFFECTIVE, mesuree sur les echantillons */
     if (R && R.deep) {
-      L.push("Profondeur <b>effective</b>, mesurée sur les <b>"
-        + gr(R.samples) + "</b> échantillons dégonflés et défiltrés : <b>"
-        + gr(R.distinct) + "</b> valeur(s) distincte(s), pas du réseau <b>"
-        + R.lattice_step + "</b> → <b>"
-        + Number(R.bits_effective).toFixed(2).replace(".", ",")
-        + " bits utiles</b>"
+      L.push(dzT("cartes.data1.d_prof", { n: gr(R.samples), k: gr(R.distinct), pas: R.lattice_step,
+        bits: Number(R.bits_effective).toFixed(2).replace(".", ",") })
         + (R.widened_8bit
-          ? " — <b>l'en-tête MENT</b> : tout tombe sur le réseau k·257, "
-            + "c'est une carte 8 bits élargie."
+          ? dzT("cartes.data1.d_ment")
           : (ih && Math.ceil(R.bits_effective) <= ih.bits
-            ? " — l'en-tête dit vrai." : " — incohérent avec l'en-tête."))
+            ? dzT("cartes.data1.d_vrai") : dzT("cartes.data1.d_incoherent")))
         /* LE POIDS MORT SE DIT EN ECHANTILLONS, PAS EN POIDS DE FICHIER : un
            canal constant se comprime a presque rien, donc « N octets de plus
            dans le fichier » serait faux. Ce qui est vrai et mesure : les N
            echantillons du canal valent tous 255, il ne porte rien. */
-        + (R.alpha ? (" Canal alpha : <b>" + R.alpha.distinct
-          + "</b> valeur(s) distincte(s)"
-          + (R.alpha.opaque ? (" — entièrement opaque : ses <b>"
-            + gr(R.alpha.bytes) + "</b> échantillons valent tous 255, il ne "
-            + "porte aucune information") : (" de " + R.alpha.min + " à "
-            + R.alpha.max)) + ".") : ""));
+        + (R.alpha ? (dzT("cartes.data1.d_alpha", { k: R.alpha.distinct })
+          + (R.alpha.opaque ? dzT("cartes.data1.d_alpha_opaque", { n: gr(R.alpha.bytes) })
+            : dzT("cartes.data1.d_alpha_plage", { min: R.alpha.min, max: R.alpha.max })) + ".") : ""));
     } else if (R) {
-      L.push("Profondeur effective <b>non mesurée</b> : "
-        + esc(R.deep_why || R.error || "raison non rendue")
-        + " — le chiffre de l'en-tête reste une déclaration.");
+      L.push(dzT("cartes.data1.d_prof_non", { why: esc(R.deep_why || R.error || dzT("cartes.data1.raison_non_rendue")) }));
     }
     /* 4. LA RESOLUTION, ET C'EST LA QUE LA PASTILLE 300 DPI SE PROUVE OU SE TAIT */
     const G = d.geo;
     let res = "";
     if (R && R.phys && R.dpi != null) {
-      res = "Résolution : chunk <b>pHYs</b> présent — " + gr(R.phys.x)
-        + " × " + gr(R.phys.y) + " " + esc(R.phys.unit_label) + ", soit <b>"
-        + String(R.dpi).replace(".", ",") + " DPI</b> écrits DANS le fichier"
-        + (G ? (", pour " + G.dpi + " DPI demandés"
-          + (Math.abs(R.dpi - G.dpi) < 0.01 ? " : ils tombent juste."
-            : " : <b>ils ne tombent pas juste</b>.")) : ".");
+      res = dzT("cartes.data1.d_phys", { x: gr(R.phys.x), y: gr(R.phys.y), unite: esc(R.phys.unit_label), dpi: String(R.dpi).replace(".", ",") })
+        + (G ? (dzT("cartes.data1.d_pour_dpi", { dpi: G.dpi })
+          + (Math.abs(R.dpi - G.dpi) < 0.01 ? dzT("cartes.data1.d_juste")
+            : dzT("cartes.data1.d_pas_juste"))) : ".");
     } else if (R && R.ok) {
-      res = "Résolution : <b>aucun chunk pHYs</b> — ce fichier ne déclare "
-        + "AUCUN DPI. Ce qui se prouve ici, ce sont ses pixels.";
+      res = dzT("cartes.data1.d_sans_phys");
     }
     if (G) {
       const fit = ih ? (ih.w === G.canvas[0] && ih.h === G.canvas[1]) : false;
-      res += " " + geomText(G) + ". L'en-tête du fichier livré dit "
-        + (ih ? (ih.w + " × " + ih.h) : "?") + " : "
-        + (fit ? "<b>l'arithmétique et le fichier tombent juste</b>."
-          : "<b>ILS NE TOMBENT PAS JUSTE</b>.");
+      res += " " + geomText(G) + dzT("cartes.data1.d_entete_dit", { dim: ih ? (ih.w + " × " + ih.h) : "?" })
+        + (fit ? dzT("cartes.data1.d_arith_ok")
+          : dzT("cartes.data1.d_arith_ko"));
     }
     if (res) L.push(res);
     /* 5. l'encre du gabarit, mesuree entre deux fichiers — UNE CARTE, ET ON LE
           DIT. « Le même tirage » parlait de dix cartes a cote d'un ecart de
           pixels releve sur un seul fichier. */
     const port = (d.fabCard == null)
-      ? (d.slots + " slot(s) sans donnée (compte par carte non rendu pour "
-        + "celle-ci)")
-      : (d.fabCard + " emplacement(s) fabriqué(s) sur cette carte");
-    L.push("La <b>même carte</b> rendue avec le texte du gabarit fait <b>"
-      + gr(d.nb) + "</b> octets et diffère sur <b>" + gr(d.diff)
-      + "</b> pixel(s) sur " + gr(d.tot) + " ("
-      + String(pct).replace(".", ",") + " %)"
+      ? dzT("cartes.data1.port_slots", { n: d.slots })
+      : dzT("cartes.data1.port_fab", { n: d.fabCard });
+    L.push(dzT("cartes.data1.d_meme", { nb: gr(d.nb), diff: gr(d.diff), tot: gr(d.tot), pct: String(pct).replace(".", ",") })
       + (d.blank
-        ? (" : c'est l'encre de " + port + ", et elle n'est PAS dans le "
-          + "fichier livré.")
-        : (" : c'est l'encre fabriquée que le fichier livré CONTIENT — "
-          + port + "."))
-      + " Sur l'ensemble du tirage, le moteur compte <b>" + d.fabDeck
-      + "</b> emplacement(s) fabriqué(s) pour " + d.cards + " carte(s)"
-      + (d.blank ? ", tous neutralisés." : ".")
-      + " Plancher de bruit mesuré (deux rendus du MÊME état) : <b>" + d.noise
-      + "</b> pixel(s). 3 rendus + 2 reconstructions en " + Math.round(d.ms)
-      + " ms" + (R && R.ms != null ? (", dont " + Math.round(R.ms)
-        + " ms de relecture du PNG par le moteur") : "") + ".");
+        ? dzT("cartes.data1.d_encre_absente", { port: port })
+        : dzT("cartes.data1.d_encre_contenue", { port: port }))
+      + dzT("cartes.data1.d_tirage", { n: d.fabDeck, nc: d.cards })
+      + (d.blank ? dzT("cartes.data1.d_tous_neutr") : ".")
+      + dzT("cartes.data1.d_bruit", { n: d.noise, ms: Math.round(d.ms) })
+      + (R && R.ms != null ? dzT("cartes.data1.d_dont", { ms: Math.round(R.ms) }) : "") + ".");
     if (bad) L.push("<b>" + esc(bad) + "</b>");
     p.innerHTML = L.map((x) => '<span class="cf-data-dl">' + x + "</span>").join("");
   }
@@ -1589,8 +1488,7 @@
     const i = CF.current();
     const cards = CF.cards();
     const card = (cards && cards.length) ? cards[Math.max(0, Math.min(cards.length - 1, i))] : null;
-    d.appendChild(h("summary", "", "D'où vient chaque valeur imprimée — carte "
-      + (Math.min((i | 0) + 1, cards.length || 1)) + " / " + (cards.length || 1)));
+    d.appendChild(h("summary", "", dzT("cartes.data1.prov_titre", { i: Math.min((i | 0) + 1, cards.length || 1), n: cards.length || 1 })));
     const tbl = h("table", "cf-data-ptbl");
     const tb = h("tbody", "");
     const src = {};
@@ -1608,16 +1506,16 @@
       const shown = fromFile ? f : (blanked ? "" : String(s.text || ""));
       const tr = h("tr", fromFile ? "" : (blanked ? "blanked" : "gab"));
       tr.appendChild(h("td", "cf-data-pl", esc(s.label)
-        + (s.side === "back" ? ' <i class="cf-data-pside">dos</i>' : "")
-        + (s.on === false ? ' <i class="cf-data-pside off">masqué</i>' : "")));
+        + (s.side === "back" ? ' <i class="cf-data-pside">' + dzT("cartes.data1.p_dos") + '</i>' : "")
+        + (s.on === false ? ' <i class="cf-data-pside off">' + dzT("cartes.data1.p_masque") + '</i>' : "")));
       tr.appendChild(h("td", "cf-data-pv", shown
         ? esc(shown.length > 46 ? shown.slice(0, 45) + "…" : shown)
-        : ('<i class="cf-data-pnil">' + (blanked ? "laissé vide" : "rien") + "</i>")));
+        : ('<i class="cf-data-pnil">' + (blanked ? dzT("cartes.data1.laisse_vide") : dzT("cartes.data1.rien")) + "</i>")));
       tr.appendChild(h("td", "cf-data-ps", fromFile
-        ? ('fichier · <code>' + esc(src[s.id] || "?") + "</code>")
-        : (blanked ? "vide <b>voulu</b>"
-          : (s.on === false ? "non dessiné"
-            : (s.text ? "<b>GABARIT</b>" : "vide")))));
+        ? dzT("cartes.data1.p_fichier", { col: esc(src[s.id] || "?") })
+        : (blanked ? dzT("cartes.data1.p_vide_voulu")
+          : (s.on === false ? dzT("cartes.data1.p_non_dessine")
+            : (s.text ? dzT("cartes.data1.p_gabarit") : dzT("cartes.data1.p_vide"))))));
       tb.appendChild(tr);
     });
     /* LE MOT DU CADRE A SA LIGNE DANS LA TABLE DE PROVENANCE. Elle etait
@@ -1628,14 +1526,13 @@
       ? LAST.stats.audit.frame : null;
     if (fr && fr.word) {
       const tr = h("tr", fr.n_clash ? "clash" : "gab");
-      tr.appendChild(h("td", "cf-data-pl", "Bandeau du cadre"
+      tr.appendChild(h("td", "cf-data-pl", dzT("cartes.data1.p_bandeau")
         + ' <i class="cf-data-pside">02</i>'));
       tr.appendChild(h("td", "cf-data-pv", esc(fr.word)));
       tr.appendChild(h("td", "cf-data-ps", fr.n_clash
-        ? ("<b>CADRE</b> · contredit <code>" + esc(fr.col) + "</code> sur "
-          + fr.n_clash + " carte(s)")
-        : (fr.col ? "CADRE · d'accord avec <code>" + esc(fr.col) + "</code>"
-          : "<b>CADRE</b> · aucune colonne")));
+        ? dzT("cartes.data1.p_cadre_contredit", { col: esc(fr.col), n: fr.n_clash })
+        : (fr.col ? dzT("cartes.data1.p_cadre_accord", { col: esc(fr.col) })
+          : dzT("cartes.data1.p_cadre_aucune"))));
       tb.appendChild(tr);
     }
     tbl.appendChild(tb);
@@ -1645,9 +1542,7 @@
 
   function buildMissing() {
     return h("p", "cf-data-boom",
-      "Le domaine <b>/api/cards/&lt;deck&gt;/data</b> n'est pas monté sur ce backend : "
-      + "l'analyse CSV, le filtre et le tri vivent là-bas, en un seul exemplaire "
-      + "(deux moteurs divergeraient en silence). Relancer le python du :8765.");
+      dzT("cartes.data1.missing"));
   }
 
   /* ── zone de depot + reglages de lecture ─────────────────────────────────
@@ -1675,44 +1570,43 @@
 
     const drop = full
       ? h("div", "drop cf-data-drop",
-        '<b>Déposez un fichier .csv / .tsv / .xlsx / .ods, ou un export Notion (.zip)</b>'
-        + '<span class="hint">ou cliquez pour choisir · <b>Ctrl+V</b> colle une table · '
-        + 'séparateur et encodage devinés sur les octets · un classeur n\'a ni l\'un ni l\'autre</span>')
+        '<b>' + dzT("cartes.data1.depot_titre") + '</b>'
+        + '<span class="hint">' + dzT("cartes.data1.depot_hint") + '</span>')
       : h("div", "cf-data-strip", "");
     if (!full) {
       drop.appendChild(h("span", "cf-data-sfile",
-        ICO("dz-media-fichier", 16, "cf-ic") + esc(T.src || "table saisie à la main")));
-      const rep = h("button", "btn sm cf-data-b", "Remplacer…");
+        ICO("dz-media-fichier", 16, "cf-ic") + esc(T.src || dzT("cartes.data1.table_main"))));
+      const rep = h("button", "btn sm cf-data-b", dzT("cartes.data1.remplacer"));
       rep.type = "button";
-      rep.title = "Charger un autre fichier (ou glissez-le n'importe où sur ce panneau)";
+      rep.title = dzT("cartes.data1.remplacer_t");
       on(rep, "click", () => inp.click());
       drop.appendChild(rep);
       if (isWorkbook()) {
         /* Un classeur ne se relit pas « en point-virgule » : les deux menus
            n'auraient aucun sens et afficheraient un reglage faux. */
         drop.appendChild(h("span", "cf-data-wb",
-          esc(encLabel()) + " · ni séparateur ni encodage à choisir"));
+          esc(encLabel()) + " · " + dzT("cartes.data1.wb_rien")));
       } else {
-        drop.appendChild(pick("Séparateur", SEPS, T.sep, (v) => {
+        drop.appendChild(pick(dzT("cartes.data1.separateur_lbl"), SEPS, T.sep, (v) => {
           if (!LASTRAW) { noRaw(); return; }   /* on ne change RIEN sans les octets */
           T.sep = v; commit(); reparse();
         }, true));
-        drop.appendChild(pick("Encodage", ENCS, T.enc, (v) => {
+        drop.appendChild(pick(dzT("cartes.data1.encodage_lbl"), ENCS, T.enc, (v) => {
           if (!LASTRAW) { noRaw(); return; }
           T.enc = v; commit(); reparse();
         }, true));
       }
       if (LASTTABLE && LASTTABLE.mojibake) {
-        const b = h("button", "btn sm cf-data-fix", "Réparer les accents");
+        const b = h("button", "btn sm cf-data-fix", dzT("cartes.data1.reparer"));
         b.type = "button";
-        b.title = "Ce fichier contient des suites « Ã© » : du cp1252 relu en UTF-8.";
+        b.title = dzT("cartes.data1.reparer_t");
         on(b, "click", () => reparse({ repair: true }));
         drop.appendChild(b);
       }
       drop.appendChild(boutonSheets());
-      const em = h("button", "btn sm cf-data-b", "Vider");
+      const em = h("button", "btn sm cf-data-b", dzT("cartes.data1.vider"));
       em.type = "button";
-      em.title = "Repartir de zéro (annulable par Ctrl+Z)";
+      em.title = dzT("cartes.data1.vider_t");
       on(em, "click", () => {
         pushUndo();
         T.columns = []; T.rows = []; T.off = []; T.map = {}; T.qty_col = null;
@@ -1730,11 +1624,11 @@
     if (full) box.appendChild(boutonSheets());
     if (full) {
       const row = h("div", "cf-data-srow");
-      row.appendChild(pick("Séparateur", SEPS, T.sep, (v) => {
+      row.appendChild(pick(dzT("cartes.data1.separateur_lbl"), SEPS, T.sep, (v) => {
         if (!LASTRAW) { noRaw(); return; }
         T.sep = v; commit(); reparse();
       }));
-      row.appendChild(pick("Encodage", ENCS, T.enc, (v) => {
+      row.appendChild(pick(dzT("cartes.data1.encodage_lbl"), ENCS, T.enc, (v) => {
         if (!LASTRAW) { noRaw(); return; }
         T.enc = v; commit(); reparse();
       }));
@@ -1764,8 +1658,7 @@
      point-virgules serait un mensonge affiche en permanence. */
   function noRaw() {
     render();
-    M.toast("les octets d'origine ne sont plus en mémoire : rechargez le fichier "
-      + "(« Remplacer… ») pour appliquer ce réglage", true);
+    M.toast(dzT("cartes.data1.no_raw"), true);
   }
   async function reparse(opt) {
     if (!LASTRAW) { noRaw(); return; }
@@ -1779,9 +1672,9 @@
      une seule lecture de table, une seule comparaison d'octets. */
   let SHEETSV = false;
   function boutonSheets() {
-    const b = h("button", "btn sm cf-data-b", "Lien Google Sheets…");
+    const b = h("button", "btn sm cf-data-b", dzT("cartes.data1.gs_bouton"));
     b.type = "button";
-    b.title = "Importer une feuille Google Sheets partagée « tous les utilisateurs disposant du lien » (CSV public, gratuit, sans clé)";
+    b.title = dzT("cartes.data1.gs_bouton_t");
     on(b, "click", (ev) => { ev.stopPropagation(); importSheets(); });
     return b;
   }
@@ -1798,8 +1691,7 @@
     SHEETSV = true;
     try {
       const url = await window.__dzDialogue.saisir(
-        "Lien de la feuille Google Sheets (partagée « tous les utilisateurs disposant du lien »). "
-        + "L'onglet du lien (#gid=…) est celui qui sera lu.", { valeur: "", ok: "Importer" });
+        dzT("cartes.data1.gs_saisir"), { valeur: "", ok: dzT("cartes.data1.importer") });
       if (url === null || !String(url).trim()) return;
       M.busy(true, "Google Sheets…");
       const r = await M.api.post("import-url", { url: String(url).trim() });
@@ -1807,21 +1699,21 @@
       LASTRAW = buf;
       await importBytes(buf, r.nom || "Google Sheets.csv", {});
     } catch (e) {
-      M.toast("Google Sheets : " + String((e && e.message) || e), true);
+      M.toast(dzT("cartes.data1.gs_err", { err: String((e && e.message) || e) }), true);
     } finally { M.busy(false); SHEETSV = false; }
   }
 
   function readFile(file) {
     const rd = new FileReader();
     rd.onload = () => { LASTRAW = rd.result; importBytes(rd.result, file.name, {}); };
-    rd.onerror = () => M.toast("lecture du fichier impossible", true);
+    rd.onerror = () => M.toast(dzT("cartes.data1.lecture_impossible"), true);
     rd.readAsArrayBuffer(file);
   }
 
   /* ── etat vide : il PROPOSE ────────────────────────────────────────────── */
   function buildEmpty() {
     const g = h("div", "cf-data-empty");
-    g.appendChild(h("p", "cf-data-etitle", "Aucune donnée. Commencez par&nbsp;:"));
+    g.appendChild(h("p", "cf-data-etitle", dzT("cartes.data1.vide_titre")));
     const list = h("div", "cf-data-samples");
     SAMPLES.forEach((s) => {
       /* CES CHIFFRES SONT MESURES PAR LE MOTEUR SUR LES OCTETS DU JEU, pas
@@ -1831,17 +1723,15 @@
          coup la vignette est aussi la seule preuve visible que la DETECTION
          travaille — six jeux, trois encodages, quatre separateurs, zero
          reglage force (`auto`). */
-      const det = (s.auto ? "détecté sur les octets : " : "") + String(s.encoding || "")
+      const det = (s.auto ? dzT("cartes.data1.detecte_octets") : "") + String(s.encoding || "")
         + (s.workbook ? "" : " · " + String(s.sep || ""));
       const b = h("button", "cf-data-sample",
         '<b>' + esc(s.label) + "</b>"
         + '<span class="hint">' + esc(s.hint) + "</span>"
         + '<em class="det">' + esc(det) + "</em>"
-        + '<em>' + esc(s.n + " lignes × " + s.n_cols + " colonnes · "
-          + s.bytes + " octets"
-          + (s.n_cards != null ? (" → " + s.n_kept + " retenues, "
-            + s.n_cards + " cartes") : "")) + "</em>"
-        + (s.n_warn ? ('<em class="warn">' + s.n_warn + " avertissement(s) : "
+        + '<em>' + esc(dzT("cartes.data1.ech_taille", { n: s.n, cols: s.n_cols, octets: s.bytes })
+          + (s.n_cards != null ? dzT("cartes.data1.ech_cartes", { k: s.n_kept, nc: s.n_cards }) : "")) + "</em>"
+        + (s.n_warn ? ('<em class="warn">' + dzT("cartes.data1.ech_avert", { n: s.n_warn })
           + esc(String(s.warn0 || "")) + "</em>") : ""));
       b.type = "button";
       on(b, "click", () => {
@@ -1855,7 +1745,7 @@
       list.appendChild(b);
     });
     if (!SAMPLES.length) {
-      list.appendChild(h("p", "empty-note sm", "Exemples indisponibles (backend muet)."));
+      list.appendChild(h("p", "empty-note sm", dzT("cartes.data1.ech_indispo")));
     }
     g.appendChild(list);
     /* CE QUE CES VIGNETTES PROUVENT ENSEMBLE — ET LE COMPTE EST FAIT SUR
@@ -1878,19 +1768,14 @@
         if (s.encoding && encs.indexOf(s.encoding) < 0) encs.push(s.encoding);
       });
       g.appendChild(h("p", "hint cf-data-detsum",
-        "Ces <b>" + SAMPLES.length + "</b> jeux sont lus par le moteur "
-        + "<b>sans aucun réglage</b>, et les valeurs ci-dessus sont celles "
-        + "qu'il a rendues : <b>" + seps.length + "</b> séparateur(s) distinct(s) "
-        + "(" + esc(seps.join(", ")) + ") · <b>" + encs.length + "</b> encodage(s) "
-        + "distinct(s) (" + esc(encs.join(", ")) + ")"
-        + (wbs.length ? (" · <b>" + wbs.length + "</b> classeur(s) sans "
-          + "séparateur ni encodage à deviner (" + esc(wbs.join(", ")) + ")") : "")
-        + ". Une valeur par défaut heureuse ne tombe pas juste "
-        + SAMPLES.length + " fois."));
+        dzT("cartes.data1.detsum", { n: SAMPLES.length, ns: seps.length, seps: esc(seps.join(", ")),
+          ne: encs.length, encs: esc(encs.join(", ")) })
+        + (wbs.length ? dzT("cartes.data1.detsum_wb", { n: wbs.length, wbs: esc(wbs.join(", ")) }) : "")
+        + dzT("cartes.data1.detsum_fin", { n: SAMPLES.length })));
     }
 
     const row = h("div", "btn-row cf-data-erow");
-    const blank = h("button", "btn strong cf-data-blank", ICO("dz-action-nouveau", 16, "cf-ic") + "Table vierge 4 × 3");
+    const blank = h("button", "btn strong cf-data-blank", ICO("dz-action-nouveau", 16, "cf-ic") + dzT("cartes.data1.table_vierge_btn"));
     blank.type = "button";
     on(blank, "click", async () => {
       pushUndo();
@@ -1906,16 +1791,16 @@
       LASTTABLE = null;
       commit(); render(); schedule(0);
     });
-    const paste = h("button", "btn strong cf-data-paste", ICO("dz-action-coller", 16, "cf-ic") + "Coller depuis le presse-papiers");
+    const paste = h("button", "btn strong cf-data-paste", ICO("dz-action-coller", 16, "cf-ic") + dzT("cartes.data1.coller"));
     paste.type = "button";
     on(paste, "click", async () => {
       try {
         const txt = await navigator.clipboard.readText();
-        if (!txt || !txt.trim()) { M.toast("presse-papiers vide", true); return; }
+        if (!txt || !txt.trim()) { M.toast(dzT("cartes.data1.pp_vide"), true); return; }
         LASTRAW = null;
         importText(txt, "presse-papiers");
       } catch (e) {
-        M.toast("autorisation refusée — utilisez Ctrl+V dans ce panneau", true);
+        M.toast(dzT("cartes.data1.pp_refuse"), true);
       }
     });
     row.appendChild(blank);
@@ -1958,17 +1843,16 @@
   }
   function hintFilter() {
     const n = numCol(), t = txtCol();
-    if (!n && !t) return "ex. une condition sur une colonne de la table";
-    if (n && t) return "ex. " + (refCol(n) || n) + " > 1   ·   " + (refCol(t) || t)
-      + " contient …";
+    if (!n && !t) return dzT("cartes.data1.ex_filtre_vide");
+    if (n && t) return dzT("cartes.data1.ex", { c: (refCol(n) || n) + " > 1   ·   " + (refCol(t) || t) + " contient …" });
     const c = n || t;
-    return "ex. " + (refCol(c) || c) + (n ? " > 1" : " contient …");
+    return dzT("cartes.data1.ex", { c: (refCol(c) || c) + (n ? " > 1" : " contient …") });
   }
   function hintSort() {
     const n = numCol(), t = txtCol();
-    if (!n && !t) return "ex. colonne desc";
-    if (n && t) return "ex. " + n + " desc, " + t;
-    return "ex. " + (n || t) + " desc";
+    if (!n && !t) return dzT("cartes.data1.ex_tri_vide");
+    if (n && t) return dzT("cartes.data1.ex", { c: n + " desc, " + t });
+    return dzT("cartes.data1.ex", { c: (n || t) + " desc" });
   }
   function buildSelect() {
     const g = h("div", "cf-data-selbar");
@@ -1977,7 +1861,7 @@
     const r1 = h("div", "cf-data-srow cf-data-selrow");
     const qsel = h("select", "cf-data-sel");
     const none = document.createElement("option");
-    none.value = ""; none.textContent = "— aucune (1 carte par ligne)";
+    none.value = ""; none.textContent = dzT("cartes.data1.qty_aucune");
     qsel.appendChild(none);
     T.columns.forEach((c) => {
       const o = document.createElement("option");
@@ -1989,7 +1873,7 @@
       pushUndo(); T.qty_col = qsel.value || null; commit(); schedule(0); renderTableOnly();
     });
     const qf = h("label", "fld cf-data-fld",
-      '<span class="lbl">Colonne de quantité</span>');
+      '<span class="lbl">' + dzT("cartes.data1.qty_lbl") + '</span>');
     qf.appendChild(qsel);
     r1.appendChild(qf);
 
@@ -1998,18 +1882,17 @@
        l'ecran pour un seul reglage, c'est un futur bug d'incoherence — et le
        reproche etait fonde tant que rien ne l'annoncait. */
     const sf = h("label", "fld cf-data-fld cf-data-grow",
-      '<span class="lbl">Tri du deck <em class="cf-data-same">= les flèches ▲▼ des entêtes</em></span>');
+      '<span class="lbl">' + dzT("cartes.data1.tri_lbl") + ' <em class="cf-data-same">' + dzT("cartes.data1.tri_fleches") + '</em></span>');
     const sinp = h("input", "cf-data-inp");
     sinp.type = "text"; sinp.value = T.sort;
     sinp.placeholder = hintSort();
-    sinp.title = "Ce champ et les flèches des entêtes de colonne sont le MÊME réglage : "
-      + "cliquer une flèche réécrit cette ligne.";
+    sinp.title = dzT("cartes.data1.tri_t");
     on(sinp, "change", () => { pushUndo(); T.sort = sinp.value; commit(); schedule(0); renderTableOnly(); });
     sf.appendChild(sinp);
     r1.appendChild(sf);
 
     const ff = h("label", "fld cf-data-fld cf-data-grow2",
-      '<span class="lbl">Filtre — les lignes qui deviennent des cartes</span>');
+      '<span class="lbl">' + dzT("cartes.data2.filtre_lbl") + '</span>');
     const finp = h("input", "cf-data-inp cf-data-filter");
     finp.type = "text"; finp.value = T.filter;
     finp.placeholder = hintFilter();
@@ -2034,9 +1917,8 @@
     const nOps = GRAM ? GRAM.ops.length : 0;
     const nJoin = GRAM ? GRAM.joins.length : 0;
     help.appendChild(h("summary", "", nOps
-      ? ("opérateurs acceptés — <b>" + nOps + "</b> comparaisons + <b>" + nJoin
-        + "</b> connecteurs <em>(servis par le moteur)</em>")
-      : "opérateurs acceptés"));
+      ? dzT("cartes.data2.ops_resume", { nops: nOps, njoin: nJoin })
+      : dzT("cartes.data2.ops_acceptes")));
     const hb = h("div", "cf-data-helpb");
     if (GRAM) {
       const grid = h("div", "cf-data-ops");
@@ -2044,7 +1926,7 @@
         const c = h("span", "cf-data-op");
         c.appendChild(h("code", "", esc(o.sym)));
         c.appendChild(h("i", "", esc(o.what + (o.alias ? "  ·  " + o.alias : ""))));
-        c.title = "exemple : " + o.ex;
+        c.title = dzT("cartes.data2.exemple", { ex: o.ex });
         grid.appendChild(c);
       });
       GRAM.joins.forEach((o) => {
@@ -2056,11 +1938,7 @@
       hb.appendChild(grid);
     }
     hb.appendChild(h("p", "cf-data-helpn",
-      "Comparaison <b>numérique</b> si les deux côtés sont des nombres, sinon texte, accents ignorés. "
-      + "Parenthèses acceptées · <code>[nom de colonne]</code> pour un nom avec espaces.<br>"
-      + "Une erreur de syntaxe indique la <b>position</b> du caractère fautif, et chaque ligne écartée "
-      + "affiche <b>la condition qui l'a écartée</b>. Ce n'est pas un <code>eval</code> : aucune "
-      + "expression ne peut exécuter de code."));
+      dzT("cartes.data2.aide_ops")));
     help.appendChild(hb);
     body.appendChild(help);
     return g;
@@ -2074,7 +1952,7 @@
         const c = r && r.check;
         if (!c) return;
         if (c.ok) { ERR = ""; paintFilterState(); }
-        else { ERR = ""; setFState(false, c.error + " (caractère " + (c.pos + 1) + ")"); }
+        else { ERR = ""; setFState(false, dzT("cartes.data2.err_pos", { err: c.error, pos: c.pos + 1 })); }
       } catch (e) { /* le build dira la meme chose */ }
     }, 180);
   }
@@ -2138,7 +2016,7 @@
   function buildBuilder() {
     const g = h("div", "cf-data-fbuild");
     g.appendChild(h("span", "lbl",
-      "Construire la condition <b>à la souris</b> — elle s'écrit dans le champ ci-dessus"));
+      dzT("cartes.data2.construire")));
     const row = h("div", "cf-data-brow2");
     const cs = h("select", "cf-data-sel cf-data-bcol");
     T.columns.forEach((c) => {
@@ -2170,7 +2048,7 @@
     const vi = h("input", "cf-data-inp cf-data-bval");
     vi.type = "text";
     vi.value = BSEL.val;
-    vi.placeholder = "valeur";
+    vi.placeholder = dzT("cartes.data2.valeur");
     vi.setAttribute("list", "cf-data-vlist");
     on(vi, "input", () => { BSEL.val = vi.value; paintBuilder(); });
     on(vi, "keydown", (e) => {
@@ -2181,11 +2059,11 @@
     dl.id = "cf-data-vlist";
     row.appendChild(dl);
 
-    const bet = h("button", "btn sm cf-data-b cf-data-badd", "+ ET");
+    const bet = h("button", "btn sm cf-data-b cf-data-badd", dzT("cartes.data2.plus_et"));
     bet.type = "button";
     on(bet, "click", () => addClause("et"));
     row.appendChild(bet);
-    const bou = h("button", "btn sm cf-data-b cf-data-badd", "+ OU");
+    const bou = h("button", "btn sm cf-data-b cf-data-badd", dzT("cartes.data2.plus_ou"));
     bou.type = "button";
     on(bou, "click", () => addClause("ou"));
     row.appendChild(bou);
@@ -2203,9 +2081,9 @@
   function clauseText() {
     const c = refCol(BSEL.col);
     const v = litVal(BSEL.val);
-    if (c === null) return { err: "le nom de colonne contient « ] » : cette grammaire ne sait pas l'écrire" };
-    if (v === null) return { err: "la valeur contient les deux sortes de guillemets : inexprimable ici" };
-    if (!BSEL.op) return { err: "opérateurs non servis par le moteur" };
+    if (c === null) return { err: dzT("cartes.data2.err_crochet") };
+    if (v === null) return { err: dzT("cartes.data2.err_guillemets") };
+    if (!BSEL.op) return { err: dzT("cartes.data2.err_ops") };
     return { txt: c + " " + BSEL.op + " " + v };
   }
   function paintBuilder() {
@@ -2224,9 +2102,8 @@
     if (REFS.bpv) {
       REFS.bpv.className = "cf-data-bpv" + (ok ? "" : " bad");
       REFS.bpv.innerHTML = ok
-        ? ("écrira <code>" + esc(t.txt) + "</code> · <b>" + vals.length
-          + "</b> valeur(s) distincte(s) dans « " + esc(BSEL.col) + " »"
-          + (vals.length > 60 ? " (les 60 premières sont proposées)" : ""))
+        ? (dzT("cartes.data2.ecrira", { txt: esc(t.txt), n: vals.length, col: esc(BSEL.col) })
+          + (vals.length > 60 ? dzT("cartes.data2.premieres_60") : ""))
         : esc(t.err);
     }
   }
@@ -2248,7 +2125,7 @@
     T.filter = next;
     if (REFS.filter) REFS.filter.value = next;
     commit(); schedule(0);
-    M.toast("condition ajoutée : " + t.txt);
+    M.toast(dzT("cartes.data2.cond_ajoutee", { txt: t.txt }));
   }
   function buildClauses() {
     const g = h("div", "cf-data-fchips");
@@ -2262,28 +2139,24 @@
     const cl = (CLAUSES && CLAUSES.clauses) ? CLAUSES.clauses : [];
     if (!cl.length) { g.className = "cf-data-fchips"; return; }
     g.className = "cf-data-fchips on";
-    g.appendChild(h("span", "lbl", "Conditions appliquées — <b>" + cl.length
-      + "</b>, cliquez la croix pour en retirer une"));
+    g.appendChild(h("span", "lbl", dzT("cartes.data2.conds_appliquees", { n: cl.length })));
     cl.forEach((c, i) => {
       const chip = h("span", "cf-data-fchip" + (c.ok ? "" : " bad"));
       chip.appendChild(h("code", "", esc(c.expr)));
       if (c.n_kept != null && CLAUSES.n_active != null) {
-        chip.appendChild(h("i", "", "retient " + c.n_kept + " / " + CLAUSES.n_active));
-        chip.title = "Cette condition SEULE retient " + c.n_kept
-          + " ligne(s) active(s) sur " + CLAUSES.n_active
-          + " — mesuré par le moteur sur la table, pas estimé.";
+        chip.appendChild(h("i", "", dzT("cartes.data2.retient", { k: c.n_kept, n: CLAUSES.n_active })));
+        chip.title = dzT("cartes.data2.retient_t", { k: c.n_kept, n: CLAUSES.n_active });
       }
       const x = h("button", "cf-data-fx", ICO("dz-action-supprimer", 16));
       x.type = "button";
-      x.title = "Retirer cette condition"; x.setAttribute("aria-label", x.title);
+      x.title = dzT("cartes.data2.retirer_cond"); x.setAttribute("aria-label", x.title);
       on(x, "click", () => removeClause(i));
       chip.appendChild(x);
       g.appendChild(chip);
     });
     if (CLAUSES.top_or) {
       g.appendChild(h("span", "cf-data-fnote",
-        "un « ou » de premier niveau : l'expression ne se découpe pas, "
-        + "la seule pastille est le filtre entier"));
+        dzT("cartes.data2.ou_premier")));
     }
   }
   function removeClause(i) {
@@ -2297,7 +2170,7 @@
     T.filter = next;
     if (REFS.filter) REFS.filter.value = next;
     commit(); schedule(0);
-    M.toast(next ? ("condition retirée — reste : " + next) : "filtre vidé");
+    M.toast(next ? dzT("cartes.data2.cond_retiree", { reste: next }) : dzT("cartes.data2.filtre_vide"));
   }
   function setFState(ok, msg) {
     const f = REFS.fstate, i = REFS.filter;
@@ -2311,12 +2184,11 @@
     const st = LAST && LAST.stats;
     if (ERR) { setFState(false, esc(ERR)); return; }
     if (!T.filter.trim()) {
-      setFState(true, st ? ("aucun filtre — " + st.n_active + " ligne(s) active(s)") : "aucun filtre");
+      setFState(true, st ? dzT("cartes.data2.aucun_filtre_n", { n: st.n_active }) : dzT("cartes.data2.aucun_filtre"));
       return;
     }
     setFState(true, st
-      ? ("<b>" + st.n_kept + "</b> ligne(s) retenue(s) sur " + st.n_active
-        + " · <b>" + st.n_cards + "</b> carte(s) après quantité")
+      ? dzT("cartes.data2.retenues", { k: st.n_kept, n: st.n_active, c: st.n_cards })
       : "…");
   }
 
@@ -2327,9 +2199,8 @@
     const tgt = allTargets();
     const nFed = tgt.filter((s) => usedSlot(s.id)).length;
     g.appendChild(h("summary", "",
-      "Mappage colonne → slot <em class=\"cf-data-same\">— le même réglage que les menus "
-      + "des entêtes de colonne</em>" + (SLOTS_ARE_DEFAULT
-        ? ' <em class="cf-data-warnp">slots par défaut — la pièce 03 n\'a pas encore publié les siens</em>'
+      dzT("cartes.data2.mappage_resume") + (SLOTS_ARE_DEFAULT
+        ? ' <em class="cf-data-warnp">' + dzT("cartes.data2.slots_defaut") + '</em>'
         : "")));
     const body = h("div", "grp-body cf-data-body cf-data-maprow");
     g.appendChild(body);
@@ -2337,11 +2208,10 @@
     /* gauche : les sources, glissables */
     const left = h("div", "cf-data-cols");
     const nMapped = T.columns.filter((c) => !!T.map[c]).length;
-    left.appendChild(h("div", "lbl", "Colonnes du fichier — <b>" + nMapped + " / "
-      + T.columns.length + "</b> posées · glissez-les à droite"));
+    left.appendChild(h("div", "lbl", dzT("cartes.data2.cols_fichier", { k: nMapped, n: T.columns.length })));
     T.columns.forEach((c, j) => left.appendChild(colChip(c, j, false)));
     left.appendChild(h("div", "lbl cf-data-vlbl",
-      "Jetons de copie — les <b>" + VIRT.length + "</b> sont ici (n, N, i, T)"));
+      dzT("cartes.data2.jetons", { n: VIRT.length })));
     VIRT.forEach((v) => left.appendChild(colChip(v.k, -1, true, v)));
     body.appendChild(left);
 
@@ -2362,10 +2232,9 @@
     const nHid = au0 ? (au0.n_slots_hidden || 0)
       : (slots().length - real.length);
     const right = h("div", "cf-data-slots");
-    right.appendChild(h("div", "lbl", "Slots de la carte — <b>" + nReal + " / "
-      + nTot + "</b> alimentés · + " + RESERVED.length
-      + " champs réservés" + (nHid ? (" · " + nHid + " masqué(s), hors compte") : "")
-      + " · déposez ici"));
+    right.appendChild(h("div", "lbl", dzT("cartes.data2.slots_carte", { k: nReal, n: nTot, r: RESERVED.length })
+      + (nHid ? dzT("cartes.data2.slots_masques", { n: nHid }) : "")
+      + dzT("cartes.data2.deposez_ici")));
     const list = h("div", "cf-data-slotlist");
     tgt.forEach((s) => list.appendChild(slotTarget(s)));
     right.appendChild(list);
@@ -2407,11 +2276,11 @@
     const srcs = Object.keys(T.map).filter((k) => T.map[k] === s.id);
     t.appendChild(h("span", "cf-data-sl", esc(s.label)));
     const val = h("span", "cf-data-sv", srcs.length ? esc(srcs.join(", "))
-      : (String(s.text || "") ? "gabarit" : "—"));
+      : (String(s.text || "") ? dzT("cartes.data2.gabarit") : "—"));
     t.appendChild(val);
     if (srcs.length) {
       const x = h("button", "cf-data-x", ICO("dz-action-supprimer", 16));
-      x.type = "button"; x.title = "Retirer ce mappage"; x.setAttribute("aria-label", x.title);
+      x.type = "button"; x.title = dzT("cartes.data2.retirer_map"); x.setAttribute("aria-label", x.title);
       on(x, "click", (e) => {
         e.stopPropagation();
         pushUndo();
@@ -2426,7 +2295,7 @@
       const g = String(s.text || "");
       if (g) {
         t.classList.add("gab");
-        t.title = "Aucune colonne : la carte imprime le texte du gabarit — « " + g + " »";
+        t.title = dzT("cartes.data2.texte_gabarit", { g: g });
       }
     }
     on(t, "dragover", (e) => {
@@ -2514,7 +2383,7 @@
     trh.appendChild(h("th", "cf-data-thn", "#"));
     T.columns.forEach((c, j) => trh.appendChild(theadCell(c, j)));
     const addc = h("th", "cf-data-thadd");
-    const ab = h("button", "cf-data-addc", "+ colonne");
+    const ab = h("button", "cf-data-addc", dzT("cartes.data2.plus_colonne"));
     ab.type = "button";
     on(ab, "click", addColumn);
     addc.appendChild(ab);
@@ -2530,8 +2399,7 @@
     box.appendChild(tbl);
     if (order.length > cap) {
       box.appendChild(h("p", "empty-note sm",
-        "Affichage limité aux " + cap + " premières lignes sur " + order.length
-        + " — le deck, lui, les utilise toutes."));
+        dzT("cartes.data2.affichage_limite", { cap: cap, n: order.length })));
     }
     REFS.tbody = tb;
     return box;
@@ -2541,7 +2409,7 @@
     th.dataset.c = String(j);
     const top = h("div", "cf-data-thead");
     const nm = h("input", "cf-data-cname");
-    nm.type = "text"; nm.value = c; nm.title = "Renommer la colonne";
+    nm.type = "text"; nm.value = c; nm.title = dzT("cartes.data2.renommer_col");
     on(nm, "change", () => renameColumn(j, nm.value));
     top.appendChild(nm);
     const keys = sortKeys();
@@ -2549,12 +2417,12 @@
     const sb = h("button", "cf-data-sortb" + (cur ? " on" : ""),
       cur ? (cur.desc ? "&#9660;" : "&#9650;") : ICO("dz-action-trier", 16));
     sb.type = "button";
-    sb.title = "Trier le deck sur cette colonne"; sb.setAttribute("aria-label", sb.title);
+    sb.title = dzT("cartes.data2.trier_col"); sb.setAttribute("aria-label", sb.title);
     on(sb, "click", () => cycleSort(c));
     top.appendChild(sb);
     const qb = h("button", "cf-data-qb" + (T.qty_col === c ? " on" : ""), ICO("dz-action-quantite", 16));
     qb.type = "button";
-    qb.title = "Utiliser cette colonne comme quantité"; qb.setAttribute("aria-label", qb.title);
+    qb.title = dzT("cartes.data2.col_qte"); qb.setAttribute("aria-label", qb.title);
     on(qb, "click", () => {
       pushUndo();
       T.qty_col = (T.qty_col === c) ? null : c;
@@ -2562,7 +2430,7 @@
     });
     top.appendChild(qb);
     const db = h("button", "cf-data-delc", ICO("dz-action-supprimer", 16));
-    db.type = "button"; db.title = "Supprimer la colonne"; db.setAttribute("aria-label", db.title);
+    db.type = "button"; db.title = dzT("cartes.data2.suppr_col"); db.setAttribute("aria-label", db.title);
     on(db, "click", () => delColumn(j));
     top.appendChild(db);
     th.appendChild(top);
@@ -2571,10 +2439,10 @@
        la barre. Il liste les slots REELS de doc.type.slots. */
     const sel = h("select", "cf-data-hsel");
     const o0 = document.createElement("option");
-    o0.value = ""; o0.textContent = "— non utilisée";
+    o0.value = ""; o0.textContent = dzT("cartes.data2.non_utilisee");
     sel.appendChild(o0);
     const gs = document.createElement("optgroup");
-    gs.label = SLOTS_ARE_DEFAULT ? "Slots (par défaut)" : "Slots de la carte (pièce 03)";
+    gs.label = SLOTS_ARE_DEFAULT ? dzT("cartes.data2.slots_par_defaut") : dzT("cartes.data2.slots_piece03");
     slots().forEach((s) => {
       const o = document.createElement("option");
       o.value = s.id; o.textContent = s.label;
@@ -2583,7 +2451,7 @@
     });
     sel.appendChild(gs);
     const gr = document.createElement("optgroup");
-    gr.label = "Champs réservés";
+    gr.label = dzT("cartes.data2.champs_reserves");
     RESERVED.forEach((s) => {
       const o = document.createElement("option");
       o.value = s.id; o.textContent = s.label;
@@ -2603,7 +2471,7 @@
     const ck = h("input", "");
     ck.type = "checkbox";
     ck.checked = T.off.indexOf(r) < 0;
-    ck.title = "Activer / désactiver cette ligne";
+    ck.title = dzT("cartes.data2.activer_ligne");
     on(ck, "change", () => {
       pushUndo();
       const k = T.off.indexOf(r);
@@ -2636,10 +2504,7 @@
       const nNL = raw0.split(/\r\n|\r|\n/).length - 1;
       if (nNL > 0) {
         td.classList.add("nl");
-        inp.title = "Cette cellule contient " + nNL + " retour(s) à la ligne "
-          + "que ce champ d'une ligne ne peut pas afficher. La donnée, elle, "
-          + "les garde (l'export le vérifie sur les octets) — mais si vous "
-          + "modifiez cette cellule ici, ils seront perdus.";
+        inp.title = dzT("cartes.data2.cellule_nl", { n: nNL });
         td.appendChild(h("i", "cf-data-nl", "&#9166;"));
       }
       on(inp, "change", () => {
@@ -2647,9 +2512,7 @@
         pushUndo();
         T.rows[r][j] = inp.value;
         if (nNL > 0) {
-          M.toast("les " + nNL + " retour(s) à la ligne de cette cellule sont "
-            + "perdus : un champ d'une ligne ne sait pas les rendre "
-            + "(Ctrl+Z annule)", true);
+          M.toast(dzT("cartes.data2.nl_perdus", { n: nNL }), true);
         }
         commit(); schedule();
       });
@@ -2664,7 +2527,7 @@
     });
     const tx = h("td", "cf-data-tdx");
     const xb = h("button", "cf-data-delr", ICO("dz-action-supprimer", 16));
-    xb.type = "button"; xb.title = "Supprimer la ligne"; xb.setAttribute("aria-label", xb.title);
+    xb.type = "button"; xb.title = dzT("cartes.data2.suppr_ligne"); xb.setAttribute("aria-label", xb.title);
     on(xb, "click", () => delRow(r));
     tx.appendChild(xb);
     tr.appendChild(tx);
@@ -2721,15 +2584,15 @@
       const f = tr.querySelector(".cf-data-rwhy");
       if (f) {
         if (dis) {
-          f.textContent = "désactivée ici";
+          f.textContent = dzT("cartes.data2.desactivee_ici");
           f.className = "cf-data-rwhy off";
-          f.title = "Cette ligne est décochée : ni filtre ni quantité ne sont en cause.";
+          f.title = dzT("cartes.data2.decochee_t");
         } else if (st && !kept) {
-          const w = why[r] || (T.filter.trim() || "quantité 0");
+          const w = why[r] || (T.filter.trim() || dzT("cartes.data2.quantite_0"));
           f.innerHTML = ICO("dz-etat-exclu", 16, "cf-ic") + esc(w);
           f.className = "cf-data-rwhy out";
-          f.title = "Écartée par cette condition du filtre" + (why[r] ? "" : " (ou quantité 0)")
-            + " — la case ci-contre reste cochée : elle ne dit que l'activation manuelle.";
+          f.title = dzT("cartes.data2.ecartee_a") + (why[r] ? "" : dzT("cartes.data2.ou_qte0"))
+            + dzT("cartes.data2.ecartee_b");
         } else {
           f.textContent = "";
           f.className = "cf-data-rwhy";
@@ -2758,12 +2621,12 @@
      SANS UN MOT. Le backend juge (catalogue de la piece 02, bibliotheque), on
      le dit ici, en cartes. */
   const DOS_MOT = {
-    motif: "motif du catalogue (pièce 02)",
-    motif_ignore: "motif ignoré — « dos commun » coché (pièce 02)",
-    image: "illustration du verso (pièce 01)",
-    image_locale: "image importée dans ce navigateur (pièce 01, non vérifiable ici)",
-    commun: "dos commun",
-    introuvable: "introuvable — sortira avec le dos commun",
+    motif: dzT("cartes.data2.dos_motif"),
+    motif_ignore: dzT("cartes.data2.dos_motif_ignore"),
+    image: dzT("cartes.data2.dos_image"),
+    image_locale: dzT("cartes.data2.dos_image_locale"),
+    commun: dzT("cartes.data2.dos_commun"),
+    introuvable: dzT("cartes.data2.dos_introuvable"),
   };
   function backColumn() {
     const k = Object.keys(T.map);
@@ -2789,7 +2652,7 @@
     if (!DOS || !DOS.colonne) { box.innerHTML = ""; box.className = "cf-data-dosline"; return; }
     const mauvais = (DOS.dos || []).some((e) => e.origine === "introuvable" || e.origine === "motif_ignore");
     box.className = "cf-data-dosline" + (mauvais ? " bad" : " ok");
-    box.innerHTML = '<b>Dos (colonne « ' + esc(DOS.colonne) + ' ») — ' + DOS.total_cartes + ' carte(s)</b> : '
+    box.innerHTML = dzT("cartes.data2.dos_tete", { col: esc(DOS.colonne), n: DOS.total_cartes })
       + (DOS.dos || []).map((e) => esc(e.valeur || "—") + " × " + e.cartes + " → " + esc(DOS_MOT[e.origine] || e.origine))
         .join(" · ")
       + (DOS.avertissements || []).map((a) => '<span class="cf-data-dosav">' + esc(a) + '</span>').join("");
@@ -2820,8 +2683,8 @@
     M.patch({ lang: code });               /* la langue n'est pas une modification de la TABLE */
     paintLangues();
     schedule(0);
-    M.toast(code ? "jeu rendu en " + ((LANGS && (LANGS.langues || []).filter((l) => l.code === code)[0] || {}).label || code)
-      : "jeu rendu tel que mappé");
+    M.toast(code ? dzT("cartes.data2.jeu_rendu_en", { lang: ((LANGS && (LANGS.langues || []).filter((l) => l.code === code)[0] || {}).label || code) })
+      : dzT("cartes.data2.jeu_tel_mappe"));
   }
   function paintLangues() {
     const box = REFS.langues;
@@ -2838,27 +2701,25 @@
     const cur = T.lang || "";
     const bouton = (code, label, title, apres) => '<button type="button" class="btn sm cf-data-langb' + (code === cur ? " on" : "")
       + '" data-lang="' + esc(code) + '" title="' + esc(title) + '">' + esc(label) + (apres || "") + "</button>";
-    let html = '<b>Langue active</b> '
-      + bouton("", "telle que mappée", "Les colonnes exactement comme le mappage les désigne");
+    let html = '<b>' + dzT("cartes.data2.langue_active") + '</b> '
+      + bouton("", dzT("cartes.data2.telle_mappee"), dzT("cartes.data2.telle_mappee_t"));
     ls.forEach((l) => {
-      html += bouton(l.code, l.label, "Rendre tout le jeu en " + l.label
-        + (l.cartes_incompletes ? " — " + l.cartes_incompletes + " carte(s) avec une colonne manquante" : " — complet"),
+      html += bouton(l.code, l.label, dzT("cartes.data2.rendre_en", { lang: l.label })
+        + (l.cartes_incompletes ? dzT("cartes.data2.n_col_manquante", { n: l.cartes_incompletes }) : dzT("cartes.data2.complet")),
         l.cartes_incompletes ? ICO("dz-etat-avertissement", 16, "cf-ic-d") : "");
     });
     const l = ls.filter((x) => x.code === cur)[0];
     if (l) {
-      const trous = (l.details || []).map((d) => "ligne " + d.ligne + " (" + d.cartes + " carte(s)) : "
+      const trous = (l.details || []).map((d) => dzT("cartes.data2.ligne_trou", { l: d.ligne, n: d.cartes })
         + d.colonnes.map(esc).join(", ")).join(" · ");
       html += '<p class="cf-data-langet' + (l.cartes_incompletes ? " bad" : " ok") + '">'
         + (l.cartes_incompletes
-          ? esc(l.label) + " : " + l.cartes_incompletes + " carte(s) avec une colonne manquante — la cellule sort VIDE, "
-            + "jamais dans une autre langue" + (trous ? " · " + trous : "")
-            + ((l.absentes || []).length ? " · aucune colonne « " + l.absentes.map(esc).join(" », « ") + " » en " + esc(l.label) : "")
-          : esc(l.label) + " : toutes les colonnes mappées ont leur traduction")
+          ? dzT("cartes.data2.incomplet_lang", { lang: esc(l.label), n: l.cartes_incompletes }) + (trous ? " · " + trous : "")
+            + ((l.absentes || []).length ? dzT("cartes.data2.aucune_col_en", { cols: l.absentes.map(esc).join(dzT("cartes.data2.sep_cols")), lang: esc(l.label) }) : "")
+          : dzT("cartes.data2.toutes_traduites", { lang: esc(l.label) }))
         + "</p>";
     }
-    html += '<p class="hint">Un texte traduit peut être plus long : la <b>pièce 03</b> (Typographie) mesure chaque carte '
-      + "et dit ce qui déborde — vérifiez-la dans la langue active. Impression et Édition sortent dans la langue active.</p>";
+    html += '<p class="hint">' + dzT("cartes.data2.texte_long") + "</p>";
     html += traductionHTML(ls);
     box.innerHTML = html;
   }
@@ -2875,21 +2736,19 @@
     const src = TRADSEL.source || (ls[0] && ls[0].code) || "";
     const dst = TRADSEL.cible || (ls.filter((l) => l.code !== src)[0] || {}).code || "";
     const opt = (v, lab, cur) => '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + ">" + esc(lab) + "</option>";
-    let h = '<div class="cf-data-tradbar"><b>Traduire</b> de <select class="cf-data-trsel" data-trad-sel="source" title="Langue des textes à traduire">'
-      + ls.map((l) => opt(l.code, l.label, src)).join("") + "</select> vers "
-      + '<select class="cf-data-trsel" data-trad-sel="cible" title="Langue d’arrivée (une colonne absente sera créée à l’acceptation)">'
-      + Object.keys(connues).filter((c) => c !== src).map((c) => opt(c, connues[c], dst)).join("") + "</select> avec "
-      + '<select class="cf-data-trsel" data-trad-sel="moteur" title="Le fournisseur des Réglages est payant ; Ollama est local et gratuit">'
-      + opt("auto", "le fournisseur des Réglages", TRADSEL.moteur) + opt("ollama", "Ollama (local, gratuit)", TRADSEL.moteur) + "</select> "
-      + '<button type="button" class="btn sm cf-data-b" data-trad-go="1" title="Devis d’abord (nombre de cellules, coût), puis des PROPOSITIONS à accepter une à une — rien n’entre dans la table sans votre clic">Traduire…</button></div>';
+    let h = '<div class="cf-data-tradbar">' + dzT("cartes.data2.traduire_de") + ' <select class="cf-data-trsel" data-trad-sel="source" title="' + dzT("cartes.data2.langue_src_t") + '">'
+      + ls.map((l) => opt(l.code, l.label, src)).join("") + "</select> " + dzT("cartes.data2.vers") + " "
+      + '<select class="cf-data-trsel" data-trad-sel="cible" title="' + dzT("cartes.data2.langue_dst_t") + '">'
+      + Object.keys(connues).filter((c) => c !== src).map((c) => opt(c, connues[c], dst)).join("") + "</select> " + dzT("cartes.data2.avec") + " "
+      + '<select class="cf-data-trsel" data-trad-sel="moteur" title="' + dzT("cartes.data2.moteur_t") + '">'
+      + opt("auto", dzT("cartes.data2.fournisseur_reglages"), TRADSEL.moteur) + opt("ollama", dzT("cartes.data2.ollama_gratuit"), TRADSEL.moteur) + "</select> "
+      + '<button type="button" class="btn sm cf-data-b" data-trad-go="1" title="' + dzT("cartes.data2.traduire_t") + '">' + dzT("cartes.data2.traduire_pts") + '</button></div>';
     if (TRAD.length) {
-      h += '<div class="cf-data-trad"><p class="hint">' + TRAD.length + " proposition(s) — acceptez-les une à une (corrigez au besoin dans le champ) ; "
-        + "rien n’entre dans la table sans votre clic.</p>"
-        + TRAD.map((p, i) => '<div class="cf-data-tradrow"><span class="cf-data-tradsrc" title="' + esc(p.source) + '">ligne ' + p.ligne
-          + " · " + esc(p.colonne) + " : « " + esc(p.source) + " »</span>"
+      h += '<div class="cf-data-trad"><p class="hint">' + dzT("cartes.data2.n_props", { n: TRAD.length }) + "</p>"
+        + TRAD.map((p, i) => '<div class="cf-data-tradrow"><span class="cf-data-tradsrc" title="' + esc(p.source) + '">' + dzT("cartes.data2.trad_src", { l: p.ligne, col: esc(p.colonne), src: esc(p.source) }) + "</span>"
           + '<input class="cf-data-tradin" data-trad-in="' + i + '" value="' + esc(p.proposition) + '">'
-          + '<button type="button" class="btn sm" data-trad-ok="' + i + '" title="Écrire cette traduction dans la table (annulable par Ctrl+Z)">Accepter</button>'
-          + '<button type="button" class="btn sm" data-trad-non="' + i + '" title="Écarter cette proposition">Refuser</button></div>').join("")
+          + '<button type="button" class="btn sm" data-trad-ok="' + i + '" title="' + dzT("cartes.data2.accepter_t") + '">' + dzT("cartes.data2.accepter") + '</button>'
+          + '<button type="button" class="btn sm" data-trad-non="' + i + '" title="' + dzT("cartes.data2.refuser_t") + '">' + dzT("cartes.data2.refuser") + '</button></div>').join("")
         + "</div>";
     }
     return h;
@@ -2904,29 +2763,28 @@
       const corps = { columns: T.columns, rows: T.rows, off: T.off, map: T.map,
                       source: src, cible: dst, moteur: TRADSEL.moteur || "auto" };
       const d = await M.api.post("traduire/devis", corps);
-      if (!d.n) { M.toast("rien à traduire : toutes les cellules mappées ont déjà leur traduction"); return; }
+      if (!d.n) { M.toast(dzT("cartes.data2.rien_a_traduire")); return; }
       if (!(d.dispo || {})[corps.moteur]) {   // rien de prêt : on le dit ici, pas de dialogue qui finirait en 503
-        M.toast(corps.moteur === "ollama" ? "Ollama n’est pas configuré : renseignez OLLAMA_MODEL dans les Réglages"
-          : "aucun fournisseur de texte : une clé Anthropic, OpenAI ou Gemini dans les Réglages, ou Ollama", true);
+        M.toast(corps.moteur === "ollama" ? dzT("cartes.data2.ollama_absent")
+          : dzT("cartes.data2.aucun_fournisseur"), true);
         return;
       }
       const connues = (LANGS && LANGS.connues) || {};
-      const cout = d.payant ? ("≈ " + Number(d.usd).toFixed(d.usd < 0.01 ? 4 : 2) + " $ avec " + (d.fournisseur || "le fournisseur des Réglages")
-        + " — PAYANT, plafond « cartes » appliqué") : ((d.fournisseur === "ollama" ? "Ollama, local" : "local") + " — gratuit");
-      const ok = await window.__dzDialogue.confirmer(d.n + " cellule(s) de " + (connues[src] || src) + " vers " + (connues[dst] || dst)
-        + " : " + cout + "."
-        + ((d.colonnes_a_creer || []).length ? " Colonne(s) créée(s) à l’acceptation : " + d.colonnes_a_creer.join(", ") + "." : "")
-        + (d.restants ? " " + d.restants + " autre(s) cellule(s) attendront une seconde demande." : "")
-        + " Le modèle PROPOSE : rien n’entre dans la table sans votre clic, carte par carte.",
-        { titre: "Traduction", ok: d.payant ? "Traduire (" + "≈ " + Number(d.usd).toFixed(d.usd < 0.01 ? 4 : 2) + " $)" : "Traduire" });
+      const cout = d.payant ? dzT("cartes.data2.cout_payant", { usd: Number(d.usd).toFixed(d.usd < 0.01 ? 4 : 2), f: (d.fournisseur || dzT("cartes.data2.fournisseur_reglages")) })
+        : dzT("cartes.data2.cout_gratuit", { f: (d.fournisseur === "ollama" ? "Ollama, local" : "local") });
+      const ok = await window.__dzDialogue.confirmer(dzT("cartes.data2.conf_cellules", { n: d.n, src: (connues[src] || src), dst: (connues[dst] || dst), cout: cout })
+        + ((d.colonnes_a_creer || []).length ? dzT("cartes.data2.cols_creees", { cols: d.colonnes_a_creer.join(", ") }) : "")
+        + (d.restants ? dzT("cartes.data2.cellules_restantes", { n: d.restants }) : "")
+        + dzT("cartes.data2.modele_propose"),
+        { titre: dzT("cartes.data2.traduction"), ok: d.payant ? dzT("cartes.data2.traduire_cout", { usd: Number(d.usd).toFixed(d.usd < 0.01 ? 4 : 2) }) : dzT("cartes.data2.traduire") });
       if (!ok) return;
-      M.busy(true, "traduction de " + d.n + " cellule(s)…");
+      M.busy(true, dzT("cartes.data2.traduction_n", { n: d.n }));
       const r = await M.api.post("traduire", corps);
       TRAD = (r && r.propositions) || [];
       paintLangues();
-      M.toast(TRAD.length + " proposition(s) à valider");
+      M.toast(dzT("cartes.data2.props_a_valider", { n: TRAD.length }));
     } catch (e) {
-      M.toast("Traduction : " + String((e && e.message) || e), true);
+      M.toast(dzT("cartes.data2.err_traduction", { e: String((e && e.message) || e) }), true);
     } finally { M.busy(false); TRADV = false; }
   }
   function tradAccepter(i) {
@@ -2934,16 +2792,16 @@
     if (!p) return;
     const inp = REFS.langues && REFS.langues.querySelector('[data-trad-in="' + i + '"]');
     const val = String(inp ? inp.value : p.proposition).trim();
-    if (!val) { M.toast("proposition vide : refusez-la ou écrivez la traduction", true); return; }
+    if (!val) { M.toast(dzT("cartes.data2.prop_vide"), true); return; }
     const li = p.ligne - 1;
-    if (!T.rows[li]) { M.toast("la ligne " + p.ligne + " n’existe plus", true); TRAD.splice(i, 1); paintLangues(); return; }
+    if (!T.rows[li]) { M.toast(dzT("cartes.data2.ligne_disparue", { l: p.ligne }), true); TRAD.splice(i, 1); paintLangues(); return; }
     pushUndo();
     let ci = T.columns.indexOf(p.colonne);
     if (ci < 0) { T.columns.push(p.colonne); T.rows.forEach((r) => r.push("")); ci = T.columns.length - 1; }
     T.rows[li][ci] = val;
     TRAD.splice(i, 1);
     commit(); render(); schedule(0);
-    M.toast("ligne " + p.ligne + " · " + p.colonne + " : traduction acceptée");
+    M.toast(dzT("cartes.data2.trad_acceptee", { l: p.ligne, col: p.colonne }));
   }
   function tradRefuser(i) {
     if (!TRAD[i]) return;
@@ -2977,40 +2835,37 @@
   function usd(v) { return Number(v || 0).toFixed(Number(v) < 0.1 ? 3 : 2); }
   function lotHTML() {
     const ac = artCol();
-    if (!ac) return "<summary>Art du deck en lot</summary><p class=\"hint\">Mappez d’abord une colonne sur « Illustration (card.art) » : "
-      + "c’est elle que le lot remplit.</p>";
+    if (!ac) return "<summary>" + dzT("cartes.data2.lot_titre") + "</summary><p class=\"hint\">" + dzT("cartes.data2.lot_mappez") + "</p>";
     const opt = (v, lab, cur, dis) => '<option value="' + esc(v) + '"' + (String(v) === String(cur) ? " selected" : "")
       + (dis ? " disabled" : "") + ">" + esc(lab) + "</option>";
     const mods = (LOTMODS && LOTMODS.models) || [];
-    let h = "<summary>Art du deck en lot — colonne « " + esc(ac) + " »</summary><div class=\"cf-data-lotbar\">"
-      + '<select data-lot-k="model" title="Modèles servis au lot (FLUX ne passe que par l’écran Images) ; un modèle sans clé est grisé">'
-      + (mods.length ? mods.map((m) => opt(m.id, m.label + " · " + (m.usd_par_image == null ? "tarif ?" : usd(m.usd_par_image) + " $/image")
-        + (m.cle ? "" : " · sans clé"), LOT.model, !m.cle)).join("") : opt(LOT.model, LOT.model, LOT.model)) + "</select>"
-      + '<select data-lot-k="n" title="Variantes par ligne (chacune est payée)">' + [1, 2, 3, 4].map((k) => opt(k, k + " variante(s)", LOT.n)).join("") + "</select>"
-      + '<select data-lot-k="size" title="Cadre demandé au générateur">'
+    let h = "<summary>" + dzT("cartes.data2.lot_titre_col", { col: esc(ac) }) + "</summary><div class=\"cf-data-lotbar\">"
+      + '<select data-lot-k="model" title="' + dzT("cartes.data2.modeles_t") + '">'
+      + (mods.length ? mods.map((m) => opt(m.id, m.label + " · " + (m.usd_par_image == null ? dzT("cartes.data2.tarif_inconnu") : usd(m.usd_par_image) + " $/image")
+        + (m.cle ? "" : dzT("cartes.data2.sans_cle")), LOT.model, !m.cle)).join("") : opt(LOT.model, LOT.model, LOT.model)) + "</select>"
+      + '<select data-lot-k="n" title="' + dzT("cartes.data2.variantes_t") + '">' + [1, 2, 3, 4].map((k) => opt(k, dzT("cartes.data2.n_variantes", { n: k }), LOT.n)).join("") + "</select>"
+      + '<select data-lot-k="size" title="' + dzT("cartes.data2.cadre_t") + '">'
       + ((LOTMODS && LOTMODS.tailles) || ["portrait_4_3"]).map((s) => opt(s, s, LOT.size)).join("") + "</select>"
-      + '<input data-lot-k="gabarit" value="' + esc(lotGabarit()) + '" title="Le prompt de chaque ligne : {colonne} est remplacé par la cellule">'
-      + '<input data-lot-k="style" value="' + esc(LOT.style) + '" placeholder="style de série (palette, matière…)" title="Ajouté à chaque prompt — jamais un nom d’artiste (refusé)">'
-      + '<select data-lot-k="col_entite" title="Colonne qui nomme une entité de la bible : sa description et sa planche de référence s’ajoutent">'
-      + opt("", "sans entité de la bible", LOT.col_entite) + T.columns.filter((c) => c !== ac).map((c) => opt(c, "entité : " + c, LOT.col_entite)).join("") + "</select>"
-      + '<label title="Au-dessus de ce montant, le lot ne part pas (mur dur, en plus du plafond mensuel « cartes »)">mur <input data-lot-k="mur_usd" type="number" min="0.5" max="100" step="0.5" value="'
+      + '<input data-lot-k="gabarit" value="' + esc(lotGabarit()) + '" title="' + dzT("cartes.data2.gabarit_t") + '">'
+      + '<input data-lot-k="style" value="' + esc(LOT.style) + '" placeholder="' + dzT("cartes.data2.style_ph") + '" title="' + dzT("cartes.data2.style_t") + '">'
+      + '<select data-lot-k="col_entite" title="' + dzT("cartes.data2.entite_t") + '">'
+      + opt("", dzT("cartes.data2.sans_entite"), LOT.col_entite) + T.columns.filter((c) => c !== ac).map((c) => opt(c, dzT("cartes.data2.entite_col", { c: c }), LOT.col_entite)).join("") + "</select>"
+      + '<label title="' + dzT("cartes.data2.mur_t") + '">' + dzT("cartes.data2.mur") + ' <input data-lot-k="mur_usd" type="number" min="0.5" max="100" step="0.5" value="'
       + esc(String(LOT.mur_usd)) + '"> $</label>'
-      + '<button type="button" class="btn sm cf-data-b" data-lot-devis="1" title="Ce que coûterait le lot — rien n’est appelé">Devis</button>'
-      + '<button type="button" class="btn strong sm cf-data-b" data-lot-go="1" title="Devis, puis confirmation : le lot DÉPENSE (plafond « cartes » et mur du lot appliqués)">Générer…</button></div>';
+      + '<button type="button" class="btn sm cf-data-b" data-lot-devis="1" title="' + dzT("cartes.data2.devis_t") + '">' + dzT("cartes.data2.devis") + '</button>'
+      + '<button type="button" class="btn strong sm cf-data-b" data-lot-go="1" title="' + dzT("cartes.data2.generer_t") + '">' + dzT("cartes.data2.generer_pts") + '</button></div>';
     if (LOTDEV) {
       const d = LOTDEV;
-      h += '<p class="cf-data-lotdev' + (d.sous_le_mur ? "" : " bad") + '"><b>' + d.lignes_a_generer + " ligne(s) à générer</b> · "
-        + d.images + " image(s) pour ce lot · " + d.cartes_couvertes + " cartes couvertes · " + d.deja_illustrees + " déjà illustrée(s)"
-        + " · <b>" + usd(d.total_usd) + " $</b> (" + esc(d.model) + ", mur " + usd(d.mur_usd) + " $)"
-        + (d.incomplets ? " · " + d.incomplets + " ligne(s) sans texte (" + (d.sans_prompt || []).join(", ") + ") ne seront pas tirées" : "")
-        + (d.restants ? " · " + d.restants + " attendront une seconde demande" : "")
-        + " — les images rejoignent la <b>Bibliothèque</b> avec la lignée de ce jeu.</p>";
+      h += '<p class="cf-data-lotdev' + (d.sous_le_mur ? "" : " bad") + '"><b>' + dzT("cartes.data2.devis_ligne", { l: d.lignes_a_generer, i: d.images, c: d.cartes_couvertes, d: d.deja_illustrees, usd: usd(d.total_usd), m: esc(d.model), mur: usd(d.mur_usd) })
+        + (d.incomplets ? dzT("cartes.data2.sans_texte_liste", { n: d.incomplets, l: (d.sans_prompt || []).join(", ") }) : "")
+        + (d.restants ? dzT("cartes.data2.attendront", { n: d.restants }) : "")
+        + dzT("cartes.data2.images_biblio") + "</p>";
     }
     if (LOTRES.length) {
-      h += '<div class="cf-data-lotres">' + LOTRES.map((x, i) => '<div class="cf-data-lotrow"><span>ligne ' + x.ligne
+      h += '<div class="cf-data-lotres">' + LOTRES.map((x, i) => '<div class="cf-data-lotrow"><span>' + dzT("cartes.data2.ligne_n", { l: x.ligne })
         + (x.entite ? " · " + esc(x.entite) : "") + "</span>"
         + x.fichiers.map((f, k) => '<button type="button" class="cf-data-lotvar' + (f === x.choisi ? " on" : "") + '" data-lot-var="' + i + ":" + k
-          + '" title="Poser cette variante sur la ligne ' + x.ligne + ' (annulable)"><img alt="" src="' + esc(CF.images.url(f)) + '"></button>').join("")
+          + '" title="' + dzT("cartes.data2.poser_variante", { l: x.ligne }) + '"><img alt="" src="' + esc(CF.images.url(f)) + '"></button>').join("")
         + "</div>").join("") + "</div>";
     }
     return h;
@@ -3038,7 +2893,7 @@
   }
   async function lotDevis() {
     try { LOTDEV = await M.api.post("lot/devis", lotCorps()); }
-    catch (e) { LOTDEV = null; M.toast("Devis : " + String((e && e.message) || e), true); }
+    catch (e) { LOTDEV = null; M.toast(dzT("cartes.data2.err_devis", { e: String((e && e.message) || e) }), true); }
     paintLot();
     return LOTDEV;
   }
@@ -3048,19 +2903,18 @@
     try {
       const d = await lotDevis();
       if (!d) return;
-      if (!d.lignes_de_ce_lot) { M.toast(d.incomplets ? "aucune ligne prête : " + d.incomplets + " ligne(s) sans texte" : "rien à illustrer : toutes les lignes ont leur image", !!d.incomplets); return; }
+      if (!d.lignes_de_ce_lot) { M.toast(d.incomplets ? dzT("cartes.data2.aucune_prete", { n: d.incomplets }) : dzT("cartes.data2.rien_a_illustrer"), !!d.incomplets); return; }
       const m = ((LOTMODS && LOTMODS.models) || []).filter((x) => x.id === d.model)[0];
-      if (m && !m.cle) { M.toast("la clé de « " + d.model + " » n’est pas enregistrée (Réglages)", true); return; }
-      if (!d.sous_le_mur) { M.toast("le lot coûterait " + usd(d.total_usd) + " $, au-dessus du mur de " + usd(d.mur_usd) + " $ : réduisez-le ou relevez le mur", true); return; }
+      if (m && !m.cle) { M.toast(dzT("cartes.data2.cle_absente", { m: d.model }), true); return; }
+      if (!d.sous_le_mur) { M.toast(dzT("cartes.data2.au_dessus_mur", { usd: usd(d.total_usd), mur: usd(d.mur_usd) }), true); return; }
       const ac = artCol();
-      const ok = await window.__dzDialogue.confirmer(d.images + " image(s) avec " + d.model + " pour " + d.lignes_de_ce_lot + " ligne(s) : ≈ "
-        + usd(d.total_usd) + " $ — PAYANT, plafond « cartes » et mur du lot (" + usd(d.mur_usd) + " $) appliqués."
-        + (d.incomplets ? " " + d.incomplets + " ligne(s) sans texte ne seront pas tirées." : "")
-        + (d.restants ? " " + d.restants + " ligne(s) attendront une seconde demande." : "")
-        + " La colonne « " + ac + " » sera remplie (Ctrl+Z annule) ; les images rejoignent la Bibliothèque.",
-        { titre: "Art du deck", ok: "Générer (≈ " + usd(d.total_usd) + " $)" });
+      const ok = await window.__dzDialogue.confirmer(dzT("cartes.data2.conf_lot", { i: d.images, m: d.model, l: d.lignes_de_ce_lot, usd: usd(d.total_usd), mur: usd(d.mur_usd) })
+        + (d.incomplets ? dzT("cartes.data2.sans_texte", { n: d.incomplets }) : "")
+        + (d.restants ? dzT("cartes.data2.lignes_restantes", { n: d.restants }) : "")
+        + dzT("cartes.data2.col_remplie", { col: ac }),
+        { titre: dzT("cartes.data2.art_deck"), ok: dzT("cartes.data2.generer_cout", { usd: usd(d.total_usd) }) });
       if (!ok) return;
-      M.busy(true, "génération de " + d.images + " image(s)…");
+      M.busy(true, dzT("cartes.data2.generation_n", { n: d.images }));
       const r = await M.api.post("lot/generer", Object.assign(lotCorps(), { confirmer: true }));
       const res = (r && r.resultats) || [];
       const ci = T.columns.indexOf(ac);
@@ -3076,17 +2930,17 @@
       LOTDEV = null;
       paintLot();
       const errs = (r && r.erreurs) || [];
-      M.toast(res.length + " ligne(s) illustrée(s)" + (errs.length ? " · " + errs.length + " échec(s) : " + errs.map((e) => "ligne " + e.ligne + " — " + e.message).join(" ; ") : "")
-        + (r && r.arret ? " · lot arrêté : " + r.arret : ""), !!(errs.length || (r && r.arret)));
+      M.toast(dzT("cartes.data2.n_illustrees", { n: res.length }) + (errs.length ? dzT("cartes.data2.n_echecs", { n: errs.length, e: errs.map((e) => dzT("cartes.data2.ligne_err", { l: e.ligne, m: e.message })).join(" ; ") }) : "")
+        + (r && r.arret ? dzT("cartes.data2.lot_arrete", { r: r.arret }) : ""), !!(errs.length || (r && r.arret)));
     } catch (e) {
-      M.toast("Art du deck : " + String((e && e.message) || e), true);
+      M.toast(dzT("cartes.data2.err_art", { e: String((e && e.message) || e) }), true);
     } finally { M.busy(false); LOTV = false; }
   }
   function lotVariante(i, k) {
     const x = LOTRES[i];
     const f = x && x.fichiers[k];
     const ci = T.columns.indexOf(artCol());
-    if (!f || ci < 0 || !T.rows[x.ligne - 1]) { M.toast("cette ligne n’existe plus", true); return; }
+    if (!f || ci < 0 || !T.rows[x.ligne - 1]) { M.toast(dzT("cartes.data2.ligne_plus_la"), true); return; }
     pushUndo();
     T.rows[x.ligne - 1][ci] = f;
     x.choisi = f;
@@ -3124,18 +2978,17 @@
     if (!box) return;
     if (!STATS || !(STATS.colonnes || []).length) { box.innerHTML = ""; box.classList.add("hidden"); return; }
     box.classList.remove("hidden");
-    const tete = '<summary>Statistiques du jeu — ' + STATS.total_cartes + ' carte(s) sur ' + STATS.lignes
-      + ' ligne(s)' + (STATS.qty_col ? ' (quantités de « ' + esc(STATS.qty_col) + ' » appliquées)' : '') + '</summary>';
+    const tete = '<summary>' + dzT("cartes.data2.stats_tete", { n: STATS.total_cartes, l: STATS.lignes })
+      + (STATS.qty_col ? dzT("cartes.data2.stats_qte", { col: esc(STATS.qty_col) }) : '') + '</summary>';
     box.innerHTML = tete + (STATS.colonnes || []).map((c) => {
       let corps;
       if (c.genre === "numerique") {
-        corps = '<p class="cf-data-stres">' + c.n + ' carte(s) · min ' + nfr(c.min) + ' · max ' + nfr(c.max)
-          + ' · moyenne ' + nfr(c.moyenne) + ' · médiane ' + nfr(c.mediane)
-          + (c.vides ? ' · ' + c.vides + ' vide(s)' : '') + '</p>'
+        corps = '<p class="cf-data-stres">' + dzT("cartes.data2.st_num", { n: c.n, min: nfr(c.min), max: nfr(c.max), moy: nfr(c.moyenne), med: nfr(c.mediane) })
+          + (c.vides ? dzT("cartes.data2.st_vides", { n: c.vides }) : '') + '</p>'
           + barres((c.classes || []).map((b) => ({ lab: c.discret ? String(b.de) : nfr(b.de) + "–" + nfr(b.a), n: b.n })));
       } else {
-        corps = '<p class="cf-data-stres">' + c.n + ' carte(s) · ' + c.distinctes + ' valeur(s) distincte(s)'
-          + (c.vides ? ' · ' + c.vides + ' vide(s)' : '') + (c.tronque ? ' · ' + c.tronque + ' autre(s) non montrée(s)' : '') + '</p>'
+        corps = '<p class="cf-data-stres">' + dzT("cartes.data2.st_distinctes", { n: c.n, d: c.distinctes })
+          + (c.vides ? dzT("cartes.data2.st_vides", { n: c.vides }) : '') + (c.tronque ? dzT("cartes.data2.st_tronque", { n: c.tronque }) : '') + '</p>'
           + barres((c.valeurs || []).map((v) => ({ lab: v.valeur, n: v.n })));
       }
       return '<div class="cf-data-stcol"><b>' + esc(c.nom) + '</b>'
@@ -3184,12 +3037,12 @@
       if (it.ok) {
         td.classList.add("ok");
         dot.innerHTML = ICO("dz-etat-succes", 16);
-        dot.title = "Trouvée : " + it.url + (it.why ? " — " + it.why : "");
+        dot.title = dzT("cartes.data2.trouvee", { url: it.url }) + (it.why ? " — " + it.why : "");
       } else {
         td.classList.add("miss");
         dot.innerHTML = ICO("dz-etat-erreur", 16);
-        dot.title = "INTROUVABLE"
-          + (it.why ? " — " + it.why : "") + (ART ? " · dossier " + ART.folder : "");
+        dot.title = dzT("cartes.data2.introuvable_maj")
+          + (it.why ? " — " + it.why : "") + (ART ? dzT("cartes.data2.dossier", { f: ART.folder }) : "");
       }
     });
     /* le compte, dans le bandeau : « 3 images sur 4 » ne se devine pas au point rouge */
@@ -3206,28 +3059,21 @@
          faisaient qu'un, et le bandeau annoncait 115 pour 116. */
       const clash = (ART.n_names != null && ART.n_files != null
         && ART.n_files > ART.n_names)
-        ? (" · " + (ART.n_files - ART.n_names) + " ne se distingue(nt) que par "
-          + "la casse : un seul est atteignable par son nom")
+        ? dzT("cartes.data2.casse_clash", { n: ART.n_files - ART.n_names })
         : "";
-      box.innerHTML = "Colonne <code>" + esc(col)
-        + "</code> résolue vers la bibliothèque d'images (<b>"
-        + (ART.n_files == null ? "?" : ART.n_files) + "</b> fichier(s)"
-        + clash + ") : <b>"
-        + ART.n_ok + "</b> sur <b>" + ART.n + "</b> valeur(s) nommée(s)"
-        + (ART.n_case ? (" · <b>" + ART.n_case + "</b> trouvée(s) à la casse "
-          + "près (l'URL porte le nom réel du fichier)") : "")
-        + (ART.n_missing ? (" — <b>" + ART.n_missing + " introuvable(s)</b>,"
-          + " point rouge dans la table, la raison en infobulle") : "");
+      box.innerHTML = dzT("cartes.data2.art_resolue", { col: esc(col), nf: (ART.n_files == null ? "?" : ART.n_files), clash: clash, ok: ART.n_ok, n: ART.n })
+        + (ART.n_case ? dzT("cartes.data2.art_casse", { n: ART.n_case }) : "")
+        + (ART.n_missing ? dzT("cartes.data2.art_manque", { n: ART.n_missing }) : "");
     }
   }
 
   function focusRow(r) {
-    if (!LAST || !LAST.cards) { M.toast("construisez d'abord le deck", true); return; }
+    if (!LAST || !LAST.cards) { M.toast(dzT("cartes.data2.construire_deck"), true); return; }
     let k = -1;
     for (let i = 0; i < LAST.cards.length; i++) if (LAST.cards[i].row === r) { k = i; break; }
-    if (k < 0) { M.toast("cette ligne ne produit aucune carte (filtre, quantité 0 ou ligne désactivée)", true); return; }
+    if (k < 0) { M.toast(dzT("cartes.data2.aucune_carte"), true); return; }
     focusCard(k);
-    M.toast("aperçu de la carte " + (k + 1) + " / " + CF.cards().length);
+    M.toast(dzT("cartes.data2.apercu_carte", { k: k + 1, n: CF.cards().length }));
   }
   /* On pilote les BOUTONS du CORE, pas son etat interne : c'est la seule
      facon publique de deplacer l'apercu, et les invalidations se coalescent
@@ -3278,7 +3124,7 @@
     const nm = String(raw || "").trim();
     if (!nm || nm === T.columns[j]) { render(); return; }
     if (T.columns.map(fold).indexOf(fold(nm)) >= 0) {
-      M.toast("une colonne porte déjà ce nom", true); render(); return;
+      M.toast(dzT("cartes.data2.nom_pris"), true); render(); return;
     }
     pushUndo();
     const old = T.columns[j];
@@ -3309,18 +3155,18 @@
       bar.appendChild(b);
       return b;
     };
-    mk("btn sm cf-data-b", "+ ligne", "Alt + N", addRow);
-    mk("btn sm cf-data-b", "Tout activer", "Réactive toutes les lignes", () => {
+    mk("btn sm cf-data-b", dzT("cartes.data2.plus_ligne"), "Alt + N", addRow);
+    mk("btn sm cf-data-b", dzT("cartes.data2.tout_activer"), dzT("cartes.data2.tout_activer_t"), () => {
       pushUndo(); T.off = []; commit(); renderTableOnly(); schedule(0);
     });
-    mk("btn sm cf-data-b", "Inverser", "Inverse l'activation de chaque ligne", () => {
+    mk("btn sm cf-data-b", dzT("cartes.data2.inverser"), dzT("cartes.data2.inverser_t"), () => {
       pushUndo();
       const all = T.rows.map((r, i) => i);
       T.off = all.filter((i) => T.off.indexOf(i) < 0);
       commit(); renderTableOnly(); schedule(0);
     });
-    REFS.undo = mk("btn sm cf-data-b", "Annuler", "Ctrl + Z", undo);
-    REFS.redo = mk("btn sm cf-data-b", "Rétablir", "Ctrl + Maj + Z", redo);
+    REFS.undo = mk("btn sm cf-data-b", dzT("cartes.data2.annuler"), "Ctrl + Z", undo);
+    REFS.redo = mk("btn sm cf-data-b", dzT("cartes.data2.retablir"), dzT("cartes.data2.raccourci_retablir"), redo);
     bar.appendChild(h("span", "tb-spacer"));
     /* LE BOM EST UN CHOIX AFFICHE, PLUS UNE DECISION CACHEE DANS UN BOUTON.
        Il aide Excel et il gene un parseur naif (la premiere colonne ressort
@@ -3338,10 +3184,7 @@
        (205 octets entrent, 226 sortent), un fichier à BOM ressort sans lui
        (213 -> 210), un classeur ressort en CSV. La promesse est remplacée par
        une MESURE, faite après chaque export sur les deux suites d'octets. */
-    bl.title = "Cochée, cette case ajoute exactement 3 octets EF BB BF en tête, "
-      + "pour qu'Excel ouvre les accents. Aucune promesse n'est faite ici sur "
-      + "l'identité aux octets importés : elle est mesurée à chaque export et "
-      + "écrite en clair sous cette barre, divergence et position comprises.";
+    bl.title = dzT("cartes.data2.bom_t");
     bar.appendChild(bl);
     REFS.bom = bl;
     /* DEUX FICHIERS, DONC DEUX BOUTONS. « Exporter le CSV » rendait la table
@@ -3349,14 +3192,13 @@
        qty non resolue — et le livrable de la spec est « export CSV du DECK ».
        Un seul bouton pour deux fichiers differents, c'etait la moitie du
        livrable presentee comme le tout. */
-    mk("btn sm cf-data-b", "Exporter la table source",
-      "La table telle qu'elle est ici. Relue, elle rend la même table — "
-      + "l'aller-retour est vérifié sur les octets rendus.",
+    mk("btn sm cf-data-b", dzT("cartes.data2.exporter_table"),
+      dzT("cartes.data2.exporter_table_t"),
       () => exportCsv("table"));
-    REFS.expdeck = mk("btn strong sm cf-data-b", ICO("dz-action-exporter", 16, "cf-ic") + "Exporter le deck",
-      "Une ligne PAR CARTE : filtre, tri et quantités appliqués.",
+    REFS.expdeck = mk("btn strong sm cf-data-b", ICO("dz-action-exporter", 16, "cf-ic") + dzT("cartes.data2.exporter_deck"),
+      dzT("cartes.data2.exporter_deck_t"),
       () => exportCsv("deck"));
-    mk("btn strong sm cf-data-b", "Reconstruire", "Ctrl + Entrée", () => schedule(0));
+    mk("btn strong sm cf-data-b", dzT("cartes.data2.reconstruire"), dzT("cartes.data2.raccourci_reconstruire"), () => schedule(0));
     f.appendChild(bar);
     const prf = h("p", "cf-data-proof", "");
     f.appendChild(prf);
@@ -3402,9 +3244,7 @@
     f.appendChild(stats);
     REFS.stats = stats;
     f.appendChild(h("p", "hint cf-data-keys",
-      "<b>Ctrl+Z</b> annuler · <b>Ctrl+Maj+Z</b> rétablir · <b>Entrée</b> cellule suivante · "
-      + "<b>Alt+N</b> nouvelle ligne · <b>Ctrl+Entrée</b> reconstruire · <b>double-clic</b> sur une ligne = "
-      + "aperçu de sa carte · <b>Ctrl+V</b> colle une table"));
+      dzT("cartes.data2.raccourcis")));
     paintBom();
     return f;
   }
@@ -3418,8 +3258,8 @@
          sur quatre des six jeux embarques. Une case a cocher decrit son geste ;
          le resultat, lui, s'affiche apres l'export. */
       t.textContent = BOM
-        ? "BOM pour Excel — +3 octets EF BB BF en tête"
-        : "sans BOM (le défaut)";
+        ? dzT("cartes.data2.bom_excel")
+        : dzT("cartes.data2.sans_bom_defaut");
     }
     l.className = "cf-data-bom" + (BOM ? " on" : "");
   }
@@ -3431,14 +3271,14 @@
      diverge, on l'ecrit, avec la position. Une promesse invérifiable vaut
      moins que pas de promesse. */
   async function exportCsv(scope) {
-    if (!T.columns.length) { M.toast("rien à exporter", true); return; }
+    if (!T.columns.length) { M.toast(dzT("cartes.data2.rien_a_exporter"), true); return; }
     const deck = (scope === "deck");
     if (deck && !(LAST && LAST.cards && LAST.cards.length)) {
-      M.toast("construisez d'abord le deck", true); return;
+      M.toast(dzT("cartes.data2.construire_deck"), true); return;
     }
     const nm = String((CF.doc().name || "deck")).replace(/[^\w\-]+/g, "_") || "deck";
     try {
-      M.busy(true, deck ? "export du deck…" : "export de la table…");
+      M.busy(true, deck ? dzT("cartes.data2.export_deck") : dzT("cartes.data2.export_table"));
       /* un classeur n'a pas de separateur : on ecrit en point-virgule et on
          le DIT dans le message, plutot que de reprendre un reglage inexistant */
       const sep = (T.sep && T.sep !== "auto" && SEPS.some((s) => s.v === T.sep)) ? T.sep : ";";
@@ -3479,12 +3319,10 @@
   }
   function compareToSource(buf, bom) {
     if (!SRC || !SRC.bytes) {
-      return { state: "absent", txt: "octets d'origine absents (table saisie "
-        + "ici, ou page rechargée depuis l'import) : il n'y a rien à comparer" };
+      return { state: "absent", txt: dzT("cartes.data2.src_absente") };
     }
     if (SRCDIRTY) {
-      return { state: "dirty", txt: "la table a changé depuis l'import de « "
-        + SRC.name + " » : la comparer aux octets d'origine ne voudrait rien dire" };
+      return { state: "dirty", txt: dzT("cartes.data2.src_modifiee", { nom: SRC.name }) };
     }
     const a = SRC.bytes, b = new Uint8Array(buf);
     const n = Math.min(a.length, b.length);
@@ -3492,28 +3330,24 @@
     for (let i = 0; i < n; i++) { if (a[i] !== b[i]) { at = i; break; } }
     if (at < 0 && a.length !== b.length) at = n;
     if (at < 0) {
-      return { state: "same", at: -1, txt: "identique aux " + a.length
-        + " octets importés — comparés un par un, aucune divergence" };
+      return { state: "same", at: -1, txt: dzT("cartes.data2.src_identique", { n: a.length }) };
     }
     /* les raisons sont MESUREES, pas devinees : l'encodage vient du moteur,
        les guillemets se comptent, les valeurs perdues aussi. */
     const why = [];
-    if (bom) why.push("3 octets de BOM ajoutés en tête (case cochée)");
-    if (SRC.wb) why.push("l'entrée est une archive (classeur ou export Notion), la sortie un CSV");
+    if (bom) why.push(dzT("cartes.data2.why_bom"));
+    if (SRC.wb) why.push(dzT("cartes.data2.why_archive"));
     else if (SRC.enc && SRC.enc !== "utf-8") {
-      why.push("l'entrée était en " + SRC.encLabel + ", la sortie s'écrit en UTF-8");
+      why.push(dzT("cartes.data2.why_enc", { enc: SRC.encLabel }));
     }
     if (SRC.lost) {
-      why.push(SRC.lost + " valeur(s) écartée(s) à la lecture (ligne(s) à "
-        + "colonnes en trop) : elles ne peuvent pas ressortir");
+      why.push(dzT("cartes.data2.why_perdues", { n: SRC.lost }));
     }
     const qa = countByte(a, 34), qb = countByte(b, 34);
     if (qa !== qb) {
-      why.push(qa + " guillemet(s) en entrée contre " + qb + " en sortie "
-        + "(la citation est remise au strict nécessaire)");
+      why.push(dzT("cartes.data2.why_guillemets", { a: qa, b: qb }));
     }
-    return { state: "diff", at: at, txt: b.length + " octets rendus contre "
-      + a.length + " importés · première différence à l'octet " + at
+    return { state: "diff", at: at, txt: dzT("cartes.data2.src_diff", { b: b.length, a: a.length, at: at })
       + (why.length ? " — " + why.join(" · ") : "") };
   }
 
@@ -3524,47 +3358,42 @@
     const n = buf.byteLength;
     const u = new Uint8Array(buf);
     const bom = (u.length > 2 && u[0] === 0xEF && u[1] === 0xBB && u[2] === 0xBF);
-    const octets = n + " octet(s)" + (bom ? " dont 3 de BOM" : ", sans BOM");
+    const octets = dzT("cartes.data2.n_octets", { n: n }) + (bom ? dzT("cartes.data2.dont_bom") : dzT("cartes.data2.sans_bom"));
     /* le DECK n'est pas la table d'entree : une ligne par carte, filtre, tri et
        quantites appliques. Le comparer aux octets importes serait un chiffre
        faux de plus. */
     const src = deck
-      ? { state: "na", txt: "le deck résolu n'est pas la table d'entrée "
-        + "(une ligne par carte) : la comparaison aux octets importés ne "
-        + "s'applique pas ici — c'est « Exporter la table source » qui la porte" }
+      ? { state: "na", txt: dzT("cartes.data2.deck_na") }
       : compareToSource(buf, bom);
     try {
       const r = await M.api.post("parse", { b64: b64of(buf), name: "relecture" });
       const tb = r && r.table;
-      if (!tb) throw new Error("relecture illisible");
+      if (!tb) throw new Error(dzT("cartes.data2.relecture_illisible"));
       const want = deck ? null : { cols: T.columns, rows: T.rows };
       if (deck) {
         const nc = (LAST && LAST.cards) ? LAST.cards.length : 0;
         const ok = (tb.n_rows === nc);
         return {
           src: src,
-          ok: ok, txt: "deck relu : " + tb.n_rows + " / " + nc + " carte(s) · " + octets,
+          ok: ok, txt: dzT("cartes.data2.deck_relu", { k: tb.n_rows, n: nc, o: octets }),
           toast: ok
-            ? (nc + " carte(s) exportée(s) et relues — " + tb.n_cols
-              + " colonnes, " + octets)
-            : ("relecture : " + tb.n_rows + " lignes pour " + nc + " cartes"),
-          detail: "Une ligne par carte, filtre / tri / quantités appliqués. "
-            + "Séparateur " + sepLabel(sep) + ".",
+            ? dzT("cartes.data2.deck_exporte", { n: nc, c: tb.n_cols, o: octets })
+            : dzT("cartes.data2.relecture_ecart", { k: tb.n_rows, n: nc }),
+          detail: dzT("cartes.data2.deck_detail", { sep: sepLabel(sep) }),
         };
       }
       let bad = "";
       if (tb.columns.join("") !== want.cols.join("")) {
-        bad = "entêtes différentes";
+        bad = dzT("cartes.data2.entetes_diff");
       } else if (tb.rows.length !== want.rows.length) {
-        bad = tb.rows.length + " lignes relues pour " + want.rows.length + " écrites";
+        bad = dzT("cartes.data2.lignes_relues", { k: tb.rows.length, n: want.rows.length });
       } else {
         for (let i = 0; i < want.rows.length && !bad; i++) {
           for (let j = 0; j < want.cols.length; j++) {
             const a = String(want.rows[i][j] == null ? "" : want.rows[i][j]);
             const c = String(tb.rows[i][j] == null ? "" : tb.rows[i][j]);
             if (a !== c) {
-              bad = "ligne " + (i + 1) + ", colonne « " + tb.columns[j]
-                + " » : « " + c + " » au lieu de « " + a + " »";
+              bad = dzT("cartes.data2.cellule_diff", { l: i + 1, col: tb.columns[j], c: c, a: a });
               break;
             }
           }
@@ -3573,20 +3402,17 @@
       return {
         src: src,
         ok: !bad,
-        txt: bad ? ("aller-retour ROMPU — " + bad)
-          : ("aller-retour vérifié · " + octets),
-        toast: bad ? ("aller-retour ROMPU — " + bad)
-          : (want.rows.length + " ligne(s) exportée(s), relues à l'identique — "
-            + octets),
+        txt: bad ? dzT("cartes.data2.ar_rompu", { bad: bad })
+          : dzT("cartes.data2.ar_verifie", { o: octets }),
+        toast: bad ? dzT("cartes.data2.ar_rompu", { bad: bad })
+          : dzT("cartes.data2.lignes_exportees", { n: want.rows.length, o: octets }),
         detail: bad ? ""
-          : (want.cols.length + " colonnes × " + want.rows.length
-            + " lignes relues cellule par cellule par le même moteur "
-            + "d'analyse que n'importe quel fichier déposé."),
+          : dzT("cartes.data2.table_detail", { c: want.cols.length, n: want.rows.length }),
       };
     } catch (e) {
       return { src: src, ok: false,
-        txt: "aller-retour non vérifié (" + octets + ")",
-        toast: "fichier écrit (" + octets + ") mais la relecture a échoué",
+        txt: dzT("cartes.data2.ar_non_verifie", { o: octets }),
+        toast: dzT("cartes.data2.relecture_echec", { o: octets }),
         detail: String((e && e.message) || e) };
     }
   }
@@ -3607,7 +3433,7 @@
     if (s && s.txt) {
       const l = h("span", "cf-data-srcmp " + (s.state === "same" ? "ok"
         : (s.state === "diff" ? "warn" : "")), "");
-      l.innerHTML = "<i>octets d'origine :</i> " + esc(s.txt);
+      l.innerHTML = "<i>" + dzT("cartes.data2.octets_origine") + "</i> " + esc(s.txt);
       p.appendChild(document.createElement("br"));
       p.appendChild(l);
     }
@@ -3618,7 +3444,7 @@
      ═══════════════════════════════════════════════════════════════════════ */
   M = CF.register({
     id: "data",
-    title: "Données",
+    title: dzT("cartes.data2.titre"),
     icon: "dz-nav-cf-donnees",
     order: 4,
 

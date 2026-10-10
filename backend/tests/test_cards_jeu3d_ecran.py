@@ -4,6 +4,8 @@ DÉCISIONS DE L'UTILISATEUR (04/10) : hors du graphe ; jeton en relief de la car
 Les fonctions LIVRÉES sont extraites de mod-forge3d.js et EXÉCUTÉES sous node (aucun appel réel).
 Témoin positif : la base (21e9efcd) n'a pas d'objets du jeu.
 Run (depuis backend/) : & $PY tests/test_cards_jeu3d_ecran.py"""
+import sys as _sys_l7, pathlib as _pl_l7; _sys_l7.path.insert(0, str(_pl_l7.Path(__file__).resolve().parent))  # noqa: E401,E702
+import _cartes_avant_l7  # noqa: F401,E402  (t147 : la source du Card Forge d'avant la traduction L7)
 import json, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent

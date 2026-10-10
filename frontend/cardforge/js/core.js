@@ -413,8 +413,8 @@
     ["dpi", "bleed_mm", "safe_mm", "corner_mm"].forEach((k) => {
       if (!(k in next)) return;
       const v = Number(next[k]);
-      if (!isFinite(v)) throw new Error("cardforge: " + k + " doit etre un nombre");
-      if (v < LIM[k][0] || v > LIM[k][1]) throw new Error("cardforge: " + k + " hors bornes [" + LIM[k][0] + ", " + LIM[k][1] + "]");
+      if (!isFinite(v)) throw new Error(dzT("cartes.core.pas_un_nombre", { k: k }));
+      if (v < LIM[k][0] || v > LIM[k][1]) throw new Error(dzT("cartes.core.hors_bornes", { k: k, min: LIM[k][0], max: LIM[k][1] }));
       out[k] = (k === "dpi") ? Math.round(v) : v;
     });
     DOC.format = out;
@@ -603,9 +603,9 @@
     ctx.fillStyle = "rgba(0,0,0,.34)";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.font = "600 " + s + "px sans-serif";
-    ctx.fillText("gabarit vide", c[0] / 2, c[1] / 2 - s * 0.8);
+    ctx.fillText(dzT("cartes.core.gabarit_vide"), c[0] / 2, c[1] / 2 - s * 0.8);
     ctx.font = (s * 0.62) + "px sans-serif";
-    ctx.fillText("aucun painter enregistré", c[0] / 2, c[1] / 2 + s * 0.5);
+    ctx.fillText(dzT("cartes.core.aucun_painter"), c[0] / 2, c[1] / 2 + s * 0.5);
     ctx.restore();
   }
 
@@ -640,7 +640,7 @@
     return Promise.race([
       Promise.resolve(v).then((x) => { clearTimeout(t); return x; },
         (e) => { clearTimeout(t); throw e; }),
-      new Promise((_, rej) => { t = setTimeout(() => rej(new Error("cardforge: " + what + " n'a jamais rendu la main (" + ms + " ms) — image ou police qui ne charge pas ?")), ms); }),
+      new Promise((_, rej) => { t = setTimeout(() => rej(new Error(dzT("cartes.core.painter_bloque", { what: what, ms: ms }))), ms); }),
     ]);
   }
 
@@ -694,13 +694,13 @@
       ctx.save();
       try {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        await withTimeout(p.fn(ctx, g, d, cd, side), PAINTER_MS, "le painter " + p.id + " (z=" + p.z + ")");
+        await withTimeout(p.fn(ctx, g, d, cd, side), PAINTER_MS, dzT("cartes.core.le_painter", { id: p.id, z: p.z }));
         if (cv.width !== w || cv.height !== h) {
           /* le controle DANS le try : dehors, il faisait tomber le rendu
              ENTIER, l'exception partait dans le .catch() de l'apercu et le
              bandeau restait muet — une panne muette pour les sept autres. */
           cv.width = w; cv.height = h;
-          throw new Error("a redimensionne la toile (la toile appartient au CORE)");
+          throw new Error(dzT("cartes.core.toile_redim"));
         }
       } catch (e) {
         /* un builder en panne ne noircit pas l'ecran des sept autres */
@@ -758,7 +758,7 @@
     const type = o.type === "image/jpeg" ? "image/jpeg" : "image/png";
     const q = isFinite(Number(o.quality)) ? Number(o.quality) : 0.95;
     const b = await new Promise((res, rej) => {
-      cv.toBlob((x) => x ? res(x) : rej(new Error("cardforge: encodage impossible")), type, q);
+      cv.toBlob((x) => x ? res(x) : rej(new Error(dzT("cartes.core.encodage"))), type, q);
     });
     return mint(b);
   }
@@ -884,7 +884,7 @@
   /* blob d'une toile de couche, MINTE : CF.download/M.api.blob l'acceptent. */
   async function layerBlob(cv) {
     const b = await new Promise((res, rej) => {
-      cv.toBlob((x) => x ? res(x) : rej(new Error("cardforge: encodage impossible")), "image/png");
+      cv.toBlob((x) => x ? res(x) : rej(new Error(dzT("cartes.core.encodage"))), "image/png");
     });
     return mint(b);
   }
@@ -922,7 +922,7 @@
     if (!hasDOM) return;
     const b = el("#busy");
     if (!b) return;
-    b.querySelector(".busy-l").textContent = label || "traitement…";
+    b.querySelector(".busy-l").textContent = label || dzT("cartes.core.traitement");
     b.classList.toggle("hidden", !on_);
   }
   function asideOf(who) {
@@ -990,7 +990,7 @@
         + '<em class="ri-i">' + railIcone(id, m) + '</em>';
       /* le nom de la piece est TOUJOURS dans le title= : replie, le rail n'a
          plus que le numero et l'icone — sans lui, dix pastilles muettes. */
-      b.title = m ? m.title : "module absent : js/mod-" + id + ".js n'est pas chargé";
+      b.title = m ? m.title : dzT("cartes.core.module_absent", { id: id });
       b.addEventListener("click", () => show(id));
       rail.appendChild(b);
     });
@@ -1003,7 +1003,7 @@
     f.type = "button";
     f.className = "rail-fold";
     f.id = "railFoldBtn";
-    f.innerHTML = '<i class="rf-c">' + CHEVRON_SVG + '</i><span class="rf-t">Replier</span>';
+    f.innerHTML = '<i class="rf-c">' + CHEVRON_SVG + '</i><span class="rf-t">' + dzT("cartes.core.replier") + '</span>';
     f.setAttribute("aria-controls", "rail");
     f.addEventListener("click", () => setFold("rail", !FOLD.rail));
     rail.appendChild(f);
@@ -1091,12 +1091,12 @@
     }
     const rb = el("#railFoldBtn");
     if (rb) {
-      rb.title = FOLD.rail ? "Déployer le rail des pièces" : "Replier le rail des pièces";
+      rb.title = FOLD.rail ? dzT("cartes.core.deployer_rail") : dzT("cartes.core.replier_rail");
       rb.setAttribute("aria-expanded", FOLD.rail ? "false" : "true");
     }
     const sb = el("#stageFoldBtn");
     if (sb) {
-      sb.title = FOLD.stage ? "Déployer la colonne carte" : "Replier la colonne carte";
+      sb.title = FOLD.stage ? dzT("cartes.core.deployer_stage") : dzT("cartes.core.replier_stage");
       sb.setAttribute("aria-expanded", FOLD.stage ? "false" : "true");
     }
     /* zone 7 du design 26/08 : la barre de format, meme patron que la scene */
@@ -1104,7 +1104,7 @@
     if (fb) fb.classList.toggle("replie", FOLD.fmt);
     const ffb = el("#fmtFoldBtn");
     if (ffb) {
-      ffb.title = FOLD.fmt ? "Déployer la barre de format" : "Replier la barre de format";
+      ffb.title = FOLD.fmt ? dzT("cartes.core.deployer_fmt") : dzT("cartes.core.replier_fmt");
       ffb.setAttribute("aria-expanded", FOLD.fmt ? "false" : "true");
     }
   }
@@ -1218,8 +1218,8 @@
         /* les MESURES seulement — les mm restent les mm : rien ici ne lit le
            zoom. Le « N % apercu » vit dans la commande du pied (#zoomPct). */
         rd.innerHTML = '<b>' + g.canvas_px[0] + ' x ' + g.canvas_px[1] + ' px</b>'
-          + '<span>toile @ ' + g.dpi + ' DPI</span>'
-          + '<b>' + g.trim_px[0] + ' x ' + g.trim_px[1] + ' px</b><span>coupe</span>';
+          + '<span>' + dzT("cartes.core.toile_dpi", { dpi: g.dpi }) + '</span>'
+          + '<b>' + g.trim_px[0] + ' x ' + g.trim_px[1] + ' px</b><span>' + dzT("cartes.core.coupe") + '</span>';
       }
       const zp = el("#zoomPct");
       if (zp) zp.textContent = Math.round(PREV_SCALE * 100) + " %";
@@ -1231,7 +1231,7 @@
          core:render. */
       emitCore("core:scene", { scale: PREV_SCALE, zoom: ZOOM });
       const nav = el("#stageNav");
-      if (nav) nav.textContent = "carte " + (CUR + 1) + " / " + cards().length;
+      if (nav) nav.textContent = dzT("cartes.core.carte_n", { n: CUR + 1, total: cards().length });
       const err = el("#stageErr");
       if (err) {
         err.classList.toggle("hidden", LAST_ERRORS.length === 0);
@@ -1247,7 +1247,7 @@
   function buildFormatWidget() {
     const sel = el("#fmtSel");
     if (!sel) return;
-    sel.innerHTML = FORMATS.map((f) => '<option value="' + f.id + '">' + esc(f.label) + '</option>').join("");
+    sel.innerHTML = FORMATS.map((f) => '<option value="' + f.id + '">' + esc(f.id === "square_eu" ? dzT("cartes.core.fmt_carre") : f.id === "business" ? dzT("cartes.core.fmt_visite") : f.label) + '</option>').join("");
     const dpiSeg = el("#dpiSeg");
     dpiSeg.innerHTML = DPIS.map((d) => '<button class="seg-b" type="button" data-v="' + d + '">' + d + '</button>').join("");
     sel.addEventListener("change", () => setFormatInternal({ fmt: sel.value }));
@@ -1284,12 +1284,12 @@
     if (rd) {
       /* les trois unites ensemble, toujours : un imprimeur ne travaille pas
          avec une seule des trois, et 7 des 12 formats sont imperiaux. */
-      rd.innerHTML = '<b>' + g.canvas_px[0] + ' x ' + g.canvas_px[1] + ' px</b><i>toile</i>'
-        + '<b>' + g.trim_px[0] + ' x ' + g.trim_px[1] + ' px</b><i>coupe</i>'
+      rd.innerHTML = '<b>' + g.canvas_px[0] + ' x ' + g.canvas_px[1] + ' px</b><i>' + dzT("cartes.core.toile") + '</i>'
+        + '<b>' + g.trim_px[0] + ' x ' + g.trim_px[1] + ' px</b><i>' + dzT("cartes.core.coupe") + '</i>'
         + '<i>' + g.trim_mm[0] + ' x ' + g.trim_mm[1] + ' mm</i>'
         + '<i>' + g.trim_in[0].toFixed(2) + ' x ' + g.trim_in[1].toFixed(2) + ' in</i>'
-        + '<i>zone sûre ' + g.safe_px[0] + ' x ' + g.safe_px[1] + '</i>'
-        + '<i>coupe à ' + g.bleed_off_px[0] + ' px</i>';
+        + '<i>' + dzT("cartes.core.zone_sure_px", { w: g.safe_px[0], h: g.safe_px[1] }) + '</i>'
+        + '<i>' + dzT("cartes.core.coupe_a", { px: g.bleed_off_px[0] }) + '</i>';
     }
     const nm = el("#deckName"); if (nm && nm.value !== DOC.name) nm.value = DOC.name;
   }
@@ -1321,7 +1321,7 @@
     if (!hasDOM) return;
     document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
     const b = el("#themeBtn");
-    if (b) b.title = (t === "light" ? "Passer en sombre" : "Passer en clair");
+    if (b) b.title = (t === "light" ? dzT("cartes.core.passer_sombre") : dzT("cartes.core.passer_clair"));
   }
   function initTheme() {
     applyTheme(readTheme());
@@ -1346,7 +1346,7 @@
      ═══════════════════════════════════════════════════════════════════════ */
 
   class ApiMissing extends Error {
-    constructor(path) { super("route absente sur ce backend : /api" + path); this.missing = true; this.path = path; }
+    constructor(path) { super(typeof dzT === "function" ? dzT("cartes.core.route_absente", { path: path }) : "route absente sur ce backend : /api" + path); this.missing = true; this.path = path; }
   }
 
   async function rawFetch(method, path, body, headers) {
@@ -1360,7 +1360,7 @@
   async function jsonFetch(method, path, body, headers) {
     let r;
     try { r = await rawFetch(method, path, body, headers); }
-    catch (e) { throw new Error("backend injoignable (" + (e && e.message) + ")"); }
+    catch (e) { throw new Error(dzT("cartes.core.injoignable", { err: e && e.message })); }
     const ct = (r.headers.get("content-type") || "").toLowerCase();
     if (r.status === 404 || (r.ok && ct.indexOf("json") < 0)) throw new ApiMissing(path);
     let d = null;
@@ -1400,7 +1400,7 @@
   async function jsonNamed(method, path, body, headers) {
     let r;
     try { r = await rawFetch(method, path, body, headers); }
-    catch (e) { throw new Error("backend injoignable (" + (e && e.message) + ")"); }
+    catch (e) { throw new Error(dzT("cartes.core.injoignable", { err: e && e.message })); }
     const ct = (r.headers.get("content-type") || "").toLowerCase();
     if (ct.indexOf("json") < 0) throw new ApiMissing(path);
     let d = null;
@@ -1654,11 +1654,11 @@
     const body = saveBody(keys);
     DIRTY.clear();
     if (OFFLINE || !DOC.id) { localSave({ doc: doc(), cards: cards() }); return; }
-    try { await jsonFetch("PATCH", "/cards/" + DOC.id, body); chip("ok", "jeu " + DOC.id + " enregistré (" + keys.join(", ") + ")"); }
+    try { await jsonFetch("PATCH", "/cards/" + DOC.id, body); chip("ok", dzT("cartes.core.jeu_enregistre", { id: DOC.id, cles: keys.join(", ") })); }
     catch (e) {
       keys.forEach((k) => DIRTY.add(k));      /* rien n'est perdu : on retente */
       OFFLINE = true; localSave({ doc: doc(), cards: cards() });
-      chip("ko", "hors ligne — sauvegarde locale (" + String(e && e.message || e) + ")");
+      chip("ko", dzT("cartes.core.sauvegarde_locale", { err: String(e && e.message || e) }));
     }
   }
 
@@ -1697,13 +1697,11 @@
     const bar = el("#apiBar");
     if (bad.length) {
       console.error("cardforge: GEOMETRIE DIVERGENTE", bad);
-      toast("géométrie divergente écran / backend : " + bad[0], true);
+      toast(dzT("cartes.core.geom_divergente", { detail: bad[0] }), true);
       if (bar) {
         bar.classList.remove("hidden");
         const m = el("#apiBarMsg");
-        if (m) m.textContent = "La géométrie de l'écran ne correspond pas à celle de "
-          + "/api/cards/" + DOC.id + "/geom : " + bad.join(" · ")
-          + ". Le fichier exporté et la planche imprimée divergeraient — corriger AVANT de composer.";
+        if (m) m.textContent = dzT("cartes.core.geom_divergente_long", { id: DOC.id, detail: bad.join(" · ") });
       }
       return false;
     }
@@ -1965,30 +1963,29 @@
     if (txt != null) e.textContent = String(txt);
     return e;
   }
-  const GAL_SKELETON =
-    '<div class="cf-gal-box" role="dialog" aria-modal="true" aria-label="Galerie de démarrage">'
-    + '<div class="cf-gal-head"><b>Modèles</b>'
-    + '<span class="cf-gal-sub">un modèle est une GRAINE : le jeu créé est ensuite ordinaire.</span>'
+  const GAL_SKELETON = () =>
+    '<div class="cf-gal-box" role="dialog" aria-modal="true" aria-label="' + dzT("cartes.core.gal_titre") + '">'
+    + '<div class="cf-gal-head"><b>' + dzT("cartes.core.modeles") + '</b>'
+    + '<span class="cf-gal-sub">' + dzT("cartes.core.gal_graine") + '</span>'
     + '<span class="tb-spacer"></span>'
-    + '<button class="btn sm" id="galImport" type="button" title="Reprendre une carte existante">' + icone("dz-action-importer", 16, "cf-ic") + 'Importer une carte</button>'
-    + '<button class="btn sm" id="galDup" type="button" title="Copie complète du jeu ouvert, illustrations comprises">' + icone("dz-action-dupliquer", 16, "cf-ic") + 'Dupliquer ce jeu</button>'
-    + '<button class="btn sm" id="galSaveOpen" type="button" title="Enregistre les réglages du jeu ouvert comme modèle (sans les illustrations)">' + icone("dz-action-enregistrer-modele", 16, "cf-ic") + 'Enregistrer comme modèle</button>'
-    + '<button class="btn ghost sm" id="galClose" type="button" title="Fermer (Échap)" aria-label="Fermer (Échap)">' + icone("dz-action-fermer", 16) + '</button>'
+    + '<button class="btn sm" id="galImport" type="button" title="' + dzT("cartes.core.gal_import_t") + '">' + icone("dz-action-importer", 16, "cf-ic") + dzT("cartes.core.gal_import") + '</button>'
+    + '<button class="btn sm" id="galDup" type="button" title="' + dzT("cartes.core.gal_dup_t") + '">' + icone("dz-action-dupliquer", 16, "cf-ic") + dzT("cartes.core.gal_dup") + '</button>'
+    + '<button class="btn sm" id="galSaveOpen" type="button" title="' + dzT("cartes.core.gal_modele_t") + '">' + icone("dz-action-enregistrer-modele", 16, "cf-ic") + dzT("cartes.core.gal_modele") + '</button>'
+    + '<button class="btn ghost sm" id="galClose" type="button" title="' + dzT("cartes.core.fermer_echap") + '" aria-label="' + dzT("cartes.core.fermer_echap") + '">' + icone("dz-action-fermer", 16) + '</button>'
     + '</div>'
     + '<div class="cf-gal-save hidden" id="galSaveForm">'
-    + '<label for="galSaveName">Nom du modèle</label>'
-    + '<input id="galSaveName" type="text" maxlength="80" placeholder="Mon modèle">'
-    + '<button class="btn strong sm" id="galSaveGo" type="button">Enregistrer</button>'
-    + '<button class="btn ghost sm" id="galSaveCancel" type="button">Annuler</button>'
-    + '<span class="cf-gal-note">Les illustrations ne partent pas dans un modèle ; les textes des slots, si.</span>'
+    + '<label for="galSaveName">' + dzT("cartes.core.gal_nom") + '</label>'
+    + '<input id="galSaveName" type="text" maxlength="80" placeholder="' + dzT("cartes.core.gal_nom_ph") + '">'
+    + '<button class="btn strong sm" id="galSaveGo" type="button">' + dzT("cartes.core.enregistrer") + '</button>'
+    + '<button class="btn ghost sm" id="galSaveCancel" type="button">' + dzT("cartes.core.annuler") + '</button>'
+    + '<span class="cf-gal-note">' + dzT("cartes.core.gal_sans_illus") + '</span>'
     + '</div>'
     + '<div class="cf-gal-body">'
-    + '<section class="cf-gal-sec"><h3>Nouveau jeu depuis un modèle</h3>'
-    + '<p class="cf-gal-note">La vignette est le PLAN DES ZONES DE TEXTE du modèle, dans les couleurs qu\'il publie. '
-    + 'Le cadre, la matière et l\'illustration ne s\'y voient pas : ils apparaissent quand le jeu est ouvert.</p>'
+    + '<section class="cf-gal-sec"><h3>' + dzT("cartes.core.gal_nouveau") + '</h3>'
+    + '<p class="cf-gal-note">' + dzT("cartes.core.gal_vignette") + '</p>'
     + '<div class="cf-gal-grid" id="galModels"></div></section>'
-    + '<section class="cf-gal-sec"><h3>Reprendre un jeu '
-    + '<button class="btn ghost sm" id="galReload" type="button">Recharger la liste</button></h3>'
+    + '<section class="cf-gal-sec"><h3>' + dzT("cartes.core.gal_reprendre") + ' '
+    + '<button class="btn ghost sm" id="galReload" type="button">' + dzT("cartes.core.gal_recharger") + '</button></h3>'
     + '<div class="cf-gal-decks" id="galDecks"></div></section>'
     + '</div></div>';
 
@@ -2000,7 +1997,7 @@
     root.className = "cf-gal hidden";
     root.id = "galRoot";
     root.dataset.open = "0";
-    root.innerHTML = GAL_SKELETON;
+    root.innerHTML = GAL_SKELETON();
     document.body.appendChild(root);
     /* le fond ferme, la boite ne ferme pas : un clic dans la galerie ne doit
        pas la faire disparaitre sous la main de l'utilisateur. */
@@ -2019,9 +2016,9 @@
     const rl = el("#galReload");
     if (rl) rl.addEventListener("click", () => {
       const gd = el("#galDecks");
-      if (gd) galNote(gd, "chargement des jeux…");
+      if (gd) galNote(gd, dzT("cartes.core.chargement_jeux"));
       galDecksList(true).then((l) => galDrawDecks(l),
-        (e) => { if (gd) galNote(gd, "liste des jeux indisponible — " + galMsg(e), true); });
+        (e) => { if (gd) galNote(gd, dzT("cartes.core.jeux_indispo", { err: galMsg(e) }), true); });
     });
     return root;
   }
@@ -2042,12 +2039,12 @@
      disent — plutot qu'un bouton vivant qui repondrait par une erreur. */
   function galSyncActions() {
     const off = OFFLINE || !DOC.id;
-    [["#galDup", "Dupliquer ce jeu"], ["#galSaveOpen", "Enregistrer comme modèle"]].forEach(([q, base]) => {
+    [["#galDup", dzT("cartes.core.gal_dup")], ["#galSaveOpen", dzT("cartes.core.gal_modele")]].forEach(([q, base]) => {
       const b = el(q);
       if (!b) return;
       b.disabled = off;
-      b.title = off ? base + " : aucun jeu enregistré sur le backend (hors ligne)"
-        : base + " — jeu « " + (DOC.name || DOC.id) + " »";
+      b.title = off ? dzT("cartes.core.gal_off", { base: base })
+        : dzT("cartes.core.gal_on", { base: base, nom: DOC.name || DOC.id });
     });
   }
 
@@ -2056,7 +2053,7 @@
     if (!host) return;
     const rows = Array.isArray(list) ? list : [];
     host.innerHTML = "";
-    if (!rows.length) { galNote(host, "aucun modèle servi par ce backend."); return; }
+    if (!rows.length) { galNote(host, dzT("cartes.core.aucun_modele")); return; }
     rows.forEach((m) => {
       if (!isPlain(m)) return;
       const mid = String(m.id || "");
@@ -2064,27 +2061,26 @@
       card.dataset.model = mid;
       if (m.illisible) {
         card.appendChild(galEl("b", "cf-gal-lab", m.label || mid));
-        card.appendChild(galEl("span", "cf-gal-tag ko", "illisible"));
+        card.appendChild(galEl("span", "cf-gal-tag ko", dzT("cartes.core.illisible")));
         card.appendChild(galEl("p", "cf-gal-hint", String(m.fichier || mid) + " — " + String(m.error || "")));
         card.appendChild(galEl("p", "cf-gal-note",
-          "Ce fichier ne peut pas servir de modèle tant qu'il n'est pas réparé. "
-          + "Il est listé plutôt que caché : un modèle qui disparaît sans un mot se cherche du côté de l'écran."));
+          dzT("cartes.core.gal_illisible_note")));
         host.appendChild(card);
         return;
       }
       const cv = galEl("canvas", "cf-gal-thumb");
-      cv.title = "Plan des zones de texte de « " + String(m.label || mid) + " »";
+      cv.title = dzT("cartes.core.gal_plan", { nom: String(m.label || mid) });
       card.appendChild(cv);
       galThumb(cv, m);
       const t = galEl("div", "cf-gal-t");
       t.appendChild(galEl("b", "cf-gal-lab", m.label || mid));
-      if (m.custom) t.appendChild(galEl("span", "cf-gal-tag", "perso"));
+      if (m.custom) t.appendChild(galEl("span", "cf-gal-tag", dzT("cartes.core.perso")));
       card.appendChild(t);
       card.appendChild(galEl("p", "cf-gal-hint", m.hint || ""));
       const notes = Array.isArray(m.fonts_note) ? m.fonts_note.filter(isPlain) : [];
       if (notes.length) {
         const fp = galEl("p", "cf-gal-fonts");
-        fp.appendChild(galEl("i", null, "Polices : "));
+        fp.appendChild(galEl("i", null, dzT("cartes.core.polices")));
         notes.forEach((f, i) => {
           const s = galEl("span", null, String(f.spec || "") + " → " + String(f.police || ""));
           s.title = String(f.pourquoi || "");
@@ -2093,7 +2089,7 @@
         });
         card.appendChild(fp);
       }
-      const b = galEl("button", "btn strong sm cf-gal-new", "Nouveau jeu depuis ce modèle");
+      const b = galEl("button", "btn strong sm cf-gal-new", dzT("cartes.core.gal_nouveau_ce"));
       b.type = "button";
       b.addEventListener("click", () => { galNewFrom(mid, String(m.label || mid)); });
       card.appendChild(b);
@@ -2114,7 +2110,7 @@
     const rows = Array.isArray(list) ? list : [];
     host.innerHTML = "";
     if (!rows.length) {
-      galNote(host, "aucun jeu sur ce backend — le premier naîtra d'un modèle ci-dessus.");
+      galNote(host, dzT("cartes.core.aucun_jeu"));
       return;
     }
     rows.slice(0, GAL_DECKS_MAX).forEach((r) => {
@@ -2127,8 +2123,8 @@
       const meta = galEl("span", "cf-gal-meta");
       const maj = galDate(r.updated);
       meta.appendChild(galEl("i", "mono", r.id));
-      if (maj) meta.appendChild(galEl("i", null, "modifié le " + maj));
-      if (courant) meta.appendChild(galEl("i", "cf-gal-tag", "jeu courant"));
+      if (maj) meta.appendChild(galEl("i", null, dzT("cartes.core.modifie_le", { date: maj })));
+      if (courant) meta.appendChild(galEl("i", "cf-gal-tag", dzT("cartes.core.jeu_courant")));
       b.appendChild(meta);
       if (!courant) b.addEventListener("click", () => { galOpenDeck(r.id); });
       host.appendChild(b);
@@ -2140,21 +2136,21 @@
     const montres = Math.min(rows.length, GAL_DECKS_MAX);
     if (GAL_DECKS_TOTAL > montres) {
       host.appendChild(galEl("p", "cf-gal-note",
-        GAL_DECKS_TOTAL + " jeux au total — les " + montres + " plus récents sont listés."));
+        dzT("cartes.core.gal_total", { total: GAL_DECKS_TOTAL, n: montres })));
     }
   }
 
   function galFill() {
     const gm = el("#galModels"), gd = el("#galDecks");
     if (gm) {
-      if (!GAL_MODELS) galNote(gm, "chargement des modèles…");
+      if (!GAL_MODELS) galNote(gm, dzT("cartes.core.chargement_modeles"));
       galModelsList(false).then((l) => galDrawModels(l),
-        (e) => galNote(gm, "modèles indisponibles — " + galMsg(e), true));
+        (e) => galNote(gm, dzT("cartes.core.modeles_indispo", { err: galMsg(e) }), true));
     }
     if (gd) {
-      if (!GAL_DECKS) galNote(gd, "chargement des jeux…");
+      if (!GAL_DECKS) galNote(gd, dzT("cartes.core.chargement_jeux"));
       galDecksList(false).then((l) => galDrawDecks(l),
-        (e) => galNote(gd, "liste des jeux indisponible — " + galMsg(e), true));
+        (e) => galNote(gd, dzT("cartes.core.jeux_indispo", { err: galMsg(e) }), true));
     }
   }
 
@@ -2190,7 +2186,7 @@
     try { await saveNow(); } catch (e) { /* saveNow retient deja ce qu'il n'a pas pu ecrire */ }
   }
   function galGo(did) {
-    if (!DID_RE.test(String(did || ""))) throw new Error("identifiant de jeu invalide : " + did);
+    if (!DID_RE.test(String(did || ""))) throw new Error(dzT("cartes.core.did_invalide", { id: did }));
     rememberDeck(did);
     try {
       const u = new URL(location.href);
@@ -2200,43 +2196,43 @@
   }
   async function galNewFrom(mid, label) {
     try {
-      busy(true, "création du jeu depuis « " + label + " »…");
+      busy(true, dzT("cartes.core.creation_depuis", { nom: label }));
       await galFlush();
       const d = await jsonNamed("POST", "/cards/decks", { model: mid });
       const did = d && d.deck && d.deck.id;
-      if (!did) throw new Error("le backend n'a pas rendu d'identifiant de jeu");
+      if (!did) throw new Error(dzT("cartes.core.sans_did"));
       galGo(did);                       /* la page part : `busy` reste au voile */
     } catch (e) { busy(false); toast(galMsg(e), true); }
   }
   async function galOpenDeck(did) {
     try {
-      busy(true, "ouverture du jeu…");
+      busy(true, dzT("cartes.core.ouverture"));
       await galFlush();
       galGo(did);
     } catch (e) { busy(false); toast(galMsg(e), true); }
   }
   async function galDuplicate() {
-    if (OFFLINE || !DOC.id) { toast("aucun jeu enregistré à dupliquer (hors ligne)", true); return; }
+    if (OFFLINE || !DOC.id) { toast(dzT("cartes.core.rien_a_dupliquer"), true); return; }
     try {
-      busy(true, "duplication du jeu…");
+      busy(true, dzT("cartes.core.duplication"));
       await galFlush();                 /* la copie part du DISQUE : on y ecrit d'abord */
       const d = await jsonNamed("POST", "/cards/decks/" + DOC.id + "/duplicate", {});
       const did = d && d.deck && d.deck.id;
-      if (!did) throw new Error("le backend n'a pas rendu d'identifiant de copie");
+      if (!did) throw new Error(dzT("cartes.core.sans_copie"));
       galGo(did);
     } catch (e) { busy(false); toast(galMsg(e), true); }
   }
   async function galSaveModel(nom) {
-    if (OFFLINE || !DOC.id) { toast("aucun jeu enregistré à convertir en modèle (hors ligne)", true); return; }
+    if (OFFLINE || !DOC.id) { toast(dzT("cartes.core.rien_a_convertir"), true); return; }
     const n = String(nom == null ? "" : nom).trim();
-    if (!n) { toast("donnez un nom au modèle", true); return; }
+    if (!n) { toast(dzT("cartes.core.nommer_modele"), true); return; }
     try {
-      busy(true, "enregistrement du modèle…");
+      busy(true, dzT("cartes.core.enregistrement_modele"));
       await galFlush();                 /* le backend serialise le jeu tel qu'il est SUR LE DISQUE */
       const d = await jsonNamed("POST", "/cards/models", { did: DOC.id, name: n });
       const m = d && d.model;
       galSaveToggle(false);
-      toast("modèle « " + String((m && m.label) || n) + " » enregistré");
+      toast(dzT("cartes.core.modele_enregistre", { nom: String((m && m.label) || n) }));
       /* re-liste TOUT DE SUITE : un modele qui n'apparait qu'a la prochaine
          ouverture laisse croire que l'enregistrement a echoue. */
       const l = await galModelsList(true);
@@ -2336,16 +2332,14 @@
       REG[id].blocked = true;
       for (let i = PAINTERS.length - 1; i >= 0; i--) if (PAINTERS[i].id === id) PAINTERS.splice(i, 1);
     });
-    const msg = "mod-" + fautifs.join(".js, mod-") + ".js ne commence(nt) pas par \"use strict\" : "
-      + "dans ce mode une mutation du document est un no-op MUET (le module croit avoir écrit et relit "
-      + "l'ancienne valeur). Module non démarré, couches retirées. Règle 9 du lint — build rejeté.";
+    const msg = dzT("cartes.core.strict_msg", { liste: "mod-" + fautifs.join(".js, mod-") + ".js" });
     console.error("cardforge: " + msg);
-    toast("« use strict » manquant : " + fautifs.join(", "), true);
+    toast(dzT("cartes.core.strict_manquant", { liste: fautifs.join(", ") }), true);
     const bar = el("#apiBar");
     if (bar) {
       bar.classList.remove("hidden");
       const t = el("#apiBarTitle"), m = el("#apiBarMsg");
-      if (t) t.textContent = "Module non conforme";
+      if (t) t.textContent = dzT("cartes.core.non_conforme");
       if (m) m.textContent = msg;
     }
     return fautifs;
@@ -2387,6 +2381,9 @@
   async function boot() {
     if (BOOTED) return;
     BOOTED = true;
+    /* t147 : « Édition » et « Carte » de index.html ont ailleurs un autre sens (Edit, Map) : posés par dzT */
+    { const h = el("#cf-panel-edition .panel-head h2"); if (h) h.textContent = dzT("cartes.edition.titre");
+      const c = el("#stageFoldBtn .sf-t"); if (c) c.textContent = dzT("cartes.solid.hud_carte"); }
     initTheme();
     initFold();          /* AVANT buildRail : la classe de repli est posee avant
                             la premiere peinture (aucun clignotement) */
@@ -2405,18 +2402,17 @@
       hydrate(r && r.deck ? r.deck : r);
       rememberDeck(DOC.id);
       syncDeckUrl();
-      chip("ok", "jeu " + (DOC.id || "?"));
+      chip("ok", dzT("cartes.core.jeu_id", { id: DOC.id || "?" }));
     } catch (e) {
       OFFLINE = true;
       const loc = localLoad();
       if (loc) hydrate(loc);
       if (!DOC.id) DOC.id = randDid();
-      chip("ko", e && e.missing ? "hors ligne — /api/cards pas encore monté" : "hors ligne — " + String(e.message || e));
+      chip("ko", e && e.missing ? dzT("cartes.core.hors_ligne_domaine") : dzT("cartes.core.hors_ligne", { err: String(e.message || e) }));
       const bar = el("#apiBar");
       if (bar) {
         bar.classList.remove("hidden");
-        el("#apiBarMsg").textContent = "Le domaine /api/cards n'est pas monté sur ce backend : le lab tourne en local "
-          + "(document conservé dans le navigateur). Tout le reste fonctionne.";
+        el("#apiBarMsg").textContent = dzT("cartes.core.domaine_absent");
       }
     }
 
@@ -2435,15 +2431,13 @@
       if (!host) { console.warn("cardforge: pas d'hote pour " + id); continue; }
       host.innerHTML = "";
       if (m.blocked) {
-        host.innerHTML = '<p class="cf-boom">Module non démarré : js/mod-' + id
-          + '.js ne commence pas par "use strict" (règle 9). Ses écritures dans le document '
-          + 'seraient des no-op MUETS et ses couches ont été retirées du rendu.</p>';
+        host.innerHTML = '<p class="cf-boom">' + dzT("cartes.core.module_bloque", { id: id }) + '</p>';
         continue;
       }
       try { await m.init(host); }
       catch (e) {
         console.error("cardforge: init " + id, e);
-        host.innerHTML = '<p class="cf-boom">Ce module n\'a pas démarré : ' + esc(String(e && e.message || e)) + "</p>";
+        host.innerHTML = '<p class="cf-boom">' + dzT("cartes.core.module_echec") + ' ' + esc(String(e && e.message || e)) + "</p>";
       }
     }
     syncPanels();
@@ -2475,7 +2469,7 @@
     const s = el("#sideBtn");
     if (s) s.addEventListener("click", () => {
       PREV_SIDE = PREV_SIDE === "front" ? "back" : "front";
-      s.textContent = PREV_SIDE === "front" ? "Recto" : "Verso";
+      s.textContent = PREV_SIDE === "front" ? dzT("cartes.core.recto") : dzT("cartes.core.verso");
       s.classList.toggle("active", PREV_SIDE === "back");
       invalidate("core");
     });
@@ -2485,10 +2479,10 @@
     const dl = el("#shotBtn");
     if (dl) dl.addEventListener("click", async () => {
       try {
-        busy(true, "rendu de la carte à l'échelle 1…");
+        busy(true, dzT("cartes.core.rendu_1"));
         const b = await cardBlob(CUR, {});
         download(b, (DOC.name || "carte").replace(/[^\w\-]+/g, "_") + "_" + (CUR + 1) + ".png");
-        toast("carte " + (CUR + 1) + " exportée à " + geom().canvas_px.join(" x ") + " px");
+        toast(dzT("cartes.core.carte_exportee", { n: CUR + 1, taille: geom().canvas_px.join(" x ") }));
       } catch (e) { toast(String(e && e.message || e), true); }
       finally { busy(false); }
     });
