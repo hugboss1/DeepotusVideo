@@ -778,5 +778,53 @@
   "avatar.noeud.resume_brouillon": {
     "fr": "Recast — brouillon 480p",
     "en": "Recast — 480p draft"
+  },
+  "avatar.decor.detourage": {
+    "fr": "Modèle de détourage",
+    "en": "Cutout model"
+  },
+  "avatar.decor.mod_portrait": {
+    "fr": "Portrait",
+    "en": "Portrait"
+  },
+  "avatar.decor.mod_matting": {
+    "fr": "Matting — cheveux, transparences",
+    "en": "Matting — hair, transparency"
+  },
+  "avatar.decor.mod_general": {
+    "fr": "Général",
+    "en": "General"
+  },
+  "avatar.decor.verifier": {
+    "fr": "Vérifier le détourage",
+    "en": "Check the cut-out"
+  },
+  "avatar.decor.verifier_avant": {
+    "fr": "Vérifiez d'abord le détourage sur une image : la vidéo ne part qu'ensuite.",
+    "en": "Check the cut-out on one picture first: the video only goes after that."
+  },
+  "avatar.decor.verification": {
+    "fr": "Détourage d'une image de la prise…",
+    "en": "Cutting out one picture of the take…"
+  },
+  "avatar.decor.apercu_pret": {
+    "fr": "Aperçu à {s} de la prise. Bords propres, cheveux et mains entiers ? Alors changez le décor ; sinon essayez un autre détourage.",
+    "en": "Preview at {s} into the take. Clean edges, hair and hands intact? Then change the background; otherwise try another cut-out."
+  },
+  "avatar.decor.image_prise": {
+    "fr": "Image de la prise",
+    "en": "Picture from the take"
+  },
+  "avatar.decor.sur_fond": {
+    "fr": "Sur le nouveau fond",
+    "en": "On the new background"
+  },
+  "avatar.recast.la_prise": {
+    "fr": "La prise",
+    "en": "The take"
+  },
+  "avatar.recast.le_perso": {
+    "fr": "Le Personnage",
+    "en": "The Character"
   }
 }

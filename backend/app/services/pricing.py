@@ -138,6 +138,7 @@ DEFAULTS = {
     # par minute d'audio. (ACE-Step et MiniMax Music 2.0 entreront au registre MUSIC_MODELS avec leur tâche.)
     "demucs_usd_per_s": 0.0007,
     "birefnet_video_usd_per_s": 0.0,
+    "birefnet_image_usd": 0.0,        # t168d : BiRefNet image (fal-ai/birefnet/v2) — fal n'affiche que $0 : à mesurer
     "elevenlabs_isolation_chars_per_min": 1000.0,
     # Avatar live G2 (t163, 10/10/2026) : Voice Changer (voix -> voix), ~1 000 crédits par minute (relevé tiers
     # du 07/2026 sur la liste officielle, même grille que l'isolation) — à confirmer sur elevenlabs.io/pricing.
@@ -538,6 +539,12 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         taux = float(p.get("birefnet_video_usd_per_s", DEFAULTS["birefnet_video_usd_per_s"]))
         lines.append(_line("fal", "Détourage vidéo (BiRefNet)" + (" — prix à mesurer" if not taux else ""),
                            dur, "s", dur * taux))
+    elif kind == "matte_image":
+        # t168d : l'aperçu du détourage, UNE image — même règle que la vidéo : un taux inconnu se dit « à mesurer »
+        n = max(1, int(op.get("images", 1) or 1))
+        taux = float(p.get("birefnet_image_usd", DEFAULTS["birefnet_image_usd"]))
+        lines.append(_line("fal", "Détourage d'une image (BiRefNet)" + (" — prix à mesurer" if not taux else ""),
+                           n, "img", n * taux))
     elif kind == "voix_sts":
         mins = max(0.0, float(op.get("duration_s", 0) or 0)) / 60.0
         chars = mins * float(p.get("elevenlabs_sts_chars_per_min", DEFAULTS["elevenlabs_sts_chars_per_min"]))
