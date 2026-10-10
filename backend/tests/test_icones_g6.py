@@ -61,7 +61,7 @@ PREFIXES = ("frontend/atelier/", "frontend/materialforge/", "frontend/etabli/", 
             "frontend/studio3d/", "frontend/shared/")
 # une <option> ne porte pas de SVG : ces deux sites marquent une option PARMI d'autres (entité de la bible, photo
 # du téléphone) — aucune icône « de liste » devant le <select> ne dirait laquelle. Glyphe gardé, signalé au rapport.
-NON_POSABLES = {"plateau.scene.entite-bible": "◆", "studio3d.vues.mobile-note": "📱"}
+NON_POSABLES = {}   # 10/10 : les deux glyphes d'<option> sont remplacés par des <optgroup> (test_icones_listes)
 
 # trois sites dont le dessin vivait en CSS ou dans une <option> : l'icône est devenue un ÉLÉMENT, ailleurs
 RELOGES = {
@@ -227,6 +227,7 @@ ATTENDU = {
     },
     'frontend/studio3d/index.html': {
         'dz-action-convertir': 1,
+        'dz-etat-mobile': 1,
         'dz-action-envoyer-vers': 1,
         'dz-action-importer': 3,
         'dz-action-reinitialiser': 1,
@@ -277,12 +278,12 @@ GLYPHES_RESTANTS = {
     'frontend/etabli/aide.js': {'→': 3},
     'frontend/etabli/etabli.css': {},
     'frontend/plateau/index.html': {},
-    'frontend/plateau/plateau.js': {'×': 1, '◆': 2},
+    'frontend/plateau/plateau.js': {'×': 1},
     'frontend/plateau/plateau.css': {},
-    'frontend/studio3d/index.html': {'📱': 1},
+    'frontend/studio3d/index.html': {},
     'frontend/studio3d/studio3d.js': {'→': 10, '↺': 1},
     'frontend/studio3d/fal.js': {'→': 6},
-    'frontend/studio3d/vues.js': {'↻': 1, '✂': 1, '📱': 1},
+    'frontend/studio3d/vues.js': {'↻': 1, '✂': 1},
     'frontend/studio3d/studio3d.css': {},
     'frontend/shared/dz-champ-ia.js': {'🎨': 2},
     'frontend/shared/dz-maj.js': {},
@@ -504,7 +505,7 @@ for f in ("frontend/atelier/index.html", "frontend/atelier/preview.html"):
 print("[2] chaque site porte sa clé")
 liste = json.loads(lire("docs/icones/suite-finale/implementation.json"))
 sites = [x for x in liste if x["source"].startswith(PREFIXES) and x.get("cle_finale")]
-check("2.0 la liste du lot : 190 sites à poser", len(sites) == 190, len(sites))
+check("2.0 la liste du lot : 189 sites à poser", len(sites) == 189, len(sites))
 manques = []
 for x in sites:
     if x["id"] in NON_POSABLES:

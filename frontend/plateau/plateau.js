@@ -216,9 +216,14 @@ document.querySelectorAll("[data-forme]").forEach((b) => b.addEventListener("cli
 async function chargerSources() {
   try {
     const d = await req(`${API}/sources`);
-    const opts = [...d.entites.map((e) => ({ v: `${e.job}|${e.file}|${e.id}`, l: `◆ ${e.nom} (bible)` })),
-      ...d.jobs.flatMap((j) => j.versions.map((v) => ({ v: `${j.job}|${v.file}|`, l: `${j.nom} · ${v.libelle || v.file}${v.triangles ? " · " + v.triangles + " tris" : ""}` })))];
-    $("#selMaillage").innerHTML = `<option value="">maillage… (${opts.length})</option>` + opts.map((o) => `<option value="${esc(o.v)}">${esc(o.l)}</option>`).join("");
+    /* icônes (10/10) : une <option> ne peut pas porter d'icône dessinée — les entités de la bible sont dites par un
+       groupe <optgroup> plus par un glyphe ◆ collé au nom ; le nom posé dans la scène reste « Nom (bible) » */
+    const ents = d.entites.map((e) => ({ v: `${e.job}|${e.file}|${e.id}`, l: `${e.nom} (bible)` }));
+    const jobs = d.jobs.flatMap((j) => j.versions.map((v) => ({ v: `${j.job}|${v.file}|`, l: `${j.nom} · ${v.libelle || v.file}${v.triangles ? " · " + v.triangles + " tris" : ""}` })));
+    const html = (L) => L.map((o) => `<option value="${esc(o.v)}">${esc(o.l)}</option>`).join("");
+    $("#selMaillage").innerHTML = `<option value="">maillage… (${ents.length + jobs.length})</option>`
+      + (ents.length ? `<optgroup label="Entités de la bible">${html(ents)}</optgroup>` : "")
+      + (ents.length && jobs.length ? `<optgroup label="Maillages 3D">${html(jobs)}</optgroup>` : html(jobs));
   } catch (e) { etat(`maillages : ${e.message}`, true); }
 }
 $("#btnMaillage").addEventListener("click", async () => {
@@ -226,7 +231,7 @@ $("#btnMaillage").addEventListener("click", async () => {
   const [job, file, ent] = v.split("|");
   try {
     const sd = await req(`${API}/source-dims?job=${encodeURIComponent(job)}&file=${encodeURIComponent(file)}`);
-    const nom = $("#selMaillage").selectedOptions[0].textContent.replace(/^◆ /, "").split(" · ")[0];
+    const nom = $("#selMaillage").selectedOptions[0].textContent.split(" · ")[0];
     await ajouter({ id: idLibre(job), nom, source: { kind: "assets3d", job, file }, niveau: "allege", dims: sd.dims,
                     entity_id: ent || null, transform: { pos: [0, 0, 0], rot: [0, 0, 0], scale: 1 }, couleur: "#8a8f98",
                     role: P.scene.instances.some((x) => x.role === "sujet") ? "decor" : "sujet" });

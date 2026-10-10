@@ -70,8 +70,10 @@ except Exception:
 check("U0 vues.js s'importe et s'exécute sous node", "erreur" not in o and "front" in o, str(o)[:900])
 if "front" in o:
     f = o["front"]
-    check("U1 les photos du téléphone viennent en tête et se reconnaissent (📱)",
-          "IMG_2001.jpg" in f and "plan.png" in f and f.index("IMG_2001.jpg") < f.index("plan.png") and "📱" in f, f)
+    check("U1 les photos du téléphone viennent en tête, groupées sous « Téléphone » (optgroup, plus d'emoji)",
+          "IMG_2001.jpg" in f and "plan.png" in f and f.index("IMG_2001.jpg") < f.index("plan.png")
+          and f.index('<optgroup label="Téléphone">') < f.index("IMG_2001.jpg") < f.index('<optgroup label="Bibliothèque">') < f.index("plan.png")
+          and "📱" not in f, f)
     check("U2 les vues facultatives ont une option vide « — » (aucune vue)", '<option value="">—</option>' in o["back"], o["back"][:200])
     sf = o["sansFace"]
     check("U3 sans face : aucun POST, la raison dite", sf["posts"] == 0 and "face" in (sf["toast"] or ""), str(sf))
