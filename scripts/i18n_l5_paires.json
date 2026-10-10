@@ -1,0 +1,3806 @@
+{
+ "base": "2b155403",
+ "paires": [
+  {
+   "ancre": "children:\"passer en \"+subsLangLab(det.code)",
+   "remplace": "children:dzT(\"subs.langue.passer\",{langue:subsLangLab(det.code)})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Langue réglée sur \"+subsLangLab(det.code)+\r\n                \" — aucune réplique n'a été touchée.\"",
+   "remplace": "dzT(\"subs.langue.reglee\",{langue:subsLangLab(det.code)})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Règle le sélecteur sur « \"+subsLangLab(det.code)+\" » — donc \"+\r\n              \"aussi la langue annoncée au moteur, le découpage en mots et le \"+\r\n              \"calage sur les silences. N'écrit RIEN dans la piste : aucune \"+\r\n              \"réplique n'est traduite ni retouchée.\"",
+   "remplace": "dzT(\"subs.langue.passer_aide\",{langue:subsLangLab(det.code)})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "(lang===\"auto\"?\"Sous « auto » le moteur détecte lui-même la langue ; lue sur le contenu : \"\r\n            :\"La langue lue sur le contenu est d'accord avec le sélecteur : \")+\r\n           subsLangLab(det.code)+\" (\"+det.hits+\" mots-outils reconnus sur \"+\r\n           det.total+\" mots examinés). Rien à arbitrer.\"",
+   "remplace": "(lang===\"auto\"?dzT(\"subs.langue.ok_auto_aide\",{langue:subsLangLab(det.code),hits:det.hits,total:det.total}):dzT(\"subs.langue.ok_aide\",{langue:subsLangLab(det.code),hits:det.hits,total:det.total}))",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Le texte de la piste est en \"+subsLangLab(det.code).toUpperCase()+\r\n         \" (\"+det.hits+\" mots reconnus sur \"+det.total+\", contre \"+\r\n         det.secondHits+\" en \"+subsLangLab(det.second)+\"), et ce panneau \"+\r\n         \"annonce « \"+subsLangLab(lang)+\" » à chaque bouton qui dépense.\"",
+   "remplace": "dzT(\"subs.langue.contre\",{langue:subsLangLab(det.code).toUpperCase(),hits:det.hits,total:det.total,second_hits:det.secondHits,second:subsLangLab(det.second),choisie:subsLangLab(lang)})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Langue lue sur \"+det.ou+\" : \"+subsLangLab(det.code)+\", \"+\r\n         det.hits+\" mots reconnus sur \"+det.total+\".\"",
+   "remplace": "dzT(\"subs.langue.ok\",{ou:det.ou,langue:subsLangLab(det.code),hits:det.hits,total:det.total})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Langue indécise sur \"+det.ou+\" — \"+det.raison+\". Rien n'a été choisi \"+\r\n         \"à votre place : le panneau reste sur « \"+subsLangLab(lang)+\" ».\"",
+   "remplace": "dzT(\"subs.langue.flou\",{ou:det.ou,raison:det.raison,langue:subsLangLab(lang)})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Aucun texte à analyser : « \"+subsLangLab(lang)+\" » est le réglage, \"+\r\n         \"pas une lecture.\"",
+   "remplace": "dzT(\"subs.langue.vide\",{langue:subsLangLab(lang)})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "on||\"coût indisponible\"})]}",
+   "remplace": "on||dzT(\"subs.commun.cout_indisponible\")})]}",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"écrire à la main reste gratuit\"",
+   "remplace": "dzT(\"subs.rangee.main_gratuit\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"gratuit : texte déjà écrit, calé sur les silences\"",
+   "remplace": "dzT(\"subs.rangee.gratuit\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Écrire, découper, caler, styler, le karaoké et l'export \"+\r\n             \".SRT/.VTT/.TXT ne coûtent rien et marchent hors ligne : seule la \"+\r\n             \"transcription d'un son sans texte est payante.\"",
+   "remplace": "dzT(\"subs.rangee.payant_aide\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Le texte de la narration est déjà écrit : le moteur le cale sur \"+\r\n             \"les silences réels du son. Rien n'est envoyé, rien n'est deviné, \"+\r\n             \"aucun nom propre n'est écorché.\"",
+   "remplace": "dzT(\"subs.rangee.gratuit_aide\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Les \"+dzTrN+\" répliques traduites naissent dans une nouvelle piste S2, S3… — S1 reste intacte ; « Annuler » retire la piste et ses répliques.\"",
+   "remplace": "dzT(\"subs.traduction.nouvelle_piste_apres\",{n:dzTrN})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "ue\":\"coût indisponible\"),\r\n",
+   "remplace": "ue\":dzT(\"subs.commun.cout_indisponible\")),\r\n",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"aucune réplique\"",
+   "remplace": "dzT(\"subs.traduction.aucune_replique\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "usy?\"en cours…\":dzT",
+   "remplace": "usy?dzT(\"subs.commun.en_cours\"):dzT",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"traduire les répliques\"",
+   "remplace": "dzT(\"subs.traduction.but\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"nouvelle piste\"",
+   "remplace": "dzT(\"subs.rangee.nouvelle_piste\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Traduire dans une nouvelle piste\"",
+   "remplace": "dzT(\"subs.rangee.nouvelle_piste_aria\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Coché : la traduction naît dans une nouvelle piste de sous-titres S2, S3… (S1 reste intacte ; la piste gravée au rendu se choisit par clic droit sur sa tête). Décoché : S1 est réécrite.\"",
+   "remplace": "dzT(\"subs.rangee.nouvelle_piste_aide\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Langue vers laquelle « Traduire » réécrit le texte des \"+\r\n            \"répliques. Leurs temps ne bougent pas.\"",
+   "remplace": "dzT(\"subs.rangee.cible_aide\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Langue cible de la traduction\"",
+   "remplace": "dzT(\"subs.rangee.cible_aria\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"vers\"",
+   "remplace": "dzT(\"subs.rangee.vers\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Langue annoncée au moteur : elle change le découpage en mots \"+\r\n            \"et le calage sur les silences. Elle est écrite sur chaque bouton \"+\r\n            \"qui lance une transcription.\"",
+   "remplace": "dzT(\"subs.rangee.langue_aide\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Langue de la transcription\"",
+   "remplace": "dzT(\"subs.rangee.langue_aria\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"langue\"",
+   "remplace": "dzT(\"subs.rangee.langue\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\" REMPLACE toute la piste S1 par le résultat (\"+\r\n          (C.repliques?subsPl(C.repliques,\"réplique\")+\" posée\"+\r\n            (C.repliques>1?\"s\":\"\")+\" aujourd'hui\":\"la piste est vide\")+\r\n          \"). Pour ne toucher qu'un seul plan, prenez le geste en face de ce \"+\r\n          \"plan, dans « Couverture du montage ».\"",
+   "remplace": "\" \"+dzT(\"subs.transcription.remplace\",{etat:C.repliques?(C.repliques>1?dzT(\"subs.transcription.posees\",{n:C.repliques}):dzT(\"subs.transcription.posee\",{n:C.repliques})):dzT(\"subs.transcription.piste_vide\")})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "usy?\"en cours…\":trA",
+   "remplace": "usy?dzT(\"subs.commun.en_cours\"):trA",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"sous-titrer tout le montage\"",
+   "remplace": "dzT(\"subs.transcription.but\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Transcrire l'audio\"",
+   "remplace": "dzT(\"subs.transcription.transcrire\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Caler la narration écrite\"",
+   "remplace": "dzT(\"subs.transcription.caler\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Style et placement\"",
+   "remplace": "dzT(\"subs.onglet.style\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Police, corps, couleur, fond, contour, karaoké et placement\"",
+   "remplace": "dzT(\"subs.onglet.style_aide\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "subsPl(C.ecarts,\"écart\")+\" entre l'aperçu et la gravure \"+\r\n          \"— le compte est écrit au-dessus, le détail en tête de cet onglet\"",
+   "remplace": "dzT(\"subs.onglet.ecarts_aide\",{ecarts:subsPl(C.ecarts,dzT(\"subs.comptes.ecart\"),dzT(\"subs.comptes.ecarts\"))})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Répliques\"",
+   "remplace": "dzT(\"subs.onglet.repliques\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"La liste des répliques : bornes, texte, découpe, export\"",
+   "remplace": "dzT(\"subs.onglet.repliques_aide\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "subsPl(C.signalees,\"réplique\")+\" signalée\"+\r\n          (C.signalees>1?\"s\":\"\")+\", dont \"+subsPl(C.bloquantes,\"bloquante\")+\r\n          \" — le compte est écrit au-dessus, le détail sur chaque ligne\"",
+   "remplace": "dzT(\"subs.onglet.repliques_signalees\",{repliques:subsPl(C.signalees,dzT(\"montage.sous_titres.replique\"),dzT(\"montage.sous_titres.repliques\")),signalee:C.signalees>1?dzT(\"montage.sous_titres.signalees\"):dzT(\"montage.sous_titres.signalee\"),bloquantes:subsPl(C.bloquantes,dzT(\"montage.sous_titres.bloquante\"),dzT(\"montage.sous_titres.bloquantes\"))})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "children:vd.source===\"moteur\"?\"moteur\":\"local\"",
+   "remplace": "children:vd.source===\"moteur\"?dzT(\"subs.comptes.moteur\"):dzT(\"subs.comptes.local\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"masquées\"",
+   "remplace": "dzT(\"subs.comptes.masquees\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "s<2?\"masquée\":dzT",
+   "remplace": "s<2?dzT(\"subs.comptes.masquee\"):dzT",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"plans acquittés\"",
+   "remplace": "dzT(\"subs.comptes.plans_acquittes\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"plan acquitté\"",
+   "remplace": "dzT(\"subs.comptes.plan_acquitte\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Plans que vous avez déclarés muets : ils sortent du calcul de \"+\r\n          \"couverture mais sortiront muets à la livraison, exactement comme \"+\r\n          \"avant l'acquittement. Détail et révocation dans l'onglet Répliques, \"+\r\n          \"en tête de « Couverture du montage ».\"",
+   "remplace": "dzT(\"subs.comptes.acquittes_aide\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"couvert\"",
+   "remplace": "dzT(\"subs.comptes.couvert\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "title:subsFr(vd.cov.couvert,1)+\" s ÷ \"+subsFr(vd.cov.attendu,1)+\r\n          \" s de plans à sous-titrer = \"+vd.cov.pct+\" %\"+\r\n          (C.plans_ignores?\" (\"+subsPl(C.plans_ignores,\"plan\")+\r\n            \" acquitté« sans parole » RETIRÉ du total, pas ajouté au \"+\r\n            \"couvert)\":\"\")+\r\n          (C.plans_sans?\" — \"+subsPl(C.plans_sans,\"plan\")+\r\n            \" sans la moindre réplique, détail dans l'onglet Répliques\":\"\"),",
+   "remplace": "title:dzT(\"subs.comptes.couverture_aide\",{couvert:subsFr(vd.cov.couvert,1),attendu:subsFr(vd.cov.attendu,1),pct:vd.cov.pct})+\r\n          (C.plans_ignores?\" (\"+dzT(\"subs.comptes.acquittes_detail\",{plans:subsPl(C.plans_ignores,dzT(\"montage.sous_titres.plan\"),dzT(\"montage.sous_titres.plans\"))})+\")\":\"\")+\r\n          (C.plans_sans?\" — \"+dzT(\"subs.comptes.plans_sans\",{plans:subsPl(C.plans_sans,dzT(\"montage.sous_titres.plan\"),dzT(\"montage.sous_titres.plans\"))}):\"\"),",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "rt\":\"écarts\"]},\"",
+   "remplace": "rt\":dzT(\"subs.comptes.ecarts\")]},\"",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "s<2?\"écart\":dzT",
+   "remplace": "s<2?dzT(\"subs.comptes.ecart\"):dzT",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"défauts\"",
+   "remplace": "dzT(\"subs.comptes.defauts\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "s<2?\"défaut\":dzT",
+   "remplace": "s<2?dzT(\"subs.comptes.defaut\"):dzT",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "C.bloquantes<2?\"bloquante\":\"bloquantes\"",
+   "remplace": "C.bloquantes<2?dzT(\"montage.sous_titres.bloquante\"):dzT(\"montage.sous_titres.bloquantes\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "ée\":\"signalées\"]},\"",
+   "remplace": "ée\":dzT(\"montage.sous_titres.signalees\")]},\"",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "s<2?\"signalée\":dzT",
+   "remplace": "s<2?dzT(\"montage.sous_titres.signalee\"):dzT",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "ue\":\"répliques\"]},\"",
+   "remplace": "ue\":dzT(\"montage.sous_titres.repliques\")]},\"",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "s<2?\"réplique\":dzT",
+   "remplace": "s<2?dzT(\"montage.sous_titres.replique\"):dzT",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Signalées = répliques portant au moins un défaut. Bloquantes = \"+\r\n        \"sous-ensemble des signalées, celles qui portent un défaut bloquant. \"+\r\n        \"Défauts = total des défauts (une réplique peut en porter plusieurs). \"+\r\n        \"Écarts = différences entre l'aperçu et la gravure ; ils portent sur \"+\r\n        \"le style. Couvert = part du montage qui porte des sous-titres. \"+\r\n        \"Tous ces chiffres sortent du même contrôle (\"+\r\n        (vd.source===\"moteur\"?\"moteur\":\"calcul local\")+\").\"",
+   "remplace": "dzT(\"subs.comptes.aide\",{source:vd.source===\"moteur\"?dzT(\"subs.comptes.moteur\"):dzT(\"subs.comptes.calcul_local\")})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Fermer le panneau de sous-titres\"",
+   "remplace": "dzT(\"subs.tiroir.fermer_aide\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "tle:\"Fermer (Échap)\",\r\n ",
+   "remplace": "tle:dzT(\"subs.tiroir.fermer\"),\r\n ",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "ren:\"Sous-titres\"}),\r",
+   "remplace": "ren:dzT(\"subs.tiroir.titre\")}),\r",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "el\":\"Sous-titres\",\r\n ",
+   "remplace": "el\":dzT(\"subs.tiroir.titre\"),\r\n ",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Transcription automatique indisponible : POST /api/subtitles/transcribe \"+\r\n          \"ne répond pas. Tout le reste marche hors ligne — écrivez, importez \"+\r\n          \"un .srt, ou relancez DeepotusVideoGen.\"",
+   "remplace": "dzT(\"subs.transcription.indisponible\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Suivi de la transcription perdu — le backend ne répond plus.\"",
+   "remplace": "dzT(\"subs.transcription.suivi_perdu\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"transcription…\"",
+   "remplace": "dzT(\"subs.transcription.etape_defaut\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Transcription échouée : \"+String(j&&j.error||\"raison non fournie\")",
+   "remplace": "dzT(\"subs.transcription.echouee\",{raison:String(j&&j.error||dzT(\"subs.commun.raison_absente\"))})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "got.length+\" sous-titres transcrits — relisez, la machine se trompe.\"",
+   "remplace": "dzT(\"subs.transcription.transcrits\",{n:got.length})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Transcription terminée : aucune parole détectée.\"",
+   "remplace": "dzT(\"subs.transcription.aucune_parole\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "subsPl(dans.length,\"réplique\")+\" ajoutée\"+\r\n                  (dans.length>1?\"s\":\"\")+\" sur le plan n° \"+plan.n+\r\n                  \" — relisez, la machine se trompe.\"",
+   "remplace": "(dans.length>1?dzT(\"subs.transcription.ajoutees\",{n:dans.length,plan:plan.n}):dzT(\"subs.transcription.ajoutee\",{n:dans.length,plan:plan.n}))",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Aucune parole détectée dans le plan n° \"+plan.n+\r\n                    \" (\"+subsTc(plan.start)+\" → \"+subsTc(plan.end)+\"). \"+\r\n                    \"Marquez-le « sans parole » s'il est muet.\"",
+   "remplace": "dzT(\"subs.transcription.plan_muet\",{n:plan.n,debut:subsTc(plan.start),fin:subsTc(plan.end)})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Aucun clip \"+dzTd.toUpperCase()+\" ou V1 porteur d'une source ne chevauche le plan n° \"+plan.n+\" — rien n'est envoyé.\"",
+   "remplace": "dzT(\"subs.transcription.aucun_clip\",{piste:dzTd.toUpperCase(),n:plan.n})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"plan \"+plan.n+\"…\"",
+   "remplace": "dzT(\"subs.transcription.etape_plan\",{n:plan.n})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Traduction indisponible : POST /api/subtitles/translate \"+\r\n          \"ne répond pas — le backend est-il lancé ?\"",
+   "remplace": "dzT(\"subs.traduction.indisponible\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Réponse illisible : le compte des répliques \"+\r\n          \"ne correspond pas — rien n'a été écrit.\"",
+   "remplace": "dzT(\"subs.traduction.illisible\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Traduction refusée (\"+o.res.status+\") : \"+\r\n            String((o.d&&o.d.detail)||\"raison non fournie\")",
+   "remplace": "dzT(\"subs.traduction.refusee\",{code:o.res.status,raison:String((o.d&&o.d.detail)||dzT(\"subs.commun.raison_absente\"))})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"traduction de \"+subsPl(dzTrN,\"réplique\")+\r\n      \" vers \"+subsLangLab(dzTo)+\"…\"",
+   "remplace": "dzT(\"subs.traduction.etape\",{repliques:subsPl(dzTrN,dzT(\"montage.sous_titres.replique\"),dzT(\"montage.sous_titres.repliques\")),langue:subsLangLab(dzTo)})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Le backend ne répond pas : \"+\r\n        \"le coût ne peut pas être annoncé, donc rien n'est lancé.\"",
+   "remplace": "dzT(\"subs.traduction.backend_absent\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Aucune clé LLM configurée (Réglages).\"",
+   "remplace": "dzT(\"subs.traduction.aucune_cle\")",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "\"Langue détectée d'après \"+det.ou+\" : \"+subsLangLab(det.code)+\r\n      \" (\"+det.hits+\" mots reconnus sur \"+det.total+\r\n      \"). Le sélecteur reste maître.\"",
+   "remplace": "dzT(\"subs.langue.detectee\",{ou:det.ou,langue:subsLangLab(det.code),hits:det.hits,total:det.total})",
+   "groupe": "subs_e"
+  },
+  {
+   "ancre": "title:\"Exporter en .\"+f.toUpperCase()+\" — fichier écrit ici, hors ligne\",",
+   "remplace": "title:dzT(\"subs.export.format_title\",{fmt:f.toUpperCase()}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "ren:\"Télécharger\"},\"l",
+   "remplace": "ren:dzT(\"commun.action.telecharger\")},\"l",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Écrit localement par l'application : pas de compte, pas de filigrane, \"+\r\n        \"pas de plafond mensuel.\"",
+   "remplace": "dzT(\"subs.export.local_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Effacez la recherche pour revoir toute la piste.\"",
+   "remplace": "dzT(\"subs.vide.effacer\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"La piste passe le contrôle de lisibilité.\"",
+   "remplace": "dzT(\"subs.vide.lisible\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Aucun sous-titre contenant « \"+qn+\" ».\"",
+   "remplace": "dzT(\"subs.vide.recherche\",{q:qn})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Aucune réplique signalée.\"",
+   "remplace": "dzT(\"subs.vide.aucune_signalee\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"tout afficher\"",
+   "remplace": "dzT(\"subs.filtre.tout_afficher\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Effacer la recherche et le filtre pour voir toutes les répliques signalées\"",
+   "remplace": "dzT(\"subs.filtre.tout_afficher_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"1 réplique signalée n'est pas affichée : \"+\r\n            (qn?\"la recherche\":\"le filtre\")+\" la masque.\"",
+   "remplace": "(qn?dzT(\"subs.filtre.cache_recherche\"):dzT(\"subs.filtre.cache_filtre\"))",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "hiddenBad+\" répliques signalées ne sont pas affichées : \"+\r\n            (qn?\"la recherche\":\"le filtre\")+\" les masque.\"",
+   "remplace": "(qn?dzT(\"subs.filtre.caches_recherche\",{n:hiddenBad}):dzT(\"subs.filtre.caches_filtre\",{n:hiddenBad}))",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"déplier\"",
+   "remplace": "dzT(\"subs.filtre.deplier\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "pen?\"replier\":dzT",
+   "remplace": "pen?dzT(\"subs.filtre.replier\"):dzT",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Tout déplier — bornes et correctifs\"",
+   "remplace": "dzT(\"subs.filtre.tout_deplier\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Tout replier\"",
+   "remplace": "dzT(\"subs.filtre.tout_replier\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"signalées seulement\"",
+   "remplace": "dzT(\"subs.filtre.seulement\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"toute la piste\"",
+   "remplace": "dzT(\"subs.filtre.toute\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:(onlyBad?\"Revoir toute la piste. \":\"N'afficher que les répliques \"+\r\n          \"signalées. \")+subsPl(nBad,\"réplique\")+\" signalée\"+(nBad>1?\"s\":\"\")+\r\n          \" sur \"+vd.counts.repliques+\", dont \"+subsPl(nBlk,\"bloquante\")+\r\n          \" — chacune porte son correctif\",",
+   "remplace": "title:(onlyBad?dzT(\"subs.filtre.revoir\"):dzT(\"subs.filtre.seulement_title\"))+\" \"+(nBad>1?dzT(\"subs.filtre.signalees_plusieurs\",{n:nBad,total:vd.counts.repliques,blq:subsPl(nBlk,dzT(\"subs.filtre.bloquante_un\"),dzT(\"subs.filtre.bloquante_plusieurs\"))}):dzT(\"subs.filtre.signalees_un\",{n:nBad,total:vd.counts.repliques,blq:subsPl(nBlk,dzT(\"subs.filtre.bloquante_un\"),dzT(\"subs.filtre.bloquante_plusieurs\"))})),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "children:subsPl(nOff,\"masquée\")",
+   "remplace": "children:nOff>1?dzT(\"subs.filtre.masquees_plusieurs\",{n:nOff}):dzT(\"subs.filtre.masquees_un\",{n:nOff})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:subsPl(nOff,\"réplique\")+\" masquée(s) : hors rendu et hors export\",",
+   "remplace": "title:nOff>1?dzT(\"subs.filtre.masquees_title_plusieurs\",{n:nOff}):dzT(\"subs.filtre.masquees_title_un\",{n:nOff}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Touche / — aller à la recherche\"",
+   "remplace": "dzT(\"subs.recherche.touche\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Rechercher dans les sous-titres\"",
+   "remplace": "dzT(\"subs.recherche.aria\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Rechercher…\"",
+   "remplace": "dzT(\"subs.recherche.placeholder\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"→ \"+subsReflow(segs,subsN(reflowN!=null?reflowN:style.maxChars,42))\r\n          .length+\" sous-titres\"",
+   "remplace": "dzT(\"subs.outils.reflow_n\",{n:subsReflow(segs,subsN(reflowN!=null?reflowN:style.maxChars,42)).length})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Nombre de sous-titres que cette longueur produit sur la piste\"",
+   "remplace": "dzT(\"subs.outils.reflow_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Recompose la découpe en direct — les mots ne sont jamais coupés\"",
+   "remplace": "dzT(\"subs.outils.car_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "el\":\"Caractères par sous-titre\",\r\n ",
+   "remplace": "el\":dzT(\"subs.outils.car_par_st\"),\r\n ",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "ren:\"Caractères par sous-titre\"}),\r",
+   "remplace": "ren:dzT(\"subs.outils.car_par_st\")}),\r",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"redécouper toute la piste \"+",
+   "remplace": "dzT(\"subs.outils.redecouper\")+\" \"+",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Redécouper TOUTE la piste : les répliques voisines sont remises \"+\r\n          \"bout à bout puis recoupées à la longueur choisie. Le nombre de \"+\r\n          \"sous-titres change ; le calage suit les mots.\",",
+   "remplace": "title:dzT(\"subs.outils.redecouper_title\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "children:\"Écrivez la première réplique à \"+subsTc(ph)+\r\n            \", ou reprenez un fichier existant.\"",
+   "remplace": "children:dzT(\"subs.vide.invite\",{tc:subsTc(ph)})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"La transcription automatique, elle, est la rangée juste \"+\r\n            \"au-dessus : elle annonce sa langue, son moteur et son prix.\",",
+   "remplace": "title:dzT(\"subs.vide.transcription_title\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Aucun sous-titre sur la piste S1.\"",
+   "remplace": "dzT(\"subs.vide.titre\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"revenir à l'EBU\"",
+   "remplace": "dzT(\"subs.norme.ebu\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Revenir à la norme de diffusion française (EBU) : \"+\r\n            SUBS_NORM_DEF.cps+\" c/s, \"+SUBS_NORM_DEF.minS+\" – \"+\r\n            SUBS_NORM_DEF.maxS+\" s, écart \"+SUBS_NORM_DEF.gapMs+\" ms.\",",
+   "remplace": "title:dzT(\"subs.norme.ebu_title\",{cps:SUBS_NORM_DEF.cps,min:SUBS_NORM_DEF.minS,max:SUBS_NORM_DEF.maxS,gap:SUBS_NORM_DEF.gapMs}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "children:\"Ces seuils partent avec le contrôle : le moteur mesure \"+\r\n            \"avec eux. Changer une valeur remarque la piste entière.\"",
+   "remplace": "children:dzT(\"subs.norme.note\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "children:f+\" i/s\"",
+   "remplace": "children:dzT(\"subs.norme.fps\",{f:f})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Cadence servant à traduire l'écart en images. Elle ne change \"+\r\n            \"aucun seuil : elle change la façon de le LIRE.\",",
+   "remplace": "title:dzT(\"subs.norme.cadence_title\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Cadence de référence\"",
+   "remplace": "dzT(\"subs.norme.cadence\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "children:\"= \"+subsFr(subsNormImgs(),1)+\" images\"}",
+   "remplace": "children:dzT(\"subs.norme.egal_images\",{img:subsFr(subsNormImgs(),1)})}",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Le même écart, compté en images à la cadence choisie — c'est \"+\r\n            \"l'unité dans laquelle une coupe se juge.\",",
+   "remplace": "title:dzT(\"subs.norme.images_title\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Écart minimal\"",
+   "remplace": "dzT(\"subs.norme.ecart_aria\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Écart min\"",
+   "remplace": "dzT(\"subs.norme.ecart\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Silence minimal entre deux répliques : en dessous, le \"+\r\n            \"changement se voit comme un clignotement.\",",
+   "remplace": "title:dzT(\"subs.norme.ecart_aide\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Au-delà, le sous-titre traîne à l'écran et on le relit.\"",
+   "remplace": "dzT(\"subs.norme.duree_max_aide\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Durée max\"",
+   "remplace": "dzT(\"subs.norme.duree_max\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"En deçà, l'œil n'a pas le temps de se poser sur la réplique.\"",
+   "remplace": "dzT(\"subs.norme.duree_min_aide\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Durée min\"",
+   "remplace": "dzT(\"subs.norme.duree_min\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Caractères par seconde au-delà desquels la lecture décroche. EBU : 20. \"+\r\n        \"Netflix français : 17. Réseaux sociaux : 25.\"",
+   "remplace": "dzT(\"subs.norme.vitesse_aide\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Vitesse max\"",
+   "remplace": "dzT(\"subs.norme.vitesse\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "ren:\"personnalisé\"},\"p",
+   "remplace": "ren:dzT(\"subs.norme.perso\")},\"p",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Trois normes courantes. Toute valeur changée à la main bascule \"+\r\n            \"sur « personnalisé » : le panneau n'affichera jamais le nom d'une \"+\r\n            \"norme qu'il n'applique pas.\",",
+   "remplace": "title:dzT(\"subs.norme.norme_title\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Norme de sous-titrage\"",
+   "remplace": "dzT(\"subs.norme.norme_aria\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Norme\"",
+   "remplace": "dzT(\"subs.norme.norme\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"régler ▸\"",
+   "remplace": "dzT(\"subs.norme.regler\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"replier ▾\"",
+   "remplace": "dzT(\"subs.norme.replier\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Régler les seuils — norme du diffuseur, ou valeurs à la main\"",
+   "remplace": "dzT(\"subs.norme.regler_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Replier le réglage des seuils\"",
+   "remplace": "dzT(\"subs.norme.replier_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "children:subsFr(nrm.cps)+\" c/s · \"+subsFr(nrm.minS,2)+\"–\"+\r\n          subsFr(nrm.maxS)+\" s · écart \"+nrm.gapMs+\" ms = \"+\r\n          subsFr(subsNormImgs(),1)+\" images\"},",
+   "remplace": "children:dzT(\"subs.norme.val\",{cps:subsFr(nrm.cps),min:subsFr(nrm.minS,2),max:subsFr(nrm.maxS),gap:nrm.gapMs,img:subsFr(subsNormImgs(),1)})},",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Au-delà de \"+subsFr(nrm.cps)+\" caractères par seconde la lecture \"+\r\n          \"décroche ; sous \"+subsFr(nrm.minS,2)+\" s l'œil n'a pas le temps de \"+\r\n          \"se poser ; au-delà de \"+subsFr(nrm.maxS)+\" s le sous-titre traîne ; \"+\r\n          \"sous \"+nrm.gapMs+\" ms le changement se voit comme un clignotement.\",",
+   "remplace": "title:dzT(\"subs.norme.val_title\",{cps:subsFr(nrm.cps),min:subsFr(nrm.minS,2),max:subsFr(nrm.maxS),gap:nrm.gapMs}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Seuils\"",
+   "remplace": "dzT(\"subs.norme.titre\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Ces quatre seuils décident de chaque pastille de la liste et de \"+\r\n          \"chaque pastille de la piste S1. Ils partent AVEC le contrôle : le \"+\r\n          \"moteur mesure avec eux, pas avec les siens.\",",
+   "remplace": "title:dzT(\"subs.norme.titre_title\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"révoquer\"",
+   "remplace": "dzT(\"subs.cov.revoquer\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Remet ces plans dans le total : il remonte de \"+\r\n            subsFr(subsSec(cov.ignores.reduce(function(a,p){return a+p.dur},0)),1)+\r\n            \" s, le pourcentage redescend et ces plans redeviennent à \"+\r\n            \"sous-titrer. Le fichier livré ne change pas non plus dans ce sens.\",",
+   "remplace": "title:dzT(\"subs.cov.revoquer_title\",{dur:subsFr(subsSec(cov.ignores.reduce(function(a,p){return a+p.dur},0)),1)}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\" RETIRÉES du total, muet\"+(cov.ignores.length>1?\"s\":\"\")+\r\n            \" à la livraison.\"",
+   "remplace": "\" \"+(cov.ignores.length>1?dzT(\"subs.cov.retirees_plusieurs\"):dzT(\"subs.cov.retirees_un\"))",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "children:[subsPl(cov.ignores.length,\"plan\")+\" acquitté\"+\r\n            (cov.ignores.length>1?\"s\":\"\")+\" (\"+\r\n            cov.ignores.map(function(p){return \"n°\"+p.n}).join(\", \")+\") — \",",
+   "remplace": "children:[(cov.ignores.length>1?dzT(\"subs.cov.ign_liste_plusieurs\",{n:cov.ignores.length,liste:cov.ignores.map(function(p){return dzT(\"subs.plan.numero\",{n:p.n})}).join(\", \")}):dzT(\"subs.cov.ign_liste_un\",{n:cov.ignores.length,liste:cov.ignores.map(function(p){return dzT(\"subs.plan.numero\",{n:p.n})}).join(\", \")}))+\" — \",",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:subsPl(cov.ignores.length,\"plan\")+\" acquitté\"+\r\n            (cov.ignores.length>1?\"s\":\"\")+\" « sans parole » : \"+\r\n            subsFr(subsSec(cov.ignores.reduce(function(a,p){return a+p.dur},0)),1)+\r\n            \" s RETIRÉS du total \"+subsFr(cov.attendu,1)+\" s — jamais comptés \"+\r\n            \"couverts. Le fichier livré n'a pas changé : \"+\r\n            (cov.ignores.length>1?\"ces plans sortiront muets\"\r\n              :\"ce plan sortira muet\")+\" exactement comme avant \"+\r\n            \"l'acquittement.\",",
+   "remplace": "title:cov.ignores.length>1?dzT(\"subs.cov.ign_title_plusieurs\",{n:cov.ignores.length,dur:subsFr(subsSec(cov.ignores.reduce(function(a,p){return a+p.dur},0)),1),total:subsFr(cov.attendu,1)}):dzT(\"subs.cov.ign_title_un\",{n:cov.ignores.length,dur:subsFr(subsSec(cov.ignores.reduce(function(a,p){return a+p.dur},0)),1),total:subsFr(cov.attendu,1)}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"traiter \"+subsPl(covBad.length,\"plan\")+\" ▸\"",
+   "remplace": "dzT(\"subs.cov.traiter\",{plans:subsPl(covBad.length,dzT(\"subs.commun.plan\"),dzT(\"subs.commun.plans\"))})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"replier les gestes ▾\"",
+   "remplace": "dzT(\"subs.cov.replier\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Déplier les gestes plan par plan : transcrire, écrire une réplique, \"+\r\n           \"ou acquitter. Le constat au-dessus ne bouge pas.\"",
+   "remplace": "dzT(\"subs.cov.deplier_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Replier les gestes et ne garder que le constat\"",
+   "remplace": "dzT(\"subs.cov.replier_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"acquitte : n'écrit rien, trace révocable\"",
+   "remplace": "dzT(\"subs.cov.leg_ack\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Un acquittement n'écrit rien : le plan sortira muet, \"+\r\n            \"exactement comme maintenant. Il est RETIRÉ DU TOTAL — il n'est \"+\r\n            \"jamais compté comme couvert — donc le pourcentage monte sans \"+\r\n            \"qu'une réplique soit née, et la ligne des comptes garde \"+\r\n            \"« plans acquittés ». Révocable.\",",
+   "remplace": "title:dzT(\"subs.cov.leg_ack_title\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"écrit dans le fichier livré\"",
+   "remplace": "dzT(\"subs.cov.leg_fix\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Un correctif écrit des répliques sur le plan : la couverture \"+\r\n            \"monte parce que la vidéo change. Une réplique VIDE, elle, ne \"+\r\n            \"couvre rien tant qu'elle n'a pas de texte.\",",
+   "remplace": "title:dzT(\"subs.cov.leg_fix_title\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Couvert = secondes recouvertes par des répliques VISIBLES et \"+\r\n            \"NON VIDES. Total = somme des durées des \"+\r\n            subsPl(cov.plans.length-cov.ignores.length,\"plan\")+\" à \"+\r\n            \"sous-titrer\"+(cov.ignores.length\r\n              ?\", les \"+subsPl(cov.ignores.length,\"plan\")+\r\n               \" acquitté\"+(cov.ignores.length>1?\"s\":\"\")+\r\n               \" « sans parole » RETIRÉS du total (pas ajoutés au couvert)\":\"\")+\r\n            \". Les deux nombres sont arrondis au dixième AVANT la division : \"+\r\n            \"refaire le calcul redonne ce pourcentage.\",",
+   "remplace": "title:!cov.ignores.length?dzT(\"subs.cov.note_title\",{plans:subsPl(cov.plans.length-cov.ignores.length,dzT(\"subs.commun.plan\"),dzT(\"subs.commun.plans\"))}):cov.ignores.length>1?dzT(\"subs.cov.note_title_ign_plusieurs\",{plans:subsPl(cov.plans.length-cov.ignores.length,dzT(\"subs.commun.plan\"),dzT(\"subs.commun.plans\")),n:cov.ignores.length}):dzT(\"subs.cov.note_title_ign_un\",{plans:subsPl(cov.plans.length-cov.ignores.length,dzT(\"subs.commun.plan\"),dzT(\"subs.commun.plans\")),n:cov.ignores.length}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Couverture du montage\"",
+   "remplace": "dzT(\"subs.cov.titre\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "subsPl(cov.ignores.length,\"plan\")+\r\n      (cov.ignores.length>1?\" sortiront muets\":\" sortira muet\")+\r\n      \" : acquitté\"+(cov.ignores.length>1?\"s\":\"\")+\" « sans parole ». \"+\r\n      \"L'acquittement \"+(cov.ignores.length>1?\"les\":\"l'\")+\" a retiré\"+\r\n      (cov.ignores.length>1?\"s\":\"\")+\" du CALCUL, pas du montage.\"",
+   "remplace": "(cov.ignores.length>1?dzT(\"subs.cov.ign_plusieurs\",{n:cov.ignores.length}):dzT(\"subs.cov.ign_un\",{n:cov.ignores.length}))",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"1 plan du montage ne porte pas de sous-titre. Il sortira muet.\"",
+   "remplace": "dzT(\"subs.cov.sans_un\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "covBad.length+\" plans du montage ne portent pas de sous-titre. \"+\r\n        \"Ils sortiront muets.\"",
+   "remplace": "dzT(\"subs.cov.sans_plusieurs\",{n:covBad.length})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "subsPl(covMuets,\"plan\")+\" du montage sortiront muets : \"+\r\n      subsPl(covBad.length,\"reste\",\"restent\")+\" à traiter, \"+\r\n      subsPl(cov.ignores.length,\"acquitté\")+\" (hors du calcul, muet\"+\r\n      (cov.ignores.length>1?\"s\":\"\")+\" quand même).\"",
+   "remplace": "dzT(\"subs.cov.say_mixte\",{total:dzT(\"subs.cov.muets_total\",{n:covMuets}),restes:covBad.length>1?dzT(\"subs.cov.restent\",{n:covBad.length}):dzT(\"subs.cov.reste\",{n:covBad.length}),acq:cov.ignores.length>1?dzT(\"subs.cov.acquittes_hors\",{n:cov.ignores.length}):dzT(\"subs.cov.acquitte_hors\",{n:cov.ignores.length})})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Réplique vide posée à \"+subsTc(sl.start)+\" sur le plan n°\"+p.n+\r\n      \" — tapez le texte.\"",
+   "remplace": "dzT(\"subs.plan.vide_posee\",{tc:subsTc(sl.start),n:p.n})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"écrire ici : une réplique VIDE ne couvre rien → \",\r\n        subsFr(cov.couvert,1),\" ÷ \",subsFr(cov.attendu,1),\" = \",cov.pct,\r\n        \" % inchangé.\"",
+   "remplace": "dzT(\"subs.plan.ecrire_math\",{couvert:subsFr(cov.couvert,1),attendu:subsFr(cov.attendu,1),pct:cov.pct})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"N'écrit RIEN dans la vidéo : ce plan sortira muet, \"+\r\n            \"exactement comme maintenant. \"+calc.charAt(0).toUpperCase()+\r\n            calc.slice(1)+\" Le plan s'inscrit comme « acquitté » dans la \"+\r\n            \"ligne des comptes. Révocable.\"",
+   "remplace": "dzT(\"subs.plan.acquitter_apres\",{calc:calc.charAt(0).toUpperCase()+calc.slice(1)})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"assumer un plan muet\"",
+   "remplace": "dzT(\"subs.plan.but_muet\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"sans parole\"",
+   "remplace": "dzT(\"subs.plan.sans_parole\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Pose une réplique VIDE au début du plan et y amène la tête \"+\r\n            \"de lecture. Une réplique SANS TEXTE ne couvre rien — ni au rendu, \"+\r\n            \"ni dans ce calcul : la couverture reste à \"+cov.pct+\" % et le \"+\r\n            \"plan reste signalé jusqu'à ce que le texte soit tapé.\"",
+   "remplace": "dzT(\"subs.plan.ecrire_apres\",{pct:cov.pct})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "but:\"sous-titrer ce plan\",\r\n ",
+   "remplace": "but:dzT(\"subs.plan.but_sous_titrer\"),\r\n ",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Écrire ici\"",
+   "remplace": "dzT(\"subs.plan.ecrire_ici\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "ct.apres+\" Écrit des répliques entre \"+subsTc(p.start)+\" et \"+\r\n            subsTc(p.end)+\", en remplaçant ce que la piste y avait déjà ; les \"+\r\n            \"autres plans ne bougent pas. Sans parole détectée, rien n'est \"+\r\n            \"écrit et le plan reste signalé.\"",
+   "remplace": "ct.apres+\" \"+dzT(\"subs.plan.transcrire_apres\",{debut:subsTc(p.start),fin:subsTc(p.end)})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "but:\"sous-titrer ce plan\",qui",
+   "remplace": "but:dzT(\"subs.plan.but_sous_titrer\"),qui",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Transcrire ce plan\"",
+   "remplace": "dzT(\"subs.plan.transcrire\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Caler la narration de ce plan\"",
+   "remplace": "dzT(\"subs.plan.caler_narration\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"0 / \"+subsFr(p.dur,1)+\" s couvert\"",
+   "remplace": "dzT(\"subs.plan.zero_couvert\",{dur:subsFr(p.dur,1)})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Aucune réplique visible et non vide sur les \"+subsFr(p.dur,1)+\r\n           \" s du plan.\"",
+   "remplace": "dzT(\"subs.plan.aucune_title\",{dur:subsFr(p.dur,1)})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "subsFr(p.couvert,1)+\" s de répliques visibles et non vides sur les \"+\r\n           subsFr(p.dur,1)+\" s du plan = \"+p.pct+\" %\"",
+   "remplace": "dzT(\"subs.plan.couvert_title\",{couvert:subsFr(p.couvert,1),dur:subsFr(p.dur,1),pct:p.pct})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "children:[\"n°\"+p.n]",
+   "remplace": "children:[dzT(\"subs.plan.numero\",{n:p.n})]",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"acquitter RETIRE le plan des deux termes (jamais ajouté au couvert) : (\"+\r\n       subsFr(cov.couvert,1)+\" − \"+subsFr(p.couvert,1)+\") ÷ (\"+\r\n       subsFr(cov.attendu,1)+\" − \"+subsFr(p.dur,1)+\") = \"+pctAp+\" %.\"",
+   "remplace": "dzT(\"subs.plan.calc_retire\",{couvert:subsFr(cov.couvert,1),pcouvert:subsFr(p.couvert,1),attendu:subsFr(cov.attendu,1),pdur:subsFr(p.dur,1),pct:pctAp})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"acquitter ce plan ne laisserait AUCUN plan à sous-titrer : la \"+\r\n       \"couverture n'aurait plus d'objet.\"",
+   "remplace": "dzT(\"subs.plan.calc_aucun\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"importer .srt / .vtt\"",
+   "remplace": "dzT(\"subs.outils.importer\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Importer un .srt ou un .vtt déjà écrit ailleurs\"",
+   "remplace": "dzT(\"subs.outils.importer_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"+ sous-titre\"",
+   "remplace": "dzT(\"subs.outils.ajouter\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"+ première réplique\"",
+   "remplace": "dzT(\"subs.outils.premiere\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Ajouter un sous-titre à la tête de lecture (\"+subsTc(ph)+\")\",",
+   "remplace": "title:dzT(\"subs.outils.ajouter_title\",{tc:subsTc(ph)}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"mots répartis\"",
+   "remplace": "dzT(\"subs.ligne.mots_repartis\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"mots alignés\"",
+   "remplace": "dzT(\"subs.ligne.mots_alignes\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Aucun timing par mot : la répartition du karaoké est proportionnelle au nombre de caractères.\"",
+   "remplace": "dzT(\"subs.ligne.mots_repartis_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Timings par mot fournis par la transcription — le karaoké est aligné sur la voix.\"",
+   "remplace": "dzT(\"subs.ligne.mots_alignes_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "ren:\"fusionner\"},\"m",
+   "remplace": "ren:dzT(\"subs.ligne.fusionner\")},\"m",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Fusionner avec le sous-titre suivant\"",
+   "remplace": "dzT(\"subs.ligne.fusionner_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"découper\"",
+   "remplace": "dzT(\"subs.ligne.decouper\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Découper à la tête de lecture (\"+subsTc(ph)+\")\",",
+   "remplace": "title:dzT(\"subs.ligne.decouper_title\",{tc:subsTc(ph)}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"aria-label\":\"Texte du sous-titre \"+(i+1),",
+   "remplace": "\"aria-label\":dzT(\"subs.ligne.texte_aria\",{n:i+1}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Texte du sous-titre…\"",
+   "remplace": "dzT(\"subs.ligne.texte_placeholder\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"aria-label\":\"Supprimer le sous-titre \"+(i+1),",
+   "remplace": "\"aria-label\":dzT(\"subs.ligne.supprimer_aria\",{n:i+1}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Supprimer ce sous-titre\"",
+   "remplace": "dzT(\"subs.ligne.supprimer_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Masquer — il reste dans la liste mais sort du rendu et de l'export\"",
+   "remplace": "dzT(\"subs.ligne.masquer\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Réafficher — ce sous-titre repart au rendu\"",
+   "remplace": "dzT(\"subs.ligne.reafficher\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:chars+\" caractères en \"+subsRound(len,2)+\" s = \"+Math.round(cps)+\r\n            \" car./s (seuil \"+SUBS_CPS_MAX+\")\",",
+   "remplace": "title:dzT(\"subs.ligne.cps_title\",{n:chars,duree:subsRound(len,2),cps:Math.round(cps),max:SUBS_CPS_MAX}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"aria-label\":(open?\"Replier\":\"Déplier\")+\" le sous-titre \"+(i+1),",
+   "remplace": "\"aria-label\":open?dzT(\"subs.ligne.replier_aria\",{n:i+1}):dzT(\"subs.ligne.deplier_aria\",{n:i+1}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Déplier — bornes, texte, correctifs\"",
+   "remplace": "dzT(\"subs.ligne.deplier_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Replier cette réplique\"",
+   "remplace": "dzT(\"subs.ligne.replier_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:subsPl(est.n,\"défaut\")+\" sur cette réplique (\"+\r\n          (SUBS_SEVLAB[est.sev]||est.sev)+\" au plus fort) : \"+\r\n          lw.map(function(w){return w.msg}).join(\" · \"),",
+   "remplace": "title:est.n>1?dzT(\"subs.ligne.defauts_plusieurs\",{n:est.n,sev:SUBS_SEVLAB[est.sev]||est.sev,liste:lw.map(function(w){return w.msg}).join(\" · \")}):dzT(\"subs.ligne.defauts_un\",{n:est.n,sev:SUBS_SEVLAB[est.sev]||est.sev,liste:lw.map(function(w){return w.msg}).join(\" · \")}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"masqué\"",
+   "remplace": "dzT(\"subs.ligne.masque\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Masqué — hors rendu et hors export\"",
+   "remplace": "dzT(\"subs.ligne.masque_title\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "xt||\"(vide)\"},\"t",
+   "remplace": "xt||dzT(\"subs.ligne.vide\")},\"t",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Segment sans texte\"",
+   "remplace": "dzT(\"subs.ligne.sans_texte\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Durée à l'écran : \"+subsTc(s.start)+\" → \"+subsTc(s.end)+\r\n          \" = \"+subsFr(len,2)+\" s (\"+chars+\" caractères, \"+Math.round(cps)+\r\n          \" car./s)\",",
+   "remplace": "title:dzT(\"subs.ligne.duree_title\",{debut:subsTc(s.start),fin:subsTc(s.end),duree:subsFr(len,2),n:chars,cps:Math.round(cps)}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Caler la tête de lecture ici (\"+subsTc(s.start)+\" → \"+\r\n          subsTc(s.end)+\", \"+subsRound(len,2)+\" s, \"+Math.round(cps)+\" car./s)\",",
+   "remplace": "title:dzT(\"subs.ligne.caler_ici\",{debut:subsTc(s.start),fin:subsTc(s.end),duree:subsRound(len,2),cps:Math.round(cps)}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"aria-label\":\"Caler le \"+(which===\"start\"?\"début\":\"fin\")+\" sur la tête de lecture\",",
+   "remplace": "\"aria-label\":which===\"start\"?dzT(\"subs.tc.caler_debut\"):dzT(\"subs.tc.caler_fin\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:\"Caler sur la tête de lecture (\"+subsTc(ph)+\")\",",
+   "remplace": "title:dzT(\"subs.tc.caler_title\",{tc:subsTc(ph)}),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "title:(which===\"start\"?\"Début\":\"Fin\")+\" — format 00:00.000\",",
+   "remplace": "title:which===\"start\"?dzT(\"subs.tc.debut_title\"):dzT(\"subs.tc.fin_title\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"aria-label\":(which===\"start\"?\"Début\":\"Fin\")+\" du sous-titre (00:00.000)\",",
+   "remplace": "\"aria-label\":which===\"start\"?dzT(\"subs.tc.debut_aria\"):dzT(\"subs.tc.fin_aria\"),",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Lecture du fichier impossible.\"",
+   "remplace": "dzT(\"subs.import.lecture\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "subsPl(got.length,\"sous-titre\")+\" importé\"+(got.length>1?\"s\":\"\")+\r\n        \" depuis « \"+f.name+\" ».\"",
+   "remplace": "(got.length>1?dzT(\"subs.import.importes\",{n:got.length,nom:f.name}):dzT(\"subs.import.importe\",{n:got.length,nom:f.name}))",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Aucun sous-titre lisible dans ce fichier (.srt ou .vtt attendu).\"",
+   "remplace": "dzT(\"subs.import.illisible\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Téléchargement refusé par le navigateur.\"",
+   "remplace": "dzT(\"subs.export.refuse\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Fichier .\"+fmt.toUpperCase()+\" écrit (\"+\r\n      subsSort(segs).filter(function(s){return !s.hidden}).length+\r\n      \" lignes) — local, sans compte, sans filigrane.\"",
+   "remplace": "dzT(\"subs.export.ecrit\",{fmt:fmt.toUpperCase(),n:subsSort(segs).filter(function(s){return !s.hidden}).length})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "rcName||\"sous-titres\").replac",
+   "remplace": "rcName||dzT(\"subs.export.nom_fichier\")).replac",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Rien à exporter — la piste est vide.\"",
+   "remplace": "dzT(\"subs.export.vide\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"La tête est avant le début du segment — déplacez-la d'abord.\"",
+   "remplace": "dzT(\"subs.liste.tete_avant\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"La tête est après la fin du segment — déplacez-la d'abord.\"",
+   "remplace": "dzT(\"subs.liste.tete_apres\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Segments fusionnés.\"",
+   "remplace": "dzT(\"subs.liste.fusionnes\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Aucun segment après celui-ci — rien à fusionner.\"",
+   "remplace": "dzT(\"subs.liste.rien_fusionner\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Segment découpé à \"+subsTc(ph)+\".\"",
+   "remplace": "dzT(\"subs.liste.decoupe\",{tc:subsTc(ph)})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Placez la tête de lecture À L'INTÉRIEUR du segment pour le découper.\"",
+   "remplace": "dzT(\"subs.liste.decouper_hors\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Sous-titre supprimé.\"",
+   "remplace": "dzT(\"subs.liste.supprime\")",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Sous-titre ajouté à \"+subsTc(sl.start)+\" — tapez le texte.\"",
+   "remplace": "dzT(\"subs.liste.ajoute\",{tc:subsTc(sl.start)})",
+   "groupe": "subs_d"
+  },
+  {
+   "ancre": "\"Réinitialiser le style\"",
+   "remplace": "dzT(\"subs.style.reinit\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Revenir au style par défaut (le texte et le calage ne bougent pas)\"",
+   "remplace": "dzT(\"subs.style.reinit_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "ren:\"lignes\"},\"u",
+   "remplace": "ren:dzT(\"subs.anim.lignes\")},\"u",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Nombre maximum de lignes\"",
+   "remplace": "dzT(\"subs.anim.lignes_max_aria\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Lignes max\"",
+   "remplace": "dzT(\"subs.anim.lignes_max\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"car./ligne\"",
+   "remplace": "dzT(\"subs.anim.car_ligne\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Caractères par ligne\"",
+   "remplace": "dzT(\"subs.anim.car_ligne_aria\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Césure\"",
+   "remplace": "dzT(\"subs.anim.cesure\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Fondu et pop sont gravés dans la vidéo (\\fad et \\t de \"+\r\n          \"l'ASS). Les apparitions qui n'avaient aucun équivalent gravable \"+\r\n          \"— montée, machine à écrire — ont été retirées.\"",
+   "remplace": "dzT(\"subs.anim.aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Apparition\"",
+   "remplace": "dzT(\"subs.anim.apparition\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "[\"\",\"aucune\"])[1",
+   "remplace": "[\"\",dzT(\"subs.anim.aucune\")])[1",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "im\",\"Animation\",(SU",
+   "remplace": "im\",dzT(\"subs.anim.titre\"),(SU",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Sans timings par mot venus de la transcription, la répartition \"+\r\n          \"est proportionnelle au nombre de caractères — chaque segment le dit.\"",
+   "remplace": "dzT(\"subs.karaoke.timings_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Mode « boîte » sans fond : au rendu, la couleur ira sur le \"+\r\n          \"CONTOUR du mot, pas dans une boîte — la boîte du karaoké est celle \"+\r\n          \"du fond. Activez le fond, ou passez en « remplissage ».\"",
+   "remplace": "dzT(\"subs.karaoke.boite_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Couleur de la boîte\"",
+   "remplace": "dzT(\"subs.karaoke.couleur_boite\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Couleur du mot\"",
+   "remplace": "dzT(\"subs.karaoke.couleur_mot\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "DES,\"Mode\"):nu",
+   "remplace": "DES,dzT(\"subs.karaoke.mode\")):nu",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Chaque mot bascule à son tour et le reste jusqu'à la fin de la \"+\r\n        \"réplique — c'est ce que grave l'ASS, et l'aperçu le montre pareil\"",
+   "remplace": "dzT(\"subs.karaoke.surligner_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Surligner les mots prononcés\"",
+   "remplace": "dzT(\"subs.karaoke.surligner\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"désactivé\"",
+   "remplace": "dzT(\"subs.karaoke.desactive\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"cumulatif · \"+",
+   "remplace": "dzT(\"subs.karaoke.cumulatif\")+\" · \"+",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Karaoké\"",
+   "remplace": "dzT(\"subs.karaoke.titre\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "px\",\"Décalage\"):nu",
+   "remplace": "px\",dzT(\"subs.bord.decalage\")):nu",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Couleur de l'ombre\"",
+   "remplace": "dzT(\"subs.bord.couleur_ombre\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Sous un fond, l'ombre décale la BOÎTE, pas les lettres — \"+\r\n          \"elle agit, elle (mesuré à la gravure).\"",
+   "remplace": "dzT(\"subs.bord.ombre_fond_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Copie du texte décalée en bas à droite — exactement ce que grave l'ASS\"",
+   "remplace": "dzT(\"subs.bord.ombre_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ombre portée\"",
+   "remplace": "dzT(\"subs.bord.ombre_portee\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Aucun contour : réglez l'épaisseur au-dessus, dans \"+\r\n            \"« Réglages », pour qu'il apparaisse.\"",
+   "remplace": "dzT(\"subs.bord.aucun_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Couleur du contour\"",
+   "remplace": "dzT(\"subs.bord.couleur\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Le contour est éteint par le fond (mesuré à la gravure) : sa \"+\r\n          \"couleur ne changerait rien. Coupez le fond, dans le module « Fond », \"+\r\n          \"pour qu'il revienne.\"",
+   "remplace": "dzT(\"subs.bord.eteint_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "(st.shOn?\" · ombre\":\"\")",
+   "remplace": "(st.shOn?\" · \"+dzT(\"subs.bord.ombre\"):\"\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"contour \"+subsFr(subsN(st.outW,0),1)+\" px\":\"sans contour\")",
+   "remplace": "dzT(\"subs.bord.contour_px\",{n:subsFr(subsN(st.outW,0),1)}):dzT(\"subs.bord.sans_contour\"))",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"contour sans effet\"",
+   "remplace": "dzT(\"subs.bord.sans_effet\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Contour et ombre\"",
+   "remplace": "dzT(\"subs.bord.titre\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"La marge intérieure est l'épaisseur réelle de la boîte à la \"+\r\n          \"gravure (mesuré : 0 / 12 / 30 px donnent 640 / 644 / 680 px de \"+\r\n          \"boîte). Tant qu'un fond est actif, c'est elle qui agit, pas le \"+\r\n          \"curseur « Contour ».\"",
+   "remplace": "dzT(\"subs.fond.marge_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "px\",\"Marge intérieure\"):nu",
+   "remplace": "px\",dzT(\"subs.fond.marge\")):nu",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Opacité\"",
+   "remplace": "dzT(\"subs.fond.opacite\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Couleur du fond\"",
+   "remplace": "dzT(\"subs.fond.couleur\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Boîte colorée ajustée au texte, angles droits — comme à la gravure\"",
+   "remplace": "dzT(\"subs.fond.derriere_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Fond derrière le texte\"",
+   "remplace": "dzT(\"subs.fond.derriere\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": " %\":\"aucun\",[\r\n",
+   "remplace": " %\":dzT(\"subs.style.aucun\"),[\r\n",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"ajusté · \"+Math.round(st.bgOpacity)+\" %\"",
+   "remplace": "dzT(\"subs.fond.ajuste\")+\" · \"+Math.round(st.bgOpacity)+\" %\"",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Fond\"",
+   "remplace": "dzT(\"subs.fond.titre\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Interlettrage\"",
+   "remplace": "dzT(\"subs.texte.interlettrage\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Tout en majuscules\"",
+   "remplace": "dzT(\"subs.texte.majuscules\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Souligné\"",
+   "remplace": "dzT(\"subs.texte.souligne\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Italique\"",
+   "remplace": "dzT(\"subs.texte.italique_titre\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Effets\"",
+   "remplace": "dzT(\"subs.texte.effets\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "900,\"noir\"]].m",
+   "remplace": "900,dzT(\"subs.texte.noir\")]].m",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "700,\"gras\"],[9",
+   "remplace": "700,dzT(\"subs.texte.gras\")],[9",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "600,\"demi\"],[7",
+   "remplace": "600,dzT(\"subs.texte.demi\")],[7",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "400,\"maigre\"],[6",
+   "remplace": "400,dzT(\"subs.texte.maigre\")],[6",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Graisse\"",
+   "remplace": "dzT(\"subs.texte.graisse\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "(st.upper?\" · capitales\":\"\")+(st.italic?\" · italique\":\"\")",
+   "remplace": "(st.upper?\" · \"+dzT(\"subs.texte.capitales\"):\"\")+(st.italic?\" · \"+dzT(\"subs.texte.italique\"):\"\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "mi\":\"maigre\")+\r\n",
+   "remplace": "mi\":dzT(\"subs.texte.maigre\"))+\r\n",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "600?\"demi\":dzT",
+   "remplace": "600?dzT(\"subs.texte.demi\"):dzT",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "700?\"gras\"\r\n  ",
+   "remplace": "700?dzT(\"subs.texte.gras\")\r\n  ",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "900?\"noir\":Num",
+   "remplace": "900?dzT(\"subs.texte.noir\"):Num",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "ce\",\"Texte\",\r\n ",
+   "remplace": "ce\",dzT(\"commun.objet.texte\"),\r\n ",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Reprendre le placement du préréglage\"",
+   "remplace": "dzT(\"subs.placement.reprendre\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Reprendre le placement prévu par le préréglage courant\"",
+   "remplace": "dzT(\"subs.placement.reprendre_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Les marges latérales du moteur sont symétriques : la largeur \"+\r\n          \"se réduit des deux côtés à la fois.\"",
+   "remplace": "dzT(\"subs.placement.symetrie_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": " %\",\"Largeur du bloc\"),\r\n",
+   "remplace": " %\",dzT(\"subs.placement.largeur_bloc\")),\r\n",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ancrage vertical\"",
+   "remplace": "dzT(\"subs.placement.ancrage_v\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ancrage horizontal\"",
+   "remplace": "dzT(\"subs.placement.ancrage_h\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Le tiroir ouvert, le bloc s'attrape directement dans le \"+\r\n          \"lecteur : glisser pour placer, poignées latérales pour la largeur, \"+\r\n          \"flèches du clavier pour affiner. Les zones sûres s'affichent pendant \"+\r\n          \"le geste.\"",
+   "remplace": "dzT(\"subs.placement.tiroir_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "SUBS_HLAB[st.align]+\" · marge \"+\r\n      subsFr(subsN(st.marginV,SUBS_MARGIN_DEF),1)+\" % · largeur \"+\r\n      Math.round(subsN(st.width,SUBS_WIDTH_DEF))+\" %\"",
+   "remplace": "SUBS_HLAB[st.align]+\" · \"+dzT(\"subs.placement.marge\",{n:subsFr(subsN(st.marginV,SUBS_MARGIN_DEF),1)})+\" · \"+\r\n      dzT(\"subs.placement.largeur\",{n:Math.round(subsN(st.width,SUBS_WIDTH_DEF))})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Placement\"",
+   "remplace": "dzT(\"subs.placement.titre\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"raccourcis · \"+(SUBS_SVC.presets?\"moteur\":\"local\")",
+   "remplace": "dzT(\"subs.presets.raccourcis\")+\" · \"+(SUBS_SVC.presets?dzT(\"subs.presets.moteur\"):dzT(\"subs.presets.local\"))",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Raccourci : un préréglage écrit d'un coup police, corps, \"+\r\n          \"couleur, fond, contour et karaoké. Origine de la liste : \"+\r\n          (SUBS_SVC.presets?\"le moteur\":\"la table locale\")+\".\"",
+   "remplace": "dzT(\"subs.presets.aide\",{origine:SUBS_SVC.presets?dzT(\"subs.presets.origine_moteur\"):dzT(\"subs.presets.origine_locale\")})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Préréglages\"",
+   "remplace": "dzT(\"subs.presets.titre\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": " %\",\"Marge du bord\")]})",
+   "remplace": " %\",dzT(\"subs.reglages.marge_bord\"))]})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ancré au milieu, la marge du bord n'a pas d'effet — c'est \"+\r\n            \"aussi vrai dans le fichier ASS que dans l'aperçu.\"",
+   "remplace": "dzT(\"subs.reglages.milieu_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"le geste qui le rallume est arbitré en tête d'onglet ↑\"",
+   "remplace": "dzT(\"subs.arbitrage.renvoi_haut\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ce geste pousse en sens inverse d'un autre geste affiché : \"+\r\n              \"les deux sont mis face à face dans l'arbitrage, en tête de \"+\r\n              \"l'onglet, avec l'objectif que chacun sert.\"",
+   "remplace": "dzT(\"subs.arbitrage.renvoi_haut_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Éteint par le fond — mesuré : \"+\r\n            subsFr(subsN(st.outW,3),1)+\" px et 0 px, même image.\"",
+   "remplace": "dzT(\"subs.reglages.eteint_fond\",{n:subsFr(subsN(st.outW,3),1)})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "px\":\"aucun\"},\"v",
+   "remplace": "px\":dzT(\"subs.style.aucun\")},\"v",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "utW?\"sans effet\"\r\n  ",
+   "remplace": "utW?dzT(\"subs.reglages.sans_effet\")\r\n  ",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"0 = aucun contour. La couleur du contour est dans le module \"+\r\n             \"« Contour et ombre ».\"",
+   "remplace": "dzT(\"subs.reglages.contour_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Épaisseur du contour\"",
+   "remplace": "dzT(\"subs.reglages.epaisseur_contour\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "row(\"Contour\",[\r\n",
+   "remplace": "row(dzT(\"subs.reglages.contour\"),[\r\n",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Couleur du texte\"",
+   "remplace": "dzT(\"subs.reglages.couleur_texte\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "px\",\"Taille\"),\r\n",
+   "remplace": "px\",dzT(\"subs.reglages.taille\")),\r\n",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Police des sous-titres\"",
+   "remplace": "dzT(\"subs.reglages.police_aria\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "row(\"Police\",[r.",
+   "remplace": "row(dzT(\"subs.reglages.police\"),[r.",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"les plus utilisés\"",
+   "remplace": "dzT(\"subs.reglages.plus_utilises\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Le détail (graisse, casse, fond, ombre, karaoké, animation) est \"+\r\n          \"dans les modules, sous la galerie\"",
+   "remplace": "dzT(\"subs.reglages.detail_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "ren:\"Réglages\"}),\r",
+   "remplace": "ren:dzT(\"commun.objet.reglages\")}),\r",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ces deux boutons ne vivent qu'ici tant qu'ils s'opposent.\"",
+   "remplace": "dzT(\"subs.arbitrage.note\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Chacun de ces deux gestes est né ailleurs — sous un écart, ou \"+\r\n          \"sous le réglage qu'il rallume. Tant qu'ils s'opposent, ils sont \"+\r\n          \"réunis ici et leur place d'origine porte un renvoi : un arbitrage \"+\r\n          \"qui désigne un bouton hors du cadre ne sert à rien.\"",
+   "remplace": "dzT(\"subs.arbitrage.note_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "ren:\"contre\"},\"v",
+   "remplace": "ren:dzT(\"subs.arbitrage.contre\")},\"v",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "children:[\"pour \",r.jsx(\"b\",{children:g.but||\"?\"},\"b\")]",
+   "remplace": "children:[dzT(\"subs.arbitrage.pour\")+\" \",r.jsx(\"b\",{children:g.but||\"?\"},\"b\")]",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ce geste rend \"+c.trait+\" « \"+val+\" ».\"",
+   "remplace": "dzT(\"subs.arbitrage.rend\",{trait:c.trait,val:val})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\" aujourd'hui) — choisissez l'objectif\"",
+   "remplace": "\" \"+dzT(\"subs.arbitrage.tete_c\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Deux gestes tirent \",arb[0].trait,\" en sens inverse (\",",
+   "remplace": "dzT(\"subs.arbitrage.tete_a\")+\" \",arb[0].trait,\" \"+dzT(\"subs.arbitrage.tete_b\")+\" (\",",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "subsPl(issues.length-1,\"autre écart\",\"autres écarts\")",
+   "remplace": "subsPl(issues.length-1,dzT(\"subs.ecarts.autre_un\"),dzT(\"subs.ecarts.autre_plusieurs\"))",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"replier les écarts\"",
+   "remplace": "dzT(\"subs.ecarts.replier\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Montrer les \"+(issues.length-1)+\" autres écarts entre l'aperçu et \"+\r\n           \"la gravure, avec leurs gestes\"",
+   "remplace": "dzT(\"subs.ecarts.montrer_autres\",{n:issues.length-1})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ne montrer que le premier écart\"",
+   "remplace": "dzT(\"subs.ecarts.premier_seul\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"un de ses gestes est arbitré juste dessous ↓\"",
+   "remplace": "dzT(\"subs.arbitrage.renvoi_dessous\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ce geste pousse en sens inverse d'un autre geste \"+\r\n                  \"affiché : les deux sont mis face à face dans l'arbitrage, \"+\r\n                  \"juste sous cette carte, avec l'objectif que chacun sert.\"",
+   "remplace": "dzT(\"subs.arbitrage.renvoi_dessous_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\" (\" + w.about.length + \" réplique\" +\r\n                (w.about.length>1?\"s\":\"\") + \" concernée\" +\r\n                (w.about.length>1?\"s\":\"\") + \")\"",
+   "remplace": "\" (\" + subsPl(w.about.length,dzT(\"subs.ecarts.concernee_un\"),dzT(\"subs.ecarts.concernee_plusieurs\")) + \")\"",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "issues.length+(issues.length>1?\" écarts\":\" écart\")",
+   "remplace": "subsPl(issues.length,dzT(\"subs.ecarts.ecart_un\"),dzT(\"subs.ecarts.ecart_plusieurs\"))",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Le badge de cet onglet compte exactement ces écarts\"",
+   "remplace": "dzT(\"subs.ecarts.badge_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Aperçu et gravure : les écarts\"",
+   "remplace": "dzT(\"subs.ecarts.titre\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"mot \",r.jsx(\"span\",{style:ksty,children:\"actif\"},\"k\")",
+   "remplace": "dzT(\"subs.preset.mot\")+\" \",r.jsx(\"span\",{style:ksty,children:dzT(\"subs.preset.actif\")},\"k\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Préréglage « \"+String(p.label||p.id)+\" » (\"+p.id+\") — \"+\r\n        subsPresetSpec(ps)+\". Le texte et le calage ne bougent pas\"+\r\n        (placed?\", et le placement que vous avez posé est conservé\":\"\")+\".\"",
+   "remplace": "dzT(\"subs.preset.titre\",{nom:String(p.label||p.id),id:p.id,spec:subsPresetSpec(ps),place:placed?dzT(\"subs.preset.place_garde\"):\"\"})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Ce que le moteur gravera : ancrage, marge du bord et largeur du \"+\r\n        \"bloc. Ancré au milieu, la marge du bord n'a pas d'effet — libass \"+\r\n        \"l'ignore, l'aperçu aussi.\"",
+   "remplace": "dzT(\"subs.placement.hud_aide\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"UI réseaux\"",
+   "remplace": "dzT(\"subs.placement.ui_reseaux\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"zone sûre 10 %\"",
+   "remplace": "dzT(\"subs.placement.zone_sure\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\":\"e\",\r\n      title:\"Largeur du bloc — les deux marges bougent ensemble\",\r\n      onPointerDo",
+   "remplace": "\":\"e\",\r\n      title:dzT(\"subs.placement.poignee\"),\r\n      onPointerDo",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\":\"w\",\r\n      title:\"Largeur du bloc — les deux marges bougent ensemble\",\r\n      onPointerDo",
+   "remplace": "\":\"w\",\r\n      title:dzT(\"subs.placement.poignee\"),\r\n      onPointerDo",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Glisser pour placer le bloc · poignées latérales pour la \"+\r\n      \"largeur · flèches du clavier pour affiner\"",
+   "remplace": "dzT(\"subs.placement.geste\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Placement du sous-titre — \"+readout+\r\n      \" (flèches : déplacer, Maj+flèches : par pas de 2 %)\"",
+   "remplace": "dzT(\"subs.placement.aria\",{valeurs:readout})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"  ⚠ hors zone sûre \"+SUBS_SAFE_TITLE+\" %\"",
+   "remplace": "\"  ⚠ \"+dzT(\"subs.placement.hors_zone\",{n:SUBS_SAFE_TITLE})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "mvTxt+\" · largeur \"+Math.round(subsN(style.width,SUBS_WIDTH_DEF))+\" %\"",
+   "remplace": "mvTxt+\" · \"+dzT(\"subs.placement.largeur\",{n:Math.round(subsN(style.width,SUBS_WIDTH_DEF))})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"aucune réplique ici — \"",
+   "remplace": "dzT(\"subs.placement.aucune_replique\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"marge \"+subsRound(subsN(style.marginV,9),1)+\" %\"",
+   "remplace": "dzT(\"subs.placement.marge\",{n:subsRound(subsN(style.marginV,9),1)})",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"marge sans objet\"",
+   "remplace": "dzT(\"subs.placement.marge_sans_objet\")",
+   "groupe": "subs_c"
+  },
+  {
+   "ancre": "\"Sous-titre\"",
+   "remplace": "dzT(\"subs.overlay.temoin\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "ght:\"droite\"};\r\n",
+   "remplace": "ght:dzT(\"subs.align.droite\")};\r\n",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "ter:\"centré\",rig",
+   "remplace": "ter:dzT(\"subs.align.centre\"),rig",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "eft:\"gauche\",cen",
+   "remplace": "eft:dzT(\"subs.align.gauche\"),cen",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "tom:\"bas\"};\r\n",
+   "remplace": "tom:dzT(\"subs.align.bas\")};\r\n",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "dle:\"milieu\",bot",
+   "remplace": "dle:dzT(\"subs.align.milieu\"),bot",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "top:\"haut\",mid",
+   "remplace": "top:dzT(\"subs.align.haut\"),mid",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "ren:\"Réessayer\"})]}",
+   "remplace": "ren:dzT(\"commun.action.reessayer\")})]}",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Redemander /api/subtitles/presets immédiatement\"",
+   "remplace": "dzT(\"subs.alerte.reessayer_aide\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Reprise automatique — nouvelle tentative dans \"+left+\" s.\"",
+   "remplace": "dzT(\"subs.alerte.reprise\",{s:left})",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "   ?\"Nouvelle tentative en cours…\"\r\n  ",
+   "remplace": "   ?dzT(\"vfx.alerte.tentative\")\r\n  ",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "children:\"Seule la transcription automatique en dépend. Écrire, \"+\r\n          \"découper, caler, styler, le karaoké et l'export .SRT / .VTT / .TXT \"+\r\n          \"marchent hors ligne ; préréglages et polices = liste locale.\"}),",
+   "remplace": "children:dzT(\"subs.alerte.ampute\")}),",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "title:\"/api/subtitles/presets et /api/subtitles/transcribe sont muets \"+\r\n          \"sur 127.0.0.1:8765. Relancez DeepotusVideoGen : le panneau se \"+\r\n          \"remplira seul, sans être rouvert.\",",
+   "remplace": "title:dzT(\"subs.alerte.detail\"),",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Service de sous-titres injoignable — le backend ne répond pas.\"",
+   "remplace": "dzT(\"subs.alerte.titre\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "apres:\"Appel PAYANT à \"+SUBS_EST.label+\r\n      (SUBS_EST.model?\" (\"+SUBS_EST.model+\")\":\"\")+\", langue \"+\r\n      /* P13 — sous « auto » : « détectée par le moteur ». */\r\n      (lang===\"auto\"?\"détectée par le moteur\":subsLangLab(lang))+\" : \"+subsUsd(usd)+\" pour \"+subsFr(d,1)+\" s de son (\"+\r\n      subsUsd(SUBS_EST.usdMin)+\" la minute annoncés par le moteur × \"+\r\n      subsFr(d,1)+\" ÷ 60), \"+subsEta(eta)+\" d'attente (\"+\r\n      subsFr(SUBS_EST.over,1)+\" s de mise en route + \"+\r\n      subsFr(SUBS_EST.rt,2)+\" s par seconde de son).\"}}",
+   "remplace": "apres:dzT(\"subs.cout.payant_apres\",{moteur:SUBS_EST.label,modele:SUBS_EST.model?\" (\"+SUBS_EST.model+\")\":\"\",\r\n      /* P13 — sous « auto » : « détectée par le moteur ». */\r\n      langue:lang===\"auto\"?dzT(\"subs.cout.detectee_moteur\"):subsLangLab(lang),prix:subsUsd(usd),duree:subsFr(d,1),\r\n      tarif:subsUsd(SUBS_EST.usdMin),attente:subsEta(eta),mise:subsFr(SUBS_EST.over,1),rt:subsFr(SUBS_EST.rt,2)})}}",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"langue auto\"",
+   "remplace": "dzT(\"subs.cout.langue_auto\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Aucun moteur de transcription configuré : le coût ne peut pas être \"+\r\n      \"annoncé, donc le geste n'est pas offert.\"};",
+   "remplace": "dzT(\"subs.cout.aucun_moteur\")};",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "if(!SUBS_EST.ok)return {txt:subsLangLab(lang)+\" · coût indisponible\",",
+   "remplace": "if(!SUBS_EST.ok)return {txt:dzT(\"subs.cout.indisponible_pastille\",{langue:subsLangLab(lang)}),",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "if(free)return {txt:subsLangLab(lang)+\" · calage local · gratuit\",free:!0,\r\n    apres:\"Le texte de narration est déjà écrit : le moteur le CALE sur les \"+\r\n      \"silences réels du son (langue \"+subsLangLab(lang)+\"). Aucun appel \"+\r\n      \"payant, aucun nom propre écorché, et ça marche hors ligne.\"};",
+   "remplace": "if(free)return {txt:dzT(\"subs.cout.gratuit_pastille\",{langue:subsLangLab(lang)}),free:!0,\r\n    apres:dzT(\"subs.cout.gratuit_apres\",{langue:subsLangLab(lang)})};",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "el||\"moteur\");\r\n",
+   "remplace": "el||dzT(\"subs.cout.moteur\"));\r\n",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "SUBS_EST.reason=\"Le moteur ne répond pas : le coût ne peut pas être \"+\r\n      \"annoncé, donc rien n'est lancé.\";",
+   "remplace": "SUBS_EST.reason=dzT(\"subs.cout.moteur_muet\");",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Aucune clé de transcription configurée (Réglages : ElevenLabs ou \"+\r\n          \"OpenAI). Le calage d'un texte de narration reste gratuit.\")}",
+   "remplace": "dzT(\"subs.cout.aucune_cle\"))}",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"moteur de transcription\"",
+   "remplace": "dzT(\"subs.cout.moteur_transcription\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"la narration écrite sur les clips de voix\"",
+   "remplace": "dzT(\"subs.detect.source_narration\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"les répliques de la piste\"",
+   "remplace": "dzT(\"subs.detect.source_repliques\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": ":\"« \"+subsLangLab(p)+\" » et « \"+subsLangLab(s)+\" » à égalité (\"+\r\n     score[p]+\" contre \"+score[s]+\")\";",
+   "remplace": ":dzT(\"subs.detect.egalite\",{a:subsLangLab(p),b:subsLangLab(s),na:score[p],nb:score[s]});",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "?\"trop peu de mots reconnus (\"+score[p]+\", il en faut \"+SUBS_LG_MIN+\")\"",
+   "remplace": "?dzT(\"subs.detect.trop_peu\",{n:score[p],min:SUBS_LG_MIN})",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"aucun texte\"",
+   "remplace": "dzT(\"subs.detect.aucun_texte\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"hindi\"",
+   "remplace": "dzT(\"subs.langue.hi\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"coréen\"",
+   "remplace": "dzT(\"subs.langue.ko\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"chinois\"",
+   "remplace": "dzT(\"subs.langue.zh\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"japonais\"",
+   "remplace": "dzT(\"subs.langue.ja\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"arabe\"",
+   "remplace": "dzT(\"subs.langue.ar\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"turc\"",
+   "remplace": "dzT(\"subs.langue.tr\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"ukrainien\"",
+   "remplace": "dzT(\"subs.langue.uk\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"russe\"",
+   "remplace": "dzT(\"subs.langue.ru\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"polonais\"",
+   "remplace": "dzT(\"subs.langue.pl\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"néerlandais\"",
+   "remplace": "dzT(\"subs.langue.nl\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"portugais\"",
+   "remplace": "dzT(\"subs.langue.pt\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"italien\"",
+   "remplace": "dzT(\"subs.langue.it\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"allemand\"",
+   "remplace": "dzT(\"subs.langue.de\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"espagnol\"",
+   "remplace": "dzT(\"subs.langue.es\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"anglais\"",
+   "remplace": "dzT(\"subs.langue.en\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"français\"",
+   "remplace": "dzT(\"subs.langue.fr\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"détection par le moteur\"",
+   "remplace": "dzT(\"subs.langue.auto\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "l\"):\"aucun\"}}\r\n",
+   "remplace": "l\"):dzT(\"subs.trait.aucun\")}}\r\n",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"éteint\"",
+   "remplace": "dzT(\"subs.trait.eteint\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"actif\"",
+   "remplace": "dzT(\"subs.trait.actif\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "e\"):\"aucun\",\r\n ",
+   "remplace": "e\"):dzT(\"subs.trait.aucun\"),\r\n ",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"translucide\"",
+   "remplace": "dzT(\"subs.trait.translucide\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"le karaoké\"",
+   "remplace": "dzT(\"subs.trait.karaoke\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"le contour\"",
+   "remplace": "dzT(\"subs.trait.contour\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"le fond\"",
+   "remplace": "dzT(\"subs.trait.fond\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "ou:\"réglage éteint : \"+\r\n        (SUBS_CHAMP[n.champ]||n.champ)})});",
+   "remplace": "ou:dzT(\"subs.geste.reglage_eteint\",{champ:SUBS_CHAMP[n.champ]||n.champ})})});",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "effect:\"Le fond disparaît et le contour de \"+\r\n          subsFr(subsN(s.outW,3),1)+\" px se met à agir.\"}});",
+   "remplace": "effect:dzT(\"subs.neutre.couper_fond_effet\",{px:subsFr(subsN(s.outW,3),1)})}});",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"rendre le contour visible\"",
+   "remplace": "dzT(\"subs.neutre.couper_fond_but\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "label:\"Couper le fond\"",
+   "remplace": "label:dzT(\"subs.neutre.couper_fond\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "why:\"Mesuré à la gravure : sous un fond, le contour ne sort pas. À 0, 3 \"+\r\n        \"ou 8 px la vidéo est le même fichier au pixel près — libass se sert \"+\r\n        \"de l'épaisseur de contour comme rembourrage de la boîte, et c'est la \"+\r\n        \"marge intérieure du fond qui la règle.\",",
+   "remplace": "why:dzT(\"subs.neutre.contour_pourquoi\"),",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"le fond consomme le contour\"",
+   "remplace": "dzT(\"subs.neutre.contour_court\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"sans effet\"",
+   "remplace": "dzT(\"subs.neutre.sans_effet\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"sans fond ni contour\"",
+   "remplace": "dzT(\"subs.spec.sans_fond_contour\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "a.push(\"contour \"+(rel<.06?\"fin\":rel<.1?\"moyen\":\"épais\"))}",
+   "remplace": "a.push(dzT(\"subs.spec.contour\",{epaisseur:rel<.06?dzT(\"subs.spec.fin\"):rel<.1?dzT(\"subs.spec.moyen\"):dzT(\"subs.spec.epais\")}))}",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "a.push(\"fond \"+Math.round(subsClamp(subsN(ps.bgOpacity,100),0,100))+\" %\");",
+   "remplace": "a.push(dzT(\"subs.spec.fond\",{pct:Math.round(subsClamp(subsN(ps.bgOpacity,100),0,100))}));",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"capitales\"",
+   "remplace": "dzT(\"subs.spec.capitales\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"préréglage\"",
+   "remplace": "dzT(\"subs.preset.repli\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Blanc sans décor\"",
+   "remplace": "dzT(\"subs.preset_effet.nu\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Mono vert sur noir\"",
+   "remplace": "dzT(\"subs.preset_effet.machine\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Bandeau bleu nuit\"",
+   "remplace": "dzT(\"subs.preset_effet.abysse\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Bandeau noir dense\"",
+   "remplace": "dzT(\"subs.preset_effet.sobre\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Feutre manuscrit\"",
+   "remplace": "dzT(\"subs.preset_effet.marqueur\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Cyan lumineux\"",
+   "remplace": "dzT(\"subs.preset_effet.neon\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Bandeau noir léger\"",
+   "remplace": "dzT(\"subs.preset_effet.prime\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "our:\"Blanc, contour épais\",\r\n ",
+   "remplace": "our:dzT(\"subs.preset_effet.blanc_epais\"),\r\n ",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "bre:\"Blanc, contour épais\", co",
+   "remplace": "bre:dzT(\"subs.preset_effet.blanc_epais\"), co",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Capitales crème, contour brun\"",
+   "remplace": "dzT(\"subs.preset_effet.beurre\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Fond plein surligneur\"",
+   "remplace": "dzT(\"subs.preset_effet.surligneur\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Capitales, gros contour\"",
+   "remplace": "dzT(\"subs.preset_effet.capitales_gros\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Capitales jaunes\"",
+   "remplace": "dzT(\"subs.preset_effet.capitales_jaunes\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "aut:\"Blanc, contour fin\",\r\n ",
+   "remplace": "aut:dzT(\"subs.preset_effet.blanc_fin\"),\r\n ",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "ard:\"Blanc, contour fin\",   ",
+   "remplace": "ard:dzT(\"subs.preset_effet.blanc_fin\"),   ",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Nu\"",
+   "remplace": "dzT(\"subs.preset.nu\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Abysse\"",
+   "remplace": "dzT(\"subs.preset.abysse\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Contour sombre\"",
+   "remplace": "dzT(\"subs.preset.contour\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Beurre\"",
+   "remplace": "dzT(\"subs.preset.beurre\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Surligneur\"",
+   "remplace": "dzT(\"subs.preset.surligneur\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Défaut\"",
+   "remplace": "dzT(\"subs.preset.defaut\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "om\",\"bas\",\"⤓\"",
+   "remplace": "om\",dzT(\"subs.align.bas\"),\"⤓\"",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "le\",\"milieu\",\"⇔\"",
+   "remplace": "le\",dzT(\"subs.align.milieu\"),\"⇔\"",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "op\",\"haut\",\"⤒\"",
+   "remplace": "op\",dzT(\"subs.align.haut\"),\"⤒\"",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "ht\",\"droite\",\"⭲\"",
+   "remplace": "ht\",dzT(\"subs.align.droite\"),\"⭲\"",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "er\",\"centré\",\"≡\"",
+   "remplace": "er\",dzT(\"subs.align.centre\"),\"≡\"",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "ft\",\"gauche\",\"⭰\"",
+   "remplace": "ft\",dzT(\"subs.align.gauche\"),\"⭰\"",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"boîte\"",
+   "remplace": "dzT(\"subs.karaoke_mode.boite\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"remplissage\"",
+   "remplace": "dzT(\"subs.karaoke_mode.remplissage\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"fondu\"",
+   "remplace": "dzT(\"subs.anim.fondu\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "ne\",\"aucune\"],[\"",
+   "remplace": "ne\",dzT(\"subs.anim.aucune\")],[\"",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Georgia · sérif\"",
+   "remplace": "dzT(\"subs.police.georgia\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Bahnschrift · condensé\"",
+   "remplace": "dzT(\"subs.police.bahnschrift\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Impact · massif\"",
+   "remplace": "dzT(\"subs.police.impact\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "\"Inter · interface\"",
+   "remplace": "dzT(\"subs.police.inter\")",
+   "groupe": "subs_b"
+  },
+  {
+   "ancre": "(\"plan \"+(i+1))",
+   "remplace": "dzT(\"subs.couverture.plan_n\",{n:i+1})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Largeur du bloc\"",
+   "remplace": "dzT(\"subs.champ.largeur_bloc\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Marge du bord\"",
+   "remplace": "dzT(\"subs.champ.marge_bord\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Décalage\"",
+   "remplace": "dzT(\"subs.champ.decalage\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Marge intérieure\"",
+   "remplace": "dzT(\"subs.champ.marge_interieure\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Contour\"",
+   "remplace": "dzT(\"subs.champ.contour\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"karaoké « boîte » sans fond\"",
+   "remplace": "dzT(\"subs.ecart.boite_sans_fond\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"fond translucide sous le karaoké\"",
+   "remplace": "dzT(\"subs.ecart.fond_translucide\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"marge hors zone sûre\"",
+   "remplace": "dzT(\"subs.ecart.safe_margin\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"largeur hors zone sûre\"",
+   "remplace": "dzT(\"subs.ecart.safe_width\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"ne réduirait rien — il créerait \"+\r\n      neuf.map(function(w){return SUBS_ECLAB[w.cle]||w.cle}).join(\", \")+\r\n      \" en échange. Prenez l'autre geste.\"",
+   "remplace": "dzT(\"subs.plan.ne_reduirait\",{liste:neuf.map(function(w){return SUBS_ECLAB[w.cle]||w.cle}).join(\", \")})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Corriger\"",
+   "remplace": "dzT(\"subs.plan.corriger\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Après : plus aucun écart.\"",
+   "remplace": "dzT(\"subs.plan.plus_aucun_ecart\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Il restera : \"+reste.map",
+   "remplace": "dzT(\"subs.plan.il_restera\")+reste.map",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Cela crée : \"+neuf.map",
+   "remplace": "dzT(\"subs.plan.cela_cree\")+neuf.map",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le réglage « \"+SUBS_CHAMP[n.champ]+\" » cessera d'agir (\"+\r\n      n.court+\").\"",
+   "remplace": "dzT(\"subs.plan.reglage_cesse\",{champ:SUBS_CHAMP[n.champ],court:n.court})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le réglage est appliqué.\"",
+   "remplace": "dzT(\"subs.fx.applique\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le karaoké passe en « boîte ».\"",
+   "remplace": "dzT(\"subs.fx.karaoke_box\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le karaoké passe en « remplissage » : c'est la couleur du mot qui bascule.\"",
+   "remplace": "dzT(\"subs.fx.karaoke_fill\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le karaoké est coupé : les mots ne se surligneront plus un à un.\"",
+   "remplace": "dzT(\"subs.fx.karaoke_coupe\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le karaoké est réactivé.\"",
+   "remplace": "dzT(\"subs.fx.karaoke_active\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le fond est coupé.\"",
+   "remplace": "dzT(\"subs.fx.fond_coupe\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le fond est activé derrière le texte.\"",
+   "remplace": "dzT(\"subs.fx.fond_active\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "return \"L'opacité du fond passe à \"+Math.round(v)+\" %.\"",
+   "remplace": "return dzT(\"subs.fx.opacite\",{v:Math.round(v)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "but:\"obtenir une vraie boîte de karaoké\"}]})",
+   "remplace": "but:dzT(\"subs.style.but_boite\")}]})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Passer en remplissage\"",
+   "remplace": "dzT(\"subs.style.passer_remplissage\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "but:\"obtenir une vraie boîte de karaoké\"},\r\n",
+   "remplace": "but:dzT(\"subs.style.but_boite\")},\r\n",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Activer le fond\"",
+   "remplace": "dzT(\"subs.style.activer_fond\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "but:\"obtenir une vraie boîte de karaoké\"}\r\n ",
+   "remplace": "but:dzT(\"subs.style.but_boite\")}\r\n ",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Activer un fond opaque\"",
+   "remplace": "dzT(\"subs.style.activer_fond_opaque\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"La boîte du mot EST celle du fond (l'ASS n'en a qu'une). Sans fond, \"+\r\n        \"le tag \\\\ko n'a plus de boîte à colorer et retombe sur le contour.\"",
+   "remplace": "dzT(\"subs.style.boite_why\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Karaoké « boîte » sans fond : la gravure colorera le CONTOUR du mot \"+\r\n        \"au lieu de peindre une boîte.\"",
+   "remplace": "dzT(\"subs.style.boite_msg\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "but:\"supprimer les coutures du karaoké\"}]})",
+   "remplace": "but:dzT(\"subs.style.but_coutures\")}]})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Couper le karaoké\"",
+   "remplace": "dzT(\"subs.style.couper_karaoke\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "but:\"supprimer les coutures du karaoké\"},\r\n",
+   "remplace": "but:dzT(\"subs.style.but_coutures\")},\r\n",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "bel:\"Fond opaque\",\r\n ",
+   "remplace": "bel:dzT(\"subs.style.fond_opaque\"),\r\n ",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"L'ASS dessine une boîte PAR groupe de mots ; deux boîtes voisines se \"+\r\n        \"recouvrent, et si elles sont translucides les opacités s'additionnent. \"+\r\n        \"Mesuré à la gravure : une même ligne porte douze niveaux de fond à \"+\r\n        Math.round(op)+\" %, un seul à 100 %.\"",
+   "remplace": "dzT(\"subs.style.translucide_why\",{op:Math.round(op)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Fond translucide (\"+Math.round(op)+\" %) sous le karaoké : la gravure \"+\r\n        \"posera une barre plus sombre à chaque frontière de mot.\"",
+   "remplace": "dzT(\"subs.style.translucide_msg\",{op:Math.round(op)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"La marge du bord passe à \"+SUBS_SAFE_TITLE+\" % : le texte se \"+\r\n          \"pose exactement sur la ligne de zone sûre.\"",
+   "remplace": "dzT(\"subs.zone.marge_effet\",{zone:SUBS_SAFE_TITLE})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Remonter à \"+SUBS_SAFE_TITLE+\" %\"",
+   "remplace": "dzT(\"subs.zone.remonter\",{zone:SUBS_SAFE_TITLE})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "TLE,but:\"tenir dans la zone sûre\",\r\n     ",
+   "remplace": "TLE,but:dzT(\"subs.zone.but\"),\r\n     ",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Marge du bord \"+subsFr(mv,1)+\" % : le bord du texte passe \"+\r\n      \"SOUS la ligne de zone sûre \"+SUBS_SAFE_TITLE+\" % que l'aperçu trace.\"",
+   "remplace": "dzT(\"subs.zone.marge_msg\",{m:subsFr(mv,1),zone:SUBS_SAFE_TITLE})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"La largeur passe à \"+wSafe+\" % : les deux marges latérales \"+\r\n          \"tombent exactement sur la ligne \"+SUBS_SAFE_TITLE+\" %.\"",
+   "remplace": "dzT(\"subs.zone.largeur_effet\",{w:wSafe,zone:SUBS_SAFE_TITLE})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Rentrer dans la zone sûre\"",
+   "remplace": "dzT(\"subs.zone.rentrer\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "afe,but:\"tenir dans la zone sûre\",\r\n     ",
+   "remplace": "afe,but:dzT(\"subs.zone.but\"),\r\n     ",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Largeur du bloc \"+Math.round(subsN(st.width,80))+\" % : ses \"+\r\n      \"bords tombent à \"+subsFr(side,1)+\" % de l'image et sortent donc de la \"+\r\n      \"zone sûre \"+SUBS_SAFE_TITLE+\" % que l'aperçu trace.\"",
+   "remplace": "dzT(\"subs.zone.largeur_msg\",{w:Math.round(subsN(st.width,80)),side:subsFr(side,1),zone:SUBS_SAFE_TITLE})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"remarque\"",
+   "remplace": "dzT(\"subs.sev.info\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"à vérifier\"",
+   "remplace": "dzT(\"subs.sev.warn\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"bloquant\"",
+   "remplace": "dzT(\"subs.sev.err\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Ce geste ne ferme aucun défaut à lui seul.\"",
+   "remplace": "dzT(\"subs.apres.ne_ferme_rien\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Après : plus aucun défaut sur la piste.\"",
+   "remplace": "dzT(\"subs.apres.plus_aucun\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Reste : \"+subsKindList(reste)+\" ailleurs sur la piste.\"",
+   "remplace": "dzT(\"subs.apres.reste\",{liste:subsKindList(reste)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"CRÉE : \"+subsKindList(cree)+\".\"",
+   "remplace": "dzT(\"subs.apres.cree\",{liste:subsKindList(cree)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Éteint : \"+subsKindList(eteint)+\".\"",
+   "remplace": "dzT(\"subs.apres.eteint\",{liste:subsKindList(eteint)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"trop de lignes\"",
+   "remplace": "dzT(\"subs.defaut.lignes\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"réplique trop longue\"",
+   "remplace": "dzT(\"subs.defaut.long\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"réplique trop courte\"",
+   "remplace": "dzT(\"subs.defaut.court\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"lecture trop rapide\"",
+   "remplace": "dzT(\"subs.defaut.vitesse\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"réplique vide\"",
+   "remplace": "dzT(\"subs.defaut.vide\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"intervalle trop court\"",
+   "remplace": "dzT(\"subs.defaut.intervalle\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"chevauchement\"",
+   "remplace": "dzT(\"subs.defaut.chevauche\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "ln.length+\" lignes\")",
+   "remplace": "dzT(\"subs.alerte.lignes_mes\",{n:ln.length}))",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "ln.length+\" lignes affichées (maximum \"+\r\n        maxLines+\").\"",
+   "remplace": "dzT(\"subs.alerte.lignes\",{n:ln.length,max:maxLines})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "subsFr(len,1)+\" s à l'écran : au-delà de \"+\r\n        SUBS_MAX_S+\" s, découpez.\"",
+   "remplace": "dzT(\"subs.alerte.long\",{s:subsFr(len,1),max:SUBS_MAX_S})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "subsFr(len)+\" s : sous \"+subsFr(SUBS_MIN_S)+\r\n        \" s l'œil n'a pas le temps de se poser.\"",
+   "remplace": "dzT(\"subs.alerte.court\",{s:subsFr(len),min:subsFr(SUBS_MIN_S)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "subsFr(cps,1)+\" caractères/seconde : au-delà de \"+\r\n        SUBS_CPS_MAX+\", la lecture décroche.\"",
+   "remplace": "dzT(\"subs.alerte.vitesse\",{cps:subsFr(cps,1),max:SUBS_CPS_MAX})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Segment sans texte : rien ne s'affichera, et il \"+\r\n        \"sortira de l'export.\",null,null,\"0 car.\"",
+   "remplace": "dzT(\"subs.alerte.vide\"),null,null,dzT(\"subs.alerte.vide_mes\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Commence \"+subsFrMs(gap)+\" après la fin \"+\r\n          \"du \"+subsRank(i-1)+\" : sous \"+subsFrMs(SUBS_MIN_GAP)+\" le \"+\r\n          \"changement se verra comme un clignotement.\"",
+   "remplace": "dzT(\"subs.alerte.intervalle\",{ms:subsFrMs(gap),rang:subsRank(i-1),min:subsFrMs(SUBS_MIN_GAP)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Commence \"+subsFrMs(-gap)+\" AVANT la fin \"+\r\n          \"du \"+subsRank(i-1)+\" : les deux s'afficheront ensemble.\"",
+   "remplace": "dzT(\"subs.alerte.chevauche\",{ms:subsFrMs(-gap),rang:subsRank(i-1)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le texte fait \"+ln.length+\" lignes à \"+maxc+\r\n    \" caractères : il ne tient pas en \"+maxLines+\". \"+p.effect",
+   "remplace": "dzT(\"subs.plan.replier_trop\",{n:ln.length,c:maxc,max:maxLines})+\" \"+p.effect",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le texte est replié à \"+maxc+\" caractères par ligne (\"+\r\n      ln.map(function(x){return x.length}).join(\" / \")+\"). Le début, la fin \"+\r\n      \"et le calage par mot ne bougent pas.\"",
+   "remplace": "dzT(\"subs.plan.replier_effet\",{n:maxc,longs:ln.map(function(x){return x.length}).join(\" / \")})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Replier en \"+ln.length+\" lignes\"",
+   "remplace": "dzT(\"subs.plan.replier_en\",{n:ln.length})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le texte est déjà replié au mieux \"+\r\n        \"pour \"+maxc+\" caractères par ligne.\"",
+   "remplace": "dzT(\"subs.plan.replier_deja\",{n:maxc})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le segment devient \"+parts.length+\" sous-titres (\"+durs+\"), coupés sur \"+\r\n    \"les mots avec \"+subsFrMs(SUBS_MIN_GAP)+\" de respiration entre eux. Les \"+\r\n    \"voisins ne bougent pas.\"",
+   "remplace": "dzT(\"subs.plan.decouper_effet\",{n:parts.length,durs:durs,ms:subsFrMs(SUBS_MIN_GAP)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Découper en \"+parts.length+\" sous-titres\"",
+   "remplace": "dzT(\"subs.plan.decouper_en\",{n:parts.length})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le texte tient en un seul bloc de \"+\r\n      maxc+\" caractères : rien à découper.\"",
+   "remplace": "dzT(\"subs.plan.decouper_rien\",{n:maxc})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Impossible sans passer sous \"+subsFr(SUBS_MIN_S)+\" s : le \"+subsRank(i-1)+\r\n    \" dure \"+subsFr(dp)+\" s, le \"+subsRank(i)+\" \"+subsFr(dc)+\" s, et il manque \"+\r\n    subsFrMs(need-tot)+\". Fusionnez-les, ou raccourcissez un texte.\"",
+   "remplace": "dzT(\"subs.plan.separer_impossible\",{min:subsFr(SUBS_MIN_S),a:subsRank(i-1),da:subsFr(dp),b:subsRank(i),db:subsFr(dc),ms:subsFrMs(need-tot)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le \"+subsRank(i-1)+\" et le \"+subsRank(i)+\" deviennent un seul \"+\r\n      \"sous-titre de \"+subsFr(md)+\" s. Le texte est mis bout à bout, le \"+\r\n      \"calage par mot est refait.\"",
+   "remplace": "dzT(\"subs.plan.fusionner_effet\",{a:subsRank(i-1),b:subsRank(i),s:subsFr(md)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Fusionner les deux\"",
+   "remplace": "dzT(\"subs.plan.fusionner\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le \"+subsRank(i-1)+\" perd \"+subsFrMs(tp)+\" à la fin, le \"+subsRank(i)+\r\n      \" \"+subsFrMs(tc)+\" au début. Écart final \"+subsFrMs(SUBS_MIN_GAP)+\r\n      \", et les deux restent au-dessus de \"+subsFr(SUBS_MIN_S)+\" s.\"",
+   "remplace": "dzT(\"subs.plan.separer_effet\",{a:subsRank(i-1),ta:subsFrMs(tp),b:subsRank(i),tb:subsFrMs(tc),gap:subsFrMs(SUBS_MIN_GAP),min:subsFr(SUBS_MIN_S)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Séparer de \"+subsFrMs(SUBS_MIN_GAP)",
+   "remplace": "dzT(\"subs.plan.separer_de\",{ms:subsFrMs(SUBS_MIN_GAP)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"La frontière est déjà assez large.\"",
+   "remplace": "dzT(\"subs.plan.frontiere_large\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Pas de voisin avant ce segment.\"",
+   "remplace": "dzT(\"subs.plan.pas_de_voisin\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Étirer à \"+subsFr(got)+\" s\"",
+   "remplace": "dzT(\"subs.plan.etirer_a\",{s:subsFr(got)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\" Il faudrait \"+subsFr(want)+\" s : le voisin ne laisse pas plus. \"+\r\n      \"Le problème sera réduit, pas effacé.\"",
+   "remplace": "\" \"+dzT(\"subs.plan.il_faudrait\",{s:subsFr(want)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Aucun voisin ne bouge.\"",
+   "remplace": "dzT(\"subs.plan.aucun_voisin\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le segment prend \"+bits.join(\" et \")+\". Aucun voisin ne bouge.\"",
+   "remplace": "dzT(\"subs.plan.prend\",{bits:bits.join(dzT(\"subs.plan.et\"))})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "subsFrMs(tb)+\" de silence avant\"",
+   "remplace": "dzT(\"subs.plan.silence_avant\",{ms:subsFrMs(tb)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "subsFrMs(ta)+\" de silence après\"",
+   "remplace": "dzT(\"subs.plan.silence_apres\",{ms:subsFrMs(ta)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Aucun silence disponible : \"+why+\r\n      \". Raccourcissez le texte, ou fusionnez avec le voisin.\"",
+   "remplace": "dzT(\"subs.plan.aucun_silence\",{why:why})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"le segment finit déjà avec la vidéo\"",
+   "remplace": "dzT(\"subs.plan.finit_avec_video\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"le \"+subsRank(i+1)+\" commence \"+subsFrMs(Math.max(0,list[i+1].start-s.end))+\r\n       \" après la fin de celui-ci (plancher \"+subsFrMs(SUBS_MIN_GAP)+\")\"",
+   "remplace": "dzT(\"subs.plan.voisin_commence\",{rang:subsRank(i+1),ms:subsFrMs(Math.max(0,list[i+1].start-s.end)),min:subsFrMs(SUBS_MIN_GAP)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Décale les \"+(list.length-i-1)+\" sous-titres suivants de \"+\r\n        subsFrMs(deficit)+\". Leur texte ne suivra plus la voix — à ne faire \"+\r\n        \"que si le montage suit.\"",
+   "remplace": "dzT(\"subs.plan.decale_suivants\",{n:list.length-i-1,ms:subsFrMs(deficit)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Étirer à \"+subsFr(want)+\" s en décalant la suite\"",
+   "remplace": "dzT(\"subs.plan.etirer_decaler\",{s:subsFr(want)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Décaler les suivants sortirait le dernier \"+\r\n        \"sous-titre de la vidéo (\"+subsFrMs(lastEnd-dur)+\" de trop).\"",
+   "remplace": "dzT(\"subs.plan.decaler_sortirait\",{trop:subsFrMs(lastEnd-dur)})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Le segment dure déjà assez longtemps.\"",
+   "remplace": "dzT(\"subs.plan.etirer_assez\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "children:\"« \"+label+\" » \"}",
+   "remplace": "children:dzT(\"subs.geste.cite\",{label:label})}",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "children:\"pour \"+o.but+\" — \"}",
+   "remplace": "children:dzT(\"subs.geste.pour\",{but:o.but})}",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "(o.but?\"Objectif : \"+o.but+\".\\n\":\"\")",
+   "remplace": "(o.but?dzT(\"subs.geste.objectif\",{but:o.but})+\"\\n\":\"\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Acquitter — \"+String(o.label||\"\")",
+   "remplace": "dzT(\"subs.geste.acquitter\",{label:String(o.label||\"\")})",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "dit:\"Ce geste n'écrit RIEN dans le fichier livré : il \"+\r\n    \"acquitte l'alerte et laisse une trace révocable dans le verdict.\"}};",
+   "remplace": "dit:dzT(\"subs.geste.ack_dit\")}};",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Ce geste ÉCRIT dans le fichier livré.\"",
+   "remplace": "dzT(\"subs.geste.fix_dit\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "return \"n°\"+(i+1)}",
+   "remplace": "return dzT(\"subs.rang.n\",{n:i+1})}",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Réseaux sociaux\"",
+   "remplace": "dzT(\"subs.normes.reseaux\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Netflix (français)\"",
+   "remplace": "dzT(\"subs.normes.netflix\")",
+   "groupe": "subs_a"
+  },
+  {
+   "ancre": "\"Diffusion FR / EBU\"",
+   "remplace": "dzT(\"subs.normes.ebu\")",
+   "groupe": "subs_a"
+  }
+ ],
+ "gardes": [
+  {
+   "cible": "dialogue",
+   "ligne": 86,
+   "texte": "\"input, button\"",
+   "raison": "sélecteur CSS",
+   "groupe": "dialogue"
+  },
+  {
+   "cible": "dialogue",
+   "ligne": 82,
+   "texte": "\"Enter\"",
+   "raison": "valeur de touche (ev.key) comparée",
+   "groupe": "dialogue"
+  },
+  {
+   "cible": "dialogue",
+   "ligne": 83,
+   "texte": "\"Escape\"",
+   "raison": "valeur de touche (ev.key) comparée",
+   "groupe": "dialogue"
+  },
+  {
+   "cible": "dialogue",
+   "ligne": 84,
+   "texte": "\"Tab\"",
+   "raison": "valeur de touche (ev.key) comparée",
+   "groupe": "dialogue"
+  },
+  {
+   "cible": "subs",
+   "ligne": 94,
+   "texte": "\"réponse non JSON\"",
+   "raison": "message d'erreur interne de subsJson : les appelants l'avalent, jamais affiché",
+   "groupe": "subs_a"
+  },
+  {
+   "cible": "subs",
+   "ligne": 106,
+   "texte": "\"(vide)\"",
+   "raison": "label d'un clip vide, écrit dans le projet enregistré (stocké)",
+   "groupe": "subs_a"
+  },
+  {
+   "cible": "subs",
+   "ligne": 662,
+   "texte": "\"lignes\"",
+   "raison": "kind d'avertissement, comparé et clé de SUBS_KINDLAB",
+   "groupe": "subs_a"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1017,
+   "texte": "\"sans\"",
+   "raison": "état de couverture d'un plan, comparé (p.etat===\"sans\")",
+   "groupe": "subs_a"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1028,
+   "texte": "\"sans\"",
+   "raison": "état de couverture d'un plan, comparé (p.etat===\"sans\")",
+   "groupe": "subs_a"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1185,
+   "texte": "\"Courier New · mono\"",
+   "raison": "libellé de police qui se lit pareil en anglais",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1191,
+   "texte": "\"pop\"",
+   "raison": "clé d'animation stockée dans le style (et libellé identique en anglais)",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1191,
+   "texte": "\"pop\"",
+   "raison": "clé d'animation stockée dans le style (et libellé identique en anglais)",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1211,
+   "texte": "\"pop\"",
+   "raison": "clé d'animation stockée dans le style (et libellé identique en anglais)",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1219,
+   "texte": "\"pop\"",
+   "raison": "clé d'animation stockée dans le style (et libellé identique en anglais)",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1235,
+   "texte": "\"pop\"",
+   "raison": "clé d'animation stockée dans le style (et libellé identique en anglais)",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1216,
+   "texte": "\"Pop Art\"",
+   "raison": "nom de préréglage identique en anglais",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1232,
+   "texte": "\"Prime\"",
+   "raison": "nom de préréglage identique en anglais",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1240,
+   "texte": "\"Machine\"",
+   "raison": "nom de préréglage identique en anglais",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1384,
+   "texte": "\"opaque\"",
+   "raison": "valeur de trait affichée, identique en anglais",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1533,
+   "texte": "\"auto\"",
+   "raison": "code de langue envoyé au serveur et comparé (lang===\"auto\")",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1697,
+   "texte": "\"auto\"",
+   "raison": "code de langue envoyé au serveur et comparé (lang===\"auto\")",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1561,
+   "texte": "\"le la les de des du un une et est en que qui dans pour pas sur au aux \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1562,
+   "texte": "\"ce cette ces avec plus je tu il elle nous vous ils elles mais ou donc \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1563,
+   "texte": "\"son sa ses mon ma mes tout tous fait être avoir cest ny na quil\"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1564,
+   "texte": "\"the of and to a in is it you that he was for on are with as his they i \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1565,
+   "texte": "\"be this have from or one had by but not what all were we when your can \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1566,
+   "texte": "\"there my been if would about who its did get like just dont im thats\"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1567,
+   "texte": "\"el la los las de del un una y es en que no se por con para su al lo \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1568,
+   "texte": "\"como más pero sus le ya o este sí porque esta entre cuando muy sin \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1569,
+   "texte": "\"sobre también me hasta hay donde han quien\"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1570,
+   "texte": "\"der die das den dem des ein eine und ist in zu von mit auf für nicht \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1571,
+   "texte": "\"auch es sich als an werden aus er hat dass sie nach bei um noch wie \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1572,
+   "texte": "\"über nur oder aber vor zum zur ich wir\"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1573,
+   "texte": "\"il lo la i gli le di del della un una e è in che non per con su come \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1574,
+   "texte": "\"da si sono ma anche più ci se al alla nel questo questa loro suo mi ti \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1575,
+   "texte": "\"ho hanno essere fare quando perché\"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1576,
+   "texte": "\"o a os as de do da dos das um uma e é em que não para com por se mais \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1577,
+   "texte": "\"como mas ao à no na você eu ele ela nós eles isso este esta seu sua \"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1578,
+   "texte": "\"quando porque muito já também até\"",
+   "raison": "mots-outils comparés au texte",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1181,
+   "texte": "\"Inter\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1200,
+   "texte": "\"Inter\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1220,
+   "texte": "\"Inter\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1228,
+   "texte": "\"Inter\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1236,
+   "texte": "\"Inter\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1244,
+   "texte": "\"Inter\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1271,
+   "texte": "\"Inter\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1455,
+   "texte": "\"Inter\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1181,
+   "texte": "\"Segoe UI\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1181,
+   "texte": "\"Segoe UI\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1181,
+   "texte": "\"Arial\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1181,
+   "texte": "\"Arial\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1182,
+   "texte": "\"Impact\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1216,
+   "texte": "\"Impact\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1182,
+   "texte": "\"Bahnschrift\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1232,
+   "texte": "\"Bahnschrift\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1183,
+   "texte": "\"Franklin Gothic Medium\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1183,
+   "texte": "\"Franklin Gothic\"",
+   "raison": "nom de police (libellé = nom propre)",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1183,
+   "texte": "\"Georgia\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1224,
+   "texte": "\"Georgia\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1184,
+   "texte": "\"Trebuchet MS\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1184,
+   "texte": "\"Trebuchet MS\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1184,
+   "texte": "\"Verdana\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1184,
+   "texte": "\"Verdana\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1184,
+   "texte": "\"Tahoma\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1184,
+   "texte": "\"Tahoma\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1185,
+   "texte": "\"Courier New\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1240,
+   "texte": "\"Courier New\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1185,
+   "texte": "\"Comic Sans MS\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1185,
+   "texte": "\"Comic Sans MS\"",
+   "raison": "nom de police",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1451,
+   "texte": "\"bebas neue\"",
+   "raison": "clé de table des hauteurs de ligne (famille en minuscules)",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1452,
+   "texte": "\"press start 2p\"",
+   "raison": "clé de table des hauteurs de ligne (famille en minuscules)",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1452,
+   "texte": "\"ibm plex sans\"",
+   "raison": "clé de table des hauteurs de ligne (famille en minuscules)",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1440,
+   "texte": "\"') format('truetype');font-display:swap}\\n\"",
+   "raison": "CSS @font-face",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1752,
+   "texte": "\"sub-btn sub-alertbtn\"",
+   "raison": "classes CSS",
+   "groupe": "subs_b"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1967,
+   "texte": "\"', sans-serif\"",
+   "raison": "police de repli CSS (fontFamily)",
+   "groupe": "subs_c"
+  },
+  {
+   "cible": "subs",
+   "ligne": 2189,
+   "texte": "\"', sans-serif\"",
+   "raison": "police de repli CSS (fontFamily)",
+   "groupe": "subs_c"
+  },
+  {
+   "cible": "subs",
+   "ligne": 2604,
+   "texte": "\"sub-btn sub-reset\"",
+   "raison": "classes CSS",
+   "groupe": "subs_c"
+  },
+  {
+   "cible": "subs",
+   "ligne": 1924,
+   "texte": "\"Escape\"",
+   "raison": "nom de touche comparé (e.key)",
+   "groupe": "subs_c"
+  },
+  {
+   "cible": "subs",
+   "ligne": 2754,
+   "texte": "\"Enter\"",
+   "raison": "nom de touche comparé (e.key)",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 2806,
+   "texte": "\"Enter\"",
+   "raison": "nom de touche comparé (e.key)",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 2868,
+   "texte": "\"sub-iconbtn sub-del\"",
+   "raison": "classes CSS",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 2921,
+   "texte": "\"sub-btn sub-add\"",
+   "raison": "classes CSS",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 3275,
+   "texte": "\"sub-sel sub-nrmfps\"",
+   "raison": "classes CSS",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 2721,
+   "texte": "\"text/vtt\"",
+   "raison": "type MIME du fichier téléchargé",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 2721,
+   "texte": "\"application/x-subrip\"",
+   "raison": "type MIME du fichier téléchargé",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 2721,
+   "texte": "\"text/plain\"",
+   "raison": "type MIME du fichier téléchargé",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 3249,
+   "texte": "\"perso\"",
+   "raison": "valeur d'option comparée (nomNorme) et clé React",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 3250,
+   "texte": "\"perso\"",
+   "raison": "valeur d'option comparée (nomNorme) et clé React",
+   "groupe": "subs_d"
+  },
+  {
+   "cible": "subs",
+   "ligne": 3660,
+   "texte": "\"pas de job_id\"",
+   "raison": "erreur interne jetée dans la promesse : le rejet affiche sa propre note, jamais ce texte",
+   "groupe": "subs_e"
+  },
+  {
+   "cible": "subs",
+   "ligne": 3739,
+   "texte": "\"sub-iconbtn sub-close\"",
+   "raison": "classes CSS",
+   "groupe": "subs_e"
+  },
+  {
+   "cible": "subs",
+   "ligne": 3767,
+   "texte": "\"bloquantes\"",
+   "raison": "valeur de data-k (attribut lu par le CSS et les bancs)",
+   "groupe": "subs_e"
+  },
+  {
+   "cible": "subs",
+   "ligne": 3891,
+   "texte": "\"sub-trlang sub-trnew\"",
+   "raison": "classes CSS",
+   "groupe": "subs_e"
+  },
+  {
+   "cible": "subs",
+   "ligne": 3960,
+   "texte": "\"sub-btn sub-lgfix\"",
+   "raison": "classes CSS",
+   "groupe": "subs_e"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 172,
+   "texte": "\"en cours\"",
+   "raison": "statut du travail comparé (job.statut === \"en cours\")",
+   "groupe": "transfert"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 182,
+   "texte": "\"en cours\"",
+   "raison": "statut du travail comparé (job.statut === \"en cours\")",
+   "groupe": "transfert"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 197,
+   "texte": "\"en cours\"",
+   "raison": "statut du travail comparé (job.statut === \"en cours\")",
+   "groupe": "transfert"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 225,
+   "texte": "\"en cours\"",
+   "raison": "statut du travail comparé (job.statut === \"en cours\")",
+   "groupe": "transfert"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 173,
+   "texte": "\"démarrage\"",
+   "raison": "phase de départ posée côté écran avant la première réponse du serveur, qui écrit les suivantes",
+   "groupe": "transfert"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 183,
+   "texte": "\"démarrage\"",
+   "raison": "phase de départ posée côté écran avant la première réponse du serveur, qui écrit les suivantes",
+   "groupe": "transfert"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 259,
+   "texte": "\"D:\\\\sauvegardes\"",
+   "raison": "exemple de chemin (placeholder) : un chemin Windows ne se traduit pas",
+   "groupe": "transfert"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 282,
+   "texte": "\"E:\\\\DeepotusVideoGen-Transfert-2026-09-07-1200\"",
+   "raison": "exemple de chemin (placeholder)",
+   "groupe": "transfert"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 262,
+   "texte": "\"le\"",
+   "raison": "clé React d'un élément",
+   "groupe": "transfert"
+  },
+  {
+   "cible": "transfert",
+   "ligne": 110,
+   "texte": "\"width .2s linear\"",
+   "raison": "transition CSS",
+   "groupe": "transfert"
+  }
+ ],
+ "sources": {
+  "transfert": [
+   {
+    "pos": 1956,
+    "avant": "return n + \" o\";",
+    "apres": "return n + \" \" + dzT(\"transfert.octets.o\");",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 1976,
+    "avant": "var u = [\"Ko\", \"Mo\", \"Go\", \"To\"], i = -1;",
+    "apres": "var u = [dzT(\"transfert.octets.ko\"), dzT(\"transfert.octets.mo\"), dzT(\"transfert.octets.go\"), dzT(\"transfert.octets.to\")], i = -1;",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 10148,
+    "avant": "children: p ? p.fichiers + \" fichiers · \" + dztOctets(p.octets) : \"\" }, \"p\")] }, k);",
+    "apres": "children: p ? dzT(\"transfert.commun.fichiers\", {n: p.fichiers}) + \" · \" + dztOctets(p.octets) : \"\" }, \"p\")] }, k);",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 10752,
+    "avant": "\"destination\"",
+    "apres": "dzT(\"transfert.export.destination\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 11758,
+    "avant": "children: dztOctets(d.libre) + \" libres\" }, \"l\")] },",
+    "apres": "children: dzT(\"transfert.export.libres\", {taille: dztOctets(d.libre)}) }, \"l\")] },",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 11939,
+    "avant": "\"aucun volume détecté\"",
+    "apres": "dzT(\"transfert.export.aucun_volume\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 12201,
+    "avant": "\"ou chemin\"",
+    "apres": "dzT(\"transfert.export.ou_chemin\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 12474,
+    "avant": "\"en plus (décoché par défaut)\"",
+    "apres": "dzT(\"transfert.export.en_plus\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 12544,
+    "avant": "\"Journaux\"",
+    "apres": "dzT(\"transfert.lot.journaux\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 12556,
+    "avant": "\"Les journaux de l'application (ils nomment des chemins de cette machine)\"",
+    "apres": "dzT(\"transfert.lot.journaux_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 12660,
+    "avant": "\"Rebuts — corbeilles datées\"",
+    "apres": "dzT(\"transfert.lot.rebuts\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 12701,
+    "avant": "\"Les dossiers rebut_* : ce que vous avez écarté, souvent volumineux\"",
+    "apres": "dzT(\"transfert.lot.rebuts_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 12835,
+    "avant": "children: choisi.fichiers + \" fichiers · \" + dztOctets(choisi.octets)\r\n            + \" — un dossier daté sera créé à la destination, chaque fichier avec son empreinte sha256\" }, \"a\") : null,",
+    "apres": "children: dzT(\"transfert.export.recap\", {n: choisi.fichiers, taille: dztOctets(choisi.octets)}) }, \"a\") : null,",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 13082,
+    "avant": "children: \"Les clés d'API ne partent JAMAIS : le fichier .env, les \"\r\n            + \"journaux et tout ce que l'application sait reconstruire \"\r\n            + \"(caches, aperçus) sont écartés.\" }, \"g\")] }, \"x\"));",
+    "apres": "children: dzT(\"transfert.export.cles\") }, \"g\")] }, \"x\"));",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 13515,
+    "avant": "\"dossier du paquet\"",
+    "apres": "dzT(\"transfert.import.dossier\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 13984,
+    "avant": "\"Lit le manifeste du paquet — rien n'est écrit\"",
+    "apres": "dzT(\"transfert.import.verifier_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 14058,
+    "avant": "\"Vérifier\"",
+    "apres": "dzT(\"transfert.import.verifier\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 14271,
+    "avant": "\"Ce paquet a été exporté avant les empreintes : rien à comparer\"",
+    "apres": "dzT(\"transfert.integrite.sans_empreintes_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 14355,
+    "avant": "\"Relit chaque fichier du paquet et le compare à son empreinte sha256 — rien n'est écrit\"",
+    "apres": "dzT(\"transfert.integrite.paquet_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 14470,
+    "avant": "\"Contrôler l'intégrité\"",
+    "apres": "dzT(\"transfert.integrite.controler\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 14810,
+    "avant": "children: \"créé le \" + apercu.cree_le + \" · machine \"\r\n                + (apercu.machine || \"?\") + \" · version \"\r\n                + (apercu.app_version || \"?\") }, \"d\"),",
+    "apres": "children: dzT(\"transfert.import.origine\", {date: apercu.cree_le, machine: apercu.machine || \"?\",\r\n                  version: apercu.app_version || \"?\"}) }, \"d\"),",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 15041,
+    "avant": "children: apercu.fichiers + \" fichiers · \"\r\n                + dztOctets(apercu.octets)\r\n                + (apercu.empreintes ? \" · \" + apercu.empreintes + \" empreintes\"\r\n                   : \" · sans empreintes (paquet antérieur)\")\r\n                + (apercu.lots && (apercu.lots.journaux || apercu.lots.rebuts)\r\n                   ? \" · avec \" + [\"journaux\", \"rebuts\"].filter(function (k) {\r\n                       return apercu.lots[k]; }).join(\" et \") : \"\") }, \"f\"),",
+    "apres": "children: dzT(\"transfert.commun.fichiers\", {n: apercu.fichiers}) + \" · \"\r\n                + dztOctets(apercu.octets)\r\n                + (apercu.empreintes ? \" · \" + dzT(\"transfert.import.empreintes\", {n: apercu.empreintes})\r\n                   : \" · \" + dzT(\"transfert.import.sans_empreintes\"))\r\n                + (apercu.lots && (apercu.lots.journaux || apercu.lots.rebuts)\r\n                   ? \" · \" + dzT(\"transfert.import.avec\", {lots: [\"journaux\", \"rebuts\"].filter(function (k) {\r\n                       return apercu.lots[k]; }).map(function (k) { return dzT(\"transfert.lot.nom_\" + k); })\r\n                       .join(dzT(\"transfert.import.et\"))}) : \"\") }, \"f\"),",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 15802,
+    "avant": "\"aucun enregistrement\"",
+    "apres": "dzT(\"transfert.import.aucun_enregistrement\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 15906,
+    "avant": "children: \"L'import AJOUTE : ce que cette machine possède déjà n'est \"\r\n            + \"ni écrasé ni effacé. Les chemins de la machine d'origine sont \"\r\n            + \"ré-ancrés sur cette installation.\" }, \"g\")] }, \"i\"));",
+    "apres": "children: dzT(\"transfert.import.ajoute\") }, \"g\")] }, \"i\"));",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 16315,
+    "avant": "children: echec ? \"échec\" : fini ? \"terminé\" : \"en cours\" }, \"e\"),",
+    "apres": "children: echec ? dzT(\"transfert.travail.echec\") : fini ? dzT(\"transfert.travail.termine\") : dzT(\"transfert.travail.en_cours\") }, \"e\"),",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 16535,
+    "avant": "+ (et.total ? \" · \" + et.fait + \"/\" + et.total + \" fichiers\" : \"\")",
+    "apres": "+ (et.total ? \" · \" + dzT(\"transfert.travail.progression\", {fait: et.fait, total: et.total}) : \"\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 17366,
+    "avant": "children: res ? (res.ok ? \"Intégrité vérifiée : \" + res.verifies\r\n                      + \" fichiers relus, empreintes identiques.\"\r\n                    : res.sans_empreintes ? \"Ce paquet n'a pas d'empreintes (exporté avant cette version).\"\r\n                    : \"Abîmés : \" + ((res.divergents || []).join(\", \") || \"aucun\")\r\n                      + \" ; manquants : \" + ((res.manquants || []).join(\", \") || \"aucun\"))\r\n                    : \"\" }, \"t\")",
+    "apres": "children: res ? (res.ok ? dzT(\"transfert.integrite.ok\", {n: res.verifies})\r\n                    : res.sans_empreintes ? dzT(\"transfert.integrite.sans_empreintes\")\r\n                    : dzT(\"transfert.integrite.ko\", {abimes: (res.divergents || []).join(\", \") || dzT(\"transfert.integrite.aucun\"),\r\n                        manquants: (res.manquants || []).join(\", \") || dzT(\"transfert.integrite.aucun\")}))\r\n                    : \"\" }, \"t\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 17926,
+    "avant": "\"Import terminé.\"",
+    "apres": "dzT(\"transfert.travail.import_fini\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 17965,
+    "avant": "\"Export terminé. Le paquet est ici :\"",
+    "apres": "dzT(\"transfert.travail.export_fini\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 18518,
+    "avant": "children: res.fichiers_abimes.length + \" fichier(s) abîmé(s) écarté(s) : \"\r\n                    + res.fichiers_abimes.join(\", \") }, \"a\") : null] }, \"ok\") : null,",
+    "apres": "children: dzT(\"transfert.travail.abimes\", {n: res.fichiers_abimes.length, liste: res.fichiers_abimes.join(\", \")}) }, \"a\") : null] }, \"ok\") : null,",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 18768,
+    "avant": "\"raison non fournie\"",
+    "apres": "dzT(\"transfert.travail.sans_raison\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 19207,
+    "avant": "\"Écrit un dossier daté à la destination choisie\"",
+    "apres": "dzT(\"transfert.export.lancer_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 19267,
+    "avant": "\"Ajoute le contenu du paquet à cette installation\"",
+    "apres": "dzT(\"transfert.import.lancer_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 19357,
+    "avant": "\"Lancer l'export\"",
+    "apres": "dzT(\"transfert.export.lancer\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 19377,
+    "avant": "\"Lancer l'import\"",
+    "apres": "dzT(\"transfert.import.lancer\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 19585,
+    "avant": "\"Relit chaque fichier écrit et le compare à son empreinte sha256\"",
+    "apres": "dzT(\"transfert.integrite.export_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 19671,
+    "avant": "\"Contrôler l'intégrité\"",
+    "apres": "dzT(\"transfert.integrite.controler\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 19784,
+    "avant": "\"Fermer\"",
+    "apres": "dzT(\"commun.action.fermer\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 20063,
+    "avant": "\"Exporter vers une autre machine\"",
+    "apres": "dzT(\"transfert.export.titre\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 20108,
+    "avant": "\"Importer depuis une autre machine\"",
+    "apres": "dzT(\"transfert.import.titre\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 20453,
+    "avant": "\"Exporter vers une autre machine\"",
+    "apres": "dzT(\"transfert.export.titre\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 20504,
+    "avant": "\"Importer depuis une autre machine\"",
+    "apres": "dzT(\"transfert.import.titre\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 20676,
+    "avant": "title: enCours ? \"Transfert en cours — l'interrompre laisserait \"\r\n              + \"un paquet incomplet\" : \"Fermer\",",
+    "apres": "title: enCours ? dzT(\"transfert.travail.ne_pas_fermer\") : dzT(\"commun.action.fermer\"),",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 21272,
+    "avant": "\"Transfert entre machines\"",
+    "apres": "dzT(\"reglages.onglet.transfert\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 21426,
+    "avant": "children: \"Emporte TOUT ce que cette installation a créé — la \"\r\n          + \"bibliothèque et ses provenances, les rendus, la bible, les plans \"\r\n          + \"de communication, les documents vectoriels, les séries de cartes, \"\r\n          + \"les modèles 3D — vers une autre machine où l'application est \"\r\n          + \"installée. Les clés d'API restent ici.\" }, \"d\"),",
+    "apres": "children: dzT(\"transfert.section.intro\") }, \"d\"),",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 21848,
+    "avant": "children: ap.fichiers + \" fichiers · \" + dztOctets(ap.octets)\r\n          + \" à emporter\" }, \"a\") : null,",
+    "apres": "children: dzT(\"transfert.section.apercu\", {n: ap.fichiers, taille: dztOctets(ap.octets)}) }, \"a\") : null,",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 22109,
+    "avant": "\"Écrire un paquet de transfert sur un disque\"",
+    "apres": "dzT(\"transfert.export.bouton_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 22250,
+    "avant": "\"Exporter…\"",
+    "apres": "dzT(\"commun.action.exporter_suite\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 22360,
+    "avant": "\"Reprendre un paquet venu d'une autre machine\"",
+    "apres": "dzT(\"transfert.import.bouton_aide\")",
+    "groupe": "transfert"
+   },
+   {
+    "pos": 22502,
+    "avant": "\"Importer…\"",
+    "apres": "dzT(\"commun.action.importer_suite\")",
+    "groupe": "transfert"
+   }
+  ],
+  "dialogue": [
+   {
+    "pos": 3310,
+    "avant": "  var courant = null;\r\n  function ouvrir(type, message, o) {",
+    "apres": "  var courant = null;\r\n  // t145 : libellés par le runtime dz-i18n (chargé avant cette couche partout) ; repli français s'il manque\r\n  function __dzT(cle, repli) { return typeof window.dzT === \"function\" ? window.dzT(cle) : repli; }\r\n  function ouvrir(type, message, o) {",
+    "groupe": "dialogue"
+   },
+   {
+    "pos": 3844,
+    "avant": "      var titre = o.titre || (type === \"confirmer\" ? \"Confirmer\" : type === \"saisir\" ? \"Saisie\" : \"Information\");",
+    "apres": "      var titre = o.titre || (type === \"confirmer\" ? __dzT(\"dialogue.titre.confirmer\", \"Confirmer\")\r\n        : type === \"saisir\" ? __dzT(\"dialogue.titre.saisie\", \"Saisie\") : __dzT(\"dialogue.titre.information\", \"Information\"));",
+    "groupe": "dialogue"
+   },
+   {
+    "pos": 4000,
+    "avant": "        ? [[\"ok\", o.ok || \"Fermer\", S.ok]]\r\n        : [[\"annuler\", o.annuler || \"Annuler\", \"\"], [\"ok\", o.ok || (danger ? \"Supprimer\" : \"OK\"), danger ? S.danger : S.ok]];",
+    "apres": "        ? [[\"ok\", o.ok || __dzT(\"commun.action.fermer\", \"Fermer\"), S.ok]]\r\n        : [[\"annuler\", o.annuler || __dzT(\"commun.action.annuler\", \"Annuler\"), \"\"],\r\n           [\"ok\", o.ok || (danger ? __dzT(\"commun.action.supprimer\", \"Supprimer\") : __dzT(\"dialogue.bouton.ok\", \"OK\")), danger ? S.danger : S.ok]];",
+    "groupe": "dialogue"
+   }
+  ]
+ },
+ "decalages": {
+  "transfert": 28,
+  "dialogue": 27
+ }
+}

@@ -1,7 +1,7 @@
 {
- "base": "91162fee",
+ "base": "d4c6a2f4",
  "n_editions": 635,
- "n_couches": 174,
+ "n_couches": 177,
  "paires": [
   {
    "ancre": "function X({name:e,size:t=16,style:n}){const o=Sh[e];",
@@ -3245,15 +3245,15 @@
    ]
   },
   {
-   "ancre": ":{glyph:\"✎\",dit:\"Ce",
-   "remplace": ":{glyph:__dzGl(\"dz-etat-grave\"),dit:\"Ce",
+   "ancre": ":{glyph:\"✎\",dit:dzT",
+   "remplace": ":{glyph:__dzGl(\"dz-etat-grave\"),dit:dzT",
    "ids": [
     "montage.tiroir-sous-titres-subs.subs-fam-fix"
    ]
   },
   {
-   "ancre": ":{glyph:\"✓\",dit:\"Ce",
-   "remplace": ":{glyph:__dzGl(\"dz-etat-acquitte\"),dit:\"Ce",
+   "ancre": ":{glyph:\"✓\",dit:dzT",
+   "remplace": ":{glyph:__dzGl(\"dz-etat-acquitte\"),dit:dzT",
    "ids": [
     "montage.tiroir-sous-titres-subs.subs-fam-ack"
    ]
@@ -3385,22 +3385,22 @@
    ]
   },
   {
-   "ancre": "ria-hidden\":!0,children:\"✓\"},\"g\"),\r\n          \"acqu",
-   "remplace": "ria-hidden\":!0,children:__dzGl(\"dz-etat-acquitte\")},\"g\"),\r\n          \"acqu",
+   "ancre": "ria-hidden\":!0,children:\"✓\"},\"g\"),\r\n          dzT(\"",
+   "remplace": "ria-hidden\":!0,children:__dzGl(\"dz-etat-acquitte\")},\"g\"),\r\n          dzT(\"",
    "ids": [
     "montage.tiroir-sous-titres-subs.subs-legende-ack"
    ]
   },
   {
-   "ancre": "\"replier les gestes ▾\"",
-   "remplace": "__dzGlT(\"dz-action-deplier\",\"replier les gestes ▾\",\"▾\")",
+   "ancre": "dzT(\"subs.cov.replier\")",
+   "remplace": "__dzGlT(\"dz-action-deplier\",dzT(\"subs.cov.replier\"),\"▾\")",
    "ids": [
     "montage.tiroir-sous-titres-subs.subs-gestes-replier"
    ]
   },
   {
-   "ancre": "\"traiter \"+subsPl(covBad.length,\"plan\")+\" ▸\"",
-   "remplace": "[\"traiter \"+subsPl(covBad.length,\"plan\"),\" \",__dzGl(\"dz-action-deplier\",\"1em\",{transform:\"rotate(-90deg)\"})]",
+   "ancre": "dzT(\"subs.cov.traiter\",{plans:subsPl(covBad.length,dzT(\"subs.commun.plan\"),dzT(\"subs.commun.plans\"))})",
+   "remplace": "[__dzGlS(dzT(\"subs.cov.traiter\",{plans:subsPl(covBad.length,dzT(\"subs.commun.plan\"),dzT(\"subs.commun.plans\"))}),\"▸\"),\" \",__dzGl(\"dz-action-deplier\",\"1em\",{transform:\"rotate(-90deg)\"})]",
    "ids": [
     "montage.tiroir-sous-titres-subs.subs-gestes-deplier"
    ]
@@ -3413,16 +3413,16 @@
    ]
   },
   {
-   "ancre": "nrmOn?\"replier ▾\":\"régler ▸\"",
-   "remplace": "nrmOn?__dzGlT(\"dz-action-deplier\",\"replier ▾\",\"▾\"):[\"régler \",__dzGl(\"dz-action-deplier\",\"1em\",{transform:\"rotate(-90deg)\"})]",
+   "ancre": "nrmOn?dzT(\"subs.norme.replier\"):dzT(\"subs.norme.regler\")",
+   "remplace": "nrmOn?__dzGlT(\"dz-action-deplier\",dzT(\"subs.norme.replier\"),\"▾\"):[__dzGlS(dzT(\"subs.norme.regler\"),\"▸\"),\" \",__dzGl(\"dz-action-deplier\",\"1em\",{transform:\"rotate(-90deg)\"})]",
    "ids": [
     "montage.tiroir-sous-titres-subs.subs-seuils-replier",
     "montage.tiroir-sous-titres-subs.subs-seuils-regler"
    ]
   },
   {
-   "ancre": "\"redécouper toute la piste \"+(cpsOn?\"▾\":\"▸\")",
-   "remplace": "[\"redécouper toute la piste \",__dzGl(\"dz-action-deplier\",\"1em\",cpsOn?void 0:{transform:\"rotate(-90deg)\"})]",
+   "ancre": "dzT(\"subs.outils.redecouper\")+\" \"+(cpsOn?\"▾\":\"▸\")",
+   "remplace": "[dzT(\"subs.outils.redecouper\"),\" \",__dzGl(\"dz-action-deplier\",\"1em\",cpsOn?void 0:{transform:\"rotate(-90deg)\"})]",
    "ids": [
     "montage.tiroir-sous-titres-subs.subs-redecouper"
    ]
@@ -3432,30 +3432,6 @@
    "remplace": "ose()},children:__dzGl(\"dz-action-fermer\")})]}),\r\n    /* ─",
    "ids": [
     "montage.tiroir-sous-titres-subs.subs-fermer"
-   ]
-  },
-  {
-   "ancre": "dztIcone(modal, 18)",
-   "remplace": "__dzGl(\"dz-nav-transfert\", 18, { display: \"block\" })",
-   "ids": [
-    "reglages.transfert-entre-machines.modal-titre",
-    "reglages.transfert.modale-titre"
-   ]
-  },
-  {
-   "ancre": "dztIcone(\"export\", 16)",
-   "remplace": "__dzGl(\"dz-action-exporter\", 16, { display: \"block\" })",
-   "ids": [
-    "reglages.transfert-entre-machines.exporter",
-    "reglages.transfert.exporter"
-   ]
-  },
-  {
-   "ancre": "dztIcone(\"import\", 16)",
-   "remplace": "__dzGl(\"dz-action-importer\", 16, { display: \"block\" })",
-   "ids": [
-    "reglages.transfert-entre-machines.importer",
-    "reglages.transfert.importer"
    ]
   }
  ],
@@ -4889,6 +4865,42 @@
      "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-ajouter"
     ]
    }
+  ],
+  "transfert": [
+   {
+    "pos": 20402,
+    "avant": "dztIcone(modal, 18)",
+    "apres": "__dzGl(\"dz-nav-transfert\", 18, { display: \"block\" })",
+    "ids": [
+     "reglages.transfert-entre-machines.modal-titre",
+     "reglages.transfert.modale-titre"
+    ]
+   },
+   {
+    "pos": 21887,
+    "avant": "dztIcone(\"export\", 16)",
+    "apres": "__dzGl(\"dz-action-exporter\", 16, { display: \"block\" })",
+    "ids": [
+     "reglages.transfert-entre-machines.exporter",
+     "reglages.transfert.exporter"
+    ]
+   },
+   {
+    "pos": 22152,
+    "avant": "dztIcone(\"import\", 16)",
+    "apres": "__dzGl(\"dz-action-importer\", 16, { display: \"block\" })",
+    "ids": [
+     "reglages.transfert-entre-machines.importer",
+     "reglages.transfert.importer"
+    ]
+   }
   ]
+ },
+ "coeurs": {
+  "montage": 0,
+  "sonvfx": 0,
+  "sfxstudio": 0,
+  "vfxrack": 0,
+  "transfert": 28
  }
 }

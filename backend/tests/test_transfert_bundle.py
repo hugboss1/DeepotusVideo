@@ -162,6 +162,8 @@ shim.write_text(
     "var x={useState:function(v){return [v,function(){}]},"
     " useRef:function(v){return {current:v}},"
     " useEffect:function(f){appels.push('effet')}};\n"
+    # t145 : la couche passe par dzT (traduction L5) — dzT en FRANÇAIS, les attentes du banc restent vraies
+    + AIDE.PRELUDE_DZT
     + src.replace("\r\n", "\n") + "\n"
     "var vue=DzTransfert();\n"
     "function texte(n){ if(n==null||typeof n!=='object')return String(n||'');\n"

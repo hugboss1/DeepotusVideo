@@ -34,14 +34,31 @@ import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
-BASE = "91162fee"                                   # socle G0 (PR #281) + traduction L3 (t143)
+BASE = "d4c6a2f4"                                   # socle G0 (PR #281) + traductions L3 (t143) et L5 (t145)
 REL_BUNDLE = "frontend/dist/assets/index-BEOJX8L5.js"
 TABLE = REPO / "scripts" / "dzglyph_paires.json"
 SAISIE_CLES = REPO / "scripts" / "icones" / "g1_saisie_cles.json"
 SAISIE = REPO / "scripts" / "icones" / "g1_saisie.py"
 COUCHES = {"MONTAGE": "montage.js", "SONVFX": "son-vfx-montage.js", "SFXSTUDIO": "sfxstudio.js",
-           "VFXRACK": "vfxrack.js"}
-MIROIRS = {"TRANSFERT": "transfert.js"}            # sources = bloc du bundle marqueurs compris, sans outil de rafraîchissement
+           "VFXRACK": "vfxrack.js",
+           # t145 : TRANSFERT est devenu une couche rafraîchie (refresh_layer --layer transfert, traduction L5) ; sa
+           # source porte ses propres lignes de marqueurs (le cœur est entre elles, voir coeur())
+           "TRANSFERT": "transfert.js"}
+NOMS = {"MONTAGE": "montage", "SONVFX": "sonvfx", "SFXSTUDIO": "sfxstudio", "VFXRACK": "vfxrack",
+        "TRANSFERT": "transfert"}
+MIROIRS = {}                                        # (TRANSFERT en était un avant t145)
+
+
+def coeur(src: str, tag: str) -> tuple:
+    """(début, fin) du cœur du bloc `tag` dans sa source : entre ses lignes de marqueurs s'il en porte (transfert.js),
+    sinon la source entière ; fins de ligne des bords exclues."""
+    b, e = f"/*__DZ_{tag}_BEGIN__*/", f"/*__DZ_{tag}_END__*/"
+    i, j = (src.index(b) + len(b), src.index(e)) if b in src else (0, len(src))
+    while i < j and src[i] in "\r\n﻿":
+        i += 1
+    while j > i and src[j - 1] in "\r\n":
+        j -= 1
+    return i, j
 
 
 def git_show(rel: str) -> bytes:
@@ -118,14 +135,14 @@ def generer() -> tuple:
                 raise SystemExit(f"[g1] édition à cheval sur le bord du bloc {tag} : {e['ids'][:1]}")
             dans_couche.add(id(e))
         src = git_show("frontend/patches/" + COUCHES[tag]).decode("utf-8")
-        if src.strip("\r\n") != base[i:j]:
+        c0, c1 = coeur(src, tag)
+        if src[c0:c1] != base[i:j]:
             raise SystemExit(f"[g1] la source de base de {tag} ne reconstruit pas son bloc : couche à adopter d'abord")
-        lead = len(src) - len(src.lstrip("\r\n"))
-        sources[tag] = appliquer_positions(src, eds, decal=i - lead)
+        sources[tag] = appliquer_positions(src, eds, decal=i - c0)
     # le bundle intermédiaire = base + couches rafraîchies (même chemin que refresh_layer)
     inter = base
     for tag, (i, j) in sorted(B.items(), key=lambda kv: -kv[1][0]):
-        inter = inter[:i] + sources[tag].strip("\r\n") + inter[j:]
+        inter = inter[:i] + _coeur_txt(sources[tag], tag) + inter[j:]
     # éditions hors couches, appliquées dans l'ordre sur le texte courant, ancre minimale unique
     reste = [e for e in E if id(e) not in dans_couche]
     t = inter
@@ -135,7 +152,7 @@ def generer() -> tuple:
         d = 0
         for tag, (i, j) in B.items():
             if j <= p:
-                d += len(sources[tag].strip("\r\n")) - (j - i)
+                d += len(_coeur_txt(sources[tag], tag)) - (j - i)
         return p + d
     paires = []
     decal = 0
@@ -158,15 +175,17 @@ def generer() -> tuple:
         decal += len(e["apres"]) - len(e["avant"])
         paires.append({"ancre": anc, "remplace": rem, "ids": e["ids"]})
     # les éditions des couches, positions dans la SOURCE de base (CRLF) : de quoi les défaire (bancs, avant_dzglyph)
-    couches = {}
-    nom = {"MONTAGE": "montage", "SONVFX": "sonvfx", "SFXSTUDIO": "sfxstudio", "VFXRACK": "vfxrack"}
+    # « coeurs » : où commence le cœur du bloc dans la source (transfert.js porte ses lignes de marqueurs) — un banc
+    # qui ne tient que le cœur (bloc du bundle) décale les positions d'autant
+    couches, coeurs = {}, {}
     for tag, (i, j) in B.items():
         src = git_show("frontend/patches/" + COUCHES[tag]).decode("utf-8")
-        lead = len(src) - len(src.lstrip("\r\n"))
-        couches[nom[tag]] = [{"pos": e["pos"] - i + lead, "avant": e["avant"], "apres": e["apres"], "ids": e["ids"]}
-                             for e in E if i <= e["pos"] < j]
+        c0 = coeur(src, tag)[0]
+        coeurs[NOMS[tag]] = c0
+        couches[NOMS[tag]] = [{"pos": e["pos"] - i + c0, "avant": e["avant"], "apres": e["apres"], "ids": e["ids"]}
+                              for e in E if i <= e["pos"] < j]
     table = {"base": BASE, "n_editions": len(E), "n_couches": len(E) - len(reste), "paires": paires,
-             "couches": couches}
+             "couches": couches, "coeurs": coeurs}
     # réversibilité exacte (bancs : avant_dzglyph) — défaire à rebours rend le bundle intermédiaire à l'octet
     r = t
     for pr in reversed(paires):
@@ -178,12 +197,22 @@ def generer() -> tuple:
     return sources, table, t
 
 
+def _coeur_txt(src: str, tag: str) -> str:
+    i, j = coeur(src, tag)
+    return src[i:j]
+
+
+def appliquer_bloc_g1(texte: str) -> str:
+    """t145 : la source transfert.js (marqueurs compris) d'avant G1 -> avec G1 (pour i18n_l5_generer)."""
+    return appliquer_couche_g1(texte, "transfert")
+
+
 def appliquer_couche_g1(texte: str, cible: str) -> str:
     """La couche `cible` (montage, sonvfx, sfxstudio, vfxrack — ou son nom de fichier) d'avant G1 -> avec les icônes
     G1, d'après la table consignée (sans relire la saisie). Pour les générateurs i18n (l1, l2, l4), qui réécrivent
     ces sources : leur sortie porte donc aussi G1. Mêmes fins de ligne en sortie qu'en entrée."""
     nom = {"montage.js": "montage", "son-vfx-montage.js": "sonvfx", "sfxstudio.js": "sfxstudio",
-           "vfxrack.js": "vfxrack"}.get(cible, cible)
+           "vfxrack.js": "vfxrack", "transfert.js": "transfert", "TRANSFERT": "transfert"}.get(cible, cible)
     if not TABLE.is_file():
         return texte
     subs = json.loads(TABLE.read_bytes().decode("utf-8")).get("couches", {}).get(nom, [])

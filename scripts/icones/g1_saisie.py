@@ -933,14 +933,15 @@ E([], 'function DzmTbIcon(o){', 'function DzmTbIcon(o){',
 # ═══ S17 — bloc SUBS (tiroir sous-titres ; sa source ne reconstruit plus le bloc : édité par le maillon) ═══════
 E("montage.tiroir-sous-titres-subs.subs-fam-fix", '  fix:{glyph:"✎",dit:', '"✎"', '__dzGl("dz-etat-grave")')
 E("montage.tiroir-sous-titres-subs.subs-fam-ack", '  ack:{glyph:"✓",dit:', '"✓"', '__dzGl("dz-etat-acquitte")')
-for _id, _v, _g, _k in (("subs-ancre-gauche", '["left","gauche","⭰"]', "⭰", "dz-edit-aligner-gauche"),
-                        ("subs-ancre-centre", '["center","centré","≡"]', "≡", "dz-edit-aligner-centre-h"),
-                        ("subs-ancre-droite", '["right","droite","⭲"]', "⭲", "dz-edit-aligner-droite"),
-                        ("subs-ancre-haut", '["top","haut","⤒"]', "⤒", "dz-edit-aligner-haut"),
-                        ("subs-ancre-milieu", '["middle","milieu","⇔"]', "⇔", "dz-edit-aligner-centre-v"),
-                        ("subs-ancre-bas", '["bottom","bas","⤓"]', "⤓", "dz-edit-aligner-bas")):
+# t145 : libellés passés par dzT (traduction L5, posée AVANT G1)
+for _id, _v, _g, _k in (("subs-ancre-gauche", '["left",dzT("subs.align.gauche"),"⭰"]', "⭰", "dz-edit-aligner-gauche"),
+                        ("subs-ancre-centre", '["center",dzT("subs.align.centre"),"≡"]', "≡", "dz-edit-aligner-centre-h"),
+                        ("subs-ancre-droite", '["right",dzT("subs.align.droite"),"⭲"]', "⭲", "dz-edit-aligner-droite"),
+                        ("subs-ancre-haut", '["top",dzT("subs.align.haut"),"⤒"]', "⤒", "dz-edit-aligner-haut"),
+                        ("subs-ancre-milieu", '["middle",dzT("subs.align.milieu"),"⇔"]', "⇔", "dz-edit-aligner-centre-v"),
+                        ("subs-ancre-bas", '["bottom",dzT("subs.align.bas"),"⤓"]', "⤓", "dz-edit-aligner-bas")):
     E("montage.tiroir-sous-titres-subs-onglet-style." + _id, _v, '"%s"' % _g, '__dzGl("%s")' % _k)
-E("montage.tiroir-sous-titres-subs-onglet-style.subs-hors-zone", 'l\'ignore, l\'aperçu aussi.",\r\n      children:readout},"hud")',
+E("montage.tiroir-sous-titres-subs-onglet-style.subs-hors-zone", 'dzT("subs.placement.hud_aide"),\r\n      children:readout},"hud")',
   'children:readout}', 'children:__dzGlT("dz-etat-avertissement",readout,"⚠")}')
 GL("montage.tiroir-sous-titres-subs.subs-module-ouvert", 'className:"sub-mcaret","aria-hidden":!0,children:open?"▾":"▸"}', '"▾"',
    "dz-action-deplier")
@@ -959,23 +960,25 @@ GL("montage.tiroir-sous-titres-subs.subs-supprimer", 'onClick:function(){delAt(s
    "dz-action-supprimer")
 E("montage.tiroir-sous-titres-subs.subs-calc-ack", 'r.jsx("b",{children:"✓ "},"g1")', '"✓ "', '[__dzGl("dz-etat-acquitte")," "]')
 E("montage.tiroir-sous-titres-subs.subs-calc-fix", 'r.jsx("b",{children:"✎ "},"g2")', '"✎ "', '[__dzGl("dz-etat-grave")," "]')
-GL("montage.tiroir-sous-titres-subs.subs-legende-fix", 'children:"✎"},"g"),\r\n          "écrit dans le fichier livré"', '"✎"',
+GL("montage.tiroir-sous-titres-subs.subs-legende-fix", 'children:"✎"},"g"),\r\n          dzT("subs.cov.leg_fix")', '"✎"',
    "dz-etat-grave")
-GL("montage.tiroir-sous-titres-subs.subs-legende-ack", 'children:"✓"},"g"),\r\n          "acquitte : n\'écrit rien', '"✓"',
+GL("montage.tiroir-sous-titres-subs.subs-legende-ack", 'children:"✓"},"g"),\r\n          dzT("subs.cov.leg_ack")', '"✓"',
    "dz-etat-acquitte")
 GL("montage.tiroir-sous-titres-subs.subs-trace", 'children:"✓"},"g"),\r\n        r.jsxs("span",{className:"sub-covigntxt"', '"✓"',
    "dz-etat-acquitte")
-E("montage.tiroir-sous-titres-subs.subs-gestes-replier", 'children:covOpen?"replier les gestes ▾"', '"replier les gestes ▾"',
-  '__dzGlT("dz-action-deplier","replier les gestes ▾","▾")')
-E("montage.tiroir-sous-titres-subs.subs-gestes-deplier", ':"traiter "+subsPl(covBad.length,"plan")+" ▸"}',
-  '"traiter "+subsPl(covBad.length,"plan")+" ▸"',
-  '["traiter "+subsPl(covBad.length,"plan")," ",__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})]')
+T("montage.tiroir-sous-titres-subs.subs-gestes-replier", 'children:covOpen?dzT("subs.cov.replier")', 'dzT("subs.cov.replier")',
+  "dz-action-deplier", "▾")
+# le glyphe « ▸ » du texte traduit est retiré (__dzGlS) : l'icône tournée le remplace, en fin de libellé
+_TRAITER = 'dzT("subs.cov.traiter",{plans:subsPl(covBad.length,dzT("subs.commun.plan"),dzT("subs.commun.plans"))})'
+E("montage.tiroir-sous-titres-subs.subs-gestes-deplier", ':' + _TRAITER + '},', _TRAITER,
+  '[__dzGlS(' + _TRAITER + ',"▸")," ",__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})]')
 E(["montage.tiroir-sous-titres-subs.subs-seuils-replier", "montage.tiroir-sous-titres-subs.subs-seuils-regler"],
-  'children:nrmOn?"replier ▾":"régler ▸"}', 'nrmOn?"replier ▾":"régler ▸"',
-  'nrmOn?__dzGlT("dz-action-deplier","replier ▾","▾"):["régler ",__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})]')
-E("montage.tiroir-sous-titres-subs.subs-redecouper", 'children:"redécouper toute la piste "+(cpsOn?"▾":"▸")}',
-  '"redécouper toute la piste "+(cpsOn?"▾":"▸")',
-  '["redécouper toute la piste ",__dzGl("dz-action-deplier","1em",cpsOn?void 0:{transform:"rotate(-90deg)"})]')
+  'children:nrmOn?dzT("subs.norme.replier"):dzT("subs.norme.regler")}', 'nrmOn?dzT("subs.norme.replier"):dzT("subs.norme.regler")',
+  'nrmOn?__dzGlT("dz-action-deplier",dzT("subs.norme.replier"),"▾"):[__dzGlS(dzT("subs.norme.regler"),"▸")," ",'
+  '__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})]')
+E("montage.tiroir-sous-titres-subs.subs-redecouper", 'children:dzT("subs.outils.redecouper")+" "+(cpsOn?"▾":"▸")}',
+  'dzT("subs.outils.redecouper")+" "+(cpsOn?"▾":"▸")',
+  '[dzT("subs.outils.redecouper")," ",__dzGl("dz-action-deplier","1em",cpsOn?void 0:{transform:"rotate(-90deg)"})]')
 GL("montage.tiroir-sous-titres-subs.subs-fermer", 'if(props.onClose)props.onClose()},children:"✕"})]}),\r\n    /* ── LA LIGNE DES COMPTES',
    '"✕"', "dz-action-fermer")
 

@@ -1,0 +1,145 @@
+"""t145 — transfert : la section « Transfert entre machines » des Réglages (DzTransfert, frontend/patches/transfert.js) :
+aperçu, dialogue d'export (destination, lots en plus), d'import (dossier, Vérifier, Contrôler l'intégrité), suivi du
+travail, verdicts.
+
+Gardés : les statuts du travail ("en cours", "fini", "echec") et la phase de départ ("démarrage") COMPARÉS au statut
+que le serveur renvoie (et.phase est affichée telle que le serveur l'écrit : lot L10) ; les noms de lots
+("journaux", "rebuts") envoyés au serveur — leur affichage passe par dzT ; les exemples de chemin des champs (D:\\…,
+E:\\…) ; les unités d'octets traduites à l'affichage."""
+from outils import L, S, X
+
+CIBLE = "transfert"
+PLAGE = (1, 436)
+
+ENTREES = [
+    # dztOctets : unités
+    S('return n + " o";', 'return n + " " + dzT("transfert.octets.o");', {"transfert.octets.o": ("o", "B", "contexte")}),
+    S('var u = ["Ko", "Mo", "Go", "To"], i = -1;',
+      'var u = [dzT("transfert.octets.ko"), dzT("transfert.octets.mo"), dzT("transfert.octets.go"), dzT("transfert.octets.to")], i = -1;',
+      # contextuelles : « To », « Mo », « Ko » ont d'autres sens ailleurs (la surcouche les ignore, test_i18n_l1 4c)
+      {"transfert.octets.ko": ("Ko", "KB", "contexte"), "transfert.octets.mo": ("Mo", "MB", "contexte"),
+       "transfert.octets.go": ("Go", "GB", "contexte"), "transfert.octets.to": ("To", "TB", "contexte")}),
+
+    # statuts comparés, phase de départ, valeurs envoyées
+    X('"en cours"', "statut du travail comparé (job.statut === \"en cours\")", n=4),
+    X('"démarrage"', "phase de départ posée côté écran avant la première réponse du serveur, qui écrit les suivantes", n=2),
+    X('"D:\\\\sauvegardes"', "exemple de chemin (placeholder) : un chemin Windows ne se traduit pas"),
+    X('"E:\\\\DeepotusVideoGen-Transfert-2026-09-07-1200"', "exemple de chemin (placeholder)"),
+
+    X('"le"', "clé React d'un élément"),
+    X('"width .2s linear"', "transition CSS"),
+
+    # lots en plus
+    S('children: p ? p.fichiers + " fichiers · " + dztOctets(p.octets) : "" }, "p")] }, k);',
+      'children: p ? dzT("transfert.commun.fichiers", {n: p.fichiers}) + " · " + dztOctets(p.octets) : "" }, "p")] }, k);',
+      {"transfert.commun.fichiers": ("{n} fichiers", "{n} files")}),
+    L('"destination"', "transfert.export.destination", "destination", "destination"),
+    S('children: dztOctets(d.libre) + " libres" }, "l")] },',
+      'children: dzT("transfert.export.libres", {taille: dztOctets(d.libre)}) }, "l")] },',
+      {"transfert.export.libres": ("{taille} libres", "{taille} free")}),
+    L('"aucun volume détecté"', "transfert.export.aucun_volume", "aucun volume détecté", "no drive detected"),
+    L('"ou chemin"', "transfert.export.ou_chemin", "ou chemin", "or path"),
+    L('"en plus (décoché par défaut)"', "transfert.export.en_plus", "en plus (décoché par défaut)", "extras (unchecked by default)"),
+    L('"Journaux"', "transfert.lot.journaux", "Journaux", "Logs"),
+    L('"Les journaux de l\'application (ils nomment des chemins de cette machine)"', "transfert.lot.journaux_aide",
+      "Les journaux de l'application (ils nomment des chemins de cette machine)",
+      "The application's logs (they name paths on this machine)"),
+    L('"Rebuts — corbeilles datées"', "transfert.lot.rebuts", "Rebuts — corbeilles datées", "Discards — dated trash folders"),
+    L('"Les dossiers rebut_* : ce que vous avez écarté, souvent volumineux"', "transfert.lot.rebuts_aide",
+      "Les dossiers rebut_* : ce que vous avez écarté, souvent volumineux",
+      "The rebut_* folders: what you discarded, often large"),
+    S('children: choisi.fichiers + " fichiers · " + dztOctets(choisi.octets)\r\n            + " — un dossier daté sera créé à la destination, chaque fichier avec son empreinte sha256" }, "a") : null,',
+      'children: dzT("transfert.export.recap", {n: choisi.fichiers, taille: dztOctets(choisi.octets)}) }, "a") : null,',
+      {"transfert.export.recap": ("{n} fichiers · {taille} — un dossier daté sera créé à la destination, chaque fichier avec son empreinte sha256",
+                                  "{n} files · {taille} — a dated folder will be created at the destination, each file with its sha256 checksum")}),
+    S('children: "Les clés d\'API ne partent JAMAIS : le fichier .env, les "\r\n            + "journaux et tout ce que l\'application sait reconstruire "\r\n            + "(caches, aperçus) sont écartés." }, "g")] }, "x"));',
+      'children: dzT("transfert.export.cles") }, "g")] }, "x"));',
+      {"transfert.export.cles": ("Les clés d'API ne partent JAMAIS : le fichier .env, les journaux et tout ce que l'application sait reconstruire (caches, aperçus) sont écartés.",
+                                 "API keys NEVER leave: the .env file, the logs and everything the application can rebuild (caches, previews) are left out.")}),
+
+    # import
+    L('"dossier du paquet"', "transfert.import.dossier", "dossier du paquet", "package folder"),
+    L('"Lit le manifeste du paquet — rien n\'est écrit"', "transfert.import.verifier_aide",
+      "Lit le manifeste du paquet — rien n'est écrit", "Reads the package manifest — nothing is written"),
+    L('"Vérifier"', "transfert.import.verifier", "Vérifier", "Check"),
+    L('"Ce paquet a été exporté avant les empreintes : rien à comparer"', "transfert.integrite.sans_empreintes_aide",
+      "Ce paquet a été exporté avant les empreintes : rien à comparer",
+      "This package was exported before checksums existed: nothing to compare"),
+    L('"Relit chaque fichier du paquet et le compare à son empreinte sha256 — rien n\'est écrit"', "transfert.integrite.paquet_aide",
+      "Relit chaque fichier du paquet et le compare à son empreinte sha256 — rien n'est écrit",
+      "Rereads every file of the package and compares it with its sha256 checksum — nothing is written"),
+    L('"Contrôler l\'intégrité"', "transfert.integrite.controler", "Contrôler l'intégrité", "Check integrity", n=2),
+    S('children: "créé le " + apercu.cree_le + " · machine "\r\n                + (apercu.machine || "?") + " · version "\r\n                + (apercu.app_version || "?") }, "d"),',
+      'children: dzT("transfert.import.origine", {date: apercu.cree_le, machine: apercu.machine || "?",\r\n                  version: apercu.app_version || "?"}) }, "d"),',
+      {"transfert.import.origine": ("créé le {date} · machine {machine} · version {version}",
+                                    "created {date} · machine {machine} · version {version}")}),
+    S('children: apercu.fichiers + " fichiers · "\r\n                + dztOctets(apercu.octets)\r\n                + (apercu.empreintes ? " · " + apercu.empreintes + " empreintes"\r\n                   : " · sans empreintes (paquet antérieur)")\r\n                + (apercu.lots && (apercu.lots.journaux || apercu.lots.rebuts)\r\n                   ? " · avec " + ["journaux", "rebuts"].filter(function (k) {\r\n                       return apercu.lots[k]; }).join(" et ") : "") }, "f"),',
+      'children: dzT("transfert.commun.fichiers", {n: apercu.fichiers}) + " · "\r\n                + dztOctets(apercu.octets)\r\n                + (apercu.empreintes ? " · " + dzT("transfert.import.empreintes", {n: apercu.empreintes})\r\n                   : " · " + dzT("transfert.import.sans_empreintes"))\r\n                + (apercu.lots && (apercu.lots.journaux || apercu.lots.rebuts)\r\n                   ? " · " + dzT("transfert.import.avec", {lots: ["journaux", "rebuts"].filter(function (k) {\r\n                       return apercu.lots[k]; }).map(function (k) { return dzT("transfert.lot.nom_" + k); })\r\n                       .join(dzT("transfert.import.et"))}) : "") }, "f"),',
+      {"transfert.import.empreintes": ("{n} empreintes", "{n} checksums"),
+       "transfert.import.sans_empreintes": ("sans empreintes (paquet antérieur)", "no checksums (older package)"),
+       "transfert.import.avec": ("avec {lots}", "with {lots}"),
+       "transfert.import.et": (" et ", " and "),
+       "transfert.lot.nom_journaux": ("journaux", "logs"),
+       "transfert.lot.nom_rebuts": ("rebuts", "discards")}),
+    L('"aucun enregistrement"', "transfert.import.aucun_enregistrement", "aucun enregistrement", "no records"),
+    S('children: "L\'import AJOUTE : ce que cette machine possède déjà n\'est "\r\n            + "ni écrasé ni effacé. Les chemins de la machine d\'origine sont "\r\n            + "ré-ancrés sur cette installation." }, "g")] }, "i"));',
+      'children: dzT("transfert.import.ajoute") }, "g")] }, "i"));',
+      {"transfert.import.ajoute": ("L'import AJOUTE : ce que cette machine possède déjà n'est ni écrasé ni effacé. Les chemins de la machine d'origine sont ré-ancrés sur cette installation.",
+                                   "Import ADDS: nothing this machine already has is overwritten or deleted. Paths from the original machine are re-anchored on this installation.")}),
+
+    # suivi du travail
+    S('children: echec ? "échec" : fini ? "terminé" : "en cours" }, "e"),',
+      'children: echec ? dzT("transfert.travail.echec") : fini ? dzT("transfert.travail.termine") : dzT("transfert.travail.en_cours") }, "e"),',
+      {"transfert.travail.echec": ("échec", "failed"), "transfert.travail.termine": ("terminé", "done"),
+       "transfert.travail.en_cours": ("en cours", "in progress")}),
+    S('+ (et.total ? " · " + et.fait + "/" + et.total + " fichiers" : "")',
+      '+ (et.total ? " · " + dzT("transfert.travail.progression", {fait: et.fait, total: et.total}) : "")',
+      {"transfert.travail.progression": ("{fait}/{total} fichiers", "{fait}/{total} files")}),
+    S('children: res ? (res.ok ? "Intégrité vérifiée : " + res.verifies\r\n                      + " fichiers relus, empreintes identiques."\r\n                    : res.sans_empreintes ? "Ce paquet n\'a pas d\'empreintes (exporté avant cette version)."\r\n                    : "Abîmés : " + ((res.divergents || []).join(", ") || "aucun")\r\n                      + " ; manquants : " + ((res.manquants || []).join(", ") || "aucun"))\r\n                    : "" }, "t")',
+      'children: res ? (res.ok ? dzT("transfert.integrite.ok", {n: res.verifies})\r\n                    : res.sans_empreintes ? dzT("transfert.integrite.sans_empreintes")\r\n                    : dzT("transfert.integrite.ko", {abimes: (res.divergents || []).join(", ") || dzT("transfert.integrite.aucun"),\r\n                        manquants: (res.manquants || []).join(", ") || dzT("transfert.integrite.aucun")}))\r\n                    : "" }, "t")',
+      {"transfert.integrite.ok": ("Intégrité vérifiée : {n} fichiers relus, empreintes identiques.",
+                                  "Integrity verified: {n} files reread, checksums identical."),
+       "transfert.integrite.sans_empreintes": ("Ce paquet n'a pas d'empreintes (exporté avant cette version).",
+                                               "This package has no checksums (exported before this version)."),
+       "transfert.integrite.ko": ("Abîmés : {abimes} ; manquants : {manquants}", "Damaged: {abimes}; missing: {manquants}"),
+       "transfert.integrite.aucun": ("aucun", "none")}),
+    L('"Import terminé."', "transfert.travail.import_fini", "Import terminé.", "Import finished."),
+    L('"Export terminé. Le paquet est ici :"', "transfert.travail.export_fini", "Export terminé. Le paquet est ici :",
+      "Export finished. The package is here:"),
+    S('children: res.fichiers_abimes.length + " fichier(s) abîmé(s) écarté(s) : "\r\n                    + res.fichiers_abimes.join(", ") }, "a") : null] }, "ok") : null,',
+      'children: dzT("transfert.travail.abimes", {n: res.fichiers_abimes.length, liste: res.fichiers_abimes.join(", ")}) }, "a") : null] }, "ok") : null,',
+      {"transfert.travail.abimes": ("{n} fichier(s) abîmé(s) écarté(s) : {liste}", "{n} damaged file(s) left out: {liste}")}),
+    L('"raison non fournie"', "transfert.travail.sans_raison", "raison non fournie", "no reason given"),
+
+    # pied, en-tête
+    L('"Écrit un dossier daté à la destination choisie"', "transfert.export.lancer_aide",
+      "Écrit un dossier daté à la destination choisie", "Writes a dated folder at the chosen destination"),
+    L('"Ajoute le contenu du paquet à cette installation"', "transfert.import.lancer_aide",
+      "Ajoute le contenu du paquet à cette installation", "Adds the package contents to this installation"),
+    L('"Lancer l\'export"', "transfert.export.lancer", "Lancer l'export", "Start export"),
+    L('"Lancer l\'import"', "transfert.import.lancer", "Lancer l'import", "Start import"),
+    L('"Relit chaque fichier écrit et le compare à son empreinte sha256"', "transfert.integrite.export_aide",
+      "Relit chaque fichier écrit et le compare à son empreinte sha256",
+      "Rereads every written file and compares it with its sha256 checksum"),
+    L('"Fermer"', "commun.action.fermer", "Fermer", "Close"),          # le bouton du pied (le titre de × : plus bas)
+    L('"Exporter vers une autre machine"', "transfert.export.titre", "Exporter vers une autre machine", "Export to another machine", n=2),
+    L('"Importer depuis une autre machine"', "transfert.import.titre", "Importer depuis une autre machine", "Import from another machine", n=2),
+    S('title: enCours ? "Transfert en cours — l\'interrompre laisserait "\r\n              + "un paquet incomplet" : "Fermer",',
+      'title: enCours ? dzT("transfert.travail.ne_pas_fermer") : dzT("commun.action.fermer"),',
+      {"transfert.travail.ne_pas_fermer": ("Transfert en cours — l'interrompre laisserait un paquet incomplet",
+                                           "Transfer in progress — stopping it would leave an incomplete package")}),
+    L('"Transfert entre machines"', "reglages.onglet.transfert", "Transfert entre machines", "Machine transfer"),
+    S('children: "Emporte TOUT ce que cette installation a créé — la "\r\n          + "bibliothèque et ses provenances, les rendus, la bible, les plans "\r\n          + "de communication, les documents vectoriels, les séries de cartes, "\r\n          + "les modèles 3D — vers une autre machine où l\'application est "\r\n          + "installée. Les clés d\'API restent ici." }, "d"),',
+      'children: dzT("transfert.section.intro") }, "d"),',
+      {"transfert.section.intro": ("Emporte TOUT ce que cette installation a créé — la bibliothèque et ses provenances, les rendus, la bible, les plans de communication, les documents vectoriels, les séries de cartes, les modèles 3D — vers une autre machine où l'application est installée. Les clés d'API restent ici.",
+                           "Takes EVERYTHING this installation created — the library and its provenance, renders, the bible, communication plans, vector documents, card series, 3D models — to another machine where the application is installed. API keys stay here.")}),
+    S('children: ap.fichiers + " fichiers · " + dztOctets(ap.octets)\r\n          + " à emporter" }, "a") : null,',
+      'children: dzT("transfert.section.apercu", {n: ap.fichiers, taille: dztOctets(ap.octets)}) }, "a") : null,',
+      {"transfert.section.apercu": ("{n} fichiers · {taille} à emporter", "{n} files · {taille} to take")}),
+    L('"Écrire un paquet de transfert sur un disque"', "transfert.export.bouton_aide",
+      "Écrire un paquet de transfert sur un disque", "Write a transfer package to a drive"),
+    L('"Exporter…"', "commun.action.exporter_suite", "Exporter…", "Export…"),
+    L('"Reprendre un paquet venu d\'une autre machine"', "transfert.import.bouton_aide",
+      "Reprendre un paquet venu d'une autre machine", "Take in a package from another machine"),
+    L('"Importer…"', "commun.action.importer_suite", "Importer…", "Import…"),
+]

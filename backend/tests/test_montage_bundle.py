@@ -1007,9 +1007,9 @@ except BaseException as _e:          # SystemExit compris : il n'hérite pas d'E
     print("\n=== 0 passed, 1 failed ===")
     sys.exit(1)
 # t144 : les blocs SONVFX / SFXSTUDIO / VFXRACK passent par dzT (traduction L4) ; le banc lit leurs textes français
-# d'avant la traduction (test_i18n_l4 garantit qu'elle se défait exactement)
-# t143 : la couche montage.js passe par dzT (traduction L3) ; le banc lit son texte français d'avant la traduction
-s = AIDE.avant_i18n_l3(AIDE.avant_i18n_l4(BUNDLE.read_bytes().decode("utf-8-sig")))
+# d'avant la traduction (test_i18n_l4 garantit qu'elle se défait exactement) ; t145 : le bloc SUBS (et TRANSFERT,
+# DIALOGUE) de même, traduction L5 défaite (test_i18n_l5) ; t143 : la couche montage.js (traduction L3) de même
+s = AIDE.avant_i18n_l5(AIDE.avant_i18n_l3(AIDE.avant_i18n_l4(BUNDLE.read_bytes().decode("utf-8-sig"))))
 # .bak_montage (l'ENTREE du patcher montage) LU UNE FOIS, comme le bundle :
 # octets, utf-8-sig, fins de ligne CONSERVEES. Cloture E-A (22/09/2026) : il
 # etait lu a CINQ endroits (M16a, P12 `_bak_txt`, P16, P14, D-2), le dernier
@@ -1017,7 +1017,7 @@ s = AIDE.avant_i18n_l3(AIDE.avant_i18n_l4(BUNDLE.read_bytes().decode("utf-8-sig"
 # le rattrapait en ne convertissant rien. Les cinq noms restent, en ALIAS :
 # aucun compte n'a bouge (1685/0 avant et apres, mesure).
 _BAK_P = BUNDLE.with_name(BUNDLE.name + ".bak_montage")
-_BAK_S = AIDE.avant_i18n_l4(_BAK_P.read_bytes().decode("utf-8-sig")) if _BAK_P.is_file() else ""
+_BAK_S = AIDE.avant_i18n_l5(AIDE.avant_i18n_l4(_BAK_P.read_bytes().decode("utf-8-sig"))) if _BAK_P.is_file() else ""
 crlf = "\r\n" in s
 def nl(t):
     t = t.replace("\r\n", "\n")

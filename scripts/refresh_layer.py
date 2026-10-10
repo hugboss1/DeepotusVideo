@@ -19,7 +19,7 @@ lignes qui seraient perdues. `--force` passe outre ; `--adopter` est la remise �
 
 LE BUNDLE SE LIT EN OCTETS : le mode texte de Python aplatit les 17 204 CRLF en silence.
 
-    python scripts/refresh_layer.py --layer sfxstudio|vfxrack|sonvfx|montage [--check] [--force] [--adopter] [--root CHEMIN]
+    python scripts/refresh_layer.py --layer sfxstudio|vfxrack|sonvfx|montage|transfert|dialogue [--check] [--force] [--adopter] [--root CHEMIN]
 
 `--adopter` : la source est réécrite depuis le bloc du bundle, et seulement si le rafraîchissement depuis elle
 reconstruit alors le bundle À L'OCTET.
@@ -46,7 +46,13 @@ LAYERS = {"sfxstudio": ("SFXSTUDIO", "sfxstudio.js"),
           # t120 (06/10/2026) : la couche du Montage (DzTracks), injectée par patch_bundle_montage M1 — le patcher ne se
           # rejoue plus (son .bak est une reconstruction gardée), et le bloc du bundle EST la source à l octet (mesuré par
           # scripts/restaurer_bak_montage.py, qui l exige) : la rafraîchir = la remplacer, comme les trois autres
-          "montage": ("MONTAGE", "montage.js")}
+          "montage": ("MONTAGE", "montage.js"),
+          # t145 (traduction L5) : les couches du transfert et des dialogues. Leur source porte ses PROPRES lignes de
+          # marqueurs (patch_bundle_transfert / patch_bundle_dialogue l'injectent telle quelle) : le cœur est pris
+          # entre elles (_coeur). Le bloc du bundle est la source à l'octet près des marqueurs — rafraîchir = remplacer.
+          # (subs n'y est PAS : des patchers aval écrivent dans son bloc et subs.js est intouchable — test_montage_bundle.)
+          "transfert": ("TRANSFERT", "transfert.js"),
+          "dialogue": ("DIALOGUE", "dialogue.js")}
 CRLF, LF = b"\r\n", b"\n"
 
 
@@ -63,12 +69,22 @@ def _bloc(raw: bytes, tag: str) -> bytes:
     return raw.split(b, 1)[1].split(e, 1)[0]
 
 
+def _coeur(src: bytes, tag: str) -> bytes:
+    """t145 : une source qui porte ses propres lignes de marqueurs (transfert.js, dialogue.js) -> ce qui est entre
+    elles ; une source sans marqueur est rendue telle quelle."""
+    b, e = _marqueurs(tag)
+    if b in src and e in src:
+        return src.split(b, 1)[1].split(e, 1)[0]
+    return src
+
+
 def _remplacer(raw: bytes, tag: str, src: bytes) -> bytes:
     """Le bloc remplacé par `src`, aux fins de ligne du bundle, BORDS conservés : un rafraîchissement sans
     changement de source rend le bundle octet pour octet."""
     b, e = _marqueurs(tag)
     if src.startswith(b"\xef\xbb\xbf"):
         src = src[3:]
+    src = _coeur(src, tag)
     src = src.replace(CRLF, LF)
     if CRLF in raw:
         src = src.replace(LF, CRLF)
@@ -89,6 +105,9 @@ def adopter(racine: pathlib.Path, layer: str) -> int:
     """LE BUNDLE DEVIENT LA SOURCE : réécrit frontend/patches/<src> depuis le bloc ACTUEL, puis exige que le
     pipeline reconstruise le bundle À L'OCTET — sinon rien n'est écrit."""
     tag, src_name = LAYERS[layer]
+    if layer in ("transfert", "dialogue"):
+        print(f"[{layer}] --adopter refusé : la source porte ses marqueurs et a des copies (dialogue) — l'éditer elle.")
+        return 7
     raw = (racine / REL_BUNDLE).read_bytes()
     bloc = _bloc(raw, tag)
     candidat = bloc.strip(CRLF)

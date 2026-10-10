@@ -34,8 +34,8 @@ var DZT_MONO = "'IBM Plex Mono', ui-monospace, Consolas, monospace";
 
 function dztOctets(n) {
   n = Number(n) || 0;
-  if (n < 1024) return n + " o";
-  var u = ["Ko", "Mo", "Go", "To"], i = -1;
+  if (n < 1024) return n + " " + dzT("transfert.octets.o");
+  var u = [dzT("transfert.octets.ko"), dzT("transfert.octets.mo"), dzT("transfert.octets.go"), dzT("transfert.octets.to")], i = -1;
   do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
   return (n < 10 ? n.toFixed(1) : Math.round(n)) + " " + u[i];
 }
@@ -218,7 +218,7 @@ function DzTransfert() {
           } }, "c"),
         r.jsx("span", { children: libelle }, "l"),
         r.jsx("span", { style: DZT_S.mono,
-          children: p ? p.fichiers + " fichiers · " + dztOctets(p.octets) : "" }, "p")] }, k);
+          children: p ? dzT("transfert.commun.fichiers", {n: p.fichiers}) + " · " + dztOctets(p.octets) : "" }, "p")] }, k);
   }
   var dests = (info && info.destinations) || [];
   var et = (job && job.etat) || null;
@@ -231,7 +231,7 @@ function DzTransfert() {
   if (modal === "export" && !job) {
     dedans.push(r.jsxs("div", { style: { display: "flex",
       flexDirection: "column", gap: 10 }, children: [
-        r.jsx("div", { style: DZT_S.entete, children: "destination" }, "e"),
+        r.jsx("div", { style: DZT_S.entete, children: dzT("transfert.export.destination") }, "e"),
         dests.length
           ? r.jsx("div", { style: { display: "flex", flexDirection: "column",
               gap: 4 }, children: dests.map(function (d) {
@@ -247,35 +247,32 @@ function DzTransfert() {
                       r.jsx("span", { children: d.nom }, "n"),
                       r.jsx("span", { style: { flex: 1 } }, "s"),
                       r.jsx("span", { style: DZT_S.mono,
-                        children: dztOctets(d.libre) + " libres" }, "l")] },
+                        children: dzT("transfert.export.libres", {taille: dztOctets(d.libre)}) }, "l")] },
                   d.chemin);
               }) }, "v")
           : r.jsx("div", { style: DZT_S.mono,
-              children: "aucun volume détecté" }, "v"),
+              children: dzT("transfert.export.aucun_volume") }, "v"),
         r.jsxs("div", { style: { display: "flex", alignItems: "center",
           gap: 8 }, children: [
             r.jsx("span", { style: { width: 62, fontSize: 11,
-              color: "var(--txt-mid, #8b959f)" }, children: "ou chemin" }, "t"),
+              color: "var(--txt-mid, #8b959f)" }, children: dzT("transfert.export.ou_chemin") }, "t"),
             r.jsx("input", { value: dest, placeholder: "D:\\sauvegardes",
               onChange: function (ev) { setDest(ev.target.value); },
               style: DZT_S.champ }, "i")] }, "c"),
-        r.jsx("div", { style: DZT_S.entete, children: "en plus (décoché par défaut)" }, "le"),
-        dztCase("journaux", "Journaux", "Les journaux de l'application (ils nomment des chemins de cette machine)"),
-        dztCase("rebuts", "Rebuts — corbeilles datées",
-          "Les dossiers rebut_* : ce que vous avez écarté, souvent volumineux"),
+        r.jsx("div", { style: DZT_S.entete, children: dzT("transfert.export.en_plus") }, "le"),
+        dztCase("journaux", dzT("transfert.lot.journaux"), dzT("transfert.lot.journaux_aide")),
+        dztCase("rebuts", dzT("transfert.lot.rebuts"),
+          dzT("transfert.lot.rebuts_aide")),
         choisi ? r.jsx("div", { style: DZT_S.mono,
-          children: choisi.fichiers + " fichiers · " + dztOctets(choisi.octets)
-            + " — un dossier daté sera créé à la destination, chaque fichier avec son empreinte sha256" }, "a") : null,
+          children: dzT("transfert.export.recap", {n: choisi.fichiers, taille: dztOctets(choisi.octets)}) }, "a") : null,
         r.jsx("div", { style: DZT_S.faible,
-          children: "Les clés d'API ne partent JAMAIS : le fichier .env, les "
-            + "journaux et tout ce que l'application sait reconstruire "
-            + "(caches, aperçus) sont écartés." }, "g")] }, "x"));
+          children: dzT("transfert.export.cles") }, "g")] }, "x"));
   }
   if (modal === "import" && !job) {
     dedans.push(r.jsxs("div", { style: { display: "flex",
       flexDirection: "column", gap: 10 }, children: [
         r.jsx("div", { style: DZT_S.entete,
-          children: "dossier du paquet" }, "e"),
+          children: dzT("transfert.import.dossier") }, "e"),
         r.jsxs("div", { style: { display: "flex", alignItems: "center",
           gap: 8 }, children: [
             r.jsx("input", { value: dossier,
@@ -283,50 +280,48 @@ function DzTransfert() {
               onChange: function (ev) { setDossier(ev.target.value); },
               style: DZT_S.champ }, "i"),
             dztBouton({ onClick: inspecter, disabled: !dossier.trim(),
-              title: "Lit le manifeste du paquet — rien n'est écrit",
-              children: "Vérifier" }),
+              title: dzT("transfert.import.verifier_aide"),
+              children: dzT("transfert.import.verifier") }),
             dztBouton({ onClick: function () { controler(dossier); },
               disabled: !(apercu && apercu.empreintes),
               title: apercu && !apercu.empreintes
-                ? "Ce paquet a été exporté avant les empreintes : rien à comparer"
-                : "Relit chaque fichier du paquet et le compare à son empreinte sha256 — rien n'est écrit",
-              children: "Contrôler l'intégrité" })] }, "c"),
+                ? dzT("transfert.integrite.sans_empreintes_aide")
+                : dzT("transfert.integrite.paquet_aide"),
+              children: dzT("transfert.integrite.controler") })] }, "c"),
         apercu ? r.jsxs("div", { style: { display: "flex",
           flexDirection: "column", gap: 4, padding: 10,
           background: "var(--srf-raised, #171c22)",
           border: "1px solid var(--brd-hard, #20262d)" }, children: [
             r.jsx("div", { style: DZT_S.mono,
-              children: "créé le " + apercu.cree_le + " · machine "
-                + (apercu.machine || "?") + " · version "
-                + (apercu.app_version || "?") }, "d"),
+              children: dzT("transfert.import.origine", {date: apercu.cree_le, machine: apercu.machine || "?",
+                  version: apercu.app_version || "?"}) }, "d"),
             r.jsx("div", { style: DZT_S.mono,
-              children: apercu.fichiers + " fichiers · "
+              children: dzT("transfert.commun.fichiers", {n: apercu.fichiers}) + " · "
                 + dztOctets(apercu.octets)
-                + (apercu.empreintes ? " · " + apercu.empreintes + " empreintes"
-                   : " · sans empreintes (paquet antérieur)")
+                + (apercu.empreintes ? " · " + dzT("transfert.import.empreintes", {n: apercu.empreintes})
+                   : " · " + dzT("transfert.import.sans_empreintes"))
                 + (apercu.lots && (apercu.lots.journaux || apercu.lots.rebuts)
-                   ? " · avec " + ["journaux", "rebuts"].filter(function (k) {
-                       return apercu.lots[k]; }).join(" et ") : "") }, "f"),
+                   ? " · " + dzT("transfert.import.avec", {lots: ["journaux", "rebuts"].filter(function (k) {
+                       return apercu.lots[k]; }).map(function (k) { return dzT("transfert.lot.nom_" + k); })
+                       .join(dzT("transfert.import.et"))}) : "") }, "f"),
             r.jsx("div", { style: DZT_S.mono,
               children: Object.keys(apercu.lignes || {}).filter(function (k) {
                 return apercu.lignes[k];
               }).map(function (k) {
                 return apercu.lignes[k] + " " + k;
-              }).join(" · ") || "aucun enregistrement" }, "l")] }, "p") : null,
+              }).join(" · ") || dzT("transfert.import.aucun_enregistrement") }, "l")] }, "p") : null,
         r.jsx("div", { style: DZT_S.faible,
-          children: "L'import AJOUTE : ce que cette machine possède déjà n'est "
-            + "ni écrasé ni effacé. Les chemins de la machine d'origine sont "
-            + "ré-ancrés sur cette installation." }, "g")] }, "i"));
+          children: dzT("transfert.import.ajoute") }, "g")] }, "i"));
   }
   if (job) {
     dedans.push(r.jsxs("div", { style: { display: "flex",
       flexDirection: "column", gap: 8 }, children: [
         r.jsx("div", { style: DZT_S.entete,
-          children: echec ? "échec" : fini ? "terminé" : "en cours" }, "e"),
+          children: echec ? dzT("transfert.travail.echec") : fini ? dzT("transfert.travail.termine") : dzT("transfert.travail.en_cours") }, "e"),
         dztBarre(et ? et.pct : 0),
         r.jsx("div", { style: DZT_S.mono, children: et
           ? (et.phase + " · " + et.pct + " %"
-             + (et.total ? " · " + et.fait + "/" + et.total + " fichiers" : "")
+             + (et.total ? " · " + dzT("transfert.travail.progression", {fait: et.fait, total: et.total}) : "")
              + (et.octets_total ? " · " + dztOctets(et.octets) + " / "
                 + dztOctets(et.octets_total) : ""))
           : "…" }, "m"),
@@ -339,15 +334,14 @@ function DzTransfert() {
             job.sens === "verification"
               ? r.jsx("div", { "data-dzt-verdict": res && res.ok ? "ok" : "ko",
                   style: { color: res && res.ok ? "var(--green, #39d98a)" : "#e08a8a" },
-                  children: res ? (res.ok ? "Intégrité vérifiée : " + res.verifies
-                      + " fichiers relus, empreintes identiques."
-                    : res.sans_empreintes ? "Ce paquet n'a pas d'empreintes (exporté avant cette version)."
-                    : "Abîmés : " + ((res.divergents || []).join(", ") || "aucun")
-                      + " ; manquants : " + ((res.manquants || []).join(", ") || "aucun"))
+                  children: res ? (res.ok ? dzT("transfert.integrite.ok", {n: res.verifies})
+                    : res.sans_empreintes ? dzT("transfert.integrite.sans_empreintes")
+                    : dzT("transfert.integrite.ko", {abimes: (res.divergents || []).join(", ") || dzT("transfert.integrite.aucun"),
+                        manquants: (res.manquants || []).join(", ") || dzT("transfert.integrite.aucun")}))
                     : "" }, "t")
               : r.jsx("div", { children: (job.sens === "import"
-                  || modal === "import") ? "Import terminé."
-                  : "Export terminé. Le paquet est ici :" }, "t"),
+                  || modal === "import") ? dzT("transfert.travail.import_fini")
+                  : dzT("transfert.travail.export_fini") }, "t"),
             job.sens === "verification" ? null
               : r.jsx("div", { style: Object.assign({}, DZT_S.mono,
                   { marginTop: 4, color: "var(--txt-hi, #eef2f6)",
@@ -356,10 +350,9 @@ function DzTransfert() {
                     || "" }, "d"),
             res && res.fichiers_abimes && res.fichiers_abimes.length
               ? r.jsx("div", { style: DZT_S.erreur, "data-dzt-abimes": "1",
-                  children: res.fichiers_abimes.length + " fichier(s) abîmé(s) écarté(s) : "
-                    + res.fichiers_abimes.join(", ") }, "a") : null] }, "ok") : null,
+                  children: dzT("transfert.travail.abimes", {n: res.fichiers_abimes.length, liste: res.fichiers_abimes.join(", ")}) }, "a") : null] }, "ok") : null,
         echec ? r.jsx("div", { style: DZT_S.erreur,
-          children: job.erreur || "raison non fournie" }, "k") : null] }, "p"));
+          children: job.erreur || dzT("transfert.travail.sans_raison") }, "k") : null] }, "p"));
   }
   if (erreur) {
     dedans.push(r.jsx("div", { style: DZT_S.erreur, children: erreur }, "err"));
@@ -371,17 +364,17 @@ function DzTransfert() {
       disabled: modal === "export" ? !dest.trim() : !dossier.trim(),
       onClick: function () { lancer(modal); },
       title: modal === "export"
-        ? "Écrit un dossier daté à la destination choisie"
-        : "Ajoute le contenu du paquet à cette installation",
-      children: modal === "export" ? "Lancer l'export" : "Lancer l'import" }));
+        ? dzT("transfert.export.lancer_aide")
+        : dzT("transfert.import.lancer_aide"),
+      children: modal === "export" ? dzT("transfert.export.lancer") : dzT("transfert.import.lancer") }));
   } else if (!enCours) {
     if (fini && job.sens === "export" && res && res.dossier) {
       pied.push(dztBouton({ onClick: function () { controler(res.dossier); },
-        title: "Relit chaque fichier écrit et le compare à son empreinte sha256",
-        children: "Contrôler l'intégrité" }));
+        title: dzT("transfert.integrite.export_aide"),
+        children: dzT("transfert.integrite.controler") }));
     }
     pied.push(dztBouton({ primaire: true, onClick: fermer,
-      children: "Fermer" }));
+      children: dzT("commun.action.fermer") }));
   }
 
   var vue = modal ? r.jsx("div", { style: DZT_S.voile,
@@ -389,19 +382,18 @@ function DzTransfert() {
       if (ev.target === ev.currentTarget) fermer();
     },
     children: r.jsxs("div", { role: "dialog", "aria-modal": "true",
-      "aria-label": modal === "export" ? "Exporter vers une autre machine"
-        : "Importer depuis une autre machine",
+      "aria-label": modal === "export" ? dzT("transfert.export.titre")
+        : dzT("transfert.import.titre"),
       style: DZT_S.modal, children: [
         r.jsxs("div", { style: DZT_S.tete, children: [
           r.jsx("span", { style: { color: "var(--brand, #4a90e2)" },
             children: __dzGl("dz-nav-transfert", 18, { display: "block" }) }, "i"),
           r.jsx("span", { style: DZT_S.titre,
-            children: modal === "export" ? "Exporter vers une autre machine"
-              : "Importer depuis une autre machine" }, "t"),
+            children: modal === "export" ? dzT("transfert.export.titre")
+              : dzT("transfert.import.titre") }, "t"),
           r.jsx("span", { style: { flex: 1 } }, "s"),
           dztBouton({ onClick: fermer, disabled: enCours,
-            title: enCours ? "Transfert en cours — l'interrompre laisserait "
-              + "un paquet incomplet" : "Fermer",
+            title: enCours ? dzT("transfert.travail.ne_pas_fermer") : dzT("commun.action.fermer"),
             style: { height: 24, padding: "0 8px" }, children: "×" })] }, "h"),
         r.jsx("div", { style: DZT_S.corps, children: dedans }, "c"),
         r.jsx("div", { style: DZT_S.pied, children: pied }, "f")] }) }) : null;
@@ -410,26 +402,21 @@ function DzTransfert() {
     gap: 14, maxWidth: 640 }, children: [
       r.jsx("div", { style: { fontSize: 13, fontWeight: 600,
         color: "var(--txt-hi, #eef2f6)" },
-        children: "Transfert entre machines" }, "t"),
+        children: dzT("reglages.onglet.transfert") }, "t"),
       r.jsx("div", { style: { fontSize: 12.5, lineHeight: 1.6,
         color: "var(--txt-mid, #8b959f)" },
-        children: "Emporte TOUT ce que cette installation a créé — la "
-          + "bibliothèque et ses provenances, les rendus, la bible, les plans "
-          + "de communication, les documents vectoriels, les séries de cartes, "
-          + "les modèles 3D — vers une autre machine où l'application est "
-          + "installée. Les clés d'API restent ici." }, "d"),
+        children: dzT("transfert.section.intro") }, "d"),
       ap ? r.jsx("div", { style: DZT_S.mono,
-        children: ap.fichiers + " fichiers · " + dztOctets(ap.octets)
-          + " à emporter" }, "a") : null,
+        children: dzT("transfert.section.apercu", {n: ap.fichiers, taille: dztOctets(ap.octets)}) }, "a") : null,
       r.jsxs("div", { style: { display: "flex", gap: 8 }, children: [
         dztBouton({ onClick: function () { setModal("export"); },
-          title: "Écrire un paquet de transfert sur un disque",
+          title: dzT("transfert.export.bouton_aide"),
           children: [__dzGl("dz-action-exporter", 16, { display: "block" }),
-                     r.jsx("span", { children: "Exporter…" }, "l")] }),
+                     r.jsx("span", { children: dzT("commun.action.exporter_suite") }, "l")] }),
         dztBouton({ onClick: function () { setModal("import"); },
-          title: "Reprendre un paquet venu d'une autre machine",
+          title: dzT("transfert.import.bouton_aide"),
           children: [__dzGl("dz-action-importer", 16, { display: "block" }),
-                     r.jsx("span", { children: "Importer…" }, "l")] })] }, "b"),
+                     r.jsx("span", { children: dzT("commun.action.importer_suite") }, "l")] })] }, "b"),
       vue] });
 }
 /*__DZ_TRANSFERT_END__*/

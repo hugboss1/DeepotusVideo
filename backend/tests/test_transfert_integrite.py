@@ -160,7 +160,8 @@ with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) a
     check("6.6 hors boucle locale : vérification refusée", c2.post("/api/transfer/verify", json={"dossier": "x"}).status_code == 403, "")
 
 print("\n[7] l'écran (couche transfert livrée dans le bundle)")
-_b = (racine_git / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_text(encoding="utf-8")
+import _i18n_l1_aide as _AIDE  # noqa: E402 — t145 : le bloc TRANSFERT passe par dzT (L5), lu d'avant la traduction
+_b = _AIDE.avant_i18n_l5((racine_git / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_text(encoding="utf-8"))
 _c = _b[_b.find("/*__DZ_TRANSFERT_BEGIN__*/"):_b.find("/*__DZ_TRANSFERT_END__*/")]
 check("7.1 lots décochés par défaut, envoyés avec l'export", "x.useState({ journaux: false, rebuts: false })" in _c
       and "{ destination: dest, lots: lots }" in _c, "")
