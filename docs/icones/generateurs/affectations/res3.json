@@ -1,0 +1,3284 @@
+{
+ "vectorlab.sprite-mort.t-ai": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-coin": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-constructeur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-couteau": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-crayon": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-ellipse": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-forme": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-gomme": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-hex": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-line": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-node": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-pen": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-pipette": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-rect": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-scale": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-select": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.sprite-mort.t-text": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole mort jamais affiché)"
+ },
+ "vectorlab.didact.q": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aide",
+  "note": ""
+ },
+ "vectorlab.ctx.aimant": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-aimanter",
+  "note": ""
+ },
+ "vectorlab.ctx.grille": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-grille",
+  "note": ""
+ },
+ "vectorlab.ctx.unite": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.ctx.noeuds.al-bas": {
+  "cible": "dz-edit-aligner-bas",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.al-centreH": {
+  "cible": "dz-edit-aligner-centre-h",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.al-centreV": {
+  "cible": "dz-edit-aligner-centre-v",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.al-droite": {
+  "cible": "dz-edit-aligner-droite",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.al-gauche": {
+  "cible": "dz-edit-aligner-gauche",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.al-haut": {
+  "cible": "dz-edit-aligner-haut",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.fermer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-fermer-chemin",
+  "note": "ferme le CHEMIN, pas un panneau : ≠ dz-action-fermer"
+ },
+ "vectorlab.ctx.noeuds.fractionner": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-fractionner",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.intelligent": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-noeud-intelligent",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.inverser": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-inverser-sens",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.lisse": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-noeud-lisse",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.lisserCourbe": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-lisser",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.ouvrir": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-ouvrir-chemin",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.relier": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-relier",
+  "note": ""
+ },
+ "vectorlab.ctx.noeuds.vif": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-noeud-vif",
+  "note": ""
+ },
+ "vectorlab.ctx.plume.fermer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-fermer-chemin",
+  "note": "ferme le CHEMIN, pas un panneau : ≠ dz-action-fermer"
+ },
+ "vectorlab.ctx.plume.fractionner": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-fractionner",
+  "note": ""
+ },
+ "vectorlab.ctx.plume.intelligent": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-noeud-intelligent",
+  "note": ""
+ },
+ "vectorlab.ctx.plume.inverser": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-inverser-sens",
+  "note": ""
+ },
+ "vectorlab.ctx.plume.lisse": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-noeud-lisse",
+  "note": ""
+ },
+ "vectorlab.ctx.plume.lisserCourbe": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-lisser",
+  "note": ""
+ },
+ "vectorlab.ctx.plume.ouvrir": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-ouvrir-chemin",
+  "note": ""
+ },
+ "vectorlab.ctx.plume.relier": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-relier",
+  "note": ""
+ },
+ "vectorlab.ctx.plume.vif": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-noeud-vif",
+  "note": ""
+ },
+ "vectorlab.ctx.configDoc": {
+  "cible": "dz-action-reglages",
+  "confiance": "probable",
+  "manque": "",
+  "note": "dialogue de configuration du document"
+ },
+ "vectorlab.ctx.parametres": {
+  "cible": "dz-action-reglages",
+  "confiance": "sure",
+  "manque": "",
+  "note": "dialogue local, pas l'écran Réglages"
+ },
+ "vectorlab.ctx.vider": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-sans-couleur",
+  "note": ""
+ },
+ "vectorlab.outils.repli": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-inconnu",
+  "note": "garde-fou normalement jamais affiché"
+ },
+ "vectorlab.outils.triangle-famille": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (indicateur CSS de flyout)"
+ },
+ "vectorlab.outils.px-assombrir": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-assombrir",
+  "note": "≠ luminosité globale"
+ },
+ "vectorlab.outils.px-baguette": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-baguette",
+  "note": ""
+ },
+ "vectorlab.outils.px-cloner": {
+  "cible": "dz-outil-px-tampon",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.px-crayon": {
+  "cible": "dz-outil-px-crayon",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.px-eclaircir": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-eclaircir",
+  "note": ""
+ },
+ "vectorlab.outils.px-flou": {
+  "cible": "dz-outil-photo-flou",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.px-gomme": {
+  "cible": "dz-outil-px-gomme",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.px-lasso": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-lasso",
+  "note": ""
+ },
+ "vectorlab.outils.px-ligne": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-ligne",
+  "note": ""
+ },
+ "vectorlab.outils.px-pinceau": {
+  "cible": "dz-outil-px-pinceau",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.px-rectpx": {
+  "cible": "dz-outil-vec-rectangle",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rectangle pixel"
+ },
+ "vectorlab.outils.px-seau": {
+  "cible": "dz-outil-px-pot",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.px-selrect": {
+  "cible": "dz-outil-px-selection",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.apparence": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-apparence",
+  "note": ""
+ },
+ "vectorlab.outils.cadre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-cadre-texte",
+  "note": ""
+ },
+ "vectorlab.outils.coin": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-coin",
+  "note": ""
+ },
+ "vectorlab.outils.constructeur": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-constructeur",
+  "note": ""
+ },
+ "vectorlab.outils.couteau": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-couteau",
+  "note": ""
+ },
+ "vectorlab.outils.crayon": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-crayon",
+  "note": "crayon vectoriel, distinct du crayon pixel du même lab"
+ },
+ "vectorlab.outils.degrade": {
+  "cible": "dz-outil-px-degrade",
+  "confiance": "probable",
+  "manque": "",
+  "note": "outil dégradé, ici vectoriel"
+ },
+ "vectorlab.outils.ellipse": {
+  "cible": "dz-outil-vec-ellipse",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.forme": {
+  "cible": "dz-outil-vec-polygone",
+  "confiance": "probable",
+  "manque": "",
+  "note": "forme paramétrique"
+ },
+ "vectorlab.outils.gomme": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-gomme",
+  "note": "distincte de la gomme pixel du même lab"
+ },
+ "vectorlab.outils.ia": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.ligne": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-ligne",
+  "note": ""
+ },
+ "vectorlab.outils.mesure": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-mesure",
+  "note": ""
+ },
+ "vectorlab.outils.noeuds": {
+  "cible": "dz-outil-vec-noeud",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.pinceauv": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-pinceau",
+  "note": ""
+ },
+ "vectorlab.outils.pipette": {
+  "cible": "dz-outil-vec-pipette",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.planche": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-plan-de-travail",
+  "note": ""
+ },
+ "vectorlab.outils.plume": {
+  "cible": "dz-outil-vec-plume",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.rect": {
+  "cible": "dz-outil-vec-rectangle",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.symbole": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-symbole",
+  "note": ""
+ },
+ "vectorlab.outils.texte": {
+  "cible": "dz-outil-vec-texte",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.transparence": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-transparence",
+  "note": ""
+ },
+ "vectorlab.outils.tuiles": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-tuiles",
+  "note": ""
+ },
+ "vectorlab.outils.image": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": "menu image"
+ },
+ "vectorlab.outils.loupe": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-zoom",
+  "note": ""
+ },
+ "vectorlab.outils.main": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-main",
+  "note": ""
+ },
+ "vectorlab.outils.recadrer": {
+  "cible": "dz-outil-photo-recadrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.select": {
+  "cible": "dz-outil-vec-selection",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.outils.tranche": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-tranche",
+  "note": ""
+ },
+ "vectorlab.sb.pages": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pagination ◀ ▶, glyphes inertes"
+ },
+ "vectorlab.menu.affichage": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.menu.aide": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.menu.calque": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.menu.document": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.menu.edition": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.menu.fenetre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.menu.fichier": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.menu.pixel": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.menu.texte": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.menu.vecteur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pb.aide": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aide",
+  "note": ""
+ },
+ "vectorlab.pb.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pb.biblio": {
+  "cible": "dz-nav-accueil",
+  "confiance": "probable",
+  "manque": "",
+  "note": "accueil = bibliothèque des documents du Vectorlab"
+ },
+ "vectorlab.pb.exporter-barre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "vectorlab.pb.exporter-caret": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pb.refaire": {
+  "cible": "dz-action-retablir",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pb.sauver": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "action courante : icône utile"
+ },
+ "vectorlab.pb.temoin-ok": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enregistré"
+ },
+ "vectorlab.pb.temoin-sale": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-modifie",
+  "note": ""
+ },
+ "vectorlab.pb.exp.bible": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "probable",
+  "manque": "",
+  "note": "vers la bible"
+ },
+ "vectorlab.pb.exp.png": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pb.exp.print3d": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer-3d",
+  "note": ""
+ },
+ "vectorlab.pb.exp.svg": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pb.persona.vecteur": {
+  "cible": "dz-calque-vectoriel",
+  "confiance": "probable",
+  "manque": "",
+  "note": "persona Vecteur"
+ },
+ "vectorlab.pb.persona.pixel": {
+  "cible": "dz-calque-pixel",
+  "confiance": "probable",
+  "manque": "",
+  "note": "persona Pixel"
+ },
+ "vectorlab.cotes.diametre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole dans le texte des cotes)"
+ },
+ "vectorlab.biblio.actions": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (3 boutons ; si icônes : ouvrir / dz-action-dupliquer / dz-action-supprimer)"
+ },
+ "vectorlab.biblio.badge-biblio": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.biblio.badge-cartes": {
+  "cible": "dz-nav-card-forge",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.biblio.badge-chapitre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-chapitres",
+  "note": ""
+ },
+ "vectorlab.biblio.creer": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.biblio.sans-vignette": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-sans-apercu",
+  "note": ""
+ },
+ "vectorlab.libdlg.fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.dlg.ia.fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.dlg.ia.generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.dlg.impression.actions": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.dlg.impression.alerte": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.dlg.impression.fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.dlg.raccourcis.fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.dlg.trace.actions": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.dlg.trace.fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "libellé « Annuler » mais ferme le dialogue"
+ },
+ "vectorlab.dlg.dialogue.fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.dlg.config.fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.familles": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (reprend l'icône de chaque outil)"
+ },
+ "vectorlab.flyout.ap.conique": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-degrade-conique",
+  "note": ""
+ },
+ "vectorlab.flyout.ap.contour": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-couleur-contour",
+  "note": ""
+ },
+ "vectorlab.flyout.ap.fond": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-couleur-fond",
+  "note": ""
+ },
+ "vectorlab.flyout.ap.gradl": {
+  "cible": "dz-outil-px-degrade",
+  "confiance": "probable",
+  "manque": "",
+  "note": "dégradé linéaire"
+ },
+ "vectorlab.flyout.ap.gradr": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-degrade-radial",
+  "note": ""
+ },
+ "vectorlab.flyout.ap.lueur": {
+  "cible": "dz-calque-effet",
+  "confiance": "probable",
+  "manque": "",
+  "note": "effet lueur"
+ },
+ "vectorlab.flyout.ap.motif": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-motif",
+  "note": ""
+ },
+ "vectorlab.flyout.ap.ombre": {
+  "cible": "dz-calque-effet",
+  "confiance": "probable",
+  "manque": "",
+  "note": "effet ombre"
+ },
+ "vectorlab.flyout.ap.reglages": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.flyout.ap.sanscontour": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-sans-couleur",
+  "note": ""
+ },
+ "vectorlab.flyout.ap.sansfond": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-sans-couleur",
+  "note": ""
+ },
+ "vectorlab.flyout.ap.transp": {
+  "cible": "dz-calque-masque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "masque de transparence"
+ },
+ "vectorlab.flyout.forme.defaut": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "vectorlab.flyout.forme.donut": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-donut",
+  "note": ""
+ },
+ "vectorlab.flyout.forme.engrenage": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-engrenage",
+  "note": ""
+ },
+ "vectorlab.flyout.forme.etoile": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-etoile",
+  "note": ""
+ },
+ "vectorlab.flyout.forme.fleche": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-fleche",
+  "note": ""
+ },
+ "vectorlab.flyout.forme.hexagone": {
+  "cible": "dz-outil-vec-polygone",
+  "confiance": "probable",
+  "manque": "",
+  "note": "hexagone = polygone"
+ },
+ "vectorlab.flyout.forme.polygone": {
+  "cible": "dz-outil-vec-polygone",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.forme.spirale": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-spirale",
+  "note": ""
+ },
+ "vectorlab.flyout.image.biblio": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.image.coller": {
+  "cible": "dz-action-coller",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.image.deverrouiller": {
+  "cible": "dz-etat-libre",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.image.entiere": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retire le rognage"
+ },
+ "vectorlab.flyout.image.fichier": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.image.generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.image.pixels": {
+  "cible": "dz-calque-pixel",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.image.vectoriser": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-vectoriser",
+  "note": ""
+ },
+ "vectorlab.flyout.image.verrouiller": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.pv.calligraphie": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-profil-calligraphie",
+  "note": ""
+ },
+ "vectorlab.flyout.pv.fuseau": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-profil-fuseau",
+  "note": ""
+ },
+ "vectorlab.flyout.pv.plat": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-profil-plat",
+  "note": ""
+ },
+ "vectorlab.flyout.sym.abandonner": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "jette les modifications (≠ undo)"
+ },
+ "vectorlab.flyout.sym.creer": {
+  "cible": "dz-action-ajouter",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sym.detacher": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-detacher",
+  "note": ""
+ },
+ "vectorlab.flyout.sym.ouvrir": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-modifier",
+  "note": ""
+ },
+ "vectorlab.flyout.sym.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sym.terminer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.al-bas": {
+  "cible": "dz-edit-aligner-bas",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.al-centreH": {
+  "cible": "dz-edit-aligner-centre-h",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.al-centreV": {
+  "cible": "dz-edit-aligner-centre-v",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.al-droite": {
+  "cible": "dz-edit-aligner-droite",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.al-gauche": {
+  "cible": "dz-edit-aligner-gauche",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.al-haut": {
+  "cible": "dz-edit-aligner-haut",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.bo-division": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-division",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.bo-intersection": {
+  "cible": "dz-edit-intersection",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.bo-soustraction": {
+  "cible": "dz-edit-soustraire",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.bo-union": {
+  "cible": "dz-edit-fusionner",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.degrouper": {
+  "cible": "dz-action-degrouper",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.dist-h": {
+  "cible": "dz-edit-distribuer-h",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.dist-v": {
+  "cible": "dz-edit-distribuer-v",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.dup": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.grouper": {
+  "cible": "dz-action-grouper",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.mir-h": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-miroir-h",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.mir-v": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-miroir-v",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.or-arriere": {
+  "cible": "dz-edit-pile-reculer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.or-avant": {
+  "cible": "dz-edit-pile-avancer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.or-derriere": {
+  "cible": "dz-edit-pile-dernier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.sel.or-devant": {
+  "cible": "dz-edit-pile-premier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.tuiles.plateau": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-tuiles",
+  "note": "plateau de tuiles hexagonales (pas une génération IA)"
+ },
+ "vectorlab.flyout.tranche.effacer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.flyout.texte.deposer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.couleur.appliquer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.couleur.palplus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.cotes.angle": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole dans le texte des cotes)"
+ },
+ "vectorlab.style.attr": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.style.gradL": {
+  "cible": "dz-outil-px-degrade",
+  "confiance": "probable",
+  "manque": "",
+  "note": "dégradé linéaire"
+ },
+ "vectorlab.style.gradR": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-degrade-radial",
+  "note": ""
+ },
+ "vectorlab.style.sanscontour": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-sans-couleur",
+  "note": ""
+ },
+ "vectorlab.style.sansfond": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-sans-couleur",
+  "note": ""
+ },
+ "vectorlab.style.decaler": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.style.incliner": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-incliner",
+  "note": ""
+ },
+ "vectorlab.style.pivot": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-pivot",
+  "note": ""
+ },
+ "vectorlab.style.puissance": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "duplication puissance"
+ },
+ "vectorlab.style.stop-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.style.stop-x": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.a2.ct-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.a2.ct-x": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.a2.glob-app": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.a2.glob-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.a2.glob-x": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.a2.harmonie": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.a2.fx-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.a2.fx-x": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.a2.conique": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-degrade-conique",
+  "note": "cohérence avec les boutons dégradés voisins"
+ },
+ "vectorlab.a2.masque-x": {
+  "cible": "dz-action-supprimer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retire le masque"
+ },
+ "vectorlab.a2.motif": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-motif",
+  "note": ""
+ },
+ "vectorlab.a2.transp": {
+  "cible": "dz-calque-masque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "masque de transparence"
+ },
+ "vectorlab.a2.st-app": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.a2.st-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.a2.st-x": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.a2.encadre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-cadre-texte",
+  "note": ""
+ },
+ "vectorlab.a2.surchemin": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-texte-sur-chemin",
+  "note": ""
+ },
+ "vectorlab.a2.detacher": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-detacher",
+  "note": ""
+ },
+ "vectorlab.a2.ecreter": {
+  "cible": "dz-calque-masque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "masque d'écrêtage"
+ },
+ "vectorlab.a2.liberer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.a2.symbole": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.calques.act.descendre": {
+  "cible": "dz-edit-pile-reculer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ordre des calques"
+ },
+ "vectorlab.calques.act.fx": {
+  "cible": "dz-calque-effet",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.act.groupe": {
+  "cible": "dz-action-grouper",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.act.masque": {
+  "cible": "dz-calque-masque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ouvre seulement l'onglet Apparence"
+ },
+ "vectorlab.calques.act.monter": {
+  "cible": "dz-edit-pile-avancer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ordre des calques"
+ },
+ "vectorlab.calques.act.pixel": {
+  "cible": "dz-calque-pixel",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.act.plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.act.poubelle": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.act.reglage": {
+  "cible": "dz-calque-reglage",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.act.renommer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-renommer",
+  "note": ""
+ },
+ "vectorlab.calques.calque-inutilise": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (jamais affichée)"
+ },
+ "vectorlab.calques.chevron-ferme": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.chevron-ouvert": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.exemple": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.calques.oeil": {
+  "cible": "dz-etat-visible",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.verrou": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.rangee.cadre": {
+  "cible": "dz-calque-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": "cadre de texte"
+ },
+ "vectorlab.calques.rangee.ecretage": {
+  "cible": "dz-calque-masque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "masque d'écrêtage"
+ },
+ "vectorlab.calques.rangee.effet": {
+  "cible": "dz-calque-effet",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.rangee.ellipse": {
+  "cible": "dz-outil-vec-ellipse",
+  "confiance": "probable",
+  "manque": "",
+  "note": "type de rangée"
+ },
+ "vectorlab.calques.rangee.forme": {
+  "cible": "dz-outil-vec-polygone",
+  "confiance": "probable",
+  "manque": "",
+  "note": "type de rangée"
+ },
+ "vectorlab.calques.rangee.groupe": {
+  "cible": "dz-calque-groupe",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.rangee.image": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.rangee.instance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-symbole",
+  "note": ""
+ },
+ "vectorlab.calques.rangee.masque": {
+  "cible": "dz-calque-masque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.rangee.path": {
+  "cible": "dz-calque-vectoriel",
+  "confiance": "probable",
+  "manque": "",
+  "note": "chemin"
+ },
+ "vectorlab.calques.rangee.rect": {
+  "cible": "dz-outil-vec-rectangle",
+  "confiance": "probable",
+  "manque": "",
+  "note": "type de rangée"
+ },
+ "vectorlab.calques.rangee.texte": {
+  "cible": "dz-calque-texte",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.calques.rangee.tuiles": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-tuiles",
+  "note": ""
+ },
+ "vectorlab.carte.courbes": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-courbes-niveau",
+  "note": ""
+ },
+ "vectorlab.carte.fond": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-carte",
+  "note": ""
+ },
+ "vectorlab.carte.importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.carte.imprimer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer-3d",
+  "note": ""
+ },
+ "vectorlab.carte.relief": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-relief",
+  "note": ""
+ },
+ "vectorlab.carte.tuiles": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-tuiles",
+  "note": ""
+ },
+ "vectorlab.export.bible": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "probable",
+  "manque": "",
+  "note": "vers la bible"
+ },
+ "vectorlab.export.delegue": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.export.print3d": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer-3d",
+  "note": ""
+ },
+ "vectorlab.exportplus.dessiner": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-tranche",
+  "note": ""
+ },
+ "vectorlab.exportplus.effacer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.exportplus.lot": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": "action principale : icône utile"
+ },
+ "vectorlab.forme.courbes": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-convertir-en-chemin",
+  "note": ""
+ },
+ "vectorlab.image.rognerraz": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retire le rognage"
+ },
+ "vectorlab.image.vectoriser": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-vectoriser",
+  "note": ""
+ },
+ "vectorlab.image.verrou-off": {
+  "cible": "dz-etat-libre",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.image.verrou-on": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.instantanes": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.nav.moins": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-zoom-arriere",
+  "note": ""
+ },
+ "vectorlab.nav.plus": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-zoom-avant",
+  "note": ""
+ },
+ "vectorlab.noeuds.al-bas": {
+  "cible": "dz-edit-aligner-bas",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.noeuds.al-centreH": {
+  "cible": "dz-edit-aligner-centre-h",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.noeuds.al-centreV": {
+  "cible": "dz-edit-aligner-centre-v",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.noeuds.al-droite": {
+  "cible": "dz-edit-aligner-droite",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.noeuds.al-gauche": {
+  "cible": "dz-edit-aligner-gauche",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.noeuds.al-haut": {
+  "cible": "dz-edit-aligner-haut",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pixel.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pixel.editer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pixel.exppng": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pixel.secvider": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-sans-couleur",
+  "note": ""
+ },
+ "vectorlab.pixel.bande": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pixel.cadre-dup": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pixel.cadre-suppr": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pixel.cadre-vide": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pixel.pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pixel.play": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pixel.spritelab": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "sure",
+  "manque": "",
+  "note": "vers le Spritelab"
+ },
+ "vectorlab.pixel.tilelab": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "sure",
+  "manque": "",
+  "note": "vers le Tilelab"
+ },
+ "vectorlab.pixel.designer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pixel.modele-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pixel.palette": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pixel.utilisees": {
+  "cible": "dz-action-copier",
+  "confiance": "probable",
+  "manque": "",
+  "note": "copie les couleurs vers les swatches"
+ },
+ "vectorlab.pixel.feuille": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pixel.rasteriser": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pixel.tuile-ok": {
+  "cible": "dz-action-actualiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pose ou ré-applique"
+ },
+ "vectorlab.pixel.reglages": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pixel.sym-d1": {
+  "cible": "dz-outil-px-symetrie",
+  "confiance": "probable",
+  "manque": "",
+  "note": "axe ⟋ orienté par CSS"
+ },
+ "vectorlab.pixel.sym-d2": {
+  "cible": "dz-outil-px-symetrie",
+  "confiance": "probable",
+  "manque": "",
+  "note": "axe ⟍ orienté par CSS"
+ },
+ "vectorlab.pixel.versvecteur": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-vectoriser",
+  "note": ""
+ },
+ "vectorlab.planches.page": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.planches.png": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.planches.renommer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-renommer",
+  "note": ""
+ },
+ "vectorlab.planches.sel": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.planches.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "retire la planche, les objets restent"
+ },
+ "vectorlab.planches.zoom": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-zoom",
+  "note": ""
+ },
+ "vectorlab.plateau.generer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.plateau.termoins": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "un défaut revient"
+ },
+ "vectorlab.plateau.terplus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.typo.ancre-end": {
+  "cible": "dz-edit-aligner-droite",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ancrage du texte"
+ },
+ "vectorlab.typo.ancre-middle": {
+  "cible": "dz-edit-aligner-centre-h",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ancrage du texte"
+ },
+ "vectorlab.typo.ancre-start": {
+  "cible": "dz-edit-aligner-gauche",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ancrage du texte"
+ },
+ "vectorlab.typo.contours": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-convertir-en-chemin",
+  "note": ""
+ },
+ "vectorlab.typo.deposer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.typo.encadre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-cadre-texte",
+  "note": ""
+ },
+ "vectorlab.typo.epaissir": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-epaissir",
+  "note": ""
+ },
+ "vectorlab.typo.logo": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer-3d",
+  "note": ""
+ },
+ "vectorlab.typo.surchemin": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-texte-sur-chemin",
+  "note": ""
+ },
+ "vectorlab.typo.systeme": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-police",
+  "note": ""
+ },
+ "vectorlab.vitrail.ia": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "action payante : icône utile"
+ },
+ "vectorlab.vitrail.motif.arc": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-vitrail-arc",
+  "note": ""
+ },
+ "vectorlab.vitrail.motif.grille": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-vitrail-grille",
+  "note": ""
+ },
+ "vectorlab.vitrail.motif.plomb": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-vitrail-plomb",
+  "note": ""
+ },
+ "vectorlab.vitrail.motif.rosette": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-vitrail-rosette",
+  "note": ""
+ },
+ "vectorlab.vitrail.pas": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.vitrail.tirage": {
+  "cible": "dz-action-regenerer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "nouvelle graine, pas d'IA"
+ },
+ "vectorlab.vitrail.halo": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-halo",
+  "note": ""
+ },
+ "vectorlab.vitrail.iris": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-iris",
+  "note": ""
+ },
+ "vectorlab.vitrail.rayons": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-rayons",
+  "note": ""
+ },
+ "vectorlab.vitrail.slot-x": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.onglet.apparence": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.calques": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.carte": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.couleur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.echantillons": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.exporter": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.grille": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.histogramme": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.historique": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.image": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.navigateur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.pixel": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.planches": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.plateau": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.reperes": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.stock": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.texte": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.trace": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.trait": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.transformer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.onglet.vitrail": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "vectorlab.pile.repli": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pile.section-ferme": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pile.vitrail-ferme": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "vectorlab.pile.vitrail-ouvert": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.frames.cout": {
+  "cible": "dz-action-cout",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.frames.frame-ecartee": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-exclu",
+  "note": ""
+ },
+ "spritelab.frames.reextraire": {
+  "cible": "dz-action-actualiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ré-extraction locale"
+ },
+ "spritelab.frames.tout": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-tout-selectionner",
+  "note": ""
+ },
+ "spritelab.feuille.grille-fAll": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "spritelab.feuille.grille-fDetect": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "spritelab.feuille.grille-fNone": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "spritelab.feuille.grille-fOk": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "spritelab.feuille.une-sur": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "spritelab.reglages.generer-sheet": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-fabriquer",
+  "note": "assemblage local, pas de génération IA"
+ },
+ "spritelab.source.onglet-bible": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-bible",
+  "note": ""
+ },
+ "spritelab.source.onglet-feuille": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-feuille",
+  "note": ""
+ },
+ "spritelab.source.onglet-image": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.source.onglet-prompt": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "génération par prompt"
+ },
+ "spritelab.source.onglet-render": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "renders vidéo"
+ },
+ "spritelab.source.onglet-starter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-demarrer",
+  "note": "packs livrés sans clé"
+ },
+ "spritelab.source.onglet-upload": {
+  "cible": "dz-action-importer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "import vidéo du PC"
+ },
+ "spritelab.source.recherche-entSearch": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.source.recherche-feuilleSearch": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.source.recherche-imgSearch": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.source.recherche-renderSearch": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.entete.marque": {
+  "cible": "dz-nav-spritelab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.entete.retour": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-retour",
+  "note": ""
+ },
+ "spritelab.hitbox.coller": {
+  "cible": "dz-action-coller",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.hitbox.copier": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.hitbox.effacer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.hitbox.precedente": {
+  "cible": "dz-media-precedent",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.hitbox.suivante": {
+  "cible": "dz-media-suivant",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.feuille.alignement-fAlDeux": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "spritelab.feuille.alignement-fAlPieds": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "spritelab.feuille.alignement-fAlX": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "spritelab.feuille.alignement-fAlZero": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "spritelab.feuille.decaler-1-px-vers-la-droite": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-decaler-px",
+  "note": "orienté par CSS"
+ },
+ "spritelab.feuille.decaler-1-px-vers-la-gauche": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-decaler-px",
+  "note": "orienté par CSS"
+ },
+ "spritelab.feuille.decaler-1-px-vers-le-bas": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-decaler-px",
+  "note": "orienté par CSS"
+ },
+ "spritelab.feuille.decaler-1-px-vers-le-haut": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-decaler-px",
+  "note": "orienté par CSS"
+ },
+ "spritelab.feuille.copier-json": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.feuille.dl-json": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.feuille.dl-png": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.feuille.save-library": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enregistre dans la Library"
+ },
+ "spritelab.feuille.section-ajout": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.feuille.section-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.previz.lecture-pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.previz.lecture-play": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.previz.miroir": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-miroir-h",
+  "note": ""
+ },
+ "spritelab.exports.dlAse": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.exports.dlAtlas": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.exports.dlGif": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.exports.dlGodot": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.exports.dlP2d": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.exports.dlSheet": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.exports.dlZip": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.exports.save-library": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enregistre dans la Library"
+ },
+ "spritelab.exports.vers-studio": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "sure",
+  "manque": "",
+  "note": "vers le Studio"
+ },
+ "spritelab.animation.ajout-tag": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.animation.retirer-tag": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.bible.huit": {
+  "cible": "dz-lab3d-rotation",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rendu du modèle 3D sous 8 angles"
+ },
+ "spritelab.bible.quatre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-directions",
+  "note": ""
+ },
+ "spritelab.feuille.ouvrir-png": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.image.animer": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "animation Seedance payante"
+ },
+ "spritelab.prompt.cout": {
+  "cible": "dz-action-cout",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.prompt.generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.upload.choisir": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.squelette.dl-spine": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.squelette.ecrire": {
+  "cible": "dz-lab3d-rig",
+  "confiance": "probable",
+  "manque": "",
+  "note": "écrit le rig Spine"
+ },
+ "spritelab.squelette.indice-vide": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (emoji dans un message d'aide)"
+ },
+ "spritelab.squelette.liste-os": {
+  "cible": "dz-lab3d-os",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.squelette.liste-piece": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-piece",
+  "note": ""
+ },
+ "spritelab.squelette.outil-os": {
+  "cible": "dz-lab3d-os",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.squelette.outil-piece": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-piece",
+  "note": ""
+ },
+ "spritelab.squelette.suppr-os": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.squelette.suppr-piece": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.toast.4-directions": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.toast.8-directions": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.toast.dernier-sheet-recharge": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.toast.feuille-reassemblee": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.toast.image-s-generee-s": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.toast.sheet-copie-dans-la-library": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.toast.sprite-pret": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.toast.sprite-sheet-genere": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.aide.didact": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aide",
+  "note": ""
+ },
+ "spritelab.editeur.annuler": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "revient à l'ordre actuel (≠ undo)"
+ },
+ "spritelab.editeur.appliquer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "spritelab.editeur.cellule-del": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.editeur.cellule-dup": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "spritelab.editeur.cellule-left": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "déplace d'un cran dans l'ordre, orienté par CSS"
+ },
+ "spritelab.editeur.cellule-right": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "déplace d'un cran dans l'ordre, orienté par CSS"
+ },
+ "tilelab.modes.onglet-feuille": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-feuille",
+  "note": ""
+ },
+ "tilelab.modes.onglet-formes": {
+  "cible": "dz-outil-vec-polygone",
+  "confiance": "probable",
+  "manque": "",
+  "note": "losange / hexagone"
+ },
+ "tilelab.modes.onglet-jeu": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-autotuile",
+  "note": ""
+ },
+ "tilelab.modes.onglet-peintre": {
+  "cible": "dz-outil-px-pinceau",
+  "confiance": "probable",
+  "manque": "",
+  "note": "peindre une carte"
+ },
+ "tilelab.modes.onglet-seamless": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-seamless",
+  "note": ""
+ },
+ "tilelab.source.recherche-feuilleSearch": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.source.recherche-formeSearch": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.source.recherche-imgSearch": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.source.recherche-jeuSearch": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.entete.marque": {
+  "cible": "dz-nav-tilelab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.entete.retour": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-retour",
+  "note": ""
+ },
+ "tilelab.feuille.export-tlDlFeuille": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.feuille.export-tlDlTileset": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.feuille.export-tlDlTuiles": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.feuille.export-tlSaveLib": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enregistre dans la Library"
+ },
+ "tilelab.feuille.vider": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "tilelab.feuille.detecter": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "tilelab.feuille.ouvrir-png": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.feuille.apres": {
+  "cible": "dz-edit-pile-reculer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "recule la tuile d'un cran dans l'ordre"
+ },
+ "tilelab.feuille.avant": {
+  "cible": "dz-edit-pile-avancer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "avance la tuile d'un cran dans l'ordre"
+ },
+ "tilelab.formes.export-expFormeAtlas": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.formes.export-expFormeGodot": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.formes.export-expFormeTiled": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.formes.fabriquer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-fabriquer",
+  "note": ""
+ },
+ "tilelab.forme.source-forge": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-material-forge",
+  "note": ""
+ },
+ "tilelab.forme.source-lib": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.slot.formeSlot": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (flèche dans le texte)"
+ },
+ "tilelab.jeu.export-expAtlas": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.jeu.export-expGodot": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.jeu.export-expLdtk": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.jeu.export-expTiled": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.jeu.mesure-seuil": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (signe dans le texte)"
+ },
+ "tilelab.jeu.mesurer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-mesure",
+  "note": ""
+ },
+ "tilelab.lieu.copier": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.lieu.prompt": {
+  "cible": "dz-media-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": "compose un prompt, ne génère rien"
+ },
+ "tilelab.jeu.nouvel-apercu": {
+  "cible": "dz-action-regenerer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "nouvelle graine, pas d'IA"
+ },
+ "tilelab.jeu.fabriquer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-fabriquer",
+  "note": ""
+ },
+ "tilelab.jeu.slot-materiau": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-material-forge",
+  "note": ""
+ },
+ "tilelab.jeu.source-forge": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-material-forge",
+  "note": ""
+ },
+ "tilelab.jeu.source-lib": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.slot.jeuSlotA": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (flèche dans le texte)"
+ },
+ "tilelab.peintre.erreur-jeu": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (emoji dans un message)"
+ },
+ "tilelab.peintre.statut-jeu": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (emoji dans un message)"
+ },
+ "tilelab.peintre.export-peJson": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.peintre.export-pePng": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.peintre.effacer": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "vide la grille, garde la taille"
+ },
+ "tilelab.peintre.hint-jeu": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (emoji dans un message)"
+ },
+ "tilelab.seamless.rendre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-seamless",
+  "note": ""
+ },
+ "tilelab.seamless.dl-tuile": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.seamless.fleche-avant-apres": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "tilelab.seamless.vers-studio": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "sure",
+  "manque": "",
+  "note": "vers le Studio"
+ },
+ "tilelab.toast.tuile-prete": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "tilelab.aide.didact": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aide",
+  "note": ""
+ },
+ "etabli.aide.lien-guide": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aide",
+  "note": ""
+ },
+ "etabli.chrono.etape-lourde": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "etabli.entete.aide": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aide",
+  "note": "bouton d'aide : icône utile"
+ },
+ "etabli.entete.fermer-ab": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "etabli.entete.plaque": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.entete.retour": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-retour",
+  "note": ""
+ },
+ "etabli.export.importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "action courante : icône utile"
+ },
+ "etabli.export.impression": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer-3d",
+  "note": ""
+ },
+ "etabli.export.slicer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.fiche.percer-diametre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (symbole d'unité)"
+ },
+ "etabli.panneau.annuler": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.bool": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.creuser": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.decimer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.ecrire": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.habiller": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.isoler": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.masques": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.percer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.reparer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.separer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.panneau.tout-voir": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.onglet.export": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.onglet.fiche": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.onglet.parties": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.onglet.rig": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.plaque.oeil": {
+  "cible": "dz-etat-visible",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "etabli.vue.dessus": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.vue.face": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.vue.profil": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.vue.projection": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.outil.couper": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.outil.couteau-manip": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.outil.assise": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.outil.couteau": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-couteau",
+  "note": "outil de barre : icône utile"
+ },
+ "etabli.outil.mesurer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-mesure",
+  "note": "outil de barre : icône utile"
+ },
+ "etabli.outil.orienter": {
+  "cible": "dz-lab3d-rotation",
+  "confiance": "probable",
+  "manque": "",
+  "note": "outil de barre"
+ },
+ "etabli.outil.ranger": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "etabli.outil.surplombs": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "✓ = bascule active"
+ },
+ "etabli.outil.tranches": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "✓ = bascule active"
+ }
+}

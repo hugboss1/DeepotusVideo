@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Banc icônes</title>
+<style>
+body{background:#13171c;color:#cfd6dd;font:12px system-ui;margin:12px}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--w,118px),1fr));gap:6px}
+.c{background:#0a0c0f;border:1px solid #20262d;padding:6px;display:grid;gap:4px;justify-items:center}
+.c.bad{border-color:#e35d4a}
+.r{display:flex;gap:8px;align-items:center}
+.c svg{display:block}
+.n{font:10px monospace;word-break:break-all;text-align:center;color:#8b959f}
+.sil svg *{opacity:1!important}
+</style>
+<div id="info"></div>
+<div class="g" id="g"></div>
+<script>
+// ?f=<fichier json {cle: svg}> &fam=<préfixe>
+const P=new URLSearchParams(location.search);
+const N=24, Z=+(P.get("z")||0);
+async function main(){
+  const icons=await (await fetch(P.get("f")||"icons.json")).json();
+  const fam=P.get("fam")||"";
+  document.body.style.setProperty("--w",(118+Z)+"px");
+  const keys=Object.keys(icons).filter(k=>k.startsWith(fam)).sort();
+  // masques de silhouette 48x48 (tout opaque)
+  const S=48, masks={};
+  for(const k of Object.keys(icons)){
+    const svg=icons[k].replace(/opacity="[^"]*"/g,'opacity="1"').replace("<svg",'<svg width="'+S+'" height="'+S+'" color="#000" style="color:#000"').replace(/currentColor/g,"#000");
+    const img=new Image(); img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
+    try{await img.decode()}catch(e){masks[k]=null;continue}
+    const c=new OffscreenCanvas(S,S),x=c.getContext("2d");x.drawImage(img,0,0,S,S);
+    const d=x.getImageData(0,0,S,S).data, m=new Uint8Array(S*S);
+    for(let i=0;i<S*S;i++)m[i]=d[i*4+3]>100?1:0;
+    masks[k]=m;
+  }
+  const iou=(a,b)=>{let i=0,u=0;for(let j=0;j<a.length;j++){i+=a[j]&b[j];u+=a[j]|b[j]}return u?i/u:1};
+  const all=Object.keys(icons), paires=[];
+  for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++){
+    const a=masks[all[i]],b=masks[all[j]]; if(!a||!b)continue;
+    const v=iou(a,b); if(v>=.85)paires.push([all[i],all[j],+v.toFixed(3)]);
+  }
+  paires.sort((x,y)=>y[2]-x[2]);
+  const vides=all.filter(k=>!masks[k]||masks[k].reduce((s,v)=>s+v,0)<20);
+  window.RESULT={n:all.length,paires,vides};
+  const bad=new Set(paires.flatMap(p=>[p[0],p[1]]).concat(vides));
+  document.getElementById("info").textContent=`${all.length} icônes · ${paires.length} paires de silhouettes ≥ 0,85 · ${vides.length} vides/illisibles`;
+  document.getElementById("g").innerHTML=keys.map(k=>`<div class="c ${bad.has(k)?"bad":""}"><div class="r">
+    <span style="color:#cfd6dd">${icons[k].replace("<svg",'<svg width="16" height="16"')}</span>
+    <span style="color:#cfd6dd">${icons[k].replace("<svg",'<svg width="24" height="24"')}</span>
+    <span class="sil" style="color:#cfd6dd">${icons[k].replace("<svg",'<svg width="24" height="24"')}</span>
+    <span style="color:#14181d;background:#e6b23c;padding:2px">${icons[k].replace("<svg",'<svg width="24" height="24"')}</span>${Z?`<span style="color:#cfd6dd">${icons[k].replace("<svg",'<svg width="'+Z+'" height="'+Z+'"')}</span>`:""}</div>
+    <div class="n">${k.replace(/^dz-/,"")}</div></div>`).join("");
+}
+main();
+</script>

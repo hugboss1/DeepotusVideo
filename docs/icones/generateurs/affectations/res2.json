@@ -1,0 +1,3938 @@
+{
+ "montage.bandeau-de-rappels-sous-la-timeline.rappels-masquer": {
+  "cible": "dz-action-fermer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "masque le bandeau, ne détruit rien"
+ },
+ "montage.bandeau-du-haut.ajout-piste": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": "icône + conseillée sur les deux boutons"
+ },
+ "montage.bandeau-du-haut.bandeau-actions": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (sinon Preview=dz-media-lecture, Publier=dz-nav-scheduler)"
+ },
+ "montage.bandeau-du-haut.bandeau-puces": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "montage.bandeau-du-haut.menu": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-menu",
+  "note": ""
+ },
+ "montage.bandeau-du-haut.rendre": {
+  "cible": "dz-action-exporter",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rendu final = export"
+ },
+ "montage.barre-outils.bibliotheque": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "lier un média depuis la Bibliothèque"
+ },
+ "montage.barre-outils.couleur": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-couleur",
+  "note": "animation de mot couleur"
+ },
+ "montage.barre-outils.emoji": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-emoji",
+  "note": ""
+ },
+ "montage.barre-outils.glow": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-halo",
+  "note": "animation glow"
+ },
+ "montage.barre-outils.piste-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ajout de piste audio"
+ },
+ "montage.barre-outils.piste-incrust": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-incrustation",
+  "note": ""
+ },
+ "montage.barre-outils.piste-video": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ajout de piste vidéo"
+ },
+ "montage.barre-outils.poignee": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "poignée"
+ },
+ "montage.barre-outils.projets": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-projets",
+  "note": "liste des projets de montage"
+ },
+ "montage.barre-outils.rebond": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-rebond",
+  "note": ""
+ },
+ "montage.barre-outils.texte": {
+  "cible": "dz-media-texte",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.barre-de-duree-de-timeline-dzmdurbtn.duree-moins": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-moins",
+  "note": ""
+ },
+ "montage.barre-de-duree-de-timeline-dzmdurbtn.duree-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "probable",
+  "manque": "",
+  "note": "allonger = +"
+ },
+ "montage.barre-de-transport.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.barre-de-transport.coupe-prec": {
+  "cible": "dz-media-precedent",
+  "confiance": "probable",
+  "manque": "",
+  "note": "coupe précédente"
+ },
+ "montage.barre-de-transport.coupe-suiv": {
+  "cible": "dz-media-suivant",
+  "confiance": "probable",
+  "manque": "",
+  "note": "coupe suivante"
+ },
+ "montage.barre-de-transport.image-prec": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-image-precedente",
+  "note": "pas d'une image, distinct de coupe précédente"
+ },
+ "montage.barre-de-transport.image-suiv": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-image-suivante",
+  "note": "pas d'une image"
+ },
+ "montage.barre-de-transport.lecture": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.barre-de-transport.pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.barre-de-transport.raccourcis": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-raccourcis",
+  "note": ""
+ },
+ "montage.barre-de-transport.retablir": {
+  "cible": "dz-action-retablir",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.barre-de-transport.vitesse-jog": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-vitesse",
+  "note": ""
+ },
+ "montage.barre-du-lecteur-prise-de-voix-dzmvoicer.voixoff-rec": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-enregistrer",
+  "note": "prise micro"
+ },
+ "montage.barre-du-lecteur-prise-de-voix-dzmvoicer.voixoff-stop": {
+  "cible": "dz-media-arret",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.barre-d-outils-de-la-timeline.ajustement-ajouter": {
+  "cible": "dz-calque-reglage",
+  "confiance": "probable",
+  "manque": "",
+  "note": "clip d'ajustement = calque de réglage"
+ },
+ "montage.barre-d-outils-de-la-timeline.marqueurs": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-marqueur",
+  "note": ""
+ },
+ "montage.barre-d-outils-de-la-timeline.outils-texte": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé ; en compact voir aimanter/lame/ripple"
+ },
+ "montage.barre-d-outils-de-la-timeline.titre-ajouter": {
+  "cible": "dz-media-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": "clip titre"
+ },
+ "montage.barre-d-outils-de-la-timeline-mode-compa.compact-aimanter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-aimanter",
+  "note": ""
+ },
+ "montage.barre-d-outils-de-la-timeline-mode-compa.compact-lame": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-couper",
+  "note": "lame"
+ },
+ "montage.barre-d-outils-de-la-timeline-mode-compa.compact-ripple": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-ripple",
+  "note": ""
+ },
+ "montage.barre-d-outils-flottante.tb-recentrer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-recentrer",
+  "note": ""
+ },
+ "montage.barre-d-outils-flottante.tb-replier": {
+  "cible": "dz-action-fermer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "replie la barre sur son onglet"
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-bibliotheque": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "lier un média depuis la Bibliothèque"
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-couleur": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-couleur",
+  "note": "animation de mot couleur"
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-emoji": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-emoji",
+  "note": ""
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-glow": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-halo",
+  "note": "animation glow"
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-piste-audio": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ajout de piste audio"
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-piste-incrust": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-incrustation",
+  "note": ""
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-piste-video": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ajout de piste vidéo"
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-poignee": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "poignée"
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-projets": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-projets",
+  "note": ""
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-rebond": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-rebond",
+  "note": ""
+ },
+ "montage.barre-d-outils-flottante-dzmtoolbar.tb-texte": {
+  "cible": "dz-media-texte",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.barre-d-outils-flottante-onglet-outils.tb-onglet-ferme": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.barre-d-outils-flottante-onglet-outils.tb-onglet-ouvert": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.en-tete-de-piste.piste-ajouter": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.en-tete-de-piste.piste-descendre": {
+  "cible": "dz-edit-pile-reculer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "descend la piste d'un rang"
+ },
+ "montage.en-tete-de-piste.piste-grip": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "poignée"
+ },
+ "montage.en-tete-de-piste.piste-monter": {
+  "cible": "dz-edit-pile-avancer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "monte la piste (composée au-dessus)"
+ },
+ "montage.en-tete-de-piste.piste-muet": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-muet",
+  "note": ""
+ },
+ "montage.en-tete-de-piste.piste-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.en-tete-de-piste.piste-solo": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-solo",
+  "note": ""
+ },
+ "montage.en-tete-de-piste.piste-verrou": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.en-tete-de-piste-de-sous-titres-gravee.piste-gravee": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-grave",
+  "note": "sous-titres gravés au rendu"
+ },
+ "montage.index-des-marqueurs-dzmmarkerindex.marqueur-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.inspecteur-de-clip.clip-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.inspecteur-clip-audio.automation": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-image-cle",
+  "note": "point d'automation"
+ },
+ "montage.inspecteur-clip-audio-automation.automation-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.inspecteur-clip-audio-vitesse.vitesse-reset": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.inspecteur-jonction-a-b.ab-avancer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-image-suivante",
+  "note": ""
+ },
+ "montage.inspecteur-jonction-a-b.ab-reculer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-image-precedente",
+  "note": ""
+ },
+ "montage.inspecteur-overlay-trajectoire.trajectoire-poser": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-image-cle",
+  "note": "point de trajectoire"
+ },
+ "montage.inspecteur-overlay-trajectoire.trajectoire-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.inspecteur-plan.extraire-son": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "extraire le son"
+ },
+ "montage.inspecteur-plan-rampe-de-vitesse.rampe-diviser": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-couper",
+  "note": "diviser à la tête"
+ },
+ "montage.lecteur.lecteur-zoom": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-zoom",
+  "note": ""
+ },
+ "montage.liste-des-projets-popover-projets.projet-actions": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (dupliquer pourrait prendre dz-action-dupliquer)"
+ },
+ "montage.liste-des-projets-popover-projets.projet-comparer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-comparer",
+  "note": ""
+ },
+ "montage.liste-des-projets-popover-projets.projet-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.liste-des-projets-popover-projets.projet-vide": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-vide",
+  "note": ""
+ },
+ "montage.menu-contextuel-d-un-clip-vitesse.menu-vitesse": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-coche",
+  "note": "option courante cochée"
+ },
+ "montage.menu-affichage.menu-coche-ancrer-la-barre-d-outils": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-coche",
+  "note": "option active cochée"
+ },
+ "montage.menu-affichage.menu-coche-durees-sur-les-clips": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-coche",
+  "note": "option active cochée"
+ },
+ "montage.menu-affichage.menu-coche-inspecteur": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-coche",
+  "note": "option active cochée"
+ },
+ "montage.menu-affichage.menu-coche-medias": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-coche",
+  "note": "option active cochée"
+ },
+ "montage.panneau-narration-bloc.narr-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.panneau-narration-bloc.narr-pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.panneau-narration-bloc.narr-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.panneau-raccourcis-table-svm-actions.raccourci-931684": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "touche clavier : garder le caractère, pas d'icône"
+ },
+ "montage.panneau-raccourcis-table-svm-actions.raccourci-931762": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "touche clavier : garder le caractère, pas d'icône"
+ },
+ "montage.panneau-raccourcis-table-svm-actions.raccourci-931828": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "touche clavier : garder le caractère, pas d'icône"
+ },
+ "montage.panneau-raccourcis-table-svm-actions.raccourci-931892": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "touche clavier : garder le caractère, pas d'icône"
+ },
+ "montage.scopes-dzmscopes.scopes-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.timeline-clip-de-sous-titre.clip-erreur": {
+  "cible": "dz-etat-erreur",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-medias-dzmmediadrawer.medias-autoclips": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-couper",
+  "note": "auto-clips = extraits"
+ },
+ "montage.tiroir-medias-dzmmediadrawer.medias-filtre-3": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-note",
+  "note": "filtre par note"
+ },
+ "montage.tiroir-medias-dzmmediadrawer.medias-filtre-5": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-note",
+  "note": "filtre par note"
+ },
+ "montage.tiroir-medias-dzmmediadrawer.medias-noter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-note",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-arb-bas": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans du texte courant"
+ },
+ "montage.tiroir-sous-titres-subs.subs-arb-haut": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans du texte courant"
+ },
+ "montage.tiroir-sous-titres-subs.subs-calc-ack": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "acquitté"
+ },
+ "montage.tiroir-sous-titres-subs.subs-calc-fix": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-modifier",
+  "note": "écrit dans le fichier"
+ },
+ "montage.tiroir-sous-titres-subs.subs-caler": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-tete-lecture",
+  "note": "caler sur la tête"
+ },
+ "montage.tiroir-sous-titres-subs.subs-fam-ack": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "acquittement"
+ },
+ "montage.tiroir-sous-titres-subs.subs-fam-fix": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-modifier",
+  "note": "correctif écrit"
+ },
+ "montage.tiroir-sous-titres-subs.subs-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-fleche-tc": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "séparateur"
+ },
+ "montage.tiroir-sous-titres-subs.subs-gestes-deplier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-gestes-replier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-legende-ack": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "acquittement"
+ },
+ "montage.tiroir-sous-titres-subs.subs-legende-fix": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-modifier",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-masquer": {
+  "cible": "dz-etat-visible",
+  "confiance": "sure",
+  "manque": "",
+  "note": "œil = état visible, clic masque"
+ },
+ "montage.tiroir-sous-titres-subs.subs-module-ferme": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-module-ouvert": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-reafficher": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-redecouper": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-replique-fermee": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-replique-ouverte": {
+  "cible": "dz-etat-masque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-seuils-regler": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-seuils-replier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs.subs-trace": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "plans acquittés"
+ },
+ "montage.tiroir-sous-titres-subs-onglet-style.subs-ancre-bas": {
+  "cible": "dz-edit-aligner-bas",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs-onglet-style.subs-ancre-centre": {
+  "cible": "dz-edit-aligner-centre-h",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs-onglet-style.subs-ancre-droite": {
+  "cible": "dz-edit-aligner-droite",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs-onglet-style.subs-ancre-gauche": {
+  "cible": "dz-edit-aligner-gauche",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs-onglet-style.subs-ancre-haut": {
+  "cible": "dz-edit-aligner-haut",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs-onglet-style.subs-ancre-milieu": {
+  "cible": "dz-edit-aligner-centre-v",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "montage.tiroir-sous-titres-subs-onglet-style.subs-hors-zone": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.en-tete-de-l-ecran-dzsonvfx.theme": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-theme",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-sfx-lignes-cibles.sfx-cible": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-sfx-generes.sfxgen-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-sfx-generes.sfxgen-montage": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-sfx-generes.sfxgen-pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-liste-des-generateurs.gen-carre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "repère de couleur"
+ },
+ "son-vfx.onglet-audio-musique.musique-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-musique.musique-montage": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-musique.musique-pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-navigateur-de-sfx-svmsfxbro.sfx-biblio": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "copier dans la Bibliothèque"
+ },
+ "son-vfx.onglet-audio-navigateur-de-sfx-svmsfxbro.sfx-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-navigateur-de-sfx-svmsfxbro.sfx-pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-voix.jingles": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aller",
+  "note": "ouvre une autre vue"
+ },
+ "son-vfx.onglet-audio-voix.voix-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-voix.voix-pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-editeur-30-s.editeur-lecture": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-editeur-30-s.editeur-montage": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "probable",
+  "manque": "",
+  "note": "envoyer au Montage"
+ },
+ "son-vfx.onglet-audio-editeur-30-s.editeur-outils": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "son-vfx.onglet-audio-editeur-30-s.editeur-pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-audio-editeur-de-paroles-svmlyric.paroles-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglet-vfx-particules.vfx-biblio": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.onglets-de-l-ecran-dzsonvfx.onglets": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-actif": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-actif",
+  "note": "effet actif (bascule contourner)"
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-aide-fav": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-ajouter": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-badge-n": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "compteur, texte seul conseillé"
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-contourne": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-contourne",
+  "note": ""
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-descendre": {
+  "cible": "dz-edit-pile-reculer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "descend dans la pile"
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-fantome": {
+  "cible": "dz-calque-effet",
+  "confiance": "probable",
+  "manque": "",
+  "note": "fantôme d'effet"
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-fav-off": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-fav-on": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-module-ferme": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-module-ouvert": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-monter": {
+  "cible": "dz-edit-pile-avancer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "monte dans la pile"
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-onglet-fav": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "son-vfx.rack-vfx-vfxrack-panneau-d-effets-du-cli.vfx-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-aide-fav": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-aide-fleches": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "touches clavier dans du texte"
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-aide-indexer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-recherche-semantique",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-ameliorer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-ameliorer",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-arme": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-confirmer",
+  "note": "second clic d'une action payante"
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-arreter": {
+  "cible": "dz-media-arret",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-derive": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-derive",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-detail-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-detail-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-detail-stop": {
+  "cible": "dz-media-arret",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-fantome": {
+  "cible": "dz-media-audio",
+  "confiance": "probable",
+  "manque": "",
+  "note": "fantôme de son"
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-fav-off": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-fav-on": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-inserer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-inserer",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-isoler": {
+  "cible": "dz-media-voix",
+  "confiance": "probable",
+  "manque": "",
+  "note": "isoler la voix"
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-liste-arreter": {
+  "cible": "dz-media-arret",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-liste-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-module-ferme": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-module-ouvert": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-onglet-fav": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-rafraichir": {
+  "cible": "dz-action-actualiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-semantique": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-recherche-semantique",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-stems": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-stems",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "son-vfx.tiroir-sons-dzsfx-drawer-montage-et-son-.sons-survol": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-preecoute",
+  "note": ""
+ },
+ "bibliotheque.barre-de-filtres-dzmetachips.filtre-note": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-note",
+  "note": ""
+ },
+ "bibliotheque.barre-des-projets-dzprojetsbar.projets-auto-actif": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-rangement-auto",
+  "note": ""
+ },
+ "bibliotheque.barre-des-projets-dzprojetsbar.projets-auto-off": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-rangement-auto",
+  "note": ""
+ },
+ "bibliotheque.barre-des-projets-dzprojetsbar.projets-auto-on": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-rangement-auto",
+  "note": ""
+ },
+ "bibliotheque.barre-des-projets-dzprojetsbar.projets-auto-stop": {
+  "cible": "dz-action-fermer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "croix qui arrête le rangement"
+ },
+ "bibliotheque.barre-des-projets-dzprojetsbar.projets-epingle": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-epingler-mobile",
+  "note": ""
+ },
+ "bibliotheque.barre-des-projets-dzprojetsbar.projets-epingler": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-epingler-mobile",
+  "note": ""
+ },
+ "bibliotheque.barre-des-projets-dzprojetsbar.projets-etat": {
+  "cible": "dz-etat-information",
+  "confiance": "probable",
+  "manque": "",
+  "note": "état du projet"
+ },
+ "bibliotheque.barre-des-projets-dzprojetsbar.projets-option-mobile": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-epingler-mobile",
+  "note": ""
+ },
+ "bibliotheque.barre-des-projets-dzprojetsbar.projets-renommer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-renommer",
+  "note": ""
+ },
+ "bibliotheque.barre-d-outils-de-la-bibliotheque.recherche": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.barre-d-outils-de-la-bibliotheque-dzouti.outil-corbeille": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-corbeille",
+  "note": ""
+ },
+ "bibliotheque.barre-d-outils-de-la-bibliotheque-dzouti.outil-nettoyage": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-nettoyer",
+  "note": ""
+ },
+ "bibliotheque.barre-d-outils-de-la-bibliotheque-dzouti.outil-recherche": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.barre-d-outils-de-la-bibliotheque-dzouti.vue-grille": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-vue-grille",
+  "note": ""
+ },
+ "bibliotheque.barre-d-outils-de-la-bibliotheque-dzouti.vue-liste": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-vue-liste",
+  "note": ""
+ },
+ "bibliotheque.barre-d-outils-onglet-audio.importer-son": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.barre-d-outils-onglet-images.importer-image": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.barre-d-outils-onglet-rendus.importer-video": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.bibliotheque-toute-la-vue.depot-plein-ecran": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.carte-d-element-grille.carte-fav-off": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "bibliotheque.carte-d-element-grille.carte-fav-on": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "bibliotheque.carte-d-element-grille.carte-note": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-note",
+  "note": ""
+ },
+ "bibliotheque.commentaires-dzcommentaires.commentaire-suppr": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.corbeille-dzcorbeille.corbeille-illisible": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "probable",
+  "manque": "",
+  "note": "type illisible"
+ },
+ "bibliotheque.corbeille-dzcorbeille.corbeille-image": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.corbeille-dzcorbeille.corbeille-rendu": {
+  "cible": "dz-media-video",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.corbeille-dzcorbeille.corbeille-son": {
+  "cible": "dz-media-audio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.en-tete.film-importer-une-video": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.en-tete.search-rechercher-des-assets": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.en-tete.upload-importer-un-son": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.en-tete.upload-importer-une-image": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-d-un-asset-3d.download-glb-optimise": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-d-un-element-modale.bolt-rouvrir-dans-quick": {
+  "cible": "dz-nav-quick",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-d-un-element-modale.close-bouton-en-haut-a-droite": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-d-un-element-modale.download-telecharger": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-d-un-element-modale.film-a-gauche-du-nom-si-rendu": {
+  "cible": "dz-media-video",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-d-un-element-modale.flow-rouvrir-dans-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-d-un-element-modale.image-a-gauche-du-nom-sinon": {
+  "cible": "dz-media-image",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-d-un-element-modale-image.trash-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "mise à la corbeille"
+ },
+ "bibliotheque.fiche-d-un-element-modale-rendu.trash-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "mise à la corbeille"
+ },
+ "bibliotheque.fiche-d-un-element-modale-son.trash-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "mise à la corbeille"
+ },
+ "bibliotheque.fiche-d-un-element-modale-sprite.download-zip-unity": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-d-un-element-modale.fiche-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-d-un-element-modale.fiche-type": {
+  "cible": "dz-media-video",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rendu ; dz-media-image pour une image"
+ },
+ "bibliotheque.fiche-detail-actions.fiche-envoyer": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-favori-off": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-favori-on": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-quick": {
+  "cible": "dz-nav-quick",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-renommer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-renommer",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-spritelab-image": {
+  "cible": "dz-nav-spritelab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-spritelab-rendu": {
+  "cible": "dz-nav-spritelab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-studio": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-suppr-image": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-suppr-rendu": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-suppr-son": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions.fiche-telecharger": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-detail-actions-sprite.fiche-zip-unity": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-images-semblables-dzsemblables.semblables-sans-clip": {
+  "cible": "dz-action-chercher",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-licence-dzfiche.fiche-licence": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.fiche-lignee-dzlignee.lignee-cycle": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "probable",
+  "manque": "",
+  "note": "boucle dans la lignée"
+ },
+ "bibliotheque.fiche-lignee-dzlignee.lignee-externe": {
+  "cible": "dz-media-film",
+  "confiance": "probable",
+  "manque": "",
+  "note": "source vidéo externe"
+ },
+ "bibliotheque.fiche-editeur-de-meta-dzmetaeditor.meta-note-off": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-note",
+  "note": ""
+ },
+ "bibliotheque.fiche-editeur-de-meta-dzmetaeditor.meta-note-on": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-note",
+  "note": ""
+ },
+ "bibliotheque.fiche-editeur-de-meta-dzmetaeditor.meta-tag-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.grille-des-rendus-vignette.vignette-survol": {
+  "cible": "dz-media-lecture",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.kits-de-marque.plus-nouveau-kit": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.liste-tri-par-lignee.lignee-indent": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-derive",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-lancer-une-recette-cho.recette-choix": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-recette",
+  "note": "recette Studio"
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-cardforge-copier-img": {
+  "cible": "dz-nav-card-forge",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-chapitre-atelier-i": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-chapitres",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-copier-la-sheet-dans-l": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": "copie dans les Images"
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-impression-3d-export": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer-3d",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-lancer-une-recette-d": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-recette",
+  "note": "recette Studio"
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-montage-clip-video": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-montage-overlay-a-la": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-montage",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-photolab-retoucher-l": {
+  "cible": "dz-nav-photolab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-projet-de-la-bibliothe": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-ranger",
+  "note": "ranger dans un projet"
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-prolonger-le-clip-7": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "prolongation payante par génération"
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-quick-image-de-depar": {
+  "cible": "dz-nav-quick",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-scheduler-brouillon": {
+  "cible": "dz-nav-scheduler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-sprite-lab-source": {
+  "cible": "dz-nav-spritelab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-studio-noeud-image": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-studio-nouveau-graph": {
+  "cible": "dz-nav-studio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-template-studio-fo": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-templates",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-tile-lab-source-de-l": {
+  "cible": "dz-nav-tilelab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.menu-envoyer-vers-dzsendto.envoyer-vectorlab-nouveau-do": {
+  "cible": "dz-nav-vectorlab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.menu-ranger-dans-un-projet.projet-dedans": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-coche",
+  "note": ""
+ },
+ "bibliotheque.menu-ranger-dans-un-projet.projet-ranger": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-ranger",
+  "note": ""
+ },
+ "bibliotheque.onglet-audio.depot-son": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.onglet-audio-zone-de-depot.upload-importer-un-son-musique-": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.onglet-images.depot-image": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.onglet-images-barre-de-creation.sparkle-creer-l-image": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.onglet-images-barre-de-creation.sparkle-decrivez-une-image-a-cre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (le bouton Créer porte dz-action-generer)"
+ },
+ "bibliotheque.onglet-images-barre-de-creation.zap-gestionnaire-de-prompts": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-prompts",
+  "note": "gestionnaire de prompts"
+ },
+ "bibliotheque.onglet-images-barre-de-generation.gen-creer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.onglet-images-barre-de-generation.gen-gestionnaire": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-prompts",
+  "note": "gestionnaire de prompts"
+ },
+ "bibliotheque.onglet-images-barre-de-generation.gen-prompt": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "signale le champ de génération IA"
+ },
+ "bibliotheque.onglet-images-zone-de-depot.upload-glissez-des-images-ici-o": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.onglets-de-la-bibliotheque-en-tete.onglets": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "bibliotheque.projets-etat-dzetatprojet.etat-rendu": {
+  "cible": "dz-media-video",
+  "confiance": "sure",
+  "manque": "",
+  "note": "rendu ; dz-media-audio pour un son"
+ },
+ "bibliotheque.projets-etat-dzetatprojet.etat-son": {
+  "cible": "dz-media-audio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.voile-de-depot-plein-ecran.upload-deposez-pour-ajouter-a-l": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.vue-liste-dzliste.liste-fav": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "bibliotheque.vue-liste-dzliste.liste-note": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-note",
+  "note": ""
+ },
+ "bibliotheque.vue-liste-dzliste.liste-rendu": {
+  "cible": "dz-media-video",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.vue-liste-dzliste.liste-son": {
+  "cible": "dz-media-audio",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "bibliotheque.vue-liste-dzliste.liste-tri-asc": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-trier",
+  "note": ""
+ },
+ "bibliotheque.vue-liste-dzliste.liste-tri-desc": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-trier",
+  "note": ""
+ },
+ "reglages.appareils-dzappair.appareils": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.appareils-mobile.plus-appairer-un-appareil": {
+  "cible": "dz-action-ajouter",
+  "confiance": "probable",
+  "manque": "",
+  "note": "appairer un appareil"
+ },
+ "reglages.apparence.apparence-halo": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "probable",
+  "manque": "",
+  "note": "poulpe dans le texte d'aide"
+ },
+ "reglages.assistant-de-creation-de-persona-u.caretr-continuer": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "étape suivante"
+ },
+ "reglages.assistant-de-creation-de-persona-u.check-enregistrer-le-persona": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.assistant-de-creation-de-persona-u.close-bouton-en-haut-a-droite": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.assistant-persona-fenetre.persona-continuer": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "étape suivante"
+ },
+ "reglages.assistant-persona-fenetre.persona-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.assistant-persona-fenetre.persona-fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.assistant-persona-fenetre.persona-retour": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "étape précédente"
+ },
+ "reglages.assistant-persona-apercu-json.persona-copier-json": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.assistant-persona-apercu-json.persona-dl-json": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.assistant-persona-ton.persona-formalite": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans du texte courant"
+ },
+ "reglages.chemins.chemin-copier": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.chemins.copy-copier": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.cles-d-api.check-enregistrer-toutes-les-m": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.cles-d-api-ligne.check-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.cles-d-api.cle-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.cles-d-api.cles-tout-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.cles-d-api-test-dztestcle.cle-tester": {
+  "cible": "dz-media-lecture",
+  "confiance": "probable",
+  "manque": "",
+  "note": "Tester"
+ },
+ "reglages.coffre-dzcoffre.coffre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé (Ouvrir/Fermer pourraient prendre dz-etat-libre/dz-etat-verrouille)"
+ },
+ "reglages.coffre-a-cles.check-ouvrir": {
+  "cible": "dz-etat-libre",
+  "confiance": "probable",
+  "manque": "",
+  "note": "déverrouille le coffre"
+ },
+ "reglages.coffre-a-cles.check-poser-le-coffre": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "probable",
+  "manque": "",
+  "note": "crée le coffre chiffré"
+ },
+ "reglages.comptes-connectes.canal-instagram-701063": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "reglages.comptes-connectes.canal-telegram-701063": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "reglages.comptes-connectes.canal-tiktok-701063": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "reglages.comptes-connectes.canal-x-701063": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "reglages.comptes-connectes.canal-youtube-701063": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "reglages.comptes-connectes.compte-connecter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-lier",
+  "note": "connexion OAuth"
+ },
+ "reglages.comptes-connectes.compte-deplier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.comptes-connectes.compte-tester": {
+  "cible": "dz-media-lecture",
+  "confiance": "probable",
+  "manque": "",
+  "note": "Tester"
+ },
+ "reglages.comptes-connectes-detail.bolt-verifier-les-identifiant": {
+  "cible": "dz-media-lecture",
+  "confiance": "probable",
+  "manque": "",
+  "note": "Tester"
+ },
+ "reglages.comptes-connectes-detail-youtube-tiktok.link-connecter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-lier",
+  "note": "connexion OAuth"
+ },
+ "reglages.comptes-connectes-ligne-de-canal.caretr-a-droite-de-l-en-tete-du": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.comptes-connectes-liste-g.channelinstagram-instagram": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-instagram",
+  "note": ""
+ },
+ "reglages.comptes-connectes-liste-g.channeltelegram-telegram": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-telegram",
+  "note": ""
+ },
+ "reglages.comptes-connectes-liste-g.channeltiktok-tiktok": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-tiktok",
+  "note": ""
+ },
+ "reglages.comptes-connectes-liste-g.channelx-x": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-x",
+  "note": ""
+ },
+ "reglages.comptes-connectes-liste-g.channelyoutube-youtube": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-youtube",
+  "note": ""
+ },
+ "reglages.fournisseurs-par-defaut-ollama.ollama-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.fournisseurs-par-defaut-langue-dzlangueu.langue": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-langue",
+  "note": ""
+ },
+ "marque.logo.reglages-identite-marque": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "logo dynamique du kit de marque, pas d'icône"
+ },
+ "marque.logo.reglages-identite-marque-2": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "logo dynamique du kit de marque, pas d'icône"
+ },
+ "reglages.identite-marque.check-enregistrer-l-identite": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.identite-marque.upload-logo": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.identite-visuelle.identite-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.identite-visuelle.logo": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.identite-visuelle-kits-de-marque-dzkits.kit-nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-appareils": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-apparence": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-chemins": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-cles-d-api": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-coffre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-comptes-connectes": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-diagnostic": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-fournisseurs-par-defaut": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-identite-visuelle": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-news": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-pack-de-sous-titres": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-personas": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-tarifs-et-budget": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.navigation-des-reglages-colonne-gauche.nav-transfert-entre-machines": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "reglages.news-flux-rss.news-actualiser": {
+  "cible": "dz-action-actualiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.news-flux-rss.news-ajouter": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.news-flux-rss.news-flux": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-flux",
+  "note": "flux RSS"
+ },
+ "reglages.news-flux-rss.news-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.news-flux.bolt-tout-actualiser": {
+  "cible": "dz-action-actualiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.news-flux.plus-ajouter-un-flux": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.news-liste-des-flux.rss-devant-chaque-flux": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-flux",
+  "note": "flux RSS"
+ },
+ "reglages.news-liste-des-flux.trash-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.pack-d-etiquettes.check-enregistrer-le-pack": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.pack-d-etiquettes.plus-ajouter-une-etiquette": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.pack-d-etiquettes-ligne.trash-retirer-l-etiquette": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.pack-d-etiquettes-ligne.upload-remplacer-icone": {
+  "cible": "dz-action-importer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "remplace l'icône par un fichier"
+ },
+ "reglages.pack-de-sous-titres.pack-ajouter": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.pack-de-sous-titres.pack-apercu": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "contenu de l'utilisateur (emoji/image de l'étiquette), pas d'icône"
+ },
+ "reglages.pack-de-sous-titres.pack-defaut": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "contenu par défaut de l'étiquette, pas d'icône"
+ },
+ "reglages.pack-de-sous-titres.pack-enregistre": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.pack-de-sous-titres.pack-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.pack-de-sous-titres.pack-icone": {
+  "cible": "dz-action-importer",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.pack-de-sous-titres.pack-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.personas.persona-nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.personas.plus-nouveau-persona": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.personas-liste.persona-avatar": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "probable",
+  "manque": "",
+  "note": "avatar par défaut"
+ },
+ "reglages.personas-liste.persona-creer": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.personas-liste.persona-exporter": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.personas-liste.persona-modifier": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-modifier",
+  "note": ""
+ },
+ "reglages.personas-carte-de-persona-ou.download-exporter-en-json": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.personas-carte-de-persona-ou.edit-bouton-icone-personas-no": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-modifier",
+  "note": ""
+ },
+ "reglages.personas-carte-de-persona-ou.octopus-pastille-d-avatar-a-gauc": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "probable",
+  "manque": "",
+  "note": "avatar par défaut"
+ },
+ "reglages.personas-liste.plus-creer-un-persona": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.personas-persona-fourni-deepotus.octopus-deepotus": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.personas-persona-fourni-the-oracle.sparkle-the-oracle": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-oracle",
+  "note": "avatar du persona fourni"
+ },
+ "reglages.personas-persona-fourni-the-seer.zap-the-seer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-marque-seer",
+  "note": "avatar du persona fourni"
+ },
+ "reglages.personas-vue-json.copy-copier-le-json": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.personas-vue-json.download-telecharger-le-json": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.recherche-dans-les-reglages-dzsettingsse.recherche-resultat": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans du texte courant"
+ },
+ "reglages.tarifs-et-budget.tarifs-enregistre": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.tarifs-et-budget.tarifs-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "icône d'enregistrement comme les autres boutons"
+ },
+ "reglages.transfert-entre-machines.exporter": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.transfert-entre-machines.importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.transfert-entre-machines.modal-titre": {
+  "cible": "dz-action-exporter",
+  "confiance": "probable",
+  "manque": "",
+  "note": "selon le sens : dz-action-importer en import"
+ },
+ "reglages.transfert.exporter": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.transfert.importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "reglages.transfert.modale-titre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône (titre de modale)"
+ },
+ "reglages.valeurs-par-defaut.check-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-carte-d-un-rendu-3d.dl-format": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-carte-d-un-rendu-3d.poster": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": "image fixe du modèle"
+ },
+ "game-assets.3d-studio-carte-d-un-rendu-3d.renommer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-renommer",
+  "note": ""
+ },
+ "game-assets.3d-studio-carte-d-un-rendu-3d.rotate": {
+  "cible": "dz-lab3d-rotation",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rotation animée du modèle"
+ },
+ "game-assets.3d-studio-carte-d-un-rendu-3d.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-carte-d-un-rendu-3d.vers-impression": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer-3d",
+  "note": ""
+ },
+ "game-assets.3d-studio-graphe-de-progression-pipeline.pipeline-biblio": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enregistre dans la Bibliothèque"
+ },
+ "game-assets.3d-studio-graphe-de-progression-pipeline.pipeline-dl": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-graphe-de-progression-pipeline.pipeline-encours": {
+  "cible": "dz-etat-attente",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-graphe-de-progression-pipeline.pipeline-fait": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-graphe-de-progression-pipeline.pipeline-poster": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": "image fixe"
+ },
+ "game-assets.3d-studio-graphe-de-progression-pipeline.pipeline-rotate": {
+  "cible": "dz-lab3d-rotation",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-panneau-lod-dzlod.lod": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-lod",
+  "note": ""
+ },
+ "game-assets.3d-studio-panneau-lod-dzlod.lod-dl": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-panneau-optimiser-dzoptglbbtn.opt-dl-carte": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-panneau-optimiser-dzoptimize.opt-comparer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-comparer",
+  "note": ""
+ },
+ "game-assets.3d-studio-panneau-optimiser-dzoptimize.opt-dl": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-panneau-optimiser-dzoptimize.opt-resultat": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans du texte courant"
+ },
+ "game-assets.3d-studio-panneau-optimiser-dzoptimize.opt-simple": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-comparer",
+  "note": "sortie du mode comparaison"
+ },
+ "game-assets.3d-studio-panneau-optimiser-dzoptimize.optimiser": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-optimiser",
+  "note": ""
+ },
+ "game-assets.3d-studio-panneau-textures-dztex.tex-export": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-vue-de-suivi-d-un-asset-dzgame.3d-retour": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retour"
+ },
+ "game-assets.3d-studio-vues-generees-planches.dl-shot": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.3d-studio-vues-generees-planches.shot-biblio": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enregistre dans la Bibliothèque"
+ },
+ "game-assets.assets-2d.boutons-sans-icone": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-lien-externe",
+  "note": "Guide ↗ ; Ouvrir en texte seul"
+ },
+ "game-assets.assets-2d.cards": {
+  "cible": "dz-nav-card-forge",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.assets-2d.pixel": {
+  "cible": "dz-nav-vectorlab",
+  "confiance": "probable",
+  "manque": "",
+  "note": "Vectorlab en persona Pixel"
+ },
+ "game-assets.assets-2d.sprites": {
+  "cible": "dz-nav-spritelab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.assets-2d.tiles": {
+  "cible": "dz-nav-tilelab",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.hub-game-assets-dzgameassetshub.hub-guide": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-lien-externe",
+  "note": ""
+ },
+ "game-assets.hub-game-assets-dzgameassetshub.hub-guide-off": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-lien-externe",
+  "note": "état désactivé"
+ },
+ "game-assets.barre-categories.3d": {
+  "cible": "dz-cat-3d",
+  "confiance": "probable",
+  "manque": "",
+  "note": "onglet 3D du hub, sens voisin de la catégorie 3d"
+ },
+ "game-assets.barre-categories.a2d": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-assets-2d",
+  "note": ""
+ },
+ "game-assets.barre-categories.cards": {
+  "cible": "dz-nav-card-forge",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "game-assets.barre-categories.materials": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-matieres",
+  "note": ""
+ },
+ "game-assets.barre-categories.sprites": {
+  "cible": "dz-nav-spritelab",
+  "confiance": "probable",
+  "manque": "",
+  "note": "onglet qui affiche le Sprite Lab"
+ },
+ "game-assets.barre-categories.studio3d": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-studio-3d",
+  "note": ""
+ },
+ "game-assets.barre-categories.tiles": {
+  "cible": "dz-nav-tilelab",
+  "confiance": "probable",
+  "manque": "",
+  "note": "onglet qui affiche le Tile Lab"
+ },
+ "cardforge.format.replier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.cadre.adopter": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "cardforge.cadre.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.cadre.colonne-replier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.cadre.dos-descendre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-descendre",
+  "note": "descendre dans la liste = peint plus tard (inverse de la pile)"
+ },
+ "cardforge.cadre.dos-monter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-monter",
+  "note": "monter dans la liste = peint plus tôt"
+ },
+ "cardforge.cadre.dos-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.cadre.generer-decor": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.cadre.png-dos": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.cadre.png-recto": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.cadre.preuve-ok": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": "✗ en échec = dz-etat-erreur"
+ },
+ "cardforge.cadre.preuve-statut": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.cadre.retablir": {
+  "cible": "dz-action-retablir",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.scene.adapter": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "cardforge.scene.png11": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.scene.precedente": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.scene.recto-verso": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "cardforge.scene.reperes": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-reperes",
+  "note": ""
+ },
+ "cardforge.scene.replier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.scene.suivante": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.scene.zoom-moins": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-zoom-moins",
+  "note": ""
+ },
+ "cardforge.scene.zoom-plus": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-zoom-plus",
+  "note": ""
+ },
+ "cardforge.scene.zoom100": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "cardforge.donnees.coller": {
+  "cible": "dz-action-coller",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.donnees.exporter-deck": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.donnees.filtre-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.donnees.image-trouvee": {
+  "cible": "dz-etat-succes",
+  "confiance": "probable",
+  "manque": "",
+  "note": "image trouvée (manquante = dz-etat-erreur)"
+ },
+ "cardforge.donnees.langue-incomplete": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.donnees.ligne-ecartee": {
+  "cible": "dz-etat-masque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ligne écartée par le filtre"
+ },
+ "cardforge.donnees.mappage-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.donnees.mappage-vers": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-lier",
+  "note": "applique le mappage colonne vers slot"
+ },
+ "cardforge.donnees.quantite": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-quantite",
+  "note": ""
+ },
+ "cardforge.donnees.retour-ligne": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "marque typographique, pas d'icône"
+ },
+ "cardforge.donnees.slot-special": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "puce de menu"
+ },
+ "cardforge.donnees.source": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-fichier",
+  "note": ""
+ },
+ "cardforge.donnees.suppr-colonne": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.donnees.suppr-ligne": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.donnees.table-vierge": {
+  "cible": "dz-action-ajouter",
+  "confiance": "probable",
+  "manque": "",
+  "note": "crée une table vierge"
+ },
+ "cardforge.donnees.tri-colonne": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-trier",
+  "note": ""
+ },
+ "cardforge.entete.marque": {
+  "cible": "dz-nav-card-forge",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.entete.modeles": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-modeles",
+  "note": "galerie de modèles du lab"
+ },
+ "cardforge.entete.retour-app": {
+  "cible": "dz-nav-accueil",
+  "confiance": "probable",
+  "manque": "",
+  "note": "retour à l'application"
+ },
+ "cardforge.entete.theme": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-theme",
+  "note": ""
+ },
+ "cardforge.export3d.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.export3d.tout": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.face.detail-disclosure": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.face.generer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": "génération payante"
+ },
+ "cardforge.face.pile-retirer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.face.png": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.face.vlab-sans-vignette": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor (vignette absente)"
+ },
+ "cardforge.face.vlab-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.forge3d.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.forge3d.bloc-disclosure": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.forge3d.exporter-couches": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.forge3d.picto-artifact": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-artefact",
+  "note": ""
+ },
+ "cardforge.forge3d.picto-assemble": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-assemblage",
+  "note": ""
+ },
+ "cardforge.forge3d.picto-defaut": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "repli neutre, pas d'icône"
+ },
+ "cardforge.forge3d.picto-export": {
+  "cible": "dz-action-exporter",
+  "confiance": "probable",
+  "manque": "",
+  "note": "nœud export"
+ },
+ "cardforge.forge3d.picto-extrude": {
+  "cible": "dz-lab3d-extrusion",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.forge3d.picto-layer": {
+  "cible": "dz-calque-pixel",
+  "confiance": "probable",
+  "manque": "",
+  "note": "nœud couche"
+ },
+ "cardforge.forge3d.picto-material": {
+  "cible": "dz-lab3d-materiau",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.forge3d.picto-mesh3d": {
+  "cible": "dz-lab3d-cube",
+  "confiance": "probable",
+  "manque": "",
+  "note": "maillage 3D"
+ },
+ "cardforge.forge3d.picto-plane": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-plan",
+  "note": ""
+ },
+ "cardforge.forge3d.picto-relief": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-relief",
+  "note": ""
+ },
+ "cardforge.forge3d.picto-transform": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-transformer",
+  "note": ""
+ },
+ "cardforge.forge3d.vers-impression": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer-3d",
+  "note": ""
+ },
+ "cardforge.galerie.dupliquer": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.galerie.fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.galerie.importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.galerie.modele": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "enregistrer comme modèle"
+ },
+ "cardforge.import.analyser": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "cardforge.import.choisir": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.import.detourer": {
+  "cible": "dz-outil-photo-selection-sujet",
+  "confiance": "probable",
+  "manque": "",
+  "note": "détourer le sujet"
+ },
+ "cardforge.import.publier": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "probable",
+  "manque": "",
+  "note": "publier vers la Forge 3D"
+ },
+ "cardforge.impression.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.impression.ligne-active": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "puce"
+ },
+ "cardforge.impression.mire": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.impression.paquet": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.impression.reperes": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-reperes",
+  "note": ""
+ },
+ "cardforge.impression.touches": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "touches clavier dans du texte"
+ },
+ "cardforge.impression.verif": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.matieres.alerte-raccord": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.matieres.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.matieres.balayer-lumiere": {
+  "cible": "dz-lab3d-lumiere",
+  "confiance": "probable",
+  "manque": "",
+  "note": "balayage de la lumière"
+ },
+ "cardforge.matieres.deriver": {
+  "cible": "dz-lab3d-materiau",
+  "confiance": "probable",
+  "manque": "",
+  "note": "dérive les maps PBR"
+ },
+ "cardforge.matieres.grain": {
+  "cible": "dz-action-regenerer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "nouvelle graine de grain"
+ },
+ "cardforge.matieres.retablir": {
+  "cible": "dz-action-retablir",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.rail.capture": {
+  "cible": "dz-action-importer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pièce Import"
+ },
+ "cardforge.rail.data": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-tableau",
+  "note": "pièce Données"
+ },
+ "cardforge.rail.edition": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-publier",
+  "note": "pièce Édition (livrables produit)"
+ },
+ "cardforge.rail.face": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-carte-face",
+  "note": "pièce Face"
+ },
+ "cardforge.rail.forge3d": {
+  "cible": "dz-lab3d-scene",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pièce Forge 3D (graphe 3D)"
+ },
+ "cardforge.rail.frame": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-carte-cadre",
+  "note": "pièce Cadre"
+ },
+ "cardforge.rail.gltf": {
+  "cible": "dz-nav-export",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pièce Export 3D"
+ },
+ "cardforge.rail.print": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer",
+  "note": "pièce Impression"
+ },
+ "cardforge.rail.replier": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.rail.solid": {
+  "cible": "dz-lab3d-cube",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pièce Volume"
+ },
+ "cardforge.rail.texture": {
+  "cible": "dz-lab3d-materiau",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pièce Matières"
+ },
+ "cardforge.rail.type": {
+  "cible": "dz-media-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pièce Typographie"
+ },
+ "cardforge.rail.repli-capture": {
+  "cible": "dz-action-importer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "repli de la pièce Import"
+ },
+ "cardforge.rail.repli-data": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-tableau",
+  "note": "repli de la pièce Données"
+ },
+ "cardforge.rail.repli-edition": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-publier",
+  "note": "repli de la pièce Édition"
+ },
+ "cardforge.rail.repli-face": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-carte-face",
+  "note": "repli de la pièce Face"
+ },
+ "cardforge.rail.repli-forge3d": {
+  "cible": "dz-lab3d-scene",
+  "confiance": "probable",
+  "manque": "",
+  "note": "repli de la pièce Forge 3D"
+ },
+ "cardforge.rail.repli-frame": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-carte-cadre",
+  "note": "repli de la pièce Cadre"
+ },
+ "cardforge.rail.repli-gltf": {
+  "cible": "dz-nav-export",
+  "confiance": "probable",
+  "manque": "",
+  "note": "repli de la pièce Export 3D"
+ },
+ "cardforge.rail.repli-print": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-imprimer",
+  "note": "repli de la pièce Impression"
+ },
+ "cardforge.rail.repli-solid": {
+  "cible": "dz-lab3d-cube",
+  "confiance": "probable",
+  "manque": "",
+  "note": "repli de la pièce Volume"
+ },
+ "cardforge.rail.repli-texture": {
+  "cible": "dz-lab3d-materiau",
+  "confiance": "probable",
+  "manque": "",
+  "note": "repli de la pièce Matières"
+ },
+ "cardforge.rail.repli-type": {
+  "cible": "dz-media-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": "repli de la pièce Typographie"
+ },
+ "cardforge.typo.ajout-image": {
+  "cible": "dz-calque-pixel",
+  "confiance": "probable",
+  "manque": "",
+  "note": "crée un calque d'image"
+ },
+ "cardforge.typo.ajout-slot": {
+  "cible": "dz-calque-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": "crée un bloc de texte"
+ },
+ "cardforge.typo.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.cadres": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-reperes",
+  "note": "cadres d'édition"
+ },
+ "cardforge.typo.calque-descendre": {
+  "cible": "dz-edit-pile-reculer",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.calque-monter": {
+  "cible": "dz-edit-pile-avancer",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.calque-oeil": {
+  "cible": "dz-etat-visible",
+  "confiance": "sure",
+  "manque": "",
+  "note": "masqué = dz-etat-masque"
+ },
+ "cardforge.typo.calque-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.calque-verrou": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": "déverrouillé = dz-etat-libre"
+ },
+ "cardforge.typo.correctifs-puces": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "puces de ligne"
+ },
+ "cardforge.typo.forme-bout-arrivee": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-pointe-fleche",
+  "note": ""
+ },
+ "cardforge.typo.forme-bout-depart": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-pointe-fleche",
+  "note": ""
+ },
+ "cardforge.typo.forme-retourner": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-retourner",
+  "note": ""
+ },
+ "cardforge.typo.htag-verrou": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.lisibilite": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-verifier",
+  "note": "contrôle de lisibilité"
+ },
+ "cardforge.typo.lot-badge": {
+  "cible": "dz-outil-vec-selection",
+  "confiance": "probable",
+  "manque": "",
+  "note": "sélection multiple"
+ },
+ "cardforge.typo.lot-bottom": {
+  "cible": "dz-edit-aligner-bas",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.lot-bout-arrivee": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-pointe-fleche",
+  "note": ""
+ },
+ "cardforge.typo.lot-bout-depart": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-pointe-fleche",
+  "note": ""
+ },
+ "cardforge.typo.lot-disth": {
+  "cible": "dz-edit-distribuer-h",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.lot-distv": {
+  "cible": "dz-edit-distribuer-v",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.lot-eqh": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-meme-hauteur",
+  "note": ""
+ },
+ "cardforge.typo.lot-eqw": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-meme-largeur",
+  "note": ""
+ },
+ "cardforge.typo.lot-hcenter": {
+  "cible": "dz-edit-aligner-centre-h",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.lot-left": {
+  "cible": "dz-edit-aligner-gauche",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.lot-right": {
+  "cible": "dz-edit-aligner-droite",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.lot-top": {
+  "cible": "dz-edit-aligner-haut",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.lot-vcenter": {
+  "cible": "dz-edit-aligner-centre-v",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.lot-verrou": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.nature-arrow": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-fleche",
+  "note": ""
+ },
+ "cardforge.typo.nature-ellipse": {
+  "cible": "dz-outil-vec-ellipse",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.nature-image": {
+  "cible": "dz-calque-pixel",
+  "confiance": "probable",
+  "manque": "",
+  "note": "calque d'image"
+ },
+ "cardforge.typo.nature-line": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-ligne",
+  "note": ""
+ },
+ "cardforge.typo.nature-rect": {
+  "cible": "dz-outil-vec-rectangle",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.nature-texte": {
+  "cible": "dz-calque-texte",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.ordre-arriere": {
+  "cible": "dz-edit-pile-reculer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.ordre-avant": {
+  "cible": "dz-edit-pile-avancer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.ordre-tout-arriere": {
+  "cible": "dz-edit-pile-dernier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.ordre-tout-avant": {
+  "cible": "dz-edit-pile-premier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.police-manquante": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.preuve-attente": {
+  "cible": "dz-etat-attente",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.preuve-erreur": {
+  "cible": "dz-etat-erreur",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.preuve-info": {
+  "cible": "dz-etat-information",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.preuve-lisibilite": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-verifier",
+  "note": "résultat du contrôle de lisibilité"
+ },
+ "cardforge.typo.preuve-ok-ko": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": "défaut = dz-etat-avertissement"
+ },
+ "cardforge.typo.raccourcis-disclosure": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.retablir": {
+  "cible": "dz-action-retablir",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.typo.texte-align-center": {
+  "cible": "dz-edit-aligner-centre-h",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de texte"
+ },
+ "cardforge.typo.texte-align-justify": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-justifier",
+  "note": ""
+ },
+ "cardforge.typo.texte-align-left": {
+  "cible": "dz-edit-aligner-gauche",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de texte"
+ },
+ "cardforge.typo.texte-align-right": {
+  "cible": "dz-edit-aligner-droite",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de texte"
+ },
+ "cardforge.typo.texte-valign-bottom": {
+  "cible": "dz-edit-aligner-bas",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de texte"
+ },
+ "cardforge.typo.texte-valign-middle": {
+  "cible": "dz-edit-aligner-centre-v",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de texte"
+ },
+ "cardforge.typo.texte-valign-top": {
+  "cible": "dz-edit-aligner-haut",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de texte"
+ },
+ "cardforge.typo.une-colonne": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-disposition-colonne",
+  "note": ""
+ },
+ "cardforge.volume.filaire": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-filaire",
+  "note": ""
+ },
+ "cardforge.volume.hdri": {
+  "cible": "dz-lab3d-lumiere",
+  "confiance": "probable",
+  "manque": "",
+  "note": "environnement HDRI"
+ },
+ "cardforge.volume.recadrer": {
+  "cible": "dz-lab3d-camera",
+  "confiance": "probable",
+  "manque": "",
+  "note": "recadre la caméra"
+ },
+ "cardforge.volume.rotation": {
+  "cible": "dz-lab3d-rotation",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.volume.zoom-moins": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-zoom-moins",
+  "note": ""
+ },
+ "cardforge.volume.zoom-plus": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-zoom-plus",
+  "note": ""
+ },
+ "cardforge.edition.fiche": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "cardforge.edition.livret": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "cardforge.edition.mockup": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "cardforge.edition.tabletopia": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.edition.tts": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "cardforge.edition.tts-poser": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "probable",
+  "manque": "",
+  "note": "pose dans Tabletop Simulator"
+ },
+ "avatar-heygen.inspecteur-selecteur-d-avatar-dzavatarpi.avatar-aide-clavier": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "touches clavier dans du texte"
+ },
+ "avatar-heygen.inspecteur-selecteur-d-avatar-dzavatarpi.avatar-fav-liste": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "avatar-heygen.inspecteur-selecteur-d-avatar-dzavatarpi.avatar-fav-off": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "avatar-heygen.inspecteur-selecteur-d-avatar-dzavatarpi.avatar-fav-on": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-favori",
+  "note": ""
+ },
+ "avatar-heygen.inspecteur-selecteur-d-avatar-dzavatarpi.avatar-prec": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.inspecteur-selecteur-d-avatar-dzavatarpi.avatar-suiv": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.inspecteur-selecteur-d-avatar-dzavatarpi.avatar-voix-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.quick-panneau-heygen.avatar-photo": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": "avatar photo"
+ },
+ "avatar-heygen.quick-panneau-heygen.avatar-recherche": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.quick-panneau-heygen.persona-avatar": {
+  "cible": "dz-marque-poulpe",
+  "confiance": "probable",
+  "manque": "",
+  "note": "avatar par défaut"
+ },
+ "avatar-heygen.quick-panneau-heygen.voix-courante": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-coche",
+  "note": "voix sélectionnée"
+ },
+ "avatar-heygen.quick-panneau-heygen.voix-preecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.quick-panneau-heygen.voix-recherche": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.quick-panneau-heygen-castings.casting-charge": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.quick-panneau-heygen-castings.casting-enregistrer": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.quick-panneau-heygen-castings.casting-sauve": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.quick-panneau-heygen-castings.casting-suppr": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.quick-panneau-heygen-photo-avatar.avatar-cree": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "avatar-heygen.quick-panneau-heygen-photo-avatar.photo-importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "depenses-plafonds.dialogue-depenses-du-mois-402-dz-plafond.dialogue-402": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "depenses-plafonds.infobulle-du-compteur-de-depenses-en-tet.minorant": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "depenses-plafonds.reglages-tarifs-et-budget-plafonds-dzpla.plafond-atteint": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "probable",
+  "manque": "",
+  "note": "plafond atteint"
+ },
+ "mise-a-jour.bandeau-de-mise-a-jour-dz-maj-js.maj-telecharger": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "mise-a-jour.reglages-diagnostic-dzmaj.maj-verifier": {
+  "cible": "dz-action-actualiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "vérifier la dernière version"
+ },
+ "voix-voicebox.quick-onglet-voix-off.generer-voix": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "voix-voicebox.quick-onglet-voix-off.voix-dispo": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "flèche dans du texte courant"
+ },
+ "voix-voicebox.quick-onglet-voix-off-dzvoicepicker.voix-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": "■ en lecture = dz-media-arret"
+ },
+ "voix-voicebox.quick-onglet-voix-off-dzvoicepicker.voix-recharger": {
+  "cible": "dz-action-actualiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "voix-voicebox.quick-onglet-voix-off-dzvoicepicker.voix-stop": {
+  "cible": "dz-media-arret",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "voix-voicebox.quick-onglet-voix-off-castings.casting-voix-sauver": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "sauver le casting"
+ },
+ "voix-voicebox.quick-onglet-voix-off-castings.casting-voix-suppr": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "voix-voicebox.studio-noeud-voix-off-dzvoicenodepanel.noeud-casting-sauver": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "sauver le casting"
+ },
+ "voix-voicebox.studio-noeud-voix-off-dzvoicenodepanel.noeud-casting-suppr": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "voix-voicebox.studio-noeud-voix-off-dzvoicenodepanel.noeud-generer-voix": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ }
+}

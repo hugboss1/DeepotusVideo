@@ -1,0 +1,167 @@
+[
+ {
+  "cle": "dz-action-chevron",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-action-deplier.",
+  "remplacee_par": "dz-action-deplier"
+ },
+ {
+  "cle": "dz-action-degrouper",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-edit-degrouper.",
+  "remplacee_par": "dz-edit-degrouper"
+ },
+ {
+  "cle": "dz-action-grouper",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-edit-grouper.",
+  "remplacee_par": "dz-edit-grouper"
+ },
+ {
+  "cle": "dz-action-quick",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-action-rouvrir-quick (tracé identique à dz-nav-quick : l'éclair reçoit le badge flèche sortante).",
+  "remplacee_par": "dz-action-rouvrir-quick"
+ },
+ {
+  "cle": "dz-calque-effet",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-edit-effet (même carré que les types de calques en monochrome ; l'effet devient le monogramme fx).",
+  "remplacee_par": "dz-edit-effet"
+ },
+ {
+  "cle": "dz-edit-deplacer",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-outil-photo-deplacer.",
+  "remplacee_par": "dz-outil-photo-deplacer"
+ },
+ {
+  "cle": "dz-edit-fusionner",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-edit-union.",
+  "remplacee_par": "dz-edit-union"
+ },
+ {
+  "cle": "dz-edit-pile-avancer",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-edit-monter.",
+  "remplacee_par": "dz-edit-monter"
+ },
+ {
+  "cle": "dz-edit-pile-dernier",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-edit-arriere-plan.",
+  "remplacee_par": "dz-edit-arriere-plan"
+ },
+ {
+  "cle": "dz-edit-pile-premier",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-edit-premier-plan.",
+  "remplacee_par": "dz-edit-premier-plan"
+ },
+ {
+  "cle": "dz-edit-pile-reculer",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-edit-descendre.",
+  "remplacee_par": "dz-edit-descendre"
+ },
+ {
+  "cle": "dz-etat-masque",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-etat-cache.",
+  "remplacee_par": "dz-etat-cache"
+ },
+ {
+  "cle": "dz-lab3d-scene",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-nav-cf-forge-3d (tracé du design15).",
+  "remplacee_par": "dz-nav-cf-forge-3d"
+ },
+ {
+  "cle": "dz-marque-favicon",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-marque-icone-app (tracés identiques au poulpe : l'icône d'application pose le poulpe sur une tuile).",
+  "remplacee_par": "dz-marque-icone-app"
+ },
+ {
+  "cle": "dz-marque-fenetre",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-marque-icone-app (tracés identiques au poulpe : l'icône d'application pose le poulpe sur une tuile).",
+  "remplacee_par": "dz-marque-icone-app"
+ },
+ {
+  "cle": "dz-media-timeline",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-media-animatique.",
+  "remplacee_par": "dz-media-animatique"
+ },
+ {
+  "cle": "dz-nav-card-forge",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-cat-cartes (tracé du design15).",
+  "remplacee_par": "dz-cat-cartes"
+ },
+ {
+  "cle": "dz-nav-export",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-nav-cf-export-3d (tracé du design15).",
+  "remplacee_par": "dz-nav-cf-export-3d"
+ },
+ {
+  "cle": "dz-nav-lab3d",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-nav-etabli (tracé identique à dz-cat-3d et dz-lab3d-cube : le lieu prend un étau).",
+  "remplacee_par": "dz-nav-etabli"
+ },
+ {
+  "cle": "dz-nav-parametres",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-nav-reglages (tracé du design15).",
+  "remplacee_par": "dz-nav-reglages"
+ },
+ {
+  "cle": "dz-nav-spritelab",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-cat-sprites (tracé du design15).",
+  "remplacee_par": "dz-cat-sprites"
+ },
+ {
+  "cle": "dz-nav-tilelab",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-cat-tuiles (tracé du design15).",
+  "remplacee_par": "dz-cat-tuiles"
+ },
+ {
+  "cle": "dz-outil-photo-clone",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-outil-photo-tampon.",
+  "remplacee_par": "dz-outil-photo-tampon"
+ },
+ {
+  "cle": "dz-outil-photo-luminosite",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-calque-luminosite-contraste.",
+  "remplacee_par": "dz-calque-luminosite-contraste"
+ },
+ {
+  "cle": "dz-outil-px-tampon",
+  "raison": "Le nom ne décrit pas la fonction finale ou fait doublon : la fonction est portée par dz-outil-photo-tampon.",
+  "remplacee_par": "dz-outil-photo-tampon"
+ },
+ {
+  "cle": "dz-action-rotation",
+  "raison": "Aucune fonction propre : la seule rotation de l'app est celle de l'aperçu 3D (dz-lab3d-rotation) ; tracé identique à dz-lab3d-rotation.",
+  "remplacee_par": null
+ },
+ {
+  "cle": "dz-cat-interface",
+  "raison": "Aucune catégorie « interface » dans l'app (ni onglet Game Assets, ni catégorie de nœud, ni entité).",
+  "remplacee_par": null
+ },
+ {
+  "cle": "dz-cat-texture",
+  "raison": "Aucune catégorie « texture » dans l'app : les textures relèvent du lab Matières (dz-cat-matieres).",
+  "remplacee_par": null
+ },
+ {
+  "cle": "dz-edit-exclusion",
+  "raison": "Le Vectorlab n'offre pas de booléen « exclusion » (union, soustraction, intersection, division seulement).",
+  "remplacee_par": null
+ },
+ {
+  "cle": "dz-edit-redimensionner",
+  "raison": "Aucun bouton « redimensionner » : le redimensionnement passe par les poignées de l'outil Sélection.",
+  "remplacee_par": null
+ },
+ {
+  "cle": "dz-edit-rogner",
+  "raison": "Doublon de tracé de dz-outil-photo-recadrer ; le rognage d'image passe par l'outil Recadrer.",
+  "remplacee_par": null
+ },
+ {
+  "cle": "dz-outil-photo-contraste",
+  "raison": "Pas d'outil Contraste : le réglage est Luminosité/Contraste (dz-calque-luminosite-contraste).",
+  "remplacee_par": null
+ },
+ {
+  "cle": "dz-outil-vec-courbe",
+  "raison": "Pas d'outil Courbe distinct : la plume et le crayon vectoriel tracent les courbes.",
+  "remplacee_par": null
+ }
+]
