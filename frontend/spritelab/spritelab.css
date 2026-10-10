@@ -97,7 +97,8 @@ select option:disabled{color:var(--ink-muted)}
 .frame img{width:100%;aspect-ratio:1;object-fit:contain;display:block}
 .frame .fno{position:absolute;top:3px;left:5px;font-family:var(--f-mono);font-size:10px;color:var(--ink-strong);text-shadow:0 1px 2px #000}
 .frame.off{opacity:.32}
-.frame.off::after{content:"✖";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--red)}
+.frame .frame-x{display:none}
+.frame.off .frame-x{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--red);pointer-events:none}
 .frame:hover{border-color:var(--cyan)}
 .settings{border-top:1px solid var(--stroke);padding:10px 12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:52vh}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -242,3 +243,18 @@ select option:disabled{color:var(--ink-muted)}
 .vl-didact-q:hover { color: var(--ink-strong); border-color: var(--ink-soft); }
 /* t126 : la légende d'un champ en colonne, qui porte le « ? » sur sa ligne */
 .vl-didact-legende { display: inline-flex; align-items: center; gap: 4px; }
+/* icônes G5 (Deepotus Glyph) : l'icône hérite de la couleur du bouton ; boutons et onglets alignent icône et libellé */
+.btn:has(> .dzi),.tab:has(> .dzi),.tl-srcb:has(> .dzi),.backlink:has(> .dzi){display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.brand .dzi{vertical-align:-4px;color:var(--cyan)}
+.search-wrap{position:relative;flex:none}
+.search-wrap > .dzi{position:absolute;left:19px;top:50%;transform:translateY(-50%);color:var(--ink-muted);pointer-events:none}
+.search-wrap > .search{padding-left:30px}
+.cost .dzi,.toast .dzi{vertical-align:-3px}
+.toast .dzi{color:var(--green)}
+.hint .dzi{vertical-align:-3px}
+.editcell .ops button,.tagrow .del,.sk-row .sk-del,.section-row .btn{display:inline-flex;align-items:center}
+.sk-row .sk-ico{display:inline-flex;align-items:center}
+/* dz-edit-decaler-px est dessinée vers la droite : orientée par CSS dans les quatre directions */
+.fNudge[data-dx="-1"] .dzi{transform:rotate(180deg)}
+.fNudge[data-dy="-1"] .dzi{transform:rotate(-90deg)}
+.fNudge[data-dy="1"] .dzi{transform:rotate(90deg)}
