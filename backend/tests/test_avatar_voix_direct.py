@@ -44,7 +44,7 @@ async def f_jeton(url, entetes, corps):
 
 async def f_eleven(voice_id, pcm):
     ELEVEN.append((voice_id, len(pcm)))
-    return 200, b"\x01\x00" * (len(pcm) // 2)
+    return 200, b"\x01\x00" * (len(pcm) // 2 + 327)      # 2 % plus long, comme le VRAI (mesuré le 10/10)
 
 
 async def f_voixbox(chemin, params=None, corps=None):
@@ -85,7 +85,7 @@ with TestClient(app, client=("127.0.0.1", 5), raise_server_exceptions=False) as 
 
     print("\n[S] segments")
     r = loc.post(f"/api/avatar-live/sessions/voix?session_id={s1['session_id']}", content=SEG)
-    check("S1 un segment d'1 s : converti par ElevenLabs avec la voix du Personnage, latence en en-tête",
+    check("S1 un segment d'1 s : converti par ElevenLabs avec la voix du Personnage, RECALÉ à la longueur reçue (pas de dérive), latence en en-tête",
           r.status_code == 200 and r.content == b"\x01\x00" * 16000 and ELEVEN[-1] == ("voli", 32000)
           and r.headers.get("x-latence-ms") is not None, r.text[:200])
     check("S2 segment de longueur impaire : 400 ; vide : 400",

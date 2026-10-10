@@ -2,14 +2,14 @@
 """Voixbox — conversion de voix LOCALE pour le Direct de DeepotusVideoGen (Avatar live G5, t166, 10/10/2026).
 
 CE FICHIER NE TOURNE PAS DANS L'APPLICATION. Le python embarqué de l'app est stdlib + Pillow ; RVC exige torch,
-fairseq et Python 3.10. Environnement séparé (voir README.md) :
+CUDA et Python 3.12. Environnement séparé (voir README.md) :
 
-    uv venv --python 3.10 tools/voixbox/.venv
-    uv pip install --python tools/voixbox/.venv -r tools/voixbox/requirements.txt
-    tools\\voixbox\\.venv\\Scripts\\python tools/voixbox/server.py        # écoute 127.0.0.1:17495
+    voir README.md : dépôt RVC WebUI épinglé + son .venv Python 3.12 (torch CUDA), puis
+    tools\\voixbox\\rvc-webui\\.venv\\Scripts\\python tools/voixbox/server.py     # écoute 127.0.0.1:17495
 
 Moteur : RVC (Retrieval-based Voice Conversion, licence MIT — décision de l'utilisateur du 10/10 : Seed-VC écarté,
-GPL-3.0 et dépôt archivé). Une voix = un modèle ENTRAÎNÉ une fois (RVC WebUI), rangé dans un dossier :
+GPL-3.0 et dépôt archivé), par son dépôt RVC WebUI épinglé (VOIXBOX_RVC_WEBUI, défaut tools/voixbox/rvc-webui) : la
+même installation entraîne les voix et les fait parler. Une voix = un modèle ENTRAÎNÉ une fois, rangé dans un dossier :
     <VOIXBOX_MODELES>/<nom>/<quelquechose>.pth   (+ <quelquechose>.index facultatif, recommandé)
 VOIXBOX_MODELES vaut par défaut %LOCALAPPDATA%\\DeepotusVideoGen\\voix_rvc.
 
@@ -69,18 +69,33 @@ def fichiers_modele(racine: Path, nom: str) -> tuple[Path, Path | None] | None:
 
 
 class MoteurRVC:
-    """Le vrai moteur : la bibliothèque `rvc` (RVC-Project), torch + fairseq, chargés ICI seulement."""
+    """Le vrai moteur : le dépôt RVC WebUI (RVC-Project/Retrieval-based-Voice-Conversion-WebUI, MIT) — la MÊME
+    installation sert à entraîner les voix (onglet « Train » de sa WebUI) et à les faire parler ici. Son API
+    d'inférence est celle de sa ligne de commande `infer/cli.py` : VC(Config()), get_vc(nom), vc_single(...).
+    torch n'est importé qu'ICI."""
 
-    def __init__(self, racine: Path):
-        import numpy as np                                      # noqa: F401 — hors de l'application
+    def __init__(self, racine: Path, depot_webui: Path):
+        import sys
+        self.depot = Path(depot_webui).resolve()
+        if not (self.depot / "infer" / "vc" / "modules.py").is_file():
+            raise SystemExit(f"Voixbox : dépôt RVC WebUI introuvable ({self.depot}) — VOIXBOX_RVC_WEBUI, voir README.md")
+        sys.path.insert(0, str(self.depot))
+        os.chdir(self.depot)                                    # configs/ et assets/ sont lus en relatif
+        import numpy as np
         import torch
-        from rvc.modules.vc.modules import VC
-        self._np, self._torch = np, torch
+        from configs.config import Config
+        from infer.vc.modules import VC
+        argv, sys.argv = sys.argv[:], [sys.argv[0]]
+        try:
+            cfg = Config()
+        finally:
+            sys.argv = argv
+        self._np = np
         self.racine = racine
-        self.vc = VC()
+        self.vc = VC(cfg)
         self.charge = None
         self.gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu"
-        print(f"Voixbox : RVC prêt sur {self.gpu} ; modèles dans {racine}")
+        print(f"Voixbox : RVC WebUI {self.depot.name} sur {self.gpu} ; voix dans {racine}")
 
     def convertir(self, nom: str, pcm: bytes, transpose: int = 0) -> bytes:
         from scipy.signal import resample_poly
@@ -89,21 +104,24 @@ class MoteurRVC:
             raise KeyError(nom)
         pth, idx = f
         if self.charge != str(pth):
-            self.vc.get_vc(str(pth))
+            os.environ["weight_root"] = str(pth.parent)
+            self.vc.get_vc(pth.name)
             self.charge = str(pth)
         with tempfile.TemporaryDirectory() as t:
             src = Path(t) / "in.wav"
             with wave.open(str(src), "wb") as w:
                 w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm)
-            tgt_sr, audio, _times, _ = self.vc.vc_inference(1, src, f0_up_key=int(transpose), f0_method="rmvpe",
-                                                            index_file=str(idx) if idx else None, index_rate=0.75,
-                                                            protect=0.33)
-        a = self._np.asarray(audio, dtype=self._np.float32)
-        if a.dtype.kind == "f" and a.size and float(self._np.abs(a).max()) > 1.5:
-            a = a / 32768.0                                     # certaines versions rendent de l'int16 en float
-        if int(tgt_sr) != SR:
-            g = self._np.gcd(int(tgt_sr), SR)
-            a = resample_poly(a, SR // g, int(tgt_sr) // g)
+            statut, res = self.vc.vc_single(0, str(src), int(transpose), "rmvpe", str(idx) if idx else "",
+                                            0.75 if idx else 0.0, 0, 1.0, 0.33)
+        if not res or res[0] is None or res[1] is None:
+            raise RuntimeError(str(statut)[:200])
+        tgt_sr, audio = int(res[0]), self._np.asarray(res[1])
+        a = audio.astype(self._np.float32)
+        if audio.dtype.kind in "iu" or (a.size and float(self._np.abs(a).max()) > 1.5):
+            a = a / 32768.0                                     # vc_single rend de l'int16
+        if tgt_sr != SR:
+            g = self._np.gcd(tgt_sr, SR)
+            a = resample_poly(a, SR // g, tgt_sr // g)
         return (self._np.clip(a, -1, 1) * 32767).astype("<i2").tobytes()
 
 
@@ -171,6 +189,7 @@ def fabrique(moteur):
 if __name__ == "__main__":
     racine = dossier_modeles()
     racine.mkdir(parents=True, exist_ok=True)
-    m = MoteurRVC(racine)
+    depot = os.environ.get("VOIXBOX_RVC_WEBUI") or str(Path(__file__).resolve().parent / "rvc-webui")
+    m = MoteurRVC(racine, Path(depot))
     print(f"Voixbox écoute http://{HOST}:{PORT} — {len(lister_modeles(racine))} voix entraînée(s)")
     ThreadingHTTPServer((HOST, PORT), fabrique(m)).serve_forever()

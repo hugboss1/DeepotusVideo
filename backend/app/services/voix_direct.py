@@ -11,6 +11,8 @@ Deux moteurs (décision de l'utilisateur du 10/10 : « les deux », puis RVC plu
   local  Voixbox (tools/voixbox, RVC sur le GPU de la machine), http://127.0.0.1:17495 par défaut (VOIXBOX_URL).
          Gratuit. Proposé seulement si un GPU NVIDIA est vu et que Voixbox répond.
 La clé ElevenLabs ne quitte jamais le serveur : le navigateur (et le téléphone) passent par ici.
+Mesures RÉELLES du 10/10 (ElevenLabs, 6 segments chacun) : segments d'1 s -> latence médiane 1 722 ms (max 2 346) ;
+segments de 0,5 s -> médiane 1 536 ms (max 1 757). Le navigateur envoie donc des segments de 0,5 s, jusqu'à 4 en vol.
 Seams : `_poster_eleven`, `_poster_voixbox`, `_nvidia_smi`."""
 from __future__ import annotations
 
@@ -132,6 +134,7 @@ async def convertir_segment(voix: dict, pcm: bytes) -> tuple[bytes, int]:
             raise Refus(503, f"Voixbox ne répond pas sur {voixbox_url()} — lancez-le (tools/voixbox/README.md).")
         if statut != 200:
             raise Refus(502 if statut >= 500 else statut, f"Voixbox : HTTP {statut} {out[:160]!r}")
-    if len(out) % 2:
-        out = out[:-1]
+    # Mesuré le 10/10 sur le vrai Voice Changer : 1 s de PCM rend 1,02 s (32 694 octets pour 32 000). Laissé tel
+    # quel, l'écart s'empile en DÉRIVE (1,2 s par minute). La sortie est donc recalée à la longueur de l'entrée.
+    out = out[:len(pcm)] if len(out) >= len(pcm) else out + b"\x00" * (len(pcm) - len(out))
     return out, int((time.perf_counter() - t0) * 1000)

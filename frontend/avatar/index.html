@@ -175,6 +175,16 @@
             <select id="xDuree"><option value="1">1 min</option><option value="5" selected>5 min</option><option value="10">10 min</option><option value="30">30 min</option></select>
           </label>
         </div>
+        <h3>Voix</h3>
+        <div class="ligne">
+          <label class="champ">Voix envoyée
+            <select id="xVoix"><option value="">Ma voix, telle quelle</option></select>
+          </label>
+          <label class="champ court" id="xTransposeChamp" hidden>Transposition (demi-tons)
+            <input id="xTranspose" type="number" min="-12" max="12" step="1" value="0">
+          </label>
+        </div>
+        <p id="xVoixAide" class="aide"></p>
         <div class="ligne cases">
           <label><input id="xMicro" type="checkbox" checked> Micro (le son revient calé sur l'image)</label>
           <label><input id="xMiroir" type="checkbox" checked> Miroir</label>
@@ -196,6 +206,7 @@
       <div class="liste">
         <div id="xDirectEtat" class="bandeau-direct" hidden>
           <span class="pastille">EN DIRECT</span><span id="xTemps"></span><span id="xCout" class="devis"></span>
+          <span id="xVoixStats" class="msg"></span>
         </div>
         <div class="ecrans">
           <figure><video id="xSortie" autoplay playsinline></video><figcaption>Sortie Decart</figcaption></figure>
