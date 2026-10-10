@@ -71,6 +71,8 @@ async function etape(page, e) {
     await page.mouse.click(b[0] + b[2] / 2, b[1] + b[3] / 2); await pause(e.apres || 700); }
   if (e.saisir) { const b = await boite(page, e.saisir[0]); if (!b) throw new Error("introuvable : " + JSON.stringify(e.saisir[0]));
     await page.mouse.click(b[0] + b[2] / 2, b[1] + b[3] / 2); await page.keyboard.type(R(e.saisir[1]), { delay: 15 }); await pause(500); }
+  // clic par coordonnées : SEULEMENT quand l'élément n'a ni libellé ni sélecteur stable (losange de jonction du Montage)
+  if (e.clicxy) { await page.mouse.click(e.clicxy[0], e.clicxy[1]); await pause(e.apres || 900); }
   if (e.touche) { await page.keyboard.press(e.touche); await pause(400); }
   if (e.defiler) { await page.evaluate(ref => { const css = ref.startsWith("css:") ? ref.slice(4) : null;
     const el = css ? document.querySelector(css) : [...document.querySelectorAll("h2,h3,h4,button,div,section,label,span")]
@@ -120,8 +122,10 @@ async function scene(browser, s, lang) {
         const x = b[0] - box.x, y = b[1] - box.y;
         if (cle === "curseur") t[cle] = [Math.round(x + b[2] / 2), Math.round(y + b[3] / 2)];
         else if (cle === "ancre") t[cle] = [Math.round(x + b[2] / 2), Math.round(y + b[3])];
-        else { const m = 6; t[cle] = [Math.max(0, Math.round(x - m)), Math.max(0, Math.round(y - m)),
-          Math.round(Math.min(b[2] + 2 * m, box.width - Math.max(0, x - m))), Math.round(Math.min(b[3] + 2 * m, box.height - Math.max(0, y - m)))]; }
+        else {                                   // cadre rogné aux bords de la capture APRÈS arrondi (sinon 1 px de trop)
+          const m = 6, x0 = Math.max(0, Math.round(x - m)), y0 = Math.max(0, Math.round(y - m));
+          t[cle] = [x0, y0, Math.min(Math.round(b[2] + 2 * m), box.width - x0), Math.min(Math.round(b[3] + 2 * m), box.height - y0)];
+        }
       }
     }
   }

@@ -1,0 +1,36 @@
+{
+  "titre": {
+    "fr": "Les scopes",
+    "en": "The scopes"
+  },
+  "legende": {
+    "fr": "Forme d'onde, vectorscope et histogramme de l'image étalonnée, dans une fenêtre qu'on déplace.",
+    "en": "Waveform, vectorscope and histogram of the graded picture, in a window you can move."
+  },
+  "captures": [
+    {
+      "fr": "scopes.fr.webp",
+      "en": "scopes.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.2,
+      "surligne": [
+        1107,
+        112,
+        53,
+        25
+      ],
+      "bulle": {
+        "fr": "Les scopes se calculent à l'arrêt",
+        "en": "Scopes are computed when playback stops"
+      }
+    }
+  ]
+}

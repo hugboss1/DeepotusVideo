@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "La semaine du Planificateur",
+    "en": "The Scheduler week"
+  },
+  "legende": {
+    "fr": "Le calendrier en haut, le graphe du post choisi au centre, son inspecteur à droite.",
+    "en": "The calendar at the top, the chosen post's graph in the middle, its inspector on the right."
+  },
+  "captures": [
+    {
+      "fr": "ecran.fr.webp",
+      "en": "ecran.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        746,
+        69,
+        137,
+        38
+      ],
+      "bulle": {
+        "fr": "Remplissez la semaine d'un plan",
+        "en": "Fill the week with a plan"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        310,
+        619,
+        45,
+        28
+      ],
+      "bulle": {
+        "fr": "Le graphe : rendu, légende, canaux",
+        "en": "The graph: render, caption, channels"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1027,
+        782,
+        407,
+        44
+      ],
+      "bulle": {
+        "fr": "Rien ne part sans votre clic",
+        "en": "Nothing goes out without your click"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        779,
+        69,
+        126,
+        38
+      ],
+      "bulle": {
+        "fr": "Remplissez la semaine d'un plan",
+        "en": "Fill the week with a plan"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        310,
+        604,
+        49,
+        28
+      ],
+      "bulle": {
+        "fr": "Le graphe : rendu, légende, canaux",
+        "en": "The graph: render, caption, channels"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1027,
+        782,
+        407,
+        44
+      ],
+      "bulle": {
+        "fr": "Rien ne part sans votre clic",
+        "en": "Nothing goes out without your click"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

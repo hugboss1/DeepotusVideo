@@ -88,6 +88,7 @@ class Provider(str, Enum):
     TEMPLATE = "template"
     NEWS = "news"
     EXTEND = "extend"          # plan Quick T2 (tâche #51) — clip prolongé par le modèle
+    RECAST = "recast"          # Avatar live G1 (t162) — personnage/décor/élément changé, jeu d'acteur gardé
 
 
 class CompositionLayout(str, Enum):

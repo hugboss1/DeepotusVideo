@@ -1,0 +1,45 @@
+<p class="chapeau-chap">You will give your shots a consistent colour, check them on the scopes, set their speed and framing, add titles and polish the sound. Free: everything is computed on your PC, except subtitle transcription and translation.</p>
+
+<h3>Grade a shot</h3>
+<figure class="scene" data-scene="montage/etalonnage"></figure>
+<ol class="etapes">
+<li>Select a shot: the inspector shows the <strong>Grading</strong> panel.</li>
+<li><b class="ui">Wheels</b>: shadows (lift), midtones (gamma) and highlights (gain). <b class="ui">Curves</b>: up to sixteen points, on the whole picture or each colour.</li>
+<li><b class="ui">Mask</b> limits the setting to a rectangle or an ellipse, feathered or inverted.</li>
+<li><b class="ui">Auto</b> removes a colour cast; <b class="ui">Match to previous clip</b> aligns the colours with the shot before.</li>
+<li><b class="ui">Copy grade</b> then <b class="ui">Paste grade</b> carry the setting over to another shot.</li>
+</ol>
+<p>When playback stops, the viewer shows the shot's real graded picture; during playback, the picture stays raw.</p>
+
+<h3>Check on the scopes</h3>
+<figure class="scene" data-scene="montage/scopes"></figure>
+<p><b class="ui">Scopes</b> opens a movable window: waveform, vectorscope and histogram of the graded picture under the playhead, recomputed when playback stops. They account for speed, stabilisation and the render frame rate, and stay available in full screen.</p>
+
+<h3>Effects, speed and framing</h3>
+<div class="cartes">
+<article><i data-dz="dz-cat-montage"></i><h4>The effects rack</h4><p>Noise reduction, deflicker, debanding, sharpening, green-screen keying, monochrome, per-band hue and saturation, trails, lens distortion.</p></article>
+<article><i data-dz="dz-media-vitesse"></i><h4>Speed and ramp</h4><p>From 25 to 400 %. Interpolation smooths the motion; <b class="ui">Split at playhead</b> gives the rest of the shot another speed.</p></article>
+<article><i data-dz="dz-lab3d-camera"></i><h4>Stabilise and reframe</h4><p>Stabilisation analyses a shaky shot; framing picks the part kept: centred, following the motion, or manual; dynamic zoom animates a reframe.</p></article>
+<article><i data-dz="dz-calque-reglage"></i><h4>Adjustment clip</h4><p>On track J1 (<kbd>Shift</kbd>+<kbd>J</kbd>), its effects apply to everything below, with fade in and fade out.</p></article>
+<article><i data-dz="dz-media-incrustation"></i><h4>Overlays</h4><p>Position, scale, rotation and opacity animated by keyframes, rounded corners, drop shadow.</p></article>
+<article><i data-dz="dz-media-image-cle"></i><h4>Hand-drawn ramps</h4><p>An effect ramp can follow a Bézier curve you draw; the shake's ramp raises or lowers its amplitude.</p></article>
+</div>
+
+<h3>Titles and subtitles</h3>
+<ol class="etapes">
+<li><kbd>Shift</kbd>+<kbd>T</kbd> places a title card on track T1, burned in at render time.</li>
+<li>Pick its template (full frame, lower third, caption, counter, chapter, quote, hashtag, call to action), its text, colour and font.</li>
+<li>Subtitles have one track per language: only one is burned in, the others are exported. Translation can create a new language track.</li>
+</ol>
+
+<h3>Polish the sound</h3>
+<div class="cartes">
+<article><i data-dz="dz-media-audio"></i><h4>The audio rack</h4><p>Six-band equaliser, noise reducer with adjustable floor, 50 / 60 Hz hum removal, stereo pan; listen to the rendered result.</p></article>
+<article><i data-dz="dz-media-isoler-voix"></i><h4>Learn the noise</h4><p>Set a range on a stretch of noise only: the app learns it and removes it at render time.</p></article>
+<article><i data-dz="dz-media-rec"></i><h4>Voiceover from the mic</h4><p><b class="ui">voice-over</b> (<kbd>Alt</kbd>+<kbd>R</kbd>) records a take while the edit plays and places it on the dialogue track.</p></article>
+<article><i data-dz="dz-media-voix"></i><h4>Narration</h4><p>The <b class="ui">narration</b> panel (<kbd>T</kbd>) writes and synthesises the voice block by block; only “Narrate” sends a block to the provider.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>In the <i data-dz="dz-action-menu" data-titre="Menu"></i> menu › View, the shot lightbox shows every V1 shot with its graded picture: one click goes to the shot.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Subtitle transcription and translation are paid; the rest of this chapter is free.</p></aside>

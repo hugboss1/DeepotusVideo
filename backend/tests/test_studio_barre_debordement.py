@@ -70,9 +70,9 @@ try:
     import patch_bundle_dzgbar as _m
     avant = _aide.avant_dzgbar(s)
     refait = _m.appliquer(avant)
-    # dzbiblio, posé APRÈS dzgbar, est défait par avant_dzgbar : la référence est donc le bundle sans dzbiblio
-    check("2.7 avant_dzgbar défait le maillon, et le réappliquer rend le bundle (sans dzbiblio) octet pour octet",
-          '"data-dz-gbar":"1"' not in avant and "__dzGbarRef" not in avant and refait == _aide.avant_dzbiblio(s))
+    check("2.7 avant_dzgbar défait le maillon, et le réappliquer rend le bundle octet pour octet",
+          # t168 (10/10/2026) : avant_dzgbar défait d'abord l'entrée Avatar live et dzbiblio, posés après lui
+          '"data-dz-gbar":"1"' not in avant and "__dzGbarRef" not in avant and refait == _aide.avant_avatar(s))
 except Exception as e:  # noqa: BLE001
     check("2.7 avant_dzgbar défait le maillon", False, repr(e))
 

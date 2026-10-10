@@ -1,9 +1,26 @@
-<p><strong>Settings → Connected accounts</strong>: the credentials the Scheduler uses. All stored locally.</p>
-<img class="shot" src="img/settings-accounts.png" alt="Connected accounts">
-<p class="cap">Connected accounts: real status per channel — <span style="color:#178017">auto</span> (publishes alone) or <span style="color:#b8860b">assisted</span> (you click Send).</p>
-<h3>Telegram (5 minutes, free, recommended)</h3>
-<div class="step"><span class="n">1</span><div>On Telegram, talk to <code>@BotFather</code> → <code>/newbot</code> → copy the token.</div></div>
-<div class="step"><span class="n">2</span><div>Add the bot as an <strong>administrator</strong> of your channel.</div></div>
-<div class="step"><span class="n">3</span><div>Paste token + chat ID, <em>Save</em>, restart, then <em>Send test message</em>.</div></div>
-<h3>X (Twitter)</h3>
-<p>Create your 4 keys at <code>developer.x.com</code> (writes available pay-per-use) and paste them. <em>Verify credentials</em> button. <strong>YouTube</strong> and <strong>Instagram</strong> stay assisted.</p>
+<p class="chapeau-chap">You will plug in Telegram, X, YouTube, Instagram and TikTok so the Scheduler can publish on its own. Free: all it takes is the access each network provides, stored on your PC.</p>
+
+<h3>Where it is set</h3>
+<figure class="scene" data-scene="comptes/reglages"></figure>
+<p>Open <b class="ui">Settings</b> › <b class="ui">Connected accounts</b>. One block per network shows how many keys are set and its live status: <strong>auto</strong> (the Scheduler publishes alone), <strong>assisted</strong> (it preps the post and you click Send) or <strong>not connected</strong>.</p>
+<ol class="etapes">
+<li>Expand the network's block and read its note: it says where to get the access.</li>
+<li>Paste each value and click <b class="ui">Save</b> next to it. The adapter is active right away, no restart.</li>
+<li>Check with <b class="ui">Verify credentials</b> (or <b class="ui">Send test message</b> for Telegram).</li>
+</ol>
+
+<h3>Network by network</h3>
+<div class="cartes">
+<article><i data-dz="dz-reseau-telegram"></i><h4>Telegram</h4><p>The simplest, in five minutes. Create a bot with @BotFather, make it an administrator of the channel, paste the bot token and the channel chat ID.</p></article>
+<article><i data-dz="dz-reseau-x"></i><h4>X</h4><p>The four keys from developer.x.com (API key and secret, access token and secret). The free tier allows posting, up to 500 posts a month.</p></article>
+<article><i data-dz="dz-reseau-youtube"></i><h4>YouTube</h4><p>Create a Google OAuth client of type "Desktop app", paste its ID and secret, then <b class="ui">Connect</b>. Until the Google project passes the audit, YouTube keeps Shorts private, and the Scheduler says so.</p></article>
+<article><i data-dz="dz-reseau-instagram"></i><h4>Instagram</h4><p>A business account and a Page token (EAA…) or Instagram token (IG…). Reels are uploaded from your PC, no hosting, up to 100 posts per rolling 24 h.</p></article>
+<article><i data-dz="dz-reseau-tiktok"></i><h4>TikTok</h4><p>A TikTok for Developers app (Login Kit, "Desktop" platform): paste the client key and secret, then <b class="ui">Connect</b>. Without an audit, uploads are private and the account must be too; set TIKTOK_AUDITED to true after the audit.</p></article>
+</div>
+
+<h3>Connect YouTube and TikTok without copying a code</h3>
+<figure class="scene" data-scene="comptes/quotas"></figure>
+<p><b class="ui">Connect</b> opens the network's consent page in a new tab: accept, come back, the status turns to connected and the refresh token is saved on its own. The same gesture exists in the Scheduler: the <b class="ui">Accounts</b> button, then <b class="ui">Connect YouTube</b> or <b class="ui">Connect TikTok</b>. That panel also shows each network's quota for the month.</p>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>A network that is not connected blocks nothing: its posts switch to assisted mode and you send them in one click, or from the <a href="#mobile">phone</a>.</p></aside>

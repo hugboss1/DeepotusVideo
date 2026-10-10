@@ -95,7 +95,7 @@ check("2h_la_rangee_d_onglets_a_sept_colonnes", BUN.count(".dzCatBar{display:gri
       and BUN.count("repeat(6,1fr)") == 0)
 # t137 : le maillon photolab ajoute "photolab" APRÈS "vectorlab" dans la même liste blanche `Yu`
 check("2i_vectorlab_est_une_vue_navigable",
-      BUN.count('"news","library","settings","vectorlab","photolab"],sg=Yu.includes(') == 1)
+      BUN.count('"news","library","settings","vectorlab","photolab"') == 1)  # t168 : "avatarlive" peut suivre
 check("2j_le_libelle_Guide_seul_reste_celui_de_l_amont", BUN.count('"Guide"') == 1 and BUN.count('children:__dzGlT("dz-nav-guide","Guide ↗","↗")') == 2)
 check("2g_aucun_dialogue_natif_dans_le_lanceur",
       all(t not in BUN[BUN.find("function DzAssets2D("):BUN.find("function DzGameAssetsHub(")] for t in ("alert(", "confirm(", "prompt(")))

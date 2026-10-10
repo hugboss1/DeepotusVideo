@@ -168,7 +168,9 @@ else:
 print("\n[5] plus de texte en dur dans le périmètre")
 # le périmètre : les composants du lot dans le bundle (hors couche) et dans la couche
 from i18n_l1_perimetre import restes  # noqa: E402
-R5 = restes(BUN, COUCHE, TABLE["gardes"])
+# t168 (10/10/2026) : l'entrée Avatar live (maillon de queue patch_bundle_avatar, libellé et nom propre) est hors du
+# périmètre L1 : on lit la vue d'avant ce maillon.
+R5 = restes(AIDE.avant_avatar(BUN), COUCHE, TABLE["gardes"])
 check("5a aucun texte visible en dur hors dzT dans le bundle (hors couche) du périmètre", not R5["bundle"], R5["bundle"][:15])
 check("5b aucun texte visible en dur hors dzT dans la couche du périmètre", not R5["couche"], R5["couche"][:15])
 

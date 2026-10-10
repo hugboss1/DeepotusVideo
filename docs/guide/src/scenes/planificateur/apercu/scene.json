@@ -1,0 +1,36 @@
+{
+  "titre": {
+    "fr": "L'aperçu d'un Reel",
+    "en": "A Reel preview"
+  },
+  "legende": {
+    "fr": "Pour un post vertical, l'aperçu assombrit les zones que l'interface du réseau recouvre.",
+    "en": "For a vertical post, the preview darkens the areas the network's interface covers."
+  },
+  "captures": [
+    {
+      "fr": "apercu.fr.webp",
+      "en": "apercu.en.webp"
+    }
+  ],
+  "taille": [
+    420,
+    844
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.4,
+      "surligne": [
+        9,
+        62,
+        403,
+        27
+      ],
+      "bulle": {
+        "fr": "N'écrivez rien d'important sous les zones sombres",
+        "en": "Put nothing important under the dark areas"
+      }
+    }
+  ]
+}

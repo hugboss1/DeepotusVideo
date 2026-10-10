@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avatar live</title>
+<link rel="icon" type="image/png" href="/api/branding/logo">
+<!-- Internationalisation : dictionnaire puis runtime, AVANT tout autre script (comme les autres pages à part). -->
+<script src="/shared/dz-i18n-dico.js"></script>
+<script src="/shared/dz-i18n.js"></script>
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
+<script src="/shared/icons/dz-icons.js"></script>
+<!-- Plafonds de dépense : le 402 d'un tir payant devient le dialogue maison « Tirer quand même » (t161/t162). -->
+<script src="/shared/dialogue.js"></script>
+<script src="/shared/dz-plafonds.js"></script>
+<link rel="stylesheet" href="avatar.css">
+</head>
+<body>
+<header class="barre">
+  <div class="marque">
+    <svg class="dzi dzi--20" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-avatar"></use></svg>
+    <b>Avatar live</b>
+    <span class="sous">Personnages, Recast différé, Direct</span>
+  </div>
+  <nav class="onglets" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" class="onglet actif" data-onglet="personnages" aria-selected="true">Personnages</button>
+    <button type="button" role="tab" class="onglet" data-onglet="recast" aria-selected="false">Recast</button>
+    <button type="button" role="tab" class="onglet" data-onglet="direct" aria-selected="false">
+      <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-badge-direct"></use></svg>Direct</button>
+  </nav>
+  <div class="etat" id="etatCle" aria-live="polite"></div>
+</header>
+
+<main>
+  <!-- ══════════ Personnages ══════════ -->
+  <section id="vuePersonnages" class="vue" role="tabpanel">
+    <div class="colonnes">
+      <div class="carte formulaire">
+        <h2>Nouveau Personnage</h2>
+        <p class="aide">Une à huit photos du même visage, de face et bien éclairé (512 px conseillés). Elles servent de référence au Recast et au Direct.</p>
+        <label class="champ">Nom
+          <input id="pNom" type="text" maxlength="60" placeholder="Ex. Oli en costume">
+        </label>
+        <div id="pDepot" class="depot" tabindex="0" role="button" aria-label="Choisir les photos de référence">
+          <svg class="dzi dzi--24" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg>
+          <span>Dépose les photos ici ou clique pour les choisir</span>
+          <input id="pFichiers" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+        </div>
+        <div id="pVignettes" class="vignettes"></div>
+        <label class="champ">Voix associée (facultatif)
+          <input id="pVoix" type="text" maxlength="80" placeholder="Identifiant de voix ElevenLabs">
+        </label>
+        <label class="consentement">
+          <input id="pConsent" type="checkbox">
+          <span id="pConsentTexte">J'ai le droit d'utiliser ce visage et cette voix.</span>
+        </label>
+        <div class="actions">
+          <button id="pCreer" type="button" class="btn plein" disabled>
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-nouveau"></use></svg>Créer le Personnage
+          </button>
+          <span id="pMsg" class="msg" aria-live="polite"></span>
+        </div>
+      </div>
+      <div class="liste">
+        <h2>Mes Personnages</h2>
+        <input id="pVoixFichiers" type="file" accept="audio/*,video/*" multiple hidden>
+        <div id="pListe" class="grille"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ Recast ══════════ -->
+  <section id="vueRecast" class="vue" role="tabpanel" hidden>
+    <div class="colonnes">
+      <div class="carte formulaire">
+        <h2>Recast</h2>
+        <p class="aide">Une vidéo de 3 à 30 s garde son jeu d'acteur ; le personnage, le décor ou un élément change.</p>
+
+        <h3>1. La vidéo source</h3>
+        <div class="source-choix">
+          <div id="rDepot" class="depot petit" tabindex="0" role="button" aria-label="Choisir une vidéo source">
+            <svg class="dzi dzi--20" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-video"></use></svg>
+            <span>Déposer une vidéo (.mp4, .mov, .webm)</span>
+            <input id="rFichier" type="file" accept="video/mp4,video/quicktime,video/webm" hidden>
+          </div>
+          <label class="champ">ou un rendu de l'application
+            <select id="rRendu"><option value="">—</option></select>
+          </label>
+        </div>
+        <div id="rSourceInfo" class="info"></div>
+
+        <h3>2. Le modèle</h3>
+        <div id="rModeles" class="modeles" role="radiogroup" aria-label="Modèle"></div>
+
+        <h3>3. Le Personnage</h3>
+        <select id="rPerso"></select>
+
+        <h3>4. Le décor ou la consigne</h3>
+        <div id="rPre" class="puces" role="group" aria-label="Préréglages"></div>
+        <textarea id="rConsigne" rows="2" maxlength="500" placeholder="Consigne libre (en anglais de préférence), ex. a red leather jacket"></textarea>
+        <div class="ligne">
+          <label class="champ court">Résolution <select id="rRes"></select></label>
+          <label class="champ court" id="rOrientChamp">Orientation
+            <select id="rOrient"><option value="video" data-t="avatar.recast.orient_video">celle de la vidéo</option><option value="image" data-t="avatar.recast.orient_image">celle de l'image</option></select>
+          </label>
+        </div>
+
+        <label class="consentement">
+          <input id="rVoix" type="checkbox">
+          <span>Avec la voix du Personnage : la voix de la prise est convertie dans la sienne, au même rythme (ElevenLabs).</span>
+        </label>
+        <div class="actions">
+          <button id="rLancer" type="button" class="btn plein" disabled>
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-lancer"></use></svg>Lancer le Recast
+          </button>
+          <button id="rVoixSeule" type="button" class="btn" disabled title="Garde l'image, remplace seulement la voix">
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-cloner-voix"></use></svg>Changer seulement la voix
+          </button>
+          <span id="rDevis" class="devis"></span>
+          <span id="rMsg" class="msg" aria-live="polite"></span>
+        </div>
+      </div>
+      <div class="liste">
+        <div class="carte decor">
+          <h2>Décor seul</h2>
+          <p class="aide">Le sujet de la vidéo source est détouré, puis posé sur un nouveau fond. Le jeu, la voix et la taille ne changent pas.</p>
+          <div class="ligne">
+            <label class="champ court">Nouveau fond
+              <select id="dType">
+                <option value="couleur" data-t="avatar.decor.couleur_unie">Couleur unie</option>
+                <option value="image" data-t="avatar.decor.image_biblio">Image de la Bibliothèque</option>
+                <option value="video" data-t="avatar.decor.video_deposee">Vidéo déposée</option>
+              </select>
+            </label>
+            <label class="champ court" id="dCouleurChamp">Couleur <input id="dCouleur" type="color" value="#00b140"></label>
+            <label class="champ" id="dImageChamp" hidden>Image <select id="dImage"></select></label>
+            <div id="dVideoChamp" hidden class="champ">
+              <span>Vidéo de fond</span>
+              <div id="dDepot" class="depot petit" tabindex="0" role="button" aria-label="Choisir une vidéo de fond"><span>Déposer une vidéo de fond</span>
+                <input id="dFichier" type="file" accept="video/mp4,video/quicktime,video/webm" hidden></div>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="dLancer" type="button" class="btn plein" disabled>
+              <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-lancer"></use></svg>Changer le décor
+            </button>
+            <span id="dMsg" class="msg" aria-live="polite"></span>
+          </div>
+        </div>
+        <h2>Rendus Recast</h2>
+        <div id="rJobs" class="jobs"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ Direct (G4) ══════════ -->
+  <section id="vueDirect" class="vue" role="tabpanel" hidden>
+    <div class="colonnes">
+      <div class="carte formulaire">
+        <h2>Direct</h2>
+        <p class="aide">Ta webcam, transformée en temps réel : ton jeu, le visage du Personnage, le décor de ton choix. Facturé à la seconde ; la durée réservée est coupée chez Decart même si cette page se ferme.</p>
+        <div id="xCleZone" class="cle" hidden>
+          <label class="champ">Clé Decart (platform.decart.ai) — rangée au coffre, jamais montrée à la page
+            <input id="xCle" type="password" autocomplete="off" placeholder="dct_…">
+          </label>
+          <button id="xCleOk" type="button" class="btn">Enregistrer la clé</button>
+        </div>
+        <label class="champ">Personnage <select id="xPerso"></select></label>
+        <h3>Décor</h3>
+        <div id="xPre" class="puces" role="group" aria-label="Décors"></div>
+        <textarea id="xConsigne" rows="2" maxlength="300" placeholder="Consigne libre (en anglais de préférence), ex. wearing a red leather jacket"></textarea>
+        <div class="ligne">
+          <label class="champ court">Format <select id="xFormat"><option value="16:9" data-t="avatar.direct.paysage">16:9 paysage</option><option value="9:16" data-t="avatar.direct.portrait">9:16 portrait</option></select></label>
+          <label class="champ court">Durée réservée
+            <select id="xDuree"><option value="1">1 min</option><option value="5" selected>5 min</option><option value="10">10 min</option><option value="30">30 min</option></select>
+          </label>
+        </div>
+        <h3>Voix</h3>
+        <div class="ligne">
+          <label class="champ">Voix envoyée
+            <select id="xVoix"><option value="">Ma voix, telle quelle</option></select>
+          </label>
+          <label class="champ court" id="xTransposeChamp" hidden>Transposition (demi-tons)
+            <input id="xTranspose" type="number" min="-12" max="12" step="1" value="0">
+          </label>
+        </div>
+        <p id="xVoixAide" class="aide"></p>
+        <div class="ligne cases">
+          <label><input id="xMicro" type="checkbox" checked> Micro (le son revient calé sur l'image)</label>
+          <label><input id="xMiroir" type="checkbox" checked> Miroir</label>
+          <label><input id="xRapide" type="checkbox"> Mode rapide (×2)</label>
+        </div>
+        <p id="xDevis" class="devis"></p>
+        <div class="actions">
+          <button id="xGo" type="button" class="btn plein" disabled>
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-badge-direct"></use></svg>Démarrer le direct
+          </button>
+          <button id="xStop" type="button" class="btn" disabled>
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-arret"></use></svg>Arrêter le direct
+          </button>
+          <button id="xAppliquer" type="button" class="btn" disabled>Appliquer le décor</button>
+          <button id="xRec" type="button" class="btn" disabled><span>Enregistrer le direct</span></button>
+        </div>
+        <p id="xMsg" class="msg" aria-live="polite"></p>
+      </div>
+      <div class="liste">
+        <div id="xDirectEtat" class="bandeau-direct" hidden>
+          <span class="pastille">EN DIRECT</span><span id="xTemps"></span><span id="xCout" class="devis"></span>
+          <span id="xVoixStats" class="msg"></span>
+        </div>
+        <div class="ecrans">
+          <figure><video id="xSortie" autoplay playsinline></video><figcaption>Sortie Decart</figcaption></figure>
+          <figure class="petit"><video id="xLocal" autoplay playsinline muted></video><figcaption>Ta webcam</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="avatar.js"></script>
+<script type="module" src="direct.js"></script>
+</body>
+</html>

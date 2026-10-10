@@ -138,7 +138,7 @@ _enum = un(r'class Provider\(str, Enum\):\n(?:    .*\n)+?(?=\n)', lire("backend/
 check("x1_l_enum_Provider_est_lue_une_fois", _enum[1] == 1 and _enum[0] is not None, _enum[1])
 ENUM = set(re.findall(r'= "([a-z0-9_]+)"', _enum[0].group(0))) if _enum[0] else set()
 check("x1_l_enum_porte_les_cinq_providers_historiques",
-      ENUM == {"seedance", "heygen", "composition", "template", "news", "extend"}, sorted(ENUM))   # + extend (tache #51, 01/10)
+      ENUM == {"seedance", "heygen", "composition", "template", "news", "extend", "recast"}, sorted(ENUM))   # + extend (tache #51, 01/10) ; + recast (t162, 10/10)
 BACK |= ENUM
 # LA LISTE MESUREE le 23/09/2026 — pinnee : un provider qui apparait ou
 # disparait du backend doit passer par ici (et par la table, ou par « tel quel »).
@@ -146,7 +146,9 @@ MESURE = {"seedance", "heygen", "composition", "template", "news", "episode", "u
           "montage", "animation", "asset3d", "sprite2d", "card3d",
           "montage_proxy", "montage_stab",
           "extend",   # 01/10/2026 (tache #51) : l'extension Quick, rangee dans « Studio »
-          "animatique"}   # 02/10/2026 (tache #66) : l'instantane d'animatique envoye au Montage — affiche « tel quel »
+          "animatique",   # 02/10/2026 (tache #66) : l'instantane d'animatique envoye au Montage — affiche « tel quel »
+          "recast"}   # 10/10/2026 (t162, Avatar live G1) : Recast et voix -> voix — « tel quel » (le groupe ira avec G7 : la
+                      # couche Montage du bundle est en cours de traduction dans une autre session)
 check("x1_les_providers_du_backend_sont_exactement_les_quatorze_mesures",
       len(BACK) >= 10 and BACK == MESURE, sorted(BACK ^ MESURE))
 check("x1_chaque_cle_de_la_table_est_un_provider_connu_du_backend",
@@ -154,7 +156,7 @@ check("x1_chaque_cle_de_la_table_est_un_provider_connu_du_backend",
 TEL_QUEL = BACK - set(TABLE)
 check("x1_les_providers_sans_groupe_tombent_tel_quel_et_sont_ceux_ci",
       len(TABLE) >= 5 and len(BACK) >= 10
-      and TEL_QUEL == {"asset3d", "sprite2d", "card3d", "montage_proxy", "montage_stab", "animatique"},
+      and TEL_QUEL == {"asset3d", "sprite2d", "card3d", "montage_proxy", "montage_stab", "animatique", "recast"},
       sorted(TEL_QUEL))
 # les deux precalculs « tel quel » ne sont jamais servis : list_jobs les ecarte
 mEx, nEx = un(r'\.notin_\(\(_PROXY_PROVIDER, _STAB_PROVIDER\)\)', PIPE)

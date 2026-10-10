@@ -1,0 +1,47 @@
+<p class="chapeau-chap">Vous saurez créer un Personnage à partir de quelques photos, faire rejouer une vidéo par ce Personnage dans un autre décor, et vous filmer à la webcam transformé en direct, avec sa voix. Vingt minutes. Tout est payant à la seconde : le prix s'affiche avant chaque lancement et compte dans vos plafonds.</p>
+
+<h3>Avant de commencer</h3>
+<p>L'écran <b class="ui">Avatar live</b> s'ouvre depuis le rail. Il demande des clés selon ce que vous faites : <strong>fal</strong> pour le Recast et le décor, <strong>Decart</strong> pour le Direct, <strong>ElevenLabs</strong> pour la voix du Personnage. La voix locale, gratuite, demande une carte graphique NVIDIA et Voixbox (voir <a href="#voix-rvc">Installer et entraîner une voix locale RVC</a>).</p>
+<p>Ne clonez que votre visage et votre voix, ou ceux d'une personne qui vous a donné son accord. L'application vous le fait confirmer à chaque Personnage et garde la date.</p>
+
+<h3>Créer un Personnage</h3>
+<figure class="scene" data-scene="avatar-live/personnage"></figure>
+<ol class="etapes">
+<li>Onglet <b class="ui">Personnages</b> : donnez un <b class="ui">Nom</b> au Personnage.</li>
+<li>Déposez une à huit photos du même visage, de face et bien éclairé (512 px conseillés). Elles servent de référence au Recast et au Direct.</li>
+<li>Cochez la case de consentement (« J'ai le droit d'utiliser ce visage et cette voix… ») puis cliquez <b class="ui">Créer le Personnage</b>.</li>
+<li>Facultatif : <b class="ui">Cloner la voix</b> avec un à cinq extraits de la voix seule (30 s à 3 min au total). Le clonage passe par ElevenLabs.</li>
+</ol>
+
+<h3>Recast : rejouer une vidéo</h3>
+<figure class="scene" data-scene="avatar-live/recast"></figure>
+<p>Une vidéo de 3 à 30 s garde son jeu d'acteur ; le Personnage, le décor ou un élément change. Le rendu prend quelques minutes et rejoint vos rendus.</p>
+<ol class="etapes">
+<li>Onglet <b class="ui">Recast</b> : déposez la vidéo source, ou prenez un rendu de l'application.</li>
+<li>Choisissez le <b class="ui">Modèle</b> : son prix à la seconde est affiché à côté.</li>
+<li>Choisissez le Personnage, puis un décor parmi les <b class="ui">Préréglages</b> ou une consigne libre (en anglais de préférence).</li>
+<li>Cochez la voix du Personnage si vous voulez que la voix de la prise soit convertie dans la sienne, au même rythme.</li>
+<li>Lisez le devis sous le bouton, puis <b class="ui">Lancer le Recast</b>.</li>
+</ol>
+
+<h3>Le Direct : votre webcam transformée</h3>
+<figure class="scene" data-scene="avatar-live/direct"></figure>
+<ol class="etapes">
+<li>Onglet <b class="ui">Direct</b> : la première fois, collez votre clé Decart et cliquez <b class="ui">Enregistrer la clé</b>. Elle part au coffre ; la page ne la voit jamais.</li>
+<li>Choisissez le <b class="ui">Personnage</b> (ou gardez votre visage), un <b class="ui">Décor</b>, le <b class="ui">Format</b> et la <b class="ui">Durée réservée</b>.</li>
+<li>Choisissez la <b class="ui">Voix envoyée</b> : la vôtre telle quelle, celle du Personnage par ElevenLabs (environ 2 s de retard), ou une voix RVC locale (moins d'une seconde).</li>
+<li><b class="ui">Démarrer le direct</b>. L'image transformée s'affiche à côté de votre webcam ; changez de décor en cours de route avec <b class="ui">Appliquer le décor</b>.</li>
+<li><b class="ui">Enregistrer le direct</b> garde la séquence dans vos rendus, prête pour le Montage ou un Recast.</li>
+</ol>
+<p>Quand une voix est convertie, l'image est retardée d'autant que la voix : les lèvres et le son arrivent ensemble. La barre du direct affiche les segments convertis, la latence et les pertes.</p>
+
+<h3>Aller plus loin</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-detourer"></i><h4>Décor seul</h4><p>Le sujet de la vidéo est détouré puis posé sur une couleur, une image de la Bibliothèque ou une vidéo. Le jeu, la voix et la taille ne changent pas.</p></article>
+<article><i data-dz="dz-media-cloner-voix"></i><h4>Changer seulement la voix</h4><p>Garde l'image d'une vidéo et remplace sa voix par celle du Personnage. Facturé au caractère équivalent ElevenLabs.</p></article>
+<article><i data-dz="dz-etat-mobile"></i><h4>Sur le téléphone</h4><p>L'application compagnon lance un Recast, filme une prise ou ouvre un Direct, aux prix du PC et sous les mêmes plafonds.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Le Direct est réservé au départ, à la minute ; seule la durée réellement jouée est facturée. La durée réservée est coupée chez Decart même si la page se ferme.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Un onglet caché depuis 60 s coupe le direct, pour ne pas payer dans le vide. Préférez Edge ou Chrome : ils savent retarder l'image pour la caler sur la voix.</p></aside>

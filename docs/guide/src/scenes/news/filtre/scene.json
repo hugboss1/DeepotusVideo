@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Le filtre gratuit",
+    "en": "The free filter"
+  },
+  "legende": {
+    "fr": "Mots-clés, listes noires et fraîcheur décident de ce qui entre dans le classement.",
+    "en": "Keywords, blocklists and freshness decide what enters the ranking."
+  },
+  "captures": [
+    {
+      "fr": "filtre.fr.webp",
+      "en": "filtre.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1129,
+        480,
+        303,
+        28
+      ],
+      "bulle": {
+        "fr": "Un mot banni écarte l'article",
+        "en": "A blocked word drops the article"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1129,
+        717,
+        131,
+        38
+      ],
+      "bulle": {
+        "fr": "Enregistrer reclasse aussitôt",
+        "en": "Saving re-ranks at once"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1129,
+        480,
+        303,
+        28
+      ],
+      "bulle": {
+        "fr": "Un mot banni écarte l'article",
+        "en": "A blocked word drops the article"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1129,
+        717,
+        85,
+        38
+      ],
+      "bulle": {
+        "fr": "Enregistrer reclasse aussitôt",
+        "en": "Saving re-ranks at once"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
