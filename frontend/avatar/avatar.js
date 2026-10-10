@@ -156,7 +156,7 @@
     try {
       var fd = new FormData(); fd.append("fichier", f, f.name);
       var d = await lire(await fetch(API + "/recast/source", { method: "POST", body: fd }));
-      etat.source = { depot: d.depot, duree_s: d.duree_s, nom: f.name };
+      etat.source = { depot: d.depot, duree_s: d.duree_s, nom: f.name, url: URL.createObjectURL(f) };
       $("rSourceInfo").textContent = f.name + " · " + sec(d.duree_s) + " · " + d.largeur + "×" + d.hauteur;
     } catch (e) { etat.source = null; $("rSourceInfo").textContent = e.message; }
     majRecast();
@@ -194,6 +194,13 @@
     $("rBrouillon").title = !br ? T("avatar.brouillon.indispo")
       : T("avatar.brouillon.aide", { total: d ? usd((m.prix_usd_s[m.brouillon] + ($("rVoix").checked ? (cat.voix_usd_s || 0) : 0)) * d) : usdS(m.prix_usd_s[m.brouillon]), res: m.defaut });
     $("rVoixSeule").disabled = !(etat.source && aVoix);
+    // t168d : la prise et le Personnage côte à côte, avant de payer (local, gratuit)
+    var srcUrl = etat.source ? (etat.source.job_id ? "/api/jobs/" + etat.source.job_id + "/video" : etat.source.url || "") : "";
+    $("rDuo").hidden = !srcUrl;
+    if (srcUrl && $("rDuoSource").dataset.src !== srcUrl) { $("rDuoSource").src = srcUrl; $("rDuoSource").dataset.src = srcUrl; }
+    var pimg = m.personnage && $("rPerso").value ? API + "/personnages/" + encodeURIComponent($("rPerso").value) + "/image/0" : "";
+    $("rDuoPerso").parentNode.hidden = !pimg;
+    if (pimg && $("rDuoPerso").getAttribute("src") !== pimg) $("rDuoPerso").src = pimg;
     majDecor();
   }
   ["rPerso", "rRes", "rConsigne", "rOrient", "rVoix"].forEach(function (id) { $(id).addEventListener("input", majRecast); });
@@ -268,13 +275,40 @@
 
   // ── G3 : le décor seul (détourage BiRefNet + composition locale) ──
   var fondVideo = null;
+  // t168d : « Changer le décor » ne s'ouvre qu'après un aperçu du détourage fait pour CETTE prise, CE fond, CE modèle
+  var apercuFait = "";
+  function fondCourant() {
+    var t = $("dType").value;
+    return t === "couleur" ? { couleur: $("dCouleur").value } : t === "image" ? { image: $("dImage").value } : { video: fondVideo };
+  }
+  function signatureDecor() {
+    return JSON.stringify([etat.source && (etat.source.job_id || etat.source.depot), fondCourant(), $("dModele").value]);
+  }
   function majDecor() {
     var t = $("dType").value;
     $("dCouleurChamp").hidden = t !== "couleur"; $("dImageChamp").hidden = t !== "image"; $("dVideoChamp").hidden = t !== "video";
-    var pret = t === "couleur" || (t === "image" && $("dImage").value) || (t === "video" && fondVideo);
-    $("dLancer").disabled = !(etat.source && pret);
+    var pret = !!(etat.source && (t === "couleur" || (t === "image" && $("dImage").value) || (t === "video" && fondVideo)));
+    $("dVerifier").disabled = !pret;
+    var vu = pret && apercuFait === signatureDecor();
+    $("dLancer").disabled = !vu;
+    $("dLancer").title = vu ? "" : T("avatar.decor.verifier_avant");
+    if (!vu) $("dApercu").hidden = true;
   }
-  ["dType", "dImage", "dCouleur"].forEach(function (id) { $(id).addEventListener("input", majDecor); });
+  ["dType", "dImage", "dCouleur", "dModele"].forEach(function (id) { $(id).addEventListener("input", majDecor); });
+  $("dVerifier").addEventListener("click", async function () {
+    $("dVerifier").disabled = true; msg("dMsg", T("avatar.decor.verification"));
+    var sig = signatureDecor();
+    try {
+      var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
+      var d = await lire(await fetch(API + "/decor/apercu", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: src, fond: fondCourant(), modele: $("dModele").value }) }));
+      $("dApercuSource").src = d.source; $("dApercuImage").src = d.apercu;
+      apercuFait = sig;
+      msg("dMsg", T("avatar.decor.apercu_pret", { s: sec(d.instant_s) }));
+      majDecor();
+      $("dApercu").hidden = false;
+    } catch (e) { msg("dMsg", e.message, true); majDecor(); }
+  });
   zoneDepot($("dDepot"), $("dFichier"), async function (fs) {
     var f = fs[0]; if (!f) return;
     msg("dMsg", T("avatar.decor.envoi_fond"));
@@ -287,12 +321,10 @@
   });
   $("dLancer").addEventListener("click", async function () {
     $("dLancer").disabled = true; msg("dMsg", T("avatar.recast.lancement"));
-    var t = $("dType").value;
-    var fond = t === "couleur" ? { couleur: $("dCouleur").value } : t === "image" ? { image: $("dImage").value } : { video: fondVideo };
     try {
       var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
       var d = await lire(await fetch(API + "/decor", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: src, fond: fond }) }));
+        body: JSON.stringify({ source: src, fond: fondCourant(), modele: $("dModele").value }) }));
       msg("dMsg", d.devis_usd ? T("avatar.decor.lance", { usd: usd(d.devis_usd) }) : T("avatar.decor.a_mesurer"));
       suivre(d.job_id);
     } catch (e) { msg("dMsg", e.message, true); }

@@ -315,10 +315,49 @@ async def voix_convertir(body: dict | None = None):
 
 @router.post("/decor")
 async def decor_composer(body: dict | None = None):
-    """{source: {job_id}|{depot}, fond: {couleur: "#rrggbb"}|{image: nom}|{video: dépôt}} -> {job_id, devis_usd}."""
+    """{source: {job_id}|{depot}, fond: {couleur: "#rrggbb"}|{image: nom}|{video: dépôt}, modele?} -> {job_id, devis_usd}.
+    `modele` (t168d) : portrait (défaut), matting, general — celui que l'aperçu a montré."""
+    from app.services import decor_service as DS
+    b = body if isinstance(body, dict) else {}
+    src, parent, fond, info = await _decor_controles(b)
+    garde = await _PLAF.verifier({"kind": "matte", "duration_s": float(info["duration_s"])}, "studio",
+                                 ref=f"decor:{src.name}")
+    job_id = await DS.lancer_decor(src, fond, info, garde["lignes"], parent, DS.modele(b.get("modele")))
+    return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"], "modele": DS.modele(b.get("modele"))}
+
+
+@router.post("/decor/apercu")
+async def decor_apercu(body: dict | None = None):
+    """t168d : {source, fond, modele?} -> {source, apercu, modele, devis_usd} : UNE image du milieu de la prise, détourée
+    par BiRefNet image (fal, payant, une image) et posée sur le fond, pour juger les bords AVANT de payer la vidéo."""
+    from app.services import decor_service as DS, plafonds as _plaf
+    b = body if isinstance(body, dict) else {}
+    src, _parent, fond, info = await _decor_controles(b)
+    mod = DS.modele(b.get("modele"))
+    garde = await _PLAF.verifier({"kind": "matte_image", "images": 1}, "studio", ref=f"decor-apercu:{src.name}")
+    try:
+        r = await DS.apercu_detourage(src, fond, info, mod)
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    await _plaf.rattacher(garde["lignes"], f"decor-apercu:{r['apercu']}")
+    return {"source": f"/api/avatar-live/decor/apercu/{r['source']}", "apercu": f"/api/avatar-live/decor/apercu/{r['apercu']}",
+            "instant_s": r["instant_s"], "modele": mod, "devis_usd": garde["devis"]["total_usd"]}
+
+
+@router.get("/decor/apercu/{nom}")
+async def decor_apercu_image(nom: str):
+    from fastapi.responses import FileResponse
+    from app.services import decor_service as DS
+    p = DS.chemin_apercu(nom)
+    if p is None:
+        raise HTTPException(404, "Aperçu introuvable.")
+    return FileResponse(p, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
+async def _decor_controles(b: dict):
+    """Ce qui ne coûte rien, commun au décor et à son aperçu : fond, source, clé fal, durée."""
     import asyncio
     from app.services import decor_service as DS, fal_video_tools as FV
-    b = body if isinstance(body, dict) else {}
     fond = b.get("fond") if isinstance(b.get("fond"), dict) else {}
     if not DS.fond_valide(fond):
         raise HTTPException(400, "Fond illisible : une couleur #rrggbb, une image de la Bibliothèque ou une vidéo déposée.")
@@ -333,10 +372,7 @@ async def decor_composer(body: dict | None = None):
         raise HTTPException(415, "Vidéo source illisible.")
     if float(info["duration_s"]) > 120:
         raise HTTPException(400, f"La prise fait {info['duration_s']:.1f} s : le décor différé prend jusqu'à 120 s.")
-    garde = await _PLAF.verifier({"kind": "matte", "duration_s": float(info["duration_s"])}, "studio",
-                                 ref=f"decor:{src.name}")
-    job_id = await DS.lancer_decor(src, fond, info, garde["lignes"], parent)
-    return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"]}
+    return src, parent, fond, info
 
 
 # ── G4 (t165, 10/10/2026) : l'enregistrement du Direct devient un RENDU de l'application ───────────────────────────

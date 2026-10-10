@@ -52,6 +52,7 @@ PUITS = {
     "ouvrir_session_direct",   # t161 : le jeton client Decart (le Direct, facturé à la seconde)
     "lancer_recast",
     "lancer_voix",
+    "apercu_detourage",   # t168d : l'aperçu du détourage (BiRefNet image, fal), avant le décor vidéo
     "lancer_decor",   # t164 : le décor différé (BiRefNet vidéo, fal)
       # t163 : voix -> voix (ElevenLabs Voice Changer)
       # t162 : le Recast différé (Wan Animate, Kling Motion Control, Lucy Edit — fal)
