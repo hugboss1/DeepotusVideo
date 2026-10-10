@@ -74,6 +74,7 @@ PAYANTES = {
     ("routes", "POST", "/assets/sprite/from-board"),
     ("avatar_live", "POST", "/sessions"),
     ("avatar_live", "POST", "/recast"),
+    ("avatar_live", "POST", "/recast/finaliser"),   # t168c (10/10) : la finale d'un brouillon, même garde que /recast
     ("avatar_live", "POST", "/voix"),
     ("avatar_live", "POST", "/decor"),   # t164 : décor différé (BiRefNet sur fal, puis composition locale)   # t163 : voix -> voix (ElevenLabs), réservée sur la durée de la source   # t162 : le Recast différé (fal), réservé sur la durée de la source   # t161 : une session du Direct (Decart Lucy 2.5, réservée entière)
 }

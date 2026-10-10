@@ -188,6 +188,11 @@
     if (d && !dureeOk) $("rSourceInfo").textContent = T("avatar.recast.trop_long", { duree: sec(d), min: cat.duree.min, max: cat.duree.max });
     var consigneOk = !(etat.modele === "objet" && !$("rConsigne").value.trim() && !etat.pre);
     $("rLancer").disabled = !(etat.source && dureeOk && consigneOk && (!m.personnage || $("rPerso").value));
+    // t168c : brouillon 480p (Wan, Lucy : fal y prend une graine) ; Kling n'en a pas, le bouton le dit
+    var br = m.brouillon && m.prix_usd_s[m.brouillon] != null;
+    $("rBrouillon").disabled = $("rLancer").disabled || !br;
+    $("rBrouillon").title = !br ? T("avatar.brouillon.indispo")
+      : T("avatar.brouillon.aide", { total: d ? usd((m.prix_usd_s[m.brouillon] + ($("rVoix").checked ? (cat.voix_usd_s || 0) : 0)) * d) : usdS(m.prix_usd_s[m.brouillon]), res: m.defaut });
     $("rVoixSeule").disabled = !(etat.source && aVoix);
     majDecor();
   }
@@ -216,19 +221,38 @@
     });
   }
 
-  $("rLancer").addEventListener("click", async function () {
-    $("rLancer").disabled = true; msg("rMsg", T("avatar.recast.lancement"));
+  async function lancerRecast(brouillon) {
+    $("rLancer").disabled = true; $("rBrouillon").disabled = true; msg("rMsg", T("avatar.recast.lancement"));
     try {
       var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
       var d = await lire(await fetch(API + "/recast", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: src, personnage_id: $("rPerso").value || null, modele: etat.modele,
           resolution: $("rRes").value, consigne: $("rConsigne").value, prereglage: etat.pre, orientation: $("rOrient").value,
-          voix: $("rVoix").checked }) }));
-      msg("rMsg", T("avatar.recast.lance", { usd: usd(d.devis_usd) }));
+          voix: $("rVoix").checked, brouillon: !!brouillon }) }));
+      msg("rMsg", T(brouillon ? "avatar.brouillon.lance" : "avatar.recast.lance", { usd: usd(d.devis_usd) }));
       suivre(d.job_id);
     } catch (e) { msg("rMsg", e.message, true); }
     majRecast();
-  });
+  }
+  $("rLancer").addEventListener("click", function () { lancerRecast(false); });
+  $("rBrouillon").addEventListener("click", function () { lancerRecast(true); });
+
+  // t168c : les brouillons finalisables (recette gardée par le serveur), relus à chaque brouillon terminé
+  async function chargerBrouillons() {
+    try { etat.brouillons = (await lire(await fetch(API + "/recast/brouillons"))).brouillons || {}; } catch (e) { etat.brouillons = {}; }
+  }
+  async function finaliser(id, bouton) {
+    bouton.disabled = true; msg("rMsg", T("avatar.recast.lancement"));
+    try {
+      var d = await lire(await fetch(API + "/recast/finaliser", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: id }) }));
+      msg("rMsg", T("avatar.brouillon.finale_lancee", { usd: usd(d.devis_usd) }));
+      await chargerBrouillons();
+      var j0 = null; try { j0 = await lire(await fetch("/api/jobs/" + id)); } catch (e) { /* la carte reste telle */ }
+      if (j0) carteJob(j0);
+      suivre(d.job_id);
+    } catch (e) { msg("rMsg", e.message, true); bouton.disabled = false; }
+  }
 
   $("rVoixSeule").addEventListener("click", async function () {
     $("rVoixSeule").disabled = true; msg("rMsg", T("avatar.recast.conversion"));
@@ -300,6 +324,16 @@
       box.appendChild(el("small", { class: "msg", text: j.current_step || "" }));
     } else if (j.status === "done") {
       box.appendChild(el("video", { src: "/api/jobs/" + id + "/video", controls: true, preload: "metadata" }));
+      var b = etat.brouillons && etat.brouillons[id];
+      if (b) {
+        var cout = (b.prix_usd_s + (b.voix ? ((etat.cat.recast && etat.cat.recast.voix_usd_s) || 0) : 0)) * (b.duree_s || 0);
+        var deja = (b.finales || []).length > 0;
+        var bt = el("button", { type: "button", class: deja ? "btn" : "btn plein",
+          text: T(deja ? "avatar.brouillon.refinaliser" : "avatar.brouillon.finaliser", { res: b.resolution_finale, total: usd(cout) }) });
+        bt.addEventListener("click", function () { finaliser(id, bt); });
+        box.appendChild(el("div", { class: "actions" }, [bt]));
+        box.appendChild(el("small", { class: "msg", text: T("avatar.brouillon.note") }));
+      }
     } else {
       box.appendChild(el("small", { class: "msg err", text: j.error || T("avatar.commun.echec") }));
     }
@@ -308,6 +342,7 @@
     for (;;) {
       var j;
       try { j = await lire(await fetch("/api/jobs/" + id)); } catch (e) { return; }
+      if (j.status === "done" && j.provider === "recast" && etat.brouillons && !(id in etat.brouillons)) await chargerBrouillons();
       carteJob(j);
       if (j.status === "done" || j.status === "failed") return;
       await new Promise(function (ok) { setTimeout(ok, 2000); });
@@ -322,6 +357,7 @@
       jobs.filter(function (j) { return j.status === "done"; }).forEach(function (j) {
         s.appendChild(el("option", { value: jid(j), "data-duree": j.duration_s || "", text: (j.title || jid(j)).slice(0, 60) }));
       });
+      await chargerBrouillons();
       jobs.filter(function (j) { return j.provider === "recast"; }).reverse().forEach(carteJob);
       jobs.filter(function (j) { return j.provider === "recast" && j.status !== "done" && j.status !== "failed"; }).forEach(function (j) { suivre(jid(j)); });
     } catch (e) { /* liste facultative */ }
