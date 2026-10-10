@@ -17,7 +17,7 @@ ENTREES = [
     L(F, 18, '"Objet"', "atelier.at1_kind.objet", "Objet", "Object"),
     L(F, 19, '"Date"', "atelier.at1_kind.date", "Date", "Date"),
     L(F, 19, '"Ambiance"', "atelier.at1_kind.ambiance", "Ambiance", "Atmosphere", contexte=True),
-    L(F, 19, '"Décor"', "atelier.at1_kind.decor", "Décor", "Set"),
+    L(F, 19, '"Décor"', "atelier.at1_kind.decor", "Décor", "Set", contexte=True),
     # ── niveaux d'énergie ──
     L(F, 41, '"1 · calme"', "atelier.at1_energie.e1", "1 · calme", "1 · calm"),
     L(F, 41, '"2 · posé"', "atelier.at1_energie.e2", "2 · posé", "2 · steady"),

@@ -53,6 +53,8 @@ SECRETES = {
     # plan scheduler T6 (tâche #28, 30/09/2026) : le secret du client TikTok et son refresh token (renouvelé par TikTok,
     # regardé par coffre.enregistrer_cle) ; l'identifiant public du client et le drapeau d'audit restent au .env
     "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN",
+    # Avatar live G0 (t161, 10/10/2026) : la clé permanente Decart (le Direct)
+    "DECART_API_KEY",
 }
 
 _ouvert: dict | None = None

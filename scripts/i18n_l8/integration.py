@@ -34,10 +34,14 @@ _ANCRE = "const $ = (s) => document.querySelector(s);"
 
 ENTREES = [
     S("atelier/atelier.js", 5, _ANCRE, _ANCRE + _OPTIONS + "\r\n"
-      "/* t148 : deux textes de la page à double sens (la surcouche ignore les entrées « contexte ») */\r\n"
-      "{ const o = document.querySelector('#vbRole option[value=\"libre\"]'); if (o) o.textContent = dzT(\"atelier.ath_vec.libre\");\r\n"
-      "  const b = document.querySelector(\"#animGo\");\r\n"
-      "  if (b && b.lastChild && b.lastChild.nodeType === 3) b.lastChild.textContent = \" \" + dzT(\"atelier.ath_anim.monter\"); }",
+      "/* t148 : les textes de la page à double sens (la surcouche ignore les entrées « contexte ») — « Monter » (Build),\r\n"
+      "   « Libre » (Free), « Décor(s) » (Set(s) ; « Setting » est le décor d'Avatar live) : leur dernier nœud texte par dzT */\r\n"
+      "{ const poser = (sel, cle) => document.querySelectorAll(sel).forEach((el) => {\r\n"
+      "    const n = el.lastChild; if (n && n.nodeType === 3) n.textContent = (/^\\s/.test(n.textContent) ? \" \" : \"\") + dzT(cle); });\r\n"
+      "  poser('#vbRole option[value=\"libre\"]', \"atelier.ath_vec.libre\");\r\n"
+      "  poser(\"#animGo\", \"atelier.ath_anim.monter\");\r\n"
+      "  poser('.btn.k-decor, .chip.k-decor, #vpAddDecor, #vbRole option[value=\"decor\"]', \"atelier.ath_kind.decor\");\r\n"
+      "  poser('.tab[data-kind=\"decor\"]', \"atelier.ath_bible.decors\"); }",
       {}),
     S("atelier/atelier.js", 1407, '$("#daRefName").textContent === "aucune"',
       '$("#daRefName").textContent === dzT("atelier.at3_da.aucune")', {}),

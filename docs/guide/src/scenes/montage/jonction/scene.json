@@ -1,0 +1,47 @@
+{
+  "titre": {
+    "fr": "Une transition à la jonction",
+    "en": "A transition at the cut"
+  },
+  "legende": {
+    "fr": "Un clic sur le losange entre deux plans ouvre la galerie des transitions et le réglage image par image.",
+    "en": "A click on the diamond between two shots opens the transitions gallery and frame-by-frame trimming."
+  },
+  "captures": [
+    {
+      "fr": "avant.fr.webp",
+      "en": "avant.en.webp"
+    },
+    {
+      "fr": "galerie.fr.webp",
+      "en": "galerie.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        767,
+        637
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Cliquez le losange entre deux plans",
+        "en": "Click the diamond between two shots"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.4,
+      "bulle": {
+        "fr": "Choisissez la transition et sa durée",
+        "en": "Pick the transition and its duration"
+      }
+    }
+  ]
+}

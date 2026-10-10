@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Créer un Personnage",
+    "en": "Create a Character"
+  },
+  "legende": {
+    "fr": "Avatar live › Personnages : des photos de référence, le consentement, puis la liste de vos Personnages.",
+    "en": "Avatar live › Characters: reference photos, consent, then the list of your Characters."
+  },
+  "captures": [
+    {
+      "fr": "personnages.fr.webp",
+      "en": "personnages.en.webp"
+    }
+  ],
+  "taille": [
+    1100,
+    620
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        236,
+        410,
+        108
+      ],
+      "bulle": {
+        "fr": "Une à huit photos du même visage",
+        "en": "One to eight photos of the same face"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        74,
+        433,
+        360,
+        71
+      ],
+      "bulle": {
+        "fr": "Le consentement, daté, pour chaque Personnage",
+        "en": "Consent, dated, for every Character"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        474,
+        97,
+        612,
+        363
+      ],
+      "bulle": {
+        "fr": "Vos Personnages, prêts pour le Recast et le Direct",
+        "en": "Your Characters, ready for Recast and Live"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        236,
+        410,
+        108
+      ],
+      "bulle": {
+        "fr": "Une à huit photos du même visage",
+        "en": "One to eight photos of the same face"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        74,
+        433,
+        360,
+        51
+      ],
+      "bulle": {
+        "fr": "Le consentement, daté, pour chaque Personnage",
+        "en": "Consent, dated, for every Character"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        474,
+        97,
+        612,
+        363
+      ],
+      "bulle": {
+        "fr": "Vos Personnages, prêts pour le Recast et le Direct",
+        "en": "Your Characters, ready for Recast and Live"
+      }
+    }
+  ],
+  "taille_en": [
+    1100,
+    620
+  ]
+}

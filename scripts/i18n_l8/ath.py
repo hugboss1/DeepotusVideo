@@ -46,7 +46,7 @@ ENTREES = [
     H("atelier.ath_kind.lieu", "Lieu", "Place"),
     H("atelier.ath_kind.objet", "Objet", "Object"),
     H("atelier.ath_kind.ambiance", "Ambiance", "Ambience"),
-    H("atelier.ath_kind.decor", "Décor", "Set"),
+    H("atelier.ath_kind.decor", "Décor", "Set", contexte=True),
     H("atelier.ath_sel.lier_aide", "Lier la sélection à une entité existante", "Link the selection to an existing entity"),
     H("atelier.ath_sel.lier", "Lier à…", "Link to…"),                                   # <option>
     H("atelier.ath_sel.reecrire_aide",
@@ -156,7 +156,7 @@ ENTREES = [
     H("atelier.ath_bible.lieux", "Lieux", "Places"),
     H("atelier.ath_bible.objets", "Objets", "Objects"),
     H("atelier.ath_bible.ambiances", "Ambiances", "Ambiences"),
-    H("atelier.ath_bible.decors", "Décors", "Sets"),
+    H("atelier.ath_bible.decors", "Décors", "Sets", contexte=True),
     H("atelier.ath_bible.nouveau", "Nouveau", "New"),
     H("atelier.ath_bible.da_aide",
       "Direction artistique : propositions de l'agent (motivées par le manuscrit), styles présets (BD, manga, "

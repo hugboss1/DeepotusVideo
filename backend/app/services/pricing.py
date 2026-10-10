@@ -57,6 +57,10 @@ DEFAULTS = {
     # plus qu'au coût HISTORIQUE des jobs d'avant la colonne `video_model`
     # (op `legacy: True`) : un modèle vide se résout au défaut du registre.
     "seedance_usd_per_s": 0.04,
+    # Avatar live G0 (t161, 10/10/2026) : Decart Lucy 2.5 en temps réel, à la seconde de génération active.
+    # Relevé le 10/10 sur docs.platform.decart.ai/getting-started/pricing : 0,02 $/s (720p), 0,04 $/s en
+    # mode rapide (x2). Via fal (decart/lucy-2-5/realtime) le tarif relevé est 0,04 $/s — chemin non retenu.
+    "decart_realtime_usd_per_s": 0.02,
     # Garde de coût serveur (retours-ia F3/F4, 27/09) : une requête vidéo
     # (/generate, /generate/batch, /generate/composition, rendu de layout)
     # dont l'estimation dépasse ce plafond est refusée en 402 AVANT toute
@@ -135,6 +139,9 @@ DEFAULTS = {
     "demucs_usd_per_s": 0.0007,
     "birefnet_video_usd_per_s": 0.0,
     "elevenlabs_isolation_chars_per_min": 1000.0,
+    # Avatar live G2 (t163, 10/10/2026) : Voice Changer (voix -> voix), ~1 000 crédits par minute (relevé tiers
+    # du 07/2026 sur la liste officielle, même grille que l'isolation) — à confirmer sur elevenlabs.io/pricing.
+    "elevenlabs_sts_chars_per_min": 1000.0,
     "stt_usd_per_min": {
         "elevenlabs": 0.0067,   # Scribe v1, ≈ 0,40 $/h
         "openai": 0.006,        # whisper-1
@@ -531,6 +538,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         taux = float(p.get("birefnet_video_usd_per_s", DEFAULTS["birefnet_video_usd_per_s"]))
         lines.append(_line("fal", "Détourage vidéo (BiRefNet)" + (" — prix à mesurer" if not taux else ""),
                            dur, "s", dur * taux))
+    elif kind == "voix_sts":
+        mins = max(0.0, float(op.get("duration_s", 0) or 0)) / 60.0
+        chars = mins * float(p.get("elevenlabs_sts_chars_per_min", DEFAULTS["elevenlabs_sts_chars_per_min"]))
+        lines.append(_line("elevenlabs", "Voix → voix (Voice Changer)", chars, "chars", chars * elevenlabs_rate(None, p)))
     elif kind == "isolate":
         mins = float(op.get("duration_s", 0)) / 60.0
         chars = mins * float(p.get("elevenlabs_isolation_chars_per_min",
@@ -644,6 +655,38 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                            cr, "credits",
                            cr * float(p.get("meshy_credit_usd",
                                             DEFAULTS["meshy_credit_usd"]))))
+    elif kind == "recast":
+        # Avatar live G1 (t162) : prix PAR SECONDE de vidéo source, relevés le 10/10 et tenus dans le
+        # catalogue du service (une seule source). Modèle inconnu -> ligne à 0 QUI LE DIT.
+        from app.services import recast_service as _rs
+        mod = str(op.get("modele") or "")
+        try:
+            sec = max(0.0, float(op.get("seconds") or 0))
+            if not math.isfinite(sec):
+                sec = 0.0
+        except (TypeError, ValueError):
+            sec = 0.0
+        if mod in _rs.MODELES:
+            res = _rs.resolution(mod, op.get("resolution"))
+            lines.append(_line("fal", f"Recast {_rs.MODELES[mod]['label']} ({res})", sec, "s",
+                               sec * _rs.prix_usd_s(mod, res)))
+        else:
+            lines.append(_line("fal", f"Recast : modèle inconnu {mod[:24]!r} (non chiffré)", sec, "s", 0.0))
+    elif kind == "direct":
+        # Avatar live G0 (t161) : UNE session du Direct, réservée ENTIÈRE (Decart la coupe à cette borne,
+        # maxSessionDuration). Durée illisible -> la durée par défaut du Direct, jamais 0.
+        from app.services.avatar_live import borner_duree as _bd, DUREE_DEFAUT_S as _dd
+        raw = op.get("seconds")
+        try:
+            ok_ = raw is not None and float(raw) > 0
+        except (TypeError, ValueError):
+            ok_ = False
+        sec = _bd(raw) if ok_ else _dd
+        rate = float(p.get("decart_realtime_usd_per_s", DEFAULTS["decart_realtime_usd_per_s"]))
+        rapide = bool(op.get("rapide"))
+        rate *= 2 if rapide else 1
+        lines.append(_line("decart", "Decart Lucy 2.5 (direct" + (", rapide)" if rapide else ")"),
+                           sec, "s", sec * rate))
     elif kind == "sprite2d":
         # Game Assets 2D (Sprite Lab): ffmpeg extraction + PIL assembly are
         # local (free); the only billable part is the per-frame fal remove-bg.

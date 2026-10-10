@@ -164,8 +164,9 @@ for v in TAB["couches"].values():
 suite = set(json.loads("{" + ",".join(l.rstrip(",") for l in DZI.read_bytes().decode("utf-8").splitlines()
                                       if l.startswith('"dz-')) + "}").keys())
 attendu = {k: n for k, n in attendu.items() if k in suite or k.startswith("dz-marque-")}
+_BUN_G1 = AIDE.avant_avatar(BUN)  # t168 (10/10/2026) : l'entrée Avatar live (maillon de queue) pose dz-media-avatar une fois de plus
 def compte(k):
-    return BUN.count(f'"{k}"') + BUN.count(f"'{k}'")
+    return _BUN_G1.count(f'"{k}"') + _BUN_G1.count(f"'{k}'")
 
 
 ecarts = {k: (n, compte(k)) for k, n in attendu.items() if compte(k) != n}

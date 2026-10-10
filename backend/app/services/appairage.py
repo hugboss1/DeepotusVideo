@@ -62,6 +62,7 @@ CONSOLES: list[dict] = [
     {"cle": "YOUTUBE_CLIENT_SECRET", "nom": "Google Cloud (YouTube)", "url": "https://console.cloud.google.com/apis/credentials"},
     {"cle": "IG_ACCESS_TOKEN", "nom": "Meta for Developers (Instagram)", "url": "https://developers.facebook.com/apps/"},
     {"cle": "TIKTOK_CLIENT_SECRET", "nom": "TikTok for Developers", "url": "https://developers.tiktok.com/apps/"},
+    {"cle": "DECART_API_KEY", "nom": "Decart", "url": "https://platform.decart.ai/"},   # t161, 10/10/2026
 ]
 
 

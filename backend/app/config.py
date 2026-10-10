@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     # fal.ai (required)
     FAL_KEY: str = ""
 
+    # Decart (optional, Avatar live G0 / t161) — le Direct (Lucy 2.5 en temps réel). Jamais envoyée à une page :
+    # le backend frappe des jetons clients de 60 s bornés à la session.
+    DECART_API_KEY: str = ""
+    # Voixbox (optional, Avatar live G5 / t166) — la voix en direct LOCALE (RVC, tools/voixbox) ;
+    # vide = http://127.0.0.1:17495
+    VOIXBOX_URL: str = ""
+
     # ElevenLabs (optional)
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID_EN: str = "nPczCjzI2devNBz1zQrb"

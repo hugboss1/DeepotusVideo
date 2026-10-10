@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "L'écran du Montage",
+    "en": "The editor screen"
+  },
+  "legende": {
+    "fr": "La timeline en bas (vidéo, son, sous-titres), le lecteur au centre, l'inspecteur à droite ; Preview, Rendre et Publier en haut.",
+    "en": "The timeline at the bottom (video, sound, subtitles), the viewer in the centre, the inspector on the right; Preview, Render and Publish at the top."
+  },
+  "captures": [
+    {
+      "fr": "ecran.fr.webp",
+      "en": "ecran.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        314,
+        610,
+        460,
+        55
+      ],
+      "bulle": {
+        "fr": "Les plans sur V1, leur son sur A1 juste dessous",
+        "en": "Shots on V1, their sound on A1 right below"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        801,
+        58,
+        83,
+        43
+      ],
+      "bulle": {
+        "fr": "Preview : un aperçu 480p gratuit",
+        "en": "Preview: a free 480p preview"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        869,
+        864,
+        94,
+        36
+      ],
+      "bulle": {
+        "fr": "Trois vues : Médias, Montage, Livraison",
+        "en": "Three views: Media, Edit, Delivery"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        314,
+        610,
+        460,
+        55
+      ],
+      "bulle": {
+        "fr": "Les plans sur V1, leur son sur A1 juste dessous",
+        "en": "Shots on V1, their sound on A1 right below"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        757,
+        58,
+        83,
+        43
+      ],
+      "bulle": {
+        "fr": "Preview : un aperçu 480p gratuit",
+        "en": "Preview: a free 480p preview"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        854,
+        864,
+        89,
+        36
+      ],
+      "bulle": {
+        "fr": "Trois vues : Médias, Montage, Livraison",
+        "en": "Three views: Media, Edit, Delivery"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

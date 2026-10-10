@@ -5,10 +5,14 @@
 const $ = (s) => document.querySelector(s);
 /* t148 : la surcouche de traduction n'entre pas dans les <select> — les <option> fixes de la page sont traduites ici, une fois (window.__dzI18n.traduire ne rend rien en français). */
 for (const o of document.querySelectorAll("select option")) { const t = window.__dzI18n && window.__dzI18n.traduire(o.textContent); if (t) o.textContent = t; }
-/* t148 : deux textes de la page à double sens (la surcouche ignore les entrées « contexte ») */
-{ const o = document.querySelector('#vbRole option[value="libre"]'); if (o) o.textContent = dzT("atelier.ath_vec.libre");
-  const b = document.querySelector("#animGo");
-  if (b && b.lastChild && b.lastChild.nodeType === 3) b.lastChild.textContent = " " + dzT("atelier.ath_anim.monter"); }
+/* t148 : les textes de la page à double sens (la surcouche ignore les entrées « contexte ») — « Monter » (Build),
+   « Libre » (Free), « Décor(s) » (Set(s) ; « Setting » est le décor d'Avatar live) : leur dernier nœud texte par dzT */
+{ const poser = (sel, cle) => document.querySelectorAll(sel).forEach((el) => {
+    const n = el.lastChild; if (n && n.nodeType === 3) n.textContent = (/^\s/.test(n.textContent) ? " " : "") + dzT(cle); });
+  poser('#vbRole option[value="libre"]', "atelier.ath_vec.libre");
+  poser("#animGo", "atelier.ath_anim.monter");
+  poser('.btn.k-decor, .chip.k-decor, #vpAddDecor, #vbRole option[value="decor"]', "atelier.ath_kind.decor");
+  poser('.tab[data-kind="decor"]', "atelier.ath_bible.decors"); }
 /* Deepotus Glyph (G6) : une icône de la suite, décorative — le sens est porté par le bouton (libellé, title, aria-label) */
 const ico = (cle, t = 16) => (typeof dzIcone === "function" ? dzIcone(cle, { taille: t, classe: "dzi--" + t }) : "");
 const api = {
