@@ -6,14 +6,16 @@
 // masque de calque, ajustements par LUT (niveaux, courbes, HSL, N&B, seuil),
 // flou en boîte séparable, clonage, extraction. Module FEUILLE.
 
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 export function tampon(w, h) {
-  if (!(w >= 1 && h >= 1)) throw new Error("tampon : taille ≥ 1 requise");
+  if (!(w >= 1 && h >= 1)) throw new Error(T("vectorlab.pixelart.err_tampon"));
   return { w: Math.round(w), h: Math.round(h), data: new Uint8ClampedArray(Math.round(w) * Math.round(h) * 4) };
 }
 export function rgb_de(hex) {
   const s = String(hex || "").trim().replace(/^#/, "");
   const h = s.length === 3 ? s.split("").map((c) => c + c).join("") : s;
-  if (!/^[0-9a-fA-F]{6}$/.test(h)) throw new Error(`couleur hex attendue : ${hex}`);
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) throw new Error(T("vectorlab.pixelart.err_hex", { hex }));
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 const _m = (masque, i) => (masque ? masque[i] / 255 : 1);
@@ -89,7 +91,7 @@ function _proche(d, i, cible, tol) {
 }
 function _region(img, x, y, tol) {
   const { w, h, data } = img;
-  if (!(x >= 0 && y >= 0 && x < w && y < h)) throw new Error("point hors du tampon");
+  if (!(x >= 0 && y >= 0 && x < w && y < h)) throw new Error(T("vectorlab.pixelart.err_hors_tampon"));
   const i0 = (y | 0) * w + (x | 0), cible = Array.from(data.slice(i0 * 4, i0 * 4 + 4));
   const m = new Uint8Array(w * h);
   const pile = [i0];
@@ -192,7 +194,7 @@ export function niveaux(img, { noir = 0, blanc = 255, gamma = 1 } = {}, masque) 
 }
 export function courbes(img, points, masque) {
   const pts = (points || []).slice().sort((a, b) => a[0] - b[0]);
-  if (pts.length < 2) throw new Error("courbes : deux points au moins");
+  if (pts.length < 2) throw new Error(T("vectorlab.pixelart.err_courbes"));
   const lut = new Uint8ClampedArray(256);
   for (let v = 0; v < 256; v++) {
     let k = 0;
@@ -287,7 +289,7 @@ export function cloner(img, sx, sy, dx, dy, rayon = 4) {
 }
 export function extraire(img, m) {
   const b = sel_bbox(m, img.w, img.h);
-  if (!b) throw new Error("extraire : aucune sélection");
+  if (!b) throw new Error(T("vectorlab.pixelart.err_extraire"));
   const out = tampon(b.w, b.h);
   for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
     const i = (y + b.y) * img.w + (x + b.x), j = y * b.w + x;

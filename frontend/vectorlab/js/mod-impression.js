@@ -7,6 +7,7 @@
 // du bundle. Et le texte → chemins (opentype.js, polices du dist) depuis
 // le panneau Apparence. Logique PURE en tête (banc node). Les textes non
 // vectorisés sont ignorés et DITS, jamais bloquants.
+import { T as vlT } from "./mod-i18n.js";
 import { aplatir_objet, contour_en_multi, versMulti } from "./mod-bool.js";
 import { extruder, stl_binaire, volume_de } from "./mod-extrude.js";
 import { MUR_MIN_MM, DEPOUILLE_MAX, extruder_biseau, extruder_evide, plateau_pieces, glb_de_pieces,
@@ -74,7 +75,7 @@ export function hauteurs_par_calque(texte, calques) {
     if (m) parCalque[m[1].trim().toLowerCase()] = num(m[2], 0);
     else if (globale === null && num(t, 0) > 0) globale = num(t, 0);
   }
-  if (!(globale > 0)) throw new Error("hauteur en mm invalide (ex. « 3, contours=5 »)");
+  if (!(globale > 0)) throw new Error(vlT("vectorlab.impression.hauteur_invalide"));
   const out = {};
   for (const c of calques) {
     const k = (c.nom || "").toLowerCase();
@@ -97,8 +98,8 @@ export function couleur_du_lot(pieces) {
 }
 export function resume_impression({ triangles, bbox_mm, pieces, ignores }) {
   const dim = bbox_mm.map(([a, b]) => Math.round(b - a)).join(" × ") + " mm";
-  let s = `${dim} · ${pieces} pièce(s) · ${triangles} triangles`;
-  if (ignores) s += ` · ${ignores} texte(s) ignoré(s) (vectoriser d'abord)`;
+  let s = vlT("vectorlab.impression.resume", { dim, pieces, triangles });
+  if (ignores) s += " · " + vlT("vectorlab.impression.textes_ignores", { n: ignores });
   return s;
 }
 function bboxDe(tris) {
@@ -117,7 +118,7 @@ export function initImpression(VL) {
   let pixelT = null;             // lot 3 : { id, tampon } du calque pixel-art à imprimer
 
   const mz = () => {
-    if (!window.martinez) throw new Error("martinez indisponible (vendor non chargé)");
+    if (!window.martinez) throw new Error(vlT("vectorlab.impression.martinez"));
     return window.martinez;
   };
   const sMm = () => 25.4 / ((etat.doc.unites && etat.doc.unites.dpi) || 96);
@@ -157,7 +158,7 @@ export function initImpression(VL) {
       // lot H : la plaque du terrain — mm/m horizontal = largeur / largeur au sol,
       // z à la même échelle × exagération ; le tracé se GRAVE ; dalles si > 256 mm
       const geo = doc.geo, R = geo && geo.relief;
-      if (!R) throw new Error("relief : charger d'abord le relief (panneau Carte réelle)");
+      if (!R) throw new Error(vlT("vectorlab.impression.relief_absent"));
       const largeur_sol_m = R.pasM * (R.w - 1);
       const mm_par_m = r.largeur / largeur_sol_m;
       const socle = r.socle > 0 ? r.socle : 2;
@@ -201,7 +202,7 @@ export function initImpression(VL) {
         let x = 0;
         for (const c of T.cles) { tris.push(...cle(c.lx, c.ly, c.h, x, -3 - c.ly)); x += c.lx + 3; }
         pieces.push({ nom: "cles", tris, hauteur_mm: T.cles[0].h, couleur: "#B08D57" });
-        compte.notes.push(`${T.cles.length} clé(s) de tenon, jeu 0,2 mm`);
+        compte.notes.push(vlT("vectorlab.impression.cles_tenon", { n: T.cles.length }));
       }
       // t124 : le ruban — le parcours à l'altitude ENREGISTRÉE, mur à base plate posé sur sa trace ; là où il
       // dépasse du terrain, le GPS voyait plus haut que le relief
@@ -210,29 +211,29 @@ export function initImpression(VL) {
           try {
             const tris = ruban(ruban_points(p, geo.emprise_px, R, { cell_mm, socle_mm: socle, mm_par_m, exageration: r.exageration }), r.ruban_mm);
             pieces.push({ nom: geo.parcours.length > 1 ? `ruban_${k + 1}` : "ruban", tris, hauteur_mm: socle, couleur: "#D0553A" });
-          } catch (e) { compte.notes.push(`ruban ${k + 1} : ${e.message}`); }
+          } catch (e) { compte.notes.push(vlT("vectorlab.impression.ruban_err", { k: k + 1, m: e.message })); }
         });
-      } else if (r.ruban) compte.notes.push("ruban : le GPX n'a pas d'altitude (<ele>)");
+      } else if (r.ruban) compte.notes.push(vlT("vectorlab.impression.ruban_sans_ele"));
     } else if (r.mode === "tuiles") {
       const g = VL.grilleDoc();
-      if (!g || g.type !== "hex") throw new Error("tuiles : le document n'a pas de grille hexagonale");
+      if (!g || g.type !== "hex") throw new Error(vlT("vectorlab.impression.tuiles_sans_grille"));
       const tuiles = doc.calques.filter((c) => c.visible)
         .flatMap((c) => c.objets.filter((o) => o.type === "tuile"));
-      if (!tuiles.length) throw new Error("tuiles : aucune tuile visible");
+      if (!tuiles.length) throw new Error(vlT("vectorlab.impression.tuiles_aucune"));
       pieces.push(...plateau_pieces(tuiles, terrains_de(doc), g, { socle_mm: r.socle, sMm: sMm() })
         .filter((p) => p.tris.length));
     } else if (r.mode === "pixelart") {
       // lot 3 : une pièce et une hauteur par couleur du calque pixel
-      if (!pixelT) throw new Error("pixel-art : le calque pixel se charge, réessayer");
+      if (!pixelT) throw new Error(vlT("vectorlab.impression.pixel_charge"));
       const lignes = [...$("#impHauteurs").querySelectorAll("input[data-couleur]")].map((i) => ({ couleur: i.dataset.couleur, mm: i.value }));
       pieces.push(...pixels_vers_pieces(pixelT.tampon, r.cellule_mm, hauteurs_lire(lignes, r.hmin), { socle_mm: r.socle }));
-      if (!pieces.length) throw new Error("pixel-art : aucun pixel opaque");
+      if (!pieces.length) throw new Error(vlT("vectorlab.impression.pixel_vide"));
     } else if (r.mode === "logo") {
       const sel = etat.selection.length
         ? etat.selection.map((id) => VL.objetDe(id)).filter(Boolean).map((t) => t.objet)
         : doc.calques.filter((c) => c.visible).flatMap((c) => c.objets);
       const mp = multiDe(sel, compte);
-      if (!mp || !mp.length) throw new Error("logo : rien d'extrudable (sélection vide ou textes non vectorisés)");
+      if (!mp || !mp.length) throw new Error(vlT("vectorlab.impression.logo_vide"));
       const mm = enMm(mp);
       const tris = r.evide ? extruder_evide(mz(), mm, r.hauteur, r.mur, r.plancher)
                  : extruder_biseau(mz(), mm, r.hauteur, r.biseau, r.pas, { depouille: r.depouille });
@@ -248,7 +249,7 @@ export function initImpression(VL) {
         pieces.push({ nom: (c.nom || c.id).replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 40) || c.id,
                       tris: extruder(enMm(mp), hc, 0), hauteur_mm: hc, couleur: couleur_dominante(c.objets, terrains_de(doc)) });
       }
-      if (!pieces.length) throw new Error("rien d'extrudable (calques visibles vides ?)");
+      if (!pieces.length) throw new Error(vlT("vectorlab.impression.calques_vides"));
     }
     const tous = pieces.flatMap((p) => p.tris);
     return { pieces, ignores: compte.ignores, notes: compte.notes, tous, bbox: bboxDe(tous) };
@@ -273,7 +274,7 @@ export function initImpression(VL) {
       + (c.notes && c.notes.length ? ` · ${c.notes.join(" · ")}` : "");
     const large = Math.max(...c.bbox.map(([a, b]) => b - a));
     $("#impGarde").innerHTML = large > 256
-      ? dzi("dz-etat-avertissement", 16) + `${Math.round(large)} mm dépasse le plateau de 256 mm — le lot par tuile imprime pièce à pièce` : "";
+      ? dzi("dz-etat-avertissement", 16) + vlT("vectorlab.impression.trop_large", { mm: Math.round(large) }) : "";
     $("#impUnStl").disabled = false;
     $("#impLot").disabled = !(r.mode === "tuiles" || r.mode === "pixelart" || (r.mode === "relief" && c.pieces.length > 1));
     return courant;
@@ -307,11 +308,10 @@ export function initImpression(VL) {
     return d;
   }
   function apresExport(d) {
-    $("#impResume").textContent = `dossier d'impression : ${d.dossier} (${d.triangles} triangles`
-      + `${d.pieces ? `, ${d.pieces} pièces` : ""})` + (d.avertissement ? " — " + d.avertissement : "");
+    $("#impResume").textContent = (d.pieces ? vlT("vectorlab.impression.dossier_pieces", { d: d.dossier, t: d.triangles, p: d.pieces }) : vlT("vectorlab.impression.dossier", { d: d.dossier, t: d.triangles })) + (d.avertissement ? " — " + d.avertissement : "");
     $("#impOuvrir").disabled = false;
     $("#impOuvrir").dataset.dossier = d.dossier;
-    VL.toast(`export écrit : ${d.dossier}`);
+    VL.toast(vlT("vectorlab.impression.export_ecrit", { d: d.dossier }));
   }
   async function ouvrir() {
     const dossier = $("#impOuvrir").dataset.dossier;
@@ -320,7 +320,7 @@ export function initImpression(VL) {
       headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dossier }) });
     const od = await o.json().catch(() => ({}));
     if (!o.ok) throw new Error(od.detail || o.statusText);
-    VL.toast(`slicer ouvert (${od.mode})`);
+    VL.toast(vlT("vectorlab.impression.slicer_ouvert", { m: od.mode }));
   }
   function fermer() {
     dlg.classList.add("hidden");
@@ -341,40 +341,40 @@ export function initImpression(VL) {
     const mode = modeInitial || (pixelId && doc.pixelart && doc.pixelart.calque ? "pixelart" : aHex ? "tuiles" : (etat.selection.length ? "logo" : "calques"));
     const largeurDefaut = doc.geo && doc.geo.emprise_px ? Math.round(doc.geo.emprise_px.w * s) : 150;
     dlg.innerHTML = `<div class="vl-dlg-boite imp-boite">
-      <div class="vl-dlg-tete"><b>Impression 3D</b><span class="imp-doc">${Math.round(doc.taille.w * s)} × ${Math.round(doc.taille.h * s)} mm à ${dpi} dpi · plateau 256 mm</span><span class="spacer"></span><button id="impFermer" title="Fermer" aria-label="Fermer">${dzi("dz-action-fermer", 16)}</button></div>
+      <div class="vl-dlg-tete"><b>${vlT("vectorlab.impression.titre")}</b><span class="imp-doc">${Math.round(doc.taille.w * s)} × ${Math.round(doc.taille.h * s)} ${vlT("vectorlab.impression.doc_dpi", { dpi })}</span><span class="spacer"></span><button id="impFermer" title="${vlT("vectorlab.impression.fermer")}" aria-label="${vlT("vectorlab.impression.fermer")}">${dzi("dz-action-fermer", 16)}</button></div>
       <div class="imp-corps">
         <div class="imp-regles">
           <label>Mode <select id="impMode">
-            <option value="calques"${mode === "calques" ? " selected" : ""}>Calques (relief par calque)</option>
-            <option value="tuiles"${mode === "tuiles" ? " selected" : ""}${aHex ? "" : " disabled"}>Tuiles (socle + terrain, lot)</option>
-            <option value="logo"${mode === "logo" ? " selected" : ""}>Logo (sélection unie : biseau / évidement)</option>
-            <option value="relief"${mode === "relief" ? " selected" : ""}${aRelief ? "" : " disabled"}>Relief (plaque du terrain GPX)</option>
-            <option value="pixelart"${mode === "pixelart" ? " selected" : ""}${pixelId ? "" : " disabled"}>Pixel-art (une pièce et une hauteur par couleur)</option></select></label>
-          <label class="imp-pixelart">Cellule (mm par pixel) <input id="impCellule" type="number" step="0.1" min="0.2" value="2"/></label>
-          <label class="imp-pixelart">Hauteurs min / max (mm) <span class="imp-range"><input id="impHmin" type="number" step="0.1" min="0.2" value="1"/><input id="impHmax" type="number" step="0.1" min="0.4" value="5"/><button id="impHauteursLum" title="Préremplit la table : clair haut, sombre bas">par luminosité</button></span></label>
-          <div class="imp-pixelart imp-hauteurs" id="impHauteurs"><i class="tr-etat">chargement du calque pixel…</i></div>
-          <label class="imp-relief">Largeur de la plaque (mm) <input id="impLargeur" type="number" step="1" min="10" value="${largeurDefaut}"/></label>
-          <label class="imp-relief">Exagération verticale <input id="impExag" type="number" step="0.1" min="0.1" max="10" value="1.5"/></label>
-          <label class="imp-relief">Gravure du tracé (mm, 0 = aucune) <input id="impGravure" type="number" step="0.1" min="0" value="0.6"/></label>
-          <label class="imp-relief imp-ligne" title="Plaque découpée en dalles : logements creusés sous le socle, moitié dans chaque dalle, et clés imprimées à part (jeu 0,2 mm)"><input type="checkbox" id="impTenons" checked/> tenons entre dalles (clés + logements)</label>
-          <label class="imp-relief imp-ligne" title="Le parcours GPX à l'altitude enregistrée (&lt;ele&gt;) : un mur à base plate, pièce séparée"><input type="checkbox" id="impRuban" checked/> ruban à l'altitude GPX</label>
-          <label class="imp-relief">Épaisseur du ruban (mm) <input id="impRubanMm" type="number" step="0.1" min="0.8" value="1.6"/></label>
-          <label class="imp-calques">Hauteurs (mm, « nom=mm ») <input id="impHauteurs" type="text" value="3"/></label>
-          <label class="imp-logo">Hauteur (mm) <input id="impHauteur" type="number" step="0.1" min="0.2" value="5"/></label>
-          <label class="imp-tuiles imp-relief imp-pixelart">Socle (mm) <input id="impSocle" type="number" step="0.1" min="0" value="2"/></label>
-          <label class="imp-logo">Biseau (mm) <input id="impBiseau" type="number" step="0.1" min="0" value="0.6"/></label>
-          <label class="imp-logo">Dépouille des flancs (°, 0 = droits, + = base plus large) <span class="imp-range"><input id="impDepouilleR" type="range" min="-${DEPOUILLE_MAX}" max="${DEPOUILLE_MAX}" step="1" value="0"/><input id="impDepouille" type="number" step="1" min="-${DEPOUILLE_MAX}" max="${DEPOUILLE_MAX}" value="0"/></span></label>
-          <label class="imp-logo imp-ligne"><input type="checkbox" id="impEvide"/> évider (mur ≥ ${MUR_MIN_MM} mm)</label>
-          <label class="imp-logo">Mur (mm) <input id="impMur" type="number" step="0.1" min="${MUR_MIN_MM}" value="1.2"/></label>
-          <label class="imp-logo">Plancher (mm) <input id="impPlancher" type="number" step="0.1" min="0" value="1"/></label>
-          <button id="impApercu" class="primaire">Aperçu 3D</button>
-          <p id="impResume" class="tr-etat">réglez, puis Aperçu</p><p id="impGarde" class="imp-garde"></p>
+            <option value="calques"${mode === "calques" ? " selected" : ""}>${vlT("vectorlab.impression.mode_calques")}</option>
+            <option value="tuiles"${mode === "tuiles" ? " selected" : ""}${aHex ? "" : " disabled"}>${vlT("vectorlab.impression.mode_tuiles")}</option>
+            <option value="logo"${mode === "logo" ? " selected" : ""}>${vlT("vectorlab.impression.mode_logo")}</option>
+            <option value="relief"${mode === "relief" ? " selected" : ""}${aRelief ? "" : " disabled"}>${vlT("vectorlab.impression.mode_relief")}</option>
+            <option value="pixelart"${mode === "pixelart" ? " selected" : ""}${pixelId ? "" : " disabled"}>${vlT("vectorlab.impression.mode_pixelart")}</option></select></label>
+          <label class="imp-pixelart">${vlT("vectorlab.impression.cellule")} <input id="impCellule" type="number" step="0.1" min="0.2" value="2"/></label>
+          <label class="imp-pixelart">${vlT("vectorlab.impression.hauteurs_minmax")} <span class="imp-range"><input id="impHmin" type="number" step="0.1" min="0.2" value="1"/><input id="impHmax" type="number" step="0.1" min="0.4" value="5"/><button id="impHauteursLum" title="${vlT("vectorlab.impression.lum_titre")}">${vlT("vectorlab.impression.par_luminosite")}</button></span></label>
+          <div class="imp-pixelart imp-hauteurs" id="impHauteurs"><i class="tr-etat">${vlT("vectorlab.impression.chargement_pixel")}</i></div>
+          <label class="imp-relief">${vlT("vectorlab.impression.largeur")} <input id="impLargeur" type="number" step="1" min="10" value="${largeurDefaut}"/></label>
+          <label class="imp-relief">${vlT("vectorlab.impression.exageration")} <input id="impExag" type="number" step="0.1" min="0.1" max="10" value="1.5"/></label>
+          <label class="imp-relief">${vlT("vectorlab.impression.gravure")} <input id="impGravure" type="number" step="0.1" min="0" value="0.6"/></label>
+          <label class="imp-relief imp-ligne" title="${vlT("vectorlab.impression.tenons_titre")}"><input type="checkbox" id="impTenons" checked/> ${vlT("vectorlab.impression.tenons")}</label>
+          <label class="imp-relief imp-ligne" title="${vlT("vectorlab.impression.ruban_titre")}"><input type="checkbox" id="impRuban" checked/> ${vlT("vectorlab.impression.ruban")}</label>
+          <label class="imp-relief">${vlT("vectorlab.impression.ruban_mm")} <input id="impRubanMm" type="number" step="0.1" min="0.8" value="1.6"/></label>
+          <label class="imp-calques">${vlT("vectorlab.impression.hauteurs")} <input id="impHauteurs" type="text" value="3"/></label>
+          <label class="imp-logo">${vlT("vectorlab.impression.hauteur")} <input id="impHauteur" type="number" step="0.1" min="0.2" value="5"/></label>
+          <label class="imp-tuiles imp-relief imp-pixelart">${vlT("vectorlab.impression.socle")} <input id="impSocle" type="number" step="0.1" min="0" value="2"/></label>
+          <label class="imp-logo">${vlT("vectorlab.impression.biseau")} <input id="impBiseau" type="number" step="0.1" min="0" value="0.6"/></label>
+          <label class="imp-logo">${vlT("vectorlab.impression.depouille")} <span class="imp-range"><input id="impDepouilleR" type="range" min="-${DEPOUILLE_MAX}" max="${DEPOUILLE_MAX}" step="1" value="0"/><input id="impDepouille" type="number" step="1" min="-${DEPOUILLE_MAX}" max="${DEPOUILLE_MAX}" value="0"/></span></label>
+          <label class="imp-logo imp-ligne"><input type="checkbox" id="impEvide"/> ${vlT("vectorlab.impression.evider", { mm: MUR_MIN_MM })}</label>
+          <label class="imp-logo">${vlT("vectorlab.impression.mur")} <input id="impMur" type="number" step="0.1" min="${MUR_MIN_MM}" value="1.2"/></label>
+          <label class="imp-logo">${vlT("vectorlab.impression.plancher")} <input id="impPlancher" type="number" step="0.1" min="0" value="1"/></label>
+          <button id="impApercu" class="primaire">${vlT("vectorlab.impression.apercu")}</button>
+          <p id="impResume" class="tr-etat">${vlT("vectorlab.impression.reglez")}</p><p id="impGarde" class="imp-garde"></p>
         </div>
         <model-viewer id="impViewer" loading="eager" reveal="auto" camera-controls auto-rotate shadow-intensity="1" exposure="1" class="imp-viewer"></model-viewer>
       </div>
-      <div class="tr-pied"><button id="impUnStl" disabled title="Un seul STL + 3MF (tout le rendu en une pièce)">Un STL</button>
-        <button id="impLot" disabled title="Un STL par tuile (ou par dalle de relief) + plateau.3mf + nomenclature.csv">Lot par tuile / dalle</button>
-        <button id="impOuvrir" disabled title="Ouvrir le .3mf dans le slicer">Ouvrir le slicer</button></div></div>`;
+      <div class="tr-pied"><button id="impUnStl" disabled title="${vlT("vectorlab.impression.un_stl_titre")}">${vlT("vectorlab.impression.un_stl")}</button>
+        <button id="impLot" disabled title="${vlT("vectorlab.impression.lot_titre")}">${vlT("vectorlab.impression.lot")}</button>
+        <button id="impOuvrir" disabled title="${vlT("vectorlab.impression.ouvrir_titre")}">${vlT("vectorlab.impression.ouvrir")}</button></div></div>`;
     dlg.classList.remove("hidden");
     const majMode = () => {
       const m = $("#impMode").value;
@@ -387,7 +387,7 @@ export function initImpression(VL) {
     // lot 3 : la table des hauteurs par couleur du calque pixel
     const tableHauteurs = (t) => {
       const cs = couleurs_utilisees(t, 64), H = hauteurs_par_luminosite(cs, num($("#impHmin").value, 1), num($("#impHmax").value, 5));
-      $("#impHauteurs").innerHTML = cs.length ? cs.map((c) => `<label><span class="imp-pastille" style="background:${c}"></span>${c}<input type="number" step="0.1" min="0" data-couleur="${c}" value="${H[c]}"/></label>`).join("") : `<i class="tr-etat">aucun pixel opaque</i>`;
+      $("#impHauteurs").innerHTML = cs.length ? cs.map((c) => `<label><span class="imp-pastille" style="background:${c}"></span>${c}<input type="number" step="0.1" min="0" data-couleur="${c}" value="${H[c]}"/></label>`).join("") : `<i class="tr-etat">${vlT("vectorlab.impression.aucun_pixel")}</i>`;
     };
     if (pixelId && VL.pixelTampon) {
       VL.pixelTampon(pixelId).then((t) => { pixelT = { id: pixelId, tampon: t }; tableHauteurs(t); }).catch((e) => { $("#impHauteurs").innerHTML = `<i class="tr-etat">${e.message}</i>`; });
@@ -403,7 +403,7 @@ export function initImpression(VL) {
     $("#impEvide").addEventListener("change", () => {
       const e = $("#impEvide").checked;
       $("#impDepouille").disabled = e; $("#impDepouilleR").disabled = e;
-      $("#impDepouille").title = e ? "l'évidement ignore la dépouille" : "";
+      $("#impDepouille").title = e ? vlT("vectorlab.impression.evide_depouille") : "";
     });
     $("#impApercu").addEventListener("click", garde(apercu));
     $("#impUnStl").addEventListener("click", garde(unStl));
@@ -420,22 +420,22 @@ export function initImpression(VL) {
   const polices = new Map();
   async function police(id) {
     const p = POLICES.find((x) => x.id === id) || POLICES[0];
-    if (!window.opentype) throw new Error("opentype.js indisponible (vendor non chargé)");
+    if (!window.opentype) throw new Error(vlT("vectorlab.impression.opentype"));
     if (!polices.has(p.id)) {
       const r = await fetch("/fonts/" + p.fichier);
-      if (!r.ok) throw new Error(`police ${p.fichier} introuvable (${r.status})`);
+      if (!r.ok) throw new Error(vlT("vectorlab.impression.police_introuvable", { f: p.fichier, s: r.status }));
       polices.set(p.id, window.opentype.parse(await r.arrayBuffer()));
     }
     return polices.get(p.id);
   }
   VL.vectoriserTexte = async (id, policeId) => {
     const t = VL.objetDe(id);
-    if (!t || t.objet.type !== "texte") throw new Error("pas un texte");
+    if (!t || t.objet.type !== "texte") throw new Error(vlT("vectorlab.impression.pas_texte"));
     const o = t.objet, s = o.style || {};
     const font = await police(policeId);
     const d = texte_vers_d(font, o.contenu, +s.corps || 16, +o.x, +o.y, +s.interlettrage || 0);
     const r = VL.executer(op_texte_vectoriser, id, d);
-    if (r) { VL.setSelection([id]); VL.toast("texte vectorisé — c'est maintenant un chemin (annulable)"); }
+    if (r) { VL.setSelection([id]); VL.toast(vlT("vectorlab.impression.texte_vectorise")); }
     return r;
   };
 }

@@ -4,14 +4,16 @@
 // `sx/sy` portent un redimensionnement non uniforme. Poignées de
 // paramètres pour l'écran. Module FEUILLE : aucun import, aucun DOM ; le d
 // sort déjà canonique (2 décimales, M/L/C/Z absolus).
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 export const FORMES = [
-  { id: "polygone", nom: "Polygone" },
-  { id: "hexagone", nom: "Hexagone" },
-  { id: "etoile", nom: "Étoile" },
-  { id: "engrenage", nom: "Engrenage" },
-  { id: "fleche", nom: "Flèche" },
+  { id: "polygone", nom: T("vectorlab.formes.polygone") },
+  { id: "hexagone", nom: T("vectorlab.formes.hexagone") },
+  { id: "etoile", nom: T("vectorlab.formes.etoile") },
+  { id: "engrenage", nom: T("vectorlab.formes.engrenage") },
+  { id: "fleche", nom: T("vectorlab.formes.fleche") },
   { id: "donut", nom: "Donut" },
-  { id: "spirale", nom: "Spirale" },
+  { id: "spirale", nom: T("vectorlab.formes.spirale") },
 ];
 const nbc = (x) => String(Math.round(Number((x * 100).toPrecision(12))) / 100);
 const K = 0.5522847498;                       // cercle en 4 cubiques
@@ -34,24 +36,24 @@ export function forme_defaut(nom, cx, cy, r) {
 }
 
 export function forme_params_valider(nom, p) {
-  if (!p || typeof p !== "object") throw new Error("forme : params requis");
+  if (!p || typeof p !== "object") throw new Error(T("vectorlab.formes.err_params"));
   const ent = (v, min) => Number.isInteger(v) && v >= min;
   switch (nom) {
-    case "polygone": if (!ent(p.n, 3)) throw new Error("polygone : n entier ≥ 3"); break;
+    case "polygone": if (!ent(p.n, 3)) throw new Error(T("vectorlab.formes.err_polygone")); break;
     case "etoile":
-      if (!ent(p.n, 3)) throw new Error("étoile : n entier ≥ 3");
-      if (!(p.ratio > 0 && p.ratio < 1)) throw new Error("étoile : ratio dans ]0, 1[");
+      if (!ent(p.n, 3)) throw new Error(T("vectorlab.formes.err_etoile_n"));
+      if (!(p.ratio > 0 && p.ratio < 1)) throw new Error(T("vectorlab.formes.err_etoile_ratio"));
       break;
     case "engrenage":
-      if (!ent(p.dents, 3)) throw new Error("engrenage : dents entier ≥ 3");
-      if (!(p.profondeur > 0)) throw new Error("engrenage : profondeur > 0");
+      if (!ent(p.dents, 3)) throw new Error(T("vectorlab.formes.err_dents"));
+      if (!(p.profondeur > 0)) throw new Error(T("vectorlab.formes.err_profondeur"));
       break;
     case "fleche":
-      if (!(p.longueur > 0 && p.largeur > 0 && p.tete > 0)) throw new Error("flèche : longueur, largeur, tête > 0");
+      if (!(p.longueur > 0 && p.largeur > 0 && p.tete > 0)) throw new Error(T("vectorlab.formes.err_fleche"));
       break;
-    case "donut": if (!(p.ratio > 0 && p.ratio < 1)) throw new Error("donut : ratio dans ]0, 1["); break;
+    case "donut": if (!(p.ratio > 0 && p.ratio < 1)) throw new Error(T("vectorlab.formes.err_donut")); break;
     case "spirale":
-      if (!(p.tours > 0)) throw new Error("spirale : tours > 0");
+      if (!(p.tours > 0)) throw new Error(T("vectorlab.formes.err_tours"));
       if (p.type !== undefined && !["lineaire", "fibonacci"].includes(p.type)) throw new Error("spirale : type lineaire|fibonacci");
       break;
     default: throw new Error(`forme inconnue : ${nom}`);
@@ -69,7 +71,7 @@ function _cercle(cx, cy, rx, ry) {
 }
 
 export function forme_d(o) {
-  if (!(o.r > 0)) throw new Error("forme : rayon > 0 requis");
+  if (!(o.r > 0)) throw new Error(T("vectorlab.formes.err_rayon"));
   const p = forme_params_valider(o.forme, o.params);
   const sx = o.sx || 1, sy = o.sy || 1;
   const P = (x, y) => `${nbc(o.cx + x * sx)} ${nbc(o.cy + y * sy)}`;

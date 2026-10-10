@@ -17,6 +17,7 @@
 //
 // REPÈRE. Le document est en px, y vers le bas ; la page en points, y vers le haut. Une seule matrice de base
 // `k 0 0 -k −x·k (y+h)·k` (k = 72 / dpi du document) : tout le reste s'écrit en coordonnées du document.
+import { T } from "./mod-i18n.js";
 import { chemin_parser, terrains_de, grille_tuiles, terrain_motif_spec } from "./mod-doc.js";
 import { forme_d } from "./mod-formes.js";
 import { hex_centre, hex_d } from "./mod-grille.js";
@@ -41,7 +42,7 @@ export function matrice_de(t) {
   const re = /^\s*(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)\s*,?/;
   while (reste.trim()) {
     const x = re.exec(reste);
-    if (!x) throw new Error(`transform illisible : ${src}`);
+    if (!x) throw new Error(T("vectorlab.pdf.transform_illisible", { src }));
     const a = x[2].trim().split(/[\s,]+/).filter(Boolean).map(Number);
     if (!ARGS[x[1]].includes(a.length) || a.some((v) => !Number.isFinite(v))) throw new Error(`transform : ${x[1]}(${x[2]})`);
     const rad = (d) => d * Math.PI / 180;
@@ -123,43 +124,43 @@ function _rect(x, y, w, h, rx) {
 }
 
 /* ── la raison de rasteriser un objet (null = vectoriel) ── */
-const _A_RASTER = { image: "image", cadre: "cadre de texte", textechemin: "texte sur chemin" };
+const _A_RASTER = { image: "image", cadre: T("vectorlab.pdf.raison_cadre"), textechemin: T("vectorlab.pdf.raison_textechemin") };
 // le FOND : couleur, dégradé (shading), motif (pavage) — ou ce qu'un shading ne porte pas
 function _raisonFond(v, ctx) {
   if (v === undefined || v === "none") return null;
   if (typeof v === "string" && v.startsWith("grad:")) {
     const g = (ctx.doc.degrades || {})[v.slice(5)];
     if (!g) return null;                                  // dégradé orphelin : none, comme le SVG
-    if (g.type === "conique") return "dégradé conique";
+    if (g.type === "conique") return T("vectorlab.pdf.degrade_conique");
     for (const st of g.stops || []) {
       const c = couleur_rgba(st.couleur, ctx.globales);
-      if (!c) return `dégradé (arrêt ${st.couleur})`;
+      if (!c) return T("vectorlab.pdf.degrade_arret", { c: st.couleur });
       // un shading PDF interpole des couleurs, pas une transparence : un arrêt translucide se rasterise
-      if (c[3] < 1 || (st.opacite !== undefined && +st.opacite < 1)) return "dégradé translucide";
+      if (c[3] < 1 || (st.opacite !== undefined && +st.opacite < 1)) return T("vectorlab.pdf.degrade_translucide");
     }
     return null;
   }
   if (typeof v === "string" && v.startsWith("motif:")) return null;   // existant → pavage ; orphelin → none
-  return couleur_rgba(v, ctx.globales) === undefined ? `couleur ${v}` : null;
+  return couleur_rgba(v, ctx.globales) === undefined ? T("vectorlab.pdf.couleur", { v }) : null;
 }
 // le CONTOUR : une couleur seulement ; un dégradé ou un motif de trait n'a pas d'équivalent simple
 function _raisonContour(v, ctx) {
-  if (typeof v === "string" && v.startsWith("grad:")) return (ctx.doc.degrades || {})[v.slice(5)] ? "dégradé sur un contour" : null;
-  if (typeof v === "string" && v.startsWith("motif:")) return (ctx.doc.motifs || {})[v.slice(6)] ? "motif sur un contour" : null;
-  return v === undefined || v === "none" || couleur_rgba(v, ctx.globales) !== undefined ? null : `couleur ${v}`;
+  if (typeof v === "string" && v.startsWith("grad:")) return (ctx.doc.degrades || {})[v.slice(5)] ? T("vectorlab.pdf.degrade_contour") : null;
+  if (typeof v === "string" && v.startsWith("motif:")) return (ctx.doc.motifs || {})[v.slice(6)] ? T("vectorlab.pdf.motif_contour") : null;
+  return v === undefined || v === "none" || couleur_rgba(v, ctx.globales) !== undefined ? null : T("vectorlab.pdf.couleur", { v });
 }
 function _raison(o, ctx) {
   const s = o.style || {};
   if (_A_RASTER[o.type]) return _A_RASTER[o.type];
-  if (s.effets && s.effets.length) return "effet";
-  if (s.masque) return "masque de transparence";
+  if (s.effets && s.effets.length) return T("vectorlab.pdf.effet");
+  if (s.masque) return T("vectorlab.pdf.masque");
   const r = _raisonFond(s.fond, ctx) || _raisonContour(s.contour, ctx)
     || (s.contours || []).map((c) => _raisonContour(c.couleur, ctx)).find(Boolean);
   if (r) return r;
   if (o.type === "texte") {
     // les glyphes viennent de l'écran (opentype) ; il peut refuser en disant pourquoi ({raison})
     const g = ctx.glyphes && ctx.glyphes(o);
-    if (!g) return "texte (police non chargée)";
+    if (!g) return T("vectorlab.pdf.raison_police");
     if (g.raison) return g.raison;
   }
   if (o.type === "groupe") for (const e of o.enfants || []) { const x = _raison(e, ctx); if (x) return x; }
@@ -195,7 +196,7 @@ function _forme(ctx, contenu) {
 /* ── matrices : l'inverse (l'espace par défaut d'un Form → celui de la page) ── */
 export function matrice_inverse(m) {
   const det = m[0] * m[3] - m[1] * m[2];
-  if (!det) throw new Error("matrice non inversible");
+  if (!det) throw new Error(T("vectorlab.pdf.matrice"));
   return [m[3] / det, -m[1] / det, -m[2] / det, m[0] / det, (m[2] * m[5] - m[3] * m[4]) / det, (m[1] * m[4] - m[0] * m[5]) / det];
 }
 
@@ -445,7 +446,7 @@ const _enc = new TextEncoder();
 const _latin = (s) => _enc.encode(s);
 
 export async function pdf_assembler(pages, { compresser = true } = {}) {
-  if (!pages || !pages.length) throw new Error("pdf : aucune page");
+  if (!pages || !pages.length) throw new Error(T("vectorlab.pdf.aucune_page"));
   const objets = [];                      // objets[i] = Uint8Array du corps de l'objet i+1
   const ajouter = (corps) => { objets.push(corps); return objets.length; };
   const reserver = () => ajouter(null);
@@ -458,7 +459,7 @@ export async function pdf_assembler(pages, { compresser = true } = {}) {
   const kids = [];
   for (const p of pages) {
     for (const r of p.rasters || []) {
-      if (!(p.images || {})[r.nom]) throw new Error(`pdf : le raster ${r.nom} (${r.id}, ${r.raison}) n'a pas d'image`);
+      if (!(p.images || {})[r.nom]) throw new Error(T("vectorlab.pdf.raster_sans_image", { nom: r.nom, id: r.id, raison: r.raison }));
     }
     // un raster se pose là où son marqueur l'attend — dans la page, ou dans le Form d'un calque translucide
     const poser = (texte) => texte.replace(/%%RASTER (I\d+)%%/g, (_, nom) => {

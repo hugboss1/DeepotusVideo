@@ -4,10 +4,12 @@
 // bouts, pleine au milieu), calligraphie (plume d'angle FIXE : l'offset ne
 // suit pas la normale mais la direction de la plume). Module FEUILLE.
 
+// t146 (traduction L6) : T(clé, vars) de cette feuille — dzT du runtime dans la page ; sous node, le français des dictionnaires (frontend/shared/i18n)
+const T = (cle, vars) => { const g = globalThis, w = g.window; if (w && typeof w.dzT === "function") return w.dzT(cle, vars); if (typeof g.dzT === "function") return g.dzT(cle, vars); if (!g.__vlFr && g.process && g.process.getBuiltinModule) { const fs = g.process.getBuiltinModule("fs"), u = new URL("../../shared/i18n/", import.meta.url); g.__vlFr = {}; for (const n of fs.readdirSync(u).filter((x) => x.endsWith(".json")).sort()) Object.assign(g.__vlFr, JSON.parse(fs.readFileSync(new URL(n, u), "utf8"))); } const e = g.__vlFr && g.__vlFr[cle]; if (!e) return cle; return vars ? e.fr.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : e.fr; };
 export const PROFILS = [
-  { id: "plat", libelle: "Plat" },
-  { id: "fuseau", libelle: "Fuseau" },
-  { id: "calligraphie", libelle: "Calligraphie" },
+  { id: "plat", libelle: T("vectorlab.divers.profil_plat") },
+  { id: "fuseau", libelle: T("vectorlab.divers.profil_fuseau") },
+  { id: "calligraphie", libelle: T("vectorlab.divers.profil_calligraphie") },
 ];
 export function profil(nom, t) {
   switch (nom) {
@@ -19,7 +21,7 @@ export function profil(nom, t) {
 const _n = (v) => String(Math.round(v * 100) / 100 + 0);   // « -0 » → 0
 
 export function trait_profil(points, { largeur = 8, profil: nomProfil = "fuseau", angle = 45 } = {}) {
-  if (!Array.isArray(points) || points.length < 2) throw new Error("trait : deux points au moins");
+  if (!Array.isArray(points) || points.length < 2) throw new Error(T("vectorlab.divers.err_trait"));
   profil(nomProfil, 0);
   const pts = points.map(([x, y]) => [+x, +y]);
   // abscisse curviligne normalisée

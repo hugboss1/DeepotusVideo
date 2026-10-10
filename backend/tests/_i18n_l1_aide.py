@@ -443,3 +443,38 @@ def avant_i18n_l5(bundle: str) -> str:
     if "\r\n" not in bundle:
         return _avant_l5_crlf(bundle.replace("\n", "\r\n")).replace("\r\n", "\n")
     return _avant_l5_crlf(bundle)
+
+
+# t146 — traduction L6 : les modules du Vectorlab (lab statique) passent par T(clé) (frontend/vectorlab/js/mod-i18n.js) ;
+# scripts/i18n_l6_paires.json garde, fichier par fichier, les éditions (positions de la source de BASE, CRLF ; l'import
+# de T compris, « avant » vide)
+_TABLE6 = RACINE / "scripts" / "i18n_l6_paires.json"
+
+
+def source_avant_i18n_l6(texte: str, fichier: str) -> str:
+    """t146 : le module du Vectorlab `fichier` (« js/mod-doc.js », relatif à frontend/vectorlab/ ; un chemin plus long
+    finissant ainsi est accepté) d'avant la traduction L6, sans git. LF ou CRLF (BOM toléré) : on rend la même forme.
+    Un texte qui ne porte pas L6 (sans l'import de mod-i18n.js) est rendu tel quel."""
+    if not _TABLE6.is_file() or ('./mod-i18n.js' not in texte and '__vlFr' not in texte):   # import, ou T d'une feuille
+        return texte
+    f = str(fichier).replace("\\", "/")
+    f = f.split("frontend/vectorlab/", 1)[-1]
+    eds = json.loads(_TABLE6.read_bytes().decode("utf-8"))["fichiers"].get(f, [])
+    if not eds:
+        return texte
+    bom = texte[:1] == "﻿"
+    corps = texte[1:] if bom else texte
+    crlf = "\r\n" in corps
+    s = corps if crlf else corps.replace("\n", "\r\n")
+    decal, morceaux, k = 0, [], 0
+    for e in sorted(eds, key=lambda x: (x["pos"], x["avant"] != "")):
+        p = e["pos"] + decal
+        if s[p:p + len(e["apres"])] != e["apres"]:
+            raise ValueError(f"source L6 {f} : l'édition {e['groupe']}@{e['pos']} n'est pas à sa place ({s[p:p + 40]!r})")
+        morceaux.append(s[k:p] + e["avant"])
+        k = p + len(e["apres"])
+        decal += len(e["apres"]) - len(e["avant"])
+    morceaux.append(s[k:])
+    r = "".join(morceaux)
+    r = r if crlf else r.replace("\r\n", "\n")
+    return ("﻿" + r) if bom else r

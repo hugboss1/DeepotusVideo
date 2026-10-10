@@ -49,7 +49,12 @@ def sans_commentaires(s, css=False):
 
 PERIMETRE = sorted(p for p in VL.rglob("*") if p.suffix in (".js", ".html", ".css")
                    and "vendor" not in p.parts and "qa" not in p.parts and "aide" not in p.parts)
-CODE = {p: sans_commentaires(lire(p), css=p.suffix == ".css") for p in PERIMETRE}
+# t146 (traduction L6) : les modules passent par T(clé) — le banc lit leur texte français d'avant la traduction
+# (test_i18n_l6 garantit qu'elle se défait exactement)
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402
+CODE = {p: sans_commentaires(AIDE.source_avant_i18n_l6(lire(p), p.relative_to(VL).as_posix()) if p.suffix == ".js" else lire(p),
+                             css=p.suffix == ".css") for p in PERIMETRE}
 LEXIQUE = {x["cle"] for x in json.loads(lire(DOCS / "lexique.json"))}
 CLE = re.compile(r"(?<![\w-])dz-[a-z0-9]+(?:-[a-z0-9]+)+")
 

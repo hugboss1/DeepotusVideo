@@ -4,6 +4,7 @@
 // et division-métier. Le transform des objets est APPLIQUÉ à
 // l'aplatissement (suites de rotate composées en matrice — les seules que
 // nos opérations émettent).
+import { T } from "./mod-i18n.js";
 import { chemin_parser, chemin_serialiser, idLibre } from "./mod-doc.js";
 
 /* ── résolveur martinez : injecté au banc, window.martinez à l'écran ── */
@@ -16,7 +17,7 @@ function _martinez() {
     _mz = window.martinez;
     return _mz;
   }
-  throw new Error("martinez indisponible (vendor/martinez.umd.js non chargé)");
+  throw new Error(T("vectorlab.bool.martinez"));
 }
 
 const TOL = 0.25;
@@ -73,7 +74,7 @@ function _polylignes_path(d, tol) {
       if (cour && cour.points.length > 1) lignes.push(cour);
       cour = { points: [[s.p[0], s.p[1]]], ferme: false };
     } else if (!cour) {
-      throw new Error("chemin sans M initial");
+      throw new Error(T("vectorlab.bool.sans_m"));
     } else if (s.c === "L") {
       cour.points.push([s.p[0], s.p[1]]);
     } else if (s.c === "C") {
@@ -138,10 +139,9 @@ export function polylignes_objet(objet, tol = TOL, mParent = _IDENT) {
       return out;
     }
     case "texte":
-      throw new Error("texte : vectorisation hors périmètre — retire le "
-                      + "texte de la sélection booléenne");
+      throw new Error(T("vectorlab.bool.texte_hors"));
     default:
-      throw new Error(`type non aplatissable: ${objet.type}`);
+      throw new Error(T("vectorlab.bool.non_aplatissable", { type: objet.type }));
   }
 }
 
@@ -271,11 +271,11 @@ function _ciblesOrdonnees(doc, ids) {
 
 export function op_booleen(doc, ids, mode) {
   if (!["union", "soustraction", "intersection"].includes(mode)) {
-    throw new Error(`booléen: mode inconnu ${mode}`);
+    throw new Error(T("vectorlab.bool.mode_inconnu", { mode }));
   }
   const cibles = _ciblesOrdonnees(doc, ids);
   if (cibles.length < 2) {
-    throw new Error("booléen: au moins deux objets déverrouillés");
+    throw new Error(T("vectorlab.bool.deux_objets"));
   }
   const mz = _martinez();
   const multis = cibles.map((c) => _versMulti(aplatir_objet(c.objet)));
@@ -294,7 +294,7 @@ export function op_booleen(doc, ids, mode) {
     for (let k = 2; k < multis.length; k++) autres = mz.union(autres, multis[k]);
     mp = mz.diff(multis[0], autres);
   }
-  if (!mp || !mp.length) throw new Error("booléen: résultat vide");
+  if (!mp || !mp.length) throw new Error(T("vectorlab.bool.resultat_vide"));
   const bas = cibles[0];
   const indexBas = bas.i;         // le plus bas: rien de retiré avant lui
   for (const t of cibles) {
@@ -311,7 +311,7 @@ export function op_booleen(doc, ids, mode) {
 export function op_division(doc, ids) {
   const cibles = _ciblesOrdonnees(doc, ids);
   if (cibles.length < 2) {
-    throw new Error("division: la plaque et au moins un découpeur");
+    throw new Error(T("vectorlab.bool.division_plaque"));
   }
   const mz = _martinez();
   const plaque = cibles[0];       // le plus BAS = la plaque de verre
@@ -326,7 +326,7 @@ export function op_division(doc, ids) {
   }
   const reste = mz.diff(plaqueMp, cut);
   if (!reste || !reste.length) {
-    throw new Error("division: la découpe ne laisse aucun fragment");
+    throw new Error(T("vectorlab.bool.division_vide"));
   }
   const indexP = plaque.i;
   plaque.calque.objets.splice(plaque.calque.objets.indexOf(plaque.objet), 1);
@@ -385,7 +385,7 @@ function _ciblesB(doc, ids) {
     if (c.verrou) continue;
     c.objets.forEach((o, i) => { if (voulu.has(o.id) && !o.verrou) out.push({ calque: c, objet: o, i }); });
   }
-  if (!out.length) throw new Error("aucun objet déverrouillé dans la sélection");
+  if (!out.length) throw new Error(T("vectorlab.bool.aucun_deverrouille"));
   return out;
 }
 function _multiObjet(o) {
@@ -430,7 +430,7 @@ export function op_couteau(doc, ids, ligne) {
   const mz = _martinez();
   const [x0, y0, x1, y1] = ligne.map(Number);
   const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy);
-  if (!(L > 1e-9)) throw new Error("couteau : tirer une droite");
+  if (!(L > 1e-9)) throw new Error(T("vectorlab.bool.couteau_droite"));
   const ux = dx / L, uy = dy / L, nx = -uy, ny = ux, B = 1e5;
   const cote = (s) => [[[[x0 - ux * B, y0 - uy * B], [x0 + ux * B, y0 + uy * B],
                         [x0 + ux * B + nx * B * s, y0 + uy * B + ny * B * s], [x0 - ux * B + nx * B * s, y0 - uy * B + ny * B * s],
@@ -443,7 +443,7 @@ export function op_couteau(doc, ids, ligne) {
     const a = _propreB(mz.intersection(mp, gauche)), b = _propreB(mz.intersection(mp, droite));
     if (a.length && b.length) plan.push({ c, morceaux: [a, b] });
   }
-  if (!plan.length) throw new Error("le couteau ne coupe rien : la droite ne traverse aucune forme");
+  if (!plan.length) throw new Error(T("vectorlab.bool.couteau_rien"));
   const out = [];
   for (const { c, morceaux } of plan) out.push(..._remplacer(c, doc, morceaux));
   return out;
@@ -451,7 +451,7 @@ export function op_couteau(doc, ids, ligne) {
 
 export function op_gomme(doc, ids, dTrait, largeur) {
   const mz = _martinez();
-  if (!(largeur > 0)) throw new Error("gomme : largeur > 0 requise");
+  if (!(largeur > 0)) throw new Error(T("vectorlab.bool.gomme_largeur"));
   const bande = _contourEnMulti({ type: "path", d: dTrait, style: { epaisseur: largeur } }, TOL);
   const out = [];
   for (const c of _ciblesB(doc, ids)) {
@@ -491,7 +491,7 @@ function _retraitB(mz, mp, d) {
 // mod-vivants (le recalcul quand la source change) ; lève si le retrait vide la forme
 function _contourMulti(objet, d) {
   const mz = _martinez();
-  if (!d) throw new Error("contour : décalage non nul requis (+ dehors, − dedans)");
+  if (!d) throw new Error(T("vectorlab.bool.contour_decalage"));
   const mp = _multiObjet(objet);
   let r;
   if (d > 0) {
@@ -511,7 +511,7 @@ function _contourMulti(objet, d) {
     r = _propreB(retire.length ? mz.diff(boiteInt, retire) : boiteInt);
   } else {
     r = _retraitB(mz, mp, -d);
-    if (!r.length) throw new Error("contour : le retrait vide la forme");
+    if (!r.length) throw new Error(T("vectorlab.bool.contour_vide"));
   }
   return r;
 }
@@ -520,7 +520,7 @@ export function contour_d(objet, decalage) {
 }
 export function op_contour(doc, ids, decalage) {
   const d = +decalage;
-  if (!d) throw new Error("contour : décalage non nul requis (+ dehors, − dedans)");
+  if (!d) throw new Error(T("vectorlab.bool.contour_decalage"));
   const out = [];
   for (const c of _ciblesB(doc, ids)) {
     const neuf = _cheminDe(doc, _contourMulti(c.objet, d), c.objet.style);
@@ -566,9 +566,9 @@ export function op_constructeur(doc, ids, points, mode = "fusionner") {
   const cibles = _ciblesB(doc, ids);
   const at = atomes(cibles.map((c) => _multiObjet(c.objet)));
   const choisis = at.filter((a) => (points || []).some((p) => point_dans_multi(a, p.x, p.y)));
-  if (!choisis.length) throw new Error("constructeur : aucun atome sous le clic");
+  if (!choisis.length) throw new Error(T("vectorlab.bool.constructeur_rien"));
   const garde = mode === "retirer" ? at.filter((a) => !choisis.includes(a)) : choisis;
-  if (!garde.length) throw new Error("constructeur : il ne resterait rien");
+  if (!garde.length) throw new Error(T("vectorlab.bool.constructeur_vide"));
   let r = garde[0];
   for (const a of garde.slice(1)) r = _propreB(mz.union(r, a));
   const bas = cibles[0];

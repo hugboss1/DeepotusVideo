@@ -1,3 +1,4 @@
+import { T } from "./mod-i18n.js";
 // mod-pipette.js — le Sélecteur de couleur de classe Affinity (21/09/2026),
 // feuille PURE : l'échantillon moyen dans un rayon sur une image RGBA, l'hex,
 // les champs de la barre contextuelle (Appliquer à la sélection, Loupe,
@@ -9,7 +10,7 @@
 export const RAYONS_PIPETTE = Object.freeze([
   { id: "0", libelle: "Point (1×1)" }, { id: "1", libelle: "3 × 3" }, { id: "2", libelle: "5 × 5" }, { id: "4", libelle: "9 × 9" },
 ]);
-export const SOURCES_PIPETTE = Object.freeze([{ id: "global", libelle: "Global" }, { id: "calque", libelle: "Calque courant" }]);
+export const SOURCES_PIPETTE = Object.freeze([{ id: "global", libelle: "Global" }, { id: "calque", libelle: T("vectorlab.pipette.source_calque") }]);
 export const PIPETTE_DEFAUT = Object.freeze({ appliquer: true, loupe: true, source: "global", rayon: 0 });
 
 /* moyenne des pixels OPAQUES du carré (2r+1)² centré en (x, y), borné à
@@ -40,10 +41,10 @@ export function hex_de_rgb(r, g, b) {
 export function champs_pipette(etat) {
   const p = { ...PIPETTE_DEFAUT, ...((etat && etat.pipette) || {}) };
   return [
-    { id: "pipAppliquer", type: "bascule", libelle: "Appliquer à la sélection", valeur: !!p.appliquer, titre: "La couleur prélevée va au fond de la sélection (clic droit : au contour) — Alt inverse" },
-    { id: "pipLoupe", type: "bascule", libelle: "Agrandissement", valeur: !!p.loupe, titre: "La loupe pendant le prélèvement — Maj inverse" },
+    { id: "pipAppliquer", type: "bascule", libelle: T("vectorlab.pipette.appliquer"), valeur: !!p.appliquer, titre: T("vectorlab.pipette.appliquer_titre") },
+    { id: "pipLoupe", type: "bascule", libelle: T("vectorlab.pipette.loupe"), valeur: !!p.loupe, titre: T("vectorlab.pipette.loupe_titre") },
     { id: "pipSource", type: "select", libelle: "Source", valeur: SOURCES_PIPETTE.some((s) => s.id === p.source) ? p.source : "global", options: SOURCES_PIPETTE.slice() },
-    { id: "pipRayon", type: "select", libelle: "Rayon", valeur: RAYONS_PIPETTE.some((s) => s.id === String(p.rayon)) ? String(p.rayon) : "0", options: RAYONS_PIPETTE.slice() },
+    { id: "pipRayon", type: "select", libelle: T("vectorlab.pipette.rayon"), valeur: RAYONS_PIPETTE.some((s) => s.id === String(p.rayon)) ? String(p.rayon) : "0", options: RAYONS_PIPETTE.slice() },
   ];
 }
 

@@ -8,6 +8,7 @@
 // CAPTURE sur #stage, aperçu par VL.apercuNoeuds (R12 : chemin ET overlay
 // suivent le curseur à chaque pointermove, un cadre rAF au plus), UNE
 // commande au pointerup qui pose exactement ce qui est affiché.
+import { T } from "./mod-i18n.js";
 import { segment_proche, segment_tirer, poignee_deplacer, noeud_supprimer_lisse, noeud_intelligent } from "./mod-noeud.js";
 import { bbox_ancres, poignees_bbox, bbox_par_poignee, noeuds_tourner } from "./mod-selection.js";
 import { contraindre_angle } from "./mod-plume.js";
@@ -15,7 +16,7 @@ import { chemin_parser, chemin_serialiser, chemin_ancres, op_supprimer } from ".
 import { op_noeud_inserer, op_noeuds_aligner, op_noeuds_transformer } from "./mod-noeuds.js";
 const SNS = "http://www.w3.org/2000/svg";
 
-export const HINT_NOEUDS = "cliquer un nœud pour le sélectionner, Maj ajoute · glisser un nœud, une poignée (Alt casse la tangente, Maj contraint) ou un segment · double-clic sur un segment insère un nœud, sur un nœud le convertit · Suppr retire en lissant";
+export const HINT_NOEUDS = T("vectorlab.noeuds.hint");
 
 export function initNoeudUI(VL) {
   const { $, etat } = VL;
@@ -102,7 +103,7 @@ export function initNoeudUI(VL) {
     const g = geste; geste = null;
     const fin = VL.apercuNoeuds.fin();           // R12 : ce qui est affiché est ce qui est posé
     const d = fin && fin.d ? fin.d : g.d;
-    if (d && d !== g.d0) VL.executer((doc) => { const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === g.id); if (!o) throw new Error("chemin introuvable"); o.d = d; });
+    if (d && d !== g.d0) VL.executer((doc) => { const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === g.id); if (!o) throw new Error(T("vectorlab.noeuds.err_chemin")); o.d = d; });
     else VL.rendreOverlay();
   }, true);
   // double-clic sur un segment : un nœud à cet endroit (sur une ancre, mod-tools convertit)
@@ -149,9 +150,9 @@ export function initNoeudUI(VL) {
   };
   VL.actions = VL.actions || {};
   VL.actions.noeuds = Object.assign(VL.actions.noeuds || {}, {
-    aligner: (mode) => { const p = chemin(); const idx = etat.ancresSel && etat.ancresSel.length > 1 ? etat.ancresSel.slice() : null; if (!p || !idx) { VL.toast("aligner : sélectionner au moins deux nœuds (lasso ou Maj+clic)", true); return; } VL.executer(op_noeuds_aligner, p.id, idx, mode); },
+    aligner: (mode) => { const p = chemin(); const idx = etat.ancresSel && etat.ancresSel.length > 1 ? etat.ancresSel.slice() : null; if (!p || !idx) { VL.toast(T("vectorlab.noeuds.err_aligner_sel"), true); return; } VL.executer(op_noeuds_aligner, p.id, idx, mode); },
     supprimerLisse: () => VL.surTouche(new KeyboardEvent("keydown", { key: "Delete" })),
-    intelligent: () => { const p = chemin(); const i = etat.ancreSel !== null && etat.ancreSel !== undefined ? etat.ancreSel : (p ? chemin_ancres(chemin_parser(p.d)).length - 1 : -1); if (!p || i < 0) { VL.toast("intelligent : choisir un nœud", true); return; } const d = chemin_serialiser(noeud_intelligent(chemin_parser(p.d), i)); VL.executer((doc) => { const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === p.id); o.d = d; }); },
+    intelligent: () => { const p = chemin(); const i = etat.ancreSel !== null && etat.ancreSel !== undefined ? etat.ancreSel : (p ? chemin_ancres(chemin_parser(p.d)).length - 1 : -1); if (!p || i < 0) { VL.toast(T("vectorlab.noeuds.err_intelligent"), true); return; } const d = chemin_serialiser(noeud_intelligent(chemin_parser(p.d), i)); VL.executer((doc) => { const o = doc.calques.flatMap((c) => c.objets).find((x) => x.id === p.id); o.d = d; }); },
   });
   for (const m of ["gauche", "centreH", "droite", "haut", "centreV", "bas"]) VL.actions.noeuds["al-" + m] = () => VL.actions.noeuds.aligner(m);
   VL.noeudui = { geste: () => geste };   // la preuve

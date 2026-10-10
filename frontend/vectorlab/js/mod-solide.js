@@ -4,6 +4,7 @@
 // couche), évidement à mur minimal contrôlé, pièces d'un plateau de tuiles
 // (socle + relief par terrain), GLB minimal pour l'aperçu, nomenclature.
 // PUR : martinez est FOURNI par l'appelant (mz), aucun DOM.
+import { T } from "./mod-i18n.js";
 import { extruder } from "./mod-extrude.js";
 import { hex_centre, hex_sommets } from "./mod-grille.js";
 
@@ -70,7 +71,7 @@ const _propre = (mp) => (mp || []).filter((poly) => poly && poly.length && poly[
 // 256) — les arêtes tangentes des disques et des quadrilatères font
 // trébucher martinez ; des différences successives, jamais.
 export function inset_multi(mz, multi, d) {
-  if (!(d >= 0)) throw new Error("retrait : distance ≥ 0 requise");
+  if (!(d >= 0)) throw new Error(T("vectorlab.solide.err_retrait"));
   if (d === 0) return multi;
   let out = multi;
   for (const ring of _ringsDe(multi)) {
@@ -104,8 +105,8 @@ export function retourner_z(tris, h) {
 }
 export function extruder_depouille(mz, multi, hauteur, angleDeg, pasMm = 0.2, zBase = 0) {
   const h = +hauteur, a = +angleDeg || 0;
-  if (!(h > 0)) throw new Error("dépouille : hauteur > 0 requise");
-  if (Math.abs(a) > DEPOUILLE_MAX) throw new Error(`dépouille : angle entre −${DEPOUILLE_MAX}° et ${DEPOUILLE_MAX}°`);
+  if (!(h > 0)) throw new Error(T("vectorlab.solide.err_depouille_h"));
+  if (Math.abs(a) > DEPOUILLE_MAX) throw new Error(T("vectorlab.solide.err_depouille_angle", { max: DEPOUILLE_MAX }));
   if (a === 0) return extruder(multi, h, zBase);
   const retrait = h * Math.tan(Math.abs(a) * Math.PI / 180);
   const n = Math.min(24, Math.max(1, Math.ceil(retrait / Math.max(0.05, +pasMm || 0.2))));
@@ -125,9 +126,9 @@ export function extruder_depouille(mz, multi, hauteur, angleDeg, pasMm = 0.2, zB
 // dépouille négative retourne le corps : le biseau part du contour dessiné)
 export function extruder_biseau(mz, multi, hauteur, biseau, pasMm = 0.2, { depouille = 0 } = {}) {
   const h = +hauteur, b = +biseau, dp = +depouille || 0;
-  if (!(h > 0)) throw new Error("biseau : hauteur > 0 requise");
-  if (!(b >= 0)) throw new Error("biseau : retrait ≥ 0 requis");
-  if (b >= h) throw new Error("biseau : le retrait doit rester sous la hauteur");
+  if (!(h > 0)) throw new Error(T("vectorlab.solide.err_biseau_h"));
+  if (!(b >= 0)) throw new Error(T("vectorlab.solide.err_biseau_retrait"));
+  if (b >= h) throw new Error(T("vectorlab.solide.err_biseau_sous"));
   if (b === 0) return extruder_depouille(mz, multi, h, dp, pasMm);
   const n = Math.max(1, Math.ceil(b / Math.max(0.05, +pasMm || 0.2)));
   const dz = b / n;
@@ -143,14 +144,14 @@ export function extruder_biseau(mz, multi, hauteur, biseau, pasMm = 0.2, { depou
 
 export function extruder_evide(mz, multi, hauteur, mur, plancher) {
   const h = +hauteur, w = +mur, p = +plancher;
-  if (!(h > 0)) throw new Error("évidement : hauteur > 0 requise");
+  if (!(h > 0)) throw new Error(T("vectorlab.solide.err_evide_h"));
   if (!(w >= MUR_MIN_MM)) {
-    throw new Error(`évidement : mur ≥ ${MUR_MIN_MM} mm (deux passes de buse)`);
+    throw new Error(T("vectorlab.solide.err_evide_mur", { mm: MUR_MIN_MM }));
   }
-  if (!(p >= 0) || p >= h) throw new Error("évidement : plancher ≥ 0 et sous la hauteur");
+  if (!(p >= 0) || p >= h) throw new Error(T("vectorlab.solide.err_evide_plancher"));
   const interieur = inset_multi(mz, multi, w);
   if (!interieur.length) {
-    throw new Error("évidement : mur trop épais pour cette forme (elle se vide)");
+    throw new Error(T("vectorlab.solide.err_evide_epais"));
   }
   const coque = mz.diff(multi, interieur);
   const tris = p > 0 ? extruder(multi, p, 0) : [];
@@ -184,7 +185,7 @@ export function plateau_pieces(tuiles, terrains, g, { socle_mm, sMm }) {
    index), un matériau par pièce (baseColorFactor sRGB → linéaire) ── */
 export function glb_de_pieces(pieces) {
   const P = (pieces || []).filter((p) => p && p.tris && p.tris.length);
-  if (!P.length) throw new Error("GLB : aucun triangle");
+  if (!P.length) throw new Error(T("vectorlab.solide.err_glb"));
   const buffers = [], views = [], accessors = [], materials = [], primitives = [];
   let off = 0;
   for (const piece of P) {
@@ -323,7 +324,7 @@ export function contours_de_masque(m, w, h) {
 
 export function pixels_vers_pieces(img, cellule_mm, hauteurs = {}, { socle_mm = 0, hauteur_defaut = 2 } = {}) {
   const c = +cellule_mm;
-  if (!(c > 0)) throw new Error("pixel-art : cellule en mm > 0");
+  if (!(c > 0)) throw new Error(T("vectorlab.solide.err_cellule"));
   const vues = new Set(), couleurs = [];
   for (let k = 0; k < img.w * img.h; k++) { if (!img.data[k * 4 + 3]) continue; const h = _hexPx(img.data, k * 4); if (!vues.has(h)) { vues.add(h); couleurs.push(h); } }
   const z0 = socle_mm > 0 ? +socle_mm : 0, out = [];

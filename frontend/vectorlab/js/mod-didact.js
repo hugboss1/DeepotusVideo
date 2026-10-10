@@ -7,6 +7,7 @@
 // didacticiel-option (jamais dessinées à la main). Partie pure en tête.
 // t126 : Spritelab et Tilelab importent ce module (/vectorlab/js/mod-didact.js) avec LEUR dossier d'aide
 // et le corps de page pour racine ; la CSS de l'encart vit dans spritelab.css pour eux.
+import { T } from "./mod-i18n.js";
 import { bulle_position } from "./mod-infobulle.js";
 import { dzi } from "./mod-icones.js";
 
@@ -38,6 +39,13 @@ export function valider_fiche(f) {
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// la vue d'une fiche dans la langue de l'interface : titre_en / phrase_en / fichier_en quand la fiche les porte
+export function fiche_langue(f, langue) {
+  if (!f || langue !== "en" || !f.titre_en || !f.phrase_en || !f.fichier_en) return f;
+  return { ...f, titre: f.titre_en, phrase: f.phrase_en, fichier: f.fichier_en };
+}
+const langue_page = () => (typeof window !== "undefined" && typeof window.dzLang === "function" ? window.dzLang() : "fr");
 
 export function didact_html(f, aide = "aide/") {
   return `<img class="vl-didact-anim" src="${esc(aide)}${esc(f.fichier)}?v=${esc(f.version)}" width="${DIDACT_LARGEUR}" height="200" alt="">`
@@ -135,7 +143,7 @@ export function initDidact(VL = {}, opts = {}) {
       const el = document.getElementById(f.id);
       if (!el || deja(f.id)) continue;
       const q = document.createElement("button");
-      q.type = "button"; q.className = "vl-didact-q"; q.innerHTML = dzi("dz-action-aide", 16); q.title = "Aide : " + f.titre; q.setAttribute("aria-label", "Aide : " + f.titre); q.dataset.pour = f.id;
+      q.type = "button"; q.className = "vl-didact-q"; q.innerHTML = dzi("dz-action-aide", 16); q.title = T("vectorlab.didact.aide", { titre: f.titre }); q.setAttribute("aria-label", T("vectorlab.didact.aide", { titre: f.titre })); q.dataset.pour = f.id;
       q.addEventListener("click", (ev) => { ev.stopPropagation(); ev.preventDefault(); const cible = document.getElementById(f.id); if (courant === cible) cacher(); else montrer(cible); });
       const sp = legende(el);
       if (sp) sp.appendChild(q); else el.insertAdjacentElement("afterend", q);
@@ -146,7 +154,7 @@ export function initDidact(VL = {}, opts = {}) {
   const racine = document.querySelector(R.racine) || document.body;
   obs.observe(racine, { childList: true, subtree: true });
 
-  fetch(R.index).then((r) => (r.ok ? r.json() : [])).then((j) => { index = Array.isArray(j) ? j.filter((f) => valider_fiche(f).length === 0) : []; poserQ(); }).catch(() => { index = []; });
+  fetch(R.index).then((r) => (r.ok ? r.json() : [])).then((j) => { index = Array.isArray(j) ? j.map((f) => fiche_langue(f, langue_page())).filter((f) => valider_fiche(f).length === 0) : []; poserQ(); }).catch(() => { index = []; });
 
   VL.didact = { montrer, cacher, element: encart, get index() { return index; }, set index(v) { index = v; poserQ(); }, poserQ };
 }

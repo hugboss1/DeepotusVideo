@@ -22,6 +22,7 @@
 // (la rangée du panneau suffit), l'outil mesure est CONSERVÉ, la
 // bibliothèque et le bandeau applicatif de la maquette ne sont pas repris
 // (ils existent, autrement, dans l'application).
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 import { op_ajouter, op_calque_ajouter, op_calque_reordonner,
          op_calque_renommer, op_redimensionner, idLibre, chemin_parser }
@@ -50,21 +51,21 @@ export function teinteDe(teintes, i, graine) {
 export const GAMMES = {
   chartres: { titre: "Chartres",
     teintes: ["#1e3f7d", "#8c2331", "#c9a33f", "#e6e1cf", "#2a5f8c", "#6d1f2a"] },
-  or: { titre: "Or & ambre",
+  or: { titre: T("vectorlab.vitrail.gamme_or"),
     teintes: ["#c9922e", "#e2bb57", "#8a5a1e", "#f2e2b0", "#a3701f", "#d9a63c"] },
-  foret: { titre: "Forêt",
+  foret: { titre: T("vectorlab.vitrail.gamme_foret"),
     teintes: ["#1e5a43", "#2f7a52", "#8fae5c", "#d5ddc0", "#3d6f3a", "#12463a"] },
-  aube: { titre: "Aube",
+  aube: { titre: T("vectorlab.vitrail.gamme_aube"),
     teintes: ["#5a3f7a", "#8a4a72", "#c46f8a", "#e4c1cd", "#3d3560", "#7a4f96"] },
 };
 export const BANQUE_VERRES = [
-  ["#1e56c8", "Bleu de cobalt"], ["#c0202f", "Rouge rubis"],
-  ["#1f7a3a", "Vert émeraude"], ["#d8b12a", "Jaune d'argent"],
-  ["#7b3f9d", "Pourpre"], ["#0d2b6b", "Bleu de nuit"],
-  ["#7fb2e5", "Bleu ciel"], ["#8c2331", "Grenat"],
-  ["#e08a3c", "Ambre"], ["#0f5c46", "Vert bouteille"],
-  ["#c9d8a8", "Vert d'eau"], ["#e8e2d0", "Verre opalin"],
-  ["#3a3f46", "Gris fumé"],
+  ["#1e56c8", T("vectorlab.vitrail.verre_cobalt")], ["#c0202f", T("vectorlab.vitrail.verre_rubis")],
+  ["#1f7a3a", T("vectorlab.vitrail.verre_emeraude")], ["#d8b12a", T("vectorlab.vitrail.verre_jaune_argent")],
+  ["#7b3f9d", T("vectorlab.vitrail.verre_pourpre")], ["#0d2b6b", T("vectorlab.vitrail.verre_bleu_nuit")],
+  ["#7fb2e5", T("vectorlab.vitrail.verre_bleu_ciel")], ["#8c2331", T("vectorlab.vitrail.verre_grenat")],
+  ["#e08a3c", T("vectorlab.vitrail.verre_ambre")], ["#0f5c46", T("vectorlab.vitrail.verre_bouteille")],
+  ["#c9d8a8", T("vectorlab.vitrail.verre_vert_eau")], ["#e8e2d0", T("vectorlab.vitrail.verre_opalin")],
+  ["#3a3f46", T("vectorlab.vitrail.verre_gris_fume")],
 ];
 
 /* ═══════════ les quatre générateurs de panneau (purs) ═══════════
@@ -216,20 +217,20 @@ export function generer_plomb_libre(b, o) {
 // G3 : l'icône de chaque motif de baie (suite Deepotus Glyph)
 const ICONES_MOTIFS = { arc: "dz-outil-vec-vitrail-arc", rosette: "dz-outil-vec-vitrail-rosette", grille: "dz-outil-vec-vitrail-grille", plomb: "dz-outil-vec-vitrail-plomb" };
 export const MOTIFS = {
-  arc: { titre: "Baie à arc", libelles: ["travées", "registres"],
+  arc: { titre: T("vectorlab.vitrail.motif_arc"), libelles: [T("vectorlab.vitrail.travees"), T("vectorlab.vitrail.registres")],
          gen: generer_arc },
-  rosette: { titre: "Rosette", libelles: ["pétales", "couronnes"],
+  rosette: { titre: T("vectorlab.vitrail.motif_rosette"), libelles: [T("vectorlab.vitrail.petales"), T("vectorlab.vitrail.couronnes")],
              gen: generer_rosette },
-  grille: { titre: "Grille losangée", libelles: ["colonnes", "rangées"],
+  grille: { titre: T("vectorlab.vitrail.motif_grille"), libelles: [T("vectorlab.vitrail.colonnes"), T("vectorlab.vitrail.rangees")],
             gen: generer_grille },
-  plomb: { titre: "Plomb libre", libelles: ["colonnes", "rangées"],
+  plomb: { titre: T("vectorlab.vitrail.motif_plomb"), libelles: [T("vectorlab.vitrail.colonnes"), T("vectorlab.vitrail.rangees")],
            gen: generer_plomb_libre },
 };
 
 /* ═══════════ le panneau = UN groupe retouchable (pur) ═══════════ */
 export function construire_panneau(motif, bbox, o) {
   const m = MOTIFS[motif];
-  if (!m) throw new Error(`motif inconnu: ${motif}`);
+  if (!m) throw new Error(T("vectorlab.vitrail.motif_inconnu", { motif }));
   const enfants = m.gen(bbox, o);
   return { type: "groupe", style: {}, name: m.titre,
            vitrail: { motif, colonnes: o.colonnes, rangees: o.rangees,
@@ -257,7 +258,7 @@ export function bbox_enfants(enfants) {
       }
     }
   }
-  if (!isFinite(x0)) throw new Error("panneau sans géométrie mesurable");
+  if (!isFinite(x0)) throw new Error(T("vectorlab.vitrail.sans_geometrie"));
   return { x: nb(x0), y: nb(y0), w: nb(x1 - x0), h: nb(y1 - y0) };
 }
 
@@ -274,7 +275,7 @@ export function trouver_panneau(doc, id) {
 // sa place dans l'ordre de peinture ne bougent pas.
 export function op_panneau_regen(doc, id, patch = {}) {
   const g = trouver_panneau(doc, id);
-  if (!g) throw new Error(`${id}: pas un panneau de verre`);
+  if (!g) throw new Error(T("vectorlab.vitrail.pas_panneau", { id }));
   const bbox = bbox_enfants(g.enfants);
   const o = { ...g.vitrail, ...patch, bbox };
   const neuf = construire_panneau(o.motif, bbox, o);
@@ -432,11 +433,11 @@ export function initVitrail(VL) {
   function gammes() {
     const out = {};
     if (famille) {
-      out.fiche = { titre: "Fiche épinglée",
+      out.fiche = { titre: T("vectorlab.vitrail.gamme_fiche"),
                     teintes: Object.values(famille.palette.ancres) };
     }
     Object.assign(out, GAMMES);
-    out.perso = { titre: "Gamme personnalisée", teintes: regl.perso };
+    out.perso = { titre: T("vectorlab.vitrail.gamme_perso"), teintes: regl.perso };
     return out;
   }
   function couleurPlomb() {
@@ -475,7 +476,7 @@ export function initVitrail(VL) {
   /* ── le tracé au glisser : mod-tools appelle ceci au pointerup ── */
   VL.vitrailInserer = (bbox) => {
     if (!etat.doc || bbox.w < 24 || bbox.h < 24) {
-      VL.toast("panneau trop petit — glissez une zone d'au moins 24 px");
+      VL.toast(T("vectorlab.vitrail.trop_petit"));
       return;
     }
     const o = optsCourants(null);
@@ -484,8 +485,7 @@ export function initVitrail(VL) {
     if (id) {
       VL.setOutil("select");
       VL.setSelection([id]);
-      VL.toast(`${MOTIFS[regl.motif].titre} posée — le panneau Vitrail`
-               + " retouche le panneau sélectionné (gamme, plomb, tirage)");
+      VL.toast(T("vectorlab.vitrail.pose", { titre: MOTIFS[regl.motif].titre }));
     }
   };
 
@@ -565,9 +565,9 @@ export function initVitrail(VL) {
   async function iaLancer() {
     const champ = $("#vitIaPrompt");
     const q = (champ && champ.value || "").trim();
-    if (!q) { regl.iaMsg = "décrire d'abord l'illustration";
+    if (!q) { regl.iaMsg = T("vectorlab.vitrail.ia_decrire");
               regl.iaErr = true; rendrePanneau(); return; }
-    regl.iaBusy = true; regl.iaMsg = "génération…"; regl.iaErr = false;
+    regl.iaBusy = true; regl.iaMsg = T("vectorlab.vitrail.ia_generation"); regl.iaErr = false;
     rendrePanneau();
     try {
       const r = await fetch("/api/vector/illustration", {
@@ -577,7 +577,7 @@ export function initVitrail(VL) {
       if (!r.ok) throw new Error(d.detail || r.statusText);
       const n = VL.iaPoser(d, q);
       regl.iaBusy = false; regl.iaErr = false;
-      regl.iaMsg = `${n} tracés posés (${d.provider})`;
+      regl.iaMsg = T("vectorlab.vitrail.ia_poses", { n, provider: d.provider });
     } catch (e) {
       regl.iaBusy = false; regl.iaErr = true;
       regl.iaMsg = String(e.message || e).slice(0, 120);
@@ -605,13 +605,13 @@ export function initVitrail(VL) {
 
     hote.innerHTML = `
       <div class="vit-portee ${g ? "vit-portee-sel" : ""}">${g
-        ? `panneau sélectionné · ${MOTIFS[src.motif].titre}`
-        : "réglages du prochain panneau"}</div>
-      <div class="ap-ligne"><span>Motif</span>
+        ? T("vectorlab.vitrail.portee_sel", { titre: MOTIFS[src.motif].titre })
+        : T("vectorlab.vitrail.portee_prochain")}</div>
+      <div class="ap-ligne"><span>${T("vectorlab.vitrail.motif")}</span>
         <span class="vit-motifs">${Object.entries(MOTIFS).map(([k, m]) => `
           <button class="vit-mbtn ${!g && regl.motif === k ? "actif" : ""}"
                   data-motif="${k}"
-                  title="${m.titre} — choisir puis GLISSER une zone sur la page">
+                  title="${T("vectorlab.vitrail.motif_titre", { titre: m.titre })}">
             ${dzi(ICONES_MOTIFS[k] || "dz-etat-inconnu", 18)}</button>`).join("")}
         </span></div>
       <div class="ap-ligne"><span>${lib[0]}</span>
@@ -622,24 +622,24 @@ export function initVitrail(VL) {
         <span class="vit-step"><button data-pas="rangees:-1">−</button
           ><b>${src.rangees}</b><button data-pas="rangees:1">+</button></span>
       </div>
-      <div class="ap-ligne"><span>Plomb</span>
+      <div class="ap-ligne"><span>${T("vectorlab.vitrail.plomb")}</span>
         <input id="vitPlomb" type="range" min="2" max="16" step="1"
                value="${src.plomb}"/>
         <b class="vit-num">${src.plomb}</b></div>
-      <div class="ap-ligne"><span>Joints</span>
+      <div class="ap-ligne"><span>${T("vectorlab.vitrail.joints")}</span>
         <label class="vit-joint"><input id="vitArrondi" type="checkbox"
-          ${src.arrondi ? "checked" : ""}/> arrondis</label></div>
-      <div class="vit-portee">gamme de verre</div>
+          ${src.arrondi ? "checked" : ""}/> ${T("vectorlab.vitrail.arrondis")}</label></div>
+      <div class="vit-portee">${T("vectorlab.vitrail.gamme_verre")}</div>
       <div class="vit-gammes">${Object.entries(table).map(([k, gm]) => `
         <button class="vit-gsw ${src.gamme === k ? "actif" : ""}"
                 data-gamme="${k}" title="${gm.titre}"
                 style="background:${sw3(gm.teintes)}"></button>`).join("")}
       </div>
       <div class="vit-gnom">${(table[src.gamme] || GAMMES.chartres).titre}</div>
-      <div class="ap-ligne"><span>Teintes</span>
+      <div class="ap-ligne"><span>${T("vectorlab.vitrail.teintes")}</span>
         <span class="vit-slots">${teintesActives.map((c, i) => `
           <button class="vit-tsw ${regl.slot === i ? "actif" : ""}"
-                  data-slot="${i}" title="teinte ${i + 1} · ${c}"
+                  data-slot="${i}" title="${T("vectorlab.vitrail.teinte_n", { n: i + 1, c })}"
                   style="background:${c}"></button>`).join("")}
         </span></div>
       ${regl.slot !== null && regl.slot < teintesActives.length ? (() => {
@@ -652,18 +652,18 @@ export function initVitrail(VL) {
       <div class="vit-slotEd">
         <div class="vit-slotTete">
           <span class="vit-prev" style="background:${hex}"></span>
-          <span>teinte ${regl.slot + 1} · ${hex}</span>
-          <button id="vitSlotX" title="fermer" aria-label="fermer">${dzi("dz-action-fermer", 16)}</button></div>
-        <div class="ap-ligne"><span>Teinte</span>
+          <span>${T("vectorlab.vitrail.teinte_n", { n: regl.slot + 1, c: hex })}</span>
+          <button id="vitSlotX" title="${T("vectorlab.vitrail.fermer")}" aria-label="${T("vectorlab.vitrail.fermer")}">${dzi("dz-action-fermer", 16)}</button></div>
+        <div class="ap-ligne"><span>${T("vectorlab.vitrail.teinte_h")}</span>
           <input class="vit-tsv" data-tsv="h" type="range" min="0" max="360"
                  step="1" value="${hsl.h}" style="${piste(
                    "linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)")}"/></div>
-        <div class="ap-ligne"><span>Satur.</span>
+        <div class="ap-ligne"><span>${T("vectorlab.vitrail.satur")}</span>
           <input class="vit-tsv" data-tsv="s" type="range" min="0" max="100"
                  step="1" value="${hsl.s}" style="${piste(
                    `linear-gradient(90deg,${cs({ h: hsl.h, s: 0, l: hsl.l })},${
                      cs({ h: hsl.h, s: 100, l: hsl.l })})`)}"/></div>
-        <div class="ap-ligne"><span>Clarté</span>
+        <div class="ap-ligne"><span>${T("vectorlab.vitrail.clarte")}</span>
           <input class="vit-tsv" data-tsv="l" type="range" min="6" max="94"
                  step="1" value="${hsl.l}" style="${piste(
                    `linear-gradient(90deg,${cs({ h: hsl.h, s: hsl.s, l: 6 })},${
@@ -677,27 +677,27 @@ export function initVitrail(VL) {
       </div>`; })() : ""}
       ${g ? `<div class="ap-ligne">
         <button id="vitTirage" class="vit-large"
-          title="Rejoue la répartition des teintes avec une autre graine — même motif, mêmes réglages">${dzi("dz-action-aleatoire", 16)}Nouveau tirage du verre</button></div>` : ""}
-      <div class="ap-ligne"><span>IA</span>
+          title="${T("vectorlab.vitrail.tirage_titre")}">${dzi("dz-action-aleatoire", 16)}${T("vectorlab.vitrail.tirage")}</button></div>` : ""}
+      <div class="ap-ligne"><span>${T("vectorlab.vitrail.ia")}</span>
         <input id="vitIaPrompt" type="text"
-               placeholder="décrire une illustration…"/>
+               placeholder="${T("vectorlab.vitrail.ia_ph")}"/>
         <button id="vitIaGo" ${regl.iaBusy ? "disabled" : ""}
-          title="Illustration vectorielle par le modèle de langage configuré (Réglages) — APPEL PAYANT sur votre clé, quelques centièmes de centime ; pose des masses de verre en un groupe">${dzi("dz-media-generer-image", 16)}${regl.iaBusy ? "…" : "IA"}</button></div>
+          title="${T("vectorlab.vitrail.ia_titre")}">${dzi("dz-media-generer-image", 16)}${regl.iaBusy ? "…" : T("vectorlab.vitrail.ia")}</button></div>
       ${regl.iaMsg ? `<div class="vit-iamsg ${regl.iaErr ? "err" : ""}"
         >${regl.iaMsg}</div>` : ""}
       ${ancres.length ? `
-      <div class="vit-portee">palette de la fiche</div>
-      <div class="vit-palette" title="La palette de la fiche épinglée — clic : applique à la sélection (ou au style courant)">
+      <div class="vit-portee">${T("vectorlab.vitrail.palette_fiche")}</div>
+      <div class="vit-palette" title="${T("vectorlab.vitrail.palette_titre")}">
         ${ancres.map(([nom, hex]) => `<button class="vit-sw" data-hex="${hex}"
            title="${nom} ${hex}" style="background:${hex}"></button>`).join("")}
         <button class="vit-sw vit-plomb" data-hex="${plombHex}" data-contour="1"
-           title="plomb ${plombHex} (contour)"
+           title="${T("vectorlab.vitrail.plomb_titre", { hex: plombHex })}"
            style="background:${plombHex}"></button>
       </div>
-      <div class="ap-ligne"><span>Motifs</span>
-        <button id="vitIris" title="Iris stylisé (groupe)" aria-label="Iris stylisé">${dzi("dz-outil-vec-iris", 16)}</button>
-        <button id="vitRayons" title="Rayons solaires géométriques (groupe)" aria-label="Rayons solaires géométriques">${dzi("dz-outil-vec-rayons", 16)}</button>
-        <button id="vitHalo" title="Halo rayonnant (groupe)" aria-label="Halo rayonnant">${dzi("dz-outil-vec-halo", 16)}</button>
+      <div class="ap-ligne"><span>${T("vectorlab.vitrail.motifs")}</span>
+        <button id="vitIris" title="${T("vectorlab.vitrail.iris_titre")}" aria-label="${T("vectorlab.vitrail.iris")}">${dzi("dz-outil-vec-iris", 16)}</button>
+        <button id="vitRayons" title="${T("vectorlab.vitrail.rayons_titre")}" aria-label="${T("vectorlab.vitrail.rayons")}">${dzi("dz-outil-vec-rayons", 16)}</button>
+        <button id="vitHalo" title="${T("vectorlab.vitrail.halo_titre")}" aria-label="${T("vectorlab.vitrail.halo")}">${dzi("dz-outil-vec-halo", 16)}</button>
       </div>` : ""}`;
 
     /* ── câblage ── */
@@ -706,8 +706,7 @@ export function initVitrail(VL) {
         regl.motif = b.dataset.motif;
         VL.setOutil("vitrail");
         rendrePanneau();
-        VL.toast(`${MOTIFS[regl.motif].titre} : glissez une zone sur la`
-                 + " page pour poser le panneau");
+        VL.toast(T("vectorlab.vitrail.glissez", { titre: MOTIFS[regl.motif].titre }));
       }));
     hote.querySelectorAll("[data-pas]").forEach((b) =>
       b.addEventListener("click", () => {

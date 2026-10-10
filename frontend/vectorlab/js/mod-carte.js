@@ -4,6 +4,7 @@
 // Terrarium (grille de hauteurs dans doc.geo + image ombrée dans le
 // magasin), vectoriser les courbes de niveau, découper en tuiles par palier
 // et ouvrir l'impression 3D en mode relief. Logique PURE en tête (banc).
+import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 import { gpx_parser, cadrage, echelle_libelle, courbes_niveau, ombrage, profil_stats, profil_svg } from "./mod-geo.js";
 import { op_geo_importer, op_geo_relief, op_geo_courbes, op_geo_tuiles, op_calque_ajouter,
@@ -11,11 +12,11 @@ import { op_geo_importer, op_geo_relief, op_geo_courbes, op_geo_tuiles, op_calqu
 
 /* ── pur ── */
 export function libelle_carte(geo, unites) {
-  if (!geo) return "Importer un fichier GPX : la trace se pose à l'échelle, l'emprise devient la page.";
+  if (!geo) return T("vectorlab.carte.libelle_vide");
   const dpi = (unites && unites.dpi) || 96;
   const km = (geo.emprise_px.w * geo.m_par_px / 1000).toFixed(1).replace(".", ",");
   const mm = Math.round(geo.emprise_px.w * 25.4 / dpi);
-  return `${echelle_libelle(geo.m_par_px, dpi)} · ${km} km de large · ${mm} mm imprimés`;
+  return T("vectorlab.carte.libelle", { echelle: echelle_libelle(geo.m_par_px, dpi), km, mm });
 }
 export function grille_vers_px(i, j, relief, E) {
   return [Math.round((E.x + i / (relief.w - 1) * E.w) * 10) / 10,
@@ -46,9 +47,9 @@ export function profil_html(geo) {
   return P.map((p, k) => {
     const st = profil_stats(p);
     const lg = st.longueur_m >= 1000 ? `${(st.longueur_m / 1000).toFixed(1).replace(".", ",")} km` : `${Math.round(st.longueur_m)} m`;
-    const titre = P.length > 1 ? `trace ${k + 1} · ` : "";
+    const titre = P.length > 1 ? T("vectorlab.carte.trace_n", { n: k + 1 }) : "";
     return `<div class="carte-profil"><p class="carte-attribution">${titre}${lg} · D+ ${Math.round(st.dplus)} m · D− ${Math.round(st.dmoins)} m`
-      + ` · ${Math.round(st.min)} → ${Math.round(st.max)} m (altitude enregistrée)</p>${profil_svg(p, 260, 90)}</div>`;
+      + ` · ${Math.round(st.min)} → ${Math.round(st.max)} m ${T("vectorlab.carte.altitude_enreg")}</p>${profil_svg(p, 260, 90)}</div>`;
   }).join("");
 }
 
@@ -63,19 +64,19 @@ export function initCarte(VL) {
     const R = g && g.relief;
     hote.innerHTML = `
       <p class="carte-libelle" id="carteLibelle">${libelle_carte(g, etat.doc.unites)}</p>
-      <div class="ap-ligne"><button id="carteImporter" class="primaire" title="Un fichier .gpx : traces, points nommés, emprise — projetés en mètres et cadrés dans la page">${dzi("dz-action-importer", 16)}Importer un GPX…</button>
+      <div class="ap-ligne"><button id="carteImporter" class="primaire" title="${T("vectorlab.carte.importer_aide")}">${dzi("dz-action-importer", 16)}${T("vectorlab.carte.importer")}</button>
         <input type="file" id="carteGpxInput" accept=".gpx,application/gpx+xml" hidden/></div>
-      <div class="ap-ligne"><button id="carteFond" ${g ? "" : "disabled"} title="Fond OpenStreetMap assemblé par le backend (cache disque) et posé en calque « fond » — © OpenStreetMap contributors">${dzi("dz-media-fond-carte", 16)}Fond de carte OSM</button>
-        <button id="carteRelief" ${g ? "" : "disabled"} title="Relief Terrarium (AWS Open Data, sans clé) : grille de hauteurs dans le document + image ombrée en calque « relief »">${dzi("dz-lab3d-relief", 16)}Relief</button></div>
-      <div class="ap-ligne"><span>Courbes</span><input type="number" id="cartePas" value="50" min="1" step="1" title="Pas des courbes de niveau (m)"/>
-        <button id="carteCourbes" ${R ? "" : "disabled"} title="Vectorise les courbes de niveau (marching squares) — de vrais chemins">${dzi("dz-edit-courbes-niveau", 16)}Courbes</button></div>
-      <div class="ap-ligne"><span>Tuiles</span><input type="number" id="carteTuilePas" value="40" min="8" step="1" title="Rayon de l'hexagone (px)"/>
-        <input type="number" id="carteReliefMm" value="10" min="1" step="0.5" title="Relief total du plateau (mm)"/>
-        <button id="carteTuiles" ${R ? "" : "disabled"} title="Quadrillage hexagonal sur l'emprise : chaque tuile prend le terrain de son palier d'altitude et une hauteur en mm">${dzi("dz-edit-grille-hex", 16)}Découper</button></div>
-      <div class="ap-ligne"><button id="carteImprimer" ${R ? "" : "disabled"} title="Aperçu 3D de la plaque en relief (exagération, socle, gravure du tracé) puis STL / dalles">${dzi("dz-lab3d-impression-3d", 16)}Aperçu 3D / Imprimer</button></div>
+      <div class="ap-ligne"><button id="carteFond" ${g ? "" : "disabled"} title="${T("vectorlab.carte.fond_aide")}">${dzi("dz-media-fond-carte", 16)}${T("vectorlab.carte.fond")}</button>
+        <button id="carteRelief" ${g ? "" : "disabled"} title="${T("vectorlab.carte.relief_aide")}">${dzi("dz-lab3d-relief", 16)}${T("vectorlab.carte.relief")}</button></div>
+      <div class="ap-ligne"><span>${T("vectorlab.carte.courbes")}</span><input type="number" id="cartePas" value="50" min="1" step="1" title="${T("vectorlab.carte.pas_aide")}"/>
+        <button id="carteCourbes" ${R ? "" : "disabled"} title="${T("vectorlab.carte.courbes_aide")}">${dzi("dz-edit-courbes-niveau", 16)}${T("vectorlab.carte.courbes")}</button></div>
+      <div class="ap-ligne"><span>${T("vectorlab.carte.tuiles")}</span><input type="number" id="carteTuilePas" value="40" min="8" step="1" title="${T("vectorlab.carte.rayon_hex")}"/>
+        <input type="number" id="carteReliefMm" value="10" min="1" step="0.5" title="${T("vectorlab.carte.relief_mm")}"/>
+        <button id="carteTuiles" ${R ? "" : "disabled"} title="${T("vectorlab.carte.tuiles_aide")}">${dzi("dz-edit-grille-hex", 16)}${T("vectorlab.carte.decouper")}</button></div>
+      <div class="ap-ligne"><button id="carteImprimer" ${R ? "" : "disabled"} title="${T("vectorlab.carte.imprimer_aide")}">${dzi("dz-lab3d-impression-3d", 16)}${T("vectorlab.carte.imprimer")}</button></div>
       ${profil_html(g)}
       ${g && g.attribution ? `<p class="carte-attribution">${g.attribution}</p>` : ""}
-      ${R ? `<p class="carte-attribution">relief ${R.w} × ${R.h} · ${Math.round(R.min)} → ${Math.round(R.max)} m · ${R.pasM} m/cellule · zoom ${R.zoom ?? g.zoom}</p>` : ""}`;
+      ${R ? `<p class="carte-attribution">${T("vectorlab.carte.relief_info", { w: R.w, h: R.h, min: Math.round(R.min), max: Math.round(R.max), pas: R.pasM, zoom: R.zoom ?? g.zoom })}</p>` : ""}`;
     $("#carteImporter").addEventListener("click", () => $("#carteGpxInput").click());
     $("#carteGpxInput").addEventListener("change", () => {
       const f = $("#carteGpxInput").files && $("#carteGpxInput").files[0];
@@ -94,7 +95,7 @@ export function initCarte(VL) {
     const gpx = gpx_parser(texte);
     const cadre = cadrage(gpx.emprise, etat.doc.taille, 40);
     const r = VL.executer(op_geo_importer, gpx, cadre);
-    if (r) { etat.calqueActif = r.calques.trace; VL.zoomAjuster(); VL.toast(`GPX importé : ${r.nPoints} point(s), ${echelle_libelle(cadre.m_par_px, (etat.doc.unites || {}).dpi || 96)}`); }
+    if (r) { etat.calqueActif = r.calques.trace; VL.zoomAjuster(); VL.toast(T("vectorlab.carte.gpx_importe", { n: r.nPoints, echelle: echelle_libelle(cadre.m_par_px, (etat.doc.unites || {}).dpi || 96) })); }
   }
 
   async function poserCalqueImage(nomCalque, blob, opacite) {
@@ -118,19 +119,19 @@ export function initCarte(VL) {
     const g = etat.doc.geo;
     const r = await fetch("/api/geo/fond", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ emprise: g.emprise, zoom: g.zoom }) });
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `fond : ${r.status}`);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || T("vectorlab.carte.err_fond", { s: r.status }));
     const blob = await r.blob();
     const attr = (await (await fetch("/api/geo/attribution")).json()).osm;
     await poserCalqueImage("fond OpenStreetMap", blob);
     VL.executer((d) => { d.geo.attribution = attr; });
-    VL.toast("fond de carte posé — " + attr);
+    VL.toast(T("vectorlab.carte.fond_pose", { attr }));
   }
   async function relief() {
     const g = etat.doc.geo;
     const r = await fetch("/api/geo/relief", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ emprise: g.emprise, zoom: g.zoom }) });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.detail || `relief : ${r.status}`);
+    if (!r.ok) throw new Error(d.detail || T("vectorlab.carte.err_relief", { s: r.status }));
     VL.executer(op_geo_relief, d);
     // l'image ombrée : canvas → PNG → magasin du document (lot A)
     const gris = ombrage(d.hauteurs, d.w, d.h, d.pasM, 1);
@@ -139,7 +140,7 @@ export function initCarte(VL) {
     cv.getContext("2d").putImageData(new ImageData(ombrage_rgba(gris, d.w, d.h), d.w, d.h), 0, 0);
     const blob = await new Promise((res) => cv.toBlob(res, "image/png"));
     await poserCalqueImage("relief (ombrage)", blob, 0.7);
-    VL.toast(`relief chargé : ${d.w} × ${d.h}, ${Math.round(d.min)} → ${Math.round(d.max)} m`);
+    VL.toast(T("vectorlab.carte.relief_charge", { w: d.w, h: d.h, min: Math.round(d.min), max: Math.round(d.max) }));
   }
   function courbes() {
     const R = etat.doc.geo.relief, E = etat.doc.geo.emprise_px;
@@ -147,11 +148,11 @@ export function initCarte(VL) {
     const lignes = [];
     for (const n of niveaux(R.min, R.max, pas)) lignes.push(...lignes_vers_px(courbes_niveau(R.hauteurs, R.w, R.h, n), R, E));
     const r = VL.executer(op_geo_courbes, lignes, pas);
-    if (r) VL.toast(`${r.n} courbe(s) de niveau au pas de ${pas} m`);
+    if (r) VL.toast(T("vectorlab.carte.courbes_posees", { n: r.n, pas }));
   }
   function tuiles() {
     const r = VL.executer(op_geo_tuiles, { pas: +$("#carteTuilePas").value || 40, relief_mm: +$("#carteReliefMm").value || 10 });
-    if (r) { etat.calqueActif = r.calqueId; VL.setOutil("tuiles"); VL.toast(`${r.tuiles.length} tuile(s) par palier — pinceau actif`); }
+    if (r) { etat.calqueActif = r.calqueId; VL.setOutil("tuiles"); VL.toast(T("vectorlab.carte.tuiles_palier", { n: r.tuiles.length })); }
   }
 
   const suivant = VL.surRendu;

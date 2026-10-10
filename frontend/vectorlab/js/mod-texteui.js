@@ -4,11 +4,12 @@
 // glisser, clic sur une courbe ou une forme = texte sur ce chemin ;
 // indicateur rouge d'un cadre qui déborde ; Tab / Maj+Tab cyclent la
 // sélection (outil Sélection). Écouteurs en CAPTURE sur #stage.
+import { T } from "./mod-i18n.js";
 import { corps_de_glisser, cycle_suivant } from "./mod-texte.js";
 import { op_ajouter, op_texte_sur_chemin } from "./mod-doc.js";
 
 const SNS = "http://www.w3.org/2000/svg";
-export const HINT_TEXTE = "cliquer pour poser un texte au corps courant · glisser pour poser un texte au corps de la hauteur tirée · cliquer sur une courbe pour écrire le long de cette courbe · Échap finit";
+export const HINT_TEXTE = T("vectorlab.texte.hint");
 
 export function initTexteUI(VL) {
   const { $, etat } = VL;
@@ -80,7 +81,7 @@ export function initTexteUI(VL) {
     const [ex, ey] = VL.ecranPt(t.objet.x + t.objet.w, t.objet.y + t.objet.h);
     const r = document.createElementNS(SNS, "rect");
     for (const [k, v] of Object.entries({ x: ex - 5, y: ey - 5, width: 10, height: 10, fill: "#e33", stroke: "#fff", class: "cadre-deborde", "pointer-events": "none" })) r.setAttribute(k, v);
-    const titre = document.createElementNS(SNS, "title"); titre.textContent = "Le texte déborde du cadre"; r.appendChild(titre);
+    const titre = document.createElementNS(SNS, "title"); titre.textContent = T("vectorlab.texte.deborde"); r.appendChild(titre);
     o.appendChild(r);
   };
 

@@ -1,30 +1,31 @@
+import { T } from "./mod-i18n.js";
 // mod-onglets.js — la pile de droite d'Affinity (R3) : trois groupes
 // d'onglets par persona ; un onglet ouvre une ou plusieurs sections
 // <details id="…Details"> existantes ; l'onglet actif de chaque groupe
 // est mémorisé par persona (dz_vl_onglets). Feuille pure.
 const o = (libelle, ...sections) => ({ libelle, sections });
 export const ONGLETS = {
-  couleur: o("Couleur", "styleDetails"),
-  echantillons: o("Échantillons", "echantillonsDetails"),
-  trait: o("Trait", "traitDetails"),
-  apparence: o("Apparence", "apparence2Details"),
-  texte: o("Texte", "texteDetails"),
-  calques: o("Calques", "calquesDetails"),
-  trace: o("Tracé", "noeudsDetails", "formeDetails"),
+  couleur: o(T("vectorlab.onglets.couleur"), "styleDetails"),
+  echantillons: o(T("vectorlab.onglets.echantillons"), "echantillonsDetails"),
+  trait: o(T("vectorlab.onglets.trait"), "traitDetails"),
+  apparence: o(T("vectorlab.onglets.apparence"), "apparence2Details"),
+  texte: o(T("vectorlab.onglets.texte"), "texteDetails"),
+  calques: o(T("vectorlab.onglets.calques"), "calquesDetails"),
+  trace: o(T("vectorlab.onglets.trace"), "noeudsDetails", "formeDetails"),
   image: o("Image", "imageDetails"),
-  planches: o("Planches", "planchesDetails"),
-  grille: o("Grille", "grilleDetails"),
-  plateau: o("Plateau", "plateauDetails"),
-  carte: o("Carte", "carteDetails"),
-  vitrail: o("Vitrail", "vitrailDetails"),
+  planches: o(T("vectorlab.onglets.planches"), "planchesDetails"),
+  grille: o(T("vectorlab.onglets.grille"), "grilleDetails"),
+  plateau: o(T("vectorlab.onglets.plateau"), "plateauDetails"),
+  carte: o(T("vectorlab.onglets.carte"), "carteDetails"),
+  vitrail: o(T("vectorlab.onglets.vitrail"), "vitrailDetails"),
   stock: o("Stock", "assetsDetails"),
-  transformer: o("Transformer", "transformerDetails"),
-  navigateur: o("Navigateur", "navigateurDetails"),
-  historique: o("Historique", "instantanesDetails"),
-  reperes: o("Repères", "reperesDetails"),
-  exporter: o("Exporter", "exportDetails", "exportPlusDetails"),
+  transformer: o(T("vectorlab.onglets.transformer"), "transformerDetails"),
+  navigateur: o(T("vectorlab.onglets.navigateur"), "navigateurDetails"),
+  historique: o(T("vectorlab.onglets.historique"), "instantanesDetails"),
+  reperes: o(T("vectorlab.onglets.reperes"), "reperesDetails"),
+  exporter: o(T("vectorlab.onglets.exporter"), "exportDetails", "exportPlusDetails"),
   pixel: o("Pixel", "pixelDetails"),
-  histogramme: o("Histogramme", "histogrammeDetails"),
+  histogramme: o(T("vectorlab.onglets.histogramme"), "histogrammeDetails"),
 };
 export const GROUPES = {
   vecteur: [["couleur", "echantillons", "trait", "apparence", "texte"],

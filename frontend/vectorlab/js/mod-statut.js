@@ -1,11 +1,13 @@
+import { T } from "./mod-i18n.js";
 // mod-statut.js — la barre d'état d'Affinity : phrase d'aide (verbes en
 // gras, selon l'outil et la sélection), onglet de document, pagination.
 // Feuille pure (bancable node) ; l'UI ne fait que poser le HTML.
-const VERBES = ["glisser", "cliquer", "double-cliquer", "clic droit", "maj", "alt", "ctrl", "entrée", "échap", "suppr", "entree"];
+const VERBES = ["glisser", "cliquer", "double-cliquer", "clic droit", "maj", "alt", "ctrl", "entrée", "échap", "suppr", "entree",
+  "drag", "click", "double-click", "right-click", "shift", "enter", "esc", "del", "delete"];
 export function phrase_statut(outil, nSel, hints) {
   if (outil === "select") {
-    if (!nSel) return "**Glisser** pour utiliser un cadre de sélection. **Cliquer** sur un objet pour le sélectionner. **Clic droit** pendant la sélection pour activer/désactiver le mode Intersection.";
-    return `${nSel} objet${nSel > 1 ? "s" : ""} sélectionné${nSel > 1 ? "s" : ""}. **Glisser** pour déplacer la sélection. **Cliquer** sur un autre objet pour le sélectionner. **Cliquer** sur une zone vide pour annuler la sélection. **Suppr** pour retirer.`;
+    if (!nSel) return T("vectorlab.statut.select_vide");
+    return T(nSel > 1 ? "vectorlab.statut.select_plusieurs" : "vectorlab.statut.select_un", { n: nSel });
   }
   const h = (hints || {})[outil];
   if (!h) return "";
@@ -27,5 +29,5 @@ export function pagination(planches, courante) {
   const liste = Array.isArray(planches) ? planches : [];
   const n = Math.max(1, liste.length);
   const i = liste.findIndex((p) => p && p.id === courante);
-  return `${i >= 0 ? i + 1 : 1} sur ${n}`;
+  return T("vectorlab.statut.page_sur", { i: i >= 0 ? i + 1 : 1, n });
 }
