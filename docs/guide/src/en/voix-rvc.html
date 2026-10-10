@@ -1,0 +1,45 @@
+<p class="chapeau-chap">You will learn to install Voixbox, record your voice, train it with RVC and have it speak during a Live session, on your own graphics card. Free: nothing goes to the Internet. Allow thirty minutes to install, a quarter of an hour to record and about an hour of computing per voice.</p>
+
+<h3>Before you start</h3>
+<p>You need an <strong>NVIDIA</strong> graphics card with 6 GB of memory or more, and about 6 GB of disk. Without one, Live offers your voice as it is or the Character's voice through ElevenLabs (paid, nothing to install).</p>
+<p>The engine is <strong>RVC</strong> (MIT license), through its official WebUI: the same install trains a voice and makes it speak. Only clone your own voice, or that of someone who has agreed to it.</p>
+
+<h3>Install Voixbox (once)</h3>
+<ol class="etapes">
+<li>Open PowerShell in the app folder, where <code>tools\voixbox</code> lives (by default <code>%LOCALAPPDATA%\DeepotusVideoGen</code>).</li>
+<li>Run <code>powershell -ExecutionPolicy Bypass -File tools\voixbox\installer.ps1</code>.</li>
+<li>The script installs <code>uv</code>, downloads a verified version of the WebUI, creates its Python, adds torch for CUDA (about 3 GB) then its weights (560 MB).</li>
+<li>It ends with <code>CUDA True | NVIDIA …</code>: the card is detected. On any failure, it stops and says why.</li>
+</ol>
+
+<h3>Record your voice</h3>
+<p>The quality of the cloned voice depends almost entirely on this recording.</p>
+<ol class="etapes">
+<li>Record 10 to 15 minutes of your voice alone: no music, no second voice, no echo.</li>
+<li>A quiet room, the mic 15-20 cm away, always the same mic. Speak the way you do on your live sessions, with varied sentences.</li>
+<li>Avoid clipping. Prefer several 30 s to 2 min files, in WAV.</li>
+<li>Put them in a folder that holds nothing else, for example <code>C:\Voix\oli</code>.</li>
+</ol>
+
+<h3>Train an RVC voice</h3>
+<ol class="etapes">
+<li>Run <code>powershell -ExecutionPolicy Bypass -File tools\voixbox\webui.ps1</code>. The WebUI opens in French at <code>http://127.0.0.1:7865</code>; keep the PowerShell window open.</li>
+<li>« Entraîner » (Train) tab, step 1: a short <strong>experiment name</strong> with no spaces or accents (<code>oli</code>), rate <code>40k</code>, pitch guidance <strong>Oui</strong> (yes), version <code>v2</code>.</li>
+<li>Step 2: your recordings folder, and the <code>rmvpe</code> pitch algorithm.</li>
+<li>Step 3: save every <code>25</code> epochs, <strong>200</strong> epochs in total (100 for a first try), batch <code>8</code> (or <code>4</code> with 6 GB), small final model at each save: <strong>Oui</strong> (yes).</li>
+<li>Click « Entraînement en un clic » (one-click training). Allow about 1 h 15 for 200 epochs on an RTX 2080 Ti.</li>
+<li>Put the voice where Voixbox looks for it: <code>powershell -ExecutionPolicy Bypass -File tools\voixbox\ranger-voix.ps1 -Nom oli</code>.</li>
+</ol>
+<p>Listen to it before using it: in the WebUI's « Inférence du modèle » (model inference) tab, pick <code>oli.pth</code> and give it a short recording. A crackling voice needs more epochs or a cleaner recording.</p>
+
+<h3>Speak with it during a Live session</h3>
+<ol class="etapes">
+<li>Run <code>powershell -ExecutionPolicy Bypass -File tools\voixbox\lancer.ps1</code> and keep the window open: it reports how many voices are trained.</li>
+<li>In <b class="ui">Avatar live</b>, <b class="ui">Live</b> tab, choose the local RVC voice under <b class="ui">Voice sent</b>.</li>
+<li>Set <b class="ui">Transpose (semitones)</b> if needed: <code>+12</code> to go from a male to a female voice.</li>
+<li><b class="ui">Start the live session</b>. Each half-second of voice is converted in about 110 ms; the picture is delayed by 0.75 s to stay in sync with the lips.</li>
+</ol>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>The Live screen tells you what is missing: no NVIDIA card, Voixbox not started, or no trained voice. Another port is set with <code>VOIXBOX_URL</code> in the <code>.env</code>.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>With Avast or an antivirus that inspects connections, always go through the scripts in <code>tools\voixbox</code>: they remove the <code>SSLKEYLOGFILE</code> variable for themselves only and read Windows certificates. Otherwise Python crashes (<code>no OPENSSL_Applink</code>).</p></aside>
