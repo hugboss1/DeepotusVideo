@@ -1,0 +1,44 @@
+{
+  "titre": {
+    "fr": "Peindre une carte",
+    "en": "Paint a map"
+  },
+  "legende": {
+    "fr": "Mode Peintre : vous peignez le terrain case par case, et la bonne tuile du jeu est posée selon les voisines.",
+    "en": "Painter mode: you paint terrain cell by cell, and the right tile of the set is placed from its neighbours."
+  },
+  "captures": [
+    {
+      "fr": "carte.fr.webp",
+      "en": "carte.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        560,
+        115,
+        874,
+        587
+      ],
+      "bulle": {
+        "fr": "Cliquer-glisser pour peindre",
+        "en": "Click and drag to paint"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "bulle": {
+        "fr": "La carte composée, prête pour le jeu",
+        "en": "The composed map, ready for the game"
+      }
+    }
+  ]
+}

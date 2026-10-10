@@ -1,0 +1,55 @@
+<p class="chapeau-chap">You will be able to build an animated sprite sheet in Sprite Lab: start from a shipped effect, a sheet, a video or a bible character, slice it, align it, pixelate it, then export it for your game engine. Almost everything is free and local; only animating an image and prompt generation are paid, price shown first.</p>
+
+<h3>The Sprite Lab screen</h3>
+<p>Open <b class="ui">Sprite Lab</b> from the Assets 2D tab of the Game Assets hub. Three columns: the <strong>source</strong> on the left (Get started, Image, Render, Video, Sheet, Bible, Prompt), the extracted <strong>frames</strong> and settings in the middle, the animated <strong>preview</strong> and exports on the right.</p>
+
+<h3>A sprite in one click</h3>
+<figure class="scene" data-scene="spritelab/demarrer"></figure>
+<ol class="etapes">
+<li><b class="ui">Get started</b> tab: twelve particle effects (burst, smoke, sparks, aura…) and animated sequences, made from free textures shipped with the app.</li>
+<li>One click produces the sheet, the frames, the GIF and the Unity pack, no key, no credit, no network.</li>
+<li>The preview plays the animation: <kbd>Space</kbd> play / pause, speed 0.5×, 1× or 2×, plain backgrounds or scenes (Sky, Outdoor, Dungeon, Cave), and <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or the arrows walk the sprite. The mirror button flips it.</li>
+</ol>
+<figure class="fiche" data-fiche="spritelab/pflip"></figure>
+
+<h3>Start from an existing sheet</h3>
+<figure class="scene" data-scene="spritelab/feuille"></figure>
+<ol class="etapes">
+<li><b class="ui">Sheet</b> tab: pick a sheet from the Library, or <b class="ui">Open a PNG from my PC</b>. Nothing is sent, nothing is spent.</li>
+<li><b class="ui">Auto-detect</b> counts columns, rows and occupied cells from transparency; otherwise, set the columns × rows grid yourself.</li>
+<li>Drag to paint the cell selection (<kbd>Ctrl</kbd> adds or removes, <kbd>Shift</kbd> extends), or <b class="ui">All</b>, <b class="ui">None</b>, one cell in 2, 3 or 4.</li>
+<li>Align: <b class="ui">Feet</b> puts each character on the same floor, <b class="ui">Left / right</b> re-centres, <b class="ui">Both axes</b> does both; the arrows nudge the current frame by one pixel, <b class="ui">Reset</b> undoes.</li>
+<li>Group ranges under a name (walk, jump…) as loop, ping-pong or reverse, then export the <b class="ui">Aligned sheet</b>, its JSON, or <b class="ui">Copy JSON</b>.</li>
+</ol>
+<div class="fiches">
+<figure class="fiche" data-fiche="spritelab/fDetect"></figure>
+<figure class="fiche" data-fiche="spritelab/fAlPieds"></figure>
+</div>
+
+<h3>The other sources</h3>
+<div class="cartes">
+<article><i data-dz="dz-media-image"></i><h4>Image, Render, Video</h4><p>A Library image is animated on a plain background (paid); a render or a video from your PC is sliced into frames. Set sampling, the number of frames and background removal (cloud, local or chroma key).</p></article>
+<article><i data-dz="dz-nav-bible"></i><h4>Bible</h4><p><b class="ui">4 directions (sheet)</b> cuts a character's south, west, east, north views; <b class="ui">8 directions (3D model)</b> renders its model from eight angles. Free.</p></article>
+<article><i data-dz="dz-media-generer-image"></i><h4>Prompt</h4><p>Describe a sprite, add the persona's words in one click, then <b class="ui">Generate the images</b>: the cost is shown first, images are cut out locally and become the source.</p></article>
+</div>
+<p>Any source also accepts 1 to 64 Library images, taken in order as frames.</p>
+
+<h3>Set up the sheet</h3>
+<p>In the middle: cell (128, 256, 512 or native, no upscaling), anchor centred or at the feet, columns. <b class="ui">Pixel art (9b)</b> reduces to the target size with a shared palette and dithering. Animation: duration per frame and tags (idle, run, jump…) written into every export. Post-processing: outline, drop shadow, orphan-pixel cleanup, edge smoothing. Then <b class="ui">Generate the sheet</b>.</p>
+<div class="fiches">
+<figure class="fiche" data-fiche="spritelab/poWidth"></figure>
+<figure class="fiche" data-fiche="spritelab/poDx"></figure>
+</div>
+
+<h3>Edit, hitboxes, skeleton</h3>
+<div class="cartes">
+<article><i data-dz="dz-edit-cadres-edition"></i><h4>Editor</h4><p>Reorder, duplicate or delete frames of a finished sheet, then <b class="ui">Apply</b>; tags follow. Nothing is redone or paid again.</p></article>
+<article><i data-dz="dz-edit-position"></i><h4>Hitboxes</h4><p>Draw per-frame hit (strike) or hurt (can be hit) rectangles, sixteen at most; adjust them, copy them from one frame to another (<kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd>). They go into the JSON atlas and Paper2D.</p></article>
+<article><i data-dz="dz-lab3d-os"></i><h4>Spine skeleton</h4><p>Draw bones then parts, name them, and <b class="ui">Write the rig</b> produces a Spine 3.8 skeleton with its parts.</p></article>
+</div>
+
+<h3>Export</h3>
+<p>Under the preview: Sheet PNG, ZIP (frames and Unity pack, with all engine exports), GIF, Godot 4 resource (.tres), JSON atlas for Phaser and PixiJS, Aseprite file (.ase) and Unreal Paper2D sheet. Save to Library files the sheet in the Library, from where it can be sent to Vectorlab or Tile Lab.</p>
+
+<h3>Good to know</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Paid: animating an image (Image tab), cloud background removal and prompt generation, always within your caps, price shown first. Get started, Sheet, Bible, Render, Video with local removal and every export are free.</p></aside>
