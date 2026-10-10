@@ -73,7 +73,7 @@ ENTREES = [
     S('a.push("contour "+(rel<.06?"fin":rel<.1?"moyen":"épais"))}',
       'a.push(dzT("subs.spec.contour",{epaisseur:rel<.06?dzT("subs.spec.fin"):rel<.1?dzT("subs.spec.moyen"):dzT("subs.spec.epais")}))}',
       {"subs.spec.contour": ("contour {epaisseur}", "{epaisseur} outline"),
-       "subs.spec.fin": ("fin", "thin"), "subs.spec.moyen": ("moyen", "medium"),
+       "subs.spec.fin": ("fin", "thin", "contexte"), "subs.spec.moyen": ("moyen", "medium"),
        "subs.spec.epais": ("épais", "thick")}),
     L('"sans fond ni contour"', "subs.spec.sans_fond_contour", "sans fond ni contour", "no background or outline"),
 

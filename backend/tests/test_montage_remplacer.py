@@ -1141,7 +1141,7 @@ console.log(JSON.stringify(out));
 """
 shim = pathlib.Path(TMP) / "shim.js"
 shim.write_text('"use strict";\nvar window={};var SVM_TRACK_BUS={};\n' + AIDE.PRELUDE_DZT + JSX
-                + LAYER.read_bytes().decode("utf-8-sig") + "\n" + probe,
+                + AIDE.couche_avant_i18n_l3(LAYER.read_bytes().decode("utf-8-sig")) + "\n" + probe,  # t143 : texte d'avant L3
                 encoding="utf-8")
 r = NODE(["node", str(shim)])
 if r.returncode != 0:
@@ -1431,7 +1431,7 @@ check("js_le_composant_du_rappel_existe", d.get("hint_existe") is True,
       str(d.get("hint_existe")))
 
 print("\n[3] la couche ne recopie NI la route NI une extension")
-_src = LAYER.read_bytes().decode("utf-8-sig")
+_src = AIDE.couche_avant_i18n_l3(LAYER.read_bytes().decode("utf-8-sig"))  # t143 : texte d'avant L3
 # La liste d'extensions vit dans montage_service.py et NULLE PART ailleurs
 # (P9 l'avait deja arrete pour `isVideoJob`) : cette ligne le tient pour la
 # couche entiere, P6 comprise.

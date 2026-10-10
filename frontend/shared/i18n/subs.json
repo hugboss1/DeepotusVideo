@@ -482,7 +482,7 @@
   "subs.spec.capitales": {"fr": "capitales", "en": "caps"},
   "subs.spec.contour": {"fr": "contour {epaisseur}", "en": "{epaisseur} outline"},
   "subs.spec.epais": {"fr": "épais", "en": "thick"},
-  "subs.spec.fin": {"fr": "fin", "en": "thin"},
+  "subs.spec.fin": {"fr": "fin", "en": "thin", "contexte": true},
   "subs.spec.fond": {"fr": "fond {pct} %", "en": "background {pct}%"},
   "subs.spec.moyen": {"fr": "moyen", "en": "medium"},
   "subs.spec.sans_fond_contour": {"fr": "sans fond ni contour", "en": "no background or outline"},

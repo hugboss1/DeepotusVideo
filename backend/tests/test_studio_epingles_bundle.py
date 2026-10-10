@@ -12,10 +12,11 @@ import json, os, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
-BUN = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
-_TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzpinb_"))
 sys.path.insert(0, str(_ICI))
 import _i18n_l1_aide as AIDE                               # noqa: E402  (t142 : textes par dzT, francais par AIDE.fr)
+# t143 : la couche montage.js du bundle passe par dzT (traduction L3) ; le banc lit son texte français d'avant la traduction
+BUN = AIDE.avant_i18n_l3((RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8"))
+_TMP = pathlib.Path(tempfile.mkdtemp(prefix="dzpinb_"))
 
 ok = fail = 0
 def check(label, cond, detail=""):

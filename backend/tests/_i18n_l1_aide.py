@@ -73,9 +73,29 @@ def _couche_defaire(couche: str, table, nom) -> str:
     return r if crlf else r.replace("\r\n", "\n")
 
 
+_TABLE3 = RACINE / "scripts" / "i18n_l3_paires.json"   # t143 : la couche montage.js traduite par-dessus L2
+
+
+def couche_avant_i18n_l3(couche: str) -> str:
+    """t143 : la couche frontend/patches/montage.js d'avant la seule traduction L3 (L1 et L2 posées). Une couche
+    qui ne porte pas L3 (aucun dzT("montage.") : le .bak reconstruit, une base) est rendue telle quelle."""
+    if not _TABLE3.is_file() or 'dzT("montage.' not in couche:
+        return couche
+    subs = json.loads(_TABLE3.read_bytes().decode("utf-8"))["couches"].get("montage", [])
+    return _couche_defaire_subs(couche, subs, "couche L3")
+
+
 def couche_avant_i18n_l2(couche: str) -> str:
-    """t142 : la couche frontend/patches/montage.js d'avant la seule traduction L2 (L1 toujours posée)."""
-    return _couche_defaire(couche, _TABLE2, "couche L2")
+    """t142 : la couche frontend/patches/montage.js d'avant la seule traduction L2 (L1 toujours posée).
+    t143 : L3 se défait d'abord."""
+    return _couche_defaire(couche_avant_i18n_l3(couche), _TABLE2, "couche L2")
+
+
+def avant_i18n_l3(bundle: str) -> str:
+    """t143 : le bundle dont le bloc MONTAGE est ramené à la couche d'avant L3 (L1 et L2 posées). LF ou CRLF."""
+    if "/*__DZ_MONTAGE_BEGIN__*/" not in bundle:
+        return bundle
+    return _bloc(bundle, couche_avant_i18n_l3)
 
 
 def couche_avant_i18n(couche: str) -> str:

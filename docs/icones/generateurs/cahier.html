@@ -1,0 +1,110 @@
+<h2>Kit d'implémentation reçu le 9 octobre</h2>
+<p>Le kit apporte 133 icônes <code>dz-&lt;famille&gt;-&lt;nom&gt;</code>, un sprite et une planche de référence. Chaque usage de l'inventaire a été relu pour dire quelle icône du kit doit s'y afficher, d'après le libellé et la fonction et jamais d'après le dessin actuel. Dans l'onglet « Par écran », chaque ligne montre l'icône actuelle, une flèche, puis la nouvelle.</p>
+<div class="tw"><table class="t">
+<tr><th>Résultat</th><th>Usages</th><th>Où le voir</th></tr>
+<tr><td>Couverts par le kit, sens identique</td><td>987</td><td>filtre « Nouvelle icône : sûre »</td></tr>
+<tr><td>Couverts par le kit, sens voisin à valider</td><td>365</td><td>filtre « Nouvelle icône : probable »</td></tr>
+<tr><td>En attente d'une icône que le kit n'a pas</td><td>751</td><td>onglet « À ajouter » : 303 icônes proposées, dont 142 servent une seule fois</td></tr>
+<tr><td>Pas d'icône prévue (décor, texte seul conseillé)</td><td>293</td><td>filtre « Pas d'icône prévue »</td></tr>
+</table></div>
+<h3>Ce qu'il faut ajouter au kit</h3>
+<ul>
+<li><b>Les outils</b> (78 icônes) : la moitié des outils du Vectorlab et du Photolab n'ont pas d'équivalent (lasso, baguette, main, zoom, couteau, spirale, étoile, outils de nœud…), ni les 15 types de calques de réglage du Photolab.</li>
+<li><b>Les actions</b> (65) et l'<b>édition</b> (60) : en tête, favori (23 usages), publier, valider, renommer, modifier, lier, zoom avant / arrière, aide, nouveau dossier, imprimer en 3D.</li>
+<li><b>La navigation</b> : le rail réel a Chapitres, Son &amp; VFX, Montage, Templates, News et la file des rendus. Le kit n'en a aucune, et il dessine des entrées qui n'existent pas dans le rail (Export, Lab3d).</li>
+<li><b>Les catégories</b> : les catégories du kit (personnage, décor, objet, interface, texture, animation, audio) ne sont pas celles de l'app. Il manque les six onglets de Game Assets (3D Studio, Assets 2D, Matières…) et les huit catégories de nœuds du Studio (source, génération, montage, composition, mouvement, sortie, maître).</li>
+<li><b>Les marques des réseaux</b> du Scheduler : YouTube, Instagram, TikTok, X, Telegram (12 à 14 usages chacun). Ce sont des logos tiers : les reprendre de leurs chartes officielles plutôt que de les redessiner.</li>
+</ul>
+<h3>Ce qu'il faut corriger dans le kit</h3>
+<ul>
+<li><b>Dix groupes de clés au dessin identique</b> (onglet « Incohérences ») : exporter = nav-export, quick = nav-quick, réglages = nav-paramètres, image = nav-photolab, texte = outil texte, rogner = recadrer, spritelab = tilelab, lab3d = cat-3d = cube, et les trois marques. Une icône d'écran et une action ne doivent pas se confondre dans la même barre.</li>
+<li><b>Dix icônes sans usage</b> : rotation, redimensionner, rogner, exclusion, courbe, contraste, et les catégories interface, texture, animation, audio. À garder pour plus tard ou à retirer.</li>
+<li><b>Les 27 tracés du DESIGN.md §15</b>, absents du kit au moment de sa conception : la coque et Card Forge les utilisent déjà. Les lignes du rail montrent l'ancien et le nouveau côte à côte : choisir lequel fait foi avant de remplacer.</li>
+<li><b>Le chevron</b> sert 146 fois : c'est l'icône la plus vue de l'application. Il mérite une vérification dédiée à 16 px dans ses quatre orientations.</li>
+</ul>
+<h3>Couverture par zone</h3>
+<p>Part des usages qui ont déjà leur icône du kit : Quick 92 %, Voix 90 %, Chapitres 85 %, News 79 %, Épisodes 78 %, Studio 3D 76 %… jusqu'au Studio 54 %, Montage 51 %, Photolab 47 %, Vectorlab 46 %, Scheduler 34 % (logos des réseaux) et Établi 18 % (presque tout en texte). Les écrans de la coque peuvent passer au kit tout de suite ; les labs attendent la prochaine planche d'outils.</p>
+<h2>Ce que montre le relevé</h2>
+<p>L'application parle aujourd'hui cinq langages visuels à la fois. Un même écran en mélange souvent deux ou trois.</p>
+<div class="tw"><table class="t">
+<tr><th>Famille</th><th>Où</th><th>Dessin</th></tr>
+<tr><td><b>Glyphe bicolore « 1b »</b></td><td>Rail de la coque, rail Card Forge, barre de catégories Game Assets</td><td>Masses pleines, deux opacités, grille 24. C'est la seule famille spécifiée (DESIGN.md §15) et la seule qui porte déjà une identité.</td></tr>
+<tr><td><b>Trait 1,6 px de la carte d'icônes</b></td><td>Boutons de la coque (Quick, Studio, Scheduler, Réglages…)</td><td>Contours fins, sans second niveau. Mêlé au 1b dans les mêmes écrans.</td></tr>
+<tr><td><b>Lucide, trait 2 px</b></td><td>Photolab (dossier <code>icones/</code>)</td><td>Reprise de l'amont photocraft. Plusieurs fichiers mal nommés ou en double.</td></tr>
+<tr><td><b>Trait fin 1,5 px</b></td><td>Vectorlab (outils, barre contextuelle, calques)</td><td>Sprite maison, proche de Lucide sans l'être.</td></tr>
+<tr><td><b>Glyphes Unicode et emojis</b></td><td>Spritelab, Tilelab, Atelier, Matières, Établi, Plateau, Studio 3D, une bonne part du Vectorlab et des écrans de la coque</td><td>Rendu imposé par la police du système. Les emojis arrivent en couleur au milieu de pictos monochromes.</td></tr>
+</table></div>
+<p>Conséquences mesurées dans l'onglet « Incohérences » : un même sens servi par plusieurs dessins (Ajouter s'écrit + ＋ ➕ ; Supprimer ✕ × 🗑 trash ; Importer 📥 📄 📤 ⬆ ⤒), et un même dessin chargé de plusieurs sens (⧉ = dupliquer, grouper, division, bibliothèque ; <code>sparkle</code> = IA, générer, animation, Studio).</p>
+
+<h2>Direction proposée</h2>
+<p>Étendre le glyphe bicolore 1b à toute l'application. Il existe déjà, il est documenté, il tient à 16 px sur fond sombre, et il accepte la teinte de catégorie par <code>currentColor</code>. La suite complète devient une seule famille déclinée en sous-familles, au lieu de cinq langages.</p>
+<p>Une décision reste à prendre avant de générer : le Photolab et le Vectorlab gardent-ils une partie des icônes de leur logiciel de référence (repères familiers pour qui vient de Photoshop ou d'Affinity), ou passent-ils entièrement au 1b ? Le relevé permet les deux : chaque usage y a sa ligne.</p>
+
+<h2>Règles de dessin</h2>
+<ul>
+<li><b>Grille</b> 24 × 24, zone utile 20 × 20 (marge de 2), <code>viewBox="0 0 24 24"</code>. Rendu à 16, 18 et 24 px : chaque dessin est vérifié aux trois tailles.</li>
+<li><b>Gabarits optiques</b> : cercle de diamètre 20, carré de 18, rectangle 20 × 16 en paysage, 16 × 20 en portrait. Un dessin occupe l'un de ces gabarits pour que les masses se valent d'une icône à l'autre.</li>
+<li><b>Masses pleines</b>, <code>fill="currentColor"</code>, aucun contour. Seules exceptions admises : ce dont l'objet même est un trait (ondes RSS, courbe, tracé de plume), en trait de 2,6 unités, extrémités rondes.</li>
+<li><b>Deux niveaux</b> : le sujet à 1, le support ou contenant entre .28 et .45. Jamais un troisième niveau.</li>
+<li><b>Découpes</b> par <code>fill-rule="evenodd"</code> dans le même tracé. Jamais une forme peinte en couleur de fond : l'icône doit rester juste sur un aplat de teinte.</li>
+<li><b>Rayons</b> : 1,4 unité pour les rectangles. Exception : la famille des catégories (barre horizontale) est à angles vifs.</li>
+<li><b>Aucune couleur en dur</b>, aucun texte, aucune lettre dans le dessin (sauf les icônes typographiques : gras, italique, casse).</li>
+<li><b>Un sens, un dessin.</b> Si deux usages ont le même sens, ils reçoivent le même dessin. Si un dessin sert deux sens, l'un des deux en reçoit un nouveau.</li>
+<li><b>Paires et séries</b> dessinées ensemble : importer / exporter, verrouillé / déverrouillé, visible / masqué, lecture / pause / arrêt, les six alignements, les deux distributions, les quatre ordres de pile.</li>
+<li><b>Pas d'emoji</b> dans l'interface. Le poulpe de marque reste l'exception de marque, dessiné lui aussi en 1b pour le favicon et l'icône de fenêtre.</li>
+</ul>
+
+<h2>Vocabulaire à fixer</h2>
+<p>Les sens les plus éclatés aujourd'hui. Chacun doit sortir de la génération avec un seul dessin.</p>
+<div class="tw"><table class="t">
+<tr><th>Sens</th><th>Ce qui doit le distinguer</th></tr>
+<tr><td>Fermer</td><td>Ferme un panneau ou un dialogue, ne détruit rien. Distinct de Supprimer.</td></tr>
+<tr><td>Supprimer / Corbeille</td><td>Détruit ou envoie à la corbeille. Un seul dessin pour toute l'app.</td></tr>
+<tr><td>Ajouter / Nouveau</td><td>Une seule croix grecque pleine, pas trois caractères.</td></tr>
+<tr><td>Dupliquer, Copier, Coller</td><td>Trois dessins distincts. ⧉ ne porte plus Grouper ni Bibliothèque.</td></tr>
+<tr><td>Grouper / Dégrouper</td><td>Paire à part.</td></tr>
+<tr><td>Importer, Exporter, Télécharger, Envoyer vers</td><td>Bac + flèche entrante, bac + flèche sortante (déjà dans Card Forge 08/10), téléchargement local, et « Envoyer vers » un autre lab.</td></tr>
+<tr><td>Générer (IA), Coût</td><td>L'étincelle pour la génération IA payante, l'éclair pour Quick seulement. Le badge de coût a son propre signe.</td></tr>
+<tr><td>Actualiser, Réinitialiser, Réessayer, Régénérer, Rotation</td><td>Cinq sens qui partagent aujourd'hui ↻ ↺ et <code>bolt</code>.</td></tr>
+<tr><td>Visible / Masqué, Verrouillé / Libre</td><td>Paires identiques dans tous les labs (aujourd'hui ●○, ◉◌, œil SVG).</td></tr>
+<tr><td>Lecture, Pause, Arrêt, image précédente / suivante</td><td>Une seule série de transport pour Montage, Spritelab, Plateau, Studio 3D, Atelier.</td></tr>
+<tr><td>Aligner ×6, Distribuer ×2, Ordre de pile ×4</td><td>Une série commune au Vectorlab, Card Forge et Photolab.</td></tr>
+<tr><td>Chevron</td><td>Le chevron unique du §15-4, orienté par rotation. Corrige au passage les flèches du Scheduler qui pointent en haut et en bas.</td></tr>
+<tr><td>Succès, Avertissement, Erreur, En attente, Information</td><td>Cinq états, pas de ✓/✔, ⌛/⏳.</td></tr>
+<tr><td>Réglages</td><td>La clé <code>cog</code> dessine des réglettes : nom et dessin à réaccorder.</td></tr>
+</table></div>
+
+<h2>Familles et nommage</h2>
+<p>Un fichier par dessin, nommé <code>dz-&lt;famille&gt;-&lt;nom&gt;.svg</code>, nom en français sans accent, en minuscules.</p>
+<div class="tw"><table class="t">
+<tr><th>Famille</th><th>Contenu</th></tr>
+<tr><td><code>nav</code></td><td>Entrées du rail et des écrans de la coque</td></tr>
+<tr><td><code>cat</code></td><td>Catégories (Game Assets, nœuds du Studio), angles vifs</td></tr>
+<tr><td><code>action</code></td><td>Verbes communs : ajouter, fermer, supprimer, dupliquer, importer, exporter, générer…</td></tr>
+<tr><td><code>etat</code></td><td>Succès, avertissement, erreur, attente, info, verrou, visibilité</td></tr>
+<tr><td><code>media</code></td><td>Transport, image, vidéo, son, voix, texte</td></tr>
+<tr><td><code>edit</code></td><td>Alignement, distribution, ordre, transformation, booléens</td></tr>
+<tr><td><code>outil-vec</code>, <code>outil-px</code>, <code>outil-photo</code></td><td>Outils des barres du Vectorlab, des labs pixel et du Photolab</td></tr>
+<tr><td><code>calque</code></td><td>Types de calques, masques, réglages, effets</td></tr>
+<tr><td><code>lab3d</code></td><td>Établi, Matières, Studio 3D, Plateau</td></tr>
+<tr><td><code>marque</code></td><td>Poulpe, favicon, icône Windows, splash</td></tr>
+</table></div>
+
+<h2>Implémentation</h2>
+<ol>
+<li><b>Source unique</b> : <code>frontend/shared/icons/</code> avec un SVG par dessin, un sprite <code>dz-icons.svg</code> (un <code>&lt;symbol id&gt;</code> par dessin) et <code>dz-icons.js</code> (nom → balisage, pour l'injection en <code>innerHTML</code>). Copie déployée sous <code>frontend/dist/shared/icons/</code>, identité vérifiée par <code>git hash-object</code>.</li>
+<li><b>Coque React</b> : un patch de bundle en fin de chaîne remplace les entrées de la carte d'icônes nommées et de <code>__dzCatSVG</code> par équilibrage de parenthèses, ajoute les clés manquantes (<code>save</code>, <code>undo</code>), et convertit les emojis des écrans.</li>
+<li><b>Labs</b> : chaque glyphe ou emoji relevé devient <code>&lt;svg class="dzi"&gt;&lt;use href="/shared/icons/dz-icons.svg#…"/&gt;&lt;/svg&gt;</code>, taille et couleur par CSS (<code>width:1em</code>, <code>color:currentColor</code>). Le <code>title</code> et l'<code>aria-label</code> existants restent, traduits par <code>dzT</code>.</li>
+<li><b>Ordre</b> : coque et partagé d'abord (plus grand nombre d'yeux), puis Card Forge, Vectorlab, Photolab, Spritelab et Tilelab, puis Atelier, Matières, Établi, Plateau, Studio 3D.</li>
+<li><b>Contrôle</b> : la colonne <code>source</code> de l'inventaire sert de liste de travail. Un lot est fini quand plus aucune de ses lignes ne pointe vers un emoji, un glyphe ou un ancien tracé. Les bancs figés sur des glyphes sont à mettre à jour dans le même lot.</li>
+</ol>
+
+<h2>Prompt de génération</h2>
+<p>À coller devant la liste des dessins (onglet Exporter, « Copier la liste »).</p>
+<div id="prompt-gen" class="tab-code" style="display:block;white-space:pre-wrap;padding:12px;line-height:1.55">Dessine une suite d'icônes d'interface pour DeepotusVideo, une application Windows de création vidéo, 2D et 3D au thème sombre.
+Style : glyphe bicolore. Grille 24 × 24, zone utile 20 × 20. Masses pleines en currentColor, aucun contour (sauf objets qui sont eux-mêmes des traits : trait de 2,6, bouts ronds). Deux niveaux d'opacité seulement : sujet à 1, support entre 0,28 et 0,45. Découpes par fill-rule evenodd, jamais de forme couleur de fond. Rayons de 1,4 sur les rectangles ; famille « cat » à angles vifs. Aucune couleur en dur, aucun texte, aucun emoji.
+Lisible à 16 px sur #13171c. Gabarits optiques : cercle Ø20, carré 18, rectangle 20 × 16.
+Un sens = un dessin. Dessine les paires et séries ensemble (importer/exporter, visible/masqué, verrouillé/libre, lecture/pause/arrêt, 6 alignements, 2 distributions, 4 ordres de pile).
+Livre chaque icône en SVG autonome, viewBox="0 0 24 24", nommée dz-&lt;famille&gt;-&lt;nom&gt; (familles : nav, cat, action, etat, media, edit, outil-vec, outil-px, outil-photo, calque, lab3d, marque).
+Référence de ton à respecter : les 27 icônes du DESIGN.md §15 (rail de navigation, rail Card Forge, barre de catégories), à garder ou à affiner, pas à contredire.
+Voici les dessins à produire, avec leurs usages actuels :</div>

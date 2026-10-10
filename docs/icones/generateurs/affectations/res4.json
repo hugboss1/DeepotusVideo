@@ -1,0 +1,2888 @@
+{
+ "studio3d.graphe.pastille-kind": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "studio3d.graphe.porte": {
+  "cible": "dz-nav-lab3d",
+  "confiance": "probable",
+  "manque": "",
+  "note": "Établi = atelier 3D"
+ },
+ "studio3d.rail.game-assets": {
+  "cible": "dz-nav-game-assets",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio3d.rail.rig": {
+  "cible": "dz-lab3d-rig",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio3d.rail.convertir": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-convertir",
+  "note": ""
+ },
+ "studio3d.rail.importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio3d.rail.atelier-fal": {
+  "cible": "dz-lab3d-rig",
+  "confiance": "probable",
+  "manque": "",
+  "note": "panneau rig/animation"
+ },
+ "studio3d.transport.lancer": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "lance la série payante"
+ },
+ "studio3d.transport.pause": {
+  "cible": "dz-media-pause",
+  "confiance": "sure",
+  "manque": "",
+  "note": "bascule avec dz-media-lecture"
+ },
+ "studio3d.transport.rejouer": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio3d.vues.detourer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-detourer",
+  "note": ""
+ },
+ "studio3d.vues.mobile-note": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-mobile",
+  "note": ""
+ },
+ "studio3d.vues.photos": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "studio3d.vues.planche": {
+  "cible": "dz-action-importer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "reprend les vues de la planche"
+ },
+ "studio3d.vues.preparer": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "génération payante"
+ },
+ "studio3d.vues.rejouer": {
+  "cible": "dz-action-regenerer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "studio3d.vues.tirer": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "tir payant du moteur"
+ },
+ "studio3d.rail.banc": {
+  "cible": "dz-action-envoyer-vers",
+  "confiance": "probable",
+  "manque": "",
+  "note": "range le job au banc"
+ },
+ "studio3d.suite.etabli": {
+  "cible": "dz-nav-lab3d",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "studio3d.suite.sprite": {
+  "cible": "dz-nav-spritelab",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "studio3d.modale.appliquer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "photolab.inutilisee.clock": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "fichier livré jamais utilisé : aucun usage, pas d'icône"
+ },
+ "photolab.inutilisee.lock-open": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "fichier livré jamais utilisé : aucun usage, pas d'icône"
+ },
+ "photolab.inutilisee.navigation": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "fichier livré jamais utilisé : aucun usage, pas d'icône"
+ },
+ "photolab.inutilisee.settings": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "fichier livré jamais utilisé : aucun usage, pas d'icône"
+ },
+ "photolab.inutilisee.slice-knife": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "fichier livré jamais utilisé : aucun usage, pas d'icône"
+ },
+ "photolab.inutilisee.trash": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "fichier livré jamais utilisé : aucun usage, pas d'icône"
+ },
+ "photolab.accueil.nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "probable",
+  "manque": "",
+  "note": "nouveau document"
+ },
+ "photolab.accueil.ouvrir": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.options-formes.forme": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "photolab.transformation.points-reference": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-point-reference",
+  "note": ""
+ },
+ "photolab.transformation.annuler": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-abandonner",
+  "note": "abandonne l'opération : ni undo ni fermer"
+ },
+ "photolab.transformation.lier": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-lier",
+  "note": ""
+ },
+ "photolab.transformation.relatif": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-relatif",
+  "note": ""
+ },
+ "photolab.transformation.valider": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "photolab.options-texte.align-center": {
+  "cible": "dz-edit-aligner-centre-h",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de paragraphe"
+ },
+ "photolab.options-texte.align-left": {
+  "cible": "dz-edit-aligner-gauche",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de paragraphe"
+ },
+ "photolab.options-texte.align-right": {
+  "cible": "dz-edit-aligner-droite",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de paragraphe"
+ },
+ "photolab.options-texte.orientation": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-orientation-texte",
+  "note": ""
+ },
+ "photolab.options-texte.annuler": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-abandonner",
+  "note": ""
+ },
+ "photolab.options-texte.valider": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "photolab.options.mode-add": {
+  "cible": "dz-edit-fusionner",
+  "confiance": "probable",
+  "manque": "",
+  "note": "union de sélection"
+ },
+ "photolab.options.mode-intersect": {
+  "cible": "dz-edit-intersection",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.options.mode-replace": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-selection-nouvelle",
+  "note": ""
+ },
+ "photolab.options.mode-subtract": {
+  "cible": "dz-edit-soustraire",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.options.selectionner-masquer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-affiner-contour",
+  "note": ""
+ },
+ "photolab.options.selectionner-sujet": {
+  "cible": "dz-outil-photo-selection-sujet",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.backgroundEraser": {
+  "cible": "dz-outil-px-gomme",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.blur": {
+  "cible": "dz-outil-photo-flou",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.brush": {
+  "cible": "dz-outil-px-pinceau",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.burn": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-densite-plus",
+  "note": ""
+ },
+ "photolab.barre-outils.cloneStamp": {
+  "cible": "dz-outil-photo-clone",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.count": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-compteur",
+  "note": ""
+ },
+ "photolab.barre-outils.crop": {
+  "cible": "dz-outil-photo-recadrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.customShape": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-forme-perso",
+  "note": ""
+ },
+ "photolab.barre-outils.dodge": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-densite-moins",
+  "note": ""
+ },
+ "photolab.barre-outils.ellipseMarquee": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-selection-ellipse",
+  "note": ""
+ },
+ "photolab.barre-outils.ellipseShape": {
+  "cible": "dz-outil-vec-ellipse",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.eraser": {
+  "cible": "dz-outil-px-gomme",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.eyedropper": {
+  "cible": "dz-outil-vec-pipette",
+  "confiance": "probable",
+  "manque": "",
+  "note": "même sens, famille vec"
+ },
+ "photolab.barre-outils.gradient": {
+  "cible": "dz-outil-px-degrade",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.hand": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-main",
+  "note": ""
+ },
+ "photolab.barre-outils.healing": {
+  "cible": "dz-outil-photo-correcteur",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.historyBrush": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-pinceau-historique",
+  "note": ""
+ },
+ "photolab.barre-outils.lasso": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-lasso",
+  "note": ""
+ },
+ "photolab.barre-outils.line": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-ligne",
+  "note": ""
+ },
+ "photolab.barre-outils.magicEraser": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-gomme-magique",
+  "note": ""
+ },
+ "photolab.barre-outils.magicWand": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-baguette",
+  "note": ""
+ },
+ "photolab.barre-outils.marque-groupe": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "photolab.barre-outils.mixerBrush": {
+  "cible": "dz-outil-px-pinceau",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.move": {
+  "cible": "dz-edit-deplacer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.note": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-note",
+  "note": ""
+ },
+ "photolab.barre-outils.objectSelection": {
+  "cible": "dz-outil-photo-selection-sujet",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.paintBucket": {
+  "cible": "dz-outil-px-pot",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.patch": {
+  "cible": "dz-outil-photo-correcteur",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.pathSelection": {
+  "cible": "dz-outil-vec-selection",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.pen": {
+  "cible": "dz-outil-vec-plume",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.pencil": {
+  "cible": "dz-outil-px-crayon",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.polygon": {
+  "cible": "dz-outil-vec-polygone",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.polygonLasso": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-lasso-polygonal",
+  "note": ""
+ },
+ "photolab.barre-outils.quickSelection": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-selection-rapide",
+  "note": ""
+ },
+ "photolab.barre-outils.rectMarquee": {
+  "cible": "dz-outil-px-selection",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.rectangle": {
+  "cible": "dz-outil-vec-rectangle",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.ruler": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-regle",
+  "note": ""
+ },
+ "photolab.barre-outils.sharpen": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-nettete",
+  "note": ""
+ },
+ "photolab.barre-outils.slice": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-tranche",
+  "note": ""
+ },
+ "photolab.barre-outils.sliceSelect": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-selection-tranche",
+  "note": ""
+ },
+ "photolab.barre-outils.smudge": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-doigt",
+  "note": ""
+ },
+ "photolab.barre-outils.sponge": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-eponge",
+  "note": ""
+ },
+ "photolab.barre-outils.spotHealing": {
+  "cible": "dz-outil-photo-correcteur",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.triangle": {
+  "cible": "dz-outil-vec-polygone",
+  "confiance": "probable",
+  "manque": "",
+  "note": "polygone à 3 côtés"
+ },
+ "photolab.barre-outils.type": {
+  "cible": "dz-outil-vec-texte",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.barre-outils.zoom": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-zoom",
+  "note": ""
+ },
+ "photolab.flyout.backgroundEraser": {
+  "cible": "dz-outil-px-gomme",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.blur": {
+  "cible": "dz-outil-photo-flou",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.brush": {
+  "cible": "dz-outil-px-pinceau",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.burn": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-densite-plus",
+  "note": ""
+ },
+ "photolab.flyout.count": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-compteur",
+  "note": ""
+ },
+ "photolab.flyout.crop": {
+  "cible": "dz-outil-photo-recadrer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.customShape": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-forme-perso",
+  "note": ""
+ },
+ "photolab.flyout.dodge": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-densite-moins",
+  "note": ""
+ },
+ "photolab.flyout.ellipseMarquee": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-selection-ellipse",
+  "note": ""
+ },
+ "photolab.flyout.ellipseShape": {
+  "cible": "dz-outil-vec-ellipse",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.eraser": {
+  "cible": "dz-outil-px-gomme",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.eyedropper": {
+  "cible": "dz-outil-vec-pipette",
+  "confiance": "probable",
+  "manque": "",
+  "note": "même sens, famille vec"
+ },
+ "photolab.flyout.gradient": {
+  "cible": "dz-outil-px-degrade",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.healing": {
+  "cible": "dz-outil-photo-correcteur",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.lasso": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-lasso",
+  "note": ""
+ },
+ "photolab.flyout.line": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-vec-ligne",
+  "note": ""
+ },
+ "photolab.flyout.magicEraser": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-gomme-magique",
+  "note": ""
+ },
+ "photolab.flyout.magicWand": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-baguette",
+  "note": ""
+ },
+ "photolab.flyout.mixerBrush": {
+  "cible": "dz-outil-px-pinceau",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.note": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-note",
+  "note": ""
+ },
+ "photolab.flyout.objectSelection": {
+  "cible": "dz-outil-photo-selection-sujet",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.paintBucket": {
+  "cible": "dz-outil-px-pot",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.patch": {
+  "cible": "dz-outil-photo-correcteur",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.pencil": {
+  "cible": "dz-outil-px-crayon",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.polygon": {
+  "cible": "dz-outil-vec-polygone",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.polygonLasso": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-lasso-polygonal",
+  "note": ""
+ },
+ "photolab.flyout.quickSelection": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-px-selection-rapide",
+  "note": ""
+ },
+ "photolab.flyout.rectMarquee": {
+  "cible": "dz-outil-px-selection",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.rectangle": {
+  "cible": "dz-outil-vec-rectangle",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.ruler": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-regle",
+  "note": ""
+ },
+ "photolab.flyout.sharpen": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-nettete",
+  "note": ""
+ },
+ "photolab.flyout.slice": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-tranche",
+  "note": ""
+ },
+ "photolab.flyout.sliceSelect": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-selection-tranche",
+  "note": ""
+ },
+ "photolab.flyout.smudge": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-doigt",
+  "note": ""
+ },
+ "photolab.flyout.sponge": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-eponge",
+  "note": ""
+ },
+ "photolab.flyout.spotHealing": {
+  "cible": "dz-outil-photo-correcteur",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.flyout.triangle": {
+  "cible": "dz-outil-vec-polygone",
+  "confiance": "probable",
+  "manque": "",
+  "note": "polygone à 3 côtés"
+ },
+ "photolab.barre-outils.defaut": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-couleurs-defaut",
+  "note": ""
+ },
+ "photolab.barre-outils.echanger": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-echanger-couleurs",
+  "note": ""
+ },
+ "photolab.flyout.puce-courant": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "photolab.menus.barre": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "photolab.menus.coche": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-coche",
+  "note": "option active, ≠ succès"
+ },
+ "photolab.menus.sous-menu": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.espaces.choix": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-espace-travail",
+  "note": ""
+ },
+ "photolab.galerie.oeil-eye": {
+  "cible": "dz-etat-visible",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.galerie.oeil-eye-off": {
+  "cible": "dz-etat-masque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.galerie.pied-chevron-down": {
+  "cible": "dz-edit-pile-reculer",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.galerie.pied-chevron-up": {
+  "cible": "dz-edit-pile-avancer",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.galerie.pied-file-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.galerie.pied-trash-2": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.onglets.fermer": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.onglets.modifie": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-modifie",
+  "note": ""
+ },
+ "photolab.ajustements.blackWhite": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-noir-blanc",
+  "note": ""
+ },
+ "photolab.ajustements.brightnessContrast": {
+  "cible": "dz-outil-photo-luminosite",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.ajustements.channelMixer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-melangeur-couches",
+  "note": ""
+ },
+ "photolab.ajustements.colorBalance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-balance-couleurs",
+  "note": ""
+ },
+ "photolab.ajustements.colorLookup": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-table-couleurs",
+  "note": ""
+ },
+ "photolab.ajustements.curves": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-courbes",
+  "note": ""
+ },
+ "photolab.ajustements.exposure": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-exposition",
+  "note": ""
+ },
+ "photolab.ajustements.gradientMap": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-mappage-degrade",
+  "note": ""
+ },
+ "photolab.ajustements.hueSaturation": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-teinte-saturation",
+  "note": ""
+ },
+ "photolab.ajustements.invert": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-inverser",
+  "note": ""
+ },
+ "photolab.ajustements.levels": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-niveaux",
+  "note": ""
+ },
+ "photolab.ajustements.photoFilter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-filtre-photo",
+  "note": ""
+ },
+ "photolab.ajustements.posterize": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-posteriser",
+  "note": ""
+ },
+ "photolab.ajustements.selectiveColor": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-couleur-selective",
+  "note": ""
+ },
+ "photolab.ajustements.threshold": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-seuil",
+  "note": ""
+ },
+ "photolab.ajustements.vibrance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-vibrance",
+  "note": ""
+ },
+ "photolab.calques.badge-fx": {
+  "cible": "dz-calque-effet",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.badge-objet-dynamique": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-calque-objet-dynamique",
+  "note": ""
+ },
+ "photolab.calques.ligne-cadenas": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.ligne-lie": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-lier",
+  "note": ""
+ },
+ "photolab.calques.ligne-oeil-eye": {
+  "cible": "dz-etat-visible",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.ligne-oeil-eye-off": {
+  "cible": "dz-etat-masque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.masque-chaine": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-lier",
+  "note": ""
+ },
+ "photolab.calques.pied-dupliquer": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.pied-fusionner": {
+  "cible": "dz-edit-fusionner",
+  "confiance": "probable",
+  "manque": "",
+  "note": "fusion de calques vers le bas"
+ },
+ "photolab.calques.pied-fx": {
+  "cible": "dz-calque-effet",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.pied-groupe": {
+  "cible": "dz-action-grouper",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.pied-lien": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-lier",
+  "note": ""
+ },
+ "photolab.calques.pied-masque": {
+  "cible": "dz-calque-masque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.pied-nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.pied-reglage": {
+  "cible": "dz-calque-reglage",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.pied-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.plier-filtres-chevron-down": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.plier-filtres-chevron-right": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.plier-groupe-chevron-down": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.plier-groupe-chevron-right": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.verrou-all": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.verrou-artboard": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-verrou-plan-travail",
+  "note": ""
+ },
+ "photolab.calques.verrou-pixels": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-verrou-pixels",
+  "note": ""
+ },
+ "photolab.calques.verrou-position": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-verrou-position",
+  "note": ""
+ },
+ "photolab.calques.verrou-transparency": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-verrou-transparence",
+  "note": ""
+ },
+ "photolab.calques.vignette-groupe": {
+  "cible": "dz-calque-groupe",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.blackWhite": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-noir-blanc",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.brightnessContrast": {
+  "cible": "dz-outil-photo-luminosite",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.channelMixer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-melangeur-couches",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.colorBalance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-balance-couleurs",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.colorLookup": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-table-couleurs",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.curves": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-courbes",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.exposure": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-exposition",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.gradientMap": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-mappage-degrade",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.hueSaturation": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-teinte-saturation",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.invert": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-inverser",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.levels": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-niveaux",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.photoFilter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-filtre-photo",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.posterize": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-posteriser",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.selectiveColor": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-couleur-selective",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.threshold": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-seuil",
+  "note": ""
+ },
+ "photolab.calques.vignette-reglage.vibrance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-vibrance",
+  "note": ""
+ },
+ "photolab.calques.filtre-oeil-eye": {
+  "cible": "dz-etat-visible",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.filtre-oeil-eye-off": {
+  "cible": "dz-etat-masque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.filtre-options": {
+  "cible": "dz-action-reglages",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.filtre-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.filtres-tete-eye": {
+  "cible": "dz-etat-visible",
+  "confiance": "probable",
+  "manque": "",
+  "note": "active/désactive les filtres"
+ },
+ "photolab.calques.filtres-tete-eye-off": {
+  "cible": "dz-etat-masque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "active/désactive les filtres"
+ },
+ "photolab.calques.menu-reglage.blackWhite": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-noir-blanc",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.brightnessContrast": {
+  "cible": "dz-outil-photo-luminosite",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.channelMixer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-melangeur-couches",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.colorBalance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-balance-couleurs",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.colorLookup": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-table-couleurs",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.curves": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-courbes",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.exposure": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-exposition",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.gradientMap": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-mappage-degrade",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.hueSaturation": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-teinte-saturation",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.invert": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-inverser",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.levels": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-niveaux",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.photoFilter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-filtre-photo",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.posterize": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-posteriser",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.selectiveColor": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-couleur-selective",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.threshold": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-seuil",
+  "note": ""
+ },
+ "photolab.calques.menu-reglage.vibrance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-vibrance",
+  "note": ""
+ },
+ "photolab.caractere.caps-all": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-texte-capitales",
+  "note": ""
+ },
+ "photolab.caractere.caps-small": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-texte-petites-capitales",
+  "note": ""
+ },
+ "photolab.caractere.fauxBold": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-texte-gras",
+  "note": ""
+ },
+ "photolab.caractere.fauxItalic": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-texte-italique",
+  "note": ""
+ },
+ "photolab.caractere.strikethrough": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-texte-barre",
+  "note": ""
+ },
+ "photolab.caractere.underline": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-texte-souligne",
+  "note": ""
+ },
+ "photolab.compositions.alerte": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.compositions.option-appearance": {
+  "cible": "dz-calque-effet",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.compositions.option-position": {
+  "cible": "dz-edit-deplacer",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.compositions.option-visibility": {
+  "cible": "dz-etat-visible",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.compositions.pied-chevrons-left": {
+  "cible": "dz-media-precedent",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.compositions.pied-chevrons-right": {
+  "cible": "dz-media-suivant",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.compositions.pied-file-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.compositions.pied-rotate-cw": {
+  "cible": "dz-action-actualiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "mettre à jour la composition"
+ },
+ "photolab.compositions.pied-trash-2": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.couches.oeil-eye": {
+  "cible": "dz-etat-visible",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.couches.oeil-eye-off": {
+  "cible": "dz-etat-masque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.couches.pied-circle-dashed": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-charger-selection",
+  "note": ""
+ },
+ "photolab.couches.pied-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.couches.pied-square-dashed": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-enregistrer-selection",
+  "note": ""
+ },
+ "photolab.couches.pied-trash-2": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.couleur.defaut": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-couleurs-defaut",
+  "note": ""
+ },
+ "photolab.couleur.echanger": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-echanger-couleurs",
+  "note": ""
+ },
+ "photolab.presets.degrades.fleche-groupe": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.degrades.nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.degrades.nouveau-groupe": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-nouveau-dossier",
+  "note": "crée un groupe vide (≠ grouper la sélection)"
+ },
+ "photolab.presets.degrades.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.formes.fleche-groupe": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.formes.nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.formes.nouveau-groupe": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-nouveau-dossier",
+  "note": "crée un groupe vide (≠ grouper la sélection)"
+ },
+ "photolab.presets.formes.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.infos.histogramme-perime": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.historique.annuler": {
+  "cible": "dz-action-annuler",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.historique.retablir": {
+  "cible": "dz-action-retablir",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.motifs.fleche-groupe": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.motifs.nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.motifs.nouveau-groupe": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-nouveau-dossier",
+  "note": "crée un groupe vide (≠ grouper la sélection)"
+ },
+ "photolab.presets.motifs.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.nuancier.fleche-groupe": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.nuancier.pied-folder-plus": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-nouveau-dossier",
+  "note": ""
+ },
+ "photolab.nuancier.pied-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.nuancier.pied-trash-2": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.pinceaux.supprimer-prereglage": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.paragraphe.align-center": {
+  "cible": "dz-edit-aligner-centre-h",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de paragraphe"
+ },
+ "photolab.paragraphe.align-justifyAll": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-justifier",
+  "note": ""
+ },
+ "photolab.paragraphe.align-justifyCenter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-justifier-centre",
+  "note": ""
+ },
+ "photolab.paragraphe.align-justifyLeft": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-justifier-gauche",
+  "note": ""
+ },
+ "photolab.paragraphe.align-justifyRight": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-justifier-droite",
+  "note": ""
+ },
+ "photolab.paragraphe.align-left": {
+  "cible": "dz-edit-aligner-gauche",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de paragraphe"
+ },
+ "photolab.paragraphe.align-right": {
+  "cible": "dz-edit-aligner-droite",
+  "confiance": "probable",
+  "manque": "",
+  "note": "alignement de paragraphe"
+ },
+ "photolab.paragraphe.vertical": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-orientation-texte",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.blackWhite": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-noir-blanc",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.brightnessContrast": {
+  "cible": "dz-outil-photo-luminosite",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.channelMixer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-melangeur-couches",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.colorBalance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-balance-couleurs",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.colorLookup": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-table-couleurs",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.curves": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-courbes",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.exposure": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-exposition",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.gradientMap": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-mappage-degrade",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.hueSaturation": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-teinte-saturation",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.invert": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-inverser",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.levels": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-niveaux",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.photoFilter": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-filtre-photo",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.posterize": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-posteriser",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.selectiveColor": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-couleur-selective",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.threshold": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-seuil",
+  "note": ""
+ },
+ "photolab.proprietes.entete-reglage.vibrance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-outil-photo-vibrance",
+  "note": ""
+ },
+ "photolab.presets.styles.fleche-groupe": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.styles.nouveau": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.presets.styles.nouveau-groupe": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-nouveau-dossier",
+  "note": "crée un groupe vide (≠ grouper la sélection)"
+ },
+ "photolab.presets.styles.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.texte.stylesCar.pied-copy": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.texte.stylesCar.pied-eraser": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "efface les remplacements locaux"
+ },
+ "photolab.texte.stylesCar.pied-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.texte.stylesCar.pied-rotate-cw": {
+  "cible": "dz-action-actualiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "redéfinit le style"
+ },
+ "photolab.texte.stylesCar.pied-trash-2": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.texte.stylesPar.pied-copy": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.texte.stylesPar.pied-eraser": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "efface les remplacements locaux"
+ },
+ "photolab.texte.stylesPar.pied-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.texte.stylesPar.pied-rotate-cw": {
+  "cible": "dz-action-actualiser",
+  "confiance": "probable",
+  "manque": "",
+  "note": "redéfinit le style"
+ },
+ "photolab.texte.stylesPar.pied-trash-2": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.traces.pied-brush": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-contour-trace",
+  "note": ""
+ },
+ "photolab.traces.pied-circle-dashed": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-charger-selection",
+  "note": ""
+ },
+ "photolab.traces.pied-paint-bucket": {
+  "cible": "dz-outil-px-pot",
+  "confiance": "probable",
+  "manque": "",
+  "note": "remplir le tracé"
+ },
+ "photolab.traces.pied-plus": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.traces.pied-square-dashed": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-selection-vers-trace",
+  "note": ""
+ },
+ "photolab.traces.pied-trash-2": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.rail.calques": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-calques",
+  "note": ""
+ },
+ "photolab.rail.couleur": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-couleur",
+  "note": ""
+ },
+ "photolab.rail.historique": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-historique",
+  "note": ""
+ },
+ "photolab.rail.infos": {
+  "cible": "dz-etat-information",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.rail.navigateur": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-navigateur",
+  "note": ""
+ },
+ "photolab.rail.pinceaux": {
+  "cible": "dz-outil-px-pinceau",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.rail.reglages": {
+  "cible": "dz-calque-reglage",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.rail.texte": {
+  "cible": "dz-calque-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "photolab.aide.didact": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aide",
+  "note": ""
+ },
+ "matieres.entete.maps-pbr": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "matieres.entete.marque": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-matieres",
+  "note": "marque du lab Material Forge"
+ },
+ "matieres.entete.retour-app": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-retour",
+  "note": ""
+ },
+ "matieres.galerie.catalogue": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "probable",
+  "manque": "",
+  "note": "catalogue CC0 embarqué"
+ },
+ "matieres.galerie.filtre": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.galerie.retour": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-retour",
+  "note": ""
+ },
+ "matieres.galerie.tri-resolution": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-trier",
+  "note": ""
+ },
+ "matieres.galerie.vide": {
+  "cible": "dz-lab3d-materiau",
+  "confiance": "probable",
+  "manque": "",
+  "note": "illustration d'état vide"
+ },
+ "matieres.galerie.vide-erreur": {
+  "cible": "dz-etat-erreur",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.galerie.vide-recherche": {
+  "cible": "dz-action-chercher",
+  "confiance": "probable",
+  "manque": "",
+  "note": "illustration recherche sans résultat"
+ },
+ "matieres.carte.dupliquer": {
+  "cible": "dz-action-dupliquer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.carte.invite": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-reprendre",
+  "note": "recharge invite et réglages, sans tir"
+ },
+ "matieres.carte.preuve": {
+  "cible": "dz-etat-information",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ouvre la preuve des maps"
+ },
+ "matieres.carte.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.carte.zip": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.inspecteur.aide": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aide",
+  "note": ""
+ },
+ "matieres.inspecteur.defauts": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.inspecteur.filtre": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.inspecteur.vignette": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-capturer",
+  "note": ""
+ },
+ "matieres.inspecteur.env-supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.inspecteur.hdri": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.inspecteur.telecharger": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.inspecteur.rederiver": {
+  "cible": "dz-action-regenerer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "re-dérive localement"
+ },
+ "matieres.preuve.alerte": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.preuve.telecharger-zip": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.rail.depot": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.rail.forger": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "mode Forger (IA)"
+ },
+ "matieres.rail.generateurs": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-procedural",
+  "note": ""
+ },
+ "matieres.rail.invite-chevron": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.rail.lib-filtre": {
+  "cible": "dz-action-chercher",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.rail.library": {
+  "cible": "dz-nav-bibliotheque",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.rail.ref-retirer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-retirer",
+  "note": "retire de l'emplacement, ne détruit rien"
+ },
+ "matieres.rail.groupe-chevron": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.rail.etape-faite": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.rail.forger-matiere": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.rail.creer": {
+  "cible": "dz-action-ajouter",
+  "confiance": "probable",
+  "manque": "",
+  "note": "création procédurale gratuite"
+ },
+ "matieres.rail.photo-apercu": {
+  "cible": "dz-etat-visible",
+  "confiance": "probable",
+  "manque": "",
+  "note": "aperçu"
+ },
+ "matieres.rail.photo-coins": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.editeur.comparer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-comparer",
+  "note": ""
+ },
+ "matieres.editeur.lumiere": {
+  "cible": "dz-lab3d-lumiere",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "matieres.editeur.palet-lumiere": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "plateau.entete.retour": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-retour",
+  "note": ""
+ },
+ "plateau.message.storyboard": {
+  "cible": "dz-lab3d-camera",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rappelle le bouton du Plateau"
+ },
+ "plateau.mouvement.avertissement": {
+  "cible": "dz-etat-avertissement",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "plateau.mouvement.keyframe": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-keyframe",
+  "note": ""
+ },
+ "plateau.mouvement.kf-retirer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-retirer",
+  "note": ""
+ },
+ "plateau.mouvement.conforme": {
+  "cible": "dz-etat-succes",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "plateau.sorties.appliquer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "plateau.sorties.capturer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-capturer",
+  "note": ""
+ },
+ "plateau.sorties.composer": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "plateau.sorties.glb": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "plateau.scene.ajout-boite": {
+  "cible": "dz-lab3d-cube",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "plateau.scene.ajout-capsule": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-capsule",
+  "note": ""
+ },
+ "plateau.scene.ajout-cylindre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-lab3d-cylindre",
+  "note": ""
+ },
+ "plateau.scene.ajout-maillage": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "plateau.scene.ajout-sphere": {
+  "cible": "dz-lab3d-sphere",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "plateau.scene.entite-bible": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-bible",
+  "note": ""
+ },
+ "plateau.timeline.lecture": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.fermer.manuscrit": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.manuscrit.duree": {
+  "cible": "dz-etat-attente",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.manuscrit.lancer": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "lance l'agent"
+ },
+ "atelier.manuscrit.titre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-manuscrit",
+  "note": ""
+ },
+ "atelier.animatique.film": {
+  "cible": "dz-media-film",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.animatique.monter": {
+  "cible": "dz-media-timeline",
+  "confiance": "probable",
+  "manque": "",
+  "note": "monter l'animatique"
+ },
+ "atelier.animatique.reel": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-media-reel",
+  "note": "≠ Quick"
+ },
+ "atelier.fermer.animatique": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.bible.ajout": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.bible.da": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-direction-artistique",
+  "note": ""
+ },
+ "atelier.entite.apparitions": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-apparitions",
+  "note": ""
+ },
+ "atelier.entite.glb": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entite.inspiration": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entite.planche": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entite.planche-vide": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "atelier.entite.recette": {
+  "cible": "dz-action-regenerer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "rejoue la recette identique"
+ },
+ "atelier.entite.seed": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entite.seed-aleatoire": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aleatoire",
+  "note": ""
+ },
+ "atelier.entite.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entite.voix": {
+  "cible": "dz-media-voix",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entite.voix-cloner": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-cloner-voix",
+  "note": ""
+ },
+ "atelier.entite.voix-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entite.voix-suggerer": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "proposition par l'agent"
+ },
+ "atelier.entite.voix-toutes": {
+  "cible": "dz-action-chevron",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.voix.attribuer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "atelier.voix.ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.onglet.scenario": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "atelier.onglet.script": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "atelier.onglet.storyboard": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "texte seul conseillé"
+ },
+ "atelier.da.appliquer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "atelier.da.proposer": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.da.ref-choisir": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.da.ref-retirer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-retirer",
+  "note": ""
+ },
+ "atelier.da.titre": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-direction-artistique",
+  "note": ""
+ },
+ "atelier.fermer.da": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entete.chapitre": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entete.manuscrit": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-manuscrit",
+  "note": ""
+ },
+ "atelier.entete.retour-app": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-retour",
+  "note": ""
+ },
+ "atelier.entete.supprimer-chapitre": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.entete.versions": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-historique",
+  "note": "instantanés / versions"
+ },
+ "atelier.etat.enregistre": {
+  "cible": "dz-action-enregistrer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "état enregistré"
+ },
+ "atelier.fermer.scenario-lecture": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.fermer.library": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.library.fichier": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.library.url": {
+  "cible": "dz-action-importer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "depuis une URL"
+ },
+ "atelier.fermer.reecriture": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.reecriture.appliquer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-valider",
+  "note": ""
+ },
+ "atelier.etat.mobile": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-mobile",
+  "note": ""
+ },
+ "atelier.script.entite-ambiance": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-ambiance",
+  "note": ""
+ },
+ "atelier.script.entite-date": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-date",
+  "note": ""
+ },
+ "atelier.script.entite-decor": {
+  "cible": "dz-cat-decor",
+  "confiance": "probable",
+  "manque": "",
+  "note": "entité Décor de la bible"
+ },
+ "atelier.script.entite-lieu": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-cat-lieu",
+  "note": ""
+ },
+ "atelier.script.entite-objet": {
+  "cible": "dz-cat-objet",
+  "confiance": "probable",
+  "manque": "",
+  "note": "entité Objet de la bible"
+ },
+ "atelier.script.entite-personnage": {
+  "cible": "dz-cat-personnage",
+  "confiance": "probable",
+  "manque": "",
+  "note": "entité Personnage de la bible"
+ },
+ "atelier.script.export-docx": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.script.export-pdf": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.script.importer": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.script.lier": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-lier",
+  "note": ""
+ },
+ "atelier.script.reecrire": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-reecrire",
+  "note": ""
+ },
+ "atelier.scenario.adapter": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "adaptation IA"
+ },
+ "atelier.scenario.export-docx": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.scenario.export-pdf": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.scenario.fountain": {
+  "cible": "dz-action-telecharger",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.scenario.import-fountain": {
+  "cible": "dz-action-importer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.scenario.lire": {
+  "cible": "dz-media-texte",
+  "confiance": "probable",
+  "manque": "",
+  "note": "affiche le scénario"
+ },
+ "atelier.scenario.reinitialiser": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": "supprime toutes les scènes"
+ },
+ "atelier.scenario.voice-over": {
+  "cible": "dz-media-voix",
+  "confiance": "probable",
+  "manque": "",
+  "note": "génère le voice-over"
+ },
+ "atelier.scene.camera": {
+  "cible": "dz-lab3d-camera",
+  "confiance": "probable",
+  "manque": "",
+  "note": "intention caméra"
+ },
+ "atelier.scene.duree": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-duree",
+  "note": ""
+ },
+ "atelier.scene.energie": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-energie",
+  "note": "≠ Quick"
+ },
+ "atelier.scene.vo-ecouter": {
+  "cible": "dz-media-lecture",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.scene.vo-generer": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "voice-over de la scène"
+ },
+ "atelier.board.ajout-plan": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.board.animatique": {
+  "cible": "dz-media-film",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.board.decouper": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-decouper",
+  "note": ""
+ },
+ "atelier.board.episode": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-nav-episodes",
+  "note": ""
+ },
+ "atelier.board.paragraphes": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-paragraphes",
+  "note": ""
+ },
+ "atelier.board.pdf": {
+  "cible": "dz-action-exporter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.board.reinitialiser": {
+  "cible": "dz-action-reinitialiser",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.etat.shotcraft": {
+  "cible": "dz-etat-information",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.plan.croquis": {
+  "cible": "dz-action-generer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.plan.derive": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-mesurer",
+  "note": ""
+ },
+ "atelier.plan.descendre": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "orienté vers le bas"
+ },
+ "atelier.plan.entites": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-edit-lier",
+  "note": ""
+ },
+ "atelier.plan.inserer": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.plan.monter": {
+  "cible": "dz-action-chevron",
+  "confiance": "probable",
+  "manque": "",
+  "note": "orienté vers le haut"
+ },
+ "atelier.plan.plateau": {
+  "cible": "dz-lab3d-camera",
+  "confiance": "probable",
+  "manque": "",
+  "note": "ouvre le Plateau 3D"
+ },
+ "atelier.plan.production": {
+  "cible": "dz-action-generer",
+  "confiance": "probable",
+  "manque": "",
+  "note": "image de production payante"
+ },
+ "atelier.plan.recroquis": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-aleatoire",
+  "note": ""
+ },
+ "atelier.plan.refs": {
+  "cible": "dz-media-image",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.plan.sans-croquis": {
+  "cible": null,
+  "confiance": "sure",
+  "manque": "",
+  "note": "décor, pas d'icône"
+ },
+ "atelier.plan.seed": {
+  "cible": "dz-etat-verrouille",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.plan.supprimer": {
+  "cible": "dz-action-supprimer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.vecteurs.ajout-decor": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.vecteurs.ajout-lumiere": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.vecteurs.ajout-perso": {
+  "cible": "dz-action-ajouter",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.vecteurs.bibliotheque": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-instancier",
+  "note": ""
+ },
+ "atelier.vecteurs.origine": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-etat-origine",
+  "note": ""
+ },
+ "atelier.vecteurs.titre": {
+  "cible": "dz-calque-vectoriel",
+  "confiance": "probable",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.fermer.versions": {
+  "cible": "dz-action-fermer",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.versions.copier": {
+  "cible": "dz-action-copier",
+  "confiance": "sure",
+  "manque": "",
+  "note": ""
+ },
+ "atelier.versions.restaurer": {
+  "cible": null,
+  "confiance": "probable",
+  "manque": "dz-action-restaurer",
+  "note": ""
+ }
+}

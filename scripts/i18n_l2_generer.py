@@ -207,7 +207,15 @@ def appliquer_couche(couche_l1: str) -> str:
         if s[e["pos"]:e["pos"] + len(e["avant"])] != e["avant"]:
             raise ValueError(f"couche L1 : la substitution L2 {e['groupe']}@{e['pos']} ne trouve pas son texte")
         s = s[:e["pos"]] + e["apres"] + s[e["pos"] + len(e["avant"]):]
+    s = _avec_l3(s)                         # t143 : la traduction L3 se pose sur la couche L2
     return s if crlf else s.replace("\r\n", "\n")
+
+
+def _avec_l3(couche_l2: str) -> str:
+    """t143 : la couche L2 -> la couche du poste (substitutions de L3 posées, table scripts/i18n_l3_paires.json)."""
+    sys.path.insert(0, str(RACINE / "scripts"))      # le python embarqué n'ajoute pas le dossier du script
+    import i18n_l3_generer
+    return i18n_l3_generer.appliquer("montage", couche_l2)
 
 
 def _json_paires(paires, gardes):
@@ -227,7 +235,7 @@ def _json_zone(dico, zone):
 def sorties(paires, couche, dico, gardes):
     """chemin -> octets attendus"""
     out = {PAIRES: _json_paires(paires, gardes).encode("utf-8"),
-           RACINE / CIBLES["couche"]: couche.encode("utf-8")}
+           RACINE / CIBLES["couche"]: _avec_l3(couche).encode("utf-8")}   # t143 : L3 posée par-dessus
     for zone, fichier in ZONES.items():
         out[RACINE / "frontend" / "shared" / "i18n" / fichier] = _json_zone(dico, zone).encode("utf-8")
     return out

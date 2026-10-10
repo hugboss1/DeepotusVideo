@@ -1008,8 +1008,8 @@ except BaseException as _e:          # SystemExit compris : il n'hérite pas d'E
     sys.exit(1)
 # t144 : les blocs SONVFX / SFXSTUDIO / VFXRACK passent par dzT (traduction L4) ; le banc lit leurs textes français
 # d'avant la traduction (test_i18n_l4 garantit qu'elle se défait exactement) ; t145 : le bloc SUBS (et TRANSFERT,
-# DIALOGUE) de même, traduction L5 défaite (test_i18n_l5)
-s = AIDE.avant_i18n_l5(AIDE.avant_i18n_l4(BUNDLE.read_bytes().decode("utf-8-sig")))
+# DIALOGUE) de même, traduction L5 défaite (test_i18n_l5) ; t143 : la couche montage.js (traduction L3) de même
+s = AIDE.avant_i18n_l5(AIDE.avant_i18n_l3(AIDE.avant_i18n_l4(BUNDLE.read_bytes().decode("utf-8-sig"))))
 # .bak_montage (l'ENTREE du patcher montage) LU UNE FOIS, comme le bundle :
 # octets, utf-8-sig, fins de ligne CONSERVEES. Cloture E-A (22/09/2026) : il
 # etait lu a CINQ endroits (M16a, P12 `_bak_txt`, P16, P14, D-2), le dernier
@@ -1029,7 +1029,7 @@ check("bloc_montage_unique", s.count(P.BEGIN) == 1 and s.count(P.END) == 1,
       f"{s.count(P.BEGIN)} BEGIN, {s.count(P.END)} END")
 # le contenu du bloc EST la source de la couche : un bloc vide passerait les
 # comptes d'ancres sans que rien ne fonctionne à l'écran.
-src = LAYER.read_bytes().decode("utf-8-sig")
+src = AIDE.couche_avant_i18n_l3(LAYER.read_bytes().decode("utf-8-sig"))  # t143 : texte d'avant L3
 # LE bloc doit ETRE la couche, octet pour octet. Sans cette ligne le banc
 # pouvait benir un bundle qui n'EXECUTE PAS le code qu'il mesure : la section
 # [3] charge la couche depuis le FICHIER, pas depuis le bundle. MESURE : en
