@@ -1,0 +1,1122 @@
+{
+  "dz-action-abandonner": {
+    "nom": {
+      "fr": "Abandonner",
+      "en": "Discard"
+    },
+    "fonction": {
+      "fr": "Jette la saisie en cours : l'objet revient comme avant.",
+      "en": "Throws away the current edit; the item returns to how it was."
+    }
+  },
+  "dz-action-actualiser": {
+    "nom": {
+      "fr": "Actualiser",
+      "en": "Refresh"
+    },
+    "fonction": {
+      "fr": "Recharge les dernières données et met l'affichage à jour.",
+      "en": "Reloads the latest data and updates what you see."
+    }
+  },
+  "dz-action-aide": {
+    "nom": {
+      "fr": "Aide",
+      "en": "Help"
+    },
+    "fonction": {
+      "fr": "Ouvre la fiche d'aide de l'option ou de l'écran.",
+      "en": "Opens the help card for this option or screen."
+    }
+  },
+  "dz-action-ajouter": {
+    "nom": {
+      "fr": "Ajouter",
+      "en": "Add"
+    },
+    "fonction": {
+      "fr": "Ajoute un nouvel élément à la liste déjà ouverte.",
+      "en": "Adds a new item to the list already open."
+    }
+  },
+  "dz-action-ajouter-bibliotheque": {
+    "nom": {
+      "fr": "Ajouter à la Bibliothèque",
+      "en": "Save to Library"
+    },
+    "fonction": {
+      "fr": "Range une copie dans la Bibliothèque sans quitter l'écran.",
+      "en": "Saves a copy to the Library without leaving the screen."
+    }
+  },
+  "dz-action-ajouter-calendrier": {
+    "nom": {
+      "fr": "Ajouter au calendrier",
+      "en": "Add to calendar"
+    },
+    "fonction": {
+      "fr": "Place les posts générés dans le calendrier du Planificateur.",
+      "en": "Places the generated posts on the Scheduler calendar."
+    }
+  },
+  "dz-action-ajuster-vue": {
+    "nom": {
+      "fr": "Ajuster la vue",
+      "en": "Fit view"
+    },
+    "fonction": {
+      "fr": "Cadre la vue sur l'objet entier, sans le modifier.",
+      "en": "Frames the whole object in view without changing it."
+    }
+  },
+  "dz-action-aleatoire": {
+    "nom": {
+      "fr": "Aléatoire",
+      "en": "Random"
+    },
+    "fonction": {
+      "fr": "Tire une nouvelle variante au hasard, sur place et gratuitement.",
+      "en": "Rolls a new random variant, locally and for free."
+    }
+  },
+  "dz-action-annuler": {
+    "nom": {
+      "fr": "Annuler",
+      "en": "Undo"
+    },
+    "fonction": {
+      "fr": "Défait la dernière modification que vous avez faite (Ctrl+Z).",
+      "en": "Undoes the last change you made (Ctrl+Z)."
+    }
+  },
+  "dz-action-apercu": {
+    "nom": {
+      "fr": "Aperçu",
+      "en": "Preview"
+    },
+    "fonction": {
+      "fr": "Montre un aperçu du résultat sans produire la version finale.",
+      "en": "Shows a preview of the result without making the final version."
+    }
+  },
+  "dz-action-appairer": {
+    "nom": {
+      "fr": "Appairer",
+      "en": "Pair"
+    },
+    "fonction": {
+      "fr": "Relie votre téléphone au PC pour l'application mobile.",
+      "en": "Links your phone to the PC for the mobile app."
+    }
+  },
+  "dz-action-capturer": {
+    "nom": {
+      "fr": "Capturer",
+      "en": "Capture"
+    },
+    "fonction": {
+      "fr": "Prend une image de la vue 3D et la garde.",
+      "en": "Takes a picture of the 3D view and keeps it."
+    }
+  },
+  "dz-action-chercher": {
+    "nom": {
+      "fr": "Rechercher",
+      "en": "Search"
+    },
+    "fonction": {
+      "fr": "Filtre la liste en tapant un mot.",
+      "en": "Filters the list as you type a word."
+    }
+  },
+  "dz-action-choisir-bibliotheque": {
+    "nom": {
+      "fr": "Depuis la Bibliothèque",
+      "en": "From Library"
+    },
+    "fonction": {
+      "fr": "Ouvre la Bibliothèque pour choisir un média à utiliser.",
+      "en": "Opens the Library so you can pick a media item to use."
+    }
+  },
+  "dz-action-coller": {
+    "nom": {
+      "fr": "Coller",
+      "en": "Paste"
+    },
+    "fonction": {
+      "fr": "Pose ici le contenu du presse-papiers (Ctrl+V).",
+      "en": "Pastes the clipboard contents here (Ctrl+V)."
+    }
+  },
+  "dz-action-comparer": {
+    "nom": {
+      "fr": "Comparer",
+      "en": "Compare"
+    },
+    "fonction": {
+      "fr": "Affiche deux versions côte à côte pour les comparer.",
+      "en": "Shows two versions side by side to compare them."
+    }
+  },
+  "dz-action-connecter": {
+    "nom": {
+      "fr": "Connecter",
+      "en": "Connect"
+    },
+    "fonction": {
+      "fr": "Relie votre compte de réseau social après votre accord.",
+      "en": "Links your social media account once you approve."
+    }
+  },
+  "dz-action-continuer": {
+    "nom": {
+      "fr": "Continuer",
+      "en": "Continue"
+    },
+    "fonction": {
+      "fr": "Passe à l'étape suivante de l'assistant.",
+      "en": "Moves on to the next step of the wizard."
+    }
+  },
+  "dz-action-convertir": {
+    "nom": {
+      "fr": "Convertir",
+      "en": "Convert"
+    },
+    "fonction": {
+      "fr": "Enregistre le modèle 3D dans un autre format de fichier.",
+      "en": "Saves the 3D model in another file format."
+    }
+  },
+  "dz-action-copier": {
+    "nom": {
+      "fr": "Copier",
+      "en": "Copy"
+    },
+    "fonction": {
+      "fr": "Copie le texte, le lien ou la sélection (Ctrl+C).",
+      "en": "Copies the text, link or selection (Ctrl+C)."
+    }
+  },
+  "dz-action-cout": {
+    "nom": {
+      "fr": "Coût",
+      "en": "Cost"
+    },
+    "fonction": {
+      "fr": "Signale un coût : appel payant, dépenses ou devis.",
+      "en": "Shows a cost: paid call, spending or quote."
+    }
+  },
+  "dz-action-decouper-plans": {
+    "nom": {
+      "fr": "Découper en plans",
+      "en": "Split into shots"
+    },
+    "fonction": {
+      "fr": "L'IA découpe le texte en scènes ou en plans.",
+      "en": "AI splits the text into scenes or shots."
+    }
+  },
+  "dz-action-deplier": {
+    "nom": {
+      "fr": "Déplier",
+      "en": "Expand"
+    },
+    "fonction": {
+      "fr": "Ouvre ou referme une section, un groupe ou une liste.",
+      "en": "Opens or closes a section, group or list."
+    }
+  },
+  "dz-action-detourer": {
+    "nom": {
+      "fr": "Détourer",
+      "en": "Remove background"
+    },
+    "fonction": {
+      "fr": "Retire le fond pour isoler le sujet, sur votre PC.",
+      "en": "Removes the background to isolate the subject, on your PC."
+    }
+  },
+  "dz-action-disposition-colonne": {
+    "nom": {
+      "fr": "1 colonne",
+      "en": "1 column"
+    },
+    "fonction": {
+      "fr": "Range tous les panneaux du lab sur une seule colonne.",
+      "en": "Stacks all the lab panels in a single column."
+    }
+  },
+  "dz-action-duel": {
+    "nom": {
+      "fr": "Lancer le duel",
+      "en": "Start duel"
+    },
+    "fonction": {
+      "fr": "Essaie le même prompt sur plusieurs moteurs pour choisir le meilleur.",
+      "en": "Tries the same prompt on several engines to pick the best."
+    }
+  },
+  "dz-action-dupliquer": {
+    "nom": {
+      "fr": "Dupliquer",
+      "en": "Duplicate"
+    },
+    "fonction": {
+      "fr": "Crée une copie juste à côté, dans le même document (Ctrl+D).",
+      "en": "Makes a copy right next to it, in the same document (Ctrl+D)."
+    }
+  },
+  "dz-action-element-precedent": {
+    "nom": {
+      "fr": "Précédent",
+      "en": "Previous"
+    },
+    "fonction": {
+      "fr": "Affiche l'élément ou la période d'avant.",
+      "en": "Shows the previous item or period."
+    }
+  },
+  "dz-action-element-suivant": {
+    "nom": {
+      "fr": "Suivant",
+      "en": "Next"
+    },
+    "fonction": {
+      "fr": "Affiche l'élément ou la période d'après.",
+      "en": "Shows the next item or period."
+    }
+  },
+  "dz-action-emporter": {
+    "nom": {
+      "fr": "Emporter",
+      "en": "Take to phone"
+    },
+    "fonction": {
+      "fr": "Confie le post au téléphone : le PC ne le publie plus.",
+      "en": "Hands the post to your phone; the PC stops publishing it."
+    }
+  },
+  "dz-action-enregistrer": {
+    "nom": {
+      "fr": "Enregistrer",
+      "en": "Save"
+    },
+    "fonction": {
+      "fr": "Enregistre le document ou les réglages en cours (Ctrl+S).",
+      "en": "Saves the current document or settings (Ctrl+S)."
+    }
+  },
+  "dz-action-enregistrer-modele": {
+    "nom": {
+      "fr": "Enregistrer comme modèle",
+      "en": "Save as template"
+    },
+    "fonction": {
+      "fr": "Garde cette mise en page comme modèle à réutiliser.",
+      "en": "Keeps this layout as a template to reuse."
+    }
+  },
+  "dz-action-envoyer-vers": {
+    "nom": {
+      "fr": "Envoyer vers…",
+      "en": "Send to…"
+    },
+    "fonction": {
+      "fr": "Envoie l'élément vers l'écran ou l'outil de votre choix.",
+      "en": "Sends the item to the screen or tool you choose."
+    }
+  },
+  "dz-action-epingler-mobile": {
+    "nom": {
+      "fr": "Épingler sur le téléphone",
+      "en": "Pin to phone"
+    },
+    "fonction": {
+      "fr": "Garde ce projet sur le téléphone, mis à jour à chaque synchronisation.",
+      "en": "Keeps this project on your phone, updated at every sync."
+    }
+  },
+  "dz-action-exporter": {
+    "nom": {
+      "fr": "Exporter",
+      "en": "Export"
+    },
+    "fonction": {
+      "fr": "Crée un fichier dans le format choisi (PDF, Godot, Unity…).",
+      "en": "Creates a file in the format you choose (PDF, Godot, Unity…)."
+    }
+  },
+  "dz-action-fabriquer": {
+    "nom": {
+      "fr": "Fabriquer",
+      "en": "Build"
+    },
+    "fonction": {
+      "fr": "Assemble le résultat sur votre PC, sans IA ni frais.",
+      "en": "Assembles the result on your PC, with no AI or cost."
+    }
+  },
+  "dz-action-favori": {
+    "nom": {
+      "fr": "Favori",
+      "en": "Favorite"
+    },
+    "fonction": {
+      "fr": "Ajoute ou retire l'élément de vos favoris.",
+      "en": "Adds or removes the item from your favorites."
+    }
+  },
+  "dz-action-fermer": {
+    "nom": {
+      "fr": "Fermer",
+      "en": "Close"
+    },
+    "fonction": {
+      "fr": "Ferme la fenêtre ou le panneau sans rien supprimer.",
+      "en": "Closes the window or panel without deleting anything."
+    }
+  },
+  "dz-action-figer-recette": {
+    "nom": {
+      "fr": "Figer en recette",
+      "en": "Freeze as recipe"
+    },
+    "fonction": {
+      "fr": "Garde le graphe du Studio comme recette réutilisable, sans rien générer.",
+      "en": "Keeps the Studio graph as a reusable recipe, generating nothing."
+    }
+  },
+  "dz-action-generer": {
+    "nom": {
+      "fr": "Générer",
+      "en": "Generate"
+    },
+    "fonction": {
+      "fr": "Lance la création par IA du mode choisi.",
+      "en": "Starts the AI creation for the chosen mode."
+    }
+  },
+  "dz-action-importer": {
+    "nom": {
+      "fr": "Importer",
+      "en": "Import"
+    },
+    "fonction": {
+      "fr": "Fait entrer un fichier de votre PC dans l'application.",
+      "en": "Brings a file from your PC into the app."
+    }
+  },
+  "dz-action-lancer": {
+    "nom": {
+      "fr": "Exécuter",
+      "en": "Run"
+    },
+    "fonction": {
+      "fr": "Fait tourner le graphe ou l'agent jusqu'au résultat.",
+      "en": "Runs the graph or agent through to the result."
+    }
+  },
+  "dz-action-lancer-recette": {
+    "nom": {
+      "fr": "Lancer une recette",
+      "en": "Run a recipe"
+    },
+    "fonction": {
+      "fr": "Applique une recette du Studio, avec le prix affiché avant.",
+      "en": "Applies a Studio recipe, showing the price first."
+    }
+  },
+  "dz-action-langue": {
+    "nom": {
+      "fr": "Langue",
+      "en": "Language"
+    },
+    "fonction": {
+      "fr": "Passe l'interface du français à l'anglais, ou l'inverse.",
+      "en": "Switches the interface between French and English."
+    }
+  },
+  "dz-action-menu": {
+    "nom": {
+      "fr": "Menu",
+      "en": "Menu"
+    },
+    "fonction": {
+      "fr": "Ouvre le menu principal du lab : Fichier, Édition, Affichage…",
+      "en": "Opens the lab's main menu: File, Edit, View…"
+    }
+  },
+  "dz-action-mesurer": {
+    "nom": {
+      "fr": "Mesurer",
+      "en": "Measure"
+    },
+    "fonction": {
+      "fr": "Analyse le résultat et dit s'il passe les seuils.",
+      "en": "Analyzes the result and says whether it meets the limits."
+    }
+  },
+  "dz-action-modifier": {
+    "nom": {
+      "fr": "Modifier",
+      "en": "Edit"
+    },
+    "fonction": {
+      "fr": "Ouvre l'éditeur pour changer cet élément.",
+      "en": "Opens the editor to change this item."
+    }
+  },
+  "dz-action-nettoyer": {
+    "nom": {
+      "fr": "Nettoyage",
+      "en": "Clean up"
+    },
+    "fonction": {
+      "fr": "Ouvre l'outil qui repère les doublons et les gros fichiers.",
+      "en": "Opens the tool that finds duplicates and large files."
+    }
+  },
+  "dz-action-nouveau": {
+    "nom": {
+      "fr": "Nouveau",
+      "en": "New"
+    },
+    "fonction": {
+      "fr": "Crée un document vide et l'ouvre.",
+      "en": "Creates a blank document and opens it."
+    }
+  },
+  "dz-action-nouveau-dossier": {
+    "nom": {
+      "fr": "Nouveau groupe",
+      "en": "New group"
+    },
+    "fonction": {
+      "fr": "Crée un dossier pour ranger préréglages ou nuances.",
+      "en": "Creates a folder to hold presets or swatches."
+    }
+  },
+  "dz-action-ouvrir": {
+    "nom": {
+      "fr": "Ouvrir",
+      "en": "Open"
+    },
+    "fonction": {
+      "fr": "Ouvre un document enregistré ou un fichier de votre PC.",
+      "en": "Opens a saved document or a file from your PC."
+    }
+  },
+  "dz-action-ouvrir-externe": {
+    "nom": {
+      "fr": "Ouvrir dans le navigateur",
+      "en": "Open in browser"
+    },
+    "fonction": {
+      "fr": "Ouvre la page externe dans votre navigateur web.",
+      "en": "Opens the external page in your web browser."
+    }
+  },
+  "dz-action-palette-commandes": {
+    "nom": {
+      "fr": "Commande rapide",
+      "en": "Quick command"
+    },
+    "fonction": {
+      "fr": "Ouvre la palette pour taper une commande.",
+      "en": "Opens the palette to type a command."
+    }
+  },
+  "dz-action-panneau-lateral": {
+    "nom": {
+      "fr": "Panneau latéral",
+      "en": "Side panel"
+    },
+    "fonction": {
+      "fr": "Affiche ou masque la colonne latérale (nœuds, inspecteur).",
+      "en": "Shows or hides the side column (nodes, inspector)."
+    }
+  },
+  "dz-action-plus-options": {
+    "nom": {
+      "fr": "Plus d'actions",
+      "en": "More actions"
+    },
+    "fonction": {
+      "fr": "Ouvre la liste des actions possibles sur cet élément.",
+      "en": "Opens the list of actions available for this item."
+    }
+  },
+  "dz-action-poignee": {
+    "nom": {
+      "fr": "Poignée",
+      "en": "Handle"
+    },
+    "fonction": {
+      "fr": "Saisissez-la et glissez pour déplacer ou réordonner.",
+      "en": "Grab and drag it to move or reorder."
+    }
+  },
+  "dz-action-programmer": {
+    "nom": {
+      "fr": "Programmer",
+      "en": "Schedule"
+    },
+    "fonction": {
+      "fr": "Choisit une date : le post sera publié automatiquement.",
+      "en": "Picks a date; the post will be published automatically."
+    }
+  },
+  "dz-action-publier": {
+    "nom": {
+      "fr": "Publier maintenant",
+      "en": "Publish now"
+    },
+    "fonction": {
+      "fr": "Publie le post tout de suite sur ses réseaux.",
+      "en": "Publishes the post right away on its channels."
+    }
+  },
+  "dz-action-quantite": {
+    "nom": {
+      "fr": "Quantité",
+      "en": "Quantity"
+    },
+    "fonction": {
+      "fr": "Utilise cette colonne comme nombre d'exemplaires de chaque carte.",
+      "en": "Uses this column as the number of copies of each card."
+    }
+  },
+  "dz-action-raccourcis": {
+    "nom": {
+      "fr": "Raccourcis clavier",
+      "en": "Keyboard Shortcuts"
+    },
+    "fonction": {
+      "fr": "Ouvre la liste des raccourcis clavier.",
+      "en": "Opens the list of keyboard shortcuts."
+    }
+  },
+  "dz-action-rangement-auto": {
+    "nom": {
+      "fr": "Rangement auto",
+      "en": "Auto-file"
+    },
+    "fonction": {
+      "fr": "Range automatiquement les nouveaux éléments dans ce projet, ou arrête.",
+      "en": "Automatically files new items into this project, or stops."
+    }
+  },
+  "dz-action-ranger": {
+    "nom": {
+      "fr": "Ranger",
+      "en": "Add to project"
+    },
+    "fonction": {
+      "fr": "Range l'élément dans un projet de la Bibliothèque.",
+      "en": "Files the item into a Library project."
+    }
+  },
+  "dz-action-recalculer": {
+    "nom": {
+      "fr": "Recalculer",
+      "en": "Recompute"
+    },
+    "fonction": {
+      "fr": "Refait le calcul sur votre PC, gratuitement.",
+      "en": "Redoes the calculation on your PC, for free."
+    }
+  },
+  "dz-action-recentrer": {
+    "nom": {
+      "fr": "Recentrer",
+      "en": "Recenter"
+    },
+    "fonction": {
+      "fr": "Ramène la barre d'outils flottante à sa place.",
+      "en": "Puts the floating toolbar back in its place."
+    }
+  },
+  "dz-action-recherche-semantique": {
+    "nom": {
+      "fr": "Chercher par description",
+      "en": "Search by description"
+    },
+    "fonction": {
+      "fr": "Trouve les éléments qui correspondent au sens, pas au mot exact.",
+      "en": "Finds items that match the meaning, not the exact word."
+    }
+  },
+  "dz-action-recurrence": {
+    "nom": {
+      "fr": "Séries récurrentes",
+      "en": "Recurring series"
+    },
+    "fonction": {
+      "fr": "Gère les posts qui reviennent régulièrement.",
+      "en": "Manages posts that come back on a regular basis."
+    }
+  },
+  "dz-action-recycler": {
+    "nom": {
+      "fr": "Recyclage",
+      "en": "Recycle"
+    },
+    "fonction": {
+      "fr": "Propose de republier d'anciens posts qui ont bien marché.",
+      "en": "Suggests reposting old posts that did well."
+    }
+  },
+  "dz-action-redefinir": {
+    "nom": {
+      "fr": "Redéfinir",
+      "en": "Redefine"
+    },
+    "fonction": {
+      "fr": "Remplace le style ou la composition enregistrés par l'état actuel.",
+      "en": "Replaces the saved style or composition with the current state."
+    }
+  },
+  "dz-action-reecrire-ia": {
+    "nom": {
+      "fr": "Affiner par IA",
+      "en": "Refine with AI"
+    },
+    "fonction": {
+      "fr": "L'IA réécrit votre texte existant pour l'améliorer.",
+      "en": "AI rewrites your existing text to improve it."
+    }
+  },
+  "dz-action-reessayer": {
+    "nom": {
+      "fr": "Réessayer",
+      "en": "Retry"
+    },
+    "fonction": {
+      "fr": "Relance une tâche qui a échoué plus tôt.",
+      "en": "Starts again a task that failed earlier."
+    }
+  },
+  "dz-action-regenerer": {
+    "nom": {
+      "fr": "Régénérer",
+      "en": "Regenerate"
+    },
+    "fonction": {
+      "fr": "Refait la génération par IA, payante, pour remplacer ce résultat.",
+      "en": "Redoes the paid AI generation to replace this result."
+    }
+  },
+  "dz-action-reglages": {
+    "nom": {
+      "fr": "Options",
+      "en": "Options"
+    },
+    "fonction": {
+      "fr": "Ouvre les options de cet objet ou de ce document.",
+      "en": "Opens the options for this object or document."
+    }
+  },
+  "dz-action-reinitialiser": {
+    "nom": {
+      "fr": "Réinitialiser",
+      "en": "Reset"
+    },
+    "fonction": {
+      "fr": "Remet les valeurs d'origine, celles par défaut.",
+      "en": "Puts back the original, default values."
+    }
+  },
+  "dz-action-renommer": {
+    "nom": {
+      "fr": "Renommer",
+      "en": "Rename"
+    },
+    "fonction": {
+      "fr": "Permet de changer le nom de l'élément.",
+      "en": "Lets you change the item's name."
+    }
+  },
+  "dz-action-repondre": {
+    "nom": {
+      "fr": "Suite",
+      "en": "Follow-up"
+    },
+    "fonction": {
+      "fr": "Écrit un post qui répond au précédent, en fil sur X.",
+      "en": "Writes a post replying to the previous one, as an X thread."
+    }
+  },
+  "dz-action-reprendre-reglages": {
+    "nom": {
+      "fr": "Reprendre les réglages",
+      "en": "Reuse settings"
+    },
+    "fonction": {
+      "fr": "Recharge le prompt et les réglages de ce résultat dans l'éditeur.",
+      "en": "Loads this result's prompt and settings back into the editor."
+    }
+  },
+  "dz-action-restaurer": {
+    "nom": {
+      "fr": "Restaurer",
+      "en": "Restore"
+    },
+    "fonction": {
+      "fr": "Revient à une version enregistrée plus ancienne.",
+      "en": "Goes back to an older saved version."
+    }
+  },
+  "dz-action-retablir": {
+    "nom": {
+      "fr": "Rétablir",
+      "en": "Redo"
+    },
+    "fonction": {
+      "fr": "Refait la modification que vous venez d'annuler (Ctrl+Y).",
+      "en": "Redoes the change you just undid (Ctrl+Y)."
+    }
+  },
+  "dz-action-retirer": {
+    "nom": {
+      "fr": "Retirer",
+      "en": "Remove"
+    },
+    "fonction": {
+      "fr": "Sort l'élément de la liste sans le supprimer ailleurs.",
+      "en": "Takes the item off the list without deleting it elsewhere."
+    }
+  },
+  "dz-action-retour": {
+    "nom": {
+      "fr": "Retour",
+      "en": "Back"
+    },
+    "fonction": {
+      "fr": "Revient à l'écran ou à l'étape précédente.",
+      "en": "Goes back to the previous screen or step."
+    }
+  },
+  "dz-action-rouvrir-quick": {
+    "nom": {
+      "fr": "Rouvrir dans Quick",
+      "en": "Reopen in Quick"
+    },
+    "fonction": {
+      "fr": "Rouvre ce rendu dans Quick avec tous ses réglages.",
+      "en": "Reopens this render in Quick with all its settings."
+    }
+  },
+  "dz-action-rouvrir-studio": {
+    "nom": {
+      "fr": "Rouvrir dans Studio",
+      "en": "Reopen in Studio"
+    },
+    "fonction": {
+      "fr": "Rouvre dans le Studio le graphe qui a fait ce rendu.",
+      "en": "Reopens in Studio the graph that made this render."
+    }
+  },
+  "dz-action-scanner-qr": {
+    "nom": {
+      "fr": "Scanner le QR",
+      "en": "Scan QR code"
+    },
+    "fonction": {
+      "fr": "Ouvre la caméra du téléphone pour lire le code d'appairage.",
+      "en": "Opens the phone camera to read the pairing code."
+    }
+  },
+  "dz-action-suggerer": {
+    "nom": {
+      "fr": "Suggérer",
+      "en": "Suggest"
+    },
+    "fonction": {
+      "fr": "L'assistant propose des choix expliqués, à vous de valider.",
+      "en": "The assistant suggests explained choices for you to approve."
+    }
+  },
+  "dz-action-supprimer": {
+    "nom": {
+      "fr": "Supprimer",
+      "en": "Delete"
+    },
+    "fonction": {
+      "fr": "Supprime l'élément ou l'envoie à la corbeille.",
+      "en": "Deletes the item or moves it to the trash."
+    }
+  },
+  "dz-action-synchroniser": {
+    "nom": {
+      "fr": "Synchroniser",
+      "en": "Sync"
+    },
+    "fonction": {
+      "fr": "Échange les nouveautés entre le téléphone et le PC.",
+      "en": "Exchanges updates between the phone and the PC."
+    }
+  },
+  "dz-action-telecharger": {
+    "nom": {
+      "fr": "Télécharger",
+      "en": "Download"
+    },
+    "fonction": {
+      "fr": "Enregistre le fichier sur votre disque, tel quel.",
+      "en": "Saves the file to your disk as it is."
+    }
+  },
+  "dz-action-tester": {
+    "nom": {
+      "fr": "Tester",
+      "en": "Test"
+    },
+    "fonction": {
+      "fr": "Vérifie que la clé ou les identifiants fonctionnent.",
+      "en": "Checks that the key or credentials work."
+    }
+  },
+  "dz-action-theme": {
+    "nom": {
+      "fr": "Thème",
+      "en": "Theme"
+    },
+    "fonction": {
+      "fr": "Passe l'écran du thème clair au thème sombre, ou l'inverse.",
+      "en": "Switches the screen between light and dark themes."
+    }
+  },
+  "dz-action-tout-selectionner": {
+    "nom": {
+      "fr": "Tout sélectionner",
+      "en": "Select All"
+    },
+    "fonction": {
+      "fr": "Coche ou décoche tous les éléments de la liste.",
+      "en": "Checks or unchecks every item in the list."
+    }
+  },
+  "dz-action-transferer-pc": {
+    "nom": {
+      "fr": "Rendre au PC",
+      "en": "Hand back to PC"
+    },
+    "fonction": {
+      "fr": "Renvoie un post ou des images du téléphone vers le PC.",
+      "en": "Sends a post or images from the phone back to the PC."
+    }
+  },
+  "dz-action-trier": {
+    "nom": {
+      "fr": "Trier",
+      "en": "Sort"
+    },
+    "fonction": {
+      "fr": "Range la liste par ordre croissant ou décroissant.",
+      "en": "Orders the list ascending or descending."
+    }
+  },
+  "dz-action-valider": {
+    "nom": {
+      "fr": "Valider",
+      "en": "Confirm"
+    },
+    "fonction": {
+      "fr": "Confirme et applique le choix en attente.",
+      "en": "Confirms and applies the pending choice."
+    }
+  },
+  "dz-action-vider": {
+    "nom": {
+      "fr": "Vider",
+      "en": "Clear"
+    },
+    "fonction": {
+      "fr": "Enlève tout le contenu mais garde le contenant.",
+      "en": "Removes all the content but keeps the container."
+    }
+  },
+  "dz-action-vue-grille": {
+    "nom": {
+      "fr": "Grille",
+      "en": "Grid"
+    },
+    "fonction": {
+      "fr": "Affiche les éléments en grille de vignettes.",
+      "en": "Shows the items as a grid of thumbnails."
+    }
+  },
+  "dz-action-vue-liste": {
+    "nom": {
+      "fr": "Liste",
+      "en": "List"
+    },
+    "fonction": {
+      "fr": "Affiche les éléments en tableau, ligne par ligne.",
+      "en": "Shows the items as a table, row by row."
+    }
+  },
+  "dz-action-zoom-arriere": {
+    "nom": {
+      "fr": "Zoom arrière",
+      "en": "Zoom out"
+    },
+    "fonction": {
+      "fr": "Éloigne la vue pour voir plus large.",
+      "en": "Zooms the view out to see more."
+    }
+  },
+  "dz-action-zoom-avant": {
+    "nom": {
+      "fr": "Zoom avant",
+      "en": "Zoom in"
+    },
+    "fonction": {
+      "fr": "Rapproche la vue pour voir les détails.",
+      "en": "Zooms the view in to see details."
+    }
+  },
+  "dz-marque-icone-adaptative": {
+    "nom": {
+      "fr": "Icône adaptative",
+      "en": "Adaptive icon"
+    },
+    "fonction": {
+      "fr": "Icône de l'application sur Android, logo posé sur un fond.",
+      "en": "The app icon on Android, the logo on a background."
+    }
+  },
+  "dz-marque-icone-app": {
+    "nom": {
+      "fr": "Icône de l'application",
+      "en": "App icon"
+    },
+    "fonction": {
+      "fr": "Icône de Deepotus sur le PC, l'installeur et le téléphone.",
+      "en": "The Deepotus icon on the PC, installer and phone."
+    }
+  },
+  "dz-marque-icone-monochrome": {
+    "nom": {
+      "fr": "Icône monochrome",
+      "en": "Monochrome icon"
+    },
+    "fonction": {
+      "fr": "Version d'une seule couleur, teintée par Android selon votre thème.",
+      "en": "One-color version that Android tints to match your theme."
+    }
+  },
+  "dz-marque-notification": {
+    "nom": {
+      "fr": "Icône de notification",
+      "en": "Notification icon"
+    },
+    "fonction": {
+      "fr": "Petite icône Android qui signale un rappel dans la barre d'état.",
+      "en": "Small Android icon showing a reminder in the status bar."
+    }
+  },
+  "dz-marque-oracle": {
+    "nom": {
+      "fr": "The Oracle",
+      "en": "The Oracle"
+    },
+    "fonction": {
+      "fr": "Avatar de la persona fournie « The Oracle ».",
+      "en": "Avatar of the built-in persona “The Oracle”."
+    }
+  },
+  "dz-marque-poulpe": {
+    "nom": {
+      "fr": "Deepotus",
+      "en": "Deepotus"
+    },
+    "fonction": {
+      "fr": "Logo de Deepotus dans l'application, au démarrage et dans le rail.",
+      "en": "The Deepotus logo in the app, at startup and in the rail."
+    }
+  },
+  "dz-marque-seer": {
+    "nom": {
+      "fr": "The Seer",
+      "en": "The Seer"
+    },
+    "fonction": {
+      "fr": "Avatar de la persona fournie « The Seer ».",
+      "en": "Avatar of the built-in persona “The Seer”."
+    }
+  },
+  "dz-marque-splash": {
+    "nom": {
+      "fr": "Écran de démarrage",
+      "en": "Splash screen"
+    },
+    "fonction": {
+      "fr": "Image affichée pendant le chargement de l'application, PC et mobile.",
+      "en": "Image shown while the app loads, on PC and mobile."
+    }
+  },
+  "dz-reseau-figma": {
+    "nom": {
+      "fr": "Figma",
+      "en": "Figma"
+    },
+    "fonction": {
+      "fr": "Importe un calque depuis un fichier Figma.",
+      "en": "Imports a layer from a Figma file."
+    }
+  },
+  "dz-reseau-instagram": {
+    "nom": {
+      "fr": "Instagram",
+      "en": "Instagram"
+    },
+    "fonction": {
+      "fr": "Représente le réseau Instagram : connexion, choix de destination d'un post.",
+      "en": "Stands for Instagram: connecting, or choosing where a post goes."
+    }
+  },
+  "dz-reseau-telegram": {
+    "nom": {
+      "fr": "Telegram",
+      "en": "Telegram"
+    },
+    "fonction": {
+      "fr": "Représente Telegram et son pack d'emojis premium.",
+      "en": "Stands for Telegram and its premium emoji pack."
+    }
+  },
+  "dz-reseau-tiktok": {
+    "nom": {
+      "fr": "TikTok",
+      "en": "TikTok"
+    },
+    "fonction": {
+      "fr": "Représente le réseau TikTok : connexion, choix de destination d'un post.",
+      "en": "Stands for TikTok: connecting, or choosing where a post goes."
+    }
+  },
+  "dz-reseau-x": {
+    "nom": {
+      "fr": "X",
+      "en": "X"
+    },
+    "fonction": {
+      "fr": "Représente le réseau X : connexion, destination d'un post, fils de réponses.",
+      "en": "Stands for X: connecting, post destination, reply threads."
+    }
+  },
+  "dz-reseau-youtube": {
+    "nom": {
+      "fr": "YouTube",
+      "en": "YouTube"
+    },
+    "fonction": {
+      "fr": "Représente YouTube : connexion, choix de destination d'une vidéo.",
+      "en": "Stands for YouTube: connecting, or choosing where a video goes."
+    }
+  }
+}

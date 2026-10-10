@@ -78,6 +78,16 @@ for cid in publies["fr"]:
     if re.findall(r'\bid="([^"]+)"', f) != re.findall(r'\bid="([^"]+)"', e):
         ecarts.append(f"{cid}:ids")
 check("2.2 chaque chapitre a le MÊME squelette en FR et en EN (titres, étapes, encadrés, scènes, ids…)", not ecarts, ecarts)
+desequilibres = []
+for l in ("fr", "en"):
+    for cid in publies[l]:
+        f = (SRC / l / f"{cid}.html").read_text("utf-8")
+        for t in ("div", "section", "aside", "table", "figure", "ol", "ul", "article"):
+            o, c = len(re.findall(rf"<{t}[\s>]", f)), f.count(f"</{t}>")
+            if o != c:
+                desequilibres.append(f"{l}/{cid}:{t} {o}≠{c}")
+check("2.4 chaque fragment ferme ce qu'il ouvre (une balise de trop sortait un chapitre de la colonne)",
+      not desequilibres, desequilibres)
 check("2.3 les deux pages ont les mêmes ancres", sorted(re.findall(r'\bid="([^"]+)"', PAGES["fr"])) ==
       sorted(re.findall(r'\bid="([^"]+)"', PAGES["en"])))
 
@@ -163,6 +173,38 @@ for cid in v3:
         check(f"6.1 [{l}] {cid} : aucun emoji ni glyphe en guise d'icône", not EMOJI.search(f), EMOJI.findall(f)[:8])
         check(f"6.2 [{l}] {cid} : pas de capture fixe héritée (img.shot) — des scènes", 'class="shot"' not in f)
 print(f"  ({len(v3)} chapitre(s) en état v3, {len(publies['fr']) - len(v3)} migré(s) de la v2.8.0)")
+
+print("\n[7] lexique imprimable des icônes (t170)")
+LEX = {e["cle"]: e for e in json.loads((RACINE / "docs/icones/suite-finale/lexique.json").read_text("utf-8"))}
+TXT = {}
+for f in sorted((SRC / "lexique").glob("*.json")):
+    TXT.update(json.loads(f.read_text("utf-8")))
+check("7.1 chaque icône de la suite (526) a un nom et une fonction en FR et en EN",
+      set(TXT) == set(LEX) and all(TXT[k][c][l].strip() for k in TXT for c in ("nom", "fonction") for l in ("fr", "en")),
+      (len(TXT), len(LEX), sorted(set(LEX) ^ set(TXT))[:5]))
+check("7.2 aucune fonction ne dépasse 14 mots (une planche se lit d'un coup d'œil)",
+      all(len(TXT[k]["fonction"][l].split()) <= 14 for k in TXT for l in ("fr", "en")))
+check("7.3 aucune entité HTML ni glyphe d'interface dans les textes du lexique",
+      not any("&amp;" in json.dumps(v, ensure_ascii=False) for v in TXT.values()))
+for l in ("fr", "en"):
+    p = GUIDE / f"lexique-icones-{l}.html"
+    h = p.read_text("utf-8") if p.is_file() else ""
+    check(f"7.4 [{l}] la planche montre les {len(LEX)} icônes, chacune avec son dessin",
+          h.count('<article class="lx-ic"') == len(LEX) and h.count('<span class="pic"><span class="dzi"') +
+          h.count('<span class="pic"><img class="dzi') == len(LEX), h.count('<article class="lx-ic"'))
+    check(f"7.5 [{l}] la planche a sa feuille d'impression A4 et son bouton Imprimer",
+          "@page { size:A4" in h and "window.print()" in h)
+    check(f"7.6 [{l}] le chapitre « Lire les icônes » mène à la planche et au PDF de SA langue",
+          f'href="lexique-icones-{l}.html"' in PAGES[l] and f'href="Deepotus-Icones-{l.upper()}.pdf"' in PAGES[l])
+    check(f"7.7 [{l}] le PDF de la planche existe", (GUIDE / f"Deepotus-Icones-{l.upper()}.pdf").is_file())
+fiches = {f"{lab}/{e['id']}" for lab in ("vectorlab", "photolab", "spritelab", "tilelab")
+          for e in json.loads((RACINE / "frontend" / lab / "aide" / "index.json").read_text("utf-8"))}
+citees = set(re.findall(r'data-fiche="([^"]+)"', (SRC / "fr" / "icones.html").read_text("utf-8")))
+check(f"7.8 la galerie du chapitre montre TOUTES les fiches animées des labs ({len(fiches)})", citees == fiches,
+      sorted(fiches ^ citees))
+en = json.loads((SRC / "fiches-en.json").read_text("utf-8"))
+check("7.9 chaque fiche a son titre et sa phrase en anglais", set(en) >= fiches and
+      all(en[f]["titre"] and en[f]["phrase"] for f in fiches), sorted(fiches - set(en)))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
