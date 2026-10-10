@@ -1,0 +1,116 @@
+{
+  "titre": {
+    "fr": "Un réglage avec aperçu",
+    "en": "An adjustment with preview"
+  },
+  "legende": {
+    "fr": "Image › Ajustements › Courbes… : chaque point déplacé est recalculé par le moteur sur une copie, jusqu'à OK.",
+    "en": "Image › Adjustments › Curves…: every point you move is recomputed by the engine on a copy, until OK."
+  },
+  "captures": [
+    {
+      "fr": "menu.fr.webp",
+      "en": "menu.en.webp"
+    },
+    {
+      "fr": "courbes.fr.webp",
+      "en": "courbes.en.webp"
+    },
+    {
+      "fr": "point.fr.webp",
+      "en": "point.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        432,
+        126
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Image › Ajustements › Courbes…",
+        "en": "Image › Adjustments › Curves…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.2,
+      "curseur": [
+        936,
+        270
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Cliquez pour poser un point",
+        "en": "Click to add a point"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        826,
+        530,
+        50,
+        29
+      ],
+      "bulle": {
+        "fr": "L'aperçu suit chaque geste",
+        "en": "The preview follows every move"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        364,
+        126
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Image › Ajustements › Courbes…",
+        "en": "Image › Adjustments › Curves…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.2,
+      "curseur": [
+        936,
+        270
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Cliquez pour poser un point",
+        "en": "Click to add a point"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        826,
+        530,
+        55,
+        29
+      ],
+      "bulle": {
+        "fr": "L'aperçu suit chaque geste",
+        "en": "The preview follows every move"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

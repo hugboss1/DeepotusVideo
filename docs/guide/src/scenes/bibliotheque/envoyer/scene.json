@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "Envoyer vers un autre écran",
+    "en": "Send to another screen"
+  },
+  "legende": {
+    "fr": "Depuis la fiche, Envoyer vers… liste tous les écrans qui savent reprendre l'image, et les projets.",
+    "en": "From the sheet, Send to… lists every screen that can take the image, and projects."
+  },
+  "captures": [
+    {
+      "fr": "fiche.fr.webp",
+      "en": "fiche.en.webp"
+    },
+    {
+      "fr": "menu.fr.webp",
+      "en": "menu.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1130,
+        152
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Envoyer vers…",
+        "en": "Send to…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        567,
+        495,
+        306,
+        48
+      ],
+      "bulle": {
+        "fr": "Retoucher dans le Photolab",
+        "en": "Retouch it in Photolab"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        567,
+        639,
+        306,
+        48
+      ],
+      "bulle": {
+        "fr": "Ou la ranger dans un projet",
+        "en": "Or file it in a project"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1165,
+        152
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Envoyer vers…",
+        "en": "Send to…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        557,
+        495,
+        325,
+        48
+      ],
+      "bulle": {
+        "fr": "Retoucher dans le Photolab",
+        "en": "Retouch it in Photolab"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        557,
+        639,
+        325,
+        48
+      ],
+      "bulle": {
+        "fr": "Ou la ranger dans un projet",
+        "en": "Or file it in a project"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

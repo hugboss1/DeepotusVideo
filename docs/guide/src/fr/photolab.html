@@ -1,0 +1,74 @@
+<p class="chapeau-chap">Vous saurez ouvrir une image dans le Photolab, la sélectionner, la retoucher, la régler et la renvoyer vers la Bibliothèque ou un autre écran. Gratuit et sans connexion : chaque geste est calculé sur votre PC par le moteur photocraft fourni avec Deepotus, avec les mêmes pixels que l'application d'origine.</p>
+
+<h3>Ouvrir une image</h3>
+<figure class="scene" data-scene="photolab/accueil"></figure>
+<ol class="etapes">
+<li>Ouvrez <b class="ui">Photolab</b> dans la barre des applications, juste après le Vectorlab. Depuis la Bibliothèque, <b class="ui">Envoyer vers…</b> › Photolab ouvre directement l'image.</li>
+<li>Sans document, l'accueil propose <b class="ui">Nouveau…</b> (<kbd>Ctrl</kbd>+<kbd>N</kbd>) et <b class="ui">Ouvrir depuis la Bibliothèque…</b> (<kbd>Ctrl</kbd>+<kbd>O</kbd>). Vous pouvez aussi glisser un fichier sur la zone de travail : il entre dans la Bibliothèque et s'ouvre.</li>
+<li>Un nouveau document se choisit par catégorie (Photo, Film et vidéo, Mobile, Impression, Web) et préréglage : HDTV 1080p, 4K UHD, Instagram carré, Story 9:16, A4 300 ppi…</li>
+<li>Chaque document a son onglet ; un point signale qu'il a changé. La barre d'état, en bas, donne le zoom, le mode et la profondeur (RVB · 8 bits), la taille en pixels et le nombre de calques.</li>
+</ol>
+<p>L'écran suit la langue de Deepotus, français ou anglais : menus, outils, panneaux, dialogues et historique.</p>
+
+<h3>Choisir un outil</h3>
+<figure class="scene" data-scene="photolab/outils"></figure>
+<p>La barre d'outils, à gauche, a vingt emplacements. Un emplacement marqué d'un coin en regroupe plusieurs : clic droit ou appui long pour choisir. Chaque outil a sa lettre (V, M, L, W, C, I, J, B, S, Y, E, G, O, P, T, A, U, H, Z), et la même lettre passe à l'outil suivant du groupe. Le bandeau du haut montre les réglages de l'outil actif.</p>
+<div class="cartes">
+<article><i data-dz="dz-outil-px-selection"></i><h4>Sélectionner</h4><p>Rectangle et ellipse (M), lasso et lasso polygonal (L), baguette magique, sélection rapide et sélection d'objet (W). <kbd>Maj</kbd> ajoute, <kbd>Alt</kbd> retire.</p></article>
+<article><i data-dz="dz-outil-photo-recadrer"></i><h4>Recadrer et mesurer</h4><p>Recadrage (C) : tracez le cadre, <kbd>Entrée</kbd> pour couper. La pipette (I) prélève une couleur ; la règle, le compteur et les notes sont au <a href="#photolab-avance">chapitre suivant</a>.</p></article>
+<article><i data-dz="dz-outil-px-pinceau"></i><h4>Peindre</h4><p>Pinceau, crayon et pinceau mélangeur (B), gomme et gomme d'arrière-plan (E), dégradé et pot de peinture (G). <kbd>[</kbd> et <kbd>]</kbd> règlent la taille, un chiffre l'opacité (4 puis 5 = 45 %).</p></article>
+<article><i data-dz="dz-outil-photo-tampon"></i><h4>Réparer</h4><p>Correcteur de tache et correcteur (J), tampon de duplication (S, <kbd>Alt</kbd>+clic pour la source), pinceau d'historique (Y), densité, éponge, goutte, netteté et doigt (O).</p></article>
+<article><i data-dz="dz-outil-vec-texte"></i><h4>Texte et formes</h4><p>Texte (T) : clic pour une ligne, glisser pour un paragraphe. Plume (P), sélection de tracé (A), rectangle, ellipse, triangle, polygone, ligne et formes personnalisées (U).</p></article>
+<article><i data-dz="dz-outil-vec-main"></i><h4>Se déplacer</h4><p>Main (H) ou <kbd>Espace</kbd> tenu ; zoom (Z) ou <kbd>Ctrl</kbd>+molette. <kbd>Ctrl</kbd>+<kbd>0</kbd> adapte à l'écran, <kbd>Ctrl</kbd>+<kbd>1</kbd> affiche à 100 %.</p></article>
+</div>
+<p>Les pastilles sous la barre d'outils portent les couleurs de premier plan et d'arrière-plan : <kbd>X</kbd> les échange, <kbd>D</kbd> remet le noir et blanc.</p>
+<div class="fiches">
+<figure class="fiche" data-fiche="photolab/pl-outil-rectMarquee"></figure>
+<figure class="fiche" data-fiche="photolab/pl-outil-magicWand"></figure>
+<figure class="fiche" data-fiche="photolab/pl-outil-crop"></figure>
+<figure class="fiche" data-fiche="photolab/pl-outil-brush"></figure>
+<figure class="fiche" data-fiche="photolab/pl-outil-cloneStamp"></figure>
+</div>
+
+<h3>Travailler la sélection</h3>
+<p>Le menu <b class="ui">Sélection</b> regroupe <b class="ui">Tout sélectionner</b> (<kbd>Ctrl</kbd>+<kbd>A</kbd>), désélectionner (<kbd>Ctrl</kbd>+<kbd>D</kbd>) et inverser (<kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>I</kbd>). Le moteur sait aussi trouver le sujet, le ciel, une plage de couleurs ou la zone nette. Modifier › Bordure, Lisser, Étendre, Contracter et Adoucir retouchent le contour ; une sélection s'enregistre dans une couche et se recharge.</p>
+<p><b class="ui">Sélectionner et masquer…</b> (<kbd>Alt</kbd>+<kbd>Ctrl</kbd>+<kbd>R</kbd>) affine les bords difficiles, cheveux compris : sept vues (pelure d'oignon, sur noir, sur blanc…), rayon, lissage, contour progressif, décontamination des couleurs, puis sortie vers une sélection, un masque ou un nouveau calque.</p>
+
+<h3>Transformer</h3>
+<p><b class="ui">Transformation libre</b> (<kbd>Ctrl</kbd>+<kbd>T</kbd>) pose un cadre à huit poignées. Un coin met à l'échelle en gardant les proportions (<kbd>Maj</kbd> les libère), un bord étire sur un axe, l'extérieur fait tourner (<kbd>Maj</kbd> par 15°), <kbd>Ctrl</kbd> déforme ou incline. Le bandeau donne X, Y, largeur, hauteur, angle et interpolation ; <kbd>Entrée</kbd> valide. Édition › Transformation propose aussi rotations de 90° et 180° et symétries.</p>
+<p>Le menu Édition contient enfin couper, copier, coller (dont coller sur place), remplir et contourner, le remplissage d'après le contenu, <b class="ui">Estomper</b> pour atténuer le dernier filtre, et la palette <b class="ui">Rechercher</b> (<kbd>Ctrl</kbd>+<kbd>K</kbd>) qui trouve n'importe quelle commande par son nom.</p>
+
+<h3>Régler et filtrer</h3>
+<figure class="scene" data-scene="photolab/reglage"></figure>
+<ol class="etapes">
+<li>Ouvrez <b class="ui">Image</b> › <b class="ui">Ajustements</b> et choisissez un réglage : <b class="ui">Niveaux</b> (<kbd>Ctrl</kbd>+<kbd>L</kbd>), <b class="ui">Courbes</b> (<kbd>Ctrl</kbd>+<kbd>M</kbd>), Teinte/Saturation (<kbd>Ctrl</kbd>+<kbd>U</kbd>), Balance des couleurs, <b class="ui">Noir et blanc</b>, Exposition, Vibrance, Ombres/Hautes lumières…</li>
+<li>Le dialogue montre un <b class="ui">Aperçu</b> calculé par le moteur sur une copie. Dans Courbes, un clic pose un point, glisser le déplace, double-clic le retire, par canal RVB, rouge, vert ou bleu.</li>
+<li><b class="ui">OK</b> applique et ajoute une étape à l'historique ; <b class="ui">Annuler</b> laisse l'image intacte.</li>
+</ol>
+<p>Le menu <b class="ui">Filtre</b> suit le même principe : flou (dont la galerie de flous), netteté, bruit, déformation, pixelisation, rendu, styliser, ainsi que la <b class="ui">Galerie de filtres…</b> et ses 47 effets artistiques empilables. Dernier filtre se rejoue par <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd>. Le menu Image donne aussi les corrections automatiques, la taille de l'image et du canevas, la rotation, et Image › Mode pour passer en niveaux de gris, CMJN, Lab, bichromie, couleurs indexées ou 16 bits.</p>
+<figure class="fiche" data-fiche="photolab/pl-aj-blackWhite"></figure>
+
+<h3>Enregistrer et envoyer</h3>
+<figure class="scene" data-scene="photolab/enregistrer"></figure>
+<ol class="etapes">
+<li><b class="ui">Enregistrer</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) range l'image en PNG dans la Bibliothèque, source « Photolab », avec un fichier de travail qui garde les calques. Ce n'est jamais un écrasement : chaque enregistrement est un nouveau fichier, relié à l'image d'origine dans sa fiche.</li>
+<li>Rouverte depuis la Bibliothèque, une image du Photolab revient avec ses calques.</li>
+<li><b class="ui">Enregistrer sous…</b> exporte en PNG, JPG, WEBP, TIFF, PSD ou PCRAFT et le télécharge ; <b class="ui">Enregistrer une copie…</b> garde le document tel quel ; Exporter › Exportation rapide au format PNG sort l'image en un clic, selon vos préférences.</li>
+<li><b class="ui">Envoyer vers…</b> passe l'image à un autre écran, par la Bibliothèque.</li>
+</ol>
+<p>Fermer (<kbd>Ctrl</kbd>+<kbd>W</kbd>), Tout fermer et Fermer les autres demandent confirmation pour un document modifié. <b class="ui">Revenir à la version enregistrée</b> (<kbd>F12</kbd>) relit le dernier enregistrement. Informations sur le fichier… tient titre, auteur, mots-clés et copyright.</p>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Ce que l'écran ne fait pas encore s'ouvre dans l'application native : <b class="ui">Ouvrir dans l'app native…</b>, puis <b class="ui">Reprendre depuis l'app native</b> rapporte le document, calques compris.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Si le moteur doit être relancé, l'écran le dit et revient à l'accueil : les documents non enregistrés sont perdus. Enregistrez souvent. L'installeur vérifie chaque fichier du moteur ; Aide › <b class="ui">À propos du Photolab</b> donne sa version et les licences.</p></aside>
+
+<h3>Raccourcis</h3>
+<div class="tableau"><table>
+<tr><th>Geste</th><th>Raccourci</th></tr>
+<tr><td>Annuler, rétablir</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Maj</kbd>+<kbd>Z</kbd></td></tr>
+<tr><td>Nouveau, ouvrir, enregistrer</td><td><kbd>Ctrl</kbd>+<kbd>N</kbd>, <kbd>Ctrl</kbd>+<kbd>O</kbd>, <kbd>Ctrl</kbd>+<kbd>S</kbd></td></tr>
+<tr><td>Transformation libre</td><td><kbd>Ctrl</kbd>+<kbd>T</kbd></td></tr>
+<tr><td>Niveaux, courbes, teinte</td><td><kbd>Ctrl</kbd>+<kbd>L</kbd>, <kbd>Ctrl</kbd>+<kbd>M</kbd>, <kbd>Ctrl</kbd>+<kbd>U</kbd></td></tr>
+<tr><td>Taille de la pointe, dureté</td><td><kbd>[</kbd> <kbd>]</kbd>, <kbd>Maj</kbd>+<kbd>[</kbd> <kbd>Maj</kbd>+<kbd>]</kbd></td></tr>
+<tr><td>Rechercher une commande</td><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td></tr>
+</table></div>

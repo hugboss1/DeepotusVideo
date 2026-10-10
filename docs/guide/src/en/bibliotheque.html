@@ -1,0 +1,64 @@
+<p class="chapeau-chap">You will be able to find any image, sound or render, file it in a project, send it to the screen that needs it and clean up without losing anything. Everything is free and stays on your PC, except captions by a vision model (paid, quote shown).</p>
+
+<h3>The Library screen</h3>
+<figure class="scene" data-scene="bibliotheque/ecran"></figure>
+<p>Open <b class="ui">Library</b> in the rail. At the top, one tab per kind: <b class="ui">Images</b>, <b class="ui">Renders</b>, 3D, Sprites, Audio, <b class="ui">Favorites</b> and <b class="ui">Workbench</b>, where a model's versions are listed in lineage order. Everything the app produces arrives here: generators, Photolab, Vectorlab, uploads, phone.</p>
+<ol class="etapes">
+<li><strong>Source</strong> chips say where each asset comes from (Generator, Materials, Uploads, mobile…). One click filters.</li>
+<li><strong>Tag</strong> chips are counted; “3+” keeps images rated three and up. Each image also gets its dominant colour: the <strong>hue</strong> chips (twelve hues and neutral) filter by colour.</li>
+<li>Sort by <b class="ui">Most recent</b> or by size, then <b class="ui">Grid</b> or list: the list has ten sortable columns (name, source, size, date, dimensions, tags, rating, favourite, licence, hue) and a row opens the sheet.</li>
+<li>Each thumbnail shows the file's size and age; the star sets a favourite without opening the sheet, and the dots recall the rating.</li>
+</ol>
+
+<h3>An image's sheet</h3>
+<figure class="scene" data-scene="bibliotheque/fiche"></figure>
+<p>One click on a thumbnail opens its sheet. From top to bottom you find:</p>
+<div class="cartes">
+<article><i data-dz="dz-etat-note"></i><h4>Rating and tags</h4><p>A rating from 0 to 5, separate from the favourite, and free tags: type, then <b class="ui">Add</b>. Search covers tags.</p></article>
+<article><i data-dz="dz-media-apparitions"></i><h4>Parent and children</h4><p><b class="ui">Parent</b> shows the original image and the relation (crop, upscale, retouch…); children appear as clickable thumbnails.</p></article>
+<article><i data-dz="dz-edit-texte-capitales"></i><h4>Rights</h4><p>Licence (suggested from the source), author and link, then <b class="ui">Save</b>. An unknown licence is flagged in amber: check it before publishing.</p></article>
+<article><i data-dz="dz-media-texte"></i><h4>File, recipe, uses</h4><p>Dimensions, weight, format, dominant colour, source; the generator's recipe (prompt, style, model, seed); and every use: renders, posts, bible, shots, projects.</p></article>
+<article><i data-dz="dz-etat-rappel"></i><h4>Review comments</h4><p>Type, then <b class="ui">Comment</b> (or Enter). Each comment has a clickable status: to review, approved, rejected; for a sound, the mm:ss moment. They follow the asset when renamed or restored.</p></article>
+<article><i data-dz="dz-action-recherche-semantique"></i><h4>Similar images</h4><p><b class="ui">≈ Similar images</b> shows visually close images, thanks to the CLIP model installed on your PC.</p></article>
+</div>
+<p><b class="ui">Replay recipe</b> regenerates a generated image with its original recipe, seed included. It is paid: the price is shown and you confirm before the run; the new image arrives at the top of the list.</p>
+
+<h3>Send to another screen</h3>
+<figure class="scene" data-scene="bibliotheque/envoyer"></figure>
+<ol class="etapes">
+<li>In the sheet, click <b class="ui">Send to…</b>.</li>
+<li>Pick the screen: Studio, Quick (start image), Template, Chapter or Workshop, Editor, Cardforge, Sprite Lab, Scheduler… Three targets are specific to images: <strong>Photolab</strong> to retouch it, <strong>Vectorlab</strong> which creates a new document at its size, and <strong>Tile Lab</strong> which makes it a tile's source.</li>
+<li><b class="ui">Library project…</b> files the asset in a project: the ones already holding it are ticked (one click removes it), and <b class="ui">＋ New project…</b> creates one.</li>
+</ol>
+
+<h3>File by project</h3>
+<figure class="scene" data-scene="bibliotheque/projet"></figure>
+<p>The <strong>Project</strong> list at the top of the screen looks at a single project: every tab then only shows its assets. <b class="ui">＋ New project</b> creates one; a project can be renamed or deleted without touching its assets.</p>
+<div class="cartes">
+<article><i data-dz="dz-nav-projets"></i><h4>Active project</h4><p><b class="ui">Auto-file here</b>: everything you produce next (images, renders, 3D, sprites) is filed in it. The reminder stays on screen while it is active, and one click stops it.</p></article>
+<article><i data-dz="dz-action-epingler-mobile"></i><h4>On the phone</h4><p><b class="ui">Pin to the phone</b>: a single project is pinned, and it is the one the <a href="#mobile">mobile companion</a> shows.</p></article>
+<article><i data-dz="dz-etat-selection-multiple"></i><h4>Project status</h4><p>The <b class="ui">Status</b> button sorts its assets into edited, published, printed or unused.</p></article>
+</div>
+
+<h3>Search</h3>
+<figure class="scene" data-scene="bibliotheque/recherche"></figure>
+<p>The <b class="ui">Search</b> button opens the search bar, with three engines:</p>
+<ol class="etapes">
+<li><strong>Text</strong>: captions, tags, prompts, recipes, comments and names, ignoring accents and case. Free, instant.</li>
+<li><strong>Captions</strong>: a vision model describes images that have none, so you find them better. Paid: the quote is shown (images are sent to Google), the cap is checked, then progress counts the images done.</li>
+<li><strong>CLIP</strong>: searches by meaning (“a lighthouse at sunset”). <b class="ui">Install CLIP</b> downloads about 177 MB once, then indexing and search run on your PC, for free, sending nothing.</li>
+</ol>
+<p>The <b class="ui">Audio</b> tab mounts the Sounds drawer (tags, filters, sorting, actions) above the upload: see <a href="#son-vfx">Sound &amp; VFX</a>.</p>
+
+<h3>Clean up without losing anything</h3>
+<figure class="scene" data-scene="bibliotheque/nettoyage"></figure>
+<ol class="etapes">
+<li>Deleting an image, a sound or a render moves it to the <b class="ui">Trash</b>, never further.</li>
+<li><b class="ui">Cleanup</b> shows the weight per kind and groups of exact duplicates. <b class="ui">Tick extra copies</b> keeps the used copy (or the oldest); protected copies (favourite, use, project) stay greyed out. Confirm to move them to the trash.</li>
+<li>The <b class="ui">Trash</b> counts items and their weight, and flags those older than 30 days. <b class="ui">Restore</b> puts the asset back with its projects; if its name was taken, it gets a neighbouring name and says so.</li>
+<li>Emptying deletes permanently: old items, everything, or a single item, always after confirmation.</li>
+</ol>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Favourites are saved by the app, no longer by the browser: they follow you from screen to screen and through a <a href="#transfert">transfer</a>. Old browser favourites were imported once.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Only <b class="ui">Replay recipe</b> and vision-model captions cost money: price shown first, spending caps checked. Sorting, text search, CLIP, projects and cleanup are free.</p></aside>

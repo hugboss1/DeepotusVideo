@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "Un calque de réglage",
+    "en": "An adjustment layer"
+  },
+  "legende": {
+    "fr": "Onglet Ajustements : un clic pose un calque de réglage, modifiable à tout moment dans Propriétés.",
+    "en": "Adjustments tab: one click adds an adjustment layer, editable at any time in Properties."
+  },
+  "captures": [
+    {
+      "fr": "ajustements.fr.webp",
+      "en": "ajustements.en.webp"
+    },
+    {
+      "fr": "calque.fr.webp",
+      "en": "calque.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1235,
+        330
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Noir et blanc",
+        "en": "Black & White"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1264,
+        273,
+        174,
+        27
+      ],
+      "bulle": {
+        "fr": "Un calque de réglage, non destructif",
+        "en": "A non-destructive adjustment layer"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1165,
+        302,
+        52,
+        29
+      ],
+      "bulle": {
+        "fr": "Ses curseurs dans Propriétés",
+        "en": "Its sliders in Properties"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1235,
+        330
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Noir et blanc",
+        "en": "Black & White"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1271,
+        273,
+        167,
+        27
+      ],
+      "bulle": {
+        "fr": "Un calque de réglage, non destructif",
+        "en": "A non-destructive adjustment layer"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1165,
+        302,
+        39,
+        29
+      ],
+      "bulle": {
+        "fr": "Ses curseurs dans Propriétés",
+        "en": "Its sliders in Properties"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

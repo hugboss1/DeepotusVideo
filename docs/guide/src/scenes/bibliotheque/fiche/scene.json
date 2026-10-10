@@ -1,0 +1,142 @@
+{
+  "titre": {
+    "fr": "La fiche d'une image",
+    "en": "An image's sheet"
+  },
+  "legende": {
+    "fr": "Un clic sur une vignette ouvre sa fiche : note, tags, lignée, droits, fichier, usages et commentaires.",
+    "en": "One click on a thumbnail opens its sheet: rating, tags, lineage, rights, file, uses and comments."
+  },
+  "captures": [
+    {
+      "fr": "grille.fr.webp",
+      "en": "grille.en.webp"
+    },
+    {
+      "fr": "fiche.fr.webp",
+      "en": "fiche.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        539,
+        838
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Ouvrez une image",
+        "en": "Open an image"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        435,
+        229,
+        167,
+        28
+      ],
+      "bulle": {
+        "fr": "Ses filles : recadrage, upscale…",
+        "en": "Its children: crop, upscale…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        334,
+        290,
+        76,
+        28
+      ],
+      "bulle": {
+        "fr": "Licence, auteur et lien",
+        "en": "Licence, author and link"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1244,
+        524,
+        94,
+        38
+      ],
+      "bulle": {
+        "fr": "Commentaires de revue",
+        "en": "Review comments"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        539,
+        838
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Ouvrez une image",
+        "en": "Open an image"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        439,
+        229,
+        167,
+        28
+      ],
+      "bulle": {
+        "fr": "Ses filles : recadrage, upscale…",
+        "en": "Its children: crop, upscale…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        334,
+        290,
+        76,
+        28
+      ],
+      "bulle": {
+        "fr": "Licence, auteur et lien",
+        "en": "Licence, author and link"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1255,
+        524,
+        83,
+        38
+      ],
+      "bulle": {
+        "fr": "Commentaires de revue",
+        "en": "Review comments"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

@@ -184,6 +184,10 @@ def _corpus(lang):
         for v in json.loads(f.read_text("utf-8")).values():
             if isinstance(v, dict) and v.get(lang):
                 morceaux.append(v[lang])
+    # menus générés du Photolab (t176) : libellés amont EN + FR, tels que l'écran les affiche dans chaque langue
+    for f in (RACINE / "frontend/photolab/donnees").glob("menus.json"):
+        for e in json.loads(f.read_text("utf-8"))["entrees"]:
+            morceaux.append(e.get(f"libelle_{lang}") or "")
     if lang == "fr":
         for motif in ("frontend/dist/assets/index-*.js", "frontend/*/index.html", "frontend/*/*.js", "frontend/shared/*.js"):
             morceaux += [p.read_text("utf-8", errors="replace") for p in RACINE.glob(motif)]

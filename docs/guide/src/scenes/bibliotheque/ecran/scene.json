@@ -1,0 +1,140 @@
+{
+  "titre": {
+    "fr": "L'écran Bibliothèque",
+    "en": "The Library screen"
+  },
+  "legende": {
+    "fr": "Les onglets par sorte, le projet regardé, les puces de tags et de teinte, puis la grille.",
+    "en": "Tabs by kind, the project you are looking at, tag and hue chips, then the grid."
+  },
+  "captures": [
+    {
+      "fr": "ecran.fr.webp",
+      "en": "ecran.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        357,
+        66,
+        80,
+        38
+      ],
+      "bulle": {
+        "fr": "Un onglet par sorte de média",
+        "en": "One tab per kind of media"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        281,
+        161,
+        192,
+        38
+      ],
+      "bulle": {
+        "fr": "Regardez un seul projet",
+        "en": "Look at a single project"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        244,
+        267,
+        109,
+        34
+      ],
+      "bulle": {
+        "fr": "Un clic sur un tag filtre la grille",
+        "en": "One click on a tag filters the grid"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        609,
+        199,
+        73,
+        36
+      ],
+      "bulle": {
+        "fr": "Grille ou liste triable",
+        "en": "Grid or sortable list"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        313,
+        66,
+        80,
+        38
+      ],
+      "bulle": {
+        "fr": "Un onglet par sorte de média",
+        "en": "One tab per kind of media"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        287,
+        161,
+        192,
+        38
+      ],
+      "bulle": {
+        "fr": "Regardez un seul projet",
+        "en": "Look at a single project"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        244,
+        267,
+        109,
+        34
+      ],
+      "bulle": {
+        "fr": "Un clic sur un tag filtre la grille",
+        "en": "One click on a tag filters the grid"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        556,
+        199,
+        66,
+        36
+      ],
+      "bulle": {
+        "fr": "Grille ou liste triable",
+        "en": "Grid or sortable list"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

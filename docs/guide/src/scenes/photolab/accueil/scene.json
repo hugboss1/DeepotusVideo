@@ -1,0 +1,70 @@
+{
+  "titre": {
+    "fr": "Ouvrir une image dans le Photolab",
+    "en": "Open an image in Photolab"
+  },
+  "legende": {
+    "fr": "L'accueil propose un nouveau document ou une image de la Bibliothèque ; un dépôt de fichier marche aussi.",
+    "en": "The welcome screen offers a new document or a Library image; dropping a file works too."
+  },
+  "captures": [
+    {
+      "fr": "accueil.fr.webp",
+      "en": "accueil.en.webp"
+    },
+    {
+      "fr": "choix.fr.webp",
+      "en": "choix.en.webp"
+    },
+    {
+      "fr": "document.fr.webp",
+      "en": "document.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        598,
+        531
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Une image de la Bibliothèque",
+        "en": "An image from the Library"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.2,
+      "curseur": [
+        511,
+        503
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Choisissez-la",
+        "en": "Pick it"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        0,
+        62,
+        1440,
+        38
+      ],
+      "bulle": {
+        "fr": "Un onglet par document ouvert",
+        "en": "One tab per open document"
+      }
+    }
+  ]
+}
