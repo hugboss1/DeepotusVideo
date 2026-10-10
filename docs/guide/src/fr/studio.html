@@ -1,23 +1,51 @@
-<h3 id="c9">Composer avec le Studio (éditeur de nœuds)</h3>
-<p>Le <strong>Studio</strong> est l'atelier avancé : vous reliez des <em>nœuds</em> (sources → générateurs → montage → rendu) comme une recette visuelle. N'ayez pas peur — on commence toujours par un graphe de démarrage tout prêt.</p>
-<img class="shot" src="img/studio.png" alt="Studio">
-<p class="cap">Studio : la palette de nœuds à gauche, le canevas au centre, l'inspecteur à droite. En haut : <strong>New</strong>, <strong>Preview</strong>, <strong>Run</strong>.</p>
-<h4>Les gestes de base</h4>
-<div class="step"><span class="n">1</span><div><strong>Partir d'un modèle :</strong> dans la palette, section <em>Starter graphs</em>, cliquez « Seedance solo », « Avatar post », « UGC + animation », « News reel » ou « Timeline montage ».</div></div>
-<div class="step"><span class="n">2</span><div><strong>Partir de zéro :</strong> bouton <strong>New</strong> (barre du haut) → un canevas vierge avec juste le nœud de sortie <em>Render</em>. Le panneau de droite affiche le <strong>nom du graphe</strong>, éditable.</div></div>
-<div class="step"><span class="n">3</span><div><strong>Ajouter un nœud — glisser-déposer :</strong> attrapez n'importe quelle entrée de la palette (Image, Seedance, UGC video, Piste audio, Text…) et <strong>lâchez-la sur le canevas</strong>. Le nœud apparaît à l'endroit du lâcher.</div></div>
-<div class="step"><span class="n">4</span><div><strong>Relier :</strong> tirez un trait d'un point de sortie (à droite d'un nœud) vers un point d'entrée (à gauche d'un autre). <strong>Déplacer :</strong> glissez le corps d'un nœud. <strong>Supprimer :</strong> la croix <strong>×</strong> dans l'en-tête du nœud (elle retire aussi ses connexions).</div></div>
-<div class="step"><span class="n">5</span><div><strong>Vérifier puis lancer :</strong> <em>Preview</em> montre les entrées/le rendu ; <em>Run</em> compile le graphe et lance le vrai rendu (suivez-le dans le Job Dock).</div></div>
-<div class="tip">Quand vous choisissez un asset dans un nœud (image de la Library, render existant, votre clip UGC, une piste audio), une <strong>miniature peuple le nœud</strong> : vous voyez d'un coup d'œil ce que l'enchaînement va produire.</div>
+<p class="chapeau-chap">Vous saurez composer une vidéo pièce par pièce en reliant des nœuds, la voir avant de payer, ne jamais repayer ce qui est déjà fait, et réutiliser un graphe comme une recette. Payant selon les nœuds ; le coût du graphe s'affiche avant de lancer.</p>
 
-<h3 id="c15">Studio — Effets, masques &amp; aperçu</h3>
-<p>Deux ajouts au node editor (Studio).</p>
-<h4>Le node « Effects / Mask »</h4>
-<p>Glissez le node <strong>Effects / Mask</strong> (section <em>Composition</em>) et branchez sa sortie sur le nouveau port <strong>fx</strong> du node <strong>Render</strong>. Le panneau affiche une <strong>grille de miniatures</strong> pour choisir l'effet d'un coup d'œil.</p>
-<p><strong>Effets disponibles :</strong> <strong>LUT / Grade</strong> (étalonnages nommés — Teal&amp;Orange, Cyberpunk, Deep-sea, Noir, Vintage…), <strong>VHS</strong> (déplacement de lignes séquençable, intensité + vitesse), <strong>Colorisation</strong> (Sépia, Duotone, Matrix, Red-alert…), <strong>Dégradés</strong> paramétrables (2 couleurs, angle, opacité, fusion) — plus les classiques modernes : grain, vignette, aberration chromatique, glitch, bloom, halation, scanlines/CRT, letterbox ciné, old film, netteté, flou, dreamy, pixelate, camera shake, miroir, négatif.</p>
-<p>Dans <strong>« Appliquer sur »</strong>, choisissez <em>Tout le rendu</em> (post-traitement global) ou <strong>un node précis</strong> (le calque ciblé). Ajoutez plusieurs nodes Effects pour cumuler des effets ou viser des calques différents.</p>
-<div class="step"><span class="n">1</span><div>+ Effet → cliquez une miniature → réglez l'intensité (et le preset / la vitesse selon l'effet).</div></div>
-<div class="step"><span class="n">2</span><div>Reliez la sortie au port <strong>fx</strong> du Render, choisissez la cible, puis <em>Preview</em> ou <em>Run</em>.</div></div>
-<h4>Bouton « Preview » — voir avant de payer</h4>
-<p>Le bouton <strong>Preview</strong> (barre du haut) produit un rendu <strong>gratuit et rapide</strong> de la composition finale : les clips <strong>Seedance/HeyGen</strong> pas encore générés sont remplacés par leur <strong>image source</strong>. Vous visualisez le cadrage, les calques, les <strong>overlays et les effets</strong> exactement comme au rendu final — <em>avant</em> le <strong>Run</strong> qui, lui, consomme des crédits.</p>
-<div class="warn">Les overlays texte (Text overlay / Ticker / Separator) s'appliquent désormais sur <strong>toutes</strong> les compositions au node Render (UGC, montage, spatial compose), pas seulement le spatial compose.</div>
+<h3>L'écran du Studio</h3>
+<figure class="scene" data-scene="studio/graphe"></figure>
+<p>À gauche, la palette des <strong>nœuds</strong> (touche <kbd>/</kbd>) et les <strong>graphes de départ</strong>. Au centre, le graphe. À droite, l'inspecteur du nœud choisi, que l'on peut replier. En haut, la barre du graphe : <b class="ui">Nouveau</b>, <b class="ui">Enregistrer</b>, <b class="ui">Recette</b>, <b class="ui">Importer</b>, le format, <b class="ui">Aperçu</b>, le coût estimé et <b class="ui">Exécuter</b>.</p>
+
+<h3>Composer un graphe</h3>
+<ol class="etapes">
+<li>Partez d'un graphe de départ (<strong>Seedance solo</strong>, <strong>Post avatar</strong>, <strong>UGC + animation</strong>, <strong>Post reel News</strong>, <strong>Montage sur timeline</strong>) ou d'une page blanche avec <b class="ui">Nouveau</b>.</li>
+<li>Glissez des nœuds depuis la palette : sources (image, texte, votre vidéo), générateurs (Seedance, avatar HeyGen, images), audio, montage, composition, sortie.</li>
+<li>Reliez une sortie, à droite d'un nœud, à une entrée, à gauche d'un autre. Cliquez un nœud pour le régler dans l'inspecteur.</li>
+<li><b class="ui">Aperçu</b> calcule gratuitement la composition finale : les clips pas encore générés y sont remplacés par leur image.</li>
+<li>Lisez le coût estimé, puis <b class="ui">Exécuter</b>. Ce montant part comme plafond : le rendu ne peut pas coûter plus. <b class="ui">Enregistrer</b> garde le graphe sous un nom.</li>
+</ol>
+
+<h3>Ne jamais repayer ce qui est fait</h3>
+<p>Le rendu payé d'un nœud Seedance ou HeyGen est <strong>épinglé</strong> automatiquement : tant que sa demande ne change pas, il est réutilisé gratuitement, et le coût estimé dit quels nœuds le sont.</p>
+<div class="cartes">
+<article><i data-dz="dz-etat-epingle"></i><h4>Les huit derniers rendus</h4><p>L'inspecteur liste les derniers rendus du nœud ; <b class="ui">Utiliser</b> choisit celui qui alimente la suite.</p></article>
+<article><i data-dz="dz-action-reessayer"></i><h4>Régénérer</h4><p>Pour un nouveau tirage payant malgré l'épingle, demandez explicitement la régénération du nœud.</p></article>
+</div>
+
+<h3>Réutiliser un graphe comme recette</h3>
+<ol class="etapes">
+<li><b class="ui">Recette</b> fige le graphe : ses images et ses textes deviennent des trous à remplir.</li>
+<li>Lancez la recette avec de nouvelles valeurs : un devis s'affiche, vous confirmez. Les nœuds inchangés sont réutilisés gratuitement.</li>
+<li>Depuis une image de la Bibliothèque, <strong>Envoyer vers</strong> propose aussi de lancer une recette sur elle.</li>
+</ol>
+
+<h3>Aller plus loin</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-duel"></i><h4>Duel de moteurs</h4><p>Sur un nœud de génération d'images, le même prompt part sur deux modèles après accord sur le coût ; vous comparez côte à côte et gardez le gagnant.</p></article>
+<article><i data-dz="dz-calque-masque"></i><h4>Effets et masques</h4><p>Le nœud Effets / Masque, branché sur l'entrée fx du Rendu : étalonnages, VHS, colorisation…, sur tout le rendu ou un seul calque.</p></article>
+<article><i data-dz="dz-etat-ia"></i><h4>Champs IA</h4><p>Un champ au liseré coloré est envoyé à une IA. Sa pastille montre le modèle et son prix ; son micro dicte votre texte.</p></article>
+<article><i data-dz="dz-media-voix"></i><h4>Voix et mixage</h4><p>Le nœud Voix off choisit Voicebox ou ElevenLabs ; le Mix audio baisse la musique sous la voix (léger, moyen, fort).</p></article>
+<article><i data-dz="dz-action-importer"></i><h4>Importer un graphe</h4><p><b class="ui">Importer</b> ouvre un graphe JSON ; les sources manquantes sont listées et rien n'est enregistré sans votre accord.</p></article>
+<article><i data-dz="dz-media-image-suivante"></i><h4>Image par image</h4><p>Le tiroir du résultat avance image par image avec les touches <kbd>,</kbd> et <kbd>.</kbd>.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Une génération vidéo au-dessus du coût annoncé ou de votre plafond par requête est refusée avant tout appel. La durée générée est plafonnée par les Réglages ; le reste est prolongé sur votre PC.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Les nouveaux nœuds Seedance naissent avec Seedance 2.5 ; un graphe enregistré garde son modèle. Le modèle par défaut se change dans <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Fournisseurs par défaut</b></span>.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Si le navigateur ne sait pas dicter, l'enregistrement peut être transcrit par le serveur : c'est payant, un devis s'affiche et « Non » est le choix par défaut.</p></aside>
+
+<h3>Raccourcis</h3>
+<div class="tableau"><table>
+<tr><th>Touche</th><th>Effet</th></tr>
+<tr><td><kbd>/</kbd></td><td>Ouvre la palette des nœuds</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Entrée</kbd></td><td>Exécute le graphe</td></tr>
+<tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>Image précédente, image suivante dans le résultat</td></tr>
+</table></div>

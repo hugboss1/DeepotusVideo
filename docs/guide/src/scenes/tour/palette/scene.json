@@ -1,0 +1,36 @@
+{
+  "titre": {
+    "fr": "La commande rapide",
+    "en": "The quick command"
+  },
+  "legende": {
+    "fr": "Ctrl+K ouvre la commande rapide : tapez quelques lettres pour aller à un écran ou lancer une action.",
+    "en": "Ctrl+K opens the quick command: type a few letters to go to a screen or start an action."
+  },
+  "captures": [
+    {
+      "fr": "palette.fr.webp",
+      "en": "palette.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        497,
+        107,
+        432,
+        32
+      ],
+      "bulle": {
+        "fr": "Tapez, puis Entrée",
+        "en": "Type, then Enter"
+      }
+    }
+  ]
+}

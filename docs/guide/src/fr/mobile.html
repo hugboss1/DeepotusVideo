@@ -1,0 +1,37 @@
+<p class="chapeau-chap">Vous saurez relier votre téléphone au PC, emporter vos posts et vos chapitres dans la poche, et couper l'accès d'un téléphone perdu. Quinze minutes ; il faut l'application compagnon Deepotus sur le téléphone et le même Wi-Fi.</p>
+
+<h3>Avant de commencer</h3>
+<p>Par défaut, l'application n'écoute que ce PC : aucun autre appareil ne peut l'atteindre. Pour l'ouvrir au Wi-Fi de la maison, remplacez <code>HOST=127.0.0.1</code> par <code>HOST=0.0.0.0</code> dans le fichier <code>.env</code> du dossier de données, puis relancez l'application. Windows demandera d'autoriser Python dans le pare-feu.</p>
+
+<h3>Appairer le téléphone</h3>
+<figure class="scene" data-scene="mobile/appareils"></figure>
+<ol class="etapes">
+<li>Ouvrez <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Appareils</b></span>. La mention <strong>ce PC seulement</strong> ou <strong>réseau local ouvert</strong> dit si le téléphone pourra vous joindre.</li>
+<li>Cliquez <b class="ui">Appairer un appareil</b> : un QR s'affiche, valable cinq minutes, pour un seul appareil.</li>
+<li>Dans l'application du téléphone, ouvrez <strong>Appairer</strong> et scannez le QR. Il se ferme tout seul une fois lu.</li>
+<li>Pour donner vos clés au téléphone, exportez l'archive chiffrée du <b class="ui">Coffre</b> et ouvrez-la dans l'application du téléphone, avec son mot de passe.</li>
+</ol>
+<p>Cinq appareils au plus. Un téléphone appairé <strong>lit</strong> ce que le PC produit ; il ne peut ni écrire sur le PC, ni dépenser par le PC, ni voir vos clés.</p>
+
+<h3>Ce que le téléphone fait</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-synchroniser"></i><h4>Synchroniser</h4><p>Le téléphone récupère la Bibliothèque et ses images, et reprend un téléchargement interrompu.</p></article>
+<article><i data-dz="dz-action-importer"></i><h4>Déposer des images au PC</h4><p>Vos photos arrivent dans la Bibliothèque avec la source « mobile », sans doublon.</p></article>
+<article><i data-dz="dz-nav-scheduler"></i><h4>Le lot de la semaine</h4><p>Emportez les posts validés et publiez-les sur Telegram ou X depuis le téléphone. Un post emporté n'est plus publié par le PC.</p></article>
+<article><i data-dz="dz-nav-boite-reception"></i><h4>Boîte de réception</h4><p>Ce que vous partagez vers Deepotus arrive ici ; les images partent au PC.</p></article>
+<article><i data-dz="dz-nav-chapitres"></i><h4>Chapitres hors ligne</h4><p>Emportez un chapitre, écrivez sans réseau, rendez-le au PC.</p></article>
+<article><i data-dz="dz-media-generer-image"></i><h4>Générer des images</h4><p>Le coût est dit avant chaque génération, aux tarifs de votre PC, et compté dans vos plafonds.</p></article>
+</div>
+
+<h3>Un chapitre emporté sur le téléphone</h3>
+<p>Tant qu'un chapitre est sur le téléphone, il est en lecture seule sur le PC, avec un bandeau. Vous pouvez le reprendre de force sur le PC. Si les deux versions se contredisent, le texte du téléphone reste au journal, à copier ou à reprendre : rien n'est perdu.</p>
+
+<h3>Retirer un appareil</h3>
+<ol class="etapes">
+<li>Dans <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Appareils</b></span>, cliquez <b class="ui">Révoquer</b> sur la ligne du téléphone et confirmez.</li>
+<li>L'accès est coupé tout de suite ; les posts et les chapitres qu'il avait emportés reviennent au PC.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Téléphone perdu ? Révoquer ne suffit pas : vos clés ont voyagé dans l'archive. Régénérez-les chez chaque fournisseur ; la page Appareils donne le lien de chaque console.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Le téléphone est prévenu quand un rendu finit ou échoue, quand un post est publié ou attend un geste, et quand un plafond approche.</p></aside>

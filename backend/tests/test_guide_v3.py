@@ -6,6 +6,7 @@ Témoin : le guide v2.8.0 (commit e7fb1ac1) n'avait ni src/, ni index.html (/gui
 s'écrivait à la main.
 Run : & $PY tests/test_guide_v3.py   (depuis backend/, python EMBARQUÉ)"""
 import json
+from html import unescape as html_unescape
 import pathlib
 import re
 import subprocess
@@ -174,6 +175,42 @@ for cid in v3:
         check(f"6.2 [{l}] {cid} : pas de capture fixe héritée (img.shot) — des scènes", 'class="shot"' not in f)
 print(f"  ({len(v3)} chapitre(s) en état v3, {len(publies['fr']) - len(v3)} migré(s) de la v2.8.0)")
 
+
+def _corpus(lang):
+    """Les textes que l'utilisateur peut LIRE à l'écran : dictionnaires i18n de la langue, et en français les sources
+    de l'interface (bundle React, pages des labs) dont le français est la langue de référence."""
+    morceaux = []
+    for f in (RACINE / "frontend/shared/i18n").glob("*.json"):
+        for v in json.loads(f.read_text("utf-8")).values():
+            if isinstance(v, dict) and v.get(lang):
+                morceaux.append(v[lang])
+    if lang == "fr":
+        for motif in ("frontend/dist/assets/index-*.js", "frontend/*/index.html", "frontend/*/*.js", "frontend/shared/*.js"):
+            morceaux += [p.read_text("utf-8", errors="replace") for p in RACINE.glob(motif)]
+    else:
+        for motif in ("frontend/dist/assets/index-*.js",):
+            morceaux += [p.read_text("utf-8", errors="replace") for p in RACINE.glob(motif)]
+        # labs PAS ENCORE traduits : en anglais, l'écran montre encore leurs libellés français (le guide le dit)
+        for lab in NON_TRADUITS:
+            morceaux += [p.read_text("utf-8", errors="replace") for p in (RACINE / "frontend" / lab).glob("*.*")
+                         if p.suffix in (".js", ".html")]
+    # la planche des icônes du guide a ses propres boutons (filtres de famille, Imprimer) : ils existent aussi à l'écran
+    p = GUIDE / f"lexique-icones-{lang}.html"
+    if p.is_file():
+        morceaux.append(p.read_text("utf-8"))
+    return "\n".join(morceaux).replace("’", "'")
+
+
+NON_TRADUITS = ("atelier",)                    # à retirer quand le lab passe par les lots Traduction
+CORPUS = {l: _corpus(l) for l in ("fr", "en")}
+TOLERES = {"Deepotus Video Gen", "FR", "EN"}            # nom de l'icône du Bureau ; boutons de langue du pied du rail
+for cid in v3:
+    for l in ("fr", "en"):
+        f = (SRC / l / f"{cid}.html").read_text("utf-8")
+        absents = sorted({u for u in (html_unescape(x).replace("’", "'") for x in re.findall(r'<b class="ui">(.*?)</b>', f))
+                          if u not in TOLERES and u not in CORPUS[l]})
+        check(f"6.3 [{l}] {cid} : chaque libellé d'interface cité existe à l'écran", not absents, absents)
+
 print("\n[7] lexique imprimable des icônes (t170)")
 LEX = {e["cle"]: e for e in json.loads((RACINE / "docs/icones/suite-finale/lexique.json").read_text("utf-8"))}
 TXT = {}
@@ -203,8 +240,13 @@ citees = set(re.findall(r'data-fiche="([^"]+)"', (SRC / "fr" / "icones.html").re
 check(f"7.8 la galerie du chapitre montre TOUTES les fiches animées des labs ({len(fiches)})", citees == fiches,
       sorted(fiches ^ citees))
 en = json.loads((SRC / "fiches-en.json").read_text("utf-8"))
-check("7.9 chaque fiche a son titre et sa phrase en anglais", set(en) >= fiches and
-      all(en[f]["titre"] and en[f]["phrase"] for f in fiches), sorted(fiches - set(en)))
+idx_en = {f"{lab}/{e['id']}": e for lab in ("vectorlab", "photolab", "spritelab", "tilelab")
+          for e in json.loads((RACINE / "frontend" / lab / "aide" / "index.json").read_text("utf-8"))}
+sans_en = sorted(f for f in fiches if not idx_en[f].get("titre_en") and not (f in en and en[f]["titre"] and en[f]["phrase"]))
+check("7.9 chaque fiche a son titre et sa phrase en anglais (ceux du lab d'abord, sinon src/fiches-en.json)",
+      not sans_en, sans_en)
+doublons = sorted(f for f in en if f in idx_en and idx_en[f].get("titre_en"))
+check("7.10 src/fiches-en.json ne double pas une fiche que son lab a traduite (le lab fait foi)", not doublons, doublons)
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "La galerie des modèles",
+    "en": "The template gallery"
+  },
+  "legende": {
+    "fr": "Une carte par mise en page ; Nouveau dans un format, ou Rejouer en un autre format.",
+    "en": "One card per layout; New in a format, or Reflow to another format."
+  },
+  "captures": [
+    {
+      "fr": "galerie.fr.webp",
+      "en": "galerie.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        324,
+        62,
+        56,
+        44
+      ],
+      "bulle": {
+        "fr": "Une mise en page vierge dans le format voulu",
+        "en": "A blank layout in the format you want"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        557,
+        62,
+        50,
+        44
+      ],
+      "bulle": {
+        "fr": "La même mise en page, dans un autre format",
+        "en": "The same layout, in another format"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        337,
+        70,
+        37,
+        28
+      ],
+      "bulle": {
+        "fr": "Une mise en page vierge dans le format voulu",
+        "en": "A blank layout in the format you want"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        552,
+        62,
+        46,
+        44
+      ],
+      "bulle": {
+        "fr": "La même mise en page, dans un autre format",
+        "en": "The same layout, in another format"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

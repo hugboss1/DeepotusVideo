@@ -1,33 +1,44 @@
-<p>Double-click the <strong>Deepotus Video Gen</strong> icon on the Desktop. The app starts silently (no black window), then your browser opens on the studio. On first launch a 5-step wizard guides you: persona, providers, channels. Replay it anytime (command palette <span class="k">⌘K</span> → "Replay onboarding").</p>
-<img class="shot" src="img/onboarding.png" alt="First-run wizard">
-<p class="cap">The first-run wizard. The "Generators" step lists your providers, including the <strong>Ollama (local LLM)</strong> option.</p>
-<div class="step"><span class="n">1</span><div>The app is <strong>BYO keys</strong>: you use your own API accounts. Only one is <strong>required</strong> to start — <strong>fal.ai</strong> (it makes both images <em>and</em> video clips). Create it at <code>fal.ai/dashboard/keys</code>.</div></div>
-<div class="step"><span class="n">2</span><div>Paste your keys in <strong>Settings → API keys</strong>, hit <em>Save</em>, then restart the app. The pills top-right (<code>fal</code> / <code>heygen</code> / <code>voice</code>) turn <strong>green</strong> when a key is active.</div></div>
-<img class="shot" src="img/settings-keys.png" alt="Settings - API keys">
-<p class="cap">Settings → API keys: each key has a field, a status and a Save button. At the bottom, the <strong>Local LLM (Ollama)</strong> card (chapter 11).</p>
-<h3>How much does it cost? (ballpark)</h3>
-<table>
-  <tr><th>Action</th><th>Service</th><th>Indicative cost</th></tr>
-  <tr><td>Create an image</td><td>fal.ai (FLUX)</td><td>≈ $0.003</td></tr>
-  <tr><td>10 s cinematic clip</td><td>fal.ai (Seedance)</td><td>≈ $0.30–0.60</td></tr>
-  <tr><td>1 min talking avatar</td><td>HeyGen</td><td>≈ 6 credits</td></tr>
-  <tr><td>Voiceover / narration</td><td>ElevenLabs</td><td>≈ per characters · free tier available</td></tr>
-  <tr><td>Upload your own video / sound</td><td>—</td><td>free</td></tr>
-  <tr><td>News summary / marketing plan</td><td>Anthropic / OpenAI / Gemini / Ollama</td><td>≈ $0.01 / free (Ollama)</td></tr>
-  <tr><td>Publish to Telegram / X</td><td>—</td><td>free / your X credits</td></tr>
-</table>
+<p class="chapeau-chap">You will launch the app for the first time, pick its language, know what each use costs and keep it up to date. Ten minutes, free.</p>
 
-<h3>Which key unlocks what?</h3>
-<table>
-  <tr><th>API key</th><th>Required?</th><th>What it unlocks</th></tr>
-  <tr><td><strong>fal.ai</strong></td><td><strong>Required</strong></td><td>Images (FLUX) <em>and</em> video clips (Seedance) — the only key you need to start.</td></tr>
-  <tr><td><strong>HeyGen</strong></td><td>Optional</td><td>Talking avatars (video type ②) and avatar + clip compositions.</td></tr>
-  <tr><td><strong>ElevenLabs</strong></td><td>Optional</td><td>Voiceover / narration — for your UGC videos <strong>and the Episodes feature</strong> (chapter 7), saved straight to the audio Library.</td></tr>
-  <tr><td><strong>Anthropic, OpenAI or Gemini</strong><br>(any one is enough)</td><td>Optional</td><td>News summaries, marketing plans <strong>and genuinely AI-written scripts</strong> (News, Studio &amp; Episode storyboards). Without a key: deterministic brand-template version.</td></tr>
-  <tr><td><strong>Ollama</strong> (local LLM)</td><td>Optional</td><td>Same AI uses as above, <strong>100% local and free</strong> (chapter 11).</td></tr>
-  <tr><td><strong>X</strong> (4 keys)</td><td>Optional</td><td>Auto-publishing to X/Twitter (chapter 12).</td></tr>
-  <tr><td><strong>Telegram</strong> (bot token)</td><td>Optional</td><td>Auto-publishing to a Telegram channel.</td></tr>
-</table>
-<p class="cap">Tip: start with <strong>fal.ai</strong> alone, then add keys as you explore avatars, voiceover, AI and publishing.</p>
+<h3>First launch</h3>
+<ol class="etapes">
+<li>During installation, pick the language: <strong>French</strong> or <strong>English</strong>. It becomes the language of the whole app.</li>
+<li>Double-click the <b class="ui">Deepotus Video Gen</b> desktop icon. The app starts without a black window, then your browser opens on the studio.</li>
+<li>On the very first launch, a five-step welcome introduces the studio and lets you pick a persona, your generation providers and the networks you publish to.</li>
+<li>Set at least one key, the <strong>fal.ai</strong> one: it makes pictures and video clips. The chapter <a href="#cles">Connect your keys</a> shows how.</li>
+</ol>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>The welcome can be replayed at any time from the quick command (<kbd>Ctrl</kbd>+<kbd>K</kbd>): <b class="ui">Replay onboarding</b>.</p></aside>
 
-<div class="warn">Costs are billed by your providers, not the app. Watch your credits on their dashboards. Your keys, files and database stay <strong>on your machine</strong> (<code>%LOCALAPPDATA%\DeepotusVideoGenData</code>) — they survive updates and reinstalls.</div>
+<h3>Switch language</h3>
+<figure class="scene" data-scene="installer/langue"></figure>
+<ol class="etapes">
+<li>Open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Provider defaults</b></span>.</li>
+<li>In <b class="ui">Interface language</b>, pick <strong>Français</strong> or <strong>English</strong>. The page reloads in the chosen language.</li>
+</ol>
+<p>Translated: the sidebar, Settings, the Library, Quick, News, the Scheduler, the Studio, Templates, Episodes, the editor, Sound &amp; VFX, subtitles, machine transfer and every confirmation dialog. Lists sent by the server (effects, transitions, presets) also arrive in the chosen language. The labs (Vectorlab, Photolab, Card Forge…) are being translated one by one; meanwhile their known texts are translated on display. What you type yourself is never translated.</p>
+
+<h3>What each use costs</h3>
+<p>The app is free. Only AI generations cost money, billed by the provider of the key. Rough figures at default rates:</p>
+<div class="tableau"><table>
+<tr><th>Action</th><th>Provider</th><th>Indicative cost</th></tr>
+<tr><td>Create a picture</td><td>fal.ai (FLUX)</td><td><span class="prix">≈ $0.003</span></td></tr>
+<tr><td>10 s video clip</td><td>fal.ai (Seedance 2.5, 720p)</td><td><span class="prix">≈ $4.73</span></td></tr>
+<tr><td>Talking avatar, 1 min</td><td>HeyGen</td><td><span class="prix">≈ $0.24</span></td></tr>
+<tr><td>Voiceover</td><td>ElevenLabs</td><td>per character, free tier available</td></tr>
+<tr><td>News summary, post plan</td><td>Anthropic, OpenAI, Gemini or Ollama</td><td>a few cents, free with Ollama</td></tr>
+<tr><td>Import your videos, sounds, pictures</td><td>none</td><td>free</td></tr>
+</table></div>
+<p>Your real rates go into <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Pricing &amp; budget</b></span>; see <a href="#budget">Keep spending under control</a>.</p>
+
+<h3>Keep the app up to date</h3>
+<figure class="scene" data-scene="installer/maj"></figure>
+<ol class="etapes">
+<li>Once a day, the app checks whether a new version is published. It never blocks anything.</li>
+<li>When there is one, a card announces it: <b class="ui">Download</b> fetches the installer and shows where it is saved, <b class="ui">Later</b> hides the card for that version, <b class="ui">Notes</b> tells what changes.</li>
+<li>To check right now: <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Diagnostics</b></span>, <b class="ui">Check</b> button.</li>
+<li>Close the app, run the downloaded installer: nothing is installed on its own.</li>
+</ol>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Your keys, files and database live in the <code>%LOCALAPPDATA%\DeepotusVideoGenData</code> folder, apart from the program: they survive updates and reinstalls.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Start with the fal.ai key alone, then add avatars, voices and AI as you go. Set a monthly cap from day one: see <a href="#budget">Keep spending under control</a>.</p></aside>

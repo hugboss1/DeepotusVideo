@@ -1,0 +1,110 @@
+{
+  "titre": {
+    "fr": "Le Studio",
+    "en": "The Studio"
+  },
+  "legende": {
+    "fr": "La palette des nœuds, le graphe, l'inspecteur ; en haut, l'aperçu gratuit, le coût et Exécuter.",
+    "en": "The nodes palette, the graph, the inspector; at the top, the free preview, the cost and Run."
+  },
+  "captures": [
+    {
+      "fr": "graphe.fr.webp",
+      "en": "graphe.en.webp"
+    }
+  ],
+  "taille": [
+    1920,
+    1080
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        240,
+        139,
+        244,
+        27
+      ],
+      "bulle": {
+        "fr": "Partez d'un graphe tout prêt",
+        "en": "Start from a ready-made graph"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1406,
+        61,
+        90,
+        38
+      ],
+      "bulle": {
+        "fr": "Aperçu : voir avant de payer",
+        "en": "Preview: see before paying"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "curseur": [
+        1608,
+        80
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Exécuter : le coût affiché devient le plafond",
+        "en": "Run: the cost shown becomes the cap"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        240,
+        139,
+        244,
+        27
+      ],
+      "bulle": {
+        "fr": "Partez d'un graphe tout prêt",
+        "en": "Start from a ready-made graph"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1484,
+        61,
+        94,
+        38
+      ],
+      "bulle": {
+        "fr": "Aperçu : voir avant de payer",
+        "en": "Preview: see before paying"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "curseur": [
+        1677,
+        80
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Exécuter : le coût affiché devient le plafond",
+        "en": "Run: the cost shown becomes the cap"
+      }
+    }
+  ],
+  "taille_en": [
+    1920,
+    1080
+  ]
+}

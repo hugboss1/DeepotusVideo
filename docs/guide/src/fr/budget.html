@@ -1,0 +1,32 @@
+<p class="chapeau-chap">Vous saurez ce que vous dépensez, fixer un plafond par mois et par moteur, et décider vous-même quand un rendu peut le dépasser. Cinq minutes, gratuit.</p>
+
+<h3>Où voir ce que vous dépensez</h3>
+<p>Le compteur en dollars de la barre du haut montre le total du mois. Un clic ouvre <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Tarifs et budget</b></span>, où tout se règle.</p>
+
+<h3>Poser vos tarifs et vos plafonds</h3>
+<figure class="scene" data-scene="budget/plafonds"></figure>
+<ol class="etapes">
+<li>En haut de <b class="ui">Tarifs et budget</b>, saisissez les tarifs de vos fournisseurs (prix d'une image, d'une seconde de vidéo, d'un caractère de voix…). Les coûts affichés dans Quick, le Studio et le Planificateur deviennent justes. <b class="ui">Enregistrer les tarifs</b>.</li>
+<li><strong>Plafond vidéo par requête</strong> borne le coût d'une seule génération vidéo ; <strong>Secondes générées max par clip</strong> borne sa durée.</li>
+<li>Plus bas, <strong>Plafonds du mois</strong> : un plafond global et un par moteur (fal, OpenAI, Anthropic, ElevenLabs, HeyGen, Meshy), en dollars. Une barre montre le dépensé.</li>
+<li>Réglez <strong>Alerte à (% d'un plafond)</strong> : un bandeau vous prévient une fois par mois quand un plafond atteint ce seuil. <b class="ui">Enregistrer les plafonds</b>.</li>
+</ol>
+
+<h3>Quand un rendu dépasserait un plafond</h3>
+<p>Avant de partir, chaque génération payante est comparée à vos plafonds. Si elle les dépasse, une fenêtre « Plafond de dépense mensuel » s'ouvre, où que vous soyez dans l'application :</p>
+<ol class="etapes">
+<li>« Tirer quand même » envoie exactement la même demande, une seule fois.</li>
+<li>« Annuler » n'envoie rien et vous dit pourquoi.</li>
+</ol>
+
+<h3>Le réel contre l'estimé</h3>
+<p>Sous les plafonds, le tableau <strong>Dépenses du mois — réel contre estimé</strong> donne une ligne par moteur et par écran : le nombre de tirs, ce qui était estimé, ce qui a été vraiment facturé, et l'écart.</p>
+<div class="cartes">
+<article><i data-dz="dz-etat-succes"></i><h4>Réel</h4><p>Le fournisseur a donné le prix exact (Meshy, HeyGen) : c'est lui qui compte.</p></article>
+<article><i data-dz="dz-etat-attente"></i><h4>Réel partiel</h4><p>Une partie des tirs a son prix exact, le reste est encore estimé.</p></article>
+<article><i data-dz="dz-etat-information"></i><h4>Estimé</h4><p>Le fournisseur ne donne pas de prix : l'application compte le devis fait au lancement.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Les dépenses faites depuis votre téléphone entrent dans le même registre et les mêmes plafonds, comptées une seule fois.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Le Studio envoie le coût qu'il affiche comme plafond de la requête : un rendu ne peut pas coûter plus que ce que vous avez vu avant de cliquer.</p></aside>

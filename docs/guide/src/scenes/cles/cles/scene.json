@@ -1,0 +1,110 @@
+{
+  "titre": {
+    "fr": "Poser une clé",
+    "en": "Add a key"
+  },
+  "legende": {
+    "fr": "Réglages › Clés d'API : chaque fournisseur a sa ligne, son état, son guide et son bouton Enregistrer.",
+    "en": "Settings › API keys: each provider has its row, its status, its guide and its Save button."
+  },
+  "captures": [
+    {
+      "fr": "cles.fr.webp",
+      "en": "cles.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        827,
+        204,
+        100,
+        34
+      ],
+      "bulle": {
+        "fr": "L'état de la clé",
+        "en": "The key's status"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        949,
+        221
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Guide : où créer la clé, et son prix",
+        "en": "Guide: where to create the key, and its price"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        972,
+        202,
+        111,
+        38
+      ],
+      "bulle": {
+        "fr": "Collez la clé, Enregistrer : elle sert tout de suite",
+        "en": "Paste the key, Save: it works right away"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        880,
+        204,
+        81,
+        34
+      ],
+      "bulle": {
+        "fr": "L'état de la clé",
+        "en": "The key's status"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        983,
+        221
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Guide : où créer la clé, et son prix",
+        "en": "Guide: where to create the key, and its price"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1005,
+        202,
+        78,
+        38
+      ],
+      "bulle": {
+        "fr": "Collez la clé, Enregistrer : elle sert tout de suite",
+        "en": "Paste the key, Save: it works right away"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

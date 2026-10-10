@@ -1,0 +1,341 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "scenes": [
+  {
+   "scene": "quick/seedance",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Un clip animé avec Quick",
+    "en": "An animated clip with Quick"
+   },
+   "legende": {
+    "fr": "Quick, onglet Seedance : l'image de départ, les paramètres, le coût estimé, puis Générer.",
+    "en": "Quick, Seedance tab: the start image, the parameters, the estimated cost, then Generate."
+   },
+   "avant": [
+    {
+     "clic": "texte:Quick",
+     "apres": 1800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "source"
+    },
+    {
+     "nom": "parametres",
+     "etapes": [
+      {
+       "defiler": {
+        "fr": "texte:Modèle",
+        "en": "texte:Model"
+       }
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Image de départ",
+      "en": "texte:Start image"
+     },
+     "bulle": {
+      "fr": "Glissez l'image à animer",
+      "en": "Drop the picture to animate"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Modèle",
+      "en": "texte:Model"
+     },
+     "bulle": {
+      "fr": "Modèle, durée et format",
+      "en": "Model, duration and format"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "contient:Coût estimé",
+      "en": "contient:Est. cost"
+     },
+     "voile": true,
+     "bulle": {
+      "fr": "Le coût s'affiche avant de cliquer",
+      "en": "The cost is shown before you click"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "quick/camera",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Diriger la caméra",
+    "en": "Direct the camera"
+   },
+   "legende": {
+    "fr": "Les curseurs de caméra deviennent une phrase ajoutée au prompt ; la Galerie montre les mouvements.",
+    "en": "Camera sliders become a sentence added to the prompt; the Gallery shows the moves."
+   },
+   "avant": [
+    {
+     "clic": "texte:Quick",
+     "apres": 1800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "curseurs",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "contient:CAMÉRA (CURSEURS)",
+        "en": "contient:CAMERA (SLIDERS)"
+       },
+       "apres": 900
+      }
+     ]
+    },
+    {
+     "nom": "galerie",
+     "etapes": [
+      {
+       "defiler": {
+        "fr": "texte:Galerie",
+        "en": "texte:Gallery"
+       }
+      },
+      {
+       "clic": {
+        "fr": "texte:Galerie",
+        "en": "texte:Gallery"
+       },
+       "apres": 2500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "contient:CAMÉRA (CURSEURS)",
+      "en": "contient:CAMERA (SLIDERS)"
+     },
+     "bulle": {
+      "fr": "Six curseurs, une phrase de caméra",
+      "en": "Six sliders, one camera sentence"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "bulle": {
+      "fr": "La Galerie montre chaque mouvement de caméra",
+      "en": "The Gallery shows each camera move"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio/graphe",
+   "titre": {
+    "fr": "Le Studio",
+    "en": "The Studio"
+   },
+   "legende": {
+    "fr": "La palette des nœuds, le graphe, l'inspecteur ; en haut, l'aperçu gratuit, le coût et Exécuter.",
+    "en": "The nodes palette, the graph, the inspector; at the top, the free preview, the cost and Run."
+   },
+   "avant": [
+    {
+     "clic": "texte:Studio",
+     "apres": 2500
+    },
+    {
+     "clic": "css:button.dz-insp-fold",
+     "apres": 900,
+     "facultatif": true
+    }
+   ],
+   "captures": [
+    {
+     "nom": "graphe"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:GRAPHES DE DÉPART",
+      "en": "contient:STARTER GRAPHS"
+     },
+     "bulle": {
+      "fr": "Partez d'un graphe tout prêt",
+      "en": "Start from a ready-made graph"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Aperçu",
+      "en": "texte:Preview"
+     },
+     "bulle": {
+      "fr": "Aperçu : voir avant de payer",
+      "en": "Preview: see before paying"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "curseur": {
+      "fr": "texte:Exécuter",
+      "en": "texte:Run"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Exécuter : le coût affiché devient le plafond",
+      "en": "Run: the cost shown becomes the cap"
+     }
+    }
+   ],
+   "taille": [
+    1920,
+    1080
+   ]
+  },
+  {
+   "scene": "modeles/galerie",
+   "clip": "css:main",
+   "titre": {
+    "fr": "La galerie des modèles",
+    "en": "The template gallery"
+   },
+   "legende": {
+    "fr": "Une carte par mise en page ; Nouveau dans un format, ou Rejouer en un autre format.",
+    "en": "One card per layout; New in a format, or Reflow to another format."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Modèles",
+      "en": "texte:Templates"
+     },
+     "apres": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "galerie"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Nouveau :",
+      "en": "contient:New:"
+     },
+     "bulle": {
+      "fr": "Une mise en page vierge dans le format voulu",
+      "en": "A blank layout in the format you want"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Rejouer en :",
+      "en": "contient:Reflow to:"
+     },
+     "bulle": {
+      "fr": "La même mise en page, dans un autre format",
+      "en": "The same layout, in another format"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "modeles/editeur",
+   "clip": "css:main",
+   "titre": {
+    "fr": "L'éditeur de mise en page",
+    "en": "The layout editor"
+   },
+   "legende": {
+    "fr": "Les cases sur la toile, et à droite les réglages de la case choisie : masque, échantillon, animation.",
+    "en": "The slots on the canvas, and on the right the settings of the selected slot: mask, sample, animation."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Modèles",
+      "en": "texte:Templates"
+     },
+     "apres": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "editeur",
+     "etapes": [
+      {
+       "defiler": {
+        "fr": "contient:Éditeur spatial",
+        "en": "contient:Spatial editor"
+       }
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Ajouter :",
+      "en": "contient:Add:"
+     },
+     "bulle": {
+      "fr": "Ajouter texte, bandeau, marque, composant",
+      "en": "Add text, ticker, brand, component"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "texte:reel",
+     "bulle": {
+      "fr": "Cliquez une case : glissez-la, redimensionnez-la",
+      "en": "Click a slot: drag it, resize it"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Enregistrer la mise en page",
+      "en": "texte:Save layout"
+     },
+     "bulle": {
+      "fr": "Enregistrer, puis ouvrir dans le Studio",
+      "en": "Save, then open in the Studio"
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,82 @@
+{
+  "titre": {
+    "fr": "Vérifier la version",
+    "en": "Check the version"
+  },
+  "legende": {
+    "fr": "Le bloc version du Diagnostic : la version installée, son état, et le bouton pour vérifier tout de suite.",
+    "en": "The version block in Diagnostics: the installed version, its status, and a button to check right now."
+  },
+  "captures": [
+    {
+      "fr": "diag.fr.webp",
+      "en": "diag.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        443,
+        79,
+        70,
+        34
+      ],
+      "bulle": {
+        "fr": "Votre version est à jour",
+        "en": "Your version is up to date"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        555,
+        96
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Vérifier demande la dernière version publiée",
+        "en": "Check asks for the latest published version"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        455,
+        79,
+        93,
+        34
+      ],
+      "bulle": {
+        "fr": "Votre version est à jour",
+        "en": "Your version is up to date"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        586,
+        96
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Vérifier demande la dernière version publiée",
+        "en": "Check asks for the latest published version"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

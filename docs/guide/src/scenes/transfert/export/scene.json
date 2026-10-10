@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "Exporter vers une autre machine",
+    "en": "Export to another machine"
+  },
+  "legende": {
+    "fr": "Réglages › Transfert entre machines : un paquet daté, chaque fichier avec son empreinte ; les clés restent sur ce PC.",
+    "en": "Settings › Machine transfer: a dated package, each file with its checksum; keys stay on this PC."
+  },
+  "captures": [
+    {
+      "fr": "section.fr.webp",
+      "en": "section.en.webp"
+    },
+    {
+      "fr": "dialogue.fr.webp",
+      "en": "dialogue.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        327,
+        228
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Ce qui part, et son poids",
+        "en": "What goes, and how much it weighs"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        248,
+        496,
+        62,
+        29
+      ],
+      "bulle": {
+        "fr": "En plus, à cocher : journaux et rebuts",
+        "en": "Extras to tick: logs and discards"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        631,
+        645,
+        118,
+        40
+      ],
+      "bulle": {
+        "fr": "Un dossier daté s'écrit à la destination",
+        "en": "A dated folder is written at the destination"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        322,
+        228
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Ce qui part, et son poids",
+        "en": "What goes, and how much it weighs"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        248,
+        496,
+        37,
+        29
+      ],
+      "bulle": {
+        "fr": "En plus, à cocher : journaux et rebuts",
+        "en": "Extras to tick: logs and discards"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        647,
+        645,
+        102,
+        40
+      ],
+      "bulle": {
+        "fr": "Un dossier daté s'écrit à la destination",
+        "en": "A dated folder is written at the destination"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "titre": {
+    "fr": "Appairer un téléphone",
+    "en": "Pair a phone"
+  },
+  "legende": {
+    "fr": "Réglages › Appareils : l'état du réseau, la liste des appareils, et l'appairage par QR.",
+    "en": "Settings › Devices: the network status, the list of devices, and pairing by QR code."
+  },
+  "captures": [
+    {
+      "fr": "appareils.fr.webp",
+      "en": "appareils.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        275,
+        181,
+        126,
+        34
+      ],
+      "bulle": {
+        "fr": "Par défaut, seul ce PC atteint l'application",
+        "en": "By default, only this PC can reach the app"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        365,
+        335
+      ],
+      "bulle": {
+        "fr": "Affiche un QR valable 5 minutes",
+        "en": "Shows a QR code valid for 5 minutes"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        275,
+        181,
+        101,
+        34
+      ],
+      "bulle": {
+        "fr": "Par défaut, seul ce PC atteint l'application",
+        "en": "By default, only this PC can reach the app"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        342,
+        317
+      ],
+      "bulle": {
+        "fr": "Affiche un QR valable 5 minutes",
+        "en": "Shows a QR code valid for 5 minutes"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

@@ -1,0 +1,37 @@
+<p class="chapeau-chap">You will link your phone to the PC, carry your posts and chapters in your pocket, and cut off a lost phone. Fifteen minutes; you need the Deepotus companion app on the phone and the same Wi-Fi.</p>
+
+<h3>Before you start</h3>
+<p>By default, the app only listens on this PC: no other device can reach it. To open it to your home Wi-Fi, replace <code>HOST=127.0.0.1</code> with <code>HOST=0.0.0.0</code> in the <code>.env</code> file of the data folder, then restart the app. Windows will ask to allow Python through the firewall.</p>
+
+<h3>Pair the phone</h3>
+<figure class="scene" data-scene="mobile/appareils"></figure>
+<ol class="etapes">
+<li>Open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Devices</b></span>. The words <strong>this PC only</strong> or <strong>local network open</strong> tell whether the phone will be able to reach you.</li>
+<li>Click <b class="ui">Pair a device</b>: a QR code appears, valid for five minutes, for a single device.</li>
+<li>In the phone app, open <strong>Pair</strong> and scan the QR code. It closes on its own once read.</li>
+<li>To give your keys to the phone, export the encrypted archive from the <b class="ui">Vault</b> and open it in the phone app, with its password.</li>
+</ol>
+<p>Five devices at most. A paired phone <strong>reads</strong> what the PC produces; it can neither write to the PC, nor spend through the PC, nor see your keys.</p>
+
+<h3>What the phone does</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-synchroniser"></i><h4>Sync</h4><p>The phone fetches the Library and its pictures, and resumes an interrupted download.</p></article>
+<article><i data-dz="dz-action-importer"></i><h4>Send pictures to the PC</h4><p>Your photos land in the Library with the “mobile” source, without duplicates.</p></article>
+<article><i data-dz="dz-nav-scheduler"></i><h4>The week's batch</h4><p>Take the approved posts and publish them on Telegram or X from the phone. A post taken by the phone is no longer published by the PC.</p></article>
+<article><i data-dz="dz-nav-boite-reception"></i><h4>Inbox</h4><p>What you share to Deepotus lands here; pictures go on to the PC.</p></article>
+<article><i data-dz="dz-nav-chapitres"></i><h4>Offline chapters</h4><p>Take a chapter, write without a network, hand it back to the PC.</p></article>
+<article><i data-dz="dz-media-generer-image"></i><h4>Generate pictures</h4><p>The cost is shown before each generation, at your PC's rates, and counted in your caps.</p></article>
+</div>
+
+<h3>A chapter taken to the phone</h3>
+<p>While a chapter is on the phone, it is read-only on the PC, with a banner. You can force it back to the PC. If the two versions disagree, the phone's text stays in the log, to copy or take back: nothing is lost.</p>
+
+<h3>Remove a device</h3>
+<ol class="etapes">
+<li>In <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Devices</b></span>, click <b class="ui">Revoke</b> on the phone's row and confirm.</li>
+<li>Access is cut right away; the posts and chapters it had taken come back to the PC.</li>
+</ol>
+
+<h3>Good to know</h3>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Lost your phone? Revoking is not enough: your keys travelled in the archive. Regenerate them with each provider; the Devices page gives the link to each console.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>The phone is notified when a render finishes or fails, when a post is published or awaits an action, and when a cap is near.</p></aside>
