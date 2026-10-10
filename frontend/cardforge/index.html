@@ -25,23 +25,25 @@
      servent, elle est chargee ici une seule fois. -->
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
+<script src="/shared/icons/dz-icons.js"></script>
 <script type="module" src="/assets/model-viewer.min.js"></script>
 </head>
 <body>
 
 <header class="topbar">
-  <div class="brand">&#x1F0CF; <b>Card Forge</b></div>
+  <div class="brand"><svg class="dzi dzi--20" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-cartes"></use></svg><b>Card Forge</b></div>
   <span class="badge">CONTRAT CF</span>
   <input id="deckName" class="deckname" type="text" value="Nouveau jeu" title="Nom du jeu" maxlength="80">
   <!-- galerie de demarrage (spec §6.4) : modeles, jeux a reprendre, import,
        duplication, « enregistrer comme modele ». Ce sont des gestes de
        DOCUMENT, donc du CORE — core.js:galWire les cable, core.js:galEnsure
        construit l'ecran a la premiere ouverture. -->
-  <button class="btn ghost sm" id="galleryBtn" type="button" title="Modèles, jeux à reprendre, import — la galerie de démarrage">&#9638; Modèles</button>
+  <button class="btn ghost sm" id="galleryBtn" type="button" title="Modèles, jeux à reprendre, import — la galerie de démarrage"><svg class="dzi dzi--16 cf-ic" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-cf-galerie"></use></svg>Modèles</button>
   <div class="tb-spacer"></div>
   <span class="srcchip" id="apiChip">connexion à l'API…</span>
-  <button class="btn ghost sm" id="themeBtn" type="button" title="Thème clair / sombre">&#x25D0;</button>
-  <a class="backlink" href="/" target="_top" title="Retour à l'app">&#8592; App</a>
+  <button class="btn ghost sm" id="themeBtn" type="button" title="Thème clair / sombre" aria-label="Thème clair / sombre"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-theme"></use></svg></button>
+  <a class="backlink" href="/" target="_top" title="Retour à l'app"><svg class="dzi dzi--16 cf-ic" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retour"></use></svg>App</a>
 </header>
 
 <!-- ══ widget de format — CORE SEUL. C'est le seul endroit de tout le lab d'ou
@@ -56,7 +58,7 @@
   <div class="fmt-read mono" id="fmtRead"></div>
   <!-- zone 7 du design 26/08 : le chevron unique, edge « down » (-90 deploye,
        90 replie). Cable par core.js:wireStage, etat dz_cf_fmt. -->
-  <button class="fmt-fold" id="fmtFoldBtn" type="button" aria-expanded="true" aria-controls="fmtbar" title="Replier la barre de format"><i class="ff-c"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.8 5.6 9 12l5.8 6.4z"/></svg></i></button>
+  <button class="fmt-fold" id="fmtFoldBtn" type="button" aria-expanded="true" aria-controls="fmtbar" title="Replier la barre de format"><i class="ff-c"><svg class="dzi dzi--16 cf-chev" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-deplier"></use></svg></i></button>
 </div>
 
 <!-- bandeau d'erreur API (domaine /api/cards pas encore monte, backend muet…) -->
@@ -77,15 +79,15 @@
       <!-- chevron d'escamotage : le SEUL element de la colonne qui survit au
            repli (cardforge.css, bloc « ETAT REPLIE ») — il devient la bande
            verticale de reouverture. Cable par core.js:wireStage. -->
-      <button class="stage-fold" id="stageFoldBtn" type="button" aria-expanded="true" title="Replier la colonne carte"><i class="sf-c"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.8 5.6 9 12l5.8 6.4z"/></svg></i><span class="sf-t">Carte</span></button>
-      <button class="chip" id="guidesBtn" type="button" title="Fond perdu / coupe / zone sûre — couche CORE z=90, jamais exportée">&#9635; Repères</button>
+      <button class="stage-fold" id="stageFoldBtn" type="button" aria-expanded="true" title="Replier la colonne carte"><i class="sf-c"><svg class="dzi dzi--16 cf-chev" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-deplier"></use></svg></i><span class="sf-t">Carte</span></button>
+      <button class="chip" id="guidesBtn" type="button" title="Fond perdu / coupe / zone sûre — couche CORE z=90, jamais exportée"><svg class="dzi dzi--16 cf-ic" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-reperes"></use></svg>Repères</button>
       <button class="chip" id="sideBtn" type="button" title="Recto / verso">Recto</button>
       <span class="stage-sep" aria-hidden="true"></span>
-      <button class="btn sm" id="prevBtn" type="button" title="Carte précédente">&#8249;</button>
+      <button class="btn sm" id="prevBtn" type="button" title="Carte précédente" aria-label="Carte précédente"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-element-precedent"></use></svg></button>
       <span class="counter" id="stageNav">carte 1 / 1</span>
-      <button class="btn sm" id="nextBtn" type="button" title="Carte suivante">&#8250;</button>
+      <button class="btn sm" id="nextBtn" type="button" title="Carte suivante" aria-label="Carte suivante"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-element-suivant"></use></svg></button>
       <span class="tb-spacer"></span>
-      <button class="btn strong sm" id="shotBtn" type="button" title="Rend cette carte à l'échelle 1 (le fichier livré) et la télécharge — local, gratuit">PNG 1:1</button>
+      <button class="btn strong sm" id="shotBtn" type="button" title="Rend cette carte à l'échelle 1 (le fichier livré) et la télécharge — local, gratuit"><svg class="dzi dzi--16 cf-ic" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg>PNG 1:1</button>
     </div>
     <div class="stage-wrap" id="stageWrap">
       <canvas id="stageCanvas" class="stage-canvas"></canvas>
@@ -96,10 +98,10 @@
            Etat d'ECRAN seul (dz_cf_zoom), jamais du document : un jeu exporte
            ne transporte pas la loupe de son auteur. Cable par core.js:wireStage. -->
       <div class="stage-zoom mono" id="stageZoom">
-        <button class="btn sm" id="zoomOut" type="button" title="Réduire l'aperçu (Ctrl+molette)">&#8722;</button>
+        <button class="btn sm" id="zoomOut" type="button" title="Réduire l'aperçu (Ctrl+molette)" aria-label="Réduire l'aperçu"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-zoom-arriere"></use></svg></button>
         <b id="zoomPct">— %</b><span>aperçu</span>
-        <button class="btn sm" id="zoomIn" type="button" title="Agrandir l'aperçu (Ctrl+molette)">+</button>
-        <button class="btn sm" id="zoomFit" type="button" title="Adapter la carte à la colonne">Adapter</button>
+        <button class="btn sm" id="zoomIn" type="button" title="Agrandir l'aperçu (Ctrl+molette)" aria-label="Agrandir l'aperçu"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-zoom-avant"></use></svg></button>
+        <button class="btn sm" id="zoomFit" type="button" title="Adapter la carte à la colonne"><svg class="dzi dzi--16 cf-ic" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajuster-vue"></use></svg>Adapter</button>
         <button class="btn sm" id="zoom100" type="button" title="Un pixel du fichier = un pixel d'écran">100&nbsp;%</button>
       </div>
       <div class="stage-err hidden" id="stageErr"></div>

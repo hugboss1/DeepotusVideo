@@ -15,6 +15,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-edition: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;")
     .replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -36,12 +42,12 @@
       + '<p class="hint">Chaque cible dit ce que son éditeur publie (relu le 04/10/2026) : '
       + 'la carte est exportée telle que le Card Forge la rend, à la coupe.</p>'
       + '<div class="cf-edition-actions" data-role="tts">'
-      + '<button type="button" class="btn strong" data-act="tts" title="Planches 10 x 7 à la coupe (4096 px au plus) et objet sauvegardé qui pointe vers elles, sur ce PC — un ZIP de tout">Exporter pour Tabletop Simulator (.zip)</button>'
-      + '<button type="button" class="btn" data-act="tts-poser" title="Copier le dernier objet exporté dans Documents\\My Games\\Tabletop Simulator\\Saves\\Saved Objects\\Deepotus">Poser dans Tabletop Simulator</button>'
+      + '<button type="button" class="btn strong" data-act="tts" title="Planches 10 x 7 à la coupe (4096 px au plus) et objet sauvegardé qui pointe vers elles, sur ce PC — un ZIP de tout">' + ICO("dz-action-exporter", 16, "cf-ic") + 'Exporter pour Tabletop Simulator (.zip)</button>'
+      + '<button type="button" class="btn" data-act="tts-poser" title="Copier le dernier objet exporté dans Documents\\My Games\\Tabletop Simulator\\Saves\\Saved Objects\\Deepotus">' + ICO("dz-action-envoyer-vers", 16, "cf-ic") + 'Poser dans Tabletop Simulator</button>'
       + '</div>'
       + '<p class="cf-edition-etat" data-role="tts-etat"></p>'
       + '<div class="cf-edition-actions" data-role="tabletopia">'
-      + '<button type="button" class="btn strong" data-act="tabletopia" title="Un JPEG par face à la coupe (2000 px au plus, jamais agrandi), un seul dos s’il est commun, et le manifeste — à charger dans l’éditeur de Tabletopia">Exporter pour Tabletopia (.zip)</button>'
+      + '<button type="button" class="btn strong" data-act="tabletopia" title="Un JPEG par face à la coupe (2000 px au plus, jamais agrandi), un seul dos s’il est commun, et le manifeste — à charger dans l’éditeur de Tabletopia">' + ICO("dz-action-exporter", 16, "cf-ic") + 'Exporter pour Tabletopia (.zip)</button>'
       + '</div>'
       + '</div></details>'
 
@@ -295,7 +301,7 @@
   M = CF.register({
     id: "edition",
     title: "Édition",
-    icon: "\u{1F4E6}",
+    icon: "dz-nav-cf-edition",
     order: 11,
 
     /* Aucun z n'est alloue a cette piece : elle ne dessine pas la carte. */

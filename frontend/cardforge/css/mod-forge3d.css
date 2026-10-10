@@ -29,8 +29,8 @@
 .cf-forge3d .cf-forge3d-mesh { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-left-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .cf-forge3d details.cf-forge3d-blk > summary { cursor: pointer; font-size: 11px; color: var(--ink-muted); list-style: none; }
 .cf-forge3d details.cf-forge3d-blk > summary::-webkit-details-marker { display: none; }
-.cf-forge3d details.cf-forge3d-blk > summary::before { content: "\25B8"; display: inline-block; width: 12px; color: var(--ink-muted); }
-.cf-forge3d details.cf-forge3d-blk[open] > summary::before { content: "\25BE"; }
+.cf-forge3d details.cf-forge3d-blk > summary::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 3px; vertical-align: -1px; color: var(--ink-muted); background: currentColor; -webkit-mask: var(--cf-chev-mask) center / contain no-repeat; mask: var(--cf-chev-mask) center / contain no-repeat; transform: rotate(-90deg); }
+.cf-forge3d details.cf-forge3d-blk[open] > summary::before { transform: none; }
 .cf-forge3d .cf-forge3d-on { color: var(--accent); }
 .cf-forge3d .cf-forge3d-price { font-size: 11px; color: var(--accent); white-space: nowrap; }
 
