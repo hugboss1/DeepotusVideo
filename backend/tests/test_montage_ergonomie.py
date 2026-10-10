@@ -420,7 +420,7 @@ _l5_cond = [m.group(0) for m in RX_COND.finditer(_L5Z)]
 check("R1_R2_L5_scopes_et_lightbox_quatre_sites_de_bouton_tous_titres_toutes_classes_aucun_conditionnel_temoin_Etalonnage",
       len(_L5Z) > 3000 and len(_l5_b) == 4 and _l5_sans == [] and _l5_cond == []
       and _L5Z.count('r.jsx("button",{className:"dzm-scwx",title:"Fermer les scopes (comme la puce « Scopes » de la barre du lecteur)",') == 1
-      and _L5Z.count('"aria-label":"Fermer les scopes",onClick:bascule,children:"×"') == 1
+      and _L5Z.count('"aria-label":"Fermer les scopes",onClick:bascule,children:__dzGl("dz-action-fermer")') == 1
       and len(_l5_tb) == 8 and _l5_tsans == []
       # retours L6 (T5, 26/09) : 1 -> 2, le titre de la fenetre flottante (span dzm-scwt, pas un bouton) dit aussi Scopes
       and _L5Z.count('children:"Scopes"') == 2 and _L5Z.count('"sans source"') == 1
@@ -458,7 +458,7 @@ _l6v_cond = [m.group(0) for m in RX_COND.finditer(_L6V)]
 check("R1_R2_L6_voix_off_un_seul_bouton_a_deux_etats_titre_dans_les_deux_etats_grise_sur_la_demo_hors_zone_L5",
       len(_L6V) > 2500 and len(_l6v_b) == 1 and _l6v_sans == [] and _l6v_cond == []
       and _L6V.count("disabled:dis,") == 1 and _L6V.count("var dis=demo||") == 1 and _L6V.count("title:tt,") == 1
-      and _L6V.count('children:st==="prise"?"■ "+el:st==="micro"?"micro…":st==="envoi"?"envoi…":"● voix off"') == 1
+      and _L6V.count('children:st==="prise"?__dzGlT("dz-media-arret","■ "+el,"■"):st==="micro"?"micro…":st==="envoi"?"envoi…":__dzGlT("dz-media-rec","● voix off","●")') == 1
       and _L6V.count('var tt=demo?"Projet de démonstration') == 1 and _L6V.count(':st==="prise"?"Arrêter la prise (') == 1
       and _L6V.count(':"Enregistrer une voix off au micro"') == 1
       and 0 < lay.find("function DzmNoiseLearn(o){") < lay.find("function DzmVoiceRec(o){") < lay.find("function DzmScopes(o){")

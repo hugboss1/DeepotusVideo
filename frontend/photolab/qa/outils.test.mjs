@@ -3,6 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { existe as existeIcone, CLES as CLES_SUITE } from "./outils/suite-icones.mjs";
 import { EMPLACEMENTS, SECTIONS, outilParLettre, emplacementDe, outilDe, cleNom, infobulle, optionsPour, OPTIONS_DEFAUT, rgbaVersHex, groupeDeLettre } from "../js/mod-outils.js";
 
 let ok = 0, ko = 0;
@@ -14,8 +15,10 @@ check("1.1 20 emplacements", EMPLACEMENTS.length === 20, EMPLACEMENTS.length);
 check("1.2 sections : somme 20", SECTIONS.reduce((a, b) => a + b, 0) === 20 && SECTIONS.length === 4);
 const tous = EMPLACEMENTS.flat();
 check("1.3 identifiants uniques", new Set(tous.map((o) => o.id)).size === tous.length);
-check("1.4 chaque icône existe dans icones/", tous.every((o) => existsSync(join(racine, "icones", o.icone + ".svg"))),
-  tous.filter((o) => !existsSync(join(racine, "icones", o.icone + ".svg"))).map((o) => o.icone));
+// G4 : les icônes viennent de la suite Deepotus Glyph ; le Doigt garde le pointeur Lucide (choix de l'utilisateur).
+check("1.4 chaque icône est une clé de la suite Deepotus Glyph", tous.every((o) => existeIcone(o.icone)),
+  tous.filter((o) => !existeIcone(o.icone)).map((o) => o.icone));
+check("1.4b Doigt = dz-outil-photo-doigt (pointeur Lucide gardé)", outilDe("smudge").icone === "dz-outil-photo-doigt");
 check("1.5 44 outils actifs (P2 : 11 ; t155 peinture et retouche : +18 ; t156 texte, formes, plume : +9 ; t157 sélection d'objet : +1 ; t160 Règle, Note, Comptage, Tranche, Sélection de tranche : +5)", tous.filter((o) => o.p2).length === 44, tous.filter((o) => o.p2).map((o) => o.id).join());
 check("1.6 emplacementDe", emplacementDe("move") === 0 && emplacementDe("ellipseMarquee") === 1 && emplacementDe("zoom") === 19 && emplacementDe("nimporte") === -1);
 check("1.7 outilDe", outilDe("crop").lettre === "C" && outilDe("x") === null);

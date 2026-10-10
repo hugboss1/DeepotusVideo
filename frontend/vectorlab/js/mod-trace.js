@@ -5,6 +5,7 @@
 // (initTrace) rasterise la fenêtre rognée de l'image dans un canvas,
 // trace, montre un aperçu compilé par LE compilateur, puis pose en UNE
 // commande (op_vectoriser_poser).
+import { dzi } from "./mod-icones.js";
 import { compilerSVG, op_vectoriser_poser, chemin_parser, chemin_serialiser }
   from "./mod-doc.js";
 
@@ -123,7 +124,7 @@ export function initTrace(VL) {
     const p = courant.params;
     dlg.innerHTML = `<div class="vl-dlg-boite tr-boite">
       <div class="vl-dlg-tete"><b>Vectoriser « ${t.objet.href} »</b><span class="spacer"></span>
-        <button id="trFermer" title="Annuler">✕</button></div>
+        <button id="trFermer" title="Annuler" aria-label="Annuler">${dzi("dz-action-fermer", 16)}</button></div>
       <div class="tr-corps">
         <div class="tr-regles">
           <label>Couleurs <input type="range" id="trCouleurs" min="2" max="32" step="1" value="${p.couleurs}"/><output id="trCouleursV">${p.couleurs}</output></label>

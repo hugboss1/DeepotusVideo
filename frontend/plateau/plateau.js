@@ -16,6 +16,8 @@ import { ASPECTS, EASINGS, fovDeFocale, focaleDeFov, positionCamera, orbitDeCame
          preset, trianglesProxy } from "./calc.js";
 
 const $ = (s) => document.querySelector(s);
+/* Deepotus Glyph (G6) : une icône de la suite, décorative — le sens est porté par le bouton (libellé, title, aria-label) */
+const ico = (cle, t = 16) => (typeof dzIcone === "function" ? dzIcone(cle, { taille: t, classe: "dzi--" + t }) : "");
 const API = "/api/scenes3d";
 const P = { scene: null, plan: null, sel: null, dims: {}, lecture: false, t: 0, captures: { debut: null, fin: null },
             dirty: false, mesh: new Map() };
@@ -207,7 +209,7 @@ function dupliquer(i) {
 const DIMS = { boite: [1, 1, 1], capsule: [0.5, 1.7, 0.4], cylindre: [0.5, 2, 0.5], sphere: [0.6, 0.6, 0.6] };
 document.querySelectorAll("[data-forme]").forEach((b) => b.addEventListener("click", () => {
   const f = b.dataset.forme;
-  ajouter({ id: idLibre(f), nom: b.textContent.replace("＋", "").trim(), source: { kind: "proxy", forme: f }, niveau: "proxy",
+  ajouter({ id: idLibre(f), nom: b.textContent.trim(), source: { kind: "proxy", forme: f }, niveau: "proxy",
             dims: DIMS[f].slice(), transform: { pos: [0, 0, 0], rot: [0, 0, 0], scale: 1 }, couleur: "#8a8f98",
             role: P.scene.instances.some((x) => x.role === "sujet") ? "decor" : "sujet" });
 }));
@@ -270,7 +272,7 @@ async function mesurer() {
       <span>h <b>${f2(m.h)}</b></span><span>plan <b>${esc(m.shot_type)}</b></span>${m.dans_cadre ? "" : '<span class="ko">sujet hors cadre</span>'}`;
     $("#mesure").innerHTML = `<div><span class="k">mesuré</span> ${esc(m.shot_type)} (h = ${f2(m.h)})</div>
       <div class="k">seuils : ${Object.entries(m.seuils).map(([k, v]) => `${k} &lt; ${String(v).replace(".", ",")}`).join(" · ")}</div>
-      ${m.plan ? `<div class="${m.plan.ecart ? "ecart" : ""}">plan écrit : ${esc(m.plan.shot_type)}${m.plan.ecart ? ` — le cadre donne ${esc(m.shot_type)}` : " ✓"}</div>` : ""}`;
+      ${m.plan ? `<div class="${m.plan.ecart ? "ecart" : ""}">plan écrit : ${esc(m.plan.shot_type)}${m.plan.ecart ? ` — le cadre donne ${esc(m.shot_type)}` : " " + ico("dz-etat-succes")}</div>` : ""}`;
   } catch (e) { $("#lecture").innerHTML = `<span class="ko">${esc(e.message)}</span>`; }
 }
 V.controls.addEventListener("change", () => { majFocale(false); majGuides(); if (!P.lecture) { mesurerBientôt(); sauverCaméraBientôt(); } });
@@ -287,7 +289,7 @@ function majTimeline() {
   $("#listeKf").innerHTML = P.scene.keyframes.map((k, i) => `<li><span class="t">${f2(k.t)} s</span>
     <span class="sous">r ${f2(k.orbit[2])} · θ ${Math.round(k.orbit[0])}° · φ ${Math.round(k.orbit[1])}°</span>
     <select data-i="${i}" aria-label="easing du segment">${EASINGS.map((e) => `<option ${e === k.easing ? "selected" : ""}>${e}</option>`).join("")}</select>
-    <button class="btn" data-x="${i}" title="Retirer ce keyframe">×</button></li>`).join("");
+    <button class="btn" data-x="${i}" title="Retirer ce keyframe" aria-label="Retirer ce keyframe">${ico("dz-media-image-cle-retirer")}</button></li>`).join("");
   $("#listeKf").querySelectorAll("select").forEach((s) => s.addEventListener("change", () => { P.scene.keyframes[+s.dataset.i].easing = s.value; sauver(); analyser(); }));
   $("#listeKf").querySelectorAll("[data-x]").forEach((b) => b.addEventListener("click", () => { P.scene.keyframes.splice(+b.dataset.x, 1); majTimeline(); sauver(); analyser(); }));
 }
@@ -314,7 +316,7 @@ let rafLecture = 0, t0 = 0;
 function basculerLecture() {
   if (P.scene.keyframes.length < 2) { etat("deux keyframes au moins pour lire un mouvement", true); return; }
   P.lecture = !P.lecture;
-  $("#btnPlay").textContent = P.lecture ? "❚❚" : "▶";
+  $("#btnPlay").innerHTML = ico(P.lecture ? "dz-media-pause" : "dz-media-lecture");
   if (P.lecture) {
     t0 = performance.now() - P.t * 1000;
     const pas = (now) => {
@@ -339,8 +341,8 @@ async function analyser() {
     dernierMvt = m;
     $("#mouvement").innerHTML = `<div><span class="k">mesuré</span> ${esc(m.camera_move)}</div>
       ${m.attributs.length ? `<div class="k">attribut proposé : ${m.attributs.map(esc).join(", ")}</div>` : ""}
-      ${m.plan ? `<div class="${m.plan.ecart ? "ecart" : ""}">plan écrit : ${esc(m.plan.camera_move)}${m.plan.ecart ? " — écart" : " ✓"}</div>` : ""}
-      <div class="prompt">${esc(m.motion_prompt)}</div>${m.avertissements.map((a) => `<div class="avert">⚠ ${esc(a)}</div>`).join("")}`;
+      ${m.plan ? `<div class="${m.plan.ecart ? "ecart" : ""}">plan écrit : ${esc(m.plan.camera_move)}${m.plan.ecart ? " — écart" : " " + ico("dz-etat-succes")}</div>` : ""}
+      <div class="prompt">${esc(m.motion_prompt)}</div>${m.avertissements.map((a) => `<div class="avert">${ico("dz-etat-avertissement")} ${esc(a)}</div>`).join("")}`;
   } catch (e) { $("#mouvement").innerHTML = `<div class="avert">${esc(e.message)}</div>`; }
 }
 
@@ -412,7 +414,7 @@ async function propositions() {
 }
 $("#btnPlan").addEventListener("click", async () => {
   const z = $("#versPlan");
-  if (!P.plan) { z.innerHTML = `<div class="avert">Cette scène n'est liée à aucun plan : ouvrez-la depuis le storyboard (🎥).</div>`; return; }
+  if (!P.plan) { z.innerHTML = `<div class="avert">Cette scène n'est liée à aucun plan : ouvrez-la depuis le storyboard (${ico("dz-nav-plateau")}).</div>`; return; }
   const ap = await propositions();
   if (!Object.keys(ap).length) { z.innerHTML = `<div class="avert">Rien à proposer : mesurez, posez des keyframes ou capturez d'abord.</div>`; return; }
   try {

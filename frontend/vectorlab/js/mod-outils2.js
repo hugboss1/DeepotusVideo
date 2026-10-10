@@ -5,6 +5,7 @@
 // panneau Instantanés. Chaque geste = UNE commande via VL.executer. Les
 // listeners du cœur des outils (mod-tools) restent ; ce module écoute en
 // phase de CAPTURE et n'arrête la propagation que pour ses propres cibles.
+import { dzi } from "./mod-icones.js";
 import { op_ajouter, op_forme_param, op_forme_en_chemin, op_supprimer } from "./mod-doc.js";
 import { chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
 import { FORMES, forme_defaut, forme_d, forme_poignees, forme_poignee_deplacer } from "./mod-formes.js";
@@ -286,7 +287,7 @@ export function initOutils2(VL) {
     hF.innerHTML = `
       <div class="ap-ligne"><span>Forme</span><i class="px-note">${(FORMES.find((f) => f.id === etat.formeCourante) || {}).nom || ""} — se choisit dans le menu du bouton Forme</i></div>
       ${o ? `<div class="ap-ligne"><span>Rayon</span><input type="number" id="fmR" step="any" min="1" value="${o.r}"/>
-        <button id="fmCourbes" title="Fige la forme en chemin éditable (nœuds, booléens)">→ courbes</button></div>
+        <button id="fmCourbes" title="Fige la forme en chemin éditable (nœuds, booléens)">${dzi("dz-edit-convertir-en-chemin", 16)}courbes</button></div>
       ${Object.entries(o.params).map(([k, v]) => `<div class="ap-ligne"><span>${k}</span>${k === "type"
         ? `<select data-fm="${k}"><option${v === "lineaire" ? " selected" : ""}>lineaire</option><option${v === "fibonacci" ? " selected" : ""}>fibonacci</option></select>`
         : `<input type="number" data-fm="${k}" step="${k === "ratio" ? 0.05 : 1}" value="${v}"/>`}</div>`).join("")}` : ""}
@@ -310,7 +311,7 @@ export function initOutils2(VL) {
     const deux = etat.selection.length === 2 && etat.selection.every((id) => { const t = VL.objetDe(id); return t && t.objet.type === "path"; });
     hN.innerHTML = `
       <div class="ap-ligne"><span>${p ? `${etat.ancresSel.length || (etat.ancreSel !== null ? 1 : 0)} ancre(s)` : "Nœuds"}</span>
-        ${["gauche", "centreH", "droite", "haut", "centreV", "bas"].map((m) => `<button data-nal="${m}" ${p && etat.ancresSel.length > 1 ? "" : "disabled"} title="Aligner les ancres : ${m}">${{ gauche: "⇤", centreH: "⇹", droite: "⇥", haut: "⤒", centreV: "⇳", bas: "⤓" }[m]}</button>`).join("")}</div>
+        ${["gauche", "centreH", "droite", "haut", "centreV", "bas"].map((m) => `<button data-nal="${m}" ${p && etat.ancresSel.length > 1 ? "" : "disabled"} title="Aligner les ancres : ${m}" aria-label="Aligner les ancres : ${m}">${dzi({ gauche: "dz-edit-aligner-gauche", centreH: "dz-edit-aligner-centre-h", droite: "dz-edit-aligner-droite", haut: "dz-edit-aligner-haut", centreV: "dz-edit-aligner-centre-v", bas: "dz-edit-aligner-bas" }[m], 16)}</button>`).join("")}</div>
       <div class="ap-ligne"><span></span><i class="px-note">diviser, inverser, joindre, coins : menu du bouton Nœuds</i></div>`;
     hN.querySelectorAll("[data-nal]").forEach((b) => b.addEventListener("click", () => {
       if (p) VL.executer(op_noeuds_aligner, p.id, etat.ancresSel.slice(), b.dataset.nal);

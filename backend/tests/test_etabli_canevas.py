@@ -680,7 +680,8 @@ def test_le_noeud_07_ne_peint_aucun_etat_de_tache():
     assert "if (n.door) continue;" in js
     assert """${n.door ? "L'Établi" : ""}""" in js
     assert '${n.door ? "parties · rig · versions" : ""}' in js
-    assert '<span class="node-door">ouvrir →</span>' in js
+    # G6 (Deepotus Glyph) : la flèche « → » de l'invite est devenue l'icône dz-nav-etabli, devant « ouvrir »
+    assert '<span class="node-door">${FAL.ico("dz-nav-etabli")} ouvrir</span>' in js
     assert "if (c.door) {" in js
     # DEUX sites dans la CSS : la règle de base et l'état de survol. Un simple
     # `".node-door" in css` restait vert quand on retirait la règle de base —
@@ -1318,7 +1319,8 @@ def test_l_etabli_ramene_au_3D_studio_et_le_bouton_est_a_gauche():
     html = _lire("etabli/index.html")
     js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
     assert 'id="btnRetour"' in html
-    assert "← 3D Studio" in html
+    # G6 (Deepotus Glyph) : la flèche « ← » est devenue l'icône dz-action-retour, le libellé reste « 3D Studio »
+    assert '#dz-action-retour"></use></svg> 3D Studio</button>' in html
     # la PLACE, et non seulement la présence : dans `.head-right` le bouton
     # serait vert ici sans cette comparaison, et lu comme un contrôle de vue.
     assert html.index('id="btnRetour"') < html.index('class="head-title"')
@@ -9577,7 +9579,7 @@ def test_l_apercu_du_couteau_NE_TOUCHE_PAS_la_geometrie_et_decoupe_de_part_et_d_
         return GIZMO;
       };
     """ + _APERCUS_ETAT + "".join(_fonction_etabli(f) + "\n" for f in (
-            "armerGeste", "majOutils", "objetsDesNoeuds", "majAxesGizmo", "monterCouteau",
+            "armerGeste", "ico", "libeller", "majOutils", "objetsDesNoeuds", "majAxesGizmo", "monterCouteau",
             "monterApercuCoupe", "majApercuCoupe", "demonterApercuCoupe", "rangerCouteau",
             "armerCouteau", "reconstruireApercuCoupe"))
         + _const_etabli("materiauxDe") + _const_etabli("normaleDuPlan") + """
@@ -9787,7 +9789,7 @@ def test_les_outils_vivent_DANS_le_canevas_naissent_sans_texte_et_repondent_a_F_
     ecrit = json.loads(_node(_faux_outils() + """
       const GESTE = { mode: "selection", enCours: null };
       const COUTEAU = { manip: "translate", garder: "b" };
-    """ + _APERCUS_ETAT + _fonction_etabli("majOutils") + """
+    """ + _APERCUS_ETAT + _fonction_etabli("ico") + _fonction_etabli("libeller") + _fonction_etabli("majOutils") + """
       majOutils();
       const r = { repos: { a: $("#btnAssise").textContent, c: $("#btnCouteau").textContent,
                            barre: $("#couteauBarre").classes.has("hidden"), garder: $("#couteauGarder").value,

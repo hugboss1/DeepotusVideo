@@ -126,11 +126,11 @@ export function initHistorique(PL) {
   const bouton = (ico, cle) => {
     const b = document.createElement("button"); b.type = "button"; b.className = "hi-bouton";
     b.title = T(cle); b.setAttribute("aria-label", b.title); b.dataset.icone = ico;
-    PL.icone(ico).then((svg) => { b.innerHTML = svg; });
+    b.innerHTML = PL.icone(ico);
     return b;
   };
-  const bAnnuler = bouton("undo-2", "photolab.historique.annuler");
-  const bRetablir = bouton("redo-2", "photolab.historique.retablir");
+  const bAnnuler = bouton("dz-action-annuler", "photolab.historique.annuler");
+  const bRetablir = bouton("dz-action-retablir", "photolab.historique.retablir");
   barre.append(bAnnuler, bRetablir);
   const liste = document.createElement("ol"); liste.className = "hi-liste";
   corps.append(barre, liste);

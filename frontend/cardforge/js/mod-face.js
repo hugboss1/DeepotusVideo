@@ -82,6 +82,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-face: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* ═══════════════════════════════════════════════════════════════════════
      0. SEUILS — miroir de cards/face.py
      ═══════════════════════════════════════════════════════════════════════ */
@@ -2047,7 +2053,7 @@
         ? '<img src="/api/vector/docs/' + encodeURIComponent(d.id)
           + '/vignette.png?v=' + encodeURIComponent(d.version)
           + '" alt="" loading="lazy">'
-        : '<span class="cf-face-vlab-sans" title="la vignette naît au premier Sauver">◧</span>';
+        : '<span class="cf-face-vlab-sans" title="la vignette naît au premier Sauver">' + ICO("dz-etat-sans-apercu", 16) + '</span>';
       return '<div class="cf-face-vlab-ligne">'
         + '<span class="cf-face-vlab-vig">' + vig + '</span>'
         + '<span class="cf-face-vlab-nomcol"><b>' + esc(d.name) + '</b>'
@@ -2057,7 +2063,7 @@
         + '<button class="btn sm" type="button" data-vec-pose="' + id
         + '" title="Pose l\'export PNG 2× comme illustration de la carte">Poser 2×</button>'
         + '<button class="btn sm" type="button" data-vec-del="' + id
-        + '" title="Supprimer (la dernière version reste archivée)">✕</button>'
+        + '" title="Supprimer (la dernière version reste archivée)" aria-label="Supprimer (la dernière version reste archivée)">' + ICO("dz-action-supprimer", 16) + '</button>'
         + '</div>';
     }).join("");
   }
@@ -3332,7 +3338,7 @@
         + '<span>' + esc(r.name) + '</span>'
         + '<em class="mono ' + (eff >= DPI_TARGET ? "cf-face-eok" : "cf-face-elow") + '">'
         + reduit + r.w + '×' + r.h + ' · ~' + eff + ' DPI</em>'
-        + '<button class="cf-face-del" type="button" data-del="' + esc(r.key) + '" title="Retirer de la pile">×</button>'
+        + '<button class="cf-face-del" type="button" data-del="' + esc(r.key) + '" title="Retirer de la pile" aria-label="Retirer de la pile">' + ICO("dz-action-retirer", 16) + '</button>'
         + '</div>';
     }).join("");
   }
@@ -3504,7 +3510,7 @@
       + '<div class="fld"><span class="lbl">Graine (vide = aléatoire)</span><input type="number" id="cf-face-seed" step="1" placeholder="—"></div>'
       + '</div>'
       + '<p class="hint cf-face-cost" id="cf-face-cost"></p>'
-      + '<button class="btn primary wide" type="button" id="cf-face-gen">Générer et poser sur la carte</button>'
+      + '<button class="btn primary wide" type="button" id="cf-face-gen">' + ICO("dz-media-generer-image", 16, "cf-ic") + 'Générer et poser sur la carte</button>'
       + '<div id="cf-face-ai-out"></div>'
       + '</div>'
 
@@ -3581,7 +3587,7 @@
       + '<div class="cf-face-out">'
       + '<button class="btn sm wide" type="button" id="cf-face-fidbtn">Contrôle de fidélité de l\'illustration</button>'
       + '<p class="hint mono" id="cf-face-fid"></p>'
-      + '<button class="btn strong wide" type="button" id="cf-face-png">Télécharger la face — PNG 1:1 avec sa résolution physique</button>'
+      + '<button class="btn strong wide" type="button" id="cf-face-png">' + ICO("dz-action-telecharger", 16, "cf-ic") + 'Télécharger la face — PNG 1:1 avec sa résolution physique</button>'
       + '<p class="hint mono" id="cf-face-pngout">Le fichier emporte sa résolution physique '
       + '(<b>pHYs</b>), son espace de couleur (<b>sRGB</b>) et le nom de la carte. Sans eux, une '
       + 'mise en page ouvre le PNG à 72 DPI. À ' + g.dpi + ' DPI : ' + physLine(g.dpi) + '</p>'
@@ -4547,7 +4553,7 @@
   const M = CF.register({
     id: "face",
     title: "Face",
-    icon: "\u{1F3A8}",
+    icon: "dz-nav-cf-face",
     order: 1,
 
     painters: [

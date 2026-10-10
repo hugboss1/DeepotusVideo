@@ -59,6 +59,7 @@ var T = {columns: ["id", "nom_fr", "nom_en"], rows: [["c1", "Colosse", "Colossus
          map: {nom_fr: "titre"}, qty_col: "qty", lang: ""};
 var esc = function (s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;"); };
 var REFS = {langues: {innerHTML: "", className: ""}};
+var ICO = function (k) { return '<i class="dzi" data-cle="' + k + '"></i>'; };   /* icônes G2 : le repli d'un CF de paille */
 function schedule(ms) { SCHED++; }
 var M = {patch: function (o) { PATCH.push(o); }, toast: function (t) { TOASTS.push(t); },
          api: {post: async function (u, b) { APPELS.push([u, JSON.parse(JSON.stringify(b))]); if (REP.err) throw new Error(REP.err); return REP[u]; }}};
@@ -101,7 +102,7 @@ if R:
     check("L2 un bouton par langue TITRÉ (et « telle que mappée ») ; la langue incomplète est marquée ; renvoi à la pièce 03",
           'data-lang="" title="Les colonnes exactement comme le mappage les désigne">telle que mappée</button>' in h
           and 'data-lang="fr" title="Rendre tout le jeu en français — complet">français</button>' in h
-          and 'title="Rendre tout le jeu en anglais — 1 carte(s) avec une colonne manquante">anglais ⚠</button>' in h
+          and 'title="Rendre tout le jeu en anglais — 1 carte(s) avec une colonne manquante">anglais<i class="dzi" data-cle="dz-etat-avertissement"></i></button>' in h
           and "<b>pièce 03</b>" in h and "Impression et Édition sortent dans la langue active" in h
           and R["cls0"] == "cf-data-langues", h)
     check("L3 choisir l'anglais : la langue est ENREGISTRÉE seule (pas la table), le jeu se reconstruit, c'est dit",

@@ -1,5 +1,5 @@
 /* Deepotus Glyph — généré par scripts/icones/construire_suite.py */
 .dzi{display:inline-block;width:1em;height:1em;vertical-align:-.125em;flex:none;color:inherit}
-svg.dzi{fill:currentColor}
+svg.dzi:not([fill="none"]){fill:currentColor}
 .dzi--16{width:16px;height:16px}.dzi--18{width:18px;height:18px}.dzi--20{width:20px;height:20px}.dzi--24{width:24px;height:24px}
 img.dzi{object-fit:contain}

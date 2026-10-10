@@ -269,7 +269,7 @@ const journal = [];
 const PC = {
   etat: { doc: null, vignettes: {} }, surDoc: [], surVignettes: [],
   $: (s) => (s === "#corpsCalques" ? corpsCalques : null), $$: () => [],
-  icone: () => Promise.resolve(""),
+  icone: () => "",                         // G4 : PL.icone est synchrone (dzIcone)
   executer: (command, params, opts) => { journal.push(["executer", command, params, opts]); return Promise.resolve({ ok: true }); },
   cycle: () => { journal.push(["cycle"]); PC.etat.doc = { ...PC.etat.doc, activeLayer: 2 }; return Promise.resolve(PC.etat.doc); },
   ouvrirStyles: (k) => { journal.push(["ouvrirStyles", k, PC.etat.doc.activeLayer]); },
@@ -291,7 +291,8 @@ corpsCalques.tous((x) => x.className === "cq-fx")[0].envoyer("dblclick");
 await pause(5);
 check("12.3 calque déjà actif : dialogue tout de suite, sans layer.select", json(journal) === json([["ouvrirStyles", null, 2]]), journal);
 journal.length = 0;
-const bFx = corpsCalques.tous((x) => x.tagName === "BUTTON" && x.textContent === "fx")[0];
+// G4 : le bouton « fx » porte l'icône dz-edit-effet (plus de texte « fx »)
+const bFx = corpsCalques.tous((x) => x.tagName === "BUTTON" && x.dataset.icone === "dz-edit-effet")[0];
 check("12.4 bouton fx du pied actif avec un document", bFx && bFx.disabled === false && !bFx.classList.contains("bientot"));
 bFx.envoyer("click");
 check("12.5 bouton fx -> PL.ouvrirStyles()", journal.length === 1 && journal[0][0] === "ouvrirStyles");

@@ -43,8 +43,8 @@
 .cf-type .cf-type-keys > summary { font-size: 9.5px; color: var(--ink-muted);
   cursor: pointer; list-style: none; user-select: none; }
 .cf-type .cf-type-keys > summary::-webkit-details-marker { display: none; }
-.cf-type .cf-type-keys > summary::before { content: "\25B8"; margin-right: 5px; }
-.cf-type .cf-type-keys[open] > summary::before { content: "\25BE"; }
+.cf-type .cf-type-keys > summary::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: 0; background: currentColor; -webkit-mask: var(--cf-chev-mask) center / contain no-repeat; mask: var(--cf-chev-mask) center / contain no-repeat; transform: rotate(-90deg); }
+.cf-type .cf-type-keys[open] > summary::before { transform: none; }
 .cf-type .cf-type-keys > summary:hover { color: var(--ink-soft); }
 .cf-type .cf-type-keys p { margin: 3px 0 0; }
 
@@ -209,8 +209,8 @@
 .cf-type .cf-type-meth > summary { font-size: 9.5px; color: var(--ink-muted);
   cursor: pointer; list-style: none; }
 .cf-type .cf-type-meth > summary::-webkit-details-marker { display: none; }
-.cf-type .cf-type-meth > summary::before { content: "\25B8"; margin-right: 5px; }
-.cf-type .cf-type-meth[open] > summary::before { content: "\25BE"; }
+.cf-type .cf-type-meth > summary::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: 0; background: currentColor; -webkit-mask: var(--cf-chev-mask) center / contain no-repeat; mask: var(--cf-chev-mask) center / contain no-repeat; transform: rotate(-90deg); }
+.cf-type .cf-type-meth[open] > summary::before { transform: none; }
 .cf-type .cf-type-meth > summary:hover { color: var(--ink-soft); }
 .cf-type .cf-type-methb { margin: 4px 0 0; font-size: 9.5px; line-height: 1.6;
   color: var(--ink-muted); }

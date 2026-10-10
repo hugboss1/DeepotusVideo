@@ -2,10 +2,10 @@
 // est l'ordre de peinture : le panneau s'affiche INVERSÉ (le dessus en
 // haut). Toute mutation passe par les commandes pures via VL.executer.
 // Relooking Affinity (R3, 18/09) : tête « Opacité · Normal » sur le calque
-// actif (mode de fusion de calque), rangée [chevron][vignette][nom][🔒][👁],
+// actif (mode de fusion de calque), rangée [chevron][vignette][nom][verrou][œil],
 // barre d'actions en bas (renommer, réglage, masque, calque pixel, FX |
 // groupe, nouveau, monter, descendre, supprimer). Les data-act restent.
-import { icone_svg } from "./mod-icones.js";
+import { icone_rangee, dzi } from "./mod-icones.js";
 import { op_calque_ajouter, op_calque_renommer, op_calque_reordonner,
          op_calque_visible, op_calque_verrou, op_calque_supprimer,
          op_calque_opacite, op_calque_fusion, MODES_FUSION_CALQUE, compilerSVG } from "./mod-doc.js";
@@ -78,17 +78,17 @@ export function initCalques(VL) {
     section.insertBefore(tete, liste);
     const actions = document.createElement("div");
     actions.id = "calquesActions";
-    actions.innerHTML = `<button data-act="renommer" title="Renommer le calque actif">✎</button>
-      <button data-act="reglage" title="Calque de réglage : niveaux, courbes, HSL… (onglet Pixel)">◐</button>
-      <button data-act="masque" title="Masque de luminance de la sélection (Apparence)">◫</button>
-      <button data-act="pixel" title="Nouveau calque pixel : poser une image de la Bibliothèque">▦</button>
-      <button data-act="fx" title="Effets de calque : ombre, lueur, biseau… (Apparence)">fx</button>
+    actions.innerHTML = `<button data-act="renommer" title="Renommer le calque actif" aria-label="Renommer le calque actif">${dzi("dz-action-renommer", 16)}</button>
+      <button data-act="reglage" title="Calque de réglage : niveaux, courbes, HSL… (onglet Pixel)" aria-label="Calque de réglage">${dzi("dz-calque-reglage", 16)}</button>
+      <button data-act="masque" title="Masque de luminance de la sélection (Apparence)" aria-label="Masque de luminance de la sélection">${dzi("dz-calque-masque", 16)}</button>
+      <button data-act="pixel" title="Nouveau calque pixel : poser une image de la Bibliothèque" aria-label="Nouveau calque pixel">${dzi("dz-calque-pixel", 16)}</button>
+      <button data-act="fx" title="Effets de calque : ombre, lueur, biseau… (Apparence)" aria-label="Effets de calque">${dzi("dz-edit-effet", 16)}</button>
       <span class="ca-sep"></span>
-      <button data-act="groupe" title="Grouper la sélection">⧉</button>
-      <button id="btnCalquePlus" title="Nouveau calque">＋</button>
-      <button data-act="monter" title="Monter le calque actif d'un cran">▲</button>
-      <button data-act="descendre" title="Descendre le calque actif d'un cran">▼</button>
-      <button data-act="poubelle" title="Supprimer le calque actif et ses objets">🗑</button>`;
+      <button data-act="groupe" title="Grouper la sélection" aria-label="Grouper la sélection">${dzi("dz-edit-grouper", 16)}</button>
+      <button id="btnCalquePlus" title="Nouveau calque" aria-label="Nouveau calque">${dzi("dz-calque-nouveau", 16)}</button>
+      <button data-act="monter" title="Monter le calque actif d'un cran" aria-label="Monter le calque actif">${dzi("dz-edit-monter", 16)}</button>
+      <button data-act="descendre" title="Descendre le calque actif d'un cran" aria-label="Descendre le calque actif">${dzi("dz-edit-descendre", 16)}</button>
+      <button data-act="poubelle" title="Supprimer le calque actif et ses objets" aria-label="Supprimer le calque actif">${dzi("dz-action-supprimer", 16)}</button>`;
     section.appendChild(actions);
     // l'ancien ＋ du summary (s'il existe encore) cède l'id au nouveau bouton
     const vieux = section.querySelector("summary #btnCalquePlus"); if (vieux) vieux.remove();
@@ -121,17 +121,17 @@ export function initCalques(VL) {
       <div class="calque${r.actif ? " actif" : ""}${r.plie ? " plie" : ""}"
            data-calque="${esc(r.id)}"
            title="Clic : calque actif · double-clic sur le nom : renommer">
-        <span class="calque-chevron" title="${r.plie ? "Déplier" : "Replier"} les objets du calque (${nObj})">${nObj ? (r.plie ? "▸" : "▾") : ""}</span>
+        <span class="calque-chevron" title="${r.plie ? "Déplier" : "Replier"} les objets du calque (${nObj})">${nObj ? dzi("dz-action-deplier", 16) : ""}</span>
         <span class="calque-vig" title="Le contenu de ce calque">${vignette_calque_svg(etat.doc, r.id, 28, 28, VL.imageUrl)}</span>
         <span class="nom">${esc(r.nom)}</span>
-        <button data-act="verrou" class="${r.verrou ? "" : "off"}" title="Verrou">🔒</button>
-        <button data-act="oeil" class="${r.visible ? "" : "off"}" title="Visibilité">👁</button>
+        <button data-act="verrou" class="${r.verrou ? "" : "off"}" title="Verrou" aria-label="Verrou">${dzi("dz-etat-verrouille", 16)}</button>
+        <button data-act="oeil" class="${r.visible ? "" : "off"}" title="Visibilité" aria-label="Visibilité">${dzi("dz-etat-visible", 16)}</button>
       </div>`;
       }
       const titre = r.genre === "objet" ? "Clic : sélectionner l'objet (Maj : ajouter)" : r.genre === "ecretage" ? "L'enfant qui écrête le groupe (Apparence)" : r.genre === "masque" ? "Masque de transparence de l'objet (Apparence)" : "Effets de calque de l'objet (Apparence)";
       return `
       <div class="calque-objet${sel.has(r.id) && r.genre === "objet" ? " selectionne" : ""}" data-objet="${esc(r.id)}" data-genre="${r.genre}" data-calque="${esc(r.calque)}" style="--niv:${r.niveau}" title="${titre}">
-        <span class="co-ic">${icone_svg(r.icone, 14)}</span><span class="nom">${esc(r.nom)}</span>
+        <span class="co-ic">${icone_rangee(r.icone, 14)}</span><span class="nom">${esc(r.nom)}</span>
       </div>`;
     }).join("");
     // §8.5 du handoff Vectorlab : document sans le moindre objet — le

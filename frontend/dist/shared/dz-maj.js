@@ -21,6 +21,17 @@
     try { localStorage.setItem(CLE + tag, "1"); } catch (e) { /* stockage indisponible : il reviendra */ }
   }
   function mo(o) { return Math.round((Number(o) || 0) / 1048576) + " Mo"; }
+  /* Deepotus Glyph (G6) : l'icône tirée du SPRITE servi (/shared/icons/dz-icons.svg) par <use> — aucune dépendance
+     au runtime dz-icons.js. Décorative : le libellé du bouton porte le sens. */
+  function glyphe(cle, t) {
+    var ns = "http://www.w3.org/2000/svg", s = document.createElementNS(ns, "svg"), u = document.createElementNS(ns, "use");
+    s.setAttribute("class", "dzi"); s.setAttribute("width", String(t)); s.setAttribute("height", String(t));
+    s.setAttribute("aria-hidden", "true"); s.setAttribute("focusable", "false"); s.setAttribute("data-dz-icone", cle);
+    s.setAttribute("style", "vertical-align:-3px;margin-right:6px;fill:currentColor");
+    u.setAttribute("href", "/shared/icons/dz-icons.svg#" + cle);
+    s.appendChild(u);
+    return s;
+  }
 
   function bouton(texte, titre, principal) {
     var b = document.createElement("button");
@@ -78,6 +89,7 @@
     }
     if (a.url) {
       var dl = bouton("Télécharger", "Enregistre l'installeur dans le dossier de données (" + mo(a.octets) + ") — il ne sera pas lancé", true);
+      if (document.createElementNS && dl.insertBefore) dl.insertBefore(glyphe("dz-action-telecharger", 14), dl.firstChild);
       dl.onclick = function () {
         dl.disabled = true;
         dl.textContent = "Téléchargement…";

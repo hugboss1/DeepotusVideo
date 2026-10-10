@@ -327,7 +327,7 @@ const SvxWave=(props)=>{
 /* ── exemples de prompts SFX (cliquables, onglet Générer) ────────────────── */
 var SVX_EXAMPLES=[dzT("sfx.exemple.verre"),dzT("sfx.exemple.vent"),dzT("sfx.exemple.clic"),
   dzT("sfx.exemple.gravier"),dzT("sfx.exemple.porte"),dzT("sfx.exemple.explosion")];
-var SVX_TABS=[["tous",dzT("sfx.onglet.tous")],["fav","★"],["sfx","SFX"],["voix",dzT("sfx.commun.voix")],
+var SVX_TABS=[["tous",dzT("sfx.onglet.tous")],["fav",__dzGl("dz-action-favori")],["sfx","SFX"],["voix",dzT("sfx.commun.voix")],
   ["musique",dzT("sfx.commun.musique")],["import",dzT("sfx.onglet.importes")]];
 
 /* ═════════════════ Tiroir « Sons » — bibliothèque + Générer ═════════════ */
@@ -485,7 +485,7 @@ const SvxDrawer=(props)=>{
       title:on?dzT("sfx.favori.retirer_aide"):dzT("sfx.favori.ajouter_aide"),
       "aria-label":(on?dzT("sfx.favori.retirer"):dzT("sfx.favori.ajouter"))+it.name,
       onClick:function(e){e.stopPropagation();favToggle(it.name)},
-      children:on?"★":"☆"})}
+      children:on?__dzGl("dz-action-favori"):__dzGl("dz-action-favori")})}
 
   function delGo(item){
     setConfirmDel(null);
@@ -528,7 +528,7 @@ const SvxDrawer=(props)=>{
         kind:item.kind,dur:item.dur||0,prompt:item.prompt}));
       e.dataTransfer.effectAllowed="copy";
       var g=document.createElement("div");
-      g.textContent="♪ "+item.name+(item.dur?" · "+svmShort(item.dur):"");
+      __dzGlD(g,"dz-media-audio","♪ "+item.name+(item.dur?" · "+svmShort(item.dur):""),"♪",12);
       g.setAttribute("style","position:fixed;top:-200px;left:-200px;z-index:9999;"+
         "padding:6px 10px;border-radius:8px;background:#1c1c21;color:#f2efe9;"+
         "border:1px solid #3d3b45;font:11px 'JetBrains Mono',Consolas,monospace;"+
@@ -700,7 +700,7 @@ const SvxDrawer=(props)=>{
       title:armed?dzT("sfx.action.armee",{prix:prix}):tt,
       "aria-label":tt+" : "+it.name,
       onClick:function(e){e.stopPropagation();actGo(it,act)},
-      children:armed?prix+" ✓":lbl},act)}
+      children:armed?[prix," ",__dzGl("dz-action-valider")]:lbl},act)}
   function hoverIn(it){
     if(!hoverPrev)return;
     clearTimeout(hoverTimer.current);
@@ -730,7 +730,7 @@ const SvxDrawer=(props)=>{
   function nearGo(it){
     fetch("/api/audio/similar/"+encodeURIComponent(it.name)+"?k=8").then(svxJsonOk)
       .then(function(d){setSemRes(null);setNearOf({name:it.name,items:d.items||[]});
-        if(!(d.items||[]).length)fireNote(dzT("sfx.recherche.pas_indexe",{nom:it.name}))})
+        if(!(d.items||[]).length)fireNote(__dzGlT("dz-action-recherche-semantique",dzT("sfx.recherche.pas_indexe",{nom:it.name}),"✧"))})
       .catch(function(){fireNote(dzT("sfx.recherche.voisins_indisponibles"))})}
   /* résultat d'une recherche par description ou d'un « voisins » : les MÊMES
      rangées que la liste, plus le score, plus une sortie explicite */
@@ -776,7 +776,7 @@ const SvxDrawer=(props)=>{
         "data-on":playing?"":void 0,
         "aria-label":(playing?dzT("sfx.liste.arreter"):dzT("sfx.liste.ecouter"))+it.name,
         onClick:function(e){e.stopPropagation();prevToggle(it)},
-        children:playing?"▮▮":"▶"}),
+        children:playing?__dzGl("dz-media-arret"):__dzGl("dz-media-lecture")}),
       r.jsxs("div",{className:"svx-ibody",children:[
         r.jsxs("div",{className:"svx-irow1",children:[
           r.jsx("span",{className:"svx-iname",children:it.name}),
@@ -794,7 +794,7 @@ const SvxDrawer=(props)=>{
           it.starter?r.jsx("span",{className:"svx-itag svx-itag-cat",title:dzT("sfx.liste.catalogue_aide"),
             children:dzT("sfx.liste.catalogue")},"::cat"):null,
           it.parent?r.jsx("span",{className:"svx-itag svx-itag-cat",title:dzT("sfx.liste.derive_de",{nom:it.parent}),
-            children:"← "+(it.parent.length>20?it.parent.slice(0,19)+"…":it.parent)},"::mere"):null,
+            children:__dzGlT("dz-etat-derive",("← "+(it.parent.length>20?it.parent.slice(0,19)+"…":it.parent)),"←")},"::mere"):null,
           tagEdit&&tagEdit.name===it.name?r.jsx("input",{className:"svx-tagin",autoFocus:!0,value:tagEdit.val,
             placeholder:dzT("sfx.tags.placeholder"),"aria-label":dzT("sfx.tags.de")+it.name,
             onClick:function(e){e.stopPropagation()},
@@ -812,10 +812,10 @@ const SvxDrawer=(props)=>{
           title:dzT("sfx.liste.inserer_aide",{t:svmShort(svxN(props.playheadSec,0)),
             piste:svxTrackOf(it.kind).toUpperCase()}),
           onClick:function(e){e.stopPropagation();doInsert(it,"playhead")},
-          children:"⤵"}):null,
-        it.kind==="musique"?actBtn(it,"stems","≡",dzT("sfx.action.stems_aide")):null,
-        it.kind==="voix"||it.kind==="import"?actBtn(it,"isolate","◌",dzT("sfx.action.isoler_aide")):null,
-        it.kind==="voix"||it.kind==="import"?actBtn(it,"enhance","✦",
+          children:__dzGl("dz-media-inserer")}):null,
+        it.kind==="musique"?actBtn(it,"stems",__dzGl("dz-media-stems"),dzT("sfx.action.stems_aide")):null,
+        it.kind==="voix"||it.kind==="import"?actBtn(it,"isolate",__dzGl("dz-media-isoler-voix"),dzT("sfx.action.isoler_aide")):null,
+        it.kind==="voix"||it.kind==="import"?actBtn(it,"enhance",__dzGl("dz-media-ameliorer"),
           dzT("sfx.action.ameliorer_aide")):null,
         ssStatus&&ssStatus.indexed?r.jsx("button",{className:"svx-abtn",tabIndex:-1,
           title:dzT("sfx.action.proches_aide"),"aria-label":dzT("sfx.action.proches_de")+it.name,
@@ -823,7 +823,7 @@ const SvxDrawer=(props)=>{
         r.jsx("button",{className:"svx-abtn svx-danger",tabIndex:-1,
           title:dzT("sfx.supprimer.aide"),
           onClick:function(e){e.stopPropagation();setConfirmDel(it.name)},
-          children:"✕"})]})]},it.name)}
+          children:__dzGl("dz-action-supprimer")})]})]},it.name)}
 
   function emptyState(){
     if(lib===null)
@@ -846,7 +846,7 @@ const SvxDrawer=(props)=>{
       return r.jsxs("div",{className:"svx-empty",children:[
         r.jsx("div",{className:"svx-emptytxt",children:dzT("sfx.vide.aucun_favori")}),
         r.jsx("div",{className:"svx-emptyhint",
-          children:dzT("sfx.vide.aucun_favori_aide")})]});
+          children:__dzGlT("dz-action-favori",dzT("sfx.vide.aucun_favori_aide"),"★")})]});
     var msg=tab==="voix"?dzT("sfx.vide.aucune_voix")
       :tab==="musique"?dzT("sfx.vide.aucune_musique")
       :tab==="sfx"?dzT("sfx.vide.aucun_sfx")
@@ -876,7 +876,7 @@ const SvxDrawer=(props)=>{
         r.jsx("button",{className:"svm-playbtn svx-iplay",tabIndex:-1,
           "data-on":playing?"":void 0,"aria-label":(playing?dzT("sfx.carte.arreter_nom",{nom:it.name}):dzT("sfx.carte.ecouter_nom",{nom:it.name})),
           onClick:function(e){e.stopPropagation();prevToggle(it)},
-          children:playing?"▮▮":"▶"}),
+          children:playing?__dzGl("dz-media-arret"):__dzGl("dz-media-lecture")}),
         ren?r.jsx("input",{className:"svx-rename svm-mono",autoFocus:!0,
           value:renaming.val,
           onClick:function(e){e.stopPropagation()},
@@ -999,15 +999,15 @@ const SvxDrawer=(props)=>{
       r.jsx("span",{className:"svx-dtitle",children:dzT("sfx.tiroir.titre")}),
       r.jsx("span",{className:"svx-dcount svm-mono",children:String(all.length)}),
       r.jsx("button",{className:"svx-iconbtn",title:dzT("sfx.tiroir.rafraichir_aide"),
-        "aria-label":dzT("sfx.commun.rafraichir"),onClick:refresh,children:"⟳"}),
+        "aria-label":dzT("sfx.commun.rafraichir"),onClick:refresh,children:__dzGl("dz-action-actualiser")}),
       r.jsx("button",{className:"svx-iconbtn","data-busy":upBusy?"":void 0,
         title:dzT("sfx.tiroir.importer_aide"),
         "aria-label":dzT("sfx.commun.importer_son"),
         onClick:function(){if(fileRef.current)fileRef.current.click()},
-        children:upBusy?r.jsx("span",{className:"svx-spin","aria-hidden":!0}):"⤒"}),
+        children:upBusy?r.jsx("span",{className:"svx-spin","aria-hidden":!0}):__dzGl("dz-action-importer")}),
       props.inline?null:r.jsx("button",{className:"svx-iconbtn svx-dclose",title:dzT("sfx.tiroir.fermer_aide"),
         "aria-label":dzT("sfx.tiroir.fermer_aria"),
-        onClick:function(){if(props.onClose)props.onClose()},children:"✕"})]}),
+        onClick:function(){if(props.onClose)props.onClose()},children:__dzGl("dz-action-fermer")})]}),
     r.jsxs("div",{className:"svx-tabs",role:"tablist",children:[
       SVX_TABS.map(function(td){
         return r.jsxs("button",{className:"svx-tab",role:"tab",
@@ -1035,7 +1035,7 @@ const SvxDrawer=(props)=>{
           :((ssStatus&&ssStatus.hint)||dzT("sfx.filtres.semantique_indispo")),
         "aria-pressed":semantic,"aria-label":dzT("sfx.filtres.semantique_aria"),
         disabled:!(ssStatus&&ssStatus.ready),
-        onClick:function(){setSemantic(!semantic);setSemRes(null);setNearOf(null)},children:"✧"}),
+        onClick:function(){setSemantic(!semantic);setSemRes(null);setNearOf(null)},children:__dzGl("dz-action-recherche-semantique")}),
       semantic?r.jsx("button",{className:"svx-abtn","data-busy":semBusy==="ix"?"":void 0,
         title:dzT("sfx.filtres.indexer_aide"),
         onClick:function(){semIndex(!1)},children:semBusy==="ix"?"…":dzT("sfx.filtres.indexer")}):null,
@@ -1059,7 +1059,7 @@ const SvxDrawer=(props)=>{
       r.jsx("button",{className:"svx-iconbtn svx-hoverbtn","data-on":hoverPrev?"":void 0,
         title:hoverPrev?dzT("sfx.filtres.survol_actif"):dzT("sfx.filtres.survol_coupe"),
         "aria-pressed":hoverPrev,"aria-label":dzT("sfx.filtres.survol_aria"),
-        onClick:function(){setHoverPrev(!hoverPrev)},children:"👂"})]}):null,
+        onClick:function(){setHoverPrev(!hoverPrev)},children:__dzGl("dz-media-preecoute")})]}):null,
     r.jsx("div",{className:"svx-list",children:
       tab==="gen"?genPanel()
       :(semRes||nearOf)?semanticPanel()
@@ -1382,7 +1382,7 @@ const SvxRack=(props)=>{
           children:def.live?"live":dzT("sfx.rack.rendu")}),
         on&&!exp?r.jsx("span",{className:"svx-msum svm-mono",
           children:svxModSummary(def,norm.on[def.type])}):null,
-        r.jsx("span",{className:"svx-mcaret","aria-hidden":!0,children:exp?"▾":"▸"})]}),
+        r.jsx("span",{className:"svx-mcaret","aria-hidden":!0,children:exp?__dzGl("dz-action-deplier"):__dzGl("dz-action-deplier","1em",{transform:"rotate(-90deg)"})})]}),
       exp?r.jsx("div",{className:"svx-params",children:
         def.params.map(function(pd){return paramRow(def,pd,p,on)})}):null]},def.type)}
 
@@ -1412,7 +1412,7 @@ const SvxRack=(props)=>{
         onClick:listenToggle,
         children:loading?r.jsxs(r.Fragment,{children:[
             r.jsx("span",{className:"svx-spin","aria-hidden":!0}),dzT("sfx.commun.chargement")]})
-          :playing?dzT("sfx.rack.stop"):dzT("sfx.rack.ecouter")}),
+          :playing?__dzGlT("dz-media-arret",dzT("sfx.rack.stop"),"▮▮"):__dzGlT("dz-media-lecture",dzT("sfx.rack.ecouter"),"▶")}),
       props.onAudition?r.jsx("button",{className:"svx-listen svx-listenr",
         "data-busy":rBusy?"":void 0,disabled:rBusy,
         title:dzT("sfx.rack.rendu_ecoute_aide"),
@@ -1506,7 +1506,7 @@ const SvxMeter=(props)=>{
         r.jsx(SvmLabel,{children:dzT("sfx.metre.sortie_maitre")}),
         pin?r.jsx("button",{className:"svx-iconbtn",title:dzT("sfx.metre.fermer_aide"),
           "aria-label":dzT("sfx.metre.fermer_aria"),
-          onClick:function(){setPin(!1)},children:"✕"}):null]}),
+          onClick:function(){setPin(!1)},children:__dzGl("dz-action-fermer")}):null]}),
       bar(!0),
       r.jsx("div",{className:"svx-mscale svm-mono","aria-hidden":!0,
         children:SVX_METER_MARKS.map(function(mk){

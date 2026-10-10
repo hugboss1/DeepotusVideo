@@ -23,9 +23,10 @@ const ok = (nom, cond, detail = "") => {
   ok("motifLibelle", motifLibelle("grille") === "Grille" && motifLibelle("") === "" && motifLibelle("zz") === "");
 }
 {
-  ok("grilleLibelle sans grille", grilleLibelle(null, 8) === "⊞ 8");
-  ok("grilleLibelle hex", grilleLibelle({ type: "hex", pas: 32, orientation: "plat" }, 8) === "⊞ hex 32 plat");
-  ok("grilleLibelle carrée subdivisée", grilleLibelle({ type: "carree", pas: 20, sous: 4 }, 8) === "⊞ 20 ÷4");
+  // G3 : le libellé n'a plus le glyphe ⊞ — l'icône dz-edit-grille est posée à côté par core (majBoutonGrille)
+  ok("grilleLibelle sans grille", grilleLibelle(null, 8) === "8");
+  ok("grilleLibelle hex", grilleLibelle({ type: "hex", pas: 32, orientation: "plat" }, 8) === "hex 32 plat");
+  ok("grilleLibelle carrée subdivisée", grilleLibelle({ type: "carree", pas: 20, sous: 4 }, 8) === "20 ÷4");
 }
 {
   const h = plancheLigne({ id: "p1", nom: "Carte <1>", x: 0, y: 0, w: 750, h: 1050 }, { affichage: "mm", dpi: 300 });

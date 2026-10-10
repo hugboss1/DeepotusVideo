@@ -4,22 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deepotus — Atelier Chapitre</title>
+<link rel="icon" type="image/png" href="/api/branding/logo">
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
 <link rel="stylesheet" href="atelier.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">🐙 <b>Atelier Chapitre</b> <span class="tag">P2 · script → bible → storyboard</span></div>
+  <div class="brand"><img class="dzi dzi--20" src="/api/branding/logo" alt=""> <b>Atelier Chapitre</b> <span class="tag">P2 · script → bible → storyboard</span></div>
   <div class="chapbar">
     <select id="chapterSelect" title="Chapitres"></select>
-    <button id="newChapter" class="btn">+ Chapitre</button>
-    <button id="msBtn" class="btn primary" title="Importer un manuscrit complet : l'agent IA segmente les chapitres, remplit la bible (personnages, lieux, objets, dates, ambiances, décors) et surligne le texte">📚 Manuscrit</button>
+    <button id="newChapter" class="btn"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-nouveau"></use></svg> Chapitre</button>
+    <button id="msBtn" class="btn primary" title="Importer un manuscrit complet : l'agent IA segmente les chapitres, remplit la bible (personnages, lieux, objets, dates, ambiances, décors) et surligne le texte"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-manuscrit"></use></svg> Manuscrit</button>
     <input id="chapterTitle" placeholder="Titre du chapitre" title="Titre">
     <input id="chapterSeries" placeholder="Série (ex: Lost Abyss)" title="Série">
-    <button id="deleteChapter" class="btn ghost" title="Supprimer ce chapitre">🗑</button>
+    <button id="deleteChapter" class="btn ghost" title="Supprimer ce chapitre" aria-label="Supprimer ce chapitre"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-supprimer"></use></svg></button>
     <span id="saveState" class="savestate">—</span>
-    <button id="verBtn" class="btn ghost" title="Versions : chaque écrasement (édition, adaptation, ré-import, retour du téléphone…) a laissé un instantané — comparer et revenir en arrière">🕘 Versions</button>
+    <button id="verBtn" class="btn ghost" title="Versions : chaque écrasement (édition, adaptation, ré-import, retour du téléphone…) a laissé un instantané — comparer et revenir en arrière"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-versions"></use></svg> Versions</button>
   </div>
-  <a class="backlink" href="/" title="Retour à l'app">← App</a>
+  <a class="backlink" href="/" title="Retour à l'app"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retour"></use></svg> App</a>
 </header>
 
 <main class="panes">
@@ -33,25 +35,25 @@
       </nav>
       <span id="boardTotal" class="board-total hidden" title="Durée totale du storyboard">Σ 0:00</span>
       <div class="script-actions">
-        <label class="btn" for="importFile">📄 Importer (txt/docx/pdf)</label>
+        <label class="btn" for="importFile"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> Importer (txt/docx/pdf)</label>
         <input type="file" id="importFile" accept=".txt,.md,.docx,.pdf" hidden>
-        <button id="expManDocx" class="btn" data-export="export.docx?kind=manuscrit" title="Exporter le manuscrit du chapitre en .docx (Word, A4) — tout caractère gardé">⬇ .docx</button>
-        <button id="expManPdf" class="btn" data-export="export.pdf?kind=manuscrit" title="Exporter le manuscrit du chapitre en PDF (A4, pages numérotées)">⬇ .pdf</button>
+        <button id="expManDocx" class="btn" data-export="export.docx?kind=manuscrit" title="Exporter le manuscrit du chapitre en .docx (Word, A4) — tout caractère gardé"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> .docx</button>
+        <button id="expManPdf" class="btn" data-export="export.pdf?kind=manuscrit" title="Exporter le manuscrit du chapitre en PDF (A4, pages numérotées)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> .pdf</button>
       </div>
     </div>
     <div id="selBar" class="selbar hidden">
       Sélection : <em id="selText"></em>
-      <button class="btn k-character" data-kind="character">➕ Personnage</button>
-      <button class="btn k-place"     data-kind="place">➕ Lieu</button>
-      <button class="btn k-object"    data-kind="object">➕ Objet</button>
-      <button class="btn k-date"      data-kind="date">➕ Date</button>
-      <button class="btn k-ambiance"  data-kind="ambiance">➕ Ambiance</button>
-      <button class="btn k-decor"     data-kind="decor">➕ Décor</button>
-      <select id="linkSelect" title="Lier la sélection à une entité existante">
-        <option value="">🔗 Lier à…</option>
+      <button class="btn k-character" data-kind="character"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-personnage"></use></svg> Personnage</button>
+      <button class="btn k-place"     data-kind="place"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-lieu"></use></svg> Lieu</button>
+      <button class="btn k-object"    data-kind="object"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-objet"></use></svg> Objet</button>
+      <button class="btn k-date"      data-kind="date"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-date"></use></svg> Date</button>
+      <button class="btn k-ambiance"  data-kind="ambiance"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-ambiance"></use></svg> Ambiance</button>
+      <button class="btn k-decor"     data-kind="decor"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-decor"></use></svg> Décor</button>
+      <span class="sel-ico" aria-hidden="true"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-lier"></use></svg></span><select id="linkSelect" title="Lier la sélection à une entité existante">
+        <option value="">Lier à…</option>
       </select>
-      <select id="reeAction" title="Une passe du modèle sur la sélection, dans le ton de la bible (personnages, voix castées, style) — le coût est dit et confirmé avant, et rien n'est écrit sans votre accord">
-        <option value="">✍ Réécrire…</option>
+      <span class="sel-ico" aria-hidden="true"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-reecrire-ia"></use></svg></span><select id="reeAction" title="Une passe du modèle sur la sélection, dans le ton de la bible (personnages, voix castées, style) — le coût est dit et confirmé avant, et rien n'est écrit sans votre accord">
+        <option value="">Réécrire…</option>
         <option value="reformuler">Reformuler</option>
         <option value="resserrer">Resserrer</option>
         <option value="traduire">Traduire…</option>
@@ -78,16 +80,16 @@
     <!-- ══════════ Mode Scénario ══════════ -->
     <div id="screenplay" class="board hidden">
       <div class="board-toolbar">
-        <button id="adaptBtn" class="btn primary" title="L'agent adapte le chapitre en scénario (règles de l'art : show don't tell, sluglines, éclairages et caméra motivés par le narratif) — le manuscrit original n'est PAS modifié">🎭 Adapter (IA)</button>
-        <button id="spPreview" class="btn" title="Lire le scénario assemblé du chapitre, ici même">👁 Lire</button>
-        <button id="voAll" class="btn" title="Génère le voice-over de toutes les scènes (narration = Narrateur, répliques = voix castées) — chaque scène reçoit sa durée réelle">🔊 Voice-over</button>
+        <button id="adaptBtn" class="btn primary" title="L'agent adapte le chapitre en scénario (règles de l'art : show don't tell, sluglines, éclairages et caméra motivés par le narratif) — le manuscrit original n'est PAS modifié"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-reecrire-ia"></use></svg> Adapter (IA)</button>
+        <button id="spPreview" class="btn" title="Lire le scénario assemblé du chapitre, ici même"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-apercu"></use></svg> Lire</button>
+        <button id="voAll" class="btn" title="Génère le voice-over de toutes les scènes (narration = Narrateur, répliques = voix castées) — chaque scène reçoit sa durée réelle"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-generer-voix"></use></svg> Voice-over</button>
         <span id="voTotal" class="board-total" title="Durée totale du voice-over du chapitre">Σ VO —</span>
-        <a id="fountainDl" class="btn" title="Export .fountain = simple fichier TEXTE (standard industrie). S'ouvre avec le Bloc-notes ou un logiciel de scénario (Fade In, Highland, Arc Studio). L'Atelier n'en a PAS besoin : le storyboard lit les scènes directement." download>⬇ .fountain</a>
-        <label class="btn" for="spImportFile" title="Importer un scénario Fountain (.fountain, .txt) ou Final Draft (.fdx) dans ce chapitre : remplacer les scènes (sauvegardées avant) ou les ajouter à la suite — sans IA, gratuit">📥 Importer .fountain / .fdx</label>
+        <a id="fountainDl" class="btn" title="Export .fountain = simple fichier TEXTE (standard industrie). S'ouvre avec le Bloc-notes ou un logiciel de scénario (Fade In, Highland, Arc Studio). L'Atelier n'en a PAS besoin : le storyboard lit les scènes directement." download><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> .fountain</a>
+        <label class="btn" for="spImportFile" title="Importer un scénario Fountain (.fountain, .txt) ou Final Draft (.fdx) dans ce chapitre : remplacer les scènes (sauvegardées avant) ou les ajouter à la suite — sans IA, gratuit"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> Importer .fountain / .fdx</label>
         <input type="file" id="spImportFile" accept=".fountain,.spmd,.txt,.fdx" hidden>
-        <button id="expScDocx" class="btn" data-export="export.docx?kind=scenario" title="Exporter le scénario en .docx (Courier 12, US Letter, retraits du métier)">⬇ .docx</button>
-        <button id="expScPdf" class="btn" data-export="export.pdf?kind=scenario" title="Exporter le scénario en PDF (Courier 12, US Letter, page de titre, pages numérotées)">⬇ .pdf</button>
-        <button id="spReset" class="btn ghost" title="Supprimer toutes les scènes de ce chapitre (le manuscrit reste intact)">🗑 Réinitialiser</button>
+        <button id="expScDocx" class="btn" data-export="export.docx?kind=scenario" title="Exporter le scénario en .docx (Courier 12, US Letter, retraits du métier)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> .docx</button>
+        <button id="expScPdf" class="btn" data-export="export.pdf?kind=scenario" title="Exporter le scénario en PDF (Courier 12, US Letter, page de titre, pages numérotées)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> .pdf</button>
+        <button id="spReset" class="btn ghost" title="Supprimer toutes les scènes de ce chapitre (le manuscrit reste intact)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-vider"></use></svg> Réinitialiser</button>
         <span class="board-hint">le manuscrit reste intact — le scénario est un artefact dérivé</span>
       </div>
       <div id="sceneList" class="shot-list"></div>
@@ -96,13 +98,13 @@
     <!-- ══════════ Mode Storyboard ══════════ -->
     <div id="board" class="board hidden">
       <div class="board-toolbar">
-        <button id="cutAI" class="btn primary" title="L'IA lit le chapitre et la bible, puis découpe en plans (action, entités, cadrage, caméra, durée, prompt)">🎬 Découper (IA)</button>
-        <button id="cutPara" class="btn" title="Un plan par paragraphe, sans IA">¶ Paragraphes</button>
-        <button id="addShot" class="btn" title="Ajouter un plan vide à la fin">＋ Plan</button>
-        <button id="versEpisode" class="btn" title="Créer un épisode narré (un plan = une scène : son texte, son image) dans la vue Épisodes — SANS rendu : la narration et le rendu payants s'y lancent avec leur devis">📺 Épisode</button>
-        <button id="expSbPdf" class="btn" data-export="storyboard.pdf" title="Exporter le storyboard en PDF : quatre plans par page A4, vignette 9:16 entière (production, sinon croquis)">⬇ PDF</button>
-        <button id="animBtn" class="btn" title="Animatique : les plans montés en vidéo de répétition (image fixe à sa durée), muette et gratuite par défaut — à regarder avant de payer un rendu">🎞 Animatique</button>
-        <button id="boardReset" class="btn ghost" title="Supprimer tous les plans de ce storyboard pour repartir de zéro">🗑 Réinitialiser</button>
+        <button id="cutAI" class="btn primary" title="L'IA lit le chapitre et la bible, puis découpe en plans (action, entités, cadrage, caméra, durée, prompt)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-decouper-plans"></use></svg> Découper (IA)</button>
+        <button id="cutPara" class="btn" title="Un plan par paragraphe, sans IA"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-paragraphes"></use></svg> Paragraphes</button>
+        <button id="addShot" class="btn" title="Ajouter un plan vide à la fin"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg> Plan</button>
+        <button id="versEpisode" class="btn" title="Créer un épisode narré (un plan = une scène : son texte, son image) dans la vue Épisodes — SANS rendu : la narration et le rendu payants s'y lancent avec leur devis"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-episodes"></use></svg> Épisode</button>
+        <button id="expSbPdf" class="btn" data-export="storyboard.pdf" title="Exporter le storyboard en PDF : quatre plans par page A4, vignette 9:16 entière (production, sinon croquis)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> PDF</button>
+        <button id="animBtn" class="btn" title="Animatique : les plans montés en vidéo de répétition (image fixe à sa durée), muette et gratuite par défaut — à regarder avant de payer un rendu"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-animatique"></use></svg> Animatique</button>
+        <button id="boardReset" class="btn ghost" title="Supprimer tous les plans de ce storyboard pour repartir de zéro"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-vider"></use></svg> Réinitialiser</button>
         <span class="board-hint">croquis = validation du cadrage et du rythme avant la production</span>
         <span id="shotcraftStatus" title="Pont video-shotcraft"></span>
       </div>
@@ -112,12 +114,12 @@
     <!-- ══════ Éléments vectoriels du chapitre (Vectorlab, phases 0+6) ══════ -->
     <div id="vectorPanel" class="vector-panel hidden">
       <div class="vector-head">
-        <span>◧ Éléments vectoriels</span>
+        <span><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-calque-vectoriel"></use></svg> Éléments vectoriels</span>
         <span class="vector-btns">
-          <button id="vpAddDecor" class="btn" title="Nouveau décor vectoriel lié à ce chapitre (ouvre l'éditeur)">＋ Décor</button>
-          <button id="vpAddLumiere" class="btn" title="Nouveau calque de lumière (halos, dégradés) lié à ce chapitre">＋ Lumière</button>
-          <button id="vpAddPerso" class="btn" title="Nouveau personnage vectoriel lié à ce chapitre">＋ Personnage</button>
-          <button id="vpBiblio" class="btn" title="Instancier par référence un élément de la bibliothèque ou d'un autre chapitre (sans copie)">⧉ Bibliothèque</button>
+          <button id="vpAddDecor" class="btn" title="Nouveau décor vectoriel lié à ce chapitre (ouvre l'éditeur)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg> Décor</button>
+          <button id="vpAddLumiere" class="btn" title="Nouveau calque de lumière (halos, dégradés) lié à ce chapitre"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg> Lumière</button>
+          <button id="vpAddPerso" class="btn" title="Nouveau personnage vectoriel lié à ce chapitre"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg> Personnage</button>
+          <button id="vpBiblio" class="btn" title="Instancier par référence un élément de la bibliothèque ou d'un autre chapitre (sans copie)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-symbole"></use></svg> Bibliothèque</button>
         </span>
       </div>
       <div id="vectorList" class="vector-list"></div>
@@ -149,10 +151,10 @@
         <button class="tab" data-kind="ambiance">Ambiances</button>
         <button class="tab" data-kind="decor">Décors</button>
       </nav>
-      <button id="addEntity" class="btn">＋ Nouveau</button>
+      <button id="addEntity" class="btn"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg> Nouveau</button>
     </div>
     <div class="globalstyle">
-      <button id="daBtn" class="btn primary" title="Direction artistique : propositions de l'agent (motivées par le manuscrit), styles présets (BD, manga, réaliste…), choix du générateur d'images et référence de style">🎨 DA</button>
+      <button id="daBtn" class="btn primary" title="Direction artistique : propositions de l'agent (motivées par le manuscrit), styles présets (BD, manga, réaliste…), choix du générateur d'images et référence de style"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-direction-artistique"></use></svg> DA</button>
       <input id="globalStyle" placeholder="Style global du projet — toutes les planches l'utilisent (🎨 DA pour les propositions)"
         title="Style de réalisation appliqué à TOUTES les générations du projet. Une entité peut le surcharger ponctuellement via ses propres notes de style.">
       <span id="styleSaved" class="savestate">—</span>
@@ -167,10 +169,10 @@
     <div class="modal-head">
       <b>Ajouter une inspiration</b>
       <div style="display:flex;gap:8px;align-items:center">
-        <label class="btn" for="libUpload" title="Importer un fichier de ton PC (il rejoint la Library)">📤 Fichier</label>
+        <label class="btn" for="libUpload" title="Importer un fichier de ton PC (il rejoint la Library)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> Fichier</label>
         <input type="file" id="libUpload" accept="image/png,image/jpeg,image/webp" hidden>
-        <button id="libUrl" class="btn" title="Importer depuis une URL web (elle rejoint la Library)">🔗 URL</button>
-        <button id="libClose" class="btn ghost">✕</button>
+        <button id="libUrl" class="btn" title="Importer depuis une URL web (elle rejoint la Library)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> URL</button>
+        <button id="libClose" class="btn ghost" title="Fermer" aria-label="Fermer"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fermer"></use></svg></button>
       </div>
     </div>
     <div id="libGrid" class="lib-grid"></div>
@@ -181,12 +183,12 @@
 <div id="daModal" class="modal hidden">
   <div class="modal-box da-box">
     <div class="modal-head">
-      <b>🎨 Direction artistique du projet</b>
-      <button id="daClose" class="btn ghost">✕</button>
+      <b><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-direction-artistique"></use></svg> Direction artistique du projet</b>
+      <button id="daClose" class="btn ghost" title="Fermer" aria-label="Fermer"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fermer"></use></svg></button>
     </div>
     <div class="da-body">
       <div class="da-section">
-        <div class="da-title">Propositions de l'agent <button id="daPropose" class="btn" title="L'agent relit le manuscrit (ton, époque, genre, indices visuels rédigés) et propose 4 directions motivées">✨ (Re)proposer</button></div>
+        <div class="da-title">Propositions de l'agent <button id="daPropose" class="btn" title="L'agent relit le manuscrit (ton, époque, genre, indices visuels rédigés) et propose 4 directions motivées"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-suggerer"></use></svg> (Re)proposer</button></div>
         <div id="daProposals" class="da-cards"><div class="empty-note">Importe un manuscrit (📚) ou clique ✨ — l'agent proposera 4 directions motivées par le texte.</div></div>
       </div>
       <div class="da-section">
@@ -211,13 +213,13 @@
         <div class="da-title">Référence de style (optionnel)</div>
         <div class="da-refrow">
           <span id="daRefName" class="da-note">aucune</span>
-          <button id="daRefPick" class="btn">🖼 Choisir</button>
-          <button id="daRefClear" class="btn ghost">✕ Retirer</button>
+          <button id="daRefPick" class="btn"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-choisir-bibliotheque"></use></svg> Choisir</button>
+          <button id="daRefClear" class="btn ghost"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retirer"></use></svg> Retirer</button>
         </div>
         <div class="da-note">Une image (planche BD, still de film…) dont le RENDU sert de modèle aux planches — utilisée quand l'entité n'a pas sa propre référence d'identité.</div>
       </div>
       <div class="ms-actions">
-        <button id="daApply" class="btn primary">✔ Appliquer au projet</button>
+        <button id="daApply" class="btn primary"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-valider"></use></svg> Appliquer au projet</button>
         <span class="ms-warn">persiste et s'applique à toutes les générations — chaque entité peut garder son style spécifique</span>
       </div>
     </div>
@@ -229,7 +231,7 @@
   <div class="modal-box sp-box">
     <div class="modal-head">
       <b id="spTitle">Scénario</b>
-      <button id="spClose" class="btn ghost">✕</button>
+      <button id="spClose" class="btn ghost" title="Fermer" aria-label="Fermer"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fermer"></use></svg></button>
     </div>
     <pre id="spText" class="sp-text"></pre>
   </div>
@@ -239,8 +241,8 @@
 <div id="msModal" class="modal hidden">
   <div class="modal-box ms-box">
     <div class="modal-head">
-      <b>📚 Agent Manuscrit — ingestion complète</b>
-      <button id="msClose" class="btn ghost">✕</button>
+      <b><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-manuscrit"></use></svg> Agent Manuscrit — ingestion complète</b>
+      <button id="msClose" class="btn ghost" title="Fermer" aria-label="Fermer"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fermer"></use></svg></button>
     </div>
     <div class="ms-body">
       <p class="ms-hint">L'agent lit le manuscrit entier : il <b>segmente les chapitres</b> (titres importés),
@@ -257,8 +259,8 @@
         <input type="text" id="msSeries" placeholder="(par défaut : nom du fichier)">
       </label>
       <div class="ms-actions">
-        <button id="msRun" class="btn primary">🚀 Lancer l'agent</button>
-        <span class="ms-warn">⏳ plusieurs minutes selon la taille (1 lecture IA par chapitre + consolidation)</span>
+        <button id="msRun" class="btn primary"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-lancer"></use></svg> Lancer l'agent</button>
+        <span class="ms-warn"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-etat-attente"></use></svg> plusieurs minutes selon la taille (1 lecture IA par chapitre + consolidation)</span>
       </div>
       <div id="msProgress" class="ms-progress hidden">
         <div class="ms-bar"><div id="msBarFill" class="ms-bar-fill"></div></div>
@@ -273,7 +275,7 @@
     <div class="modal-head">
       <b>Versions du texte</b>
       <span id="verNote" class="da-note"></span>
-      <button id="verClose" class="btn ghost" title="Fermer">✕</button>
+      <button id="verClose" class="btn ghost" title="Fermer" aria-label="Fermer"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fermer"></use></svg></button>
     </div>
     <div class="ver-body">
       <div id="verList" class="ver-list"></div>
@@ -286,14 +288,14 @@
     <div class="modal-head">
       <b>Animatique</b>
       <span id="animNote" class="da-note"></span>
-      <button id="animClose" class="btn ghost" title="Fermer">✕</button>
+      <button id="animClose" class="btn ghost" title="Fermer" aria-label="Fermer"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fermer"></use></svg></button>
     </div>
     <div class="anim-body">
       <div class="anim-reglage">
         <label class="anim-voix" title="Une voix témoin par plan, lue par le Narrateur de la bible : elle fixe la durée du plan. Les voix déjà faites sont en cache (gratuites).">
           <input type="checkbox" id="animVoix"> <span>Voix témoin</span> <span id="animDevis" class="da-note"></span>
         </label>
-        <button id="animGo" class="btn primary" title="Monter l'animatique (muette : gratuit ; avec voix : coût affiché et confirmé avant)">🎞 Monter</button>
+        <button id="animGo" class="btn primary" title="Monter l'animatique (muette : gratuit ; avec voix : coût affiché et confirmé avant)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-animatique"></use></svg> Monter</button>
       </div>
       <div id="animProgress" class="ms-progress hidden">
         <div class="ms-bar"><div id="animBar" class="ms-bar-fill"></div></div>
@@ -301,8 +303,8 @@
       </div>
       <div id="animSorties" class="anim-sorties hidden">
         <span class="da-note">Vers le Montage (nouveau projet, gratuit) :</span>
-        <button id="sortieFilm" class="btn" data-sortie="film" title="Créer un NOUVEAU projet de Montage avec tous les plans de l'animatique et leurs voix témoins — la timeline en cours n'est pas touchée">🎬 Film</button>
-        <button id="sortieReel" class="btn" data-sortie="reel" title="Créer un NOUVEAU projet de Montage avec les plans les plus forts (énergie du storyboard), 30 s au plus — la timeline en cours n'est pas touchée">⚡ Reel</button>
+        <button id="sortieFilm" class="btn" data-sortie="film" title="Créer un NOUVEAU projet de Montage avec tous les plans de l'animatique et leurs voix témoins — la timeline en cours n'est pas touchée"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-film"></use></svg> Film</button>
+        <button id="sortieReel" class="btn" data-sortie="reel" title="Créer un NOUVEAU projet de Montage avec les plans les plus forts (énergie du storyboard), 30 s au plus — la timeline en cours n'est pas touchée"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-reel"></use></svg> Reel</button>
         <span id="animSortieNote" class="da-note"></span>
       </div>
       <video id="animVideo" class="anim-video hidden" controls preload="metadata"></video>
@@ -315,13 +317,13 @@
     <div class="modal-head">
       <b id="reeTitre">Proposition</b>
       <span id="reeNote" class="da-note"></span>
-      <button id="reeClose" class="btn ghost" title="Fermer sans rien écrire">✕</button>
+      <button id="reeClose" class="btn ghost" title="Fermer sans rien écrire" aria-label="Fermer sans rien écrire"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fermer"></use></svg></button>
     </div>
     <div class="ree-body">
       <textarea id="reeTexte" rows="12" class="ree-texte" title="La proposition — modifiable avant de l'appliquer"></textarea>
       <div class="ree-actions">
         <button id="reeAnnuler" class="btn ghost" title="Garder le texte tel quel (la proposition est jetée)">Laisser tel quel</button>
-        <button id="reeAppliquer" class="btn primary" title="Écrire la proposition dans le chapitre — l'état d'avant est gardé dans 🕘 Versions">✔ Appliquer</button>
+        <button id="reeAppliquer" class="btn primary" title="Écrire la proposition dans le chapitre — l'état d'avant est gardé dans 🕘 Versions"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-valider"></use></svg> Appliquer</button>
       </div>
     </div>
   </div>
@@ -329,6 +331,7 @@
 <div id="toast" class="toast hidden"></div>
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
+<script src="/shared/icons/dz-icons.js"></script>
 <script src="/shared/dz-plafonds.js"></script>
 <script src="/shared/dialogue.js"></script>
 <script src="/shared/dz-champ-ia.js"></script>

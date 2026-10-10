@@ -46,7 +46,10 @@ check("L1 DzTex défini une fois, greffé une fois, juste après DzLod dans DzOp
       BUN.count("function DzTex(") == 1 and 'r.jsx(DzLod,{sh:sh},"lod"+sh),r.jsx(DzTex,{sh:sh},"tex"+sh),' in fonction("DzOptimize"))
 check("L2 aucune convention recopiée dans le bundle", "unity_urp" not in fonction("DzTex") and "T_" not in fonction("DzTex"))
 
-HARNAIS = r"""
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402  (icônes G1 : __dzGl & co. sous node)
+
+HARNAIS = AIDE.PRELUDE_DZGLYPH + r"""
 var H=[],hi=0,EFF=[],CALLS=[],REP={},DL=[],TIM=[];
 var x={useState:function(v){var i=hi++;if(!(i in H))H[i]=v;return [H[i],function(n){H[i]=typeof n==="function"?n(H[i]):n}]},
   useEffect:function(f){var i=hi++;if(!(i in H)){H[i]=1;EFF.push(f)}}};
@@ -105,7 +108,7 @@ check("U0 DzTex livré s'exécute sous node", "erreur" not in o and "conv" in o,
 if "conv" in o:
     check("U1 conventions et résolutions de l'inventaire du SERVEUR, 2048 par défaut",
           o["conv"] == ["standard", "blender", "unity_urp", "unreal", "godot"] and o["res"][0] == "512 px" and o["resVal"] == "2048", str(o))
-    check("U2 bouton actif, son infobulle dit quel fichier part", o["go"][0] == "↓ Textures" and not o["go"][1]
+    check("U2 bouton actif, son infobulle dit quel fichier part", o["go"][0] == "⟦dz-action-exporter⟧ Textures" and not o["go"][1]
           and "model.v2.glb" in o["go"][2], str(o["go"]))
     check("U3 les cartes qui seront cuites sont annoncées", o["cuites"] is True)
     check("U4 le POST porte la convention et la résolution choisies", o["post"][:1] == ['{"naming":"unreal","resolution":1024}'], str(o["post"]))

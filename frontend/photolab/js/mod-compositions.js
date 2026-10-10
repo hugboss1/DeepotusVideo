@@ -9,9 +9,9 @@ import { ouvrirDialogue } from "./mod-fichier.js";
 import { demanderNom } from "./mod-nommer.js";
 
 export const OPTIONS = [
-  { cle: "visibility", icone: "eye", lib: "photolab.compositions.visibilite" },
-  { cle: "position", icone: "move", lib: "photolab.compositions.position" },
-  { cle: "appearance", icone: "sparkles", lib: "photolab.compositions.apparence" },
+  { cle: "visibility", icone: "dz-etat-visible", lib: "photolab.compositions.visibilite" },
+  { cle: "position", icone: "dz-edit-position", lib: "photolab.compositions.position" },
+  { cle: "appearance", icone: "dz-edit-effet", lib: "photolab.compositions.apparence" },
 ];
 
 // Réponse de layerComp.list -> {dernierEtat: {coche, actif}, lignes: [{id, nom, commentaire, appliquee, manquants,
@@ -50,11 +50,11 @@ export function initCompositions(PL) {
     b.title = T(cle); b.setAttribute("aria-label", b.title); b.addEventListener("click", fn); pied.appendChild(b); return b;
   };
   const exec = (c, p = {}) => PL.executer(c, p).then(() => relire(true));
-  const bPrec = bouton("chevrons-left", "photolab.compositions.precedente", () => exec("layerComp.previous"), true);
-  const bSuiv = bouton("chevrons-right", "photolab.compositions.suivante", () => exec("layerComp.next"), true);
-  const bMaj = bouton("rotate-cw", "photolab.compositions.mettre_a_jour", () => { const c = cible(sel, r || {}); if (c != null) exec("layerComp.update", { comp: c }); });
-  bouton("file-plus", "photolab.compositions.nouvelle", nouvelle);
-  const bSuppr = bouton("trash-2", "photolab.compositions.supprimer", () => { const c = cible(sel, r || {}); if (c != null) { sel = null; exec("layerComp.delete", { comp: c }); } });
+  const bPrec = bouton("dz-action-element-precedent", "photolab.compositions.precedente", () => exec("layerComp.previous"), true);
+  const bSuiv = bouton("dz-action-element-suivant", "photolab.compositions.suivante", () => exec("layerComp.next"), true);
+  const bMaj = bouton("dz-action-redefinir", "photolab.compositions.mettre_a_jour", () => { const c = cible(sel, r || {}); if (c != null) exec("layerComp.update", { comp: c }); });
+  bouton("dz-action-ajouter", "photolab.compositions.nouvelle", nouvelle);
+  const bSuppr = bouton("dz-action-supprimer", "photolab.compositions.supprimer", () => { const c = cible(sel, r || {}); if (c != null) { sel = null; exec("layerComp.delete", { comp: c }); } });
   if (PL.hydraterIcones) PL.hydraterIcones(pied);
 
   function nouvelle() {
@@ -105,8 +105,8 @@ export function initCompositions(PL) {
       const caseA = document.createElement("button"); caseA.type = "button"; caseA.className = "cmp-case-app" + (l.appliquee ? " coche" : "");
       caseA.setAttribute("aria-label", T("photolab.compositions.appliquer"));
       caseA.addEventListener("click", (ev) => { ev.stopPropagation(); sel = l.id; exec("layerComp.apply", { comp: l.id }); });
-      const alerte = document.createElement("button"); alerte.type = "button"; alerte.className = "cmp-alerte"; alerte.textContent = "⚠";
-      alerte.hidden = !l.manquants; alerte.title = T("photolab.compositions.manquants", { n: l.manquants });
+      const alerte = document.createElement("button"); alerte.type = "button"; alerte.className = "cmp-alerte"; alerte.innerHTML = PL.icone("dz-etat-avertissement");
+      alerte.hidden = !l.manquants; alerte.title = T("photolab.compositions.manquants", { n: l.manquants }); alerte.setAttribute("aria-label", alerte.title);
       alerte.addEventListener("click", (ev) => { ev.stopPropagation(); exec("layerComp.updateWarnings", { clear: true }); });
       const nom = document.createElement("span"); nom.className = "cmp-nom"; nom.textContent = l.nom; nom.setAttribute("data-dz-brut", "");
       if (l.commentaire) { nom.title = l.commentaire; }

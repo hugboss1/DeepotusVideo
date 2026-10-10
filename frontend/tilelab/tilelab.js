@@ -27,6 +27,11 @@ function toast(msg, err) {
   t.textContent = msg; t.classList.toggle("err", !!err); t.classList.remove("hidden");
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add("hidden"), 4200);
 }
+/* icônes G5 : une réussite = le texte, l'icône dz-etat-succes (ancienne coche), puis la suite du message */
+function toastOk(avant, apres) {
+  toast("");
+  $("#toast").innerHTML = esc(avant) + " " + dzIcone("dz-etat-succes", { taille: 16 }) + esc(apres || "");
+}
 function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function setStatus(el, msg, err) {
   el.classList.remove("hidden"); el.classList.toggle("err", !!err);
@@ -157,7 +162,7 @@ async function run() {
     result = { filename: finalName, before: d.seam_before, after };
     updateStudioBtn();
     clearStatus(st);
-    toast(`Tuile prête : raccord ${d.seam_before} → ${after} ✓ (Library : ${finalName})`);
+    toastOk(`Tuile prête : raccord ${d.seam_before} → ${after}`, ` (Library : ${finalName})`);
   } catch (e) {
     setStatus(st, "Échec : " + e.message, true);
     toast("Tuile échouée : " + e.message, true);

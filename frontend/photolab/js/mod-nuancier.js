@@ -105,16 +105,16 @@ export function initNuancier(PL) {
     const b = document.createElement("button"); b.type = "button"; b.className = "pr-btn"; b.dataset.icone = icone;
     b.title = T(cle); b.setAttribute("aria-label", b.title); b.addEventListener("click", fn); pied.appendChild(b); return b;
   };
-  bouton("folder-plus", "photolab.nuancier.nouveau_groupe", async () => {
+  bouton("dz-action-nouveau-dossier", "photolab.nuancier.nouveau_groupe", async () => {
     const r = nouveauGroupe(etat, await demanderNom(PL, T("photolab.nuancier.nouveau_groupe")));
     if (!r.erreur) { etat = r.etat; sel = { groupe: r.id }; changer(); }
   });
-  bouton("plus", "photolab.nuancier.nouvelle_nuance", () => {
+  bouton("dz-action-ajouter", "photolab.nuancier.nouvelle_nuance", () => {
     const g = sel ? sel.groupe : (etat.groupes.find((x) => x.id.startsWith("g-")) || etat.groupes[0] || {}).id;
     etat = ajouterNuance(etat, g, fg);
     changer();
   });
-  const bSuppr = bouton("trash-2", "photolab.nuancier.supprimer", () => { etat = supprimer(etat, sel); sel = null; changer(); });
+  const bSuppr = bouton("dz-action-supprimer", "photolab.nuancier.supprimer", () => { etat = supprimer(etat, sel); sel = null; changer(); });
   corps.append(recherche, recentes, liste, pied);
   if (PL.hydraterIcones) PL.hydraterIcones(pied);
   recherche.addEventListener("input", dessiner);
@@ -140,7 +140,7 @@ export function initNuancier(PL) {
     for (const g of filtrer(etat, recherche.value)) {
       const tete = document.createElement("div");
       tete.className = "pr-groupe" + (sel && sel.groupe === g.id && sel.index == null ? " choisi" : "");
-      const fl = document.createElement("button"); fl.type = "button"; fl.className = "pr-fleche"; fl.textContent = replies.has(g.id) ? "▸" : "▾";
+      const fl = document.createElement("button"); fl.type = "button"; fl.className = "pr-fleche" + (replies.has(g.id) ? " pl-replie" : ""); fl.innerHTML = PL.icone("dz-action-deplier");
       fl.setAttribute("aria-label", T(replies.has(g.id) ? "photolab.presets.deplier" : "photolab.presets.replier"));
       fl.addEventListener("click", () => { if (replies.has(g.id)) replies.delete(g.id); else replies.add(g.id); dessiner(); });
       const nom = document.createElement("span"); nom.className = "pr-nom"; nom.textContent = nomGroupe(g, T);

@@ -4,6 +4,7 @@
 import { op_planche_ajouter, op_planche_modifier, op_planche_supprimer,
          planche_de } from "./mod-doc.js";
 import { versUnite, suffixe } from "./mod-unites.js";
+import { dzi } from "./mod-icones.js";
 
 const esc = (s) => String(s == null ? "" : s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -15,10 +16,10 @@ export function plancheLigne(p, unites) {
   return `<div class="planche-ligne" data-planche="${esc(p.id)}">`
     + `<span class="nom" title="${esc(p.nom)}">${esc(p.nom)}</span>`
     + `<small>${u(p.w)} × ${u(p.h)} ${esc(suffixe(unites.affichage))}</small>`
-    + `<button data-pl-zoom="${esc(p.id)}" title="Cadrer la vue sur la planche">⌕</button>`
+    + `<button data-pl-zoom="${esc(p.id)}" title="Cadrer la vue sur la planche" aria-label="Cadrer la vue sur la planche">${dzi("dz-action-ajuster-vue", 16)}</button>`
     + `<button data-pl-png="${esc(p.id)}" title="PNG 2× de la planche → Library">2×</button>`
-    + `<button data-pl-renommer="${esc(p.id)}" title="Renommer">✎</button>`
-    + `<button data-pl-supprimer="${esc(p.id)}" title="Retirer la planche (les objets restent)">✕</button>`
+    + `<button data-pl-renommer="${esc(p.id)}" title="Renommer" aria-label="Renommer">${dzi("dz-action-renommer", 16)}</button>`
+    + `<button data-pl-supprimer="${esc(p.id)}" title="Retirer la planche (les objets restent)" aria-label="Retirer la planche">${dzi("dz-action-supprimer", 16)}</button>`
     + `</div>`;
 }
 
@@ -33,8 +34,8 @@ export function initPlanches(VL) {
     hote.innerHTML = (ps.length ? ps.map((p) => plancheLigne(p, VL.unites())).join("")
       : `<p class="vl-amorce">Aucune planche — la page entière est la seule surface.</p>`)
       + `<div class="ap-ligne"><button id="plaSel" ${etat.selection.length ? "" : "disabled"}
-           title="Une planche au cadre de la sélection">＋ sélection</button>
-         <button id="plaPage" title="Une planche de la taille de la page, à droite de la dernière">＋ page</button></div>`;
+           title="Une planche au cadre de la sélection">${dzi("dz-action-ajouter", 16)}sélection</button>
+         <button id="plaPage" title="Une planche de la taille de la page, à droite de la dernière">${dzi("dz-action-ajouter", 16)}page</button></div>`;
     $("#plaSel").addEventListener("click", () => {
       const b = VL.bboxSelectionDoc();
       if (!b) return;

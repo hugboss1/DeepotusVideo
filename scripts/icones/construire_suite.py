@@ -91,6 +91,8 @@ def construire():
 
     js = (
         "/* Deepotus Glyph — généré par scripts/icones/construire_suite.py : ne pas éditer à la main.\n"
+        "   Licences : dessins Deepotus ; dz-reseau-* = simple-icons (CC0, marques de leurs propriétaires) ;\n"
+        "   dz-outil-photo-doigt = Lucide (ISC, frontend/photolab/icones/LICENSE-lucide.txt).\n"
         "   window.dzIcone(cle, {taille, titre, classe}) rend le balisage d'une icône ;\n"
         "   sans titre, l'icône est décorative (aria-hidden) : le sens est porté par le bouton. */\n"
         "(function () {\n"
@@ -115,7 +117,7 @@ def construire():
     css = (
         "/* Deepotus Glyph — généré par scripts/icones/construire_suite.py */\n"
         ".dzi{display:inline-block;width:1em;height:1em;vertical-align:-.125em;flex:none;color:inherit}\n"
-        "svg.dzi{fill:currentColor}\n"
+        "svg.dzi:not([fill=\"none\"]){fill:currentColor}\n"
         ".dzi--16{width:16px;height:16px}.dzi--18{width:18px;height:18px}.dzi--20{width:20px;height:20px}.dzi--24{width:24px;height:24px}\n"
         "img.dzi{object-fit:contain}\n"
     )

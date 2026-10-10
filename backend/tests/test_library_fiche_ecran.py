@@ -121,7 +121,7 @@ if R:
           R["fetch"] == [["/api/library/fiche/gen_a%20b.png", "GET", None]] and R["champs"] == ["inconnue", "", "", "dz-licences"]
           and R["datalist"] == ["propriétaire", "CC0", "inconnue"], str(R["fetch"]) + str(R["champs"]))
     check("N2 l'ALERTE ambre de la licence inconnue ; fichier (720 × 1280 px · 12.2 Ko · PNG), source, recette, prompt, usages",
-          "⚠ Licence inconnue — à vérifier avant diffusion" in R["txt"] and "720 × 1280 px · 12.2 Ko · PNG" in R["txt"] and "Générateur" in R["txt"]
+          "⟦dz-etat-avertissement⟧ Licence inconnue — à vérifier avant diffusion" in R["txt"] and "720 × 1280 px · 12.2 Ko · PNG" in R["txt"] and "Générateur" in R["txt"]
           and "Générateur · modèle flux · style vitrail · format square_hd · graine 42" in R["txt"] and "un phare" in R["txt"]
           and "Rendu « Rendu A » (image de départ) · Projet « Campagne » (membre)" in R["txt"], R["txt"])
     check("N3 « Enregistrer » (title) est INACTIF tant que rien ne change ; le PATCH envoie les valeurs NETTOYEES ; la fiche est RELUE ; l'alerte tombe",

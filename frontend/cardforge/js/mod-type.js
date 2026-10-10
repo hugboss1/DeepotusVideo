@@ -97,6 +97,12 @@
   const CF = (typeof window !== "undefined") ? window.CF : null;
   if (!CF) throw new Error("mod-type: js/core.js doit etre charge avant ce fichier");
 
+  /* icônes G2 (10/10/2026) : la suite « Deepotus Glyph » passe par le CORE
+     (CF.icone), gardé `typeof` comme CF.chevronSVG — un CF de paille (bancs
+     node) rend un marqueur qui porte la clé. */
+  const ICO = (k, t, c) => (typeof CF.icone === "function" ? CF.icone(k, t, c)
+    : '<i class="dzi" data-cle="' + k + '"></i>');
+
   /* ═════════════════════════════════════════════════════════════════════════
      0. TABLES MIROIR — identiques a backend/app/services/cards/type.py.
      `test_cards_type.py` EXTRAIT les deux blocs marques ci-dessous et les
@@ -2019,7 +2025,7 @@
   const M = CF.register({
     id: "type",
     title: "Typographie",
-    icon: "\u{1F524}",
+    icon: "dz-nav-cf-typo",
     order: 3,
 
     /* z=60 : TOUT le texte de la carte, et rien d'autre. Le painter ne recoit
@@ -2390,10 +2396,10 @@
   function buildPanel() {
     HOST.innerHTML = ''
       + '<div class="cf-type-bar">'
-      + '  <button class="btn sm cf-type-add" type="button" title="Nouveau bloc de texte, posé au centre du cadre de composition">+ Slot</button>'
+      + '  <button class="btn sm cf-type-add" type="button" title="Nouveau bloc de texte, posé au centre du cadre de composition">' + ICO("dz-calque-texte", 16, "cf-ic") + 'Slot</button>'
       /* LA NATURE SE CHOISIT A LA NAISSANCE, et c'est pour cela qu'il y a deux
          boutons plutot qu'une bascule dans le panneau. Voir `addImgSlot`. */
-      + '  <button class="btn sm cf-type-addimg" type="button" title="Nouveau calque d\'image, posé au centre du cadre de composition — il se peint au-dessus du cadre de base et sous le décor haut">+ Image</button>'
+      + '  <button class="btn sm cf-type-addimg" type="button" title="Nouveau calque d\'image, posé au centre du cadre de composition — il se peint au-dessus du cadre de base et sous le décor haut">' + ICO("dz-calque-pixel", 16, "cf-ic") + 'Image</button>'
       /* LA PALETTE §6.1 : ce que ce jeu peut poser — les trois entrées
          génériques et, quand il vient d'un modèle, les éléments de CE
          modèle-là. Voir la section 6bis. */
@@ -2412,15 +2418,15 @@
          fait douter du clic. */
       + '  <button class="btn sm cf-type-zones hidden" type="button" title="Reprendre les zones mesurées sur la carte importée : une boîte de la pièce Import = un bloc éditable ici">Zones importées</button>'
       + '  <span class="stage-sep" aria-hidden="true"></span>'
-      + '  <button class="btn sm cf-type-undo" type="button" title="Annuler (Ctrl+Z)">&#8630;</button>'
-      + '  <button class="btn sm cf-type-redo" type="button" title="Rétablir (Ctrl+Y)">&#8631;</button>'
-      + '  <button class="chip cf-type-boxes" type="button" title="Cadres d\'édition sur l\'aperçu (jamais exportés)">&#9635; Cadres</button>'
-      + '  <button class="chip cf-type-audit" type="button" title="Contrôle photométrique : relit le fichier de la carte et compte l\'encre réellement visible, slot par slot">&#9673; Lisibilité</button>'
+      + '  <button class="btn sm cf-type-undo" type="button" title="Annuler (Ctrl+Z)" aria-label="Annuler (Ctrl+Z)">' + ICO("dz-action-annuler", 16) + '</button>'
+      + '  <button class="btn sm cf-type-redo" type="button" title="Rétablir (Ctrl+Y)" aria-label="Rétablir (Ctrl+Y)">' + ICO("dz-action-retablir", 16) + '</button>'
+      + '  <button class="chip cf-type-boxes" type="button" title="Cadres d\'édition sur l\'aperçu (jamais exportés)">' + ICO("dz-edit-cadres-edition", 16, "cf-ic") + 'Cadres</button>'
+      + '  <button class="chip cf-type-audit" type="button" title="Contrôle photométrique : relit le fichier de la carte et compte l\'encre réellement visible, slot par slot">' + ICO("dz-action-mesurer", 16, "cf-ic") + 'Lisibilité</button>'
       /* LA COLONNE UNIQUE (phase 6, T6-G) : liste des calques et inspecteur
          EMPILES pour rendre la largeur a la carte. Etat d ecran (dz_cf_*),
          jamais du document ; la piece le DIT au CORE (CF.coulisse) et la
          scene absorbe la place. */
-      + '  <button class="chip cf-type-mono" type="button" aria-pressed="false" title="Liste des calques et inspecteur en une seule colonne — la carte gagne la largeur libérée">&#9636; 1 colonne</button>'
+      + '  <button class="chip cf-type-mono" type="button" aria-pressed="false" title="Liste des calques et inspecteur en une seule colonne — la carte gagne la largeur libérée">' + ICO("dz-action-disposition-colonne", 16, "cf-ic") + '1 colonne</button>'
       + '  <label class="cf-type-opt" title="Marge optique retranchée de chaque boîte avant composition : les repères de coupe d\'une rotative dérivent de ±0,5 mm.">'
       + '<span>Marge optique</span><input type="number" class="cf-type-optv" step="0.25" min="0" max="' + OPTICAL_MM_MAX + '"><i>mm</i></label>'
       + '  <button class="btn sm cf-type-refit hidden" type="button" title="Réadapter la mise en page au format courant">Réadapter</button>'
@@ -3417,7 +3423,7 @@
             + " px, à " + fx(au.halo_clear_mm, 2) + " mm du cadre de composition" : "")));
       return '<div class="cf-type-row' + (lot.indexOf(s.id) >= 0 ? " on" : "") + (s.on ? "" : " off")
         + '" data-id="' + esc(s.id) + '" data-audit="' + esc(tip) + '" title="' + esc(tip) + '" draggable="true">'
-        + '<button class="cf-type-eye" type="button" title="Afficher / masquer">' + (s.on ? "&#9679;" : "&#9675;") + '</button>'
+        + '<button class="cf-type-eye" type="button" title="Afficher / masquer">' + (s.on ? ICO("dz-etat-visible", 16) : ICO("dz-etat-cache", 16)) + '</button>'
         /* LE CADENAS. Meme rang que l'oeil : deux etats d'un bloc, pas deux
            familles de commandes. Il protege des GESTES DE SCENE (glisser,
            poignees, fleches, Suppr au clavier) et de rien d'autre — la ligne
@@ -3444,7 +3450,7 @@
           + "la barre de lot (aligner, distribuer, égaliser) : il y sert alors "
           + "d'ANCRE, c'est-à-dire qu'on aligne sur lui sans le déplacer. "
           + "Le panneau, lui, continuera de le régler")
-        + '">' + (s.lock ? "&#128274;" : "&#128275;") + '</button>'
+        + '">' + (s.lock ? ICO("dz-etat-verrouille", 16) : ICO("dz-etat-libre", 16)) + '</button>'
         /* LE BADGE DE NATURE. La liste est la seule vue où les deux natures se
            croisent : elle doit les distinguer d'un coup d'œil, sans quoi
            « Image 1 » et « Texte 1 » se ressemblent jusqu'au clic. */
@@ -3509,9 +3515,9 @@
               + ' à ' + fx(m.pt, 1) + ' pt, ' + m.posed + ' des ' + m.srcn
               + ' signes posés">' + fx(s.size_pt, 1) + ' → ' + fx(m.pt, 1) + ' pt</em>' : '')
         + '<span class="cf-type-ops">'
-        + '<button class="cf-type-mv" type="button" data-d="-1" title="Monter">&#9650;</button>'
-        + '<button class="cf-type-mv" type="button" data-d="1" title="Descendre">&#9660;</button>'
-        + '<button class="cf-type-del" type="button" title="Supprimer">&#10005;</button>'
+        + '<button class="cf-type-mv" type="button" data-d="-1" title="Monter" aria-label="Monter">' + ICO("dz-edit-monter", 16) + '</button>'
+        + '<button class="cf-type-mv" type="button" data-d="1" title="Descendre" aria-label="Descendre">' + ICO("dz-edit-descendre", 16) + '</button>'
+        + '<button class="cf-type-del" type="button" title="Supprimer" aria-label="Supprimer">' + ICO("dz-action-supprimer", 16) + '</button>'
         + '</span></div>';
     }).join("");
     wrap.querySelectorAll(".cf-type-row").forEach((row) => {
@@ -3869,9 +3875,9 @@
   /* LE GLYPHE DE NATURE, EN UN SEUL ENDROIT — trois surfaces le posent (la
      liste, l'en-tete du panneau, l'etiquette du calque d'edition) et trois
      litteraux recopies, c'est trois occasions d'oublier la nature suivante. */
-  const KIND_GLYPHE = { image: "\u{1F5BC}", rect: "▬", ellipse: "⬭",
-    line: "╱", arrow: "→" };
-  function kindGlyphe(s) { return KIND_GLYPHE[s && s.kind] || "T"; }
+  const KIND_GLYPHE = { image: "dz-calque-pixel", rect: "dz-outil-vec-rectangle",
+    ellipse: "dz-outil-vec-ellipse", line: "dz-outil-vec-ligne", arrow: "dz-outil-vec-fleche" };
+  function kindGlyphe(s) { return ICO(KIND_GLYPHE[s && s.kind] || "dz-calque-texte", 16); }
   function kindTitre(s) {
     if (isImage(s)) return "Calque d'image — il se peint dans sa boîte, "
       + "au-dessus du cadre de base et sous le décor haut";
@@ -3904,14 +3910,14 @@
     const b = (z, txt, tit) => '<button class="btn sm cf-type-z" type="button"'
       + ' data-z="' + z + '" title="' + esc(tit) + '">' + txt + '</button>';
     return '<div class="cf-type-zbar" title="Ordre de peinture — le dernier de la liste se peint DEVANT">'
-      + b("tout-arriere", "&#8676; Fond",
+      + b("tout-arriere", ICO("dz-edit-arriere-plan", 16, "cf-ic") + "Fond",
         "Tout au fond : peint en premier, donc sous tous les autres blocs")
-      + b("arriere", "&#8592; Derrière",
+      + b("arriere", ICO("dz-edit-descendre", 16, "cf-ic") + "Derrière",
         "Un cran vers le fond — c'est la flèche « Monter » de la rangée, "
         + "la liste se lisant du fond vers la surface")
-      + b("avant", "Devant &#8594;",
+      + b("avant", "Devant" + ICO("dz-edit-monter", 16, "cf-ic-d"),
         "Un cran vers la surface — c'est la flèche « Descendre » de la rangée")
-      + b("tout-avant", "Surface &#8677;",
+      + b("tout-avant", "Surface" + ICO("dz-edit-premier-plan", 16, "cf-ic-d"),
         "Tout devant : peint en dernier, donc par-dessus tous les autres blocs")
       + '</div>';
   }
@@ -4051,12 +4057,12 @@
      porte, donc aucun bouton du bandeau segmente ne s'allume. */
   const MIXTE = "__mixte__";
   const ALIGNEMENTS = [
-    ["left", "&#8676;", "Aligner les bords gauches sur l'enveloppe du lot"],
-    ["hcenter", "&#8596;", "Centrer horizontalement dans l'enveloppe du lot"],
-    ["right", "&#8677;", "Aligner les bords droits sur l'enveloppe du lot"],
-    ["top", "&#8607;", "Aligner les bords hauts sur l'enveloppe du lot"],
-    ["vcenter", "&#8597;", "Centrer verticalement dans l'enveloppe du lot"],
-    ["bottom", "&#8615;", "Aligner les bords bas sur l'enveloppe du lot"],
+    ["left", ICO("dz-edit-aligner-gauche", 16), "Aligner les bords gauches sur l'enveloppe du lot"],
+    ["hcenter", ICO("dz-edit-aligner-centre-h", 16), "Centrer horizontalement dans l'enveloppe du lot"],
+    ["right", ICO("dz-edit-aligner-droite", 16), "Aligner les bords droits sur l'enveloppe du lot"],
+    ["top", ICO("dz-edit-aligner-haut", 16), "Aligner les bords hauts sur l'enveloppe du lot"],
+    ["vcenter", ICO("dz-edit-aligner-centre-v", 16), "Centrer verticalement dans l'enveloppe du lot"],
+    ["bottom", ICO("dz-edit-aligner-bas", 16), "Aligner les bords bas sur l'enveloppe du lot"],
   ];
   function renderInspMulti(box, list) {
     const n = list.length;
@@ -4071,7 +4077,7 @@
       + lbl + (c.mix ? " <i>mixte</i>" : "") + '</button>';
     box.innerHTML = ''
       + '<div class="cf-type-ihead">'
-      + '<em class="cf-type-kind img" title="Sélection multiple">&#9635;</em>'
+      + '<em class="cf-type-kind img" title="Sélection multiple">' + ICO("dz-etat-selection-multiple", 16) + '</em>'
       + '<b class="cf-type-lotn">' + n + ' blocs sélectionnés</b>'
       + '<span class="counter mono cf-type-id">'
       + esc(list.slice(0, 3).map((s) => s.id).join(" ")) + (n > 3 ? " …" : "") + '</span>'
@@ -4082,25 +4088,25 @@
          la selection EST sa boite, donc les dix commandes seraient inertes. */
       + '<div class="cf-type-abar">'
       + ALIGNEMENTS.map((a) => '<button class="btn sm cf-type-alg" type="button"'
-        + ' data-a="' + a[0] + '" title="' + esc(a[2]) + '">' + a[1] + '</button>').join("")
+        + ' data-a="' + a[0] + '" title="' + esc(a[2]) + '" aria-label="' + esc(a[2]) + '">' + a[1] + '</button>').join("")
       + '<span class="stage-sep" aria-hidden="true"></span>'
       + '<button class="btn sm cf-type-alg" type="button" data-a="disth" title="'
       + esc("Espaces horizontaux égaux entre les blocs — les deux extrêmes ne "
         + "bougent pas, le blanc se répartit. Trois blocs au moins.")
-      + '">&#8596;&#8801;</button>'
+      + '">' + ICO("dz-edit-distribuer-h", 16) + '</button>'
       + '<button class="btn sm cf-type-alg" type="button" data-a="distv" title="'
       + esc("Espaces verticaux égaux entre les blocs — les deux extrêmes ne "
         + "bougent pas, le blanc se répartit. Trois blocs au moins.")
-      + '">&#8597;&#8801;</button>'
+      + '">' + ICO("dz-edit-distribuer-v", 16) + '</button>'
       + '<span class="stage-sep" aria-hidden="true"></span>'
       + '<button class="btn sm cf-type-alg" type="button" data-a="eqw" title="'
       + esc("Même largeur que le PREMIER sélectionné (« " + list[0].label + " »)")
-      + '">&#8660; =</button>'
+      + '">' + ICO("dz-edit-meme-largeur", 16) + '</button>'
       + '<button class="btn sm cf-type-alg" type="button" data-a="eqh" title="'
       + esc("Même hauteur que le PREMIER sélectionné (« " + list[0].label + " »). "
         + "Les lignes et flèches à hauteur nulle sont ignorées : les égaliser "
         + "les rendrait diagonales.")
-      + '">&#8661; =</button>'
+      + '">' + ICO("dz-edit-meme-hauteur", 16) + '</button>'
       + '</div>'
       + '<p class="hint">La référence des égalisations est le <b>premier '
       + 'sélectionné</b> (« ' + esc(list[0].label) + ' ») — le patron Figma. '
@@ -4110,13 +4116,13 @@
         cSide.mix ? MIXTE : cSide.v,
         ["recto seul", "verso seul", "recto et verso"])
       + '<div class="cf-type-tog">'
-      + puce("lock", "&#128274; Verrou", cLock,
+      + puce("lock", ICO("dz-etat-verrouille", 16, "cf-ic") + "Verrou", cLock,
         "Verrouille ou déverrouille tout le lot d'un coup")
-      + puce("arrow_start", "&#8592; Bout de départ", cDeb,
+      + puce("arrow_start", ICO("dz-edit-pointe-fleche", 16, "cf-ic cf-fl-deb") + "Bout de départ", cDeb,
         "Bout fléché au départ du trait — appliqué à toutes les flèches du lot ("
         + fleches + " sur " + n + " blocs) ; les autres natures l'ignorent",
         !fleches)
-      + puce("arrow_end", "Bout d’arrivée &#8594;", cFin,
+      + puce("arrow_end", "Bout d’arrivée" + ICO("dz-edit-pointe-fleche", 16, "cf-ic-d cf-fl-fin"), cFin,
         "Bout fléché à l'arrivée du trait — appliqué à toutes les flèches du lot ("
         + fleches + " sur " + n + " blocs) ; les autres natures l'ignorent",
         !fleches)
@@ -4349,9 +4355,9 @@
          typographe touche en premier passe donc devant, et les reglages de
          justification — qu'on regle une fois — passent derriere. Aucun champ
          n'a ete retire : ils ont change de rang. */
-      + segf("Alignement", "align", [["left", "&#8676;"], ["center", "&#8596;"], ["right", "&#8677;"], ["justify", "&#9776;"]], s.align,
+      + segf("Alignement", "align", [["left", ICO("dz-edit-texte-aligner-gauche", 16)], ["center", ICO("dz-edit-texte-aligner-centre", 16)], ["right", ICO("dz-edit-texte-aligner-droite", 16)], ["justify", ICO("dz-edit-justifier", 16)]], s.align,
         ["à gauche", "centré", "à droite", "justifié — les blancs absorbent la largeur manquante"])
-      + segf("Vertical", "valign", [["top", "&#8593;"], ["middle", "&#8597;"], ["bottom", "&#8595;"]], s.valign,
+      + segf("Vertical", "valign", [["top", ICO("dz-edit-aligner-haut", 16)], ["middle", ICO("dz-edit-aligner-centre-v", 16)], ["bottom", ICO("dz-edit-aligner-bas", 16)]], s.valign,
         ["en haut", "au milieu", "en bas"])
       + segf("Casse", "caps", [["none", "Aa"], ["upper", "AA"], ["lower", "aa"], ["title", "Ab Cd"]], s.caps,
         ["telle quelle", "capitales", "bas de casse", "capitales initiales"])
@@ -4663,14 +4669,14 @@
           + '<div class="btn-row">'
           + '<button class="btn sm cf-type-t" data-k="flip" type="button"'
           + ' title="Prend l’autre diagonale de la boîte">'
-          + (s.flip ? "↗ Retournée" : "↘ Retourner") + '</button>'
+          + ICO("dz-edit-inverser-sens", 16, "cf-ic") + (s.flip ? "Retournée" : "Retourner") + '</button>'
           + (s.kind === "arrow"
             ? '<button class="btn sm cf-type-t' + (s.arrow_start ? " on" : "")
               + '" data-k="arrow_start" type="button" title="Tête au départ du trait">'
-              + (s.arrow_start ? "◀ Bout de départ" : "Bout de départ") + '</button>'
+              + (s.arrow_start ? ICO("dz-edit-pointe-fleche", 16, "cf-ic cf-fl-deb") : "") + "Bout de départ" + '</button>'
               + '<button class="btn sm cf-type-t' + (s.arrow_end ? " on" : "")
               + '" data-k="arrow_end" type="button" title="Tête à la fin du trait">'
-              + (s.arrow_end ? "Bout d’arrivée ▶" : "Bout d’arrivée") + '</button>'
+              + "Bout d’arrivée" + (s.arrow_end ? ICO("dz-edit-pointe-fleche", 16, "cf-ic-d cf-fl-fin") : "") + '</button>'
             : '')
           + '</div>'
           + (s.kind === "arrow"
@@ -4838,7 +4844,7 @@
             + '">'
             + '<span class="cf-type-fsample" style="font-family:\'' + esc(f.family) + '\',sans-serif">' + esc(FP_SAMPLE) + '</span>'
             + '<span class="cf-type-flab">' + esc(f.label) + '<i class="mono">.' + esc(f.ext)
-            + (miss && miss.length ? ' · &#9888; ' + miss.length : "") + '</i></span>'
+            + (miss && miss.length ? ' · ' + ICO("dz-etat-avertissement", 16, "cf-ic") + miss.length : "") + '</i></span>'
             + '</button>';
         }).join("")).join("")
       + '</div>';
@@ -5076,13 +5082,13 @@
       /* les chiffres viennent du painter : tant qu'il n'a pas rendu la main,
          on le DIT au lieu d'afficher des zeros qui ressembleraient a un
          verdict. */
-      html += '<div class="cf-type-prow"><i>&#8987;</i><b>Mesure</b>'
+      html += '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>Mesure</b>'
         + '<span>rendu en cours — les chiffres ci-dessous sont ceux du dernier rendu de la toile.</span></div>';
     } else if (MEAS_SIDE !== LAST_SIDE) {
       /* le releve decrit une face, le dernier rendu en concernait une autre :
          on NOMME la face plutot que de laisser croire que les chiffres
          viennent de la passe qu'on vient de voir passer. */
-      html += '<div class="cf-type-prow"><i>&#9432;</i><b>Face</b><span>relevé du <b>'
+      html += '<div class="cf-type-prow"><i>' + ICO("dz-etat-information", 16) + '</i><b>Face</b><span>relevé du <b>'
         + (MEAS_SIDE === "front" ? "recto" : "verso") + '</b> — le dernier rendu portait sur le '
         + (LAST_SIDE === "front" ? "recto" : "verso") + ', qui ne porte aucun slot de texte.</span></div>';
     }
@@ -5323,7 +5329,7 @@
        remis dans le meme sac ce que cette passe vient justement de separer. */
     function line(k, v, ok) {
       const cls = ok === true ? "" : (ok === "warn" ? " warn" : " bad");
-      const ic = ok === true ? "&#10003;" : "&#9888;";
+      const ic = ok === true ? ICO("dz-etat-succes", 16) : (ok === "warn" ? ICO("dz-etat-avertissement", 16) : ICO("dz-etat-erreur", 16));
       return '<div class="cf-type-prow' + cls + '"><i>' + ic
         + '</i><b>' + k + '</b><span>' + v + '</span></div>';
     }
@@ -5342,16 +5348,16 @@
        absent, il eteint la vigilance. */
     function auditLine() {
       if (!CF.get("type.audit", true)) {
-        return '<div class="cf-type-prow"><i>&#9678;</i><b>Lisibilité</b><span>'
+        return '<div class="cf-type-prow"><i>' + ICO("dz-action-mesurer", 16) + '</i><b>Lisibilité</b><span>'
           + 'contrôle photométrique désactivé — les compteurs ci-dessus ne parlent que de géométrie. '
           + '<button class="cf-type-lnk cf-type-recheck" type="button">Contrôler maintenant</button></span></div>';
       }
       if (auditErr) {
-        return '<div class="cf-type-prow bad"><i>&#9888;</i><b>Lisibilité</b><span>contrôle impossible : '
+        return '<div class="cf-type-prow bad"><i>' + ICO("dz-etat-erreur", 16) + '</i><b>Lisibilité</b><span>contrôle impossible : '
           + esc(auditErr) + ' <button class="cf-type-lnk cf-type-recheck" type="button">Réessayer</button></span></div>';
       }
       if (!AUDIT || AUDIT.stamp !== AUDIT_STAMP) {
-        return '<div class="cf-type-prow"><i>&#8987;</i><b>Lisibilité</b>'
+        return '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>Lisibilité</b>'
           + '<span>contrôle photométrique en cours sur le composite…</span></div>';
       }
       const A = AUDIT;
@@ -5427,11 +5433,11 @@
       const bouton = '<button class="cf-type-lnk cf-type-defc" type="button">'
         + (alt == null ? "définition unique" : "Refaire l’épreuve à " + alt + " DPI") + '</button>';
       if (defcBusy) {
-        return '<div class="cf-type-prow"><i>&#8987;</i><b>Épreuve</b>'
+        return '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>Épreuve</b>'
           + '<span>second tirage à ' + alt + ' DPI, en cours…</span></div>';
       }
       if (defcErr) {
-        return '<div class="cf-type-prow bad"><i>&#9888;</i><b>Épreuve</b><span>'
+        return '<div class="cf-type-prow bad"><i>' + ICO("dz-etat-erreur", 16) + '</i><b>Épreuve</b><span>'
           + 'tirage impossible : ' + esc(defcErr) + ' ' + bouton + '</span></div>';
       }
       /* ELLE NE RESTE PAS VIDE. Le tour precedent laissait cette ligne sur
@@ -5440,7 +5446,7 @@
          donc toute seule des que la mise en page se pose (voir
          scheduleDefCheck) ; ce qui suit n'est plus qu'un etat d'attente. */
       if (!DEFC || DEFC.key !== defKey(g)) {
-        return '<div class="cf-type-prow"><i>&#8987;</i><b>Épreuve</b><span>'
+        return '<div class="cf-type-prow"><i>' + ICO("dz-etat-attente", 16) + '</i><b>Épreuve</b><span>'
           + (alt == null
             ? 'une seule définition disponible pour ce format.'
             : 'second tirage à ' + alt + ' DPI en attente — la même carte est '
@@ -7288,7 +7294,7 @@
       let h = '<div class="cf-type-hbox' + (s.id === sel ? " on" : "") + (bad ? " bad" : "")
         + (s.lock ? " lock" : "")
         + '" data-id="' + esc(s.id) + '" style="' + st + '">'
-        + '<span class="cf-type-htag">' + (s.lock ? "&#128274; " : "")
+        + '<span class="cf-type-htag">' + (s.lock ? ICO("dz-etat-verrouille", 16, "cf-ic") : "")
         + ((isImage(s) || isShape(s)) ? kindGlyphe(s) + " " : "")
         + esc(s.label) + why + '</span>';
       if (sel) {

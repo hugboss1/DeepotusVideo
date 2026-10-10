@@ -1,80 +1,100 @@
-// mod-icones.js — le sprite d'icônes fines d'Affinity : un fragment SVG
-// par outil (viewBox 24, trait 1,5 currentColor, sans remplissage), posé
-// par `icone_svg`. Feuille pure ; l'inconnu reçoit un repli visible (carré
-// pointillé) plutôt qu'une exception — la preuve le démasque au banc.
-export const ICONES = {
-  select: '<path d="M6 4l11 8-4.6 1 2.8 5.2-2.2 1.2-2.8-5.2L6 17.5z"/>',
-  plume: '<path d="M4 20l4-4"/><path d="M8 16l8.5-8.5a2 2 0 0 1 2.8 0l-.3-.3a2 2 0 0 1 0 2.8L10.5 18.5 6 20z"/><path d="M14 8l2.5 2.5"/>',
-  crayon: '<path d="M4 20c2-7 6-12 14-15"/><path d="M15 6l3 3"/><path d="M4 20l1.5-4.5"/>',
-  pinceauv: '<path d="M4 20c1-5 4-8 9-11"/><path d="M13 9l3-3a1.6 1.6 0 0 1 2.3 2.3l-3 3z"/><path d="M6.5 20a3 3 0 0 0 3-3.5"/>',
-  rect: '<rect x="4" y="6" width="16" height="12" rx="1"/>',
-  ellipse: '<ellipse cx="12" cy="12" rx="8.5" ry="6.5"/>',
-  ligne: '<path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.4"/><circle cx="19" cy="5" r="1.4"/>',
-  forme: '<path d="M12 3.5l2.4 5.6 6.1.5-4.6 4 1.4 6-5.3-3.2-5.3 3.2 1.4-6-4.6-4 6.1-.5z"/>',
-  noeuds: '<path d="M5 18c2-8 6-12 14-13"/><rect x="3.5" y="16.5" width="3" height="3"/><rect x="17.5" y="3.5" width="3" height="3"/><circle cx="11" cy="9" r="1.5"/><path d="M11 9l4.5-1.8"/>',
-  coin: '<path d="M4 20V10a6 6 0 0 1 6-6h10"/><path d="M4 12h2M10 4v2" stroke-dasharray="2 2"/>',
-  mesure: '<path d="M4 18L18 4"/><path d="M4 18l2 2M18 4l2 2"/><path d="M8 14l1.5 1.5M11 11l1.5 1.5M14 8l1.5 1.5"/>',
-  pipette: '<path d="M5 19l7.5-7.5"/><path d="M12 8.5l3.5 3.5"/><path d="M14 6.5l3.5-3.5a1.8 1.8 0 0 1 2.5 2.5L16.5 9"/><path d="M4 20l1.5-1.5"/>',
-  texte: '<path d="M5 6h14"/><path d="M12 6v13"/><path d="M9 19h6"/>',
-  couteau: '<path d="M4 20L15 9"/><path d="M13 5l6 6-3 3-6-6z"/>',
-  gomme: '<path d="M4 16l8-8 6 6-6 6H8z"/><path d="M8 20h12"/><path d="M9 11l5 5"/>',
-  constructeur: '<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5"/><path d="M12 7.5v9" stroke-dasharray="2 2"/>',
-  tuiles: '<path d="M12 3l7.5 4.3v8.6L12 20.2 4.5 15.9V7.3z"/><path d="M12 3v8.6l7.5 4.3M12 11.6L4.5 15.9"/>',
-  ia: '<path d="M12 3l2 5.5L19.5 10.5 14 12.5 12 18l-2-5.5L4.5 10.5 10 8.5z"/><path d="M18.5 3.5v3M17 5h3"/>',
-  image: '<rect x="3.5" y="5" width="17" height="14" rx="1.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4.5 18l5-5 3.5 3.5 3-3 4 4"/>',
-  apparence: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17c-2 0-2-2-1-3s0-3-2-3-3-2-2-3 3-1 3-3-1-3 2-5z"/><circle cx="14.5" cy="8.5" r="1"/><circle cx="16.5" cy="12.5" r="1"/>',
-  symbole: '<rect x="4" y="4" width="9" height="9" rx="1"/><rect x="11" y="11" width="9" height="9" rx="1"/><path d="M8.5 13v-2h2"/>',
-  tranche: '<rect x="4" y="4" width="16" height="16" rx="1" stroke-dasharray="3 2"/><path d="M4 9h16M4 15h16M9 4v16M15 4v16"/>',
-  "px-pinceau": '<path d="M5 19c0-3 2-4 4-4l8-9a2 2 0 0 1 2.8 2.8l-9 8c0 2-1 4-4 4a2 2 0 0 1-1.8-1.8z"/><path d="M9 15l1.5 1.5"/>',
-  "px-gomme": '<path d="M4 16l8-8 6 6-6 6H8z"/><path d="M8 20h12"/>',
-  "px-seau": '<path d="M5 11l7-7 7 7-7 7z"/><path d="M12 4v3"/><path d="M19.5 14c0 1.5-1.2 2.5-1.2 3.5a1.2 1.2 0 0 0 2.4 0c0-1-1.2-2-1.2-3.5z"/>',
-  "px-crayon": '<path d="M5 19l1-4 10-10 3 3-10 10z"/><path d="M14 7l3 3"/><path d="M5 19h3"/>',
-  "px-ligne": '<path d="M5 19L19 5"/><path d="M5 19h2v-2M19 5h-2v2"/>',
-  "px-rectpx": '<rect x="5" y="6" width="14" height="12"/><path d="M5 9h2M5 12h2M5 15h2M17 9h2M17 12h2M17 15h2" stroke-dasharray="1 1"/>',
-  "px-selrect": '<rect x="4.5" y="5.5" width="15" height="13" stroke-dasharray="3 2"/>',
-  "px-lasso": '<path d="M12 4c4.5 0 8 2.2 8 5s-3.5 5-8 5-8-2.2-8-5 3.5-5 8-5z" stroke-dasharray="3 2"/><path d="M7 13.5c-1 2-1 4 1 6"/><circle cx="8.5" cy="15.5" r="1.3"/>',
-  "px-baguette": '<path d="M4 20l9-9"/><path d="M13 11l2-2"/><path d="M16.5 3.5v2.5M16.5 9.5V12M13 6.5h2.5M19 6.5h2.5"/><path d="M14 4l1 1M19 9l1 1M14 9l1-1M19 4l1-1"/>',
-  "px-cloner": '<circle cx="11" cy="13" r="5"/><path d="M11 8V5a2 2 0 0 1 2-2h4"/><path d="M15 3l2 2-2 2"/>',
-  main: '<path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V11"/><path d="M11 10.5V5a1.5 1.5 0 0 1 3 0v6"/><path d="M14 11V6.5a1.5 1.5 0 0 1 3 0V12"/><path d="M17 12v-1a1.5 1.5 0 0 1 3 0v4.5c0 3-2.5 5.5-6 5.5h-1.5c-2 0-3.5-1-4.5-2.5L4.5 14a1.4 1.4 0 0 1 2.3-1.6L8 14"/>',
-  loupe: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/><path d="M8 10.5h5M10.5 8v5"/>',
-  planche: '<rect x="5" y="5" width="14" height="14"/><path d="M2 5h20M2 19h20M5 2v20M19 2v20" stroke-dasharray="2 2"/>',
-  degrade: '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="M8 5v14M11 5v14M14 5v14M17 5v14" opacity=".5"/><path d="M6 12h12"/>',
-  transparence: '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="M4 5l16 14" /><path d="M6 7h2v2H6zM10 11h2v2h-2zM14 15h2v2h-2z"/>',
-  cadre: '<rect x="4" y="5" width="16" height="14"/><path d="M7 9h10M7 12h10M7 15h6"/>',
-  recadrer: '<path d="M7 2v15h15"/><path d="M2 7h15v15"/>',
-  "px-flou": '<circle cx="12" cy="12" r="6" stroke-dasharray="2 2"/><circle cx="12" cy="12" r="2.5"/>',
-  "px-eclaircir": '<circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
-  "px-assombrir": '<circle cx="12" cy="12" r="7"/><path d="M12 5a7 7 0 0 1 0 14z" fill="currentColor"/>',
-  // 21/09 : les actions de la barre contextuelle (Nœuds / Plume) et les alignements
-  vif: '<path d="M4 18L12 6l8 12"/><circle cx="12" cy="6" r="1.4"/>',
-  lisse: '<path d="M4 16c4-8 12-8 16 0"/><circle cx="12" cy="10" r="1.4"/><path d="M7 10h10" opacity=".5"/>',
-  intelligent: '<path d="M4 16c4-8 12-8 16 0"/><path d="M12 4v2M8.5 5l1 1.7M15.5 5l-1 1.7"/>',
-  fractionner: '<path d="M4 12h6M14 12h6"/><path d="M12 5v14" stroke-dasharray="2 2"/><circle cx="10" cy="12" r="1.2"/><circle cx="14" cy="12" r="1.2"/>',
-  ouvrir: '<path d="M6 17a7 7 0 1 1 12 0"/><circle cx="6" cy="17" r="1.4"/><circle cx="18" cy="17" r="1.4"/>',
-  fermer: '<path d="M6 17a7 7 0 1 1 12 0z"/><circle cx="12" cy="17" r="1.4"/>',
-  lisserCourbe: '<path d="M4 18c3-9 5-12 8-6s5 3 8-6"/>',
-  relier: '<path d="M4 12h5M15 12h5"/><path d="M9 12l3-3 3 3-3 3z"/>',
-  inverser: '<path d="M5 8h11l-3-3M19 16H8l3 3"/>',
-  "al-gauche": '<path d="M5 4v16"/><rect x="8" y="7" width="10" height="4"/><rect x="8" y="13" width="6" height="4"/>',
-  "al-centreH": '<path d="M12 4v16" stroke-dasharray="2 2"/><rect x="6" y="7" width="12" height="4"/><rect x="8" y="13" width="8" height="4"/>',
-  "al-droite": '<path d="M19 4v16"/><rect x="6" y="7" width="10" height="4"/><rect x="10" y="13" width="6" height="4"/>',
-  "al-haut": '<path d="M4 5h16"/><rect x="7" y="8" width="4" height="10"/><rect x="13" y="8" width="4" height="6"/>',
-  "al-centreV": '<path d="M4 12h16" stroke-dasharray="2 2"/><rect x="7" y="6" width="4" height="12"/><rect x="13" y="8" width="4" height="8"/>',
-  "al-bas": '<path d="M4 19h16"/><rect x="7" y="6" width="4" height="10"/><rect x="13" y="10" width="4" height="6"/>',
-  configDoc: '<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 8h6M9 12h6M9 16h3"/>',
-  parametres: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.5 1.5M16.9 16.9l1.5 1.5M5.6 18.4l1.5-1.5M16.9 7.1l1.5-1.5"/>',
-  // 21/09 : les types de rangées du panneau Calques
-  calque: '<path d="M12 4l9 5-9 5-9-5z"/><path d="M3 14l9 5 9-5"/>',
-  groupe: '<rect x="4" y="4" width="10" height="10"/><rect x="10" y="10" width="10" height="10"/>',
-  path: '<path d="M4 18C8 4 16 20 20 6"/><circle cx="4" cy="18" r="1.3"/><circle cx="20" cy="6" r="1.3"/>',
-  instance: '<rect x="4" y="4" width="12" height="12"/><path d="M8 20h12V8"/>',
-  ecretage: '<rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 2"/><circle cx="12" cy="12" r="5"/>',
-  masque: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16"/><path d="M12 4h8v16h-8z" fill="currentColor" opacity=".35"/>',
-  effet: '<path d="M12 3l2.2 5.3L20 9l-4.4 3.9L17 19l-5-3-5 3 1.4-6.1L4 9l5.8-.7z"/>',
-};
-const REPLI = '<rect x="5" y="5" width="14" height="14" rx="2" stroke-dasharray="2 2"/>';
-export function icone_svg(id, taille = 18) {
-  const corps = ICONES[id] || REPLI;
-  return `<svg class="ic" viewBox="0 0 24 24" width="${taille}" height="${taille}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${corps}</svg>`;
+// mod-icones.js — les icônes du Vectorlab : la suite « Deepotus Glyph »
+// (frontend/shared/icons, G3 du 10/10/2026) remplace l'ancien sprite fin.
+// Une icône = une fonction : chaque outil, action de la barre contextuelle
+// et type de rangée du panneau Calques pointe sur SA clé `dz-*` (liste de
+// travail docs/icones/suite-finale/implementation.json). Feuille pure :
+// `dzi` rend par `window.dzIcone` (runtime /shared/icons/dz-icons.js) et,
+// hors navigateur ou avant le runtime, par une référence au sprite servi ;
+// l'inconnu reçoit la clé de repli dz-etat-inconnu plutôt qu'une exception.
+export const REPLI = "dz-etat-inconnu";
+const TAILLES = [16, 18, 20, 24];
+export function dzi(cle, taille = 16, classe = "") {
+  const cl = [classe, TAILLES.includes(taille) ? `dzi--${taille}` : ""].filter(Boolean).join(" ");
+  const f = typeof globalThis !== "undefined" && globalThis.dzIcone;
+  if (typeof f === "function") return f(cle, { taille, classe: cl });
+  return `<svg class="dzi${cl ? " " + cl : ""}" width="${taille}" height="${taille}" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#${cle}"></use></svg>`;
 }
+// outils de la colonne (posés par mod-barreoutils) et actions de la barre contextuelle (mod-barrecontexte)
+export const ICONES = {
+  select: "dz-outil-vec-selection",
+  plume: "dz-outil-vec-plume",
+  crayon: "dz-outil-vec-crayon",
+  pinceauv: "dz-outil-vec-pinceau",
+  rect: "dz-outil-vec-rectangle",
+  ellipse: "dz-outil-vec-ellipse",
+  ligne: "dz-outil-vec-ligne",
+  forme: "dz-outil-vec-forme",
+  noeuds: "dz-outil-vec-noeud",
+  coin: "dz-outil-vec-coin",
+  mesure: "dz-outil-vec-mesure",
+  pipette: "dz-outil-vec-pipette",
+  texte: "dz-outil-vec-texte",
+  couteau: "dz-outil-vec-couteau",
+  gomme: "dz-outil-vec-gomme",
+  constructeur: "dz-outil-vec-constructeur",
+  tuiles: "dz-outil-vec-tuiles",
+  ia: "dz-media-generer-image",
+  image: "dz-media-image",
+  apparence: "dz-outil-vec-apparence",
+  symbole: "dz-edit-symbole",
+  tranche: "dz-outil-vec-tranche",
+  "px-pinceau": "dz-outil-px-pinceau",
+  "px-gomme": "dz-outil-px-gomme",
+  "px-seau": "dz-outil-px-pot",
+  "px-crayon": "dz-outil-px-crayon",
+  "px-ligne": "dz-outil-px-ligne",
+  "px-rectpx": "dz-outil-px-rectangle",
+  "px-selrect": "dz-outil-px-selection",
+  "px-lasso": "dz-outil-px-lasso",
+  "px-baguette": "dz-outil-px-baguette",
+  "px-cloner": "dz-outil-photo-tampon",
+  main: "dz-outil-vec-main",
+  loupe: "dz-outil-vec-loupe",
+  planche: "dz-outil-vec-plan-de-travail",
+  degrade: "dz-outil-px-degrade",
+  transparence: "dz-outil-vec-transparence",
+  cadre: "dz-outil-vec-cadre-texte",
+  recadrer: "dz-outil-photo-recadrer",
+  "px-flou": "dz-outil-photo-flou",
+  "px-eclaircir": "dz-outil-photo-densite-moins",
+  "px-assombrir": "dz-outil-photo-densite-plus",
+  // les actions de la barre contextuelle (Nœuds / Plume) et les alignements de nœuds
+  vif: "dz-outil-vec-noeud-vif",
+  lisse: "dz-outil-vec-noeud-lisse",
+  intelligent: "dz-outil-vec-noeud-intelligent",
+  fractionner: "dz-outil-vec-fractionner",
+  ouvrir: "dz-outil-vec-ouvrir-chemin",
+  fermer: "dz-outil-vec-fermer-chemin",
+  lisserCourbe: "dz-outil-vec-lisser",
+  relier: "dz-outil-vec-relier",
+  inverser: "dz-edit-inverser-sens",
+  "al-gauche": "dz-edit-aligner-gauche",
+  "al-centreH": "dz-edit-aligner-centre-h",
+  "al-droite": "dz-edit-aligner-droite",
+  "al-haut": "dz-edit-aligner-haut",
+  "al-centreV": "dz-edit-aligner-centre-v",
+  "al-bas": "dz-edit-aligner-bas",
+  configDoc: "dz-action-reglages",
+  parametres: "dz-nav-reglages",               // préférences de l'appli ≠ configuration du document
+};
+// les types de rangées d'objet du panneau Calques (mod-layers : arbre_calques → r.icone) ;
+// la rangée de CALQUE montre une vignette, jamais d'icône
+export const RANGEES = {
+  path: "dz-calque-vectoriel",
+  rect: "dz-outil-vec-rectangle",
+  ellipse: "dz-outil-vec-ellipse",
+  forme: "dz-outil-vec-forme",
+  texte: "dz-calque-texte",
+  cadre: "dz-calque-texte",
+  image: "dz-media-image",
+  groupe: "dz-calque-groupe",
+  instance: "dz-edit-symbole",
+  tuiles: "dz-outil-vec-tuiles",
+  ecretage: "dz-calque-ecretage",
+  masque: "dz-calque-masque",
+  effet: "dz-edit-effet",
+};
+export const cle_de = (id) => ICONES[id] || REPLI;
+export function icone_svg(id, taille = 18) { return dzi(cle_de(id), taille, "ic"); }
+export function icone_rangee(id, taille = 14) { return dzi(RANGEES[id] || REPLI, taille, "ic"); }
 export const outils_sans_icone = (liste) => (Array.isArray(liste) ? liste : []).filter((id) => !ICONES[id]);

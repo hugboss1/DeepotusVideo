@@ -227,7 +227,7 @@ if R:
     check("B11 en saisie, « . » est laisse au champ ; sur la reglette focalisee, « , » recule quand meme ; Ctrl+. n'est pas pris",
           R["saisieTexte"] is False and R["surReglette"] is True and R["c5"] == "f 47 / 48" and R["ctrl"] is False, f"{R['saisieTexte']} {R['surReglette']} {R['c5']} {R['ctrl']}")
     check("B12 ‹ et › : boutons du Studio AVEC title (la touche dite) ; ‹ recule d'une image",
-          len(R["btn"]) == 2 and R["btn"][0]["ch"] == "‹" and "« , »" in (R["btn"][0]["title"] or "") and R["btn"][1]["ch"] == "›"
+          len(R["btn"]) == 2 and R["btn"][0]["ch"] == "⟦dz-media-image-precedente⟧" and "« , »" in (R["btn"][0]["title"] or "") and R["btn"][1]["ch"] == "⟦dz-media-image-suivante⟧"
           and "« . »" in (R["btn"][1]["title"] or "") and R["c6"] == "f 46 / 48", f"{R['btn']} {R['c6']}")
     check("B13 a la fermeture du tiroir, l'ecoute du clavier est RETIREE", R["nett"] >= 2 and R["keys"] == 0 and R["retires"] == 1, f"{R['nett']} {R['keys']} {R['retires']}")
 

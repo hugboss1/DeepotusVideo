@@ -112,8 +112,8 @@ print("\n[X] SVG et Vectorlab")
 R = node("""
 var TPL={id:"tpl x",name:"X",regions:[{id:"a",type:"text",x:1,y:2,width:3,height:4}]},REGS=[{id:"a",type:"text",x:10.6,y:20.2,width:30,height:40,_disp:"z",text:"Neuf"}];
 function ex(t){hi=0;return DzExportFigma({tpl:t,regs:REGS})}
-R.sans=ex(null)===null;var T=ex(TPL);var sv=bouton(T,"SVG ↓"),vl=bouton(T,"Ouvrir dans le Vectorlab");R.titres=[sv.p.title,vl.p.title,sv.p.disabled];
-sv.p.onClick();R.svg=OUVERTS.slice();R.svgSansId=bouton(ex({name:"neuf",regions:[]}),"SVG ↓").p.disabled;
+R.sans=ex(null)===null;var T=ex(TPL);var sv=bouton(T,"SVG ⟦dz-action-exporter⟧"),vl=bouton(T,"Ouvrir dans le Vectorlab");R.titres=[sv.p.title,vl.p.title,sv.p.disabled];
+sv.p.onClick();R.svg=OUVERTS.slice();R.svgSansId=bouton(ex({name:"neuf",regions:[]}),"SVG ⟦dz-action-exporter⟧").p.disabled;
 REP={ok:true,status:200,json:{id:"abc 1",objets:7,images:2}};OUVERTS=[];var p1=vl.p.onClick(),p2=vl.p.onClick();await p1;await p2;
 R.post=FETCH.slice();R.ouv=OUVERTS.slice();R.msg=texte(ex(TPL));
 REP={ok:false,status:400,json:{detail:"Jeton de marque inconnu"}};OUVERTS=[];await bouton(ex(TPL),"Ouvrir dans le Vectorlab").p.onClick();R.refus=[texte(ex(TPL)),OUVERTS.length];

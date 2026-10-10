@@ -88,7 +88,7 @@ check("2c_a2d_accepte_au_montage_et_par_le_relais",
 check("2d_le_panneau_monte_le_lanceur_avec_setTab",
       BUN.count(':tab==="a2d"?r.jsx(DzAssets2D,{go:setTab},"pa2"):tab==="sprites"?') == 1)
 check("2e_teintes_et_icones_a2d_et_pixel",
-      BUN.count('"a2d":"var(--cat-sprites)","pixel":"var(--cat-vectoriel)"') == 1 and BUN.count('var __dzCatSVG={"a2d":\'<svg') == 1)
+      BUN.count('"a2d":"var(--cat-sprites)","pixel":"var(--cat-vectoriel)"') == 1 and BUN.count('var __dzCatSVG={"a2d":__dzGlH("dz-cat-assets-2d","100%"),"pixel":__dzGlH("dz-nav-espace-pixel","100%")') == 1)
 check("2f_fins_de_ligne_intactes_en_octets", BUNB.count(b"\r\n") > 15000 and BUNB.count(b"\r\n") == BUNB.count(b"\n"),
       (BUNB.count(b"\r\n"), BUNB.count(b"\n")))
 check("2h_la_rangee_d_onglets_a_sept_colonnes", BUN.count(".dzCatBar{display:grid;grid-template-columns:repeat(7,1fr);") == 1
@@ -96,7 +96,7 @@ check("2h_la_rangee_d_onglets_a_sept_colonnes", BUN.count(".dzCatBar{display:gri
 # t137 : le maillon photolab ajoute "photolab" APRÈS "vectorlab" dans la même liste blanche `Yu`
 check("2i_vectorlab_est_une_vue_navigable",
       BUN.count('"news","library","settings","vectorlab","photolab"],sg=Yu.includes(') == 1)
-check("2j_le_libelle_Guide_seul_reste_celui_de_l_amont", BUN.count('"Guide"') == 1 and BUN.count('children:"Guide ↗"') == 2)
+check("2j_le_libelle_Guide_seul_reste_celui_de_l_amont", BUN.count('"Guide"') == 1 and BUN.count('children:__dzGlT("dz-nav-guide","Guide ↗","↗")') == 2)
 check("2g_aucun_dialogue_natif_dans_le_lanceur",
       all(t not in BUN[BUN.find("function DzAssets2D("):BUN.find("function DzGameAssetsHub(")] for t in ("alert(", "confirm(", "prompt(")))
 
@@ -107,8 +107,11 @@ h0 = BUN.find("var __dzCatHue=")
 # les deux tables (`__dzCatHue`, `__dzCatSVG`) : jusqu'au « }; » qui ferme la seconde
 h1 = BUN.find("};", BUN.find("var __dzCatSVG=")) + 2 if h0 > 0 else -1
 maps = BUN[h0:h1] if 0 < h0 < h1 else ""
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import _i18n_l1_aide as AIDE  # noqa: E402  (icônes G1 : __dzGl & co. sous node)
 PROBE = r"""
 "use strict";
+""" + AIDE.PRELUDE_DZGLYPH + r"""
 var EV=[],LS={};
 var window={dispatchEvent:function(e){EV.push(e)}};
 function CustomEvent(t,o){this.type=t;this.detail=o&&o.detail}
@@ -128,7 +131,7 @@ cartes.forEach(function(c){var ns=tous(c);
   out.vignettes.push(ns.some(function(n){return n.p&&n.p.dangerouslySetInnerHTML&&/<svg/.test(n.p.dangerouslySetInnerHTML.__html)}));
   var o=ns.filter(function(n){return n.t===K&&n.p.children==="Ouvrir"})[0];
   var av=[GO.length,EV.length];o.p.onClick();out.ouvrir.push([GO.slice(av[0]),EV.slice(av[1]).map(function(e){return e.type+":"+(e.detail&&e.detail.view)})]);
-  var g=ns.filter(function(n){return n.t===K&&n.p.children==="Guide ↗"})[0],a=ns.filter(function(n){return n.t==="a"})[0];
+  var g=ns.filter(function(n){return n.t===K&&n.p.children==="Guide ⟦dz-nav-guide⟧"})[0],a=ns.filter(function(n){return n.t==="a"})[0];
   out.guides.push([!!g,!!(g&&g.p.disabled),a?a.p.href:null,g?String(g.p.title||""):"",g&&g.p.disabled?(g.p.style||{}).opacity:null]);
 });
 out.ls=LS;

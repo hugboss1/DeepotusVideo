@@ -50,8 +50,9 @@ BUN = BUNB.decode("utf-8")
 # épinglée avec sa clé, et la clé rend le texte français d'avant.
 sys.path.insert(0, str(HERE))
 import _i18n_l1_aide as AIDE  # noqa: E402
-ENTREE_VL = '{id:"vectorlab",label:"Vectorlab",icon:"vectorpen",desc:dzT("coque.rail.vectorlab_desc"),new:!0},'
-ENTREE_PL = '{id:"photolab",label:"Photolab",icon:"photolab",desc:dzT("coque.rail.photolab_desc"),new:!0},'
+# icônes G1 (10/10) : le rail porte les clés finales de la suite (dz-nav-…), Sh garde ses anciennes clés
+ENTREE_VL = '{id:"vectorlab",label:"Vectorlab",icon:"dz-nav-vectorlab",desc:dzT("coque.rail.vectorlab_desc"),new:!0},'
+ENTREE_PL = '{id:"photolab",label:"Photolab",icon:"dz-nav-photolab",desc:dzT("coque.rail.photolab_desc"),new:!0},'
 check("0a_t141_les_cles_du_rail_rendent_le_francais_d_avant",
       AIDE.fr("coque.rail.vectorlab_desc") == "Éditeur vectoriel & vitrail"
       and AIDE.fr("coque.rail.photolab_desc") == "Retouche d'image & calques")
@@ -132,18 +133,19 @@ else:
 
 print("\n[3] sous node")
 i0 = BUN.find("Sh={")
-i1 = BUN.find("};function X(", i0) + 1 if i0 > 0 else -1
+i1 = BUN.find("};function __dzGlyphe(", i0) + 1 if i0 > 0 else -1     # icônes G1 : le socle suit la carte
 carte = BUN[i0:i1] if 0 < i0 < i1 else ""
 # le tableau du rail : celui qui se termine par l'entrée Settings
 # t141 (08/10) : l'entrée Settings passe par dzT ; l'anglais d'origine reste la valeur `en` de ses clés
-FIN_RAIL = '{id:"settings",label:dzT("commun.objet.reglages"),icon:"cog",desc:dzT("coque.rail.reglages_desc")}]'
+FIN_RAIL = '{id:"settings",label:dzT("commun.objet.reglages"),icon:"dz-nav-reglages",desc:dzT("coque.rail.reglages_desc")}]'
 check("0b_t141_cles_de_l_entree_settings", AIDE.DICO["commun.objet.reglages"]["en"] == "Settings"
       and AIDE.DICO["coque.rail.reglages_desc"]["en"] == "Keys, paths, persona")
 k1 = BUN.find(FIN_RAIL)
 k0 = BUN.rfind("=[", 0, k1)
 rail = BUN[k0 + 1:k1 + len(FIN_RAIL)] if 0 < k0 < k1 else ""
 # t141 : le prélude (dictionnaire + dzT en français) avant le code extrait du bundle
-PROBE = '"use strict";\n' + AIDE.PRELUDE_DZT + r"""
+DZI = (RACINE / "frontend" / "dist" / "shared" / "icons" / "dz-icons.js").read_text("utf-8")
+PROBE = '"use strict";\n' + AIDE.PRELUDE_DZT + DZI + r"""
 var r={jsx:function(t,p,k){return {t:t,p:p,k:k}},jsxs:function(t,p,k){return {t:t,p:p,k:k}}};
 var __CARTE__;
 var RAIL=__RAIL__;
@@ -153,7 +155,7 @@ var ids=RAIL.map(function(e){return e.id});
 var pl=RAIL.filter(function(e){return e.id==="photolab"})[0]||null;
 console.log(JSON.stringify({existe:!!g,tag:g&&g.t,fill:g&&g.p&&g.p.fill,enfants:kids(g).map(function(n){return [n.t,
   n.p.fillRule||null,n.p.opacity||null]}),ids:ids,pl:pl,icones:ids.every(function(i){
-  var e=RAIL.filter(function(x){return x.id===i})[0];return !!Sh[e.icon]})}));
+  var e=RAIL.filter(function(x){return x.id===i})[0];return !!(Sh[e.icon]||window.DZ_ICONS[e.icon])})}));
 """
 D = {}
 if NODE and carte and rail:
@@ -174,7 +176,7 @@ if D:
     check("3d_photolab_juste_apres_vectorlab_et_avant_settings",
           "photolab" in D["ids"] and D["ids"][D["ids"].index("photolab") - 1] == "vectorlab"
           and D["ids"][-1] == "settings" and D["ids"].count("photolab") == 1, D["ids"])
-    check("3e_entree_photolab_complete", D["pl"] == {"id": "photolab", "label": "Photolab", "icon": "photolab",
+    check("3e_entree_photolab_complete", D["pl"] == {"id": "photolab", "label": "Photolab", "icon": "dz-nav-photolab",
           "desc": "Retouche d'image & calques", "new": True}, D["pl"])
     check("3f_chaque_entree_du_rail_a_son_icone", D["icones"] is True)
 

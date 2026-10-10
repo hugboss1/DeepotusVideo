@@ -33,7 +33,7 @@
    défilement).
 
    DICTÉE (T10, voir plus bas) : l'emplacement `"micro"` porte UN bouton dont
-   on change l'état (repos → écoute/prise « ■ » → estimation → accord →
+   on change l'état (repos → écoute/prise, icône « arrêt » → estimation → accord →
    envoi). Voie 1 : SpeechRecognition du navigateur. Voie 2 (absente, ou
    erreur network / service-not-allowed) : MediaRecorder, POST
    /api/dictation/estimate, dialogue « Transcrire N s par X ≈ Y $ ? », et
@@ -88,9 +88,21 @@
     '[placeholder^="e.g. Week around the $DEEPOTUS"]'
   ];
 
-  /* l'icône du micro, dessinée par masque (couleur = currentColor) */
-  var MICRO_SVG = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>" +
-    "<path d='M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm6-3.5h-2a4 4 0 0 1-8 0H6a6 6 0 0 0 5 5.9V21h2v-3.6a6 6 0 0 0 5-5.9z'/></svg>\")";
+  /* Deepotus Glyph (G6) : une icône de la suite, tirée du SPRITE servi (/shared/icons/dz-icons.svg) par <use> —
+     ce fichier est chargé par des pages qui n'ont pas toutes le runtime dz-icons.js. Décorative : le sens est
+     porté par le bouton (title, aria-label). La clé posée est relue dans data-dz-icone. */
+  var SPRITE = "/shared/icons/dz-icons.svg", NS_SVG = "http://www.w3.org/2000/svg";
+  function glyphe(cle, t) {
+    var s = D.createElementNS(NS_SVG, "svg");
+    s.setAttribute("class", "dzi");
+    s.setAttribute("width", String(t)); s.setAttribute("height", String(t));
+    s.setAttribute("aria-hidden", "true"); s.setAttribute("focusable", "false");
+    s.setAttribute("data-dz-icone", cle);
+    var u = D.createElementNS(NS_SVG, "use");
+    u.setAttribute("href", SPRITE + "#" + cle);
+    s.appendChild(u);
+    return s;
+  }
   var CSS = [
     "@property --dzia-ang{syntax:'<angle>';inherits:false;initial-value:0deg}",
     "@property --dzia-holo{syntax:'<number>';inherits:false;initial-value:0}",
@@ -139,14 +151,15 @@
       "border-radius:999px;border:1px solid rgba(139,92,246,.55);background:rgba(18,20,26,.92);color:#e5e7eb;" +
       "font:600 10px/1 system-ui,-apple-system,'Segoe UI',sans-serif;cursor:pointer;pointer-events:auto;white-space:nowrap;box-sizing:border-box}",
     ".dzia-modele .dzia-mtxt{overflow:hidden;text-overflow:ellipsis}",
-    ".dzia-modele::after{content:'\\25BE';font-size:9px;opacity:.75}",
+    ".dzia-mcar{display:inline-flex;align-items:center;opacity:.75;flex-shrink:0}",
+    ".dzia-mcar svg,.dzia-mico svg,.dzia-mstop svg{display:block;fill:currentColor}",
     ".dzia-modele:hover{border-color:#3b82f6}",
     ".dzia-modele[aria-disabled=true]{cursor:default;opacity:.62;border-color:rgba(148,163,184,.35);border-style:dashed}",
-    ".dzia-modele[aria-disabled=true]::after{content:none}",
+    ".dzia-modele[aria-disabled=true]:not(.dzia-mini) .dzia-mcar{display:none}",
     /* champ étroit (< 200 px, ex. #vitIaPrompt) : la pastille se réduit à une icône titrée */
     ".dzia-modele.dzia-mini{width:18px;padding:0;justify-content:center}",
     ".dzia-modele.dzia-mini .dzia-mtxt{display:none}",
-    ".dzia-modele.dzia-mini::after{content:'\\25C6';font-size:8px}",
+    ".dzia-modele.dzia-mini .dzia-mcar{opacity:1}",
     ".dzia-liste{position:fixed;z-index:2147483000;min-width:230px;max-width:360px;max-height:320px;overflow:auto;padding:4px;" +
       "border-radius:10px;background:#15171c;border:1px solid rgba(139,92,246,.5);" +
       "box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 14px -4px rgba(59,130,246,.45);box-sizing:border-box}",
@@ -166,8 +179,7 @@
     ".dzia-micro:hover{border-color:#3b82f6}",
     ".dzia-micro[aria-disabled=true]{cursor:default;opacity:.62;border-style:dashed;border-color:rgba(148,163,184,.35)}",
     ".dzia-micro[aria-busy=true]{cursor:progress}",
-    ".dzia-mico{display:block;width:8px;height:11px;background:currentColor;" +
-      "-webkit-mask:" + MICRO_SVG + " center/contain no-repeat;mask:" + MICRO_SVG + " center/contain no-repeat}",
+    ".dzia-mico,.dzia-mstop{display:flex;align-items:center;justify-content:center;width:11px;height:11px}",
     ".dzia-ecoute .dzia-micro{border-color:#ef4444;background:#b91c1c;color:#fff;animation:dzia-pouls 1.2s ease-in-out infinite}",
     "@keyframes dzia-pouls{50%{box-shadow:0 0 0 4px rgba(239,68,68,.28)}}",
     ".dzia-note{position:fixed;z-index:2147483000;max-width:360px;padding:5px 9px;border-radius:8px;background:#15171c;" +
@@ -927,6 +939,10 @@
     t.className = "dzia-mtxt";
     t.textContent = "…";
     b.appendChild(t);
+    var k = D.createElement("span");
+    k.className = "dzia-mcar";
+    k.appendChild(glyphe("dz-action-deplier", 9));
+    b.appendChild(k);
     b.addEventListener("mousedown", function (ev) { ev.preventDefault(); });   // le champ garde le focus
     /* un contrôle étranger à l'hôte : son pointerdown ne remonte pas (le
        Vectorlab traite tout pointerdown de #stage comme un geste d'outil, qui
@@ -1221,6 +1237,7 @@
     b.setAttribute("title", TITRE_V1);
     var i = D.createElement("span");
     i.className = "dzia-mico";
+    i.appendChild(glyphe("dz-media-dicter", 11));
     b.appendChild(i);
     b.addEventListener("mousedown", function (ev) { ev.preventDefault(); });   // le champ garde le focus et son curseur
     b.addEventListener("pointerdown", function (ev) { ev.stopPropagation(); }); // Vectorlab : pas un geste d'outil
@@ -1232,10 +1249,10 @@
     var st = el.__dzia, b = st && st.micro;
     if (!b) return;
     var a = dic.active && dic.active.el === el ? dic.active : null;
-    var e = a ? a.etat : "repos", v = voieDictee(), titre, txt = "", cls = "dzia-mico", dis = false, occupe = false;
-    if (e === "ecoute" || e === "prise") { txt = "■"; cls = "dzia-mstop"; titre = TITRE_STOP; }
+    var e = a ? a.etat : "repos", v = voieDictee(), titre, txt = "", cle = "dz-media-dicter", cls = "dzia-mico", dis = false, occupe = false;
+    if (e === "ecoute" || e === "prise") { cle = "dz-media-arret"; cls = "dzia-mstop"; titre = TITRE_STOP; }
     else if (e !== "repos") {
-      txt = "…"; cls = "dzia-mbusy"; occupe = true;
+      txt = "…"; cle = ""; cls = "dzia-mbusy"; occupe = true;
       titre = e === "micro" ? "Accès au micro en cours — autorisez-le dans le navigateur"
         : e === "estime" ? "Estimation de la durée et du coût de la transcription…"
         : e === "accord" ? "En attente de votre accord pour transcrire"
@@ -1248,13 +1265,17 @@
     var s = b.firstElementChild;
     if (s) {
       if (s.className !== cls) s.className = cls;
-      if (s.textContent !== txt) s.textContent = txt;
+      var ic = s.firstElementChild, deja = ic ? ic.getAttribute("data-dz-icone") || "" : "";
+      if (deja !== cle || s.textContent !== txt) {
+        s.textContent = txt;
+        if (cle) s.appendChild(glyphe(cle, cle === "dz-media-arret" ? 9 : 11));
+      }
     }
     poserAttr(b, "title", titre);
     poserAttr(b, "aria-label", titre);
     poserAttr(b, "aria-disabled", dis ? "true" : "false");
     poserAttr(b, "aria-busy", occupe ? "true" : "false");
-    poserAttr(b, "aria-pressed", txt === "■" ? "true" : "false");
+    poserAttr(b, "aria-pressed", cle === "dz-media-arret" ? "true" : "false");
     poserAttr(b, "data-dzia-etat", e);
     poserAttr(b, "data-dzia-voie", String(a ? a.voie : v));
     var br = st.barre, on = e === "ecoute" || e === "prise";

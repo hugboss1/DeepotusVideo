@@ -215,7 +215,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .fullp > summary:hover { color: var(--accent); }
 .fullp[open] > summary { border-bottom: 1px solid var(--stroke); color: var(--ink-strong); }
 .fullp[open] .chev { transform: rotate(180deg); }
-.fullp .chev { font-style: normal; color: var(--ink-muted); transition: transform var(--dur) var(--ease); }
+.fullp .chev { font-style: normal; color: var(--ink-muted); transition: transform var(--dur) var(--ease);
+  display: inline-flex; }
 .fullp code { display: block; padding: 7px 8px; font-family: var(--f-mono); font-size: 10px;
   line-height: 1.55; color: var(--ink-soft); word-break: break-word; }
 .fullp code em { font-style: normal; color: var(--accent); }
@@ -270,7 +271,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .ch-left { flex: 1 1 auto; }
 .ch-left .counter { flex: none; }
 /* la recherche cède avant le compteur quand la fenêtre se resserre */
-.ch-right .search.sm { flex: 0 1 150px; min-width: 74px; }
+.ch-right .srch { flex: 0 1 150px; min-width: 74px; }
 .colslider { display: flex; align-items: center; gap: 6px; font-size: 10px;
   letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
 .colslider input[type=range] { width: 92px; accent-color: var(--accent); }
@@ -558,7 +559,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* le filtre porte un libellé entier : il lui faut sa propre ligne, sinon on
    retombe sur le « Filtrer » nu, collé au menu des préréglages, qui ne disait
    pas sur quoi il portait */
-.insp-tools .search { flex: 1 1 auto; min-width: 0; width: 100%; }
+.insp-tools .srch { flex: 1 1 auto; min-width: 0; }
+.insp-tools .search { width: 100%; }
 .btn.tool { border-color: var(--stroke); color: var(--ink-soft); padding: 5px 8px;
   font-size: 11px; letter-spacing: .04em; flex: none; }
 .btn.tool:hover { border-color: var(--ink-soft); color: var(--ink-strong); }
@@ -579,17 +581,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   text-overflow: ellipsis; white-space: nowrap; }
 .grp > summary:hover { color: var(--ink-strong); }
 .grp[open] > summary { color: var(--ink-strong); border-bottom: 1px solid var(--stroke); }
-/* chevron dessiné en CSS : le glyphe ▾ manque à la police embarquée et
-   retombait sur un point à peine visible */
-.grp .chev { order: -1; flex: none; font-size: 0; width: 9px; height: 9px;
-  display: flex; align-items: center; justify-content: center;
+/* chevron : dz-action-deplier de la suite Deepotus Glyph (G6), pointé vers le bas ; replié, il
+   tourne vers la droite (le glyphe ▾ manquait à la police embarquée, puis un chevron tracé en CSS) */
+.grp .chev { order: -1; flex: none; font-size: 0; width: 12px; height: 12px;
+  display: flex; align-items: center; justify-content: center; transform: rotate(-90deg);
   transition: transform var(--dur) var(--ease); color: var(--ink-soft); }
-.grp .chev::before { content: ""; width: 5px; height: 5px; margin-top: -2px;
-  border-right: 1.4px solid currentColor; border-bottom: 1.4px solid currentColor;
-  transform: rotate(-45deg); }
+.chev > .dzi { width: 12px; height: 12px; }
 /* déplié = le chevron a tourné, et c'est tout : l'ambre n'a rien à faire ici,
    ce n'est ni un choix parmi d'autres ni une dépense */
-.grp[open] .chev { transform: rotate(90deg); color: var(--ink-strong); }
+.grp[open] .chev { transform: none; color: var(--ink-strong); }
 .grp > summary:hover .chev { color: var(--ink-strong); }
 .grp-dig { font-family: var(--f-mono); font-variant-numeric: tabular-nums;
   font-size: 9.5px; letter-spacing: .02em; text-transform: none; color: var(--ink-muted);
@@ -997,4 +997,21 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   border: 1px solid var(--stroke, #222831); border-radius: 6px; }
 #genParams .mini { display: block; margin: 6px 0; }
 #genParams input[type=range] { width: 100%; }
+
+/* ── Deepotus Glyph (G6) ─────────────────────────────────────────────────────
+   L'icône hérite de la couleur de son bouton et s'aligne sur son texte. */
+.btn > .dzi, .seg-b > .dzi, .chip > .dzi, .iact > .dzi, .backlink > .dzi, .brand > .dzi,
+#genLabel > .dzi { vertical-align: -3px; }
+.iact > .dzi { width: 12px; height: 12px; vertical-align: -2px; }
+.drop-ic > .dzi { width: 18px; height: 18px; }
+.step-dot > .dzi { width: 11px; height: 11px; }
+.card-del > .dzi { width: 11px; height: 11px; }
+.light-puck > .dzi { width: 14px; height: 14px; }
+/* une <option> ne porte pas de SVG : l'icône devant la liste dit sa fonction (trier) */
+.sel-ico { display: inline-flex; align-items: center; color: var(--ink-soft); margin-right: -5px; }
+/* un placeholder ne porte pas de SVG : la loupe vit DANS le champ, à gauche */
+.srch { position: relative; display: inline-flex; align-items: center; min-width: 0; }
+.srch > .dzi { position: absolute; left: 7px; width: 13px; height: 13px; color: var(--ink-muted);
+  pointer-events: none; }
+.srch > .search { padding-left: 26px; }
 

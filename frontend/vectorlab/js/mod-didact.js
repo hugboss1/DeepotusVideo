@@ -8,6 +8,7 @@
 // t126 : Spritelab et Tilelab importent ce module (/vectorlab/js/mod-didact.js) avec LEUR dossier d'aide
 // et le corps de page pour racine ; la CSS de l'encart vit dans spritelab.css pour eux.
 import { bulle_position } from "./mod-infobulle.js";
+import { dzi } from "./mod-icones.js";
 
 export const DIDACT_DELAI_MS = 900;
 export const DIDACT_LARGEUR = 320;
@@ -134,7 +135,7 @@ export function initDidact(VL = {}, opts = {}) {
       const el = document.getElementById(f.id);
       if (!el || deja(f.id)) continue;
       const q = document.createElement("button");
-      q.type = "button"; q.className = "vl-didact-q"; q.textContent = "?"; q.setAttribute("aria-label", "Aide : " + f.titre); q.dataset.pour = f.id;
+      q.type = "button"; q.className = "vl-didact-q"; q.innerHTML = dzi("dz-action-aide", 16); q.title = "Aide : " + f.titre; q.setAttribute("aria-label", "Aide : " + f.titre); q.dataset.pour = f.id;
       q.addEventListener("click", (ev) => { ev.stopPropagation(); ev.preventDefault(); const cible = document.getElementById(f.id); if (courant === cible) cacher(); else montrer(cible); });
       const sp = legende(el);
       if (sp) sp.appendChild(q); else el.insertAdjacentElement("afterend", q);

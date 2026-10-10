@@ -155,7 +155,7 @@ check("la_couche_emploie_le_runtime_du_bundle_et_pas_un_React_global",
 TMP = pathlib.Path(tempfile.mkdtemp(prefix="dztrb_"))
 shim = TMP / "shim.js"
 shim.write_text(
-    '"use strict";\n'
+    '"use strict";\n' + AIDE.PRELUDE_DZGLYPH +      # icônes G1 : __dzGl & co. sous node
     "var appels=[];\n"
     "var r={jsx:function(t,p,k){return {t:t,p:p,k:k}},"
     " jsxs:function(t,p,k){return {t:t,p:p,k:k}}};\n"

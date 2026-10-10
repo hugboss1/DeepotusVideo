@@ -394,7 +394,7 @@ function DzTransfert() {
       style: DZT_S.modal, children: [
         r.jsxs("div", { style: DZT_S.tete, children: [
           r.jsx("span", { style: { color: "var(--brand, #4a90e2)" },
-            children: dztIcone(modal, 18) }, "i"),
+            children: __dzGl("dz-nav-transfert", 18, { display: "block" }) }, "i"),
           r.jsx("span", { style: DZT_S.titre,
             children: modal === "export" ? "Exporter vers une autre machine"
               : "Importer depuis une autre machine" }, "t"),
@@ -424,11 +424,11 @@ function DzTransfert() {
       r.jsxs("div", { style: { display: "flex", gap: 8 }, children: [
         dztBouton({ onClick: function () { setModal("export"); },
           title: "Écrire un paquet de transfert sur un disque",
-          children: [dztIcone("export", 16),
+          children: [__dzGl("dz-action-exporter", 16, { display: "block" }),
                      r.jsx("span", { children: "Exporter…" }, "l")] }),
         dztBouton({ onClick: function () { setModal("import"); },
           title: "Reprendre un paquet venu d'une autre machine",
-          children: [dztIcone("import", 16),
+          children: [__dzGl("dz-action-importer", 16, { display: "block" }),
                      r.jsx("span", { children: "Importer…" }, "l")] })] }, "b"),
       vue] });
 }

@@ -49,7 +49,7 @@ check("B4 la barre « Projet » ouvre le contenu de la Bibliotheque, avant les c
       s.count('children:[r.jsx(DzProjetsBar,{f:dzPF,setF:dzPFs}),r.jsx(DzOutilsBiblio,{vue:dzVue,setVue:dzVues,liste:l,ouvrir:y}),__dzSrcChips(o,T,dzSF,dzSFs)') == 1)   # #81 PR C : la barre Corbeille / Nettoyage suit
 check("B5 « Envoyer vers » propose le projet pour TOUT asset (avant le « aucune cible »)",
       # t141 (08/10) : libelle et toast passent par dzT -> les CLES dans le bundle, et leur texte francais
-      s.count('items.push({lbl:dzT("biblio.envoyer.cible.projet"),fn:function(){dzProjMenu(m)}});'
+      s.count('items.push({ic:"dz-action-ranger",g:"📁",lbl:dzT("biblio.envoyer.cible.projet"),fn:function(){dzProjMenu(m)}});'
               'if(!items.length){__dzToast(dzT("biblio.envoyer.aucune_cible"));return}') == 1
       and AIDE.fr("biblio.envoyer.cible.projet") == "📁 Projet de la Bibliothèque…"
       and AIDE.fr("biblio.envoyer.aucune_cible") == "Aucune cible pour cet asset")

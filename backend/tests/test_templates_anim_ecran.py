@@ -116,7 +116,7 @@ if R:
           R["majs"] == [{"animation": {"in": {"type": "pop", "duration": 1.5, "delay": 0.3, "easing": "back"}, "out": {"type": "fade", "duration": 0.5, "delay": 0}}},
                         {"animation": {"out": {"type": "fade", "duration": 0.5, "delay": 0}}}] and R["vide"] == [{"animation": None}], str(R["majs"]))
     check("E5 « Rejouer sur la toile » (avec title) designe CETTE region, relance le compteur et redessine",
-          R["btn"] == [["▶ Rejouer sur la toile", True]] and R["jeu"][0] == "t1" and R["jeu"][1] == 1 and R["jeu"][2] == [{}], str(R["jeu"]))
+          R["btn"] == [["⟦dz-media-lecture⟧ Rejouer sur la toile", True]] and R["jeu"][0] == "t1" and R["jeu"][1] == 1 and R["jeu"][2] == [{}], str(R["jeu"]))
 
 print("\n[C] l'apercu sur la toile")
 R = node("""

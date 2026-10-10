@@ -1,0 +1,2336 @@
+{
+ "note": "Sites ou une cle de la carte Sh est repointee vers sa cle finale ; fige depuis implementation.json (G1).",
+ "sites": [
+  {
+   "ids": [
+    "coque.composant-partage-section-accordeon-ie.caretr-a-gauche-du-titre-de-cha",
+    "coque.composant-partage-section-repliable-insp.section-repliable"
+   ],
+   "ancre": "en:[r.jsx(X,{name:\"caretR\",size:12,style:{tr",
+   "avant": "\"caretR\"",
+   "apres": "\"dz-action-deplier\""
+  },
+  {
+   "ids": [
+    "coque.composant-partage-select-liste-deroulante-re.caret-a-droite-de-la-valeur-ch",
+    "coque.composant-partage-liste-deroulante-re.select-chevron"
+   ],
+   "ancre": "{name:\"caret\",size:",
+   "avant": "\"caret\"",
+   "apres": "\"dz-action-deplier\""
+  },
+  {
+   "ids": [
+    "coque.composant-partage-select-liste-deroulante-re.check-a-droite-de-l-option-act",
+    "coque.composant-partage-liste-deroulante-re.select-coche"
+   ],
+   "ancre": "jsx(X,{name:\"check\",size:12})]}",
+   "avant": "\"check\"",
+   "apres": "\"dz-etat-option-active\""
+  },
+  {
+   "ids": [
+    "studio.canevas-de-graphe-carte-de-n-ud-th.image-source",
+    "studio.canevas-de-graphe-vignette-de-n-ud-ih.image-source",
+    "studio.colonne-nodes-palette-ah.image-source",
+    "studio.inspecteur-du-n-ud-oh.image-source"
+   ],
+   "ancre": ",icon:\"image\"},gen:",
+   "avant": "\"image\"",
+   "apres": "\"dz-cat-source\""
+  },
+  {
+   "ids": [
+    "studio.canevas-de-graphe-carte-de-n-ud-th.sparkle-generateur",
+    "studio.canevas-de-graphe-vignette-de-n-ud-ih.sparkle-generateur",
+    "studio.colonne-nodes-palette-ah.sparkle-generateur",
+    "studio.inspecteur-du-n-ud-oh.sparkle-generateur"
+   ],
+   "ancre": ",icon:\"sparkle\"},audi",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-cat-generateur\""
+  },
+  {
+   "ids": [
+    "studio.canevas-de-graphe-carte-de-n-ud-th.wave-audio",
+    "studio.canevas-de-graphe-vignette-de-n-ud-ih.wave-audio",
+    "studio.colonne-nodes-palette-ah.wave-audio",
+    "studio.inspecteur-du-n-ud-oh.wave-audio"
+   ],
+   "ancre": ",icon:\"wave\"},edit",
+   "avant": "\"wave\"",
+   "apres": "\"dz-cat-audio\""
+  },
+  {
+   "ids": [
+    "studio.canevas-de-graphe-carte-de-n-ud-th.film-montage",
+    "studio.canevas-de-graphe-vignette-de-n-ud-ih.film-montage",
+    "studio.colonne-nodes-palette-ah.film-montage",
+    "studio.inspecteur-du-n-ud-oh.film-montage"
+   ],
+   "ancre": ",icon:\"film\"},comp",
+   "avant": "\"film\"",
+   "apres": "\"dz-cat-montage\""
+  },
+  {
+   "ids": [
+    "studio.canevas-de-graphe-carte-de-n-ud-th.layers-composition",
+    "studio.canevas-de-graphe-vignette-de-n-ud-ih.layers-composition",
+    "studio.colonne-nodes-palette-ah.layers-composition",
+    "studio.inspecteur-du-n-ud-oh.layers-composition"
+   ],
+   "ancre": ",icon:\"layers\"},moti",
+   "avant": "\"layers\"",
+   "apres": "\"dz-cat-composition\""
+  },
+  {
+   "ids": [
+    "studio.canevas-de-graphe-carte-de-n-ud-th.sparkle-animations",
+    "studio.canevas-de-graphe-vignette-de-n-ud-ih.sparkle-animations",
+    "studio.colonne-nodes-palette-ah.sparkle-animations",
+    "studio.inspecteur-du-n-ud-oh.sparkle-animations"
+   ],
+   "ancre": ",icon:\"sparkle\"},mast",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-cat-animation\""
+  },
+  {
+   "ids": [
+    "studio.canevas-de-graphe-carte-de-n-ud-th.warn-maitre",
+    "studio.canevas-de-graphe-vignette-de-n-ud-ih.warn-maitre",
+    "studio.colonne-nodes-palette-ah.warn-maitre",
+    "studio.inspecteur-du-n-ud-oh.warn-maitre"
+   ],
+   "ancre": ",icon:\"warn\"},outp",
+   "avant": "\"warn\"",
+   "apres": "\"dz-cat-maitre\""
+  },
+  {
+   "ids": [
+    "studio.canevas-de-graphe-carte-de-n-ud-th.download-sortie",
+    "studio.canevas-de-graphe-vignette-de-n-ud-ih.download-sortie",
+    "studio.colonne-nodes-palette-ah.download-sortie",
+    "studio.inspecteur-du-n-ud-oh.download-sortie"
+   ],
+   "ancre": ",icon:\"download\"}},Me=",
+   "avant": "\"download\"",
+   "apres": "\"dz-cat-sortie\""
+  },
+  {
+   "ids": [
+    "studio.canevas-de-graphe-carte-de-n-ud-th.close-supprimer-le-n-ud",
+    "studio.carte-de-noeud-canevas.noeud-suppr"
+   ],
+   "ancre": "jsx(X,{name:\"close\",size:12})})",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "studio.canevas-vignette-du-n-ud-concatenate-dzconcatstr.film-au-centre-de-la-vignette",
+    "studio.carte-de-noeud-apercu.concat-vide"
+   ],
+   "ancre": "jsx(X,{name:\"film\",size:24})})",
+   "avant": "\"film\"",
+   "apres": "\"dz-media-film\""
+  },
+  {
+   "ids": [
+    "studio.canevas-vignette-du-n-ud-concatenate-dzconcatstr.film-dans-chaque-case-de-la-b",
+    "studio.carte-de-noeud-apercu.concat-case"
+   ],
+   "ancre": "jsx(X,{name:\"film\",size:12})})",
+   "avant": "\"film\"",
+   "apres": "\"dz-media-video\""
+  },
+  {
+   "ids": [
+    "studio.canevas-vignette-des-n-uds-video-seedance-trim-e.film-au-centre-de-la-vignette",
+    "studio.carte-de-noeud-apercu.video-hachure"
+   ],
+   "ancre": "jsx(X,{name:\"film\",size:28})})",
+   "avant": "\"film\"",
+   "apres": "\"dz-media-video\""
+  },
+  {
+   "ids": [
+    "studio.canevas-vignette-du-n-ud-render.play-triangle-de-lecture-dans",
+    "studio.carte-de-noeud-apercu.apercu-du-noeud-render-cadre-9-16-avec-t"
+   ],
+   "ancre": "jsx(X,{name:\"play\",size:18,sty",
+   "avant": "\"play\"",
+   "apres": "\"dz-media-video\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe.folderopen-ouvrir-un-graphe",
+    "studio.barre-du-haut-du-canevas.ouvrir-un-graphe"
+   ],
+   "ancre": "\"folderOpen\"",
+   "avant": "\"folderOpen\"",
+   "apres": "\"dz-action-ouvrir\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-asset-3d.download-glb-optimise",
+    "game-assets.3d-studio-panneau-optimiser-dzoptglbbtn.opt-dl-carte"
+   ],
+   "ancre": "e\",size:\"sm\",icon:\"download\",children:dzT(\"bib",
+   "avant": "\"download\"",
+   "apres": "\"dz-action-telecharger\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe.flow-a-gauche-du-nom-du-graph",
+    "studio.barre-du-haut-du-canevas.titre-graphe"
+   ],
+   "ancre": "jsx(X,{name:\"flow\",size:16,sty",
+   "avant": "\"flow\"",
+   "apres": "\"dz-nav-studio\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe.plus-nouveau",
+    "studio.barre-du-haut-du-canevas.nouveau"
+   ],
+   "ancre": "e:\"sm\",icon:\"plus\",onClick:T,t",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-nouveau\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe.check-enregistrer",
+    "studio.barre-du-haut-du-canevas.enregistrer"
+   ],
+   "ancre": "e\",size:\"sm\",icon:\"check\",title:dzT(\"studio",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-enregistrer\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe.preview-apercu",
+    "studio.barre-du-haut-du-canevas.apercu"
+   ],
+   "ancre": ",icon:\"preview\",onCli",
+   "avant": "\"preview\"",
+   "apres": "\"dz-action-apercu\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe.play-executer",
+    "studio.barre-du-haut-du-canevas.executer"
+   ],
+   "ancre": ",icon:\"play\",glow:",
+   "avant": "\"play\"",
+   "apres": "\"dz-action-lancer\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe.plus-enregistrer-le-layout",
+    "studio.barre-du-haut-du-canevas.enregistrer-layout"
+   ],
+   "ancre": ",icon:\"plus\",title",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-enregistrer-modele\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe.download-telecharger-le-dernier-r",
+    "studio.barre-du-haut-du-canevas.exporter"
+   ],
+   "ancre": ",icon:\"download\",title",
+   "avant": "\"download\"",
+   "apres": "\"dz-action-telecharger\""
+  },
+  {
+   "ids": [
+    "studio.bandeau-d-etat-du-rendu-sous-la-barre.sparkle-a-gauche-du-message-d-et"
+   ],
+   "ancre": "ame:m?\"sparkle\":c.sta",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-etat-attente\""
+  },
+  {
+   "ids": [
+    "studio.bandeau-d-etat-du-rendu-sous-la-barre.check-termine"
+   ],
+   "ancre": "ne\"))?\"check\":\"warn",
+   "avant": "\"check\"",
+   "apres": "\"dz-etat-succes\""
+  },
+  {
+   "ids": [
+    "studio.bandeau-d-etat-du-rendu-sous-la-barre.warn-meme-emplacement-etat-er"
+   ],
+   "ancre": "\"))?\"check\":\"warn\",size:13,sty",
+   "avant": "\"warn\"",
+   "apres": "\"dz-etat-avertissement\""
+  },
+  {
+   "ids": [
+    "studio.bandeau-d-etat-du-rendu-sous-la-barre.close-bouton-a-droite-du-messa",
+    "studio.bandeau-d-etat-du-canevas.etat-fermer"
+   ],
+   "ancre": "dren:c}),r.jsx(se,{name:\"close\",size:20,iconSize:10,onC",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-fermer\""
+  },
+  {
+   "ids": [
+    "studio.canevas-poignee-de-l-inspecteur-replie.panelr-inspecteur-rouvrir"
+   ],
+   "ancre": "{name:\"panelR\",size:",
+   "avant": "\"panelR\"",
+   "apres": "\"dz-action-panneau-lateral\""
+  },
+  {
+   "ids": [
+    "studio.canevas-poignee-de-la-colonne-nodes-repliee.flow-n-uds-touche"
+   ],
+   "ancre": "jsx(X,{name:\"flow\",size:11}),\"",
+   "avant": "\"flow\"",
+   "apres": "\"dz-action-panneau-lateral\""
+  },
+  {
+   "ids": [
+    "studio.canevas-coin-bas-gauche.zoom-moins",
+    "studio.canevas-commandes-de-zoom-bas-gauche.minus-bouton"
+   ],
+   "ancre": "sx(se,{name:\"minus\",size:26,onC",
+   "avant": "\"minus\"",
+   "apres": "\"dz-action-zoom-arriere\""
+  },
+  {
+   "ids": [
+    "studio.canevas-coin-bas-gauche.zoom-plus",
+    "studio.canevas-commandes-de-zoom-bas-gauche.plus-bouton"
+   ],
+   "ancre": "sx(se,{name:\"plus\",size:26,onC",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-zoom-avant\""
+  },
+  {
+   "ids": [
+    "studio.colonne-nodes-palette-ah.close-masquer",
+    "studio.palette-de-noeuds-colonne-nodes.palette-masquer"
+   ],
+   "ancre": "sx(se,{name:\"close\",size:22,ico",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-panneau-lateral\""
+  },
+  {
+   "ids": [
+    "studio.colonne-nodes-palette-ah.search-rechercher",
+    "studio.palette-de-noeuds-colonne-nodes.palette-recherche"
+   ],
+   "ancre": "})]})]}),r.jsx(le,{icon:\"search\",placeholder:dzT(\"studio",
+   "avant": "\"search\"",
+   "apres": "\"dz-action-chercher\""
+  },
+  {
+   "ids": [
+    "studio.colonne-nodes-graphes-de-depart.flow-graphes-de-depart",
+    "studio.palette-de-noeuds-colonne-nodes.starter"
+   ],
+   "ancre": "jsx(X,{name:\"flow\",size:13})})",
+   "avant": "\"flow\"",
+   "apres": "\"dz-media-graphe-depart\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-du-noeud-render.planifier",
+    "studio.inspecteur-panneau-planifier-h.send-planifier-ce-rendu"
+   ],
+   "ancre": "e:\"md\",icon:\"send\",glow:!0,sty",
+   "avant": "\"send\"",
+   "apres": "\"dz-nav-scheduler\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-de-noeud.insp-replier",
+    "studio.inspecteur-du-n-ud-oh.panelr-replier-l-inspecteur"
+   ],
+   "ancre": "}),r.jsx(se,{name:\"panelR\",title:dzT(\"studio",
+   "avant": "\"panelR\"",
+   "apres": "\"dz-action-panneau-lateral\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-du-graphe-fh-aucun-n-ud-selectionne.panelr-replier-l-inspecteur",
+    "studio.inspecteur-du-graphe-aucun-noeud-selecti.insp-replier-graphe"
+   ],
+   "ancre": "en:r.jsx(se,{name:\"panelR\",title:dzT(\"studio",
+   "avant": "\"panelR\"",
+   "apres": "\"dz-action-panneau-lateral\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-n-ud-generation-d-images.sparkle-generer",
+    "studio.inspecteur-noeud-generation-d-images.imagegen-generer"
+   ],
+   "ancre": ",\"p\"),r.jsx(K,{variant:\"primary\",size:\"sm\",icon:\"sparkle\",glow:!0,disabled:busy,onClick:run,style:{width:",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-media-generer-image\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-noeud-retouche-variantes-agra.imgproc-appliquer",
+    "studio.inspecteur-n-ud-traitement-d-image.sparkle-appliquer-generer-les-va"
+   ],
+   "ancre": "ncat([r.jsx(K,{variant:\"primary\",size:\"sm\",icon:\"sparkle\",glow:!0,disabled:busy,onClick:run,style:{width:",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-media-generer-image\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-noeud-upload-video-ugc.upload-video",
+    "studio.inspecteur-n-ud-video-ugc-source.upload-importer-ta-video"
+   ],
+   "ancre": "e:\"sm\",icon:\"upload\",glow:!e.job",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "studio.panneau-resultat-jh-glisse-de-la-droite.preview-resultat",
+    "studio.tiroir-resultat-entrees-apercu-d-executi.tiroir-resultat"
+   ],
+   "ancre": "{name:\"preview\",size:",
+   "avant": "\"preview\"",
+   "apres": "\"dz-action-apercu\""
+  },
+  {
+   "ids": [
+    "studio.panneau-resultat-jh.close-bouton-en-haut-a-droite",
+    "studio.tiroir-resultat-entrees-apercu-d-executi.tiroir-fermer"
+   ],
+   "ancre": "lex:1}}),r.jsx(se,{name:\"close\",onClick:e})]}),r.jsx(\"d",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-fermer\""
+  },
+  {
+   "ids": [
+    "studio.panneau-resultat-jh.film-ouvrir-dans-le-montage",
+    "studio.tiroir-resultat-entrees-apercu-d-executi.vers-montage"
+   ],
+   "ancre": "e\",size:\"sm\",icon:\"film\",title:dzT(\"studio",
+   "avant": "\"film\"",
+   "apres": "\"dz-nav-montage\""
+  },
+  {
+   "ids": [
+    "studio.panneau-resultat-jh.download-telecharger",
+    "studio.tiroir-resultat-entrees-apercu-d-executi.telecharger"
+   ],
+   "ancre": ",icon:\"download\",style",
+   "avant": "\"download\"",
+   "apres": "\"dz-action-telecharger\""
+  },
+  {
+   "ids": [
+    "quick.modale-generateur-de-prompts-lu.sparkle-generateur-de-prompts",
+    "studio.gestionnaire-de-prompts-modale.pm-entete"
+   ],
+   "ancre": "jsx(X,{name:\"sparkle\",size:16})})",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-nav-prompts\""
+  },
+  {
+   "ids": [
+    "quick.modale-generateur-de-prompts-lu.zap-aleatoire",
+    "studio.gestionnaire-de-prompts-modale.pm-aleatoire"
+   ],
+   "ancre": "e:\"sm\",icon:\"zap\",onClick:c,c",
+   "avant": "\"zap\"",
+   "apres": "\"dz-action-aleatoire\""
+  },
+  {
+   "ids": [
+    "quick.modale-generateur-de-prompts-lu.close-bouton-en-haut-a-droite",
+    "studio.gestionnaire-de-prompts-modale.pm-fermer"
+   ],
+   "ancre": "oire\")}),r.jsx(se,{name:\"close\",onClick:t})]}),r.jsxs(\"",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-fermer\""
+  },
+  {
+   "ids": [
+    "quick.modale-generateur-de-prompts-lu.copy-copier",
+    "studio.gestionnaire-de-prompts-modale.pm-copier"
+   ],
+   "ancre": "e\",size:\"sm\",icon:\"copy\",onClick:()=>{var ",
+   "avant": "\"copy\"",
+   "apres": "\"dz-action-copier\""
+  },
+  {
+   "ids": [
+    "quick.modale-generateur-de-prompts-lu.sparkle-affiner-par-ia",
+    "studio.gestionnaire-de-prompts-modale.pm-affiner"
+   ],
+   "ancre": "e:\"sm\",icon:\"sparkle\",onClick:p,d",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-action-reecrire-ia\""
+  },
+  {
+   "ids": [
+    "quick.modale-generateur-de-prompts-lu.zap-utiliser-ce-prompt",
+    "studio.gestionnaire-de-prompts-modale.pm-utiliser"
+   ],
+   "ancre": "y\",size:\"md\",icon:\"zap\",glow:!0,onClick:(",
+   "avant": "\"zap\"",
+   "apres": "\"dz-action-valider\""
+  },
+  {
+   "ids": [
+    "reglages.personas-persona-fourni-deepotus.octopus-deepotus"
+   ],
+   "ancre": "vatar:\"octopus\",role:",
+   "avant": "\"octopus\"",
+   "apres": "\"dz-marque-poulpe\""
+  },
+  {
+   "ids": [
+    "reglages.personas-persona-fourni-the-oracle.sparkle-the-oracle"
+   ],
+   "ancre": "vatar:\"sparkle\",role:",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-marque-oracle\""
+  },
+  {
+   "ids": [
+    "reglages.personas-persona-fourni-the-seer.zap-the-seer"
+   ],
+   "ancre": "vatar:\"zap\",role:",
+   "avant": "\"zap\"",
+   "apres": "\"dz-marque-seer\""
+  },
+  {
+   "ids": [
+    "reglages.assistant-de-creation-de-persona-u.close-bouton-en-haut-a-droite",
+    "reglages.assistant-persona-fenetre.persona-fermer"
+   ],
+   "ancre": "ceMode}),r.jsx(se,{name:\"close\",onClick:t})]}),r.jsx(\"d",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-fermer\""
+  },
+  {
+   "ids": [
+    "reglages.assistant-de-creation-de-persona-u.caretr-continuer",
+    "reglages.assistant-persona-fenetre.persona-continuer"
+   ],
+   "ancre": "ry\",size:\"md\",iconRight:\"caretR\",glow:!0,onClick:()=>s(i",
+   "avant": "\"caretR\"",
+   "apres": "\"dz-action-continuer\""
+  },
+  {
+   "ids": [
+    "reglages.assistant-de-creation-de-persona-u.check-enregistrer-le-persona",
+    "reglages.assistant-persona-fenetre.persona-enregistrer"
+   ],
+   "ancre": "y\",size:\"md\",icon:\"check\",glow:!0,onClick:(",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-enregistrer\""
+  },
+  {
+   "ids": [
+    "reglages.assistant-persona-apercu-json.persona-copier-json",
+    "reglages.personas-vue-json.copy-copier-le-json"
+   ],
+   "ancre": "{name:\"copy\",onCli",
+   "avant": "\"copy\"",
+   "apres": "\"dz-action-copier\""
+  },
+  {
+   "ids": [
+    "reglages.assistant-persona-apercu-json.persona-dl-json",
+    "reglages.personas-vue-json.download-telecharger-le-json"
+   ],
+   "ancre": "{name:\"download\",onCli",
+   "avant": "\"download\"",
+   "apres": "\"dz-action-exporter\""
+  },
+  {
+   "ids": [
+    "reglages.personas-liste.persona-avatar",
+    "reglages.personas-carte-de-persona-ou.octopus-pastille-d-avatar-a-gauc"
+   ],
+   "ancre": "e:a.avatar||\"octopus\",size:14})})",
+   "avant": "\"octopus\"",
+   "apres": "\"dz-media-persona\""
+  },
+  {
+   "ids": [
+    "reglages.personas-liste.persona-modifier",
+    "reglages.personas-carte-de-persona-ou.edit-bouton-icone-personas-no"
+   ],
+   "ancre": "{name:\"edit\",size:",
+   "avant": "\"edit\"",
+   "apres": "\"dz-action-modifier\""
+  },
+  {
+   "ids": [
+    "reglages.personas-liste.persona-exporter",
+    "reglages.personas-carte-de-persona-ou.download-exporter-en-json"
+   ],
+   "ancre": "{name:\"download\",size:",
+   "avant": "\"download\"",
+   "apres": "\"dz-action-exporter\""
+  },
+  {
+   "ids": [
+    "reglages.personas-liste.persona-creer",
+    "reglages.personas-liste.plus-creer-un-persona"
+   ],
+   "ancre": "jsx(X,{name:\"plus\",size:14}),d",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-ajouter\""
+  },
+  {
+   "ids": [
+    "quick.panneau-voix-quick-voice.sparkle-generation"
+   ],
+   "ancre": "\",icon:busy?\"sparkle\":\"wave\",glow",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-etat-attente\""
+  },
+  {
+   "ids": [
+    "quick.panneau-voix-quick-voice.wave-generer-la-voix"
+   ],
+   "ancre": "rkle\":\"wave\",glow:",
+   "avant": "\"wave\"",
+   "apres": "\"dz-media-generer-voix\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-n-ud-voix-off.sparkle-generation"
+   ],
+   "ancre": "\",icon:busy?\"sparkle\":\"wave\",styl",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-etat-attente\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-n-ud-voix-off.wave-generer-la-voix"
+   ],
+   "ancre": "rkle\":\"wave\",style",
+   "avant": "\"wave\"",
+   "apres": "\"dz-media-generer-voix\""
+  },
+  {
+   "ids": [
+    "quick.selecteur-de-persona-dzqpui.octopus-persona",
+    "avatar-heygen.quick-panneau-heygen.persona-avatar"
+   ],
+   "ancre": "e:t.avatar||\"octopus\",size:12,sty",
+   "avant": "\"octopus\"",
+   "apres": "\"dz-media-persona\""
+  },
+  {
+   "ids": [
+    "quick.mode-avatar-casting.upload-importer-une-photo",
+    "avatar-heygen.quick-panneau-heygen-photo-avatar.photo-importer"
+   ],
+   "ancre": "t\",size:\"sm\",icon:\"upload\",onClick:()=>{var ",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "quick.mode-avatar-castings-enregistres.trash-supprimer-le-casting-le-",
+    "avatar-heygen.quick-panneau-heygen-castings.casting-suppr"
+   ],
+   "ancre": ",icon:\"trash\",title",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "quick.mode-avatar-liste-des-avatars.search-rechercher-parmi-n-avata",
+    "avatar-heygen.quick-panneau-heygen.avatar-recherche"
+   ],
+   "ancre": "sx(le,{icon:\"search\",value:S,onC",
+   "avant": "\"search\"",
+   "apres": "\"dz-action-chercher\""
+  },
+  {
+   "ids": [
+    "quick.mode-avatar-liste-des-voix.search-rechercher-parmi-n-voix",
+    "avatar-heygen.quick-panneau-heygen.voix-recherche"
+   ],
+   "ancre": "sx(le,{icon:\"search\",value:vq,on",
+   "avant": "\"search\"",
+   "apres": "\"dz-action-chercher\""
+  },
+  {
+   "ids": [
+    "quick.mode-avatar-voix-choisie.play-preecouter-la-voix",
+    "avatar-heygen.quick-panneau-heygen.voix-preecouter"
+   ],
+   "ancre": ",icon:\"play\",title",
+   "avant": "\"play\"",
+   "apres": "\"dz-media-lecture\""
+  },
+  {
+   "ids": [
+    "quick.panneau-camera-seedance.film-galerie",
+    "quick.panneau-camera-seedance.galerie"
+   ],
+   "ancre": "t\",size:\"sm\",icon:\"film\",title:dzT(\"quick.",
+   "avant": "\"film\"",
+   "apres": "\"dz-media-mouvements-camera\""
+  },
+  {
+   "ids": [
+    "quick.bloc-gabarits-de-prompt.gabarits-generer",
+    "quick.section-gabarits-de-prompt.sparkle-generer"
+   ],
+   "ancre": "t\",size:\"sm\",icon:\"sparkle\",onClick:()=>d(!0)",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-nav-prompts\""
+  },
+  {
+   "ids": [
+    "quick.bloc-prompt.ouvrir-generateur",
+    "quick.section-prompt.sparkle-ouvrir-le-generateur-de-"
+   ],
+   "ancre": "k\",size:\"sm\",icon:\"sparkle\",onClick:()=>d(!0)",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-nav-prompts\""
+  },
+  {
+   "ids": [
+    "quick.pied-de-page-quick.sparkle-mise-en-file"
+   ],
+   "ancre": "con:j?\"sparkle\":\"play",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-etat-attente\""
+  },
+  {
+   "ids": [
+    "quick.pied-de-page-quick.play-generer-mode"
+   ],
+   "ancre": "rkle\":\"play\",glow:",
+   "avant": "\"play\"",
+   "apres": "\"dz-action-generer\""
+  },
+  {
+   "ids": [
+    "quick.apercu-colonne-droite.image-importez-une-image-dans-",
+    "quick.scene-d-apercu-centre.scene-vide"
+   ],
+   "ancre": "jsx(X,{name:\"image\",size:42,sty",
+   "avant": "\"image\"",
+   "apres": "\"dz-media-image\""
+  },
+  {
+   "ids": [
+    "quick.apercu-avertissement-d-appel.warn-vous-allez-appeler",
+    "quick.scene-d-apercu-centre.scene-appel"
+   ],
+   "ancre": "{name:\"warn\",size:",
+   "avant": "\"warn\"",
+   "apres": "\"dz-action-cout\""
+  },
+  {
+   "ids": [
+    "quick.composant-vd-depot-d-image-code-mort.upload-png-jpg-webp-up-to-16mb",
+    "quick.zone-de-depot-d-image-dzquickdrop.depot-vide"
+   ],
+   "ancre": "ren:r.jsx(X,{name:\"upload\",size:20,style:{co",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "news.colonne-sources.plus-ajouter",
+    "news.colonne-sources-gauche.source-ajouter"
+   ],
+   "ancre": "e:\"sm\",icon:\"plus\",onClick:add",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-ajouter\""
+  },
+  {
+   "ids": [
+    "news.colonne-sources-gauche.source-rss",
+    "news.colonne-sources-liste.rss-devant-chaque-source-rss"
+   ],
+   "ancre": "children:[r.jsx(X,{name:\"rss\",size:13,style:{color:s.",
+   "avant": "\"rss\"",
+   "apres": "\"dz-media-flux-rss\""
+  },
+  {
+   "ids": [
+    "news.colonne-sources-gauche.source-retirer",
+    "news.colonne-sources-liste.trash-retirer"
+   ],
+   "ancre": "sx(se,{name:\"trash\",size:20,ico",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-retirer\""
+  },
+  {
+   "ids": [
+    "news.colonne-sources.bolt-tout-actualiser",
+    "news.colonne-sources-gauche.tout-actualiser"
+   ],
+   "ancre": ",icon:\"bolt\",style",
+   "avant": "\"bolt\"",
+   "apres": "\"dz-action-actualiser\""
+  },
+  {
+   "ids": [
+    "news.liste-des-articles.articles-recherche",
+    "news.liste-des-articles.search-filtrer-les-articles"
+   ],
+   "ancre": "lex:1}}),r.jsx(le,{icon:\"search\",placeholder:dzT(\"news.l",
+   "avant": "\"search\"",
+   "apres": "\"dz-action-chercher\""
+  },
+  {
+   "ids": [
+    "news.liste-des-articles.article-coche",
+    "news.liste-des-articles.check-case-a-cocher-de-chaque-"
+   ],
+   "ancre": "jsx(X,{name:\"check\",size:12,sty",
+   "avant": "\"check\"",
+   "apres": "\"dz-etat-option-active\""
+  },
+  {
+   "ids": [
+    "news.liste-des-articles.article-ouvrir",
+    "news.liste-des-articles.link-ouvrir-l-article"
+   ],
+   "ancre": "{name:\"link\",title",
+   "avant": "\"link\"",
+   "apres": "\"dz-action-ouvrir-externe\""
+  },
+  {
+   "ids": [
+    "news.barre-d-actions-bas.vers-studio",
+    "news.colonne-composer.flow-envoyer-vers-le-studio"
+   ],
+   "ancre": "e:\"md\",icon:\"flow\",onClick:()=",
+   "avant": "\"flow\"",
+   "apres": "\"dz-nav-studio\""
+  },
+  {
+   "ids": [
+    "news.barre-d-actions-bas.chaine-du-jour",
+    "news.colonne-composer.send-chaine-du-jour"
+   ],
+   "ancre": "e:\"md\",icon:\"send\",title:dzT(\"",
+   "avant": "\"send\"",
+   "apres": "\"dz-media-chaine-du-jour\""
+  },
+  {
+   "ids": [
+    "news.barre-d-actions-bas.script",
+    "news.colonne-composer.mic-script"
+   ],
+   "ancre": ",icon:\"mic\",onCli",
+   "avant": "\"mic\"",
+   "apres": "\"dz-media-generer-script\""
+  },
+  {
+   "ids": [
+    "news.barre-d-actions-bas.illustration",
+    "news.colonne-composer.film-illustration"
+   ],
+   "ancre": "e:\"sm\",icon:\"film\",onClick:bui",
+   "avant": "\"film\"",
+   "apres": "\"dz-media-generer-video\""
+  },
+  {
+   "ids": [
+    "templates.grille-des-modeles.search-rechercher",
+    "templates.liste-des-templates-gauche.recherche"
+   ],
+   "ancre": "lex:1}}),r.jsx(le,{icon:\"search\",placeholder:dzT(\"templa",
+   "avant": "\"search\"",
+   "apres": "\"dz-action-chercher\""
+  },
+  {
+   "ids": [
+    "templates.grille-des-modeles-carte.more-bouton-de-la-carte",
+    "templates.liste-des-templates-gauche.menu"
+   ],
+   "ancre": "sx(se,{name:\"more\",size:24,act",
+   "avant": "\"more\"",
+   "apres": "\"dz-action-plus-options\""
+  },
+  {
+   "ids": [
+    "templates.pied-de-l-editeur.enregistrer",
+    "templates.editeur-de-mise-en-page.check-enregistrer-la-mise-en-p"
+   ],
+   "ancre": "y\",size:\"md\",icon:\"check\",glow:!0,onClick:b",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-enregistrer\""
+  },
+  {
+   "ids": [
+    "templates.pied-de-l-editeur.vers-studio",
+    "templates.editeur-de-mise-en-page.flow-ouvrir-dans-le-studio"
+   ],
+   "ancre": "e:\"sm\",icon:\"flow\",onClick:_,d",
+   "avant": "\"flow\"",
+   "apres": "\"dz-nav-studio\""
+  },
+  {
+   "ids": [
+    "bibliotheque.barre-d-outils-de-la-bibliotheque.recherche",
+    "bibliotheque.en-tete.search-rechercher-des-assets"
+   ],
+   "ancre": "lex:1}}),r.jsx(le,{icon:\"search\",placeholder:dzT(\"biblio",
+   "avant": "\"search\"",
+   "apres": "\"dz-action-chercher\""
+  },
+  {
+   "ids": [
+    "bibliotheque.barre-d-outils-onglet-rendus.importer-video",
+    "bibliotheque.en-tete.film-importer-une-video"
+   ],
+   "ancre": "e:\"sm\",icon:\"film\",onClick:()=",
+   "avant": "\"film\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "bibliotheque.barre-d-outils-onglet-audio.importer-son",
+    "bibliotheque.en-tete.upload-importer-un-son"
+   ],
+   "ancre": "outline\",size:\"sm\",icon:\"upload\",onClick:()=>{var C;retu",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "bibliotheque.barre-d-outils-onglet-images.importer-image",
+    "bibliotheque.en-tete.upload-importer-une-image"
+   ],
+   "ancre": "e:\"sm\",icon:\"upload\",glow:!0,onC",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "bibliotheque.onglet-audio.depot-son",
+    "bibliotheque.onglet-audio-zone-de-depot.upload-importer-un-son-musique-"
+   ],
+   "ancre": "children:[r.jsx(X,{name:\"upload\",size:20,style:{color:\"v",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "bibliotheque.onglet-images.depot-image",
+    "bibliotheque.onglet-images-zone-de-depot.upload-glissez-des-images-ici-o"
+   ],
+   "ancre": "children:[r.jsx(X,{name:\"upload\",size:20,style:{color:s?",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "bibliotheque.onglet-images-barre-de-creation.sparkle-decrivez-une-image-a-cre",
+    "bibliotheque.onglet-images-barre-de-generation.gen-prompt"
+   ],
+   "ancre": "jsx(X,{name:\"sparkle\",size:18,sty",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-media-generer-image\""
+  },
+  {
+   "ids": [
+    "bibliotheque.onglet-images-barre-de-creation.zap-gestionnaire-de-prompts",
+    "bibliotheque.onglet-images-barre-de-generation.gen-gestionnaire"
+   ],
+   "ancre": "e:\"sm\",icon:\"zap\",onClick:()=",
+   "avant": "\"zap\"",
+   "apres": "\"dz-nav-prompts\""
+  },
+  {
+   "ids": [
+    "bibliotheque.onglet-images-barre-de-creation.sparkle-creer-l-image",
+    "bibliotheque.onglet-images-barre-de-generation.gen-creer"
+   ],
+   "ancre": "e:\"sm\",icon:\"sparkle\",glow:!0,onC",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-media-generer-image\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale.film-a-gauche-du-nom-si-rendu"
+   ],
+   "ancre": "nder\"?\"film\":\"imag",
+   "avant": "\"film\"",
+   "apres": "\"dz-media-video\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale.image-a-gauche-du-nom-sinon"
+   ],
+   "ancre": "film\":\"image\",size:",
+   "avant": "\"image\"",
+   "apres": "\"dz-media-image\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale.download-telecharger",
+    "bibliotheque.fiche-detail-actions.fiche-telecharger"
+   ],
+   "ancre": "e:\"sm\",icon:\"download\",children:m.",
+   "avant": "\"download\"",
+   "apres": "\"dz-action-telecharger\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale-sprite.download-zip-unity",
+    "bibliotheque.fiche-detail-actions-sprite.fiche-zip-unity"
+   ],
+   "ancre": "e:\"sm\",icon:\"download\",children:\"Z",
+   "avant": "\"download\"",
+   "apres": "\"dz-action-exporter\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale.flow-rouvrir-dans-studio",
+    "bibliotheque.fiche-detail-actions.fiche-studio"
+   ],
+   "ancre": "e:\"sm\",icon:\"flow\",onClick:()=",
+   "avant": "\"flow\"",
+   "apres": "\"dz-action-rouvrir-studio\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale.bolt-rouvrir-dans-quick",
+    "bibliotheque.fiche-detail-actions.fiche-quick"
+   ],
+   "ancre": ",icon:\"bolt\",title",
+   "avant": "\"bolt\"",
+   "apres": "\"dz-action-rouvrir-quick\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale-rendu.trash-supprimer",
+    "bibliotheque.fiche-detail-actions.fiche-suppr-rendu"
+   ],
+   "ancre": "d?r.jsx(K,{variant:\"ghost\",size:\"sm\",icon:\"trash\",onClick:async()=>{await window.__dzDialog",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale-son.trash-supprimer",
+    "bibliotheque.fiche-detail-actions.fiche-suppr-son"
+   ],
+   "ancre": "e?r.jsx(K,{variant:\"ghost\",size:\"sm\",icon:\"trash\",onClick:async()=>{await window.__dzDialog",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale-image.trash-supprimer",
+    "bibliotheque.fiche-detail-actions.fiche-suppr-image"
+   ],
+   "ancre": "):r.jsx(K,{variant:\"ghost\",size:\"sm\",icon:\"trash\",onClick:async()=>{await window.__dzDialog",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "bibliotheque.fiche-d-un-element-modale.close-bouton-en-haut-a-droite",
+    "bibliotheque.fiche-detail-d-un-element-modale.fiche-fermer"
+   ],
+   "ancre": "}),r.jsx(se,{name:\"close\",onClick:()=>y(nul",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-fermer\""
+  },
+  {
+   "ids": [
+    "bibliotheque.bibliotheque-toute-la-vue.depot-plein-ecran",
+    "bibliotheque.voile-de-depot-plein-ecran.upload-deposez-pour-ajouter-a-l"
+   ],
+   "ancre": "en:[r.jsx(X,{name:\"upload\",size:22,style:{co",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-affinage-ia-du-texte-dztextai.sparkle-affiner-pour-l-oral",
+    "studio.inspecteur-champ-texte-ia-dztextai.texteia-affiner"
+   ],
+   "ancre": ")})}),r.jsx(K,{variant:\"primary\",size:\"sm\",icon:\"sparkle\",glow:!0,disabled:busy,onClick:run,style:{width:",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-action-reecrire-ia\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-generateur-de-prompt-ia-dzpromptai.sparkle-affiner-avec-l-ia",
+    "studio.inspecteur-champ-prompt-ia-dzpromptai.promptia-affiner"
+   ],
+   "ancre": "]})}),r.jsx(K,{variant:\"primary\",size:\"sm\",icon:\"sparkle\",glow:!0,disabled:busy,onClick:run,style:{width:",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-action-reecrire-ia\""
+  },
+  {
+   "ids": [
+    "studio.inspecteur-n-ud-avatar-dzavatarpick.play-ecouter-la-voix",
+    "avatar-heygen.inspecteur-selecteur-d-avatar-dzavatarpi.avatar-voix-ecouter"
+   ],
+   "ancre": ",icon:\"play\",onCli",
+   "avant": "\"play\"",
+   "apres": "\"dz-media-lecture\""
+  },
+  {
+   "ids": [
+    "reglages.coffre-a-cles.check-poser-le-coffre"
+   ],
+   "ancre": "e:'md',icon:'check',onClick:pos",
+   "avant": "'check'",
+   "apres": "'dz-media-coffre'"
+  },
+  {
+   "ids": [
+    "reglages.coffre-a-cles.check-ouvrir"
+   ],
+   "ancre": "e:'md',icon:'check',onClick:ouv",
+   "avant": "'check'",
+   "apres": "'dz-media-coffre'"
+  },
+  {
+   "ids": [
+    "reglages.appareils-mobile.plus-appairer-un-appareil"
+   ],
+   "ancre": "'plus'",
+   "avant": "'plus'",
+   "apres": "'dz-action-appairer'"
+  },
+  {
+   "ids": [
+    "reglages.pack-d-etiquettes.check-enregistrer-le-pack",
+    "reglages.pack-de-sous-titres.pack-enregistrer"
+   ],
+   "ancre": "e:\"sm\",icon:\"check\",glow:!0,onC",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-enregistrer\""
+  },
+  {
+   "ids": [
+    "reglages.pack-d-etiquettes-ligne.upload-remplacer-icone",
+    "reglages.pack-de-sous-titres.pack-icone"
+   ],
+   "ancre": "outline\",size:\"sm\",icon:\"upload\",onClick:()=>{var k;retu",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "reglages.pack-d-etiquettes-ligne.trash-retirer-l-etiquette",
+    "reglages.pack-de-sous-titres.pack-retirer"
+   ],
+   "ancre": "}),r.jsx(se,{name:\"trash\",title:dzT(\"reglag",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "reglages.pack-d-etiquettes.plus-ajouter-une-etiquette",
+    "reglages.pack-de-sous-titres.pack-ajouter"
+   ],
+   "ancre": "e:\"sm\",icon:\"plus\",onClick:u,s",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-ajouter\""
+  },
+  {
+   "ids": [
+    "reglages.personas.persona-nouveau",
+    "reglages.personas.plus-nouveau-persona"
+   ],
+   "ancre": "y\",size:\"sm\",icon:\"plus\",glow:!0,onClick:o",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-ajouter\""
+  },
+  {
+   "ids": [
+    "reglages.cles-d-api-ligne.check-enregistrer",
+    "reglages.cles-d-api.cle-enregistrer"
+   ],
+   "ancre": "e:\"sm\",icon:\"check\",onClick:()=",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-enregistrer\""
+  },
+  {
+   "ids": [
+    "reglages.cles-d-api.check-enregistrer-toutes-les-m",
+    "reglages.cles-d-api.cles-tout-enregistrer"
+   ],
+   "ancre": "y\",size:\"md\",icon:\"check\",glow:!0,onClick:v",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-enregistrer\""
+  },
+  {
+   "ids": [
+    "reglages.fournisseurs-par-defaut-ollama.ollama-enregistrer",
+    "reglages.valeurs-par-defaut.check-enregistrer"
+   ],
+   "ancre": "e:\"md\",icon:\"check\",onClick:v,d",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-enregistrer\""
+  },
+  {
+   "ids": [
+    "reglages.identite-marque.upload-logo",
+    "reglages.identite-visuelle.logo"
+   ],
+   "ancre": ",icon:\"upload\",style",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "reglages.identite-marque.check-enregistrer-l-identite",
+    "reglages.identite-visuelle.identite-enregistrer"
+   ],
+   "ancre": "y\",size:\"md\",icon:\"check\",glow:!0,onClick:y",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-enregistrer\""
+  },
+  {
+   "ids": [
+    "reglages.chemins.chemin-copier",
+    "reglages.chemins.copy-copier"
+   ],
+   "ancre": "t\",size:\"sm\",icon:\"copy\",onClick:()=>n(e==",
+   "avant": "\"copy\"",
+   "apres": "\"dz-action-copier\""
+  },
+  {
+   "ids": [
+    "reglages.news-flux-rss.news-ajouter",
+    "reglages.news-flux.plus-ajouter-un-flux"
+   ],
+   "ancre": "e:\"sm\",icon:\"plus\",onClick:m,d",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-ajouter\""
+  },
+  {
+   "ids": [
+    "reglages.news-flux-rss.news-actualiser",
+    "reglages.news-flux.bolt-tout-actualiser"
+   ],
+   "ancre": "e:\"sm\",icon:\"bolt\",onClick:w,d",
+   "avant": "\"bolt\"",
+   "apres": "\"dz-action-actualiser\""
+  },
+  {
+   "ids": [
+    "reglages.news-flux-rss.news-flux",
+    "reglages.news-liste-des-flux.rss-devant-chaque-flux"
+   ],
+   "ancre": "children:[r.jsx(X,{name:\"rss\",size:13,style:{color:v.",
+   "avant": "\"rss\"",
+   "apres": "\"dz-media-flux-rss\""
+  },
+  {
+   "ids": [
+    "reglages.news-flux-rss.news-retirer",
+    "reglages.news-liste-des-flux.trash-retirer"
+   ],
+   "ancre": "{name:\"trash\",iconS",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-retirer\""
+  },
+  {
+   "ids": [
+    "reglages.comptes-connectes-liste-g.channelx-x"
+   ],
+   "ancre": "X (Twitter)\",icon:\"channelX\",color:\"#e6f1ff\",a",
+   "avant": "\"channelX\"",
+   "apres": "\"dz-reseau-x\""
+  },
+  {
+   "ids": [
+    "reglages.comptes-connectes-liste-g.channeltelegram-telegram"
+   ],
+   "ancre": "l:\"Telegram\",icon:\"channelTelegram\",color:\"#29b6f6\",a",
+   "avant": "\"channelTelegram\"",
+   "apres": "\"dz-reseau-telegram\""
+  },
+  {
+   "ids": [
+    "reglages.comptes-connectes-liste-g.channelyoutube-youtube"
+   ],
+   "ancre": "el:\"YouTube\",icon:\"channelYoutube\",color:\"#ef4444\",a",
+   "avant": "\"channelYoutube\"",
+   "apres": "\"dz-reseau-youtube\""
+  },
+  {
+   "ids": [
+    "reglages.comptes-connectes-liste-g.channelinstagram-instagram"
+   ],
+   "ancre": ":\"Instagram\",icon:\"channelInstagram\",color:\"#c084fc\",a",
+   "avant": "\"channelInstagram\"",
+   "apres": "\"dz-reseau-instagram\""
+  },
+  {
+   "ids": [
+    "reglages.comptes-connectes-liste-g.channeltiktok-tiktok"
+   ],
+   "ancre": "bel:\"TikTok\",icon:\"channelTiktok\",color:\"#22d3ee\",a",
+   "avant": "\"channelTiktok\"",
+   "apres": "\"dz-reseau-tiktok\""
+  },
+  {
+   "ids": [
+    "reglages.comptes-connectes.compte-deplier",
+    "reglages.comptes-connectes-ligne-de-canal.caretr-a-droite-de-l-en-tete-du"
+   ],
+   "ancre": ")}),r.jsx(X,{name:\"caretR\",size:12,style:{co",
+   "avant": "\"caretR\"",
+   "apres": "\"dz-action-deplier\""
+  },
+  {
+   "ids": [
+    "reglages.comptes-connectes.compte-tester",
+    "reglages.comptes-connectes-detail.bolt-verifier-les-identifiant"
+   ],
+   "ancre": "e:\"sm\",icon:\"bolt\",onClick:()=",
+   "avant": "\"bolt\"",
+   "apres": "\"dz-action-tester\""
+  },
+  {
+   "ids": [
+    "reglages.comptes-connectes.compte-connecter",
+    "reglages.comptes-connectes-detail-youtube-tiktok.link-connecter"
+   ],
+   "ancre": ",icon:\"link\",title",
+   "avant": "\"link\"",
+   "apres": "\"dz-action-connecter\""
+  },
+  {
+   "ids": [
+    "scheduler.calendrier-carte-de-post-om.channelx-x",
+    "scheduler.generateur-de-plan-canaux-r.channelx-x",
+    "scheduler.routage-du-post-carte-canal-ss.channelx-x",
+    "scheduler.editeur-de-post-section-canaux-p.channelx-x"
+   ],
+   "ancre": "el:\"X\",icon:\"channelX\",color:\"#e6f",
+   "avant": "\"channelX\"",
+   "apres": "\"dz-reseau-x\""
+  },
+  {
+   "ids": [
+    "scheduler.calendrier-carte-de-post-om.channeltelegram-telegram",
+    "scheduler.generateur-de-plan-canaux-r.channeltelegram-telegram",
+    "scheduler.routage-du-post-carte-canal-ss.channeltelegram-telegram",
+    "scheduler.editeur-de-post-section-canaux-p.channeltelegram-telegram"
+   ],
+   "ancre": "l:\"Telegram\",icon:\"channelTelegram\",color:\"#29b6f6\",b",
+   "avant": "\"channelTelegram\"",
+   "apres": "\"dz-reseau-telegram\""
+  },
+  {
+   "ids": [
+    "scheduler.calendrier-carte-de-post-om.channelyoutube-youtube",
+    "scheduler.generateur-de-plan-canaux-r.channelyoutube-youtube",
+    "scheduler.routage-du-post-carte-canal-ss.channelyoutube-youtube",
+    "scheduler.editeur-de-post-section-canaux-p.channelyoutube-youtube"
+   ],
+   "ancre": "el:\"YouTube\",icon:\"channelYoutube\",color:\"#ef4444\",b",
+   "avant": "\"channelYoutube\"",
+   "apres": "\"dz-reseau-youtube\""
+  },
+  {
+   "ids": [
+    "scheduler.calendrier-carte-de-post-om.channelinstagram-instagram",
+    "scheduler.generateur-de-plan-canaux-r.channelinstagram-instagram",
+    "scheduler.routage-du-post-carte-canal-ss.channelinstagram-instagram",
+    "scheduler.editeur-de-post-section-canaux-p.channelinstagram-instagram"
+   ],
+   "ancre": ":\"Instagram\",icon:\"channelInstagram\",color:\"#c084fc\",b",
+   "avant": "\"channelInstagram\"",
+   "apres": "\"dz-reseau-instagram\""
+  },
+  {
+   "ids": [
+    "scheduler.calendrier-carte-de-post-om.channeltiktok-tiktok",
+    "scheduler.generateur-de-plan-canaux-r.channeltiktok-tiktok",
+    "scheduler.routage-du-post-carte-canal-ss.channeltiktok-tiktok",
+    "scheduler.editeur-de-post-section-canaux-p.channeltiktok-tiktok"
+   ],
+   "ancre": "bel:\"TikTok\",icon:\"channelTiktok\",color:\"#22d3ee\",b",
+   "avant": "\"channelTiktok\"",
+   "apres": "\"dz-reseau-tiktok\""
+  },
+  {
+   "ids": [
+    "scheduler.barre-du-calendrier.semaine-prec",
+    "scheduler.calendrier-en-tete.caret-precedent"
+   ],
+   "ancre": "n:[r.jsx(se,{name:\"caret\",iconSize:12,style",
+   "avant": "\"caret\"",
+   "apres": "\"dz-action-element-precedent\""
+  },
+  {
+   "ids": [
+    "scheduler.barre-du-calendrier.semaine-suiv",
+    "scheduler.calendrier-en-tete.caret-suivant"
+   ],
+   "ancre": "}),r.jsx(se,{name:\"caret\",iconSize:12,style",
+   "avant": "\"caret\"",
+   "apres": "\"dz-action-element-suivant\""
+  },
+  {
+   "ids": [
+    "scheduler.barre-du-calendrier.generer-plan",
+    "scheduler.calendrier-barre-d-outils.sparkle-generer-un-plan"
+   ],
+   "ancre": "e:\"sm\",icon:\"sparkle\",onClick:d,c",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-action-generer\""
+  },
+  {
+   "ids": [
+    "scheduler.barre-du-calendrier.nouveau-post",
+    "scheduler.calendrier-barre-d-outils.plus-nouveau-post"
+   ],
+   "ancre": "y\",size:\"sm\",icon:\"plus\",glow:!0,onClick:l",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-ajouter\""
+  },
+  {
+   "ids": [
+    "scheduler.barre-du-calendrier.comptes",
+    "scheduler.calendrier-barre-d-outils.cog-comptes"
+   ],
+   "ancre": ",icon:\"cog\",title",
+   "avant": "\"cog\"",
+   "apres": "\"dz-action-reglages\""
+  },
+  {
+   "ids": [
+    "scheduler.barre-du-calendrier.valider-semaine",
+    "scheduler.calendrier-barre-d-outils.check-valider-la-semaine"
+   ],
+   "ancre": "e\",size:\"sm\",icon:\"check\",title:dzT(\"schedu",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-programmer\""
+  },
+  {
+   "ids": [
+    "scheduler.barre-du-calendrier.creneaux",
+    "scheduler.calendrier-barre-d-outils.clock-creneaux"
+   ],
+   "ancre": "\"clock\"",
+   "avant": "\"clock\"",
+   "apres": "\"dz-media-creneaux\""
+  },
+  {
+   "ids": [
+    "scheduler.barre-du-calendrier.analytics",
+    "scheduler.calendrier-barre-d-outils.signal-analytics"
+   ],
+   "ancre": ",icon:\"signal\",title",
+   "avant": "\"signal\"",
+   "apres": "\"dz-nav-analytics\""
+  },
+  {
+   "ids": [
+    "scheduler.barre-du-calendrier.campagne",
+    "scheduler.calendrier-barre-d-outils.book-campagne"
+   ],
+   "ancre": ",icon:\"book\",title",
+   "avant": "\"book\"",
+   "apres": "\"dz-nav-campagne\""
+  },
+  {
+   "ids": [
+    "scheduler.calendrier-cellule-de-jour.jour-ajouter",
+    "scheduler.calendrier-jour-vide.plus-ajouter-un-post"
+   ],
+   "ancre": "jsx(X,{name:\"plus\",size:11}),d",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-ajouter\""
+  },
+  {
+   "ids": [
+    "scheduler.routage-du-post-h.flow-a-gauche-du-titre-du-pos",
+    "scheduler.vue-routage-graphe-du-post.routage-titre"
+   ],
+   "ancre": "jsx(X,{name:\"flow\",size:14,sty",
+   "avant": "\"flow\"",
+   "apres": "\"dz-media-routage\""
+  },
+  {
+   "ids": [
+    "scheduler.routage-du-post-h.bolt-reinitialiser",
+    "scheduler.vue-routage-graphe-du-post.routage-reinit"
+   ],
+   "ancre": "e:\"sm\",icon:\"bolt\",onClick:E,t",
+   "avant": "\"bolt\"",
+   "apres": "\"dz-action-reinitialiser\""
+  },
+  {
+   "ids": [
+    "scheduler.routage-du-post-h.send-envoyer-maintenant",
+    "scheduler.vue-routage-graphe-du-post.routage-envoyer"
+   ],
+   "ancre": "e:\"sm\",icon:\"send\",glow:!0,onC",
+   "avant": "\"send\"",
+   "apres": "\"dz-action-publier\""
+  },
+  {
+   "ids": [
+    "scheduler.routage-du-post-carte-rendu-ss.film-rendu",
+    "scheduler.vue-routage-graphe-du-post.noeud-rendu"
+   ],
+   "ancre": "rand)\",icon:\"film\",title:dzT(\"",
+   "avant": "\"film\"",
+   "apres": "\"dz-media-video\""
+  },
+  {
+   "ids": [
+    "scheduler.routage-du-post-carte-legende-ss.rename-legende",
+    "scheduler.vue-routage-graphe-du-post.noeud-legende"
+   ],
+   "ancre": ",icon:\"rename\",title",
+   "avant": "\"rename\"",
+   "apres": "\"dz-media-texte\""
+  },
+  {
+   "ids": [
+    "scheduler.routage-du-post-h-zoom.minus-bouton",
+    "scheduler.vue-routage-graphe-du-post.routage-zoom-moins"
+   ],
+   "ancre": "sx(se,{name:\"minus\",size:24,ico",
+   "avant": "\"minus\"",
+   "apres": "\"dz-action-zoom-arriere\""
+  },
+  {
+   "ids": [
+    "scheduler.routage-du-post-h-zoom.plus-bouton",
+    "scheduler.vue-routage-graphe-du-post.routage-zoom-plus"
+   ],
+   "ancre": "sx(se,{name:\"plus\",size:24,ico",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-zoom-avant\""
+  },
+  {
+   "ids": [
+    "scheduler.routage-du-post-cartes-ss.more-a-droite-de-l-en-tete-de",
+    "scheduler.vue-routage-graphe-du-post.noeud-more"
+   ],
+   "ancre": "jsx(X,{name:\"more\",size:11,sty",
+   "avant": "\"more\"",
+   "apres": "\"dz-action-plus-options\""
+  },
+  {
+   "ids": [
+    "scheduler.inspecteur-de-post.post-entete",
+    "scheduler.editeur-de-post-bm-p.send-pastille-a-gauche-du-tit"
+   ],
+   "ancre": "{name:\"send\",size:",
+   "avant": "\"send\"",
+   "apres": "\"dz-media-post\""
+  },
+  {
+   "ids": [
+    "scheduler.inspecteur-de-post.post-supprimer",
+    "scheduler.editeur-de-post-p.trash-supprimer"
+   ],
+   "ancre": "{name:\"trash\",onCli",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "scheduler.inspecteur-de-post-source.source-retirer",
+    "scheduler.editeur-de-post-source.close-retirer-la-source"
+   ],
+   "ancre": "age})]}),r.jsx(se,{name:\"close\",size:20,iconSize:10,tit",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-retirer\""
+  },
+  {
+   "ids": [
+    "scheduler.inspecteur-de-post-source.produire",
+    "scheduler.editeur-de-post-source.sparkle-produire-avec-la-source-"
+   ],
+   "ancre": "e:\"sm\",icon:\"sparkle\",onClick:_,d",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-action-generer\""
+  },
+  {
+   "ids": [
+    "scheduler.inspecteur-de-post-pack-telegram-premium.pack-titre",
+    "scheduler.editeur-de-post-legende.sparkle-pack-telegram-premium"
+   ],
+   "ancre": "jsx(X,{name:\"sparkle\",size:11,sty",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-reseau-telegram\""
+  },
+  {
+   "ids": [
+    "scheduler.inspecteur-de-post-pied.post-envoyer",
+    "scheduler.editeur-de-post-pied.send-envoyer-sur-n-canal-main"
+   ],
+   "ancre": "e:\"md\",icon:\"send\",glow:!0,onC",
+   "avant": "\"send\"",
+   "apres": "\"dz-action-publier\""
+  },
+  {
+   "ids": [
+    "scheduler.inspecteur-de-post-pied.post-dupliquer",
+    "scheduler.editeur-de-post-pied.copy-dupliquer-au-lendemain"
+   ],
+   "ancre": "e:\"sm\",icon:\"copy\",onClick:P,c",
+   "avant": "\"copy\"",
+   "apres": "\"dz-action-dupliquer\""
+  },
+  {
+   "ids": [
+    "scheduler.inspecteur-de-post-pied.post-suite",
+    "scheduler.editeur-de-post-pied.send-suite-fil-x"
+   ],
+   "ancre": "e:\"sm\",icon:\"send\",title:dzT(\"",
+   "avant": "\"send\"",
+   "apres": "\"dz-action-repondre\""
+  },
+  {
+   "ids": [
+    "scheduler.generateur-de-plan-r.sparkle-generer-un-plan-marketin",
+    "scheduler.generateur-de-plan-fenetre.plan-entete"
+   ],
+   "ancre": "jsx(X,{name:\"sparkle\",size:16,sty",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-action-generer\""
+  },
+  {
+   "ids": [
+    "scheduler.generateur-de-plan-r.close-bouton-en-haut-a-droite",
+    "scheduler.generateur-de-plan-fenetre.plan-fermer"
+   ],
+   "ancre": "L},S))}),r.jsx(se,{name:\"close\",onClick:e})]}),r.jsxs(\"",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-fermer\""
+  },
+  {
+   "ids": [
+    "scheduler.generateur-de-plan-fenetre-mode-import.plan-import",
+    "scheduler.generateur-de-plan-import.upload-deposez-votre-document-d"
+   ],
+   "ancre": "}}),r.jsx(X,{name:\"upload\",size:22,style:{co",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "scheduler.generateur-de-plan-fenetre-apercu.plan-images-aide",
+    "scheduler.generateur-de-plan-images.image-choisissez-une-image-de-"
+   ],
+   "ancre": "jsx(X,{name:\"image\",size:11,sty",
+   "avant": "\"image\"",
+   "apres": "\"dz-media-image\""
+  },
+  {
+   "ids": [
+    "scheduler.generateur-de-plan-fenetre-pied.plan-generer",
+    "scheduler.generateur-de-plan-pied.sparkle-generer-regenerer"
+   ],
+   "ancre": "e:\"md\",icon:\"sparkle\",onClick:ee,",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-action-generer\""
+  },
+  {
+   "ids": [
+    "scheduler.generateur-de-plan-fenetre-pied.plan-reimport",
+    "scheduler.generateur-de-plan-pied.upload-re-import"
+   ],
+   "ancre": "e:\"md\",icon:\"upload\",onClick:()=",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "scheduler.generateur-de-plan-fenetre-pied.plan-ajouter",
+    "scheduler.generateur-de-plan-pied.calendar-ajouter-au-calendrier"
+   ],
+   "ancre": ",icon:\"calendar\",glow:",
+   "avant": "\"calendar\"",
+   "apres": "\"dz-action-ajouter-calendrier\""
+  },
+  {
+   "ids": [
+    "coque.accueil-premier-lancement.accueil-entrer",
+    "accueil-onboarding.pied-de-l-assistant-km.zap-entrer-dans-le-studio"
+   ],
+   "ancre": "y\",size:\"md\",icon:\"zap\",glow:!0,onClick:e",
+   "avant": "\"zap\"",
+   "apres": "\"dz-action-continuer\""
+  },
+  {
+   "ids": [
+    "coque.accueil-premier-lancement.accueil-continuer",
+    "accueil-onboarding.pied-de-l-assistant-km.caretr-continuer"
+   ],
+   "ancre": "ry\",size:\"md\",iconRight:\"caretR\",glow:!0,onClick:()=>d(l",
+   "avant": "\"caretR\"",
+   "apres": "\"dz-action-continuer\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-bienvenue-cartes-qm.sparkle-studio"
+   ],
+   "ancre": "n:[{i:\"sparkle\",t:\"St",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-nav-studio\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-bienvenue-cartes-qm.calendar-planificateur"
+   ],
+   "ancre": ")},{i:\"calendar\",t:dzT",
+   "avant": "\"calendar\"",
+   "apres": "\"dz-nav-scheduler\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-bienvenue-cartes-qm.send-publication-auto"
+   ],
+   "ancre": ")},{i:\"send\",t:dzT",
+   "avant": "\"send\"",
+   "apres": "\"dz-action-programmer\""
+  },
+  {
+   "ids": [
+    "coque.accueil-etape-persona.accueil-persona",
+    "accueil-onboarding.etape-persona-en-tete-xr.octopus-choisissez-ou-creez-une-"
+   ],
+   "ancre": ",icon:\"octopus\"}),r.j",
+   "avant": "\"octopus\"",
+   "apres": "\"dz-media-persona\""
+  },
+  {
+   "ids": [
+    "coque.accueil-etape-pret.accueil-pret",
+    "accueil-onboarding.etape-pret-en-tete-xr.zap-les-profondeurs-sont-cal"
+   ],
+   "ancre": ",icon:\"zap\"}),r.j",
+   "avant": "\"zap\"",
+   "apres": "\"dz-etat-succes\""
+  },
+  {
+   "ids": [
+    "coque.accueil-etape-pret.accueil-recap",
+    "accueil-onboarding.etape-pret-recapitulatif.check-devant-chaque-ligne-cana"
+   ],
+   "ancre": "jsx(X,{name:\"check\",size:14,sty",
+   "avant": "\"check\"",
+   "apres": "\"dz-etat-succes\""
+  },
+  {
+   "ids": [
+    "coque.accueil-etape-fournisseurs.accueil-fournisseurs",
+    "accueil-onboarding.etape-fournisseurs-en-tete-xr.sparkle-branchez-vos-fournisseur"
+   ],
+   "ancre": ",icon:\"sparkle\"}),r.j",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-nav-cles-api\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-fournisseurs-liste.check-pastille-de-chaque-fourn"
+   ],
+   "ancre": "o.set?\"check\":\"warn",
+   "avant": "\"check\"",
+   "apres": "\"dz-etat-succes\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-fournisseurs-liste.warn-pastille-de-chaque-fourn"
+   ],
+   "ancre": "set?\"check\":\"warn\",size:12})})",
+   "avant": "\"warn\"",
+   "apres": "\"dz-etat-avertissement\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-ou-vous-publiez-zm.channelx-x"
+   ],
+   "ancre": "X (Twitter)\",icon:\"channelX\",color:\"#e6f1ff\",d",
+   "avant": "\"channelX\"",
+   "apres": "\"dz-reseau-x\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-ou-vous-publiez-zm.channeltelegram-telegram"
+   ],
+   "ancre": "l:\"Telegram\",icon:\"channelTelegram\",color:\"#29b6f6\",d",
+   "avant": "\"channelTelegram\"",
+   "apres": "\"dz-reseau-telegram\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-ou-vous-publiez-zm.channelyoutube-youtube"
+   ],
+   "ancre": "el:\"YouTube\",icon:\"channelYoutube\",color:\"#ef4444\",d",
+   "avant": "\"channelYoutube\"",
+   "apres": "\"dz-reseau-youtube\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-ou-vous-publiez-zm.channelinstagram-instagram"
+   ],
+   "ancre": ":\"Instagram\",icon:\"channelInstagram\",color:\"#c084fc\",d",
+   "avant": "\"channelInstagram\"",
+   "apres": "\"dz-reseau-instagram\""
+  },
+  {
+   "ids": [
+    "accueil-onboarding.etape-ou-vous-publiez-zm.channeltiktok-tiktok"
+   ],
+   "ancre": "bel:\"TikTok\",icon:\"channelTiktok\",color:\"#22d3ee\",d",
+   "avant": "\"channelTiktok\"",
+   "apres": "\"dz-reseau-tiktok\""
+  },
+  {
+   "ids": [
+    "coque.accueil-etape-canaux.accueil-canaux",
+    "accueil-onboarding.etape-canaux-en-tete-xr.send-connectez-vos-canaux"
+   ],
+   "ancre": ",icon:\"send\"}),r.j",
+   "avant": "\"send\"",
+   "apres": "\"dz-action-connecter\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.zap-quick",
+    "coque.rail-de-navigation-tg.zap-quick"
+   ],
+   "ancre": ",icon:\"zap\",desc:",
+   "avant": "\"zap\"",
+   "apres": "\"dz-nav-quick\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.flow-studio",
+    "coque.rail-de-navigation-tg.flow-studio"
+   ],
+   "ancre": ",icon:\"flow\",desc:",
+   "avant": "\"flow\"",
+   "apres": "\"dz-nav-studio\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.film-chapitres",
+    "coque.rail-de-navigation-tg.film-chapitres"
+   ],
+   "ancre": ",icon:\"film\",desc:",
+   "avant": "\"film\"",
+   "apres": "\"dz-nav-chapitres\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.wave-son-vfx",
+    "coque.rail-de-navigation-tg.wave-son-vfx"
+   ],
+   "ancre": ",icon:\"wave\",desc:",
+   "avant": "\"wave\"",
+   "apres": "\"dz-nav-son-vfx\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.layers-montage",
+    "coque.rail-de-navigation-tg.layers-montage"
+   ],
+   "ancre": ",icon:\"layers\",desc:",
+   "avant": "\"layers\"",
+   "apres": "\"dz-nav-montage\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.calendar-planificateur",
+    "coque.rail-de-navigation-tg.calendar-planificateur"
+   ],
+   "ancre": ",icon:\"calendar\",desc:",
+   "avant": "\"calendar\"",
+   "apres": "\"dz-nav-scheduler\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.grid-modeles",
+    "coque.rail-de-navigation-tg.grid-modeles"
+   ],
+   "ancre": ",icon:\"grid\",desc:",
+   "avant": "\"grid\"",
+   "apres": "\"dz-nav-templates\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.rss-news",
+    "coque.rail-de-navigation-tg.rss-news"
+   ],
+   "ancre": ",icon:\"rss\",desc:",
+   "avant": "\"rss\"",
+   "apres": "\"dz-nav-news\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.folder-bibliotheque",
+    "coque.rail-de-navigation-tg.folder-bibliotheque"
+   ],
+   "ancre": "\"folder\"",
+   "avant": "\"folder\"",
+   "apres": "\"dz-nav-bibliotheque\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.gamegrid-game-assets",
+    "coque.rail-de-navigation-tg.gamegrid-game-assets"
+   ],
+   "ancre": "\"gamegrid\"",
+   "avant": "\"gamegrid\"",
+   "apres": "\"dz-nav-game-assets\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.vectorpen-vectorlab",
+    "coque.rail-de-navigation-tg.vectorpen-vectorlab"
+   ],
+   "ancre": "\"vectorpen\"",
+   "avant": "\"vectorpen\"",
+   "apres": "\"dz-nav-vectorlab\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.photolab-photolab",
+    "coque.rail-de-navigation-tg.photolab-photolab"
+   ],
+   "ancre": ",icon:\"photolab\",desc:",
+   "avant": "\"photolab\"",
+   "apres": "\"dz-nav-photolab\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.cog-reglages",
+    "coque.rail-de-navigation-tg.cog-reglages"
+   ],
+   "ancre": ",icon:\"cog\",desc:",
+   "avant": "\"cog\"",
+   "apres": "\"dz-nav-reglages\""
+  },
+  {
+   "ids": [
+    "episodes.etape-texte.texte-importer",
+    "chapitres-episodes.section-script-voix.upload-importer-txt-docx-pdf"
+   ],
+   "ancre": "e:\"sm\",icon:\"upload\",onClick:fun",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "episodes.etape-narration.narration-generer",
+    "chapitres-episodes.section-script-voix.zap-generer-la-narration"
+   ],
+   "ancre": "primary\",size:\"sm\",icon:\"zap\",glow:!0,disabled:busy||",
+   "avant": "\"zap\"",
+   "apres": "\"dz-media-generer-voix\""
+  },
+  {
+   "ids": [
+    "episodes.etape-scenes.scenes-generer",
+    "chapitres-episodes.section-storyboard.zap-generer-les-scenes"
+   ],
+   "ancre": "e:\"sm\",icon:\"zap\",disabled:sc",
+   "avant": "\"zap\"",
+   "apres": "\"dz-action-decouper-plans\""
+  },
+  {
+   "ids": [
+    "episodes.etape-scenes.scene-ajouter",
+    "chapitres-episodes.section-storyboard.upload-ajouter-une-scene"
+   ],
+   "ancre": "e:\"sm\",icon:\"upload\",onClick:add",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-ajouter\""
+  },
+  {
+   "ids": [
+    "episodes.etape-illustrations.illus-toutes",
+    "chapitres-episodes.section-illustrations-animation.zap-generer-toutes-les-illus"
+   ],
+   "ancre": "y\",size:\"sm\",icon:\"zap\",disabled:imgBusy>",
+   "avant": "\"zap\"",
+   "apres": "\"dz-media-generer-image\""
+  },
+  {
+   "ids": [
+    "episodes.etape-illustrations-carte-de-scene.illus-une",
+    "chapitres-episodes.section-illustrations-scene.zap-generer-regenerer"
+   ],
+   "ancre": "e\",size:\"sm\",icon:\"zap\",disabled:imgBusy>",
+   "avant": "\"zap\"",
+   "apres": "\"dz-media-generer-image\""
+  },
+  {
+   "ids": [
+    "episodes.etape-assemblage.assembler",
+    "chapitres-episodes.section-assemblage-export.zap-assembler-l-episode"
+   ],
+   "ancre": "primary\",size:\"sm\",icon:\"zap\",glow:!0,disabled:epBusy",
+   "avant": "\"zap\"",
+   "apres": "\"dz-media-assembler\""
+  },
+  {
+   "ids": [
+    "episodes.etape-assemblage.vers-montage",
+    "chapitres-episodes.section-assemblage-export.film-ouvrir-dans-le-montage"
+   ],
+   "ancre": "e\",size:\"sm\",icon:\"film\",title:dzT(\"episod",
+   "avant": "\"film\"",
+   "apres": "\"dz-nav-montage\""
+  },
+  {
+   "ids": [
+    "episodes.etape-assemblage.vers-scheduler",
+    "chapitres-episodes.section-assemblage-export.calendar-envoyer-au-scheduler"
+   ],
+   "ancre": ",icon:\"calendar\",onCli",
+   "avant": "\"calendar\"",
+   "apres": "\"dz-nav-scheduler\""
+  },
+  {
+   "ids": [
+    "coque.rail-de-navigation-tg-en-tete.caret-replier"
+   ],
+   "ancre": "sx(se,{name:\"caret\",iconSize:11",
+   "avant": "\"caret\"",
+   "apres": "\"dz-action-deplier\""
+  },
+  {
+   "ids": [
+    "coque.rail-de-navigation-tg-carte-de-pied.octopus-a-gauche-de-la-tagline"
+   ],
+   "ancre": "{name:\"octopus\",size:",
+   "avant": "\"octopus\"",
+   "apres": "\"dz-marque-poulpe\""
+  },
+  {
+   "ids": [
+    "coque.rail-de-navigation-tg-carte-de-pied.book-guide"
+   ],
+   "ancre": "{name:\"book\",size:",
+   "avant": "\"book\"",
+   "apres": "\"dz-nav-guide\""
+  },
+  {
+   "ids": [
+    "coque.rail-de-navigation-tg-pied-rail-replie.caretr-deplier"
+   ],
+   "ancre": "jsx(X,{name:\"caretR\",size:14})})",
+   "avant": "\"caretR\"",
+   "apres": "\"dz-action-deplier\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.search-commande-rapide",
+    "coque.en-tete-de-l-ecran-barre-du-haut.entete-commande"
+   ],
+   "ancre": "jsx(X,{name:\"search\",size:13}),r",
+   "avant": "\"search\"",
+   "apres": "\"dz-action-palette-commandes\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng-badge-de-cout.zap-cliquer-pour-ouvrir-regl",
+    "coque.en-tete-de-l-ecran-barre-du-haut.entete-depenses"
+   ],
+   "ancre": "{name:\"zap\",size:",
+   "avant": "\"zap\"",
+   "apres": "\"dz-action-cout\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-ng.octopus-revoir-l-accueil",
+    "coque.en-tete-de-l-ecran-barre-du-haut.entete-accueil"
+   ],
+   "ancre": "{name:\"octopus\",title",
+   "avant": "\"octopus\"",
+   "apres": "\"dz-nav-accueil\""
+  },
+  {
+   "ids": [
+    "coque.en-tete-de-l-ecran-barre-du-haut.entete-file",
+    "coque.en-tete-bouton-file-des-rendus-dzqbtn.signal-file-des-rendus-n-en-cou"
+   ],
+   "ancre": "{name:\"signal\",title",
+   "avant": "\"signal\"",
+   "apres": "\"dz-nav-file-rendus\""
+  },
+  {
+   "ids": [
+    "coque.panneau-file-des-rendus.file-titre",
+    "coque.tiroir-file-des-rendus-y.signal-file-des-rendus"
+   ],
+   "ancre": "{name:\"signal\",size:",
+   "avant": "\"signal\"",
+   "apres": "\"dz-nav-file-rendus\""
+  },
+  {
+   "ids": [
+    "coque.panneau-file-des-rendus.file-fermer",
+    "coque.tiroir-file-des-rendus-y.close-fermer-echap"
+   ],
+   "ancre": "{name:\"close\",iconS",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-fermer\""
+  },
+  {
+   "ids": [
+    "coque.apercu-video-d-un-job-fenetre.apercu-titre",
+    "coque.tiroir-file-des-rendus-lecteur.film-a-gauche-du-titre-de-la-"
+   ],
+   "ancre": "jsx(X,{name:\"film\",size:15,sty",
+   "avant": "\"film\"",
+   "apres": "\"dz-media-video\""
+  },
+  {
+   "ids": [
+    "coque.apercu-video-d-un-job-fenetre.apercu-dl",
+    "coque.tiroir-file-des-rendus-lecteur.download-telecharger"
+   ],
+   "ancre": "e\",size:\"sm\",icon:\"download\",children:dzT(\"com",
+   "avant": "\"download\"",
+   "apres": "\"dz-action-telecharger\""
+  },
+  {
+   "ids": [
+    "coque.apercu-video-d-un-job-fenetre.apercu-fermer",
+    "coque.tiroir-file-des-rendus-lecteur.close-bouton"
+   ],
+   "ancre": "}),r.jsx(se,{name:\"close\",onClick:()=>d(nul",
+   "avant": "\"close\"",
+   "apres": "\"dz-action-fermer\""
+  },
+  {
+   "ids": [
+    "coque.tiroir-file-des-rendus-titre-d-un-job-hu.rename-rename-render"
+   ],
+   "ancre": "{name:\"rename\",size:",
+   "avant": "\"rename\"",
+   "apres": "\"dz-action-renommer\""
+  },
+  {
+   "ids": [
+    "coque.carte-de-job-og-code-mort.play-preview"
+   ],
+   "ancre": "sx(se,{name:\"play\",size:24,ico",
+   "avant": "\"play\"",
+   "apres": "\"dz-action-apercu\""
+  },
+  {
+   "ids": [
+    "coque.carte-de-job-og-code-mort.copy-copy-link-id"
+   ],
+   "ancre": "{name:\"copy\",size:",
+   "avant": "\"copy\"",
+   "apres": "\"dz-action-copier\""
+  },
+  {
+   "ids": [
+    "coque.carte-de-job-og-code-mort.trash-delete"
+   ],
+   "ancre": "sx(se,{name:\"trash\",size:24,ico",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "coque.panneau-file-des-rendus-ligne-de-job.job-apercu",
+    "coque.tiroir-file-des-rendus-ligne-de-job-yd.play-apercu"
+   ],
+   "ancre": "{name:\"play\",title",
+   "avant": "\"play\"",
+   "apres": "\"dz-action-apercu\""
+  },
+  {
+   "ids": [
+    "coque.panneau-file-des-rendus-ligne-de-job.job-reessayer",
+    "coque.tiroir-file-des-rendus-ligne-de-job-yd.bolt-reessayer"
+   ],
+   "ancre": ",icon:\"bolt\",child",
+   "avant": "\"bolt\"",
+   "apres": "\"dz-action-reessayer\""
+  },
+  {
+   "ids": [
+    "coque.panneau-file-des-rendus-ligne-de-job.job-quick",
+    "coque.tiroir-file-des-rendus-ligne-de-job-yd.bolt-rouvrir-dans-quick-prere"
+   ],
+   "ancre": "{name:\"bolt\",title",
+   "avant": "\"bolt\"",
+   "apres": "\"dz-action-rouvrir-quick\""
+  },
+  {
+   "ids": [
+    "coque.panneau-file-des-rendus-ligne-de-job.job-copier",
+    "coque.tiroir-file-des-rendus-ligne-de-job-yd.copy-copier-l-url-de-la-video"
+   ],
+   "ancre": "{name:\"copy\",title",
+   "avant": "\"copy\"",
+   "apres": "\"dz-action-copier\""
+  },
+  {
+   "ids": [
+    "coque.panneau-file-des-rendus-ligne-de-job.job-supprimer",
+    "coque.tiroir-file-des-rendus-ligne-de-job-yd.trash-supprimer"
+   ],
+   "ancre": "}),r.jsx(se,{name:\"trash\",title:dzT(\"commun",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "coque.panneau-file-des-rendus-confirmation.job-supprimer-ok",
+    "coque.tiroir-file-des-rendus-confirmation.trash-supprimer"
+   ],
+   "ancre": "e:\"sm\",icon:\"trash\",onClick:a,c",
+   "avant": "\"trash\"",
+   "apres": "\"dz-action-supprimer\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.flow-aller-au-studio"
+   ],
+   "ancre": ",icon:\"flow\",go:()",
+   "avant": "\"flow\"",
+   "apres": "\"dz-nav-studio\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.calendar-aller-au-planificateur"
+   ],
+   "ancre": ",icon:\"calendar\",go:()",
+   "avant": "\"calendar\"",
+   "apres": "\"dz-nav-scheduler\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.zap-aller-a-quick"
+   ],
+   "ancre": ",icon:\"zap\",go:()",
+   "avant": "\"zap\"",
+   "apres": "\"dz-nav-quick\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.rss-aller-aux-news"
+   ],
+   "ancre": ",icon:\"rss\",go:()",
+   "avant": "\"rss\"",
+   "apres": "\"dz-nav-news\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.octopus-revoir-l-accueil"
+   ],
+   "ancre": ",icon:\"octopus\",go:()",
+   "avant": "\"octopus\"",
+   "apres": "\"dz-nav-accueil\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.sparkle-nouveau-graphe-de-reel-n"
+   ],
+   "ancre": ",icon:\"sparkle\",go:()",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-nav-news\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.mic-nouveau-graphe-de-post-a"
+   ],
+   "ancre": ",icon:\"mic\",go:()",
+   "avant": "\"mic\"",
+   "apres": "\"dz-media-avatar\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.send-programmer-un-post-pour-"
+   ],
+   "ancre": ",icon:\"send\",go:()",
+   "avant": "\"send\"",
+   "apres": "\"dz-action-programmer\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.film-ouvrir-le-dernier-rendu"
+   ],
+   "ancre": ",icon:\"film\",go:()",
+   "avant": "\"film\"",
+   "apres": "\"dz-media-video\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.link-reglages-comptes-connect"
+   ],
+   "ancre": ",icon:\"link\",go:()",
+   "avant": "\"link\"",
+   "apres": "\"dz-nav-reglages\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.cog-reglages-cles-d-api"
+   ],
+   "ancre": ",icon:\"cog\",go:()",
+   "avant": "\"cog\"",
+   "apres": "\"dz-nav-reglages\""
+  },
+  {
+   "ids": [
+    "coque.palette-de-commandes-ig-k.search-tapez-une-commande-un-n-",
+    "coque.palette-de-commandes-k.palette-recherche"
+   ],
+   "ancre": "jsx(X,{name:\"search\",size:16,sty",
+   "avant": "\"search\"",
+   "apres": "\"dz-action-chercher\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe.upload-importer",
+    "studio.barre-du-haut-du-canevas.importer-graphe"
+   ],
+   "ancre": ",icon:\"upload\",title",
+   "avant": "\"upload\"",
+   "apres": "\"dz-action-importer\""
+  },
+  {
+   "ids": [
+    "studio.barre-d-outils-du-graphe-recette.check-recette",
+    "studio.barre-du-haut-du-canevas.recette"
+   ],
+   "ancre": ",icon:\"check\",disab",
+   "avant": "\"check\"",
+   "apres": "\"dz-action-figer-recette\""
+  },
+  {
+   "ids": [
+    "studio.dialogue-duel-de-modeles.sparkle-lancer-le-duel",
+    "studio.panneau-duel-de-moteurs.duel"
+   ],
+   "ancre": ",icon:\"sparkle\",disab",
+   "avant": "\"sparkle\"",
+   "apres": "\"dz-action-duel\""
+  },
+  {
+   "ids": [
+    "bibliotheque.kits-de-marque.plus-nouveau-kit",
+    "reglages.identite-visuelle-kits-de-marque-dzkits.kit-nouveau"
+   ],
+   "ancre": ",icon:\"plus\",disab",
+   "avant": "\"plus\"",
+   "apres": "\"dz-action-ajouter\""
+  }
+ ]
+}

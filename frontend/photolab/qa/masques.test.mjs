@@ -10,6 +10,7 @@ import { aiguillage, cibleDialogue, TRAITES_PAR_ECRAN, NECESSITE_DOC, actionEntr
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { existe as existeIcone, CLES as CLES_SUITE } from "./outils/suite-icones.mjs";
 
 let ok = 0, ko = 0;
 function check(label, cond, detail = "") { if (cond) ok++; else { ko++; console.error("ECHEC :", label, detail); } }
@@ -150,14 +151,16 @@ check("7.10 vignettes de masque chargées avec celles des calques", /\/masques\?
 // Défaut vu à l'écran (preuve 8799) : les données du masque arrivaient, la ligne restait vide — le crochet des vignettes
 // ne reposait que celle du calque.
 check("7.11 le crochet des vignettes repose aussi celle du masque", /PL\.surVignettes\.push[\s\S]*\.cq-masque\[data-masque\][\s\S]*vignettesMasques/.test(calques));
-// Défaut vu à l'écran : l'icône « unlink » n'existe pas (chaîne vide). Toute icône demandée par ces modules existe.
-const icones = new Set(readdirSync(join(ici, "..", "icones")).filter((f) => f.endsWith(".svg")).map((f) => f.slice(0, -4)));
+// Défaut vu à l'écran : l'icône « unlink » n'existait pas (chaîne vide). Toute icône demandée par ces modules existe
+// (G4 : dans la suite Deepotus Glyph).
+const icones = CLES_SUITE;
 const demandees = [...(calques + galerie + masquer).matchAll(/(?:bouton\([^,]*,\s*|icone\(|PL\.icone\()"([a-z0-9-]+)"/g)].map((m) => m[1]);
 // mod-galerie a son propre bouton(icône, clé, action) : l'icône est le PREMIER argument.
 demandees.push(...[...galerie.matchAll(/bouton\("([a-z0-9-]+)", "photolab\./g)].map((m) => m[1]));
-const ternaires = [...(calques + galerie).matchAll(/\? "([a-z0-9-]+)" : "([a-z0-9-]+)"/g)].flatMap((m) => [m[1], m[2]]).filter((x) => /^(eye|eye-off|chevron-down|chevron-right)$/.test(x));
+const ternaires = [...(calques + galerie).matchAll(/\? "([a-z0-9-]+)" : "([a-z0-9-]+)"/g)].flatMap((m) => [m[1], m[2]]).filter((x) => /^dz-(etat-visible|etat-cache|action-deplier)$/.test(x));
 const manquantes = [...new Set([...demandees, ...ternaires])].filter((n) => !icones.has(n));
-check("7.12 toute icône demandée existe dans icones/ (app-window : badge de l'objet dynamique)", demandees.length >= 8 && !manquantes.length && icones.has("app-window"), manquantes);
+check("7.12 toute icône demandée existe dans la suite (dz-calque-objet-dynamique : badge de l'objet dynamique)", demandees.length >= 8 && !manquantes.length
+  && demandees.includes("dz-calque-objet-dynamique") && ternaires.length >= 4, manquantes);
 
 console.log(`masques : ${ok} ok, ${ko} echec(s)`);
 if (ko) process.exit(1);

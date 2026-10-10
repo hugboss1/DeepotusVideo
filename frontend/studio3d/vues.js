@@ -5,7 +5,7 @@
    plafonds) et se CONFIRME ; le détourage local est gratuit et part sans question. Le bouton « Tirer » se grise et
    DIT pourquoi (déjà tiré, aucune vue, une opération en cours). */
 "use strict";
-import { jget, jpost } from "./fal.js";
+import { jget, jpost, ico, libeller } from "./fal.js";
 
 const $ = (s) => document.querySelector(s);
 
@@ -86,9 +86,9 @@ export async function prixPreparer() {
   const btn = $("#btnVues");
   try {
     const d = await devis({ kind: "asset3d_views", views: n });
-    btn.textContent = `Préparer ${n} vue${n > 1 ? "s" : ""} · ${usd(d.total_usd)}`;
+    libeller(btn, "dz-lab3d-generer-modele", `Préparer ${n} vue${n > 1 ? "s" : ""} · ${usd(d.total_usd)}`);
     btn.dataset.usd = d.total_usd;
-  } catch (e) { btn.textContent = `Préparer ${n} vues`; delete btn.dataset.usd; }
+  } catch (e) { libeller(btn, "dz-lab3d-generer-modele", `Préparer ${n} vues`); delete btn.dataset.usd; }
   btn.disabled = !$("#vuesImg").value;
 }
 
@@ -151,7 +151,7 @@ export function montrer(info) {
   V.info = info;
   const grille = $("#vuesGrille");
   const btn = $("#btnTirer");
-  if (!info) { grille.innerHTML = ""; btn.disabled = true; btn.textContent = "Tirer · —"; $("#tirRefus").textContent = refusTir(null); return; }
+  if (!info) { grille.innerHTML = ""; btn.disabled = true; libeller(btn, "dz-lab3d-generer-modele", "Tirer · —"); $("#tirRefus").textContent = refusTir(null); return; }
   const fige = info.etat === "tire";
   const t = Date.now();
   grille.innerHTML = info.vues.map((v) => `
@@ -159,12 +159,12 @@ export function montrer(info) {
       ${v.file ? `<a href="/api/assets/3d/${encodeURIComponent(info.job)}/shot/${v.index}?t=${t}" target="_blank" rel="noopener" title="Ouvrir la vue en grand"><img src="/api/assets/3d/${encodeURIComponent(info.job)}/shot/${v.index}?t=${t}" alt="vue ${v.index}" loading="lazy"></a>` : `<div class="vue-trou">vue absente</div>`}
       <figcaption title="${esc(v.origine || "")}">${v.role === "source" ? "source" : esc(v.cle || `vue ${v.index}`)}${v.role === "planche" ? " · planche" : v.role === "photo" ? " · photo" : ""}${v.rejeux ? ` · ${v.rejeux}↻` : ""}${v.detoure ? ` · ✂ ${esc(v.detoure)}` : ""}${v.erreur ? ` · <b class="fal-refus" title="${esc(v.erreur)}">ratée</b>` : ""}</figcaption>
       ${v.role === "source" || fige ? "" : `<div class="vue-actions">
-        ${v.role === "planche" || v.role === "photo" ? "" : `<button class="v-rej" data-i="${v.index}" title="Régénérer CETTE vue seulement, avec un prompt corrigé">↻</button>`}
-        <button class="v-det" data-i="${v.index}" ${v.file ? "" : "disabled"} title="Retirer le fond — local, gratuit">✂</button></div>`}
+        ${v.role === "planche" || v.role === "photo" ? "" : `<button class="v-rej" data-i="${v.index}" title="Régénérer CETTE vue seulement, avec un prompt corrigé" aria-label="Régénérer cette vue">${ico("dz-action-regenerer")}</button>`}
+        <button class="v-det" data-i="${v.index}" ${v.file ? "" : "disabled"} title="Retirer le fond — local, gratuit" aria-label="Retirer le fond">${ico("dz-action-detourer")}</button></div>`}
     </figure>`).join("");
   const non = refusTir(info, V.occupe);
   btn.disabled = !!non;
-  btn.textContent = fige ? "Déjà tiré" : `Tirer · ${info.engine}`;
+  libeller(btn, "dz-lab3d-generer-modele", fige ? "Déjà tiré" : `Tirer · ${info.engine}`);
   btn.title = non || "Lancer le moteur 3D sur ces vues";
   $("#tirRefus").textContent = non;
 }

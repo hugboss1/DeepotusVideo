@@ -14453,11 +14453,23 @@
   "ecran": "Données",
   "emplacement": "table de résolution des images",
   "libelle": "",
-  "source": "frontend/cardforge/js/mod-data.js:3179 ; 3183",
+  "source": "frontend/cardforge/js/mod-data.js:3179",
   "cle_visuelle": "glyphe ●",
   "cle_finale": "dz-etat-succes",
   "emoji_conserve": false,
   "raison_finale": ""
+ },
+ {
+  "id": "cardforge.donnees.image-introuvable",
+  "zone": "Card Forge",
+  "ecran": "Données",
+  "emplacement": "table de résolution des images",
+  "libelle": "",
+  "source": "frontend/cardforge/js/mod-data.js:3183",
+  "cle_visuelle": "glyphe ●",
+  "cle_finale": "dz-etat-erreur",
+  "emoji_conserve": false,
+  "raison_finale": "Image introuvable (affichée en rouge) : état d erreur, pas la coche de succès de l image trouvée (relevé du lot G2)."
  },
  {
   "id": "cardforge.donnees.langue-incomplete",
@@ -16819,9 +16831,9 @@
   "libelle": "Paramètres de l'appli…",
   "source": "frontend/vectorlab/js/mod-contexte.js:41 ; frontend/vectorlab/js/mod-icones.js:65",
   "cle_visuelle": "vl-parametres",
-  "cle_finale": "dz-action-reglages",
+  "cle_finale": "dz-nav-reglages",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Préférences de l application (pas les options du document) : curseurs des Réglages, distincts de la roue de « Configuration du document » placée juste à côté."
  },
  {
   "id": "vectorlab.ctx.vider",
@@ -18019,9 +18031,9 @@
   "libelle": "∅ Sans contour",
   "source": "frontend/vectorlab/js/mod-flyout.js:174-181",
   "cle_visuelle": "glyphe ∅",
-  "cle_finale": "dz-edit-sans-couleur",
+  "cle_finale": "dz-edit-sans-contour",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Arbitrage utilisateur du 10/10 : une icône propre (l ancienne était partagée avec une autre fonction)."
  },
  {
   "id": "vectorlab.flyout.ap.sansfond",
@@ -18727,9 +18739,9 @@
   "libelle": "Sans contour",
   "source": "frontend/vectorlab/js/mod-style.js:130",
   "cle_visuelle": "glyphe ∅",
-  "cle_finale": "dz-edit-sans-couleur",
+  "cle_finale": "dz-edit-sans-contour",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Arbitrage utilisateur du 10/10 : une icône propre (l ancienne était partagée avec une autre fonction)."
  },
  {
   "id": "vectorlab.style.sansfond",
@@ -22471,9 +22483,9 @@
   "libelle": "Nouveau groupe",
   "source": "frontend/photolab/js/mod-calques.js:214",
   "cle_visuelle": "lucide-folder-plus",
-  "cle_finale": "dz-edit-grouper",
+  "cle_finale": "dz-action-nouveau-dossier",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Arbitrage utilisateur du 10/10 : crée un groupe vide = nouveau dossier, comme dans le Nuancier."
  },
  {
   "id": "photolab.calques.pied-lien",
@@ -23215,9 +23227,9 @@
   "libelle": "Position",
   "source": "frontend/photolab/js/mod-compositions.js:13",
   "cle_visuelle": "lucide-move",
-  "cle_finale": "dz-outil-photo-deplacer",
+  "cle_finale": "dz-edit-position",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Arbitrage utilisateur du 10/10 : une icône propre (l ancienne était partagée avec une autre fonction)."
  },
  {
   "id": "photolab.compositions.option-visibility",
@@ -24763,9 +24775,9 @@
   "libelle": "Retirer",
   "source": "frontend/spritelab/spritelab.js:1268",
   "cle_visuelle": "glyphe ✕",
-  "cle_finale": "dz-action-supprimer",
+  "cle_finale": "dz-action-retirer",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Arbitrage utilisateur du 10/10 : enlève de la liste sans détruire = retirer."
  },
  {
   "id": "spritelab.previz.lecture-pause",
@@ -24931,9 +24943,9 @@
   "libelle": "Retirer ce tag",
   "source": "frontend/spritelab/spritelab.js:346",
   "cle_visuelle": "glyphe ✕",
-  "cle_finale": "dz-action-supprimer",
+  "cle_finale": "dz-action-retirer",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Arbitrage utilisateur du 10/10 : enlève de la liste sans détruire = retirer."
  },
  {
   "id": "spritelab.bible.huit",

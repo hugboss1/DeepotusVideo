@@ -4,6 +4,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { existe as existeIcone, CLES as CLES_SUITE } from "./outils/suite-icones.mjs";
 import { KINDS, kindDe, infoKind, depuisInspect, difference, egalProfond, avecValeur, lireChemin, sorteEditeur,
   vueReglage, appliquer, valeursVue, signatureVue, GAMMES_TEINTE, BORNES_GAMMES, TONS, GAMMES_SELECTIVE, LIGNES_MIXEUR,
   DEGRADE_DEFAUT, lutsDepuisReponse } from "../js/mod-reglages.js";
@@ -42,7 +43,8 @@ const kindsCatalogue = menus.entrees.map((e) => e.id || "").filter((i) => i.star
 check("1.1 16 kinds dans l'ordre du catalogue de photocraft", KINDS.map((k) => k.kind).join() === kindsCatalogue.join(), KINDS.map((k) => k.kind).join());
 check("1.2 variantes = noms de doc.inspect", KINDS.map((k) => k.variante).join() === "BrightnessContrast,Levels,Curves,Exposure,Vibrance,HueSaturation,ColorBalance,BlackWhite,PhotoFilter,ChannelMixer,ColorLookup,Invert,Posterize,Threshold,GradientMap,SelectiveColor");
 check("1.3 clé photolab.kind.<kind en minuscules>, fr et en", KINDS.every((k) => k.cle === "photolab.kind." + k.kind.toLowerCase() && dico[k.cle] && dico[k.cle].fr && dico[k.cle].en));
-check("1.4 chaque icône existe dans icones/ (Lucide, aucune copie nouvelle)", KINDS.every((k) => existsSync(join(racine, "icones", k.icone + ".svg"))), KINDS.filter((k) => !existsSync(join(racine, "icones", k.icone + ".svg"))).map((k) => k.icone));
+check("1.4 chaque icône est une clé de la suite Deepotus Glyph, une par kind", KINDS.every((k) => existeIcone(k.icone)) && new Set(KINDS.map((k) => k.icone)).size === 16,
+  KINDS.filter((k) => !existeIcone(k.icone)).map((k) => k.icone));
 check("1.5 infoKind", infoKind("curves").variante === "Curves" && infoKind("zorg") === null);
 
 // 2. kindDe

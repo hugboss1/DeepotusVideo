@@ -4,21 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deepotus — Material Forge</title>
+<link rel="icon" type="image/png" href="/api/branding/logo">
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
 <link rel="stylesheet" href="materialforge.css">
 <!-- visionneuse 3D embarquée (hors ligne, servie par l'app) -->
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
+<script src="/shared/icons/dz-icons.js"></script>
 <script type="module" src="/assets/model-viewer.min.js"></script>
 </head>
 <body>
 
 <header class="topbar">
-  <div class="brand">✨ <b>Material Forge</b></div>
+  <div class="brand"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-cat-matieres"></use></svg> <b>Material Forge</b></div>
   <button class="badge act" id="mapsBadge" type="button">MAPS PBR</button>
   <span class="badge">RACCORD MESURÉ</span>
   <div class="tb-spacer"></div>
   <span class="srcchip" id="apiChip">connexion à l'API…</span>
-  <a class="backlink" href="/" target="_top" title="Retour à l'app">← App</a>
+  <a class="backlink" href="/" target="_top" title="Retour à l'app"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retour"></use></svg> App</a>
 </header>
 
 <!-- bandeau d'erreur API (route absente, backend muet…) -->
@@ -35,8 +38,8 @@
     <div class="rail-head"><h2>Génération</h2></div>
     <!-- deux onglets (T098) : forger par l'IA ou une photo, ou générer un motif local -->
     <div class="seg sm" id="railTabs">
-      <button class="seg-b active" id="tabForge" type="button">⚒ Forger</button>
-      <button class="seg-b" id="tabGen" type="button">◈ Générateurs</button>
+      <button class="seg-b active" id="tabForge" type="button"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-forger-matiere"></use></svg> Forger</button>
+      <button class="seg-b" id="tabGen" type="button"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-procedural"></use></svg> Générateurs</button>
     </div>
     <div class="rail-body" id="paneForge">
 
@@ -60,10 +63,10 @@
         <span class="lbl">Image de référence <span class="opt">optionnelle</span></span>
         <div class="ref-row">
           <div class="drop" id="drop">
-            <span class="drop-ic">⬆</span>
+            <span class="drop-ic"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg></span>
             <span class="drop-t">Dépose ou clique pour téléverser</span>
           </div>
-          <button class="btn sm" id="libToggle" title="Choisir une image déjà présente dans la Library">📚 Library</button>
+          <button class="btn sm" id="libToggle" title="Choisir une image déjà présente dans la Library"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-choisir-bibliotheque"></use></svg> Library</button>
         </div>
         <!-- `capture="environment"` : sur un mobile, le champ ouvre l'appareil
              photo arrière au lieu du sélecteur de fichiers. Ignoré sur
@@ -73,14 +76,14 @@
         <div class="ref-picked hidden" id="refPicked">
           <img id="refThumb" alt="référence">
           <span id="refName">—</span>
-          <button class="btn ghost sm" id="refClear" title="Retirer la référence">✕</button>
+          <button class="btn ghost sm" id="refClear" title="Retirer la référence" aria-label="Retirer la référence"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retirer"></use></svg></button>
         </div>
         <div class="libbox hidden" id="libBox">
-          <input class="search sm" id="libSearch" placeholder="🔎 Filtrer les images…">
+          <span class="srch"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input class="search sm" id="libSearch" placeholder="Filtrer les images…"></span>
           <div class="img-grid" id="libGrid"><div class="empty-note sm">Chargement…</div></div>
         </div>
       <details class="grp" id="grpPhoto">
-        <summary><i class="chev"></i><span class="grp-t">Photo</span>
+        <summary><i class="chev"><svg class="dzi" width="12" height="12" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-deplier"></use></svg></i><span class="grp-t">Photo</span>
           <b class="mono" id="phMeasure">—</b></summary>
         <div class="grp-body">
           <p class="hint">Une photo de surface n'est pas une texture : elle est
@@ -90,7 +93,7 @@
           <canvas id="phCanvas" width="320" height="320"></canvas>
           <div class="row">
             <button class="btn ghost sm" id="phReset" type="button"
-                    title="Effacer les quatre coins">↺ Coins</button>
+                    title="Effacer les quatre coins"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-reinitialiser"></use></svg> Coins</button>
             <label class="check"><input type="checkbox" id="phDelight" checked>
               Retirer l'éclairage</label>
           </div>
@@ -98,7 +101,7 @@
             <input type="range" id="phStrength" min="0" max="1" step="0.05"
                    value="1"></label>
           <button class="btn sm wide" id="phPreview" type="button">
-            👁 Aperçu de la préparation</button>
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-apercu"></use></svg> Aperçu de la préparation</button>
           <img id="phOut" alt="aperçu de la préparation" class="hidden">
         </div>
       </details>
@@ -119,7 +122,7 @@
         <textarea id="prompt" rows="3" placeholder="Décris la matière à forger, ou pioche une amorce ci-dessous."></textarea>
         <div class="chips seeds" id="seedChips"></div>
         <details class="fullp" id="fullpBox" open>
-          <summary>Invite exacte envoyée au modèle <i class="chev">▾</i></summary>
+          <summary>Invite exacte envoyée au modèle <i class="chev"><svg class="dzi" width="12" height="12" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-deplier"></use></svg></i></summary>
           <code id="fullPrompt">—</code>
         </details>
       </div>
@@ -131,13 +134,13 @@
       <div class="chips" id="genList"></div>
       <div id="genParams"></div>
       <img id="genPreview" alt="aperçu du générateur" class="hidden">
-      <button class="btn primary big wide" id="genGo" type="button">◈ Créer la matière</button>
+      <button class="btn primary big wide" id="genGo" type="button"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-fabriquer"></use></svg> Créer la matière</button>
     </div>
 
     <div class="rail-foot" id="footForge">
       <ol class="steps" id="steps"></ol>
       <button class="btn primary big wide" id="genBtn">
-        <span id="genLabel">⚒ Forger la matière</span>
+        <span id="genLabel"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-forger-matiere"></use></svg> Forger la matière</span>
         <b class="est-cost" id="estCost">— cr</b>
         <i class="est-time" id="estTime">— s</i>
       </button>
@@ -151,7 +154,7 @@
 
     <div class="center-head">
       <div class="ch-left">
-        <button class="btn sm hidden" id="backGal" title="Retour à la galerie">← Galerie</button>
+        <button class="btn sm hidden" id="backGal" title="Retour à la galerie"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retour"></use></svg> Galerie</button>
         <span class="counter" id="count">0 matière</span>
         <span class="hidden" id="edSeam"></span>
         <span class="mono muted hidden" id="edMeta"></span>
@@ -159,9 +162,9 @@
       <div class="ch-right">
         <!-- le catalogue CC0 (T097) : atteignable TOUJOURS, pas seulement galerie vide -->
         <button class="btn sm" id="catBtnHead" type="button"
-                title="Trente matières CC0 de Poly Haven, embarquées dans l'installation">📚 Catalogue CC0</button>
-        <input class="search sm" id="galSearch" placeholder="🔎 Filtrer…">
-        <select class="sortsel" id="galSort" title="Trier la galerie"></select>
+                title="Trente matières CC0 de Poly Haven, embarquées dans l'installation"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-pack-depart"></use></svg> Catalogue CC0</button>
+        <span class="srch"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input class="search sm" id="galSearch" placeholder="Filtrer…"></span>
+        <span class="sel-ico" aria-hidden="true"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-trier"></use></svg></span><select class="sortsel" id="galSort" title="Trier la galerie"></select>
         <label class="colslider" id="colsWrap">Colonnes
           <input type="range" id="cols" min="2" max="6" step="1" value="3">
           <b id="colsVal">3</b>
@@ -196,11 +199,11 @@
           <select id="vpEnv" title="Environnement d'éclairage de l'aperçu"></select>
         </label>
         <button class="chip" id="cmpBtn" type="button"
-                title="Comparer deux matières côte à côte, sous la même ambiance et la même caméra">⇔ Comparer</button>
+                title="Comparer deux matières côte à côte, sous la même ambiance et la même caméra"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-comparer"></use></svg> Comparer</button>
         <select id="cmpPick" class="sortsel hidden"
                 title="Seconde matière de la comparaison"></select>
         <button class="chip lightchip" id="vpLight" type="button"
-                title="Ajoute une source déplaçable : glisse le disque ☀ dans le rendu">☀ Lumière</button>
+                title="Ajoute une source déplaçable : glisse le disque ☀ dans le rendu"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-lumiere"></use></svg> Lumière</button>
       </div>
 
       <div class="vp-stage" id="vpStage">
@@ -216,7 +219,7 @@
                       interaction-prompt="none" interpolation-decay="40"
                       field-of-view="32deg"></model-viewer>
         <div class="vp-vignette" aria-hidden="true"></div>
-        <div class="light-puck hidden" id="puck" title="Glisse pour déplacer la lumière">☀</div>
+        <div class="light-puck hidden" id="puck" title="Glisse pour déplacer la lumière"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-lumiere"></use></svg></div>
         <div class="vp-load" id="vpLoad">chargement de l’aperçu 3D…</div>
       </div>
 
@@ -251,11 +254,11 @@
           <div class="chips" id="envChips"></div>
         <div class="row">
           <label class="btn ghost sm" for="envFile" title="Importer un HDRI
-            équirectangulaire (.hdr) ou une image 2:1">＋ HDRI…</label>
+            équirectangulaire (.hdr) ou une image 2:1"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-hdri"></use></svg> HDRI…</label>
           <input type="file" id="envFile" accept=".hdr,.jpg,.jpeg,.png"
                  class="hidden">
           <button class="btn ghost sm" id="envDel"
-                  title="Supprimer l'ambiance importée sélectionnée">🗑</button>
+                  title="Supprimer l'ambiance importée sélectionnée" aria-label="Supprimer l'ambiance importée sélectionnée"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-supprimer"></use></svg></button>
         </div>
         </div>
         <label class="check"><input type="checkbox" id="pointLight"> Lumière ponctuelle déplaçable</label>
@@ -279,7 +282,7 @@
       <div class="hidden" id="inspMat">
         <div class="mat-head">
           <input id="matName" type="text" placeholder="sans nom" title="Nom de la matière">
-          <button class="btn sm" id="btnReset" title="Rétablir toutes les propriétés par défaut">↺ Défauts</button>
+          <button class="btn sm" id="btnReset" title="Rétablir toutes les propriétés par défaut"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-reinitialiser"></use></svg> Défauts</button>
           <!-- UN MOT PAR OBJET, TENU DANS TOUT L'ÉCRAN :
                  · carte    = la tuile de la galerie (jamais une texture) ;
                  · vignette = l'image fixe que porte cette carte (thumb.png) ;
@@ -291,7 +294,7 @@
                par l'infobulle. Les libellés du panneau d'aperçu disent
                « cartes de galerie » en toutes lettres, puisqu'ils voisinent le
                groupe des maps. -->
-          <button class="btn sm" id="btnThumb" title="Capture la vue actuelle du rendu 3D et en fait la vignette de cette matière : l'image fixe que porte sa carte dans la galerie. Sans rapport avec les maps de texture, qui se téléchargent depuis le groupe Maps.">⛶ Vignette de la carte</button>
+          <button class="btn sm" id="btnThumb" title="Capture la vue actuelle du rendu 3D et en fait la vignette de cette matière : l'image fixe que porte sa carte dans la galerie. Sans rapport avec les maps de texture, qui se téléchargent depuis le groupe Maps."><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-capturer"></use></svg> Vignette de la carte</button>
         </div>
         <div class="insp-tools">
           <select id="presetSel" title="Préréglage de matière"><option value="">Appliquer un préréglage…</option></select>
@@ -300,21 +303,21 @@
             <button class="btn sm" id="presetPoser" type="button" title="Écrire ce préréglage dans la matière">Poser</button>
             <button class="btn ghost sm" id="presetAnnuler" type="button">Annuler</button>
           </span>
-          <button class="btn sm tool" id="allHelp" title="Afficher l'aide de toutes les propriétés d'un coup">? Aide</button>
+          <button class="btn sm tool" id="allHelp" title="Afficher l'aide de toutes les propriétés d'un coup"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-aide"></use></svg> Aide</button>
         </div>
         <!-- « Filtrer » collé au menu des préréglages laissait croire qu'il
              filtrait les préréglages, ou la texture. Il a sa propre ligne, et
              son libellé dit sur quoi il porte. -->
         <div class="insp-tools">
-          <input class="search" id="propSearch" placeholder="🔎 Filtrer les réglages de l'inspecteur"
-                 title="Cherche dans les libellés des réglages ET dans leurs textes d'aide">
+          <span class="srch"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input class="search" id="propSearch" placeholder="Filtrer les réglages de l'inspecteur"
+                 title="Cherche dans les libellés des réglages ET dans leurs textes d'aide"></span>
         </div>
 
         <div id="groups"></div>
 
         <!-- export -->
         <details class="grp exp" id="grpExport" open>
-          <summary><i class="chev"></i><span class="grp-t">Export</span><b class="exp-tot mono" id="exTot">—</b></summary>
+          <summary><i class="chev"><svg class="dzi" width="12" height="12" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-deplier"></use></svg></i><span class="grp-t">Export</span><b class="exp-tot mono" id="exTot">—</b></summary>
           <div class="grp-body">
 
             <span class="lbl">Format du livrable</span>
@@ -382,7 +385,7 @@
             <div class="mani" id="exMani"></div>
             <p class="hint" id="exWeigh"></p>
 
-            <button class="btn strong wide big" id="btnExport">⬇ Télécharger</button>
+            <button class="btn strong wide big" id="btnExport"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-telecharger"></use></svg> Télécharger</button>
             <p class="hint" id="exFoot"></p>
           </div>
         </details>

@@ -4,35 +4,35 @@
 import { optionsPeinture } from "./mod-peinture.js";
 import { MODES_FUSION } from "./mod-calques.js";
 
-// Chaque outil : {id, lettre, icone (fichier de icones/), p2 (actif dans cet écran ; sinon visible, grisé, « bientôt »)}.
-// Les noms d'icônes sont ceux des fichiers de icones/ (copiés de photocraft, avec les substitutions de B1 :
-// hash.svg, history.svg, trash-2.svg, sliders.svg) ; le banc vérifie que chacun existe.
+// Chaque outil : {id, lettre, icone (clé de la suite Deepotus Glyph, /shared/icons), p2 (actif dans cet écran ; sinon
+// visible, grisé, « bientôt »)}. G4 : la suite remplace les icônes Lucide de l'amont ; le Doigt garde le pointeur Lucide
+// (choix de l'utilisateur), que la suite expose sous dz-outil-photo-doigt. Le banc vérifie que chaque clé existe.
 export const EMPLACEMENTS = [
   // section 1 : déplacement, sélections, recadrage, mesure
-  [{ id: "move", lettre: "V", icone: "move", p2: true }],
-  [{ id: "rectMarquee", lettre: "M", icone: "rectangle-horizontal", p2: true }, { id: "ellipseMarquee", lettre: "M", icone: "circle", p2: true }],
-  [{ id: "lasso", lettre: "L", icone: "lasso", p2: true }, { id: "polygonLasso", lettre: "L", icone: "pentagon", p2: true }],
-  [{ id: "magicWand", lettre: "W", icone: "wand", p2: true }, { id: "quickSelection", lettre: "W", icone: "lasso-select", p2: true }, { id: "objectSelection", lettre: "W", icone: "scan", p2: true }],
-  [{ id: "crop", lettre: "C", icone: "crop", p2: true }, { id: "slice", lettre: "C", icone: "scissors", p2: true }, { id: "sliceSelect", lettre: "C", icone: "mouse-pointer-2", p2: true }],
-  [{ id: "eyedropper", lettre: "I", icone: "pipette", p2: true }, { id: "ruler", lettre: "I", icone: "ruler", p2: true }, { id: "note", lettre: "I", icone: "message-square", p2: true }, { id: "count", lettre: "I", icone: "hash", p2: true }],
+  [{ id: "move", lettre: "V", icone: "dz-outil-photo-deplacer", p2: true }],
+  [{ id: "rectMarquee", lettre: "M", icone: "dz-outil-px-selection", p2: true }, { id: "ellipseMarquee", lettre: "M", icone: "dz-outil-px-selection-ellipse", p2: true }],
+  [{ id: "lasso", lettre: "L", icone: "dz-outil-px-lasso", p2: true }, { id: "polygonLasso", lettre: "L", icone: "dz-outil-px-lasso-polygonal", p2: true }],
+  [{ id: "magicWand", lettre: "W", icone: "dz-outil-px-baguette", p2: true }, { id: "quickSelection", lettre: "W", icone: "dz-outil-px-selection-rapide", p2: true }, { id: "objectSelection", lettre: "W", icone: "dz-outil-photo-selection-objet", p2: true }],
+  [{ id: "crop", lettre: "C", icone: "dz-outil-photo-recadrer", p2: true }, { id: "slice", lettre: "C", icone: "dz-outil-vec-tranche", p2: true }, { id: "sliceSelect", lettre: "C", icone: "dz-outil-photo-selection-tranche", p2: true }],
+  [{ id: "eyedropper", lettre: "I", icone: "dz-outil-vec-pipette", p2: true }, { id: "ruler", lettre: "I", icone: "dz-outil-vec-mesure", p2: true }, { id: "note", lettre: "I", icone: "dz-edit-annotation", p2: true }, { id: "count", lettre: "I", icone: "dz-outil-photo-compteur", p2: true }],
   // section 2 : peinture et retouche (P3b)
-  [{ id: "spotHealing", lettre: "J", icone: "bandage", p2: true }, { id: "healing", lettre: "J", icone: "bandage", p2: true }, { id: "patch", lettre: "J", icone: "bandage", p2: false }],
-  [{ id: "brush", lettre: "B", icone: "brush", p2: true }, { id: "pencil", lettre: "B", icone: "pencil", p2: true }, { id: "mixerBrush", lettre: "B", icone: "brush", p2: true }],
-  [{ id: "cloneStamp", lettre: "S", icone: "stamp", p2: true }],
-  [{ id: "historyBrush", lettre: "Y", icone: "history", p2: true }],
-  [{ id: "eraser", lettre: "E", icone: "eraser", p2: true }, { id: "backgroundEraser", lettre: "E", icone: "eraser-background", p2: true }, { id: "magicEraser", lettre: "E", icone: "eraser-magic", p2: true }],
-  [{ id: "gradient", lettre: "G", icone: "blend", p2: true }, { id: "paintBucket", lettre: "G", icone: "paint-bucket", p2: true }],
-  [{ id: "blur", lettre: "", icone: "droplet", p2: true }, { id: "sharpen", lettre: "", icone: "triangle", p2: true }, { id: "smudge", lettre: "", icone: "pointer", p2: true }],
-  [{ id: "dodge", lettre: "O", icone: "sun", p2: true }, { id: "burn", lettre: "O", icone: "flame", p2: true }, { id: "sponge", lettre: "O", icone: "cloud", p2: true }],
+  [{ id: "spotHealing", lettre: "J", icone: "dz-outil-photo-correcteur-tache", p2: true }, { id: "healing", lettre: "J", icone: "dz-outil-photo-correcteur", p2: true }, { id: "patch", lettre: "J", icone: "dz-outil-photo-piece", p2: false }],
+  [{ id: "brush", lettre: "B", icone: "dz-outil-px-pinceau", p2: true }, { id: "pencil", lettre: "B", icone: "dz-outil-px-crayon", p2: true }, { id: "mixerBrush", lettre: "B", icone: "dz-outil-px-pinceau-melangeur", p2: true }],
+  [{ id: "cloneStamp", lettre: "S", icone: "dz-outil-photo-tampon", p2: true }],
+  [{ id: "historyBrush", lettre: "Y", icone: "dz-outil-photo-pinceau-historique", p2: true }],
+  [{ id: "eraser", lettre: "E", icone: "dz-outil-px-gomme", p2: true }, { id: "backgroundEraser", lettre: "E", icone: "dz-outil-px-gomme-fond", p2: true }, { id: "magicEraser", lettre: "E", icone: "dz-outil-px-gomme-magique", p2: true }],
+  [{ id: "gradient", lettre: "G", icone: "dz-outil-px-degrade", p2: true }, { id: "paintBucket", lettre: "G", icone: "dz-outil-px-pot", p2: true }],
+  [{ id: "blur", lettre: "", icone: "dz-outil-photo-flou", p2: true }, { id: "sharpen", lettre: "", icone: "dz-outil-photo-nettete", p2: true }, { id: "smudge", lettre: "", icone: "dz-outil-photo-doigt", p2: true }],
+  [{ id: "dodge", lettre: "O", icone: "dz-outil-photo-densite-moins", p2: true }, { id: "burn", lettre: "O", icone: "dz-outil-photo-densite-plus", p2: true }, { id: "sponge", lettre: "O", icone: "dz-outil-photo-eponge", p2: true }],
   // section 3 : tracés, texte, formes
   // t156 : plume, texte, sélection de tracé et formes (mod-trace, mod-texte, mod-formes)
-  [{ id: "pen", lettre: "P", icone: "pen-tool", p2: true }],
-  [{ id: "type", lettre: "T", icone: "type", p2: true }],
-  [{ id: "pathSelection", lettre: "A", icone: "mouse-pointer-2", p2: true }],
-  [{ id: "rectangle", lettre: "U", icone: "rectangle-horizontal", p2: true }, { id: "ellipseShape", lettre: "U", icone: "circle", p2: true }, { id: "triangle", lettre: "U", icone: "triangle", p2: true }, { id: "polygon", lettre: "U", icone: "pentagon", p2: true }, { id: "line", lettre: "U", icone: "minus", p2: true }, { id: "customShape", lettre: "U", icone: "diamond", p2: true }],
+  [{ id: "pen", lettre: "P", icone: "dz-outil-vec-plume", p2: true }],
+  [{ id: "type", lettre: "T", icone: "dz-outil-vec-texte", p2: true }],
+  [{ id: "pathSelection", lettre: "A", icone: "dz-outil-vec-selection", p2: true }],
+  [{ id: "rectangle", lettre: "U", icone: "dz-outil-vec-rectangle", p2: true }, { id: "ellipseShape", lettre: "U", icone: "dz-outil-vec-ellipse", p2: true }, { id: "triangle", lettre: "U", icone: "dz-outil-vec-triangle", p2: true }, { id: "polygon", lettre: "U", icone: "dz-outil-vec-polygone", p2: true }, { id: "line", lettre: "U", icone: "dz-outil-vec-ligne", p2: true }, { id: "customShape", lettre: "U", icone: "dz-outil-vec-forme-perso", p2: true }],
   // section 4 : navigation
-  [{ id: "hand", lettre: "H", icone: "hand", p2: true }],
-  [{ id: "zoom", lettre: "Z", icone: "search", p2: true }],
+  [{ id: "hand", lettre: "H", icone: "dz-outil-vec-main", p2: true }],
+  [{ id: "zoom", lettre: "Z", icone: "dz-outil-vec-loupe", p2: true }],
 ];
 // t140 : l'id DOM d'un emplacement, d'après son outil PRINCIPAL (le premier) : stable quand le flyout change l'outil montré.
 export function idEmplacement(i) { return "pl-outil-" + EMPLACEMENTS[i][0].id; }
@@ -78,6 +78,9 @@ export function infobulle(outil, t = (c) => c, surcharges) {
 /* ───────────── barre d'options ───────────── */
 
 export const MODES_SELECTION = ["replace", "add", "subtract", "intersect"];
+// G4 : icône de chaque mode de sélection (suite Deepotus Glyph), devant son libellé.
+export const ICONES_MODES = { replace: "dz-outil-photo-selection-nouvelle", add: "dz-outil-photo-selection-ajouter",
+  subtract: "dz-outil-photo-selection-soustraire", intersect: "dz-outil-photo-selection-intersection" };
 // Valeurs initiales (relevé du moteur + plan) : tolérance 32, taille 30, contiguë, recadrage destructif.
 export const OPTIONS_DEFAUT = {
   mode: "replace", feather: 0, antiAlias: true,
@@ -86,13 +89,13 @@ export const OPTIONS_DEFAUT = {
   autoSelect: false, autoCible: "layer",
 };
 const opt = (type, cle, extra = {}) => ({ type, cle, libelle: "photolab.option." + snake(cle), ...extra });
-const MODE = opt("mode", "mode", { valeurs: MODES_SELECTION });
+const MODE = opt("mode", "mode", { valeurs: MODES_SELECTION, icones: ICONES_MODES });
 const CONTOUR = opt("nombre", "feather", { min: 0, max: 250, pas: 1, unite: "px" });
 const LISSAGE = opt("case", "antiAlias");
 // t157 : boutons de la barre des outils de sélection (référence et amont) : « Sélectionner un sujet » (select.subject)
 // et « Sélectionner et masquer… » (mod-masquer). action = id d'entrée de menu exécuté par PL.actions ou le moteur.
-const SUJET = opt("bouton", "selectSubject", { action: "select.subject" });
-const MASQUER = opt("bouton", "selectAndMask", { action: "select.selectAndMask" });
+const SUJET = opt("bouton", "selectSubject", { action: "select.subject", icone: "dz-outil-photo-selection-sujet" });
+const MASQUER = opt("bouton", "selectAndMask", { action: "select.selectAndMask", icone: "dz-outil-photo-affiner-contour" });
 const OPTIONS = {
   rectMarquee: [MODE, CONTOUR, LISSAGE, MASQUER],
   ellipseMarquee: [MODE, CONTOUR, LISSAGE, MASQUER],
@@ -162,8 +165,7 @@ export function initOutils(PL) {
       b.classList.toggle("actif", o.id === PL.etat.outil);
       const ico = b.querySelector(".ico");
       if (ico.dataset.nomIcone !== o.icone) {
-        ico.dataset.nomIcone = o.icone; ico.textContent = "";
-        PL.icone(o.icone).then((svg) => { if (ico.dataset.nomIcone === o.icone) ico.innerHTML = svg; });
+        ico.dataset.nomIcone = o.icone; ico.innerHTML = PL.icone(o.icone, 18);
       }
     });
   }
@@ -228,7 +230,7 @@ export function initOutils(PL) {
       l.querySelector(".puce").textContent = o.id === PL.etat.outil ? "●" : "";
       l.querySelector(".nom").textContent = T(cleNom(o.id)) + (o.p2 ? "" : " — " + T("photolab.outil.bientot"));
       l.querySelector(".lettre").textContent = o.lettre;
-      PL.icone(o.icone).then((svg) => { l.querySelector(".ico").innerHTML = svg; });
+      l.querySelector(".ico").innerHTML = PL.icone(o.icone);
       l.addEventListener("click", () => {
         if (o.p2) choisir(o.id); else PL.signaler(infobulle(o, T));
         fermerFlyout();
@@ -271,7 +273,7 @@ export function initOutils(PL) {
   pFg.title = T("photolab.couleur.avant"); pBg.title = T("photolab.couleur.arriere");
   pX.title = T("photolab.couleur.echanger") + " (X)"; pD.title = T("photolab.couleur.defaut") + " (D)";
   for (const b of [pFg, pBg, pX, pD]) b.setAttribute("aria-label", b.title);
-  pX.textContent = "⇄"; pD.textContent = "◧";
+  pX.innerHTML = PL.icone("dz-edit-echanger-couleurs", 14); pD.innerHTML = PL.icone("dz-edit-couleurs-defaut", 14);
   function dessinerPastilles() {
     pFg.style.background = PL.etat.couleurs.fg; pBg.style.background = PL.etat.couleurs.bg;
   }
@@ -339,6 +341,7 @@ export function initOutils(PL) {
       // t157 : un bouton d'action (pas une option rangée) : l'écran s'il traite l'entrée, sinon la commande du moteur.
       const b = document.createElement("button"); b.type = "button"; b.className = "pl-bouton opt-action";
       b.textContent = T(o.libelle);
+      if (o.icone) b.insertAdjacentHTML("afterbegin", PL.icone(o.icone));
       b.addEventListener("click", () => {
         if (!PL.etat.doc) return;
         if (PL.actions && PL.actions[o.action]) PL.actions[o.action]();
@@ -377,6 +380,7 @@ export function initOutils(PL) {
       for (const v of o.valeurs) {
         const b = document.createElement("button"); b.type = "button";
         b.textContent = T(o.libelle + "." + snake(v));
+        if (o.icones && o.icones[v]) b.insertAdjacentHTML("afterbegin", PL.icone(o.icones[v]));
         b.classList.toggle("actif", val === v);
         b.addEventListener("click", () => {
           store[o.cle] = v;

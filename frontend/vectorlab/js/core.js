@@ -7,6 +7,7 @@ import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique,
          sommetDe, op_dupliquer, reperes_guides, reperes_rects, planches_guides }
   from "./mod-doc.js";
 import { grille_d, grille_aimanter } from "./mod-grille.js";
+import { dzi } from "./mod-icones.js";
 import { aimant_objets, aimant_ecarts, aimant_fusion } from "./mod-aimant.js";
 import { initPlateau, grilleLibelle } from "./mod-plateau.js";
 import { initPlanches } from "./mod-planches.js";
@@ -284,7 +285,7 @@ function zoomAjuster() {
 function rendre() {
   $("#canvasHost").innerHTML = etat.doc ? compilerSVG(etat.doc, { image: VL.imageUrl, mesure: VL.mesureTexte }) : "";
   dessinerGrille();          // couche d'affichage, hors document et hors export
-  $("#temoin").textContent = etat.sale ? "●" : "✓";
+  $("#temoin").innerHTML = dzi(etat.sale ? "dz-etat-modifie" : "dz-etat-enregistre", 16);
   $("#temoin").classList.toggle("sale", etat.sale);
   VL.surRendu();                     // calques et outils se resynchronisent
   appliquerVue();
@@ -350,7 +351,7 @@ function majBoutonGrille() {
   const b = $("#btnGrille");
   if (!b) return;
   b.classList.toggle("actif", etat.grille.active);
-  b.textContent = grilleLibelle(grilleDoc(), etat.grille.pas);
+  b.innerHTML = dzi("dz-edit-grille", 16) + `<span>${grilleLibelle(grilleDoc(), etat.grille.pas)}</span>`;
   b.title = "Grille d'aimantation et repère visuel (G) — "
     + (grilleDoc() ? "grille du document (panneau Grille)" : "pas de " + etat.grille.pas + " px")
     + (etat.grille.active && !grilleLisible()
@@ -605,7 +606,7 @@ async function sauver() {
     etat.sale = false;
     majTete();
     VL.surSauve();                     // le brouillon s'efface (lot A)
-    $("#temoin").textContent = "✓";
+    $("#temoin").innerHTML = dzi("dz-etat-enregistre", 16);
     $("#temoin").classList.remove("sale");
     // phase 6 : la vignette suit la sauvegarde — jamais bloquante, son
     // échec ne casse pas un save

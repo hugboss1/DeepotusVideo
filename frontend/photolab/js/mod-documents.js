@@ -183,12 +183,15 @@ export function initDocuments(PL) {
       el.setAttribute("role", "tab"); el.setAttribute("aria-selected", o.actif ? "true" : "false");
       el.dataset.index = String(o.index);
       const n = brut(document.createElement("span"));        // nom du document : jamais traduit
-      n.textContent = (o.nom || T("photolab.nouveau.sans_titre")) + (o.modifie ? " •" : "");
-      const x = document.createElement("button"); x.type = "button"; x.className = "onglet-fermer"; x.textContent = "×";
+      n.textContent = o.nom || T("photolab.nouveau.sans_titre");
+      // G4 : document modifié = icône dz-etat-modifie après le nom (le nom reste une donnée brute)
+      const mod = document.createElement("span"); mod.className = "onglet-modifie"; mod.hidden = !o.modifie;
+      if (o.modifie) mod.innerHTML = PL.icone("dz-etat-modifie", 10);
+      const x = document.createElement("button"); x.type = "button"; x.className = "onglet-fermer"; x.innerHTML = PL.icone("dz-action-fermer", 12);
       x.title = T("commun.action.fermer"); x.setAttribute("aria-label", x.title);
       x.addEventListener("click", (ev) => { ev.stopPropagation(); fermerDocument(o.index); });
       if (!o.actif) el.addEventListener("click", () => activer(o.index));
-      el.append(n, x);
+      el.append(n, mod, x);
       zone.appendChild(el);
     }
   }

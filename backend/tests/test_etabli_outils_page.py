@@ -870,8 +870,10 @@ def test_l_apercu_de_tranchage_ne_promet_QUE_l_indicatif_et_n_ecrit_rien():
 
 def test_les_libelles_des_deux_apercus_disent_leur_ETAT():
     m = _fonction_etabli("majOutils")
-    assert 'SURPLOMB.actif ? "Surplombs ✓" : "Surplombs"' in m
-    assert 'TRANCHES.actives ? "Tranches ✓" : "Tranches"' in m
+    # G6 (Deepotus Glyph) : l'état « actif » n'est plus un « ✓ » collé au libellé mais l'icône dz-etat-option-active
+    # posée devant lui par libeller() ; éteint, aucune icône. Le libellé, lui, ne change plus.
+    assert 'libeller(sp, SURPLOMB.actif ? "dz-etat-option-active" : null, "Surplombs");' in m
+    assert 'libeller(tr, TRANCHES.actives ? "dz-etat-option-active" : null, "Tranches");' in m
 
 
 # ── T091 : « → Impression 3D » dans l'Établi, sur la version AFFICHÉE ──────────
@@ -973,8 +975,10 @@ def test_le_guide_ne_cite_QUE_des_libelles_qui_existent_dans_l_ecran():
     l'export n'imprimait pas la version affichée."""
     ecran = (_lire("etabli/etabli.js") + _lire("etabli/index.html") + _lire("studio3d/index.html"))
     for libelle in ("Réparer en un clic", "Poser sur une face", "Surplombs", "Tranches", "Creuser", "Décimer",
-                    "Ranger sur le plateau", "Mesurer", "→ Impression 3D", "Ouvrir dans le slicer",
-                    "07 · Établi 3D →", "écrire la version", "taille cible", "Sur la plaque", "Orienter"):
+                    # G6 : les flèches « → » de ces deux boutons sont devenues des icônes (dz-lab3d-impression-3d,
+                    # dz-nav-etabli) ; le guide, qui les écrit encore, contient toujours le libellé
+                    "Ranger sur le plateau", "Mesurer", "Impression 3D", "Ouvrir dans le slicer",
+                    "07 · Établi 3D", "écrire la version", "taille cible", "Sur la plaque", "Orienter"):
         # comme TEXTE d'un contrôle — balisage `>libellé<` ou chaîne exacte écrite par le JS —, pas n'importe où :
         # « → Impression 3D » vit aussi dans un message de refus, qui survivait au renommage du bouton
         assert re.search(r">\s*" + re.escape(libelle) + r"\s*<", ecran) or f'"{libelle}"' in ecran, libelle

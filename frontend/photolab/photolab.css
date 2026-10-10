@@ -56,7 +56,7 @@ button:disabled { opacity: .4; cursor: default; }
   background: var(--accent-soft); border-color: var(--stroke-strong); color: var(--accent);
 }
 #outils svg { width: 18px; height: 18px; }
-#rail svg { width: 16px; height: 16px; }
+#rail svg { width: 18px; height: 18px; }
 
 #scene {
   flex: 1; min-width: 0; position: relative; overflow: hidden;
@@ -670,8 +670,6 @@ body.ecran-plein #panneaux, body.ecran-plein #statut, body.ecran-plein .espace-b
 .tx-case { display: flex; margin: 4px 0; }
 .tx-lib { color: var(--ink-muted); }
 .tx-bascules { gap: 2px; }
-.tx-bascule.tx-fauxBold { font-weight: 700; } .tx-bascule.tx-fauxItalic { font-style: italic; }
-.tx-bascule.tx-underline { text-decoration: underline; } .tx-bascule.tx-strikethrough { text-decoration: line-through; }
 .tx-police { position: relative; display: inline-block; }
 .tx-police-btn { min-width: 120px; max-width: 170px; height: 22px; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
   background: var(--bg-panel-2); color: var(--ink-strong); border: 1px solid var(--stroke); border-radius: 3px; }
@@ -876,3 +874,24 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 .nt-texte { width: 100%; min-height: 120px; resize: vertical; box-sizing: border-box; background: var(--bg-base); color: var(--ink);
   border: 1px solid var(--stroke); border-radius: 3px; padding: 6px; font: inherit; }
 
+/* ---- G4 : icônes Deepotus Glyph (dzIcone, /shared/icons) : un chevron unique orienté par CSS ; boutons à icône ---- */
+.pl-replie svg.dzi, .menu-sous svg.dzi { transform: rotate(-90deg); }
+.menu-sous { display: inline-flex; }
+.menu-ligne .menu-coche { display: inline-flex; align-items: center; }
+#options .opt-groupe button, #options .opt-action, .co-bouton, .tx-vertical { display: inline-flex; align-items: center; gap: 4px; }
+#options .opt-groupe button svg, #options .opt-action svg, .co-bouton svg { width: 14px; height: 14px; }
+.accueil-boutons .btn { justify-content: flex-start; gap: 10px; }
+.accueil-boutons .btn kbd { margin-left: auto; }
+.tr-bascule, .tr-valider, .tr-annuler, .pr-fleche, .onglet-fermer, .pi-suppr, .pastilles .pastille-x, .pastilles .pastille-d,
+.cmp-alerte, .hi-alerte, .cq-fx { display: inline-flex; align-items: center; justify-content: center; }
+.tr-bascule svg, .tr-valider svg, .tr-annuler svg { width: 14px; height: 14px; }
+.pr-fleche svg, .pi-suppr svg, .cmp-alerte svg, .hi-alerte svg { width: 12px; height: 12px; }
+.onglet-fermer svg { width: 12px; height: 12px; }
+.pastilles .pastille-x svg, .pastilles .pastille-d svg { width: 14px; height: 14px; }
+.cq-fx svg { width: 12px; height: 12px; }
+.tr-ref-ico, .espace-ico { display: inline-flex; color: var(--ink-muted); }
+.tr-ref-ico svg { width: 14px; height: 14px; }
+.espace-ico svg { width: 16px; height: 16px; }
+.onglet-modifie { display: inline-flex; color: var(--accent); }
+.onglet-modifie[hidden], .cmp-alerte[hidden], .hi-alerte[hidden] { display: none; }
+.onglet-modifie svg { width: 8px; height: 8px; }
