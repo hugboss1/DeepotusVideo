@@ -86,7 +86,7 @@ COMPTES = {
     "dz-action-annuler": 2, "dz-action-choisir-bibliotheque": 1, "dz-action-coller": 1, "dz-action-deplier": 4, "dz-action-dupliquer": 3,
     "dz-action-element-precedent": 2, "dz-action-element-suivant": 2, "dz-action-enregistrer": 1, "dz-action-exporter": 1,
     "dz-action-fermer": 8, "dz-action-importer": 4, "dz-action-modifier": 1, "dz-action-nouveau": 1, "dz-action-raccourcis": 1,
-    "dz-action-recalculer": 1, "dz-action-reglages": 2, "dz-action-reinitialiser": 3, "dz-action-renommer": 2, "dz-action-retablir": 1,
+    "dz-action-recalculer": 1, "dz-action-reglages": 1, "dz-action-reinitialiser": 3, "dz-action-renommer": 2, "dz-action-retablir": 1,
     "dz-action-supprimer": 10, "dz-action-telecharger": 1, "dz-action-valider": 1, "dz-action-vider": 2, "dz-action-zoom-arriere": 1,
     "dz-action-zoom-avant": 1, "dz-calque-ecretage": 2, "dz-calque-groupe": 1, "dz-calque-masque": 2, "dz-calque-nouveau": 2,
     "dz-calque-pixel": 1, "dz-calque-reglage": 1, "dz-calque-texte": 2, "dz-calque-vectoriel": 1, "dz-cat-cartes": 1, "dz-cat-sprites": 1,
@@ -103,7 +103,7 @@ COMPTES = {
     "dz-etat-inconnu": 3, "dz-etat-libre": 2, "dz-etat-modifie": 1, "dz-etat-sans-apercu": 1, "dz-etat-verrouille": 3,
     "dz-etat-visible": 1, "dz-lab3d-impression-3d": 4, "dz-lab3d-relief": 1, "dz-media-fond-carte": 1, "dz-media-generer-image": 4,
     "dz-media-image": 2, "dz-media-lecture": 2, "dz-media-pause": 2, "dz-media-police": 1, "dz-nav-bible": 2, "dz-nav-bibliotheque": 1,
-    "dz-nav-chapitres": 1, "dz-nav-documents": 1, "dz-nav-espace-pixel": 2, "dz-nav-espace-vecteur": 1,
+    "dz-nav-chapitres": 1, "dz-nav-documents": 1, "dz-nav-espace-pixel": 2, "dz-nav-espace-vecteur": 1, "dz-nav-reglages": 1,
     "dz-outil-photo-densite-moins": 1, "dz-outil-photo-densite-plus": 1, "dz-outil-photo-flou": 1, "dz-outil-photo-recadrer": 1,
     "dz-outil-photo-tampon": 1, "dz-outil-px-baguette": 1, "dz-outil-px-crayon": 1, "dz-outil-px-degrade": 1, "dz-outil-px-gomme": 1,
     "dz-outil-px-lasso": 1, "dz-outil-px-ligne": 1, "dz-outil-px-pinceau": 1, "dz-outil-px-pot": 1, "dz-outil-px-rectangle": 1,
@@ -134,6 +134,11 @@ inconnues = sorted({k for s in CODE.values() for k in CLE.findall(s)
                     if k.startswith(("dz-action-", "dz-edit-", "dz-outil-", "dz-etat-", "dz-calque-", "dz-media-", "dz-nav-",
                                      "dz-cat-", "dz-lab3d-")) and k not in LEXIQUE})
 check("2.5 aucune clé inventée : toute clé posée existe dans la suite", not inconnues, inconnues)
+
+ic0 = CODE[VL / "js/mod-icones.js"]
+cd, pa = re.search(r'configDoc: "([^"]+)"', ic0), re.search(r'parametres: "([^"]+)"', ic0)
+check("2.6 deux fonctions, deux icônes : Configuration du document = dz-action-reglages, Paramètres de l'appli = dz-nav-reglages",
+      bool(cd and pa) and cd.group(1) == "dz-action-reglages" and pa.group(1) == "dz-nav-reglages", (cd and cd.group(1), pa and pa.group(1)))
 
 # ── [3] plus aucun ancien dessin
 print("[3] plus aucun ancien dessin")

@@ -75,7 +75,7 @@ export const ICONES = {
   "al-centreV": "dz-edit-aligner-centre-v",
   "al-bas": "dz-edit-aligner-bas",
   configDoc: "dz-action-reglages",
-  parametres: "dz-action-reglages",
+  parametres: "dz-nav-reglages",               // préférences de l'appli ≠ configuration du document
 };
 // les types de rangées d'objet du panneau Calques (mod-layers : arbre_calques → r.icone) ;
 // la rangée de CALQUE montre une vignette, jamais d'icône
