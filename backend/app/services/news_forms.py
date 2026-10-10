@@ -18,20 +18,20 @@ from app.config import settings
 from app.services import pricing
 
 _CATALOGUE = [
-    {"id": "cartes", "label": "Cartes animees (gratuit)",
+    {"id": "cartes", "label": "Cartes animées (gratuit)",
      "description": "les titres en cartes de marque, rendues localement par ffmpeg ; aucun fournisseur",
      "producteur": "/api/news/illustration", "depend_de": "", "payant": False},
     {"id": "illustration_ia", "label": "Illustration IA par titre",
-     "description": "une image de marque generee par titre, animee en cartes",
+     "description": "une image de marque générée par titre, animée en cartes",
      "producteur": "/api/images/generate", "depend_de": "", "payant": True},
-    {"id": "plans_seedance", "label": "Plans video par sujet",
-     "description": "un plan genere par sujet, monte bout a bout",
+    {"id": "plans_seedance", "label": "Plans vidéo par sujet",
+     "description": "un plan généré par sujet, monté bout à bout",
      "producteur": "/api/generate", "depend_de": "R1", "payant": True},
-    {"id": "avatar", "label": "Avatar presentateur",
+    {"id": "avatar", "label": "Avatar présentateur",
      "description": "l'avatar HeyGen lit le script, compose avec les cartes",
      "producteur": "pipeline:heygen", "depend_de": "", "payant": True},
     {"id": "voix_sous_titres", "label": "Voix off et sous-titres",
-     "description": "pas d'avatar : voix ElevenLabs sur les cartes, sous-titres cales sur le texte connu",
+     "description": "pas d'avatar : voix ElevenLabs sur les cartes, sous-titres calés sur le texte connu",
      "producteur": "subtitle_service:burn", "depend_de": "R5 P2", "payant": True},
 ]
 

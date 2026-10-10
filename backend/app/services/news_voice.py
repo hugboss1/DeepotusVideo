@@ -47,7 +47,7 @@ def _deterministe(items: list[dict]) -> tuple[str, str]:
         if len(touches) > len(touches_du_meilleur):
             meilleur, touches_du_meilleur = nom, touches
     if not touches_du_meilleur:
-        return MODE_DEFAUT, "aucun mot du sujet ne tranche, mode par defaut"
+        return MODE_DEFAUT, "aucun mot du sujet ne tranche, mode par défaut"
     return meilleur, "mots du sujet : " + ", ".join(touches_du_meilleur[:3])
 
 
@@ -72,7 +72,7 @@ def _llm(items: list[dict]) -> tuple[str, str] | None:
     if mode not in MODES:
         logger.warning(f"news_voice: mode inconnu rendu ({mode!r}) - repli")
         return None
-    return mode, str(d.get("pourquoi") or "")[:200] or "choisi par le modele"
+    return mode, str(d.get("pourquoi") or "")[:200] or "choisi par le modèle"
 
 
 def choisir_mode(items: list[dict], *, force: str | None = None, llm: bool = False) -> tuple[str, str]:

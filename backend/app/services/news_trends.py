@@ -25,7 +25,7 @@ SOURCES_MIN = 3            # medias distincts pour qu'un sujet soit « tendance 
 APPELS_PAR_JOUR = 3        # appels X par jour au plus
 POSTS_PAR_APPEL = 10       # max_results minimal de search_recent_tweets : un appel peut lire 10 posts
 MOTIF_JOUR = "limite du jour atteinte : 3 lectures du signal X par jour"
-MOTIF_CLE = "aucune cle X configuree (Reglages -> Connected accounts)"
+MOTIF_CLE = "aucune clé X configurée (Réglages → Comptes connectés)"
 
 
 def chemin_budget() -> Path:

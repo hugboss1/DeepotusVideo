@@ -73,11 +73,11 @@ def score_deterministe(item: dict, mots_du_brief: list[str]) -> tuple[int, str]:
     if touches:
         bouts.append("brief : " + ", ".join(touches[:3]))
     if reprises:
-        bouts.append(f"{reprises} media(s) sur le meme sujet")
+        bouts.append(f"{reprises} média(s) sur le même sujet")
     if pts_corps:
         bouts.append("article lisible")
     if hors_brief and signaux:
-        bouts.append("hors brief : moitie des points")
+        bouts.append("hors brief : moitié des points")
     return total, " ; ".join(bouts) or "aucun signal, socle seulement"
 
 
@@ -167,7 +167,7 @@ def classer(items: list[dict], *, brief: str = "", penalites: dict | None = None
         except (TypeError, ValueError):
             malus = 0
         if malus:
-            pourquoi = f"{pourquoi} ; -{malus} source sur-representee"
+            pourquoi = f"{pourquoi} ; -{malus} source sur-représentée"
         copie["score"] = max(0, min(100, score - malus))
         copie["score_origine"] = origine
         copie["score_pourquoi"] = pourquoi

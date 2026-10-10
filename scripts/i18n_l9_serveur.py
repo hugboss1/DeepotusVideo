@@ -17,7 +17,9 @@ RACINE = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RACINE / "backend"))
 MESSAGES = RACINE / "backend" / "app" / "i18n" / "messages.json"
 PREFIXE = "particules."
-PREFIXES_L4 = ("effets.", "transitions.", "livraison.", "titres.gabarit.")
+# les clés du lot se posent AVANT le premier bloc d'un autre générateur qui range les siennes en fin : celui des
+# correctifs Planificateur/News (i18n_planif_news_serveur.py) puis celui de L4 — chacun garde ainsi son --check vrai
+PREFIXES_L4 = ("quota.", "apercu.", "news.serveur.", "effets.", "transitions.", "livraison.", "titres.gabarit.")
 
 # id -> (nom, description) ; le « type » ne change qu'un mot (boucle -> loop)
 EN_PRESETS = {
