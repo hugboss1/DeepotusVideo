@@ -10,7 +10,7 @@ import { demanderNom } from "./mod-nommer.js";
 
 export const OPTIONS = [
   { cle: "visibility", icone: "dz-etat-visible", lib: "photolab.compositions.visibilite" },
-  { cle: "position", icone: "dz-outil-photo-deplacer", lib: "photolab.compositions.position" },
+  { cle: "position", icone: "dz-edit-position", lib: "photolab.compositions.position" },
   { cle: "appearance", icone: "dz-edit-effet", lib: "photolab.compositions.apparence" },
 ];
 

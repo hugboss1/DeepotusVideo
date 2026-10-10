@@ -158,7 +158,7 @@ check("6.8 la vue dessine l'image filtrée par les couches", /const image = vue\
 // G4 : icônes des panneaux t153 = clés de la suite Deepotus Glyph
 const icones = ["dz-nav-panneau-infos", "dz-action-element-precedent", "dz-action-element-suivant", "dz-action-redefinir", "dz-edit-effet",
   "dz-edit-charger-selection", "dz-edit-enregistrer-selection", "dz-action-nouveau-dossier", "dz-action-ajouter", "dz-action-supprimer",
-  "dz-etat-visible", "dz-etat-cache", "dz-outil-photo-deplacer", "dz-action-deplier", "dz-etat-avertissement"];
+  "dz-etat-visible", "dz-etat-cache", "dz-edit-position", "dz-action-deplier", "dz-etat-avertissement"];
 check("6.9 icônes des nouveaux panneaux présentes (suite Deepotus Glyph)", icones.every(existeIcone), icones.filter((i) => !existeIcone(i)));
 check("6.10 noms intégrés du moteur : tous ont une clé photolab.presets.*", Object.values(NOMS_INTEGRES).every((k) => k.startsWith("photolab.presets.")));
 

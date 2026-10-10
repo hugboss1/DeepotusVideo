@@ -211,7 +211,7 @@ export function initCalques(PL) {
   // t138 B5 : petit menu des 16 calques de réglage (mod-reglages.js, lu à l'exécution : aucun import croisé).
   const bReglage = bouton("", "dz-calque-reglage", T("photolab.calques.reglage"));
   bReglage.setAttribute("aria-haspopup", "menu");
-  const bGroupe = bouton("", "dz-edit-grouper", T("photolab.calques.nouveau_groupe"));
+  const bGroupe = bouton("", "dz-action-nouveau-dossier", T("photolab.calques.nouveau_groupe"));
   const bNouveau = bouton("", "dz-calque-nouveau", T("photolab.calques.nouveau"));
   const bDupliquer = bouton("", "dz-action-dupliquer", T("photolab.calques.dupliquer"));
   const bFusionner = bouton("", "dz-calque-fusionner", T("photolab.calques.fusionner"));

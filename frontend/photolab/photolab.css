@@ -895,6 +895,3 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 .onglet-modifie { display: inline-flex; color: var(--accent); }
 .onglet-modifie[hidden], .cmp-alerte[hidden], .hi-alerte[hidden] { display: none; }
 .onglet-modifie svg { width: 8px; height: 8px; }
-/* G4 : une icône de la suite dessinée au TRAIT (fill="none" : le pointeur Lucide du Doigt) ne doit pas être remplie par
-   la règle générale svg.dzi { fill: currentColor } du socle (sinon le Doigt devient une tache pleine). */
-svg.dzi[fill="none"] { fill: none; }
