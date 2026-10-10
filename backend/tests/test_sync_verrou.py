@@ -185,7 +185,7 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
           and any(c.get("motif") == "revoque" and c.get("chapitre") == C2 for c in js(loc.get("/api/sync/conflits")).get("conflits", [])))
     check("F7 les ecritures ouvertes au Wi-Fi : exactement les huit (t161 : + la session du Direct)", _MAIN._ECRITURES_OUVERTES == frozenset({
           ("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"), ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses"),
-          ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre"), ("POST", "/api/avatar-live/sessions"), ("POST", "/api/avatar-live/sessions/fin"), ("POST", "/api/avatar-live/sessions/voix"), ("POST", "/api/avatar-live/recast/source"), ("POST", "/api/avatar-live/recast"), ("POST", "/api/avatar-live/voix"), ("POST", "/api/avatar-live/decor"), ("POST", "/api/avatar-live/direct/enregistrer")}), str(sorted(_MAIN._ECRITURES_OUVERTES)))
+          ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre"), ("POST", "/api/avatar-live/sessions"), ("POST", "/api/avatar-live/sessions/fin"), ("POST", "/api/avatar-live/sessions/voix"), ("POST", "/api/avatar-live/recast/source"), ("POST", "/api/avatar-live/recast"), ("POST", "/api/avatar-live/voix"), ("POST", "/api/avatar-live/decor"), ("POST", "/api/avatar-live/direct/enregistrer"), ("POST", "/api/avatar-live/recast/finaliser")}), str(sorted(_MAIN._ECRITURES_OUVERTES)))
 
 print("\n[U] l'ecran Chapitres (frontend/atelier) — cablage ; le comportement est prouve dans le navigateur (8799)")
 _js = (_ICI.parent.parent / "frontend" / "atelier" / "atelier.js").read_text(encoding="utf-8")
