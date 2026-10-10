@@ -71,6 +71,10 @@ RS._upload, RS._fal_subscribe, RS._download = f_upload, f_subscribe, f_download
 SRC5 = mp4("cinq.mp4", 5)
 SRC40 = mp4("long.mp4", 40)
 SRC2 = mp4("court.mp4", 2)
+SRCSON = _tmp / "son.mp4"     # une prise AVEC sa piste son (la voix de l'acteur)
+subprocess.run([FFMPEG, "-y", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=720x1280:rate=24:duration=5", "-f", "lavfi",
+                "-i", "sine=frequency=440:duration=5", "-shortest", "-pix_fmt", "yuv420p", "-c:a", "aac", str(SRCSON)],
+               check=True, timeout=180)
 
 print("\n[P] prix relevés le 10/10")
 e = lambda **o: pricing.estimate(dict({"kind": "recast", "seconds": 10}, **o))
@@ -223,6 +227,21 @@ with TestClient(app, client=("127.0.0.1", 5), raise_server_exceptions=False) as 
         time.sleep(0.3)
     check("L2 fal répond sans vidéo : job failed qui nomme les clés reçues", j.get("status") == "failed"
           and "oops" in (j.get("error") or ""), str(j)[:200])
+
+    print("\n[A] le son de la source est gardé (Genjutsu garde l'audio et les lèvres)")
+    RS._fal_subscribe = f_subscribe
+    with open(SRCSON, "rb") as fh:
+        dson = loc.post("/api/avatar-live/recast/source", files={"fichier": ("son.mp4", fh, "video/mp4")}).json()["depot"]
+    r = lancer(source={"depot": dson})
+    jid4 = r.json().get("job_id", "")
+    fin = time.time() + 60
+    while time.time() < fin and (j := loc.get(f"/api/jobs/{jid4}").json()).get("status") not in ("done", "failed"):
+        time.sleep(0.3)
+    sortie = _tmp / "outputs" / "final" / f"{jid4}.mp4"
+    check("SON1 fal rend une vidéo MUETTE, la source parle : la sortie porte la piste de la source",
+          j.get("status") == "done" and RS.a_du_son(sortie), str(j)[:200])
+    check("SON2 témoin : la sortie simulée de fal n'avait pas de son", not RS.a_du_son(SRC5))
+    check("SON3 source muette : sortie muette, aucun échec (rendu J2)", not RS.a_du_son(_tmp / "outputs" / "final" / f"{jid}.mp4"))
 
 print("\n[R] recensement")
 import _recensement_payant as RP                                    # noqa: E402

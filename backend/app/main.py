@@ -493,6 +493,28 @@ if _vectorlab.is_dir():
 
     logger.info(f"Serving vectorlab from {_vectorlab}")
 
+# ── Avatar live (t162, G1, 10/10/2026) : Personnages et Recast différé (puis le Direct, G4). Page statique
+# (frontend/avatar/), montée comme /photolab, sans cache (noms de fichiers stables).
+_avatar = Path(__file__).resolve().parent.parent.parent / "frontend" / "avatar"
+if _avatar.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFAv
+
+    class _AvatarStatic(_SFAv):
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/avatar", _AvatarStatic(directory=str(_avatar), html=True), name="avatar")
+
+    @app.get("/avatar", include_in_schema=False)
+    async def _avatar_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/avatar/", status_code=307)
+
 # ── Photolab (t137, P2, 07/10/2026): l'écran de retouche d'image qui pilote le
 # moteur photocraft (/api/photolab). Page statique modulaire (frontend/photolab/),
 # montée comme /vectorlab, ouverte dans une iframe par la barre des applications.

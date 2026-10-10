@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -149,6 +150,34 @@ async def _download(url: str, dest: Path) -> None:                  # seam
         tmp.replace(dest)
 
 
+def a_du_son(path) -> bool:
+    """Vrai si ffprobe trouve au moins une piste audio."""
+    from app.services.fal_video_tools import _bin
+    out = subprocess.run([_bin("ffprobe"), "-v", "error", "-select_streams", "a", "-show_entries", "stream=index",
+                          "-of", "csv=p=0", str(path)], capture_output=True, timeout=60)
+    return bool(out.stdout.strip())
+
+
+def reposer_son(src: Path, dest: Path) -> bool:
+    """Genjutsu garde l'audio et la synchro labiale de la source. Les modèles Wan et Lucy ne disent pas rendre de son
+    (schémas de sortie du 10/10) : si la vidéo rendue n'en a pas et que la source en a, la piste de la source est
+    recollée (vidéo copiée, -shortest : Wan normalise à 16 i/s et peut raccourcir d'une fraction de seconde).
+    Local, gratuit. Rend vrai si la piste a été posée."""
+    from app.services.fal_video_tools import _bin
+    if a_du_son(dest) or not a_du_son(src):
+        return False
+    tmp = dest.with_name(dest.stem + ".son" + dest.suffix)
+    r = subprocess.run([_bin("ffmpeg"), "-y", "-v", "error", "-i", str(dest), "-i", str(src), "-map", "0:v:0",
+                        "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-shortest", str(tmp)],
+                       capture_output=True, timeout=300)
+    if r.returncode != 0 or not tmp.is_file():
+        tmp.unlink(missing_ok=True)
+        logger.warning(f"recast : son de la source non recollé ({r.stderr.decode('utf-8', 'replace')[-200:]})")
+        return False
+    tmp.replace(dest)
+    return True
+
+
 def arguments(prep: dict, video_url: str, images: list[str]) -> dict:
     """Le corps fal de chaque famille, d'après l'openapi relevé le 10/10."""
     m = MODELES[prep["modele"]]
@@ -199,6 +228,8 @@ async def _executer(job_id: str, prep: dict, lignes: list) -> None:
         dest = Path(settings.outputs_path) / "final" / f"{job_id}.mp4"
         dest.parent.mkdir(parents=True, exist_ok=True)
         await _download(url, dest)
+        if await asyncio.to_thread(reposer_son, Path(prep["src"]), dest):
+            logger.info(f"recast {job_id} : son de la source recollé")
         await maj(video_path=str(dest), final_video_path=str(dest), status=JobStatus.DONE.value,
                   current_step="Complete", progress=100, completed_at=datetime.utcnow())
         logger.info(f"recast {job_id} ({prep['modele']}) : {dest.name}")

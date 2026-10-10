@@ -1,0 +1,258 @@
+/* Avatar live (t162, 10/10/2026) — l'écran des Personnages et du Recast différé.
+   Serveur : /api/avatar-live (backend/app/api/avatar_live_routes.py). Le catalogue des modèles, leurs prix et les
+   préréglages sont SERVIS (/recast/modeles) : rien n'est recopié ici. Le 402 d'un plafond est pris par
+   /shared/dz-plafonds.js (dialogue « Tirer quand même »), chargé avant ce fichier. Vanilla DOM. */
+(function () {
+  "use strict";
+  var API = "/api/avatar-live";
+  var $ = function (id) { return document.getElementById(id); };
+  var etat = { cat: null, persos: [], fichiers: [], source: null, modele: "remplacer", pre: "", suivis: {} };
+
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === "text") n.textContent = attrs[k];
+      else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] !== false && attrs[k] != null) n.setAttribute(k, attrs[k] === true ? "" : attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c != null) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function usd(v) { return (window.__dzPlafonds ? window.__dzPlafonds.usd(v) : (Number(v) || 0).toFixed(2) + " $"); }
+  // un tarif PAR SECONDE garde ses trois décimales (0,126 $/s, pas 0,13)
+  function jid(j) { return j.job_id || j.id; }   // /api/jobs rend « job_id »
+  function sec(v) { return (Number(v) || 0).toFixed(1).replace(".", ",") + " s"; }
+  function usdS(v) { return (Number(v) || 0).toFixed(3).replace(/0$/, "").replace(".", ",") + " $/s"; }
+  function msg(id, t, err) { var m = $(id); m.textContent = t || ""; m.classList.toggle("err", !!err); }
+  async function lire(r) {
+    var j = null;
+    try { j = await r.json(); } catch (e) { /* corps vide */ }
+    if (!r.ok) {
+      var d = j && j.detail;
+      throw new Error(typeof d === "string" ? d : (d && d.dz_plafond && d.dz_plafond.message) || ("HTTP " + r.status));
+    }
+    return j;
+  }
+  function b64(f) {
+    return new Promise(function (ok, ko) {
+      var fr = new FileReader();
+      fr.onload = function () { ok(String(fr.result).split(",")[1] || ""); };
+      fr.onerror = function () { ko(new Error("Lecture du fichier impossible.")); };
+      fr.readAsDataURL(f);
+    });
+  }
+
+  // ── onglets ──
+  document.querySelectorAll(".onglet").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll(".onglet").forEach(function (x) {
+        var a = x === b; x.classList.toggle("actif", a); x.setAttribute("aria-selected", String(a));
+      });
+      $("vuePersonnages").hidden = b.dataset.onglet !== "personnages";
+      $("vueRecast").hidden = b.dataset.onglet !== "recast";
+      try { localStorage.setItem("dz_avatar_onglet", b.dataset.onglet); } catch (e) { /* stockage indisponible */ }
+    });
+  });
+
+  // ── Personnages ──
+  function zoneDepot(zone, input, quand) {
+    zone.addEventListener("click", function () { input.click(); });
+    zone.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
+    zone.addEventListener("dragover", function (e) { e.preventDefault(); zone.classList.add("survol"); });
+    zone.addEventListener("dragleave", function () { zone.classList.remove("survol"); });
+    zone.addEventListener("drop", function (e) { e.preventDefault(); zone.classList.remove("survol"); quand(Array.from(e.dataTransfer.files || [])); });
+    input.addEventListener("change", function () { quand(Array.from(input.files || [])); input.value = ""; });
+  }
+  zoneDepot($("pDepot"), $("pFichiers"), function (fs) {
+    var max = (etat.cat && etat.cat.images_max) || 8;
+    etat.fichiers = etat.fichiers.concat(fs.filter(function (f) { return /^image\//.test(f.type); })).slice(0, max);
+    var v = $("pVignettes"); v.textContent = "";
+    etat.fichiers.forEach(function (f) { v.appendChild(el("img", { src: URL.createObjectURL(f), alt: f.name })); });
+    majCreer();
+  });
+  function majCreer() { $("pCreer").disabled = !(etat.fichiers.length && $("pConsent").checked); }
+  $("pConsent").addEventListener("change", majCreer);
+
+  $("pCreer").addEventListener("click", async function () {
+    $("pCreer").disabled = true; msg("pMsg", "Création…");
+    try {
+      var images = await Promise.all(etat.fichiers.map(b64));
+      var voix = $("pVoix").value.trim();
+      var r = await fetch(API + "/personnages", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nom: $("pNom").value, images: images, consentement: $("pConsent").checked,
+          voix: voix ? { fournisseur: "elevenlabs", voice_id: voix } : {} }) });
+      var p = await lire(r);
+      msg("pMsg", "« " + p.nom + " » est prêt.");
+      etat.fichiers = []; $("pVignettes").textContent = ""; $("pNom").value = ""; $("pVoix").value = "";
+      $("pConsent").checked = false;
+      await chargerPersos();
+    } catch (e) { msg("pMsg", e.message, true); }
+    majCreer();
+  });
+
+  async function chargerPersos() {
+    etat.persos = (await lire(await fetch(API + "/personnages"))).personnages || [];
+    var g = $("pListe"); g.textContent = "";
+    if (!etat.persos.length) g.appendChild(el("p", { class: "vide", text: "Aucun Personnage pour l'instant." }));
+    etat.persos.forEach(function (p) {
+      g.appendChild(el("article", { class: "perso" }, [
+        el("img", { src: API + "/personnages/" + p.id + "/image/0", alt: "", loading: "lazy" }),
+        el("div", { class: "corps" }, [
+          el("b", { text: p.nom }),
+          el("small", { text: p.images + (p.images > 1 ? " photos" : " photo") + (p.voix && p.voix.voice_id ? " · voix " + p.voix.voice_id : "") }),
+          el("small", { text: "Consentement du " + String(p.consentement.le || "").slice(0, 10).split("-").reverse().join("/") }),
+          el("button", { type: "button", class: "btn fin", onclick: function () { supprimer(p); } }, [
+            el("span", { text: "Supprimer" })])
+        ])
+      ]));
+    });
+    var s = $("rPerso"), avant = s.value; s.textContent = "";
+    s.appendChild(el("option", { value: "", text: "— aucun —" }));
+    etat.persos.forEach(function (p) { s.appendChild(el("option", { value: p.id, text: p.nom })); });
+    if (avant) s.value = avant; else if (etat.persos.length) s.value = etat.persos[etat.persos.length - 1].id;
+    majRecast();
+  }
+  async function supprimer(p) {
+    var D = window.__dzDialogue;
+    var ok = D && D.confirmer ? await D.confirmer("Supprimer « " + p.nom + " » et ses photos de référence ?", { titre: "Supprimer le Personnage", ok: "Supprimer", annuler: "Annuler" }) : false;
+    if (!ok) return;
+    try { await lire(await fetch(API + "/personnages/" + p.id, { method: "DELETE" })); } catch (e) { msg("pMsg", e.message, true); }
+    chargerPersos();
+  }
+
+  // ── Recast ──
+  zoneDepot($("rDepot"), $("rFichier"), async function (fs) {
+    var f = fs[0]; if (!f) return;
+    $("rRendu").value = "";
+    $("rSourceInfo").textContent = "Envoi de « " + f.name + " »…";
+    try {
+      var fd = new FormData(); fd.append("fichier", f, f.name);
+      var d = await lire(await fetch(API + "/recast/source", { method: "POST", body: fd }));
+      etat.source = { depot: d.depot, duree_s: d.duree_s, nom: f.name };
+      $("rSourceInfo").textContent = f.name + " · " + sec(d.duree_s) + " · " + d.largeur + "×" + d.hauteur;
+    } catch (e) { etat.source = null; $("rSourceInfo").textContent = e.message; }
+    majRecast();
+  });
+  $("rRendu").addEventListener("change", function () {
+    var o = $("rRendu").selectedOptions[0];
+    etat.source = o && o.value ? { job_id: o.value, duree_s: Number(o.dataset.duree) || 0, nom: o.textContent } : null;
+    $("rSourceInfo").textContent = etat.source ? (etat.source.duree_s ? sec(etat.source.duree_s) : "durée lue au lancement") : "";
+    majRecast();
+  });
+
+  function majRecast() {
+    var cat = etat.cat && etat.cat.recast; if (!cat) return;
+    var m = cat.modeles[etat.modele];
+    var res = $("rRes"); var avant = res.value; res.textContent = "";
+    Object.keys(m.prix_usd_s).forEach(function (k) {
+      res.appendChild(el("option", { value: k, text: k === "source" ? "celle de la source" : k }));
+    });
+    res.value = m.prix_usd_s[avant] != null ? avant : m.defaut;
+    $("rOrientChamp").hidden = etat.modele.indexOf("mouvement") !== 0;
+    $("rPerso").disabled = !m.personnage;
+    var prix = m.prix_usd_s[res.value] || 0;
+    var d = etat.source && etat.source.duree_s;
+    $("rDevis").textContent = d ? "≈ " + usd(prix * d) + " (" + sec(d) + " × " + usdS(prix) + ")" : usdS(prix) + " de vidéo";
+    var dureeOk = !d || (d >= cat.duree.min && d <= cat.duree.max);
+    if (d && !dureeOk) $("rSourceInfo").textContent = "Cette vidéo fait " + sec(d) + " : le Recast prend de " + cat.duree.min + " à " + cat.duree.max + " s. Coupe-la au Montage.";
+    var consigneOk = !(etat.modele === "objet" && !$("rConsigne").value.trim() && !etat.pre);
+    $("rLancer").disabled = !(etat.source && dureeOk && consigneOk && (!m.personnage || $("rPerso").value));
+  }
+  ["rPerso", "rRes", "rConsigne", "rOrient"].forEach(function (id) { $(id).addEventListener("input", majRecast); });
+
+  function construireRecast() {
+    var cat = etat.cat.recast, box = $("rModeles"); box.textContent = "";
+    Object.keys(cat.modeles).forEach(function (k) {
+      var m = cat.modeles[k];
+      var prix = Object.keys(m.prix_usd_s).map(function (r) { return usdS(m.prix_usd_s[r]) + (r === "source" ? "" : " en " + r); });
+      box.appendChild(el("label", { class: "modele", title: m.note_prix || "" }, [
+        el("input", { type: "radio", name: "modele", value: k, checked: k === etat.modele,
+          onchange: function () { etat.modele = k; majRecast(); } }),
+        el("span", { class: "nom" }, [el("span", { text: m.label }),
+          el("span", { class: "prix", text: prix[0] + (prix.length > 1 ? " · " + prix[prix.length - 1] : "") })])
+      ]));
+    });
+    var pre = $("rPre"); pre.textContent = "";
+    cat.prereglages.forEach(function (p) {
+      var b = el("button", { type: "button", class: "puce", "aria-pressed": "false", text: p.label, onclick: function () {
+        etat.pre = etat.pre === p.id ? "" : p.id;
+        pre.querySelectorAll(".puce").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b && etat.pre === p.id)); });
+        majRecast();
+      } });
+      pre.appendChild(b);
+    });
+  }
+
+  $("rLancer").addEventListener("click", async function () {
+    $("rLancer").disabled = true; msg("rMsg", "Lancement…");
+    try {
+      var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
+      var d = await lire(await fetch(API + "/recast", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: src, personnage_id: $("rPerso").value || null, modele: etat.modele,
+          resolution: $("rRes").value, consigne: $("rConsigne").value, prereglage: etat.pre, orientation: $("rOrient").value }) }));
+      msg("rMsg", "Lancé : " + usd(d.devis_usd) + " réservés.");
+      suivre(d.job_id);
+    } catch (e) { msg("rMsg", e.message, true); }
+    majRecast();
+  });
+
+  var LIB = { queued: "En file", uploading_image: "Envoi", generating_video: "Rendu chez fal", downloading_video: "Téléchargement", done: "Terminé", failed: "Échec" };
+  function carteJob(j) {
+    var id = jid(j), box = etat.suivis[id];
+    if (!box) {
+      box = el("article", { class: "job" });
+      etat.suivis[id] = box;
+      $("rJobs").prepend(box);
+    }
+    box.textContent = "";
+    box.appendChild(el("div", { class: "tete" }, [el("b", { text: j.title || id }),
+      el("span", { class: "statut " + j.status, text: LIB[j.status] || j.status })]));
+    if (j.status !== "done" && j.status !== "failed") {
+      var g = el("div", { class: "jauge" }, [el("span")]); g.firstChild.style.width = (j.progress || 0) + "%";
+      box.appendChild(g);
+      box.appendChild(el("small", { class: "msg", text: j.current_step || "" }));
+    } else if (j.status === "done") {
+      box.appendChild(el("video", { src: "/api/jobs/" + id + "/video", controls: true, preload: "metadata" }));
+    } else {
+      box.appendChild(el("small", { class: "msg err", text: j.error || "Échec." }));
+    }
+  }
+  async function suivre(id) {
+    for (;;) {
+      var j;
+      try { j = await lire(await fetch("/api/jobs/" + id)); } catch (e) { return; }
+      carteJob(j);
+      if (j.status === "done" || j.status === "failed") return;
+      await new Promise(function (ok) { setTimeout(ok, 2000); });
+    }
+  }
+
+  async function chargerRendus() {
+    try {
+      var d = await lire(await fetch("/api/jobs?limit=40&video=1"));
+      var jobs = Array.isArray(d) ? d : (d.jobs || d.items || []);
+      var s = $("rRendu");
+      jobs.filter(function (j) { return j.status === "done"; }).forEach(function (j) {
+        s.appendChild(el("option", { value: jid(j), "data-duree": j.duration_s || "", text: (j.title || jid(j)).slice(0, 60) }));
+      });
+      jobs.filter(function (j) { return j.provider === "recast"; }).reverse().forEach(carteJob);
+      jobs.filter(function (j) { return j.provider === "recast" && j.status !== "done" && j.status !== "failed"; }).forEach(function (j) { suivre(jid(j)); });
+    } catch (e) { /* liste facultative */ }
+  }
+
+  async function demarrer() {
+    try {
+      var e = await lire(await fetch(API + "/etat"));
+      var r = await lire(await fetch(API + "/recast/modeles"));
+      etat.cat = e; etat.cat.recast = r;
+      $("pConsentTexte").textContent = e.consentement;
+      $("etatCle").textContent = e.cle ? "Direct : clé Decart posée" : "";
+      construireRecast();
+      await chargerPersos();
+      await chargerRendus();
+      var o = null; try { o = localStorage.getItem("dz_avatar_onglet"); } catch (x) { /* rien */ }
+      var b = o && document.querySelector('.onglet[data-onglet="' + o + '"]'); if (b) b.click();
+    } catch (x) { msg("pMsg", "Le serveur ne répond pas : " + x.message, true); }
+  }
+  demarrer();
+})();

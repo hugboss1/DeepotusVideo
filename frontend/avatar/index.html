@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avatar live</title>
+<link rel="icon" type="image/png" href="/api/branding/logo">
+<!-- Internationalisation : dictionnaire puis runtime, AVANT tout autre script (comme les autres pages à part). -->
+<script src="/shared/dz-i18n-dico.js"></script>
+<script src="/shared/dz-i18n.js"></script>
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
+<script src="/shared/icons/dz-icons.js"></script>
+<!-- Plafonds de dépense : le 402 d'un tir payant devient le dialogue maison « Tirer quand même » (t161/t162). -->
+<script src="/shared/dialogue.js"></script>
+<script src="/shared/dz-plafonds.js"></script>
+<link rel="stylesheet" href="avatar.css">
+</head>
+<body>
+<header class="barre">
+  <div class="marque">
+    <svg class="dzi dzi--20" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-avatar"></use></svg>
+    <b>Avatar live</b>
+    <span class="sous">Personnages, Recast différé</span>
+  </div>
+  <nav class="onglets" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" class="onglet actif" data-onglet="personnages" aria-selected="true">Personnages</button>
+    <button type="button" role="tab" class="onglet" data-onglet="recast" aria-selected="false">Recast</button>
+  </nav>
+  <div class="etat" id="etatCle" aria-live="polite"></div>
+</header>
+
+<main>
+  <!-- ══════════ Personnages ══════════ -->
+  <section id="vuePersonnages" class="vue" role="tabpanel">
+    <div class="colonnes">
+      <div class="carte formulaire">
+        <h2>Nouveau Personnage</h2>
+        <p class="aide">Une à huit photos du même visage, de face et bien éclairé (512 px conseillés). Elles servent de référence au Recast et au Direct.</p>
+        <label class="champ">Nom
+          <input id="pNom" type="text" maxlength="60" placeholder="Ex. Oli en costume">
+        </label>
+        <div id="pDepot" class="depot" tabindex="0" role="button" aria-label="Choisir les photos de référence">
+          <svg class="dzi dzi--24" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter"></use></svg>
+          <span>Dépose les photos ici ou clique pour les choisir</span>
+          <input id="pFichiers" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+        </div>
+        <div id="pVignettes" class="vignettes"></div>
+        <label class="champ">Voix associée (facultatif)
+          <input id="pVoix" type="text" maxlength="80" placeholder="Identifiant de voix ElevenLabs">
+        </label>
+        <label class="consentement">
+          <input id="pConsent" type="checkbox">
+          <span id="pConsentTexte">J'ai le droit d'utiliser ce visage et cette voix.</span>
+        </label>
+        <div class="actions">
+          <button id="pCreer" type="button" class="btn plein" disabled>
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-nouveau"></use></svg>Créer le Personnage
+          </button>
+          <span id="pMsg" class="msg" aria-live="polite"></span>
+        </div>
+      </div>
+      <div class="liste">
+        <h2>Mes Personnages</h2>
+        <div id="pListe" class="grille"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ Recast ══════════ -->
+  <section id="vueRecast" class="vue" role="tabpanel" hidden>
+    <div class="colonnes">
+      <div class="carte formulaire">
+        <h2>Recast</h2>
+        <p class="aide">Une vidéo de 3 à 30 s garde son jeu d'acteur ; le personnage, le décor ou un élément change.</p>
+
+        <h3>1. La vidéo source</h3>
+        <div class="source-choix">
+          <div id="rDepot" class="depot petit" tabindex="0" role="button" aria-label="Choisir une vidéo source">
+            <svg class="dzi dzi--20" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-video"></use></svg>
+            <span>Déposer une vidéo (.mp4, .mov, .webm)</span>
+            <input id="rFichier" type="file" accept="video/mp4,video/quicktime,video/webm" hidden>
+          </div>
+          <label class="champ">ou un rendu de l'application
+            <select id="rRendu"><option value="">—</option></select>
+          </label>
+        </div>
+        <div id="rSourceInfo" class="info"></div>
+
+        <h3>2. Le modèle</h3>
+        <div id="rModeles" class="modeles" role="radiogroup" aria-label="Modèle"></div>
+
+        <h3>3. Le Personnage</h3>
+        <select id="rPerso"></select>
+
+        <h3>4. Le décor ou la consigne</h3>
+        <div id="rPre" class="puces" role="group" aria-label="Préréglages"></div>
+        <textarea id="rConsigne" rows="2" maxlength="500" placeholder="Consigne libre (en anglais de préférence), ex. a red leather jacket"></textarea>
+        <div class="ligne">
+          <label class="champ court">Résolution <select id="rRes"></select></label>
+          <label class="champ court" id="rOrientChamp">Orientation
+            <select id="rOrient"><option value="video">celle de la vidéo</option><option value="image">celle de l'image</option></select>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="rLancer" type="button" class="btn plein" disabled>
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-lancer"></use></svg>Lancer le Recast
+          </button>
+          <span id="rDevis" class="devis"></span>
+          <span id="rMsg" class="msg" aria-live="polite"></span>
+        </div>
+      </div>
+      <div class="liste">
+        <h2>Rendus Recast</h2>
+        <div id="rJobs" class="jobs"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="avatar.js"></script>
+</body>
+</html>
