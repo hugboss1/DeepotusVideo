@@ -14453,11 +14453,23 @@
   "ecran": "Données",
   "emplacement": "table de résolution des images",
   "libelle": "",
-  "source": "frontend/cardforge/js/mod-data.js:3179 ; 3183",
+  "source": "frontend/cardforge/js/mod-data.js:3179",
   "cle_visuelle": "glyphe ●",
   "cle_finale": "dz-etat-succes",
   "emoji_conserve": false,
   "raison_finale": ""
+ },
+ {
+  "id": "cardforge.donnees.image-introuvable",
+  "zone": "Card Forge",
+  "ecran": "Données",
+  "emplacement": "table de résolution des images",
+  "libelle": "",
+  "source": "frontend/cardforge/js/mod-data.js:3183",
+  "cle_visuelle": "glyphe ●",
+  "cle_finale": "dz-etat-erreur",
+  "emoji_conserve": false,
+  "raison_finale": "Image introuvable (affichée en rouge) : état d erreur, pas la coche de succès de l image trouvée (relevé du lot G2)."
  },
  {
   "id": "cardforge.donnees.langue-incomplete",
@@ -16819,9 +16831,9 @@
   "libelle": "Paramètres de l'appli…",
   "source": "frontend/vectorlab/js/mod-contexte.js:41 ; frontend/vectorlab/js/mod-icones.js:65",
   "cle_visuelle": "vl-parametres",
-  "cle_finale": "dz-action-reglages",
+  "cle_finale": "dz-nav-reglages",
   "emoji_conserve": false,
-  "raison_finale": ""
+  "raison_finale": "Préférences de l application (pas les options du document) : curseurs des Réglages, distincts de la roue de « Configuration du document » placée juste à côté."
  },
  {
   "id": "vectorlab.ctx.vider",
