@@ -67,8 +67,9 @@ for p in (BUNDLE, BAK, LAYER):
 # d'avant la traduction (test_i18n_l4 garantit qu'elle se défait exactement)
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import _i18n_l1_aide as AIDE  # noqa: E402
-s = AIDE.avant_i18n_l4(BUNDLE.read_bytes().decode("utf-8-sig"))
-bak = AIDE.avant_i18n_l4(BAK.read_bytes().decode("utf-8-sig"))
+# t145 : le bloc SUBS passe par dzT (traduction L5) — ses titres se lisent d'avant la traduction
+s = AIDE.avant_i18n_l5(AIDE.avant_i18n_l4(BUNDLE.read_bytes().decode("utf-8-sig")))
+bak = AIDE.avant_i18n_l5(AIDE.avant_i18n_l4(BAK.read_bytes().decode("utf-8-sig")))
 lay = LAYER.read_bytes().decode("utf-8-sig")
 
 Z1_DEB = "function DzMontage("

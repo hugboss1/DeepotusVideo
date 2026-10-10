@@ -37,6 +37,8 @@
     danger: "background:#c0392b;border-color:#c0392b;color:#ffffff"
   };
   var courant = null;
+  // t145 : libellés par le runtime dz-i18n (chargé avant cette couche partout) ; repli français s'il manque
+  function __dzT(cle, repli) { return typeof window.dzT === "function" ? window.dzT(cle) : repli; }
   function ouvrir(type, message, o) {
     o = o || {};
     return new Promise(function (resoudre) {
@@ -47,10 +49,12 @@
       voile.setAttribute("aria-modal", "true");
       voile.className = "dz-dialogue";
       var danger = !!o.danger || (type === "confirmer" && /supprimer|delete|remove|irr[eé]versible|remplacera|interrompt/i.test(String(message)));
-      var titre = o.titre || (type === "confirmer" ? "Confirmer" : type === "saisir" ? "Saisie" : "Information");
+      var titre = o.titre || (type === "confirmer" ? __dzT("dialogue.titre.confirmer", "Confirmer")
+        : type === "saisir" ? __dzT("dialogue.titre.saisie", "Saisie") : __dzT("dialogue.titre.information", "Information"));
       var boutons = type === "informer"
-        ? [["ok", o.ok || "Fermer", S.ok]]
-        : [["annuler", o.annuler || "Annuler", ""], ["ok", o.ok || (danger ? "Supprimer" : "OK"), danger ? S.danger : S.ok]];
+        ? [["ok", o.ok || __dzT("commun.action.fermer", "Fermer"), S.ok]]
+        : [["annuler", o.annuler || __dzT("commun.action.annuler", "Annuler"), ""],
+           ["ok", o.ok || (danger ? __dzT("commun.action.supprimer", "Supprimer") : __dzT("dialogue.bouton.ok", "OK")), danger ? S.danger : S.ok]];
       var defaut = (type === "confirmer" && danger) ? "annuler" : "ok";
       var boite = document.createElement("div"); boite.setAttribute("style", S.boite);
       var tete = document.createElement("div"); tete.setAttribute("style", S.tete); tete.textContent = titre;

@@ -199,6 +199,7 @@ process.stdout.write(JSON.stringify(R));
     check("6b fins de ligne intactes", BUNB.count(b"\r\n") == BUNB.count(b"\n") > 15000)
     # `return"texte"` minifié devenu `returndzT(…)` : identifiant valide (node --check passe), plantage à l'exécution
     colles = re.findall(r".{12}[A-Za-z0-9_$]dzT\(", BUN) + re.findall(r".{12}[A-Za-z0-9_$]dzT\(", COUCHE)
+    colles = [m for m in colles if not m.endswith("__dzT(")]          # t145 : repli local de dialogue.js, un nom
     check("6e aucun dzT( collé à un mot (returndzT…) dans le bundle ni la couche", not colles, colles[:5])
     p = subprocess.run([sys.executable, str(RACINE / "scripts/qa/dump_studio_registry.py"), "--check"], capture_output=True,
                        text=True, encoding="utf-8", errors="replace", cwd=str(RACINE))

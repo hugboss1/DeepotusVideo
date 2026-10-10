@@ -1,0 +1,6 @@
+{
+  "dialogue.bouton.ok": {"fr": "OK", "en": "OK"},
+  "dialogue.titre.confirmer": {"fr": "Confirmer", "en": "Confirm"},
+  "dialogue.titre.information": {"fr": "Information", "en": "Information"},
+  "dialogue.titre.saisie": {"fr": "Saisie", "en": "Input"}
+}

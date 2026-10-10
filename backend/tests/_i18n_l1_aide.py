@@ -12,6 +12,11 @@
   avant_i18n_l4(bundle)   t144 : le bundle dont les blocs SFXSTUDIO, VFXRACK, SONVFX sont ramenés aux couches d'avant L4
                           (avant_i18n le fait aussi, en premier).
   couche_avant_i18n_l4(texte, cible)  t144 : une des trois couches (sfxstudio, vfxrack, sonvfx) d'avant L4.
+  avant_i18n_l5(bundle)   t145 : le bundle d'avant la traduction L5 — table du maillon patch_bundle_i18n_l5 défaite (bloc
+                          SUBS) et blocs TRANSFERT et DIALOGUE ramenés aux sources d'avant (avant_i18n le fait aussi,
+                          en premier).
+  source_avant_i18n_l5(texte, cible)  t145 : frontend/patches/transfert.js ou frontend/shared/dialogue.js (et ses
+                          copies) d'avant L5.
   PRELUDE_DZT             code JS à placer AVANT la couche ou le bundle exécutés sous node : window.DZ_I18N (le
                           dictionnaire assemblé) et dzT(clé, vars) en FRANÇAIS, la langue de référence — les attentes
                           en français des bancs restent vraies.
@@ -106,6 +111,7 @@ def _bloc(s, f):
 
 
 def _avant_l2_crlf(bundle: str) -> str:
+    bundle = avant_i18n_l5(bundle)                 # t145 : le maillon L5 est posé APRÈS L2
     bundle = avant_i18n_l4(bundle)                 # t144 : les blocs des couches son, traduits APRÈS L2
     if not _TABLE2.is_file():
         return bundle
@@ -121,7 +127,7 @@ def avant_i18n_l2(bundle: str) -> str:
 
 
 def _avant_crlf(bundle: str) -> str:
-    s = _avant_l2_crlf(bundle)                     # t142 : L2 se défait d'abord (maillon posé APRÈS L1) ; t144 : L4 avant
+    s = _avant_l2_crlf(bundle)                     # t145 : L5 se défait là, en premier                     # t142 : L2 se défait d'abord (maillon posé APRÈS L1) ; t144 : L4 avant
     s = _defaire(s, _TABLE, "avant_i18n")
     return _bloc(s, lambda c: _couche_defaire(c, _TABLE, "couche"))
 
@@ -197,3 +203,56 @@ def _prelude():
 
 
 PRELUDE_DZT = _prelude()
+
+
+# t145 — traduction L5 : le bloc SUBS (maillon patch_bundle_i18n_l5, table scripts/i18n_l5_paires.json « paires ») et
+# les couches TRANSFERT et DIALOGUE (sources réécrites, « sources » : positions dans la source de BASE 2b155403, CRLF ;
+# « decalages » : où commence, dans cette source, le cœur que le bloc du bundle porte)
+_TABLE5 = RACINE / "scripts" / "i18n_l5_paires.json"
+_BLOCS5 = {"transfert": "TRANSFERT", "dialogue": "DIALOGUE"}
+_FICHIERS5 = {"transfert.js": "transfert", "dialogue.js": "dialogue"}
+
+
+def _table5():
+    return json.loads(_TABLE5.read_bytes().decode("utf-8")) if _TABLE5.is_file() else None
+
+
+def source_avant_i18n_l5(texte: str, cible: str) -> str:
+    """t145 : la source `cible` (« transfert », « dialogue », ou le nom de fichier) d'avant L5 ; BOM toléré, LF ou
+    CRLF : on rend la même forme."""
+    cible = _FICHIERS5.get(cible, cible)
+    t = _table5()
+    if t is None:
+        return texte
+    bom = texte[:1] == "\ufeff"
+    r = _couche_defaire_subs(texte[1:] if bom else texte, t["sources"].get(cible, []), f"source {cible} L5")
+    return ("\ufeff" + r) if bom else r
+
+
+def _avant_l5_crlf(bundle: str) -> str:
+    t = _table5()
+    if t is None or 'dzT("subs.' not in bundle and 'dzT("transfert.' not in bundle and "__dzT(" not in bundle:
+        return bundle                          # bundle d'avant L5 (un .bak reconstruit) : rendu tel quel
+    s = _defaire(bundle, _TABLE5, "avant_i18n_l5") if 'dzT("subs.' in bundle else bundle
+    for cible, tag in _BLOCS5.items():
+        b, e = f"/*__DZ_{tag}_BEGIN__*/", f"/*__DZ_{tag}_END__*/"
+        if b not in s:
+            continue
+        head, rest = s.split(b, 1)
+        bloc, tail = rest.split(e, 1)
+        lead = bloc[:len(bloc) - len(bloc.lstrip("\r\n"))]
+        trail = bloc[len(bloc.rstrip("\r\n")):]
+        coeur = bloc.strip("\r\n")
+        if ('dzT("transfert.' if cible == "transfert" else "__dzT(") in coeur:
+            d = t["decalages"][cible]
+            subs = [dict(x, pos=x["pos"] - d) for x in t["sources"].get(cible, [])]
+            coeur = _couche_defaire_subs(coeur, subs, f"bloc {tag} L5")
+        s = head + b + lead + coeur + trail + e + tail
+    return s
+
+
+def avant_i18n_l5(bundle: str) -> str:
+    """Le bundle d'avant la seule traduction L5 (t145). LF ou CRLF : on rend la même forme."""
+    if "\r\n" not in bundle:
+        return _avant_l5_crlf(bundle.replace("\n", "\r\n")).replace("\r\n", "\n")
+    return _avant_l5_crlf(bundle)
