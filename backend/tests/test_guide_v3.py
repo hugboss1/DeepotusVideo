@@ -190,6 +190,10 @@ def _corpus(lang):
     else:
         for motif in ("frontend/dist/assets/index-*.js",):
             morceaux += [p.read_text("utf-8", errors="replace") for p in RACINE.glob(motif)]
+        # labs PAS ENCORE traduits : en anglais, l'écran montre encore leurs libellés français (le guide le dit)
+        for lab in NON_TRADUITS:
+            morceaux += [p.read_text("utf-8", errors="replace") for p in (RACINE / "frontend" / lab).glob("*.*")
+                         if p.suffix in (".js", ".html")]
     # la planche des icônes du guide a ses propres boutons (filtres de famille, Imprimer) : ils existent aussi à l'écran
     p = GUIDE / f"lexique-icones-{lang}.html"
     if p.is_file():
@@ -197,6 +201,7 @@ def _corpus(lang):
     return "\n".join(morceaux).replace("’", "'")
 
 
+NON_TRADUITS = ("atelier",)                    # à retirer quand le lab passe par les lots Traduction
 CORPUS = {l: _corpus(l) for l in ("fr", "en")}
 TOLERES = {"Deepotus Video Gen", "FR", "EN"}            # nom de l'icône du Bureau ; boutons de langue du pied du rail
 for cid in v3:

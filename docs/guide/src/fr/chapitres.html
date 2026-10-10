@@ -1,20 +1,39 @@
-<p>Vous avez une histoire à raconter — un chapitre, un morceau de lore, un roman en feuilleton. La page <strong>Épisodes</strong> transforme un bloc de texte en <strong>vidéo verticale narrée et illustrée</strong>, scène par scène, prête pour le Scheduler. Ouvrez-la depuis la barre latérale (<strong>Épisodes</strong>). Un stepper cliquable vous guide en quatre étapes.</p>
+<p class="chapeau-chap">Vous saurez transformer un texte, un chapitre ou un roman en vidéo narrée et illustrée, scène par scène, et préparer son storyboard avant de payer le moindre rendu. Gratuit jusqu'à la narration et aux images ; leur coût s'affiche avant.</p>
 
-<h3>Étape 1 — le chapitre &amp; sa narration</h3>
-<div class="step"><span class="n">1</span><div>Donnez un <strong>titre</strong> à l'épisode, puis <strong>collez votre texte</strong> ou <em>téléversez</em> un <code>.txt</code>, <code>.docx</code> ou <code>.pdf</code> — le texte est extrait pour vous.</div></div>
-<div class="step"><span class="n">2</span><div>Choisissez une <strong>voix</strong> et une <strong>langue</strong> (écoutez une voix avec ▶).</div></div>
-<div class="step"><span class="n">3</span><div><em>Générer la narration</em> → tout le chapitre est lu par ElevenLabs et enregistré dans la bibliothèque audio. Les longs chapitres sont découpés puis recousus automatiquement.</div></div>
+<h3>Deux façons de travailler</h3>
+<figure class="scene" data-scene="chapitres/modes"></figure>
+<p>Ouvrez <b class="ui">Chapitres</b> dans le rail. Le <strong>flux d'origine</strong> (Épisodes) va droit du texte à la vidéo narrée en quatre étapes. L'<strong>Atelier Chapitre</strong> est l'espace complet : manuscrit, bible des personnages et des lieux, scénario, storyboard, animatique.</p>
 
-<h3>Étape 2 — le storyboard (scènes)</h3>
-<p>Une vidéo a besoin de plans. L'app découpe votre chapitre en <strong>scènes</strong>, chacune = un bout de texte + sa propre illustration.</p>
-<div class="step"><span class="n">1</span><div>Choisissez le découpage : <strong>Par paragraphe</strong> (mot pour mot, instantané) ou <strong>Par l'IA</strong> (l'IA regroupe le texte en temps forts visuels et écrit pour chacun un prompt d'illustration riche). Vous pouvez <strong>générer les deux et comparer</strong> avant d'en figer un.</div></div>
-<div class="step"><span class="n">2</span><div><strong>Éditez librement :</strong> ajustez le texte de chaque scène et son prompt d'illustration, réordonnez (↑ ↓), ajoutez ou retirez des scènes (＋ / ✕).</div></div>
+<h3>Un épisode en quatre étapes</h3>
+<figure class="scene" data-scene="chapitres/episodes"></figure>
+<ol class="etapes">
+<li><strong>Script et voix</strong> : donnez un titre, collez le texte ou importez un .txt, .docx ou .pdf. Choisissez la voix et la langue, puis <b class="ui">Générer la narration</b> : tout le chapitre est lu et rangé dans la Bibliothèque audio.</li>
+<li><strong>Scènes</strong> : découpez le texte par paragraphe (mot pour mot) ou par l'IA (en temps forts visuels, avec un prompt d'illustration). Retouchez, réordonnez, ajoutez ou retirez des scènes.</li>
+<li><strong>Illustrations</strong> : une image par scène, avec le modèle de votre choix. Pour chaque scène, choisissez l'animation : lent travelling (Ken Burns), vrai clip Seedance ou image fixe.</li>
+<li><strong>Assemblage et export</strong> : un devis dit le prix des scènes Seedance, puis l'épisode est monté sur sa narration. Si une scène Seedance échoue, elle repasse en travelling et c'est signalé.</li>
+</ol>
+<p>En haut, <b class="ui">Nouveau</b>, <b class="ui">Ouvrir</b> et <b class="ui">Enregistrer</b> gèrent vos épisodes ; un point signale ce qui n'est pas enregistré. <b class="ui">Narrer les scènes</b> ne repaie jamais une scène déjà narrée avec le même texte, la même voix et la même langue.</p>
 
-<h3>Étape 3 — illustrations &amp; animation</h3>
-<div class="step"><span class="n">1</span><div><em>Générer toutes les illustrations</em> (ou une par une) : une image par scène, avec le modèle d'image de votre choix (FLUX ou GPT Image).</div></div>
-<div class="step"><span class="n">2</span><div>Par scène, choisissez l'<strong>animation</strong> : <strong>Ken Burns</strong> (un lent zoom/travelling cinématique, par défaut), <strong>Seedance</strong> (un vrai clip animé) ou <strong>Image fixe</strong>.</div></div>
+<h3>L'Atelier Chapitre</h3>
+<figure class="scene" data-scene="chapitres/atelier"></figure>
+<ol class="etapes">
+<li><strong>Script</strong> : écrivez ou importez le texte du chapitre ; <b class="ui">Manuscrit</b> importe un roman entier, découpé en chapitres, et remplit la bible. Les noms reconnus sont surlignés.</li>
+<li><strong>Bible</strong>, à droite : personnages, lieux, objets, dates, ambiances, décors. Chaque fiche a sa description, sa planche d'images et, pour un personnage, sa voix et son tempérament.</li>
+<li><strong>Scénario</strong> : <b class="ui">Adapter (IA)</b> réécrit le chapitre en scénario sans toucher au manuscrit ; <b class="ui">Voice-over</b> fait lire chaque scène par la voix de son personnage.</li>
+<li><strong>Storyboard</strong> : <b class="ui">Découper (IA)</b> ou <b class="ui">Paragraphes</b> crée les plans, avec leur cadrage, leur caméra, leur durée et les entités qui y figurent.</li>
+<li><b class="ui">Animatique</b> monte les plans en vidéo de répétition, muette et gratuite, à regarder avant de payer un rendu. Elle part ensuite dans un nouveau projet de Montage, en film entier ou en reel de 30 s.</li>
+</ol>
 
-<h3>Étape 4 — assembler &amp; envoyer</h3>
-<div class="step"><span class="n">1</span><div><em>Assembler l'épisode</em> : l'illustration de chaque scène est animée par-dessus sa tranche de narration, puis toutes les scènes sont concaténées en une vidéo verticale — suivez-la dans le Job Dock.</div></div>
-<div class="step"><span class="n">2</span><div>Prévisualisez le résultat, puis <em>Envoyer au Scheduler</em> → un brouillon de post sur <strong>YouTube</strong> et <strong>Instagram</strong>, prêt à légender et planifier.</div></div>
-<div class="tip">Un roman en feuilleton ? Gardez le même persona et la même voix sur toute la série pour la cohérence, puis publiez un épisode par jour depuis le Scheduler.</div>
+<h3>Aller plus loin</h3>
+<div class="cartes">
+<article><i data-dz="dz-nav-versions"></i><h4>Versions</h4><p>Chaque fois que le texte est écrasé, une copie est gardée (dix au plus) : comparez, restaurez, copiez.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>Exports</h4><p>Le manuscrit en .docx ou PDF, le scénario au format du métier, le storyboard en PDF de quatre plans par page.</p></article>
+<article><i data-dz="dz-action-importer"></i><h4>Importer un scénario</h4><p>Un fichier Fountain ou Final Draft remplace les scènes (l'ancien scénario est gardé) ou s'ajoute à la suite.</p></article>
+<article><i data-dz="dz-media-generer-image"></i><h4>Image de production</h4><p>L'image d'un plan est générée avec les vues des personnages comme références ; le coût est dit et confirmé.</p></article>
+<article><i data-dz="dz-media-apparitions"></i><h4>Apparitions</h4><p>Une fiche de la bible liste ses mentions, plans et scènes ; un clic ouvre le plan dans le storyboard.</p></article>
+<article><i data-dz="dz-nav-episodes"></i><h4>Vers un épisode</h4><p><b class="ui">Épisode</b> crée un épisode narré (un plan, une scène) sans rien payer ; narration et rendu se lancent ensuite dans Épisodes.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Réécrire une sélection dans le ton de la bible, générer une image de production ou ajouter la voix témoin de l'animatique est payant : le coût est toujours dit et confirmé avant.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Un chapitre emporté sur votre téléphone est en lecture seule sur le PC, avec un bandeau ; voir <a href="#mobile">Piloter depuis son téléphone</a>.</p></aside>
