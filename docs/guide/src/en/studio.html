@@ -1,0 +1,23 @@
+<h3 id="c9">Compose with the Studio (node editor)</h3>
+<p>The <strong>Studio</strong> is the advanced workshop: you wire <em>nodes</em> (sources → generators → montage → render) like a visual recipe. Don't worry — always start from a ready-made starter graph.</p>
+<img class="shot" src="img/studio.png" alt="Studio">
+<p class="cap">Studio: the node palette on the left, the canvas in the middle, the inspector on the right. Top bar: <strong>New</strong>, <strong>Preview</strong>, <strong>Run</strong>.</p>
+<h4>The basic gestures</h4>
+<div class="step"><span class="n">1</span><div><strong>Start from a template:</strong> in the palette, <em>Starter graphs</em> section, click "Seedance solo", "Avatar post", "UGC + animation", "News reel" or "Timeline montage".</div></div>
+<div class="step"><span class="n">2</span><div><strong>Start from scratch:</strong> <strong>New</strong> button (top bar) → a blank canvas with just the <em>Render</em> output node. The right panel shows the <strong>graph name</strong>, editable.</div></div>
+<div class="step"><span class="n">3</span><div><strong>Add a node — drag &amp; drop:</strong> grab any entry from the palette (Image, Seedance, UGC video, Music track, Text…) and <strong>drop it on the canvas</strong>. The node appears where you dropped it.</div></div>
+<div class="step"><span class="n">4</span><div><strong>Wire:</strong> drag from a node's output port (right side) to another's input port (left side). <strong>Move:</strong> drag the node body. <strong>Delete:</strong> the <strong>×</strong> in the node header (it also removes its connections).</div></div>
+<div class="step"><span class="n">5</span><div><strong>Check then run:</strong> <em>Preview</em> shows inputs/the render; <em>Run</em> compiles the graph and launches the real render (follow it in the Job Dock).</div></div>
+<div class="tip">When you pick an asset in a node (a Library image, an existing render, your UGC clip, a music track), a <strong>thumbnail fills the node</strong>: you see at a glance what the chain will produce.</div>
+
+<h3 id="c15">Studio — Effects, masks &amp; preview</h3>
+<p>Two additions to the node editor (Studio).</p>
+<h4>The “Effects / Mask” node</h4>
+<p>Drag the <strong>Effects / Mask</strong> node (<em>Composition</em> section) and wire its output to the new <strong>fx</strong> port on the <strong>Render</strong> node. The panel shows a <strong>thumbnail grid</strong> so you pick an effect at a glance.</p>
+<p><strong>Available effects:</strong> <strong>LUT / Grade</strong> (named grades — Teal&amp;Orange, Cyberpunk, Deep-sea, Noir, Vintage…), <strong>VHS</strong> (sequenceable line displacement, intensity + speed), <strong>Colorize</strong> (Sepia, Duotone, Matrix, Red-alert…), parametric <strong>Gradients</strong> (2 colors, angle, opacity, blend) — plus modern classics: grain, vignette, chromatic aberration, glitch, bloom, halation, scanlines/CRT, cinematic letterbox, old film, sharpen, blur, dreamy, pixelate, camera shake, mirror, invert.</p>
+<p>Under <strong>“Apply to”</strong>, choose <em>Whole render</em> (global post-pass) or <strong>a specific node</strong> (the targeted layer). Add several Effects nodes to stack effects or target different layers.</p>
+<div class="step"><span class="n">1</span><div>+ Effect → click a thumbnail → set intensity (and preset / speed depending on the effect).</div></div>
+<div class="step"><span class="n">2</span><div>Wire the output to the Render <strong>fx</strong> port, choose the target, then <em>Preview</em> or <em>Run</em>.</div></div>
+<h4>“Preview” button — see it before you pay</h4>
+<p>The <strong>Preview</strong> button (top bar) produces a <strong>free, fast</strong> render of the final composition: not-yet-generated <strong>Seedance/HeyGen</strong> clips are replaced by their <strong>source still</strong>. You see the framing, layers, <strong>overlays and effects</strong> exactly as in the final render — <em>before</em> the paid <strong>Run</strong>.</p>
+<div class="warn">Text overlays (Text overlay / Ticker / Separator) now apply on <strong>every</strong> composition at the Render node (UGC, montage, spatial compose), not only spatial compose.</div>

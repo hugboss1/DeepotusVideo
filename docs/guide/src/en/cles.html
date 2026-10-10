@@ -1,0 +1,12 @@
+<p>Several features call a language model: <strong>news summaries</strong> (News), <strong>marketing plan generation</strong> (Scheduler) and <strong>Episode storyboards</strong> (the "By AI" split). As of v1.15, you choose the <strong>provider</strong> for each.</p>
+<h3>Cloud providers — Anthropic, OpenAI, Gemini</h3>
+<p>Paste whichever key(s) you want in <strong>Settings → API keys</strong>: <strong>Anthropic</strong> (Claude), <strong>OpenAI</strong> (GPT) and/or <strong>Google Gemini</strong>. Just <strong>one</strong> is enough to enable summaries and AI plans; add several if you want to switch between them.</p>
+<div class="tip"><strong>Gemini model</strong>: by default the app uses <code>gemini-flash-latest</code>, Google's stable alias that automatically tracks the latest Flash release — nothing to do. To pin a specific version (e.g. <code>gemini-2.0-flash</code>), fill the <strong>"Gemini — modèle"</strong> field in <em>Settings → API keys</em> and restart the backend. The same Gemini key also powers the Studio's native Google video models (Veo 3.1).</div>
+<div class="step"><span class="n">1</span><div>In <strong>Settings → Provider defaults</strong>, pick the provider per role (summarizer, planner) from a dropdown. A role is only marked "missing" when <strong>none</strong> of its possible providers has a key.</div></div>
+<div class="step"><span class="n">2</span><div><strong>Automatic fallback</strong>: if the chosen provider is unavailable (no key, outage), the app moves to the next available one — you're never stuck.</div></div>
+<div class="tip"><strong>Engine priority</strong>: your choice in <em>Provider defaults</em> first, then the default order <strong>Anthropic → OpenAI → Gemini → Ollama → built-in planner</strong> (deterministic). The plan badge shows which engine actually ran.</div>
+<h3>Fully local LLM — Ollama (free, private)</h3>
+<p>Plans can also run on an <strong>AI model installed on your machine</strong>: it's <strong>free</strong> and your strategy never leaves your computer.</p>
+<div class="step"><span class="n">1</span><div>Install <strong>Ollama</strong> from <code>ollama.com</code> (Windows).</div></div>
+<div class="step"><span class="n">2</span><div>Pull a model: <code>ollama pull qwen2.5:14b-instruct</code>. <em>Recommended: 14B or more.</em></div></div>
+<div class="step"><span class="n">3</span><div><strong>Settings → API keys → Local LLM (Ollama)</strong>: leave the default URL, set the <em>model name</em>, <em>Save</em>, restart the app.</div></div>

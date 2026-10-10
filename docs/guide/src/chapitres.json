@@ -1,0 +1,543 @@
+{
+  "version_guide": "3.0",
+  "familles": [
+    {
+      "id": "demarrer",
+      "fr": "Démarrer",
+      "en": "Get started",
+      "couleur": "--accent"
+    },
+    {
+      "id": "video",
+      "fr": "Créer des vidéos",
+      "en": "Make videos",
+      "couleur": "--c-video"
+    },
+    {
+      "id": "publier",
+      "fr": "Publier",
+      "en": "Publish",
+      "couleur": "--c-av"
+    },
+    {
+      "id": "images",
+      "fr": "Images et dessin",
+      "en": "Images and drawing",
+      "couleur": "--c-image"
+    },
+    {
+      "id": "jeu3d",
+      "fr": "Jeu et 3D",
+      "en": "Games and 3D",
+      "couleur": "--c-3d"
+    },
+    {
+      "id": "annexes",
+      "fr": "Repères",
+      "en": "Reference",
+      "couleur": "--c-text"
+    }
+  ],
+  "chapitres": [
+    {
+      "id": "tour",
+      "famille": "demarrer",
+      "lot": "t171",
+      "icone": "dz-marque-poulpe",
+      "fr": "Faire le tour de l'application",
+      "en": "Take a tour of the app",
+      "anciens": [],
+      "ecrans": [
+        "Application (coque, comportements transversaux)"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "installer",
+      "famille": "demarrer",
+      "lot": "t171",
+      "icone": "dz-action-telecharger",
+      "fr": "Installer, choisir sa langue, mettre à jour",
+      "en": "Install, pick a language, update",
+      "anciens": [
+        "c0"
+      ],
+      "ecrans": [
+        "Traduction FR/EN de l'interface"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "cles",
+      "famille": "demarrer",
+      "lot": "t171",
+      "icone": "dz-nav-cles-api",
+      "fr": "Brancher ses clés et ses moteurs d'IA",
+      "en": "Connect your keys and AI engines",
+      "anciens": [
+        "c11"
+      ],
+      "ecrans": [],
+      "etat": "migre"
+    },
+    {
+      "id": "budget",
+      "famille": "demarrer",
+      "lot": "t171",
+      "icone": "dz-etat-plafond",
+      "fr": "Maîtriser ses dépenses",
+      "en": "Keep spending under control",
+      "anciens": [],
+      "ecrans": []
+    },
+    {
+      "id": "reglages",
+      "famille": "demarrer",
+      "lot": "t171",
+      "icone": "dz-nav-reglages",
+      "fr": "Régler l'application, personas et marque",
+      "en": "Settings, personas and branding",
+      "anciens": [
+        "c1",
+        "c13"
+      ],
+      "ecrans": [
+        "Réglages (Settings)"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "transfert",
+      "famille": "demarrer",
+      "lot": "t171",
+      "icone": "dz-nav-transfert",
+      "fr": "Changer d'ordinateur",
+      "en": "Move to another computer",
+      "anciens": [
+        "c16"
+      ],
+      "ecrans": [],
+      "etat": "migre"
+    },
+    {
+      "id": "mobile",
+      "famille": "demarrer",
+      "lot": "t171",
+      "icone": "dz-etat-mobile",
+      "fr": "Piloter depuis son téléphone",
+      "en": "Drive it from your phone",
+      "anciens": [],
+      "ecrans": [
+        "Compagnon mobile (téléphone + côté PC)"
+      ]
+    },
+    {
+      "id": "quick",
+      "famille": "video",
+      "lot": "t172",
+      "icone": "dz-nav-quick",
+      "fr": "Sortir une vidéo en quelques minutes (Quick)",
+      "en": "Make a video in minutes (Quick)",
+      "anciens": [
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "c6"
+      ],
+      "ecrans": [
+        "Quick"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "studio",
+      "famille": "video",
+      "lot": "t172",
+      "icone": "dz-nav-studio",
+      "fr": "Composer avec le Studio",
+      "en": "Compose with the Studio",
+      "anciens": [
+        "c9",
+        "c15"
+      ],
+      "ecrans": [
+        "Studio (éditeur de nœuds)"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "modeles",
+      "famille": "video",
+      "lot": "t172",
+      "icone": "dz-nav-templates",
+      "fr": "Réutiliser des modèles et des kits de marque",
+      "en": "Reuse templates and brand kits",
+      "anciens": [
+        "c8"
+      ],
+      "ecrans": [
+        "Templates (Modèles)"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "chapitres",
+      "famille": "video",
+      "lot": "t173",
+      "icone": "dz-nav-chapitres",
+      "fr": "Raconter une histoire en épisodes",
+      "en": "Tell a story in episodes",
+      "anciens": [
+        "c7"
+      ],
+      "ecrans": [
+        "Épisodes (Chapitres)",
+        "Atelier / Chapitres (manuscrit, storyboard, bible)"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "son-vfx",
+      "famille": "video",
+      "lot": "t173",
+      "icone": "dz-nav-son-vfx",
+      "fr": "Sons, voix et effets visuels",
+      "en": "Sound, voices and visual effects",
+      "anciens": [],
+      "ecrans": [
+        "Son & VFX"
+      ]
+    },
+    {
+      "id": "avatar-live",
+      "famille": "video",
+      "lot": "t168",
+      "icone": "dz-nav-studio",
+      "fr": "Jouer un avatar en direct",
+      "en": "Perform a live avatar",
+      "anciens": [],
+      "ecrans": [],
+      "note": "écrit par le chantier Avatar live (t161-t168) dans le modèle du guide v3"
+    },
+    {
+      "id": "montage",
+      "famille": "video",
+      "lot": "t174",
+      "icone": "dz-nav-montage",
+      "fr": "Monter une vidéo",
+      "en": "Edit a video",
+      "anciens": [],
+      "ecrans": [
+        "Montage — Édition et timeline",
+        "Montage — Interface, médias et projets"
+      ]
+    },
+    {
+      "id": "montage-finitions",
+      "famille": "video",
+      "lot": "t174",
+      "icone": "dz-nav-montage",
+      "fr": "Étalonner, mixer, titrer",
+      "en": "Grade, mix and add titles",
+      "anciens": [],
+      "ecrans": [
+        "Montage — Couleur",
+        "Montage — Audio",
+        "Montage — Transitions, titres et propriétés de plan"
+      ]
+    },
+    {
+      "id": "montage-livrer",
+      "famille": "video",
+      "lot": "t174",
+      "icone": "dz-action-exporter",
+      "fr": "Livrer : rendus et formats",
+      "en": "Deliver: renders and formats",
+      "anciens": [],
+      "ecrans": [
+        "Montage — Livraison"
+      ]
+    },
+    {
+      "id": "planificateur",
+      "famille": "publier",
+      "lot": "t175",
+      "icone": "dz-nav-scheduler",
+      "fr": "Planifier et publier sa semaine",
+      "en": "Plan and publish your week",
+      "anciens": [
+        "c10"
+      ],
+      "ecrans": [
+        "Scheduler (planificateur de publications)"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "comptes",
+      "famille": "publier",
+      "lot": "t175",
+      "icone": "dz-reseau-youtube",
+      "fr": "Connecter ses comptes",
+      "en": "Connect your accounts",
+      "anciens": [
+        "c12"
+      ],
+      "ecrans": [],
+      "etat": "migre"
+    },
+    {
+      "id": "news",
+      "famille": "publier",
+      "lot": "t175",
+      "icone": "dz-nav-news",
+      "fr": "Suivre l'actualité et en faire des posts",
+      "en": "Follow the news and turn it into posts",
+      "anciens": [],
+      "ecrans": [
+        "News"
+      ]
+    },
+    {
+      "id": "bibliotheque",
+      "famille": "images",
+      "lot": "t176",
+      "icone": "dz-nav-bibliotheque",
+      "fr": "Ranger et retrouver ses médias",
+      "en": "Organise and find your media",
+      "anciens": [],
+      "ecrans": [
+        "Bibliothèque (Library)"
+      ]
+    },
+    {
+      "id": "photolab",
+      "famille": "images",
+      "lot": "t176",
+      "icone": "dz-nav-photolab",
+      "fr": "Retoucher une photo (Photolab)",
+      "en": "Retouch a photo (Photolab)",
+      "anciens": [],
+      "ecrans": [
+        "Photolab — Fichier et documents",
+        "Photolab — Outils",
+        "Photolab — Sélection, édition et transformation",
+        "Photolab — Réglages, filtres et image"
+      ]
+    },
+    {
+      "id": "photolab-avance",
+      "famille": "images",
+      "lot": "t176",
+      "icone": "dz-nav-photolab",
+      "fr": "Calques, masques et espaces de travail",
+      "en": "Layers, masks and workspaces",
+      "anciens": [],
+      "ecrans": [
+        "Photolab — Calques, masques et styles",
+        "Photolab — Panneaux",
+        "Photolab — Affichage et espaces de travail",
+        "Photolab — Mesure, notes et tranches",
+        "Photolab — Préférences et personnalisation"
+      ]
+    },
+    {
+      "id": "vectorlab",
+      "famille": "images",
+      "lot": "t177",
+      "icone": "dz-nav-vectorlab",
+      "fr": "Dessiner en vectoriel (Vectorlab)",
+      "en": "Draw vectors (Vectorlab)",
+      "anciens": [],
+      "ecrans": [
+        "Vectorlab — interface Affinity",
+        "Vectorlab — persona Vecteur",
+        "Vectorlab — liens avec les autres écrans"
+      ]
+    },
+    {
+      "id": "vectorlab-pixel",
+      "famille": "images",
+      "lot": "t177",
+      "icone": "dz-nav-vectorlab",
+      "fr": "Pixel art, export, cartes et objets 3D",
+      "en": "Pixel art, export, maps and 3D objects",
+      "anciens": [],
+      "ecrans": [
+        "Vectorlab — persona Pixel",
+        "Vectorlab — Export",
+        "Vectorlab — Impression 3D",
+        "Vectorlab — Cartes réelles"
+      ]
+    },
+    {
+      "id": "assets2d",
+      "famille": "jeu3d",
+      "lot": "t178",
+      "icone": "dz-nav-game-assets",
+      "fr": "Fabriquer des assets de jeu",
+      "en": "Make game assets",
+      "anciens": [
+        "c17"
+      ],
+      "ecrans": [
+        "Game Assets — onglet Assets 2D et palettes partagées"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "spritelab",
+      "famille": "jeu3d",
+      "lot": "t178",
+      "icone": "dz-cat-sprites",
+      "fr": "Animer des sprites (Sprite Lab)",
+      "en": "Animate sprites (Sprite Lab)",
+      "anciens": [],
+      "ecrans": [
+        "Sprite Lab"
+      ]
+    },
+    {
+      "id": "tilelab",
+      "famille": "jeu3d",
+      "lot": "t178",
+      "icone": "dz-cat-tuiles",
+      "fr": "Peindre des décors en tuiles (Tile Lab)",
+      "en": "Paint tiled levels (Tile Lab)",
+      "anciens": [],
+      "ecrans": [
+        "Tile Lab"
+      ]
+    },
+    {
+      "id": "cardforge",
+      "famille": "jeu3d",
+      "lot": "t179",
+      "icone": "dz-cat-cartes",
+      "fr": "Créer des cartes à jouer (Card Forge)",
+      "en": "Create playing cards (Card Forge)",
+      "anciens": [
+        "c18"
+      ],
+      "ecrans": [
+        "Card Forge (éditeur de cartes à jouer)"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "forge3d",
+      "famille": "jeu3d",
+      "lot": "t179",
+      "icone": "dz-nav-cf-forge-3d",
+      "fr": "Passer de l'image à l'objet 3D",
+      "en": "From image to 3D object",
+      "anciens": [
+        "c19"
+      ],
+      "ecrans": [
+        "3D Studio / Moteurs 3D"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "matieres",
+      "famille": "jeu3d",
+      "lot": "t179",
+      "icone": "dz-cat-matieres",
+      "fr": "Créer des matières (Material Forge)",
+      "en": "Create materials (Material Forge)",
+      "anciens": [],
+      "ecrans": [
+        "Material Forge (Matières)"
+      ]
+    },
+    {
+      "id": "etabli",
+      "famille": "jeu3d",
+      "lot": "t180",
+      "icone": "dz-nav-etabli",
+      "fr": "Préparer une pièce avant le slicer (Établi)",
+      "en": "Prepare a part before slicing (Workbench)",
+      "anciens": [
+        "c21"
+      ],
+      "ecrans": [
+        "Établi (atelier 3D avant impression)"
+      ],
+      "etat": "migre"
+    },
+    {
+      "id": "impression3d",
+      "famille": "jeu3d",
+      "lot": "t180",
+      "icone": "dz-lab3d-impression-3d",
+      "fr": "Imprimer ses créations en 3D",
+      "en": "3D-print your creations",
+      "anciens": [
+        "c20"
+      ],
+      "ecrans": [],
+      "etat": "migre"
+    },
+    {
+      "id": "plateau",
+      "famille": "jeu3d",
+      "lot": "t180",
+      "icone": "dz-nav-plateau",
+      "fr": "Mettre en scène sur le Plateau 3D",
+      "en": "Stage shots on the 3D Set",
+      "anciens": [],
+      "ecrans": [
+        "Plateau 3D"
+      ]
+    },
+    {
+      "id": "parcours",
+      "famille": "annexes",
+      "lot": "t181",
+      "icone": "dz-action-continuer",
+      "fr": "Parcours complets, de l'idée au post",
+      "en": "End-to-end recipes, from idea to post",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "migre"
+    },
+    {
+      "id": "icones",
+      "famille": "annexes",
+      "lot": "t170",
+      "icone": "dz-nav-guide",
+      "fr": "Lire les icônes",
+      "en": "Read the icons",
+      "anciens": [],
+      "ecrans": [
+        "Icônes « Deepotus Glyph »",
+        "Aide didactique intégrée"
+      ]
+    },
+    {
+      "id": "raccourcis",
+      "famille": "annexes",
+      "lot": "t181",
+      "icone": "dz-action-raccourcis",
+      "fr": "Raccourcis clavier",
+      "en": "Keyboard shortcuts",
+      "anciens": [],
+      "ecrans": []
+    },
+    {
+      "id": "depannage",
+      "famille": "annexes",
+      "lot": "t181",
+      "icone": "dz-etat-avertissement",
+      "fr": "Dépannage",
+      "en": "Troubleshooting",
+      "anciens": [
+        "c14"
+      ],
+      "ecrans": [],
+      "etat": "migre"
+    }
+  ]
+}

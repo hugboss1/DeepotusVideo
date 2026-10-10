@@ -1,0 +1,65 @@
+<h3 id="c2">Create your first images</h3>
+<p><strong>Library</strong> tab: your library of images, video renders, sounds and captions. Everything lands here.</p>
+<img class="shot" src="img/library.png" alt="Library">
+<p class="cap">Library: create an image (FLUX), the <strong>Prompt manager</strong>, <strong>Upload image</strong> and <strong>Upload video</strong> (your own clip). Hover a render to play it.</p>
+<div class="step"><span class="n">1</span><div><em>"Describe an image to create"</em> field → describe in one line, Enter. The FLUX image (~3 s) lands straight in the library.</div></div>
+<div class="step"><span class="n">2</span><div>Out of inspiration? Click <strong>Prompt manager</strong>: pick ingredients (subject, mood, light, motion…), "Random", or "Refine with AI", then <em>Use this prompt</em> — it <strong>overwrites</strong> the field for a more personal result.</div></div>
+<div class="step"><span class="n">3</span><div>Already have visuals? <strong>Upload image</strong> (or drag-and-drop anywhere). For your videos, see chapter 5; for sounds, chapter 6.</div></div>
+<div class="tip">Prompt examples: "neon-red octopus mascot, abyssal background, cinematic" · "stylized market chart, bioluminescent mood" · "underwater throne, light rays, 9:16".</div>
+
+<h3 id="c3">Video type ① — the cinematic clip (Seedance)</h3>
+<p><strong>Quick</strong> tab, <strong>Seedance</strong> mode: one image + a prompt = a vertical cinematic clip.</p>
+<img class="shot" src="img/quick-seedance.png" alt="Quick - Seedance">
+<p class="cap">Quick / Seedance: sources on the left, real-format preview on the right, estimated cost before you launch.</p>
+<div class="step"><span class="n">1</span><div>Pick the start image. Optional: an end image for a transition.</div></div>
+<div class="step"><span class="n">2</span><div>Write the motion prompt, grab a <em>template</em>, or open the <strong>prompt generator</strong> (it overwrites the default prompt). Set style, duration (5–60 s), format (9:16 default).</div></div>
+<div class="step"><span class="n">3</span><div><em>Generate</em> → follow progress in the <strong>Job Dock</strong> (bottom bar). 30–45 s later the render is in Library.</div></div>
+<div class="tip"><strong>Rename a render:</strong> in the Job Dock, click the pencil ✏️ next to the name (or play it first with ▶). The new name instantly reflects in the Library and pickers.</div>
+
+<h3 id="c4">Video type ② — the talking avatar (HeyGen)</h3>
+<p>Still in <strong>Quick</strong>, <strong>HeyGen</strong> mode: a script read by an avatar.</p>
+<img class="shot" src="img/quick-heygen.png" alt="Quick - HeyGen">
+<p class="cap">Quick / HeyGen: avatar + voice selection, upload your photo for a custom avatar, script.</p>
+<div class="step"><span class="n">1</span><div>Pick an avatar and a voice from the lists (search field available).</div></div>
+<div class="step"><span class="n">2</span><div><strong>Create your own avatar:</strong> <em>Upload photo</em> → your photo (PNG/JPG) becomes a talking avatar in ~30 s, auto-selected.</div></div>
+<div class="step"><span class="n">3</span><div>Write the script (up to 4,900 chars), <em>Generate</em>. Allow 1 to 3 minutes.</div></div>
+
+<h4>⏱ The first avatar load — why it takes ~1 minute</h4>
+<p>HeyGen gives you a <strong>very large catalogue</strong> — often <strong>1,000+ avatars</strong> and 2,000 voices. The very first time the app requests this list, HeyGen's server can take <strong>up to a minute</strong> to respond. <strong>This is HeyGen's own service being slow</strong> — not an app bug, not a key problem, and not a network or antivirus issue.</p>
+<p>So you don't have to wait, the app <strong>pre-loads the list in the background at startup</strong>: by the time you reach the HeyGen tab, the avatars are usually <strong>already there</strong>. Once fetched, the list is <strong>cached</strong> — every later open is <strong>instant</strong>.</p>
+<img class="shot" src="img/heygen-avatars.png" alt="Quick / HeyGen — loaded avatar list + loading timeline">
+<p class="cap">Left: the HeyGen tab once loaded (1,281 avatars, search field, avatar &amp; voice selectors). Right: why the first load takes ~1 min — pre-loaded at startup, then instant.</p>
+<div class="tip"><strong>If you open the tab right after launch:</strong> the list may briefly show "loading…" (up to ~1 min, <strong>once</strong>). Let it fill, then everything is instant — including after you create your own avatar (the list refreshes itself). The <strong>HeyGen status</strong> pill (top-right and in Settings) stays <strong>instant</strong> at all times: it checks your key and credits without loading the whole catalogue.</div>
+
+<p><strong>Composition</strong> mode combines both: a Seedance clip + a HeyGen avatar in one video (sequential or split-screen). <strong>Anti-cut</strong> is automatic: the avatar always finishes its sentence.</p>
+
+<h3 id="c5">Video type ③ — your own video (UGC)</h3>
+<p>Many creators film themselves on a phone — a selfie, a reaction, an unboxing. Deepotus welcomes these raw clips (<strong>UGC</strong>, user-generated content) and marries them to your animations.</p>
+<div class="step"><span class="n">1</span><div><strong>Simplest:</strong> Library → <strong>Upload video</strong>. Your clip is imported, its real duration is measured, and it appears in the <em>Renders</em> tab like any render — reusable everywhere (Scheduler, Studio).</div></div>
+<div class="step"><span class="n">2</span><div><strong>In the Studio:</strong> drag a <strong>UGC video</strong> node onto the canvas, click it, then <em>Upload your video</em>. A thumbnail fills the node.</div></div>
+<img class="shot" src="img/studio-ugc.png" alt="Studio - UGC composition + master duration">
+<p class="cap">Studio: the <strong>"UGC + animation"</strong> starter. On the right, the <strong>UGC video</strong> node with the <strong>⏱ Duration master</strong> switch.</p>
+<h4>The "master" duration — the key idea</h4>
+<p>When you turn on <strong>⏱ Duration master</strong> on your clip, <strong>its real length</strong> drives the final video. Generated animations (Seedance) are then calibrated around your clip — no more guessing "how many seconds?". You talk for 12 seconds to camera → the composition is 12 seconds, your illustration animation follows. It's the equivalent, for your own footage, of the avatar anti-cut.</p>
+<div class="tip"><strong>Quick recipe:</strong> Studio → "UGC + animation" starter → upload your clip in the UGC video node (master on) → connect an Image + Seedance as the animated half → <em>Run</em>. Output: your video at the bottom, the animation on top, all at your clip's length.</div>
+
+<h3 id="c6">Audio, voiceover &amp; music</h3>
+<p>Sound makes a video. Deepotus now has a full <strong>audio side</strong>: import your own sounds, turn a script into a <strong>voiceover</strong>, and lay a <strong>background music</strong> track under any render.</p>
+
+<h4>The audio Library</h4>
+<p>The <strong>Library</strong> has an <strong>Audio</strong> tab next to Images and Renders. It gathers every sound: imported files, generated voiceovers and music tracks.</p>
+<div class="step"><span class="n">1</span><div><strong>Import a sound:</strong> the <em>Upload sound</em> button (or drag-and-drop onto the Audio tab) → pick an <code>.mp3</code> / <code>.wav</code> / <code>.m4a</code> (and more). Its duration is measured; it appears in the Audio tab, playable inline, reusable everywhere.</div></div>
+<div class="step"><span class="n">2</span><div>The Audio tab also lists every <strong>voiceover you generate</strong>, so your narrations and your imported tracks live side by side.</div></div>
+<div class="tip">The Audio tab links a few <strong>royalty-free music banks</strong> (Pixabay Music, Freesound, Free Music Archive, YouTube Audio Library). Only add music you have the right to use — Deepotus cannot ship licensed music for you.</div>
+
+<h4>Voiceover (ElevenLabs)</h4>
+<p>Turn text into a natural narration with your <strong>ElevenLabs</strong> key.</p>
+<div class="step"><span class="n">1</span><div>In <strong>Quick</strong>, open the <strong>Voice Over</strong> tab: a voiceover <strong>on its own</strong> (no image, no video), perfect to narrate over your own visuals. Write a short script (up to 2,500 characters — for longer narrations use Chapters), pick the <strong>language</strong>; the counter and the <strong>estimated cost</strong> update live.</div></div>
+<div class="step"><span class="n">2</span><div>Pick a voice from the <strong>scrollable list</strong> (▶ to preview, filter field) or keep the <strong>app default voice</strong>, and save your voice + language combos as reusable <strong>castings</strong> (★ Save). <em>Generate voice</em> → the mp3 plays inline and is <strong>saved to Library → Audio</strong>, ready to reuse (Studio, Episodes, Scheduler).</div></div>
+<div class="warn"><strong>ElevenLabs free plan:</strong> the built-in "premade" voices (George, Sarah…) work via the API. Custom "library / community" voices require a paid ElevenLabs plan — the app tells you clearly when a chosen voice is paid-only.</div>
+
+<h4>Background music (BGM)</h4>
+<p>Drop a music bed under your video — the app mixes it for you.</p>
+<div class="step"><span class="n">1</span><div><strong>In the Studio:</strong> add a <strong>Music track</strong> node, pick a track from the audio Library (with an inline preview), set its <strong>volume</strong> and toggle <strong>loop to duration</strong>. Wire it into the Render node.</div></div>
+<div class="step"><span class="n">2</span><div><strong>On the simple render too:</strong> you can attach a background track before generating, no Studio needed.</div></div>
+<div class="step"><span class="n">3</span><div>The track is automatically <strong>looped or trimmed to the exact length</strong> of the final video, then mixed under the voice/clip. <em>Run</em> — your render comes back with music.</div></div>
