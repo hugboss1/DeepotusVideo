@@ -132,6 +132,13 @@ def main():
     subs_js = subprocess.run(["git", "diff", "--quiet", G.BASE, "--", "frontend/patches/subs.js"], cwd=str(RACINE))
     check("2l frontend/patches/subs.js n'est pas touché (intouchable : le bloc SUBS passe par le maillon)",
           subs_js.returncode == 0)
+    # les étiquettes que subs.css pose en ::after sur les plans (vues à la preuve : le relevé lexical ne lit pas le
+    # CSS) — le français reste, une règle html[lang="en"] plus spécifique donne l'anglais
+    css = (RACINE / "frontend/dist/shared/subs.css").read_bytes().decode("utf-8")
+    fr_css = re.findall(r'^(\.dzsvm [^{]*::after)\{content:"([^"]*[a-zà-ÿ]{3}[^"]*)"', css, re.M)
+    en_css = dict(re.findall(r'^html\[lang="en"\] (\.dzsvm [^{]*::after)\{content:"([^"]+)"\}', css, re.M))
+    check("2m chaque étiquette française de subs.css (content:) a sa règle anglaise html[lang=\"en\"]",
+          len(fr_css) >= 2 and all(sel in en_css and en_css[sel] != txt for sel, txt in fr_css), (fr_css, en_css))
 
     print("\n[3] le dictionnaire")
     DICO = {}

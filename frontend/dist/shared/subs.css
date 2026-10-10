@@ -755,3 +755,8 @@
 .dzsvm[data-svm-theme="light"] .sub-actcost{color:var(--sub-ink3)}
 .dzsvm[data-svm-theme="light"] .sub-actcost[data-free]{color:#0d7a4c;
   background:color-mix(in srgb, #4bd18a 30%, transparent)}
+
+/* t145 (traduction L5) : les etiquettes que ce CSS pose sur les plans suivent la langue de l interface
+   (<html lang> pose par dz-i18n) ; le francais au-dessus reste la reference */
+html[lang="en"] .dzsvm .svm-clip[data-nosub]::after{content:"no subtitle"}
+html[lang="en"] .dzsvm .svm-clip[data-nosub="off"]::after{content:"muted (acknowledged)"}
