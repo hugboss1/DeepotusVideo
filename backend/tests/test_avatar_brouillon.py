@@ -158,6 +158,20 @@ with TestClient(app, client=("127.0.0.1", 5), raise_server_exceptions=False) as 
           r.status_code == 200 and isinstance(r.json().get("graine"), int), r.text[:200])
     check("K3 finaliser depuis le Wi-Fi sans jeton : refusé (401/403)",
           lan.post("/api/avatar-live/recast/finaliser", json={"job_id": jb}).status_code in (401, 403))
+    # t168c (téléphone) : le compagnon appairé finalise SON brouillon, sous la même garde
+    import asyncio                                                   # noqa: E402
+    from app.services import appairage                                # noqa: E402
+    jeton, _ = asyncio.run(appairage.reclamer(appairage.creer_secret().secret, "Pixel"))
+    H = {"Authorization": "Bearer " + jeton}
+    r = lan.post("/api/avatar-live/recast", json=dict(base, brouillon=True), headers=H)
+    jt = r.json().get("job_id", "") if r.status_code == 200 else ""
+    attendre(loc, jt) if jt else None
+    plafonds.enregistrer({"par_moteur": {"fal": 0.30}})
+    r402 = lan.post("/api/avatar-live/recast/finaliser", json={"job_id": jt}, headers=H)
+    plafonds.enregistrer({"par_moteur": {}})
+    r = lan.post("/api/avatar-live/recast/finaliser", json={"job_id": jt}, headers=H)
+    check("K4 téléphone appairé : brouillon puis finale (200), et le plafond le bloque pareil (402)",
+          bool(jt) and r402.status_code == 402 and r.status_code == 200 and r.json().get("resolution") == "720p", r.text[:200])
 
 print("\n[R] recensement des routes payantes")
 import _recensement_payant as RP                                    # noqa: E402
