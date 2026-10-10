@@ -190,7 +190,9 @@ process.stdout.write(JSON.stringify(R));
 
     print("\n[5] plus de texte en dur dans le périmètre")
     import i18n_l2_perimetre as PER
-    R5 = PER.restes(BUN, COUCHE, TABLE["gardes"])
+    # 10/10/2026 : les correctifs i18nfix (maillon de queue après avatar : pastilles, `&lang=` de l'aperçu, exemple du
+    # Brief) sont hors du périmètre L2 et ont leur banc (test_i18n_planif_news) : on lit la vue d'avant ce maillon.
+    R5 = PER.restes(AIDE.avant_i18nfix(BUN), COUCHE, TABLE["gardes"])
     check("5a aucun texte visible en dur hors dzT dans les composants du lot", not R5, R5[:15])
     check("5b chaque composant du périmètre est trouvé", not [r for r in R5 if "introuvable" in r])
 

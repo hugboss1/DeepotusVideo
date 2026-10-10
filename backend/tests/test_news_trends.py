@@ -69,7 +69,7 @@ from datetime import datetime
 SEPT = datetime(2026, 9, 3, 12)
 espion()
 r = T.signal_x("solana", quand="2026-09-03T12:00:00+00:00")
-check("B1 sans cle X : refus lisible, AUCUNE lecture, rien de decompte", r["posts"] is None and "cle X" in r["motif"] and lus == []
+check("B1 sans cle X : refus lisible, AUCUNE lecture, rien de decompte", r["posts"] is None and "clé X" in r["motif"] and lus == []
       and not T.chemin_budget().is_file() and quota.used("x_lecture", SEPT) == 0, str(r))
 settings.X_API_KEY = settings.X_API_SECRET = settings.X_ACCESS_TOKEN = settings.X_ACCESS_SECRET = "k"
 r = T.signal_x("solana", quand="2026-09-03T12:00:00+00:00")

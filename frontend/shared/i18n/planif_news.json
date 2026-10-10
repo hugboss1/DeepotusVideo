@@ -1,0 +1,13 @@
+{
+  "scheduler.etat.draft": {"fr": "brouillon", "en": "draft"},
+  "scheduler.etat.failed": {"fr": "échec", "en": "failed"},
+  "scheduler.etat.posted": {"fr": "publié", "en": "posted"},
+  "scheduler.etat.posting": {"fr": "en cours de publication", "en": "posting"},
+  "scheduler.etat.ready": {"fr": "prêt", "en": "ready"},
+  "scheduler.etat.scheduled": {"fr": "programmé", "en": "scheduled"},
+  "scheduler.etat.skipped": {"fr": "ignoré", "en": "skipped"},
+  "scheduler.mode.assiste": {"fr": "assisté", "en": "assisted"},
+  "scheduler.mode.assiste_canal": {"fr": "assisté", "en": "assisted"},
+  "scheduler.mode.auto": {"fr": "publication auto", "en": "auto-publish"},
+  "scheduler.plan.brief_exemple": {"fr": "ex. Semaine autour du lancement du staking $DEEPOTUS. Teaser lundi, révélation mercredi 18:00, bilan dimanche. Ton : prophétique, joueur.", "en": "e.g. Week around the $DEEPOTUS staking launch. Tease Monday, reveal Wednesday 18:00, recap Sunday. Tone: prophetic, playful."}
+}

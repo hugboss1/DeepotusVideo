@@ -60,7 +60,7 @@ ENTREES = [
     # __dzSchedComptes
     L(426687, "scheduler.comptes.titre", "Comptes de publication", "Publishing accounts"),
     L(426730, "scheduler.comptes.aide",
-      "Les clés se saisissent dans Réglages → Connected accounts. YouTube et TikTok se connectent ensuite par leur "
+      "Les clés se saisissent dans Réglages → Comptes connectés. YouTube et TikTok se connectent ensuite par leur "
       "consentement (onglet séparé). Sans audit, YouTube garde vos Shorts en privé et TikTok publie en privé (compte "
       "privé requis).",
       "Enter the keys in Settings → Connected accounts. YouTube and TikTok then connect through their consent screen "

@@ -57,7 +57,7 @@
   "scheduler.campagne.series": {"fr": "↻ Séries récurrentes", "en": "↻ Recurring series"},
   "scheduler.campagne.titre": {"fr": "Campagne…", "en": "Campaign…"},
   "scheduler.commun.echec": {"fr": "Échec : {e}", "en": "Failed: {e}"},
-  "scheduler.comptes.aide": {"fr": "Les clés se saisissent dans Réglages → Connected accounts. YouTube et TikTok se connectent ensuite par leur consentement (onglet séparé). Sans audit, YouTube garde vos Shorts en privé et TikTok publie en privé (compte privé requis).", "en": "Enter the keys in Settings → Connected accounts. YouTube and TikTok then connect through their consent screen (separate tab). Without an audit, YouTube keeps your Shorts private and TikTok posts privately (private account required)."},
+  "scheduler.comptes.aide": {"fr": "Les clés se saisissent dans Réglages → Comptes connectés. YouTube et TikTok se connectent ensuite par leur consentement (onglet séparé). Sans audit, YouTube garde vos Shorts en privé et TikTok publie en privé (compte privé requis).", "en": "Enter the keys in Settings → Connected accounts. YouTube and TikTok then connect through their consent screen (separate tab). Without an audit, YouTube keeps your Shorts private and TikTok posts privately (private account required)."},
   "scheduler.comptes.connecter_tiktok": {"fr": "Connecter TikTok", "en": "Connect TikTok"},
   "scheduler.comptes.connecter_youtube": {"fr": "Connecter YouTube", "en": "Connect YouTube"},
   "scheduler.comptes.consentement_google": {"fr": "Ouvrir le consentement Google (OAuth)", "en": "Open the Google consent screen (OAuth)"},

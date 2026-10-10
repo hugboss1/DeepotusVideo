@@ -148,7 +148,7 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     c.put("/api/news/filter", json={"mots_cles": [], "sources_noires": [], "mots_noirs": [], "fraicheur_h": 24 * 30})
     avant = {i["id"]: i for i in c.post("/api/news/rank", json={"brief": ""}).json()["items"]}
     check("E0 temoin : memoire vide, aucune marque ni malus", avant["a1"].get("deja_couvert") is None
-          and "sur-representee" not in avant["a1"]["score_pourquoi"], str(avant.get("a1")))
+          and "sur-représentée" not in avant["a1"]["score_pourquoi"], str(avant.get("a1")))
     M.noter_couverture([{"title": "Solana network hits a record in daily transactions", "source_id": "s1",
                          "source_name": "CoinDesk"}], post_id="p1")
     j = {i["id"]: i for i in c.post("/api/news/rank", json={"brief": ""}).json()["items"]}
@@ -159,7 +159,7 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     M.noter_couverture([{"title": "Un sujet Spammy", "source_id": "s2", "source_name": "Spammy Feed"}], post_id="q9")
     j = {i["id"]: i for i in c.post("/api/news/rank", json={"brief": ""}).json()["items"]}
     check("E2 la source sur-representee perd des points, et le motif le dit", j["a1"]["score"] < avant["a1"]["score"]
-          and "source sur-representee" in j["a1"]["score_pourquoi"] and j["a2"]["score"] == avant["a2"]["score"],
+          and "source sur-représentée" in j["a1"]["score_pourquoi"] and j["a2"]["score"] == avant["a2"]["score"],
           f'{avant["a1"]["score"]} -> {j["a1"]["score"]} {j["a1"]["score_pourquoi"]}')
     if M.chemin_couverture().is_file():
         M.chemin_couverture().unlink()
@@ -192,7 +192,7 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     cles = (settings.X_API_KEY, settings.X_API_SECRET, settings.X_ACCESS_TOKEN, settings.X_ACCESS_SECRET)
     settings.X_API_KEY = settings.X_API_SECRET = settings.X_ACCESS_TOKEN = settings.X_ACCESS_SECRET = ""
     r = c.get("/api/news/trends?x_query=solana").json()
-    check("F8 sans cle X : refus lisible, aucune lecture", r["x"]["posts"] is None and "cle X" in r["x"]["motif"] and lus == [], str(r["x"]))
+    check("F8 sans cle X : refus lisible, aucune lecture", r["x"]["posts"] is None and "clé X" in r["x"]["motif"] and lus == [], str(r["x"]))
     settings.X_API_KEY = settings.X_API_SECRET = settings.X_ACCESS_TOKEN = settings.X_ACCESS_SECRET = "k"
     r = c.get("/api/news/trends?x_query=solana").json()
     check("F9 avec cle : une lecture, comptee", r["x"]["posts"] == 10 and lus == ["solana"], str(r["x"]))

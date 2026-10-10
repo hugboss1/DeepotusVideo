@@ -334,9 +334,26 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_i18nfix(bundle: str) -> str:
+    """Le bundle d'avant les correctifs de traduction du Planificateur du 10/10/2026 (maillon de queue
+    patch_bundle_i18nfix, posé APRÈS avatar) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur :
+    rendu tel quel."""
+    import patch_bundle_i18nfix as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    s = bundle
+    for ancre, remplace in reversed(_m.PAIRES):
+        if s.count(remplace) != 1:
+            raise AssertionError(f"avant_i18nfix : remplacement x{s.count(remplace)} (attendu 1) : {remplace[:70]!r}")
+        s = s.replace(remplace, ancre, 1)
+    return s
+
+
 def avant_avatar(bundle: str) -> str:
     """Le bundle d'avant l'entrée « Avatar live » de la barre (maillon de queue patch_bundle_avatar, t168, posé APRÈS
-    dzgbar) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    dzgbar) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel.
+    Les correctifs i18nfix (10/10), posés APRÈS lui, sont défaits d'abord."""
+    bundle = avant_i18nfix(bundle)
     import patch_bundle_avatar as _m
     if _m.MARKER not in bundle:
         return bundle
