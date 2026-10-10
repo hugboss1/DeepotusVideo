@@ -289,7 +289,7 @@
       "ecrans": [
         "Scheduler (planificateur de publications)"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "comptes",
@@ -302,7 +302,7 @@
         "c12"
       ],
       "ecrans": [],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "news",
@@ -314,7 +314,8 @@
       "anciens": [],
       "ecrans": [
         "News"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "bibliotheque",

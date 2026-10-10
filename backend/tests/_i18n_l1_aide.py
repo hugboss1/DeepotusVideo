@@ -336,8 +336,8 @@ def _bloc_tag(s, tag, f):
 
 def avant_i18nfix(bundle: str) -> str:
     """Le bundle d'avant les correctifs de traduction du Planificateur du 10/10/2026 (maillon de queue
-    patch_bundle_i18nfix, posé APRÈS avatar) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur :
-    rendu tel quel."""
+    patch_bundle_i18nfix, posé APRÈS avnoeuds) : ses paires défaites, lues dans le maillon lui-même. Sans son
+    marqueur : rendu tel quel."""
     import patch_bundle_i18nfix as _m
     if _m.MARKER not in bundle:
         return bundle
@@ -349,11 +349,27 @@ def avant_i18nfix(bundle: str) -> str:
     return s
 
 
+def avant_avnoeuds(bundle: str) -> str:
+    """Le bundle d'avant les nœuds Studio Recast et Voix → voix (maillon de queue patch_bundle_avnoeuds, t168b, posé
+    APRÈS avatar) : ses paires défaites, lues dans le maillon lui-même (aux fins de ligne du bundle). Sans son
+    marqueur : rendu tel quel. Les correctifs i18nfix (10/10), posés APRÈS lui, sont défaits d'abord."""
+    bundle = avant_i18nfix(bundle)
+    import patch_bundle_avnoeuds as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    s = bundle
+    for ancre, remplace in reversed(_m.paires(s)):
+        if s.count(remplace) != 1:
+            raise AssertionError(f"avant_avnoeuds : remplacement x{s.count(remplace)} (attendu 1) : {remplace[:70]!r}")
+        s = s.replace(remplace, ancre, 1)
+    return s
+
+
 def avant_avatar(bundle: str) -> str:
     """Le bundle d'avant l'entrée « Avatar live » de la barre (maillon de queue patch_bundle_avatar, t168, posé APRÈS
     dzgbar) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel.
-    Les correctifs i18nfix (10/10), posés APRÈS lui, sont défaits d'abord."""
-    bundle = avant_i18nfix(bundle)
+    Les nœuds Studio (t168b), posés APRÈS lui, sont défaits d'abord."""
+    bundle = avant_avnoeuds(bundle)
     import patch_bundle_avatar as _m
     if _m.MARKER not in bundle:
         return bundle
@@ -567,3 +583,39 @@ def lire_cartes(chemin) -> str:
     p = pathlib.Path(chemin)
     t = p.read_bytes().decode("utf-8")
     return source_avant_i18n_l7(t, p.as_posix()) if p.suffix == ".js" else t
+
+
+# t148 — traduction L8 : l'Atelier, le Material Forge et l'Établi passent par dzT(clé) ;
+# scripts/i18n_l8_paires.json garde, fichier par fichier (relatif à frontend/), les éditions (positions de BASE, CRLF)
+_TABLE8 = RACINE / "scripts" / "i18n_l8_paires.json"
+_LABS8 = ("atelier/", "materialforge/", "etabli/")
+
+
+def source_avant_i18n_l8(texte: str, fichier: str) -> str:
+    """t148 : un script de l'Atelier, du Material Forge ou de l'Établi (« etabli/etabli.js », relatif à frontend/ ; un
+    chemin plus long finissant ainsi est accepté) d'avant la traduction L8, sans git. LF ou CRLF (BOM toléré) : on rend
+    la même forme. Un texte qui ne porte pas L8 est rendu tel quel."""
+    if not _TABLE8.is_file() or not any(f'dzT("{z}.' in texte for z in ("atelier", "matiere", "etabli")):
+        return texte
+    f = str(fichier).replace("\\", "/").split("frontend/")[-1]
+    if not f.startswith(_LABS8):
+        return texte
+    eds = json.loads(_TABLE8.read_bytes().decode("utf-8"))["fichiers"].get(f, [])
+    if not eds:
+        return texte
+    bom = texte[:1] == "﻿"
+    corps = texte[1:] if bom else texte
+    crlf = "\r\n" in corps
+    s = corps if crlf else corps.replace("\n", "\r\n")
+    decal, morceaux, k = 0, [], 0
+    for e in sorted(eds, key=lambda x: x["pos"]):
+        p = e["pos"] + decal
+        if s[p:p + len(e["apres"])] != e["apres"]:
+            raise ValueError(f"source L8 {f} : l'édition {e['groupe']}@{e['pos']} n'est pas à sa place ({s[p:p + 40]!r})")
+        morceaux.append(s[k:p] + e["avant"])
+        k = p + len(e["apres"])
+        decal += len(e["apres"]) - len(e["avant"])
+    morceaux.append(s[k:])
+    r = "".join(morceaux)
+    r = r if crlf else r.replace("\r\n", "\n")
+    return ("﻿" + r) if bom else r

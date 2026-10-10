@@ -8,6 +8,7 @@ appariees aux PLANS par leur rang ; une narration repayee. Ici : un plan = une s
 Data-dir isole, cles videes. Temoin positif : la base (45f981bf) n'a pas la route.
 Run (depuis backend/) : & $PY tests/test_chapitres_episode.py"""
 import json, os, pathlib, sqlite3, subprocess, sys, tempfile, types
+import sys as _s8, pathlib as _p8; _s8.path.insert(0, str(_p8.Path(__file__).resolve().parent)); import _labs_avant_l8  # noqa: E402,F401  (t148 : Atelier, Material Forge, Établi d'avant la traduction L8)
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzepisode_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)

@@ -64,7 +64,7 @@ print("\n[I] l'inverse")
 sans = A.avant_i18nfix(B)
 check("I1 avant_i18nfix défait les paires : plus de marqueur", M.MARKER not in sans and '"assisted"})' in sans)
 check("I2 l'aller-retour est exact à l'octet", M.appliquer(sans) == B)
-check("I3 avant_avatar défait D'ABORD i18nfix (posé après lui)", M.MARKER not in A.avant_avatar(B))
+check("I3 avant_avnoeuds défait D'ABORD i18nfix (posé après lui)", M.MARKER not in A.avant_avnoeuds(B))
 check("I4 un bundle sans le maillon passe tel quel", A.avant_i18nfix(sans) == sans)
 r = subprocess.run([sys.executable, str(RACINE / "scripts" / "patch_bundle_i18nfix.py"), "--check"], capture_output=True,
                    text=True, cwd=str(RACINE))

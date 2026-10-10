@@ -19,6 +19,8 @@
 
 /* ───────────────────────── utilitaires ───────────────────────── */
 const $ = (s) => document.querySelector(s);
+/* t148 : la surcouche de traduction n'entre pas dans les <select> — les <option> fixes de la page sont traduites ici, une fois (window.__dzI18n.traduire ne rend rien en français). */
+for (const o of document.querySelectorAll("select option")) { const t = window.__dzI18n && window.__dzI18n.traduire(o.textContent); if (t) o.textContent = t; }
 /* Deepotus Glyph (G6) : une icône de la suite, décorative — le sens est porté par le bouton (libellé, title, aria-label) */
 const ico = (cle, t = 16) => (typeof dzIcone === "function" ? dzIcone(cle, { taille: t, classe: "dzi--" + t }) : "");
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -44,7 +46,7 @@ function toast(msg, err) {
    Sans ce garde, le lab planterait sur un JSON.parse illisible. */
 class ApiMissing extends Error {
   constructor(path) {
-    super("route absente sur ce backend : /api" + path);
+    super(dzT("matiere.mf1_api.route_absente", { path: path }));
     this.missing = true;
     this.path = path;
   }
@@ -62,7 +64,7 @@ const api = {
   async json(method, path, body, headers) {
     let r;
     try { r = await this.raw(method, path, body, headers); }
-    catch (e) { throw new Error("backend injoignable (" + e.message + ")"); }
+    catch (e) { throw new Error(dzT("matiere.mf1_api.injoignable", { msg: e.message })); }
     const ct = (r.headers.get("content-type") || "").toLowerCase();
     if (r.status === 404 || (r.ok && ct.indexOf("json") < 0)) throw new ApiMissing(path);
     let d = null;
@@ -79,21 +81,21 @@ const api = {
 /* ───────────────────────── référentiels ───────────────────────── */
 
 const MESHES = [
-  { id: "sphere", label: "Sphère" }, { id: "cube", label: "Cube" },
-  { id: "torus", label: "Tore" }, { id: "cylinder", label: "Cylindre" },
-  { id: "plane", label: "Plan" }, { id: "tiled", label: "Pavage 3×3" },
+  { id: "sphere", label: dzT("matiere.mf1_maillage.sphere") }, { id: "cube", label: "Cube" },
+  { id: "torus", label: dzT("matiere.mf1_maillage.tore") }, { id: "cylinder", label: dzT("matiere.mf1_maillage.cylindre") },
+  { id: "plane", label: dzT("matiere.mf1_maillage.plan") }, { id: "tiled", label: dzT("matiere.mf1_maillage.pavage") },
 ];
 
 /* repli local si GET /materials/envs manque encore : mêmes 7 noms que la spec.
    [ciel haut, horizon, sol, position du soleil u/v, éclat] */
 const ENV_FALLBACK = [
-  { name: "unlit", label: "Sans éclairage", sky: "#8a8a90", hor: "#8a8a90", grd: "#8a8a90", sun: null },
-  { name: "daylight", label: "Plein jour", sky: "#2b5f9e", hor: "#bcd6ef", grd: "#6b6f74", sun: [0.30, 0.24, 1.0] },
+  { name: "unlit", label: dzT("matiere.mf1_env.sans_eclairage"), sky: "#8a8a90", hor: "#8a8a90", grd: "#8a8a90", sun: null },
+  { name: "daylight", label: dzT("matiere.mf1_env.plein_jour"), sky: "#2b5f9e", hor: "#bcd6ef", grd: "#6b6f74", sun: [0.30, 0.24, 1.0] },
   { name: "studio", label: "Studio", sky: "#2a2a2f", hor: "#e8e6e2", grd: "#1a1a1d", sun: [0.68, 0.30, 0.9] },
-  { name: "sunset", label: "Coucher de soleil", sky: "#1d2450", hor: "#f0913f", grd: "#2a1c18", sun: [0.52, 0.47, 1.2] },
-  { name: "overcast", label: "Ciel couvert", sky: "#9aa3ad", hor: "#cfd6dd", grd: "#5c6067", sun: null },
-  { name: "night", label: "Nuit", sky: "#05060d", hor: "#141c33", grd: "#08090e", sun: [0.20, 0.18, 0.55] },
-  { name: "dramatic", label: "Dramatique", sky: "#07070a", hor: "#3a2c1c", grd: "#050507", sun: [0.74, 0.22, 1.5] },
+  { name: "sunset", label: dzT("matiere.mf1_env.coucher"), sky: "#1d2450", hor: "#f0913f", grd: "#2a1c18", sun: [0.52, 0.47, 1.2] },
+  { name: "overcast", label: dzT("matiere.mf1_env.couvert"), sky: "#9aa3ad", hor: "#cfd6dd", grd: "#5c6067", sun: null },
+  { name: "night", label: dzT("matiere.mf1_env.nuit"), sky: "#05060d", hor: "#141c33", grd: "#08090e", sun: [0.20, 0.18, 0.55] },
+  { name: "dramatic", label: dzT("matiere.mf1_env.dramatique"), sky: "#07070a", hor: "#3a2c1c", grd: "#050507", sun: [0.74, 0.22, 1.5] },
 ];
 
 /* Mot court porte par une vignette de map UNIFORME. La note complete de l'API
@@ -107,18 +109,18 @@ const ENV_FALLBACK = [
    métallicité vaut 1.00 partout, s'affichait donc « diélectrique » sur un
    métal plein. La valeur mesurée décide maintenant. */
 const FLAT_SHORT = {
-  metallic: "diélectrique", emissive: "éteinte", roughness: "uniforme",
-  ao: "sans cavité", height: "plate", normal: "plane", basecolor: "unie",
-  orm: "uniforme",
+  metallic: dzT("matiere.mf1_plat.dielectrique"), emissive: dzT("matiere.mf1_plat.eteinte"), roughness: dzT("matiere.mf1_plat.uniforme"),
+  ao: dzT("matiere.mf1_plat.sans_cavite"), height: dzT("matiere.mf1_plat.plate"), normal: dzT("matiere.mf1_plat.plane"), basecolor: dzT("matiere.mf1_plat.unie"),
+  orm: dzT("matiere.mf1_plat.uniforme"),
 };
 function flatShort(k, st) {
-  if (k === "metallic" && st && num(st.mean, 0) > 127) return "métal plein";
+  if (k === "metallic" && st && num(st.mean, 0) > 127) return dzT("matiere.mf1_plat.metal_plein");
   if (k === "roughness" && st) {
     const v = num(st.mean, 0);
-    if (v > 235) return "mate partout";
-    if (v < 20) return "miroir partout";
+    if (v > 235) return dzT("matiere.mf1_plat.mate_partout");
+    if (v < 20) return dzT("matiere.mf1_plat.miroir_partout");
   }
-  return FLAT_SHORT[k] || "uniforme";
+  return FLAT_SHORT[k] || dzT("matiere.mf1_plat.uniforme");
 }
 
 const MAPS = [
@@ -168,83 +170,83 @@ const DEFAULT_DERIVE = {
    après le PATCH. `h` = l’aide « ? » de la propriété. */
 const GROUPS = [
   { id: "base", label: "Base", open: true, rows: [
-    { k: "color", t: "color", l: "Couleur", live: 1,
-      h: "Teinte multipliée par la map Base Color. Blanc = la texture telle qu’elle a été générée." },
-    { k: "metallic", t: "range", min: 0, max: 1, step: 0.01, l: "Métallique", live: 1,
-      h: "0 = diélectrique (bois, plastique, pierre), 1 = métal pur. Les demi-valeurs n’existent pas dans la nature : réserve-les aux zones mixtes (peinture écaillée sur acier)." },
-    { k: "roughness", t: "range", min: 0, max: 1, step: 0.01, l: "Rugosité", live: 1,
-      h: "0 = miroir, 1 = parfaitement mat. La rugosité étale l’éclat spéculaire au lieu de l’éteindre." },
-    { k: "opacity", t: "range", min: 0, max: 1, step: 0.01, l: "Opacité", live: 1,
-      h: "Sous 1, la matière passe en mélange alpha. Pour du verre physique (réfraction, épaisseur), utilise plutôt la Transmission." },
+    { k: "color", t: "color", l: dzT("matiere.mf1_insp.couleur"), live: 1,
+      h: dzT("matiere.mf1_insp.couleur_h") },
+    { k: "metallic", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_insp.metallique"), live: 1,
+      h: dzT("matiere.mf1_insp.metallique_h") },
+    { k: "roughness", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_insp.rugosite"), live: 1,
+      h: dzT("matiere.mf1_insp.rugosite_h") },
+    { k: "opacity", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_insp.opacite"), live: 1,
+      h: dzT("matiere.mf1_insp.opacite_h") },
   ] },
-  { id: "surface", label: "Détail de surface", rows: [
+  { id: "surface", label: dzT("matiere.mf1_insp.g_surface"), rows: [
     /* `top` (T097) : la valeur vit SUR la matière (m.height_mm), pas dans
        props — le PATCH la pose à la racine du corps */
-    { k: "height_mm", t: "range", min: 0, max: 20, step: 0.1, l: "Hauteur physique (mm)", top: 1, dec: 1,
-      h: "Ce que représentent, en millimètres, les 255 niveaux de la map Height. Sert UNIQUEMENT au relief imprimé du Forge 3D : aucun moteur de jeu ne la reçoit. 0 = non mesurée (le relief prend alors 0,6 mm)." },
-    { k: "normal_scale", t: "range", min: 0, max: 3, step: 0.05, l: "Échelle du relief",
-      h: "Amplifie la map Normal. Au-delà de 2, le relief devient caricatural et scintille en mouvement." },
-    { k: "ao_strength", t: "range", min: 0, max: 2, step: 0.05, l: "Occlusion ambiante",
-      h: "Dose l’assombrissement des creux calculé par la map AO. 1 = valeur physique." },
-    { k: "displacement", t: "range", min: 0, max: 1, step: 0.01, l: "Déplacement",
-      h: "Déforme réellement le maillage avec la map Height (silhouette comprise), contrairement à la normale qui ne fait qu’imiter le relief. La barre n’a ni height ni déplacement." },
-    { k: "tiling", t: "range", min: 0.25, max: 8, step: 0.25, l: "Répétition de la matière",
-      h: "Multiplie les coordonnées de texture de la MATIÈRE (KHR_texture_transform) : c’est une propriété exportée, elle suit le ZIP et le GLB. À ne pas confondre avec « UV du maillage », affiché en bas du viewport, qui décrit combien de fois l’aperçu déroule la tuile sur la sphère ou le tore et ne quitte jamais l’écran. Le raccord mesuré garantit qu’aucune répétition ne montre de couture." },
-    { k: "rotation", t: "range", min: 0, max: 360, step: 1, l: "Rotation UV", dec: 0, u: "°",
-      h: "Fait tourner les coordonnées de texture, en degrés. Utile pour casser la lecture d’un motif directionnel (bois, brossage)." },
+    { k: "height_mm", t: "range", min: 0, max: 20, step: 0.1, l: dzT("matiere.mf1_insp.hauteur_mm"), top: 1, dec: 1,
+      h: dzT("matiere.mf1_insp.hauteur_mm_h") },
+    { k: "normal_scale", t: "range", min: 0, max: 3, step: 0.05, l: dzT("matiere.mf1_insp.echelle_relief"),
+      h: dzT("matiere.mf1_insp.echelle_relief_h") },
+    { k: "ao_strength", t: "range", min: 0, max: 2, step: 0.05, l: dzT("matiere.mf1_insp.occlusion"),
+      h: dzT("matiere.mf1_insp.occlusion_h") },
+    { k: "displacement", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_insp.deplacement"),
+      h: dzT("matiere.mf1_insp.deplacement_h") },
+    { k: "tiling", t: "range", min: 0.25, max: 8, step: 0.25, l: dzT("matiere.mf1_insp.repetition"),
+      h: dzT("matiere.mf1_insp.repetition_h") },
+    { k: "rotation", t: "range", min: 0, max: 360, step: 1, l: dzT("matiere.mf1_insp.rotation"), dec: 0, u: "°",
+      h: dzT("matiere.mf1_insp.rotation_h") },
   ] },
-  { id: "emission", label: "Émission", rows: [
-    { k: "emissive", t: "color", l: "Couleur émise", live: 1,
-      h: "Couleur de la lumière émise par la matière. Noir = aucune émission." },
-    { k: "emissive_strength", t: "range", min: 0, max: 5, step: 0.05, l: "Intensité", live: 1,
-      h: "Multiplie la map Emissive. Au-delà de 1, la matière déborde en bloom dans les moteurs qui le gèrent." },
+  { id: "emission", label: dzT("matiere.mf1_insp.g_emission"), rows: [
+    { k: "emissive", t: "color", l: dzT("matiere.mf1_insp.couleur_emise"), live: 1,
+      h: dzT("matiere.mf1_insp.couleur_emise_h") },
+    { k: "emissive_strength", t: "range", min: 0, max: 5, step: 0.05, l: dzT("matiere.mf1_insp.intensite"), live: 1,
+      h: dzT("matiere.mf1_insp.intensite_h") },
   ] },
-  { id: "clearcoat", label: "Vernis", rows: [
-    { k: "clearcoat", t: "range", min: 0, max: 1, step: 0.01, l: "Vernis",
-      h: "Couche transparente par-dessus la matière (carrosserie, bois verni). Elle a son propre reflet, indépendant de la rugosité en dessous." },
-    { k: "clearcoat_roughness", t: "range", min: 0, max: 1, step: 0.01, l: "Rugosité du vernis",
-      h: "Rugosité de cette seule couche : un vernis satiné garde une base mate en dessous." },
+  { id: "clearcoat", label: dzT("matiere.mf1_insp.vernis"), rows: [
+    { k: "clearcoat", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_insp.vernis"),
+      h: dzT("matiere.mf1_insp.vernis_h") },
+    { k: "clearcoat_roughness", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_insp.rugosite_vernis"),
+      h: dzT("matiere.mf1_insp.rugosite_vernis_h") },
   ] },
-  { id: "sheen", label: "Tissu", rows: [
-    { k: "sheen", t: "range", min: 0, max: 1, step: 0.01, l: "Duvet",
-      h: "Rétro-diffusion des fibres : le halo clair au bord des velours, laines et satins." },
-    { k: "sheen_color", t: "color", l: "Couleur du duvet",
-      h: "Teinte de ce halo. Un velours rouge a souvent un duvet plus clair et légèrement désaturé." },
+  { id: "sheen", label: dzT("matiere.mf1_insp.g_tissu"), rows: [
+    { k: "sheen", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_insp.duvet"),
+      h: dzT("matiere.mf1_insp.duvet_h") },
+    { k: "sheen_color", t: "color", l: dzT("matiere.mf1_insp.couleur_duvet"),
+      h: dzT("matiere.mf1_insp.couleur_duvet_h") },
   ] },
-  { id: "transmission", label: "Transmission (verre)", rows: [
+  { id: "transmission", label: dzT("matiere.mf1_insp.g_transmission"), rows: [
     { k: "transmission", t: "range", min: 0, max: 1, step: 0.01, l: "Transmission",
-      h: "Part de lumière traversant la matière avec réfraction. 1 = verre clair. Contrairement à l’opacité, les reflets sont conservés." },
-    { k: "ior", t: "range", min: 1, max: 2.5, step: 0.01, l: "Réfraction (IOR)",
-      h: "1.0 air · 1.33 eau · 1.5 verre · 1.76 saphir · 2.42 diamant." },
-    { k: "thickness", t: "range", min: 0, max: 5, step: 0.05, l: "Épaisseur",
-      h: "Épaisseur du volume traversé, en unités du modèle. À 0, la matière se comporte comme une vitre infiniment fine." },
+      h: dzT("matiere.mf1_insp.transmission_h") },
+    { k: "ior", t: "range", min: 1, max: 2.5, step: 0.01, l: dzT("matiere.mf1_insp.ior"),
+      h: dzT("matiere.mf1_insp.ior_h") },
+    { k: "thickness", t: "range", min: 0, max: 5, step: 0.05, l: dzT("matiere.mf1_insp.epaisseur"),
+      h: dzT("matiere.mf1_insp.epaisseur_h") },
   ] },
 ];
 
 const DERIVE_ROWS = [
-  { k: "normal_strength", t: "range", min: 0, max: 2, step: 0.05, l: "Normal · force",
-    h: "Amplitude des pentes lues dans la hauteur. Les convolutions sont cycliques : le relief reste raccordable bord à bord." },
-  { k: "normal_invert_y", t: "check", l: "Normal · inverser Y",
-    h: "Bascule OpenGL (+Y vers le haut, Blender, Godot) ↔ DirectX (Unreal, Unity par défaut). Un relief qui semble creusé au lieu d’être bombé = ce réglage." },
-  { k: "roughness_bias", t: "range", min: 0, max: 1, step: 0.01, l: "Rugosité · biais",
-    h: "Décale la rugosité moyenne calculée depuis la luminance. Au-dessus de 0.5, la matière devient globalement plus mate." },
-  { k: "roughness_contrast", t: "range", min: 0, max: 1, step: 0.01, l: "Rugosité · contraste",
-    h: "Écarte les valeurs autour du biais : sépare nettement les zones polies des zones abîmées." },
-  { k: "roughness_invert", t: "check", l: "Rugosité · inverser",
-    h: "Par défaut le clair est lisse. À inverser pour les matières où les parties claires sont les plus usées (poussière, calcaire)." },
-  { k: "ao_strength", t: "range", min: 0, max: 2, step: 0.05, l: "AO · force",
-    h: "Profondeur de l’occlusion déduite de la hauteur." },
-  { k: "ao_radius", t: "range", min: 1, max: 16, step: 0.5, l: "AO · rayon", dec: 1, u: "px",
-    h: "Portée du flou cyclique servant à détecter les creux, en pixels. Grand rayon = ombres larges et douces." },
-  { k: "metallic_mode", t: "select", l: "Métallique · mode",
-    opts: [["auto", "Auto (saturation + luminance)"], ["none", "Aucun (noir)"], ["luminance", "Luminance seuillée"]],
-    h: "Auto suppose que le métal est peu saturé et clair. Aucun convient à toute matière non métallique et évite les faux positifs." },
-  { k: "metallic_threshold", t: "range", min: 0, max: 1, step: 0.01, l: "Métallique · seuil",
-    h: "Point de bascule de la rampe métal/non-métal." },
-  { k: "emissive_threshold", t: "range", min: 0, max: 1, step: 0.01, l: "Émissif · seuil",
-    h: "Au-dessus de ce niveau de luminance, le pixel est considéré comme lumineux (lave, néons, braises)." },
-  { k: "height_detail", t: "range", min: 0, max: 1, step: 0.01, l: "Hauteur · détail",
-    h: "0 = hauteur très lissée (formes générales), 1 = chaque grain compte. Le résultat conditionne la normale et l’AO." },
+  { k: "normal_strength", t: "range", min: 0, max: 2, step: 0.05, l: dzT("matiere.mf1_derive.normal_force"),
+    h: dzT("matiere.mf1_derive.normal_force_h") },
+  { k: "normal_invert_y", t: "check", l: dzT("matiere.mf1_derive.normal_inv"),
+    h: dzT("matiere.mf1_derive.normal_inv_h") },
+  { k: "roughness_bias", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_derive.rug_biais"),
+    h: dzT("matiere.mf1_derive.rug_biais_h") },
+  { k: "roughness_contrast", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_derive.rug_contraste"),
+    h: dzT("matiere.mf1_derive.rug_contraste_h") },
+  { k: "roughness_invert", t: "check", l: dzT("matiere.mf1_derive.rug_inv"),
+    h: dzT("matiere.mf1_derive.rug_inv_h") },
+  { k: "ao_strength", t: "range", min: 0, max: 2, step: 0.05, l: dzT("matiere.mf1_derive.ao_force"),
+    h: dzT("matiere.mf1_derive.ao_force_h") },
+  { k: "ao_radius", t: "range", min: 1, max: 16, step: 0.5, l: dzT("matiere.mf1_derive.ao_rayon"), dec: 1, u: "px",
+    h: dzT("matiere.mf1_derive.ao_rayon_h") },
+  { k: "metallic_mode", t: "select", l: dzT("matiere.mf1_derive.met_mode"),
+    opts: [["auto", "Auto (saturation + luminance)"], ["none", dzT("matiere.mf1_derive.met_aucun")], ["luminance", dzT("matiere.mf1_derive.met_luminance")]],
+    h: dzT("matiere.mf1_derive.met_mode_h") },
+  { k: "metallic_threshold", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_derive.met_seuil"),
+    h: dzT("matiere.mf1_derive.met_seuil_h") },
+  { k: "emissive_threshold", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_derive.emi_seuil"),
+    h: dzT("matiere.mf1_derive.emi_seuil_h") },
+  { k: "height_detail", t: "range", min: 0, max: 1, step: 0.01, l: dzT("matiere.mf1_derive.hauteur_detail"),
+    h: dzT("matiere.mf1_derive.hauteur_detail_h") },
 ];
 
 /* ───────────────────────── état ───────────────────────── */
@@ -324,7 +326,7 @@ function loadImg(src) {
     const im = new Image();
     im.crossOrigin = "anonymous";
     im.onload = () => res(im);
-    im.onerror = () => rej(new Error("image illisible"));
+    im.onerror = () => rej(new Error(dzT("matiere.mf1_env.image_illisible")));
     im.src = src;
   });
 }
@@ -482,13 +484,13 @@ function applyEnvToViewers() {
 function apiFail(e, what) {
   const bar = $("#apiBar");
   bar.classList.remove("hidden");
-  $("#apiBarTitle").textContent = e && e.missing ? "API Matières absente" : "API en erreur";
+  $("#apiBarTitle").textContent = e && e.missing ? dzT("matiere.mf1_api.absente") : dzT("matiere.mf1_api.en_erreur");
   $("#apiBarMsg").textContent = (what ? what + " — " : "") +
     (e && e.missing
-      ? "GET /api" + e.path + " n’existe pas encore sur ce backend. Le lab reste ouvert : la galerie et la forge s’activeront dès que la route répondra."
-      : (e && e.message) || "erreur inconnue");
+      ? dzT("matiere.mf1_api.route_pas_encore", { path: e.path })
+      : (e && e.message) || dzT("matiere.mf1_api.erreur_inconnue"));
   const chip = $("#apiChip");
-  chip.textContent = "API matières : indisponible";
+  chip.textContent = dzT("matiere.mf1_api.chip_ko");
   chip.classList.remove("ok"); chip.classList.add("ko");
   state.apiOk = false;
 }
@@ -497,7 +499,7 @@ function apiOk(n) {
   const chip = $("#apiChip");
   // le nombre de matières est écrit UNE fois, sur le compteur de la galerie :
   // ici on ne dit que ce que le compteur ne dit pas — que l'API répond.
-  chip.textContent = "API matières : ok";
+  chip.textContent = dzT("matiere.mf1_api.chip_ok");
   chip.classList.add("ok"); chip.classList.remove("ko");
   state.apiOk = true;
 }
@@ -514,7 +516,7 @@ async function loadMaterials() {
     }
   } catch (e) {
     state.materials = [];
-    apiFail(e, "galerie");
+    apiFail(e, dzT("matiere.mf1_api.quoi_galerie"));
     renderGallery();
   }
 }
@@ -541,7 +543,7 @@ async function loadPresets() {
     state.presets = (d && d.presets) || [];
   } catch (e) { state.presets = []; }
   const sel = $("#presetSel");
-  sel.innerHTML = '<option value="">Appliquer un préréglage…</option>' +
+  sel.innerHTML = '<option value="">' + dzT("matiere.mf1_charge.appliquer_prereglage") + '</option>' +
     state.presets.map((p) => `<option value="${esc(p.id)}">${esc(p.label || p.id)}</option>`).join("");
   sel.disabled = !state.presets.length;
 }
@@ -554,7 +556,7 @@ async function loadModels() {
     state.model = d.default || (models[0] && models[0].id) || "";
   } catch (e) { models = []; }
   if (!models.length) {
-    models = [{ id: "flux", label: "FLUX schnell", note: "clé fal absente ?" }];
+    models = [{ id: "flux", label: "FLUX schnell", note: dzT("matiere.mf1_charge.cle_fal_absente") }];
     state.model = "flux";
   }
   state.models = models;
@@ -578,7 +580,7 @@ function renderLibrary() {
   const list = (window.__mfImages || []).filter((i) => !q || i.filename.toLowerCase().includes(q));
   const g = $("#libGrid");
   if (!list.length) {
-    g.innerHTML = '<div class="empty-note sm">Aucune image' + (q ? " pour « " + esc(q) + " »" : " dans la Library") + ".</div>";
+    g.innerHTML = '<div class="empty-note sm">' + (q ? dzT("matiere.mf1_biblio.aucune_pour", { q: esc(q) }) : dzT("matiere.mf1_biblio.aucune")) + "</div>";
     return;
   }
   g.innerHTML = list.slice(0, 90).map((i) =>
@@ -652,10 +654,10 @@ function estimate() {
 function planSteps() {
   const e = estimate();
   return [
-    { key: "img", label: "Image de base", paid: e.cr > 0 },
-    { key: "seam", label: $("#seamless").checked ? "Raccord + score mesuré" : "Score de raccord" },
-    { key: "derive", label: "Dérivation des maps", paid: false },
-    { key: "write", label: "Écriture + aperçu 3D", paid: false },
+    { key: "img", label: dzT("matiere.mf1_plan.image_base"), paid: e.cr > 0 },
+    { key: "seam", label: $("#seamless").checked ? dzT("matiere.mf1_plan.raccord_score") : dzT("matiere.mf1_plan.score_raccord") },
+    { key: "derive", label: dzT("matiere.mf1_plan.derivation"), paid: false },
+    { key: "write", label: dzT("matiere.mf1_plan.ecriture"), paid: false },
   ];
 }
 
@@ -676,8 +678,8 @@ function renderPlan() {
     // à droite : RIEN avant le lancement (le prix et la durée sont sur le
     // bouton), la durée RÉELLE une fois l'étape franchie.
     const right = done
-      ? `<span class="step-r">${planRun.done[i] ? planRun.done[i] + " s" : "fait"}</span>`
-      : (s.paid ? '<span class="step-tag">facturée</span>' : "");
+      ? `<span class="step-r">${planRun.done[i] ? planRun.done[i] + " s" : dzT("matiere.mf1_plan.fait")}</span>`
+      : (s.paid ? '<span class="step-tag">' + dzT("matiere.mf1_plan.facturee") + '</span>' : "");
     return `<li class="${cls}"><span class="step-dot">${dot}</span>` +
       `<span class="step-l">${esc(s.label)}</span>${right}</li>`;
   }).join("");
@@ -693,12 +695,10 @@ function updateEstimate() {
      pendant que les cartes portaient « 1024² », sans que rien à l'écran ne
      réconcilie les deux. Ce sont deux objets différents : la définition de la
      PROCHAINE forge, et celle de chaque matière DÉJÀ forgée. */
-  $("#resNote").textContent = "S'applique à la prochaine forge ; chaque carte " +
-    "porte la sienne. ≈ " + mb + " Mo · dérivation ≈ " + e.derive +
-    " s · c'est aussi la taille maximale utile à l'export.";
+  $("#resNote").textContent = dzT("matiere.mf1_estim.res_note", { mb: mb, derive: e.derive });
   $("#modelNote").textContent = e.fromLib
-    ? "Référence fournie : le modèle n'est pas appelé, la forge est entièrement gratuite."
-    : "Seule cette étape est facturée. Les maps sont dérivées en local, hors ligne, re-calculables à volonté.";
+    ? dzT("matiere.mf1_estim.ref_gratuite")
+    : dzT("matiere.mf1_estim.seule_facturee");
   updateFullPrompt();
   renderPlan();
 }
@@ -713,7 +713,7 @@ function updateFullPrompt() {
   const el = $("#fullPrompt");
   if (!el) return;
   if (state.ref) {
-    el.innerHTML = "aucune invite : l'image de base vient de la référence <em>" + esc(state.ref) + "</em>.";
+    el.innerHTML = dzT("matiere.mf1_estim.sans_invite", { ref: esc(state.ref) });
     return;
   }
   const d = ($("#prompt").value || "").trim();
@@ -722,8 +722,8 @@ function updateFullPrompt() {
 }
 
 /* amorces d'invite cliquables (la barre les écrit en prose, on les rend jouables) */
-const SEEDS = ["fer rouillé", "verre givré", "cristal alien",
-               "pierre moussue", "or martelé", "béton brut"];
+const SEEDS = [dzT("matiere.int_amorce.fer_rouille"), dzT("matiere.int_amorce.verre_givre"), dzT("matiere.int_amorce.cristal_alien"),
+               dzT("matiere.int_amorce.pierre_moussue"), dzT("matiere.int_amorce.or_martele"), dzT("matiere.int_amorce.beton_brut")];
 function renderSeeds() {
   const box = $("#seedChips");
   if (!box) return;
@@ -737,13 +737,13 @@ function renderSeeds() {
 async function generate() {
   if (state.busy) return;
   const prompt = ($("#prompt").value || "").trim();
-  if (!prompt && !state.ref) { toast("Décris une matière ou choisis une image de référence.", true); return; }
+  if (!prompt && !state.ref) { toast(dzT("matiere.mf1_gen.decris"), true); return; }
   state.busy = true; setBusy(true);
   planRun = { active: 0, done: [], t: [Date.now()] };
   renderPlan();
   const st = $("#genStatus");
   st.classList.remove("hidden", "err");
-  st.textContent = "Envoi…";
+  st.textContent = dzT("matiere.mf1_gen.envoi");
   setProgress(2);
   try {
     const body = {
@@ -759,14 +759,14 @@ async function generate() {
     }
     const d = await api.post("/materials/generate", body);
     const jid = d && d.job_id;
-    if (!jid) throw new Error("réponse sans job_id");
+    if (!jid) throw new Error(dzT("matiere.mf1_gen.sans_job"));
     state.job = jid;
     await pollJob(jid, st);
   } catch (e) {
     st.classList.add("err");
-    st.textContent = "Échec : " + (e.missing ? "POST /api/materials/generate n’existe pas encore." : e.message);
-    if (e.missing) apiFail(e, "forge");
-    toast("Forge impossible : " + e.message, true);
+    st.textContent = dzT("matiere.mf1_gen.echec", { e: e.missing ? dzT("matiere.mf1_gen.generate_absente") : e.message });
+    if (e.missing) apiFail(e, dzT("matiere.mf1_api.quoi_forge"));
+    toast(dzT("matiere.mf1_gen.forge_impossible", { e: e.message }), true);
     setProgress(0);
     planRun = { active: -1, done: [], t: [] };
     renderPlan();
@@ -782,7 +782,7 @@ function setProgress(pct) {
 }
 function setBusy(b) {
   $("#genBtn").disabled = b;
-  $("#genLabel").innerHTML = ico("dz-lab3d-forger-matiere") + (b ? " Forge en cours…" : " Forger la matière");
+  $("#genLabel").innerHTML = ico("dz-lab3d-forger-matiere") + (b ? dzT("matiere.mf1_gen.en_cours") : dzT("matiere.mf1_gen.forger"));
 }
 
 /* pct renvoyé par le backend -> index d'étape du parcours affiché.
@@ -835,15 +835,15 @@ async function pollJob(jid, st) {
         renderGallery();
         openMaterial(mat.id);
         const s = mat.seam || {};
-        toast("Matière forgée : " + (mat.name || mat.id) +
-          (s.ratio != null ? " · raccord " + fmt(s.ratio, 2) +
+        toast(dzT("matiere.mf1_gen.forgee", { nom: mat.name || mat.id }) +
+          (s.ratio != null ? dzT("matiere.mf1_gen.sep_raccord") + fmt(s.ratio, 2) +
             (seamGrade(s) ? " (" + seamGrade(s) + ")" : "") : ""));
       } else { await loadMaterials(); }
-      st.textContent = "Terminé en " + secs + " s.";
+      st.textContent = dzT("matiere.mf1_gen.termine", { s: secs });
       setTimeout(() => setProgress(0), 1200);
       return;
     }
-    if (j.status === "failed") throw new Error(j.error || "tâche échouée");
+    if (j.status === "failed") throw new Error(j.error || dzT("matiere.mf1_gen.tache_echouee"));
   }
 }
 
@@ -938,23 +938,18 @@ function seamHtml(m, cls) {
   const ax = seamAxis();
   const pct = (v) => clamp((num(v, 0) / ax.top) * 100, 0, 100).toFixed(1) + "%";
   const t = hasRatio
-    ? "Raccord : " + fmt(s.ratio, 2) + " — " +
-      (sc.note || "1.00 = la jonction ne dépasse pas la variation interne du motif.") +
-      " Paliers : ≤ " + fmt(ax.t1, 2) + " invisible, ≤ " + fmt(ax.t2, 2) + " discret, ≤ " +
-      fmt(ax.top, 2) + " visible, au-delà cassé — la jauge situe ce rapport sur cette " +
-      "échelle, les deux traits sont les seuils." +
-      (s.before != null ? " (Ancien score de bord avant la passe : " + fmt(s.before, 1) +
-        " ; l'après vaut 0.00 par construction, il ne mesure rien.)" : "")
-    : "Score de bord avant la passe : " + fmt(s.before, 1) +
-      ". Rapport de jonction pas encore calculé pour cette matière.";
+    ? dzT("matiere.mf1_raccord.titre", { r: fmt(s.ratio, 2), note: sc.note || dzT("matiere.mf1_raccord.note_def"),
+        t1: fmt(ax.t1, 2), t2: fmt(ax.t2, 2), top: fmt(ax.top, 2) }) +
+      (s.before != null ? dzT("matiere.mf1_raccord.ancien", { b: fmt(s.before, 1) }) : "")
+    : dzT("matiere.mf1_raccord.bord_seul", { b: fmt(s.before, 1) });
   const gauge = hasRatio
     ? '<i class="sm-bar" aria-hidden="true" style="--p:' + pct(s.ratio) +
       ";--t1:" + pct(ax.t1) + ";--t2:" + pct(ax.t2) + '"></i>'
     : "";
   const body = hasRatio
-    ? '<i class="sm-l raw">raccord</i><b class="sm-v res">' + fmt(s.ratio, 2) + "</b>" +
+    ? '<i class="sm-l raw">' + dzT("matiere.mf1_raccord.mot") + '</i><b class="sm-v res">' + fmt(s.ratio, 2) + "</b>" +
       gauge + '<i class="sm-g">' + esc(seamGrade(s)) + "</i>"
-    : '<i class="sm-l raw">avant</i><b class="sm-v">' + fmt(s.before, 1) + "</b>";
+    : '<i class="sm-l raw">' + dzT("matiere.mf1_raccord.avant") + '</i><b class="sm-v">' + fmt(s.before, 1) + "</b>";
   return '<span class="' + cls + " seamv" + (tier ? " t-" + tier : "") + '" title="' +
     esc(t) + '">' + body + "</span>";
 }
@@ -1032,12 +1027,11 @@ function updateVpTag() {
   const t = $("#vpTag");
   if (!t) return;
   if (state.vpModele && state.modele3d) {
-    t.textContent = "modèle de l'Établi · " + state.modele3d.nom + " · v" + state.modele3d.version;
+    t.textContent = dzT("matiere.mf1_vp.modele_etabli", { nom: state.modele3d.nom, v: state.modele3d.version });
     return;
   }
   const inf = MESH_INFO[state.mesh] || MESH_INFO.sphere;
-  t.textContent = inf[0].toLocaleString("fr-FR") + " tris · UV du maillage " +
-    inf[1] + "×" + inf[2];
+  t.textContent = dzT("matiere.mf1_vp.tag", { n: inf[0].toLocaleString("fr-FR"), u: inf[1], v: inf[2] });
 }
 
 function frameViewport(mesh, animate) {
@@ -1094,7 +1088,7 @@ function setViewportSrc(m) {
   const mv = $("#mv"), ld = $("#vpLoad");
   if (!mv || !m) return;
   ld.classList.remove("hidden", "err");
-  ld.textContent = "chargement de l’aperçu 3D…";
+  ld.textContent = dzT("matiere.mf1_vp.chargement");
   mv.addEventListener("load", () => {
     ld.classList.add("hidden");
     frameViewport(state.mesh, false);
@@ -1103,7 +1097,7 @@ function setViewportSrc(m) {
   mv.addEventListener("error", async () => {
     ld.classList.remove("hidden");
     ld.classList.add("err");
-    ld.textContent = "aperçu 3D indisponible (GET /api/materials/" + m.id + "/preview.glb)";
+    ld.textContent = dzT("matiere.mf1_vp.indisponible", { id: m.id });
     /* sur un modèle de l'Établi, le refus a un SENS (pas d'uv, Draco…) :
        on va chercher la phrase du serveur plutôt que de taire la cause */
     if (state.vpModele && url) {
@@ -1111,7 +1105,7 @@ function setViewportSrc(m) {
         const r = await fetch(url);
         if (!r.ok) {
           const d = await r.json().catch(() => null);
-          if (d && d.detail) ld.textContent = "Mon modèle : " + d.detail;
+          if (d && d.detail) ld.textContent = dzT("matiere.mf1_vp.mon_modele", { detail: d.detail });
         }
       } catch (e) { /* la phrase générique reste */ }
     }
@@ -1135,7 +1129,7 @@ function sourceLabel(m) {
 function cardSub(m) {
   const s = m.source || {};
   if (m.full_prompt) return m.full_prompt;
-  if (s.kind && s.kind !== "prompt" && s.filename) return "d’après " + s.filename;
+  if (s.kind && s.kind !== "prompt" && s.filename) return dzT("matiere.mf1_carte.d_apres", { f: s.filename });
   return m.prompt || "";
 }
 
@@ -1164,28 +1158,23 @@ function updateMapsBadge() {
      douze cartes lisaient « 6/8 » ; les deux racontent maintenant l'histoire
      du jeu livré, les cartes ajoutant seulement combien de ces huit sont des
      champs constants sur LEUR matière. */
-  b.textContent = k ? k + " MAPS LIVRÉES" : "MAPS PBR";
+  b.textContent = k ? dzT("matiere.mf1_badge.livrees", { k: k }) : dzT("matiere.mf1_badge.pbr");
   /* Un badge qui annonce un compte sans donner à le vérifier reste une
      promesse : il ouvre la preuve de la matière la mieux fournie, et chaque
      carte porte la sienne. */
   b.disabled = !k;
   b.dataset.mid = best ? best.id : "";
   b.title = k
-    ? "Chaque matière livre ces " + k + " fichiers, sans exception — c'est le " +
-      "compte que portent aussi les cartes. Certains d'entre eux sont des " +
-      "champs constants quand la matière est diélectrique ou n'émet pas : une " +
-      "propriété de la matière, pas une map manquante ; la carte dit lesquels. " +
-      "Cliquer : la preuve sur « " + (best.name || best.id) + " » — images, " +
-      "mesures, corrélations, contenu du ZIP."
-    : "Le compte s'affichera dès la première matière.";
+    ? dzT("matiere.mf1_badge.titre", { k: k, nom: best.name || best.id })
+    : dzT("matiere.mf1_badge.vide");
 }
 
 /* ───────────────────────── tri de la galerie ───────────────────────── */
 const SORTS = [
-  { id: "recent", label: "Plus récentes" },
-  { id: "name", label: "Nom (A → Z)" },
-  { id: "seam", label: "Meilleur raccord" },
-  { id: "res", label: "Résolution décroissante" },
+  { id: "recent", label: dzT("matiere.mf1_tri.recentes") },
+  { id: "name", label: dzT("matiere.mf1_tri.nom") },
+  { id: "seam", label: dzT("matiere.mf1_tri.raccord") },
+  { id: "res", label: dzT("matiere.mf1_tri.resolution") },
 ];
 function sortList(list) {
   const l = list.slice();
@@ -1310,8 +1299,8 @@ function updateLiveNote() {
   const n = $("#liveNote");
   if (!n) return;
   n.textContent = state.live3d
-    ? "La 3D n'est montée que pour les cartes visibles à l'écran ; les autres restent des vignettes."
-    : "Aperçus figés : seules les vignettes sont chargées.";
+    ? dzT("matiere.mf1_galerie.live_on")
+    : dzT("matiere.mf1_galerie.live_off");
 }
 
 /* ── la définition : une donnée, ou une constante ? ─────────────────────────
@@ -1342,19 +1331,19 @@ function renderGallery() {
     ((m.source || {}).filename || "").toLowerCase().includes(q)));
   const n = state.materials.length;
   resView = resCommon(list);
-  const head = n + " matière" + (n > 1 ? "s" : "") +
-    (q ? " · " + list.length + " affichée" + (list.length > 1 ? "s" : "") : "");
+  const head = (n > 1 ? dzT("matiere.mf1_galerie.n_plusieurs", { n: n }) : dzT("matiere.mf1_galerie.n_un", { n: n })) +
+    (q ? (list.length > 1 ? dzT("matiere.mf1_galerie.aff_plusieurs", { n: list.length })
+      : dzT("matiere.mf1_galerie.aff_un", { n: list.length })) : "");
   let rtxt = "", rtit = "";
   /* en mode éditeur, la définition de la matière ouverte est déjà écrite à
      droite du score : on ne la met pas deux fois dans la même barre */
   if (resView.base && state.view === "gallery") {
     if (resView.uniform) {
-      rtxt = "toutes en " + resView.base + "²";
-      rtit = "Toutes les matières affichées ont la même définition : aucune carte n'a besoin de la répéter.";
+      rtxt = dzT("matiere.mf1_galerie.toutes_en", { r: resView.base });
+      rtit = dzT("matiere.mf1_galerie.toutes_en_t");
     } else {
-      rtxt = resView.base + "² sauf indication";
-      rtit = "Définition de la plupart des matières affichées. Les " + resView.n +
-        " qui s'en écartent portent la leur sur leur carte.";
+      rtxt = dzT("matiere.mf1_galerie.sauf", { r: resView.base });
+      rtit = dzT("matiere.mf1_galerie.sauf_t", { n: resView.n });
     }
   }
   $("#count").innerHTML = esc(head) +
@@ -1387,8 +1376,8 @@ function renderGallery() {
 }
 
 /* ─────────────── états vides : jamais un cul-de-sac ─────────────── */
-const SEED_PROMPTS = ["fer rouillé", "verre givré", "cristal alien",
-  "écorce de bouleau", "or martelé", "béton usé"];
+const SEED_PROMPTS = [dzT("matiere.int_amorce.fer_rouille"), dzT("matiere.int_amorce.verre_givre"), dzT("matiere.int_amorce.cristal_alien"),
+  dzT("matiere.int_amorce.ecorce_bouleau"), dzT("matiere.int_amorce.or_martele"), dzT("matiere.int_amorce.beton_use")];
 
 /* ── le catalogue CC0 (T097 / plan-matieres T10) ────────────────────────────
    Une grille de vignettes servies par /materials/catalog/<id>/basecolor.jpg,
@@ -1401,23 +1390,21 @@ async function ouvrirCatalogue(famille) {
   let d;
   try {
     d = await api.get("/materials/catalog" + (famille ? "?family=" + encodeURIComponent(famille) : ""));
-  } catch (e) { if (e.missing) apiFail(e, "catalogue"); else toast("Catalogue : " + e.message, true); return; }
+  } catch (e) { if (e.missing) apiFail(e, dzT("matiere.mf2_cat.quoi")); else toast(dzT("matiere.mf2_cat.echec", { msg: e.message }), true); return; }
   if (!d.available) {
-    toast("Le catalogue n'est pas dans cette installation (scripts/build_materials_catalog.py --fetch).", true);
+    toast(dzT("matiere.mf2_cat.absent"), true);
     return;
   }
   proofSeq++;
   proofId = null;
   const choisis = new Set();
   const src = d.source || {};
-  $("#proofTitle").textContent = `Catalogue CC0 — ${d.materials.length} matière${d.materials.length > 1 ? "s" : ""}`;
+  $("#proofTitle").textContent = (d.materials.length > 1 ? dzT("matiere.mf2_cat.titre_n", { n: d.materials.length }) : dzT("matiere.mf2_cat.titre_1", { n: d.materials.length }));
   $("#proofBody").innerHTML = `
-    <p class="proof-lead">Source : <b>${esc(src.name || "")}</b> — licence ${esc(src.license || "")}.
-      Trois cartes sont embarquées (couleur, normale mesurée, rugosité) ; les cinq autres sont
-      dérivées à l'import, localement et gratuitement.</p>
+    <p class="proof-lead">${dzT("matiere.mf2_cat.source", { nom: esc(src.name || ""), licence: esc(src.license || "") })}</p>
     <div class="chips" id="catFams">${["", ...(d.families || []).map((f) => f.id)].map((f) => {
       const fam = (d.families || []).find((x) => x.id === f);
-      const lab = f ? `${fam.name} (${fam.count})` : "Toutes";
+      const lab = f ? `${fam.name} (${fam.count})` : dzT("matiere.mf2_cat.toutes");
       return `<button class="chip${f === (famille || "") ? " active" : ""}" data-fam="${esc(f)}">${esc(lab)}</button>`;
     }).join("")}</div>
     <div class="cat-grid" id="catGrid">${d.materials.map((m) => `
@@ -1425,13 +1412,13 @@ async function ouvrirCatalogue(famille) {
         <img loading="lazy" alt="" src="/api/materials/catalog/${encodeURIComponent(m.id)}/basecolor.jpg">
         <span>${esc(m.name)}</span>
       </button>`).join("")}</div>
-    <button class="btn wide" id="catGo" disabled>Importer</button>`;
+    <button class="btn wide" id="catGo" disabled>${dzT("matiere.mf2_cat.importer")}</button>`;
   $("#proofBack").classList.remove("hidden");
   $("#proof").classList.remove("hidden");
   const go = $("#catGo");
   const maj = () => {
     go.disabled = choisis.size === 0;
-    go.textContent = choisis.size ? `Importer ${choisis.size} matière${choisis.size > 1 ? "s" : ""}` : "Importer";
+    go.textContent = choisis.size ? (choisis.size > 1 ? dzT("matiere.mf2_cat.importer_n", { n: choisis.size }) : dzT("matiere.mf2_cat.importer_1", { n: choisis.size })) : dzT("matiere.mf2_cat.importer");
   };
   $$("#catGrid .cat-cell").forEach((b) => b.addEventListener("click", () => {
     const id = b.dataset.id;
@@ -1441,14 +1428,14 @@ async function ouvrirCatalogue(famille) {
   $$("#catFams .chip").forEach((c) => c.addEventListener("click", () => ouvrirCatalogue(c.dataset.fam)));
   go.addEventListener("click", async () => {
     go.disabled = true;
-    go.textContent = `Import de ${choisis.size} matière${choisis.size > 1 ? "s" : ""} — dérivation locale…`;
+    go.textContent = (choisis.size > 1 ? dzT("matiere.mf2_cat.import_n", { n: choisis.size }) : dzT("matiere.mf2_cat.import_1", { n: choisis.size }));
     try {
       const r = await api.post("/materials/catalog/import", { ids: Array.from(choisis) });
       closeProof();
       await loadMaterials();
-      toast(`${r.materials.length} matière${r.materials.length > 1 ? "s" : ""} importée${r.materials.length > 1 ? "s" : ""}.`);
+      toast((r.materials.length > 1 ? dzT("matiere.mf2_cat.importees_n", { n: r.materials.length }) : dzT("matiere.mf2_cat.importees_1", { n: r.materials.length })));
     } catch (e) {
-      if (e.missing) apiFail(e, "import du catalogue"); else toast("Import refusé : " + e.message, true);
+      if (e.missing) apiFail(e, dzT("matiere.mf2_cat.quoi_import")); else toast(dzT("matiere.mf2_cat.import_refuse", { msg: e.message }), true);
       maj();
     }
   });
@@ -1458,32 +1445,29 @@ function emptyHtml(q) {
   if (state.apiOk === false) {
     return `<div class="empty-card">
       <div class="empty-ic">${ico("dz-etat-erreur", 20)}</div>
-      <h3>L’API Matières ne répond pas</h3>
-      <p>Le lab reste ouvert. Dès que <code>GET /api/materials</code> répond, la galerie se remplit ici.</p>
-      <button class="btn sm" data-empty="retry">Réessayer</button>
+      <h3>${dzT("matiere.mf2_vide.api_titre")}</h3>
+      <p>${dzT("matiere.mf2_vide.api_texte")}</p>
+      <button class="btn sm" data-empty="retry">${dzT("matiere.mf2_vide.reessayer")}</button>
     </div>`;
   }
   if (q) {
     return `<div class="empty-card">
       <div class="empty-ic">${ico("dz-action-chercher", 20)}</div>
-      <h3>Aucune matière pour « ${esc(state.filter)} »</h3>
-      <p>${state.materials.length} matière${state.materials.length > 1 ? "s" : ""} en stock — le filtre porte sur le nom, l’invite et l’image d’origine.</p>
-      <button class="btn sm" data-empty="clear">Effacer le filtre</button>
+      <h3>${dzT("matiere.mf2_vide.aucune", { q: esc(state.filter) })}</h3>
+      <p>${state.materials.length > 1 ? dzT("matiere.mf2_vide.stock_n", { n: state.materials.length }) : dzT("matiere.mf2_vide.stock_1", { n: state.materials.length })}</p>
+      <button class="btn sm" data-empty="clear">${dzT("matiere.mf2_vide.effacer")}</button>
     </div>`;
   }
   return `<div class="empty-card">
     <div class="empty-ic">${ico("dz-cat-matieres", 20)}</div>
-    <h3>La galerie est vide</h3>
-    <p>Décris une matière à gauche, ou pars d’une image de la Library.
-       Chaque forge dépose ici une carte en aperçu 3D réel, avec ses
-       <b>maps PBR</b> et son <b>score de raccord mesuré</b>.</p>
+    <h3>${dzT("matiere.mf2_vide.titre")}</h3>
+    <p>${dzT("matiere.mf2_vide.intro")}</p>
     <div class="empty-chips">
       ${SEED_PROMPTS.map((p) => `<button class="chip" data-empty="seed" data-p="${esc(p)}">${esc(p)}</button>`).join("")}
     </div>
-    <p>Ou pars d'une matière du catalogue :
-      <button class="btn sm" data-empty="catalog">${ico("dz-media-pack-depart")} Catalogue CC0 (30 matières)</button></p>
-    <p class="empty-foot">Rouvrir une matière plus tard : un clic sur sa carte la rouvre
-      dans l’éditeur, propriétés et maps intactes.</p>
+    <p>${dzT("matiere.mf2_vide.ou_catalogue")}
+      <button class="btn sm" data-empty="catalog">${ico("dz-media-pack-depart")} ${dzT("matiere.mf2_vide.catalogue_30")}</button></p>
+    <p class="empty-foot">${dzT("matiere.mf2_vide.rouvrir")}</p>
   </div>`;
 }
 
@@ -1550,8 +1534,8 @@ function proofCount(m) {
    2 unies : métal, émission » dit le jeu livré, ce qui varie, et de quoi il
    s'agit. Il prend toute la largeur du pied de carte, au-dessus des actions :
    une ligne de fait, une ligne de commandes. */
-const MAP_COURT = { basecolor: "couleur", normal: "normale", roughness: "rugosité",
-  metallic: "métal", ao: "occlusion", height: "hauteur", emissive: "émission",
+const MAP_COURT = { basecolor: dzT("matiere.mf2_mapc.basecolor"), normal: dzT("matiere.mf2_mapc.normal"), roughness: dzT("matiere.mf2_mapc.roughness"),
+  metallic: dzT("matiere.mf2_mapc.metallic"), ao: "occlusion", height: dzT("matiere.mf2_mapc.height"), emissive: dzT("matiere.mf2_mapc.emissive"),
   orm: "ORM", maskmap: "MaskMap" };
 function proofChip(m) {
   const c = proofCount(m);
@@ -1560,8 +1544,8 @@ function proofChip(m) {
   if (!c.audited) return tete;
   const noms = c.flat.map((k) => MAP_COURT[k] || mapFr(k)).join(", ");
   return tete + '<i class="cst">' + (c.cst
-    ? c.cst + (c.cst > 1 ? " unies : " : " unie : ") + esc(noms)
-    : "toutes porteuses") + "</i>";
+    ? (c.cst > 1 ? dzT("matiere.mf2_carte.unies", { n: c.cst, noms: esc(noms) }) : dzT("matiere.mf2_carte.unie", { n: c.cst, noms: esc(noms) }))
+    : dzT("matiere.mf2_carte.porteuses")) + "</i>";
 }
 /* La raison de chaque map constante, dans les mots de la mesure : le backend
    écrit déjà « uniforme — métallicité 1.00 partout » ou « éteinte — cette
@@ -1574,18 +1558,14 @@ function flatReasons(m) {
 function proofTitle(m) {
   const c = proofCount(m);
   if (!c.audited) {
-    return "Ouvrir la preuve des maps : les images, leurs statistiques et le " +
-      "contenu exact du ZIP.";
+    return dzT("matiere.mf2_carte.preuve_ouvrir");
   }
   const why = flatReasons(m);
-  return "Les " + c.n + " maps du jeu sont livrées, toujours." +
+  return dzT("matiere.mf2_carte.livrees", { n: c.n }) +
     (c.cst
-      ? " " + c.cst + " d'entre elles sont des champs constants : " +
-        why.join(" ; ") + ". C'est un fait sur CETTE matière, pas une map " +
-        "manquante — un moteur attend les " + c.n + " fichiers et les reçoit."
-      : " Les " + c.n + " portent de l'information : aucun champ constant.") +
-    " Ouvrir la preuve : les images, leurs statistiques, la corrélation entre " +
-    "maps et le contenu exact du ZIP.";
+      ? " " + dzT("matiere.mf2_carte.constantes", { c: c.cst, raisons: why.join(" ; "), n: c.n })
+      : " " + dzT("matiere.mf2_carte.aucune_constante", { n: c.n })) +
+    " " + dzT("matiere.mf2_carte.ouvrir_preuve");
 }
 
 function cardHtml(m, i) {
@@ -1598,31 +1578,31 @@ function cardHtml(m, i) {
   const meshLabel = (MESHES.find((x) => x.id === mesh) || {}).label || mesh;
   const sub = cardSub(m);
   return `<article class="card${m.id === state.sel ? " sel" : ""}" data-id="${esc(m.id)}"
-   data-mesh="${esc(mesh)}" tabindex="0" role="button" aria-label="Ouvrir ${esc(nm)}">
-  <div class="card-view" data-act="open" title="Ouvrir « ${esc(nm)} » dans l’éditeur">
+   data-mesh="${esc(mesh)}" tabindex="0" role="button" aria-label="${dzT("matiere.mf2_carte.ouvrir_nom", { nom: esc(nm) })}">
+  <div class="card-view" data-act="open" title="${dzT("matiere.mf2_carte.ouvrir_editeur", { nom: esc(nm) })}">
     <img class="poster" alt="" loading="lazy" decoding="async" src="${esc(posterUrl(m, 256))}">
     <div class="mv-slot"></div>
     ${seamHtml(m, "card-seam")}
     ${(m.res && !resView.uniform && num(m.res, 0) !== resView.base)
-      ? `<span class="card-res" title="Cette matière s'écarte de la définition courante de la galerie (${resView.base}²) : elle a été forgée en ${m.res}².">${m.res}²</span>`
+      ? `<span class="card-res" title="${dzT("matiere.mf2_carte.res_ecart", { base: resView.base, res: m.res })}">${m.res}²</span>`
       : ""}
     ${state.varied ? `<span class="card-mesh">${esc(meshLabel)}</span>` : ""}
     <button class="card-del" data-act="del" data-arm="0" type="button"
-            aria-label="Supprimer ${esc(nm)}"
-            title="Supprimer la matière et ses maps — un second clic confirme">${ico("dz-action-supprimer")}</button>
-    <span class="card-open">Ouvrir</span>
+            aria-label="${dzT("matiere.mf2_carte.supprimer_nom", { nom: esc(nm) })}"
+            title="${dzT("matiere.mf2_carte.supprimer_titre")}">${ico("dz-action-supprimer")}</button>
+    <span class="card-open">${dzT("matiere.mf2_carte.ouvrir")}</span>
   </div>
   <div class="card-meta">
     <div class="card-top">
       <div class="card-name" title="${esc(nm)}">${esc(nm)}</div>
-      ${model ? `<span class="card-model" title="Modèle payant appelé pour l’image de base">${esc(model)}</span>` : ""}
+      ${model ? `<span class="card-model" title="${dzT("matiere.mf2_carte.modele")}">${esc(model)}</span>` : ""}
     </div>
     <div class="card-prompt" title="${esc(sub)}">${esc(sub) || "&nbsp;"}</div>
     <div class="card-foot">
       <button class="iact pchip" data-act="proof" title="${esc(proofTitle(m))}">${proofChip(m)}</button>
-      <button class="iact" data-act="dup" title="Copie locale et gratuite de cette matière">${ico("dz-action-dupliquer")} Dupliquer</button>
-      <button class="iact" data-act="dl" title="Télécharger l’archive ZIP des maps de cette matière — son contenu exact est listé dans la preuve">${ico("dz-action-telecharger")} ZIP</button>
-      <button class="iact" data-act="reuse" title="Recharger son invite et ses réglages dans le rail de gauche">${ico("dz-action-reprendre-reglages")} Invite</button>
+      <button class="iact" data-act="dup" title="${dzT("matiere.mf2_carte.dup_titre")}">${ico("dz-action-dupliquer")} ${dzT("matiere.mf2_carte.dupliquer")}</button>
+      <button class="iact" data-act="dl" title="${dzT("matiere.mf2_carte.zip_titre")}">${ico("dz-action-telecharger")} ZIP</button>
+      <button class="iact" data-act="reuse" title="${dzT("matiere.mf2_carte.invite_titre")}">${ico("dz-action-reprendre-reglages")} ${dzT("matiere.mf2_carte.invite")}</button>
     </div>
   </div>
 </article>`;
@@ -1645,7 +1625,7 @@ function armDelete(btn, id) {
   if (btn.dataset.arm === "1") { disarmAll(); remove(id); return; }
   disarmAll();
   btn.dataset.arm = "1";
-  btn.textContent = "Supprimer ?";
+  btn.textContent = dzT("matiere.mf2_carte.supprimer_arme");
   armTimer = setTimeout(disarmAll, 4000);
 }
 
@@ -1722,14 +1702,14 @@ const maniCache = new Map();              // clé de réglages -> bordereau
    qu'une corrélation élevée ne passe pas pour un aveu et qu'une corrélation
    attendue mais absente saute aux yeux. */
 const MAP_KIN = {
-  basecolor: "image de base — c'est la source payante, tout en dérive",
-  height: "luminance de la couleur de base, lissée",
-  normal: "gradient (Sobel cyclique) de la hauteur",
-  ao: "écart entre la hauteur et sa version floue",
-  roughness: "luminance inversée, biaisée et contrastée",
-  metallic: "seuil sur la saturation et la luminance",
-  emissive: "couleur de base masquée par un seuil de luminance",
-  orm: "empilement : R occlusion, V rugosité, B métal",
+  basecolor: dzT("matiere.mf2_kin.basecolor"),
+  height: dzT("matiere.mf2_kin.height"),
+  normal: dzT("matiere.mf2_kin.normal"),
+  ao: dzT("matiere.mf2_kin.ao"),
+  roughness: dzT("matiere.mf2_kin.roughness"),
+  metallic: dzT("matiere.mf2_kin.metallic"),
+  emissive: dzT("matiere.mf2_kin.emissive"),
+  orm: dzT("matiere.mf2_kin.orm"),
 };
 
 let proofId = null, proofSeq = 0;
@@ -1858,27 +1838,26 @@ async function cardManifest(m) {
    ne disait rien là où le lecteur doit pouvoir vérifier que c'est BAS. Chaque
    vignette porte donc maintenant son r et son verdict. */
 function proofStatLine(st, k) {
-  if (!st) return "mesure non publiée par l'API";
-  const s = "médiane " + num(st.median, 0) + " · min–max " + num(st.min, 0) + "–" +
-    num(st.max, 0) + " · 1 % à " + num(st.p1, 0);
-  if (k === "basecolor") return s + " · référence de la corrélation";
+  if (!st) return dzT("matiere.mf2_stat.non_publiee");
+  const s = dzT("matiere.mf2_stat.ligne", { med: num(st.median, 0), min: num(st.min, 0), max: num(st.max, 0), p1: num(st.p1, 0) });
+  if (k === "basecolor") return s + dzT("matiere.mf2_stat.reference");
   // une constante ne corrèle avec rien : annoncer « r +0.000 — indépendante »
   // sur un champ uni serait un compliment vide.
-  if (st.informative === false) return s + " · champ constant";
+  if (st.informative === false) return s + dzT("matiere.mf2_stat.constant");
   if (st.corr_lum == null) return s;
   const r = num(st.corr_lum, 0);
-  return s + " · r(couleur de base) " + (r >= 0 ? "+" : "") + fmt(r, 3) +
-    (st.dependent ? " — dépendante, pas d'information indépendante"
-                  : " — indépendante");
+  return s + dzT("matiere.mf2_stat.r_couleur") + (r >= 0 ? "+" : "") + fmt(r, 3) +
+    (st.dependent ? dzT("matiere.mf2_stat.dependante")
+                  : dzT("matiere.mf2_stat.independante"));
 }
 function mapLabel(k) { return (MAPS.find((x) => x.k === k) || {}).label || k; }
 /* les vignettes portent le nom d'usage des maps (Base Color, Height…), qui est
    anglais parce que c'est celui des moteurs ; la PROSE, elle, est française :
    « la hauteur », pas « la height ». */
-const MAP_FR = { basecolor: "couleur de base", normal: "normale", roughness: "rugosité",
-  metallic: "métallicité", ao: "occlusion", height: "hauteur", emissive: "émission",
-  orm: "ORM", maskmap: "MaskMap", smoothness: "lissage", opacity: "opacité",
-  displacement: "déplacement" };
+const MAP_FR = { basecolor: dzT("matiere.mf2_mapfr.basecolor"), normal: dzT("matiere.mf2_mapfr.normal"), roughness: dzT("matiere.mf2_mapfr.roughness"),
+  metallic: dzT("matiere.mf2_mapfr.metallic"), ao: "occlusion", height: dzT("matiere.mf2_mapfr.height"), emissive: dzT("matiere.mf2_mapfr.emissive"),
+  orm: "ORM", maskmap: "MaskMap", smoothness: dzT("matiere.mf2_mapfr.smoothness"), opacity: dzT("matiere.mf2_mapfr.opacity"),
+  displacement: dzT("matiere.mf2_mapfr.displacement") };
 function mapFr(k) { return MAP_FR[k] || mapLabel(k); }
 
 async function openProof(id) {
@@ -1888,9 +1867,8 @@ async function openProof(id) {
   const seq = ++proofSeq;
   $("#proofBack").classList.remove("hidden");
   $("#proof").classList.remove("hidden");
-  $("#proofTitle").textContent = "Preuve des maps — " + (m.name || m.id);
-  $("#proofBody").innerHTML = '<p class="proof-wait">Lecture des PNG servis par le backend, ' +
-    "ajustement affine sur la hauteur…</p>";
+  $("#proofTitle").textContent = dzT("matiere.mf2_preuve.titre", { nom: m.name || m.id });
+  $("#proofBody").innerHTML = '<p class="proof-wait">' + dzT("matiere.mf2_preuve.attente") + "</p>";
   $("#proofClose").focus();
 
   const mstats = m.map_stats || {};
@@ -1920,17 +1898,17 @@ async function openProof(id) {
   // ── 2. l'audit d'indépendance, ligne par ligne ──
   const refFr = au && au.ref ? mapFr(au.ref) : "";
   const tab = au && au.ref
-    ? '<table class="ptab audit"><thead><tr><th>Map</th><th>Lien déclaré</th>' +
-      "<th>r avec la " + esc(refFr) + "</th>" +
-      "<th>Part inexpliquée</th></tr></thead><tbody>" +
+    ? '<table class="ptab audit"><thead><tr><th>Map</th><th>' + dzT("matiere.mf2_audit.lien") + '</th>' +
+      "<th>" + dzT("matiere.mf2_audit.r_avec", { ref: esc(refFr) }) + "</th>" +
+      "<th>" + dzT("matiere.mf2_audit.part") + "</th></tr></thead><tbody>" +
       au.rows.map((row) => {
         const gain = row.share != null && row.share < PROOF_GAIN;
-        const val = row.self ? "référence"
-          : row.flat ? "champ constant"
+        const val = row.self ? dzT("matiere.mf2_audit.reference")
+          : row.flat ? dzT("matiere.mf2_audit.constant")
           : row.share == null ? "—"
-          : fmt(row.share * 100, 1) + " % · " + fmt(row.resid, 1) + " niv.";
+          : fmt(row.share * 100, 1) + " % · " + fmt(row.resid, 1) + dzT("matiere.mf2_audit.niv");
         return "<tr" + (gain ? ' class="bad"' : "") + "><td>" + esc(mapLabel(row.k)) + "</td>" +
-          '<td class="kin">' + esc(MAP_KIN[row.k] || "dérivée localement") + "</td>" +
+          '<td class="kin">' + esc(MAP_KIN[row.k] || dzT("matiere.mf2_audit.derivee")) + "</td>" +
           '<td class="num">' + (row.r == null ? "—" : fmt(row.r, 3)) + "</td>" +
           '<td class="num' + (gain ? " bad" : "") + '">' + esc(val) + "</td></tr>";
       }).join("") + "</tbody></table>"
@@ -1938,25 +1916,17 @@ async function openProof(id) {
 
   const gains = au ? au.rows.filter((x) => x.share != null && x.share < PROOF_GAIN) : [];
   const testedTxt = au
-    ? au.tested + " des " + au.n + " maps sont passées au test ; la " + esc(refFr) +
-      " est la référence" +
-      (au.flatN ? ", et " + au.flatN + " sont des champs constants (la raison est écrite " +
-        "sous leur image)" : "") + "."
+    ? (au.flatN
+      ? dzT("matiere.mf2_audit.testees_cst", { t: au.tested, n: au.n, ref: esc(refFr), c: au.flatN })
+      : dzT("matiere.mf2_audit.testees", { t: au.tested, n: au.n, ref: esc(refFr) }))
     : "";
   const verdict = !au || !au.ref
-    ? "Audit impossible : la hauteur n'a pas pu être lue dans cette page."
+    ? dzT("matiere.mf2_audit.impossible")
     : gains.length
-      ? ico("dz-etat-avertissement") + " " + gains.map((x) => mapLabel(x.k)).join(", ") + " : le meilleur ajustement " +
-        "affine sur la " + esc(refFr) + " ne laisse rien — ces maps SONT la même image " +
-        "re-réglée. " + testedTxt
-      : "Aucune map n'est la " + esc(refFr) + " re-réglée. La plus proche des maps " +
-        "dérivées, " + esc(mapLabel(au.worst.k)) + ", garde " +
-        fmt(au.worst.share * 100, 1) + " % de sa propre variation qu'aucun couple (a, b) " +
-        "n'explique — " + fmt(au.worst.resid, 1) + " niveaux sur 255. Un simple gain, lui, " +
-        "tomberait à 0,0 %, quel que soit le facteur." +
-        (au.src ? " La couleur de base est le seul cas serré (" +
-          fmt(au.src.share * 100, 1) + " %), et c'est attendu : c'est l'image source dont " +
-          "la " + esc(refFr) + " est tirée — le lien est déclaré sur sa ligne." : "") +
+      ? ico("dz-etat-avertissement") + " " + dzT("matiere.mf2_audit.gain", { maps: gains.map((x) => mapLabel(x.k)).join(", "), ref: esc(refFr) }) + " " + testedTxt
+      : dzT("matiere.mf2_audit.aucune", { ref: esc(refFr), map: esc(mapLabel(au.worst.k)),
+          part: fmt(au.worst.share * 100, 1), resid: fmt(au.worst.resid, 1) }) +
+        (au.src ? " " + dzT("matiere.mf2_audit.source", { part: fmt(au.src.share * 100, 1), ref: esc(refFr) }) : "") +
         " " + testedTxt;
 
   // ── 3. le contenu exact de l'archive ──
@@ -1980,44 +1950,29 @@ async function openProof(id) {
         "<td>" + esc(extraRole(e.name)) + "</td></tr>").join("") +
       "</tbody></table>" +
       '<p class="proof-note">' + esc(mani.weigh_rule || WEIGH_RULE_FALLBACK) + "</p>" +
-      '<p class="proof-note">Archive <b>' + esc(mani.archive) + "</b> — " +
-      ((mani.entries || []).filter((e) => e.selected !== false).length + (mani.extras || []).length) +
-      " fichiers cochés par défaut, " + (mani.exact ? "" : "≈ ") + fmtBytes(mani.total_bytes) +
-      ". Les lignes grisées ne partent pas par défaut ; le bloc Export de " +
-      "l'inspecteur permet de les cocher, et de changer de convention, de " +
-      "définition et de profondeur.</p>"
-    : '<p class="proof-note">Bordereau indisponible : ' + esc(maniErr || "—") + "</p>";
+      '<p class="proof-note">' + dzT("matiere.mf2_zip.archive", { nom: esc(mani.archive),
+        n: (mani.entries || []).filter((e) => e.selected !== false).length + (mani.extras || []).length,
+        taille: (mani.exact ? "" : "≈ ") + fmtBytes(mani.total_bytes) }) + "</p>"
+    : '<p class="proof-note">' + dzT("matiere.mf2_zip.indispo", { err: esc(maniErr || "—") }) + "</p>";
 
   if (seq !== proofSeq) return;
   $("#proofBody").innerHTML =
-    '<p class="proof-lead"><b>Les ' + kinds.length + " maps du jeu sont " +
-      "livrées</b> — c'est le compte du bandeau, et il ne bouge pas d'une " +
-      "matière à l'autre. " +
+    '<p class="proof-lead">' + dzT("matiere.mf2_preuve.lead", { n: kinds.length }) + " " +
       (kinds.length - ninf
-        ? "Sur celle-ci, " + (kinds.length - ninf) + " sont des champs " +
-          "constants : " + esc(flatReasons(m).join(" ; ")) + ". Fait sur la " +
-          "matière, pas map manquante — la mesure est sous chaque image."
-        : "Les " + kinds.length + " portent de l'information : aucun champ " +
-          "constant sur celle-ci.") +
-      " Les images ci-dessous sont les PNG servis par le backend, pas des " +
-      "aperçus reconstitués.</p>" +
+        ? dzT("matiere.mf2_preuve.lead_cst", { c: kinds.length - ninf, raisons: esc(flatReasons(m).join(" ; ")) })
+        : dzT("matiere.mf2_preuve.lead_aucune", { n: kinds.length })) +
+      " " + dzT("matiere.mf2_preuve.lead_png") + "</p>" +
     '<div class="pgrid">' + cells + "</div>" +
-    '<h4 class="proof-h">Ces maps sont-elles la même, re-réglée ? — le test</h4>' +
-    '<p class="proof-sub">« Un réglage de gain de plus sur le même champ » s’écrit ' +
-      "<b>map = a × " + esc(refFr) + " + b</b>. On cherche donc le meilleur couple " +
-      "(a, b) au sens des moindres carrés, sur la luminance de chaque PNG en " +
-      PROOF_N + "×" + PROOF_N + ", et on mesure ce qu'il RESTE — en part de la variation " +
-      "propre de la map, pour qu'une map de faible amplitude ne passe pas le test par " +
-      "sa seule platitude. Un gain, quel qu'il soit, ne laisse rien.</p>" +
+    '<h4 class="proof-h">' + dzT("matiere.mf2_preuve.test_h") + "</h4>" +
+    '<p class="proof-sub">' + dzT("matiere.mf2_preuve.test_sub", { ref: esc(refFr), n: PROOF_N }) + "</p>" +
     tab +
     '<p class="proof-verdict' + (gains.length ? " bad" : "") + '">' + verdict + "</p>" +
-    '<h4 class="proof-h">Ce que contient le ZIP de cette carte</h4>' +
-    '<p class="proof-sub">Convention standard · ' + num(m.res, 2048) + "² · 8 bits — " +
-      "les réglages qu'applique le bouton ZIP de la carte.</p>" + zip;
+    '<h4 class="proof-h">' + dzT("matiere.mf2_preuve.zip_h") + "</h4>" +
+    '<p class="proof-sub">' + dzT("matiere.mf2_preuve.zip_sub", { res: num(m.res, 2048) }) + "</p>" + zip;
 
   const dl = document.createElement("button");
   dl.className = "btn strong wide";
-  dl.innerHTML = ico("dz-action-telecharger") + " Télécharger ce ZIP";
+  dl.innerHTML = ico("dz-action-telecharger") + dzT("matiere.mf2_preuve.telecharger");
   dl.onclick = () => doExport(m.id, true);
   $("#proofBody").appendChild(dl);
 }
@@ -2037,7 +1992,7 @@ function reusePrompt(m) {
   $("#seamless").checked = !!m.seamless;
   updateEstimate();
   $("#prompt").focus();
-  toast("Invite réutilisée : « " + (m.prompt || "") + " »");
+  toast(dzT("matiere.mf2_toast.invite", { p: m.prompt || "" }));
 }
 
 async function duplicate(id) {
@@ -2047,9 +2002,9 @@ async function duplicate(id) {
       upsert(d.material);
       renderGallery();
       flashCard(d.material.id);
-      toast("Matière dupliquée (gratuit, local) : « " + (d.material.name || d.material.id) + " ».");
+      toast(dzT("matiere.mf2_toast.dupliquee", { nom: d.material.name || d.material.id }));
     } else await loadMaterials();
-  } catch (e) { toast("Duplication impossible : " + e.message, true); }
+  } catch (e) { toast(dzT("matiere.mf2_toast.dup_impossible", { msg: e.message }), true); }
 }
 
 /* amène une carte sous les yeux et la signale — une copie qui apparaît hors
@@ -2068,8 +2023,8 @@ async function remove(id) {
     state.materials = state.materials.filter((x) => x.id !== id);
     if (state.sel === id) closeEditor();
     renderGallery();
-    toast("Matière supprimée.");
-  } catch (e) { toast("Suppression impossible : " + e.message, true); }
+    toast(dzT("matiere.mf2_toast.supprimee"));
+  } catch (e) { toast(dzT("matiere.mf2_toast.sup_impossible", { msg: e.message }), true); }
 }
 
 /* ───────────────────────── éditeur ─────────────────────────
@@ -2133,9 +2088,7 @@ function updateEditorHead(m) {
     (x) => x && x !== "—");
   meta.classList.toggle("hidden", !parts.length);
   meta.textContent = parts.join(" · ");
-  meta.title = "Définition de cette matière, fixée à sa forge. Le segment " +
-    "« Définition source » du rail gauche règle la prochaine ; « Taille à " +
-    "l'export », dans l'inspecteur, ne touche qu'au livrable.";
+  meta.title = dzT("matiere.mf2_ed.meta");
 }
 
 function closeEditor(opts) {
@@ -2152,7 +2105,7 @@ function closeEditor(opts) {
   $("#grpView").classList.remove("hidden");
   $("#inspMat").classList.add("hidden");
   $("#inspEmpty").classList.remove("hidden");
-  $("#inspTitle").textContent = "Aperçu";
+  $("#inspTitle").textContent = dzT("matiere.mf2_insp.apercu");
   $("#edSeam").classList.add("hidden");
   $("#edMeta").classList.add("hidden");
   renderGallery();
@@ -2189,11 +2142,11 @@ function closeEditor(opts) {
    un seul tiret), qui se saute d'un seul coup d'oeil pour les quatre. Le détail
    chiffré est réservé aux groupes qui portent réellement une valeur. */
 const DIGEST = {
-  base: (p) => fmt(p.metallic) + " mét · " + fmt(p.roughness) + " rug",
-  surface: (p) => "relief ×" + fmt(p.normal_scale, 1) + " · répétition ×" + trim0(fmt(p.tiling, 2)),
+  base: (p) => dzT("matiere.mf2_dig.base", { m: fmt(p.metallic), r: fmt(p.roughness) }),
+  surface: (p) => dzT("matiere.mf2_dig.surface", { r: fmt(p.normal_scale, 1), t: trim0(fmt(p.tiling, 2)) }),
   emission: (p) => "×" + fmt(p.emissive_strength),
-  clearcoat: (p) => fmt(p.clearcoat) + " · rug " + fmt(p.clearcoat_roughness),
-  sheen: (p) => "duvet " + fmt(p.sheen),
+  clearcoat: (p) => dzT("matiere.mf2_dig.clearcoat", { c: fmt(p.clearcoat), r: fmt(p.clearcoat_roughness) }),
+  sheen: (p) => dzT("matiere.mf2_dig.sheen", { s: fmt(p.sheen) }),
   transmission: (p) => fmt(p.transmission) + " · IOR " + fmt(p.ior),
 };
 
@@ -2214,7 +2167,7 @@ function setGrpDigest(d, dig) {
     sum.insertBefore(b, sum.querySelector(".grp-mod") || null);
   }
   b.textContent = neutral ? "—" : dig;
-  b.title = neutral ? "Groupe resté à ses valeurs par défaut." : "";
+  b.title = neutral ? dzT("matiere.mf2_grp.neutre") : "";
 }
 function trim0(s) { return String(s).indexOf(".") < 0 ? s : String(s).replace(/\.?0+$/, ""); }
 
@@ -2238,7 +2191,7 @@ function propRow(row, val, def, onChange) {
   const line = document.createElement("div");
   line.className = "prop-line";
   line.innerHTML =
-    '<button class="qmark" type="button" aria-label="Aide">?</button>' +
+    '<button class="qmark" type="button" aria-label="' + dzT("matiere.mf2_prop.aide") + '">?</button>' +
     '<span class="prop-l"></span>' +
     '<span class="prop-ctl"></span>';
   wrap.appendChild(line);
@@ -2253,7 +2206,7 @@ function propRow(row, val, def, onChange) {
   help.textContent = row.h || "";
   wrap.appendChild(help);
   const q = line.querySelector(".qmark");
-  q.title = "Ce que fait « " + row.l + " »";
+  q.title = dzT("matiere.mf2_prop.ce_que_fait", { l: row.l });
   q.onclick = (e) => {
     e.preventDefault();
     const on = !help.classList.toggle("hidden");
@@ -2269,7 +2222,7 @@ function propRow(row, val, def, onChange) {
     const input = document.createElement("input");
     input.type = "range"; input.min = row.min; input.max = row.max; input.step = row.step;
     input.value = num(val, def);
-    input.title = "défaut " + fmt(def, dec) + " — double-clic sur le libellé pour y revenir";
+    input.title = dzT("matiere.mf2_prop.defaut", { v: fmt(def, dec) });
     ctl.appendChild(input);
 
     const cell = document.createElement("span");
@@ -2277,7 +2230,7 @@ function propRow(row, val, def, onChange) {
     const numv = document.createElement("input");
     numv.className = "numv"; numv.type = "text"; numv.spellcheck = false;
     numv.value = fmt(input.value, dec);
-    numv.title = "Valeur exacte : tape-la, ou règle-la avec ↑ ↓";
+    numv.title = dzT("matiere.mf2_prop.valeur");
     cell.appendChild(numv);
     // la colonne d'unite est TOUJOURS reservee, meme vide : sans cela les
     // lignes qui portent « px » ou « ° » decalaient leurs chiffres d'un cran
@@ -2304,7 +2257,7 @@ function propRow(row, val, def, onChange) {
       e.preventDefault();
       set(num(numv.value.replace(",", "."), def) + d * row.step * (e.shiftKey ? 10 : 1), false);
     };
-    lab.title = row.l + " — double-clic : retour au défaut (" + fmt(def, dec) + (row.u || "") + ")";
+    lab.title = dzT("matiere.mf2_prop.retour_defaut", { l: row.l, v: fmt(def, dec) + (row.u || "") });
     lab.ondblclick = () => set(def, false);
     mark(input.value);
     return wrap;
@@ -2318,7 +2271,7 @@ function propRow(row, val, def, onChange) {
     const hex = document.createElement("input");
     hex.className = "hexv"; hex.type = "text"; hex.spellcheck = false;
     hex.value = sw.value.toLowerCase();
-    hex.title = "Hexadécimal — collable depuis n’importe quelle charte";
+    hex.title = dzT("matiere.mf2_prop.hex");
     line.appendChild(hex);
     const set = (v, live) => {
       if (!/^#[0-9a-f]{6}$/i.test(String(v))) return;
@@ -2329,7 +2282,7 @@ function propRow(row, val, def, onChange) {
     sw.oninput = () => { hex.value = sw.value.toLowerCase(); mark(sw.value); onChange(sw.value, true); };
     sw.onchange = () => set(sw.value, false);
     hex.onchange = () => set(hex.value.trim().replace(/^#?/, "#"), false);
-    lab.title = row.l + " — double-clic : retour au défaut (" + def + ")";
+    lab.title = dzT("matiere.mf2_prop.retour_defaut", { l: row.l, v: def });
     lab.ondblclick = () => set(def, false);
     mark(sw.value);
     return wrap;
@@ -2364,14 +2317,14 @@ function propRow(row, val, def, onChange) {
 function grpSummary(title, dig, mods) {
   return '<summary><i class="chev">' + ico("dz-action-deplier", 12) + '</i><span class="grp-t">' + esc(title) + "</span>" +
     (dig ? '<b class="grp-dig">' + esc(dig) + "</b>" : "") +
-    (mods ? '<em class="grp-mod" title="' + mods + ' réglage(s) hors défaut">' + mods + "</em>" : "") +
+    (mods ? '<em class="grp-mod" title="' + dzT("matiere.mf2_grp.hors_defaut", { n: mods }) + '">' + mods + "</em>" : "") +
     "</summary>";
 }
 
 function fillInspector(m) {
   $("#inspEmpty").classList.add("hidden");
   $("#inspMat").classList.remove("hidden");
-  $("#inspTitle").textContent = "Inspecteur";
+  $("#inspTitle").textContent = dzT("matiere.mf2_insp.inspecteur");
   $("#matName").value = m.name || "";
 
   const props = Object.assign({}, DEFAULT_PROPS, m.props || {});
@@ -2420,11 +2373,11 @@ function fillInspector(m) {
      « 6/8 porteuses » se lisait comme un échec permanent : deux fichiers
      semblaient manquer alors que les huit partent toujours. */
   const ncst = Math.max(0, nmaps - ninf);
-  dm.innerHTML = grpSummary("Maps de texture",
+  dm.innerHTML = grpSummary(dzT("matiere.mf2_maps.titre"),
     (Object.keys(mstats).length
-      ? nmaps + " livrées" + (ncst ? " · " + ncst + " constante" +
-        (ncst > 1 ? "s" : "") : "")
-      : nmaps + " générées"), 0);
+      ? dzT("matiere.mf2_maps.livrees", { n: nmaps }) + (ncst ? " · " + (ncst > 1
+        ? dzT("matiere.mf2_maps.constantes", { n: ncst }) : dzT("matiere.mf2_maps.constante", { n: ncst })) : "")
+      : dzT("matiere.mf2_maps.generees", { n: nmaps })), 0);
   const mb = document.createElement("div");
   mb.className = "grp-body";
   const grid = document.createElement("div");
@@ -2435,12 +2388,12 @@ function fillInspector(m) {
     const flat = has && st && st.informative === false;
     const url = "/api/materials/" + encodeURIComponent(m.id) + "/map/" + mp.k + ".png?res=256&v=" + (m._v || 0);
     const tip = esc(mp.label) + (has
-      ? (st ? " — moyenne " + fmt(st.mean, 1) + "/255" +
+      ? (st ? " — " + dzT("matiere.mf2_maps.moyenne", { v: fmt(st.mean, 1) }) +
               (st.channel ? " (" + st.channel + ")" : "") +
               ", min " + num(st.min, 0) + ", max " + num(st.max, 0) +
               (st.note ? " · " + st.note : "") + ". " : " — ") +
-        "Cliquer pour télécharger cette map en pleine résolution"
-      : " — non générée");
+        dzT("matiere.mf2_maps.cliquer")
+      : dzT("matiere.mf2_maps.non_generee"));
     return `<a class="mapcell${has ? "" : " off"}${flat ? " flat" : ""}" href="${has ? esc(url.replace("res=256", "res=" + (m.res || 2048))) : "#"}"
       ${has ? 'download="' + esc((m.name || m.id).replace(/[^\w.-]+/g, "_")) + "_" + mp.k + '.png"' : ""}
       title="${esc(tip)}">
@@ -2453,18 +2406,13 @@ function fillInspector(m) {
   // l'ORM est jaune vif parce que c'est une map PACKÉE : on le dit, pour que la
   // couleur se lise comme un encodage de canaux et non comme un accent d'écran.
   const cstWhy = flatReasons(m);
-  note.innerHTML = "height et ORM en plus des six usuelles ; les <b>" + nmaps +
-    "</b> partent dans l'archive, toujours. " +
+  note.innerHTML = dzT("matiere.mf2_maps.note_tete", { n: nmaps }) + " " +
     (cstWhy.length
-      ? "Sur cette matière, " + (cstWhy.length > 1 ? "les " + cstWhy.length +
-          " maps suivantes sont des champs constants" : "une map est un champ " +
-          "constant") + " : " + esc(cstWhy.join(" ; ")) + ". Un moteur attend " +
-        "ces fichiers et les reçoit — c'est la matière qui est unie là, pas la " +
-        "map qui manque. "
-      : "Les " + nmaps + " portent de l'information sur cette matière. ") +
-    "L'ORM empile trois maps dans un seul fichier — <b>R</b> occlusion, " +
-    "<b>V</b> rugosité, <b>B</b> métal — d'où sa couleur. Clique une map : son " +
-    "PNG pleine résolution se télécharge.";
+      ? (cstWhy.length > 1
+          ? dzT("matiere.mf2_maps.note_cst_n", { n: cstWhy.length, raisons: esc(cstWhy.join(" ; ")) })
+          : dzT("matiere.mf2_maps.note_cst_1", { raisons: esc(cstWhy.join(" ; ")) }))
+      : dzT("matiere.mf2_maps.note_aucune", { n: nmaps })) + " " +
+    dzT("matiere.mf2_maps.note_orm");
   mb.appendChild(note);
   dm.appendChild(mb);
   host.appendChild(dm);
@@ -2477,14 +2425,13 @@ function fillInspector(m) {
   /* « local · gratuit » était imprimé là en permanence, identique sur toutes
      les matières : une constante déguisée en résumé. La promesse est tenue par
      la note du corps du groupe ; l'en-tête ne garde que ce qui varie. */
-  dd.innerHTML = grpSummary("Réglages de dérivation", "", dmod);
+  dd.innerHTML = grpSummary(dzT("matiere.mf2_deriv.titre"), "", dmod);
   setGrpDigest(dd, dmod ? "" : null);
   const db = document.createElement("div");
   db.className = "grp-body";
   const dnote = document.createElement("p");
   dnote.className = "grp-note";
-  dnote.innerHTML = "Calcul des maps secondaires depuis la couleur de base, en convolutions " +
-    "<b>cycliques</b> : le raccord mesuré reste intact. Recalcul local et <b>gratuit</b>.";
+  dnote.innerHTML = dzT("matiere.mf2_deriv.note");
   db.appendChild(dnote);
   DERIVE_ROWS.forEach((row) => {
     db.appendChild(propRow(row, derive[row.k], DEFAULT_DERIVE[row.k], (v) => setDerive(row, v)));
@@ -2492,7 +2439,7 @@ function fillInspector(m) {
   const rb = document.createElement("button");
   rb.className = "btn primary wide";
   rb.id = "btnDerive";
-  rb.innerHTML = ico("dz-lab3d-deriver-maps") + " Re-dériver les maps";
+  rb.innerHTML = ico("dz-lab3d-deriver-maps") + dzT("matiere.mf2_deriv.bouton");
   rb.onclick = rederive;
   db.appendChild(rb);
   dd.appendChild(db);
@@ -2538,7 +2485,7 @@ function applyPropFilter() {
   }
   if (em) {
     em.classList.toggle("hidden", !none);
-    if (none) em.textContent = "Aucun réglage pour « " + state.propQ + " ».";
+    if (none) em.textContent = dzT("matiere.mf2_filtre.aucun", { q: state.propQ });
   }
 }
 
@@ -2579,7 +2526,7 @@ function setGrpMod(d, n) {
     d.querySelector("summary").appendChild(b);
   }
   b.textContent = n;
-  b.title = n + " réglage(s) hors défaut";
+  b.title = dzT("matiere.mf2_grp.hors_defaut", { n: n });
 }
 
 function renderExportMaps(m) {
@@ -2647,7 +2594,7 @@ async function flushPatch() {
       }
     }
   } catch (e) {
-    toast("Enregistrement impossible : " + e.message, true);
+    toast(dzT("matiere.mf2_toast.enreg_impossible", { msg: e.message }), true);
   }
 }
 
@@ -2701,8 +2648,8 @@ async function resetProps() {
     upsert(m);
     fillInspector(m);
     if (state.view === "editor") setViewportSrc(m);
-    toast("Propriétés réinitialisées.");
-  } catch (e) { toast("Réinitialisation impossible : " + e.message, true); }
+    toast(dzT("matiere.mf3_insp.reinit_ok"));
+  } catch (e) { toast(dzT("matiere.mf3_insp.reinit_err", { msg: e.message }), true); }
 }
 
 async function rederive() {
@@ -2710,7 +2657,7 @@ async function rederive() {
   if (!id) return;
   const m = matById(id);
   const btn = $("#btnDerive");
-  if (btn) { btn.disabled = true; btn.innerHTML = ico("dz-lab3d-deriver-maps") + " Dérivation…"; }
+  if (btn) { btn.disabled = true; btn.innerHTML = ico("dz-lab3d-deriver-maps") + " " + dzT("matiere.mf3_insp.derivation"); }
   try {
     await flushPatch();
     const d = await api.post("/materials/" + encodeURIComponent(id) + "/derive",
@@ -2726,16 +2673,16 @@ async function rederive() {
     renderGallery();
     /* le compte vient de ce que l'API RENVOIE, pas d'un 8 écrit en dur :
        une revendication chiffrée doit venir de la mesure. */
-    toast(((nm.maps || []).length || "les") + " maps re-dérivées localement — 0 crédit.");
-  } catch (e) { toast("Dérivation impossible : " + e.message, true); }
-  if (btn) { btn.disabled = false; btn.innerHTML = ico("dz-lab3d-deriver-maps") + " Re-dériver les maps"; }
+    toast((nm.maps || []).length ? dzT("matiere.mf3_insp.derive_ok_n", { n: (nm.maps || []).length }) : dzT("matiere.mf3_insp.derive_ok"));
+  } catch (e) { toast(dzT("matiere.mf3_insp.derive_err", { msg: e.message }), true); }
+  if (btn) { btn.disabled = false; btn.innerHTML = ico("dz-lab3d-deriver-maps") + " " + dzT("matiere.mf3_insp.rederiver"); }
 }
 
 async function captureThumb() {
   const id = state.sel;
   if (!id) return;
   const mv = $("#mv");
-  if (!mv || typeof mv.toBlob !== "function") { toast("Visionneuse indisponible.", true); return; }
+  if (!mv || typeof mv.toBlob !== "function") { toast(dzT("matiere.mf3_insp.visionneuse_absente"), true); return; }
   try {
     const blob = await mv.toBlob({ mimeType: "image/png", idealAspect: true });
     const r = await api.raw("PUT", "/materials/" + encodeURIComponent(id) + "/thumb", blob,
@@ -2743,8 +2690,8 @@ async function captureThumb() {
     if (!r.ok) throw new Error(r.status + " " + r.statusText);
     const m = matById(id);
     if (m) { m.thumb = true; m._v = (m._v || 0) + 1; }
-    toast("Vignette de la carte mise à jour depuis le rendu 3D.");
-  } catch (e) { toast("Vignette de la carte impossible : " + e.message, true); }
+    toast(dzT("matiere.mf3_insp.vignette_ok"));
+  } catch (e) { toast(dzT("matiere.mf3_insp.vignette_err", { msg: e.message }), true); }
 }
 
 /* ── ESSAYER UN PRÉRÉGLAGE AVANT DE LE POSER (T098 / plan-matieres T16) ──────
@@ -2803,8 +2750,8 @@ async function applyPreset() {
     arreterPulsation();
     $("#presetSel").value = "";
     if (state.view === "editor") setViewportSrc(m);
-    toast("Préréglage posé : " + (p.label || p.id));
-  } catch (e) { toast("Préréglage impossible : " + e.message, true); }
+    toast(dzT("matiere.mf3_preset.pose", { nom: p.label || p.id }));
+  } catch (e) { toast(dzT("matiere.mf3_preset.err", { msg: e.message }), true); }
 }
 
 /* ═══════════════════════════ EXPORT ═══════════════════════════
@@ -2838,37 +2785,37 @@ async function applyPreset() {
    canaux du fichier. Un fichier empaqueté sans ordre de canaux est illisible :
    cet écran ne peut plus en produire un. */
 const MAP_ROLE = {
-  basecolor: "Couleur diffuse, sRGB",
-  normal: "Relief tangent-space, OpenGL +Y",
-  roughness: "Rugosité · 0 miroir, 1 mat",
-  metallic: "Métallicité · 0 diélectrique, 1 métal",
-  ao: "Occlusion ambiante, assombrit les creux",
-  height: "Déplacement / parallaxe",
-  emissive: "Zones qui émettent de la lumière",
-  orm: "Packée pour glTF / Unreal",
-  maskmap: "Packée pour le Lit URP / HDRP d'Unity",
-  smoothness: "Lissage · inverse de la rugosité",
-  opacity: "Opacité · 0 transparent, 1 opaque",
-  displacement: "Déplacement géométrique",
+  basecolor: dzT("matiere.mf3_role.basecolor"),
+  normal: dzT("matiere.mf3_role.normal"),
+  roughness: dzT("matiere.mf3_role.roughness"),
+  metallic: dzT("matiere.mf3_role.metallic"),
+  ao: dzT("matiere.mf3_role.ao"),
+  height: dzT("matiere.mf3_role.height"),
+  emissive: dzT("matiere.mf3_role.emissive"),
+  orm: dzT("matiere.mf3_role.orm"),
+  maskmap: dzT("matiere.mf3_role.maskmap"),
+  smoothness: dzT("matiere.mf3_role.smoothness"),
+  opacity: dzT("matiere.mf3_role.opacity"),
+  displacement: dzT("matiere.mf3_role.displacement"),
 };
 const CHAN_ORDER = {
-  basecolor: "R V B = couleur",
-  normal: "R = pente X · V = pente Y · B = Z",
-  roughness: "L = rugosité",
-  metallic: "L = métallicité",
+  basecolor: dzT("matiere.mf3_canaux.basecolor"),
+  normal: dzT("matiere.mf3_canaux.normal"),
+  roughness: dzT("matiere.mf3_canaux.roughness"),
+  metallic: dzT("matiere.mf3_canaux.metallic"),
   ao: "L = occlusion",
-  height: "L = hauteur",
-  emissive: "R V B = lumière émise",
-  orm: "R = occlusion · V = rugosité · B = métal",
-  maskmap: "R = métal · V = occlusion · B = détail · A = lissage",
-  smoothness: "L = lissage",
-  opacity: "L = opacité",
-  displacement: "L = déplacement",
+  height: dzT("matiere.mf3_canaux.height"),
+  emissive: dzT("matiere.mf3_canaux.emissive"),
+  orm: dzT("matiere.mf3_canaux.orm"),
+  maskmap: dzT("matiere.mf3_canaux.maskmap"),
+  smoothness: dzT("matiere.mf3_canaux.smoothness"),
+  opacity: dzT("matiere.mf3_canaux.opacity"),
+  displacement: dzT("matiere.mf3_canaux.displacement"),
 };
 const EXTRA_ROLE = {
-  "material.json": "Toutes les valeurs PBR, relisibles par un script",
-  "LISEZMOI.txt": "Score de raccord, contenu de l'ORM, convention utilisée",
-  "thumb.png": "Vignette de la carte, capturée dans le rendu 3D",
+  "material.json": dzT("matiere.mf3_extra.material_json"),
+  "LISEZMOI.txt": dzT("matiere.mf3_extra.lisezmoi"),
+  "thumb.png": dzT("matiere.mf3_extra.thumb"),
 };
 
 /* Le rôle du backend est parfois DÉJÀ une énumération de canaux (« Packée R=AO
@@ -2898,8 +2845,8 @@ function manifestRole(e) {
   }
   const ch = String((e && e.channels) || "").toUpperCase();
   return ch.length > 1
-    ? "Fichier de données packé sur " + ch.length + " canaux, livré dans l'archive"
-    : "Fichier de données à un canal, livré dans l'archive";
+    ? dzT("matiere.mf3_mani.donnees_n", { n: ch.length })
+    : dzT("matiere.mf3_mani.donnees_1");
 }
 
 /* ordre des canaux — écrit pour chaque fichier empaqueté, sans exception */
@@ -2912,22 +2859,22 @@ function chanOrder(e) {
   const found = [];
   const re = /([RVGBA])\s*=\s*([^\s,;·]+)/g;
   let mm;
-  while ((mm = re.exec(r))) found.push(mm[1].replace("G", "V") + " = " + mm[2]);
+  while ((mm = re.exec(r))) found.push((dzLang() === "en" ? mm[1] : mm[1].replace("G", "V")) + " = " + mm[2]);
   if (found.length) return found.join(" · ");
-  const ch = String((e && e.channels) || "").toUpperCase().replace("G", "V");
-  if (!ch) return "canaux non déclarés par le backend";
-  if (ch === "L") return "L = niveau de gris";
-  return ch.split("").join(" ") + " — rôle des canaux non déclaré";
+  const ch = String((e && e.channels) || "").toUpperCase().replace("G", dzLang() === "en" ? "G" : "V");
+  if (!ch) return dzT("matiere.mf3_canaux.non_declares");
+  if (ch === "L") return dzT("matiere.mf3_canaux.gris");
+  return dzT("matiere.mf3_canaux.role_non_declare", { canaux: ch.split("").join(" ") });
 }
 
 function extraRole(name) {
   const n = String(name || "");
   if (EXTRA_ROLE[n]) return EXTRA_ROLE[n];
-  if (/\.(glb|gltf|bin)$/i.test(n)) return "Géométrie du maillage exporté, textures comprises";
-  if (/\.(txt|md)$/i.test(n)) return "Note jointe à l'archive";
-  if (/\.json$/i.test(n)) return "Données de la matière, relisibles par un script";
-  if (/\.(png|jpg|jpeg)$/i.test(n)) return "Image jointe à l'archive";
-  return "Fichier joint à l'archive";
+  if (/\.(glb|gltf|bin)$/i.test(n)) return dzT("matiere.mf3_extra.glb");
+  if (/\.(txt|md)$/i.test(n)) return dzT("matiere.mf3_extra.note");
+  if (/\.json$/i.test(n)) return dzT("matiere.mf3_extra.json");
+  if (/\.(png|jpg|jpeg)$/i.test(n)) return dzT("matiere.mf3_extra.image");
+  return dzT("matiere.mf3_extra.fichier");
 }
 /* LA PHRASE QUE CECI REMPLACE : « Slots URP / HDRP : BaseMap, MaskMap,
    Occlusion. Dépose le dossier dans Assets/, Unity branche les textures seul. »
@@ -2947,13 +2894,13 @@ async function loadNamings() {
   } catch (e) { /* le bordereau porte déjà la note : rien à inventer ici */ }
 }
 const FORMAT_NOTE = {
-  zip: "Un dossier de PNG, relisible par tout moteur — et le seul livrable qui emporte la height (donc le displacement) et la profondeur 16 bits.",
-  glb: "Fichier unique, textures embarquées : Blender, Unity, Godot, la visionneuse Windows. La height n'existe pas en glTF cœur — prends le ZIP pour le displacement.",
-  gltf: "Même scène en JSON lisible (buffer base64) : plus lourd que le GLB, mais versionnable et inspectable à la main.",
+  zip: dzT("matiere.mf3_export.note_zip"),
+  glb: dzT("matiere.mf3_export.note_glb"),
+  gltf: dzT("matiere.mf3_export.note_gltf"),
 };
 const BITS_NOTE = {
-  8: "8 bits partout : poids minimal, et c'est tout ce que voient la couleur, la rugosité et l'AO.",
-  16: "16 bits appliqué à height et normal uniquement — les deux maps où les paliers se voient (bandes sur le displacement). Les autres restent en 8 bits, l'archive ne double pas.",
+  8: dzT("matiere.mf3_export.note_8bits"),
+  16: dzT("matiere.mf3_export.note_16bits"),
 };
 
 /* `kinds` = l'univers RÉEL des fichiers livrables, tel que le bordereau du
@@ -2973,9 +2920,9 @@ let maniTimer = null, maniSeq = 0;
 
 function fmtBytes(n) {
   n = num(n, 0);
-  if (n < 1024) return n + " o";
-  if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10240 ? 1 : 0).replace(".", ",") + " ko";
-  return (n / 1048576).toFixed(1).replace(".", ",") + " Mo";
+  if (n < 1024) return dzT("matiere.mf3_poids.octets", { n });
+  if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10240 ? 1 : 0).replace(".", ",") + " " + dzT("matiere.mf3_poids.ko");
+  return (n / 1048576).toFixed(1).replace(".", ",") + " " + dzT("matiere.mf3_poids.mo");
 }
 function exSelectRes(res) {
   const want = String(num(res, 2048));
@@ -3030,10 +2977,10 @@ async function fetchManifest() {
   } catch (e) {
     if (seq !== maniSeq) return;
     ex.mani = null;
-    $("#exMani").innerHTML = '<div class="mani-empty">Bordereau indisponible : ' + esc(e.message) + "</div>";
+    $("#exMani").innerHTML = '<div class="mani-empty">' + esc(dzT("matiere.mf3_mani.indispo", { msg: e.message })) + "</div>";
     $("#exTot").textContent = "—";
     $("#exWeigh").textContent = "";
-    $("#btnExport").innerHTML = ico("dz-action-telecharger") + " Télécharger";
+    $("#btnExport").innerHTML = ico("dz-action-telecharger") + " " + dzT("matiere.mf3_export.telecharger");
   }
 }
 
@@ -3073,13 +3020,13 @@ function renderMani(d) {
       '<label class="mrow' + (on ? "" : " off") + (lock ? " lock" : "") +
         '" title="' + esc(e.name) + " — " + esc(manifestRole(e)) + " · " +
           esc(e.channels) + " " + num(e.bits, 8) + " bits · " + esc(chanOrder(e)) +
-        (e.weigh ? " · Poids " + (e.exact ? "mesuré" : "estimé") + " : " +
-                   esc(e.weigh) : "") +
-        (lock ? " — obligatoire : sans couleur de base, la matière livrée est inutilisable" : "") + '">' +
+        (e.weigh ? " · " + esc(e.exact ? dzT("matiere.mf3_mani.poids_mesure", { poids: e.weigh })
+                   : dzT("matiere.mf3_mani.poids_estime", { poids: e.weigh })) : "") +
+        (lock ? " — " + esc(dzT("matiere.mf3_mani.obligatoire")) : "") + '">' +
         '<input type="checkbox" value="' + esc(e.kind) + '"' + (on ? " checked" : "") +
           (lock ? " disabled" : "") + ">" +
         '<span class="mn">' + esc(e.name) +
-          (lock ? ' <i class="req">requise</i>' : "") + "</span>" +
+          (lock ? ' <i class="req">' + dzT("matiere.mf3_mani.requise") + "</i>" : "") + "</span>" +
         '<span class="msz">' + approx(e) + fmtBytes(e.bytes) + "</span>" +
         '<span class="mr"><span class="rl">' + esc(manifestRole(e)) +
           ' · <b>' + esc(e.channels) + " " + num(e.bits, 8) + " bits</b></span>" +
@@ -3091,8 +3038,8 @@ function renderMani(d) {
   (d.extras || []).forEach((e) => {
     rows.push(
       '<div class="mrow extra" title="' + esc(e.name) +
-        (e.weigh ? " — poids " + (e.exact ? "mesuré" : "estimé") + " : " +
-                   esc(e.weigh) : "") + '">' +
+        (e.weigh ? " — " + esc(e.exact ? dzT("matiere.mf3_mani.poids_mesure_min", { poids: e.weigh })
+                   : dzT("matiere.mf3_mani.poids_estime_min", { poids: e.weigh })) : "") + '">' +
         '<span class="plus">+</span>' +
         '<span class="mn">' + esc(e.name) + "</span>" +
         '<span class="msz">' + approx(e) + fmtBytes(e.bytes) + "</span>" +
@@ -3113,7 +3060,7 @@ function renderMani(d) {
     };
   });
   const nsel = (d.entries || []).filter((e) => !ex.off[e.kind]).length;
-  $("#exCount").textContent = "· " + (nsel + (d.extras || []).length) + " fichiers";
+  $("#exCount").textContent = "· " + dzT("matiere.mf3_mani.n_fichiers", { n: nsel + (d.extras || []).length });
   $("#exTot").textContent = tot;
   // le poids de l'archive n'est pas un COÛT : il ne porte plus le jeton ambre
   // réservé aux crédits (« 4 cr » du bouton de forge).
@@ -3151,20 +3098,14 @@ function exResNote(d) {
      bordereau, donc de ce qui part vraiment. */
   const k = d && d.entries
     ? d.entries.filter((e) => !ex.off[e.kind]).length : 0;   // même source que #exCount
-  const png = k ? "les " + k + " PNG" : "les PNG";
+  const png = k ? dzT("matiere.mf3_res.les_n_png", { n: k }) : dzT("matiere.mf3_res.les_png");
   let s;
   if (mode === "none") {
-    s = "Livraison à la définition native (" + (n || t) + "²) : aucun " +
-        "rééchantillonnage, " + png + " partent tels qu'ils ont été calculés.";
+    s = dzT("matiere.mf3_res.native", { res: n || t, png });
   } else if (mode === "up") {
-    s = "Agrandissement à la livraison : " + n + "² → " + t + "², " + png + " sont " +
-        "interpolés. Le fichier grossit, le détail non — pour de vrais pixels en " +
-        t + "², reforge la matière à cette définition.";
+    s = dzT("matiere.mf3_res.agrandi", { n, t, png });
   } else {
-    s = "Réduction à la livraison : " + n + "² → " + t + "², " + png + " sont " +
-        "rééchantillonnés (Lanczos pour la couleur, bicubique pour les données, " +
-        "normale renormalisée). Micro-détail perdu ; la matière rangée sur " +
-        "disque, elle, ne bouge pas.";
+    s = dzT("matiere.mf3_res.reduit", { n, t, png });
   }
   el.textContent = s;
 }
@@ -3193,8 +3134,7 @@ function exResNote(d) {
    Le même « ≈ » gouverne le coût et la durée annoncés avant la forge : eux non
    plus ne peuvent pas être lus sur un fichier existant. Une seule règle. */
 const WEIGH_RULE_FALLBACK =
-  "Un poids est mesuré quand le fichier qui part existe déjà, encodé, sur le " +
-  "disque. Il est estimé — « ≈ » — dès que l'export doit en fabriquer un.";
+  dzT("matiere.mf3_poids.regle");
 
 function exWeighNote(d) {
   const el = $("#exWeigh");
@@ -3207,17 +3147,15 @@ function exWeighNote(d) {
   const mes = maps.filter((e) => e.exact);
   const noms = (l) => l.map((e) => (e.kind ? mapFr(e.kind) : e.name)).join(", ");
   if (!est.length) {
-    el.innerHTML = "<b>Poids mesurés.</b> Les " + (mes.length + ann.length) +
-      " fichiers de cette archive sont comptés octet par octet — les " +
-      mes.length + " PNG partent tels qu'ils sont sur le disque, rien n'est " +
-      "fabriqué à l'export.";
+    el.innerHTML = "<b>" + dzT("matiere.mf3_poids.mesures_titre") + "</b> " +
+      dzT("matiere.mf3_poids.mesures", { n: mes.length + ann.length, png: mes.length });
     el.classList.remove("est");
     return;
   }
   // regroupement par raison : « rugosité, métal, ORM ≈ niveau cuit à l'export »
   const par = new Map();
   est.forEach((e) => {
-    const k = e.weigh_tag || "fabriqué à l'export";
+    const k = e.weigh_tag || dzT("matiere.mf3_poids.fabrique");
     if (!par.has(k)) par.set(k, []);
     par.get(k).push(e);
   });
@@ -3230,14 +3168,10 @@ function exWeighNote(d) {
      modele ne le prevoit, et cela depend du motif). */
   const down = d && d.resample && d.resample !== "none";
   el.innerHTML =
-    "<b>La règle du ≈ :</b> " + esc(d && d.weigh_rule || WEIGH_RULE_FALLBACK) +
-    "<br><b>Ici :</b> " + groupes +
-    (mes.length ? " — <b>" + esc(noms(mes)) + "</b> partent inchangées, poids " +
-      "lus sur le disque." : "") +
-    " Le modèle est calibré sur de vraies archives ; écart mesuré sur 28 " +
-    "exports de contrôle : " +
-    (down ? "jusqu'à +23 % en rééchantillonnant" : "±7 %") +
-    ". Le poids exact reste celui du fichier téléchargé.";
+    "<b>" + dzT("matiere.mf3_poids.regle_titre") + "</b> " + esc(d && d.weigh_rule || WEIGH_RULE_FALLBACK) +
+    "<br><b>" + dzT("matiere.mf3_poids.ici") + "</b> " + groupes +
+    (mes.length ? " — <b>" + esc(noms(mes)) + "</b> " + dzT("matiere.mf3_poids.inchangees") : "") +
+    " " + dzT("matiere.mf3_poids.calibre", { ecart: down ? dzT("matiere.mf3_poids.ecart_reech") : "±7 %" });
   el.classList.add("est");
 }
 
@@ -3247,10 +3181,10 @@ function markNativeRes(native) {
   $$("#exRes .seg-b").forEach((b) => {
     const nat = Number(b.dataset.v) === num(native, 0);
     b.classList.toggle("nat", nat);
-    b.title = nat ? "Définition source de cette matière — aucun rééchantillonnage"
+    b.title = nat ? dzT("matiere.mf3_res.titre_source")
                   : (Number(b.dataset.v) > num(native, 0)
-                      ? "Agrandissement par interpolation depuis " + native + "²"
-                      : "Réduction depuis " + native + "²");
+                      ? dzT("matiere.mf3_res.titre_agrandi", { res: native })
+                      : dzT("matiere.mf3_res.titre_reduit", { res: native }));
   });
 }
 
@@ -3321,8 +3255,8 @@ function doExport(id, fromCard) {
   a.click();
   a.remove();
   const w = mani ? " · " + (mani.exact ? "" : "≈ ") + fmtBytes(mani.total_bytes) : "";
-  toast("Téléchargement : " + (a.download || (mani && mani.archive) ||
-    ((m && (m.name || m.id)) || mid)) + w);
+  toast(dzT("matiere.mf3_export.telechargement", { nom: (a.download || (mani && mani.archive) ||
+    ((m && (m.name || m.id)) || mid)) + w }));
 }
 
 /* ───────────────────────── jetons maillage / environnement ─────────────────
@@ -3348,21 +3282,21 @@ function wireChips(sel, fn) {
 const VARIED = "__varied";
 
 /* La puce « Mon modèle » n'existe QUE dans le viewport (voir state.vpModele). */
-const MODELE_PUCE = { id: "model", label: "Mon modèle" };
+const MODELE_PUCE = { id: "model", label: dzT("matiere.mf3_maillage.mon_modele") };
 function renderMeshChips() {
   const vp = $("#vpMeshChips");
   if (vp) {
     vp.innerHTML = chipsHtml(MESHES.concat(MODELE_PUCE), "id", state.vpModele ? "model" : state.mesh);
     wireChips("#vpMeshChips", setVpMesh);
     const p = vp.querySelector('.chip[data-v="model"]');
-    if (p) p.title = "Un modèle de l'Établi, habillé de la matière (aperçu seulement : rien n'est écrit)";
+    if (p) p.title = dzT("matiere.mf3_maillage.mon_modele_aide");
   }
   const gl = $("#meshChips");
   if (gl) {
-    const list = [{ id: VARIED, label: "Variés" }].concat(MESHES);
+    const list = [{ id: VARIED, label: dzT("matiere.mf3_maillage.varies") }].concat(MESHES);
     gl.innerHTML = chipsHtml(list, "id", state.varied ? VARIED : state.mesh);
     const first = gl.querySelector('.chip[data-v="' + VARIED + '"]');
-    if (first) first.title = "Les six maillages à tour de rôle, une carte après l'autre.";
+    if (first) first.title = dzT("matiere.mf3_maillage.varies_aide");
     wireChips("#meshChips", pickCardMesh);
   }
   updateMeshNote();
@@ -3372,8 +3306,8 @@ function updateMeshNote() {
   const n = $("#meshNote");
   if (!n) return;
   n.textContent = state.varied
-    ? "Les six maillages à tour de rôle, une carte après l'autre : une matière ne se juge pas que sur une sphère."
-    : "Toutes les cartes sont rendues sur ce maillage.";
+    ? dzT("matiere.mf3_maillage.note_varies")
+    : dzT("matiere.mf3_maillage.note_un");
 }
 
 function pickCardMesh(v) {
@@ -3409,8 +3343,8 @@ async function setVpMesh(id) {
       .map((j) => Object.assign({}, j, { versions: (j.etapes || [])
         .map((e) => Number(e.version)).filter((v) => Number.isInteger(v) && v >= 1) }))
       .filter((j) => j.versions.length);
-  } catch (e) { apiFail(e, "liste des modèles de l'Établi"); return; }
-  if (!jobs.length) { toast("Aucun modèle dans l'Établi : génère ou importe d'abord un modèle 3D.", true); return; }
+  } catch (e) { apiFail(e, dzT("matiere.mf3_maillage.liste_etabli")); return; }
+  if (!jobs.length) { toast(dzT("matiere.mf3_maillage.aucun_modele"), true); return; }
   const sel = $("#modelPick");
   sel.innerHTML = jobs.map((j) => {
     const v = Math.max(...j.versions);
@@ -3461,7 +3395,7 @@ function renderEnvChips() {
        suppriment (🗑), les sept du studio se regénèrent */
     state.envs.filter((e) => e.perso).forEach((e) => {
       const c = el.querySelector(`.chip[data-v="${CSS.escape(e.name)}"]`);
-      if (c) { c.classList.add("perso"); c.title = "Ambiance importée"; }
+      if (c) { c.classList.add("perso"); c.title = dzT("matiere.mf3_env.importee"); }
     });
   }
   const sel = $("#vpEnv");
@@ -3537,8 +3471,8 @@ async function uploadFile(file) {
     const d = await api.json("POST", "/images/upload", fd);
     await loadLibrary();
     setRef(d.filename);
-    toast("Référence téléversée : " + d.filename);
-  } catch (e) { toast("Téléversement impossible : " + e.message, true); }
+    toast(dzT("matiere.mf3_ref.ok", { nom: d.filename }));
+  } catch (e) { toast(dzT("matiere.mf3_ref.err", { msg: e.message }), true); }
 }
 
 /* ── le panneau Photo (P1) ──────────────────────────────────────────────────
@@ -3617,10 +3551,9 @@ function photoPrep() {
 
 async function photoPreview() {
   const fn = state.ref;                  /* le NOM du fichier : state.ref est une chaîne */
-  if (!fn) { toast("Choisis d'abord une image de référence.", true); return; }
+  if (!fn) { toast(dzT("matiere.mf3_photo.sans_ref"), true); return; }
   const prep = photoPrep();
-  if (!prep) { toast("Rien à préparer : coche « Retirer l'éclairage » ou "
-                     + "clique les quatre coins.", true); return; }
+  if (!prep) { toast(dzT("matiere.mf3_photo.rien"), true); return; }
   $("#phPreview").disabled = true;
   try {
     const d = await api.post("/materials/prep/preview",
@@ -3629,7 +3562,7 @@ async function photoPreview() {
     $("#phOut").classList.remove("hidden");
     const m = d.mesure || {};
     $("#phMeasure").textContent = (m.lowfreq_sd_before == null)
-      ? "redressée"
+      ? dzT("matiere.mf3_photo.redressee")
       /* une décimale : à trois, le badge écrasait le titre « Photo » en
          « P. » dans la colonne (vu en preuve 8799 le 06/10) — le détail
          entier reste au survol, dans la note */
@@ -3639,8 +3572,8 @@ async function photoPreview() {
   } catch (e) {
     /* Un 400 (coins alignés, confondus) est un refus du GESTE, pas une API
        absente : apiFail() peindrait toute l'API Matières « indisponible ». */
-    if (e.missing) apiFail(e, "préparation de la photo");
-    else toast("Préparation refusée : " + e.message, true);
+    if (e.missing) apiFail(e, dzT("matiere.mf3_photo.preparation"));
+    else toast(dzT("matiere.mf3_photo.refusee", { msg: e.message }), true);
   } finally {
     $("#phPreview").disabled = false;
   }
@@ -3689,7 +3622,7 @@ function setCompare(id) {
 function ouvrirCompare() {
   if (state.compare) { setCompare(null); return; }
   const autres = state.materials.filter((m) => m.id !== state.sel);
-  if (!autres.length) { toast("Il faut au moins deux matières pour comparer.", true); return; }
+  if (!autres.length) { toast(dzT("matiere.mf3_cmp.deux"), true); return; }
   const sel = $("#cmpPick");
   sel.innerHTML = autres.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
   setCompare(sel.value);
@@ -3705,7 +3638,7 @@ const gen = { liste: [], choisi: null, params: {}, seed: 0, apercu: null };
 async function loadPatterns() {
   let d;
   try { d = await api.get("/materials/patterns"); }
-  catch (e) { if (e.missing) apiFail(e, "générateurs"); else toast("Générateurs : " + e.message, true); return; }
+  catch (e) { if (e.missing) apiFail(e, dzT("matiere.mf3_gen.generateurs")); else toast(dzT("matiere.mf3_gen.err", { msg: e.message }), true); return; }
   gen.liste = d.patterns || [];
   gen.choisi = gen.liste[0] ? gen.liste[0].id : null;
   $("#genList").innerHTML = gen.liste.map((g) =>
@@ -3797,9 +3730,9 @@ function wire() {
                                { res: state.res, params: gen.params, seed: gen.seed });
       await loadMaterials();
       openMaterial(d.material.id);
-      toast(`Matière « ${d.material.name} » créée en local, sans crédit.`);
+      toast(dzT("matiere.mf3_gen.cree", { nom: d.material.name }));
     } catch (e) {
-      if (e.missing) apiFail(e, "génération de motif"); else toast("Génération refusée : " + e.message, true);
+      if (e.missing) apiFail(e, dzT("matiere.mf3_gen.generation")); else toast(dzT("matiere.mf3_gen.refusee", { msg: e.message }), true);
     } finally { $("#genGo").disabled = false; }
   });
   $("#catBtnHead").addEventListener("click", () => ouvrirCatalogue(""));
@@ -3815,23 +3748,23 @@ function wire() {
       const d = await api.json("POST", "/materials/envs", fd);
       await loadEnvs();
       setEnv(d.env.name);
-      toast(`Ambiance « ${d.env.label} » importée.`);
+      toast(dzT("matiere.mf3_env.import_ok", { nom: d.env.label }));
     } catch (err) {
       /* un .exr, un fichier carré : refus du FICHIER, pas API absente */
-      if (err.missing) apiFail(err, "import d'ambiance");
-      else toast("Import refusé : " + err.message, true);
+      if (err.missing) apiFail(err, dzT("matiere.mf3_env.import"));
+      else toast(dzT("matiere.mf3_env.import_err", { msg: err.message }), true);
     }
     e.target.value = "";
   });
   $("#envDel").addEventListener("click", async () => {
     const n = state.env;
     if (!n || !n.startsWith("u_")) {
-      toast("Les sept ambiances du studio ne se suppriment pas.", true);
+      toast(dzT("matiere.mf3_env.studio"), true);
       return;
     }
     try {
       await api.del(`/materials/envs/${encodeURIComponent(n)}`);
-    } catch (err) { toast("Suppression impossible : " + err.message, true); return; }
+    } catch (err) { toast(dzT("matiere.mf3_env.suppr_err", { msg: err.message }), true); return; }
     await loadEnvs();
     setEnv("studio");
   });
@@ -3948,8 +3881,8 @@ function wire() {
     $("#groups").classList.toggle("showhelp", state.helpAll);
     $("#allHelp").classList.toggle("on", state.helpAll);
     $("#allHelp").title = state.helpAll
-      ? "Masquer l'aide de toutes les propriétés"
-      : "Afficher l'aide de toutes les propriétés d'un coup";
+      ? dzT("matiere.mf3_aide.masquer")
+      : dzT("matiere.mf3_aide.afficher");
   };
   $("#presetSel").onchange = () => essayerPreset($("#presetSel").value);
   $("#presetPoser").addEventListener("click", applyPreset);

@@ -1,0 +1,628 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "python scripts/guide/semer_planificateur.py http://127.0.0.1:8809 puis python scripts/guide/semer_news.py http://127.0.0.1:8809 (posts et articles fictifs, aucune clé, rien de payant)",
+ "scenes": [
+  {
+   "scene": "planificateur/semaine",
+   "titre": {
+    "fr": "La semaine du Planificateur",
+    "en": "The Scheduler week"
+   },
+   "legende": {
+    "fr": "Le calendrier en haut, le graphe du post choisi au centre, son inspecteur à droite.",
+    "en": "The calendar at the top, the chosen post's graph in the middle, its inspector on the right."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Planificateur",
+      "en": "texte:Scheduler"
+     },
+     "apres": 3500
+    },
+    {
+     "clic": "texte:Le phare du récif",
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "ecran"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Générer un plan",
+      "en": "texte:Generate plan"
+     },
+     "bulle": {
+      "fr": "Remplissez la semaine d'un plan",
+      "en": "Fill the week with a plan"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Rendu",
+      "en": "texte:Render"
+     },
+     "bulle": {
+      "fr": "Le graphe : rendu, légende, canaux",
+      "en": "The graph: render, caption, channels"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Envoyer sur 2 canaux",
+      "en": "contient:Send to 2 channels"
+     },
+     "bulle": {
+      "fr": "Rien ne part sans votre clic",
+      "en": "Nothing goes out without your click"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "planificateur/plan",
+   "titre": {
+    "fr": "Générer un plan",
+    "en": "Generate a plan"
+   },
+   "legende": {
+    "fr": "Un brief, une date de début, le nombre de jours et de posts : le plan se relit avant d'entrer au calendrier.",
+    "en": "A brief, a start date, the number of days and posts: you review the plan before it enters the calendar."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Planificateur",
+      "en": "texte:Scheduler"
+     },
+     "apres": 3500
+    },
+    {
+     "clic": "texte:Le phare du récif",
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "avant"
+    },
+    {
+     "nom": "dialogue",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Générer un plan",
+        "en": "texte:Generate plan"
+       },
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": {
+      "fr": "texte:Générer un plan",
+      "en": "texte:Generate plan"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Générer un plan",
+      "en": "Generate plan"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.4,
+     "bulle": {
+      "fr": "Décrivez la semaine en une phrase",
+      "en": "Describe the week in one sentence"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "planificateur/valider",
+   "titre": {
+    "fr": "Valider la semaine",
+    "en": "Approve the week"
+   },
+   "legende": {
+    "fr": "La validation par lot : les 7 prochains jours partent en automatique, un post sans média est laissé de côté.",
+    "en": "Batch approval: the next 7 days switch to automatic, a post without media is skipped."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Planificateur",
+      "en": "texte:Scheduler"
+     },
+     "apres": 3500
+    },
+    {
+     "clic": "texte:Le phare du récif",
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "avant"
+    },
+    {
+     "nom": "panneau",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Valider la semaine",
+        "en": "texte:Approve the week"
+       },
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": {
+      "fr": "texte:Valider la semaine",
+      "en": "texte:Approve the week"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Valider la semaine",
+      "en": "Approve the week"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "surligne": {
+      "fr": "texte:Valider les 7 jours",
+      "en": "texte:Approve the 7 days"
+     },
+     "bulle": {
+      "fr": "Un clic valide tout le lot",
+      "en": "One click approves the whole batch"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "planificateur/creneaux",
+   "titre": {
+    "fr": "Les créneaux par canal",
+    "en": "Time slots per channel"
+   },
+   "legende": {
+    "fr": "Des heures locales par canal, appliquées par les plans générés.",
+    "en": "Local times per channel, applied by generated plans."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Planificateur",
+      "en": "texte:Scheduler"
+     },
+     "apres": 3500
+    },
+    {
+     "clic": "texte:Le phare du récif",
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "panneau",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Créneaux",
+        "en": "texte:Time slots"
+       },
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "texte:instagram",
+     "bulle": {
+      "fr": "Des heures séparées par des virgules",
+      "en": "Times separated by commas"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Proposer d'après mes métriques",
+      "en": "texte:Suggest from my metrics"
+     },
+     "bulle": {
+      "fr": "Ou laissez vos métriques proposer",
+      "en": "Or let your metrics suggest"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "planificateur/apercu",
+   "titre": {
+    "fr": "L'aperçu d'un Reel",
+    "en": "A Reel preview"
+   },
+   "legende": {
+    "fr": "Pour un post vertical, l'aperçu assombrit les zones que l'interface du réseau recouvre.",
+    "en": "For a vertical post, the preview darkens the areas the network's interface covers."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Planificateur",
+      "en": "texte:Scheduler"
+     },
+     "apres": 3500
+    },
+    {
+     "clic": "texte:Coulisses du montage",
+     "apres": 1500
+    },
+    {
+     "js": "(()=>{const n=s=>(s||'').trim().toLowerCase();const c=[...document.querySelectorAll('div')].filter(e=>{const r=e.getBoundingClientRect();return r.height>0&&r.height<40&&['aperçu final','final preview'].includes(n(e.innerText));})[0];if(c)c.scrollIntoView({block:'start'});window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0;})()",
+     "attente": 600
+    },
+    {
+     "js": "(()=>{const n=s=>(s||'').trim().toLowerCase();let e=[...document.querySelectorAll('div')].find(e=>{const r=e.getBoundingClientRect();return r.height>0&&r.height<40&&['aperçu final','final preview'].includes(n(e.innerText));});while(e&&e.parentElement){const r=e.parentElement.getBoundingClientRect();e=e.parentElement;if(r.width>=400&&r.height>=700&&r.height<=910)break;}if(e)e.id='dz-guide-insp';})()"
+    }
+   ],
+   "captures": [
+    {
+     "nom": "apercu"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.4,
+     "surligne": {
+      "fr": "texte:Aperçu final",
+      "en": "texte:Final preview"
+     },
+     "bulle": {
+      "fr": "N'écrivez rien d'important sous les zones sombres",
+      "en": "Put nothing important under the dark areas"
+     }
+    }
+   ],
+   "clip": "css:#dz-guide-insp"
+  },
+  {
+   "scene": "comptes/reglages",
+   "titre": {
+    "fr": "Comptes connectés",
+    "en": "Connected accounts"
+   },
+   "legende": {
+    "fr": "Réglages, Comptes connectés : un bloc par réseau, ses clés, son état en direct.",
+    "en": "Settings, Connected accounts: one block per network, its keys, its live status."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 3500
+    },
+    {
+     "clic": {
+      "fr": "texte:Comptes connectés",
+      "en": "texte:Connected accounts"
+     },
+     "apres": 1500
+    },
+    {
+     "clic": "texte:X (Twitter)",
+     "apres": 900
+    },
+    {
+     "clic": "texte:YouTube",
+     "apres": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "youtube"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:ID du client OAuth",
+      "en": "texte:OAuth client ID"
+     },
+     "bulle": {
+      "fr": "Collez l'ID et le secret, puis Enregistrer",
+      "en": "Paste the ID and secret, then Save"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Connecter",
+      "en": "texte:Connect"
+     },
+     "bulle": {
+      "fr": "Connecter ouvre la page de consentement",
+      "en": "Connect opens the consent page"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "comptes/quotas",
+   "titre": {
+    "fr": "Comptes et quotas",
+    "en": "Accounts and quotas"
+   },
+   "legende": {
+    "fr": "Dans le Planificateur, Comptes montre les quotas du mois et connecte YouTube et TikTok.",
+    "en": "In the Scheduler, Accounts shows the month's quotas and connects YouTube and TikTok."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Planificateur",
+      "en": "texte:Scheduler"
+     },
+     "apres": 3500
+    },
+    {
+     "clic": "texte:Le phare du récif",
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "panneau",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Comptes",
+        "en": "texte:Accounts"
+       },
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Connecter YouTube",
+      "en": "texte:Connect YouTube"
+     },
+     "bulle": {
+      "fr": "Connexion par la page de consentement",
+      "en": "Connect through the consent page"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "contient:instagram : 0/100",
+     "bulle": {
+      "fr": "Le quota de chaque réseau, vérifié avant l'envoi",
+      "en": "Each network's quota, checked before sending"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "news/ecran",
+   "titre": {
+    "fr": "L'écran News",
+    "en": "The News screen"
+   },
+   "legende": {
+    "fr": "Les flux à gauche, les articles classés au centre, le Composer à droite.",
+    "en": "Feeds on the left, ranked articles in the middle, Compose on the right."
+   },
+   "avant": [
+    {
+     "clic": "texte:News",
+     "apres": 3500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "ecran"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:tendance · 3",
+      "en": "texte:trending · 3"
+     },
+     "bulle": {
+      "fr": "Repris par trois médias : tendance",
+      "en": "Picked up by three outlets: trending"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:1 écartés ce jour",
+      "en": "texte:1 dropped today"
+     },
+     "bulle": {
+      "fr": "Les écartés du filtre, motifs au survol",
+      "en": "Filtered-out items, reasons on hover"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Classer avec l’IA",
+      "en": "texte:Rank with AI"
+     },
+     "bulle": {
+      "fr": "Le score est gratuit ; l'IA, sur demande",
+      "en": "The score is free; AI on request"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "news/chaine",
+   "titre": {
+    "fr": "La chaîne du jour",
+    "en": "The daily pipeline"
+   },
+   "legende": {
+    "fr": "De l'article au post programmé : préparer gratuitement, polir si besoin, programmer.",
+    "en": "From article to scheduled post: prepare for free, polish if needed, schedule."
+   },
+   "avant": [
+    {
+     "clic": "texte:News",
+     "apres": 3500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "avant"
+    },
+    {
+     "nom": "panneau",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Chaîne du jour",
+        "en": "texte:Daily pipeline"
+       },
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": {
+      "fr": "texte:Chaîne du jour",
+      "en": "texte:Daily pipeline"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Chaîne du jour",
+      "en": "Daily pipeline"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "surligne": {
+      "fr": "texte:Préparer (gratuit)",
+      "en": "texte:Prepare (free)"
+     },
+     "bulle": {
+      "fr": "Préparer ne coûte rien",
+      "en": "Preparing costs nothing"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "news/filtre",
+   "titre": {
+    "fr": "Le filtre gratuit",
+    "en": "The free filter"
+   },
+   "legende": {
+    "fr": "Mots-clés, listes noires et fraîcheur décident de ce qui entre dans le classement.",
+    "en": "Keywords, blocklists and freshness decide what enters the ranking."
+   },
+   "avant": [
+    {
+     "clic": "texte:News",
+     "apres": 3500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "filtre",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Filtre gratuit",
+        "en": "texte:Free filter"
+       },
+       "apres": 1200
+      },
+      {
+       "defiler": {
+        "fr": "texte:Enregistrer le filtre",
+        "en": "texte:Save filter"
+       }
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Mots sur liste noire",
+      "en": "texte:Blocked words"
+     },
+     "bulle": {
+      "fr": "Un mot banni écarte l'article",
+      "en": "A blocked word drops the article"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Enregistrer le filtre",
+      "en": "texte:Save filter"
+     },
+     "bulle": {
+      "fr": "Enregistrer reclasse aussitôt",
+      "en": "Saving re-ranks at once"
+     }
+    }
+   ]
+  }
+ ]
+}

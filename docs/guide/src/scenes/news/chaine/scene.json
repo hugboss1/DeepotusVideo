@@ -1,0 +1,86 @@
+{
+  "titre": {
+    "fr": "La chaîne du jour",
+    "en": "The daily pipeline"
+  },
+  "legende": {
+    "fr": "De l'article au post programmé : préparer gratuitement, polir si besoin, programmer.",
+    "en": "From article to scheduled post: prepare for free, polish if needed, schedule."
+  },
+  "captures": [
+    {
+      "fr": "avant.fr.webp",
+      "en": "avant.en.webp"
+    },
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1281,
+        836
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Chaîne du jour",
+        "en": "Daily pipeline"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        349,
+        502,
+        129,
+        43
+      ],
+      "bulle": {
+        "fr": "Préparer ne coûte rien",
+        "en": "Preparing costs nothing"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1281,
+        836
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Chaîne du jour",
+        "en": "Daily pipeline"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        349,
+        493,
+        111,
+        43
+      ],
+      "bulle": {
+        "fr": "Préparer ne coûte rien",
+        "en": "Preparing costs nothing"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

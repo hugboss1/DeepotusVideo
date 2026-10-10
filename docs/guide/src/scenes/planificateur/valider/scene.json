@@ -1,0 +1,86 @@
+{
+  "titre": {
+    "fr": "Valider la semaine",
+    "en": "Approve the week"
+  },
+  "legende": {
+    "fr": "La validation par lot : les 7 prochains jours partent en automatique, un post sans média est laissé de côté.",
+    "en": "Batch approval: the next 7 days switch to automatic, a post without media is skipped."
+  },
+  "captures": [
+    {
+      "fr": "avant.fr.webp",
+      "en": "avant.en.webp"
+    },
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        417,
+        128
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Valider la semaine",
+        "en": "Approve the week"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        349,
+        440,
+        132,
+        43
+      ],
+      "bulle": {
+        "fr": "Un clic valide tout le lot",
+        "en": "One click approves the whole batch"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        418,
+        128
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Valider la semaine",
+        "en": "Approve the week"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        349,
+        440,
+        139,
+        43
+      ],
+      "bulle": {
+        "fr": "Un clic valide tout le lot",
+        "en": "One click approves the whole batch"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
