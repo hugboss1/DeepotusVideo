@@ -334,10 +334,26 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzgbar(bundle: str) -> str:
+    """Le bundle d'avant le correctif de la barre du graphe du Studio (maillon de queue patch_bundle_dzgbar, posé APRÈS
+    dzsched) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzgbar as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    s = bundle
+    for ancre, remplace in reversed(_m.PAIRES):
+        if s.count(remplace) != 1:
+            raise AssertionError(f"avant_dzgbar : remplacement x{s.count(remplace)} (attendu 1) : {remplace[:70]!r}")
+        s = s.replace(remplace, ancre, 1)
+    return s
+
+
 def avant_dzsched(bundle: str) -> str:
     """Le bundle d'avant le correctif de débordement du Planificateur (maillon de queue patch_bundle_dzsched, posé APRÈS
-    dzglyph) : ses paires défaites, lues dans le maillon lui-même (une seule source). Sans son marqueur : rendu tel quel."""
+    dzglyph) : ses paires défaites, lues dans le maillon lui-même (une seule source). Sans son marqueur : rendu tel quel.
+    Le correctif dzgbar, posé après dzsched, est défait d'abord."""
     import patch_bundle_dzsched as _m
+    bundle = avant_dzgbar(bundle)
     if _m.MARKER not in bundle:
         return bundle
     s = bundle
