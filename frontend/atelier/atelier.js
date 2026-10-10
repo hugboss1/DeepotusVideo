@@ -3,6 +3,12 @@
 "use strict";
 
 const $ = (s) => document.querySelector(s);
+/* t148 : la surcouche de traduction n'entre pas dans les <select> — les <option> fixes de la page sont traduites ici, une fois (window.__dzI18n.traduire ne rend rien en français). */
+for (const o of document.querySelectorAll("select option")) { const t = window.__dzI18n && window.__dzI18n.traduire(o.textContent); if (t) o.textContent = t; }
+/* t148 : deux textes de la page à double sens (la surcouche ignore les entrées « contexte ») */
+{ const o = document.querySelector('#vbRole option[value="libre"]'); if (o) o.textContent = dzT("atelier.ath_vec.libre");
+  const b = document.querySelector("#animGo");
+  if (b && b.lastChild && b.lastChild.nodeType === 3) b.lastChild.textContent = " " + dzT("atelier.ath_anim.monter"); }
 /* Deepotus Glyph (G6) : une icône de la suite, décorative — le sens est porté par le bouton (libellé, title, aria-label) */
 const ico = (cle, t = 16) => (typeof dzIcone === "function" ? dzIcone(cle, { taille: t, classe: "dzi--" + t }) : "");
 const api = {
@@ -15,8 +21,8 @@ const api = {
   },
 };
 
-const KIND_LABEL = { character: "Personnage", place: "Lieu", object: "Objet",
-                     date: "Date", ambiance: "Ambiance", decor: "Décor" };
+const KIND_LABEL = { character: dzT("atelier.at1_kind.personnage"), place: dzT("atelier.at1_kind.lieu"), object: dzT("atelier.at1_kind.objet"),
+                     date: dzT("atelier.at1_kind.date"), ambiance: dzT("atelier.at1_kind.ambiance"), decor: dzT("atelier.at1_kind.decor") };
 
 /* ───────── état ───────── */
 let chapters = [];          // [{id,title,series}]
@@ -38,8 +44,8 @@ const CAMERA_MOVES = ["slow push-in", "slow pull-out", "360-degree orbit",
   "tracking shot", "handheld with subtle shake", "static, locked-off",
   "low angle dramatic", "rack focus reveal", "dolly zoom (vertigo effect)",
   "whip pan transition", "crane shot descending"];
-const ENERGY_LABELS = { 1: "1 · calme", 2: "2 · posé", 3: "3 · moyen",
-                        4: "4 · intense", 5: "5 · pic" };
+const ENERGY_LABELS = { 1: dzT("atelier.at1_energie.e1"), 2: dzT("atelier.at1_energie.e2"), 3: dzT("atelier.at1_energie.e3"),
+                        4: dzT("atelier.at1_energie.e4"), 5: dzT("atelier.at1_energie.e5") };
 
 /* ───────── toast ───────── */
 let toastTimer = null;
@@ -55,7 +61,7 @@ async function loadChapters(selectId) {
   const sel = $("#chapterSelect");
   sel.innerHTML = chapters.map(c =>
     `<option value="${c.id}">${esc(c.title)}${c.series ? " · " + esc(c.series) : ""}</option>`).join("")
-    || `<option value="">(aucun chapitre)</option>`;
+    || `<option value="">${dzT("atelier.at1_chap.aucun")}</option>`;
   if (selectId) sel.value = selectId;
   const id = sel.value;
   if (id) await openChapter(id); else renderScript();
@@ -79,8 +85,8 @@ async function openChapter(id) {
    « Reprendre sur le PC » force la libération ; tout texte refusé (retour du téléphone, ré-import) est au journal,
    d'où on peut le copier ou le reprendre. */
 let emporte = null;         // {appareil:{nom}, pris_le} si le chapitre ouvert est emporté
-const MOTIF_LABEL = { verrou_perdu: "retour refusé (le téléphone ne l'avait plus)", base_differente: "retour sur une autre version",
-                      reimport: "ré-import du manuscrit", repris_pc: "repris sur le PC", revoque: "appareil révoqué" };
+const MOTIF_LABEL = { verrou_perdu: dzT("atelier.at1_emp.motif_verrou"), base_differente: dzT("atelier.at1_emp.motif_base"),
+                      reimport: dzT("atelier.at1_emp.motif_reimport"), repris_pc: dzT("atelier.at1_emp.motif_repris"), revoque: dzT("atelier.at1_emp.motif_revoque") };
 
 async function majEmporte() {
   const box = $("#emporte");
@@ -95,37 +101,36 @@ async function majEmporte() {
   if (!emporte && !journal.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
   const quand = (iso) => iso ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "";
   box.innerHTML =
-    (emporte ? `<p>${ico("dz-etat-mobile")} Emporté par le téléphone « ${esc(emporte.appareil.nom)} » depuis le ${quand(emporte.pris_le)} : il l'écrit
-       hors ligne. Lecture seule ici, pour que rien ne soit écrasé.</p>
-       <button class="btn" id="btnReprendre" title="Libère le chapitre : son retour du téléphone sera gardé au journal, jamais perdu">Reprendre sur le PC</button>` : "")
-    + (journal.length ? `<div class="journal"><p>Textes gardés au journal (${journal.length}) :</p>` + journal.map(c =>
+    (emporte ? `<p>${ico("dz-etat-mobile")} ${dzT("atelier.at1_emp.emporte", { nom: esc(emporte.appareil.nom), quand: quand(emporte.pris_le) })}</p>
+       <button class="btn" id="btnReprendre" title="${dzT("atelier.at1_emp.reprendre_titre")}">${dzT("atelier.at1_emp.reprendre_pc")}</button>` : "")
+    + (journal.length ? `<div class="journal"><p>${dzT("atelier.at1_emp.journal", { n: journal.length })}</p>` + journal.map(c =>
       `<div class="journal-ligne"><span>${quand(c.quand)} · ${esc(MOTIF_LABEL[c.motif] || c.motif)}${c.appareil ? " · " + esc(c.appareil) : ""}
-       · ${c.texte.length} caractères</span>
-       <button class="btn" data-copier="${c.id}" title="Copie ce texte dans le presse-papiers">Copier</button>
+       · ${dzT("atelier.at1_emp.n_car", { n: c.texte.length })}</span>
+       <button class="btn" data-copier="${c.id}" title="${dzT("atelier.at1_emp.copier_titre")}">${dzT("atelier.at1_emp.copier")}</button>
        <button class="btn" data-remplacer="${c.id}" ${emporte ? "disabled" : ""}
-         title="Remplace le texte du chapitre par celui-ci (l'actuel est perdu s'il n'est pas copié)">Remplacer le texte</button></div>`).join("") + `</div>` : "");
+         title="${dzT("atelier.at1_emp.remplacer_titre")}">${dzT("atelier.at1_emp.remplacer_texte")}</button></div>`).join("") + `</div>` : "");
   box.classList.remove("hidden");
   const r = $("#btnReprendre");
   if (r) r.onclick = async () => {
-    if (!await window.__dzDialogue.confirmer(`Reprendre « ${chapter.title} » sur le PC ? Le téléphone « ${emporte.appareil.nom} » ne pourra plus le rendre : son texte ira au journal.`, { ok: "Reprendre" })) return;
-    try { await api.send("POST", `/chapters/${chapter.id}/reprendre`); toast("Chapitre repris sur le PC."); }
-    catch (e) { toast("Reprise impossible : " + e.message, true); }
+    if (!await window.__dzDialogue.confirmer(dzT("atelier.at1_emp.confirmer", { titre: chapter.title, nom: emporte.appareil.nom }), { ok: dzT("atelier.at1_emp.reprendre") })) return;
+    try { await api.send("POST", `/chapters/${chapter.id}/reprendre`); toast(dzT("atelier.at1_emp.repris")); }
+    catch (e) { toast(dzT("atelier.at1_emp.reprise_ko", { msg: e.message }), true); }
     await majEmporte();
   };
   box.querySelectorAll("[data-copier]").forEach(b => b.onclick = async () => {
     const c = journal.find(x => String(x.id) === b.dataset.copier);
-    try { await navigator.clipboard.writeText(c.texte); toast("Texte copié."); } catch (e) { toast("Copie impossible : " + e.message, true); }
+    try { await navigator.clipboard.writeText(c.texte); toast(dzT("atelier.at1_emp.copie")); } catch (e) { toast(dzT("atelier.at1_emp.copie_ko", { msg: e.message }), true); }
   });
   box.querySelectorAll("[data-remplacer]").forEach(b => b.onclick = async () => {
     const c = journal.find(x => String(x.id) === b.dataset.remplacer);
-    if (!await window.__dzDialogue.confirmer("Remplacer le texte actuel du chapitre par ce texte du journal ?", { ok: "Remplacer" })) return;
+    if (!await window.__dzDialogue.confirmer(dzT("atelier.at1_emp.remplacer_q"), { ok: dzT("atelier.at1_emp.remplacer") })) return;
     $("#script").value = c.texte; renderScript(); scheduleSave();
   });
 }
 
 function scheduleSave() {
   if (!chapter) return;
-  if (emporte) { $("#saveState").textContent = "emporté"; $("#saveState").className = "savestate"; return; }
+  if (emporte) { $("#saveState").textContent = dzT("atelier.at1_save.emporte"); $("#saveState").className = "savestate"; return; }
   $("#saveState").textContent = "…"; $("#saveState").className = "savestate saving";
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
@@ -137,7 +142,7 @@ function scheduleSave() {
         title: chapter.title, series: chapter.series,
         script_text: chapter.script_text, spans: chapter.spans,
       });
-      $("#saveState").innerHTML = "enregistré " + ico("dz-etat-enregistre"); $("#saveState").className = "savestate saved";
+      $("#saveState").innerHTML = dzT("atelier.at1_save.enregistre") + ico("dz-etat-enregistre"); $("#saveState").className = "savestate saved";
       const c = chapters.find(x => x.id === chapter.id);
       if (c) { c.title = chapter.title; c.series = chapter.series; }
     } catch (e) {
@@ -149,12 +154,12 @@ function scheduleSave() {
             title: chapter.title, series: chapter.series,
             script_text: $("#script").value, spans: chapter.spans || [],
           });
-          toast(`Chapitre re-créé côté serveur (« ${fresh.title} ») — contenu préservé.`);
+          toast(dzT("atelier.at1_save.recree", { titre: fresh.title }));
           await loadChapters(fresh.id);
           return;
         } catch (e2) { e = e2; }
       }
-      $("#saveState").textContent = "échec !"; toast("Sauvegarde échouée : " + e.message, true);
+      $("#saveState").textContent = dzT("atelier.at1_save.echec"); toast(dzT("atelier.at1_save.ko", { msg: e.message }), true);
       if (/emporté par le téléphone/i.test(e.message)) await majEmporte();   // emporté entre-temps : lecture seule
     }
   }, 800);
@@ -221,9 +226,9 @@ function refreshSelBar() {
   const sel = currentSelection();
   const bar = $("#selBar");
   if (!sel || !chapter) { bar.classList.add("hidden"); return; }
-  $("#selText").textContent = "« " + (sel.text.length > 60 ? sel.text.slice(0, 60) + "…" : sel.text) + " »";
+  $("#selText").textContent = dzT("atelier.at1_sel.guil_ouv") + (sel.text.length > 60 ? sel.text.slice(0, 60) + "…" : sel.text) + dzT("atelier.at1_sel.guil_ferm");
   const link = $("#linkSelect");
-  link.innerHTML = `<option value="">Lier à…</option>` + entities.map(e =>
+  link.innerHTML = `<option value="">${dzT("atelier.at1_sel.lier")}</option>` + entities.map(e =>
     `<option value="${e.id}">${KIND_LABEL[e.kind]} · ${esc(e.name)}</option>`).join("");
   bar.classList.remove("hidden");
 }
@@ -237,8 +242,8 @@ async function createEntityFromSelection(kind) {
     addSpan(sel, ent.id);
     curKind = kind; setTab(kind);
     await renderBible();
-    toast(`${KIND_LABEL[kind]} « ${ent.name} » créé — décris-le puis génère sa référence.`);
-  } catch (e) { toast("Création échouée : " + e.message, true); }
+    toast(dzT("atelier.at1_sel.cree", { kind: KIND_LABEL[kind], nom: ent.name }));
+  } catch (e) { toast(dzT("atelier.at1_sel.cree_ko", { msg: e.message }), true); }
 }
 
 function addSpan(sel, entityId) {
@@ -277,21 +282,21 @@ function foldName(s) {
 }
 function castChip(name) {
   const v = voiceCast.cast[foldName(name)];
-  if (!v) return `<span class="cast-chip cast-none" title="Pas de voix castée — 🎙 Suggérer ou 🧬 Cloner sur sa fiche de bible">${esc(name)} · sans voix</span>`;
+  if (!v) return `<span class="cast-chip cast-none" title="${dzT("atelier.at1_cast.sans_titre")}">${esc(name)} · ${dzT("atelier.at1_cast.sans_voix")}</span>`;
   const t = ((v.style && v.style.tags) || []).join(" ");
-  return `<span class="cast-chip" title="Voix ${esc(v.voice_id)}${t ? " · tempérament " + esc(t) : ""}">${esc(name)} · ${esc(v.name)}${t ? " " + esc(t) : ""}</span>`;
+  return `<span class="cast-chip" title="${dzT("atelier.at1_cast.voix", { id: esc(v.voice_id) })}${t ? " · " + dzT("atelier.at1_cast.temperament", { t: esc(t) }) : ""}">${esc(name)} · ${esc(v.name)}${t ? " " + esc(t) : ""}</span>`;
 }
 function temperRow(e) {
   const vt = voiceTags || { groups: {}, providers: {} };
   const on = (e.voice_style && e.voice_style.tags) || [];
   if (!vt.providers || !vt.providers.elevenlabs) {
-    return `<div class="voice-temper"><span class="temper-note">Tempérament : ${vt.providers && vt.providers.voicebox
-      ? "Voicebox ne lit pas les balises Eleven v3" : "clé ElevenLabs requise"}${on.length ? " — gardé : " + on.map(esc).join(" ") : ""}</span></div>`;
+    return `<div class="voice-temper"><span class="temper-note">${dzT("atelier.at1_cast.temper")} ${vt.providers && vt.providers.voicebox
+      ? dzT("atelier.at1_cast.voicebox") : dzT("atelier.at1_cast.cle")}${on.length ? dzT("atelier.at1_cast.garde") + on.map(esc).join(" ") : ""}</span></div>`;
   }
   // l'émotion et la voix seulement : les bruitages (« sons ») n'ont rien à faire sur une fiche de personnage
   const tags = [].concat(vt.groups.emotion || [], vt.groups.voix || []);
-  return `<div class="voice-temper" title="Tempérament : ces balises Eleven v3 sont posées devant chaque réplique de ce personnage (4 au plus)">
-    <span class="temper-note">Tempérament :</span>
+  return `<div class="voice-temper" title="${dzT("atelier.at1_cast.temper_titre")}">
+    <span class="temper-note">${dzT("atelier.at1_cast.temper")}</span>
     ${tags.map(t => `<button class="btn ghost act-temper${on.includes(t) ? " on" : ""}" data-t="${esc(t)}" aria-pressed="${on.includes(t)}">${esc(t)}</button>`).join("")}
   </div>`;
 }
@@ -301,68 +306,68 @@ async function renderBible() {
   const list = $("#entityList");
   const items = entities.filter(e => e.kind === curKind);
   if (!items.length) {
-    list.innerHTML = `<div class="empty-note">Aucun ${KIND_LABEL[curKind].toLowerCase()} pour l'instant.<br>
-      Sélectionne un nom dans le script (ou ＋ Nouveau) pour le créer.</div>`;
+    list.innerHTML = `<div class="empty-note">${dzT("atelier.at1_bib.aucun", { kind: KIND_LABEL[curKind].toLowerCase() })}<br>
+      ${dzT("atelier.at1_bib.aucun_aide")}</div>`;
     return;
   }
   list.innerHTML = items.map(e => `
   <div class="entity-card" data-id="${e.id}">
     <div class="refbox">
       ${e.ref_image
-        ? `<a href="/api/images/${encodeURIComponent(e.ref_image)}" target="_blank" title="Turnaround — ouvrir en grand">
+        ? `<a href="/api/images/${encodeURIComponent(e.ref_image)}" target="_blank" title="${dzT("atelier.at1_bib.turn_titre")}">
              <img class="refimg board-ref" src="/api/images/${encodeURIComponent(e.ref_image)}" alt="turnaround"></a>`
-        : `<div class="refimg empty">Pas encore de planche<br>— Générer ⤵</div>`}
+        : `<div class="refimg empty">${dzT("atelier.at1_bib.pas_planche")}<br>${dzT("atelier.at1_bib.generer_bas")}</div>`}
       ${e.face_image
-        ? `<a href="/api/images/${encodeURIComponent(e.face_image)}" target="_blank" title="Gros plans visage — ouvrir en grand">
-             <img class="refimg board-ref" src="/api/images/${encodeURIComponent(e.face_image)}" alt="visages"></a>`
+        ? `<a href="/api/images/${encodeURIComponent(e.face_image)}" target="_blank" title="${dzT("atelier.at1_bib.visage_titre")}">
+             <img class="refimg board-ref" src="/api/images/${encodeURIComponent(e.face_image)}" alt="${dzT("atelier.at1_bib.visages")}"></a>`
         : ""}
       <div class="seedrow">
-        ${e.seed != null ? `<span class="seedbadge" title="Seed verrouillé de la planche">${ico("dz-etat-verrouille")} ${e.seed}</span>` : `<span class="seedbadge" style="opacity:.5">seed —</span>`}
+        ${e.seed != null ? `<span class="seedbadge" title="${dzT("atelier.at1_bib.seed_titre")}">${ico("dz-etat-verrouille")} ${e.seed}</span>` : `<span class="seedbadge" style="opacity:.5">seed —</span>`}
         ${e.model3d_job
-          ? `<a class="seedbadge" href="/api/assets/3d/${encodeURIComponent(e.model3d_job)}/version/1" title="Maillage verrouillé — télécharger le GLB (Blender, Unity, Unreal, three.js)">${ico("dz-action-telecharger")} GLB</a>`
+          ? `<a class="seedbadge" href="/api/assets/3d/${encodeURIComponent(e.model3d_job)}/version/1" title="${dzT("atelier.at1_bib.glb_titre")}">${ico("dz-action-telecharger")} GLB</a>`
           : ""}
       </div>
       <div class="entity-actions">
-        <button class="btn primary act-gen" title="Génère la planche de référence multi-vues (personnage: face + profils + dos + gros plans visage — un seul seed pour tous les angles)">${ico("dz-media-generer-image")} Planche</button>
-        <button class="btn act-roll" title="Nouvelle planche, seed aléatoire" aria-label="Nouvelle planche, seed aléatoire">${ico("dz-action-aleatoire")}</button>
-        ${e.has_recipe ? `<button class="btn act-recipe" title="Rejoue la recette verrouillée (prompt exact + seed) — image identique garantie" aria-label="Rejouer la recette verrouillée">${ico("dz-action-lancer-recette")}</button>` : ""}
+        <button class="btn primary act-gen" title="${dzT("atelier.at1_bib.gen_titre")}">${ico("dz-media-generer-image")} ${dzT("atelier.at1_bib.planche")}</button>
+        <button class="btn act-roll" title="${dzT("atelier.at1_bib.roll")}" aria-label="${dzT("atelier.at1_bib.roll")}">${ico("dz-action-aleatoire")}</button>
+        ${e.has_recipe ? `<button class="btn act-recipe" title="${dzT("atelier.at1_bib.recette_titre")}" aria-label="${dzT("atelier.at1_bib.recette")}">${ico("dz-action-lancer-recette")}</button>` : ""}
         ${BESOIN_3D_PAR_KIND[e.kind]
-          ? `<button class="btn act-3d" title="Verrouille l'entité EN 3D : une vue unique → maillage GLB réutilisable par tous les chapitres, et exportable vers Blender / Unity / Unreal. Le moteur et son coût sont annoncés avant de lancer.">${ico("dz-lab3d-generer-modele")} 3D</button>`
+          ? `<button class="btn act-3d" title="${dzT("atelier.at1_bib.titre_3d")}">${ico("dz-lab3d-generer-modele")} 3D</button>`
           : ""}
       </div>
     </div>
     <div class="entity-main">
       <div class="row1">
         <span class="kinddot k-${e.kind}"></span>
-        <input class="entity-name" value="${esc(e.name)}" title="Nom">
-        <button class="btn ghost act-apps" title="Où cette entité apparaît : mentions, plans, scènes, chapitre par chapitre">${ico("dz-media-apparitions")} Apparitions</button>
-        <button class="btn ghost act-del" title="Supprimer l'entité" aria-label="Supprimer l'entité">${ico("dz-action-supprimer")}</button>
+        <input class="entity-name" value="${esc(e.name)}" title="${dzT("atelier.at1_bib.nom")}">
+        <button class="btn ghost act-apps" title="${dzT("atelier.at1_bib.apps_titre")}">${ico("dz-media-apparitions")} ${dzT("atelier.at1_bib.apps")}</button>
+        <button class="btn ghost act-del" title="${dzT("atelier.at1_bib.suppr")}" aria-label="${dzT("atelier.at1_bib.suppr")}">${ico("dz-action-supprimer")}</button>
       </div>
-      <textarea class="entity-desc" placeholder="Description physique / visuelle (sert de prompt de référence)">${esc(e.description)}</textarea>
-      <input class="entity-style" placeholder="Style spécifique (vide = style global du projet)" title="Override ponctuel : si renseigné, cette entité est générée dans CE style au lieu du style global du projet" value="${esc(e.style_notes)}">
+      <textarea class="entity-desc" placeholder="${dzT("atelier.at1_bib.desc")}">${esc(e.description)}</textarea>
+      <input class="entity-style" placeholder="${dzT("atelier.at1_bib.style")}" title="${dzT("atelier.at1_bib.style_titre")}" value="${esc(e.style_notes)}">
       <div class="entity-apps hidden"></div>
       ${e.kind === "character" ? `
       <div class="voice-row">
-        ${ico("dz-media-voix")} <span class="voice-name">${e.voice_name ? esc(e.voice_name) : "<i style='opacity:.55'>pas de voix</i>"}</span>
-        ${e.voice_prev ? `<button class="btn ghost act-voice-play" title="Pré-écouter la voix" aria-label="Pré-écouter la voix">${ico("dz-media-lecture")}</button>` : ""}
-        <button class="btn act-voice-suggest" title="L'agent croise la fiche du personnage (genre, âge, ton) avec les voix ElevenLabs de ton compte et propose la meilleure + des alternatives du même profil">${ico("dz-action-suggerer")} Suggérer</button>
-        <button class="btn ghost act-voice-all" title="Choisir manuellement parmi toutes les voix du compte">${ico("dz-action-deplier")} Toutes</button>
-        <button class="btn ghost act-voice-clone" title="Cloner une voix pour CE personnage à partir de prises du dossier audio (1 à 2 min d'audio propre) — ElevenLabs, occupe un emplacement de voix du compte">${ico("dz-media-cloner-voix")} Cloner</button>
+        ${ico("dz-media-voix")} <span class="voice-name">${e.voice_name ? esc(e.voice_name) : "<i style='opacity:.55'>" + dzT("atelier.at1_voix.pas") + "</i>"}</span>
+        ${e.voice_prev ? `<button class="btn ghost act-voice-play" title="${dzT("atelier.at1_voix.ecouter")}" aria-label="${dzT("atelier.at1_voix.ecouter")}">${ico("dz-media-lecture")}</button>` : ""}
+        <button class="btn act-voice-suggest" title="${dzT("atelier.at1_voix.suggerer_titre")}">${ico("dz-action-suggerer")} ${dzT("atelier.at1_voix.suggerer")}</button>
+        <button class="btn ghost act-voice-all" title="${dzT("atelier.at1_voix.toutes_titre")}">${ico("dz-action-deplier")} ${dzT("atelier.at1_voix.toutes")}</button>
+        <button class="btn ghost act-voice-clone" title="${dzT("atelier.at1_voix.cloner_titre")}">${ico("dz-media-cloner-voix")} ${dzT("atelier.at1_voix.cloner")}</button>
       </div>
       ${temperRow(e)}
       <div class="voice-alts hidden"></div>` : ""}
       ${(e.aliases && e.aliases.length)
-        ? `<div class="entity-aliases">alias : ${e.aliases.map(esc).join(" · ")}</div>` : ""}
+        ? `<div class="entity-aliases">${dzT("atelier.at1_bib.alias")} ${e.aliases.map(esc).join(" · ")}</div>` : ""}
       ${(e.evidence && e.evidence.length)
-        ? `<details class="entity-evidence"><summary>citations du manuscrit (${e.evidence.length})</summary>
+        ? `<details class="entity-evidence"><summary>${dzT("atelier.at1_bib.citations", { n: e.evidence.length })}</summary>
            ${e.evidence.slice(0, 8).map(v =>
-             `<blockquote>« ${esc(v.quote)} »${v.chapter ? ` — <i>${esc(v.chapter)}</i>` : ""}</blockquote>`).join("")}
+             `<blockquote>${dzT("atelier.at1_bib.citation", { q: esc(v.quote) })}${v.chapter ? ` — <i>${esc(v.chapter)}</i>` : ""}</blockquote>`).join("")}
            </details>` : ""}
       <div class="insp-row">
-        <span style="font-size:11px;color:var(--ink-soft)">Inspirations :</span>
+        <span style="font-size:11px;color:var(--ink-soft)">${dzT("atelier.at1_bib.inspirations")}</span>
         ${(e.inspiration_images || []).map(f =>
-          `<img src="/api/images/${encodeURIComponent(f)}" data-f="${esc(f)}" class="act-rm-insp" title="Retirer ${esc(f)}">`).join("")}
-        <button class="btn ghost act-add-insp" title="Ajouter depuis la Library" aria-label="Ajouter depuis la Library">${ico("dz-action-choisir-bibliotheque")}</button>
+          `<img src="/api/images/${encodeURIComponent(f)}" data-f="${esc(f)}" class="act-rm-insp" title="${dzT("atelier.at1_bib.retirer", { f: esc(f) })}">`).join("")}
+        <button class="btn ghost act-add-insp" title="${dzT("atelier.at1_bib.ajouter_lib")}" aria-label="${dzT("atelier.at1_bib.ajouter_lib")}">${ico("dz-action-choisir-bibliotheque")}</button>
       </div>
     </div>
   </div>`).join("");
@@ -379,7 +384,7 @@ async function renderBible() {
           style_notes: card.querySelector(".entity-style").value,
         });
         Object.assign(ent(), up); renderScript();
-      } catch (e) { toast("Sauvegarde entité échouée : " + e.message, true); }
+      } catch (e) { toast(dzT("atelier.at1_bib.save_ko", { msg: e.message }), true); }
     }, 700);
     ["input"].forEach(ev => {
       card.querySelector(".entity-name").addEventListener(ev, saveField);
@@ -394,13 +399,13 @@ async function renderBible() {
     if (btn3d) btn3d.addEventListener("click", () => entityTo3D(id));
     card.querySelector(".act-apps").addEventListener("click", () => showApparitions(id, card));
     card.querySelector(".act-del").addEventListener("click", async () => {
-      if (!await window.__dzDialogue.confirmer(`Supprimer « ${ent().name} » de la bible ?`)) return;
+      if (!await window.__dzDialogue.confirmer(dzT("atelier.at1_bib.suppr_q", { nom: ent().name }))) return;
       try {
         await api.send("DELETE", "/bible/entities/" + id);
         entities = entities.filter(x => x.id !== id);
         (chapter && chapter.spans || []).forEach(sp => { if (sp.entity_id === id) sp.orphan = true; });
         await renderBible(); renderScript(); scheduleSave();
-      } catch (e) { toast("Suppression échouée : " + e.message, true); }
+      } catch (e) { toast(dzT("atelier.at1_bib.suppr_ko", { msg: e.message }), true); }
     });
     // ── casting voix (personnages) ──
     const vplay = card.querySelector(".act-voice-play");
@@ -413,19 +418,17 @@ async function renderBible() {
     // un emplacement de voix du compte ElevenLabs), puis la voix est écrite sur l'entité par le serveur.
     const vclone = card.querySelector(".act-voice-clone");
     if (vclone) vclone.addEventListener("click", async () => {
-      const raw = await window.__dzDialogue.saisir("Prises du dossier audio, séparées par des virgules "
-        + "(1 à 2 min d'audio propre de ce personnage) :", { titre: "Cloner une voix", ok: "Suivant" });
+      const raw = await window.__dzDialogue.saisir(dzT("atelier.at1_voix.prises"), { titre: dzT("atelier.at1_voix.cloner_dlg"), ok: dzT("atelier.at1_voix.suivant") });
       const files = String(raw || "").split(",").map(s => s.trim()).filter(Boolean);
       if (!files.length) return;
-      if (!await window.__dzDialogue.confirmer(`Cloner la voix de « ${ent().name} » depuis ${files.length} prise(s) ? `
-        + "ElevenLabs crée une voix dans ton compte (un emplacement de voix, selon ton plan).", { ok: "Cloner" })) return;
+      if (!await window.__dzDialogue.confirmer(dzT("atelier.at1_voix.cloner_q", { nom: ent().name, n: files.length }), { ok: dzT("atelier.at1_voix.cloner") })) return;
       try {
         const d = await api.send("POST", `/bible/entities/${id}/voice-clone`, { files });
         Object.assign(ent(), d.entity);
-        toast(`Voix clonée : ${d.voice_id}` + (d.requires_verification ? " — vérification demandée par ElevenLabs" : ""));
+        toast(dzT("atelier.at1_voix.clonee", { id: d.voice_id }) + (d.requires_verification ? dzT("atelier.at1_voix.verif") : ""));
         await loadVoiceCast();
         await renderBible();
-      } catch (e) { toast("Clonage échoué : " + e.message, true); }
+      } catch (e) { toast(dzT("atelier.at1_voix.clone_ko", { msg: e.message }), true); }
     });
     // T103 (D4a) — le tempérament : une balise s'allume ou s'éteint ; le SERVEUR clampe (≤ 4, connues seulement)
     card.querySelectorAll(".act-temper").forEach(b => b.addEventListener("click", async () => {
@@ -439,7 +442,7 @@ async function renderBible() {
         Object.assign(ent(), up);
         await loadVoiceCast();
         await renderBible();
-      } catch (e) { toast("Tempérament : " + e.message, true); }
+      } catch (e) { toast(dzT("atelier.at1_cast.temper_ko", { msg: e.message }), true); }
     }));
     card.querySelector(".act-add-insp").addEventListener("click", () => openLibrary(id));
     card.querySelectorAll(".act-rm-insp").forEach(img => img.addEventListener("click", async () => {
@@ -454,16 +457,16 @@ async function renderBible() {
 async function generateRef(id, seed, useRecipe) {
   const ent = entities.find(x => x.id === id);
   if (!ent) return;
-  if (!useRecipe && !(ent.description || "").trim()) { toast("Ajoute une description avant de générer.", true); return; }
-  toast(useRecipe ? `🔁 Recette exacte de « ${ent.name} »… (~3 s)`
-                  : `Planche de « ${ent.name} »… (~3 s)`);
+  if (!useRecipe && !(ent.description || "").trim()) { toast(dzT("atelier.at1_gen.sans_desc"), true); return; }
+  toast(useRecipe ? dzT("atelier.at1_gen.recette", { nom: ent.name })
+                  : dzT("atelier.at1_gen.planche", { nom: ent.name }));
   try {
     const body = useRecipe ? { use_recipe: true } : (seed != null ? { seed } : {});
     const up = await api.send("POST", `/bible/entities/${id}/generate`, body);
     Object.assign(ent, up);
     await renderBible();
-    toast(`Planche de « ${ent.name} » ${useRecipe ? "rejouée à l'identique" : "générée"} — seed ${up.seed} 🔒 (recette enregistrée 🔁).`);
-  } catch (e) { toast("Génération échouée : " + e.message, true); }
+    toast((useRecipe ? dzT("atelier.at1_gen.rejouee", { nom: ent.name, seed: up.seed }) : dzT("atelier.at1_gen.generee", { nom: ent.name, seed: up.seed })));
+  } catch (e) { toast(dzT("atelier.at1_gen.ko", { msg: e.message }), true); }
 }
 
 /* ═════════ storyboard ═════════ */
@@ -475,10 +478,9 @@ async function loadShotcraft() {
   catch (e) { shotcraft = { status: null, cards: [] }; }
   const el = $("#shotcraftStatus");
   if (el && shotcraft.status) {
-    el.innerHTML = ico("dz-etat-information") + ` shotcraft · ${shotcraft.status.cards} fiches · ` +
-      (shotcraft.status.installed ? "skill installé" : "catalogue embarqué");
-    el.title = "Recettes motion video-shotcraft — l'IA de découpage les " +
-      "utilise (doctrine + catalogue), et chaque plan peut en porter une." +
+    el.innerHTML = ico("dz-etat-information") + ` shotcraft · ${dzT("atelier.at1_sc.fiches", { n: shotcraft.status.cards })} · ` +
+      (shotcraft.status.installed ? dzT("atelier.at1_sc.installe") : dzT("atelier.at1_sc.embarque"));
+    el.title = dzT("atelier.at1_sc.titre") +
       (shotcraft.status.path ? "\n" + shotcraft.status.path : "");
   }
 }
@@ -489,8 +491,8 @@ function recipeOptions(cur) {
     `${c.slug === cur ? " selected" : ""} title="${esc(c.gloss)}">` +
     `${c.slug}</option>`;
   const anim = cards.filter(c => c.anim), other = cards.filter(c => !c.anim);
-  return `<option value=""${!cur ? " selected" : ""}>— recette motion —</option>` +
-    (anim.length ? `<optgroup label="Animation / récit">${anim.map(opt).join("")}</optgroup>` : "") +
+  return `<option value=""${!cur ? " selected" : ""}>${dzT("atelier.at1_sc.recette")}</option>` +
+    (anim.length ? `<optgroup label="${dzT("atelier.at1_sc.anim")}">${anim.map(opt).join("")}</optgroup>` : "") +
     (other.length ? `<optgroup label="Motion UI (promo)">${other.map(opt).join("")}</optgroup>` : "");
 }
 
@@ -528,11 +530,10 @@ async function loadScenes(render) {
 
 function renderScreenplay() {
   const list = $("#sceneList");
-  if (!chapter) { list.innerHTML = `<div class="empty-note">Crée ou ouvre un chapitre d'abord.</div>`; return; }
+  if (!chapter) { list.innerHTML = `<div class="empty-note">${dzT("atelier.at1_scn.sans_chap")}</div>`; return; }
   if (!scenes.length) {
-    list.innerHTML = `<div class="empty-note">Pas encore de scénario pour ce chapitre.<br>
-      🎭 <b>Adapter (IA)</b> transforme le roman en script de film (scènes, sluglines,
-      éclairages, caméra) — sans toucher au manuscrit.</div>`;
+    list.innerHTML = `<div class="empty-note">${dzT("atelier.at1_scn.vide")}<br>
+      🎭 <b>${dzT("atelier.at1_scn.adapter")}</b> ${dzT("atelier.at1_scn.vide_aide")}</div>`;
     return;
   }
   const totVo = scenes.reduce((a, s) => a + (s.duration_s || 0), 0);
@@ -541,27 +542,27 @@ function renderScreenplay() {
     ? `Σ VO ${fmtDur(totVo)} (${nVo}/${scenes.length})` : "Σ VO —";
   list.innerHTML = scenes.map((s, i) => `
   <div class="scene-card" data-id="${s.id}">
-    <div class="scene-slug">SCÈNE ${i + 1} · ${esc(s.slugline)}
+    <div class="scene-slug">${dzT("atelier.at1_scn.scene", { n: i + 1 })} · ${esc(s.slugline)}
       <span class="scene-vo">
-        ${s.duration_s ? `<span class="seedbadge" title="Durée réelle du voice-over — c'est la durée de la scène">${ico("dz-media-duree")} ${fmtDur(s.duration_s)}</span>` : ""}
-        ${s.vo_audio ? `<button class="btn ghost sc-vo-play" title="Écouter le voice-over de la scène" aria-label="Écouter le voice-over de la scène">${ico("dz-media-lecture")}</button>` : ""}
-        <button class="btn sc-vo-gen" title="Génère le voice-over de la scène : narration lue par le Narrateur, répliques par les voix castées des personnages. La durée réelle minute la scène." aria-label="Générer le voice-over de la scène">${ico("dz-media-generer-voix")}${s.vo_audio ? " ↻" : ""}</button>
+        ${s.duration_s ? `<span class="seedbadge" title="${dzT("atelier.at1_scn.duree_titre")}">${ico("dz-media-duree")} ${fmtDur(s.duration_s)}</span>` : ""}
+        ${s.vo_audio ? `<button class="btn ghost sc-vo-play" title="${dzT("atelier.at1_scn.ecouter")}" aria-label="${dzT("atelier.at1_scn.ecouter")}">${ico("dz-media-lecture")}</button>` : ""}
+        <button class="btn sc-vo-gen" title="${dzT("atelier.at1_scn.gen_vo_titre")}" aria-label="${dzT("atelier.at1_scn.gen_vo")}">${ico("dz-media-generer-voix")}${s.vo_audio ? " ↻" : ""}</button>
       </span>
     </div>
     <div class="scene-meta">
       <select class="sc-ie" title="INT/EXT">
         ${["INT", "EXT", "INT/EXT"].map(v => `<option ${v === s.int_ext ? "selected" : ""}>${v}</option>`).join("")}
       </select>
-      <select class="sc-tod" title="Moment">
+      <select class="sc-tod" title="${dzT("atelier.at1_scn.moment")}">
         ${TIMES_OF_DAY.map(v => `<option ${v === s.time_of_day ? "selected" : ""}>${v}</option>`).join("")}
       </select>
-      <input class="sc-light" value="${esc(s.lighting)}" placeholder="éclairage" title="Type d'éclairage">
-      <input class="sc-mood" value="${esc(s.mood)}" placeholder="mood" title="Ambiance émotionnelle">
+      <input class="sc-light" value="${esc(s.lighting)}" placeholder="${dzT("atelier.at1_scn.eclairage")}" title="${dzT("atelier.at1_scn.eclairage_titre")}">
+      <input class="sc-mood" value="${esc(s.mood)}" placeholder="mood" title="${dzT("atelier.at1_scn.mood_titre")}">
     </div>
-    <div class="scene-cam">${ico("dz-lab3d-camera")} <input class="sc-cam" value="${esc(s.camera_notes)}" placeholder="intention caméra + pourquoi"></div>
+    <div class="scene-cam">${ico("dz-lab3d-camera")} <input class="sc-cam" value="${esc(s.camera_notes)}" placeholder="${dzT("atelier.at1_scn.camera")}"></div>
     <textarea class="scene-fountain" spellcheck="false">${esc(s.fountain_text)}</textarea>
     <div class="scene-ents">${entChips(s.entities)}</div>
-    ${s.source_text ? `<div class="scene-src">source : « ${esc(s.source_text)}… »</div>` : ""}
+    ${s.source_text ? `<div class="scene-src">${dzT("atelier.at1_scn.source", { t: esc(s.source_text) })}</div>` : ""}
   </div>`).join("");
 
   list.querySelectorAll(".scene-card").forEach(card => {
@@ -579,8 +580,8 @@ function renderScreenplay() {
         const sc = scenes.find(x => x.id === id);
         Object.assign(sc, up);
         card.querySelector(".scene-slug").textContent =
-          `SCÈNE ${sc.idx + 1} · ${up.slugline}`;
-      } catch (e) { toast("Sauvegarde de la scène échouée : " + e.message, true); }
+          `${dzT("atelier.at1_scn.scene", { n: sc.idx + 1 })} · ${up.slugline}`;
+      } catch (e) { toast(dzT("atelier.at1_scn.save_ko", { msg: e.message }), true); }
     }, 700);
     card.querySelectorAll("select,input,textarea").forEach(el =>
       ["input", "change"].forEach(ev => el.addEventListener(ev, save)));
@@ -597,26 +598,26 @@ function renderScreenplay() {
 async function sceneVo(sceneId) {
   const sc = scenes.find(x => x.id === sceneId);
   if (!sc) return;
-  toast(`🔊 Voice-over de la scène ${sc.idx + 1}… (~10-30 s)`);
+  toast(dzT("atelier.at1_vo.scene", { n: sc.idx + 1 }));
   try {
     const r = await api.send("POST", `/scenes/${sceneId}/voiceover`,
                              { language: "fr" });
     Object.assign(sc, r.scene);
     renderScreenplay();
     const who = [...new Set((r.segments || []).map(x => x.speaker).filter(Boolean))];
-    toast(`⏱ Scène ${sc.idx + 1} minutée : ${fmtDur(r.duration_s)}` +
-          (who.length ? ` — voix : ${who.join(", ")}` : "") + ".");
-  } catch (e) { toast("Voice-over échoué : " + e.message, true); }
+    toast(dzT("atelier.at1_vo.minutee", { n: sc.idx + 1, d: fmtDur(r.duration_s) }) +
+          (who.length ? dzT("atelier.at1_vo.voix", { v: who.join(", ") }) : "") + ".");
+  } catch (e) { toast(dzT("atelier.at1_vo.ko", { msg: e.message }), true); }
 }
 
 async function chapterVo() {
-  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
-  if (!scenes.length) { toast("Pas de scénario — 🎭 Adapter d'abord.", true); return; }
+  if (!chapter) { toast(dzT("atelier.at1_chap.ouvre"), true); return; }
+  if (!scenes.length) { toast(dzT("atelier.at1_vo.sans_scn"), true); return; }
   const missing = scenes.filter(s => !s.vo_audio).length;
   const force = missing === 0 &&
-    await window.__dzDialogue.confirmer("Toutes les scènes ont déjà un voice-over. Tout régénérer ?", { ok: "Tout régénérer" });
+    await window.__dzDialogue.confirmer(dzT("atelier.at1_vo.tout_q"), { ok: dzT("atelier.at1_vo.tout") });
   if (missing === 0 && !force) return;
-  toast(`🔊 Voice-over du chapitre (${force ? scenes.length : missing} scènes)…`);
+  toast(dzT("atelier.at1_vo.chapitre", { n: force ? scenes.length : missing }));
   try {
     const r = await api.send("POST", `/chapters/${chapter.id}/voiceover`,
                              { language: "fr", force });
@@ -629,61 +630,60 @@ async function chapterVo() {
           return;
         }
         clearInterval(poll);
-        if (st.error) { toast("Voice-over : " + st.error, true); await loadScenes(true); return; }
+        if (st.error) { toast(dzT("atelier.at1_vo.erreur", { msg: st.error }), true); await loadScenes(true); return; }
         await loadScenes(true);
-        toast(`⏱ Chapitre minuté : ${fmtDur(st.stats.duree_totale_s || 0)} ` +
-              `(${st.stats.scenes_generees} générées, ${st.stats.scenes_conservees} conservées).`);
+        toast(dzT("atelier.at1_vo.chap_minute", { d: fmtDur(st.stats.duree_totale_s || 0), g: st.stats.scenes_generees, c: st.stats.scenes_conservees }));
       } catch (e) { /* poll silencieux */ }
     }, 2500);
-  } catch (e) { toast("Voice-over : " + e.message, true); }
+  } catch (e) { toast(dzT("atelier.at1_vo.erreur", { msg: e.message }), true); }
 }
 
 /* ═════════ tâche #64 (plan chapitres T13) — importer un scénario Fountain / Final Draft ═════════
    Remplacer (défaut) : le dialogue NOMME les scènes et les voix-off perdues, et le scénario entier est sauvegardé
    avant (tiroir des versions, « scénario importé ») ; sinon ajouter à la suite ; Échap deux fois = rien. */
 async function importerScenario(f) {
-  if (!f || !chapter) { if (!chapter) toast("Ouvre un chapitre d'abord.", true); return; }
+  if (!f || !chapter) { if (!chapter) toast(dzT("atelier.at1_chap.ouvre"), true); return; }
   let mode = "remplacer";
   if (scenes.length) {
     const vo = scenes.filter(s => s.vo_audio).length;
     const remplacer = await window.__dzDialogue.confirmer(
-      `« ${f.name} » remplacera les ${scenes.length} scène(s) de ce chapitre` +
-      (vo ? `, dont ${vo} avec une voix-off (elle sera perdue)` : "") +
-      ". Le scénario actuel est sauvegardé avant (tiroir des versions).",
-      { ok: "Remplacer", annuler: "Ne pas remplacer" });
+      (vo ? dzT("atelier.at1_imp.remplacera_vo", { f: f.name, n: scenes.length, vo })
+          : dzT("atelier.at1_imp.remplacera", { f: f.name, n: scenes.length })),
+      { ok: dzT("atelier.at1_emp.remplacer"), annuler: dzT("atelier.at1_imp.ne_pas") });
     if (!remplacer) {
-      if (!await window.__dzDialogue.confirmer(`Ajouter les scènes de « ${f.name} » à la suite des ${scenes.length} existantes ?`,
-          { ok: "Ajouter à la suite" })) return;
+      if (!await window.__dzDialogue.confirmer(dzT("atelier.at1_imp.ajouter_q", { f: f.name, n: scenes.length }),
+          { ok: dzT("atelier.at1_imp.ajouter") })) return;
       mode = "ajouter";
     }
   }
   const fd = new FormData(); fd.append("file", f); fd.append("mode", mode);
-  toast(`Import de « ${f.name} »…`);
+  toast(dzT("atelier.at1_imp.import", { f: f.name }));
   try {
     const r = await fetch(`/api/chapters/${encodeURIComponent(chapter.id)}/screenplay/import`, { method: "POST", body: fd });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail && d.detail.message ? d.detail.message : (d.detail || r.statusText));
     await loadScenes(true);
     const ign = Object.entries(d.ignores || {}).map(([k, n]) => `${n} ${k.replace(/_/g, " ")}`).join(", ");
-    toast(`${d.format === "fdx" ? "Final Draft" : "Fountain"} : ${d.scenes} scène(s) ${mode === "ajouter" ? "ajoutée(s)" : "importée(s)"}` +
-          (d.lieux_crees ? `, ${d.lieux_crees} lieu(x) créé(s) dans la bible` : "") +
-          (d.personnages_lies ? `, ${d.personnages_lies} lien(s) personnage` : "") +
-          (d.prologue ? " — le texte avant la 1re scène est rattaché à la scène 1" : "") +
-          (ign ? ` — écartés : ${ign}` : "") + ".");
-  } catch (e) { toast("Import du scénario : " + e.message, true); }
+    toast((mode === "ajouter" ? dzT("atelier.at1_imp.ajoutees", { fmt: d.format === "fdx" ? "Final Draft" : "Fountain", n: d.scenes })
+          : dzT("atelier.at1_imp.importees", { fmt: d.format === "fdx" ? "Final Draft" : "Fountain", n: d.scenes })) +
+          (d.lieux_crees ? dzT("atelier.at1_imp.lieux", { n: d.lieux_crees }) : "") +
+          (d.personnages_lies ? dzT("atelier.at1_imp.persos", { n: d.personnages_lies }) : "") +
+          (d.prologue ? dzT("atelier.at1_imp.prologue") : "") +
+          (ign ? dzT("atelier.at1_imp.ecartes", { ign }) : "") + ".");
+  } catch (e) { toast(dzT("atelier.at1_imp.ko", { msg: e.message }), true); }
 }
 
 /* ═════════ tâche #65 (plan chapitres T16) — les exports : téléchargés par fetch, erreurs DITES ═════════
    Un lien <a download> nu rendrait une erreur 400 en fichier JSON : ici l'erreur passe par le dialogue maison, et les
    caractères remplacés dans un PDF (hors police standard) sont annoncés. */
 async function telechargerExport(chemin) {
-  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
-  toast("Export…");
+  if (!chapter) { toast(dzT("atelier.at1_chap.ouvre"), true); return; }
+  toast(dzT("atelier.at1_exp.encours"));
   try {
     const r = await fetch(`/api/chapters/${encodeURIComponent(chapter.id)}/${chemin}`);
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
-      await window.__dzDialogue.informer("Export impossible : " + (d.detail || r.statusText), { titre: "Export" });
+      await window.__dzDialogue.informer(dzT("atelier.at1_exp.impossible", { msg: d.detail || r.statusText }), { titre: "Export" });
       return;
     }
     const cd = r.headers.get("Content-Disposition") || "";
@@ -694,8 +694,8 @@ async function telechargerExport(chemin) {
     a.href = url; a.download = nom; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     const n = parseInt(r.headers.get("X-DZ-Remplacements") || "0", 10);
-    toast(`« ${nom} » exporté` + (n ? ` — ${n} caractère(s) hors de la police standard remplacé(s) dans le PDF (le .docx les garde).` : "."));
-  } catch (e) { toast("Export : " + e.message, true); }
+    toast(dzT("atelier.at1_exp.exporte", { nom }) + (n ? dzT("atelier.at1_exp.remplaces", { n }) : "."));
+  } catch (e) { toast(dzT("atelier.at1_exp.ko", { msg: e.message }), true); }
 }
 
 /* ═════════ tâche #66 (plan chapitres T17) — réécrire dans le ton de la bible ═════════
@@ -703,7 +703,7 @@ async function telechargerExport(chemin) {
    sauvegardé (version « réécriture ») et refusé si le passage a changé entre-temps (409). L'action est gardée ICI :
    le sélecteur, lui, revient à « Réécrire… ». */
 let reeEnCours = null;      // {start, end, action, mode, attendu, langue}
-const REE_LANGUES = { fr: "français", en: "anglais", es: "espagnol", de: "allemand", it: "italien", pt: "portugais" };
+const REE_LANGUES = { fr: dzT("atelier.at2_ree.lang_fr"), en: dzT("atelier.at2_ree.lang_en"), es: dzT("atelier.at2_ree.lang_es"), de: dzT("atelier.at2_ree.lang_de"), it: dzT("atelier.at2_ree.lang_it"), pt: dzT("atelier.at2_ree.lang_pt") };
 
 async function sauverMaintenant() {
   if (!chapter || emporte) return;
@@ -715,14 +715,14 @@ async function sauverMaintenant() {
 
 async function reecrire(action) {
   const sel = currentSelection();
-  if (!chapter || !sel) { toast("Sélectionne un passage d'abord.", true); return; }
+  if (!chapter || !sel) { toast(dzT("atelier.at2_ree.selection"), true); return; }
   let langue = "fr";
   if (action === "traduire") {
-    const l = await window.__dzDialogue.saisir(`Langue cible : ${Object.entries(REE_LANGUES).map(([k, v]) => `${k} (${v})`).join(", ")}`,
-      { valeur: "en", ok: "Chiffrer", titre: "Traduire" });
+    const l = await window.__dzDialogue.saisir(`${dzT("atelier.at2_ree.langue_cible")} ${Object.entries(REE_LANGUES).map(([k, v]) => `${k} (${v})`).join(", ")}`,
+      { valeur: "en", ok: dzT("atelier.at2_ree.chiffrer"), titre: dzT("atelier.at2_ree.traduire") });
     if (l == null) return;
     langue = l.trim().toLowerCase().slice(0, 2);
-    if (!REE_LANGUES[langue]) { toast(`Langue « ${l} » inconnue.`, true); return; }
+    if (!REE_LANGUES[langue]) { toast(dzT("atelier.at2_ree.langue_inconnue", { l }), true); return; }
   }
   try {
     await sauverMaintenant();                               // le serveur chiffre et propose sur le texte À JOUR
@@ -730,17 +730,17 @@ async function reecrire(action) {
     const dv = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/reecrire`, { ...corps, devis: true });
     const usd = `${(dv.usd || 0).toFixed(3).replace(".", ",")} $`;
     if (!await window.__dzDialogue.confirmer(
-        `${$("#reeAction").querySelector(`option[value="${action}"]`).textContent.replace("…", "")} — ${dv.fournisseur}, ` +
-        `≈ ${dv.jetons.entree + dv.jetons.sortie} jetons. Coût estimé : ${usd}. La proposition s'affichera ; rien n'est écrit sans votre accord.`,
-        { ok: "Proposer" })) return;
-    toast("Le modèle relit la bible… (5-20 s)");
+        dzT("atelier.at2_ree.devis", { action: $("#reeAction").querySelector(`option[value="${action}"]`).textContent.replace("…", ""),
+          fournisseur: dv.fournisseur, jetons: dv.jetons.entree + dv.jetons.sortie, usd }),
+        { ok: dzT("atelier.at2_ree.proposer") })) return;
+    toast(dzT("atelier.at2_ree.relit"));
     const d = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/reecrire`, corps);
     reeEnCours = { start: d.start, end: d.end, action, mode: d.mode, attendu: d.attendu, langue };
-    $("#reeTitre").textContent = d.mode === "remplace" ? "Proposition — remplacera la sélection" : "Proposition — sera insérée après la sélection";
+    $("#reeTitre").textContent = d.mode === "remplace" ? dzT("atelier.at2_ree.titre_remplace") : dzT("atelier.at2_ree.titre_insere");
     $("#reeNote").textContent = `${action}${action === "traduire" ? " → " + REE_LANGUES[langue] : ""} · ${d.provider}`;
     $("#reeTexte").value = d.proposition;
     $("#reeModal").classList.remove("hidden");
-  } catch (e) { toast("Réécriture : " + e.message, true); }
+  } catch (e) { toast(dzT("atelier.at2_ree.err", { msg: e.message }), true); }
 }
 
 async function reecrireAppliquer() {
@@ -753,14 +753,14 @@ async function reecrireAppliquer() {
     $("#reeModal").classList.add("hidden");
     reeEnCours = null;
     await openChapter(chapter.id);                          // texte ET surlignage recalculés par le serveur
-    toast("Appliqué — l'état d'avant est dans 🕘 Versions.");
-  } catch (e) { toast("Application impossible : " + e.message, true); }
+    toast(dzT("atelier.at2_ree.applique"));
+  } catch (e) { toast(dzT("atelier.at2_ree.err_appliquer", { msg: e.message }), true); }
 }
 
 async function adaptChapter() {
-  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
-  if (scenes.length && !await window.__dzDialogue.confirmer("Ré-adapter remplacera le scénario actuel de ce chapitre. Continuer ?", { ok: "Ré-adapter" })) return;
-  toast("🎭 Adaptation en scénario… (30-90 s)");
+  if (!chapter) { toast(dzT("atelier.at2_chap.ouvrir_dabord"), true); return; }
+  if (scenes.length && !await window.__dzDialogue.confirmer(dzT("atelier.at2_adapt.confirmer"), { ok: dzT("atelier.at2_adapt.readapter") })) return;
+  toast(dzT("atelier.at2_adapt.en_cours"));
   try {
     const r = await api.send("POST", `/chapters/${chapter.id}/screenplay/adapt`,
                              { language: "fr" });
@@ -769,15 +769,15 @@ async function adaptChapter() {
         const st = await api.get("/atelier/manuscript/" + r.job_id);
         if (!st.done) return;
         clearInterval(poll);
-        if (st.error) { toast("Adaptation échouée : " + st.error, true); return; }
+        if (st.error) { toast(dzT("atelier.at2_adapt.echec", { msg: st.error }), true); return; }
         await loadEntities();
         await loadScenes(true);
         await renderBible();
-        toast(`🎭 ${st.stats.scenes} scènes — ` +
-              (st.stats.entites_creees ? `${st.stats.entites_creees} lieux/décors ajoutés à la bible.` : "bible réutilisée."));
+        toast((st.stats.entites_creees ? dzT("atelier.at2_adapt.fin_lieux", { n: st.stats.scenes, m: st.stats.entites_creees })
+              : dzT("atelier.at2_adapt.fin_bible", { n: st.stats.scenes })));
       } catch (e) { /* poll silencieux */ }
     }, 2000);
-  } catch (e) { toast("Adaptation : " + e.message, true); }
+  } catch (e) { toast(dzT("atelier.at2_adapt.err", { msg: e.message }), true); }
 }
 
 async function loadShots(render) {
@@ -801,62 +801,62 @@ function entChips(ids) {
 function renderBoard() {
   $("#boardTotal").textContent = "Σ " + fmtDur(shots.reduce((a, s) => a + (s.duration_s || 0), 0));
   const list = $("#shotList");
-  if (!chapter) { list.innerHTML = `<div class="empty-note">Crée ou ouvre un chapitre d'abord.</div>`; return; }
+  if (!chapter) { list.innerHTML = `<div class="empty-note">${dzT("atelier.at2_sb.vide_chap")}</div>`; return; }
   if (!shots.length) {
-    list.innerHTML = `<div class="empty-note">Pas encore de storyboard.<br>
-      🎬 <b>Découper (IA)</b> lit le chapitre + la bible et propose les plans<br>
-      (ou ¶ Paragraphes pour un découpage simple sans IA).</div>`;
+    list.innerHTML = `<div class="empty-note">${dzT("atelier.at2_sb.vide")}<br>
+      ${dzT("atelier.at2_sb.vide_ia")}<br>
+      ${dzT("atelier.at2_sb.vide_para")}</div>`;
     return;
   }
   list.innerHTML = shots.map((s, i) => `
   <div class="shot-card" data-id="${s.id}">
     <div class="thumb">
       ${s.sketch_image
-        ? `<img src="/api/images/${encodeURIComponent(s.sketch_image)}" alt="croquis">`
-        : `<div class="noimg">pas de croquis<br>— 🎨 ⤵</div>`}
+        ? `<img src="/api/images/${encodeURIComponent(s.sketch_image)}" alt="${dzT("atelier.at2_sb.croquis")}">`
+        : `<div class="noimg">${dzT("atelier.at2_sb.pas_croquis")}<br>— 🎨 ⤵</div>`}
       ${s.sketch_seed != null ? `<div class="seedtag">${ico("dz-etat-verrouille")} ${s.sketch_seed}</div>` : ""}
       <div class="entity-actions">
-        <button class="btn primary act-sketch" title="Générer le croquis (même seed si déjà généré)" aria-label="Générer le croquis">${ico("dz-media-generer-image")}</button>
-        <button class="btn act-resketch" title="Nouveau croquis (seed aléatoire)" aria-label="Nouveau croquis (seed aléatoire)">${ico("dz-action-aleatoire")}</button>
-        <button class="btn ghost act-prod" title="Image de production : Nano Banana avec les vues des entités du plan en référence — coût affiché et confirmé avant" aria-label="Image de production">${ico("dz-media-generer-image")}</button>
-        <button class="btn ghost act-plateau" title="Plateau 3D : composer ce plan en 3D (gratuit), mesurer son cadre et son mouvement, capturer ses images de début et de fin" aria-label="Plateau 3D">${ico("dz-nav-plateau")}</button>
+        <button class="btn primary act-sketch" title="${dzT("atelier.at2_sb.gen_croquis_t")}" aria-label="${dzT("atelier.at2_sb.gen_croquis")}">${ico("dz-media-generer-image")}</button>
+        <button class="btn act-resketch" title="${dzT("atelier.at2_sb.nouveau_croquis")}" aria-label="${dzT("atelier.at2_sb.nouveau_croquis")}">${ico("dz-action-aleatoire")}</button>
+        <button class="btn ghost act-prod" title="${dzT("atelier.at2_sb.prod_t")}" aria-label="${dzT("atelier.at2_sb.prod")}">${ico("dz-media-generer-image")}</button>
+        <button class="btn ghost act-plateau" title="${dzT("atelier.at2_sb.plateau_t")}" aria-label="${dzT("atelier.at2_sb.plateau")}">${ico("dz-nav-plateau")}</button>
       </div>
-      ${s.image ? `<div class="shot-prod"><img src="/api/images/${encodeURIComponent(s.image)}" alt="image de production"
-        title="Image de production — ${s.image_refs || 0} vue(s) en référence"><span>${ico("dz-media-image")} ${s.image_refs || 0} réf.</span>
-        <button class="btn ghost act-derive" title="Mesurer la dérive (gratuit, lecture seule) : couleur et silhouette comparées à la vue de chaque entité" aria-label="Mesurer la dérive">${ico("dz-action-mesurer")}</button></div>
+      ${s.image ? `<div class="shot-prod"><img src="/api/images/${encodeURIComponent(s.image)}" alt="${dzT("atelier.at2_sb.prod_alt")}"
+        title="${dzT("atelier.at2_sb.prod_refs", { n: s.image_refs || 0 })}"><span>${ico("dz-media-image")} ${s.image_refs || 0} ${dzT("atelier.at2_sb.ref_abr")}</span>
+        <button class="btn ghost act-derive" title="${dzT("atelier.at2_sb.derive_t")}" aria-label="${dzT("atelier.at2_sb.derive")}">${ico("dz-action-mesurer")}</button></div>
         <div class="shot-derive"></div>` : ""}
     </div>
     <div class="shot-main">
       <div class="rowhead">
-        <span class="shot-no">PLAN ${i + 1}/${shots.length}</span>
+        <span class="shot-no">${dzT("atelier.at2_sb.plan_no", { i: i + 1, n: shots.length })}</span>
         <div class="shot-actions">
-          <button class="btn ghost act-up" title="Monter" aria-label="Monter" ${i === 0 ? "disabled" : ""}>${ico("dz-edit-monter")}</button>
-          <button class="btn ghost act-down" title="Descendre" aria-label="Descendre" ${i === shots.length - 1 ? "disabled" : ""}>${ico("dz-edit-descendre")}</button>
-          <button class="btn ghost act-insert" title="Insérer un plan après" aria-label="Insérer un plan après">${ico("dz-action-ajouter")}</button>
-          <button class="btn ghost act-delshot" title="Supprimer le plan" aria-label="Supprimer le plan">${ico("dz-action-supprimer")}</button>
+          <button class="btn ghost act-up" title="${dzT("atelier.at2_sb.monter")}" aria-label="${dzT("atelier.at2_sb.monter")}" ${i === 0 ? "disabled" : ""}>${ico("dz-edit-monter")}</button>
+          <button class="btn ghost act-down" title="${dzT("atelier.at2_sb.descendre")}" aria-label="${dzT("atelier.at2_sb.descendre")}" ${i === shots.length - 1 ? "disabled" : ""}>${ico("dz-edit-descendre")}</button>
+          <button class="btn ghost act-insert" title="${dzT("atelier.at2_sb.inserer")}" aria-label="${dzT("atelier.at2_sb.inserer")}">${ico("dz-action-ajouter")}</button>
+          <button class="btn ghost act-delshot" title="${dzT("atelier.at2_sb.supprimer")}" aria-label="${dzT("atelier.at2_sb.supprimer")}">${ico("dz-action-supprimer")}</button>
         </div>
       </div>
-      <textarea class="shot-action" placeholder="Action : ce que l'on VOIT dans ce plan">${esc(s.action)}</textarea>
+      <textarea class="shot-action" placeholder="${dzT("atelier.at2_sb.action_ph")}">${esc(s.action)}</textarea>
       <div class="shot-params">
-        <select class="shot-type" title="Type de plan">
+        <select class="shot-type" title="${dzT("atelier.at2_sb.type")}">
           ${SHOT_TYPES.map(t => `<option ${t === s.shot_type ? "selected" : ""}>${t}</option>`).join("")}
         </select>
-        <select class="shot-cam" title="Mouvement de caméra">
+        <select class="shot-cam" title="${dzT("atelier.at2_sb.camera")}">
           ${CAMERA_MOVES.map(t => `<option ${t === s.camera_move ? "selected" : ""}>${t}</option>`).join("")}
         </select>
-        <input class="shot-dur" type="number" min="0.5" max="60" step="0.5" value="${s.duration_s}" title="Durée (s)">
+        <input class="shot-dur" type="number" min="0.5" max="60" step="0.5" value="${s.duration_s}" title="${dzT("atelier.at2_sb.duree")}">
       </div>
       <div class="shot-params shot-craft">
-        <select class="shot-recipe" title="Recette motion video-shotcraft (colore le croquis, et la production ensuite)">${recipeOptions(s.motion_recipe)}</select>
-        <span class="sel-ico" aria-hidden="true">${ico("dz-edit-energie")}</span><select class="shot-energy" title="Énergie du plan (1 calme → 5 pic) — la courbe doit respirer">${energyOptions(s.energy)}</select>
+        <select class="shot-recipe" title="${dzT("atelier.at2_sb.recette")}">${recipeOptions(s.motion_recipe)}</select>
+        <span class="sel-ico" aria-hidden="true">${ico("dz-edit-energie")}</span><select class="shot-energy" title="${dzT("atelier.at2_sb.energie")}">${energyOptions(s.energy)}</select>
       </div>
-      <div class="shot-ents">${entChips(s.entities) || "<span style='opacity:.5'>aucune entité détectée</span>"}</div>
-      <div class="shot-cast" title="Qui parlera, avec quelle voix et quel tempérament (T103)">${(s.entities || []).map(eid => {
+      <div class="shot-ents">${entChips(s.entities) || `<span style='opacity:.5'>${dzT("atelier.at2_sb.aucune_ent_det")}</span>`}</div>
+      <div class="shot-cast" title="${dzT("atelier.at2_sb.cast_t")}">${(s.entities || []).map(eid => {
         const en = entities.find(x => x.id === eid);
         return en && en.kind === "character" ? castChip(en.name) : "";
-      }).join("") || "<span style='opacity:.5'>aucun personnage dans ce plan</span>"}</div>
+      }).join("") || `<span style='opacity:.5'>${dzT("atelier.at2_sb.aucun_perso")}</span>`}</div>
       ${entPicker(s.entities)}
-      ${s.source_text ? `<details class="shot-src"><summary>texte source</summary><blockquote>${esc(s.source_text)}</blockquote></details>` : ""}
+      ${s.source_text ? `<details class="shot-src"><summary>${dzT("atelier.at2_sb.texte_source")}</summary><blockquote>${esc(s.source_text)}</blockquote></details>` : ""}
     </div>
   </div>`).join("");
 
@@ -868,7 +868,7 @@ function renderBoard() {
         const up = await api.send("PUT", "/shots/" + id, fields());
         Object.assign(sh(), up);
         $("#boardTotal").textContent = "Σ " + fmtDur(shots.reduce((a, s) => a + (s.duration_s || 0), 0));
-      } catch (e) { toast("Sauvegarde du plan échouée : " + e.message, true); }
+      } catch (e) { toast(dzT("atelier.at2_sb.err_sauver", { msg: e.message }), true); }
     }, 600);
     const fields = () => ({
       action: card.querySelector(".shot-action").value,
@@ -898,7 +898,7 @@ function renderBoard() {
       await loadShots(true);
     });
     card.querySelector(".act-delshot").addEventListener("click", async () => {
-      if (!await window.__dzDialogue.confirmer(`Supprimer le plan ${sh().idx + 1} ?`)) return;
+      if (!await window.__dzDialogue.confirmer(dzT("atelier.at2_sb.supprimer_n", { i: sh().idx + 1 }))) return;
       await api.send("DELETE", "/shots/" + id);
       await loadShots(true);
     });
@@ -909,8 +909,8 @@ function renderBoard() {
       try {
         const up = await api.send("PUT", "/shots/" + id, { entities: ids });
         Object.assign(sh(), up);
-        card.querySelector(".shot-ents").innerHTML = entChips(up.entities) || "<span style='opacity:.5'>aucune entité</span>";
-      } catch (e) { toast("Entités du plan : " + e.message, true); }
+        card.querySelector(".shot-ents").innerHTML = entChips(up.entities) || `<span style='opacity:.5'>${dzT("atelier.at2_sb.aucune_ent")}</span>`;
+      } catch (e) { toast(dzT("atelier.at2_sb.err_ents", { msg: e.message }), true); }
     }));
   });
 }
@@ -928,15 +928,15 @@ async function moveShot(id, delta) {
 async function sketchShot(id, seed) {
   const s = shots.find(x => x.id === id);
   if (!s) return;
-  if (!(s.action || s.source_text || "").trim()) { toast("Décris l'action du plan d'abord.", true); return; }
-  toast(`Croquis du plan ${s.idx + 1}… (~3 s)`);
+  if (!(s.action || s.source_text || "").trim()) { toast(dzT("atelier.at2_cq.action_dabord"), true); return; }
+  toast(dzT("atelier.at2_cq.en_cours", { i: s.idx + 1 }));
   try {
     const up = await api.send("POST", `/shots/${id}/sketch`,
                               seed != null ? { seed } : {});
     Object.assign(s, up);
     renderBoard();
-    toast(`Croquis du plan ${s.idx + 1} généré (seed ${up.sketch_seed}).`);
-  } catch (e) { toast("Croquis échoué : " + e.message, true); }
+    toast(dzT("atelier.at2_cq.fait", { i: s.idx + 1, seed: up.sketch_seed }));
+  } catch (e) { toast(dzT("atelier.at2_cq.echec", { msg: e.message }), true); }
 }
 
 /* ═════════ tâche #62 (plan chapitres T8) — l'image de PRODUCTION d'un plan ═════════
@@ -945,7 +945,7 @@ async function sketchShot(id, seed) {
 async function imageProduction(id) {
   const s = shots.find(x => x.id === id);
   if (!s) return;
-  if (!(s.entities || []).length) { toast("Liez d'abord une entité à ce plan (⛓ entités du plan).", true); return; }
+  if (!(s.entities || []).length) { toast(dzT("atelier.at2_prod.lier"), true); return; }
   let provider = "nano-banana-pro", usd = null;
   try {
     provider = (await api.get("/atelier/settings")).settings.image_provider || provider;
@@ -953,20 +953,20 @@ async function imageProduction(id) {
     usd = grille[provider === "nano-banana" ? "nano_banana_usd" : "nano_banana_pro_usd"];
   } catch (e) { /* le coût reste inconnu : on le dit */ }
   if (provider !== "nano-banana" && provider !== "nano-banana-pro") {
-    toast(`« ${provider} » ne prend pas plusieurs références : choisissez Nano Banana (Pro) dans la direction artistique.`, true);
+    toast(dzT("atelier.at2_prod.multi_refs", { provider }), true);
     return;
   }
-  const cout = typeof usd === "number" ? `${usd.toFixed(3).replace(".", ",")} $` : "coût inconnu";
+  const cout = typeof usd === "number" ? `${usd.toFixed(3).replace(".", ",")} $` : dzT("atelier.at2_prod.cout_inconnu");
   if (!await window.__dzDialogue.confirmer(
-      `Image de production du plan ${s.idx + 1} — ${provider === "nano-banana" ? "Nano Banana" : "Nano Banana Pro"}, avec les vues de ses entités en référence. Coût : ${cout}.`,
-      { ok: "Générer" })) return;
-  toast(`Image de production du plan ${s.idx + 1}…`);
+      dzT("atelier.at2_prod.confirmer", { i: s.idx + 1, modele: provider === "nano-banana" ? "Nano Banana" : "Nano Banana Pro", cout }),
+      { ok: dzT("atelier.at2_prod.generer") })) return;
+  toast(dzT("atelier.at2_prod.en_cours", { i: s.idx + 1 }));
   try {
     const up = await api.send("POST", `/shots/${encodeURIComponent(id)}/image`, {});
     Object.assign(s, up);
     renderBoard();
-    toast(`Image de production du plan ${s.idx + 1} : ${up.image_refs} vue(s) en référence.`);
-  } catch (e) { toast("Image de production : " + e.message, true); }
+    toast(dzT("atelier.at2_prod.fait", { i: s.idx + 1, n: up.image_refs }));
+  } catch (e) { toast(dzT("atelier.at2_prod.err", { msg: e.message }), true); }
 }
 
 /* ═════════ tâche #62 (plan chapitres T6) — la DÉRIVE de l'image de production, en lecture ═════════
@@ -974,18 +974,18 @@ async function imageProduction(id) {
 async function deriveProduction(id, card) {
   const box = card.querySelector(".shot-derive");
   if (!box) return;
-  box.textContent = "Mesure…";
+  box.textContent = dzT("atelier.at2_drv.mesure");
   try {
     const d = await api.get(`/shots/${encodeURIComponent(id)}/derive`);
     const lignes = (d.entites || []).map(e => e.vue == null
-      ? `<div class="drv-l"><b>${esc(e.name)}</b> — aucune vue de référence</div>`
-      : `<div class="drv-l drv-${e.verdict === "stable" ? "ok" : "ko"}"><b>${esc(e.name)}</b> ${e.verdict === "stable" ? "stable" : "dérive"}
-         · couleur ΔE ${e.ecart_couleur.toFixed(1).replace(".", ",")} (seuil ${d.seuils.couleur})
-         · silhouette ${e.ecart_silhouette.toFixed(2).replace(".", ",")} (seuil ${String(d.seuils.silhouette).replace(".", ",")})
-         <span class="drv-vue" title="Vue de référence : ${escA(e.fichier)} (${escA(e.source)})">vs ${esc(e.vue)}</span></div>`);
-    box.innerHTML = (lignes.join("") || "<div class=\"drv-l\">Aucune entité liée.</div>")
-      + `<div class="drv-mort" title="Ce que la mesure ne voit pas">Angle mort : ${esc(d.angle_mort)}.</div>`;
-  } catch (e) { box.textContent = "Dérive : " + e.message; }
+      ? `<div class="drv-l"><b>${esc(e.name)}</b> — ${dzT("atelier.at2_drv.sans_vue")}</div>`
+      : `<div class="drv-l drv-${e.verdict === "stable" ? "ok" : "ko"}"><b>${esc(e.name)}</b> ${e.verdict === "stable" ? dzT("atelier.at2_drv.stable") : dzT("atelier.at2_drv.derive")}
+         · ${dzT("atelier.at2_drv.couleur", { e: e.ecart_couleur.toFixed(1).replace(".", ","), s: d.seuils.couleur })}
+         · ${dzT("atelier.at2_drv.silhouette", { e: e.ecart_silhouette.toFixed(2).replace(".", ","), s: String(d.seuils.silhouette).replace(".", ",") })}
+         <span class="drv-vue" title="${dzT("atelier.at2_drv.vue_t", { f: escA(e.fichier), s: escA(e.source) })}">vs ${esc(e.vue)}</span></div>`);
+    box.innerHTML = (lignes.join("") || `<div class="drv-l">${dzT("atelier.at2_drv.aucune")}</div>`)
+      + `<div class="drv-mort" title="${dzT("atelier.at2_drv.mort_t")}">${dzT("atelier.at2_drv.mort", { t: esc(d.angle_mort) })}</div>`;
+  } catch (e) { box.textContent = dzT("atelier.at2_drv.err", { msg: e.message }); }
 }
 
 /* ═════════ tâche #63 (plan chapitres T11) — l'animatique : devis, progression, lecteur ═════════
@@ -996,16 +996,16 @@ let animDevis = null;
 
 async function animatiqueEtat() {
   if (!chapter) return null;
-  $("#animDevis").textContent = "devis…";      // la sonde de Voicebox local peut prendre quelques secondes
+  $("#animDevis").textContent = dzT("atelier.at2_anim.devis");      // la sonde de Voicebox local peut prendre quelques secondes
   const e = await api.get(`/chapters/${encodeURIComponent(chapter.id)}/animatique`);
   animDevis = e.voix || {};
   const v = animDevis, box = $("#animVoix");
   let dit = "", ok = true;
-  if (!v.fournisseur) { dit = "aucune voix configurée (Réglages)"; ok = false; }
-  else if (!v.narrateur) { dit = "créez un « Narrateur » dans la bible et castez sa voix"; ok = false; }
-  else if (!v.a_generer) dit = `${v.narrateur} · tout est en cache : gratuit`;
-  else if (v.fournisseur === "elevenlabs") dit = `${v.narrateur} · ${v.a_generer} voix à générer, ${v.caracteres} car. ≈ ${v.usd.toFixed(3).replace(".", ",")} $`;
-  else dit = `${v.narrateur} · ${v.a_generer} voix (Voicebox, local, gratuit)`;
+  if (!v.fournisseur) { dit = dzT("atelier.at2_anim.sans_voix"); ok = false; }
+  else if (!v.narrateur) { dit = dzT("atelier.at2_anim.sans_narrateur"); ok = false; }
+  else if (!v.a_generer) dit = dzT("atelier.at2_anim.cache", { nom: v.narrateur });
+  else if (v.fournisseur === "elevenlabs") dit = dzT("atelier.at2_anim.devis_11", { nom: v.narrateur, n: v.a_generer, car: v.caracteres, usd: v.usd.toFixed(3).replace(".", ",") });
+  else dit = dzT("atelier.at2_anim.devis_vb", { nom: v.narrateur, n: v.a_generer });
   box.disabled = !ok;
   if (!ok) box.checked = false;
   $("#animDevis").textContent = dit;
@@ -1013,38 +1013,38 @@ async function animatiqueEtat() {
   $("#animVide").classList.toggle("hidden", !!e.existe);
   if (e.existe) $("#animVideo").src = `${e.url}?t=${Math.round(e.maj || 0)}`;
   await sortiesEtat();                                       // tâche #66 : film / reel vers le Montage
-  $("#animNote").textContent = `${e.storyboard} plan(s)` + (e.existe ? ` · dernier montage : ${e.plans} plan(s)` : "");
+  $("#animNote").textContent = dzT("atelier.at2_anim.n_plans", { n: e.storyboard }) + (e.existe ? " · " + dzT("atelier.at2_anim.dernier", { n: e.plans }) : "");
   return e;
 }
 
 async function ouvrirAnimatique() {
-  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  if (!chapter) { toast(dzT("atelier.at2_chap.ouvrir_dabord"), true); return; }
   $("#animProgress").classList.add("hidden");
   $("#animModal").classList.remove("hidden");
-  try { await animatiqueEtat(); } catch (e) { toast("Animatique : " + e.message, true); }
+  try { await animatiqueEtat(); } catch (e) { toast(dzT("atelier.at2_anim.err", { msg: e.message }), true); }
 }
 
 function animProgres(st) {
   const n = st.chapter_n || 0, i = st.chapter_i || 0;
   const pct = st.done ? 100 : n ? Math.round(100 * i / n) : 0;
   $("#animBar").style.width = pct + "%";
-  $("#animStatus").textContent = st.error ? "Échec : " + st.error : (st.message || "…");
+  $("#animStatus").textContent = st.error ? dzT("atelier.at2_anim.echec", { msg: st.error }) : (st.message || "…");
 }
 
 async function monterAnimatique() {
   if (!chapter) return;
-  if (!shots.length) { toast("Découpe le chapitre en plans d'abord (🎬 ou ¶).", true); return; }
+  if (!shots.length) { toast(dzT("atelier.at2_anim.decoupe_dabord"), true); return; }
   const voix = $("#animVoix").checked;
   if (voix) {
     try { await animatiqueEtat(); } catch (_) { /* le devis d'avant reste affiché */ }
     const v = animDevis || {};
     if (v.fournisseur === "elevenlabs" && v.a_generer > 0 && !await window.__dzDialogue.confirmer(
-        `Voix témoin ElevenLabs : ${v.a_generer} voix à générer (${v.caracteres} caractères), lues par ${v.narrateur}. Coût estimé : ${v.usd.toFixed(3).replace(".", ",")} $. Les voix déjà faites restent en cache.`,
-        { ok: "Générer les voix" })) return;
+        dzT("atelier.at2_anim.confirmer_voix", { n: v.a_generer, car: v.caracteres, nom: v.narrateur, usd: v.usd.toFixed(3).replace(".", ",") }),
+        { ok: dzT("atelier.at2_anim.generer_voix") })) return;
   }
   $("#animGo").disabled = true;
   $("#animProgress").classList.remove("hidden");
-  animProgres({ message: "Animatique…" });
+  animProgres({ message: dzT("atelier.at2_anim.en_cours") });
   try {
     const r = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/animatique`, { voix, language: "fr" });
     let st = {};
@@ -1053,27 +1053,26 @@ async function monterAnimatique() {
       st = await api.get(`/atelier/manuscript/${r.job_id}`);
       animProgres(st);
     }
-    if (st.error) { toast("Animatique échouée : " + st.error, true); return; }
+    if (st.error) { toast(dzT("atelier.at2_anim.echouee", { msg: st.error }), true); return; }
     await animatiqueEtat();
     const s = st.stats || {};
-    toast(`Animatique montée : ${s.plans} plans, ${s.voix} voix témoin, ${fmtDur(s.duree_s || 0)}.`);
+    toast(dzT("atelier.at2_anim.fait", { plans: s.plans, voix: s.voix, duree: fmtDur(s.duree_s || 0) }));
   } catch (e) {
-    toast("Animatique : " + e.message, true);
+    toast(dzT("atelier.at2_anim.err", { msg: e.message }), true);
   } finally { $("#animGo").disabled = false; }
 }
 
 /* ═════════ tâche #66 PR B — l'animatique sort vers le Montage (film / reel), en NOUVEAU projet ═════════ */
 /* ═════════ tâche #66 PR C — la sortie « épisode », sans rendu ═════════ */
 async function versEpisode() {
-  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  if (!chapter) { toast(dzT("atelier.at2_chap.ouvrir_dabord"), true); return; }
   try {
     const r = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/episode`, { language: "fr" });
     if (await window.__dzDialogue.confirmer(
-        `Épisode « ${r.title} » créé : ${r.scenes} scène(s), ${r.images} avec image. Rien n'a été narré ni rendu — ` +
-        `la narration et le rendu (payants) se lancent depuis la vue Épisodes, avec leur devis. Pour l'ouvrir : vue Chapitres → « Flux d'origine » → « Ouvrir ▾ ».`,
-        { ok: "Aller aux Épisodes", annuler: "Rester ici", titre: "Épisode" }))
+        dzT("atelier.at2_sortie.episode", { titre: r.title, scenes: r.scenes, images: r.images }),
+        { ok: dzT("atelier.at2_sortie.aller_episodes"), annuler: dzT("atelier.at2_sortie.rester"), titre: dzT("atelier.at2_sortie.episode_titre") }))
       window.open(r.vue, "_blank");
-  } catch (e) { toast("Épisode : " + e.message, true); }
+  } catch (e) { toast(dzT("atelier.at2_sortie.err_episode", { msg: e.message }), true); }
 }
 
 async function sortiesEtat() {
@@ -1083,8 +1082,8 @@ async function sortiesEtat() {
     $("#animSorties").classList.toggle("hidden", !s.animatique);
     ["film", "reel"].forEach(n => { const b = $(`[data-sortie="${n}"]`), v = (s.natures || {})[n];
       b.disabled = !s.a_jour;
-      if (v) b.innerHTML = `${ico(n === "film" ? "dz-media-film" : "dz-media-reel")} ${n === "film" ? "Film" : "Reel"} · ${v.plans} plan(s), ${esc(fmtDur(v.duree_s))}`; });
-    $("#animSortieNote").textContent = s.animatique && !s.a_jour ? "le storyboard a changé : remontez l'animatique" : "";
+      if (v) b.innerHTML = `${ico(n === "film" ? "dz-media-film" : "dz-media-reel")} ${n === "film" ? "Film" : "Reel"} · ${dzT("atelier.at2_sortie.bouton", { n: v.plans, d: esc(fmtDur(v.duree_s)) })}`; });
+    $("#animSortieNote").textContent = s.animatique && !s.a_jour ? dzT("atelier.at2_sortie.perime") : "";
   } catch (_) { $("#animSorties").classList.add("hidden"); }
 }
 
@@ -1093,26 +1092,25 @@ async function sortieMontage(nature) {
   try {
     const r = await api.send("POST", `/chapters/${encodeURIComponent(chapter.id)}/sortie/${nature}`, {});
     if (await window.__dzDialogue.confirmer(
-        `Projet « ${r.name} » créé au Montage : ${r.plans} plan(s), ${fmtDur(r.duree_s)}, ${r.voix} voix témoin. ` +
-        `La timeline en cours n'est pas touchée — ouvrez ce projet depuis la liste des projets du Montage.`,
-        { ok: "Aller au Montage", annuler: "Rester ici", titre: "Montage" }))
+        dzT("atelier.at2_sortie.montage", { nom: r.name, plans: r.plans, duree: fmtDur(r.duree_s), voix: r.voix }),
+        { ok: dzT("atelier.at2_sortie.aller_montage"), annuler: dzT("atelier.at2_sortie.rester"), titre: dzT("atelier.at2_sortie.montage_titre") }))
       window.open(r.montage, "_blank");
-  } catch (e) { toast("Sortie vers le Montage : " + e.message, true); }
+  } catch (e) { toast(dzT("atelier.at2_sortie.err_montage", { msg: e.message }), true); }
 }
 
 async function decoupe(method) {
-  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
-  if (!$("#script").value.trim()) { toast("Le chapitre est vide.", true); return; }
-  if (shots.length && !await window.__dzDialogue.confirmer("Re-découper remplacera le storyboard actuel. Continuer ?", { ok: "Re-découper" })) return;
-  toast(method === "ai" ? "Découpage IA en cours… (10-30 s)" : "Découpage par paragraphes…");
+  if (!chapter) { toast(dzT("atelier.at2_chap.ouvrir_dabord"), true); return; }
+  if (!$("#script").value.trim()) { toast(dzT("atelier.at2_dec.vide"), true); return; }
+  if (shots.length && !await window.__dzDialogue.confirmer(dzT("atelier.at2_dec.confirmer"), { ok: dzT("atelier.at2_dec.redecouper") })) return;
+  toast(method === "ai" ? dzT("atelier.at2_dec.ia") : dzT("atelier.at2_dec.para"));
   try {
     const r = await api.send("POST", `/chapters/${chapter.id}/storyboard/decoupe`,
                              { method, language: "fr" });
     if (r.error) { toast(r.error, true); return; }
     shots = r.shots;
     renderBoard();
-    toast(`${shots.length} plans créés — ajuste, puis génère les croquis 🎨.`);
-  } catch (e) { toast("Découpage échoué : " + e.message, true); }
+    toast(dzT("atelier.at2_dec.fait", { n: shots.length }));
+  } catch (e) { toast(dzT("atelier.at2_dec.echec", { msg: e.message }), true); }
 }
 
 /* ═════════ Library modal (générique: callback au choix d'une image) ═════════ */
@@ -1126,27 +1124,27 @@ async function attachInspiration(filename) {
   const up = await api.send("PUT", "/bible/entities/" + libTarget, { inspiration_images: insp });
   Object.assign(ent, up);
   renderBible();
-  toast(`Inspiration « ${filename} » ajoutée (elle est aussi dans la Library).`);
+  toast(dzT("atelier.at2_lib.inspiration", { filename }));
 }
 
 async function openLibrary(entityId, onPick) {
   libTarget = entityId;
   libOnPick = onPick || attachInspiration;
   const grid = $("#libGrid");
-  grid.innerHTML = `<div class="empty-note">Chargement…</div>`;
+  grid.innerHTML = `<div class="empty-note">${dzT("atelier.at2_lib.chargement")}</div>`;
   $("#libModal").classList.remove("hidden");
   try {
     const d = await api.get("/images");
     const files = (d.images || []).map(x => typeof x === "string" ? x : x.filename).filter(Boolean);
     grid.innerHTML = files.length
       ? files.map(f => `<img src="/api/images/${encodeURIComponent(f)}" data-f="${esc(f)}" title="${esc(f)}">`).join("")
-      : `<div class="empty-note">Library vide.</div>`;
+      : `<div class="empty-note">${dzT("atelier.at2_lib.vide")}</div>`;
     grid.querySelectorAll("img").forEach(img =>
       img.addEventListener("click", async () => {
         $("#libModal").classList.add("hidden");
         await libOnPick(img.dataset.f);
       }));
-  } catch (e) { grid.innerHTML = `<div class="empty-note">Erreur : ${esc(e.message)}</div>`; }
+  } catch (e) { grid.innerHTML = `<div class="empty-note">${dzT("atelier.at2_lib.erreur", { msg: esc(e.message) })}</div>`; }
 }
 
 /* ═════════ ancrage 3D d'une entité (spec Magnific §9.1) ═════════
@@ -1173,41 +1171,37 @@ async function entityTo3D(id) {
   const ent = entities.find(x => x.id === id);
   if (!ent) return;
   const besoin = BESOIN_3D_PAR_KIND[ent.kind];
-  if (!besoin) { toast("Seuls personnages, objets, lieux et décors se verrouillent en 3D.", true); return; }
+  if (!besoin) { toast(dzT("atelier.at2_3d.kinds"), true); return; }
 
   const cat = await catalogue3d();
   const b = (cat.besoins || []).find(x => x.id === besoin) || {};
   const eng = (cat.engines || []).find(x => x.id === b.engine) || {};
   if (eng.available === false) {
-    toast("Clé fal absente — ajoute-la dans les Réglages avant de générer un maillage.", true);
+    toast(dzT("atelier.at2_3d.cle_fal"), true);
     return;
   }
-  toast("Choisis UNE vue — un moteur image→3D veut un seul angle, pas une planche.");
+  toast(dzT("atelier.at2_3d.une_vue"));
   openLibrary(id, async (f) => {
-    const cout = eng.usd_texture != null ? `≈ ${eng.usd_texture} $` : "inconnu";
+    const cout = eng.usd_texture != null ? `≈ ${eng.usd_texture} $` : dzT("atelier.at2_3d.inconnu");
     const ok = await window.__dzDialogue.confirmer(
-      `Verrouiller « ${ent.name} » en 3D ?\n\n` +
-      `Moteur : ${eng.label || b.engine || "?"}\n` +
-      `Pourquoi ce moteur : ${b.why || "—"}\n` +
-      `Vue de départ : ${f}\n` +
-      `Coût estimé : ${cout}`);
+      dzT("atelier.at2_3d.confirmer", { nom: ent.name, moteur: eng.label || b.engine || "?", why: b.why || "—", vue: f, cout }));
     if (!ok) return;
     try {
       const r = await api.send("POST", `/bible/entities/${id}/model3d`,
                                { image_filename: f, besoin });
-      toast(`🧊 Maillage en cours (${r.engine}) — 1 à 3 min…`);
+      toast(dzT("atelier.at2_3d.en_cours", { engine: r.engine }));
       const poll = setInterval(async () => {
         try {
           const st = await api.get("/jobs/" + r.job_id);
           if (st.status !== "done" && st.status !== "failed") return;
           clearInterval(poll);
-          if (st.status === "failed") { toast("3D : " + (st.error || "échec"), true); return; }
+          if (st.status === "failed") { toast(dzT("atelier.at2_3d.err", { msg: st.error || dzT("atelier.at2_3d.echec") }), true); return; }
           await loadEntities();
           await renderBible();
-          toast(`🧊 « ${ent.name} » verrouillé en 3D — le GLB est sur sa fiche.`);
+          toast(dzT("atelier.at2_3d.fait", { nom: ent.name }));
         } catch (e) { /* poll silencieux */ }
       }, 3000);
-    } catch (e) { toast("3D : " + e.message, true); }
+    } catch (e) { toast(dzT("atelier.at2_3d.err", { msg: e.message }), true); }
   });
 }
 
@@ -1217,14 +1211,14 @@ function playVoicePrev(url) {
   try {
     if (voiceAudio) { voiceAudio.pause(); voiceAudio = null; }
     voiceAudio = new Audio(url);
-    voiceAudio.play().catch(() => toast("Pré-écoute impossible.", true));
+    voiceAudio.play().catch(() => toast(dzT("atelier.at2_voix.preecoute_ko"), true));
   } catch (e) { /* silencieux */ }
 }
 
 async function loadVoices11() {
   if (voices11) return voices11;
   const d = await api.get("/voices");
-  if (!d.enabled) throw new Error("Clé ElevenLabs non configurée (Réglages).");
+  if (!d.enabled) throw new Error(dzT("atelier.at2_voix.cle_11"));
   voices11 = d.voices || [];
   return voices11;
 }
@@ -1234,8 +1228,8 @@ function voiceChip(v, entityId) {
   const meta = [lbl.gender, lbl.age, lbl.accent].filter(Boolean).join(" · ");
   return `<span class="voice-chip" data-vid="${v.voice_id}">
     <b>${esc(v.name)}</b>${meta ? ` <i>${esc(meta)}</i>` : ""}
-    ${v.preview_url ? `<button class="btn ghost vc-play" data-prev="${esc(v.preview_url)}" title="Pré-écouter" aria-label="Pré-écouter">${ico("dz-media-lecture")}</button>` : ""}
-    <button class="btn vc-pick" title="Attribuer cette voix" aria-label="Attribuer cette voix">${ico("dz-action-valider")}</button>
+    ${v.preview_url ? `<button class="btn ghost vc-play" data-prev="${esc(v.preview_url)}" title="${dzT("atelier.at2_voix.preecouter")}" aria-label="${dzT("atelier.at2_voix.preecouter")}">${ico("dz-media-lecture")}</button>` : ""}
+    <button class="btn vc-pick" title="${dzT("atelier.at2_voix.attribuer")}" aria-label="${dzT("atelier.at2_voix.attribuer")}">${ico("dz-action-valider")}</button>
   </span>`;
 }
 
@@ -1253,7 +1247,7 @@ function wireVoiceChips(container, entityId) {
         voice_prev: v ? v.preview_url : null,
       });
       Object.assign(ent, up);
-      toast(`Voix « ${up.voice_name} » attribuée à ${ent.name}.`);
+      toast(dzT("atelier.at2_voix.attribuee", { voix: up.voice_name, nom: ent.name }));
       renderBible();
     }));
 }
@@ -1262,9 +1256,9 @@ async function suggestVoice(entityId, card) {
   const ent = entities.find(x => x.id === entityId);
   if (!ent) return;
   if (!(ent.description || "").trim()) {
-    toast("Décris le personnage d'abord (genre, âge, ton…).", true); return;
+    toast(dzT("atelier.at2_voix.decrire"), true); return;
   }
-  toast(`Casting de « ${ent.name} »… (~5 s)`);
+  toast(dzT("atelier.at2_voix.casting", { nom: ent.name }));
   try {
     await loadVoices11();
     const d = await api.send("POST", `/bible/entities/${entityId}/suggest-voice`, {});
@@ -1278,9 +1272,9 @@ async function suggestVoice(entityId, card) {
         `<div class="voice-chiplist">${(d.alternates || []).map(v => voiceChip(v, entityId)).join("")}</div>`;
       wireVoiceChips(fresh, entityId);
     }
-    toast(`🎙 « ${d.suggested.name} » suggérée pour ${ent.name}` +
-          ((d.alternates || []).length ? ` (+${d.alternates.length} alternatives du même profil)` : "") + ".");
-  } catch (e) { toast("Casting échoué : " + e.message, true); }
+    toast(dzT("atelier.at2_voix.suggeree", { voix: d.suggested.name, nom: ent.name }) +
+          ((d.alternates || []).length ? " " + dzT("atelier.at2_voix.alternatives", { n: d.alternates.length }) : "") + ".");
+  } catch (e) { toast(dzT("atelier.at2_voix.echec", { msg: e.message }), true); }
 }
 
 async function showAllVoices(entityId, card) {
@@ -1296,33 +1290,33 @@ async function showAllVoices(entityId, card) {
 
 /* ═════════ direction artistique (DA) ═════════ */
 const STYLE_PRESETS = [
-  { label: "BD franco-belge", canon: "ligne_claire", sp: "European comic book art (bande dessinée), clean ink outlines, flat cel colors, ligne claire influence, expressive faces, detailed backgrounds" },
-  { label: "Manga / Anime", canon: "manga_shonen", sp: "anime manga art style, sharp linework, cel shading, dramatic lighting, detailed eyes, cinematic anime composition" },
-  { label: "Comics US", canon: "comics_heroic", sp: "American comic book style, bold inks, dynamic shading, halftone textures, dramatic panel lighting" },
-  { label: "Réaliste photo", canon: "davinci", sp: "photorealistic, natural skin textures, realistic lighting, 85mm lens look, shallow depth of field" },
-  { label: "Cinématographique", canon: "cine", sp: "cinematic film still, anamorphic framing, filmic color grading, volumetric light, high production value" },
-  { label: "SF rétro-futuriste", canon: "bd_realiste", sp: "retro-futuristic science-fiction concept art, neon accents, brutalist megastructures, atmospheric haze" },
-  { label: "Aquarelle", canon: "davinci", sp: "watercolor illustration, soft washes, visible paper grain, delicate ink lines, muted palette" },
-  { label: "Noir encré", canon: "davinci", sp: "high-contrast black and white ink illustration, film noir shadows, dramatic chiaroscuro, crosshatching" },
+  { label: dzT("atelier.at2_da.p_bd"), canon: "ligne_claire", sp: "European comic book art (bande dessinée), clean ink outlines, flat cel colors, ligne claire influence, expressive faces, detailed backgrounds" },
+  { label: dzT("atelier.at2_da.p_manga"), canon: "manga_shonen", sp: "anime manga art style, sharp linework, cel shading, dramatic lighting, detailed eyes, cinematic anime composition" },
+  { label: dzT("atelier.at2_da.p_comics"), canon: "comics_heroic", sp: "American comic book style, bold inks, dynamic shading, halftone textures, dramatic panel lighting" },
+  { label: dzT("atelier.at2_da.p_photo"), canon: "davinci", sp: "photorealistic, natural skin textures, realistic lighting, 85mm lens look, shallow depth of field" },
+  { label: dzT("atelier.at2_da.p_cine"), canon: "cine", sp: "cinematic film still, anamorphic framing, filmic color grading, volumetric light, high production value" },
+  { label: dzT("atelier.at2_da.p_sf"), canon: "bd_realiste", sp: "retro-futuristic science-fiction concept art, neon accents, brutalist megastructures, atmospheric haze" },
+  { label: dzT("atelier.at2_da.p_aquarelle"), canon: "davinci", sp: "watercolor illustration, soft washes, visible paper grain, delicate ink lines, muted palette" },
+  { label: dzT("atelier.at2_da.p_noir"), canon: "davinci", sp: "high-contrast black and white ink illustration, film noir shadows, dramatic chiaroscuro, crosshatching" },
   // Miroir du preset backend "vitrail" — le sp est LE bloc de la fiche épinglée
   // style_vitrail.json (test_style_vitrail.py vérifie l'égalité, zéro dérive).
-  { label: "Vitrail Młoda Polska", canon: "vitrail", sp: "monumental Art Nouveau stained-glass window design, Central European modernism of about 1900: bold sinuous dark leadlines #1F1512, thick supple contours enclosing every shape and covering about a tenth of the canvas, irregular fragments of intensely saturated glass in 3 to 5 major colours - cobalt blue #0047AB, ruby red #9B111E, emerald green #046307, golden amber #DAA520, deep violet #4A235A - light transmitted from within the image as through a window, frontal ascending composition in a vertical or ogival bay, one central figure filling roughly two thirds of the height, simple hierarchy of figure then radiating halo then ornamental border of stylized flowers on the outer edge of the frame, flat decorative space with no deep linear perspective, high readability at distance" },
+  { label: dzT("atelier.at2_da.vitrail"), canon: "vitrail", sp: "monumental Art Nouveau stained-glass window design, Central European modernism of about 1900: bold sinuous dark leadlines #1F1512, thick supple contours enclosing every shape and covering about a tenth of the canvas, irregular fragments of intensely saturated glass in 3 to 5 major colours - cobalt blue #0047AB, ruby red #9B111E, emerald green #046307, golden amber #DAA520, deep violet #4A235A - light transmitted from within the image as through a window, frontal ascending composition in a vertical or ogival bay, one central figure filling roughly two thirds of the height, simple hierarchy of figure then radiating halo then ornamental border of stylized flowers on the outer edge of the frame, flat decorative space with no deep linear perspective, high readability at distance" },
 ];
 // Miroir de PROPORTION_CANONS (backend) — canons de proportions issus des
 // grandes écoles: De Vinci, manga japonais, ligne claire belge, école
 // gros-nez franco-belge, Moebius, comics héroïques DC/Marvel…
 const PROPORTION_CANONS = [
-  { id: "auto", label: "Auto (déduit du style)", hint: "Le canon est détecté depuis le texte du style — manga → shōnen, tintin → ligne claire, etc." },
-  { id: "davinci", label: "Académique (De Vinci)", hint: "7,5–8 têtes, canon de Vitruve : envergure = taille, visage en tiers égaux." },
-  { id: "cine", label: "Cinéma réaliste", hint: "≈7,5 têtes, anatomie naturelle, visages de casting réel." },
-  { id: "manga_shonen", label: "Manga shōnen", hint: "6,5–7 têtes (ados ≈6), grands yeux placés bas, petit nez, menton pointu." },
-  { id: "manga_shojo", label: "Manga shōjo (élancé)", hint: "7–8 têtes très élancées, yeux immenses et lumineux, membres fins." },
-  { id: "chibi", label: "Chibi / SD", hint: "2,5–3 têtes, tête et yeux surdimensionnés, mains minuscules." },
-  { id: "ligne_claire", label: "Ligne claire (Hergé/Schuiten)", hint: "Corps RÉALISTES ≈7 têtes sous un visage simplifié : yeux-points, trait uniforme, aplats." },
-  { id: "gros_nez", label: "Comique franco-belge (gros nez)", hint: "4–5,5 têtes (Astérix, Gaston, Gotlib) : gros nez rond, membres élastiques, gros souliers." },
-  { id: "bd_realiste", label: "BD réaliste (Moebius)", hint: "≈8 têtes élégantes et élancées (Moebius/Jodorowsky), trait fin, hachures." },
-  { id: "comics_heroic", label: "Comics héroïque (DC/Marvel)", hint: "8,5–9 têtes, épaules de 3 têtes de large, torse en V, musculature dessinée." },
-  { id: "vitrail", label: "Vitrail Młoda Polska", hint: "Figure monumentale frontale 7–8 têtes, visage aux contours forts et sereins, espace décoratif APLATI (plomb + verre, pas de perspective profonde)." },
+  { id: "auto", label: dzT("atelier.at2_da.c_auto"), hint: dzT("atelier.at2_da.c_auto_h") },
+  { id: "davinci", label: dzT("atelier.at2_da.c_davinci"), hint: dzT("atelier.at2_da.c_davinci_h") },
+  { id: "cine", label: dzT("atelier.at2_da.c_cine"), hint: dzT("atelier.at2_da.c_cine_h") },
+  { id: "manga_shonen", label: dzT("atelier.at2_da.c_shonen"), hint: dzT("atelier.at2_da.c_shonen_h") },
+  { id: "manga_shojo", label: dzT("atelier.at2_da.c_shojo"), hint: dzT("atelier.at2_da.c_shojo_h") },
+  { id: "chibi", label: "Chibi / SD", hint: dzT("atelier.at2_da.c_chibi_h") },
+  { id: "ligne_claire", label: dzT("atelier.at2_da.c_ligne"), hint: dzT("atelier.at2_da.c_ligne_h") },
+  { id: "gros_nez", label: dzT("atelier.at2_da.c_gros_nez"), hint: dzT("atelier.at2_da.c_gros_nez_h") },
+  { id: "bd_realiste", label: dzT("atelier.at2_da.c_bd_real"), hint: dzT("atelier.at2_da.c_bd_real_h") },
+  { id: "comics_heroic", label: dzT("atelier.at2_da.c_heroic"), hint: dzT("atelier.at2_da.c_heroic_h") },
+  { id: "vitrail", label: dzT("atelier.at2_da.vitrail"), hint: dzT("atelier.at2_da.c_vitrail_h") },
 ];
 let daSettings = {};
 
@@ -1339,7 +1333,7 @@ function daCanonNote() {
 function daRenderProposals(props) {
   const box = $("#daProposals");
   if (!props || !props.length) {
-    box.innerHTML = `<div class="empty-note">Importe un manuscrit (📚) ou clique ✨ — l'agent proposera 4 directions motivées par le texte.</div>`;
+    box.innerHTML = `<div class="empty-note">${dzT("atelier.at2_da.vide")}</div>`;
     return;
   }
   box.innerHTML = props.map((p, i) => `
@@ -1389,12 +1383,12 @@ async function openDA() {
     const upd = () => {
       const sel = pv.providers.find(p => p.id === $("#daProvider").value);
       $("#daProviderNote").textContent = sel && !sel.seeds
-        ? "⚠ Ce générateur n'a pas de seeds : la recette 🔁 conserve les prompts et le chaînage d'image, mais pas la réplique au pixel (FLUX seul le garantit)."
-        : "Seeds disponibles — recettes 🔁 rejouables à l'identique.";
+        ? dzT("atelier.at3_da.sans_seeds")
+        : dzT("atelier.at3_da.seeds_ok");
     };
     $("#daProvider").addEventListener("change", upd); upd();
   } catch (e) { $("#daProvider").innerHTML = `<option value="flux">FLUX (fal)</option>`; }
-  $("#daRefName").textContent = daSettings.style_ref_image || "aucune";
+  $("#daRefName").textContent = daSettings.style_ref_image || dzT("atelier.at3_da.aucune");
   $("#daModal").classList.remove("hidden");
 }
 
@@ -1404,27 +1398,27 @@ async function daApply() {
       global_style: $("#daStyle").value.trim(),
       image_provider: $("#daProvider").value,
       style_canon: $("#daCanon").value,
-      style_ref_image: $("#daRefName").textContent === "aucune"
+      style_ref_image: $("#daRefName").textContent === dzT("atelier.at3_da.aucune")
         ? "" : $("#daRefName").textContent,
     });
     $("#globalStyle").value = $("#daStyle").value.trim();
     $("#daModal").classList.add("hidden");
-    toast("🎨 Direction artistique appliquée — toutes les prochaines planches l'utilisent.");
-  } catch (e) { toast("DA : " + e.message, true); }
+    toast(dzT("atelier.at3_da.appliquee"));
+  } catch (e) { toast(dzT("atelier.at3_da.err", { msg: e.message }), true); }
 }
 
 async function daPropose() {
-  toast("✨ L'agent relit le manuscrit… (~15 s)");
+  toast(dzT("atelier.at3_da.relit"));
   try {
     const d = await api.send("POST", "/atelier/style/propose", {});
     daRenderProposals(d.proposals);
-    toast(`✨ ${d.proposals.length} directions proposées — clique pour en choisir une.`);
-  } catch (e) { toast("Proposition DA : " + e.message, true); }
+    toast(dzT("atelier.at3_da.proposees", { n: d.proposals.length }));
+  } catch (e) { toast(dzT("atelier.at3_da.err_prop", { msg: e.message }), true); }
 }
 
 /* ═════════ éléments vectoriels du chapitre (Vectorlab, phases 0+6) ═════════ */
-const VECTOR_ROLES = { decor: "Décor", lumiere: "Lumière",
-                       personnage: "Personnage", libre: "Libre" };
+const VECTOR_ROLES = { decor: dzT("atelier.at3_vec.decor"), lumiere: dzT("atelier.at3_vec.lumiere"),
+                       personnage: dzT("atelier.at3_vec.personnage"), libre: dzT("atelier.at3_vec.libre") };
 
 function docVectorielVierge(nom) {
   return { v: 1, nom, taille: { w: 1280, h: 1920 }, fond: "#F8F4E3",
@@ -1452,7 +1446,7 @@ async function loadVectorDocs() {
     docs = (await api.get(`/vector/docs?chapter_id=${chapter.id}`)).docs || [];
   } catch (e) {
     $("#vectorList").innerHTML =
-      `<div class="empty-note">Vectorlab injoignable : ${esc(e.message)}</div>`;
+      `<div class="empty-note">${dzT("atelier.at3_vec.injoignable", { msg: esc(e.message) })}</div>`;
     return;
   }
   vectorDocsChapitre = docs;
@@ -1461,28 +1455,25 @@ async function loadVectorDocs() {
       ${vectorVignette(d)}
       <span class="vector-role">${esc(VECTOR_ROLES[d.role] || d.role)}</span>
       <b>${esc(d.name)}</b> <span class="vector-v">v${d.version}</span>
-      ${d.liaison ? `<span class="vector-ref" title="Instancié par référence —
-        l'édition du document se voit dans tous les chapitres qui le
-        référencent. Dupliquer pour diverger.">réf</span>` : ""}
+      ${d.liaison ? `<span class="vector-ref" title="${dzT("atelier.at3_vec.ref_titre")}">${dzT("atelier.at3_vec.ref")}</span>` : ""}
       <span class="vector-actions">
         <a class="btn" href="/vectorlab/?doc=${encodeURIComponent(d.id)}"
-           target="_blank" title="Ouvrir dans l'éditeur vectoriel">Ouvrir</a>
+           target="_blank" title="${dzT("atelier.at3_vec.ouvrir_titre")}">${dzT("atelier.at3_vec.ouvrir")}</a>
         ${d.liaison ? `
         <button class="btn" data-vdup="${d.id}"
-          title="Créer une copie indépendante pour ce chapitre (remplace la référence)">Dupliquer</button>
+          title="${dzT("atelier.at3_vec.dupliquer_titre")}">${dzT("atelier.at3_vec.dupliquer")}</button>
         <button class="btn" data-vret="${d.id}"
-          title="Retirer la référence de ce chapitre (le document n'est pas supprimé)">Retirer</button>` : ""}
+          title="${dzT("atelier.at3_vec.retirer_titre")}">${dzT("atelier.at3_vec.retirer")}</button>` : ""}
       </span>
     </div>`).join("")
-    : `<div class="empty-note">Aucun élément vectoriel — crée un décor, une
-       lumière ou un personnage, ou instancie depuis la bibliothèque.</div>`;
+    : `<div class="empty-note">${dzT("atelier.at3_vec.vide")}</div>`;
   loadVectorBiblio();          // le tiroir, s'il est ouvert, suit
 }
 
 async function vectorCreer(role) {
-  if (!chapter) { toast("Ouvre d'abord un chapitre.", true); return; }
-  const nom = await window.__dzDialogue.saisir(`Nom du nouvel élément (${VECTOR_ROLES[role]}) :`,
-                     { valeur: `${VECTOR_ROLES[role]} — ${chapter.title || "chapitre"}`, ok: "Créer" });
+  if (!chapter) { toast(dzT("atelier.at3_vec.ouvre_chapitre"), true); return; }
+  const nom = await window.__dzDialogue.saisir(dzT("atelier.at3_vec.nom_nouveau", { role: VECTOR_ROLES[role] }),
+                     { valeur: `${VECTOR_ROLES[role]} — ${chapter.title || dzT("atelier.at3_vec.chapitre")}`, ok: dzT("atelier.at3_vec.creer") });
   if (!nom) return;
   try {
     const d = await api.send("POST", "/vector/docs", {
@@ -1490,7 +1481,7 @@ async function vectorCreer(role) {
       doc: docVectorielVierge(nom) });
     await loadVectorDocs();
     window.open(`/vectorlab/?doc=${encodeURIComponent(d.id)}`, "_blank");
-  } catch (e) { toast("Vectorlab : " + e.message, true); }
+  } catch (e) { toast(dzT("atelier.at3_vec.err", { msg: e.message }), true); }
 }
 
 /* ── la bibliothèque (phase 6) : instancier par référence, sans copie ── */
@@ -1508,7 +1499,7 @@ async function loadVectorBiblio() {
     docs = (await api.get(`/vector/docs?${ps.toString()}`)).docs || [];
   } catch (e) {
     $("#vbListe").innerHTML =
-      `<div class="empty-note">Bibliothèque injoignable : ${esc(e.message)}</div>`;
+      `<div class="empty-note">${dzT("atelier.at3_vb.injoignable", { msg: esc(e.message) })}</div>`;
     return;
   }
   // hors du chapitre courant : ni propres, ni déjà instanciés
@@ -1518,20 +1509,19 @@ async function loadVectorBiblio() {
     <div class="vector-row">
       ${vectorVignette(d)}
       <span class="vector-orig" title="${d.chapter_id
-        ? "Document propre à un autre chapitre"
-        : "Document de la bibliothèque globale (sans chapitre)"}">${
+        ? dzT("atelier.at3_vb.propre")
+        : dzT("atelier.at3_vb.globale")}">${
         d.chapter_id ? ico("dz-etat-origine") : ico("dz-nav-bibliotheque")}</span>
       <span class="vector-role">${esc(VECTOR_ROLES[d.role] || d.role)}</span>
       <b>${esc(d.name)}</b> <span class="vector-v">v${d.version}</span>
       <span class="vector-actions">
         <button class="btn" data-vinst="${d.id}"
-          title="Instancier par référence dans ce chapitre — l'édition du document se verra ici aussi">Instancier</button>
+          title="${dzT("atelier.at3_vb.instancier_titre")}">${dzT("atelier.at3_vb.instancier")}</button>
         <a class="btn" href="/vectorlab/?doc=${encodeURIComponent(d.id)}"
-           target="_blank" title="Ouvrir dans l'éditeur vectoriel">Ouvrir</a>
+           target="_blank" title="${dzT("atelier.at3_vec.ouvrir_titre")}">${dzT("atelier.at3_vec.ouvrir")}</a>
       </span>
     </div>`).join("")
-    : `<div class="empty-note">Rien à instancier${
-        q || role ? " avec ces filtres" : ""}.</div>`;
+    : `<div class="empty-note">${q || role ? dzT("atelier.at3_vb.rien_filtres") : dzT("atelier.at3_vb.rien")}</div>`;
 }
 
 async function vectorInstancier(docId) {
@@ -1539,8 +1529,8 @@ async function vectorInstancier(docId) {
     await api.send("POST", "/vector/links",
                    { chapter_id: chapter.id, doc_id: docId });
     await loadVectorDocs();
-    toast("Instancié par référence — l'édition du document se verra ici.");
-  } catch (e) { toast("Instancier : " + e.message, true); }
+    toast(dzT("atelier.at3_vb.instancie"));
+  } catch (e) { toast(dzT("atelier.at3_vb.err_inst", { msg: e.message }), true); }
 }
 
 async function vectorRetirer(docId) {
@@ -1549,22 +1539,22 @@ async function vectorRetirer(docId) {
       + encodeURIComponent(chapter.id)
       + "&doc_id=" + encodeURIComponent(docId));
     await loadVectorDocs();
-    toast("Référence retirée — le document existe toujours.");
-  } catch (e) { toast("Retirer : " + e.message, true); }
+    toast(dzT("atelier.at3_vb.retiree"));
+  } catch (e) { toast(dzT("atelier.at3_vb.err_ret", { msg: e.message }), true); }
 }
 
 async function vectorDupliquer(docId) {
   const src = vectorDocsChapitre.find(d => d.id === docId);
-  const nom = await window.__dzDialogue.saisir("Nom de la copie indépendante :",
-                     { valeur: `${(src && src.name) || "Élément"} (copie)`, ok: "Dupliquer" });
+  const nom = await window.__dzDialogue.saisir(dzT("atelier.at3_vb.nom_copie"),
+                     { valeur: dzT("atelier.at3_vb.copie_de", { nom: (src && src.name) || dzT("atelier.at3_vb.element") }), ok: dzT("atelier.at3_vec.dupliquer") });
   if (!nom) return;
   try {
     await api.send("POST",
       `/vector/docs/${encodeURIComponent(docId)}/duplicate`,
       { chapter_id: chapter.id, name: nom });
     await loadVectorDocs();
-    toast("Copie indépendante créée — la référence est remplacée.");
-  } catch (e) { toast("Dupliquer : " + e.message, true); }
+    toast(dzT("atelier.at3_vb.copie_creee"));
+  } catch (e) { toast(dzT("atelier.at3_vb.err_dup", { msg: e.message }), true); }
 }
 
 /* ═════════ style global du projet ═════════ */
@@ -1581,7 +1571,7 @@ const saveGlobalStyle = debounce(async () => {
     await api.send("PUT", "/atelier/settings",
                    { global_style: $("#globalStyle").value });
     $("#styleSaved").innerHTML = ico("dz-etat-enregistre"); $("#styleSaved").className = "savestate saved";
-  } catch (e) { $("#styleSaved").textContent = "!"; toast("Style global : " + e.message, true); }
+  } catch (e) { $("#styleSaved").textContent = "!"; toast(dzT("atelier.at3_style.err", { msg: e.message }), true); }
 }, 700);
 
 /* ═════════ agent manuscrit ═════════ */
@@ -1596,13 +1586,13 @@ function msSetProgress(st) {
   }
   $("#msBarFill").style.width = pct + "%";
   const where = st.phase === "extraction" && st.chapter_n
-    ? ` (chapitre ${st.chapter_i}/${st.chapter_n})` : "";
+    ? dzT("atelier.at3_ms.ou", { i: st.chapter_i, n: st.chapter_n }) : "";
   $("#msStatus").textContent = `${st.phase}${where} — ${st.message || ""}`;
 }
 
 async function msRun() {
   const f = $("#msFile").files && $("#msFile").files[0];
-  if (!f) { toast("Choisis le fichier du manuscrit.", true); return; }
+  if (!f) { toast(dzT("atelier.at3_ms.choisis"), true); return; }
   const fd = new FormData();
   fd.append("manuscript", f);
   const comp = $("#msCompanion").files && $("#msCompanion").files[0];
@@ -1610,12 +1600,12 @@ async function msRun() {
   fd.append("series", $("#msSeries").value.trim());
   $("#msRun").disabled = true;
   $("#msProgress").classList.remove("hidden");
-  $("#msStatus").textContent = "Envoi du manuscrit…";
+  $("#msStatus").textContent = dzT("atelier.at3_ms.envoi");
   try {
     const r = await fetch("/api/atelier/manuscript", { method: "POST", body: fd });
     const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || "envoi échoué");
-    toast(`Agent lancé sur « ${d.series} » (${Math.round(d.chars / 1000)}k caractères).`);
+    if (!r.ok) throw new Error(d.detail || dzT("atelier.at3_ms.envoi_echoue"));
+    toast(dzT("atelier.at3_ms.lance", { serie: d.series, k: Math.round(d.chars / 1000) }));
     msPolling = setInterval(async () => {
       try {
         const st = await api.get("/atelier/manuscript/" + d.job_id);
@@ -1623,13 +1613,14 @@ async function msRun() {
         if (st.done) {
           clearInterval(msPolling); msPolling = null;
           $("#msRun").disabled = false;
-          if (st.error) { toast("Agent en échec : " + st.error, true); return; }
+          if (st.error) { toast(dzT("atelier.at3_ms.echec", { msg: st.error }), true); return; }
           const s = st.stats || {};
-          toast(`📚 Terminé : ${s.chapitres_crees || 0} chapitres créés` +
-                (s.chapitres_mis_a_jour ? ` (+${s.chapitres_mis_a_jour} mis à jour)` : "") +
-                `, ${s.entites_creees || 0} entités` +
-                (s.entites_enrichies ? ` (+${s.entites_enrichies} enrichies)` : "") +
-                `, ${s.zones_surlignees || 0} zones surlignées.`);
+          toast(dzT("atelier.at3_ms.termine", {
+                ch: s.chapitres_crees || 0,
+                maj: s.chapitres_mis_a_jour ? dzT("atelier.at3_ms.termine_maj", { n: s.chapitres_mis_a_jour }) : "",
+                ent: s.entites_creees || 0,
+                enr: s.entites_enrichies ? dzT("atelier.at3_ms.termine_enr", { n: s.entites_enrichies }) : "",
+                zones: s.zones_surlignees || 0 }));
           await loadEntities();
           await loadChapters();
           await renderBible();
@@ -1639,7 +1630,7 @@ async function msRun() {
     }, 2000);
   } catch (e) {
     $("#msRun").disabled = false;
-    toast("Agent manuscrit : " + e.message, true);
+    toast(dzT("atelier.at3_ms.err", { msg: e.message }), true);
   }
 }
 
@@ -1650,27 +1641,27 @@ function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTi
    Le tiroir liste les instantanés du chapitre, de son scénario et de ses scènes ; le côte à côte compare l'instantané
    au texte courant ; « Restaurer » garde d'abord le courant (côté serveur) ; un scénario se copie (ses scènes ont été
    supprimées : il ne se restaure pas en scènes). */
-const PASSE_LABEL = { manuelle: "édition", adaptation: "adaptation", suppression: "scénario supprimé", import: "ré-import",
-                      telephone: "retour du téléphone", reecriture: "réécriture", restauration: "retour arrière",
-                      import_scenario: "scénario importé" };
-const KIND_VER = { chapter: "texte", scenario: "scénario", scene: "scène" };
+const PASSE_LABEL = { manuelle: dzT("atelier.at3_ver.p_manuelle"), adaptation: dzT("atelier.at3_ver.p_adaptation"), suppression: dzT("atelier.at3_ver.p_suppression"), import: dzT("atelier.at3_ver.p_import"),
+                      telephone: dzT("atelier.at3_ver.p_telephone"), reecriture: dzT("atelier.at3_ver.p_reecriture"), restauration: dzT("atelier.at3_ver.p_restauration"),
+                      import_scenario: dzT("atelier.at3_ver.p_import_scenario") };
+const KIND_VER = { chapter: dzT("atelier.at3_ver.k_chapter"), scenario: dzT("atelier.at3_ver.k_scenario"), scene: dzT("atelier.at3_ver.k_scene") };
 
 function openVersions() {
-  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  if (!chapter) { toast(dzT("atelier.at3_ver.ouvre_chapitre"), true); return; }
   $("#verModal").classList.remove("hidden");
-  $("#verDiff").innerHTML = `<div class="empty-note">Choisis une version à gauche.</div>`;
+  $("#verDiff").innerHTML = `<div class="empty-note">${dzT("atelier.at3_ver.choisis")}</div>`;
   const list = $("#verList");
   list.innerHTML = "…";
   api.get(`/chapters/${encodeURIComponent(chapter.id)}/versions`).then(({ versions }) => {
-    $("#verNote").textContent = `${versions.length} instantané(s) — « ${chapter.title} »`;
+    $("#verNote").textContent = dzT("atelier.at3_ver.note", { n: versions.length, titre: chapter.title });
     if (!versions.length) {
-      list.innerHTML = `<div class="empty-note">Aucun instantané : rien n'a encore été écrasé sur ce chapitre.</div>`;
+      list.innerHTML = `<div class="empty-note">${dzT("atelier.at3_ver.aucun")}</div>`;
       return;
     }
     list.innerHTML = versions.map(v => `
-      <div class="ver-item" data-id="${escA(v.id)}" title="Comparer cet instantané au texte courant">
+      <div class="ver-item" data-id="${escA(v.id)}" title="${dzT("atelier.at3_ver.comparer")}">
         <div class="ver-line"><b>${KIND_VER[v.kind] || v.kind} v${v.n}</b> · ${esc(PASSE_LABEL[v.passe] || v.passe)}
-          <span class="ver-size">${v.taille} car.</span></div>
+          <span class="ver-size">${dzT("atelier.at3_ver.car", { n: v.taille })}</span></div>
         ${v.slugline ? `<div class="ver-when">${esc(v.slugline)}</div>` : ""}
         <div class="ver-when">${new Date(v.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</div>
         <div class="ver-prev">${esc(v.apercu)}…</div>
@@ -1691,34 +1682,34 @@ async function renderDiff(vid) {
     const cls = { "=": "ver-same", "~": "ver-mod", "+": "ver-add", "-": "ver-del" };
     const col = (k) => d.lignes.map(l => `<div class="ver-l ${cls[l.op]}">${l[k] === null ? "" : (esc(l[k]) || "&nbsp;")}</div>`).join("");
     const action = d.version.restaurable
-      ? `<button id="verRestore" class="btn primary" title="Réécrit avec cette version — le texte courant est gardé en instantané avant">${ico("dz-action-restaurer")} Restaurer</button>`
-      : `<button id="verCopier" class="btn" title="Un scénario gardé ne se restaure pas en scènes : copiez son texte">${ico("dz-action-copier")} Copier le texte</button>`;
+      ? `<button id="verRestore" class="btn primary" title="${dzT("atelier.at3_ver.restaurer_titre")}">${ico("dz-action-restaurer")} ${dzT("atelier.at3_ver.restaurer")}</button>`
+      : `<button id="verCopier" class="btn" title="${dzT("atelier.at3_ver.copier_titre")}">${ico("dz-action-copier")} ${dzT("atelier.at3_ver.copier")}</button>`;
     box.innerHTML = `
       <div class="ver-diff-head">
         <span>${KIND_VER[d.version.kind] || ""} v${d.version.n} · ${esc(PASSE_LABEL[d.version.passe] || d.version.passe)}</span>
-        <span class="ver-counts">+${d.ajoutees} / −${d.supprimees} · ${d.identiques} inchangée(s)</span>
+        <span class="ver-counts">+${d.ajoutees} / −${d.supprimees} · ${dzT("atelier.at3_ver.inchangees", { n: d.identiques })}</span>
         ${action}
       </div>
       <div class="ver-cols">
-        <div class="ver-col"><header>instantané</header>${col("a")}</div>
-        <div class="ver-col"><header>texte courant</header>${col("b")}</div>
+        <div class="ver-col"><header>${dzT("atelier.at3_ver.col_instantane")}</header>${col("a")}</div>
+        <div class="ver-col"><header>${dzT("atelier.at3_ver.col_courant")}</header>${col("b")}</div>
       </div>`;
     const copier = $("#verCopier");
     if (copier) copier.addEventListener("click", async () => {
-      try { const v = await api.get(`/versions/${encodeURIComponent(vid)}`); await navigator.clipboard.writeText(v.text); toast("Texte copié."); }
-      catch (e) { toast("Copie impossible : " + e.message, true); }
+      try { const v = await api.get(`/versions/${encodeURIComponent(vid)}`); await navigator.clipboard.writeText(v.text); toast(dzT("atelier.at3_ver.copie")); }
+      catch (e) { toast(dzT("atelier.at3_ver.err_copie", { msg: e.message }), true); }
     });
     const rest = $("#verRestore");
     if (rest) rest.addEventListener("click", async () => {
-      if (!await window.__dzDialogue.confirmer("Restaurer cette version ? Le texte courant est gardé en instantané.", { ok: "Restaurer" })) return;
+      if (!await window.__dzDialogue.confirmer(dzT("atelier.at3_ver.confirmer"), { ok: dzT("atelier.at3_ver.restaurer") })) return;
       clearTimeout(saveTimer);                       // une sauvegarde en attente n'écrasera pas le texte restauré
       try {
         await api.send("POST", `/versions/${encodeURIComponent(vid)}/restore`);
         $("#verModal").classList.add("hidden");
         await openChapter(chapter.id);               // texte ET surlignage recalculés par le serveur
         if (mode === "screenplay") await loadScenes(true);
-        toast("Version restaurée — le texte précédent est dans l'historique.");
-      } catch (e) { toast("Restauration impossible : " + e.message, true); }
+        toast(dzT("atelier.at3_ver.restauree"));
+      } catch (e) { toast(dzT("atelier.at3_ver.err_rest", { msg: e.message }), true); }
     });
   } catch (e) { box.innerHTML = `<div class="empty-note">${esc(e.message)}</div>`; }
 }
@@ -1726,7 +1717,7 @@ async function renderDiff(vid) {
 /* ═════════ tâche #60 (plan chapitres P1) — plan ↔ entités, apparitions ═════════ */
 function entPicker(selected) {
   const sel = new Set(selected || []);
-  return `<details class="shot-ents-edit"><summary title="Cocher les entités présentes dans ce plan">${ico("dz-edit-lier")} entités du plan</summary>
+  return `<details class="shot-ents-edit"><summary title="${dzT("atelier.at3_app.cocher")}">${ico("dz-edit-lier")} ${dzT("atelier.at3_app.entites_plan")}</summary>
     ${entities.map(e => `<label class="chip k-${e.kind}"><input type="checkbox" value="${escA(e.id)}" ${sel.has(e.id) ? "checked" : ""}> ${esc(e.name)}</label>`).join("")}
   </details>`;
 }
@@ -1738,11 +1729,11 @@ async function showApparitions(id, card) {
   try {
     const a = await api.get(`/bible/entities/${encodeURIComponent(id)}/apparitions`);
     const t = a.totals;
-    box.innerHTML = `<div class="apps-total">${t.chapters} chapitre(s) · ${t.mentions} mention(s) · ${t.shots} plan(s) · ${t.scenes} scène(s)</div>` +
-      (a.chapters.map(c => `<div class="apps-ch"><b>${esc(c.title)}</b> — ${c.mentions} mention(s)
-        ${c.shots.map(s => `<button class="btn ghost apps-shot" data-ch="${escA(c.chapter_id)}" data-shot="${escA(s.id)}" title="${escA(s.action)}">PLAN ${s.idx + 1}</button>`).join("")}
-        ${c.scenes.map(s => `<button class="btn ghost apps-scene" data-ch="${escA(c.chapter_id)}" title="${escA(s.slugline)}">SC. ${s.idx + 1}</button>`).join("")}</div>`).join("")
-       || `<div class="empty-note">Aucune apparition — découpe un chapitre (🎬 ou ¶) ou lie l'entité à un plan.</div>`);
+    box.innerHTML = `<div class="apps-total">${dzT("atelier.at3_app.totaux", { ch: t.chapters, m: t.mentions, p: t.shots, s: t.scenes })}</div>` +
+      (a.chapters.map(c => `<div class="apps-ch"><b>${esc(c.title)}</b> — ${dzT("atelier.at3_app.mentions", { n: c.mentions })}
+        ${c.shots.map(s => `<button class="btn ghost apps-shot" data-ch="${escA(c.chapter_id)}" data-shot="${escA(s.id)}" title="${escA(s.action)}">${dzT("atelier.at3_app.plan", { n: s.idx + 1 })}</button>`).join("")}
+        ${c.scenes.map(s => `<button class="btn ghost apps-scene" data-ch="${escA(c.chapter_id)}" title="${escA(s.slugline)}">${dzT("atelier.at3_app.sc", { n: s.idx + 1 })}</button>`).join("")}</div>`).join("")
+       || `<div class="empty-note">${dzT("atelier.at3_app.aucune")}</div>`);
     box.querySelectorAll(".apps-shot").forEach(b => b.addEventListener("click", async () => {
       $("#chapterSelect").value = b.dataset.ch; await openChapter(b.dataset.ch); setMode("board");
       setTimeout(() => { const el = document.querySelector(`.shot-card[data-id="${b.dataset.shot}"]`); if (el) el.scrollIntoView({ block: "center" }); }, 400);
@@ -1757,12 +1748,12 @@ async function showApparitions(id, card) {
 window.addEventListener("DOMContentLoaded", async () => {
   // chapitres
   $("#newChapter").addEventListener("click", async () => {
-    const ch = await api.send("POST", "/chapters", { title: "Nouveau chapitre", series: $("#chapterSeries").value });
+    const ch = await api.send("POST", "/chapters", { title: dzT("atelier.int_chap.nouveau"), series: $("#chapterSeries").value });
     await loadChapters(ch.id);
   });
   $("#chapterSelect").addEventListener("change", e => e.target.value && openChapter(e.target.value));
   $("#deleteChapter").addEventListener("click", async () => {
-    if (!chapter || !await window.__dzDialogue.confirmer(`Supprimer le chapitre « ${chapter.title} » ?`)) return;
+    if (!chapter || !await window.__dzDialogue.confirmer(dzT("atelier.at3_w.suppr_chapitre", { titre: chapter.title }))) return;
     await api.send("DELETE", "/chapters/" + chapter.id);
     chapter = null; $("#script").value = "";
     await loadChapters();
@@ -1780,18 +1771,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   // import fichier (réutilise la mécanique Épisodes)
   $("#importFile").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0];
-    if (!f || !chapter) { if (!chapter) toast("Crée d'abord un chapitre.", true); return; }
+    if (!f || !chapter) { if (!chapter) toast(dzT("atelier.at3_w.cree_chapitre"), true); return; }
     const fd = new FormData(); fd.append("file", f);
-    toast("Extraction du texte…");
+    toast(dzT("atelier.at3_w.extraction"));
     try {
       const r = await fetch("/api/episodes/extract-text", { method: "POST", body: fd });
       const d = await r.json();
-      if (!r.ok || !d.text) throw new Error(d.detail || d.error || "extraction vide");
+      if (!r.ok || !d.text) throw new Error(d.detail || d.error || dzT("atelier.at3_w.extraction_vide"));
       ta.value = d.text;
-      if (chapter.title === "Nouveau chapitre" && d.title) $("#chapterTitle").value = d.title;
+      if ([dzT("atelier.int_chap.nouveau"), "Nouveau chapitre"].includes(chapter.title) && d.title) $("#chapterTitle").value = d.title;
       renderScript(); scheduleSave();
-      toast(`Importé : ${f.name} (${(d.text || "").length} caractères).`);
-    } catch (err) { toast("Import échoué : " + err.message, true); }
+      toast(dzT("atelier.at3_w.importe", { nom: f.name, n: (d.text || "").length }));
+    } catch (err) { toast(dzT("atelier.at3_w.import_echoue", { msg: err.message }), true); }
     e.target.value = "";
   });
 
@@ -1826,7 +1817,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     $("#animModal").classList.add("hidden");
   });
   $("#addShot").addEventListener("click", async () => {
-    if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+    if (!chapter) { toast(dzT("atelier.at3_ver.ouvre_chapitre"), true); return; }
     await api.send("POST", `/chapters/${chapter.id}/shots`, {});
     await loadShots(true);
   });
@@ -1835,7 +1826,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.querySelectorAll(".bible-pane .tab").forEach(t =>
     t.addEventListener("click", () => { setTab(t.dataset.kind); renderBible(); }));
   $("#addEntity").addEventListener("click", async () => {
-    const name = await window.__dzDialogue.saisir(`Nom du nouveau ${KIND_LABEL[curKind].toLowerCase()} :`, { ok: "Créer" });
+    const name = await window.__dzDialogue.saisir(dzT("atelier.at3_w.nom_entite", { kind: KIND_LABEL[curKind].toLowerCase() }), { ok: dzT("atelier.at3_vec.creer") });
     if (!name || !name.trim()) return;
     const ent = await api.send("POST", "/bible/entities", { kind: curKind, name: name.trim() });
     entities.push(ent); renderBible();
@@ -1852,15 +1843,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#daPropose").addEventListener("click", daPropose);
   $("#daRefPick").addEventListener("click", () =>
     openLibrary(null, async (f) => { $("#daRefName").textContent = f; $("#daModal").classList.remove("hidden"); }));
-  $("#daRefClear").addEventListener("click", () => { $("#daRefName").textContent = "aucune"; });
+  $("#daRefClear").addEventListener("click", () => { $("#daRefName").textContent = dzT("atelier.at3_da.aucune"); });
 
   // resets (storyboard + scénario)
   $("#boardReset").addEventListener("click", async () => {
-    if (!chapter || !shots.length) { toast("Rien à réinitialiser.", true); return; }
-    if (!await window.__dzDialogue.confirmer(`Supprimer les ${shots.length} plans de ce storyboard ?`)) return;
+    if (!chapter || !shots.length) { toast(dzT("atelier.at3_w.rien_reinit"), true); return; }
+    if (!await window.__dzDialogue.confirmer(dzT("atelier.at3_w.suppr_plans", { n: shots.length }))) return;
     await api.send("DELETE", `/chapters/${chapter.id}/shots`);
     await loadShots(true);
-    toast("Storyboard réinitialisé — 🎬 Découper pour en régénérer un.");
+    toast(dzT("atelier.at3_w.board_reinit"));
   });
   document.querySelectorAll("[data-export]").forEach(b => b.addEventListener("click", () => telechargerExport(b.dataset.export)));
   $("#spImportFile").addEventListener("change", async (e) => {
@@ -1869,24 +1860,24 @@ window.addEventListener("DOMContentLoaded", async () => {
     await importerScenario(f);
   });
   $("#spReset").addEventListener("click", async () => {
-    if (!chapter || !scenes.length) { toast("Rien à réinitialiser.", true); return; }
-    if (!await window.__dzDialogue.confirmer(`Supprimer les ${scenes.length} scènes du scénario ? (le manuscrit reste intact)`)) return;
+    if (!chapter || !scenes.length) { toast(dzT("atelier.at3_w.rien_reinit"), true); return; }
+    if (!await window.__dzDialogue.confirmer(dzT("atelier.at3_w.suppr_scenes", { n: scenes.length }))) return;
     await api.send("DELETE", `/chapters/${chapter.id}/scenes`);
     await loadScenes(true);
-    toast("Scénario réinitialisé — 🎭 Adapter pour en régénérer un.");
+    toast(dzT("atelier.at3_w.sp_reinit"));
   });
 
   // lecture du scénario assemblé (le .fountain est un simple fichier texte —
   // ce viewer intégré évite d'avoir besoin d'un logiciel externe)
   $("#spPreview").addEventListener("click", async () => {
-    if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+    if (!chapter) { toast(dzT("atelier.at3_ver.ouvre_chapitre"), true); return; }
     try {
       const d = await api.get(`/chapters/${chapter.id}/screenplay`);
-      if (!d.scene_count) { toast("Pas encore de scénario — 🎭 Adapter d'abord.", true); return; }
-      $("#spTitle").textContent = `Scénario — ${d.title} (${d.scene_count} scènes)`;
+      if (!d.scene_count) { toast(dzT("atelier.at3_w.pas_scenario"), true); return; }
+      $("#spTitle").textContent = dzT("atelier.at3_w.sp_titre", { titre: d.title, n: d.scene_count });
       $("#spText").textContent = d.fountain;
       $("#spModal").classList.remove("hidden");
-    } catch (e) { toast("Lecture : " + e.message, true); }
+    } catch (e) { toast(dzT("atelier.at3_w.err_lecture", { msg: e.message }), true); }
   });
   $("#spClose").addEventListener("click", () => $("#spModal").classList.add("hidden"));
   $("#spModal").addEventListener("click", (e) => { if (e.target.id === "spModal") $("#spModal").classList.add("hidden"); });
@@ -1925,28 +1916,28 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#libUpload").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0];
     if (!f || !libOnPick) return;
-    toast("Import du fichier…");
+    toast(dzT("atelier.at3_w.import_fichier"));
     try {
       const fd = new FormData(); fd.append("file", f);
       const r = await fetch("/api/images/upload", { method: "POST", body: fd });
       const d = await r.json();
-      if (!r.ok || !d.filename) throw new Error(d.detail || "upload échoué");
+      if (!r.ok || !d.filename) throw new Error(d.detail || dzT("atelier.at3_w.upload_echoue"));
       $("#libModal").classList.add("hidden");
       await libOnPick(d.filename);
-    } catch (err) { toast("Import échoué : " + err.message, true); }
+    } catch (err) { toast(dzT("atelier.at3_w.import_echoue", { msg: err.message }), true); }
     e.target.value = "";
   });
   $("#libUrl").addEventListener("click", async () => {
     if (!libOnPick) return;
-    const url = await window.__dzDialogue.saisir("URL de l'image (http…) :", { placeholder: "https://…", ok: "Télécharger" });
+    const url = await window.__dzDialogue.saisir(dzT("atelier.at3_w.url_image"), { placeholder: "https://…", ok: dzT("atelier.at3_w.telecharger") });
     if (!url || !url.trim()) return;
-    toast("Téléchargement de l'image…");
+    toast(dzT("atelier.at3_w.telechargement"));
     try {
       const d = await api.send("POST", "/images/fetch", { url: url.trim() });
-      if (!d.filename) throw new Error("réponse sans fichier");
+      if (!d.filename) throw new Error(dzT("atelier.at3_w.sans_fichier"));
       $("#libModal").classList.add("hidden");
       await libOnPick(d.filename);
-    } catch (err) { toast("Import URL échoué : " + err.message, true); }
+    } catch (err) { toast(dzT("atelier.at3_w.import_url_echoue", { msg: err.message }), true); }
   });
 
   // boot
@@ -1956,5 +1947,5 @@ window.addEventListener("DOMContentLoaded", async () => {
     // t127 : `?chapter=<id>` rouvre ce chapitre (le retour du Plateau 3D) ; inconnu → le premier, comme avant
     await loadChapters(new URLSearchParams(location.search).get("chapter") || undefined);
     await renderBible();
-  } catch (e) { toast("Chargement initial échoué : " + e.message, true); }
+  } catch (e) { toast(dzT("atelier.at3_w.chargement_echoue", { msg: e.message }), true); }
 });

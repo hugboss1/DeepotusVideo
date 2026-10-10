@@ -14,6 +14,7 @@ Temoin positif : la base (05e5eb36) n'a ni le module ni la route.
 Run (depuis backend/) : & $PY tests/test_chapitres_import_scenario.py"""
 import json, os, pathlib, sqlite3, subprocess, sys, tempfile, types
 from datetime import datetime
+import sys as _s8, pathlib as _p8; _s8.path.insert(0, str(_p8.Path(__file__).resolve().parent)); import _labs_avant_l8  # noqa: E402,F401  (t148 : Atelier, Material Forge, Établi d'avant la traduction L8)
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzimpsc_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
