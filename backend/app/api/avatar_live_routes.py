@@ -162,6 +162,21 @@ async def recast_source(request: Request):
         info = await asyncio.to_thread(FV.probe, dest)
     except Exception:  # noqa: BLE001
         info = {}
+    if info.get("width") and not info.get("duration_s"):
+        # G4 (relevé en preuve le 10/10) : le webm d'un MediaRecorder est « live » — aucune durée dans l'en-tête.
+        # Une réécriture SANS réencodage (-c copy) la pose ; le contenu ne change pas.
+        import subprocess
+        tmp = dest.with_name(dest.stem + ".remux." + ext)
+        r = await asyncio.to_thread(subprocess.run, [FV._bin("ffmpeg"), "-y", "-v", "error", "-i", str(dest), "-c", "copy",
+                                                     str(tmp)], capture_output=True, timeout=300)
+        if r.returncode == 0 and tmp.is_file():
+            tmp.replace(dest)
+            try:
+                info = await asyncio.to_thread(FV.probe, dest)
+            except Exception:  # noqa: BLE001
+                info = {}
+        else:
+            tmp.unlink(missing_ok=True)
     if not info.get("duration_s") or not info.get("width"):
         dest.unlink(missing_ok=True)
         raise HTTPException(415, "Ces octets ne sont pas une vidéo lisible (ffprobe n'y trouve ni durée ni image).")
@@ -276,3 +291,46 @@ async def decor_composer(body: dict | None = None):
                                  ref=f"decor:{src.name}")
     job_id = await DS.lancer_decor(src, fond, info, garde["lignes"], parent)
     return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"]}
+
+
+# ── G4 (t165, 10/10/2026) : l'enregistrement du Direct devient un RENDU de l'application ───────────────────────────
+# Le flux vidéo ne passe jamais par ici (WebRTC navigateur <-> Decart). Le navigateur enregistre la sortie
+# (MediaRecorder, webm), la dépose par /recast/source, puis demande sa conversion en mp4 (h264 + aac) : un job
+# provider recast / modèle « direct ». Local, gratuit. Le dépôt webm est retiré après conversion.
+
+@router.post("/direct/enregistrer")
+async def direct_enregistrer(body: dict | None = None):
+    import asyncio
+    import subprocess
+    from datetime import datetime
+    from pathlib import Path
+    from uuid import uuid4
+    from app.config import settings
+    from app.models.schemas import JobStatus, Provider
+    from app.services import recast_service as RS, fal_video_tools as FV
+    from app.services.storage import JobRecord, async_session_factory
+    b = body if isinstance(body, dict) else {}
+    src = RS.chemin_depot(b.get("depot"))
+    if src is None:
+        raise HTTPException(404, "Enregistrement introuvable (dépôt inconnu).")
+    perso = AL.lire_personnage(b.get("personnage_id")) if b.get("personnage_id") else None
+    job_id = str(uuid4())
+    dest = Path(settings.outputs_path) / "final" / f"{job_id}.mp4"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [FV._bin("ffmpeg"), "-y", "-v", "error", "-i", str(src), "-map", "0:v:0", "-map", "0:a:0?",
+           "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+           "-pix_fmt", "yuv420p", "-c:a", "aac", "-movflags", "+faststart", str(dest)]
+    r = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, timeout=900)
+    if r.returncode != 0 or not dest.is_file():
+        raise HTTPException(415, "Enregistrement illisible : " + r.stderr.decode("utf-8", "replace")[-200:])
+    info = await asyncio.to_thread(FV.probe, dest)
+    titre = "Direct — " + (perso["nom"] if perso else "sans Personnage")
+    async with async_session_factory() as s:
+        s.add(JobRecord(id=job_id, status=JobStatus.DONE.value, progress=100, image_filename="",
+                        provider=Provider.RECAST.value, video_model="direct", title=titre[:200],
+                        duration_s=int(round(info.get("duration_s") or 0)), aspect_ratio=info.get("ratio"),
+                        video_path=str(dest), final_video_path=str(dest), current_step="Complete",
+                        created_at=datetime.utcnow(), completed_at=datetime.utcnow()))
+        await s.commit()
+    src.unlink(missing_ok=True)
+    return {"job_id": job_id, "duree_s": info.get("duration_s"), "ratio": info.get("ratio")}

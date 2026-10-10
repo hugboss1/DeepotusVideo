@@ -194,13 +194,13 @@ with TestClient(app, client=LOC, raise_server_exceptions=False) as loc, \
     plafonds.enregistrer({"par_moteur": {}})
 
     async def poster_en_panne(url, entetes, corps):
-        return 401, {"detail": "invalid key"}
+        return 401, {"error": "Invalid or expired API key"}   # la forme RELEVÉE sur le vrai Decart le 10/10
     AL._poster = poster_en_panne
     r = loc.post("/api/avatar-live/sessions", json={"personnage_id": pid, "duree_s": 30})
     et = asyncio.run(plafonds.tableau())
     tot = [l for l in et["lignes"] if l["moteur"] == "decart"][0]
     check("G3 Decart refuse la clé : 502 qui le dit, et la réservation est remise à 0 $ réel (rien consommé)",
-          r.status_code == 502 and "decart" in r.text.lower() and tot["rapproches"] == tot["tirs"], r.text[:200] + str(tot))
+          r.status_code == 502 and "decart" in r.text.lower() and "Invalid or expired" in r.text and tot["rapproches"] == tot["tirs"], r.text[:200] + str(tot))
     AL._poster = faux_poster
 
     print("\n[M] le téléphone appairé")

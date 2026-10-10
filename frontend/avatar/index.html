@@ -20,11 +20,13 @@
   <div class="marque">
     <svg class="dzi dzi--20" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-avatar"></use></svg>
     <b>Avatar live</b>
-    <span class="sous">Personnages, Recast différé</span>
+    <span class="sous">Personnages, Recast différé, Direct</span>
   </div>
   <nav class="onglets" role="tablist" aria-label="Sections">
     <button type="button" role="tab" class="onglet actif" data-onglet="personnages" aria-selected="true">Personnages</button>
     <button type="button" role="tab" class="onglet" data-onglet="recast" aria-selected="false">Recast</button>
+    <button type="button" role="tab" class="onglet" data-onglet="direct" aria-selected="false">
+      <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-badge-direct"></use></svg>Direct</button>
   </nav>
   <div class="etat" id="etatCle" aria-live="polite"></div>
 </header>
@@ -150,7 +152,60 @@
       </div>
     </div>
   </section>
+
+  <!-- ══════════ Direct (G4) ══════════ -->
+  <section id="vueDirect" class="vue" role="tabpanel" hidden>
+    <div class="colonnes">
+      <div class="carte formulaire">
+        <h2>Direct</h2>
+        <p class="aide">Ta webcam, transformée en temps réel : ton jeu, le visage du Personnage, le décor de ton choix. Facturé à la seconde ; la durée réservée est coupée chez Decart même si cette page se ferme.</p>
+        <div id="xCleZone" class="cle" hidden>
+          <label class="champ">Clé Decart (platform.decart.ai) — rangée au coffre, jamais montrée à la page
+            <input id="xCle" type="password" autocomplete="off" placeholder="dct_…">
+          </label>
+          <button id="xCleOk" type="button" class="btn">Enregistrer la clé</button>
+        </div>
+        <label class="champ">Personnage <select id="xPerso"></select></label>
+        <h3>Décor</h3>
+        <div id="xPre" class="puces" role="group" aria-label="Décors"></div>
+        <textarea id="xConsigne" rows="2" maxlength="300" placeholder="Consigne libre (en anglais de préférence), ex. wearing a red leather jacket"></textarea>
+        <div class="ligne">
+          <label class="champ court">Format <select id="xFormat"><option value="16:9">16:9 paysage</option><option value="9:16">9:16 portrait</option></select></label>
+          <label class="champ court">Durée réservée
+            <select id="xDuree"><option value="1">1 min</option><option value="5" selected>5 min</option><option value="10">10 min</option><option value="30">30 min</option></select>
+          </label>
+        </div>
+        <div class="ligne cases">
+          <label><input id="xMicro" type="checkbox" checked> Micro (le son revient calé sur l'image)</label>
+          <label><input id="xMiroir" type="checkbox" checked> Miroir</label>
+          <label><input id="xRapide" type="checkbox"> Mode rapide (×2)</label>
+        </div>
+        <p id="xDevis" class="devis"></p>
+        <div class="actions">
+          <button id="xGo" type="button" class="btn plein" disabled>
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-badge-direct"></use></svg>Démarrer le direct
+          </button>
+          <button id="xStop" type="button" class="btn" disabled>
+            <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-arret"></use></svg>Arrêter
+          </button>
+          <button id="xAppliquer" type="button" class="btn" disabled>Appliquer le décor</button>
+          <button id="xRec" type="button" class="btn" disabled><span>Enregistrer</span></button>
+        </div>
+        <p id="xMsg" class="msg" aria-live="polite"></p>
+      </div>
+      <div class="liste">
+        <div id="xDirectEtat" class="bandeau-direct" hidden>
+          <span class="pastille">EN DIRECT</span><span id="xTemps"></span><span id="xCout" class="devis"></span>
+        </div>
+        <div class="ecrans">
+          <figure><video id="xSortie" autoplay playsinline></video><figcaption>Sortie Decart</figcaption></figure>
+          <figure class="petit"><video id="xLocal" autoplay playsinline muted></video><figcaption>Ta webcam</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
 <script src="avatar.js"></script>
+<script type="module" src="direct.js"></script>
 </body>
 </html>

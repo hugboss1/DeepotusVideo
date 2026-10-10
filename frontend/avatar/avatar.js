@@ -50,6 +50,7 @@
       });
       $("vuePersonnages").hidden = b.dataset.onglet !== "personnages";
       $("vueRecast").hidden = b.dataset.onglet !== "recast";
+      $("vueDirect").hidden = b.dataset.onglet !== "direct";
       try { localStorage.setItem("dz_avatar_onglet", b.dataset.onglet); } catch (e) { /* stockage indisponible */ }
     });
   });
@@ -316,6 +317,9 @@
       jobs.filter(function (j) { return j.provider === "recast" && j.status !== "done" && j.status !== "failed"; }).forEach(function (j) { suivre(jid(j)); });
     } catch (e) { /* liste facultative */ }
   }
+
+  // G4 : un enregistrement du Direct rangé en rendu paraît aussitôt dans « Rendus Recast »
+  window.addEventListener("dz-avatar-rendu", function (e) { suivre(e.detail); });
 
   async function demarrer() {
     try {

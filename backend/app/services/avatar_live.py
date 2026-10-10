@@ -25,7 +25,7 @@ from datetime import datetime
 import httpx
 from loguru import logger
 
-from app.config import DATA_ROOT, settings
+from app.config import DATA_ROOT, SSL_VERIFY, settings
 
 BASE_URL = "https://api.decart.ai"
 MODELE = "lucy-2.5"
@@ -193,7 +193,7 @@ def supprimer_personnage(pid: str) -> bool:
 
 async def _poster(url: str, entetes: dict, corps: dict) -> tuple[int, dict]:
     """Le SEUL appel réseau du module (remplacé par les bancs)."""
-    async with httpx.AsyncClient(timeout=20) as c:
+    async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=20) as c:
         r = await c.post(url, headers=entetes, json=corps)
     try:
         return r.status_code, r.json()
@@ -234,7 +234,8 @@ async def ouvrir_session_direct(prep: dict, lignes: list, appareil: str | None) 
     jeton = rep.get("apiKey") if isinstance(rep, dict) else None
     if statut != 200 or not isinstance(jeton, str) or not jeton:
         await _plaf.noter_reel(ref, 0.0, 0.0)
-        detail = (rep.get("detail") if isinstance(rep, dict) else "") or ""
+        # relevé le 10/10 sur le vrai Decart : une clé refusée rend 401 {"error": "Invalid or expired API key"}
+        detail = ((rep.get("detail") or rep.get("error")) if isinstance(rep, dict) else "") or ""
         raise Refus(502, f"Decart a refusé le jeton (HTTP {statut}) : {str(detail)[:120]} — rien n'a été facturé.")
     prix = prix_usd_s(prep["rapide"])
     _SESSIONS[sid] = {"personnage_id": prep["personnage"]["id"], "duree_s": prep["duree_s"], "prix_usd_s": prix,
