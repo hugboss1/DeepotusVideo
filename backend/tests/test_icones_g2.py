@@ -69,7 +69,7 @@ CLES = {
                           "dz-nav-cf-forge-3d": 1, "dz-nav-cf-import": 1},
     "js/mod-data.js": {"dz-action-coller": 1, "dz-action-exporter": 2, "dz-action-nouveau": 1, "dz-action-quantite": 1,
                        "dz-action-supprimer": 4, "dz-action-trier": 1, "dz-edit-lier": 1, "dz-etat-avertissement": 1,
-                       "dz-etat-exclu": 1, "dz-etat-succes": 2, "dz-media-fichier": 1, "dz-nav-cf-donnees": 1},
+                       "dz-etat-erreur": 1, "dz-etat-exclu": 1, "dz-etat-succes": 1, "dz-media-fichier": 1, "dz-nav-cf-donnees": 1},
     "js/mod-edition.js": {"dz-action-envoyer-vers": 1, "dz-action-exporter": 2, "dz-nav-cf-edition": 1},
     "js/mod-face.js": {"dz-action-retirer": 1, "dz-action-supprimer": 1, "dz-action-telecharger": 1,
                        "dz-etat-sans-apercu": 1, "dz-media-generer-image": 1, "dz-nav-cf-face": 1},
@@ -169,7 +169,11 @@ check("1.7 cardforge.css : écarts cf-ic/cf-ic-d, rotation .cf-chev, pointes de 
 print("[2] liste de travail")
 impl = json.loads((DOCS / "implementation.json").read_text(encoding="utf-8"))
 sites = [e for e in impl if e["source"].startswith("frontend/cardforge/") and e["cle_finale"]]
-check("2.0 166 sites à poser dans le périmètre", len(sites) == 166, len(sites))
+check("2.0 167 sites à poser dans le périmètre (image trouvée / introuvable scindées le 10/10)", len(sites) == 167, len(sites))
+data_src = lire("js/mod-data.js")
+check("2.0b image trouvée = dz-etat-succes, image INTROUVABLE = dz-etat-erreur",
+      re.search(r'td\.classList\.add\("ok"\);\s*dot\.innerHTML = ICO\("dz-etat-succes", 16\);', data_src) is not None
+      and re.search(r'td\.classList\.add\("miss"\);\s*dot\.innerHTML = ICO\("dz-etat-erreur", 16\);', data_src) is not None)
 sprite = (ROOT / "frontend" / "shared" / "icons" / "dz-icons.svg").read_text(encoding="utf-8")
 ids = set(re.findall(r'<symbol id="([^"]+)"', sprite))
 absents = []

@@ -3187,7 +3187,7 @@
         dot.title = "Trouvée : " + it.url + (it.why ? " — " + it.why : "");
       } else {
         td.classList.add("miss");
-        dot.innerHTML = ICO("dz-etat-succes", 16);
+        dot.innerHTML = ICO("dz-etat-erreur", 16);
         dot.title = "INTROUVABLE"
           + (it.why ? " — " + it.why : "") + (ART ? " · dossier " + ART.folder : "");
       }
