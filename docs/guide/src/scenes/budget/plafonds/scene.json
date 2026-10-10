@@ -41,9 +41,9 @@
       "duree": 3,
       "surligne": [
         260,
-        460,
-        162,
-        30
+        370,
+        121,
+        27
       ],
       "bulle": {
         "fr": "Au-delà d'un plafond, l'app vous demande avant de dépenser",
@@ -71,9 +71,9 @@
       "duree": 3,
       "surligne": [
         260,
-        460,
-        162,
-        30
+        370,
+        97,
+        27
       ],
       "bulle": {
         "fr": "Au-delà d'un plafond, l'app vous demande avant de dépenser",

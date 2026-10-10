@@ -150,7 +150,7 @@
       "ecrans": [
         "Quick"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "studio",
@@ -166,7 +166,7 @@
       "ecrans": [
         "Studio (éditeur de nœuds)"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "modeles",
@@ -181,7 +181,7 @@
       "ecrans": [
         "Templates (Modèles)"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "chapitres",

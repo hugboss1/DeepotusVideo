@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "L'éditeur de mise en page",
+    "en": "The layout editor"
+  },
+  "legende": {
+    "fr": "Les cases sur la toile, et à droite les réglages de la case choisie : masque, échantillon, animation.",
+    "en": "The slots on the canvas, and on the right the settings of the selected slot: mask, sample, animation."
+  },
+  "captures": [
+    {
+      "fr": "editeur.fr.webp",
+      "en": "editeur.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        857,
+        153,
+        52,
+        27
+      ],
+      "bulle": {
+        "fr": "Ajouter texte, bandeau, marque, composant",
+        "en": "Add text, ticker, brand, component"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        896,
+        289,
+        267,
+        29
+      ],
+      "bulle": {
+        "fr": "Cliquez une case : glissez-la, redimensionnez-la",
+        "en": "Click a slot: drag it, resize it"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        855,
+        777,
+        347,
+        44
+      ],
+      "bulle": {
+        "fr": "Enregistrer, puis ouvrir dans le Studio",
+        "en": "Save, then open in the Studio"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        857,
+        136,
+        34,
+        27
+      ],
+      "bulle": {
+        "fr": "Ajouter texte, bandeau, marque, composant",
+        "en": "Add text, ticker, brand, component"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        896,
+        244,
+        267,
+        29
+      ],
+      "bulle": {
+        "fr": "Cliquez une case : glissez-la, redimensionnez-la",
+        "en": "Click a slot: drag it, resize it"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        855,
+        732,
+        347,
+        44
+      ],
+      "bulle": {
+        "fr": "Enregistrer, puis ouvrir dans le Studio",
+        "en": "Save, then open in the Studio"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

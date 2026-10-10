@@ -1,5 +1,5 @@
 {
- "base": "http://127.0.0.1:8799",
+ "base": "http://127.0.0.1:8809",
  "scenes": [
   {
    "scene": "tour/coque",
@@ -458,8 +458,8 @@
      "etapes": [
       {
        "defiler": {
-        "fr": "texte:Global",
-        "en": "texte:Master"
+        "fr": "texte:Enregistrer les plafonds",
+        "en": "texte:Save caps"
        }
       }
      ]
@@ -482,8 +482,8 @@
      "capture": 1,
      "duree": 3.0,
      "surligne": {
-      "fr": "texte:Global",
-      "en": "texte:Master"
+      "fr": "contient:PLAFONDS DU MOIS",
+      "en": "contient:MONTHLY CAPS"
      },
      "bulle": {
       "fr": "Au-delà d'un plafond, l'app vous demande avant de dépenser",

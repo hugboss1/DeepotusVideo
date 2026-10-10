@@ -38,7 +38,11 @@ async function boite(page, ref, dans) {
   return page.evaluate((ref, dans) => {
     const vis = e => { const r = e.getBoundingClientRect(); const s = getComputedStyle(e);
       const ok = r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && r.bottom > 0 && r.top < innerHeight;
-      return ok && (!dans || (r.right > dans[0] && r.x < dans[0] + dans[2] && r.bottom > dans[1] && r.y < dans[1] + dans[3])); };
+      if (!ok || (dans && !(r.right > dans[0] && r.x < dans[0] + dans[2] && r.bottom > dans[1] && r.y < dans[1] + dans[3]))) return false;
+      // au PREMIER PLAN : un élément caché sous un pied collant ou une fenêtre ne compte pas (constaté : « Modèle » sous « Coût estimé »)
+      const cx = Math.min(Math.max(r.x + r.width / 2, 1), innerWidth - 1), cy = Math.min(Math.max(r.y + Math.min(r.height, 40) / 2, 1), innerHeight - 1);
+      const top = document.elementFromPoint(cx, cy);
+      return !!top && (top === e || e.contains(top) || top.contains(e)); };
     let el = null;
     if (ref.startsWith("css:")) el = [...document.querySelectorAll(ref.slice(4))].find(vis) || null;
     else if (ref.startsWith("texte:") || ref.startsWith("contient:")) {
@@ -47,7 +51,10 @@ async function boite(page, ref, dans) {
       const cands = [...document.querySelectorAll("button, a, [role=button], label, h1, h2, h3, h4, summary, span, div, p, li, td, th, input, select, textarea")]
         .filter(vis).filter(e => {
           const v = norm(e.innerText || e.value || e.placeholder || e.getAttribute("aria-label") || e.title);
-          return exact ? v === t : v.includes(t);
+          if (exact) return v === t;
+          // « contient » : jamais un gros conteneur (> 15 % de l'écran) qui contiendrait le texte hors de vue
+          const q = e.getBoundingClientRect();
+          return v.includes(t) && q.width * q.height < 0.15 * innerWidth * innerHeight;
         });
       cands.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return ra.width * ra.height - rb.width * rb.height; });
       el = cands[0] || null;
@@ -60,7 +67,7 @@ async function boite(page, ref, dans) {
 
 async function etape(page, e) {
   if (e.aller) { await page.goto(BASE + e.aller, { waitUntil: "networkidle2", timeout: 45000 }); await pause(900); }
-  if (e.clic) { const b = await boite(page, e.clic); if (!b) throw new Error("introuvable : " + JSON.stringify(e.clic));
+  if (e.clic) { const b = await boite(page, e.clic); if (!b && e.facultatif) return; if (!b) throw new Error("introuvable : " + JSON.stringify(e.clic));
     await page.mouse.click(b[0] + b[2] / 2, b[1] + b[3] / 2); await pause(e.apres || 700); }
   if (e.saisir) { const b = await boite(page, e.saisir[0]); if (!b) throw new Error("introuvable : " + JSON.stringify(e.saisir[0]));
     await page.mouse.click(b[0] + b[2] / 2, b[1] + b[3] / 2); await page.keyboard.type(R(e.saisir[1]), { delay: 15 }); await pause(500); }
@@ -73,7 +80,7 @@ async function etape(page, e) {
   if (e.attente) await pause(e.attente);
 }
 
-let BASE = "http://127.0.0.1:8799";
+let BASE = "http://127.0.0.1:8809";
 
 async function scene(browser, s, lang) {
   LANG = lang;

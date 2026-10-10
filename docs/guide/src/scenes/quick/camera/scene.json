@@ -1,0 +1,76 @@
+{
+  "titre": {
+    "fr": "Diriger la caméra",
+    "en": "Direct the camera"
+  },
+  "legende": {
+    "fr": "Les curseurs de caméra deviennent une phrase ajoutée au prompt ; la Galerie montre les mouvements.",
+    "en": "Camera sliders become a sentence added to the prompt; the Gallery shows the moves."
+  },
+  "captures": [
+    {
+      "fr": "curseurs.fr.webp",
+      "en": "curseurs.en.webp"
+    },
+    {
+      "fr": "galerie.fr.webp",
+      "en": "galerie.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        26,
+        671,
+        128,
+        27
+      ],
+      "bulle": {
+        "fr": "Six curseurs, une phrase de caméra",
+        "en": "Six sliders, one camera sentence"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "La Galerie montre chaque mouvement de caméra",
+        "en": "The Gallery shows each camera move"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        26,
+        671,
+        116,
+        27
+      ],
+      "bulle": {
+        "fr": "Six curseurs, une phrase de caméra",
+        "en": "Six sliders, one camera sentence"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "La Galerie montre chaque mouvement de caméra",
+        "en": "The Gallery shows each camera move"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}
