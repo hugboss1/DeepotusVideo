@@ -15,6 +15,7 @@ import subprocess
 import sys
 
 import pytest
+import sys as _s8, pathlib as _p8; _s8.path.insert(0, str(_p8.Path(__file__).resolve().parent)); import _labs_avant_l8  # noqa: E402,F401  (t148 : Atelier, Material Forge, Établi d'avant la traduction L8)
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
