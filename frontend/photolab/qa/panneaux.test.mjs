@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { existe as existeIcone, CLES as CLES_SUITE } from "./outils/suite-icones.mjs";
 import { aplatirCalques, actionSelection, pourcent, depuisPourcent, MODES_FUSION, MODE_TRANSFERT, idFusion, positionDepot,
   VERROUS, basculerVerrou, estFond, trouverCalque, cibleDepot } from "../js/mod-calques.js";
 import { proprietesDe } from "../js/mod-proprietes.js";
@@ -80,7 +81,7 @@ check("5.6 ailleurs inchangé", json(cibleDepot(plat, 1, "below")) === json({ ta
 
 // 6. verrous (tenus par l'écran : le moteur ne les relit pas)
 check("6.1 cinq verrous", VERROUS.map((v) => v.cle).join() === "transparency,pixels,position,artboard,all");
-check("6.2 icônes présentes", VERROUS.every((v) => { try { readFileSync(join(racine, "icones", v.icone + ".svg")); return true; } catch (e) { return false; } }));
+check("6.2 icônes présentes (suite Deepotus Glyph)", VERROUS.every((v) => existeIcone(v.icone)), VERROUS.filter((v) => !existeIcone(v.icone)).map((v) => v.icone));
 const v1 = basculerVerrou(undefined, "pixels");
 check("6.3 objet complet de 5 booléens", Object.keys(v1).length === 5 && v1.pixels === true && v1.all === false);
 check("6.4 bascule", basculerVerrou(v1, "pixels").pixels === false);

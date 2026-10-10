@@ -78,25 +78,16 @@ PL.signaler = function signaler(message, erreur = false) {
   minuterie = setTimeout(() => { if (st) st.textContent = ""; }, 8000);
 };
 
-// Icônes Lucide de photocraft : fetch puis insertion en ligne, pour que stroke="currentColor" suive nos jetons.
-const cacheIcones = new Map();
-PL.icone = function icone(nom) {
-  if (!cacheIcones.has(nom)) {
-    // Un échec (réseau, 404) n'est PAS mis en cache : la prochaine demande réessaie. Les SVG sont décoratifs (le bouton
-    // porte son aria-label) : aria-hidden.
-    const demande = fetch("icones/" + nom + ".svg")
-      .then((r) => (r.ok ? r.text() : Promise.reject(new Error("icône " + nom))))
-      .then((svg) => svg.replace(/^\s*<svg/, '<svg aria-hidden="true" focusable="false"'))
-      .catch(() => { cacheIcones.delete(nom); return ""; });
-    cacheIcones.set(nom, demande);
-  }
-  return cacheIcones.get(nom);
+// Icônes : suite Deepotus Glyph (G4) — /shared/icons/dz-icons.js, chargé par index.html AVANT les modules, rend une
+// clé « dz-… » en SVG en ligne (currentColor : nos jetons). Synchrone ; décorative (aria-hidden) : le bouton porte son
+// aria-label. Une clé inconnue rend "" (dzIcone l'annonce en console).
+PL.icone = function icone(cle, taille = 16) {
+  return window.dzIcone ? window.dzIcone(cle, { taille }) : "";
 };
-PL.hydraterIcones = async function hydraterIcones(racine = document) {
-  const noeuds = PL.$$("[data-icone]", racine);
-  await Promise.all(noeuds.map(async (n) => {
-    if (n.dataset.icone && !n.querySelector("svg")) n.insertAdjacentHTML("afterbegin", await PL.icone(n.dataset.icone));
-  }));
+PL.hydraterIcones = function hydraterIcones(racine = document) {
+  for (const n of PL.$$("[data-icone]", racine)) {
+    if (n.dataset.icone && !n.querySelector("svg")) n.insertAdjacentHTML("afterbegin", PL.icone(n.dataset.icone, Number(n.dataset.taille) || 16));
+  }
 };
 
 // Accueil / document ouvert.

@@ -12,6 +12,7 @@ import { TRAITES_PAR_ECRAN } from "../js/mod-menus.js";
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { existe as existeIcone, CLES as CLES_SUITE } from "./outils/suite-icones.mjs";
 
 let ok = 0, ko = 0;
 function check(label, cond, detail = "") { if (cond) ok++; else { ko++; console.error("ECHEC :", label, detail); } }
@@ -154,8 +155,11 @@ check("6.7 un onglet montré relit sa liste (Dégradés, Motifs, Histogramme, Co
   && /nom === "histogramme"[^\n]*relire/.test(core) && /nom === "compositions"[^\n]*relire/.test(core));
 const vue = readFileSync(join(racine, "js", "mod-vue.js"), "utf8");
 check("6.8 la vue dessine l'image filtrée par les couches", /const image = vue\.filtre \? vue\.filtre\(vue\.rendu\.image\) : vue\.rendu\.image;/.test(vue) && /ctx\.drawImage\(image, x, y, W, H\)/.test(vue));
-const icones = ["info", "chevrons-left", "chevrons-right", "rotate-cw", "sparkles", "circle-dashed", "square-dashed", "folder-plus", "plus", "trash-2", "eye", "eye-off", "move", "file-plus"];
-check("6.9 icônes des nouveaux panneaux présentes (Lucide)", icones.every((i) => existsSync(join(racine, "icones", i + ".svg"))), icones.filter((i) => !existsSync(join(racine, "icones", i + ".svg"))));
+// G4 : icônes des panneaux t153 = clés de la suite Deepotus Glyph
+const icones = ["dz-nav-panneau-infos", "dz-action-element-precedent", "dz-action-element-suivant", "dz-action-redefinir", "dz-edit-effet",
+  "dz-edit-charger-selection", "dz-edit-enregistrer-selection", "dz-action-nouveau-dossier", "dz-action-ajouter", "dz-action-supprimer",
+  "dz-etat-visible", "dz-etat-cache", "dz-outil-photo-deplacer", "dz-action-deplier", "dz-etat-avertissement"];
+check("6.9 icônes des nouveaux panneaux présentes (suite Deepotus Glyph)", icones.every(existeIcone), icones.filter((i) => !existeIcone(i)));
 check("6.10 noms intégrés du moteur : tous ont une clé photolab.presets.*", Object.values(NOMS_INTEGRES).every((k) => k.startsWith("photolab.presets.")));
 
 const gestes = readFileSync(join(racine, "js", "mod-gestes.js"), "utf8");

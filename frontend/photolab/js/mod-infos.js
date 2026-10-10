@@ -64,8 +64,8 @@ export function initInfos(PL) {
     const choix = document.createElement("select"); choix.className = "hi-canal"; choix.setAttribute("aria-label", T("photolab.histogramme.canal"));
     for (const c of CANAUX) { const o = document.createElement("option"); o.value = c.id; o.textContent = T(c.cle); choix.appendChild(o); }
     choix.addEventListener("change", () => { canal = choix.value; dessinerHisto(); });
-    const alerte = document.createElement("span"); alerte.className = "hi-alerte"; alerte.textContent = "⚠";
-    alerte.title = T("photolab.histogramme.perime"); alerte.hidden = true;
+    const alerte = document.createElement("span"); alerte.className = "hi-alerte"; alerte.innerHTML = PL.icone("dz-etat-avertissement");
+    alerte.title = T("photolab.histogramme.perime"); alerte.setAttribute("role", "img"); alerte.setAttribute("aria-label", alerte.title); alerte.hidden = true;
     lib.appendChild(choix);
     tete.append(lib, alerte);
     const svg = document.createElementNS(NS, "svg"); svg.setAttribute("class", "hi-graphe"); svg.setAttribute("viewBox", "0 0 256 100");

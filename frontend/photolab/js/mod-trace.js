@@ -204,15 +204,15 @@ export function initTrace(PL) {
     b.title = T(cle); b.setAttribute("aria-label", b.title); b.addEventListener("click", fn); pied.appendChild(b); return b;
   };
   const nomCible = () => (choisi ? choisi.cle : liste && liste.workPath ? "work" : null);
-  const bRemplir = bouton("paint-bucket", "photolab.traces.remplir", () => { const n = nomCible(); if (n) PL.executer("path.fill", { name: n, color: fg() }); });
-  const bContour = bouton("brush", "photolab.traces.contour", () => { const n = nomCible(); if (n) PL.executer("path.stroke", { name: n, tool: "brush" }); });
-  const bSelection = bouton("circle-dashed", "photolab.traces.selection", () => { const n = nomCible(); if (n) PL.executer("path.toSelection", { name: n }); });
-  const bDepuisSel = bouton("square-dashed", "photolab.traces.depuis_selection", () => PL.executer("select.toWorkPath", { tolerance: 2 }));
-  bouton("plus", "photolab.traces.nouveau", async () => {
+  const bRemplir = bouton("dz-edit-remplir-trace", "photolab.traces.remplir", () => { const n = nomCible(); if (n) PL.executer("path.fill", { name: n, color: fg() }); });
+  const bContour = bouton("dz-edit-contour-trace", "photolab.traces.contour", () => { const n = nomCible(); if (n) PL.executer("path.stroke", { name: n, tool: "brush" }); });
+  const bSelection = bouton("dz-edit-charger-selection", "photolab.traces.selection", () => { const n = nomCible(); if (n) PL.executer("path.toSelection", { name: n }); });
+  const bDepuisSel = bouton("dz-edit-selection-vers-trace", "photolab.traces.depuis_selection", () => PL.executer("select.toWorkPath", { tolerance: 2 }));
+  bouton("dz-action-ajouter", "photolab.traces.nouveau", async () => {
     await relireListe();
     PL.executer("path.set", { name: nomLibre(liste, T("photolab.traces.base")), path: { subpaths: [] } });
   });
-  const bSuppr = bouton("trash-2", "photolab.traces.supprimer", () => { if (choisi && choisi.type !== "calque") { PL.executer("path.delete", { name: choisi.cle }); choisi = null; cheminChoisi = null; } });
+  const bSuppr = bouton("dz-action-supprimer", "photolab.traces.supprimer", () => { if (choisi && choisi.type !== "calque") { PL.executer("path.delete", { name: choisi.cle }); choisi = null; cheminChoisi = null; } });
   if (PL.hydraterIcones) PL.hydraterIcones(pied);
 
   function vignette(path) {

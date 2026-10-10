@@ -38,8 +38,8 @@ export function initCouleur(PL) {
     hex.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); valider(); } });
   }
   const outils = document.createElement("div"); outils.className = "co-outils";
-  const bX = document.createElement("button"); bX.type = "button"; bX.className = "co-bouton"; bX.textContent = "⇄ " + T("photolab.couleur.echanger");
-  const bD = document.createElement("button"); bD.type = "button"; bD.className = "co-bouton"; bD.textContent = "◧ " + T("photolab.couleur.defaut");
+  const bX = document.createElement("button"); bX.type = "button"; bX.className = "co-bouton"; bX.innerHTML = PL.icone("dz-edit-echanger-couleurs"); bX.append(T("photolab.couleur.echanger"));
+  const bD = document.createElement("button"); bD.type = "button"; bD.className = "co-bouton"; bD.innerHTML = PL.icone("dz-edit-couleurs-defaut"); bD.append(T("photolab.couleur.defaut"));
   outils.append(bX, bD);
   corps.appendChild(outils);
 

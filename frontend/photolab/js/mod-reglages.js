@@ -17,25 +17,25 @@ import { brut } from "./mod-cycle.js";
 /* ───────────── fonctions PURES ───────────── */
 
 // Les 16 kinds dans l'ordre du menu de photocraft (Calque › Nouveau calque de réglage). `variante` = nom rendu par
-// doc.inspect (clé de `adjustment`, ou la chaîne "Invert"). Icônes : Lucide déjà livrées dans icones/ (aucune copie).
+// doc.inspect (clé de `adjustment`, ou la chaîne "Invert"). Icônes : clés de la suite Deepotus Glyph (G4).
 const k = (kind, variante, icone) => Object.freeze({ kind, variante, icone, cle: "photolab.kind." + kind.toLowerCase() });
 export const KINDS = Object.freeze([
-  k("brightnessContrast", "BrightnessContrast", "sun"),
-  k("levels", "Levels", "sliders-horizontal"),
-  k("curves", "Curves", "pen-tool"),
-  k("exposure", "Exposure", "flame"),
-  k("vibrance", "Vibrance", "droplet"),
-  k("hueSaturation", "HueSaturation", "palette"),
-  k("colorBalance", "ColorBalance", "blend"),
-  k("blackWhite", "BlackWhite", "circle"),
-  k("photoFilter", "PhotoFilter", "scan"),
-  k("channelMixer", "ChannelMixer", "sliders"),
-  k("colorLookup", "ColorLookup", "hash"),
-  k("invert", "Invert", "diamond"),
-  k("posterize", "Posterize", "grid-3x3"),
-  k("threshold", "Threshold", "triangle"),
-  k("gradientMap", "GradientMap", "paint-bucket"),
-  k("selectiveColor", "SelectiveColor", "wand"),
+  k("brightnessContrast", "BrightnessContrast", "dz-calque-luminosite-contraste"),
+  k("levels", "Levels", "dz-calque-niveaux"),
+  k("curves", "Curves", "dz-calque-courbes"),
+  k("exposure", "Exposure", "dz-calque-exposition"),
+  k("vibrance", "Vibrance", "dz-calque-vibrance"),
+  k("hueSaturation", "HueSaturation", "dz-calque-teinte-saturation"),
+  k("colorBalance", "ColorBalance", "dz-calque-balance-couleurs"),
+  k("blackWhite", "BlackWhite", "dz-calque-noir-blanc"),
+  k("photoFilter", "PhotoFilter", "dz-calque-filtre-photo"),
+  k("channelMixer", "ChannelMixer", "dz-calque-melangeur-couches"),
+  k("colorLookup", "ColorLookup", "dz-calque-table-couleurs"),
+  k("invert", "Invert", "dz-calque-inverser"),
+  k("posterize", "Posterize", "dz-calque-posteriser"),
+  k("threshold", "Threshold", "dz-calque-seuil"),
+  k("gradientMap", "GradientMap", "dz-calque-mappage-degrade"),
+  k("selectiveColor", "SelectiveColor", "dz-calque-couleur-selective"),
 ]);
 const PAR_KIND = new Map(KINDS.map((x) => [x.kind, x]));
 const PAR_VARIANTE = new Map(KINDS.map((x) => [x.variante, x.kind]));
@@ -608,7 +608,7 @@ export function initReglages(PL) {
 
   PL.reglages = {
     kindDe,
-    icone: (kind) => (infoKind(kind) || {}).icone || "circle",
+    icone: (kind) => (infoKind(kind) || {}).icone || "dz-calque-reglage",
     cle: (kind) => (infoKind(kind) || {}).cle || "photolab.type_calque.adjustment",
     proprietes,
     menu,

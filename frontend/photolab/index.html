@@ -7,6 +7,9 @@
 <!-- Internationalisation : dictionnaire puis runtime, AVANT tout autre script (banc test_i18n_l0.py). -->
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
+<!-- Icônes Deepotus Glyph (G4) : après le runtime i18n, avant les modules du lab (PL.icone = dzIcone). -->
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
+<script src="/shared/icons/dz-icons.js"></script>
 <script src="/shared/dz-plafonds.js"></script>
 <script src="/shared/dialogue.js"></script>
 <link rel="stylesheet" href="photolab.css">
@@ -28,22 +31,22 @@
         <h1>Photolab</h1>
         <p>Crée un document ou ouvre une image.</p>
         <div class="accueil-boutons">
-          <button id="btnNouveau" class="btn plein" type="button">Nouveau…<kbd>Ctrl+N</kbd></button>
-          <button id="btnOuvrir" class="btn contour" type="button">Ouvrir depuis la Bibliothèque…<kbd>Ctrl+O</kbd></button>
+          <button id="btnNouveau" class="btn plein" type="button"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-nouveau"></use></svg>Nouveau…<kbd>Ctrl+N</kbd></button>
+          <button id="btnOuvrir" class="btn contour" type="button"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-choisir-bibliotheque"></use></svg>Ouvrir depuis la Bibliothèque…<kbd>Ctrl+O</kbd></button>
         </div>
         <p class="depot">Dépose une image ici pour l'ouvrir.</p>
       </div>
     </main>
 
     <nav id="rail" aria-label="Panneaux">
-      <button type="button" data-panneau="reglages" data-icone="sliders" title="Ajustements" aria-label="Ajustements"></button>
-      <button type="button" data-panneau="navigateur" data-icone="compass" title="Navigateur" aria-label="Navigateur"></button>
-      <button type="button" data-panneau="couleur" data-icone="palette" title="Couleur" aria-label="Couleur"></button>
-      <button type="button" data-panneau="calques" data-icone="layers" title="Calques" aria-label="Calques"></button>
-      <button type="button" data-panneau="historique" data-icone="history" title="Historique" aria-label="Historique"></button>
-      <button type="button" data-panneau="pinceaux" data-icone="brush" title="Pinceaux" aria-label="Pinceaux"></button>
-      <button type="button" data-panneau="infos" data-icone="info" title="Histogramme et infos" aria-label="Histogramme et infos"></button>
-      <button type="button" data-panneau="texte" data-icone="type" title="Texte" aria-label="Texte"></button>
+      <button type="button" data-panneau="reglages" title="Ajustements" aria-label="Ajustements"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-ajustements"></use></svg></button>
+      <button type="button" data-panneau="navigateur" title="Navigateur" aria-label="Navigateur"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-navigateur"></use></svg></button>
+      <button type="button" data-panneau="couleur" title="Couleur" aria-label="Couleur"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-couleur"></use></svg></button>
+      <button type="button" data-panneau="calques" title="Calques" aria-label="Calques"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-calques"></use></svg></button>
+      <button type="button" data-panneau="historique" title="Historique" aria-label="Historique"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-historique"></use></svg></button>
+      <button type="button" data-panneau="pinceaux" title="Pinceaux" aria-label="Pinceaux"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-pinceaux"></use></svg></button>
+      <button type="button" data-panneau="infos" title="Histogramme et infos" aria-label="Histogramme et infos"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-infos"></use></svg></button>
+      <button type="button" data-panneau="texte" title="Texte" aria-label="Texte"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-texte"></use></svg></button>
     </nav>
 
     <aside id="panneaux" aria-label="Panneaux">

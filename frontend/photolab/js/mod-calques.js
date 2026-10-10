@@ -92,11 +92,11 @@ export function positionDepot(y, hauteur, estGroupe) {
 
 // Les 5 verrous de photocraft (panels.rs:1337-1378) ; état tenu par l'écran, envoyé COMPLET à layer.setProps.
 export const VERROUS = [
-  { cle: "transparency", icone: "grid-3x3", cle_libelle: "photolab.verrou.transparence" },
-  { cle: "pixels", icone: "brush", cle_libelle: "photolab.verrou.pixels" },
-  { cle: "position", icone: "move", cle_libelle: "photolab.verrou.position" },
-  { cle: "artboard", icone: "scan", cle_libelle: "photolab.verrou.plan" },
-  { cle: "all", icone: "lock", cle_libelle: "photolab.verrou.tout" },
+  { cle: "transparency", icone: "dz-etat-verrou-transparence", cle_libelle: "photolab.verrou.transparence" },
+  { cle: "pixels", icone: "dz-etat-verrou-pixels", cle_libelle: "photolab.verrou.pixels" },
+  { cle: "position", icone: "dz-etat-verrou-position", cle_libelle: "photolab.verrou.position" },
+  { cle: "artboard", icone: "dz-etat-verrou-plan-travail", cle_libelle: "photolab.verrou.plan" },
+  { cle: "all", icone: "dz-etat-verrouille", cle_libelle: "photolab.verrou.tout" },
 ];
 export function basculerVerrou(etat, cle) {
   const e = {};
@@ -178,7 +178,7 @@ export function initCalques(PL) {
   let minutClic = null;          // clic simple en attente (annulé par un double-clic)
 
   const el = (tag, classe, texte) => { const e = document.createElement(tag); if (classe) e.className = classe; if (texte != null) e.textContent = texte; return e; };
-  const icone = (nom, cible) => { cible.dataset.icone = nom; PL.icone(nom).then((svg) => { if (cible.dataset.icone === nom) cible.innerHTML = svg; }); return cible; };
+  const icone = (nom, cible) => { cible.dataset.icone = nom; cible.innerHTML = PL.icone(nom); return cible; };
   const bouton = (classe, ico, titre) => {
     const b = el("button", classe); b.type = "button"; b.title = titre; b.setAttribute("aria-label", titre);
     if (ico) icone(ico, b);
@@ -204,18 +204,18 @@ export function initCalques(PL) {
 
   const liste = el("div", "cq-liste"); liste.setAttribute("role", "listbox"); liste.setAttribute("aria-label", T("photolab.panneau.calques"));
   const pied = el("div", "cq-pied");
-  const bLien = bouton("", "link", T("photolab.calques.lier"));
+  const bLien = bouton("", "dz-edit-lier", T("photolab.calques.lier"));
   // t138 B6 : le dialogue Style de calque (mod-styles.js, lu à l'exécution : aucun import croisé).
-  const bFx = bouton("", null, T("photolab.calques.style")); bFx.textContent = "fx";
-  const bMasque = bouton("", "scan", T("photolab.calques.masque"));
+  const bFx = bouton("", "dz-edit-effet", T("photolab.calques.style"));
+  const bMasque = bouton("", "dz-calque-masque", T("photolab.calques.masque"));
   // t138 B5 : petit menu des 16 calques de réglage (mod-reglages.js, lu à l'exécution : aucun import croisé).
-  const bReglage = bouton("", "circle", T("photolab.calques.reglage"));
+  const bReglage = bouton("", "dz-calque-reglage", T("photolab.calques.reglage"));
   bReglage.setAttribute("aria-haspopup", "menu");
-  const bGroupe = bouton("", "folder-plus", T("photolab.calques.nouveau_groupe"));
-  const bNouveau = bouton("", "file-plus", T("photolab.calques.nouveau"));
-  const bDupliquer = bouton("", "copy", T("photolab.calques.dupliquer"));
-  const bFusionner = bouton("", "layers", T("photolab.calques.fusionner"));
-  const bSupprimer = bouton("", "trash-2", T("photolab.calques.supprimer"));
+  const bGroupe = bouton("", "dz-edit-grouper", T("photolab.calques.nouveau_groupe"));
+  const bNouveau = bouton("", "dz-calque-nouveau", T("photolab.calques.nouveau"));
+  const bDupliquer = bouton("", "dz-action-dupliquer", T("photolab.calques.dupliquer"));
+  const bFusionner = bouton("", "dz-calque-fusionner", T("photolab.calques.fusionner"));
+  const bSupprimer = bouton("", "dz-action-supprimer", T("photolab.calques.supprimer"));
   pied.append(bLien, bFx, bMasque, bReglage, bGroupe, bNouveau, bDupliquer, bFusionner, bSupprimer);
   corps.textContent = "";
   corps.append(tete, liste, pied);
@@ -268,7 +268,7 @@ export function initCalques(PL) {
 
   function vignette(c) {
     const box = el("span", "cq-vignette");
-    if (c.groupe) { icone("layers", box); return box; }
+    if (c.groupe) { icone("dz-calque-groupe", box); return box; }
     // Calque de réglage : l'icône de son kind à la place de la vignette (il n'a pas de pixels) ; double-clic -> son
     // éditeur dans l'onglet Propriétés. dataset.icone (posé par icone()) tient les vignettes à l'écart de cette case.
     const kr = PL.reglages ? PL.reglages.kindDe(c) : null;
@@ -289,7 +289,7 @@ export function initCalques(PL) {
     // t157 : badge de l'objet dynamique dans le coin de sa vignette (amont smart_ui.rs:12-21)
     if (/smart/i.test(String(c.kind || ""))) {
       const b = el("span", "cq-badge-dynamique"); b.title = T("photolab.calques.objet_dynamique");
-      PL.icone("app-window").then((svg) => { b.innerHTML = svg; });
+      b.innerHTML = PL.icone("dz-calque-objet-dynamique");
       box.classList.add("dynamique"); box.appendChild(b);
     }
     return box;
@@ -304,13 +304,13 @@ export function initCalques(PL) {
     l.classList.toggle("choisi", !!choisi);
     l.classList.toggle("cache", c.visible === false);
     l.draggable = true;
-    const oeil = bouton("cq-oeil", c.visible === false ? "eye-off" : "eye", T(c.visible === false ? "photolab.calques.montrer" : "photolab.calques.masquer"));
+    const oeil = bouton("cq-oeil", c.visible === false ? "dz-etat-cache" : "dz-etat-visible", T(c.visible === false ? "photolab.calques.montrer" : "photolab.calques.masquer"));
     oeil.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("layer.setProps", { layer: c.id, visible: c.visible === false }); });
     const retrait = el("span", "cq-retrait"); retrait.style.width = c.profondeur * 14 + "px";
     const chevron = el("span", "cq-chevron");
     if (c.groupe) {
       const ouvert = c.expanded !== false && !replies.has(c.id);
-      const b = bouton("cq-plier", ouvert ? "chevron-down" : "chevron-right", T(ouvert ? "photolab.calques.replier" : "photolab.calques.deplier"));
+      const b = bouton("cq-plier" + (ouvert ? "" : " pl-replie"), "dz-action-deplier", T(ouvert ? "photolab.calques.replier" : "photolab.calques.deplier"));
       b.addEventListener("click", (ev) => { ev.stopPropagation(); if (replies.has(c.id)) replies.delete(c.id); else replies.add(c.id); dessiner(PL.etat.doc); });
       chevron.appendChild(b);
     }
@@ -320,11 +320,11 @@ export function initCalques(PL) {
     l.append(oeil, retrait, chevron, vignette(c), ...masque(c), nom);
     if (aDesEffets(c)) l.appendChild(badgeFx(c));
     // t157 : calque lié (amont : icône « link » à droite de la ligne)
-    if (c.linkGroup != null) { const li = el("span", "cq-lie"); li.title = T("photolab.calques.lie"); icone("link", li); l.appendChild(li); }
+    if (c.linkGroup != null) { const li = el("span", "cq-lie"); li.title = T("photolab.calques.lie"); icone("dz-edit-lier", li); l.appendChild(li); }
     // t157 : objet dynamique à filtres — triangle qui replie ses sous-lignes
     if (Array.isArray(c.smartFilters) && c.smartFilters.length) {
       const cle = "sf-" + c.id, ouvert = !replies.has(cle);
-      const b = bouton("cq-sf-plier", ouvert ? "chevron-down" : "chevron-right", T(ouvert ? "photolab.filtres.replier" : "photolab.filtres.deplier"));
+      const b = bouton("cq-sf-plier" + (ouvert ? "" : " pl-replie"), "dz-action-deplier", T(ouvert ? "photolab.filtres.replier" : "photolab.filtres.deplier"));
       b.addEventListener("click", (ev) => { ev.stopPropagation(); if (replies.has(cle)) replies.delete(cle); else replies.add(cle); dessiner(PL.etat.doc); });
       l.appendChild(b);
     }
@@ -335,7 +335,7 @@ export function initCalques(PL) {
     }
     const v = PL.etat.verrous[c.id];
     if (estFond(c, doc.layers) || (v && Object.values(v).some(Boolean))) {
-      const cad = el("span", "cq-cadenas"); cad.title = T("photolab.verrou.tout"); icone("lock", cad); l.appendChild(cad);
+      const cad = el("span", "cq-cadenas"); cad.title = T("photolab.verrou.tout"); icone("dz-etat-verrouille", cad); l.appendChild(cad);
     }
     // Clic simple différé : un double-clic (renommer) doit trouver le nom encore en place. Sélectionner tout de suite
     // relancerait un cycle qui redessine la liste entre les deux clics.
@@ -379,7 +379,7 @@ export function initCalques(PL) {
   // Badge « fx » d'un calque qui a des effets ; double-clic -> dialogue Style de calque SUR CE calque : il est d'abord
   // sélectionné et relu (le dialogue lit le calque actif de PL.etat.doc), puis le dialogue s'ouvre.
   function badgeFx(c) {
-    const b = el("span", "cq-fx", "fx");
+    const b = el("span", "cq-fx"); b.innerHTML = PL.icone("dz-edit-effet");
     b.title = T("photolab.calques.style");
     b.addEventListener("dblclick", async (ev) => {
       ev.stopPropagation();
@@ -446,7 +446,7 @@ export function initCalques(PL) {
     if (!c.hasMask) return [];
     const em = etatMasque(c.id);
     // chaîne : liée par défaut (le moteur ne relit pas cet état) ; clic = lier / délier le masque au calque
-    const chaine = bouton("cq-chaine" + (em.lie ? " lie" : ""), "link", T(em.lie ? "photolab.calques.masque_lie" : "photolab.calques.masque_delie"));
+    const chaine = bouton("cq-chaine" + (em.lie ? " lie" : ""), "dz-edit-lier", T(em.lie ? "photolab.calques.masque_lie" : "photolab.calques.masque_delie"));
     chaine.addEventListener("click", async (ev) => {
       ev.stopPropagation();
       const r = await PL.executer("layer.layerMask.linked", { layer: c.id });
@@ -519,7 +519,7 @@ export function initCalques(PL) {
   function lignesFiltres(c) {
     const off = c.smartFiltersEnabled === false;
     const tete = el("div", "cq-ligne cq-sf-tete" + (off ? " cache" : ""));
-    const oeilT = bouton("cq-oeil", off ? "eye-off" : "eye", T(off ? "photolab.filtres.activer" : "photolab.filtres.desactiver"));
+    const oeilT = bouton("cq-oeil", off ? "dz-etat-cache" : "dz-etat-visible", T(off ? "photolab.filtres.activer" : "photolab.filtres.desactiver"));
     oeilT.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("layer.smartFilter.disableSmartFilters", { layer: c.id }); });
     const r = el("span", "cq-retrait"); r.style.width = (c.profondeur * 14 + 22) + "px";
     tete.append(oeilT, r, el("span", "cq-sf-nom", T("photolab.filtres.titre")));
@@ -528,15 +528,15 @@ export function initCalques(PL) {
       const cache = f.visible === false || off;
       const l = el("div", "cq-ligne cq-sf" + (cache ? " cache" : ""));
       l.dataset.filtre = String(f.index);
-      const oeil = bouton("cq-oeil", f.visible === false ? "eye-off" : "eye", T(f.visible === false ? "photolab.calques.montrer" : "photolab.calques.masquer"));
+      const oeil = bouton("cq-oeil", f.visible === false ? "dz-etat-cache" : "dz-etat-visible", T(f.visible === false ? "photolab.calques.montrer" : "photolab.calques.masquer"));
       oeil.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("layer.smartFilter.setVisible", { layer: c.id, index: f.index }); });
       const rr = el("span", "cq-retrait"); rr.style.width = (c.profondeur * 14 + 36) + "px";
       const nom = el("span", "cq-sf-nom", libelleFiltre(f.command));
       nom.title = T("photolab.filtres.editer");
       nom.addEventListener("dblclick", (ev) => { ev.stopPropagation(); editerFiltre(c, f); });
-      const opt = bouton("cq-sf-opt", "sliders", T("photolab.filtres.options"));
+      const opt = bouton("cq-sf-opt", "dz-action-reglages", T("photolab.filtres.options"));
       opt.addEventListener("click", (ev) => { ev.stopPropagation(); optionsFiltre(c, f); });
-      const sup = bouton("cq-sf-sup", "trash-2", T("photolab.filtres.supprimer"));
+      const sup = bouton("cq-sf-sup", "dz-action-supprimer", T("photolab.filtres.supprimer"));
       sup.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("layer.smartFilter.delete", { layer: c.id, index: f.index }); });
       l.append(oeil, rr, nom, opt, sup);
       // glisser pour réordonner dans la pile du même calque
