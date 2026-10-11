@@ -90,6 +90,12 @@ def via_facade(model: str) -> bool:
     return meta["needs"] == "FAL_KEY" or model.startswith("gpt-image-2.5")
 
 
+def est_vectoriel(model: str) -> bool:
+    """t182 : vrai si l'id rend du SVG (drapeau `svg` de FAL_IMAGES). SEUL
+    prédicat de l'app : routes, available(), catalogue_ia le lisent ici."""
+    return bool((FAL_IMAGES.get(model) or {}).get("svg"))
+
+
 def missing_key(model: str) -> str | None:
     """Nom de la clé manquante pour un id du registre, sinon None."""
     meta = PROVIDERS.get(model)
@@ -110,7 +116,7 @@ def available() -> list[dict]:
     """Générateurs des planches (raster) : un modèle vectoriel n'y est pas."""
     out = []
     for pid, meta in PROVIDERS.items():
-        if (FAL_IMAGES.get(pid) or {}).get("svg"):
+        if est_vectoriel(pid):
             continue
         if getattr(settings, meta["needs"], "").strip():
             out.append({"id": pid, "label": meta["label"],
@@ -374,15 +380,20 @@ async def _fal_image_generate(model: str, prompt: str, size: str, n: int,
     endpoint, arguments = build_fal_image_request(model, prompt, size, urls, n)
     tirs = 1 if m.get("multi", True) else max(1, int(n))
     trouves: list[str] = []
+    result = None
     for _ in range(tirs):
         result = await fal_client.subscribe_async(endpoint,
                                                   arguments=arguments)
-        res = result or {}
-        imgs = res.get("images") or ([res["image"]] if res.get("image") else [])
-        trouves += [im.get("url") for im in imgs if im.get("url")]
+        res = result if isinstance(result, dict) else {}
+        imgs = res.get("images")
+        if not isinstance(imgs, list):
+            imgs = [res["image"]] if res.get("image") else []
+        trouves += [im["url"] for im in imgs
+                    if isinstance(im, dict) and im.get("url")]
     if not trouves:
-        raise RuntimeError(f"{model} (fal) returned no images: {result}")
-    return await _download(trouves, ".svg" if m.get("svg") else ".png")
+        raise RuntimeError(f"{model} (fal) returned no images: "
+                           f"{str(result)[:200]}")
+    return await _download(trouves, ".svg" if est_vectoriel(model) else ".png")
 
 
 # ─────────────────────────── façade unifiée ───────────────────────────
@@ -392,12 +403,19 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
                    image_path: Path | None = None,
                    ratio: str | None = None,
                    background: str | None = None,
-                   image_paths: list[Path] | None = None) -> dict:
+                   image_paths: list[Path] | None = None,
+                   sortie: str = "raster") -> dict:
     """Génère via le provider choisi. Retour: {"images":[filenames],
     "seed": int|None} (seed None = provider non déterministe). `ratio`
     (ex. "9:16") force le cadre des EDITS (image_path fourni) — sinon le
     modèle edit suit le cadre de l'image d'entrée. `background`
-    ("transparent") n'est honoré que par GPT Image 2.5 Flare."""
+    ("transparent") n'est honoré que par GPT Image 2.5 Flare.
+    `sortie` (t182) : un modèle vectoriel n'est servi qu'à qui demande
+    « svg » — défense en profondeur pour les chemins raster (planches de
+    l'Atelier DA, lots d'art) qui appellent la façade sans le dire."""
+    if est_vectoriel(provider) and sortie != "svg":
+        raise RuntimeError(f"{provider} rend du SVG : à utiliser depuis le "
+                           f"Vectorlab.")
     # LES CHEMINS FAL D'ABORD : les « gpt-image-…-fal » commencent par
     # « gpt-image » — testés après le préfixe OpenAI, ils partiraient chez
     # OpenAI avec la mauvaise clé ET la mauvaise facture.

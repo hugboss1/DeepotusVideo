@@ -8469,7 +8469,8 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
 
     # t182 : un modèle VECTORIEL (SVG) n'est servi qu'à qui demande du SVG —
     # refusé AVANT toute garde de dépense, aucun tir.
-    if (IP.FAL_IMAGES.get(model) or {}).get("svg") and             str(body.get("sortie") or "").strip().lower() != "svg":
+    sortie = str(body.get("sortie") or "").strip().lower() or "raster"
+    if IP.est_vectoriel(model) and sortie != "svg":
         raise HTTPException(400, "Recraft vectoriel rend du SVG : à utiliser "
                                  "depuis le Vectorlab.")
 
@@ -8487,7 +8488,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         background = (body.get("background") or "").strip().lower() or None
         try:
             out = await IP.generate(model, prompt, size, n,
-                                    background=background)
+                                    background=background, sortie=sortie)
         except RuntimeError as e:
             raise HTTPException(502, str(e))
         except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502, pas 500
@@ -8756,6 +8757,12 @@ async def _process_image_core(body: dict):
                     _s, "image_model_default")).strip().lower()
         size = body.get("size") or "portrait_16_9"
         from app.services import image_providers as IP
+        # t182 : un modèle vectoriel (Recraft) ne retouche pas — refusé AVANT
+        # la garde de dépense, qui ÉCRIT une ligne de dépense (sinon dépense
+        # fantôme suivie d'un 502).
+        if IP.est_vectoriel(model):
+            raise HTTPException(400, f"{model} : pas de retouche (texte → "
+                                     f"image seulement).")
         # façade du registre (ids fal, nano-banana-pro, GPT Image 2.5) testée
         # AVANT le préfixe : nano-banana-pro tombait sur Kontext sans le dire
         if IP.via_facade(model) or model.startswith("gpt-image") \
@@ -9000,7 +9007,7 @@ async def list_image_models():
     for m in out:
         e = par_id.get(m["id"]) or {}
         m.update(voie=e.get("voie", m.get("provider")), cle=e.get("cle"),
-                 usd=e.get("usd", 0.0))
+                 usd=e.get("usd", 0.0), sortie=e.get("sortie", "raster"))
     return {"models": out, "configured": configured,
             "default": configured or ("flux" if settings.FAL_KEY
                                       else (out[0]["id"] if out else "")),
@@ -9016,7 +9023,7 @@ async def ia_catalogue(nature: str = ""):
         return {"nature": nature, "modeles": CI.lister(nature)}
     except KeyError:
         raise HTTPException(400, f"nature inconnue : {nature or '(vide)'} — "
-                                 f"{', '.join(sorted(CI._SOURCES))}.")
+                                 f"{', '.join(CI.natures())}.")
 
 
 # ═════════════════════ Atelier Chapitre (v1.17, P1) ═════════════════════

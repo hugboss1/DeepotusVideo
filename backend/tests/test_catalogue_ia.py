@@ -31,10 +31,21 @@ Ce que le banc tient :
       usd ; GET /ia/catalogue?nature=image idem ; nature inconnue -> 400 ;
   [5b] recraft absent de `models`, présent dans `tous` avec sortie="svg" ;
       toutes les autres entrées sortie="raster" ;
-  [6] un prix inconnu (clé de prix à 0) donne usd=0.0 et `note` contenant
-      « prix à mesurer » ; un prix connu n'a pas de note.
+  [6] un prix inconnu (clé de prix à 0) donne usd=0.0 et `note` = le CODE
+      "a_mesurer" (traduit par le front) ; un prix connu n'a pas de note ;
+  [2c] dérives entre registres : FAL_IMAGES ⊂ PROVIDERS (FAL_KEY), ids svg de
+      FAL_IMAGES == _IMAGE_MODELS_VECTEUR, tables de prix ⊂ PROVIDERS ∪ {flux}
+      et disjointes, `sortie`/`edit` du catalogue = est_vectoriel / FAL_IMAGES ;
+  [4c] /images/process op=edit avec recraft -> 400 AVANT la garde de dépense :
+      aucun tir, ZÉRO ligne `depenses` écrite (témoin : un edit flux-3 en
+      écrit une) ; la façade IP.generate refuse recraft sans sortie="svg" ;
+  [7] la VRAIE couture _fal_image_generate (fal_client.subscribe_async,
+      téléversement et _download remplacés par des enregistreurs) : flux-3
+      n=3 -> 3 tirs, seedream n=3 -> 1 tir num_images=3, extension .svg pour
+      recraft et .png sinon, RuntimeError sans image, recraft + référence ->
+      ValueError sans téléversement, références plafonnées à REF_MAX.
 
-AUCUN appel réel : `_fal_image_generate`, `_openai_generate`,
+AUCUN appel réel : `_fal_image_generate` (sauf en [7]), `_openai_generate`,
 `_banana_generate`, `_fal_gpt_generate` et `routes._flux_generate` sont des
 espions ; `fal_client.*` et tout `httpx.AsyncClient.post` hors du client de
 test sont des gardes qui COMPTENT.
@@ -158,6 +169,7 @@ def _interdit(nom):
     return _f
 
 
+_VRAIE_FALIMG = IP._fal_image_generate          # pour [7]
 IP._fal_image_generate = _esp_falimg
 IP._openai_generate = _interdit("openai")
 IP._banana_generate = _interdit("banana")
@@ -210,7 +222,7 @@ for e in img:
     check(f"{e['id']} a ses champs", all(k in e for k in CHAMPS), str(e))
     check(f"{e['id']} usd float", isinstance(e.get("usd"), float), repr(e.get("usd")))
 jumeaux = [e for e in img if e["jumeau"]]
-check("TÉMOIN : au moins trois paires de jumeaux", len(jumeaux) >= 6, str(len(jumeaux)))
+check("TÉMOIN : au moins trois paires de jumeaux (six entrées jumelées)", len(jumeaux) >= 6, str(len(jumeaux)))
 for e in jumeaux:
     j = next((x for x in img if x["id"] == e["jumeau"]), None)
     check(f"jumeau symétrique {e['id']}", j is not None and j["jumeau"] == e["id"]
@@ -279,8 +291,33 @@ settings.FAL_KEY = "test-key"
 check("recraft hors de IP.available() (générateurs des planches)",
       "recraft-4.1-vecteur" not in [x["id"] for x in IP.available()]
       and "flux-3" in [x["id"] for x in IP.available()])
-check("materialforge écarte les modèles vectoriels de son sélecteur",
-      re.search(r"\.filter\(.{0,40}/vecteur/", mf) is not None)
+check("materialforge écarte les modèles vectoriels de son sélecteur (champ sortie)",
+      re.search(r"\.filter\(\(m\) => m\.sortie !== \"svg\"\)", mf) is not None)
+
+# ── [2c] dérives entre registres ────────────────────────────────────────────
+print("[2c] dérives entre registres")
+check("FAL_IMAGES ⊂ PROVIDERS", set(IP.FAL_IMAGES) <= set(IP.PROVIDERS),
+      str(set(IP.FAL_IMAGES) - set(IP.PROVIDERS)))
+check("chaque id de FAL_IMAGES exige FAL_KEY",
+      all(IP.PROVIDERS[i]["needs"] == "FAL_KEY" for i in IP.FAL_IMAGES if i in IP.PROVIDERS))
+_svg = {i for i in IP.FAL_IMAGES if IP.est_vectoriel(i)}
+check("ids svg de FAL_IMAGES == _IMAGE_MODELS_VECTEUR", _svg == set(P._IMAGE_MODELS_VECTEUR),
+      str(_svg ^ set(P._IMAGE_MODELS_VECTEUR)))
+check("TÉMOIN : au moins un id svg", len(_svg) >= 1)
+check("tables de prix ⊂ PROVIDERS ∪ {flux}",
+      (set(P._IMAGE_MODELS) | set(P._IMAGE_MODELS_VECTEUR)) <= (set(IP.PROVIDERS) | {"flux"}),
+      str((set(P._IMAGE_MODELS) | set(P._IMAGE_MODELS_VECTEUR)) - set(IP.PROVIDERS) - {"flux"}))
+check("_IMAGE_MODELS et _IMAGE_MODELS_VECTEUR disjoints",
+      not (set(P._IMAGE_MODELS) & set(P._IMAGE_MODELS_VECTEUR)))
+_cat = CI.lister("image")
+check("sortie du catalogue = est_vectoriel",
+      all(e["sortie"] == ("svg" if IP.est_vectoriel(e["id"]) else "raster") for e in _cat),
+      str([(e["id"], e["sortie"]) for e in _cat if e["sortie"] != ("svg" if IP.est_vectoriel(e["id"]) else "raster")]))
+check("edit du catalogue = FAL_IMAGES (True hors FAL_IMAGES)",
+      all(e["edit"] is (bool(IP.FAL_IMAGES[e["id"]]["edit"]) if e["id"] in IP.FAL_IMAGES else True) for e in _cat))
+check("recraft : sortie svg, edit False",
+      any(e["id"] == "recraft-4.1-vecteur" and e["sortie"] == "svg" and e["edit"] is False for e in _cat))
+check("natures() publiques = ('image',)", CI.natures() == ("image",), str(CI.natures()))
 check("gpt-image-1-mini dans PROVIDERS (OPENAI_API_KEY)",
       (IP.PROVIDERS.get("gpt-image-1-mini") or {}).get("needs") == "OPENAI_API_KEY")
 check("gpt-image-1-mini hors façade (chemin OpenAI des routes)", not IP.via_facade("gpt-image-1-mini"))
@@ -360,6 +397,44 @@ check("recraft sortie=svg -> 200", st == 200 and js.get("model") == "recraft-4.1
 check("recraft sortie=svg passe par _fal_image_generate",
       [x["model"] for x in ESP["falimg"]] == ["recraft-4.1-vecteur"] and ESP["interdit"] == [], str(ESP))
 
+# ── [4c] recraft en retouche : refus AVANT la garde de dépense ──────────────
+print("[4c] recraft en retouche, façade")
+import sqlite3                                                   # noqa: E402
+
+
+def n_depenses():
+    con = sqlite3.connect(TMP + "/t.db")
+    try:
+        return con.execute("SELECT COUNT(*) FROM depenses").fetchone()[0]
+    finally:
+        con.close()
+
+
+reset()
+d0 = n_depenses()
+st, js = call("POST", "/images/process", {"op": "edit", "filename": SRC, "prompt": "en bleu",
+                                          "model": "recraft-4.1-vecteur"})
+check("process edit recraft -> 400 « pas de retouche »", st == 400 and "pas de retouche" in str(js), f"{st} {js}")
+check("process edit recraft : aucun tir", ESP["falimg"] == [] and ESP["interdit"] == [], str(ESP))
+check("process edit recraft : ZÉRO ligne depenses écrite", n_depenses() == d0, f"{d0} -> {n_depenses()}")
+reset()
+st, js = call("POST", "/images/process", {"op": "variations", "filename": SRC, "model": "recraft-4.1-vecteur"})
+check("process variations recraft -> 400, zéro dépense", st == 400 and n_depenses() == d0
+      and ESP["falimg"] == [], f"{st} {js}")
+reset()
+st, js = call("POST", "/images/process", {"op": "edit", "filename": SRC, "prompt": "en bleu", "model": "flux-3"})
+check("TÉMOIN : un edit flux-3 écrit bien une ligne depenses", st == 200 and n_depenses() == d0 + 1,
+      f"{st} {d0} -> {n_depenses()}")
+reset()
+try:
+    asyncio.run(IP.generate("recraft-4.1-vecteur", "logo", "square", 1))
+    check("façade : recraft sans sortie=svg -> RuntimeError", False)
+except RuntimeError as e:
+    check("façade : recraft sans sortie=svg -> RuntimeError", "Vectorlab" in str(e) and ESP["falimg"] == [], str(e))
+out = asyncio.run(IP.generate("recraft-4.1-vecteur", "logo", "square", 1, sortie="svg"))
+check("façade : recraft avec sortie=svg -> couture", [x["model"] for x in ESP["falimg"]] == ["recraft-4.1-vecteur"]
+      and out.get("images"), str(ESP))
+
 # ── [5] routes de lecture ───────────────────────────────────────────────────
 print("[5] /image-models et /ia/catalogue")
 st, r = call("GET", "/image-models")
@@ -404,7 +479,7 @@ _avant = P.DEFAULTS[cle_ideo]
 P.DEFAULTS[cle_ideo] = 0.0
 try:
     e = next(x for x in CI.lister("image") if x["id"] == "ideogram-4.5")
-    check("prix inconnu = 0.0 + à mesurer", e["usd"] == 0.0 and "prix à mesurer" in (e.get("note") or ""), str(e))
+    check("prix inconnu = 0.0 + note codée « a_mesurer »", e["usd"] == 0.0 and e.get("note") == "a_mesurer", str(e))
 finally:
     P.DEFAULTS[cle_ideo] = _avant
 e = next(x for x in CI.lister("image") if x["id"] == "flux-3")
@@ -423,10 +498,92 @@ a = (ICI.parent.parent / "frontend/shared/dz-champ-ia.js").read_bytes()
 b = (ICI.parent.parent / "frontend/dist/shared/dz-champ-ia.js").read_bytes()
 check("copie dist octet pour octet", a == b)
 
+# ── [7] la VRAIE couture _fal_image_generate ────────────────────────────────
+print("[7] couture _fal_image_generate (réelle, réseau remplacé)")
+from app.services import fal_service as FS                      # noqa: E402
+
+TIRS, DL, UP = [], [], []
+REPONSES = []                   # réponses successives de subscribe_async
+
+
+async def _sub(endpoint, arguments=None, **k):
+    TIRS.append((endpoint, dict(arguments or {})))
+    return REPONSES.pop(0) if REPONSES else {"images": [{"url": "u1"}]}
+
+
+async def _dl(urls, ext=".png"):
+    DL.append((list(urls), ext))
+    return [f"f{i}{ext}" for i in range(len(urls))]
+
+
+async def _up(chemin):
+    UP.append(chemin)
+    return f"https://up/{len(UP)}"
+
+_garde_sub, _vrai_dl, _vrai_up = fal_client.subscribe_async, IP._download, FS.FalSeedanceClient.upload_image
+fal_client.subscribe_async = _sub
+IP._download = _dl
+FS.FalSeedanceClient.upload_image = staticmethod(_up)
+
+
+def raz(*rep):
+    TIRS.clear(); DL.clear(); UP.clear(); REPONSES.clear(); REPONSES.extend(rep)
+
+
+try:
+    raz()
+    out = asyncio.run(_VRAIE_FALIMG("flux-3", "chat", "square", 3))
+    check("flux-3 n=3 -> 3 tirs (pas de num_images)", len(TIRS) == 3
+          and all("num_images" not in a for _, a in TIRS), str(TIRS))
+    check("flux-3 : 3 images, extension .png", DL == [(["u1", "u1", "u1"], ".png")] and len(out) == 3, str(DL))
+    raz()
+    asyncio.run(_VRAIE_FALIMG("seedream-5-pro", "chat", "square", 3))
+    check("seedream n=3 -> 1 tir num_images=3", len(TIRS) == 1 and TIRS[0][1].get("num_images") == 3, str(TIRS))
+    raz({"image": {"url": "u2"}})
+    asyncio.run(_VRAIE_FALIMG("recraft-4.1-vecteur", "logo", "square", 1))
+    check("recraft : forme {image:{url}} lue, extension .svg", DL == [(["u2"], ".svg")], str(DL))
+    raz({}, {"images": "pas une liste"})
+    try:
+        asyncio.run(_VRAIE_FALIMG("flux-3", "chat", "square", 2))
+        check("aucune image -> RuntimeError", False)
+    except RuntimeError as e:
+        check("aucune image -> RuntimeError (message tronqué)", "no images" in str(e) and len(str(e)) < 300
+              and DL == [], str(e))
+    raz({"images": [{"url": "u3"}, "pas un dict", {"pas": "d'url"}]})
+    asyncio.run(_VRAIE_FALIMG("qwen-image-3", "chat", "square", 1))
+    check("entrées non-dict ou sans url ignorées", DL == [(["u3"], ".png")], str(DL))
+    raz()
+    try:
+        asyncio.run(_VRAIE_FALIMG("recraft-4.1-vecteur", "logo", "square", 1,
+                                  image_paths=[settings.images_path / SRC]))
+        check("recraft + référence -> ValueError", False)
+    except ValueError:
+        check("recraft + référence -> ValueError, zéro téléversement, zéro tir", UP == [] and TIRS == [], str((UP, TIRS)))
+    raz()
+    refs = [settings.images_path / SRC] * (IP.REF_MAX + 3)
+    asyncio.run(_VRAIE_FALIMG("seedream-5-pro", "chat", "square", 1, image_paths=refs))
+    check(f"références plafonnées à REF_MAX ({IP.REF_MAX})", len(UP) == IP.REF_MAX
+          and len(TIRS[0][1].get("image_urls") or []) == IP.REF_MAX
+          and TIRS[0][0] == "bytedance/seedream/v5/pro/edit", str((len(UP), TIRS[:1])))
+except Exception as e:  # noqa: BLE001
+    check("section [7] sans exception", False, temoin(e))
+finally:
+    fal_client.subscribe_async = _garde_sub
+    IP._download = _vrai_dl
+    FS.FalSeedanceClient.upload_image = _vrai_up
+
 # ── garde réseau et plantages ───────────────────────────────────────────────
 check("aucun_appel_reseau", RESEAU["n"] == 0, repr(RESEAU["noms"]))
 check("aucun_appel_n_a_plante", _plantages == 0,
       f"{_plantages} appel(s) ont levé — voir les lignes FAIL ci-dessus")
 
 print(f"\n{ok} ok, {fail} fail")
+# dossier temporaire du banc : la base fermée d'abord (Windows verrouille un
+# fichier sqlite ouvert), puis le dossier
+try:
+    from app.services.storage import _engine
+    asyncio.run(_engine.dispose())
+except Exception:  # noqa: BLE001
+    pass
+shutil.rmtree(TMP, ignore_errors=True)
 sys.exit(1 if fail else 0)

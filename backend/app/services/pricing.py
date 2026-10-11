@@ -229,7 +229,9 @@ _IMAGE_MODELS_VECTEUR = {
 def image_model_spec(model: str) -> tuple:
     """(libellé, fournisseur, clé de prix) d'un id d'image, raster ou
     vectoriel ; repli FLUX pour un id inconnu (comportement d'avant)."""
-    return _IMAGE_MODELS.get(model) or _IMAGE_MODELS_VECTEUR.get(model)         or _IMAGE_MODELS["flux"]
+    return (_IMAGE_MODELS.get(model)
+            or _IMAGE_MODELS_VECTEUR.get(model)
+            or _IMAGE_MODELS["flux"])
 
 
 def load() -> dict:

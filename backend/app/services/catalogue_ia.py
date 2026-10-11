@@ -7,7 +7,15 @@ qui la sert, si cette clé est posée (`dispo`), son prix unitaire (`usd`,
 `unite`) et son JUMEAU — le même modèle servi par l'autre voie
 (gpt-image-2 <-> gpt-image-2-fal). Un modèle sans clé reste PRÉSENT
 (dispo=False) : c'est au sélecteur de le griser, pas au catalogue de le
-cacher. Un prix à 0 se dit « prix à mesurer », jamais « gratuit ».
+cacher.
+
+Champs codés (jamais de texte français : l'écran traduit) :
+- `note` : "" ou "a_mesurer" — prix inconnu (usd == 0). Le front affiche
+  dzT("ia.prix.a_mesurer") (« prix à mesurer » / "price to be measured"),
+  jamais « gratuit ».
+- `sortie` : "raster" ou "svg" (image_providers.est_vectoriel) — seuls les
+  écrans vectoriels proposent un modèle "svg".
+- `edit` : le modèle accepte une image d'entrée (retouche).
 """
 from app.config import settings
 from app.services import pricing as P
@@ -15,11 +23,9 @@ from app.services import pricing as P
 CLES = {"fal": "FAL_KEY", "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY",
         "elevenlabs": "ELEVENLABS_API_KEY", "meshy": "MESHY_API_KEY",
         "heygen": "HEYGEN_API_KEY", "local": None}
-NATURES = ("image",)            # étendu par les lots suivants (G2, G4…G7)
-
 _SOURCES = {}                   # nature -> fonction () -> list[dict] brutes
 
-PRIX_A_MESURER = "prix à mesurer"
+NOTE_A_MESURER = "a_mesurer"     # code ; libellé : dzT("ia.prix.a_mesurer")
 
 
 def source(nature):
@@ -29,6 +35,12 @@ def source(nature):
         _SOURCES[nature] = fn
         return fn
     return deco
+
+
+def natures() -> tuple:
+    """Les natures d'appel inscrites (« image » ; les lots suivants en
+    ajoutent par @source)."""
+    return tuple(sorted(_SOURCES))
 
 
 def _dispo(voie: str) -> bool:
@@ -46,20 +58,19 @@ def _images() -> list[dict]:
     p = P.load()
     inverse = {v: k for k, v in IP._FAL_GPT.items()}
     out = []
-    registre = [(mid, spec, "raster") for mid, spec in P._IMAGE_MODELS.items()]
-    registre += [(mid, spec, "svg") for mid, spec in P._IMAGE_MODELS_VECTEUR.items()]
-    for mid, (label, voie, cle_prix), sortie in registre:
+    registre = list(P._IMAGE_MODELS.items()) + list(P._IMAGE_MODELS_VECTEUR.items())
+    for mid, (label, voie, cle_prix) in registre:
         try:
             usd = float(p.get(cle_prix, P.DEFAULTS.get(cle_prix, 0.0)) or 0.0)
         except (TypeError, ValueError):
             usd = 0.0
         jumeau = IP._FAL_GPT.get(mid) or inverse.get(mid)
-        fal = IP.FAL_IMAGES.get(mid) or {}
+        fal = IP.FAL_IMAGES.get(mid)
         out.append({"id": mid, "label": label, "voie": voie, "usd": usd,
                     "unite": "image", "jumeau": jumeau,
-                    "note": "" if usd else PRIX_A_MESURER,
-                    "edit": not (fal and not fal.get("edit")),
-                    "sortie": sortie})
+                    "note": "" if usd else NOTE_A_MESURER,
+                    "edit": bool(fal["edit"]) if fal else True,
+                    "sortie": "svg" if IP.est_vectoriel(mid) else "raster"})
     return out
 
 

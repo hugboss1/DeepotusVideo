@@ -557,8 +557,8 @@ async function loadModels() {
   let models = [];
   try {
     const d = await api.get("/image-models");
-    /* t182 : un modèle vectoriel (SVG, ex. recraft-4.1-vecteur) ne fait pas une texture */
-    models = ((d && d.models) || []).filter((m) => !/vecteur/.test(m.id || ""));
+    /* t182 : un modèle vectoriel (sortie "svg", lue au catalogue) ne fait pas une texture */
+    models = ((d && d.models) || []).filter((m) => m.sortie !== "svg");
     state.model = d.default || (models[0] && models[0].id) || "";
   } catch (e) { models = []; }
   if (!models.length) {
