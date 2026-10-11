@@ -1,0 +1,369 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "aucune donnée à semer : Card Forge ouvre son jeu par défaut, le catalogue CC0 et les générateurs sont embarqués (rien de payant)",
+ "scenes": [
+  {
+   "scene": "cardforge/ecran",
+   "url": "/cardforge/",
+   "titre": {
+    "fr": "L'écran du Card Forge",
+    "en": "The Card Forge screen"
+   },
+   "legende": {
+    "fr": "En haut le format, la définition, le fond perdu et la zone sûre ; à gauche les onze modules ; au centre la carte.",
+    "en": "At the top the format, resolution, bleed and safe zone; on the left the eleven modules; in the middle the card."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "ecran"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:.rail-item[data-mod=\"face\"]",
+     "bulle": {
+      "fr": "Onze modules, de la face à l'édition",
+      "en": "Eleven modules, from face to publishing"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Poker 63 x 88 mm",
+      "en": "contient:Poker 63 x 88 mm"
+     },
+     "bulle": {
+      "fr": "Format, DPI, fond perdu, zone sûre",
+      "en": "Format, DPI, bleed, safe zone"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "cardforge/impression",
+   "url": "/cardforge/",
+   "titre": {
+    "fr": "Imprimer chez soi ou chez un imprimeur",
+    "en": "Print at home or at a printer"
+   },
+   "legende": {
+    "fr": "Module 07 : planches maison, ou gabarit exact de MakePlayingCards, The Game Crafter ou DriveThruCards, contrôlé avant vol.",
+    "en": "Module 07: home sheets, or the exact template of MakePlayingCards, The Game Crafter or DriveThruCards, preflight-checked."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "module",
+     "etapes": [
+      {
+       "clic": "css:.rail-item[data-mod=\"print\"]",
+       "apres": 1800
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "contient:MakePlayingCards",
+     "bulle": {
+      "fr": "Le gabarit d'un imprimeur en un clic",
+      "en": "A printer's template in one click"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "contient:DriveThruCards —",
+     "bulle": {
+      "fr": "DriveThruCards : PDF X-1a avec profil de presse",
+      "en": "DriveThruCards: PDF X-1a with a press profile"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "cardforge/edition",
+   "url": "/cardforge/",
+   "titre": {
+    "fr": "Le module Édition",
+    "en": "The Publishing module"
+   },
+   "legende": {
+    "fr": "Module 11 : tables virtuelles (Tabletop Simulator, Tabletopia), livret de règles, mockup en éventail, fiche produit.",
+    "en": "Module 11: virtual tables (Tabletop Simulator, Tabletopia), rulebook, fan mockup, product sheet."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "module",
+     "etapes": [
+      {
+       "clic": "css:.rail-item[data-mod=\"edition\"]",
+       "apres": 1800
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "contient:Tabletop Simulator —",
+     "bulle": {
+      "fr": "Exporter pour une table virtuelle",
+      "en": "Export for a virtual table"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:.rail-item[data-mod=\"edition\"]",
+     "bulle": {
+      "fr": "11 · Édition",
+      "en": "11 · Publishing"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "forge3d/couches",
+   "url": "/cardforge/",
+   "titre": {
+    "fr": "La carte devient un objet 3D",
+    "en": "The card becomes a 3D object"
+   },
+   "legende": {
+    "fr": "Module 09 Forge 3D : la carte s'exporte par couches, chaque couche se traite dans un graphe, l'assemblage produit un GLB et un STL.",
+    "en": "Module 09 Forge 3D: the card is exported in layers, each layer is processed in a graph, assembly produces a GLB and an STL."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "module",
+     "etapes": [
+      {
+       "clic": "css:.rail-item[data-mod=\"forge3d\"]",
+       "apres": 2500
+      }
+     ]
+    },
+    {
+     "nom": "graphe",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "contient:Exporter les couches",
+        "en": "contient:Export layers"
+       },
+       "apres": 9000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "contient:Exporter les couches",
+      "en": "contient:Export layers"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "1. Exporter les couches",
+      "en": "1. Export the layers"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "contient:couches_c01_front.zip",
+     "bulle": {
+      "fr": "Six couches, empilement prouvé à 0 px",
+      "en": "Six layers, stacking proven to 0 px"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "forge3d/studio",
+   "url": "/studio3d/",
+   "titre": {
+    "fr": "Le 3D Studio",
+    "en": "The 3D Studio"
+   },
+   "legende": {
+    "fr": "Un graphe Meshy du prompt à l'export : maillage, texture, topologie, squelette, animations ; le coût de la série s'affiche avant Lancer.",
+    "en": "A Meshy graph from prompt to export: mesh, texture, topology, skeleton, animations; the series cost shows before Launch."
+   },
+   "avant": [
+    {
+     "attente": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "graphe"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "contient:Auto-rig",
+     "bulle": {
+      "fr": "Chaque étape est un nœud chiffré",
+      "en": "Each step is a priced node"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Lancer ·",
+      "en": "contient:Run ·"
+     },
+     "bulle": {
+      "fr": "Le prix total avant de lancer",
+      "en": "The total price before launching"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "matieres/catalogue",
+   "url": "/materialforge/",
+   "titre": {
+    "fr": "Une matière du catalogue",
+    "en": "A material from the catalogue"
+   },
+   "legende": {
+    "fr": "Trente matières CC0 de Poly Haven, embarquées : un clic les importe, leurs maps PBR sont dérivées en local.",
+    "en": "Thirty CC0 Poly Haven materials, shipped: one click imports them, their PBR maps are derived locally."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "catalogue",
+     "etapes": [
+      {
+       "clic": "css:#catBtnHead",
+       "apres": 1500
+      },
+      {
+       "clic": "css:.cat-cell[data-id=\"brick_wall_001\"]",
+       "apres": 800
+      }
+     ]
+    },
+    {
+     "nom": "galerie",
+     "etapes": [
+      {
+       "js": "document.querySelector('#catGo').click()",
+       "attente": 14000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "css:.cat-cell[data-id=\"brick_wall_001\"]",
+     "clic": true,
+     "bulle": {
+      "fr": "Choisissez, puis Importer",
+      "en": "Pick, then Import"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "bulle": {
+      "fr": "La matière, en aperçu 3D, avec ses 8 maps",
+      "en": "The material, in 3D preview, with its 8 maps"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "matieres/generateurs",
+   "url": "/materialforge/",
+   "titre": {
+    "fr": "Les générateurs",
+    "en": "The generators"
+   },
+   "legende": {
+    "fr": "Dix générateurs sans couture, locaux et gratuits, réglés en direct avant de créer la matière.",
+    "en": "Ten seamless generators, local and free, tuned live before creating the material."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "generateur",
+     "etapes": [
+      {
+       "clic": "css:#tabGen",
+       "apres": 1200
+      },
+      {
+       "clic": "css:[data-gen=\"hexagones\"]",
+       "apres": 2500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-gen=\"hexagones\"]",
+     "bulle": {
+      "fr": "Briques, carrelage, hexagones, cuir…",
+      "en": "Bricks, tiles, hexagons, leather…"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#genGo",
+     "bulle": {
+      "fr": "Créer la matière : gratuit",
+      "en": "Create the material: free"
+     }
+    }
+   ]
+  }
+ ]
+}

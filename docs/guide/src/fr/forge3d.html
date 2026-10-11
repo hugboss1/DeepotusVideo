@@ -1,8 +1,34 @@
-<p>Le module <strong>09 Forge 3D</strong> de Card Forge transforme votre carte en pièce 3D imprimable ou en artefact « qualité NFT » : la carte s'exporte <strong>par couches</strong> (fond-matière, illustration, voile, cadre, typographie, ornements + le composite), chaque couche se traite dans un <strong>graphe</strong>, et l'assemblage produit un GLB propre — plus un STL quand tout est fermé. Tout le circuit gratuit tourne en local, sans clé.</p>
-<img class="shot" src="img/cardforge-forge3d.png" alt="Card Forge — module Forge 3D">
-<p class="cap">Le graphe Forge 3D : chaîne matière (finition argent holographique) sur le fond, moteur image→3D sur l'illustration — 30 cr (~0,60 $) affichés avant tout lancement.</p>
-<div class="step"><span class="n">1</span><div><strong>Exportez les couches</strong> : l'écran prouve l'empilement <strong>avant</strong> de téléverser (0 px d'écart entre le composite et la pile de couches), le serveur contre-prouve en PIL et scelle un manifeste. Une couche vide est quand même écrite — l'absence se mesure, elle ne se devine pas.</div></div>
-<div class="step"><span class="n">2</span><div><strong>Éditez le graphe</strong> : chaque couche reçoit un traitement <strong>plan</strong> (carte plate) ou <strong>relief</strong> (grille déplacée par la luminance, solide fermé par construction), une <strong>matière</strong> de la boutique Material Forge (tuilée au pas physique, en millimètres), une finition <strong>argent ou dorure holographique</strong> (iridescence, clearcoat, anisotropie — relues dans les octets du GLB) et un <strong>transform</strong> (position, rotation, échelle, empilement z).</div></div>
-<div class="step"><span class="n">3</span><div><strong>Moteurs image→3D</strong> (optionnels, payants) : le traitement <strong>mesh 3D</strong> envoie la couche à l'un des 7 moteurs — tripo, hunyuan, trellis, rodin, triposr (fal, prix en $) ou <strong>Meshy 6/7 en API directe</strong> (crédits ; ultra +5 cr sur meshy-7). Le prix s'affiche sur le nœud <strong>et</strong> en pied de graphe avant tout lancement ; la chip d'état suit le job (en file → en cours → servi · crédits réels → ou échec au message littéral) ; relancer un nœud réinitialise son dossier.</div></div>
-<div class="step"><span class="n">4</span><div><strong>Construire</strong> : l'assemblage fusionne les GLB des moteurs à leur place de couche (réindexation complète, l'identité du fichier moteur est jetée), écrit le GLB final et le <strong>STL</strong> — accepté seulement si chaque élément est un solide fermé, refus motivé sinon. Le bordereau liste les éléments, leurs moteurs et les crédits consommés.</div></div>
-<div class="warn">Les moteurs image→3D sont la seule partie payante de Card Forge : fal se règle en $ sur votre clé existante, Meshy en crédits sur la vôtre (<code>MESHY_API_KEY</code>, champ des Réglages — le même que le 3D Studio). Pour tout essayer sans dépenser un crédit, posez <code>MESHY_MOCK=1</code> dans le <code>.env</code> des données : le simulateur local fait vivre le circuit complet, crédits factices compris.</div>
+<p class="chapeau-chap">Vous saurez transformer une carte en pièce 3D imprimable avec la Forge 3D du Card Forge, et produire un modèle 3D complet (maillage, texture, squelette, animations, formats) dans le 3D Studio. Les circuits locaux sont gratuits ; les moteurs image vers 3D sont payants, prix affiché avant tout lancement.</p>
+
+<h3>De la carte à l'objet : la Forge 3D</h3>
+<figure class="scene" data-scene="forge3d/couches"></figure>
+<ol class="etapes">
+<li>Dans le Card Forge, ouvrez le module 09 Forge 3D puis <b class="ui">Exporter les couches</b> : fond, illustration, voile, cadre, typographie, ornements et composite, recto et verso. L'écran prouve l'empilement (0 px d'écart) avant de livrer, et le serveur le vérifie à nouveau.</li>
+<li>Éditez le graphe : chaque couche reçoit un traitement plan ou en relief (solide fermé), une matière du <a href="#matieres">Material Forge</a> tuilée au pas physique, une finition (argent ou dorure holographique, laque, cuir, métal brossé, émissif) et une place. Un relief sans profondeur saisie prend la hauteur physique de sa matière, sinon 0,6 mm.</li>
+<li>Le traitement « mesh 3D » envoie une couche à un moteur image vers 3D : le prix s'affiche sur le nœud et en pied de graphe avant tout lancement.</li>
+<li><b class="ui">Construire l'artefact 3D</b> assemble le GLB final, et un STL si chaque élément est un solide fermé ; sinon le refus est motivé. Le bordereau liste éléments, moteurs et crédits.</li>
+</ol>
+<p>Le panneau « Objets du jeu » crée aussi en 3D imprimable un <b class="ui">Jeton</b>, un <b class="ui">Jeton en relief de la carte</b>, un pion ou un présentoir, ainsi que la <b class="ui">Boîte dépliée (PDF)…</b>, le patron vectoriel d'une boîte à rabats à l'épaisseur du deck.</p>
+
+<h3>Le 3D Studio</h3>
+<figure class="scene" data-scene="forge3d/studio"></figure>
+<p>Le 3D Studio (onglet du hub Game Assets) enchaîne un graphe Meshy, du prompt ou de l'image de départ jusqu'aux livrables : maillage, texture PBR, topologie, squelette (auto-rig), animations, export GLB, FBX, USDZ, OBJ ou STL, puis l'<a href="#etabli">Établi</a>. Chaque nœud porte son coût ; le coût de la série s'affiche avant <b class="ui">Lancer</b>, et le journal suit chaque tâche. Il faut une clé Meshy ; les moteurs fal (tripo, rodin, hunyuan, trellis, triposr) utilisent votre clé fal.</p>
+
+<h3>Préparer les vues avant de payer le maillage</h3>
+<ol class="etapes">
+<li>Dans la carte 3D du hub, le bloc « Vues d'abord » génère d'abord les vues (face, dos, profils) : une vue ratée ne coûte pas un maillage.</li>
+<li>Gratuitement, reprenez les vues de la planche d'un personnage de la bible, ou construisez le jeu de vues depuis vos photos (celles du téléphone en tête, redressées et détourées).</li>
+<li>Par vignette : <b class="ui">Retirer le fond</b> (local, gratuit) ou rejouer une seule vue avec un prompt corrigé (payant).</li>
+<li>« Tirer · moteur » lance le maillage sur les vues validées : seul le moteur est facturé.</li>
+</ol>
+
+<h3>Rig, conversion, optimisation</h3>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-rig"></i><h4>Atelier fal</h4><p><b class="ui">Atelier fal (rig d'un job)</b> liste vos jobs 3D : rig Meshy avec animations (marche, course…), devis par tâche ; les boutons grisés disent pourquoi (clé, approbation, texture).</p></article>
+<article><i data-dz="dz-lab3d-maillage"></i><h4>Convertir et importer</h4><p>Conversion locale gratuite vers OBJ, STL, 3MF ou glTF (STL et 3MF à une taille en mm), ou par Meshy vers FBX, USDZ, BLEND. <b class="ui">Importer un modèle (OBJ, STL, glTF, GLB)</b> en fait un job.</p></article>
+<article><i data-dz="dz-lab3d-lod"></i><h4>LOD et textures</h4><p>La zone Optimiser décline le modèle en niveaux de détail avec la perte mesurée et des budgets mobile, PC, impression, et exporte les textures aux conventions Blender, Unity, Unreal ou Godot.</p></article>
+<article><i data-dz="dz-lab3d-optimiser"></i><h4>Banc des moteurs</h4><p>Les médianes mesurées chez vous par moteur (triangles, poids, étanchéité, coût) ; rangez-y un job déjà produit, gratuitement. Un service GPU local optionnel rend Hunyuan gratuit.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Payant : les moteurs image vers 3D (fal en dollars, Meshy en crédits), le rig, la conversion Meshy et les vues générées. Le prix est annoncé avant, le tableau des dépenses chiffre rig et raffinement, et texturer sans clé fal est refusé tout de suite au lieu d'échouer plus tard.</p></aside>

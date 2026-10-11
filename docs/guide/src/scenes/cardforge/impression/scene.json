@@ -1,0 +1,50 @@
+{
+  "titre": {
+    "fr": "Imprimer chez soi ou chez un imprimeur",
+    "en": "Print at home or at a printer"
+  },
+  "legende": {
+    "fr": "Module 07 : planches maison, ou gabarit exact de MakePlayingCards, The Game Crafter ou DriveThruCards, contrôlé avant vol.",
+    "en": "Module 07: home sheets, or the exact template of MakePlayingCards, The Game Crafter or DriveThruCards, preflight-checked."
+  },
+  "captures": [
+    {
+      "fr": "module.fr.webp",
+      "en": "module.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        583,
+        227,
+        846,
+        40
+      ],
+      "bulle": {
+        "fr": "Le gabarit d'un imprimeur en un clic",
+        "en": "A printer's template in one click"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        593,
+        503,
+        826,
+        96
+      ],
+      "bulle": {
+        "fr": "DriveThruCards : PDF X-1a avec profil de presse",
+        "en": "DriveThruCards: PDF X-1a with a press profile"
+      }
+    }
+  ]
+}
