@@ -1017,19 +1017,18 @@ const VfxStack=(props)=>{
       r.jsx("span",{className:"vfx-pval",
         children:(step<1?vfxRound(v,2):Math.round(v))+(b.unit?" "+b.unit:"")})]},k)}
 
-  /* ── T103 (D2b) : la rangée « Sujet » — détourer le plan (BiRefNet, fal) ──
-     PAYANT et au prix NON AFFICHÉ par fal : 1er clic = devis du backend (la
-     ligne dit « à mesurer »), 2e clic = tir. Le résultat part au Montage par
-     `dz-matte` {id, matte} : l'hôte le pose sur le plan, annulable. */
+  /* ── T103 (D2b) + t186 (G4) : la rangée « Sujet » — détourer le plan ─────────────────────────────────────────────
+     PAYANT : 1er clic = devis, 2e clic = tir ; le modèle vient du registre
+     (vfxMatte*, fin de couche). Résultat au Montage par `dz-matte`. */
   var sM=x.useState(0),mtick=sM[1];
   x.useEffect(function(){vfxMatteModels().then(function(){mtick(function(n){return n+1})})},[]);
   function emitMatte(name){
     window.dispatchEvent(new CustomEvent("dz-matte",{detail:{id:clip&&clip.id,matte:name||null}}))}
   function matteGo(){
-    if(VFX_MATTE.busy||!clip||!clip.src||!clip.src.job_id)return;
+    if(VFX_MATTE.busy||!clip||!clip.src||!clip.src.job_id)return;if(vfxMatteSansSujet(fireNote))return;
     if(!VFX_MATTE.arm){
       fetch("/api/cost/estimate",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({kind:"matte",duration_s:vfxN(clip.end,0)-vfxN(clip.start,0)})})
+        body:JSON.stringify(vfxMatteDevis(vfxN(clip.end,0)-vfxN(clip.start,0)))})
         .then(function(res){return res.ok?res.json():null})
         .then(function(e){VFX_MATTE.arm={id:clip.id,label:((e&&e.breakdown&&e.breakdown[0])||{}).label||dzT("vfx.matte.devis_indisponible"),
           usd:e&&typeof e.total_usd==="number"?e.total_usd:null};mtick(function(n){return n+1})})
@@ -1037,7 +1036,7 @@ const VfxStack=(props)=>{
       return}
     VFX_MATTE.arm=null;VFX_MATTE.busy=!0;mtick(function(n){return n+1});
     var id=clip.id;
-    vfxPost("/api/matte",{job_id:clip.src.job_id,model:VFX_MATTE.model}).then(function(d){
+    vfxPost("/api/matte",vfxMatteCorps(clip.src.job_id)).then(function(d){
       (function poll(){vfxJson("/api/matte/"+d.matte_id).then(function(st){
         if(st.status==="done"){VFX_MATTE.busy=!1;mtick(function(n){return n+1});
           window.dispatchEvent(new CustomEvent("dz-matte",{detail:{id:id,matte:st.file}}));
@@ -1053,8 +1052,8 @@ const VfxStack=(props)=>{
     return r.jsxs("div",{className:"vfx-matte",children:[
       r.jsx("span",{className:"vfx-mlbl",children:clip.matte?dzT("vfx.matte.sujet_detoure")+clip.matte:dzT("vfx.matte.sujet_non_detoure")}),
       mods.length?r.jsx("select",{className:"vfx-sel",value:VFX_MATTE.model,"aria-label":dzT("vfx.matte.modele"),
-        onChange:function(e){VFX_MATTE.model=e.target.value;VFX_MATTE.arm=null;mtick(function(n){return n+1})},
-        children:mods.map(function(o){return r.jsx("option",{value:o.id,children:o.label},o.id)})}):null,
+        onChange:function(e){vfxMatteChoix(e.target.value);VFX_MATTE.arm=null;mtick(function(n){return n+1})},
+        children:mods.map(function(o){return r.jsx("option",{value:o.id,children:vfxMatteLbl(o)},o.id)})}):null,vfxMatteSujetRow(mtick),
       r.jsx("button",{className:"vfx-btn","data-off":VFX_MATTE.busy||!mods.length?"":void 0,
         title:dzT("vfx.matte.bouton_aide"),
         onClick:matteGo,
@@ -1151,6 +1150,45 @@ const VfxStack=(props)=>{
         children:dzT("vfx.pile.aucun_aide")})]}),
     note?r.jsx("div",{className:"vfx-note",role:"status","aria-live":"polite",
       children:note}):null]})};
+
+/* ── t186 (G4) : le modèle du détourage d'un plan, pris dans le registre unique ──
+   GET /api/matte-models sert en tête les trois anciennes clés (BiRefNet v2 vidéo :
+   general, matting, portrait) puis les modèles vidéo du registre (Bria VRMBG 3.0, VEED
+   rapide, Pixelcut vidéo, SAM 3.1), chacun avec usd, unite, prompt, dispo, cle. Le
+   libellé porte le prix (règle unique prixUsd de DzModelesIA, sinon dzPrixUsd du maillon
+   encartsia) et, sans clé, la mention « clé X à ajouter dans Réglages » : l'option reste
+   CHOISISSABLE, POST /api/matte refuse en 503 avant toute dépense. SAM 3.1 exige le sujet
+   à garder (champ sous le sélecteur, refus avant l'envoi s'il est vide). Le choix est
+   mémorisé (localStorage dz_detour_vfx) ; défaut historique : general. Ces fonctions
+   vivent ICI, après la dernière édition G1 de la couche : la table dzglyph_paires.json
+   repère les éditions par position (les retouches plus haut sont à longueur égale). */
+var VFX_DETOUR_LS="dz_detour_vfx";
+try{VFX_MATTE.model=localStorage.getItem(VFX_DETOUR_LS)||VFX_MATTE.model}catch(_e){}
+VFX_MATTE.sujet="";
+function vfxMatteMod(id){var l=VFX_MATTE.models||[];for(var i=0;i<l.length;i++)if(l[i].id===id)return l[i];return null}
+/* un modèle mémorisé que le serveur ne sert plus retombe sur la première option (general) */
+function vfxMatteValide(){var l=VFX_MATTE.models||[];if(l.length&&!vfxMatteMod(VFX_MATTE.model))VFX_MATTE.model=l[0].id}
+function vfxMattePrixUsd(usd,unite){
+  var f=(window.DzModelesIA&&window.DzModelesIA.prixUsd)||(typeof dzPrixUsd==="function"?dzPrixUsd:null);
+  return f?f(usd,unite):""}
+function vfxMatteLbl(o){var p=vfxMattePrixUsd(o.usd,o.unite);
+  return o.label+" · "+(p||dzT("ia.prix.a_mesurer"))+(o.dispo===!1&&o.cle?" · "+dzT("ia.cle.a_ajouter",{cle:o.cle}):"")}
+function vfxMatteChoix(v){VFX_MATTE.model=v;try{localStorage.setItem(VFX_DETOUR_LS,v)}catch(_e){}}
+function vfxMatteSujetReq(){var m=vfxMatteMod(VFX_MATTE.model);return!!(m&&m.prompt)}
+function vfxMatteSansSujet(note){vfxMatteValide();
+  if(!vfxMatteSujetReq()||String(VFX_MATTE.sujet||"").trim())return!1;
+  note(dzT("detour.champ.sujet_requis"));return!0}
+/* le devis : BiRefNet (anciennes clés, birefnet-v2-video) garde le kind « matte » d'avant ; les autres : « detourage » */
+function vfxMatteDevis(dur){var m=vfxMatteMod(VFX_MATTE.model),reg=(m&&m.registre)||VFX_MATTE.model;
+  return reg==="birefnet-v2-video"||reg==="general"||reg==="matting"||reg==="portrait"?{kind:"matte",duration_s:dur}:{kind:"detourage",modele:reg,secondes:dur}}
+function vfxMatteCorps(job){var c={job_id:job,model:VFX_MATTE.model};
+  if(vfxMatteSujetReq())c.sujet=String(VFX_MATTE.sujet||"").trim();return c}
+function vfxMatteSujetRow(tick){
+  vfxMatteValide();
+  if(!vfxMatteSujetReq())return null;
+  return r.jsx("input",{className:"vfx-sel vfx-msujet",type:"text",value:VFX_MATTE.sujet||"","data-dzdetsujet":"1",
+    placeholder:dzT("detour.champ.sujet"),"aria-label":dzT("detour.champ.sujet"),
+    onChange:function(e){VFX_MATTE.sujet=e.target.value;VFX_MATTE.arm=null;tick(function(n){return n+1})}})}
 
 /* petit utilitaire : {clé: valeur} calculé (les objets littéraux du bundle
    n'acceptent pas de clé dynamique en syntaxe ES5) */

@@ -116,7 +116,7 @@ function collectPrefs() {
 }
 function applyPrefs(p) {
   if (!p || typeof p !== "object") return;
-  for (const id of PREF_IDS) if (p[id] != null && $("#" + id)) $("#" + id).value = p[id];
+  for (const id of PREF_IDS) if (p[id] != null && $("#" + id)) $("#" + id).value = id === "removeBg" ? detourDepuisPref(p[id]) : p[id];
   if (p.pixelOn != null) $("#pixelOn").checked = !!p.pixelOn;
   for (const k of ["postOn", "poOrphans", "poSmooth"]) if (p[k] != null) $("#" + k).checked = !!p[k];
   if (p.tagRows) { try { tagRows = JSON.parse(p.tagRows) || []; } catch (e) { tagRows = []; } }
@@ -328,13 +328,65 @@ function updateStripCount() {
   updateCost(); updateGenEnabled();
 }
 
+/* ───────── t186 (G4) : le modèle de détourage (registre unique, DzModelesIA) ─────────
+   #removeBg liste le catalogue detourage_image (un <optgroup> par voie, le prix sur chaque option, un modèle sans
+   clé reste CHOISISSABLE : /assets/sprite refuse en 503 au lancement) + « Aucun ». Les valeurs sont des ids du
+   registre ; les quatre choix d'avant gardent leur chemin d'avant (rembg-fal = remove_bg api, local-rembg = local,
+   local-chroma = chroma, none) et donc leur devis ; tout autre modèle part en `modele` (+ `sujet` s'il en exige un).
+   Choix mémorisé (localStorage dz_detour_spritelab, en plus des préférences de l'atelier). */
+const DETOUR_LS = "dz_detour_spritelab";
+const DETOUR_ANCIEN = { api: "rembg-fal", local: "local-rembg", chroma: "local-chroma" };
+const DETOUR_CORPS = { "rembg-fal": "api", "local-rembg": "local", "local-chroma": "chroma", none: "none" };
+function detourDepuisPref(v) { return DETOUR_ANCIEN[v] || v; }
+function detourModele() {
+  const sel = $("#removeBg");
+  return (sel.__dzModeles || []).find((m) => m.id === sel.value) || null;
+}
+function detourMaj() {
+  const m = detourModele();
+  $("#removeBgSujetFld").hidden = !(m && m.prompt);
+}
+async function detourInit() {
+  const sel = $("#removeBg");
+  if (!sel || !window.DzModelesIA) return;
+  const aucun = sel.querySelector('option[value="none"]');
+  let voulu = detourDepuisPref(sel.value);
+  try { voulu = localStorage.getItem(DETOUR_LS) || voulu; } catch (e) { /* stockage indisponible */ }
+  try {
+    await window.DzModelesIA.select(sel, "detourage_image", { valeur: voulu, onChange: () => {
+      try { localStorage.setItem(DETOUR_LS, sel.value); } catch (e) { /* stockage indisponible */ }
+      detourMaj();
+    } });
+  } catch (e) { return; }                      // catalogue injoignable : les quatre choix d'avant restent
+  if (aucun) sel.appendChild(aucun);
+  if (voulu === "none") sel.value = "none";
+  detourMaj(); updateCost();
+}
+function detourCorps() {
+  const v = $("#removeBg").value;
+  if (DETOUR_CORPS[v]) return { remove_bg: DETOUR_CORPS[v] };
+  const c = { remove_bg: "none", modele: v }, m = detourModele();
+  if (m && m.prompt) {
+    const sj = $("#removeBgSujet").value.trim();
+    if (!sj) throw new Error(__dzT9("sprites.t186.sujet_requis", "Dites quel sujet garder."));
+    c.sujet = sj;
+  }
+  return c;
+}
+function detourDevis(n) {
+  const v = $("#removeBg").value, m = detourModele();
+  if (v === "rembg-fal") return { kind: "sprite2d", frames: n, remove_bg: "api" };
+  return m && m.voie === "fal" ? { kind: "detourage", modele: v, images: n } : null;
+}
+function detourPayant() { const m = detourModele(); return $("#removeBg").value === "rembg-fal" || !!(m && m.voie === "fal"); }
+
 /* ───────── coût estimé (détourage API × frames gardées) ───────── */
 async function updateCost() {
   const el = $("#costHint");
-  if ($("#removeBg").value !== "api" || !stripN) { el.textContent = ""; return; }
+  const op = detourDevis(keptIndices().length);
+  if (!op || !stripN) { el.textContent = ""; return; }
   try {
-    const d = await api.send("POST", "/cost/estimate",
-      { kind: "sprite2d", frames: keptIndices().length, remove_bg: "api" });
+    const d = await api.send("POST", "/cost/estimate", op);
     el.innerHTML = d && d.total_usd != null ? `${dzIcone("dz-action-cout", { taille: 16 })} $${(+d.total_usd).toFixed(3)}` : "";
   } catch (e) { el.textContent = ""; }
 }
@@ -409,7 +461,7 @@ async function generate() {
     const body = {
       source: window.SLD.sourceBody(source),
       fps_sample: s.fps, max_frames: s.max,
-      remove_bg: $("#removeBg").value,
+      ...detourCorps(),
       trim: $("#trim").value,
       cell: cellOpts(),
       columns: $("#columns").value === "auto" ? "auto" : parseInt($("#columns").value, 10),
@@ -1087,7 +1139,7 @@ async function generateFromPrompt() {
     clearStatus(st);
     loadImages();                                   // la Library a changé
     // le suffixe demande un fond vert uni : la clé chroma locale (gratuite) le retire — jamais l'API payante par défaut
-    if ($("#removeBg").value === "api") { $("#removeBg").value = "chroma"; savePrefs(); updateCost(); }
+    if (detourPayant()) { $("#removeBg").value = "local-chroma"; detourMaj(); savePrefs(); updateCost(); }
     setSource({ kind: "images", filenames: noms, label: __dzT9("sprites.sp2_pm.images_prompt", "{n} image(s) du prompt", { n: noms.length }) });
     toastOk(__dzT9("sprites.sp2_pm.generees", "{n} image(s) générée(s)", { n: noms.length }), __dzT9("sprites.sp2_pm.detourage", " — détourage en clé chroma (local) ; choisis tes frames puis génère le sheet"));
   } catch (e) {
@@ -1450,6 +1502,7 @@ window.__sl = {
   // de vidéo) et n'a aucun moyen de voir ce que le Sprite Lab produit.
   switchSrcTab("starter");
   await loadPrefs();
+  detourInit();                // t186 : le catalogue du détourage (asynchrone)
   syncPixelSet();
   syncPostSet();
   loadImages(); loadRenders();

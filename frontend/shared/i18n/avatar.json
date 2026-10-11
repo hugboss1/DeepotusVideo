@@ -795,6 +795,14 @@
     "fr": "Général",
     "en": "General"
   },
+  "avatar.decor.sujet": {
+    "fr": "Sujet à garder",
+    "en": "Subject to keep"
+  },
+  "avatar.decor.sujet_requis": {
+    "fr": "Dites quel sujet garder.",
+    "en": "Say which subject to keep."
+  },
   "avatar.decor.verifier": {
     "fr": "Vérifier le détourage",
     "en": "Check the cut-out"

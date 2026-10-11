@@ -671,7 +671,7 @@
       return r.json();
     });
   }
-  function prixUsd(usd, unite) { var v = Number(usd); if (!(v > 0) || !isFinite(v)) return ""; var s = (Math.round(v * 1000) / 1000).toFixed(3); while (/\.\d{3,}$/.test(s) && s.charAt(s.length - 1) === "0") s = s.slice(0, -1); return "$" + s + ({ image: "/image", s: "/s", min: "/min", "1k": "/1k" }[unite] || ""); }
+  function prixUsd(usd, unite) { var v = Number(usd); if (!(v > 0) || !isFinite(v)) return ""; var s = (Math.round(v * 1000) / 1000).toFixed(3); while (/\.\d{3,}$/.test(s) && s.charAt(s.length - 1) === "0") s = s.slice(0, -1); return "$" + s + ({ image: "/image", s: "/s", min: "/min", "1k": "/1k", "30 images": "/30 images", "16 images": "/16 images" }[unite] || ""); }
   /* la formule du sélecteur du Quick (DzVideoModelSel du bundle) : le prix
      1080p, sinon « * », sinon le plus cher des tarifs connus */
   function prixVideo(m) {

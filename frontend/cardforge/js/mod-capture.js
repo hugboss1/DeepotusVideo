@@ -645,6 +645,10 @@
       + '</div>'
       + '</div>'
       + '<div class="cf-capture-side">'
+      + '<label class="cf-capture-modele" style="display:flex;flex-direction:column;gap:4px;font-size:12px;margin-bottom:8px">' + dzT("cartes.t186.modele")
+        + '<select id="cf-capture-modele"></select></label>'
+      + '<label class="cf-capture-modele hidden" id="cf-capture-sujet-champ" style="display:flex;flex-direction:column;gap:4px;font-size:12px;margin-bottom:8px">'
+        + dzT("cartes.t186.sujet") + '<input type="text" id="cf-capture-sujet-txt" maxlength="200"></label>'
       + '<p class="hint" id="cf-capture-ia-note"></p>'
       + '</div>'
       + '</div>'
@@ -1342,9 +1346,53 @@
   /* CE QUE CE POSTE SAIT FAIRE. Un echec ici n'est pas une panne du panneau :
      l'import et l'analyse continuent de fonctionner, seule l'option
      disparait, et le motif se lit dans la note. */
+  /* t186 (G4) : le modèle du détourage du recto — registre unique (DzModelesIA, nature detourage_image : un
+     <optgroup> par voie, le prix sur chaque option, un modèle sans clé reste CHOISISSABLE : la route refuse en 503
+     au lancement, avant toute dépense). Le défaut est la voie d'avant (local = local-rembg, fal = rembg-fal) : la
+     garder envoie la requête d'avant, SANS corps (basculement et tarif d'avant). `sujet` pour SAM 3 / Bria objet.
+     Choix mémorisé (localStorage dz_detour_cartes). */
+  const DETOUR_LS = "dz_detour_cartes";
+  function detourDefaut() {
+    return offreIA(IA, !!info("recto")).voie === "local" ? "local-rembg" : "rembg-fal";
+  }
+  function detourModele() {
+    const sel = $("#cf-capture-modele");
+    return sel ? (sel.__dzModeles || []).find((m) => m.id === sel.value) || null : null;
+  }
+  function detourMaj() {
+    const m = detourModele(), ch = $("#cf-capture-sujet-champ");
+    if (ch) ch.classList.toggle("hidden", !(m && m.prompt));
+  }
+  async function detourInit() {
+    const sel = $("#cf-capture-modele");
+    if (!sel || sel.__dzDetourPret || !window.DzModelesIA) return;
+    sel.__dzDetourPret = true;
+    let voulu = "";
+    try { voulu = localStorage.getItem(DETOUR_LS) || ""; } catch (e) { /* stockage indisponible */ }
+    try {
+      await window.DzModelesIA.select(sel, "detourage_image", { valeur: voulu || detourDefaut(), onChange: (v) => {
+        try { localStorage.setItem(DETOUR_LS, v); } catch (e) { /* stockage indisponible */ }
+        detourMaj();
+      } });
+    } catch (e) { sel.__dzDetourPret = false; return; }   // catalogue injoignable : la voie d'avant, sans choix
+    detourMaj();
+  }
+  /* le corps de POST rembg : undefined (requête d'avant) tant que le défaut est gardé */
+  function detourCorps() {
+    const sel = $("#cf-capture-modele"), v = sel && sel.value;
+    if (!v || v === detourDefaut()) return undefined;
+    const c = { modele: v }, m = detourModele();
+    if (m && m.prompt) {
+      const sj = (($("#cf-capture-sujet-txt") || {}).value || "").trim();
+      if (!sj) throw new Error(dzT("cartes.t186.sujet_requis"));
+      c.sujet = sj;
+    }
+    return c;
+  }
   async function chargeOptions() {
     try {
       IA = await lireJson(await M.api.raw("GET", "ai-options"));
+      detourInit();                // t186 : le catalogue du détourage, une fois la voie d'avant connue
       IA_ERR = "";
     } catch (e) {
       IA = null;
@@ -1381,10 +1429,12 @@
       M.toast(dzT("cartes.capture.tarif_change", { avant: avant.libelle, apres: off.libelle }), true);
       return;
     }
+    let corpsDetour;
+    try { corpsDetour = detourCorps(); } catch (e) { M.toast(e.message, true); return; }
     BUSY = true;
     try {
       M.busy(true, off.gratuit ? dzT("cartes.capture.detour_local_busy") : dzT("cartes.capture.detour_fal_busy"));
-      const d = await lireJson(await M.api.raw("POST", "rembg"));
+      const d = await lireJson(await M.api.raw("POST", "rembg", corpsDetour));
       const maj = {};
       const anc = isPlain(st().layers) ? st().layers : {};
       Object.keys(anc).forEach((k) => { maj[k] = anc[k]; });

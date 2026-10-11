@@ -108,5 +108,13 @@ assert.equal(Mcle.prix(null, "image"), "prix à mesurer");
 assert.equal(Mcle.grouper(MODS.slice(0, 1))[0].titre, "avec votre clé OpenAI");
 // et aucune dépendance à dzLang : le prix ne change pas de forme selon la langue
 assert.equal(Mfr.prixUsd(0.145, "image"), M.prixUsd(0.145, "image"));
+// [9] t186 (G4) : unités du détourage vidéo par tranche d'images ; une option LOCALE sans prix est gratuite pour de
+// vrai (son groupe le dit) : ni prix ni « à mesurer » — une voie fal à 0 garde « à mesurer »
+assert.equal(M.prixUsd(0.012, "30 images"), "$0.012/30 images");
+assert.equal(M.prixUsd(0.01, "16 images"), "$0.01/16 images");
+assert.equal(Mfr.texte({ id: "local-rembg", label: "rembg", voie: "local", usd: 0, unite: "image", dispo: true }), "rembg");
+assert.equal(Mfr.texte({ id: "pixelcut", label: "Pixelcut", voie: "fal", usd: 0, unite: "image", dispo: true }), "Pixelcut · prix à mesurer");
+assert.equal(Mfr.texte({ id: "veed", label: "VEED", voie: "fal", usd: 0.012, unite: "30 images", dispo: false, cle: "FAL_KEY" }),
+  "VEED · $0.012/30 images · clé FAL_KEY à ajouter dans Réglages");
 
 console.log("modeles_ia ok");

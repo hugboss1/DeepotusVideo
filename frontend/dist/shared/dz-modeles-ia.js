@@ -18,7 +18,8 @@
    - le PRIX : `prixUsd` (même ligne de code dans dz-champ-ia.js et dans le
      maillon encartsia) — « $ » + la valeur arrondie au millième, zéros de fin
      retirés mais au moins deux décimales (0.145 → $0.145, 0.04 → $0.04,
-     0.22 → $0.22), suffixe d'unité (/image, /s, /min, /1k), indépendant de la
+     0.22 → $0.22), suffixe d'unité (/image, /s, /min, /1k ; t186 : /30 images,
+     /16 images pour le détourage vidéo facturé par tranche d'images), indépendant de la
      langue ; un prix nul, absent ou illisible n'est JAMAIS « gratuit » : il
      rend "" et l'affichage dit « prix à mesurer ». */
 (function (W) {
@@ -39,12 +40,15 @@
     return t;
   }
   var ORDRE = ["fal", "openai", "gemini", "elevenlabs", "meshy", "heygen", "local"];
-  function prixUsd(usd, unite) { var v = Number(usd); if (!(v > 0) || !isFinite(v)) return ""; var s = (Math.round(v * 1000) / 1000).toFixed(3); while (/\.\d{3,}$/.test(s) && s.charAt(s.length - 1) === "0") s = s.slice(0, -1); return "$" + s + ({ image: "/image", s: "/s", min: "/min", "1k": "/1k" }[unite] || ""); }
+  function prixUsd(usd, unite) { var v = Number(usd); if (!(v > 0) || !isFinite(v)) return ""; var s = (Math.round(v * 1000) / 1000).toFixed(3); while (/\.\d{3,}$/.test(s) && s.charAt(s.length - 1) === "0") s = s.slice(0, -1); return "$" + s + ({ image: "/image", s: "/s", min: "/min", "1k": "/1k", "30 images": "/30 images", "16 images": "/16 images" }[unite] || ""); }
   function prix(usd, unite) {
     return prixUsd(usd, unite) || T("ia.prix.a_mesurer");
   }
+  /* t186 (G4) : une option de la voie LOCALE sans prix est gratuite pour de vrai (son <optgroup> le dit déjà) —
+     ni « prix à mesurer », ni prix : le libellé seul. Les autres voies gardent la règle (jamais « gratuit »). */
   function texte(m) {
-    return (m.label || m.id) + " · " + prix(m.usd, m.unite)
+    var p = prixUsd(m.usd, m.unite);
+    return (m.label || m.id) + (p ? " · " + p : m.voie === "local" ? "" : " · " + prix(m.usd, m.unite))
       + (m.dispo === false && m.cle ? " · " + T("ia.cle.a_ajouter", { cle: m.cle }) : "");
   }
   /* rang d'une voie : l'ordre ORDRE, une voie inconnue (ou absente) APRÈS toutes */

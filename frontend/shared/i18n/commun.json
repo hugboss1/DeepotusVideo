@@ -61,5 +61,8 @@
   "ia.cle.a_ajouter": {"fr": "clé {cle} à ajouter dans Réglages", "en": "add the {cle} key in Settings"},
   "ia.modele.choisir": {"fr": "Modèle", "en": "Model"},
   "ia.etat.chargement": {"fr": "chargement…", "en": "loading…"},
-  "ia.local.a_demarrer": {"fr": "service local à démarrer", "en": "start the local service"}
+  "ia.local.a_demarrer": {"fr": "service local à démarrer", "en": "start the local service"},
+  "detour.champ.modele": {"fr": "Modèle de détourage", "en": "Cutout model"},
+  "detour.champ.sujet": {"fr": "Sujet à garder", "en": "Subject to keep"},
+  "detour.champ.sujet_requis": {"fr": "Dites quel sujet garder.", "en": "Say which subject to keep."}
 }

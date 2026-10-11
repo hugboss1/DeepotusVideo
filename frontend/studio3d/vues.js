@@ -187,8 +187,54 @@ export async function rejouer(i, saisir, toast) {
   });
 }
 
+/* t186 (G4) : le modèle de détourage d'une vue — « Masque des coins » (local, gratuit : le chemin d'avant, via
+   local) ou un modèle du registre unique (DzModelesIA, nature detourage_image : prix sur chaque option ; un modèle
+   sans clé reste CHOISISSABLE, la route refuse en 503 au lancement) ; `sujet` pour SAM 3 / Bria objet. Choix
+   mémorisé (localStorage dz_detour_studio3d). */
+const DETOUR_LS = "dz_detour_studio3d", DETOUR_COINS = "coins";
+function detourModele() {
+  const sel = $("#vuesDetourModele");
+  return sel ? (sel.__dzModeles || []).find((m) => m.id === sel.value) || null : null;
+}
+function detourMaj() {
+  const m = detourModele(), f = $("#vuesDetourSujet");
+  if (f) f.hidden = !(m && m.prompt);
+}
+export async function detourInit() {
+  const sel = $("#vuesDetourModele");
+  if (!sel || !window.DzModelesIA) return;
+  let voulu = DETOUR_COINS;
+  try { voulu = localStorage.getItem(DETOUR_LS) || voulu; } catch (e) { /* stockage indisponible */ }
+  const coins = sel.querySelector(`option[value="${DETOUR_COINS}"]`);
+  try {
+    await window.DzModelesIA.select(sel, "detourage_image", { valeur: voulu, onChange: (v) => {
+      try { localStorage.setItem(DETOUR_LS, v); } catch (e) { /* stockage indisponible */ }
+      detourMaj();
+    } });
+  } catch (e) { return; }                      // catalogue injoignable : le masque des coins reste seul
+  if (coins) sel.insertBefore(coins, sel.firstChild);
+  if (voulu === DETOUR_COINS || !sel.value) sel.value = DETOUR_COINS;
+  detourMaj();
+}
+export function detourCorps() {
+  const sel = $("#vuesDetourModele"), v = sel ? sel.value : DETOUR_COINS;
+  if (!v || v === DETOUR_COINS) return { via: "local" };
+  const c = { modele: v }, m = detourModele();
+  if (m && m.prompt) {
+    const sj = (($("#vuesDetourSujet") || {}).value || "").trim();
+    if (!sj) throw new Error(__dzT9("studio3d.t186.sujet_requis", "Dites quel sujet garder."));
+    c.sujet = sj;
+  }
+  return c;
+}
 export async function detourer(i, toast) {
-  const r = await jpost(`/api/assets/3d/${encodeURIComponent(V.jeu)}/views/${i}/detourer`, { via: "local" });
+  const corps = detourCorps();
+  const r = await jpost(`/api/assets/3d/${encodeURIComponent(V.jeu)}/views/${i}/detourer`, corps);
+  if (corps.modele) {                         // t186 : un modèle du registre (local ou fal)
+    toast(__dzT9("studio3d.t186.detouree", "vue {i} détourée ({modele})", { i: i, modele: (detourModele() || {}).label || corps.modele }));
+    await ouvrirJeu(V.jeu);
+    return;
+  }
   toast(__dzT9("studio3d.s3b_vues.detouree", "vue {i} détourée (local, gratuit{m})", { i: i, m: r.methode ? ` · ${r.methode}` : "" }));
   await ouvrirJeu(V.jeu);
 }
@@ -239,6 +285,7 @@ export function suivre(jobId, libelle, onDone) {
 
 export function brancher({ confirmer, saisir, toast, onTire }) {
   V.onTire = onTire;
+  detourInit();                // t186 : le catalogue du détourage (asynchrone)
   const garde = (f) => () => f().catch((e) => toast(String(e.message || e)));
   $("#btnVues").addEventListener("click", garde(() => preparer(confirmer, toast)));
   $("#btnTirer").addEventListener("click", garde(() => tirer(confirmer, toast)));

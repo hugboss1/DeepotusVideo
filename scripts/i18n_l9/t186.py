@@ -1,0 +1,46 @@
+"""t186 (G4, génération IA enrichie, 12/10/2026) — changements FONCTIONNELS du Spritelab et du Studio3D posés APRÈS L9.
+
+Le détourage choisit son modèle dans le registre unique (GET /api/ia/catalogue?nature=detourage_image, rempli par
+DzModelesIA : un <optgroup> par voie, le prix sur chaque option, un modèle sans clé VISIBLE ET CHOISISSABLE — décision
+de l'utilisateur du 11/10/2026, le serveur refuse en 503 au lancement), le champ « Sujet à garder » pour un modèle qui
+en exige un (SAM 3, Bria objet), le choix mémorisé par site (localStorage dz_detour_spritelab / dz_detour_studio3d) ;
+chaque écran garde son ancien défaut et son ancien chemin (Spritelab : api = rembg-fal ; Studio3D : masque des coins).
+- Spritelab : #removeBg (index.html : valeurs = ids du registre, « Aucun » gardé) -> POST /assets/sprite `modele`/`sujet` ;
+- Studio3D : #vuesDetourModele (index.html) -> POST /assets/3d/{job}/views/{i}/detourer `modele`/`sujet`.
+La table réversible L9 exige : source du poste == base 7f99c72c + éditions ; d'où cette saisie (comme t183).
+index.html n'est jamais réécrit par L9 : ses textes neufs sont traduits par la surcouche (entrées H, mêmes textes que
+detour.champ.* de commun.json).
+"""
+from outils import S, H
+
+ENTREES = [
+    S("spritelab/spritelab.js", 96, "for (const id of PREF_IDS) if (p[id] != null && $(\"#\" + id)) $(\"#\" + id).value = p[id];",
+      "for (const id of PREF_IDS) if (p[id] != null && $(\"#\" + id)) $(\"#\" + id).value = id === \"removeBg\" ? detourDepuisPref(p[id]) : p[id];",
+      {}),
+    S("spritelab/spritelab.js", 308, "/* ───────── coût estimé (détourage API × frames gardées) ───────── */",
+      "/* ───────── t186 (G4) : le modèle de détourage (registre unique, DzModelesIA) ─────────\r\n   #removeBg liste le catalogue detourage_image (un <optgroup> par voie, le prix sur chaque option, un modèle sans\r\n   clé reste CHOISISSABLE : /assets/sprite refuse en 503 au lancement) + « Aucun ». Les valeurs sont des ids du\r\n   registre ; les quatre choix d'avant gardent leur chemin d'avant (rembg-fal = remove_bg api, local-rembg = local,\r\n   local-chroma = chroma, none) et donc leur devis ; tout autre modèle part en `modele` (+ `sujet` s'il en exige un).\r\n   Choix mémorisé (localStorage dz_detour_spritelab, en plus des préférences de l'atelier). */\r\nconst DETOUR_LS = \"dz_detour_spritelab\";\r\nconst DETOUR_ANCIEN = { api: \"rembg-fal\", local: \"local-rembg\", chroma: \"local-chroma\" };\r\nconst DETOUR_CORPS = { \"rembg-fal\": \"api\", \"local-rembg\": \"local\", \"local-chroma\": \"chroma\", none: \"none\" };\r\nfunction detourDepuisPref(v) { return DETOUR_ANCIEN[v] || v; }\r\nfunction detourModele() {\r\n  const sel = $(\"#removeBg\");\r\n  return (sel.__dzModeles || []).find((m) => m.id === sel.value) || null;\r\n}\r\nfunction detourMaj() {\r\n  const m = detourModele();\r\n  $(\"#removeBgSujetFld\").hidden = !(m && m.prompt);\r\n}\r\nasync function detourInit() {\r\n  const sel = $(\"#removeBg\");\r\n  if (!sel || !window.DzModelesIA) return;\r\n  const aucun = sel.querySelector('option[value=\"none\"]');\r\n  let voulu = detourDepuisPref(sel.value);\r\n  try { voulu = localStorage.getItem(DETOUR_LS) || voulu; } catch (e) { /* stockage indisponible */ }\r\n  try {\r\n    await window.DzModelesIA.select(sel, \"detourage_image\", { valeur: voulu, onChange: () => {\r\n      try { localStorage.setItem(DETOUR_LS, sel.value); } catch (e) { /* stockage indisponible */ }\r\n      detourMaj();\r\n    } });\r\n  } catch (e) { return; }                      // catalogue injoignable : les quatre choix d'avant restent\r\n  if (aucun) sel.appendChild(aucun);\r\n  if (voulu === \"none\") sel.value = \"none\";\r\n  detourMaj(); updateCost();\r\n}\r\nfunction detourCorps() {\r\n  const v = $(\"#removeBg\").value;\r\n  if (DETOUR_CORPS[v]) return { remove_bg: DETOUR_CORPS[v] };\r\n  const c = { remove_bg: \"none\", modele: v }, m = detourModele();\r\n  if (m && m.prompt) {\r\n    const sj = $(\"#removeBgSujet\").value.trim();\r\n    if (!sj) throw new Error(dzT(\"sprites.t186.sujet_requis\"));\r\n    c.sujet = sj;\r\n  }\r\n  return c;\r\n}\r\nfunction detourDevis(n) {\r\n  const v = $(\"#removeBg\").value, m = detourModele();\r\n  if (v === \"rembg-fal\") return { kind: \"sprite2d\", frames: n, remove_bg: \"api\" };\r\n  return m && m.voie === \"fal\" ? { kind: \"detourage\", modele: v, images: n } : null;\r\n}\r\nfunction detourPayant() { const m = detourModele(); return $(\"#removeBg\").value === \"rembg-fal\" || !!(m && m.voie === \"fal\"); }\r\n\r\n/* ───────── coût estimé (détourage API × frames gardées) ───────── */",
+      {"sprites.t186.sujet_requis": ["Dites quel sujet garder.", "Say which subject to keep."]}),
+    S("spritelab/spritelab.js", 311, "if ($(\"#removeBg\").value !== \"api\" || !stripN) { el.textContent = \"\"; return; }\r\n  try {\r\n    const d = await api.send(\"POST\", \"/cost/estimate\",\r\n      { kind: \"sprite2d\", frames: keptIndices().length, remove_bg: \"api\" });",
+      "const op = detourDevis(keptIndices().length);\r\n  if (!op || !stripN) { el.textContent = \"\"; return; }\r\n  try {\r\n    const d = await api.send(\"POST\", \"/cost/estimate\", op);",
+      {}),
+    S("spritelab/spritelab.js", 389, "remove_bg: $(\"#removeBg\").value,",
+      "...detourCorps(),",
+      {}),
+    S("spritelab/spritelab.js", 1048, "if ($(\"#removeBg\").value === \"api\") { $(\"#removeBg\").value = \"chroma\"; savePrefs(); updateCost(); }",
+      "if (detourPayant()) { $(\"#removeBg\").value = \"local-chroma\"; detourMaj(); savePrefs(); updateCost(); }",
+      {}),
+    S("spritelab/spritelab.js", 1411, "  await loadPrefs();\r\n  syncPixelSet();",
+      "  await loadPrefs();\r\n  detourInit();                // t186 : le catalogue du détourage (asynchrone)\r\n  syncPixelSet();",
+      {}),
+    S("studio3d/vues.js", 191, "export async function detourer(i, toast) {\r\n  const r = await jpost(`/api/assets/3d/${encodeURIComponent(V.jeu)}/views/${i}/detourer`, { via: \"local\" });",
+      "/* t186 (G4) : le modèle de détourage d'une vue — « Masque des coins » (local, gratuit : le chemin d'avant, via\r\n   local) ou un modèle du registre unique (DzModelesIA, nature detourage_image : prix sur chaque option ; un modèle\r\n   sans clé reste CHOISISSABLE, la route refuse en 503 au lancement) ; `sujet` pour SAM 3 / Bria objet. Choix\r\n   mémorisé (localStorage dz_detour_studio3d). */\r\nconst DETOUR_LS = \"dz_detour_studio3d\", DETOUR_COINS = \"coins\";\r\nfunction detourModele() {\r\n  const sel = $(\"#vuesDetourModele\");\r\n  return sel ? (sel.__dzModeles || []).find((m) => m.id === sel.value) || null : null;\r\n}\r\nfunction detourMaj() {\r\n  const m = detourModele(), f = $(\"#vuesDetourSujet\");\r\n  if (f) f.hidden = !(m && m.prompt);\r\n}\r\nexport async function detourInit() {\r\n  const sel = $(\"#vuesDetourModele\");\r\n  if (!sel || !window.DzModelesIA) return;\r\n  let voulu = DETOUR_COINS;\r\n  try { voulu = localStorage.getItem(DETOUR_LS) || voulu; } catch (e) { /* stockage indisponible */ }\r\n  const coins = sel.querySelector(`option[value=\"${DETOUR_COINS}\"]`);\r\n  try {\r\n    await window.DzModelesIA.select(sel, \"detourage_image\", { valeur: voulu, onChange: (v) => {\r\n      try { localStorage.setItem(DETOUR_LS, v); } catch (e) { /* stockage indisponible */ }\r\n      detourMaj();\r\n    } });\r\n  } catch (e) { return; }                      // catalogue injoignable : le masque des coins reste seul\r\n  if (coins) sel.insertBefore(coins, sel.firstChild);\r\n  if (voulu === DETOUR_COINS || !sel.value) sel.value = DETOUR_COINS;\r\n  detourMaj();\r\n}\r\nexport function detourCorps() {\r\n  const sel = $(\"#vuesDetourModele\"), v = sel ? sel.value : DETOUR_COINS;\r\n  if (!v || v === DETOUR_COINS) return { via: \"local\" };\r\n  const c = { modele: v }, m = detourModele();\r\n  if (m && m.prompt) {\r\n    const sj = (($(\"#vuesDetourSujet\") || {}).value || \"\").trim();\r\n    if (!sj) throw new Error(dzT(\"studio3d.t186.sujet_requis\"));\r\n    c.sujet = sj;\r\n  }\r\n  return c;\r\n}\r\nexport async function detourer(i, toast) {\r\n  const corps = detourCorps();\r\n  const r = await jpost(`/api/assets/3d/${encodeURIComponent(V.jeu)}/views/${i}/detourer`, corps);\r\n  if (corps.modele) {                         // t186 : un modèle du registre (local ou fal)\r\n    toast(dzT(\"studio3d.t186.detouree\", { i: i, modele: (detourModele() || {}).label || corps.modele }));\r\n    await ouvrirJeu(V.jeu);\r\n    return;\r\n  }",
+      {"studio3d.t186.detouree": ["vue {i} détourée ({modele})", "view {i} cut out ({modele})"], "studio3d.t186.sujet_requis": ["Dites quel sujet garder.", "Say which subject to keep."]}),
+    S("studio3d/vues.js", 243, "  V.onTire = onTire;\r\n",
+      "  V.onTire = onTire;\r\n  detourInit();                // t186 : le catalogue du détourage (asynchrone)\r\n",
+      {}),
+    H("sprites.t186.sujet", "Sujet à garder", "Subject to keep"),
+    H("sprites.t186.modele", "Modèle de détourage", "Cutout model"),
+    H("studio3d.t186.coins", "Masque des coins (local, gratuit)", "Corner mask (local, free)"),
+    H("studio3d.t186.modele", "Modèle de détourage", "Cutout model"),
+    H("studio3d.t186.sujet", "Sujet à garder", "Subject to keep"),
+]

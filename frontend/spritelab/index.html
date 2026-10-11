@@ -173,12 +173,15 @@
           <input id="maxFrames" type="number" min="4" max="64" value="16">
         </label>
         <label class="fld">Détourage
-          <select id="removeBg">
-            <option value="api" selected>API cloud (fal)</option>
-            <option value="local">Local (rembg)</option>
-            <option value="chroma">Chroma (fond uni, local)</option>
+          <select id="removeBg" title="Modèle de détourage">
+            <option value="rembg-fal" selected>API cloud (fal)</option>
+            <option value="local-rembg">Local (rembg)</option>
+            <option value="local-chroma">Chroma (fond uni, local)</option>
             <option value="none">Aucun</option>
           </select>
+        </label>
+        <label class="fld" id="removeBgSujetFld" hidden>Sujet à garder
+          <input id="removeBgSujet" type="text" maxlength="200">
         </label>
         <label class="fld">Recadrage
           <select id="trim">

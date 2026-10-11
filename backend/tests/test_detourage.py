@@ -28,6 +28,9 @@ Ce que le banc tient :
   [6] sites : sprites (`modele` dans normalize_opts, 400 pour un id inconnu, 503 sans clé, coût du job), Card
       Forge /rembg (`modele` : 503 sans clé, 400 sans sujet, détourage par le registre), Studio3D vues
       (`modele`), décor Avatar (`modele` vidéo du registre + aperçu par son jumeau image).
+  [8] écrans (tâche B) : les six sites — Spritelab, Studio3D (vues), Card Forge (capture), décor Avatar (DzModelesIA,
+      clé dz_detour_<site>, envoi de modele et sujet, défaut d'avant gardé, aucune option grisée sans clé), rack VFX
+      (vfxrack, bloc du bundle rafraîchi) et nœud Studio « Détourage » (maillon encartsia), les aides exécutées sous node.
 
 AUCUN appel réseau réel : les fal_client.* sont des gardes qui COMPTENT ; les seams de matte_service sont des
 enregistreurs.
@@ -748,6 +751,170 @@ async def _cartes():
 
 
 loop.run_until_complete(_cartes())
+
+
+# ── [8] écrans (tâche B) : les six sites choisissent leur modèle dans le registre ─────────────────────────────────
+print("\n[8] écrans : les six sites")
+import json as _json  # noqa: E402
+import re as _re  # noqa: E402
+_RAC = pathlib.Path(__file__).resolve().parents[2]
+_FR = _RAC / "frontend"
+
+
+def _lire(rel):
+    return (_FR / rel).read_bytes().decode("utf-8")
+
+
+def _sans_cle_grise(txt):
+    """NÉGATIF (règle du 11/10/2026) : aucune option désactivée pour une clé manquante."""
+    return not _re.search(r"disabled[^;\n]{0,80}(dispo|sansCle|cle_absente|\.cle\b)", txt) \
+        and not _re.search(r"(dispo|sansCle)[^;\n]{0,40}disabled\s*=\s*(true|!0)", txt)
+
+
+_SITES = {
+    # site : (fichier, nature, clé localStorage, motifs d'envoi de modele et de sujet, page qui charge dz-modeles-ia)
+    "spritelab": ("spritelab/spritelab.js", "detourage_image", "dz_detour_spritelab",
+                  ['remove_bg: "none", modele: v', "c.sujet = sj", "...detourCorps(),"], "spritelab/index.html"),
+    "studio3d": ("studio3d/vues.js", "detourage_image", "dz_detour_studio3d",
+                 ["{ modele: v }", "c.sujet = sj", "/detourer`, corps);"], "studio3d/index.html"),
+    "cartes": ("cardforge/js/mod-capture.js", "detourage_image", "dz_detour_cartes",
+               ["{ modele: v }", "c.sujet = sj", 'M.api.raw("POST", "rembg", corpsDetour)'], "cardforge/index.html"),
+    "avatar": ("avatar/avatar.js", "detourage_video", "dz_detour_avatar",
+               ['modele: $("dModele").value }, detourSujet())', "{ sujet: sj }"], "avatar/index.html"),
+}
+for site, (rel, nature, ls, envois, page) in _SITES.items():
+    t = _lire(rel)
+    check(f"{site} : DzModelesIA.select(…, \"{nature}\") ", f'DzModelesIA.select(sel, "{nature}"' in t, rel)
+    check(f"{site} : choix mémorisé {ls} (accès gardé par try/catch)",
+          t.count(f'"{ls}"') == 1 and _re.search(r"try \{ (?:voulu = )?localStorage\.getItem\(DETOUR_LS\)", t) is not None
+          and "try { localStorage.setItem(DETOUR_LS" in t, rel)
+    check(f"{site} : envoie modele et sujet", all(m in t for m in envois), [m for m in envois if m not in t])
+    check(f"{site} : aucune option grisée pour une clé manquante", _sans_cle_grise(t), rel)
+    h = _lire(page)
+    check(f"{site} : {page} charge /shared/dz-modeles-ia.js AVANT le script du lab",
+          0 <= h.find('src="/shared/dz-modeles-ia.js"') < max(h.find(f'src="{pathlib.Path(rel).name}"'),
+                                                               h.find('src="js/core.js"'), h.find('src="studio3d.js"')), page)
+_sl = _lire("spritelab/index.html")
+check("spritelab : #removeBg porte les ids du registre (défaut d'avant rembg-fal) et garde « Aucun » ; champ sujet",
+      '<option value="rembg-fal" selected>' in _sl and '<option value="local-chroma">' in _sl
+      and '<option value="none">' in _sl and 'id="removeBgSujet"' in _sl and 'value="api"' not in _sl)
+_s3 = _lire("studio3d/index.html")
+check("studio3d : #vuesDetourModele (défaut d'avant : masque des coins) et #vuesDetourSujet",
+      'id="vuesDetourModele"' in _s3 and '<option value="coins">' in _s3 and 'id="vuesDetourSujet"' in _s3)
+check("studio3d : le masque des coins garde le corps d'avant { via: \"local\" }",
+      'if (!v || v === DETOUR_COINS) return { via: "local" };' in _lire("studio3d/vues.js"))
+check("cartes : garder le défaut (voie d'avant) n'envoie AUCUN corps",
+      "if (!v || v === detourDefaut()) return undefined;" in _lire("cardforge/js/mod-capture.js"))
+_av = _lire("avatar/avatar.js")
+check("avatar : les trois réglages BiRefNet d'avant restent (portrait par défaut), BiRefNet v2 vidéo du registre écarté",
+      'if (!sel.value) sel.value = "portrait";' in _av and "removeChild(ob)" in _av
+      and '<option value="portrait"' in _lire("avatar/index.html") and 'id="dSujet"' in _lire("avatar/index.html"))
+
+# rack VFX (couche vfxrack, rafraîchie dans le bundle)
+_vr = _lire("patches/vfxrack.js")
+check("vfxrack : modèles de /api/matte-models avec prix (vfxMatteLbl), sujet SAM 3.1, choix mémorisé dz_detour_vfx",
+      "children:vfxMatteLbl(o)" in _vr and 'vfxPost("/api/matte",vfxMatteCorps(clip.src.job_id))' in _vr
+      and 'var VFX_DETOUR_LS="dz_detour_vfx";' in _vr and "c.sujet=String(VFX_MATTE.sujet" in _vr
+      and "vfxMatteSujetRow(mtick)" in _vr and _sans_cle_grise(_vr))
+_BUN = (_FR / "dist/assets/index-BEOJX8L5.js").read_bytes().decode("utf-8")
+_b, _e = "/*__DZ_VFXRACK_BEGIN__*/", "/*__DZ_VFXRACK_END__*/"
+_bloc = _BUN[_BUN.index(_b) + len(_b):_BUN.index(_e)].strip("\r\n")
+check("bundle : le bloc VFXRACK EST la couche (refresh_layer --layer vfxrack), matte multi-modèles compris",
+      _bloc == _vr.strip("\r\n").lstrip("﻿") and "vfxMatteCorps(" in _bloc, len(_bloc))
+
+# nœud Studio « Détourage » (maillon de queue encartsia)
+check("bundle : le nœud Détourage lit le catalogue detourage_image, mémorise dz_detour_studio, envoie modele/sujet",
+      'fetch("/api/ia/catalogue?nature=detourage_image")' in _BUN and _BUN.count('"dz_detour_studio"') == 2
+      and 'var c={method:"api",modele:v};' in _BUN and "c.sujet=sj" in _BUN and '"data-dzdetour":"1"' in _BUN
+      and 'options:dzDetOpts(dzDv,dzDetR)' in _BUN and 'body.method=p.method||"api"' not in _BUN)
+check("bundle : compteurs figés intacts (useState 731, DzTracks 181)",
+      _BUN.count("x.useState(") == 731 and _BUN.count("DzTracks") == 181,
+      f"{_BUN.count('x.useState(')} {_BUN.count('DzTracks')}")
+_node = shutil.which("node")
+if _node:
+    _i0 = _BUN.index("var dzDetCat=")
+    _aides = _BUN[_i0:_BUN.index("function DzImgProcPanel(", _i0)]
+    _p0 = _BUN.index("function dzPrixUsd(")
+    _prix = _BUN[_p0:_BUN.index("function dzPrixImg(", _p0)]
+    _CAT = [{"id": "local-rembg", "label": "rembg (local, gratuit)", "voie": "local", "usd": 0, "unite": "image",
+             "dispo": True, "prompt": False},
+            {"id": "sam3-sujet", "label": "SAM 3", "voie": "fal", "usd": 0.005, "unite": "image", "dispo": False,
+             "cle": "FAL_KEY", "prompt": True},
+            {"id": "pixelcut", "label": "Pixelcut", "voie": "fal", "usd": 0, "unite": "image", "dispo": True,
+             "prompt": False}]
+    _js = ("var DICO={'ia.voie.local':'local, gratuit','ia.prix.a_mesurer':'prix à mesurer',"
+           "'ia.cle.a_ajouter':'clé {cle} à ajouter dans Réglages','ia.etat.chargement':'chargement…',"
+           "'detour.champ.sujet_requis':'Dites quel sujet garder.','studio.imgproc.api_cloud':'API cloud (fal)'};"
+           "function dzT(k,v){var t=DICO[k]||k;for(var x in (v||{}))t=t.split('{'+x+'}').join(v[x]);return t}"
+           "var MEM={};var localStorage={getItem:function(k){return MEM[k]||null},setItem:function(k,v){MEM[k]=v}};"
+           "var window={};var CAT=" + _json.dumps(_CAT, ensure_ascii=False) + ";var tir=0;"
+           "function fetch(u){tir++;return Promise.resolve({ok:true,json:function(){return Promise.resolve({modeles:CAT})}})}"
+           + _prix + _aides +
+           ";var avant=dzDetOpts('rembg-fal',function(){});"
+           "setTimeout(function(){var apres=dzDetOpts('rembg-fal',null);"
+           "var r={avant:avant,apres:apres,tir:tir,"
+           "v0:dzDetVal({}),v1:dzDetVal({method:'local'}),v2:dzDetVal({method:'api'}),"
+           "c0:dzDetCorps({}),c1:dzDetCorps({method:'local'}),c2:dzDetCorps({modele:'sam3-sujet'}),"
+           "c3:dzDetCorps({modele:'sam3-sujet',sujet:' le chat '}),c4:dzDetCorps({modele:'pixelcut'}),"
+           "p:dzDetPrompt('sam3-sujet')};dzDetMem('pixelcut');r.v3=dzDetVal({});"
+           "console.log(JSON.stringify(r))},20);")
+    _pr = subprocess.run([_node, "-e", _js], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        _o = _json.loads(_pr.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        _o = {}
+    check("bundle (aides réelles sous node) : « chargement… » avant la réponse, puis fal d'abord, prix, local gratuit, "
+          "mention de clé (choisissable)",
+          _o.get("avant") == [{"value": "rembg-fal", "label": "chargement…"}]
+          and _o.get("apres") == [{"value": "sam3-sujet", "label": "SAM 3 · $0.005/image · clé FAL_KEY à ajouter dans Réglages"},
+                                  {"value": "pixelcut", "label": "Pixelcut · prix à mesurer"},
+                                  {"value": "local-rembg", "label": "rembg (local, gratuit) · local, gratuit"}]
+          and _o.get("tir") == 1, (_pr.stdout + _pr.stderr)[-500:])
+    check("bundle : défaut d'avant (api -> rembg-fal, local -> local-rembg), puis le choix mémorisé",
+          _o.get("v0") == "rembg-fal" and _o.get("v1") == "local-rembg" and _o.get("v2") == "rembg-fal"
+          and _o.get("v3") == "pixelcut", str(_o)[:300])
+    check("bundle : corps — défauts par `method` (chemin d'avant), sujet exigé par SAM 3, sinon `modele`",
+          _o.get("c0") == {"corps": {"method": "api"}} and _o.get("c1") == {"corps": {"method": "local"}}
+          and _o.get("c2") == {"err": "Dites quel sujet garder."}
+          and _o.get("c3") == {"corps": {"method": "api", "modele": "sam3-sujet", "sujet": "le chat"}}
+          and _o.get("c4") == {"corps": {"method": "api", "modele": "pixelcut"}} and _o.get("p") is True, str(_o)[:400])
+    # le rack : les fonctions t186 de la couche, exécutées sous node
+    _i1 = _vr.index('var VFX_DETOUR_LS="dz_detour_vfx";')
+    _vfx = _vr[_i1:_vr.index("/* petit utilitaire", _i1)]
+    _js2 = ("var DICO={'ia.prix.a_mesurer':'prix à mesurer','ia.cle.a_ajouter':'clé {cle} à ajouter dans Réglages',"
+            "'detour.champ.sujet_requis':'Dites quel sujet garder.','detour.champ.sujet':'Sujet à garder'};"
+            "function dzT(k,v){var t=DICO[k]||k;for(var x in (v||{}))t=t.split('{'+x+'}').join(v[x]);return t}"
+            "var MEM={dz_detour_vfx:'sam31-video'};var localStorage={getItem:function(k){return MEM[k]||null},"
+            "setItem:function(k,v){MEM[k]=v}};" + _prix +
+            "var window={};var r={jsx:function(t,p){return {t:t,p:p}}};"
+            "var VFX_MATTE={busy:!1,model:'general',arm:null,models:null};" + _vfx +
+            ";var o={m0:VFX_MATTE.model};VFX_MATTE.models=["
+            "{id:'general',label:'Général',usd:0,unite:'s',registre:'birefnet-v2-video',dispo:true,prompt:false},"
+            "{id:'veed-video-rapide',label:'VEED rapide',usd:0.012,unite:'30 images',registre:'veed-video-rapide',dispo:false,cle:'FAL_KEY',prompt:false},"
+            "{id:'sam31-video',label:'SAM 3.1',usd:0.01,unite:'16 images',registre:'sam31-video',dispo:true,prompt:true}];"
+            "var notes=[];o.l0=vfxMatteLbl(VFX_MATTE.models[0]);o.l1=vfxMatteLbl(VFX_MATTE.models[1]);"
+            "o.bloque=vfxMatteSansSujet(function(m){notes.push(m)});o.notes=notes;o.row=!!vfxMatteSujetRow(function(){});"
+            "VFX_MATTE.sujet='le chien';o.c=vfxMatteCorps('j1');o.d=vfxMatteDevis(10);"
+            "vfxMatteChoix('general');o.c2=vfxMatteCorps('j1');o.d2=vfxMatteDevis(10);o.mem=MEM.dz_detour_vfx;"
+            "o.row2=vfxMatteSujetRow(function(){});vfxMatteChoix('disparu');vfxMatteValide();o.m3=VFX_MATTE.model;"
+            "console.log(JSON.stringify(o));")
+    _pr = subprocess.run([_node, "-e", _js2], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        _o = _json.loads(_pr.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        _o = {}
+    check("vfxrack (fonctions réelles sous node) : choix mémorisé relu, prix par tranche, mention de clé, sujet exigé",
+          _o.get("m0") == "sam31-video" and _o.get("l0") == "Général · prix à mesurer"
+          and _o.get("l1") == "VEED rapide · $0.012/30 images · clé FAL_KEY à ajouter dans Réglages"
+          and _o.get("bloque") is True and _o.get("notes") == ["Dites quel sujet garder."] and _o.get("row") is True,
+          (_pr.stdout + _pr.stderr)[-500:])
+    check("vfxrack : corps {job_id, model, sujet} ; devis kind detourage, et kind matte d'avant pour BiRefNet",
+          _o.get("c") == {"job_id": "j1", "model": "sam31-video", "sujet": "le chien"}
+          and _o.get("d") == {"kind": "detourage", "modele": "sam31-video", "secondes": 10}
+          and _o.get("c2") == {"job_id": "j1", "model": "general"} and _o.get("d2") == {"kind": "matte", "duration_s": 10}
+          and _o.get("mem") == "general" and _o.get("row2") is None and _o.get("m3") == "general", str(_o)[:400])
+else:
+    check("node présent", False)
 
 check("aucun appel réseau réel", RESEAU["n"] == 0, str(RESEAU))
 print(f"\n=== {ok} passed, {fail} failed ===")
