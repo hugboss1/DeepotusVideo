@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Ranger sur le plateau",
+    "en": "Arrange on the bed"
+  },
+  "legende": {
+    "fr": "Sur la plaque montre le plateau réel de l'imprimante ; Ranger sur le plateau y pose les pièces avec 2 mm d'écart.",
+    "en": "On the plate shows the printer's real bed; Arrange on the bed places the parts there with 2 mm gaps."
+  },
+  "captures": [
+    {
+      "fr": "plaque.fr.webp",
+      "en": "plaque.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        956,
+        4,
+        84,
+        40
+      ],
+      "bulle": {
+        "fr": "Le contour vert : le plateau réel",
+        "en": "The green outline: the real bed"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        646,
+        833,
+        156,
+        35
+      ],
+      "bulle": {
+        "fr": "Rangé, tourné si ça fait gagner de la place",
+        "en": "Arranged, rotated if it saves space"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        950,
+        4,
+        91,
+        40
+      ],
+      "bulle": {
+        "fr": "Le contour vert : le plateau réel",
+        "en": "The green outline: the real bed"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        604,
+        833,
+        138,
+        35
+      ],
+      "bulle": {
+        "fr": "Rangé, tourné si ça fait gagner de la place",
+        "en": "Arranged, rotated if it saves space"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

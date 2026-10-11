@@ -1,0 +1,377 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "python scripts/guide/semer_etabli.py http://127.0.0.1:8809 (un phare OBJ importé ; aucune clé, rien de payant)",
+ "scenes": [
+  {
+   "scene": "etabli/ecran",
+   "url": "/etabli/",
+   "titre": {
+    "fr": "L'écran de l'Établi",
+    "en": "The Workbench screen"
+   },
+   "legende": {
+    "fr": "À gauche la vie du modèle, au centre la pièce, à droite les onglets Parties, Rig, Fiche, Export ; la taille cible donne les millimètres.",
+    "en": "On the left the model's life, in the middle the part, on the right the Parts, Rig, Sheet, Export tabs; the target size gives the millimetres."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "liste"
+    },
+    {
+     "nom": "piece",
+     "etapes": [
+      {
+       "clic": "css:button.etape",
+       "apres": 4500
+      },
+      {
+       "js": "(()=>{const c=document.querySelector('#rCible');c.value='80';c.dispatchEvent(new Event('input',{bubbles:true}));c.dispatchEvent(new Event('change',{bubbles:true}));})()",
+       "attente": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": "css:button.etape",
+     "clic": true,
+     "bulle": {
+      "fr": "Chargez une version",
+      "en": "Load a version"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:#rCible",
+     "bulle": {
+      "fr": "80 mm : la taille cible",
+      "en": "80 mm: the target size"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:#impProfil",
+     "bulle": {
+      "fr": "L'imprimante et son plateau réel",
+      "en": "The printer and its real bed"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "etabli/regarder",
+   "url": "/etabli/",
+   "titre": {
+    "fr": "Regarder avant de trancher",
+    "en": "Look before slicing"
+   },
+   "legende": {
+    "fr": "Surplombs peint en orange les faces trop penchées ; Tranches montre vingt sections. Des aperçus : rien n'est écrit.",
+    "en": "Overhangs paints overly tilted faces orange; Slices shows twenty sections. Previews: nothing is written."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    },
+    {
+     "clic": "css:button.etape",
+     "apres": 4500
+    },
+    {
+     "js": "(()=>{const c=document.querySelector('#rCible');c.value='80';c.dispatchEvent(new Event('input',{bubbles:true}));c.dispatchEvent(new Event('change',{bubbles:true}));})()",
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "surplombs",
+     "etapes": [
+      {
+       "clic": "css:#btnSurplombs",
+       "apres": 2500
+      }
+     ]
+    },
+    {
+     "nom": "tranches",
+     "etapes": [
+      {
+       "clic": "css:#btnSurplombs",
+       "apres": 800
+      },
+      {
+       "clic": "css:#btnTranches",
+       "apres": 3000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:#btnSurplombs",
+     "bulle": {
+      "fr": "26 triangles sous 45° : le balcon",
+      "en": "26 triangles under 45°: the balcony"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:#btnTranches",
+     "bulle": {
+      "fr": "Vingt sections, en bleu",
+      "en": "Twenty sections, in blue"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "etabli/fiche",
+   "url": "/etabli/",
+   "titre": {
+    "fr": "Réparer, creuser, décimer",
+    "en": "Repair, hollow, decimate"
+   },
+   "legende": {
+    "fr": "L'onglet Fiche : réparer en un clic, orientations proposées, creuser, percer, décimer, matériaux.",
+    "en": "The Sheet tab: one-click repair, proposed orientations, hollow, drill, decimate, materials."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    },
+    {
+     "clic": "css:button.etape",
+     "apres": 4500
+    },
+    {
+     "js": "(()=>{const c=document.querySelector('#rCible');c.value='80';c.dispatchEvent(new Event('input',{bubbles:true}));c.dispatchEvent(new Event('change',{bubbles:true}));})()",
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "fiche",
+     "etapes": [
+      {
+       "clic": "css:[data-onglet=\"fiche\"]",
+       "apres": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "contient:Réparer en un clic",
+      "en": "contient:Repair in one click"
+     },
+     "bulle": {
+      "fr": "Chaque geste écrit une version",
+      "en": "Each gesture writes a version"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "etabli/plaque",
+   "url": "/etabli/",
+   "titre": {
+    "fr": "Ranger sur le plateau",
+    "en": "Arrange on the bed"
+   },
+   "legende": {
+    "fr": "Sur la plaque montre le plateau réel de l'imprimante ; Ranger sur le plateau y pose les pièces avec 2 mm d'écart.",
+    "en": "On the plate shows the printer's real bed; Arrange on the bed places the parts there with 2 mm gaps."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    },
+    {
+     "clic": "css:button.etape",
+     "apres": 4500
+    },
+    {
+     "js": "(()=>{const c=document.querySelector('#rCible');c.value='80';c.dispatchEvent(new Event('input',{bubbles:true}));c.dispatchEvent(new Event('change',{bubbles:true}));})()",
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "plaque",
+     "etapes": [
+      {
+       "clic": "css:#btnPlaque",
+       "apres": 2500
+      },
+      {
+       "clic": "css:#btnArranger",
+       "apres": 3000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#btnPlaque",
+     "bulle": {
+      "fr": "Le contour vert : le plateau réel",
+      "en": "The green outline: the real bed"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#btnArranger",
+     "bulle": {
+      "fr": "Rangé, tourné si ça fait gagner de la place",
+      "en": "Arranged, rotated if it saves space"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "etabli/export",
+   "url": "/etabli/",
+   "titre": {
+    "fr": "Exporter vers le slicer ou un moteur",
+    "en": "Export to the slicer or an engine"
+   },
+   "legende": {
+    "fr": "Onglet Export : STL et 3MF de la version affichée, ou glTF préparé pour Blender, Godot, Unreal ou Unity.",
+    "en": "Export tab: STL and 3MF of the shown version, or glTF prepared for Blender, Godot, Unreal or Unity."
+   },
+   "avant": [
+    {
+     "attente": 2500
+    },
+    {
+     "clic": "css:button.etape",
+     "apres": 4500
+    },
+    {
+     "js": "(()=>{const c=document.querySelector('#rCible');c.value='80';c.dispatchEvent(new Event('input',{bubbles:true}));c.dispatchEvent(new Event('change',{bubbles:true}));})()",
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "export",
+     "etapes": [
+      {
+       "clic": "css:[data-onglet=\"export\"]",
+       "apres": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "contient:Impression 3D",
+      "en": "contient:3D printing"
+     },
+     "bulle": {
+      "fr": "Vers l'impression, aux millimètres",
+      "en": "To printing, in millimetres"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "plateau/scene",
+   "url": "/plateau/",
+   "titre": {
+    "fr": "Bloquer un plan sur le Plateau 3D",
+    "en": "Block a shot on the 3D Set"
+   },
+   "legende": {
+    "fr": "Des volumes simples ou un maillage, un cadre au format du film, puis un mouvement de caméra en keyframes.",
+    "en": "Simple volumes or a mesh, a frame at the film's format, then a camera move in keyframes."
+   },
+   "avant": [
+    {
+     "attente": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "scene",
+     "etapes": [
+      {
+       "js": "(()=>{const s=document.querySelector('#selMaillage');const o=[...s.options].find(o=>/phare/.test(o.text));s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}));})()",
+       "attente": 800
+      },
+      {
+       "clic": "css:#btnMaillage",
+       "apres": 3000
+      },
+      {
+       "js": "(()=>{const set=(sel,v)=>{const i=document.querySelector(sel);if(!i)return;i.value=v;i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));};set('#fiche [data-k=\"scale\"], [data-k=\"scale\"]','0.025');})()",
+       "attente": 1500
+      },
+      {
+       "js": "(()=>{const i=[...document.querySelectorAll('[data-k]')].find(x=>x.dataset.j==='0'&&x.dataset.k!=='scale'&&x.dataset.k!=='nom');if(i){i.value='1.3';i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));}})()",
+       "attente": 1500
+      },
+      {
+       "js": "(()=>{const s=document.querySelector('#aspect');s.value='2.39:1';s.dispatchEvent(new Event('change',{bubbles:true}));})()",
+       "attente": 1500
+      },
+      {
+       "js": "(()=>{const s=document.querySelector('#preset');s.value='orbite90';s.dispatchEvent(new Event('change',{bubbles:true}));})()",
+       "attente": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#btnMaillage",
+     "bulle": {
+      "fr": "Le phare, posé depuis l'Établi",
+      "en": "The lighthouse, placed from the Workbench"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#aspect",
+     "bulle": {
+      "fr": "Cadre 2.39:1, focale, guides",
+      "en": "2.39:1 frame, focal length, guides"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#btnCapture",
+     "bulle": {
+      "fr": "Capturer début et fin vers la Bibliothèque",
+      "en": "Capture start and end to the Library"
+     }
+    }
+   ]
+  }
+ ]
+}

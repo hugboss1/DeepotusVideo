@@ -1,0 +1,25 @@
+<p class="chapeau-chap">Vous saurez bloquer un plan en 3D sur le Plateau avant tout tir payant : poser des volumes ou un vrai maillage, cadrer au format du film, régler un mouvement de caméra, puis renvoyer le tout vers le plan du storyboard. Gratuit et local.</p>
+
+<h3>Composer la scène</h3>
+<figure class="scene" data-scene="plateau/scene"></figure>
+<ol class="etapes">
+<li>Depuis une carte de plan du storyboard de l'<a href="#chapitres">Atelier</a>, le bouton Plateau ouvre la scène de ce plan ; <b class="ui">Atelier</b> y ramène.</li>
+<li>Posez des volumes simples : <b class="ui">Boîte</b>, Capsule, <b class="ui">Cylindre</b>, <b class="ui">Sphère</b>, ou un maillage d'un job 3D ou d'une entité de la bible, choisi dans la liste (rangée sous « Entités de la bible » et « Maillages 3D ») puis posé par le bouton à côté.</li>
+<li>Chaque objet a un nom, un rôle (sujet, décor, repère), une position, une rotation, une échelle et ses dimensions mesurées ; <b class="ui">Dupliquer</b> ou <b class="ui">Retirer</b>.</li>
+</ol>
+
+<h3>Cadrer et animer</h3>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-camera"></i><h4>Cadre</h4><p>Format 16:9, 9:16, 1:1 ou 2.39:1, focale en millimètres, guides (tiers, croix, zone-titre, horizon). Le type de plan (large, moyen, gros plan) est mesuré d'après la hauteur du sujet dans le cadre.</p></article>
+<article><i data-dz="dz-lab3d-rotation"></i><h4>Mouvement</h4><p><kbd>K</kbd> pose un keyframe caméra sur la tête de lecture ; un preset pose un travelling avant, une orbite de 90°, une grue descendante ou un plan fixe. <kbd>Espace</kbd> lit le mouvement en boucle.</p></article>
+</div>
+
+<h3>Sorties</h3>
+<ol class="etapes">
+<li><b class="ui">Capturer début / fin</b> : le cadre du premier et du dernier keyframe part dans la Bibliothèque, avec sa provenance.</li>
+<li><b class="ui">Composer le GLB</b> : le GLB de la scène, versionné avec sa fiche.</li>
+<li><b class="ui">Appliquer au plan…</b> : propose au plan lié le type de plan, le mouvement, le prompt de mouvement et les images de bornes, comparés avant et après ; rien ne change sans votre confirmation.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Le Plateau sert à décider avant de payer : les images de bornes capturées deviennent les images de début et de fin d'un plan vidéo, et le mouvement mesuré nourrit son prompt.</p></aside>

@@ -1,0 +1,25 @@
+<p class="chapeau-chap">You will be able to block a shot in 3D on the Stage before any paid run: place volumes or a real mesh, frame at the film's format, set a camera move, then send it all back to the storyboard shot. Free and local.</p>
+
+<h3>Compose the scene</h3>
+<figure class="scene" data-scene="plateau/scene"></figure>
+<ol class="etapes">
+<li>From a shot card of the <a href="#chapitres">Workshop</a> storyboard, the Stage button opens that shot's scene; <b class="ui">Workshop</b> brings you back.</li>
+<li>Place simple volumes: <b class="ui">Box</b>, Capsule, <b class="ui">Cylinder</b>, <b class="ui">Sphere</b>, or a mesh from a 3D job or a bible entity, chosen in the list (grouped under “Bible entities” and “3D meshes”) then placed with the button next to it.</li>
+<li>Each object has a name, a role (subject, set dressing, marker), a position, a rotation, a scale and its measured dimensions; <b class="ui">Duplicate</b> or <b class="ui">Remove</b>.</li>
+</ol>
+
+<h3>Frame and animate</h3>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-camera"></i><h4>Frame</h4><p>16:9, 9:16, 1:1 or 2.39:1 format, focal length in millimetres, guides (thirds, crosses, title safe, horizon). The shot type (wide, medium, close-up) is measured from the subject's height in the frame.</p></article>
+<article><i data-dz="dz-lab3d-rotation"></i><h4>Motion</h4><p><kbd>K</kbd> places a camera keyframe at the playhead; a preset lays a dolly-in, a 90° orbit, a crane down or a locked-off shot. <kbd>Space</kbd> plays the move in a loop.</p></article>
+</div>
+
+<h3>Outputs</h3>
+<ol class="etapes">
+<li><b class="ui">Capture start / end</b>: the frame of the first and last keyframe goes to the Library, with its provenance.</li>
+<li><b class="ui">Compose the GLB</b>: the scene's GLB, versioned with its sheet.</li>
+<li><b class="ui">Apply to shot…</b>: proposes to the linked shot the shot type, the move, the motion prompt and the end images, compared before and after; nothing changes without your confirmation.</li>
+</ol>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>The Stage is for deciding before paying: the captured end images become the start and end frames of a video shot, and the measured move feeds its prompt.</p></aside>

@@ -491,7 +491,7 @@
       "ecrans": [
         "Établi (atelier 3D avant impression)"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "impression3d",
@@ -504,7 +504,7 @@
         "c20"
       ],
       "ecrans": [],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "plateau",
@@ -516,7 +516,8 @@
       "anciens": [],
       "ecrans": [
         "Plateau 3D"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "parcours",

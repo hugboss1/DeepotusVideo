@@ -1,0 +1,36 @@
+{
+  "titre": {
+    "fr": "Réparer, creuser, décimer",
+    "en": "Repair, hollow, decimate"
+  },
+  "legende": {
+    "fr": "L'onglet Fiche : réparer en un clic, orientations proposées, creuser, percer, décimer, matériaux.",
+    "en": "The Sheet tab: one-click repair, proposed orientations, hollow, drill, decimate, materials."
+  },
+  "captures": [
+    {
+      "fr": "fiche.fr.webp",
+      "en": "fiche.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1127,
+        396,
+        307,
+        40
+      ],
+      "bulle": {
+        "fr": "Chaque geste écrit une version",
+        "en": "Each gesture writes a version"
+      }
+    }
+  ]
+}

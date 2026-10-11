@@ -1,0 +1,88 @@
+{
+  "titre": {
+    "fr": "Regarder avant de trancher",
+    "en": "Look before slicing"
+  },
+  "legende": {
+    "fr": "Surplombs peint en orange les faces trop penchées ; Tranches montre vingt sections. Des aperçus : rien n'est écrit.",
+    "en": "Overhangs paints overly tilted faces orange; Slices shows twenty sections. Previews: nothing is written."
+  },
+  "captures": [
+    {
+      "fr": "surplombs.fr.webp",
+      "en": "surplombs.en.webp"
+    },
+    {
+      "fr": "tranches.fr.webp",
+      "en": "tranches.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        794,
+        833,
+        102,
+        35
+      ],
+      "bulle": {
+        "fr": "26 triangles sous 45° : le balcon",
+        "en": "26 triangles under 45°: the balcony"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        870,
+        833,
+        96,
+        35
+      ],
+      "bulle": {
+        "fr": "Vingt sections, en bleu",
+        "en": "Twenty sections, in blue"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        734,
+        833,
+        102,
+        35
+      ],
+      "bulle": {
+        "fr": "26 triangles sous 45° : le balcon",
+        "en": "26 triangles under 45°: the balcony"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        810,
+        833,
+        84,
+        35
+      ],
+      "bulle": {
+        "fr": "Vingt sections, en bleu",
+        "en": "Twenty sections, in blue"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
