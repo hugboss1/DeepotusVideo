@@ -540,6 +540,11 @@ async def render_layout_template(
                 _cle_video_ou_503(_sv.seedance.video_model if _sv.seedance is not None else None, http)
                 if _sv.seedance is not None:   # t184 : image de fin refusée avant la dépense
                     _fin_video_ou_400(_sv.seedance.video_model, _sv.seedance.image_filename_end, http)
+                    # t185 (relecture) : images de départ et de fin vérifiées sur le disque AVANT la dépense, comme
+                    # /generate/composition — sinon la pipeline ne les refusait qu'après _plafond
+                    for _quoi, _nom in (("start", _sv.seedance.image_filename), ("end", _sv.seedance.image_filename_end)):
+                        if _nom and not (settings.images_path / _nom).exists():
+                            raise HTTPException(404, f"Seedance {_quoi} image not found: {_nom}")
         if "heygen" in kinds and not settings.has_heygen:
             raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
         _ops, _vo, _maxs, _epingles = await _ops_rendu(template_id, request)

@@ -37,11 +37,12 @@ compilé, et le sélecteur du nœud le sait :
     le tir seul (Mh -> POST /generate), l'Enchaînement (Concatenate -> créneaux du gabarit tpl_studio_montage), la
     moitié animation de la composition UGC (créneau `anim`) et la Composition spatiale (dzCompose -> créneaux du
     gabarit) ; undefined disparaît du JSON : sans `end` branché, le payload est celui d'avant ;
-  - E14 Quick › Composition (POST /generate/composition) envoie l'image de fin du Quick (dzEndOK) côté Seedance,
-    comme le fait déjà l'onglet Seedance ;
+  - E14 Quick › Composition (POST /generate/composition) envoie l'image de fin du Quick (dzEndOK) côté Seedance ;
+    `||void 0` : sans image de fin, la clé est ABSENTE du JSON (payload d'avant, octet pour octet) ;
   - E18-E21 (relecture) : `end` branché sur une image SANS fichier -> refus dzT("studio.compil.fin_vide") dans les
     quatre compilateurs, comme l'image de départ (jamais un rendu muet sans image de fin) ;
-  - E15-E17 le panneau du nœud passe `fin` à DzVideoModelSel : les modèles qui acceptent une image de fin (`fl` de
+  - E15-E17 le panneau du nœud passe `fin` (et `finVide` : `end` branché sur une image sans fichier -> rappel
+    dzT("studio.compil.fin_vide") en ambre) à DzVideoModelSel : les modèles qui acceptent une image de fin (`fl` de
     /api/video-models, nature video_fl) viennent EN TÊTE ; si le modèle courant n'en accepte pas, un bandeau
     dzT("studio.video.fl_absent") et l'action en un clic dzT("studio.video.fl") (Veo 3.1 Fast fal) — le modèle ne
     change JAMAIS en silence, seul le clic appelle onChange. Sans `fin` (Quick, Épisodes, Réglages), rendu inchangé.
@@ -71,6 +72,8 @@ SONDE_AMONT = [
     ("avnoeuds", "function dzAvCompile(", 1),
     ("avatar", '{id:"avatarlive",', 1),
     ("imagegen", "function DzImgModelSel(", 1),
+    ("imagegen", "function dzIsImgNode(", 1),          # t185 : lu par dzFinImg
+    ("montage", "function dzEndOK(", 1),               # t185 : lu par E14 (Quick › Composition)
     ("dzglyph", "function __dzGlyphe(", 1),
     ("version", "v2.8.0", 4),
     ("montage", "DzTracks", 181),
@@ -169,13 +172,17 @@ SEL_APRES = (
     '.concat(dzVmTri(mm.models||[]).map(function(m2){return{value:m2.id,label:lbl(m2)}}));'
     # `fl` (alias de end_image) : le modèle accepte une image de fin ; avec `fin`, ces modèles d'abord
     'function dzVmFl(m2){return!!(m2&&(m2.fl||m2.end_image))}'
-    'function dzVmTri(l){return fin?l.filter(dzVmFl).concat(l.filter(function(m2){return!dzVmFl(m2)})):l}'
+    'function dzVmTri(l){return fin||finVide?l.filter(dzVmFl).concat(l.filter(function(m2){return!dzVmFl(m2)})):l}'
     'var sel=r.jsx(re,{value:value||"",onChange:onChange,options:opts});'
-    'if(!fin)return r.jsx("div",{"data-dzvmsel":"1",children:sel});'
+    'if(!fin&&!finVide)return r.jsx("div",{"data-dzvmsel":"1",children:sel});'
+    # `end` branché sur une image SANS fichier : le panneau le dit avant le lancement (qui serait refusé)
+    'if(!fin)return r.jsxs("div",{"data-dzvmsel":"1","data-dzvmfin":"vide",children:[sel,r.jsx("div",{"data-dzvmfinvide":"1",'
+    'style:{fontSize:11,marginTop:6,padding:8,background:"var(--amber-soft)",border:"1px solid var(--amber)",'
+    'borderRadius:"var(--r-sm)",color:"var(--ink)"},children:dzT("studio.compil.fin_vide")})]});'
     'var cur=value||mm.default||"seedance-2.5",cm=(mm.models||[]).find(function(m2){return m2.id===cur}),'
     'flOk=!cm||dzVmFl(cm),veo=(mm.models||[]).find(function(m2){return m2.id==="' + VEO_FL + '"&&dzVmFl(m2)});'
     'return r.jsxs("div",{"data-dzvmsel":"1","data-dzvmfin":flOk?"oui":"non",children:[sel,'
-    'flOk?r.jsx("div",{style:{fontSize:11,marginTop:4,color:"var(--ink-soft)"},children:dzT("studio.compose.fin")+" : "+fin})'
+    'flOk?r.jsx("div",{style:{fontSize:11,marginTop:4,color:"var(--ink-soft)"},children:dzT("studio.compose.fin",{nom:fin})})'
     ':r.jsxs("div",{"data-dzvmflabsent":"1",style:{fontSize:11,marginTop:6,padding:8,background:"var(--amber-soft)",'
     'border:"1px solid var(--amber)",borderRadius:"var(--r-sm)",color:"var(--ink)"},children:['
     'r.jsx("div",{children:dzT("studio.video.fl_absent")}),'
@@ -205,10 +212,11 @@ PAIRES += [
      'image_filename_end:dzFinImg(e,g.id),'),
     # E14 : Quick › Composition, l'image de fin du Quick côté Seedance (même règle que l'onglet Seedance)
     ('seedance:{camera_ctrl:dzCam(),video_model:VMQ||void 0,image_filename:w,',
-     'seedance:{camera_ctrl:dzCam(),video_model:VMQ||void 0,image_filename:w,image_filename_end:(dzEndOK()?g:"")||null,'),
+     'seedance:{camera_ctrl:dzCam(),video_model:VMQ||void 0,image_filename:w,image_filename_end:(dzEndOK()?g:"")||void 0,'),
     # E15 : le panneau du nœud Seedance dit au sélecteur l'image de fin branchée
     ('r.jsx(DzVideoModelSel,{value:n.model,onChange:i=>o("model",i)})',
-     'r.jsx(DzVideoModelSel,{value:n.model,onChange:i=>o("model",i),fin:g?dzFinImg(g,e.id):void 0})'),
+     'r.jsx(DzVideoModelSel,{value:n.model,onChange:i=>o("model",i),fin:g&&g.edges?dzFinImg(g,e.id):void 0,'
+     'finVide:g&&g.edges?dzFinVide(g,e.id):!1})'),
     # E18-E21 : `end` branché mais vide -> refus, comme l'image de départ (même mécanisme dans chaque compilateur)
     ('if(!b||!dzIsImgNode(b)||!((c=b.props)!=null&&c.filename))return{ok:!1,error:dzT("studio.compil.image_seedance")};',
      'if(!b||!dzIsImgNode(b)||!((c=b.props)!=null&&c.filename))return{ok:!1,error:dzT("studio.compil.image_seedance")};'
@@ -222,7 +230,7 @@ PAIRES += [
     # dzCompose : l'erreur rejoint `errs`, renvoyée avant tout rendu (le créneau reste rempli : pas « connecte une vidéo »)
     ('var pr=Wt(e,g.id,"prompt");', 'var pr=Wt(e,g.id,"prompt");if(dzFinVide(e,g.id))errs.push(' + FIN_VIDE + ');'),
     # E16-E17 : le sélecteur
-    ('function DzVideoModelSel({value,onChange}){', 'function DzVideoModelSel({value,onChange,fin}){'),
+    ('function DzVideoModelSel({value,onChange}){', 'function DzVideoModelSel({value,onChange,fin,finVide}){'),
     (SEL_AVANT, SEL_APRES),
 ]
 

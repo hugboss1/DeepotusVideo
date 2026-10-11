@@ -16,7 +16,8 @@ Quick › Composition, et le sélecteur du nœud le sait.
       end_image_url et la soumission part vers l'endpoint FL (first/last_frame_url) — espion sur la couture
       `_soumettre`, aucun réseau ; un créneau Seedance de /layout-templates/{id}/render (dzCompose) idem ;
   [4] backend : même payload en kling-v3-turbo-pro -> 400 « n'accepte pas d'image de fin » AVANT _plafond, zéro
-      dépense ; image de fin absente du disque -> 404 avant _plafond.
+      dépense ; image de fin absente du disque -> 404 avant _plafond, sur la composition ET sur un créneau de
+      gabarit (image de départ comme de fin).
 
 AUCUN appel réel : `_plafond` est un espion, `_soumettre` lève après capture, `fal_client.*` et tout
 `httpx.AsyncClient.post` hors du client de test sont COMPTÉS et refusés.
@@ -249,6 +250,12 @@ var sans=DzVideoModelSel({value:"kling-v3-turbo-pro",onChange:oc});
 var kl=DzVideoModelSel({value:"kling-v3-turbo-pro",onChange:oc,fin:"fin.png"});
 var dflt=DzVideoModelSel({value:"",onChange:oc,fin:"fin.png"});
 var veo=DzVideoModelSel({value:"veo-3.1-fast-fal",onChange:oc,fin:"fin.png"});
+var vide=DzVideoModelSel({value:"kling-v3-turbo-pro",onChange:oc,finVide:!0});
+var M2=M.map(function(m){return Object.assign({},m,m.id==="veo-3.1-fast-fal"?{available:!1}:{})});
+MM={models:M2,default:"seedance-2.5"};
+var sanscle=DzVideoModelSel({value:"kling-v3-turbo-pro",onChange:oc,fin:"fin.png"});
+MM={models:[]};
+var nul=DzVideoModelSel({value:"kling-v3-turbo-pro",onChange:oc,fin:"fin.png"});
 var rendu=CH.slice();
 var bt=trouve(kl,function(n){return n.t==="button"});
 if(bt)bt.p.onClick();
@@ -256,7 +263,10 @@ console.log(JSON.stringify({
   sans_ordre:sel(sans).p.options.map(function(o){return o.value}),sans_t:sans.p["data-dzvmfin"]||null,sans_txt:texte(sans),
   kl_ordre:sel(kl).p.options.map(function(o){return o.value}),kl_fin:kl.p["data-dzvmfin"],kl_txt:texte(kl),
   kl_val:sel(kl).p.value,dflt_fin:dflt.p["data-dzvmfin"],veo_fin:veo.p["data-dzvmfin"],veo_txt:texte(veo),
-  veo_bt:!!trouve(veo,function(n){return n.t==="button"}),bt:bt?bt.p.children:null,rendu:rendu,clic:CH.slice(rendu.length)}));
+  veo_bt:!!trouve(veo,function(n){return n.t==="button"}),bt:bt?bt.p.children:null,rendu:rendu,clic:CH.slice(rendu.length),
+  vide_fin:vide.p["data-dzvmfin"],vide_txt:texte(vide),vide_ordre:sel(vide).p.options.map(function(o){return o.value}),
+  sanscle_bt:!!trouve(sanscle,function(n){return n.t==="button"}),sanscle_fin:sanscle.p["data-dzvmfin"],
+  nul_fin:nul.p["data-dzvmfin"],nul_txt:texte(nul),nul_bt:!!trouve(nul,function(n){return n.t==="button"})}));
 """
 d2, why2 = {}, "node absent"
 if NODE and SEL:
@@ -281,23 +291,54 @@ check("2e le clic sur l'action choisit veo-3.1-fast-fal (une fois)", d2.get("cli
 check("2f le défaut du serveur (seedance-2.5, sans fin) est signalé aussi",
       d2.get("dflt_fin") == "non", d2.get("dflt_fin"))
 check("2g Veo 3.1 Fast choisi : pas de bandeau, l'image de fin du créneau rappelée",
-      d2.get("veo_fin") == "oui" and not d2.get("veo_bt") and "studio.compose.fin : fin.png" in d2.get("veo_txt", ""),
+      d2.get("veo_fin") == "oui" and not d2.get("veo_bt") and 'studio.compose.fin{"nom":"fin.png"}' in d2.get("veo_txt", ""),
       d2.get("veo_txt"))
-check("2h le panneau du nœud Seedance passe `fin` (dzFinImg du graphe) au sélecteur",
-      BUN.count('r.jsx(DzVideoModelSel,{value:n.model,onChange:i=>o("model",i),fin:g?dzFinImg(g,e.id):void 0})') == 1)
+check("2n `end` branché sur une image SANS fichier : rappel ambre studio.compil.fin_vide, modèles fl d'abord, aucun onChange",
+      d2.get("vide_fin") == "vide" and "studio.compil.fin_vide" in d2.get("vide_txt", "")
+      and d2.get("vide_ordre", [""])[1:2] == ["veo-3.1-fast-fal"], (d2.get("vide_fin"), d2.get("vide_txt")))
+check("2o Veo 3.1 Fast SANS sa clé : l'action reste proposée (un modèle sans clé reste choisissable)",
+      d2.get("sanscle_fin") == "non" and d2.get("sanscle_bt") is True, (d2.get("sanscle_fin"), d2.get("sanscle_bt")))
+check("2p catalogue vide ({models:[]}) : ni bandeau ni bouton",
+      d2.get("nul_fin") == "oui" and not d2.get("nul_bt") and "studio.video.fl_absent" not in d2.get("nul_txt", "x"),
+      (d2.get("nul_fin"), d2.get("nul_txt")))
+# le panneau du nœud : l'expression RÉELle du bundle jouée sous node (graphe absent, graphe sans edges, end vide, end plein)
+PAN = entre(BUN, "r.jsx(DzVideoModelSel,{value:n.model,", "})", inclure_b=True)
+H2B = PRELUDE + WT + IMGN + r"""
+var r={jsx:function(t,p){return p}},DzVideoModelSel="SEL",n={model:"kling-v3-turbo-pro"},o=function(){},e={id:"S"};
+var G=JSON.parse(require("fs").readFileSync(process.argv[2],"utf8")),out={};
+function un(nom,g){try{var p=(""" + PAN + r""");out[nom]={fin:p.fin===void 0?null:p.fin,finVide:p.finVide}}catch(x){out[nom]={err:String(x)}}}
+un("absent",void 0);un("sans_edges",{nodes:[]});un("plein",G.plein);un("vide",G.vide);un("sans",G.sans);
+console.log(JSON.stringify(out));
+"""
+d2b, why2b = {}, "node absent"
+if NODE and PAN:
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"plein": graphe(True), "vide": graphe(True, fin_vide=True), "sans": graphe(False)}))
+    pathlib.Path(TMP, "h2b.js").write_text(H2B, encoding="utf-8")
+    r = subprocess.run([NODE, str(Path(TMP, "h2b.js")), p], capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=60)
+    try:
+        d2b, why2b = json.loads(r.stdout.strip().splitlines()[-1]), ""
+    except Exception as e:  # noqa: BLE001
+        why2b = f"{e!r} {r.stderr[-500:]}"
+check("2h le panneau du nœud Seedance (code réel) passe `fin` / `finVide` au sélecteur, sans planter sans graphe",
+      d2b.get("absent") == {"fin": None, "finVide": False} and d2b.get("sans_edges") == {"fin": None, "finVide": False}
+      and d2b.get("plein") == {"fin": "fin.png", "finVide": False} and d2b.get("vide") == {"fin": None, "finVide": True}
+      and d2b.get("sans") == {"fin": None, "finVide": False}, (d2b, why2b, PAN))
 QCOMP = entre(BUN, 'else if(o==="comp"){', 'D.postJson("/generate/composition"', inclure_b=False)
 QPAY = entre(BUN, 'D.postJson("/generate/composition",{', 'layout:We,')
 check("2i Quick › Composition : le côté Seedance envoie l'image de fin du Quick (dzEndOK), comme l'onglet Seedance",
-      bool(QCOMP) and "image_filename:w,image_filename_end:(dzEndOK()?g:\"\")||null," in QPAY, QPAY[:200])
+      bool(QCOMP) and "image_filename:w,image_filename_end:(dzEndOK()?g:\"\")||void 0," in QPAY, QPAY[:200])
 import patch_bundle_encartsia as ENC                                         # noqa: E402
-G3 = ENC.PAIRES[8:]
-check("2j les treize paires G3 du maillon encartsia (la SOURCE) sont dans le bundle, une fois, ancres consommées",
-      len(ENC.PAIRES) == 21 and all(BUN.count(b) == 1 and BUN.count(a) == (1 if a in b else 0) for a, b in G3)
+_k3 = next((i for i, (a, b) in enumerate(ENC.PAIRES) if b.startswith("function dzFinImg(")), None)
+G3 = ENC.PAIRES[_k3:] if _k3 is not None else []
+check("2j les paires G3 du maillon encartsia (la SOURCE) sont dans le bundle, une fois, ancres consommées",
+      len(G3) >= 13 and all(BUN.count(b) == 1 and BUN.count(a) == (1 if a in b else 0) for a, b in G3)
       and G3[0][1].startswith("function dzFinImg("), [(BUN.count(b), BUN.count(a)) for a, b in G3])
 DICO = json.loads((RACINE / "frontend/shared/i18n/studio.json").read_text("utf-8"))
 CLES = ("studio.video.fl", "studio.video.fl_absent", "studio.compose.fin", "studio.compil.fin_vide")
 check("2k clés fr/en au catalogue studio.json et appelées par le bundle",
-      all(DICO.get(c, {}).get("fr") and DICO.get(c, {}).get("en") and f'dzT("{c}")' in BUN for c in CLES),
+      all(DICO.get(c, {}).get("fr") and DICO.get(c, {}).get("en") and f'dzT("{c}"' in BUN for c in CLES),
       {c: DICO.get(c) for c in CLES})
 check("2l compteurs figés : x.useState( 731, DzTracks 181 ; bundle tout en CRLF",
       BUN.count("x.useState(") == 731 and BUN.count("DzTracks") == 181
@@ -461,6 +502,15 @@ check("4b ... _plafond jamais appelé, zéro dépense, aucune soumission, aucun 
 st, js = call("/generate/composition", composition("veo-3.1-fast-fal", fin="absente.png"))
 check("4c image de fin absente du disque -> 404 avant _plafond",
       st == 404 and "absente.png" in str(js) and PLAF == [], f"{st} {js} {PLAF}")
+d0 = n_depenses()
+for _q, _sd in (("fin", dict(composition("veo-3.1-fast-fal", fin="absente.png")["seedance"])),
+                ("départ", dict(composition("veo-3.1-fast-fal")["seedance"], image_filename="absent_depart.png"))):
+    PLAF.clear()
+    st, js = call("/layout-templates/tpl_g3/render",
+                  {"template_id": "tpl_g3", "template": TPL, "slot_values": {"main": {"source_kind": "seedance", "seedance": _sd}}})
+    check(f"4d créneau de gabarit, image de {_q} absente du disque -> 404, _plafond jamais appelé, zéro dépense",
+          st == 404 and "absent" in str(js) and PLAF == [] and n_depenses() == d0, f"{st} {js} {PLAF}")
+PLAF.clear()
 st, js = call("/generate/composition", composition("kling-v3-turbo-pro", fin=None))
 check("TÉMOIN : kling-v3-turbo-pro SANS fin atteint _plafond (402 de l'espion)", st == 402 and len(PLAF) == 1,
       f"{st} {js} {PLAF}")

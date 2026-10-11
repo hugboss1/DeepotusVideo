@@ -11466,7 +11466,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "studio.compose.brancher_image": {"fr": "Branche une Image sur le noeud Seedance.", "en": "Connect an Image to the Seedance node."},
   "studio.compose.chargement": {"fr": "— chargement… —", "en": "— loading… —"},
   "studio.compose.connecter_video": {"fr": "Connecte un Seedance (reel) ou un avatar HeyGen à la Composition spatiale.", "en": "Connect a Seedance (reel) or a HeyGen avatar to the Spatial compose."},
-  "studio.compose.fin": {"fr": "Image de fin du créneau", "en": "Slot last frame"},
+  "studio.compose.fin": {"fr": "Image de fin du créneau : {nom}", "en": "Slot last frame: {nom}"},
   "studio.compose.flash_cyan": {"fr": "flash cyan", "en": "cyan flash"},
   "studio.compose.fondu_noir": {"fr": "fondu au noir", "en": "fade to black"},
   "studio.compose.gabarit": {"fr": "Gabarit", "en": "Template"},
