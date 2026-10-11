@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "L'écran de l'Établi",
+    "en": "The Workbench screen"
+  },
+  "legende": {
+    "fr": "À gauche la vie du modèle, au centre la pièce, à droite les onglets Parties, Rig, Fiche, Export ; la taille cible donne les millimètres.",
+    "en": "On the left the model's life, in the middle the part, on the right the Parts, Rig, Sheet, Export tabs; the target size gives the millimetres."
+  },
+  "captures": [
+    {
+      "fr": "liste.fr.webp",
+      "en": "liste.en.webp"
+    },
+    {
+      "fr": "piece.fr.webp",
+      "en": "piece.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        56,
+        90
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Chargez une version",
+        "en": "Load a version"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1214,
+        416,
+        220,
+        36
+      ],
+      "bulle": {
+        "fr": "80 mm : la taille cible",
+        "en": "80 mm: the target size"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1171,
+        719,
+        251,
+        28
+      ],
+      "bulle": {
+        "fr": "L'imprimante et son plateau réel",
+        "en": "The printer and its real bed"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        52,
+        90
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Chargez une version",
+        "en": "Load a version"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1208,
+        416,
+        226,
+        36
+      ],
+      "bulle": {
+        "fr": "80 mm : la taille cible",
+        "en": "80 mm: the target size"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1177,
+        705,
+        245,
+        28
+      ],
+      "bulle": {
+        "fr": "L'imprimante et son plateau réel",
+        "en": "The printer and its real bed"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

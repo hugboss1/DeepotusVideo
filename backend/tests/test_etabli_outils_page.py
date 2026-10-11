@@ -978,6 +978,18 @@ def test_chaque_ressource_du_guide_est_DATEE_et_pointe_un_domaine_verifie():
     assert all("help.prusa3d.com/materials" not in u for u in jeux[0])
 
 
+def _libelles_en():
+    d = {}
+    for f in (RACINE / "frontend/shared/i18n").glob("*.json"):
+        for v in json.loads(f.read_text("utf-8")).values():
+            if isinstance(v, dict) and isinstance(v.get("fr"), str) and isinstance(v.get("en"), str):
+                d.setdefault(v["fr"].strip(), v["en"].strip())
+    return d
+
+
+_LIBELLES_EN = _libelles_en()
+
+
 def test_le_guide_ne_cite_QUE_des_libelles_qui_existent_dans_l_ecran():
     """Le guide dit « cliquez X » : X doit exister. Un libellé renommé dans l'écran et resté dans le guide
     enverrait le débutant chercher un bouton fantôme — et c'est en écrivant ce chapitre qu'on a découvert que
@@ -991,10 +1003,13 @@ def test_le_guide_ne_cite_QUE_des_libelles_qui_existent_dans_l_ecran():
         # comme TEXTE d'un contrôle — balisage `>libellé<` ou chaîne exacte écrite par le JS —, pas n'importe où :
         # « → Impression 3D » vit aussi dans un message de refus, qui survivait au renommage du bouton
         assert re.search(r">\s*" + re.escape(libelle) + r"\s*<", ecran) or f'"{libelle}"' in ecran, libelle
-        for nom in ("fr.html", "en.html"):
-            h = _chapitre((GUIDE / nom).read_text("utf-8"), "etabli")
-            assert libelle in h or libelle in ("Sur la plaque",) or nom == "en.html" and libelle in (
-                "taille cible", "écrire la version"), (nom, libelle)
+        # t180 (11/10/2026) : l'écran est traduit (L8, t148) — le guide anglais cite le libellé ANGLAIS que l'écran
+        # affiche, lu dans le dictionnaire de l'Établi (frontend/shared/i18n/etabli.json), jamais recopié ici
+        h = _chapitre((GUIDE / "fr.html").read_text("utf-8"), "etabli")
+        assert libelle in h or libelle in ("Sur la plaque",), ("fr.html", libelle)
+        en = _LIBELLES_EN.get(libelle)
+        assert en, ("aucune traduction anglaise de l'écran pour", libelle)
+        assert en in _chapitre((GUIDE / "en.html").read_text("utf-8"), "etabli") or libelle in ("Sur la plaque",),             ("en.html", libelle, en)
 
 
 def test_le_guide_ne_promet_pas_ce_que_l_etabli_ne_fait_pas_encore():
@@ -1002,15 +1017,16 @@ def test_le_guide_ne_promet_pas_ce_que_l_etabli_ne_fait_pas_encore():
     for nom, phrase in (("fr.html", "ne trouve pas toujours la meilleure pose"),
                         ("en.html", "does not always find the best pose")):
         h = (GUIDE / nom).read_text("utf-8")
-        assert phrase in h and "<em>Orienter</em>" in h, nom
+        assert phrase in h and ("<em>Orienter</em>" if nom == "fr.html" else "<em>Orient</em>") in h, nom
         assert "pas encore d'orientation" not in h and "no auto-orientation" not in h, nom
     # t133 : le trou de drainage EXISTE — le guide, le lexique et l'aide le disent, et ne disent plus « pas encore »
     for nom, vieux in (("fr.html", "Le trou de drainage n'est pas encore dans l'Établi"),
                        ("en.html", "Drain holes are not in the Workbench yet")):
         h = (GUIDE / nom).read_text("utf-8")
-        assert vieux not in h and "<em>Percer (drainage)</em>" in h, nom
+        percer = "Percer (drainage)" if nom == "fr.html" else "Drill (drain hole)"   # libellé affiché (L8)
+        assert vieux not in h and f"<em>{percer}</em>" in h, nom
         lex = h.split('id="lex-drainage"', 1)[1].split("</tr>", 1)[0]
-        assert "Pas encore" not in lex and "Not in the Workbench yet" not in lex and "Percer" in lex, nom
+        assert "Pas encore" not in lex and "Not in the Workbench yet" not in lex and percer.split()[0] in lex, nom
     aide = re.search(r"^\s{2}drainage: \{.*\},$", _lire("etabli/aide.js"), re.M).group(0)
     assert "Pas encore" not in aide and "Percer" in aide
 

@@ -1,19 +1,55 @@
-<p>Chapter 20 showed you how to get a file <em>out</em>. This one shows what to do <em>before</em>. The <strong>Workbench</strong> screen (Game Assets → 3D Studio → <em>07 · Établi 3D →</em>) is the workshop where you repair, lay down, inspect, hollow, arrange and measure a part, so the slicer only has to slice. Nothing below is irreversible: <strong>every gesture that changes the part writes one more VERSION</strong>, and all of them stay on disk — the <em>model's life</em> column on the left lists them. (The Workbench screen itself is in French, like the rest of the application; its labels are quoted below as they appear.)</p>
+<p class="chapeau-chap">You will be able to prepare a 3D part before sending it to the slicer: scale it, repair it, lay it down, check its overhangs, hollow it, arrange it on the bed, then export it to the printer or a game engine. Free and local. Nothing is irreversible: every gesture that changes the part writes one more version, and all of them stay on disk.</p>
 
-<div class="step"><span class="n">1</span><div><strong>Set a target size.</strong> Right rail, <em>taille cible</em> field: type the largest wanted dimension, in millimeters (80 for a figurine, 250 for a board). A 3D file carries no unit — while this field is empty the Workbench shows "glTF units" and refuses whatever needs a physical dimension (hollowing, arranging, exporting for print). That is deliberate: a refusal beats an invented millimeter.</div></div>
-<div class="step"><span class="n">2</span><div><strong>Pick the printer.</strong> Same rail, <em>imprimante</em> menu: the <strong>Elegoo Centauri Carbon 2</strong> profile is built into the application (256 × 256 mm bed, 256 mm height, one excluded area). If OrcaSlicer or ElegooSlicer is installed, its profiles show up too — read, never modified. On the plate, the green outline IS the chosen machine's bed; the red rectangle is the area where nothing may sit.</div></div>
-<div class="step"><span class="n">3</span><div><strong>Repair in one click.</strong> <em>Fiche</em> tab → <em>Réparer en un clic</em>. Checked by default: coincident vertices welded, duplicate faces dropped, flat triangles dropped, normals unified. <em>Trous bouchés</em> (cap holes) is unchecked by default: capping adds material, tick it knowingly. The detail appears in the bottom bar — "8 retourné(s) — fermé" (8 flipped — closed). A mesh left open prints badly: better to know here than at the machine.</div></div>
-<div class="step"><span class="n">4</span><div><strong>Lay the part flat.</strong> <em>Poser sur une face</em> (key F), then click the face that must touch the bed: the part turns and lands on the floor. The gesture joins the queue — the bottom bar says "1 modification en attente" — and <em>écrire la version</em> saves it. This gesture decides almost everything else: a well-placed part needs few supports. If unsure, <em>Orienter</em> proposes three ranked poses in the <em>Fiche</em> tab — share of the surface on the bed, share overhanging, height — and one click lays the part on the one you pick. A computed orientation does not always find the best pose: <strong>always review the proposal</strong>, no score knows which face you want to look good.</div></div>
-<div class="step"><span class="n">5</span><div><strong>Look at the overhangs, then the slices.</strong> <em>Surplombs</em> button: faces leaning less than 45° from horizontal turn orange — there, a layer has almost nothing under it and the slicer will add a support. Re-lay the part until the orange recedes. <em>Tranches</em> button: twenty cross-sections of the part, in blue, to see its real shape at each height. Both are <strong>indicative previews</strong>: nothing is written, and the slicer does the real slicing.</div></div>
-<div class="step"><span class="n">6</span><div><strong>Hollow it, when it helps.</strong> <em>Fiche</em> tab → <em>Creuser</em>, 2 mm wall to begin with: the solid inside is replaced by a shell. It is first a <strong>resin</strong> (SLA) gesture, where a solid part costs a lot of material; with filament (FDM), the slicer already fills the inside with partial infill. It needs a <em>closed</em> mesh (step 3), and the Workbench states the thickness that holds when the requested wall is too thick for the part. For resin, then drill a drain hole: same tab, <em>Percer (drainage)</em>, a 3 to 4 mm diameter, then click the face to drill — preferably near the build plate, so the resin can flow out. The drill goes through the one wall under the click and stitches the hole closed; the opposite wall is left untouched. A solid part is refused (hollow it first).</div></div>
-<div class="step"><span class="n">7</span><div><strong>Arrange on the bed.</strong> <em>Sur la plaque</em> separates the pieces, then <em>Ranger sur le plateau</em> lays them inside the real bed, rotated when that saves room, 2 mm apart. What does not fit moves to a second plate, and what is larger than the machine is reported. Drag a piece with the mouse (snapped to the bed grid, Shift frees it), nudge it with the arrow keys; its position, size and angle show under "Sur la plaque". The plate is a <strong>view</strong>: it is saved, but it does not change the model.</div></div>
-<div class="step"><span class="n">8</span><div><strong>Measure, then export.</strong> <em>Mesurer</em> → two clicks give a distance, its x/y/z components and the angle between the two faces. Finally, <em>Export</em> tab → <strong>→ Impression 3D</strong> writes the STL and the 3MF of the <strong>displayed version</strong>, at the target size in millimeters (chapter 20), and <em>Ouvrir dans le slicer</em> takes you there.</div></div>
+<h3>Open the Workbench</h3>
+<figure class="scene" data-scene="etabli/ecran"></figure>
+<p>In the 3D Studio, click the <b class="ui">07 · 3D Workbench</b> node; the Workbench takes over the page, and <b class="ui">3D Studio</b> at the top left brings you back. On the left, <strong>the model's life</strong> lists each model and its versions: one click loads a version, <kbd>Alt</kbd>+click compares it (A/B view). On the right, four tabs: <b class="ui">Parts</b>, <b class="ui">Rig</b>, <b class="ui">Report</b>, <b class="ui">Export</b>. <b class="ui">Help</b> opens this chapter's step-by-step and glossary.</p>
 
-<div class="tip"><strong>The order that works</strong>: repair → lay down → inspect → hollow → export. Repair first, because every other gesture starts from sound geometry — and hollowing refuses an open mesh.</div>
+<h3>The main gesture</h3>
+<ol class="etapes">
+<li><strong>Set a target size.</strong> <b class="ui">target size</b> field: the largest wanted dimension, in millimetres (80 for a figurine, 250 for a board). A 3D file carries no unit: while this field is empty the Workbench shows “glTF units” and refuses whatever needs a physical dimension (hollowing, arranging, exporting for print). A refusal beats an invented millimetre.</li>
+<li><strong>Pick the printer.</strong> The Elegoo Centauri Carbon 2 profile is built in (256 × 256 mm bed, 256 mm height, one excluded area); installed OrcaSlicer or ElegooSlicer profiles show up too, read, never modified, and you can enter one by hand. On the plate, the green outline is the real bed, the red rectangle the area where nothing may sit.</li>
+<li><strong>Repair.</strong> <b class="ui">Report</b> tab, <b class="ui">Repair in one click</b>: coincident vertices welded, duplicate faces and flat triangles dropped, normals unified. Capping holes is unchecked by default: it adds material. The detail appears in the bottom bar.</li>
+<li><strong>Lay the part flat.</strong> <b class="ui">Place on a face</b> (<kbd>F</kbd>), then click the face that must touch the bed. The gesture joins the queue, and <b class="ui">write the version</b> saves it. If unsure, <em>Orient</em> proposes three ranked poses (support, overhang, height) in the Report tab. A computed orientation does not always find the best pose: <strong>always review the proposal</strong>, no score knows which face you want to look good. If the queue holds both a placement and a recentring, the bar flags the contradiction and greys out writing.</li>
+<li><strong>Look at the overhangs, then the slices</strong> (see below).</li>
+<li><strong>Hollow it, when it helps.</strong> Report, <b class="ui">Hollow</b>, 2 mm wall to begin with: the solid inside becomes a shell. It is first a resin (SLA) gesture; with filament (FDM), the slicer already fills the inside. It needs a closed mesh, and the Workbench states the thickness that holds when the requested wall is too thick. For resin, then drill a drain hole: <em>Drill (drain hole)</em>, 3 to 4 mm, then click the face, preferably near the bed. The drill goes through the one wall under the click and stitches the hole closed.</li>
+<li><strong>Arrange on the bed</strong>, <strong>measure</strong>, then <strong>export</strong> (see below).</li>
+</ol>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p><strong>The order that works</strong>: repair, lay down, inspect, hollow, export. Repair first, because every other gesture starts from sound geometry, and hollowing refuses an open mesh.</p></aside>
+
+<h3>Look before slicing</h3>
+<figure class="scene" data-scene="etabli/regarder"></figure>
+<p><b class="ui">Overhangs</b> paints orange the faces leaning less than 45° from horizontal: there, a layer has almost nothing under it and the slicer will add a support. Re-lay the part until the orange recedes. <b class="ui">Slices</b> draws twenty cross-sections in blue to see the real shape at each height. Both are <strong>indicative previews</strong>: nothing is written, and the slicer does the real slicing.</p>
+
+<h3>The Report tab</h3>
+<figure class="scene" data-scene="etabli/fiche"></figure>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-maillage"></i><h4>Decimate, extract</h4><p><b class="ui">Decimate</b> reduces triangles towards a target and says if it is not reached; extracting one by one splits each element into a sibling version.</p></article>
+<article><i data-dz="dz-lab3d-materiau"></i><h4>Materials</h4><p>Colour, opacity, metal, roughness, emission, alpha mode and double side, with preview; only the touched fields are written.</p></article>
+<article><i data-dz="dz-action-mesurer"></i><h4>Measure</h4><p><b class="ui">Measure</b>: two clicks give a distance, its x/y/z components and the angle between the two faces, drawn in the scene.</p></article>
+</div>
+
+<h3>Parts, booleans, connectors</h3>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-assemblage"></i><h4>Booleans</h4><p><b class="ui">Parts</b> tab: <b class="ui">A = selection</b>, <b class="ui">B = selection</b>, then union, difference (A − B) or intersection and <b class="ui">Apply</b>. The bar states the seam and lost materials.</p></article>
+<article><i data-dz="dz-outil-vec-couteau"></i><h4>Cut and assemble</h4><p>The <b class="ui">Knife</b> cuts the part; its bar adds a connector: dowel (holes and a separate pin), plug and its socket with clearance, or a sliding dovetail.</p></article>
+<article><i data-dz="dz-lab3d-piece"></i><h4>Skin</h4><p>A <a href="#matieres">Material Forge</a> material on the ticked parts: <b class="ui">Skin</b>. <b class="ui">Masks</b> shows cavities (red) and edges (green) in view B.</p></article>
+</div>
+<p>The <b class="ui">Rig</b> tab draws the skeleton through the skin, highlights a bone's chain, colours its influence weights, rotates a bone with three x/y/z sliders and plays the shipped animation clips.</p>
+
+<h3>Arrange on the bed</h3>
+<figure class="scene" data-scene="etabli/plaque"></figure>
+<p><b class="ui">On the plate</b> separates the pieces, then <b class="ui">Arrange on the bed</b> lays them inside the real bed, rotated when that saves room, 2 mm apart, on up to eight beds; what does not fit is reported. Drag a piece (snapped to the bed grid, <kbd>Shift</kbd> frees it), nudge it with the arrow keys: its position, size and angle are shown. The plate is a <strong>view</strong>: it is saved, but it does not change the model.</p>
+
+<h3>Export</h3>
+<figure class="scene" data-scene="etabli/export"></figure>
+<ol class="etapes">
+<li><b class="ui">Export</b> tab, <b class="ui">3D printing</b>: the STL and 3MF of the <strong>displayed version</strong>, at the target size in millimetres (see <a href="#impression3d">3D-print your creations</a>). <b class="ui">Open in the slicer</b> takes you there.</li>
+<li>For an engine: <b class="ui">Prepare</b> writes one glTF per target (Blender, Godot, Unreal, Unity) with its import sheet; dropping copies it into the engine project; <b class="ui">Open</b> launches Blender or the project; <b class="ui">Back from Blender</b> re-imports a fixed GLB as one more version and says what was lost.</li>
+</ol>
 
 <h3>Glossary</h3>
 <p>The words your slicer will use, explained once.</p>
-<table>
+<div class="tableau"><table>
 <tr><th>Term</th><th>What it is</th></tr>
 <tr><td id="lex-assise"><strong>Base (bed contact)</strong></td><td>The face that touches the bed. Wide and flat, the print holds; narrow, it comes loose.</td></tr>
 <tr><td id="lex-surplomb"><strong>Overhang</strong></td><td>A wall leaning too far to rest on the layer below. Prusa puts the clean limit without support between <strong>45 and 60°</strong> from horizontal.</td></tr>
@@ -30,14 +66,14 @@
 <tr><td id="lex-warping"><strong>Warping</strong></td><td>Corners lifting as they cool. Remedies: clean bed, brim, closed enclosure. Common with ABS/ASA, rare with PLA.</td></tr>
 <tr><td id="lex-etancheite"><strong>Watertightness</strong></td><td>A solid is watertight when its surface is closed, with no hole or free edge. That is what the Workbench bar calls "fermé" (closed).</td></tr>
 <tr><td id="lex-manifold"><strong>Manifold</strong></td><td>Every edge belongs to exactly two faces. A mesh can be closed and still be hard to slice cleanly if it is not.</td></tr>
-<tr><td id="lex-decimation"><strong>Decimation</strong></td><td>Reducing the triangle count. A 500,000-triangle mesh prints no better than a 100,000 one, but slows everything down. <em>Fiche</em> tab → <em>Décimer</em>.</td></tr>
+<tr><td id="lex-decimation"><strong>Decimation</strong></td><td>Reducing the triangle count. A 500,000-triangle mesh prints no better than a 100,000 one, but slows everything down. <em>Report</em> tab › <em>Decimate</em>.</td></tr>
 <tr><td id="lex-creusage"><strong>Hollowing</strong></td><td>Replacing the solid inside with a shell of given thickness. Mostly useful in resin; 2 mm is a good starting point.</td></tr>
-<tr><td id="lex-drainage"><strong>Drain hole</strong></td><td>The hole(s) letting uncured resin (and air) out of a hollowed part. In the Workbench: <em>Fiche</em> tab → <em>Percer</em> (drainage).</td></tr>
-</table>
+<tr><td id="lex-drainage"><strong>Drain hole</strong></td><td>The hole(s) letting uncured resin (and air) out of a hollowed part. In the Workbench: <em>Report</em> tab › <em>Drill (drain hole)</em>.</td></tr>
+</table></div>
 
 <h3>Where to learn more</h3>
 <p>Every link below was opened and checked on 05/10/2026 (5 October 2026). They are grouped by what they teach you.</p>
-<table>
+<div class="tableau"><table>
 <tr><th>Topic</th><th>Resource</th><th>Checked</th></tr>
 <tr><td>Supports and overhangs</td><td><a href="https://help.prusa3d.com/article/support-material_1698">Prusa — Support material</a> (the threshold is measured from horizontal, 90 = vertical)</td><td>05/10/2026</td></tr>
 <tr><td>Modeling for print</td><td><a href="https://help.prusa3d.com/article/modeling-with-3d-printing-in-mind_164135">Prusa — Modeling with 3D printing in mind</a> (45–60° overhangs, walls, tolerances)</td><td>05/10/2026</td></tr>
@@ -55,6 +91,6 @@
 <tr><td>Slicer — orient</td><td><a href="https://github.com/SoftFever/OrcaSlicer/wiki/prepare_auto_orient">OrcaSlicer — Auto orientation</a> (which warns it may not always find the best pose)</td><td>05/10/2026</td></tr>
 <tr><td>Slicer — calibrate</td><td><a href="https://github.com/SoftFever/OrcaSlicer/wiki/Home">OrcaSlicer — Wiki (Calibrations)</a> (temperature, flow, retraction, pressure advance…)</td><td>05/10/2026</td></tr>
 <tr><td>Machine</td><td><a href="https://wiki.elegoo.com/centauri-carbon-2-combo">Elegoo — Centauri Carbon 2 wiki</a> (troubleshooting guides and error codes)</td><td>05/10/2026</td></tr>
-</table>
+</table></div>
 
-<div class="warn">These links come from slicer makers and manufacturers: they describe THEIR machine and THEIR software. Numeric settings (temperatures, speeds) apply to the hardware they name; on another machine they are starting points, not truths. Two repair tools often recommended elsewhere, <strong>Microsoft 3D Builder</strong> and <strong>Autodesk Meshmixer</strong>, are no longer maintained, so they are not listed here.</div>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>These links come from slicer makers and manufacturers: they describe THEIR machine and THEIR software. Numeric settings (temperatures, speeds) apply to the hardware they name; on another machine they are starting points, not truths. Two repair tools often recommended elsewhere, <strong>Microsoft 3D Builder</strong> and <strong>Autodesk Meshmixer</strong>, are no longer maintained, so they are not listed here.</p></aside>

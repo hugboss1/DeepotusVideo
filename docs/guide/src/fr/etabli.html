@@ -1,19 +1,55 @@
-<p>Le chapitre 20 vous a montré comment <em>sortir</em> un fichier. Celui-ci vous montre quoi faire <em>avant</em>. L'écran <strong>Établi</strong> (Game Assets → 3D Studio → <em>07 · Établi 3D →</em>) est l'atelier où l'on répare, pose, regarde, creuse, range et mesure une pièce, pour que le slicer n'ait plus qu'à trancher. Rien de ce qui suit n'est irréversible : <strong>chaque geste qui modifie la pièce écrit une VERSION de plus</strong>, et toutes restent sur le disque — la colonne <em>La vie du modèle</em>, à gauche, les liste.</p>
+<p class="chapeau-chap">Vous saurez préparer une pièce 3D avant de l'envoyer au slicer : la mettre à l'échelle, la réparer, la poser, regarder ses surplombs, la creuser, la ranger sur le plateau, puis l'exporter vers l'imprimante ou un moteur de jeu. Gratuit et local. Rien n'est irréversible : chaque geste qui modifie la pièce écrit une version de plus, et toutes restent sur le disque.</p>
 
-<div class="step"><span class="n">1</span><div><strong>Posez une taille cible.</strong> Rail de droite, champ <em>taille cible</em> : tapez la plus grande dimension voulue, en millimètres (80 pour une figurine, 250 pour un plateau). Un fichier 3D ne porte aucune unité — tant que ce champ est vide, l'Établi affiche des « unités glTF » et refuse ce qui demande une cote physique (creuser, ranger, exporter pour l'impression). C'est voulu : mieux vaut un refus qu'un millimètre inventé.</div></div>
-<div class="step"><span class="n">2</span><div><strong>Choisissez l'imprimante.</strong> Toujours dans le rail, le menu <em>imprimante</em> : le profil <strong>Elegoo Centauri Carbon 2</strong> est intégré à l'application (plateau 256 × 256 mm, hauteur 256 mm, une zone exclue). Si OrcaSlicer ou ElegooSlicer est installé, ses profils apparaissent aussi — lus, jamais modifiés. Sur la plaque, le contour vert EST le plateau de la machine choisie ; le rectangle rouge est la zone où l'on ne pose rien.</div></div>
-<div class="step"><span class="n">3</span><div><strong>Réparez en un clic.</strong> Onglet <em>Fiche</em> → <em>Réparer en un clic</em>. Cochées d'office : sommets confondus soudés, faces dupliquées retirées, triangles plats retirés, normales remises dans le même sens. <em>Trous bouchés</em> est décoché d'office : boucher ajoute de la matière, cochez-le en connaissance de cause. Le détail s'affiche dans la barre du bas — « 8 retourné(s) — fermé ». Un maillage resté ouvert s'imprime mal : mieux vaut le savoir ici que devant la machine.</div></div>
-<div class="step"><span class="n">4</span><div><strong>Posez la pièce à plat.</strong> Bouton <em>Poser sur une face</em> (touche F), puis cliquez la face qui doit toucher le plateau : la pièce tourne et se pose au sol. Le geste entre dans la file — la barre du bas dit « 1 modification en attente » — et <em>écrire la version</em> l'enregistre. C'est le geste qui décide de presque tout le reste : une pièce bien posée a peu besoin de supports. Si vous hésitez, <em>Orienter</em> propose trois poses classées dans l'onglet <em>Fiche</em> — part de la surface en appui, part en surplomb, hauteur — et un clic sur l'une la pose. Une orientation calculée ne trouve pas toujours la meilleure pose : <strong>regardez la proposition</strong>, aucun score ne sait quelle face vous voulez voir belle.</div></div>
-<div class="step"><span class="n">5</span><div><strong>Regardez les surplombs, puis les tranches.</strong> Bouton <em>Surplombs</em> : les faces penchées à moins de 45° depuis l'horizontale se peignent en orange — là, une couche n'a presque rien sous elle et le slicer posera un support. Reposez la pièce jusqu'à ce que l'orange recule. Bouton <em>Tranches</em> : vingt sections de la pièce, en bleu, pour voir la forme réelle à chaque hauteur. Ce sont des <strong>aperçus indicatifs</strong> : rien n'est écrit, et c'est le slicer qui tranche pour de vrai.</div></div>
-<div class="step"><span class="n">6</span><div><strong>Creusez, si c'est utile.</strong> Onglet <em>Fiche</em> → <em>Creuser</em>, paroi de 2 mm pour commencer : l'intérieur plein est remplacé par une coque. C'est d'abord un geste de la <strong>résine</strong> (SLA), où une pièce pleine coûte cher en matière ; en filament (FDM), le slicer remplit déjà l'intérieur avec un remplissage partiel. Il faut un maillage <em>fermé</em> (étape 3), et l'Établi dit l'épaisseur qui tient quand la paroi demandée est trop épaisse pour la pièce. En résine, percez ensuite un trou de drainage : même onglet, <em>Percer (drainage)</em>, un diamètre de 3 à 4 mm, puis un clic sur la face à percer — de préférence près du plateau, pour que la résine s'écoule. Le foret traverse la seule paroi sous le clic et recoud le trou ; la paroi opposée n'est pas touchée. Une pièce pleine est refusée (creusez d'abord).</div></div>
-<div class="step"><span class="n">7</span><div><strong>Rangez sur le plateau.</strong> <em>Sur la plaque</em> sépare les pièces, puis <em>Ranger sur le plateau</em> les pose dans le plateau réel, tournées si cela fait gagner de la place, avec 2 mm entre elles. Ce qui ne rentre pas passe sur un second plateau, et ce qui est plus grand que la machine est dit. Glissez une pièce à la souris (aimantée au pas du plateau, Maj libère), poussez-la aux flèches ; sa position, ses cotes et son angle s'affichent sous « Sur la plaque ». La plaque est une <strong>vue</strong> : elle s'enregistre, mais ne modifie pas le modèle.</div></div>
-<div class="step"><span class="n">8</span><div><strong>Mesurez, puis exportez.</strong> <em>Mesurer</em> → deux clics donnent une distance, ses composantes x/y/z et l'angle des deux faces. Enfin, onglet <em>Export</em> → <strong>→ Impression 3D</strong> écrit le STL et le 3MF de la <strong>version affichée</strong>, aux millimètres de la taille cible (chapitre 20), et <em>Ouvrir dans le slicer</em> vous y emmène.</div></div>
+<h3>Ouvrir l'Établi</h3>
+<figure class="scene" data-scene="etabli/ecran"></figure>
+<p>Dans le 3D Studio, cliquez le nœud <b class="ui">07 · Établi 3D</b> ; l'Établi prend la place de la page, et <b class="ui">3D Studio</b> en haut à gauche y ramène. À gauche, <strong>la vie du modèle</strong> liste chaque modèle et ses versions : un clic charge une version, <kbd>Alt</kbd>+clic la compare (vue A/B). À droite, quatre onglets : <b class="ui">Parties</b>, <b class="ui">Rig</b>, <b class="ui">Fiche</b>, <b class="ui">Export</b>. <b class="ui">Aide</b> ouvre le pas à pas et le lexique de ce chapitre.</p>
 
-<div class="tip"><strong>L'ordre qui marche</strong> : réparer → poser → regarder → creuser → exporter. Réparer d'abord, parce que tous les autres gestes partent d'une géométrie saine — et le creusage refuse un maillage ouvert.</div>
+<h3>Le geste principal</h3>
+<ol class="etapes">
+<li><strong>Posez une taille cible.</strong> Champ <b class="ui">taille cible</b> : la plus grande dimension voulue, en millimètres (80 pour une figurine, 250 pour un plateau). Un fichier 3D ne porte aucune unité : tant que ce champ est vide, l'Établi affiche des « unités glTF » et refuse ce qui demande une cote physique (creuser, ranger, exporter pour l'impression). Mieux vaut un refus qu'un millimètre inventé.</li>
+<li><strong>Choisissez l'imprimante.</strong> Le profil Elegoo Centauri Carbon 2 est intégré (plateau 256 × 256 mm, hauteur 256 mm, une zone exclue) ; les profils d'OrcaSlicer ou d'ElegooSlicer installés apparaissent aussi, lus, jamais modifiés, et vous pouvez en saisir un à la main. Sur la plaque, le contour vert est le plateau réel, le rectangle rouge la zone où l'on ne pose rien.</li>
+<li><strong>Réparez.</strong> Onglet <b class="ui">Fiche</b>, <b class="ui">Réparer en un clic</b> : sommets confondus soudés, faces dupliquées et triangles plats retirés, normales remises dans le même sens. Boucher les trous est décoché d'office : cela ajoute de la matière. Le détail s'affiche dans la barre du bas (« 8 retourné(s) — fermé »).</li>
+<li><strong>Posez la pièce à plat.</strong> <b class="ui">Poser sur une face</b> (<kbd>F</kbd>), puis cliquez la face qui doit toucher le plateau. Le geste entre dans la file, et <b class="ui">écrire la version</b> l'enregistre. Si vous hésitez, <em>Orienter</em> propose trois poses classées (appui, surplomb, hauteur) dans l'onglet Fiche. Une orientation calculée ne trouve pas toujours la meilleure pose : <strong>regardez la proposition</strong>, aucun score ne sait quelle face vous voulez voir belle. Si la file contient à la fois une pose et un recentrage, la barre signale la contradiction et grise l'écriture.</li>
+<li><strong>Regardez les surplombs, puis les tranches</strong> (voir ci-dessous).</li>
+<li><strong>Creusez, si c'est utile.</strong> Fiche, <b class="ui">Creuser</b>, paroi de 2 mm pour commencer : l'intérieur plein devient une coque. C'est d'abord un geste de la résine (SLA) ; en filament (FDM), le slicer remplit déjà l'intérieur. Il faut un maillage fermé, et l'Établi dit l'épaisseur qui tient si la paroi demandée est trop épaisse. En résine, percez ensuite un trou de drainage : <em>Percer (drainage)</em>, 3 à 4 mm, puis un clic sur la face, de préférence près du plateau. Le foret traverse la seule paroi sous le clic et recoud le trou.</li>
+<li><strong>Rangez sur le plateau</strong>, <strong>mesurez</strong>, puis <strong>exportez</strong> (voir plus bas).</li>
+</ol>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p><strong>L'ordre qui marche</strong> : réparer, poser, regarder, creuser, exporter. Réparer d'abord, parce que tous les autres gestes partent d'une géométrie saine, et le creusage refuse un maillage ouvert.</p></aside>
+
+<h3>Regarder avant de trancher</h3>
+<figure class="scene" data-scene="etabli/regarder"></figure>
+<p><b class="ui">Surplombs</b> peint en orange les faces penchées à moins de 45° depuis l'horizontale : là, une couche n'a presque rien sous elle et le slicer posera un support. Reposez la pièce jusqu'à ce que l'orange recule. <b class="ui">Tranches</b> trace vingt sections en bleu pour voir la forme réelle à chaque hauteur. Ce sont des <strong>aperçus indicatifs</strong> : rien n'est écrit, et c'est le slicer qui tranche pour de vrai.</p>
+
+<h3>L'onglet Fiche</h3>
+<figure class="scene" data-scene="etabli/fiche"></figure>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-maillage"></i><h4>Décimer, extraire</h4><p><b class="ui">Décimer</b> réduit les triangles vers une cible et dit si elle n'est pas atteinte ; extraire une par une sépare chaque élément en une version sœur.</p></article>
+<article><i data-dz="dz-lab3d-materiau"></i><h4>Matériaux</h4><p>Couleur, opacité, métal, rugosité, émission, mode alpha et double face, avec aperçu ; seuls les champs touchés sont écrits.</p></article>
+<article><i data-dz="dz-action-mesurer"></i><h4>Mesurer</h4><p><b class="ui">Mesurer</b> : deux clics donnent une distance, ses composantes x/y/z et l'angle des deux faces, tracés dans la scène.</p></article>
+</div>
+
+<h3>Parties, booléens, connecteurs</h3>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-assemblage"></i><h4>Booléens</h4><p>Onglet <b class="ui">Parties</b> : <b class="ui">A = sélection</b>, <b class="ui">B = sélection</b>, puis union, différence (A − B) ou intersection et <b class="ui">Appliquer</b>. La barre dit la couture et les matières perdues.</p></article>
+<article><i data-dz="dz-outil-vec-couteau"></i><h4>Couper et assembler</h4><p>Le <b class="ui">Couteau</b> coupe la pièce ; sa barre ajoute un connecteur : cheville (trous et goupille séparée), téton et son logement avec jeu, ou queue d'aronde qui coulisse.</p></article>
+<article><i data-dz="dz-lab3d-piece"></i><h4>Habiller</h4><p>Une matière du <a href="#matieres">Material Forge</a> sur les parties cochées : <b class="ui">Habiller</b>. <b class="ui">Masques</b> montre en vue B les creux (rouge) et arêtes (vert).</p></article>
+</div>
+<p>L'onglet <b class="ui">Rig</b> dessine le squelette à travers la peau, surligne la chaîne d'un os, colore ses poids d'influence, fait tourner un os par trois curseurs x/y/z et joue les clips d'animation livrés.</p>
+
+<h3>Ranger sur le plateau</h3>
+<figure class="scene" data-scene="etabli/plaque"></figure>
+<p><b class="ui">Sur la plaque</b> sépare les pièces, puis <b class="ui">Ranger sur le plateau</b> les pose dans le plateau réel, tournées si cela fait gagner de la place, avec 2 mm entre elles, sur huit plateaux au plus ; ce qui ne tient pas est dit. Glissez une pièce (aimantée au pas du plateau, <kbd>Maj</kbd> libère), poussez-la aux flèches : sa position, ses cotes et son angle s'affichent. La plaque est une <strong>vue</strong> : elle s'enregistre, mais ne modifie pas le modèle.</p>
+
+<h3>Exporter</h3>
+<figure class="scene" data-scene="etabli/export"></figure>
+<ol class="etapes">
+<li>Onglet <b class="ui">Export</b>, <b class="ui">Impression 3D</b> : le STL et le 3MF de la <strong>version affichée</strong>, aux millimètres de la taille cible (voir <a href="#impression3d">Imprimer ses créations</a>). <b class="ui">Ouvrir dans le slicer</b> vous y emmène.</li>
+<li>Pour un moteur : <b class="ui">Préparer</b> écrit un glTF par cible (Blender, Godot, Unreal, Unity) avec sa fiche d'import ; déposer le copie dans le projet du moteur ; <b class="ui">Ouvrir</b> lance Blender ou le projet ; <b class="ui">Retour de Blender</b> réimporte un GLB corrigé comme une version de plus et dit ce qui s'est perdu.</li>
+</ol>
 
 <h3>Lexique</h3>
 <p>Les mots que le slicer va vous dire, expliqués une fois.</p>
-<table>
+<div class="tableau"><table>
 <tr><th>Terme</th><th>Ce que c'est</th></tr>
 <tr><td id="lex-assise"><strong>Assise</strong></td><td>La face qui touche le plateau. Large et plate, l'impression tient ; étroite, elle se décolle.</td></tr>
 <tr><td id="lex-surplomb"><strong>Surplomb</strong></td><td>Une paroi trop penchée pour tenir sur la couche d'en dessous. Prusa situe la limite propre sans support entre <strong>45 et 60°</strong> depuis l'horizontale.</td></tr>
@@ -30,14 +66,14 @@
 <tr><td id="lex-warping"><strong>Warping</strong></td><td>Les coins qui se soulèvent en refroidissant. Remèdes : plateau propre, brim, enceinte fermée. Fréquent en ABS/ASA, rare en PLA.</td></tr>
 <tr><td id="lex-etancheite"><strong>Étanchéité</strong></td><td>Un solide est étanche quand sa surface est fermée, sans trou ni bord libre. C'est ce que la barre de l'Établi appelle « fermé ».</td></tr>
 <tr><td id="lex-manifold"><strong>Manifold</strong></td><td>Chaque arête appartient à exactement deux faces. Un maillage peut être fermé et rester difficile à trancher proprement s'il ne l'est pas.</td></tr>
-<tr><td id="lex-decimation"><strong>Décimation</strong></td><td>Réduire le nombre de triangles. Un maillage de 500 000 triangles ne s'imprime pas mieux qu'un de 100 000, mais il ralentit tout. Onglet <em>Fiche</em> → <em>Décimer</em>.</td></tr>
+<tr><td id="lex-decimation"><strong>Décimation</strong></td><td>Réduire le nombre de triangles. Un maillage de 500 000 triangles ne s'imprime pas mieux qu'un de 100 000, mais il ralentit tout. Onglet <em>Fiche</em> › <em>Décimer</em>.</td></tr>
 <tr><td id="lex-creusage"><strong>Creusage (hollowing)</strong></td><td>Remplacer l'intérieur plein par une coque d'épaisseur donnée. Surtout utile en résine ; 2 mm est un bon point de départ.</td></tr>
-<tr><td id="lex-drainage"><strong>Drainage</strong></td><td>Le ou les trous qui laissent sortir la résine non polymérisée (et l'air) d'une pièce creusée. Dans l'Établi : onglet <em>Fiche</em> → <em>Percer (drainage)</em>.</td></tr>
-</table>
+<tr><td id="lex-drainage"><strong>Drainage</strong></td><td>Le ou les trous qui laissent sortir la résine non polymérisée (et l'air) d'une pièce creusée. Dans l'Établi : onglet <em>Fiche</em> › <em>Percer (drainage)</em>.</td></tr>
+</table></div>
 
 <h3>Où apprendre la suite</h3>
 <p>Chaque lien ci-dessous a été ouvert et vérifié le 05/10/2026. Ils sont classés par ce qu'ils vous apprennent.</p>
-<table>
+<div class="tableau"><table>
 <tr><th>Sujet</th><th>Ressource</th><th>Vérifié</th></tr>
 <tr><td>Supports et surplombs</td><td><a href="https://help.prusa3d.com/article/support-material_1698">Prusa — Support material</a> (le seuil se mesure depuis l'horizontale, 90 = vertical)</td><td>05/10/2026</td></tr>
 <tr><td>Modéliser pour l'impression</td><td><a href="https://help.prusa3d.com/article/modeling-with-3d-printing-in-mind_164135">Prusa — Modeling with 3D printing in mind</a> (surplombs de 45 à 60°, parois, tolérances)</td><td>05/10/2026</td></tr>
@@ -55,6 +91,6 @@
 <tr><td>Slicer — orienter</td><td><a href="https://github.com/SoftFever/OrcaSlicer/wiki/prepare_auto_orient">OrcaSlicer — Auto orientation</a> (qui prévient lui-même qu'elle ne trouve pas toujours la meilleure pose)</td><td>05/10/2026</td></tr>
 <tr><td>Slicer — calibrer</td><td><a href="https://github.com/SoftFever/OrcaSlicer/wiki/Home">OrcaSlicer — Wiki (Calibrations)</a> (température, débit, rétraction, avance de pression…)</td><td>05/10/2026</td></tr>
 <tr><td>Machine</td><td><a href="https://wiki.elegoo.com/centauri-carbon-2-combo">Elegoo — wiki Centauri Carbon 2</a> (guides de dépannage et codes d'erreur)</td><td>05/10/2026</td></tr>
-</table>
+</table></div>
 
-<div class="warn">Ces liens sont ceux d'éditeurs de slicers et de fabricants : ils décrivent LEUR machine et LEUR logiciel. Les réglages chiffrés (températures, vitesses) valent pour le matériel qu'ils citent ; sur une autre machine, ce sont des points de départ, pas des vérités. Deux outils de réparation souvent conseillés ailleurs, <strong>Microsoft 3D Builder</strong> et <strong>Autodesk Meshmixer</strong>, ne sont plus maintenus : ils ne figurent donc pas ici.</div>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Ces liens sont ceux d'éditeurs de slicers et de fabricants : ils décrivent LEUR machine et LEUR logiciel. Les réglages chiffrés (températures, vitesses) valent pour le matériel qu'ils citent ; sur une autre machine, ce sont des points de départ, pas des vérités. Deux outils de réparation souvent conseillés ailleurs, <strong>Microsoft 3D Builder</strong> et <strong>Autodesk Meshmixer</strong>, ne sont plus maintenus : ils ne figurent donc pas ici.</p></aside>

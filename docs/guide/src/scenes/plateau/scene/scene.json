@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Bloquer un plan sur le Plateau 3D",
+    "en": "Block a shot on the 3D Set"
+  },
+  "legende": {
+    "fr": "Des volumes simples ou un maillage, un cadre au format du film, puis un mouvement de caméra en keyframes.",
+    "en": "Simple volumes or a mesh, a frame at the film's format, then a camera move in keyframes."
+  },
+  "captures": [
+    {
+      "fr": "scene.fr.webp",
+      "en": "scene.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        217,
+        131,
+        46,
+        38
+      ],
+      "bulle": {
+        "fr": "Le phare, posé depuis l'Établi",
+        "en": "The lighthouse, placed from the Workbench"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1188,
+        33,
+        246,
+        38
+      ],
+      "bulle": {
+        "fr": "Cadre 2.39:1, focale, guides",
+        "en": "2.39:1 frame, focal length, guides"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1147,
+        502,
+        148,
+        38
+      ],
+      "bulle": {
+        "fr": "Capturer début et fin vers la Bibliothèque",
+        "en": "Capture start and end to the Library"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        217,
+        131,
+        46,
+        38
+      ],
+      "bulle": {
+        "fr": "Le phare, posé depuis l'Établi",
+        "en": "The lighthouse, placed from the Workbench"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1188,
+        33,
+        246,
+        38
+      ],
+      "bulle": {
+        "fr": "Cadre 2.39:1, focale, guides",
+        "en": "2.39:1 frame, focal length, guides"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1147,
+        502,
+        144,
+        38
+      ],
+      "bulle": {
+        "fr": "Capturer début et fin vers la Bibliothèque",
+        "en": "Capture start and end to the Library"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
