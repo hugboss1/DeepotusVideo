@@ -103,9 +103,12 @@ def _videos(seulement_fin: bool) -> list[dict]:
         if seulement_fin and not accepte_fin(m):
             continue
         usd = P.video_rate(mid, "720p", p) or 0.0
+        jumeau = JUMEAUX_VIDEO.get(mid)
+        if seulement_fin and jumeau and not accepte_fin(VIDEO_MODELS.get(jumeau) or {}):
+            jumeau = None   # le jumeau doit lui-même accepter une fin (Veo Google : non)
         out.append({"id": mid, "label": m["label"],
                     "voie": "gemini" if m["provider"] == "google" else "fal",
-                    "usd": usd, "unite": "s", "jumeau": JUMEAUX_VIDEO.get(mid),
+                    "usd": usd, "unite": "s", "jumeau": jumeau,
                     "note": "" if usd else NOTE_A_MESURER, "fl": accepte_fin(m)})
     return out
 

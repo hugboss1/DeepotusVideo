@@ -538,6 +538,8 @@ async def render_layout_template(
         for _sv in request.slot_values.values():
             if _sv.source_kind == "seedance":
                 _cle_video_ou_503(_sv.seedance.video_model if _sv.seedance is not None else None, http)
+                if _sv.seedance is not None:   # t184 : image de fin refusée avant la dépense
+                    _fin_video_ou_400(_sv.seedance.video_model, _sv.seedance.image_filename_end, http)
         if "heygen" in kinds and not settings.has_heygen:
             raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
         _ops, _vo, _maxs, _epingles = await _ops_rendu(template_id, request)
@@ -5690,10 +5692,29 @@ def _cle_video_ou_503(video_model, http=None) -> None:
         raise _refus_cle("FAL_KEY", mid, http)
 
 
+def _fin_video_ou_400(video_model, image_fin, http=None) -> None:
+    """t184 (G2) : une image de FIN envoyée à un modèle qui n'en accepte pas
+    (ni `end_image` ni `endpoint_fl` : Kling v3 Turbo, Veo Google, PixVerse…)
+    est refusée ICI en 400, juste après la garde de clé et AVANT _garde_cout et
+    _plafond — sinon la pipeline la refusait après qu'une ligne `depenses`
+    a été écrite. Modèle inconnu : laissé au refus existant de la pipeline."""
+    if not image_fin:
+        return
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
+    from app.services import catalogue_ia as _CI
+    from app import i18n as _i18n
+    m = VIDEO_MODELS.get(video_model or DEFAULT_VIDEO_MODEL)
+    if m is None or _CI.accepte_fin(m):
+        return
+    lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+    raise HTTPException(400, _i18n.msg("ia.video.pas_de_fin", lang, model=m["label"]))
+
+
 @router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(_require_local_depense)])
 async def generate(request: GenerateRequest, background_tasks: BackgroundTasks, http: Request = None):
     # W-a — the required key depends on the selected model's provider (t183 : 503 avant la dépense)
     _cle_video_ou_503(request.video_model, http)
+    _fin_video_ou_400(request.video_model, request.image_filename_end, http)   # t184 : avant la dépense
 
     image_path = settings.images_path / request.image_filename
     if not image_path.exists():
@@ -5740,6 +5761,7 @@ async def generate_batch(request: GenerateBatchRequest, background_tasks: Backgr
     """
     # t183 : la clé du modèle CHOISI (Veo -> GEMINI_API_KEY), plus seulement FAL_KEY
     _cle_video_ou_503(request.video_model, http)
+    _fin_video_ou_400(request.video_model, request.image_filename_end, http)   # t184 : avant la dépense
 
     image_path = settings.images_path / request.image_filename
     if not image_path.exists():
@@ -6114,6 +6136,7 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
     """
     # t183 : la clé du modèle vidéo choisi pour le côté Seedance (Veo -> GEMINI_API_KEY)
     _cle_video_ou_503(request.seedance.video_model, http)
+    _fin_video_ou_400(request.seedance.video_model, request.seedance.image_filename_end, http)   # t184
     if not settings.FAL_KEY:
         raise HTTPException(503, "FAL_KEY not configured")
     if not settings.has_heygen:

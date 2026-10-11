@@ -185,6 +185,12 @@ check("nouveaux : voie fal, FAL_KEY, unité s, prix 720p > 0, note vide",
 check("prix catalogue = video_rate 720p (h3 : colonne 768P = 0,08)",
       i2v["h3-max"]["usd"] == 0.08 and i2v["veo-3.1-lite-fal"]["usd"] == 0.03
       and i2v["ltx-2.5-fast"]["usd"] == 0.09, (i2v["h3-max"]["usd"], i2v["veo-3.1-lite-fal"]["usd"]))
+_fl = {e["id"]: e for e in CI.lister("video_fl")}
+check("video_fl : jumeau nul quand le jumeau n'accepte pas de fin (Veo fal -> Google)",
+      all(_fl[m]["jumeau"] is None for m in ("veo-3.1-fast-fal", "veo-3.1-fal", "veo-3.1-lite-fal")),
+      [(m, _fl[m]["jumeau"]) for m in ("veo-3.1-fast-fal", "veo-3.1-fal", "veo-3.1-lite-fal")])
+check("video_fl : tout jumeau restant est lui-même dans video_fl",
+      all(e["jumeau"] is None or e["jumeau"] in _fl for e in _fl.values()))
 check("pas de jumeau hors Veo", i2v["wan-3.0"]["jumeau"] is None and i2v["seedance-2.5"]["jumeau"] is None)
 
 # ── [4] prix et schémas ─────────────────────────────────────────────────────
@@ -296,6 +302,50 @@ PLAF.clear()
 st, js = call("/generate", corps("veo-3.1-fast-fal"))
 check("TÉMOIN : avec FAL_KEY, Veo fast + image de fin atteint _plafond (402 de l'espion)",
       st == 402 and len(PLAF) == 1, f"{st} {js} {PLAF}")
+
+# ── [6b] image de fin sur un modèle qui n'en accepte pas : 400 avant _plafond
+print("[6b] image de fin refusée en 400 AVANT _plafond (Kling turbo, Veo Google)")
+settings.GEMINI_API_KEY = "test-google"
+
+
+def routes_fin(model):
+    b = corps(model)
+    return (("/generate", b), ("/generate/batch", dict(b, variations_count=2)),
+            ("/generate/composition", {"seedance": b,
+                                       "heygen": {"script": "bonjour", "avatar_id": "a", "voice_id": "v"},
+                                       "layout": "sequential"}))
+
+
+for mid in ("kling-v3-turbo-pro", "veo-3.1-fast-google"):
+    for chemin, b in routes_fin(mid):
+        PLAF.clear()
+        r0, d0 = RESEAU["n"], n_depenses()
+        st, js = call(chemin, b)
+        check(f"{chemin} {mid} + fin -> 400 « n'accepte pas d'image de fin »",
+              st == 400 and "n'accepte pas d'image de fin" in str(js), f"{st} {js}")
+        check(f"{chemin} {mid} + fin : _plafond jamais appelé, zéro dépense, aucun réseau",
+              PLAF == [] and n_depenses() == d0 and RESEAU["n"] == r0, f"{PLAF} {d0} {RESEAU}")
+
+
+async def _req_en(path, body):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+        return await c.post("/api" + path, json=body, headers={"Accept-Language": "en-US,en;q=0.9"})
+
+PLAF.clear()
+_r = asyncio.run(_req_en("/generate", corps("kling-v3-turbo-pro")))
+check("refus en anglais (« has no last-frame input »), avant _plafond",
+      _r.status_code == 400 and "has no last-frame input" in _r.text and PLAF == [], _r.text)
+for chemin, b in routes_fin("veo-3.1-fast-fal")[:2]:
+    PLAF.clear()
+    st, js = call(chemin, b)
+    check(f"TÉMOIN : {chemin} Veo fast fal + fin passe la garde de fin (402 de l'espion _plafond)",
+          st == 402 and len(PLAF) == 1, f"{st} {js}")
+PLAF.clear()
+_b = corps("kling-v3-turbo-pro")
+_b.pop("image_filename_end")
+st, js = call("/generate", _b)
+check("TÉMOIN : Kling turbo SANS fin atteint _plafond", st == 402 and len(PLAF) == 1, f"{st} {js}")
+settings.GEMINI_API_KEY = ""
 
 # ── [7] client fal : couture _soumettre ─────────────────────────────────────
 print("[7] le client fal envoie Veo + fin à l'endpoint FL")
