@@ -134,6 +134,7 @@
   "studio.compil.animate_echec": {"fr": "échec de la requête animate", "en": "animate request failed"},
   "studio.compil.animation_vide": {"fr": "Ajoute au moins un élément au nœud Animation.", "en": "Add at least one element to the Animation node."},
   "studio.compil.concat_min": {"fr": "Le nœud Enchaînement requiert au moins 2 sources vidéo branchées (Seedance, Rendu existant ou Upload).", "en": "Concatenate needs at least 2 video sources connected (Seedance, Existing render or Upload)."},
+  "studio.compil.fin_vide": {"fr": "Branche une image qui a un fichier sur l'entrée de fin du nœud Seedance (ou débranche-la).", "en": "Connect an image that has a file to the Seedance node's end input (or disconnect it)."},
   "studio.compil.heygen_indispo": {"fr": "Avatars/voix HeyGen indisponibles (vérifie la clé / le réseau dans les Réglages).", "en": "HeyGen avatars/voices unavailable (check key / network in Settings)."},
   "studio.compil.image_seedance": {"fr": "Branche un nœud Image sur le nœud Seedance.", "en": "Connect an Image node to the Seedance node."},
   "studio.compil.image_seedance_moitie": {"fr": "Branche un nœud Image sur le nœud Seedance (la moitié animation de la composition).", "en": "Connect an Image node to the Seedance node (the animation half of the composition)."},

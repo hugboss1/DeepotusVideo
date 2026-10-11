@@ -4,6 +4,7 @@ Quick › Composition, et le sélecteur du nœud le sait.
   [0] bundle : le compilateur du Studio (Mh) lit l'entrée `end` pour le tir seul (POST /generate), l'Enchaînement
       (créneaux du gabarit) et la moitié animation de la composition UGC — le code RÉEL extrait du bundle, joué sous
       node sur un graphe : image_filename_end = le fichier branché sur `end`, absent du JSON sans `end` ;
+      `end` branché sur une image SANS fichier -> refus studio.compil.fin_vide, comme l'image de départ, rien envoyé ;
   [1] bundle : dzCompose (Composition spatiale) envoie image_filename_end dans le créneau du Seedance (joué sous node,
       faux fetch et faux D.renderLayoutTemplate) ;
   [2] bundle : le sélecteur DzVideoModelSel (code réel sous node) — avec `fin`, les modèles `fl` (nature video_fl)
@@ -119,11 +120,12 @@ var fetch=function(){return Promise.resolve({ok:!0,json:function(){return Promis
 """
 
 
-def graphe(avec_fin, extra_nodes=(), extra_edges=()):
+def graphe(avec_fin, extra_nodes=(), extra_edges=(), fin_vide=False):
+    """fin_vide : `end` branché sur un nœud Image SANS fichier (pas encore choisi / généré)."""
     nodes = [{"id": "R", "type": "Render", "props": {"format": "9:16", "name": "rendu"}},
              {"id": "S", "type": "Seedance", "props": {"model": "veo-3.1-fast-fal", "durationS": 8}},
              {"id": "A", "type": "Image", "props": {"filename": "depart.png"}},
-             {"id": "B", "type": "Image", "props": {"filename": "fin.png"}}] + list(extra_nodes)
+             {"id": "B", "type": "Image", "props": {} if fin_vide else {"filename": "fin.png"}}] + list(extra_nodes)
     edges = [{"from": "A", "to": "S", "toPort": "image"}] + list(extra_edges)
     if avec_fin:
         edges.append({"from": "B", "to": "S", "toPort": "end"})
@@ -139,15 +141,18 @@ CONCAT = ([{"id": "C", "type": "Concatenate", "props": {}},
 UGC = ([{"id": "U", "type": "Upload", "props": {"jobId": "job-ugc", "durationS": 8}}], [])
 H0 = PRELUDE + WT + IMGN + MH + r"""
 var G=JSON.parse(require("fs").readFileSync(process.argv[2],"utf8")),out={};
-async function un(nom,g){CAPT=[];var c=Mh(g);if(!c.ok){out[nom]={err:c.error};return}await c.run();out[nom]=CAPT[0]}
+async function un(nom,g){CAPT=[];var c;try{c=Mh(g)}catch(x){out[nom]={err:String(x.message||x),appels:CAPT.length};return}
+  if(!c.ok){out[nom]={err:c.error,appels:CAPT.length};return}await c.run();out[nom]=CAPT[0]}
 (async function(){
   await un("solo_fin",G.solo_fin);await un("solo_sans",G.solo_sans);
   await un("concat_fin",G.concat_fin);await un("ugc_fin",G.ugc_fin);
+  await un("solo_vide",G.solo_vide);await un("concat_vide",G.concat_vide);await un("ugc_vide",G.ugc_vide);
   console.log(JSON.stringify(out));
 })();
 """
 GRAPHES = {"solo_fin": graphe(True), "solo_sans": graphe(False), "concat_fin": graphe(True, *CONCAT),
-           "ugc_fin": graphe(True, *UGC)}
+           "ugc_fin": graphe(True, *UGC), "solo_vide": graphe(True, fin_vide=True),
+           "concat_vide": graphe(True, *CONCAT, fin_vide=True), "ugc_vide": graphe(True, *UGC, fin_vide=True)}
 p = os.path.join(TMP, "graphes.json")
 d0, why = {}, "node absent"
 if NODE and MH:
@@ -176,21 +181,27 @@ ug = ((d0.get("ugc_fin") or {}).get("slots") or {})
 check("0d composition UGC : la moitié animation porte la fin",
       (ug.get("anim") or {}).get("seedance", {}).get("image_filename_end") == "fin.png", ug)
 
+for k in ("solo_vide", "concat_vide", "ugc_vide"):
+    v = d0.get(k) or {}
+    check(f"0e {k} : `end` branché sur une image SANS fichier -> refus studio.compil.fin_vide, aucun envoi",
+          v.get("err") == "studio.compil.fin_vide" and v.get("appels") == 0, v)
+
 # ── [1] dzCompose ───────────────────────────────────────────────────────────
 print("\n[1] dzCompose (Composition spatiale) envoie image_filename_end")
 H1 = PRELUDE + WT + IMGN + DZC + r"""
 var G=JSON.parse(require("fs").readFileSync(process.argv[2],"utf8")),out={};
 async function un(nom,g){CAPT=[];var t=g.nodes.find(function(n){return n.type==="Render"}),
   l=g.nodes.find(function(n){return n.type==="SpatialCompose"});var res=await dzCompose(g,t,l,"9:16","titre");
-  out[nom]=CAPT[0]||{res:res}}
-(async function(){await un("fin",G.fin);await un("sans",G.sans);console.log(JSON.stringify(out))})();
+  out[nom]=CAPT[0]||{res:res,appels:CAPT.length}}
+(async function(){await un("fin",G.fin);await un("sans",G.sans);await un("vide",G.vide);console.log(JSON.stringify(out))})();
 """
 SC = ([{"id": "L", "type": "SpatialCompose", "props": {"templateId": "tpl_x"}}],
       [{"from": "S", "to": "L", "toPort": "s_main"}])
 d1, why1 = {}, "node absent"
 if NODE and DZC:
     with open(p, "w", encoding="utf-8") as fh:
-        fh.write(json.dumps({"fin": graphe(True, *SC), "sans": graphe(False, *SC)}))
+        fh.write(json.dumps({"fin": graphe(True, *SC), "sans": graphe(False, *SC),
+                            "vide": graphe(True, *SC, fin_vide=True)}))
     pathlib.Path(TMP, "h1.js").write_text(H1, encoding="utf-8")
     r = subprocess.run([NODE, str(Path(TMP, "h1.js")), p], capture_output=True, text=True, encoding="utf-8",
                        errors="replace", timeout=60)
@@ -205,6 +216,9 @@ check("1a le créneau du Seedance porte image_filename_end = fin.png (et son mod
 s1b = (((d1.get("sans") or {}).get("slots") or {}).get("main") or {})
 check("1b sans `end` : pas d'image de fin dans le créneau",
       s1b.get("source_kind") == "seedance" and "image_filename_end" not in s1b.get("seedance", {}), s1b)
+v1 = d1.get("vide") or {}
+check("1d `end` branché sur une image SANS fichier -> refus studio.compil.fin_vide, aucun rendu",
+      (v1.get("res") or {}).get("error") == "studio.compil.fin_vide" and v1.get("appels") == 0, v1)
 check("1c la source : dzCompose lit `end` par dzFinImg (forme de l'entrée `image`)",
       "image_filename:img.props.filename,image_filename_end:dzFinImg(e,g.id)," in DZC
       and 'function dzFinImg(e,id){var f=Wt(e,id,"end");' in WT, DZC[:80])
@@ -276,12 +290,12 @@ QPAY = entre(BUN, 'D.postJson("/generate/composition",{', 'layout:We,')
 check("2i Quick › Composition : le côté Seedance envoie l'image de fin du Quick (dzEndOK), comme l'onglet Seedance",
       bool(QCOMP) and "image_filename:w,image_filename_end:(dzEndOK()?g:\"\")||null," in QPAY, QPAY[:200])
 import patch_bundle_encartsia as ENC                                         # noqa: E402
-G3 = ENC.PAIRES[-9:]
-check("2j les neuf paires G3 du maillon encartsia (la SOURCE) sont dans le bundle, une fois, ancres consommées",
-      len(ENC.PAIRES) == 17 and all(BUN.count(b) == 1 and BUN.count(a) == (1 if a in b else 0) for a, b in G3)
+G3 = ENC.PAIRES[8:]
+check("2j les treize paires G3 du maillon encartsia (la SOURCE) sont dans le bundle, une fois, ancres consommées",
+      len(ENC.PAIRES) == 21 and all(BUN.count(b) == 1 and BUN.count(a) == (1 if a in b else 0) for a, b in G3)
       and G3[0][1].startswith("function dzFinImg("), [(BUN.count(b), BUN.count(a)) for a, b in G3])
 DICO = json.loads((RACINE / "frontend/shared/i18n/studio.json").read_text("utf-8"))
-CLES = ("studio.video.fl", "studio.video.fl_absent", "studio.compose.fin")
+CLES = ("studio.video.fl", "studio.video.fl_absent", "studio.compose.fin", "studio.compil.fin_vide")
 check("2k clés fr/en au catalogue studio.json et appelées par le bundle",
       all(DICO.get(c, {}).get("fr") and DICO.get(c, {}).get("en") and f'dzT("{c}")' in BUN for c in CLES),
       {c: DICO.get(c) for c in CLES})
