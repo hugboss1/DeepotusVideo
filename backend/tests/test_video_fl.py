@@ -225,13 +225,16 @@ check("négatif des nouveaux = schémas (Veo oui, les autres non)", _nouveaux_ne
 print("[3c] pricing.json avec une ANCIENNE table vidéo partielle : fusion par modèle")
 _pf = P._PRICING_FILE
 _pf.parent.mkdir(parents=True, exist_ok=True)
-_pf.write_text('{"video_usd_per_s": {"seedance-2.5": {"720p": 0.5}, "veo-3.1-fast-fal": {"*": 0.12}}}',
-               encoding="utf-8")
+_pf.write_text('{"video_usd_per_s": {"seedance-2.5": {"720p": 0.5}, "veo-3.1-fast-fal": {"*": 0.12},'
+               ' "pixverse-v6": {"*": 0.5}}}', encoding="utf-8")
 try:
     check("modèle absent de la table enregistrée : tarif par défaut (veo-3.1-fal 720p = 0,20)",
           P.video_rate("veo-3.1-fal", "720p") == 0.20, P.video_rate("veo-3.1-fal", "720p"))
     check("id surchargé : la valeur de l'utilisateur gagne (veo fast 0,12 ; s2.5 720p 0,5)",
           P.video_rate("veo-3.1-fast-fal", "1080p") == 0.12 and P.video_rate("seedance-2.5", "720p") == 0.5)
+    check("un « * » de l'utilisateur l'emporte sur les colonnes par défaut (pixverse 720p et 1080p = 0,5)",
+          P.video_rate("pixverse-v6", "720p") == 0.5 and P.video_rate("pixverse-v6", "1080p") == 0.5,
+          (P.video_rate("pixverse-v6", "720p"), P.video_rate("pixverse-v6", "1080p")))
     check("fusion par résolution : s2.5 480p garde le défaut 0,2205",
           P.video_rate("seedance-2.5", "480p") == 0.2205, P.video_rate("seedance-2.5", "480p"))
     _vm = {m["id"]: m for m in asyncio.run(R.list_video_models())["models"]}

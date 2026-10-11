@@ -265,7 +265,9 @@ def load() -> dict:
                 if isinstance(tv, dict):
                     fus = {m: dict(r) for m, r in DEFAULTS["video_usd_per_s"].items()}
                     for m, r in tv.items():
-                        fus[m] = {**fus.get(m, {}), **r} if isinstance(r, dict) else r
+                        # un « * » de l'utilisateur vaut pour TOUTES les
+                        # résolutions : aucune colonne par défaut ne le masque
+                        fus[m] = r if (not isinstance(r, dict) or "*" in r) else {**fus.get(m, {}), **r}
                     data["video_usd_per_s"] = fus
     except Exception:
         pass
