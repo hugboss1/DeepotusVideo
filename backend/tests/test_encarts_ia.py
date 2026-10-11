@@ -343,7 +343,7 @@ code = B[a0:B.find("function DzImgModelSel(", a0)]
 e7 = B[B.find("var dzE=dzEngTrouve(p.engine);"):B.find("var meshyNoKey=", B.find("var dzE=dzEngTrouve(p.engine);"))]
 check("E7 : un moteur LOCAL coûte 0 (jamais le repli 0,30)", "var cost=dzE&&dzE.local?0:" in e7, e7[:200])
 DICO3 = {"ia.cle.a_ajouter": "clé {cle} à ajouter dans Réglages", "ia.local.a_demarrer": "service local à démarrer",
-         "ia.prix.a_mesurer": "prix à mesurer", "ia.voie.local": "local, gratuit"}
+         "ia.prix.a_mesurer": "prix à mesurer", "ia.voie.local": "local, gratuit", "ia.etat.chargement": "chargement…"}
 TETE = ("var DICO=" + json.dumps(DICO3, ensure_ascii=False)
         + ";function dzT(k,v){var t=DICO[k]||k;for(var x in (v||{}))t=t.split('{'+x+'}').join(v[x]);return t}"
         "var window={};var NF=0;")
@@ -351,6 +351,17 @@ MOTEURS = ("var REP={engines:[{id:'tripo',label:'Tripo v2.5',available:false,usd
            "{id:'hunyuan-local',label:'Hunyuan3D 2.1 (local)',local:true,available:false,usd_texture:0,usd_brouillon:0},"
            "{id:'rodin',label:'Hyper3D Rodin',available:true,usd_texture:0.4,usd_brouillon:0.4}]};")
 COUT = "function cout(p){var dzE=dzEngTrouve(p.engine);" + e7.split("\r\n")[1] + "return cost}"
+# le cycle du panneau, tel que React le joue : un RENDU (dzEngOpts), puis l'EFFET passif (dzEngCharger(redessin)) ;
+# le redessin rejoue un rendu. `delai` = latence de la réponse du registre (0 : elle arrive AVANT l'effet).
+CYCLE = ("var RENDUS=[];function rendre(){RENDUS.push(dzEngOpts('tripo'))}"
+         "function effet(){dzEngCharger(function(){rendre()})}")
+def sonde_cycle(reponse, delai, avant_effet):
+    return (TETE + MOTEURS + "var fetch=function(u){NF++;return new Promise(function(ok){setTimeout(function(){ok(" + reponse
+            + ")}," + str(delai) + ")})};" + code + ";" + CYCLE
+            + "rendre();" + ("setTimeout(effet,40);" if avant_effet else "effet();")
+            + "setTimeout(function(){console.log(JSON.stringify([RENDUS,NF,dzEngCat?dzEngCat.length:null]))},120);")
+OK200 = "{ok:true,json:function(){return Promise.resolve(REP)}}"
+KO500 = "{ok:false,status:500,json:function(){return Promise.resolve({})}}"
 sonde_ok = (TETE + MOTEURS + "var fetch=function(u){NF++;return Promise.resolve({ok:true,json:function(){return Promise.resolve(REP)}})};"
             + code + ";" + COUT + ";var avant=dzEngOpts('tripo');"
             "dzEngCharger(function(){console.log(JSON.stringify([avant,dzEngOpts('tripo'),"
@@ -360,28 +371,50 @@ sonde_ko = (TETE + "var fetch=function(u){NF++;return Promise.resolve({ok:false,
             + code + ";var a=dzEngOpts('rodin');"
             "setTimeout(function(){var b=dzEngOpts('rodin');var n1=NF;dzEngEssai=0;var c=dzEngOpts('rodin');"
             "setTimeout(function(){console.log(JSON.stringify([a,b,n1,NF,dzEngCat]))},20)},20);")
+ATTENDU_REG = [{"value": "tripo", "label": "Tripo v2.5 · ~$0.30 · clé FAL_KEY à ajouter dans Réglages"},
+               {"value": "hunyuan-local", "label": "Hunyuan3D 2.1 (local) · local, gratuit · service local à démarrer"},
+               {"value": "rodin", "label": "Hyper3D Rodin · ~$0.40"}]
+ATTENTE = [{"value": "tripo", "label": "chargement…"}]
 if node:
+    SECOURS = ["tripo", "tripo-h3.1", "hunyuan", "trellis", "rodin", "triposr", "hunyuan-local"]
     pr = subprocess.run([node, "-e", sonde_ok], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         E0, E1, C, NF = json.loads(pr.stdout)
     except ValueError:
         E0, E1, C, NF = None, None, None, None
-    SECOURS = ["tripo", "tripo-h3.1", "hunyuan", "trellis", "rodin", "triposr", "hunyuan-local"]
-    check("dzEngOpts avant chargement : la liste de SECOURS (ids, « prix à mesurer »), pas d'invention de prix",
-          E0 == [{"value": i, "label": i + " · prix à mesurer"} for i in SECOURS], (pr.stdout + pr.stderr)[:400])
+    check("dzEngOpts EN ATTENTE du registre : la valeur courante, « chargement… » — jamais « prix à mesurer » ni la liste de secours",
+          E0 == ATTENTE, (pr.stdout + pr.stderr)[:400])
     check("dzEngOpts : registre servi, prix « ~$ » à la règle, fal sans clé choisissable avec la mention, LOCAL « local, gratuit »",
-          E1 == [{"value": "tripo", "label": "Tripo v2.5 · ~$0.30 · clé FAL_KEY à ajouter dans Réglages"},
-                 {"value": "hunyuan-local", "label": "Hunyuan3D 2.1 (local) · local, gratuit · service local à démarrer"},
-                 {"value": "rodin", "label": "Hyper3D Rodin · ~$0.40"}] and NF == 1, str(E1) + f" NF={NF}")
+          E1 == ATTENDU_REG and NF == 1, str(E1) + f" NF={NF}")
     check("coût du panneau : local 0, tripo texturé 0,30 / brouillon 0,20, inconnu 0,30 (le repli d'avant)",
           C == [0, 0.3, 0.2, 0.3], str(C))
+    for nom, rep_, delai, avant_effet in (("réponse RAPIDE, arrivée avant l'effet du panneau (le défaut vu à l'écran)", OK200, 0, True),
+                                          ("réponse LENTE, arrivée après l'effet", OK200, 30, False)):
+        pr = subprocess.run([node, "-e", sonde_cycle(rep_, delai, avant_effet)], capture_output=True, text=True,
+                            encoding="utf-8", timeout=60)
+        try:
+            RENDUS, NFc, NCAT = json.loads(pr.stdout)
+        except ValueError:
+            RENDUS, NFc, NCAT = None, None, None
+        check(f"cycle du panneau, {nom} : 1er rendu « chargement… », puis REDESSIN sans geste de l'utilisateur sur le registre",
+              bool(RENDUS) and RENDUS[0] == ATTENTE and RENDUS[-1] == ATTENDU_REG and len(RENDUS) == 2 and NFc == 1,
+              (pr.stdout + pr.stderr)[:500])
+    pr = subprocess.run([node, "-e", sonde_cycle(KO500, 10, False)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        RENDUS, NFc, NCAT = json.loads(pr.stdout)
+    except ValueError:
+        RENDUS, NFc, NCAT = None, None, None
+    check("cycle du panneau, registre en ÉCHEC : 1er rendu « chargement… », puis redessin sur la liste de SECOURS, rien en cache",
+          bool(RENDUS) and RENDUS[0] == ATTENTE and RENDUS[-1] == [{"value": i, "label": i + " · prix à mesurer"} for i in SECOURS]
+          and NCAT is None and NFc == 1, (pr.stdout + pr.stderr)[:500])
     pr = subprocess.run([node, "-e", sonde_ko], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         K0, K1, N1, N2, CAT = json.loads(pr.stdout)
     except ValueError:
         K0 = K1 = N1 = N2 = CAT = None
-    check("registre en échec (HTTP 500) : la liste de SECOURS s'affiche, rien n'est mis en cache",
-          K0 == K1 == [{"value": i, "label": i + " · prix à mesurer"} for i in SECOURS] and CAT is None, (pr.stdout + pr.stderr)[:400])
+    check("registre en échec (HTTP 500) : en attente « chargement… », après l'échec la liste de SECOURS, rien en cache",
+          K0 == [{"value": "rodin", "label": "chargement…"}]
+          and K1 == [{"value": i, "label": i + " · prix à mesurer"} for i in SECOURS] and CAT is None, (pr.stdout + pr.stderr)[:400])
     check("registre en échec : pas de rafale (un seul essai tant que 4 s ne sont pas passées), un nouvel essai ensuite",
           N1 == 1 and N2 == 2, f"{N1} {N2}")
     ch3 = lire("frontend/shared/dz-champ-ia.js")
@@ -418,9 +451,10 @@ for gen in ("i18n_l4_generer.py", "i18n_l9_generer.py"):
 # ── [d5] i18n ───────────────────────────────────────────────────────────────
 print("[d5] i18n")
 com = json.loads(lire("frontend/shared/i18n/commun.json"))
-check("ia.modele.choisir et ia.local.a_demarrer en fr et en",
+check("ia.modele.choisir, ia.local.a_demarrer et ia.etat.chargement en fr et en",
       com.get("ia.modele.choisir") == {"fr": "Modèle", "en": "Model"}
-      and (com.get("ia.local.a_demarrer") or {}).get("fr") and (com.get("ia.local.a_demarrer") or {}).get("en"))
+      and (com.get("ia.local.a_demarrer") or {}).get("fr") and (com.get("ia.local.a_demarrer") or {}).get("en")
+      and com.get("ia.etat.chargement") == {"fr": "chargement…", "en": "loading…"})
 r = subprocess.run([sys.executable, str(R / "scripts/i18n_assembler.py"), "--check"], capture_output=True, text=True,
                    encoding="utf-8", errors="replace", cwd=str(R))
 check("dictionnaire assemblé à jour", r.returncode == 0, r.stdout + r.stderr)

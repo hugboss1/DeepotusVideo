@@ -60,5 +60,6 @@
   "ia.cle.absente": {"fr": "clé {cle} absente", "en": "{cle} key missing"},
   "ia.cle.a_ajouter": {"fr": "clé {cle} à ajouter dans Réglages", "en": "add the {cle} key in Settings"},
   "ia.modele.choisir": {"fr": "Modèle", "en": "Model"},
+  "ia.etat.chargement": {"fr": "chargement…", "en": "loading…"},
   "ia.local.a_demarrer": {"fr": "service local à démarrer", "en": "start the local service"}
 }

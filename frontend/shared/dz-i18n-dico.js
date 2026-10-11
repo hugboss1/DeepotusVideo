@@ -5492,6 +5492,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "etabli.et2_vue.titre_profil": {"fr": "Depuis +X, en orthographique — un axe du modèle, pas de la plaque", "en": "From +X, orthographic — a model axis, not a plate axis"},
   "ia.cle.a_ajouter": {"fr": "clé {cle} à ajouter dans Réglages", "en": "add the {cle} key in Settings"},
   "ia.cle.absente": {"fr": "clé {cle} absente", "en": "{cle} key missing"},
+  "ia.etat.chargement": {"fr": "chargement…", "en": "loading…"},
   "ia.local.a_demarrer": {"fr": "service local à démarrer", "en": "start the local service"},
   "ia.modele.choisir": {"fr": "Modèle", "en": "Model"},
   "ia.prix.a_mesurer": {"fr": "prix à mesurer", "en": "price to be measured"},

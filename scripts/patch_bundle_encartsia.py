@@ -78,20 +78,29 @@ AIDES = (
     'function rg(m){var k=dzVoiesOrdre.indexOf(m.voie);return k<0?99:k}'
     'return t.map(function(m,i){return[m,i]}).sort(function(a,b){return rg(a[0])-rg(b[0])||a[1]-b[1]})'
     '.map(function(p){return{value:p[0].id,label:dzImgLbl(p[0])}})}'
-    # E6-E8 : le registre des moteurs 3D, lu une fois par session (cache de module) ; un échec n'est PAS mis en cache :
-    # la liste de secours (ids, « prix à mesurer ») s'affiche et le rendu suivant retente (au plus toutes les 4 s)
-    'var dzEngCat=null,dzEngEnCours=!1,dzEngEssai=0,dzEngFin=null;'
+    # E6-E8 : le registre des moteurs 3D, lu une fois par session (cache de module).
+    # REDESSIN (preuve à l'écran du 11/10 : le premier affichage restait sur le libellé de secours jusqu'au clic) :
+    # le premier rendu lance la lecture ; une réponse RAPIDE arrive AVANT que l'effet du panneau ait abonné son
+    # redessin (effet passif, posé après le dessin) — l'abonnement tardif doit donc redessiner tout de suite si le
+    # registre est déjà là, et une réponse (ou un échec) redessine l'abonné. Le redessin passe par le setter d'état
+    # EXISTANT du panneau (setPP) : aucun useState ajouté (731).
+    # États : EN ATTENTE -> la valeur courante, « chargement… » (jamais « prix à mesurer ») ; ÉCHEC -> la liste de
+    # secours (ids, « prix à mesurer »), rien en cache, nouvel essai au rendu suivant (au plus toutes les 4 s).
+    'var dzEngCat=null,dzEngEnCours=!1,dzEngEchec=!1,dzEngEssai=0,dzEngFin=null;'
     'var dzEngSecours=["tripo","tripo-h3.1","hunyuan","trellis","rodin","triposr","hunyuan-local"];'
-    'function dzEngCharger(fin){if(fin)dzEngFin=fin;if(dzEngCat||dzEngEnCours)return;dzEngEnCours=!0;dzEngEssai=Date.now();'
+    'function dzEngCharger(fin){if(fin)dzEngFin=fin;if(dzEngCat){fin&&fin();return}if(dzEngEnCours)return;'
+    'dzEngEnCours=!0;dzEngEssai=Date.now();'
     'fetch("/api/assets3d/engines").then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()})'
-    '.then(function(d){dzEngEnCours=!1;if(d&&Array.isArray(d.engines)){dzEngCat=d.engines;dzEngFin&&dzEngFin()}})'
-    '.catch(function(){dzEngEnCours=!1})}'
+    '.then(function(d){if(!d||!Array.isArray(d.engines))throw new Error("registre illisible");'
+    'dzEngEnCours=!1;dzEngEchec=!1;dzEngCat=d.engines;dzEngFin&&dzEngFin()})'
+    '.catch(function(){dzEngEnCours=!1;dzEngEchec=!0;dzEngFin&&dzEngFin()})}'
     'function dzEngTrouve(id){return(dzEngCat||[]).find(function(e){return e.id===id})||null}'
     # un moteur LOCAL est gratuit (« local, gratuit », coût 0) ; un fal dit son coût texturé « ~$ »
     'function dzEngLbl(e){var u=dzPrixUsd(e.usd_texture);'
     'return(e.label||e.id)+" · "+(e.local?dzT("ia.voie.local"):(u?"~"+u:dzT("ia.prix.a_mesurer")))'
     '+(e.available?"":e.local?" · "+dzT("ia.local.a_demarrer"):" · "+dzT("ia.cle.a_ajouter",{cle:"FAL_KEY"}))}'
-    'function dzEngOpts(cur){if(!dzEngCat){if(!dzEngEnCours&&Date.now()-dzEngEssai>4e3)dzEngCharger();'
+    'function dzEngOpts(cur){if(!dzEngCat){if(!dzEngEnCours&&(!dzEngEssai||Date.now()-dzEngEssai>4e3))dzEngCharger();'
+    'if(!dzEngEchec)return[{value:cur,label:dzT("ia.etat.chargement")}];'
     'var l=dzEngSecours.slice();if(cur&&l.indexOf(cur)<0)l.unshift(cur);'
     'return l.map(function(id){return{value:id,label:id+" · "+dzT("ia.prix.a_mesurer")}})}'
     'return dzEngCat.map(function(e){return{value:e.id,label:dzEngLbl(e)}})}'
