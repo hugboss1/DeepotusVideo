@@ -1,13 +1,31 @@
-<p>The <strong>Game Assets</strong> category (sidebar) turns an image from your Library into a <strong>textured 3D model</strong> ready for a game engine or 3D tool (Unity, Unreal, Godot, Blender…). Only the <strong>fal.ai</strong> key is required. Five generation engines, from cheapest to premium: <strong>TripoSR</strong> (≈ $0.07), <strong>Hunyuan3D</strong>, <strong>Tripo</strong> (default — best quality/price), <strong>TRELLIS</strong> and <strong>Rodin</strong>. The estimated cost is shown live before you start.</p>
-<img class="shot" src="img/game-assets.png" alt="Game Assets — form">
-<p class="cap">The Game Assets form: source image, engine (with description and rate), subject, options and export formats.</p>
-<div class="step"><span class="n">1</span><div>Pick a <strong>source image</strong> (your Library images — ideally a well-isolated character/object on a neutral background), then the <strong>engine</strong> from the dropdown.</div></div>
-<div class="step"><span class="n">2</span><div>Options: <strong>Multi-view</strong> (on by default, 4 views) first generates other angles via Seedream for a more faithful mesh; <strong>Textures</strong>; <strong>T-pose</strong> for characters you plan to rig; and the <strong>export formats</strong> — GLB always included, plus FBX / OBJ / STL / USDZ depending on the engine. A format the chosen engine cannot emit is flagged; each extra format can cost one more generation (the estimate shows it).</div></div>
-<div class="step"><span class="n">3</span><div><strong>Generate</strong> opens the <strong>pipeline canvas</strong>: the Input → Views → Engine → Response nodes animate and fill in live (also visible when reopening an asset via its card title).</div></div>
-<img class="shot" src="img/game-assets-canvas.png" alt="Game Assets — pipeline canvas">
-<p class="cap">The live pipeline: each node fills in as the generation progresses (views, engine, result).</p>
-<div class="step"><span class="n">4</span><div>On the result card: <strong>▶ Rotate</strong> spins the 3D model in the built-in viewer; each <strong>format</strong> downloads in one click; the <strong>Shots</strong> strip lets you download each view or send it to <em>Library → Images</em> (★) to reuse as a source. Rename (✎) or delete (🗑) the asset from its card header.</div></div>
-<div class="step"><span class="n">5</span><div>All your assets also live in <strong>Library → 3D tab</strong>: preview, full-size 3D rotation, GLB download, favorites ★, rename and delete.</div></div>
-<img class="shot" src="img/library-3d.png" alt="Library — 3D tab">
-<p class="cap">The Library 3D tab gathers all your generated assets.</p>
-<div class="warn">3D rendering runs in your browser (WebGL): keep the tab in the foreground for smooth rotation. Files live under <code>DeepotusVideoGenData\assets\outputs\assets3d\</code> and follow your migration (chapter 16).</div>
+<p class="chapeau-chap">You will be able to find your way around the Game Assets hub, turn an image into a 3D model and open the right 2D tool: Sprite Lab, Tile Lab, Vectorlab's Pixel persona or Card Forge. The 2D labs are free and run on your PC; 3D generation is paid, price shown first.</p>
+
+<h3>The Game Assets hub</h3>
+<figure class="scene" data-scene="assets2d/hub"></figure>
+<p>Open <b class="ui">Game Assets</b> in the rail. One tab per tool: <strong>3D</strong> (image to 3D model), <strong>3D Studio</strong> (see <a href="#forge3d">Image to 3D</a>), <strong>Assets 2D</strong>, <strong>Sprites 2D</strong> and <strong>Tiles</strong> (the labs opened inside the hub), <strong>Materials</strong> (Material Forge) and <strong>Cards</strong> (<a href="#cardforge">Card Forge</a>).</p>
+
+<h3>An image becomes a 3D model</h3>
+<ol class="etapes">
+<li>In the 3D tab, pick a source image from the Library: ideally a character or object cleanly cut out on a neutral background.</li>
+<li>Pick the engine, from cheapest to most refined: TripoSR, Hunyuan3D, Tripo (default, good value), TRELLIS and Rodin. Only the fal.ai key is needed.</li>
+<li>Options: textures, T-pose for a character to animate, multi-view (four views generated first for a more faithful model), and formats: GLB always, plus FBX, OBJ, STL or USDZ depending on the engine.</li>
+<li>The total price is shown next to <b class="ui">Generate 3D</b>, before the run. The pipeline then shows each step live; the model turns in the viewer, every format and every view can be downloaded.</li>
+</ol>
+<p>Models also land in the 3D tab of the <a href="#bibliotheque">Library</a>; the <a href="#etabli">Workbench</a> then prepares them for printing.</p>
+
+<h3>Open a 2D tool</h3>
+<p>The <b class="ui">Assets 2D</b> tab gathers four cards, each with <b class="ui">Open</b> and <b class="ui">Guide</b>:</p>
+<div class="cartes">
+<article><i data-dz="dz-cat-sprites"></i><h4>Sprite Lab</h4><p>An image, a video or a sheet becomes an animated sprite sheet, with directions, skeleton, hitboxes and engine exports. See <a href="#spritelab">Animate sprites</a>.</p></article>
+<article><i data-dz="dz-cat-tuiles"></i><h4>Tile Lab</h4><p>Seamless tiles, blob 47 or 16 tilesets, variants, iso and hex shapes, painted maps, exports to Tiled, LDtk and Godot. See <a href="#tilelab">Paint tile scenery</a>.</p></article>
+<article><i data-dz="dz-nav-espace-pixel"></i><h4>Pixel — Vectorlab</h4><p>Opens Vectorlab straight in the Pixel persona: frame timeline, 2:1 iso tile, rasterize an image. See <a href="#vectorlab-pixel">Pixel art</a>.</p></article>
+<article><i data-dz="dz-cat-cartes"></i><h4>Card Forge</h4><p>Playing cards: printer templates, back and registration, languages, batch art, booklet. See <a href="#cardforge">Card Forge</a>.</p></article>
+</div>
+
+<h3>Shared palettes</h3>
+<p>Sprite Lab, Tile Lab and Vectorlab's Pixel persona share the same list of palettes: adaptive (N colours), PICO-8, Game Boy, NES, Sweetie 16, 1-bit, Grayscale 16 (sixteen greys) and Handheld 4 (four tones, handheld console style). A palette gives the same result in all three tools. Dithering (ordered or Floyd-Steinberg) softens gradients.</p>
+<figure class="fiche" data-fiche="spritelab/pixelOn"></figure>
+
+<h3>Good to know</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Only 3D generation costs money: the price shown counts each extra view and format, and goes through your spending caps. The 2D labs are free.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>3D rendering runs in your browser: keep the tab in front for smooth rotation. Files live in the Deepotus data folder and follow a <a href="#transfert">transfer</a>.</p></aside>

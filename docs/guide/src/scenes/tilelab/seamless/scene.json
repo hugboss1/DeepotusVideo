@@ -1,0 +1,74 @@
+{
+  "titre": {
+    "fr": "Une tuile sans raccord",
+    "en": "A seamless tile"
+  },
+  "legende": {
+    "fr": "Mode Seamless : une image devient une tuile qui se répète sans couture, avec son pavage 3×3 et le score de raccord.",
+    "en": "Seamless mode: an image becomes a tile that repeats without seams, with its 3×3 tiling and seam score."
+  },
+  "captures": [
+    {
+      "fr": "source.fr.webp",
+      "en": "source.en.webp"
+    },
+    {
+      "fr": "tuile.fr.webp",
+      "en": "tuile.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        647,
+        403
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Rendre seamless : gratuit, local",
+        "en": "Make seamless: free, local"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "bulle": {
+        "fr": "La tuile et son pavage 3×3",
+        "en": "The tile and its 3×3 tiling"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        642,
+        403
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Rendre seamless : gratuit, local",
+        "en": "Make seamless: free, local"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "bulle": {
+        "fr": "La tuile et son pavage 3×3",
+        "en": "The tile and its 3×3 tiling"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

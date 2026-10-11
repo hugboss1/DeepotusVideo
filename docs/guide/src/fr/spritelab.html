@@ -1,0 +1,55 @@
+<p class="chapeau-chap">Vous saurez fabriquer une feuille de sprites animée dans le Sprite Lab : partir d'un effet livré, d'une planche, d'une vidéo ou d'un personnage de la bible, la découper, l'aligner, la pixeliser, puis l'exporter pour votre moteur de jeu. Presque tout est gratuit et local ; seuls l'animation d'une image et la génération par prompt sont payantes, prix affiché avant.</p>
+
+<h3>L'écran du Sprite Lab</h3>
+<p>Ouvrez <b class="ui">Sprite Lab</b> depuis l'onglet Assets 2D du hub Game Assets. Trois colonnes : à gauche la <strong>source</strong> (Démarrer, Image, Render, Vidéo, Feuille, Bible, Prompt), au centre les <strong>frames</strong> extraites et les réglages, à droite la <strong>préviz</strong> animée et les exports.</p>
+
+<h3>Un sprite en un clic</h3>
+<figure class="scene" data-scene="spritelab/demarrer"></figure>
+<ol class="etapes">
+<li>Onglet <b class="ui">Démarrer</b> : douze effets de particules (explosion, fumée, étincelles, aura…) et des séquences animées, faits à partir de textures libres livrées avec l'app.</li>
+<li>Un clic produit la planche, les images, le GIF et le pack Unity, sans clé, sans crédit, sans réseau.</li>
+<li>La préviz joue l'animation : <kbd>Espace</kbd> lecture / pause, vitesse 0,5×, 1× ou 2×, fonds unis ou décors (Ciel, Extérieur, Donjon, Cave), et <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> ou les flèches font marcher le sprite. Le bouton miroir le retourne.</li>
+</ol>
+<figure class="fiche" data-fiche="spritelab/pflip"></figure>
+
+<h3>Partir d'une planche existante</h3>
+<figure class="scene" data-scene="spritelab/feuille"></figure>
+<ol class="etapes">
+<li>Onglet <b class="ui">Feuille</b> : choisissez une planche de la Bibliothèque, ou <b class="ui">Ouvrir un PNG de mon PC</b>. Rien n'est envoyé, rien n'est dépensé.</li>
+<li><b class="ui">Auto-détecter</b> compte colonnes, lignes et cases occupées grâce à la transparence ; sinon, imposez la grille colonnes × lignes.</li>
+<li>Glissez pour peindre la sélection des cases (<kbd>Ctrl</kbd> ajoute ou retire, <kbd>Maj</kbd> étend), ou <b class="ui">Toutes</b>, <b class="ui">Aucune</b>, une case sur 2, 3 ou 4.</li>
+<li>Alignez : <b class="ui">Pieds</b> pose chaque personnage sur le même sol, <b class="ui">Gauche / droite</b> recale le centre, <b class="ui">Les deux axes</b> fait les deux ; les flèches poussent la frame courante d'un pixel, <b class="ui">Remettre</b> annule.</li>
+<li>Rangez des plages sous un nom (marche, saut…) en boucle, ping-pong ou inversé, puis exportez la <b class="ui">Planche alignée</b>, son JSON, ou <b class="ui">Copier le JSON</b>.</li>
+</ol>
+<div class="fiches">
+<figure class="fiche" data-fiche="spritelab/fDetect"></figure>
+<figure class="fiche" data-fiche="spritelab/fAlPieds"></figure>
+</div>
+
+<h3>Les autres sources</h3>
+<div class="cartes">
+<article><i data-dz="dz-media-image"></i><h4>Image, Render, Vidéo</h4><p>Une image de la Bibliothèque est animée sur fond uni (payant) ; un rendu ou une vidéo de votre PC est découpé en frames. Réglez l'échantillonnage, le nombre de frames et le détourage (cloud, local ou clé chroma).</p></article>
+<article><i data-dz="dz-nav-bible"></i><h4>Bible</h4><p><b class="ui">4 directions (planche)</b> découpe les vues sud, ouest, est, nord d'un personnage ; <b class="ui">8 directions (modèle 3D)</b> rend son modèle sous huit angles. Gratuit.</p></article>
+<article><i data-dz="dz-media-generer-image"></i><h4>Prompt</h4><p>Décrivez un sprite, ajoutez d'un clic les mots de la persona, puis <b class="ui">Générer les images</b> : le coût s'affiche avant, les images sont détourées en local et deviennent la source.</p></article>
+</div>
+<p>Toute source accepte aussi de 1 à 64 images de la Bibliothèque, prises dans l'ordre comme frames.</p>
+
+<h3>Régler la feuille</h3>
+<p>Au centre : cellule (128, 256, 512 ou native, sans agrandissement), ancrage centré ou aux pieds, colonnes. <b class="ui">Pixel-art (9b)</b> réduit à la taille cible avec une palette partagée et un tramage. Animation : durée par image et tags (idle, run, jump…) écrits dans tous les exports. Post-traitement : contour, ombre portée, nettoyage des pixels orphelins, lissage des bords. Puis <b class="ui">Générer le sheet</b>.</p>
+<div class="fiches">
+<figure class="fiche" data-fiche="spritelab/poWidth"></figure>
+<figure class="fiche" data-fiche="spritelab/poDx"></figure>
+</div>
+
+<h3>Retoucher, hitboxes, squelette</h3>
+<div class="cartes">
+<article><i data-dz="dz-edit-cadres-edition"></i><h4>Éditeur</h4><p>Réordonnez, dupliquez ou supprimez des images d'une feuille déjà faite, puis <b class="ui">Appliquer</b> ; les tags suivent. Rien n'est refait ni repayé.</p></article>
+<article><i data-dz="dz-edit-position"></i><h4>Hitboxes</h4><p>Dessinez par frame des rectangles hit (frappe) ou hurt (peut être touché), seize au plus ; réglez-les, copiez-les d'une frame à l'autre (<kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd>). Ils partent dans l'atlas JSON et le Paper2D.</p></article>
+<article><i data-dz="dz-lab3d-os"></i><h4>Squelette Spine</h4><p>Tracez des os puis des pièces, nommez-les, et <b class="ui">Écrire le rig</b> produit un squelette Spine 3.8 avec ses pièces.</p></article>
+</div>
+
+<h3>Exporter</h3>
+<p>Sous la préviz : Sheet PNG, ZIP (frames et pack Unity, avec tous les exports moteur), GIF, ressource Godot 4 (.tres), atlas JSON pour Phaser et PixiJS, fichier Aseprite (.ase) et feuille Unreal Paper2D. Save to Library range la feuille dans la Bibliothèque, d'où elle s'envoie vers le Vectorlab ou le Tile Lab.</p>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Payant : animer une image (onglet Image), le détourage cloud et la génération par prompt, toujours sous vos plafonds, prix affiché avant. Démarrer, Feuille, Bible, Render, Vidéo avec détourage local et tous les exports sont gratuits.</p></aside>

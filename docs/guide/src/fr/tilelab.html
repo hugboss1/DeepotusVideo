@@ -1,0 +1,46 @@
+<p class="chapeau-chap">Vous saurez fabriquer dans le Tile Lab des tuiles sans raccord, des jeux de tuiles auto-tuilables, des tuiles iso ou hexagonales, et peindre une petite carte prête pour Tiled, LDtk ou Godot. Tout est gratuit et calculé sur votre PC.</p>
+
+<h3>L'écran du Tile Lab</h3>
+<p>Ouvrez <b class="ui">Tile Lab</b> depuis l'onglet Assets 2D du hub Game Assets. Une barre de cinq modes : <b class="ui">Seamless</b>, <b class="ui">Feuille de tuiles</b>, <b class="ui">Jeu</b>, <b class="ui">Formes</b> et <b class="ui">Peintre</b>. À gauche, la source (images de la Bibliothèque) ; à droite, le résultat. Une image envoyée depuis la Bibliothèque ou le Photolab (« Tile Lab — source de la tuile ») arrive directement comme source.</p>
+
+<h3>Une tuile sans raccord</h3>
+<figure class="scene" data-scene="tilelab/seamless"></figure>
+<ol class="etapes">
+<li>Mode Seamless : choisissez une image (texture de sol, mur, feuillage…).</li>
+<li>Méthode : décalage 50/50 avec fondu (naturel) ou miroir 2×2 (parfait, effet kaléidoscope) ; recadrage et taille ; pixel-art en option avec une palette partagée.</li>
+<li><b class="ui">Rendre seamless</b> montre la tuile, son pavage 3×3 et le score de raccord avant puis après (0 = parfait). La tuile rejoint la Bibliothèque.</li>
+</ol>
+<div class="fiches">
+<figure class="fiche" data-fiche="tilelab/method"></figure>
+<figure class="fiche" data-fiche="tilelab/runBtn"></figure>
+</div>
+
+<h3>Fabriquer un jeu de tuiles</h3>
+<figure class="scene" data-scene="tilelab/jeu"></figure>
+<ol class="etapes">
+<li>Mode Jeu : cliquez une image pour la matière A (terrain) puis une seconde pour B (fond). La bascule <b class="ui">Material Forge</b> prend la couleur de base d'une matière du Material Forge.</li>
+<li>Choisissez le jeu : Blob 47 (huit voisins, coins arrondis) ou Blob 16 (quatre arêtes, plus rapide), le côté en pixels, de 1 à 5 variantes par tuile et la graine.</li>
+<li><b class="ui">Fabriquer le jeu</b> construit l'atlas et mesure le raccord des voisines ; l'atlas est copié en Bibliothèque.</li>
+<li><b class="ui">Nouvel aperçu</b> tire une carte au hasard où chaque case reçoit la tuile de ses voisines ; <b class="ui">Mesurer</b> juge le raccord, la répétition visible et l'éclairage (ok / attention).</li>
+<li>Exportez atlas.png puis le format de votre moteur : Tiled (.tsx), LDtk (.ldtk) ou Godot (.tres), à poser à côté de l'atlas.</li>
+</ol>
+<div class="fiches">
+<figure class="fiche" data-fiche="tilelab/jeuKind"></figure>
+<figure class="fiche" data-fiche="tilelab/jeuApercuBtn"></figure>
+</div>
+<p>Le bloc « Style d'un lieu de la bible » compose un prompt de tuile tenu par la planche et la palette d'un lieu : <b class="ui">Prompt du lieu</b>, puis <b class="ui">Copier le prompt</b> pour le coller dans le générateur d'images. Rien n'est généré ici.</p>
+
+<h3>Peindre une carte</h3>
+<figure class="scene" data-scene="tilelab/peintre"></figure>
+<p>Mode Peintre, une fois un jeu fabriqué : réglez largeur, hauteur et graine, puis cliquez-glissez sur la grille pour peindre le terrain, repassez pour gommer. À chaque coup, la bonne tuile est posée d'après les voisines, et la carte composée s'affiche dessous avec carte.png et carte.json. <b class="ui">Tout effacer</b> vide la grille.</p>
+
+<h3>Formes et feuilles de tuiles</h3>
+<div class="cartes">
+<article><i data-dz="dz-media-tuile-iso"></i><h4>Formes</h4><p>Une matière devient une tuile losange iso 2:1 ou hexagonale à sommet plat, qui pave sans couture. <b class="ui">Fabriquer la tuile</b> montre le pavage ; export vers Tiled et Godot.</p></article>
+<article><i data-dz="dz-edit-grille"></i><h4>Feuille de tuiles</h4><p>Ouvrez une planche existante : <b class="ui">Détecter</b> trouve chaque tuile par sa transparence, la grille de placement (carrée ou iso 2:1) teste les raccords, double-clic = pavage ×9.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>Exports de la feuille</h4><p>Feuille alignée et JSON, tileset et JSON, ou <b class="ui">Tuiles séparées (zip)</b> ; la feuille alignée peut aussi rejoindre la Bibliothèque.</p></article>
+</div>
+<div class="fiches">
+<figure class="fiche" data-fiche="tilelab/formeKind"></figure>
+<figure class="fiche" data-fiche="tilelab/tlGrilleType"></figure>
+</div>

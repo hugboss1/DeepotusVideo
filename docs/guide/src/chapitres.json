@@ -407,7 +407,7 @@
       "ecrans": [
         "Game Assets — onglet Assets 2D et palettes partagées"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "spritelab",
@@ -419,7 +419,8 @@
       "anciens": [],
       "ecrans": [
         "Sprite Lab"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "tilelab",
@@ -431,7 +432,8 @@
       "anciens": [],
       "ecrans": [
         "Tile Lab"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "cardforge",

@@ -1,0 +1,67 @@
+{
+  "titre": {
+    "fr": "Le hub Game Assets",
+    "en": "The Game Assets hub"
+  },
+  "legende": {
+    "fr": "Un onglet par outil : 3D, 3D Studio, Assets 2D, Sprites, Tuiles, Matières, Cartes. Assets 2D rassemble les quatre labs 2D.",
+    "en": "One tab per tool: 3D, 3D Studio, 2D Assets, Sprites, Tiles, Materials, Cards. 2D Assets gathers the four 2D labs."
+  },
+  "captures": [
+    {
+      "fr": "trois-d.fr.webp",
+      "en": "trois-d.en.webp"
+    },
+    {
+      "fr": "assets2d.fr.webp",
+      "en": "assets2d.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        321,
+        587,
+        123,
+        47
+      ],
+      "bulle": {
+        "fr": "Image → modèle 3D : prix affiché avant",
+        "en": "Image → 3D model: price shown first"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        682,
+        94
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "L'onglet Assets 2D",
+        "en": "The 2D Assets tab"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        245,
+        256,
+        269,
+        34
+      ],
+      "bulle": {
+        "fr": "Quatre labs, chacun avec Ouvrir et Guide",
+        "en": "Four labs, each with Open and Guide"
+      }
+    }
+  ]
+}

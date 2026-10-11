@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "Ouvrir une planche existante",
+    "en": "Open an existing sheet"
+  },
+  "legende": {
+    "fr": "Onglet Feuille : la grille se détecte, les cases se choisissent, les frames s'alignent ; tout en local.",
+    "en": "Sheet tab: the grid is detected, cells are picked, frames are aligned; all local."
+  },
+  "captures": [
+    {
+      "fr": "liste.fr.webp",
+      "en": "liste.en.webp"
+    },
+    {
+      "fr": "grille.fr.webp",
+      "en": "grille.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        170,
+        636
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Une planche de la Bibliothèque",
+        "en": "A sheet from the Library"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        344,
+        96,
+        109,
+        40
+      ],
+      "bulle": {
+        "fr": "4 × 2 cases détectées seules",
+        "en": "4 × 2 cells detected automatically"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1026,
+        367,
+        47,
+        39
+      ],
+      "bulle": {
+        "fr": "Le héros sautille dans la préviz",
+        "en": "The hero hops in the preview"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        170,
+        585
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Une planche de la Bibliothèque",
+        "en": "A sheet from the Library"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        344,
+        96,
+        98,
+        40
+      ],
+      "bulle": {
+        "fr": "4 × 2 cases détectées seules",
+        "en": "4 × 2 cells detected automatically"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1026,
+        367,
+        47,
+        39
+      ],
+      "bulle": {
+        "fr": "Le héros sautille dans la préviz",
+        "en": "The hero hops in the preview"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

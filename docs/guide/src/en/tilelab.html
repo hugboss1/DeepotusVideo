@@ -1,0 +1,46 @@
+<p class="chapeau-chap">You will be able to build seamless tiles, auto-tiling tilesets, iso or hexagonal tiles in Tile Lab, and paint a small map ready for Tiled, LDtk or Godot. Everything is free and computed on your PC.</p>
+
+<h3>The Tile Lab screen</h3>
+<p>Open <b class="ui">Tile Lab</b> from the Assets 2D tab of the Game Assets hub. A bar of five modes: <b class="ui">Seamless</b>, <b class="ui">Tile sheet</b>, <b class="ui">Tileset</b>, <b class="ui">Shapes</b> and <b class="ui">Painter</b>. On the left, the source (Library images); on the right, the result. An image sent from the Library or Photolab (“Tile Lab — tile source”) arrives directly as the source.</p>
+
+<h3>A seamless tile</h3>
+<figure class="scene" data-scene="tilelab/seamless"></figure>
+<ol class="etapes">
+<li>Seamless mode: pick an image (floor, wall, foliage texture…).</li>
+<li>Method: 50/50 offset with blend (natural) or 2×2 mirror (perfect, kaleidoscope effect); crop and size; optional pixel art with a shared palette.</li>
+<li><b class="ui">Make seamless</b> shows the tile, its 3×3 tiling and the seam score before and after (0 = perfect). The tile joins the Library.</li>
+</ol>
+<div class="fiches">
+<figure class="fiche" data-fiche="tilelab/method"></figure>
+<figure class="fiche" data-fiche="tilelab/runBtn"></figure>
+</div>
+
+<h3>Build a tileset</h3>
+<figure class="scene" data-scene="tilelab/jeu"></figure>
+<ol class="etapes">
+<li>Tileset mode: click an image for material A (terrain) then a second for B (background). The <b class="ui">Material Forge</b> toggle takes the base colour of a Material Forge material.</li>
+<li>Choose the set: Blob 47 (eight neighbours, rounded corners) or Blob 16 (four edges, faster), the side in pixels, 1 to 5 variants per tile and the seed.</li>
+<li><b class="ui">Build the tileset</b> builds the atlas and measures how neighbours join; the atlas is copied to the Library.</li>
+<li><b class="ui">New preview</b> draws a random map where each cell gets the tile of its neighbours; <b class="ui">Measure</b> judges seams, visible repetition and lighting (ok / warning).</li>
+<li>Export atlas.png then your engine's format: Tiled (.tsx), LDtk (.ldtk) or Godot (.tres), to be placed next to the atlas.</li>
+</ol>
+<div class="fiches">
+<figure class="fiche" data-fiche="tilelab/jeuKind"></figure>
+<figure class="fiche" data-fiche="tilelab/jeuApercuBtn"></figure>
+</div>
+<p>The “Style of a bible location” block composes a tile prompt bound by a location's sheet and palette: <b class="ui">Location prompt</b>, then <b class="ui">Copy prompt</b> to paste it into the image generator. Nothing is generated here.</p>
+
+<h3>Paint a map</h3>
+<figure class="scene" data-scene="tilelab/peintre"></figure>
+<p>Painter mode, once a tileset is built: set width, height and seed, then click and drag on the grid to paint terrain, go over again to erase. On each stroke, the right tile is placed from its neighbours, and the composed map shows below with carte.png and carte.json. <b class="ui">Clear all</b> empties the grid.</p>
+
+<h3>Shapes and tile sheets</h3>
+<div class="cartes">
+<article><i data-dz="dz-media-tuile-iso"></i><h4>Shapes</h4><p>A material becomes a 2:1 iso diamond or flat-top hexagon tile that tiles without seams. <b class="ui">Build the tile</b> shows the tiling; export to Tiled and Godot.</p></article>
+<article><i data-dz="dz-edit-grille"></i><h4>Tile sheet</h4><p>Open an existing sheet: <b class="ui">Detect</b> finds each tile by its transparency, the placement grid (square or 2:1 iso) tests seams, double-click = ×9 tiling.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>Sheet exports</h4><p>Aligned sheet and JSON, tileset and JSON, or <b class="ui">Separate tiles (zip)</b>; the aligned sheet can also join the Library.</p></article>
+</div>
+<div class="fiches">
+<figure class="fiche" data-fiche="tilelab/formeKind"></figure>
+<figure class="fiche" data-fiche="tilelab/tlGrilleType"></figure>
+</div>
