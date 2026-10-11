@@ -540,6 +540,11 @@ async def render_layout_template(
                 _cle_video_ou_503(_sv.seedance.video_model if _sv.seedance is not None else None, http)
                 if _sv.seedance is not None:   # t184 : image de fin refusée avant la dépense
                     _fin_video_ou_400(_sv.seedance.video_model, _sv.seedance.image_filename_end, http)
+                    # t185 (relecture) : images de départ et de fin vérifiées sur le disque AVANT la dépense, comme
+                    # /generate/composition — sinon la pipeline ne les refusait qu'après _plafond
+                    for _quoi, _nom in (("start", _sv.seedance.image_filename), ("end", _sv.seedance.image_filename_end)):
+                        if _nom and not (settings.images_path / _nom).exists():
+                            raise HTTPException(404, f"Seedance {_quoi} image not found: {_nom}")
         if "heygen" in kinds and not settings.has_heygen:
             raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
         _ops, _vo, _maxs, _epingles = await _ops_rendu(template_id, request)
@@ -6147,6 +6152,10 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
     img_path = settings.images_path / request.seedance.image_filename
     if not img_path.exists():
         raise HTTPException(404, f"Seedance start image not found: {request.seedance.image_filename}")
+    # t185 (G3) : l'image de fin (Quick › Composition, dzEndOK) vérifiée comme dans /generate, AVANT la dépense —
+    # sinon la pipeline ne la refusait qu'après _plafond
+    if request.seedance.image_filename_end and not (settings.images_path / request.seedance.image_filename_end).exists():
+        raise HTTPException(404, f"Seedance end image not found: {request.seedance.image_filename_end}")
     if not request.seedance.template_id and not request.seedance.custom_prompt:
         raise HTTPException(400, "Seedance side needs template_id or custom_prompt")
 

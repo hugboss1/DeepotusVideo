@@ -341,6 +341,9 @@ def avant_encartsia(bundle: str) -> str:
     import patch_bundle_encartsia as _m
     if _m.MARKER not in bundle:
         return bundle
+    if "function dzFinImg(" not in bundle:
+        # t185 (relecture) : le marqueur t183 sans les paires G3 = un bundle d'avant G3 posé sous un maillon d'après
+        raise AssertionError("avant_encartsia : encartsia t183 sans G3 : rejouer la chaîne")
     s = bundle
     for ancre, remplace in reversed(_m.PAIRES):
         if s.count(remplace) != 1:
