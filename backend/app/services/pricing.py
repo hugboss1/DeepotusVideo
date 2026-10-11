@@ -215,9 +215,21 @@ _IMAGE_MODELS = {
     "seedream-5-pro":      ("Seedream 5 Pro (via fal)", "fal", "seedream5_pro_usd"),
     "ideogram-4.5":        ("Ideogram 4.5 (via fal)", "fal", "ideogram45_usd"),
     "qwen-image-3":        ("Qwen Image 3 (via fal)", "fal", "qwen_image3_usd"),
+}
+
+# t182 (G0) : modèles d'image VECTORIELS (sortie SVG). Hors de _IMAGE_MODELS,
+# que lisent les consommateurs raster (Cardforge, lots d'art, sélecteurs) : ils
+# ne doivent jamais les proposer. Tarifés quand même (estimate, catalogue_ia).
+_IMAGE_MODELS_VECTEUR = {
     "recraft-4.1-vecteur": ("Recraft 4.1 vecteur SVG (via fal)", "fal",
                             "recraft41_vecteur_usd"),
 }
+
+
+def image_model_spec(model: str) -> tuple:
+    """(libellé, fournisseur, clé de prix) d'un id d'image, raster ou
+    vectoriel ; repli FLUX pour un id inconnu (comportement d'avant)."""
+    return _IMAGE_MODELS.get(model) or _IMAGE_MODELS_VECTEUR.get(model)         or _IMAGE_MODELS["flux"]
 
 
 def load() -> dict:
@@ -432,7 +444,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
     if kind == "image":
         n = int(op.get("n", 1))
         model = str(op.get("model") or "flux").lower()
-        label, prov, key = _IMAGE_MODELS.get(model, _IMAGE_MODELS["flux"])
+        label, prov, key = image_model_spec(model)
         unit = p.get(key, p["flux_image_usd"])
         lines.append(_line(prov, f"{label} x{n}", n, "image", n * unit))
     elif kind == "seedance":
@@ -495,7 +507,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         imgs = int(op.get("images", op.get("scenes", 1)))
         chars = float(op.get("chars", 0))
         model = str(op.get("model") or "flux").lower()
-        ilabel, iprov, ikey = _IMAGE_MODELS.get(model, _IMAGE_MODELS["flux"])
+        ilabel, iprov, ikey = image_model_spec(model)
         iunit = p.get(ikey, p["flux_image_usd"])
         if imgs:
             lines.append(_line(iprov, f"{ilabel} x{imgs}", imgs, "image",

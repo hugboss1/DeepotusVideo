@@ -1153,7 +1153,7 @@ def main():
     check("Library : select custom d'image lu (FLUX schnell), prix par image via /api/cost/estimate",
           lb.get("id") == "flux" and lb.get("txt") == "FLUX schnell" and "$0.003/image" in (lb.get("title") or ""), str(lb))
     ll = {o.get("id"): o for o in (T.get("listeL") or [])}
-    check("liste image = le registre COMPLET (17 depuis t182), pas seulement /api/image-models", len(ll) == 17, str(len(ll)))
+    check("liste image = le registre COMPLET (16 depuis t182), pas seulement /api/image-models", len(ll) == 16, str(len(ll)))
     check("modèle d'image sans clé (absent de /api/image-models) → grisé « clé OPENAI_API_KEY absente »",
           all((ll.get(k) or {}).get("dis") == "true" and ((ll.get(k) or {}).get("title") or "").startswith("clé OPENAI_API_KEY absente")
               for k in ("gpt-image-2", "gpt-image-2.5-flare", "gpt-image-1-mini")), str(ll.get("gpt-image-2")))
@@ -1208,8 +1208,8 @@ def main():
     check("SANS CLÉ : la pastille grisée n'ouvre pas de liste", sc.get("ouvre") is False, str(sc.get("ouvre")))
     ap = T.get("appels") or []
     est = [a for a in ap if a[1] == "/api/cost/estimate"]
-    check("prix d'image : estimation POST (campaign, un op image par modèle du registre : 17 depuis t182)",
-          bool(est) and all(a[0] == "POST" and (a[2] or {}).get("kind") == "campaign" and len((a[2] or {}).get("ops") or []) == 17 for a in est), str(est[:1])[:300])
+    check("prix d'image : estimation POST (campaign, un op image par modèle du registre : 16 depuis t182)",
+          bool(est) and all(a[0] == "POST" and (a[2] or {}).get("kind") == "campaign" and len((a[2] or {}).get("ops") or []) == 16 for a in est), str(est[:1])[:300])
     check("TÉMOIN (revue T9) : plusieurs pastilles d'image sur la page SPA (Chapitres, Library, Templates…)",
           (R.get("nImgT8") or 0) >= 3, str(R.get("nImgT8")))
     check("déduplication : ces pastilles d'image → UNE seule estimation sur la page",

@@ -38,13 +38,17 @@ def _dispo(voie: str) -> bool:
 
 @source("image")
 def _images() -> list[dict]:
-    """Une entrée par id de pricing._IMAGE_MODELS (le registre tarifé) ; le
+    """Une entrée par id de pricing._IMAGE_MODELS (raster) puis de
+    pricing._IMAGE_MODELS_VECTEUR (SVG) ; `sortie` le dit (« raster » /
+    « svg ») pour que seuls les écrans vectoriels proposent les seconds. Le
     jumeau se lit dans image_providers._FAL_GPT (id `-fal` -> id direct)."""
     from app.services import image_providers as IP
     p = P.load()
     inverse = {v: k for k, v in IP._FAL_GPT.items()}
     out = []
-    for mid, (label, voie, cle_prix) in P._IMAGE_MODELS.items():
+    registre = [(mid, spec, "raster") for mid, spec in P._IMAGE_MODELS.items()]
+    registre += [(mid, spec, "svg") for mid, spec in P._IMAGE_MODELS_VECTEUR.items()]
+    for mid, (label, voie, cle_prix), sortie in registre:
         try:
             usd = float(p.get(cle_prix, P.DEFAULTS.get(cle_prix, 0.0)) or 0.0)
         except (TypeError, ValueError):
@@ -55,7 +59,7 @@ def _images() -> list[dict]:
                     "unite": "image", "jumeau": jumeau,
                     "note": "" if usd else PRIX_A_MESURER,
                     "edit": not (fal and not fal.get("edit")),
-                    "svg": bool(fal.get("svg"))})
+                    "sortie": sortie})
     return out
 
 

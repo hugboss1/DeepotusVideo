@@ -639,7 +639,6 @@
     ["seedream-5-pro", "Seedream 5 Pro (via fal)", "FAL_KEY"],
     ["ideogram-4.5", "Ideogram 4.5 (via fal)", "FAL_KEY"],
     ["qwen-image-3", "Qwen Image 3 (via fal)", "FAL_KEY"],
-    ["recraft-4.1-vecteur", "Recraft 4.1 vecteur SVG (via fal)", "FAL_KEY"],
     ["gpt-image-2", "GPT Image 2", "OPENAI_API_KEY"],
     ["gpt-image-2.5-flare", "GPT Image 2.5 Flare (OpenAI)", "OPENAI_API_KEY"],
     ["gpt-image-2.5-sunburst", "GPT Image 2.5 Sunburst (OpenAI)", "OPENAI_API_KEY"],

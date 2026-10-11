@@ -8,8 +8,11 @@ Ce que le banc tient :
       mais PRÉSENTS ; sans FAL_KEY, les ids fal idem ;
   [2] les nouveaux ids fal (nano-banana-2.1, flux-3, seedream-5-pro,
       ideogram-4.5, qwen-image-3, recraft-4.1-vecteur) sont dans PROVIDERS,
-      pricing._IMAGE_MODELS (avec LEUR clé de prix : jamais le repli FLUX),
-      CATALOGUE_IMAGE et le `models` de /image-models ; les ids raster sont
+      la table de prix (avec LEUR clé de prix : jamais le repli FLUX) ; les
+      raster dans pricing._IMAGE_MODELS, CATALOGUE_IMAGE et le `models` de
+      /image-models ; recraft (SVG) dans pricing._IMAGE_MODELS_VECTEUR et
+      NULLE PART côté raster (ni _IMAGE_MODELS, ni CATALOGUE_IMAGE, ni
+      IP.available()) ; les ids raster sont
       dans material_store.MODELS et MODEL_COST/MODEL_SEC de materialforge ;
       recraft (SVG) n'est PAS une texture : absent de material_store et
       écarté du sélecteur de materialforge ; gpt-image-1-mini est dans
@@ -18,12 +21,16 @@ Ce que le banc tient :
       (aspect_ratio / image_size / resolution) pour t2i et edit, sans
       `num_images` là où le schéma fal n'en a pas (flux-3, recraft), avec
       `image_url` (singulier) pour l'edit d'ideogram ; recraft refuse l'edit ;
+  [4b] /images/generate model=recraft SANS sortie="svg" -> 400 avant toute
+      dépense (aucun tir) ; AVEC sortie="svg" -> _fal_image_generate ;
   [4] /images/generate avec un nouvel id part par IP._fal_image_generate
       (espion), jamais par OpenAI ni FLUX ni Nano Banana ;
       /images/process op=edit avec flux-3 idem, AVEC l'image source ;
   [5] /image-models garde `models` filtré (compat) et ajoute `tous` (toutes
       les entrées, champs de [0]) ; chaque entrée de `models` porte voie, cle,
       usd ; GET /ia/catalogue?nature=image idem ; nature inconnue -> 400 ;
+  [5b] recraft absent de `models`, présent dans `tous` avec sortie="svg" ;
+      toutes les autres entrées sortie="raster" ;
   [6] un prix inconnu (clé de prix à 0) donne usd=0.0 et `note` contenant
       « prix à mesurer » ; un prix connu n'a pas de note.
 
@@ -189,15 +196,16 @@ def call(meth, path, body=None, params=None):
         return -1, {"_temoin": temoin(e)}
 
 
-CHAMPS = ("voie", "cle", "dispo", "usd", "unite", "jumeau", "label")
+CHAMPS = ("voie", "cle", "dispo", "usd", "unite", "jumeau", "label", "sortie")
 
 # ── [0] lister('image') ─────────────────────────────────────────────────────
 print("[0] lister('image')")
 img = CI.lister("image")
 ids = {e["id"] for e in img}
 check("TÉMOIN : au moins 17 entrées image (11 d'avant + 6)", len(img) >= 17, str(len(img)))
-check("ids = pricing._IMAGE_MODELS (une seule source)", ids == set(P._IMAGE_MODELS),
-      str(ids ^ set(P._IMAGE_MODELS)))
+_REG = set(P._IMAGE_MODELS) | set(P._IMAGE_MODELS_VECTEUR)
+check("ids = pricing._IMAGE_MODELS + _IMAGE_MODELS_VECTEUR (une seule source)", ids == _REG,
+      str(ids ^ _REG))
 for e in img:
     check(f"{e['id']} a ses champs", all(k in e for k in CHAMPS), str(e))
     check(f"{e['id']} usd float", isinstance(e.get("usd"), float), repr(e.get("usd")))
@@ -247,23 +255,30 @@ def bloc(nom):
 for i in NOUVEAUX:
     meta = IP.PROVIDERS.get(i) or {}
     check(f"{i} dans PROVIDERS (FAL_KEY)", meta.get("needs") == "FAL_KEY", repr(meta))
-    spec = P._IMAGE_MODELS.get(i)
-    check(f"{i} dans _IMAGE_MODELS, voie fal, clé de prix connue", bool(spec) and spec[1] == "fal"
+    spec = (P._IMAGE_MODELS_VECTEUR if i == "recraft-4.1-vecteur" else P._IMAGE_MODELS).get(i)
+    check(f"{i} dans sa table de prix, voie fal, clé de prix connue", bool(spec) and spec[1] == "fal"
           and spec[2] in P.DEFAULTS, repr(spec))
     devis = P.estimate({"kind": "image", "model": i, "n": 1})
     check(f"{i} devis = SA clé (pas le repli FLUX)",
           abs(devis["total_usd"] - float(P.DEFAULTS.get(spec[2] if spec else "", -1))) < 1e-9
           and spec[0] in devis["breakdown"][0].get("label", ""), repr(devis))
-    check(f"{i} dans CATALOGUE_IMAGE avec FAL_KEY",
-          re.search(r'\["' + re.escape(i) + r'",\s*"[^"]+",\s*"FAL_KEY"\]', cat_bloc) is not None)
     check(f"{i} dans lister", i in ids)
     check(f"{i} passe par la façade", IP.via_facade(i))
 for i in RASTER:
+    check(f"{i} dans CATALOGUE_IMAGE avec FAL_KEY",
+          re.search(r'\["' + re.escape(i) + r'",\s*"[^"]+",\s*"FAL_KEY"\]', cat_bloc) is not None)
+    check(f"{i} dans _IMAGE_MODELS (raster)", i in P._IMAGE_MODELS)
     check(f"{i} dans material_store", i in MS.MODELS and MS.clean_model(i) == i)
     for nom in ("MODEL_COST", "MODEL_SEC"):
         check(f"{nom} {i}", re.search(r'"' + re.escape(i) + r'"\s*:\s*\d', bloc(nom)) is not None)
 check("recraft (SVG) n'est PAS une texture : absent de material_store",
       "recraft-4.1-vecteur" not in MS.MODELS)
+check("recraft hors des registres raster : ni _IMAGE_MODELS ni CATALOGUE_IMAGE",
+      "recraft-4.1-vecteur" not in P._IMAGE_MODELS and "recraft" not in cat_bloc)
+settings.FAL_KEY = "test-key"
+check("recraft hors de IP.available() (générateurs des planches)",
+      "recraft-4.1-vecteur" not in [x["id"] for x in IP.available()]
+      and "flux-3" in [x["id"] for x in IP.available()])
 check("materialforge écarte les modèles vectoriels de son sélecteur",
       re.search(r"\.filter\(.{0,40}/vecteur/", mf) is not None)
 check("gpt-image-1-mini dans PROVIDERS (OPENAI_API_KEY)",
@@ -310,7 +325,7 @@ except ValueError:
 
 # ── [4] routage ─────────────────────────────────────────────────────────────
 print("[4] routage")
-for mid in NOUVEAUX:
+for mid in RASTER:
     reset()
     st, js = call("POST", "/images/generate", {"prompt": "chat", "n": 1, "model": mid})
     check(f"generate {mid} 200", st == 200 and js.get("model") == mid, f"{st} {js}")
@@ -330,6 +345,21 @@ check("sans FAL_KEY : 503 qui nomme la clé, aucun tir", st == 503 and "FAL_KEY"
       and ESP["falimg"] == [], f"{st} {js}")
 settings.FAL_KEY = "test-key"
 
+# ── [4b] recraft : SVG sur demande seulement ────────────────────────────────
+print("[4b] recraft vectoriel")
+reset()
+st, js = call("POST", "/images/generate", {"prompt": "logo", "n": 1, "model": "recraft-4.1-vecteur"})
+check("recraft sans sortie=svg -> 400 Vectorlab", st == 400 and "Vectorlab" in str(js), f"{st} {js}")
+check("recraft refusé : aucun tir", ESP["falimg"] == [] and ESP["interdit"] == [], str(ESP))
+reset()
+st, js = call("POST", "/images/generate", {"prompt": "logo", "n": 1, "model": "recraft-4.1-vecteur", "sortie": "raster"})
+check("recraft sortie=raster -> 400", st == 400 and ESP["falimg"] == [], f"{st} {js}")
+reset()
+st, js = call("POST", "/images/generate", {"prompt": "logo", "n": 1, "model": "recraft-4.1-vecteur", "sortie": "svg"})
+check("recraft sortie=svg -> 200", st == 200 and js.get("model") == "recraft-4.1-vecteur", f"{st} {js}")
+check("recraft sortie=svg passe par _fal_image_generate",
+      [x["model"] for x in ESP["falimg"]] == ["recraft-4.1-vecteur"] and ESP["interdit"] == [], str(ESP))
+
 # ── [5] routes de lecture ───────────────────────────────────────────────────
 print("[5] /image-models et /ia/catalogue")
 st, r = call("GET", "/image-models")
@@ -339,7 +369,7 @@ check("models filtré conservé", bool(mods) and all(m.get("id") for m in mods))
 check("models porte voie, cle, usd", all(all(k in m for k in ("voie", "cle", "usd")) for m in mods),
       str([m for m in mods if not all(k in m for k in ("voie", "cle", "usd"))][:2]))
 mids = [m["id"] for m in mods]
-for i in NOUVEAUX:
+for i in RASTER:
     check(f"{i} dans models (FAL_KEY posée)", i in mids)
 tous = r.get("tous") or []
 check("tous présent, toutes les entrées", len(tous) == len(img) and len(tous) >= len(mods), f"{len(tous)} {len(img)}")
@@ -350,6 +380,15 @@ check("sans clé OpenAI : models sans gpt-image-2, tous AVEC (dispo=False)",
       "gpt-image-2" not in [m["id"] for m in r.get("models", [])]
       and any(e["id"] == "gpt-image-2" and e["dispo"] is False for e in r.get("tous", [])), str(r)[:300])
 settings.OPENAI_API_KEY = "test-oa"
+print("[5b] recraft hors de models, dans tous (sortie svg)")
+st, r = call("GET", "/image-models")
+check("recraft ABSENT de models (consommateurs raster)",
+      "recraft-4.1-vecteur" not in [m["id"] for m in r.get("models", [])], str([m["id"] for m in r.get("models", [])]))
+_rc = [e for e in r.get("tous", []) if e["id"] == "recraft-4.1-vecteur"]
+check("recraft présent dans tous avec sortie=svg", len(_rc) == 1 and _rc[0].get("sortie") == "svg", str(_rc))
+check("toutes les autres entrées de tous : sortie=raster",
+      all(e.get("sortie") == "raster" for e in r.get("tous", []) if e["id"] != "recraft-4.1-vecteur"))
+check("les entrées de models sont raster", all(m.get("id") in P._IMAGE_MODELS for m in r.get("models", [])))
 st, r = call("GET", "/ia/catalogue", params={"nature": "image"})
 check("catalogue image 200", st == 200 and r.get("nature") == "image"
       and len(r.get("modeles") or []) == len(img), f"{st} {str(r)[:200]}")

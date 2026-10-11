@@ -8467,6 +8467,12 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     import httpx as _httpx
     from app.services import image_providers as IP
 
+    # t182 : un modèle VECTORIEL (SVG) n'est servi qu'à qui demande du SVG —
+    # refusé AVANT toute garde de dépense, aucun tir.
+    if (IP.FAL_IMAGES.get(model) or {}).get("svg") and             str(body.get("sortie") or "").strip().lower() != "svg":
+        raise HTTPException(400, "Recraft vectoriel rend du SVG : à utiliser "
+                                 "depuis le Vectorlab.")
+
     # --- façade du registre AVANT tout préfixe (27/09) ----------------------
     # Les ids servis par fal (`gpt-image-…-fal`, nano-banana, nano-banana-pro)
     # et les GPT Image 2.5 directs passent par image_providers : un id `-fal`
@@ -8962,9 +8968,9 @@ async def list_image_models():
                     "provider": "fal", "note": "typography"})
         out.append({"id": "qwen-image-3", "label": "Qwen Image 3 (via fal)",
                     "provider": "fal", "note": "low cost"})
-        out.append({"id": "recraft-4.1-vecteur",
-                    "label": "Recraft 4.1 vecteur SVG (via fal)",
-                    "provider": "fal", "note": "SVG, no edit"})
+        # recraft-4.1-vecteur (SVG) n'est PAS ici : cette liste nourrit des
+        # consommateurs raster (Studio, Library, Cardforge, Duel…). Il est
+        # dans `tous` avec sortie="svg", pour le Vectorlab.
     if settings.OPENAI_API_KEY:
         # gpt-image-2 reste en tête : c'est le défaut quand seule la clé
         # OpenAI est posée (`out[0]`) — un ajout ne change pas ce défaut

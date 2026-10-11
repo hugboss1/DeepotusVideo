@@ -107,8 +107,11 @@ _BANANA_ASPECT = {"portrait_16_9": "9:16", "portrait_4_3": "3:4",
 
 
 def available() -> list[dict]:
+    """Générateurs des planches (raster) : un modèle vectoriel n'y est pas."""
     out = []
     for pid, meta in PROVIDERS.items():
+        if (FAL_IMAGES.get(pid) or {}).get("svg"):
+            continue
         if getattr(settings, meta["needs"], "").strip():
             out.append({"id": pid, "label": meta["label"],
                         "seeds": meta["seeds"]})

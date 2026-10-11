@@ -378,8 +378,8 @@ if _cli is not None:
 SRV_IM = {m["id"]: m for m in (_lim.get("models") or []) if isinstance(m, dict)}
 PRI_IM = set(getattr(pr, "_IMAGE_MODELS", {}) or {}) if pr is not None else set()
 _ids = [c[0] for c in CAT]
-N_IMG = 17                                 # t182 (G0) : 11 + 6 modèles d'image fal
-check("x4_catalogue_de_la_couche_lu_dix_sept_ids_uniques",
+N_IMG = 16                                 # t182 (G0) : 11 + 5 modèles d'image fal raster
+check("x4_catalogue_de_la_couche_lu_seize_ids_uniques",
       len(CAT) == N_IMG and len(set(_ids)) == N_IMG, _ids)
 check("x4_ids_du_catalogue_egaux_a_list_image_models_deux_cles_posees_et_a_pricing_image_models",
       len(CAT) == N_IMG and set(_ids) == set(SRV_IM) == PRI_IM,
