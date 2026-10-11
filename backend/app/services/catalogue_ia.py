@@ -6,8 +6,9 @@ fait aucun appel réseau. Chaque entrée dit : sa voie (fal, openai…), la clé
 qui la sert, si cette clé est posée (`dispo`), son prix unitaire (`usd`,
 `unite`) et son JUMEAU — le même modèle servi par l'autre voie
 (gpt-image-2 <-> gpt-image-2-fal). Un modèle sans clé reste PRÉSENT
-(dispo=False) : c'est au sélecteur de le griser, pas au catalogue de le
-cacher.
+(dispo=False) : décision de l'utilisateur (11/10/2026), il reste CHOISISSABLE
+dans les sélecteurs, avec la mention « clé X à ajouter dans Réglages » ; le
+tir est refusé en 503 (avant toute dépense) tant que la clé manque.
 
 Champs codés (jamais de texte français : l'écran traduit) :
 - `note` : "" ou "a_mesurer" — prix inconnu (usd == 0). Le front affiche

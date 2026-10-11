@@ -532,8 +532,11 @@ async def render_layout_template(
 
     kinds = {sv.source_kind for sv in request.slot_values.values()}
     if not request.preview:  # preview uses source stills, no provider keys needed
-        if "seedance" in kinds and not settings.FAL_KEY:
-            raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
+        # t183 : la clé du modèle vidéo CHOISI pour chaque slot Seedance (Veo -> GEMINI_API_KEY, sinon FAL_KEY) —
+        # un modèle sans clé reste choisissable, le refus tombe ICI en 503, avant _garde_cout et _plafond
+        for _sv in request.slot_values.values():
+            if _sv.source_kind == "seedance":
+                _cle_video_ou_503(_sv.seedance.video_model if _sv.seedance is not None else None)
         if "heygen" in kinds and not settings.has_heygen:
             raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
         _ops, _vo, _maxs, _epingles = await _ops_rendu(template_id, request)
@@ -5282,6 +5285,10 @@ async def render_episode(request: Request, background_tasks: BackgroundTasks):
         _plan = _ev.plan_videos(scenes)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    # t183 : la clé du modèle vidéo de chaque scène générée (Veo -> GEMINI_API_KEY, sinon FAL_KEY), en 503 AVANT
+    # la garde de coût et la garde mensuelle — aucune ligne `depenses` pour un modèle sans sa clé
+    for _pv in _plan:
+        _cle_video_ou_503(_pv["model"])
     if _plan:
         _garde_cout(_ev.video_ops(_plan), payload.get("max_usd"))
     # P1 t132 : un épisode enregistré réemploie sa narration et garde son job

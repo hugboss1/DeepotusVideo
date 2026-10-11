@@ -119,7 +119,7 @@ for f in ("dz-modeles-ia.js", "dz-champ-ia.js"):
 # ── [a4] ordre des gardes de /generate ───────────────────────────────────────
 print("[a4] /generate : clé vérifiée avant la dépense")
 rt = lire("backend/app/api/routes.py")
-for nom in ("generate", "generate_batch", "generate_composition"):
+for nom in ("generate", "generate_batch", "generate_composition", "render_layout_template", "render_episode"):
     m = re.search(r"\nasync def " + nom + r"\(.*?(?=\n@router\.)", rt, re.S)
     corps = m.group(0) if m else ""
     i, j = corps.find("_cle_video_ou_503("), corps.find("await _plafond(")
@@ -201,12 +201,15 @@ for lab in ("atelier", "materialforge", "spritelab", "photolab"):
 # ── [c1] Card Forge ─────────────────────────────────────────────────────────
 print("[c1] Card Forge")
 cf = {n: lire(f"frontend/cardforge/js/{n}") for n in ("mod-face.js", "mod-frame.js", "mod-data.js", "core.js")}
-check("face : mention sur l'option sans clé ; « aucune clé » via cle_absente",
+check("face : mention sur l'option sans clé ; « aucune clé » via cle_absente, dit selon la règle",
       'm.dispo === false && m.cle ? " — " + esc(dzT("cartes.face.cle_a_ajouter", { cle: m.cle }))' in cf["mod-face.js"]
-      and "if (!MODELS.length || AI_META.cle_absente) {" in cf["mod-face.js"])
+      and "if (MODELS.length && AI_META.cle_absente) {" in cf["mod-face.js"] and 'dzT("cartes.face.aucune_cle")' in cf["mod-face.js"])
 check("cadre : mention sur l'option sans clé ; « aucune clé » via cle_absente",
       'm.dispo === false && m.cle ? " — " + esc(dzT("cartes.frame2.cle_a_ajouter", { cle: m.cle }))' in cf["mod-frame.js"]
-      and "if (!AI_MODELS.length || AI_META.cle_absente) {" in cf["mod-frame.js"])
+      and "if (AI_MODELS.length && AI_META.cle_absente) {" in cf["mod-frame.js"] and 'dzT("cartes.frame2.aucune_cle")' in cf["mod-frame.js"])
+mo = lire("frontend/patches/montage.js")
+check("Duel : le challenger est nommé d'après `tous` (sans-clé compris)",
+      "function dzDuelLabel(mm,id){var m=((mm&&mm.tous)||[]).find(" in mo)
 check("lot : plus d'option désactivée ni de refus côté écran, la clé nommée",
       "LOT.model, !m.cle)" not in cf["mod-data.js"] and "if (m && !m.cle)" not in cf["mod-data.js"]
       and 'dzT("cartes.data2.cle_a_ajouter", { cle: m.cle_nom' in cf["mod-data.js"])

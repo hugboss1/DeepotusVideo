@@ -5173,7 +5173,7 @@
    {
     "pos": 205305,
     "avant": "if (!MODELS.length) {",
-    "apres": "if (!MODELS.length || AI_META.cle_absente) {",
+    "apres": "if (MODELS.length && AI_META.cle_absente) {\r\n      el.innerHTML = dzT(\"cartes.face.aucune_cle\");\r\n      return;\r\n    }\r\n    if (!MODELS.length) {",
     "groupe": "t183"
    },
    {
@@ -8501,7 +8501,7 @@
    {
     "pos": 335015,
     "avant": "if (!AI_MODELS.length) {",
-    "apres": "if (!AI_MODELS.length || AI_META.cle_absente) {",
+    "apres": "if (AI_MODELS.length && AI_META.cle_absente) {\r\n      el.innerHTML = dzT(\"cartes.frame2.aucune_cle\");\r\n      return;\r\n    }\r\n    if (!AI_MODELS.length) {",
     "groupe": "t183"
    },
    {

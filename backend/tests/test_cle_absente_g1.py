@@ -21,6 +21,11 @@ AVANT `_garde_cout` et `_plafond` — donc ZÉRO ligne `depenses`.
       sans clé (dispo faux, `cle` nommée), `cle_absente` dérivé de `dispo` ;
       lot/modeles nomme la clé (cle_nom) et lot/generer refuse en 503 en la
       nommant.
+  [4] rendu de gabarit (/layout-templates/{id}/render, slot Seedance) et rendu
+      d'épisode (/episodes/render, scène Seedance) avec un modèle Veo Google
+      sans GEMINI_API_KEY -> 503 qui nomme la clé, _plafond jamais appelé,
+      zéro dépense, aucun appel réseau ; TÉMOIN : un modèle fal avec FAL_KEY
+      passe la garde de clé (l'espion _plafond est atteint, 402).
 
 AUCUN appel réel : `_plafond` est un espion, `fal_client.*` et tout
 `httpx.AsyncClient.post` hors du client de test sont des gardes qui COMPTENT.
@@ -264,6 +269,39 @@ check("lot/modeles : gpt-image-2 sans clé nomme sa clé (cle_nom OPENAI_API_KEY
       st == 200 and (lmo.get("gpt-image-2") or {}).get("cle") is False
       and (lmo.get("gpt-image-2") or {}).get("cle_nom") == "OPENAI_API_KEY", f"{st} {lmo.get('gpt-image-2')}")
 settings.OPENAI_API_KEY = "test-oa"
+
+# ── [4] rendus de gabarit et d'épisode ──────────────────────────────────────
+print("[4] rendu de gabarit et d'épisode : clé du modèle vidéo avant le plafond")
+from app.services.elevenlabs_service import VoiceoverService             # noqa: E402
+VoiceoverService.is_enabled = staticmethod(lambda: True)   # la voix n'est pas le sujet : le témoin atteint _plafond
+TID = R.template_engine.list_templates()[0]["id"]
+
+
+def gabarit(model):
+    return (f"/layout-templates/{TID}/render",
+            {"template_id": TID, "slot_values": {"a": {"source_kind": "seedance", "seedance": corps(model)}}})
+
+
+def episode(model):
+    return ("/episodes/render", {"title": "E", "scenes": [{"text": "Une scène narrée.", "image_filename": SRC,
+                                                           "motion": "seedance", "video_model": model}]})
+
+
+settings.GEMINI_API_KEY = ""
+for nom, fab in (("gabarit", gabarit), ("épisode", episode)):
+    chemin, b = fab(VEO)
+    PLAF.clear()
+    r0, d0 = RESEAU["n"], n_depenses()
+    st, js = call(chemin, b)
+    check(f"rendu de {nom} : {VEO} sans GEMINI_API_KEY -> 503 qui nomme la clé et les Réglages",
+          st == 503 and "GEMINI_API_KEY" in str(js) and "Réglages" in str(js), f"{st} {js}")
+    check(f"rendu de {nom} sans clé : _plafond JAMAIS appelé, ZÉRO dépense, aucun appel réseau",
+          PLAF == [] and n_depenses() == d0 and RESEAU["n"] == r0, f"{PLAF} {d0}->{n_depenses()} {RESEAU}")
+    chemin, b = fab(FAL)
+    PLAF.clear()
+    st, js = call(chemin, b)
+    check(f"TÉMOIN : rendu de {nom} avec {FAL} et FAL_KEY -> la garde de clé passe, _plafond atteint (espion 402)",
+          st == 402 and len(PLAF) == 1, f"{st} {js} {PLAF}")
 
 print(f"\n{ok} ok, {fail} fail")
 sys.exit(1 if fail else 0)

@@ -6255,7 +6255,11 @@
   function decorCostLine() {
     const el = UI.decorCost;
     if (!el) return;
-    if (!AI_MODELS.length || AI_META.cle_absente) {
+    if (AI_MODELS.length && AI_META.cle_absente) {
+      el.innerHTML = dzT("cartes.frame2.aucune_cle");
+      return;
+    }
+    if (!AI_MODELS.length) {
       el.innerHTML = dzT("cartes.frame2.decor_sans_modele");
       return;
     }

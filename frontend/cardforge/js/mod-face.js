@@ -3957,7 +3957,11 @@
     const id = sel ? sel.value : "";
     const m = MODELS.filter((x) => x.id === id)[0];
     const n = Math.max(1, Math.min(4, Number((q("#cf-face-n") || {}).value) || 1));
-    if (!MODELS.length || AI_META.cle_absente) {
+    if (MODELS.length && AI_META.cle_absente) {
+      el.innerHTML = dzT("cartes.face.aucune_cle");
+      return;
+    }
+    if (!MODELS.length) {
       el.innerHTML = dzT("cartes.face.cout_aucun_modele");
       return;
     }

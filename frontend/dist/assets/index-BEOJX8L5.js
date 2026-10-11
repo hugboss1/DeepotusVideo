@@ -23312,7 +23312,7 @@ function dzDuelPrompt(graph,node){
 function dzDuelChampion(p,mm){
   var ls="";try{ls=localStorage.getItem("dz_image_model")||""}catch(_e){}
   return String(p.model||ls||(mm&&mm.default)||"flux")}
-function dzDuelLabel(mm,id){var m=((mm&&mm.models)||[]).find(function(z){return z.id===id});return m?m.label:id}
+function dzDuelLabel(mm,id){var m=((mm&&mm.tous)||[]).find(function(zz){return zz.id===id});return m?m.label:id}
 function dzDuelUsd(est,i){var l=est&&Array.isArray(est.breakdown)?est.breakdown[i]:null;return l&&isFinite(l.usd)?Number(l.usd):null}
 function DzDuelPanel({node,graph,onUpdate}){
   var p=node&&node.props||{};
