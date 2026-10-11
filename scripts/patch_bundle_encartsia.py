@@ -29,6 +29,23 @@ Le composant `re` (select custom du bundle) n'a pas de groupes : la voie se lit 
 le libellé (« (via fal) », « (OpenAI) ») ; les en-têtes de voie sont dans la liste de la pastille (dz-champ-ia).
 Aucun useState ajouté (compte figé 731), aucun DzTracks.
 
+t185 (G3, 11/10/2026) — le port `end` du nœud Seedance (déclaré au registre, lu par AUCUN compilateur jusque-là) est
+compilé, et le sélecteur du nœud le sait :
+  - E9 `dzFinImg(graphe, id)` au niveau module (posée juste avant WtAll) : le nom de fichier de l'image branchée sur
+    l'entrée `end` (même forme que l'entrée `image` : Wt(…,"end") puis dzIsImgNode), sinon undefined ;
+  - E10-E13 les quatre compilateurs qui lisent l'entrée `image` d'un Seedance envoient aussi `image_filename_end` :
+    le tir seul (Mh -> POST /generate), l'Enchaînement (Concatenate -> créneaux du gabarit tpl_studio_montage), la
+    moitié animation de la composition UGC (créneau `anim`) et la Composition spatiale (dzCompose -> créneaux du
+    gabarit) ; undefined disparaît du JSON : sans `end` branché, le payload est celui d'avant ;
+  - E14 Quick › Composition (POST /generate/composition) envoie l'image de fin du Quick (dzEndOK) côté Seedance,
+    comme le fait déjà l'onglet Seedance ;
+  - E15-E17 le panneau du nœud passe `fin` à DzVideoModelSel : les modèles qui acceptent une image de fin (`fl` de
+    /api/video-models, nature video_fl) viennent EN TÊTE ; si le modèle courant n'en accepte pas, un bandeau
+    dzT("studio.video.fl_absent") et l'action en un clic dzT("studio.video.fl") (Veo 3.1 Fast fal) — le modèle ne
+    change JAMAIS en silence, seul le clic appelle onChange. Sans `fin` (Quick, Épisodes, Réglages), rendu inchangé.
+Les clés studio.video.fl, studio.video.fl_absent, studio.compose.fin vivent dans studio.json (saisie L2, entrées D de
+scripts/i18n_l2/studio_ia.py).
+
 Maillon de QUEUE, APRÈS dzguide (dont il sonde le marqueur) ; comme lui, il garde un .js.bak_encartsia le temps de
 l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_encartsia` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici : une seule source), appelé EN TÊTE de `avant_dzguide`.
@@ -134,6 +151,62 @@ PAIRES = [
     ('x.useEffect(function(){refresh();fetch("/api/images")',
      'x.useEffect(function(){refresh();dzEngCharger(function(){setPP(function(o){return Object.assign({},o)})});'
      'fetch("/api/images")'),
+]
+
+# t185 (G3) — le port `end` compilé et le sélecteur du nœud Seedance qui le sait (voir l'en-tête)
+FIN_IMG = 'function dzFinImg(e,id){var f=Wt(e,id,"end");return f&&dzIsImgNode(f)&&f.props&&f.props.filename||void 0}'
+VEO_FL = "veo-3.1-fast-fal"
+SEL_AVANT = ('var opts=[{value:"",label:dzT("reglages.modeles.defaut",{nom:mm.default||"seedance-2.5"})}]'
+             '.concat((mm.models||[]).map(function(m2){return{value:m2.id,label:lbl(m2)}}));'
+             'return r.jsx("div",{"data-dzvmsel":"1",children:r.jsx(re,{value:value||"",onChange:onChange,options:opts})})}')
+SEL_APRES = (
+    'var opts=[{value:"",label:dzT("reglages.modeles.defaut",{nom:mm.default||"seedance-2.5"})}]'
+    '.concat(dzVmTri(mm.models||[]).map(function(m2){return{value:m2.id,label:lbl(m2)}}));'
+    # `fl` (alias de end_image) : le modèle accepte une image de fin ; avec `fin`, ces modèles d'abord
+    'function dzVmFl(m2){return!!(m2&&(m2.fl||m2.end_image))}'
+    'function dzVmTri(l){return fin?l.filter(dzVmFl).concat(l.filter(function(m2){return!dzVmFl(m2)})):l}'
+    'var sel=r.jsx(re,{value:value||"",onChange:onChange,options:opts});'
+    'if(!fin)return r.jsx("div",{"data-dzvmsel":"1",children:sel});'
+    'var cur=value||mm.default||"seedance-2.5",cm=(mm.models||[]).find(function(m2){return m2.id===cur}),'
+    'flOk=!cm||dzVmFl(cm),veo=(mm.models||[]).find(function(m2){return m2.id==="' + VEO_FL + '"&&dzVmFl(m2)});'
+    'return r.jsxs("div",{"data-dzvmsel":"1","data-dzvmfin":flOk?"oui":"non",children:[sel,'
+    'flOk?r.jsx("div",{style:{fontSize:11,marginTop:4,color:"var(--ink-soft)"},children:dzT("studio.compose.fin")+" : "+fin})'
+    ':r.jsxs("div",{"data-dzvmflabsent":"1",style:{fontSize:11,marginTop:6,padding:8,background:"var(--amber-soft)",'
+    'border:"1px solid var(--amber)",borderRadius:"var(--r-sm)",color:"var(--ink)"},children:['
+    'r.jsx("div",{children:dzT("studio.video.fl_absent")}),'
+    # le SEUL changement de modèle : au clic, jamais en silence
+    'veo?r.jsx("button",{type:"button","data-dzvmfl":"1",style:{marginTop:6,width:"100%",fontSize:12,padding:"5px 10px",'
+    'borderRadius:7,cursor:"pointer",background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",color:"var(--ink)"},'
+    'onClick:function(){onChange("' + VEO_FL + '")},children:dzT("studio.video.fl")}):null]})]})}'
+)
+PAIRES += [
+    # E9 : l'aide au niveau module, à côté de Wt
+    ('function WtAll(e,t,n){', FIN_IMG + 'function WtAll(e,t,n){'),
+    # E10 : le tir seul (Mh -> POST /generate)
+    ('D.postJson("/generate",{video_model:(h.props&&h.props.model)||void 0,image_filename:b.props.filename,',
+     'D.postJson("/generate",{video_model:(h.props&&h.props.model)||void 0,image_filename:b.props.filename,'
+     'image_filename_end:dzFinImg(e,h.id),'),
+    # E11 : l'Enchaînement (Concatenate), un créneau par Seedance
+    ('image_filename:H.props.filename,custom_prompt:(F&&F.props&&F.props.value)||"cinematic motion, deep-sea bioluminescence",duration_s:A,',
+     'image_filename:H.props.filename,image_filename_end:dzFinImg(e,j.id),custom_prompt:(F&&F.props&&F.props.value)'
+     '||"cinematic motion, deep-sea bioluminescence",duration_s:A,'),
+    # E12 : la moitié animation de la composition UGC
+    ('N.anim={source_kind:"seedance",seedance:{video_model:(j.props&&j.props.model)||void 0,image_filename:H.props.filename,',
+     'N.anim={source_kind:"seedance",seedance:{video_model:(j.props&&j.props.model)||void 0,image_filename:H.props.filename,'
+     'image_filename_end:dzFinImg(e,j.id),'),
+    # E13 : la Composition spatiale (dzCompose, srcFor)
+    ('seedance:{video_model:(g.props&&g.props.model)||void 0,image_filename:img.props.filename,',
+     'seedance:{video_model:(g.props&&g.props.model)||void 0,image_filename:img.props.filename,'
+     'image_filename_end:dzFinImg(e,g.id),'),
+    # E14 : Quick › Composition, l'image de fin du Quick côté Seedance (même règle que l'onglet Seedance)
+    ('seedance:{camera_ctrl:dzCam(),video_model:VMQ||void 0,image_filename:w,',
+     'seedance:{camera_ctrl:dzCam(),video_model:VMQ||void 0,image_filename:w,image_filename_end:(dzEndOK()?g:"")||null,'),
+    # E15 : le panneau du nœud Seedance dit au sélecteur l'image de fin branchée
+    ('r.jsx(DzVideoModelSel,{value:n.model,onChange:i=>o("model",i)})',
+     'r.jsx(DzVideoModelSel,{value:n.model,onChange:i=>o("model",i),fin:g?dzFinImg(g,e.id):void 0})'),
+    # E16-E17 : le sélecteur
+    ('function DzVideoModelSel({value,onChange}){', 'function DzVideoModelSel({value,onChange,fin}){'),
+    (SEL_AVANT, SEL_APRES),
 ]
 
 

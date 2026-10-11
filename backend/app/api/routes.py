@@ -6147,6 +6147,10 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
     img_path = settings.images_path / request.seedance.image_filename
     if not img_path.exists():
         raise HTTPException(404, f"Seedance start image not found: {request.seedance.image_filename}")
+    # t185 (G3) : l'image de fin (Quick › Composition, dzEndOK) vérifiée comme dans /generate, AVANT la dépense —
+    # sinon la pipeline ne la refusait qu'après _plafond
+    if request.seedance.image_filename_end and not (settings.images_path / request.seedance.image_filename_end).exists():
+        raise HTTPException(404, f"Seedance end image not found: {request.seedance.image_filename_end}")
     if not request.seedance.template_id and not request.seedance.custom_prompt:
         raise HTTPException(400, "Seedance side needs template_id or custom_prompt")
 

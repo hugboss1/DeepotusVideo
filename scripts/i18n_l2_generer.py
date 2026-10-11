@@ -105,6 +105,8 @@ def _dico_et_subs(E, textes, autres=()):
             if cle in dico and dico[cle] != (fr, en, ctx):
                 raise ValueError(f"{cle} : deux textes différents ({dico[cle]} / {(fr, en, ctx)})")
             dico[cle] = (fr, en, ctx)
+        if e["type"] == "D":
+            continue                   # t185 : clé du dictionnaire seul (texte dans un maillon de queue)
         if e["type"] == "F":
             gardes.append({"cible": e["cible"], "pos": None, "texte": "`" + e["texte"] + "`", "raison": e["raison"],
                            "groupe": e["groupe"]})

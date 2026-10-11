@@ -26,3 +26,10 @@ def S(pos, avant, apres, dico):
 def X(pos, raison):
     return {"type": "X", "pos": pos, "raison": raison}
 
+
+
+def D(cle, fr, en, contexte=False):
+    """t185 (G3, plan « Génération IA enrichie ») : une clé du DICTIONNAIRE seul, sans substitution dans le bundle de
+    base — son texte est appelé par dzT(clé) dans le code d'un maillon de QUEUE (patch_bundle_encartsia), posé après
+    L2. La clé reste dans le catalogue de sa zone (studio.json…) et le banc L2 vérifie qu'elle est utilisée."""
+    return {"type": "D", "dico": {cle: (fr, en, "contexte") if contexte else (fr, en)}}
