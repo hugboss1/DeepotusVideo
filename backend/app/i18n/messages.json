@@ -1,7 +1,7 @@
 {
   "i18n.langue.inconnue": {"fr": "Langue inconnue : {lang_demandee} (fr ou en).", "en": "Unknown language: {lang_demandee} (fr or en)."},
   "i18n.langue.ecriture": {"fr": "Impossible d'enregistrer la langue dans le fichier .env : {erreur}", "en": "Could not save the language to the .env file: {erreur}"},
-  "ia.video.pas_de_fin": {"fr": "{model} n'accepte pas d'image de fin : choisissez un modèle « début et fin » (Veo 3.1 via fal, Seedance, Kling v3, Wan 3.0, H3 Max…) — rien n'a été lancé.", "en": "{model} has no last-frame input: pick a « first and last frame » model (Veo 3.1 via fal, Seedance, Kling v3, Wan 3.0, H3 Max…) — nothing was started."},
+  "ia.video.pas_de_fin": {"fr": "{model} n'accepte pas d'image de fin : choisissez un modèle « début et fin » ({modeles}) — rien n'a été lancé.", "en": "{model} has no last-frame input: pick a \"first and last frame\" model ({modeles}) — nothing was started."},
   "ia.cle.absente_tir": {"fr": "{nom_cle} non configurée (Réglages) pour {modele} — rien n'a été lancé.", "en": "{nom_cle} is not configured (Settings) for {modele} — nothing was started."},
   "particules.anim.black-smoke.nom": {"fr": "Fumée noire", "en": "Black smoke"},
   "particules.anim.explosion.nom": {"fr": "Explosion", "en": "Explosion"},

@@ -355,11 +355,10 @@ class Pipeline:
                     if not end_image_path.exists():
                         raise FileNotFoundError(
                             f"End image not found: {end_image_path}")
-                    if not (model["end_image"] or model.get("endpoint_fl")):
+                    from app.services.fal_service import accepte_fin, refus_fin
+                    if not accepte_fin(model):
                         # t184 : même texte que le refus 400 des routes
-                        from app import i18n as _i18n
-                        raise RuntimeError(_i18n.msg("ia.video.pas_de_fin", _i18n.langue_ui(),
-                                                     model=model["label"]))
+                        raise RuntimeError(refus_fin(model["label"]))
 
                 image_url = None
                 end_image_url = None

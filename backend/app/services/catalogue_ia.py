@@ -87,10 +87,17 @@ JUMEAUX_VIDEO = {"veo-3.1-fast-fal": "veo-3.1-fast-google", "veo-3.1-fal": "veo-
 JUMEAUX_VIDEO.update({v: k for k, v in list(JUMEAUX_VIDEO.items())})
 
 
-def accepte_fin(m: dict) -> bool:
-    """Le modèle vidéo accepte une image de FIN (first-last-frame) : par son
-    endpoint i2v (`end_image`) ou par un endpoint séparé (`endpoint_fl`)."""
-    return bool(m.get("end_image") or m.get("endpoint_fl"))
+from app.services.fal_service import accepte_fin  # noqa: E402,F401  (source unique, réexportée)
+
+
+def voie_de(m: dict) -> str:
+    """La voie d'un modèle vidéo : « gemini » pour l'API Google directe, sinon « fal »."""
+    return "gemini" if m.get("provider") == "google" else "fal"
+
+
+def cle_de(m: dict) -> str:
+    """La clé qu'exige la voie d'un modèle vidéo (CLES)."""
+    return CLES[voie_de(m)]
 
 
 def _videos(seulement_fin: bool) -> list[dict]:
@@ -107,7 +114,7 @@ def _videos(seulement_fin: bool) -> list[dict]:
         if seulement_fin and jumeau and not accepte_fin(VIDEO_MODELS.get(jumeau) or {}):
             jumeau = None   # le jumeau doit lui-même accepter une fin (Veo Google : non)
         out.append({"id": mid, "label": m["label"],
-                    "voie": "gemini" if m["provider"] == "google" else "fal",
+                    "voie": voie_de(m),
                     "usd": usd, "unite": "s", "jumeau": jumeau,
                     "note": "" if usd else NOTE_A_MESURER, "fl": accepte_fin(m)})
     return out

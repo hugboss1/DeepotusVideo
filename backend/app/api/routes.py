@@ -5694,7 +5694,7 @@ def _cle_video_ou_503(video_model, http=None) -> None:
 
 def _fin_video_ou_400(video_model, image_fin, http=None) -> None:
     """t184 (G2) : une image de FIN envoyée à un modèle qui n'en accepte pas
-    (ni `end_image` ni `endpoint_fl` : Kling v3 Turbo, Veo Google, PixVerse…)
+    (accepte_fin faux : Kling v3 Turbo, Veo Google, PixVerse…)
     est refusée ICI en 400, juste après la garde de clé et AVANT _garde_cout et
     _plafond — sinon la pipeline la refusait après qu'une ligne `depenses`
     a été écrite. Modèle inconnu : laissé au refus existant de la pipeline."""
@@ -5707,7 +5707,8 @@ def _fin_video_ou_400(video_model, image_fin, http=None) -> None:
     if m is None or _CI.accepte_fin(m):
         return
     lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
-    raise HTTPException(400, _i18n.msg("ia.video.pas_de_fin", lang, model=m["label"]))
+    from app.services.fal_service import refus_fin
+    raise HTTPException(400, refus_fin(m["label"], lang))
 
 
 @router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(_require_local_depense)])
@@ -8980,10 +8981,10 @@ async def list_video_models():
             "audio_included": (m["provider"] == "google"),
             "usd_per_s": rates.get(mid) or {},
             # t184 (G2) : la voie et sa clé (catalogue_ia), le jumeau Veo de
-            # l'autre voie, et `fl` = accepte une image de fin (par l'endpoint
-            # i2v ou par un endpoint first-last séparé).
-            "voie": "gemini" if m["provider"] == "google" else "fal",
-            "cle": "GEMINI_API_KEY" if m["provider"] == "google" else "FAL_KEY",
+            # l'autre voie, et `fl` = ALIAS de `end_image` (accepte une image
+            # de fin, par l'endpoint i2v ou par un endpoint first-last séparé).
+            "voie": _CI.voie_de(m),
+            "cle": _CI.cle_de(m),
             "jumeau": _CI.JUMEAUX_VIDEO.get(mid),
             "fl": _CI.accepte_fin(m),
         })

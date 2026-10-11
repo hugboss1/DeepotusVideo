@@ -149,7 +149,11 @@ try:
     _err = "aucune erreur"
 except ValueError as e:
     _err = str(e)
-check("refus fin (« pas d'image de fin »)", "pas d'image de fin" in _err, _err)
+check("refus fin = texte i18n ia.video.pas_de_fin (fr : « n'accepte pas d'image de fin », liste des modèles)",
+      _err == F.refus_fin("Kling v3 Turbo Pro") and "n'accepte pas d'image de fin" in _err
+      and "Veo 3.1 Fast (fal)" in _err and "Kling v3 Turbo Pro" not in _err.split("(", 1)[1], _err)
+check("refus fin en anglais : guillemets droits, liste", '"first and last frame"' in F.refus_fin("X", "en")
+      and "has no last-frame input" in F.refus_fin("X", "en"), F.refus_fin("X", "en"))
 ep, a = fa("kling-v3-turbo-pro", "https://x/a.png", "x", duration=5, negative_prompt="n",
            aspect_ratio="9:16", resolution="1080p", seed=1)
 check("kling turbo : endpoint, image_url (pas start_image_url)", ep == "fal-ai/kling-video/v3/turbo/pro/image-to-video"
@@ -194,6 +198,49 @@ check("video_fl : tout jumeau restant est lui-même dans video_fl",
 check("pas de jumeau hors Veo", i2v["wan-3.0"]["jumeau"] is None and i2v["seedance-2.5"]["jumeau"] is None)
 
 # ── [4] prix et schémas ─────────────────────────────────────────────────────
+print("[3b] source unique : end_image ; endpoint_fl n'est qu'un routage ; négatif par modèle")
+check("endpoint_fl => end_image (accepte_fin) pour chaque modèle",
+      all(m["end_image"] for m in F.VIDEO_MODELS.values() if m.get("endpoint_fl")),
+      [i for i, m in F.VIDEO_MODELS.items() if m.get("endpoint_fl") and not m["end_image"]])
+check("catalogue_ia.accepte_fin EST fal_service.accepte_fin", CI.accepte_fin is F.accepte_fin)
+check("accepte_fin == end_image partout",
+      all(F.accepte_fin(m) == bool(m["end_image"]) for m in F.VIDEO_MODELS.values()))
+# parité avec l'ancienne liste de familles (kling, pixverse, veo_fal) pour les ids d'avant t184
+_avant = {"seedance-2": False, "seedance-2-fast": False, "seedance-2.5": False, "kling-v3-pro": True,
+          "kling-v3-standard": True, "pixverse-v6": True, "veo-3.1-fast-fal": True}
+_ecarts = []
+for mid, attendu in _avant.items():
+    _, a, notes = F.build_fal_args(mid, image_url="u", prompt="p", negative_prompt="n", duration=5)
+    if ("negative_prompt" in a) != attendu or (not attendu and "negative_prompt unsupported -> dropped" not in notes):
+        _ecarts.append((mid, a, notes))
+check("négatif : parité des ids d'avant t184, note « dropped » sinon", not _ecarts, _ecarts)
+_nouveaux_neg = {m: "negative_prompt" in F.build_fal_args(m, image_url="u", prompt="p", negative_prompt="n",
+                                                          duration=8)[1]
+                 for m in ("veo-3.1-fal", "veo-3.1-lite-fal", "h3-max", "wan-3.0", "gemini-omni-flash",
+                           "ltx-2.5-fast", "kling-v3-turbo-pro")}
+check("négatif des nouveaux = schémas (Veo oui, les autres non)", _nouveaux_neg == {
+    "veo-3.1-fal": True, "veo-3.1-lite-fal": True, "h3-max": False, "wan-3.0": False,
+    "gemini-omni-flash": False, "ltx-2.5-fast": False, "kling-v3-turbo-pro": False}, _nouveaux_neg)
+
+print("[3c] pricing.json avec une ANCIENNE table vidéo partielle : fusion par modèle")
+_pf = P._PRICING_FILE
+_pf.parent.mkdir(parents=True, exist_ok=True)
+_pf.write_text('{"video_usd_per_s": {"seedance-2.5": {"720p": 0.5}, "veo-3.1-fast-fal": {"*": 0.12}}}',
+               encoding="utf-8")
+try:
+    check("modèle absent de la table enregistrée : tarif par défaut (veo-3.1-fal 720p = 0,20)",
+          P.video_rate("veo-3.1-fal", "720p") == 0.20, P.video_rate("veo-3.1-fal", "720p"))
+    check("id surchargé : la valeur de l'utilisateur gagne (veo fast 0,12 ; s2.5 720p 0,5)",
+          P.video_rate("veo-3.1-fast-fal", "1080p") == 0.12 and P.video_rate("seedance-2.5", "720p") == 0.5)
+    check("fusion par résolution : s2.5 480p garde le défaut 0,2205",
+          P.video_rate("seedance-2.5", "480p") == 0.2205, P.video_rate("seedance-2.5", "480p"))
+    _vm = {m["id"]: m for m in asyncio.run(R.list_video_models())["models"]}
+    check("/video-models sert le tarif fusionné (h3-max présent, veo fast 0,12)",
+          _vm["h3-max"]["usd_per_s"].get("720p") == 0.08 and _vm["veo-3.1-fast-fal"]["usd_per_s"] == {"*": 0.12},
+          (_vm["h3-max"]["usd_per_s"], _vm["veo-3.1-fast-fal"]["usd_per_s"]))
+finally:
+    _pf.unlink()
+
 print("[4] prix au registre, garde de coût, schémas recopiés")
 for mid in NOUVEAUX:
     check(f"{mid} dans video_usd_per_s", mid in P.DEFAULTS["video_usd_per_s"])
@@ -335,6 +382,30 @@ PLAF.clear()
 _r = asyncio.run(_req_en("/generate", corps("kling-v3-turbo-pro")))
 check("refus en anglais (« has no last-frame input »), avant _plafond",
       _r.status_code == 400 and "has no last-frame input" in _r.text and PLAF == [], _r.text)
+# rendu de gabarit : un slot Seedance avec image de fin (même garde, avant _plafond)
+from app.services.elevenlabs_service import VoiceoverService             # noqa: E402
+VoiceoverService.is_enabled = staticmethod(lambda: True)   # la voix n'est pas le sujet : le témoin atteint _plafond
+TID = R.template_engine.list_templates()[0]["id"]
+
+
+def gabarit(model):
+    return (f"/layout-templates/{TID}/render",
+            {"template_id": TID, "slot_values": {"a": {"source_kind": "seedance", "seedance": corps(model)}}})
+
+
+for mid in ("kling-v3-turbo-pro", "veo-3.1-fast-google"):
+    chemin, b = gabarit(mid)
+    PLAF.clear()
+    r0, d0 = RESEAU["n"], n_depenses()
+    st, js = call(chemin, b)
+    check(f"rendu de gabarit {mid} + fin -> 400 « n'accepte pas d'image de fin »",
+          st == 400 and "n'accepte pas d'image de fin" in str(js), f"{st} {js}")
+    check(f"rendu de gabarit {mid} + fin : _plafond jamais appelé, zéro dépense, aucun réseau",
+          PLAF == [] and n_depenses() == d0 and RESEAU["n"] == r0, f"{PLAF} {d0} {RESEAU}")
+PLAF.clear()
+st, js = call(*gabarit("veo-3.1-fast-fal"))
+check("TÉMOIN : rendu de gabarit Veo fast fal + fin atteint _plafond (402 de l'espion)",
+      st == 402 and len(PLAF) == 1, f"{st} {js} {PLAF}")
 for chemin, b in routes_fin("veo-3.1-fast-fal")[:2]:
     PLAF.clear()
     st, js = call(chemin, b)

@@ -52,8 +52,23 @@ SEEDANCE_LITE_I2V = "fal-ai/bytedance/seedance/v1/lite/image-to-video"
 #                extended by the pipeline, same as before)
 #   ratios       None = the endpoint has no aspect param (follows the image)
 #   resolutions  None = no resolution param
-#   end_image    first-last-frame support (guard raises a clean error)
+#   end_image    first-last-frame support (guard raises a clean error) — the
+#                ONLY fact read by accepte_fin(), the routes, the catalogue
+#                and the pipeline
 #   seed         seed param support (unsupported -> dropped with a note)
+#   negatif      negative_prompt param support (absent = False ; unsupported
+#                -> dropped with a note) — t184 : remplace la liste de familles
+# t184 (G2) — clés facultatives :
+#   image_arg     nom de l'image de départ (défaut "image_url" ; Kling v3 et
+#                 Wan 3.0 : "start_image_url")
+#   end_arg       nom de l'image de fin sur l'endpoint i2v (défaut "end_image_url")
+#   endpoint_fl   endpoint SÉPARÉ quand une image de fin est donnée (Veo 3.1
+#                 sur fal) — ROUTAGE seulement : end_image reste le fait
+#   fl_args       noms (début, fin) sur endpoint_fl (défaut first/last_frame_url)
+#   duree_suffixe présent = durée envoyée en CHAÎNE (« 8s » Veo, « 5 » Kling turbo)
+#   res_alias     résolution de l'app -> résolution du fournisseur (H3 : 720p -> 768p)
+#   resolution_maj résolution envoyée en MAJUSCULES (H3 : « 768P »)
+#   extra_args    arguments fixes requis par le schéma (H3 : prompt_expansion_mode)
 #   audio_param  name of the "generate audio" switch — always forced False:
 #                the app's pipeline owns audio (VO node / ElevenLabs / BGM).
 #                For most models pricing.py encodes the audio-off column;
@@ -108,6 +123,7 @@ VIDEO_MODELS: dict = {
         "durations": list(range(3, 16)), "ratios": None,
         "resolutions": None, "end_image": True, "seed": False,
         "audio_param": "generate_audio", "image_arg": "start_image_url",
+        "negatif": True,
     },
     "kling-v3-standard": {
         "label": "Kling v3 Standard", "provider": "fal", "family": "kling",
@@ -115,13 +131,14 @@ VIDEO_MODELS: dict = {
         "durations": list(range(3, 16)), "ratios": None,
         "resolutions": None, "end_image": True, "seed": False,
         "audio_param": "generate_audio", "image_arg": "start_image_url",
+        "negatif": True,
     },
     "pixverse-v6": {
         "label": "PixVerse v6", "provider": "fal", "family": "pixverse",
         "endpoint": "fal-ai/pixverse/v6/image-to-video",
         "durations": [5, 8], "ratios": None,
         "resolutions": ["720p", "1080p"], "end_image": False, "seed": True,
-        "audio_param": "generate_audio_switch",
+        "audio_param": "generate_audio_switch", "negatif": True,
     },
     # t184 (G2, plan « Génération IA enrichie », 11/10/2026) — schémas fal
     # relus le jour même (fal_schema.py + OpenAPI de la file). Veo 3.1 sur fal
@@ -135,6 +152,7 @@ VIDEO_MODELS: dict = {
         "endpoint": "fal-ai/veo3.1/fast/image-to-video",
         "endpoint_fl": "fal-ai/veo3.1/fast/first-last-frame-to-video",
         "fl_args": ("first_frame_url", "last_frame_url"), "duree_suffixe": "s",
+        "negatif": True,
         "durations": [4, 6, 8], "ratios": ["9:16", "16:9"],
         "resolutions": ["720p", "1080p"], "end_image": True, "seed": True,
         "audio_param": "generate_audio",
@@ -144,6 +162,7 @@ VIDEO_MODELS: dict = {
         "endpoint": "fal-ai/veo3.1/image-to-video",
         "endpoint_fl": "fal-ai/veo3.1/first-last-frame-to-video",
         "fl_args": ("first_frame_url", "last_frame_url"), "duree_suffixe": "s",
+        "negatif": True,
         "durations": [4, 6, 8], "ratios": ["9:16", "16:9"],
         "resolutions": ["720p", "1080p"], "end_image": True, "seed": True,
         "audio_param": "generate_audio",
@@ -153,6 +172,7 @@ VIDEO_MODELS: dict = {
         "endpoint": "fal-ai/veo3.1/lite/image-to-video",
         "endpoint_fl": "fal-ai/veo3.1/lite/first-last-frame-to-video",
         "fl_args": ("first_frame_url", "last_frame_url"), "duree_suffixe": "s",
+        "negatif": True,
         "durations": [4, 6, 8], "ratios": ["9:16", "16:9"],
         "resolutions": ["720p", "1080p"], "end_image": True, "seed": True,
         "audio_param": "generate_audio",
@@ -208,7 +228,7 @@ VIDEO_MODELS: dict = {
     "kling-v3-turbo-pro": {
         "label": "Kling v3 Turbo Pro", "provider": "fal", "family": "kling",
         "endpoint": "fal-ai/kling-video/v3/turbo/pro/image-to-video",
-        "image_arg": "image_url", "duree_suffixe": "", "negatif": False,
+        "image_arg": "image_url", "duree_suffixe": "",
         "durations": list(range(3, 16)), "ratios": None,
         "resolutions": None, "end_image": False, "seed": False,
         "audio_param": None,
@@ -235,6 +255,21 @@ VIDEO_MODELS: dict = {
         "audio_param": None,
     },
 }
+
+
+def accepte_fin(m: dict) -> bool:
+    """t184 (G2) — SOURCE UNIQUE : le modèle accepte une image de FIN
+    (first-last-frame). Seul `end_image` le dit ; `endpoint_fl` ne fait que
+    router (Veo 3.1 sur fal), il implique end_image (banc test_video_fl)."""
+    return bool((m or {}).get("end_image"))
+
+
+def refus_fin(label: str, lang: "Optional[str]" = None) -> str:
+    """Le texte du refus « pas d'image de fin » (messages.json :
+    ia.video.pas_de_fin), avec la liste des modèles qui en acceptent une."""
+    from app import i18n as _i18n
+    modeles = ", ".join(m["label"] for m in VIDEO_MODELS.values() if accepte_fin(m))
+    return _i18n.msg("ia.video.pas_de_fin", lang or _i18n.langue_ui(), model=label, modeles=modeles)
 
 
 def resolve_video_model(model_id: "Optional[str]") -> dict:
@@ -308,16 +343,19 @@ def build_fal_args(
 
     Returns (endpoint, arguments, notes). Pure function — unit-tested against
     the frozen OpenAPI caps. Guards raise ValueError with a clean message.
+
+    t184 (G2) : une image de fin bascule vers `endpoint_fl` quand le modèle
+    en a un (Veo 3.1 sur fal : first_frame_url / last_frame_url, sans
+    image_url) ; sinon elle part sur l'endpoint i2v sous `end_arg`. Un modèle
+    qui n'accepte pas de fin (accepte_fin) lève ValueError (refus_fin).
     """
     m = resolve_video_model(model_id)
     if m["provider"] != "fal":
         raise ValueError(f"{m['label']} is not a fal model")
     notes: list = []
 
-    if end_image_url and not (m["end_image"] or m.get("endpoint_fl")):
-        raise ValueError(
-            f"{m['label']} : pas d'image de fin (first-last-frame) sur ce "
-            "modèle — does not support an end frame (first-last).")
+    if end_image_url and not accepte_fin(m):
+        raise ValueError(refus_fin(m["label"]))
 
     dur = clamp_duration(m, duration)
     if dur != duration:
@@ -367,11 +405,12 @@ def build_fal_args(
         args["aspect_ratio"] = aspect_ratio
     if res is not None:
         args["resolution"] = res.upper() if m.get("resolution_maj") else res
-    # negative_prompt exists on kling/pixverse/veo_fal (NOT seedance2) ;
-    # `negatif: False` l'écarte (Kling v3 Turbo n'en a pas)
-    if (negative_prompt and family in ("kling", "pixverse", "veo_fal")
-            and m.get("negatif", True)):
-        args["negative_prompt"] = negative_prompt
+    # negative_prompt : fait du registre (`negatif`), comme seed
+    if negative_prompt:
+        if m.get("negatif"):
+            args["negative_prompt"] = negative_prompt
+        else:
+            notes.append("negative_prompt unsupported -> dropped")
     for k, v in (m.get("extra_args") or {}).items():
         args.setdefault(k, v)
     if seed is not None:

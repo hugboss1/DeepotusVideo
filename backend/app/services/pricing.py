@@ -257,6 +257,16 @@ def load() -> dict:
             if isinstance(override, dict):
                 for k, v in override.items():
                     data[k] = v
+                # t184 (G2) : la table vidéo se FUSIONNE par modèle (puis par
+                # résolution) — une table enregistrée avant l'arrivée d'un
+                # modèle ne le prive plus de son tarif ; les valeurs de
+                # l'utilisateur gagnent toujours.
+                tv = override.get("video_usd_per_s")
+                if isinstance(tv, dict):
+                    fus = {m: dict(r) for m, r in DEFAULTS["video_usd_per_s"].items()}
+                    for m, r in tv.items():
+                        fus[m] = {**fus.get(m, {}), **r} if isinstance(r, dict) else r
+                    data["video_usd_per_s"] = fus
     except Exception:
         pass
     return data

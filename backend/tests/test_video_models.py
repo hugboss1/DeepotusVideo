@@ -188,7 +188,9 @@ try:
     _err = "aucune erreur"
 except ValueError as e:
     _err = str(e)
-check("garde_image_de_fin", "end frame" in _err, repr(_err))
+# t184 : le refus est le texte i18n ia.video.pas_de_fin (fal_service.refus_fin)
+from app.services.fal_service import refus_fin   # noqa: E402
+check("garde_image_de_fin", _err == refus_fin("PixVerse v6") and "PixVerse v6" in _err, repr(_err))
 try:
     build_fal_args("veo-3.1-google", image_url="u", prompt="p",
                    duration=4, aspect_ratio="9:16", resolution="720p")
