@@ -50,6 +50,7 @@ PUITS = {
     "convertir_par_meshy",   # T105 : fbx/usdz/blend par Meshy convert (1 crédit par tâche)
     "_run_manuscript_job", "_run_adapt_job", "_run_bible_model3d",
     "ouvrir_session_direct",   # t161 : le jeton client Decart (le Direct, facturé à la seconde)
+    "relayer_fal",   # t168f : le relais du Direct par fal (le WebSocket fal tenu par le serveur, facturé à la seconde)
     "lancer_recast",
     "lancer_voix",
     "decrire_decor",   # t168e : la consigne de décor proposée par le LLM de vision
@@ -78,6 +79,10 @@ def _pointe(n: ast.Call) -> str:
 
 
 def _chemin(dec) -> tuple | None:
+    # t168f : une route WebSocket se recense aussi (méthode « WS ») — le relais du Direct par fal y dépense
+    if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute) and dec.func.attr == "websocket"
+            and dec.args and isinstance(dec.args[0], ast.Constant)):
+        return "WS", dec.args[0].value
     if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute) and dec.func.attr in
             ("post", "put", "patch", "delete", "api_route") and dec.args and isinstance(dec.args[0], ast.Constant)):
         if dec.func.attr == "api_route":      # le proxy Meshy : GET/POST/DELETE sur une seule fonction

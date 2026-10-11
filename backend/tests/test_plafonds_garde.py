@@ -87,14 +87,28 @@ def _git_show(chemin):
     return r.stdout.decode("utf-8") if r.returncode == 0 else None
 
 
+# t168f (11/10/2026) : routes qui DÉPENSENT sur une réservation déjà gardée par une route de PAYANTES — elles ne
+# passent pas la garde elles-mêmes ; leur preuve est le jeton à usage unique que seule la route gardée délivre.
+PAR_RESERVATION = {
+    ("avatar_live", "WS", "/fal/relais"): ("avatar_live", "POST", "/sessions"),   # le relais du Direct par fal
+}
+
 print("\n[A] recensement AST")
 rec = RP.recenser()
 manquent = sorted(k for k in PAYANTES if k not in rec)
 check("A0 chaque route de la liste existe encore", not manquent, str(manquent))
 sans = sorted(" ".join(k) for k in PAYANTES if k in rec and not rec[k]["garde"])
 check(f"A1 les {len(PAYANTES)} routes payantes appellent la garde (corps ou fonctions du module)", not sans, str(sans))
-oubliees = sorted(" ".join(k) + " " + str(sorted(v["puits"])) for k, v in rec.items() if v["puits"] and k not in PAYANTES)
+oubliees = sorted(" ".join(k) + " " + str(sorted(v["puits"])) for k, v in rec.items()
+                  if v["puits"] and k not in PAYANTES and k not in PAR_RESERVATION)
 check("A2 aucune route qui atteint un fournisseur payant n'est hors liste", not oubliees, "\n    " + "\n    ".join(oubliees))
+for _k, _g in PAR_RESERVATION.items():
+    check(f"A2b {' '.join(_k)} existe, atteint un puits, et sa réservation ({' '.join(_g)}) est gardée",
+          _k in rec and bool(rec[_k]["puits"]) and _g in PAYANTES and rec.get(_g, {}).get("garde"), str(rec.get(_k)))
+_al = (RP.RACINE / "services" / "avatar_live.py").read_text(encoding="utf-8")
+_rf = _al[_al.find("async def relayer_fal("):]
+check("A2c le relais vérifie le jeton de la réservation AVANT d'ouvrir fal",
+      0 < _rf.find("session_relais(jeton)") < _rf.find("_ouvrir_fal()"), "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes

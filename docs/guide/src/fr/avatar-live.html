@@ -1,7 +1,7 @@
 <p class="chapeau-chap">Vous saurez créer un Personnage à partir de quelques photos, faire rejouer une vidéo par ce Personnage dans un autre décor, et vous filmer à la webcam transformé en direct, avec sa voix. Vingt minutes. Tout est payant à la seconde : le prix s'affiche avant chaque lancement et compte dans vos plafonds.</p>
 
 <h3>Avant de commencer</h3>
-<p>L'écran <b class="ui">Avatar live</b> s'ouvre depuis le rail. Il demande des clés selon ce que vous faites : <strong>fal</strong> pour le Recast et le décor, <strong>Decart</strong> pour le Direct, <strong>ElevenLabs</strong> pour la voix du Personnage. La voix locale, gratuite, demande une carte graphique NVIDIA et Voixbox (voir <a href="#voix-rvc">Installer et entraîner une voix locale RVC</a>).</p>
+<p>L'écran <b class="ui">Avatar live</b> s'ouvre depuis le rail. Il demande des clés selon ce que vous faites : <strong>fal</strong> pour le Recast, le décor et le Direct, <strong>ElevenLabs</strong> pour la voix du Personnage. Une clé <strong>Decart</strong> est facultative : elle ajoute au Direct le mode rapide. La voix locale, gratuite, demande une carte graphique NVIDIA et Voixbox (voir <a href="#voix-rvc">Installer et entraîner une voix locale RVC</a>).</p>
 <p>Ne clonez que votre visage et votre voix, ou ceux d'une personne qui vous a donné son accord. L'application vous le fait confirmer à chaque Personnage et garde la date.</p>
 
 <h3>Créer un Personnage</h3>
@@ -29,7 +29,7 @@
 <h3>Le Direct : votre webcam transformée</h3>
 <figure class="scene" data-scene="avatar-live/direct"></figure>
 <ol class="etapes">
-<li>Onglet <b class="ui">Direct</b> : la première fois, collez votre clé Decart et cliquez <b class="ui">Enregistrer la clé</b>. Elle part au coffre ; la page ne la voit jamais.</li>
+<li>Onglet <b class="ui">Direct</b> : le <b class="ui">Fournisseur</b> est fal dès que votre clé fal est posée (Decart si vous avez sa clé). Une clé manquante se colle ici, puis <b class="ui">Enregistrer la clé</b> : elle part au coffre, la page ne la voit jamais.</li>
 <li>Choisissez le <b class="ui">Personnage</b> (ou gardez votre visage), un <b class="ui">Décor</b>, le <b class="ui">Format</b> et la <b class="ui">Durée réservée</b>.</li>
 <li>Choisissez la <b class="ui">Voix envoyée</b> : la vôtre telle quelle, celle du Personnage par ElevenLabs (environ 2 s de retard), ou une voix RVC locale (moins d'une seconde).</li>
 <li><b class="ui">Démarrer le direct</b>. L'image transformée s'affiche à côté de votre webcam ; changez de décor en cours de route avec <b class="ui">Appliquer le décor</b>.</li>
@@ -46,5 +46,5 @@
 </div>
 
 <h3>Bon à savoir</h3>
-<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Le Direct est réservé au départ, à la minute ; seule la durée réellement jouée est facturée. La durée réservée est coupée chez Decart même si la page se ferme.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Le Direct est réservé au départ, à la minute ; seule la durée réellement jouée est facturée. Avec fal, c'est l'application qui tient la connexion : elle coupe à la durée réservée, coupe dès que la page se ferme, et mesure elle-même les secondes facturées. Avec Decart, la coupure se fait chez Decart.</p></aside>
 <aside class="astuce"><i data-dz="dz-etat-information"></i><p>Un onglet caché depuis 60 s coupe le direct, pour ne pas payer dans le vide. Préférez Edge ou Chrome : ils savent retarder l'image pour la caler sur la voix.</p></aside>
