@@ -10,30 +10,45 @@
    jamais dans un sélecteur raster (option `vectoriel: true` pour l'admettre).
 
    Source : GET /api/ia/catalogue?nature=… (backend/app/services/catalogue_ia.py),
-   gratuit, toutes les entrées disponibles OU NON. */
+   gratuit, toutes les entrées disponibles OU NON.
+
+   SOURCE UNIQUE de deux règles, recopiées À L'IDENTIQUE (banc test_encarts_ia) :
+   - ORDRE des voies : dz-champ-ia.js (ORDRE_VOIES) et le maillon de queue
+     encartsia du bundle (dzImgOpts) ;
+   - le PRIX : `prixUsd` (même ligne de code dans dz-champ-ia.js et dans le
+     maillon encartsia) — « $ » + la valeur arrondie au millième, zéros de fin
+     retirés mais au moins deux décimales (0.145 → $0.145, 0.04 → $0.04,
+     0.22 → $0.22), suffixe d'unité (/image, /s, /min, /1k), indépendant de la
+     langue ; un prix nul, absent ou illisible n'est JAMAIS « gratuit » : il
+     rend "" et l'affichage dit « prix à mesurer ». */
 (function (W) {
+  /* les textes de repli quand le dictionnaire manque (page chargée sans
+     /shared/dz-i18n-dico.js, clé pas encore assemblée) — comme VOIES_FR de dz-champ-ia */
+  var FR = {
+    "ia.prix.a_mesurer": "prix à mesurer", "ia.cle.a_ajouter": "clé {cle} à ajouter dans Réglages",
+    "ia.voie.fal": "via la clé fal", "ia.voie.openai": "avec votre clé OpenAI", "ia.voie.gemini": "avec votre clé Gemini",
+    "ia.voie.elevenlabs": "avec votre clé ElevenLabs", "ia.voie.meshy": "avec votre clé Meshy",
+    "ia.voie.heygen": "avec votre clé HeyGen", "ia.voie.local": "local, gratuit"
+  };
   function T(k, v) {
-    if (W.dzT) return W.dzT(k, v);
-    if (typeof dzT === "function") return dzT(k, v);   // eslint-disable-line no-undef
-    return k;
+    var t = W.dzT ? W.dzT(k, v) : (typeof dzT === "function" ? dzT(k, v) : k);   // eslint-disable-line no-undef
+    if (!t || t === k) {
+      t = FR[k] || k;
+      for (var x in (v || {})) t = t.split("{" + x + "}").join(v[x]);
+    }
+    return t;
   }
   var ORDRE = ["fal", "openai", "gemini", "elevenlabs", "meshy", "heygen", "local"];
-  function enAnglais() {
-    try { return !!(W.dzLang && W.dzLang() === "en"); } catch (e) { return false; }
-  }
-  /* « 0,145 $ » (fr) / « $0.145 » (en) ; unité "s" → « /s », "min" → « /min » ;
-     un prix inconnu (0) n'est JAMAIS « gratuit » : « prix à mesurer » */
+  function prixUsd(usd, unite) { var v = Number(usd); if (!(v > 0) || !isFinite(v)) return ""; var s = (Math.round(v * 1000) / 1000).toFixed(3); while (/\.\d{3,}$/.test(s) && s.charAt(s.length - 1) === "0") s = s.slice(0, -1); return "$" + s + ({ image: "/image", s: "/s", min: "/min", "1k": "/1k" }[unite] || ""); }
   function prix(usd, unite) {
-    usd = Number(usd);
-    if (!usd || !isFinite(usd)) return T("ia.prix.a_mesurer");
-    var n = (Math.round(usd * 1000) / 1000).toString();
-    var u = unite === "s" ? "/s" : unite === "min" ? "/min" : "";
-    return enAnglais() ? "$" + n + u : n.replace(".", ",") + " $" + u;
+    return prixUsd(usd, unite) || T("ia.prix.a_mesurer");
   }
   function texte(m) {
     return (m.label || m.id) + " · " + prix(m.usd, m.unite)
       + (m.dispo === false && m.cle ? " · " + T("ia.cle.a_ajouter", { cle: m.cle }) : "");
   }
+  /* rang d'une voie : l'ordre ORDRE, une voie inconnue (ou absente) APRÈS toutes */
+  function rang(v) { var k = ORDRE.indexOf(v); return k < 0 ? 99 : k; }
   function grouper(mods) {
     var par = {}, autres = [];
     (mods || []).forEach(function (m) {
@@ -71,6 +86,8 @@
     var d = mods.filter(function (m) { return m.dispo !== false; })[0] || mods[0];
     return d ? d.id : "";
   }
+  /* remplit le <select> (un <optgroup> par voie) et rend la valeur RETENUE : l'appelant
+     y recale son état (la valeur demandée peut ne plus être proposée) */
   function remplir(el, mods, opts) {
     opts = opts || {};
     var doc = el.ownerDocument || W.document;
@@ -88,9 +105,12 @@
       });
       el.appendChild(og);
     });
+    el.__dzModeles = mods;                   // la liste COURANTE, que l'écouteur de change relit
     el.value = valeurInitiale(mods, opts.valeur);
     return el.value;
   }
+  /* charge le catalogue puis remplit ; un échec de lecture REJETTE la promesse
+     et laisse le <select> tel quel (l'appelant garde son repli) */
   function select(el, nature, opts) {
     opts = opts || {};
     return charger(nature).then(function (tous) {
@@ -99,12 +119,13 @@
       if (opts.onChange && !el.__dzModelesIA) {
         el.__dzModelesIA = true;
         el.addEventListener("change", function () {
-          opts.onChange(el.value, mods.filter(function (m) { return m.id === el.value; })[0] || null);
+          var l = el.__dzModeles || [];
+          opts.onChange(el.value, l.filter(function (m) { return m.id === el.value; })[0] || null);
         });
       }
       return mods;
     });
   }
-  W.DzModelesIA = { grouper: grouper, prix: prix, texte: texte, filtrer: filtrer, charger: charger,
-                    valeurInitiale: valeurInitiale, remplir: remplir, select: select, ORDRE: ORDRE };
+  W.DzModelesIA = { grouper: grouper, prix: prix, prixUsd: prixUsd, texte: texte, filtrer: filtrer, charger: charger,
+                    valeurInitiale: valeurInitiale, remplir: remplir, select: select, rang: rang, ORDRE: ORDRE };
 })(typeof window !== "undefined" ? window : globalThis);

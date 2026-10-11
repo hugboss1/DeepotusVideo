@@ -181,6 +181,18 @@ if hasattr(settings, "GOOGLE_API_KEY"):
     settings.GOOGLE_API_KEY = ""
 check("TÉMOIN : settings.has_gemini faux", not settings.has_gemini)
 essai(VEO, "GEMINI_API_KEY", "GEMINI_API_KEY")
+# le refus parle la langue de la requête (Accept-Language, messages.json : ia.cle.absente_tir)
+
+
+async def _req_en(path, body):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+        return await c.post("/api" + path, json=body, headers={"Accept-Language": "en-US,en;q=0.9"})
+
+
+PLAF.clear()
+_r = asyncio.run(_req_en("/generate", corps(VEO)))
+check("refus en anglais si la requête le demande (« GEMINI_API_KEY is not configured (Settings) »), toujours avant _plafond",
+      _r.status_code == 503 and "GEMINI_API_KEY is not configured (Settings)" in _r.text and PLAF == [], _r.text)
 settings.FAL_KEY = ""
 essai(FAL, "FAL_KEY", "FAL_KEY")
 settings.FAL_KEY = "test-key"

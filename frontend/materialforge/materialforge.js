@@ -566,7 +566,7 @@ async function loadModels() {
   const saved = localStorage.getItem("mf_model");
   if (saved && models.some((m) => m.id === saved)) state.model = saved;
   /* t183 : un <optgroup> par voie, le prix sur chaque option (DzModelesIA, /shared/dz-modeles-ia.js) */
-  if (window.DzModelesIA) window.DzModelesIA.remplir($("#model"), models, { valeur: state.model });
+  if (window.DzModelesIA) state.model = window.DzModelesIA.remplir($("#model"), models, { valeur: state.model }) || state.model;
   else $("#model").innerHTML = models.map((m) =>
     `<option value="${esc(m.id)}"${m.id === state.model ? " selected" : ""}>${esc(m.label || m.id)}${
       m.dispo === false && m.cle ? " — " + esc(dzT("matiere.t182_modele.cle_a_ajouter", { cle: m.cle })) : ""}</option>`).join("");

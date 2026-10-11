@@ -80,6 +80,25 @@ def _images() -> list[dict]:
     return out
 
 
+def servis_puis_sans_cle(d: dict | None) -> list[dict]:
+    """t183 (G1) : la liste d'un sélecteur raster à partir de la réponse de
+    /image-models — les modèles SERVIS d'abord (`models`, dispo=True), puis
+    ceux du catalogue (`tous`) dont la clé manque, avec dispo=False et le NOM
+    de leur clé ; jamais un modèle vectoriel. Décision de l'utilisateur
+    (11/10/2026) : un modèle sans clé reste choisissable, le tir est refusé en
+    503 avant toute dépense. Partagée par les routes ai-models du Card Forge
+    (face, cadre)."""
+    d = d or {}
+    out = [dict(m, dispo=True) for m in (d.get("models") or []) if m.get("sortie") != "svg"]
+    vus = {str(m.get("id") or "") for m in out}
+    for e in d.get("tous") or []:
+        if e.get("sortie") == "svg" or str(e.get("id") or "") in vus:
+            continue
+        out.append({"id": e.get("id"), "label": e.get("label"), "provider": e.get("voie"), "note": "",
+                    "dispo": e.get("dispo") is not False, "cle": e.get("cle")})
+    return out
+
+
 def lister(nature: str) -> list[dict]:
     """Toutes les entrées d'une nature, disponibles OU NON. KeyError si la
     nature est inconnue (la route en fait un 400)."""

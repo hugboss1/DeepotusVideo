@@ -1388,7 +1388,7 @@ async function openDA() {
        choisissables avec la mention « clé X à ajouter dans Réglages » (décision du 11/10/2026) ; le serveur
        refuse le tir en 503 avant toute dépense. Un <optgroup> par voie (DzModelesIA). */
     const tous = (pv.tous && pv.tous.length) ? pv.tous : pv.providers.map(p => Object.assign({ dispo: true }, p));
-    if (window.DzModelesIA) window.DzModelesIA.remplir($("#daProvider"), tous, { valeur: cur });
+    if (window.DzModelesIA) daSettings.image_provider = window.DzModelesIA.remplir($("#daProvider"), tous, { valeur: cur }) || cur;
     else $("#daProvider").innerHTML = tous.map(p =>
       `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(p.label)}${p.dispo === false && p.cle
         ? " — " + esc(dzT("atelier.t183_da.cle_a_ajouter", { cle: p.cle })) : ""}</option>`).join("");

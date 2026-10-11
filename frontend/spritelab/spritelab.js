@@ -1034,15 +1034,23 @@ async function loadPersona() {
   if (persona) return majDevisPrompt();
   try { persona = await api.get("/persona"); } catch (e) { persona = {}; }
   try { imageModel = ((await api.get("/atelier/settings")).settings || {}).image_model_default || ""; } catch (e) { imageModel = ""; }
-  /* t183 : le modèle du prompt se CHOISIT (DzModelesIA : un <optgroup> par voie, prix, sans-clé choisissables) ;
-     le défaut des Réglages est présélectionné, le choix part dans le tir et dans le devis */
+  /* t183 : le modèle du prompt se CHOISIT (DzModelesIA : un <optgroup> par voie, prix, sans-clé choisissables).
+     Valeur initiale = le modèle d'image GLOBAL du serveur (/image-models : configured, sinon default) — celui que
+     /images/generate prendrait sans `model` : l'envoyer tel quel ne change rien ; le choix part dans le tir et le
+     devis. Catalogue injoignable : une seule option « défaut des Réglages » (aucun modèle envoyé). */
   const pmSel = $("#pmModel");
-  if (pmSel && window.DzModelesIA) {
+  if (pmSel) {
     try {
+      const im = await api.get("/image-models");
+      imageModel = (im && (im.configured || im.default)) || imageModel;
+      if (!window.DzModelesIA) throw new Error("DzModelesIA absent");
       await window.DzModelesIA.select(pmSel, "image", { valeur: imageModel,
         onChange: (v) => { imageModel = v; majDevisPrompt(); } });
       imageModel = pmSel.value || imageModel;
-    } catch (e) { /* catalogue injoignable : le défaut des Réglages reste */ }
+    } catch (e) {
+      pmSel.innerHTML = `<option value="">${esc(__dzT9("sprites.t183_pm.defaut", "défaut des Réglages"))}</option>`;
+      imageModel = "";
+    }
   }
   const coul = (c) => /^#[0-9a-f]{3,8}$/i.test(c) ? `<i style="background:${c}"></i>` : "";
   $("#pmChips").innerHTML = window.SLD.puces(persona).map((p) =>

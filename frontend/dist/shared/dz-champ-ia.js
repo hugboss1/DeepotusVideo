@@ -642,6 +642,8 @@
      /api/ia/catalogue?nature=image : chaque entrée y porte sa voie, sa clé, si
      cette clé est posée (`dispo`) et son prix (`usd`). Les modèles vectoriels
      (`sortie` "svg") n'entrent jamais dans une liste raster. */
+  /* l'ordre des voies et la règle de prix : copies À L'IDENTIQUE de DzModelesIA
+     (/shared/dz-modeles-ia.js, la source) — le banc test_encarts_ia les compare */
   var ORDRE_VOIES = ["fal", "openai", "gemini", "elevenlabs", "meshy", "heygen", "local"];
   var VOIES_FR = { fal: "via la clé fal", openai: "avec votre clé OpenAI", gemini: "avec votre clé Gemini",
     elevenlabs: "avec votre clé ElevenLabs", meshy: "avec votre clé Meshy", heygen: "avec votre clé HeyGen",
@@ -669,17 +671,13 @@
       return r.json();
     });
   }
-  function prixTxt(v, unite) {
-    v = Number(v);
-    if (!isFinite(v)) return "";
-    return "$" + (v >= 0.1 ? v.toFixed(2) : v.toFixed(3)) + unite;
-  }
+  function prixUsd(usd, unite) { var v = Number(usd); if (!(v > 0) || !isFinite(v)) return ""; var s = (Math.round(v * 1000) / 1000).toFixed(3); while (/\.\d{3,}$/.test(s) && s.charAt(s.length - 1) === "0") s = s.slice(0, -1); return "$" + s + ({ image: "/image", s: "/s", min: "/min", "1k": "/1k" }[unite] || ""); }
   /* la formule du sélecteur du Quick (DzVideoModelSel du bundle) : le prix
      1080p, sinon « * », sinon le plus cher des tarifs connus */
   function prixVideo(m) {
     var rr = m.usd_per_s || {}, v = rr["1080p"] != null ? rr["1080p"] : rr["*"];
     if (v == null) for (var k in rr) { var n = Number(rr[k]); if (isFinite(n) && (v == null || n > v)) v = n; }
-    return v != null ? prixTxt(v, "/s") : "";
+    return prixUsd(v, "s");
   }
   var CHARGEURS = {
     video: function () {
@@ -701,23 +699,19 @@
     },
     image: function () {
       return jget("/api/image-models").then(function (d) {
-        var tous = (d.tous || []).filter(function (e) { return e.sortie !== "svg"; }), vus = {}, i;
+        /* les MÊMES entrées que les selects d'image du bundle (dzImgOpts, maillon encartsia) : `tous`
+           (le catalogue unique), `models` face à un serveur d'avant t182 ; jamais un vectoriel */
+        var tous = (d.tous && d.tous.length ? d.tous : (d.models || [])).filter(function (e) { return e.sortie !== "svg"; });
         /* le prix par image vient du catalogue (`usd`, pricing.json) : plus
-           d'estimation POST ; un prix inconnu (0) dit « prix à mesurer » */
+           d'estimation POST ; un prix nul, absent ou illisible dit « prix à mesurer » */
         var mods = parVoie(tous.map(function (e) {
-          vus[e.id] = 1;
-          var px = Number(e.usd) ? prixTxt(e.usd, "/image") : aMesurer();
+          var px = prixUsd(e.usd, "image") || aMesurer(), sans = e.dispo === false;
           /* `vue` = le libellé des selects d'image du bundle (dzImgLbl, maillon encartsia) :
              nom · prix · mention de clé — c'est lui que la pastille relit et rejoue */
-          return { id: e.id, label: e.label || e.id, dispo: !!e.dispo, cle: e.cle || "", voie: e.voie || "",
-                   prix: px, vue: (e.label || e.id) + " · " + px + (!e.dispo && e.cle ? " · " + CLE_A_AJOUTER(e.cle) : ""),
-                   sansCle: !e.dispo };   // t182 : choisissable sans sa clé (refus 503 au tir)
+          return { id: e.id, label: e.label || e.id, dispo: !sans, cle: e.cle || "", voie: e.voie || "",
+                   prix: px, vue: (e.label || e.id) + " · " + px + (sans && e.cle ? " · " + CLE_A_AJOUTER(e.cle) : ""),
+                   sansCle: sans };   // t182 : choisissable sans sa clé (refus 503 au tir)
         }));
-        for (i = 0; i < (d.models || []).length; i++) {   // un id servi hors catalogue : montré tel quel, sans prix inventé
-          var m = d.models[i];
-          if (!vus[m.id] && m.sortie !== "svg")
-            mods.push({ id: m.id, label: m.label || m.id, dispo: true, cle: "", voie: m.voie || "", prix: "", vue: m.label || m.id });
-        }
         return { defaut: d.default || "", modeles: mods };
       });
     },

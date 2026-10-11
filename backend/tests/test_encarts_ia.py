@@ -24,6 +24,14 @@ Réglages »), jamais `disabled` ; seul un modèle vectoriel (sortie "svg") est
        écarté, fal d'abord, libellé = celui que la pastille rejoue ;
   [b2] inverse avant_encartsia : aller-retour exact à l'octet, défait EN TÊTE
        d'avant_dzguide, double application refusée.
+  [r]  relecture : UNE règle de prix et UN ordre des voies — le corps de
+       prixUsd et ORDRE de dz-modeles-ia.js (la source) sont ceux de
+       dz-champ-ia.js et du maillon ; sous node, le CODE RÉEL du bundle
+       (dzImgOpts) et le chargeur RÉEL de la pastille (CHARGEURS.image, couche
+       chargée avec un faux fetch) rendent, sur un même jeu (usd 0.145 / 0 /
+       null / absent, dispo vrai / faux / absent, un svg, une voie inconnue),
+       les mêmes entrées dans le même ordre, libellé du select == `vue` ; les
+       aides sont au niveau du MODULE (vues par DzGameAssets).
   [c0] chaque page de lab qui génère charge /shared/dz-modeles-ia.js (Atelier,
        Material Forge, Spritelab, Photolab ; le Vectorlab en G8 : sa page est
        figée par la table L6) ;
@@ -85,7 +93,7 @@ check("NÉGATIF : aucune option désactivée en dur (desactive: false, jamais di
       "desactive: false" in mi and not re.search(r"disabled\s*=\s*true", mi) and "desactive: true" not in mi
       and not re.search(r"desactive:\s*!", mi))
 check("mention ia.cle.a_ajouter, prix inconnu = ia.prix.a_mesurer (jamais « gratuit »)",
-      'T("ia.cle.a_ajouter"' in mi and 'T("ia.prix.a_mesurer")' in mi and "gratuit" not in sans_commentaires(mi))
+      'T("ia.cle.a_ajouter"' in mi and 'T("ia.prix.a_mesurer")' in mi and sans_commentaires(mi).count("gratuit") == 1 and '"ia.voie.local": "local, gratuit"' in mi)   # seule la voie locale l'est
 check("filtre raster : un modèle « svg » écarté sauf option vectoriel",
       'm.sortie !== "svg"' in mi and "opts.vectoriel" in mi)
 node = shutil.which("node")
@@ -153,9 +161,9 @@ check("CRLF homogène (lecture en octets)", braw.count(b"\r\n") > 15000 and braw
       and "read_text(" not in (R / "scripts/patch_bundle_encartsia.py").read_text(encoding="utf-8"))
 check("aucun .bak_encartsia laissé", not BUN.with_name(BUN.name + ".bak_encartsia").exists())
 DICO = {"ia.cle.a_ajouter": "clé {cle} à ajouter dans Réglages", "ia.prix.a_mesurer": "prix à mesurer"}
-a0 = B.find("function dzImgLbl(")
-code = B[a0:B.find("function DzImgModelSel(", a0)]
-sonde = ("var DICO=" + json.dumps(DICO, ensure_ascii=False) + ";function dzT(k,v){var t=DICO[k]||k;"
+a0 = B.find("function dzPrixUsd(")
+code = B[a0:B.find("var dzEngCat=", a0)]
+sonde = ("var window={};var DICO=" + json.dumps(DICO, ensure_ascii=False) + ";function dzT(k,v){var t=DICO[k]||k;"
          "for(var x in (v||{}))t=t.split('{'+x+'}').join(v[x]);return t}" + code
          + ";var T=[{id:'gpt-image-2',label:'GPT Image 2',voie:'openai',usd:0.12,dispo:false,cle:'OPENAI_API_KEY',sortie:'raster'},"
          "{id:'recraft',label:'Recraft',voie:'fal',usd:0.08,dispo:true,cle:'FAL_KEY',sortie:'svg'},"
@@ -175,28 +183,112 @@ if node:
           (pr.stdout + pr.stderr)[:600])
     check("dzImgOpts : serveur d'avant t182 (sans `tous`) → `models`",
           O2 == [{"value": "flux", "label": "FLUX schnell · $0.003/image"}], str(O2))
-    ch2 = (R / "frontend/shared/dz-champ-ia.js").read_text(encoding="utf-8")
-    check("la pastille rejoue CE libellé (vue = nom · prix · mention, comme dzImgLbl)",
-          'vue: (e.label || e.id) + " · " + px + (!e.dispo && e.cle ? " · " + CLE_A_AJOUTER(e.cle) : "")' in ch2)
+
+# ── [r] relecture : une règle de prix, un ordre des voies, un même rendu ──────
+print("[r] une règle de prix, un ordre des voies, bundle == pastille")
+mi_src = lire("frontend/shared/dz-modeles-ia.js")
+ch_src = lire("frontend/shared/dz-champ-ia.js")
+
+
+def corps_prix(txt, nom):
+    i = txt.find("function " + nom + "(usd, unite) ")
+    return txt[i + len("function " + nom + "(usd, unite) "):txt.find("\n", i)].strip() if i >= 0 else None
+
+
+cp_mi, cp_ch, cp_b = corps_prix(mi_src, "prixUsd"), corps_prix(ch_src, "prixUsd"), corps_prix(B, "dzPrixUsd")
+cp_b = cp_b.split("var dzVoiesOrdre=")[0] if cp_b else None
+check("prixUsd : MÊME corps dans dz-modeles-ia.js (source), dz-champ-ia.js et le maillon du bundle",
+      bool(cp_mi) and cp_mi == cp_ch == cp_b, f"{cp_mi!r}\n{cp_ch!r}\n{cp_b!r}")
+o_mi = re.search(r"var ORDRE = (\[[^\]]*\]);", mi_src)
+o_ch = re.search(r"var ORDRE_VOIES = (\[[^\]]*\]);", ch_src)
+o_b = re.search(r"var dzVoiesOrdre=(\[[^\]]*\]);", B)
+check("ordre des voies : MÊME tableau dans DzModelesIA.ORDRE, ORDRE_VOIES (pastille) et dzVoiesOrdre (bundle)",
+      bool(o_mi and o_ch and o_b) and json.loads(o_mi.group(1)) == json.loads(o_ch.group(1)) == json.loads(o_b.group(1)),
+      str([x and x.group(1) for x in (o_mi, o_ch, o_b)]))
+if node:
+    pr = subprocess.run([node, str(R / "frontend/shared/qa/modeles_ia.test.mjs")], capture_output=True, text=True, encoding="utf-8")
+    FIX = [
+        {"id": "p1", "label": "P un", "voie": "openai", "usd": 0.145, "dispo": False, "cle": "OPENAI_API_KEY", "sortie": "raster"},
+        {"id": "p2", "label": "P deux", "voie": "fal", "usd": 0, "dispo": True, "cle": "FAL_KEY", "sortie": "raster"},
+        {"id": "p3", "label": "P trois", "voie": "fal", "usd": None, "cle": "FAL_KEY"},
+        {"id": "p4", "voie": "gemini", "dispo": False, "cle": "GEMINI_API_KEY"},
+        {"id": "svg1", "label": "Vect", "voie": "fal", "usd": 0.08, "dispo": True, "sortie": "svg"},
+        {"id": "p5", "label": "P cinq", "voie": "nouvelle-voie", "usd": 0.22, "dispo": True},
+        {"id": "p6", "label": "P six", "voie": "fal", "usd": 0.04, "dispo": True, "cle": "FAL_KEY"},
+    ]
+    harnais = r"""
+const fs = require("fs");
+const FIX = JSON.parse(process.argv[2]), AIDES = fs.readFileSync(process.argv[3], "utf8"), COUCHE = fs.readFileSync(process.argv[4], "utf8");
+const FR = { "ia.prix.a_mesurer": "prix à mesurer", "ia.cle.a_ajouter": "clé {cle} à ajouter dans Réglages" };
+function dzT(k, v) { let t = FR[k] || k; for (const x in (v || {})) t = t.split("{" + x + "}").join(v[x]); return t; }
+const B = new Function("dzT", "window", AIDES + ";return { dzImgOpts: dzImgOpts };")(dzT, {});
+const ob = B.dzImgOpts({ default: "p2", tous: FIX });
+const document = { addEventListener() {}, body: null, documentElement: {} };
+const window = { document, addEventListener() {}, setTimeout, localStorage: { getItem() { return null; } },
+  fetch: (u) => Promise.resolve({ ok: true, json: () => Promise.resolve({ default: "p2", models: [], tous: FIX }) }) };
+global.window = window; global.document = document;
+eval(COUCHE);
+window.DzChampIA.modeles.charger("image", true).then((o) => {
+  console.log(JSON.stringify({ bundle: ob, pastille: o.modeles.map((m) => ({ value: m.id, label: m.vue, dispo: m.dispo, sansCle: m.sansCle })) }));
+});
+"""
+    import tempfile
+    tmp = Path(tempfile.mkdtemp(prefix="encia_"))
+    (tmp / "h.js").write_text(harnais, encoding="utf-8")
+    (tmp / "aides.js").write_text(code, encoding="utf-8")
+    pr = subprocess.run([node, str(tmp / "h.js"), json.dumps(FIX), str(tmp / "aides.js"), str(R / "frontend/shared/dz-champ-ia.js")],
+                        capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        RR = json.loads(pr.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        RR = {}
+    ob, op = RR.get("bundle") or [], RR.get("pastille") or []
+    ATT = [("p2", "P deux · prix à mesurer"), ("p3", "P trois · prix à mesurer"), ("p6", "P six · $0.04/image"),
+           ("p1", "P un · $0.145/image · clé OPENAI_API_KEY à ajouter dans Réglages"),
+           ("p4", "p4 · prix à mesurer · clé GEMINI_API_KEY à ajouter dans Réglages"), ("p5", "P cinq · $0.22/image")]
+    check("bundle (dzImgOpts réel) : ordre des voies, svg écarté, voie inconnue en dernier, prix et mention à la règle",
+          [(o["value"], o["label"]) for o in ob] == ATT, str(ob) + (pr.stderr or "")[:300])
+    check("pastille (CHARGEURS.image réel) : MÊMES entrées, MÊME ordre, `vue` == libellé du select du bundle",
+          [(o["value"], o["label"]) for o in op] == [(o["value"], o["label"]) for o in ob] and len(op) == 6, str(op))
+    check("dispo absent = disponible, dispo faux = sans clé (choisissable), des deux côtés",
+          {o["value"]: (o["dispo"], o["sansCle"]) for o in op} == {"p1": (False, True), "p2": (True, False), "p3": (True, False),
+                                                                    "p4": (False, True), "p5": (True, False), "p6": (True, False)}, str(op))
+    probe = ("console.log(JSON.stringify([typeof DzGameAssets,typeof dzEngOpts,typeof dzImgOpts,typeof dzPrixUsd]));"
+             "process.exit(0);\n")
+    (tmp / "b.js").write_bytes(probe.encode("utf-8") + braw)
+    pr = subprocess.run([node, str(tmp / "b.js")], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    check("les aides du maillon sont au niveau du MODULE (hissées, vues par DzGameAssets et les selects)",
+          pr.stdout.strip() == '["function","function","function","function"]', (pr.stdout + pr.stderr)[:300])
 
 # ── [b2] l'inverse ───────────────────────────────────────────────────────────
 print("[b2] inverse avant_encartsia")
 import _i18n_l1_aide as AIDE                                     # noqa: E402
-sans = AIDE.avant_encartsia(B)
+try:
+    sans = AIDE.avant_encartsia(B)
+    erreur_inv = ""
+except AssertionError as e:            # une paire introuvable : le bundle a dérivé du maillon (dit, sans arrêter le banc)
+    sans, erreur_inv = None, str(e)
 check("avant_encartsia défait les paires : plus de marqueur, `models` revient",
-      ENC.MARKER not in sans and "(mm.models||[]).map(function(m){return{value:m.id,label:m.label}})" in sans)
-check("aller-retour exact à l'octet", ENC.appliquer(sans) == B)
-check("avant_dzguide défait D'ABORD encartsia (posé après lui)", ENC.MARKER not in AIDE.avant_dzguide(B))
-check("un bundle sans le maillon passe tel quel", AIDE.avant_encartsia(sans) == sans)
+      sans is not None and ENC.MARKER not in sans and "(mm.models||[]).map(function(m){return{value:m.id,label:m.label}})" in sans,
+      erreur_inv[:200])
+check("aller-retour exact à l'octet", sans is not None and ENC.appliquer(sans) == B)
+try:
+    _sans_g = AIDE.avant_dzguide(B)
+except AssertionError:
+    _sans_g = B
+check("avant_dzguide défait D'ABORD encartsia (posé après lui)", ENC.MARKER not in _sans_g)
+check("un bundle sans le maillon passe tel quel", sans is not None and AIDE.avant_encartsia(sans) == sans)
 r = subprocess.run([sys.executable, str(R / "scripts/patch_bundle_encartsia.py"), "--check"], capture_output=True,
                    text=True, encoding="utf-8", errors="replace", cwd=str(R))
 check("double application refusée", r.returncode != 0 and "double application" in (r.stdout + r.stderr), r.stdout + r.stderr)
 
 # ── [c0] pages des labs ──────────────────────────────────────────────────────
 print("[c0] pages des labs")
-for lab in ("atelier", "materialforge", "spritelab", "photolab"):
+for lab in ("atelier", "materialforge", "spritelab"):   # relecture : le Photolab (G9) ne le charge pas encore
     html = (R / f"frontend/{lab}/index.html").read_text(encoding="utf-8")
     check(f"{lab} charge dz-modeles-ia.js (une fois)", html.count('<script src="/shared/dz-modeles-ia.js"></script>') == 1)
+check("NÉGATIF : le Photolab ne charge pas dz-modeles-ia.js (rien ne l'y utilise avant G9)",
+      "dz-modeles-ia.js" not in (R / "frontend/photolab/index.html").read_text(encoding="utf-8"))
 
 # ── [c1] Card Forge ─────────────────────────────────────────────────────────
 print("[c1] Card Forge")
@@ -246,30 +338,52 @@ check("plus de liste de moteurs ni de table de tarifs écrites en dur",
       and "dzEngCharger(function(){setPP(" in B and "var dzE=dzEngTrouve(p.engine);" in B)
 check("compteurs figés après E6-E8 : useState 731, DzTracks 181",
       B.count("x.useState(") == 731 and B.count("DzTracks") == 181)
-a0 = B.find("var dzEngCat=null;")
+a0 = B.find("function dzPrixUsd(")
 code = B[a0:B.find("function DzImgModelSel(", a0)]
-sonde = ("var DICO=" + json.dumps({"ia.cle.a_ajouter": "clé {cle} à ajouter dans Réglages",
-                                   "ia.local.a_demarrer": "service local à démarrer", "ia.prix.a_mesurer": "prix à mesurer"},
-                                  ensure_ascii=False)
-         + ";function dzT(k,v){var t=DICO[k]||k;for(var x in (v||{}))t=t.split('{'+x+'}').join(v[x]);return t}"
-         + "var REP={engines:[{id:'tripo',label:'Tripo v2.5',available:false,usd_texture:0.3,usd_brouillon:0.2},"
-           "{id:'hunyuan-local',label:'Hunyuan3D 2.1 (local)',local:true,available:false,usd_texture:0},"
-           "{id:'rodin',label:'Hyper3D Rodin',available:true,usd_texture:0.4,usd_brouillon:0.4}]};"
-           "var fetch=function(u){return Promise.resolve({ok:true,json:function(){return Promise.resolve(REP)}})};"
-         + code + ";var avant=dzEngOpts('tripo');"
-           "dzEngCharger(function(){console.log(JSON.stringify([avant,dzEngOpts('tripo'),dzEngTrouve('rodin').usd_texture]))});")
+e7 = B[B.find("var dzE=dzEngTrouve(p.engine);"):B.find("var meshyNoKey=", B.find("var dzE=dzEngTrouve(p.engine);"))]
+check("E7 : un moteur LOCAL coûte 0 (jamais le repli 0,30)", "var cost=dzE&&dzE.local?0:" in e7, e7[:200])
+DICO3 = {"ia.cle.a_ajouter": "clé {cle} à ajouter dans Réglages", "ia.local.a_demarrer": "service local à démarrer",
+         "ia.prix.a_mesurer": "prix à mesurer", "ia.voie.local": "local, gratuit"}
+TETE = ("var DICO=" + json.dumps(DICO3, ensure_ascii=False)
+        + ";function dzT(k,v){var t=DICO[k]||k;for(var x in (v||{}))t=t.split('{'+x+'}').join(v[x]);return t}"
+        "var window={};var NF=0;")
+MOTEURS = ("var REP={engines:[{id:'tripo',label:'Tripo v2.5',available:false,usd_texture:0.3,usd_brouillon:0.2},"
+           "{id:'hunyuan-local',label:'Hunyuan3D 2.1 (local)',local:true,available:false,usd_texture:0,usd_brouillon:0},"
+           "{id:'rodin',label:'Hyper3D Rodin',available:true,usd_texture:0.4,usd_brouillon:0.4}]};")
+COUT = "function cout(p){var dzE=dzEngTrouve(p.engine);" + e7.split("\r\n")[1] + "return cost}"
+sonde_ok = (TETE + MOTEURS + "var fetch=function(u){NF++;return Promise.resolve({ok:true,json:function(){return Promise.resolve(REP)}})};"
+            + code + ";" + COUT + ";var avant=dzEngOpts('tripo');"
+            "dzEngCharger(function(){console.log(JSON.stringify([avant,dzEngOpts('tripo'),"
+            "[cout({engine:'hunyuan-local',textures:true,multiview:false}),cout({engine:'tripo',textures:true}),"
+            "cout({engine:'tripo',textures:false}),cout({engine:'inconnu',textures:true})],NF]))});")
+sonde_ko = (TETE + "var fetch=function(u){NF++;return Promise.resolve({ok:false,status:500,json:function(){return Promise.resolve({})}})};"
+            + code + ";var a=dzEngOpts('rodin');"
+            "setTimeout(function(){var b=dzEngOpts('rodin');var n1=NF;dzEngEssai=0;var c=dzEngOpts('rodin');"
+            "setTimeout(function(){console.log(JSON.stringify([a,b,n1,NF,dzEngCat]))},20)},20);")
 if node:
-    pr = subprocess.run([node, "-e", sonde], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    pr = subprocess.run([node, "-e", sonde_ok], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
-        E0, E1, U = json.loads(pr.stdout)
+        E0, E1, C, NF = json.loads(pr.stdout)
     except ValueError:
-        E0, E1, U = None, None, None
-    check("dzEngOpts avant chargement : la valeur courante seule (pas de liste inventée)",
-          E0 == [{"value": "tripo", "label": "tripo"}], (pr.stdout + pr.stderr)[:400])
-    check("dzEngOpts : registre servi, prix « ~$ », fal sans clé choisissable avec la mention, local arrêté dit",
+        E0, E1, C, NF = None, None, None, None
+    SECOURS = ["tripo", "tripo-h3.1", "hunyuan", "trellis", "rodin", "triposr", "hunyuan-local"]
+    check("dzEngOpts avant chargement : la liste de SECOURS (ids, « prix à mesurer »), pas d'invention de prix",
+          E0 == [{"value": i, "label": i + " · prix à mesurer"} for i in SECOURS], (pr.stdout + pr.stderr)[:400])
+    check("dzEngOpts : registre servi, prix « ~$ » à la règle, fal sans clé choisissable avec la mention, LOCAL « local, gratuit »",
           E1 == [{"value": "tripo", "label": "Tripo v2.5 · ~$0.30 · clé FAL_KEY à ajouter dans Réglages"},
-                 {"value": "hunyuan-local", "label": "Hunyuan3D 2.1 (local) · prix à mesurer · service local à démarrer"},
-                 {"value": "rodin", "label": "Hyper3D Rodin · ~$0.40"}] and U == 0.4, str(E1))
+                 {"value": "hunyuan-local", "label": "Hunyuan3D 2.1 (local) · local, gratuit · service local à démarrer"},
+                 {"value": "rodin", "label": "Hyper3D Rodin · ~$0.40"}] and NF == 1, str(E1) + f" NF={NF}")
+    check("coût du panneau : local 0, tripo texturé 0,30 / brouillon 0,20, inconnu 0,30 (le repli d'avant)",
+          C == [0, 0.3, 0.2, 0.3], str(C))
+    pr = subprocess.run([node, "-e", sonde_ko], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        K0, K1, N1, N2, CAT = json.loads(pr.stdout)
+    except ValueError:
+        K0 = K1 = N1 = N2 = CAT = None
+    check("registre en échec (HTTP 500) : la liste de SECOURS s'affiche, rien n'est mis en cache",
+          K0 == K1 == [{"value": i, "label": i + " · prix à mesurer"} for i in SECOURS] and CAT is None, (pr.stdout + pr.stderr)[:400])
+    check("registre en échec : pas de rafale (un seul essai tant que 4 s ne sont pas passées), un nouvel essai ensuite",
+          N1 == 1 and N2 == 2, f"{N1} {N2}")
     ch3 = lire("frontend/shared/dz-champ-ia.js")
     check("la pastille Game Assets lit toujours le select (libellés « ~$ »)", "/~\\$/" in ch3)
 

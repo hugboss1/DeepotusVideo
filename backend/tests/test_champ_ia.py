@@ -416,23 +416,18 @@ function fauxRe(parent, options, valeur, onChange) {
   o.poser = v => { valeur = v; sp.textContent = lab(v); };
   return o;
 }
-function lblVue(m) {                      // la formule de DzVideoModelSel (bundle, maillon encartsia)
-  const rr = m.usd_per_s || {}; let v = rr["1080p"] != null ? rr["1080p"] : rr["*"];
-  if (v == null) for (const k in rr) { const n = Number(rr[k]); if (isFinite(n) && (v == null || n > v)) v = n; }
-  const px = v != null ? " · $" + (Number(v) >= .1 ? Number(v).toFixed(2) : Number(v).toFixed(3)) + "/s" : "";
-  return m.label + px + (m.available ? "" : " · clé " + (m.provider === "google" ? "GEMINI_API_KEY" : "FAL_KEY") + " à ajouter dans Réglages");
-}
-/* t183 : la formule de dzImgLbl / dzImgOpts (maillon encartsia) — entrées RASTER de `tous`, rangées par voie */
-function lblImg(m) {
-  const u = Number(m.usd);
-  return m.label + (u ? " · $" + (u >= .1 ? u.toFixed(2) : u.toFixed(3)) + "/image" : (m.usd === 0 ? " · prix à mesurer" : ""))
-    + (m.dispo === false && m.cle ? " · clé " + m.cle + " à ajouter dans Réglages" : "");
-}
-function imgOpts() {
-  const O = ["fal", "openai"], t = IMG.tous.filter(m => m.sortie !== "svg");
-  const rg = m => { const k = O.indexOf(m.voie); return k < 0 ? 99 : k; };
-  return t.map((m, i) => [m, i]).sort((a, b) => rg(a[0]) - rg(b[0]) || a[1] - b[1]).map(p => ({ value: p[0].id, label: lblImg(p[0]) }));
-}
+/* t183 (relecture) : les libellés des selects de la vue sont ceux du CODE RÉEL du bundle — aides du maillon encartsia
+   (dzPrixUsd, dzImgLbl, dzImgOpts) et `lbl` de DzVideoModelSel, extraits par le banc (argv[4]) et évalués ici avec
+   un dzT français (le dictionnaire du poste) : le harnais ne recopie plus aucune formule. */
+const BUNDLE_AIDES = JSON.parse(process.argv[4] || "{}");
+const DZT_FR = { "ia.prix.a_mesurer": "prix à mesurer", "ia.cle.a_ajouter": "clé {cle} à ajouter dans Réglages" };
+function dzT(k, v) { let t = DZT_FR[k] || k; for (const x in (v || {})) t = t.split("{" + x + "}").join(v[x]); return t; }
+const AIDES_B = BUNDLE_AIDES.aides   // sans le code du bundle (harnais réemployé par test_p1_champ_ia_ecarts) : des listes vides
+  ? new Function("dzT", "window", BUNDLE_AIDES.aides + ";return { dzImgOpts: dzImgOpts, dzPrixUsd: dzPrixUsd };")(dzT, {})
+  : { dzImgOpts: () => [], dzPrixUsd: () => "" };
+const lblVideoBundle = new Function("dzT", "dzPrixUsd", "return (" + (BUNDLE_AIDES.lblVideo || "function(){return ''}") + ");")(dzT, AIDES_B.dzPrixUsd);
+function lblVue(m) { return lblVideoBundle(m); }
+function imgOpts() { return AIDES_B.dzImgOpts(IMG); }
 function pastille(e) { const b = e && e.nextSibling; return b && b.querySelector ? b.querySelector(".dzia-modele") : null; }
 function vuP(e) { const p = pastille(e); return p ? { tag: p.tagName, txt: p.textContent, title: p.getAttribute("title"), dis: p.getAttribute("aria-disabled"),
   id: p.getAttribute("data-dzia-id"), mini: p.classList.contains("dzia-mini") } : null; }
@@ -993,6 +988,16 @@ def main():
               "sortie": "raster"} for k, v in pim.items()]
             + [{"id": k, "label": v[0], "voie": v[1], "cle": CLE.get(v[1]), "unite": "image", "sortie": "svg"}
                for k, v in pvec.items()])
+    # t183 (relecture) : le code RÉEL des selects du bundle (aides encartsia, `lbl` de DzVideoModelSel)
+    bun = (ROOT / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes().decode("utf-8")
+    a0 = bun.find("function dzPrixUsd(")
+    a1 = bun.find("var dzEngCat=", a0)
+    iv = bun.find("function DzVideoModelSel(")
+    l0 = bun.find("function lbl(m2){", iv)
+    l1 = bun.find("}var opts=", l0) + 1
+    BUNDLE_AIDES = {"aides": bun[a0:a1] if 0 <= a0 < a1 else "", "lblVideo": bun[l0:l1] if 0 <= l0 < l1 else ""}
+    check("TÉMOIN : aides encartsia et `lbl` de DzVideoModelSel extraits du bundle",
+          "function dzImgOpts(" in BUNDLE_AIDES["aides"] and "dzPrixUsd(v2" in BUNDLE_AIDES["lblVideo"], str(len(BUNDLE_AIDES["aides"])))
     node = shutil.which("node")
     check("node présent", bool(node))
     if not node:
@@ -1001,7 +1006,8 @@ def main():
     with tempfile.TemporaryDirectory() as d:
         h = pathlib.Path(d) / "harnais.js"
         h.write_text(HARNAIS, encoding="utf-8")
-        pr = subprocess.run([node, str(h), str(SRC), json.dumps(TOUS)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+        pr = subprocess.run([node, str(h), str(SRC), json.dumps(TOUS), json.dumps(BUNDLE_AIDES)], capture_output=True, text=True,
+                            encoding="utf-8", timeout=60)
     try:
         R = json.loads(pr.stdout or "{}")
     except ValueError:
@@ -1192,13 +1198,13 @@ def main():
     q = tp("quick")
     check("pastille = un BOUTON titré, pilotable (aria-disabled=false)", q.get("tag") == "BUTTON" and q.get("dis") == "false"
           and (q.get("title") or "").startswith("Modèle : "), str(q))
-    check("Quick : « Défaut (seedance-2.5) » de la vue → Seedance 2.5, prix comme la vue ($0.47/s : 720p faute de 1080p)",
-          q.get("id") == "seedance-2.5" and q.get("txt") == "Seedance 2.5" and "$0.47/s" in (q.get("title") or ""), str(q))
+    check("Quick : « Défaut (seedance-2.5) » de la vue → Seedance 2.5, prix comme la vue ($0.473/s : 720p faute de 1080p, règle unique)",
+          q.get("id") == "seedance-2.5" and q.get("txt") == "Seedance 2.5" and "$0.473/s" in (q.get("title") or ""), str(q))
     lq = T.get("listeQ") or []
     byq = {o.get("id"): o for o in lq}
     check("liste du Quick : les modèles de /api/video-models, aria-expanded", set(byq) == {"seedance-v1-pro", "seedance-2", "seedance-2.5", "veo-3"}
           and T.get("expQ") == "true", str(list(byq)))
-    check("liste : prix au format de la vue (Seedance 1.0 Pro · $0.12/s)", "$0.12/s" in (byq.get("seedance-v1-pro") or {}).get("txt", ""),
+    check("liste : prix au format de la vue, règle unique (Seedance 1.0 Pro · $0.124/s)", "$0.124/s" in (byq.get("seedance-v1-pro") or {}).get("txt", ""),
           str(byq.get("seedance-v1-pro")))
     # t183 — décision de l'utilisateur (11/10/2026) : un modèle sans clé reste CHOISISSABLE partout ; le
     # sélecteur du Quick (DzVideoModelSel) le liste déjà, /generate refuse le tir en 503 avant la dépense.

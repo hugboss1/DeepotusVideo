@@ -32,7 +32,7 @@ ENTREES = [
       '       choisissables avec la mention « clé X à ajouter dans Réglages » (décision du 11/10/2026) ; le serveur\r\n'
       '       refuse le tir en 503 avant toute dépense. Un <optgroup> par voie (DzModelesIA). */\r\n'
       '    const tous = (pv.tous && pv.tous.length) ? pv.tous : pv.providers.map(p => Object.assign({ dispo: true }, p));\r\n'
-      '    if (window.DzModelesIA) window.DzModelesIA.remplir($("#daProvider"), tous, { valeur: cur });\r\n'
+      '    if (window.DzModelesIA) daSettings.image_provider = window.DzModelesIA.remplir($("#daProvider"), tous, { valeur: cur }) || cur;\r\n'
       '    else $("#daProvider").innerHTML = tous.map(p =>\r\n'
       '      `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(p.label)}${p.dispo === false && p.cle\r\n'
       '        ? " — " + esc(dzT("atelier.t183_da.cle_a_ajouter", { cle: p.cle })) : ""}</option>`).join("");',
@@ -61,7 +61,7 @@ ENTREES = [
     S(_MF, 563, '$("#model").innerHTML = models.map((m) =>\r\n'
                 '    `<option value="${esc(m.id)}"${m.id === state.model ? " selected" : ""}>${esc(m.label || m.id)}</option>`).join("");',
       '/* t183 : un <optgroup> par voie, le prix sur chaque option (DzModelesIA, /shared/dz-modeles-ia.js) */\r\n'
-      '  if (window.DzModelesIA) window.DzModelesIA.remplir($("#model"), models, { valeur: state.model });\r\n'
+      '  if (window.DzModelesIA) state.model = window.DzModelesIA.remplir($("#model"), models, { valeur: state.model }) || state.model;\r\n'
       '  else $("#model").innerHTML = models.map((m) =>\r\n'
       '    `<option value="${esc(m.id)}"${m.id === state.model ? " selected" : ""}>${esc(m.label || m.id)}${\r\n'
       '      m.dispo === false && m.cle ? " — " + esc(dzT("matiere.t182_modele.cle_a_ajouter", { cle: m.cle })) : ""}</option>`).join("");',

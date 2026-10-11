@@ -350,6 +350,7 @@
   "sprites.sph_top.retour": {"fr": "Retour à l'app", "en": "Back to the app"},
   "sprites.sph_up.aide": {"fr": "La vidéo rejoint la Library (Renders) puis sert de source au sheet — idéal pour un clip tourné ou généré ailleurs.", "en": "The video joins the Library (Renders), then serves as the sheet's source — ideal for a clip shot or generated elsewhere."},
   "sprites.sph_up.choisir": {"fr": "Choisir une vidéo (mp4/mov/webm)", "en": "Choose a video (mp4/mov/webm)"},
+  "sprites.t183_pm.defaut": {"fr": "défaut des Réglages", "en": "Settings default"},
   "sprites.t183_pm.modele": {"fr": "Modèle", "en": "Model"},
   "sprites.t183_pm.modele_t": {"fr": "Modèle d'image du prompt — prix sur chaque option ; un modèle sans clé reste choisissable (clé à ajouter dans Réglages)", "en": "Image model for the prompt — price on each option; a model without a key stays selectable (add the key in Settings)"}
 }

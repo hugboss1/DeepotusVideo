@@ -17,16 +17,24 @@ ENTREES = [
                 ' catch (e) { imageModel = ""; }',
       'try { imageModel = ((await api.get("/atelier/settings")).settings || {}).image_model_default || ""; }'
       ' catch (e) { imageModel = ""; }\r\n'
-      '  /* t183 : le modèle du prompt se CHOISIT (DzModelesIA : un <optgroup> par voie, prix, sans-clé choisissables) ;\r\n'
-      '     le défaut des Réglages est présélectionné, le choix part dans le tir et dans le devis */\r\n'
+      '  /* t183 : le modèle du prompt se CHOISIT (DzModelesIA : un <optgroup> par voie, prix, sans-clé choisissables).\r\n'
+      '     Valeur initiale = le modèle d\'image GLOBAL du serveur (/image-models : configured, sinon default) — celui que\r\n'
+      '     /images/generate prendrait sans `model` : l\'envoyer tel quel ne change rien ; le choix part dans le tir et le\r\n'
+      '     devis. Catalogue injoignable : une seule option « défaut des Réglages » (aucun modèle envoyé). */\r\n'
       '  const pmSel = $("#pmModel");\r\n'
-      '  if (pmSel && window.DzModelesIA) {\r\n'
+      '  if (pmSel) {\r\n'
       '    try {\r\n'
+      '      const im = await api.get("/image-models");\r\n'
+      '      imageModel = (im && (im.configured || im.default)) || imageModel;\r\n'
+      '      if (!window.DzModelesIA) throw new Error("DzModelesIA absent");\r\n'
       '      await window.DzModelesIA.select(pmSel, "image", { valeur: imageModel,\r\n'
       '        onChange: (v) => { imageModel = v; majDevisPrompt(); } });\r\n'
       '      imageModel = pmSel.value || imageModel;\r\n'
-      '    } catch (e) { /* catalogue injoignable : le défaut des Réglages reste */ }\r\n'
-      '  }', {}),
+      '    } catch (e) {\r\n'
+      '      pmSel.innerHTML = `<option value="">${esc(__dzT9("sprites.t183_pm.defaut", "défaut des Réglages"))}</option>`;\r\n'
+      '      imageModel = "";\r\n'
+      '    }\r\n'
+      '  }', {"sprites.t183_pm.defaut": ("défaut des Réglages", "Settings default")}),
     S(SL, 1042, 'window.SLD.corpsPrompt(sujet, [...pucesOn], $("#pmN").value, $("#pmSize").value)',
       'Object.assign(window.SLD.corpsPrompt(sujet, [...pucesOn], $("#pmN").value, $("#pmSize").value),\r\n'
       '      imageModel ? { model: imageModel } : {})', {}),

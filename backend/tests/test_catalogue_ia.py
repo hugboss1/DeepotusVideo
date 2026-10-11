@@ -490,7 +490,7 @@ check("mention : la clé de zone du Material Forge (règle L8 : un lab = une zon
 check("Material Forge : aucune option désactivée pour une clé absente",
       not re.search(r"sansCle[^\n]{0,80}disabled", mf_src))
 check("dz-champ-ia : les modèles d'image sans clé sont marqués choisissables (sansCle)",
-      "sansCle: !e.dispo" in cat_js and 'dzT("ia.cle.a_ajouter"' in cat_js)
+      "sansCle: sans" in cat_js and "sans = e.dispo === false" in cat_js and 'dzT("ia.cle.a_ajouter"' in cat_js)
 
 # ── [5] routes de lecture ───────────────────────────────────────────────────
 print("[5] /image-models et /ia/catalogue")
