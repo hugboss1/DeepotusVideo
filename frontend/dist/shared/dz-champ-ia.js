@@ -171,6 +171,8 @@
     ".dzia-opt[aria-selected=true]{background:rgba(139,92,246,.24);color:#fff}",
     ".dzia-opt[aria-disabled=true]{opacity:.42;cursor:not-allowed;background:transparent}",
     ".dzia-oprix{opacity:.72;font-variant-numeric:tabular-nums;flex-shrink:0}",
+    /* t182 : la mention d'un modèle choisissable dont la clé reste à ajouter */
+    ".dzia-ocle{display:block;opacity:.7;font-size:10.5px;color:#fbbf24}",
     ".dzia-ovide{padding:8px;color:#9ca3af;font:12px system-ui,sans-serif}",
     /* T10 : le micro (un seul bouton dont l'état change), la note d'état, le dialogue maison de repli */
     ".dzia-micro{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin:0;padding:0;" +
@@ -623,6 +625,15 @@
      GEMINI_API_KEY). E-12 : tout bouton a un title ; on grise, on n'échange
      jamais deux boutons (la pastille est UN nœud dont on change l'état). */
   var CLE_ABSENTE = function (cle) { return "clé " + cle + " absente"; };
+  /* t182 (décision de l'utilisateur, 11/10/2026) : un modèle d'image reste
+     TOUJOURS choisissable, même sans sa clé (OpenAI comme fal) — la liste le
+     montre avec son prix et la mention « clé X à ajouter dans Réglages » ; le
+     serveur refuse le tir en 503 (avant toute dépense) tant que la clé manque.
+     Il faut encore que le sélecteur de la vue le contienne : sinon il est
+     grisé « absent du sélecteur de la vue » (on n'écrit jamais à côté). */
+  var CLE_A_AJOUTER = function (cle) {
+    return W.dzT ? W.dzT("ia.cle.a_ajouter", { cle: cle }) : "clé " + cle + " à ajouter dans Réglages";
+  };
   /* Le registre COMPLET des modèles d'image : /api/image-models ne rend que
      les DISPONIBLES (un modèle sans clé y est absent). Miroir de
      routes.list_image_models (id, libellé) et de pricing._IMAGE_MODELS
@@ -681,7 +692,8 @@
         (d.models || []).forEach(function (m) { srv[m.id] = m; });
         var mods = CATALOGUE_IMAGE.map(function (c) {
           var s = srv[c[0]], lab = (s && s.label) || c[1];
-          return { id: c[0], label: lab, dispo: !!s, cle: c[2], prix: "", vue: lab };
+          return { id: c[0], label: lab, dispo: !!s, cle: c[2], prix: "", vue: lab,
+                   sansCle: !s };   // t182 : choisissable sans sa clé (refus 503 au tir)
         });
         var n = mods.length;
         for (i = 0; i < (d.models || []).length; i++) {   // un id servi hors registre : montré tel quel, sans prix inventé
@@ -917,14 +929,20 @@
   function modelesDe(el, m) {
     if (!m.liste) return m.natif ? optionsDe(m.trouver(el)) : [];
     var l = ((donnees[m.liste] || {}).modeles || []).map(function (x) {
-      return { id: x.id, label: x.label, dispo: x.dispo, cle: x.cle, prix: x.prix, vue: x.vue, horsVue: false };
+      return { id: x.id, label: x.label, dispo: x.dispo, cle: x.cle, prix: x.prix, vue: x.vue, horsVue: false,
+               sansCle: !!x.sansCle };
     });
-    if (m.natif) {                     // un modèle disponible absent du <select> de la vue ne s'y écrit pas
+    if (m.natif) {                     // un modèle choisissable absent du <select> de la vue ne s'y écrit pas
       var ids = optionsDe(m.trouver(el)).map(function (x) { return x.id; });
-      l.forEach(function (x) { if (x.dispo && ids.indexOf(x.id) < 0) x.horsVue = true; });
+      l.forEach(function (x) { if ((x.dispo || x.sansCle) && ids.indexOf(x.id) < 0) x.horsVue = true; });
+    } else {
+      /* t182 : les selects custom du bundle ne listent que les modèles SERVIS
+         (/api/image-models `models`) — un modèle sans clé n'y est pas */
+      l.forEach(function (x) { if (x.sansCle) x.horsVue = true; });
     }
     return l;
   }
+  function choisissable(x) { return (x.dispo || x.sansCle) && !x.horsVue; }
   function clesManquantes(l) {
     var c = [];
     l.forEach(function (x) { if (!x.dispo && x.cle && c.indexOf(x.cle) < 0) c.push(x.cle); });
@@ -984,7 +1002,7 @@
       if (!m.ecrire) {
         titre = "Modèle : " + label + prix + " — choisi par la vue (" + m.pourquoi + ")";
       } else {
-        var l = modelesDe(el, m), dispo = l.filter(function (x) { return x.dispo && !x.horsVue; });
+        var l = modelesDe(el, m), dispo = l.filter(choisissable);
         var fg = m.fige ? m.fige(el) : "";
         if (fg) {
           if (!mod || id === "—") label = "aucun modèle";
@@ -998,7 +1016,8 @@
           titre = "Modèle : " + label + prix + " — choisi par la vue (sélecteur de la vue introuvable ici)";
         } else {
           fige = false;
-          titre = "Modèle : " + label + prix + (mod && !mod.dispo && mod.cle ? " (" + CLE_ABSENTE(mod.cle) + ")" : "")
+          titre = "Modèle : " + label + prix
+            + (mod && !mod.dispo && mod.cle ? " (" + (mod.sansCle ? CLE_A_AJOUTER : CLE_ABSENTE)(mod.cle) + ")" : "")
             + " — cliquer pour changer (écrit dans le sélecteur de la vue)";
         }
       }
@@ -1054,13 +1073,21 @@
         p.textContent = x.prix;
         o.appendChild(p);
       }
-      var off = !x.dispo ? (x.cle ? CLE_ABSENTE(x.cle) : "indisponible") : (x.horsVue ? "absent du sélecteur de la vue" : "");
+      var off = x.horsVue ? (x.dispo || !x.cle ? "" : CLE_ABSENTE(x.cle) + " — ") + "absent du sélecteur de la vue"
+        : (!x.dispo && !x.sansCle ? (x.cle ? CLE_ABSENTE(x.cle) : "indisponible") : "");
+      var aAjouter = !off && !x.dispo && x.sansCle ? CLE_A_AJOUTER(x.cle) : "";
+      if (aAjouter) {                  // choisissable : la mention sous le nom, jamais grisé
+        var mc = D.createElement("span");
+        mc.className = "dzia-ocle";
+        mc.textContent = aAjouter;
+        nm.appendChild(mc);
+      }
       if (off) {
         o.setAttribute("aria-disabled", "true");
         o.classList.add("dzia-off");
         o.setAttribute("title", off + " — " + x.label);
       } else {
-        o.setAttribute("title", x.label + (x.prix ? " · " + x.prix : "")
+        o.setAttribute("title", x.label + (x.prix ? " · " + x.prix : "") + (aAjouter ? " — " + aAjouter : "")
           + (x.id === cour ? " — modèle actuel de la vue" : " — choisir ce modèle (écrit dans le sélecteur de la vue)"));
       }
       o.addEventListener("mousedown", function (ev) { ev.preventDefault(); });

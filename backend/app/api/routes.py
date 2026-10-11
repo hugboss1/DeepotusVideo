@@ -8498,7 +8498,10 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
     if model.startswith("gpt-image") or model.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:
-            raise HTTPException(503, "OPENAI_API_KEY not configured. Add it in Settings.")
+            # t182 : même forme que les autres refus « clé absente » (nomme la
+            # clé, renvoie aux Réglages) — AVANT la garde de dépense
+            raise HTTPException(503, f"OPENAI_API_KEY non configurée (Réglages) "
+                                     f"pour {model}.")
         await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])   # tâche #16
         osize = ("1024x1536" if "portrait" in size
                  else "1536x1024" if "landscape" in size else "1024x1024")

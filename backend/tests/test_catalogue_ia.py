@@ -460,6 +460,40 @@ check("TÉMOIN : planche avec flux-3 passe la garde (une ligne depenses) et tire
       n_depenses() == d0 + 1 and "flux-3" in [x["model"] for x in ESP["falimg"]], f"{st} {d0} -> {n_depenses()} {str(js)[:150]}")
 call("PUT", "/atelier/settings", {"image_provider": "flux"})
 
+# ── [8] modèle SANS CLÉ choisi : 503 AVANT la garde de dépense ─────────────
+# Décision de l'utilisateur (11/10/2026) : un modèle sans clé reste
+# choisissable dans les listes ; c'est le serveur qui refuse le tir, en 503
+# qui nomme la clé et renvoie aux Réglages, sans écrire de dépense.
+print("[8] modèle sans clé choisi : 503 avant la dépense")
+settings.OPENAI_API_KEY = ""
+for chemin, corps in (("/images/generate", {"prompt": "chat", "n": 1, "model": "gpt-image-2"}),
+                      ("/images/process", {"op": "edit", "filename": SRC, "prompt": "en bleu", "model": "gpt-image-2"}),
+                      ("/materials/generate", {"prompt": "pierre", "model": "gpt-image-2", "res": 512})):
+    reset()
+    r0, d0 = RESEAU["n"], n_depenses()
+    st, js = call("POST", chemin, corps)
+    check(f"{chemin} gpt-image-2 sans OPENAI_API_KEY -> 503 nomme la clé et les Réglages",
+          st == 503 and "OPENAI_API_KEY" in str(js) and "Réglages" in str(js), f"{st} {js}")
+    check(f"{chemin} sans clé : ZÉRO ligne depenses, aucun appel fournisseur",
+          n_depenses() == d0 and RESEAU["n"] == r0 and ESP["interdit"] == [] and ESP["falimg"] == [],
+          f"{d0} -> {n_depenses()} {ESP} {RESEAU}")
+settings.OPENAI_API_KEY = "test-oa"
+mf_src = (ICI.parent.parent / "frontend/materialforge/materialforge.js").read_text(encoding="utf-8")
+check("Material Forge construit #model depuis `tous` (modèles sans clé compris, raster seulement)",
+      "d.tous" in mf_src and 'e.sortie !== "svg"' in mf_src and 'dzT("matiere.t182_modele.cle_a_ajouter"' in mf_src)
+import json as _json                                             # noqa: E402
+_i18n = ICI.parent.parent / "frontend/shared/i18n"
+_com = _json.loads((_i18n / "commun.json").read_text(encoding="utf-8"))
+_mat = _json.loads((_i18n / "matiere.json").read_text(encoding="utf-8"))
+check("mention : la clé de zone du Material Forge (règle L8 : un lab = une zone) = ia.cle.a_ajouter de commun",
+      _mat.get("matiere.t182_modele.cle_a_ajouter", {}).get("fr") == _com.get("ia.cle.a_ajouter", {}).get("fr")
+      and _mat.get("matiere.t182_modele.cle_a_ajouter", {}).get("en") == _com.get("ia.cle.a_ajouter", {}).get("en")
+      and bool(_com.get("ia.cle.a_ajouter")), str((_mat.get("matiere.t182_modele.cle_a_ajouter"), _com.get("ia.cle.a_ajouter"))))
+check("Material Forge : aucune option désactivée pour une clé absente",
+      not re.search(r"sansCle[^\n]{0,80}disabled", mf_src))
+check("dz-champ-ia : les modèles d'image sans clé sont marqués choisissables (sansCle)",
+      "sansCle: !s" in cat_js and 'dzT("ia.cle.a_ajouter"' in cat_js)
+
 # ── [5] routes de lecture ───────────────────────────────────────────────────
 print("[5] /image-models et /ia/catalogue")
 st, r = call("GET", "/image-models")

@@ -652,6 +652,8 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   const sel = el("select", { id: "model" }, body); let nChange = 0, bulle = null;
   ["flux", "nano-banana", "nano-banana-pro", "gpt-image-2.5-flare-fal", "gpt-image-2.5-sunburst-fal"].forEach(id => {
     const o = el("option", { value: id }, sel); o.value = id; o.textContent = (IMG.models.find(m => m.id === id) || {}).label; });
+  // t182 (décision de l'utilisateur, 11/10/2026) : Material Forge liste AUSSI les modèles sans clé (lus dans `tous`)
+  { const o = el("option", { value: "gpt-image-2" }, sel); o.value = "gpt-image-2"; o.textContent = "GPT Image 2 — clé OPENAI_API_KEY à ajouter dans Réglages"; }
   sel.value = "flux"; sel.addEventListener("change", ev => { nChange++; bulle = ev.bubbles; });
   const tmf = el("textarea", { id: "prompt" }, body);
   A.marquer(document.body); await pause(40); A.synchroniser();
@@ -660,6 +662,15 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   T.choixMF = { valeur: sel.value, nChange, bulle, p: vuP(tmf) };
   sel.value = "nano-banana-pro"; sel.dispatchEvent(new Event("change", { bubbles: true })); await pause(30);
   T.vueMF = vuP(tmf);
+  // t182 : un modèle SANS CLÉ présent dans le <select> de la vue est CHOISISSABLE (mention, prix, jamais grisé)
+  (pastille(tmf) || {click(){}}).click();
+  { const o = opt("gpt-image-2");
+    T.sansCleMF = { dis: o ? o.getAttribute("aria-disabled") : "absente", title: o ? o.getAttribute("title") : "",
+      txt: o ? o.textContent : "", mention: o ? !!o.querySelector(".dzia-ocle") : false,
+      flare: (opt("gpt-image-2.5-flare") || { getAttribute() { return "absente"; } }).getAttribute("aria-disabled") };
+    if (o) o.click(); await pause(40);
+    T.sansCleMF.valeur = sel.value; T.sansCleMF.p = vuP(tmf); }
+  sel.value = "nano-banana-pro"; sel.dispatchEvent(new Event("change", { bubbles: true })); await pause(30);
   // revue T9 : ecrire natif d'un id ABSENT du <select> → false, aucun change
   { const rMF = (A.regles || []).find(r => r.id === "materialforge"), c0 = nChange, v0 = sel.value;
     const res = rMF && rMF.modele && rMF.modele.ecrire ? await rMF.modele.ecrire(tmf, "id-absent") : null;
@@ -1188,6 +1199,16 @@ def main():
           cmf.get("valeur") == "gpt-image-2.5-flare-fal" and cmf.get("nChange") == 1 and cmf.get("bulle") is True
           and (cmf.get("p") or {}).get("txt") == "GPT Image 2.5 Flare (via fal)", str(cmf))
     check("<select> natif changé (change) → la pastille suit", tp("vueMF").get("txt") == "Nano Banana Pro (Gemini 3)", str(T.get("vueMF")))
+    # t182 — décision de l'utilisateur (11/10/2026) : un modèle sans clé reste CHOISISSABLE (mention « clé X à
+    # ajouter dans Réglages », prix gardé) quand le sélecteur de la vue le contient ; le serveur refuse le tir en 503.
+    smf = T.get("sansCleMF") or {}
+    check("SANS CLÉ mais dans le <select> : gpt-image-2 choisissable (pas aria-disabled), mention + prix",
+          smf.get("dis") is None and "clé OPENAI_API_KEY à ajouter dans Réglages" in (smf.get("title") or "")
+          and smf.get("mention") is True and "$" in (smf.get("txt") or ""), str(smf))
+    check("SANS CLÉ choisi → écrit dans le <select> natif, la pastille le nomme avec la mention",
+          smf.get("valeur") == "gpt-image-2" and (smf.get("p") or {}).get("txt") == "GPT Image 2"
+          and "à ajouter dans Réglages" in ((smf.get("p") or {}).get("title") or ""), str(smf))
+    check("NÉGATIF : sans clé ET absent du <select> (gpt-image-2.5-flare) → grisé", smf.get("flare") == "true", str(smf))
     at = tp("atelier")
     check("Atelier : lecture seule, le générateur de 🎨 DA (atelier_settings.image_provider)",
           at.get("txt") == "Nano Banana (Gemini)" and at.get("dis") == "true" and "DA" in (at.get("title") or ""), str(at))
