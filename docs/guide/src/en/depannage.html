@@ -1,12 +1,22 @@
-<table>
-  <tr><th>Symptom</th><th>Fix</th></tr>
-  <tr><td><code>down</code> pill top-right</td><td>The engine isn't running: relaunch the Desktop icon.</td></tr>
-  <tr><td>Red pill on <code>fal</code>/<code>heygen</code>/<code>voice</code></td><td>Missing/invalid key: Settings → API keys, fix, restart.</td></tr>
-  <tr><td>HeyGen avatars are slow to appear (or the list looks empty at first)</td><td><strong>Normal on the very first load</strong>: HeyGen returns 1,000+ avatars and takes up to ~1 min to respond (their service is slow). The app pre-loads the list at startup and caches it — wait once, then it's instant. If the <strong>HeyGen status</strong> is green in Settings, your key is fine: it's neither the key, the network, nor the antivirus.</td></tr>
-  <tr><td>A voice gives a "paid plan" error</td><td>On the ElevenLabs free plan, only "premade" voices work via the API; custom library/community voices need a paid ElevenLabs plan. Pick a premade voice, or upgrade ElevenLabs.</td></tr>
-  <tr><td>After a restart, keys/library "gone"</td><td>No data is lost (it lives in <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>). Relaunch cleanly via the Desktop icon.</td></tr>
-  <tr><td>The plan uses the built-in planner</td><td>No Anthropic key nor Ollama model (chapters 11–12).</td></tr>
-  <tr><td><code>CERTIFICATE_VERIFY_FAILED</code> error</td><td>Antivirus inspecting HTTPS — handled automatically; otherwise disable HTTPS inspection.</td></tr>
-  <tr><td>"Port 8765 already in use"</td><td>The app is already running — open <code>http://deepotus.localhost:8765</code>.</td></tr>
-  <tr><td>Where are my files?</td><td>Images: <code>…\DeepotusVideoGenData\assets\images</code> · Videos: <code>…\assets\outputs\final</code> · Your uploads: <code>…\assets\outputs\uploads</code> · Sounds: <code>…\assets\audio</code>.</td></tr>
-</table>
+<p class="chapeau-chap">You will be able to recognise the most common messages and know what to do. Always start with <b class="ui">Settings</b> › <b class="ui">Diagnostics</b>: version, disk space, latest alerts, key status (never their value) and provider balances, at a glance.</p>
+
+<h3>Symptoms and fixes</h3>
+<div class="tableau"><table>
+<tr><th>Symptom</th><th>What to do</th></tr>
+<tr><td>A button says a key is missing, or a provider pill is red at the top right.</td><td>Add or fix the key in Settings, keys section (see <a href="#cles">Connect your keys</a>). It works straight away, no restart.</td></tr>
+<tr><td>A generation is refused: cap reached.</td><td>The window says which cap blocks and offers to adjust it. See <a href="#budget">Keep spending under control</a>.</td></tr>
+<tr><td>The HeyGen avatar list takes a while to appear the first time.</td><td>Normal on the very first load: the list is long. It is then kept on disk and shows instantly.</td></tr>
+<tr><td>An ElevenLabs voice returns a plan error.</td><td>On ElevenLabs' free plan, only “premade” voices work through the API. Pick one, or move to a paid plan.</td></tr>
+<tr><td>Certificate error (CERTIFICATE_VERIFY_FAILED).</td><td>An antivirus inspects HTTPS. The app uses Windows' certificates and handles it on its own; otherwise, turn off the antivirus's HTTPS inspection.</td></tr>
+<tr><td>“Port 8765 already in use”.</td><td>The app is already running: open <code>http://deepotus.localhost:8765</code>.</td></tr>
+<tr><td>After a restart, my keys or Library seem “gone”.</td><td>Nothing is lost: everything lives in <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>. Start the app again from its Desktop icon.</td></tr>
+<tr><td>Photolab returns to its welcome screen with an engine message.</td><td>The retouching engine was restarted; unsaved documents are lost. Save often (see <a href="#photolab">Photolab</a>).</td></tr>
+<tr><td>A 3D file is refused at print export.</td><td>Go through the <a href="#etabli">Workbench</a>: set a target size and repair in one click before exporting.</td></tr>
+<tr><td>I deleted an image by mistake.</td><td>It is in the <a href="#bibliotheque">Library</a> Trash: Restore.</td></tr>
+</table></div>
+
+<h3>Where are my files?</h3>
+<p>In <code>%LOCALAPPDATA%\DeepotusVideoGenData\assets</code>: <code>images</code> for images, <code>outputs\final</code> for rendered videos, <code>outputs\uploads</code> for your uploads, <code>audio</code> for sounds, <code>print3d</code> for print exports. To take everything to another PC, see <a href="#transfert">Move to another computer</a>.</p>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>An app message always says what blocks and how to fix it. If a button is greyed out, hover it: its tooltip says why.</p></aside>

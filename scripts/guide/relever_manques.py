@@ -57,7 +57,9 @@ def construire():
         L += [f"### {ch['fr']} (`{ch['id']}`, lot {ch['lot']}, reprend : {anc}) — {len(fonctions)} manques", ""]
         perimes = [p for a in ch["anciens"] for p in anciens.get(a, {}).get("perime", [])]
         if perimes:
-            L += ["À corriger dans l'ancien texte :", ""] + [f"- [ ] {p}" for p in perimes] + [""]
+            # t181 : un chapitre réécrit (état v3) a remplacé l'ancien texte — ses affirmations périmées n'existent plus
+            coche = "x" if ch.get("etat") == "v3" else " "
+            L += ["À corriger dans l'ancien texte :", ""] + [f"- [{coche}] {p}" for p in perimes] + [""]
         ecran = None
         for e, f in fonctions:
             if e["ecran"] != ecran:

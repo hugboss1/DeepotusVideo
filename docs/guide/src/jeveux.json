@@ -1,0 +1,19 @@
+{
+ "titre": {"fr": "Je veux…", "en": "I want to…"},
+ "entrees": [
+  {"fr": "sortir ma première vidéo en quelques minutes", "en": "make my first video in a few minutes", "cible": "quick"},
+  {"fr": "transformer une actualité en post programmé", "en": "turn a news story into a scheduled post", "cible": "news"},
+  {"fr": "raconter mon roman en épisodes", "en": "tell my novel as episodes", "cible": "chapitres"},
+  {"fr": "monter, étalonner et livrer une vidéo", "en": "edit, grade and deliver a video", "cible": "montage"},
+  {"fr": "programmer mes posts de la semaine", "en": "schedule my posts for the week", "cible": "planificateur"},
+  {"fr": "retrouver une image et l'envoyer ailleurs", "en": "find an image and send it elsewhere", "cible": "bibliotheque"},
+  {"fr": "retoucher une photo", "en": "retouch a photo", "cible": "photolab"},
+  {"fr": "dessiner une affiche ou un logo", "en": "draw a poster or a logo", "cible": "vectorlab"},
+  {"fr": "créer des sprites et des tuiles de jeu", "en": "create game sprites and tiles", "cible": "assets2d"},
+  {"fr": "imprimer mon jeu de cartes", "en": "print my card game", "cible": "cardforge"},
+  {"fr": "imprimer une figurine en 3D", "en": "3D-print a figurine", "cible": "etabli"},
+  {"fr": "savoir combien je dépense", "en": "know how much I spend", "cible": "budget"},
+  {"fr": "comprendre une icône", "en": "understand an icon", "cible": "icones"},
+  {"fr": "régler un problème", "en": "fix a problem", "cible": "depannage"}
+ ]
+}

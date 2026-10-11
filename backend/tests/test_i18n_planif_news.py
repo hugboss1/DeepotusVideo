@@ -63,7 +63,8 @@ check("B10 node --check", r.returncode == 0, r.stderr.decode("utf-8", "replace")
 print("\n[I] l'inverse")
 sans = A.avant_i18nfix(B)
 check("I1 avant_i18nfix défait les paires : plus de marqueur", M.MARKER not in sans and '"assisted"})' in sans)
-check("I2 l'aller-retour est exact à l'octet", M.appliquer(sans) == B)
+# t181 : avant_i18nfix défait d'abord dzguide (posé après lui) — l'aller-retour se compare au bundle sans dzguide
+check("I2 l'aller-retour est exact à l'octet (vu d'avant dzguide)", M.appliquer(sans) == A.avant_dzguide(B))
 check("I3 avant_avnoeuds défait D'ABORD i18nfix (posé après lui)", M.MARKER not in A.avant_avnoeuds(B))
 check("I4 un bundle sans le maillon passe tel quel", A.avant_i18nfix(sans) == sans)
 r = subprocess.run([sys.executable, str(RACINE / "scripts" / "patch_bundle_i18nfix.py"), "--check"], capture_output=True,

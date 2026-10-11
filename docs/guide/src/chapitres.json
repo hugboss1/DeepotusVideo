@@ -528,7 +528,7 @@
       "en": "End-to-end recipes, from idea to post",
       "anciens": [],
       "ecrans": [],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "icones",
@@ -552,7 +552,8 @@
       "fr": "Raccourcis clavier",
       "en": "Keyboard shortcuts",
       "anciens": [],
-      "ecrans": []
+      "ecrans": [],
+      "etat": "v3"
     },
     {
       "id": "depannage",
@@ -565,7 +566,7 @@
         "c14"
       ],
       "ecrans": [],
-      "etat": "migre"
+      "etat": "v3"
     }
   ]
 }

@@ -154,10 +154,12 @@ if D:
     check("3c_ouvrir_bascule_l_onglet_ou_navigue_vers_le_vectorlab",
           D["ouvrir"] == [[["sprites"], []], [["tiles"], []], [[], ["deepotus:navigate:vectorlab"]], [["cards"], []]], D["ouvrir"])
     check("3d_pixel_pose_la_demande_a_usage_unique", D["ls"] == {"dz_vl_persona": "pixel"}, D["ls"])
-    check("3e_guide_lien_c18_pour_card_forge_grise_ailleurs_jamais_absent",
-          [g[:3] for g in D["guides"]] == [[True, True, None], [True, True, None], [True, True, None],
-                                          [True, False, "/guide/fr.html#c18"]]
-          and all("Pas encore" in g[3] and g[4] == 0.45 for g in D["guides"][:3]), D["guides"])
+    # t181 (maillon de queue dzguide) : chaque carte a son chapitre du guide v3, ouvert par /guide/ qui choisit la
+    # langue de l'application et garde l'ancre — plus aucun bouton grisé, plus de lien en dur vers le français
+    check("3e_guide_un_lien_par_carte_vers_son_chapitre_dans_la_langue_de_l_app",
+          [g[:3] for g in D["guides"]] == [[True, False, "/guide/#spritelab"], [True, False, "/guide/#tilelab"],
+                                          [True, False, "/guide/#vectorlab-pixel"], [True, False, "/guide/#cardforge"]],
+          D["guides"])
     check("3f_chaque_carte_a_sa_teinte_et_sa_vignette",
           D["teintes"] == ["var(--cat-sprites)", "var(--cat-tuiles)", "var(--cat-vectoriel)", "var(--cat-cartes)"]
           and all(D["vignettes"]), (D["teintes"], D["vignettes"]))
