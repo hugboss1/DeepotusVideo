@@ -8937,7 +8937,7 @@ async def list_video_models():
     show-but-disable what a missing key would unlock. `usd_per_s` reflects
     pricing.json overrides; the card badge and topbar ≈$ derive from it."""
     from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
-    from app.services import pricing as _pricing
+    from app.services import pricing as _pricing, catalogue_ia as _CI
     p = _pricing.load()
     rates = p.get("video_usd_per_s") or {}
     out = []
@@ -8956,6 +8956,13 @@ async def list_video_models():
             "seed": m["seed"],
             "audio_included": (m["provider"] == "google"),
             "usd_per_s": rates.get(mid) or {},
+            # t184 (G2) : la voie et sa clé (catalogue_ia), le jumeau Veo de
+            # l'autre voie, et `fl` = accepte une image de fin (par l'endpoint
+            # i2v ou par un endpoint first-last séparé).
+            "voie": "gemini" if m["provider"] == "google" else "fal",
+            "cle": "GEMINI_API_KEY" if m["provider"] == "google" else "FAL_KEY",
+            "jumeau": _CI.JUMEAUX_VIDEO.get(mid),
+            "fl": _CI.accepte_fin(m),
         })
     # P1 #9 (28/09/2026) : le plafond EFFECTIF des secondes générées (0 = aucun)
     # — la vignette de prix du Studio borne la durée comme la garde.

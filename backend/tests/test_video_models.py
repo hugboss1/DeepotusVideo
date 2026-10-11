@@ -72,6 +72,10 @@ EXPECTED_IDS = {
     "kling-v3-pro", "kling-v3-standard", "pixverse-v6",
     "veo-3.1-fast-fal", "veo-3.1-google", "veo-3.1-fast-google",
     "veo-3.1-lite-google",
+    # t184 (G2) : Veo 3.1 standard et Lite sur fal (jumeaux des Google), MiniMax
+    # H3 Max, Wan 3.0, Gemini Omni Flash (fal), LTX 2.5 Fast, Kling v3 Turbo Pro
+    "veo-3.1-fal", "veo-3.1-lite-fal", "h3-max", "wan-3.0", "gemini-omni-flash",
+    "ltx-2.5-fast", "kling-v3-turbo-pro",
 }
 
 # ── registre ────────────────────────────────────────────────────────────────

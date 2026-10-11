@@ -317,7 +317,9 @@ check("edit du catalogue = FAL_IMAGES (True hors FAL_IMAGES)",
       all(e["edit"] is (bool(IP.FAL_IMAGES[e["id"]]["edit"]) if e["id"] in IP.FAL_IMAGES else True) for e in _cat))
 check("recraft : sortie svg, edit False",
       any(e["id"] == "recraft-4.1-vecteur" and e["sortie"] == "svg" and e["edit"] is False for e in _cat))
-check("natures() publiques = ('image',)", CI.natures() == ("image",), str(CI.natures()))
+# t184 (G2) : les natures vidéo s'ajoutent (image -> vidéo, first-last-frame)
+check("natures() publiques = ('image', 'video_fl', 'video_i2v')",
+      CI.natures() == ("image", "video_fl", "video_i2v"), str(CI.natures()))
 check("gpt-image-1-mini dans PROVIDERS (OPENAI_API_KEY)",
       (IP.PROVIDERS.get("gpt-image-1-mini") or {}).get("needs") == "OPENAI_API_KEY")
 check("gpt-image-1-mini hors façade (chemin OpenAI des routes)", not IP.via_facade("gpt-image-1-mini"))

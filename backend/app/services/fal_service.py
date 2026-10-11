@@ -107,14 +107,14 @@ VIDEO_MODELS: dict = {
         "endpoint": "fal-ai/kling-video/v3/pro/image-to-video",
         "durations": list(range(3, 16)), "ratios": None,
         "resolutions": None, "end_image": True, "seed": False,
-        "audio_param": "generate_audio",
+        "audio_param": "generate_audio", "image_arg": "start_image_url",
     },
     "kling-v3-standard": {
         "label": "Kling v3 Standard", "provider": "fal", "family": "kling",
         "endpoint": "fal-ai/kling-video/v3/standard/image-to-video",
         "durations": list(range(3, 16)), "ratios": None,
         "resolutions": None, "end_image": True, "seed": False,
-        "audio_param": "generate_audio",
+        "audio_param": "generate_audio", "image_arg": "start_image_url",
     },
     "pixverse-v6": {
         "label": "PixVerse v6", "provider": "fal", "family": "pixverse",
@@ -123,12 +123,95 @@ VIDEO_MODELS: dict = {
         "resolutions": ["720p", "1080p"], "end_image": False, "seed": True,
         "audio_param": "generate_audio_switch",
     },
+    # t184 (G2, plan « Génération IA enrichie », 11/10/2026) — schémas fal
+    # relus le jour même (fal_schema.py + OpenAPI de la file). Veo 3.1 sur fal
+    # accepte une image de FIN par un endpoint SÉPARÉ (`endpoint_fl`) qui
+    # attend `first_frame_url` / `last_frame_url` (`fl_args`) au lieu de
+    # `image_url` ; durées en chaînes « 4s|6s|8s » (`duree_suffixe`). Les
+    # entrées Google natives (veo-3.1-*-google) restent : ce sont les JUMEAUX
+    # de ces trois-là dans le catalogue (deux voies pour Veo).
     "veo-3.1-fast-fal": {
         "label": "Veo 3.1 Fast (fal)", "provider": "fal", "family": "veo_fal",
         "endpoint": "fal-ai/veo3.1/fast/image-to-video",
+        "endpoint_fl": "fal-ai/veo3.1/fast/first-last-frame-to-video",
+        "fl_args": ("first_frame_url", "last_frame_url"), "duree_suffixe": "s",
         "durations": [4, 6, 8], "ratios": ["9:16", "16:9"],
-        "resolutions": ["720p", "1080p"], "end_image": False, "seed": True,
+        "resolutions": ["720p", "1080p"], "end_image": True, "seed": True,
         "audio_param": "generate_audio",
+    },
+    "veo-3.1-fal": {
+        "label": "Veo 3.1 (fal)", "provider": "fal", "family": "veo_fal",
+        "endpoint": "fal-ai/veo3.1/image-to-video",
+        "endpoint_fl": "fal-ai/veo3.1/first-last-frame-to-video",
+        "fl_args": ("first_frame_url", "last_frame_url"), "duree_suffixe": "s",
+        "durations": [4, 6, 8], "ratios": ["9:16", "16:9"],
+        "resolutions": ["720p", "1080p"], "end_image": True, "seed": True,
+        "audio_param": "generate_audio",
+    },
+    "veo-3.1-lite-fal": {
+        "label": "Veo 3.1 Lite (fal)", "provider": "fal", "family": "veo_fal",
+        "endpoint": "fal-ai/veo3.1/lite/image-to-video",
+        "endpoint_fl": "fal-ai/veo3.1/lite/first-last-frame-to-video",
+        "fl_args": ("first_frame_url", "last_frame_url"), "duree_suffixe": "s",
+        "durations": [4, 6, 8], "ratios": ["9:16", "16:9"],
+        "resolutions": ["720p", "1080p"], "end_image": True, "seed": True,
+        "audio_param": "generate_audio",
+    },
+    # MiniMax H3 Max : `prompt_expansion_mode` REQUIS (disabled | balanced |
+    # quality ; « balanced » = défaut du schéma, ~1 s) ; durée 0,92..15 s mais
+    # facturée 5 s au minimum -> 5..15 ; résolutions en MAJUSCULES côté
+    # endpoint (480P/768P/1080P) : le registre les garde en minuscules
+    # (`resolution_maj`) et l'app qui demande 720p reçoit 768P (`res_alias`).
+    # Pas de ratio (le cadre suit l'image), pas d'interrupteur audio.
+    "h3-max": {
+        "label": "MiniMax H3 Max", "provider": "fal", "family": "minimax",
+        "endpoint": "minimax/h3-max/image-to-video",
+        "durations": list(range(5, 16)), "ratios": None,
+        "resolutions": ["480p", "768p", "1080p"], "res_alias": {"720p": "768p"},
+        "resolution_maj": True, "end_image": True, "seed": True,
+        "audio_param": None, "extra_args": {"prompt_expansion_mode": "balanced"},
+    },
+    # Wan 3.0 : image de départ `start_image_url` (requise), fin
+    # `end_image_url`, durée entière 2..30 s, ratio « adaptive » par défaut
+    # (suit l'image : rien n'est envoyé), interrupteur audio `audio`.
+    "wan-3.0": {
+        "label": "Wan 3.0", "provider": "fal", "family": "wan",
+        "endpoint": "alibaba/wan-3.0/image-to-video", "image_arg": "start_image_url",
+        "durations": list(range(2, 31)), "ratios": None,
+        "resolutions": ["480p", "720p", "1080p"], "end_image": True, "seed": True,
+        "audio_param": "audio",
+    },
+    # Gemini Omni Flash v1.1 servi PAR FAL (voie fal ; l'API Google directe ne
+    # le sert pas en vidéo, voir l'en-tête W-a) : durée entière 3..10 s, ni
+    # seed ni interrupteur audio ; 360p et 4k existent mais restent hors
+    # registre (720p/1080p seulement, comme les autres).
+    "gemini-omni-flash": {
+        "label": "Gemini Omni Flash (fal)", "provider": "fal", "family": "gemini_omni",
+        "endpoint": "google/gemini-omni-flash/v1.1/image-to-video",
+        "durations": list(range(3, 11)), "ratios": ["9:16", "16:9"],
+        "resolutions": ["720p", "1080p"], "end_image": True, "seed": False,
+        "audio_param": None,
+    },
+    # LTX 2.5 Fast : durées paires 6..20 s (enum), audio natif inclus au prix
+    # (l'interrupteur est quand même coupé : le pipeline possède le son) ;
+    # 1440p/2160p existent, hors registre.
+    "ltx-2.5-fast": {
+        "label": "LTX 2.5 Fast", "provider": "fal", "family": "ltx",
+        "endpoint": "lightricks/ltx-2.5/image-to-video/fast",
+        "durations": [6, 8, 10, 12, 14, 16, 18, 20], "ratios": ["9:16", "16:9"],
+        "resolutions": ["720p", "1080p"], "end_image": True, "seed": False,
+        "audio_param": "generate_audio",
+    },
+    # Kling v3 Turbo Pro : `image_url` (PAS start_image_url comme Kling v3),
+    # durée en CHAÎNE « 3 ».. « 15 » (`duree_suffixe` vide), ni image de fin,
+    # ni ratio, ni résolution, ni négatif, ni seed, ni interrupteur audio.
+    "kling-v3-turbo-pro": {
+        "label": "Kling v3 Turbo Pro", "provider": "fal", "family": "kling",
+        "endpoint": "fal-ai/kling-video/v3/turbo/pro/image-to-video",
+        "image_arg": "image_url", "duree_suffixe": "", "negatif": False,
+        "durations": list(range(3, 16)), "ratios": None,
+        "resolutions": None, "end_image": False, "seed": False,
+        "audio_param": None,
     },
     "veo-3.1-google": {
         "label": "Veo 3.1 (Google)", "provider": "google", "family": "veo_google",
@@ -203,6 +286,9 @@ def clamp_resolution(model: dict, requested: str) -> "Optional[str]":
     res = model["resolutions"]
     if res is None:
         return None
+    # t184 : une résolution voisine nommée autrement chez le fournisseur
+    # (MiniMax H3 : 768p pour la 720p de l'app)
+    requested = (model.get("res_alias") or {}).get(requested, requested)
     return requested if requested in res else res[-1]
 
 
@@ -228,10 +314,10 @@ def build_fal_args(
         raise ValueError(f"{m['label']} is not a fal model")
     notes: list = []
 
-    if end_image_url and not m["end_image"]:
+    if end_image_url and not (m["end_image"] or m.get("endpoint_fl")):
         raise ValueError(
-            f"{m['label']} does not support an end frame (first-last). "
-            "Use Seedance for first-last transitions.")
+            f"{m['label']} : pas d'image de fin (first-last-frame) sur ce "
+            "modèle — does not support an end frame (first-last).")
 
     dur = clamp_duration(m, duration)
     if dur != duration:
@@ -258,21 +344,36 @@ def build_fal_args(
             args["end_image_url"] = end_image_url
         return endpoint, args, notes
 
-    endpoint = m["endpoint"]
-    args = {"prompt": prompt}
-    # image param name differs per family
-    args["start_image_url" if family == "kling" else "image_url"] = image_url
-    if end_image_url:
-        args["end_image_url"] = end_image_url
-    # duration: veo-fal wants "4s|6s|8s" strings, others plain ints
-    args["duration"] = f"{dur}s" if family == "veo_fal" else dur
+    # t184 (G2) : image de fin -> endpoint first-last SÉPARÉ quand le modèle
+    # en a un (Veo : first_frame_url / last_frame_url, sans image_url) ;
+    # sinon l'endpoint i2v avec le nom d'argument du modèle (`image_arg`,
+    # `end_arg` : Kling v3 et Wan 3.0 attendent start_image_url).
+    if end_image_url and m.get("endpoint_fl"):
+        endpoint = m["endpoint_fl"]
+        k1, k2 = m.get("fl_args") or ("first_frame_url", "last_frame_url")
+        args = {"prompt": prompt, k1: image_url, k2: end_image_url}
+    else:
+        endpoint = m["endpoint"]
+        args = {"prompt": prompt, m.get("image_arg", "image_url"): image_url}
+        if end_image_url:
+            args[m.get("end_arg", "end_image_url")] = end_image_url
+    # durée : Veo attend « 4s|6s|8s », Kling turbo « 5 » (chaîne nue),
+    # les autres un entier
+    if "duree_suffixe" in m:
+        args["duration"] = f"{int(dur)}{m['duree_suffixe']}"
+    else:
+        args["duration"] = dur
     if ratio_ok:
         args["aspect_ratio"] = aspect_ratio
     if res is not None:
-        args["resolution"] = res
-    # negative_prompt exists on kling/pixverse/veo_fal (NOT seedance2)
-    if negative_prompt and family in ("kling", "pixverse", "veo_fal"):
+        args["resolution"] = res.upper() if m.get("resolution_maj") else res
+    # negative_prompt exists on kling/pixverse/veo_fal (NOT seedance2) ;
+    # `negatif: False` l'écarte (Kling v3 Turbo n'en a pas)
+    if (negative_prompt and family in ("kling", "pixverse", "veo_fal")
+            and m.get("negatif", True)):
         args["negative_prompt"] = negative_prompt
+    for k, v in (m.get("extra_args") or {}).items():
+        args.setdefault(k, v)
     if seed is not None:
         if m["seed"]:
             args["seed"] = seed
