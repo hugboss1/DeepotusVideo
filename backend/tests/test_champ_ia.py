@@ -32,8 +32,14 @@ suivant), un <select> natif (valeur + `change` natif), les cartes de modèle du
 Son & VFX, et un faux `fetch` (routes de modèles, `/api/cost/estimate`) qui
 ESPIONNE : aucun appel de génération. Les modèles sans clé sont grisés avec
 « clé X absente » ; les vues sans choix sont en lecture seule « choisi par la
-vue ». Le registre des modèles d'image de la couche est confronté à
-`routes.list_image_models` et à `pricing._IMAGE_MODELS` (AST, sans import).
+vue ». t183 (G1, 11/10/2026) : la couche n'a PLUS de registre d'image codé en
+dur — elle lit `tous` de /api/image-models (le catalogue unique) ; le faux
+`tous` du banc est construit depuis `routes.list_image_models` et
+`pricing._IMAGE_MODELS` / `_IMAGE_MODELS_VECTEUR` (AST, sans import), et le
+prix vient de son `usd` (plus d'estimation POST). Décision de l'utilisateur
+(11/10/2026) : un modèle SANS CLÉ reste choisissable (mention « clé X à
+ajouter dans Réglages ») — Veo sans GEMINI_API_KEY compris ; seul un modèle
+absent du sélecteur de la vue est grisé, avec la même mention.
 
 Un processus, `check`, `=== N passed, M failed ===`, code de sortie.
 """
@@ -106,6 +112,9 @@ HARNAIS = r"""
 "use strict";
 const fs = require("fs");
 const COUCHE = process.argv[2];
+/* t183 : le catalogue unique (`tous` de /api/image-models), construit par le banc depuis routes/pricing (AST) */
+const TOUS0 = JSON.parse(process.argv[3] || "[]");
+const CLES = { fal: true, openai: false };   // FAL_KEY posée, OPENAI_API_KEY absente
 
 /* ---------- DOM minimal ---------- */
 function decouper(s, sep) {            // découpe hors [] et guillemets
@@ -293,11 +302,13 @@ const IMG = { configured: "", default: "flux", models: [
   { id: "flux", label: "FLUX schnell", provider: "fal" }, { id: "nano-banana", label: "Nano Banana (Gemini)", provider: "fal" },
   { id: "nano-banana-pro", label: "Nano Banana Pro (Gemini 3)", provider: "fal" }, { id: "gpt-image-2-fal", label: "GPT Image 2 (via fal)", provider: "fal" },
   { id: "gpt-image-2.5-flare-fal", label: "GPT Image 2.5 Flare (via fal)", provider: "fal" },
-  { id: "gpt-image-2.5-sunburst-fal", label: "GPT Image 2.5 Sunburst (via fal)", provider: "fal" } ] };
+  { id: "gpt-image-2.5-sunburst-fal", label: "GPT Image 2.5 Sunburst (via fal)", provider: "fal" } ],
+  get tous() { return TOUS0.map(e => Object.assign({}, e, { dispo: !!CLES[e.voie],
+    usd: e.id in PRIX ? PRIX[e.id] : 0.02 })); } };
 const MUS = { enabled: true, default: "lyria3", models: [
   { id: "lyria3", label: "Lyria 3 (Google)", usd: 0.1 }, { id: "stable-audio-25", label: "Stable Audio 2.5", usd: 0.06 },
   { id: "minimax-music-26", label: "MiniMax Music 2.6", usd: 0.14 } ] };
-const PRIX = { "flux": 0.003, "nano-banana": 0.039, "gpt-image-2.5-flare-fal": 0.053, "gpt-image-2": 0.21 };
+const PRIX = { "flux": 0.003, "nano-banana": 0.039, "gpt-image-2.5-flare-fal": 0.053, "gpt-image-2": 0.21, "qwen-image-3": 0 };
 const REP = { "/api/video-models": () => VIDEO, "/api/image-models": () => IMG, "/api/music-models": () => MUS,
   "/api/atelier/settings": () => ({ settings: { image_provider: "nano-banana" } }) };
 function reponse(j) { return { ok: true, status: 200, json: () => Promise.resolve(JSON.parse(JSON.stringify(j))) }; }
@@ -428,7 +439,7 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   R.regles = (A && A.regles || []).map(r => ({ id: r.id, vue: r.vue, sel: r.sel || null, libelle: r.libelle || null, genre: r.genre, page: r.page || null,
     modele: r.modele ? { liste: r.modele.liste === undefined ? "absente" : r.modele.liste, fixe: r.modele.fixe || null, lire: typeof r.modele.lire,
       ecrire: typeof r.modele.ecrire, texte: typeof r.modele.texte } : null }));
-  R.catalogue = (A && A.modeles && A.modeles.catalogueImage) || null;
+  R.catalogue = A && A.modeles ? ("catalogueImage" in A.modeles ? "présent" : "absent") : null;
   R.vide = { barres: body.querySelectorAll(".dzia-barre").length, marques: body.querySelectorAll("[data-dz-ia]").length };
   const styles = head.querySelectorAll("style").filter(s => s.getAttribute("id") === "dzia-style");
   R.style = styles.length ? styles[0].textContent : "";
@@ -505,9 +516,11 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   OBS.forEach(o => o._vider());
   await pause(120);
   R.obs = { tard: etat(tard), tardStudio: etat(tardStudio), nObs: OBS.filter(o => o.cible).length };
-  // revue T9 : plusieurs pastilles d'image sur UNE page → UNE seule estimation de prix (déduplication)
+  // revue T9 : plusieurs pastilles d'image sur UNE page → UNE seule lecture des modèles (déduplication) ;
+  // t183 : le prix vient du catalogue, plus d'estimation POST
   R.nImgT8 = body.querySelectorAll(".dzia-modele").filter(p => ["chapitres-illus", "library-image", "templates-ia"].includes(p.getAttribute("data-dzia-modele"))).length;
   R.estT8 = APPELS.filter(a => a[1] === "/api/cost/estimate").length;
+  R.imgT8 = APPELS.filter(a => a[1] === "/api/image-models").length;
 
   // ---------- barre recalée sur le champ, puis nettoyée au retrait ----------
   fLib._rect = { left: 40, top: 200, width: 400, height: 30 };
@@ -594,11 +607,9 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   T.slots = etat(tq).slots;
   T.quick = vuP(tq); T.lib = vuP(tl); T.sfx = vuP(tsfx); T.mus = vuP(tm); T.tpl = vuP(ttpl);
   const pQ = pastille(tq);
-  // la liste du Quick : prix comme la vue, Google sans clé grisé
+  // la liste du Quick : prix comme la vue ; t183 (décision 11/10) : Google sans clé CHOISISSABLE, avec la mention
   pQ && pQ.click(); T.listeQ = vuListe(); T.expQ = pQ.getAttribute("aria-expanded");
-  // un modèle grisé ne s'écrit pas
-  if (opt("veo-3")) opt("veo-3").click(); await pause(150);
-  T.apresGris = { valeur: reQ.valeur, clics: reQ.clics, ouverte: !!listeOuverte() };
+  T.grpQ = listeOuverte() ? listeOuverte().querySelectorAll(".dzia-ogrp").map(g => g.textContent) : null;
   document.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Escape" }));
   T.echap = !listeOuverte();
   // choisir dans la pastille → le select custom de la vue est rejoué (clic, option), la vue écrit localStorage
@@ -618,17 +629,24 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   T.clav = { bouton: pQ.tagName === "BUTTON" && pQ.getAttribute("tabindex") !== "-1", a0: actif(), pDesc: !!pQ.getAttribute("aria-activedescendant") };
   touche("ArrowDown"); T.clav.a1 = actif();
   touche("ArrowDown"); T.clav.a2 = actif();
-  touche("Enter"); await pause(60); T.clav.grise = { valeur: reQ.valeur, ouverte: !!listeOuverte(), clics: reQ.clics };
   touche("ArrowUp"); T.clav.a3 = actif();
+  touche("ArrowDown"); T.clav.a4 = actif();
+  // t183 : Entrée sur veo-3 SANS CLÉ → choisi (la vue est rejouée), la pastille garde la mention
   touche("Enter"); await pause(250);
-  T.clav.choix = { valeur: reQ.valeur, ouverte: !!listeOuverte(), focus: document.activeElement === pQ, txt: vuP(tq).txt };
+  T.clav.choix = { valeur: reQ.valeur, ouverte: !!listeOuverte(), focus: document.activeElement === pQ, txt: vuP(tq).txt,
+    title: vuP(tq).title, ls: localStorage.getItem("dz_video_model") };
   document.activeElement = tq; pQ.click(); await pause(5); touche("Tab");
   T.clav.tab = { ouverte: !!listeOuverte(), focus: document.activeElement === pQ };
   document.activeElement = tq; pQ.click(); await pause(5); touche("Escape");
   T.clav.esc = { ouverte: !!listeOuverte(), focus: document.activeElement === pQ };
   T.clav.hote = { esc: hote.esc, ent: hote.ent };
-  // Library : select custom d'image, prix par image, OpenAI sans clé grisé
+  // Library : select custom d'image, prix par image (catalogue), OpenAI sans clé grisé faute d'être dans la vue
   (pastille(tl) || {click(){}}).click(); T.listeL = vuListe();
+  { const l = listeOuverte(); T.grpL = l ? l.children.filter(c => c.classList.contains("dzia-ogrp")).map(g => [g.textContent, l.children.indexOf(g)]) : null;
+    T.ordreL = l ? l.children.map(c => c.classList.contains("dzia-ogrp") ? "#" + c.getAttribute("data-voie") : c.getAttribute("data-id")) : null; }
+  // NÉGATIF : un modèle grisé (sans clé ET absent du select de la vue) ne s'écrit pas
+  { const c0 = reL.clics; if (opt("gpt-image-2")) opt("gpt-image-2").click(); await pause(150);
+    T.apresGris = { valeur: reL.valeur, clics: reL.clics - c0, ouverte: !!listeOuverte() }; }
   if (opt("nano-banana")) opt("nano-banana").click(); await pause(250);
   T.choixL = { valeur: reL.valeur, ls: localStorage.getItem("dz_image_model"), p: vuP(tl) };
   A.synchroniser(); T.tpl2 = vuP(ttpl);                     // Templates lit le modèle global : suit
@@ -671,6 +689,16 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
     if (o) o.click(); await pause(40);
     T.sansCleMF.valeur = sel.value; T.sansCleMF.p = vuP(tmf); }
   sel.value = "nano-banana-pro"; sel.dispatchEvent(new Event("change", { bubbles: true })); await pause(30);
+  // revue T9 : Entrée au clavier sur une option GRISÉE (gpt-image-2-fal : servi, absent du <select>) → rien n'est écrit
+  { const pM = pastille(tmf); pM.click(); await pause(5);
+    const l = listeOuverte(), ops = l ? l.querySelectorAll(".dzia-opt") : [], i = ops.findIndex(o => o.getAttribute("data-id") === "gpt-image-2-fal");
+    const c0 = nChange; tmf.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Home" }));
+    for (let k = 0; k < i; k++) tmf.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "ArrowDown" }));
+    const id = l && l.getAttribute("aria-activedescendant"), a = id && ops.find(o => o.getAttribute("id") === id);
+    tmf.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Enter" })); await pause(40);
+    T.clavGris = { actif: a ? a.getAttribute("data-id") : null, dis: a ? a.getAttribute("aria-disabled") : null,
+      valeur: sel.value, dChange: nChange - c0, ouverte: !!listeOuverte() };
+    tmf.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Escape" })); }
   // revue T9 : ecrire natif d'un id ABSENT du <select> → false, aucun change
   { const rMF = (A.regles || []).find(r => r.id === "materialforge"), c0 = nChange, v0 = sel.value;
     const res = rMF && rMF.modele && rMF.modele.ecrire ? await rMF.modele.ecrire(tmf, "id-absent") : null;
@@ -698,7 +726,7 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   A.marquer(document.body); await pause(30); A.synchroniser(); T.cfVide = vuP(tcf);
 
   // SANS CLÉ : tout grisé, la raison dit la clé qui manque
-  VIDEO.models.forEach(m => { m.available = false; }); IMG.models = []; IMG.default = ""; MUS.enabled = false;
+  VIDEO.models.forEach(m => { m.available = false; }); IMG.models = []; IMG.default = ""; MUS.enabled = false; CLES.fal = false;
   body.textContent = ""; window.location.pathname = "/";
   const q2 = el("div", {}, body), tq2 = ie(q2, "Prompt", "textarea"), vm2 = el("div", { "data-dzvmsel": "1" }, q2);
   fauxRe(vm2, [{ value: "", label: "Défaut (seedance-2.5)" }], "", () => {});
@@ -706,7 +734,8 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   A.marquer(document.body);
   await Promise.all(["video", "image", "musique"].map(l => A.modeles && A.modeles.charger(l, true))); A.synchroniser();
   T.sansCle = { quick: vuP(tq2), lib: vuP(tl2) };
-  const pQ2 = pastille(tq2); pQ2 && pQ2.click(); T.sansCle.ouvre = !!listeOuverte();
+  const pL2 = pastille(tl2); pL2 && pL2.click(); T.sansCle.ouvreL = !!listeOuverte();
+  const pQ2 = pastille(tq2); pQ2 && pQ2.click(); T.sansCle.ouvre = !!listeOuverte(); T.sansCle.listeQ = vuListe();
   } catch (e) { R.t9err = String(e && e.stack || e).slice(0, 500); }
   T.appels = APPELS.map(a => [a[0], a[1], a[1] === "/api/cost/estimate" ? JSON.parse(a[2] || "{}") : null]);
 
@@ -919,6 +948,31 @@ def main():
     check("témoin : le Studio 3D (graphe de nœuds) ne charge pas la couche",
           s3d.is_file() and "dz-champ-ia.js" not in t3d)
 
+    # t183 : le faux `tous` (catalogue unique) — ids/libellés de routes.list_image_models, voie de
+    # pricing._IMAGE_MODELS (raster) et _IMAGE_MODELS_VECTEUR (svg) : le banc suit le registre réel
+    routes_src = (ROOT / "backend" / "app" / "api" / "routes.py").read_text(encoding="utf-8")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        arbre = ast.parse(routes_src)
+    fn = next((n for n in ast.walk(arbre) if isinstance(n, ast.AsyncFunctionDef) and n.name == "list_image_models"), None)
+    srv = {}
+    for n in ast.walk(fn) if fn else []:
+        if isinstance(n, ast.Dict) and all(isinstance(k, ast.Constant) for k in n.keys):
+            d = {k.value: (v.value if isinstance(v, ast.Constant) else None) for k, v in zip(n.keys, n.values)}
+            if d.get("id") and d.get("provider"):
+                srv[d["id"]] = (d.get("label"), d["provider"])
+    pr_src = (ROOT / "backend" / "app" / "services" / "pricing.py").read_text(encoding="utf-8")
+    pim, pvec = {}, {}
+    for n in ast.parse(pr_src).body:
+        if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "_IMAGE_MODELS" for t in n.targets):
+            pim = ast.literal_eval(n.value)
+        if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "_IMAGE_MODELS_VECTEUR" for t in n.targets):
+            pvec = ast.literal_eval(n.value)
+    CLE = {"fal": "FAL_KEY", "openai": "OPENAI_API_KEY"}
+    TOUS = ([{"id": k, "label": (srv.get(k) or (v[0],))[0], "voie": v[1], "cle": CLE.get(v[1]), "unite": "image",
+              "sortie": "raster"} for k, v in pim.items()]
+            + [{"id": k, "label": v[0], "voie": v[1], "cle": CLE.get(v[1]), "unite": "image", "sortie": "svg"}
+               for k, v in pvec.items()])
     node = shutil.which("node")
     check("node présent", bool(node))
     if not node:
@@ -927,7 +981,7 @@ def main():
     with tempfile.TemporaryDirectory() as d:
         h = pathlib.Path(d) / "harnais.js"
         h.write_text(HARNAIS, encoding="utf-8")
-        pr = subprocess.run([node, str(h), str(SRC)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+        pr = subprocess.run([node, str(h), str(SRC), json.dumps(TOUS)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         R = json.loads(pr.stdout or "{}")
     except ValueError:
@@ -1098,33 +1152,16 @@ def main():
           all(frag in fx.get(k, "") for k, frag in FIXES.items()), str({k: fx.get(k) for k in FIXES}))
     check("NÉGATIF : aucune règle pilotable n'est aussi « fixe »", not any(fx.get(k) for k in PILOTES), str({k: fx.get(k) for k in PILOTES if fx.get(k)}))
 
-    # registre des modèles d'image : pas de dérive avec routes.list_image_models et pricing._IMAGE_MODELS
-    routes_src = (ROOT / "backend" / "app" / "api" / "routes.py").read_text(encoding="utf-8")
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        arbre = ast.parse(routes_src)
-    fn = next((n for n in ast.walk(arbre) if isinstance(n, ast.AsyncFunctionDef) and n.name == "list_image_models"), None)
-    srv = {}
-    for n in ast.walk(fn) if fn else []:
-        if isinstance(n, ast.Dict) and all(isinstance(k, ast.Constant) for k in n.keys):
-            d = {k.value: (v.value if isinstance(v, ast.Constant) else None) for k, v in zip(n.keys, n.values)}
-            if d.get("id") and d.get("provider"):
-                srv[d["id"]] = (d.get("label"), d["provider"])
-    pr_src = (ROOT / "backend" / "app" / "services" / "pricing.py").read_text(encoding="utf-8")
-    pim = {}
-    for n in ast.parse(pr_src).body:
-        if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "_IMAGE_MODELS" for t in n.targets):
-            pim = ast.literal_eval(n.value)
-    cat = R.get("catalogue") or []
-    check("TÉMOIN : routes.list_image_models et pricing._IMAGE_MODELS lus (≥ 11 modèles)", len(srv) >= 11 and len(pim) >= 11,
-          f"{len(srv)} {len(pim)}")
-    cid = {c[0] for c in cat}
-    check("registre de la couche = ids de list_image_models = ids de pricing._IMAGE_MODELS",
-          bool(cat) and cid == set(srv) == set(pim), str(sorted(cid ^ set(srv))) + " " + str(sorted(cid ^ set(pim))))
-    lab_ko = [c[0] for c in cat if (srv.get(c[0]) or ("",))[0] != c[1]]
-    check("registre : libellés = ceux de list_image_models", bool(cat) and not lab_ko, str(lab_ko))
-    cle_ko = [c[0] for c in cat if c[2] != {"fal": "FAL_KEY", "openai": "OPENAI_API_KEY"}.get((pim.get(c[0]) or ("", ""))[1])]
-    check("registre : clé = fournisseur de facturation de pricing (fal → FAL_KEY, openai → OPENAI_API_KEY)", bool(cat) and not cle_ko, str(cle_ko))
+    # t183 (G1) : plus de registre d'image codé en dur dans la couche — elle lit le catalogue unique (`tous`)
+    src = SRC.read_text(encoding="utf-8")
+    check("TÉMOIN : routes.list_image_models et pricing._IMAGE_MODELS lus (≥ 11 modèles), au moins un vectoriel",
+          len(srv) >= 11 and len(pim) >= 11 and len(pvec) >= 1, f"{len(srv)} {len(pim)} {len(pvec)}")
+    check("NÉGATIF : plus de miroir CATALOGUE_IMAGE ni d'estimation de prix dans la couche (exposé : absent)",
+          "CATALOGUE_IMAGE" not in src and "/api/cost/estimate" not in src and R.get("catalogue") == "absent", str(R.get("catalogue")))
+    check("la couche lit `tous` de /api/image-models et écarte les modèles vectoriels (sortie svg)",
+          "d.tous" in src and 'e.sortie !== "svg"' in src)
+    check("libellés du faux catalogue = ceux de list_image_models (raster servis)",
+          all((srv.get(e["id"]) or (e["label"],))[0] == e["label"] for e in TOUS if e["sortie"] == "raster"))
 
     T = R.get("t9") or {}
     check("section T9 du harnais sans exception", not R.get("t9err"), str(R.get("t9err")))
@@ -1143,15 +1180,17 @@ def main():
           and T.get("expQ") == "true", str(list(byq)))
     check("liste : prix au format de la vue (Seedance 1.0 Pro · $0.12/s)", "$0.12/s" in (byq.get("seedance-v1-pro") or {}).get("txt", ""),
           str(byq.get("seedance-v1-pro")))
-    check("available:false (Google) → grisé, title « clé GEMINI_API_KEY absente »",
-          (byq.get("veo-3") or {}).get("dis") == "true" and ((byq.get("veo-3") or {}).get("title") or "").startswith("clé GEMINI_API_KEY absente"),
-          str(byq.get("veo-3")))
+    # t183 — décision de l'utilisateur (11/10/2026) : un modèle sans clé reste CHOISISSABLE partout ; le
+    # sélecteur du Quick (DzVideoModelSel) le liste déjà, /generate refuse le tir en 503 avant la dépense.
+    check("available:false (Veo, Google) → CHOISISSABLE : pas grisé, mention « clé GEMINI_API_KEY à ajouter dans Réglages »",
+          (byq.get("veo-3") or {}).get("dis") is None
+          and "clé GEMINI_API_KEY à ajouter dans Réglages" in ((byq.get("veo-3") or {}).get("title") or "")
+          and "clé GEMINI_API_KEY à ajouter dans Réglages" in ((byq.get("veo-3") or {}).get("txt") or ""), str(byq.get("veo-3")))
+    check("liste du Quick : un en-tête par voie (fal, puis Gemini)",
+          T.get("grpQ") == ["via la clé fal", "avec votre clé Gemini"], str(T.get("grpQ")))
     check("TÉMOIN : un modèle disponible n'est pas grisé et porte un title", (byq.get("seedance-2") or {}).get("dis") is None
           and (byq.get("seedance-2") or {}).get("title"), str(byq.get("seedance-2")))
     check("modèle actuel marqué aria-selected", (byq.get("seedance-2.5") or {}).get("sel") == "true", str(byq.get("seedance-2.5")))
-    ag = T.get("apresGris") or {}
-    check("NÉGATIF : clic sur un modèle grisé → rien n'est écrit dans la vue (aucun clic rejoué)",
-          ag.get("valeur") == "" and ag.get("clics") == 0 and ag.get("ouverte"), str(ag))
     check("Échap ferme la liste", T.get("echap") is True)
     cq = T.get("choixQ") or {}
     check("pastille → vue : le select custom est REJOUÉ (clic, option) et la vue écrit localStorage.dz_video_model",
@@ -1161,13 +1200,31 @@ def main():
           (cq.get("p") or {}).get("txt") == "Seedance 1.0 Pro" and not cq.get("ouverte") and cq.get("meme") and cq.get("resteOuverte") == 1, str(cq))
     check("vue → pastille : la vue change (Seedance 2.0) → la pastille suit", tp("vueQ").get("txt") == "Seedance 2.0", str(T.get("vueQ")))
     lb = tp("lib")
-    check("Library : select custom d'image lu (FLUX schnell), prix par image via /api/cost/estimate",
+    check("Library : select custom d'image lu (FLUX schnell), prix par image lu au catalogue (`usd` de `tous`)",
           lb.get("id") == "flux" and lb.get("txt") == "FLUX schnell" and "$0.003/image" in (lb.get("title") or ""), str(lb))
     ll = {o.get("id"): o for o in (T.get("listeL") or [])}
-    check("liste image = le registre COMPLET (16 depuis t182), pas seulement /api/image-models", len(ll) == 16, str(len(ll)))
-    check("modèle d'image sans clé (absent de /api/image-models) → grisé « clé OPENAI_API_KEY absente »",
-          all((ll.get(k) or {}).get("dis") == "true" and ((ll.get(k) or {}).get("title") or "").startswith("clé OPENAI_API_KEY absente")
+    n_raster = len([e for e in TOUS if e["sortie"] == "raster"])
+    check("liste image = le catalogue COMPLET raster (`tous`, 16 depuis t182), pas seulement /api/image-models",
+          len(ll) == n_raster == 16, f"{len(ll)} {n_raster}")
+    check("NÉGATIF : aucun modèle vectoriel (sortie svg) dans la liste raster",
+          not any(e["id"] in ll for e in TOUS if e["sortie"] == "svg") and any(e["sortie"] == "svg" for e in TOUS), str(sorted(ll)))
+    # t183 : grisé faute d'être dans le sélecteur de la vue (selects d'image du bundle : modèles servis), avec la
+    # même mention que partout — jamais « clé absente »
+    check("modèle d'image sans clé ET absent du select de la vue → grisé « clé OPENAI_API_KEY à ajouter dans Réglages — absent du sélecteur de la vue »",
+          all((ll.get(k) or {}).get("dis") == "true" and ((ll.get(k) or {}).get("title") or "").startswith(
+              "clé OPENAI_API_KEY à ajouter dans Réglages — absent du sélecteur de la vue")
               for k in ("gpt-image-2", "gpt-image-2.5-flare", "gpt-image-1-mini")), str(ll.get("gpt-image-2")))
+    ag = T.get("apresGris") or {}
+    check("NÉGATIF : clic sur un modèle grisé → rien n'est écrit dans la vue (aucun clic rejoué)",
+          ag.get("valeur") == "flux" and ag.get("clics") == 0 and ag.get("ouverte"), str(ag))
+    check("prix inconnu (usd 0) → « prix à mesurer », jamais « gratuit »",
+          "prix à mesurer" in (ll.get("qwen-image-3") or {}).get("txt", "")
+          and not any("gratuit" in (o.get("txt") or "") for o in ll.values()), str(ll.get("qwen-image-3")))
+    grl, orl = T.get("grpL") or [], T.get("ordreL") or []
+    check("liste image : un en-tête par voie (« via la clé fal » puis « avec votre clé OpenAI »), pas une option",
+          [g[0] for g in grl] == ["via la clé fal", "avec votre clé OpenAI"] and orl[:1] == ["#fal"]
+          and all(not str(x).startswith("#") for x in orl[1:orl.index("#openai")])
+          and all(x.startswith("gpt-image-") for x in orl[orl.index("#openai") + 1:]) if "#openai" in orl else False, str(orl))
     check("TÉMOIN : un modèle fal servi n'est pas grisé et affiche son prix ($0.053/image)",
           (ll.get("gpt-image-2.5-flare-fal") or {}).get("dis") is None and "$0.053/image" in (ll.get("gpt-image-2.5-flare-fal") or {}).get("txt", ""),
           str(ll.get("gpt-image-2.5-flare-fal")))
@@ -1191,6 +1248,10 @@ def main():
           f"{T.get('sansTitre')}/{T.get('nBoutons')}")
     mf, lmf = tp("mf"), {o.get("id"): o for o in (T.get("listeMF") or [])}
     check("Material Forge : <select> natif lu (FLUX schnell), pilotable", mf.get("txt") == "FLUX schnell" and mf.get("dis") == "false", str(mf))
+    cg = T.get("clavGris") or {}
+    check("NÉGATIF clavier : Entrée sur une option GRISÉE (servie, absente du <select>) → rien n'est écrit, la liste reste ouverte",
+          cg.get("actif") == "gpt-image-2-fal" and cg.get("dis") == "true" and cg.get("dChange") == 0
+          and cg.get("valeur") == "nano-banana-pro" and cg.get("ouverte") is True, str(cg))
     check("servi mais absent du <select> de la vue → grisé « absent du sélecteur de la vue »",
           (lmf.get("gpt-image-2-fal") or {}).get("dis") == "true" and "absent du sélecteur" in ((lmf.get("gpt-image-2-fal") or {}).get("title") or ""),
           str(lmf.get("gpt-image-2-fal")))
@@ -1221,35 +1282,40 @@ def main():
     check("TÉMOIN : un champ large n'est pas réduit", tp("quick").get("mini") is False, str(tp("quick").get("mini")))
     sc = T.get("sansCle") or {}
     sq, sl = sc.get("quick") or {}, sc.get("lib") or {}
-    check("SANS CLÉ : Quick grisé « aucun modèle », title nomme FAL_KEY et GEMINI_API_KEY",
-          sq.get("dis") == "true" and sq.get("txt") == "aucun modèle" and "clé FAL_KEY absente" in (sq.get("title") or "")
-          and "clé GEMINI_API_KEY absente" in (sq.get("title") or ""), str(sq))
-    check("SANS CLÉ : Library grisée, title nomme FAL_KEY et OPENAI_API_KEY",
-          sl.get("dis") == "true" and "clé FAL_KEY absente" in (sl.get("title") or "") and "clé OPENAI_API_KEY absente" in (sl.get("title") or ""), str(sl))
-    check("SANS CLÉ : la pastille grisée n'ouvre pas de liste", sc.get("ouvre") is False, str(sc.get("ouvre")))
+    # t183 (décision 11/10) : sans AUCUNE clé, le Quick reste pilotable — chaque modèle est choisissable avec sa mention
+    check("SANS CLÉ : Quick PILOTABLE (Seedance 2.5), title « clé FAL_KEY à ajouter dans Réglages »",
+          sq.get("dis") == "false" and sq.get("txt") == "Seedance 2.5" and "clé FAL_KEY à ajouter dans Réglages" in (sq.get("title") or ""), str(sq))
+    lq2 = {o.get("id"): o for o in (sc.get("listeQ") or [])}
+    check("SANS CLÉ : la liste du Quick s'ouvre, les 4 modèles choisissables avec la mention de LEUR clé",
+          sc.get("ouvre") is True and len(lq2) == 4 and all(o.get("dis") is None for o in lq2.values())
+          and "clé GEMINI_API_KEY à ajouter" in (lq2.get("veo-3") or {}).get("txt", "")
+          and "clé FAL_KEY à ajouter" in (lq2.get("seedance-2") or {}).get("txt", ""), str(lq2)[:400])
+    check("SANS CLÉ : Library grisée (le select de la vue n'en sert aucun), title « clé X à ajouter dans Réglages » pour FAL_KEY et OPENAI_API_KEY",
+          sl.get("dis") == "true" and "clé FAL_KEY à ajouter dans Réglages" in (sl.get("title") or "")
+          and "clé OPENAI_API_KEY à ajouter dans Réglages" in (sl.get("title") or ""), str(sl))
+    check("SANS CLÉ : la pastille grisée (Library) n'ouvre pas de liste", sc.get("ouvreL") is False, str(sc.get("ouvreL")))
     ap = T.get("appels") or []
     est = [a for a in ap if a[1] == "/api/cost/estimate"]
-    check("prix d'image : estimation POST (campaign, un op image par modèle du registre : 16 depuis t182)",
-          bool(est) and all(a[0] == "POST" and (a[2] or {}).get("kind") == "campaign" and len((a[2] or {}).get("ops") or []) == 16 for a in est), str(est[:1])[:300])
+    img = [a for a in ap if a[1] == "/api/image-models"]
+    check("t183 : prix d'image lu au catalogue — AUCUNE estimation POST", est == [] and R.get("estT8") == 0, str(est[:1])[:300])
     check("TÉMOIN (revue T9) : plusieurs pastilles d'image sur la page SPA (Chapitres, Library, Templates…)",
           (R.get("nImgT8") or 0) >= 3, str(R.get("nImgT8")))
-    check("déduplication : ces pastilles d'image → UNE seule estimation sur la page",
-          R.get("estT8") == 1, str(R.get("estT8")))
-    check("compte exact : 2 estimations sur tout le banc (la page SPA, puis la relecture forcée « sans clé »)",
-          len(est) == 2, str(len(est)))
+    check("déduplication : ces pastilles d'image → UNE seule lecture de /api/image-models sur la page",
+          R.get("imgT8") == 1, str(R.get("imgT8")))
+    check("compte exact : 2 lectures de /api/image-models sur tout le banc (la page SPA, puis la relecture forcée « sans clé »)",
+          len(img) == 2 and all(a[0] == "GET" for a in img), str(len(img)))
     ck = T.get("clav") or {}
     check("clavier : la pastille est un bouton focusable (pas de tabindex=-1)", ck.get("bouton") is True, str(ck))
     check("TÉMOIN : liste fermée, Échap atteint l'hôte", T.get("hoteTemoin") == 1, str(T.get("hoteTemoin")))
     check("clavier : à l'ouverture, l'option active (aria-activedescendant) est le modèle actuel",
           ck.get("a0") == "seedance-2" and ck.get("pDesc") is True, str(ck))
-    check("clavier : ↓ ↓ parcourt les options (seedance-2.5 puis veo-3)", ck.get("a1") == "seedance-2.5" and ck.get("a2") == "veo-3", str(ck))
-    gr9 = ck.get("grise") or {}
-    check("NÉGATIF : Entrée sur une option GRISÉE → rien n'est écrit, la liste reste ouverte",
-          gr9.get("valeur") == "seedance-2" and gr9.get("ouverte") is True, str(gr9))
-    check("clavier : ↑ revient (seedance-2.5)", ck.get("a3") == "seedance-2.5", str(ck.get("a3")))
+    check("clavier : ↓ ↓ parcourt les options (seedance-2.5 puis veo-3), l'en-tête de voie n'est pas une étape",
+          ck.get("a1") == "seedance-2.5" and ck.get("a2") == "veo-3", str(ck))
+    check("clavier : ↑ revient (seedance-2.5), ↓ retourne sur veo-3", ck.get("a3") == "seedance-2.5" and ck.get("a4") == "veo-3", str(ck))
     ch9 = ck.get("choix") or {}
-    check("clavier : Entrée choisit (la vue est rejouée), liste fermée, focus rendu à la pastille",
-          ch9.get("valeur") == "seedance-2.5" and ch9.get("ouverte") is False and ch9.get("focus") is True and ch9.get("txt") == "Seedance 2.5", str(ch9))
+    check("clavier : Entrée sur veo-3 SANS CLÉ le choisit (décision 11/10 : la vue est rejouée), liste fermée, focus rendu à la pastille",
+          ch9.get("valeur") == "veo-3" and ch9.get("ls") == "veo-3" and ch9.get("ouverte") is False and ch9.get("focus") is True
+          and ch9.get("txt") == "Veo 3 (Google)" and "clé GEMINI_API_KEY à ajouter dans Réglages" in (ch9.get("title") or ""), str(ch9))
     check("clavier : Tab ferme la liste et rend le focus à la pastille",
           (ck.get("tab") or {}).get("ouverte") is False and (ck.get("tab") or {}).get("focus") is True, str(ck.get("tab")))
     check("clavier : Échap ferme la liste et rend le focus à la pastille",

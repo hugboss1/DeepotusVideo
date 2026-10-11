@@ -5658,17 +5658,27 @@ def _garde_cout(ops: list, *max_usds) -> float:
     return total
 
 
-@router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(_require_local_depense)])
-async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
-    # W-a — the required key depends on the selected model's provider
+def _cle_video_ou_503(video_model) -> None:
+    """La clé qu'exige le modèle vidéo choisi (W-a : Google -> GEMINI_API_KEY,
+    sinon FAL_KEY). t183 (G1) — décision de l'utilisateur (11/10/2026) : un
+    modèle sans sa clé reste CHOISISSABLE dans tous les sélecteurs ; c'est ici
+    que le tir est refusé, en 503 qui nomme la clé et les Réglages, AVANT
+    toute garde de dépense (_garde_cout, _plafond) : aucune ligne `depenses`."""
     from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
-    _mdl = VIDEO_MODELS.get(request.video_model or DEFAULT_VIDEO_MODEL)
+    mid = video_model or DEFAULT_VIDEO_MODEL
+    _mdl = VIDEO_MODELS.get(mid)
     if _mdl and _mdl["provider"] == "google":
         if not settings.has_gemini:
-            raise HTTPException(503, "GEMINI_API_KEY not configured. "
-                                     "Add it in Settings -> Keys")
+            raise HTTPException(503, f"GEMINI_API_KEY non configurée (Réglages) pour {mid} "
+                                     "— rien n'a été lancé.")
     elif not settings.FAL_KEY:
-        raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
+        raise HTTPException(503, f"FAL_KEY non configurée (Réglages) pour {mid} — rien n'a été lancé.")
+
+
+@router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(_require_local_depense)])
+async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
+    # W-a — the required key depends on the selected model's provider (t183 : 503 avant la dépense)
+    _cle_video_ou_503(request.video_model)
 
     image_path = settings.images_path / request.image_filename
     if not image_path.exists():
@@ -5713,8 +5723,8 @@ async def generate_batch(request: GenerateBatchRequest, background_tasks: Backgr
     - If request.seed is None, a random base seed is generated and used.
     - All N jobs share a batch_id (returned) so the UI can group them.
     """
-    if not settings.FAL_KEY:
-        raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
+    # t183 : la clé du modèle CHOISI (Veo -> GEMINI_API_KEY), plus seulement FAL_KEY
+    _cle_video_ou_503(request.video_model)
 
     image_path = settings.images_path / request.image_filename
     if not image_path.exists():
@@ -6087,6 +6097,8 @@ async def generate_composition(request: CompositionRequest, background_tasks: Ba
     Layout: sequential, split_vstack, or split_hstack.
     Both clips are generated in parallel, then composed via ffmpeg.
     """
+    # t183 : la clé du modèle vidéo choisi pour le côté Seedance (Veo -> GEMINI_API_KEY)
+    _cle_video_ou_503(request.seedance.video_model)
     if not settings.FAL_KEY:
         raise HTTPException(503, "FAL_KEY not configured")
     if not settings.has_heygen:

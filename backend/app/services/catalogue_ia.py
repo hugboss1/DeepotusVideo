@@ -26,6 +26,11 @@ CLES = {"fal": "FAL_KEY", "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY"
 _SOURCES = {}                   # nature -> fonction () -> list[dict] brutes
 
 NOTE_A_MESURER = "a_mesurer"     # code ; libellé : dzT("ia.prix.a_mesurer")
+# t183 (G1) : le libellé d'ÉCRAN d'un modèle, quand il diffère de celui de la
+# ligne de coût de pricing._IMAGE_MODELS (« FLUX image ») : c'est le libellé de
+# /image-models `models` (« FLUX schnell »), que les sélecteurs affichent et que
+# la pastille de dz-champ-ia relit — un modèle a UN seul nom dans les listes.
+_LIBELLES_ECRAN = {"flux": "FLUX schnell"}
 
 
 def source(nature):
@@ -66,7 +71,7 @@ def _images() -> list[dict]:
             usd = 0.0
         jumeau = IP._FAL_GPT.get(mid) or inverse.get(mid)
         fal = IP.FAL_IMAGES.get(mid)
-        out.append({"id": mid, "label": label, "voie": voie, "usd": usd,
+        out.append({"id": mid, "label": _LIBELLES_ECRAN.get(mid, label), "voie": voie, "usd": usd,
                     "unite": "image", "jumeau": jumeau,
                     "note": "" if usd else NOTE_A_MESURER,
                     "edit": bool(fal["edit"]) if fal else True,

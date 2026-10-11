@@ -29,9 +29,10 @@ CE QUI EST COMPARE.
       parametres de corps des deux routes de `dictation_service` (noms,
       obligatoires) ; puis joues sur le TestClient : le corps du client passe
       (200, transcription espionnee, max_usd transmis), sans `max_usd` -> 422.
-  [4] Catalogue image de la pastille : ids (et cle exigee) de
-      `CATALOGUE_IMAGE` de la couche == ids de `list_image_models` (deux cles
-      posees) == cles de `pricing._IMAGE_MODELS` ; libelles egaux au serveur.
+  [4] Catalogue image de la pastille : t183 (G1) — la couche n'a plus de
+      miroir `CATALOGUE_IMAGE`, elle lit `tous` de /api/image-models ; les ids
+      raster de `tous` == ids de `list_image_models` (deux cles posees) == cles
+      de `pricing._IMAGE_MODELS` ; libelles et cle exigee egaux au serveur.
   [5] Tarif et plafond de la vignette video du bundle (`dzVmRates`,
       `dzVmCost`) == `pricing` : taux de Seedance 2.5 (720p) et duree max du
       registre, plafond 10 = `video_max_gen_s` par defaut, et dzVmCost(2.5, d)
@@ -355,9 +356,9 @@ check("x3_temoin_sans_max_usd_422_et_aucune_transcription_le_corps_complet_passa
       _r3s[0] == 422 and _r3s[1] == [] and _r3[2] == 200, _res3)
 
 # ═════════════════════════════════════════════════════════════════════════════
-print("\n[4] catalogue image : CATALOGUE_IMAGE (couche) == list_image_models == pricing._IMAGE_MODELS")
-_cat_src = CIA[CIA.find("var CATALOGUE_IMAGE = ["):CIA.find("];", CIA.find("var CATALOGUE_IMAGE = ["))]
-CAT = re.findall(r'\["([a-z0-9.\-]+)", "([^"]+)", "([A-Z_]+)"\]', _cat_src)
+print("\n[4] catalogue image : `tous` (catalogue unique, lu par la couche) == list_image_models == pricing._IMAGE_MODELS")
+check("x4_la_couche_lit_tous_sans_miroir_code_en_dur",
+      "CATALOGUE_IMAGE" not in CIA and "d.tous" in CIA and 'e.sortie !== "svg"' in CIA)
 _lim = {}
 if _cli is not None:
     try:
@@ -376,6 +377,9 @@ if _cli is not None:
     except Exception as e:                   # noqa: BLE001
         _lim = {"erreur": repr(e)}
 SRV_IM = {m["id"]: m for m in (_lim.get("models") or []) if isinstance(m, dict)}
+# t183 : le catalogue de la couche = les entrées raster de `tous` (id, libellé, clé exigée)
+CAT = [(e["id"], e.get("label"), e.get("cle")) for e in (_lim.get("tous") or [])
+       if isinstance(e, dict) and e.get("sortie") != "svg"]
 PRI_IM = set(getattr(pr, "_IMAGE_MODELS", {}) or {}) if pr is not None else set()
 _ids = [c[0] for c in CAT]
 N_IMG = 16                                 # t182 (G0) : 11 + 5 modèles d'image fal raster
