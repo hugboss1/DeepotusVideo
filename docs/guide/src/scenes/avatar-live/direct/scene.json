@@ -4,8 +4,8 @@
     "en": "Live"
   },
   "legende": {
-    "fr": "Direct : Personnage, décor, format, durée réservée et voix envoyée ; le prix réservé s'affiche avant de démarrer.",
-    "en": "Live: Character, setting, format, reserved duration and voice sent; the reserved price shows before you start."
+    "fr": "Direct : fournisseur (fal par défaut, la clé fal suffit), Personnage, décor, format, durée réservée et voix envoyée ; le prix réservé s'affiche avant de démarrer.",
+    "en": "Live: provider (fal by default, the fal key is enough), Character, setting, format, reserved duration and voice sent; the reserved price shows before you start."
   },
   "captures": [
     {
@@ -23,7 +23,21 @@
       "duree": 2.6,
       "surligne": [
         35,
-        287,
+        231,
+        410,
+        46
+      ],
+      "bulle": {
+        "fr": "fal par défaut : la clé fal suffit",
+        "en": "fal by default: the fal key is enough"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        374,
         410,
         137
       ],
@@ -37,7 +51,7 @@
       "duree": 2.6,
       "surligne": [
         35,
-        636,
+        722,
         380,
         46
       ],
@@ -51,7 +65,7 @@
       "duree": 2.8,
       "surligne": [
         35,
-        836,
+        922,
         182,
         51
       ],
@@ -67,7 +81,21 @@
       "duree": 2.6,
       "surligne": [
         35,
-        287,
+        231,
+        410,
+        46
+      ],
+      "bulle": {
+        "fr": "fal par défaut : la clé fal suffit",
+        "en": "fal by default: the fal key is enough"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        35,
+        374,
         410,
         137
       ],
@@ -81,7 +109,7 @@
       "duree": 2.6,
       "surligne": [
         35,
-        636,
+        722,
         345,
         46
       ],
@@ -95,7 +123,7 @@
       "duree": 2.8,
       "surligne": [
         35,
-        836,
+        922,
         199,
         51
       ],

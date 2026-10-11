@@ -209,3 +209,48 @@ Fait notable : Kling Motion Control **garde le son d'origine** par défaut (`kee
 « élément » visage (vue frontale + 1-3 vues) pour tenir l'identité — c'est l'usage direct du Personnage (images
 0 à 3). `decart/lucy-2-5/realtime` existe aussi sur fal (prompt + `reference_image_url`) : chemin écarté pour le
 Direct (0,04 $/s via fal contre 0,02 $/s chez Decart).
+
+## 10. Le Direct par fal : essai réel du 11/10/2026 (t168f)
+
+fal héberge `decart/lucy-2-5/realtime` (0,02 $/s, même prix que Decart en mode normal ; pas de mode rapide). Le
+format des messages n'est pas documenté : il a été relevé dans le code du playground fal (extension
+`fal/lucy-webrtc` de leur client, `endpoints: ["decart/lucy-2-5/realtime", "decart/lucy-2/realtime"]`) puis
+confirmé par UN essai réel de ~7 s de flux (Chrome sans tête, caméra simulée 1280×720, accord de l'utilisateur,
+0,14 $ notés au registre des dépenses, ligne `fal-essai:t168f`), et une sonde gratuite (sans offre WebRTC) depuis
+Python.
+
+**Signalisation** — un WebSocket `wss://fal.run/decart/lucy-2-5/realtime`, messages **msgpack** dans les deux sens :
+
+| Sens | Message | Remarque |
+|---|---|---|
+| auth | en-tête `Authorization: Key <FAL_KEY>` (serveur) ou `?fal_jwt_token=<jeton>` (navigateur) | jeton : `POST https://rest.fal.ai/tokens/` `{allowed_apps: ["lucy-2-5"], token_expiration: s}` → **201**, corps = la chaîne JWT |
+| → | `{prompt, reference_image_url?, enable_prompt_expansion}` | l'entrée, envoyée en PREMIER |
+| ← | `{type: "x-fal-message", action: "timings", timing}` | à l'ouverture puis toutes les ~2 s |
+| ← | `{type: "ready", sdp: null, candidate: null, iceServers: null, error: null}` | 0,2-0,4 s après l'entrée |
+| ← | `{type: "iceServers", iceServers: [{urls: "stun:stun.l.google.com:19302"}]}` | un STUN public seul, aucun TURN |
+| → | `{type: "offer", sdp}` | offre du client (vidéo sendrecv) |
+| ← | `{type: "answer", sdp}` | 0,27 s après l'offre |
+| ↔ | `{type: "icecandidate", candidate: {candidate, sdpMid, sdpMLineIndex}}` | trickle ICE dans les deux sens |
+| → | `{prompt, reference_image_url?, enable_prompt_expansion}` | consigne À CHAUD : même forme que l'entrée ; elle **remplace** l'état entier (la plage a disparu sous l'aquarelle) |
+| ← | `{type: "error", error: "Concurrent session limit reached."}` | reçu au 1er essai, 24 ms après l'offre, sans aucune session ouverte chez nous ; passé une minute plus tard. Rien n'est généré (ni facturé) dans ce cas |
+
+**Latence mesurée** (depuis l'ouverture du WebSocket) : jeton 1,0 s avant ; `ready` +0,4 s ; `answer` +0,7 s ;
+ICE `connected` +2,8 s ; **première image transformée +4,1 s** ; la consigne à chaud est visible en moins de 2,5 s.
+Débit reçu : ~20 images/s à 1280×720 (la caméra simulée donne 20 i/s).
+
+**Arrêt et facturation** :
+- l'expiration du jeton n'arrête PAS une session ouverte : jeton de 5 s, flux vivant 7 s après (le jeton n'est
+  vérifié qu'à la poignée de main du WebSocket) ;
+- la fermeture du WebSocket ARRÊTE la génération : 99 images au moment de la fermeture, 106 deux secondes plus
+  tard (7 images en vol), alors que le pair WebRTC reste « connected ». fal n'expose aucune borne de durée (pas
+  d'équivalent du `maxSessionDuration` de Decart) ;
+- donc **qui tient le WebSocket tient la borne**. Décision : le backend RELAIE la signalisation (page ⇄ backend en
+  JSON sur `/api/avatar-live/fal/relais`, backend ⇄ fal en msgpack avec la clé en en-tête). La vidéo reste
+  pair-à-pair navigateur ⇄ Decart ; la clé fal ne quitte jamais le serveur (pas même un jeton temporaire) ; le
+  serveur coupe à la durée réservée, coupe aussi dès que la page se déconnecte, et MESURE la durée facturée
+  (de l'ouverture du WebSocket fal à sa fermeture, bornée à la réservation, et 0 s si fal n'a jamais rendu de réponse
+  SDP : un refus ne génère rien) au lieu de croire la page. Une fin demandée par la page pendant que le relais clôt
+  rend la même facture (relevé en preuve : la course donnait un 404).
+
+**Personnage** : `reference_image_url` exige une data URI de 512 px au moins : le backend la fabrique depuis la
+photo du Personnage (agrandie à 512 px si besoin) — la page n'envoie que l'id.

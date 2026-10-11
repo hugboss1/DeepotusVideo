@@ -8,7 +8,7 @@ Gardes :
     local (main._ECRITURES_OUVERTES). La garde du plafond mensuel est la MÊME pour les deux, et passe AVANT tout
     appel à Decart. Ce n'est pas `_require_local_depense` : le téléphone doit pouvoir lancer son Direct.
 """
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, WebSocket
 from fastapi.responses import FileResponse
 
 from app.services import avatar_live as AL
@@ -46,6 +46,8 @@ def _http(e: AL.Refus) -> HTTPException:
 async def etat():
     return {"cle": AL.cle_presente(), "modele": AL.MODELE, "prix_usd_s": AL.prix_usd_s(False),
             "prix_rapide_usd_s": AL.prix_usd_s(True),
+            # t168f : le Direct par fal (clé fal seule) — qui peut le porter, et le choix par défaut
+            "fournisseurs": AL.fournisseurs(), "prix_fal_usd_s": AL.prix_usd_s(False, "fal"),
             "duree": {"min": AL.DUREE_MIN_S, "max": AL.DUREE_MAX_S, "defaut": AL.DUREE_DEFAUT_S},
             "consentement": AL.TEXTE_CONSENTEMENT, "images_max": AL.IMAGES_MAX, "cote_min_px": AL.COTE_MIN_PX}
 
@@ -91,10 +93,11 @@ async def session_ouvrir(request: Request, body: dict | None = None):
     appareil = await _appareil(request)
     b = body if isinstance(body, dict) else {}
     try:
-        prep = AL.preparer_session(b.get("personnage_id"), b.get("duree_s"), bool(b.get("rapide")), b.get("voix"))
+        prep = AL.preparer_session(b.get("personnage_id"), b.get("duree_s"), bool(b.get("rapide")), b.get("voix"),
+                                   b.get("fournisseur"))
     except AL.Refus as e:
         raise _http(e)
-    garde = await _PLAF.verifier(prep["op"], "direct", ref=f"decart:{prep['session_id']}")
+    garde = await _PLAF.verifier(prep["op"], "direct", ref=prep["ref"])
     try:
         return await AL.ouvrir_session_direct(prep, garde["lignes"], appareil)
     except AL.Refus as e:
@@ -469,3 +472,14 @@ async def session_voix(request: Request, session_id: str = ""):
     except (AL.Refus, VD.Refus) as e:
         raise HTTPException(e.statut, e.message)
     return Response(out, media_type="application/octet-stream", headers={"X-Latence-Ms": str(ms)})
+
+
+# ── t168f (11/10/2026) : le relais de signalisation du Direct par fal ─────────────────────────────────────────────
+# Le backend tient le WebSocket fal (clé en en-tête) : la page ne parle qu'à lui. Pas de garde de plafond ICI : la
+# dépense a été RÉSERVÉE et gardée par POST /sessions ; le jeton du relais (usage unique, 60 s) en est la preuve, et
+# le relais coupe à la durée réservée. Ouvert au téléphone par le même jeton (pas de middleware HTTP sur un WS).
+
+@router.websocket("/fal/relais")
+async def fal_relais(ws: WebSocket, jeton: str = ""):
+    await ws.accept()
+    await AL.relayer_fal(ws, jeton)

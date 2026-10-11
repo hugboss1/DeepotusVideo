@@ -187,9 +187,10 @@
     <div class="colonnes">
       <div class="carte formulaire">
         <h2>Direct</h2>
-        <p class="aide">Ta webcam, transformée en temps réel : ton jeu, le visage du Personnage, le décor de ton choix. Facturé à la seconde ; la durée réservée est coupée chez Decart même si cette page se ferme.</p>
+        <p class="aide">Ta webcam, transformée en temps réel : ton jeu, le visage du Personnage, le décor de ton choix. Facturé à la seconde ; la durée réservée est coupée par le serveur (fal) ou chez Decart, même si cette page se ferme.</p>
+        <label class="champ">Fournisseur <select id="xFournisseur"><option value="fal" data-t="avatar.direct.fo_fal">fal (la clé fal suffit)</option><option value="decart" data-t="avatar.direct.fo_decart">Decart (mode rapide possible)</option></select></label>
         <div id="xCleZone" class="cle" hidden>
-          <label class="champ">Clé Decart (platform.decart.ai) — rangée au coffre, jamais montrée à la page
+          <label class="champ"><span id="xCleLabel">Clé Decart (platform.decart.ai) — rangée au coffre, jamais montrée à la page</span>
             <input id="xCle" type="password" autocomplete="off" placeholder="dct_…">
           </label>
           <button id="xCleOk" type="button" class="btn">Enregistrer la clé</button>
@@ -238,7 +239,7 @@
           <span id="xVoixStats" class="msg"></span>
         </div>
         <div class="ecrans">
-          <figure><video id="xSortie" autoplay playsinline></video><figcaption>Sortie Decart</figcaption></figure>
+          <figure><video id="xSortie" autoplay playsinline></video><figcaption id="xSortieLegende">Sortie Decart</figcaption></figure>
           <figure class="petit"><video id="xLocal" autoplay playsinline muted></video><figcaption>Ta webcam</figcaption></figure>
         </div>
       </div>

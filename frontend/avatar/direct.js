@@ -9,8 +9,13 @@
    À chaud : Personnage (image de référence) et décor (consigne) par `set()` — l'état COMPLET à chaque appel (doc
    Decart : set() remplace tout). Micro coché : la piste part avec la vidéo et revient CALÉE sur l'image transformée
    (le serveur retarde l'audio) — c'est l'appui de la voix en direct (G5). Enregistrer : MediaRecorder sur la sortie,
-   déposé puis converti en rendu mp4 de l'application. */
+   déposé puis converti en rendu mp4 de l'application.
+
+   t168f (11/10/2026) : DEUX fournisseurs. Decart (SDK ci-dessus, jeton client, borne chez Decart, mode rapide) ou fal
+   (decart/lucy-2-5/realtime, la clé fal seule : ./direct-fal.js, signalisation relayée par NOTRE serveur, qui tient
+   la borne et mesure la durée facturée). fal par défaut quand la clé Decart manque. */
 import { createDecartClient, models } from "./vendor/decart-sdk-0.2.8.js";
+import { connecterFal } from "./direct-fal.js";
 import { ouvrirVoixDirect, retardVideoPossible } from "./voix-direct.js";
 
 // G5 : retard appliqué à la vidéo envoyée pour rester calée sur la voix convertie = segment (500 ms) + latence
@@ -41,13 +46,27 @@ function etatCourant() {
   const consigne = [($("xConsigne").value || "").trim(), st.pre ? st.pre.consigne : ""].filter(Boolean).join(", ");
   const prompt = (pid ? "Swap the person for the character in the reference image" : "Keep the person")
     + (consigne ? ", " + consigne : "") + ".";
-  return { prompt, image: pid ? location.origin + API + "/personnages/" + pid + "/image/0" : null };
+  return { prompt, pid: pid || null, image: pid ? location.origin + API + "/personnages/" + pid + "/image/0" : null };
+}
+// t168f : le fournisseur choisi, et ce qu'il permet
+function fo() { return $("xFournisseur").value || "fal"; }
+function foPret() { return !!(st.cat && st.cat.fournisseurs && st.cat.fournisseurs[fo()]); }
+function majFournisseur() {
+  if (!st.cat) return;
+  const f = fo(), fal = f === "fal";
+  $("xCleZone").hidden = foPret();
+  $("xCleLabel").textContent = T(fal ? "avatar.direct.cle_fal" : "avatar.direct.cle");
+  $("xCle").placeholder = T(fal ? "avatar.direct.cle_placeholder_fal" : "avatar.direct.cle_placeholder");
+  $("xRapide").disabled = fal || !!st.rc;
+  if (fal) $("xRapide").checked = false;
+  $("xSortieLegende").textContent = T(fal ? "avatar.direct.sortie_fal" : "avatar.direct.sortie");
+  majDevis(); majBoutons();
 }
 
 function majDevis() {
   if (!st.cat) return;
   const min = Number($("xDuree").value) || 5, rapide = $("xRapide").checked;
-  const prix = rapide ? st.cat.prix_rapide_usd_s : st.cat.prix_usd_s;
+  const prix = fo() === "fal" ? st.cat.prix_fal_usd_s : rapide ? st.cat.prix_rapide_usd_s : st.cat.prix_usd_s;
   $("xDevis").textContent = T("avatar.direct.devis", { total: eur(prix * min * 60), min, par_min: eur(prix * 60) });
 }
 
@@ -55,9 +74,10 @@ async function poserCle() {
   const v = ($("xCle").value || "").trim(); if (!v) return;
   try {
     await lire(await fetch("/api/settings/keys", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "DECART_API_KEY", value: v }) }));
+      body: JSON.stringify({ name: fo() === "fal" ? "FAL_KEY" : "DECART_API_KEY", value: v }) }));
+    const f = fo();
     $("xCle").value = ""; await charger();
-    dire(T("avatar.direct.cle_posee"));
+    dire(T(f === "fal" ? "avatar.direct.cle_posee_fal" : "avatar.direct.cle_posee"));
   } catch (e) { dire(e.message, true); }
 }
 
@@ -74,6 +94,7 @@ async function demarrer() {
     const min = Number($("xDuree").value) || 5;
     st.sess = await lire(await fetch(API + "/sessions", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ personnage_id: $("xPerso").value || null, duree_s: min * 60, rapide: $("xRapide").checked,
+        fournisseur: fo(),
         voix: !voixChoix ? null : voixChoix === "cloud" ? { moteur: "cloud" }
           : { moteur: "local", modele: voixChoix.slice(6), transpose: Number($("xTranspose").value) || 0 } }) }));
     let fluxEnvoye = st.local;
@@ -97,9 +118,21 @@ async function demarrer() {
       fluxEnvoye = st.vd.flux;
       if (!st.vd.videoRetardee) dire(T("avatar.direct.pas_de_retard"), true);
     }
-    const client = createDecartClient({ apiKey: st.sess.jeton });
     const e0 = etatCourant();
     dire(T("avatar.direct.connexion"));
+    if (st.sess.fournisseur === "fal") {
+      // t168f : le relais du serveur ; la borne et la mesure des secondes sont chez lui
+      st.rc = await connecterFal(fluxEnvoye, { relais: st.sess.relais, etat: { prompt: e0.prompt, personnage_id: e0.pid },
+        onRemoteStream: (flux) => { $("xSortie").srcObject = flux; st.sortie = flux; } });
+      st.rc.on("sessionEnded", (ev) => arreter(ev && ev.reason === "borne" ? T("avatar.direct.borne")
+        : T("avatar.direct.fin_fal", { raison: ev && ev.reason ? " (" + ev.reason + ")" : "" })));
+      st.rc.on("error", (ev) => dire(T("avatar.direct.erreur", { raison: texteErreur(ev) }), true));
+      st.debut = performance.now();
+      st.minuterie = setInterval(tic, 500);
+      majBoutons(); dire(T("avatar.direct.en_cours"));
+      return;
+    }
+    const client = createDecartClient({ apiKey: st.sess.jeton });
     st.rc = await client.realtime.connect(fluxEnvoye, {
       model: models.realtime(st.sess.modele),
       speed: st.sess.rapide ? "fast" : undefined,
@@ -114,11 +147,13 @@ async function demarrer() {
     st.minuterie = setInterval(tic, 500);
     majBoutons(); dire(T("avatar.direct.en_cours"));
   } catch (e) {
-    dire(e.message || String(e), true);
-    await arreter(null);
+    dire(texteErreur(e), true);
+    await arreter(null, true);
   }
   majBoutons();
 }
+// t168f : les erreurs du relais fal portent une clé du dictionnaire
+function texteErreur(e) { return e && e.cle ? T(e.cle, e.vars) : (e && e.message) || String(e); }
 
 function tic() {
   if (!st.sess) return;
@@ -131,11 +166,13 @@ function tic() {
 async function appliquer() {
   if (!st.rc) return;
   const e = etatCourant();
-  try { await st.rc.set({ prompt: e.prompt, image: e.image, enhance: true }); dire(T("avatar.direct.applique")); }
+  const etat = st.sess && st.sess.fournisseur === "fal" ? { prompt: e.prompt, personnage_id: e.pid }
+    : { prompt: e.prompt, image: e.image, enhance: true };
+  try { await st.rc.set(etat); dire(T("avatar.direct.applique")); }
   catch (x) { dire(T("avatar.direct.refuse", { raison: x.message || x }), true); }
 }
 
-async function arreter(motif) {
+async function arreter(motif, garderMessage) {
   clearInterval(st.minuterie); st.minuterie = null;
   if (st.rec && st.rec.state !== "inactive") st.rec.stop();
   const sess = st.sess, rc = st.rc;
@@ -149,9 +186,11 @@ async function arreter(motif) {
     try {
       const f = await lire(await fetch(API + "/sessions/fin", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sess.session_id, secondes }), keepalive: true }));
-      dire(T("avatar.direct.facture", { motif: motif || T("avatar.direct.arrete"), duree: hms(f.secondes), usd: eur(f.reel_usd) })
-        + (f.voix_s != null ? T("avatar.direct.facture_voix", { duree: hms(f.voix_s), usd: eur(f.voix_usd) }) : "") + ".");
-    } catch (e) { dire(T("avatar.direct.fin_non_notee", { raison: e.message }), true); }
+      const fac = T("avatar.direct.facture", { motif: motif || T("avatar.direct.arrete"), duree: hms(f.secondes), usd: eur(f.reel_usd) })
+        + (f.voix_s != null ? T("avatar.direct.facture_voix", { duree: hms(f.voix_s), usd: eur(f.voix_usd) }) : "") + ".";
+      // après une erreur, la facture s'ajoute au message au lieu de l'effacer
+      if (garderMessage) dire($("xMsg").textContent + " — " + fac, true); else dire(fac);
+    } catch (e) { if (!garderMessage) dire(T("avatar.direct.fin_non_notee", { raison: e.message }), true); }
   } else if (motif) dire(motif);
   majBoutons();
 }
@@ -182,19 +221,27 @@ function enregistrer() {
 
 function majBoutons() {
   const actif = !!st.rc;
-  $("xGo").disabled = actif || !(st.cat && st.cat.cle);
+  $("xGo").disabled = actif || !foPret();
   $("xStop").disabled = !actif;
   $("xAppliquer").disabled = !actif;
   $("xRec").disabled = !actif;
   $("xRec").querySelector("span").textContent = T(st.rec && st.rec.state === "recording" ? "avatar.direct.arreter_enregistrement" : "avatar.direct.enregistrer");
   $("xDirectEtat").hidden = !actif;
-  ["xFormat", "xDuree", "xRapide", "xMicro", "xMiroir", "xVoix", "xTranspose"].forEach((id) => { $(id).disabled = actif; });
+  ["xFormat", "xDuree", "xMicro", "xMiroir", "xVoix", "xTranspose", "xFournisseur"].forEach((id) => { $(id).disabled = actif; });
+  $("xRapide").disabled = actif || fo() === "fal";
 }
 
 async function charger() {
   st.cat = await lire(await fetch(API + "/etat"));
   const rc = await lire(await fetch(API + "/recast/modeles"));
-  $("xCleZone").hidden = !!st.cat.cle;
+  // t168f : le fournisseur — fal par défaut quand la clé Decart manque ; une option sans clé reste choisissable
+  // (la zone de clé apparaît pour la poser)
+  const fs = st.cat.fournisseurs || { decart: !!st.cat.cle, fal: false, defaut: st.cat.cle ? "decart" : null };
+  const sf = $("xFournisseur"), avantFo = sf.value; sf.textContent = "";
+  [["fal", "avatar.direct.fo_fal"], ["decart", "avatar.direct.fo_decart"]].forEach(([v, cle]) => {
+    sf.appendChild(new Option(T(cle) + (fs[v] ? "" : T("avatar.direct.fo_sans_cle")), v));
+  });
+  sf.value = avantFo && fs[avantFo] ? avantFo : (fs.defaut || "fal");
   const pre = $("xPre"); pre.textContent = "";
   rc.prereglages.forEach((p) => {
     const b = document.createElement("button");
@@ -212,7 +259,7 @@ async function charger() {
   persos.forEach((p) => s.appendChild(new Option(p.nom, p.id)));
   s.value = avant || (persos.length ? persos[persos.length - 1].id : "");
   await chargerVoix();
-  majDevis(); majBoutons();
+  majFournisseur();
 }
 
 async function chargerVoix() {
@@ -252,6 +299,7 @@ $("xPerso").addEventListener("change", () => { if (st.rc) appliquer(); });
 $("xRec").addEventListener("click", enregistrer);
 ["xDuree", "xRapide"].forEach((id) => $(id).addEventListener("input", majDevis));
 $("xVoix").addEventListener("change", majVoix);
+$("xFournisseur").addEventListener("change", majFournisseur);
 document.addEventListener("visibilitychange", () => {
   clearTimeout(st.cache);
   if (document.hidden && st.rc) st.cache = setTimeout(() => arreter(T("avatar.direct.cache")), 60000);
