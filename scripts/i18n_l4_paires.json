@@ -2983,6 +2983,12 @@
     "groupe": "son_a"
    },
    {
+    "pos": 8345,
+    "avant": "/* Le prix affiché est celui de CE QUE FAIT le bouton. « VFX particules » est\r\n   passé de « $0.06 » à « gratuit » parce que la génération est désormais une\r\n   simulation locale, et « SFX » à « gratuit » parce que 606 bruitages CC0 sont\r\n   livrés : la facturation ElevenLabs ne concerne plus que la génération sur\r\n   description. Un tarif qui survit au câblage est un mensonge d'interface. */",
+    "apres": "/* t183 (11/10/2026) : AUCUN prix écrit en dur dans ce rail. Musique et voix off se\r\n   paient au modèle choisi (leurs cartes affichent le prix lu au serveur) ; le SFX\r\n   GÉNÉRÉ se paie en crédits ElevenLabs — seuls les 606 bruitages CC0 livrés sont\r\n   gratuits ; VFX particules et post-traitement sont locaux. Un tarif écrit ici\r\n   ment dès que le câblage change. */",
+    "groupe": "son_a"
+   },
+   {
     "pos": 8776,
     "avant": "\"Musique\"",
     "apres": "dzT(\"son.gen.musique\")",
@@ -2995,15 +3001,21 @@
     "groupe": "son_a"
    },
    {
+    "pos": 8843,
+    "avant": "price:\"~$0.10\"",
+    "apres": "price:dzT(\"son.gen.prix_modele\")",
+    "groupe": "son_a"
+   },
+   {
     "pos": 8902,
     "avant": "\"606 bruitages livrés + génération sur description\"",
     "apres": "dzT(\"son.gen.sfx_desc\")",
     "groupe": "son_a"
    },
    {
-    "pos": 8960,
-    "avant": "\"gratuit\"",
-    "apres": "dzT(\"son.commun.gratuit\")",
+    "pos": 8954,
+    "avant": "price:\"gratuit\"",
+    "apres": "price:dzT(\"son.gen.prix_sfx\")",
     "groupe": "son_a"
    },
    {
@@ -3019,6 +3031,12 @@
     "groupe": "son_a"
    },
    {
+    "pos": 9065,
+    "avant": "price:\"$0.08\"",
+    "apres": "price:dzT(\"son.gen.prix_modele\")",
+    "groupe": "son_a"
+   },
+   {
     "pos": 9112,
     "avant": "\"VFX particules\"",
     "apres": "dzT(\"son.gen.vfx\")",
@@ -3031,9 +3049,9 @@
     "groupe": "son_a"
    },
    {
-    "pos": 9188,
-    "avant": "\"gratuit\"",
-    "apres": "dzT(\"son.commun.gratuit\")",
+    "pos": 9182,
+    "avant": "price:\"gratuit\"",
+    "apres": "price:dzT(\"son.gen.local\")",
     "groupe": "son_a"
    },
    {
@@ -3043,9 +3061,9 @@
     "groupe": "son_a"
    },
    {
-    "pos": 9297,
-    "avant": "\"gratuit\"",
-    "apres": "dzT(\"son.commun.gratuit\")",
+    "pos": 9291,
+    "avant": "price:\"gratuit\"",
+    "apres": "price:dzT(\"son.gen.local\")",
     "groupe": "son_a"
    },
    {

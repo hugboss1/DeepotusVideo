@@ -37,22 +37,32 @@ ENTREES = [
     X(8238, 'identique dans les deux langues'),
     X(8291, 'identique dans les deux langues (nom anglais)'),
     X(8309, 'identique dans les deux langues'),
-    # SVM_GENS : générateurs du rail (name / desc / price affichés)
+    # SVM_GENS : générateurs du rail (name / desc / price affichés).
+    # t183 (G1, 11/10/2026) : plus AUCUN prix écrit en dur dans le rail — la musique et la voix off se paient au modèle
+    # choisi (leurs cartes portent le prix lu au serveur), le SFX généré se paie en crédits ElevenLabs (il n'est PAS
+    # « gratuit » : seuls les 606 bruitages livrés le sont) ; VFX et post-traitement sont locaux.
+    # le commentaire du rail, réécrit à longueur compensée : la table G1 (dzglyph_paires.json) repère les éditions de
+    # cette couche par POSITION — les substitutions du rail (+25 caractères) sont rendues ici (-25), rien ne bouge après
+    S(8345, "/* Le prix affiché est celui de CE QUE FAIT le bouton. « VFX particules » est\r\n   passé de « $0.06 » à « gratuit » parce que la génération est désormais une\r\n   simulation locale, et « SFX » à « gratuit » parce que 606 bruitages CC0 sont\r\n   livrés : la facturation ElevenLabs ne concerne plus que la génération sur\r\n   description. Un tarif qui survit au câblage est un mensonge d'interface. */",
+      '/* t183 (11/10/2026) : AUCUN prix écrit en dur dans ce rail. Musique et voix off se\r\n   paient au modèle choisi (leurs cartes affichent le prix lu au serveur) ; le SFX\r\n   GÉNÉRÉ se paie en crédits ElevenLabs — seuls les 606 bruitages CC0 livrés sont\r\n   gratuits ; VFX particules et post-traitement sont locaux. Un tarif écrit ici\r\n   ment dès que le câblage change. */', {}),
+    S(8843, 'price:"~$0.10"', 'price:dzT("son.gen.prix_modele")', {"son.gen.prix_modele": ("prix selon le modèle choisi", "price depends on the chosen model")}),
     L(8776, 'son.gen.musique', 'Musique', 'Music'),
     L(8791, 'son.gen.musique_desc', 'Piste complète, instrumentale ou chantée — fal.ai',
       'Full track, instrumental or sung — fal.ai'),
     L(8902, 'son.gen.sfx_desc', '606 bruitages livrés + génération sur description',
       '606 bundled sound effects + generation from a description'),
-    L(8960, 'son.commun.gratuit', 'gratuit', 'free'),
+    S(8954, 'price:"gratuit"', 'price:dzT("son.gen.prix_sfx")',
+      {"son.gen.prix_sfx": ("génération : crédits ElevenLabs", "generation: ElevenLabs credits")}),
+    S(9065, 'price:"$0.08"', 'price:dzT("son.gen.prix_modele")', {"son.gen.prix_modele": ("prix selon le modèle choisi", "price depends on the chosen model")}),
     L(9009, 'son.gen.voix_off', 'Voix off', 'Voiceover'),
     L(9025, 'son.gen.voix_off_desc', "Voix IA ou clonage d'une voix humaine", 'AI voice or cloning of a human voice'),
     L(9112, 'son.gen.vfx', 'VFX particules', 'Particle VFX'),
     L(9134, 'son.gen.vfx_desc', 'Explosions, fumée, éclats — simulation locale',
       'Explosions, smoke, bursts — local simulation'),
-    L(9188, 'son.commun.gratuit', 'gratuit', 'free'),
+    S(9182, 'price:"gratuit"', 'price:dzT("son.gen.local")', {"son.gen.local": ("local, gratuit", "local, free")}),
     L(9229, 'son.gen.post', 'Post-traitement', 'Post-processing'),
     X(9252, 'identique dans les deux langues'),
-    L(9297, 'son.commun.gratuit', 'gratuit', 'free'),
+    S(9291, 'price:"gratuit"', 'price:dzT("son.gen.local")', {"son.gen.local": ("local, gratuit", "local, free")}),
     # SVM_DEMO_VOICES / SVM_DEMO_FILE : voix de démonstration (sans clé) ; id « prophet » = valeur, name/meta/pill affichés
     L(9526, 'son.demo_voix.prophet', 'Prophet (clonée)', 'Prophet (cloned)'),
     L(9550, 'son.demo_voix.meta_prophet', 'fr · grave · 44.1 kHz', 'fr · deep · 44.1 kHz'),

@@ -33,6 +33,16 @@ Réglages »), jamais `disabled` ; seul un modèle vectoriel (sortie "svg") est
        core.js lit `tous` ; tables L7 et L8 à jour (--check) ;
   [c2] Atelier : #daProvider lit `tous` (DzModelesIA), l'image de production
        prend son prix au catalogue (/ia/catalogue), plus à la grille.
+  [d1] Material Forge : plus de MODEL_COST littéral (crédit = usd du
+       catalogue), #model par DzModelesIA sur `tous` ;
+  [d2] bundle : plus de `var ENG=[{value:"tripo"` ni de table RATES ; les
+       moteurs 3D viennent de /api/assets3d/engines (dzEngOpts exécuté sous
+       node : prix « ~$ », mention de clé, service local à démarrer) ;
+  [d3] son-vfx-montage.js : SVM_GENS sans « gratuit », sans « ~$0.10 » ni
+       « $0.08 » ; le bloc sonvfx du bundle est la couche à l'octet ;
+  [d4] Spritelab : #pmModel rempli par DzModelesIA, le modèle part dans
+       /images/generate ; tables L4 et L9 à jour (--check) ;
+  [d5] i18n : ia.modele.choisir et ia.local.a_demarrer en fr et en.
 
 Run: & $PY tests/test_encarts_ia.py   (depuis backend/)
 """
@@ -215,6 +225,88 @@ check("#daProvider : `tous` (sans-clé compris) par DzModelesIA, la note des see
       and 'const sel = tous.find(p => p.id === $("#daProvider").value);' in at and "pv.providers.find(" not in at)
 check("image de production : prix lu au catalogue (/ia/catalogue), plus à la grille de tarifs",
       'api.get("/ia/catalogue?nature=image")' in at and 'api.get("/cost/pricing")' not in at)
+
+# ── [d1] Material Forge ─────────────────────────────────────────────────────
+print("[d1] Material Forge")
+mf = lire("frontend/materialforge/materialforge.js")
+check("plus de MODEL_COST littéral (crédit = usd du catalogue)", not re.search(r"MODEL_COST\s*=\s*\{", mf)
+      and "MODEL_COST" not in sans_commentaires(mf) and "Math.round(Number(ent.usd) * 100)" in mf)
+check("#model : `tous` par DzModelesIA, sans-clé jamais désactivés",
+      'window.DzModelesIA.remplir($("#model"), models' in mf and "d.tous" in mf
+      and "disabled" not in mf[mf.index("async function loadModels("):mf.index("async function loadLibrary(")])
+
+# ── [d2] bundle : moteurs 3D ────────────────────────────────────────────────
+print("[d2] bundle : moteurs 3D lus au serveur")
+B = BUN.read_bytes().decode("utf-8")
+check("plus de liste de moteurs ni de table de tarifs écrites en dur",
+      'var ENG=[{value:"tripo"' not in B and "var RATES={tripo:" not in B and "var ENG=dzEngOpts(p.engine);" in B
+      and "dzEngCharger(function(){setPP(" in B and "var dzE=dzEngTrouve(p.engine);" in B)
+check("compteurs figés après E6-E8 : useState 731, DzTracks 181",
+      B.count("x.useState(") == 731 and B.count("DzTracks") == 181)
+a0 = B.find("var dzEngCat=null;")
+code = B[a0:B.find("function DzImgModelSel(", a0)]
+sonde = ("var DICO=" + json.dumps({"ia.cle.a_ajouter": "clé {cle} à ajouter dans Réglages",
+                                   "ia.local.a_demarrer": "service local à démarrer", "ia.prix.a_mesurer": "prix à mesurer"},
+                                  ensure_ascii=False)
+         + ";function dzT(k,v){var t=DICO[k]||k;for(var x in (v||{}))t=t.split('{'+x+'}').join(v[x]);return t}"
+         + "var REP={engines:[{id:'tripo',label:'Tripo v2.5',available:false,usd_texture:0.3,usd_brouillon:0.2},"
+           "{id:'hunyuan-local',label:'Hunyuan3D 2.1 (local)',local:true,available:false,usd_texture:0},"
+           "{id:'rodin',label:'Hyper3D Rodin',available:true,usd_texture:0.4,usd_brouillon:0.4}]};"
+           "var fetch=function(u){return Promise.resolve({ok:true,json:function(){return Promise.resolve(REP)}})};"
+         + code + ";var avant=dzEngOpts('tripo');"
+           "dzEngCharger(function(){console.log(JSON.stringify([avant,dzEngOpts('tripo'),dzEngTrouve('rodin').usd_texture]))});")
+if node:
+    pr = subprocess.run([node, "-e", sonde], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        E0, E1, U = json.loads(pr.stdout)
+    except ValueError:
+        E0, E1, U = None, None, None
+    check("dzEngOpts avant chargement : la valeur courante seule (pas de liste inventée)",
+          E0 == [{"value": "tripo", "label": "tripo"}], (pr.stdout + pr.stderr)[:400])
+    check("dzEngOpts : registre servi, prix « ~$ », fal sans clé choisissable avec la mention, local arrêté dit",
+          E1 == [{"value": "tripo", "label": "Tripo v2.5 · ~$0.30 · clé FAL_KEY à ajouter dans Réglages"},
+                 {"value": "hunyuan-local", "label": "Hunyuan3D 2.1 (local) · prix à mesurer · service local à démarrer"},
+                 {"value": "rodin", "label": "Hyper3D Rodin · ~$0.40"}] and U == 0.4, str(E1))
+    ch3 = lire("frontend/shared/dz-champ-ia.js")
+    check("la pastille Game Assets lit toujours le select (libellés « ~$ »)", "/~\\$/" in ch3)
+
+# ── [d3] Son & VFX ──────────────────────────────────────────────────────────
+print("[d3] Son & VFX")
+svm = lire("frontend/patches/son-vfx-montage.js")
+i = svm.index("var SVM_GENS=[")
+bloc = svm[i:svm.index("];", i)]
+check("SVM_GENS sans « gratuit »", "gratuit" not in bloc, bloc[:300])
+check("SVM_GENS sans prix écrit en dur (~$0.10, $0.08)", "~$0.10" not in bloc and "$0.08" not in bloc
+      and 'price:dzT("son.gen.prix_sfx")' in bloc)
+CR = chr(13)
+bb = B.find("var SVM_GENS=[")
+check("le bundle porte le même rail (couche sonvfx rafraîchie)",
+      bb >= 0 and B[bb:B.index("];", bb)].replace(CR, "") == bloc.replace(CR, ""))
+
+# (refresh_layer --check mesure la dérive contre la source COMMISE : il n'est probant qu'après le commit — la
+# comparaison du rail ci-dessus porte sur la source du poste)
+
+# ── [d4] Spritelab ──────────────────────────────────────────────────────────
+print("[d4] Spritelab")
+sp = lire("frontend/spritelab/spritelab.js")
+sph = lire("frontend/spritelab/index.html")
+check("#pmModel posé dans le panneau Prompt, rempli par DzModelesIA (catalogue image)",
+      sph.count('<select id="pmModel"') == 1 and 'window.DzModelesIA.select(pmSel, "image"' in sp)
+check("le modèle choisi part dans /images/generate", "imageModel ? { model: imageModel } : {}" in sp)
+for gen in ("i18n_l4_generer.py", "i18n_l9_generer.py"):
+    r = subprocess.run([sys.executable, str(R / "scripts" / gen), "--check"], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", cwd=str(R))
+    check(f"table {gen} à jour (--check)", r.returncode == 0, (r.stdout + r.stderr)[-300:])
+
+# ── [d5] i18n ───────────────────────────────────────────────────────────────
+print("[d5] i18n")
+com = json.loads(lire("frontend/shared/i18n/commun.json"))
+check("ia.modele.choisir et ia.local.a_demarrer en fr et en",
+      com.get("ia.modele.choisir") == {"fr": "Modèle", "en": "Model"}
+      and (com.get("ia.local.a_demarrer") or {}).get("fr") and (com.get("ia.local.a_demarrer") or {}).get("en"))
+r = subprocess.run([sys.executable, str(R / "scripts/i18n_assembler.py"), "--check"], capture_output=True, text=True,
+                   encoding="utf-8", errors="replace", cwd=str(R))
+check("dictionnaire assemblé à jour", r.returncode == 0, r.stdout + r.stderr)
 
 print(f"\n{OK} ok, {KO} fail")
 sys.exit(1 if KO else 0)

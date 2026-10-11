@@ -119,17 +119,17 @@ var SVM_VFX=[
  {id:"grain",name:dzT("son.demo_vfx.grain"),type:"post · overlay",kind:"post"},
  {id:"bloom",name:"Glow bloom",type:"post · shader",kind:"post"},
  {id:"glitchrgb",name:"Glitch RGB",type:"post · transition",kind:"post"}];
-/* Le prix affiché est celui de CE QUE FAIT le bouton. « VFX particules » est
-   passé de « $0.06 » à « gratuit » parce que la génération est désormais une
-   simulation locale, et « SFX » à « gratuit » parce que 606 bruitages CC0 sont
-   livrés : la facturation ElevenLabs ne concerne plus que la génération sur
-   description. Un tarif qui survit au câblage est un mensonge d'interface. */
+/* t183 (11/10/2026) : AUCUN prix écrit en dur dans ce rail. Musique et voix off se
+   paient au modèle choisi (leurs cartes affichent le prix lu au serveur) ; le SFX
+   GÉNÉRÉ se paie en crédits ElevenLabs — seuls les 606 bruitages CC0 livrés sont
+   gratuits ; VFX particules et post-traitement sont locaux. Un tarif écrit ici
+   ment dès que le câblage change. */
 var SVM_GENS=[
- {id:"music",name:dzT("son.gen.musique"),desc:dzT("son.gen.musique_desc"),price:"~$0.10",c:"--c-audio"},
- {id:"sfx",name:"SFX",desc:dzT("son.gen.sfx_desc"),price:dzT("son.commun.gratuit"),c:"--c-audio"},
- {id:"voiceover",name:dzT("son.gen.voix_off"),desc:dzT("son.gen.voix_off_desc"),price:"$0.08",c:"--c-audio"},
- {id:"vfx",name:dzT("son.gen.vfx"),desc:dzT("son.gen.vfx_desc"),price:dzT("son.commun.gratuit"),c:"--c-3d"},
- {id:"post",name:dzT("son.gen.post"),desc:"Grain, glow, aberration, transitions",price:dzT("son.commun.gratuit"),c:"--c-3d"}];
+ {id:"music",name:dzT("son.gen.musique"),desc:dzT("son.gen.musique_desc"),price:dzT("son.gen.prix_modele"),c:"--c-audio"},
+ {id:"sfx",name:"SFX",desc:dzT("son.gen.sfx_desc"),price:dzT("son.gen.prix_sfx"),c:"--c-audio"},
+ {id:"voiceover",name:dzT("son.gen.voix_off"),desc:dzT("son.gen.voix_off_desc"),price:dzT("son.gen.prix_modele"),c:"--c-audio"},
+ {id:"vfx",name:dzT("son.gen.vfx"),desc:dzT("son.gen.vfx_desc"),price:dzT("son.gen.local"),c:"--c-3d"},
+ {id:"post",name:dzT("son.gen.post"),desc:"Grain, glow, aberration, transitions",price:dzT("son.gen.local"),c:"--c-3d"}];
 /* onglet porté par chaque générateur : UNE sélection, deux affichages */
 var SVM_GEN_TAB={music:"audio",sfx:"audio",voiceover:"audio",vfx:"vfx",post:"post"};
 var SVM_DEMO_VOICES=[

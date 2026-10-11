@@ -1034,6 +1034,16 @@ async function loadPersona() {
   if (persona) return majDevisPrompt();
   try { persona = await api.get("/persona"); } catch (e) { persona = {}; }
   try { imageModel = ((await api.get("/atelier/settings")).settings || {}).image_model_default || ""; } catch (e) { imageModel = ""; }
+  /* t183 : le modèle du prompt se CHOISIT (DzModelesIA : un <optgroup> par voie, prix, sans-clé choisissables) ;
+     le défaut des Réglages est présélectionné, le choix part dans le tir et dans le devis */
+  const pmSel = $("#pmModel");
+  if (pmSel && window.DzModelesIA) {
+    try {
+      await window.DzModelesIA.select(pmSel, "image", { valeur: imageModel,
+        onChange: (v) => { imageModel = v; majDevisPrompt(); } });
+      imageModel = pmSel.value || imageModel;
+    } catch (e) { /* catalogue injoignable : le défaut des Réglages reste */ }
+  }
   const coul = (c) => /^#[0-9a-f]{3,8}$/i.test(c) ? `<i style="background:${c}"></i>` : "";
   $("#pmChips").innerHTML = window.SLD.puces(persona).map((p) =>
     `<button type="button" class="chip${p.couleur ? " col" : ""}" data-v="${escA(p.v)}" title="${__dzT9("sprites.sp2_pm.ajouter", "Ajouter « {v} » au prompt", { v: escA(p.v) })}">${p.couleur ? coul(p.libelle) : ""}${esc(p.libelle)}</button>`).join("")
@@ -1062,7 +1072,8 @@ async function generateFromPrompt() {
   const st = $("#pmStatus");
   try {
     setStatus(st, __dzT9("sprites.sp2_pm.generation", "Génération des images…"), false, 10);
-    const d = await api.send("POST", "/images/generate", window.SLD.corpsPrompt(sujet, [...pucesOn], $("#pmN").value, $("#pmSize").value));
+    const d = await api.send("POST", "/images/generate", Object.assign(window.SLD.corpsPrompt(sujet, [...pucesOn], $("#pmN").value, $("#pmSize").value),
+      imageModel ? { model: imageModel } : {}));
     const noms = (d && d.images) || [];
     if (!noms.length) throw new Error(__dzT9("sprites.sp2_pm.aucune_rendue", "aucune image rendue"));
     clearStatus(st);

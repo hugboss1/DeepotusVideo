@@ -281,8 +281,8 @@ for i in NOUVEAUX:
 for i in RASTER:
     check(f"{i} dans _IMAGE_MODELS (raster)", i in P._IMAGE_MODELS)
     check(f"{i} dans material_store", i in MS.MODELS and MS.clean_model(i) == i)
-    for nom in ("MODEL_COST", "MODEL_SEC"):
-        check(f"{nom} {i}", re.search(r'"' + re.escape(i) + r'"\s*:\s*\d', bloc(nom)) is not None)
+    # t183 : MODEL_COST supprimé (crédit = usd du catalogue) ; MODEL_SEC garde les durées indicatives
+    check(f"MODEL_SEC {i}", re.search(r'"' + re.escape(i) + r'"\s*:\s*\d', bloc("MODEL_SEC")) is not None)
 check("recraft (SVG) n'est PAS une texture : absent de material_store",
       "recraft-4.1-vecteur" not in MS.MODELS)
 check("recraft hors des registres raster : ni _IMAGE_MODELS ni la couche dz-champ-ia",

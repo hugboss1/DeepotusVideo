@@ -1286,8 +1286,17 @@ def test_h31_est_dans_TOUTES_les_listes_de_lapplication():
         "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
     if b.is_file():
         src = b.read_text(encoding="utf-8")
-        assert src.count('{value:"tripo-h3.1"') == 1, "sélecteur du bundle"
-        assert src.count('"tripo-h3.1":p.textures') == 1, "tarif du bundle"
+        # t183 (G1) : le maillon de queue encartsia remplace la liste et la table écrites en dur par le registre
+        # servi (/api/assets3d/engines, qui expose tripo-h3.1 : test suivant) ; l'entrée d'asset3d_h31 se lit
+        # dans le bundle d'avant ce maillon (inverse exact avant_encartsia)
+        import sys as _s
+        _s.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
+        _s.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import _i18n_l1_aide as _A
+        avant = _A.avant_encartsia(b.read_bytes().decode("utf-8"))   # en octets : CRLF du bundle
+        assert avant.count('{value:"tripo-h3.1"') == 1, "sélecteur du bundle (avant encartsia)"
+        assert avant.count('"tripo-h3.1":p.textures') == 1, "tarif du bundle (avant encartsia)"
+        assert "var ENG=dzEngOpts(p.engine);" in src and "dzEngTrouve(p.engine)" in src
 
 
 def test_route_engines_expose_h31_et_ses_deux_paliers():

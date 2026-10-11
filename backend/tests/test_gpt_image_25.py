@@ -508,7 +508,10 @@ def bloc(nom):
     return mm.group(1) if mm else ""
 
 
-for nom in ("MODEL_COST", "MODEL_SEC"):
+# t183 (G1) : MODEL_COST n'existe plus — le crédit se lit dans le `usd` du catalogue (`tous` de /image-models)
+check("MODEL_COST_supprime_credit_lu_au_catalogue", not bloc("MODEL_COST")
+      and "Math.round(Number(ent.usd) * 100)" in src and "d.tous" in src)
+for nom in ("MODEL_SEC",):
     b = bloc(nom)
     check(f"{nom}_trouve", bool(b), nom)
     for mid in QUATRE + ("nano-banana-pro", "gpt-image-2-fal"):

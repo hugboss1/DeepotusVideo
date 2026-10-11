@@ -16,7 +16,15 @@ Ce qu'il pose (ancres uniques, relevées le 11/10 sur le bundle de origin/main 5
   - E3 DzImageModel (le modèle d'image global : Library, Chapitres, News, Planificateur, Réglages) idem ;
   - E4 DzVideoModelSel (Quick, nœud Seedance) : la mention « · clé manquante » devient « · clé X à ajouter dans
     Réglages » (GEMINI_API_KEY pour Veo Google, FAL_KEY sinon) — le modèle y était déjà choisissable ;
-  - E5 DzVoModelSel (Voice Over) : idem avec ELEVENLABS_API_KEY.
+  - E5 DzVoModelSel (Voice Over) : idem avec ELEVENLABS_API_KEY ;
+  - E6-E8 Game Assets 3D : la liste des moteurs (`var ENG=[{value:"tripo"…`, prix « ~$ » écrits en dur) et la table
+    `var RATES={…}` cèdent la place au registre servi par GET /api/assets3d/engines (libellé, coût texturé et
+    brouillon de pricing.estimate, disponibilité) : un cache de MODULE (`dzEngCat`, aucun useState ajouté) rempli
+    au montage du panneau — le rendu suivant est demandé par le setter d'état EXISTANT (setPP). Un moteur fal sans
+    clé reste choisissable avec la mention « clé FAL_KEY à ajouter dans Réglages » (/assets/3d refuse en 503 avant la
+    garde de dépense) ; un moteur local arrêté le dit (« service local à démarrer »). Meshy n'est plus listé ici :
+    /assets/3d le refusait toujours (501, il vit dans le 3D Studio) ; une valeur sauvegardée « meshy » garde son
+    avertissement.
 Le composant `re` (select custom du bundle) n'a pas de groupes : la voie se lit dans l'ORDRE des options et dans
 le libellé (« (via fal) », « (OpenAI) ») ; les en-têtes de voie sont dans la liste de la pastille (dz-champ-ia).
 Aucun useState ajouté (compte figé 731), aucun DzTracks.
@@ -50,6 +58,9 @@ SONDE_AMONT = [
     ("useState", "x.useState(", 731),
 ]
 
+# E6 — l'ancre : la liste écrite en dur dans le bundle (relevée le 11/10 sur 5195eaee)
+ENG_AVANT = 'var ENG=[{value:"tripo",label:"Tripo3D v2.5 — game-ready topology, broad export (~$0.30)"},{value:"tripo-h3.1",label:"Tripo H3.1 — face budget + quad topology (~$0.30)"},{value:"hunyuan",label:"Hunyuan3D — cleanest geometry (~$0.16–0.48)"},{value:"trellis",label:"TRELLIS — best textures (~$0.16–0.50)"},{value:"rodin",label:"Hyper3D Rodin — pro realism ($0.40)"},{value:"triposr",label:"TripoSR — fastest/cheapest ($0.07)"},{value:"meshy",label:"Meshy 6 — needs API key (Settings)"}];\r\n'
+
 # E1 — les aides (une ligne, comme le code injecté par imagegen)
 AIDES = (
     'function dzImgLbl(m){var u=Number(m.usd);'
@@ -60,6 +71,16 @@ AIDES = (
     'function rg(m){var k=O.indexOf(m.voie);return k<0?99:k}'
     'return t.map(function(m,i){return[m,i]}).sort(function(a,b){return rg(a[0])-rg(b[0])||a[1]-b[1]})'
     '.map(function(p){return{value:p[0].id,label:dzImgLbl(p[0])}})}'
+    # E6-E8 : le registre des moteurs 3D, lu une fois par session (cache de module)
+    'var dzEngCat=null;'
+    'function dzEngCharger(fin){if(dzEngCat){fin&&fin();return}'
+    'fetch("/api/assets3d/engines").then(function(r){return r.ok?r.json():null})'
+    '.then(function(d){if(d&&Array.isArray(d.engines)){dzEngCat=d.engines;fin&&fin()}}).catch(function(){})}'
+    'function dzEngTrouve(id){return(dzEngCat||[]).find(function(e){return e.id===id})||null}'
+    'function dzEngOpts(cur){if(!dzEngCat)return[{value:cur,label:cur}];'
+    'return dzEngCat.map(function(e){var u=Number(e.usd_texture);'
+    'return{value:e.id,label:e.label+(u?" · ~$"+u.toFixed(2):" · "+dzT("ia.prix.a_mesurer"))'
+    '+(e.available?"":e.local?" · "+dzT("ia.local.a_demarrer"):" · "+dzT("ia.cle.a_ajouter",{cle:"FAL_KEY"}))}})}'
 )
 
 PAIRES = [
@@ -78,6 +99,17 @@ PAIRES = [
     # E5 : DzVoModelSel
     ('+"/1k":"";return m2.label+px+(m2.available?"":dzT("reglages.modeles.cle_manquante"))}',
      '+"/1k":"";return m2.label+px+(m2.available?"":" · "+dzT("ia.cle.a_ajouter",{cle:"ELEVENLABS_API_KEY"}))}'),
+    # E6 : Game Assets 3D, la liste des moteurs
+    (ENG_AVANT, 'var ENG=dzEngOpts(p.engine);\r\n'),
+    # E7 : le coût, lu dans le registre (texturé / brouillon), plus dans une table écrite ici
+    ('var RATES={tripo:p.textures?.3:.2,"tripo-h3.1":p.textures?.3:.2,triposr:.07,hunyuan:p.textures?.48:.16,'
+     'trellis:.35,rodin:.4,meshy:.35};\r\nvar cost=(RATES[p.engine]||.3)+(p.multiview?p.views*.03:0);\r\n',
+     'var dzE=dzEngTrouve(p.engine);\r\n'
+     'var cost=(dzE&&Number(p.textures?dzE.usd_texture:dzE.usd_brouillon)||.3)+(p.multiview?p.views*.03:0);\r\n'),
+    # E8 : le registre chargé au montage du panneau ; le setter EXISTANT redemande un rendu
+    ('x.useEffect(function(){refresh();fetch("/api/images")',
+     'x.useEffect(function(){refresh();dzEngCharger(function(){setPP(function(o){return Object.assign({},o)})});'
+     'fetch("/api/images")'),
 ]
 
 

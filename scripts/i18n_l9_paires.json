@@ -549,6 +549,12 @@
     "groupe": "sp2"
    },
    {
+    "pos": 49878,
+    "avant": "try { imageModel = ((await api.get(\"/atelier/settings\")).settings || {}).image_model_default || \"\"; } catch (e) { imageModel = \"\"; }",
+    "apres": "try { imageModel = ((await api.get(\"/atelier/settings\")).settings || {}).image_model_default || \"\"; } catch (e) { imageModel = \"\"; }\r\n  /* t183 : le modèle du prompt se CHOISIT (DzModelesIA : un <optgroup> par voie, prix, sans-clé choisissables) ;\r\n     le défaut des Réglages est présélectionné, le choix part dans le tir et dans le devis */\r\n  const pmSel = $(\"#pmModel\");\r\n  if (pmSel && window.DzModelesIA) {\r\n    try {\r\n      await window.DzModelesIA.select(pmSel, \"image\", { valeur: imageModel,\r\n        onChange: (v) => { imageModel = v; majDevisPrompt(); } });\r\n      imageModel = pmSel.value || imageModel;\r\n    } catch (e) { /* catalogue injoignable : le défaut des Réglages reste */ }\r\n  }",
+    "groupe": "t183"
+   },
+   {
     "pos": 50257,
     "avant": "\" title=\"Ajouter « ${escA(p.v)} » au prompt\"",
     "apres": "\" title=\"${__dzT9(\"sprites.sp2_pm.ajouter\", \"Ajouter « {v} » au prompt\", { v: escA(p.v) })}\"",
@@ -571,6 +577,12 @@
     "avant": "\"Génération des images…\"",
     "apres": "__dzT9(\"sprites.sp2_pm.generation\", \"Génération des images…\")",
     "groupe": "sp2"
+   },
+   {
+    "pos": 51463,
+    "avant": "window.SLD.corpsPrompt(sujet, [...pucesOn], $(\"#pmN\").value, $(\"#pmSize\").value)",
+    "apres": "Object.assign(window.SLD.corpsPrompt(sujet, [...pucesOn], $(\"#pmN\").value, $(\"#pmSize\").value),\r\n      imageModel ? { model: imageModel } : {})",
+    "groupe": "t183"
    },
    {
     "pos": 51626,
