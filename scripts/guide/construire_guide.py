@@ -216,6 +216,12 @@ def page(som, lang, sorties):
             nav.append(f'<h2 style="--fam:var({f["couleur"]})">{f[lang]}</h2>')
         nav.append(f'<a href="#{c["id"]}" style="--fam:var({f["couleur"]})">{svg(c["icone"])}<span>{html.escape(c[lang])}</span></a>')
         cartes.append(f'<a href="#{c["id"]}" style="--fam:var({f["couleur"]})">{svg(c["icone"])}<b>{html.escape(c[lang])}</b></a>')
+    # t181 : l'accueil « Je veux… » — des tâches courantes, chacune vers le chapitre qui la fait (src/jeveux.json)
+    jv = json.loads((SRC / "jeveux.json").read_text("utf-8"))
+    ids_publies = {c["id"] for c in publies}
+    jeveux = "".join(f'<li><a href="#{e["cible"]}">{html.escape(e[lang])}</a></li>'
+                     for e in jv["entrees"] if e["cible"] in ids_publies)
+    jeveux = f'<div class="g-jeveux"><h2>{html.escape(jv["titre"][lang])}</h2><ul>{jeveux}</ul></div>'
     css = (SRC / "gabarit/guide.css").read_text("utf-8")
     css += f':root{{--m-info:{masque("dz-etat-information")};--m-alerte:{masque("dz-etat-avertissement")}}}'
     js = (SRC / "gabarit/guide.js").read_text("utf-8")
@@ -245,6 +251,7 @@ def page(som, lang, sorties):
 <section class="g-accueil" id="accueil">
 <h1>{t["titre"]}</h1>
 <p class="chapeau">{t["chapeau"]}</p>
+{jeveux}
 <div class="g-cartes-acc">{"".join(cartes)}</div>
 </section>
 {chr(10).join(sections)}
