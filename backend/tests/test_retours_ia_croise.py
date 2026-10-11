@@ -378,17 +378,18 @@ if _cli is not None:
 SRV_IM = {m["id"]: m for m in (_lim.get("models") or []) if isinstance(m, dict)}
 PRI_IM = set(getattr(pr, "_IMAGE_MODELS", {}) or {}) if pr is not None else set()
 _ids = [c[0] for c in CAT]
-check("x4_catalogue_de_la_couche_lu_onze_ids_uniques",
-      len(CAT) == 11 and len(set(_ids)) == 11, _ids)
+N_IMG = 16                                 # t182 (G0) : 11 + 5 modèles d'image fal raster
+check("x4_catalogue_de_la_couche_lu_seize_ids_uniques",
+      len(CAT) == N_IMG and len(set(_ids)) == N_IMG, _ids)
 check("x4_ids_du_catalogue_egaux_a_list_image_models_deux_cles_posees_et_a_pricing_image_models",
-      len(CAT) == 11 and set(_ids) == set(SRV_IM) == PRI_IM,
+      len(CAT) == N_IMG and set(_ids) == set(SRV_IM) == PRI_IM,
       ("couche seule", sorted(set(_ids) - set(SRV_IM)), "serveur seul", sorted(set(SRV_IM) - set(_ids)),
        "pricing", sorted(PRI_IM ^ set(_ids)), _lim if not SRV_IM else ""))
 _cle = {"fal": "FAL_KEY", "openai": "OPENAI_API_KEY"}
 _mauv = [(i, l, k, (SRV_IM.get(i) or {}).get("label"), (SRV_IM.get(i) or {}).get("provider"))
          for i, l, k in CAT if l != (SRV_IM.get(i) or {}).get("label") or k != _cle.get((SRV_IM.get(i) or {}).get("provider"))]
 check("x4_libelles_et_cle_exigee_du_catalogue_egaux_au_libelle_et_au_fournisseur_du_serveur",
-      len(CAT) == 11 and len(SRV_IM) == 11 and _mauv == [], _mauv)
+      len(CAT) == N_IMG and len(SRV_IM) == N_IMG and _mauv == [], _mauv)
 
 # ═════════════════════════════════════════════════════════════════════════════
 print("\n[5] vignette video du bundle : tarif et plafond de Seedance 2.5 == pricing")

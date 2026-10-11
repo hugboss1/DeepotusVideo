@@ -48,5 +48,15 @@
   "commun.plan.compteur": {"fr": "Plan {i}/{n}", "en": "Shot {i}/{n}"},
   "reglages.langue.titre": {"fr": "Langue de l'interface", "en": "Interface language"},
   "reglages.langue.aide": {"fr": "Choisie à l'installation ; la page se recharge pour l'appliquer.", "en": "Chosen at install; the page reloads to apply it."},
-  "reglages.langue.portee": {"fr": "toute l'application", "en": "whole app"}
+  "reglages.langue.portee": {"fr": "toute l'application", "en": "whole app"},
+  "ia.voie.fal": {"fr": "via la clé fal", "en": "with the fal key"},
+  "ia.voie.openai": {"fr": "avec votre clé OpenAI", "en": "with your OpenAI key"},
+  "ia.voie.gemini": {"fr": "avec votre clé Gemini", "en": "with your Gemini key"},
+  "ia.voie.elevenlabs": {"fr": "avec votre clé ElevenLabs", "en": "with your ElevenLabs key"},
+  "ia.voie.meshy": {"fr": "avec votre clé Meshy", "en": "with your Meshy key"},
+  "ia.voie.heygen": {"fr": "avec votre clé HeyGen", "en": "with your HeyGen key"},
+  "ia.voie.local": {"fr": "local, gratuit", "en": "local, free"},
+  "ia.prix.a_mesurer": {"fr": "prix à mesurer", "en": "price to be measured"},
+  "ia.cle.absente": {"fr": "clé {cle} absente", "en": "{cle} key missing"},
+  "ia.cle.a_ajouter": {"fr": "clé {cle} à ajouter dans Réglages", "en": "add the {cle} key in Settings"}
 }

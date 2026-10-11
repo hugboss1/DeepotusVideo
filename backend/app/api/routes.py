@@ -8467,6 +8467,13 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     import httpx as _httpx
     from app.services import image_providers as IP
 
+    # t182 : un modèle VECTORIEL (SVG) n'est servi qu'à qui demande du SVG —
+    # refusé AVANT toute garde de dépense, aucun tir.
+    sortie = str(body.get("sortie") or "").strip().lower() or "raster"
+    if IP.est_vectoriel(model) and sortie != "svg":
+        raise HTTPException(400, "Recraft vectoriel rend du SVG : à utiliser "
+                                 "depuis le Vectorlab.")
+
     # --- façade du registre AVANT tout préfixe (27/09) ----------------------
     # Les ids servis par fal (`gpt-image-…-fal`, nano-banana, nano-banana-pro)
     # et les GPT Image 2.5 directs passent par image_providers : un id `-fal`
@@ -8481,7 +8488,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         background = (body.get("background") or "").strip().lower() or None
         try:
             out = await IP.generate(model, prompt, size, n,
-                                    background=background)
+                                    background=background, sortie=sortie)
         except RuntimeError as e:
             raise HTTPException(502, str(e))
         except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502, pas 500
@@ -8491,7 +8498,10 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
     if model.startswith("gpt-image") or model.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:
-            raise HTTPException(503, "OPENAI_API_KEY not configured. Add it in Settings.")
+            # t182 : même forme que les autres refus « clé absente » (nomme la
+            # clé, renvoie aux Réglages) — AVANT la garde de dépense
+            raise HTTPException(503, f"OPENAI_API_KEY non configurée (Réglages) "
+                                     f"pour {model}.")
         await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])   # tâche #16
         osize = ("1024x1536" if "portrait" in size
                  else "1536x1024" if "landscape" in size else "1024x1024")
@@ -8750,6 +8760,12 @@ async def _process_image_core(body: dict):
                     _s, "image_model_default")).strip().lower()
         size = body.get("size") or "portrait_16_9"
         from app.services import image_providers as IP
+        # t182 : un modèle vectoriel (Recraft) ne retouche pas — refusé AVANT
+        # la garde de dépense, qui ÉCRIT une ligne de dépense (sinon dépense
+        # fantôme suivie d'un 502).
+        if IP.est_vectoriel(model):
+            raise HTTPException(400, f"{model} : pas de retouche (texte → "
+                                     f"image seulement).")
         # façade du registre (ids fal, nano-banana-pro, GPT Image 2.5) testée
         # AVANT le préfixe : nano-banana-pro tombait sur Kontext sans le dire
         if IP.via_facade(model) or model.startswith("gpt-image") \
@@ -8949,6 +8965,22 @@ async def list_image_models():
         out.append({"id": "gpt-image-2.5-sunburst-fal",
                     "label": "GPT Image 2.5 Sunburst (via fal)",
                     "provider": "fal", "note": "high quality"})
+        # t182 (G0) : modèles d'image fal servis par IP._fal_image_generate.
+        # APRÈS les entrées d'avant : `default` (flux) et l'ordre connu ne
+        # bougent pas.
+        out.append({"id": "nano-banana-2.1", "label": "Nano Banana 2.1 (via fal)",
+                    "provider": "fal", "note": "text, posters, 1K"})
+        out.append({"id": "flux-3", "label": "FLUX 3 (via fal)",
+                    "provider": "fal", "note": "photoreal, 1 MP"})
+        out.append({"id": "seedream-5-pro", "label": "Seedream 5 Pro (via fal)",
+                    "provider": "fal", "note": "multi-reference edits"})
+        out.append({"id": "ideogram-4.5", "label": "Ideogram 4.5 (via fal)",
+                    "provider": "fal", "note": "typography"})
+        out.append({"id": "qwen-image-3", "label": "Qwen Image 3 (via fal)",
+                    "provider": "fal", "note": "low cost"})
+        # recraft-4.1-vecteur (SVG) n'est PAS ici : cette liste nourrit des
+        # consommateurs raster (Studio, Library, Cardforge, Duel…). Il est
+        # dans `tous` avec sortie="svg", pour le Vectorlab.
     if settings.OPENAI_API_KEY:
         # gpt-image-2 reste en tête : c'est le défaut quand seule la clé
         # OpenAI est posée (`out[0]`) — un ajout ne change pas ce défaut
@@ -8969,9 +9001,32 @@ async def list_image_models():
             _s, "image_model_default")).strip().lower()
     if configured and configured not in {m["id"] for m in out}:
         configured = ""  # stale default (key removed) — ignore it
+    # t182 (G0) : `models` reste FILTRÉ par les clés (compat des sélecteurs) ;
+    # chaque entrée gagne sa voie, sa clé et son prix, lus dans le catalogue
+    # unique, et `tous` rend TOUTES les entrées, disponibles ou non.
+    from app.services import catalogue_ia as CI
+    tous = CI.lister("image")
+    par_id = {e["id"]: e for e in tous}
+    for m in out:
+        e = par_id.get(m["id"]) or {}
+        m.update(voie=e.get("voie", m.get("provider")), cle=e.get("cle"),
+                 usd=e.get("usd", 0.0), sortie=e.get("sortie", "raster"))
     return {"models": out, "configured": configured,
             "default": configured or ("flux" if settings.FAL_KEY
-                                      else (out[0]["id"] if out else ""))}
+                                      else (out[0]["id"] if out else "")),
+            "tous": tous}
+
+
+@router.get("/ia/catalogue")
+async def ia_catalogue(nature: str = ""):
+    """t182 (G0) : tous les modèles d'une nature d'appel, disponibles OU NON,
+    avec voie, clé, prix et jumeau. Lecture seule, gratuite."""
+    from app.services import catalogue_ia as CI
+    try:
+        return {"nature": nature, "modeles": CI.lister(nature)}
+    except KeyError:
+        raise HTTPException(400, f"nature inconnue : {nature or '(vide)'} — "
+                                 f"{', '.join(CI.natures())}.")
 
 
 # ═════════════════════ Atelier Chapitre (v1.17, P1) ═════════════════════
@@ -9594,6 +9649,15 @@ async def generate_bible_reference(entity_id: str, body: dict):
                             for p in (recipe.get("panels") or [])}
         elif not recipe:
             pass
+        # t182 : une planche est RASTER — un modèle vectoriel (réglage DA ou
+        # recette) est refusé AVANT la garde de dépense, qui écrit une ligne
+        # de dépense (sinon dépense fantôme suivie d'un 502).
+        from app.services import image_providers as IP
+        if IP.est_vectoriel(provider):
+            raise HTTPException(400, f"{provider} rend du SVG : une planche de "
+                                     f"référence est une image raster. Choisissez "
+                                     f"un autre générateur dans la direction "
+                                     f"artistique.")
         desc = (e.description or "").strip()
         if not desc and not (recipe and recipe.get("v") in (2, 3)):
             raise HTTPException(400, "Add a description before generating")

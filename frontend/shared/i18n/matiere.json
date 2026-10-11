@@ -528,5 +528,6 @@
   "matiere.mfh_vp.maillage": {"fr": "Maillage", "en": "Mesh"},
   "matiere.mfh_vp.modele_titre": {"fr": "Modèle de l'Établi habillé de la matière (dernière version)", "en": "Workbench model dressed in the material (latest version)"},
   "matiere.mfh_vp.palet": {"fr": "Glisse pour déplacer la lumière", "en": "Drag to move the light"},
-  "matiere.mfh_vp.seconde": {"fr": "Seconde matière de la comparaison", "en": "Second material of the comparison"}
+  "matiere.mfh_vp.seconde": {"fr": "Seconde matière de la comparaison", "en": "Second material of the comparison"},
+  "matiere.t182_modele.cle_a_ajouter": {"fr": "clé {cle} à ajouter dans Réglages", "en": "add the {cle} key in Settings"}
 }

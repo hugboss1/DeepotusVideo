@@ -138,6 +138,9 @@ const MODEL_COST = {
   "nano-banana-pro": 13, "gpt-image-2-fal": 13,
   "gpt-image-2.5-flare": 10, "gpt-image-2.5-sunburst": 10,
   "gpt-image-2.5-flare-fal": 10, "gpt-image-2.5-sunburst-fal": 10,
+  /* t182 : modèles d’image fal (crédits = usd × 100, arrondi) */
+  "nano-banana-2.1": 4, "flux-3": 5, "seedream-5-pro": 7,
+  "ideogram-4.5": 22, "qwen-image-3": 4,
 };
 const MODEL_SEC = {
   "flux": 6, "nano-banana": 15, "gpt-image-2": 24,
@@ -145,6 +148,8 @@ const MODEL_SEC = {
   "nano-banana-pro": 20, "gpt-image-2-fal": 24,
   "gpt-image-2.5-flare": 24, "gpt-image-2.5-sunburst": 24,
   "gpt-image-2.5-flare-fal": 24, "gpt-image-2.5-sunburst-fal": 24,
+  "nano-banana-2.1": 6, "flux-3": 6, "seedream-5-pro": 6,
+  "ideogram-4.5": 6, "qwen-image-3": 6,
 };
 const DERIVE_SEC = { 1024: 3, 2048: 8, 4096: 24 };
 
@@ -552,8 +557,18 @@ async function loadModels() {
   let models = [];
   try {
     const d = await api.get("/image-models");
-    models = (d && d.models) || [];
-    state.model = d.default || (models[0] && models[0].id) || "";
+    /* t182 : un modèle vectoriel (sortie "svg", lue au catalogue) ne fait pas une texture.
+       Décision de l'utilisateur (11/10/2026) : TOUS les modèles raster, de toutes les
+       voies, sont choisissables — les servis d'abord (`models`), puis ceux dont la clé
+       manque (`tous`), avec la mention « clé X à ajouter dans Réglages », jamais
+       désactivés ; le serveur refuse le tir en 503 tant que la clé manque. */
+    const servis = ((d && d.models) || []).filter((m) => m.sortie !== "svg");
+    const vus = new Set(servis.map((m) => m.id));
+    const sansCle = ((d && d.tous) || [])
+      .filter((e) => e.sortie !== "svg" && !e.dispo && !vus.has(e.id))
+      .map((e) => ({ id: e.id, label: e.label, cle: e.cle, sansCle: true }));
+    models = servis.concat(sansCle);
+    state.model = d.default || (servis[0] && servis[0].id) || (models[0] && models[0].id) || "";
   } catch (e) { models = []; }
   if (!models.length) {
     models = [{ id: "flux", label: "FLUX schnell", note: dzT("matiere.mf1_charge.cle_fal_absente") }];
@@ -563,7 +578,8 @@ async function loadModels() {
   const saved = localStorage.getItem("mf_model");
   if (saved && models.some((m) => m.id === saved)) state.model = saved;
   $("#model").innerHTML = models.map((m) =>
-    `<option value="${esc(m.id)}"${m.id === state.model ? " selected" : ""}>${esc(m.label || m.id)}</option>`).join("");
+    `<option value="${esc(m.id)}"${m.id === state.model ? " selected" : ""}>${esc(m.label || m.id)}${
+      m.sansCle && m.cle ? " — " + esc(dzT("matiere.t182_modele.cle_a_ajouter", { cle: m.cle })) : ""}</option>`).join("");
   updateEstimate();
 }
 

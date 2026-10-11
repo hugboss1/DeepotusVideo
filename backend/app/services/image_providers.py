@@ -47,6 +47,25 @@ PROVIDERS = {
                                 "needs": "FAL_KEY", "seeds": False},
     "gpt-image-2.5-sunburst-fal": {"label": "GPT Image 2.5 Sunburst (via fal)",
                                    "needs": "FAL_KEY", "seeds": False},
+    # t182 (G0, 11/10/2026) : gpt-image-1-mini était servi par les routes
+    # (chemin OpenAI) et tarifé, mais absent du registre — l'Atelier DA ne le
+    # voyait pas.
+    "gpt-image-1-mini": {"label": "GPT Image 1 mini (OpenAI)",
+                         "needs": "OPENAI_API_KEY", "seeds": False},
+    # t182 : modèles d'image fal « simples », servis par _fal_image_generate
+    # (tableau FAL_IMAGES plus bas). Clé fal seule, facture fal.
+    "nano-banana-2.1": {"label": "Nano Banana 2.1 (via fal)",
+                        "needs": "FAL_KEY", "seeds": False},
+    "flux-3": {"label": "FLUX 3 (via fal)", "needs": "FAL_KEY", "seeds": False},
+    "seedream-5-pro": {"label": "Seedream 5 Pro (via fal)",
+                       "needs": "FAL_KEY", "seeds": False},
+    "ideogram-4.5": {"label": "Ideogram 4.5 (via fal)",
+                     "needs": "FAL_KEY", "seeds": False},
+    "qwen-image-3": {"label": "Qwen Image 3 (via fal)",
+                     "needs": "FAL_KEY", "seeds": False},
+    # rend un SVG (vectoriel) : texte → image seulement, pas de retouche
+    "recraft-4.1-vecteur": {"label": "Recraft 4.1 vecteur SVG (via fal)",
+                            "needs": "FAL_KEY", "seeds": False},
 }
 
 # id `-fal` → modèle OpenAI qu'il sert (endpoint fal dérivé du modèle)
@@ -71,6 +90,12 @@ def via_facade(model: str) -> bool:
     return meta["needs"] == "FAL_KEY" or model.startswith("gpt-image-2.5")
 
 
+def est_vectoriel(model: str) -> bool:
+    """t182 : vrai si l'id rend du SVG (drapeau `svg` de FAL_IMAGES). SEUL
+    prédicat de l'app : routes, available(), catalogue_ia le lisent ici."""
+    return bool((FAL_IMAGES.get(model) or {}).get("svg"))
+
+
 def missing_key(model: str) -> str | None:
     """Nom de la clé manquante pour un id du registre, sinon None."""
     meta = PROVIDERS.get(model)
@@ -88,27 +113,32 @@ _BANANA_ASPECT = {"portrait_16_9": "9:16", "portrait_4_3": "3:4",
 
 
 def available() -> list[dict]:
+    """Générateurs des planches (raster) : un modèle vectoriel n'y est pas."""
     out = []
     for pid, meta in PROVIDERS.items():
+        if est_vectoriel(pid):
+            continue
         if getattr(settings, meta["needs"], "").strip():
             out.append({"id": pid, "label": meta["label"],
                         "seeds": meta["seeds"]})
     return out
 
 
-def _save_bytes(data: bytes) -> str:
-    fname = f"gen_{uuid4().hex[:8]}.png"
+def _save_bytes(data: bytes, ext: str = ".png") -> str:
+    fname = f"gen_{uuid4().hex[:8]}{ext}"
     (settings.images_path / fname).write_bytes(data)
     return fname
 
 
-async def _download(urls: list[str]) -> list[str]:
+async def _download(urls: list[str], ext: str = ".png") -> list[str]:
+    """`ext` : extension du fichier écrit (« .svg » pour un modèle
+    vectoriel, t182) ; « .png » par défaut, comme avant."""
     saved = []
     async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=90.0) as c:
         for u in urls:
             r = await c.get(u)
             r.raise_for_status()
-            saved.append(_save_bytes(r.content))
+            saved.append(_save_bytes(r.content, ext))
     return saved
 
 
@@ -265,6 +295,107 @@ async def _fal_gpt_generate(prompt: str, size: str, n: int,
     return await _download(urls)
 
 
+# ───────────── modèles d'image fal « simples » (t182, G0) ─────────────
+
+# Schémas relus le 11/10/2026 avec fal_schema.py (entrée) et l'openapi de la
+# file fal (sortie : `images[]` de File pour les six).
+# taille : "aspect" -> aspect_ratio (+ resolution) ; "image_size" -> le preset
+# du projet tel quel (ce SONT les presets fal).
+# multi : False quand le schéma n'a pas de `num_images` (flux-3, recraft) —
+# n images = n appels.
+# edit_champ : "image_urls" (liste) ou "image_url" (une image ; les autres
+# partent en `reference_image_urls`, schéma d'ideogram/v4.5/edit).
+# svg : la sortie est un SVG (content_type image/svg+xml) -> fichier « .svg ».
+FAL_IMAGES = {
+    "nano-banana-2.1": {"t2i": "google/nano-banana-2.1",
+                        "edit": "google/nano-banana-2.1/edit",
+                        "taille": "aspect", "resolution": "1K",
+                        "extra": {"output_format": "png"}},
+    "flux-3": {"t2i": "blackforestlabs/flux-3/text-to-image",
+               "edit": "blackforestlabs/flux-3/edit-image",
+               "taille": "aspect", "resolution": "1k", "multi": False,
+               "extra": {"output_format": "png"}},
+    "seedream-5-pro": {"t2i": "bytedance/seedream/v5/pro/text-to-image",
+                       "edit": "bytedance/seedream/v5/pro/edit",
+                       "taille": "image_size",
+                       "extra": {"output_format": "png"}},
+    "ideogram-4.5": {"t2i": "ideogram/v4.5", "edit": "ideogram/v4.5/edit",
+                     "taille": "image_size", "edit_champ": "image_url",
+                     # qualité ÉCRITE : c'est elle que la clé de prix chiffre
+                     "extra": {"quality": "high"}},
+    "qwen-image-3": {"t2i": "alibaba/qwen-image-3/text-to-image",
+                     "edit": "alibaba/qwen-image-3/edit",
+                     "taille": "image_size",
+                     "extra": {"output_format": "png"}},
+    "recraft-4.1-vecteur": {"t2i": "fal-ai/recraft/v4.1/text-to-vector",
+                            "edit": None, "taille": "image_size",
+                            "multi": False, "svg": True},
+}
+
+
+def build_fal_image_request(model: str, prompt: str, size: str,
+                            image_urls: list[str],
+                            n: int = 1) -> tuple[str, dict]:
+    """(endpoint, arguments) pour un id de FAL_IMAGES. Pur : aucun réseau.
+    ValueError si une image est donnée à un modèle sans retouche."""
+    m = FAL_IMAGES[model]
+    urls = [u for u in (image_urls or []) if u][:REF_MAX]
+    edit = bool(urls)
+    if edit and not m["edit"]:
+        raise ValueError(f"{model} : pas de retouche (texte → image seulement).")
+    args: dict = {"prompt": prompt}
+    if m["taille"] == "aspect":
+        args["aspect_ratio"] = _BANANA_ASPECT.get(size, "1:1")
+        args["resolution"] = m["resolution"]
+    else:
+        args["image_size"] = size if size in _BANANA_ASPECT else "square_hd"
+    if m.get("multi", True):
+        args["num_images"] = max(1, int(n))
+    args.update(m.get("extra", {}))
+    if edit:
+        if m.get("edit_champ") == "image_url":
+            args["image_url"] = urls[0]
+            if urls[1:]:
+                args["reference_image_urls"] = urls[1:]
+        else:
+            args["image_urls"] = urls
+    return (m["edit"] if edit else m["t2i"]), args
+
+
+async def _fal_image_generate(model: str, prompt: str, size: str, n: int,
+                              image_paths: list[Path] | None = None,
+                              **kw) -> list[str]:
+    """Couture des modèles FAL_IMAGES (les bancs l'espionnent) : téléverse
+    les références, tire (n appels si le schéma n'a pas de `num_images`),
+    télécharge. Un SVG est écrit en « .svg », jamais déguisé en PNG."""
+    import fal_client
+    m = FAL_IMAGES[model]
+    if image_paths and not m["edit"]:      # refusé AVANT de téléverser
+        raise ValueError(f"{model} : pas de retouche (texte → image seulement).")
+    urls: list[str] = []
+    if image_paths:
+        from app.services.fal_service import FalSeedanceClient
+        for ch in list(image_paths)[:REF_MAX]:
+            urls.append(await FalSeedanceClient.upload_image(ch))
+    endpoint, arguments = build_fal_image_request(model, prompt, size, urls, n)
+    tirs = 1 if m.get("multi", True) else max(1, int(n))
+    trouves: list[str] = []
+    result = None
+    for _ in range(tirs):
+        result = await fal_client.subscribe_async(endpoint,
+                                                  arguments=arguments)
+        res = result if isinstance(result, dict) else {}
+        imgs = res.get("images")
+        if not isinstance(imgs, list):
+            imgs = [res["image"]] if res.get("image") else []
+        trouves += [im["url"] for im in imgs
+                    if isinstance(im, dict) and im.get("url")]
+    if not trouves:
+        raise RuntimeError(f"{model} (fal) returned no images: "
+                           f"{str(result)[:200]}")
+    return await _download(trouves, ".svg" if est_vectoriel(model) else ".png")
+
+
 # ─────────────────────────── façade unifiée ───────────────────────────
 
 async def generate(provider: str, prompt: str, size: str, n: int = 1,
@@ -272,12 +403,19 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
                    image_path: Path | None = None,
                    ratio: str | None = None,
                    background: str | None = None,
-                   image_paths: list[Path] | None = None) -> dict:
+                   image_paths: list[Path] | None = None,
+                   sortie: str = "raster") -> dict:
     """Génère via le provider choisi. Retour: {"images":[filenames],
     "seed": int|None} (seed None = provider non déterministe). `ratio`
     (ex. "9:16") force le cadre des EDITS (image_path fourni) — sinon le
     modèle edit suit le cadre de l'image d'entrée. `background`
-    ("transparent") n'est honoré que par GPT Image 2.5 Flare."""
+    ("transparent") n'est honoré que par GPT Image 2.5 Flare.
+    `sortie` (t182) : un modèle vectoriel n'est servi qu'à qui demande
+    « svg » — défense en profondeur pour les chemins raster (planches de
+    l'Atelier DA, lots d'art) qui appellent la façade sans le dire."""
+    if est_vectoriel(provider) and sortie != "svg":
+        raise RuntimeError(f"{provider} rend du SVG : à utiliser depuis le "
+                           f"Vectorlab.")
     # LES CHEMINS FAL D'ABORD : les « gpt-image-…-fal » commencent par
     # « gpt-image » — testés après le préfixe OpenAI, ils partiraient chez
     # OpenAI avec la mauvaise clé ET la mauvaise facture.
@@ -287,6 +425,19 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
         imgs = await _fal_gpt_generate(prompt, size, n, image_path,
                                        model=_FAL_GPT[provider],
                                        background=background)
+        return {"images": imgs, "seed": None}
+    # t182 : AVANT le cas nano-banana — « nano-banana-2.1 » n'est pas
+    # « nano-banana » et ne doit jamais retomber sur l'ancien endpoint.
+    if provider in FAL_IMAGES:
+        if not settings.FAL_KEY:
+            raise RuntimeError("FAL_KEY manquante (Réglages).")
+        refs = list(image_paths) if image_paths else (
+            [image_path] if image_path is not None else [])
+        try:
+            imgs = await _fal_image_generate(provider, prompt, size, n,
+                                             image_paths=refs)
+        except ValueError as e:      # recraft : pas de retouche
+            raise RuntimeError(str(e))
         return {"images": imgs, "seed": None}
     if provider in ("nano-banana", "nano-banana-pro"):
         if not settings.FAL_KEY:

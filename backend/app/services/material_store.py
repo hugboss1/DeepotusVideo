@@ -172,7 +172,11 @@ SOURCE_KINDS = ("prompt", "library", "upload", "catalog", "pattern")
 MODELS = ("flux", "gpt-image-2", "gpt-image-1", "gpt-image-1-mini",
           "nano-banana", "nano-banana-pro", "gpt-image-2-fal",
           "gpt-image-2.5-flare", "gpt-image-2.5-sunburst",
-          "gpt-image-2.5-flare-fal", "gpt-image-2.5-sunburst-fal")
+          "gpt-image-2.5-flare-fal", "gpt-image-2.5-sunburst-fal",
+          # t182 (G0) : les modèles d'image fal raster. recraft-4.1-vecteur
+          # n'y est PAS : il rend un SVG, qui ne fait pas une texture.
+          "nano-banana-2.1", "flux-3", "seedream-5-pro", "ideogram-4.5",
+          "qwen-image-3")
 MODEL_ALIASES = {"gptimage": "gpt-image-1", "gpt-image": "gpt-image-1",
                  "openai": "gpt-image-1", "fal": "flux", "banana": "nano-banana"}
 

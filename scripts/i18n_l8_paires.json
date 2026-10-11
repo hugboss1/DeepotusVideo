@@ -2735,6 +2735,18 @@
     "groupe": "mf1"
    },
    {
+    "pos": 6839,
+    "avant": "  \"gpt-image-2.5-flare-fal\": 10, \"gpt-image-2.5-sunburst-fal\": 10,",
+    "apres": "  \"gpt-image-2.5-flare-fal\": 10, \"gpt-image-2.5-sunburst-fal\": 10,\r\n  /* t182 : modèles d’image fal (crédits = usd × 100, arrondi) */\r\n  \"nano-banana-2.1\": 4, \"flux-3\": 5, \"seedream-5-pro\": 7,\r\n  \"ideogram-4.5\": 22, \"qwen-image-3\": 4,",
+    "groupe": "t182"
+   },
+   {
+    "pos": 7138,
+    "avant": "  \"gpt-image-2.5-flare-fal\": 24, \"gpt-image-2.5-sunburst-fal\": 24,",
+    "apres": "  \"gpt-image-2.5-flare-fal\": 24, \"gpt-image-2.5-sunburst-fal\": 24,\r\n  \"nano-banana-2.1\": 6, \"flux-3\": 6, \"seedream-5-pro\": 6,\r\n  \"ideogram-4.5\": 6, \"qwen-image-3\": 6,",
+    "groupe": "t182"
+   },
+   {
     "pos": 8233,
     "avant": "\"Couleur\"",
     "apres": "dzT(\"matiere.mf1_insp.couleur\")",
@@ -3185,10 +3197,22 @@
     "groupe": "mf1"
    },
    {
+    "pos": 28772,
+    "avant": "    models = (d && d.models) || [];\r\n    state.model = d.default || (models[0] && models[0].id) || \"\";",
+    "apres": "    /* t182 : un modèle vectoriel (sortie \"svg\", lue au catalogue) ne fait pas une texture.\r\n       Décision de l'utilisateur (11/10/2026) : TOUS les modèles raster, de toutes les\r\n       voies, sont choisissables — les servis d'abord (`models`), puis ceux dont la clé\r\n       manque (`tous`), avec la mention « clé X à ajouter dans Réglages », jamais\r\n       désactivés ; le serveur refuse le tir en 503 tant que la clé manque. */\r\n    const servis = ((d && d.models) || []).filter((m) => m.sortie !== \"svg\");\r\n    const vus = new Set(servis.map((m) => m.id));\r\n    const sansCle = ((d && d.tous) || [])\r\n      .filter((e) => e.sortie !== \"svg\" && !e.dispo && !vus.has(e.id))\r\n      .map((e) => ({ id: e.id, label: e.label, cle: e.cle, sansCle: true }));\r\n    models = servis.concat(sansCle);\r\n    state.model = d.default || (servis[0] && servis[0].id) || (models[0] && models[0].id) || \"\";",
+    "groupe": "t182"
+   },
+   {
     "pos": 28990,
     "avant": "\"clé fal absente ?\"",
     "apres": "dzT(\"matiere.mf1_charge.cle_fal_absente\")",
     "groupe": "mf1"
+   },
+   {
+    "pos": 29242,
+    "avant": "    `<option value=\"${esc(m.id)}\"${m.id === state.model ? \" selected\" : \"\"}>${esc(m.label || m.id)}</option>`).join(\"\");",
+    "apres": "    `<option value=\"${esc(m.id)}\"${m.id === state.model ? \" selected\" : \"\"}>${esc(m.label || m.id)}${\r\n      m.sansCle && m.cle ? \" — \" + esc(dzT(\"matiere.t182_modele.cle_a_ajouter\", { cle: m.cle })) : \"\"}</option>`).join(\"\");",
+    "groupe": "t182"
    },
    {
     "pos": 29844,
