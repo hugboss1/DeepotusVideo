@@ -693,7 +693,9 @@
           return { id: m.id, label: m.label || m.id, dispo: !!m.available, sansCle: !m.available,
                    voie: m.provider === "google" ? "gemini" : "fal",
                    cle: m.provider === "google" ? "GEMINI_API_KEY" : "FAL_KEY", prix: px,
-                   vue: (m.label || m.id) + (px ? " · " + px : "") + (m.available ? "" : " · clé manquante") };
+                   /* le libellé du sélecteur de la vue (DzVideoModelSel, maillon encartsia) */
+                   vue: (m.label || m.id) + (px ? " · " + px : "")
+                     + (m.available ? "" : " · " + CLE_A_AJOUTER(m.provider === "google" ? "GEMINI_API_KEY" : "FAL_KEY")) };
         }) };
       });
     },
@@ -704,8 +706,11 @@
            d'estimation POST ; un prix inconnu (0) dit « prix à mesurer » */
         var mods = parVoie(tous.map(function (e) {
           vus[e.id] = 1;
+          var px = Number(e.usd) ? prixTxt(e.usd, "/image") : aMesurer();
+          /* `vue` = le libellé des selects d'image du bundle (dzImgLbl, maillon encartsia) :
+             nom · prix · mention de clé — c'est lui que la pastille relit et rejoue */
           return { id: e.id, label: e.label || e.id, dispo: !!e.dispo, cle: e.cle || "", voie: e.voie || "",
-                   prix: Number(e.usd) ? prixTxt(e.usd, "/image") : aMesurer(), vue: e.label || e.id,
+                   prix: px, vue: (e.label || e.id) + " · " + px + (!e.dispo && e.cle ? " · " + CLE_A_AJOUTER(e.cle) : ""),
                    sansCle: !e.dispo };   // t182 : choisissable sans sa clé (refus 503 au tir)
         }));
         for (i = 0; i < (d.models || []).length; i++) {   // un id servi hors catalogue : montré tel quel, sans prix inventé
@@ -937,12 +942,10 @@
     if (m.natif) {                     // un modèle choisissable absent du <select> de la vue ne s'y écrit pas
       var ids = optionsDe(m.trouver(el)).map(function (x) { return x.id; });
       l.forEach(function (x) { if ((x.dispo || x.sansCle) && ids.indexOf(x.id) < 0) x.horsVue = true; });
-    } else {
-      /* t182 : les selects custom d'IMAGE du bundle ne listent que les modèles
-         SERVIS (/api/image-models `models`) — un modèle d'image sans clé n'y est
-         pas. t183 : celui de la vidéo (DzVideoModelSel du Quick) les liste tous */
-      l.forEach(function (x) { if (x.sansCle && m.liste === "image") x.horsVue = true; });
     }
+    /* t183 : les selects custom du bundle (image : DzImgModelSel / DzImageModel ;
+       vidéo : DzVideoModelSel) listent TOUS les modèles, sans clé compris (maillon
+       encartsia) : rien n'y est « hors vue » */
     return l;
   }
   function choisissable(x) { return (x.dispo || x.sansCle) && !x.horsVue; }

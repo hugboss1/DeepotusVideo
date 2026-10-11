@@ -15,6 +15,15 @@ Réglages »), jamais `disabled` ; seul un modèle vectoriel (sortie "svg") est
   [a3] copies dist octet pour octet (dz-modeles-ia.js, dz-champ-ia.js) ;
   [a4] /generate : la clé du modèle vidéo est vérifiée par
        _cle_video_ou_503 AVANT _garde_cout et _plafond (ordre dans la source).
+  [b1] bundle, maillon de queue scripts/patch_bundle_encartsia.py : aides
+       dzImgLbl/dzImgOpts posées une fois ; DzImgModelSel et DzImageModel lisent
+       `tous` raster rangé par voie (plus `models` seul) ; DzVideoModelSel et
+       DzVoModelSel disent « clé X à ajouter dans Réglages » (plus « clé
+       manquante ») ; compteurs figés (useState 731, DzTracks 181), CRLF
+       homogène, aucun .bak_encartsia ; node exécute dzImgOpts : vectoriel
+       écarté, fal d'abord, libellé = celui que la pastille rejoue ;
+  [b2] inverse avant_encartsia : aller-retour exact à l'octet, défait EN TÊTE
+       d'avant_dzguide, double application refusée.
 
 Run: & $PY tests/test_encarts_ia.py   (depuis backend/)
 """
@@ -97,6 +106,72 @@ for nom in ("generate", "generate_batch", "generate_composition"):
     i, j = corps.find("_cle_video_ou_503("), corps.find("await _plafond(")
     k = corps.find("_garde_cout(")
     check(f"{nom} : _cle_video_ou_503 avant _garde_cout et _plafond", 0 <= i < j and (k < 0 or i < k), f"{i} {k} {j}")
+
+# ── [b1] bundle : maillon encartsia ──────────────────────────────────────────
+print("[b1] bundle : sélecteurs de modèle sur le catalogue")
+import json                                                       # noqa: E402
+sys.path.insert(0, str(R / "scripts"))
+sys.path.insert(0, str(R / "backend" / "tests"))
+import patch_bundle_encartsia as ENC                              # noqa: E402
+BUN = R / "frontend/dist/assets/index-BEOJX8L5.js"
+braw = BUN.read_bytes()
+B = braw.decode("utf-8")
+check("marqueur dzImgOpts posé une fois", B.count(ENC.MARKER) == 1 and B.count("function dzImgLbl(") == 1)
+i = B.find("function DzImgModelSel(")
+sel = B[i:B.find("}function DzImgPrev(", i)]
+check("DzImgModelSel lit dzImgOpts(mm) (plus `models` seul)",
+      ".concat(dzImgOpts(mm))" in sel and "(mm.models||[]).map(" not in sel, sel[-200:])
+i = B.find("function DzImageModel(")
+dim = B[i:B.find("function DzPromptAI(", i)]
+check("DzImageModel lit dzImgOpts(d)", "setModels(dzImgOpts(d)" in dim and "setModels(d.models||[])" not in dim, dim[:300])
+check("vidéo et voix : « clé X à ajouter » (plus « clé manquante ») dans les sélecteurs",
+      'dzT("reglages.modeles.cle_manquante")' not in B
+      and B.count('dzT("ia.cle.a_ajouter",{cle:m2.provider==="google"?"GEMINI_API_KEY":"FAL_KEY"})') == 1
+      and B.count('dzT("ia.cle.a_ajouter",{cle:"ELEVENLABS_API_KEY"})') == 1)
+check("compteurs figés : useState 731, DzTracks 181", B.count("x.useState(") == 731 and B.count("DzTracks") == 181,
+      f"{B.count('x.useState(')} {B.count('DzTracks')}")
+check("CRLF homogène (lecture en octets)", braw.count(b"\r\n") > 15000 and braw.count(b"\n") == braw.count(b"\r\n")
+      and "read_text(" not in (R / "scripts/patch_bundle_encartsia.py").read_text(encoding="utf-8"))
+check("aucun .bak_encartsia laissé", not BUN.with_name(BUN.name + ".bak_encartsia").exists())
+DICO = {"ia.cle.a_ajouter": "clé {cle} à ajouter dans Réglages", "ia.prix.a_mesurer": "prix à mesurer"}
+a0 = B.find("function dzImgLbl(")
+code = B[a0:B.find("function DzImgModelSel(", a0)]
+sonde = ("var DICO=" + json.dumps(DICO, ensure_ascii=False) + ";function dzT(k,v){var t=DICO[k]||k;"
+         "for(var x in (v||{}))t=t.split('{'+x+'}').join(v[x]);return t}" + code
+         + ";var T=[{id:'gpt-image-2',label:'GPT Image 2',voie:'openai',usd:0.12,dispo:false,cle:'OPENAI_API_KEY',sortie:'raster'},"
+         "{id:'recraft',label:'Recraft',voie:'fal',usd:0.08,dispo:true,cle:'FAL_KEY',sortie:'svg'},"
+         "{id:'flux',label:'FLUX schnell',voie:'fal',usd:0.003,dispo:true,cle:'FAL_KEY',sortie:'raster'},"
+         "{id:'qwen',label:'Qwen',voie:'fal',usd:0,dispo:true,cle:'FAL_KEY',sortie:'raster'}];"
+         "console.log(JSON.stringify([dzImgOpts({tous:T,models:[]}),dzImgOpts({models:[{id:'flux',label:'FLUX schnell',usd:0.003}]})]))")
+if node:
+    pr = subprocess.run([node, "-e", sonde], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        O, O2 = json.loads(pr.stdout)
+    except ValueError:
+        O, O2 = None, None
+    check("dzImgOpts : vectoriel écarté, fal d'abord (ordre stable), libellé · prix · mention, prix inconnu « à mesurer »",
+          O == [{"value": "flux", "label": "FLUX schnell · $0.003/image"},
+                {"value": "qwen", "label": "Qwen · prix à mesurer"},
+                {"value": "gpt-image-2", "label": "GPT Image 2 · $0.12/image · clé OPENAI_API_KEY à ajouter dans Réglages"}],
+          (pr.stdout + pr.stderr)[:600])
+    check("dzImgOpts : serveur d'avant t182 (sans `tous`) → `models`",
+          O2 == [{"value": "flux", "label": "FLUX schnell · $0.003/image"}], str(O2))
+    ch2 = (R / "frontend/shared/dz-champ-ia.js").read_text(encoding="utf-8")
+    check("la pastille rejoue CE libellé (vue = nom · prix · mention, comme dzImgLbl)",
+          'vue: (e.label || e.id) + " · " + px + (!e.dispo && e.cle ? " · " + CLE_A_AJOUTER(e.cle) : "")' in ch2)
+
+# ── [b2] l'inverse ───────────────────────────────────────────────────────────
+print("[b2] inverse avant_encartsia")
+import _i18n_l1_aide as AIDE                                     # noqa: E402
+sans = AIDE.avant_encartsia(B)
+check("avant_encartsia défait les paires : plus de marqueur, `models` revient",
+      ENC.MARKER not in sans and "(mm.models||[]).map(function(m){return{value:m.id,label:m.label}})" in sans)
+check("aller-retour exact à l'octet", ENC.appliquer(sans) == B)
+check("avant_dzguide défait D'ABORD encartsia (posé après lui)", ENC.MARKER not in AIDE.avant_dzguide(B))
+check("un bundle sans le maillon passe tel quel", AIDE.avant_encartsia(sans) == sans)
+r = subprocess.run([sys.executable, str(R / "scripts/patch_bundle_encartsia.py"), "--check"], capture_output=True,
+                   text=True, encoding="utf-8", errors="replace", cwd=str(R))
+check("double application refusée", r.returncode != 0 and "double application" in (r.stdout + r.stderr), r.stdout + r.stderr)
 
 print(f"\n{OK} ok, {KO} fail")
 sys.exit(1 if KO else 0)

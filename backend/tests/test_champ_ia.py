@@ -38,8 +38,10 @@ dur — elle lit `tous` de /api/image-models (le catalogue unique) ; le faux
 `pricing._IMAGE_MODELS` / `_IMAGE_MODELS_VECTEUR` (AST, sans import), et le
 prix vient de son `usd` (plus d'estimation POST). Décision de l'utilisateur
 (11/10/2026) : un modèle SANS CLÉ reste choisissable (mention « clé X à
-ajouter dans Réglages ») — Veo sans GEMINI_API_KEY compris ; seul un modèle
-absent du sélecteur de la vue est grisé, avec la même mention.
+ajouter dans Réglages ») — Veo sans GEMINI_API_KEY compris ; les selects du
+bundle les listent tous (maillon de queue encartsia : libellé · prix · mention,
+que la pastille relit et rejoue) ; seul un modèle absent d'un <select> natif de
+la vue est grisé, avec la même mention.
 
 Un processus, `check`, `=== N passed, M failed ===`, code de sortie.
 """
@@ -414,11 +416,22 @@ function fauxRe(parent, options, valeur, onChange) {
   o.poser = v => { valeur = v; sp.textContent = lab(v); };
   return o;
 }
-function lblVue(m) {                      // la formule de DzVideoModelSel (bundle)
+function lblVue(m) {                      // la formule de DzVideoModelSel (bundle, maillon encartsia)
   const rr = m.usd_per_s || {}; let v = rr["1080p"] != null ? rr["1080p"] : rr["*"];
   if (v == null) for (const k in rr) { const n = Number(rr[k]); if (isFinite(n) && (v == null || n > v)) v = n; }
   const px = v != null ? " · $" + (Number(v) >= .1 ? Number(v).toFixed(2) : Number(v).toFixed(3)) + "/s" : "";
-  return m.label + px + (m.available ? "" : " · clé manquante");
+  return m.label + px + (m.available ? "" : " · clé " + (m.provider === "google" ? "GEMINI_API_KEY" : "FAL_KEY") + " à ajouter dans Réglages");
+}
+/* t183 : la formule de dzImgLbl / dzImgOpts (maillon encartsia) — entrées RASTER de `tous`, rangées par voie */
+function lblImg(m) {
+  const u = Number(m.usd);
+  return m.label + (u ? " · $" + (u >= .1 ? u.toFixed(2) : u.toFixed(3)) + "/image" : (m.usd === 0 ? " · prix à mesurer" : ""))
+    + (m.dispo === false && m.cle ? " · clé " + m.cle + " à ajouter dans Réglages" : "");
+}
+function imgOpts() {
+  const O = ["fal", "openai"], t = IMG.tous.filter(m => m.sortie !== "svg");
+  const rg = m => { const k = O.indexOf(m.voie); return k < 0 ? 99 : k; };
+  return t.map((m, i) => [m, i]).sort((a, b) => rg(a[0]) - rg(b[0]) || a[1] - b[1]).map(p => ({ value: p[0].id, label: lblImg(p[0]) }));
 }
 function pastille(e) { const b = e && e.nextSibling; return b && b.querySelector ? b.querySelector(".dzia-modele") : null; }
 function vuP(e) { const p = pastille(e); return p ? { tag: p.tagName, txt: p.textContent, title: p.getAttribute("title"), dis: p.getAttribute("aria-disabled"),
@@ -593,7 +606,7 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   const reQ = fauxRe(vmBox, [{ value: "", label: "Défaut (seedance-2.5)" }].concat(VIDEO.models.map(m => ({ value: m.id, label: lblVue(m) }))), "",
     v => localStorage.setItem("dz_video_model", v));
   const lib = el("div", {}, body), tl = el("input", { placeholder: "Describe an image to create…" }, lib), libBox = el("div", {}, lib);
-  const reL = fauxRe(libBox, IMG.models.map(m => ({ value: m.id, label: m.label })), "flux", v => localStorage.setItem("dz_image_model", v));
+  const reL = fauxRe(libBox, imgOpts(), "flux", v => localStorage.setItem("dz_image_model", v));
   const tsfx = el("input", { class: "svm-sfxprompt", type: "text" }, body);
   const son = el("div", {}, body), c1 = el("div", { class: "svm-card" }, son), tm = el("textarea", { class: "svm-musicprompt" }, c1);
   const ml = el("div", { class: "svm-modellist" }, el("div", { class: "svm-card" }, son));
@@ -644,9 +657,10 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   (pastille(tl) || {click(){}}).click(); T.listeL = vuListe();
   { const l = listeOuverte(); T.grpL = l ? l.children.filter(c => c.classList.contains("dzia-ogrp")).map(g => [g.textContent, l.children.indexOf(g)]) : null;
     T.ordreL = l ? l.children.map(c => c.classList.contains("dzia-ogrp") ? "#" + c.getAttribute("data-voie") : c.getAttribute("data-id")) : null; }
-  // NÉGATIF : un modèle grisé (sans clé ET absent du select de la vue) ne s'écrit pas
-  { const c0 = reL.clics; if (opt("gpt-image-2")) opt("gpt-image-2").click(); await pause(150);
-    T.apresGris = { valeur: reL.valeur, clics: reL.clics - c0, ouverte: !!listeOuverte() }; }
+  // t183 : un modèle SANS CLÉ, listé par le select de la vue (maillon encartsia), se choisit et s'écrit
+  if (opt("gpt-image-2")) opt("gpt-image-2").click(); await pause(250);
+  T.sansCleL = { valeur: reL.valeur, ls: localStorage.getItem("dz_image_model"), p: vuP(tl), vue: reL.sp.textContent };
+  (pastille(tl) || {click(){}}).click();
   if (opt("nano-banana")) opt("nano-banana").click(); await pause(250);
   T.choixL = { valeur: reL.valeur, ls: localStorage.getItem("dz_image_model"), p: vuP(tl) };
   A.synchroniser(); T.tpl2 = vuP(ttpl);                     // Templates lit le modèle global : suit
@@ -683,6 +697,9 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   // t182 : un modèle SANS CLÉ présent dans le <select> de la vue est CHOISISSABLE (mention, prix, jamais grisé)
   (pastille(tmf) || {click(){}}).click();
   { const o = opt("gpt-image-2");
+    // NÉGATIF : un modèle grisé (sans clé ET absent du <select> de la vue) ne s'écrit pas
+    { const fl = opt("gpt-image-2.5-flare"), c0 = nChange; if (fl) fl.click(); await pause(60);
+      T.apresGris = { valeur: sel.value, dChange: nChange - c0, ouverte: !!listeOuverte(), title: fl ? fl.getAttribute("title") : null }; }
     T.sansCleMF = { dis: o ? o.getAttribute("aria-disabled") : "absente", title: o ? o.getAttribute("title") : "",
       txt: o ? o.textContent : "", mention: o ? !!o.querySelector(".dzia-ocle") : false,
       flare: (opt("gpt-image-2.5-flare") || { getAttribute() { return "absente"; } }).getAttribute("aria-disabled") };
@@ -730,11 +747,14 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   body.textContent = ""; window.location.pathname = "/";
   const q2 = el("div", {}, body), tq2 = ie(q2, "Prompt", "textarea"), vm2 = el("div", { "data-dzvmsel": "1" }, q2);
   fauxRe(vm2, [{ value: "", label: "Défaut (seedance-2.5)" }], "", () => {});
-  const tl2 = el("input", { placeholder: "Describe an image to create…" }, body);
+  const lib2 = el("div", {}, body), tl2 = el("input", { placeholder: "Describe an image to create…" }, lib2);
+  // t183 : DzImageModel sans aucune clé liste quand même tout `tous` (valeur : le premier, le défaut du serveur est vide)
+  const reL2 = fauxRe(el("div", {}, lib2), imgOpts(), imgOpts()[0].value, () => {});
   A.marquer(document.body);
   await Promise.all(["video", "image", "musique"].map(l => A.modeles && A.modeles.charger(l, true))); A.synchroniser();
   T.sansCle = { quick: vuP(tq2), lib: vuP(tl2) };
-  const pL2 = pastille(tl2); pL2 && pL2.click(); T.sansCle.ouvreL = !!listeOuverte();
+  const pL2 = pastille(tl2); pL2 && pL2.click(); T.sansCle.ouvreL = !!listeOuverte(); T.sansCle.listeL = vuListe();
+  if (A.modeles) A.modeles.fermer(); T.sansCle.valL = reL2.valeur;
   const pQ2 = pastille(tq2); pQ2 && pQ2.click(); T.sansCle.ouvre = !!listeOuverte(); T.sansCle.listeQ = vuListe();
   } catch (e) { R.t9err = String(e && e.stack || e).slice(0, 500); }
   T.appels = APPELS.map(a => [a[0], a[1], a[1] === "/api/cost/estimate" ? JSON.parse(a[2] || "{}") : null]);
@@ -1208,15 +1228,23 @@ def main():
           len(ll) == n_raster == 16, f"{len(ll)} {n_raster}")
     check("NÉGATIF : aucun modèle vectoriel (sortie svg) dans la liste raster",
           not any(e["id"] in ll for e in TOUS if e["sortie"] == "svg") and any(e["sortie"] == "svg" for e in TOUS), str(sorted(ll)))
-    # t183 : grisé faute d'être dans le sélecteur de la vue (selects d'image du bundle : modèles servis), avec la
-    # même mention que partout — jamais « clé absente »
-    check("modèle d'image sans clé ET absent du select de la vue → grisé « clé OPENAI_API_KEY à ajouter dans Réglages — absent du sélecteur de la vue »",
-          all((ll.get(k) or {}).get("dis") == "true" and ((ll.get(k) or {}).get("title") or "").startswith(
-              "clé OPENAI_API_KEY à ajouter dans Réglages — absent du sélecteur de la vue")
+    # t183 : les selects d'image du bundle listent TOUS les modèles (maillon encartsia) — un modèle sans clé y est
+    # CHOISISSABLE, avec la mention « clé X à ajouter dans Réglages » et son prix
+    check("Library : modèles d'image SANS CLÉ choisissables (pas grisés), mention « clé OPENAI_API_KEY à ajouter dans Réglages » + prix",
+          all((ll.get(k) or {}).get("dis") is None and "clé OPENAI_API_KEY à ajouter dans Réglages" in ((ll.get(k) or {}).get("txt") or "")
+              and "$" in ((ll.get(k) or {}).get("txt") or "")
               for k in ("gpt-image-2", "gpt-image-2.5-flare", "gpt-image-1-mini")), str(ll.get("gpt-image-2")))
+    scl = T.get("sansCleL") or {}
+    check("Library : gpt-image-2 SANS CLÉ choisi → select de la vue rejoué (libellé · prix · mention), localStorage, pastille avec la mention",
+          scl.get("valeur") == "gpt-image-2" and scl.get("ls") == "gpt-image-2"
+          and scl.get("vue") == "GPT Image 2 · $0.21/image · clé OPENAI_API_KEY à ajouter dans Réglages"
+          and (scl.get("p") or {}).get("txt") == "GPT Image 2"
+          and "(clé OPENAI_API_KEY à ajouter dans Réglages)" in ((scl.get("p") or {}).get("title") or ""), str(scl))
     ag = T.get("apresGris") or {}
-    check("NÉGATIF : clic sur un modèle grisé → rien n'est écrit dans la vue (aucun clic rejoué)",
-          ag.get("valeur") == "flux" and ag.get("clics") == 0 and ag.get("ouverte"), str(ag))
+    check("NÉGATIF : clic sur un modèle GRISÉ (sans clé ET absent du <select> du Material Forge) → rien n'est écrit, liste ouverte,"
+          " title « clé OPENAI_API_KEY à ajouter dans Réglages — absent du sélecteur de la vue »",
+          ag.get("valeur") == "nano-banana-pro" and ag.get("dChange") == 0 and ag.get("ouverte") is True
+          and (ag.get("title") or "").startswith("clé OPENAI_API_KEY à ajouter dans Réglages — absent du sélecteur de la vue"), str(ag))
     check("prix inconnu (usd 0) → « prix à mesurer », jamais « gratuit »",
           "prix à mesurer" in (ll.get("qwen-image-3") or {}).get("txt", "")
           and not any("gratuit" in (o.get("txt") or "") for o in ll.values()), str(ll.get("qwen-image-3")))
@@ -1290,10 +1318,14 @@ def main():
           sc.get("ouvre") is True and len(lq2) == 4 and all(o.get("dis") is None for o in lq2.values())
           and "clé GEMINI_API_KEY à ajouter" in (lq2.get("veo-3") or {}).get("txt", "")
           and "clé FAL_KEY à ajouter" in (lq2.get("seedance-2") or {}).get("txt", ""), str(lq2)[:400])
-    check("SANS CLÉ : Library grisée (le select de la vue n'en sert aucun), title « clé X à ajouter dans Réglages » pour FAL_KEY et OPENAI_API_KEY",
-          sl.get("dis") == "true" and "clé FAL_KEY à ajouter dans Réglages" in (sl.get("title") or "")
-          and "clé OPENAI_API_KEY à ajouter dans Réglages" in (sl.get("title") or ""), str(sl))
-    check("SANS CLÉ : la pastille grisée (Library) n'ouvre pas de liste", sc.get("ouvreL") is False, str(sc.get("ouvreL")))
+    check("SANS CLÉ : Library PILOTABLE (le select de la vue liste tout `tous`), FLUX schnell, title « clé FAL_KEY à ajouter dans Réglages »",
+          sl.get("dis") == "false" and sl.get("txt") == "FLUX schnell" and sc.get("valL") == "flux"
+          and "(clé FAL_KEY à ajouter dans Réglages)" in (sl.get("title") or ""), str(sl))
+    ll2 = {o.get("id"): o for o in (sc.get("listeL") or [])}
+    check("SANS CLÉ : la liste image s'ouvre, les 16 modèles raster choisissables avec la mention de LEUR clé",
+          sc.get("ouvreL") is True and len(ll2) == 16 and all(o.get("dis") is None for o in ll2.values())
+          and "clé OPENAI_API_KEY à ajouter" in (ll2.get("gpt-image-2") or {}).get("txt", "")
+          and "clé FAL_KEY à ajouter" in (ll2.get("flux") or {}).get("txt", ""), str(list(ll2.values())[:2])[:400])
     ap = T.get("appels") or []
     est = [a for a in ap if a[1] == "/api/cost/estimate"]
     img = [a for a in ap if a[1] == "/api/image-models"]

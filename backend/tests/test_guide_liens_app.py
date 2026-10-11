@@ -59,7 +59,7 @@ print("\n[I] l'inverse")
 sans = A.avant_dzguide(B)
 check("I1 avant_dzguide défait les paires : plus de marqueur, l'ancien lien revient",
       M.MARKER not in sans and 'g:"/guide/fr.html#c18"}' in sans and sans.count('o:vl,g:""}') == 1)
-check("I2 l'aller-retour est exact à l'octet", M.appliquer(sans) == B)
+check("I2 l'aller-retour est exact à l'octet (vu d'avant encartsia, t183, posé après)", M.appliquer(sans) == A.avant_encartsia(B))
 check("I3 avant_i18nfix défait D'ABORD dzguide (posé après lui)", M.MARKER not in A.avant_i18nfix(B))
 check("I4 un bundle sans le maillon passe tel quel", A.avant_dzguide(sans) == sans)
 r = subprocess.run([sys.executable, str(RACINE / "scripts/patch_bundle_dzguide.py"), "--check"], capture_output=True,
