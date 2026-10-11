@@ -1,0 +1,47 @@
+{
+  "titre": {
+    "fr": "Une matière du catalogue",
+    "en": "A material from the catalogue"
+  },
+  "legende": {
+    "fr": "Trente matières CC0 de Poly Haven, embarquées : un clic les importe, leurs maps PBR sont dérivées en local.",
+    "en": "Thirty CC0 Poly Haven materials, shipped: one click imports them, their PBR maps are derived locally."
+  },
+  "captures": [
+    {
+      "fr": "catalogue.fr.webp",
+      "en": "catalogue.en.webp"
+    },
+    {
+      "fr": "galerie.fr.webp",
+      "en": "galerie.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        425,
+        385
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Choisissez, puis Importer",
+        "en": "Pick, then Import"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "bulle": {
+        "fr": "La matière, en aperçu 3D, avec ses 8 maps",
+        "en": "The material, in 3D preview, with its 8 maps"
+      }
+    }
+  ]
+}

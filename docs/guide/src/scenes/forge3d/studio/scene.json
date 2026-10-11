@@ -1,0 +1,50 @@
+{
+  "titre": {
+    "fr": "Le 3D Studio",
+    "en": "The 3D Studio"
+  },
+  "legende": {
+    "fr": "Un graphe Meshy du prompt à l'export : maillage, texture, topologie, squelette, animations ; le coût de la série s'affiche avant Lancer.",
+    "en": "A Meshy graph from prompt to export: mesh, texture, topology, skeleton, animations; the series cost shows before Launch."
+  },
+  "captures": [
+    {
+      "fr": "graphe.fr.webp",
+      "en": "graphe.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        703,
+        108,
+        122,
+        27
+      ],
+      "bulle": {
+        "fr": "Chaque étape est un nœud chiffré",
+        "en": "Each step is a priced node"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        8,
+        506,
+        179,
+        46
+      ],
+      "bulle": {
+        "fr": "Le prix total avant de lancer",
+        "en": "The total price before launching"
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "titre": {
+    "fr": "Le module Édition",
+    "en": "The Publishing module"
+  },
+  "legende": {
+    "fr": "Module 11 : tables virtuelles (Tabletop Simulator, Tabletopia), livret de règles, mockup en éventail, fiche produit.",
+    "en": "Module 11: virtual tables (Tabletop Simulator, Tabletopia), rulebook, fan mockup, product sheet."
+  },
+  "captures": [
+    {
+      "fr": "module.fr.webp",
+      "en": "module.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        593,
+        230,
+        826,
+        80
+      ],
+      "bulle": {
+        "fr": "Exporter pour une table virtuelle",
+        "en": "Export for a virtual table"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        2,
+        487,
+        183,
+        44
+      ],
+      "bulle": {
+        "fr": "11 · Édition",
+        "en": "11 · Publishing"
+      }
+    }
+  ]
+}

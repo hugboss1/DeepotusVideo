@@ -1,0 +1,86 @@
+{
+  "titre": {
+    "fr": "La carte devient un objet 3D",
+    "en": "The card becomes a 3D object"
+  },
+  "legende": {
+    "fr": "Module 09 Forge 3D : la carte s'exporte par couches, chaque couche se traite dans un graphe, l'assemblage produit un GLB et un STL.",
+    "en": "Module 09 Forge 3D: the card is exported in layers, each layer is processed in a graph, assembly produces a GLB and an STL."
+  },
+  "captures": [
+    {
+      "fr": "module.fr.webp",
+      "en": "module.en.webp"
+    },
+    {
+      "fr": "graphe.fr.webp",
+      "en": "graphe.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        681,
+        282
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "1. Exporter les couches",
+        "en": "1. Export the layers"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1158,
+        802,
+        251,
+        37
+      ],
+      "bulle": {
+        "fr": "Six couches, empilement prouvé à 0 px",
+        "en": "Six layers, stacking proven to 0 px"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        659,
+        282
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "1. Exporter les couches",
+        "en": "1. Export the layers"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1124,
+        802,
+        251,
+        37
+      ],
+      "bulle": {
+        "fr": "Six couches, empilement prouvé à 0 px",
+        "en": "Six layers, stacking proven to 0 px"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

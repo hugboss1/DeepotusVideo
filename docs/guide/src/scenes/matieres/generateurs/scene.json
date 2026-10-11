@@ -1,0 +1,84 @@
+{
+  "titre": {
+    "fr": "Les générateurs",
+    "en": "The generators"
+  },
+  "legende": {
+    "fr": "Dix générateurs sans couture, locaux et gratuits, réglés en direct avant de créer la matière.",
+    "en": "Ten seamless generators, local and free, tuned live before creating the material."
+  },
+  "captures": [
+    {
+      "fr": "generateur.fr.webp",
+      "en": "generateur.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        7,
+        209,
+        86,
+        36
+      ],
+      "bulle": {
+        "fr": "Briques, carrelage, hexagones, cuir…",
+        "en": "Bricks, tiles, hexagons, leather…"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        7,
+        709,
+        281,
+        50
+      ],
+      "bulle": {
+        "fr": "Créer la matière : gratuit",
+        "en": "Create the material: free"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        99,
+        194,
+        86,
+        36
+      ],
+      "bulle": {
+        "fr": "Briques, carrelage, hexagones, cuir…",
+        "en": "Bricks, tiles, hexagons, leather…"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        7,
+        694,
+        281,
+        50
+      ],
+      "bulle": {
+        "fr": "Créer la matière : gratuit",
+        "en": "Create the material: free"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

@@ -1,8 +1,34 @@
-<p>Card Forge's <strong>09 Forge 3D</strong> module turns your card into a printable 3D piece or an "NFT-grade" artifact: the card exports <strong>as layers</strong> (base material, illustration, veil, frame, typography, ornaments + the composite), each layer is processed in a <strong>graph</strong>, and assembly produces a clean GLB — plus an STL whenever everything is watertight. The whole free circuit runs locally, no key needed.</p>
-<img class="shot" src="img/cardforge-forge3d.png" alt="Card Forge — Forge 3D module">
-<p class="cap">The Forge 3D graph: a material chain (silver holographic finish) on the background, an image→3D engine on the illustration — 30 cr (~$0.60) shown before any launch.</p>
-<div class="step"><span class="n">1</span><div><strong>Export the layers</strong>: the screen proves the stacking <strong>before</strong> uploading (0 px of difference between the composite and the layer pile), the server counter-proves it in PIL and seals a manifest. An empty layer is still written — absence is measured, never guessed.</div></div>
-<div class="step"><span class="n">2</span><div><strong>Edit the graph</strong>: each layer gets a <strong>plane</strong> treatment (flat card) or a <strong>relief</strong> (a grid displaced by luminance, a solid closed by construction), a <strong>material</strong> from the Material Forge shop (tiled at physical scale, in millimeters), a <strong>silver or gilded holographic</strong> finish (iridescence, clearcoat, anisotropy — verified in the GLB's bytes) and a <strong>transform</strong> (position, rotation, scale, z stacking).</div></div>
-<div class="step"><span class="n">3</span><div><strong>Image→3D engines</strong> (optional, paid): the <strong>mesh 3D</strong> treatment sends the layer to one of 7 engines — tripo, hunyuan, trellis, rodin, triposr (fal, priced in $) or <strong>Meshy 6/7 through the direct API</strong> (credits; ultra +5 cr on meshy-7). The price shows on the node <strong>and</strong> in the graph footer before any launch; the status chip follows the job (queued → running → served · real credits → or failure with the literal message); relaunching a node resets its folder.</div></div>
-<div class="step"><span class="n">4</span><div><strong>Build</strong>: assembly merges the engines' GLBs at their layer's place (full reindexing, the engine file's identity is dropped), writes the final GLB and the <strong>STL</strong> — accepted only when every element is a closed solid, with a motivated refusal otherwise. The docket lists the elements, their engines and the credits consumed.</div></div>
-<div class="warn">The image→3D engines are the only paid part of Card Forge: fal bills in $ on your existing key, Meshy in credits on yours (<code>MESHY_API_KEY</code>, the Settings field shared with the 3D Studio). To try everything without spending a credit, set <code>MESHY_MOCK=1</code> in the data <code>.env</code>: the local simulator runs the full circuit, fake credits included.</div>
+<p class="chapeau-chap">You will be able to turn a card into a printable 3D piece with Card Forge's 3D Forge, and produce a complete 3D model (mesh, texture, skeleton, animations, formats) in the 3D Studio. Local pipelines are free; image-to-3D engines are paid, price shown before any run.</p>
+
+<h3>From card to object: the 3D Forge</h3>
+<figure class="scene" data-scene="forge3d/couches"></figure>
+<ol class="etapes">
+<li>In Card Forge, open module 09 3D Forge then <b class="ui">Export layers</b>: background, illustration, veil, frame, typography, ornaments and composite, front and back. The screen proves the stacking (0 px gap) before delivering, and the server checks it again.</li>
+<li>Edit the graph: each layer gets a flat or relief treatment (closed solid), a <a href="#matieres">Material Forge</a> material tiled at physical scale, a finish (holographic silver or gold, lacquer, leather, brushed metal, emissive) and a placement. A relief with no depth entered takes its material's physical height, otherwise 0.6 mm.</li>
+<li>The “3D mesh” treatment sends a layer to an image-to-3D engine: the price shows on the node and at the foot of the graph before any run.</li>
+<li><b class="ui">Build the 3D artifact</b> assembles the final GLB, and an STL if every element is a closed solid; otherwise the refusal says why. The manifest lists elements, engines and credits.</li>
+</ol>
+<p>The “Game objects” panel also creates printable 3D pieces: a <b class="ui">Token</b>, a <b class="ui">Card relief token</b>, a pawn or a stand, plus the <b class="ui">Unfolded box (PDF)…</b>, the vector pattern of a tuck box at the deck's thickness.</p>
+
+<h3>The 3D Studio</h3>
+<figure class="scene" data-scene="forge3d/studio"></figure>
+<p>The 3D Studio (a tab of the Game Assets hub) chains a Meshy graph from prompt or start image to deliverables: mesh, PBR texture, topology, skeleton (auto-rig), animations, GLB, FBX, USDZ, OBJ or STL export, then the <a href="#etabli">Workbench</a>. Each node carries its cost; the series cost shows before <b class="ui">Run</b>, and the log follows each task. A Meshy key is needed; fal engines (tripo, rodin, hunyuan, trellis, triposr) use your fal key.</p>
+
+<h3>Prepare the views before paying for the mesh</h3>
+<ol class="etapes">
+<li>In the hub's 3D card, the “Views first” block generates the views first (front, back, profiles): a failed view does not cost a mesh.</li>
+<li>For free, reuse the views of a bible character's sheet, or build the view set from your photos (phone ones first, straightened and cut out).</li>
+<li>Per thumbnail: <b class="ui">Remove the background</b> (local, free) or replay a single view with a corrected prompt (paid).</li>
+<li>“Run · engine” launches the mesh on the approved views: only the engine is billed.</li>
+</ol>
+
+<h3>Rig, conversion, optimisation</h3>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-rig"></i><h4>fal workshop</h4><p><b class="ui">fal workshop (rig a job)</b> lists your 3D jobs: Meshy rig with animations (walk, run…), quote per task; greyed buttons say why (key, approval, texture).</p></article>
+<article><i data-dz="dz-lab3d-maillage"></i><h4>Convert and import</h4><p>Free local conversion to OBJ, STL, 3MF or glTF (STL and 3MF at a size in mm), or by Meshy to FBX, USDZ, BLEND. <b class="ui">Import a model (OBJ, STL, glTF, GLB)</b> makes it a job.</p></article>
+<article><i data-dz="dz-lab3d-lod"></i><h4>LOD and textures</h4><p>The Optimise area derives levels of detail with measured loss and mobile, PC, print budgets, and exports textures to Blender, Unity, Unreal or Godot conventions.</p></article>
+<article><i data-dz="dz-lab3d-optimiser"></i><h4>Engine bench</h4><p>The medians measured on your machine per engine (triangles, weight, watertightness, cost); add an existing job to it for free. An optional local GPU service makes Hunyuan free.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Paid: image-to-3D engines (fal in dollars, Meshy in credits), rigging, Meshy conversion and generated views. The price is announced first, the spending table prices rig and refine, and texturing without a fal key is refused straight away instead of failing later.</p></aside>

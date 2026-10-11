@@ -448,7 +448,7 @@
       "ecrans": [
         "Card Forge (éditeur de cartes à jouer)"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "forge3d",
@@ -463,7 +463,7 @@
       "ecrans": [
         "3D Studio / Moteurs 3D"
       ],
-      "etat": "migre"
+      "etat": "v3"
     },
     {
       "id": "matieres",
@@ -475,7 +475,8 @@
       "anciens": [],
       "ecrans": [
         "Material Forge (Matières)"
-      ]
+      ],
+      "etat": "v3"
     },
     {
       "id": "etabli",
