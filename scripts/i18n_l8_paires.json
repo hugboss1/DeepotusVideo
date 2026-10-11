@@ -1263,6 +1263,12 @@
     "groupe": "at2"
    },
    {
+    "pos": 55107,
+    "avant": "const grille = await api.get(\"/cost/pricing\");\r\n    usd = grille[provider === \"nano-banana\" ? \"nano_banana_usd\" : \"nano_banana_pro_usd\"];",
+    "apres": "/* t183 : le prix par image vient du catalogue unique (usd), pas d'une clé de grille écrite ici */\r\n    const cat = await api.get(\"/ia/catalogue?nature=image\");\r\n    const ent = ((cat && cat.modeles) || []).find(e => e.id === provider);\r\n    usd = ent && ent.usd ? ent.usd : null;",
+    "groupe": "t183"
+   },
+   {
     "pos": 55386,
     "avant": "`« ${provider} » ne prend pas plusieurs références : choisissez Nano Banana (Pro) dans la direction artistique.`",
     "apres": "dzT(\"atelier.at2_prod.multi_refs\", { provider })",
@@ -1897,6 +1903,18 @@
     "avant": "Importe un manuscrit (📚) ou clique ✨ — l'agent proposera 4 directions motivées par le texte.</div>`",
     "apres": "${dzT(\"atelier.at2_da.vide\")}</div>`",
     "groupe": "at2"
+   },
+   {
+    "pos": 79403,
+    "avant": "$(\"#daProvider\").innerHTML = pv.providers.map(p =>\r\n      `<option value=\"${p.id}\" ${p.id === cur ? \"selected\" : \"\"}>${esc(p.label)}</option>`).join(\"\");",
+    "apres": "/* t183 : TOUS les générateurs raster (pv.tous : dispo, clé, prix — catalogue unique), les sans-clé compris,\r\n       choisissables avec la mention « clé X à ajouter dans Réglages » (décision du 11/10/2026) ; le serveur\r\n       refuse le tir en 503 avant toute dépense. Un <optgroup> par voie (DzModelesIA). */\r\n    const tous = (pv.tous && pv.tous.length) ? pv.tous : pv.providers.map(p => Object.assign({ dispo: true }, p));\r\n    if (window.DzModelesIA) window.DzModelesIA.remplir($(\"#daProvider\"), tous, { valeur: cur });\r\n    else $(\"#daProvider\").innerHTML = tous.map(p =>\r\n      `<option value=\"${p.id}\" ${p.id === cur ? \"selected\" : \"\"}>${esc(p.label)}${p.dispo === false && p.cle\r\n        ? \" — \" + esc(dzT(\"atelier.t183_da.cle_a_ajouter\", { cle: p.cle })) : \"\"}</option>`).join(\"\");",
+    "groupe": "t183"
+   },
+   {
+    "pos": 79589,
+    "avant": "const sel = pv.providers.find(p => p.id === $(\"#daProvider\").value);",
+    "apres": "const sel = tous.find(p => p.id === $(\"#daProvider\").value);",
+    "groupe": "t183"
    },
    {
     "pos": 79729,

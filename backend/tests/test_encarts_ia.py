@@ -24,6 +24,15 @@ Réglages »), jamais `disabled` ; seul un modèle vectoriel (sortie "svg") est
        écarté, fal d'abord, libellé = celui que la pastille rejoue ;
   [b2] inverse avant_encartsia : aller-retour exact à l'octet, défait EN TÊTE
        d'avant_dzguide, double application refusée.
+  [c0] chaque page de lab qui génère charge /shared/dz-modeles-ia.js (Atelier,
+       Material Forge, Spritelab, Photolab ; le Vectorlab en G8 : sa page est
+       figée par la table L6) ;
+  [c1] Card Forge : l'option d'un modèle sans clé porte la mention (face,
+       cadre), le lot ne désactive plus rien et ne refuse plus côté écran (le
+       serveur dit 503), « aucune clé » se lit sur cle_absente ; le repli de
+       core.js lit `tous` ; tables L7 et L8 à jour (--check) ;
+  [c2] Atelier : #daProvider lit `tous` (DzModelesIA), l'image de production
+       prend son prix au catalogue (/ia/catalogue), plus à la grille.
 
 Run: & $PY tests/test_encarts_ia.py   (depuis backend/)
 """
@@ -172,6 +181,40 @@ check("un bundle sans le maillon passe tel quel", AIDE.avant_encartsia(sans) == 
 r = subprocess.run([sys.executable, str(R / "scripts/patch_bundle_encartsia.py"), "--check"], capture_output=True,
                    text=True, encoding="utf-8", errors="replace", cwd=str(R))
 check("double application refusée", r.returncode != 0 and "double application" in (r.stdout + r.stderr), r.stdout + r.stderr)
+
+# ── [c0] pages des labs ──────────────────────────────────────────────────────
+print("[c0] pages des labs")
+for lab in ("atelier", "materialforge", "spritelab", "photolab"):
+    html = (R / f"frontend/{lab}/index.html").read_text(encoding="utf-8")
+    check(f"{lab} charge dz-modeles-ia.js (une fois)", html.count('<script src="/shared/dz-modeles-ia.js"></script>') == 1)
+
+# ── [c1] Card Forge ─────────────────────────────────────────────────────────
+print("[c1] Card Forge")
+cf = {n: lire(f"frontend/cardforge/js/{n}") for n in ("mod-face.js", "mod-frame.js", "mod-data.js", "core.js")}
+check("face : mention sur l'option sans clé ; « aucune clé » via cle_absente",
+      'm.dispo === false && m.cle ? " — " + esc(dzT("cartes.face.cle_a_ajouter", { cle: m.cle }))' in cf["mod-face.js"]
+      and "if (!MODELS.length || AI_META.cle_absente) {" in cf["mod-face.js"])
+check("cadre : mention sur l'option sans clé ; « aucune clé » via cle_absente",
+      'm.dispo === false && m.cle ? " — " + esc(dzT("cartes.frame2.cle_a_ajouter", { cle: m.cle }))' in cf["mod-frame.js"]
+      and "if (!AI_MODELS.length || AI_META.cle_absente) {" in cf["mod-frame.js"])
+check("lot : plus d'option désactivée ni de refus côté écran, la clé nommée",
+      "LOT.model, !m.cle)" not in cf["mod-data.js"] and "if (m && !m.cle)" not in cf["mod-data.js"]
+      and 'dzT("cartes.data2.cle_a_ajouter", { cle: m.cle_nom' in cf["mod-data.js"])
+check("core : le repli CF.images.models() lit `tous` raster",
+      "d.tous" in cf["core.js"] and 'e.sortie !== "svg"' in cf["core.js"])
+for gen in ("i18n_l7_generer.py", "i18n_l8_generer.py"):
+    r = subprocess.run([sys.executable, str(R / "scripts" / gen), "--check"], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", cwd=str(R))
+    check(f"table {gen} à jour (--check)", r.returncode == 0, (r.stdout + r.stderr)[-300:])
+
+# ── [c2] Atelier ────────────────────────────────────────────────────────────
+print("[c2] Atelier")
+at = lire("frontend/atelier/atelier.js")
+check("#daProvider : `tous` (sans-clé compris) par DzModelesIA, la note des seeds lit la même liste",
+      "const tous = (pv.tous && pv.tous.length)" in at and "window.DzModelesIA.remplir($(\"#daProvider\"), tous" in at
+      and 'const sel = tous.find(p => p.id === $("#daProvider").value);' in at and "pv.providers.find(" not in at)
+check("image de production : prix lu au catalogue (/ia/catalogue), plus à la grille de tarifs",
+      'api.get("/ia/catalogue?nature=image")' in at and 'api.get("/cost/pricing")' not in at)
 
 print(f"\n{OK} ok, {KO} fail")
 sys.exit(1 if KO else 0)

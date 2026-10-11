@@ -6250,12 +6250,12 @@
     return AI_MODELS.map((m) => '<option value="' + esc(m.id) + '">' + esc(m.label)
       + (typeof m.usd_par_image === "number"
         ? " — " + usdFmt(m.usd_par_image) + "/image"
-        : dzT("cartes.frame2.tarif_non_tabule")) + "</option>").join("");
+        : dzT("cartes.frame2.tarif_non_tabule")) + (m.dispo === false && m.cle ? " — " + esc(dzT("cartes.frame2.cle_a_ajouter", { cle: m.cle })) : "") + "</option>").join("");
   }
   function decorCostLine() {
     const el = UI.decorCost;
     if (!el) return;
-    if (!AI_MODELS.length) {
+    if (!AI_MODELS.length || AI_META.cle_absente) {
       el.innerHTML = dzT("cartes.frame2.decor_sans_modele");
       return;
     }

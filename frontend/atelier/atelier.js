@@ -953,8 +953,10 @@ async function imageProduction(id) {
   let provider = "nano-banana-pro", usd = null;
   try {
     provider = (await api.get("/atelier/settings")).settings.image_provider || provider;
-    const grille = await api.get("/cost/pricing");
-    usd = grille[provider === "nano-banana" ? "nano_banana_usd" : "nano_banana_pro_usd"];
+    /* t183 : le prix par image vient du catalogue unique (usd), pas d'une clé de grille écrite ici */
+    const cat = await api.get("/ia/catalogue?nature=image");
+    const ent = ((cat && cat.modeles) || []).find(e => e.id === provider);
+    usd = ent && ent.usd ? ent.usd : null;
   } catch (e) { /* le coût reste inconnu : on le dit */ }
   if (provider !== "nano-banana" && provider !== "nano-banana-pro") {
     toast(dzT("atelier.at2_prod.multi_refs", { provider }), true);
@@ -1382,10 +1384,16 @@ async function openDA() {
   try {
     const pv = await api.get("/atelier/providers");
     const cur = daSettings.image_provider || "flux";
-    $("#daProvider").innerHTML = pv.providers.map(p =>
-      `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(p.label)}</option>`).join("");
+    /* t183 : TOUS les générateurs raster (pv.tous : dispo, clé, prix — catalogue unique), les sans-clé compris,
+       choisissables avec la mention « clé X à ajouter dans Réglages » (décision du 11/10/2026) ; le serveur
+       refuse le tir en 503 avant toute dépense. Un <optgroup> par voie (DzModelesIA). */
+    const tous = (pv.tous && pv.tous.length) ? pv.tous : pv.providers.map(p => Object.assign({ dispo: true }, p));
+    if (window.DzModelesIA) window.DzModelesIA.remplir($("#daProvider"), tous, { valeur: cur });
+    else $("#daProvider").innerHTML = tous.map(p =>
+      `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(p.label)}${p.dispo === false && p.cle
+        ? " — " + esc(dzT("atelier.t183_da.cle_a_ajouter", { cle: p.cle })) : ""}</option>`).join("");
     const upd = () => {
-      const sel = pv.providers.find(p => p.id === $("#daProvider").value);
+      const sel = tous.find(p => p.id === $("#daProvider").value);
       $("#daProviderNote").textContent = sel && !sel.seeds
         ? dzT("atelier.at3_da.sans_seeds")
         : dzT("atelier.at3_da.seeds_ok");

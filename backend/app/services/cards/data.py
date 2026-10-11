@@ -2710,7 +2710,9 @@ async def post_lot_generer(did: str, body: Any = Body(default=None)):
                                  "réduisez les lignes ou les variantes, ou relevez le mur — rien n'a été lancé.")
     m = next((x for x in DL.modeles() if x["id"] == d["model"]), None)
     if not m or not m["cle"]:
-        raise HTTPException(503, f"La clé de « {d['model']} » n'est pas enregistrée (Réglages) — rien n'a été lancé.")
+        # t183 : le refus nomme la CLÉ (le modèle reste choisissable à l'écran, décision du 11/10)
+        raise HTTPException(503, f"{(m or {}).get('cle_nom') or 'La clé'} non configurée (Réglages) pour "
+                                 f"« {d['model']} » — rien n'a été lancé.")
     from datetime import datetime, timezone
     from app.services import library_index as _LI
     from app.services import plafonds as _PLAF

@@ -10,6 +10,17 @@ AVANT `_garde_cout` et `_plafond` — donc ZÉRO ligne `depenses`.
       _plafond jamais appelé, aucune dépense ; un modèle fal sans FAL_KEY idem
       (FAL_KEY nommée) ; TÉMOIN : avec la clé, la même requête atteint
       _plafond (espion qui répond 402 — rien n'est lancé).
+  [2] Atelier : /atelier/providers rend `tous` (tout le registre raster, dispo
+      et clé, prix du catalogue) ; la planche de référence d'une entité
+      (/bible/entities/{id}/generate) avec un générateur sans clé (réglage DA)
+      -> 503 qui nomme la clé, _plafond jamais appelé, zéro dépense ; TÉMOIN :
+      avec la clé, la garde est atteinte ; l'image de production d'un plan
+      (/shots/{id}/image) sans FAL_KEY -> 503 avant tout (TÉMOIN : avec la clé,
+      le refus suivant — 400 « aucune vue » — prouve que le 503 venait de la clé).
+  [3] Card Forge : GET face/ai-models et frame/ai-models listent les modèles
+      sans clé (dispo faux, `cle` nommée), `cle_absente` dérivé de `dispo` ;
+      lot/modeles nomme la clé (cle_nom) et lot/generer refuse en 503 en la
+      nommant.
 
 AUCUN appel réel : `_plafond` est un espion, `fal_client.*` et tout
 `httpx.AsyncClient.post` hors du client de test sont des gardes qui COMPTENT.
@@ -104,13 +115,17 @@ Image.new("RGB", (64, 64), (10, 20, 30)).save(settings.images_path / SRC)
 asyncio.run(init_db())
 
 
-async def _req(path, body):
+async def _req(path, body, meth="POST"):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+        if meth == "GET":
+            return await c.get("/api" + path)
+        if meth == "PUT":
+            return await c.put("/api" + path, json=body)
         return await c.post("/api" + path, json=body)
 
 
-def call(path, body):
-    r = asyncio.run(_req(path, body))
+def call(path, body=None, meth="POST"):
+    r = asyncio.run(_req(path, body, meth))
     try:
         return r.status_code, r.json()
     except Exception:  # noqa: BLE001
@@ -177,6 +192,78 @@ st, js = call("/generate", corps(FAL))
 check("TÉMOIN : modèle fal AVEC FAL_KEY -> la garde de dépense est atteinte (espion 402)",
       st == 402 and len(PLAF) == 1, f"{st} {js} {PLAF}")
 settings.GEMINI_API_KEY = ""
+
+# ── [2] Atelier ─────────────────────────────────────────────────────────────
+print("[2] Atelier : générateurs sans clé choisissables, 503 au tir")
+settings.OPENAI_API_KEY = ""
+st, pv = call("/atelier/providers", meth="GET")
+tous = {e["id"]: e for e in (pv or {}).get("tous") or []}
+check("/atelier/providers : `tous` liste aussi les générateurs SANS clé (gpt-image-2 : dispo faux, clé OPENAI_API_KEY)",
+      st == 200 and (tous.get("gpt-image-2") or {}).get("dispo") is False
+      and (tous.get("gpt-image-2") or {}).get("cle") == "OPENAI_API_KEY" and (tous.get("flux") or {}).get("dispo") is True,
+      str(tous.get("gpt-image-2")))
+check("/atelier/providers : prix et voie lus au catalogue, aucun vectoriel, `providers` (servis) gardé",
+      all(isinstance(e.get("usd"), float) and e.get("voie") in ("fal", "openai") and e.get("sortie") == "raster"
+          for e in tous.values()) and "recraft-4.1-vecteur" not in tous
+      and "gpt-image-2" not in [p["id"] for p in pv.get("providers") or []], str(list(tous.values())[:2]))
+st, ent = call("/bible/entities", {"kind": "object", "name": "Lanterne", "description": "lanterne de cuivre"})
+EID = (ent or {}).get("id")
+check("TÉMOIN : entité de la bible créée", st == 200 and bool(EID), f"{st} {ent}")
+call("/atelier/settings", {"image_provider": "gpt-image-2"}, meth="PUT")
+PLAF.clear()
+d0, r0 = n_depenses(), RESEAU["n"]
+st, js = call(f"/bible/entities/{EID}/generate", {})
+check("planche DA, générateur gpt-image-2 sans OPENAI_API_KEY -> 503 qui nomme la clé et les Réglages",
+      st == 503 and "OPENAI_API_KEY" in str(js) and "Réglages" in str(js), f"{st} {js}")
+check("planche DA sans clé : _plafond JAMAIS appelé, ZÉRO dépense, aucun appel réseau",
+      PLAF == [] and n_depenses() == d0 and RESEAU["n"] == r0, f"{PLAF} {d0}->{n_depenses()} {RESEAU}")
+call("/atelier/settings", {"image_provider": "flux"}, meth="PUT")
+PLAF.clear()
+st, js = call(f"/bible/entities/{EID}/generate", {})
+check("TÉMOIN : planche DA avec flux (FAL_KEY posée) -> la garde de dépense est atteinte (espion 402)",
+      st == 402 and len(PLAF) == 1, f"{st} {js} {PLAF}")
+st, ch = call("/chapters", {"title": "C", "script_text": "La lanterne vacille.\n\nLa pluie."})
+st2, dec = call(f"/chapters/{(ch or {}).get('id')}/storyboard/decoupe", {"method": "paragraph"})
+shots = (dec or {}).get("shots") or []
+check("TÉMOIN : un plan découpé", bool(shots), f"{st} {st2} {str(dec)[:200]}")
+SID = shots[0]["id"] if shots else "x"
+settings.FAL_KEY = ""
+PLAF.clear()
+d0 = n_depenses()
+st, js = call(f"/shots/{SID}/image", {"provider": "nano-banana-pro"})
+check("image de production sans FAL_KEY -> 503 qui nomme FAL_KEY, _plafond jamais appelé, zéro dépense",
+      st == 503 and "FAL_KEY" in str(js) and "Réglages" in str(js) and PLAF == [] and n_depenses() == d0, f"{st} {js}")
+settings.FAL_KEY = "test-key"
+st, js = call(f"/shots/{SID}/image", {"provider": "nano-banana-pro"})
+check("TÉMOIN : avec FAL_KEY, le refus suivant (400 : aucune vue de référence) — le 503 venait bien de la clé",
+      st == 400 and "référence" in str(js), f"{st} {js}")
+
+# ── [3] Card Forge ──────────────────────────────────────────────────────────
+print("[3] Card Forge : ai-models et lot")
+st, dk = call("/cards/decks", {"name": "essai t183"})
+DID = ((dk or {}).get("deck") or {}).get("id")
+check("TÉMOIN : jeu créé", st == 200 and bool(DID), f"{st} {dk}")
+for piece in ("face", "frame"):
+    st, am = call(f"/cards/{DID}/{piece}/ai-models", meth="GET")
+    mods = {m["id"]: m for m in (am or {}).get("models") or []}
+    check(f"{piece}/ai-models : gpt-image-2 SANS clé listé (dispo faux, cle OPENAI_API_KEY), flux dispo",
+          st == 200 and (mods.get("gpt-image-2") or {}).get("dispo") is False
+          and (mods.get("gpt-image-2") or {}).get("cle") == "OPENAI_API_KEY" and (mods.get("flux") or {}).get("dispo") is True,
+          f"{st} {mods.get('gpt-image-2')}")
+    check(f"{piece}/ai-models : cle_absente faux (FAL_KEY posée), aucun vectoriel",
+          am.get("cle_absente") is False and "recraft-4.1-vecteur" not in mods, str(am.get("cle_absente")))
+settings.FAL_KEY = ""
+st, am = call(f"/cards/{DID}/face/ai-models", meth="GET")
+check("face/ai-models SANS aucune clé : la liste reste pleine (tout choisissable), cle_absente vrai (dérivé de dispo)",
+      st == 200 and len(am.get("models") or []) >= 16 and am.get("cle_absente") is True
+      and not any(m["dispo"] for m in am["models"]), f"{st} {len(am.get('models') or [])} {am.get('cle_absente')}")
+settings.FAL_KEY = "test-key"
+st, lm = call(f"/cards/{DID}/data/lot/modeles", meth="GET")
+lmo = {m["id"]: m for m in (lm or {}).get("models") or []}
+check("lot/modeles : gpt-image-2 sans clé nomme sa clé (cle_nom OPENAI_API_KEY)",
+      st == 200 and (lmo.get("gpt-image-2") or {}).get("cle") is False
+      and (lmo.get("gpt-image-2") or {}).get("cle_nom") == "OPENAI_API_KEY", f"{st} {lmo.get('gpt-image-2')}")
+settings.OPENAI_API_KEY = "test-oa"
 
 print(f"\n{ok} ok, {fail} fail")
 sys.exit(1 if fail else 0)

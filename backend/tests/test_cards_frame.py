@@ -6491,7 +6491,8 @@ def test_la_route_ai_models_du_cadre_publie_le_TARIF_DE_L_APPLICATION():
         "le prix publié doit être CELUI de l'application, pas une copie"
     assert par_id["flux"]["provider"] == "fal"
     for m in d["models"]:
-        assert set(m) == {"id", "label", "provider", "note", "usd_par_image"}, m
+        # t183 : `dispo` et `cle` — un modèle sans clé est listé, choisissable (décision du 11/10/2026)
+        assert set(m) == {"id", "label", "provider", "note", "usd_par_image", "dispo", "cle"}, m
     # UN MODÈLE ABSENT DE LA TABLE DE TARIFS N'AFFICHE AUCUN MONTANT :
     # `pricing.estimate` retomberait sur FLUX, et ce repli serait un prix faux.
     # LA RÈGLE EST ÉCRITE CONTRE LA TABLE, PAS CONTRE UN MODÈLE NOMMÉ, et

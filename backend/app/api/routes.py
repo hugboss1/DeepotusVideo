@@ -9114,9 +9114,26 @@ async def get_atelier_settings():
 @router.get("/atelier/providers")
 async def list_image_providers():
     """Générateurs d'images disponibles (selon les clés configurées), avec
-    l'indicateur seeds (déterminisme des recettes)."""
+    l'indicateur seeds (déterminisme des recettes).
+
+    t183 (G1) — décision de l'utilisateur (11/10/2026) : `tous` rend TOUS les
+    générateurs raster du registre, disponibles OU NON (`dispo`, `cle`), avec
+    leur voie et leur prix lus au catalogue unique — un générateur sans clé
+    reste choisissable dans 🎨 DA ; le tir est refusé en 503 avant la dépense.
+    `providers` (les seuls disponibles) reste pour la compatibilité."""
     from app.services import image_providers as IP
-    return {"providers": IP.available(), "default": "flux"}
+    from app.services import catalogue_ia as CI
+    cat = {e["id"]: e for e in CI.lister("image")}
+    tous = []
+    for pid, meta in IP.PROVIDERS.items():
+        if IP.est_vectoriel(pid):
+            continue
+        e = cat.get(pid) or {}
+        tous.append({"id": pid, "label": e.get("label") or meta["label"], "seeds": meta["seeds"],
+                     "dispo": IP.missing_key(pid) is None, "cle": meta["needs"],
+                     "voie": e.get("voie") or ("openai" if meta["needs"] == "OPENAI_API_KEY" else "fal"),
+                     "usd": float(e.get("usd") or 0.0), "unite": "image", "sortie": "raster"})
+    return {"providers": IP.available(), "default": "flux", "tous": tous}
 
 
 @router.get("/voice/providers")
@@ -9670,6 +9687,13 @@ async def generate_bible_reference(entity_id: str, body: dict):
                                      f"référence est une image raster. Choisissez "
                                      f"un autre générateur dans la direction "
                                      f"artistique.")
+        # t183 : un générateur sans sa clé reste choisissable dans 🎨 DA
+        # (décision du 11/10/2026) — le tir est refusé ICI, en 503 qui nomme
+        # la clé, AVANT la garde de dépense (aucune ligne `depenses`).
+        _manque = IP.missing_key(provider)
+        if _manque:
+            raise HTTPException(503, f"{_manque} non configurée (Réglages) pour {provider} "
+                                     f"— rien n'a été lancé.")
         desc = (e.description or "").strip()
         if not desc and not (recipe and recipe.get("v") in (2, 3)):
             raise HTTPException(400, "Add a description before generating")
@@ -10518,6 +10542,9 @@ async def generate_shot_image(shot_id: str, body: dict):
         if provider not in ("nano-banana", "nano-banana-pro"):
             raise HTTPException(400, f"« {provider} » ne prend pas plusieurs références : choisissez Nano Banana (Pro) "
                                      "dans la direction artistique, ou le croquis 🎨 (FLUX).")
+        _manque = IP.missing_key(provider)   # t183 : 503 qui nomme la clé, AVANT la garde de dépense
+        if _manque:
+            raise HTTPException(503, f"{_manque} non configurée (Réglages) pour {provider} — rien n'a été lancé.")
         try:
             eids = _json.loads(s.entities) if s.entities else []
         except Exception:

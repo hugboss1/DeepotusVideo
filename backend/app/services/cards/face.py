@@ -947,6 +947,20 @@ async def ai_models(did: str):
         from app.api.routes import list_image_models
         d = await list_image_models()
         models = list((d or {}).get("models") or [])
+        # t183 (G1) — décision de l'utilisateur (11/10/2026) : un modèle dont la
+        # clé manque reste CHOISISSABLE ; il est listé avec `dispo` faux et le
+        # NOM de sa clé (l'écran ajoute « clé X à ajouter dans Réglages »), le
+        # serveur refuse le tir en 503 avant toute dépense. Les servis d'abord,
+        # puis le reste du catalogue unique (`tous`), raster seulement.
+        vus = {str(m.get("id") or "") for m in models}
+        for m in models:
+            m["dispo"] = True
+        for e in (d or {}).get("tous") or []:
+            if e.get("sortie") == "svg" or str(e.get("id") or "") in vus:
+                continue
+            models.append({"id": e.get("id"), "label": e.get("label"),
+                           "provider": e.get("voie"), "note": "",
+                           "dispo": bool(e.get("dispo")), "cle": e.get("cle")})
         configured = str((d or {}).get("configured") or "")
     except Exception as e:
         # La route de l'application lit aussi un réglage en base : un incident
@@ -972,6 +986,8 @@ async def ai_models(did: str):
             "provider": str(m.get("provider") or ""),
             "note": str(m.get("note") or ""),
             "usd_par_image": (spec or {}).get("usd"),
+            "dispo": bool(m.get("dispo", True)),
+            "cle": str(m.get("cle") or "") or None,
         })
     return {
         "models": out,
@@ -980,7 +996,8 @@ async def ai_models(did: str):
         "tarif_source": "la table de tarifs de l'application (Réglages → Tarifs "
                         "et budget, pricing.json) — le fournisseur facture "
                         "directement",
-        "cle_absente": not out,
+        # t183 : « aucune clé » se lit sur `dispo` (la liste n'est plus vide)
+        "cle_absente": not any(m["dispo"] for m in out),
         "repli": repli,
         "erreur": erreur,
     }

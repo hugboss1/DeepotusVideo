@@ -51,12 +51,14 @@ def modeles() -> list:
     from app.config import settings
     from . import face
     cles = {"fal": bool(getattr(settings, "FAL_KEY", "")), "openai": bool(getattr(settings, "OPENAI_API_KEY", ""))}
+    # t183 : le NOM de la clé, pour la mention « clé X à ajouter dans Réglages » (le modèle reste choisissable)
+    noms = {"fal": "FAL_KEY", "openai": "OPENAI_API_KEY"}
     out = []
     for mid, spec in sorted(face.price_table().items()):
         if not servi(mid):
             continue
         out.append({"id": mid, "label": spec["label"], "provider": spec["provider"], "usd_par_image": spec["usd"],
-                    "cle": cles.get(spec["provider"], False)})
+                    "cle": cles.get(spec["provider"], False), "cle_nom": noms.get(spec["provider"], "")})
     return out
 
 

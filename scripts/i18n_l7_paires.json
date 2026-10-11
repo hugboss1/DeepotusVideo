@@ -189,6 +189,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 73793,
+    "avant": "try { return await jsonFetch(\"GET\", \"/image-models\"); }",
+    "apres": "try {\r\n        /* t183 : tout le catalogue raster (`tous`), les modèles sans clé compris (dispo, cle) — décision du 11/10 */\r\n        const d = await jsonFetch(\"GET\", \"/image-models\");\r\n        const tous = ((d && d.tous) || []).filter((e) => e.sortie !== \"svg\");\r\n        return tous.length ? Object.assign({}, d, { models: tous.map((e) => ({ id: e.id, label: e.label,\r\n          provider: e.voie, note: \"\", usd_par_image: Number(e.usd) || null, dispo: !!e.dispo, cle: e.cle })) }) : d;\r\n      }",
+    "groupe": "t183"
+   },
+   {
     "pos": 84085,
     "avant": "\"jeu \" + DOC.id + \" enregistré (\" + keys.join(\", \") + \")\"",
     "apres": "dzT(\"cartes.core.jeu_enregistre\", { id: DOC.id, cles: keys.join(\", \") })",
@@ -3133,9 +3139,9 @@
     "groupe": "data2"
    },
    {
-    "pos": 148908,
-    "avant": "\" · sans clé\"",
-    "apres": "dzT(\"cartes.data2.sans_cle\")",
+    "pos": 148894,
+    "avant": "(m.cle ? \"\" : \" · sans clé\"), LOT.model, !m.cle)",
+    "apres": "(m.cle ? \"\" : \" · \" + dzT(\"cartes.data2.cle_a_ajouter\", { cle: m.cle_nom || \"?\" })), LOT.model, false)",
     "groupe": "data2"
    },
    {
@@ -3253,9 +3259,9 @@
     "groupe": "data2"
    },
    {
-    "pos": 153458,
-    "avant": "\"la clé de « \" + d.model + \" » n’est pas enregistrée (Réglages)\"",
-    "apres": "dzT(\"cartes.data2.cle_absente\", { m: d.model })",
+    "pos": 153431,
+    "avant": "if (m && !m.cle) { M.toast(\"la clé de « \" + d.model + \" » n’est pas enregistrée (Réglages)\", true); return; }",
+    "apres": "/* t183 : un modèle sans clé reste choisissable ; le serveur refuse en 503, avant toute dépense */",
     "groupe": "data2"
    },
    {
@@ -5165,6 +5171,12 @@
     "groupe": "face"
    },
    {
+    "pos": 205305,
+    "avant": "if (!MODELS.length) {",
+    "apres": "if (!MODELS.length || AI_META.cle_absente) {",
+    "groupe": "t183"
+   },
+   {
     "pos": 205349,
     "avant": "'<b>Aucun modèle d\\'image disponible</b> — aucune clé FAL ni OpenAI '\r\n        + 'n\\'est enregistrée dans les Réglages de l\\'application, la génération échouerait. '\r\n        + 'Le catalogue vectoriel et l\\'import, eux, ne demandent aucune clé.'",
     "apres": "dzT(\"cartes.face.cout_aucun_modele\")",
@@ -5181,6 +5193,12 @@
     "avant": "\" — tarif non tabulé\"",
     "apres": "dzT(\"cartes.face.tarif_non_tabule\")",
     "groupe": "face"
+   },
+   {
+    "pos": 211803,
+    "avant": ") + '</option>').join(\"\")",
+    "apres": ") + (m.dispo === false && m.cle ? \" — \" + esc(dzT(\"cartes.face.cle_a_ajouter\", { cle: m.cle })) : \"\") + '</option>').join(\"\")",
+    "groupe": "t183"
    },
    {
     "pos": 211838,
@@ -8473,6 +8491,18 @@
     "avant": "\" — tarif non tabulé\"",
     "apres": "dzT(\"cartes.frame2.tarif_non_tabule\")",
     "groupe": "frame2"
+   },
+   {
+    "pos": 334896,
+    "avant": ") + \"</option>\").join(\"\");",
+    "apres": ") + (m.dispo === false && m.cle ? \" — \" + esc(dzT(\"cartes.frame2.cle_a_ajouter\", { cle: m.cle })) : \"\") + \"</option>\").join(\"\");",
+    "groupe": "t183"
+   },
+   {
+    "pos": 335015,
+    "avant": "if (!AI_MODELS.length) {",
+    "apres": "if (!AI_MODELS.length || AI_META.cle_absente) {",
+    "groupe": "t183"
    },
    {
     "pos": 335062,

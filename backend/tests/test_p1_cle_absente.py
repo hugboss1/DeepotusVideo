@@ -84,7 +84,8 @@ for f in FICHIERS:
 check("1.1 les 43 refus sont toujours la, + 1 (tache #51 : /generate/extend, 01/10) + 1 (tache #63 : voix temoin de l'animatique, 02/10)"
       " + 1 (tache #66 : la reecriture, 02/10) + 1 (tache #76 : l'import Figma editable, 03/10)"
       " + 1 (tache #82 : les legendes de la Bibliotheque, 04/10) - 1 (t183 : /generate, /generate/batch et"
-      " /generate/composition partagent _cle_video_ou_503, 11/10)", len(neufs) == 47, _d(len(neufs)))
+      " /generate/composition partagent _cle_video_ou_503, 11/10) + 2 (t183 : planche DA et image de production d'un"
+      " plan, generateur sans cle choisi, 11/10)", len(neufs) == 49, _d(len(neufs)))
 check("1.2 et TOUS repondent 503", all(c == 503 for _f, _l, c in neufs), _d([v for v in neufs if v[2] != 503]))
 
 print("\n[2] execute : sans aucune cle, les voies repondent 503 et nomment la cle")
