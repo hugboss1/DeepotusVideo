@@ -1455,20 +1455,31 @@ async def post_asset3d_view_rejouer(job: str, index: int, background_tasks: Back
 
 @router.post("/assets/3d/{job}/views/{index}/detourer")
 async def post_asset3d_view_detourer(job: str, index: int, body: dict = None):
-    """Body {via?: "local"|"fal"}. Le local est gratuit et rapide : réponse directe. fal (rembg) est gardé."""
+    """Body {via?: "local"|"fal", modele?, sujet?}. Le local est gratuit et rapide : réponse directe. fal (rembg) est
+    gardé. t186 (G4) : `modele` = un id detourage_image du registre (remplace `via`) — clé absente 503 avant la garde,
+    sujet manquant 400, garde sur une image (kind « detourage »)."""
     from app.services import asset3d_views as AV
     body = body or {}
     via = "fal" if str(body.get("via") or "local") == "fal" else "local"
+    modele = str(body.get("modele") or "").strip() or None
+    sujet = _detourage_controles(modele, "detourage_image", body.get("sujet")) if modele else None
     _vues_ou_http(AV.verifier_detourage, job, index)
     if await _asset3d_occupe(job):
         raise HTTPException(409, "Une opération est déjà en cours sur ce jeu de vues — attends qu'elle finisse.")
-    if via == "fal":
+    if modele:
+        from app.services import detourage as _DTv
+        await _plafond(_DTv.op_cout(modele, images=1), "moteurs3d")
+    elif via == "fal":
         _cle_fal_ou_400()
         await _plafond({"kind": "asset3d_views", "views": 0, "rembg": 1}, "moteurs3d")
     try:
-        return await AV.detourer_vue(job, index, via=via)
+        return await AV.detourer_vue(job, index, via=via, modele=modele, sujet=sujet)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        if not modele:
+            raise
+        raise HTTPException(502, str(e))   # t186 : l'échec du fournisseur choisi se nomme
 
 
 @router.post("/assets/3d/{job}/tirer")
@@ -2447,6 +2458,7 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
     background, record what was produced in cost_meta. Poll GET /api/jobs/{id}.
     Body: {source: {kind: job|upload|video|images, ...} (images : {filenames: [...]}, T108), fps_sample, max_frames,
     remove_bg: none|api|local, trim: animation|tight, cell: {size, align},
+    modele?: id detourage_image du registre (t186 — remplace remove_bg quand il est donné), sujet? (sam3/bria-objet),
     columns: "auto"|int, pixel?: {target_px, colors|palette, dither} (9b),
     extract_only?: bool (9c: frames-only probe for the filmstrip),
     keep?: [indices] (9c: filmstrip selection, sampling order), title?}."""
@@ -2461,10 +2473,16 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
         src = await SS.resolve_source(body.get("source") or {})
     except ValueError as e:
         raise HTTPException(400, str(e))
-    if opts["remove_bg"] == "api" and not settings.FAL_KEY:
+    if opts.get("modele"):
+        # t186 (G4) : un modèle du registre — clé absente 503 AVANT la garde, puis la garde sur max_frames images
+        _detourage_controles(opts["modele"], "detourage_image", opts.get("sujet"))
+        if not opts.get("extract_only"):
+            from app.services import detourage as _DTs
+            await _plafond(_DTs.op_cout(opts["modele"], images=int(opts.get("max_frames") or 16)), "sprites")
+    elif opts["remove_bg"] == "api" and not settings.FAL_KEY:
         raise HTTPException(503, "FAL_KEY not configured (Settings) — "
                                  "use remove_bg 'local' or 'none'.")
-    if opts["remove_bg"] == "local":
+    if opts["remove_bg"] == "local" and not opts.get("modele"):
         try:
             import rembg  # noqa: F401
         except ImportError:
@@ -2472,7 +2490,7 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
                 400, "rembg is not installed in this runtime — use remove_bg "
                      "'api' (fal) or 'none', or install it with: pip install rembg")
 
-    if opts["remove_bg"] == "api" and not opts.get("extract_only"):   # tâche #16
+    if opts["remove_bg"] == "api" and not opts.get("extract_only") and not opts.get("modele"):   # tâche #16
         await _plafond({"kind": "sprite2d", "frames": int(opts.get("max_frames") or 16), "remove_bg": "api"}, "sprites")
     job_id = str(uuid4())
     short = job_id[:8]
@@ -2508,6 +2526,7 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
                     jr.cost_meta = _json.dumps({
                         "job": short, "frames": r.get("frames"),
                         "remove_bg": r.get("remove_bg"),
+                        "modele": opts.get("modele"),   # t186 : le détourage du registre, chiffré par _cout_job_sprite
                         "grid": r.get("grid"),
                         "bg_failed": r.get("bg_failed") or []})
                     await s.commit()
@@ -4691,7 +4710,8 @@ async def audio_duck(request: Request):
 @router.post("/matte")
 async def matte_start(request: Request):
     """T103 (plan-son-vfx T9, D2a) — détoure le sujet du rendu d'un job (BiRefNet vidéo, fal) en ProRes 4444.
-    Body {job_id, model?: general|matting|portrait} → {matte_id, usd_note}. PAYANT, prix non affiché par fal :
+    Body {job_id, model?: general|matting|portrait | id detourage_video du registre (t186), sujet? (sam31-video)}
+    → {matte_id, usd_note}. PAYANT, prix non affiché par fal :
     la garde des plafonds passe AVANT tout appel (avec la durée de la source), la note « à mesurer » suit."""
     try:
         payload = await request.json()
@@ -4704,28 +4724,54 @@ async def matte_start(request: Request):
     if src is None:
         raise HTTPException(404, "rendu introuvable pour ce job_id")
     model = str(payload.get("model") or "general")
-    if model not in MT.MATTE_MODELS:
-        raise HTTPException(400, f"modèle de détourage inconnu : {model!r} (connus : {', '.join(MT.MATTE_MODELS)})")
+    sujet = None
+    if model in MT.MATTE_MODELS:
+        # les trois anciennes clés = BiRefNet v2 vidéo : le 503 clé absente AVANT la garde (t186)
+        if not (settings.FAL_KEY or "").strip():
+            raise _refus_cle("FAL_KEY", MT.MATTE_MODELS[model]["label"], request)
+    else:
+        from app.services import detourage as _DT
+        if model not in _DT.REGISTRE:
+            raise HTTPException(400, f"modèle de détourage inconnu : {model!r} "
+                                     f"(connus : {', '.join(list(MT.MATTE_MODELS) + _DT.ids(_DT.VIDEO))})")
+        sujet = _detourage_controles(model, _DT.VIDEO, payload.get("sujet"), request)
     dur = await asyncio.get_running_loop().run_in_executor(None, sfx_service._probe_duration, src)
-    await _plafond({"kind": "matte", "duration_s": dur}, "son", src.name)
+    # devis : kind « matte » pour BiRefNet (anciennes clés et birefnet-v2-video — même tarif, même ligne que
+    # les bancs du matte figent), kind « detourage » (secondes, fps 30 par défaut) pour les autres modèles
+    if model in MT.MATTE_MODELS or model == "birefnet-v2-video":
+        op = {"kind": "matte", "duration_s": dur}
+    else:
+        op = _DT.op_cout(model, secondes=dur)
+    await _plafond(op, "son", src.name)
     try:
-        mid = MT.detourer(src, model, label=src.stem[:16])
+        mid = MT.detourer(src, model, label=src.stem[:16], sujet=sujet)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return {"ok": True, "matte_id": mid, "usd_note": MT.USD_NOTE}
+    return {"ok": True, "matte_id": mid, "usd_note": MT.note_prix(model)}
 
 
 @router.get("/matte-models")
 async def matte_models():
-    """T103 (D2b) — le registre de détourage, SERVI : le rack ne recopie aucun libellé."""
-    from app.services import matte_service as MT
-    return {"models": [{"id": k, "label": v["label"]} for k, v in MT.MATTE_MODELS.items()],
-            "default": "general", "usd_note": MT.USD_NOTE}
+    """T103 (D2b) — le registre de détourage, SERVI : le rack ne recopie aucun libellé.
+    t186 (G4) : `models` garde en tête les trois anciennes clés (id, label d'avant — BiRefNet v2 vidéo), puis
+    les autres modèles vidéo du registre unique (detourage_video) ; chaque entrée porte aussi usd, unite, note,
+    prompt (sujet requis), dispo, cle. `registre` = les 5 entrées du catalogue telles quelles (birefnet-v2-video
+    compris, qui double « general »)."""
+    from app.services import matte_service as MT, catalogue_ia as CI
+    reg = CI.lister("detourage_video")
+    par_id = {e["id"]: e for e in reg}
+    bire = par_id.get("birefnet-v2-video") or {}
+    champs = ("usd", "unite", "note", "prompt", "dispo", "cle")
+    models = [dict({k: bire.get(k) for k in champs}, id=k, label=v["label"], registre="birefnet-v2-video")
+              for k, v in MT.MATTE_MODELS.items()]
+    models += [dict({k: e.get(k) for k in champs}, id=e["id"], label=e["label"], registre=e["id"])
+               for e in reg if e["id"] != "birefnet-v2-video"]
+    return {"models": models, "default": "general", "usd_note": MT.USD_NOTE, "registre": reg}
 
 
 @router.get("/matte/file/{name}")
 async def matte_file(name: str):
-    """Le .mov d'un matte — nom CONFINÉ au dossier des mattes (déclarée AVANT /matte/{matte_id})."""
+    """Le .mov (ou .webm, t186) d'un matte — nom CONFINÉ au dossier des mattes (déclarée AVANT /matte/{matte_id})."""
     from app.services import matte_service as MT
     try:
         p = MT.matte_path(name)
@@ -4733,7 +4779,7 @@ async def matte_file(name: str):
         raise HTTPException(404, str(e))
     if not p.is_file():
         raise HTTPException(404, "matte absent")
-    return FileResponse(p, media_type="video/quicktime")
+    return FileResponse(p, media_type=MT.media_type(p.name))
 
 
 @router.get("/matte/{matte_id}")
@@ -5679,6 +5725,39 @@ def _refus_cle(cle: str, modele: str, http=None) -> HTTPException:
     from app import i18n as _i18n
     lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
     return HTTPException(503, _i18n.msg("ia.cle.absente_tir", lang, nom_cle=cle, modele=modele))
+
+
+def _cout_job_sprite(meta: dict, p: dict | None = None) -> dict:
+    """Le coût d'un job sprite2d d'après son cost_meta : celui d'avant (sprite2d, remove_bg api = rembg fal) ;
+    t186 (G4) : avec un `modele` du registre, N détourages de ce modèle (kind « detourage ») + la planche locale."""
+    from app.services import pricing as _pricing
+    frames = int((meta or {}).get("frames", 0) or 0)
+    mid = (meta or {}).get("modele")
+    if mid:
+        ops = [{"kind": "detourage", "modele": str(mid), "images": max(1, frames)} if frames else None,
+               {"kind": "sprite2d", "frames": frames, "remove_bg": "none"}]
+        return _pricing.estimate({"kind": "campaign", "ops": [o for o in ops if o]}, p)
+    return _pricing.estimate({"kind": "sprite2d", "frames": frames,
+                              "remove_bg": (meta or {}).get("remove_bg", "none")}, p)
+
+
+def _detourage_controles(mid, nature: str, sujet=None, http=None):
+    """t186 (G4) — les refus GRATUITS d'un détourage du registre unique, AVANT toute garde de dépense, dans cet
+    ordre : id inconnu ou d'une autre nature -> 400 ; clé absente (modèle fal, décision du 11/10/2026 : le
+    modèle reste choisissable, le tir est refusé ICI) -> 503 qui nomme la clé, aucune ligne `depenses` ; sujet
+    manquant pour un modèle qui l'exige (SAM 3, Bria objet, SAM 3.1) -> 400. Rend le sujet nettoyé (ou None)."""
+    from app.services import detourage as _DT
+    try:
+        _DT.entree(str(mid or ""), nature)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    cle = _DT.cle_manquante(mid)
+    if cle:
+        raise _refus_cle(cle, _DT.REGISTRE[mid]["label"], http)
+    try:
+        return _DT.sujet_de(mid, sujet)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 def _cle_video_ou_503(video_model, http=None) -> None:
@@ -7989,9 +8068,7 @@ def _job_to_cost(job, p):
             meta = _json.loads(job.cost_meta or "{}")
         except Exception:
             meta = {}
-        return _pricing.estimate({"kind": "sprite2d",
-                                  "frames": int(meta.get("frames", 0) or 0),
-                                  "remove_bg": meta.get("remove_bg", "none")}, p)
+        return _cout_job_sprite(meta, p)
     if prov in _JOBS_CAMPAGNE:
         vdur = dur
         if getattr(job, "video_model", None):
@@ -8714,6 +8791,22 @@ async def _process_image_core(body: dict):
 
     if op == "remove-bg":
         method = (body.get("method") or "api").lower()
+        if body.get("modele"):
+            # t186 (G4) : un modèle du registre unique (detourage_image) + son sujet s'il en exige un ; sans
+            # `modele`, les deux chemins d'avant ci-dessous restent tels quels (api = rembg fal, local = rembg).
+            from app.services import detourage as _DT
+            mid = str(body.get("modele"))
+            sujet = _detourage_controles(mid, _DT.IMAGE, body.get("sujet"))
+            await _plafond(_DT.op_cout(mid, images=1), str(body.get("source") or "bibliotheque")[:24])
+            try:
+                nom = await _DT.detourer_image(mid, src, sujet)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
+            except Exception as e:  # noqa: BLE001 — l'échec fournisseur se NOMME (502), jamais un 500 muet
+                logger.error(f"détourage {mid} en échec : {e}")
+                raise HTTPException(502, f"{_DT.REGISTRE[mid]['label']} : {e}")
+            logger.info(f"images/process remove-bg {mid}: {fname} -> {nom}")
+            return {"images": [nom], "op": op, "modele": mid}
         if method == "local":
             try:
                 from rembg import remove as _rembg_remove

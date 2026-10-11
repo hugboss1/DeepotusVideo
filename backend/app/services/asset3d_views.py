@@ -193,10 +193,14 @@ def verifier_detourage(job, index: int) -> dict:
     return v
 
 
-async def detourer_vue(job, index: int, *, via: str = "local", on_step=None) -> dict:
+async def detourer_vue(job, index: int, *, via: str = "local", on_step=None, modele: str | None = None,
+                       sujet: str | None = None) -> dict:
     """Fond retiré. `local` : masque des quatre coins d'`asset3d_qc`, gratuit et hors ligne — la vue est alors
     marquée `a_renvoyer` (son URL fal montre encore l'image d'avant). `fal` : imageutils/rembg sur un envoi du FICHIER
-    courant, tarif `rembg_api_usd`."""
+    courant, tarif `rembg_api_usd`.
+    t186 (G4) : `modele` = un id detourage_image du registre unique (app.services.detourage, + `sujet` pour SAM 3 /
+    Bria objet) — quand il est donné, il remplace `via` ; la vue détourée est marquée `a_renvoyer` (ré-envoyée au
+    tir) et `detoure` vaut l'id du modèle. Absent : comportement INCHANGÉ. Clé et garde : dans la route."""
     import asyncio
     from PIL import Image
     from app.services import asset3d_qc, pricing
@@ -208,7 +212,16 @@ async def detourer_vue(job, index: int, *, via: str = "local", on_step=None) -> 
     if on_step:
         await on_step(f"Détourage vue {v['index']}", 40)
 
-    if via == "fal":
+    if modele:
+        import os
+        from app.services import detourage as DT
+        nom = await DT.detourer_image(modele, p, sujet, dossier=p.parent)
+        os.replace(p.parent / nom, p)
+        usd = float(pricing.estimate(DT.op_cout(modele, images=1))["total_usd"])
+        v["a_renvoyer"] = True
+        v.pop("methode", None)
+        via = modele
+    elif via == "fal":
         from app.services import sprite_service
         u = await sprite_service._rembg_api(await A3._upload(p))
         await asyncio.to_thread(A3._download, u, p)

@@ -345,33 +345,57 @@ async def voix_convertir(body: dict | None = None):
 
 @router.post("/decor")
 async def decor_composer(body: dict | None = None):
-    """{source: {job_id}|{depot}, fond: {couleur: "#rrggbb"}|{image: nom}|{video: dépôt}, modele?} -> {job_id, devis_usd}.
-    `modele` (t168d) : portrait (défaut), matting, general — celui que l'aperçu a montré."""
-    from app.services import decor_service as DS
+    """{source: {job_id}|{depot}, fond: {couleur: "#rrggbb"}|{image: nom}|{video: dépôt}, modele?, sujet?} -> {job_id, devis_usd}.
+    `modele` (t168d) : portrait (défaut), matting, general — celui que l'aperçu a montré ; t186 : ou un id
+    detourage_video du registre (bria-video-v3, veed-video-rapide, pixelcut-video, sam31-video + `sujet`,
+    birefnet-v2-video). Devis : kind « matte » pour BiRefNet, kind « detourage » (secondes) sinon."""
+    from app.services import decor_service as DS, matte_service as MT, detourage as DT
     b = body if isinstance(body, dict) else {}
-    src, parent, fond, info = await _decor_controles(b)
-    garde = await _PLAF.verifier({"kind": "matte", "duration_s": float(info["duration_s"])}, "studio",
-                                 ref=f"decor:{src.name}")
-    job_id = await DS.lancer_decor(src, fond, info, garde["lignes"], parent, DS.modele(b.get("modele")))
-    return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"], "modele": DS.modele(b.get("modele"))}
+    mod = DS.modele(b.get("modele"))
+    src, parent, fond, info = await _decor_controles(b, mod)
+    sujet = _decor_sujet(mod, b.get("sujet"))
+    op = ({"kind": "matte", "duration_s": float(info["duration_s"])}
+          if (mod in MT.MATTE_MODELS or mod == "birefnet-v2-video")
+          else DT.op_cout(mod, secondes=float(info["duration_s"]), fps=info.get("fps")))
+    garde = await _PLAF.verifier(op, "studio", ref=f"decor:{src.name}")
+    job_id = await DS.lancer_decor(src, fond, info, garde["lignes"], parent, mod, sujet)
+    return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"], "modele": mod}
+
+
+def _decor_sujet(mod: str, sujet):
+    """t186 : le sujet nommé qu'exige un modèle du registre (SAM 3 / SAM 3.1) — 400 s'il manque, AVANT la garde."""
+    from app.services import detourage as DT
+    if mod not in DT.REGISTRE:
+        return None
+    try:
+        return DT.sujet_de(mod, sujet)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.post("/decor/apercu")
 async def decor_apercu(body: dict | None = None):
-    """t168d : {source, fond, modele?} -> {source, apercu, modele, devis_usd} : UNE image du milieu de la prise, détourée
-    par BiRefNet image (fal, payant, une image) et posée sur le fond, pour juger les bords AVANT de payer la vidéo."""
-    from app.services import decor_service as DS, plafonds as _plaf
+    """t168d : {source, fond, modele?, sujet?} -> {source, apercu, modele, devis_usd} : UNE image du milieu de la prise,
+    détourée par BiRefNet image (fal, payant, une image) et posée sur le fond, pour juger les bords AVANT de payer la
+    vidéo. t186 : `modele` peut être un id vidéo du registre (l'aperçu passe par son jumeau image) ou un id image fal
+    du registre ; la réponse `modele` reste celui demandé (à renvoyer tel quel à POST /decor), `modele_apercu` dit
+    quel modèle image a servi."""
+    from app.services import decor_service as DS, matte_service as MT, detourage as DT, plafonds as _plaf
     b = body if isinstance(body, dict) else {}
-    src, _parent, fond, info = await _decor_controles(b)
-    mod = DS.modele(b.get("modele"))
-    garde = await _PLAF.verifier({"kind": "matte_image", "images": 1}, "studio", ref=f"decor-apercu:{src.name}")
+    demande = str(b.get("modele") or "").strip().lower()
+    mod = DS.modele_apercu(demande)
+    src, _parent, fond, info = await _decor_controles(b, mod)
+    sujet = _decor_sujet(mod, b.get("sujet"))
+    op = {"kind": "matte_image", "images": 1} if mod in MT.MATTE_MODELS else DT.op_cout(mod, images=1)
+    garde = await _PLAF.verifier(op, "studio", ref=f"decor-apercu:{src.name}")
     try:
-        r = await DS.apercu_detourage(src, fond, info, mod)
-    except RuntimeError as e:
+        r = await DS.apercu_detourage(src, fond, info, mod, sujet)
+    except (RuntimeError, ValueError) as e:
         raise HTTPException(502, str(e))
     await _plaf.rattacher(garde["lignes"], f"decor-apercu:{r['apercu']}")
     return {"source": f"/api/avatar-live/decor/apercu/{r['source']}", "apercu": f"/api/avatar-live/decor/apercu/{r['apercu']}",
-            "instant_s": r["instant_s"], "modele": mod, "devis_usd": garde["devis"]["total_usd"]}
+            "instant_s": r["instant_s"], "modele": DS.modele(demande) if demande in DT.REGISTRE else mod,
+            "modele_apercu": mod, "devis_usd": garde["devis"]["total_usd"]}
 
 
 @router.get("/decor/apercu/{nom}")
@@ -384,8 +408,9 @@ async def decor_apercu_image(nom: str):
     return FileResponse(p, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
-async def _decor_controles(b: dict):
-    """Ce qui ne coûte rien, commun au décor et à son aperçu : fond, source, clé fal, durée."""
+async def _decor_controles(b: dict, mod: str | None = None):
+    """Ce qui ne coûte rien, commun au décor et à son aperçu : fond, source, clé fal, durée. t186 : la clé absente
+    est un 503 qui la NOMME (un modèle sans clé reste choisissable, le tir est refusé ici, avant toute dépense)."""
     import asyncio
     from app.services import decor_service as DS, fal_video_tools as FV
     fond = b.get("fond") if isinstance(b.get("fond"), dict) else {}
@@ -396,7 +421,9 @@ async def _decor_controles(b: dict):
         raise HTTPException(404, "Vidéo source introuvable (rendu sans vidéo, ou dépôt inconnu).")
     from app.config import settings
     if not (settings.FAL_KEY or "").strip():
-        raise HTTPException(400, "fal.ai : aucune clé configurée (Réglages → clés API) — rien n'a été lancé.")
+        from app import i18n as _i18n
+        raise HTTPException(503, _i18n.msg("ia.cle.absente_tir", _i18n.langue_ui(), nom_cle="FAL_KEY",
+                                           modele=str(mod or "BiRefNet")))
     info = await asyncio.to_thread(FV.probe, src)
     if not info.get("width") or not info.get("duration_s"):
         raise HTTPException(415, "Vidéo source illisible.")

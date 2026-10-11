@@ -2077,7 +2077,7 @@ async def get_ai_options(did: str):
 
 
 @router.post("/rembg")
-async def post_rembg(did: str):
+async def post_rembg(did: str, body: dict | None = None):
     """Le détourage OPT-IN du recto -> la couche « sujet » (spec §7.1.3).
 
     ELLE NE PUBLIE RIEN, comme `/analyse` : la route range le PNG et REND ce
@@ -2088,13 +2088,24 @@ async def post_rembg(did: str):
     LE PRIX EST RENDU AVEC LE RÉSULTAT, et c'est le patron du décor IA de P2 :
     la dépense se dit APRÈS avec le MÊME tarif qu'avant le clic. Deux chiffres
     différents de part et d'autre d'un clic sont le meilleur moyen de perdre
-    la confiance de celui qui paie."""
+    la confiance de celui qui paie.
+
+    t186 (G4, 12/10/2026) — corps FACULTATIF `{modele, sujet}` : `modele` = un id
+    `detourage_image` du registre unique (app.services.detourage), `sujet` pour
+    sam3-sujet / bria-objet. Sans corps (ou sans `modele`), le basculement
+    d'avant est INCHANGÉ. Avec : id inconnu 400, clé absente 503 qui la nomme
+    (avant la garde, aucune dépense), sujet manquant 400, puis la garde des
+    plafonds (voie fal), puis le détourage par le registre — même rangement
+    (`_store_layer`, mêmes refus « tout ou rien »)."""
     d = _dir_or_404(did)
     recto = d / source_name(SIDES[0])
     if not recto.is_file():
         raise HTTPException(
             404, "Aucun recto à détourer sur ce jeu : déposez d'abord l'image "
                  "de la carte à reprendre — le sujet s'isole sur le recto.")
+    b = body if isinstance(body, dict) else {}
+    if str(b.get("modele") or "").strip():
+        return await _rembg_par_registre(did, d, recto, str(b["modele"]).strip(), b.get("sujet"))
     o = await asyncio.to_thread(ai_options)
     voie = o["voie"]
     if voie is None:
@@ -2132,6 +2143,46 @@ async def post_rembg(did: str):
             # empêche la coalescence de disparaître sans bruit.
             "coalesce": not mien,
             **info}
+
+
+async def _rembg_par_registre(did: str, d: Path, recto: Path, mid: str, sujet) -> dict:
+    """t186 : le détourage du recto par un modèle du registre unique. Lecture des refus dans l'ordre de
+    `routes._detourage_controles` (recopié, règle 8 : une pièce n'importe pas `routes`)."""
+    import shutil
+    from app.services import detourage as _DT
+    try:
+        e = _DT.entree(mid, _DT.IMAGE)
+    except ValueError as x:
+        raise HTTPException(400, f"Détourage refusé : {x}")
+    cle = _DT.cle_manquante(mid)
+    if cle:
+        raise HTTPException(503, f"{cle} non configurée (Réglages) pour {e['label']} — rien n'a été lancé.")
+    try:
+        sujet = _DT.sujet_de(mid, sujet)
+    except ValueError as x:
+        raise HTTPException(400, f"Détourage refusé : {x}")
+    from app.services import pricing
+    prix = pricing.estimate(_DT.op_cout(mid, images=1))["total_usd"] if e["voie"] == "fal" else None
+
+    async def _faire() -> dict:
+        if e["voie"] == "fal":
+            from app.services import plafonds as _PLAF   # tâche #16
+            await _PLAF.verifier(_DT.op_cout(mid, images=1), "cartes")
+        tmp = d / f"_detourage_{uuid.uuid4().hex[:8]}"
+        try:
+            try:
+                nom = await _DT.detourer_image(mid, recto, sujet, dossier=tmp)
+            except Exception as x:                          # noqa: BLE001
+                raise HTTPException(
+                    502, f"{e['label']} a refusé le détourage : {_sans_chemin(x)}")
+            data = await asyncio.to_thread((tmp / nom).read_bytes)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        return await asyncio.to_thread(_store_layer, did, SUJET_NAME, data, e["label"])
+
+    info, mien = await _coalesce(f"{did}|{mid}", _faire)
+    return {"layer": SUJET_NAME, "voie": e["voie"], "modele": mid, "gratuit": e["voie"] == "local",
+            "prix_usd": prix, "devise": "USD", "coalesce": not mien, **info}
 
 
 @router.post("/manifeste")

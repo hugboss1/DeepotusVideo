@@ -395,7 +395,8 @@ def render_preview(effect_type: str, raw_params: dict, *, source=None,
         # (`_CACHE_MOTIFS`) — une image de matte par instant ne grossit pas sans fin
         matte_png = cache_dir() / f"tt_{mslug}_{int(mp.stat().st_mtime)}_{t:.2f}.png"
         if not matte_png.is_file() or not matte_png.stat().st_size:
-            r = subprocess.run([ffmpeg_bin(), "-y", "-v", "error", "-ss", f"{t:.3f}", "-i", str(mp),
+            r = subprocess.run([ffmpeg_bin(), "-y", "-v", "error", "-ss", f"{t:.3f}",
+                                *MT.decodeur_entree(mp), "-i", str(mp),   # t186 : .webm -> libvpx-vp9 (alpha)
                                 "-frames:v", "1", "-pix_fmt", "rgba", "-update", "1", str(matte_png)],
                                capture_output=True, text=True, timeout=60)
             if r.returncode != 0 or not matte_png.is_file():

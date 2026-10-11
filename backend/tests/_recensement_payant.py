@@ -38,6 +38,7 @@ PUITS = {
     "generate_music", "generate_sfx", "_generate_scene_vo", "generate_long", "generate_sprites",
     "separer_stems", "isoler_voix",   # T100 : Demucs (fal) et l'isolation de voix (ElevenLabs)
     "detourer",   # T103 : le matte vidéo BiRefNet (fal)
+    "detourer_image", "detourer_video",   # t186 : le registre unique du détourage (fal, ou local gratuit)
     # transcription
     "transcribe",
     # vidéo / HeyGen (`pipeline.run` en nom pointé : `run` seul attraperait subprocess.run)

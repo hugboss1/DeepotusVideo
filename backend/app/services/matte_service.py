@@ -19,7 +19,15 @@ pricing.DEFAULTS["birefnet_video_usd_per_s"], daté).
 Travaux suivis EN MÉMOIRE (un détourage dure de quelques secondes à quelques
 dizaines ; le panneau interroge aussitôt) : un redémarrage les oublie, les
 fichiers restent. Les appels réseau passent par trois seams de module
-(`_upload`, `_fal_subscribe`, `_download`) que les bancs remplacent."""
+(`_upload`, `_fal_subscribe`, `_download`) que les bancs remplacent.
+
+t186 (G4, 12/10/2026) — `detourer` accepte aussi tout id `detourage_video` du registre UNIQUE
+(app.services.detourage.REGISTRE : Bria VRMBG 3.0, VEED rapide, Pixelcut vidéo, SAM 3.1 avec un sujet nommé,
+BiRefNet v2 vidéo) ; les trois anciennes clés (general / matting / portrait) restent valides = BiRefNet v2 vidéo
+avec le `model` correspondant, et « general » reste le défaut. Certaines sorties sont des .webm VP9 AVEC alpha :
+`matte_path` accepte .mov et .webm (toujours confiné), et `decodeur_entree` impose le décodeur libvpx-vp9 à qui
+lit un .webm (le décodeur vp9 natif de ffmpeg JETTE l'alpha). Les seams servent aussi le détourage d'image
+(detourage.detourer_image) : un seul jeu de coutures pour tout le détourage."""
 from __future__ import annotations
 
 import asyncio
@@ -46,7 +54,7 @@ USD_NOTE = ("prix à mesurer : fal n'affiche que « $0 per compute second » (06
             "pricing.birefnet_video_usd_per_s")
 _JOBS: dict[str, dict] = {}
 _JOBS_MAX = 40
-_SAFE = re.compile(r"^[A-Za-z0-9_-]+\.mov$")
+_SAFE = re.compile(r"^[A-Za-z0-9_-]+\.(?:mov|webm)$")
 
 
 def mattes_dir() -> Path:
@@ -55,8 +63,20 @@ def mattes_dir() -> Path:
     return p
 
 
+def decodeur_entree(path) -> list[str]:
+    """Les options à poser AVANT `-i <matte>` : un .webm (VP9 + alpha, t186) se lit par libvpx-vp9 — le
+    décodeur vp9 natif de ffmpeg ignore la couche alpha et rendrait un sujet sur fond noir. Rien pour un .mov
+    (commande d'avant, octet pour octet)."""
+    return ["-c:v", "libvpx-vp9"] if Path(str(path)).suffix.lower() == ".webm" else []
+
+
+def media_type(name: str) -> str:
+    """Le type servi par GET /matte/file/{name}."""
+    return "video/webm" if str(name).lower().endswith(".webm") else "video/quicktime"
+
+
 def matte_path(name: str) -> Path:
-    """Le chemin d'un matte, CONFINÉ : un nom simple en .mov, dans le dossier
+    """Le chemin d'un matte, CONFINÉ : un nom simple en .mov ou .webm, dans le dossier
     des mattes et nulle part ailleurs — ValueError sinon (les routes en font
     un 404, le Montage un « pas de matte »)."""
     n = str(name or "")
@@ -92,38 +112,78 @@ def status(mid: str) -> dict:
     return dict(_JOBS.get(str(mid)) or {"status": "unknown"})
 
 
-async def _run(mid: str, src: Path, model_key: str) -> None:
+def est_connu(model_key: str) -> bool:
+    """Une ancienne clé (general / matting / portrait) ou un id `detourage_video` du registre."""
+    from app.services import detourage as DT
+    return model_key in MATTE_MODELS or model_key in DT.ids(DT.VIDEO)
+
+
+def requete(model_key: str, url: str, sujet=None) -> tuple[str, dict]:
+    """(endpoint, arguments) d'un détourage vidéo : les anciennes clés gardent EXACTEMENT les arguments
+    d'avant (ARGS_FIXED + le `model` BiRefNet choisi) ; un id du registre passe par detourage.build_request."""
+    if model_key in MATTE_MODELS:
+        return ENDPOINT, dict(ARGS_FIXED, video_url=url, model=MATTE_MODELS[model_key]["fal"])
+    from app.services import detourage as DT
+    return DT.build_request(model_key, url, sujet)
+
+
+def extension(model_key: str) -> str:
+    """.mov pour BiRefNet et Bria v3 (ProRes avec alpha), .webm pour VEED, Pixelcut vidéo, SAM 3.1."""
+    from app.services import detourage as DT
+    return ".mov" if model_key in MATTE_MODELS else DT.REGISTRE[model_key]["ext"]
+
+
+def note_prix(model_key: str) -> str:
+    """La note de prix qui suit le travail jusqu'à l'écran : celle de BiRefNet (prix à mesurer) pour les
+    anciennes clés et birefnet-v2-video ; « prix à mesurer » nommé pour un autre modèle à 0 $ ; vide sinon."""
+    from app.services import detourage as DT, pricing as P
+    if model_key in MATTE_MODELS or model_key == "birefnet-v2-video":
+        return USD_NOTE
+    e = DT.REGISTRE.get(model_key) or {}
+    try:
+        taux = float(P.load().get(e.get("prix"), P.DEFAULTS.get(e.get("prix"), 0.0)) or 0.0)
+    except (TypeError, ValueError):
+        taux = 0.0
+    return "" if taux else (f"prix à mesurer : {e.get('label', model_key)} — lire le montant sur le tableau de "
+                            f"bord fal après ce tir, puis l'écrire dans pricing.{e.get('prix')}")
+
+
+async def _run(mid: str, src: Path, model_key: str, sujet: str | None = None) -> None:
+    from app.services import detourage as DT
     j = _JOBS[mid]
     try:
         j.update(status="upload", pct=10)
         url = await _upload(src)
         j.update(status="fal", pct=30)
-        args = dict(ARGS_FIXED, video_url=url, model=MATTE_MODELS[model_key]["fal"])
-        res = await _fal_subscribe(ENDPOINT, args)
-        vurl = ((res or {}).get("video") or {}).get("url") if isinstance(res, dict) else None
+        endpoint, args = requete(model_key, url, sujet)
+        res = await _fal_subscribe(endpoint, args)
+        vurl = DT.url_video(res)
         if not vurl:
             keys = ", ".join(map(str, res or {})) if isinstance(res, dict) else type(res).__name__
             raise RuntimeError(f"fal.ai : aucune vidéo dans la réponse (clés : {keys})")
         j.update(status="download", pct=80)
-        dest = mattes_dir() / f"{j['label']}_{mid[:8]}.mov"
+        dest = mattes_dir() / f"{j['label']}_{mid[:8]}{extension(model_key)}"
         await _download(vurl, dest)
         j.update(status="done", pct=100, file=dest.name,
                  url=f"/api/matte/file/{dest.name}")
-        logger.info(f"matte {mid} : {dest.name} ({dest.stat().st_size // 1024} Ko) — {USD_NOTE}")
+        logger.info(f"matte {mid} : {dest.name} ({dest.stat().st_size // 1024} Ko) — {j['usd_note'] or model_key}")
     except Exception as e:  # noqa: BLE001 — le travail échoue NOMMÉMENT, rien ne fuit
         logger.warning(f"matte {mid} en échec : {e}")
         j.update(status="failed", error=str(e)[:300])
 
 
-def detourer(src: Path, model_key: str = "general", label: str = "clip") -> str:
+def detourer(src: Path, model_key: str = "general", label: str = "clip", sujet: str | None = None) -> str:
     """Lance un détourage (tâche de fond sur la boucle COURANTE) et rend son
-    id. ValueError nommée : clé absente, modèle inconnu, source introuvable.
+    id. ValueError nommée : clé absente, modèle inconnu, sujet manquant (SAM 3.1),
+    source introuvable. `model_key` : ancienne clé ou id detourage_video du registre.
     PAYANT (fal) : la route passe la garde des plafonds AVANT d'appeler ceci."""
+    from app.services import detourage as DT
     if not (settings.FAL_KEY or "").strip():
         raise ValueError("fal.ai : aucune clé configurée (Réglages → clés API).")
-    if model_key not in MATTE_MODELS:
+    if not est_connu(model_key):
         raise ValueError(f"modèle de détourage inconnu : {model_key!r} "
-                         f"(connus : {', '.join(MATTE_MODELS)})")
+                         f"(connus : {', '.join(list(MATTE_MODELS) + DT.ids(DT.VIDEO))})")
+    sujet = None if model_key in MATTE_MODELS else DT.sujet_de(model_key, sujet)
     if not Path(src).is_file():
         raise ValueError("source vidéo introuvable")
     while len(_JOBS) >= _JOBS_MAX:
@@ -133,6 +193,6 @@ def detourer(src: Path, model_key: str = "general", label: str = "clip") -> str:
                   "error": None, "model": model_key,
                   "label": re.sub(r"[^A-Za-z0-9_-]+", "_", str(label or ""))
                   .strip("_")[:24] or "clip",
-                  "usd_note": USD_NOTE}
-    asyncio.get_running_loop().create_task(_run(mid, Path(src), model_key))
+                  "usd_note": note_prix(model_key)}
+    asyncio.get_running_loop().create_task(_run(mid, Path(src), model_key, sujet))
     return mid

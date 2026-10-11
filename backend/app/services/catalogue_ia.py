@@ -132,6 +132,44 @@ def _video_fl() -> list[dict]:
     return _videos(True)
 
 
+def _detourages(nature: str) -> list[dict]:
+    """t186 (G4) : une entrée par id du registre unique du détourage (app.services.detourage.REGISTRE), dans
+    son ordre (locales d'abord). `usd` = le tarif de sa clé de prix (pricing.load) dans son unité (« image »,
+    « s », « 30 images », « 16 images ») ; `note` « a_mesurer » pour un modèle fal à 0 $ — une voie LOCALE est
+    gratuite pour de bon et n'a pas de note ; `prompt` : le modèle exige un sujet nommé (SAM 3, Bria objet,
+    SAM 3.1) ; `apercu` (vidéo) : le modèle image qui en montre un aperçu sur une image."""
+    from app.services import detourage as DT
+    p = P.load()
+    out = []
+    for mid in DT.ids(nature):
+        e = DT.REGISTRE[mid]
+        usd = 0.0
+        if e["voie"] != "local" and e["prix"]:
+            try:
+                usd = float(p.get(e["prix"], P.DEFAULTS.get(e["prix"], 0.0)) or 0.0)
+            except (TypeError, ValueError):
+                usd = 0.0
+        x = {"id": mid, "label": e["label"], "voie": e["voie"], "usd": usd, "unite": e["unite"],
+             "jumeau": None, "note": NOTE_A_MESURER if (e["voie"] == "fal" and not usd) else "",
+             "prompt": bool(e["prompt"])}
+        if e.get("apercu"):
+            x["apercu"] = e["apercu"]
+        out.append(x)
+    return out
+
+
+@source("detourage_image")
+def _detourage_image() -> list[dict]:
+    """Détourer une image : locales (rembg, chroma) puis les modèles fal."""
+    return _detourages("detourage_image")
+
+
+@source("detourage_video")
+def _detourage_video() -> list[dict]:
+    """Détourer une vidéo (matte avec alpha) : les modèles fal."""
+    return _detourages("detourage_video")
+
+
 def servis_puis_sans_cle(d: dict | None) -> list[dict]:
     """t183 (G1) : la liste d'un sélecteur raster à partir de la réponse de
     /image-models — les modèles SERVIS d'abord (`models`, dispo=True), puis

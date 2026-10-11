@@ -57,6 +57,15 @@ def normalize_opts(body: dict) -> dict:
         raise ValueError("remove_bg must be one of: none, api, local, chroma")
     # 9e : clé chroma locale (fond uni) — tolérance de distance couleur
     chroma_tol = _int("chroma_tolerance", 28, 4, 80)
+    # t186 (G4) : un modèle du registre unique du détourage (detourage_image) — quand il est donné, il remplace
+    # `remove_bg` pour le détourage des images ; absent (None), tout est inchangé. `sujet` : requis par
+    # sam3-sujet / bria-objet. ValueError (-> 400) : id inconnu, modèle vidéo, sujet manquant.
+    modele = str(body.get("modele") or "").strip() or None
+    sujet = None
+    if modele:
+        from app.services import detourage as _DT
+        _DT.entree(modele, _DT.IMAGE)
+        sujet = _DT.sujet_de(modele, body.get("sujet"))
 
     trim = str(body.get("trim") or "animation").lower()
     if trim not in ("animation", "tight"):
@@ -125,11 +134,14 @@ def normalize_opts(body: dict) -> dict:
     anim = body.get("anim")
     normalize_anim(anim, None, fps)
 
-    return {"fps": fps, "max_frames": max_frames, "remove_bg": method,
-            "chroma_tolerance": chroma_tol,
-            "trim": trim, "cell_size": size, "align": align,
-            "columns": columns, "pixel": pixel, "post": post,
-            "extract_only": extract_only, "keep": keep, "anim": anim}
+    out = {"fps": fps, "max_frames": max_frames, "remove_bg": method,
+           "chroma_tolerance": chroma_tol,
+           "trim": trim, "cell_size": size, "align": align,
+           "columns": columns, "pixel": pixel, "post": post,
+           "extract_only": extract_only, "keep": keep, "anim": anim}
+    if modele:   # t186 : les clés n'apparaissent qu'avec un modèle — les options par défaut restent celles d'avant
+        out.update(modele=modele, sujet=sujet)
+    return out
 
 
 # ── source resolution (job render / user upload / on-disk video) ─────────────
@@ -754,7 +766,34 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
     # remove-bg per frame (batch). One failed frame never kills the job: it is
     # kept un-detoured and flagged in the manifest (spec 9a).
     flags = [None] * len(raw)  # None = pending; bool = detoured ok / kept as-is
-    if method == "api":
+    if opts.get("modele"):
+        # t186 (G4) : chaque image par le registre unique (detourage.detourer_image : voie locale ou fal, seams
+        # de matte_service) ; une image en échec reste telle quelle et flaguée, comme rembg (philosophie 9a)
+        from app.services import detourage as _DT
+        method = opts["modele"]
+        sem = asyncio.Semaphore(3)
+        done = 0
+
+        async def _one_reg(i, path):
+            nonlocal done
+            async with sem:
+                try:
+                    nom = await _DT.detourer_image(method, path, opts.get("sujet"), dossier=raw_dir)
+                    dest = raw_dir / f"det_{i:04d}.png"
+                    os.replace(raw_dir / nom, dest)
+                    ok = True
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"sprite {job_id}: détourage {method} image {i} en échec "
+                                   f"(gardée telle quelle) : {e}")
+                    dest, ok = path, False
+            done += 1
+            await _step(f"Remove-BG {done}/{len(raw)}", 30 + int(30 * done / len(raw)))
+            return i, dest, ok
+
+        results = await asyncio.gather(*(_one_reg(i, p) for i, p in enumerate(raw)))
+        for i, dest, ok in results:
+            raw[i], flags[i] = dest, ok
+    elif method == "api":
         sem = asyncio.Semaphore(3)
         done = 0
 

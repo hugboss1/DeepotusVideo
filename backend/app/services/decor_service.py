@@ -13,7 +13,13 @@ Seams : `_upload`, `_fal_subscribe`, `_download`.
 t168d (10/10/2026) — contrôler le détourage AVANT de payer la vidéo : `apercu_detourage` détoure UNE image du milieu de la prise
 (BiRefNet image, fal-ai/birefnet/v2, même modèle que la vidéo) et la compose en local sur le fond choisi ; l'écran ne
 lance le décor vidéo qu'après cet aperçu. Le modèle (Portrait par défaut, Matting pour cheveux et transparences,
-Général) est celui de matte_service.MATTE_MODELS, transmis ensuite au détourage vidéo."""
+Général) est celui de matte_service.MATTE_MODELS, transmis ensuite au détourage vidéo.
+
+t186 (G4, 12/10/2026) — `modele` accepte AUSSI un id `detourage_video` du registre unique (app.services.detourage :
+Bria VRMBG 3.0, VEED rapide, Pixelcut vidéo, SAM 3.1 + `sujet`, BiRefNet v2 vidéo). L'aperçu d'un tel modèle se fait
+par son JUMEAU image (`REGISTRE[id]["apercu"]` : Bria RMBG pour Bria vidéo, SAM 3 pour SAM 3.1…) ; l'aperçu accepte
+aussi directement un id `detourage_image` fal. Sans `modele` (ou une ancienne clé), tout est INCHANGÉ. Un matte .webm
+(VP9 + alpha) est lu par libvpx-vp9 (matte_service.decodeur_entree)."""
 from __future__ import annotations
 
 import asyncio
@@ -34,9 +40,26 @@ MODELE_DEFAUT = "portrait"
 
 
 def modele(m) -> str:
-    from app.services import matte_service as MT
+    """Une ancienne clé BiRefNet (portrait, matting, general) ou un id detourage_video du registre ; le défaut
+    (portrait) sinon."""
+    from app.services import matte_service as MT, detourage as DT
     m = str(m or "").strip().lower()
-    return m if m in MT.MATTE_MODELS else MODELE_DEFAUT
+    return m if (m in MT.MATTE_MODELS or m in DT.ids(DT.VIDEO)) else MODELE_DEFAUT
+
+
+def modele_apercu(m) -> str:
+    """Le modèle de l'APERÇU (une image) : une ancienne clé reste BiRefNet image ; un id vidéo du registre
+    passe par son jumeau image ; un id image fal du registre est pris tel quel ; le défaut sinon."""
+    from app.services import matte_service as MT, detourage as DT
+    m = str(m or "").strip().lower()
+    if m in MT.MATTE_MODELS:
+        return m
+    e = DT.REGISTRE.get(m)
+    if e and e["nature"] == DT.VIDEO:
+        return e["apercu"]
+    if e and e["nature"] == DT.IMAGE and e["voie"] == "fal":
+        return m
+    return MODELE_DEFAUT
 
 
 def apercus_dir() -> Path:
@@ -107,7 +130,8 @@ def commande(matte: Path, src: Path, fond: dict, w: int, h: int, dest: Path) -> 
         ff += ["-loop", "1", "-i", str(chemin_fond(fond))]
     else:
         ff += ["-stream_loop", "-1", "-i", str(chemin_fond(fond))]
-    ff += ["-i", str(matte), "-i", str(src),
+    from app.services.matte_service import decodeur_entree
+    ff += [*decodeur_entree(matte), "-i", str(matte), "-i", str(src),   # t186 : un matte .webm garde son alpha
            "-filter_complex", f"[0:v]{cadre}[bg];[1:v]scale={w}:{h}[fg];[bg][fg]overlay=0:0:shortest=1:format=auto,format=yuv420p[v]",
            "-map", "[v]", "-map", "2:a:0?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac",
            "-shortest", str(dest)]
@@ -140,20 +164,24 @@ def composer_apercu(sujet: Path, fond: dict, t: float, w: int, h: int, dest: Pat
     bg.save(dest, "PNG")
 
 
-async def apercu_detourage(src: Path, fond: dict, info: dict, mod: str) -> dict:
-    """PAYANT (fal, une image) : la garde est passée dans la route. Rend {source, apercu} (noms de fichiers PNG)."""
+async def apercu_detourage(src: Path, fond: dict, info: dict, mod: str, sujet: str | None = None) -> dict:
+    """PAYANT (fal, une image) : la garde est passée dans la route. Rend {source, apercu} (noms de fichiers PNG).
+    `mod` : une ancienne clé (BiRefNet image, comme avant) ou un id detourage_image fal du registre (t186)."""
     from uuid import uuid4 as _u
-    from app.services import matte_service as MT
+    from app.services import matte_service as MT, detourage as DT
     w, h = int(info["width"]) // 2 * 2, int(info["height"]) // 2 * 2
     t = float(info.get("duration_s") or 0) / 2
     d = apercus_dir()
     nom_src, nom_ap = _u().hex + ".png", _u().hex + ".png"
     await asyncio.to_thread(_image_a, src, t, w, h, d / nom_src)
     url = await _upload(d / nom_src)
-    res = await _fal_subscribe(ENDPOINT_IMAGE, {"image_url": url, "model": MT.MATTE_MODELS[mod]["fal"],
-                                                "operating_resolution": "1024x1024", "refine_foreground": True,
-                                                "output_format": "png"})
-    iurl = ((res or {}).get("image") or {}).get("url") if isinstance(res, dict) else None
+    if mod in MT.MATTE_MODELS:
+        res = await _fal_subscribe(ENDPOINT_IMAGE, {"image_url": url, "model": MT.MATTE_MODELS[mod]["fal"],
+                                                    "operating_resolution": "1024x1024", "refine_foreground": True,
+                                                    "output_format": "png"})
+    else:
+        res = await _fal_subscribe(*DT.build_request(mod, url, sujet))
+    iurl = DT.url_image(res)
     if not iurl:
         raise RuntimeError("fal.ai : aucune image détourée dans la réponse")
     sujet = d / (_u().hex + ".sujet.png")
@@ -165,10 +193,11 @@ async def apercu_detourage(src: Path, fond: dict, info: dict, mod: str) -> dict:
     return {"source": nom_src, "apercu": nom_ap, "instant_s": round(t, 2)}
 
 
-async def _executer(job_id: str, src: Path, fond: dict, info: dict, lignes: list, mod: str = MODELE_DEFAUT) -> None:
+async def _executer(job_id: str, src: Path, fond: dict, info: dict, lignes: list, mod: str = MODELE_DEFAUT,
+                    sujet: str | None = None) -> None:
     from app.models.schemas import JobStatus
     from app.services.storage import JobRecord, async_session_factory
-    from app.services import plafonds as _plaf, matte_service as MT
+    from app.services import plafonds as _plaf, matte_service as MT, detourage as DT
 
     async def maj(**kw):
         async with async_session_factory() as s:
@@ -176,14 +205,16 @@ async def _executer(job_id: str, src: Path, fond: dict, info: dict, lignes: list
             for k, v in kw.items():
                 setattr(j, k, v)
             await s.commit()
-    matte = Path(settings.outputs_path) / "final" / f"{job_id}.matte.mov"
+    mod = modele(mod)
+    matte = Path(settings.outputs_path) / "final" / f"{job_id}.matte{MT.extension(mod)}"
     try:
         await _plaf.rattacher(lignes, f"decor:{job_id}")
         await maj(status=JobStatus.UPLOADING.value, current_step="Envoi de la prise", progress=10)
         url = await _upload(src)
-        await maj(status=JobStatus.GENERATING_VIDEO.value, current_step="Détourage du sujet (BiRefNet)", progress=35)
-        res = await _fal_subscribe(MT.ENDPOINT, dict(MT.ARGS_FIXED, video_url=url, model=MT.MATTE_MODELS[modele(mod)]["fal"]))
-        vurl = ((res or {}).get("video") or {}).get("url") if isinstance(res, dict) else None
+        qui = "BiRefNet" if mod in MT.MATTE_MODELS else DT.REGISTRE[mod]["label"]
+        await maj(status=JobStatus.GENERATING_VIDEO.value, current_step=f"Détourage du sujet ({qui})", progress=35)
+        res = await _fal_subscribe(*MT.requete(mod, url, sujet))
+        vurl = DT.url_video(res)
         if not vurl:
             raise RuntimeError("fal.ai : aucune vidéo détourée dans la réponse")
         matte.parent.mkdir(parents=True, exist_ok=True)
@@ -204,7 +235,7 @@ async def _executer(job_id: str, src: Path, fond: dict, info: dict, lignes: list
 
 
 async def lancer_decor(src: Path, fond: dict, info: dict, lignes: list, parent_job_id: str | None,
-                       mod: str = MODELE_DEFAUT) -> str:
+                       mod: str = MODELE_DEFAUT, sujet: str | None = None) -> str:
     """Crée le job « decor » et le lance. PAYANT (fal, BiRefNet) : la garde est passée dans la route."""
     from app.models.schemas import JobStatus, Provider
     from app.services.storage import JobRecord, async_session_factory
@@ -215,7 +246,7 @@ async def lancer_decor(src: Path, fond: dict, info: dict, lignes: list, parent_j
                         parent_job_id=parent_job_id, video_model="decor", duration_s=int(round(info["duration_s"])),
                         aspect_ratio=info.get("ratio"), title=f"Décor — {quoi}"[:200], created_at=datetime.utcnow()))
         await s.commit()
-    t = asyncio.get_running_loop().create_task(_executer(job_id, src, fond, info, lignes, modele(mod)))
+    t = asyncio.get_running_loop().create_task(_executer(job_id, src, fond, info, lignes, modele(mod), sujet))
     _TACHES.add(t)
     t.add_done_callback(_TACHES.discard)
     return job_id
