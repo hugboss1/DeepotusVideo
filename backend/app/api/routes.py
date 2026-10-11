@@ -9646,6 +9646,15 @@ async def generate_bible_reference(entity_id: str, body: dict):
                             for p in (recipe.get("panels") or [])}
         elif not recipe:
             pass
+        # t182 : une planche est RASTER — un modèle vectoriel (réglage DA ou
+        # recette) est refusé AVANT la garde de dépense, qui écrit une ligne
+        # de dépense (sinon dépense fantôme suivie d'un 502).
+        from app.services import image_providers as IP
+        if IP.est_vectoriel(provider):
+            raise HTTPException(400, f"{provider} rend du SVG : une planche de "
+                                     f"référence est une image raster. Choisissez "
+                                     f"un autre générateur dans la direction "
+                                     f"artistique.")
         desc = (e.description or "").strip()
         if not desc and not (recipe and recipe.get("v") in (2, 3)):
             raise HTTPException(400, "Add a description before generating")

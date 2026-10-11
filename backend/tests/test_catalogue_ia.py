@@ -193,6 +193,8 @@ async def _req(meth, path, body=None, params=None):
                            base_url="http://t") as c:
         if meth == "GET":
             return await c.get("/api" + path, params=params)
+        if meth == "PUT":
+            return await c.put("/api" + path, json=body)
         return await c.post("/api" + path, json=body)
 
 
@@ -435,6 +437,29 @@ out = asyncio.run(IP.generate("recraft-4.1-vecteur", "logo", "square", 1, sortie
 check("façade : recraft avec sortie=svg -> couture", [x["model"] for x in ESP["falimg"]] == ["recraft-4.1-vecteur"]
       and out.get("images"), str(ESP))
 
+# ── [4d] planche de référence (Atelier DA) : le réglage image_provider ─────
+# Route RÉELLE POST /bible/entities/{id}/generate (generate_bible_reference),
+# réglage posé par PUT /atelier/settings.
+print("[4d] planche DA avec un modèle vectoriel")
+reset()
+st, js = call("POST", "/bible/entities", {"kind": "object", "name": "Lanterne", "description": "une lanterne de cuivre"})
+eid = (js or {}).get("id") or ((js or {}).get("entity") or {}).get("id")
+check("TÉMOIN : entité de bible créée", st == 200 and bool(eid), f"{st} {js}")
+st, _ = call("PUT", "/atelier/settings", {"image_provider": "recraft-4.1-vecteur"})
+check("TÉMOIN : réglage image_provider posé", st == 200, str(st))
+d0 = n_depenses()
+st, js = call("POST", f"/bible/entities/{eid}/generate", {})
+check("planche avec recraft -> 400 (raster attendu)", st == 400 and "SVG" in str(js), f"{st} {js}")
+check("planche avec recraft : ZÉRO ligne depenses, aucun tir",
+      n_depenses() == d0 and ESP["falimg"] == [] and ESP["interdit"] == [], f"{d0} -> {n_depenses()} {ESP}")
+reset()
+call("PUT", "/atelier/settings", {"image_provider": "flux-3"})
+d0 = n_depenses()
+st, js = call("POST", f"/bible/entities/{eid}/generate", {})
+check("TÉMOIN : planche avec flux-3 passe la garde (une ligne depenses) et tire par la couture",
+      n_depenses() == d0 + 1 and "flux-3" in [x["model"] for x in ESP["falimg"]], f"{st} {d0} -> {n_depenses()} {str(js)[:150]}")
+call("PUT", "/atelier/settings", {"image_provider": "flux"})
+
 # ── [5] routes de lecture ───────────────────────────────────────────────────
 print("[5] /image-models et /ia/catalogue")
 st, r = call("GET", "/image-models")
@@ -520,7 +545,10 @@ async def _up(chemin):
     UP.append(chemin)
     return f"https://up/{len(UP)}"
 
-_garde_sub, _vrai_dl, _vrai_up = fal_client.subscribe_async, IP._download, FS.FalSeedanceClient.upload_image
+import inspect                                                   # noqa: E402
+# getattr_static : on garde le DESCRIPTEUR (staticmethod) pour le remettre tel quel
+_garde_sub, _vrai_dl = fal_client.subscribe_async, IP._download
+_vrai_up = inspect.getattr_static(FS.FalSeedanceClient, "upload_image")
 fal_client.subscribe_async = _sub
 IP._download = _dl
 FS.FalSeedanceClient.upload_image = staticmethod(_up)
@@ -571,6 +599,9 @@ finally:
     fal_client.subscribe_async = _garde_sub
     IP._download = _vrai_dl
     FS.FalSeedanceClient.upload_image = _vrai_up
+check("[7] upload_image restauré tel quel (descripteur staticmethod)",
+      inspect.getattr_static(FS.FalSeedanceClient, "upload_image") is _vrai_up
+      and isinstance(_vrai_up, staticmethod))
 
 # ── garde réseau et plantages ───────────────────────────────────────────────
 check("aucun_appel_reseau", RESEAU["n"] == 0, repr(RESEAU["noms"]))
