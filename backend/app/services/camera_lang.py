@@ -37,6 +37,8 @@ FAMILLES: dict = {
     "neutre": _NEUTRE, "kling": _KLING, "seedance1": _NEUTRE,
     "seedance2": _NEUTRE, "seedance25": _NEUTRE, "pixverse": _NEUTRE,
     "veo_fal": _NEUTRE, "veo_google": _NEUTRE,
+    # t184 (G2) : nouvelles familles, langage de caméra neutre
+    "minimax": _NEUTRE, "wan": _NEUTRE, "gemini_omni": _NEUTRE, "ltx": _NEUTRE,
 }
 #: |valeur| -> qualificatif. 0 = l'axe est muet.
 _FORCE = ((3, "slightly"), (7, ""), (10, "strongly"))

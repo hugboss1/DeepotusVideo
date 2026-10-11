@@ -80,6 +80,58 @@ def _images() -> list[dict]:
     return out
 
 
+# t184 (G2) : Veo 3.1 a deux voies — fal (FAL_KEY) et l'API Google directe
+# (GEMINI_API_KEY). Chaque id fal a pour jumeau l'id Google, et inversement.
+JUMEAUX_VIDEO = {"veo-3.1-fast-fal": "veo-3.1-fast-google", "veo-3.1-fal": "veo-3.1-google",
+                 "veo-3.1-lite-fal": "veo-3.1-lite-google"}
+JUMEAUX_VIDEO.update({v: k for k, v in list(JUMEAUX_VIDEO.items())})
+
+
+from app.services.fal_service import accepte_fin  # noqa: E402,F401  (source unique, réexportée)
+
+
+def voie_de(m: dict) -> str:
+    """La voie d'un modèle vidéo : « gemini » pour l'API Google directe, sinon « fal »."""
+    return "gemini" if m.get("provider") == "google" else "fal"
+
+
+def cle_de(m: dict) -> str:
+    """La clé qu'exige la voie d'un modèle vidéo (CLES)."""
+    return CLES[voie_de(m)]
+
+
+def _videos(seulement_fin: bool) -> list[dict]:
+    """Une entrée par id de fal_service.VIDEO_MODELS ; `usd` = tarif 720p
+    ($/s, pricing.video_rate : colonne « * » ou la plus chère à défaut)."""
+    from app.services.fal_service import VIDEO_MODELS
+    p = P.load()
+    out = []
+    for mid, m in VIDEO_MODELS.items():
+        if seulement_fin and not accepte_fin(m):
+            continue
+        usd = P.video_rate(mid, "720p", p) or 0.0
+        jumeau = JUMEAUX_VIDEO.get(mid)
+        if seulement_fin and jumeau and not accepte_fin(VIDEO_MODELS.get(jumeau) or {}):
+            jumeau = None   # le jumeau doit lui-même accepter une fin (Veo Google : non)
+        out.append({"id": mid, "label": m["label"],
+                    "voie": voie_de(m),
+                    "usd": usd, "unite": "s", "jumeau": jumeau,
+                    "note": "" if usd else NOTE_A_MESURER, "fl": accepte_fin(m)})
+    return out
+
+
+@source("video_i2v")
+def _video_i2v() -> list[dict]:
+    """Image -> vidéo : tout le registre vidéo, les deux voies."""
+    return _videos(False)
+
+
+@source("video_fl")
+def _video_fl() -> list[dict]:
+    """Image de début ET de fin : seulement les modèles qui l'acceptent."""
+    return _videos(True)
+
+
 def servis_puis_sans_cle(d: dict | None) -> list[dict]:
     """t183 (G1) : la liste d'un sélecteur raster à partir de la réponse de
     /image-models — les modèles SERVIS d'abord (`models`, dispo=True), puis

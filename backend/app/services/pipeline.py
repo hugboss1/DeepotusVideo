@@ -355,10 +355,10 @@ class Pipeline:
                     if not end_image_path.exists():
                         raise FileNotFoundError(
                             f"End image not found: {end_image_path}")
-                    if not model["end_image"]:
-                        raise RuntimeError(
-                            f"{model['label']}: end frame (first-last) not "
-                            "supported by this model — use a Seedance model")
+                    from app.services.fal_service import accepte_fin, refus_fin
+                    if not accepte_fin(model):
+                        # t184 : même texte que le refus 400 des routes
+                        raise RuntimeError(refus_fin(model["label"]))
 
                 image_url = None
                 end_image_url = None

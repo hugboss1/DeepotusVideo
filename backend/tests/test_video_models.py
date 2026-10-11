@@ -72,6 +72,10 @@ EXPECTED_IDS = {
     "kling-v3-pro", "kling-v3-standard", "pixverse-v6",
     "veo-3.1-fast-fal", "veo-3.1-google", "veo-3.1-fast-google",
     "veo-3.1-lite-google",
+    # t184 (G2) : Veo 3.1 standard et Lite sur fal (jumeaux des Google), MiniMax
+    # H3 Max, Wan 3.0, Gemini Omni Flash (fal), LTX 2.5 Fast, Kling v3 Turbo Pro
+    "veo-3.1-fal", "veo-3.1-lite-fal", "h3-max", "wan-3.0", "gemini-omni-flash",
+    "ltx-2.5-fast", "kling-v3-turbo-pro",
 }
 
 # ── registre ────────────────────────────────────────────────────────────────
@@ -184,7 +188,9 @@ try:
     _err = "aucune erreur"
 except ValueError as e:
     _err = str(e)
-check("garde_image_de_fin", "end frame" in _err, repr(_err))
+# t184 : le refus est le texte i18n ia.video.pas_de_fin (fal_service.refus_fin)
+from app.services.fal_service import refus_fin   # noqa: E402
+check("garde_image_de_fin", _err == refus_fin("PixVerse v6") and "PixVerse v6" in _err, repr(_err))
 try:
     build_fal_args("veo-3.1-google", image_url="u", prompt="p",
                    duration=4, aspect_ratio="9:16", resolution="720p")

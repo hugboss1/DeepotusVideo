@@ -113,6 +113,20 @@ DEFAULTS = {
         "kling-v3-standard":   {"*": 0.084},
         "pixverse-v6":         {"720p": 0.045, "1080p": 0.090},
         "veo-3.1-fast-fal":    {"*": 0.10},
+        # t184 (G2) — fal_prix.py du 11/10/2026, colonne SANS audio (le
+        # pipeline coupe l'interrupteur). Veo 3.1 : même tarif sur l'endpoint
+        # first-last-frame que sur l'i2v. Lite : 0,03 $/s 720p, 0,05 $/s 1080p.
+        "veo-3.1-fal":         {"*": 0.20},
+        "veo-3.1-lite-fal":    {"720p": 0.03, "1080p": 0.05},
+        # MiniMax H3 Max : tarif PLEIN (0,05/0,08/0,16 $/s, 5 s minimum) ;
+        # fal affiche une promo de -40 % (0,03/0,048/0,096) que la garde ne
+        # suppose pas. 720p = la colonne 768P (fal_service `res_alias`).
+        "h3-max":              {"480p": 0.05, "720p": 0.08, "768p": 0.08, "1080p": 0.16},
+        "wan-3.0":             {"480p": 0.05, "720p": 0.10, "1080p": 0.20},
+        "gemini-omni-flash":   {"720p": 0.10, "1080p": 0.15},
+        # LTX 2.5 Fast : audio natif inclus à toutes les résolutions
+        "ltx-2.5-fast":        {"720p": 0.09, "1080p": 0.13},
+        "kling-v3-turbo-pro":  {"*": 0.14},
         "veo-3.1-google":      {"*": 0.40},
         "veo-3.1-fast-google": {"*": 0.15},
         "veo-3.1-lite-google": {"*": 0.10},
@@ -243,6 +257,18 @@ def load() -> dict:
             if isinstance(override, dict):
                 for k, v in override.items():
                     data[k] = v
+                # t184 (G2) : la table vidéo se FUSIONNE par modèle (puis par
+                # résolution) — une table enregistrée avant l'arrivée d'un
+                # modèle ne le prive plus de son tarif ; les valeurs de
+                # l'utilisateur gagnent toujours.
+                tv = override.get("video_usd_per_s")
+                if isinstance(tv, dict):
+                    fus = {m: dict(r) for m, r in DEFAULTS["video_usd_per_s"].items()}
+                    for m, r in tv.items():
+                        # un « * » de l'utilisateur vaut pour TOUTES les
+                        # résolutions : aucune colonne par défaut ne le masque
+                        fus[m] = r if (not isinstance(r, dict) or "*" in r) else {**fus.get(m, {}), **r}
+                    data["video_usd_per_s"] = fus
     except Exception:
         pass
     return data
