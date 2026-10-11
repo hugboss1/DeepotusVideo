@@ -61,6 +61,8 @@ check("T3 la couche livree a le duel (cinq fonctions, une fois chacune)", all(BU
 HARNAIS = r"""
 var H=[],hi=0,EFF=[],J=[],UPD=[],LS={dz_image_model:""},LSCASSE=false,CONF=true,EST=null,GEN={},PEND=[];
 var MM={default:"flux",models:[{id:"flux",label:"FLUX schnell"},{id:"nano-banana",label:"Nano Banana (Gemini)"},{id:"gpt-image-2-fal",label:"GPT Image 2 (via fal)"}]};
+/* t183 : /image-models rend aussi `tous` (le catalogue unique, sans-clé compris) — le Duel y lit le nom du challenger */
+MM.tous=MM.models.concat([{id:"gpt-image-2",label:"GPT Image 2",dispo:false,cle:"OPENAI_API_KEY"}]);
 var x={useState:function(v){var i=hi++;if(!(i in H))H[i]=v;return [H[i],function(n){H[i]=n}]},
   useRef:function(v){var i=hi++;if(!(i in H))H[i]={current:v};return H[i]},
   useEffect:function(f){var i=hi++;if(!(i in H)){H[i]=1;EFF.push(f)}}};

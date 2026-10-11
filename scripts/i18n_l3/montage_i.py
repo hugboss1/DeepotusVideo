@@ -31,6 +31,11 @@ _ANIM = 'CSS technique (keyframes / animation), jamais affiché'
 _TYPE = 'type de nœud du Studio COMPARÉ (n.type===, de(…), type===)'
 
 ENTREES = [
+    # t183 (G1 génération IA, 11/10/2026) : le Duel nomme son challenger d'après `tous` (le catalogue unique, sans-clé
+    # compris : un modèle sans clé reste choisissable, décision du 11/10) — longueur conservée (z -> zz) : la table des
+    # icônes G1 repère ses éditions de cette couche par POSITION
+    S(626836, 'function dzDuelLabel(mm,id){var m=((mm&&mm.models)||[]).find(function(z){return z.id===id});return m?m.label:id}',
+      'function dzDuelLabel(mm,id){var m=((mm&&mm.tous)||[]).find(function(zz){return zz.id===id});return m?m.label:id}', {}),
     # DzmVoiceRec : enregistrement d'une voix off au micro (notes, toasts, aide et libellé de la puce)
     L(572511, 'montage.prise.vide', "Prise vide : rien n'a été capté — prise non enregistrée",
       'Empty take: nothing was captured — take not saved'),

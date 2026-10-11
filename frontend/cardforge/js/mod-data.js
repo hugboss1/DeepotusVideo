@@ -2842,7 +2842,7 @@
     let h = "<summary>" + dzT("cartes.data2.lot_titre_col", { col: esc(ac) }) + "</summary><div class=\"cf-data-lotbar\">"
       + '<select data-lot-k="model" title="' + dzT("cartes.data2.modeles_t") + '">'
       + (mods.length ? mods.map((m) => opt(m.id, m.label + " · " + (m.usd_par_image == null ? dzT("cartes.data2.tarif_inconnu") : usd(m.usd_par_image) + " $/image")
-        + (m.cle ? "" : dzT("cartes.data2.sans_cle")), LOT.model, !m.cle)).join("") : opt(LOT.model, LOT.model, LOT.model)) + "</select>"
+        + (m.cle ? "" : " · " + dzT("cartes.data2.cle_a_ajouter", { cle: m.cle_nom || "?" })), LOT.model, false)).join("") : opt(LOT.model, LOT.model, LOT.model)) + "</select>"
       + '<select data-lot-k="n" title="' + dzT("cartes.data2.variantes_t") + '">' + [1, 2, 3, 4].map((k) => opt(k, dzT("cartes.data2.n_variantes", { n: k }), LOT.n)).join("") + "</select>"
       + '<select data-lot-k="size" title="' + dzT("cartes.data2.cadre_t") + '">'
       + ((LOTMODS && LOTMODS.tailles) || ["portrait_4_3"]).map((s) => opt(s, s, LOT.size)).join("") + "</select>"
@@ -2905,7 +2905,7 @@
       if (!d) return;
       if (!d.lignes_de_ce_lot) { M.toast(d.incomplets ? dzT("cartes.data2.aucune_prete", { n: d.incomplets }) : dzT("cartes.data2.rien_a_illustrer"), !!d.incomplets); return; }
       const m = ((LOTMODS && LOTMODS.models) || []).filter((x) => x.id === d.model)[0];
-      if (m && !m.cle) { M.toast(dzT("cartes.data2.cle_absente", { m: d.model }), true); return; }
+      /* t183 : un modèle sans clé reste choisissable ; le serveur refuse en 503, avant toute dépense */
       if (!d.sous_le_mur) { M.toast(dzT("cartes.data2.au_dessus_mur", { usd: usd(d.total_usd), mur: usd(d.mur_usd) }), true); return; }
       const ac = artCol();
       const ok = await window.__dzDialogue.confirmer(dzT("cartes.data2.conf_lot", { i: d.images, m: d.model, l: d.lignes_de_ce_lot, usd: usd(d.total_usd), mur: usd(d.mur_usd) })

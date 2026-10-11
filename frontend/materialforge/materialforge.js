@@ -132,16 +132,7 @@ const MAPS = [
 
 /* crédits et secondes indicatives par modèle (l’estimation est annoncée comme
    telle : « ≈ »). Le tarif réel du provider prime, on n’invente pas de facture. */
-const MODEL_COST = {
-  "flux": 4, "nano-banana": 9, "gpt-image-2": 12,
-  "gpt-image-1": 8, "gpt-image-1-mini": 3,
-  "nano-banana-pro": 13, "gpt-image-2-fal": 13,
-  "gpt-image-2.5-flare": 10, "gpt-image-2.5-sunburst": 10,
-  "gpt-image-2.5-flare-fal": 10, "gpt-image-2.5-sunburst-fal": 10,
-  /* t182 : modèles d’image fal (crédits = usd × 100, arrondi) */
-  "nano-banana-2.1": 4, "flux-3": 5, "seedream-5-pro": 7,
-  "ideogram-4.5": 22, "qwen-image-3": 4,
-};
+/* t183 : plus de table de crédits écrite ici — le crédit vient du `usd` du catalogue (voir estimate) */
 const MODEL_SEC = {
   "flux": 6, "nano-banana": 15, "gpt-image-2": 24,
   "gpt-image-1": 17, "gpt-image-1-mini": 9,
@@ -559,16 +550,13 @@ async function loadModels() {
     const d = await api.get("/image-models");
     /* t182 : un modèle vectoriel (sortie "svg", lue au catalogue) ne fait pas une texture.
        Décision de l'utilisateur (11/10/2026) : TOUS les modèles raster, de toutes les
-       voies, sont choisissables — les servis d'abord (`models`), puis ceux dont la clé
-       manque (`tous`), avec la mention « clé X à ajouter dans Réglages », jamais
-       désactivés ; le serveur refuse le tir en 503 tant que la clé manque. */
-    const servis = ((d && d.models) || []).filter((m) => m.sortie !== "svg");
-    const vus = new Set(servis.map((m) => m.id));
-    const sansCle = ((d && d.tous) || [])
-      .filter((e) => e.sortie !== "svg" && !e.dispo && !vus.has(e.id))
-      .map((e) => ({ id: e.id, label: e.label, cle: e.cle, sansCle: true }));
-    models = servis.concat(sansCle);
-    state.model = d.default || (servis[0] && servis[0].id) || (models[0] && models[0].id) || "";
+       voies, sont choisissables — ceux dont la clé manque avec la mention « clé X à
+       ajouter dans Réglages », jamais désactivés ; le serveur refuse le tir en 503 tant
+       que la clé manque. t183 : la liste est `tous` (le catalogue unique : dispo, clé,
+       voie, prix `usd`), `models` (servis) seulement face à un serveur d'avant t182. */
+    const tous = ((d && d.tous) || []).filter((e) => e.sortie !== "svg");
+    models = tous.length ? tous : ((d && d.models) || []).filter((m) => m.sortie !== "svg");
+    state.model = d.default || ((models.find((m) => m.dispo !== false) || models[0]) || {}).id || "";
   } catch (e) { models = []; }
   if (!models.length) {
     models = [{ id: "flux", label: "FLUX schnell", note: dzT("matiere.mf1_charge.cle_fal_absente") }];
@@ -577,9 +565,11 @@ async function loadModels() {
   state.models = models;
   const saved = localStorage.getItem("mf_model");
   if (saved && models.some((m) => m.id === saved)) state.model = saved;
-  $("#model").innerHTML = models.map((m) =>
+  /* t183 : un <optgroup> par voie, le prix sur chaque option (DzModelesIA, /shared/dz-modeles-ia.js) */
+  if (window.DzModelesIA) state.model = window.DzModelesIA.remplir($("#model"), models, { valeur: state.model }) || state.model;
+  else $("#model").innerHTML = models.map((m) =>
     `<option value="${esc(m.id)}"${m.id === state.model ? " selected" : ""}>${esc(m.label || m.id)}${
-      m.sansCle && m.cle ? " — " + esc(dzT("matiere.t182_modele.cle_a_ajouter", { cle: m.cle })) : ""}</option>`).join("");
+      m.dispo === false && m.cle ? " — " + esc(dzT("matiere.t182_modele.cle_a_ajouter", { cle: m.cle })) : ""}</option>`).join("");
   updateEstimate();
 }
 
@@ -648,7 +638,9 @@ const OUT_MB = { 1024: 5, 2048: 18, 4096: 48 };
 function estimate() {
   const m = state.model || "flux";
   const fromLib = !!state.ref;                       // référence = aucune image à payer
-  let cr = fromLib ? 0 : (MODEL_COST[m] != null ? MODEL_COST[m] : 6);
+  /* t183 : le crédit indicatif = usd du catalogue × 100 (au moins 1) ; 6 pour un modèle sans prix connu */
+  const ent = (state.models || []).find((x) => x.id === m);
+  let cr = fromLib ? 0 : (ent && Number(ent.usd) ? Math.max(1, Math.round(Number(ent.usd) * 100)) : 6);
   let sec = fromLib ? 1 : (MODEL_SEC[m] != null ? MODEL_SEC[m] : 12);
   // l'enrichissement est un ajout de gabarit côté backend : 0 crédit
   // (la barre le facture +1 — voir material_store.PROMPT_ENHANCE).

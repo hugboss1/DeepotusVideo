@@ -127,6 +127,9 @@
           <label class="fld">Cadre
             <select id="pmSize"><option value="square_hd" selected>Carré</option><option value="portrait_4_3">Portrait</option><option value="landscape_4_3">Paysage</option></select>
           </label>
+          <label class="fld">Modèle
+            <select id="pmModel" title="Modèle d'image du prompt — prix sur chaque option ; un modèle sans clé reste choisissable (clé à ajouter dans Réglages)"></select>
+          </label>
         </div>
         <div class="hint">Le style est porté par des <b>descripteurs</b> (pixels, palette, contour, fond vert uni), jamais par
           un nom d'artiste. Les images rendues deviennent la source : choisis tes frames, coche « Pixel-art », génère
@@ -398,6 +401,7 @@
 <script src="/shared/dz-plafonds.js"></script>
 <script src="/shared/dialogue.js"></script>
 <script src="/shared/dz-champ-ia.js"></script>
+<script src="/shared/dz-modeles-ia.js"></script>
 <script src="spritelab.js"></script>
 </body>
 </html>

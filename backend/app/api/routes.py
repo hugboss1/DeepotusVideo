@@ -498,6 +498,7 @@ async def render_layout_template(
     template_id: str,
     request: TemplateRenderRequest,
     background_tasks: BackgroundTasks,
+    http: Request = None,
 ):
     """Render a layout template with filled slots.
 
@@ -532,8 +533,11 @@ async def render_layout_template(
 
     kinds = {sv.source_kind for sv in request.slot_values.values()}
     if not request.preview:  # preview uses source stills, no provider keys needed
-        if "seedance" in kinds and not settings.FAL_KEY:
-            raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
+        # t183 : la clé du modèle vidéo CHOISI pour chaque slot Seedance (Veo -> GEMINI_API_KEY, sinon FAL_KEY) —
+        # un modèle sans clé reste choisissable, le refus tombe ICI en 503, avant _garde_cout et _plafond
+        for _sv in request.slot_values.values():
+            if _sv.source_kind == "seedance":
+                _cle_video_ou_503(_sv.seedance.video_model if _sv.seedance is not None else None, http)
         if "heygen" in kinds and not settings.has_heygen:
             raise HTTPException(503, "HEYGEN_API_KEY not configured. Add it to backend/.env")
         _ops, _vo, _maxs, _epingles = await _ops_rendu(template_id, request)
@@ -5282,6 +5286,10 @@ async def render_episode(request: Request, background_tasks: BackgroundTasks):
         _plan = _ev.plan_videos(scenes)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    # t183 : la clé du modèle vidéo de chaque scène générée (Veo -> GEMINI_API_KEY, sinon FAL_KEY), en 503 AVANT
+    # la garde de coût et la garde mensuelle — aucune ligne `depenses` pour un modèle sans sa clé
+    for _pv in _plan:
+        _cle_video_ou_503(_pv["model"], request)
     if _plan:
         _garde_cout(_ev.video_ops(_plan), payload.get("max_usd"))
     # P1 t132 : un épisode enregistré réemploie sa narration et garde son job
@@ -5658,17 +5666,34 @@ def _garde_cout(ops: list, *max_usds) -> float:
     return total
 
 
-@router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(_require_local_depense)])
-async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
-    # W-a — the required key depends on the selected model's provider
+def _refus_cle(cle: str, modele: str, http=None) -> HTTPException:
+    """t183 (G1) : le refus « clé absente » d'un modèle CHOISISSABLE (décision du 11/10/2026), dans la langue de la
+    requête (Accept-Language posé par /shared/dz-i18n.js, sinon UI_LANG) — messages.json : ia.cle.absente_tir."""
+    from app import i18n as _i18n
+    lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+    return HTTPException(503, _i18n.msg("ia.cle.absente_tir", lang, nom_cle=cle, modele=modele))
+
+
+def _cle_video_ou_503(video_model, http=None) -> None:
+    """La clé qu'exige le modèle vidéo choisi (W-a : Google -> GEMINI_API_KEY,
+    sinon FAL_KEY). t183 (G1) — décision de l'utilisateur (11/10/2026) : un
+    modèle sans sa clé reste CHOISISSABLE dans tous les sélecteurs ; c'est ici
+    que le tir est refusé, en 503 qui nomme la clé et les Réglages, AVANT
+    toute garde de dépense (_garde_cout, _plafond) : aucune ligne `depenses`."""
     from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
-    _mdl = VIDEO_MODELS.get(request.video_model or DEFAULT_VIDEO_MODEL)
+    mid = video_model or DEFAULT_VIDEO_MODEL
+    _mdl = VIDEO_MODELS.get(mid)
     if _mdl and _mdl["provider"] == "google":
         if not settings.has_gemini:
-            raise HTTPException(503, "GEMINI_API_KEY not configured. "
-                                     "Add it in Settings -> Keys")
+            raise _refus_cle("GEMINI_API_KEY", mid, http)
     elif not settings.FAL_KEY:
-        raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
+        raise _refus_cle("FAL_KEY", mid, http)
+
+
+@router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(_require_local_depense)])
+async def generate(request: GenerateRequest, background_tasks: BackgroundTasks, http: Request = None):
+    # W-a — the required key depends on the selected model's provider (t183 : 503 avant la dépense)
+    _cle_video_ou_503(request.video_model, http)
 
     image_path = settings.images_path / request.image_filename
     if not image_path.exists():
@@ -5705,7 +5730,7 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
 
 # v1.3: Batch generate — N variations with offset seeds
 @router.post("/generate/batch", response_model=GenerateBatchResponse, dependencies=[Depends(_require_local_depense)])
-async def generate_batch(request: GenerateBatchRequest, background_tasks: BackgroundTasks):
+async def generate_batch(request: GenerateBatchRequest, background_tasks: BackgroundTasks, http: Request = None):
     """Queue N jobs sharing the same config but with offset seeds.
 
     Behavior:
@@ -5713,8 +5738,8 @@ async def generate_batch(request: GenerateBatchRequest, background_tasks: Backgr
     - If request.seed is None, a random base seed is generated and used.
     - All N jobs share a batch_id (returned) so the UI can group them.
     """
-    if not settings.FAL_KEY:
-        raise HTTPException(503, "FAL_KEY not configured. Add it to backend/.env")
+    # t183 : la clé du modèle CHOISI (Veo -> GEMINI_API_KEY), plus seulement FAL_KEY
+    _cle_video_ou_503(request.video_model, http)
 
     image_path = settings.images_path / request.image_filename
     if not image_path.exists():
@@ -6081,12 +6106,14 @@ async def generate_heygen_cinematic(request: GenerateHeyGenCinematicRequest,
 
 
 @router.post("/generate/composition", response_model=CompositionResponse, dependencies=[Depends(_require_local_depense)])
-async def generate_composition(request: CompositionRequest, background_tasks: BackgroundTasks):
+async def generate_composition(request: CompositionRequest, background_tasks: BackgroundTasks, http: Request = None):
     """Queue a composition job: Seedance clip + HeyGen clip combined.
 
     Layout: sequential, split_vstack, or split_hstack.
     Both clips are generated in parallel, then composed via ffmpeg.
     """
+    # t183 : la clé du modèle vidéo choisi pour le côté Seedance (Veo -> GEMINI_API_KEY)
+    _cle_video_ou_503(request.seedance.video_model, http)
     if not settings.FAL_KEY:
         raise HTTPException(503, "FAL_KEY not configured")
     if not settings.has_heygen:
@@ -9102,9 +9129,26 @@ async def get_atelier_settings():
 @router.get("/atelier/providers")
 async def list_image_providers():
     """Générateurs d'images disponibles (selon les clés configurées), avec
-    l'indicateur seeds (déterminisme des recettes)."""
+    l'indicateur seeds (déterminisme des recettes).
+
+    t183 (G1) — décision de l'utilisateur (11/10/2026) : `tous` rend TOUS les
+    générateurs raster du registre, disponibles OU NON (`dispo`, `cle`), avec
+    leur voie et leur prix lus au catalogue unique — un générateur sans clé
+    reste choisissable dans 🎨 DA ; le tir est refusé en 503 avant la dépense.
+    `providers` (les seuls disponibles) reste pour la compatibilité."""
     from app.services import image_providers as IP
-    return {"providers": IP.available(), "default": "flux"}
+    from app.services import catalogue_ia as CI
+    cat = {e["id"]: e for e in CI.lister("image")}
+    tous = []
+    for pid, meta in IP.PROVIDERS.items():
+        if IP.est_vectoriel(pid):
+            continue
+        e = cat.get(pid) or {}
+        tous.append({"id": pid, "label": e.get("label") or meta["label"], "seeds": meta["seeds"],
+                     "dispo": IP.missing_key(pid) is None, "cle": meta["needs"],
+                     "voie": e.get("voie") or ("openai" if meta["needs"] == "OPENAI_API_KEY" else "fal"),
+                     "usd": float(e.get("usd") or 0.0), "unite": "image", "sortie": "raster"})
+    return {"providers": IP.available(), "default": "flux", "tous": tous}
 
 
 @router.get("/voice/providers")
@@ -9599,7 +9643,7 @@ async def delete_bible_entity(entity_id: str):
 
 
 @router.post("/bible/entities/{entity_id}/generate")
-async def generate_bible_reference(entity_id: str, body: dict):
+async def generate_bible_reference(entity_id: str, body: dict, http: Request = None):
     """Generate the entity's canonical reference BOARD (multi-view sheet,
     FLUX + seed).
 
@@ -9658,6 +9702,12 @@ async def generate_bible_reference(entity_id: str, body: dict):
                                      f"référence est une image raster. Choisissez "
                                      f"un autre générateur dans la direction "
                                      f"artistique.")
+        # t183 : un générateur sans sa clé reste choisissable dans 🎨 DA
+        # (décision du 11/10/2026) — le tir est refusé ICI, en 503 qui nomme
+        # la clé, AVANT la garde de dépense (aucune ligne `depenses`).
+        _manque = IP.missing_key(provider)
+        if _manque:
+            raise _refus_cle(_manque, provider, http)
         desc = (e.description or "").strip()
         if not desc and not (recipe and recipe.get("v") in (2, 3)):
             raise HTTPException(400, "Add a description before generating")
@@ -10489,7 +10539,7 @@ def _refs_entrelacees(par_entite: list[dict], maxi: int) -> list[str]:
 
 
 @router.post("/shots/{shot_id}/image")
-async def generate_shot_image(shot_id: str, body: dict):
+async def generate_shot_image(shot_id: str, body: dict, http: Request = None):
     """L'image de production du plan : Nano Banana (Pro) avec les vues de ses entités en référence (au plus
     IP.REF_MAX). Body: {provider?}. Le croquis (FLUX, /sketch) n'est pas touché."""
     from app.services import image_providers as IP
@@ -10506,6 +10556,9 @@ async def generate_shot_image(shot_id: str, body: dict):
         if provider not in ("nano-banana", "nano-banana-pro"):
             raise HTTPException(400, f"« {provider} » ne prend pas plusieurs références : choisissez Nano Banana (Pro) "
                                      "dans la direction artistique, ou le croquis 🎨 (FLUX).")
+        _manque = IP.missing_key(provider)   # t183 : 503 qui nomme la clé, AVANT la garde de dépense
+        if _manque:
+            raise _refus_cle(_manque, provider, http)
         try:
             eids = _json.loads(s.entities) if s.entities else []
         except Exception:

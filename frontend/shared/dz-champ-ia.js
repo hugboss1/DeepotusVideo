@@ -174,6 +174,8 @@
     /* t182 : la mention d'un modèle choisissable dont la clé reste à ajouter */
     ".dzia-ocle{display:block;opacity:.7;font-size:10.5px;color:#fbbf24}",
     ".dzia-ovide{padding:8px;color:#9ca3af;font:12px system-ui,sans-serif}",
+    /* t183 : l'en-tête d'une voie (clé fal, votre clé OpenAI…) */
+    ".dzia-ogrp{padding:6px 8px 2px;color:#a78bfa;font:600 10.5px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.04em}",
     /* T10 : le micro (un seul bouton dont l'état change), la note d'état, le dialogue maison de repli */
     ".dzia-micro{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin:0;padding:0;" +
       "border-radius:999px;border:1px solid rgba(139,92,246,.55);background:rgba(18,20,26,.92);color:#e5e7eb;" +
@@ -634,28 +636,34 @@
   var CLE_A_AJOUTER = function (cle) {
     return W.dzT ? W.dzT("ia.cle.a_ajouter", { cle: cle }) : "clé " + cle + " à ajouter dans Réglages";
   };
-  /* Le registre COMPLET des modèles d'image : /api/image-models ne rend que
-     les DISPONIBLES (un modèle sans clé y est absent). Miroir de
-     routes.list_image_models (id, libellé) et de pricing._IMAGE_MODELS
-     (fournisseur → clé) : le banc refuse toute dérive. */
-  var CATALOGUE_IMAGE = [
-    ["flux", "FLUX schnell", "FAL_KEY"],
-    ["nano-banana", "Nano Banana (Gemini)", "FAL_KEY"],
-    ["nano-banana-pro", "Nano Banana Pro (Gemini 3)", "FAL_KEY"],
-    ["gpt-image-2-fal", "GPT Image 2 (via fal)", "FAL_KEY"],
-    ["gpt-image-2.5-flare-fal", "GPT Image 2.5 Flare (via fal)", "FAL_KEY"],
-    ["gpt-image-2.5-sunburst-fal", "GPT Image 2.5 Sunburst (via fal)", "FAL_KEY"],
-    ["nano-banana-2.1", "Nano Banana 2.1 (via fal)", "FAL_KEY"],
-    ["flux-3", "FLUX 3 (via fal)", "FAL_KEY"],
-    ["seedream-5-pro", "Seedream 5 Pro (via fal)", "FAL_KEY"],
-    ["ideogram-4.5", "Ideogram 4.5 (via fal)", "FAL_KEY"],
-    ["qwen-image-3", "Qwen Image 3 (via fal)", "FAL_KEY"],
-    ["gpt-image-2", "GPT Image 2", "OPENAI_API_KEY"],
-    ["gpt-image-2.5-flare", "GPT Image 2.5 Flare (OpenAI)", "OPENAI_API_KEY"],
-    ["gpt-image-2.5-sunburst", "GPT Image 2.5 Sunburst (OpenAI)", "OPENAI_API_KEY"],
-    ["gpt-image-1", "GPT Image 1", "OPENAI_API_KEY"],
-    ["gpt-image-1-mini", "GPT Image 1 mini", "OPENAI_API_KEY"]
-  ];
+  /* t183 (G1) : plus de miroir codé en dur des modèles d'image. Le registre
+     COMPLET vient du catalogue unique (backend/app/services/catalogue_ia.py),
+     rendu par /api/image-models dans `tous` — le même que GET
+     /api/ia/catalogue?nature=image : chaque entrée y porte sa voie, sa clé, si
+     cette clé est posée (`dispo`) et son prix (`usd`). Les modèles vectoriels
+     (`sortie` "svg") n'entrent jamais dans une liste raster. */
+  /* l'ordre des voies et la règle de prix : copies À L'IDENTIQUE de DzModelesIA
+     (/shared/dz-modeles-ia.js, la source) — le banc test_encarts_ia les compare */
+  var ORDRE_VOIES = ["fal", "openai", "gemini", "elevenlabs", "meshy", "heygen", "local"];
+  var VOIES_FR = { fal: "via la clé fal", openai: "avec votre clé OpenAI", gemini: "avec votre clé Gemini",
+    elevenlabs: "avec votre clé ElevenLabs", meshy: "avec votre clé Meshy", heygen: "avec votre clé HeyGen",
+    local: "local, gratuit" };
+  function titreVoie(v) {
+    var t = W.dzT ? W.dzT("ia.voie." + v) : "";
+    return t && t !== "ia.voie." + v ? t : (VOIES_FR[v] || v);
+  }
+  function aMesurer() {
+    var t = W.dzT ? W.dzT("ia.prix.a_mesurer") : "";
+    return t && t !== "ia.prix.a_mesurer" ? t : "prix à mesurer";
+  }
+  /* groupes par voie : tri STABLE dans l'ordre des voies (fal d'abord) */
+  function parVoie(l) {
+    return l.map(function (x, i) { return [x, i]; }).sort(function (a, b) {
+      var va = ORDRE_VOIES.indexOf(a[0].voie), vb = ORDRE_VOIES.indexOf(b[0].voie);
+      va = va < 0 ? 99 : va; vb = vb < 0 ? 99 : vb;
+      return va - vb || a[1] - b[1];
+    }).map(function (p) { return p[0]; });
+  }
   function lsGet(k) { try { return W.localStorage ? W.localStorage.getItem(k) : null; } catch (e) { return null; } }
   function jget(url) {
     return W.fetch(url, { cache: "no-store" }).then(function (r) {
@@ -663,55 +671,48 @@
       return r.json();
     });
   }
-  function prixTxt(v, unite) {
-    v = Number(v);
-    if (!isFinite(v)) return "";
-    return "$" + (v >= 0.1 ? v.toFixed(2) : v.toFixed(3)) + unite;
-  }
+  function prixUsd(usd, unite) { var v = Number(usd); if (!(v > 0) || !isFinite(v)) return ""; var s = (Math.round(v * 1000) / 1000).toFixed(3); while (/\.\d{3,}$/.test(s) && s.charAt(s.length - 1) === "0") s = s.slice(0, -1); return "$" + s + ({ image: "/image", s: "/s", min: "/min", "1k": "/1k" }[unite] || ""); }
   /* la formule du sélecteur du Quick (DzVideoModelSel du bundle) : le prix
      1080p, sinon « * », sinon le plus cher des tarifs connus */
   function prixVideo(m) {
     var rr = m.usd_per_s || {}, v = rr["1080p"] != null ? rr["1080p"] : rr["*"];
     if (v == null) for (var k in rr) { var n = Number(rr[k]); if (isFinite(n) && (v == null || n > v)) v = n; }
-    return v != null ? prixTxt(v, "/s") : "";
+    return prixUsd(v, "s");
   }
   var CHARGEURS = {
     video: function () {
       return jget("/api/video-models").then(function (d) {
         return { defaut: d.default || "", modeles: (d.models || []).map(function (m) {
           var px = prixVideo(m);
-          return { id: m.id, label: m.label || m.id, dispo: !!m.available,
+          /* t183 (décision de l'utilisateur, 11/10/2026) : un modèle vidéo sans sa
+             clé (Veo sans GEMINI_API_KEY) reste CHOISISSABLE — le sélecteur du
+             Quick le liste déjà (« · clé manquante ») ; /generate refuse le tir
+             en 503 avant toute dépense */
+          return { id: m.id, label: m.label || m.id, dispo: !!m.available, sansCle: !m.available,
+                   voie: m.provider === "google" ? "gemini" : "fal",
                    cle: m.provider === "google" ? "GEMINI_API_KEY" : "FAL_KEY", prix: px,
-                   vue: (m.label || m.id) + (px ? " · " + px : "") + (m.available ? "" : " · clé manquante") };
+                   /* le libellé du sélecteur de la vue (DzVideoModelSel, maillon encartsia) */
+                   vue: (m.label || m.id) + (px ? " · " + px : "")
+                     + (m.available ? "" : " · " + CLE_A_AJOUTER(m.provider === "google" ? "GEMINI_API_KEY" : "FAL_KEY")) };
         }) };
       });
     },
     image: function () {
       return jget("/api/image-models").then(function (d) {
-        var srv = {}, i;
-        (d.models || []).forEach(function (m) { srv[m.id] = m; });
-        var mods = CATALOGUE_IMAGE.map(function (c) {
-          var s = srv[c[0]], lab = (s && s.label) || c[1];
-          return { id: c[0], label: lab, dispo: !!s, cle: c[2], prix: "", vue: lab,
-                   sansCle: !s };   // t182 : choisissable sans sa clé (refus 503 au tir)
-        });
-        var n = mods.length;
-        for (i = 0; i < (d.models || []).length; i++) {   // un id servi hors registre : montré tel quel, sans prix inventé
-          var m = d.models[i];
-          if (!CATALOGUE_IMAGE.some(function (c) { return c[0] === m.id; }))
-            mods.push({ id: m.id, label: m.label || m.id, dispo: true, cle: "", prix: "", vue: m.label || m.id });
-        }
-        var o = { defaut: d.default || "", modeles: mods };
-        /* le prix par image : UNE estimation (rien n'est dépensé), la table
-           des lignes de coût des vues (pricing._IMAGE_MODELS) */
-        return W.fetch("/api/cost/estimate", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: "campaign", ops: mods.slice(0, n).map(function (x) { return { kind: "image", model: x.id }; }) })
-        }).then(function (r) { return r.ok ? r.json() : null; }).then(function (e) {
-          var l = (e && e.breakdown) || [];
-          if (l.length === n) for (var k = 0; k < n; k++) mods[k].prix = prixTxt(l[k].usd, "/image");
-          return o;
-        }, function () { return o; });
+        /* les MÊMES entrées que les selects d'image du bundle (dzImgOpts, maillon encartsia) : `tous`
+           (le catalogue unique), `models` face à un serveur d'avant t182 ; jamais un vectoriel */
+        var tous = (d.tous && d.tous.length ? d.tous : (d.models || [])).filter(function (e) { return e.sortie !== "svg"; });
+        /* le prix par image vient du catalogue (`usd`, pricing.json) : plus
+           d'estimation POST ; un prix nul, absent ou illisible dit « prix à mesurer » */
+        var mods = parVoie(tous.map(function (e) {
+          var px = prixUsd(e.usd, "image") || aMesurer(), sans = e.dispo === false;
+          /* `vue` = le libellé des selects d'image du bundle (dzImgLbl, maillon encartsia) :
+             nom · prix · mention de clé — c'est lui que la pastille relit et rejoue */
+          return { id: e.id, label: e.label || e.id, dispo: !sans, cle: e.cle || "", voie: e.voie || "",
+                   prix: px, vue: (e.label || e.id) + " · " + px + (sans && e.cle ? " · " + CLE_A_AJOUTER(e.cle) : ""),
+                   sansCle: sans };   // t182 : choisissable sans sa clé (refus 503 au tir)
+        }));
+        return { defaut: d.default || "", modeles: mods };
       });
     },
     musique: function () {
@@ -889,7 +890,7 @@
   var atelierLire = function () { return donnees.atelier ? donnees.atelier.defaut : null; };
   var videoDefaut = function () { return donnees.video ? donnees.video.defaut : null; };
   function imageSel(s) {
-    return optionsDe(s).some(function (x) { return CATALOGUE_IMAGE.some(function (c) { return c[0] === x.id; }); })
+    return optionsDe(s).some(function (x) { return !!modeleDe("image", x.id); })
       || /aucun modèle/.test(String(s.textContent || ""));
   }
   var DA = "le générateur se choisit dans 🎨 DA";
@@ -930,16 +931,15 @@
     if (!m.liste) return m.natif ? optionsDe(m.trouver(el)) : [];
     var l = ((donnees[m.liste] || {}).modeles || []).map(function (x) {
       return { id: x.id, label: x.label, dispo: x.dispo, cle: x.cle, prix: x.prix, vue: x.vue, horsVue: false,
-               sansCle: !!x.sansCle };
+               sansCle: !!x.sansCle, voie: x.voie || "" };
     });
     if (m.natif) {                     // un modèle choisissable absent du <select> de la vue ne s'y écrit pas
       var ids = optionsDe(m.trouver(el)).map(function (x) { return x.id; });
       l.forEach(function (x) { if ((x.dispo || x.sansCle) && ids.indexOf(x.id) < 0) x.horsVue = true; });
-    } else {
-      /* t182 : les selects custom du bundle ne listent que les modèles SERVIS
-         (/api/image-models `models`) — un modèle sans clé n'y est pas */
-      l.forEach(function (x) { if (x.sansCle) x.horsVue = true; });
     }
+    /* t183 : les selects custom du bundle (image : DzImgModelSel / DzImageModel ;
+       vidéo : DzVideoModelSel) listent TOUS les modèles, sans clé compris (maillon
+       encartsia) : rien n'y est « hors vue » */
     return l;
   }
   function choisissable(x) { return (x.dispo || x.sansCle) && !x.horsVue; }
@@ -1010,7 +1010,9 @@
         } else if (m.liste && donnees[m.liste] && !dispo.length) {
           var cm = clesManquantes(l);
           label = "aucun modèle";
-          titre = "Aucun modèle disponible" + (cm.length ? " — " + cm.map(CLE_ABSENTE).join(", ") : "")
+          titre = "Aucun modèle disponible" + (cm.length ? " — " + cm.map(function (c) {   // t183 : un modèle choisissable sans sa clé dit « à ajouter dans Réglages »
+              return (l.some(function (x) { return x.sansCle && x.cle === c; }) ? CLE_A_AJOUTER : CLE_ABSENTE)(c);
+            }).join(", ") : "")
             + (l.some(function (x) { return x.horsVue; }) ? " — le sélecteur de la vue n'en propose aucun" : "");
         } else if (!m.trouver(el)) {
           titre = "Modèle : " + label + prix + " — choisi par la vue (sélecteur de la vue introuvable ici)";
@@ -1051,8 +1053,21 @@
     L.className = "dzia-liste";
     L.setAttribute("role", "listbox");
     L.setAttribute("aria-label", "Modèles");
-    var opts = [], actif = -1;
+    var opts = [], actif = -1, voieCour = null;
+    /* t183 (G1) : un en-tête par voie (« via la clé fal », « avec votre clé
+       OpenAI »…) dès que la liste en mêle plusieurs ; l'en-tête n'est pas une
+       option (le clavier ne parcourt que les .dzia-opt) */
+    var voies = l.reduce(function (a, x) { if (x.voie && a.indexOf(x.voie) < 0) a.push(x.voie); return a; }, []);
     l.forEach(function (x) {
+      if (voies.length > 1 && x.voie && x.voie !== voieCour) {
+        voieCour = x.voie;
+        var g = D.createElement("div");
+        g.className = "dzia-ogrp";
+        g.setAttribute("role", "presentation");
+        g.setAttribute("data-voie", x.voie);
+        g.textContent = titreVoie(x.voie);
+        L.appendChild(g);
+      }
       var o = D.createElement("button");
       o.setAttribute("type", "button");
       o.setAttribute("tabindex", "-1");                // le focus reste sur la pastille (aria-activedescendant)
@@ -1073,7 +1088,11 @@
         p.textContent = x.prix;
         o.appendChild(p);
       }
-      var off = x.horsVue ? (x.dispo || !x.cle ? "" : CLE_ABSENTE(x.cle) + " — ") + "absent du sélecteur de la vue"
+      /* t183 : grisé faute d'être dans le sélecteur de la vue — un modèle sans
+         clé le dit avec la même mention que partout (« clé X à ajouter dans
+         Réglages »), jamais « absente » */
+      var off = x.horsVue ? (x.dispo || !x.cle ? "" : (x.sansCle ? CLE_A_AJOUTER : CLE_ABSENTE)(x.cle) + " — ")
+          + "absent du sélecteur de la vue"
         : (!x.dispo && !x.sansCle ? (x.cle ? CLE_ABSENTE(x.cle) : "indisponible") : "");
       var aAjouter = !off && !x.dispo && x.sansCle ? CLE_A_AJOUTER(x.cle) : "";
       if (aAjouter) {                  // choisissable : la mention sous le nom, jamais grisé
@@ -1597,7 +1616,7 @@
     exclus: ZONES.concat(EXCLUS),
     marquer: marquer,
     synchroniser: synchroniser,
-    modeles: { catalogueImage: CATALOGUE_IMAGE, charger: charger, rafraichir: rafraichirPastilles, fermer: fermerListe },
+    modeles: { charger: charger, rafraichir: rafraichirPastilles, fermer: fermerListe },
     dictee: {
       voie: voieDictee,
       etat: function () { var a = dic.active; return { etat: a ? a.etat : "repos", voie: a ? a.voie : voieDictee(), voie1Ko: dic.voie1Ko, indispo: indispo(), veille: !!tVeille }; },

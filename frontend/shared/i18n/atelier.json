@@ -619,5 +619,6 @@
   "atelier.ath_vec.tous_roles": {"fr": "Tous rôles", "en": "All roles"},
   "atelier.ath_ver.titre": {"fr": "Versions du texte", "en": "Text versions"},
   "atelier.ath_ver.vide": {"fr": "Choisis une version à gauche : le côte à côte la compare au texte courant.", "en": "Pick a version on the left: the side-by-side view compares it with the current text."},
-  "atelier.int_chap.nouveau": {"fr": "Nouveau chapitre", "en": "New chapter"}
+  "atelier.int_chap.nouveau": {"fr": "Nouveau chapitre", "en": "New chapter"},
+  "atelier.t183_da.cle_a_ajouter": {"fr": "clé {cle} à ajouter dans Réglages", "en": "add the {cle} key in Settings"}
 }

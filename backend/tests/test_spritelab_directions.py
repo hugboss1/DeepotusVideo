@@ -85,7 +85,8 @@ check("W6 un geste à la fois : les deux boutons Bible se coupent pendant le tra
 
 # Prompt : payant — devis d'abord, source « sprites », puis la feuille par la source images
 check("P1 le tir payant part sur /images/generate avec le corps du module (source « sprites »)",
-      '"/images/generate", window.SLD.corpsPrompt(' in bloc)
+      # t183 : le corps du module, augmenté du modèle choisi dans #pmModel (DzModelesIA)
+      '"/images/generate", Object.assign(window.SLD.corpsPrompt(' in bloc and "imageModel ? { model: imageModel } : {}" in bloc)
 check("P2 le devis est affiché avant le tir (/cost/estimate, kind image, le modèle par défaut des Réglages)",
       '"/cost/estimate"' in bloc and 'kind: "image"' in bloc and "image_model_default" in bloc)
 check("P3 les images rendues deviennent la source (images) : filmstrip puis feuille, rien de plus payé",

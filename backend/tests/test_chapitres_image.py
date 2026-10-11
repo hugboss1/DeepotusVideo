@@ -182,7 +182,8 @@ _js = (_ICI.parent.parent / "frontend" / "atelier" / "atelier.js").read_text(enc
 check("U1 le bouton existe, avec un title", 'class="btn ghost act-prod" title=' in _js)
 check("U2 le cout est DIT et CONFIRME avant le tir (dialogue maison)", "async function imageProduction(" in _js
       and "window.__dzDialogue.confirmer(" in _js.split("async function imageProduction(")[1].split("\n}\n")[0]
-      and "/cost/pricing" in _js.split("async function imageProduction(")[1].split("\n}\n")[0] if "async function imageProduction(" in _js else False)
+      # t183 (G1) : le prix vient du catalogue unique (/ia/catalogue), plus de la grille /cost/pricing
+      and "/ia/catalogue?nature=image" in _js.split("async function imageProduction(")[1].split("\n}\n")[0] if "async function imageProduction(" in _js else False)
 _fn = _js.split("async function imageProduction(")[1].split("\n}\n")[0] if "async function imageProduction(" in _js else ""
 _garde = _fn.find("if (!await window.__dzDialogue.confirmer(")
 _retour = _fn.find(")) return;", _garde) if _garde >= 0 else -1

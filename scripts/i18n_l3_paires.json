@@ -3951,6 +3951,12 @@
     "groupe": "montage_i"
    },
    {
+    "pos": 626836,
+    "avant": "function dzDuelLabel(mm,id){var m=((mm&&mm.models)||[]).find(function(z){return z.id===id});return m?m.label:id}",
+    "apres": "function dzDuelLabel(mm,id){var m=((mm&&mm.tous)||[]).find(function(zz){return zz.id===id});return m?m.label:id}",
+    "groupe": "montage_i"
+   },
+   {
     "pos": 633497,
     "avant": "\"Aucune recette : dans le Studio, fige un graphe composé avec le bouton « Recette ».\"",
     "apres": "dzT(\"montage.recette.aucune\")",

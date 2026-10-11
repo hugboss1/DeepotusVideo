@@ -3957,6 +3957,10 @@
     const id = sel ? sel.value : "";
     const m = MODELS.filter((x) => x.id === id)[0];
     const n = Math.max(1, Math.min(4, Number((q("#cf-face-n") || {}).value) || 1));
+    if (MODELS.length && AI_META.cle_absente) {
+      el.innerHTML = dzT("cartes.face.aucune_cle");
+      return;
+    }
     if (!MODELS.length) {
       el.innerHTML = dzT("cartes.face.cout_aucun_modele");
       return;
@@ -4086,7 +4090,7 @@
     msel.innerHTML = MODELS.length
       ? MODELS.map((m) => '<option value="' + esc(m.id) + '">' + esc(m.label)
         + (typeof m.usd_par_image === "number" ? " — " + usdFmt(m.usd_par_image) + "/image"
-          : dzT("cartes.face.tarif_non_tabule")) + '</option>').join("")
+          : dzT("cartes.face.tarif_non_tabule")) + (m.dispo === false && m.cle ? " — " + esc(dzT("cartes.face.cle_a_ajouter", { cle: m.cle })) : "") + '</option>').join("")
       : '<option value="">' + dzT("cartes.face.aucun_modele") + '</option>';
     const want = CF.get("face.model", "");
     if (want && MODELS.some((m) => m.id === want)) msel.value = want;

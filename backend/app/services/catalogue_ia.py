@@ -6,8 +6,9 @@ fait aucun appel réseau. Chaque entrée dit : sa voie (fal, openai…), la clé
 qui la sert, si cette clé est posée (`dispo`), son prix unitaire (`usd`,
 `unite`) et son JUMEAU — le même modèle servi par l'autre voie
 (gpt-image-2 <-> gpt-image-2-fal). Un modèle sans clé reste PRÉSENT
-(dispo=False) : c'est au sélecteur de le griser, pas au catalogue de le
-cacher.
+(dispo=False) : décision de l'utilisateur (11/10/2026), il reste CHOISISSABLE
+dans les sélecteurs, avec la mention « clé X à ajouter dans Réglages » ; le
+tir est refusé en 503 (avant toute dépense) tant que la clé manque.
 
 Champs codés (jamais de texte français : l'écran traduit) :
 - `note` : "" ou "a_mesurer" — prix inconnu (usd == 0). Le front affiche
@@ -26,6 +27,11 @@ CLES = {"fal": "FAL_KEY", "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY"
 _SOURCES = {}                   # nature -> fonction () -> list[dict] brutes
 
 NOTE_A_MESURER = "a_mesurer"     # code ; libellé : dzT("ia.prix.a_mesurer")
+# t183 (G1) : le libellé d'ÉCRAN d'un modèle, quand il diffère de celui de la
+# ligne de coût de pricing._IMAGE_MODELS (« FLUX image ») : c'est le libellé de
+# /image-models `models` (« FLUX schnell »), que les sélecteurs affichent et que
+# la pastille de dz-champ-ia relit — un modèle a UN seul nom dans les listes.
+_LIBELLES_ECRAN = {"flux": "FLUX schnell"}
 
 
 def source(nature):
@@ -66,11 +72,30 @@ def _images() -> list[dict]:
             usd = 0.0
         jumeau = IP._FAL_GPT.get(mid) or inverse.get(mid)
         fal = IP.FAL_IMAGES.get(mid)
-        out.append({"id": mid, "label": label, "voie": voie, "usd": usd,
+        out.append({"id": mid, "label": _LIBELLES_ECRAN.get(mid, label), "voie": voie, "usd": usd,
                     "unite": "image", "jumeau": jumeau,
                     "note": "" if usd else NOTE_A_MESURER,
                     "edit": bool(fal["edit"]) if fal else True,
                     "sortie": "svg" if IP.est_vectoriel(mid) else "raster"})
+    return out
+
+
+def servis_puis_sans_cle(d: dict | None) -> list[dict]:
+    """t183 (G1) : la liste d'un sélecteur raster à partir de la réponse de
+    /image-models — les modèles SERVIS d'abord (`models`, dispo=True), puis
+    ceux du catalogue (`tous`) dont la clé manque, avec dispo=False et le NOM
+    de leur clé ; jamais un modèle vectoriel. Décision de l'utilisateur
+    (11/10/2026) : un modèle sans clé reste choisissable, le tir est refusé en
+    503 avant toute dépense. Partagée par les routes ai-models du Card Forge
+    (face, cadre)."""
+    d = d or {}
+    out = [dict(m, dispo=True) for m in (d.get("models") or []) if m.get("sortie") != "svg"]
+    vus = {str(m.get("id") or "") for m in out}
+    for e in d.get("tous") or []:
+        if e.get("sortie") == "svg" or str(e.get("id") or "") in vus:
+            continue
+        out.append({"id": e.get("id"), "label": e.get("label"), "provider": e.get("voie"), "note": "",
+                    "dispo": e.get("dispo") is not False, "cle": e.get("cle")})
     return out
 
 

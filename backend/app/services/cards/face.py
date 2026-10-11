@@ -946,7 +946,11 @@ async def ai_models(did: str):
     try:
         from app.api.routes import list_image_models
         d = await list_image_models()
-        models = list((d or {}).get("models") or [])
+        # t183 (G1) — décision de l'utilisateur (11/10/2026) : un modèle sans sa
+        # clé reste CHOISISSABLE (dispo faux, `cle` nommée) ; une seule règle,
+        # partagée avec la pièce jumelle : catalogue_ia.servis_puis_sans_cle
+        from app.services import catalogue_ia as _CI
+        models = _CI.servis_puis_sans_cle(d)
         configured = str((d or {}).get("configured") or "")
     except Exception as e:
         # La route de l'application lit aussi un réglage en base : un incident
@@ -972,6 +976,8 @@ async def ai_models(did: str):
             "provider": str(m.get("provider") or ""),
             "note": str(m.get("note") or ""),
             "usd_par_image": (spec or {}).get("usd"),
+            "dispo": bool(m.get("dispo", True)),
+            "cle": str(m.get("cle") or "") or None,
         })
     return {
         "models": out,
@@ -980,7 +986,8 @@ async def ai_models(did: str):
         "tarif_source": "la table de tarifs de l'application (Réglages → Tarifs "
                         "et budget, pricing.json) — le fournisseur facture "
                         "directement",
-        "cle_absente": not out,
+        # t183 : « aucune clé » se lit sur `dispo` (la liste n'est plus vide)
+        "cle_absente": not any(m["dispo"] for m in out),
         "repli": repli,
         "erreur": erreur,
     }

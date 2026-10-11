@@ -422,13 +422,18 @@ ENTREES = [
       {"cartes.data2.lot_titre_col": ("Art du deck en lot — colonne « {col} »", "Batch deck art — column “{col}”")}),
     S(F, 2986, """'<select data-lot-k="model" title="Modèles servis au lot (FLUX ne passe que par l’écran Images) ; un modèle sans clé est grisé">'""",
       """'<select data-lot-k="model" title="' + dzT("cartes.data2.modeles_t") + '">'""",
-      {"cartes.data2.modeles_t": ("Modèles servis au lot (FLUX ne passe que par l’écran Images) ; un modèle sans clé est "
-                                  "grisé",
+      # t183 (11/10/2026) : un modèle sans clé reste choisissable (décision de l'utilisateur) — le titre le dit
+      {"cartes.data2.modeles_t": ("Modèles servis au lot (FLUX ne passe que par l’écran Images) ; un modèle sans clé "
+                                  "reste choisissable : ajoutez sa clé dans Réglages, sinon le tir est refusé",
                                   "Models available to the batch (FLUX only goes through the Images screen); a model "
-                                  "without a key is greyed out")}),
+                                  "without a key stays selectable: add its key in Settings, otherwise the run is "
+                                  "refused")}),
     L(F, 2987, '"tarif ?"', "cartes.data2.tarif_inconnu", "tarif ?", "price?"),
     X(F, 2987, '" $/image"', "unité de prix, identique dans les deux langues"),
-    L(F, 2988, '" · sans clé"', "cartes.data2.sans_cle", " · sans clé", " · no key"),
+    # t183 : l'option sans clé n'est plus `disabled` ; elle nomme la clé à ajouter (même texte que ia.cle.a_ajouter)
+    S(F, 2988, '(m.cle ? "" : " · sans clé"), LOT.model, !m.cle)',
+      '(m.cle ? "" : " · " + dzT("cartes.data2.cle_a_ajouter", { cle: m.cle_nom || "?" })), LOT.model, false)',
+      {"cartes.data2.cle_a_ajouter": ("clé {cle} à ajouter dans Réglages", "add the {cle} key in Settings")}),
     S(F, 2989, """'<select data-lot-k="n" title="Variantes par ligne (chacune est payée)">'""", """'<select data-lot-k="n" title="' + dzT("cartes.data2.variantes_t") + '">'""",
       {"cartes.data2.variantes_t": ("Variantes par ligne (chacune est payée)", "Variants per row (each one is paid)")}),
     S(F, 2989, 'k + " variante(s)"', 'dzT("cartes.data2.n_variantes", { n: k })',
@@ -503,10 +508,10 @@ ENTREES = [
       {"cartes.data2.aucune_prete": ("aucune ligne prête : {n} ligne(s) sans texte", "no row ready: {n} row(s) without text"),
        "cartes.data2.rien_a_illustrer": ("rien à illustrer : toutes les lignes ont leur image",
                                          "nothing to illustrate: every row has its image")}),
-    S(F, 3053, '"la clé de « " + d.model + " » n’est pas enregistrée (Réglages)"',
-      'dzT("cartes.data2.cle_absente", { m: d.model })',
-      {"cartes.data2.cle_absente": ("la clé de « {m} » n’est pas enregistrée (Réglages)",
-                                    "the key for “{m}” is not saved (Settings)")}),
+    # t183 : plus de refus côté écran — le modèle sans clé reste choisissable, le serveur refuse en 503 (nommant la
+    # clé) AVANT toute dépense, et ce refus est dit comme tout autre
+    S(F, 3053, 'if (m && !m.cle) { M.toast("la clé de « " + d.model + " » n’est pas enregistrée (Réglages)", true); return; }',
+      '/* t183 : un modèle sans clé reste choisissable ; le serveur refuse en 503, avant toute dépense */', {}),
     S(F, 3054, '"le lot coûterait " + usd(d.total_usd) + " $, au-dessus du mur de " + usd(d.mur_usd) + " $ : réduisez-le ou relevez le mur"',
       'dzT("cartes.data2.au_dessus_mur", { usd: usd(d.total_usd), mur: usd(d.mur_usd) })',
       {"cartes.data2.au_dessus_mur": ("le lot coûterait {usd} $, au-dessus du mur de {mur} $ : réduisez-le ou relevez le "

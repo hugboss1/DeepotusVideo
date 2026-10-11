@@ -1263,6 +1263,12 @@
     "groupe": "at2"
    },
    {
+    "pos": 55107,
+    "avant": "const grille = await api.get(\"/cost/pricing\");\r\n    usd = grille[provider === \"nano-banana\" ? \"nano_banana_usd\" : \"nano_banana_pro_usd\"];",
+    "apres": "/* t183 : le prix par image vient du catalogue unique (usd), pas d'une clé de grille écrite ici */\r\n    const cat = await api.get(\"/ia/catalogue?nature=image\");\r\n    const ent = ((cat && cat.modeles) || []).find(e => e.id === provider);\r\n    usd = ent && ent.usd ? ent.usd : null;",
+    "groupe": "t183"
+   },
+   {
     "pos": 55386,
     "avant": "`« ${provider} » ne prend pas plusieurs références : choisissez Nano Banana (Pro) dans la direction artistique.`",
     "apres": "dzT(\"atelier.at2_prod.multi_refs\", { provider })",
@@ -1897,6 +1903,18 @@
     "avant": "Importe un manuscrit (📚) ou clique ✨ — l'agent proposera 4 directions motivées par le texte.</div>`",
     "apres": "${dzT(\"atelier.at2_da.vide\")}</div>`",
     "groupe": "at2"
+   },
+   {
+    "pos": 79403,
+    "avant": "$(\"#daProvider\").innerHTML = pv.providers.map(p =>\r\n      `<option value=\"${p.id}\" ${p.id === cur ? \"selected\" : \"\"}>${esc(p.label)}</option>`).join(\"\");",
+    "apres": "/* t183 : TOUS les générateurs raster (pv.tous : dispo, clé, prix — catalogue unique), les sans-clé compris,\r\n       choisissables avec la mention « clé X à ajouter dans Réglages » (décision du 11/10/2026) ; le serveur\r\n       refuse le tir en 503 avant toute dépense. Un <optgroup> par voie (DzModelesIA). */\r\n    const tous = (pv.tous && pv.tous.length) ? pv.tous : pv.providers.map(p => Object.assign({ dispo: true }, p));\r\n    if (window.DzModelesIA) daSettings.image_provider = window.DzModelesIA.remplir($(\"#daProvider\"), tous, { valeur: cur }) || cur;\r\n    else $(\"#daProvider\").innerHTML = tous.map(p =>\r\n      `<option value=\"${p.id}\" ${p.id === cur ? \"selected\" : \"\"}>${esc(p.label)}${p.dispo === false && p.cle\r\n        ? \" — \" + esc(dzT(\"atelier.t183_da.cle_a_ajouter\", { cle: p.cle })) : \"\"}</option>`).join(\"\");",
+    "groupe": "t183"
+   },
+   {
+    "pos": 79589,
+    "avant": "const sel = pv.providers.find(p => p.id === $(\"#daProvider\").value);",
+    "apres": "const sel = tous.find(p => p.id === $(\"#daProvider\").value);",
+    "groupe": "t183"
    },
    {
     "pos": 79729,
@@ -2735,10 +2753,10 @@
     "groupe": "mf1"
    },
    {
-    "pos": 6839,
-    "avant": "  \"gpt-image-2.5-flare-fal\": 10, \"gpt-image-2.5-sunburst-fal\": 10,",
-    "apres": "  \"gpt-image-2.5-flare-fal\": 10, \"gpt-image-2.5-sunburst-fal\": 10,\r\n  /* t182 : modèles d’image fal (crédits = usd × 100, arrondi) */\r\n  \"nano-banana-2.1\": 4, \"flux-3\": 5, \"seedream-5-pro\": 7,\r\n  \"ideogram-4.5\": 22, \"qwen-image-3\": 4,",
-    "groupe": "t182"
+    "pos": 6613,
+    "avant": "const MODEL_COST = {\r\n  \"flux\": 4, \"nano-banana\": 9, \"gpt-image-2\": 12,\r\n  \"gpt-image-1\": 8, \"gpt-image-1-mini\": 3,\r\n  \"nano-banana-pro\": 13, \"gpt-image-2-fal\": 13,\r\n  \"gpt-image-2.5-flare\": 10, \"gpt-image-2.5-sunburst\": 10,\r\n  \"gpt-image-2.5-flare-fal\": 10, \"gpt-image-2.5-sunburst-fal\": 10,\r\n};\r\n",
+    "apres": "/* t183 : plus de table de crédits écrite ici — le crédit vient du `usd` du catalogue (voir estimate) */\r\n",
+    "groupe": "t183"
    },
    {
     "pos": 7138,
@@ -3199,8 +3217,8 @@
    {
     "pos": 28772,
     "avant": "    models = (d && d.models) || [];\r\n    state.model = d.default || (models[0] && models[0].id) || \"\";",
-    "apres": "    /* t182 : un modèle vectoriel (sortie \"svg\", lue au catalogue) ne fait pas une texture.\r\n       Décision de l'utilisateur (11/10/2026) : TOUS les modèles raster, de toutes les\r\n       voies, sont choisissables — les servis d'abord (`models`), puis ceux dont la clé\r\n       manque (`tous`), avec la mention « clé X à ajouter dans Réglages », jamais\r\n       désactivés ; le serveur refuse le tir en 503 tant que la clé manque. */\r\n    const servis = ((d && d.models) || []).filter((m) => m.sortie !== \"svg\");\r\n    const vus = new Set(servis.map((m) => m.id));\r\n    const sansCle = ((d && d.tous) || [])\r\n      .filter((e) => e.sortie !== \"svg\" && !e.dispo && !vus.has(e.id))\r\n      .map((e) => ({ id: e.id, label: e.label, cle: e.cle, sansCle: true }));\r\n    models = servis.concat(sansCle);\r\n    state.model = d.default || (servis[0] && servis[0].id) || (models[0] && models[0].id) || \"\";",
-    "groupe": "t182"
+    "apres": "    /* t182 : un modèle vectoriel (sortie \"svg\", lue au catalogue) ne fait pas une texture.\r\n       Décision de l'utilisateur (11/10/2026) : TOUS les modèles raster, de toutes les\r\n       voies, sont choisissables — ceux dont la clé manque avec la mention « clé X à\r\n       ajouter dans Réglages », jamais désactivés ; le serveur refuse le tir en 503 tant\r\n       que la clé manque. t183 : la liste est `tous` (le catalogue unique : dispo, clé,\r\n       voie, prix `usd`), `models` (servis) seulement face à un serveur d'avant t182. */\r\n    const tous = ((d && d.tous) || []).filter((e) => e.sortie !== \"svg\");\r\n    models = tous.length ? tous : ((d && d.models) || []).filter((m) => m.sortie !== \"svg\");\r\n    state.model = d.default || ((models.find((m) => m.dispo !== false) || models[0]) || {}).id || \"\";",
+    "groupe": "t183"
    },
    {
     "pos": 28990,
@@ -3209,16 +3227,22 @@
     "groupe": "mf1"
    },
    {
-    "pos": 29242,
-    "avant": "    `<option value=\"${esc(m.id)}\"${m.id === state.model ? \" selected\" : \"\"}>${esc(m.label || m.id)}</option>`).join(\"\");",
-    "apres": "    `<option value=\"${esc(m.id)}\"${m.id === state.model ? \" selected\" : \"\"}>${esc(m.label || m.id)}${\r\n      m.sansCle && m.cle ? \" — \" + esc(dzT(\"matiere.t182_modele.cle_a_ajouter\", { cle: m.cle })) : \"\"}</option>`).join(\"\");",
-    "groupe": "t182"
+    "pos": 29199,
+    "avant": "$(\"#model\").innerHTML = models.map((m) =>\r\n    `<option value=\"${esc(m.id)}\"${m.id === state.model ? \" selected\" : \"\"}>${esc(m.label || m.id)}</option>`).join(\"\");",
+    "apres": "/* t183 : un <optgroup> par voie, le prix sur chaque option (DzModelesIA, /shared/dz-modeles-ia.js) */\r\n  if (window.DzModelesIA) state.model = window.DzModelesIA.remplir($(\"#model\"), models, { valeur: state.model }) || state.model;\r\n  else $(\"#model\").innerHTML = models.map((m) =>\r\n    `<option value=\"${esc(m.id)}\"${m.id === state.model ? \" selected\" : \"\"}>${esc(m.label || m.id)}${\r\n      m.dispo === false && m.cle ? \" — \" + esc(dzT(\"matiere.t182_modele.cle_a_ajouter\", { cle: m.cle })) : \"\"}</option>`).join(\"\");",
+    "groupe": "t183"
    },
    {
     "pos": 29844,
     "avant": "'<div class=\"empty-note sm\">Aucune image' + (q ? \" pour « \" + esc(q) + \" »\" : \" dans la Library\") + \".</div>\"",
     "apres": "'<div class=\"empty-note sm\">' + (q ? dzT(\"matiere.mf1_biblio.aucune_pour\", { q: esc(q) }) : dzT(\"matiere.mf1_biblio.aucune\")) + \"</div>\"",
     "groupe": "mf1"
+   },
+   {
+    "pos": 31954,
+    "avant": "let cr = fromLib ? 0 : (MODEL_COST[m] != null ? MODEL_COST[m] : 6);",
+    "apres": "/* t183 : le crédit indicatif = usd du catalogue × 100 (au moins 1) ; 6 pour un modèle sans prix connu */\r\n  const ent = (state.models || []).find((x) => x.id === m);\r\n  let cr = fromLib ? 0 : (ent && Number(ent.usd) ? Math.max(1, Math.round(Number(ent.usd) * 100)) : 6);",
+    "groupe": "t183"
    },
    {
     "pos": 33186,

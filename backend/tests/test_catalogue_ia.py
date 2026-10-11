@@ -9,10 +9,10 @@ Ce que le banc tient :
   [2] les nouveaux ids fal (nano-banana-2.1, flux-3, seedream-5-pro,
       ideogram-4.5, qwen-image-3, recraft-4.1-vecteur) sont dans PROVIDERS,
       la table de prix (avec LEUR clé de prix : jamais le repli FLUX) ; les
-      raster dans pricing._IMAGE_MODELS, CATALOGUE_IMAGE et le `models` de
-      /image-models ; recraft (SVG) dans pricing._IMAGE_MODELS_VECTEUR et
-      NULLE PART côté raster (ni _IMAGE_MODELS, ni CATALOGUE_IMAGE, ni
-      IP.available()) ; les ids raster sont
+      raster dans pricing._IMAGE_MODELS et le `models` de /image-models
+      (t183 : la couche dz-champ-ia n'a plus de miroir CATALOGUE_IMAGE, elle lit
+      `tous`) ; recraft (SVG) dans pricing._IMAGE_MODELS_VECTEUR et NULLE PART
+      côté raster (ni _IMAGE_MODELS, ni IP.available()) ; les ids raster sont
       dans material_store.MODELS et MODEL_COST/MODEL_SEC de materialforge ;
       recraft (SVG) n'est PAS une texture : absent de material_store et
       écarté du sélecteur de materialforge ; gpt-image-1-mini est dans
@@ -255,9 +255,9 @@ settings.FAL_KEY = "test-key"
 # ── [2] registres alignés ───────────────────────────────────────────────────
 print("[2] registres alignés")
 cat_js = (ICI.parent.parent / "frontend/shared/dz-champ-ia.js").read_text(encoding="utf-8")
-mcat = re.search(r"var CATALOGUE_IMAGE = \[(.*?)\];", cat_js, re.S)
-cat_bloc = mcat.group(1) if mcat else ""
-check("TÉMOIN : CATALOGUE_IMAGE trouvé", bool(cat_bloc))
+# t183 (G1) : plus de miroir codé en dur dans la couche — elle lit `tous` (raster) de /image-models
+check("dz-champ-ia sans miroir CATALOGUE_IMAGE, lit `tous` raster",
+      "CATALOGUE_IMAGE" not in cat_js and "d.tous" in cat_js and 'e.sortie !== "svg"' in cat_js)
 mf = (ICI.parent.parent / "frontend/materialforge/materialforge.js").read_text(encoding="utf-8")
 
 
@@ -279,16 +279,14 @@ for i in NOUVEAUX:
     check(f"{i} dans lister", i in ids)
     check(f"{i} passe par la façade", IP.via_facade(i))
 for i in RASTER:
-    check(f"{i} dans CATALOGUE_IMAGE avec FAL_KEY",
-          re.search(r'\["' + re.escape(i) + r'",\s*"[^"]+",\s*"FAL_KEY"\]', cat_bloc) is not None)
     check(f"{i} dans _IMAGE_MODELS (raster)", i in P._IMAGE_MODELS)
     check(f"{i} dans material_store", i in MS.MODELS and MS.clean_model(i) == i)
-    for nom in ("MODEL_COST", "MODEL_SEC"):
-        check(f"{nom} {i}", re.search(r'"' + re.escape(i) + r'"\s*:\s*\d', bloc(nom)) is not None)
+    # t183 : MODEL_COST supprimé (crédit = usd du catalogue) ; MODEL_SEC garde les durées indicatives
+    check(f"MODEL_SEC {i}", re.search(r'"' + re.escape(i) + r'"\s*:\s*\d', bloc("MODEL_SEC")) is not None)
 check("recraft (SVG) n'est PAS une texture : absent de material_store",
       "recraft-4.1-vecteur" not in MS.MODELS)
-check("recraft hors des registres raster : ni _IMAGE_MODELS ni CATALOGUE_IMAGE",
-      "recraft-4.1-vecteur" not in P._IMAGE_MODELS and "recraft" not in cat_bloc)
+check("recraft hors des registres raster : ni _IMAGE_MODELS ni la couche dz-champ-ia",
+      "recraft-4.1-vecteur" not in P._IMAGE_MODELS and "recraft" not in cat_js)
 settings.FAL_KEY = "test-key"
 check("recraft hors de IP.available() (générateurs des planches)",
       "recraft-4.1-vecteur" not in [x["id"] for x in IP.available()]
@@ -492,7 +490,7 @@ check("mention : la clé de zone du Material Forge (règle L8 : un lab = une zon
 check("Material Forge : aucune option désactivée pour une clé absente",
       not re.search(r"sansCle[^\n]{0,80}disabled", mf_src))
 check("dz-champ-ia : les modèles d'image sans clé sont marqués choisissables (sansCle)",
-      "sansCle: !s" in cat_js and 'dzT("ia.cle.a_ajouter"' in cat_js)
+      "sansCle: sans" in cat_js and "sans = e.dispo === false" in cat_js and 'dzT("ia.cle.a_ajouter"' in cat_js)
 
 # ── [5] routes de lecture ───────────────────────────────────────────────────
 print("[5] /image-models et /ia/catalogue")

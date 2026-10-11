@@ -1459,7 +1459,13 @@
     /* la sonde du magasin — « ce nom est-il servi, et du bon type ? » */
     probe: imageProbe,
     async models() {
-      try { return await jsonFetch("GET", "/image-models"); }
+      try {
+        /* t183 : tout le catalogue raster (`tous`), les modèles sans clé compris (dispo, cle) — décision du 11/10 */
+        const d = await jsonFetch("GET", "/image-models");
+        const tous = ((d && d.tous) || []).filter((e) => e.sortie !== "svg");
+        return tous.length ? Object.assign({}, d, { models: tous.map((e) => ({ id: e.id, label: e.label,
+          provider: e.voie, note: "", usd_par_image: Number(e.usd) || null, dispo: !!e.dispo, cle: e.cle })) }) : d;
+      }
       catch (e) { if (e && e.missing) return { models: [] }; throw e; }
     },
     async generate(req) {

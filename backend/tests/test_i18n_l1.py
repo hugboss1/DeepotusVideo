@@ -109,7 +109,11 @@ print("\n[3] le dictionnaire")
 DICO = {}
 for f in sorted((RACINE / "frontend/shared/i18n").glob("*.json")):
     DICO.update(json.loads(f.read_text("utf-8")))
+# t183 : le maillon de queue encartsia (posé APRÈS L1) remplace « · clé manquante » (reglages.modeles.cle_manquante)
+# des sélecteurs vidéo et voix par la mention commune ia.cle.a_ajouter ; la clé reste celle que la table L1 pose —
+# l'usage se lit donc AUSSI dans le bundle d'avant ce maillon (avant_encartsia, inverse exact).
 cles = sorted(set(re.findall(r'dzT\("((?:coque|reglages|biblio)\.[a-z0-9_.]+)"', BUN))
+              | set(re.findall(r'dzT\("((?:coque|reglages|biblio)\.[a-z0-9_.]+)"', AIDE.avant_encartsia(BUN)))
               | set(re.findall(r'dzT\("((?:coque|reglages|biblio)\.[a-z0-9_.]+)"', COUCHE)))
 check("3a au moins 500 clés du lot sont utilisées", len(cles) >= 500, len(cles))
 absentes = [c for c in cles if c not in DICO]
