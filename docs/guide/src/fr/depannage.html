@@ -1,12 +1,22 @@
-<table>
-  <tr><th>Symptôme</th><th>Solution</th></tr>
-  <tr><td>Pastille <code>down</code> en haut à droite</td><td>Le moteur n'est pas lancé : relancez l'icône Bureau.</td></tr>
-  <tr><td>Pastille rouge sur <code>fal</code>/<code>heygen</code>/<code>voice</code></td><td>Clé absente ou invalide : Settings → API keys, corrigez, redémarrez.</td></tr>
-  <tr><td>Les avatars HeyGen sont longs à apparaître (ou la liste semble vide au début)</td><td><strong>Normal au tout premier chargement</strong> : HeyGen renvoie 1 000+ avatars et met jusqu'à ~1 min à répondre (lenteur de leur service). L'app précharge la liste au démarrage et la met en cache — patientez une fois, puis c'est instantané. Si le <strong>statut HeyGen</strong> est vert dans Settings, votre clé est bonne : ce n'est ni la clé, ni le réseau, ni l'antivirus.</td></tr>
-  <tr><td>Une voix renvoie une erreur « paid plan »</td><td>Sur l'offre gratuite ElevenLabs, seules les voix « premade » fonctionnent via l'API ; les voix library/community demandent un forfait ElevenLabs payant. Choisissez une voix premade, ou passez à un forfait payant.</td></tr>
-  <tr><td>Au redémarrage, clés/bibliothèque « disparues »</td><td>Aucune donnée n'est perdue (elle vit dans <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>). Relancez l'app proprement via l'icône Bureau.</td></tr>
-  <tr><td>Le plan utilise le planificateur intégré</td><td>Aucune clé Anthropic ni modèle Ollama (chapitres 11–12).</td></tr>
-  <tr><td>Erreur <code>CERTIFICATE_VERIFY_FAILED</code></td><td>Antivirus qui inspecte le HTTPS — géré automatiquement ; sinon désactivez l'inspection HTTPS.</td></tr>
-  <tr><td>« Port 8765 already in use »</td><td>L'app tourne déjà — ouvrez <code>http://deepotus.localhost:8765</code>.</td></tr>
-  <tr><td>Où sont mes fichiers ?</td><td>Images : <code>…\DeepotusVideoGenData\assets\images</code> · Vidéos : <code>…\assets\outputs\final</code> · Vos uploads : <code>…\assets\outputs\uploads</code> · Sons : <code>…\assets\audio</code>.</td></tr>
-</table>
+<p class="chapeau-chap">Vous saurez reconnaître les messages les plus courants et quoi faire. Commencez toujours par <b class="ui">Réglages</b> › <b class="ui">Diagnostic</b> : version, place sur le disque, dernières alertes, état des clés (jamais leur valeur) et soldes des fournisseurs, en un coup d'œil.</p>
+
+<h3>Symptômes et solutions</h3>
+<div class="tableau"><table>
+<tr><th>Symptôme</th><th>Ce qu'il faut faire</th></tr>
+<tr><td>Un bouton dit qu'une clé est absente, ou une pastille de fournisseur est rouge en haut à droite.</td><td>Ajoutez ou corrigez la clé dans Réglages, section des clés (voir <a href="#cles">Brancher ses clés</a>). Elle sert tout de suite, sans redémarrer.</td></tr>
+<tr><td>Une génération est refusée : plafond atteint.</td><td>La fenêtre dit quel plafond bloque et propose de le régler. Voir <a href="#budget">Maîtriser ses dépenses</a>.</td></tr>
+<tr><td>La liste des avatars HeyGen met du temps à apparaître la première fois.</td><td>Normal au tout premier chargement : la liste est longue. Elle est ensuite gardée sur le disque et s'affiche aussitôt.</td></tr>
+<tr><td>Une voix ElevenLabs renvoie une erreur de forfait.</td><td>Sur l'offre gratuite d'ElevenLabs, seules les voix « premade » passent par l'API. Choisissez-en une, ou passez à un forfait payant.</td></tr>
+<tr><td>Erreur de certificat (CERTIFICATE_VERIFY_FAILED).</td><td>Un antivirus inspecte le HTTPS. L'application utilise les certificats de Windows et le gère seule ; sinon, désactivez l'inspection HTTPS de l'antivirus.</td></tr>
+<tr><td>« Port 8765 already in use ».</td><td>L'application tourne déjà : ouvrez <code>http://deepotus.localhost:8765</code>.</td></tr>
+<tr><td>Après un redémarrage, mes clés ou ma Bibliothèque semblent « disparues ».</td><td>Rien n'est perdu : tout vit dans <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>. Relancez l'application par son icône du Bureau.</td></tr>
+<tr><td>Le Photolab revient à l'accueil avec un message sur le moteur.</td><td>Le moteur de retouche a été relancé ; les documents non enregistrés sont perdus. Enregistrez souvent (voir <a href="#photolab">Photolab</a>).</td></tr>
+<tr><td>Un fichier 3D est refusé à l'export d'impression.</td><td>Passez par l'<a href="#etabli">Établi</a> : posez une taille cible et réparez en un clic avant d'exporter.</td></tr>
+<tr><td>J'ai supprimé une image par erreur.</td><td>Elle est dans la Corbeille de la <a href="#bibliotheque">Bibliothèque</a> : Restaurer.</td></tr>
+</table></div>
+
+<h3>Où sont mes fichiers ?</h3>
+<p>Dans <code>%LOCALAPPDATA%\DeepotusVideoGenData\assets</code> : <code>images</code> pour les images, <code>outputs\final</code> pour les vidéos rendues, <code>outputs\uploads</code> pour vos imports, <code>audio</code> pour les sons, <code>print3d</code> pour les exports d'impression. Pour tout emporter sur un autre PC, voir <a href="#transfert">Changer d'ordinateur</a>.</p>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Un message de l'application dit toujours ce qui bloque et comment le régler. Si un bouton est grisé, survolez-le : sa bulle dit pourquoi.</p></aside>

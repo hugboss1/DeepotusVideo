@@ -115,6 +115,11 @@ main { min-width:0; max-width:var(--mesure); }
 .g-accueil h1 { font:700 clamp(32px,4.4vw,48px)/1.08 var(--f-display); letter-spacing:-.025em; color:var(--ink-strong);
   margin:0 0 12px; }
 .g-accueil .chapeau { font-size:19px; color:var(--ink-soft); margin:0 0 28px; max-width:38rem; }
+.g-jeveux { margin:0 0 28px; }
+.g-jeveux h2 { font:700 20px/1.2 var(--f-display); color:var(--ink-strong); margin:0 0 12px; }
+.g-jeveux ul { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:6px 18px; }
+.g-jeveux a { display:block; padding:7px 10px; border-radius:8px; color:var(--ink); text-decoration:none; border:1px solid var(--stroke); background:var(--panel); }
+.g-jeveux a:hover { border-color:var(--accent); color:var(--ink-strong); }
 .g-cartes-acc { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin:18px 0 48px; }
 .g-cartes-acc a { display:flex; flex-direction:column; gap:10px; padding:16px; border-radius:var(--r); background:var(--panel);
   border:1px solid var(--stroke); color:var(--ink); text-decoration:none; transition:transform .25s var(--ease),border-color .25s; }

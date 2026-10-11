@@ -28,12 +28,12 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] « Settings → API keys », bouton « Save » (libellés anglais ; UI désormais traduite FR/EN, Réglages refondus : coffre à clés #20, test de clé, recherche #22, plafonds #16, mise à jour #18)
-- [ ] « Collez vos clés … puis redémarrez l'app » (clés à chaud #17 : redémarrage plus nécessaire)
-- [ ] « palette de commandes ⌘K → « Replay onboarding » » (glyphe macOS sur app Windows ; libellé anglais)
-- [ ] Pastilles « fal / heygen / voice » : à vérifier vs barre actuelle
-- [ ] Tableau des clés : ni Meshy, ni coffre DPAPI, ni plafonds de dépense, ni OAuth YouTube/Instagram/TikTok du Scheduler
-- [ ] Coûts « HeyGen ≈ 6 crédits » (HeyGen v3 = wallet USD)
+- [x] « Settings → API keys », bouton « Save » (libellés anglais ; UI désormais traduite FR/EN, Réglages refondus : coffre à clés #20, test de clé, recherche #22, plafonds #16, mise à jour #18)
+- [x] « Collez vos clés … puis redémarrez l'app » (clés à chaud #17 : redémarrage plus nécessaire)
+- [x] « palette de commandes ⌘K → « Replay onboarding » » (glyphe macOS sur app Windows ; libellé anglais)
+- [x] Pastilles « fal / heygen / voice » : à vérifier vs barre actuelle
+- [x] Tableau des clés : ni Meshy, ni coffre DPAPI, ni plafonds de dépense, ni OAuth YouTube/Instagram/TikTok du Scheduler
+- [x] Coûts « HeyGen ≈ 6 crédits » (HeyGen v3 = wallet USD)
 
 **Traduction FR/EN de l'interface** — accès : Langue choisie à l'installation, puis Réglages → « Langue de l'interface »
 
@@ -63,11 +63,11 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Badges « v1.15 » (h2) et « v1.21 » (tip Gemini)
-- [ ] « Depuis la v1.15, vous choisissez… »
-- [ ] « Provider defaults », « Local LLM (Ollama) », « missing » (anglais)
-- [ ] « redémarrez le backend/l'app » après Save
-- [ ] Aucune capture
+- [x] Badges « v1.15 » (h2) et « v1.21 » (tip Gemini)
+- [x] « Depuis la v1.15, vous choisissez… »
+- [x] « Provider defaults », « Local LLM (Ollama) », « missing » (anglais)
+- [x] « redémarrez le backend/l'app » après Save
+- [x] Aucune capture
 
 
 ### Maîtriser ses dépenses (`budget`, lot t171, reprend : nouveau) — 0 manques
@@ -77,9 +77,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] « Settings → Personas », « New persona » (libellés anglais)
-- [ ] « Save brand », « Reset to deepotus », « Logo… » (anglais)
-- [ ] Lien avec kits de marque des Templates (/branding = kit actif) non décrit
+- [x] « Settings → Personas », « New persona » (libellés anglais)
+- [x] « Save brand », « Reset to deepotus », « Logo… » (anglais)
+- [x] Lien avec kits de marque des Templates (/branding = kit actif) non décrit
 
 **Réglages (Settings)** — accès : Barre latérale → Settings (Réglages) ; 14 onglets : Clés d'API, Fournisseurs par défaut, Comptes connectés, Identité visuelle (Branding), Personas, News, Pack de sous-titres, Tarifs et budget, Diagnostic, Coffre, Appareils, Transfert entre machines, Chemins, Apparence ; URL directe ?section=diag pour le Diagnostic
 
@@ -124,10 +124,10 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Badge « nouveau »
-- [ ] Chapitre antérieur à la v2.8.0 « Le transfert entre machines » (transfert intégré à l'app, sha256 + lots, #19) : aucune mention
-- [ ] « vos sessions Claude Code » dans un guide utilisateur
-- [ ] Aucune capture
+- [x] Badge « nouveau »
+- [x] Chapitre antérieur à la v2.8.0 « Le transfert entre machines » (transfert intégré à l'app, sha256 + lots, #19) : aucune mention
+- [x] « vos sessions Claude Code » dans un guide utilisateur
+- [x] Aucune capture
 
 
 ### Piloter depuis son téléphone (`mobile`, lot t171, reprend : nouveau) — 16 manques
@@ -157,22 +157,22 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Onglet « Library » (Bibliothèque unifiée v2.6 : DAM #77, projets #78, lignée #79, fiche #80, corbeille/doublons #81, recherche CLIP #82, Envoyer vers — rien de cela n'est décrit)
-- [ ] « Describe an image to create », « Prompt manager », « Refine with AI », « Use this prompt » (libellés anglais)
-- [ ] Glyphes ✏️ et ▶ comme icônes du Job Dock (icônes Deepotus Glyph remplacent les emojis)
-- [ ] « Generate » (libellé anglais)
-- [ ] « durée (5–60 s) » et Seedance comme modèle implicite (t130 a changé les modèles vidéo par défaut) ; saisie Quick refaite (t129)
-- [ ] Badge « v1.15 » sur le h3 du premier chargement
-- [ ] « ⏱ » emoji dans le titre h3
-- [ ] Migration HeyGen v3 (Avatar III par look, wallet USD, listes en cache disque) non reflétée ; « crédits »
-- [ ] « 1 281 avatars » chiffré dans la légende de capture
-- [ ] « ⏱ Duration master » (emoji comme icône, libellé anglais)
-- [ ] Onglet « Renders » de la Library (Bibliothèque unifiée)
-- [ ] Badges « v1.15.6 » (h2) et « v1.17.0 » (h3 Voix off)
-- [ ] « Quick → Voice Over » (libellé anglais ; Voicebox Quick/Studio + ducking t131 non décrit)
-- [ ] Aucune mention du tiroir Sons / Son & VFX (stems T100, tiroir T101, chanson/voix #102, matte/recherche #103)
-- [ ] Glyphes ▶ et ★ comme icônes
-- [ ] Aucune capture
+- [x] Onglet « Library » (Bibliothèque unifiée v2.6 : DAM #77, projets #78, lignée #79, fiche #80, corbeille/doublons #81, recherche CLIP #82, Envoyer vers — rien de cela n'est décrit)
+- [x] « Describe an image to create », « Prompt manager », « Refine with AI », « Use this prompt » (libellés anglais)
+- [x] Glyphes ✏️ et ▶ comme icônes du Job Dock (icônes Deepotus Glyph remplacent les emojis)
+- [x] « Generate » (libellé anglais)
+- [x] « durée (5–60 s) » et Seedance comme modèle implicite (t130 a changé les modèles vidéo par défaut) ; saisie Quick refaite (t129)
+- [x] Badge « v1.15 » sur le h3 du premier chargement
+- [x] « ⏱ » emoji dans le titre h3
+- [x] Migration HeyGen v3 (Avatar III par look, wallet USD, listes en cache disque) non reflétée ; « crédits »
+- [x] « 1 281 avatars » chiffré dans la légende de capture
+- [x] « ⏱ Duration master » (emoji comme icône, libellé anglais)
+- [x] Onglet « Renders » de la Library (Bibliothèque unifiée)
+- [x] Badges « v1.15.6 » (h2) et « v1.17.0 » (h3 Voix off)
+- [x] « Quick → Voice Over » (libellé anglais ; Voicebox Quick/Studio + ducking t131 non décrit)
+- [x] Aucune mention du tiroir Sons / Son & VFX (stems T100, tiroir T101, chanson/voix #102, matte/recherche #103)
+- [x] Glyphes ▶ et ★ comme icônes
+- [x] Aucune capture
 
 **Quick** — accès : Barre latérale → Quick (onglets Seedance, HeyGen, Composition, Voice Over)
 
@@ -204,12 +204,12 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Badge « ENRICHI »
-- [ ] « Starter graphs », « New », « Run » (libellés anglais)
-- [ ] Épingles Studio (#67), recette/duel (#67-71), Studio R8, avatar HeyGen décalé, table de Montage (v2.7.0, plusieurs séquences t117, courbes t118, Bézier t128) non décrits
-- [ ] Badge « nouveau » (date de v1.15.7)
-- [ ] « Deux ajouts au node editor » / « désormais » formulés comme nouveautés
-- [ ] Aucune capture
+- [x] Badge « ENRICHI »
+- [x] « Starter graphs », « New », « Run » (libellés anglais)
+- [x] Épingles Studio (#67), recette/duel (#67-71), Studio R8, avatar HeyGen décalé, table de Montage (v2.7.0, plusieurs séquences t117, courbes t118, Bézier t128) non décrits
+- [x] Badge « nouveau » (date de v1.15.7)
+- [x] « Deux ajouts au node editor » / « désormais » formulés comme nouveautés
+- [x] Aucune capture
 
 **Studio (éditeur de nœuds)** — accès : Barre latérale → Studio ; réglages associés dans Réglages → Tarifs et Réglages → Provider defaults
 
@@ -251,8 +251,8 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] « Save layout », « New template », « Open in Studio » (libellés anglais)
-- [ ] Kits de marque (#72-73), masques + texte (#74), image fixe (#75), animations (#76) des Templates non décrits
+- [x] « Save layout », « New template », « Open in Studio » (libellés anglais)
+- [x] Kits de marque (#72-73), masques + texte (#74), image fixe (#75), animations (#76) des Templates non décrits
 
 **Templates (Modèles)** — accès : Barre latérale → Modèles (Templates) ; kits dans Réglages → Branding
 
@@ -287,10 +287,10 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Badge « v1.15.6 »
-- [ ] Glyphes ↑ ↓ ＋ ✕ ▶ comme icônes de boutons
-- [ ] Chapitres #62-#66 (exports manuscrit/scénario/storyboard docx/PDF), scènes d'épisode t119, saisie Épisodes t129 non décrits
-- [ ] Aucune capture
+- [x] Badge « v1.15.6 »
+- [x] Glyphes ↑ ↓ ＋ ✕ ▶ comme icônes de boutons
+- [x] Chapitres #62-#66 (exports manuscrit/scénario/storyboard docx/PDF), scènes d'épisode t119, saisie Épisodes t129 non décrits
+- [x] Aucune capture
 
 **Épisodes (Chapitres)** — accès : Barre latérale → Chapitres (page Épisodes)
 
@@ -495,10 +495,10 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Badge « ENRICHI »
-- [ ] « Generate plan », « Import doc », « New post », « Add to calendar », « Produce », « Send », « Assisted/Auto » (anglais)
-- [ ] Auto seulement « (Telegram, X) » : Scheduler YouTube (#25), Instagram (#26), TikTok OAuth (#27), réglages OAuth (#28), métriques (#29), créneaux + validation (#30), écran (#31), lot 2 (#32), débordement (PR #288) non décrits
-- [ ] Barre d'emojis : fonction réelle de contenu, à revérifier vs l'UI actuelle
+- [x] Badge « ENRICHI »
+- [x] « Generate plan », « Import doc », « New post », « Add to calendar », « Produce », « Send », « Assisted/Auto » (anglais)
+- [x] Auto seulement « (Telegram, X) » : Scheduler YouTube (#25), Instagram (#26), TikTok OAuth (#27), réglages OAuth (#28), métriques (#29), créneaux + validation (#30), écran (#31), lot 2 (#32), débordement (PR #288) non décrits
+- [x] Barre d'emojis : fonction réelle de contenu, à revérifier vs l'UI actuelle
 
 **Scheduler (planificateur de publications)** — accès : Barre latérale → Scheduler ; boutons de l'en-tête Comptes, Valider la semaine, Créneaux, Analytics, Campagne
 
@@ -526,9 +526,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] « YouTube et Instagram restent en mode assisté » (dépassé : Scheduler YouTube #25 / Instagram #26 ; TikTok #27 absent)
-- [ ] « Connected accounts », « Send test message », « Verify credentials » (anglais)
-- [ ] Réglages + OAuth (#28) non décrits ; redémarrage après Save
+- [x] « YouTube et Instagram restent en mode assisté » (dépassé : Scheduler YouTube #25 / Instagram #26 ; TikTok #27 absent)
+- [x] « Connected accounts », « Send test message », « Verify credentials » (anglais)
+- [x] Réglages + OAuth (#28) non décrits ; redémarrage après Save
 
 
 ### Suivre l'actualité et en faire des posts (`news`, lot t175, reprend : nouveau) — 13 manques
@@ -1102,10 +1102,10 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Badge « nouveau »
-- [ ] Glyphes ▶ ★ ✎ 🗑 comme icônes de boutons
-- [ ] DÉFAUT FR : 14 apostrophes doublées (« s''affiche », « d''abord », « L''onglet »…), absentes de l'EN
-- [ ] 3D Studio, rig Meshy (T104), LOD/textures (T105), vues avant le tir (T106), banc GPU/photos (T107), Plateau 3D (t127), lanceur Assets 2D (t125), Sprites (T108-T112, t111), Tuiles (#113-#116), Matières (T095-T098) non décrits
+- [x] Badge « nouveau »
+- [x] Glyphes ▶ ★ ✎ 🗑 comme icônes de boutons
+- [x] DÉFAUT FR : 14 apostrophes doublées (« s''affiche », « d''abord », « L''onglet »…), absentes de l'EN
+- [x] 3D Studio, rig Meshy (T104), LOD/textures (T105), vues avant le tir (T106), banc GPU/photos (T107), Plateau 3D (t127), lanceur Assets 2D (t125), Sprites (T108-T112, t111), Tuiles (#113-#116), Matières (T095-T098) non décrits
 
 **Game Assets — onglet Assets 2D et palettes partagées** — accès : Barre latérale → Game Assets → onglet Assets 2D ; palettes dans les réglages Pixel-art du Sprite Lab, du Tile Lab et du persona Pixel du Vectorlab
 
@@ -1226,9 +1226,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] « huit modules » alors que le chap. 19 décrit un module 09 (incohérence)
-- [ ] Gabarits imprimeur MPC/TGC/DriveThruCards + PDF X-1a (#83), édition (#84), dos/mire/stats (#85), langues (#86), art en lot/jeu 3D/livret (#87) non décrits
-- [ ] « se règle désormais » (formulation de nouveauté)
+- [x] « huit modules » alors que le chap. 19 décrit un module 09 (incohérence)
+- [x] Gabarits imprimeur MPC/TGC/DriveThruCards + PDF X-1a (#83), édition (#84), dos/mire/stats (#85), langues (#86), art en lot/jeu 3D/livret (#87) non décrits
+- [x] « se règle désormais » (formulation de nouveauté)
 
 **Card Forge (éditeur de cartes à jouer)** — accès : Barre latérale → Game Assets → sous-onglet Card Forge ; modules dans le rail de gauche (01 Face … 07 Impression, 09 Forge 3D, 11 Édition)
 
@@ -1261,9 +1261,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Badge « nouveau »
-- [ ] « qualité NFT »
-- [ ] « 30 cr (~0,60 $) » chiffré dans la légende
+- [x] Badge « nouveau »
+- [x] « qualité NFT »
+- [x] « 30 cr (~0,60 $) » chiffré dans la légende
 
 **3D Studio / Moteurs 3D** — accès : Game Assets → sous-onglet 3D Studio (/studio3d) ; zone Optimiser de la carte 3D du hub (Game Assets → 3D)
 
@@ -1309,11 +1309,11 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Badge « nouveau »
-- [ ] Aucune capture
-- [ ] Liens « vérifiés le 05/10/2026 » (datés)
-- [ ] Chemin « Game Assets → 3D Studio → 07 · Établi 3D → » (à vérifier vs navrail actuel)
-- [ ] Établi : booléens/connecteurs (T092), rig/export (T093), matériaux + Blender (T094), profils (#88) non décrits
+- [x] Badge « nouveau »
+- [x] Aucune capture
+- [x] Liens « vérifiés le 05/10/2026 » (datés)
+- [x] Chemin « Game Assets → 3D Studio → 07 · Établi 3D → » (à vérifier vs navrail actuel)
+- [x] Établi : booléens/connecteurs (T092), rig/export (T093), matériaux + Blender (T094), profils (#88) non décrits
 
 **Établi (atelier 3D avant impression)** — accès : Game Assets → 3D Studio → nœud « 07 · Établi 3D » (l'Établi prend la place de la page, retour par « ← 3D Studio »)
 
@@ -1357,9 +1357,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] Badge « nouveau »
-- [ ] Aucune capture
-- [ ] Le Vectorlab n'apparaît que ici (aucun chapitre Vectorlab/Spritelab/Tilelab/Photolab)
+- [x] Badge « nouveau »
+- [x] Aucune capture
+- [x] Le Vectorlab n'apparaît que ici (aucun chapitre Vectorlab/Spritelab/Tilelab/Photolab)
 
 
 ### Mettre en scène sur le Plateau 3D (`plateau`, lot t180, reprend : nouveau) — 7 manques
@@ -1439,12 +1439,12 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 À corriger dans l'ancien texte :
 
-- [ ] TOC « Dépannage & recettes » vs h2 « Dépannage » (incohérence interne)
-- [ ] Emoji 🍳 dans les 4 titres de recettes ; 🔥 dans la recette A
-- [ ] Badge « v1.15.6 » sur la recette D
-- [ ] « Aucune clé Anthropic ni modèle Ollama (chapitres 11–12) » : ignore OpenAI/Gemini et renvoie au chap. 12 (comptes) au lieu du 11
-- [ ] Écran News décrit seulement dans la recette C (filtre, score, mémoire, chaîne #33-35 non décrits)
-- [ ] « Create image », « Send now », « Refresh », « Build script », « Build illustration », « Send to Scheduler » (anglais)
+- [x] TOC « Dépannage & recettes » vs h2 « Dépannage » (incohérence interne)
+- [x] Emoji 🍳 dans les 4 titres de recettes ; 🔥 dans la recette A
+- [x] Badge « v1.15.6 » sur la recette D
+- [x] « Aucune clé Anthropic ni modèle Ollama (chapitres 11–12) » : ignore OpenAI/Gemini et renvoie au chap. 12 (comptes) au lieu du 11
+- [x] Écran News décrit seulement dans la recette C (filtre, score, mémoire, chaîne #33-35 non décrits)
+- [x] « Create image », « Send now », « Refresh », « Build script », « Build illustration », « Send to Scheduler » (anglais)
 
 
 ## Répartition par lot
