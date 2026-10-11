@@ -138,6 +138,9 @@ const MODEL_COST = {
   "nano-banana-pro": 13, "gpt-image-2-fal": 13,
   "gpt-image-2.5-flare": 10, "gpt-image-2.5-sunburst": 10,
   "gpt-image-2.5-flare-fal": 10, "gpt-image-2.5-sunburst-fal": 10,
+  /* t182 : modèles d’image fal (crédits = usd × 100, arrondi) */
+  "nano-banana-2.1": 4, "flux-3": 5, "seedream-5-pro": 7,
+  "ideogram-4.5": 22, "qwen-image-3": 4,
 };
 const MODEL_SEC = {
   "flux": 6, "nano-banana": 15, "gpt-image-2": 24,
@@ -145,6 +148,8 @@ const MODEL_SEC = {
   "nano-banana-pro": 20, "gpt-image-2-fal": 24,
   "gpt-image-2.5-flare": 24, "gpt-image-2.5-sunburst": 24,
   "gpt-image-2.5-flare-fal": 24, "gpt-image-2.5-sunburst-fal": 24,
+  "nano-banana-2.1": 6, "flux-3": 6, "seedream-5-pro": 6,
+  "ideogram-4.5": 6, "qwen-image-3": 6,
 };
 const DERIVE_SEC = { 1024: 3, 2048: 8, 4096: 24 };
 
@@ -552,7 +557,8 @@ async function loadModels() {
   let models = [];
   try {
     const d = await api.get("/image-models");
-    models = (d && d.models) || [];
+    /* t182 : un modèle vectoriel (SVG, ex. recraft-4.1-vecteur) ne fait pas une texture */
+    models = ((d && d.models) || []).filter((m) => !/vecteur/.test(m.id || ""));
     state.model = d.default || (models[0] && models[0].id) || "";
   } catch (e) { models = []; }
   if (!models.length) {

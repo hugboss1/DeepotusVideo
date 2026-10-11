@@ -8949,6 +8949,22 @@ async def list_image_models():
         out.append({"id": "gpt-image-2.5-sunburst-fal",
                     "label": "GPT Image 2.5 Sunburst (via fal)",
                     "provider": "fal", "note": "high quality"})
+        # t182 (G0) : modèles d'image fal servis par IP._fal_image_generate.
+        # APRÈS les entrées d'avant : `default` (flux) et l'ordre connu ne
+        # bougent pas.
+        out.append({"id": "nano-banana-2.1", "label": "Nano Banana 2.1 (via fal)",
+                    "provider": "fal", "note": "text, posters, 1K"})
+        out.append({"id": "flux-3", "label": "FLUX 3 (via fal)",
+                    "provider": "fal", "note": "photoreal, 1 MP"})
+        out.append({"id": "seedream-5-pro", "label": "Seedream 5 Pro (via fal)",
+                    "provider": "fal", "note": "multi-reference edits"})
+        out.append({"id": "ideogram-4.5", "label": "Ideogram 4.5 (via fal)",
+                    "provider": "fal", "note": "typography"})
+        out.append({"id": "qwen-image-3", "label": "Qwen Image 3 (via fal)",
+                    "provider": "fal", "note": "low cost"})
+        out.append({"id": "recraft-4.1-vecteur",
+                    "label": "Recraft 4.1 vecteur SVG (via fal)",
+                    "provider": "fal", "note": "SVG, no edit"})
     if settings.OPENAI_API_KEY:
         # gpt-image-2 reste en tête : c'est le défaut quand seule la clé
         # OpenAI est posée (`out[0]`) — un ajout ne change pas ce défaut
@@ -8969,9 +8985,32 @@ async def list_image_models():
             _s, "image_model_default")).strip().lower()
     if configured and configured not in {m["id"] for m in out}:
         configured = ""  # stale default (key removed) — ignore it
+    # t182 (G0) : `models` reste FILTRÉ par les clés (compat des sélecteurs) ;
+    # chaque entrée gagne sa voie, sa clé et son prix, lus dans le catalogue
+    # unique, et `tous` rend TOUTES les entrées, disponibles ou non.
+    from app.services import catalogue_ia as CI
+    tous = CI.lister("image")
+    par_id = {e["id"]: e for e in tous}
+    for m in out:
+        e = par_id.get(m["id"]) or {}
+        m.update(voie=e.get("voie", m.get("provider")), cle=e.get("cle"),
+                 usd=e.get("usd", 0.0))
     return {"models": out, "configured": configured,
             "default": configured or ("flux" if settings.FAL_KEY
-                                      else (out[0]["id"] if out else ""))}
+                                      else (out[0]["id"] if out else "")),
+            "tous": tous}
+
+
+@router.get("/ia/catalogue")
+async def ia_catalogue(nature: str = ""):
+    """t182 (G0) : tous les modèles d'une nature d'appel, disponibles OU NON,
+    avec voie, clé, prix et jumeau. Lecture seule, gratuite."""
+    from app.services import catalogue_ia as CI
+    try:
+        return {"nature": nature, "modeles": CI.lister(nature)}
+    except KeyError:
+        raise HTTPException(400, f"nature inconnue : {nature or '(vide)'} — "
+                                 f"{', '.join(sorted(CI._SOURCES))}.")
 
 
 # ═════════════════════ Atelier Chapitre (v1.17, P1) ═════════════════════

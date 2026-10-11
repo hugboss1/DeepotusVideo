@@ -53,6 +53,28 @@ DEFAULTS = {
     "gpt_image_25_sunburst_fal_usd": 0.053,
     "gpt_image_1_usd": 0.06,         # OpenAI gpt-image-1, per image
     "gpt_image_1_mini_usd": 0.015,    # OpenAI gpt-image-1-mini, per image
+    # t182 (G0) : modèles d'image fal « simples », l'image au cadre 1K que la
+    # requête épingle. Relevé le 11/10/2026 sur fal.ai/models/<endpoint> :
+    # - nano-banana-2.1 : facturé aux jetons ; coût représentatif publié pour
+    #   UNE image 1K, prompt court, thinking medium : 0,040 $ (0,044 $ en edit
+    #   avec deux images 1K) ;
+    # - flux-3 : 0,048 $ l'image 1 MP (promo -50 % terminée le 08/10) ;
+    # - seedream-5-pro : 0,0675 $ l'image <= 1536x1536 (t2i ET edit ; +0,0045 $
+    #   par image d'entrée au-delà de la première) ;
+    # - ideogram-4.5 : 0,22 $ l'image en qualité `high` (celle que la requête
+    #   écrit ; la taille ne change pas le prix) ;
+    # - qwen-image-3 : 0,04 $ l'image 1K ;
+    # - recraft-4.1-vecteur : la page dit 0,08 $ l'image dans son encart de
+    #   prix, mais 0,007 $ (« 100 images 0,70 $ ») dans son texte : écart
+    #   daté, on retient le PLUS HAUT pour que la garde de dépense ne passe
+    #   pas sous la facture.
+    # Une clé à 0 se dit « prix à mesurer » (catalogue_ia), jamais « gratuit ».
+    "nano_banana_21_usd": 0.04,
+    "flux3_usd": 0.048,
+    "seedream5_pro_usd": 0.0675,
+    "ideogram45_usd": 0.22,
+    "qwen_image3_usd": 0.04,
+    "recraft41_vecteur_usd": 0.08,
     # Ancien tarif forfaitaire Seedance (avant le registre W-a). Il ne sert
     # plus qu'au coût HISTORIQUE des jobs d'avant la colonne `video_model`
     # (op `legacy: True`) : un modèle vide se résout au défaut du registre.
@@ -186,6 +208,15 @@ _IMAGE_MODELS = {
                                    "gpt_image_25_sunburst_fal_usd"),
     "gpt-image-1":      ("GPT Image 1",      "openai", "gpt_image_1_usd"),
     "gpt-image-1-mini": ("GPT Image 1 mini", "openai", "gpt_image_1_mini_usd"),
+    # t182 (G0) : chacun SA clé — un id absent d'ici retombait sur le tarif
+    # FLUX dans `estimate`.
+    "nano-banana-2.1":     ("Nano Banana 2.1 (via fal)", "fal", "nano_banana_21_usd"),
+    "flux-3":              ("FLUX 3 (via fal)", "fal", "flux3_usd"),
+    "seedream-5-pro":      ("Seedream 5 Pro (via fal)", "fal", "seedream5_pro_usd"),
+    "ideogram-4.5":        ("Ideogram 4.5 (via fal)", "fal", "ideogram45_usd"),
+    "qwen-image-3":        ("Qwen Image 3 (via fal)", "fal", "qwen_image3_usd"),
+    "recraft-4.1-vecteur": ("Recraft 4.1 vecteur SVG (via fal)", "fal",
+                            "recraft41_vecteur_usd"),
 }
 
 
