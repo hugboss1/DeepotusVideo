@@ -93,6 +93,9 @@
       <button id="btnVuesPhotos" class="engine-goto" title="Redressées, bornées à 2048 px, sans aucune génération">
         <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-importer"></use></svg> jeu de vues depuis les photos · gratuit</button>
       <select id="vuesJeu" class="fal-sel" title="Les jeux de vues préparés, le plus récent d'abord"></select>
+      <!-- t186 (G4) : le modèle de détourage des vues (registre unique, DzModelesIA ; vues.js) -->
+      <select id="vuesDetourModele" class="fal-sel" title="Modèle de détourage"><option value="coins">Masque des coins (local, gratuit)</option></select>
+      <input type="text" id="vuesDetourSujet" class="fal-sel" placeholder="Sujet à garder" title="Sujet à garder" maxlength="200" hidden>
       <div class="vues-grille" id="vuesGrille"></div>
       <button id="btnTirer" class="btn-run" disabled><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-generer-modele"></use></svg>Tirer · —</button>
       <div class="engine-note fal-refus" id="tirRefus"></div>
@@ -232,6 +235,7 @@
 
 <script src="/shared/dz-plafonds.js"></script>
 <script src="/shared/dialogue.js"></script>
+<script src="/shared/dz-modeles-ia.js"></script>
 <script type="module" src="studio3d.js"></script>
 </body>
 </html>

@@ -299,7 +299,8 @@
     return t === "couleur" ? { couleur: $("dCouleur").value } : t === "image" ? { image: $("dImage").value } : { video: fondVideo };
   }
   function signatureDecor() {
-    return JSON.stringify([etat.source && (etat.source.job_id || etat.source.depot), fondCourant(), $("dModele").value]);
+    return JSON.stringify([etat.source && (etat.source.job_id || etat.source.depot), fondCourant(), $("dModele").value,
+      $("dSujet").value.trim()]);
   }
   function majDecor() {
     var t = $("dType").value;
@@ -311,14 +312,14 @@
     $("dLancer").title = vu ? "" : T("avatar.decor.verifier_avant");
     if (!vu) $("dApercu").hidden = true;
   }
-  ["dType", "dImage", "dCouleur", "dModele"].forEach(function (id) { $(id).addEventListener("input", majDecor); });
+  ["dType", "dImage", "dCouleur", "dModele", "dSujet"].forEach(function (id) { $(id).addEventListener("input", majDecor); });
   $("dVerifier").addEventListener("click", async function () {
     $("dVerifier").disabled = true; msg("dMsg", T("avatar.decor.verification"));
     var sig = signatureDecor();
     try {
       var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
       var d = await lire(await fetch(API + "/decor/apercu", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: src, fond: fondCourant(), modele: $("dModele").value }) }));
+        body: JSON.stringify(Object.assign({ source: src, fond: fondCourant(), modele: $("dModele").value }, detourSujet())) }));
       $("dApercuSource").src = d.source; $("dApercuImage").src = d.apercu;
       apercuFait = sig;
       msg("dMsg", T("avatar.decor.apercu_pret", { s: sec(d.instant_s) }));
@@ -341,11 +342,57 @@
     try {
       var src = etat.source.job_id ? { job_id: etat.source.job_id } : { depot: etat.source.depot };
       var d = await lire(await fetch(API + "/decor", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: src, fond: fondCourant(), modele: $("dModele").value }) }));
+        body: JSON.stringify(Object.assign({ source: src, fond: fondCourant(), modele: $("dModele").value }, detourSujet())) }));
       msg("dMsg", d.devis_usd ? T("avatar.decor.lance", { usd: usd(d.devis_usd) }) : T("avatar.decor.a_mesurer"));
       suivre(d.job_id);
     } catch (e) { msg("dMsg", e.message, true); }
     majDecor();
+  });
+  // t186 (G4) : le modèle du décor — les trois réglages BiRefNet d'avant (Portrait, le défaut ; Matting ; Général), puis
+  // les modèles vidéo du registre unique (DzModelesIA, nature detourage_video : un <optgroup> par voie, le prix sur
+  // chaque option ; un modèle sans clé reste CHOISISSABLE, /decor refuse en 503 au lancement). « BiRefNet v2 vidéo »
+  // du registre EST le réglage Général : il cède sa place aux trois réglages d'avant, qui prennent son prix. SAM 3.1
+  // exige le sujet à garder ; l'aperçu passe par le jumeau image du modèle côté serveur. Choix mémorisé (dz_detour_avatar).
+  var DETOUR_LS = "dz_detour_avatar";
+  function detourModele() {
+    var s = $("dModele");
+    return (s.__dzModeles || []).filter(function (m) { return m.id === s.value; })[0] || null;
+  }
+  function detourMaj() { var m = detourModele(); $("dSujetChamp").hidden = !(m && m.prompt); }
+  // le sujet envoyé à /decor et à son aperçu ; refus AVANT l'envoi s'il manque
+  function detourSujet() {
+    var m = detourModele();
+    if (!(m && m.prompt)) return {};
+    var sj = $("dSujet").value.trim();
+    if (!sj) throw new Error(T("avatar.decor.sujet_requis"));
+    return { sujet: sj };
+  }
+  async function detourInit() {
+    var sel = $("dModele");
+    var anciens = Array.prototype.slice.call(sel.options);       // portrait, matting, general (déjà traduits)
+    var voulu = sel.value;
+    try { voulu = localStorage.getItem(DETOUR_LS) || voulu; } catch (x) { /* stockage indisponible */ }
+    if (window.DzModelesIA) {
+      try {
+        await window.DzModelesIA.select(sel, "detourage_video", { valeur: voulu });
+        var mods = sel.__dzModeles || [];
+        var bire = mods.filter(function (m) { return m.id === "birefnet-v2-video"; })[0];
+        var ob = sel.querySelector('option[value="birefnet-v2-video"]');
+        var og = ob ? ob.parentNode : (sel.querySelector("optgroup") || sel);
+        if (ob) og.removeChild(ob);
+        anciens.slice().reverse().forEach(function (o) {
+          if (bire) o.textContent = window.DzModelesIA.texte(Object.assign({}, bire, { id: o.value, label: o.textContent }));
+          og.insertBefore(o, og.firstChild);
+        });
+      } catch (x) { /* catalogue injoignable : les trois réglages d'avant restent */ }
+    }
+    sel.value = voulu;
+    if (!sel.value) sel.value = "portrait";
+    detourMaj(); majDecor();
+  }
+  $("dModele").addEventListener("change", function () {
+    try { localStorage.setItem(DETOUR_LS, $("dModele").value); } catch (x) { /* stockage indisponible */ }
+    detourMaj();
   });
   async function chargerImages() {
     try {
@@ -426,6 +473,7 @@
       await chargerPersos();
       await chargerRendus();
       await chargerImages();
+      detourInit();                // t186 : le catalogue du détourage vidéo (asynchrone)
       var o = null; try { o = localStorage.getItem("dz_avatar_onglet"); } catch (x) { /* rien */ }
       var b = o && document.querySelector('.onglet[data-onglet="' + o + '"]'); if (b) b.click();
     } catch (x) { msg("pMsg", T("avatar.commun.serveur_muet", { raison: x.message }), true); }

@@ -3865,7 +3865,10 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                     and not _mr.mask_of(s.get("mask"))):
                 if s["src_in"] > 0:
                     inputs.extend(["-ss", str(s["src_in"])])
-                inputs.extend(["-t", str(seg_dsrc[len(seg_durs) - 1]), "-i", str(s["matte"])])
+                # t186 : un matte .webm (VP9 + alpha) se lit par libvpx-vp9 (decodeur_entree) ; .mov : rien
+                from app.services.matte_service import decodeur_entree as _dec_matte
+                inputs.extend(["-t", str(seg_dsrc[len(seg_durs) - 1]), *_dec_matte(s["matte"]),
+                               "-i", str(s["matte"])])
                 seg_matte[len(seg_durs) - 1] = idx
                 idx += 1
     # P1 #7 (28/09/2026) — POIGNÉES DE PLAN. Chaque jonction k (segment k-1

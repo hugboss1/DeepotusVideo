@@ -165,6 +165,7 @@ export function montrer(info) {
         ${v.role === "planche" || v.role === "photo" ? "" : `<button class="v-rej" data-i="${v.index}" title="${__dzT9("studio3d.s3b_vues.rej_title", "Régénérer CETTE vue seulement, avec un prompt corrigé")}" aria-label="${__dzT9("studio3d.s3b_vues.rej_aria", "Régénérer cette vue")}">${ico("dz-action-regenerer")}</button>`}
         <button class="v-det" data-i="${v.index}" ${v.file ? "" : "disabled"} title="${__dzT9("studio3d.s3b_vues.det_title", "Retirer le fond — local, gratuit")}" aria-label="${__dzT9("studio3d.s3b_vues.det_aria", "Retirer le fond")}">${ico("dz-action-detourer")}</button></div>`}
     </figure>`).join("");
+  detourTitres();              // t186 : le title des ciseaux dit le modèle choisi
   const non = refusTir(info, V.occupe);
   btn.disabled = !!non;
   libeller(btn, "dz-lab3d-generer-modele", fige ? __dzT9("studio3d.s3b_vues.deja_tire", "Déjà tiré") : __dzT9("studio3d.s3b_vues.tirer_moteur", "Tirer · {moteur}", { moteur: info.engine }));
@@ -187,8 +188,75 @@ export async function rejouer(i, saisir, toast) {
   });
 }
 
-export async function detourer(i, toast) {
-  const r = await jpost(`/api/assets/3d/${encodeURIComponent(V.jeu)}/views/${i}/detourer`, { via: "local" });
+/* t186 (G4) : le modèle de détourage d'une vue — « Masque des coins » (local, gratuit : le chemin d'avant, via
+   local) ou un modèle du registre unique (DzModelesIA, nature detourage_image : prix sur chaque option ; un modèle
+   sans clé reste CHOISISSABLE, la route refuse en 503 au lancement) ; `sujet` pour SAM 3 / Bria objet. Choix
+   mémorisé (localStorage dz_detour_studio3d). */
+const DETOUR_LS = "dz_detour_studio3d", DETOUR_COINS = "coins";
+function detourModele() {
+  const sel = $("#vuesDetourModele");
+  return sel ? (sel.__dzModeles || []).find((m) => m.id === sel.value) || null : null;
+}
+function detourMaj() {
+  const m = detourModele(), f = $("#vuesDetourSujet");
+  if (f) f.hidden = !(m && m.prompt);
+  detourTitres();
+}
+/* le nom du modèle choisi (traduit par DzModelesIA.libelle), ou le texte de l'option « masque des coins » */
+function detourNom() {
+  const sel = $("#vuesDetourModele"), m = detourModele();
+  if (m) return window.DzModelesIA && window.DzModelesIA.libelle ? window.DzModelesIA.libelle(m) : (m.label || m.id);
+  const o = sel && sel.selectedOptions && sel.selectedOptions[0];
+  return o ? o.textContent : "";
+}
+/* le title du bouton ciseaux dit le modèle qui servira (il disait toujours « local, gratuit ») */
+function detourTitres() {
+  const n = detourNom();
+  if (!n) return;
+  for (const b of document.querySelectorAll("#vuesGrille .v-det")) b.title = __dzT9("studio3d.t186.det_title", "Retirer le fond — {modele}", { modele: n });
+}
+export async function detourInit() {
+  const sel = $("#vuesDetourModele");
+  if (!sel || !window.DzModelesIA) return;
+  let voulu = DETOUR_COINS;
+  try { voulu = localStorage.getItem(DETOUR_LS) || voulu; } catch (e) { /* stockage indisponible */ }
+  const coins = sel.querySelector(`option[value="${DETOUR_COINS}"]`);
+  try {
+    await window.DzModelesIA.select(sel, "detourage_image", { valeur: voulu, onChange: (v) => {
+      try { localStorage.setItem(DETOUR_LS, v); } catch (e) { /* stockage indisponible */ }
+      detourMaj();
+    } });
+  } catch (e) { return; }                      // catalogue injoignable : le masque des coins reste seul
+  if (coins) sel.insertBefore(coins, sel.firstChild);
+  if (voulu === DETOUR_COINS || !sel.value) sel.value = DETOUR_COINS;
+  detourMaj();
+}
+export function detourCorps() {
+  const sel = $("#vuesDetourModele"), v = sel ? sel.value : DETOUR_COINS;
+  if (!v || v === DETOUR_COINS) return { via: "local" };
+  const c = { modele: v }, m = detourModele();
+  if (m && m.prompt) {
+    const sj = (($("#vuesDetourSujet") || {}).value || "").trim();
+    if (!sj) throw new Error(__dzT9("studio3d.t186.sujet_requis", "Dites quel sujet garder."));
+    c.sujet = sj;
+  }
+  return c;
+}
+export async function detourer(i, toast, confirmer) {
+  const corps = detourCorps(), m = detourModele();
+  /* t186 : un modèle fal est PAYANT — le devis du backend, puis la confirmation (fal à 0 $ : « prix à mesurer ») */
+  if (corps.modele && m && m.voie === "fal" && confirmer) {
+    const d = await devis({ kind: "detourage", modele: corps.modele, images: 1 });
+    const prix = (window.DzModelesIA && window.DzModelesIA.prixUsd(d.total_usd)) || __dzT9("studio3d.t186.a_mesurer", "prix à mesurer");
+    if (!await confirmer(__dzT9("studio3d.t186.confirmer", "Détourer la vue {i} avec {modele} : {prix}.", { i: i, modele: detourNom(), prix: prix }),
+      { titre: __dzT9("studio3d.t186.titre", "Détourer une vue"), ok: __dzT9("studio3d.s3b.payer", "Payer {prix}", { prix: prix }) })) return;
+  }
+  const r = await jpost(`/api/assets/3d/${encodeURIComponent(V.jeu)}/views/${i}/detourer`, corps);
+  if (corps.modele) {                         // t186 : un modèle du registre (local ou fal)
+    toast(__dzT9("studio3d.t186.detouree", "vue {i} détourée ({modele})", { i: i, modele: detourNom() || corps.modele }));
+    await ouvrirJeu(V.jeu);
+    return;
+  }
   toast(__dzT9("studio3d.s3b_vues.detouree", "vue {i} détourée (local, gratuit{m})", { i: i, m: r.methode ? ` · ${r.methode}` : "" }));
   await ouvrirJeu(V.jeu);
 }
@@ -239,6 +307,7 @@ export function suivre(jobId, libelle, onDone) {
 
 export function brancher({ confirmer, saisir, toast, onTire }) {
   V.onTire = onTire;
+  detourInit();                // t186 : le catalogue du détourage (asynchrone)
   const garde = (f) => () => f().catch((e) => toast(String(e.message || e)));
   $("#btnVues").addEventListener("click", garde(() => preparer(confirmer, toast)));
   $("#btnTirer").addEventListener("click", garde(() => tirer(confirmer, toast)));
@@ -252,7 +321,7 @@ export function brancher({ confirmer, saisir, toast, onTire }) {
     if (!b || b.disabled) return;
     const i = Number(b.dataset.i);
     if (b.classList.contains("v-rej")) garde(() => rejouer(i, saisir, toast))();
-    else if (b.classList.contains("v-det")) garde(() => detourer(i, toast))();
+    else if (b.classList.contains("v-det")) garde(() => detourer(i, toast, confirmer))();
   });
 }
 // t149 (traduction L9) : dzT dans la page, le français sous node (bancs)

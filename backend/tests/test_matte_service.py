@@ -131,9 +131,11 @@ async def main():
               str(rf.status_code))
         check("matte inconnu : 404", (await c.get("/api/matte/zzz")).status_code == 404)
         mm = (await c.get("/api/matte-models")).json()
+        # t186 (G4) : les trois clés restent EN TÊTE (mêmes ids, mêmes libellés) ; les modèles vidéo du registre
+        # unique les suivent (test_detourage [4])
         check("GET /matte-models : le registre servi (ids + libellés), défaut general, note de prix",
-              [m["id"] for m in mm["models"]] == list(MT.MATTE_MODELS) and mm["default"] == "general"
-              and all(m["label"] == MT.MATTE_MODELS[m["id"]]["label"] for m in mm["models"]) and "mesurer" in mm["usd_note"], str(mm))
+              [m["id"] for m in mm["models"]][:3] == list(MT.MATTE_MODELS) and mm["default"] == "general"
+              and all(m["label"] == MT.MATTE_MODELS[m["id"]]["label"] for m in mm["models"][:3]) and "mesurer" in mm["usd_note"], str(mm))
         check("nom hors règle (pas un .mov simple) : 404", (await c.get("/api/matte/file/t.db")).status_code == 404)
         (pathlib.Path(settings.outputs_path) / "secret.mov").write_bytes(b"pas un matte")
         rb = await c.get("/api/matte/file/..%5Csecret.mov")   # %5C ATTEINT la route (Windows : « ..\ » remonte)

@@ -49,6 +49,26 @@ compilé, et le sélecteur du nœud le sait :
 Les clés studio.video.fl, studio.video.fl_absent, studio.compose.fin, studio.compil.fin_vide vivent dans studio.json (saisie L2, entrées D de
 scripts/i18n_l2/studio_ia.py).
 
+t186 (G4, 12/10/2026) — le nœud Studio « Détourage » (RemoveBG, panneau DzImgProcPanel kind "removebg") choisit son
+modèle dans le registre unique du détourage (GET /api/ia/catalogue?nature=detourage_image, 10 modèles) au lieu de
+« API cloud (fal) / Local (rembg) » :
+  - E22 les aides au niveau module (posées juste avant DzImgProcPanel) : `dzDetCat` (cache de module, comme dzEngCat),
+    `dzDetOpts` (rangé par voie, libellé · prix à la règle unique dzPrixUsd · mention de clé ; une voie locale dit
+    « local, gratuit » puisque le select `re` n'a pas de groupes), `dzDetVal` (props.modele, sinon l'ancienne
+    `method` — local = local-rembg, sinon rembg-fal : le défaut historique du nœud ; le réglage vit dans les PROPS du
+    nœud, aucun localStorage), `dzDetMeth` (la `method` cohérente posée avec le modèle choisi : « local » pour une
+    voie locale, « api » sinon — le résumé des fournisseurs du compilateur la lit), `dzDetCorps` (le corps de
+    /images/process) ;
+  - E23 un répartiteur de redessin `x.useReducer` dans le panneau (aucun useState ajouté : 731) ;
+  - E24 le corps : rembg-fal et local-rembg partent par `method` (chemins et lignes de coût d'avant), tout autre
+    modèle par `modele` (+ `sujet`, refus dzT("detour.champ.sujet_requis") avant tout envoi s'il manque) ;
+  - E25 le sélecteur (libellé dzT("detour.champ.modele")) et, pour un modèle `prompt:true`, le champ
+    dzT("detour.champ.sujet"). Un modèle sans clé reste CHOISISSABLE (le serveur refuse en 503 au lancement).
+Relecture : le nom d'un modèle passe par dzDetNom (clé detour.modele.<id> de commun.json quand le dictionnaire la
+porte — les libellés du catalogue arrivent en français) ; catalogue injoignable : le champ reprend « Méthode » et l'aide
+d'avant (studio.imgproc.methode / methode_aide), qui décrivent exactement les deux voies de secours.
+Les clés detour.champ.* et detour.modele.* vivent dans commun.json.
+
 Maillon de QUEUE, APRÈS dzguide (dont il sonde le marqueur) ; comme lui, il garde un .js.bak_encartsia le temps de
 l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_encartsia` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici : une seule source), appelé EN TÊTE de `avant_dzguide`.
@@ -87,7 +107,7 @@ ENG_AVANT = 'var ENG=[{value:"tripo",label:"Tripo3D v2.5 — game-ready topology
 # RÈGLES UNIQUES (relecture t183) : `dzPrixUsd` a le CORPS de prixUsd de /shared/dz-modeles-ia.js (la source) et
 # `dzVoiesOrdre` son ORDRE ; dz-champ-ia.js porte les mêmes — le banc test_encarts_ia compare les trois et exécute les
 # deux chargeurs (bundle, pastille) sur un même jeu. Si la page a chargé DzModelesIA, sa fonction est préférée.
-PRIX_CORPS = '{ var v = Number(usd); if (!(v > 0) || !isFinite(v)) return ""; var s = (Math.round(v * 1000) / 1000).toFixed(3); while (/\\.\\d{3,}$/.test(s) && s.charAt(s.length - 1) === "0") s = s.slice(0, -1); return "$" + s + ({ image: "/image", s: "/s", min: "/min", "1k": "/1k" }[unite] || ""); }'
+PRIX_CORPS = '{ var v = Number(usd); if (!(v > 0) || !isFinite(v)) return ""; var s = (Math.round(v * 1000) / 1000).toFixed(3); while (/\\.\\d{3,}$/.test(s) && s.charAt(s.length - 1) === "0") s = s.slice(0, -1); return "$" + s + ({ image: "/image", s: "/s", min: "/min", "1k": "/1k", "30 images": "/30 images", "16 images": "/16 images" }[unite] || ""); }'
 ORDRE_VOIES = '["fal", "openai", "gemini", "elevenlabs", "meshy", "heygen", "local"]'
 AIDES = (
     'function dzPrixUsd(usd, unite) ' + PRIX_CORPS
@@ -232,6 +252,81 @@ PAIRES += [
     # E16-E17 : le sélecteur
     ('function DzVideoModelSel({value,onChange}){', 'function DzVideoModelSel({value,onChange,fin,finVide}){'),
     (SEL_AVANT, SEL_APRES),
+]
+
+# t186 (G4) — le nœud Studio « Détourage » (RemoveBG, panneau DzImgProcPanel kind "removebg") choisit son modèle dans
+# le registre unique du détourage (voir l'en-tête, E22-E25)
+DETOUR_AIDES = (
+    # le catalogue detourage_image, lu une fois par session (cache de module, comme dzEngCat) ; REDESSIN par le
+    # répartiteur du panneau (x.useReducer — aucun useState ajouté, 731) ; en attente : « chargement… » ; échec : les
+    # deux voies d'avant (libellés d'avant), nouvel essai au rendu suivant (au plus toutes les 4 s)
+    'var dzDetCat=null,dzDetEnCours=!1,dzDetEchec=!1,dzDetEssai=0,dzDetFin=null;'
+    'function dzDetCharger(fin){if(fin)dzDetFin=fin;if(dzDetCat||dzDetEnCours)return;dzDetEnCours=!0;dzDetEssai=Date.now();'
+    'fetch("/api/ia/catalogue?nature=detourage_image").then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()})'
+    '.then(function(d){if(!d||!Array.isArray(d.modeles))throw new Error("catalogue illisible");'
+    'dzDetEnCours=!1;dzDetEchec=!1;dzDetCat=d.modeles;dzDetFin&&dzDetFin()})'
+    '.catch(function(){dzDetEnCours=!1;dzDetEchec=!0;dzDetFin&&dzDetFin()})}'
+    'function dzDetTrouve(id){return(dzDetCat||[]).find(function(m){return m.id===id})||null}'
+    # le modèle du nœud : choisi (props.modele), sinon l'ancienne méthode (local = rembg local), sinon le défaut
+    # historique du nœud (api -> rembg-fal). Le réglage vit dans les props du nœud (graphe sauvegardé).
+    'function dzDetVal(p){return p.modele||(p.method==="local"?"local-rembg":"rembg-fal")}'
+    # la `method` cohérente avec un modèle : « local » pour une voie locale, « api » sinon
+    'function dzDetMeth(v){var m=dzDetTrouve(v);return v==="local-rembg"||v==="local-chroma"||(m&&m.voie==="local")?"local":"api"}'
+    'function dzDetPrompt(id){var m=dzDetTrouve(id);return!!(m&&m.prompt)}'
+    # libellé · prix (règle unique dzPrixUsd) · mention de clé ; une voie locale est gratuite (le select n'a pas de groupes)
+    # le nom : la clé detour.modele.<id> de commun.json quand le dictionnaire la porte (libellés du serveur en français)
+    'function dzDetNom(m){var k="detour.modele."+String(m.id||"").replace(/-/g,"_");'
+    'return window.DZ_I18N&&window.DZ_I18N[k]?dzT(k):(m.label||m.id)}'
+    'function dzDetLbl(m){var u=dzPrixUsd(m.usd,m.unite);'
+    'return dzDetNom(m)+" · "+(u||(m.voie==="local"?dzT("ia.voie.local"):dzT("ia.prix.a_mesurer")))'
+    '+(m.dispo===false&&m.cle?" · "+dzT("ia.cle.a_ajouter",{cle:m.cle}):"")}'
+    # les options : catalogue rangé par voie (dzVoiesOrdre, ordre stable) ; un modèle sans clé reste CHOISISSABLE
+    'function dzDetOpts(cur,fin){if(!dzDetCat){if(!dzDetEnCours&&(!dzDetEssai||Date.now()-dzDetEssai>4e3))dzDetCharger(fin);'
+    'else if(fin)dzDetFin=fin;'
+    'if(!dzDetEchec)return[{value:cur,label:dzT("ia.etat.chargement")}];'
+    'var l=[{value:"rembg-fal",label:dzT("studio.imgproc.api_cloud")},{value:"local-rembg",label:"Local (rembg)"}];'
+    'if(cur&&cur!=="rembg-fal"&&cur!=="local-rembg")l.unshift({value:cur,label:cur+" · "+dzT("ia.prix.a_mesurer")});return l}'
+    'if(fin)dzDetFin=fin;'
+    'function rg(m){var k=dzVoiesOrdre.indexOf(m.voie);return k<0?99:k}'
+    'return dzDetCat.map(function(m,i){return[m,i]}).sort(function(a,b){return rg(a[0])-rg(b[0])||a[1]-b[1]})'
+    '.map(function(q){return{value:q[0].id,label:dzDetLbl(q[0])}})}'
+    # le corps de /images/process : les deux modèles qui ont un équivalent d'avant partent par `method` (chemins et
+    # lignes de coût d'avant, octet pour octet) ; tout autre modèle part en `modele` (+ `sujet` s'il en exige un)
+    'function dzDetCorps(p){var v=dzDetVal(p);if(v==="rembg-fal")return{corps:{method:"api"}};'
+    'if(v==="local-rembg")return{corps:{method:"local"}};var c={method:dzDetMeth(v),modele:v};'
+    'if(dzDetPrompt(v)){var sj=String(p.sujet||"").trim();if(!sj)return{err:dzT("detour.champ.sujet_requis")};c.sujet=sj}'
+    'return{corps:c}}'
+)
+DETOUR_RUN_AVANT = 'if(kind==="removebg"){body.op="remove-bg";body.method=p.method||"api"}'
+DETOUR_RUN_APRES = ('if(kind==="removebg"){body.op="remove-bg";var dzD=dzDetCorps(p);if(dzD.err){setMsg(dzD.err);return}'
+                    'Object.assign(body,dzD.corps)}')
+DETOUR_ROW_AVANT = ('if(kind==="removebg")rows.push(r.jsx(O,{label:dzT("studio.imgproc.methode"),hint:dzT("studio.imgproc.methode_aide"),'
+                    'children:r.jsx(re,{value:p.method||"api",onChange:function(v){set("method",v)},options:[{value:"api",'
+                    'label:dzT("studio.imgproc.api_cloud")},{value:"local",label:"Local (rembg)"}]})},"m"));')
+DETOUR_ROW_APRES = (
+    # catalogue lu : « Modèle de détourage » ; catalogue injoignable (les deux voies d'avant) : « Méthode » et l'aide d'avant
+    'if(kind==="removebg"){var dzDv=dzDetVal(p);rows.push(r.jsx(O,{label:dzDetCat?dzT("detour.champ.modele"):dzT("studio.imgproc.methode"),'
+    'hint:dzDetCat?void 0:dzT("studio.imgproc.methode_aide"),'
+    'children:r.jsx("div",{"data-dzdetour":"1",children:r.jsx(re,{value:dzDv,onChange:function(v){set("method",dzDetMeth(v));set("modele",v)},'
+    'options:dzDetOpts(dzDv,dzDetR)})})},"m"));'
+    # le sujet à garder (SAM 3, Bria objet…) : seulement si le modèle choisi en exige un
+    'if(dzDetPrompt(dzDv))rows.push(r.jsx(O,{label:dzT("detour.champ.sujet"),children:r.jsx("input",{type:"text",'
+    '"data-dzdetsujet":"1",value:p.sujet||"",onChange:function(ev){set("sujet",ev.target.value)},'
+    'style:{width:"100%",fontSize:12,padding:"5px 8px",borderRadius:7,background:"var(--bg-panel-2)",'
+    'border:"1px solid var(--stroke)",color:"var(--ink)"}})},"sj"))}'
+)
+PAIRES += [
+    # E22 : les aides au niveau module, posées juste avant DzImgProcPanel
+    ('function DzImgProcPanel({node,p,set,graph,spawn,kind}){',
+     DETOUR_AIDES + 'function DzImgProcPanel({node,p,set,graph,spawn,kind}){'),
+    # E23 : le répartiteur de redessin (hook constant pour tous les kinds du panneau)
+    ('es=x.useState(""),msg=es[0],setMsg=es[1];var src=dzInImg(graph,node.id,"in");',
+     'es=x.useState(""),msg=es[0],setMsg=es[1];var dzDetR=x.useReducer(function(n){return n+1},0)[1];'
+     'var src=dzInImg(graph,node.id,"in");'),
+    # E24 : le corps envoyé
+    (DETOUR_RUN_AVANT, DETOUR_RUN_APRES),
+    # E25 : le sélecteur (et le sujet)
+    (DETOUR_ROW_AVANT, DETOUR_ROW_APRES),
 ]
 
 

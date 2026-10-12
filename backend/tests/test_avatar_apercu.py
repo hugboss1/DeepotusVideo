@@ -117,7 +117,9 @@ with TestClient(app, client=("127.0.0.1", 5), raise_server_exceptions=False) as 
     from app.config import settings
     settings.FAL_KEY = ""
     r = loc.post("/api/avatar-live/decor/apercu", json={"source": {"depot": dep}, "fond": {"couleur": "#000000"}})
-    check("G3 sans clé fal : 400 qui le dit, rien envoyé", r.status_code == 400 and "fal" in r.text.lower() and len(APPELS) == n, r.text[:200])
+    # t186 (G4) : la clé absente est un 503 qui NOMME la clé (règle du 11/10/2026 : le modèle reste choisissable, le tir
+    # est refusé avant toute dépense) — c'était un 400
+    check("G3 sans clé fal : 503 qui nomme FAL_KEY, rien envoyé", r.status_code == 503 and "FAL_KEY" in r.text and len(APPELS) == n, r.text[:200])
     settings.FAL_KEY = "test-key"
     # « ..%2F » n'atteint pas la route (le catch-all de l'application répond) : on vérifie qu'AUCUNE donnée ne fuit
     rr = loc.get("/api/avatar-live/decor/apercu/..%2F..%2Ft.db")

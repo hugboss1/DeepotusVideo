@@ -178,6 +178,18 @@ DEFAULTS = {
     "demucs_usd_per_s": 0.0007,
     "birefnet_video_usd_per_s": 0.0,
     "birefnet_image_usd": 0.0,        # t168d : BiRefNet image (fal-ai/birefnet/v2) — fal n'affiche que $0 : à mesurer
+    # t186 (G4, 12/10/2026) : le registre du détourage (app.services.detourage.REGISTRE), pages fal relues le
+    # 12/10/2026. 0.0 = « à mesurer » (lire le tableau de bord fal après le premier tir, écrire ici, daté).
+    "bria_rmbg_usd": 0.018,           # fal-ai/bria/background/remove, par image (SANS prompt : 0,03 avec)
+    "pixelcut_rmbg_usd": 0.0,         # pixelcut/background-removal — à mesurer (la page n'affiche que la vidéo)
+    "ideogram_rmbg_usd": 0.01,        # fal-ai/ideogram/remove-background, par image
+    "feynobg_usd": 0.0,               # fal-ai/feynobg — à mesurer
+    "sam3_image_usd": 0.005,          # fal-ai/sam-3/image, par image
+    "bria_objet_usd": 0.0,            # bria/extract-object — à mesurer
+    "bria_video_usd_per_s": 0.05,     # bria/video/background-removal/v3, par seconde
+    "veed_rmbg_usd_per_30f": 0.012,   # veed/video-background-removal/fast, par tranche de 30 images (refine ON, prudent)
+    "pixelcut_video_usd_per_30f": 0.022,   # pixelcut/video-background-removal, par tranche de 30 images
+    "sam31_video_usd_per_16f": 0.01,  # fal-ai/sam-3-1/video, par tranche de 16 images
     "elevenlabs_isolation_chars_per_min": 1000.0,
     # Avatar live G2 (t163, 10/10/2026) : Voice Changer (voix -> voix), ~1 000 crédits par minute (relevé tiers
     # du 07/2026 sur la liste officielle, même grille que l'isolation) — à confirmer sur elevenlabs.io/pricing.
@@ -448,6 +460,60 @@ def _video_label_provider(model_id: str) -> tuple:
     return f"Video ({model_id})", "fal"
 
 
+def taux_detourage(mid: str, p: dict | None = None) -> float:
+    """t186 (G4) — LE taux d'un modèle du registre du détourage, dans son unité (« image », « s », « 30 images »,
+    « 16 images ») : la clé de prix de l'entrée lue dans la table (`p`, sinon pricing.load), repli DEFAULTS. 0 pour
+    une voie LOCALE, un id inconnu ou une valeur illisible. Source unique du catalogue (catalogue_ia), de la note
+    du matte (matte_service.note_prix) et du devis (_ligne_detourage)."""
+    from app.services import detourage as _DT
+    e = _DT.REGISTRE.get(str(mid or ""))
+    if not e or e["voie"] == "local" or not e.get("prix"):
+        return 0.0
+    p = p if p is not None else load()
+    try:
+        return float(p.get(e["prix"], DEFAULTS.get(e["prix"], 0.0)) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _ligne_detourage(op: dict, p: dict) -> dict:
+    """t186 (G4) — UNE ligne de devis pour un détourage du registre (app.services.detourage.REGISTRE), nommée
+    par le libellé du modèle et suffixée « — prix à mesurer » quand son taux vaut 0.
+      · unité « image » : `images` (défaut 1) x le tarif par image ;
+      · unité « s »     : `secondes` x le tarif par seconde (ou `images_video` / `fps` si seules les images
+                          sont connues) ;
+      · unité « 30 images » / « 16 images » : ceil(`images_video` / taille) tranches. Si seul `secondes` est
+        donné, les images se déduisent avec `fps` (défaut 30 — prudent : un rendu à 24 i/s est surestimé,
+        jamais sous-estimé, ce qui est le bon sens pour une garde de plafond).
+    Une voie LOCALE est une ligne 0 $ du fournisseur « local ». Un id inconnu se dit « non chiffré »."""
+    from app.services import detourage as _DT
+    mid = str(op.get("modele") or "")
+    e = _DT.REGISTRE.get(mid)
+    if e is None:
+        return _line("fal", f"Détourage : modèle inconnu {mid[:24]!r} (non chiffré)", 1, "job", 0.0)
+    n_img = max(1, int(op.get("images", 1) or 1))
+    if e["voie"] == "local":
+        return _line("local", e["label"], n_img, "img", 0.0)
+    taux = taux_detourage(mid, p)
+    label = e["label"] + (" — prix à mesurer" if not taux else "")
+    fps = float(op.get("fps") or 30) or 30.0
+    unite = e["unite"]
+    if unite == "image":
+        return _line("fal", f"{label} x{n_img}", n_img, "img", n_img * taux)
+    if unite == "s":
+        sec = op.get("secondes")
+        if sec is None and op.get("images_video") is not None:
+            sec = float(op["images_video"]) / fps
+        sec = max(0.0, float(sec or 0))
+        return _line("fal", label, sec, "s", sec * taux)
+    taille = _DT.TRANCHES[unite]
+    imgs = op.get("images_video")
+    if imgs is None:
+        imgs = math.ceil(max(0.0, float(op.get("secondes") or 0)) * fps)
+    tranches = math.ceil(max(0, int(imgs)) / taille)
+    return _line("fal", f"{label} ({int(imgs)} images, {tranches} x {taille})", tranches, unite, tranches * taux)
+
+
 def estimate(op: dict, p: dict | None = None) -> dict:
     """Estimate the cost of an operation.
 
@@ -463,6 +529,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
       {"kind":"marketing_plan","posts":7,"per_post":[op,...]}
       {"kind":"campaign","ops":[op,...]}
       {"kind":"sprite2d","frames":16,"remove_bg":"api"}
+      {"kind":"detourage","modele":"bria-rmbg","images":1}   (t186 : secondes / images_video / fps en vidéo)
     Returns {breakdown:[line...], total_usd, credits:{provider:n}}.
     """
     p = p or load()
@@ -628,11 +695,8 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         chars = mins * float(p.get("elevenlabs_isolation_chars_per_min",
                                    DEFAULTS["elevenlabs_isolation_chars_per_min"]))
         lines.append(_line("elevenlabs", "Isolation de voix", chars, "chars", chars * elevenlabs_rate(None, p)))
-    elif kind == "matte":
-        dur = float(op.get("duration_s", 0))
-        rate = float(p.get("birefnet_video_usd_per_s", DEFAULTS["birefnet_video_usd_per_s"]))
-        lines.append(_line("fal", "Détourage vidéo (BiRefNet) — prix à mesurer au premier tir"
-                           if rate == 0.0 else "Détourage vidéo (BiRefNet)", dur, "s", dur * rate))
+    elif kind == "detourage":
+        lines.append(_ligne_detourage(op, p))
     elif kind == "llm":
         prov = op.get("provider", "openai")
         it = float(op.get("in_tok", 1000)); ot = float(op.get("out_tok", 400))
