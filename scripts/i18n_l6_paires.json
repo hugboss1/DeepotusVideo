@@ -4961,6 +4961,12 @@
     "groupe": "import"
    },
    {
+    "pos": 603,
+    "avant": "reperes_rects } from \"./mod-doc.js\";",
+    "apres": "reperes_rects } from \"./mod-doc.js\";\r\nimport { initIaCalque } from \"./mod-iacalque.js\";",
+    "groupe": "iacalque"
+   },
+   {
     "pos": 1545,
     "avant": "\"image: taille native inconnue\"",
     "apres": "T(\"vectorlab.image.taille_inconnue\")",
@@ -4985,10 +4991,28 @@
     "groupe": "texte"
    },
    {
+    "pos": 5108,
+    "avant": "async function poserBlob(blob) {",
+    "apres": "async function poserBlob(blob, calqueId) {",
+    "groupe": "iacalque"
+   },
+   {
     "pos": 5179,
     "avant": "\"aucun document ouvert\"",
     "apres": "T(\"vectorlab.image.aucun_doc\")",
     "groupe": "texte"
+   },
+   {
+    "pos": 5458,
+    "avant": "VL.executer(op_ajouter, etat.calqueActif,",
+    "apres": "VL.executer(op_ajouter, calqueId || etat.calqueActif,",
+    "groupe": "iacalque"
+   },
+   {
+    "pos": 5645,
+    "avant": "async function poserDepuisLibrary(nom) {",
+    "apres": "async function poserDepuisLibrary(nom, calqueId) {",
+    "groupe": "iacalque"
    },
    {
     "pos": 5788,
@@ -4997,10 +5021,22 @@
     "groupe": "texte"
    },
    {
+    "pos": 5841,
+    "avant": "    await poserBlob(await r.blob());",
+    "apres": "    const id = await poserBlob(await r.blob(), calqueId);",
+    "groupe": "iacalque"
+   },
+   {
     "pos": 5892,
     "avant": "`« ${nom} » posée`",
     "apres": "T(\"vectorlab.image.posee\", { nom })",
     "groupe": "texte"
+   },
+   {
+    "pos": 5914,
+    "avant": "  }",
+    "apres": "    return id;\r\n  }",
+    "groupe": "iacalque"
    },
    {
     "pos": 6384,
@@ -5051,34 +5087,10 @@
     "groupe": "texte"
    },
    {
-    "pos": 10191,
-    "avant": "\"Décrire l'image à générer (dépense la clé du fournisseur des Réglages) :\"",
-    "apres": "T(\"vectorlab.image.generer_question\")",
-    "groupe": "texte"
-   },
-   {
-    "pos": 10288,
-    "avant": "\"Générer une image\"",
-    "apres": "T(\"vectorlab.image.generer_titre\")",
-    "groupe": "texte"
-   },
-   {
-    "pos": 10318,
-    "avant": "\"Générer\"",
-    "apres": "T(\"vectorlab.image.generer\")",
-    "groupe": "texte"
-   },
-   {
-    "pos": 10367,
-    "avant": "\"génération en cours…\"",
-    "apres": "T(\"vectorlab.image.generation\")",
-    "groupe": "texte"
-   },
-   {
-    "pos": 10768,
-    "avant": "\"la génération n'a rendu aucune image\"",
-    "apres": "T(\"vectorlab.image.generation_vide\")",
-    "groupe": "texte"
+    "pos": 10122,
+    "avant": "  async function generer() {\r\n    const p = await VL.dialogue.saisir(\"Décrire l'image à générer (dépense la clé du fournisseur des Réglages) :\", { valeur: \"\", titre: \"Générer une image\", valider: \"Générer\" });\r\n    if (!p) return;\r\n    VL.toast(\"génération en cours…\");\r\n    const r = await fetch(\"/api/images/generate\", { method: \"POST\",\r\n      headers: { \"Content-Type\": \"application/json\" },\r\n      body: JSON.stringify({ prompt: p, n: 1, source: \"vectorlab\" }) });\r\n    const d = await r.json().catch(() => ({}));\r\n    if (!r.ok) throw new Error(d.detail || r.statusText);\r\n    const nom = (d.images || [])[0];\r\n    if (!nom) throw new Error(\"la génération n'a rendu aucune image\");\r\n    await poserDepuisLibrary(nom);\r\n  }",
+    "apres": "  // t190 : sans options (menu Fichier, flyout Image), le panneau « Image IA sur le calque » s'ouvre sur le calque\r\n  // actif (calque cible, modèle, prix serveur, détourage) ; avec options {calqueId, prompt, modele, taille,\r\n  // detourer, modeleDetour, sujet}, le tir direct sur le calque demandé (mod-iacalque.executerPlan)\r\n  async function generer(opts) {\r\n    if (!opts) { VL.iaCalque.ouvrir(etat.calqueActif); return undefined; }\r\n    return VL.iaCalque.lancer(opts);\r\n  }",
+    "groupe": "iacalque"
    },
    {
     "pos": 11921,
@@ -5189,6 +5201,12 @@
     "groupe": "texte"
    },
    {
+    "pos": 14717,
+    "avant": "    $(\"#imVectoriser\").addEventListener(\"click\", () => { if (VL.vectoriser) VL.vectoriser(o.id); });",
+    "apres": "    $(\"#imVectoriser\").addEventListener(\"click\", () => { if (VL.vectoriser) VL.vectoriser(o.id); });\r\n    // t190 : « Retirer le fond » — une commande réversible (mod-iacalque.retirerFondFlux)\r\n    const ligneDetour = document.createElement(\"div\");\r\n    ligneDetour.className = \"ap-ligne\"; ligneDetour.id = \"imDetourLigne\";\r\n    hote.appendChild(ligneDetour);\r\n    VL.iaCalque.ligneDetour(ligneDetour, o);",
+    "groupe": "iacalque"
+   },
+   {
     "pos": 15266,
     "avant": "<span>Coupe</span>",
     "apres": "<span>${T(\"vectorlab.image.coupe\")}</span>",
@@ -5211,6 +5229,12 @@
     "avant": "title=\"Zone sûre : retrait depuis le bord (${suf}) — vide = aucune\"",
     "apres": "title=\"${T(\"vectorlab.image.zone_sure_titre\", { suf })}\"",
     "groupe": "texte"
+   },
+   {
+    "pos": 16498,
+    "avant": "  VL.reperesRects = () => reperes_rects(etat.doc);",
+    "apres": "  VL.reperesRects = () => reperes_rects(etat.doc);\r\n  // t190 : un blob au magasin du DOCUMENT (PNG), sans le poser — le détourage y range sa nouvelle image\r\n  VL.deposerBlob = async (blob) => {\r\n    const im = await decoder(blob);\r\n    const png = await versPNG(blob, im);\r\n    return { href: await deposer(png), nat: { w: im.naturalWidth, h: im.naturalHeight } };\r\n  };\r\n  initIaCalque(VL);       // t190 : le panneau « Image IA sur le calque » (VL.iaCalque)",
+    "groupe": "iacalque"
    }
   ],
   "js/mod-impression.js": [
@@ -5751,6 +5775,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 7783,
+    "avant": "    section.appendChild(actions);",
+    "apres": "    // t190 : « Image IA sur ce calque », après les effets (agit sur le calque actif, comme renommer / fx)\r\n    actions.querySelector('[data-act=\"fx\"]').insertAdjacentHTML(\"afterend\", `\r\n      <button data-act=\"ia\" title=\"${T(\"vectorlab.iacalque.bouton_titre\")}\" aria-label=\"${T(\"vectorlab.iacalque.bouton\")}\">${dzi(\"dz-media-generer-image\", 16)}</button>`);\r\n    section.appendChild(actions);",
+    "groupe": "iacalque"
+   },
+   {
     "pos": 9264,
     "avant": "\"\r\n           title=\"Clic : calque actif · double-clic sur le nom : renommer\">",
     "apres": "\"\r\n           title=\"${T(\"vectorlab.calques.rangee_titre\")}\">",
@@ -5833,6 +5863,12 @@
     "avant": "\"Renommer\"",
     "apres": "T(\"vectorlab.calques.renommer\")",
     "groupe": "coque"
+   },
+   {
+    "pos": 14085,
+    "avant": "else if (act === \"pixel\") {",
+    "apres": "else if (act === \"ia\" && c) { etat.calqueActif = c.id; VL.iaCalque.ouvrir(c.id); }\r\n    else if (act === \"pixel\") {",
+    "groupe": "iacalque"
    },
    {
     "pos": 14332,

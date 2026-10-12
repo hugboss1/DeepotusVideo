@@ -9,6 +9,7 @@ import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 import { op_ajouter, op_image_rogner, op_image_verrou, op_reperes,
          reperes_rects } from "./mod-doc.js";
+import { initIaCalque } from "./mod-iacalque.js";
 
 /* ── pur ── */
 const esc = (s) => String(s == null ? "" : s)
@@ -114,23 +115,24 @@ export function initImage(VL) {
     return new Promise((res, rej) => cv.toBlob((b) => b ? res(b)
       : rej(new Error(T("vectorlab.image.reencodage"))), "image/png"));
   }
-  async function poserBlob(blob) {
+  async function poserBlob(blob, calqueId) {
     if (!etat.docId) throw new Error(T("vectorlab.image.aucun_doc"));
     const im = await decoder(blob);
     const nat = { w: im.naturalWidth, h: im.naturalHeight };
     const png = await versPNG(blob, im);
     const href = await deposer(png);
     const spec = image_poser_spec(nat, etat.doc.taille);
-    const id = VL.executer(op_ajouter, etat.calqueActif,
+    const id = VL.executer(op_ajouter, calqueId || etat.calqueActif,
       { type: "image", ...spec, href, nat, style: {} });
     if (id) { VL.setOutil("select"); VL.setSelection([id]); }
     return id;
   }
-  async function poserDepuisLibrary(nom) {
+  async function poserDepuisLibrary(nom, calqueId) {
     const r = await fetch("/api/images/" + encodeURIComponent(nom));
     if (!r.ok) throw new Error(T("vectorlab.image.biblio_introuvable", { nom, status: r.status }));
-    await poserBlob(await r.blob());
+    const id = await poserBlob(await r.blob(), calqueId);
     VL.toast(T("vectorlab.image.posee", { nom }));
+    return id;
   }
 
   /* ── Bibliothèque : le sélecteur du parent, sinon la grille de repli ── */
@@ -220,18 +222,12 @@ export function initImage(VL) {
   }
 
   /* ── génération : la route existante, la clé dépensée est dite ── */
-  async function generer() {
-    const p = await VL.dialogue.saisir(T("vectorlab.image.generer_question"), { valeur: "", titre: T("vectorlab.image.generer_titre"), valider: T("vectorlab.image.generer") });
-    if (!p) return;
-    VL.toast(T("vectorlab.image.generation"));
-    const r = await fetch("/api/images/generate", { method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: p, n: 1, source: "vectorlab" }) });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.detail || r.statusText);
-    const nom = (d.images || [])[0];
-    if (!nom) throw new Error(T("vectorlab.image.generation_vide"));
-    await poserDepuisLibrary(nom);
+  // t190 : sans options (menu Fichier, flyout Image), le panneau « Image IA sur le calque » s'ouvre sur le calque
+  // actif (calque cible, modèle, prix serveur, détourage) ; avec options {calqueId, prompt, modele, taille,
+  // detourer, modeleDetour, sujet}, le tir direct sur le calque demandé (mod-iacalque.executerPlan)
+  async function generer(opts) {
+    if (!opts) { VL.iaCalque.ouvrir(etat.calqueActif); return undefined; }
+    return VL.iaCalque.lancer(opts);
   }
 
   /* ── le menu ── */
@@ -292,6 +288,11 @@ export function initImage(VL) {
     $("#imRognerRaz").addEventListener("click", () => VL.executer(op_image_rogner, o.id, null));
     $("#imVerrou").addEventListener("click", () => VL.executer(op_image_verrou, o.id, !o.verrou));
     $("#imVectoriser").addEventListener("click", () => { if (VL.vectoriser) VL.vectoriser(o.id); });
+    // t190 : « Retirer le fond » — une commande réversible (mod-iacalque.retirerFondFlux)
+    const ligneDetour = document.createElement("div");
+    ligneDetour.className = "ap-ligne"; ligneDetour.id = "imDetourLigne";
+    hote.appendChild(ligneDetour);
+    VL.iaCalque.ligneDetour(ligneDetour, o);
   }
 
   /* ── panneau Repères : deux retraits uniformes dans l'unité d'affichage ── */
@@ -321,4 +322,11 @@ export function initImage(VL) {
   VL.surSelection = () => { suivantSel(); rendrePanneauImage(); };
   VL.poserBlob = poserBlob;                 // la preuve et la vectorisation
   VL.reperesRects = () => reperes_rects(etat.doc);
+  // t190 : un blob au magasin du DOCUMENT (PNG), sans le poser — le détourage y range sa nouvelle image
+  VL.deposerBlob = async (blob) => {
+    const im = await decoder(blob);
+    const png = await versPNG(blob, im);
+    return { href: await deposer(png), nat: { w: im.naturalWidth, h: im.naturalHeight } };
+  };
+  initIaCalque(VL);       // t190 : le panneau « Image IA sur le calque » (VL.iaCalque)
 }
