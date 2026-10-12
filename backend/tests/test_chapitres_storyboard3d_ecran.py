@@ -124,6 +124,16 @@ check("S6f la vidéo terminée est lue dans un <video> muet avec contrôles (/ap
 check("S6g les classes du dialogue et de la vignette ont leur CSS",
       all(c in CSS for c in (".dzp-box", ".dzp-body", ".dzp-pied", ".dzp-prix", ".dzp-err", ".shot-video video", ".shot-video-etat")))
 
+
+vp, rd = fonction("videoPlan"), fonction("rendreDevisVideo")
+check("S7a le prix de la vidéo est le DEVIS serveur : plus aucun calcul usd × durée dans videoPlan / rendreDevisVideo",
+      bool(vp and rd) and not re.search(r"usd\s*\*|\*\s*(?:duree|s\.duration_s)|duration_s\s*\*", vp + rd)
+      and "/video/devis?video_model=${encodeURIComponent(modele)}" in vp and "devisRendu: (d) => rendreDevisVideo(d, duree)," in vp,
+      re.findall(r".{0,30}\*.{0,30}", vp + rd)[:4])
+check("S7b le dialogue relit le devis à chaque changement de modèle et ignore une réponse périmée ; un refus bloque le tir",
+      "if (o.devis && sel.value) lireDevis();" in dlg and "if (n !== jeton || sel.value !== modele) return;" in dlg
+      and "if (devis && devis.modele === sel.value && devis.refus) { err.textContent = devis.refus; return; }" in dlg)
+
 print("\n[N] sous node")
 if not NODE:
     check("N node introuvable", False)
@@ -230,6 +240,121 @@ const F = ctx.F;
           R.get("n5_post"))
     check("N5d plan sans image : ni dialogue ni POST", R.get("n5_sans_image") == {"dialogues": 0, "posts": 0},
           R.get("n5_sans_image"))
+
+print("\n[D] le dialogue vidéo sous node, DOM simulé, devis serveur simulé")
+if NODE:
+    morceaux = [re.search(r'^const MODELE_VIDEO_FIN = "[^"]+";', JS, flags=re.M).group(0),
+                re.search(r"^const ORIGINES_VIDEO = \{.*?\};", JS, flags=re.M | re.S).group(0)]
+    for nom in ("natureVideoPlan", "debutVideoPlan", "prixDzp", "dialoguePlanIA", "rendreDevisVideo", "videoPlan"):
+        morceaux.append(fonction(nom))
+    code = "\n".join(morceaux)
+    modeles = (FRONT / "shared" / "dz-modeles-ia.js").read_text("utf-8")
+    prog = r"""
+const vm = require("vm");
+function Elt(tag) { this.tagName = tag; this.children = []; this.listeners = {}; this._t = ""; this.className = "";
+  this.attrs = {}; this.parent = null; this.value = ""; }
+Elt.prototype.appendChild = function (c) { c.parent = this; this.children.push(c); return c; };
+Object.defineProperty(Elt.prototype, "textContent", {
+  get() { return [this._t].concat(this.children.map(c => c.textContent)).join(" "); },
+  set(v) { this._t = String(v); this.children = []; } });
+Elt.prototype.setAttribute = function (k, v) { this.attrs[k] = v; };
+Elt.prototype.addEventListener = function (k, f) { (this.listeners[k] = this.listeners[k] || []).push(f); };
+Elt.prototype.remove = function () { if (this.parent) { this.parent.children = this.parent.children.filter(x => x !== this); this.parent = null; } };
+Elt.prototype.focus = function () {};
+Elt.prototype.fire = async function (k) { for (const f of this.listeners[k] || []) await f({ target: this }); };
+function trouver(e, cls) { if ((" " + e.className + " ").includes(" " + cls + " ")) return e;
+  for (const c of e.children) { const r = trouver(c, cls); if (r) return r; } return null; }
+function tous(e, tag, out = []) { if (e.tagName === tag) out.push(e); e.children.forEach(c => tous(c, tag, out)); return out; }
+const pause = (ms = 15) => new Promise(r => setTimeout(r, ms));
+const DEVIS = {
+  "veo-3.1-fast-fal": { usd: 0.6, duree_s: 6, debut: { nom: "k.png", origine: "plateau" }, fin: { nom: "e.png" }, refus: null, cle_absente: null },
+  "kling-x": { usd: 1.2, duree_s: 5, debut: { nom: "k.png", origine: "plateau" }, fin: { nom: "e.png" }, refus: null, cle_absente: "FAL_KEY" },
+  "refuse-x": { usd: null, duree_s: null, debut: { nom: "k.png", origine: "plateau" }, fin: { nom: "e.png" }, refus: "REFUS-DU-SERVEUR", cle_absente: null },
+  "lent": { usd: 9.99, duree_s: 8, debut: { nom: "k.png", origine: "plateau" }, fin: { nom: "e.png" }, refus: null, cle_absente: null },
+};
+const CATALOGUE = ["veo-3.1-fast-fal", "kling-x", "refuse-x", "lent"].map(id => ({ id, label: id, voie: "fal", usd: 0.1, unite: "s", dispo: id !== "kling-x", cle: "FAL_KEY" }));
+const J = { gets: [], posts: [], toasts: [] };
+let lent = null, enPanne = false;
+const ctx = { console, encodeURIComponent, decodeURIComponent, Number, Math, Promise, JSON, setTimeout, clearTimeout, isFinite, String, Error };
+ctx.window = ctx;
+ctx.document = { createElement: t => new Elt(t), body: new Elt("body"), addEventListener() {}, removeEventListener() {} };
+ctx.fetch = async (u) => ({ ok: true, status: 200, json: async () => ({ modeles: CATALOGUE }) });
+ctx.dzT = (k, v) => k + (v ? JSON.stringify(v) : "");
+ctx.toast = (m, e) => J.toasts.push(m);
+ctx.renderBoard = () => {};
+ctx.shots = [{ id: "p5", idx: 0, duration_s: 5, keyframe_image: "k.png", keyframe_end: "e.png" }];
+ctx.api = {
+  get: (p) => { J.gets.push(p);
+    const m = /video_model=([^&]*)/.exec(p);
+    if (!m) return Promise.resolve({});
+    if (enPanne) return Promise.reject(new Error("reseau"));
+    const id = decodeURIComponent(m[1]);
+    if (id === "lent") return new Promise(r => { lent = () => r(DEVIS.lent); });
+    return Promise.resolve(DEVIS[id]); },
+  send: async (m, p, b) => { J.posts.push([m, p, b]); return { usd: 0.6, video: "j" }; },
+};
+vm.createContext(ctx);
+vm.runInContext(%s, ctx);
+vm.runInContext(%s + "\nthis.videoPlan = videoPlan;", ctx);
+(async () => {
+  const R = {};
+  const body = ctx.document.body;
+  const fini = ctx.videoPlan("p5");
+  await pause();
+  const voile = body.children[0];
+  const sel = trouver(voile, "dzp-modele"), prix = trouver(voile, "dzp-prix"), err = trouver(voile, "dzp-err");
+  const mention = trouver(voile, "dzp-mention"), imgs = trouver(voile, "dzp-imgs");
+  const ok = tous(voile, "button").find(b => b.className.includes("primary"));
+  R.ouverture = { sel: sel.value, prix: prix.textContent, imgs: imgs.textContent, devis: J.gets.filter(g => g.includes("/devis")) };
+  sel.value = "refuse-x"; await sel.fire("change"); await pause();
+  await ok.fire("click"); await pause();
+  R.refus = { err: err.textContent, posts: J.posts.length, ouvert: body.children.length, devis: J.gets.filter(g => g.includes("/devis")) };
+  sel.value = "lent"; await sel.fire("change");
+  sel.value = "kling-x"; await sel.fire("change"); await pause();
+  lent(); await pause();
+  R.perime = { prix: prix.textContent, mention: mention.textContent, err: err.textContent };
+  await ok.fire("click"); await fini; await pause();
+  R.cle = { posts: J.posts.slice(), ouvert: body.children.length };
+  J.posts.length = 0; enPanne = true;
+  const fini2 = ctx.videoPlan("p5"); await pause();
+  const v2 = body.children[0];
+  R.panne = { prix: trouver(v2, "dzp-prix").textContent };
+  await tous(v2, "button").find(b => b.className.includes("primary")).fire("click"); await fini2; await pause();
+  R.panne.posts = J.posts.slice();
+  console.log(JSON.stringify(R));
+})().catch(e => console.log(JSON.stringify({ erreur: String(e && e.stack || e) })));
+""" % (json.dumps(modeles), json.dumps(code))
+    with tempfile.TemporaryDirectory(prefix="dzsb3dd_") as tmp:
+        f = pathlib.Path(tmp) / "banc_dom.js"
+        f.write_text(prog, "utf-8")
+        r = subprocess.run([NODE, str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+    try:
+        D = json.loads(r.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        D = {"erreur": (r.stdout + r.stderr)[-800:]}
+    check("D0 le banc DOM a tourné", "erreur" not in D, D.get("erreur"))
+    o = D.get("ouverture") or {}
+    check("D1 à l'ouverture : devis serveur demandé pour le modèle présélectionné",
+          o.get("sel") == "veo-3.1-fast-fal" and o.get("devis") == ["/shots/p5/video/devis?video_model=veo-3.1-fast-fal"], o)
+    check("D2 le dialogue affiche le devis : $0.60 et 6 s générées pour un plan de 5 s, jamais $0.50",
+          "$0.60" in o.get("prix", "") and '"n":6' in o.get("prix", "") and '"plan":5' in o.get("prix", "")
+          and "$0.50" not in o.get("prix", ""), o.get("prix"))
+    check("D3 l'origine du début et la fin viennent du devis (borne du Plateau, borne de fin)",
+          "atelier.at2_video.src_plateau" in o.get("imgs", "") and "atelier.plan.video_fin" in o.get("imgs", ""), o.get("imgs"))
+    rf = D.get("refus") or {}
+    check("D4 changement de modèle ⇒ nouveau devis avec video_model", "/shots/p5/video/devis?video_model=refuse-x" in rf.get("devis", []), rf)
+    check("D5 refus du devis ⇒ affiché en ligne, AUCUN POST, le dialogue reste ouvert",
+          "REFUS-DU-SERVEUR" in rf.get("err", "") and rf.get("posts") == 0 and rf.get("ouvert") == 1, rf)
+    pe = D.get("perime") or {}
+    check("D6 une réponse de devis périmée (modèle changé entre-temps) est ignorée",
+          "$1.20" in pe.get("prix", "") and "$9.99" not in pe.get("prix", "") and pe.get("err", "").strip() == "", pe)
+    check("D7 clé absente ⇒ mention « clé X à ajouter » affichée, sans bloquer", "FAL_KEY" in pe.get("mention", ""), pe)
+    ck = D.get("cle") or {}
+    check("D8 ... et le POST part avec le modèle sans clé (le 503 vient au lancement)",
+          ck.get("posts") == [["POST", "/shots/p5/video", {"video_model": "kling-x"}]] and ck.get("ouvert") == 0, ck)
+    pn = D.get("panne") or {}
+    check("D9 devis en échec réseau : coût « inconnu » dit, et le tir reste possible",
+          "atelier.at2_video.devis_ko" in pn.get("prix", "") and len(pn.get("posts", [])) == 1, pn)
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

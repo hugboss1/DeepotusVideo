@@ -1017,7 +1017,10 @@ function prixDzp(usd, unite) {
   return v > 0 ? "$" + v.toFixed(3) : dzT("atelier.at2_dzp.a_mesurer");
 }
 
-/* le dialogue maison d'un tir payant d'un plan : {modele, texte, entree} ou null (annulé) */
+/* le dialogue maison d'un tir payant d'un plan : {modele, texte, entree} ou null (annulé).
+   o.devis(modele) -> Promise du devis du SERVEUR (relu à l'ouverture et à chaque changement de modèle ; une réponse
+   périmée est ignorée) ; o.devisRendu(devis | null) -> {prix, images?, refus, mention} : un refus empêche le tir,
+   la mention (clé à ajouter) ne bloque rien. */
 function dialoguePlanIA(o) {
   return new Promise((resoudre) => {
     const el = (tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt != null) x.textContent = txt; return x; };
@@ -1041,20 +1044,28 @@ function dialoguePlanIA(o) {
     ligne(dzT("atelier.at2_dzp.modele"), sel);
     const aide = el("div", "da-note dzp-aide");
     corps.appendChild(aide);
-    (o.images || []).forEach(im => {
-      const r = el("div", "dzp-img");
-      if (im.fichier) {
-        const img = el("img");
-        img.src = "/api/images/" + encodeURIComponent(im.fichier);
-        img.alt = "";
-        r.appendChild(img);
-      }
-      r.appendChild(el("span", "", im.label));
-      corps.appendChild(r);
-    });
+    const imgs = el("div", "dzp-imgs");
+    corps.appendChild(imgs);
+    const poserImages = (liste) => {
+      imgs.textContent = "";
+      (liste || []).forEach(im => {
+        const r = el("div", "dzp-img");
+        if (im.fichier) {
+          const img = el("img");
+          img.src = "/api/images/" + encodeURIComponent(im.fichier);
+          img.alt = "";
+          r.appendChild(img);
+        }
+        r.appendChild(el("span", "", im.label));
+        imgs.appendChild(r);
+      });
+    };
+    poserImages(o.images);
     const prix = el("div", "dzp-prix");
+    const mention = el("div", "da-note dzp-mention");
     const err = el("div", "dzp-err");
     corps.appendChild(prix);
+    corps.appendChild(mention);
     corps.appendChild(err);
     const pied = el("div", "dzp-pied");
     const annuler = el("button", "btn ghost", dzT("atelier.at2_dzp.annuler"));
@@ -1068,16 +1079,35 @@ function dialoguePlanIA(o) {
     voile.appendChild(boite);
     let mods = [];
     const courant = () => mods.find(m => m.id === sel.value) || null;
+    let jeton = 0, devis = null;                       // devis = {modele, attente, refus} du modèle COURANT
+    const lireDevis = () => {
+      const modele = sel.value, n = ++jeton;
+      const rendre = (d) => {
+        if (n !== jeton || sel.value !== modele) return;  // réponse périmée : le modèle a changé entre-temps
+        const r = o.devisRendu(d) || {};
+        prix.textContent = r.prix || "";
+        mention.textContent = r.mention || "";
+        if (r.images) poserImages(r.images);
+        err.textContent = r.refus || "";
+        devis = { modele, attente: null, refus: r.refus || null };
+      };
+      const attente = o.devis(modele).then(rendre, () => rendre(null));
+      devis = { modele, attente, refus: null };
+    };
     const maj = () => {
       const m = courant();
       prix.textContent = o.prixDe ? o.prixDe(m) : "";
       aide.textContent = o.aideDe ? o.aideDe(m) : "";
+      mention.textContent = "";
       err.textContent = "";
+      if (o.devis && sel.value) lireDevis();
     };
     let touche = null;
     const fin = (v) => { document.removeEventListener("keydown", touche, true); voile.remove(); resoudre(v); };
-    const valider = () => {
+    const valider = async () => {
       if (!sel.value) { err.textContent = dzT("atelier.at2_dzp.choisir"); return; }
+      if (devis && devis.attente) await devis.attente;   // le devis du modèle choisi d'abord
+      if (devis && devis.modele === sel.value && devis.refus) { err.textContent = devis.refus; return; }
       const m = courant();
       const choix = { modele: sel.value, texte: champ ? champ.value.trim() : "", entree: m };
       const ko = o.verifier ? o.verifier(choix, m) : null;
@@ -1164,11 +1194,10 @@ async function videoPlan(id) {
     images: [{ label: dzT("atelier.at2_video.debut", { source: dzT(debut.cle) }), fichier: debut.fichier },
              s.keyframe_end ? { label: dzT("atelier.plan.video_fin"), fichier: s.keyframe_end }
                             : { label: dzT("atelier.at2_video.fin_aucune") }],
-    prixDe: (m) => {
-      const u = m ? Number(m.usd) : 0;
-      return u > 0 ? dzT("atelier.at2_video.prix", { taux: prixDzp(u, "s"), s: duree, total: prixDzp(u * duree) })
-                   : prixDzp(0);
-    },
+    // le prix est le DEVIS du serveur (durée réellement générée et facturée), jamais un calcul local
+    prixDe: () => dzT("atelier.at2_video.devis_attente"),
+    devis: (modele) => api.get(`/shots/${encodeURIComponent(id)}/video/devis?video_model=${encodeURIComponent(modele)}`),
+    devisRendu: (d) => rendreDevisVideo(d, duree),
     aideDe: () => (nature === "video_fl" ? dzT("atelier.at2_video.aide_fl") : dzT("atelier.at2_video.aide_i2v")),
     ok: dzT("atelier.at2_video.generer"),
   });
@@ -1180,6 +1209,23 @@ async function videoPlan(id) {
     renderBoard();
     toast(dzT("atelier.at2_video.lancee", { i: s.idx + 1, total: prixDzp(up.usd) }));
   } catch (e) { toast(dzT("atelier.at2_video.err", { msg: e.message }), true); }
+}
+
+/* le devis serveur de la vidéo d'un plan -> ce que montre le dialogue ; null (devis en échec) : coût inconnu, rien
+   n'est bloqué */
+const ORIGINES_VIDEO = { plateau: "atelier.at2_video.src_plateau", production: "atelier.at2_video.src_prod",
+                         croquis: "atelier.at2_video.src_croquis" };
+function rendreDevisVideo(d, duree) {
+  if (!d) return { prix: dzT("atelier.at2_video.devis_ko"), refus: null, mention: "" };
+  const prix = d.usd == null ? dzT("atelier.at2_video.cout_inconnu")
+    : dzT("atelier.at2_video.prix_devis", { total: prixDzp(d.usd) })
+      + (d.duree_s != null && Number(d.duree_s) !== Number(duree)
+        ? " " + dzT("atelier.at2_video.generees", { n: d.duree_s, plan: duree }) : "");
+  const images = [d.debut ? { label: dzT("atelier.at2_video.debut", { source: dzT(ORIGINES_VIDEO[d.debut.origine] || "atelier.at2_video.src_prod") }),
+                              fichier: d.debut.nom } : { label: dzT("atelier.at2_video.debut_aucune") },
+                  d.fin ? { label: dzT("atelier.plan.video_fin"), fichier: d.fin.nom } : { label: dzT("atelier.at2_video.fin_aucune") }];
+  return { prix, images, refus: d.refus || null,
+           mention: d.cle_absente ? dzT("atelier.at2_video.cle_absente", { cle: d.cle_absente }) : "" };
 }
 
 /* la vignette vidéo d'une carte : l'état du job, puis le lecteur muet ; un seul suivi par plan */
