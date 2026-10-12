@@ -50,6 +50,7 @@ from pathlib import Path
 from loguru import logger
 
 from app.config import settings
+from app.i18n import Message, Nom, Refus   # t192 : refus traduisibles (texte = le français)
 
 PROMPT_MAX = 1500
 FPS_LTX = 24                        # images par seconde envoyées aux quatre effets LTX (défaut du schéma)
@@ -218,7 +219,7 @@ def options_valides(mid: str, options) -> dict:
         v = options.get(nom)
         if v in (None, ""):
             if spec["requis"]:
-                raise ValueError(f"{e['label']} : l'option « {nom} » est requise")
+                raise Refus("vfx.ia.option_requise", modele=Nom(mid, e['label']), nom=nom)
             if spec["defaut"] is not None:
                 out[nom] = spec["defaut"]
             continue
@@ -240,7 +241,8 @@ def options_valides(mid: str, options) -> dict:
                 raise ValueError(f"{e['label']} : {nom} attend un nombre")
             lo, hi = spec["num"]
             if x != x or not lo <= x <= hi:
-                raise ValueError(f"{e['label']} : {nom} doit valoir de {lo:g} à {hi:g} (reçu {x:g})")
+                raise Refus("vfx.ia.option_bornes", modele=Nom(mid, e['label']), nom=nom, lo=f"{lo:g}", hi=f"{hi:g}",
+                            x=f"{x:g}")
             if spec["entier"]:
                 if x != int(x):
                     raise ValueError(f"{e['label']} : {nom} attend un entier")
@@ -252,19 +254,19 @@ def options_valides(mid: str, options) -> dict:
             s = v.strip()
             if not s:
                 if spec["requis"]:
-                    raise ValueError(f"{e['label']} : l'option « {nom} » est requise")
+                    raise Refus("vfx.ia.option_requise", modele=Nom(mid, e['label']), nom=nom)
                 continue
             if len(s) > 300:
-                raise ValueError(f"{e['label']} : {nom} trop long ({len(s)} caractères, 300 au plus)")
+                raise Refus("vfx.ia.option_trop_longue", modele=Nom(mid, e['label']), nom=nom, n=len(s))
             out[nom] = s
     if mid == "inserer-h3":
         if out["resume_time"] <= 1.625:   # exclusiveMinimum du schéma
-            raise ValueError(f"{e['label']} : la reprise doit venir APRÈS 1,625 s (reçu {out['resume_time']:g} s)")
+            raise Refus("vfx.ia.reprise_apres", modele=Nom(mid, e['label']), x=f"{out['resume_time']:g}")
         if out["resume_time"] < out["start_time"]:
-            raise ValueError(f"{e['label']} : la reprise ({out['resume_time']:g} s) précède le début "
-                             f"({out['start_time']:g} s)")
+            raise Refus("vfx.ia.reprise_avant_debut", modele=Nom(mid, e['label']), reprise=f"{out['resume_time']:g}",
+                        debut=f"{out['start_time']:g}")
     if mid == "effets-pixverse" and out.get("duration") == "10" and out.get("resolution") == "1080p":
-        raise ValueError(f"{e['label']} : 1080p n'existe pas en 10 s (5 ou 8 s en 1080p, ou 10 s en 720p)")
+        raise Refus("vfx.ia.pixverse_1080p", modele=Nom(mid, e['label']))
     return out
 
 
@@ -284,9 +286,9 @@ def prompt_valide(mid: str, prompt) -> str:
     e = entree(mid)
     p = str(prompt or "").strip()
     if len(p) > PROMPT_MAX:
-        raise ValueError(f"{e['label']} : description trop longue ({len(p)} caractères, {PROMPT_MAX} au plus)")
+        raise Refus("ia.prompt.trop_long", modele=Nom(mid, e['label']), n=len(p), max=PROMPT_MAX)
     if e["prompt"] == "requis" and not p:
-        raise ValueError(f"{e['label']} : décrivez le changement voulu (« prompt » vide)")
+        raise Refus("vfx.ia.prompt_requis", modele=Nom(mid, e['label']))
     return p if e["prompt"] else ""
 
 
@@ -295,10 +297,10 @@ def image_refusee(mid: str, presente: bool) -> str | None:
     pas ; None si tout va."""
     e = entree(mid)
     if presente and not e["image"]:
-        return f"{e['label']} ne prend pas d'image"
+        return Message("vfx.ia.sans_image", modele=Nom(mid, e['label']))
     if not presente and e["image"] == "requis":
-        quoi = "l'image à animer" if e["entree"] == "image" else "l'image de la lumière voulue"
-        return f"{e['label']} : donnez {quoi} (image_filename)"
+        return Message("vfx.ia.image_a_animer" if e["entree"] == "image" else "vfx.ia.image_lumiere",
+                       modele=Nom(mid, e['label']))
     return None
 
 
@@ -325,41 +327,41 @@ def source_refusee(mid: str, chemin, secondes, options=None, dims=None, octets=N
     e = entree(mid)
     ext = Path(str(chemin)).suffix.lower()
     if e["entree"] == "image":
-        return None if ext in EXT_IMAGE else f"{e['label']} part d'une image ({', '.join(EXT_IMAGE)})"
+        return None if ext in EXT_IMAGE else Message("vfx.ia.source_image", modele=Nom(mid, e['label']),
+                                                      exts=', '.join(EXT_IMAGE))
     if e["video_ext"] and ext not in e["video_ext"]:
-        return f"{e['label']} n'accepte que {', '.join(e['video_ext'])} (vidéo {ext or 'sans extension'})"
+        return Message("ia.video.format" if ext else "ia.video.format_sans_ext", modele=Nom(mid, e['label']),
+                       exts=', '.join(e['video_ext']), ext=ext)
     try:
         s = float(secondes or 0)
     except (TypeError, ValueError):
         s = 0.0
     b = e["video_s"]
     if b and (not b[0] <= s <= b[1] or (e["strict"] and s >= b[1])):
-        haut = f"moins de {b[1]:g} s" if e["strict"] else f"{b[1]:g} s au plus"
-        bas = f"de {b[0]:g} à {b[1]:g} s" if b[0] else haut
-        return f"{e['label']} : la vidéo doit durer {bas} (celle-ci : {s:.1f} s)"
+        cle = "ia.video.duree_plage" if b[0] else "ia.video.duree_moins" if e["strict"] else "ia.video.duree_max"
+        return Message(cle, modele=Nom(mid, e['label']), lo=f"{b[0]:g}", hi=f"{b[1]:g}", s=f"{s:.1f}")
     if e["images_min"] and s * FPS_LTX < e["images_min"] - 1e-6:
-        return (f"{e['label']} : {e['images_min']} images au moins à {FPS_LTX} i/s, soit "
-                f"{e['images_min'] / FPS_LTX:.2f} s (celle-ci : {s:.1f} s)")
+        return Message("vfx.ia.images_min", modele=Nom(mid, e['label']), n=e['images_min'], fps=FPS_LTX,
+                       sec=f"{e['images_min'] / FPS_LTX:.2f}", s=f"{s:.1f}")
     if e["unite"] == "mp":
         res = options_completees(mid, options).get("resolution") or "720p"
         n = images_ltx(s)
         if n > IMAGES_LTX[1]:
-            return (f"{e['label']} : {IMAGES_LTX[1]} images au plus à {FPS_LTX} i/s, soit "
-                    f"{IMAGES_LTX[1] / FPS_LTX:.1f} s (celle-ci : {s:.1f} s) — coupez le plan d'abord")
+            return Message("vfx.ia.images_max", modele=Nom(mid, e['label']), n=IMAGES_LTX[1], fps=FPS_LTX,
+                           sec=f"{IMAGES_LTX[1] / FPS_LTX:.1f}", s=f"{s:.1f}")
         if n > BUDGET_LTX.get(res, BUDGET_LTX["720p"]):
             m = BUDGET_LTX[res]
-            conseil = "passez en 480p ou coupez le plan" if res == "720p" else "coupez le plan"
-            return (f"{e['label']} : en {res}, {m} images au plus à {FPS_LTX} i/s (≈ {(m - 1) / FPS_LTX:g} s, budget du "
-                    f"modèle) — celle-ci en demande {n} ({s:.1f} s) : {conseil}")
+            return Message("vfx.ia.budget_720p" if res == "720p" else "vfx.ia.budget", modele=Nom(mid, e['label']),
+                           res=res, m=m, fps=FPS_LTX, sec=f"{(m - 1) / FPS_LTX:g}", n=n, s=f"{s:.1f}")
     if e["cote"] and dims and dims[0] and dims[1]:
         lo, hi = e["cote"]
         if min(dims) < lo or max(dims) > hi:
-            return (f"{e['label']} : côtés de {lo} à {hi} px exigés (celle-ci : {dims[0]}x{dims[1]})")
+            return Message("vfx.ia.cotes", modele=Nom(mid, e['label']), lo=lo, hi=hi, l=dims[0], h=dims[1])
     if e["octets_max"] and octets is not None:
         lim = e["octets_max"] * 1_000_000
         if octets > lim or (e["strict"] and octets >= lim):
-            return (f"{e['label']} : {'moins de ' if e['strict'] else ''}{e['octets_max']} Mo"
-                    f"{'' if e['strict'] else ' au plus'} (celle-ci : {octets / 1e6:.1f} Mo)")
+            return Message("vfx.ia.poids_moins" if e['strict'] else "vfx.ia.poids_max", modele=Nom(mid, e['label']),
+                           max=e['octets_max'], o=f"{octets / 1e6:.1f}")
     return None
 
 
@@ -370,8 +372,8 @@ def insertion_refusee(opts: dict, secondes) -> str | None:
     except (TypeError, ValueError):
         s = 0.0
     if opts.get("start_time", 0) > s or opts.get("resume_time", 0) > s:
-        return (f"Insérer une scène : début ({opts.get('start_time', 0):g} s) et reprise "
-                f"({opts.get('resume_time', 0):g} s) doivent tomber dans la vidéo ({s:.1f} s)")
+        return Message("vfx.ia.insertion_hors", debut=f"{opts.get('start_time', 0):g}",
+                       reprise=f"{opts.get('resume_time', 0):g}", s=f"{s:.1f}")
     return None
 
 
@@ -465,7 +467,7 @@ def unites(mid: str, op: dict) -> tuple:
     if u == "s":
         if mid == "inserer-h3":
             d = float(o.get("duration") or 5)
-            return d, f"scène générée {d:g} s · {o.get('resolution')}"
+            return d, Message("vfx.det.scene", d=f"{d:g}", res=o.get('resolution'))
         res = o.get("resolution")
         return sec, f"{sec:g} s" + (f" · {res}" if res else "")
     if u == "mp":
@@ -474,14 +476,12 @@ def unites(mid: str, op: dict) -> tuple:
     if u == "tranche10s":
         t = max(1, int(math.ceil(sec / 10 - 1e-9)))
         cl = classe_topaz(op.get("largeur"), op.get("hauteur"), o.get("upscale_factor"))
-        return t, f"{sec:g} s -> {t} x 10 s · sortie {cl}"
+        return t, Message("vfx.det.topaz", sec=f"{sec:g}", t=t, cl=cl)
     if u == "effet":
         return 1, f"{o.get('duration')} s · {o.get('resolution')}"
     # « video » : une vidéo ; la passe 2 et le masque SAM 3 sont dans le taux
-    det = "passe 2" if o.get("enable_pass2_refinement") else "passe 1"
-    if o.get("mask_prompt"):
-        det += " + masque SAM 3"
-    return 1, det
+    return 1, Message(("vfx.det.passe2" if o.get("enable_pass2_refinement") else "vfx.det.passe1")
+                      + ("_masque" if o.get("mask_prompt") else ""))
 
 
 def op_vfx(mid: str, secondes=None, options=None, largeur=None, hauteur=None) -> dict:

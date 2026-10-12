@@ -616,9 +616,9 @@ def _ligne_vfx(op: dict, p: dict) -> dict:
         return _line("fal", f"VFX IA : geste inconnu {mid[:24]!r} (non chiffré)", 1, "job", 0.0)
     q, det = _V.unites(mid, op)
     taux = taux_vfx(mid, op, p)
-    label = f"{e['label']} ({det})" + (" — prix à mesurer" if not taux else "")
-    if mid == "inserer-h3":
-        label += " — jetons de référence au-delà de 4 096 non chiffrés (0,02 $ / 1 000)"
+    from app.i18n import Message, Nom   # t192 : la ligne se dit dans la langue de la requête (route /vfx-ia, devis)
+    label = Message("pricing.vfx.ligne" + ("_a_mesurer" if not taux else "") + ("_jetons" if mid == "inserer-h3" else ""),
+                    modele=Nom(mid, e['label']), det=det)
     return _line("fal", label, q, e["unite"], q * taux)
 
 

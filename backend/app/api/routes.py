@@ -4556,7 +4556,7 @@ async def generate_sfx_audio(request: Request):
         raise HTTPException(400, str(e))
     cle = _SX.cle_sfx_manquante(modele)
     if cle:
-        raise _refus_cle(cle, _SX.SFX_MODELS[modele]["label"], request)
+        raise _refus_cle(cle, _nom_g(modele, _SX.SFX_MODELS[modele]["label"]), request)
     prompt = str(payload.get("prompt") or "").strip()
     if not prompt:
         raise HTTPException(400, "Décris le son à générer (prompt vide).")
@@ -4590,7 +4590,7 @@ async def generate_sfx_audio(request: Request):
             res = await _SX.generer_sfx(modele, prompt=prompt, duree=duree, echantillons=variations,
                                         influence=prompt_influence if "prompt_influence" in payload else None)
         except ValueError as e:
-            raise HTTPException(400, str(e))
+            raise HTTPException(400, _txt_g(e, request))
         except Exception as e:  # noqa: BLE001
             raise HTTPException(502, f"fal.ai: {str(e)[:300]}")
         from app.services import pricing as _pricing
@@ -4628,7 +4628,7 @@ async def generate_sfx_audio(request: Request):
 _SFXV_EXTS = (".mp4", ".mov", ".webm", ".m4v")
 
 
-def _nom_nu(nom: str, dossier: Path, exts: tuple, champ: str, quoi: str, objet: str) -> Path:
+def _nom_nu(nom: str, dossier: Path, exts: tuple, champ: str, quoi: str, objet: str, http=None) -> Path:
     """t188 : un nom de fichier NU confiné à `dossier` (sans séparateur, « .. » ni lecteur, extension de `exts`) ->
     son chemin ; 400 si le nom est refusé, 404 s'il n'existe pas. Partagé par /audio/sfx-video et /vfx-ia."""
     if (nom != Path(nom).name or "/" in nom or "\\" in nom or ".." in nom or ":" in nom
@@ -4637,11 +4637,12 @@ def _nom_nu(nom: str, dossier: Path, exts: tuple, champ: str, quoi: str, objet: 
     d = dossier.resolve()
     q = (d / nom).resolve()
     if q.parent != d or not q.is_file():
-        raise HTTPException(404, f"{objet} introuvable : {nom}")
+        raise HTTPException(404, _msg_g("ia.fichier.image_introuvable" if objet == "image"
+                                        else "ia.fichier.video_introuvable", http, nom=nom))
     return q
 
 
-async def _sfx_video_source(payload: dict, quoi: str = "à bruiter") -> Path:
+async def _sfx_video_source(payload: dict, quoi: str = "à bruiter", http=None) -> Path:
     """t187 (G5) — la vidéo d'un bruitage, CONFINÉE : `clip_id` (ou `job_id`) = l'id du job d'un clip du Montage
     (son rendu fini, lu en base) ; `video_filename` = un nom NU d'une vidéo du dossier des vidéos importées
     (outputs/uploads), sans séparateur ni « .. », extension vidéo. 400 si rien n'est donné ou si le nom est
@@ -4654,11 +4655,11 @@ async def _sfx_video_source(payload: dict, quoi: str = "à bruiter") -> Path:
             raise HTTPException(400, "clip_id refusé")
         src = await _resolve_src({"job_id": jid})
         if src is None or not src.is_file():
-            raise HTTPException(404, "vidéo introuvable pour ce clip")
+            raise HTTPException(404, _msg_g("ia.video.clip_introuvable", http))
         return src
     if not nom:
         raise HTTPException(400, f"donnez la vidéo {quoi} : clip_id (un clip du Montage) ou video_filename")
-    return _nom_nu(nom, settings.outputs_path / "uploads", _SFXV_EXTS, "video_filename", "de vidéo", "vidéo")
+    return _nom_nu(nom, settings.outputs_path / "uploads", _SFXV_EXTS, "video_filename", "de vidéo", "vidéo", http)
 
 
 async def _sfx_video_job(dest: Path, titre: str, provider="sfx_video", etape: str = "Sonorisée") -> str:
@@ -4705,15 +4706,15 @@ async def generate_sfx_video(request: Request):
     if not devis:
         cle = _SX.cle_sfx_manquante(modele)
         if cle:
-            raise _refus_cle(cle, e["label"], request)
-    src = await _sfx_video_source(payload)
+            raise _refus_cle(cle, _nom_g(modele, e["label"]), request)
+    src = await _sfx_video_source(payload, http=request)
     dur = await asyncio.get_running_loop().run_in_executor(None, _SX._probe_duration, src)
     if not dur or dur <= 0:
         # ffprobe absent ou en échec, job qui n'est pas une vidéo : la garde chiffrerait 0 s et laisserait tirer
-        raise HTTPException(400, f"durée de la vidéo illisible : {src.name} (ffprobe) — rien n'est envoyé")
+        raise HTTPException(400, _msg_g("ia.video.duree_illisible", request, nom=src.name))
     refus = _SX.video_refusee(modele, src, dur)   # format, durée (Kling : .mp4/.mov, 3 à 20 s)
     if refus:
-        raise HTTPException(400, refus)
+        raise HTTPException(400, _txt_g(refus, request))
     op = _SX.op_sfx(modele, round(float(dur or 0), 3), 1)
     if devis:
         from app.services import pricing as _pricing
@@ -4721,10 +4722,10 @@ async def generate_sfx_video(request: Request):
                 "usd": _pricing.estimate(op)["total_usd"]}
     prompt = str(payload.get("prompt") or "").strip()
     if len(prompt) > e["prompt_max"]:
-        raise HTTPException(400, f"{e['label']} : description trop longue ({len(prompt)} caractères, "
-                                 f"{e['prompt_max']} au plus).")
+        raise HTTPException(400, _msg_g("ia.sfx.prompt_trop_long", request, modele=_nom_g(modele, e["label"]),
+                                        n=len(prompt), max=e["prompt_max"]))
     if e["prompt_requis"] and not prompt:
-        raise HTTPException(400, f"{e['label']} : {_SX.DEMANDE_PROMPT}")
+        raise HTTPException(400, _msg_g("ia.sfx.prompt_requis", request, modele=_nom_g(modele, e["label"])))
     garder = payload.get("garder_voix")
     garder = None if garder is None else bool(garder)
     await _plafond(op, "son", src.name)
@@ -4732,7 +4733,7 @@ async def generate_sfx_video(request: Request):
         res = await _SX.generer_sfx(modele, prompt=prompt, duree=float(dur) if dur else None, video=src,
                                     garder_voix=garder)
     except ValueError as x:
-        raise HTTPException(400, str(x))
+        raise HTTPException(400, _txt_g(x, request))
     except Exception as x:  # noqa: BLE001
         raise HTTPException(502, f"fal.ai: {str(x)[:300]}")
     videos = []
@@ -4749,7 +4750,7 @@ async def generate_sfx_video(request: Request):
 
 # ═════════════════════ VFX IA (t188, G6) ═════════════════════
 
-async def _vfx_ia_image(nom) -> Path | None:
+async def _vfx_ia_image(nom, http=None) -> Path | None:
     """t188 (G6) — l'image d'un VFX IA (image de la lumière, référence, image à animer), CONFINÉE : un nom NU d'une
     image de la Bibliothèque (dossier des images), sans séparateur ni « .. », extension image. None si rien n'est
     donné ; 400 si le nom est refusé ; 404 si l'image n'existe pas."""
@@ -4757,7 +4758,7 @@ async def _vfx_ia_image(nom) -> Path | None:
     if not nom:
         return None
     from app.services.vfx_ia import EXT_IMAGE
-    return _nom_nu(nom, settings.images_path, EXT_IMAGE, "image_filename", "d'image", "image")
+    return _nom_nu(nom, settings.images_path, EXT_IMAGE, "image_filename", "d'image", "image", http)
 
 
 # l'écran d'où part le tir -> la catégorie du plafond (plafonds.CATEGORIES)
@@ -4800,45 +4801,45 @@ async def vfx_ia_appliquer(request: Request):
     if not devis:
         cle = _VI.cle_manquante(modele)
         if cle:
-            raise _refus_cle(cle, e["label"], request)
+            raise _refus_cle(cle, _nom_g(modele, e["label"]), request)
     try:
         prompt = _VI.prompt_valide(modele, payload.get("prompt"))
         opts = _VI.options_valides(modele, payload.get("options"))
     except ValueError as x:
-        raise HTTPException(400, str(x))
+        raise HTTPException(400, _txt_g(x, request))
     origine = str(payload.get("origine") or "rail")
     if origine not in _VFX_IA_ORIGINES:
         raise HTTPException(400, f"origine refusée : {origine[:20]!r} ({', '.join(_VFX_IA_ORIGINES)})")
-    image = await _vfx_ia_image(payload.get("image_filename"))
+    image = await _vfx_ia_image(payload.get("image_filename"), request)
     refus = _VI.image_refusee(modele, image is not None)
     if refus:
-        raise HTTPException(400, refus)
+        raise HTTPException(400, _txt_g(refus, request))
     src, dur, larg, haut, octets = image, None, None, None, None
     if e["entree"] == "video":
-        src = await _sfx_video_source(payload, "à retoucher")
+        src = await _sfx_video_source(payload, "à retoucher", request)
         loop = asyncio.get_running_loop()
         dur = await loop.run_in_executor(None, _SXP._probe_duration, src)
         if not dur or dur <= 0:
             # ffprobe absent ou en échec, job qui n'est pas une vidéo : la garde chiffrerait 0 s et laisserait tirer
-            raise HTTPException(400, f"durée de la vidéo illisible : {src.name} (ffprobe) — rien n'est envoyé")
+            raise HTTPException(400, _msg_g("ia.video.duree_illisible", request, nom=src.name))
         larg, haut = await loop.run_in_executor(None, _VI.dimensions, src)
         octets = src.stat().st_size
     refus = (_VI.source_refusee(modele, src, dur, opts, (larg, haut), octets)
              or (_VI.insertion_refusee(opts, dur) if modele == "inserer-h3" else None))
     if refus:
-        raise HTTPException(400, refus)
+        raise HTTPException(400, _txt_g(refus, request))
     from app.services import pricing as _pricing
     op = _VI.op_vfx(modele, dur, opts, larg, haut)
     est = _pricing.estimate(op)
     if devis:
         return {"devis": True, "modele": modele, "secondes": op["secondes"], "usd": est["total_usd"],
-                "detail": est["breakdown"][0]["label"] if est["breakdown"] else ""}
+                "detail": _txt_g(est["breakdown"][0]["label"], request) if est["breakdown"] else ""}
     await _plafond(op, _VFX_IA_ORIGINES[origine], src.name)
     try:
         res = await _VI.appliquer_vfx(modele, video=src if e["entree"] == "video" else None,
                                       image=image, prompt=prompt, options=opts, secondes=op["secondes"])
     except ValueError as x:
-        raise HTTPException(400, str(x))
+        raise HTTPException(400, _txt_g(x, request))
     except Exception as x:  # noqa: BLE001
         raise HTTPException(502, f"fal.ai: {str(x)[:300]}")
     v = res["video"]
@@ -4852,14 +4853,16 @@ async def vfx_ia_appliquer(request: Request):
 
 
 @router.get("/music-models")
-async def list_music_models():
+async def list_music_models(request: Request = None):
     """Modèles de musique fal.ai + ambiances proposées. `enabled` dit si la
     clé fal est configurée ; t187 : chaque modèle porte aussi voie, cle et
     dispo. Sans clé, l'écran LISTE quand même les cartes (prix + « clé FAL_KEY
     à ajouter dans Réglages ») et laisse « Générer » actif : POST /audio/music
-    refuse en 503, avant toute dépense (décision du 11/10/2026)."""
+    refuse en 503, avant toute dépense (décision du 11/10/2026).
+    t192 : noms, descriptions et ambiances dans la langue de la requête (catalogues.musique, copie ; fr inchangé)."""
     from app.services import music_service
-    return music_service.catalog()
+    from app.i18n import catalogues as CAT
+    return CAT.musique(music_service.catalog(), _lang_g(request) if request is not None else "fr")
 
 
 @router.get("/music/lyrics-skeleton")
@@ -5032,7 +5035,7 @@ async def matte_start(request: Request):
     if model in MT.MATTE_MODELS:
         # les trois anciennes clés = BiRefNet v2 vidéo : le 503 clé absente AVANT la garde (t186)
         if not (settings.FAL_KEY or "").strip():
-            raise _refus_cle("FAL_KEY", MT.MATTE_MODELS[model]["label"], request)
+            raise _refus_cle("FAL_KEY", _nom_g(model, MT.MATTE_MODELS[model]["label"]), request)
     else:
         from app.services import detourage as _DT
         if model not in _DT.REGISTRE:
@@ -6018,6 +6021,31 @@ def _garde_cout(ops: list, *max_usds) -> float:
     return total
 
 
+def _lang_g(http=None) -> str:
+    """t192 (G10) : la langue d'un refus des lots « Génération IA » — celle de la requête (Accept-Language), sinon
+    UI_LANG (route sans Request : la langue de l'interface)."""
+    from app import i18n as _i18n
+    return _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+
+
+def _msg_g(cle: str, http=None, **v) -> str:
+    """t192 : un message de messages.json dans la langue du refus (le français reste le texte d'avant)."""
+    from app import i18n as _i18n
+    return _i18n.msg(cle, _lang_g(http), **v)
+
+
+def _txt_g(x, http=None) -> str:
+    """t192 : le texte d'un refus de service (app.i18n.Refus / Message, sinon str) dans la langue du refus."""
+    from app import i18n as _i18n
+    return _i18n.texte(x, _lang_g(http))
+
+
+def _nom_g(mid, libelle):
+    """t192 : le nom d'un modèle dans un message — le libellé du registre en français, ia.nom.<id> sinon."""
+    from app import i18n as _i18n
+    return _i18n.Nom(mid, libelle)
+
+
 def _refus_cle(cle: str, modele: str, http=None) -> HTTPException:
     """t183 (G1) : le refus « clé absente » d'un modèle CHOISISSABLE (décision du 11/10/2026), dans la langue de la
     requête (Accept-Language posé par /shared/dz-i18n.js, sinon UI_LANG) — messages.json : ia.cle.absente_tir."""
@@ -6050,7 +6078,9 @@ def _detourage_controles(mid, nature: str, sujet=None, http=None, nommer=None):
     non par le libellé du registre, écrit en français. Sans `nommer` : les messages d'avant, inchangés."""
     from app.services import detourage as _DT
     from app import i18n as _i18n
-    lang = (_i18n.langue_requete(http) if http is not None else _i18n.langue_ui()) if nommer else None
+    lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+    if not nommer and lang != "fr":   # t192 : en anglais, les mêmes refus que t191 (ia.detour.*), nom par ia.nom.<id>
+        nommer = lambda m: _i18n.Nom(m, (_DT.REGISTRE.get(m) or {}).get("label", m))   # noqa: E731
     try:
         _DT.entree(str(mid or ""), nature)
     except ValueError as e:
@@ -6061,7 +6091,7 @@ def _detourage_controles(mid, nature: str, sujet=None, http=None, nommer=None):
         raise HTTPException(400, _i18n.msg(cle_msg, lang, modele=nommer(str(mid or ""))[:40] or "—", connus=connus))
     cle = _DT.cle_manquante(mid)
     if cle:
-        raise _refus_cle(cle, nommer(mid) if nommer else _DT.REGISTRE[mid]["label"], http)
+        raise _refus_cle(cle, nommer(mid) if nommer else _i18n.Nom(mid, _DT.REGISTRE[mid]["label"]), http)
     try:
         return _DT.sujet_de(mid, sujet)
     except ValueError as e:
@@ -8956,9 +8986,8 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     if model.startswith("gpt-image") or model.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:
             # t182 : même forme que les autres refus « clé absente » (nomme la
-            # clé, renvoie aux Réglages) — AVANT la garde de dépense
-            raise HTTPException(503, f"OPENAI_API_KEY non configurée (Réglages) "
-                                     f"pour {model}.")
+            # clé, renvoie aux Réglages) — AVANT la garde de dépense ; t192 : dans la langue de l'interface
+            raise HTTPException(503, _msg_g("ia.cle.non_configuree", None, nom_cle="OPENAI_API_KEY", modele=model))
         await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])   # tâche #16
         osize = ("1024x1536" if "portrait" in size
                  else "1536x1024" if "landscape" in size else "1024x1024")
@@ -9128,7 +9157,7 @@ async def _process_image_core(body: dict):
             try:
                 nom = await _DT.detourer_image(mid, src, sujet)
             except ValueError as e:
-                raise HTTPException(400, str(e))
+                raise HTTPException(400, _txt_g(e))
             except Exception as e:  # noqa: BLE001 — l'échec fournisseur se NOMME (502), jamais un 500 muet
                 logger.error(f"détourage {mid} en échec : {e}")
                 raise HTTPException(502, f"{_DT.REGISTRE[mid]['label']} : {e}")
@@ -9244,8 +9273,7 @@ async def _process_image_core(body: dict):
         # la garde de dépense, qui ÉCRIT une ligne de dépense (sinon dépense
         # fantôme suivie d'un 502).
         if IP.est_vectoriel(model):
-            raise HTTPException(400, f"{model} : pas de retouche (texte → "
-                                     f"image seulement).")
+            raise HTTPException(400, _msg_g("ia.image.pas_de_retouche", None, modele=model))
         # façade du registre (ids fal, nano-banana-pro, GPT Image 2.5) testée
         # AVANT le préfixe : nano-banana-pro tombait sur Kontext sans le dire
         if IP.via_facade(model) or model.startswith("gpt-image") \
@@ -11076,10 +11104,10 @@ async def shot_objets3d(shot_id: str, body: dict, http: Request = None):
     if mid not in SB.MODELES:
         raise HTTPException(400, f"Modèle de storyboard 3D inconnu : {mid[:40]} (connus : {', '.join(SB.MODELES)}).")
     if not (settings.FAL_KEY or "").strip():          # t183 : 503 qui nomme la clé, AVANT toute garde de dépense
-        raise _refus_cle("FAL_KEY", SB.MODELES[mid]["label"], http)
+        raise _refus_cle("FAL_KEY", _nom_g(mid, SB.MODELES[mid]["label"]), http)
     nom = SB.image_source(s)
     if not nom or not (settings.images_path / nom).is_file():
-        raise HTTPException(400, "Ce plan n'a ni image de production ni croquis : générez-en un avant le storyboard 3D.")
+        raise HTTPException(400, _msg_g("storyboard3d.plan_sans_image", http))
     taille = None
     if body.get("boxes"):
         # relecture t189 : les boîtes sont bornées par la taille RÉELLE de l'image source, avant la garde
@@ -11087,14 +11115,14 @@ async def shot_objets3d(shot_id: str, body: dict, http: Request = None):
             with PILImage.open(settings.images_path / nom) as _im:
                 taille = _im.size
         except Exception:  # noqa: BLE001
-            raise HTTPException(400, f"Image source du plan illisible : {nom}")
+            raise HTTPException(400, _msg_g("storyboard3d.image_illisible", http, nom=nom))
     try:
         boites = SB.valider_boites(body.get("boxes"), taille=taille)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, _txt_g(e, http))
     prompt = body.get("prompt")
     if not SB.MODELES[mid]["corps"] and not boites and not SB.nettoyer_prompt(prompt):
-        raise HTTPException(400, "Décrivez les objets à reconstruire (ex. « personnage, table »), ou tracez des boîtes.")
+        raise HTTPException(400, _msg_g("storyboard3d.objets_a_decrire", http))
     seuil = body.get("detection_threshold")
     if seuil is not None:
         lo, hi = SB.SEUIL_BORNES
@@ -11109,16 +11137,16 @@ async def shot_objets3d(shot_id: str, body: dict, http: Request = None):
     # relecture t189 : la scène doit pouvoir recevoir jusqu'à _MAX_OBJETS objets SAM 3 en plus de ce qu'elle garde
     gardees = await SB.instances_gardees(shot_id)
     if len(gardees) + SB._MAX_OBJETS > _SR._MAX_INSTANCES:
-        raise HTTPException(400, f"La scène du plan garde déjà {len(gardees)} instances : il en faut au plus "
-                                 f"{_SR._MAX_INSTANCES - SB._MAX_OBJETS} pour accueillir jusqu'à {SB._MAX_OBJETS} "
-                                 f"objets SAM 3 ({_SR._MAX_INSTANCES} par scène). Retirez-en au Plateau.")
+        raise HTTPException(400, _msg_g("storyboard3d.scene_pleine", http, n=len(gardees),
+                                        max=_SR._MAX_INSTANCES - SB._MAX_OBJETS, objets=SB._MAX_OBJETS,
+                                        scene=_SR._MAX_INSTANCES))
     await _plafond(SB.op_devis(mid), "chapitres")       # avant la dépense
     try:
         return await SB.reconstruire(shot_id, prompt, boites, mid, seuil)
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, _txt_g(e, http))
     except Exception as e:  # noqa: BLE001 — une réponse de fal inexploitable se DIT, sans scène corrompue
         logger.warning(f"storyboard 3D {shot_id} : {e}")
         raise HTTPException(502, str(e)[:400] if "SAM 3" in str(e) else f"SAM 3 (fal) : {str(e)[:380]}")
@@ -11163,15 +11191,14 @@ def _video_plan(s, body: dict | None, http=None) -> dict:
     except HTTPException as e:
         _refus(400, e.detail)
     if not debut:
-        _refus(400, "Ce plan n'a aucune image de départ : capturez-la au Plateau, ou générez son image de production "
-                    "ou son croquis.")
+        _refus(400, _msg_g("plan.video.sans_debut", http))
     elif not (settings.images_path / debut["nom"]).is_file():
-        _refus(404, f"Image de départ introuvable : {debut['nom']}")
+        _refus(404, _msg_g("plan.video.debut_introuvable", http, nom=debut["nom"]))
     if fin and not (settings.images_path / fin["nom"]).is_file():
-        _refus(404, f"Image de fin introuvable : {fin['nom']}")
+        _refus(404, _msg_g("plan.video.fin_introuvable", http, nom=fin["nom"]))
     out["prompt"] = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
     if not out["prompt"]:
-        _refus(400, "Décrivez le mouvement du plan (prompt de mouvement ou action) avant sa vidéo.")
+        _refus(400, _msg_g("plan.video.mouvement_requis", http))
     try:
         demande = float(body.get("duration_s") or s.duration_s or 4.0)
         if demande != demande or demande in (float("inf"), float("-inf")):

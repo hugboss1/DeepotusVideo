@@ -2150,18 +2150,19 @@ async def _rembg_par_registre(did: str, d: Path, recto: Path, mid: str, sujet) -
     `routes._detourage_controles` (recopié, règle 8 : une pièce n'importe pas `routes`)."""
     import shutil
     from app.services import detourage as _DT
+    from app import i18n as _i18n   # t186/t192 : les messages dans la langue de l'interface, comme routes._refus_cle
+    lang = _i18n.langue_ui()
     try:
         e = _DT.entree(mid, _DT.IMAGE)
     except ValueError as x:
-        raise HTTPException(400, f"Détourage refusé : {x}")
+        raise HTTPException(400, _i18n.msg("ia.detour.refuse", lang, raison=_i18n.texte(x, lang)))
     cle = _DT.cle_manquante(mid)
     if cle:
-        from app import i18n as _i18n   # t186 : le message dans la langue de l'interface, comme routes._refus_cle
-        raise HTTPException(503, _i18n.msg("ia.cle.absente_tir", _i18n.langue_ui(), nom_cle=cle, modele=e["label"]))
+        raise HTTPException(503, _i18n.msg("ia.cle.absente_tir", lang, nom_cle=cle, modele=_i18n.Nom(mid, e["label"])))
     try:
         sujet = _DT.sujet_de(mid, sujet)
     except ValueError as x:
-        raise HTTPException(400, f"Détourage refusé : {x}")
+        raise HTTPException(400, _i18n.msg("ia.detour.refuse", lang, raison=_i18n.texte(x, lang)))
     from app.services import pricing
     prix = pricing.estimate(_DT.op_cout(mid, images=1))["total_usd"] if e["voie"] == "fal" else None
 
@@ -2175,7 +2176,8 @@ async def _rembg_par_registre(did: str, d: Path, recto: Path, mid: str, sujet) -
                 nom = await _DT.detourer_image(mid, recto, sujet, dossier=tmp)
             except Exception as x:                          # noqa: BLE001
                 raise HTTPException(
-                    502, f"{e['label']} a refusé le détourage : {_sans_chemin(x)}")
+                    502, _i18n.msg("ia.detour.echec_fournisseur", lang, modele=_i18n.Nom(mid, e["label"]),
+                                   raison=_i18n.texte(x, lang) if isinstance(x, _i18n.Refus) else _sans_chemin(x)))
             data = await asyncio.to_thread((tmp / nom).read_bytes)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)

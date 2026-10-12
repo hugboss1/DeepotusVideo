@@ -376,7 +376,8 @@ def _decor_sujet(mod: str, sujet):
     try:
         return DT.sujet_de(mod, sujet)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        from app import i18n as _i18n   # t192 : dans la langue de l'interface (route sans Request)
+        raise HTTPException(400, _i18n.texte(e, _i18n.langue_ui()))
 
 
 @router.post("/decor/apercu")

@@ -43,6 +43,7 @@ import httpx
 from loguru import logger
 
 from app.config import settings, SSL_VERIFY
+from app.i18n import Message, Nom, Refus   # t192 : refus traduisibles (texte = le français)
 
 _SFX_URL = "https://api.elevenlabs.io/v1/sound-generation"
 
@@ -428,9 +429,9 @@ def build_request(mid: str, prompt=None, duree=None, video_url=None, echantillon
         args[ch["video"]] = str(video_url)
     p = str(prompt or "").strip()
     if len(p) > e["prompt_max"]:
-        raise ValueError(f"{e['label']} : description trop longue ({len(p)} caractères, {e['prompt_max']} au plus)")
+        raise Refus("ia.prompt.trop_long", modele=Nom(mid, e['label']), n=len(p), max=e['prompt_max'])
     if e["prompt_requis"] and not p:
-        raise ValueError(f"{e['label']} : {DEMANDE_PROMPT}")
+        raise Refus("ia.sfx.prompt_requis", modele=Nom(mid, e['label']))
     if ch["prompt"] and p:
         args[ch["prompt"]] = p
     d = duree_sfx(mid, duree)
@@ -460,7 +461,8 @@ def video_refusee(mid: str, chemin: Path, secondes) -> str | None:
     e = entree_sfx(mid)
     ext = Path(chemin).suffix.lower()
     if e.get("video_ext") and ext not in e["video_ext"]:
-        return f"{e['label']} n'accepte que {', '.join(e['video_ext'])} (vidéo {ext or 'sans extension'})"
+        return Message("ia.video.format" if ext else "ia.video.format_sans_ext", modele=Nom(mid, e['label']),
+                       exts=', '.join(e['video_ext']), ext=ext)
     b = e.get("video_s")
     if b:
         try:
@@ -468,7 +470,8 @@ def video_refusee(mid: str, chemin: Path, secondes) -> str | None:
         except (TypeError, ValueError):
             s = 0.0
         if not b[0] <= s <= b[1]:
-            return f"{e['label']} : la vidéo doit durer de {b[0]:g} à {b[1]:g} s (celle-ci : {s:.1f} s)"
+            return Message("ia.video.duree_plage", modele=Nom(mid, e['label']), lo=f"{b[0]:g}", hi=f"{b[1]:g}",
+                           s=f"{s:.1f}")
     return None
 
 

@@ -36,6 +36,7 @@ from uuid import uuid4
 from loguru import logger
 
 from app.config import settings
+from app.i18n import Refus   # t192 : refus traduisibles (texte = le français)
 
 # ── registre ─────────────────────────────────────────────────────────────────
 MODELES = {
@@ -128,7 +129,7 @@ def build_request(image_url: str, prompt, boxes, modele: str = DEFAUT, detection
     else:
         p = nettoyer_prompt(prompt)
         if not p:
-            raise ValueError("décrivez les objets à reconstruire (ex. « personnage, table »), ou tracez des boîtes.")
+            raise Refus("storyboard3d.objets_requis")
         args["prompt"] = p
     args["export_textured_glb"] = True
     if detection_threshold is not None:
@@ -331,7 +332,7 @@ async def reconstruire(shot_id: str, prompt, boxes, modele: str = DEFAUT, detect
     nom_img = image_source(shot)
     src = settings.images_path / nom_img if nom_img else None
     if src is None or not src.is_file():
-        raise ValueError("ce plan n'a ni image de production ni croquis à reconstruire.")
+        raise Refus("storyboard3d.sans_image")
     url = await MT._upload(src)
     endpoint, args = build_request(url, prompt, boxes, modele, detection_threshold)
     res = await MT._fal_subscribe(endpoint, args)
