@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { taillePour, requete, requeteDetour, etapes, verifierCible, calquesCibles, devisCorps, libellePrix,
          messageErreur, unSeulVol, executerPlan, op_image_remplacer, retirerFondFlux, nomDepot, TAILLES,
-         garderClics, brancherPoignee, GESTES_GARDES }
+         garderClics, brancherPoignee, GESTES_GARDES, verifierDetour }
   from "../js/mod-iacalque.js";
 import { docVierge } from "../js/mod-biblio.js";
 import { Historique, op_calque_ajouter, op_calque_verrou, op_ajouter } from "../js/mod-doc.js";
@@ -117,6 +117,32 @@ const banc = () => {
   let m = "";
   try { await executerPlan({ calqueId: b.c2, prompt: "x" }, b.d); } catch (e) { m = e.message; }
   ok("[tir] génération vide : erreur lisible, rien n'est posé", /aucune image/.test(m) && b.poses.length === 0, m);
+}
+
+/* ── [detour-avant] le détourage incomplet est refusé AVANT la génération payée ── */
+{
+  const b = banc();
+  let m = "";
+  try { await executerPlan({ calqueId: b.c2, prompt: "x", modele: "flux-3", detourer: true, modeleDetour: "" }, b.d); }
+  catch (e) { m = e.message; }
+  ok("[detour-avant] détourage coché sans modèle : refusé, AUCUN POST", !!m && b.appels.length === 0, m + " / " + b.appels.length);
+  const b2 = banc();
+  b2.d.sujetRequis = async (id) => id === "sam3-sujet";
+  let m2 = "";
+  try { await executerPlan({ calqueId: b2.c2, prompt: "x", modele: "flux-3", detourer: true, modeleDetour: "sam3-sujet", sujet: "  " }, b2.d); }
+  catch (e) { m2 = e.message; }
+  ok("[detour-avant] tir direct, modèle à sujet sans sujet : refusé, AUCUN POST", /sujet/.test(m2) && b2.appels.length === 0, m2 + " / " + b2.appels.length);
+  const b3 = banc();
+  b3.d.sujetRequis = async (id) => id === "sam3-sujet";
+  await executerPlan({ calqueId: b3.c2, prompt: "x", modele: "flux-3", detourer: true, modeleDetour: "sam3-sujet", sujet: "le renard" }, b3.d);
+  ok("[detour-avant] sujet dit : le tir part et le sujet suit", b3.appels.length === 2 && b3.appels[1].corps.sujet === "le renard");
+  let m3 = "";
+  try { verifierDetour({ detourer: true, modeleDetour: "bria-objet", sujet: "" }, true); } catch (e) { m3 = e.message; }
+  ok("[detour-avant] verifierDetour : sujet exigé", /sujet/.test(m3));
+  let rien = true;
+  try { verifierDetour({ detourer: false, modeleDetour: "" }, true); } catch (e) { rien = false; }
+  ok("[detour-avant] sans détourage : rien à vérifier", rien);
+  ok("[prix] sans modèle choisi : aucun devis (pas de prix faux)", devisCorps({ modele: "", detourer: true, modeleDetour: "bria-rmbg" }) === null);
 }
 
 /* ── [vol] un second clic pendant le vol ne relance rien ── */

@@ -83,8 +83,11 @@ export function calquesCibles(doc) {
 }
 
 // le devis serveur (POST /api/cost/estimate) : une campagne image + détourage
+// sans modèle choisi (catalogue illisible), le serveur prendra le défaut des Réglages : aucun devis plutôt
+// qu'un prix faux (null → « Prix estimé : … »)
 export function devisCorps(o) {
-  const ops = [{ kind: "image", model: (o && o.modele) || "flux", n: 1 }];
+  if (!o || !o.modele) return null;
+  const ops = [{ kind: "image", model: o.modele, n: 1 }];
   if (o && o.detourer && o.modeleDetour) ops.push({ kind: "detourage", modele: o.modeleDetour, images: 1 });
   return { kind: "campaign", ops };
 }
@@ -127,8 +130,18 @@ export function unSeulVol(fn) {
 
 // le tir : cible vérifiée, génération, détourage éventuel, pose sur LE calque demandé — d = {doc(), post(url,
 // corps), poser(nom, calqueId)} (fetch et pose réels dans la page, faux au banc)
+// le détourage demandé est complet AVANT la génération payée : un modèle, et le sujet si le modèle l'exige
+// (`requis` : vrai si le registre le dit)
+export function verifierDetour(o, requis) {
+  if (!o || !o.detourer) return;
+  requeteDetour({ nom: "", modele: o.modeleDetour, sujet: o.sujet });
+  if (requis && !String(o.sujet || "").trim()) throw new Error(T("vectorlab.iacalque.sujet_requis"));
+}
+
 export async function executerPlan(o, d) {
   verifierCible(d.doc(), o.calqueId);
+  requete(o);
+  verifierDetour(o, o.detourer && d.sujetRequis ? await d.sujetRequis(o.modeleDetour) : false);
   let nom = null;
   for (const e of etapes(o)) {
     if (e.op === "generer") {
@@ -259,6 +272,8 @@ export function initIaCalque(VL) {
     doc: () => etat.doc,
     post: poster,
     poser: (nom, calqueId) => { etat.calqueActif = calqueId; return VL.poserDepuisLibrary(nom, calqueId); },
+    // le registre dit si le modèle exige un sujet (tir direct generer(opts) compris : le panneau n'est pas ouvert)
+    sujetRequis: async (id) => sujetRequis(await catalogue("detourage_image").catch(() => []), id),
   };
   const lancer = unSeulVol(async (o) => {
     VL.toast(T("vectorlab.image.generation"));
@@ -342,7 +357,9 @@ export function initIaCalque(VL) {
     const n = ++devisN;
     el.textContent = T("vectorlab.iacalque.prix_inconnu");
     try {
-      const d = await poster("/api/cost/estimate", devisCorps(choix()));
+      const corps = devisCorps(choix());
+      if (!corps) return;                            // aucun modèle : « Prix estimé : … », jamais un prix faux
+      const d = await poster("/api/cost/estimate", corps);
       if (n === devisN) el.textContent = libellePrix(d);
     } catch (e) {
       if (n === devisN) el.textContent = T("vectorlab.iacalque.prix_inconnu");
@@ -355,9 +372,7 @@ export function initIaCalque(VL) {
     try {
       verifierCible(etat.doc, c.calqueId);          // AVANT toute dépense
       requete(c);
-      if (c.detourer && sujetRequis(modsDetour, c.modeleDetour) && !c.sujet.trim()) {
-        throw new Error(T("vectorlab.iacalque.sujet_requis"));
-      }
+      verifierDetour(c, sujetRequis(modsDetour, c.modeleDetour));
     } catch (e) { if (etatEl) etatEl.textContent = e.message; VL.toast(e.message, true); return; }
     if (c.modele) ecrire("dz_vl_iac_modele", c.modele);
     if (c.modeleDetour) ecrire("dz_vl_iac_detour", c.modeleDetour);
