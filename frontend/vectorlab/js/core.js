@@ -5,7 +5,7 @@
 // injection (initOutils/initCalques) — aucun cycle d'import.
 import { T } from "./mod-i18n.js";
 import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique,
-         sommetDe, op_dupliquer, reperes_guides, reperes_rects, planches_guides }
+         sommetDe, op_dupliquer, reperes_guides, reperes_rects, planches_guides, op_ids_reparer, ids_doublons }
   from "./mod-doc.js";
 import { grille_d, grille_aimanter } from "./mod-grille.js";
 import { dzi } from "./mod-icones.js";
@@ -580,6 +580,7 @@ async function charger() {
     etat.histo = new Historique();
     etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id;
     majTete();
+    verifierIds();                     // id-groupe : réparer / signaler les ids en double
     rendre();
     // centrer le document dans la scène
     const r = stageRect();
@@ -614,6 +615,15 @@ async function sauver() {
     // échec ne casse pas un save
     if (VL.vignette) VL.vignette().catch(() => {});
   } catch (e) { toast(T("vectorlab.core.sauvegarde_echec", { message: e.message }), true); }
+}
+
+// id-groupe : un document d'avant le correctif peut porter un groupe au MÊME id qu'un de ses descendants
+// (op_grouper, op_ecreter) — il reçoit un id neuf ; tout autre doublon est seulement signalé
+function verifierIds() {
+  const rep = op_ids_reparer(etat.doc), dbl = ids_doublons(etat.doc);
+  if (rep.length) etat.sale = true;
+  if (dbl.length) toast(T("vectorlab.core.ids_doublons", { ids: dbl.join(", ") }), true);
+  else if (rep.length) toast(T(rep.length > 1 ? "vectorlab.core.ids_repares_plusieurs" : "vectorlab.core.ids_repares_un", { n: rep.length }));
 }
 
 function toast(msg, erreur) {
@@ -775,7 +785,7 @@ const VL = {
   versUnite: (px) => px / depuisUnite(1, unites()),
   depuisUnite: (v) => depuisUnite(v, unites()),
   dupliquerSelection, copierSelection, collerSelection,
-  executer, annuler, refaire, sauver, charger,
+  executer, annuler, refaire, sauver, charger, verifierIds,
   setSelection, selectionElems, bboxSelectionEcran, bboxSelectionDoc,
   pathSelectionne, purgerSelection, objetDe,
   sommetDe: (id) => sommetDe(etat.doc, id),
