@@ -90,6 +90,9 @@ export function initCalques(VL) {
       <button data-act="monter" title="${T("vectorlab.calques.monter_titre")}" aria-label="${T("vectorlab.calques.monter")}">${dzi("dz-edit-monter", 16)}</button>
       <button data-act="descendre" title="${T("vectorlab.calques.descendre_titre")}" aria-label="${T("vectorlab.calques.descendre")}">${dzi("dz-edit-descendre", 16)}</button>
       <button data-act="poubelle" title="${T("vectorlab.calques.supprimer_titre")}" aria-label="${T("vectorlab.calques.supprimer_actif")}">${dzi("dz-action-supprimer", 16)}</button>`;
+    // t190 : « Image IA sur ce calque », après les effets (agit sur le calque actif, comme renommer / fx)
+    actions.querySelector('[data-act="fx"]').insertAdjacentHTML("afterend", `
+      <button data-act="ia" title="${T("vectorlab.iacalque.bouton_titre")}" aria-label="${T("vectorlab.iacalque.bouton")}">${dzi("dz-media-generer-image", 16)}</button>`);
     section.appendChild(actions);
     // l'ancien ＋ du summary (s'il existe encore) cède l'id au nouveau bouton
     const vieux = section.querySelector("summary #btnCalquePlus"); if (vieux) vieux.remove();
@@ -206,6 +209,7 @@ export function initCalques(VL) {
     if (act === "renommer" && c) renommer(c.id);
     else if (act === "reglage") VL.ouvrirOnglet && VL.ouvrirOnglet("pixel");
     else if (act === "masque" || act === "fx") VL.ouvrirOnglet && VL.ouvrirOnglet("apparence");
+    else if (act === "ia" && c) { etat.calqueActif = c.id; VL.iaCalque.ouvrir(c.id); }
     else if (act === "pixel") { if (A.image && A.image.biblio) A.image.biblio(); else VL.ouvrirOnglet && VL.ouvrirOnglet("image"); }
     else if (act === "groupe") { if (etat.selection.length >= 2 && A.selection) A.selection.grouper(); else VL.toast(T("vectorlab.calques.grouper_deux"), true); }
     else if (act === "monter" && c) VL.executer(op_calque_reordonner, c.id, Math.min(etat.doc.calques.length - 1, i + 1));   // monter à l'écran = vers la fin

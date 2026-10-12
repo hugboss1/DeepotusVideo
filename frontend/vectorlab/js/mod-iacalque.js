@@ -1,0 +1,559 @@
+// mod-iacalque.js — t190 (G8, plan « Génération IA enrichie ») : l'IMAGE IA PAR CALQUE du Vectorlab.
+//
+// Le geste voulu : fond ; calque 1 : générer une image, retirer son fond ; calque 2 : texte et formes ;
+// calque 3 : générer une autre image… Le panneau flottant « Image IA sur le calque » (même allure que le
+// dialogue IA de mod-ia : posé sur #stage, déplaçable par sa tête) choisit le CALQUE cible (les calques non
+// verrouillés, présélection = celui d'où l'on vient), le MODÈLE (DzModelesIA, une option sans clé reste
+// choisissable : le 503 n'arrive qu'au lancement), le FORMAT d'après la page, et le DÉTOURAGE (registre G4,
+// sujet à garder si le modèle l'exige) ; le prix TOTAL est chiffré par le serveur (/api/cost/estimate,
+// campagne image + détourage), jamais inventé.
+//
+// Les modèles vectoriels (sortie « svg », Recraft) n'y sont PAS : l'image posée ici est un raster, et
+// /images/generate refuse un modèle vectoriel sans `sortie: "svg"` (le dialogue IA du canevas, mod-ia, pose
+// les tracés). « Retirer le fond » du panneau Image (ligneDetour) remplace l'image par une NOUVELLE image du
+// magasin du document en UNE commande (op_image_remplacer via VL.executer) : Ctrl+Z rend l'image d'avant,
+// dont le PNG reste au magasin.
+//
+// La logique PURE est en tête (banc qa/iacalque.test.mjs) ; initIaCalque ne touche le DOM qu'à l'appel.
+import { T } from "./mod-i18n.js";
+import { dzi } from "./mod-icones.js";
+
+/* ── pur ── */
+const esc = (s) => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// les formats que /images/generate accepte (fal ; OpenAI et Nano Banana les traduisent, image_providers)
+export const TAILLES = ["portrait_16_9", "portrait_4_3", "square_hd", "landscape_4_3", "landscape_16_9"];
+
+// le rapport largeur / hauteur de chaque format
+export const RAPPORTS = { portrait_16_9: 9 / 16, portrait_4_3: 3 / 4, square_hd: 1, landscape_4_3: 4 / 3, landscape_16_9: 16 / 9 };
+
+// le format au rapport le plus PROCHE de la page (doc.taille), en écart LOGARITHMIQUE |ln(r) − ln(rf)| : un
+// portrait et le paysage symétrique sont à égale distance du carré (2:3 → portrait_4_3, 9:16 → portrait_16_9)
+export function taillePour(t) {
+  const w = +(t && t.w), h = +(t && t.h);
+  if (!(w > 0 && h > 0)) return "square_hd";
+  const lr = Math.log(w / h);
+  let mieux = "square_hd", ecart = Infinity;
+  for (const f of TAILLES) {
+    const e = Math.abs(lr - Math.log(RAPPORTS[f]));
+    if (e < ecart - 1e-12) { ecart = e; mieux = f; }
+  }
+  return mieux;
+}
+
+// le corps de POST /api/images/generate ({prompt, n, model, size, source}) ; sans modèle, le serveur prend
+// celui des Réglages
+export function requete(o) {
+  const prompt = String((o && o.prompt) || "").trim();
+  if (!prompt) throw new Error(T("vectorlab.iacalque.prompt_vide"));
+  const q = { prompt, n: 1 };
+  if (o.modele) q.model = String(o.modele);
+  q.size = TAILLES.includes(o.taille) ? o.taille : "square_hd";
+  q.source = "vectorlab";
+  return q;
+}
+
+// le corps de POST /api/images/process (registre G4) : {op, filename, modele, sujet?, source}
+export function requeteDetour(o) {
+  if (!o || !o.modele) throw new Error(T("vectorlab.iacalque.detour_modele"));
+  const q = { op: "remove-bg", filename: String(o.nom || ""), modele: String(o.modele) };
+  const sujet = String(o.sujet || "").trim();
+  if (sujet) q.sujet = sujet;
+  q.source = "vectorlab";
+  return q;
+}
+
+// le PLAN d'un tir : générer, détourer (sur demande), poser sur LE calque demandé
+export function etapes(o) {
+  const out = [{ op: "generer" }];
+  if (o && o.detourer) out.push({ op: "detourer", modele: o.modeleDetour, sujet: o.sujet || "" });
+  out.push({ op: "poser", calqueId: o && o.calqueId });
+  return out;
+}
+
+// la cible AVANT toute dépense : un calque inconnu ou verrouillé est refusé, rien ne part
+export function verifierCible(doc, calqueId) {
+  const c = doc && Array.isArray(doc.calques) ? doc.calques.find((x) => x.id === calqueId) : null;
+  if (!c) throw new Error(T("vectorlab.iacalque.calque_absent", { id: String(calqueId) }));
+  if (c.verrou) throw new Error(T("vectorlab.iacalque.calque_verrouille", { nom: c.nom || c.id }));
+  return c;
+}
+
+// les calques qu'on peut viser (le dessus en tête, comme le panneau Calques)
+export function calquesCibles(doc) {
+  return [...((doc && doc.calques) || [])].reverse().filter((c) => !c.verrou)
+    .map((c) => ({ id: c.id, nom: c.nom || c.id }));
+}
+
+// le devis serveur (POST /api/cost/estimate) : une campagne image + détourage
+// sans modèle choisi (catalogue illisible), le serveur prendra le défaut des Réglages : aucun devis plutôt
+// qu'un prix faux (null → « Prix estimé : … »)
+export function devisCorps(o) {
+  if (!o || !o.modele) return null;
+  const ops = [{ kind: "image", model: o.modele, n: 1 }];
+  if (o && o.detourer && o.modeleDetour) ops.push({ kind: "detourage", modele: o.modeleDetour, images: 1 });
+  return { kind: "campaign", ops };
+}
+
+// le montant en dollars, même règle que DzModelesIA.prixUsd : arrondi au millième, au moins deux décimales
+export function dollars(v) {
+  let s = (Math.round(v * 1000) / 1000).toFixed(3);
+  while (/\.\d{3,}$/.test(s) && s.endsWith("0")) s = s.slice(0, -1);
+  return "$" + s;
+}
+
+// le libellé du prix : jamais « gratuit » pour un 0 $ payant (« à mesurer ») ; une ligne locale à 0 $ l'est
+export function libellePrix(devis) {
+  if (!devis || !Array.isArray(devis.breakdown)) return T("vectorlab.iacalque.prix_inconnu");
+  const total = +devis.total_usd || 0;
+  const aMesurer = devis.breakdown.some((l) => !(+l.usd > 0) && l.provider !== "local");
+  if (!(total > 0)) return T("vectorlab.iacalque.prix_a_mesurer");
+  return T("vectorlab.iacalque.prix", { prix: dollars(total) }) + (aMesurer ? T("vectorlab.iacalque.prix_partiel") : "");
+}
+
+// le message d'une réponse en échec : 503 = clé absente (lisible), le 402 d'un plafond refusé rend une chaîne
+export function messageErreur(status, d, statut) {
+  const det = d && d.detail;
+  const m = typeof det === "string" ? det
+    : det && det.dz_plafond && det.dz_plafond.message ? det.dz_plafond.message
+      : det ? JSON.stringify(det) : (statut || String(status));
+  return status === 503 ? T("vectorlab.iacalque.cle_absente", { detail: m }) : m;
+}
+
+// UN SEUL tir à la fois : un second appel pendant le vol ne relance rien (rend null) ; `apres` (facultatif) est
+// rappelé une fois le vol fini, réussi ou non — l'appelant y redessine ses boutons (« en cours… » ne reste jamais)
+export function unSeulVol(fn, apres) {
+  const g = async (...a) => {
+    if (g.enVol) return null;
+    g.enVol = true;
+    try { return await fn(...a); } finally {
+      g.enVol = false;
+      if (apres) { try { apres(); } catch (e) { /* le redessin n'efface pas l'issue du tir */ } }
+    }
+  };
+  g.enVol = false;
+  return g;
+}
+
+// le détourage demandé est complet AVANT la génération payée : un modèle, sa clé (l'option sans clé reste
+// CHOISISSABLE, seul le lancement est refusé) et le sujet si le modèle l'exige. `info` = l'entrée du catalogue
+// detourage_image ({dispo, cle, prompt}) — LA source du « sujet requis » et de la clé ; null si inconnue.
+export function verifierDetour(o, info) {
+  if (!o || !o.detourer) return;
+  requeteDetour({ nom: "", modele: o.modeleDetour, sujet: o.sujet });
+  if (info && info.dispo === false) throw new Error(T("vectorlab.iacalque.detour_cle", { cle: info.cle || "?" }));
+  if (info && info.prompt && !String(o.sujet || "").trim()) throw new Error(T("vectorlab.iacalque.sujet_requis"));
+}
+
+// le tir : cible vérifiée, génération, détourage éventuel, pose sur LE calque demandé — d = {doc(), post(url,
+// corps), poser(nom, calqueId) → id (faux = pose refusée : VL.executer avale l'erreur), infoDetour(id)?}
+// (fetch et pose réels dans la page, faux au banc). Tout refus GRATUIT part avant le premier POST. Un détourage
+// qui échoue APRÈS la génération payée (plafond refusé, fournisseur en 502…) n'efface pas l'image payée : elle est
+// posée telle quelle et `detourEchec` le dit. Une pose impossible le dit aussi, avec le nom gardé en Bibliothèque.
+export async function executerPlan(o, d) {
+  verifierCible(d.doc(), o.calqueId);
+  requete(o);
+  verifierDetour(o, o.detourer && d.infoDetour ? await d.infoDetour(o.modeleDetour) : null);
+  let nom = null, detourEchec = "";
+  for (const e of etapes(o)) {
+    if (e.op === "generer") {
+      const r = await d.post("/api/images/generate", requete(o));
+      nom = (r && r.images || [])[0];
+      if (!nom) throw new Error(T("vectorlab.image.generation_vide"));
+    } else if (e.op === "detourer") {
+      try {
+        const r = await d.post("/api/images/process", requeteDetour({ nom, modele: e.modele, sujet: e.sujet }));
+        const n2 = (r && r.images || [])[0];
+        if (!n2) throw new Error(T("vectorlab.iacalque.detour_vide"));
+        nom = n2;
+      } catch (x) { detourEchec = String(x && x.message || x); }
+    } else if (e.op === "poser") {
+      let id;
+      try {
+        verifierCible(d.doc(), e.calqueId);        // verrouillé ou supprimé PENDANT le vol
+        id = await d.poser(nom, e.calqueId);
+      } catch (x) {
+        throw new Error(T("vectorlab.iacalque.pose_echouee", { raison: String(x && x.message || x), nom }));
+      }
+      if (!id) throw new Error(T("vectorlab.iacalque.pose_echouee", { raison: T("vectorlab.iacalque.pose_refusee"), nom }));
+      return detourEchec ? { nom, id, detourEchec } : { nom, id };
+    }
+  }
+}
+
+// une image du document (calques et groupes)
+function _image(doc, id) {
+  const visiter = (objs) => {
+    for (const o of objs || []) {
+      if (o.id === id) return o;
+      if (o.type === "groupe") { const x = visiter(o.enfants); if (x) return x; }
+    }
+    return null;
+  };
+  for (const c of (doc && doc.calques) || []) { const o = visiter(c.objets); if (o) return o; }
+  return null;
+}
+
+// la commande RÉVERSIBLE du détourage : l'objet désigne une AUTRE image du magasin (href) — Annuler rend
+// l'href d'avant, dont le PNG n'a pas été touché. La révision raster et l'empreinte de l'ancienne image ne
+// suivent pas ; un rognage qui ne tient plus dans la nouvelle taille native tombe.
+export function op_image_remplacer(doc, id, href, nat) {
+  const o = _image(doc, id);
+  if (!o || o.type !== "image") throw new Error(T("vectorlab.iacalque.image_introuvable", { id: String(id) }));
+  if (!href || !(nat && nat.w > 0 && nat.h > 0)) throw new Error(T("vectorlab.iacalque.image_invalide"));
+  o.href = String(href);
+  const memeTaille = o.nat && o.nat.w === nat.w && o.nat.h === nat.h;
+  o.nat = { w: nat.w, h: nat.h };
+  delete o.rev; delete o.px;
+  if (o.rognage && !memeTaille) delete o.rognage;
+  return true;                                       // VL.executer rend undefined quand il avale un échec
+}
+
+// « Retirer le fond » d'une image du document — d = {versBiblio(o) → nom en Bibliothèque, post(url, corps),
+// deposer(nom) → {href, nat} (nouvelle image du magasin du document), executer(fn, …args)}
+export async function retirerFondFlux(o, choix, d) {
+  if (!o || o.type !== "image") throw new Error(T("vectorlab.iacalque.image_introuvable", { id: String(o && o.id) }));
+  const corps = requeteDetour({ nom: "", modele: choix && choix.modele, sujet: choix && choix.sujet });
+  corps.filename = await d.versBiblio(o);
+  const r = await d.post("/api/images/process", corps);
+  const nom = (r && r.images || [])[0];
+  if (!nom) throw new Error(T("vectorlab.iacalque.detour_vide"));
+  const { href, nat } = await d.deposer(nom);
+  // jamais par-dessus l'image d'avant : Annuler doit la retrouver
+  if (href === o.href) throw new Error(T("vectorlab.iacalque.meme_image"));
+  if (!d.executer(op_image_remplacer, o.id, href, nat)) {
+    throw new Error(T("vectorlab.iacalque.detour_remplacement", { nom }));
+  }
+  return href;
+}
+
+// le nom du dépôt en Bibliothèque de l'image à détourer (`vector_` : provenance vectorlab, réécrit en place)
+export function nomDepot(docId, href) {
+  const a = (s) => String(s || "").replace(/\.png$/i, "").replace(/[^A-Za-z0-9_-]+/g, "-");
+  return `vector_${a(docId)}_detour_${a(href)}.png`;
+}
+
+/* ── DOM ── */
+// le panneau vit DANS #stage : sans garde, le pointerdown d'un contrôle remonte au gestionnaire de l'outil
+// Sélection (mod-tools, en bulle sur #stage) qui pose setPointerCapture(#stage) — le click part alors sur
+// #stage, la case ne se coche pas, le bouton ne part pas (vu à la preuve 8799). Les gestes du panneau
+// s'arrêtent à lui (en bulle : ses propres écouteurs, dont la poignée, ont déjà joué) ; la molette ne zoome
+// pas le canevas. Rien n'est preventDefault ici : la case, les listes et le texte gardent leur geste natif.
+// Le CLAVIER aussi : le keydown global de core.js n'ignore que INPUT/TEXTAREA — sur une liste ou un bouton du
+// panneau, Échap désélectionnait et une lettre changeait d'outil.
+export const GESTES_GARDES = ["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel", "keydown"];
+export function garderClics(el) {
+  for (const t of GESTES_GARDES) {
+    el.addEventListener(t, (ev) => ev.stopPropagation(), t === "wheel" ? { passive: true } : false);
+  }
+}
+
+// déplaçable par sa tête, comme le dialogue IA du canevas (borné à la scène)
+export function brancherPoignee(el, stage, win) {
+  el.addEventListener("pointerdown", (ev) => {
+    if (!ev.target.closest("[data-poigne]") || ev.target.closest("button")) return;
+    const r = el.getBoundingClientRect();
+    const ox = ev.clientX - r.left, oy = ev.clientY - r.top;
+    const sr = stage.getBoundingClientRect();
+    const bouge = (e2) => {
+      el.style.left = Math.max(0, Math.min(sr.width - 60, e2.clientX - sr.left - ox)) + "px";
+      el.style.top = Math.max(0, Math.min(sr.height - 30, e2.clientY - sr.top - oy)) + "px";
+      el.style.right = "auto";
+    };
+    const fin = () => { win.removeEventListener("pointermove", bouge); win.removeEventListener("pointerup", fin); };
+    win.addEventListener("pointermove", bouge);
+    win.addEventListener("pointerup", fin);
+    ev.preventDefault();
+  });
+}
+
+export function initIaCalque(VL) {
+  const { $, etat } = VL;
+  const lire = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
+  const ecrire = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* stockage indisponible */ } };
+  const MI = () => (typeof window !== "undefined" && window.DzModelesIA) || null;
+
+  async function poster(url, corps) {
+    const r = await window.fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corps), cache: "no-store" });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(messageErreur(r.status, d, r.statusText));
+    return d;
+  }
+
+  // les catalogues (gratuits), lus une fois par page
+  const catalogues = {};
+  function catalogue(nature) {
+    if (!catalogues[nature]) {
+      const M = MI();
+      catalogues[nature] = M ? M.charger(nature).then((l) => M.filtrer(l)) : Promise.resolve([]);
+      catalogues[nature].catch(() => { delete catalogues[nature]; });
+    }
+    return catalogues[nature];
+  }
+  // l'entrée du catalogue d'un modèle de détourage (dispo, clé, sujet exigé) — catalogue() est la SEULE source
+  const infoDe = (mods, id) => (mods || []).find((m) => m.id === id) || null;
+  const sujetRequis = (mods, id) => !!(infoDe(mods, id) || {}).prompt;
+
+  /* ── le tir (avec ou sans panneau) ── */
+  const deps = {
+    doc: () => etat.doc,
+    post: poster,
+    // le calque actif ne change qu'une fois la pose RÉUSSIE
+    poser: async (nom, calqueId) => {
+      const id = await VL.poserDepuisLibrary(nom, calqueId);
+      if (id) etat.calqueActif = calqueId;
+      return id;
+    },
+    // tir direct generer(opts) compris : le panneau n'est peut-être pas ouvert
+    infoDetour: async (id) => infoDe(await catalogue("detourage_image").catch(() => []), id),
+  };
+  const lancer = unSeulVol(async (o) => {
+    VL.toast(T("vectorlab.image.generation"));
+    return executerPlan({ ...o, taille: o.taille || taillePour(etat.doc && etat.doc.taille) }, deps);
+  }, () => majBouton());
+
+  /* ── le panneau ── */
+  let cible = "", modsDetour = [], retour = null;
+  function hote() {
+    let el = $("#iaCalqueDlg");
+    if (el) return el;
+    const stage = $("#stage");
+    if (!stage) return null;
+    el = document.createElement("div");
+    el.id = "iaCalqueDlg";
+    el.className = "ia-dlg iac-dlg";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-labelledby", "iacTitre");
+    el.hidden = true;
+    stage.appendChild(el);
+    brancher(el);
+    return el;
+  }
+  const nomCalque = (id) => { const c = etat.doc && etat.doc.calques.find((x) => x.id === id); return c ? (c.nom || c.id) : String(id); };
+  const choix = () => ({
+    calqueId: cible,
+    prompt: ($("#iacPrompt") || {}).value || "",
+    modele: ($("#iacModele") || {}).value || "",
+    detourer: !!($("#iacDetourer") || {}).checked,
+    modeleDetour: ($("#iacDetour") || {}).value || "",
+    sujet: ($("#iacSujet") || {}).value || "",
+  });
+
+  function squelette(el) {
+    const cibles = calquesCibles(etat.doc);
+    el.innerHTML = `
+      <div class="ia-tete" data-poigne="1">
+        <span class="ia-titre" id="iacTitre">${T("vectorlab.iacalque.titre")}</span>
+        <span class="ia-sp"></span>
+        <button class="ia-x" data-act="fermer" title="${T("vectorlab.ia.fermer")}" aria-label="${T("vectorlab.ia.fermer")}">${dzi("dz-action-fermer", 16)}</button>
+      </div>
+      <div class="ia-bas">
+        <label class="ia-moteur">${T("vectorlab.iacalque.calque")}
+          <select id="iacCalque" title="${T("vectorlab.iacalque.calque_aide")}">${cibles.map((c) =>
+            `<option value="${esc(c.id)}"${c.id === cible ? " selected" : ""}>${esc(c.nom)}</option>`).join("")}</select></label>
+        <textarea id="iacPrompt" data-dz-ia="image" rows="3" placeholder="${T("vectorlab.iacalque.placeholder")}"></textarea>
+        <label class="ia-moteur">${T("vectorlab.ia.modele")}
+          <select id="iacModele" title="${T("vectorlab.iacalque.modele_aide")}"><option value="">…</option></select></label>
+        <label class="ia-moteur iac-case"><input type="checkbox" id="iacDetourer"/>${T("vectorlab.iacalque.retirer_fond")}</label>
+        <label class="ia-moteur" id="iacDetourLigne" hidden>${T("vectorlab.iacalque.detourage")}
+          <select id="iacDetour" title="${T("vectorlab.iacalque.detour_aide")}"><option value="">…</option></select></label>
+        <input type="text" id="iacSujet" hidden placeholder="${T("vectorlab.iacalque.sujet")}" title="${T("vectorlab.iacalque.sujet_aide")}"/>
+        <div class="iac-prix" id="iacPrix">${T("vectorlab.iacalque.prix_inconnu")}</div>
+        <button id="iacGo" class="primaire">${dzi("dz-media-generer-image", 16)}<span id="iacGoTexte"></span></button>
+        <div class="iac-etat" id="iacEtat" role="status"></div>
+      </div>`;
+    majBouton();
+    const M = MI();
+    if (!M) { $("#iacEtat").textContent = T("vectorlab.iacalque.catalogue_absent"); return; }
+    // les catalogues en cache (une lecture par page), remplis comme dans ligneDetour : une seule source
+    catalogue("image").then((l) => {
+      const sel = $("#iacModele");
+      if (sel && sel.isConnected) { M.remplir(sel, l, { valeur: lire("dz_vl_iac_modele") }); majDevis(); }
+    }).catch(() => { const e = $("#iacEtat"); if (e) e.textContent = T("vectorlab.iacalque.catalogue_absent"); });
+    catalogue("detourage_image").then((l) => {
+      modsDetour = l;
+      const sel = $("#iacDetour");
+      if (sel && sel.isConnected) { M.remplir(sel, l, { valeur: lire("dz_vl_iac_detour") }); majSujet(); majDevis(); }
+    }).catch(() => { /* le détourage reste sans liste : la case seule (le tir le refusera, sans dépense) */ });
+  }
+  function majBouton() {
+    const go = $("#iacGo"), tx = $("#iacGoTexte");
+    if (!go || !tx) return;
+    tx.textContent = lancer.enVol ? T("vectorlab.iacalque.en_cours") : T("vectorlab.iacalque.generer_sur", { nom: nomCalque(cible) });
+    go.disabled = lancer.enVol || !cible;
+    // tous les calques verrouillés : le bouton reste gris, la raison est écrite
+    const e = $("#iacEtat");
+    if (!cible && e) e.textContent = T("vectorlab.iacalque.aucun_calque_libre");
+  }
+  function majSujet() {
+    const c = choix();
+    const l = $("#iacDetourLigne"), s = $("#iacSujet");
+    if (l) l.hidden = !c.detourer;
+    if (s) s.hidden = !(c.detourer && sujetRequis(modsDetour, c.modeleDetour));
+  }
+  let devisN = 0;
+  async function majDevis() {
+    const el = $("#iacPrix");
+    if (!el) return;
+    const n = ++devisN;
+    el.textContent = T("vectorlab.iacalque.prix_inconnu");
+    try {
+      const corps = devisCorps(choix());
+      if (!corps) return;                            // aucun modèle : « Prix estimé : … », jamais un prix faux
+      const d = await poster("/api/cost/estimate", corps);
+      if (n === devisN) el.textContent = libellePrix(d);
+    } catch (e) {
+      if (n === devisN) el.textContent = T("vectorlab.iacalque.prix_inconnu");
+    }
+  }
+
+  async function tirer() {
+    if (lancer.enVol) return;                       // anti-double tir : le second clic ne relance rien
+    const c = choix(), dire = (t) => { const e = $("#iacEtat"); if (e) e.textContent = t; };   // relu à chaque fois
+    try {
+      verifierCible(etat.doc, c.calqueId);          // AVANT toute dépense
+      requete(c);
+      verifierDetour(c, infoDe(modsDetour, c.modeleDetour));
+    } catch (e) { dire(e.message); VL.toast(e.message, true); return; }
+    if (c.modele) ecrire("dz_vl_iac_modele", c.modele);
+    if (c.modeleDetour) ecrire("dz_vl_iac_detour", c.modeleDetour);
+    const p = lancer(c);
+    majBouton();
+    dire(T("vectorlab.iacalque.en_cours"));
+    try {
+      const r = await p;
+      if (r && r.detourEchec) {
+        const t = T("vectorlab.iacalque.detour_echoue_pose", { raison: r.detourEchec, calque: nomCalque(c.calqueId) });
+        dire(t); VL.toast(t, true);
+      } else if (r) dire(T("vectorlab.iacalque.posee", { nom: r.nom, calque: nomCalque(c.calqueId) }));
+    } catch (e) {
+      dire(e.message);
+      VL.toast(e.message, true);
+    }
+    majBouton();
+  }
+
+  function brancher(el) {
+    el.addEventListener("click", (ev) => {
+      const b = ev.target.closest("button");
+      if (!b) return;
+      if (b.dataset.act === "fermer") fermer();
+      else if (b.id === "iacGo") tirer();
+    });
+    el.addEventListener("change", (ev) => {
+      const id = ev.target.id;
+      if (id === "iacCalque") { cible = ev.target.value; majBouton(); }
+      if (id === "iacDetourer" || id === "iacDetour") majSujet();
+      if (id === "iacModele" || id === "iacDetourer" || id === "iacDetour") majDevis();
+    });
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") { ev.preventDefault(); fermer(); }
+      if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey) && ev.target.id === "iacPrompt") { ev.preventDefault(); tirer(); }
+    });
+    brancherPoignee(el, $("#stage"), window);
+    garderClics(el);
+  }
+
+  function ouvrir(calqueId) {
+    if (!etat.doc) { VL.toast(T("vectorlab.image.aucun_doc"), true); return; }
+    const el = hote();
+    if (!el) return;
+    // le focus reviendra à l'élément d'ouverture (bouton du calque, menu…) à la fermeture
+    if (el.hidden) retour = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
+    // les outils Plume, Pixel, Nœud… écoutent #stage en CAPTURE (avant le panneau) : l'outil Sélection, lui, en bulle
+    if (etat.outil !== "select" && VL.setOutil) VL.setOutil("select");
+    const cibles = calquesCibles(etat.doc);
+    cible = cibles.some((c) => c.id === calqueId) ? calqueId : (cibles[0] ? cibles[0].id : "");
+    if (calqueId && cible !== calqueId) VL.toast(T("vectorlab.iacalque.calque_verrouille", { nom: nomCalque(calqueId) }), true);
+    el.hidden = false;
+    squelette(el);
+    const p = $("#iacPrompt");
+    if (p) p.focus();
+  }
+  function fermer() {
+    const el = $("#iaCalqueDlg");
+    if (!el || el.hidden) return;
+    el.hidden = true;
+    if (retour && retour.isConnected && typeof retour.focus === "function") retour.focus();
+    retour = null;
+  }
+
+  /* ── « Retirer le fond » du panneau Image ── */
+  async function versBiblio(o) {
+    const r = await window.fetch(VL.imageUrl(o.href, o.rev, o.px), { cache: "no-store" });
+    if (!r.ok) throw new Error(T("vectorlab.iacalque.image_illisible", { href: o.href }));
+    const fd = new FormData();
+    fd.append("file", new File([await r.blob()], nomDepot(etat.docId, o.href), { type: "image/png" }));
+    const u = await window.fetch("/api/images/upload", { method: "POST", body: fd, cache: "no-store" });
+    const d = await u.json().catch(() => ({}));
+    if (!u.ok) throw new Error(messageErreur(u.status, d, u.statusText));
+    return d.filename;
+  }
+  async function deposer(nom) {
+    const r = await window.fetch("/api/images/" + encodeURIComponent(nom), { cache: "no-store" });
+    if (!r.ok) throw new Error(T("vectorlab.image.biblio_introuvable", { nom, status: r.status }));
+    return VL.deposerBlob(await r.blob());
+  }
+  // le bouton du panneau Image : son état suit le vol, et il est REDESSINÉ à la fin (le panneau a pu être rendu
+  // pendant le vol — executer → surRendu — avec « en cours… »)
+  function majBoutonDetour() {
+    const b = $("#imDetourer");
+    if (!b) return;
+    b.disabled = detourer.enVol;
+    b.innerHTML = dzi("dz-action-detourer", 16) + (detourer.enVol ? T("vectorlab.iacalque.en_cours") : T("vectorlab.iacalque.retirer_fond"));
+  }
+  // la barre d'options mesure la boîte de l'objet À L'ÉCRAN : rendue avant que la nouvelle image ne soit chargée,
+  // elle se trompait (X −146 au lieu de 0, preuve 8799) — on la remesure au chargement de chaque image sélectionnée
+  function remesurer() {
+    for (const id of etat.selection || []) {
+      const g = document.querySelector(`#canvasHost [data-objet="${String(id).replace(/"/g, "")}"]`);
+      const im = g && (g.tagName && g.tagName.toLowerCase() === "image" ? g : g.querySelector("image"));
+      if (im) im.addEventListener("load", () => { if (VL.surSelection) VL.surSelection(); }, { once: true });
+    }
+  }
+  const detourer = unSeulVol(async (o, c) => {
+    const href = await retirerFondFlux(o, c, { versBiblio, post: poster, deposer, executer: VL.executer });
+    remesurer();
+    return href;
+  }, () => majBoutonDetour());
+  // Annuler / Refaire du détourage : la même remesure
+  const suivantHisto = VL.surHistorique;
+  VL.surHistorique = () => { if (suivantHisto) suivantHisto(); remesurer(); };
+
+  function ligneDetour(ligne, o) {
+    ligne.innerHTML = `<span>${T("vectorlab.iacalque.fond")}</span>
+      <select id="imDetourModele" title="${T("vectorlab.iacalque.detour_aide")}"><option value="">…</option></select>
+      <button id="imDetourer" title="${T("vectorlab.iacalque.retirer_fond_titre")}">${dzi("dz-action-detourer", 16)}${T("vectorlab.iacalque.retirer_fond")}</button>
+      <input type="text" id="imDetourSujet" hidden placeholder="${T("vectorlab.iacalque.sujet")}" title="${T("vectorlab.iacalque.sujet_aide")}"/>`;
+    const sel = ligne.querySelector("#imDetourModele"), sujet = ligne.querySelector("#imDetourSujet");
+    let mods = [];
+    const maj = () => { sujet.hidden = !sujetRequis(mods, sel.value); };
+    majBoutonDetour();
+    const M = MI();
+    if (M) {
+      catalogue("detourage_image").then((l) => {
+        mods = l;
+        if (sel.isConnected) { M.remplir(sel, l, { valeur: lire("dz_vl_iac_detour") }); maj(); }
+      }).catch(() => { /* sans catalogue : le bouton refusera (aucun modèle) */ });
+    }
+    sel.addEventListener("change", () => { ecrire("dz_vl_iac_detour", sel.value); maj(); });
+    ligne.querySelector("#imDetourer").addEventListener("click", async () => {
+      if (detourer.enVol) return;
+      // mêmes refus gratuits que le tir : modèle, clé, sujet — avant tout envoi
+      try { verifierDetour({ detourer: true, modeleDetour: sel.value, sujet: sujet.value }, infoDe(mods, sel.value)); }
+      catch (e) { VL.toast(e.message, true); return; }
+      VL.toast(T("vectorlab.iacalque.detour_en_cours"));
+      try {
+        const p = detourer(o, { modele: sel.value, sujet: sujet.value });
+        majBoutonDetour();
+        const r = await p;
+        if (r) VL.toast(T("vectorlab.iacalque.detour_fait"));
+      } catch (e) { VL.toast(e.message, true); }
+    });
+  }
+
+  VL.iaCalque = { ouvrir, fermer, lancer, ligneDetour, taillePour, requete, etapes, verifierCible };
+}
