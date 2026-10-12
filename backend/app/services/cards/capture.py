@@ -2181,7 +2181,7 @@ async def _rembg_par_registre(did: str, d: Path, recto: Path, mid: str, sujet) -
             shutil.rmtree(tmp, ignore_errors=True)
         return await asyncio.to_thread(_store_layer, did, SUJET_NAME, data, e["label"])
 
-    info, mien = await _coalesce(f"{did}|{mid}", _faire)
+    info, mien = await _coalesce(f"{did}|{mid}|{sujet or ''}", _faire)   # deux sujets = deux détourages
     return {"layer": SUJET_NAME, "voie": e["voie"], "modele": mid, "gratuit": e["voie"] == "local",
             "prix_usd": prix, "devise": "USD", "coalesce": not mien, **info}
 

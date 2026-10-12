@@ -351,12 +351,18 @@ async def decor_composer(body: dict | None = None):
     birefnet-v2-video). Devis : kind « matte » pour BiRefNet, kind « detourage » (secondes) sinon."""
     from app.services import decor_service as DS, matte_service as MT, detourage as DT
     b = body if isinstance(body, dict) else {}
-    mod = DS.modele(b.get("modele"))
+    demande = str(b.get("modele") or "").strip().lower()
+    if demande in DT.REGISTRE and DT.REGISTRE[demande]["nature"] != DT.VIDEO:
+        # t186 (relecture) : un modèle IMAGE du registre ne détoure pas la vidéo — refusé, jamais remplacé en silence
+        # par portrait (l'APERÇU, lui, accepte un id image : il ne traite qu'une image)
+        try:
+            DT.entree(demande, DT.VIDEO)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+    mod = DS.modele(demande)
     src, parent, fond, info = await _decor_controles(b, mod)
     sujet = _decor_sujet(mod, b.get("sujet"))
-    op = ({"kind": "matte", "duration_s": float(info["duration_s"])}
-          if (mod in MT.MATTE_MODELS or mod == "birefnet-v2-video")
-          else DT.op_cout(mod, secondes=float(info["duration_s"]), fps=info.get("fps")))
+    op = MT.op_devis(mod, float(info["duration_s"]), fps=info.get("fps"))   # règle unique (matte_service)
     garde = await _PLAF.verifier(op, "studio", ref=f"decor:{src.name}")
     job_id = await DS.lancer_decor(src, fond, info, garde["lignes"], parent, mod, sujet)
     return {"job_id": job_id, "devis_usd": garde["devis"]["total_usd"], "modele": mod}

@@ -1476,10 +1476,13 @@ async def post_asset3d_view_detourer(job: str, index: int, body: dict = None):
         return await AV.detourer_vue(job, index, via=via, modele=modele, sujet=sujet)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    except RuntimeError as e:
+    except Exception as e:  # noqa: BLE001
         if not modele:
             raise
-        raise HTTPException(502, str(e))   # t186 : l'échec du fournisseur choisi se nomme
+        # t186 : l'échec du fournisseur choisi se NOMME (502), comme /images/process — jamais un 500 muet
+        from app.services import detourage as _DTe
+        logger.error(f"détourage de vue {modele} en échec : {e}")
+        raise HTTPException(502, f"{_DTe.REGISTRE[modele]['label']} : {e}")
 
 
 @router.post("/assets/3d/{job}/tirer")
@@ -2474,8 +2477,16 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
     except ValueError as e:
         raise HTTPException(400, str(e))
     if opts.get("modele"):
-        # t186 (G4) : un modèle du registre — clé absente 503 AVANT la garde, puis la garde sur max_frames images
-        _detourage_controles(opts["modele"], "detourage_image", opts.get("sujet"))
+        # t186 (G4) : un modèle du registre — id, puis clé absente 503, puis sujet manquant 400, AVANT la garde ;
+        # puis la garde sur max_frames images
+        opts["sujet"] = _detourage_controles(opts["modele"], "detourage_image", body.get("sujet"))
+        if opts["modele"] == "local-rembg":
+            try:   # même refus d'emblée que l'ancien chemin local (sinon chaque image échouerait en tâche de fond)
+                import rembg  # noqa: F401
+            except ImportError:
+                raise HTTPException(
+                    400, "rembg is not installed in this runtime — choose another background removal model, "
+                         "or install it with: pip install rembg")
         if not opts.get("extract_only"):
             from app.services import detourage as _DTs
             await _plafond(_DTs.op_cout(opts["modele"], images=int(opts.get("max_frames") or 16)), "sprites")
@@ -4736,13 +4747,8 @@ async def matte_start(request: Request):
                                      f"(connus : {', '.join(list(MT.MATTE_MODELS) + _DT.ids(_DT.VIDEO))})")
         sujet = _detourage_controles(model, _DT.VIDEO, payload.get("sujet"), request)
     dur = await asyncio.get_running_loop().run_in_executor(None, sfx_service._probe_duration, src)
-    # devis : kind « matte » pour BiRefNet (anciennes clés et birefnet-v2-video — même tarif, même ligne que
-    # les bancs du matte figent), kind « detourage » (secondes, fps 30 par défaut) pour les autres modèles
-    if model in MT.MATTE_MODELS or model == "birefnet-v2-video":
-        op = {"kind": "matte", "duration_s": dur}
-    else:
-        op = _DT.op_cout(model, secondes=dur)
-    await _plafond(op, "son", src.name)
+    # devis : la règle unique (BiRefNet -> kind « matte », sinon « detourage »)
+    await _plafond(MT.op_devis(model, dur), "son", src.name)
     try:
         mid = MT.detourer(src, model, label=src.stem[:16], sujet=sujet)
     except ValueError as e:

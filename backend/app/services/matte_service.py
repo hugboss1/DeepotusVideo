@@ -133,6 +133,17 @@ def extension(model_key: str) -> str:
     return ".mov" if model_key in MATTE_MODELS else DT.REGISTRE[model_key]["ext"]
 
 
+def op_devis(model_key: str, duree_s: float, fps: float | None = None) -> dict:
+    """t186 (G4) — L'op de devis (pricing.estimate) d'un détourage VIDÉO, source unique de /matte et du décor Avatar :
+    kind « matte » pour BiRefNet (anciennes clés et birefnet-v2-video — même tarif, la ligne que les bancs du matte
+    figent), kind « detourage » (secondes, fps 30 par défaut) pour les autres modèles du registre. Le rack VFX en
+    garde une copie JS (vfxMatteDevis, frontend/patches/vfxrack.js) qui renvoie ici."""
+    if model_key in MATTE_MODELS or model_key == "birefnet-v2-video":
+        return {"kind": "matte", "duration_s": float(duree_s)}
+    from app.services import detourage as DT
+    return DT.op_cout(model_key, secondes=float(duree_s), fps=fps)
+
+
 def note_prix(model_key: str) -> str:
     """La note de prix qui suit le travail jusqu'à l'écran : celle de BiRefNet (prix à mesurer) pour les
     anciennes clés et birefnet-v2-video ; « prix à mesurer » nommé pour un autre modèle à 0 $ ; vide sinon."""
@@ -140,10 +151,7 @@ def note_prix(model_key: str) -> str:
     if model_key in MATTE_MODELS or model_key == "birefnet-v2-video":
         return USD_NOTE
     e = DT.REGISTRE.get(model_key) or {}
-    try:
-        taux = float(P.load().get(e.get("prix"), P.DEFAULTS.get(e.get("prix"), 0.0)) or 0.0)
-    except (TypeError, ValueError):
-        taux = 0.0
+    taux = P.taux_detourage(model_key)
     return "" if taux else (f"prix à mesurer : {e.get('label', model_key)} — lire le montant sur le tableau de "
                             f"bord fal après ce tir, puis l'écrire dans pricing.{e.get('prix')}")
 

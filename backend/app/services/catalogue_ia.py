@@ -143,12 +143,7 @@ def _detourages(nature: str) -> list[dict]:
     out = []
     for mid in DT.ids(nature):
         e = DT.REGISTRE[mid]
-        usd = 0.0
-        if e["voie"] != "local" and e["prix"]:
-            try:
-                usd = float(p.get(e["prix"], P.DEFAULTS.get(e["prix"], 0.0)) or 0.0)
-            except (TypeError, ValueError):
-                usd = 0.0
+        usd = P.taux_detourage(mid, p)
         x = {"id": mid, "label": e["label"], "voie": e["voie"], "usd": usd, "unite": e["unite"],
              "jumeau": None, "note": NOTE_A_MESURER if (e["voie"] == "fal" and not usd) else "",
              "prompt": bool(e["prompt"])}

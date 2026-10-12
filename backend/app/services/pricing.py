@@ -460,6 +460,22 @@ def _video_label_provider(model_id: str) -> tuple:
     return f"Video ({model_id})", "fal"
 
 
+def taux_detourage(mid: str, p: dict | None = None) -> float:
+    """t186 (G4) — LE taux d'un modèle du registre du détourage, dans son unité (« image », « s », « 30 images »,
+    « 16 images ») : la clé de prix de l'entrée lue dans la table (`p`, sinon pricing.load), repli DEFAULTS. 0 pour
+    une voie LOCALE, un id inconnu ou une valeur illisible. Source unique du catalogue (catalogue_ia), de la note
+    du matte (matte_service.note_prix) et du devis (_ligne_detourage)."""
+    from app.services import detourage as _DT
+    e = _DT.REGISTRE.get(str(mid or ""))
+    if not e or e["voie"] == "local" or not e.get("prix"):
+        return 0.0
+    p = p if p is not None else load()
+    try:
+        return float(p.get(e["prix"], DEFAULTS.get(e["prix"], 0.0)) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _ligne_detourage(op: dict, p: dict) -> dict:
     """t186 (G4) — UNE ligne de devis pour un détourage du registre (app.services.detourage.REGISTRE), nommée
     par le libellé du modèle et suffixée « — prix à mesurer » quand son taux vaut 0.
@@ -478,10 +494,7 @@ def _ligne_detourage(op: dict, p: dict) -> dict:
     n_img = max(1, int(op.get("images", 1) or 1))
     if e["voie"] == "local":
         return _line("local", e["label"], n_img, "img", 0.0)
-    try:
-        taux = float(p.get(e["prix"], DEFAULTS.get(e["prix"], 0.0)) or 0.0)
-    except (TypeError, ValueError):
-        taux = 0.0
+    taux = taux_detourage(mid, p)
     label = e["label"] + (" — prix à mesurer" if not taux else "")
     fps = float(op.get("fps") or 30) or 30.0
     unite = e["unite"]

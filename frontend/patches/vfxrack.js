@@ -1180,7 +1180,8 @@ function vfxMatteSujetReq(){var m=vfxMatteMod(VFX_MATTE.model);return!!(m&&m.pro
 function vfxMatteSansSujet(note){vfxMatteValide();
   if(!vfxMatteSujetReq()||String(VFX_MATTE.sujet||"").trim())return!1;
   note(dzT("detour.champ.sujet_requis"));return!0}
-/* le devis : BiRefNet (anciennes clés, birefnet-v2-video) garde le kind « matte » d'avant ; les autres : « detourage » */
+/* le devis : BiRefNet (anciennes clés, birefnet-v2-video) garde le kind « matte » d'avant ; les autres : « detourage »
+   — copie JS de la règle unique du serveur, matte_service.op_devis (/matte et décor Avatar) */
 function vfxMatteDevis(dur){var m=vfxMatteMod(VFX_MATTE.model),reg=(m&&m.registre)||VFX_MATTE.model;
   return reg==="birefnet-v2-video"||reg==="general"||reg==="matting"||reg==="portrait"?{kind:"matte",duration_s:dur}:{kind:"detourage",modele:reg,secondes:dur}}
 function vfxMatteCorps(job){var c={job_id:job,model:VFX_MATTE.model};

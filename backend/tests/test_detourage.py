@@ -372,6 +372,9 @@ d0 = n_depenses()
 settings.FAL_KEY = ""
 st, js = call("POST", "/images/process", {"op": "remove-bg", "filename": SRC, "modele": "pixelcut"})
 check("sans FAL_KEY : 503 qui nomme FAL_KEY", st == 503 and "FAL_KEY" in str(js), f"{st} {js}")
+st, js = call("POST", "/images/process", {"op": "remove-bg", "filename": SRC, "modele": "sam3-sujet"})
+check("ORDRE : sam3-sujet SANS sujet ET sans clé -> 503 FAL_KEY (la clé avant le sujet)", st == 503
+      and "FAL_KEY" in str(js), f"{st} {js}")
 check("sans FAL_KEY : ZÉRO ligne depenses, espion jamais appelé", n_depenses() == d0 and ESPION == [],
       f"{d0} -> {n_depenses()} {ESPION}")
 st, js = call("POST", "/images/process", {"op": "remove-bg", "filename": SRC, "modele": "local-chroma"})
@@ -580,6 +583,9 @@ async def _matte():
         r = await c.post("/api/matte", json={"job_id": "job-d1", "model": "bria-video-v3"})
         check("sans clé : 503 nommant FAL_KEY, zéro dépense, aucun appel", r.status_code == 503
               and "FAL_KEY" in r.text and n_depenses() == d0 and SEAMS["sub"] == [], r.text[:200])
+        r = await c.post("/api/matte", json={"job_id": "job-d1", "model": "sam31-video"})
+        check("ORDRE /matte : sam31-video sans sujet ET sans clé -> 503 FAL_KEY, zéro dépense", r.status_code == 503
+              and "FAL_KEY" in r.text and n_depenses() == d0, r.text[:200])
         settings.FAL_KEY = "test-key"
 
 
@@ -618,7 +624,10 @@ o = SS.normalize_opts({"modele": "bria-rmbg"})
 check("sprites : normalize_opts porte modele (et sujet None)", o.get("modele") == "bria-rmbg" and o.get("sujet") is None,
       str({k: o.get(k) for k in ("modele", "sujet")}))
 check("sprites : sans modele, la clé vaut None (défaut inchangé)", SS.normalize_opts({}).get("modele") is None)
-for bad in ({"modele": "zzz"}, {"modele": "bria-video-v3"}, {"modele": "sam3-sujet"}):
+o = SS.normalize_opts({"modele": "sam3-sujet"})
+check("sprites : normalize_opts ne juge PAS le sujet (rangé brut ; la route le contrôle APRÈS la clé)",
+      o["modele"] == "sam3-sujet" and o["sujet"] is None)
+for bad in ({"modele": "zzz"}, {"modele": "bria-video-v3"}):
     try:
         SS.normalize_opts(bad)
         check(f"sprites : {bad} refusé", False)
@@ -649,6 +658,27 @@ st, js = call("POST", "/assets/sprite", {"source": {"kind": "images", "filenames
 settings.FAL_KEY = "test-key"
 check("POST /assets/sprite sans clé -> 503 FAL_KEY, zéro dépense", st == 503 and "FAL_KEY" in str(js)
       and n_depenses() == d0, f"{st} {js}")
+settings.FAL_KEY = ""
+st, js = call("POST", "/assets/sprite", {"source": {"kind": "images", "filenames": [SRC]}, "modele": "sam3-sujet"})
+settings.FAL_KEY = "test-key"
+check("ORDRE /assets/sprite : sam3-sujet sans sujet ET sans clé -> 503 FAL_KEY, zéro dépense", st == 503
+      and "FAL_KEY" in str(js) and n_depenses() == d0, f"{st} {js}")
+st, js = call("POST", "/assets/sprite", {"source": {"kind": "images", "filenames": [SRC]}, "modele": "sam3-sujet"})
+check("/assets/sprite : sam3-sujet sans sujet (clé posée) -> 400", st == 400, f"{st} {js}")
+try:
+    import rembg as _rembg  # noqa: F401
+    _a_rembg = True
+except ImportError:
+    _a_rembg = False
+if not _a_rembg:
+    st, js = call("POST", "/assets/sprite", {"source": {"kind": "images", "filenames": [SRC]}, "modele": "local-rembg"})
+    check("/assets/sprite : local-rembg sans rembg installé -> 400 d'emblée (comme l'ancien chemin local)",
+          st == 400 and "rembg" in str(js), f"{st} {js}")
+settings.FAL_KEY = ""
+st, js = call("POST", "/assets/3d/zz-inconnu/views/0/detourer", {"modele": "sam3-sujet"})
+settings.FAL_KEY = "test-key"
+check("ORDRE vues 3D : sam3-sujet sans sujet ET sans clé -> 503 FAL_KEY (avant même le jeu de vues)", st == 503
+      and "FAL_KEY" in str(js), f"{st} {js}")
 
 # Card Forge
 from app.services.cards import capture as CAP  # noqa: E402
@@ -693,6 +723,11 @@ async def _cartes():
         settings.FAL_KEY = "test-key"
         check("Card Forge : sans clé -> 503 FAL_KEY, zéro dépense", r.status_code == 503 and "FAL_KEY" in r.text
               and n_depenses() == d0 and SEAMS["sub"] == [], r.text[:200])
+        settings.FAL_KEY = ""
+        r = await c.post(f"/api/cards/{did}/capture/rembg", json={"modele": "sam3-sujet"})
+        settings.FAL_KEY = "test-key"
+        check("ORDRE Card Forge : sam3-sujet sans sujet ET sans clé -> 503 FAL_KEY", r.status_code == 503
+              and "FAL_KEY" in r.text and n_depenses() == d0, r.text[:200])
         r = await c.post(f"/api/cards/{did}/capture/rembg", json={"modele": "zzz"})
         check("Card Forge : modèle inconnu -> 400", r.status_code == 400, r.text[:200])
         r = await c.post(f"/api/cards/{did}/capture/rembg", json={"modele": "bria-rmbg"})
@@ -748,6 +783,19 @@ async def _cartes():
         settings.FAL_KEY = "test-key"
         check("décor sans clé -> 503 FAL_KEY, zéro dépense", r.status_code == 503 and "FAL_KEY" in r.text
               and n_depenses() == d0, r.text[:200])
+        settings.FAL_KEY = ""
+        r = await c.post("/api/avatar-live/decor", json={"source": {"depot": dep}, "fond": {"couleur": "#00ff00"},
+                                                          "modele": "sam31-video"})
+        r2 = await c.post("/api/avatar-live/decor/apercu", json={"source": {"depot": dep}, "fond": {"couleur": "#00ff00"},
+                                                                  "modele": "sam31-video"})
+        settings.FAL_KEY = "test-key"
+        check("ORDRE décor et aperçu : sam31-video sans sujet ET sans clé -> 503 FAL_KEY (libellé, pas l'id)",
+              r.status_code == 503 and r2.status_code == 503 and "FAL_KEY" in r.text and "SAM 3.1" in r.text
+              and n_depenses() == d0, r.text[:200] + r2.text[:200])
+        r = await c.post("/api/avatar-live/decor", json={"source": {"depot": dep}, "fond": {"couleur": "#00ff00"},
+                                                          "modele": "bria-rmbg"})
+        check("décor : un id du registre de nature IMAGE -> 400 (plus de repli muet sur portrait)",
+              r.status_code == 400 and n_depenses() == d0, r.text[:200])
 
 
 loop.run_until_complete(_cartes())
@@ -823,9 +871,11 @@ check("bundle : le bloc VFXRACK EST la couche (refresh_layer --layer vfxrack), m
       _bloc == _vr.strip("\r\n").lstrip("﻿") and "vfxMatteCorps(" in _bloc, len(_bloc))
 
 # nœud Studio « Détourage » (maillon de queue encartsia)
-check("bundle : le nœud Détourage lit le catalogue detourage_image, mémorise dz_detour_studio, envoie modele/sujet",
-      'fetch("/api/ia/catalogue?nature=detourage_image")' in _BUN and _BUN.count('"dz_detour_studio"') == 2
-      and 'var c={method:"api",modele:v};' in _BUN and "c.sujet=sj" in _BUN and '"data-dzdetour":"1"' in _BUN
+check("bundle : le nœud Détourage lit le catalogue detourage_image, garde son réglage dans ses PROPS (aucun localStorage), "
+      "envoie modele/sujet et pose une `method` cohérente",
+      'fetch("/api/ia/catalogue?nature=detourage_image")' in _BUN and "dz_detour_studio" not in _BUN
+      and 'onChange:function(v){set("method",dzDetMeth(v));set("modele",v)}' in _BUN
+      and 'var c={method:dzDetMeth(v),modele:v};' in _BUN and "c.sujet=sj" in _BUN and '"data-dzdetour":"1"' in _BUN
       and 'options:dzDetOpts(dzDv,dzDetR)' in _BUN and 'body.method=p.method||"api"' not in _BUN)
 check("bundle : compteurs figés intacts (useState 731, DzTracks 181)",
       _BUN.count("x.useState(") == 731 and _BUN.count("DzTracks") == 181,
@@ -856,7 +906,8 @@ if _node:
            "v0:dzDetVal({}),v1:dzDetVal({method:'local'}),v2:dzDetVal({method:'api'}),"
            "c0:dzDetCorps({}),c1:dzDetCorps({method:'local'}),c2:dzDetCorps({modele:'sam3-sujet'}),"
            "c3:dzDetCorps({modele:'sam3-sujet',sujet:' le chat '}),c4:dzDetCorps({modele:'pixelcut'}),"
-           "p:dzDetPrompt('sam3-sujet')};dzDetMem('pixelcut');r.v3=dzDetVal({});"
+           "p:dzDetPrompt('sam3-sujet'),m0:dzDetMeth('local-rembg'),m1:dzDetMeth('pixelcut'),m2:dzDetMeth('local-chroma'),"
+           "c5:dzDetCorps({modele:'local-chroma',method:'local'})};"
            "console.log(JSON.stringify(r))},20);")
     _pr = subprocess.run([_node, "-e", _js], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
@@ -870,9 +921,10 @@ if _node:
                                   {"value": "pixelcut", "label": "Pixelcut · prix à mesurer"},
                                   {"value": "local-rembg", "label": "rembg (local, gratuit) · local, gratuit"}]
           and _o.get("tir") == 1, (_pr.stdout + _pr.stderr)[-500:])
-    check("bundle : défaut d'avant (api -> rembg-fal, local -> local-rembg), puis le choix mémorisé",
+    check("bundle : défaut d'avant (api ou rien -> rembg-fal, local -> local-rembg) ; `method` cohérente (locale/api)",
           _o.get("v0") == "rembg-fal" and _o.get("v1") == "local-rembg" and _o.get("v2") == "rembg-fal"
-          and _o.get("v3") == "pixelcut", str(_o)[:300])
+          and _o.get("m0") == "local" and _o.get("m1") == "api" and _o.get("m2") == "local"
+          and _o.get("c5") == {"corps": {"method": "local", "modele": "local-chroma"}}, str(_o)[:300])
     check("bundle : corps — défauts par `method` (chemin d'avant), sujet exigé par SAM 3, sinon `modele`",
           _o.get("c0") == {"corps": {"method": "api"}} and _o.get("c1") == {"corps": {"method": "local"}}
           and _o.get("c2") == {"err": "Dites quel sujet garder."}

@@ -184,12 +184,12 @@ async def apercu_detourage(src: Path, fond: dict, info: dict, mod: str, sujet: s
     iurl = DT.url_image(res)
     if not iurl:
         raise RuntimeError("fal.ai : aucune image détourée dans la réponse")
-    sujet = d / (_u().hex + ".sujet.png")
+    png_sujet = d / (_u().hex + ".sujet.png")   # le PNG détouré (pas le `sujet` nommé du modèle)
     try:
-        await _download(iurl, sujet)
-        await asyncio.to_thread(composer_apercu, sujet, fond, t, w, h, d / nom_ap)
+        await _download(iurl, png_sujet)
+        await asyncio.to_thread(composer_apercu, png_sujet, fond, t, w, h, d / nom_ap)
     finally:
-        sujet.unlink(missing_ok=True)
+        png_sujet.unlink(missing_ok=True)
     return {"source": nom_src, "apercu": nom_ap, "instant_s": round(t, 2)}
 
 

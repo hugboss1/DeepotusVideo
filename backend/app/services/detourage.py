@@ -229,7 +229,7 @@ async def detourer_image(mid: str, chemin, prompt=None, dossier=None) -> str:
     if mid == "local-chroma":
         await asyncio.to_thread(_local_chroma, src, dest)
         return dest.name
-    endpoint, _ = build_request(mid, "", prompt)          # refus du sujet AVANT l'envoi
+    build_request(mid, "", prompt)          # appel à blanc : le refus du sujet (ValueError) AVANT l'envoi du fichier
     url = await MT._upload(src)
     endpoint, args = build_request(mid, url, prompt)
     res = await MT._fal_subscribe(endpoint, args)

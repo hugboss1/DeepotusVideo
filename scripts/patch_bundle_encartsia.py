@@ -55,8 +55,10 @@ modèle dans le registre unique du détourage (GET /api/ia/catalogue?nature=deto
   - E22 les aides au niveau module (posées juste avant DzImgProcPanel) : `dzDetCat` (cache de module, comme dzEngCat),
     `dzDetOpts` (rangé par voie, libellé · prix à la règle unique dzPrixUsd · mention de clé ; une voie locale dit
     « local, gratuit » puisque le select `re` n'a pas de groupes), `dzDetVal` (props.modele, sinon l'ancienne
-    `method` — api = rembg-fal, local = local-rembg —, sinon le choix mémorisé localStorage dz_detour_studio, sinon
-    rembg-fal : le défaut historique du nœud), `dzDetCorps` (le corps de /images/process) ;
+    `method` — local = local-rembg, sinon rembg-fal : le défaut historique du nœud ; le réglage vit dans les PROPS du
+    nœud, aucun localStorage), `dzDetMeth` (la `method` cohérente posée avec le modèle choisi : « local » pour une
+    voie locale, « api » sinon — le résumé des fournisseurs du compilateur la lit), `dzDetCorps` (le corps de
+    /images/process) ;
   - E23 un répartiteur de redessin `x.useReducer` dans le panneau (aucun useState ajouté : 731) ;
   - E24 le corps : rembg-fal et local-rembg partent par `method` (chemins et lignes de coût d'avant), tout autre
     modèle par `modele` (+ `sujet`, refus dzT("detour.champ.sujet_requis") avant tout envoi s'il manque) ;
@@ -254,7 +256,6 @@ PAIRES += [
 
 # t186 (G4) — le nœud Studio « Détourage » (RemoveBG, panneau DzImgProcPanel kind "removebg") choisit son modèle dans
 # le registre unique du détourage (voir l'en-tête, E22-E25)
-DETOUR_LS = "dz_detour_studio"
 DETOUR_AIDES = (
     # le catalogue detourage_image, lu une fois par session (cache de module, comme dzEngCat) ; REDESSIN par le
     # répartiteur du panneau (x.useReducer — aucun useState ajouté, 731) ; en attente : « chargement… » ; échec : les
@@ -266,12 +267,11 @@ DETOUR_AIDES = (
     'dzDetEnCours=!1;dzDetEchec=!1;dzDetCat=d.modeles;dzDetFin&&dzDetFin()})'
     '.catch(function(){dzDetEnCours=!1;dzDetEchec=!0;dzDetFin&&dzDetFin()})}'
     'function dzDetTrouve(id){return(dzDetCat||[]).find(function(m){return m.id===id})||null}'
-    # le choix mémorisé du site (localStorage, accès gardé) : le défaut d'un NOUVEAU nœud
-    'function dzDetLs(){try{return localStorage.getItem("' + DETOUR_LS + '")||""}catch(e){return""}}'
-    'function dzDetMem(v){try{localStorage.setItem("' + DETOUR_LS + '",v)}catch(e){}}'
-    # le modèle du nœud : choisi (props.modele), sinon l'ancienne méthode (api = rembg fal, local = rembg local), sinon
-    # le choix mémorisé, sinon le défaut historique du nœud (api -> rembg-fal)
-    'function dzDetVal(p){return p.modele||(p.method==="local"?"local-rembg":p.method==="api"?"rembg-fal":dzDetLs()||"rembg-fal")}'
+    # le modèle du nœud : choisi (props.modele), sinon l'ancienne méthode (local = rembg local), sinon le défaut
+    # historique du nœud (api -> rembg-fal). Le réglage vit dans les props du nœud (graphe sauvegardé).
+    'function dzDetVal(p){return p.modele||(p.method==="local"?"local-rembg":"rembg-fal")}'
+    # la `method` cohérente avec un modèle : « local » pour une voie locale, « api » sinon
+    'function dzDetMeth(v){var m=dzDetTrouve(v);return v==="local-rembg"||v==="local-chroma"||(m&&m.voie==="local")?"local":"api"}'
     'function dzDetPrompt(id){var m=dzDetTrouve(id);return!!(m&&m.prompt)}'
     # libellé · prix (règle unique dzPrixUsd) · mention de clé ; une voie locale est gratuite (le select n'a pas de groupes)
     # le nom : la clé detour.modele.<id> de commun.json quand le dictionnaire la porte (libellés du serveur en français)
@@ -293,7 +293,7 @@ DETOUR_AIDES = (
     # le corps de /images/process : les deux modèles qui ont un équivalent d'avant partent par `method` (chemins et
     # lignes de coût d'avant, octet pour octet) ; tout autre modèle part en `modele` (+ `sujet` s'il en exige un)
     'function dzDetCorps(p){var v=dzDetVal(p);if(v==="rembg-fal")return{corps:{method:"api"}};'
-    'if(v==="local-rembg")return{corps:{method:"local"}};var c={method:"api",modele:v};'
+    'if(v==="local-rembg")return{corps:{method:"local"}};var c={method:dzDetMeth(v),modele:v};'
     'if(dzDetPrompt(v)){var sj=String(p.sujet||"").trim();if(!sj)return{err:dzT("detour.champ.sujet_requis")};c.sujet=sj}'
     'return{corps:c}}'
 )
@@ -307,7 +307,7 @@ DETOUR_ROW_APRES = (
     # catalogue lu : « Modèle de détourage » ; catalogue injoignable (les deux voies d'avant) : « Méthode » et l'aide d'avant
     'if(kind==="removebg"){var dzDv=dzDetVal(p);rows.push(r.jsx(O,{label:dzDetCat?dzT("detour.champ.modele"):dzT("studio.imgproc.methode"),'
     'hint:dzDetCat?void 0:dzT("studio.imgproc.methode_aide"),'
-    'children:r.jsx("div",{"data-dzdetour":"1",children:r.jsx(re,{value:dzDv,onChange:function(v){dzDetMem(v);set("modele",v)},'
+    'children:r.jsx("div",{"data-dzdetour":"1",children:r.jsx(re,{value:dzDv,onChange:function(v){set("method",dzDetMeth(v));set("modele",v)},'
     'options:dzDetOpts(dzDv,dzDetR)})})},"m"));'
     # le sujet à garder (SAM 3, Bria objet…) : seulement si le modèle choisi en exige un
     'if(dzDetPrompt(dzDv))rows.push(r.jsx(O,{label:dzT("detour.champ.sujet"),children:r.jsx("input",{type:"text",'

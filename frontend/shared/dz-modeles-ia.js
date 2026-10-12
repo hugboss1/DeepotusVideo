@@ -44,8 +44,6 @@
   function prix(usd, unite) {
     return prixUsd(usd, unite) || T("ia.prix.a_mesurer");
   }
-  /* t186 (G4) : une option de la voie LOCALE sans prix est gratuite pour de vrai (son <optgroup> le dit déjà) —
-     ni « prix à mesurer », ni prix : le libellé seul. Les autres voies gardent la règle (jamais « gratuit »). */
   /* t186 : le NOM d'un modèle — la clé detour.modele.<id> (tirets -> _) de commun.json quand le dictionnaire de la
      page la porte (les libellés du catalogue arrivent en français : « SAM 3 — garder un sujet nommé ») ; sinon le
      libellé servi, tel quel (noms propres) */
@@ -53,6 +51,8 @@
     var k = "detour.modele." + String(m.id || "").replace(/-/g, "_");
     return W.DZ_I18N && W.DZ_I18N[k] ? T(k) : (m.label || m.id);
   }
+  /* t186 (G4) : une option de la voie LOCALE sans prix est gratuite pour de vrai (son <optgroup> le dit déjà) —
+     ni « prix à mesurer », ni prix : le libellé seul. Les autres voies gardent la règle (jamais « gratuit »). */
   function texte(m) {
     var p = prixUsd(m.usd, m.unite);
     return libelle(m) + (p ? " · " + p : m.voie === "local" ? "" : " · " + prix(m.usd, m.unite))

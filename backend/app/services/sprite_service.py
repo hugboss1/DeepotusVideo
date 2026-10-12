@@ -59,13 +59,14 @@ def normalize_opts(body: dict) -> dict:
     chroma_tol = _int("chroma_tolerance", 28, 4, 80)
     # t186 (G4) : un modèle du registre unique du détourage (detourage_image) — quand il est donné, il remplace
     # `remove_bg` pour le détourage des images ; absent (None), tout est inchangé. `sujet` : requis par
-    # sam3-sujet / bria-objet. ValueError (-> 400) : id inconnu, modèle vidéo, sujet manquant.
+    # sam3-sujet / bria-objet. ValueError (-> 400) : id inconnu, modèle vidéo. Le sujet est rangé BRUT : son
+    # contrôle (400 s'il manque) appartient à la route, APRÈS le 503 clé absente (routes._detourage_controles).
     modele = str(body.get("modele") or "").strip() or None
     sujet = None
     if modele:
         from app.services import detourage as _DT
         _DT.entree(modele, _DT.IMAGE)
-        sujet = _DT.sujet_de(modele, body.get("sujet"))
+        sujet = str(body.get("sujet") or "").strip()[:200] or None
 
     trim = str(body.get("trim") or "animation").lower()
     if trim not in ("animation", "tight"):
