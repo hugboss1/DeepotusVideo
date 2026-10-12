@@ -204,9 +204,15 @@ function dialoguePlanIA(o) {
 }
 
 /* « Reconstruire en 3D (SAM 3) » : les objets de l'image du plan → GLB posés dans la scène de son Plateau */
+/* M5 : un tir à la fois par plan et par action — un second clic pendant le vol ne rouvre rien et ne POSTe pas */
+const tirsEnCours = { objets3d: new Set(), video: new Set() };
+
 async function objets3dPlan(id) {
   const s = shots.find(x => x.id === id);
   if (!s) return;
+  if (tirsEnCours.objets3d.has(id)) { toast(dzT("atelier.at2_dzp.deja_en_cours", { i: s.idx + 1 }), true); return; }
+  tirsEnCours.objets3d.add(id);
+  try {
   const source = s.image || s.sketch_image;
   if (!source) { toast(dzT("atelier.at2_obj3d.sans_image"), true); return; }
   const choix = await dialoguePlanIA({
@@ -226,17 +232,24 @@ async function objets3dPlan(id) {
     const corps = { modele: choix.modele };
     if (choix.texte) corps.prompt = choix.texte;
     const r = await api.send("POST", `/shots/${encodeURIComponent(id)}/objets3d`, corps);
-    toast(dzT("atelier.plan.objets_poses", { n: r.n }));
-    if (await window.__dzDialogue.confirmer(dzT("atelier.plan.objets_poses", { n: r.n }),
+    // M8 : SAM 3 peut rendre plus de 32 GLB ; les écartés sont DITS
+    const fait = r.tronques > 0 ? dzT("atelier.plan.objets_poses_tronques", { n: r.n, m: r.tronques })
+                                : dzT("atelier.plan.objets_poses", { n: r.n });
+    toast(fait);
+    if (await window.__dzDialogue.confirmer(fait,
         { titre: dzT("atelier.plan.reconstruire3d"), ok: dzT("atelier.at2_obj3d.ouvrir_plateau"), annuler: dzT("atelier.at2_obj3d.rester") }))
       location.href = "/plateau/?shot=" + encodeURIComponent(s.id);   // le Plateau du plan, comme act-plateau
   } catch (e) { toast(dzT("atelier.at2_obj3d.err", { msg: e.message }), true); }
+  } finally { tirsEnCours.objets3d.delete(id); }
 }
 
 /* « Générer le plan (vidéo) » : début = borne du Plateau / image de production / croquis ; fin = borne de fin */
 async function videoPlan(id) {
   const s = shots.find(x => x.id === id);
   if (!s) return;
+  if (tirsEnCours.video.has(id)) { toast(dzT("atelier.at2_dzp.deja_en_cours", { i: s.idx + 1 }), true); return; }
+  tirsEnCours.video.add(id);
+  try {
   const debut = debutVideoPlan(s);
   if (!debut) { toast(dzT("atelier.at2_video.sans_debut"), true); return; }
   const nature = natureVideoPlan(s);
@@ -263,10 +276,11 @@ async function videoPlan(id) {
   toast(dzT("atelier.at2_video.en_cours", { i: s.idx + 1 }));
   try {
     const up = await api.send("POST", `/shots/${encodeURIComponent(id)}/video`, { video_model: choix.modele });
-    Object.assign(s, up);
+    if (up && up.video) s.video = up.video;          // M9 : seul le job du plan entre dans l'état (ni job_id ni usd)
     renderBoard();
     toast(dzT("atelier.at2_video.lancee", { i: s.idx + 1, total: prixDzp(up.usd) }));
   } catch (e) { toast(dzT("atelier.at2_video.err", { msg: e.message }), true); }
+  } finally { tirsEnCours.video.delete(id); }
 }
 
 /* le devis serveur de la vidéo d'un plan -> ce que montre le dialogue ; null (devis en échec) : coût inconnu, rien
@@ -291,32 +305,53 @@ function vignetteVideo(s) {
   return s.video ? `<div class="shot-video" data-job="${escA(s.video)}"><span class="shot-video-etat">${dzT("atelier.at2_video.attente")}</span></div>` : "";
 }
 
-const suivisVideo = new Map();
+/* M6 : un suivi BORNÉ — un job terminé (fait, en échec, introuvable) n'est plus jamais réinterrogé (etatsVideo) ; le
+   pas croît de 4 s (×1,5) jusqu'à 30 s ; au-delà de 30 min de suivi d'un même job, « suivi arrêté » (rouvrir le
+   chapitre le relance) ; toujours arrêté quand la carte est détachée. I1 : un 404 n'est « introuvable » qu'au 3e
+   tour CONSÉCUTIF (le job peut ne pas être encore visible), « en attente » avant. */
+const SUIVI_VIDEO = { pas: 4000, facteur: 1.5, pasMax: 30000, dureeMax: 30 * 60 * 1000, absentsMax: 3 };
+const etatsVideo = new Map(), suivisVideo = new Map(), suivisJob = new Map();
 function suivreVideo(card, s) {
   const box = card.querySelector(".shot-video");
   if (!box || !s || !s.video) return;
   const job = s.video, cle = s.id;
   clearTimeout(suivisVideo.get(cle));
+  suivisVideo.delete(cle);
+  if (etatsVideo.has(job)) { box.innerHTML = etatsVideo.get(job); return; }      // terminal : aucun GET
   const etat = (t, err) => {
     box.innerHTML = `<span class="shot-video-etat${err ? " err" : ""}">${esc(t)}</span>`;
   };
+  const terminer = (html) => { etatsVideo.set(job, html); box.innerHTML = html; };
+  if (!suivisJob.has(job)) suivisJob.set(job, { debut: Date.now(), pas: SUIVI_VIDEO.pas, absents: 0 });
+  const st = suivisJob.get(job);
   const tour = async () => {
     suivisVideo.delete(cle);
     if (!box.isConnected) return;                     // la carte a disparu : le suivi s'arrête
-    let j = null;
+    if (Date.now() - st.debut > SUIVI_VIDEO.dureeMax) { etat(dzT("atelier.at2_video.suivi_arrete"), true); return; }
+    let j = null, absent = false;
     try {
       const r = await fetch("/api/jobs/" + encodeURIComponent(job));
-      if (r.status === 404) { if (box.isConnected) etat(dzT("atelier.at2_video.introuvable"), true); return; }
-      if (r.ok) j = await r.json();
+      if (r.status === 404) absent = true;
+      else if (r.ok) j = await r.json();
     } catch (e) { /* réseau : on réessaie au tour suivant */ }
     if (!box.isConnected) return;
-    if (j && j.status === "done") {
-      box.innerHTML = `<video class="shot-video-lecteur" src="/api/jobs/${encodeURIComponent(job)}/video" muted controls playsinline preload="metadata" aria-label="${escA(dzT("atelier.plan.video"))}"></video>`;
+    st.absents = absent ? st.absents + 1 : 0;
+    if (st.absents >= SUIVI_VIDEO.absentsMax) {
+      terminer(`<span class="shot-video-etat err">${esc(dzT("atelier.at2_video.introuvable"))}</span>`);
       return;
     }
-    if (j && j.status === "failed") { etat(dzT("atelier.at2_video.echec", { msg: j.error || "?" }), true); return; }
+    if (j && j.status === "done") {
+      terminer(`<video class="shot-video-lecteur" src="/api/jobs/${encodeURIComponent(job)}/video" muted controls playsinline preload="metadata" aria-label="${escA(dzT("atelier.plan.video"))}"></video>`);
+      return;
+    }
+    if (j && j.status === "failed") {
+      terminer(`<span class="shot-video-etat err">${esc(dzT("atelier.at2_video.echec", { msg: j.error || "?" }))}</span>`);
+      return;
+    }
     if (j) etat(dzT("atelier.at2_video.progres", { pct: Math.round(Number(j.progress) || 0) }));
-    suivisVideo.set(cle, setTimeout(tour, 4000));
+    else if (absent) etat(dzT("atelier.at2_video.attente"));
+    suivisVideo.set(cle, setTimeout(tour, st.pas));
+    st.pas = Math.min(SUIVI_VIDEO.pasMax, Math.round(st.pas * SUIVI_VIDEO.facteur));
   };
   tour();
 }
@@ -395,6 +430,10 @@ DICO = {
     "atelier.at2_video.echec": ("vidéo en échec : {msg}", "video failed: {msg}"),
     "atelier.at2_video.introuvable": ("vidéo introuvable", "video not found"),
     "atelier.at2_dzp.modele": ("Modèle", "Model"),
+    "atelier.at2_dzp.deja_en_cours": ("Plan {i} : déjà en cours, attendez la fin.", "Shot {i}: already running, wait for it to finish."),
+    "atelier.plan.objets_poses_tronques": ("{n} objets posés dans le Plateau ; {m} de plus écartés (32 au plus)",
+                                           "{n} objects placed on the Stage; {m} more left out (32 at most)"),
+    "atelier.at2_video.suivi_arrete": ("suivi arrêté, rouvrez le chapitre", "tracking stopped, reopen the chapter"),
     "atelier.at2_dzp.annuler": ("Annuler", "Cancel"),
     "atelier.at2_dzp.choisir": ("Choisissez un modèle.", "Choose a model."),
     "atelier.at2_dzp.a_mesurer": ("prix à mesurer", "price to be measured"),

@@ -117,8 +117,8 @@ check("S6d le défaut first-last de l'écran est celui de la route", m and f'con
 sv = fonction("suivreVideo")
 check("S6e la vignette suit GET /api/jobs/{id}, s'arrête quand la carte disparaît, et au statut final",
       'fetch("/api/jobs/" + encodeURIComponent(job))' in sv and "if (!box.isConnected) return;" in sv
-      and 'j.status === "done"' in sv and 'j.status === "failed"' in sv and "setTimeout(tour, 4000)" in sv
-      and "clearTimeout(suivisVideo.get(cle));" in sv)
+      and 'j.status === "done"' in sv and 'j.status === "failed"' in sv and "setTimeout(tour, st.pas)" in sv
+      and "clearTimeout(suivisVideo.get(cle));" in sv and "if (etatsVideo.has(job))" in sv)
 check("S6f la vidéo terminée est lue dans un <video> muet avec contrôles (/api/jobs/{id}/video)",
       re.search(r'<video class="shot-video-lecteur" src="/api/jobs/\$\{encodeURIComponent\(job\)\}/video" muted controls', sv) is not None)
 check("S6g les classes du dialogue et de la vignette ont leur CSS",
@@ -138,7 +138,8 @@ print("\n[N] sous node")
 if not NODE:
     check("N node introuvable", False)
 else:
-    morceaux = [re.search(r'^const MODELE_VIDEO_FIN = "[^"]+";', JS, flags=re.M).group(0)]
+    morceaux = [re.search(r'^const MODELE_VIDEO_FIN = "[^"]+";', JS, flags=re.M).group(0),
+                re.search(r"^const tirsEnCours = .*?;$", JS, flags=re.M).group(0)]
     for nom in ("objetsDuPlan", "natureVideoPlan", "debutVideoPlan", "prixDzp", "objets3dPlan", "videoPlan"):
         morceaux.append(fonction(nom))
     code = "\n".join(morceaux)
@@ -244,7 +245,8 @@ const F = ctx.F;
 print("\n[D] le dialogue vidéo sous node, DOM simulé, devis serveur simulé")
 if NODE:
     morceaux = [re.search(r'^const MODELE_VIDEO_FIN = "[^"]+";', JS, flags=re.M).group(0),
-                re.search(r"^const ORIGINES_VIDEO = \{.*?\};", JS, flags=re.M | re.S).group(0)]
+                re.search(r"^const ORIGINES_VIDEO = \{.*?\};", JS, flags=re.M | re.S).group(0),
+                re.search(r"^const tirsEnCours = .*?;$", JS, flags=re.M).group(0)]
     for nom in ("natureVideoPlan", "debutVideoPlan", "prixDzp", "dialoguePlanIA", "rendreDevisVideo", "videoPlan"):
         morceaux.append(fonction(nom))
     code = "\n".join(morceaux)
@@ -355,6 +357,123 @@ vm.runInContext(%s + "\nthis.videoPlan = videoPlan;", ctx);
     pn = D.get("panne") or {}
     check("D9 devis en échec réseau : coût « inconnu » dit, et le tir reste possible",
           "atelier.at2_video.devis_ko" in pn.get("prix", "") and len(pn.get("posts", [])) == 1, pn)
+
+print("\n[M] suivi borné, anti-double tir, objets écartés (sous node)")
+if NODE:
+    TIRS = re.search(r"^const tirsEnCours = .*?;$", JS, flags=re.M).group(0)
+    morceaux = [re.search(r'^const MODELE_VIDEO_FIN = "[^"]+";', JS, flags=re.M).group(0), TIRS,
+                re.search(r"^const SUIVI_VIDEO = .*?;$", JS, flags=re.M).group(0),
+                re.search(r"^const etatsVideo = .*?;$", JS, flags=re.M).group(0)]
+    for nom in ("objetsDuPlan", "natureVideoPlan", "debutVideoPlan", "prixDzp", "objets3dPlan", "videoPlan", "suivreVideo"):
+        morceaux.append(fonction(nom))
+    code = "\n".join(morceaux)
+    prog = r"""
+const vm = require("vm");
+const J = { gets: [], posts: [], toasts: [], dialogues: 0, delais: [] };
+let maintenant = 1000000, reponses = [], minuteur = null, dialogue = null;
+const ctx = {
+  console, encodeURIComponent, Number, Math, Promise, JSON, String,
+  Date: { now: () => maintenant },
+  setTimeout: (f, ms) => { J.delais.push(ms); minuteur = f; return J.delais.length; },
+  clearTimeout: () => {},
+  esc: (s) => String(s), escA: (s) => String(s),
+  shots: [], entities: [], location: { href: "" },
+  window: { __dzDialogue: { confirmer: async () => false }, DzModelesIA: { prix: (u) => "$" + u } },
+  dzT: (k, v) => k + (v ? JSON.stringify(v) : ""),
+  toast: (m) => J.toasts.push(m),
+  renderBoard: () => {},
+  fetch: async (u) => { J.gets.push(u); const r = reponses.shift() || { status: 200, body: { status: "generating_video", progress: 10 } };
+    return { status: r.status, ok: r.status === 200, json: async () => r.body }; },
+  api: { get: async () => ({ default: "seedance-2.5" }),
+         send: async (m, p, b) => { J.posts.push([m, p, b]);
+           return p.endsWith("/objets3d") ? { n: 32, tronques: 5 } : { id: "v", video: "job-neuf", job_id: "job-neuf", usd: 0.6 }; } },
+  dialoguePlanIA: (o) => { J.dialogues += 1; return new Promise(r => { dialogue = r; }); },
+};
+vm.createContext(ctx);
+vm.runInContext(%s + "\nthis.F = { objets3dPlan, videoPlan, suivreVideo };", ctx);
+const F = ctx.F;
+const pause = () => new Promise(r => setImmediate(r));
+const borne = (p) => Promise.race([p, new Promise(r => setTimeout(r, 300))]);   // une promesse orpheline ne fige pas le banc
+function carte() { const box = { isConnected: true, innerHTML: "" }; return { box, querySelector: () => box }; }
+async function tourner() { const f = minuteur; minuteur = null; if (f) { await f(); await pause(); } }
+(async () => {
+  const R = {};
+  // I1 : 404, 404 puis 200 -> jamais « introuvable »
+  const c1 = carte(); reponses = [{ status: 404 }, { status: 404 }, { status: 200, body: { status: "queued", progress: 0 } }];
+  F.suivreVideo(c1, { id: "a", video: "j1" }); await pause(); const h1 = [c1.box.innerHTML];
+  await tourner(); h1.push(c1.box.innerHTML); await tourner(); h1.push(c1.box.innerHTML);
+  R.i1 = { html: h1, minuteur: !!minuteur };
+  c1.box.isConnected = false; await tourner();
+  // 404 x3 -> introuvable, terminal
+  const c2 = carte(); reponses = [{ status: 404 }, { status: 404 }, { status: 404 }]; J.delais.length = 0;
+  F.suivreVideo(c2, { id: "b", video: "j2" }); await pause(); await tourner(); await tourner();
+  R.introuvable = { html: c2.box.innerHTML, minuteur: !!minuteur };
+  // job done -> plus aucun GET au re-rendu
+  const c3 = carte(); reponses = [{ status: 200, body: { status: "done" } }];
+  F.suivreVideo(c3, { id: "c", video: "j3" }); await pause();
+  const n = J.gets.length; const c3b = carte();
+  F.suivreVideo(c3b, { id: "c", video: "j3" }); await pause();
+  R.done = { html: c3b.box.innerHTML, gets: J.gets.length - n, minuteur: !!minuteur };
+  // pas croissant puis arrêt après 30 min
+  const c4 = carte(); reponses = []; J.delais.length = 0;
+  F.suivreVideo(c4, { id: "d", video: "j4" }); await pause();
+  for (let k = 0; k < 7; k++) await tourner();
+  R.pas = J.delais.slice(0, 8);
+  maintenant += 31 * 60 * 1000; J.delais.length = 0; await tourner();
+  R.arret = { html: c4.box.innerHTML, delais: J.delais.length };
+  // double clic vidéo : un seul dialogue, un seul POST, toast « déjà en cours »
+  ctx.shots.push({ id: "v", idx: 0, duration_s: 4, image: "p.png", entities: [] });
+  const p1 = F.videoPlan("v"); await pause(); await pause();
+  await borne(F.videoPlan("v"));
+  R.double = { dialogues: J.dialogues, toast: J.toasts.filter(t => t.startsWith("atelier.at2_dzp.deja_en_cours")).length };
+  dialogue({ modele: "veo" }); await borne(p1);
+  R.double.posts = J.posts.length;
+  R.m9 = Object.keys(ctx.shots[0]).sort();
+  // le verrou est libéré : un nouveau clic rouvre le dialogue
+  const p2 = F.videoPlan("v"); await pause(); await pause(); R.libere = J.dialogues; dialogue(null); await p2;
+  // objets3d : double clic + objets écartés dits
+  J.posts.length = 0; J.toasts.length = 0; J.dialogues = 0;
+  const o1 = F.objets3dPlan("v"); await pause();
+  await borne(F.objets3dPlan("v"));
+  dialogue({ modele: "sam-3-3d-objects", texte: "x" }); await borne(o1);
+  R.obj = { dialogues: J.dialogues, posts: J.posts.length, toasts: J.toasts.slice() };
+  console.log(JSON.stringify(R));
+})().catch(e => console.log(JSON.stringify({ erreur: String(e && e.stack || e) })));
+""" % json.dumps(code)
+    with tempfile.TemporaryDirectory(prefix="dzsb3dm_") as tmp:
+        f = pathlib.Path(tmp) / "banc_m.js"
+        f.write_text(prog, "utf-8")
+        r = subprocess.run([NODE, str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+    try:
+        M = json.loads(r.stdout.strip().splitlines()[-1])
+    except Exception:  # noqa: BLE001
+        M = {"erreur": (r.stdout + r.stderr)[-800:]}
+    check("M0 le banc node a tourné", "erreur" not in M, M.get("erreur"))
+    i1 = M.get("i1") or {}
+    check("M1 I1 : 404, 404 puis 200 ⇒ jamais « introuvable » (en attente, puis l'état du job), le suivi continue",
+          len(i1.get("html", [])) == 3 and not any("introuvable" in h for h in i1["html"])
+          and "atelier.at2_video.attente" in i1["html"][0] and "atelier.at2_video.progres" in i1["html"][2] and i1.get("minuteur"), i1)
+    it = M.get("introuvable") or {}
+    check("M2 404 au 3e tour consécutif ⇒ « introuvable », et le suivi s'arrête",
+          "atelier.at2_video.introuvable" in it.get("html", "") and not it.get("minuteur"), it)
+    dn = M.get("done") or {}
+    check("M3 job terminé ⇒ au re-rendu, le lecteur revient SANS aucun GET ni minuteur",
+          dn.get("gets") == 0 and "<video" in dn.get("html", "") and not dn.get("minuteur"), dn)
+    check("M4 pas croissant 4 s ×1,5 jusqu'à 30 s", M.get("pas") == [4000, 6000, 9000, 13500, 20250, 30000, 30000, 30000], M.get("pas"))
+    ar = M.get("arret") or {}
+    check("M5 au-delà de 30 min de suivi : « suivi arrêté », plus de minuteur",
+          "atelier.at2_video.suivi_arrete" in ar.get("html", "") and ar.get("delais") == 0, ar)
+    db = M.get("double") or {}
+    check("M6 double clic vidéo pendant le vol : un seul dialogue, un seul POST, toast « déjà en cours »",
+          db.get("dialogues") == 1 and db.get("posts") == 1 and db.get("toast") == 1, db)
+    check("M7 le verrou est libéré à la fin (finally) : un nouveau clic rouvre le dialogue", M.get("libere") == 2, M.get("libere"))
+    check("M8 M9 : après le POST vidéo, seul `video` entre dans le plan (ni job_id ni usd)",
+          M.get("m9") == ["duration_s", "entities", "id", "idx", "image", "video"], M.get("m9"))
+    ob = M.get("obj") or {}
+    check("M9 double clic storyboard 3D : un seul dialogue, un seul POST",
+          ob.get("dialogues") == 1 and ob.get("posts") == 1, ob)
+    check("M10 objets écartés (tronques > 0) : le toast le dit",
+          any(t.startswith("atelier.plan.objets_poses_tronques") and '"m":5' in t and '"n":32' in t for t in ob.get("toasts", [])), ob)
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
