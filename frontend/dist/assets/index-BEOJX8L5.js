@@ -8800,10 +8800,11 @@ function svxSfxDevisTexte(dur,n){var d=Number(dur)>0?Number(dur):null;
 /* un modèle autre qu'ElevenLabs direct s'ARME en deux clics : le 1er annonce le prix (devis), le 2e tire */
 function svxSfxCleArme(dur,n){return [svxSfxEff("sfx_texte"),Number(dur)>0?Number(dur):0,n].join("|")}
 function svxSfxArmeTexte(dur,n,note){
-  /* tant que le catalogue n'est pas lu, le modèle effectif n'est pas connu (le serveur choisira peut-être le jumeau
-     fal) : rien ne part */
-  var l=svxSfxCat("sfx_texte");
-  if(!l||!l.length){note(dzT("son.sfx.catalogue_attente"));return !0}
+  /* PENDANT la lecture du catalogue, le modèle effectif n'est pas connu (le serveur choisira peut-être le jumeau
+     fal) : rien ne part. En cas d'ÉCHEC de la lecture, on laisse partir sans `modele` : le serveur choisit son défaut */
+  var l=svxSfxCat("sfx_texte"),c=SVX_SFXM.cat.sfx_texte;
+  if(!l){note(dzT("son.sfx.catalogue_attente"));return !0}
+  if(c&&c.err){SVX_SFXM.armT=null;return !1}
   if(svxSfxEff("sfx_texte")==="elevenlabs-direct"){SVX_SFXM.armT=null;return !1}
   var k=svxSfxCleArme(dur,n);
   if(SVX_SFXM.armT===k){SVX_SFXM.armT=null;svxSfxPing();return !1}

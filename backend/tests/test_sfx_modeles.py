@@ -884,6 +884,10 @@ __QUEUE__
   OUT.cat_x_err=!!(SVX_SFXM.cat.sfx_x&&SVX_SFXM.cat.sfx_x.err);
   svxSfxCat("sfx_x");var n1=CALLS.length-avant;
   SVX_SFXM.cat.sfx_x.err=Date.now()-6000;svxSfxCat("sfx_x");OUT.cat_x_appels=[n1,CALLS.length-avant];
+  /* catalogue sfx_texte en ÉCHEC : la génération part quand même, sans `modele` (défaut du serveur) */
+  var sauve=SVX_SFXM.cat.sfx_texte;SVX_SFXM.cat.sfx_texte={l:[],err:Date.now()};
+  var NE=[];OUT.echec_arme=svxSfxArmeTexte(4,2,function(m){NE.push(m)});OUT.echec_notes=NE;
+  var be={};svxSfxCorps(be,{});OUT.echec_corps=be;SVX_SFXM.cat.sfx_texte=sauve;
   process.stdout.write(JSON.stringify(OUT));
 })().catch(function(e){process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)}))});
 """
@@ -905,6 +909,9 @@ __QUEUE__
               O["arme_avant"] is True and O["arme_avant_note"] and "catalogue" in O["arme_avant_note"][0], O["arme_avant_note"])
         check("le sélecteur est groupé par voie (<optgroup> clé fal, puis clé ElevenLabs), comme DzModelesIA",
               O["groupes"] == ["optgroup:via la clé fal", "optgroup:avec votre clé ElevenLabs"], O["groupes"])
+        check("catalogue sfx_texte en ÉCHEC (pas en lecture) : rien n'est bloqué, le corps part sans modele",
+              O["echec_arme"] is False and O["echec_notes"] == [] and O["echec_corps"] == {},
+              (O["echec_arme"], O["echec_notes"], O["echec_corps"]))
         check("catalogue en échec : marqué, pas réessayé dans les 5 s, réessayé ensuite (rien gardé pour la session)",
               O["cat_x_err"] is True and O["cat_x_appels"] == [1, 2], (O["cat_x_err"], O["cat_x_appels"]))
         check("le sélecteur liste les 5 modèles sfx_texte (groupés par voie)",

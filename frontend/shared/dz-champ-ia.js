@@ -882,7 +882,11 @@
      (le défaut d'avant) */
   function A_sfx() {
     return { liste: null, pourquoi: "le modèle de bruitage se choisit à côté du champ", texte: function (el) {
-      var s = proche(el, 'select[data-dzsfxm="texte"]', null, 8), o = s && s.options ? s.options[s.selectedIndex] : null;
+      // la couche pose data-dzsfxm="texte" sur le <span> qui ENVELOPPE le <select> (le sélecteur vidéo, sur le <select>)
+      var s = proche(el, '[data-dzsfxm="texte"] select, select[data-dzsfxm="texte"]', null, 8), o = null;
+      var l = s && s.options ? Array.prototype.slice.call(s.options) : [];
+      for (var i = 0; i < l.length; i++) if (l[i].value === s.value) { o = l[i]; break; }
+      if (!o && s && s.selectedIndex >= 0) o = s.options[s.selectedIndex];
       return o ? String(o.textContent || "").split(" · ")[0].trim() : "ElevenLabs SFX";
     } };
   }

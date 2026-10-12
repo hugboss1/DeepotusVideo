@@ -938,6 +938,21 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   } catch (e) { R.t10err = String(e && e.stack || e).slice(0, 600); }
   R.t10.tout = APPELS.slice(0).filter(a => /^\/api\/dictation/.test(a[1])).map(a => a[1]);
 
+  // ---------- t187 : la pastille SFX lit le modèle CHOISI dans le sélecteur de la couche Sons ----------
+  // monté comme la couche le rend : <span class="svx-sfxm" data-dzsfxm="texte"><select class="svx-select svx-sfxmsel">
+  try {
+    const card = el("div", { class: "svm-card" }, body), head = el("div", { class: "svm-cardhead" }, card);
+    const sp = el("span", { class: "svx-sfxm", "data-dzsfxm": "texte" }, head);
+    const sl = el("select", { class: "svx-select svx-sfxmsel" }, sp);
+    [["elevenlabs-direct", "ElevenLabs SFX · $0.0096/s"], ["sonilo-1.1", "Sonilo 1.1 · $0.0018/s"]].forEach(function (x) {
+      const o = el("option", {}, sl); o.value = x[0]; o.textContent = x[1]; });
+    sl.value = "sonilo-1.1";
+    const in187 = el("input", { class: "svm-sfxprompt", type: "text" }, el("div", { class: "svm-sfxform" }, card));
+    A.marquer(document.body); await pause(80); A.synchroniser(); await pause(20);
+    R.t187 = { p: vuP(in187) };
+    sl.value = "elevenlabs-direct"; A.synchroniser(); await pause(20);
+    R.t187.p2 = vuP(in187);
+  } catch (e) { R.t187err = String(e && e.stack || e).slice(0, 400); }
   // ---------- reduced-motion : la règle du média est présente (la cascade est celle du navigateur) ----------
   process.stdout.write(JSON.stringify(R), () => process.exit(0));
 })().catch(e => { process.stdout.write(JSON.stringify({ erreur: String(e && e.stack || e) }), () => process.exit(0)); });
@@ -1386,6 +1401,13 @@ def main():
     # ---------- T10 : dictée ----------
     D = R.get("t10") or {}
     check("section T10 du harnais sans exception", not R.get("t10err"), str(R.get("t10err")))
+    # t187 : le lien pastille <-> sélecteur de la couche Sons (span[data-dzsfxm] > select), prouvé sur le DOM du banc
+    t187 = R.get("t187") or {}
+    check("t187 : la pastille SFX affiche le modèle CHOISI dans le sélecteur de la couche (Sonilo 1.1, pas « ElevenLabs SFX »)",
+          not R.get("t187err") and (t187.get("p") or {}).get("txt") == "Sonilo 1.1", str((R.get("t187err"), t187)))
+    check("t187 : elle suit le changement de choix (ElevenLabs SFX), sans le prix de l'option",
+          (t187.get("p2") or {}).get("txt") == "ElevenLabs SFX" and "$" not in ((t187.get("p") or {}).get("txt") or ""),
+          str(t187))
 
     def dd(k):
         return D.get(k) or {}
