@@ -14,6 +14,7 @@
 // pointermove / pointerup commencé sur la scène et relâché au-dessus d'un panneau doit finir son geste.
 //
 // Module sans DOM à l'import (banc qa/panneaux_flottants.test.mjs) ; hors base L6, aucun texte affiché.
+import { garderGestes } from "../../shared/dz-iacalque-commun.js";
 
 // ce qui est un panneau flottant : les deux dialogues (classe .ia-dlg), l'éditeur en place, et tout élément
 // marqué par garderClics
@@ -25,16 +26,15 @@ export function dansPanneau(ev) {
   return !!(t && typeof t.closest === "function" && t.closest(PANNEAUX_FLOTTANTS));
 }
 
-// les gestes arrêtés au panneau, en bulle. Le CLAVIER aussi : le keydown global de core.js n'ignore que
-// INPUT/TEXTAREA — sur une liste ou un bouton du panneau, Échap désélectionnait et une lettre changeait d'outil.
-// Rien n'est preventDefault : la case, les listes et le texte gardent leur geste natif ; la molette ne zoome pas
-// le canevas.
-export const GESTES_GARDES = ["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel", "keydown"];
+// les gestes arrêtés au panneau, en bulle — la liste et la garde sont celles du Photolab (t197 :
+// /shared/dz-iacalque-commun.js). Le CLAVIER enfoncé aussi : le keydown global de core.js n'ignore que
+// INPUT/TEXTAREA — sur une liste ou un bouton du panneau, Échap désélectionnait et une lettre changeait d'outil ;
+// jamais keyup (Espace relâché sur le panneau rend la main au panoramique). Rien n'est preventDefault : la case, les
+// listes et le texte gardent leur geste natif ; la molette ne zoome pas le canevas.
+export { GESTES_GARDES } from "../../shared/dz-iacalque-commun.js";
 export function garderClics(el) {
   if (el.dataset) el.dataset.vlFlottant = "1";
-  for (const t of GESTES_GARDES) {
-    el.addEventListener(t, (ev) => ev.stopPropagation(), t === "wheel" ? { passive: true } : false);
-  }
+  garderGestes(el);
 }
 
 // un texte sûr dans un gabarit HTML (attribut ou contenu)
