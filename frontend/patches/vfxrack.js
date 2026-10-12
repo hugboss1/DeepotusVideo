@@ -1171,8 +1171,10 @@ function vfxMatteValide(){var l=VFX_MATTE.models||[];if(l.length&&!vfxMatteMod(V
 function vfxMattePrixUsd(usd,unite){
   var f=(window.DzModelesIA&&window.DzModelesIA.prixUsd)||(typeof dzPrixUsd==="function"?dzPrixUsd:null);
   return f?f(usd,unite):""}
+function vfxMatteNom(o){var k="detour.modele."+String(o.id||"").replace(/-/g,"_");
+  return window.DZ_I18N&&window.DZ_I18N[k]?dzT(k):o.label}
 function vfxMatteLbl(o){var p=vfxMattePrixUsd(o.usd,o.unite);
-  return o.label+" · "+(p||dzT("ia.prix.a_mesurer"))+(o.dispo===!1&&o.cle?" · "+dzT("ia.cle.a_ajouter",{cle:o.cle}):"")}
+  return vfxMatteNom(o)+" · "+(p||dzT("ia.prix.a_mesurer"))+(o.dispo===!1&&o.cle?" · "+dzT("ia.cle.a_ajouter",{cle:o.cle}):"")}
 function vfxMatteChoix(v){VFX_MATTE.model=v;try{localStorage.setItem(VFX_DETOUR_LS,v)}catch(_e){}}
 function vfxMatteSujetReq(){var m=vfxMatteMod(VFX_MATTE.model);return!!(m&&m.prompt)}
 function vfxMatteSansSujet(note){vfxMatteValide();

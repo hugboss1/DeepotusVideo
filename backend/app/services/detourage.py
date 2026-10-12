@@ -117,13 +117,6 @@ def sujet_de(mid: str, sujet) -> str | None:
     return s
 
 
-def verifier(mid: str, nature: str, sujet=None) -> str | None:
-    """Les refus GRATUITS d'une demande (id inconnu / mauvaise nature / sujet manquant), dans cet ordre ;
-    rend le sujet nettoyé. Ne regarde PAS la clé (cle_manquante, à placer entre les deux par la route)."""
-    entree(mid, nature)
-    return sujet_de(mid, sujet)
-
-
 def build_request(mid: str, url: str, prompt=None) -> tuple[str, dict]:
     """(endpoint, arguments) de l'appel fal. ValueError : id inconnu, modèle LOCAL (aucune requête fal), ou
     modèle à sujet sans sujet. Les arguments fixes d'abord, puis l'URL d'entrée, puis le sujet — et le sujet
@@ -247,11 +240,3 @@ async def detourer_image(mid: str, chemin, prompt=None, dossier=None) -> str:
     await MT._download(out, dest)
     await asyncio.to_thread(_en_png, dest)
     return dest.name
-
-
-def detourer_video(mid: str, src, prompt=None, label: str = "clip") -> str:
-    """Lance le détourage d'une vidéo (nature detourage_video) par la machinerie de travaux de matte_service ;
-    rend l'id du travail (GET /api/matte/{id}). PAYANT : clé et garde passées dans la route."""
-    from app.services import matte_service as MT
-    entree(mid, VIDEO)
-    return MT.detourer(src, mid, label=label, sujet=prompt)

@@ -422,8 +422,10 @@ async def _decor_controles(b: dict, mod: str | None = None):
     from app.config import settings
     if not (settings.FAL_KEY or "").strip():
         from app import i18n as _i18n
-        raise HTTPException(503, _i18n.msg("ia.cle.absente_tir", _i18n.langue_ui(), nom_cle="FAL_KEY",
-                                           modele=str(mod or "BiRefNet")))
+        from app.services import matte_service as _MT, detourage as _DT
+        # le LIBELLÉ du modèle (registre ou anciennes clés BiRefNet), jamais son id
+        nom = (_MT.MATTE_MODELS.get(str(mod or "")) or _DT.REGISTRE.get(str(mod or "")) or {}).get("label") or "BiRefNet"
+        raise HTTPException(503, _i18n.msg("ia.cle.absente_tir", _i18n.langue_ui(), nom_cle="FAL_KEY", modele=nom))
     info = await asyncio.to_thread(FV.probe, src)
     if not info.get("width") or not info.get("duration_s"):
         raise HTTPException(415, "Vidéo source illisible.")

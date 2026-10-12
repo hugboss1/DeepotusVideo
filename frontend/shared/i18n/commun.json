@@ -64,5 +64,16 @@
   "ia.local.a_demarrer": {"fr": "service local à démarrer", "en": "start the local service"},
   "detour.champ.modele": {"fr": "Modèle de détourage", "en": "Cutout model"},
   "detour.champ.sujet": {"fr": "Sujet à garder", "en": "Subject to keep"},
-  "detour.champ.sujet_requis": {"fr": "Dites quel sujet garder.", "en": "Say which subject to keep."}
+  "detour.champ.sujet_requis": {"fr": "Dites quel sujet garder.", "en": "Say which subject to keep."},
+  "detour.modele.local_rembg": {"fr": "rembg (local, gratuit)", "en": "rembg (local, free)"},
+  "detour.modele.local_chroma": {"fr": "Fond uni / chroma (local)", "en": "Plain background / chroma (local)"},
+  "detour.modele.sam3_sujet": {"fr": "SAM 3 — garder un sujet nommé", "en": "SAM 3 — keep a named subject"},
+  "detour.modele.bria_objet": {"fr": "Bria — extraire un objet nommé", "en": "Bria — extract a named object"},
+  "detour.modele.rembg_fal": {"fr": "rembg (fal, ancien)", "en": "rembg (fal, legacy)"},
+  "detour.modele.birefnet_v2_video": {"fr": "BiRefNet v2 vidéo", "en": "BiRefNet v2 video"},
+  "detour.modele.veed_video_rapide": {"fr": "VEED rapide", "en": "VEED fast"},
+  "detour.modele.pixelcut_video": {"fr": "Pixelcut vidéo", "en": "Pixelcut video"},
+  "detour.modele.sam31_video": {"fr": "SAM 3.1 — suivre un sujet nommé", "en": "SAM 3.1 — track a named subject"},
+  "detour.modele.general": {"fr": "Général (léger)", "en": "General (light)"},
+  "detour.modele.matting": {"fr": "Matting — cheveux, transparences", "en": "Matting — hair, transparency"}
 }

@@ -341,7 +341,7 @@
     off.libelle = voie === "local"
       ? dzT("cartes.capture.detourer_local")
       : dzT("cartes.capture.detourer_fal", { prix: num(s.prix_usd, 3) });
-    return off;
+    return detourAjuste(off);         // t186 : un autre modèle choisi dit SON prix
   }
 
   /* LES LIGNES DU BLOC « FOND », branchees sur la PORTE QUI A REFUSE.
@@ -1352,8 +1352,19 @@
      garder envoie la requête d'avant, SANS corps (basculement et tarif d'avant). `sujet` pour SAM 3 / Bria objet.
      Choix mémorisé (localStorage dz_detour_cartes). */
   const DETOUR_LS = "dz_detour_cartes";
-  function detourDefaut() {
-    return offreIA(IA, !!info("recto")).voie === "local" ? "local-rembg" : "rembg-fal";
+  function detourDefaut(voie) {
+    return voie === "local" ? "local-rembg" : "rembg-fal";
+  }
+  /* l'offre du bouton quand un AUTRE modèle que la voie d'avant est choisi : libellé, gratuité et prix pris dans
+     le catalogue (même chiffre que le toast d'après, qui lit prix_usd de la route) ; fal à 0 $ : « prix à mesurer ».
+     Appelée en fin d'offreIA : le bouton, le message d'attente et le contrôle « tarif changé » la voient. */
+  function detourAjuste(off) {
+    const sel = $("#cf-capture-modele"), m = detourModele();
+    if (!off.on || !sel || !m || sel.value === detourDefaut(off.voie)) return off;
+    off.gratuit = m.voie === "local";
+    off.libelle = m.voie === "local" ? dzT("cartes.capture.detourer_local")
+      : (Number(m.usd) > 0 ? dzT("cartes.capture.detourer_fal", { prix: num(m.usd, 3) }) : dzT("cartes.t186.detourer_a_mesurer"));
+    return off;
   }
   function detourModele() {
     const sel = $("#cf-capture-modele");
@@ -1370,9 +1381,9 @@
     let voulu = "";
     try { voulu = localStorage.getItem(DETOUR_LS) || ""; } catch (e) { /* stockage indisponible */ }
     try {
-      await window.DzModelesIA.select(sel, "detourage_image", { valeur: voulu || detourDefaut(), onChange: (v) => {
+      await window.DzModelesIA.select(sel, "detourage_image", { valeur: voulu || detourDefaut(offreIA(IA, !!info("recto")).voie), onChange: (v) => {
         try { localStorage.setItem(DETOUR_LS, v); } catch (e) { /* stockage indisponible */ }
-        detourMaj();
+        detourMaj(); paint();
       } });
     } catch (e) { sel.__dzDetourPret = false; return; }   // catalogue injoignable : la voie d'avant, sans choix
     detourMaj();
@@ -1380,7 +1391,7 @@
   /* le corps de POST rembg : undefined (requête d'avant) tant que le défaut est gardé */
   function detourCorps() {
     const sel = $("#cf-capture-modele"), v = sel && sel.value;
-    if (!v || v === detourDefaut()) return undefined;
+    if (!v || v === detourDefaut(offreIA(IA, !!info("recto")).voie)) return undefined;
     const c = { modele: v }, m = detourModele();
     if (m && m.prompt) {
       const sj = (($("#cf-capture-sujet-txt") || {}).value || "").trim();
@@ -1454,6 +1465,10 @@
          du decor IA de P2). Deux chiffres differents de part et d'autre d'un
          clic, c'est la confiance perdue. Et une voie gratuite ne parle pas
          d'argent du tout. */
+      if (d.voie !== "local" && !(estNombre(d.prix_usd) && d.prix_usd > 0)) {   // t186 : fal à 0 $ = « prix à mesurer »
+        M.toast(dzT("cartes.capture.sujet_ok", { w: d.w, h: d.h, poids: weight(d.bytes) }) + dzT("cartes.t186.fal_a_mesurer"));
+        return;
+      }
       M.toast(dzT("cartes.capture.sujet_ok", { w: d.w, h: d.h, poids: weight(d.bytes) })
         + (d.voie === "local" ? dzT("cartes.capture.local_gratuit")
           : (estNombre(d.prix_usd) ? dzT("cartes.capture.fal_prix", { prix: num(d.prix_usd, 3) })

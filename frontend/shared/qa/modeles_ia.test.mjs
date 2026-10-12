@@ -117,4 +117,9 @@ assert.equal(Mfr.texte({ id: "pixelcut", label: "Pixelcut", voie: "fal", usd: 0,
 assert.equal(Mfr.texte({ id: "veed", label: "VEED", voie: "fal", usd: 0.012, unite: "30 images", dispo: false, cle: "FAL_KEY" }),
   "VEED · $0.012/30 images · clé FAL_KEY à ajouter dans Réglages");
 
+// [10] t186 : le nom traduit par detour.modele.<id> quand le dictionnaire de la page la porte, sinon le libellé servi
+const Mdico = (() => { const ctx = { window: { fetch: ok, dzT: (k) => "EN:" + k, DZ_I18N: { "detour.modele.sam3_sujet": {} } } };
+  vm.createContext(ctx); vm.runInContext(src, ctx); return ctx.window.DzModelesIA; })();
+assert.equal(Mdico.libelle({ id: "sam3-sujet", label: "SAM 3 — garder un sujet nommé" }), "EN:detour.modele.sam3_sujet");
+assert.equal(Mdico.libelle({ id: "pixelcut", label: "Pixelcut" }), "Pixelcut");
 console.log("modeles_ia ok");

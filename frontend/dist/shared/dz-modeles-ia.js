@@ -46,9 +46,16 @@
   }
   /* t186 (G4) : une option de la voie LOCALE sans prix est gratuite pour de vrai (son <optgroup> le dit déjà) —
      ni « prix à mesurer », ni prix : le libellé seul. Les autres voies gardent la règle (jamais « gratuit »). */
+  /* t186 : le NOM d'un modèle — la clé detour.modele.<id> (tirets -> _) de commun.json quand le dictionnaire de la
+     page la porte (les libellés du catalogue arrivent en français : « SAM 3 — garder un sujet nommé ») ; sinon le
+     libellé servi, tel quel (noms propres) */
+  function libelle(m) {
+    var k = "detour.modele." + String(m.id || "").replace(/-/g, "_");
+    return W.DZ_I18N && W.DZ_I18N[k] ? T(k) : (m.label || m.id);
+  }
   function texte(m) {
     var p = prixUsd(m.usd, m.unite);
-    return (m.label || m.id) + (p ? " · " + p : m.voie === "local" ? "" : " · " + prix(m.usd, m.unite))
+    return libelle(m) + (p ? " · " + p : m.voie === "local" ? "" : " · " + prix(m.usd, m.unite))
       + (m.dispo === false && m.cle ? " · " + T("ia.cle.a_ajouter", { cle: m.cle }) : "");
   }
   /* rang d'une voie : l'ordre ORDRE, une voie inconnue (ou absente) APRÈS toutes */
@@ -130,6 +137,6 @@
       return mods;
     });
   }
-  W.DzModelesIA = { grouper: grouper, prix: prix, prixUsd: prixUsd, texte: texte, filtrer: filtrer, charger: charger,
+  W.DzModelesIA = { grouper: grouper, prix: prix, prixUsd: prixUsd, texte: texte, libelle: libelle, filtrer: filtrer, charger: charger,
                     valeurInitiale: valeurInitiale, remplir: remplir, select: select, rang: rang, ORDRE: ORDRE };
 })(typeof window !== "undefined" ? window : globalThis);

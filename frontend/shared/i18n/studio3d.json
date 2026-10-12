@@ -270,9 +270,13 @@
   "studio3d.s3b_vues.titre_tir": {"fr": "Tirer le maillage", "en": "Run the mesh"},
   "studio3d.s3b_vues.vue_en_cours": {"fr": "vue {i} en cours…", "en": "view {i} in progress…"},
   "studio3d.s3b_vues.vue_n": {"fr": "vue {i}", "en": "view {i}"},
+  "studio3d.t186.a_mesurer": {"fr": "prix à mesurer", "en": "price to be measured"},
   "studio3d.t186.coins": {"fr": "Masque des coins (local, gratuit)", "en": "Corner mask (local, free)"},
+  "studio3d.t186.confirmer": {"fr": "Détourer la vue {i} avec {modele} : {prix}.", "en": "Cut out view {i} with {modele}: {prix}."},
+  "studio3d.t186.det_title": {"fr": "Retirer le fond — {modele}", "en": "Remove the background — {modele}"},
   "studio3d.t186.detouree": {"fr": "vue {i} détourée ({modele})", "en": "view {i} cut out ({modele})"},
   "studio3d.t186.modele": {"fr": "Modèle de détourage", "en": "Cutout model"},
   "studio3d.t186.sujet": {"fr": "Sujet à garder", "en": "Subject to keep"},
-  "studio3d.t186.sujet_requis": {"fr": "Dites quel sujet garder.", "en": "Say which subject to keep."}
+  "studio3d.t186.sujet_requis": {"fr": "Dites quel sujet garder.", "en": "Say which subject to keep."},
+  "studio3d.t186.titre": {"fr": "Détourer une vue", "en": "Cut out a view"}
 }

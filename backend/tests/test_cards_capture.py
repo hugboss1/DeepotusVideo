@@ -1179,6 +1179,15 @@ def test_les_refus_sont_TOUS_en_francais():
     src = pathlib.Path(CP.__file__).read_text(encoding="utf-8")
     messages = re.findall(r'HTTPException\(\s*\d{3},\s*(?:f?")([^"]{6,})',
                           src)
+    # t186 : un refus peut porter un message du CATALOGUE serveur (app.i18n, langue de l'interface) — sa phrase
+    # française de référence est lue dans backend/app/i18n/messages.json, et passe les mêmes contrôles
+    import json as _json
+    _cat = _json.loads((pathlib.Path(CP.__file__).resolve().parents[3] / "app" / "i18n" / "messages.json")
+                       .read_text(encoding="utf-8"))
+    for cle in re.findall(r'HTTPException\(\s*\d{3},\s*_i18n\.msg\("([a-z0-9_.]+)"', src):
+        fr = (_cat.get(cle) or {}).get("fr", "")
+        assert len(fr) >= 6, cle
+        messages.append(fr)
     combien = len(re.findall(r"\bHTTPException\(", src))
     assert combien >= 8, combien
     assert len(messages) == combien, \

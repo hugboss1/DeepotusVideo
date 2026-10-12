@@ -2703,6 +2703,8 @@
   "cartes.solid.zoom_arr_t": {"fr": "Zoom arrière (molette)", "en": "Zoom out (wheel)"},
   "cartes.solid.zoom_av": {"fr": "Zoom avant", "en": "Zoom in"},
   "cartes.solid.zoom_av_t": {"fr": "Zoom avant (molette)", "en": "Zoom in (wheel)"},
+  "cartes.t186.detourer_a_mesurer": {"fr": "Détourer le sujet (fal, prix à mesurer)", "en": "Cut out subject (fal, price to be measured)"},
+  "cartes.t186.fal_a_mesurer": {"fr": " (fal, prix à mesurer)", "en": " (fal, price to be measured)"},
   "cartes.t186.modele": {"fr": "Modèle de détourage", "en": "Cutout model"},
   "cartes.t186.sujet": {"fr": "Sujet à garder", "en": "Subject to keep"},
   "cartes.t186.sujet_requis": {"fr": "Dites quel sujet garder.", "en": "Say which subject to keep."},

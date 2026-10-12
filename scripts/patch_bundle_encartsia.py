@@ -62,7 +62,10 @@ modèle dans le registre unique du détourage (GET /api/ia/catalogue?nature=deto
     modèle par `modele` (+ `sujet`, refus dzT("detour.champ.sujet_requis") avant tout envoi s'il manque) ;
   - E25 le sélecteur (libellé dzT("detour.champ.modele")) et, pour un modèle `prompt:true`, le champ
     dzT("detour.champ.sujet"). Un modèle sans clé reste CHOISISSABLE (le serveur refuse en 503 au lancement).
-Les clés detour.champ.* vivent dans commun.json.
+Relecture : le nom d'un modèle passe par dzDetNom (clé detour.modele.<id> de commun.json quand le dictionnaire la
+porte — les libellés du catalogue arrivent en français) ; catalogue injoignable : le champ reprend « Méthode » et l'aide
+d'avant (studio.imgproc.methode / methode_aide), qui décrivent exactement les deux voies de secours.
+Les clés detour.champ.* et detour.modele.* vivent dans commun.json.
 
 Maillon de QUEUE, APRÈS dzguide (dont il sonde le marqueur) ; comme lui, il garde un .js.bak_encartsia le temps de
 l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_encartsia` dans
@@ -271,8 +274,11 @@ DETOUR_AIDES = (
     'function dzDetVal(p){return p.modele||(p.method==="local"?"local-rembg":p.method==="api"?"rembg-fal":dzDetLs()||"rembg-fal")}'
     'function dzDetPrompt(id){var m=dzDetTrouve(id);return!!(m&&m.prompt)}'
     # libellé · prix (règle unique dzPrixUsd) · mention de clé ; une voie locale est gratuite (le select n'a pas de groupes)
+    # le nom : la clé detour.modele.<id> de commun.json quand le dictionnaire la porte (libellés du serveur en français)
+    'function dzDetNom(m){var k="detour.modele."+String(m.id||"").replace(/-/g,"_");'
+    'return window.DZ_I18N&&window.DZ_I18N[k]?dzT(k):(m.label||m.id)}'
     'function dzDetLbl(m){var u=dzPrixUsd(m.usd,m.unite);'
-    'return(m.label||m.id)+" · "+(u||(m.voie==="local"?dzT("ia.voie.local"):dzT("ia.prix.a_mesurer")))'
+    'return dzDetNom(m)+" · "+(u||(m.voie==="local"?dzT("ia.voie.local"):dzT("ia.prix.a_mesurer")))'
     '+(m.dispo===false&&m.cle?" · "+dzT("ia.cle.a_ajouter",{cle:m.cle}):"")}'
     # les options : catalogue rangé par voie (dzVoiesOrdre, ordre stable) ; un modèle sans clé reste CHOISISSABLE
     'function dzDetOpts(cur,fin){if(!dzDetCat){if(!dzDetEnCours&&(!dzDetEssai||Date.now()-dzDetEssai>4e3))dzDetCharger(fin);'
@@ -298,7 +304,9 @@ DETOUR_ROW_AVANT = ('if(kind==="removebg")rows.push(r.jsx(O,{label:dzT("studio.i
                     'children:r.jsx(re,{value:p.method||"api",onChange:function(v){set("method",v)},options:[{value:"api",'
                     'label:dzT("studio.imgproc.api_cloud")},{value:"local",label:"Local (rembg)"}]})},"m"));')
 DETOUR_ROW_APRES = (
-    'if(kind==="removebg"){var dzDv=dzDetVal(p);rows.push(r.jsx(O,{label:dzT("detour.champ.modele"),'
+    # catalogue lu : « Modèle de détourage » ; catalogue injoignable (les deux voies d'avant) : « Méthode » et l'aide d'avant
+    'if(kind==="removebg"){var dzDv=dzDetVal(p);rows.push(r.jsx(O,{label:dzDetCat?dzT("detour.champ.modele"):dzT("studio.imgproc.methode"),'
+    'hint:dzDetCat?void 0:dzT("studio.imgproc.methode_aide"),'
     'children:r.jsx("div",{"data-dzdetour":"1",children:r.jsx(re,{value:dzDv,onChange:function(v){dzDetMem(v);set("modele",v)},'
     'options:dzDetOpts(dzDv,dzDetR)})})},"m"));'
     # le sujet à garder (SAM 3, Bria objet…) : seulement si le modèle choisi en exige un

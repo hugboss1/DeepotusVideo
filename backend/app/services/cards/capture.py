@@ -2156,7 +2156,8 @@ async def _rembg_par_registre(did: str, d: Path, recto: Path, mid: str, sujet) -
         raise HTTPException(400, f"Détourage refusé : {x}")
     cle = _DT.cle_manquante(mid)
     if cle:
-        raise HTTPException(503, f"{cle} non configurée (Réglages) pour {e['label']} — rien n'a été lancé.")
+        from app import i18n as _i18n   # t186 : le message dans la langue de l'interface, comme routes._refus_cle
+        raise HTTPException(503, _i18n.msg("ia.cle.absente_tir", _i18n.langue_ui(), nom_cle=cle, modele=e["label"]))
     try:
         sujet = _DT.sujet_de(mid, sujet)
     except ValueError as x:

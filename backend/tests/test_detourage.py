@@ -804,7 +804,7 @@ check("studio3d : #vuesDetourModele (défaut d'avant : masque des coins) et #vue
 check("studio3d : le masque des coins garde le corps d'avant { via: \"local\" }",
       'if (!v || v === DETOUR_COINS) return { via: "local" };' in _lire("studio3d/vues.js"))
 check("cartes : garder le défaut (voie d'avant) n'envoie AUCUN corps",
-      "if (!v || v === detourDefaut()) return undefined;" in _lire("cardforge/js/mod-capture.js"))
+      'if (!v || v === detourDefaut(offreIA(IA, !!info("recto")).voie)) return undefined;' in _lire("cardforge/js/mod-capture.js"))
 _av = _lire("avatar/avatar.js")
 check("avatar : les trois réglages BiRefNet d'avant restent (portrait par défaut), BiRefNet v2 vidéo du registre écarté",
       'if (!sel.value) sel.value = "portrait";' in _av and "removeChild(ob)" in _av
@@ -915,6 +915,29 @@ if _node:
           and _o.get("mem") == "general" and _o.get("row2") is None and _o.get("m3") == "general", str(_o)[:400])
 else:
     check("node présent", False)
+
+# relecture de conformité (tâche B)
+_COM = _json.loads((_FR / "shared/i18n/commun.json").read_text("utf-8"))
+_noms = {k: e["label"] for k, e in list(DT.REGISTRE.items()) + list(MT.MATTE_MODELS.items())}
+_ecarts = [k for k, lb in _noms.items() if f"detour.modele.{k.replace('-', '_')}" in _COM
+           and _COM[f"detour.modele.{k.replace('-', '_')}"]["fr"] != lb]
+check("libellés : les clés detour.modele.<id> portent le libellé EXACT du serveur (et les suffixes français sont tous couverts)",
+      not _ecarts and all(f"detour.modele.{k.replace('-', '_')}" in _COM for k in ("local-rembg", "local-chroma", "sam3-sujet",
+      "bria-objet", "rembg-fal", "birefnet-v2-video", "veed-video-rapide", "pixelcut-video", "sam31-video")), _ecarts)
+check("libellés : DzModelesIA, le nœud Studio et le rack traduisent le nom par detour.modele.<id>",
+      "function libelle(m)" in _lire("shared/dz-modeles-ia.js") and "function dzDetNom(" in _BUN and "function vfxMatteNom(" in _vr)
+_cap = _lire("cardforge/js/mod-capture.js")
+check("cartes : un autre modèle que la voie d'avant dit SON prix (bouton, attente, contrôle « tarif changé ») ; fal à 0 $ « à mesurer »",
+      "return detourAjuste(off);" in _cap and 'dzT("cartes.t186.detourer_a_mesurer")' in _cap
+      and 'dzT("cartes.t186.fal_a_mesurer")' in _cap and "off.gratuit = m.voie === \"local\";" in _cap)
+_vu = _lire("studio3d/vues.js")
+check("studio3d : un modèle fal passe par le devis (kind detourage) puis confirmer ; title des ciseaux dynamique",
+      'devis({ kind: "detourage", modele: corps.modele, images: 1 })' in _vu and "await confirmer(" in _vu
+      and "detourer(i, toast, confirmer)" in _vu and "studio3d.t186.det_title" in _vu)
+check("bundle : « Méthode » et son aide servent au repli (catalogue injoignable)",
+      'dzDetCat?dzT("detour.champ.modele"):dzT("studio.imgproc.methode")' in _BUN and 'dzT("studio.imgproc.methode_aide")' in _BUN)
+check("code mort retiré : detourage.verifier et detourage.detourer_video", not hasattr(DT, "verifier")
+      and not hasattr(DT, "detourer_video"))
 
 check("aucun appel réseau réel", RESEAU["n"] == 0, str(RESEAU))
 print(f"\n=== {ok} passed, {fail} failed ===")
