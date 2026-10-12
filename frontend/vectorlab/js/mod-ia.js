@@ -191,6 +191,13 @@ export function initIA(VL) {
 
   const el = hote();
   if (el) {
+    // le dialogue vit DANS #stage : sans garde, le pointerdown d'un contrôle remonte au gestionnaire de l'outil
+    // Sélection (mod-tools, en bulle sur #stage) qui pose setPointerCapture(#stage) — le click part alors sur
+    // #stage, la croix ne ferme pas, « Générer » ne part pas (vu à la preuve 8799). Mêmes gestes gardés que
+    // garderClics de mod-iacalque ; la poignée de glisser (pointerdown du dialogue, plus bas) n'en souffre pas.
+    for (const t of ["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel"]) {
+      el.addEventListener(t, (ev) => ev.stopPropagation(), t === "wheel" ? { passive: true } : false);
+    }
     el.addEventListener("click", (ev) => {
       if (ev.target.dataset.act === "fermer") { fermer(); VL.setOutil("select"); }
       else if (ev.target.id === "iaGo") generer();
