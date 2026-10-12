@@ -8293,7 +8293,7 @@ async def cost_estimate(body: dict, request: Request):
     # t192 (G10) : une ligne dont le libellé est un app.i18n.Message / Nom (lots G4-G7, matte, musique) se dit dans la
     # langue de la requête ; les autres libellés et toute réponse en français restent tels quels
     for ln in est.get("breakdown") or []:
-        if isinstance(ln, dict) and not type(ln.get("label")) is str and isinstance(ln.get("label"), str):
+        if isinstance(ln, dict) and type(ln.get("label")) is not str and isinstance(ln.get("label"), str):
             ln["label"] = _txt_g(ln["label"], request)
     return est
 

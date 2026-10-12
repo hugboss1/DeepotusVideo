@@ -731,6 +731,38 @@ def main():
     except ValueError as e:
         avant = str(e)
     check("6j … et en français, le message d'avant (le ValueError du registre), à l'octet", d_fr == avant, (d_fr, avant))
+
+    # /audio/music sans FAL_KEY : le 503 nomme le modèle par ia.nom.<id> (la route elle-même, pas seulement msg)
+    import asyncio
+    from app.config import settings as _S
+
+    class _ReqJson(_Req):
+        def __init__(self, lang, corps):
+            super().__init__(lang)
+            self._corps = corps
+
+        async def json(self):
+            return self._corps
+
+    def refus_musique(lang):
+        garde = _S.FAL_KEY
+        _S.FAL_KEY = ""
+        try:
+            asyncio.run(R.generate_music_audio(_ReqJson(lang, {"model": "ace-step", "prompt": "x"})))
+        except HTTPException as e:
+            return e.status_code, e.detail
+        finally:
+            _S.FAL_KEY = garde
+        return None, None
+    c_en, m_en = refus_musique("en")
+    c_fr, m_fr = refus_musique("fr")
+    check("6k /audio/music sans FAL_KEY, en anglais : 503 qui nomme « ACE-Step (lyrics) », aucun accent",
+          c_en == 503 and "ACE-Step (lyrics)" in (m_en or "") and not ACCENTS.search(m_en or ""), (c_en, m_en))
+    check("6l … et en français : le message d'avant, à l'octet",
+          c_fr == 503 and m_fr == "FAL_KEY non configurée (Réglages) pour ACE-Step (paroles) — rien n'a été lancé.", (c_fr, m_fr))
+    libelles = [v["label"] for v in MS.MUSIC_MODELS.values()]
+    check("6m les libellés des modèles de musique sont uniques (music_service._nom retrouve l'id par le libellé)",
+          len(libelles) == len(set(libelles)) and all(MS._nom(v).mid == k for k, v in MS.MUSIC_MODELS.items()), libelles)
     ens = [I.texte(x, "en") for x in exemples]
     check("6c en anglais : aucun accent français, le nom du modèle traduit (ia.nom.<id>)",
           all(not ACCENTS.search(t.replace("→", "")) for t in ens) and "Kling video → sound" in ens[3]

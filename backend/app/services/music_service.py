@@ -213,10 +213,12 @@ _MAX_PROMPT = 2000
 _MAX_LYRICS = 3500
 
 
-def _nom(model: dict):
-    """t192 : le nom d'un modèle dans un message (libellé en français, ia.nom.<id> en anglais)."""
+def _nom(model: dict, mid: str | None = None):
+    """t192 : le nom d'un modèle dans un message (libellé en français, ia.nom.<id> en anglais). L'id est passé quand
+    l'appelant le connaît (pricing) ; sinon retrouvé par le LIBELLÉ (clé stable : unique dans MUSIC_MODELS)."""
     from app.i18n import Nom
-    mid = next((k for k, v in MUSIC_MODELS.items() if v is model), "")
+    if mid is None:
+        mid = next((k for k, v in MUSIC_MODELS.items() if v.get("label") == model.get("label")), "")
     return Nom(mid, model["label"])
 
 

@@ -1037,28 +1037,29 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         from app.i18n import Message   # t192 : lignes traduisibles (/cost/estimate)
         mid = str(op.get("model") or "").strip() or _mu.DEFAULT_MUSIC_MODEL
         m = _mu.MUSIC_MODELS.get(mid) or _mu.MUSIC_MODELS[_mu.DEFAULT_MUSIC_MODEL]
+        mid = mid if mid in _mu.MUSIC_MODELS else _mu.DEFAULT_MUSIC_MODEL   # t192 : l'id du modèle chiffré
         n = max(1, int(op.get("n", 1)))
         if m.get("usd_unit") == "s":
             # T102 : ACE-Step est facturé À LA SECONDE — la durée chiffrée est celle que `_payload`
             # enverra (même fonction, même défaut), sinon le devis et la garde mentiraient. t187 : le prix passe
             # par la règle unique usd_de, comme les deux autres branches.
             sec = _mu.billed_seconds(m, op.get("duration_s"))
-            lines.append(_line("fal", Message("pricing.musique.sec", modele=_mu._nom(m), sec=sec, n=n), n * sec, "s",
+            lines.append(_line("fal", Message("pricing.musique.sec", modele=_mu._nom(m, mid), sec=sec, n=n), n * sec, "s",
                                n * _mu.usd_de(m, op.get("duration_s"))))
         elif m.get("usd_unit") == "min":
             # t187 (G5) : ElevenLabs Music — 0,60 $ par minute de sortie ARRONDIE À LA MINUTE SUPÉRIEURE (usd_de)
             sec = _mu.billed_seconds(m, op.get("duration_s"))
             mins = math.ceil((sec or 0) / 60)
-            lines.append(_line("fal", Message("pricing.musique.min", modele=_mu._nom(m), sec=sec, mins=mins, n=n),
+            lines.append(_line("fal", Message("pricing.musique.min", modele=_mu._nom(m, mid), sec=sec, mins=mins, n=n),
                                n * mins, "min", n * _mu.usd_de(m, op.get("duration_s"))))
         else:
             # t187 (G5) : Mureka — le prix dépend de la présence de paroles (`paroles` dans l'op) ; « à mesurer »
             # quand le tarif vaut 0 (Lyria 3.5, MiniMax Music 3, Stable Audio 3)
             par = bool(op.get("paroles"))
             usd = _mu.usd_de(m, None, par)
-            lbl = (Message("pricing.musique.avec_paroles", modele=_mu._nom(m)) if par and m.get("usd_paroles") is not None
-                   else Message("pricing.musique.sans_paroles", modele=_mu._nom(m)) if m.get("usd_paroles") is not None
-                   else _mu._nom(m))
+            lbl = (Message("pricing.musique.avec_paroles", modele=_mu._nom(m, mid)) if par and m.get("usd_paroles") is not None
+                   else Message("pricing.musique.sans_paroles", modele=_mu._nom(m, mid)) if m.get("usd_paroles") is not None
+                   else _mu._nom(m, mid))
             lines.append(_line("fal", Message("pricing.musique.piste" + ("" if usd else "_a_mesurer"), modele=lbl, n=n),
                                n, "piste", n * usd))
     elif kind == "vfx_ia":

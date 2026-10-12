@@ -78,3 +78,39 @@ routes sans `Request`. Sans en-tête et UI_LANG=fr : rien ne change pour les ban
 - `/audio/music` : le 503 nomme le modèle par `ia.nom.<id>` (11 noms) ; `_detourage_controles` traduit le nom AVANT de le tronquer (un `Nom` coupé perdait son id) ; Photolab `/calque/detourer` rend les `Refus` du détourage dans la langue de la requête ; `/images/generate`, `/images/process`, `/assets/sprite`, `/assets/3d/…/detourer` reçoivent la `Request` et la passent au cœur ; le 502 d'un détourage du registre nomme le modèle traduit ; `/audio/sfx` (« Décris le son… », « Prompt trop long… », durée, id) traduit.
 - Français : deux sondes (`relecture2/compare.py`, 1 329 appels ; `compare2.py`, 574 appels : devis, musique, bruitages, options VFX, notes du matte) rendent, sur la branche, EXACTEMENT les sorties de main ; une table figée de 41 appels est dans le banc ([6b]).
 - Anglais : « SAM 3 — keep a named subject keeps a NAMED subject » → `ia.detour.sujet`/`sujet_manquant` reformulés (« {modele}: say which subject to keep… »). Code mort `DEMANDE_SUJET` / `DEMANDE_PROMPT` retiré (aucun lecteur, bancs compris). Espace `ia.nom.<id>` partagé : aucune collision entre registres (banc [3k]), garde « fr == libellé » documentée dans `nom_modele`.
+- `matte_status` (GET `/matte/{id}`) relit le statut gardé EN MÉMOIRE par `matte_service._JOBS` (jamais persisté) :
+  `usd_note` y reste un `Message`, traduit à la sortie. Reste connu : après un redémarrage du backend, le statut d'un
+  matte est perdu (404 « matte inconnu ») — comportement d'avant, sans rapport avec la langue.
+- Relecture 2 : `music_service._nom` ne retrouve plus l'id par identité d'objet — l'id est passé par `pricing`, sinon
+  retrouvé par le libellé (unique dans `MUSIC_MODELS`, banc [6m]) ; le banc appelle la route `/audio/music` sans
+  FAL_KEY ([6k] anglais « ACE-Step (lyrics) », [6l] français à l'octet) — la mutation « `_refus_cle("FAL_KEY",
+  _m["label"], request)` » le fait rougir.
+
+## 5. Preuve à l'écran (8799, 12/10/2026)
+
+Faite par le coordinateur : serveur de preuve lancé sur ce worktree, dossier de données jetable, aucune clé, POST
+sortants et `fal_client` interceptés (aucune requête payante). Relevé DOM en anglais (textes, `title`, `placeholder`,
+`aria-label`, `alt`, `<option>`).
+
+- **Son & VFX**
+  - SFX : pastille « Model: Sonilo 1.1 — set by the view (the sound-effect model is chosen next to the field) ».
+  - Musique : descriptions et ambiances en anglais, « ACE-Step (lyrics) » ; refus « Pick a mood or describe the
+    music. » puis 503 « FAL_KEY is not configured (Settings) for Lyria 3 (Google) — nothing was started. ».
+  - AI VFX : les 12 gestes et PixVerse, aucun français.
+- **Studio** : graphe Seedance solo, inspecteur du nœud, port « in · end ».
+- **Quick** : menu de la pastille IA, modèles « add the FAL_KEY key in Settings ».
+- **Vectorlab** : panneau « AI image on layer ».
+- **Photolab** : menu Layer « New AI layer… », « Remove layer background » ; en français « Nouveau calque IA… ».
+- **Atelier, Spritelab, Material Forge** (relevé par iframe).
+- **/cost/estimate** en/fr : « Video cutout (BiRefNet) — price to be measured », « Kling video → sound x1 »,
+  « Music (ACE-Step (lyrics)) 120 s x1 ».
+
+Restes vus HORS du périmètre des lots G (antérieurs) :
+- « Dicter — reconnaissance vocale… » (dictée de `dz-champ-ia.js`, reste L9) ;
+- Material Forge : préréglages servis par le serveur (« Sans éclairage », « Métal brossé (fin) », « Émissif animé »),
+  texte des suffixes, `alt` « référence » / « aperçu du générateur » (T098, août ; renvoyés à L10 par L8) ;
+- Photolab : aide « Help: Sélection rectangulaire (M) » (`aide/index.json`) ;
+- ligne de devis ElevenLabs direct « Bruitage x{n} » (`pricing`, antérieure à G5) ;
+- noms de données par défaut (« calque 1 », « Sans titre ») : données de l'utilisateur.
+
+`current_step` des jobs : visible, reporté à L10 — à soumettre à l'utilisateur (voir § 2).
