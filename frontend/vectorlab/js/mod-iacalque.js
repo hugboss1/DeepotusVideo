@@ -518,7 +518,8 @@ export function initIaCalque(VL) {
     if (calqueId && cible !== calqueId) {
       const c = etat.doc.calques.find((x) => x.id === calqueId);
       VL.toast(c ? T("vectorlab.iacalque.calque_verrouille", { nom: c.nom || c.id })
-        : T("vectorlab.iacalque.calque_disparu", { nom: nomCalque(cible) }), true);
+        : cible ? T("vectorlab.iacalque.calque_disparu", { nom: nomCalque(cible) })
+          : T("vectorlab.iacalque.aucun_calque_libre"), true);
     }
     el.hidden = false;
     // le squelette n'est construit qu'UNE fois : rouvert (ou déjà ouvert), la liste des calques seule — le prompt
