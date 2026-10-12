@@ -381,7 +381,7 @@
         var og = ob ? ob.parentNode : (sel.querySelector("optgroup") || sel);
         if (ob) og.removeChild(ob);
         anciens.slice().reverse().forEach(function (o) {
-          if (bire) o.textContent = window.DzModelesIA.texte(Object.assign({}, bire, { label: o.textContent }));
+          if (bire) o.textContent = window.DzModelesIA.texte(Object.assign({}, bire, { id: o.value, label: o.textContent }));
           og.insertBefore(o, og.firstChild);
         });
       } catch (x) { /* catalogue injoignable : les trois réglages d'avant restent */ }

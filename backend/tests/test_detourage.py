@@ -857,6 +857,10 @@ _av = _lire("avatar/avatar.js")
 check("avatar : les trois réglages BiRefNet d'avant restent (portrait par défaut), BiRefNet v2 vidéo du registre écarté",
       'if (!sel.value) sel.value = "portrait";' in _av and "removeChild(ob)" in _av
       and '<option value="portrait"' in _lire("avatar/index.html") and 'id="dSujet"' in _lire("avatar/index.html"))
+# preuve 8799 du 12/10 : texte() traduit par l'id (detour.modele.<id>) — sans `id: o.value`, les trois réglages
+# d'avant s'affichaient tous « BiRefNet v2 vidéo », le libellé de l'entrée du registre qu'ils remplacent
+check("avatar : chaque réglage d'avant garde SON libellé (texte() reçoit l'id de l'option, pas celui du registre)",
+      "Object.assign({}, bire, { id: o.value, label: o.textContent })" in _av)
 
 # rack VFX (couche vfxrack, rafraîchie dans le bundle)
 _vr = _lire("patches/vfxrack.js")
