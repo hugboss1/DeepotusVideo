@@ -56,6 +56,7 @@ export function initBrouillon(VL) {
       etat.calqueActif = etat.doc.calques[etat.doc.calques.length - 1].id;
       VL.rendre();
       VL.toast(T("vectorlab.brouillon.restaure"));
+      VL.verifierIds();                  // id-groupe : un brouillon d'avant le correctif aussi
     } else effacer(k);
   };
   const suivantSauve = VL.surSauve;
