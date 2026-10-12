@@ -4584,7 +4584,8 @@ async def generate_sfx_audio(request: Request):
             duree = _SX.duree_sfx(modele, duration_s)
         except ValueError as e:
             raise HTTPException(400, str(e))
-        await _plafond(_SX.op_sfx(modele, _SX.secondes_facturees(modele, duree), variations), "son")
+        _op = _SX.op_sfx(modele, _SX.secondes_facturees(modele, duree), variations)
+        await _plafond(_op, "son")
         try:
             res = await _SX.generer_sfx(modele, prompt=prompt, duree=duree, echantillons=variations,
                                         influence=prompt_influence if "prompt_influence" in payload else None)
@@ -4592,12 +4593,15 @@ async def generate_sfx_audio(request: Request):
             raise HTTPException(400, str(e))
         except Exception as e:  # noqa: BLE001
             raise HTTPException(502, f"fal.ai: {str(e)[:300]}")
-        out = {"ok": True, "items": res["items"], "modele": modele}
+        from app.services import pricing as _pricing
+        # `usd` = le devis du MÊME op que la garde (l'écran le redit après le tir : même chiffre qu'avant le clic)
+        out = {"ok": True, "items": res["items"], "modele": modele, "usd": _pricing.estimate(_op)["total_usd"]}
         if note:
             out["note"] = note
         return out
     # tâche #16 : ElevenLabs direct, le chemin d'avant (la clé est posée : le 503 est passé plus haut)
-    await _plafond({"kind": "sfx", "duration_s": duration_s, "n": variations}, "son")
+    _op = {"kind": "sfx", "duration_s": duration_s, "n": variations}
+    await _plafond(_op, "son")
     from app.services import sfx_service
     loop = asyncio.get_running_loop()
     try:
@@ -4609,7 +4613,8 @@ async def generate_sfx_audio(request: Request):
         raise HTTPException(e.status, e.message)
     except Exception as e:
         raise HTTPException(502, f"ElevenLabs: {str(e)[:300]}")
-    out = {"ok": True, "items": items, "modele": modele}
+    from app.services import pricing as _pricing
+    out = {"ok": True, "items": items, "modele": modele, "usd": _pricing.estimate(_op)["total_usd"]}
     if warning:
         out["warning"] = warning
     return out
@@ -4730,8 +4735,10 @@ async def generate_sfx_video(request: Request):
 @router.get("/music-models")
 async def list_music_models():
     """Modèles de musique fal.ai + ambiances proposées. `enabled` dit si la
-    clé fal est configurée — l'UI grise la génération plutôt que de laisser
-    l'utilisateur découvrir l'échec après coup."""
+    clé fal est configurée ; t187 : chaque modèle porte aussi voie, cle et
+    dispo. Sans clé, l'écran LISTE quand même les cartes (prix + « clé FAL_KEY
+    à ajouter dans Réglages ») et laisse « Générer » actif : POST /audio/music
+    refuse en 503, avant toute dépense (décision du 11/10/2026)."""
     from app.services import music_service
     return music_service.catalog()
 

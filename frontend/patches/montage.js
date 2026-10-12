@@ -6784,16 +6784,16 @@ function DzmDzRects(o){
    tiroir » n'est vrai que pour les vidéos, pour ne pas dupliquer trois
    fetchs ni rouvrir R_M16C (écart daté 23/09/2026).
 
-   PROVENANCE : aucun provider ne s'appelle « Studio » ni « Chapitres » —
-   les providers mesurés sont seedance, heygen, composition, template, news,
-   episode, ugc, montage, animation, asset3d, sprite2d, card3d (+ NULL, lu
-   « seedance » par le backend). Le groupe affiché est DÉRIVÉ du provider
-   par cette table (comme les chips de la Bibliothèque, patch_bundle_libprov)
-   et les chips sont dérivées des jobs REÇUS, jamais une liste figée. Un
-   provider inconnu s'affiche tel quel : on ne cache pas un nom sous
-   « Autres ». */
+   PROVENANCE : groupe DÉRIVÉ du provider du job par cette table (comme les
+   chips de la Bibliothèque, patch_bundle_libprov) ; chips dérivées des jobs
+   REÇUS. t187 : sfx_video (vidéo sonorisée) va dans « Studio ». Un provider
+   inconnu s'affiche tel quel : on ne cache pas un nom sous « Autres ».
+
+
+
+                                                                                                                                                                                                                   */
 var DZM_PROV_LBL={seedance:"Studio",heygen:"Studio",composition:"Studio",animation:"Studio",extend:"Studio",
-  episode:"Chapitres",news:"News",template:"Templates",ugc:"Importés",montage:"Montages"};
+  episode:"Chapitres",news:"News",template:"Templates",ugc:"Importés",montage:"Montages",sfx_video:"Studio"};
 function dzmProvAff(g){var t={Tout:dzT("montage.mots.tout"),Chapitres:dzT("montage.mots.chapitres"),Importés:dzT("montage.mots.importes"),Montages:dzT("montage.mots.montages")};return Object.prototype.hasOwnProperty.call(t,g)?t[g]:g}function dzmProvGroupe(p){var k=(p==null||p==="")?"seedance":String(p);return DZM_PROV_LBL[k]||k}
 /* « Tout » en tête, puis les groupes dans l'ORDRE D'APPARITION, uniques */
 function dzmProvChips(jobs){var out=["Tout"],seen={};(jobs||[]).forEach(function(j){

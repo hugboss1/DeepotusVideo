@@ -431,13 +431,19 @@
    {
     "pos": 14887,
     "avant": "/* ── POST /api/audio/sfx — génération ElevenLabs ─────────────────────────── */\r\nfunction svxGenSfx(o){\r\n  o=o||{};\r\n  var body={prompt:String(o.prompt||\"\").slice(0,450)};\r\n  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.5,22);\r\n  if(o.prompt_influence!=null)body.prompt_influence=svxClamp(o.prompt_influence,0,1);\r\n  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));",
-    "apres": "/* ── POST /api/audio/sfx — modèle choisi (t187) ──────── */\r\nfunction svxGenSfx(o){\r\n  o=o||{};\r\n  var body={prompt:String(o.prompt||\"\").slice(0,450)};\r\n  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.5,22);\r\n  if(o.prompt_influence!=null)body.prompt_influence=svxClamp(o.prompt_influence,0,1);\r\n  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));svxSfxCorps(body,o);",
+    "apres": "/* POST /api/audio/sfx (t187)         */\r\nfunction svxGenSfx(o){\r\n  o=o||{};\r\n  var body={prompt:String(o.prompt||\"\").slice(0,450)};\r\n  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.1,600);\r\n  if(o.prompt_influence!=null)body.prompt_influence=svxClamp(o.prompt_influence,0,1);\r\n  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));svxSfxCorps(body,o);",
     "groupe": "sfx_a"
    },
    {
     "pos": 15660,
     "avant": "(\"génération refusée (HTTP \"+o2.status+\")\")",
     "apres": "(dzT(\"sfx.generer.refusee\",{code:o2.status}))",
+    "groupe": "sfx_a"
+   },
+   {
+    "pos": 15951,
+    "avant": "      return {items:items}})}",
+    "apres": "      return {items:items,usd:o2.d&&o2.d.usd}})}",
     "groupe": "sfx_a"
    },
    {
@@ -573,9 +579,33 @@
     "groupe": "sfx_a"
    },
    {
+    "pos": 33881,
+    "avant": "    if(!p||gBusy)return;\r\n    setGBusy(!0);",
+    "apres": "    if(!p||gBusy||svxSfxArmeTexte(gAuto?0:gDur,gVar,fireNote))return;\r\n    setGBusy(!0);",
+    "groupe": "sfx_a"
+   },
+   {
+    "pos": 34079,
+    "avant": "        /* nom canonique = filename (les rangées et {audio:...} le réutilisent) */",
+    "apres": "        /* nom canonique = filename    */",
+    "groupe": "sfx_a"
+   },
+   {
+    "pos": 34405,
+    "avant": "        /* coût réel estimé : 40 crédits × durée générée, sommé sur les variations */",
+    "apres": "        /* crédits : ElevenLabs direct (t187) */",
+    "groupe": "sfx_a"
+   },
+   {
+    "pos": 34574,
+    "avant": "        setGCost(real>0?Math.round(real):null);",
+    "apres": "        setGCost(real>0&&svxSfxDirect()?Math.round(real):null);",
+    "groupe": "sfx_a"
+   },
+   {
     "pos": 34660,
     "avant": "its.length+\" variation\"+(its.length>1?\"s\":\"\")+\" générée\"+\r\n          (its.length>1?\"s\":\"\")+\" — cartes ci-dessous, insérables ou déplaçables.\"",
-    "apres": "(its.length>1?dzT(\"sfx.generer.variations.plusieurs\",{n:its.length})\r\n          :dzT(\"sfx.generer.variations.un\",{n:its.length}))",
+    "apres": "(its.length>1?dzT(\"sfx.generer.variations.plusieurs\",{n:its.length})\r\n          :dzT(\"sfx.generer.variations.un\",{n:its.length}))+svxSfxPrixFin(d)",
     "groupe": "sfx_a"
    },
    {
@@ -1035,15 +1065,33 @@
     "groupe": "sfx_b"
    },
    {
+    "pos": 53771,
+    "avant": "type:\"range\",min:0.5,max:22,step:0.5,",
+    "apres": "type:\"range\",min:0.5,max:svxDmax(),step:0.5,",
+    "groupe": "sfx_b"
+   },
+   {
     "pos": 53859,
     "avant": "\"Durée (secondes)\"",
     "apres": "dzT(\"sfx.gen.duree_secondes\")",
     "groupe": "sfx_b"
    },
    {
+    "pos": 54014,
+    "avant": "type:\"number\",min:0.5,max:22,",
+    "apres": "type:\"number\",min:0.5,max:svxDmax(),",
+    "groupe": "sfx_b"
+   },
+   {
     "pos": 54140,
     "avant": "\"Durée précise (secondes)\"",
     "apres": "dzT(\"sfx.gen.duree_precise\")",
+    "groupe": "sfx_b"
+   },
+   {
+    "pos": 54260,
+    "avant": "setGDur(svxClamp(v,0.5,22));",
+    "apres": "setGDur(svxClamp(v,0.5,svxDmax()));",
     "groupe": "sfx_b"
    },
    {
@@ -1079,13 +1127,13 @@
    {
     "pos": 55486,
     "avant": "\"Estimation avant génération — ~40 crédits ElevenLabs par seconde et par variation\"",
-    "apres": "dzT(\"sfx.gen.estimation_aide\")",
+    "apres": "svxSfxEstAide()",
     "groupe": "sfx_b"
    },
    {
     "pos": 55602,
     "avant": "\"≈ 40 crédits/s · total selon durée générée\":\"≈ \"+cost+\" crédits\"",
-    "apres": "svxSfxCout(gDur,gVar,1):svxSfxCout(gDur,gVar,0)      ",
+    "apres": "svxSfxCout(gDur,gVar,1):svxSfxCout(gDur,gVar,0)",
     "groupe": "sfx_b"
    },
    {
@@ -1133,7 +1181,7 @@
    {
     "pos": 57079,
     "avant": "  /* T101 (plan-son-vfx T5) : `inline` = monté dans la page (Bibliothèque → Audio), toujours ouvert, sans « Fermer » */",
-    "apres": "  /* T101 : `inline` = dans la page, sans « Fermer »  */",
+    "apres": "  /* T101 : `inline` = dans la page                   */",
     "groupe": "sfx_b"
    },
    {
@@ -1805,7 +1853,7 @@
    {
     "pos": 87854,
     "avant": "/* ── export contrat ──────────────────────────────────────────────────────── */\r\nwindow.DzSfx={ready:!0,Drawer:SvxDrawer,Rack:SvxRack,Meter:SvxMeter,\r\n  genSfx:svxGenSfx,fxPresets:svxFxPresets};",
-    "apres": "/* ── t187 (G5, génération IA enrichie) : le MODÈLE du bruitage, texte ET vidéo ──────────\r\n   Le registre des bruitages (backend sfx_service.SFX_MODELS) est servi par GET\r\n   /api/ia/catalogue (natures sfx_texte et sfx_video) : chaque option porte son prix (lu au\r\n   catalogue) et, sans clé, la mention « clé X à ajouter dans Réglages » — elle reste\r\n   CHOISISSABLE (jamais disabled) : la route refuse en 503 avant toute dépense. Le choix est\r\n   commun au tiroir Sons et à la carte SFX de Son & VFX (localStorage dz_sfx_modele et\r\n   dz_sfx_modele_video ; vide = le défaut du serveur : ElevenLabs direct, ou son jumeau via\r\n   fal sans clé ElevenLabs). Le PRIX annoncé est le devis du SERVEUR — POST /api/cost/estimate\r\n   (kind « sfx ») pour une description, POST /api/audio/sfx-video avec devis:true pour un\r\n   clip — le même chiffre que la garde des plafonds, avant ET après le clic. « Depuis la\r\n   vidéo » (clip vidéo sélectionné dans la timeline) : 1er clic = arme, 2e clic = tir.\r\n   Ces fonctions vivent APRÈS la dernière édition G1 de la couche (table dzglyph_paires.json :\r\n   éditions repérées par position) ; un useReducer (et non useState) rafraîchit l'affichage. */\r\nvar SVX_SFXM={texte:\"\",video:\"\",voix:!1,cat:{},prix:{},subs:[],arm:null,busy:!1};\r\nvar SVX_SFXM_LS=\"dz_sfx_modele\",SVX_SFXM_LSV=\"dz_sfx_modele_video\";\r\ntry{SVX_SFXM.texte=localStorage.getItem(SVX_SFXM_LS)||\"\";SVX_SFXM.video=localStorage.getItem(SVX_SFXM_LSV)||\"\"}catch(_e){}\r\n/* les libellés du catalogue arrivent en français : ceux qui portent un suffixe à traduire passent par dzT */\r\nvar SVX_SFXM_NOMS={\"sonilo-video\":dzT(\"son.sfx.libelle.sonilo_video\"),\r\n  \"mirelo-video\":dzT(\"son.sfx.libelle.mirelo_video\"),\"kling-v2a\":dzT(\"son.sfx.libelle.kling_v2a\")};\r\nfunction svxSfxPing(){SVX_SFXM.subs.slice().forEach(function(f){try{f()}catch(_e){}})}\r\nfunction svxSfxAbonne(t){\r\n  x.useEffect(function(){SVX_SFXM.subs.push(t);\r\n    return function(){var i=SVX_SFXM.subs.indexOf(t);if(i>=0)SVX_SFXM.subs.splice(i,1)}},[])}\r\nfunction svxSfxCat(nat){\r\n  var c=SVX_SFXM.cat[nat];if(c)return c.l;\r\n  SVX_SFXM.cat[nat]={l:null};\r\n  fetch(\"/api/ia/catalogue?nature=\"+nat).then(function(res){return res.ok?res.json():null})\r\n    .then(function(d){SVX_SFXM.cat[nat]={l:(d&&d.modeles)||[]};svxSfxPing()})\r\n    .catch(function(){SVX_SFXM.cat[nat]={l:[]};svxSfxPing()});\r\n  return null}\r\nfunction svxSfxMod(nat,id){var l=svxSfxCat(nat)||[];\r\n  for(var i=0;i<l.length;i++)if(l[i].id===id)return l[i];return null}\r\n/* le modèle EFFECTIF : le choix mémorisé s'il est encore servi, sinon le défaut du serveur */\r\nfunction svxSfxEff(nat){\r\n  var l=svxSfxCat(nat)||[],v=nat===\"sfx_video\"?SVX_SFXM.video:SVX_SFXM.texte;\r\n  if(v&&svxSfxMod(nat,v))return v;\r\n  if(nat===\"sfx_video\")return l.length?l[0].id:\"\";\r\n  var d=svxSfxMod(nat,\"elevenlabs-direct\"),f=svxSfxMod(nat,\"elevenlabs-v2-fal\");\r\n  return d&&d.dispo===!1&&f&&f.dispo!==!1?f.id:\"elevenlabs-direct\"}\r\nfunction svxSfxUsd(m){var v=Number(m&&m.usd);\r\n  if(!(v>0)||!isFinite(v))return dzT(\"ia.prix.a_mesurer\");\r\n  return \"$\"+String(Math.round(v*10000)/10000)+(m.unite===\"s\"?\"/s\":m.unite===\"video\"?\" / \"+dzT(\"son.sfx.unite_video\"):\"\")}\r\nfunction svxSfxTexte(m){\r\n  return (SVX_SFXM_NOMS[m.id]||m.label||m.id)+\" · \"+svxSfxUsd(m)\r\n    +(m.dispo===!1&&m.cle?\" · \"+dzT(\"ia.cle.a_ajouter\",{cle:m.cle}):\"\")}\r\nfunction svxSfxChoisir(nat,v){\r\n  if(nat===\"sfx_video\")SVX_SFXM.video=v;else SVX_SFXM.texte=v;\r\n  SVX_SFXM.arm=null;\r\n  try{localStorage.setItem(nat===\"sfx_video\"?SVX_SFXM_LSV:SVX_SFXM_LS,v)}catch(_e){}\r\n  svxSfxPing()}\r\n/* le corps de POST /api/audio/sfx reçoit le modèle CHOISI (rien : le défaut du serveur) */\r\nfunction svxSfxCorps(body,o){\r\n  var m=o&&o.modele!=null?String(o.modele):SVX_SFXM.texte,c=SVX_SFXM.cat.sfx_texte;\r\n  if(m&&(!c||!c.l||svxSfxMod(\"sfx_texte\",m)))body.modele=m}\r\n/* le devis du serveur, mis en cache par corps : undefined pendant la lecture, null si refusé */\r\nfunction svxSfxDevis(url,body){\r\n  var k=url+\" \"+JSON.stringify(body),e=SVX_SFXM.prix[k];\r\n  if(e)return e.usd;\r\n  SVX_SFXM.prix[k]={usd:void 0};\r\n  fetch(url,{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(body)})\r\n    .then(function(res){return res.ok?res.json():null})\r\n    .then(function(d){var u=d&&(typeof d.total_usd===\"number\"?d.total_usd:typeof d.usd===\"number\"?d.usd:null);\r\n      SVX_SFXM.prix[k]={usd:u==null?null:u};svxSfxPing()})\r\n    .catch(function(){SVX_SFXM.prix[k]={usd:null};svxSfxPing()});\r\n  return void 0}\r\nfunction svxSfxPrixTxt(usd){\r\n  return usd===void 0?dzT(\"sfx.action.prix_attente\"):usd==null?\"—\"\r\n    :usd>0?\"~$\"+usd.toFixed(usd<0.1?3:2):dzT(\"ia.prix.a_mesurer\")}\r\n/* l'ancienne estimation en crédits ne parle que pour ElevenLabs direct ; un modèle fal a son prix à côté du sélecteur */\r\nfunction svxSfxCout(dur,n,auto){\r\n  if(svxSfxEff(\"sfx_texte\")!==\"elevenlabs-direct\")return \"\";\r\n  return auto?dzT(\"sfx.gen.cout_auto\"):dzT(\"sfx.gen.cout\",{n:Math.round(40*dur)*n})}\r\n/* le sélecteur sfx_texte + SON prix (devis du serveur pour cette durée et ces variations) */\r\nfunction SvxSfxChoix(props){\r\n  var t=x.useReducer(function(n){return n+1},0)[1];\r\n  svxSfxAbonne(t);\r\n  var l=svxSfxCat(\"sfx_texte\"),v=svxSfxEff(\"sfx_texte\"),d=Number(props.dur)>0?Number(props.dur):null;\r\n  var usd=l?svxSfxDevis(\"/api/cost/estimate\",{kind:\"sfx\",modele:v,secondes:d,\r\n    echantillons:Math.max(1,Math.min(4,Math.round(Number(props.n)||1)))}):void 0;\r\n  return r.jsxs(\"span\",{className:\"svx-sfxm\",\"data-dzsfxm\":\"texte\",children:[\r\n    r.jsx(\"select\",{className:\"svx-select svx-sfxmsel\",value:v,\r\n      \"aria-label\":dzT(\"son.sfx.modele\"),title:dzT(\"son.sfx.modele\"),\r\n      onChange:function(e){svxSfxChoisir(\"sfx_texte\",e.target.value)},\r\n      children:(l||[]).map(function(m){return r.jsx(\"option\",{value:m.id,children:svxSfxTexte(m)},m.id)})}),\r\n    r.jsx(\"span\",{className:\"svm-genprice svx-sfxmprix\",title:dzT(\"son.sfx.prix_modele\"),\r\n      children:svxSfxPrixTxt(usd)})]})}\r\n/* « Depuis la vidéo » : le clip VIDÉO sélectionné dans la timeline (job rendu) part à un modèle sfx_video */\r\nfunction svxSfxClipVideo(c){return !!(c&&c.src&&c.src.job_id&&!/^a/.test(String(c.tr||\"\")))}\r\nfunction SvxSfxVideo(props){\r\n  var t=x.useReducer(function(n){return n+1},0)[1];\r\n  svxSfxAbonne(t);\r\n  var c=props.clip,l=svxSfxCat(\"sfx_video\"),v=svxSfxEff(\"sfx_video\"),m=svxSfxMod(\"sfx_video\",v);\r\n  var corps={clip_id:String(c.src.job_id),modele:v};\r\n  if(m&&m.voix)corps.garder_voix=!!SVX_SFXM.voix;\r\n  var usd=l&&v?svxSfxDevis(\"/api/audio/sfx-video\",Object.assign({devis:!0},corps)):void 0;\r\n  var p=String(props.prompt||\"\").trim(),cle=JSON.stringify(corps)+\"|\"+p,armed=SVX_SFXM.arm===cle;\r\n  function go(){\r\n    if(SVX_SFXM.busy||!v)return;\r\n    if(m&&m.prompt&&!p){props.note(dzT(\"son.sfx.decrire_video\"));return}\r\n    if(!armed){SVX_SFXM.arm=cle;t();return}\r\n    SVX_SFXM.arm=null;SVX_SFXM.busy=!0;t();\r\n    fetch(\"/api/audio/sfx-video\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},\r\n      body:JSON.stringify(Object.assign({prompt:p},corps))})\r\n      .then(function(res){return res.json().catch(function(){return {}})\r\n        .then(function(d){if(!res.ok)throw new Error(d.detail&&d.detail.message||d.detail||dzT(\"sfx.action.echec_code\",{code:res.status}));return d})})\r\n      .then(function(d){SVX_SFXM.busy=!1;t();if(props.refresh)props.refresh();\r\n        var it=(d.items||[])[0];\r\n        props.note(dzT(\"son.sfx.video_fait\",{nom:it?it.filename:\"—\",prix:svxSfxPrixTxt(typeof d.usd===\"number\"?d.usd:null)})\r\n          +((d.videos||[]).length?\" \"+dzT(\"son.sfx.video_sonorisee\"):\"\"))})\r\n      .catch(function(e){SVX_SFXM.busy=!1;t();props.note(String(e&&e.message||e))})}\r\n  return r.jsxs(\"div\",{className:\"svx-sfxv\",\"data-dzsfxv\":\"1\",children:[\r\n    r.jsx(SvmLabel,{children:dzT(\"son.sfx.depuis_video\")}),\r\n    r.jsx(\"div\",{className:\"svx-note\",children:dzT(\"son.sfx.video_aide\",{clip:c.label||c.id||\"\"})}),\r\n    r.jsxs(\"div\",{className:\"svx-grow\",children:[\r\n      r.jsx(\"select\",{className:\"svx-select svx-sfxmsel\",value:v,\"data-dzsfxm\":\"video\",\r\n        \"aria-label\":dzT(\"son.sfx.modele\"),title:dzT(\"son.sfx.modele\"),\r\n        onChange:function(e){svxSfxChoisir(\"sfx_video\",e.target.value)},\r\n        children:(l||[]).map(function(o){return r.jsx(\"option\",{value:o.id,children:svxSfxTexte(o)},o.id)})}),\r\n      m&&m.voix?r.jsxs(\"label\",{className:\"svx-sfxvoix\",children:[\r\n        r.jsx(\"input\",{type:\"checkbox\",checked:!!SVX_SFXM.voix,\"data-dzsfxvoix\":\"1\",\r\n          onChange:function(e){SVX_SFXM.voix=!!e.target.checked;SVX_SFXM.arm=null;t()}}),\r\n        dzT(\"son.sfx.garder_voix\")]}):null]}),\r\n    r.jsx(\"button\",{className:\"svm-goldbtn svx-gold\"+(armed?\" svx-armed\":\"\"),\"data-dzsfxvgo\":\"1\",\r\n      \"data-busy\":SVX_SFXM.busy?\"\":void 0,disabled:!!SVX_SFXM.busy,\r\n      title:armed?dzT(\"sfx.action.armee\",{prix:svxSfxPrixTxt(usd)}):dzT(\"son.sfx.prix_modele\"),\r\n      onClick:go,children:SVX_SFXM.busy?dzT(\"sfx.gen.en_cours\")\r\n        :armed?svxSfxPrixTxt(usd)+\" — \"+dzT(\"son.sfx.confirmer\")\r\n        :dzT(\"son.sfx.depuis_video\")+\" · \"+svxSfxPrixTxt(usd)})]})}\r\n/* la rangée « Modèle » de l'onglet Générer du tiroir, puis le bruitage du clip vidéo sélectionné (Montage) ;\r\n   `clip` undefined = tiroir hors Montage (Bibliothèque) : rien ; null ou non vidéo : l'indication */\r\nfunction svxSfxR(dur,n,clip,prompt,refresh,note){\r\n  return r.jsxs(r.Fragment,{children:[\r\n    r.jsxs(\"div\",{className:\"svx-grow svx-sfxmrow\",children:[\r\n      r.jsx(\"span\",{className:\"svx-glabel\",children:dzT(\"son.sfx.modele\")}),\r\n      r.jsx(SvxSfxChoix,{dur:dur,n:n})]}),\r\n    clip===void 0?null:svxSfxClipVideo(clip)\r\n      ?r.jsx(SvxSfxVideo,{clip:clip,prompt:prompt,refresh:refresh,note:note})\r\n      :r.jsx(\"div\",{className:\"svx-note svx-sfxvnone\",children:dzT(\"son.sfx.video_sans_clip\")})]})}\r\n\r\n/* ── export contrat ──────────────────────────────────────────────────────── */\r\nwindow.DzSfx={ready:!0,Drawer:SvxDrawer,Rack:SvxRack,Meter:SvxMeter,\r\n  genSfx:svxGenSfx,fxPresets:svxFxPresets,Choix:SvxSfxChoix};",
+    "apres": "/* ── t187 (G5, génération IA enrichie) : le MODÈLE du bruitage, texte ET vidéo ──────────\r\n   Le registre des bruitages (backend sfx_service.SFX_MODELS) est servi par GET\r\n   /api/ia/catalogue (natures sfx_texte et sfx_video) : chaque option porte son prix (lu au\r\n   catalogue) et, sans clé, la mention « clé X à ajouter dans Réglages » — elle reste\r\n   CHOISISSABLE (jamais disabled) : la route refuse en 503 avant toute dépense. Le choix est\r\n   commun au tiroir Sons et à la carte SFX de Son & VFX (localStorage dz_sfx_modele et\r\n   dz_sfx_modele_video ; vide = le défaut du serveur : ElevenLabs direct, ou son jumeau via\r\n   fal sans clé ElevenLabs). Le PRIX annoncé est le devis du SERVEUR — POST /api/cost/estimate\r\n   (kind « sfx ») pour une description, POST /api/audio/sfx-video avec devis:true pour un\r\n   clip — le même chiffre que la garde des plafonds, avant ET après le clic. « Depuis la\r\n   vidéo » (clip vidéo sélectionné dans la timeline) : 1er clic = arme, 2e clic = tir.\r\n   Ces fonctions vivent APRÈS la dernière édition G1 de la couche (table dzglyph_paires.json :\r\n   éditions repérées par position) ; un useReducer (et non useState) rafraîchit l'affichage. */\r\nvar SVX_SFXM={texte:\"\",video:\"\",voix:!1,cat:{},prix:{},subs:[],arm:null,armT:null,busy:!1};\r\nvar SVX_SFXM_LS=\"dz_sfx_modele\",SVX_SFXM_LSV=\"dz_sfx_modele_video\";\r\ntry{SVX_SFXM.texte=localStorage.getItem(SVX_SFXM_LS)||\"\";SVX_SFXM.video=localStorage.getItem(SVX_SFXM_LSV)||\"\"}catch(_e){}\r\n/* les libellés du catalogue arrivent en français : ceux qui portent un suffixe à traduire passent par dzT */\r\nvar SVX_SFXM_NOMS={\"sonilo-video\":dzT(\"son.sfx.libelle.sonilo_video\"),\r\n  \"mirelo-video\":dzT(\"son.sfx.libelle.mirelo_video\"),\"kling-v2a\":dzT(\"son.sfx.libelle.kling_v2a\")};\r\nfunction svxSfxPing(){SVX_SFXM.subs.slice().forEach(function(f){try{f()}catch(_e){}})}\r\nfunction svxSfxAbonne(t){\r\n  x.useEffect(function(){SVX_SFXM.subs.push(t);\r\n    return function(){var i=SVX_SFXM.subs.indexOf(t);if(i>=0)SVX_SFXM.subs.splice(i,1)}},[])}\r\nfunction svxSfxCat(nat){\r\n  var c=SVX_SFXM.cat[nat];if(c)return c.l;\r\n  SVX_SFXM.cat[nat]={l:null};\r\n  fetch(\"/api/ia/catalogue?nature=\"+nat).then(function(res){return res.ok?res.json():null})\r\n    .then(function(d){SVX_SFXM.cat[nat]={l:(d&&d.modeles)||[]};svxSfxPing()})\r\n    .catch(function(){SVX_SFXM.cat[nat]={l:[]};svxSfxPing()});\r\n  return null}\r\nfunction svxSfxMod(nat,id){var l=svxSfxCat(nat)||[];\r\n  for(var i=0;i<l.length;i++)if(l[i].id===id)return l[i];return null}\r\n/* le modèle EFFECTIF : le choix mémorisé s'il est encore servi, sinon le défaut du serveur */\r\nfunction svxSfxEff(nat){\r\n  var l=svxSfxCat(nat)||[],v=nat===\"sfx_video\"?SVX_SFXM.video:SVX_SFXM.texte;\r\n  if(v&&svxSfxMod(nat,v))return v;\r\n  if(nat===\"sfx_video\")return l.length?l[0].id:\"\";\r\n  var d=svxSfxMod(nat,\"elevenlabs-direct\"),f=svxSfxMod(nat,\"elevenlabs-v2-fal\");\r\n  return d&&d.dispo===!1&&f&&f.dispo!==!1?f.id:\"elevenlabs-direct\"}\r\nfunction svxSfxUsd(m){var v=Number(m&&m.usd);\r\n  if(!(v>0)||!isFinite(v))return dzT(\"ia.prix.a_mesurer\");\r\n  return \"$\"+String(Math.round(v*10000)/10000)+(m.unite===\"s\"?\"/s\":m.unite===\"video\"?\" / \"+dzT(\"son.sfx.unite_video\"):\"\")}\r\nfunction svxSfxTexte(m){\r\n  return (SVX_SFXM_NOMS[m.id]||m.label||m.id)+\" · \"+svxSfxUsd(m)\r\n    +(m.dispo===!1&&m.cle?\" · \"+dzT(\"ia.cle.a_ajouter\",{cle:m.cle}):\"\")}\r\nfunction svxSfxChoisir(nat,v){\r\n  if(nat===\"sfx_video\")SVX_SFXM.video=v;else SVX_SFXM.texte=v;\r\n  SVX_SFXM.arm=null;SVX_SFXM.armT=null;\r\n  try{localStorage.setItem(nat===\"sfx_video\"?SVX_SFXM_LSV:SVX_SFXM_LS,v)}catch(_e){}\r\n  svxSfxPing()}\r\n/* le corps de POST /api/audio/sfx reçoit le modèle CHOISI (rien : le défaut du serveur) */\r\nfunction svxSfxCorps(body,o){\r\n  var m=o&&o.modele!=null?String(o.modele):SVX_SFXM.texte,c=SVX_SFXM.cat.sfx_texte;\r\n  if(m&&(!c||!c.l||svxSfxMod(\"sfx_texte\",m)))body.modele=m}\r\n/* le devis du serveur, mis en cache par corps : undefined pendant la lecture, null si refusé */\r\nfunction svxSfxDevis(url,body){\r\n  var k=url+\" \"+JSON.stringify(body),e=SVX_SFXM.prix[k];\r\n  if(e)return e.usd;\r\n  SVX_SFXM.prix[k]={usd:void 0};\r\n  fetch(url,{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(body)})\r\n    .then(function(res){return res.ok?res.json():null})\r\n    .then(function(d){var u=d&&(typeof d.total_usd===\"number\"?d.total_usd:typeof d.usd===\"number\"?d.usd:null);\r\n      SVX_SFXM.prix[k]={usd:u==null?null:u};svxSfxPing()})\r\n    .catch(function(){SVX_SFXM.prix[k]={usd:null};svxSfxPing()});\r\n  return void 0}\r\nfunction svxSfxPrixTxt(usd){\r\n  return usd===void 0?dzT(\"sfx.action.prix_attente\"):usd==null?\"—\"\r\n    :usd>0?\"~$\"+usd.toFixed(usd<0.1?3:2):dzT(\"ia.prix.a_mesurer\")}\r\n/* l'ancienne estimation en crédits ne parle que pour ElevenLabs direct ; un modèle fal a son prix à côté du sélecteur */\r\nfunction svxSfxCout(dur,n,auto){\r\n  if(svxSfxEff(\"sfx_texte\")!==\"elevenlabs-direct\")return \"\";\r\n  return auto?dzT(\"sfx.gen.cout_auto\"):dzT(\"sfx.gen.cout\",{n:Math.round(40*dur)*n})}\r\n/* le sélecteur sfx_texte + SON prix (devis du serveur pour cette durée et ces variations) */\r\nfunction svxSfxDirect(){return svxSfxEff(\"sfx_texte\")===\"elevenlabs-direct\"}\r\n/* la durée maximale du modèle CHOISI (catalogue `duree`) ; 22 s (ElevenLabs) tant que le catalogue n'est pas lu */\r\nfunction svxDmax(){var m=svxSfxMod(\"sfx_texte\",svxSfxEff(\"sfx_texte\"));return m&&m.duree?Number(m.duree[1]):22}\r\n/* la bulle « ~40 crédits ElevenLabs par seconde » ne parle que pour ElevenLabs direct */\r\nfunction svxSfxEstAide(){return svxSfxEff(\"sfx_texte\")===\"elevenlabs-direct\"?dzT(\"sfx.gen.estimation_aide\"):void 0}\r\n/* le devis du serveur pour le modèle effectif, cette durée et ces variations */\r\nfunction svxSfxDevisTexte(dur,n){var d=Number(dur)>0?Number(dur):null;\r\n  return svxSfxCat(\"sfx_texte\")?svxSfxDevis(\"/api/cost/estimate\",{kind:\"sfx\",modele:svxSfxEff(\"sfx_texte\"),secondes:d,\r\n    echantillons:Math.max(1,Math.min(4,Math.round(Number(n)||1)))}):void 0}\r\n/* un modèle autre qu'ElevenLabs direct s'ARME en deux clics : le 1er annonce le prix (devis), le 2e tire */\r\nfunction svxSfxCleArme(dur,n){return [svxSfxEff(\"sfx_texte\"),Number(dur)>0?Number(dur):0,n].join(\"|\")}\r\nfunction svxSfxArmeTexte(dur,n,note){\r\n  if(svxSfxEff(\"sfx_texte\")===\"elevenlabs-direct\"){SVX_SFXM.armT=null;return !1}\r\n  var k=svxSfxCleArme(dur,n);\r\n  if(SVX_SFXM.armT===k){SVX_SFXM.armT=null;svxSfxPing();return !1}\r\n  SVX_SFXM.armT=k;svxSfxPing();\r\n  note(dzT(\"sfx.action.armee\",{prix:svxSfxPrixTxt(svxSfxDevisTexte(dur,n))}));return !0}\r\n/* la note de fin : le MÊME chiffre que le devis annoncé (`usd` de la réponse, même op que la garde) */\r\nfunction svxSfxPrixFin(d){return d&&typeof d.usd===\"number\"?\" · \"+svxSfxPrixTxt(d.usd):\"\"}\r\nfunction svxSfxPrixNote(d){return d&&typeof d.usd===\"number\"?dzT(\"son.sfx.cout_fin\",{prix:svxSfxPrixTxt(d.usd)}):\"\"}\r\nfunction SvxSfxChoix(props){\r\n  var t=x.useReducer(function(n){return n+1},0)[1];\r\n  svxSfxAbonne(t);\r\n  var l=svxSfxCat(\"sfx_texte\"),v=svxSfxEff(\"sfx_texte\");\r\n  var usd=svxSfxDevisTexte(props.dur,props.n),armee=SVX_SFXM.armT===svxSfxCleArme(props.dur,props.n);\r\n  return r.jsxs(\"span\",{className:\"svx-sfxm\",\"data-dzsfxm\":\"texte\",children:[\r\n    r.jsx(\"select\",{className:\"svx-select svx-sfxmsel\",value:v,\r\n      \"aria-label\":dzT(\"son.sfx.modele\"),title:dzT(\"son.sfx.modele\"),\r\n      onChange:function(e){svxSfxChoisir(\"sfx_texte\",e.target.value)},\r\n      children:(l||[]).map(function(m){return r.jsx(\"option\",{value:m.id,children:svxSfxTexte(m)},m.id)})}),\r\n    r.jsx(\"span\",{className:\"svm-genprice svx-sfxmprix\",\"data-arme\":armee?\"\":void 0,title:dzT(\"son.sfx.prix_modele\"),\r\n      children:armee?svxSfxPrixTxt(usd)+\" — \"+dzT(\"son.sfx.confirmer\"):svxSfxPrixTxt(usd)})]})}\r\n/* « Depuis la vidéo » : le clip VIDÉO sélectionné dans la timeline (job rendu) part à un modèle sfx_video */\r\nfunction svxSfxClipVideo(c){return !!(c&&c.src&&c.src.job_id&&!/^a/.test(String(c.tr||\"\")))}\r\nfunction SvxSfxVideo(props){\r\n  var t=x.useReducer(function(n){return n+1},0)[1];\r\n  svxSfxAbonne(t);\r\n  var c=props.clip,l=svxSfxCat(\"sfx_video\"),v=svxSfxEff(\"sfx_video\"),m=svxSfxMod(\"sfx_video\",v);\r\n  var corps={clip_id:String(c.src.job_id),modele:v};\r\n  if(m&&m.voix)corps.garder_voix=!!SVX_SFXM.voix;\r\n  var usd=l&&v?svxSfxDevis(\"/api/audio/sfx-video\",Object.assign({devis:!0},corps)):void 0;\r\n  var p=String(props.prompt||\"\").trim(),cle=JSON.stringify(corps)+\"|\"+p,armed=SVX_SFXM.arm===cle;\r\n  function go(){\r\n    if(SVX_SFXM.busy||!v)return;\r\n    if(m&&m.prompt&&!p){props.note(dzT(\"son.sfx.decrire_video\"));return}\r\n    if(!armed){SVX_SFXM.arm=cle;t();return}\r\n    SVX_SFXM.arm=null;SVX_SFXM.busy=!0;t();\r\n    fetch(\"/api/audio/sfx-video\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},\r\n      body:JSON.stringify(Object.assign({prompt:p},corps))})\r\n      .then(function(res){return res.json().catch(function(){return {}})\r\n        .then(function(d){if(!res.ok)throw new Error(d.detail&&d.detail.message||d.detail||dzT(\"sfx.action.echec_code\",{code:res.status}));return d})})\r\n      .then(function(d){SVX_SFXM.busy=!1;t();if(props.refresh)props.refresh();\r\n        var it=(d.items||[])[0];\r\n        props.note(dzT(\"son.sfx.video_fait\",{nom:it?it.filename:\"—\",prix:svxSfxPrixTxt(typeof d.usd===\"number\"?d.usd:null)})\r\n          +((d.videos||[]).length?\" \"+dzT(\"son.sfx.video_sonorisee\"):\"\"))})\r\n      .catch(function(e){SVX_SFXM.busy=!1;t();props.note(String(e&&e.message||e))})}\r\n  return r.jsxs(\"div\",{className:\"svx-sfxv\",\"data-dzsfxv\":\"1\",children:[\r\n    r.jsx(SvmLabel,{children:dzT(\"son.sfx.depuis_video\")}),\r\n    r.jsx(\"div\",{className:\"svx-note\",children:dzT(\"son.sfx.video_aide\",{clip:c.label||c.id||\"\"})}),\r\n    r.jsxs(\"div\",{className:\"svx-grow\",children:[\r\n      r.jsx(\"select\",{className:\"svx-select svx-sfxmsel\",value:v,\"data-dzsfxm\":\"video\",\r\n        \"aria-label\":dzT(\"son.sfx.modele\"),title:dzT(\"son.sfx.modele\"),\r\n        onChange:function(e){svxSfxChoisir(\"sfx_video\",e.target.value)},\r\n        children:(l||[]).map(function(o){return r.jsx(\"option\",{value:o.id,children:svxSfxTexte(o)},o.id)})}),\r\n      m&&m.voix?r.jsxs(\"label\",{className:\"svx-sfxvoix\",children:[\r\n        r.jsx(\"input\",{type:\"checkbox\",checked:!!SVX_SFXM.voix,\"data-dzsfxvoix\":\"1\",\r\n          onChange:function(e){SVX_SFXM.voix=!!e.target.checked;SVX_SFXM.arm=null;t()}}),\r\n        dzT(\"son.sfx.garder_voix\")]}):null]}),\r\n    r.jsx(\"button\",{className:\"svm-goldbtn svx-gold\"+(armed?\" svx-armed\":\"\"),\"data-dzsfxvgo\":\"1\",\r\n      \"data-busy\":SVX_SFXM.busy?\"\":void 0,disabled:!!SVX_SFXM.busy,\r\n      title:armed?dzT(\"sfx.action.armee\",{prix:svxSfxPrixTxt(usd)}):dzT(\"son.sfx.prix_modele\"),\r\n      onClick:go,children:SVX_SFXM.busy?dzT(\"sfx.gen.en_cours\")\r\n        :armed?svxSfxPrixTxt(usd)+\" — \"+dzT(\"son.sfx.confirmer\")\r\n        :dzT(\"son.sfx.depuis_video\")+\" · \"+svxSfxPrixTxt(usd)})]})}\r\n/* la rangée « Modèle » de l'onglet Générer du tiroir, puis le bruitage du clip vidéo sélectionné (Montage) ;\r\n   `clip` undefined = tiroir hors Montage (Bibliothèque) : rien ; null ou non vidéo : l'indication */\r\nfunction svxSfxR(dur,n,clip,prompt,refresh,note){\r\n  return r.jsxs(r.Fragment,{children:[\r\n    r.jsxs(\"div\",{className:\"svx-grow svx-sfxmrow\",children:[\r\n      r.jsx(\"span\",{className:\"svx-glabel\",children:dzT(\"son.sfx.modele\")}),\r\n      r.jsx(SvxSfxChoix,{dur:dur,n:n})]}),\r\n    clip===void 0?null:svxSfxClipVideo(clip)\r\n      ?r.jsx(SvxSfxVideo,{clip:clip,prompt:prompt,refresh:refresh,note:note})\r\n      :r.jsx(\"div\",{className:\"svx-note svx-sfxvnone\",children:dzT(\"son.sfx.video_sans_clip\")})]})}\r\n\r\n/* ── export contrat ──────────────────────────────────────────────────────── */\r\nwindow.DzSfx={ready:!0,Drawer:SvxDrawer,Rack:SvxRack,Meter:SvxMeter,\r\n  genSfx:svxGenSfx,fxPresets:svxFxPresets,Choix:SvxSfxChoix,arme:svxSfxArmeTexte,prixNote:svxSfxPrixNote,dmax:svxDmax};",
     "groupe": "sfx_b"
    }
   ],
@@ -3567,19 +3615,31 @@
    {
     "pos": 27003,
     "avant": "/* le prix affiché d'un modèle de musique : par génération, ou à la seconde (ACE-Step) sur la durée choisie */\r\nfunction svmMusicPrice(v,dur){\r\n  return v.usd_unit===\"s\"?\"~$\"+(v.usd*dur).toFixed(3)+\" · \"+dur+\" s\":\"~$\"+v.usd.toFixed(2)}",
-    "apres": "/* t187 : prix d'un modèle, à 0 $ « à mesurer » */\r\nfunction svmMusicPrice(v,dur,ly){var u=ly&&v.usd_lyrics!=null&&ly.replace(/\\[[^\\[\\]\\n]{1,24}\\]/g,\"\").trim()?v.usd_lyrics:v.usd,c=v.usd_unit===\"s\"?u*dur:v.usd_unit===\"min\"?u*Math.ceil(dur/60):u;\r\n  return !(u>0)?dzT(\"ia.prix.a_mesurer\"):\"~$\"+c.toFixed(v.usd_unit===\"s\"||Math.round(c*1000)%10?3:2)+(v.usd_unit===\"s\"||v.usd_unit===\"min\"?\" · \"+dur+\" s\":\"\")}",
+    "apres": "/* t187 : 0 $ = « à mesurer » ; sans clé, la carte le dit */\r\nfunction svmMusicPrice(v,dur,ly){var u=ly&&v.usd_lyrics!=null&&ly.replace(/\\[[^\\[\\]\\n]{1,24}\\]/g,\"\").trim()?v.usd_lyrics:v.usd,c=v.usd_unit===\"s\"?u*dur:v.usd_unit===\"min\"?u*Math.ceil(dur/60):u;\r\n  return (!(u>0)?dzT(\"ia.prix.a_mesurer\"):\"~$\"+c.toFixed(v.usd_unit===\"s\"||Math.round(c*1000)%10?3:2)+(v.usd_unit===\"s\"||v.usd_unit===\"min\"?\" · \"+dur+\" s\":\"\"))+(v.dispo===!1&&v.cle?\" · \"+dzT(\"ia.cle.a_ajouter\",{cle:v.cle}):\"\")}",
     "groupe": "son_a"
    },
    {
-    "pos": 28292,
-    "avant": "/* T102 : les paroles se montrent quand le modèle les prend ET que la voix est\r\n     demandée — ou TOUJOURS si le modèle n'a pas d'interrupteur instrumental\r\n     (Music 2.0 : paroles obligatoires ; avant, l'état « instrumental » par\r\n     défaut les cachait à jamais) */",
-    "apres": "/* T102 : paroles si le modèle les prend et voix demandée \r\n\r\n\r\n   */",
+    "pos": 27242,
+    "avant": "/* ── Musique : génération fal.ai sur la clé déjà configurée ─────────────── */",
+    "apres": "/* ── Musique (fal.ai) ── */",
+    "groupe": "son_a"
+   },
+   {
+    "pos": 28290,
+    "avant": "  /* T102 : les paroles se montrent quand le modèle les prend ET que la voix est\r\n     demandée — ou TOUJOURS si le modèle n'a pas d'interrupteur instrumental\r\n     (Music 2.0 : paroles obligatoires ; avant, l'état « instrumental » par\r\n     défaut les cachait à jamais) */",
+    "apres": "  /* T102 : paroles si le modèle les prend et voix demandée                                      \r\n\r\n\r\n   */",
     "groupe": "son_a"
    },
    {
     "pos": 28788,
     "avant": "\"Choisis une ambiance ou décris la musique.\"",
     "apres": "dzT(\"son.musique.choisir\")",
+    "groupe": "son_a"
+   },
+   {
+    "pos": 28843,
+    "avant": "    /* les BALISES ne comptent pas (même règle que le serveur) : une section vide passait la borne à elle seule */",
+    "apres": "    /* balises non comptées (règle du serveur) */",
     "groupe": "son_a"
    },
    {
@@ -3604,6 +3664,12 @@
     "pos": 30095,
     "avant": "\"chargement des modèles…\"",
     "apres": "dzT(\"son.musique.chargement\")",
+    "groupe": "son_a"
+   },
+   {
+    "pos": 30127,
+    "avant": "  if(!cat.enabled)return r.jsxs(\"div\",{className:\"svm-target\",children:[",
+    "apres": "if(!cat.models[0])return r.jsxs(\"div\",{className:\"svm-target\",children:[",
     "groupe": "son_a"
    },
    {
@@ -3847,15 +3913,33 @@
     "groupe": "son_b"
    },
    {
+    "pos": 46575,
+    "avant": "  /* génération : DzSfx.genSfx → POST /api/audio/sfx (2 variations) ; chaque\r\n     fichier rejoint la Bibliothèque (sons) et donc le tiroir Sons du Montage */",
+    "apres": "  /* génération : DzSfx.genSfx (t187 : 2 clics hors\r\n     ElevenLabs direct, coût redit)                 */",
+    "groupe": "son_b"
+   },
+   {
     "pos": 46854,
     "avant": "\"Décris d'abord le son — ex : « impact sourd et grave, réverbération courte ».\"",
     "apres": "dzT(\"son.sfx.decrire_dabord\")",
     "groupe": "son_b"
    },
    {
+    "pos": 46944,
+    "avant": "    if(sfxBusy)return;\r\n    setSfxBusy(!0);setSfxErr(",
+    "apres": "    if(sfxBusy||d.arme(sfxDur,2,fireNote))return;\r\n    setSfxBusy(!0);setSfxErr(",
+    "groupe": "son_b"
+   },
+   {
     "pos": 47198,
     "avant": "\"aucun son retourné\"",
     "apres": "dzT(\"son.sfx.aucun_son_retourne\")",
+    "groupe": "son_b"
+   },
+   {
+    "pos": 47222,
+    "avant": "        setSfxBusy(!1);setSfxItems(items)})",
+    "apres": "        setSfxBusy(!1);setSfxItems(items);fireNote(d.prixNote(o))})",
     "groupe": "son_b"
    },
    {
@@ -4213,6 +4297,12 @@
     "groupe": "son_b"
    },
    {
+    "pos": 60062,
+    "avant": "  /* carte SFX — couche DzSfx chargée : VRAIE génération (prompt + durée +\r\n     2 variations jouables, « Ouvrir le Montage ») ; absente : maquette d'avant */",
+    "apres": "  /* carte SFX — couche DzSfx chargée : VRAIE génération ; t187 : modèle,\r\n     prix et durée max du registre ; absente : maquette d'avant                                  */",
+    "groupe": "son_b"
+   },
+   {
     "pos": 60388,
     "avant": "\"Générer des SFX\"",
     "apres": "dzT(\"son.sfx.titre_generer\")",
@@ -4221,7 +4311,7 @@
    {
     "pos": 60418,
     "avant": "r.jsx(\"span\",{className:\"svm-genprice\",\r\n          title:\"2 variations par génération — crédits ElevenLabs\",children:\"$0.03\"})",
-    "apres": "r.jsx(svmSfx().Choix||\"span\",\r\n                                                    {dur:sfxDur,n:2})",
+    "apres": "r.jsx(svmSfx().Choix||\"span\",\r\n          {dur:sfxDur,n:2})",
     "groupe": "son_b"
    },
    {
@@ -4237,6 +4327,12 @@
     "groupe": "son_b"
    },
    {
+    "pos": 61061,
+    "avant": "max:22,step:.5,value:sfxDur,",
+    "apres": "max:svmSfx().dmax(),step:.5,value:sfxDur,",
+    "groupe": "son_b"
+   },
+   {
     "pos": 61107,
     "avant": "\"Durée en secondes (0,5 à 22) — 0 : durée choisie par le modèle\"",
     "apres": "dzT(\"son.sfx.duree_aide\")",
@@ -4246,6 +4342,12 @@
     "pos": 61197,
     "avant": "\"Durée du son en secondes (0 : automatique)\"",
     "apres": "dzT(\"son.sfx.duree\")",
+    "groupe": "son_b"
+   },
+   {
+    "pos": 61318,
+    "avant": "if(isFinite(v))setSfxDur(Math.max(0,Math.min(22,v)))}}),",
+    "apres": "if(isFinite(v))setSfxDur(Math.max(0,Math.min(svmSfx().dmax(),v)))}}),",
     "groupe": "son_b"
    },
    {

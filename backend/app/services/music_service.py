@@ -223,8 +223,9 @@ class MusicError(Exception):
 
 def catalog() -> dict:
     """Ce que l'UI a besoin de savoir pour dessiner le formulaire."""
+    dispo = bool(str(settings.FAL_KEY or "").strip())
     return {
-        "enabled": bool(settings.FAL_KEY),
+        "enabled": dispo,
         "default": DEFAULT_MUSIC_MODEL,
         "models": [
             {"id": k, "label": v["label"], "desc": v["desc"],
@@ -237,7 +238,10 @@ def catalog() -> dict:
              # t187 : le prix AVEC paroles quand il diffère (Mureka) ; None ailleurs
              "usd_lyrics": v.get("usd_paroles"),
              # t187 : « a_mesurer » quand le prix vaut 0 (jamais « gratuit » : l'écran dit « prix à mesurer »)
-             "note": "" if v["usd"] else "a_mesurer"}
+             "note": "" if v["usd"] else "a_mesurer",
+             # t187 : la voie et SA clé — un modèle sans clé reste LISTÉ et choisissable (décision du 11/10/2026),
+             # la carte dit « clé FAL_KEY à ajouter dans Réglages », le tir est refusé en 503 avant toute dépense
+             "voie": "fal", "cle": "FAL_KEY", "dispo": dispo}
             for k, v in MUSIC_MODELS.items()],
         "moods": MOODS,
     }
@@ -548,9 +552,10 @@ async def generate_music(body: dict, prep: dict | None = None) -> dict:
 
     from app.services import sfx_service
 
-    if not settings.FAL_KEY:
-        raise MusicError(400, "fal.ai: aucune clé configurée "
-                              "(Réglages → clés API).")
+    if not str(settings.FAL_KEY or "").strip():
+        # filet : la route /audio/music refuse déjà en 503 (nommant FAL_KEY) AVANT sa garde ; un appelant direct
+        # reçoit le même code
+        raise MusicError(503, "fal.ai: clé FAL_KEY à ajouter dans Réglages.")
 
     prep = prep or preparer(body)
     model_id, model, prompt = prep["model_id"], prep["model"], prep["prompt"]

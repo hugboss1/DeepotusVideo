@@ -252,6 +252,8 @@ def generate_sfx(prompt: str, duration_s: float | None = None,
 #
 # SCHÉMAS FAL RELUS LE 12/10/2026 (openapi « queue » de chaque endpoint) ; aucun autre nom de paramètre n'est inventé.
 #   · ElevenLabs v2 (fal) : text, duration_seconds 0,5-22, prompt_influence, loop, output_format -> `audio`.
+#     `loop` (son bouclable) est NOMMÉ dans `champs` mais jamais envoyé par défaut (aucun écran ne le demande :
+#     build_request(…, boucle=True) le pose).
 #   · Sonilo 1.1 texte : prompt, duration 0,5-180 (défaut 8), audio_format wav|mp3|aac|flac -> `audio` + `audios`.
 #   · Mirelo SFX 1.6 texte : text_prompt, duration 0,1-60 (défaut 10), num_samples 1-4 (DÉFAUT 2 : toujours envoyé,
 #     sinon fal facture deux sons pour un) -> `audio` (liste).
@@ -277,7 +279,8 @@ DEMANDE_PROMPT = "décrivez le son voulu : ce modèle exige une description (« 
 
 def _m(nature, label, voie, endpoint, champs, fixe=None, prix=None, unite="son", bornes=None, defaut_s=None,
        prompt_requis=False, prompt_max=450, video_s=None, video_ext=None):
-    ch = {"prompt": None, "duree": None, "video": None, "echantillons": None, "voix": None, "influence": None}
+    ch = {"prompt": None, "duree": None, "video": None, "echantillons": None, "voix": None, "influence": None,
+          "boucle": None}
     ch.update(champs)
     return {"nature": nature, "label": label, "voie": voie, "endpoint": endpoint, "champs": ch,
             "fixe": dict(fixe or {}), "prix": prix, "unite": unite, "bornes": bornes, "defaut_s": defaut_s,
@@ -291,7 +294,8 @@ SFX_MODELS: dict[str, dict] = {
                             {"prompt": "text", "duree": "duration_seconds"}, unite="s", bornes=(0.5, 22.0),
                             prompt_requis=True),
     "elevenlabs-v2-fal": _m(SFX_TEXTE, "ElevenLabs SFX v2 (via fal)", "fal", "fal-ai/elevenlabs/sound-effects/v2",
-                            {"prompt": "text", "duree": "duration_seconds", "influence": "prompt_influence"},
+                            {"prompt": "text", "duree": "duration_seconds", "influence": "prompt_influence",
+                             "boucle": "loop"},
                             {"output_format": "mp3_44100_128"},
                             prix="elevenlabs_sfx_fal_usd", bornes=(0.5, 22.0), prompt_requis=True),
     "sonilo-1.1": _m(SFX_TEXTE, "Sonilo 1.1", "fal", "sonilo/v1.1/text-to-sound-effects",
@@ -396,7 +400,7 @@ def secondes_facturees(mid: str, duree=None) -> float | None:
 
 
 def build_request(mid: str, prompt=None, duree=None, video_url=None, echantillons=None,
-                  garder_voix=None, influence=None) -> tuple[str, dict]:
+                  garder_voix=None, influence=None, boucle=None) -> tuple[str, dict]:
     """(endpoint, arguments) de l'appel fal, fabriqués à partir de la table `champs` de l'entrée : les arguments
     fixes d'abord, puis la vidéo, la description, la durée (bornée), les échantillons, la voix gardée — chacun
     SEULEMENT si le modèle le prend. ValueError : id inconnu, voie directe (ElevenLabs : aucune requête fal),
@@ -433,6 +437,8 @@ def build_request(mid: str, prompt=None, duree=None, video_url=None, echantillon
             args[ch["influence"]] = round(max(0.0, min(1.0, float(influence))), 3)
         except (TypeError, ValueError):
             pass
+    if ch["boucle"] and boucle is not None:
+        args[ch["boucle"]] = bool(boucle)
     return e["endpoint"], args
 
 

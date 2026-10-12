@@ -323,6 +323,8 @@ check("TÉMOIN sans modele, clé ElevenLabs posée : ElevenLabs direct (espion g
       "elevenlabs-direct" and "note" not in js, f"{st} {js} {ESP_EL}")
 check("TÉMOIN : la garde passe et écrit UNE ligne depenses (ElevenLabs, 0,0384 $)", n_depenses() == d0 + 1,
       f"{d0} -> {n_depenses()}")
+check("ElevenLabs direct : la réponse redit le devis de la garde (usd 0,0384)",
+      st == 200 and abs(js.get("usd", -1) - 0.0384) < 1e-9, js.get("usd") if isinstance(js, dict) else js)
 raz()
 d0 = n_depenses()
 st, js = call("POST", "/audio/sfx", {"prompt": "porte qui grince", "duration_s": 4, "modele": "sonilo-1.1"})
@@ -334,6 +336,9 @@ _meta = S.load_meta().get(js["items"][0]["filename"]) if st == 200 else {}
 check("sidecar : kind sfx, modèle nommé, provider fal", (_meta or {}).get("kind") == "sfx"
       and _meta.get("model") == "sonilo-1.1" and _meta.get("provider") == "fal", _meta)
 check("sonilo 4 s : la garde écrit UNE ligne depenses", n_depenses() == d0 + 1, f"{d0} -> {n_depenses()}")
+check("sonilo 4 s : la réponse redit le devis de la garde (usd 0,0072, même op)",
+      abs(js.get("usd", -1) - 0.0072) < 1e-9 and js["usd"] == P.estimate(S.op_sfx("sonilo-1.1", 4.0, 1))["total_usd"],
+      js.get("usd"))
 check("ElevenLabs direct jamais appelé pour un modèle fal", len(ESP_EL) == 1, ESP_EL)
 raz()
 st, js = call("POST", "/audio/sfx", {"prompt": "pluie", "modele": "mirelo-1.6", "variations": 3})
@@ -535,6 +540,23 @@ print("\n[4] musique")
 for mid in ("lyria-3.5", "elevenlabs-music-2.5", "minimax-music-3", "stable-audio-3", "mureka-9.5"):
     check(f"{mid} au registre", mid in MS.MUSIC_MODELS)
 check("défaut toujours lyria3", MS.DEFAULT_MUSIC_MODEL == "lyria3" and MS.catalog()["default"] == "lyria3")
+settings.FAL_KEY = ""
+_c0 = MS.catalog()
+settings.FAL_KEY = "test-key"
+check("/music-models sans FAL_KEY : TOUS les modèles restent listés, voie fal, cle FAL_KEY, dispo False",
+      len(_c0["models"]) == len(MS.MUSIC_MODELS) and _c0["enabled"] is False
+      and all(m["voie"] == "fal" and m["cle"] == "FAL_KEY" and m["dispo"] is False for m in _c0["models"]), _c0["models"][0])
+check("/music-models avec la clé : dispo True", all(m["dispo"] is True for m in MS.catalog()["models"]))
+settings.FAL_KEY = ""
+try:
+    loop.run_until_complete(MS.generate_music({"model": "lyria3", "prompt": "x"}))
+    check("generate_music sans clé (filet) -> 503", False)
+except MS.MusicError as _e:
+    check("generate_music sans clé (filet) -> 503 qui nomme FAL_KEY", _e.status == 503 and "FAL_KEY" in _e.message, _e.message)
+settings.FAL_KEY = "test-key"
+check("ElevenLabs v2 (fal) : `loop` nommé, jamais envoyé par défaut ; posé sur demande",
+      "loop" not in S.build_request("elevenlabs-v2-fal", prompt="x")[1]
+      and S.build_request("elevenlabs-v2-fal", prompt="x", boucle=True)[1].get("loop") is True)
 mu = {e["id"]: e for e in CI.lister("musique")}
 check("catalogue musique : lyria-3.5, elevenlabs-music-2.5 ; lyria3 = défaut",
       "lyria-3.5" in mu and "elevenlabs-music-2.5" in mu and mu["lyria3"]["defaut"] is True, list(mu))
@@ -635,7 +657,21 @@ check("tiroir : l'onglet Générer pose la rangée Modèle + « Depuis la vidéo
       "svxSfxR(gAuto?0:gDur,gVar,props.clip,gPrompt,refresh,fireNote)," in _SFXS
       and "children:cost==null?svxSfxCout(gDur,gVar,1):svxSfxCout(gDur,gVar,0)" in _SFXS)
 check("tiroir : la couche exporte Choix (la carte SFX de Son & VFX le monte)",
-      "genSfx:svxGenSfx,fxPresets:svxFxPresets,Choix:SvxSfxChoix};" in _SFXS)
+      "genSfx:svxGenSfx,fxPresets:svxFxPresets,Choix:SvxSfxChoix,arme:svxSfxArmeTexte,prixNote:svxSfxPrixNote,"
+      "dmax:svxDmax};" in _SFXS)
+check("carte SFX : deux clics hors ElevenLabs direct, coût redit à la fin, durée bornée au modèle",
+      "if(sfxBusy||d.arme(sfxDur,2,fireNote))return;" in _SONV and "setSfxItems(items);fireNote(d.prixNote(o))})" in _SONV
+      and "max:svmSfx().dmax(),step:.5" in _SONV and "Math.min(svmSfx().dmax(),v)" in _SONV and "max:22" not in _carte)
+check("tiroir : deux clics, coût redit, durée bornée, bulle « crédits » seulement pour ElevenLabs direct",
+      "if(!p||gBusy||svxSfxArmeTexte(gAuto?0:gDur,gVar,fireNote))return;" in _SFXS
+      and _SFXS.count("max:svxDmax(),") == 2 and "setGDur(svxClamp(v,0.5,svxDmax()));" in _SFXS
+      and "+svxSfxPrixFin(d)" in _SFXS and "title:svxSfxEstAide()," in _SFXS
+      and "setGCost(real>0&&svxSfxDirect()?Math.round(real):null);" in _SFXS
+      and "svxClamp(o.duration_s,0.5,22)" not in _SFXS, "")
+_rail = _SONV[_SONV.find("function SvmMusic("):_SONV.find("function SvmMusic(") + 6000]
+check("rail Musique : plus de masque « clé requise » sur `enabled` — les cartes se listent sans clé, Générer actif",
+      "if(!cat.enabled)" not in _rail and "if(!cat.models[0])return" in _rail
+      and 'dzT("ia.cle.a_ajouter",{cle:v.cle})' in _SONV, "")
 _Q0 = _SFXS.find("/* ── t187 (G5, génération IA enrichie) : le MODÈLE du bruitage")
 _Q1 = _SFXS.find("/* ── export contrat")
 _QUEUE = _SFXS[_Q0:_Q1] if 0 < _Q0 < _Q1 else ""
@@ -655,17 +691,22 @@ for _k in ("son.sfx.modele", "son.sfx.depuis_video", "son.sfx.garder_voix"):
     check(f"clé {_k} : fr et en au dictionnaire, utilisée par la couche",
           _k in _DICO and _DICO[_k].get("fr") and _DICO[_k].get("en") and f'dzT("{_k}")' in _QUEUE, _DICO.get(_k))
 check("son.sfx.prix_aide (prix recopié « crédits ElevenLabs ») retirée", "son.sfx.prix_aide" not in _DICO)
+check("libellés : le rail SFX, l'aide « auto » et la bulle de durée ne parlent plus d'ElevenLabs ni de « 22 »",
+      "ElevenLabs" not in _DICO["son.gen.prix_sfx"]["fr"] and "ElevenLabs" not in _DICO["sfx.gen.auto_aide"]["fr"]
+      and "22" not in _DICO["son.sfx.duree_aide"]["fr"] and "modèle" in _DICO["son.sfx.duree_aide"]["fr"],
+      (_DICO["son.gen.prix_sfx"], _DICO["sfx.gen.auto_aide"], _DICO["son.sfx.duree_aide"]))
 
 _node = shutil.which("node")
 # le rail Musique : le prix d'une carte (svmMusicPrice), exécuté sous node sur les entrées du catalogue servi
 _i = _SONV.find("function svmMusicPrice(")
 _fn = _SONV[_i:_SONV.find("\n\n", _i)] if _i > 0 else ""
 _MCAT = {m["id"]: m for m in MS.catalog()["models"]}
+_MCAT["lyria3-sans-cle"] = dict(_MCAT["lyria3"], dispo=False)
 if _node and _fn:
     _cas = [["lyria-3.5", 30, ""], ["elevenlabs-music-2.5", 61, ""], ["elevenlabs-music-2.5", 60, ""],
             ["mureka-9.5", 0, "[Verse]\nSous la mer"], ["mureka-9.5", 0, "[Verse]\n"], ["ace-step", 120, ""],
-            ["lyria3", 30, ""], ["minimax-music-3", 60, "[Verse]\nla la la la la"]]
-    _jsm = ("var DICO=" + json.dumps(_DICO, ensure_ascii=False) + ";function dzT(k){return (DICO[k]&&DICO[k].fr)||k}\n"
+            ["lyria3", 30, ""], ["minimax-music-3", 60, "[Verse]\nla la la la la"], ["lyria3-sans-cle", 30, ""]]
+    _jsm = ("var DICO=" + json.dumps(_DICO, ensure_ascii=False) + ";function dzT(k,v){var t=(DICO[k]&&DICO[k].fr)||k;for(var x in (v||{}))t=t.split('{'+x+'}').join(String(v[x]));return t}\n"
             + _fn + "\nvar CAT=" + json.dumps(_MCAT, ensure_ascii=False) + ",CAS=" + json.dumps(_cas, ensure_ascii=False)
             + ";process.stdout.write(JSON.stringify(CAS.map(function(c){return svmMusicPrice(CAT[c[0]],c[1],c[2])})))")
     (W / "prix_musique.js").write_text(_jsm, encoding="utf-8")
@@ -681,6 +722,8 @@ if _node and _fn:
           _px[1] == "~$1.20 · 61 s" and _px[2] == "~$0.60 · 60 s", _px)
     check("rail Musique : Mureka ~$0.225 avec paroles chantées, ~$0.75 sur description (balises seules = sans paroles)",
           _px[3] == "~$0.225" and _px[4] == "~$0.75", _px)
+    check("rail Musique : sans FAL_KEY la carte garde son prix ET dit « clé FAL_KEY à ajouter dans Réglages »",
+          _px[8] == "~$0.10 · clé FAL_KEY à ajouter dans Réglages", _px[8:])
     check("rail Musique : prix d'avant inchangés (ACE-Step 120 s ~$0.024, Lyria 3 ~$0.10)",
           _px[5] == "~$0.024 · 120 s" and _px[6] == "~$0.10", _px)
 else:
@@ -699,7 +742,7 @@ else:
         _EST[json.dumps(_op, separators=(",", ":"))] = P.estimate(_op)["total_usd"]
     _HARN = r"""
 var DICO=__DICO__,CAT=__CAT__,EST=__EST__;
-function dzT(k,v){var t=(DICO[k]&&DICO[k].fr)||k;for(var x in (v||{}))t=t.split("{"+x+"}").join(String(v[x]));return t}
+function dzT(k,v){var t=(DICO[k]&&DICO[k].fr)||k;for(var x in (v||{}))t=t.split('{'+x+'}').join(String(v[x]));return t}
 var LS={},CALLS=[],NOTES=[],SUBS=[];
 var localStorage={getItem:function(k){return k in LS?LS[k]:null},setItem:function(k,v){LS[k]=String(v)}};
 var window={localStorage:localStorage};
@@ -748,7 +791,13 @@ __QUEUE__
   OUT.prix2=txt(tout(I.t).filter(function(n){return /svx-sfxmprix/.test(n.p.className||"")})[0]);
   var b1={};svxSfxCorps(b1,{});OUT.corps_choisi=b1;
   var b2={};svxSfxCorps(b2,{modele:"mirelo-1.6"});OUT.corps_explicite=b2;
+  OUT.dmax_sonilo=svxDmax();OUT.aide_sonilo=svxSfxEstAide();
+  var N1=[];OUT.arme1=svxSfxArmeTexte(4,2,function(m){N1.push(m)});I.rendre();
+  OUT.prix_arme=txt(tout(I.t).filter(function(n){return /svx-sfxmprix/.test(n.p.className||"")})[0]);
+  OUT.arme2=svxSfxArmeTexte(4,2,function(m){N1.push(m)});OUT.arme_notes=N1;
+  OUT.fin=svxSfxPrixFin({usd:0.0144});OUT.fin_note=svxSfxPrixNote({usd:0.0144});OUT.fin_rien=svxSfxPrixFin({});
   svxSfxChoisir("sfx_texte","elevenlabs-direct");OUT.cout_direct=svxSfxCout(4,2,0);OUT.cout_auto=svxSfxCout(4,2,1);
+  OUT.dmax_direct=svxDmax();OUT.aide_direct=svxSfxEstAide();OUT.arme_direct=svxSfxArmeTexte(4,2,function(m){N1.push(m)});
   svxSfxChoisir("sfx_texte","sonilo-1.1");
   /* 2. la rangée : hors Montage rien ; sans clip vidéo l'indication ; clip vidéo : la section */
   OUT.r_biblio=tout(svxSfxR(3,1,void 0,"","","")).filter(function(n){return n.t===SvxSfxVideo}).length+"|"+
@@ -830,6 +879,17 @@ __QUEUE__
         check("ElevenLabs direct : l'estimation d'avant en crédits (≈ 320 crédits ; auto : ≈ 40 crédits/s)",
               O["cout_direct"] == "≈ 320 crédits" and O["cout_auto"].startswith("≈ 40 crédits/s"),
               (O["cout_direct"], O["cout_auto"]))
+        check("durée max = celle du modèle choisi (Sonilo 180 s, ElevenLabs direct 22 s)",
+              O["dmax_sonilo"] == 180 and O["dmax_direct"] == 22, (O["dmax_sonilo"], O["dmax_direct"]))
+        check("bulle « ~40 crédits ElevenLabs » : seulement pour ElevenLabs direct",
+              O.get("aide_sonilo") is None and "crédits ElevenLabs" in (O.get("aide_direct") or ""), O.get("aide_direct"))
+        check("Sonilo : 1er clic ARME (note = le prix du devis, la carte le redit), 2e clic tire ; ElevenLabs direct : un clic",
+              O["arme1"] is True and O["arme2"] is False and O["arme_direct"] is False
+              and O["arme_notes"] == ["~$0.014 — cliquer encore pour lancer, Échap pour annuler"]
+              and O["prix_arme"] == "~$0.014 — cliquer encore pour lancer", (O["arme_notes"], O["prix_arme"]))
+        check("après le tir : le MÊME chiffre redit (« · ~$0.014 », « Coût de la génération : ~$0.014 »), rien sans usd",
+              O["fin"] == " · ~$0.014" and O["fin_note"] == "Coût de la génération : ~$0.014" and O["fin_rien"] == "",
+              (O["fin"], O["fin_note"]))
         check("rangée : hors Montage (clip absent) ni section ni indication ; sans clip : l'indication ; clip audio : "
               "pas de section ; clip vidéo : la section",
               O["r_biblio"] == "0|0" and "Sélectionnez un clip vidéo" in O["r_null"] and O["r_audio"] == 0
