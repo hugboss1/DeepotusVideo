@@ -92,8 +92,9 @@ export function initPipetteUI(VL) {
       VL.surSelection();
     }
   }
-  stage.addEventListener("contextmenu", (ev) => { if (etat.outil === "pipette") ev.preventDefault(); }, true);
+  stage.addEventListener("contextmenu", (ev) => { if (VL.dansPanneau(ev)) return; if (etat.outil === "pipette") ev.preventDefault(); }, true);
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (etat.outil !== "pipette" || !etat.doc) return;
     if (ev.ctrlKey) return;                         // Ctrl + clic : le style de l'objet — mod-tools (l'ancienne pipette)
     ev.stopImmediatePropagation(); ev.preventDefault();

@@ -90,6 +90,7 @@ export function initApparence2(VL) {
   /* ── outil pinceau vectoriel ── */
   let geste = null;
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (ev.button !== 0 || !etat.doc || etat.outil !== "pinceauv") return;
     ev.stopPropagation(); ev.preventDefault();
     geste = { points: [VL.docPt(ev.clientX, ev.clientY)] };

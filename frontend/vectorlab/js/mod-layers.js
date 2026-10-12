@@ -209,7 +209,7 @@ export function initCalques(VL) {
     if (act === "renommer" && c) renommer(c.id);
     else if (act === "reglage") VL.ouvrirOnglet && VL.ouvrirOnglet("pixel");
     else if (act === "masque" || act === "fx") VL.ouvrirOnglet && VL.ouvrirOnglet("apparence");
-    else if (act === "ia" && c) { etat.calqueActif = c.id; VL.iaCalque.ouvrir(c.id); }
+    else if (act === "ia" && c) VL.iaCalque.ouvrir(c.id);
     else if (act === "pixel") { if (A.image && A.image.biblio) A.image.biblio(); else VL.ouvrirOnglet && VL.ouvrirOnglet("image"); }
     else if (act === "groupe") { if (etat.selection.length >= 2 && A.selection) A.selection.grouper(); else VL.toast(T("vectorlab.calques.grouper_deux"), true); }
     else if (act === "monter" && c) VL.executer(op_calque_reordonner, c.id, Math.min(etat.doc.calques.length - 1, i + 1));   // monter à l'écran = vers la fin

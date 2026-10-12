@@ -6,6 +6,7 @@
 // en CAPTURE sur #stage ; les modificateurs Maj (déplacement contraint) et
 // Ctrl (redimensionner depuis le centre) et le cadre inclus / touchés
 // vivent dans mod-tools (retouches R10).
+import { T } from "./mod-i18n.js";
 import { contraindre_axe } from "./mod-selection.js";
 import { op_deplacer } from "./mod-doc.js";
 
@@ -19,6 +20,7 @@ export function initSelectionUI(VL) {
 
   /* ── Alt + glisser : déplacer une copie ── */
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (!actif() || ev.button !== 0 || !ev.altKey) return;
     const cible = ev.target.closest && ev.target.closest("[data-objet]");
     if (!cible) return;
@@ -61,6 +63,7 @@ export function initSelectionUI(VL) {
 
   /* ── double-clic sur une courbe → outil Nœuds ── */
   stage.addEventListener("dblclick", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (!actif()) return;
     const cible = ev.target.closest && ev.target.closest("[data-objet]");
     if (!cible) return;

@@ -1,6 +1,7 @@
 """t190 (G8, génération IA) — l'image IA PAR CALQUE du Vectorlab, postérieure à L6 : les éditions de code de
-js/mod-image.js (generer(opts), pose sur un calque donné, « Retirer le fond » du panneau Image, dépôt d'un blob au
-magasin, initIaCalque) et de js/mod-layers.js (bouton « Image IA sur ce calque » de la barre d'actions) sont
+js/mod-image.js (generer() ouvre le panneau, pose sur un calque donné, « Retirer le fond » du panneau Image, dépôt
+d'un blob au magasin, initIaCalque), de js/mod-layers.js (bouton « Image IA sur ce calque » de la barre d'actions) et
+de js/mod-doc.js (t190-bis : op_image_remplacer, la commande réversible du détourage, à côté d'op_image_rev) sont
 consignées ICI, en éditions S sur la source de BASE, pour que la table reste réversible (test_i18n_l6 [2]). Le module
 neuf js/mod-iacalque.js n'est pas dans la BASE (ni dans la table ni dans les restes) : ses clés sont des entrées H,
 contrôlées par l'usage (test_i18n_l6 [3]). L'ancienne saisie de generer() (texte.py, lignes 223-232 : dialogue
@@ -30,20 +31,21 @@ GENERER_AVANT = c('''  async function generer() {
     await poserDepuisLibrary(nom);
   }''')
 
-GENERER_APRES = c('''  // t190 : sans options (menu Fichier, flyout Image), le panneau « Image IA sur le calque » s'ouvre sur le calque
-  // actif (calque cible, modèle, prix serveur, détourage) ; avec options {calqueId, prompt, modele, taille,
-  // detourer, modeleDetour, sujet} — VL.actions.image.generer(opts), garde() les transmet —, le tir direct sur
-  // le calque demandé (mod-iacalque.executerPlan)
-  async function generer(opts) {
-    // un Event (bouton branché directement) n'est pas une option : le panneau s'ouvre
-    if (!opts || typeof opts.prompt !== "string") { VL.iaCalque.ouvrir(etat.calqueActif); return undefined; }
-    return VL.iaCalque.lancer(opts);
+GENERER_APRES = c('''  // t190 : le panneau « Image IA sur le calque » s'ouvre sur le calque actif (calque cible, modèle, prix serveur,
+  // détourage) — menu Fichier, flyout Image ; le tir part du panneau (mod-iacalque). t190-bis : la voie « tir direct
+  // generer(opts) » est retirée, aucun appelant ne passait d'options
+  async function generer() {
+    VL.iaCalque.ouvrir(etat.calqueActif);
   }''')
 
 ENTREES = [
     # ── js/mod-image.js ──
     S(IMG, 10, 'reperes_rects } from "./mod-doc.js";',
-      c('reperes_rects } from "./mod-doc.js";\nimport { initIaCalque } from "./mod-iacalque.js";'), {}),
+      c('reperes_rects } from "./mod-doc.js";\nimport { initIaCalque, chercher } from "./mod-iacalque.js";'), {}),
+    # t190-bis : un serveur injoignable n'affiche plus « Failed to fetch » brut (chercher traduit le TypeError)
+    S(IMG, 92, "    const r = await fetch(`/api/vector/docs/", "    const r = await chercher(`/api/vector/docs/", {}),
+    S(IMG, 129, '    const r = await fetch("/api/images/" + encodeURIComponent(nom));',
+      '    const r = await chercher("/api/images/" + encodeURIComponent(nom));', {}),
     S(IMG, 116, "async function poserBlob(blob) {", "async function poserBlob(blob, calqueId) {", {}),
     S(IMG, 123, "VL.executer(op_ajouter, etat.calqueActif,", "VL.executer(op_ajouter, calqueId || etat.calqueActif,", {}),
     S(IMG, 128, "async function poserDepuisLibrary(nom) {", "async function poserDepuisLibrary(nom, calqueId) {", {}),
@@ -54,9 +56,6 @@ ENTREES = [
       {"vectorlab.image.pose_impossible": ("pose de « {nom} » impossible", "could not place “{nom}”")}),
     S(IMG, 133, "  }", c("    return id;\n  }"), {}),
     S(IMG, 222, GENERER_AVANT, GENERER_APRES, {}),
-    # t190 : garde() transmet ses arguments (generer(opts) depuis VL.actions.image.generer)
-    S(IMG, 237, "  const garde = (fn) => () => {", "  const garde = (fn) => (...a) => {", {}),
-    S(IMG, 238, "    Promise.resolve().then(fn).catch(", "    Promise.resolve().then(() => fn(...a)).catch(", {}),
     S(IMG, 293, '    $("#imVectoriser").addEventListener("click", () => { if (VL.vectoriser) VL.vectoriser(o.id); });',
       c('''    $("#imVectoriser").addEventListener("click", () => { if (VL.vectoriser) VL.vectoriser(o.id); });
     // t190 : « Retirer le fond » — une commande réversible (mod-iacalque.retirerFondFlux)
@@ -84,8 +83,45 @@ ENTREES = [
        "vectorlab.iacalque.bouton_titre": ("Générer une image IA sur le calque actif (modèle, prix, détourage)",
                                            "Generate an AI image on the active layer (model, price, background removal)")}),
     S(LAY, 209, 'else if (act === "pixel") {',
-      c('else if (act === "ia" && c) { etat.calqueActif = c.id; VL.iaCalque.ouvrir(c.id); }\n    else if (act === "pixel") {'),
+      c('else if (act === "ia" && c) VL.iaCalque.ouvrir(c.id);\n    else if (act === "pixel") {'),
       {}),
+
+    # ── js/mod-doc.js : la commande réversible du détourage, à côté d'op_image_rogner / op_image_rev ──
+    S("js/mod-doc.js", 1658, "/* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],",
+      c('''// t190 : la commande RÉVERSIBLE du détourage (« Retirer le fond », mod-iacalque) : l'objet désigne une AUTRE
+// image du magasin (href) — Annuler rend l'href d'avant, dont le PNG n'a pas été touché. La révision raster et
+// l'empreinte de l'ancienne image ne suivent pas ; un rognage qui ne tient plus dans la nouvelle taille native tombe.
+// Rend true : VL.executer rend undefined quand il avale un échec. t190-bis : l'image peut être l'ENFANT d'un groupe
+// (Ctrl+clic la sélectionne, le panneau Image lui offre « Retirer le fond ») — la recherche descend dans les groupes.
+export function image_profonde(doc, id) {
+  const visiter = (objs) => {
+    for (const o of objs || []) {
+      if (o.id === id) return o;
+      if (o.type === "groupe") { const x = visiter(o.enfants); if (x) return x; }
+    }
+    return null;
+  };
+  for (const c of doc.calques) {
+    const o = visiter(c.objets);
+    if (o) {
+      if (o.type !== "image") throw new Error(T("vectorlab.doc.pas_image", { id }));
+      return o;
+    }
+  }
+  throw new Error(T("vectorlab.doc.image_introuvable", { id }));
+}
+export function op_image_remplacer(doc, id, href, nat) {
+  const o = image_profonde(doc, id);
+  if (!href || !(nat && nat.w > 0 && nat.h > 0)) throw new Error(T("vectorlab.iacalque.image_invalide"));
+  o.href = String(href);
+  const memeTaille = o.nat && o.nat.w === nat.w && o.nat.h === nat.h;
+  o.nat = { w: nat.w, h: nat.h };
+  delete o.rev; delete o.px;
+  if (o.rognage && !memeTaille) delete o.rognage;
+  return true;
+}
+
+/* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],'''), {}),
 
     # ── clés reprises de l'ancienne saisie de generer() (texte.py) : mêmes textes ──
     H("vectorlab.image.generation", "génération en cours…", "generating…"),
@@ -114,6 +150,8 @@ ENTREES = [
       "say which subject to keep: this model cuts out a named subject"),
     H("vectorlab.iacalque.prix", "Prix estimé : {prix}", "Estimated price: {prix}"),
     H("vectorlab.iacalque.prix_partiel", " (+ détourage à mesurer)", " (+ background removal to be measured)"),
+    H("vectorlab.iacalque.prix_partiel_image", " (+ image à mesurer)", " (+ image to be measured)"),
+    H("vectorlab.iacalque.prix_gratuit", "Prix estimé : gratuit (local)", "Estimated price: free (local)"),
     H("vectorlab.iacalque.prix_a_mesurer", "Prix estimé : prix à mesurer", "Estimated price: price to be measured"),
     H("vectorlab.iacalque.prix_inconnu", "Prix estimé : …", "Estimated price: …"),
     H("vectorlab.iacalque.generer_sur", "Générer sur « {nom} »", "Generate on “{nom}”"),
@@ -130,13 +168,24 @@ ENTREES = [
     H("vectorlab.iacalque.detour_fait", "fond retiré (Ctrl+Z rend l'image d'avant)",
       "background removed (Ctrl+Z brings back the previous image)"),
     H("vectorlab.iacalque.cle_absente", "Clé absente — {detail}", "Missing key — {detail}"),
-    H("vectorlab.iacalque.catalogue_absent", "catalogue des modèles indisponible", "model catalogue unavailable"),
+    H("vectorlab.iacalque.catalogue_absent", "liste des modèles indisponible", "model list unavailable"),
+    H("vectorlab.iacalque.modeles_vides", "aucun modèle d'image disponible", "no image model available"),
+    H("vectorlab.iacalque.calque_disparu", "le calque demandé n'existe plus : l'image ira sur « {nom} »",
+      "the requested layer no longer exists: the image will go on “{nom}”"),
+    H("vectorlab.iacalque.reessayer", "Réessayer", "Retry"),
+    H("vectorlab.iacalque.masque", " (masqué)", " (hidden)"),
+    H("vectorlab.iacalque.reseau", "serveur injoignable : vérifiez que DeepotusVideo tourne",
+      "server unreachable: check that DeepotusVideo is running"),
+    H("vectorlab.iacalque.biblio_sans_nom", "la Bibliothèque n'a rendu aucun nom pour l'image à détourer",
+      "the Library returned no name for the image to cut out"),
     H("vectorlab.iacalque.image_introuvable", "image introuvable : {id}", "image not found: {id}"),
     H("vectorlab.iacalque.image_invalide", "image détourée illisible", "unreadable cut-out image"),
     H("vectorlab.iacalque.image_illisible", "image {href} illisible", "image {href} unreadable"),
     H("vectorlab.iacalque.detour_cle",
       "la clé {cle} manque pour ce détourage : ajoutez-la dans Réglages ou décochez « Retirer le fond »",
       "the {cle} key is missing for this background removal: add it in Settings or untick “Remove the background”"),
+    H("vectorlab.iacalque.detour_cle_image", "la clé {cle} manque pour ce détourage : ajoutez-la dans Réglages",
+      "the {cle} key is missing for this background removal: add it in Settings"),
     H("vectorlab.iacalque.pose_echouee", "{raison} — image gardée en Bibliothèque : {nom}",
       "{raison} — image kept in the Library: {nom}"),
     H("vectorlab.iacalque.pose_refusee", "la pose a été refusée", "placing was refused"),

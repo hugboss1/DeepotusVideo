@@ -89,6 +89,7 @@ export function initOutils(VL) {
 
   /* ═══════════ pointerdown : router le geste selon la cible ═══════════ */
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (ev.button !== 0 || !etat.doc) return;
     try { stage.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ }
     const t = ev.target;
@@ -547,6 +548,7 @@ export function initOutils(VL) {
 
   /* ═══════════ double-clic : conversion d'ancre ═══════════ */
   stage.addEventListener("dblclick", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (etat.outil === "select" || etat.outil === "texte") {
       // rééditer un texte en place
       // t123 : le PREMIER clic sélectionne et redessine la scène — l'élément cliqué est remplacé, et le dblclick

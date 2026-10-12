@@ -143,6 +143,7 @@ export function initExportPlus(VL) {
     $("#outils").appendChild(b);
   }
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (ev.button !== 0 || !etat.doc || etat.outil !== "tranche") return;
     ev.stopPropagation(); ev.preventDefault();
     const [x, y] = VL.aimantePt(...VL.docPt(ev.clientX, ev.clientY));
@@ -171,6 +172,7 @@ export function initExportPlus(VL) {
     VL.rendreOverlay(); rendre();
   }, true);
   document.addEventListener("keydown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (ev.key === "Escape" && etat.outil === "tranche" && etat.tranches.length) { etat.tranches = []; VL.rendreOverlay(); rendre(); ev.stopImmediatePropagation(); }
   }, true);
   const suivantOverlay = VL.surOverlay;

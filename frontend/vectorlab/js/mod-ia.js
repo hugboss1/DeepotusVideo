@@ -21,6 +21,7 @@
 
 import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
+import { garderClics } from "./mod-flottant.js";
 export function initIA(VL) {
   const { $, etat } = VL;
   let moteurs = null;            // [{moteur, modeles[], defaut}] — null si inconnu
@@ -193,11 +194,10 @@ export function initIA(VL) {
   if (el) {
     // le dialogue vit DANS #stage : sans garde, le pointerdown d'un contrôle remonte au gestionnaire de l'outil
     // Sélection (mod-tools, en bulle sur #stage) qui pose setPointerCapture(#stage) — le click part alors sur
-    // #stage, la croix ne ferme pas, « Générer » ne part pas (vu à la preuve 8799). Mêmes gestes gardés que
-    // garderClics de mod-iacalque ; la poignée de glisser (pointerdown du dialogue, plus bas) n'en souffre pas.
-    for (const t of ["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel"]) {
-      el.addEventListener(t, (ev) => ev.stopPropagation(), t === "wheel" ? { passive: true } : false);
-    }
+    // #stage, la croix ne ferme pas, « Générer » ne part pas (vu à la preuve 8799). Le garderClics PARTAGÉ
+    // (mod-flottant) : mêmes gestes que le panneau de mod-iacalque, clavier compris (une lettre tapée dans une liste
+    // changeait d'outil) ; les outils en CAPTURE sortent par VL.dansPanneau. La poignée n'en souffre pas.
+    garderClics(el);
     el.addEventListener("click", (ev) => {
       if (ev.target.dataset.act === "fermer") { fermer(); VL.setOutil("select"); }
       else if (ev.target.id === "iaGo") generer();

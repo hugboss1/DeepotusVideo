@@ -30,6 +30,7 @@ export function initNoeudUI(VL) {
   const chemin = () => VL.pathSelectionne();
 
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (!actif() || ev.button !== 0) return;
     const p = chemin(); if (!p) return;
     const t = ev.target;
@@ -108,6 +109,7 @@ export function initNoeudUI(VL) {
   }, true);
   // double-clic sur un segment : un nœud à cet endroit (sur une ancre, mod-tools convertit)
   stage.addEventListener("dblclick", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (!actif()) return;
     const p = chemin(); if (!p) return;
     if (ev.target.closest && (ev.target.closest(".ancre") || ev.target.closest(".poignee-noeud"))) return;

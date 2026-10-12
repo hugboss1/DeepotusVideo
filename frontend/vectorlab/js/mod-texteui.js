@@ -21,6 +21,7 @@ export function initTexteUI(VL) {
   const styleDefaut = () => Object.assign({ corps: 48 }, (etat.typo && etat.typo.styleDefaut) || {});
 
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (!actif() || ev.button !== 0) return;
     const ed = $(".tx-editeur");
     if (ed) { ed.blur(); }                                // un texte en cours d'édition : le blur le finit (mod-typo), puis on continue

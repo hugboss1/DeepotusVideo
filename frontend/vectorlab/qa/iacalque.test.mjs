@@ -1,15 +1,18 @@
 // iacalque.test.mjs — t190 (G8) : l'image IA PAR CALQUE et « Retirer le fond » réversible. Logique PURE de
 // mod-iacalque (format d'après la page, corps des routes réelles, plan du tir, cible refusée avant toute
 // dépense, anti-double tir, libellé du prix serveur), le tir de bout en bout sur de FAUSSES routes, et
-// l'annulation du détourage par le vrai Historique de mod-doc. initIaCalque n'est jamais appelé.
+// l'annulation du détourage par le vrai Historique de mod-doc. t190-bis : le VRAI initIaCalque tourne sur un
+// mini-DOM par id (le panneau, la liste des modèles illisible → « Générer » gris + Réessayer, la réouverture qui
+// garde le prompt, la liste des calques qui suit le document, le focus rendu, la ligne « Retirer le fond »).
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { taillePour, requete, requeteDetour, etapes, verifierCible, calquesCibles, devisCorps, libellePrix,
-         messageErreur, unSeulVol, executerPlan, op_image_remplacer, retirerFondFlux, nomDepot, TAILLES,
-         garderClics, brancherPoignee, GESTES_GARDES, verifierDetour }
+         messageErreur, unSeulVol, executerPlan, retirerFondFlux, nomDepot, TAILLES, brancherPoignee, verifierDetour,
+         etatGenerer, devisDetour, optionsCalques, cibleValide, chercher, nomDuDepot, initIaCalque }
   from "../js/mod-iacalque.js";
+import { garderClics, GESTES_GARDES } from "../js/mod-flottant.js";
 import { docVierge } from "../js/mod-biblio.js";
-import { Historique, op_calque_ajouter, op_calque_verrou, op_ajouter } from "../js/mod-doc.js";
+import { Historique, op_calque_ajouter, op_calque_verrou, op_ajouter, op_image_remplacer } from "../js/mod-doc.js";
 
 const echecs = [];
 let n = 0;
@@ -186,6 +189,11 @@ const banc = () => {
   let m3 = "";
   try { verifierDetour({ detourer: true, modeleDetour: "bria-objet", sujet: "" }, { prompt: true, dispo: true }); } catch (e) { m3 = e.message; }
   ok("[detour-avant] verifierDetour : sujet exigé", /sujet/.test(m3));
+  let m5 = "", m6 = "";
+  try { verifierDetour({ detourer: true, modeleDetour: "bria-rmbg" }, { dispo: false, cle: "FAL_KEY" }); } catch (e) { m5 = e.message; }
+  try { verifierDetour({ detourer: true, modeleDetour: "bria-rmbg" }, { dispo: false, cle: "FAL_KEY" }, { sansCase: true }); } catch (e) { m6 = e.message; }
+  ok("[detour-avant] panneau IA : la clé manquante propose de décocher la case", /FAL_KEY/.test(m5) && /décochez/.test(m5), m5);
+  ok("[detour-avant] panneau Image (pas de case) : la variante SANS « décochez »", /FAL_KEY/.test(m6) && !/décochez/.test(m6), m6);
   let rien = true;
   try { verifierDetour({ detourer: false, modeleDetour: "" }, { prompt: true, dispo: false }); } catch (e) { rien = false; }
   ok("[detour-avant] sans détourage : rien à vérifier", rien);
@@ -227,6 +235,56 @@ const banc = () => {
   ok("[prix] ligne locale à 0 $ : pas « à mesurer »",
      !/mesurer/.test(libellePrix({ breakdown: [L("fal", 0.048), L("local", 0)], total_usd: 0.048 })));
   ok("[prix] devis absent : texte d'attente, pas de chiffre", !/\$/.test(libellePrix(null)));
+  // t190-bis : la mention partielle NOMME la ligne à mesurer d'après le devis (unité « image » = l'image)
+  const LU = (prov, usd, unit) => ({ provider: prov, usd, unit });
+  const pi = libellePrix({ breakdown: [LU("openai", 0, "image"), LU("fal", 0.018, "img")], total_usd: 0.018 });
+  ok("[prix] image à mesurer, détourage chiffré : « + image à mesurer »", /image à mesurer/.test(pi) && !/détourage à mesurer/.test(pi), pi);
+  const pd = libellePrix({ breakdown: [LU("fal", 0.048, "image"), LU("fal", 0, "img")], total_usd: 0.048 });
+  ok("[prix] détourage à mesurer, image chiffrée : « + détourage à mesurer »", /détourage à mesurer/.test(pd) && !/image à mesurer/.test(pd), pd);
+  ok("[prix] détourage LOCAL seul (0 $) : gratuit, jamais « à mesurer »",
+     /gratuit/.test(libellePrix({ breakdown: [LU("local", 0, "img")], total_usd: 0 })));
+  ok("[prix] le devis du seul détourage (panneau Image)",
+     egal(devisDetour("bria-rmbg"), { kind: "campaign", ops: [{ kind: "detourage", modele: "bria-rmbg", images: 1 }] }) && devisDetour("") === null);
+}
+
+/* ── [generer] « Générer » gris sans liste des modèles, JAMAIS pour une clé manquante ── */
+{
+  const base = { enVol: false, cible: "c1", catalogue: "ok", modele: "flux-3" };
+  ok("[generer] liste lue, modèle choisi : actif", etatGenerer(base).gris === false);
+  const e = etatGenerer({ ...base, catalogue: "echec", modele: "" });
+  ok("[generer] liste illisible : gris, raison « catalogue » (message + Réessayer)", e.gris && e.raison === "catalogue", JSON.stringify(e));
+  ok("[generer] liste lue mais VIDE (aucun modèle) : gris, raison « vide » (pas « Réessayer »)",
+     etatGenerer({ ...base, modele: "" }).gris && etatGenerer({ ...base, modele: "" }).raison === "vide");
+  ok("[generer] liste en lecture : gris, sans message", etatGenerer({ ...base, catalogue: "chargement", modele: "" }).gris
+     && etatGenerer({ ...base, catalogue: "chargement", modele: "" }).raison === "");
+  ok("[generer] aucun calque libre : gris, raison « calque »", etatGenerer({ ...base, cible: "" }).raison === "calque");
+  ok("[generer] en vol : gris", etatGenerer({ ...base, enVol: true }).gris);
+  ok("[generer] la clé n'entre pas en compte (l'état ne la reçoit même pas)", etatGenerer({ ...base, dispo: false, cle: "FAL_KEY" }).gris === false);
+}
+
+/* ── [calques] la liste des calques : masqués dits, cible gardée tant qu'elle est libre ── */
+{
+  const doc = { calques: [{ id: "c1", nom: "Fond" }, { id: "c2", nom: "Logo", visible: false }, { id: "c3", nom: "Verrou", verrou: true }] };
+  const html = optionsCalques(doc, "c2");
+  ok("[calques] un calque masqué le dit dans son option", /<option value="c2" selected>Logo \(masqué\)<\/option>/.test(html), html);
+  ok("[calques] un calque verrouillé n'est pas proposé", !/c3/.test(html));
+  ok("[calques] le dessus en tête", html.indexOf("c2") < html.indexOf("c1"));
+  ok("[calques] cible gardée si libre, sinon la demandée, sinon la première libre",
+     cibleValide(doc, "c1", "c2") === "c1" && cibleValide(doc, "c3", "c1") === "c1" && cibleValide(doc, "zz", "") === "c2"
+     && cibleValide({ calques: [{ id: "x", verrou: true }] }, "x", "") === "");
+}
+
+/* ── [reseau] « Failed to fetch » traduit ; dépôt sans nom refusé lisiblement ── */
+{
+  let m = "";
+  try { await chercher("/api/x", {}, async () => { throw new TypeError("Failed to fetch"); }); } catch (e) { m = e.message; }
+  ok("[reseau] erreur réseau : message lisible, plus « Failed to fetch »", /injoignable/.test(m) && !/Failed/.test(m), m);
+  const r = await chercher("/api/x", {}, async (u) => ({ ok: true, u }));
+  ok("[reseau] réponse rendue telle quelle", r.ok && r.u === "/api/x");
+  let m2 = "";
+  try { nomDuDepot({}); } catch (e) { m2 = e.message; }
+  ok("[reseau] dépôt en Bibliothèque sans nom : erreur lisible (jamais filename undefined)", /Bibliothèque/.test(m2), m2);
+  ok("[reseau] dépôt avec nom : le nom", nomDuDepot({ filename: "vector_a.png" }) === "vector_a.png");
 }
 
 /* ── [erreurs] 503 lisible, plafond refusé lisible ── */
@@ -250,6 +308,7 @@ const docImage = () => {
   const executer = (fn, ...a) => { const essai = JSON.parse(JSON.stringify(doc)); const out = fn(essai, ...a); h.capturer(doc); doc = essai; return out; };
   const appels = [];
   const d = {
+    doc: () => doc,
     versBiblio: async (o) => { appels.push(["biblio", o.href]); return nomDepot("doc 1", o.href); },
     post: async (url, corps) => { appels.push([url, corps]); return { images: ["gen_det.png"], op: "remove-bg", modele: corps.modele }; },
     deposer: async (nom) => { appels.push(["deposer", nom]); return { href: "img2.png", nat: { w: 800, h: 400 } }; },
@@ -283,7 +342,7 @@ const docImage = () => {
   let execs = 0;
   let m = "";
   try {
-    await retirerFondFlux(doc.calques[0].objets[0], { modele: "bria-rmbg" }, {
+    await retirerFondFlux(doc.calques[0].objets[0], { modele: "bria-rmbg" }, { doc: () => doc,
       versBiblio: async () => "a.png", post: async () => ({ images: ["b.png"] }),
       deposer: async () => ({ href: "img1.png", nat: { w: 800, h: 400 } }), executer: () => { execs++; } });
   } catch (e) { m = e.message; }
@@ -291,7 +350,7 @@ const docImage = () => {
   // l'executer réel AVALE l'échec de la commande (toast + undefined) : jamais « fond retiré »
   let m4 = "";
   try {
-    await retirerFondFlux(doc.calques[0].objets[0], { modele: "bria-rmbg" }, {
+    await retirerFondFlux(doc.calques[0].objets[0], { modele: "bria-rmbg" }, { doc: () => doc,
       versBiblio: async () => "a.png", post: async () => ({ images: ["gen_det.png"] }),
       deposer: async () => ({ href: "img9.png", nat: { w: 800, h: 400 } }), executer: () => undefined });
   } catch (e) { m4 = e.message; }
@@ -308,6 +367,41 @@ const docImage = () => {
   try { op_image_remplacer(d2, "zz", "a.png", { w: 1, h: 1 }); } catch { refus++; }
   try { op_image_remplacer(d2, "i1", "", { w: 1, h: 1 }); } catch { refus++; }
   ok("[annuler] image inconnue ou href vide refusés", refus === 2);
+}
+{
+  // t190-bis : une image ENFANT d'un groupe (Ctrl+clic la sélectionne, le panneau Image lui offre « Retirer le
+  // fond ») — la commande la retrouve, le remplacement et l'annulation marchent
+  const docGroupe = () => {
+    const dg = docVierge("t", 400, 300);
+    dg.calques[0].objets.push({ id: "g1", type: "groupe", style: {}, enfants: [
+      { id: "i5", type: "image", x: 0, y: 0, w: 100, h: 100, href: "img5.png", nat: { w: 100, h: 100 }, rev: 2, style: {} },
+      { id: "r1", type: "rect", x: 0, y: 0, w: 10, h: 10, style: {} }] });
+    return dg;
+  };
+  let doc = docGroupe();
+  const h = new Historique();
+  const executer = (fn, ...a) => { const essai = JSON.parse(JSON.stringify(doc)); const out = fn(essai, ...a); h.capturer(doc); doc = essai; return out; };
+  const img = () => doc.calques[0].objets.find((x) => x.id === "g1").enfants[0];
+  let href = "", mg = "";
+  try {
+  href = await retirerFondFlux(img(), { modele: "bria-rmbg" }, { doc: () => doc, versBiblio: async () => "a.png",
+    post: async () => ({ images: ["det5.png"] }), deposer: async () => ({ href: "img6.png", nat: { w: 100, h: 100 } }), executer });
+  } catch (e) { mg = e.message; }
+  ok("[groupe] image dans un groupe : le fond retiré la remplace (" + mg + ")", href === "img6.png" && img().href === "img6.png" && !("rev" in img()), JSON.stringify(img()));
+  if (h.peutAnnuler()) doc = h.annuler(doc);
+  ok("[groupe] Annuler rend l'image d'avant dans le groupe", img().href === "img5.png" && img().rev === 2, JSON.stringify(img()));
+  let m = "";
+  try { op_image_remplacer(docGroupe(), "r1", "x.png", { w: 1, h: 1 }); } catch (e) { m = e.message; }
+  ok("[groupe] un enfant de groupe qui n'est pas une image : même refus « pas une image »", !!m && !/introuvable/.test(m), m);
+  // aucun POST si la commande ne pourrait pas aboutir (image disparue du document) : rien de payé pour rien
+  const posts = [];
+  let m2 = "";
+  try {
+    await retirerFondFlux({ id: "fantome", type: "image", href: "z.png" }, { modele: "bria-rmbg" }, { doc: () => docGroupe(),
+      versBiblio: async () => { posts.push("upload"); return "a.png"; }, post: async (u) => { posts.push(u); return { images: ["x.png"] }; },
+      deposer: async () => ({ href: "q.png", nat: { w: 1, h: 1 } }), executer: () => true });
+  } catch (e) { m2 = e.message; }
+  ok("[groupe] image introuvable par la commande : refus AVANT tout POST (ni upload, ni /images/process)", !!m2 && !posts.length, m2 + " " + posts.join(","));
 }
 
 /* ── [cle] une option SANS clé reste CHOISISSABLE (jamais disabled) ── */
@@ -406,25 +500,231 @@ const docImage = () => {
   ok("[clics] les gestes gardés", ["pointerdown", "mousedown", "dblclick", "wheel", "keydown"].every((t) => GESTES_GARDES.includes(t)));
 }
 
-/* ── [page] le câblage : scripts chargés, bouton du calque, entrées de menu, aucun dialogue natif ── */
+/* ── [page] le câblage hors du module (index.html, mod-image, mod-layers : lus, non importables ici) ── */
 {
   const html = lit("../index.html");
   ok("[page] index.html charge /shared/dz-modeles-ia.js, dz-plafonds et dz-champ-ia",
      ["/shared/dz-modeles-ia.js", "/shared/dz-plafonds.js", "/shared/dz-champ-ia.js"].every((s) => html.includes(`src="${s}"`)));
   const img = lit("../js/mod-image.js"), lay = lit("../js/mod-layers.js"), mod = lit("../js/mod-iacalque.js");
   ok("[page] mod-image branche le panneau (import + initIaCalque) et Retirer le fond",
-     /import \{ initIaCalque \} from "\.\/mod-iacalque\.js";/.test(img) && /initIaCalque\(VL\)/.test(img) && /ligneDetour/.test(img));
-  ok("[page] generer() sans options ouvre le panneau sur le calque actif",
-     /VL\.iaCalque\.ouvrir\(etat\.calqueActif\)/.test(img));
+     /import \{ initIaCalque, chercher \} from "\.\/mod-iacalque\.js";/.test(img) && /initIaCalque\(VL\)/.test(img) && /ligneDetour/.test(img));
+  ok("[page] generer() ouvre le panneau sur le calque actif — plus de voie generer(opts) (aucun appelant)",
+     /async function generer\(\) \{\s*VL\.iaCalque\.ouvrir\(etat\.calqueActif\);\s*\}/.test(img) && !/iaCalque\.lancer/.test(img));
   ok("[page] poserDepuisLibrary : une pose avalée par executer lève une erreur, jamais « posée »",
      /if \(!id\) throw new Error\(T\("vectorlab\.image\.pose_impossible"/.test(img));
-  ok("[page] garde() transmet les options de generer(opts)", /const garde = \(fn\) => \(\.\.\.a\) =>/.test(img));
-  ok("[page] le panneau est un dialogue nommé (role, aria-labelledby) qui rend le focus à la fermeture",
-     /setAttribute\("role", "dialog"\)/.test(mod) && /aria-labelledby", "iacTitre"/.test(mod) && /id="iacTitre"/.test(mod) && /retour\.focus\(\)/.test(mod));
   ok("[page] Calques : bouton data-act=\"ia\" (glyphe dz-media-generer-image) qui ouvre le panneau sur le calque actif",
-     /data-act="ia"[^\n]*dz-media-generer-image/.test(lay) && /act === "ia"[^\n]*VL\.iaCalque\.ouvrir\(c\.id\)/.test(lay));
-  ok("[page] prompt marqué data-dz-ia (dz-champ-ia), aucun prompt/alert/confirm natif",
-     /id="iacPrompt" data-dz-ia="image"/.test(mod) && !/(?<![\w.$])(?:window\.)?(?:confirm|alert|prompt)\(/.test(mod.replace(/\/\/[^\n]*/g, "")));
+     /data-act="ia"[^\n]*dz-media-generer-image/.test(lay) && /act === "ia" && c\) VL\.iaCalque\.ouvrir\(c\.id\);/.test(lay));
+  ok("[page] aucun prompt/alert/confirm natif dans le module",
+     !/(?<![\w.$])(?:window\.)?(?:confirm|alert|prompt)\(/.test(mod.replace(/\/\/[^\n]*/g, "")));
+}
+
+/* ── [panneau] le VRAI initIaCalque sur un mini-DOM par id : chaque gabarit innerHTML crée les éléments qu'il
+   nomme (id, attributs, <option> d'un <select>), $ les retrouve par id ; un rendu neuf déconnecte les anciens ── */
+{
+  const reg = new Map();
+  let actif = null;
+  class El {
+    constructor(tag, attrs = {}) {
+      this.tagName = String(tag).toUpperCase(); this.attrs = { ...attrs }; this.id = attrs.id || "";
+      this.dataset = {}; for (const [k, v] of Object.entries(attrs)) if (k.startsWith("data-")) this.dataset[k.slice(5).replace(/-(\w)/g, (_, c) => c.toUpperCase())] = v;
+      this.hidden = "hidden" in attrs; this.disabled = "disabled" in attrs; this.checked = false;
+      this.value = attrs.value || ""; this.textContent = ""; this.ec = []; this.style = {}; this.isConnected = true;
+      this.parent = null; this.enfants = []; this._html = "";
+    }
+    setAttribute(k, v) { this.attrs[k] = String(v); }
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    addEventListener(t, fn) { this.ec.push({ t, fn }); }
+    removeEventListener(t, fn) { this.ec = this.ec.filter((e) => !(e.t === t && e.fn === fn)); }
+    appendChild(e) { e.parent = this; if (e.id) reg.set(e.id, e); return e; }
+    focus() { actif = this; }
+    getBoundingClientRect() { return { left: 0, top: 0, width: 300, height: 400 }; }
+    closest(sel) {
+      for (let x = this; x; x = x.parent) {
+        if (sel === "button" && x.tagName === "BUTTON") return x;
+        if (sel === "[data-poigne]" && "poigne" in x.dataset) return x;
+      }
+      return null;
+    }
+    querySelector(sel) { const e = reg.get(sel.replace(/^#/, "")); return e && e.isConnected ? e : null; }
+    get innerHTML() { return this._html; }
+    set innerHTML(h) {
+      this.ecritures = (this.ecritures || 0) + 1;
+      this._html = h;
+      for (const e of this.enfants) e.isConnected = false;
+      this.enfants = [];
+      if (this.tagName === "SELECT") { this.options(h); return; }
+      // chaque balise à id devient un élément enregistré ; ses parents d'id les plus proches sont suivis
+      const pile = [this];
+      for (const m of h.matchAll(/<(\/?)([a-z]+)([^>]*?)(\/?)>/gi)) {
+        const [, ferme, tag, reste, auto] = m;
+        if (ferme) { if (pile.length > 1 && pile[pile.length - 1].tagName === tag.toUpperCase()) pile.pop(); continue; }
+        const attrs = {};
+        for (const a of reste.matchAll(/([\w-]+)(?:="([^"]*)")?/g)) attrs[a[1]] = a[2] === undefined ? "" : a[2];
+        const e = new El(tag, attrs);
+        e.parent = pile[pile.length - 1];
+        this.enfants.push(e);
+        if (e.id) reg.set(e.id, e);
+        if (!auto && !/^(input|br|img)$/i.test(tag)) pile.push(e);
+      }
+      for (const e of this.enfants) if (e.tagName === "SELECT") {
+        const i = h.indexOf(`id="${e.id}"`), j = h.indexOf("</select>", i);
+        e.options(h.slice(h.indexOf(">", i) + 1, j));
+      }
+    }
+    options(h) {
+      this._html = h;
+      const opts = [...h.matchAll(/<option value="([^"]*)"( selected)?>([^<]*)<\/option>/g)];
+      this.valeurs = opts.map((o) => o[1]);
+      this.value = (opts.find((o) => o[2]) || opts[0] || [, ""])[1];
+    }
+    // un geste qui remonte du nœud au panneau (les écouteurs du panneau sont posés sur lui)
+    tirer(t, extra = {}) {
+      const ev = { type: t, target: this, key: "", ctrlKey: false, metaKey: false, ...extra, defaultPrevented: false,
+        stopPropagation() {}, preventDefault() { this.defaultPrevented = true; } };
+      for (let x = this; x; x = x.parent) for (const e of x.ec.filter((y) => y.t === t)) e.fn(ev);
+      return ev;
+    }
+  }
+  const attendre = async (k = 6) => { for (let i = 0; i < k; i++) await new Promise((r) => setTimeout(r, 0)); };
+
+  // le faux DzModelesIA : une promesse par nature, réglable ; remplir choisit le modèle mémorisé, sinon le premier
+  const modeles = { image: null, detourage_image: null };
+  const DzModelesIA = {
+    charger: (nature) => modeles[nature] ? Promise.resolve(modeles[nature]) : Promise.reject(new Error("catalogue")),
+    filtrer: (l) => l,
+    remplir: (sel, l, o) => { sel.valeurs = l.map((m) => m.id); sel.value = (l.find((m) => m.id === (o && o.valeur)) || l[0] || { id: "" }).id; return sel.value; },
+    prixUsd: (v) => (+v > 0 ? "$" + (Math.round(v * 1000) / 1000).toFixed(3).replace(/0$/, "") : ""),
+  };
+  const appels = [];
+  const fetchFaux = async (url, init) => {
+    const corps = init && init.body && typeof init.body === "string" ? JSON.parse(init.body) : null;
+    appels.push({ url, corps });
+    if (url === "/api/cost/estimate") {
+      const lignes = corps.ops.map((o) => o.kind === "image" ? { provider: "fal", usd: 0.048, unit: "image" } : { provider: "fal", usd: 0.018, unit: "img" });
+      return { ok: true, status: 200, json: async () => ({ breakdown: lignes, total_usd: lignes.reduce((t, l) => t + l.usd, 0) }) };
+    }
+    return { ok: false, status: 500, statusText: "x", json: async () => ({}) };
+  };
+  const avant = { document: globalThis.document, window: globalThis.window, localStorage: globalThis.localStorage };
+  const stage = new El("main", { id: "stage" }); reg.set("stage", stage);
+  const corps = new El("body");
+  globalThis.document = { createElement: (t) => new El(t), get activeElement() { return actif || corps; }, body: corps, querySelector: () => null };
+  globalThis.window = { fetch: fetchFaux, DzModelesIA, addEventListener() {}, removeEventListener() {} };
+  globalThis.localStorage = { getItem: () => null, setItem: () => {} };
+  const toasts = [];
+  const doc = { taille: { w: 800, h: 600 }, calques: [{ id: "c1", nom: "Fond", objets: [] }, { id: "c2", nom: "Logo", objets: [] }] };
+  const VL = { etat: { doc, calqueActif: "c1", selection: [] }, $: (s) => { const e = reg.get(s.replace(/^#/, "")); return e && e.isConnected ? e : null; },
+    toast: (m, err) => toasts.push((err ? "!" : "") + m), surRendu: () => {}, surHistorique: () => {}, executer: () => true };
+  try {
+    initIaCalque(VL);
+    ok("[panneau] VL.iaCalque n'expose que ce qu'on appelle (ouvrir, fermer, ligneDetour)",
+       egal(Object.keys(VL.iaCalque).sort(), ["fermer", "ligneDetour", "ouvrir"]), Object.keys(VL.iaCalque).join(","));
+
+    // ouverture depuis un bouton : le focus y reviendra
+    const boutonCalque = new El("button"); boutonCalque.focus();
+    VL.iaCalque.ouvrir("c2");
+    await attendre();
+    const dlg = reg.get("iaCalqueDlg");
+    ok("[panneau] un dialogue nommé, posé dans #stage, marqué panneau flottant",
+       dlg && dlg.parent === stage && dlg.attrs.role === "dialog" && dlg.attrs["aria-labelledby"] === "iacTitre" && reg.get("iacTitre")
+       && dlg.dataset.vlFlottant === "1" && /\bia-dlg\b/.test(dlg.className) && /\biac-dlg\b/.test(dlg.className), dlg && dlg.className);
+    ok("[panneau] le prompt est marqué data-dz-ia (dz-champ-ia) et reçoit le focus",
+       reg.get("iacPrompt").dataset.dzIa === "image" && actif === reg.get("iacPrompt"));
+    ok("[panneau] présélection : le calque d'où l'on vient", reg.get("iacCalque").value === "c2");
+
+    // [mineur 1] la liste des modèles illisible : « Générer » gris, la raison et Réessayer
+    const go = reg.get("iacGo");
+    ok("[catalogue] liste illisible : « Générer » GRIS (le serveur ne tirera pas le défaut sans prix)", go.disabled === true);
+    ok("[catalogue] la raison est écrite et « Réessayer » paraît",
+       /liste des modèles indisponible/.test(reg.get("iacEtat").textContent) && reg.get("iacReessayer").hidden === false, reg.get("iacEtat").textContent);
+    ok("[catalogue] aucun devis demandé sans modèle (pas de prix faux)", !appels.some((a) => a.url === "/api/cost/estimate"));
+    // la liste revient — avec un modèle SANS clé : choisissable, et « Générer » s'allume quand même
+    modeles.image = [{ id: "flux-3", dispo: false, cle: "FAL_KEY", usd: 0.048, unite: "image" }];
+    reg.get("iacReessayer").tirer("click");
+    await attendre();
+    ok("[catalogue] Réessayer relit la liste : modèle choisi, « Générer » ACTIF même sans clé", reg.get("iacModele").value === "flux-3" && go.disabled === false);
+    ok("[catalogue] la raison s'efface, Réessayer se cache",
+       reg.get("iacEtat").textContent === "" && reg.get("iacReessayer").hidden === true, reg.get("iacEtat").textContent);
+    ok("[catalogue] le devis serveur est demandé et affiché", appels.some((a) => a.url === "/api/cost/estimate") && /\$0\.048/.test(reg.get("iacPrix").textContent), reg.get("iacPrix").textContent);
+
+    // [mineur 6] rouvrir le panneau déjà ouvert : le prompt reste, seule la liste des calques change
+    const prompt = reg.get("iacPrompt");
+    prompt.value = "un renard en vitrail";
+    VL.iaCalque.ouvrir("c1");
+    await attendre();
+    ok("[rouvrir] le prompt tapé reste (même champ, même texte)", reg.get("iacPrompt") === prompt && prompt.value === "un renard en vitrail" && prompt.isConnected);
+    ok("[rouvrir] la cible suit le nouveau calque demandé", reg.get("iacCalque").value === "c1" && /Fond/.test(reg.get("iacGoTexte").textContent));
+    ok("[rouvrir] la liste des modèles n'est pas relue (choix gardé)", reg.get("iacModele").value === "flux-3");
+    // la liste suit le document : calque ajouté, renommé, masqué
+    doc.calques.push({ id: "c3", nom: "Texte", objets: [] });
+    doc.calques[1].nom = "Logo final";
+    doc.calques[0].visible = false;
+    VL.surRendu();
+    const lc = reg.get("iacCalque");
+    ok("[rouvrir] calque ajouté et renommé : la liste suit (surRendu)", lc.valeurs.includes("c3") && /Logo final/.test(lc.innerHTML), lc.innerHTML);
+    ok("[rouvrir] un calque masqué le dit (« (masqué) »)", /Fond \(masqué\)/.test(lc.innerHTML), lc.innerHTML);
+    ok("[rouvrir] le prompt a survécu au rendu", reg.get("iacPrompt").value === "un renard en vitrail");
+    const n0 = lc.ecritures;
+    VL.surRendu(); VL.surRendu();
+    ok("[rouvrir] un rendu sans changement de calques ne réécrit pas la liste (une liste ouverte reste ouverte)", lc.ecritures === n0, `${n0} → ${lc.ecritures}`);
+    toasts.length = 0;
+    VL.iaCalque.ouvrir("zz");
+    ok("[rouvrir] calque demandé disparu : « n'existe plus », pas « verrouillé »",
+       toasts.some((t) => /n'existe plus/.test(t)) && !toasts.some((t) => /verrouillé/.test(t)), toasts.join(" | "));
+    doc.calques[1].verrou = true; toasts.length = 0;
+    VL.iaCalque.ouvrir("c2");
+    ok("[rouvrir] calque demandé verrouillé : « verrouillé »", toasts.some((t) => /verrouillé/.test(t)), toasts.join(" | "));
+    doc.calques[1].verrou = false; VL.surRendu();
+    // tous verrouillés : la raison ; un calque déverrouillé : la raison s'efface, la cible revient
+    for (const c of doc.calques) c.verrou = true;
+    VL.surRendu();
+    ok("[verrou] tous verrouillés : « Générer » gris, la raison est écrite",
+       go.disabled && /tous les calques sont verrouillés/.test(reg.get("iacEtat").textContent), reg.get("iacEtat").textContent);
+    doc.calques[2].verrou = false;
+    VL.surRendu();
+    ok("[verrou] un calque redevient libre : message effacé, cible valide, « Générer » actif",
+       reg.get("iacEtat").textContent === "" && reg.get("iacCalque").value === "c3" && !go.disabled, reg.get("iacEtat").textContent);
+
+    // fermer : le focus revient au bouton d'ouverture ; Échap ferme aussi
+    const croix = [...dlg.enfants].find((e) => e.dataset.act === "fermer");
+    croix.tirer("click");
+    ok("[panneau] la croix ferme et rend le focus au bouton d'ouverture", dlg.hidden === true && actif === boutonCalque);
+    VL.iaCalque.ouvrir("c3");
+    await attendre();
+    ok("[panneau] rouvert après fermeture : le prompt tapé reste (squelette construit une seule fois)",
+       reg.get("iacPrompt") === prompt && prompt.value === "un renard en vitrail" && !dlg.hidden, reg.get("iacPrompt").value);
+    reg.get("iacModele").tirer("keydown", { key: "Escape" });
+    ok("[panneau] Échap sur une liste ferme le panneau", dlg.hidden === true);
+
+    // [mineurs 3, 4, 5] la ligne « Retirer le fond » du panneau Image
+    modeles.detourage_image = [{ id: "bria-rmbg", dispo: false, cle: "FAL_KEY", usd: 0.018 }, { id: "sam3", dispo: true, prompt: true, usd: 0.02 }];
+    const o = { id: "i1", type: "image", href: "img1.png" };
+    const ligne1 = new El("div");
+    VL.iaCalque.ligneDetour(ligne1, o);
+    await attendre();
+    const prix1 = ligne1.querySelector("#imDetourPrix");
+    ok("[detour] le prix serveur du détourage est affiché à côté du bouton", /\$0\.018/.test(prix1.textContent), prix1.textContent);
+    const nDevis = appels.filter((a) => a.url === "/api/cost/estimate").length;
+    reg.get("imDetourSujet").value = "le chat";
+    reg.get("imDetourSujet").tirer("input");
+    toasts.length = 0;
+    reg.get("imDetourer").tirer("click");
+    await attendre();
+    ok("[detour] clé manquante dans le panneau Image : refus SANS « décochez » (pas de case ici)",
+       toasts.some((t) => /FAL_KEY/.test(t)) && !toasts.some((t) => /décochez/.test(t)), toasts.join(" | "));
+    // le panneau Image est rendu de nouveau (executer → surRendu) : le sujet et le prix restent
+    const ligne2 = new El("div");
+    VL.iaCalque.ligneDetour(ligne2, o);
+    ok("[detour] nouveau rendu : le sujet tapé pour CETTE image revient", ligne2.querySelector("#imDetourSujet").value === "le chat");
+    await attendre();
+    ok("[detour] nouveau rendu : le même prix, sans nouveau devis", /\$0\.018/.test(ligne2.querySelector("#imDetourPrix").textContent)
+       && appels.filter((a) => a.url === "/api/cost/estimate").length === nDevis, ligne2.querySelector("#imDetourPrix").textContent);
+    const ligne3 = new El("div");
+    VL.iaCalque.ligneDetour(ligne3, { id: "i2", type: "image", href: "img2.png" });
+    ok("[detour] une autre image : son propre sujet (vide)", ligne3.querySelector("#imDetourSujet").value === "");
+  } finally {
+    Object.assign(globalThis, avant);
+  }
 }
 
 if (echecs.length) {

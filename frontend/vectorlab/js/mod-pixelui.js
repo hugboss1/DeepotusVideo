@@ -322,9 +322,10 @@ export function initPixelUI(VL) {
   const apercuDemander = () => { if (!rafId) rafId = requestAnimationFrame(apercuRendre); };
 
   // lot 2 : le clic droit peint avec la secondaire — pas de menu contextuel en persona Pixel
-  stage.addEventListener("contextmenu", (ev) => { if (etat.doc && estPixel()) ev.preventDefault(); }, true);
+  stage.addEventListener("contextmenu", (ev) => { if (VL.dansPanneau(ev)) return; if (etat.doc && estPixel()) ev.preventDefault(); }, true);
   const PEINTURE = ["px-pinceau", "px-crayon", "px-ligne", "px-rectpx", "px-seau"];
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     const droit = ev.button === 2;
     if ((ev.button !== 0 && !droit) || !etat.doc || !estPixel()) return;
     if (droit && !PEINTURE.includes(etat.outil)) return;
@@ -536,6 +537,7 @@ export function initPixelUI(VL) {
 
   /* ── clavier : les touches du persona (capture, avant le cœur) ── */
   document.addEventListener("keydown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (etat.persona !== "pixel" || ev.ctrlKey || ev.altKey || ev.metaKey) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "")) return;
     const k = ev.key.toLowerCase();
