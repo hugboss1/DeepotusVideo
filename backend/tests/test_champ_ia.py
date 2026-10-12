@@ -66,6 +66,7 @@ PAGES = [
     ROOT / "frontend" / "materialforge" / "index.html",
     ROOT / "frontend" / "spritelab" / "index.html",
     ROOT / "frontend" / "vectorlab" / "index.html",
+    ROOT / "frontend" / "photolab" / "index.html",   # t191 : le prompt du calque IA
 ]
 BALISE = '<script src="/shared/dz-champ-ia.js"></script>'
 

@@ -40,8 +40,12 @@ export const IDS_MESURE = ["window.panel.measurementLog", "window.panel.notes", 
 // t158 : les entrées de mod-documents (toutes visent un document ouvert).
 export const IDS_DOCUMENTS = ["file.closeAll", "file.closeOthers", "file.saveACopy", "file.revert", "file.export.quickExportAsPng",
   "file.placeEmbedded", "file.fileInfo", "layer.quickExportAsPng", "layer.exportAs"];
+// t191 : les deux entrées de l'écran insérées dans Calque (après « Dupliquer le calque… »), payantes, document requis.
+export const IDS_IA = ["pl.calque.ia", "pl.calque.detourer"];
 export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs",
   "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre",
+  // t191 : Calque › Nouveau calque IA… / Retirer le fond du calque (mod-iacalque : routes /calque/ia, /calque/detourer)
+  ...IDS_IA,
   // t155 : le groupe Pinceaux (mod-pinceaux, PL.actions) ; window.* reste refusé au moteur
   "window.panel.brushes", "window.panel.brushSettings", "window.panel.cloneSource", "window.panel.toolPresets",
   // t151 : espaces de travail et Fenêtre › <panneau> (mod-espaces : ACTIONS_ESPACE, PANNEAUX, BARRES — banc espaces 5.9)
@@ -81,7 +85,7 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // t160 : mesure, comptage, notes, tranches (mod-mesure ; Affichage par mod-affichage, panneaux par mod-espaces)
   ...IDS_MESURE]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
+export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_IA, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
   // t154 : la transformation manuelle vise le calque actif
@@ -228,6 +232,14 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
       // t140 (D10) : le repli « app native » (photocraft.exe), pour ce que l'écran ne fait pas encore
       { type: "commande", id: "pl.natif.ouvrir", libelle: t("photolab.menu.natif_ouvrir"), raccourci: "", etat: "actif", champs: [] },
       { type: "commande", id: "pl.natif.reprendre", libelle: t("photolab.menu.natif_reprendre"), raccourci: "", etat: "actif", champs: [] });
+  }
+  // t191 : Calque › Nouveau calque IA… et Retirer le fond du calque, juste après « Dupliquer le calque… »
+  const calque = menus.find((m) => m.nom === "Layer");
+  if (calque) {
+    const k = calque.entrees.findIndex((e) => e.id === "layer.duplicate");
+    const pos = k >= 0 ? k + 1 : calque.entrees.length;
+    calque.entrees.splice(pos, 0, { type: "commande", id: "pl.calque.ia", libelle: t("photolab.menu.calque_ia"), raccourci: "", etat: "actif", champs: [] },
+      { type: "commande", id: "pl.calque.detourer", libelle: t("photolab.menu.retirer_fond"), raccourci: "", etat: "actif", champs: [] });
   }
   menus.push({
     nom: "Aide", nom_affiche: t("photolab.menu.aide"),

@@ -20,6 +20,7 @@ MODULES = {
     "forge3d": RACINE / "services" / "cards" / "forge3d.py",
     "data": RACINE / "services" / "cards" / "data.py",   # tâche #86 : la traduction des cartes (LLM)
     "avatar_live": RACINE / "api" / "avatar_live_routes.py",   # t161 : le Direct (Decart Lucy 2.5)
+    "photolab": RACINE / "api" / "photolab_routes.py",   # t191 : calque IA et détourage du Photolab (fal, OpenAI)
 }
 
 PUITS = {

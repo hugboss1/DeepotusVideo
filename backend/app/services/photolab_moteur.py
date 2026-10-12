@@ -1367,12 +1367,13 @@ def revenir(s: SessionMoteur):
     return s.sequence(fn)
 
 
-def placer(s: SessionMoteur, chemin: str, nom: str, objet_dynamique: bool = True, reduire: bool = True):
+def placer(s: SessionMoteur, chemin: str, nom: str, objet_dynamique: bool = True, reduire: bool = True, centre=None):
     """Placer incorporé -> ({"layer", "bounds"}, génération). L'image (déjà copiée sous entrees/) est ouverte, copiée
     entière, refermée ; collée au centre du document actif, convertie en objet dynamique, nommée, et réduite pour tenir
     dans la toile si elle dépasse (comme la référence). Le presse-papiers du moteur est réécrit. t159 : les deux
     préférences de la référence (Paramètres : « toujours créer des objets dynamiques », « redimensionner pendant le
-    placement ») — sans objet dynamique, un calque de pixels."""
+    placement ») — sans objet dynamique, un calque de pixels. t191 : `centre` [x, y] (défaut : le centre de la
+    toile) — le détourage d'un calque repose l'image détourée pile à la place de l'original."""
     relatif(chemin)
 
     def fn(appel, gen):
@@ -1389,7 +1390,7 @@ def placer(s: SessionMoteur, chemin: str, nom: str, objet_dynamique: bool = True
         finally:
             appel("doc.close", {"index": idx})
             ex("document.activate", document=actif)
-        ex("edit.paste", center=[w / 2, h / 2])
+        ex("edit.paste", center=list(centre) if centre else [w / 2, h / 2])
         if objet_dynamique:
             lid = (ex("layer.smartObjects.convertToSmartObject") or {}).get("layer")
         else:

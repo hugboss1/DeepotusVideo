@@ -28,6 +28,8 @@ def check(label, cond, detail=""):
 # Les routes qui DÉPENSENT, relevées le 29/09 (rapport de classement + lecture du code). Une route neuve qui atteint
 # un puits sans être ici rougit A2 ; une route d'ici qui perd sa garde rougit A1.
 PAYANTES = {
+    ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
+    ("photolab", "POST", "/calque/detourer"),    # t191 : « Retirer le fond du calque » (détourage, non destructif)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer
     ("routes", "POST", "/chapters/{chapter_id}/reecrire"),     # tâche #66 : la réécriture dans le ton de la bible (LLM)
     ("routes", "POST", "/chapters/{chapter_id}/animatique"),   # tâche #63 : la voix témoin de l'animatique (sur demande)
@@ -123,6 +125,9 @@ anciens = {"routes": _git_show("api/routes.py"), "dictation": _git_show("service
 # t161 : le module du Direct n'existait pas en bfec23e — son témoin est le source ACTUEL privé de sa garde
 _av = (RP.MODULES["avatar_live"]).read_text(encoding="utf-8")
 anciens["avatar_live"] = _av.replace("_PLAF.verifier(", "_sans_garde(") if "_PLAF.verifier(" in _av else None
+# t191 : les routes payantes du Photolab n'existaient pas en bfec23e — même témoin : le source actuel privé de sa garde
+_pl = (RP.MODULES["photolab"]).read_text(encoding="utf-8")
+anciens["photolab"] = _pl.replace("_plafond(", "_sans_garde(") if "_plafond(" in _pl else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

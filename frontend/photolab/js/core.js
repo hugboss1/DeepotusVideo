@@ -38,6 +38,7 @@ import { initGalerie } from "./mod-galerie.js";
 import { initMasquer } from "./mod-masquer.js";
 import { initDocuments } from "./mod-documents.js";
 import { initMode } from "./mod-mode.js";
+import { initIaCalque } from "./mod-iacalque.js";
 import { initRaccourcis } from "./mod-raccourcis.js";
 import { initApropos } from "./mod-apropos.js";
 import { initPreferences } from "./mod-preferences.js";
@@ -125,6 +126,7 @@ initGalerie(PL);           // t157 : après le dialogue générique (coquille, P
 initMasquer(PL);           // t157 : Sélectionner et masquer (PL.actions["select.selectAndMask"], barre des outils de sélection)
 initDocuments(PL);         // t158 : après le fichier (remplace « Fermer », PL.choisirImage) et le dialogue générique (PL.choixDialogue)
 initMode(PL);              // t158 : Image › Mode (PL.ouvrirMode pour les menus)
+initIaCalque(PL);          // t191 : calque IA et « Retirer le fond du calque » (PL.iaCalque, PL.actions pl.calque.*)
 initRaccourcis(PL);
 initGestes(PL);       // répartiteur des gestes + aperçu #fourmis, AVANT les outils qui s'y inscrivent
 initSelection(PL);
