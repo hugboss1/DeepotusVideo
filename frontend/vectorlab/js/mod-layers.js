@@ -127,7 +127,7 @@ export function initCalques(VL) {
            title="${T("vectorlab.calques.rangee_titre")}">
         <span class="calque-chevron" title="${T(r.plie ? "vectorlab.calques.deplier" : "vectorlab.calques.replier", { n: nObj })}">${nObj ? dzi("dz-action-deplier", 16) : ""}</span>
         <span class="calque-vig" title="${T("vectorlab.calques.vignette")}">${vignette_calque_svg(etat.doc, r.id, 28, 28, VL.imageUrl)}</span>
-        <span class="nom">${esc(r.nom)}</span>
+        <span class="nom" data-dz-brut="1">${esc(r.nom)}</span>
         <button data-act="verrou" class="${r.verrou ? "" : "off"}" title="${T("vectorlab.calques.verrou")}" aria-label="${T("vectorlab.calques.verrou")}">${dzi("dz-etat-verrouille", 16)}</button>
         <button data-act="oeil" class="${r.visible ? "" : "off"}" title="${T("vectorlab.calques.visibilite")}" aria-label="${T("vectorlab.calques.visibilite")}">${dzi("dz-etat-visible", 16)}</button>
       </div>`;
@@ -135,7 +135,7 @@ export function initCalques(VL) {
       const titre = r.genre === "objet" ? T("vectorlab.calques.objet_titre") : r.genre === "ecretage" ? T("vectorlab.calques.ecretage_titre") : r.genre === "masque" ? T("vectorlab.calques.masque_titre") : T("vectorlab.calques.effets_titre");
       return `
       <div class="calque-objet${sel.has(r.id) && r.genre === "objet" ? " selectionne" : ""}" data-objet="${esc(r.id)}" data-genre="${r.genre}" data-calque="${esc(r.calque)}" style="--niv:${r.niveau}" title="${titre}">
-        <span class="co-ic">${icone_rangee(r.icone, 14)}</span><span class="nom">${esc(r.nom)}</span>
+        <span class="co-ic">${icone_rangee(r.icone, 14)}</span><span class="nom" data-dz-brut="1">${esc(r.nom)}</span>
       </div>`;
     }).join("");
     // §8.5 du handoff Vectorlab : document sans le moindre objet — le
