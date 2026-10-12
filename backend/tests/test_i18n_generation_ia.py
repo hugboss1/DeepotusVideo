@@ -5,7 +5,7 @@ Chaque lot G0-G9 a posé ses clés au fil de l'eau ; ce banc vérifie l'ensemble
 de modèle de dz-champ-ia.js, refus serveur des routes G4-G7, devis d'un VFX IA, catalogue Musique).
 
   [1] les catalogues de l'écran (frontend/shared/i18n/<zone>.json) : chaque clé ajoutée par G0-G9 et t192 (liste
-      EXPLICITE ci-dessous, relevée par git entre 32b2d6d6 et ab7d0c91 — le plan disait « au moins 60 », il y en a 339)
+      EXPLICITE ci-dessous, relevée par git entre 32b2d6d6 et ab7d0c91 — le plan disait « au moins 60 », il y en a 339, + 12 de t197 sur main)
       existe, fr et en non vides, mêmes {variables} ; le dictionnaire assemblé est à jour et les porte toutes.
   [2] les messages du serveur (backend/app/i18n/messages.json) : idem pour les 130 clés G2-G9 + t192.
   [3] les clés UTILISÉES : chaque clé écrite dans les fichiers des lots (dzT, T, __dzT9, TP, t("photolab.…"), Refus,
@@ -111,7 +111,8 @@ CLES_FRONT = {
         "photolab.iacalque.calque_reglage", "photolab.iacalque.prompt_vide", "photolab.iacalque.detour_modele",
         "photolab.iacalque.detour_cle", "photolab.iacalque.sujet_requis", "photolab.iacalque.cle_absente",
         "photolab.iacalque.nom_calque", "photolab.iacalque.pose_inconnue", "photolab.iacalque.reduite",
-        "photolab.iacalque.posee", "photolab.iacalque.detour_echoue_pose", "photolab.iacalque.detour_fait",),
+        "photolab.iacalque.posee", "photolab.iacalque.detour_echoue_pose", "photolab.iacalque.detour_fait",
+        "photolab.iacalque.prix_partiel_image",),   # t197 (module commun, sur main après G9)
     "son": (
         "son.gen.local", "son.gen.prix_modele", "son.gen.prix_sfx", "son.sfx.catalogue_attente", "son.sfx.confirmer",
         "son.sfx.cout_fin", "son.sfx.decrire_video", "son.sfx.depuis_video", "son.sfx.garder_voix",
@@ -146,7 +147,12 @@ CLES_FRONT = {
         "vectorlab.iacalque.prompt_vide", "vectorlab.iacalque.reessayer", "vectorlab.iacalque.reseau",
         "vectorlab.iacalque.retirer_fond", "vectorlab.iacalque.retirer_fond_titre", "vectorlab.iacalque.sujet",
         "vectorlab.iacalque.sujet_aide", "vectorlab.iacalque.sujet_requis", "vectorlab.iacalque.titre",
-        "vectorlab.image.pose_impossible",),
+        "vectorlab.image.pose_impossible",
+        # t197 / guide (sur main après G9) : guider par les calques du dessous
+        "vectorlab.iacalque.guide", "vectorlab.iacalque.guide_aide", "vectorlab.iacalque.guide_aucun_modele",
+        "vectorlab.iacalque.guide_choisir", "vectorlab.iacalque.guide_garde", "vectorlab.iacalque.guide_modele",
+        "vectorlab.iacalque.guide_modele_remplace", "vectorlab.iacalque.guide_page_etiree", "vectorlab.iacalque.guide_rien",
+        "vectorlab.iacalque.guide_sans_nom", "vectorlab.iacalque.posee_guide",),
     "vfx": (
         "vfx.ia.agrandir.phrase", "vfx.ia.agrandir.titre", "vfx.ia.aucune_video", "vfx.ia.bouton_aide",
         "vfx.ia.catalogue_echec", "vfx.ia.chargement", "vfx.ia.choisir", "vfx.ia.choisir_n",
@@ -205,7 +211,8 @@ CLES_SERVEUR = (
 
 # les fichiers des lots (écran) dont chaque clé écrite doit exister dans le dictionnaire assemblé
 FICHIERS_ECRAN = (
-    "shared/dz-modeles-ia.js", "shared/dz-champ-ia.js", "vectorlab/js/mod-iacalque.js", "vectorlab/js/mod-image.js",
+    "shared/dz-modeles-ia.js", "shared/dz-champ-ia.js", "shared/dz-iacalque-commun.js", "vectorlab/js/mod-iacalque.js",
+    "vectorlab/js/mod-image.js",
     "photolab/js/mod-iacalque.js", "photolab/js/mod-menus.js", "photolab/js/mod-calques.js", "atelier/atelier.js",
     "patches/vfxrack.js", "patches/sfxstudio.js", "patches/son-vfx-montage.js", "avatar/avatar.js",
     "cardforge/js/mod-capture.js", "materialforge/materialforge.js", "spritelab/spritelab.js", "studio3d/vues.js")
@@ -216,7 +223,8 @@ FICHIERS_SERVEUR = (
     "app/services/pricing.py", "app/services/cards/capture.py", "app/services/cards/data.py",
     "app/i18n/catalogues.py")
 # les modules NEUFS des lots : aucun français hors commentaires et replis
-MODULES_NEUFS = ("shared/dz-modeles-ia.js", "vectorlab/js/mod-iacalque.js", "photolab/js/mod-iacalque.js")
+MODULES_NEUFS = ("shared/dz-modeles-ia.js", "shared/dz-iacalque-commun.js", "vectorlab/js/mod-iacalque.js",
+                 "photolab/js/mod-iacalque.js")
 
 VAR = re.compile(r"\{(\w+)\}")
 ACCENTS = re.compile(r"[àâçéèêëîïôûùüÿœæ«»]", re.I)
@@ -326,7 +334,7 @@ def main():
     check(f"1a les {vus} clés des lots existent dans leur catalogue", not manquantes, manquantes[:10])
     check("1b chaque clé a un fr ET un en non vides", not vides, vides[:10])
     check("1c mêmes {variables} en français et en anglais", not variables, variables[:10])
-    check("1d au moins 339 clés d'écran (relevé réel ; le plan en annonçait 60)", vus >= 339, vus)
+    check("1d au moins 351 clés d'écran (relevé réel ; le plan en annonçait 60)", vus >= 351, vus)
     p = subprocess.run([sys.executable, str(RACINE / "scripts" / "i18n_assembler.py"), "--check"], capture_output=True,
                        text=True, encoding="utf-8", errors="replace", cwd=str(RACINE))
     check("1e i18n_assembler.py --check : dictionnaire assemblé à jour", p.returncode == 0, (p.stdout + p.stderr)[-300:])
@@ -336,7 +344,7 @@ def main():
     check("1f le dictionnaire assemblé porte chaque clé, avec son anglais", not absentes, absentes[:10])
     check("1g la copie dist/shared du dictionnaire est identique à l'octet",
           (FRONT / "shared" / "dz-i18n-dico.js").read_bytes() == (FRONT / "dist" / "shared" / "dz-i18n-dico.js").read_bytes())
-    for f in ("dz-modeles-ia.js", "dz-champ-ia.js"):
+    for f in ("dz-modeles-ia.js", "dz-champ-ia.js", "dz-iacalque-commun.js"):
         check(f"1h dist/shared/{f} = shared/{f} (octet pour octet)",
               (FRONT / "shared" / f).read_bytes() == (FRONT / "dist" / "shared" / f).read_bytes())
 
