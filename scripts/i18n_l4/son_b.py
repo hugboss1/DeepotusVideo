@@ -414,4 +414,22 @@ ENTREES = [
     S(61318, 'if(isFinite(v))setSfxDur(Math.max(0,Math.min(22,v)))}}),',
       'if(isFinite(v))setSfxDur(Math.max(0,Math.min(svmSfx().dmax(),v)))}}),',
       {}),
+    # t188 (G6, génération IA enrichie, 12/10/2026) — changement FONCTIONNEL posé APRÈS L4 : les VFX IA
+    # (registre vfx_ia, 12 gestes) — section « IA » du rack VFX sous « Détourer », rail « VFX IA » de Son &
+    # VFX (cartes .svm-model), deux clics (devis du serveur puis tir). Avant la dernière édition G1 de la
+    # couche, chaque fenêtre entre deux éditions G1 garde sa LONGUEUR et ses lignes (commentaires
+    # compensés) ; le code neuf est en fin de couche. Mêmes retouches dans RETOUCHES de
+    # scripts/icones/g1_generer.py.
+    S(47915, '  /* panneau bas du rail — CONTEXTUEL au générateur sélectionné */',
+      '  /* panneau bas du rail        */',
+      {}),
+    S(47983, '  var railBottom=\r\n    selGen==="voiceover"?',
+      '  var railBottom=selGen==="vfxia"?svmVfxIaRail():\r\n    selGen==="voiceover"?',
+      {}),
+    S(65081, "  /* Contenu central — piloté par LE générateur sélectionné, comme le rail.\r\n     Ordre volontaire côté SFX : le catalogue livré (gratuit, sans clé) passe\r\n     AVANT la génération facturée. Un nouvel utilisateur doit pouvoir écouter\r\n     et poser un son avant qu'on lui parle de crédits. */",
+      '  /* Contenu central (t188 : + VFX IA) (bourrage volontaire : longueurs figées par la table G1, par position)                                                                                                             \r\n\r\n\r\n   */',
+      {}),
+    S(65760, '    selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):',
+      '    selGen==="vfxia"?r.jsx(SvmVfxIa,{onNote:fireNote,go:props.go}):selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):',
+      {}),
 ]

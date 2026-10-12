@@ -720,8 +720,8 @@ function DzSonVfx(props){
     else if(t==="post")setSelGen("post");
     else if(SVM_GEN_TAB[selGen]!=="audio")setSelGen("voiceover")}
 
-  /* panneau bas du rail — CONTEXTUEL au générateur sélectionné */
-  var railBottom=
+  /* panneau bas du rail        */
+  var railBottom=selGen==="vfxia"?svmVfxIaRail():
     selGen==="voiceover"?r.jsxs(r.Fragment,{children:[
       r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:dzT("son.commun.voix")}),
       r.jsx("div",{className:"svm-voicelist",children:
@@ -957,10 +957,10 @@ function DzSonVfx(props){
           r.jsx("div",{className:"svm-vfxtype",children:v.type})]})]},v.id)})}),
     r.jsx("div",{className:"svm-note",children:dzT("son.post.note")})]});
 
-  /* Contenu central — piloté par LE générateur sélectionné, comme le rail.
-     Ordre volontaire côté SFX : le catalogue livré (gratuit, sans clé) passe
-     AVANT la génération facturée. Un nouvel utilisateur doit pouvoir écouter
-     et poser un son avant qu'on lui parle de crédits. */
+  /* Contenu central (t188 : + VFX IA) (bourrage volontaire : longueurs figées par la table G1, par position)                                                                                                             
+
+
+   */
   var center=
     selGen==="sfx"?r.jsxs(r.Fragment,{children:[
       r.jsx(SvmSfxBrowser,{family:sfxFam,onNote:fireNote,play:playUrl,playId:playId}),
@@ -969,7 +969,7 @@ function DzSonVfx(props){
       r.jsx(SvmMusic,{onNote:fireNote,play:playUrl,playId:playId,go:props.go,
         onGenerated:function(it){setMixMusic(it.filename)}}),
       mixCard]}):
-    selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):
+    selGen==="vfxia"?r.jsx(SvmVfxIa,{onNote:fireNote,go:props.go}):selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):
     selGen==="post"?r.jsxs(r.Fragment,{children:[postPanel,postCard]}):
     r.jsxs(r.Fragment,{children:[voCard,mixCard,editorCard,
       r.jsxs("div",{className:"svm-grid2",children:[sfxCard,postCard]})]});
@@ -6800,3 +6800,71 @@ function DzMontage(props){
           r.jsx("div",{className:"svm-translabel",ref:transLabelRef})]})})]}),
     /* E-7 : la barre des vues, dernier enfant de .dzsvm (tablist ; data-on = la vue courante) */
     r.jsx("div",{className:"svm-views",role:"tablist",children:[["medias",dzT("montage.vues.medias")],["montage",dzT("montage.vues.montage")],["livraison",dzT("montage.vues.livraison")]].map(function(v){return r.jsx("button",{className:"svm-viewbtn",role:"tab","aria-selected":view===v[0],"data-on":view===v[0]?"":void 0,title:dzT("montage.vues.vue",{nom:v[1]}),onClick:function(){dzSetView(v[0])},children:v[1]},v[0])})})]})}
+
+/* ═══════════ t188 (G6) : le rail « VFX IA » de Son & VFX ═══════════
+   Douze gestes vidéo → vidéo (ou image → vidéo pour PixVerse), en cartes .svm-model comme le rail Musique. Le
+   catalogue, les prix et les options viennent du serveur ; le devis et le tir passent par les aides de la couche
+   vfxrack (window.DzVfx.ia : mêmes deux clics, même chiffre avant et après). Tous les gestes sont visibles sans
+   FAL_KEY, avec « clé FAL_KEY à ajouter dans Réglages » (jamais grisés) ; le refus 503 arrive au lancement.
+   Le générateur entre dans SVM_GENS ici, en fin de couche (après la dernière édition G1 : la table
+   dzglyph_paires.json repère les éditions par position). */
+SVM_GENS.splice(4,0,{id:"vfxia",name:dzT("vfx.ia.rail"),desc:dzT("vfx.ia.rail_desc"),price:dzT("son.gen.prix_modele"),c:"--c-3d"});
+SVM_GEN_TAB.vfxia="vfx";
+function svmVfxIa(){return window.DzVfx&&window.DzVfx.ia||null}
+function svmVfxIaRail(){return r.jsxs(r.Fragment,{children:[
+  r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:dzT("vfx.ia.rail_bas")}),
+  r.jsx("div",{className:"svm-note",style:{marginTop:0},children:dzT("vfx.ia.rail_note")})]})}
+function SvmVfxIa(props){
+  var US=x.useState,EF=x.useEffect,I=svmVfxIa();
+  var s1=US(null),cat=s1[0],setCat=s1[1];
+  var s2=US(""),mid=s2[0],setMid=s2[1];
+  var s3=US({prompt:"",image:"",opts:{}}),st=s3[0],setSt=s3[1];
+  var s4=US(null),arm=s4[0],setArm=s4[1];
+  var s5=US(!1),busy=s5[0],setBusy=s5[1];
+  var s6=US([]),imgs=s6[0],setImgs=s6[1];
+  var s7=US(null),jobs=s7[0],setJobs=s7[1];
+  var s8=US(""),job=s8[0],setJob=s8[1];
+  var s9=US(null),res=s9[0],setRes=s9[1];
+  EF(function(){var vivant=!0,ia=svmVfxIa();
+    if(ia){ia.catalogue().then(function(c){if(vivant)setCat(c)});ia.images().then(function(l){if(vivant)setImgs(l)})}
+    fetch("/api/jobs?video=1&limit=40").then(function(r2){return r2.ok?r2.json():[]})
+      .then(function(l){if(!vivant)return;l=(l||[]).filter(function(j){return j.status==="done"});setJobs(l);
+        if(l[0])setJob(function(v){return v||l[0].job_id})})
+      .catch(function(){if(vivant)setJobs([])});
+    return function(){vivant=!1}},[]);
+  if(!I)return r.jsx("div",{className:"svm-card",children:r.jsx("div",{className:"svm-note",children:dzT("vfx.ia.indisponible")})});
+  if(cat===null)return r.jsx("div",{className:"svm-card",children:r.jsx("div",{className:"svm-note",children:dzT("vfx.ia.chargement")})});
+  var m=cat.filter(function(v){return v.id===mid})[0]||cat[0];
+  function setSaisie(p){setSt(Object.assign({},st,p));setArm(null)}
+  var g={busy:busy,arm:arm,setArm:setArm,setBusy:setBusy,note:props.onNote,done:function(d){setRes(d)}};
+  return r.jsxs(r.Fragment,{children:[
+    r.jsxs("div",{className:"svm-card","data-dzvfxia":"rail",children:[
+      r.jsx(SvmLabel,{children:dzT("vfx.ia.source")}),
+      m&&m.entree==="image"?r.jsx("div",{className:"svm-note",style:{marginTop:6},children:dzT("vfx.ia.source_image")})
+      :jobs===null?r.jsx("div",{className:"svm-note",style:{marginTop:6},children:dzT("vfx.ia.chargement")})
+      :jobs.length?r.jsx("select",{className:"svm-secbtn",value:job,"aria-label":dzT("vfx.ia.source"),style:{marginTop:8,width:"100%"},
+        onChange:function(e){setJob(e.target.value);setArm(null)},
+        children:jobs.map(function(j){return r.jsx("option",{value:j.job_id,children:(j.title||j.image_filename||j.job_id)+(j.duration_s?" · "+j.duration_s+" s":"")},j.job_id)})})
+      :r.jsx("div",{className:"svm-note",style:{marginTop:6},children:dzT("vfx.ia.aucune_video")})]}),
+    r.jsxs("div",{className:"svm-card",children:[
+      r.jsx(SvmLabel,{children:dzT("vfx.ia.gestes")}),
+      r.jsx("div",{className:"svm-modellist",children:cat.map(function(v){
+        return r.jsxs("button",{className:"svm-model","data-sel":m&&m.id===v.id?"":void 0,"data-dzvfxia":v.id,
+          onClick:function(){if(v.id!==(m&&m.id)){setMid(v.id);setSt({prompt:"",image:"",opts:{}});setArm(null)}},children:[
+          r.jsxs("div",{className:"svm-genrow",children:[
+            r.jsx("span",{className:"svm-genname",children:I.titre(v)}),
+            r.jsx("span",{className:"svm-genprice",children:I.prix(v)})]}),
+          r.jsx("div",{className:"svm-gendesc",children:I.phrase(v)})]},v.id)})}),
+      m?r.jsx(I.Champs,{m:m,st:st,images:imgs,set:setSaisie,k:{bloc:"svm-vfxiachamps",texte:"svm-musicprompt",
+        sel:"svm-secbtn",num:"svm-transdur",ligne:"svm-switchrow",lbl:"svm-dur"}}):null,
+      m?r.jsxs("div",{className:"svm-toolrow",style:{marginTop:12,flexWrap:"wrap"},children:[
+        arm?r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},children:I.devisTxt(arm)}):null,
+        r.jsx("button",{className:"svm-nbgold","data-off":busy?"":void 0,title:dzT("vfx.ia.bouton_aide"),
+          onClick:function(){I.clic(m,st,job,g)},
+          children:busy?dzT("vfx.ia.en_cours"):arm?dzT("vfx.ia.confirmer"):dzT("vfx.ia.lancer")})]}):null]}),
+    res?r.jsxs("div",{className:"svm-card",children:[
+      r.jsx(SvmLabel,{children:dzT("vfx.ia.resultat")}),
+      r.jsxs("div",{className:"svm-toolrow",style:{marginTop:10},children:[
+        r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},children:dzT("vfx.ia.dans_biblio",{nom:res.filename})}),
+        r.jsx("button",{className:"svm-primarybtn",onClick:function(){props.go&&props.go("montage")},
+          children:dzT("vfx.ia.ouvrir_montage")})]})]}):null]})}

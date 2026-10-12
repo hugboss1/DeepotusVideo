@@ -1075,8 +1075,8 @@ function DzSonVfx(props){
     else if(t==="post")setSelGen("post");
     else if(SVM_GEN_TAB[selGen]!=="audio")setSelGen("voiceover")}
 
-  /* panneau bas du rail — CONTEXTUEL au générateur sélectionné */
-  var railBottom=
+  /* panneau bas du rail        */
+  var railBottom=selGen==="vfxia"?svmVfxIaRail():
     selGen==="voiceover"?r.jsxs(r.Fragment,{children:[
       r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:dzT("son.commun.voix")}),
       r.jsx("div",{className:"svm-voicelist",children:
@@ -1312,10 +1312,10 @@ function DzSonVfx(props){
           r.jsx("div",{className:"svm-vfxtype",children:v.type})]})]},v.id)})}),
     r.jsx("div",{className:"svm-note",children:dzT("son.post.note")})]});
 
-  /* Contenu central — piloté par LE générateur sélectionné, comme le rail.
-     Ordre volontaire côté SFX : le catalogue livré (gratuit, sans clé) passe
-     AVANT la génération facturée. Un nouvel utilisateur doit pouvoir écouter
-     et poser un son avant qu'on lui parle de crédits. */
+  /* Contenu central (t188 : + VFX IA) (bourrage volontaire : longueurs figées par la table G1, par position)                                                                                                             
+
+
+   */
   var center=
     selGen==="sfx"?r.jsxs(r.Fragment,{children:[
       r.jsx(SvmSfxBrowser,{family:sfxFam,onNote:fireNote,play:playUrl,playId:playId}),
@@ -1324,7 +1324,7 @@ function DzSonVfx(props){
       r.jsx(SvmMusic,{onNote:fireNote,play:playUrl,playId:playId,go:props.go,
         onGenerated:function(it){setMixMusic(it.filename)}}),
       mixCard]}):
-    selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):
+    selGen==="vfxia"?r.jsx(SvmVfxIa,{onNote:fireNote,go:props.go}):selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):
     selGen==="post"?r.jsxs(r.Fragment,{children:[postPanel,postCard]}):
     r.jsxs(r.Fragment,{children:[voCard,mixCard,editorCard,
       r.jsxs("div",{className:"svm-grid2",children:[sfxCard,postCard]})]});
@@ -7156,6 +7156,74 @@ function DzMontage(props){
     /* E-7 : la barre des vues, dernier enfant de .dzsvm (tablist ; data-on = la vue courante) */
     r.jsx("div",{className:"svm-views",role:"tablist",children:[["medias",dzT("montage.vues.medias")],["montage",dzT("montage.vues.montage")],["livraison",dzT("montage.vues.livraison")]].map(function(v){return r.jsx("button",{className:"svm-viewbtn",role:"tab","aria-selected":view===v[0],"data-on":view===v[0]?"":void 0,title:dzT("montage.vues.vue",{nom:v[1]}),onClick:function(){dzSetView(v[0])},children:v[1]},v[0])})})]})}
 
+/* ═══════════ t188 (G6) : le rail « VFX IA » de Son & VFX ═══════════
+   Douze gestes vidéo → vidéo (ou image → vidéo pour PixVerse), en cartes .svm-model comme le rail Musique. Le
+   catalogue, les prix et les options viennent du serveur ; le devis et le tir passent par les aides de la couche
+   vfxrack (window.DzVfx.ia : mêmes deux clics, même chiffre avant et après). Tous les gestes sont visibles sans
+   FAL_KEY, avec « clé FAL_KEY à ajouter dans Réglages » (jamais grisés) ; le refus 503 arrive au lancement.
+   Le générateur entre dans SVM_GENS ici, en fin de couche (après la dernière édition G1 : la table
+   dzglyph_paires.json repère les éditions par position). */
+SVM_GENS.splice(4,0,{id:"vfxia",name:dzT("vfx.ia.rail"),desc:dzT("vfx.ia.rail_desc"),price:dzT("son.gen.prix_modele"),c:"--c-3d"});
+SVM_GEN_TAB.vfxia="vfx";
+function svmVfxIa(){return window.DzVfx&&window.DzVfx.ia||null}
+function svmVfxIaRail(){return r.jsxs(r.Fragment,{children:[
+  r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:dzT("vfx.ia.rail_bas")}),
+  r.jsx("div",{className:"svm-note",style:{marginTop:0},children:dzT("vfx.ia.rail_note")})]})}
+function SvmVfxIa(props){
+  var US=x.useState,EF=x.useEffect,I=svmVfxIa();
+  var s1=US(null),cat=s1[0],setCat=s1[1];
+  var s2=US(""),mid=s2[0],setMid=s2[1];
+  var s3=US({prompt:"",image:"",opts:{}}),st=s3[0],setSt=s3[1];
+  var s4=US(null),arm=s4[0],setArm=s4[1];
+  var s5=US(!1),busy=s5[0],setBusy=s5[1];
+  var s6=US([]),imgs=s6[0],setImgs=s6[1];
+  var s7=US(null),jobs=s7[0],setJobs=s7[1];
+  var s8=US(""),job=s8[0],setJob=s8[1];
+  var s9=US(null),res=s9[0],setRes=s9[1];
+  EF(function(){var vivant=!0,ia=svmVfxIa();
+    if(ia){ia.catalogue().then(function(c){if(vivant)setCat(c)});ia.images().then(function(l){if(vivant)setImgs(l)})}
+    fetch("/api/jobs?video=1&limit=40").then(function(r2){return r2.ok?r2.json():[]})
+      .then(function(l){if(!vivant)return;l=(l||[]).filter(function(j){return j.status==="done"});setJobs(l);
+        if(l[0])setJob(function(v){return v||l[0].job_id})})
+      .catch(function(){if(vivant)setJobs([])});
+    return function(){vivant=!1}},[]);
+  if(!I)return r.jsx("div",{className:"svm-card",children:r.jsx("div",{className:"svm-note",children:dzT("vfx.ia.indisponible")})});
+  if(cat===null)return r.jsx("div",{className:"svm-card",children:r.jsx("div",{className:"svm-note",children:dzT("vfx.ia.chargement")})});
+  var m=cat.filter(function(v){return v.id===mid})[0]||cat[0];
+  function setSaisie(p){setSt(Object.assign({},st,p));setArm(null)}
+  var g={busy:busy,arm:arm,setArm:setArm,setBusy:setBusy,note:props.onNote,done:function(d){setRes(d)}};
+  return r.jsxs(r.Fragment,{children:[
+    r.jsxs("div",{className:"svm-card","data-dzvfxia":"rail",children:[
+      r.jsx(SvmLabel,{children:dzT("vfx.ia.source")}),
+      m&&m.entree==="image"?r.jsx("div",{className:"svm-note",style:{marginTop:6},children:dzT("vfx.ia.source_image")})
+      :jobs===null?r.jsx("div",{className:"svm-note",style:{marginTop:6},children:dzT("vfx.ia.chargement")})
+      :jobs.length?r.jsx("select",{className:"svm-secbtn",value:job,"aria-label":dzT("vfx.ia.source"),style:{marginTop:8,width:"100%"},
+        onChange:function(e){setJob(e.target.value);setArm(null)},
+        children:jobs.map(function(j){return r.jsx("option",{value:j.job_id,children:(j.title||j.image_filename||j.job_id)+(j.duration_s?" · "+j.duration_s+" s":"")},j.job_id)})})
+      :r.jsx("div",{className:"svm-note",style:{marginTop:6},children:dzT("vfx.ia.aucune_video")})]}),
+    r.jsxs("div",{className:"svm-card",children:[
+      r.jsx(SvmLabel,{children:dzT("vfx.ia.gestes")}),
+      r.jsx("div",{className:"svm-modellist",children:cat.map(function(v){
+        return r.jsxs("button",{className:"svm-model","data-sel":m&&m.id===v.id?"":void 0,"data-dzvfxia":v.id,
+          onClick:function(){if(v.id!==(m&&m.id)){setMid(v.id);setSt({prompt:"",image:"",opts:{}});setArm(null)}},children:[
+          r.jsxs("div",{className:"svm-genrow",children:[
+            r.jsx("span",{className:"svm-genname",children:I.titre(v)}),
+            r.jsx("span",{className:"svm-genprice",children:I.prix(v)})]}),
+          r.jsx("div",{className:"svm-gendesc",children:I.phrase(v)})]},v.id)})}),
+      m?r.jsx(I.Champs,{m:m,st:st,images:imgs,set:setSaisie,k:{bloc:"svm-vfxiachamps",texte:"svm-musicprompt",
+        sel:"svm-secbtn",num:"svm-transdur",ligne:"svm-switchrow",lbl:"svm-dur"}}):null,
+      m?r.jsxs("div",{className:"svm-toolrow",style:{marginTop:12,flexWrap:"wrap"},children:[
+        arm?r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},children:I.devisTxt(arm)}):null,
+        r.jsx("button",{className:"svm-nbgold","data-off":busy?"":void 0,title:dzT("vfx.ia.bouton_aide"),
+          onClick:function(){I.clic(m,st,job,g)},
+          children:busy?dzT("vfx.ia.en_cours"):arm?dzT("vfx.ia.confirmer"):dzT("vfx.ia.lancer")})]}):null]}),
+    res?r.jsxs("div",{className:"svm-card",children:[
+      r.jsx(SvmLabel,{children:dzT("vfx.ia.resultat")}),
+      r.jsxs("div",{className:"svm-toolrow",style:{marginTop:10},children:[
+        r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},children:dzT("vfx.ia.dans_biblio",{nom:res.filename})}),
+        r.jsx("button",{className:"svm-primarybtn",onClick:function(){props.go&&props.go("montage")},
+          children:dzT("vfx.ia.ouvrir_montage")})]})]}):null]})}
+
 /*__DZ_SONVFX_END__*/
 /*__DZ_SFXSTUDIO_BEGIN__*/
 /* ── SFX Studio — couche window.DzSfx (gauntlet SFX R1) ─────────────────────
@@ -10028,7 +10096,7 @@ const VfxStack=(props)=>{
         title:dzT("vfx.pile.ouvrir_panneau"),
         onClick:function(){props.onOpenPanel()},children:__dzGlT("dz-action-ajouter",dzT("vfx.pile.ajouter"),"+")}):null]}),
     r.jsx(VfxAlert,{}),
-    matteRow(),
+    matteRow(),r.jsx(VfxIaRack,{clip:clip,onNote:fireNote}),
     list.length?r.jsx("div",{className:"vfx-mods",children:list.map(row)})
     :r.jsxs("div",{className:"vfx-empty",children:[
       r.jsx("div",{className:"vfx-emptytxt",children:dzT("vfx.pile.aucun")}),
@@ -10091,6 +10159,170 @@ window.DzVfx={ready:!0,Panel:VfxPanel,Stack:VfxStack,Bounds:VfxBounds,
   defaultsFor:vfxDefaultsFor,summary:vfxSummary,EASES:VFX_EASES,hist:{t:0},
   /* santé du service — lisible et sondable depuis la console de l'app */
   svc:VFX_SVC,retry:vfxRetryNow};
+
+/* ── t188 (G6) : VFX IA — une vidéo (ou une image) -> une vidéo retouchée, douze gestes ──────────────────────────
+   Le catalogue vient du BACKEND (GET /api/vfx-ia/modeles = /api/ia/catalogue?nature=vfx) : prix, unités,
+   options (choix, défauts, bornes), les 154 effets PixVerse (filtrables) — rien n'est recopié ici. Un geste sans FAL_KEY reste
+   CHOISISSABLE, avec « clé FAL_KEY à ajouter dans Réglages » : POST /api/vfx-ia refuse en 503 au lancement,
+   avant toute dépense. PAYANT, deux clics : le 1er demande le devis (devis:true, LE chiffre de la garde des
+   plafonds), le 2e tire ; la réponse redit le même usd. Toute retouche de la saisie désarme le devis.
+   La vidéo rendue devient un job fini (Bibliothèque → Rendus, provenance « vfx_ia »). Partagé avec le rail
+   « VFX IA » de Son & VFX par window.DzVfx.ia. Ces fonctions vivent ICI, après la dernière édition G1 de la
+   couche : la table dzglyph_paires.json repère les éditions par position. */
+var VFX_IA={cat:null,prom:null};
+function vfxIaCatalogue(){
+  if(VFX_IA.cat)return Promise.resolve(VFX_IA.cat);
+  if(!VFX_IA.prom)VFX_IA.prom=fetch("/api/vfx-ia/modeles").then(function(r2){return r2.ok?r2.json():null})
+    .then(function(d){VFX_IA.cat=(d&&d.modeles)||[];return VFX_IA.cat})
+    .catch(function(){VFX_IA.prom=null;return []});
+  return VFX_IA.prom}
+/* les images de la Bibliothèque (image de la lumière, référence, image à animer), les plus récentes d'abord */
+function vfxIaImages(){
+  return fetch("/api/images").then(function(r2){return r2.ok?r2.json():null})
+    .then(function(d){return ((d&&d.images)||[]).slice().sort(function(a,b){return (b.mtime||0)-(a.mtime||0)})
+      .slice(0,80).map(function(i){return i.filename})})
+    .catch(function(){return []})}
+/* titre et phrase de chaque geste (la phrase dit à l'utilisateur ce qu'il doit donner) */
+function vfxIaTextes(){return {
+  "relight-h3":[dzT("vfx.ia.relight_h3.titre"),dzT("vfx.ia.relight_h3.phrase")],
+  "inserer-h3":[dzT("vfx.ia.inserer_h3.titre"),dzT("vfx.ia.inserer_h3.phrase")],
+  "effacer-perso":[dzT("vfx.ia.effacer_perso.titre"),dzT("vfx.ia.effacer_perso.phrase")],
+  "effacer-objet":[dzT("vfx.ia.effacer_objet.titre"),dzT("vfx.ia.effacer_objet.phrase")],
+  "jour-nuit":[dzT("vfx.ia.jour_nuit.titre"),dzT("vfx.ia.jour_nuit.phrase")],
+  "eau":[dzT("vfx.ia.eau.titre"),dzT("vfx.ia.eau.phrase")],
+  "coloriser":[dzT("vfx.ia.coloriser.titre"),dzT("vfx.ia.coloriser.phrase")],
+  "retoucher-kling":[dzT("vfx.ia.retoucher_kling.titre"),dzT("vfx.ia.retoucher_kling.phrase")],
+  "retoucher-flux3":[dzT("vfx.ia.retoucher_flux3.titre"),dzT("vfx.ia.retoucher_flux3.phrase")],
+  "recadrer":[dzT("vfx.ia.recadrer.titre"),dzT("vfx.ia.recadrer.phrase")],
+  "agrandir":[dzT("vfx.ia.agrandir.titre"),dzT("vfx.ia.agrandir.phrase")],
+  "effets-pixverse":[dzT("vfx.ia.effets_pixverse.titre"),dzT("vfx.ia.effets_pixverse.phrase")]}}
+function vfxIaTitre(m){var t=vfxIaTextes()[m.id];return t?t[0]:m.label}
+function vfxIaPhrase(m){var t=vfxIaTextes()[m.id];return t?t[1]:(m.phrase||"")}
+function vfxIaOptLbl(k){return ({resolution:dzT("vfx.ia.opt.resolution"),aspect_ratio:dzT("vfx.ia.opt.format"),
+  seed:dzT("vfx.ia.opt.graine"),start_time:dzT("vfx.ia.opt.debut"),resume_time:dzT("vfx.ia.opt.reprise"),
+  duration:dzT("vfx.ia.opt.duree"),color_match:dzT("vfx.ia.opt.couleurs"),
+  enable_prompt_expansion:dzT("vfx.ia.opt.enrichir"),mask_prompt:dzT("vfx.ia.opt.objet"),
+  enable_pass2_refinement:dzT("vfx.ia.opt.passe2"),upscale_factor:dzT("vfx.ia.opt.facteur"),
+  effect:dzT("vfx.ia.opt.effet")})[k]||k}
+function vfxIaUnite(u){return ({s:dzT("vfx.ia.unite.s"),mp:dzT("vfx.ia.unite.mp"),video:dzT("vfx.ia.unite.video"),
+  tranche10s:dzT("vfx.ia.unite.tranche10s"),effet:dzT("vfx.ia.unite.effet")})[u]||""}
+/* « $ » + la valeur arrondie au millième, au moins deux décimales (règle prixUsd de DzModelesIA) ; sous 0,01 $
+   (le mégapixel LTX : 0,0024075) cinq chiffres significatifs, sinon il s'afficherait « $0.002 » ; nul -> "" */
+function vfxIaUsd(v){v=Number(v);if(!(v>0)||!isFinite(v))return "";
+  var s=v<0.01?String(Number(v.toPrecision(5))):(Math.round(v*1000)/1000).toFixed(3);
+  while(/\.\d{3,}$/.test(s)&&s.charAt(s.length-1)==="0")s=s.slice(0,-1);return "$"+s}
+function vfxIaPrix(m){var p=vfxIaUsd(m.usd);
+  return (p?p+vfxIaUnite(m.unite):dzT("ia.prix.a_mesurer"))+(m.dispo===!1&&m.cle?" · "+dzT("ia.cle.a_ajouter",{cle:m.cle}):"")}
+function vfxIaVide(){return {prompt:"",image:"",opts:{},filtres:{}}}
+/* le corps de POST /api/vfx-ia : la source (clip_id = le job du plan), le geste, ce que l'utilisateur a saisi */
+function vfxIaCorps(m,st,job){var c={modele:m.id},o={},k;
+  if(m.entree==="video"&&job)c.clip_id=job;
+  if(m.prompt&&String(st.prompt||"").trim())c.prompt=String(st.prompt).trim();
+  if(m.image&&st.image)c.image_filename=st.image;
+  for(k in st.opts)if(st.opts[k]!==""&&st.opts[k]!=null&&(m.options||{})[k])o[k]=st.opts[k];
+  c.options=o;return c}
+/* ce qui manque AVANT d'appeler le serveur (le serveur refuse pareil, en 400) : null si tout y est */
+function vfxIaManque(m,st,job){var o=m.options||{},k;
+  if(m.entree==="video"&&!job)return dzT("vfx.ia.manque_video");
+  if(m.image==="requis"&&!st.image)return m.entree==="image"?dzT("vfx.ia.manque_image_animer"):dzT("vfx.ia.manque_image_lumiere");
+  if(m.prompt==="requis"&&!String(st.prompt||"").trim())return dzT("vfx.ia.manque_prompt");
+  for(k in o)if(o[k].requis&&(st.opts[k]===""||st.opts[k]==null))return dzT("vfx.ia.manque_option",{nom:vfxIaOptLbl(k)});
+  return null}
+function vfxIaPost(corps){
+  return fetch("/api/vfx-ia",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(corps)})
+    .then(function(r2){return r2.json().catch(function(){return {}}).then(function(d){
+      if(!r2.ok){var x2=d&&d.detail;throw new Error(typeof x2==="string"?x2:(x2&&x2.message)||("HTTP "+r2.status))}
+      return d})})}
+/* les deux clics : `arm` = le devis en attente ({sig, usd, detail}), valable pour CETTE saisie seulement */
+function vfxIaClic(m,st,job,g){
+  if(g.busy)return;var manque=vfxIaManque(m,st,job);if(manque){g.note(manque);return}
+  var corps=vfxIaCorps(m,st,job),sig=JSON.stringify(corps);
+  if(!g.arm||g.arm.sig!==sig){
+    vfxIaPost(Object.assign({devis:!0},corps))
+      .then(function(d){g.setArm({sig:sig,usd:d.usd,detail:d.detail||""})})
+      .catch(function(e){g.setArm(null);g.note(dzT("vfx.ia.echec",{err:e.message}))});
+    return}
+  g.setArm(null);g.setBusy(!0);
+  vfxIaPost(corps).then(function(d){g.setBusy(!1);
+      g.note(dzT("vfx.ia.fait",{nom:d.filename,prix:vfxIaUsd(d.usd)||dzT("ia.prix.a_mesurer")}));
+      if(g.done)g.done(d)})
+    .catch(function(e){g.setBusy(!1);g.note(dzT("vfx.ia.echec",{err:e.message}))})}
+function vfxIaDevisTxt(arm){
+  return dzT("vfx.ia.devis",{prix:vfxIaUsd(arm.usd)||dzT("ia.prix.a_mesurer"),detail:arm.detail})}
+/* les champs d'un geste, construits d'après le SCHÉMA servi (aucune liste recopiée) ; `k` = classes de l'hôte */
+function VfxIaChamps(props){
+  var m=props.m,st=props.st,k=props.k||{},o=m.options||{},out=[];
+  function setOpt(n,v){var no=Object.assign({},st.opts);no[n]=v;props.set({opts:no})}
+  if(m.prompt)out.push(r.jsx("textarea",{className:k.texte,rows:2,maxLength:1500,value:st.prompt,
+    "aria-label":dzT("vfx.ia.prompt"),
+    placeholder:m.prompt==="requis"?dzT("vfx.ia.prompt_requis"):dzT("vfx.ia.prompt_facultatif"),
+    onChange:function(e){props.set({prompt:e.target.value})}},"p"));
+  if(m.image)out.push(r.jsxs("select",{className:k.sel,value:st.image,"aria-label":dzT("vfx.ia.image"),
+    onChange:function(e){props.set({image:e.target.value})},children:[
+    r.jsx("option",{value:"",children:m.image==="requis"?(m.entree==="image"?dzT("vfx.ia.image_animer"):dzT("vfx.ia.image_lumiere"))
+      :dzT("vfx.ia.image_reference")},""),
+    (props.images||[]).map(function(f){return r.jsx("option",{value:f,children:f},f)})]},"i"));
+  Object.keys(o).forEach(function(n){var s=o[n],v=st.opts[n],lbl=vfxIaOptLbl(n)+(s.requis?" *":"");
+    /* une longue énumération (les 154 effets PixVerse) : un champ de filtre au-dessus du <select> ; le choix
+       courant reste toujours dans la liste */
+    if(s.choix&&s.choix.length>30){var fl=String((st.filtres||{})[n]||""),q=fl.trim().toLowerCase(),
+        cur=v!=null?String(v):"",vus=s.choix.filter(function(c){return !q||c.toLowerCase().indexOf(q)>=0||c===cur});
+      out.push(r.jsx("input",{className:k.sel,type:"search",value:fl,"aria-label":dzT("vfx.ia.filtrer"),
+        placeholder:dzT("vfx.ia.filtrer_n",{n:s.choix.length}),
+        onChange:function(e){var nf=Object.assign({},st.filtres||{});nf[n]=e.target.value;props.set({filtres:nf})}},n+"-f"));
+      out.push(r.jsxs("label",{className:k.ligne,children:[r.jsx("span",{className:k.lbl,children:lbl}),
+        r.jsxs("select",{className:k.sel,value:cur,"aria-label":lbl,
+          onChange:function(e){setOpt(n,e.target.value)},children:[
+          r.jsx("option",{value:"",children:dzT("vfx.ia.choisir_n",{n:vus.length})},""),
+          vus.map(function(c){return r.jsx("option",{value:c,children:c},c)})]})]},n))}
+    else if(s.choix)out.push(r.jsxs("label",{className:k.ligne,children:[r.jsx("span",{className:k.lbl,children:lbl}),
+      r.jsxs("select",{className:k.sel,value:v!=null?String(v):(s.defaut!=null?String(s.defaut):""),"aria-label":lbl,
+        onChange:function(e){setOpt(n,e.target.value)},children:[
+        s.defaut==null?r.jsx("option",{value:"",children:dzT("vfx.ia.choisir")},""):null,
+        s.choix.map(function(c){return r.jsx("option",{value:c,children:c},c)})]})]},n));
+    else if(s.bool)out.push(r.jsxs("label",{className:k.ligne,children:[
+      r.jsx("input",{type:"checkbox",checked:!!v,onChange:function(e){setOpt(n,e.target.checked)}}),
+      r.jsx("span",{className:k.lbl,children:lbl})]},n));
+    else if(s.num)out.push(r.jsxs("label",{className:k.ligne,children:[r.jsx("span",{className:k.lbl,children:lbl}),
+      r.jsx("input",{className:k.num,type:"number",min:s.num[0],max:s.num[1],step:s.entier?1:.125,
+        value:v!=null?v:(s.defaut!=null?s.defaut:""),"aria-label":lbl,placeholder:s.num[0]+" – "+s.num[1],
+        onChange:function(e){var t=e.target.value;setOpt(n,t===""?"":Number(t))}})]},n));
+    else out.push(r.jsxs("label",{className:k.ligne,children:[r.jsx("span",{className:k.lbl,children:lbl}),
+      r.jsx("input",{className:k.sel,type:"text",value:v||"","aria-label":lbl,maxLength:300,
+        onChange:function(e){setOpt(n,e.target.value)}})]},n))});
+  return r.jsx("div",{className:k.bloc,style:{display:"flex",flexDirection:"column",gap:6,marginTop:8},children:out})}
+/* la section « IA » du rack, sous « Détourer » : les gestes qui partent d'une VIDÉO, sur le plan sélectionné */
+function VfxIaRack(props){
+  var US=x.useState,EF=x.useEffect,clip=props.clip;
+  var s1=US(VFX_IA.cat),cat=s1[0],setCat=s1[1];
+  var s2=US(""),mid=s2[0],setMid=s2[1];
+  var s3=US(vfxIaVide()),st=s3[0],setSt=s3[1];
+  var s4=US(null),arm=s4[0],setArm=s4[1];
+  var s5=US(!1),busy=s5[0],setBusy=s5[1];
+  var s6=US([]),imgs=s6[0],setImgs=s6[1];
+  EF(function(){var vivant=!0;vfxIaCatalogue().then(function(c){if(vivant)setCat(c)});
+    vfxIaImages().then(function(l){if(vivant)setImgs(l)});return function(){vivant=!1}},[]);
+  EF(function(){setArm(null)},[clip&&clip.id]);
+  if(!clip||!clip.src||!clip.src.job_id)return null;
+  var vids=(cat||[]).filter(function(v){return v.entree==="video"});
+  var m=vids.filter(function(v){return v.id===mid})[0]||vids[0];
+  var job=clip.src.job_id,g={busy:busy,arm:arm,setArm:setArm,setBusy:setBusy,note:props.onNote};
+  return r.jsxs("div",{className:"vfx-matte vfx-ia","data-dzvfxia":"rack",children:[
+    r.jsx("span",{className:"vfx-mlbl",children:dzT("vfx.ia.section")}),
+    vids.length?r.jsx("select",{className:"vfx-sel",value:m?m.id:"","aria-label":dzT("vfx.ia.geste"),
+      onChange:function(e){setMid(e.target.value);setSt(vfxIaVide());setArm(null)},
+      children:vids.map(function(v){return r.jsx("option",{value:v.id,children:vfxIaTitre(v)+" · "+vfxIaPrix(v)},v.id)})})
+      :r.jsx("div",{className:"vfx-mhint",children:dzT("vfx.ia.chargement")}),
+    m?r.jsx("div",{className:"vfx-mhint vfx-iaphrase",children:vfxIaPhrase(m)}):null,
+    m?r.jsx(VfxIaChamps,{m:m,st:st,images:imgs,k:{bloc:"vfx-iachamps",texte:"vfx-sel vfx-iatexte",sel:"vfx-sel",
+      num:"vfx-sel vfx-ianum",ligne:"vfx-prow",lbl:"vfx-plabel"},
+      set:function(p){setSt(Object.assign({},st,p));setArm(null)}}):null,
+    m?r.jsx("button",{className:"vfx-btn","data-off":busy?"":void 0,title:dzT("vfx.ia.bouton_aide"),
+      onClick:function(){vfxIaClic(m,st,job,g)},
+      children:busy?dzT("vfx.ia.en_cours"):arm?dzT("vfx.ia.confirmer"):dzT("vfx.ia.lancer")}):null,
+    arm?r.jsx("div",{className:"vfx-mhint",children:vfxIaDevisTxt(arm)}):null]})}
+/* t188 : les aides des VFX IA, pour le rail « VFX IA » de Son & VFX */
+window.DzVfx.ia={catalogue:vfxIaCatalogue,images:vfxIaImages,titre:vfxIaTitre,phrase:vfxIaPhrase,prix:vfxIaPrix,clic:vfxIaClic,devisTxt:vfxIaDevisTxt,Champs:VfxIaChamps,Rack:VfxIaRack};
 
 /*__DZ_VFXRACK_END__*/
 /*__DZ_SUBS_BEGIN__*/
@@ -20703,9 +20935,9 @@ function DzmDzRects(o){
 
 
 
-(bourrage volontaire : longueurs figées par la table G1, par position)                                                                                                                                             */
+(bourrage volontaire : longueurs figées par la table G1, par position)                                                                                                                             */
 var DZM_PROV_LBL={seedance:"Studio",heygen:"Studio",composition:"Studio",animation:"Studio",extend:"Studio",
-  episode:"Chapitres",news:"News",template:"Templates",ugc:"Importés",montage:"Montages",sfx_video:"Studio"};
+  episode:"Chapitres",news:"News",template:"Templates",ugc:"Importés",montage:"Montages",sfx_video:"Studio",vfx_ia:"Studio"};
 function dzmProvAff(g){var t={Tout:dzT("montage.mots.tout"),Chapitres:dzT("montage.mots.chapitres"),Importés:dzT("montage.mots.importes"),Montages:dzT("montage.mots.montages")};return Object.prototype.hasOwnProperty.call(t,g)?t[g]:g}function dzmProvGroupe(p){var k=(p==null||p==="")?"seedance":String(p);return DZM_PROV_LBL[k]||k}
 /* « Tout » en tête, puis les groupes dans l'ORDRE D'APPARITION, uniques */
 function dzmProvChips(jobs){var out=["Tout"],seen={};(jobs||[]).forEach(function(j){
