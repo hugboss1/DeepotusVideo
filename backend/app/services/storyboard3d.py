@@ -51,6 +51,7 @@ SEUIL_BORNES = (0.1, 1.0)
 _MAX_BOITES = 32
 _MAX_PROMPT = 300
 _MAX_OBJETS = 32                     # scene3d_routes plafonne à 64 instances : on en laisse pour le décor posé à la main
+MAX_OCTETS_GLB = 256 * 1024 * 1024   # relecture t189 : un GLB rendu par fal au-delà est refusé PENDANT le téléchargement
 
 # La convention d'axes SUPPOSÉE entre SAM 3 et le Plateau (repère three.js : +Y en haut, mètres, Euler XYZ). Rien dans
 # le schéma fal ne la précise : aujourd'hui l'IDENTITÉ (translation recopiée, quaternion lu [x, y, z, w]). Elle sera
@@ -245,13 +246,14 @@ def _url(v):
 
 
 def _cibles(res: dict) -> list[tuple[int, str]]:
-    """[(object_index, url)] des GLB à rapatrier : les individuels NON nuls, sinon le maillage unique."""
+    """[(object_index, url)] des GLB à rapatrier : les individuels NON nuls, sinon le maillage unique. TOUS : c'est
+    `reconstruire` qui en garde au plus _MAX_OBJETS et dit combien sont tronqués."""
     res = res if isinstance(res, dict) else {}
     indiv = res.get("individual_glbs")
     out = [(k, _url(u)) for k, u in enumerate(indiv or []) if _url(u)]
     if not out and _url(res.get("model_glb")):
         out = [(0, _url(res.get("model_glb")))]
-    return out[:_MAX_OBJETS]
+    return out
 
 
 def _dims(data: bytes):
@@ -264,40 +266,47 @@ def _dims(data: bytes):
         return None
 
 
+async def _derniere_scene(session, shot_id: str):
+    """La scène du Plateau la plus récente liée au plan, ou None."""
+    from sqlalchemy import select
+    from app.services.storage import Scene3D
+    return (await session.execute(select(Scene3D).where(Scene3D.shot_id == shot_id)
+                                  .order_by(Scene3D.updated_at.desc()).limit(1))).scalars().first()
+
+
+def _hors_sam3(instances_json) -> list[dict]:
+    """Les instances d'une scène (JSON en base) qui ne viennent PAS d'un tir SAM 3 (ids hors sam3_*) : celles qu'une
+    nouvelle reconstruction garde. JSON illisible -> []."""
+    try:
+        v = json.loads(instances_json) if instances_json else []
+    except ValueError:
+        return []
+    return [i for i in v if isinstance(i, dict) and not str(i.get("id") or "").startswith("sam3_")] \
+        if isinstance(v, list) else []
+
+
 async def instances_gardees(shot_id: str) -> list[dict]:
     """Les instances que GARDERA la mise à jour de la scène la plus récente du plan (toutes sauf les sam3_*) ; [] sans
     scène. La route compte celles-ci AVANT la garde : gardées + _MAX_OBJETS doivent tenir dans une scène."""
-    from sqlalchemy import select
-    from app.services.storage import Scene3D, async_session_factory
+    from app.services.storage import async_session_factory
     async with async_session_factory() as session:
-        r = (await session.execute(select(Scene3D).where(Scene3D.shot_id == shot_id)
-                                   .order_by(Scene3D.updated_at.desc()).limit(1))).scalars().first()
-    if r is None:
-        return []
-    try:
-        return [i for i in (json.loads(r.instances) if r.instances else [])
-                if isinstance(i, dict) and not str(i.get("id") or "").startswith("sam3_")]
-    except ValueError:
-        return []
+        r = await _derniere_scene(session, shot_id)
+    return _hors_sam3(r.instances) if r is not None else []
 
 
 async def _scene_du_plan(shot, instances: list[dict]) -> str:
     """Crée la scène du plan (comme POST /scenes3d : chapitre hérité, « plan N », 9:16 comme les images de plan) ou
     met à jour la plus récente : ses anciennes instances sam3_* partent, les autres restent ; un sujet gardé devient
-    décor puisque SAM 3 pose le sien (un seul sujet par scène)."""
-    from sqlalchemy import select
+    décor puisque SAM 3 pose le sien (un seul sujet par scène).
+    Les DOSSIERS outputs/assets3d/sam3_* des tirs précédents restent, VOLONTAIREMENT : chacun est un maillage payé,
+    qui sert encore de source au Plateau (GET /scenes3d/sources) et à la Bibliothèque — seule la scène les oublie."""
     from app.services import scene3d_routes as SR
-    from app.services.storage import Scene3D, async_session_factory
+    from app.services.storage import async_session_factory
     async with async_session_factory() as session:
-        r = (await session.execute(select(Scene3D).where(Scene3D.shot_id == shot.id)
-                                   .order_by(Scene3D.updated_at.desc()).limit(1))).scalars().first()
+        r = await _derniere_scene(session, shot.id)
         if r is None:
             return (await SR.creer({"shot_id": shot.id, "aspect": "9:16", "instances": instances}))["id"]
-        try:
-            gardees = [i for i in (json.loads(r.instances) if r.instances else [])
-                       if isinstance(i, dict) and not str(i.get("id") or "").startswith("sam3_")]
-        except ValueError:
-            gardees = []
+        gardees = _hors_sam3(r.instances)
         if any(i.get("role") == "sujet" for i in instances):
             for i in gardees:
                 if i.get("role") == "sujet":
@@ -326,7 +335,9 @@ async def reconstruire(shot_id: str, prompt, boxes, modele: str = DEFAUT, detect
     url = await MT._upload(src)
     endpoint, args = build_request(url, prompt, boxes, modele, detection_threshold)
     res = await MT._fal_subscribe(endpoint, args)
-    cibles = _cibles(res)
+    toutes = _cibles(res)
+    cibles = toutes[:_MAX_OBJETS]
+    tronques = len(toutes) - len(cibles)            # relecture t189 : au-delà de _MAX_OBJETS, dit à l'écran
     if not cibles:
         cles = ", ".join(map(str, res or {})) if isinstance(res, dict) else type(res).__name__
         raise RuntimeError(f"SAM 3 (fal) : aucun GLB dans la réponse (clés : {cles}).")
@@ -344,7 +355,7 @@ async def reconstruire(shot_id: str, prompt, boxes, modele: str = DEFAUT, detect
             d.mkdir(parents=True, exist_ok=True)
             ecrits.append(d)
             dest = d / "model.glb"
-            await MT._download(u, dest)
+            await MT._download(u, dest, max_octets=MAX_OCTETS_GLB)
             data = dest.read_bytes() if dest.is_file() else b""
             if data[:4] != b"glTF":
                 raise RuntimeError(f"SAM 3 (fal) : le fichier rendu n'est pas un GLB (en-tête glTF absent, "
@@ -365,6 +376,6 @@ async def reconstruire(shot_id: str, prompt, boxes, modele: str = DEFAUT, detect
         raise
     usd = P.estimate(op_devis(modele))["total_usd"]
     logger.info(f"storyboard3d : plan {shot_id} -> {len(instances)} objet(s), scène {scene_id} ({usd} $, {UNITE_NOTE})")
-    return {"scene_id": scene_id, "n": len(instances), "usd": usd,
+    return {"scene_id": scene_id, "n": len(instances), "usd": usd, "tronques": tronques,
             "objets": [{"id": i["id"], "nom": i["nom"], "job": i["source"]["job"], "role": i["role"]}
                        for i in instances]}

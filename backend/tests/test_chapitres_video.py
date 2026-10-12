@@ -331,6 +331,71 @@ check("D11 le devis est GRATUIT : aucune ligne depenses écrite par les GET", le
 _rp = (_ICI / "test_plafonds_garde.py").read_text(encoding="utf-8")
 check("D12 le devis n'est PAS une route payante (absent de PAYANTES)", "/video/devis" not in _rp)
 
+# ── [J] relecture I1 : le job QUEUED naît avec shot.video (une transaction), et jamais de job fantôme ─────────────
+print("\n[J] le job de la vidéo du plan existe dès la réponse")
+from app.api import routes as R  # noqa: E402
+VU = {}
+
+
+async def _run_qui_regarde(req, job_id=None, **k):
+    # exécuté APRÈS la réponse (tâche de fond) mais AVANT tout rendu : le job doit déjà exister, en QUEUED
+    r = await _req("GET", f"/jobs/{job_id}")
+    VU.update(code=r.status_code, statut=(r.json() or {}).get("status") if r.status_code == 200 else None,
+              job=job_id, video=sql("SELECT video FROM shots WHERE id=?", s0))
+    return job_id
+
+R.pipeline.run = _run_qui_regarde
+r = call("POST", f"/shots/{s0}/video", {})
+jv = js(r)
+check("J1 entre la réponse et le rendu : GET /api/jobs/{id} -> 200 QUEUED, et shot.video pointe CE job",
+      r.status_code == 200 and VU.get("job") == jv.get("job_id") and VU.get("code") == 200
+      and VU.get("statut") == "queued" and VU.get("video") == [(jv.get("job_id"),)], f"{r.status_code} {VU}")
+check("J2 le job créé d'avance porte la requête (modèle, images, durée bornée)",
+      sql("SELECT status, video_model, image_filename, image_filename_end, duration_s FROM jobs WHERE id=?",
+          jv.get("job_id")) == [("queued", "veo-3.1-fast-fal", "k0.png", "k1.png", P.video_gen_seconds("veo-3.1-fast-fal", 5))],
+      sql("SELECT status, video_model, image_filename, image_filename_end, duration_s FROM jobs WHERE id=?", jv.get("job_id")))
+
+
+async def _run_qui_leve(req, job_id=None, **k):
+    raise RuntimeError("panne avant toute prise en main")
+
+R.pipeline.run = _run_qui_leve
+r = call("POST", f"/shots/{s0}/video", {})
+jv = js(r)
+st = sql("SELECT status, error FROM jobs WHERE id=?", jv.get("job_id"))
+check("J3 un rendu qui lève AVANT de prendre le job : le job passe FAILED (pas de job fantôme en QUEUED)",
+      r.status_code == 200 and st and st[0][0] == "failed" and "panne" in (st[0][1] or ""), st)
+del R.pipeline.run
+n_jobs = sql("SELECT COUNT(*) FROM jobs")[0][0]
+TELEVERSES.clear(); SOUMIS.clear()
+r = call("POST", f"/shots/{s0}/video", {})
+jv = js(r)
+check("J4 le vrai rendu REPREND le job créé d'avance (un seul job de plus, pas deux), puis le mène à son terme",
+      r.status_code == 200 and sql("SELECT COUNT(*) FROM jobs")[0][0] == n_jobs + 1 and len(SOUMIS) == 1
+      and sql("SELECT status FROM jobs WHERE id=?", jv.get("job_id")) == [("failed",)],
+      f"{sql('SELECT COUNT(*) FROM jobs')} {n_jobs} {SOUMIS}")
+from app.services.pipeline import Pipeline as _Pl  # noqa: E402
+_n = sql("SELECT COUNT(*) FROM jobs")[0][0]
+check("J5 sans job_id (/generate et les autres appelants) : run insère son job comme avant",
+      "job_id: str | None = None" in __import__("inspect").getsource(_Pl.run) and _n >= 1)
+
+# ── [K] relecture M3 : une FAL_KEY faite d'espaces manque PARTOUT ─────────────────────────────────────────────
+print("\n[K] clé vidéo unique (strip)")
+settings.FAL_KEY = "   "
+n_dep = len(depenses())
+r = call("POST", f"/shots/{s0}/video", {})
+dv = js(call("GET", f"/shots/{s0}/video/devis"))
+rg = call("POST", "/generate", {"image_filename": "k0.png", "custom_prompt": "x", "video_model": "veo-3.1-fast-fal"})
+check("K1 FAL_KEY d'espaces : 503 sur /shots/{id}/video, cle_absente « FAL_KEY » au devis, 503 sur /generate",
+      r.status_code == 503 and "FAL_KEY" in r.text and dv.get("cle_absente") == "FAL_KEY" and rg.status_code == 503,
+      f"{r.status_code} {dv.get('cle_absente')} {rg.status_code} {rg.text[:120]}")
+check("K2 aucune dépense sur ces refus", len(depenses()) == n_dep)
+settings.FAL_KEY = "test-key"
+check("K3 une seule fonction de clé, utilisée par le devis et le 503",
+      R._cle_video_manquante("veo-3.1-fast-fal") is None and "_cle_video_manquante(mid)" in
+      __import__("inspect").getsource(R._video_plan) and "_cle_video_manquante(" in
+      __import__("inspect").getsource(R._cle_video_ou_503))
+
 # ── [A] l'animatique ─────────────────────────────────────────────────────────
 print("\n[A] l'animatique préfère la vidéo du plan")
 e = AN.plan([{"id": "a", "idx": 0, "action": "x", "duration_s": 2.0, "image": "i.png", "video_fichier": "C:/v/a.mp4"},

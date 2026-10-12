@@ -340,8 +340,13 @@ async def _fal(endpoint, arguments):
     return json.loads(json.dumps(REPONSE["r"]))
 
 
-async def _download(url, dest):
+_download_reel = MT._download
+OCTETS = []
+
+
+async def _download(url, dest, max_octets=None):
     SEAMS["download"].append(url)
+    OCTETS.append(max_octets)
     dest = pathlib.Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(GLBS.get(url, b"pas un glb"))
@@ -433,6 +438,9 @@ jobs = sorted(p.parent.name for p in (W / "outputs" / "assets3d").glob("sam3_*/m
 check("1.15 deux GLB sous outputs/assets3d/sam3_*/model.glb, en-tête glTF",
       len(jobs) == 2 and all((W / "outputs" / "assets3d" / k / "model.glb").read_bytes()[:4] == b"glTF" for k in jobs), jobs)
 objets = j.get("objets") or []
+check("1.15b chaque GLB est téléchargé avec la borne de 256 Mo (max_octets)",
+      OCTETS[-2:] == [256 * 1024 * 1024] * 2 and SB.MAX_OCTETS_GLB == 256 * 1024 * 1024, OCTETS)
+check("1.15c rien de tronqué sous _MAX_OBJETS : tronques = 0", j.get("tronques") == 0, j)
 check("1.16 réponse : scene_id, n = 2, objets {id, nom, job, role} — noms par object_index (0 et 2)",
       j.get("n") == 2 and [o.get("id") for o in objets] == ["sam3_01", "sam3_02"]
       and [o.get("role") for o in objets] == ["sujet", "decor"] and [o.get("nom") for o in objets] == ["personnage", "table"]
@@ -530,6 +538,65 @@ check("1.31 corps : transformation identité, dims mesurées",
       [i["transform"] for i in sc4.get("instances") or []] == [{"pos": [0.0, 0.0, 0.0], "rot": [0.0, 0.0, 0.0], "scale": 1.0}]
       and all(abs(a - b) < 1e-4 for a, b in zip((sc4.get("instances") or [{}])[0].get("dims") or [], [0.5, 1.75, 0.3])), sc4)
 
+# relecture M8 : plus de _MAX_OBJETS GLB individuels -> on en garde 32 et on DIT combien sont tronqués
+vider()
+sql("DELETE FROM scenes3d WHERE shot_id=?", s2)
+REPONSE["r"] = {"model_glb": {"url": "https://fal.test/scene.glb"},
+                "individual_glbs": [{"url": "https://fal.test/o0.glb"}] * 34, "metadata": []}
+r = call("POST", f"/shots/{s2}/objets3d", {"prompt": "objets"})
+jt = js(r)
+check("1.31b 34 GLB rendus : 32 posés, tronques = 2 dans la réponse",
+      r.status_code == 200 and jt.get("n") == SB._MAX_OBJETS == 32 and jt.get("tronques") == 2
+      and len(SEAMS["download"]) == 32, f"{r.status_code} n={jt.get('n')} tronques={jt.get('tronques')}")
+
+# relecture M2 : _download en FLUX avec une borne (le vrai seam, transport simulé : aucun réseau)
+import httpx as _hx  # noqa: E402
+_Orig = _hx.AsyncClient
+SERVI = {"https://fal.test/petit.glb": glb_boite(1, 1, 1), "https://fal.test/gros.glb": b"glTF" + b"0" * 5000}
+
+
+def _servir(requete):
+    return _hx.Response(200, content=SERVI.get(str(requete.url), b""))
+
+
+class _ClientSimule(_Orig):
+    def __init__(self, *a, **k):
+        k.pop("verify", None)
+        k["transport"] = _hx.MockTransport(_servir)
+        super().__init__(*a, **k)
+
+
+_hx.AsyncClient = _ClientSimule
+try:
+    d0 = W / "dl"
+    d0.mkdir(exist_ok=True)
+    loop.run_until_complete(_download_reel("https://fal.test/gros.glb", d0 / "a.glb"))
+    check("M2.1 sans max_octets : comportement d'avant (tout est écrit)", (d0 / "a.glb").read_bytes() == SERVI["https://fal.test/gros.glb"])
+    try:
+        loop.run_until_complete(_download_reel("https://fal.test/gros.glb", d0 / "b.glb", max_octets=1000))
+        check("M2.2 au-delà de max_octets : RuntimeError, rien d'écrit, pas de .part", False)
+    except RuntimeError as e:
+        check("M2.2 au-delà de max_octets : RuntimeError, rien d'écrit, pas de .part",
+              not (d0 / "b.glb").exists() and not (d0 / "b.glb.part").exists() and "téléchargement" in str(e), e)
+    loop.run_until_complete(_download_reel("https://fal.test/petit.glb", d0 / "c.glb", max_octets=1000))
+    check("M2.3 sous la borne : le fichier arrive entier", (d0 / "c.glb").read_bytes() == SERVI["https://fal.test/petit.glb"])
+    vider()
+    MT._download = _download_reel
+    _borne = SB.MAX_OCTETS_GLB
+    SB.MAX_OCTETS_GLB = 1000
+    avant_scenes = sql("SELECT id, instances FROM scenes3d WHERE shot_id=?", s0)
+    avant_dossiers = dossiers_a3d()
+    REPONSE["r"] = {"individual_glbs": [{"url": "https://fal.test/petit.glb"}, {"url": "https://fal.test/gros.glb"}],
+                    "metadata": []}
+    r = call("POST", f"/shots/{s0}/objets3d", {"prompt": "a, b"})
+    check("M2.4 un GLB trop gros (téléchargement simulé) : 502 lisible, dossiers nettoyés, scène intacte",
+          r.status_code == 502 and "téléchargement" in r.text and dossiers_a3d() == avant_dossiers
+          and sql("SELECT id, instances FROM scenes3d WHERE shot_id=?", s0) == avant_scenes, f"{r.status_code} {r.text}")
+finally:
+    _hx.AsyncClient = _Orig
+    MT._download = _download
+    SB.MAX_OCTETS_GLB = 256 * 1024 * 1024
+
 # réponse fal sans glTF
 vider()
 avant = js(call("GET", f"/scenes3d/{sid}")).get("instances")
@@ -559,6 +626,15 @@ check("1.35 /ia/catalogue?nature=objets3d : les deux modèles, 0,02 $ par requê
 check("1.36 sans FAL_KEY : les modèles restent LISTÉS (dispo False, clé nommée)",
       all(e["dispo"] is False and e["cle"] == "FAL_KEY" for e in m.values()), m)
 settings.FAL_KEY = "test-key"
+
+# traduction : le nom affiché par DzModelesIA.libelle() (clé detour.modele.<id, - -> _>) = le libellé serveur en FR
+_COM = json.loads((_ICI.parent.parent / "frontend" / "shared" / "i18n" / "commun.json").read_text(encoding="utf-8"))
+check("1.37 commun.json : detour.modele.sam_3_3d_objects / sam_3_3d_body, FR == libellé EXACT du registre, EN traduit",
+      all(_COM.get(f"detour.modele.{k.replace('-', '_')}", {}).get("fr") == SB.MODELES[k]["label"]
+          and _COM.get(f"detour.modele.{k.replace('-', '_')}", {}).get("en") not in (None, "", SB.MODELES[k]["label"])
+          for k in SB.MODELES), {k: _COM.get(f"detour.modele.{k.replace('-', '_')}") for k in SB.MODELES})
+_DICO = (_ICI.parent.parent / "frontend" / "shared" / "dz-i18n-dico.js").read_text(encoding="utf-8")
+check("1.38 les dico assemblés portent les deux clés", all(f"detour.modele.{k.replace('-', '_')}" in _DICO for k in SB.MODELES))
 
 # ── [2] recensement ──────────────────────────────────────────────────────────
 print("\n[2] recensement des routes payantes")

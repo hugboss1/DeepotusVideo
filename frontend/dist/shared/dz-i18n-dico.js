@@ -5014,6 +5014,8 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "detour.modele.rembg_fal": {"fr": "rembg (fal, ancien)", "en": "rembg (fal, legacy)"},
   "detour.modele.sam31_video": {"fr": "SAM 3.1 — suivre un sujet nommé", "en": "SAM 3.1 — track a named subject"},
   "detour.modele.sam3_sujet": {"fr": "SAM 3 — garder un sujet nommé", "en": "SAM 3 — keep a named subject"},
+  "detour.modele.sam_3_3d_body": {"fr": "SAM 3 — corps humain 3D", "en": "SAM 3 — 3D human body"},
+  "detour.modele.sam_3_3d_objects": {"fr": "SAM 3 — objets 3D", "en": "SAM 3 — 3D objects"},
   "detour.modele.veed_video_rapide": {"fr": "VEED rapide", "en": "VEED fast"},
   "dialogue.bouton.ok": {"fr": "OK", "en": "OK"},
   "dialogue.titre.confirmer": {"fr": "Confirmer", "en": "Confirm"},
