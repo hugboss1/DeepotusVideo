@@ -74,7 +74,7 @@ export function bibLigne(d) {
     : `<span class="bib-sans" title="${T("vectorlab.biblio.vignette_titre")}">${dzi("dz-etat-sans-apercu", 24)}</span>`;
   return `<div class="bib-carte" data-bib-id="${id}">`
     + `<div class="bib-vig">${vig}</div>`
-    + `<div class="bib-nom" title="${esc(d.name)}">${esc(d.name)}</div>`
+    + `<div class="bib-nom" data-dz-brut="1" title="${esc(d.name)}">${esc(d.name)}</div>`
     + `<div class="bib-meta">${esc(({ libre: T("vectorlab.page.role_libre"), decor: T("vectorlab.page.role_decor"), lumiere: T("vectorlab.page.role_lumiere"), personnage: T("vectorlab.page.role_personnage") })[d.role] || d.role)} · v${esc(d.version)} · ${badge(d)}</div>`
     + `<div class="bib-actions">`
     + `<button data-bib-open="${id}" title="${T("vectorlab.biblio.ouvrir_titre")}">${T("vectorlab.biblio.ouvrir")}</button>`

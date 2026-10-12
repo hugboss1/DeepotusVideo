@@ -30,9 +30,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from app.config import settings
+from app.i18n import Refus   # t192 : refus traduisibles (texte = le français)
 
 IMAGE, VIDEO = "detourage_image", "detourage_video"
-DEMANDE_SUJET = "dites quel sujet garder : ce modèle détoure un sujet NOMMÉ (« sujet » vide)"
 
 
 def _e(nature, label, voie, endpoint=None, fixes=None, prompt=False, prix=None, unite="image", ext=".png",
@@ -110,10 +110,11 @@ def cle_manquante(mid: str) -> str | None:
 
 
 def sujet_de(mid: str, sujet) -> str | None:
-    """Le sujet nettoyé ; ValueError si le modèle l'exige et qu'il manque."""
+    """Le sujet nettoyé ; ValueError (Refus, t192) si le modèle l'exige et qu'il manque."""
     s = str(sujet or "").strip()[:200] or None
     if REGISTRE.get(str(mid or ""), {}).get("prompt") and not s:
-        raise ValueError(f"{REGISTRE[mid]['label']} : {DEMANDE_SUJET}")
+        from app.i18n import Nom
+        raise Refus("ia.detour.sujet_manquant", modele=Nom(mid, REGISTRE[mid]['label']))
     return s
 
 
@@ -181,8 +182,7 @@ def _local_rembg(src: Path) -> bytes:
     try:
         from rembg import remove as _remove
     except ImportError:
-        raise ValueError("rembg n'est pas installé dans ce runtime — choisissez un autre modèle, "
-                         "ou installez-le : pip install rembg")
+        raise Refus("ia.detour.rembg_absent")
     return _remove(src.read_bytes())
 
 
@@ -193,8 +193,7 @@ def _local_chroma(src: Path, dest: Path) -> None:
     with Image.open(src) as im:
         out, ok = chroma_key(im, 28)
     if not ok:
-        raise ValueError("Fond uni / chroma : le pourtour de l'image n'est pas assez uni pour être retiré "
-                         "— choisissez un détourage par IA")
+        raise Refus("ia.detour.chroma_pas_uni")
     out.save(dest, format="PNG")
 
 

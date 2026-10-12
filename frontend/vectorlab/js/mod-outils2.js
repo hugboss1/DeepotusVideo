@@ -333,7 +333,7 @@ export function initOutils2(VL) {
     const noms = etat.histo.instantanes ? etat.histo.instantanes() : [];
     hI.innerHTML = `<div class="ap-ligne"><input type="text" id="insNom" placeholder="${T("vectorlab.outils2.inst_nom")}" style="flex:1"/>
         <button id="insPrendre" title="${T("vectorlab.outils2.inst_prendre_aide")}">${T("vectorlab.outils2.inst_prendre")}</button></div>
-      ${noms.map((n) => `<div class="ap-ligne inst-ligne"><span class="nom" title="${n}">${n}</span><button data-ins="${n}" title="${T("vectorlab.outils2.inst_restaurer_aide")}">${T("vectorlab.outils2.inst_restaurer")}</button></div>`).join("")}
+      ${noms.map((n) => `<div class="ap-ligne inst-ligne"><span class="nom" data-dz-brut="1" title="${n}">${n}</span><button data-ins="${n}" title="${T("vectorlab.outils2.inst_restaurer_aide")}">${T("vectorlab.outils2.inst_restaurer")}</button></div>`).join("")}
       <p class="carte-attribution">${T("vectorlab.outils2.historique_pas", { n: etat.histo._avant.length })}</p>`;
     $("#insPrendre").addEventListener("click", () => {
       const nom = $("#insNom").value.trim() || T("vectorlab.outils2.etat_n", { n: noms.length + 1 });

@@ -15,7 +15,7 @@ const esc = (s) => String(s == null ? "" : s)
 export function plancheLigne(p, unites) {
   const u = (v) => Math.round(versUnite(v, unites) * 10) / 10;
   return `<div class="planche-ligne" data-planche="${esc(p.id)}">`
-    + `<span class="nom" title="${esc(p.nom)}">${esc(p.nom)}</span>`
+    + `<span class="nom" data-dz-brut="1" title="${esc(p.nom)}">${esc(p.nom)}</span>`
     + `<small>${u(p.w)} × ${u(p.h)} ${esc(suffixe(unites.affichage))}</small>`
     + `<button data-pl-zoom="${esc(p.id)}" title="${T("vectorlab.planches.cadrer")}" aria-label="${T("vectorlab.planches.cadrer")}">${dzi("dz-action-ajuster-vue", 16)}</button>`
     + `<button data-pl-png="${esc(p.id)}" title="${T("vectorlab.planches.png")}">2×</button>`

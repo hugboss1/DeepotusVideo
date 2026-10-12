@@ -289,7 +289,7 @@
     b.className = "dzia-barre";
     var g = D.createElement("span");
     g.className = "dzia-badge";
-    g.setAttribute("title", "Champ de génération IA");
+    g.setAttribute("title", TP("ia.pastille.badge", "Champ de génération IA"));
     g.textContent = "IA";
     g.addEventListener("mousedown", function (ev) { ev.preventDefault(); try { el.focus(); } catch (e) {} });
     var m = D.createElement("span");
@@ -626,7 +626,30 @@
      la liste avec le `title` « clé FAL_KEY absente » (ou OPENAI_API_KEY,
      GEMINI_API_KEY). E-12 : tout bouton a un title ; on grise, on n'échange
      jamais deux boutons (la pastille est UN nœud dont on change l'état). */
-  var CLE_ABSENTE = function (cle) { return "clé " + cle + " absente"; };
+  /* t192 (G10) : les textes de la pastille dans la langue de l'interface (clés ia.pastille.* de commun.json) ;
+     sans dictionnaire (banc sous node, page sans dz-i18n) : le français d'avant, à l'identique */
+  function TP(k, fr, v) {
+    var t = W.dzT ? W.dzT(k, v) : "";
+    if (!t || t === k) {
+      t = fr;
+      for (var x in (v || {})) t = t.split("{" + x + "}").join(v[x]);
+    }
+    return t;
+  }
+  /* les raisons et noms fixes posés par les adaptateurs (MODELES, fige) restent leur français — la clé se cherche
+     au moment d'afficher */
+  var PASTILLE_CLES = {
+    "le modèle de bruitage se choisit à côté du champ": "ia.pastille.pq_sfx",
+    "le modèle d'image global : Library, Chapitres, Réglages": "ia.pastille.pq_image_globale",
+    "le moteur 3D se choisit dans la vue": "ia.pastille.pq_3d",
+    "le Spritelab anime avec le modèle vidéo par défaut du serveur": "ia.pastille.pq_spritelab",
+    "HeyGen (photo animée)": "ia.pastille.fixe_heygen_photo",
+    "moteur de langage des Réglages": "ia.pastille.fixe_llm",
+    "sélecteur de la vue désactivé": "ia.pastille.fg_desactive",
+    "sélecteur de la vue vide": "ia.pastille.fg_vide"
+  };
+  function TPx(fr) { return PASTILLE_CLES[fr] ? TP(PASTILLE_CLES[fr], fr) : fr; }
+  var CLE_ABSENTE = function (cle) { return TP("ia.cle.absente", "clé {cle} absente", { cle: cle }); };
   /* t182 (décision de l'utilisateur, 11/10/2026) : un modèle d'image reste
      TOUJOURS choisissable, même sans sa clé (OpenAI comme fal) — la liste le
      montre avec son prix et la mention « clé X à ajouter dans Réglages » ; le
@@ -907,6 +930,7 @@
       || /aucun modèle/.test(String(s.textContent || ""));
   }
   var DA = "le générateur se choisit dans 🎨 DA";
+  PASTILLE_CLES[DA] = "ia.pastille.pq_da";        // t192 : sa clé (le texte n'est écrit qu'une fois)
   var MODELES = {
     "quick-prompt": A_re("video", "[data-dzvmsel] [data-dzselect]", { secours: function () { return lsGet("dz_video_model") || videoDefaut(); } }),
     "quick-script": A_fixe("HeyGen (avatar)"),
@@ -970,7 +994,7 @@
     b.setAttribute("data-dzia-modele", regle.id);
     b.setAttribute("aria-haspopup", "listbox");
     b.setAttribute("aria-expanded", "false");
-    b.setAttribute("title", "Modèle de génération");
+    b.setAttribute("title", TP("ia.pastille.titre", "Modèle de génération"));
     var t = D.createElement("span");
     t.className = "dzia-mtxt";
     t.textContent = "…";
@@ -1000,12 +1024,12 @@
     if (!b || !m) return;
     var label, titre, fige = true, id = null, mini = el.offsetWidth > 0 && el.offsetWidth < 200;
     if (m.fixe) {
-      label = m.fixe;
-      titre = "Modèle : " + m.fixe + " — choisi par la vue (pas de choix de modèle ici)";
+      label = TPx(m.fixe);
+      titre = TP("ia.pastille.fixe", "Modèle : {modele} — choisi par la vue (pas de choix de modèle ici)", { modele: label });
     } else if (m.texte) {
       var tx = m.texte(el);
       label = tx ? tx.split(" — ")[0] : "—";
-      titre = "Modèle : " + (tx || "—") + " — choisi par la vue (" + m.pourquoi + ")";
+      titre = TP("ia.pastille.lecture", "Modèle : {modele} — choisi par la vue ({pourquoi})", { modele: tx || "—", pourquoi: TPx(m.pourquoi) });
     } else {
       id = m.lire(el);
       var mod = id != null && m.liste ? modeleDe(m.liste, id) : null;
@@ -1013,27 +1037,26 @@
       label = mod ? mod.label : (id || "—");
       var prix = mod && mod.prix ? " · " + mod.prix : "";
       if (!m.ecrire) {
-        titre = "Modèle : " + label + prix + " — choisi par la vue (" + m.pourquoi + ")";
+        titre = TP("ia.pastille.lecture", "Modèle : {modele} — choisi par la vue ({pourquoi})", { modele: label + prix, pourquoi: TPx(m.pourquoi) });
       } else {
         var l = modelesDe(el, m), dispo = l.filter(choisissable);
         var fg = m.fige ? m.fige(el) : "";
         if (fg) {
-          if (!mod || id === "—") label = "aucun modèle";
-          titre = "Modèle : " + label + " — choisi par la vue (" + fg + " : aucun modèle à choisir ici)";
+          if (!mod || id === "—") label = TP("ia.pastille.aucun", "aucun modèle");
+          titre = TP("ia.pastille.fige", "Modèle : {modele} — choisi par la vue ({raison} : aucun modèle à choisir ici)", { modele: label, raison: TPx(fg) });
         } else if (m.liste && donnees[m.liste] && !dispo.length) {
           var cm = clesManquantes(l);
-          label = "aucun modèle";
-          titre = "Aucun modèle disponible" + (cm.length ? " — " + cm.map(function (c) {   // t183 : un modèle choisissable sans sa clé dit « à ajouter dans Réglages »
+          label = TP("ia.pastille.aucun", "aucun modèle");
+          titre = TP("ia.pastille.aucun_dispo", "Aucun modèle disponible") + (cm.length ? " — " + cm.map(function (c) {   // t183 : un modèle choisissable sans sa clé dit « à ajouter dans Réglages »
               return (l.some(function (x) { return x.sansCle && x.cle === c; }) ? CLE_A_AJOUTER : CLE_ABSENTE)(c);
             }).join(", ") : "")
-            + (l.some(function (x) { return x.horsVue; }) ? " — le sélecteur de la vue n'en propose aucun" : "");
+            + (l.some(function (x) { return x.horsVue; }) ? " — " + TP("ia.pastille.vue_sans_aucun", "le sélecteur de la vue n'en propose aucun") : "");
         } else if (!m.trouver(el)) {
-          titre = "Modèle : " + label + prix + " — choisi par la vue (sélecteur de la vue introuvable ici)";
+          titre = TP("ia.pastille.sans_selecteur", "Modèle : {modele} — choisi par la vue (sélecteur de la vue introuvable ici)", { modele: label + prix });
         } else {
           fige = false;
-          titre = "Modèle : " + label + prix
-            + (mod && !mod.dispo && mod.cle ? " (" + (mod.sansCle ? CLE_A_AJOUTER : CLE_ABSENTE)(mod.cle) + ")" : "")
-            + " — cliquer pour changer (écrit dans le sélecteur de la vue)";
+          titre = TP("ia.pastille.choisir", "Modèle : {modele} — cliquer pour changer (écrit dans le sélecteur de la vue)", { modele: label + prix
+            + (mod && !mod.dispo && mod.cle ? " (" + (mod.sansCle ? CLE_A_AJOUTER : CLE_ABSENTE)(mod.cle) + ")" : "") });
         }
       }
     }
@@ -1065,7 +1088,7 @@
     var L = D.createElement("div");
     L.className = "dzia-liste";
     L.setAttribute("role", "listbox");
-    L.setAttribute("aria-label", "Modèles");
+    L.setAttribute("aria-label", TP("ia.pastille.modeles", "Modèles"));
     var opts = [], actif = -1, voieCour = null;
     /* t183 (G1) : un en-tête par voie (« via la clé fal », « avec votre clé
        OpenAI »…) dès que la liste en mêle plusieurs ; l'en-tête n'est pas une
@@ -1105,8 +1128,8 @@
          clé le dit avec la même mention que partout (« clé X à ajouter dans
          Réglages »), jamais « absente » */
       var off = x.horsVue ? (x.dispo || !x.cle ? "" : (x.sansCle ? CLE_A_AJOUTER : CLE_ABSENTE)(x.cle) + " — ")
-          + "absent du sélecteur de la vue"
-        : (!x.dispo && !x.sansCle ? (x.cle ? CLE_ABSENTE(x.cle) : "indisponible") : "");
+          + TP("ia.pastille.hors_vue", "absent du sélecteur de la vue")
+        : (!x.dispo && !x.sansCle ? (x.cle ? CLE_ABSENTE(x.cle) : TP("ia.pastille.indisponible", "indisponible")) : "");
       var aAjouter = !off && !x.dispo && x.sansCle ? CLE_A_AJOUTER(x.cle) : "";
       if (aAjouter) {                  // choisissable : la mention sous le nom, jamais grisé
         var mc = D.createElement("span");
@@ -1120,7 +1143,7 @@
         o.setAttribute("title", off + " — " + x.label);
       } else {
         o.setAttribute("title", x.label + (x.prix ? " · " + x.prix : "") + (aAjouter ? " — " + aAjouter : "")
-          + (x.id === cour ? " — modèle actuel de la vue" : " — choisir ce modèle (écrit dans le sélecteur de la vue)"));
+          + " — " + (x.id === cour ? TP("ia.pastille.actuel", "modèle actuel de la vue") : TP("ia.pastille.choisir_ce", "choisir ce modèle (écrit dans le sélecteur de la vue)")));
       }
       o.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
       o.addEventListener("click", function (ev) {
@@ -1137,7 +1160,7 @@
     if (!l.length) {
       var v = D.createElement("div");
       v.className = "dzia-ovide";
-      v.textContent = "aucun modèle";
+      v.textContent = TP("ia.pastille.aucun", "aucun modèle");
       L.appendChild(v);
     }
     (D.body || D.documentElement).appendChild(L);

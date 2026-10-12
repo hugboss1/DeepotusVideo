@@ -47,7 +47,9 @@ def _d(*a):
 
 # Un refus « cle absente » : HTTPException(<code>, <message>) dont le message (sur la ligne ou les deux suivantes) dit
 # qu'une cle / un fournisseur n'est pas configure.
-MOTIF = re.compile(r"not configured|non configur|Aucune voix disponible\s*[—:]\s*configure la cl|Aucun LLM configur|keys not set|FIGMA_TOKEN absent")
+# t192 (G10) : le refus OPENAI_API_KEY de /images/generate passe par messages.json (ia.cle.non_configuree, fr/en) :
+MOTIF = re.compile(r"not configured|non configur|Aucune voix disponible\s*[—:]\s*configure la cl|Aucun LLM configur|keys not set|FIGMA_TOKEN absent"
+                   r"|ia\.cle\.non_configuree")
 FICHIERS = ["app/api/routes.py", "app/services/cards/forge3d.py"]
 
 

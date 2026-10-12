@@ -36,6 +36,7 @@ import httpx
 from loguru import logger
 
 from app.config import settings, SSL_VERIFY
+from app.i18n import Message   # t192 : refus et notes traduisibles (texte = le français)
 
 DEFAULT_MUSIC_MODEL = "lyria3"
 
@@ -212,6 +213,15 @@ _MAX_PROMPT = 2000
 _MAX_LYRICS = 3500
 
 
+def _nom(model: dict, mid: str | None = None):
+    """t192 : le nom d'un modèle dans un message (libellé en français, ia.nom.<id> en anglais). L'id est passé quand
+    l'appelant le connaît (pricing) ; sinon retrouvé par le LIBELLÉ (clé stable : unique dans MUSIC_MODELS)."""
+    from app.i18n import Nom
+    if mid is None:
+        mid = next((k for k, v in MUSIC_MODELS.items() if v.get("label") == model.get("label")), "")
+    return Nom(mid, model["label"])
+
+
 class MusicError(Exception):
     """Erreur à traduire en HTTPException(status, message) par la route."""
 
@@ -259,8 +269,7 @@ def build_prompt(prompt: str, mood: str = "") -> str:
         bits.append(p)
     out = ", ".join(bits)
     if not out:
-        raise MusicError(400, "Décris la musique voulue, ou choisis une "
-                              "ambiance.")
+        raise MusicError(400, Message("musique.decrire"))
     return out[:_MAX_PROMPT]
 
 
@@ -357,8 +366,7 @@ def _duree(model: dict, dur) -> int:
     except (TypeError, ValueError):
         raise MusicError(400, f"duration_s invalide ({lo}-{hi} s).")
     if not lo <= d <= hi:
-        raise MusicError(400, f"duration_s doit être entre {lo} et {hi} s "
-                              f"pour {model['label']}.")
+        raise MusicError(400, Message("musique.duree_bornes", lo=lo, hi=hi, modele=_nom(model)))
     return d
 
 
@@ -373,20 +381,17 @@ def _payload_champs(model: dict, prompt: str, body: dict) -> tuple[dict, list[st
         d = _duree(model, dur)
         args[ch["duree"]] = d * 1000 if ch.get("duree_ms") else d
     elif dur not in (None, "", 0):
-        notes.append(f"{model['label']} impose sa durée — la durée demandée "
-                     f"a été ignorée.")
+        notes.append(Message("musique.note.duree_imposee", modele=_nom(model)))
     lyrics = str(body.get("lyrics") or "").strip()
     chante = len(_TAG_RX.sub("", lyrics).strip())
     if ch.get("paroles"):
         if model.get("lyrics_required") and chante < 10:
-            raise MusicError(400, f"{model['label']} exige des paroles "
-                                  f"(10 caractères au moins, balises non comptées).")
+            raise MusicError(400, Message("musique.paroles_exigees_10", modele=_nom(model)))
         if chante:
             args[ch["paroles"]] = normalize_lyrics(
                 lyrics, model.get("lyrics_style"))[:model.get("lyrics_max", _MAX_LYRICS)]
     elif lyrics:
-        notes.append(f"{model['label']} ne prend pas de paroles — le texte "
-                     f"saisi a été ignoré.")
+        notes.append(Message("musique.note.sans_paroles", modele=_nom(model)))
     if ch.get("instrumental") and model.get("instrumental"):
         args[ch["instrumental"]] = bool(body.get("instrumental", True))
     neg = str(body.get("negative_prompt") or "").strip()
@@ -399,8 +404,7 @@ def _payload_champs(model: dict, prompt: str, body: dict) -> tuple[dict, list[st
         except (TypeError, ValueError):
             raise MusicError(400, "seed doit être un entier.")
     elif seed not in (None, "") and not ch.get("seed"):
-        notes.append(f"{model['label']} n'accepte pas de graine — le résultat "
-                     f"n'est pas reproductible.")
+        notes.append(Message("musique.note.sans_graine", modele=_nom(model)))
     return args, notes
 
 
@@ -427,16 +431,13 @@ def _payload(model: dict, prompt: str, body: dict) -> tuple[dict, list[str]]:
         except (TypeError, ValueError):
             raise MusicError(400, f"duration_s invalide ({lo}-{hi} s).")
         if not lo <= d <= hi:
-            raise MusicError(400, f"duration_s doit être entre {lo} et {hi} s "
-                                  f"pour {model['label']}.")
+            raise MusicError(400, Message("musique.duree_bornes", lo=lo, hi=hi, modele=_nom(model)))
         args["seconds_total" if "stable-audio" in model["endpoint"]
              else "duration"] = d
     elif dur not in (None, "", 0):
         fixed = model["fixed_duration"]
-        notes.append(
-            f"{model['label']} impose sa durée"
-            + (f" ({fixed:g} s)" if fixed else "")
-            + " — la durée demandée a été ignorée.")
+        notes.append(Message("musique.note.duree_imposee_s", modele=_nom(model), s=f"{fixed:g}") if fixed
+                     else Message("musique.note.duree_imposee", modele=_nom(model)))
 
     lyrics = str(body.get("lyrics") or "").strip()
     instrumental = bool(body.get("instrumental", True))
@@ -459,8 +460,7 @@ def _payload(model: dict, prompt: str, body: dict) -> tuple[dict, list[str]]:
         # d'écran : l'éditeur sérialise ses sections, et une section vide
         # passait la borne de fal à elle seule).
         if len(_TAG_RX.sub("", lyrics).strip()) < 10:
-            raise MusicError(400, f"{model['label']} exige des paroles "
-                                  f"(10 à 3000 caractères).")
+            raise MusicError(400, Message("musique.paroles_exigees_3000", modele=_nom(model)))
         args["prompt"] = prompt[:model.get("prompt_max", _MAX_PROMPT)]
         args["lyrics_prompt"] = normalize_lyrics(lyrics, "minimax")[:3000]
     elif model["lyrics"]:
@@ -474,8 +474,7 @@ def _payload(model: dict, prompt: str, body: dict) -> tuple[dict, list[str]]:
             args["is_instrumental"] = False
             args["lyrics_optimizer"] = True
     elif lyrics:
-        notes.append(f"{model['label']} ne prend pas de paroles — le texte "
-                     f"saisi a été ignoré.")
+        notes.append(Message("musique.note.sans_paroles", modele=_nom(model)))
 
     seed = body.get("seed")
     if model["seed"] and seed not in (None, ""):
@@ -484,8 +483,7 @@ def _payload(model: dict, prompt: str, body: dict) -> tuple[dict, list[str]]:
         except (TypeError, ValueError):
             raise MusicError(400, "seed doit être un entier.")
     elif seed not in (None, "") and not model["seed"]:
-        notes.append(f"{model['label']} n'accepte pas de graine — le résultat "
-                     f"n'est pas reproductible.")
+        notes.append(Message("musique.note.sans_graine", modele=_nom(model)))
     return args, notes
 
 
