@@ -198,6 +198,33 @@ async def main():
                                     "palette": "vga"})
         assert r.status_code == 400, r.text
 
+        # confinement : un filename qui n'est pas un nom NU de la Library est refusé en 400 nommé,
+        # AVANT le plafond (aucune ligne `depenses`) et avant fal — alors que le fichier visé EXISTE dehors
+        dehors = pathlib.Path(_settings.images_path).parent / "dehors.png"
+        _PILImage.new("RGB", (64, 64), (1, 2, 3)).save(dehors, "PNG")
+        from sqlalchemy import func, select
+        from app.services.storage import Depense, async_session_factory
+
+        async def _nb_depenses():
+            async with async_session_factory() as s:
+                conn = await s.connection()
+                await conn.run_sync(lambda sc: Depense.__table__.create(sc, checkfirst=True))
+                return (await s.execute(select(func.count()).select_from(Depense))).scalar()
+
+        avant_dep, avant_fal = await _nb_depenses(), len(FAL_CALLS)
+        for mauvais in ("../dehors.png", r"..\dehors.png", str(dehors), dehors.as_posix(),
+                        "sous/../../dehors.png"):
+            for op in ({"op": "upscale", "mode": "ai", "scale": 2}, {"op": "crop", "ratio": "1:1"}):
+                r = await client.post("/api/images/process", json={**op, "filename": mauvais})
+                assert r.status_code == 400, (mauvais, op, r.status_code, r.text)
+                assert "filename refusé" in r.json()["detail"], (mauvais, r.text)
+        assert len(FAL_CALLS) == avant_fal, FAL_CALLS[avant_fal:]
+        assert await _nb_depenses() == avant_dep, "une ligne depenses posée pour un filename refusé"
+        # témoin positif : le nom nu de la Library passe toujours
+        r = await client.post("/api/images/process",
+                              json={"op": "crop", "filename": SRC, "ratio": "1:1"})
+        assert r.status_code == 200, r.text
+
         # /image-models expose nano-banana quand FAL_KEY est là
         r = await client.get("/api/image-models")
         ids = [m["id"] for m in r.json()["models"]]
@@ -205,6 +232,6 @@ async def main():
 
     print("OK — images/process: crop, upscale (simple/ai), remove-bg "
           "(api/local-400), edit gpt, variations kontext, pixel 9b, "
-          "tile-preview 9b, erreurs, nano-banana liste")
+          "tile-preview 9b, erreurs, confinement du filename, nano-banana liste")
 
 asyncio.run(main())
