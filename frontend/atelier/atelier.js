@@ -823,12 +823,15 @@ function renderBoard() {
         <button class="btn primary act-sketch" title="${dzT("atelier.at2_sb.gen_croquis_t")}" aria-label="${dzT("atelier.at2_sb.gen_croquis")}">${ico("dz-media-generer-image")}</button>
         <button class="btn act-resketch" title="${dzT("atelier.at2_sb.nouveau_croquis")}" aria-label="${dzT("atelier.at2_sb.nouveau_croquis")}">${ico("dz-action-aleatoire")}</button>
         <button class="btn ghost act-prod" title="${dzT("atelier.at2_sb.prod_t")}" aria-label="${dzT("atelier.at2_sb.prod")}">${ico("dz-media-generer-image")}</button>
+        <button class="btn ghost act-objets3d" title="${dzT("atelier.at2_obj3d.bouton_t")}" aria-label="${dzT("atelier.plan.reconstruire3d")}">${ico("dz-lab3d-generer-modele")}</button>
+        <button class="btn ghost act-video" title="${dzT("atelier.at2_video.bouton_t")}" aria-label="${dzT("atelier.plan.video")}">${ico("dz-media-generer-video")}</button>
         <button class="btn ghost act-plateau" title="${dzT("atelier.at2_sb.plateau_t")}" aria-label="${dzT("atelier.at2_sb.plateau")}">${ico("dz-nav-plateau")}</button>
       </div>
       ${s.image ? `<div class="shot-prod"><img src="/api/images/${encodeURIComponent(s.image)}" alt="${dzT("atelier.at2_sb.prod_alt")}"
         title="${dzT("atelier.at2_sb.prod_refs", { n: s.image_refs || 0 })}"><span>${ico("dz-media-image")} ${s.image_refs || 0} ${dzT("atelier.at2_sb.ref_abr")}</span>
         <button class="btn ghost act-derive" title="${dzT("atelier.at2_sb.derive_t")}" aria-label="${dzT("atelier.at2_sb.derive")}">${ico("dz-action-mesurer")}</button></div>
         <div class="shot-derive"></div>` : ""}
+    ${vignetteVideo(s)}
     </div>
     <div class="shot-main">
       <div class="rowhead">
@@ -893,6 +896,10 @@ function renderBoard() {
     });
     card.querySelector(".act-sketch").addEventListener("click", () => sketchShot(id, sh().sketch_seed));
     card.querySelector(".act-prod").addEventListener("click", () => imageProduction(id));
+    // t189 : le storyboard 3D (SAM 3 → Plateau) et la vidéo du plan ; la vignette suit le job de la vidéo
+    card.querySelector(".act-objets3d").addEventListener("click", () => objets3dPlan(id));
+    card.querySelector(".act-video").addEventListener("click", () => videoPlan(id));
+    suivreVideo(card, sh());
     // t127 : le Plateau 3D du plan (la scène du plan est retrouvée, ou créée, par la page ; « ← Atelier » y ramène)
     card.querySelector(".act-plateau").addEventListener("click", () => { location.href = "/plateau/?shot=" + encodeURIComponent(id); });
     card.querySelector(".act-derive")?.addEventListener("click", () => deriveProduction(id, card));
@@ -973,6 +980,241 @@ async function imageProduction(id) {
     renderBoard();
     toast(dzT("atelier.at2_prod.fait", { i: s.idx + 1, n: up.image_refs }));
   } catch (e) { toast(dzT("atelier.at2_prod.err", { msg: e.message }), true); }
+}
+
+/* ═════════ t189 (G7) — le storyboard 3D d'un plan et sa VIDÉO ═════════
+   Deux tirs payants, chacun derrière le dialogue maison dialoguePlanIA (modèle par DzModelesIA — les modèles sans clé
+   restent choisissables, le serveur refuse en 503 avant toute dépense —, prix affiché, confirmation) ; au-delà d'un
+   plafond mensuel, dz-plafonds.js montre le dialogue 402 et rejoue sur confirmation. */
+const MODELE_VIDEO_FIN = "veo-3.1-fast-fal";   // le défaut d'un plan AVEC borne de fin (comme la route)
+
+/* les objets préremplis : les entités du plan qui ont un corps — personnages d'abord, puis objets, puis décors */
+function objetsDuPlan(s, ents) {
+  const ordre = { character: 0, object: 1, decor: 2 };
+  return (s.entities || []).map(eid => (ents || []).find(e => e.id === eid))
+    .filter(e => e && e.kind in ordre)
+    .sort((a, b) => ordre[a.kind] - ordre[b.kind])
+    .map(e => e.name).join(", ");
+}
+
+/* la nature du catalogue pour la vidéo du plan : une borne de fin ⇒ modèles first-last seulement */
+function natureVideoPlan(s) {
+  return s && s.keyframe_end ? "video_fl" : "video_i2v";
+}
+
+/* l'image de départ de la vidéo, dans l'ordre de la route : borne du Plateau, image de production, croquis */
+function debutVideoPlan(s) {
+  if (s.keyframe_image) return { cle: "atelier.at2_video.src_plateau", fichier: s.keyframe_image };
+  if (s.image) return { cle: "atelier.at2_video.src_prod", fichier: s.image };
+  if (s.sketch_image) return { cle: "atelier.at2_video.src_croquis", fichier: s.sketch_image };
+  return null;
+}
+
+function prixDzp(usd, unite) {
+  const DM = window.DzModelesIA;
+  if (DM) return DM.prix(usd, unite);
+  const v = Number(usd);
+  return v > 0 ? "$" + v.toFixed(3) : dzT("atelier.at2_dzp.a_mesurer");
+}
+
+/* le dialogue maison d'un tir payant d'un plan : {modele, texte, entree} ou null (annulé) */
+function dialoguePlanIA(o) {
+  return new Promise((resoudre) => {
+    const el = (tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt != null) x.textContent = txt; return x; };
+    const voile = el("div", "modal dzp-modal");
+    voile.setAttribute("role", "dialog");
+    voile.setAttribute("aria-modal", "true");
+    const boite = el("div", "modal-box dzp-box");
+    const tete = el("div", "modal-head");
+    tete.appendChild(el("b", "", o.titre));
+    const corps = el("div", "dzp-body");
+    const ligne = (lbl, champ) => { const l = el("label", "dzp-l"); l.appendChild(el("span", "", lbl)); l.appendChild(champ); corps.appendChild(l); };
+    let champ = null;
+    if (o.champ) {
+      champ = el("input", "dzp-champ");
+      champ.type = "text";
+      champ.value = o.champ.valeur || "";
+      champ.placeholder = o.champ.placeholder || "";
+      ligne(o.champ.label, champ);
+    }
+    const sel = el("select", "dzp-modele");
+    ligne(dzT("atelier.at2_dzp.modele"), sel);
+    const aide = el("div", "da-note dzp-aide");
+    corps.appendChild(aide);
+    (o.images || []).forEach(im => {
+      const r = el("div", "dzp-img");
+      if (im.fichier) {
+        const img = el("img");
+        img.src = "/api/images/" + encodeURIComponent(im.fichier);
+        img.alt = "";
+        r.appendChild(img);
+      }
+      r.appendChild(el("span", "", im.label));
+      corps.appendChild(r);
+    });
+    const prix = el("div", "dzp-prix");
+    const err = el("div", "dzp-err");
+    corps.appendChild(prix);
+    corps.appendChild(err);
+    const pied = el("div", "dzp-pied");
+    const annuler = el("button", "btn ghost", dzT("atelier.at2_dzp.annuler"));
+    const ok = el("button", "btn primary", o.ok);
+    annuler.type = ok.type = "button";
+    pied.appendChild(annuler);
+    pied.appendChild(ok);
+    boite.appendChild(tete);
+    boite.appendChild(corps);
+    boite.appendChild(pied);
+    voile.appendChild(boite);
+    let mods = [];
+    const courant = () => mods.find(m => m.id === sel.value) || null;
+    const maj = () => {
+      const m = courant();
+      prix.textContent = o.prixDe ? o.prixDe(m) : "";
+      aide.textContent = o.aideDe ? o.aideDe(m) : "";
+      err.textContent = "";
+    };
+    let touche = null;
+    const fin = (v) => { document.removeEventListener("keydown", touche, true); voile.remove(); resoudre(v); };
+    const valider = () => {
+      if (!sel.value) { err.textContent = dzT("atelier.at2_dzp.choisir"); return; }
+      const m = courant();
+      const choix = { modele: sel.value, texte: champ ? champ.value.trim() : "", entree: m };
+      const ko = o.verifier ? o.verifier(choix, m) : null;
+      if (ko) { err.textContent = ko; return; }
+      fin(choix);
+    };
+    touche = (ev) => {
+      if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); fin(null); }
+      else if (ev.key === "Enter" && ev.target !== sel) { ev.preventDefault(); ev.stopPropagation(); valider(); }
+    };
+    ok.addEventListener("click", valider);
+    annuler.addEventListener("click", () => fin(null));
+    voile.addEventListener("click", (ev) => { if (ev.target === voile) fin(null); });
+    sel.addEventListener("change", maj);
+    document.addEventListener("keydown", touche, true);
+    document.body.appendChild(voile);
+    (champ || ok).focus();
+    const remplir = (l) => {
+      mods = l || [];
+      if (!o.valeur) { const d = mods.find(m => m.defaut); if (d) sel.value = d.id; }
+      maj();
+    };
+    if (window.DzModelesIA) {
+      window.DzModelesIA.select(sel, o.nature, { valeur: o.valeur }).then(remplir)
+        .catch(e => { err.textContent = dzT("atelier.at2_dzp.catalogue_ko", { msg: e.message }); });
+    } else {
+      api.get("/ia/catalogue?nature=" + encodeURIComponent(o.nature)).then(d => {
+        const l = (d && d.modeles) || [];
+        sel.innerHTML = l.map(m => `<option value="${escA(m.id)}">${esc(m.label || m.id)}${m.dispo === false && m.cle
+          ? " — " + esc(dzT("atelier.t183_da.cle_a_ajouter", { cle: m.cle })) : ""}</option>`).join("");
+        if (o.valeur && l.some(m => m.id === o.valeur)) sel.value = o.valeur;
+        remplir(l);
+      }).catch(e => { err.textContent = dzT("atelier.at2_dzp.catalogue_ko", { msg: e.message }); });
+    }
+  });
+}
+
+/* « Reconstruire en 3D (SAM 3) » : les objets de l'image du plan → GLB posés dans la scène de son Plateau */
+async function objets3dPlan(id) {
+  const s = shots.find(x => x.id === id);
+  if (!s) return;
+  const source = s.image || s.sketch_image;
+  if (!source) { toast(dzT("atelier.at2_obj3d.sans_image"), true); return; }
+  const choix = await dialoguePlanIA({
+    titre: dzT("atelier.at2_obj3d.titre", { i: s.idx + 1 }),
+    nature: "objets3d",
+    champ: { label: dzT("atelier.plan.objets"), valeur: objetsDuPlan(s, entities), placeholder: dzT("atelier.at2_obj3d.objets_ph") },
+    images: [{ label: s.image ? dzT("atelier.at2_obj3d.src_prod") : dzT("atelier.at2_obj3d.src_croquis"), fichier: source }],
+    prixDe: (m) => m ? dzT("atelier.at2_obj3d.prix", { prix: prixDzp(m.usd, m.unite) })
+      + (m.unite_a_confirmer ? " " + dzT("atelier.at2_obj3d.unite_a_confirmer") : "") : "",
+    aideDe: (m) => m && m.corps ? dzT("atelier.at2_obj3d.corps_facultatif") : dzT("atelier.at2_obj3d.objets_aide"),
+    verifier: (c, m) => (!(m && m.corps) && !c.texte ? dzT("atelier.at2_obj3d.objets_requis") : null),
+    ok: dzT("atelier.at2_obj3d.reconstruire"),
+  });
+  if (!choix) return;
+  toast(dzT("atelier.at2_obj3d.en_cours", { i: s.idx + 1 }));
+  try {
+    const corps = { modele: choix.modele };
+    if (choix.texte) corps.prompt = choix.texte;
+    const r = await api.send("POST", `/shots/${encodeURIComponent(id)}/objets3d`, corps);
+    toast(dzT("atelier.plan.objets_poses", { n: r.n }));
+    if (await window.__dzDialogue.confirmer(dzT("atelier.plan.objets_poses", { n: r.n }),
+        { titre: dzT("atelier.plan.reconstruire3d"), ok: dzT("atelier.at2_obj3d.ouvrir_plateau"), annuler: dzT("atelier.at2_obj3d.rester") }))
+      location.href = "/plateau/?shot=" + encodeURIComponent(s.id);   // le Plateau du plan, comme act-plateau
+  } catch (e) { toast(dzT("atelier.at2_obj3d.err", { msg: e.message }), true); }
+}
+
+/* « Générer le plan (vidéo) » : début = borne du Plateau / image de production / croquis ; fin = borne de fin */
+async function videoPlan(id) {
+  const s = shots.find(x => x.id === id);
+  if (!s) return;
+  const debut = debutVideoPlan(s);
+  if (!debut) { toast(dzT("atelier.at2_video.sans_debut"), true); return; }
+  const nature = natureVideoPlan(s);
+  let defaut = MODELE_VIDEO_FIN;
+  if (nature === "video_i2v") {
+    try { defaut = (await api.get("/video-models")).default || ""; } catch (e) { defaut = ""; }
+  }
+  const duree = Number(s.duration_s) || 4;
+  const choix = await dialoguePlanIA({
+    titre: dzT("atelier.at2_video.titre", { i: s.idx + 1 }),
+    nature,
+    valeur: defaut,
+    images: [{ label: dzT("atelier.at2_video.debut", { source: dzT(debut.cle) }), fichier: debut.fichier },
+             s.keyframe_end ? { label: dzT("atelier.plan.video_fin"), fichier: s.keyframe_end }
+                            : { label: dzT("atelier.at2_video.fin_aucune") }],
+    prixDe: (m) => {
+      const u = m ? Number(m.usd) : 0;
+      return u > 0 ? dzT("atelier.at2_video.prix", { taux: prixDzp(u, "s"), s: duree, total: prixDzp(u * duree) })
+                   : prixDzp(0);
+    },
+    aideDe: () => (nature === "video_fl" ? dzT("atelier.at2_video.aide_fl") : dzT("atelier.at2_video.aide_i2v")),
+    ok: dzT("atelier.at2_video.generer"),
+  });
+  if (!choix) return;
+  toast(dzT("atelier.at2_video.en_cours", { i: s.idx + 1 }));
+  try {
+    const up = await api.send("POST", `/shots/${encodeURIComponent(id)}/video`, { video_model: choix.modele });
+    Object.assign(s, up);
+    renderBoard();
+    toast(dzT("atelier.at2_video.lancee", { i: s.idx + 1, total: prixDzp(up.usd) }));
+  } catch (e) { toast(dzT("atelier.at2_video.err", { msg: e.message }), true); }
+}
+
+/* la vignette vidéo d'une carte : l'état du job, puis le lecteur muet ; un seul suivi par plan */
+function vignetteVideo(s) {
+  return s.video ? `<div class="shot-video" data-job="${escA(s.video)}"><span class="shot-video-etat">${dzT("atelier.at2_video.attente")}</span></div>` : "";
+}
+
+const suivisVideo = new Map();
+function suivreVideo(card, s) {
+  const box = card.querySelector(".shot-video");
+  if (!box || !s || !s.video) return;
+  const job = s.video, cle = s.id;
+  clearTimeout(suivisVideo.get(cle));
+  const etat = (t, err) => {
+    box.innerHTML = `<span class="shot-video-etat${err ? " err" : ""}">${esc(t)}</span>`;
+  };
+  const tour = async () => {
+    suivisVideo.delete(cle);
+    if (!box.isConnected) return;                     // la carte a disparu : le suivi s'arrête
+    let j = null;
+    try {
+      const r = await fetch("/api/jobs/" + encodeURIComponent(job));
+      if (r.status === 404) { if (box.isConnected) etat(dzT("atelier.at2_video.introuvable"), true); return; }
+      if (r.ok) j = await r.json();
+    } catch (e) { /* réseau : on réessaie au tour suivant */ }
+    if (!box.isConnected) return;
+    if (j && j.status === "done") {
+      box.innerHTML = `<video class="shot-video-lecteur" src="/api/jobs/${encodeURIComponent(job)}/video" muted controls playsinline preload="metadata" aria-label="${escA(dzT("atelier.plan.video"))}"></video>`;
+      return;
+    }
+    if (j && j.status === "failed") { etat(dzT("atelier.at2_video.echec", { msg: j.error || "?" }), true); return; }
+    if (j) etat(dzT("atelier.at2_video.progres", { pct: Math.round(Number(j.progress) || 0) }));
+    suivisVideo.set(cle, setTimeout(tour, 4000));
+  };
+  tour();
 }
 
 /* ═════════ tâche #62 (plan chapitres T6) — la DÉRIVE de l'image de production, en lecture ═════════
