@@ -1162,8 +1162,11 @@ def main():
     # ---------- T9 : pastille de modèle ----------
     PILOTES = {"quick-prompt", "chapitres-illus", "library-image", "son-paroles", "son-musique", "atelier-da",
                "materialforge", "cardforge-face", "cardforge-decor", "cardforge-texture", "vectorlab-ia"}
-    FIXES = {"quick-script": "HeyGen", "quick-motion": "HeyGen", "son-sfx": "ElevenLabs", "montage-sons": "ElevenLabs",
-             "vectorlab-vitrail": "Réglages"}
+    # t187 (G5) : le SFX se choisit dans la vue (registre des bruitages) — la pastille LIT ce choix (adaptateur texte)
+    FIXES = {"quick-script": "HeyGen", "quick-motion": "HeyGen", "vectorlab-vitrail": "Réglages"}
+    _sfx = {r.get("id"): (r.get("modele") or {}) for r in regles if r.get("id") in ("son-sfx", "montage-sons")}
+    check("SFX (Son & VFX, tiroir Sons) : la pastille lit le modèle choisi dans la vue (texte), plus de libellé fixe",
+          len(_sfx) == 2 and all(m.get("texte") == "function" and not m.get("fixe") for m in _sfx.values()), str(_sfx))
     sans_mod = [r.get("id") for r in regles if not r.get("modele")]
     check("chaque règle porte un adaptateur modele", bool(regles) and not sans_mod, str(sans_mod))
     mauvais = [r.get("id") for r in regles if r.get("modele") and not (

@@ -236,7 +236,7 @@ def catalog() -> dict:
              "lyrics_style": v.get("lyrics_style"),
              "lyrics_required": bool(v.get("lyrics_required")),
              # t187 : le prix AVEC paroles quand il diffère (Mureka) ; None ailleurs
-             "usd_lyrics": v.get("usd_paroles"),
+             "usd_paroles": v.get("usd_paroles"),
              # t187 : « a_mesurer » quand le prix vaut 0 (jamais « gratuit » : l'écran dit « prix à mesurer »)
              "note": "" if v["usd"] else "a_mesurer",
              # t187 : la voie et SA clé — un modèle sans clé reste LISTÉ et choisissable (décision du 11/10/2026),

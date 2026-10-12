@@ -10896,6 +10896,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "son.sfx.ajouter_nom": {"fr": "Ajouter {nom} à la Bibliothèque", "en": "Add {nom} to the Library"},
   "son.sfx.aucun_son": {"fr": "aucun son pour « {q} »", "en": "no sound for “{q}”"},
   "son.sfx.aucun_son_retourne": {"fr": "aucun son retourné", "en": "no sound returned"},
+  "son.sfx.catalogue_attente": {"fr": "Lecture du catalogue des modèles… réessayez dans un instant.", "en": "Loading the model catalog… try again in a moment."},
   "son.sfx.chargement": {"fr": "chargement du catalogue…", "en": "loading the catalog…"},
   "son.sfx.chercher": {"fr": "Chercher un bruitage", "en": "Search for a sound effect"},
   "son.sfx.chercher_ph": {"fr": "Chercher — « verre », « porte », « laser »…", "en": "Search — “glass”, “door”, “laser”…"},

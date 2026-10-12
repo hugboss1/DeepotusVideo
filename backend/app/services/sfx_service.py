@@ -62,10 +62,21 @@ def _audio_dir() -> Path:
     return p
 
 
+def _bin(nom: str) -> str:
+    """ffmpeg / ffprobe : celui du PATH, sinon celui de l'installation (%LOCALAPPDATA%\\DeepotusVideoGen\\bin),
+    comme fal_video_tools._bin et effects_preview.ffmpeg_bin."""
+    import shutil
+    exe = shutil.which(nom)
+    if exe:
+        return exe
+    cand = os.path.expandvars(r"%LOCALAPPDATA%\DeepotusVideoGen\bin" + f"\\{nom}.exe")
+    return cand if os.path.isfile(cand) else nom
+
+
 def _probe_duration(path: Path) -> float:
     try:
         out = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+            [_bin("ffprobe"), "-v", "error", "-show_entries", "format=duration",
              "-of", "csv=p=0", str(path)],
             check=False, capture_output=True, text=True, timeout=30).stdout.strip()
         return max(0.0, float(out))
@@ -278,14 +289,14 @@ DEMANDE_PROMPT = "décrivez le son voulu : ce modèle exige une description (« 
 
 
 def _m(nature, label, voie, endpoint, champs, fixe=None, prix=None, unite="son", bornes=None, defaut_s=None,
-       prompt_requis=False, prompt_max=450, video_s=None, video_ext=None):
+       prompt_requis=False, prompt_max=450, video_s=None, video_ext=None, son_seul=False):
     ch = {"prompt": None, "duree": None, "video": None, "echantillons": None, "voix": None, "influence": None,
           "boucle": None}
     ch.update(champs)
     return {"nature": nature, "label": label, "voie": voie, "endpoint": endpoint, "champs": ch,
             "fixe": dict(fixe or {}), "prix": prix, "unite": unite, "bornes": bornes, "defaut_s": defaut_s,
             "prompt_requis": bool(prompt_requis), "prompt_max": int(prompt_max),
-            "video_s": video_s, "video_ext": tuple(video_ext) if video_ext else None}
+            "video_s": video_s, "video_ext": tuple(video_ext) if video_ext else None, "son_seul": bool(son_seul)}
 
 
 # ORDRE = ordre des sélecteurs. Le défaut texte (ElevenLabs direct) en tête, son jumeau fal juste après.
@@ -312,11 +323,12 @@ SFX_MODELS: dict[str, dict] = {
                        {"audio_format": "wav"}, prix="sonilo_video_usd_per_s", unite="s"),
     "mirelo-video": _m(SFX_VIDEO, "Mirelo SFX 1.6 (vidéo sonorisée)", "fal", "mirelo-ai/sfx1.6/video-to-video",
                        {"video": "video_url", "prompt": "text_prompt", "duree": "duration",
-                        "echantillons": "num_samples"}, prix="mirelo_video_usd", bornes=(1.0, 60.0)),
+                        "echantillons": "num_samples"}, prix="mirelo_video_usd", bornes=(1.0, 60.0),
+                       video_s=(1.0, 60.0)),   # schéma : duration 1-60 — au-delà, refus nommé (pas de coupe)
     "kling-v2a": _m(SFX_VIDEO, "Kling vidéo → son", "fal", "fal-ai/kling-video/video-to-audio",
                     {"video": "video_url", "prompt": "sound_effect_prompt"}, {"background_music_prompt": None},
                     prix="kling_v2a_usd", unite="video", prompt_requis=True, prompt_max=200, video_s=(3.0, 20.0),
-                    video_ext=(".mp4", ".mov")),   # sans description, fal pose « Car tires screech… » (défaut du schéma)
+                    video_ext=(".mp4", ".mov"), son_seul=True),   # rend aussi la vidéo : on ne garde que le son   # sans description, fal pose « Car tires screech… » (défaut du schéma)
     "hunyuan-foley": _m(SFX_VIDEO, "Hunyuan Video Foley", "fal", "fal-ai/hunyuan-video-foley",
                         {"video": "video_url", "prompt": "text_prompt"}, prix="hunyuan_foley_usd",
                         prompt_requis=True),
@@ -479,12 +491,15 @@ async def _fal_subscribe(endpoint: str, arguments: dict) -> dict:   # seam
 
 
 async def _download(url: str, dest: Path) -> None:                  # seam
-    async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=600) as c:
-        r = await c.get(url)
-        r.raise_for_status()
-        tmp = dest.with_name(dest.name + ".part")
-        tmp.write_bytes(r.content)
+    tmp = dest.with_name(dest.name + ".part")
+    try:
+        async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=600) as c:
+            r = await c.get(url)
+            r.raise_for_status()
+            tmp.write_bytes(r.content)
         os.replace(tmp, dest)
+    finally:
+        tmp.unlink(missing_ok=True)   # échec réseau ou disque : pas de .part orphelin
 
 
 def _urls(res, cle: str) -> list[str]:
@@ -516,7 +531,7 @@ def _ext(url: str, defaut: str, permis: tuple) -> str:
 def extraire_audio(video: Path, dest: Path) -> bool:
     """La piste son d'une vidéo sonorisée -> un mp3 (ffmpeg local, gratuit). False si la vidéo n'a pas de son."""
     try:
-        r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(video), "-vn", "-c:a", "libmp3lame",
+        r = subprocess.run([_bin("ffmpeg"), "-y", "-v", "error", "-i", str(video), "-vn", "-c:a", "libmp3lame",
                             "-q:a", "3", str(dest)], capture_output=True, timeout=300, check=False)
     except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         return False
@@ -571,6 +586,8 @@ async def generer_sfx(mid: str, prompt=None, duree=None, video: Path | None = No
         logger.info("sfx [{}] -> {} · args={}", mid, endpoint, {k: v for k, v in args.items() if k != "video_url"})
         res = await _fal_subscribe(endpoint, args)
         sons, vids = _urls(res, "audio"), _urls(res, "video")
+        if sons and e["son_seul"]:
+            vids = []   # Kling : le son à part suffit (la vidéo rendue n'est pas rangée)
         if not sons and not vids:
             cles = ", ".join(map(str, res)) if isinstance(res, dict) else type(res).__name__
             raise RuntimeError(f"fal.ai ({e['label']}) : aucun son dans la réponse (clés : {cles})")

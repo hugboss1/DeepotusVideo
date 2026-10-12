@@ -930,10 +930,10 @@ const SvxDrawer=(props)=>{
           title:dzT("sfx.gen.auto_aide"),
           onClick:function(){setGAuto(!gAuto)},children:"auto"}),
         r.jsx("input",{className:"svx-gslider",type:"range",min:0.5,max:svxDmax(),step:0.5,
-          value:gDur,disabled:gAuto,"aria-label":dzT("sfx.gen.duree_secondes"),
+          value:Math.min(gDur,svxDmax()),disabled:gAuto,"aria-label":dzT("sfx.gen.duree_secondes"),
           onChange:function(e){setGDur(svxN(e.target.value,3));setGAuto(!1)}}),
         r.jsx("input",{className:"svx-gnum svm-mono",type:"number",min:0.5,max:svxDmax(),
-          step:0.1,value:gAuto?"":gDur,disabled:gAuto,placeholder:"—",
+          step:0.1,value:gAuto?"":Math.min(gDur,svxDmax()),disabled:gAuto,placeholder:"—",
           "aria-label":dzT("sfx.gen.duree_precise"),
           onChange:function(e){
             var v=svxN(e.target.value,gDur);
@@ -980,7 +980,7 @@ const SvxDrawer=(props)=>{
             r.jsx("span",{className:"svx-idur svm-mono",
               children:h.dur?svmShort(h.dur):""})]},h.name)})})]}):null]})}
 
-  /* T101 : `inline` = dans la page                   */
+  /* T101     */
   if(!open&&!props.inline)return null;
   return r.jsxs("aside",{className:"svx-drawer"+(props.inline?" svx-inline":""),ref:rootRef,tabIndex:-1,
     onKeyDown:onKey,"aria-label":dzT("sfx.tiroir.aria"),
@@ -1554,7 +1554,9 @@ const SvxMeter=(props)=>{
    clip — le même chiffre que la garde des plafonds, avant ET après le clic. « Depuis la
    vidéo » (clip vidéo sélectionné dans la timeline) : 1er clic = arme, 2e clic = tir.
    Ces fonctions vivent APRÈS la dernière édition G1 de la couche (table dzglyph_paires.json :
-   éditions repérées par position) ; un useReducer (et non useState) rafraîchit l'affichage. */
+   éditions repérées par position) ; un useReducer (et non useState) rafraîchit l'affichage.
+   « (bourrage G1) » dans un commentaire plus haut = bourrage volontaire : longueurs figées par la
+   table G1, par position (chaque fenêtre entre deux éditions G1 garde sa longueur). */
 var SVX_SFXM={texte:"",video:"",voix:!1,cat:{},prix:{},subs:[],arm:null,armT:null,busy:!1};
 var SVX_SFXM_LS="dz_sfx_modele",SVX_SFXM_LSV="dz_sfx_modele_video";
 try{SVX_SFXM.texte=localStorage.getItem(SVX_SFXM_LS)||"";SVX_SFXM.video=localStorage.getItem(SVX_SFXM_LSV)||""}catch(_e){}
@@ -1565,13 +1567,24 @@ function svxSfxPing(){SVX_SFXM.subs.slice().forEach(function(f){try{f()}catch(_e
 function svxSfxAbonne(t){
   x.useEffect(function(){SVX_SFXM.subs.push(t);
     return function(){var i=SVX_SFXM.subs.indexOf(t);if(i>=0)SVX_SFXM.subs.splice(i,1)}},[])}
+/* l'échec n'est PAS gardé pour la session : il est réessayé au prochain affichage (5 s au plus tôt, sans boucle) */
 function svxSfxCat(nat){
-  var c=SVX_SFXM.cat[nat];if(c)return c.l;
-  SVX_SFXM.cat[nat]={l:null};
+  var c=SVX_SFXM.cat[nat];
+  if(c&&!(c.err&&Date.now()-c.err>5000))return c.l;
+  SVX_SFXM.cat[nat]={l:c&&c.err?c.l:null};
+  var rate=function(){SVX_SFXM.cat[nat]={l:[],err:Date.now()};svxSfxPing()};
   fetch("/api/ia/catalogue?nature="+nat).then(function(res){return res.ok?res.json():null})
-    .then(function(d){SVX_SFXM.cat[nat]={l:(d&&d.modeles)||[]};svxSfxPing()})
-    .catch(function(){SVX_SFXM.cat[nat]={l:[]};svxSfxPing()});
-  return null}
+    .then(function(d){if(!d||!d.modeles){rate();return}SVX_SFXM.cat[nat]={l:d.modeles};svxSfxPing()})
+    .catch(rate);
+  return SVX_SFXM.cat[nat].l}
+/* les options d'un sélecteur, groupées par VOIE (clé fal, clé ElevenLabs), comme DzModelesIA */
+var SVX_SFXM_VOIES={fal:dzT("ia.voie.fal"),elevenlabs:dzT("ia.voie.elevenlabs")};
+function svxSfxOptions(l){
+  var ordre=["fal","elevenlabs"],par={};
+  (l||[]).forEach(function(m){var k=m.voie||"fal";(par[k]=par[k]||[]).push(m)});
+  return ordre.concat(Object.keys(par).filter(function(k){return ordre.indexOf(k)<0})).filter(function(k){return par[k]})
+    .map(function(k){return r.jsx("optgroup",{label:SVX_SFXM_VOIES[k]||k,
+      children:par[k].map(function(m){return r.jsx("option",{value:m.id,children:svxSfxTexte(m)},m.id)})},k)})}
 function svxSfxMod(nat,id){var l=svxSfxCat(nat)||[];
   for(var i=0;i<l.length;i++)if(l[i].id===id)return l[i];return null}
 /* le modèle EFFECTIF : le choix mémorisé s'il est encore servi, sinon le défaut du serveur */
@@ -1627,6 +1640,10 @@ function svxSfxDevisTexte(dur,n){var d=Number(dur)>0?Number(dur):null;
 /* un modèle autre qu'ElevenLabs direct s'ARME en deux clics : le 1er annonce le prix (devis), le 2e tire */
 function svxSfxCleArme(dur,n){return [svxSfxEff("sfx_texte"),Number(dur)>0?Number(dur):0,n].join("|")}
 function svxSfxArmeTexte(dur,n,note){
+  /* tant que le catalogue n'est pas lu, le modèle effectif n'est pas connu (le serveur choisira peut-être le jumeau
+     fal) : rien ne part */
+  var l=svxSfxCat("sfx_texte");
+  if(!l||!l.length){note(dzT("son.sfx.catalogue_attente"));return !0}
   if(svxSfxEff("sfx_texte")==="elevenlabs-direct"){SVX_SFXM.armT=null;return !1}
   var k=svxSfxCleArme(dur,n);
   if(SVX_SFXM.armT===k){SVX_SFXM.armT=null;svxSfxPing();return !1}
@@ -1644,7 +1661,7 @@ function SvxSfxChoix(props){
     r.jsx("select",{className:"svx-select svx-sfxmsel",value:v,
       "aria-label":dzT("son.sfx.modele"),title:dzT("son.sfx.modele"),
       onChange:function(e){svxSfxChoisir("sfx_texte",e.target.value)},
-      children:(l||[]).map(function(m){return r.jsx("option",{value:m.id,children:svxSfxTexte(m)},m.id)})}),
+      children:svxSfxOptions(l)}),
     r.jsx("span",{className:"svm-genprice svx-sfxmprix","data-arme":armee?"":void 0,title:dzT("son.sfx.prix_modele"),
       children:armee?svxSfxPrixTxt(usd)+" — "+dzT("son.sfx.confirmer"):svxSfxPrixTxt(usd)})]})}
 /* « Depuis la vidéo » : le clip VIDÉO sélectionné dans la timeline (job rendu) part à un modèle sfx_video */
@@ -1678,7 +1695,7 @@ function SvxSfxVideo(props){
       r.jsx("select",{className:"svx-select svx-sfxmsel",value:v,"data-dzsfxm":"video",
         "aria-label":dzT("son.sfx.modele"),title:dzT("son.sfx.modele"),
         onChange:function(e){svxSfxChoisir("sfx_video",e.target.value)},
-        children:(l||[]).map(function(o){return r.jsx("option",{value:o.id,children:svxSfxTexte(o)},o.id)})}),
+        children:svxSfxOptions(l)}),
       m&&m.voix?r.jsxs("label",{className:"svx-sfxvoix",children:[
         r.jsx("input",{type:"checkbox",checked:!!SVX_SFXM.voix,"data-dzsfxvoix":"1",
           onChange:function(e){SVX_SFXM.voix=!!e.target.checked;SVX_SFXM.arm=null;t()}}),

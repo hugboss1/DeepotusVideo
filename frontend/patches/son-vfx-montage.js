@@ -404,11 +404,11 @@ function SvmLyricsEditor(props){
         onChange:function(e){var n=secs.slice();n[i]=Object.assign({},s,{text:e.target.value});set(n)}}),
       r.jsx("button",{className:"svm-minibtn",title:dzT("son.paroles.retirer"),"aria-label":dzT("son.paroles.retirer_n",{n:(i+1)}),
         onClick:function(){set(secs.filter(function(_s,j){return j!==i}))},children:__dzGl("dz-action-supprimer")})]},i)})]})}
-/* t187 : 0 $ = « à mesurer » ; sans clé, la carte le dit */
-function svmMusicPrice(v,dur,ly){var u=ly&&v.usd_lyrics!=null&&ly.replace(/\[[^\[\]\n]{1,24}\]/g,"").trim()?v.usd_lyrics:v.usd,c=v.usd_unit==="s"?u*dur:v.usd_unit==="min"?u*Math.ceil(dur/60):u;
+/* t187 : prix, clé */
+function svmMusicPrice(v,dur,ly){var u=ly&&v.usd_paroles!=null&&ly.replace(/\[[^\[\]\n]{1,24}\]/g,"").trim()?v.usd_paroles:v.usd,c=v.usd_unit==="s"?u*dur:v.usd_unit==="min"?u*Math.ceil(dur/60):u;
   return (!(u>0)?dzT("ia.prix.a_mesurer"):"~$"+c.toFixed(v.usd_unit==="s"||Math.round(c*1000)%10?3:2)+(v.usd_unit==="s"||v.usd_unit==="min"?" · "+dur+" s":""))+(v.dispo===!1&&v.cle?" · "+dzT("ia.cle.a_ajouter",{cle:v.cle}):"")}
 
-/* ── Musique (fal.ai) ── */
+/* Musique (fal.ai) */
 function SvmMusic(props){
   var s1=x.useState(null),cat=s1[0],setCat=s1[1];
   var s2=x.useState(""),model=s2[0],setModel=s2[1];
@@ -427,7 +427,7 @@ function SvmMusic(props){
       .catch(function(){if(alive)setCat({enabled:!1,models:[],moods:[]})});
     return function(){alive=!1}},[]);
   var m=cat&&cat.models.filter(function(v){return v.id===model})[0];
-  /* T102 : paroles si le modèle les prend et voix demandée                                      
+  /* T102 : paroles si le modèle les prend et voix demandée (bourrage volontaire : longueurs figées par la table G1, par position)                            
 
 
    */
@@ -436,7 +436,7 @@ function SvmMusic(props){
   function go(){
     if(busy||!m)return;
     if(!prompt.trim()&&!mood){setErr(dzT("son.musique.choisir"));return}
-    /* balises non comptées (règle du serveur) */
+    /* balises non comptées */
     if(m.lyrics_required&&lyrics.replace(/\[[^\[\]\n]{1,24}\]/g,"").trim().length<10){setErr(dzT("son.musique.paroles_exigees",{modele:m.label}));return}
     setBusy(!0);setErr("");setRes(null);
     fetch("/api/audio/music",{method:"POST",
@@ -695,7 +695,7 @@ function DzSonVfx(props){
     a.play().catch(function(){setSfxPlay("");
       fireNote(dzT("son.commun.lecture_bloquee"))})}
   /* génération : DzSfx.genSfx (t187 : 2 clics hors
-     ElevenLabs direct, coût redit)                 */
+     ElevenLabs direct, coût redit) (bourrage G1)   */
   function genSfxGo(){
     var d=svmSfx();if(!d||!d.genSfx)return;
     var p=sfxPrompt.trim();
@@ -890,7 +890,7 @@ function DzSonVfx(props){
   var postPanel=targetPanel(dzT("son.cible.post_titre"),dzT("son.cible.post_corps"));
 
   /* carte SFX — couche DzSfx chargée : VRAIE génération ; t187 : modèle,
-     prix et durée max du registre ; absente : maquette d'avant                                  */
+     prix et durée max du registre ; absente : maquette d'avant        */
   var sfxCard=svmSfx()?
     r.jsxs("div",{className:"svm-card",children:[
       r.jsxs("div",{className:"svm-cardhead",children:[
@@ -903,7 +903,7 @@ function DzSonVfx(props){
           "aria-label":dzT("son.sfx.prompt"),
           onChange:function(e){setSfxPrompt(e.target.value);if(sfxErr)setSfxErr("")},
           onKeyDown:function(e){if(e.key==="Enter")genSfxGo()}}),
-        r.jsx("input",{className:"svm-transdur",type:"number",min:0,max:svmSfx().dmax(),step:.5,value:sfxDur,
+        r.jsx("input",{className:"svm-transdur",type:"number",min:0,max:svmSfx().dmax(),step:.5,value:Math.min(sfxDur,svmSfx().dmax()),
           title:dzT("son.sfx.duree_aide"),
           "aria-label":dzT("son.sfx.duree"),
           onChange:function(e){var v=Number(e.target.value);

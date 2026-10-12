@@ -4599,7 +4599,12 @@ async def generate_sfx_audio(request: Request):
         if note:
             out["note"] = note
         return out
-    # tâche #16 : ElevenLabs direct, le chemin d'avant (la clé est posée : le 503 est passé plus haut)
+    # tâche #16 : ElevenLabs direct, le chemin d'avant (la clé est posée : le 503 est passé plus haut) ; t187 : la
+    # durée BORNÉE à 0,5-22 s avant l'op — generate_sfx borne pareil, le devis ne chiffre que ce qui part
+    try:
+        duration_s = _SX.duree_sfx(_SX.DEFAUT_TEXTE, duration_s)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     _op = {"kind": "sfx", "duration_s": duration_s, "n": variations}
     await _plafond(_op, "son")
     from app.services import sfx_service
@@ -4696,6 +4701,9 @@ async def generate_sfx_video(request: Request):
             raise _refus_cle(cle, e["label"], request)
     src = await _sfx_video_source(payload)
     dur = await asyncio.get_running_loop().run_in_executor(None, _SX._probe_duration, src)
+    if not dur or dur <= 0:
+        # ffprobe absent ou en échec, job qui n'est pas une vidéo : la garde chiffrerait 0 s et laisserait tirer
+        raise HTTPException(400, f"durée de la vidéo illisible : {src.name} (ffprobe) — rien n'est envoyé")
     refus = _SX.video_refusee(modele, src, dur)   # format, durée (Kling : .mp4/.mov, 3 à 20 s)
     if refus:
         raise HTTPException(400, refus)

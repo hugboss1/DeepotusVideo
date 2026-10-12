@@ -6791,7 +6791,7 @@ function DzmDzRects(o){
 
 
 
-                                                                                                                                                                                                                   */
+(bourrage volontaire : longueurs figées par la table G1, par position)                                                                                                                                             */
 var DZM_PROV_LBL={seedance:"Studio",heygen:"Studio",composition:"Studio",animation:"Studio",extend:"Studio",
   episode:"Chapitres",news:"News",template:"Templates",ugc:"Importés",montage:"Montages",sfx_video:"Studio"};
 function dzmProvAff(g){var t={Tout:dzT("montage.mots.tout"),Chapitres:dzT("montage.mots.chapitres"),Importés:dzT("montage.mots.importes"),Montages:dzT("montage.mots.montages")};return Object.prototype.hasOwnProperty.call(t,g)?t[g]:g}function dzmProvGroupe(p){var k=(p==null||p==="")?"seedance":String(p);return DZM_PROV_LBL[k]||k}

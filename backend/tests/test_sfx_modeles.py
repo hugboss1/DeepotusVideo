@@ -388,6 +388,19 @@ check("clé posée, description vide -> 400", st == 400, f"{st} {js}")
 st, js = call("POST", "/audio/sfx", {"prompt": "x", "modele": "sonilo-1.1", "duration_s": "abc"})
 check("durée illisible -> 400", st == 400, f"{st} {js}")
 check("refus 400 : zéro ligne depenses, aucun appel fal", n_depenses() == d0 and SEAMS["sub"] == [], "")
+# ElevenLabs direct au-delà de 22 s : devis = garde = usd = 22 s (ce qui part vraiment)
+settings.ELEVENLABS_API_KEY = "el-test"
+ESP_EL.clear()
+d1 = n_depenses()
+st, js = call("POST", "/audio/sfx", {"prompt": "orage", "duration_s": 100})
+_e22 = P.estimate({"kind": "sfx", "duration_s": 22, "n": 1})["total_usd"]
+check("ElevenLabs direct 100 s : la durée part bornée à 22 s, usd = devis de 22 s (0,2112)",
+      st == 200 and ESP_EL and ESP_EL[-1][1] == 22.0 and abs(js.get("usd", -1) - 0.2112) < 1e-9 and abs(_e22 - 0.2112) < 1e-9,
+      f"{st} {js} {ESP_EL}")
+check("devis historique (kind sfx sans modele) borné : 100 s = 22 s", abs(P.estimate({"kind": "sfx", "duration_s": 100})["total_usd"]
+                                                                       - 0.2112) < 1e-9)
+check("ElevenLabs direct 100 s : la ligne depenses vaut le devis de 22 s", n_depenses() == d1 + 1, f"{d1} -> {n_depenses()}")
+settings.ELEVENLABS_API_KEY = ""
 S.generate_sfx = _vrai_gen
 _PLAF = R._plafond
 OPS = []
@@ -499,9 +512,21 @@ check("mirelo vidéo -> vidéo SONORISÉE : job fini (provider sfx_video), fichi
 check("mirelo vidéo : sa piste son EXTRAITE en mp3 dans le dossier audio",
       st == 200 and len(js["items"]) == 1 and js["items"][0]["filename"].endswith(".mp3")
       and (S._audio_dir() / js["items"][0]["filename"]).stat().st_size > 0, f"{js}")
+check("mirelo vidéo : au-delà de 60 s (ou sous 1 s) refus nommé, pas de coupe silencieuse",
+      S.video_refusee("mirelo-video", pathlib.Path("a.mp4"), 61) and S.video_refusee("mirelo-video", pathlib.Path("a.mp4"), 0.5)
+      and not S.video_refusee("mirelo-video", pathlib.Path("a.mp4"), 60))
 check("mirelo vidéo : la durée de la source part (2 s), num_samples 1",
       SEAMS["sub"] and abs(SEAMS["sub"][0][1].get("duration", 0) - 2.0) < 0.1
       and SEAMS["sub"][0][1].get("num_samples") == 1, SEAMS["sub"])
+(UPLOADS / "faux.mp4").write_bytes(b"pas une video")
+_d0 = n_depenses()
+raz()
+st, js = call("POST", "/audio/sfx-video", {"modele": "sonilo-video", "video_filename": "faux.mp4"})
+check("durée de la vidéo illisible (ffprobe rend 0) -> 400 nommé AVANT la garde, rien envoyé, zéro ligne",
+      st == 400 and "illisible" in detail(js) and n_depenses() == _d0 and SEAMS["up"] == [] and SEAMS["sub"] == [],
+      f"{st} {js}")
+st, js = call("POST", "/audio/sfx-video", {"modele": "sonilo-video", "video_filename": "faux.mp4", "devis": True})
+check("durée illisible : le devis refuse aussi (400), jamais un prix de 0 s", st == 400, f"{st} {js}")
 # un clip du Montage : son job
 _cid = "clip-job-187"
 
@@ -521,8 +546,8 @@ check("kling par clip_id : EXACTEMENT {video_url, sound_effect_prompt, backgroun
                                       {"video_url": "http://fal.test/in", "sound_effect_prompt": "pas sur gravier",
                                        "background_music_prompt": None})],
       f"{st} {js} {SEAMS['sub']}")
-check("kling rend son ET vidéo : un son (celui du modèle, pas d'extraction) et un job",
-      st == 200 and len(js["items"]) == 1 and js["items"][0]["filename"].endswith(".wav") and len(js["videos"]) == 1,
+check("kling rend son ET vidéo : SON SEUL (celui du modèle), la vidéo n'est pas rangée (aucun job)",
+      st == 200 and len(js["items"]) == 1 and js["items"][0]["filename"].endswith(".wav") and js["videos"] == [],
       f"{js}")
 check("kling : 0,035 $ la vidéo", st == 200 and abs(js.get("usd", 0) - 0.035) < 1e-9, js.get("usd") if isinstance(js, dict) else js)
 R._plafond = _plaf_402
@@ -728,6 +753,20 @@ if _node and _fn:
           _px[5] == "~$0.024 · 120 s" and _px[6] == "~$0.10", _px)
 else:
     check("node présent, svmMusicPrice extraite", False, (_node, len(_fn)))
+check("durée affichée bornée à celle du modèle choisi (carte et tiroir), envoi borné aussi",
+      "value:Math.min(sfxDur,svmSfx().dmax())" in _SONV and "value:Math.min(gDur,svxDmax())," in _SFXS
+      and 'value:gAuto?"":Math.min(gDur,svxDmax()),' in _SFXS and "svxClamp(o.duration_s,0.1,600)" in _SFXS)
+check("bourrages commentés (table G1 par position)",
+      "(bourrage volontaire : " in _SONV
+      and "bourrage volontaire : longueurs figées par la" in _SFXS and "(bourrage G1)" in _SFXS
+      and "bourrage volontaire : longueurs figées par la table G1, par position" in (_FR / "patches/montage.js").read_text(encoding="utf-8"))
+_CIA = (_FR / "shared/dz-champ-ia.js").read_bytes().decode("utf-8")
+check("pastille dz-champ-ia du SFX (carte et tiroir) : lit le modèle CHOISI (select data-dzsfxm), plus « ElevenLabs SFX » fixe",
+      '"son-sfx": A_sfx(),' in _CIA and '"montage-sons": A_sfx(),' in _CIA and "select[data-dzsfxm=\"texte\"]" in _CIA
+      and (_FR / "dist/shared/dz-champ-ia.js").read_bytes() == (_FR / "shared/dz-champ-ia.js").read_bytes())
+check("un seul nom pour le prix avec paroles : usd_paroles (catalogue, /music-models, écran)",
+      "usd_lyrics" not in _SONV and "v.usd_paroles" in _SONV
+      and all("usd_paroles" in m and "usd_lyrics" not in m for m in MS.catalog()["models"]))
 check("rail Musique : la carte du modèle CHOISI passe ses paroles au prix (Mureka)",
       'dur,model===v.id&&showLyr?lyrics:"")})]}),' in _SONV)
 if not _node or not _QUEUE:
@@ -748,7 +787,7 @@ var localStorage={getItem:function(k){return k in LS?LS[k]:null},setItem:functio
 var window={localStorage:localStorage};
 function rep(st,js){return Promise.resolve({ok:st<400,status:st,json:function(){return Promise.resolve(js)}})}
 function fetch(u,o){o=o||{};var b=o.body?JSON.parse(o.body):null;CALLS.push({u:u,m:o.method||"GET",b:b});
-  if(u.indexOf("/api/ia/catalogue?nature=")===0)return rep(200,{modeles:CAT[u.split("=")[1]]||[]});
+  if(u.indexOf("/api/ia/catalogue?nature=")===0)return CAT[u.split("=")[1]]?rep(200,{modeles:CAT[u.split("=")[1]]}):rep(500,{});
   if(u==="/api/cost/estimate"){var k=JSON.stringify({kind:b.kind,modele:b.modele,secondes:b.secondes,echantillons:b.echantillons});
     return rep(200,{total_usd:k in EST?EST[k]:-1})}
   if(u==="/api/audio/sfx-video"&&b.devis)return rep(200,{devis:true,usd:0.018,secondes:2,modele:b.modele});
@@ -773,12 +812,14 @@ var OUT={};
 (async function(){
 __QUEUE__
   /* 1. le sélecteur texte : catalogue chargé, défaut sans clé ElevenLabs = le jumeau fal, prix du serveur */
+  var NA=[];OUT.arme_avant=svxSfxArmeTexte(4,2,function(m){NA.push(m)});OUT.arme_avant_note=NA;
   var I=monter(SvxSfxChoix,{dur:4,n:2});
   OUT.avant=txt(I.t);
   await tick();I.rendre();await tick();I.rendre();
   var sel=tout(I.t).filter(function(n){return n.t==="select"})[0];
-  OUT.options=kids(sel).map(function(o){return o.p.value});
-  OUT.textes=kids(sel).map(function(o){return txt(o)});
+  OUT.groupes=kids(sel).map(function(g){return g.t+":"+g.p.label});
+  OUT.options=tout(sel).filter(function(o){return o.t==="option"}).map(function(o){return o.p.value});
+  OUT.textes=tout(sel).filter(function(o){return o.t==="option"}).map(function(o){return txt(o)});
   OUT.disabled=tout(I.t).filter(function(n){return "disabled" in n.p}).length;
   OUT.valeur=sel.p.value;
   OUT.devis=CALLS.filter(function(c){return c.u==="/api/cost/estimate"}).map(function(c){return c.b});
@@ -812,7 +853,7 @@ __QUEUE__
   var V=monter(SvxSfxVideo,{clip:CLIP,prompt:"pas dans la neige",refresh:function(){OUT.refresh=(OUT.refresh||0)+1},note:note});
   await tick();V.rendre();await tick();V.rendre();
   var vsel=tout(V.t).filter(function(n){return n.t==="select"})[0];
-  OUT.v_options=kids(vsel).map(function(o){return o.p.value});
+  OUT.v_options=tout(vsel).filter(function(o){return o.t==="option"}).map(function(o){return o.p.value});
   OUT.v_valeur=vsel.p.value;
   OUT.v_voix=tout(V.t).filter(function(n){return n.p["data-dzsfxvoix"]}).length;
   OUT.v_devis=CALLS.filter(function(c){return c.u==="/api/audio/sfx-video"}).map(function(c){return c.b});
@@ -838,6 +879,11 @@ __QUEUE__
   OUT.h_tir=CALLS.filter(function(c){return c.u==="/api/audio/sfx-video"&&!c.b.devis}).length;
   OUT.h_note=NOTES.slice();
   OUT.h_voix=tout(H.t).filter(function(n){return n.p["data-dzsfxvoix"]}).length;
+  /* l'échec du catalogue n'est pas gardé : réessai au prochain affichage (5 s au plus tôt) */
+  var avant=CALLS.length;OUT.cat_x1=svxSfxCat("sfx_x");await tick();
+  OUT.cat_x_err=!!(SVX_SFXM.cat.sfx_x&&SVX_SFXM.cat.sfx_x.err);
+  svxSfxCat("sfx_x");var n1=CALLS.length-avant;
+  SVX_SFXM.cat.sfx_x.err=Date.now()-6000;svxSfxCat("sfx_x");OUT.cat_x_appels=[n1,CALLS.length-avant];
   process.stdout.write(JSON.stringify(OUT));
 })().catch(function(e){process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)}))});
 """
@@ -855,14 +901,20 @@ __QUEUE__
     check("la queue s'exécute sous node", "erreur" not in O, O.get("erreur"))
     if "erreur" not in O:
         check("avant le catalogue : « prix… », jamais un chiffre inventé", "prix…" in O["avant"], O["avant"])
-        check("le sélecteur liste les 5 modèles sfx_texte dans l'ordre du registre",
-              O["options"] == ["elevenlabs-direct", "elevenlabs-v2-fal", "sonilo-1.1", "mirelo-1.6",
-                               "stable-audio-3-sfx"], O["options"])
+        check("avant le catalogue : rien ne part (le modèle effectif n'est pas connu), la note le dit",
+              O["arme_avant"] is True and O["arme_avant_note"] and "catalogue" in O["arme_avant_note"][0], O["arme_avant_note"])
+        check("le sélecteur est groupé par voie (<optgroup> clé fal, puis clé ElevenLabs), comme DzModelesIA",
+              O["groupes"] == ["optgroup:via la clé fal", "optgroup:avec votre clé ElevenLabs"], O["groupes"])
+        check("catalogue en échec : marqué, pas réessayé dans les 5 s, réessayé ensuite (rien gardé pour la session)",
+              O["cat_x_err"] is True and O["cat_x_appels"] == [1, 2], (O["cat_x_err"], O["cat_x_appels"]))
+        check("le sélecteur liste les 5 modèles sfx_texte (groupés par voie)",
+              O["options"] == ["elevenlabs-v2-fal", "sonilo-1.1", "mirelo-1.6", "stable-audio-3-sfx",
+                               "elevenlabs-direct"], O["options"])
         check("sans clé ElevenLabs : le direct reste CHOISISSABLE, « clé ELEVENLABS_API_KEY à ajouter dans Réglages », "
               "aucun élément disabled",
-              "clé ELEVENLABS_API_KEY à ajouter dans Réglages" in O["textes"][0] and O["disabled"] == 0, O["textes"][0])
+              "clé ELEVENLABS_API_KEY à ajouter dans Réglages" in O["textes"][4] and O["disabled"] == 0, O["textes"][4])
         check("chaque option dit son prix : Sonilo « $0.0018/s », ElevenLabs via fal « prix à mesurer »",
-              "$0.0018/s" in O["textes"][2] and "prix à mesurer" in O["textes"][1], O["textes"])
+              "$0.0018/s" in O["textes"][1] and "prix à mesurer" in O["textes"][0], O["textes"])
         check("sans clé ElevenLabs, le défaut affiché = elevenlabs-v2-fal (le défaut du serveur)",
               O["valeur"] == "elevenlabs-v2-fal", O["valeur"])
         check("aucun choix mémorisé : le corps n'impose rien (le serveur choisit, « via fal »)",

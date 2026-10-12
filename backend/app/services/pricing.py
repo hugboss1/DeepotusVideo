@@ -921,10 +921,11 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         n = max(1, int(op.get("n", 1)))
         if m.get("usd_unit") == "s":
             # T102 : ACE-Step est facturé À LA SECONDE — la durée chiffrée est celle que `_payload`
-            # enverra (même fonction, même défaut), sinon le devis et la garde mentiraient.
+            # enverra (même fonction, même défaut), sinon le devis et la garde mentiraient. t187 : le prix passe
+            # par la règle unique usd_de, comme les deux autres branches.
             sec = _mu.billed_seconds(m, op.get("duration_s"))
             lines.append(_line("fal", f"Musique ({m['label']}) {sec} s x{n}", n * sec, "s",
-                               n * sec * float(m["usd"])))
+                               n * _mu.usd_de(m, op.get("duration_s"))))
         elif m.get("usd_unit") == "min":
             # t187 (G5) : ElevenLabs Music — 0,60 $ par minute de sortie ARRONDIE À LA MINUTE SUPÉRIEURE (usd_de)
             sec = _mu.billed_seconds(m, op.get("duration_s"))
@@ -947,6 +948,9 @@ def estimate(op: dict, p: dict | None = None) -> dict:
     elif kind == "sfx":
         n = max(1, min(4, int(op.get("n", op.get("variations", op.get("echantillons", 1))) or 1)))
         d = op.get("duration_s", op.get("secondes"))
+        if d not in (None, "", 0):
+            # t187 : la durée bornée comme generate_sfx (0,5-22 s) — le devis ne chiffre que ce qui part
+            d = max(0.5, min(22.0, float(d)))
         cr = (float(d) * float(p.get("elevenlabs_sfx_credits_per_s", 40.0)) if d not in (None, "", 0)
               else float(p.get("elevenlabs_sfx_credits_auto", 200.0)))
         lines.append(_line("elevenlabs", f"Bruitage x{n}", cr * n, "chars", cr * n * float(p["elevenlabs_usd_per_char"])))
