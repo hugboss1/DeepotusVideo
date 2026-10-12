@@ -366,7 +366,7 @@
   "atelier.at2_video.src_croquis": {"fr": "croquis", "en": "sketch"},
   "atelier.at2_video.src_plateau": {"fr": "borne de début du Plateau", "en": "the Stage's first frame"},
   "atelier.at2_video.src_prod": {"fr": "image de production", "en": "production image"},
-  "atelier.at2_video.suivi_arrete": {"fr": "suivi arrêté, rouvrez le chapitre", "en": "tracking stopped, reopen the chapter"},
+  "atelier.at2_video.suivi_arrete": {"fr": "suivi arrêté — rechargez la page", "en": "tracking stopped — reload the page"},
   "atelier.at2_video.titre": {"fr": "Vidéo du plan {i}", "en": "Video for shot {i}"},
   "atelier.at2_voix.alternatives": {"fr": "(+{n} alternatives du même profil)", "en": "(+{n} alternatives with the same profile)"},
   "atelier.at2_voix.attribuee": {"fr": "Voix « {voix} » attribuée à {nom}.", "en": "Voice “{voix}” assigned to {nom}."},

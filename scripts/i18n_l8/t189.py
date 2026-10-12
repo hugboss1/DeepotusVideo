@@ -306,8 +306,8 @@ function vignetteVideo(s) {
 }
 
 /* M6 : un suivi BORNÉ — un job terminé (fait, en échec, introuvable) n'est plus jamais réinterrogé (etatsVideo) ; le
-   pas croît de 4 s (×1,5) jusqu'à 30 s ; au-delà de 30 min de suivi d'un même job, « suivi arrêté » (rouvrir le
-   chapitre le relance) ; toujours arrêté quand la carte est détachée. I1 : un 404 n'est « introuvable » qu'au 3e
+   pas croît de 4 s (×1,5) jusqu'à 30 s ; au-delà de 30 min de suivi d'un même job, « suivi arrêté » (recharger la
+   page le relance) ; toujours arrêté quand la carte est détachée. I1 : un 404 n'est « introuvable » qu'au 3e
    tour CONSÉCUTIF (le job peut ne pas être encore visible), « en attente » avant. */
 const SUIVI_VIDEO = { pas: 4000, facteur: 1.5, pasMax: 30000, dureeMax: 30 * 60 * 1000, absentsMax: 3 };
 const etatsVideo = new Map(), suivisVideo = new Map(), suivisJob = new Map();
@@ -433,7 +433,7 @@ DICO = {
     "atelier.at2_dzp.deja_en_cours": ("Plan {i} : déjà en cours, attendez la fin.", "Shot {i}: already running, wait for it to finish."),
     "atelier.plan.objets_poses_tronques": ("{n} objets posés dans le Plateau ; {m} de plus écartés (32 au plus)",
                                            "{n} objects placed on the Stage; {m} more left out (32 at most)"),
-    "atelier.at2_video.suivi_arrete": ("suivi arrêté, rouvrez le chapitre", "tracking stopped, reopen the chapter"),
+    "atelier.at2_video.suivi_arrete": ("suivi arrêté — rechargez la page", "tracking stopped — reload the page"),
     "atelier.at2_dzp.annuler": ("Annuler", "Cancel"),
     "atelier.at2_dzp.choisir": ("Choisissez un modèle.", "Choose a model."),
     "atelier.at2_dzp.a_mesurer": ("prix à mesurer", "price to be measured"),

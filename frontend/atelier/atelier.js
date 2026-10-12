@@ -1248,8 +1248,8 @@ function vignetteVideo(s) {
 }
 
 /* M6 : un suivi BORNÉ — un job terminé (fait, en échec, introuvable) n'est plus jamais réinterrogé (etatsVideo) ; le
-   pas croît de 4 s (×1,5) jusqu'à 30 s ; au-delà de 30 min de suivi d'un même job, « suivi arrêté » (rouvrir le
-   chapitre le relance) ; toujours arrêté quand la carte est détachée. I1 : un 404 n'est « introuvable » qu'au 3e
+   pas croît de 4 s (×1,5) jusqu'à 30 s ; au-delà de 30 min de suivi d'un même job, « suivi arrêté » (recharger la
+   page le relance) ; toujours arrêté quand la carte est détachée. I1 : un 404 n'est « introuvable » qu'au 3e
    tour CONSÉCUTIF (le job peut ne pas être encore visible), « en attente » avant. */
 const SUIVI_VIDEO = { pas: 4000, facteur: 1.5, pasMax: 30000, dureeMax: 30 * 60 * 1000, absentsMax: 3 };
 const etatsVideo = new Map(), suivisVideo = new Map(), suivisJob = new Map();
