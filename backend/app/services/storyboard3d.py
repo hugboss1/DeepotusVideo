@@ -76,8 +76,10 @@ def noms_depuis_prompt(prompt) -> list[str]:
     return [p.strip()[:80] for p in nettoyer_prompt(prompt).split(",") if p.strip()]
 
 
-def valider_boites(boxes) -> list[dict]:
-    """[{x_min, y_min, x_max, y_max, object_id?}] en ENTIERS (pixels de l'image source), ou ValueError nommée."""
+def valider_boites(boxes, taille=None) -> list[dict]:
+    """[{x_min, y_min, x_max, y_max, object_id?}] en ENTIERS (pixels de l'image source), ou ValueError nommée.
+    `taille` = (largeur, hauteur) RÉELLES de l'image source (lues par PIL dans la route) : une boîte qui en sort est
+    refusée AVANT la garde (correctif de relecture t189)."""
     if boxes in (None, []):
         return []
     if not isinstance(boxes, list) or len(boxes) > _MAX_BOITES:
@@ -96,6 +98,10 @@ def valider_boites(boxes) -> list[dict]:
                 or v["x_max"] <= v["x_min"] or v["y_max"] <= v["y_min"]:
             raise ValueError(f"boîte {i + 1} vide ou hors de l'image.")
         boite = {k: int(round(x)) for k, x in v.items()}
+        if taille and (boite["x_max"] > int(taille[0]) or boite["y_max"] > int(taille[1])):
+            raise ValueError(f"boîte {i + 1} hors de l'image ({int(taille[0])} × {int(taille[1])} px).")
+        if boite["x_max"] <= boite["x_min"] or boite["y_max"] <= boite["y_min"]:
+            raise ValueError(f"boîte {i + 1} vide ou hors de l'image.")
         if b.get("object_id") is not None:
             try:
                 boite["object_id"] = int(b["object_id"])
@@ -176,19 +182,33 @@ def _vers_plateau(pos, rot) -> tuple[list, list]:
     return [float(v) for v in pos], [float(v) for v in rot]
 
 
-def instances_depuis_sam3(meta, jobs, noms, dims=None) -> list[dict]:
+def _meta_pour(meta, k: int) -> dict:
+    """La métadonnée de l'objet `k` : celle dont `object_index` vaut k ; à défaut, celle qui est à la POSITION k si
+    elle ne porte pas d'object_index (une méta sans index ne décale jamais les autres) ; sinon {}."""
+    meta = meta if isinstance(meta, list) else []
+    for m in meta:
+        oi = m.get("object_index") if isinstance(m, dict) else None
+        if isinstance(oi, (int, float)) and not isinstance(oi, bool) and int(oi) == k:
+            return m
+    m = meta[k] if 0 <= k < len(meta) else None
+    return m if isinstance(m, dict) and not isinstance(m.get("object_index"), (int, float)) else {}
+
+
+def instances_depuis_sam3(meta, jobs, noms, dims=None, indices=None) -> list[dict]:
     """Les instances du Plateau d'une reconstruction SAM 3. PUR.
-    `meta` : les métadonnées (une par GLB gardé), triées ici par `object_index` ; `jobs` : les dossiers assets3d dans
-    le même ordre ; `noms` : ceux du prompt (sinon « objet N ») ; `dims` : [l, h, p] mesurées par GLB, ou None.
-    Rôle : le PREMIER objet est le sujet, les autres le décor. Le plan voulait « celui qui correspond au premier mot
-    du prompt », mais SAM 3 ne rend aucun libellé par objet : c'est l'ordre `object_index` qui fait foi."""
-    tri = sorted([m for m in (meta or []) if isinstance(m, dict)],
-                 key=lambda m: m.get("object_index") if isinstance(m.get("object_index"), (int, float)) else 1e9)
+    `meta` : les métadonnées de fal (la liste ENTIÈRE) ; `jobs` : les dossiers assets3d gardés ; `indices` : l'
+    `object_index` de chacun (par défaut 0, 1, 2… ; les GLB nuls de fal sont sautés, d'où l'écart possible) — noms ET
+    transformations s'attribuent par cet index, jamais par la position parmi les GLB gardés ; `noms` : ceux du prompt
+    (sinon « objet N », N = index + 1) ; `dims` : [l, h, p] mesurées par GLB gardé, ou None.
+    Rôle : le PREMIER objet gardé est le sujet, les autres le décor. Le plan voulait « celui qui correspond au premier
+    mot du prompt », mais SAM 3 ne rend aucun libellé par objet : c'est l'ordre `object_index` qui fait foi."""
     noms = list(noms or [])
     dims = list(dims or [])
+    indices = list(indices) if indices is not None else list(range(len(jobs)))
     out = []
     for i, job in enumerate(jobs):
-        m = tri[i] if i < len(tri) else {}
+        k = int(indices[i]) if i < len(indices) else i
+        m = _meta_pour(meta, k)
         t = _aplatir(m.get("translation"))
         pos = t[:3] if t and len(t) >= 3 else [0.0, 0.0, 0.0]
         q = _aplatir(m.get("rotation"))
@@ -196,7 +216,7 @@ def instances_depuis_sam3(meta, jobs, noms, dims=None) -> list[dict]:
         s = _aplatir(m.get("scale"))
         ech = max(1e-3, sum(s[:3]) / 3) if s and len(s) >= 3 else 1.0
         pos, rot = _vers_plateau(pos, rot)
-        inst = {"id": f"sam3_{i + 1:02d}", "nom": noms[i] if i < len(noms) and noms[i] else f"objet {i + 1}",
+        inst = {"id": f"sam3_{i + 1:02d}", "nom": noms[k] if k < len(noms) and noms[k] else f"objet {k + 1}",
                 "source": {"kind": "assets3d", "job": job, "file": "model.glb"}, "niveau": "allege",
                 "role": "sujet" if i == 0 else "decor",
                 "transform": {"pos": pos, "rot": rot, "scale": ech}}
@@ -234,16 +254,6 @@ def _cibles(res: dict) -> list[tuple[int, str]]:
     return out[:_MAX_OBJETS]
 
 
-def _meta_de(res: dict, k: int) -> dict:
-    meta = res.get("metadata") if isinstance(res, dict) else None
-    if not isinstance(meta, list):
-        return {}
-    for m in meta:
-        if isinstance(m, dict) and m.get("object_index") == k:
-            return m
-    return meta[k] if k < len(meta) and isinstance(meta[k], dict) else {}
-
-
 def _dims(data: bytes):
     """[l, h, p] mesurées comme le Plateau les mesure (scene3d_routes._offset_et_dims), ou None si illisible."""
     from app.services import scene3d_routes as SR
@@ -252,6 +262,23 @@ def _dims(data: bytes):
         return d if d and min(d) > 0 else None
     except Exception:  # noqa: BLE001 — un GLB illisible donne une instance sans dims, jamais un plantage
         return None
+
+
+async def instances_gardees(shot_id: str) -> list[dict]:
+    """Les instances que GARDERA la mise à jour de la scène la plus récente du plan (toutes sauf les sam3_*) ; [] sans
+    scène. La route compte celles-ci AVANT la garde : gardées + _MAX_OBJETS doivent tenir dans une scène."""
+    from sqlalchemy import select
+    from app.services.storage import Scene3D, async_session_factory
+    async with async_session_factory() as session:
+        r = (await session.execute(select(Scene3D).where(Scene3D.shot_id == shot_id)
+                                   .order_by(Scene3D.updated_at.desc()).limit(1))).scalars().first()
+    if r is None:
+        return []
+    try:
+        return [i for i in (json.loads(r.instances) if r.instances else [])
+                if isinstance(i, dict) and not str(i.get("id") or "").startswith("sam3_")]
+    except ValueError:
+        return []
 
 
 async def _scene_du_plan(shot, instances: list[dict]) -> str:
@@ -309,7 +336,7 @@ async def reconstruire(shot_id: str, prompt, boxes, modele: str = DEFAUT, detect
         noms = ["sujet"]
     racine = mesh_sources._jobs_dir()
     lot = uuid4().hex[:8]
-    ecrits, jobs, meta, dims = [], [], [], []
+    ecrits, jobs, indices, dims = [], [], [], []
     try:
         for i, (k, u) in enumerate(cibles):
             job = f"sam3_{lot}_{i}"
@@ -323,9 +350,10 @@ async def reconstruire(shot_id: str, prompt, boxes, modele: str = DEFAUT, detect
                 raise RuntimeError(f"SAM 3 (fal) : le fichier rendu n'est pas un GLB (en-tête glTF absent, "
                                    f"{len(data)} octets).")
             jobs.append(job)
-            meta.append({} if corps else _meta_de(res, k))
+            indices.append(k)
             dims.append(await asyncio.to_thread(_dims, data))
-        instances = instances_depuis_sam3(meta, jobs, noms, dims)
+        meta = [] if corps else (res.get("metadata") if isinstance(res.get("metadata"), list) else [])
+        instances = instances_depuis_sam3(meta, jobs, noms, dims, indices=indices)
         for inst in instances:
             write_manifest(racine / inst["source"]["job"],
                            {"name": inst["nom"], "engine": modele, "stage": "storyboard", "shot_id": shot_id,

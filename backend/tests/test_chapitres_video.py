@@ -274,6 +274,63 @@ r = call("POST", f"/shots/{s1}/video", {"max_usd": 0.01})
 check("V19 max_usd sous le devis : 402 de la garde de coût", r.status_code == 402, r.text[:200])
 check("V20 aucun appel réseau dans la partie route", RESEAU["n"] == 0, RESEAU)
 
+# ── [D] le devis GRATUIT (relecture t189) : devis = garde = coût, par construction ─────────────────────────────────
+print("\n[D] GET /shots/{id}/video/devis")
+r = call("GET", "/shots/inconnu/video/devis")
+check("D1 plan inconnu -> 404", r.status_code == 404, r.text)
+n0 = len(depenses())
+dv = js(call("GET", f"/shots/{s0}/video/devis"))
+check("D2 forme exacte : video_model, duree_s, resolution, usd, debut {nom, origine}, fin {nom}, fl, refus, cle_absente",
+      set(dv) == {"video_model", "duree_s", "resolution", "usd", "debut", "fin", "fl", "refus", "cle_absente"}
+      and dv["debut"] == {"nom": "k0.png", "origine": "plateau"} and dv["fin"] == {"nom": "k1.png"}
+      and dv["fl"] is True and dv["refus"] is None and dv["cle_absente"] is None and dv["resolution"] == "720p", dv)
+COUPLES = [(s0, 5.0, {}, "veo-3.1-fast-fal"), (s0, 10.0, {}, "veo-3.1-fast-fal"), (s1, 3.4, {}, F.DEFAULT_VIDEO_MODEL),
+           (s1, 3.4, {"video_model": "veo-3.1-fast-fal", "resolution": "1080p"}, "veo-3.1-fast-fal")]
+for sid_, dur_, corps_, attendu in COUPLES:
+    sql("UPDATE shots SET duration_s=? WHERE id=?", dur_, sid_)
+    dv = js(call("GET", f"/shots/{sid_}/video/devis", params=corps_))
+    r = call("POST", f"/shots/{sid_}/video", dict(corps_))
+    jv = js(r)
+    dep = depenses()
+    job = sql("SELECT duration_s, video_model FROM jobs WHERE id=?", jv.get("job_id"))
+    gen = P.video_gen_seconds(attendu, dur_)
+    check(f"D3 {attendu} plan {dur_} s {corps_ or ''} : devis.usd == usd rendu == ligne depenses ; durée GÉNÉRÉE "
+          f"{gen} s des deux côtés", r.status_code == 200 and dv.get("video_model") == attendu
+          and dv.get("duree_s") == gen and job == [(gen, attendu)]
+          and abs(float(dv.get("usd", -1)) - float(jv.get("usd", -2))) < 1e-9
+          and abs(dep[-1][3] - float(dv.get("usd", -1))) < 1e-9,
+          f"{r.status_code} devis={dv} rendu={jv.get('usd')} dep={dep[-1:]} job={job} gen={gen}")
+check("D4 Veo Fast : un plan de 5 s est FACTURÉ 6 s, un plan de 10 s 8 s (pas la durée brute)",
+      P.video_gen_seconds("veo-3.1-fast-fal", 5) == 6 and P.video_gen_seconds("veo-3.1-fast-fal", 10) == 8)
+sql("UPDATE shots SET duration_s=5.0 WHERE id=?", s0)
+sql("UPDATE shots SET duration_s=3.4 WHERE id=?", s1)
+n1 = len(depenses())
+dv = js(call("GET", f"/shots/{s1}/video/devis"))
+check("D5 sans fin : origine « production », fin null, fl faux", dv.get("debut") == {"nom": "prod1.png", "origine": "production"}
+      and dv.get("fin") is None and dv.get("fl") is False, dv)
+dv = js(call("GET", f"/shots/{s0}/video/devis", params={"video_model": "kling-v3-turbo-pro"}))
+r = call("POST", f"/shots/{s0}/video", {"video_model": "kling-v3-turbo-pro"})
+check("D6 fin sur un modèle sans FL : le devis montre le prix ET le refus 400 que rendrait la route",
+      dv.get("refus") and dv.get("refus") == js(r).get("detail") and r.status_code == 400 and dv.get("fl") is False
+      and float(dv.get("usd") or 0) > 0, f"{dv} {r.status_code} {r.text[:200]}")
+dv = js(call("GET", f"/shots/{s2}/video/devis"))
+r = call("POST", f"/shots/{s2}/video", {})
+check("D7 image absente du disque : le refus du devis est celui de la route (404)",
+      dv.get("refus") and dv.get("refus") == js(r).get("detail") and r.status_code == 404
+      and dv.get("debut") == {"nom": "absent.png", "origine": "croquis"}, f"{dv} {r.text[:200]}")
+dv = js(call("GET", f"/shots/{s3}/video/devis"))
+check("D8 sans prompt ni action : refus dit, prix montré", dv.get("refus") and float(dv.get("usd") or 0) > 0, dv)
+settings.FAL_KEY = ""
+dv = js(call("GET", f"/shots/{s0}/video/devis"))
+check("D9 sans FAL_KEY : le devis répond quand même (cle_absente « FAL_KEY », prix montré, pas de refus)",
+      dv.get("cle_absente") == "FAL_KEY" and dv.get("refus") is None and float(dv.get("usd") or 0) > 0, dv)
+settings.FAL_KEY = "test-key"
+dv = js(call("GET", f"/shots/{s0}/video/devis", params={"video_model": "inconnu-9"}))
+check("D10 modèle inconnu : refus dit, usd null", dv.get("refus") and dv.get("usd") is None, dv)
+check("D11 le devis est GRATUIT : aucune ligne depenses écrite par les GET", len(depenses()) == n1, depenses()[n1:])
+_rp = (_ICI / "test_plafonds_garde.py").read_text(encoding="utf-8")
+check("D12 le devis n'est PAS une route payante (absent de PAYANTES)", "/video/devis" not in _rp)
+
 # ── [A] l'animatique ─────────────────────────────────────────────────────────
 print("\n[A] l'animatique préfère la vidéo du plan")
 e = AN.plan([{"id": "a", "idx": 0, "action": "x", "duration_s": 2.0, "image": "i.png", "video_fichier": "C:/v/a.mp4"},

@@ -287,6 +287,36 @@ else:
             check(f"0.22 boîte refusée : {mauvaise!r:.50}", False)
         except ValueError:
             check(f"0.22 boîte refusée : {mauvaise!r:.50}", True)
+    try:
+        SB.valider_boites([{"x_min": 0, "y_min": 0, "x_max": 91, "y_max": 40}], taille=(90, 160))
+        check("0.24 boîte qui dépasse la LARGEUR réelle -> ValueError", False)
+    except ValueError as e:
+        check("0.24 boîte qui dépasse la LARGEUR réelle -> ValueError", "hors de l'image" in str(e), e)
+    try:
+        SB.valider_boites([{"x_min": 0, "y_min": 0, "x_max": 30, "y_max": 161}], taille=(90, 160))
+        check("0.25 boîte qui dépasse la HAUTEUR réelle -> ValueError", False)
+    except ValueError:
+        check("0.25 boîte qui dépasse la HAUTEUR réelle -> ValueError", True)
+    try:
+        SB.valider_boites([{"x_min": 3.2, "y_min": 0, "x_max": 3.4, "y_max": 40}], taille=(90, 160))
+        check("0.26 boîte vide APRÈS arrondi aux entiers -> ValueError", False)
+    except ValueError:
+        check("0.26 boîte vide APRÈS arrondi aux entiers -> ValueError", True)
+    check("0.27 boîte au bord exact de l'image acceptée",
+          SB.valider_boites([{"x_min": 0, "y_min": 0, "x_max": 90, "y_max": 160}], taille=(90, 160))
+          == [{"x_min": 0, "y_min": 0, "x_max": 90, "y_max": 160}])
+    trou = SB.instances_depuis_sam3(
+        [{"object_index": 0, "translation": [[1, 0, 0]]}, {"translation": [[9, 9, 9]]},
+         {"object_index": 2, "translation": [[-1, 0, 0]], "scale": [[2, 2, 2]]}],
+        ["sam3_ef_0", "sam3_ef_1"], ["a", "b", "c"], indices=[0, 2])
+    check("0.28 GLB nul au milieu : noms ET transformations par object_index (pas par position), méta sans index "
+          "ignorée", [(i["nom"], i["transform"]["pos"], i["transform"]["scale"]) for i in trou]
+          == [("a", [1.0, 0.0, 0.0], 1.0), ("c", [-1.0, 0.0, 0.0], 2.0)] and trou[0]["role"] == "sujet", trou)
+    sans = SB.instances_depuis_sam3([{"translation": [1, 1, 1]}, {"translation": [2, 2, 2]}, {"translation": [3, 3, 3]}],
+                                    ["sam3_ef_0", "sam3_ef_1"], [], indices=[0, 2])
+    check("0.29 métadonnées sans object_index : lues à la POSITION de l'objet",
+          [(i["nom"], i["transform"]["pos"]) for i in sans] == [("objet 1", [1.0, 1.0, 1.0]), ("objet 3", [3.0, 3.0, 3.0])],
+          sans)
     check("0.23 devis : 0,02 $ par requête pour les deux modèles (unité fal à confirmer, dite)",
           abs(P.estimate(SB.op_devis("sam-3-3d-objects"))["total_usd"] - 0.02) < 1e-9
           and abs(P.estimate(SB.op_devis("sam-3-3d-body"))["total_usd"] - 0.02) < 1e-9
@@ -325,7 +355,7 @@ MULTI = {"model_glb": {"url": "https://fal.test/scene.glb"},
          "individual_glbs": [{"url": "https://fal.test/o0.glb"}, None, {"url": "https://fal.test/o2.glb"}],
          "metadata": [{"object_index": 0, "rotation": [[0, 0.5, 0, 0.866]], "translation": [[1, 0, 2]],
                        "scale": [[1, 2, 3]], "camera_pose": None},
-                      {"object_index": 1, "rotation": None, "translation": None, "scale": None, "camera_pose": None},
+                      {"rotation": None, "translation": [[9, 9, 9]], "scale": None, "camera_pose": None},
                       {"object_index": 2, "rotation": None, "translation": [[-1, 0, 0]], "scale": None,
                        "camera_pose": None}],
          "gaussian_splat": None, "artifacts_zip": None}
@@ -386,13 +416,16 @@ check("1.10 plafond « chapitres » bas : 402 dz_plafond, AVANT tout envoi à fa
 PL.enregistrer({"global_usd": 0, "par_moteur": {}, "alerte_pct": 80})
 vider()
 
-r = call("POST", f"/shots/{s0}/objets3d", {"prompt": "personnage, table", "detection_threshold": 0.5})
+r = call("POST", f"/shots/{s0}/objets3d", {"boxes": [{"x_min": 0, "y_min": 0, "x_max": 91, "y_max": 40}]})
+check("1.10b boîte hors de l'image réelle (90 × 160) : 400 AVANT la garde", r.status_code == 400
+      and "hors de l'image" in r.text and seams_vides() and n_depenses() == 0, f"{r.status_code} {r.text}")
+r = call("POST", f"/shots/{s0}/objets3d", {"prompt": "personnage, chaise, table", "detection_threshold": 0.5})
 j = js(r)
 check("1.11 le tir : 200", r.status_code == 200, f"{r.status_code} {r.text[:400]}")
 check("1.12 l'image de PRODUCTION du plan est téléversée", SEAMS["upload"] == ["plan0.png"], SEAMS["upload"])
 check("1.13 arguments EXACTS envoyés à fal",
       SEAMS["fal"] == [("fal-ai/sam-3/3d-objects", {"image_url": "https://fal.test/up/plan0.png",
-                                                    "prompt": "personnage, table", "export_textured_glb": True,
+                                                    "prompt": "personnage, chaise, table", "export_textured_glb": True,
                                                     "detection_threshold": 0.5})], SEAMS["fal"])
 check("1.14 les GLB individuels NON nuls sont téléchargés (pas le combiné)",
       SEAMS["download"] == ["https://fal.test/o0.glb", "https://fal.test/o2.glb"], SEAMS["download"])
@@ -400,7 +433,7 @@ jobs = sorted(p.parent.name for p in (W / "outputs" / "assets3d").glob("sam3_*/m
 check("1.15 deux GLB sous outputs/assets3d/sam3_*/model.glb, en-tête glTF",
       len(jobs) == 2 and all((W / "outputs" / "assets3d" / k / "model.glb").read_bytes()[:4] == b"glTF" for k in jobs), jobs)
 objets = j.get("objets") or []
-check("1.16 réponse : scene_id, n = 2, objets {id, nom, job, role}",
+check("1.16 réponse : scene_id, n = 2, objets {id, nom, job, role} — noms par object_index (0 et 2)",
       j.get("n") == 2 and [o.get("id") for o in objets] == ["sam3_01", "sam3_02"]
       and [o.get("role") for o in objets] == ["sujet", "decor"] and [o.get("nom") for o in objets] == ["personnage", "table"]
       and sorted(o.get("job") for o in objets) == jobs, j)
@@ -451,6 +484,18 @@ check("1.26 l'instance posée à la main est GARDÉE, rétrogradée décor ; un 
       perso is not None and perso["role"] == "decor"
       and [i["id"] for i in ins2 if i["role"] == "sujet"] == ["sam3_01"], [(i["id"], i["role"]) for i in ins2])
 check("1.27 deux lignes depenses au total", n_depenses() == 2, depenses())
+plein = js(call("GET", f"/scenes3d/{sid}")).get("instances") or []
+remplis = [i for i in plein if not i["id"].startswith("sam3_")] + [
+    {"id": f"main_{k:02d}", "nom": f"M{k}", "source": {"kind": "proxy", "forme": "boite"}, "dims": [1, 1, 1],
+     "role": "decor"} for k in range(32)]
+r = call("PUT", f"/scenes3d/{sid}", {"instances": remplis + [i for i in plein if i["id"].startswith("sam3_")]})
+vider()
+r2 = call("POST", f"/shots/{s0}/objets3d", {"prompt": "personnage, table"})
+check("1.27b scène pleine (33 instances gardées + 32 objets SAM 3 possibles > 64) : 400 lisible AVANT la garde",
+      r.status_code == 200 and r2.status_code == 400 and "33" in r2.text and seams_vides() and n_depenses() == 2,
+      f"{r.status_code} {r2.status_code} {r2.text}")
+r = call("PUT", f"/scenes3d/{sid}", {"instances": plein})
+check("1.27c (remise en état) la scène retrouve ses instances", r.status_code == 200, r.text[:200])
 
 # un seul objet : pas d'individual_glbs -> model_glb
 vider()

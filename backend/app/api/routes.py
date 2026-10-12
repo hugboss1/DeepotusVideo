@@ -11038,6 +11038,7 @@ async def shot_objets3d(shot_id: str, body: dict, http: Request = None):
     instances sam3_* retirées, un sujet gardé devient décor). Body : {prompt?, boxes?, modele?, detection_threshold?}.
     Rend {scene_id, objets: [{id, nom, job, role}], n, usd}. PAYANT (0,02 $ par requête, unité fal à confirmer)."""
     from app.services import storyboard3d as SB
+    from app.services import scene3d_routes as _SR
     from app.services.storage import Shot, async_session_factory
     body = body if isinstance(body, dict) else {}
     async with async_session_factory() as session:
@@ -11052,8 +11053,16 @@ async def shot_objets3d(shot_id: str, body: dict, http: Request = None):
     nom = SB.image_source(s)
     if not nom or not (settings.images_path / nom).is_file():
         raise HTTPException(400, "Ce plan n'a ni image de production ni croquis : générez-en un avant le storyboard 3D.")
+    taille = None
+    if body.get("boxes"):
+        # relecture t189 : les boîtes sont bornées par la taille RÉELLE de l'image source, avant la garde
+        try:
+            with PILImage.open(settings.images_path / nom) as _im:
+                taille = _im.size
+        except Exception:  # noqa: BLE001
+            raise HTTPException(400, f"Image source du plan illisible : {nom}")
     try:
-        boites = SB.valider_boites(body.get("boxes"))
+        boites = SB.valider_boites(body.get("boxes"), taille=taille)
     except ValueError as e:
         raise HTTPException(400, str(e))
     prompt = body.get("prompt")
@@ -11070,6 +11079,12 @@ async def shot_objets3d(shot_id: str, body: dict, http: Request = None):
             raise HTTPException(400, "detection_threshold : un nombre de 0,1 à 1.")
         if SB.MODELES[mid]["corps"]:
             seuil = None                                 # le modèle « corps » n'a pas ce réglage
+    # relecture t189 : la scène doit pouvoir recevoir jusqu'à _MAX_OBJETS objets SAM 3 en plus de ce qu'elle garde
+    gardees = await SB.instances_gardees(shot_id)
+    if len(gardees) + SB._MAX_OBJETS > _SR._MAX_INSTANCES:
+        raise HTTPException(400, f"La scène du plan garde déjà {len(gardees)} instances : il en faut au plus "
+                                 f"{_SR._MAX_INSTANCES - SB._MAX_OBJETS} pour accueillir jusqu'à {SB._MAX_OBJETS} "
+                                 f"objets SAM 3 ({_SR._MAX_INSTANCES} par scène). Retirez-en au Plateau.")
     await _plafond(SB.op_devis(mid), "chapitres")       # avant la dépense
     try:
         return await SB.reconstruire(shot_id, prompt, boites, mid, seuil)
@@ -11085,51 +11100,119 @@ async def shot_objets3d(shot_id: str, body: dict, http: Request = None):
 _VIDEO_PLAN_FL = "veo-3.1-fast-fal"     # t189 : le défaut d'un plan AVEC image de fin (Veo 3.1 Fast first-last, fal)
 
 
+def _video_plan(s, body: dict | None, http=None) -> dict:
+    """t189 (relecture) — LE calcul de la vidéo d'un plan, partagé par le devis GRATUIT (GET /shots/{id}/video/devis)
+    et la route payante (POST /shots/{id}/video) : devis = garde = coût par construction. Sans E/S réseau, sans
+    dépense. Choisit les images (début : borne du Plateau, sinon production, sinon croquis ; fin : keyframe_end), le
+    modèle (Veo 3.1 Fast first-last avec une fin, le défaut de l'app sans), la durée GÉNÉRÉE (celle du plan, arrondie,
+    3-60, bornée par le modèle : natif + plafond video_max_gen_s — c'est elle qui est facturée), la résolution, et
+    construit l'op de devis. Rend aussi le PREMIER refus que la route payante rendrait (`refus`, `refus_code`,
+    `refus_etape` « modele » ou « champs »), dans son ordre — sauf la clé absente, rendue à part (`cle_absente`) :
+    un modèle sans clé reste choisissable et son prix se montre."""
+    from app.services import pricing as _pr
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL, accepte_fin
+    body = body if isinstance(body, dict) else {}
+    origines = (("plateau", getattr(s, "keyframe_image", None)), ("production", getattr(s, "image", None)),
+                ("croquis", getattr(s, "sketch_image", None)))
+    debut = next(({"nom": Path(str(v)).name, "origine": o} for o, v in origines if v), None)
+    fin = {"nom": Path(str(s.keyframe_end)).name} if getattr(s, "keyframe_end", None) else None
+    mid = str(body.get("video_model") or (_VIDEO_PLAN_FL if fin else DEFAULT_VIDEO_MODEL))
+    out = {"video_model": mid, "debut": debut, "fin": fin, "fl": False, "duree_s": None, "resolution": None,
+           "usd": None, "op": None, "prompt": "", "cle_absente": None, "refus": None, "refus_code": None,
+           "refus_etape": None}
+
+    def _refus(code, msg, etape="champs"):
+        if out["refus"] is None:
+            out.update(refus=msg, refus_code=code, refus_etape=etape)
+
+    m = VIDEO_MODELS.get(mid)
+    if m is None:
+        _refus(400, f"Modèle vidéo inconnu : {mid[:48]} (ids : {', '.join(VIDEO_MODELS)}).", "modele")
+        return out
+    if m["provider"] == "google":
+        out["cle_absente"] = None if settings.has_gemini else "GEMINI_API_KEY"
+    else:
+        out["cle_absente"] = None if settings.FAL_KEY else "FAL_KEY"
+    out["fl"] = bool(fin) and accepte_fin(m)
+    try:
+        _fin_video_ou_400(mid, fin["nom"] if fin else None, http)   # t184 : la fin sur un modèle sans first-last
+    except HTTPException as e:
+        _refus(400, e.detail)
+    if not debut:
+        _refus(400, "Ce plan n'a aucune image de départ : capturez-la au Plateau, ou générez son image de production "
+                    "ou son croquis.")
+    elif not (settings.images_path / debut["nom"]).is_file():
+        _refus(404, f"Image de départ introuvable : {debut['nom']}")
+    if fin and not (settings.images_path / fin["nom"]).is_file():
+        _refus(404, f"Image de fin introuvable : {fin['nom']}")
+    out["prompt"] = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
+    if not out["prompt"]:
+        _refus(400, "Décrivez le mouvement du plan (prompt de mouvement ou action) avant sa vidéo.")
+    try:
+        demande = float(body.get("duration_s") or s.duration_s or 4.0)
+        if demande != demande or demande in (float("inf"), float("-inf")):
+            raise ValueError
+    except (TypeError, ValueError):
+        _refus(400, "duration_s : un nombre de secondes.")
+        demande = float(s.duration_s or 4.0)
+    demande = max(3, min(60, int(round(demande))))
+    duree = max(3, min(60, _pr.video_gen_seconds(mid, demande)))   # bornée par le modèle (natif + plafond)
+    resolution = str(body.get("resolution") or "720p")
+    if resolution not in ("720p", "1080p"):
+        _refus(400, "resolution : 720p ou 1080p.")
+        resolution = "720p"
+    op = _pr.video_request_op(mid, duree, resolution)
+    out.update(duree_s=duree, resolution=resolution, op=op,
+               usd=_pr.estimate({"kind": "campaign", "ops": [op]})["total_usd"])
+    return out
+
+
+@router.get("/shots/{shot_id}/video/devis")
+async def shot_video_devis(shot_id: str, video_model: str = "", resolution: str = "", duration_s: str = "",
+                           http: Request = None):
+    """t189 (relecture) — le devis GRATUIT de la vidéo d'un plan : exactement ce que POST /shots/{id}/video
+    facturerait (même calcul, _video_plan). Aucune garde, aucune dépense. La clé absente ne bloque pas le devis
+    (`cle_absente`) ; `refus` = le message 400/404 que la route payante rendrait, sinon null.
+    Rend {video_model, duree_s, resolution, usd, debut: {nom, origine}|null, fin: {nom}|null, fl, refus,
+    cle_absente}."""
+    from app.services.storage import Shot, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+    if not s:
+        raise HTTPException(404, "Shot not found")
+    calc = _video_plan(s, {"video_model": video_model or None, "resolution": resolution or None,
+                           "duration_s": duration_s or None}, http)
+    rep = {k: calc[k] for k in ("video_model", "duree_s", "resolution", "usd", "debut", "fin", "fl", "refus",
+                                "cle_absente")}
+    return rep
+
+
 @router.post("/shots/{shot_id}/video", dependencies=[Depends(_require_local_depense)])
 async def shot_video(shot_id: str, body: dict, background_tasks: BackgroundTasks, http: Request = None):
     """La VIDÉO d'un plan : début = la borne du Plateau (keyframe_image), sinon l'image de production, sinon le croquis ;
     fin = keyframe_end ; prompt = motion_prompt du plan, sinon son action. Modèle par défaut : Veo 3.1 Fast
     first-last avec une fin, le défaut vidéo de l'app sans (le défaut GLOBAL ne change pas). Les gardes de
     /generate, dans le même ordre, catégorie « chapitres ». 9:16, sans voix off ni sous-titres, durée du plan bornée
-    par le modèle. Body : {video_model?, duration_s?, resolution? (720p par défaut), max_usd?}.
+    par le modèle. Body : {video_model?, duration_s?, resolution? (720p par défaut), max_usd?}. Le calcul (images,
+    modèle, durée, op) est celui du devis gratuit (_video_plan).
     Le job est rattaché AVANT la fin du rendu (`shot.video`) ; rend le plan | {job_id, usd}."""
     from pydantic import ValidationError
     from app.models.schemas import AspectRatio, CameraMove, PromptSource
-    from app.services import pricing as _pr
-    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
     from app.services.storage import Shot, async_session_factory
     body = body if isinstance(body, dict) else {}
     async with async_session_factory() as session:
         s = await session.get(Shot, shot_id)
         if not s:
             raise HTTPException(404, "Shot not found")
-        debut = next((Path(str(v)).name for v in (getattr(s, "keyframe_image", None), getattr(s, "image", None),
-                                                    s.sketch_image) if v), None)
-        fin = Path(str(s.keyframe_end)).name if getattr(s, "keyframe_end", None) else None
-        mid = str(body.get("video_model") or (_VIDEO_PLAN_FL if fin else DEFAULT_VIDEO_MODEL))
-        if mid not in VIDEO_MODELS:
-            raise HTTPException(400, f"Modèle vidéo inconnu : {mid[:48]} (ids : {', '.join(VIDEO_MODELS)}).")
+        calc = _video_plan(s, body, http)
+        mid = calc["video_model"]
+        if calc["refus_etape"] == "modele":
+            raise HTTPException(calc["refus_code"], calc["refus"])
         _cle_video_ou_503(mid, http)                    # t183 : 503 AVANT toute garde de dépense
-        _fin_video_ou_400(mid, fin, http)               # t184 : une fin sur un modèle sans first-last, avant la dépense
-        if not debut:
-            raise HTTPException(400, "Ce plan n'a aucune image de départ : capturez-la au Plateau, ou générez son "
-                                     "image de production ou son croquis.")
-        if not (settings.images_path / debut).is_file():
-            raise HTTPException(404, f"Image de départ introuvable : {debut}")
-        if fin and not (settings.images_path / fin).is_file():
-            raise HTTPException(404, f"Image de fin introuvable : {fin}")
-        prompt = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
-        if not prompt:
-            raise HTTPException(400, "Décrivez le mouvement du plan (prompt de mouvement ou action) avant sa vidéo.")
-        try:
-            demande = float(body.get("duration_s") or s.duration_s or 4.0)
-        except (TypeError, ValueError):
-            raise HTTPException(400, "duration_s : un nombre de secondes.")
-        demande = max(3, min(60, int(round(demande))))
-        duree = max(3, min(60, _pr.video_gen_seconds(mid, demande)))   # bornée par le modèle (natif + plafond)
-        resolution = str(body.get("resolution") or "720p")
-        if resolution not in ("720p", "1080p"):
-            raise HTTPException(400, "resolution : 720p ou 1080p.")
+        if calc["refus"]:                               # t184 (fin sans FL), images, prompt, durée, résolution
+            raise HTTPException(calc["refus_code"], calc["refus"])
+        debut = calc["debut"]["nom"]
+        fin = calc["fin"]["nom"] if calc["fin"] else None
         try:
             max_usd = float(body["max_usd"]) if body.get("max_usd") is not None else None
         except (TypeError, ValueError):
@@ -11139,14 +11222,14 @@ async def shot_video(shot_id: str, body: dict, background_tasks: BackgroundTasks
         except ValueError:
             camera = None
         try:
-            req = GenerateRequest(image_filename=debut, image_filename_end=fin, custom_prompt=prompt,
+            req = GenerateRequest(image_filename=debut, image_filename_end=fin, custom_prompt=calc["prompt"],
                                   prompt_source=PromptSource.CUSTOM, video_model=mid, camera=camera,
-                                  aspect_ratio=AspectRatio.VERTICAL, duration_s=duree, resolution=resolution,
-                                  voiceover_enabled=False, max_usd=max_usd)
+                                  aspect_ratio=AspectRatio.VERTICAL, duration_s=calc["duree_s"],
+                                  resolution=calc["resolution"], voiceover_enabled=False, max_usd=max_usd)
         except ValidationError as e:
             raise HTTPException(400, f"requête vidéo du plan illisible : {e.errors()[0].get('msg', '')}"[:300])
-        total = _garde_cout([_devis_video(req)], req.max_usd)
-        await _plafond([_devis_video(req)] + _op_voix_off(req), "chapitres")   # avant la dépense
+        total = _garde_cout([calc["op"]], req.max_usd)
+        await _plafond([calc["op"]] + _op_voix_off(req), "chapitres")   # avant la dépense
         job_id = str(uuid4())
         s.video = job_id                                 # rattaché AVANT la fin du rendu
         s.updated_at = datetime.utcnow()
