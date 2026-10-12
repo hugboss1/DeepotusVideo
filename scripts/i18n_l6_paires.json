@@ -4951,6 +4951,12 @@
     "avant": "`${n} formes posées · ${d.provider}`\r\n                  + (d.modele ? ` · ${d.modele}` : \"\")\r\n                  + ` — sélectionnées sur la page : déplaçables et `\r\n                  + `redimensionnables comme une forme ; « Dégrouper » les `\r\n                  + `rend indépendantes, l'outil Nœuds édite leurs points`",
     "apres": "T(\"vectorlab.ia.posees\", { n, fournisseur: d.provider, modele: d.modele ? ` · ${d.modele}` : \"\" })",
     "groupe": "outils_lab"
+   },
+   {
+    "pos": 8706,
+    "avant": "  const el = hote();\r\n  if (el) {",
+    "apres": "  const el = hote();\r\n  if (el) {\r\n    // le dialogue vit DANS #stage : sans garde, le pointerdown d'un contrôle remonte au gestionnaire de l'outil\r\n    // Sélection (mod-tools, en bulle sur #stage) qui pose setPointerCapture(#stage) — le click part alors sur\r\n    // #stage, la croix ne ferme pas, « Générer » ne part pas (vu à la preuve 8799). Mêmes gestes gardés que\r\n    // garderClics de mod-iacalque ; la poignée de glisser (pointerdown du dialogue, plus bas) n'en souffre pas.\r\n    for (const t of [\"pointerdown\", \"mousedown\", \"dblclick\", \"contextmenu\", \"wheel\"]) {\r\n      el.addEventListener(t, (ev) => ev.stopPropagation(), t === \"wheel\" ? { passive: true } : false);\r\n    }",
+    "groupe": "iaclics"
    }
   ],
   "js/mod-image.js": [
@@ -5323,6 +5329,12 @@
     "groupe": "export"
    },
    {
+    "pos": 12149,
+    "avant": "$(\"#impHauteurs\").querySelectorAll",
+    "apres": "$(\"#impHauteursPx\").querySelectorAll",
+    "groupe": "impression"
+   },
+   {
     "pos": 12436,
     "avant": "\"pixel-art : aucun pixel opaque\"",
     "apres": "vlT(\"vectorlab.impression.pixel_vide\")",
@@ -5435,6 +5447,12 @@
     "avant": "title=\"Préremplit la table : clair haut, sombre bas\">par luminosité</button>",
     "apres": "title=\"${vlT(\"vectorlab.impression.lum_titre\")}\">${vlT(\"vectorlab.impression.par_luminosite\")}</button>",
     "groupe": "export"
+   },
+   {
+    "pos": 20704,
+    "avant": "imp-hauteurs\" id=\"impHauteurs\">",
+    "apres": "imp-hauteurs\" id=\"impHauteursPx\">",
+    "groupe": "impression"
    },
    {
     "pos": 20753,
@@ -5569,10 +5587,22 @@
     "groupe": "export"
    },
    {
+    "pos": 25009,
+    "avant": "$(\"#impHauteurs\").innerHTML",
+    "apres": "$(\"#impHauteursPx\").innerHTML",
+    "groupe": "impression"
+   },
+   {
     "pos": 25235,
     "avant": "<i class=\"tr-etat\">aucun pixel opaque</i>",
     "apres": "<i class=\"tr-etat\">${vlT(\"vectorlab.impression.aucun_pixel\")}</i>",
     "groupe": "export"
+   },
+   {
+    "pos": 25443,
+    "avant": "$(\"#impHauteurs\").innerHTML",
+    "apres": "$(\"#impHauteursPx\").innerHTML",
+    "groupe": "impression"
    },
    {
     "pos": 26382,
@@ -10193,6 +10223,12 @@
     "avant": "\"texte introuvable\"",
     "apres": "vlT(\"vectorlab.typo.texte_introuvable\")",
     "groupe": "texte"
+   },
+   {
+    "pos": 7298,
+    "avant": "    stage.appendChild(ta);\r\n    editeur = { ta, id, neuf };",
+    "apres": "    stage.appendChild(ta);\r\n    editeur = { ta, id, neuf };\r\n    // le champ vit DANS #stage : sans garde, le pointerdown d'un clic dedans remonte au gestionnaire de l'outil\r\n    // Sélection (mod-tools, en bulle sur #stage, setPointerCapture) et l'éditeur se FERME au lieu de placer le\r\n    // curseur (vu à la preuve 8799). Mêmes gestes gardés que garderClics de mod-iacalque et le dialogue de mod-ia.\r\n    for (const t of [\"pointerdown\", \"mousedown\", \"dblclick\", \"contextmenu\", \"wheel\"]) {\r\n      ta.addEventListener(t, (ev) => ev.stopPropagation(), t === \"wheel\" ? { passive: true } : false);\r\n    }",
+    "groupe": "typoclics"
    },
    {
     "pos": 8708,
