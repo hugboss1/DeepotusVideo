@@ -498,9 +498,9 @@ export function initIaCalque(VL) {
     return VL.deposerBlob(await r.blob());
   }
   // le bouton du panneau Image : son état suit le vol, et il est REDESSINÉ à la fin (le panneau a pu être rendu
-  // pendant le vol — executer → surRendu — avec « en cours… »)
-  function majBoutonDetour() {
-    const b = $("#imDetourer");
+  // pendant le vol — executer → surRendu — avec « en cours… »). Seule pose de son icône et de son libellé :
+  // ligneDetour lui passe le bouton qu'elle vient de créer
+  function majBoutonDetour(b = $("#imDetourer")) {
     if (!b) return;
     b.disabled = detourer.enVol;
     b.innerHTML = dzi("dz-action-detourer", 16) + (detourer.enVol ? T("vectorlab.iacalque.en_cours") : T("vectorlab.iacalque.retirer_fond"));
@@ -526,12 +526,12 @@ export function initIaCalque(VL) {
   function ligneDetour(ligne, o) {
     ligne.innerHTML = `<span>${T("vectorlab.iacalque.fond")}</span>
       <select id="imDetourModele" title="${T("vectorlab.iacalque.detour_aide")}"><option value="">…</option></select>
-      <button id="imDetourer" title="${T("vectorlab.iacalque.retirer_fond_titre")}">${dzi("dz-action-detourer", 16)}${T("vectorlab.iacalque.retirer_fond")}</button>
+      <button id="imDetourer" title="${T("vectorlab.iacalque.retirer_fond_titre")}"></button>
       <input type="text" id="imDetourSujet" hidden placeholder="${T("vectorlab.iacalque.sujet")}" title="${T("vectorlab.iacalque.sujet_aide")}"/>`;
     const sel = ligne.querySelector("#imDetourModele"), sujet = ligne.querySelector("#imDetourSujet");
     let mods = [];
     const maj = () => { sujet.hidden = !sujetRequis(mods, sel.value); };
-    majBoutonDetour();
+    majBoutonDetour(ligne.querySelector("#imDetourer"));
     const M = MI();
     if (M) {
       catalogue("detourage_image").then((l) => {
