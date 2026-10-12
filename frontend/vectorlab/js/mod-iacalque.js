@@ -197,6 +197,37 @@ export function nomDepot(docId, href) {
 }
 
 /* ── DOM ── */
+// le panneau vit DANS #stage : sans garde, le pointerdown d'un contrôle remonte au gestionnaire de l'outil
+// Sélection (mod-tools, en bulle sur #stage) qui pose setPointerCapture(#stage) — le click part alors sur
+// #stage, la case ne se coche pas, le bouton ne part pas (vu à la preuve 8799). Les gestes du panneau
+// s'arrêtent à lui (en bulle : ses propres écouteurs, dont la poignée, ont déjà joué) ; la molette ne zoome
+// pas le canevas. Rien n'est preventDefault ici : la case, les listes et le texte gardent leur geste natif.
+export const GESTES_GARDES = ["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel"];
+export function garderClics(el) {
+  for (const t of GESTES_GARDES) {
+    el.addEventListener(t, (ev) => ev.stopPropagation(), t === "wheel" ? { passive: true } : false);
+  }
+}
+
+// déplaçable par sa tête, comme le dialogue IA du canevas (borné à la scène)
+export function brancherPoignee(el, stage, win) {
+  el.addEventListener("pointerdown", (ev) => {
+    if (!ev.target.closest("[data-poigne]") || ev.target.closest("button")) return;
+    const r = el.getBoundingClientRect();
+    const ox = ev.clientX - r.left, oy = ev.clientY - r.top;
+    const sr = stage.getBoundingClientRect();
+    const bouge = (e2) => {
+      el.style.left = Math.max(0, Math.min(sr.width - 60, e2.clientX - sr.left - ox)) + "px";
+      el.style.top = Math.max(0, Math.min(sr.height - 30, e2.clientY - sr.top - oy)) + "px";
+      el.style.right = "auto";
+    };
+    const fin = () => { win.removeEventListener("pointermove", bouge); win.removeEventListener("pointerup", fin); };
+    win.addEventListener("pointermove", bouge);
+    win.addEventListener("pointerup", fin);
+    ev.preventDefault();
+  });
+}
+
 export function initIaCalque(VL) {
   const { $, etat } = VL;
   const lire = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
@@ -360,28 +391,16 @@ export function initIaCalque(VL) {
       if (ev.key === "Escape") fermer();
       if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey) && ev.target.id === "iacPrompt") { ev.preventDefault(); tirer(); }
     });
-    // déplaçable par sa tête, comme le dialogue IA du canevas
-    el.addEventListener("pointerdown", (ev) => {
-      if (!ev.target.closest("[data-poigne]") || ev.target.closest("button")) return;
-      const r = el.getBoundingClientRect();
-      const ox = ev.clientX - r.left, oy = ev.clientY - r.top;
-      const sr = $("#stage").getBoundingClientRect();
-      const bouge = (e2) => {
-        el.style.left = Math.max(0, Math.min(sr.width - 60, e2.clientX - sr.left - ox)) + "px";
-        el.style.top = Math.max(0, Math.min(sr.height - 30, e2.clientY - sr.top - oy)) + "px";
-        el.style.right = "auto";
-      };
-      const fin = () => { window.removeEventListener("pointermove", bouge); window.removeEventListener("pointerup", fin); };
-      window.addEventListener("pointermove", bouge);
-      window.addEventListener("pointerup", fin);
-      ev.preventDefault();
-    });
+    brancherPoignee(el, $("#stage"), window);
+    garderClics(el);
   }
 
   function ouvrir(calqueId) {
     if (!etat.doc) { VL.toast(T("vectorlab.image.aucun_doc"), true); return; }
     const el = hote();
     if (!el) return;
+    // les outils Plume, Pixel, Nœud… écoutent #stage en CAPTURE (avant le panneau) : l'outil Sélection, lui, en bulle
+    if (etat.outil !== "select" && VL.setOutil) VL.setOutil("select");
     const cibles = calquesCibles(etat.doc);
     cible = cibles.some((c) => c.id === calqueId) ? calqueId : (cibles[0] ? cibles[0].id : "");
     if (calqueId && cible !== calqueId) VL.toast(T("vectorlab.iacalque.calque_verrouille", { nom: nomCalque(calqueId) }), true);

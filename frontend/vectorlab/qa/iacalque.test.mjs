@@ -5,7 +5,8 @@
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { taillePour, requete, requeteDetour, etapes, verifierCible, calquesCibles, devisCorps, libellePrix,
-         messageErreur, unSeulVol, executerPlan, op_image_remplacer, retirerFondFlux, nomDepot, TAILLES }
+         messageErreur, unSeulVol, executerPlan, op_image_remplacer, retirerFondFlux, nomDepot, TAILLES,
+         garderClics, brancherPoignee, GESTES_GARDES }
   from "../js/mod-iacalque.js";
 import { docVierge } from "../js/mod-biblio.js";
 import { Historique, op_calque_ajouter, op_calque_verrou, op_ajouter } from "../js/mod-doc.js";
@@ -237,6 +238,67 @@ const docImage = () => {
   ok("[cle] mod-iacalque ne désactive aucune option de modèle", !fautives.length, fautives.join(" | "));
   const ia = lit("../../shared/dz-modeles-ia.js");
   ok("[cle] dz-modeles-ia : op.disabled = o.desactive (toujours faux)", /op\.disabled = o\.desactive;/.test(ia) && /desactive: false/.test(ia));
+}
+
+/* ── [clics] le panneau vit dans #stage : ses gestes n'atteignent pas les outils de la scène ──
+   un mini-DOM à propagation réelle (capture de la racine vers la cible, puis bulle), comme le navigateur */
+{
+  class Noeud {
+    constructor(parent, attrs = {}) { this.parent = parent; this.attrs = attrs; this.ec = []; this.style = {}; }
+    addEventListener(type, fn, o) { this.ec.push({ type, fn, capture: o === true || !!(o && o.capture) }); }
+    removeEventListener(type, fn) { this.ec = this.ec.filter((e) => !(e.type === type && e.fn === fn)); }
+    closest(sel) {
+      for (let n = this; n; n = n.parent) {
+        if (sel === "[data-poigne]" && n.attrs.poigne) return n;
+        if (sel === "button" && n.attrs.tag === "button") return n;
+      }
+      return null;
+    }
+    getBoundingClientRect() { return this.attrs.rect || { left: 0, top: 0, width: 0, height: 0 }; }
+    dispatch(type, extra = {}) {
+      const ev = { type, target: this, arrete: false, empeche: false, ...extra,
+        stopPropagation() { this.arrete = true; }, preventDefault() { this.empeche = true; } };
+      const chemin = [];
+      for (let n = this; n; n = n.parent) chemin.unshift(n);
+      for (const n of chemin.slice(0, -1)) { for (const e of n.ec.filter((x) => x.type === type && x.capture)) e.fn(ev); if (ev.arrete) return ev; }
+      for (const n of [...chemin].reverse()) {
+        for (const e of n.ec.filter((x) => x.type === type && (n === this || !x.capture))) e.fn(ev);
+        if (ev.arrete) return ev;
+      }
+      return ev;
+    }
+  }
+  const monter = () => {
+    const stage = new Noeud(null, { rect: { left: 0, top: 0, width: 1000, height: 800 } });
+    const el = new Noeud(stage, { rect: { left: 700, top: 20, width: 280, height: 400 } });
+    const tete = new Noeud(el, { poigne: true });
+    const caseDetour = new Noeud(el, { tag: "input" }), go = new Noeud(el, { tag: "button" });
+    const win = new Noeud(null);
+    const vus = [];
+    // l'outil Sélection de mod-tools : en BULLE sur #stage, setPointerCapture + geste
+    stage.addEventListener("pointerdown", (ev) => vus.push(ev.type + ":" + (ev.target === caseDetour ? "case" : ev.target === go ? "go" : "autre")));
+    for (const t of ["mousedown", "dblclick", "wheel", "contextmenu"]) stage.addEventListener(t, (ev) => vus.push(t));
+    garderClics(el);
+    brancherPoignee(el, stage, win);
+    return { stage, el, tete, caseDetour, go, win, vus };
+  };
+  const m = monter();
+  const e1 = m.caseDetour.dispatch("pointerdown", { clientX: 750, clientY: 200 });
+  const e2 = m.go.dispatch("pointerdown", { clientX: 760, clientY: 300 });
+  for (const t of ["mousedown", "dblclick", "wheel", "contextmenu"]) m.caseDetour.dispatch(t);
+  ok("[clics] un pointerdown sur la case ou le bouton n'atteint aucun écouteur de #stage", !m.vus.length, m.vus.join(","));
+  ok("[clics] ni preventDefault : la case garde son geste natif", !e1.empeche && !e2.empeche);
+  ok("[clics] la molette, le double-clic, le menu contextuel restent au panneau", !m.vus.length);
+  const hors = m.stage.dispatch("pointerdown");
+  ok("[clics] un pointerdown sur la scène hors panneau atteint toujours l'outil", m.vus.includes("pointerdown:autre") && !hors.arrete);
+  const g = m.tete.dispatch("pointerdown", { clientX: 710, clientY: 30 });
+  m.win.dispatch("pointermove", { clientX: 410, clientY: 130 });
+  ok("[clics] la poignée glisse toujours (preventDefault du glisser, panneau déplacé)",
+     g.empeche && m.el.style.left === "400px" && m.el.style.top === "120px" && m.el.style.right === "auto", JSON.stringify(m.el.style));
+  m.win.dispatch("pointerup");
+  m.win.dispatch("pointermove", { clientX: 10, clientY: 10 });
+  ok("[clics] relâché : le panneau ne suit plus", m.el.style.left === "400px");
+  ok("[clics] les gestes gardés", ["pointerdown", "mousedown", "dblclick", "wheel"].every((t) => GESTES_GARDES.includes(t)));
 }
 
 /* ── [page] le câblage : scripts chargés, bouton du calque, entrées de menu, aucun dialogue natif ── */
