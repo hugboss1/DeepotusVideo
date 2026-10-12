@@ -85,6 +85,7 @@ export function requete(o) {
   }
   const nom = String(o.nom || "").trim();
   if (nom) q.nom = nom;
+  if (o.reduire === false) q.reduire = false;      // préférence « redimensionner pendant le placement » décochée
   return q;
 }
 
@@ -212,9 +213,12 @@ export function initIaCalque(PL) {
   }
   const infoDe = (mods, id) => (mods || []).find((m) => m.id === id) || null;
 
+  // HORS de PL.file (la file unique du moteur) : la génération dure de quelques secondes à deux minutes, le Photolab
+  // reste utilisable pendant ce temps (le serveur revérifie document et calque avant de poser). essai = 1 : JAMAIS de
+  // relance automatique — mod-api rejoue un 409, et un POST rejoué après la dépense paierait deux fois.
   async function poster(chemin, corps) {
     try {
-      return await PL.file(() => PL.api("POST", chemin, corps, 0, true));
+      return await PL.api("POST", chemin, corps, 1, true);
     } catch (e) {
       throw new Error(e && e.statut ? messageErreur(e.statut, e.corps) : String((e && e.message) || e));
     }
@@ -308,6 +312,8 @@ export function initIaCalque(PL) {
 
   const choix = () => ({
     mode, auDessusDe: cible, calque: cible, taille: taillePour(PL.etat.doc),
+    // t159 : Paramètres › « redimensionner pendant le placement » (vraie par défaut)
+    reduire: !(PL.prefs && PL.prefs.p && PL.prefs.p.general && PL.prefs.p.general.resizeImageDuringPlace === false),
     prompt: ui.prompt.value || "", modele: ui.selModele.value || "",
     detourer: mode === "detour" || !!ui.caseDetour.checked, modeleDetour: ui.selDetour.value || "", sujet: ui.sujet.value || "",
   });
@@ -427,6 +433,7 @@ export function initIaCalque(PL) {
       if (mode === "detour") t = T("photolab.iacalque.detour_fait", { calque: avant });
       else if (r.detourEchec) t = T("photolab.iacalque.detour_echoue_pose", { raison: r.detourEchec, calque: avant });
       else t = T("photolab.iacalque.posee", { nom: r.nom || nomCalqueIa(c.prompt), calque: avant });
+      if (mode !== "detour" && r.reduite) t += " " + T("photolab.iacalque.reduite");
       dire(t); PL.signaler(t, !!r.detourEchec);
       remplirCalques(); majLieu();
     } catch (e) {

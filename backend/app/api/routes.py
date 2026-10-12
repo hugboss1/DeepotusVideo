@@ -6040,23 +6040,34 @@ def _cout_job_sprite(meta: dict, p: dict | None = None) -> dict:
                               "remove_bg": (meta or {}).get("remove_bg", "none")}, p)
 
 
-def _detourage_controles(mid, nature: str, sujet=None, http=None):
+def _detourage_controles(mid, nature: str, sujet=None, http=None, nommer=None):
     """t186 (G4) — les refus GRATUITS d'un détourage du registre unique, AVANT toute garde de dépense, dans cet
     ordre : id inconnu ou d'une autre nature -> 400 ; clé absente (modèle fal, décision du 11/10/2026 : le
     modèle reste choisissable, le tir est refusé ICI) -> 503 qui nomme la clé, aucune ligne `depenses` ; sujet
-    manquant pour un modèle qui l'exige (SAM 3, Bria objet, SAM 3.1) -> 400. Rend le sujet nettoyé (ou None)."""
+    manquant pour un modèle qui l'exige (SAM 3, Bria objet, SAM 3.1) -> 400. Rend le sujet nettoyé (ou None).
+    t191 : `nommer` (id -> nom NEUTRE de langue, ex. catalogue_ia.libelle_ecran) — les trois refus sont alors dits
+    dans la langue de la requête (messages.json ia.detour.*, ia.cle.absente_tir) en nommant le modèle par ce nom, et
+    non par le libellé du registre, écrit en français. Sans `nommer` : les messages d'avant, inchangés."""
     from app.services import detourage as _DT
+    from app import i18n as _i18n
+    lang = (_i18n.langue_requete(http) if http is not None else _i18n.langue_ui()) if nommer else None
     try:
         _DT.entree(str(mid or ""), nature)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        if not nommer:
+            raise HTTPException(400, str(e))
+        connus = ", ".join(_DT.ids(nature))
+        cle_msg = "ia.detour.inconnu" if str(mid or "") not in _DT.REGISTRE else "ia.detour.nature"
+        raise HTTPException(400, _i18n.msg(cle_msg, lang, modele=nommer(str(mid or ""))[:40] or "—", connus=connus))
     cle = _DT.cle_manquante(mid)
     if cle:
-        raise _refus_cle(cle, _DT.REGISTRE[mid]["label"], http)
+        raise _refus_cle(cle, nommer(mid) if nommer else _DT.REGISTRE[mid]["label"], http)
     try:
         return _DT.sujet_de(mid, sujet)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        if not nommer:
+            raise HTTPException(400, str(e))
+        raise HTTPException(400, _i18n.msg("ia.detour.sujet", lang, modele=nommer(mid)))
 
 
 def _cle_video_manquante(video_model) -> str | None:

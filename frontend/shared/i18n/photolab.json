@@ -1793,6 +1793,7 @@
   "photolab.iacalque.cle_absente": {"fr": "Clé manquante : {detail}", "en": "Missing key: {detail}"},
   "photolab.iacalque.nom_calque": {"fr": "IA — {debut}", "en": "AI — {debut}"},
   "photolab.iacalque.pose_inconnue": {"fr": "Le serveur n'a pas dit quel calque il a posé (image gardée : {nom}).", "en": "The server did not say which layer it placed (image kept: {nom})."},
+  "photolab.iacalque.reduite": {"fr": "L'image a été réduite pour tenir dans la toile.", "en": "The image was scaled down to fit the canvas."},
   "photolab.iacalque.posee": {"fr": "Calque « {nom} » posé au-dessus de « {calque} » (Ctrl+Z deux fois pour l'annuler).", "en": "Layer \"{nom}\" placed above \"{calque}\" (Ctrl+Z twice to undo)."},
   "photolab.iacalque.detour_echoue_pose": {"fr": "Le détourage a échoué ({raison}) : l'image a été posée AVEC son fond au-dessus de « {calque} ».", "en": "The cut-out failed ({raison}): the image was placed WITH its background above \"{calque}\"."},
   "photolab.iacalque.detour_fait": {"fr": "Fond retiré : la copie détourée est au-dessus de « {calque} », masqué dessous (Ctrl+Z trois fois pour revenir).", "en": "Background removed: the cut-out copy is above \"{calque}\", which is hidden below it (Ctrl+Z three times to go back)."}

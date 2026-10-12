@@ -34,6 +34,12 @@ NOTE_A_MESURER = "a_mesurer"     # code ; libellé : dzT("ia.prix.a_mesurer")
 _LIBELLES_ECRAN = {"flux": "FLUX schnell"}
 
 
+def libelle_ecran(mid: str) -> str:
+    """t191 : le nom d'un modèle dans un message serveur, NEUTRE de langue — son libellé d'écran s'il en a un
+    (« FLUX schnell »), sinon son id. Jamais les libellés de grille ou de registre, écrits en français."""
+    return _LIBELLES_ECRAN.get(str(mid or ""), str(mid or ""))
+
+
 def source(nature):
     """Décorateur : inscrit la fonction qui rend les entrées brutes d'une
     nature (id, label, voie, usd, unite, jumeau…)."""

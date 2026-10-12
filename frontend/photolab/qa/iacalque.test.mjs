@@ -135,14 +135,23 @@ globalThis.window.fetch = async (url, opts) => {
 globalThis.window.innerWidth = 1280; globalThis.window.innerHeight = 800;
 vm.runInThisContext(readFileSync(join(racine, "..", "shared", "dz-modeles-ia.js"), "utf8"));
 check("3.0 le vrai DzModelesIA est chargé", !!(globalThis.window.DzModelesIA && globalThis.window.DzModelesIA.remplir));
-const posts = [], signaux = [];
+const posts = [], signaux = [], essais = [];
+let fileAppels = 0;
 let reponse = { layer: 9, bounds: [0, 0, 1600, 900], usd: 0.003, nom: "IA — un phare" };
 const PL = {
   etat: { doc: DOC, verrous: {} }, surDoc: [], actions: {},
   $: (s) => (s === "#scene" ? scene : null), icone: () => "",
   signaler: (t, err) => signaux.push([t, !!err]),
-  file: (fn) => fn(),
-  api: async (m, chemin, corps) => { posts.push([m, chemin, corps]); await pause(15); return reponse; },
+  // la file du moteur ne s'exécute JAMAIS ici : un POST qui y passerait ne partirait pas (I3, relecture t191)
+  file: () => { fileAppels++; return new Promise(() => {}); },
+  // honore `essai` comme mod-api : essai 0 + 409 = une relance (I2, relecture t191)
+  api: async (m, chemin, corps, essai = 0) => {
+    posts.push([m, chemin, corps]); essais.push(essai); await pause(15);
+    if (reponse && reponse.statut409 && essai === 0) return PL.api(m, chemin, corps, 1);
+    if (reponse && reponse.statut409) { const e = new Error("409"); e.statut = 409; e.corps = { detail: "occupé" }; throw e; }
+    return reponse;
+  },
+  prefs: { p: { general: { resizeImageDuringPlace: true } } },
   cycle: async () => {}, executer: async () => ({ ok: true }),
 };
 initIaCalque(PL);
@@ -196,6 +205,22 @@ await pause(40);
 check("3.16 le POST /calque/ia part avec le format du document (16:9) et la cible", posts.length === 1
   && json(posts[0]) === json(["POST", "/calque/ia", { prompt: "un phare", taille: "landscape_16_9", auDessusDe: 2, detourer: false, modele: "flux" }]));
 check("3.17 après le vol : bouton rendu, « posé » annoncé", ui.go.disabled === false && ui.etat.textContent === "photolab.iacalque.posee");
+check("3.17b le POST part HORS de PL.file (file du moteur jamais sollicitée) et SANS relance (essai = 1)",
+  fileAppels === 0 && json(essais) === json([1]), { fileAppels, essais });
+// réduite à la toile : l'écran le dit ; préférence « redimensionner pendant le placement » décochée : reduire:false
+reponse = { layer: 10, bounds: [0, 0, 1600, 900], usd: 0.003, nom: "IA — x", reduite: true };
+PL.prefs.p.general.resizeImageDuringPlace = false;
+ui.go.envoyer("click");
+await pause(40);
+check("3.17c préférence décochée -> corps reduire:false ; réponse reduite:true -> l'écran le dit",
+  posts.length === 2 && posts[1][2].reduire === false && ui.etat.textContent === "photolab.iacalque.posee photolab.iacalque.reduite", [posts[1], ui.etat.textContent]);
+PL.prefs.p.general.resizeImageDuringPlace = true;
+// un 409 (moteur occupé à la pose, ou tout autre) n'est JAMAIS rejoué par l'écran : un seul POST
+reponse = { statut409: true };
+ui.go.envoyer("click");
+await pause(60);
+check("3.17d 409 : aucune relance automatique (un POST de plus, pas deux)", posts.length === 3 && essais.length === 3, essais);
+posts.splice(1); essais.splice(1);
 // une pose avalée (réponse sans calque) ne s'annonce JAMAIS
 reponse = { image: "gen_x.png" };
 ui.go.envoyer("click");

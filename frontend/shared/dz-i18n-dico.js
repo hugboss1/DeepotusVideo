@@ -8113,6 +8113,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "photolab.iacalque.prix_partiel": {"fr": " (+ une part à mesurer)", "en": " (+ a part still to be measured)"},
   "photolab.iacalque.prompt": {"fr": "Prompt de l'image", "en": "Image prompt"},
   "photolab.iacalque.prompt_vide": {"fr": "Écrivez d'abord ce que l'image doit montrer.", "en": "First write what the image should show."},
+  "photolab.iacalque.reduite": {"fr": "L'image a été réduite pour tenir dans la toile.", "en": "The image was scaled down to fit the canvas."},
   "photolab.iacalque.retirer_fond": {"fr": "Retirer le fond de l'image", "en": "Remove the image background"},
   "photolab.iacalque.sujet": {"fr": "Sujet à garder (ex. : le chat)", "en": "Subject to keep (e.g. the cat)"},
   "photolab.iacalque.sujet_aide": {"fr": "Ce modèle garde un sujet NOMMÉ : dites lequel", "en": "This model keeps a NAMED subject: say which one"},

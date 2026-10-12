@@ -74,7 +74,7 @@ def _echange(self, proc, lignes, methode, params, delai):
 
 PM.SessionMoteur._echange = _echange
 appels = {"flux": [], "facade": [], "detour": [], "placer": []}
-pannes = {"detour": None, "placer": None}
+pannes = {"detour": None, "placer": None, "taille_detour": 1, "pendant_generation": None}
 compteur = [0]
 
 
@@ -87,6 +87,9 @@ def _png(taille, couleur):
 
 async def _faux_flux(prompt, size, n, seed=None, **k):
     appels["flux"].append((prompt, size, n))
+    if pannes["pendant_generation"]:                  # l'utilisateur agit PENDANT la génération (relecture t191, I3)
+        f, pannes["pendant_generation"] = pannes["pendant_generation"], None
+        f()
     return {"images": [_png((400, 200), (0, 160, 0, 255))], "seed": 1}
 
 
@@ -101,18 +104,19 @@ async def _faux_detour(mid, chemin, prompt=None, dossier=None):
         raise pannes["detour"]
     with Image.open(chemin) as im:
         w, h = im.size
-    return _png((w, h), (255, 255, 0, 128))
+    k = pannes["taille_detour"]                       # un fournisseur qui rend une AUTRE définition (M9)
+    return _png((w * k, h * k), (255, 255, 0, 128))
 
 
 _placer0 = PM.placer
 
 
-def _placer(s, chemin, nom, objet_dynamique=True, reduire=True, centre=None):
+def _placer(s, chemin, nom, objet_dynamique=True, reduire=True, centre=None, au_dessus_de=None):
     appels["placer"].append({"chemin": chemin, "nom": nom, "objet_dynamique": objet_dynamique, "reduire": reduire,
-                             "centre": centre})
+                             "centre": centre, "au_dessus_de": au_dessus_de})
     if pannes["placer"]:
         raise pannes["placer"]
-    return _placer0(s, chemin, nom, objet_dynamique, reduire, centre)
+    return _placer0(s, chemin, nom, objet_dynamique, reduire, centre, au_dessus_de)
 
 
 R._flux_generate = _faux_flux
@@ -198,6 +202,24 @@ async def scenario():
         r = await c.post(IA, json=base, headers={"Accept-Language": "en-US,en;q=0.9"})
         check("0.7 le même refus en anglais (Accept-Language)", r.status_code == 503 and "not configured" in r.text,
               (r.status_code, r.text))
+        # retour de preuve 8799 : en anglais, AUCUN mot français d'un libellé de registre (grille d'image, détourage)
+        EN = {"Accept-Language": "en"}
+        FRANCAIS = ("recettes", "exactes", "garder", "sujet nommé", "extraire", "gratuit", "Fond uni", "non configurée",
+                    "rien n'a été", "inconnu", "détoure", "dites")
+        propre = lambda txt: not any(m in txt for m in FRANCAIS)
+        check("0.7b 503 de l'image en anglais : le modèle nommé « FLUX schnell » (libellé d'écran), aucun mot français",
+              r.status_code == 503 and "FLUX schnell" in r.text and propre(r.text), r.text)
+        refus_en = []
+        for corps in ({**base, "modele": "gpt-image-1", "detourer": True, "modeleDetour": "sam3-sujet"},
+                      {**base, "modele": "gpt-image-1", "detourer": True, "modeleDetour": "zorg"},
+                      {**base, "modele": "gpt-image-1", "detourer": True, "modeleDetour": "birefnet-v2-video"}):
+            r = await c.post(IA, json=corps, headers=EN)
+            refus_en.append((r.status_code, r.json().get("detail")))
+        r = await c.post(DET, json={"layer": 3, "modele": "bria-objet"}, headers=EN)
+        refus_en.append((r.status_code, r.json().get("detail")))
+        check("0.7c refus du détourage en anglais (clé, inconnu, autre nature, /calque/detourer) : par l'id, aucun mot français",
+              [s for s, _ in refus_en] == [503, 400, 400, 503] and all(propre(str(d)) for _, d in refus_en)
+              and "sam3-sujet" in str(refus_en[0][1]) and "bria-objet" in str(refus_en[3][1]) and nb_appels() == 0, refus_en)
         # le DÉTOURAGE refusé AVANT la génération payée : l'image (OpenAI) a sa clé, le détourage fal ne l'a pas
         r = await c.post(IA, json={**base, "modele": "gpt-image-1", "detourer": True, "modeleDetour": "bria-rmbg"})
         check("0.8 clé du détourage absente -> 503 (FAL_KEY), la génération (clé présente) n'est PAS tirée",
@@ -206,9 +228,12 @@ async def scenario():
         check("0.9 /calque/detourer sans FAL_KEY -> 503, rien d'exporté", r.status_code == 503 and nb_appels() == 0
               and not any(m == "doc.save" for m, _ in journal), (r.status_code, r.text))
         settings.FAL_KEY = "cle-de-banc"
+        r = await c.post(IA, json={**base, "detourer": True, "modeleDetour": "sam3-sujet"}, headers=EN)
+        check("0.9b sujet exigé manquant, en anglais : par l'id, aucun mot français", r.status_code == 400
+              and "sam3-sujet" in r.text and "subject" in r.text and propre(r.text) and nb_appels() == 0, r.text)
         for corps, motif in (({**base, "detourer": True, "modeleDetour": "zorg"}, "zorg"),
                              ({**base, "detourer": True}, "inconnu"),
-                             ({**base, "detourer": True, "modeleDetour": "birefnet-v2-video"}, "BiRefNet"),
+                             ({**base, "detourer": True, "modeleDetour": "birefnet-v2-video"}, "birefnet-v2-video"),
                              ({**base, "detourer": True, "modeleDetour": "sam3-sujet"}, "sujet")):
             r = await c.post(IA, json=corps)
             check(f"0.10 détourage refusé AVANT la génération (« {motif} ») -> 400, zéro appel",
@@ -283,15 +308,75 @@ async def scenario():
         pannes["detour"] = None
         j = r.json() if r.status_code == 200 else {}
         check("2.10 détourage en échec après la génération : 200, image NON détourée posée, detourEchec le dit",
-              r.status_code == 200 and len(appels["flux"]) == nf + 1 and "502" in j.get("detourEchec", "")
+              r.status_code == 200 and len(appels["flux"]) == nf + 1 and "bria-rmbg" in j.get("detourEchec", "")
+              and "RuntimeError" in j["detourEchec"] and "Bad Gateway" not in j["detourEchec"]
               and j.get("image") == f"gen_banc{compteur[0]:04d}.png" and isinstance(j.get("layer"), int), (r.status_code, r.text))
         # le moteur refuse la pose : le message dit que l'image est gardée, avec son nom
         pannes["placer"] = PM.MoteurErreur("no such layer")
         r = await c.post(IA, json=base)
         pannes["placer"] = None
         garde = f"gen_banc{compteur[0]:04d}.png"
-        check("2.11 pose impossible : 422 dont le message garde le nom de l'image (Bibliothèque)", r.status_code == 422
+        check("2.11 pose impossible : 502 dont le message garde le nom de l'image (Bibliothèque)", r.status_code == 502
               and garde in r.text and (settings.images_path / garde).is_file(), (r.status_code, r.text))
+        # I2 : moteur OCCUPÉ à la pose, APRÈS la dépense -> jamais un 409 (l'écran le rejouerait : double dépense)
+        n_l = len(await lire_lignes())
+        pannes["placer"] = PM.MoteurOccupe("moteur occupé : une opération est en cours")
+        r = await c.post(IA, json=base)
+        pannes["placer"] = None
+        garde = f"gen_banc{compteur[0]:04d}.png"
+        check("2.12 moteur occupé pendant la pose : 502 (pas 409), image gardée et nommée, UNE seule ligne de dépense",
+              r.status_code == 502 and garde in r.text and len(await lire_lignes()) == n_l + 1, (r.status_code, r.text))
+        # I3 : le document actif change PENDANT la génération -> rien n'est posé, l'image est gardée
+        i_av = s.appeler("doc.inspect")
+
+        def autre_document():
+            s.appeler("doc.new", {"width": 120, "height": 80, "background": "white"})
+            s.appeler("engine.execute", {"command": "layer.new.layer", "params": {}})
+            s.appeler("engine.execute", {"command": "layer.new.layer", "params": {}})
+        pannes["pendant_generation"] = autre_document
+        n_j = len(journal)
+        r = await c.post(IA, json=base)
+        garde = f"gen_banc{compteur[0]:04d}.png"
+        autre = s.appeler("doc.inspect")
+        sl = s.appeler("session.list")
+        check("2.13 document changé pendant la génération : 502, image gardée nommée, RIEN posé dans l'autre document",
+              r.status_code == 502 and garde in r.text and not any(str(x.get("name", "")).startswith("IA") for x in autre["layers"])
+              and "a changé pendant la génération" in r.text
+              and not any(m == "doc.open" or p.get("command") == "layer.select" for m, p in commandes(n_j)),
+              (r.status_code, r.text, [x.get("name") for x in autre["layers"]]))
+        s.appeler("doc.close", {"index": sl["active"]})
+        s.appeler("doc.select", {"index": 0})
+        check("2.14 … ni dans le document de départ (historique inchangé)", s.appeler("doc.inspect")["history"] == i_av["history"])
+        # M1 : la recette (graine FLUX comprise) suit l'image dans l'index de la Bibliothèque
+        from app.services.storage import LibraryAsset
+        async with async_session_factory() as _s:
+            row = await _s.get(LibraryAsset, garde)
+        rec = json.loads(row.recette) if row is not None and row.recette else {}
+        check("2.15 recette gardée : prompt, modèle, format, graine FLUX ; source photolab",
+              row is not None and row.source == "photolab" and rec.get("seed") == 1 and rec.get("model") == "flux"
+              and rec.get("size") == "landscape_16_9" and rec.get("prompt") == base["prompt"], (row and row.source, rec))
+        # le calque visé est supprimé pendant la génération : rien n'est posé non plus
+        s.appeler("engine.execute", {"command": "layer.new.layer", "params": {}})
+        cible = s.appeler("doc.inspect")["activeLayer"]
+        pannes["pendant_generation"] = lambda: s.appeler("engine.execute", {"command": "layer.delete", "params": {"layer": cible}})
+        h0 = len(s.appeler("doc.inspect")["history"])
+        n_j = len(journal)
+        r = await c.post(IA, json={**base, "auDessusDe": cible})
+        check("2.16 calque visé supprimé pendant la génération : 502 qui le dit, rien tenté au moteur", r.status_code == 502
+              and len(s.appeler("doc.inspect")["history"]) == h0 + 1 and "a changé pendant la génération" in r.text
+              and not any(m == "doc.open" for m, p in commandes(n_j)), (r.status_code, r.text))
+        s.appeler("batch", {"steps": [{"command": "edit.undo"}, {"command": "edit.undo"}], "stopOnError": True})
+        # M2 : réduite à la toile -> la réponse le dit ; préférence décochée -> posée sans réduction
+        r = await c.post(IA, json=base)
+        j = r.json() if r.status_code == 200 else {}
+        check("2.17 image plus grande que la toile : reduite:true", r.status_code == 200 and j.get("reduite") is True, r.text)
+        s.appeler("batch", {"steps": [{"command": "edit.undo"}, {"command": "edit.undo"}], "stopOnError": True})
+        r = await c.post(IA, json={**base, "reduire": False})
+        j = r.json() if r.status_code == 200 else {}
+        pose = next((x for x in s.appeler("doc.inspect")["layers"] if x["id"] == j.get("layer")), {})
+        check("2.18 reduire:false -> reduite:false, image posée à sa taille (400×200, centrée)", r.status_code == 200
+              and j.get("reduite") is False and pose.get("bounds") == [-100, -50, 400, 200], (r.text, pose))
+        s.appeler("batch", {"steps": [{"command": "edit.undo"}, {"command": "edit.undo"}], "stopOnError": True})
 
         print("\n[3] /calque/detourer : non destructif")
         i_av = s.appeler("doc.inspect")
@@ -334,11 +419,57 @@ async def scenario():
         pannes["detour"] = None
         i4 = s.appeler("doc.inspect")
         check("3.7 fournisseur en échec : 502 qui le nomme, document intact (aucun collage, aucun masquage)",
-              r.status_code == 502 and "Bria" in r.text and len(i4["history"]) == hist1
+              r.status_code == 502 and "bria-rmbg" in r.text and len(i4["history"]) == hist1
               and not any(p.get("command") in ("edit.paste", "layer.setProps") for m, p in commandes(n0) if m == "engine.execute"),
               (r.status_code, r.text, i4["history"][hist1:]))
 
+        print("\n[3b] /calque/detourer : la place de l'APPARENCE (ombre portée, masque), autre définition")
+
+        def calque_vert():
+            s.appeler("engine.execute", {"command": "layer.new.layer", "params": {}})
+            lid = s.appeler("doc.inspect")["activeLayer"]
+            ex("select.rect", x=10, y=20, width=50, height=40)
+            ex("edit.fill", contents="color", color="#00aa00")
+            ex("select.deselect")
+            return lid
+
+        def region_attendue(lid):
+            f, _ = PM.exporter_calque(s, lid, "png", "banc-region", 100, None, False)
+            with Image.open(PM.dossier_travail() / "exports" / f) as im:
+                b = im.convert("RGBA").getchannel("A").getbbox()
+            (PM.dossier_travail() / "exports" / f).unlink()
+            return [b[0], b[1], b[2] - b[0], b[3] - b[1]]
+        for cas in ("ombre", "masque", "definition"):
+            lid = calque_vert()
+            if cas == "ombre":
+                ex("layer.layerStyle.dropShadow", layer=lid, distance=12, size=0)
+            elif cas == "masque":
+                ex("select.rect", x=10, y=20, width=20, height=40)
+                ex("layer.layerMask.revealSelection")
+                ex("select.deselect")
+            else:
+                pannes["taille_detour"] = 2
+            attendu = region_attendue(lid)
+            r = await c.post(DET, json={"layer": lid, "modele": "bria-rmbg"})
+            pannes["taille_detour"] = 1
+            j = r.json() if r.status_code == 200 else {}
+            neuf = next((x for x in s.appeler("doc.inspect")["layers"] if x["id"] == j.get("layer")), {})
+            temoin = {"ombre": attendu[2] > 50 and attendu[3] > 40, "masque": attendu == [10, 20, 20, 40],
+                      "definition": attendu == [10, 20, 50, 40]}[cas]
+            check(f"3.8 {cas} : la copie détourée couvre EXACTEMENT la région visible exportée {attendu}",
+                  r.status_code == 200 and temoin and neuf.get("bounds") == attendu,
+                  (cas, r.status_code, r.text[:200], attendu, neuf.get("bounds")))
+        lid = calque_vert()
+        ex("select.rect", x=150, y=0, width=10, height=10)
+        ex("layer.layerMask.revealSelection")
+        ex("select.deselect")
+        nl, nd = len(await lire_lignes()), len(appels["detour"])
+        r = await c.post(DET, json={"layer": lid, "modele": "bria-rmbg"})
+        check("3.9 calque entièrement masqué (rien de visible) : 400 AVANT la dépense, aucun détourage",
+              r.status_code == 400 and len(await lire_lignes()) == nl and len(appels["detour"]) == nd, (r.status_code, r.text))
+
         print("\n[4] plafond")
+
         nb, nl = nb_appels(), len(await lire_lignes())
         P.enregistrer({"global_usd": 0.0001, "par_moteur": {}, "alerte_pct": 80})
         try:
