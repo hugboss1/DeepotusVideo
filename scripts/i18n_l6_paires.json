@@ -9,6 +9,12 @@
     "groupe": "import"
    },
    {
+    "pos": 426,
+    "avant": "         sommetDe, op_dupliquer, reperes_guides, reperes_rects, planches_guides }",
+    "apres": "         sommetDe, op_dupliquer, reperes_guides, reperes_rects, planches_guides, op_ids_reparer, ids_doublons }",
+    "groupe": "idgroupe"
+   },
+   {
     "pos": 2099,
     "avant": "import { initOutils } from \"./mod-tools.js\";",
     "apres": "import { initOutils } from \"./mod-tools.js\";\r\nimport { dansPanneau } from \"./mod-flottant.js\";",
@@ -39,6 +45,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 25463,
+    "avant": "    majTete();",
+    "apres": "    majTete();\r\n    verifierIds();                     // id-groupe : réparer / signaler les ids en double",
+    "groupe": "idgroupe"
+   },
+   {
     "pos": 26012,
     "avant": "\"erreur : \" + e.message",
     "apres": "T(\"vectorlab.core.erreur\", { message: e.message })",
@@ -63,6 +75,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 27001,
+    "avant": "function toast(msg, erreur) {",
+    "apres": "// id-groupe : un document d'avant le correctif peut porter un groupe au MÊME id qu'un de ses descendants\r\n// (op_grouper, op_ecreter) — il reçoit un id neuf ; tout autre doublon est seulement signalé\r\nfunction verifierIds() {\r\n  const rep = op_ids_reparer(etat.doc), dbl = ids_doublons(etat.doc);\r\n  if (rep.length) etat.sale = true;\r\n  if (dbl.length) toast(T(\"vectorlab.core.ids_doublons\", { ids: dbl.join(\", \") }), true);\r\n  else if (rep.length) toast(T(rep.length > 1 ? \"vectorlab.core.ids_repares_plusieurs\" : \"vectorlab.core.ids_repares_un\", { n: rep.length }));\r\n}\r\n\r\nfunction toast(msg, erreur) {",
+    "groupe": "idgroupe"
+   },
+   {
     "pos": 27312,
     "avant": "stage.addEventListener(\"wheel\", (ev) => {",
     "apres": "stage.addEventListener(\"wheel\", (ev) => {\r\n  if (dansPanneau(ev)) return;        // t190-bis : la molette d'un panneau flottant ne zoome pas",
@@ -85,6 +103,12 @@
     "avant": "  etat, api, $,",
     "apres": "  etat, api, $, dansPanneau,",
     "groupe": "panneaux"
+   },
+   {
+    "pos": 33391,
+    "avant": "  executer, annuler, refaire, sauver, charger,",
+    "apres": "  executer, annuler, refaire, sauver, charger, verifierIds,",
+    "groupe": "idgroupe"
    },
    {
     "pos": 33959,
@@ -1099,6 +1123,12 @@
     "avant": "\"brouillon restauré — Sauver pour l'écrire au serveur\"",
     "apres": "T(\"vectorlab.brouillon.restaure\")",
     "groupe": "divers"
+   },
+   {
+    "pos": 2945,
+    "avant": "    } else effacer(k);",
+    "apres": "      VL.verifierIds();                  // id-groupe : un brouillon d'avant le correctif aussi\r\n    } else effacer(k);",
+    "groupe": "idgroupe"
    },
    {
     "pos": 3124,
@@ -2433,10 +2463,28 @@
     "groupe": "doc"
    },
    {
+    "pos": 27843,
+    "avant": "  for (const cl of doc.calques) {",
+    "apres": "  // id-groupe : l'intérieur des symboles compte aussi — un id neuf ne recroise jamais un objet de symbole\r\n  for (const cl of [...doc.calques, ...Object.values(doc.symboles || {})]) {",
+    "groupe": "idgroupe"
+   },
+   {
+    "pos": 28213,
+    "avant": "const _idLibre = idLibre;",
+    "apres": "const _idLibre = idLibre;\r\n// id-groupe : une SOURCE d'ids neufs pour une op qui en crée plusieurs, ou qui retire des objets avant de poser\r\n// le sien — les ids pris sont relevés UNE fois, AVANT toute modification, et chaque id rendu y entre\r\nfunction _idsNeufs(doc, pris = _idsPris(doc)) {\r\n  let n = 1;\r\n  return () => { while (pris.has(\"o\" + n)) n++; pris.add(\"o\" + n); return \"o\" + n; };\r\n}\r\n// un id neuf pour l'objet et TOUS ses descendants ; le clip d'un groupe écrêté suit son conteneur\r\nfunction _reidentifier(o, neuf) {\r\n  o.id = neuf();\r\n  if (o.type !== \"groupe\" || !Array.isArray(o.enfants)) return;\r\n  const avant = o.enfants.map((e) => e.id);\r\n  for (const e of o.enfants) _reidentifier(e, neuf);\r\n  if (o.clip !== undefined) { const k = avant.indexOf(o.clip); if (k >= 0) o.clip = o.enfants[k].id; }\r\n}\r\n// les ids portés par plus d'un objet des calques (groupes et enfants compris), triés\r\nexport function ids_doublons(doc) {\r\n  const vus = new Set(), doubles = new Set();\r\n  _visiterObjets(doc, (o) => { if (vus.has(o.id)) doubles.add(o.id); else vus.add(o.id); });\r\n  return [...doubles].sort();\r\n}\r\n// réparation SÛRE d'un document d'avant id-groupe : un groupe qui porte l'id d'un de ses descendants (la trace\r\n// d'op_grouper / op_ecreter) reçoit un id neuf ; ses enfants et son clip gardent les leurs. Les autres doublons\r\n// ne sont pas renumérotés (on ne sait pas lequel était visé) : ids_doublons les signale. -> [[ancien, neuf]]\r\nexport function op_ids_reparer(doc) {\r\n  const neuf = _idsNeufs(doc), faits = [];\r\n  const dessous = (g, out) => { for (const e of g.enfants || []) { out.add(e.id); if (e.type === \"groupe\") dessous(e, out); } return out; };\r\n  const visiter = (objs) => {\r\n    for (const o of objs || []) {\r\n      if (o.type !== \"groupe\") continue;\r\n      visiter(o.enfants);\r\n      if (dessous(o, new Set()).has(o.id)) { const id = neuf(); faits.push([o.id, id]); o.id = id; }\r\n    }\r\n  };\r\n  for (const c of [...doc.calques, ...Object.values(doc.symboles || {})]) visiter(c.objets);\r\n  return faits;\r\n}",
+    "groupe": "idgroupe"
+   },
+   {
     "pos": 28363,
     "avant": "`calque verrouillé: ${calqueId}`",
     "apres": "T(\"vectorlab.doc.calque_verrouille\", { id: calqueId })",
     "groupe": "doc"
+   },
+   {
+    "pos": 28399,
+    "avant": "  const pris = _idsPris(doc);\r\n  const id = (objet.id && !pris.has(objet.id)) ? objet.id : _idLibre(doc);\r\n  c.objets.push({ ...objet, id });\r\n  return id;",
+    "apres": "  // id-groupe : un id fourni est gardé s'il est libre — les enfants d'un groupe aussi ; sinon (ou sans id), un\r\n  // neuf, et le clip d'un groupe écrêté suit son conteneur\r\n  const pris = _idsPris(doc), neuf = _idsNeufs(doc, pris);\r\n  const poser = (o) => {\r\n    const id = (o.id && !pris.has(o.id)) ? (pris.add(o.id), o.id) : neuf();\r\n    if (o.type !== \"groupe\" || !Array.isArray(o.enfants)) return { ...o, id };\r\n    const g = { ...o, id, enfants: o.enfants.map(poser) };\r\n    if (o.clip !== undefined) { const k = o.enfants.findIndex((e) => e.id === o.clip); if (k >= 0) g.clip = g.enfants[k].id; }\r\n    return g;\r\n  };\r\n  const o = poser(objet);\r\n  c.objets.push(o);\r\n  return o.id;",
+    "groupe": "idgroupe"
    },
    {
     "pos": 35218,
@@ -2485,6 +2533,12 @@
     "avant": "\"grouper: au moins deux objets déverrouillés\"",
     "apres": "T(\"vectorlab.doc.grouper_deux\")",
     "groupe": "doc"
+   },
+   {
+    "pos": 42874,
+    "avant": "  for (const { calque, objet } of cibles) {\r\n    calque.objets.splice(calque.objets.indexOf(objet), 1);\r\n  }\r\n  const id = _idLibre(doc);",
+    "apres": "  // id-groupe : l'id du groupe se prend AVANT de retirer ses enfants — après, idLibre ne les voit plus et\r\n  // rendait l'id du premier (le groupe et son enfant portaient le même id)\r\n  const id = _idLibre(doc);\r\n  for (const { calque, objet } of cibles) {\r\n    calque.objets.splice(calque.objets.indexOf(objet), 1);\r\n  }",
+    "groupe": "idgroupe"
    },
    {
     "pos": 43402,
@@ -2583,6 +2637,12 @@
     "groupe": "doc"
    },
    {
+    "pos": 50702,
+    "avant": "  for (const { calque, objet } of contenus) calque.objets.splice(calque.objets.indexOf(objet), 1);\r\n  const iC = hote.objets.indexOf(conteneur);\r\n  hote.objets.splice(iC, 1);\r\n  const id = _idLibre(doc);",
+    "apres": "  const id = _idLibre(doc);            // id-groupe : AVANT le retrait (sinon l'id du conteneur ou d'un contenu)\r\n  for (const { calque, objet } of contenus) calque.objets.splice(calque.objets.indexOf(objet), 1);\r\n  const iC = hote.objets.indexOf(conteneur);\r\n  hote.objets.splice(iC, 1);",
+    "groupe": "idgroupe"
+   },
+   {
     "pos": 51330,
     "avant": "`${id}: pas un groupe écrêté`",
     "apres": "T(\"vectorlab.doc.pas_ecrete\", { id })",
@@ -2679,6 +2739,12 @@
     "groupe": "doc"
    },
    {
+    "pos": 56605,
+    "avant": "    // copies à ids NEUFS (insérées une à une : _idLibre voit chaque id posé),\r\n    // mappées de la bbox du symbole vers celle de l'instance\r\n    const copies = _clone(sym.objets);\r\n    copies.forEach((o, k) => { o.id = _idLibre(doc); _mapperObjet(o, av, ap, doc); c.objets.splice(i + k, 0, o); });",
+    "apres": "    // copies à ids NEUFS, descendants des groupes compris (id-groupe : ils gardaient les ids du symbole, en\r\n    // double dès la 2e instance détachée), mappées de la bbox du symbole vers celle de l'instance\r\n    const copies = _clone(sym.objets), neuf = _idsNeufs(doc);\r\n    copies.forEach((o, k) => { _reidentifier(o, neuf); _mapperObjet(o, av, ap, doc); c.objets.splice(i + k, 0, o); });",
+    "groupe": "idgroupe"
+   },
+   {
     "pos": 56966,
     "avant": "`instance introuvable: ${idInstance}`",
     "apres": "T(\"vectorlab.doc.instance_introuvable\", { id: idInstance })",
@@ -2707,6 +2773,12 @@
     "avant": "\"instance tournée ou inclinée : l'éditer en place la déformerait — la remettre droite, ou la détacher\"",
     "apres": "T(\"vectorlab.doc.instance_tournee\")",
     "groupe": "doc"
+   },
+   {
+    "pos": 58622,
+    "avant": "    // copies à ids NEUFS, posées une à une (_idLibre voit chaque id posé)\r\n    for (const o of _clone(sym.objets)) { o.id = _idLibre(doc); _mapperObjet(o, sym.bbox, cadre, doc); cal.objets.push(o); }",
+    "apres": "    // copies à ids NEUFS, descendants des groupes compris (id-groupe)\r\n    const neuf = _idsNeufs(doc);\r\n    for (const o of _clone(sym.objets)) { _reidentifier(o, neuf); _mapperObjet(o, sym.bbox, cadre, doc); cal.objets.push(o); }",
+    "groupe": "idgroupe"
    },
    {
     "pos": 58971,
@@ -2809,6 +2881,12 @@
     "avant": "\"rien à dupliquer\"",
     "apres": "T(\"vectorlab.doc.rien_dupliquer\")",
     "groupe": "doc"
+   },
+   {
+    "pos": 65154,
+    "avant": "  const reid = (o) => {\r\n    o.id = idNeuf();\r\n    if (o.type === \"groupe\") (o.enfants || []).forEach(reid);\r\n  };",
+    "apres": "  // id-groupe : descendants compris, et le clip d'un groupe écrêté suit le conteneur de la COPIE\r\n  const reid = (o) => _reidentifier(o, idNeuf);",
+    "groupe": "idgroupe"
    },
    {
     "pos": 66589,

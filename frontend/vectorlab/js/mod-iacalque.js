@@ -21,32 +21,32 @@
 // acceptent une image d'entrée (catalogue `edit`). Voir docGuide plus bas.
 //
 // Les gestes du panneau : garderClics (mod-flottant, en bulle) et VL.dansPanneau (les outils en CAPTURE sortent).
-// La logique PURE est en tête (banc qa/iacalque.test.mjs) ; initIaCalque ne touche le DOM qu'à l'appel.
+// La logique PURE est en tête (banc qa/iacalque.test.mjs) ; initIaCalque ne touche le DOM qu'à l'appel. t197 : ce qui
+// est commun avec le panneau du Photolab (formats, devis, prix, refus, un seul vol, gestes gardés) vient de
+// /shared/dz-iacalque-commun.js — ici, l'adaptation au document du Vectorlab et aux clés vectorlab.iacalque.*.
 import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 import { esc, garderClics } from "./mod-flottant.js";
 import { op_image_remplacer, image_profonde } from "./mod-doc.js";
+import * as C from "../../shared/dz-iacalque-commun.js";
+
+// les rôles du module commun -> les clés du Vectorlab, écrites EN ENTIER (le banc test_i18n_l6 relève les clés par
+// leur texte : un préfixe concaténé lui échapperait)
+const CLES = {
+  prix_inconnu: "vectorlab.iacalque.prix_inconnu", prix_a_mesurer: "vectorlab.iacalque.prix_a_mesurer",
+  prix_gratuit: "vectorlab.iacalque.prix_gratuit", prix: "vectorlab.iacalque.prix",
+  prix_partiel_image: "vectorlab.iacalque.prix_partiel_image", prix_partiel: "vectorlab.iacalque.prix_partiel",
+  cle_absente: "vectorlab.iacalque.cle_absente", detour_modele: "vectorlab.iacalque.detour_modele",
+  detour_cle: "vectorlab.iacalque.detour_cle", detour_cle_image: "vectorlab.iacalque.detour_cle_image",
+  sujet_requis: "vectorlab.iacalque.sujet_requis",
+};
+const tr = (role, vars) => T(CLES[role], vars);
 
 /* ── pur ── */
-// les formats que /images/generate accepte (fal ; OpenAI et Nano Banana les traduisent, image_providers)
-export const TAILLES = ["portrait_16_9", "portrait_4_3", "square_hd", "landscape_4_3", "landscape_16_9"];
+export { TAILLES, RAPPORTS, unSeulVol } from "../../shared/dz-iacalque-commun.js";
 
-// le rapport largeur / hauteur de chaque format
-export const RAPPORTS = { portrait_16_9: 9 / 16, portrait_4_3: 3 / 4, square_hd: 1, landscape_4_3: 4 / 3, landscape_16_9: 16 / 9 };
-
-// le format au rapport le plus PROCHE de la page (doc.taille), en écart LOGARITHMIQUE |ln(r) − ln(rf)| : un
-// portrait et le paysage symétrique sont à égale distance du carré (2:3 → portrait_4_3, 9:16 → portrait_16_9)
-export function taillePour(t) {
-  const w = +(t && t.w), h = +(t && t.h);
-  if (!(w > 0 && h > 0)) return "square_hd";
-  const lr = Math.log(w / h);
-  let mieux = "square_hd", ecart = Infinity;
-  for (const f of TAILLES) {
-    const e = Math.abs(lr - Math.log(RAPPORTS[f]));
-    if (e < ecart - 1e-12) { ecart = e; mieux = f; }
-  }
-  return mieux;
-}
+// le format au rapport le plus PROCHE de la page (doc.taille {w, h})
+export const taillePour = (t) => C.formatPour(t && t.w, t && t.h);
 
 // le corps de POST /api/images/generate ({prompt, n, model, size, source})
 export function requete(o) {
@@ -54,7 +54,7 @@ export function requete(o) {
   if (!prompt) throw new Error(T("vectorlab.iacalque.prompt_vide"));
   const q = { prompt, n: 1 };
   if (o.modele) q.model = String(o.modele);
-  q.size = TAILLES.includes(o.taille) ? o.taille : "square_hd";
+  q.size = C.TAILLES.includes(o.taille) ? o.taille : "square_hd";
   q.source = "vectorlab";
   return q;
 }
@@ -109,71 +109,22 @@ export function cibleValide(doc, voulu, repli) {
 
 // le devis serveur (POST /api/cost/estimate) : une campagne image + détourage
 // sans modèle choisi, aucun devis plutôt qu'un prix faux (null → « Prix estimé : … ») — et « Générer » est gris
-export function devisCorps(o) {
-  if (!o || !o.modele) return null;
-  const ops = [{ kind: "image", model: o.modele, n: 1 }];
-  if (o && o.detourer && o.modeleDetour) ops.push({ kind: "detourage", modele: o.modeleDetour, images: 1 });
-  return { kind: "campaign", ops };
-}
+export const devisCorps = (o) => C.devisCorps({ modele: o && o.modele, detourer: !!(o && o.detourer), modeleDetour: o && o.modeleDetour });
 
 // le devis du seul détourage (le bouton « Retirer le fond » du panneau Image)
-export function devisDetour(modele) {
-  return modele ? { kind: "campaign", ops: [{ kind: "detourage", modele: String(modele), images: 1 }] } : null;
-}
+export const devisDetour = (modele) => C.devisCorps({ image: false, detourer: true, modeleDetour: modele });
 
-// le montant en dollars : DzModelesIA.prixUsd (la même ligne de code que les listes de modèles) ; repli au banc ou
-// sans le script, même règle (arrondi au millième, au moins deux décimales)
-function dollars(v) {
-  const M = typeof window !== "undefined" && window.DzModelesIA;
-  const p = M && typeof M.prixUsd === "function" ? M.prixUsd(v) : "";
-  if (p) return p;
-  let s = (Math.round(v * 1000) / 1000).toFixed(3);
-  while (/\.\d{3,}$/.test(s) && s.endsWith("0")) s = s.slice(0, -1);
-  return "$" + s;
-}
-
-// le libellé du prix : jamais « gratuit » pour un 0 $ payant (« à mesurer ») ; une ligne locale à 0 $ l'est. Le
-// total partiel NOMME la ligne à mesurer d'après le devis : l'image (unité « image ») ou le détourage (les autres)
-export function libellePrix(devis) {
-  if (!devis || !Array.isArray(devis.breakdown)) return T("vectorlab.iacalque.prix_inconnu");
-  const total = +devis.total_usd || 0;
-  const aMesurer = devis.breakdown.filter((l) => !(+l.usd > 0) && l.provider !== "local");
-  if (!(total > 0)) {
-    return devis.breakdown.length && !aMesurer.length ? T("vectorlab.iacalque.prix_gratuit") : T("vectorlab.iacalque.prix_a_mesurer");
-  }
-  const image = aMesurer.some((l) => l.unit === "image"), detour = aMesurer.some((l) => l.unit !== "image");
-  return T("vectorlab.iacalque.prix", { prix: dollars(total) })
-    + (image ? T("vectorlab.iacalque.prix_partiel_image") : "") + (detour ? T("vectorlab.iacalque.prix_partiel") : "");
-}
+// le libellé du prix : jamais « gratuit » pour un 0 $ payant (« à mesurer ») ; une ligne locale à 0 $ l'est ; la part
+// à mesurer est nommée (image ou détourage)
+export const libellePrix = (devis) => C.libellePrix(devis, tr);
 
 // le message d'une réponse en échec : 503 = clé absente (lisible), le 402 d'un plafond refusé rend une chaîne
-export function messageErreur(status, d, statut) {
-  const det = d && d.detail;
-  const m = typeof det === "string" ? det
-    : det && det.dz_plafond && det.dz_plafond.message ? det.dz_plafond.message
-      : det ? JSON.stringify(det) : (statut || String(status));
-  return status === 503 ? T("vectorlab.iacalque.cle_absente", { detail: m }) : m;
-}
+export const messageErreur = (status, d, statut) => C.messageErreur(status, d, statut, tr);
 
 // fetch rejette par un TypeError (« Failed to fetch », « NetworkError… ») quand le serveur ne répond pas : un
 // message lisible, dans la langue de l'interface
 export async function chercher(url, init, f = (typeof window !== "undefined" && window.fetch) || globalThis.fetch) {
   try { return await f(url, init); } catch (e) { throw new Error(T("vectorlab.iacalque.reseau")); }
-}
-
-// UN SEUL tir à la fois : un second appel pendant le vol ne relance rien (rend null) ; `apres` (facultatif) est
-// rappelé une fois le vol fini, réussi ou non — l'appelant y redessine ses boutons (« en cours… » ne reste jamais)
-export function unSeulVol(fn, apres) {
-  const g = async (...a) => {
-    if (g.enVol) return null;
-    g.enVol = true;
-    try { return await fn(...a); } finally {
-      g.enVol = false;
-      if (apres) { try { apres(); } catch (e) { /* le redessin n'efface pas l'issue du tir */ } }
-    }
-  };
-  g.enVol = false;
-  return g;
 }
 
 // l'état de « Générer » : gris pendant le vol, sans calque libre, et tant que la liste des modèles n'est pas lue
@@ -196,14 +147,7 @@ export function etatGenerer({ enVol, cible, catalogue, modele, guide = false }) 
 // CHOISISSABLE, seul le lancement est refusé) et le sujet si le modèle l'exige. `info` = l'entrée du catalogue
 // detourage_image ({dispo, cle, prompt}) — LA source du « sujet requis » et de la clé ; null si inconnue.
 // `sansCase` : le panneau Image n'a pas de case « Retirer le fond » à décocher — le message ne la propose pas.
-export function verifierDetour(o, info, { sansCase = false } = {}) {
-  if (!o || !o.detourer) return;
-  requeteDetour({ nom: "", modele: o.modeleDetour, sujet: o.sujet });
-  if (info && info.dispo === false) {
-    throw new Error(T(sansCase ? "vectorlab.iacalque.detour_cle_image" : "vectorlab.iacalque.detour_cle", { cle: info.cle || "?" }));
-  }
-  if (info && info.prompt && !String(o.sujet || "").trim()) throw new Error(T("vectorlab.iacalque.sujet_requis"));
-}
+export const verifierDetour = (o, info, opts) => C.verifierDetour(o, info, tr, opts);
 
 // le tir : cible vérifiée, génération, détourage éventuel, pose sur LE calque demandé — d = {doc(), post(url,
 // corps), poser(nom, calqueId) → id (faux = pose refusée : VL.executer avale l'erreur), infoDetour(id)?,
@@ -444,7 +388,7 @@ export function initIaCalque(VL) {
       return deposerFichier(png, nomGuide(etat.docId, calqueId, Date.now()), "vectorlab.iacalque.guide_sans_nom");
     },
   };
-  const lancer = unSeulVol(async (o) => {
+  const lancer = C.unSeulVol(async (o) => {
     VL.toast(T("vectorlab.image.generation"));
     return executerPlan({ ...o, taille: o.taille || taillePour(etat.doc && etat.doc.taille) }, deps);
   }, () => majBouton());
@@ -715,7 +659,7 @@ export function initIaCalque(VL) {
       if (im) im.addEventListener("load", () => { if (VL.surSelection) VL.surSelection(); }, { once: true });
     }
   }
-  const detourer = unSeulVol(async (o, c) => {
+  const detourer = C.unSeulVol(async (o, c) => {
     const href = await retirerFondFlux(o, c, { doc: () => etat.doc, versBiblio, post: poster, deposer, executer: VL.executer });
     remesurer();
     return href;

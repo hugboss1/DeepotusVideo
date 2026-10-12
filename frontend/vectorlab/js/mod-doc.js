@@ -513,7 +513,8 @@ function* _objetsCibles(doc, ids, { ignorerVerrouilles = true } = {}) {
 
 function _idsPris(doc) {
   const pris = new Set();
-  for (const cl of doc.calques) {
+  // id-groupe : l'intérieur des symboles compte aussi — un id neuf ne recroise jamais un objet de symbole
+  for (const cl of [...doc.calques, ...Object.values(doc.symboles || {})]) {
     (function visiter(objs) {
       for (const o of objs) {
         pris.add(o.id);
@@ -531,14 +532,59 @@ export function idLibre(doc) {
   return "o" + n;
 }
 const _idLibre = idLibre;
+// id-groupe : une SOURCE d'ids neufs pour une op qui en crée plusieurs, ou qui retire des objets avant de poser
+// le sien — les ids pris sont relevés UNE fois, AVANT toute modification, et chaque id rendu y entre
+function _idsNeufs(doc, pris = _idsPris(doc)) {
+  let n = 1;
+  return () => { while (pris.has("o" + n)) n++; pris.add("o" + n); return "o" + n; };
+}
+// un id neuf pour l'objet et TOUS ses descendants ; le clip d'un groupe écrêté suit son conteneur
+function _reidentifier(o, neuf) {
+  o.id = neuf();
+  if (o.type !== "groupe" || !Array.isArray(o.enfants)) return;
+  const avant = o.enfants.map((e) => e.id);
+  for (const e of o.enfants) _reidentifier(e, neuf);
+  if (o.clip !== undefined) { const k = avant.indexOf(o.clip); if (k >= 0) o.clip = o.enfants[k].id; }
+}
+// les ids portés par plus d'un objet des calques (groupes et enfants compris), triés
+export function ids_doublons(doc) {
+  const vus = new Set(), doubles = new Set();
+  _visiterObjets(doc, (o) => { if (vus.has(o.id)) doubles.add(o.id); else vus.add(o.id); });
+  return [...doubles].sort();
+}
+// réparation SÛRE d'un document d'avant id-groupe : un groupe qui porte l'id d'un de ses descendants (la trace
+// d'op_grouper / op_ecreter) reçoit un id neuf ; ses enfants et son clip gardent les leurs. Les autres doublons
+// ne sont pas renumérotés (on ne sait pas lequel était visé) : ids_doublons les signale. -> [[ancien, neuf]]
+export function op_ids_reparer(doc) {
+  const neuf = _idsNeufs(doc), faits = [];
+  const dessous = (g, out) => { for (const e of g.enfants || []) { out.add(e.id); if (e.type === "groupe") dessous(e, out); } return out; };
+  const visiter = (objs) => {
+    for (const o of objs || []) {
+      if (o.type !== "groupe") continue;
+      visiter(o.enfants);
+      if (dessous(o, new Set()).has(o.id)) { const id = neuf(); faits.push([o.id, id]); o.id = id; }
+    }
+  };
+  for (const c of [...doc.calques, ...Object.values(doc.symboles || {})]) visiter(c.objets);
+  return faits;
+}
 
 export function op_ajouter(doc, calqueId, objet) {
   const c = _calque(doc, calqueId);
   if (c.verrou) throw new Error(T("vectorlab.doc.calque_verrouille", { id: calqueId }));
-  const pris = _idsPris(doc);
-  const id = (objet.id && !pris.has(objet.id)) ? objet.id : _idLibre(doc);
-  c.objets.push({ ...objet, id });
-  return id;
+  // id-groupe : un id fourni est gardé s'il est libre — les enfants d'un groupe aussi ; sinon (ou sans id), un
+  // neuf, et le clip d'un groupe écrêté suit son conteneur
+  const pris = _idsPris(doc), neuf = _idsNeufs(doc, pris);
+  const poser = (o) => {
+    const id = (o.id && !pris.has(o.id)) ? (pris.add(o.id), o.id) : neuf();
+    if (o.type !== "groupe" || !Array.isArray(o.enfants)) return { ...o, id };
+    const g = { ...o, id, enfants: o.enfants.map(poser) };
+    if (o.clip !== undefined) { const k = o.enfants.findIndex((e) => e.id === o.clip); if (k >= 0) g.clip = g.enfants[k].id; }
+    return g;
+  };
+  const o = poser(objet);
+  c.objets.push(o);
+  return o.id;
 }
 
 export function op_supprimer(doc, ids) {
@@ -930,10 +976,12 @@ export function op_grouper(doc, ids) {
     throw new Error(T("vectorlab.doc.grouper_deux"));
   }
   const hote = cibles[cibles.length - 1].calque;
+  // id-groupe : l'id du groupe se prend AVANT de retirer ses enfants — après, idLibre ne les voit plus et
+  // rendait l'id du premier (le groupe et son enfant portaient le même id)
+  const id = _idLibre(doc);
   for (const { calque, objet } of cibles) {
     calque.objets.splice(calque.objets.indexOf(objet), 1);
   }
-  const id = _idLibre(doc);
   hote.objets.push({ id, type: "groupe", style: {},
                      enfants: cibles.map((t) => t.objet) });
   return id;
@@ -1115,10 +1163,10 @@ export function op_ecreter(doc, idConteneur, ids) {
   }
   if (!conteneur) throw new Error(T("vectorlab.doc.ecreter_conteneur", { id: idConteneur }));
   if (!contenus.length) throw new Error(T("vectorlab.doc.ecreter_contenus"));
+  const id = _idLibre(doc);            // id-groupe : AVANT le retrait (sinon l'id du conteneur ou d'un contenu)
   for (const { calque, objet } of contenus) calque.objets.splice(calque.objets.indexOf(objet), 1);
   const iC = hote.objets.indexOf(conteneur);
   hote.objets.splice(iC, 1);
-  const id = _idLibre(doc);
   hote.objets.splice(iC, 0, { id, type: "groupe", clip: idConteneur, style: {}, enfants: [conteneur, ...contenus.map((t) => t.objet)] });
   return id;
 }
@@ -1234,10 +1282,10 @@ export function op_symbole_detacher(doc, idInstance) {
     if (!sym) throw new Error(T("vectorlab.doc.symbole_inconnu", { id: inst.symbole }));
     const av = sym.bbox, ap = _bboxObjet(inst, doc);
     c.objets.splice(i, 1);
-    // copies à ids NEUFS (insérées une à une : _idLibre voit chaque id posé),
-    // mappées de la bbox du symbole vers celle de l'instance
-    const copies = _clone(sym.objets);
-    copies.forEach((o, k) => { o.id = _idLibre(doc); _mapperObjet(o, av, ap, doc); c.objets.splice(i + k, 0, o); });
+    // copies à ids NEUFS, descendants des groupes compris (id-groupe : ils gardaient les ids du symbole, en
+    // double dès la 2e instance détachée), mappées de la bbox du symbole vers celle de l'instance
+    const copies = _clone(sym.objets), neuf = _idsNeufs(doc);
+    copies.forEach((o, k) => { _reidentifier(o, neuf); _mapperObjet(o, av, ap, doc); c.objets.splice(i + k, 0, o); });
     return copies.map((o) => o.id);
   }
   throw new Error(T("vectorlab.doc.instance_introuvable", { id: idInstance }));
@@ -1262,8 +1310,9 @@ export function op_symbole_ouvrir(doc, idInstance) {
     const cadre = _cadreInstance(inst, sym), cid = `__symbole_${inst.symbole}`;
     const cal = { id: cid, nom: `Symbole : ${sym.nom || inst.symbole}`, visible: true, verrou: false, objets: [] };
     doc.calques.splice(ic + 1, 0, cal);
-    // copies à ids NEUFS, posées une à une (_idLibre voit chaque id posé)
-    for (const o of _clone(sym.objets)) { o.id = _idLibre(doc); _mapperObjet(o, sym.bbox, cadre, doc); cal.objets.push(o); }
+    // copies à ids NEUFS, descendants des groupes compris (id-groupe)
+    const neuf = _idsNeufs(doc);
+    for (const o of _clone(sym.objets)) { _reidentifier(o, neuf); _mapperObjet(o, sym.bbox, cadre, doc); cal.objets.push(o); }
     doc.edition = { sid: inst.symbole, instance: idInstance, calque: cid, cadre, bbox: { ...sym.bbox } };
     return cid;
   }
@@ -1427,10 +1476,8 @@ export function op_dupliquer(doc, ids, dx = 12, dy = 12) {
     pris.add(id);
     return id;
   };
-  const reid = (o) => {
-    o.id = idNeuf();
-    if (o.type === "groupe") (o.enfants || []).forEach(reid);
-  };
+  // id-groupe : descendants compris, et le clip d'un groupe écrêté suit le conteneur de la COPIE
+  const reid = (o) => _reidentifier(o, idNeuf);
   // Le clone reçoit SA COPIE du dégradé : partagé, un `userSpaceOnUse`
   // suivrait les deux formes à la fois — déplacer la copie déplacerait le
   // dégradé de l'original (mesuré).
