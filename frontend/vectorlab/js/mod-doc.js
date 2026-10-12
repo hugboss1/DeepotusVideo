@@ -1658,9 +1658,27 @@ export function op_image_rev(doc, id, rev, px) {
 // t190 : la commande RÉVERSIBLE du détourage (« Retirer le fond », mod-iacalque) : l'objet désigne une AUTRE
 // image du magasin (href) — Annuler rend l'href d'avant, dont le PNG n'a pas été touché. La révision raster et
 // l'empreinte de l'ancienne image ne suivent pas ; un rognage qui ne tient plus dans la nouvelle taille native tombe.
-// Rend true : VL.executer rend undefined quand il avale un échec.
+// Rend true : VL.executer rend undefined quand il avale un échec. t190-bis : l'image peut être l'ENFANT d'un groupe
+// (Ctrl+clic la sélectionne, le panneau Image lui offre « Retirer le fond ») — la recherche descend dans les groupes.
+export function image_profonde(doc, id) {
+  const visiter = (objs) => {
+    for (const o of objs || []) {
+      if (o.id === id) return o;
+      if (o.type === "groupe") { const x = visiter(o.enfants); if (x) return x; }
+    }
+    return null;
+  };
+  for (const c of doc.calques) {
+    const o = visiter(c.objets);
+    if (o) {
+      if (o.type !== "image") throw new Error(T("vectorlab.doc.pas_image", { id }));
+      return o;
+    }
+  }
+  throw new Error(T("vectorlab.doc.image_introuvable", { id }));
+}
 export function op_image_remplacer(doc, id, href, nat) {
-  const o = _trouverImage(doc, id);
+  const o = image_profonde(doc, id);
   if (!href || !(nat && nat.w > 0 && nat.h > 0)) throw new Error(T("vectorlab.iacalque.image_invalide"));
   o.href = String(href);
   const memeTaille = o.nat && o.nat.w === nat.w && o.nat.h === nat.h;

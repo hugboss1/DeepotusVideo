@@ -364,6 +364,8 @@ details[id] > summary.panneau-tete > button { margin-left: auto; }
 .iac-etat:empty { display: none; }
 .iac-reessayer { height: 22px; padding: 0 8px; font-size: 11px; }
 .iac-reessayer[hidden] { display: none; }
+.iac-sep { font-size: 10.5px; color: var(--aff-muet); }
+.iac-sep[hidden] { display: none; }
 #iacGo:disabled { opacity: .5; cursor: default; }
 
 /* ── lot A : dialogues, grille bibliothèque de repli, panneaux image/repères ── */

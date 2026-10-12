@@ -2933,7 +2933,7 @@
    {
     "pos": 74402,
     "avant": "/* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],",
-    "apres": "// t190 : la commande RÉVERSIBLE du détourage (« Retirer le fond », mod-iacalque) : l'objet désigne une AUTRE\r\n// image du magasin (href) — Annuler rend l'href d'avant, dont le PNG n'a pas été touché. La révision raster et\r\n// l'empreinte de l'ancienne image ne suivent pas ; un rognage qui ne tient plus dans la nouvelle taille native tombe.\r\n// Rend true : VL.executer rend undefined quand il avale un échec.\r\nexport function op_image_remplacer(doc, id, href, nat) {\r\n  const o = _trouverImage(doc, id);\r\n  if (!href || !(nat && nat.w > 0 && nat.h > 0)) throw new Error(T(\"vectorlab.iacalque.image_invalide\"));\r\n  o.href = String(href);\r\n  const memeTaille = o.nat && o.nat.w === nat.w && o.nat.h === nat.h;\r\n  o.nat = { w: nat.w, h: nat.h };\r\n  delete o.rev; delete o.px;\r\n  if (o.rognage && !memeTaille) delete o.rognage;\r\n  return true;\r\n}\r\n\r\n/* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],",
+    "apres": "// t190 : la commande RÉVERSIBLE du détourage (« Retirer le fond », mod-iacalque) : l'objet désigne une AUTRE\r\n// image du magasin (href) — Annuler rend l'href d'avant, dont le PNG n'a pas été touché. La révision raster et\r\n// l'empreinte de l'ancienne image ne suivent pas ; un rognage qui ne tient plus dans la nouvelle taille native tombe.\r\n// Rend true : VL.executer rend undefined quand il avale un échec. t190-bis : l'image peut être l'ENFANT d'un groupe\r\n// (Ctrl+clic la sélectionne, le panneau Image lui offre « Retirer le fond ») — la recherche descend dans les groupes.\r\nexport function image_profonde(doc, id) {\r\n  const visiter = (objs) => {\r\n    for (const o of objs || []) {\r\n      if (o.id === id) return o;\r\n      if (o.type === \"groupe\") { const x = visiter(o.enfants); if (x) return x; }\r\n    }\r\n    return null;\r\n  };\r\n  for (const c of doc.calques) {\r\n    const o = visiter(c.objets);\r\n    if (o) {\r\n      if (o.type !== \"image\") throw new Error(T(\"vectorlab.doc.pas_image\", { id }));\r\n      return o;\r\n    }\r\n  }\r\n  throw new Error(T(\"vectorlab.doc.image_introuvable\", { id }));\r\n}\r\nexport function op_image_remplacer(doc, id, href, nat) {\r\n  const o = image_profonde(doc, id);\r\n  if (!href || !(nat && nat.w > 0 && nat.h > 0)) throw new Error(T(\"vectorlab.iacalque.image_invalide\"));\r\n  o.href = String(href);\r\n  const memeTaille = o.nat && o.nat.w === nat.w && o.nat.h === nat.h;\r\n  o.nat = { w: nat.w, h: nat.h };\r\n  delete o.rev; delete o.px;\r\n  if (o.rognage && !memeTaille) delete o.rognage;\r\n  return true;\r\n}\r\n\r\n/* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],",
     "groupe": "iacalque"
    },
    {
@@ -3604,6 +3604,12 @@
     "pos": 8112,
     "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
     "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
+   },
+   {
+    "pos": 9620,
+    "avant": "document.addEventListener(\"keydown\", (ev) => {",
+    "apres": "document.addEventListener(\"keydown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
     "groupe": "panneaux"
    },
    {
@@ -5017,7 +5023,7 @@
    {
     "pos": 603,
     "avant": "reperes_rects } from \"./mod-doc.js\";",
-    "apres": "reperes_rects } from \"./mod-doc.js\";\r\nimport { initIaCalque } from \"./mod-iacalque.js\";",
+    "apres": "reperes_rects } from \"./mod-doc.js\";\r\nimport { initIaCalque, chercher } from \"./mod-iacalque.js\";",
     "groupe": "iacalque"
    },
    {
@@ -5031,6 +5037,12 @@
     "avant": "<p class=\"lib-vide\">Aucune image${f ? ` pour « ${esc(q)} »` : \" dans la Bibliothèque\"}.",
     "apres": "<p class=\"lib-vide\">${f ? T(\"vectorlab.image.aucune_pour\", { q: esc(q) }) : T(\"vectorlab.image.aucune_biblio\")}",
     "groupe": "texte"
+   },
+   {
+    "pos": 4004,
+    "avant": "    const r = await fetch(`/api/vector/docs/",
+    "apres": "    const r = await chercher(`/api/vector/docs/",
+    "groupe": "iacalque"
    },
    {
     "pos": 4583,
@@ -5066,6 +5078,12 @@
     "pos": 5645,
     "avant": "async function poserDepuisLibrary(nom) {",
     "apres": "async function poserDepuisLibrary(nom, calqueId) {",
+    "groupe": "iacalque"
+   },
+   {
+    "pos": 5687,
+    "avant": "    const r = await fetch(\"/api/images/\" + encodeURIComponent(nom));",
+    "apres": "    const r = await chercher(\"/api/images/\" + encodeURIComponent(nom));",
     "groupe": "iacalque"
    },
    {
@@ -8077,6 +8095,12 @@
     "avant": "\"secondaire transparente : le seau ne remplit rien\"",
     "apres": "T(\"vectorlab.pixel.seau_rien\")",
     "groupe": "pixelui"
+   },
+   {
+    "pos": 33005,
+    "avant": "document.addEventListener(\"keydown\", (ev) => {",
+    "apres": "document.addEventListener(\"keydown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    },
    {
     "pos": 33553,

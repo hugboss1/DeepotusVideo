@@ -9,7 +9,8 @@
 // racine vers la cible, puis bulle) ; le setPointerCapture d'un outil redirige le click suivant sur #stage, comme le
 // navigateur. Jamais de el.click() qui contournerait la capture. Un geste venu du panneau ne doit RIEN faire lire
 // à l'outil (ni l'événement au-delà de sa cible, ni l'état, ni le cœur) ; le même geste sur la scène, outil actif,
-// le fait réagir (témoin : la garde ne coupe pas l'outil). Le panoramique et la molette de core.js (script de page,
+// le fait AGIR — preventDefault, capture du pointeur, arrêt de la propagation, action du cœur ou écriture de l'état,
+// jamais une simple lecture (témoin : la garde ne coupe pas l'outil). Le panoramique et la molette de core.js (script de page,
 // non importable) sont exercés sur LEUR texte extrait de core.js. La MUTATION (mod-plumeui sans sa garde, importé
 // en mémoire) doit rougir le banc : elle est rejouée à chaque série.
 import { readFileSync } from "node:fs";
@@ -19,7 +20,7 @@ import { initTexteUI } from "../js/mod-texteui.js";
 import { initNoeudUI } from "../js/mod-noeudui.js";
 import { initPipetteUI } from "../js/mod-pipetteui.js";
 import { initOutils3 } from "../js/mod-outils3ui.js";
-import { initPixelUI } from "../js/mod-pixelui.js";
+import { initPixelUI, OUTILS_PIXEL } from "../js/mod-pixelui.js";
 import { initSelectionUI } from "../js/mod-selectionui.js";
 import { initApparence2 } from "../js/mod-apparence2.js";
 import { initExportPlus } from "../js/mod-exportplus.js";
@@ -132,12 +133,15 @@ function traceur(base, nom) {
       o[k] = fantome();
       return o[k];
     },
-    set: (o, k, v) => { o[k] = v; return true; },
+    set: (o, k, v) => { if (typeof k === "string") note(nom + "=" + k); o[k] = v; return true; },
   });
 }
+// les ACTIONS du cœur (un effet réel, pas une lecture) : leur appel est noté « action:<nom> »
+const ACTIONS = ["executer", "setOutil", "setSelection", "dupliquerSelection", "editerTexte", "rendreOverlay", "rendre"];
+const actions = () => Object.fromEntries(ACTIONS.map((a) => [a, (...x) => { note("action:" + a); return undefined; }]));
 
 // monte UN module sur sa scène : le vrai init(VL), l'outil voulu actif
-function monter(init, etatOutil) {
+function monter(init, etatOutil, vlEnPlus = {}) {
   const racine = new Noeud(null, { tag: "html" });
   const stage = new Noeud(racine, { tag: "main", id: "stage" });
   const scene = new Noeud(stage, { tag: "rect", data: { objet: "o1" } });
@@ -147,9 +151,14 @@ function monter(init, etatOutil) {
   const dollar = (s) => { note("$" + s); return s === "#stage" ? stage : fantome(); };
   const VL = traceur({ etat, $: dollar, dansPanneau, docPt: () => [0, 0], ecranPt: () => [0, 0], aimantePt: (x, y) => [x, y],
     surOutil: () => {}, surTouche: () => {}, surRendu: () => {}, surSelection: () => {}, surOverlay: () => {},
-    surVue: () => {}, surHistorique: () => {}, surCharge: () => {}, toast: () => {} }, "VL");
+    surVue: () => {}, surHistorique: () => {}, surCharge: () => {}, toast: () => {}, ...actions(),
+    pathSelectionne: () => ({ id: "p1", type: "path", d: "M0 0 L100 0 L100 100 Z" }), ...vlEnPlus }, "VL");
   const avant = { document: globalThis.document, window: globalThis.window, localStorage: globalThis.localStorage };
-  globalThis.document = fantome();
+  // le document : ses écouteurs (le clavier en capture des modules) sont ceux de la racine du mini-DOM, le reste est
+  // un fantôme
+  const docF = fantome();
+  globalThis.document = new Proxy({}, { get: (o, k) => (k === "addEventListener" || k === "removeEventListener")
+    ? racine[k].bind(racine) : docF[k], set: () => true });
   globalThis.window = fantome();
   globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
   let erreurInit = "";
@@ -197,20 +206,28 @@ function geste(cible, type, extra) {
 const MODULES = [
   { nom: "Plume (mod-plumeui)", init: initPlume, etat: { outil: "plume" }, gestes: ["pointerdown", "contextmenu", "dblclick"] },
   { nom: "Texte (mod-texteui)", init: initTexteUI, etat: { outil: "texte" }, gestes: ["pointerdown"] },
-  { nom: "Nœud (mod-noeudui)", init: initNoeudUI, etat: { outil: "noeuds" }, gestes: ["pointerdown", "dblclick"] },
+  { nom: "Nœud (mod-noeudui)", init: initNoeudUI, etat: { outil: "noeuds" }, gestes: ["pointerdown", "dblclick"],
+    vl: { docPt: () => [50, 0], pathSelectionne: () => ({ id: "o1", type: "path", d: "M0 0 L100 0 L100 100 Z" }) } },
   { nom: "Pipette (mod-pipetteui)", init: initPipetteUI, etat: { outil: "pipette" }, gestes: ["pointerdown", "contextmenu"] },
   { nom: "Main / Recadrer (mod-outils3ui)", init: initOutils3, etat: { outil: "main" }, gestes: ["pointerdown"] },
-  { nom: "Recadrer, double-clic (mod-outils3ui)", init: initOutils3, etat: { outil: "recadrer" }, gestes: ["dblclick"] },
-  { nom: "Pixel (mod-pixelui)", init: initPixelUI, etat: { outil: "px-pinceau", persona: "pixel" }, gestes: ["pointerdown", "contextmenu"] },
-  { nom: "Alt+glisser, double-clic (mod-selectionui)", init: initSelectionUI, etat: { outil: "select" }, gestes: ["pointerdown", "dblclick"], extra: { altKey: true } },
+  { nom: "Recadrer, double-clic (mod-outils3ui)", init: initOutils3, etat: { outil: "recadrer", selection: ["o1"] }, gestes: ["dblclick"],
+    vl: { objetDe: () => ({ objet: { id: "o1", type: "image", rognage: { x: 0, y: 0, w: 5, h: 5 } }, calque: {} }) } },
+  { nom: "Pixel (mod-pixelui)", init: initPixelUI, etat: { outil: "px-pinceau", persona: "pixel" }, gestes: ["pointerdown", "contextmenu"],
+    touches: [{ key: OUTILS_PIXEL[1].touche }, { key: "Enter", sansTemoin: true }] },
+  { nom: "Alt+glisser, double-clic (mod-selectionui)", init: initSelectionUI, etat: { outil: "select" }, gestes: ["pointerdown", "dblclick"], extra: { altKey: true },
+    vl: { objetDe: () => ({ objet: { id: "o1", type: "path" }, calque: {} }), sommetDe: () => "o1" } },
   { nom: "Pinceau vectoriel (mod-apparence2)", init: initApparence2, etat: { outil: "pinceauv" }, gestes: ["pointerdown"] },
-  { nom: "Tranche (mod-exportplus)", init: initExportPlus, etat: { outil: "tranche" }, gestes: ["pointerdown"] },
+  { nom: "Tranche (mod-exportplus)", init: initExportPlus, etat: { outil: "tranche" }, gestes: ["pointerdown"],
+    apresInit: (etat) => { etat.tranches = [{ x: 0, y: 0, w: 10, h: 10 }]; },  // initExportPlus remet la liste à vide
+    touches: [{ key: "Escape" }] },
   { nom: "Formes, crayon… (mod-outils2)", init: initOutils2, etat: { outil: "forme" }, gestes: ["pointerdown"] },
-  { nom: "Sélection (mod-tools, en bulle)", init: initOutils, etat: { outil: "select" }, gestes: ["pointerdown", "dblclick"] },
+  { nom: "Sélection (mod-tools, en bulle)", init: initOutils, gestes: ["pointerdown", "dblclick"],
+    etat: { outil: "select", doc: { calques: [{ id: "c1", objets: [{ id: "o1", type: "texte", x: 0, y: 0, contenu: "a", style: {} }] }], taille: { w: 800, h: 600 } } } },
 ];
 
 function scenario(m) {
-  const s = monter(m.init, m.etat);
+  const s = monter(m.init, m.etat, m.vl);
+  if (m.apresInit) m.apresInit(s.etat);
   const res = { erreurInit: s.erreurInit, panneaux: {}, temoin: {} };
   const ecouteurs = s.stage.ec.filter((e) => m.gestes.includes(e.type)).length;
   res.ecouteurs = ecouteurs;
@@ -219,15 +236,22 @@ function scenario(m) {
     const c = cliquer(s.stage, p.bouton);
     const autres = m.gestes.filter((t) => t !== "pointerdown").map((t) => ({ t, ...geste(p.bouton, t, m.extra) }));
     const alt = m.extra ? geste(p.bouton, "pointerdown", m.extra) : null;
+    // le CLAVIER en capture sur document : une touche tapée sur un contrôle du panneau
+    const touches = (m.touches || []).map((k) => ({ k: k.key, ...geste(p.bouton, "keydown", k) })).filter((x) => x.traces.length);
     res.panneaux[sorte] = {
       tracesClic: c.traces, capture: c.capture, vus: p.vus.slice(),
       autres: autres.filter((a) => a.traces.length).map((a) => `${a.t}:${a.traces.slice(0, 3).join("+")}`),
       alt: alt ? alt.traces : [],
+      touches: touches.map((x) => `${x.k}:${x.traces.slice(0, 3).join("+")}`),
     };
     p.el.parent = null;                   // retiré de la scène
   }
-  // témoin : le même geste sur la SCÈNE, outil actif → l'outil réagit (la garde ne le coupe pas)
-  for (const t of m.gestes) res.temoin[t] = geste(s.scene, t, m.extra).traces.length;
+  // témoin : le même geste sur la SCÈNE, outil actif → l'outil AGIT (preventDefault, setPointerCapture ou arrêt de
+  // la propagation — pas une simple lecture) : la garde ne le coupe pas
+  const EFFETS = ["preventDefault", "setPointerCapture", "stopPropagation", "stopImmediatePropagation"];
+  const effets = (tr) => tr.filter((x) => EFFETS.includes(x) || x.startsWith("action:") || x.startsWith("etat="));
+  for (const t of m.gestes) res.temoin[t] = effets(geste(s.scene, t, m.extra).traces);
+  for (const k of (m.touches || []).filter((x) => !x.sansTemoin)) res.temoin["keydown " + k.key] = effets(geste(s.scene, "keydown", k).traces);
   s.remettre();
   return res;
 }
@@ -261,10 +285,47 @@ for (const m of MODULES) {
     ok(`[outils] ${m.nom} / ${sorte} : ${m.gestes.filter((t) => t !== "pointerdown").join(", ") || "—"} du panneau ignorés`,
        !p.autres.length, p.autres.join(" | "));
     if (m.extra) ok(`[outils] ${m.nom} / ${sorte} : Alt + clic dans le panneau ignoré`, !p.alt.length, p.alt.slice(0, 4).join(","));
+    if (m.touches) ok(`[clavier] ${m.nom} / ${sorte} : ${m.touches.map((k) => k.key).join(", ")} tapé dans le panneau ignoré (keydown en capture)`,
+       !p.touches.length, p.touches.join(" | "));
   }
   for (const [t, nb] of Object.entries(r.temoin)) {
-    ok(`[témoin] ${m.nom} : ${t} sur la scène, outil actif → l'outil réagit`, nb > 0, nb);
+    ok(`[témoin] ${m.nom} : ${t} sur la scène, outil actif → l'outil AGIT (${nb.join("+") || "rien"})`, nb.length > 0, nb.join(","));
   }
+}
+
+/* ── [balayage] TOUT gestionnaire de #stage qui commence un geste (pointerdown, dblclick, contextmenu, wheel), et
+   tout keydown EN CAPTURE sur document qui agit sur l'outil ou le document, a la garde en PREMIÈRE instruction — un
+   module ajouté demain sans elle rougit ici. Les keydown de document qui ne ferment que LEUR propre surcouche ouverte
+   (menu, flyout, nuancier, encart d'aide, dialogue maison) sont exemptés, nommés. ── */
+{
+  const { readdirSync } = await import("node:fs");
+  const dir = new URL("../js/", import.meta.url);
+  const EXEMPTS = { "mod-charpente.js": "Échap ferme le menu ouvert", "mod-flyout.js": "Échap ferme le flyout ouvert",
+    "mod-couleur.js": "Échap ferme le nuancier ouvert", "mod-didact.js": "Échap cache l'encart d'aide",
+    "mod-dialogue.js": "le dialogue maison modal (hors #stage) prend tout le clavier", "core.js": "keydown en BULLE (garderClics l'arrête)" };
+  const fautes = [], vus = [];
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".js"))) {
+    const src = readFileSync(new URL(f, dir), "utf8").replace(/\r\n/g, "\n");
+    const garde = f === "core.js" ? /^\s*(?:\{\s*)?if \(dansPanneau\(ev\)\) return;/ : /^\s*(?:\{\s*)?if \(VL\.dansPanneau\(ev\)\) return;/;
+    for (const m of src.matchAll(/stage\.addEventListener\("(pointerdown|dblclick|contextmenu|wheel)",\s*\((\w+)\)\s*=>\s*\{/g)) {
+      const ligne = src.slice(0, m.index).split("\n").length;
+      vus.push(`${f}:${ligne}`);
+      if (!garde.test(src.slice(m.index + m[0].length))) fautes.push(`${f}:${ligne} ${m[1]}`);
+    }
+    for (const m of src.matchAll(/document\.addEventListener\("keydown",\s*\((\w+)\)\s*=>\s*\{/g)) {
+      // la fin de l'appel : « }, true) » = capture
+      let d = 0, k = m.index + m[0].length - 1;
+      for (; k < src.length; k++) { if (src[k] === "{") d++; else if (src[k] === "}") { d--; if (d === 0) break; } }
+      const capture = /^\s*,\s*true\s*\)/.test(src.slice(k + 1));
+      if (!capture || EXEMPTS[f]) continue;
+      const ligne = src.slice(0, m.index).split("\n").length;
+      vus.push(`${f}:${ligne} keydown`);
+      if (!garde.test(src.slice(m.index + m[0].length))) fautes.push(`${f}:${ligne} keydown (capture)`);
+    }
+  }
+  ok("[balayage] des gestionnaires trouvés (au moins 20 sur #stage, dont core.js et les keydown de Pixel / Tranche)",
+     vus.length >= 22 && vus.some((x) => x.startsWith("core.js")) && vus.some((x) => /mod-pixelui.*keydown/.test(x)) && vus.some((x) => /mod-exportplus.*keydown/.test(x)), vus.join(" "));
+  ok("[balayage] chacun a la garde dansPanneau en première instruction", !fautes.length, fautes.join(" | "));
 }
 
 /* ── [core] le panoramique (Espace + clic, clic du milieu) et la molette : LEUR texte, extrait de core.js ── */

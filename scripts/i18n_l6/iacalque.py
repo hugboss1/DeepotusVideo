@@ -41,7 +41,11 @@ GENERER_APRES = c('''  // t190 : le panneau « Image IA sur le calque » s'ouvre
 ENTREES = [
     # ── js/mod-image.js ──
     S(IMG, 10, 'reperes_rects } from "./mod-doc.js";',
-      c('reperes_rects } from "./mod-doc.js";\nimport { initIaCalque } from "./mod-iacalque.js";'), {}),
+      c('reperes_rects } from "./mod-doc.js";\nimport { initIaCalque, chercher } from "./mod-iacalque.js";'), {}),
+    # t190-bis : un serveur injoignable n'affiche plus « Failed to fetch » brut (chercher traduit le TypeError)
+    S(IMG, 92, "    const r = await fetch(`/api/vector/docs/", "    const r = await chercher(`/api/vector/docs/", {}),
+    S(IMG, 129, '    const r = await fetch("/api/images/" + encodeURIComponent(nom));',
+      '    const r = await chercher("/api/images/" + encodeURIComponent(nom));', {}),
     S(IMG, 116, "async function poserBlob(blob) {", "async function poserBlob(blob, calqueId) {", {}),
     S(IMG, 123, "VL.executer(op_ajouter, etat.calqueActif,", "VL.executer(op_ajouter, calqueId || etat.calqueActif,", {}),
     S(IMG, 128, "async function poserDepuisLibrary(nom) {", "async function poserDepuisLibrary(nom, calqueId) {", {}),
@@ -87,9 +91,27 @@ ENTREES = [
       c('''// t190 : la commande RÉVERSIBLE du détourage (« Retirer le fond », mod-iacalque) : l'objet désigne une AUTRE
 // image du magasin (href) — Annuler rend l'href d'avant, dont le PNG n'a pas été touché. La révision raster et
 // l'empreinte de l'ancienne image ne suivent pas ; un rognage qui ne tient plus dans la nouvelle taille native tombe.
-// Rend true : VL.executer rend undefined quand il avale un échec.
+// Rend true : VL.executer rend undefined quand il avale un échec. t190-bis : l'image peut être l'ENFANT d'un groupe
+// (Ctrl+clic la sélectionne, le panneau Image lui offre « Retirer le fond ») — la recherche descend dans les groupes.
+export function image_profonde(doc, id) {
+  const visiter = (objs) => {
+    for (const o of objs || []) {
+      if (o.id === id) return o;
+      if (o.type === "groupe") { const x = visiter(o.enfants); if (x) return x; }
+    }
+    return null;
+  };
+  for (const c of doc.calques) {
+    const o = visiter(c.objets);
+    if (o) {
+      if (o.type !== "image") throw new Error(T("vectorlab.doc.pas_image", { id }));
+      return o;
+    }
+  }
+  throw new Error(T("vectorlab.doc.image_introuvable", { id }));
+}
 export function op_image_remplacer(doc, id, href, nat) {
-  const o = _trouverImage(doc, id);
+  const o = image_profonde(doc, id);
   if (!href || !(nat && nat.w > 0 && nat.h > 0)) throw new Error(T("vectorlab.iacalque.image_invalide"));
   o.href = String(href);
   const memeTaille = o.nat && o.nat.w === nat.w && o.nat.h === nat.h;
@@ -146,7 +168,10 @@ export function op_image_remplacer(doc, id, href, nat) {
     H("vectorlab.iacalque.detour_fait", "fond retiré (Ctrl+Z rend l'image d'avant)",
       "background removed (Ctrl+Z brings back the previous image)"),
     H("vectorlab.iacalque.cle_absente", "Clé absente — {detail}", "Missing key — {detail}"),
-    H("vectorlab.iacalque.catalogue_absent", "liste des modèles indisponible —", "model list unavailable —"),
+    H("vectorlab.iacalque.catalogue_absent", "liste des modèles indisponible", "model list unavailable"),
+    H("vectorlab.iacalque.modeles_vides", "aucun modèle d'image disponible", "no image model available"),
+    H("vectorlab.iacalque.calque_disparu", "le calque demandé n'existe plus : l'image ira sur « {nom} »",
+      "the requested layer no longer exists: the image will go on “{nom}”"),
     H("vectorlab.iacalque.reessayer", "Réessayer", "Retry"),
     H("vectorlab.iacalque.masque", " (masqué)", " (hidden)"),
     H("vectorlab.iacalque.reseau", "serveur injoignable : vérifiez que DeepotusVideo tourne",

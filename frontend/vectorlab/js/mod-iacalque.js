@@ -21,7 +21,7 @@
 import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 import { esc, garderClics } from "./mod-flottant.js";
-import { op_image_remplacer } from "./mod-doc.js";
+import { op_image_remplacer, image_profonde } from "./mod-doc.js";
 
 /* ── pur ── */
 // les formats que /images/generate accepte (fal ; OpenAI et Nano Banana les traduisent, image_providers)
@@ -173,14 +173,15 @@ export function unSeulVol(fn, apres) {
 }
 
 // l'état de « Générer » : gris pendant le vol, sans calque libre, et tant que la liste des modèles n'est pas lue
-// (chargement) ou illisible (raison « catalogue » : message + Réessayer) — sinon le serveur tirerait le modèle par
-// défaut sans prix affiché. JAMAIS gris pour une clé manquante : l'option sans clé reste choisissable, le 503
+// (chargement), illisible (raison « catalogue » : message + Réessayer) ou lue mais VIDE (raison « vide » : aucun
+// modèle d'image à proposer) — sinon le serveur tirerait le modèle par défaut sans prix affiché. JAMAIS gris pour une clé manquante : l'option sans clé reste choisissable, le 503
 // n'arrive qu'au lancement (décision de l'utilisateur 11/10).
 //   catalogue : "chargement" | "ok" | "echec" ; modele : la valeur de la liste ("" = aucune)
 export function etatGenerer({ enVol, cible, catalogue, modele }) {
   if (enVol) return { gris: true, raison: "" };
   if (!cible) return { gris: true, raison: "calque" };
-  if (catalogue === "echec" || (catalogue === "ok" && !modele)) return { gris: true, raison: "catalogue" };
+  if (catalogue === "echec") return { gris: true, raison: "catalogue" };
+  if (catalogue === "ok" && !modele) return { gris: true, raison: "vide" };
   if (catalogue !== "ok") return { gris: true, raison: "" };
   return { gris: false, raison: "" };
 }
@@ -234,11 +235,14 @@ export async function executerPlan(o, d) {
   }
 }
 
-// « Retirer le fond » d'une image du document — d = {versBiblio(o) → nom en Bibliothèque, post(url, corps),
-// deposer(nom) → {href, nat} (nouvelle image du magasin du document), executer(fn, …args)}
+// « Retirer le fond » d'une image du document — d = {doc() → le document, versBiblio(o) → nom en Bibliothèque,
+// post(url, corps), deposer(nom) → {href, nat} (nouvelle image du magasin du document), executer(fn, …args)}.
+// Tout refus GRATUIT part avant le premier POST : modèle, et l'image RETROUVABLE par op_image_remplacer (la même
+// recherche, qui descend dans les groupes) — jamais un détourage payé que la commande ne pourrait pas poser.
 export async function retirerFondFlux(o, choix, d) {
   if (!o || o.type !== "image") throw new Error(T("vectorlab.iacalque.image_introuvable", { id: String(o && o.id) }));
   const corps = requeteDetour({ nom: "", modele: choix && choix.modele, sujet: choix && choix.sujet });
+  image_profonde(d.doc(), o.id);
   corps.filename = await d.versBiblio(o);
   const r = await d.post("/api/images/process", corps);
   const nom = (r && r.images || [])[0];
@@ -377,7 +381,7 @@ export function initIaCalque(VL) {
         <div class="iac-prix" id="iacPrix">${T("vectorlab.iacalque.prix_inconnu")}</div>
         <button id="iacGo" class="primaire">${dzi("dz-media-generer-image", 16)}<span id="iacGoTexte"></span></button>
         <div class="iac-etat-ligne"><span class="iac-etat" id="iacEtat" role="status"></span>
-          <button id="iacReessayer" class="iac-reessayer" hidden>${T("vectorlab.iacalque.reessayer")}</button></div>
+          <span class="iac-sep" id="iacSep" hidden>—</span><button id="iacReessayer" class="iac-reessayer" hidden>${T("vectorlab.iacalque.reessayer")}</button></div>
       </div>`;
     chargerModeles();
     catalogue("detourage_image").then((l) => {
@@ -399,10 +403,16 @@ export function initIaCalque(VL) {
   }
   // la liste des calques seule (réouverture, calque ajouté / renommé / verrouillé / masqué) : le prompt, les
   // listes de modèles et le message restent
+  // les <option> ne sont réécrites que si elles ont CHANGÉ : un rendu du document ne referme pas une liste ouverte
+  let sigCalques = "";
   function majCalques() {
     const sel = $("#iacCalque");
     cible = cibleValide(etat.doc, cible, "");
-    if (sel) { sel.innerHTML = optionsCalques(etat.doc, cible); sel.value = cible; }
+    if (sel) {
+      const sig = optionsCalques(etat.doc, cible);
+      if (sig !== sigCalques) { sel.innerHTML = sig; sigCalques = sig; }
+      if (sel.value !== cible) sel.value = cible;
+    }
     majBouton();
   }
   function majBouton() {
@@ -411,10 +421,12 @@ export function initIaCalque(VL) {
     const { gris, raison } = etatGenerer({ enVol: lancer.enVol, cible, catalogue: etatCatalogue, modele: ($("#iacModele") || {}).value || "" });
     tx.textContent = lancer.enVol ? T("vectorlab.iacalque.en_cours") : T("vectorlab.iacalque.generer_sur", { nom: nomCalque(cible) });
     go.disabled = gris;
-    const e = $("#iacEtat"), re = $("#iacReessayer");
+    const e = $("#iacEtat"), re = $("#iacReessayer"), sep = $("#iacSep");
     if (re) re.hidden = raison !== "catalogue";
+    if (sep) sep.hidden = raison !== "catalogue";
     const m = raison === "calque" ? T("vectorlab.iacalque.aucun_calque_libre")
-      : raison === "catalogue" ? T("vectorlab.iacalque.catalogue_absent") : "";
+      : raison === "catalogue" ? T("vectorlab.iacalque.catalogue_absent")
+        : raison === "vide" ? T("vectorlab.iacalque.modeles_vides") : "";
     if (e) {
       // la raison est écrite ; une raison levée efface SON message (jamais l'issue d'un tir)
       if (m) e.textContent = m;
@@ -498,15 +510,21 @@ export function initIaCalque(VL) {
     if (!etat.doc) { VL.toast(T("vectorlab.image.aucun_doc"), true); return; }
     const el = hote();
     if (!el) return;
-    const dejaOuvert = !el.hidden;
+    const dejaOuvert = !el.hidden, construit = !!$("#iacPrompt");
     // le focus reviendra à l'élément d'ouverture (bouton du calque, menu…) à la fermeture
     if (!dejaOuvert) retour = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
     // l'outil actif reste : les outils en CAPTURE sortent devant un panneau flottant (VL.dansPanneau)
     cible = cibleValide(etat.doc, calqueId, "");
-    if (calqueId && cible !== calqueId) VL.toast(T("vectorlab.iacalque.calque_verrouille", { nom: nomCalque(calqueId) }), true);
+    if (calqueId && cible !== calqueId) {
+      const c = etat.doc.calques.find((x) => x.id === calqueId);
+      VL.toast(c ? T("vectorlab.iacalque.calque_verrouille", { nom: c.nom || c.id })
+        : T("vectorlab.iacalque.calque_disparu", { nom: nomCalque(cible) }), true);
+    }
     el.hidden = false;
-    // déjà ouvert : la liste des calques seule — le prompt tapé et les listes de modèles restent
-    if (dejaOuvert) majCalques(); else squelette(el);
+    // le squelette n'est construit qu'UNE fois : rouvert (ou déjà ouvert), la liste des calques seule — le prompt
+    // tapé et les listes de modèles restent ; une liste de modèles illisible est relue
+    if (!construit) squelette(el);
+    else { majCalques(); if (etatCatalogue === "echec") chargerModeles(); }
     const p = $("#iacPrompt");
     if (p) p.focus();
   }
@@ -555,7 +573,7 @@ export function initIaCalque(VL) {
     }
   }
   const detourer = unSeulVol(async (o, c) => {
-    const href = await retirerFondFlux(o, c, { versBiblio, post: poster, deposer, executer: VL.executer });
+    const href = await retirerFondFlux(o, c, { doc: () => etat.doc, versBiblio, post: poster, deposer, executer: VL.executer });
     remesurer();
     return href;
   }, () => majBoutonDetour());
@@ -565,17 +583,25 @@ export function initIaCalque(VL) {
 
   // le sujet tapé, par image : la ligne est reconstruite à chaque rendu du panneau Image
   const sujets = new Map();
-  // le prix du détourage par modèle (devis serveur) : le même chiffre avant et après le rendu, sans clignoter
-  const prixDetour = new Map();
-  async function majPrixDetour(span, modele) {
+  // le prix du détourage par modèle (devis serveur) : la PROMESSE est gardée (un devis en vol n'est pas redemandé, le
+  // même chiffre avant et après le rendu, sans clignoter) ; un échec n'est pas gardé, mais n'est relu qu'après 30 s
+  // (pas une requête à chaque rendu). On n'écrit que dans une ligne encore affichée, pour le modèle encore choisi.
+  const prixDetour = new Map(), echecPrix = new Map();
+  function prixDe(modele) {
+    if (prixDetour.has(modele)) return prixDetour.get(modele);
+    if (Date.now() - (echecPrix.get(modele) || -Infinity) < 30000) return Promise.reject(new Error("devis"));
+    const p = poster("/api/cost/estimate", devisDetour(modele)).then(libellePrix);
+    prixDetour.set(modele, p);
+    p.catch(() => { prixDetour.delete(modele); echecPrix.set(modele, Date.now()); });
+    return p;
+  }
+  async function majPrixDetour(span, sel) {
+    const modele = sel.value;
     if (!modele) { span.textContent = ""; return; }
-    if (prixDetour.has(modele)) { span.textContent = prixDetour.get(modele); return; }
     span.textContent = T("vectorlab.iacalque.prix_inconnu");
-    try {
-      const t = libellePrix(await poster("/api/cost/estimate", devisDetour(modele)));
-      prixDetour.set(modele, t);
-      if (span.isConnected !== false) span.textContent = t;
-    } catch (e) { span.textContent = T("vectorlab.iacalque.prix_inconnu"); }
+    let t;
+    try { t = await prixDe(modele); } catch (e) { t = T("vectorlab.iacalque.prix_inconnu"); }
+    if (span.isConnected && sel.value === modele) span.textContent = t;
   }
 
   function ligneDetour(ligne, o) {
@@ -588,7 +614,7 @@ export function initIaCalque(VL) {
     const prix = ligne.querySelector("#imDetourPrix");
     sujet.value = sujets.get(o.id) || "";
     let mods = [];
-    const maj = () => { sujet.hidden = !sujetRequis(mods, sel.value); majPrixDetour(prix, sel.value); };
+    const maj = () => { sujet.hidden = !sujetRequis(mods, sel.value); majPrixDetour(prix, sel); };
     majBoutonDetour(ligne.querySelector("#imDetourer"));
     const M = MI();
     if (M) {

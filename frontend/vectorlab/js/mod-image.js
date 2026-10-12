@@ -9,7 +9,7 @@ import { T } from "./mod-i18n.js";
 import { dzi } from "./mod-icones.js";
 import { op_ajouter, op_image_rogner, op_image_verrou, op_reperes,
          reperes_rects } from "./mod-doc.js";
-import { initIaCalque } from "./mod-iacalque.js";
+import { initIaCalque, chercher } from "./mod-iacalque.js";
 
 /* ── pur ── */
 const esc = (s) => String(s == null ? "" : s)
@@ -91,7 +91,7 @@ export function initImage(VL) {
   VL.imageUrl = (href, rev, px) => image_url(etat.docId, href, rev, px);
 
   async function deposer(png) {
-    const r = await fetch(`/api/vector/docs/${encodeURIComponent(etat.docId)}/images`,
+    const r = await chercher(`/api/vector/docs/${encodeURIComponent(etat.docId)}/images`,
       { method: "POST", headers: { "Content-Type": "image/png" }, body: png });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
@@ -128,7 +128,7 @@ export function initImage(VL) {
     return id;
   }
   async function poserDepuisLibrary(nom, calqueId) {
-    const r = await fetch("/api/images/" + encodeURIComponent(nom));
+    const r = await chercher("/api/images/" + encodeURIComponent(nom));
     if (!r.ok) throw new Error(T("vectorlab.image.biblio_introuvable", { nom, status: r.status }));
     const id = await poserBlob(await r.blob(), calqueId);
     // t190 : VL.executer AVALE l'échec de op_ajouter (calque verrouillé ou supprimé entre-temps) — jamais « posée »

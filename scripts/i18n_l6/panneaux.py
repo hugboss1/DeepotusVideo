@@ -5,6 +5,7 @@ tranches, Alt+glisser, formes de mod-outils2, le panoramique et la molette de co
 garderClics (en bulle, sur le panneau) arrivait trop tard, le panneau redevenait inerte dès qu'on changeait d'outil.
 Chaque gestionnaire qui COMMENCE un geste (pointerdown, dblclick, contextmenu, molette) sort désormais tout de suite
 si VL.dansPanneau(ev) (js/mod-flottant.js, posé dans VL par core.js) ; mod-tools (en bulle) aussi, par symétrie.
+Le clavier en capture sur document qui AGIT (touches du persona Pixel, Échap de l'outil Tranche) sort aussi.
 Les pointermove / pointerup ne sont PAS gardés : un geste commencé sur la scène et relâché au-dessus d'un panneau
 doit finir. L'édition de code est consignée ICI, en éditions S sur la source de BASE, pour que la table reste
 réversible (test_i18n_l6 [2]). Aucun texte affiché : pas de clé."""
@@ -64,4 +65,11 @@ ENTREES = [
     # ── l'outil Sélection (mod-tools, en BULLE) : garderClics l'arrête déjà, la garde le dit aussi ──
     garde("js/mod-tools.js", 90, "pointerdown", "  "),
     garde("js/mod-tools.js", 548, "dblclick", "  "),
+
+    # ── le CLAVIER en capture sur document (avant le panneau) : touches du persona Pixel (une lettre changeait
+    # d'outil, Entrée lançait la lecture) et Échap de l'outil Tranche (effaçait les tranches au lieu de fermer) ──
+    S("js/mod-pixelui.js", 537, 'document.addEventListener("keydown", (ev) => {',
+      c(f'document.addEventListener("keydown", (ev) => {{\n    {GARDE}{NOTE}'), {}),
+    S("js/mod-exportplus.js", 172, 'document.addEventListener("keydown", (ev) => {',
+      c(f'document.addEventListener("keydown", (ev) => {{\n    {GARDE}{NOTE}'), {}),
 ]

@@ -537,6 +537,7 @@ export function initPixelUI(VL) {
 
   /* ── clavier : les touches du persona (capture, avant le cœur) ── */
   document.addEventListener("keydown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (etat.persona !== "pixel" || ev.ctrlKey || ev.altKey || ev.metaKey) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "")) return;
     const k = ev.key.toLowerCase();

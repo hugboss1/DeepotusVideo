@@ -172,6 +172,7 @@ export function initExportPlus(VL) {
     VL.rendreOverlay(); rendre();
   }, true);
   document.addEventListener("keydown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (ev.key === "Escape" && etat.outil === "tranche" && etat.tranches.length) { etat.tranches = []; VL.rendreOverlay(); rendre(); ev.stopImmediatePropagation(); }
   }, true);
   const suivantOverlay = VL.surOverlay;
