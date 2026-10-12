@@ -1,0 +1,88 @@
+{
+  "titre": {
+    "fr": "Sonoriser un clip",
+    "en": "Add sound to a clip"
+  },
+  "legende": {
+    "fr": "Montage, clip sélectionné, puce sons › Générer › Depuis la vidéo : le modèle écoute l'image et rend un bruitage.",
+    "en": "Montage, clip selected, sounds chip › Generate › From the video: the model watches the picture and returns a sound effect."
+  },
+  "captures": [
+    {
+      "fr": "bloc.fr.webp",
+      "en": "bloc.en.webp"
+    },
+    {
+      "fr": "devis.fr.webp",
+      "en": "devis.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        238,
+        209,
+        307,
+        163
+      ],
+      "bulle": {
+        "fr": "Depuis la vidéo : le clip sélectionné",
+        "en": "From the video: the selected clip"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        238,
+        332,
+        249,
+        41
+      ],
+      "bulle": {
+        "fr": "Le devis d'abord ; le second clic lance",
+        "en": "The estimate first; the second click runs it"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        238,
+        200,
+        307,
+        181
+      ],
+      "bulle": {
+        "fr": "Depuis la vidéo : le clip sélectionné",
+        "en": "From the video: the selected clip"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        238,
+        341,
+        199,
+        41
+      ],
+      "bulle": {
+        "fr": "Le devis d'abord ; le second clic lance",
+        "en": "The estimate first; the second click runs it"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

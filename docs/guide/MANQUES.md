@@ -4,7 +4,7 @@ Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
 - 1094 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 42 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 38 chapitres dans le sommaire v3, en 6 familles.
+- 39 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -68,6 +68,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] « Provider defaults », « Local LLM (Ollama) », « missing » (anglais)
 - [x] « redémarrez le backend/l'app » après Save
 - [x] Aucune capture
+
+
+### Choisir ses modèles d'IA et leur voie (`modeles-et-cles`, lot t193, reprend : nouveau) — 0 manques
 
 
 ### Maîtriser ses dépenses (`budget`, lot t171, reprend : nouveau) — 0 manques
@@ -1464,3 +1467,4 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t179 | 56 | 56 |
 | t180 | 42 | 42 |
 | t181 | 0 | 0 |
+| t193 | 0 | 0 |

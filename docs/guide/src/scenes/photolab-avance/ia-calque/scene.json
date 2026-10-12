@@ -1,0 +1,85 @@
+{
+  "titre": {
+    "fr": "Nouveau calque IA",
+    "en": "New AI layer"
+  },
+  "legende": {
+    "fr": "Le bouton IA du pied des calques : prompt, modèle, détourage et prix ; le calque se place au-dessus du calque choisi.",
+    "en": "The AI button at the foot of the layers: prompt, model, background removal and price; the layer goes above the chosen layer."
+  },
+  "captures": [
+    {
+      "fr": "calques.fr.webp",
+      "en": "calques.en.webp"
+    },
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    },
+    {
+      "fr": "pose.fr.webp",
+      "en": "pose.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1292,
+        862
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Nouveau calque IA…",
+        "en": "New AI layer…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        783,
+        147,
+        326,
+        29
+      ],
+      "bulle": {
+        "fr": "Où se place le nouveau calque",
+        "en": "Where the new layer goes"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        783,
+        389,
+        326,
+        26
+      ],
+      "bulle": {
+        "fr": "Le prix total, annoncé avant",
+        "en": "The total price, shown beforehand"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1157,
+        558,
+        283,
+        294
+      ],
+      "bulle": {
+        "fr": "Un calque de pixels au-dessus du fond",
+        "en": "A pixel layer above the background"
+      }
+    }
+  ]
+}

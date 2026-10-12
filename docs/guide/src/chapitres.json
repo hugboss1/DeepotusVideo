@@ -81,6 +81,17 @@
       "etat": "v3"
     },
     {
+      "id": "modeles-et-cles",
+      "famille": "demarrer",
+      "lot": "t193",
+      "icone": "dz-etat-ia",
+      "fr": "Choisir ses modèles d'IA et leur voie",
+      "en": "Choose your AI models and their route",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
       "id": "budget",
       "famille": "demarrer",
       "lot": "t171",

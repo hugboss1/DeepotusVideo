@@ -1,0 +1,146 @@
+{
+  "titre": {
+    "fr": "Une image IA sur un calque",
+    "en": "An AI image on a layer"
+  },
+  "legende": {
+    "fr": "Le bouton du calque ouvre le panneau : calque visé, modèle, détourage, prix total ; l'image se pose sur ce calque, sous le titre.",
+    "en": "The layer button opens the panel: target layer, model, background removal, total price; the image lands on that layer, below the title."
+  },
+  "captures": [
+    {
+      "fr": "calques.fr.webp",
+      "en": "calques.en.webp"
+    },
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    },
+    {
+      "fr": "pose.fr.webp",
+      "en": "pose.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1325,
+        654
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Image IA sur ce calque",
+        "en": "AI image on this layer"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        124,
+        205,
+        286,
+        34
+      ],
+      "bulle": {
+        "fr": "Le calque visé",
+        "en": "The target layer"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        86,
+        392,
+        324,
+        27
+      ],
+      "bulle": {
+        "fr": "Le prix total : image et détourage",
+        "en": "The total price: image and background removal"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        86,
+        466,
+        324,
+        28
+      ],
+      "bulle": {
+        "fr": "Posée sur le calque Image, sous le titre",
+        "en": "Placed on the Image layer, below the title"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1325,
+        654
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Image IA sur ce calque",
+        "en": "AI image on this layer"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        117,
+        205,
+        293,
+        34
+      ],
+      "bulle": {
+        "fr": "Le calque visé",
+        "en": "The target layer"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        86,
+        392,
+        324,
+        27
+      ],
+      "bulle": {
+        "fr": "Le prix total : image et détourage",
+        "en": "The total price: image and background removal"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        86,
+        466,
+        324,
+        28
+      ],
+      "bulle": {
+        "fr": "Posée sur le calque Image, sous le titre",
+        "en": "Placed on the Image layer, below the title"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

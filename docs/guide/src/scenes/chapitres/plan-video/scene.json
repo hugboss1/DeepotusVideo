@@ -1,0 +1,67 @@
+{
+  "titre": {
+    "fr": "Générer la vidéo du plan",
+    "en": "Generate the shot's video"
+  },
+  "legende": {
+    "fr": "Avec un début et une fin, seuls les modèles qui acceptent une image de fin sont proposés ; le devis du serveur est gratuit.",
+    "en": "With a start and an end, only models that accept a last frame are offered; the server estimate is free."
+  },
+  "captures": [
+    {
+      "fr": "carte.fr.webp",
+      "en": "carte.en.webp"
+    },
+    {
+      "fr": "boite.fr.webp",
+      "en": "boite.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        48,
+        705
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Générer le plan (vidéo)",
+        "en": "Generate the shot (video)"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        471,
+        392,
+        498,
+        136
+      ],
+      "bulle": {
+        "fr": "Début et fin du Plateau",
+        "en": "Start and end from the Stage"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        471,
+        526,
+        498,
+        27
+      ],
+      "bulle": {
+        "fr": "Le devis du serveur, gratuit",
+        "en": "The server estimate, free"
+      }
+    }
+  ]
+}

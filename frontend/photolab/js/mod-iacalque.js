@@ -313,6 +313,7 @@ export function initIaCalque(PL) {
     if (!boite) construire();
     mode = m;
     boite.classList.toggle("mode-detour", mode === "detour");
+    ui.go.id = mode === "detour" ? "pl-iac-detourer" : "pl-iac-generer";   // t193 : la fiche du détourage vise ce bouton
     ui.titre.textContent = T(mode === "detour" ? "photolab.iacalque.titre_detour" : "photolab.iacalque.titre");
     const cibles = calquesCibles(PL.etat.doc, PL.etat.verrous, mode);
     cible = cibles.some((c) => c.id === calqueId) ? calqueId : (cibles[0] ? cibles[0].id : null);
