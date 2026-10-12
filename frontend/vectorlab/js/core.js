@@ -408,14 +408,14 @@ function rendreOverlay() {
       fill: "none", stroke: "#e0b34a", "stroke-width": 1, class: "planche",
       "data-planche": p.id, "pointer-events": "none" }));
     const lbl = ov("text", { x: ex + 4, y: ey - 5, fill: "#e0b34a", "font-size": 11,
-      class: "planche-nom", "data-planche": p.id, "pointer-events": "none" });
+      class: "planche-nom", "data-planche": p.id, "data-dz-brut": "1", "pointer-events": "none" });
     lbl.textContent = p.nom;
     o.appendChild(lbl);
   }
   // R6 : sans planche, le nom du document au-dessus de la page (le nom de planche d'Affinity)
   if (!(etat.doc.planches || []).length && etat.meta) {
     const [px0, py0] = ecranPt(0, 0);
-    const nom = ov("text", { x: px0, y: py0 - 5, fill: "#9a9a9a", "font-size": 11, class: "page-nom", "pointer-events": "none" });
+    const nom = ov("text", { x: px0, y: py0 - 5, fill: "#9a9a9a", "font-size": 11, class: "page-nom", "data-dz-brut": "1", "pointer-events": "none" });
     nom.textContent = etat.meta.name;
     o.appendChild(nom);
   }

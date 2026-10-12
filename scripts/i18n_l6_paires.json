@@ -45,6 +45,18 @@
     "groupe": "coque"
    },
    {
+    "pos": 17580,
+    "avant": "class: \"planche-nom\", \"data-planche\": p.id,",
+    "apres": "class: \"planche-nom\", \"data-planche\": p.id, \"data-dz-brut\": \"1\",",
+    "groupe": "nomsbruts"
+   },
+   {
+    "pos": 17989,
+    "avant": "class: \"page-nom\", \"pointer-events\": \"none\" }",
+    "apres": "class: \"page-nom\", \"data-dz-brut\": \"1\", \"pointer-events\": \"none\" }",
+    "groupe": "nomsbruts"
+   },
+   {
     "pos": 25463,
     "avant": "    majTete();",
     "apres": "    majTete();\r\n    verifierIds();                     // id-groupe : réparer / signaler les ids en double",
@@ -425,6 +437,12 @@
     "groupe": "apparence"
    },
    {
+    "pos": 12749,
+    "avant": "<b style=\"flex:1\">${esc(n)}</b>",
+    "apres": "<b style=\"flex:1\" data-dz-brut=\"1\">${esc(n)}</b>",
+    "groupe": "nomsbruts"
+   },
+   {
     "pos": 12846,
     "avant": " title=\"Fond de la sélection = cette couleur globale\">fond</button>",
     "apres": " title=\"${T(\"vectorlab.apparence.glob_fond_titre\")}\">${T(\"vectorlab.apparence.glob_fond\")}</button>",
@@ -477,6 +495,12 @@
     "avant": "<summary class=\"px-tete\">Styles d'objet</summary>",
     "apres": "<summary class=\"px-tete\">${T(\"vectorlab.apparence.styles\")}</summary>",
     "groupe": "apparence"
+   },
+   {
+    "pos": 14296,
+    "avant": "<b style=\"flex:1\">${esc(n)}</b>",
+    "apres": "<b style=\"flex:1\" data-dz-brut=\"1\">${esc(n)}</b>",
+    "groupe": "nomsbruts"
    },
    {
     "pos": 14378,
@@ -837,6 +861,12 @@
     "avant": "<span class=\"bib-sans\" title=\"la vignette naît au premier Sauver\"",
     "apres": "<span class=\"bib-sans\" title=\"${T(\"vectorlab.biblio.vignette_titre\")}\"",
     "groupe": "export"
+   },
+   {
+    "pos": 3292,
+    "avant": "<div class=\"bib-nom\" title=\"${esc(d.name)}\">",
+    "apres": "<div class=\"bib-nom\" data-dz-brut=\"1\" title=\"${esc(d.name)}\">",
+    "groupe": "nomsbruts"
    },
    {
     "pos": 3388,
@@ -3691,6 +3721,12 @@
     "groupe": "panneaux"
    },
    {
+    "pos": 10665,
+    "avant": "l.textContent = t.nom;",
+    "apres": "l.setAttribute(\"data-dz-brut\", \"1\"); l.textContent = t.nom;",
+    "groupe": "nomsbruts"
+   },
+   {
     "pos": 12512,
     "avant": "\"rendu vide\"",
     "apres": "T(\"vectorlab.export.rendu_vide\")",
@@ -4249,6 +4285,12 @@
     "groupe": "import"
    },
    {
+    "pos": 1528,
+    "avant": "libelle: s.nom || id,",
+    "apres": "libelle: s.nom || id, brut: true,",
+    "groupe": "nomsbruts"
+   },
+   {
     "pos": 1558,
     "avant": "`${(s.objets || []).length} objet${(s.objets || []).length > 1 ? \"s\" : \"\"}`",
     "apres": "T((s.objets || []).length > 1 ? \"vectorlab.flyout.n_objets_plusieurs\" : \"vectorlab.flyout.n_objets_un\", { n: (s.objets || []).length })",
@@ -4787,6 +4829,12 @@
     "avant": "\"Effacer les tranches dessinées\"",
     "apres": "T(\"vectorlab.flyout.effacer_tranches\")",
     "groupe": "flyout"
+   },
+   {
+    "pos": 19398,
+    "avant": "<span class=\"fo-lib\">",
+    "apres": "<span class=\"fo-lib\"${e.brut ? ' data-dz-brut=\"1\"' : \"\"}>",
+    "groupe": "nomsbruts"
    },
    {
     "pos": 20124,
@@ -5991,6 +6039,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 9647,
+    "avant": "<span class=\"nom\">${esc(r.nom)}</span>",
+    "apres": "<span class=\"nom\" data-dz-brut=\"1\">${esc(r.nom)}</span>",
+    "groupe": "nomsbruts"
+   },
+   {
     "pos": 9752,
     "avant": "\" title=\"Verrou\" aria-label=\"Verrou\">",
     "apres": "\" title=\"${T(\"vectorlab.calques.verrou\")}\" aria-label=\"${T(\"vectorlab.calques.verrou\")}\">",
@@ -6025,6 +6079,12 @@
     "avant": "\"Effets de calque de l'objet (Apparence)\"",
     "apres": "T(\"vectorlab.calques.effets_titre\")",
     "groupe": "coque"
+   },
+   {
+    "pos": 10582,
+    "avant": "<span class=\"nom\">${esc(r.nom)}</span>",
+    "apres": "<span class=\"nom\" data-dz-brut=\"1\">${esc(r.nom)}</span>",
+    "groupe": "nomsbruts"
    },
    {
     "pos": 10948,
@@ -7181,6 +7241,12 @@
     "avant": "title=\"Garde l'état courant sous ce nom (session)\">Prendre</button>",
     "apres": "title=\"${T(\"vectorlab.outils2.inst_prendre_aide\")}\">${T(\"vectorlab.outils2.inst_prendre\")}</button>",
     "groupe": "outils_lab"
+   },
+   {
+    "pos": 20064,
+    "avant": "<span class=\"nom\" title=\"${n}\">",
+    "apres": "<span class=\"nom\" data-dz-brut=\"1\" title=\"${n}\">",
+    "groupe": "nomsbruts"
    },
    {
     "pos": 20128,
@@ -9159,6 +9225,12 @@
     "avant": "",
     "apres": "import { T } from \"./mod-i18n.js\";\r\n",
     "groupe": "import"
+   },
+   {
+    "pos": 785,
+    "avant": "<span class=\"nom\" title=\"${esc(p.nom)}\">",
+    "apres": "<span class=\"nom\" data-dz-brut=\"1\" title=\"${esc(p.nom)}\">",
+    "groupe": "nomsbruts"
    },
    {
     "pos": 969,

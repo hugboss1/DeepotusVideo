@@ -186,7 +186,7 @@ export function initExportPlus(VL) {
       r.setAttribute("fill", "none"); r.setAttribute("stroke", "#39b3d0"); r.setAttribute("stroke-dasharray", "6 4"); r.setAttribute("class", "tranche");
       ov.appendChild(r);
       const l = document.createElementNS(SNS, "text");
-      l.setAttribute("x", ax + 3); l.setAttribute("y", ay - 3); l.setAttribute("fill", "#39b3d0"); l.setAttribute("font-size", "11"); l.textContent = t.nom;
+      l.setAttribute("x", ax + 3); l.setAttribute("y", ay - 3); l.setAttribute("fill", "#39b3d0"); l.setAttribute("font-size", "11"); l.setAttribute("data-dz-brut", "1"); l.textContent = t.nom;
       ov.appendChild(l);
     }
   };

@@ -20,7 +20,7 @@ export function flyout_formes(formes, courante) {
   return (formes || []).map((f) => ({ id: f.id, libelle: f.nom, icone: ICONES_FORMES[f.id] || "dz-etat-inconnu", actif: f.id === courante }));
 }
 export function flyout_symboles(symboles) {
-  const entrees = Object.entries(symboles || {}).map(([id, s]) => ({ id, libelle: s.nom || id, detail: T((s.objets || []).length > 1 ? "vectorlab.flyout.n_objets_plusieurs" : "vectorlab.flyout.n_objets_un", { n: (s.objets || []).length }), action: "poser" }));
+  const entrees = Object.entries(symboles || {}).map(([id, s]) => ({ id, libelle: s.nom || id, brut: true, detail: T((s.objets || []).length > 1 ? "vectorlab.flyout.n_objets_plusieurs" : "vectorlab.flyout.n_objets_un", { n: (s.objets || []).length }), action: "poser" }));
   if (!entrees.length) entrees.push({ id: "", libelle: T("vectorlab.flyout.aucun_symbole"), detail: "", action: "", desactive: true });
   entrees.push({ id: "", libelle: T("vectorlab.flyout.creer_depuis_sel"), detail: "", action: "creer", icone: "dz-action-ajouter" });
   return entrees;
@@ -224,7 +224,7 @@ export function initFlyout(VL) {
     hote.innerHTML = `<div class="fo-titre">${esc(menu.titre)}</div>` + menu.entrees.map((e, i) =>
       `<button class="fo-item${e.actif ? " actif" : ""}" data-i="${i}" ${e.desactive ? "disabled" : ""}${e.famille ? ` style="font-family:&quot;${esc(e.famille)}&quot;"` : ""}>`
       + (e.couleur ? `<span class="fo-pastille" style="background:${esc(e.couleur)}"></span>` : e.icone ? `<span class="fo-glyphe">${dzi(e.icone, 16)}</span>` : "")
-      + `<span class="fo-lib">${esc(e.libelle)}</span>${e.detail ? `<small>${esc(e.detail)}</small>` : ""}</button>`).join("");
+      + `<span class="fo-lib"${e.brut ? ' data-dz-brut="1"' : ""}>${esc(e.libelle)}</span>${e.detail ? `<small>${esc(e.detail)}</small>` : ""}</button>`).join("");
     hote.hidden = false;
     const r = bouton.getBoundingClientRect();
     const p = flyout_position({ x: r.left, y: r.top, w: r.width, h: r.height }, { w: hote.offsetWidth, h: hote.offsetHeight }, { w: window.innerWidth, h: window.innerHeight }, 6);
