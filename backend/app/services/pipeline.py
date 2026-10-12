@@ -281,13 +281,17 @@ class Pipeline:
         batch_id: str | None = None,
         batch_index: int | None = None,
         batch_size: int | None = None,
+        job_id: str | None = None,
     ) -> str:
         """Run the full pipeline. Returns the job_id.
 
         Optional batch_id/batch_index/batch_size let multiple jobs be grouped
         in the UI as variations of the same prompt.
+
+        t189 (G7) : `job_id` (facultatif, nommé) — l'id choisi par l'appelant, pour rattacher le rendu AVANT sa fin
+        (POST /shots/{id}/video l'écrit dans `shot.video`) ; sans lui, un id neuf comme avant.
         """
-        job_id = str(uuid4())
+        job_id = job_id or str(uuid4())
         async with async_session_factory() as session:
             job = JobRecord(
                 id=job_id,

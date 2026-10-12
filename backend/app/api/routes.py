@@ -10627,7 +10627,9 @@ def _shot_dict(s) -> dict:
             # t127 (Plateau 3D, P4) : le pont depuis le Plateau
             "motion_prompt": getattr(s, "motion_prompt", None) or "",
             "keyframe_image": getattr(s, "keyframe_image", None),
-            "keyframe_end": getattr(s, "keyframe_end", None)}
+            "keyframe_end": getattr(s, "keyframe_end", None),
+            # t189 (G7) : le job de la vidéo du plan (POST /shots/{id}/video)
+            "video": getattr(s, "video", None)}
 
 
 async def _list_shots(session, chapter_id: str):
@@ -11022,6 +11024,144 @@ async def generate_shot_image(shot_id: str, body: dict, http: Request = None):
         await session.commit()
         await session.refresh(s)
         return _shot_dict(s)
+
+
+# ── t189 (G7, plan « Génération IA enrichie », 12/10/2026) : storyboard 3D → Plateau → plan vidéo ─────────────────────
+# Règle de la maison pour une route payante, dans CET ordre : 404 plan / 400 id de modèle → 503 clé absente
+# (_refus_cle, AVANT toute garde : aucune ligne `depenses`) → 400 champs et bornes → garde des plafonds → tir.
+# Devis = garde = coût rendu (le même op).
+
+@router.post("/shots/{shot_id}/objets3d", dependencies=[Depends(_require_local_depense)])
+async def shot_objets3d(shot_id: str, body: dict, http: Request = None):
+    """Le storyboard 3D d'un plan : SAM 3 (fal) reconstruit les objets de son image (production, sinon croquis) en
+    GLB placés, posés comme instances de la scène du Plateau liée au plan (créée, ou mise à jour : anciennes
+    instances sam3_* retirées, un sujet gardé devient décor). Body : {prompt?, boxes?, modele?, detection_threshold?}.
+    Rend {scene_id, objets: [{id, nom, job, role}], n, usd}. PAYANT (0,02 $ par requête, unité fal à confirmer)."""
+    from app.services import storyboard3d as SB
+    from app.services.storage import Shot, async_session_factory
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+    if not s:
+        raise HTTPException(404, "Shot not found")
+    mid = str(body.get("modele") or SB.DEFAUT)
+    if mid not in SB.MODELES:
+        raise HTTPException(400, f"Modèle de storyboard 3D inconnu : {mid[:40]} (connus : {', '.join(SB.MODELES)}).")
+    if not (settings.FAL_KEY or "").strip():          # t183 : 503 qui nomme la clé, AVANT toute garde de dépense
+        raise _refus_cle("FAL_KEY", SB.MODELES[mid]["label"], http)
+    nom = SB.image_source(s)
+    if not nom or not (settings.images_path / nom).is_file():
+        raise HTTPException(400, "Ce plan n'a ni image de production ni croquis : générez-en un avant le storyboard 3D.")
+    try:
+        boites = SB.valider_boites(body.get("boxes"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    prompt = body.get("prompt")
+    if not SB.MODELES[mid]["corps"] and not boites and not SB.nettoyer_prompt(prompt):
+        raise HTTPException(400, "Décrivez les objets à reconstruire (ex. « personnage, table »), ou tracez des boîtes.")
+    seuil = body.get("detection_threshold")
+    if seuil is not None:
+        lo, hi = SB.SEUIL_BORNES
+        try:
+            seuil = float(seuil)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "detection_threshold : un nombre de 0,1 à 1.")
+        if isinstance(body.get("detection_threshold"), bool) or not (lo <= seuil <= hi):
+            raise HTTPException(400, "detection_threshold : un nombre de 0,1 à 1.")
+        if SB.MODELES[mid]["corps"]:
+            seuil = None                                 # le modèle « corps » n'a pas ce réglage
+    await _plafond(SB.op_devis(mid), "chapitres")       # avant la dépense
+    try:
+        return await SB.reconstruire(shot_id, prompt, boites, mid, seuil)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:  # noqa: BLE001 — une réponse de fal inexploitable se DIT, sans scène corrompue
+        logger.warning(f"storyboard 3D {shot_id} : {e}")
+        raise HTTPException(502, str(e)[:400] if "SAM 3" in str(e) else f"SAM 3 (fal) : {str(e)[:380]}")
+
+
+_VIDEO_PLAN_FL = "veo-3.1-fast-fal"     # t189 : le défaut d'un plan AVEC image de fin (Veo 3.1 Fast first-last, fal)
+
+
+@router.post("/shots/{shot_id}/video", dependencies=[Depends(_require_local_depense)])
+async def shot_video(shot_id: str, body: dict, background_tasks: BackgroundTasks, http: Request = None):
+    """La VIDÉO d'un plan : début = la borne du Plateau (keyframe_image), sinon l'image de production, sinon le croquis ;
+    fin = keyframe_end ; prompt = motion_prompt du plan, sinon son action. Modèle par défaut : Veo 3.1 Fast
+    first-last avec une fin, le défaut vidéo de l'app sans (le défaut GLOBAL ne change pas). Les gardes de
+    /generate, dans le même ordre, catégorie « chapitres ». 9:16, sans voix off ni sous-titres, durée du plan bornée
+    par le modèle. Body : {video_model?, duration_s?, resolution? (720p par défaut), max_usd?}.
+    Le job est rattaché AVANT la fin du rendu (`shot.video`) ; rend le plan | {job_id, usd}."""
+    from pydantic import ValidationError
+    from app.models.schemas import AspectRatio, CameraMove, PromptSource
+    from app.services import pricing as _pr
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
+    from app.services.storage import Shot, async_session_factory
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        debut = next((Path(str(v)).name for v in (getattr(s, "keyframe_image", None), getattr(s, "image", None),
+                                                    s.sketch_image) if v), None)
+        fin = Path(str(s.keyframe_end)).name if getattr(s, "keyframe_end", None) else None
+        mid = str(body.get("video_model") or (_VIDEO_PLAN_FL if fin else DEFAULT_VIDEO_MODEL))
+        if mid not in VIDEO_MODELS:
+            raise HTTPException(400, f"Modèle vidéo inconnu : {mid[:48]} (ids : {', '.join(VIDEO_MODELS)}).")
+        _cle_video_ou_503(mid, http)                    # t183 : 503 AVANT toute garde de dépense
+        _fin_video_ou_400(mid, fin, http)               # t184 : une fin sur un modèle sans first-last, avant la dépense
+        if not debut:
+            raise HTTPException(400, "Ce plan n'a aucune image de départ : capturez-la au Plateau, ou générez son "
+                                     "image de production ou son croquis.")
+        if not (settings.images_path / debut).is_file():
+            raise HTTPException(404, f"Image de départ introuvable : {debut}")
+        if fin and not (settings.images_path / fin).is_file():
+            raise HTTPException(404, f"Image de fin introuvable : {fin}")
+        prompt = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
+        if not prompt:
+            raise HTTPException(400, "Décrivez le mouvement du plan (prompt de mouvement ou action) avant sa vidéo.")
+        try:
+            demande = float(body.get("duration_s") or s.duration_s or 4.0)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "duration_s : un nombre de secondes.")
+        demande = max(3, min(60, int(round(demande))))
+        duree = max(3, min(60, _pr.video_gen_seconds(mid, demande)))   # bornée par le modèle (natif + plafond)
+        resolution = str(body.get("resolution") or "720p")
+        if resolution not in ("720p", "1080p"):
+            raise HTTPException(400, "resolution : 720p ou 1080p.")
+        try:
+            max_usd = float(body["max_usd"]) if body.get("max_usd") is not None else None
+        except (TypeError, ValueError):
+            raise HTTPException(422, "max_usd doit être un nombre fini >= 0")
+        try:
+            camera = CameraMove(s.camera_move) if s.camera_move else None
+        except ValueError:
+            camera = None
+        try:
+            req = GenerateRequest(image_filename=debut, image_filename_end=fin, custom_prompt=prompt,
+                                  prompt_source=PromptSource.CUSTOM, video_model=mid, camera=camera,
+                                  aspect_ratio=AspectRatio.VERTICAL, duration_s=duree, resolution=resolution,
+                                  voiceover_enabled=False, max_usd=max_usd)
+        except ValidationError as e:
+            raise HTTPException(400, f"requête vidéo du plan illisible : {e.errors()[0].get('msg', '')}"[:300])
+        total = _garde_cout([_devis_video(req)], req.max_usd)
+        await _plafond([_devis_video(req)] + _op_voix_off(req), "chapitres")   # avant la dépense
+        job_id = str(uuid4())
+        s.video = job_id                                 # rattaché AVANT la fin du rendu
+        s.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(s)
+        out = _shot_dict(s) | {"job_id": job_id, "usd": total}
+
+    async def _run():
+        try:
+            await pipeline.run(req, job_id=job_id)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"vidéo du plan {shot_id} ({job_id}) : {e}")
+
+    background_tasks.add_task(_run)
+    return out
 
 
 # Tâche #62 (plan chapitres T6, 02/10/2026) : la DÉRIVE de l'image de production, en LECTURE (décision du 02/10) —
@@ -11948,6 +12088,24 @@ async def _anim_shots(chapter_id: str) -> tuple[list, dict | None]:
     return shots, narrateur
 
 
+async def _anim_videos(shots: list) -> list:
+    """t189 (G7) : chaque plan reçoit `video_fichier` = le fichier de SA vidéo (shot.video) quand ce job est TERMINÉ et
+    que le fichier existe (rendu final, sinon le clip brut), None sinon — animatique_service.plan reste pur."""
+    from sqlalchemy import select as _sel
+    from app.services.storage import JobRecord, async_session_factory
+    ids = {s.get("video") for s in shots if s.get("video")}
+    fichiers: dict = {}
+    if ids:
+        async with async_session_factory() as session:
+            for j in (await session.execute(_sel(JobRecord).where(JobRecord.id.in_(ids)))).scalars().all():
+                if j.status != JobStatus.DONE.value:
+                    continue
+                f = next((c for c in (j.final_video_path, j.video_path) if c and Path(c).is_file()), None)
+                if f:
+                    fichiers[j.id] = str(f)
+    return [dict(s, video_fichier=fichiers.get(s.get("video"))) for s in shots]
+
+
 def _anim_voix_a_payer(shots: list, narrateur: dict | None, lang: str, d: Path) -> list[tuple[str, str, Path]]:
     """[(shot_id, texte, fichier de cache)] des voix témoins à faire ; celles déjà en cache sont gratuites."""
     from app.services import animatique_service as AN
@@ -12009,6 +12167,7 @@ async def animatique_rendre(chapter_id: str, body: dict, background_tasks: Backg
                                      "c'est lui qui lit la voix témoin.")
         a_faire = [t for _i, t, f in _anim_voix_a_payer(shots, narrateur, lang, d) if not f.is_file()]
         await _plafond(_op_tts(" ".join(a_faire)), "chapitres")     # avant la dépense ; le cache ne coûte rien
+    shots = await _anim_videos(shots)        # t189 : la vidéo terminée d'un plan prime sur son image
     jid = str(uuid4())
     _ms_register(jid, {"job_id": jid, "phase": "animatique", "chapter_i": 0, "chapter_n": len(shots),
                        "message": "Animatique…", "done": False, "error": None, "stats": {}})

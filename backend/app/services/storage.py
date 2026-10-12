@@ -496,6 +496,9 @@ class Shot(Base):
     motion_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     keyframe_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     keyframe_end: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # t189 (G7) — la VIDÉO du plan : l'id du JobRecord lancé par POST /shots/{id}/video, écrit AVANT la fin du rendu
+    # (l'animatique ne la prend que quand ce job est terminé et que son fichier existe).
+    video: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -727,6 +730,8 @@ SHOTS_COLUMNS = [
     ("motion_prompt", "TEXT"),
     ("keyframe_image", "VARCHAR(255)"),
     ("keyframe_end", "VARCHAR(255)"),
+    # t189 (G7) : le job de la vidéo du plan
+    ("video", "VARCHAR(64)"),
 ]
 
 # Vectorlab — pont cartes (27/08) : l'ancre deck_id sur les bases d'avant

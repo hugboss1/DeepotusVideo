@@ -10,6 +10,10 @@ Le son, corrigé du plan du 03/09 (mesuré au ffmpeg réel) : des clips tantôt 
 par le démultiplexeur concat PERDENT la piste (muet en tête) ou la DÉCALENT (muet au milieu). Ici les clips vidéo
 sont tous muets, puis UNE piste son est construite — chaque voix, ou un silence exact, recalés à la durée RÉELLE du
 clip (en images entières) — et posée sur la vidéo. Aucune dérive, quel que soit l'ordre.
+
+t189 (G7, 12/10/2026) : un plan qui a sa VIDÉO (POST /shots/{id}/video, job TERMINÉ et fichier présent — la route
+appelante résout le job en chemin, `video_fichier`) en fait son clip : muet, recadré 540×960, 30 i/s, coupé à la durée
+du plan ou prolongé en GELANT la dernière image (tpad clone). Toujours muet : la règle du son ci-dessus tient.
 """
 from __future__ import annotations
 
@@ -47,18 +51,21 @@ def cle_voix(texte: str, voice_id: str | None, langue: str) -> str:
 
 def plan(shots: list[dict], voix: dict | None = None, mini: float = DUREE_MINI) -> list[dict]:
     """Le plan de montage. PUR. `shots` = dicts de _shot_dict ; `voix` = {shot_id: durée mesurée}.
-    Entrée : {idx, shot_id, image, texte, dur, source_duree, carton}."""
+    Entrée : {idx, shot_id, image, video, texte, dur, source_duree, carton}. `video` = le fichier vidéo du plan déjà
+    RÉSOLU par l'appelant (clé `video_fichier` du dict : job terminé, fichier présent), sinon None ; il prime sur
+    l'image fixe, et un plan qui en a une n'est jamais un carton."""
     voix = voix or {}
     out = []
     for i, s in enumerate(sorted(shots, key=lambda x: x.get("idx", 0))):
         img = s.get("image") or s.get("sketch_image") or None
+        vid = s.get("video_fichier") or None
         dv = float(voix.get(s.get("id")) or 0)
         if dv >= mini:
             dur, src = _cadre(dv), "voix"
         else:
             dur, src = _cadre(s.get("duration_s") or 4.0), "plan"
-        out.append({"idx": i, "shot_id": s.get("id"), "image": img, "texte": texte_plan(s),
-                    "dur": dur, "source_duree": src, "carton": img is None,
+        out.append({"idx": i, "shot_id": s.get("id"), "image": img, "video": vid, "texte": texte_plan(s),
+                    "dur": dur, "source_duree": src, "carton": img is None and vid is None,
                     "energie": s.get("energy")})          # tâche #66 : le « reel » choisit les plans par énergie
     return out
 
@@ -141,6 +148,24 @@ def filtre_audio(entrees: list[dict], audios: dict) -> tuple[list[Path], str]:
 MANIFESTE = "animatique.json"
 
 
+def vient_de_video(e: dict) -> bool:
+    """t189 : le clip de ce plan est-il fait de SA vidéo (chemin résolu ET fichier présent au rendu) ?"""
+    v = e.get("video")
+    return bool(v) and Path(v).is_file()
+
+
+def clip_video(video: Path, dest: Path, dur: float) -> Path:
+    """t189 : le clip MUET d'un plan depuis sa vidéo — recadré au cadre de sortie, IPS de l'animatique, coupé à `dur`
+    ou prolongé en gelant la dernière image (tpad clone), mêmes paramètres d'encodage que scene_clip."""
+    vf = (f"scale={LARGEUR}:{HAUTEUR}:force_original_aspect_ratio=increase,crop={LARGEUR}:{HAUTEUR},setsar=1,"
+          f"fps={IPS},tpad=stop_mode=clone:stop_duration={float(dur):.3f},format=yuv420p")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _ffmpeg(["ffmpeg", "-y", "-i", str(video), "-vf", vf, "-an", "-c:v", "libx264", "-preset", "veryfast",
+             "-pix_fmt", "yuv420p", "-t", f"{float(dur):.3f}", "-r", str(IPS), "-movflags", "+faststart", str(dest)],
+            "clip vidéo du plan")
+    return dest
+
+
 def ecrire_manifeste(sortie: Path, entrees: list[dict], audios: dict) -> Path:
     """Tâche #66 : CE QUI A ÉTÉ MONTÉ, écrit APRÈS un rendu réussi (purgé avant le suivant) — les plans dans l'ordre,
     leur clip, leur durée réelle, leur voix témoin. Les sorties vers le Montage lisent CE fichier, pas un recalcul : un
@@ -149,6 +174,7 @@ def ecrire_manifeste(sortie: Path, entrees: list[dict], audios: dict) -> Path:
     d = {"version": 1, "ips": IPS, "largeur": LARGEUR, "hauteur": HAUTEUR,
          "plans": [{"idx": e["idx"], "shot_id": e["shot_id"], "clip": f"p{e['idx']:03d}.mp4", "dur": e["dur"],
                     "source_duree": e["source_duree"], "texte": e["texte"], "energie": e.get("energie"),
+                    "video": vient_de_video(e),          # t189 : le clip vient de la vidéo du plan
                     "voix": (Path(audios[e["shot_id"]]).relative_to(sortie).as_posix()
                              if e["shot_id"] in audios and Path(audios[e["shot_id"]]).is_relative_to(sortie) else None)}
                    for e in entrees]}
@@ -176,10 +202,14 @@ def rendre(entrees: list[dict], *, images: Path, sortie: Path, audios: dict | No
     for e in entrees:
         if progres:
             progres(e["idx"] + 1, n)
-        img = None if e["carton"] else Path(images) / Path(e["image"]).name
+        clip = sortie / f"p{e['idx']:03d}.mp4"
+        if vient_de_video(e):                     # t189 : la vidéo du plan prime sur l'image fixe
+            clip_video(Path(e["video"]), clip, e["dur"])
+            clips.append(clip)
+            continue
+        img = Path(images) / Path(e["image"]).name if e.get("image") else None
         if img is None or not img.is_file():
             img = carton(f"PLAN {e['idx'] + 1}", e["texte"], sortie / f"p{e['idx']:03d}.png")
-        clip = sortie / f"p{e['idx']:03d}.mp4"
         FFmpegMerger.scene_clip(img, None, clip, motion="still", dur=e["dur"], w=LARGEUR, h=HAUTEUR, fps=IPS)
         clips.append(clip)
     final = sortie / "animatique.mp4"
