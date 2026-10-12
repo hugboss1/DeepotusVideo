@@ -143,6 +143,7 @@ export function initExportPlus(VL) {
     $("#outils").appendChild(b);
   }
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (ev.button !== 0 || !etat.doc || etat.outil !== "tranche") return;
     ev.stopPropagation(); ev.preventDefault();
     const [x, y] = VL.aimantePt(...VL.docPt(ev.clientX, ev.clientY));

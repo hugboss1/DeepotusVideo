@@ -10,6 +10,7 @@ import { op_ajouter, op_supprimer, op_style, op_texte_vectoriser, op_texte_en_ca
 import { op_contour } from "./mod-bool.js";
 import { POLICES, commandes_vers_d } from "./mod-texte3d.js";
 import { dzi } from "./mod-icones.js";
+import { garderClics } from "./mod-flottant.js";
 
 /* ── pur ── */
 export function polices_toutes(lib, user, systeme) {
@@ -145,10 +146,9 @@ export function initTypo(VL) {
     editeur = { ta, id, neuf };
     // le champ vit DANS #stage : sans garde, le pointerdown d'un clic dedans remonte au gestionnaire de l'outil
     // Sélection (mod-tools, en bulle sur #stage, setPointerCapture) et l'éditeur se FERME au lieu de placer le
-    // curseur (vu à la preuve 8799). Mêmes gestes gardés que garderClics de mod-iacalque et le dialogue de mod-ia.
-    for (const t of ["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel"]) {
-      ta.addEventListener(t, (ev) => ev.stopPropagation(), t === "wheel" ? { passive: true } : false);
-    }
+    // curseur (vu à la preuve 8799). Le garderClics PARTAGÉ (mod-flottant), comme le panneau de mod-iacalque et le
+    // dialogue de mod-ia ; les outils en CAPTURE sortent par VL.dansPanneau (classe .tx-editeur).
+    garderClics(ta);
     ta.addEventListener("keydown", (ev) => {
       ev.stopPropagation();
       if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); fermerEditeur(true); }

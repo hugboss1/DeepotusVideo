@@ -102,11 +102,12 @@ function scenario(init) {
      r.hors && r.hors.atteint && !r.hors.arrete && r.hors.ferme, JSON.stringify(r.hors));
 }
 
-/* ── [mutation] la même source SANS la boucle de garde : le banc doit la voir ── */
+/* ── [mutation] la même source SANS la garde (garderClics) : le banc doit la voir ── */
 {
   const src = readFileSync(new URL("../js/mod-typo.js", import.meta.url), "utf8");
-  const boucle = /\n[ \t]*for \(const t of \["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel"\]\) \{\r?\n[^\n]*ta\.addEventListener\(t, \(ev\) => ev\.stopPropagation\(\)[^\n]*\r?\n[ \t]*\}/;
-  ok("[mutation] la boucle de garde est bien dans la source", boucle.test(src));
+  // t190-bis : la boucle locale est devenue le garderClics PARTAGÉ (mod-flottant) — la mutation retire son appel
+  const boucle = /\n[ \t]*garderClics\(ta\);/;
+  ok("[mutation] la garde (garderClics(ta)) est bien dans la source", boucle.test(src));
   const mutant = src.replace(boucle, "")
     .replace(/from "\.\/([\w-]+\.js)"/g, (_, f) => `from "${new URL("../js/" + f, import.meta.url).href}"`);
   ok("[mutation] la source mutée diffère", mutant !== src && !boucle.test(mutant));

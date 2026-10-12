@@ -1655,6 +1655,21 @@ export function op_image_rev(doc, id, rev, px) {
   if (px) o.px = px; else delete o.px;
 }
 
+// t190 : la commande RÉVERSIBLE du détourage (« Retirer le fond », mod-iacalque) : l'objet désigne une AUTRE
+// image du magasin (href) — Annuler rend l'href d'avant, dont le PNG n'a pas été touché. La révision raster et
+// l'empreinte de l'ancienne image ne suivent pas ; un rognage qui ne tient plus dans la nouvelle taille native tombe.
+// Rend true : VL.executer rend undefined quand il avale un échec.
+export function op_image_remplacer(doc, id, href, nat) {
+  const o = _trouverImage(doc, id);
+  if (!href || !(nat && nat.w > 0 && nat.h > 0)) throw new Error(T("vectorlab.iacalque.image_invalide"));
+  o.href = String(href);
+  const memeTaille = o.nat && o.nat.w === nat.w && o.nat.h === nat.h;
+  o.nat = { w: nat.w, h: nat.h };
+  delete o.rev; delete o.px;
+  if (o.rognage && !memeTaille) delete o.rognage;
+  return true;
+}
+
 /* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],
    symetrie {h, v}} — les réglages du mode pixel-art, tous optionnels. */
 const _CLES_PIXELART = ["tuile", "palette", "symetrie", "iso", "modele", "calque", "paires"];   // lot 2 : iso = tuile 2:1 ; lot 3 : modele {id, cellule} + calque pixel

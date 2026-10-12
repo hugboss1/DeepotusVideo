@@ -71,6 +71,11 @@ function scenario(init) {
   const geste = [...vus];
   for (const t of ["mousedown", "dblclick", "wheel", "contextmenu"]) texte.dispatch(t);
   const autres = vus.slice(geste.length);
+  // t190-bis : le CLAVIER — une lettre tapée sur la liste des moteurs ne remonte plus au raccourci global (core.js)
+  const vusK = [];
+  m.stage.addEventListener("keydown", (ev) => vusK.push(ev.key));
+  const moteur = new Noeud(el); moteur.id = "iaMoteur";
+  const k1 = moteur.dispatch("keydown", { key: "p" });
   const hors = m.stage.dispatch("pointerdown");
   const g = tete.dispatch("pointerdown", { clientX: 710, clientY: 30 });
   m.win.dispatch("pointermove", { clientX: 410, clientY: 130 });
@@ -79,7 +84,7 @@ function scenario(init) {
   m.win.dispatch("pointermove", { clientX: 10, clientY: 10 });
   const apres = el.style.left;
   m.remettre();
-  return { el, vus, geste, autres, hors, g, glisse, apres, natifs: [e1, e2, e3] };
+  return { el, vus, geste, autres, hors, g, glisse, apres, natifs: [e1, e2, e3], vusK, k1 };
 }
 
 /* ── [clics] le vrai dialogue : ses gestes n'atteignent pas l'outil de la scène ── */
@@ -97,13 +102,17 @@ function scenario(init) {
   ok("[clics] la poignée glisse toujours (preventDefault du glisser, dialogue déplacé)",
      r.g && r.g.empeche && r.glisse.left === "400px" && r.glisse.top === "120px" && r.glisse.right === "auto", JSON.stringify(r.glisse));
   ok("[clics] relâché : le dialogue ne suit plus", r.apres === "400px", r.apres);
+  ok("[clavier] une lettre sur la liste des moteurs n'atteint pas le raccourci global (garderClics partagé)",
+     r.vusK && r.vusK.length === 0 && !r.k1.empeche, (r.vusK || []).join(","));
+  ok("[clavier] le dialogue est marqué panneau flottant (VL.dansPanneau le reconnaît)", r.el && r.el.dataset.vlFlottant === "1");
 }
 
-/* ── [mutation] la même source SANS la boucle de garde : le banc doit la voir ── */
+/* ── [mutation] la même source SANS la garde (garderClics) : le banc doit la voir ── */
 {
   const src = readFileSync(new URL("../js/mod-ia.js", import.meta.url), "utf8");
-  const boucle = /\n[ \t]*for \(const t of \["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel"\]\) \{\r?\n[^\n]*stopPropagation\(\)[^\n]*\r?\n[ \t]*\}/;
-  ok("[mutation] la boucle de garde est bien dans la source", boucle.test(src));
+  // t190-bis : la boucle locale est devenue le garderClics PARTAGÉ (mod-flottant) — la mutation retire son appel
+  const boucle = /\n[ \t]*garderClics\(el\);/;
+  ok("[mutation] la garde (garderClics(el)) est bien dans la source", boucle.test(src));
   const mutant = src.replace(boucle, "")
     .replace(/from "\.\/([\w-]+\.js)"/g, (_, f) => `from "${new URL("../js/" + f, import.meta.url).href}"`);
   ok("[mutation] la source mutée diffère", mutant !== src && !boucle.test(mutant));
@@ -113,6 +122,7 @@ function scenario(init) {
      r.geste && r.geste.includes("pointerdown:croix") && r.geste.includes("pointerdown:go"), (r.geste || []).join(","));
   ok("[mutation] sans garde, mousedown/molette/double-clic/menu remontent aussi", r.autres && r.autres.length === 4, (r.autres || []).join(","));
   ok("[mutation] sans garde, la poignée glisse encore (le garde n'y est pour rien)", r.glisse.left === "400px");
+  ok("[mutation] sans garde, la lettre tapée remonte au raccourci global", r.vusK && r.vusK.includes("p"), (r.vusK || []).join(","));
 }
 
 if (echecs.length) {

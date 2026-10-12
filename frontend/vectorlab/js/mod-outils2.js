@@ -58,6 +58,7 @@ export function initOutils2(VL) {
 
   /* ── pointerdown en CAPTURE : poignées de forme, pivot, ancres multiples, outils ── */
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (ev.button !== 0 || !etat.doc) return;
     const t = ev.target;
     const [dx, dy] = VL.docPt(ev.clientX, ev.clientY);

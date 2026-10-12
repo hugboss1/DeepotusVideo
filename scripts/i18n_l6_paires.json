@@ -9,6 +9,12 @@
     "groupe": "import"
    },
    {
+    "pos": 2099,
+    "avant": "import { initOutils } from \"./mod-tools.js\";",
+    "apres": "import { initOutils } from \"./mod-tools.js\";\r\nimport { dansPanneau } from \"./mod-flottant.js\";",
+    "groupe": "panneaux"
+   },
+   {
     "pos": 15459,
     "avant": "\"Grille d'aimantation et repère visuel (G) — \"",
     "apres": "T(\"vectorlab.core.grille_titre\")",
@@ -57,10 +63,28 @@
     "groupe": "coque"
    },
    {
+    "pos": 27312,
+    "avant": "stage.addEventListener(\"wheel\", (ev) => {",
+    "apres": "stage.addEventListener(\"wheel\", (ev) => {\r\n  if (dansPanneau(ev)) return;        // t190-bis : la molette d'un panneau flottant ne zoome pas",
+    "groupe": "panneaux"
+   },
+   {
+    "pos": 27738,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n  if (dansPanneau(ev)) return;        // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
+   },
+   {
     "pos": 28796,
     "avant": "etat.pressePapiers.ids.length + \" objet(s) copié(s)\"",
     "apres": "T(etat.pressePapiers.ids.length > 1 ? \"vectorlab.core.copie_plusieurs\" : \"vectorlab.core.copie_un\", { n: etat.pressePapiers.ids.length })",
     "groupe": "coque"
+   },
+   {
+    "pos": 33137,
+    "avant": "  etat, api, $,",
+    "apres": "  etat, api, $, dansPanneau,",
+    "groupe": "panneaux"
    },
    {
     "pos": 33959,
@@ -201,6 +225,12 @@
     "avant": "`flou ${e.flou}`",
     "apres": "T(\"vectorlab.apparence.flou_n\", { n: e.flou })",
     "groupe": "apparence"
+   },
+   {
+    "pos": 5604,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    },
    {
     "pos": 8464,
@@ -2901,6 +2931,12 @@
     "groupe": "doc"
    },
    {
+    "pos": 74402,
+    "avant": "/* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],",
+    "apres": "// t190 : la commande RÉVERSIBLE du détourage (« Retirer le fond », mod-iacalque) : l'objet désigne une AUTRE\r\n// image du magasin (href) — Annuler rend l'href d'avant, dont le PNG n'a pas été touché. La révision raster et\r\n// l'empreinte de l'ancienne image ne suivent pas ; un rognage qui ne tient plus dans la nouvelle taille native tombe.\r\n// Rend true : VL.executer rend undefined quand il avale un échec.\r\nexport function op_image_remplacer(doc, id, href, nat) {\r\n  const o = _trouverImage(doc, id);\r\n  if (!href || !(nat && nat.w > 0 && nat.h > 0)) throw new Error(T(\"vectorlab.iacalque.image_invalide\"));\r\n  o.href = String(href);\r\n  const memeTaille = o.nat && o.nat.w === nat.w && o.nat.h === nat.h;\r\n  o.nat = { w: nat.w, h: nat.h };\r\n  delete o.rev; delete o.px;\r\n  if (o.rognage && !memeTaille) delete o.rognage;\r\n  return true;\r\n}\r\n\r\n/* ── lot E : doc.pixelart = {tuile {w,h} entiers ≥ 1, palette [hex],",
+    "groupe": "iacalque"
+   },
+   {
     "pos": 74993,
     "avant": "`pixelart: clé inconnue ${k}`",
     "apres": "T(\"vectorlab.doc.pixelart_cle\", { k })",
@@ -3563,6 +3599,12 @@
     "avant": "\"Tranche — glisser un rectangle à exporter (onglet Exporter)\"",
     "apres": "T(\"vectorlab.export.outil_tranche\")",
     "groupe": "export"
+   },
+   {
+    "pos": 8112,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    },
    {
     "pos": 12512,
@@ -4851,6 +4893,12 @@
     "groupe": "import"
    },
    {
+    "pos": 1143,
+    "avant": "import { dzi } from \"./mod-icones.js\";",
+    "apres": "import { dzi } from \"./mod-icones.js\";\r\nimport { garderClics } from \"./mod-flottant.js\";",
+    "groupe": "iaclics"
+   },
+   {
     "pos": 3029,
     "avant": "\"moteurs introuvables — relancer l'application\"",
     "apres": "T(\"vectorlab.ia.moteurs_introuvables\")",
@@ -4955,7 +5003,7 @@
    {
     "pos": 8706,
     "avant": "  const el = hote();\r\n  if (el) {",
-    "apres": "  const el = hote();\r\n  if (el) {\r\n    // le dialogue vit DANS #stage : sans garde, le pointerdown d'un contrôle remonte au gestionnaire de l'outil\r\n    // Sélection (mod-tools, en bulle sur #stage) qui pose setPointerCapture(#stage) — le click part alors sur\r\n    // #stage, la croix ne ferme pas, « Générer » ne part pas (vu à la preuve 8799). Mêmes gestes gardés que\r\n    // garderClics de mod-iacalque ; la poignée de glisser (pointerdown du dialogue, plus bas) n'en souffre pas.\r\n    for (const t of [\"pointerdown\", \"mousedown\", \"dblclick\", \"contextmenu\", \"wheel\"]) {\r\n      el.addEventListener(t, (ev) => ev.stopPropagation(), t === \"wheel\" ? { passive: true } : false);\r\n    }",
+    "apres": "  const el = hote();\r\n  if (el) {\r\n    // le dialogue vit DANS #stage : sans garde, le pointerdown d'un contrôle remonte au gestionnaire de l'outil\r\n    // Sélection (mod-tools, en bulle sur #stage) qui pose setPointerCapture(#stage) — le click part alors sur\r\n    // #stage, la croix ne ferme pas, « Générer » ne part pas (vu à la preuve 8799). Le garderClics PARTAGÉ\r\n    // (mod-flottant) : mêmes gestes que le panneau de mod-iacalque, clavier compris (une lettre tapée dans une liste\r\n    // changeait d'outil) ; les outils en CAPTURE sortent par VL.dansPanneau. La poignée n'en souffre pas.\r\n    garderClics(el);",
     "groupe": "iaclics"
    }
   ],
@@ -5095,19 +5143,7 @@
    {
     "pos": 10122,
     "avant": "  async function generer() {\r\n    const p = await VL.dialogue.saisir(\"Décrire l'image à générer (dépense la clé du fournisseur des Réglages) :\", { valeur: \"\", titre: \"Générer une image\", valider: \"Générer\" });\r\n    if (!p) return;\r\n    VL.toast(\"génération en cours…\");\r\n    const r = await fetch(\"/api/images/generate\", { method: \"POST\",\r\n      headers: { \"Content-Type\": \"application/json\" },\r\n      body: JSON.stringify({ prompt: p, n: 1, source: \"vectorlab\" }) });\r\n    const d = await r.json().catch(() => ({}));\r\n    if (!r.ok) throw new Error(d.detail || r.statusText);\r\n    const nom = (d.images || [])[0];\r\n    if (!nom) throw new Error(\"la génération n'a rendu aucune image\");\r\n    await poserDepuisLibrary(nom);\r\n  }",
-    "apres": "  // t190 : sans options (menu Fichier, flyout Image), le panneau « Image IA sur le calque » s'ouvre sur le calque\r\n  // actif (calque cible, modèle, prix serveur, détourage) ; avec options {calqueId, prompt, modele, taille,\r\n  // detourer, modeleDetour, sujet} — VL.actions.image.generer(opts), garde() les transmet —, le tir direct sur\r\n  // le calque demandé (mod-iacalque.executerPlan)\r\n  async function generer(opts) {\r\n    // un Event (bouton branché directement) n'est pas une option : le panneau s'ouvre\r\n    if (!opts || typeof opts.prompt !== \"string\") { VL.iaCalque.ouvrir(etat.calqueActif); return undefined; }\r\n    return VL.iaCalque.lancer(opts);\r\n  }",
-    "groupe": "iacalque"
-   },
-   {
-    "pos": 10876,
-    "avant": "  const garde = (fn) => () => {",
-    "apres": "  const garde = (fn) => (...a) => {",
-    "groupe": "iacalque"
-   },
-   {
-    "pos": 10909,
-    "avant": "    Promise.resolve().then(fn).catch(",
-    "apres": "    Promise.resolve().then(() => fn(...a)).catch(",
+    "apres": "  // t190 : le panneau « Image IA sur le calque » s'ouvre sur le calque actif (calque cible, modèle, prix serveur,\r\n  // détourage) — menu Fichier, flyout Image ; le tir part du panneau (mod-iacalque). t190-bis : la voie « tir direct\r\n  // generer(opts) » est retirée, aucun appelant ne passait d'options\r\n  async function generer() {\r\n    VL.iaCalque.ouvrir(etat.calqueActif);\r\n  }",
     "groupe": "iacalque"
    },
    {
@@ -5909,7 +5945,7 @@
    {
     "pos": 14085,
     "avant": "else if (act === \"pixel\") {",
-    "apres": "else if (act === \"ia\" && c) { etat.calqueActif = c.id; VL.iaCalque.ouvrir(c.id); }\r\n    else if (act === \"pixel\") {",
+    "apres": "else if (act === \"ia\" && c) VL.iaCalque.ouvrir(c.id);\r\n    else if (act === \"pixel\") {",
     "groupe": "iacalque"
    },
    {
@@ -6699,10 +6735,22 @@
     "groupe": "divers"
    },
    {
+    "pos": 2015,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
+   },
+   {
     "pos": 6061,
     "avant": "\"chemin introuvable\"",
     "apres": "T(\"vectorlab.noeuds.err_chemin\")",
     "groupe": "divers"
+   },
+   {
+    "pos": 6237,
+    "avant": "stage.addEventListener(\"dblclick\", (ev) => {",
+    "apres": "stage.addEventListener(\"dblclick\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    },
    {
     "pos": 9359,
@@ -6881,6 +6929,12 @@
     "avant": "\"cliquer les régions à garder (Entrée = fusionner, Alt+Entrée = retirer)\"",
     "apres": "T(\"vectorlab.outils2.hint_constructeur\")",
     "groupe": "outils_lab"
+   },
+   {
+    "pos": 2894,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    },
    {
     "pos": 5691,
@@ -7167,6 +7221,12 @@
     "groupe": "outils_lab"
    },
    {
+    "pos": 4368,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
+   },
+   {
     "pos": 5078,
     "avant": "\"retouche : éditer d'abord les pixels d'une image (onglet Pixel)\"",
     "apres": "T(\"vectorlab.outils3.retouche_dabord\")",
@@ -7213,6 +7273,12 @@
     "avant": "\"recadrer : le rectangle ne couvre pas l'image\"",
     "apres": "T(\"vectorlab.outils3.recadrer_hors\")",
     "groupe": "outils_lab"
+   },
+   {
+    "pos": 10020,
+    "avant": "stage.addEventListener(\"dblclick\", (ev) => {",
+    "apres": "stage.addEventListener(\"dblclick\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    },
    {
     "pos": 10262,
@@ -7647,6 +7713,18 @@
     "groupe": "apparence"
    },
    {
+    "pos": 5960,
+    "avant": "stage.addEventListener(\"contextmenu\", (ev) => {",
+    "apres": "stage.addEventListener(\"contextmenu\", (ev) => { if (VL.dansPanneau(ev)) return;",
+    "groupe": "panneaux"
+   },
+   {
+    "pos": 6072,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
+   },
+   {
     "pos": 6666,
     "avant": "\"pipette : \"",
     "apres": "T(\"vectorlab.pipette.erreur\")",
@@ -7933,6 +8011,18 @@
     "avant": "`pixels annulés (révision ${d.rev})`",
     "apres": "T(\"vectorlab.pixel.annules\", { rev: d.rev })",
     "groupe": "pixelui"
+   },
+   {
+    "pos": 19190,
+    "avant": "stage.addEventListener(\"contextmenu\", (ev) => {",
+    "apres": "stage.addEventListener(\"contextmenu\", (ev) => { if (VL.dansPanneau(ev)) return;",
+    "groupe": "panneaux"
+   },
+   {
+    "pos": 19385,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    },
    {
     "pos": 19957,
@@ -9309,6 +9399,24 @@
     "groupe": "divers"
    },
    {
+    "pos": 5222,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
+   },
+   {
+    "pos": 7513,
+    "avant": "stage.addEventListener(\"contextmenu\", (ev) => {",
+    "apres": "stage.addEventListener(\"contextmenu\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
+   },
+   {
+    "pos": 7828,
+    "avant": "stage.addEventListener(\"dblclick\", (ev) => {",
+    "apres": "stage.addEventListener(\"dblclick\", (ev) => { if (VL.dansPanneau(ev)) return;",
+    "groupe": "panneaux"
+   },
+   {
     "pos": 9441,
     "avant": "\"plume : aucun chemin\"",
     "apres": "T(\"vectorlab.plume.aucun_chemin\")",
@@ -9399,6 +9507,26 @@
     "avant": "\"tenons : arête trop courte pour un logement\"",
     "apres": "T(\"vectorlab.relief.tenons_courte\")",
     "groupe": "divers"
+   }
+  ],
+  "js/mod-selectionui.js": [
+   {
+    "pos": 555,
+    "avant": "",
+    "apres": "import { T } from \"./mod-i18n.js\";\r\n",
+    "groupe": "import"
+   },
+   {
+    "pos": 956,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
+   },
+   {
+    "pos": 3309,
+    "avant": "stage.addEventListener(\"dblclick\", (ev) => {",
+    "apres": "stage.addEventListener(\"dblclick\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    }
   ],
   "js/mod-solide.js": [
@@ -9881,6 +10009,12 @@
     "groupe": "texte"
    },
    {
+    "pos": 1184,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
+   },
+   {
     "pos": 5138,
     "avant": "\"Le texte déborde du cadre\"",
     "apres": "T(\"vectorlab.texte.deborde\")",
@@ -9893,6 +10027,12 @@
     "avant": "",
     "apres": "import { T } from \"./mod-i18n.js\";\r\n",
     "groupe": "import"
+   },
+   {
+    "pos": 3072,
+    "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
+    "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    },
    {
     "pos": 6233,
@@ -9929,6 +10069,12 @@
     "avant": "`${r.peintes.length} tuile(s) peinte(s), ${r.posees.length} posée(s)`",
     "apres": "T(\"vectorlab.outils.tuiles_peintes\", { p: r.peintes.length, q: r.posees.length })",
     "groupe": "menus"
+   },
+   {
+    "pos": 24089,
+    "avant": "stage.addEventListener(\"dblclick\", (ev) => {",
+    "apres": "stage.addEventListener(\"dblclick\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
+    "groupe": "panneaux"
    },
    {
     "pos": 25152,
@@ -10201,6 +10347,12 @@
     "groupe": "import"
    },
    {
+    "pos": 761,
+    "avant": "import { dzi } from \"./mod-icones.js\";",
+    "apres": "import { dzi } from \"./mod-icones.js\";\r\nimport { garderClics } from \"./mod-flottant.js\";",
+    "groupe": "typoclics"
+   },
+   {
     "pos": 4571,
     "avant": "\"police inconnue\"",
     "apres": "vlT(\"vectorlab.typo.police_inconnue\")",
@@ -10227,7 +10379,7 @@
    {
     "pos": 7298,
     "avant": "    stage.appendChild(ta);\r\n    editeur = { ta, id, neuf };",
-    "apres": "    stage.appendChild(ta);\r\n    editeur = { ta, id, neuf };\r\n    // le champ vit DANS #stage : sans garde, le pointerdown d'un clic dedans remonte au gestionnaire de l'outil\r\n    // Sélection (mod-tools, en bulle sur #stage, setPointerCapture) et l'éditeur se FERME au lieu de placer le\r\n    // curseur (vu à la preuve 8799). Mêmes gestes gardés que garderClics de mod-iacalque et le dialogue de mod-ia.\r\n    for (const t of [\"pointerdown\", \"mousedown\", \"dblclick\", \"contextmenu\", \"wheel\"]) {\r\n      ta.addEventListener(t, (ev) => ev.stopPropagation(), t === \"wheel\" ? { passive: true } : false);\r\n    }",
+    "apres": "    stage.appendChild(ta);\r\n    editeur = { ta, id, neuf };\r\n    // le champ vit DANS #stage : sans garde, le pointerdown d'un clic dedans remonte au gestionnaire de l'outil\r\n    // Sélection (mod-tools, en bulle sur #stage, setPointerCapture) et l'éditeur se FERME au lieu de placer le\r\n    // curseur (vu à la preuve 8799). Le garderClics PARTAGÉ (mod-flottant), comme le panneau de mod-iacalque et le\r\n    // dialogue de mod-ia ; les outils en CAPTURE sortent par VL.dansPanneau (classe .tx-editeur).\r\n    garderClics(ta);",
     "groupe": "typoclics"
    },
    {

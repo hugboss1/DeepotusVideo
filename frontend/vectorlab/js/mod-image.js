@@ -224,19 +224,16 @@ export function initImage(VL) {
   }
 
   /* ── génération : la route existante, la clé dépensée est dite ── */
-  // t190 : sans options (menu Fichier, flyout Image), le panneau « Image IA sur le calque » s'ouvre sur le calque
-  // actif (calque cible, modèle, prix serveur, détourage) ; avec options {calqueId, prompt, modele, taille,
-  // detourer, modeleDetour, sujet} — VL.actions.image.generer(opts), garde() les transmet —, le tir direct sur
-  // le calque demandé (mod-iacalque.executerPlan)
-  async function generer(opts) {
-    // un Event (bouton branché directement) n'est pas une option : le panneau s'ouvre
-    if (!opts || typeof opts.prompt !== "string") { VL.iaCalque.ouvrir(etat.calqueActif); return undefined; }
-    return VL.iaCalque.lancer(opts);
+  // t190 : le panneau « Image IA sur le calque » s'ouvre sur le calque actif (calque cible, modèle, prix serveur,
+  // détourage) — menu Fichier, flyout Image ; le tir part du panneau (mod-iacalque). t190-bis : la voie « tir direct
+  // generer(opts) » est retirée, aucun appelant ne passait d'options
+  async function generer() {
+    VL.iaCalque.ouvrir(etat.calqueActif);
   }
 
   /* ── le menu ── */
-  const garde = (fn) => (...a) => {
-    Promise.resolve().then(() => fn(...a)).catch((e) => VL.toast(e.message, true));
+  const garde = (fn) => () => {
+    Promise.resolve().then(fn).catch((e) => VL.toast(e.message, true));
   };
   // les ACTIONS de pose — appelées par le menu détaché Image (l'en-tête « Image ▾ » est parti)
   VL.actions = VL.actions || {};

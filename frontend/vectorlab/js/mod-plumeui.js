@@ -69,6 +69,7 @@ export function initPlume(VL) {
   }
 
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (!actif()) return;
     ev.stopPropagation(); ev.preventDefault();
     try { stage.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ }
@@ -119,6 +120,7 @@ export function initPlume(VL) {
     apercu(VL.docPt(ev.clientX, ev.clientY), ev);
   }, true);
   stage.addEventListener("contextmenu", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (!actif()) return;
     ev.preventDefault(); ev.stopPropagation();
     const p = pt(ev);
@@ -126,7 +128,7 @@ export function initPlume(VL) {
     else P.trace = trace_ajouter(P.trace, p, { droite: true });
     apercu(p, ev);
   }, true);
-  stage.addEventListener("dblclick", (ev) => { if (!actif()) return; ev.stopPropagation(); ev.preventDefault(); if (P.trace) { if (P.trace.ancres.length >= 2) { const a = P.trace.ancres[P.trace.ancres.length - 1], b = P.trace.ancres[P.trace.ancres.length - 2]; if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.5) P.trace = trace_retirer(P.trace); } finir(false); } }, true);
+  stage.addEventListener("dblclick", (ev) => { if (VL.dansPanneau(ev)) return; if (!actif()) return; ev.stopPropagation(); ev.preventDefault(); if (P.trace) { if (P.trace.ancres.length >= 2) { const a = P.trace.ancres[P.trace.ancres.length - 1], b = P.trace.ancres[P.trace.ancres.length - 2]; if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.5) P.trace = trace_retirer(P.trace); } finir(false); } }, true);
 
   /* ── clavier : Entrée / Échap finissent, Retour arrière retire ── */
   const sTouche = VL.surTouche;

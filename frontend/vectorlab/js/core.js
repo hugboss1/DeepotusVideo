@@ -38,6 +38,7 @@ import { op_noeud_supprimer } from "./mod-doc.js";
 import { UNITES, depuisUnite, formatNombre, libelle_mesure }
   from "./mod-unites.js";
 import { initOutils } from "./mod-tools.js";
+import { dansPanneau } from "./mod-flottant.js";
 import { initCalques } from "./mod-layers.js";
 import { initStyle } from "./mod-style.js";
 import { initExport } from "./mod-export.js";
@@ -625,6 +626,7 @@ function toast(msg, erreur) {
 const stage = $("#stage");
 let espace = false;
 stage.addEventListener("wheel", (ev) => {
+  if (dansPanneau(ev)) return;        // t190-bis : la molette d'un panneau flottant ne zoome pas
   ev.preventDefault();
   const r = stageRect();
   const mx = ev.clientX - r.left, my = ev.clientY - r.top;
@@ -637,6 +639,7 @@ stage.addEventListener("wheel", (ev) => {
 
 let pan = null;
 stage.addEventListener("pointerdown", (ev) => {
+  if (dansPanneau(ev)) return;        // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
   if (ev.button === 1 || (espace && ev.button === 0)) {
     pan = { x: ev.clientX, y: ev.clientY, tx: etat.tx, ty: etat.ty };
     try { stage.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ }
@@ -766,7 +769,7 @@ window.addEventListener("resize", appliquerVue);
 
 /* ── le cœur, injecté dans les modules UI (et exposé pour la preuve) ── */
 const VL = {
-  etat, api, $,
+  etat, api, $, dansPanneau,
   docPt, ecranPt, tolDoc, aimantePt,
   unites, cote, zoomAjuster, zoomCent,
   versUnite: (px) => px / depuisUnite(1, unites()),

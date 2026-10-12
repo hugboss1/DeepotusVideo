@@ -1342,6 +1342,11 @@ Vérifier aussi la casse de `CassetteAI/music-generator` : le catalogue fal list
 
 - [ ] **Étape 8 : commit.** « génération IA G8 : Vectorlab, image IA et détourage par calque (t190) ».
 
+> **Note du 12/10 (livraison t190 puis correctif t190-bis).** Écarts au plan ci-dessus :
+> - **Annulation du détourage** : pas de `PUT …/images/{name}` + `op_image_rev`. Le fond retiré devient une **nouvelle image du magasin** du document, et `op_image_remplacer` (dans `mod-doc.js`, à côté d'`op_image_rogner` / `op_image_rev`) fait pointer l'objet vers elle en une seule commande. Ctrl+Z rend l'href d'avant, dont le PNG n'a pas été touché.
+> - **« Une image du calque inférieur comme guide »** : **non livrée, reportée**. C'est à l'utilisateur de décider s'il la veut, et sous quelle forme (image de référence envoyée au modèle, coût, modèles qui l'acceptent).
+> - t190-bis : les panneaux flottants de `#stage` gardent leurs gestes quel que soit l'outil (`VL.dansPanneau`, `mod-flottant.js`). « Générer » reste gris tant que la liste des modèles n'a pas été lue, jamais pour une clé manquante. La voie `generer(opts)` est retirée : aucun appelant ne passait d'options.
+
 ---
 
 ## t191 · G9 : Photolab, générer et détourer par calque

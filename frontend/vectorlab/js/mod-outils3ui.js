@@ -61,6 +61,7 @@ export function initOutils3(VL) {
   const pxOutil = () => etat.outil === "px-flou" || etat.outil === "px-eclaircir" || etat.outil === "px-assombrir";
 
   stage.addEventListener("pointerdown", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (ev.button !== 0 || !etat.doc) return;
     const o = etat.outil;
     if (!OUTILS3.some((x) => x.id === o)) return;
@@ -144,6 +145,7 @@ export function initOutils3(VL) {
     }
   }, true);
   stage.addEventListener("dblclick", (ev) => {
+    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)
     if (etat.outil !== "recadrer") return;
     const img = imageSel(); if (!img || !img.rognage) return;
     ev.stopPropagation();
