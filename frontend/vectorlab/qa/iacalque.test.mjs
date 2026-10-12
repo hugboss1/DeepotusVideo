@@ -26,6 +26,9 @@ ok("[taille] 1920×1080 → landscape_16_9", taillePour({ w: 1920, h: 1080 }) ==
 ok("[taille] 1000×1000 → square_hd", taillePour({ w: 1000, h: 1000 }) === "square_hd");
 ok("[taille] 3:4 → portrait_4_3 ; 4:3 → landscape_4_3",
    taillePour({ w: 1500, h: 2000 }) === "portrait_4_3" && taillePour({ w: 2000, h: 1500 }) === "landscape_4_3");
+ok("[taille] 640×960 (2:3) → portrait_4_3 (rapport le plus proche en écart logarithmique)",
+   taillePour({ w: 640, h: 960 }) === "portrait_4_3", taillePour({ w: 640, h: 960 }));
+ok("[taille] 960×640 (3:2) → landscape_4_3", taillePour({ w: 960, h: 640 }) === "landscape_4_3");
 ok("[taille] taille illisible → square_hd", taillePour(null) === "square_hd" && taillePour({ w: 0, h: 5 }) === "square_hd");
 ok("[taille] chaque format rendu est accepté par /images/generate",
    [[1, 3], [3, 4], [1, 1], [4, 3], [3, 1]].every(([w, h]) => TAILLES.includes(taillePour({ w, h }))));
@@ -119,6 +122,36 @@ const banc = () => {
   ok("[tir] génération vide : erreur lisible, rien n'est posé", /aucune image/.test(m) && b.poses.length === 0, m);
 }
 
+/* ── [pose] la pose refusée n'est JAMAIS annoncée : VL.executer avale l'échec (toast + undefined) ── */
+{
+  const b = banc();
+  b.d.poser = async (nom, calqueId) => { b.poses.push({ nom, calqueId }); return undefined; };   // comme le vrai executer
+  let m = "", r = null;
+  try { r = await executerPlan({ calqueId: b.c2, prompt: "x", modele: "flux-3" }, b.d); } catch (e) { m = e.message; }
+  ok("[pose] executer qui avale : erreur qui dit l'image gardée en Bibliothèque (nom), rien d'annoncé",
+     r === null && /Bibliothèque/.test(m) && m.includes("gen_a.png"), m);
+}
+{
+  const b = banc();
+  const post0 = b.d.post;
+  b.d.post = async (url, corps) => { const r = await post0(url, corps); op_calque_verrou(b.doc, b.c3, true); return r; };
+  let m = "";
+  try { await executerPlan({ calqueId: b.c3, prompt: "x", modele: "flux-3" }, b.d); } catch (e) { m = e.message; }
+  ok("[pose] calque verrouillé PENDANT le vol : la génération a eu lieu, le message le dit (verrou + nom gardé)",
+     b.appels.length === 1 && b.poses.length === 0 && /verrouill/.test(m) && /Bibliothèque/.test(m) && m.includes("gen_a.png"), m);
+}
+{
+  const b = banc();
+  b.d.post = async (url, corps) => {
+    b.appels.push({ url, corps });
+    if (url === "/api/images/generate") return { images: ["gen_a.png"] };
+    throw new Error("fal.ai : 502");
+  };
+  const r = await executerPlan({ calqueId: b.c2, prompt: "x", modele: "flux-3", detourer: true, modeleDetour: "bria-rmbg" }, b.d);
+  ok("[pose] détourage en échec APRÈS la génération payée : l'image générée est posée telle quelle, l'échec est dit",
+     egal(b.poses, [{ nom: "gen_a.png", calqueId: b.c2 }]) && /502/.test(r.detourEchec || ""), JSON.stringify(r));
+}
+
 /* ── [detour-avant] le détourage incomplet est refusé AVANT la génération payée ── */
 {
   const b = banc();
@@ -126,21 +159,35 @@ const banc = () => {
   try { await executerPlan({ calqueId: b.c2, prompt: "x", modele: "flux-3", detourer: true, modeleDetour: "" }, b.d); }
   catch (e) { m = e.message; }
   ok("[detour-avant] détourage coché sans modèle : refusé, AUCUN POST", !!m && b.appels.length === 0, m + " / " + b.appels.length);
+  const CAT = [{ id: "sam3-sujet", prompt: true, dispo: true, cle: "FAL_KEY" }, { id: "bria-rmbg", prompt: false, dispo: false, cle: "FAL_KEY" },
+               { id: "local-rembg", prompt: false, dispo: true, cle: null }];
+  const info = async (id) => CAT.find((x) => x.id === id) || null;
   const b2 = banc();
-  b2.d.sujetRequis = async (id) => id === "sam3-sujet";
+  b2.d.infoDetour = info;
   let m2 = "";
   try { await executerPlan({ calqueId: b2.c2, prompt: "x", modele: "flux-3", detourer: true, modeleDetour: "sam3-sujet", sujet: "  " }, b2.d); }
   catch (e) { m2 = e.message; }
   ok("[detour-avant] tir direct, modèle à sujet sans sujet : refusé, AUCUN POST", /sujet/.test(m2) && b2.appels.length === 0, m2 + " / " + b2.appels.length);
+  const b4 = banc();
+  b4.d.infoDetour = info;
+  let m4 = "";
+  try { await executerPlan({ calqueId: b4.c2, prompt: "x", modele: "flux-3", detourer: true, modeleDetour: "bria-rmbg" }, b4.d); }
+  catch (e) { m4 = e.message; }
+  ok("[detour-avant] modèle de détourage SANS clé (dispo:false) : refusé avant tout POST, la clé est nommée",
+     m4.includes("FAL_KEY") && /Retirer le fond/.test(m4) && b4.appels.length === 0, m4 + " / " + b4.appels.length);
+  const b5 = banc();
+  b5.d.infoDetour = info;
+  await executerPlan({ calqueId: b5.c2, prompt: "x", modele: "flux-3", detourer: true, modeleDetour: "local-rembg" }, b5.d);
+  ok("[detour-avant] modèle local disponible : le tir part", b5.appels.length === 2);
   const b3 = banc();
-  b3.d.sujetRequis = async (id) => id === "sam3-sujet";
+  b3.d.infoDetour = info;
   await executerPlan({ calqueId: b3.c2, prompt: "x", modele: "flux-3", detourer: true, modeleDetour: "sam3-sujet", sujet: "le renard" }, b3.d);
   ok("[detour-avant] sujet dit : le tir part et le sujet suit", b3.appels.length === 2 && b3.appels[1].corps.sujet === "le renard");
   let m3 = "";
-  try { verifierDetour({ detourer: true, modeleDetour: "bria-objet", sujet: "" }, true); } catch (e) { m3 = e.message; }
+  try { verifierDetour({ detourer: true, modeleDetour: "bria-objet", sujet: "" }, { prompt: true, dispo: true }); } catch (e) { m3 = e.message; }
   ok("[detour-avant] verifierDetour : sujet exigé", /sujet/.test(m3));
   let rien = true;
-  try { verifierDetour({ detourer: false, modeleDetour: "" }, true); } catch (e) { rien = false; }
+  try { verifierDetour({ detourer: false, modeleDetour: "" }, { prompt: true, dispo: false }); } catch (e) { rien = false; }
   ok("[detour-avant] sans détourage : rien à vérifier", rien);
   ok("[prix] sans modèle choisi : aucun devis (pas de prix faux)", devisCorps({ modele: "", detourer: true, modeleDetour: "bria-rmbg" }) === null);
 }
@@ -155,9 +202,15 @@ const banc = () => {
   const [r1, r2] = await Promise.all([p1, p2]);
   ok("[vol] un seul tir pour deux clics", tirs === 1 && r1 === "fait" && r2 === null, `${tirs} ${r1} ${r2}`);
   ok("[vol] libéré après le vol", f.enVol === false);
-  const g = unSeulVol(async () => { throw new Error("x"); });
+  const vu = [];
+  const g = unSeulVol(async () => { throw new Error("x"); }, () => vu.push(g.enVol));
   try { await g(); } catch (e) { /* attendu */ }
   ok("[vol] libéré après un échec", g.enVol === false);
+  ok("[vol] rappel APRÈS le vol (le bouton « en cours… » est redessiné, libre)", egal(vu, [false]), JSON.stringify(vu));
+  const vu2 = [];
+  const h = unSeulVol(async () => "ok", () => vu2.push(h.enVol));
+  await h();
+  ok("[vol] rappel aussi après un succès", egal(vu2, [false]));
 }
 
 /* ── [prix] chiffré par le serveur, jamais inventé ── */
@@ -212,7 +265,7 @@ const docImage = () => {
      href === "img2.png" && apres.href === "img2.png" && !("rev" in apres) && !("px" in apres) && apres.rognage, JSON.stringify(apres));
   ok("[annuler] le détourage est entré dans l'historique", h.peutAnnuler());
   doc = docImage(); const h2 = new Historique();
-  const ex2 = (fn, ...a) => { const essai = JSON.parse(JSON.stringify(doc)); fn(essai, ...a); h2.capturer(doc); doc = essai; };
+  const ex2 = (fn, ...a) => { const essai = JSON.parse(JSON.stringify(doc)); const out = fn(essai, ...a); h2.capturer(doc); doc = essai; return out; };
   await retirerFondFlux(doc.calques[0].objets[0], { modele: "bria-rmbg" }, { ...d, executer: ex2 });
   ok("[annuler] après le détourage : img2.png", doc.calques[0].objets[0].href === "img2.png");
   ok("[annuler] le détourage est UNE étape de l'historique", h2.peutAnnuler());
@@ -235,6 +288,15 @@ const docImage = () => {
       deposer: async () => ({ href: "img1.png", nat: { w: 800, h: 400 } }), executer: () => { execs++; } });
   } catch (e) { m = e.message; }
   ok("[annuler] même href refusé (l'image d'avant serait perdue)", !!m && execs === 0, m);
+  // l'executer réel AVALE l'échec de la commande (toast + undefined) : jamais « fond retiré »
+  let m4 = "";
+  try {
+    await retirerFondFlux(doc.calques[0].objets[0], { modele: "bria-rmbg" }, {
+      versBiblio: async () => "a.png", post: async () => ({ images: ["gen_det.png"] }),
+      deposer: async () => ({ href: "img9.png", nat: { w: 800, h: 400 } }), executer: () => undefined });
+  } catch (e) { m4 = e.message; }
+  ok("[annuler] remplacement avalé par executer : erreur qui dit l'image détourée gardée (nom)",
+     /Bibliothèque/.test(m4) && m4.includes("gen_det.png"), m4);
   let m2 = "";
   try { await retirerFondFlux(doc.calques[0].objets[0], { modele: "" }, { versBiblio: async () => { throw new Error("ne doit pas partir"); } }); }
   catch (e) { m2 = e.message; }
@@ -308,13 +370,30 @@ const docImage = () => {
     brancherPoignee(el, stage, win);
     return { stage, el, tete, caseDetour, go, win, vus };
   };
-  const m = monter();
-  const e1 = m.caseDetour.dispatch("pointerdown", { clientX: 750, clientY: 200 });
-  const e2 = m.go.dispatch("pointerdown", { clientX: 760, clientY: 300 });
-  for (const t of ["mousedown", "dblclick", "wheel", "contextmenu"]) m.caseDetour.dispatch(t);
-  ok("[clics] un pointerdown sur la case ou le bouton n'atteint aucun écouteur de #stage", !m.vus.length, m.vus.join(","));
+  const m1 = monter();
+  const e1 = m1.caseDetour.dispatch("pointerdown", { clientX: 750, clientY: 200 });
+  ok("[clics] un pointerdown sur la case n'atteint aucun écouteur de #stage", !m1.vus.length, m1.vus.join(","));
+  const m2 = monter();
+  const e2 = m2.go.dispatch("pointerdown", { clientX: 760, clientY: 300 });
+  ok("[clics] un pointerdown sur le bouton n'atteint aucun écouteur de #stage", !m2.vus.length, m2.vus.join(","));
   ok("[clics] ni preventDefault : la case garde son geste natif", !e1.empeche && !e2.empeche);
-  ok("[clics] la molette, le double-clic, le menu contextuel restent au panneau", !m.vus.length);
+  for (const t of ["mousedown", "dblclick", "wheel", "contextmenu"]) {
+    const mt = monter();
+    mt.caseDetour.dispatch(t);
+    ok(`[clics] ${t} reste au panneau`, !mt.vus.length, mt.vus.join(","));
+  }
+  {
+    // le CLAVIER : le keydown global de core.js (document) ne doit pas voir Échap / une lettre tapés sur une liste
+    const mk = monter();
+    const doc = new Noeud(null), vusK = [];
+    mk.stage.parent = doc;
+    doc.addEventListener("keydown", (ev) => vusK.push(ev.key));
+    const k1 = mk.caseDetour.dispatch("keydown", { key: "Escape" });
+    mk.go.dispatch("keydown", { key: "v" });
+    ok("[clavier] Échap et une lettre sur un contrôle du panneau n'atteignent pas le raccourci global", !vusK.length, vusK.join(","));
+    ok("[clavier] sans preventDefault (la liste garde ses flèches et sa frappe)", !k1.empeche);
+  }
+  const m = monter();
   const hors = m.stage.dispatch("pointerdown");
   ok("[clics] un pointerdown sur la scène hors panneau atteint toujours l'outil", m.vus.includes("pointerdown:autre") && !hors.arrete);
   const g = m.tete.dispatch("pointerdown", { clientX: 710, clientY: 30 });
@@ -324,7 +403,7 @@ const docImage = () => {
   m.win.dispatch("pointerup");
   m.win.dispatch("pointermove", { clientX: 10, clientY: 10 });
   ok("[clics] relâché : le panneau ne suit plus", m.el.style.left === "400px");
-  ok("[clics] les gestes gardés", ["pointerdown", "mousedown", "dblclick", "wheel"].every((t) => GESTES_GARDES.includes(t)));
+  ok("[clics] les gestes gardés", ["pointerdown", "mousedown", "dblclick", "wheel", "keydown"].every((t) => GESTES_GARDES.includes(t)));
 }
 
 /* ── [page] le câblage : scripts chargés, bouton du calque, entrées de menu, aucun dialogue natif ── */
@@ -337,6 +416,11 @@ const docImage = () => {
      /import \{ initIaCalque \} from "\.\/mod-iacalque\.js";/.test(img) && /initIaCalque\(VL\)/.test(img) && /ligneDetour/.test(img));
   ok("[page] generer() sans options ouvre le panneau sur le calque actif",
      /VL\.iaCalque\.ouvrir\(etat\.calqueActif\)/.test(img));
+  ok("[page] poserDepuisLibrary : une pose avalée par executer lève une erreur, jamais « posée »",
+     /if \(!id\) throw new Error\(T\("vectorlab\.image\.pose_impossible"/.test(img));
+  ok("[page] garde() transmet les options de generer(opts)", /const garde = \(fn\) => \(\.\.\.a\) =>/.test(img));
+  ok("[page] le panneau est un dialogue nommé (role, aria-labelledby) qui rend le focus à la fermeture",
+     /setAttribute\("role", "dialog"\)/.test(mod) && /aria-labelledby", "iacTitre"/.test(mod) && /id="iacTitre"/.test(mod) && /retour\.focus\(\)/.test(mod));
   ok("[page] Calques : bouton data-act=\"ia\" (glyphe dz-media-generer-image) qui ouvre le panneau sur le calque actif",
      /data-act="ia"[^\n]*dz-media-generer-image/.test(lay) && /act === "ia"[^\n]*VL\.iaCalque\.ouvrir\(c\.id\)/.test(lay));
   ok("[page] prompt marqué data-dz-ia (dz-champ-ia), aucun prompt/alert/confirm natif",

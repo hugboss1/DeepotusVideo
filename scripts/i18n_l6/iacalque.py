@@ -32,9 +32,11 @@ GENERER_AVANT = c('''  async function generer() {
 
 GENERER_APRES = c('''  // t190 : sans options (menu Fichier, flyout Image), le panneau « Image IA sur le calque » s'ouvre sur le calque
   // actif (calque cible, modèle, prix serveur, détourage) ; avec options {calqueId, prompt, modele, taille,
-  // detourer, modeleDetour, sujet}, le tir direct sur le calque demandé (mod-iacalque.executerPlan)
+  // detourer, modeleDetour, sujet} — VL.actions.image.generer(opts), garde() les transmet —, le tir direct sur
+  // le calque demandé (mod-iacalque.executerPlan)
   async function generer(opts) {
-    if (!opts) { VL.iaCalque.ouvrir(etat.calqueActif); return undefined; }
+    // un Event (bouton branché directement) n'est pas une option : le panneau s'ouvre
+    if (!opts || typeof opts.prompt !== "string") { VL.iaCalque.ouvrir(etat.calqueActif); return undefined; }
     return VL.iaCalque.lancer(opts);
   }''')
 
@@ -45,9 +47,16 @@ ENTREES = [
     S(IMG, 116, "async function poserBlob(blob) {", "async function poserBlob(blob, calqueId) {", {}),
     S(IMG, 123, "VL.executer(op_ajouter, etat.calqueActif,", "VL.executer(op_ajouter, calqueId || etat.calqueActif,", {}),
     S(IMG, 128, "async function poserDepuisLibrary(nom) {", "async function poserDepuisLibrary(nom, calqueId) {", {}),
-    S(IMG, 131, "    await poserBlob(await r.blob());", "    const id = await poserBlob(await r.blob(), calqueId);", {}),
+    S(IMG, 131, "    await poserBlob(await r.blob());",
+      c('    const id = await poserBlob(await r.blob(), calqueId);\n'
+        '    // t190 : VL.executer AVALE l\'échec de op_ajouter (calque verrouillé ou supprimé entre-temps) — jamais « posée »\n'
+        '    if (!id) throw new Error(T("vectorlab.image.pose_impossible", { nom }));'),
+      {"vectorlab.image.pose_impossible": ("pose de « {nom} » impossible", "could not place “{nom}”")}),
     S(IMG, 133, "  }", c("    return id;\n  }"), {}),
     S(IMG, 222, GENERER_AVANT, GENERER_APRES, {}),
+    # t190 : garde() transmet ses arguments (generer(opts) depuis VL.actions.image.generer)
+    S(IMG, 237, "  const garde = (fn) => () => {", "  const garde = (fn) => (...a) => {", {}),
+    S(IMG, 238, "    Promise.resolve().then(fn).catch(", "    Promise.resolve().then(() => fn(...a)).catch(", {}),
     S(IMG, 293, '    $("#imVectoriser").addEventListener("click", () => { if (VL.vectoriser) VL.vectoriser(o.id); });',
       c('''    $("#imVectoriser").addEventListener("click", () => { if (VL.vectoriser) VL.vectoriser(o.id); });
     // t190 : « Retirer le fond » — une commande réversible (mod-iacalque.retirerFondFlux)
@@ -125,6 +134,21 @@ ENTREES = [
     H("vectorlab.iacalque.image_introuvable", "image introuvable : {id}", "image not found: {id}"),
     H("vectorlab.iacalque.image_invalide", "image détourée illisible", "unreadable cut-out image"),
     H("vectorlab.iacalque.image_illisible", "image {href} illisible", "image {href} unreadable"),
+    H("vectorlab.iacalque.detour_cle",
+      "la clé {cle} manque pour ce détourage : ajoutez-la dans Réglages ou décochez « Retirer le fond »",
+      "the {cle} key is missing for this background removal: add it in Settings or untick “Remove the background”"),
+    H("vectorlab.iacalque.pose_echouee", "{raison} — image gardée en Bibliothèque : {nom}",
+      "{raison} — image kept in the Library: {nom}"),
+    H("vectorlab.iacalque.pose_refusee", "la pose a été refusée", "placing was refused"),
+    H("vectorlab.iacalque.detour_echoue_pose",
+      "fond non retiré ({raison}) : l'image est posée telle quelle sur « {calque} » — « Retirer le fond » du panneau Image pour réessayer",
+      "background not removed ({raison}): the image is placed as is on “{calque}” — use “Remove the background” in the Image panel to retry"),
+    H("vectorlab.iacalque.detour_remplacement",
+      "le fond retiré n'a pas remplacé l'image — image détourée gardée en Bibliothèque : {nom}",
+      "the cut-out did not replace the image — cut-out image kept in the Library: {nom}"),
+    H("vectorlab.iacalque.aucun_calque_libre",
+      "tous les calques sont verrouillés : déverrouillez-en un pour y poser l'image",
+      "all layers are locked: unlock one to place the image on it"),
     H("vectorlab.iacalque.meme_image", "le détourage rendrait la même image : rien n'est remplacé",
       "background removal would return the same image: nothing is replaced"),
 ]
