@@ -19,28 +19,29 @@
 // ancêtres. Ses gestes s'arrêtent quand même à lui (garderGestes) : aucun écouteur du document (menus, outils, raccourcis
 // clavier globaux — une lettre sur un bouton du panneau changeait d'outil) ne les voit.
 //
-// La logique PURE est en tête (banc qa/iacalque.test.mjs) ; initIaCalque ne touche le DOM qu'à l'appel.
+// La logique PURE est en tête (banc qa/iacalque.test.mjs) ; initIaCalque ne touche le DOM qu'à l'appel. t197 : ce qui
+// est commun avec le panneau du Vectorlab (formats, devis, prix, refus, un seul vol, gestes gardés) vient de
+// /shared/dz-iacalque-commun.js — ici, l'adaptation au document du moteur et aux clés photolab.iacalque.*.
 import { positionInitiale, bornerPosition } from "./mod-dialogue-reglage.js";
+import * as C from "../../shared/dz-iacalque-commun.js";
 
 const T = (cle, vars) => (typeof window !== "undefined" && window.dzT ? window.dzT(cle, vars) : cle);
+// les rôles du module commun -> les clés du Photolab, écrites EN ENTIER (les bancs relèvent les clés par leur texte)
+const CLES = {
+  prix_inconnu: "photolab.iacalque.prix_inconnu", prix_a_mesurer: "photolab.iacalque.prix_a_mesurer",
+  prix_gratuit: "photolab.iacalque.gratuit", prix: "photolab.iacalque.prix",
+  prix_partiel_image: "photolab.iacalque.prix_partiel_image", prix_partiel: "photolab.iacalque.prix_partiel",
+  cle_absente: "photolab.iacalque.cle_absente", detour_modele: "photolab.iacalque.detour_modele",
+  detour_cle: "photolab.iacalque.detour_cle", detour_cle_image: "photolab.iacalque.detour_cle",
+  sujet_requis: "photolab.iacalque.sujet_requis",
+};
+const tr = (role, vars) => T(CLES[role], vars);
 
 /* ── pur ── */
-// les formats que /images/generate (et /calque/ia) accepte
-export const TAILLES = ["portrait_16_9", "portrait_4_3", "square_hd", "landscape_4_3", "landscape_16_9"];
-export const RAPPORTS = { portrait_16_9: 9 / 16, portrait_4_3: 3 / 4, square_hd: 1, landscape_4_3: 4 / 3, landscape_16_9: 16 / 9 };
+export { TAILLES, RAPPORTS, unSeulVol, dollars, GESTES_GARDES, garderGestes } from "../../shared/dz-iacalque-commun.js";
 
-// le format au rapport le plus PROCHE du document (écart logarithmique, comme le Vectorlab)
-export function taillePour(doc) {
-  const w = +(doc && doc.width), h = +(doc && doc.height);
-  if (!(w > 0 && h > 0)) return "square_hd";
-  const lr = Math.log(w / h);
-  let mieux = "square_hd", ecart = Infinity;
-  for (const f of TAILLES) {
-    const e = Math.abs(lr - Math.log(RAPPORTS[f]));
-    if (e < ecart - 1e-12) { ecart = e; mieux = f; }
-  }
-  return mieux;
-}
+// le format au rapport le plus PROCHE du document du moteur ({width, height})
+export const taillePour = (doc) => C.formatPour(doc && doc.width, doc && doc.height);
 
 const aplatir = (layers) => {
   const out = [];
@@ -75,7 +76,7 @@ export function calquesCibles(doc, verrous, mode = "ia") {
 export function requete(o) {
   const prompt = String((o && o.prompt) || "").trim();
   if (!prompt) throw new Error(T("photolab.iacalque.prompt_vide"));
-  const q = { prompt, taille: TAILLES.includes(o.taille) ? o.taille : "square_hd", auDessusDe: o.auDessusDe, detourer: !!o.detourer };
+  const q = { prompt, taille: C.TAILLES.includes(o.taille) ? o.taille : "square_hd", auDessusDe: o.auDessusDe, detourer: !!o.detourer };
   if (o.modele) q.modele = String(o.modele);
   if (o.detourer) {
     if (!o.modeleDetour) throw new Error(T("photolab.iacalque.detour_modele"));
@@ -101,66 +102,18 @@ export function requeteDetour(o) {
 // le détourage demandé est complet AVANT la dépense : un modèle, sa clé (l'option sans clé reste CHOISISSABLE, seul le
 // lancement est refusé — ici, avant tout POST, quand le catalogue dit dispo:false) et le sujet si le modèle l'exige.
 // `info` = l'entrée du catalogue detourage_image ({dispo, cle, prompt}), null si inconnue.
-export function verifierDetour(o, info) {
-  if (!o || !o.detourer) return;
-  if (!o.modeleDetour) throw new Error(T("photolab.iacalque.detour_modele"));
-  if (info && info.dispo === false) throw new Error(T("photolab.iacalque.detour_cle", { cle: info.cle || "?" }));
-  if (info && info.prompt && !String(o.sujet || "").trim()) throw new Error(T("photolab.iacalque.sujet_requis"));
-}
+export const verifierDetour = (o, info) => C.verifierDetour(o, info, tr);
 
-// le devis serveur (POST /api/cost/estimate) — sans modèle choisi, aucun devis plutôt qu'un prix faux
-export function devisCorps(o) {
-  if (!o) return null;
-  const ops = [];
-  if (o.mode !== "detour") {
-    if (!o.modele) return null;
-    ops.push({ kind: "image", model: o.modele, n: 1 });
-  }
-  if (o.detourer || o.mode === "detour") {
-    if (!o.modeleDetour) return o.mode === "detour" ? null : { kind: "campaign", ops };
-    ops.push({ kind: "detourage", modele: o.modeleDetour, images: 1 });
-  }
-  return { kind: "campaign", ops };
-}
+// le devis serveur (POST /api/cost/estimate) — sans modèle choisi, aucun devis plutôt qu'un prix faux ; le mode
+// « detour » (Retirer le fond du calque) ne génère pas d'image
+export const devisCorps = (o) => (o ? C.devisCorps({ image: o.mode !== "detour", modele: o.modele,
+  detourer: !!o.detourer || o.mode === "detour", modeleDetour: o.modeleDetour }) : null);
 
-// le montant en dollars, même règle que DzModelesIA.prixUsd : arrondi au millième, au moins deux décimales
-export function dollars(v) {
-  let s = (Math.round(v * 1000) / 1000).toFixed(3);
-  while (/\.\d{3,}$/.test(s) && s.endsWith("0")) s = s.slice(0, -1);
-  return "$" + s;
-}
-
-// jamais « gratuit » pour un 0 $ payant (« à mesurer ») ; une ligne locale à 0 $ l'est
-export function libellePrix(devis) {
-  if (!devis || !Array.isArray(devis.breakdown)) return T("photolab.iacalque.prix_inconnu");
-  const total = +devis.total_usd || 0;
-  const aMesurer = devis.breakdown.some((l) => !(+l.usd > 0) && l.provider !== "local");
-  if (!(total > 0)) return aMesurer ? T("photolab.iacalque.prix_a_mesurer") : T("photolab.iacalque.gratuit");
-  return T("photolab.iacalque.prix", { prix: dollars(total) }) + (aMesurer ? T("photolab.iacalque.prix_partiel") : "");
-}
+// jamais « gratuit » pour un 0 $ payant (« à mesurer ») ; une ligne locale à 0 $ l'est ; la part à mesurer est nommée
+export const libellePrix = (devis) => C.libellePrix(devis, tr);
 
 // le message d'une réponse en échec : 503 = clé absente (le détail la nomme), 402 refusé = le message du plafond
-export function messageErreur(statut, corps) {
-  const det = corps && corps.detail;
-  const m = typeof det === "string" ? det
-    : det && det.dz_plafond && det.dz_plafond.message ? det.dz_plafond.message
-      : det ? JSON.stringify(det) : String(statut);
-  return statut === 503 ? T("photolab.iacalque.cle_absente", { detail: m }) : m;
-}
-
-// UN SEUL tir à la fois : un second appel pendant le vol ne relance rien (rend null) ; `apres` redessine les boutons
-export function unSeulVol(fn, apres) {
-  const g = async (...a) => {
-    if (g.enVol) return null;
-    g.enVol = true;
-    try { return await fn(...a); } finally {
-      g.enVol = false;
-      if (apres) { try { apres(); } catch (e) { /* le redessin n'efface pas l'issue du tir */ } }
-    }
-  };
-  g.enVol = false;
-  return g;
-}
+export const messageErreur = (statut, corps) => C.messageErreur(statut, corps, "", tr);
 
 // le nom du calque que le serveur posera (même règle que photolab_routes : « IA — » + 15 premiers caractères)
 export function nomCalqueIa(prompt) {
@@ -187,13 +140,8 @@ export async function executerPlan(o, d) {
 }
 
 /* ── DOM ── */
-// Les gestes du panneau s'arrêtent à lui (en bulle : ses propres écouteurs ont déjà joué). Rien n'est preventDefault :
-// la case, les listes et le texte gardent leur geste natif. Le CLAVIER aussi : les raccourcis globaux (document,
-// en bulle) n'ignorent que INPUT/TEXTAREA/SELECT — sur un bouton du panneau, une lettre changeait d'outil.
-export const GESTES_GARDES = ["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel", "keydown", "keyup"];
-export function garderGestes(el) {
-  for (const t of GESTES_GARDES) el.addEventListener(t, (ev) => ev.stopPropagation(), t === "wheel" ? { passive: true } : false);
-}
+// Les gestes du panneau s'arrêtent à lui : garderGestes (module commun) — clic, molette, touche ENFONCÉE ; jamais un
+// relâchement (t197 : keyup gardé, Espace relâché sur un bouton du panneau laissait l'outil Main de mod-vue collé).
 
 export function initIaCalque(PL) {
   const lire = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
@@ -231,7 +179,7 @@ export function initIaCalque(PL) {
     selectionner: (id) => PL.executer("layer.select", { layer: id, mode: "replace" }),
     infoDetour: async (id) => infoDe(await catalogue("detourage_image").catch(() => []), id),
   };
-  const lancer = unSeulVol((o) => executerPlan(o, deps), () => majBouton());
+  const lancer = C.unSeulVol((o) => executerPlan(o, deps), () => majBouton());
 
   /* ── le panneau ── */
   let boite = null, ui = null, mode = "ia", cible = null, modsDetour = [], retour = null, devisN = 0;
@@ -307,7 +255,7 @@ export function initIaCalque(PL) {
     const fin = () => { glisse = null; };
     tete.addEventListener("pointerup", fin);
     tete.addEventListener("pointercancel", fin);
-    garderGestes(boite);
+    C.garderGestes(boite);
   }
 
   const choix = () => ({
