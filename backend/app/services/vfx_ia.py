@@ -212,8 +212,8 @@ def options_valides(mid: str, options) -> dict:
         raise ValueError("options : un objet {nom: valeur} est attendu")
     inconnues = sorted(set(map(str, options)) - set(e["options"]))
     if inconnues:
-        permis = ", ".join(e["options"]) or "aucune"
-        raise ValueError(f"{e['label']} : option inconnue {', '.join(inconnues)} (permises : {permis})")
+        raise Refus("vfx.ia.option_inconnue" if e["options"] else "vfx.ia.option_inconnue_aucune",
+                    modele=Nom(mid, e['label']), options=', '.join(inconnues), permises=", ".join(e["options"]))
     out = {}
     for nom, spec in e["options"].items():
         v = options.get(nom)
@@ -225,32 +225,32 @@ def options_valides(mid: str, options) -> dict:
             continue
         if spec["choix"]:
             if str(v) not in spec["choix"]:
-                raise ValueError(f"{e['label']} : « {str(v)[:40]} » refusé pour {nom} "
-                                 f"(permis : {', '.join(spec['choix'][:12])}{'…' if len(spec['choix']) > 12 else ''})")
+                raise Refus("vfx.ia.option_refusee", modele=Nom(mid, e['label']), v=str(v)[:40], nom=nom,
+                            permis=f"{', '.join(spec['choix'][:12])}{'…' if len(spec['choix']) > 12 else ''}")
             out[nom] = str(v)
         elif spec["bool"]:
             if not isinstance(v, bool):
-                raise ValueError(f"{e['label']} : {nom} attend vrai ou faux")
+                raise Refus("vfx.ia.option_booleen", modele=Nom(mid, e['label']), nom=nom)
             out[nom] = v
         elif spec["num"]:
             if isinstance(v, bool):
-                raise ValueError(f"{e['label']} : {nom} attend un nombre")
+                raise Refus("vfx.ia.option_nombre", modele=Nom(mid, e['label']), nom=nom)
             try:
                 x = float(v)
             except (TypeError, ValueError):
-                raise ValueError(f"{e['label']} : {nom} attend un nombre")
+                raise Refus("vfx.ia.option_nombre", modele=Nom(mid, e['label']), nom=nom)
             lo, hi = spec["num"]
             if x != x or not lo <= x <= hi:
                 raise Refus("vfx.ia.option_bornes", modele=Nom(mid, e['label']), nom=nom, lo=f"{lo:g}", hi=f"{hi:g}",
                             x=f"{x:g}")
             if spec["entier"]:
                 if x != int(x):
-                    raise ValueError(f"{e['label']} : {nom} attend un entier")
+                    raise Refus("vfx.ia.option_entier", modele=Nom(mid, e['label']), nom=nom)
                 x = int(x)
             out[nom] = x
         else:   # texte libre (mask_prompt) : une CHAÎNE, rien d'autre
             if not isinstance(v, str):
-                raise ValueError(f"{e['label']} : {nom} attend un texte")
+                raise Refus("vfx.ia.option_texte", modele=Nom(mid, e['label']), nom=nom)
             s = v.strip()
             if not s:
                 if spec["requis"]:

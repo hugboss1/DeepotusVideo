@@ -7,7 +7,7 @@ de modèle de dz-champ-ia.js, refus serveur des routes G4-G7, devis d'un VFX IA,
   [1] les catalogues de l'écran (frontend/shared/i18n/<zone>.json) : chaque clé ajoutée par G0-G9 et t192 (liste
       EXPLICITE ci-dessous, relevée par git entre 32b2d6d6 et ab7d0c91 — le plan disait « au moins 60 », il y en a 339, + 12 de t197 sur main)
       existe, fr et en non vides, mêmes {variables} ; le dictionnaire assemblé est à jour et les porte toutes.
-  [2] les messages du serveur (backend/app/i18n/messages.json) : idem pour les 130 clés G2-G9 + t192.
+  [2] les messages du serveur (backend/app/i18n/messages.json) : idem pour les 180 clés G2-G9 + t192 (devis, musique, bruitages, noms ia.nom.<id> compris).
   [3] les clés UTILISÉES : chaque clé écrite dans les fichiers des lots (dzT, T, __dzT9, TP, t("photolab.…"), Refus,
       Message, msg, _msg_g, _m) existe — dans le dictionnaire assemblé (écran) ou dans messages.json (serveur) ; les
       familles composées (ia.voie.<voie>, detour.modele.<id>, son.sfx.libelle.<id>, vfx.ia.<geste>.titre/phrase,
@@ -207,7 +207,21 @@ CLES_SERVEUR = (
     "musique.elevenlabs-music-2.5.desc", "musique.minimax-music-3.desc", "musique.stable-audio-3.desc",
     "musique.mureka-9.5.desc", "musique.ambiance.cinematic", "musique.ambiance.abyss", "musique.ambiance.hype",
     "musique.ambiance.lofi", "musique.ambiance.synthwave", "musique.ambiance.corporate", "musique.ambiance.tension",
-    "musique.ambiance.chill",)
+    "musique.ambiance.chill",
+    # t192 relecture : devis G4/G5/G7, matte, musique, bruitages, options VFX, noms des modèles de musique
+   
+    "pricing.a_mesurer", "pricing.ligne_sec", "pricing.ligne_x", "pricing.detour.tranches", "pricing.objets3d.ligne",
+    "pricing.objets3d.ligne_a_mesurer", "pricing.matte.ligne", "pricing.matte.ligne_a_mesurer", "pricing.musique.sec",
+    "pricing.musique.min", "pricing.musique.piste", "pricing.musique.piste_a_mesurer", "pricing.musique.avec_paroles",
+    "pricing.musique.sans_paroles", "matte.note_birefnet", "matte.note_a_mesurer", "musique.decrire",
+    "musique.duree_bornes", "musique.paroles_exigees_10", "musique.paroles_exigees_3000",
+    "musique.note.duree_imposee", "musique.note.duree_imposee_s", "musique.note.sans_paroles",
+    "musique.note.sans_graine", "ia.sfx.modele_inconnu", "ia.sfx.nature_description", "ia.sfx.nature_video",
+    "ia.sfx.duree_invalide", "ia.sfx.duree_positive", "ia.sfx.decrire", "ia.sfx.prompt_450", "ia.sfx.duree_route",
+    "vfx.ia.option_inconnue", "vfx.ia.option_inconnue_aucune", "vfx.ia.option_refusee", "vfx.ia.option_booleen",
+    "vfx.ia.option_nombre", "vfx.ia.option_entier", "vfx.ia.option_texte", "ia.nom.lyria3", "ia.nom.stable-audio-25",
+    "ia.nom.minimax-music-26", "ia.nom.cassetteai", "ia.nom.ace-step", "ia.nom.minimax-music-20", "ia.nom.lyria-3.5",
+    "ia.nom.elevenlabs-music-2.5", "ia.nom.minimax-music-3", "ia.nom.stable-audio-3", "ia.nom.mureka-9.5",)
 
 # les fichiers des lots (écran) dont chaque clé écrite doit exister dans le dictionnaire assemblé
 FICHIERS_ECRAN = (
@@ -357,7 +371,7 @@ def main():
     check(f"2a les {len(CLES_SERVEUR)} clés serveur des lots existent dans messages.json", not mq, mq[:10])
     check("2b fr ET en non vides", not vd, vd[:10])
     check("2c mêmes {variables}", not vr, vr[:10])
-    check("2d au moins 130 clés serveur (G2-G9 : 22, t192 : 108)", len(CLES_SERVEUR) >= 130, len(CLES_SERVEUR))
+    check("2d au moins 180 clés serveur (G2-G9 : 22, t192 : 158)", len(CLES_SERVEUR) >= 180, len(CLES_SERVEUR))
     en_fr = [k for k in CLES_SERVEUR if k in M and ACCENTS.search(M[k].get("en", "").replace("→", ""))]
     check("2e aucun anglais serveur ne porte d'accent français", not en_fr, en_fr[:10])
 
@@ -414,7 +428,8 @@ def main():
     sans = [g for g in VI.REGISTRE if not all(f"vfx.ia.{g.replace('-', '_')}.{r}" in D for r in ("titre", "phrase"))]
     check(f"3g vfx.ia.<geste>.titre/phrase pour les {len(VI.REGISTRE)} gestes VFX IA", not sans, sans)
     noms = {k[len("ia.nom."):]: v for k, v in M.items() if k.startswith("ia.nom.")}
-    tous = {**reg_fr, **{k: v["label"] for k, v in SX.SFX_MODELS.items()}, **{k: v["label"] for k, v in VI.REGISTRE.items()}}
+    tous = {**reg_fr, **{k: v["label"] for k, v in SX.SFX_MODELS.items()}, **{k: v["label"] for k, v in VI.REGISTRE.items()},
+            **{k: v["label"] for k, v in MS.MUSIC_MODELS.items()}}
     derive = [k for k, v in noms.items() if tous.get(k) != v.get("fr")]
     manque_nom = [k for k, l in tous.items() if (francais(l) or re.search(r"\b(vidéo|rapide|gratuit|ancien|nuit|eau)\b", l))
                   and k not in noms]
@@ -426,6 +441,19 @@ def main():
     derive += [m["id"] for m in cat["models"] if francais(m["label"]) and (M.get(f"musique.{m['id']}.nom") or {}).get("fr") != m["label"]]
     check(f"3i musique.* : chaque description ({len(cat['models'])}), ambiance ({len(cat['moods'])}) et nom français du "
           "catalogue a sa clé, fr = le catalogue", not derive, derive)
+    sans = [m["id"] for m in cat["models"] if (M.get(f"ia.nom.{m['id']}") or {}).get("fr") != m["label"]]
+    check(f"3j ia.nom.<id> pour TOUS les modèles du catalogue Musique ({len(cat['models'])}), fr = le libellé "
+          "(le 503 « clé absente » de /audio/music les nomme)", len(cat["models"]) >= 11 and not sans, sans)
+    tous_ids = {}
+    for nom_reg, reg in (("detourage", DT.REGISTRE), ("matte", MT.MATTE_MODELS), ("sfx", SX.SFX_MODELS),
+                         ("vfx", VI.REGISTRE), ("sam3", SB.MODELES), ("musique", MS.MUSIC_MODELS)):
+        for k in reg:
+            tous_ids.setdefault(k, []).append(nom_reg)
+    doubles = {k: v for k, v in tous_ids.items() if len(v) > 1}
+    check("3k l'espace ia.nom.<id> est partagé sans collision : aucun id dans deux registres", not doubles, doubles)
+    var_reservee = [k for k in CLES_SERVEUR if k in M and {"cle", "lang"} & set(VAR.findall(M[k]["fr"] + M[k]["en"]))]
+    check("3l aucune clé serveur des lots n'a de {cle} ni {lang} (noms des paramètres de msg / Message)",
+          not var_reservee, var_reservee)
 
     # ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
     print("\n[4] les replis français écrits dans le code")
@@ -470,25 +498,60 @@ def main():
             return (g or "") + (d or "") if (g or d) else None
         return None
 
-    GARDES_API = ("options : un objet", "option inconnue", "refusé pour", "attend vrai ou faux", "attend un nombre",
-                  "attend un entier", "attend un texte", "clip_id refusé", "donnez la vidéo", "refusé : un nom",
-                  "origine refusée", "Modèle de storyboard 3D inconnu", "detection_threshold", "Modèle vidéo inconnu",
-                  "duration_s", "fal.ai", "SAM 3 (fal)", "part d'une vidéo : aucune vidéo fournie",
-                  "passe par l'API directe", "vidéo source introuvable", "image introuvable", "aucun son dans",
-                  "aucune vidéo dans", "boîte", "boîtes", "Plan introuvable", "modèle SAM 3 inconnu",
-                  "geste VFX IA inconnu", "modèle de bruitage inconnu", "ne part pas d'", "durée invalide",
-                  "modèle de détourage inconnu", "ne détoure pas", "est un détourage LOCAL", "aucune image dans",
-                  "aucun GLB", "n'est pas un GLB", "image source introuvable",
-                  "geste inconnu", "modèle inconnu")
+    # Refus GARDÉS en dur : le texte FIXE exact (les morceaux littéraux du f-string), et pourquoi. Jamais déclenchés
+    # par l'écran (listes fermées, contrôles bornés, appels internes), ou échec technique d'un fournisseur — lot L10.
+    _API = "appel mal formé : l'écran envoie toujours une valeur de sa liste / de son contrôle borné"
+    _FOURN = "réponse inexploitable d'un fournisseur (échec technique, 502)"
+    _INTERNE = "appel interne après les contrôles de la route (jamais atteint depuis l'écran)"
+    GARDES_API = {
+        "options : un objet {nom: valeur} est attendu": _API,
+        "clip_id refusé": _API,
+        "donnez la vidéo  : clip_id (un clip du Montage) ou video_filename": _API,
+        " refusé : un nom  nu ()": _API,
+        "origine refusée :  ()": _API,
+        "Modèle de storyboard 3D inconnu :  (connus : ).": _API,
+        "detection_threshold : un nombre de 0,1 à 1.": _API,
+        "Modèle vidéo inconnu :  (ids : ).": _API,
+        "duration_s : un nombre de secondes.": _API,
+        "duration_s invalide ( s).": _API,
+        "seed doit être un entier.": _API,
+        "VFX IA : geste inconnu  (non chiffré)": _API,
+        "Bruitage : modèle inconnu  (non chiffré)": _API,
+        "Storyboard 3D : modèle inconnu  (non chiffré)": _API,
+        "Détourage : modèle inconnu  (non chiffré)": _API,
+        "boîtes : une liste d'au plus  rectangles {x_min, y_min, x_max, y_max}.": _API,
+        "boîte  illisible.": _API,
+        "boîte  illisible : x_min, y_min, x_max, y_max attendus.": _API,
+        "boîte  vide ou hors de l'image.": _API,
+        "boîte  hors de l'image ( ×  px).": _API,
+        "boîte  : object_id entier attendu.": _API,
+        "modèle SAM 3 inconnu :  (connus : )": _API,
+        " part d'une vidéo : aucune vidéo fournie": _INTERNE,
+        " passe par l'API directe : aucune requête fal": _INTERNE,
+        "vidéo source introuvable": _INTERNE,
+        "image source introuvable": _INTERNE,
+        "Plan introuvable.": _INTERNE,
+        "fal.ai () : aucun son dans la réponse (clés : )": _FOURN,
+        "fal.ai () : aucune image dans la réponse (clés : )": _FOURN,
+        "SAM 3 (fal) : aucun GLB dans la réponse (clés : ).": _FOURN,
+        "SAM 3 (fal) : le fichier rendu n'est pas un GLB (en-tête glTF absent,  octets).": _FOURN,
+        "SAM 3 (fal) : ": _FOURN,
+        "fal.ai: ": _FOURN,
+        "ElevenLabs: ": _FOURN,
+    }
     CIBLES = {
         "app/services/vfx_ia.py": ("options_valides", "prompt_valide", "image_refusee", "source_refusee",
                                    "insertion_refusee", "unites"),
         "app/services/sfx_service.py": ("build_request", "video_refusee"),
         "app/services/detourage.py": ("sujet_de", "_local_rembg", "_local_chroma"),
         "app/services/storyboard3d.py": ("build_request", "reconstruire"),
-        "app/services/pricing.py": ("_ligne_vfx",),
-        "app/api/routes.py": ("generate_sfx_video", "vfx_ia_appliquer", "shot_objets3d", "_video_plan",
-                              "_sfx_video_source", "_nom_nu", "_detourage_controles"),
+        "app/services/pricing.py": ("_ligne_vfx", "_ligne_sfx", "_ligne_objets3d", "_ligne_detourage"),
+        "app/services/music_service.py": ("build_prompt", "_duree", "_payload_champs", "_payload"),
+        "app/services/matte_service.py": ("note_prix",),
+        "app/api/routes.py": ("generate_sfx_video", "generate_sfx_audio", "vfx_ia_appliquer", "shot_objets3d",
+                              "_video_plan", "_sfx_video_source", "_nom_nu", "_detourage_controles",
+                              "generate_music_audio", "cost_estimate", "matte_status"),
+        "app/api/photolab_routes.py": ("calque_detourer", "calque_ia"),
         "app/services/cards/capture.py": ("_rembg_par_registre",),
     }
     for f, fonctions in CIBLES.items():
@@ -511,13 +574,14 @@ def main():
                     cands.append(n.value)
                 for c in cands:
                     t = chaine_de(c)
-                    if t and francais(t) and not any(g in t for g in GARDES_API):
+                    if t and francais(t) and t not in GARDES_API:
                         durs.append(f"{fn.name}:{n.lineno}: {t[:70]}")
         check(f"5b {f} : les refus des lots passent par messages.json (hors refus d'appel mal formé gardés)",
               vues == set(fonctions) and not durs, (sorted(set(fonctions) - vues), durs[:8]))
 
     # ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
     print("\n[6] fonctionnel")
+    from app.services import pricing as PR
     exemples = []
     try:
         VI.options_valides("inserer-h3", {"start_time": 3, "resume_time": 2})
@@ -536,14 +600,137 @@ def main():
     exemples += [m1, m2, VI.image_refusee("effets-pixverse", False)]
     check("6a les refus d'exemple sont des Refus / Message de app.i18n",
           len(exemples) == 6 and all(isinstance(x, (I.Refus, I.Message)) for x in exemples), [type(x) for x in exemples])
-    attendu_fr = [  # le texte d'AVANT t192, recomposé ici à la main
-        "Insérer une scène (MiniMax H3) : la reprise ({:g} s) précède le début ({:g} s)".format(2, 3),
-        "Effacer un objet nommé : décrivez le changement voulu (« prompt » vide)",
-        "SAM 3 — garder un sujet nommé : dites quel sujet garder : ce modèle détoure un sujet NOMMÉ (« sujet » vide)",
-        "Kling vidéo → son : la vidéo doit durer de 3 à 20 s (celle-ci : 100.0 s)",
+    # table FIGÉE : appel -> texte français rendu par main AVANT t192 (sonde relecture2/cas6b.py, identique à l'octet)
+    CAS_6B = [
+        ("VI.source_refusee('relight-h3', 'a.mp4', 30)", lambda: VI.source_refusee("relight-h3", "a.mp4", 30)),
+        ("VI.source_refusee('relight-h3', 'a.mp4', 0.5)", lambda: VI.source_refusee("relight-h3", "a.mp4", 0.5)),
+        ("VI.source_refusee('retoucher-flux3', 'a.mp4', 20)", lambda: VI.source_refusee("retoucher-flux3", "a.mp4", 20)),
+        ("VI.source_refusee('retoucher-flux3', 'a.mp4', 5, None, None, 60_000_000)", lambda: VI.source_refusee("retoucher-flux3", "a.mp4", 5, None, None, 60_000_000)),
+        ("VI.source_refusee('retoucher-kling', 'a.mp4', 5, None, None, 300_000_000)", lambda: VI.source_refusee("retoucher-kling", "a.mp4", 5, None, None, 300_000_000)),
+        ("VI.source_refusee('retoucher-kling', 'a.mp4', 5, None, (100, 5000))", lambda: VI.source_refusee("retoucher-kling", "a.mp4", 5, None, (100, 5000))),
+        ("VI.source_refusee('effacer-perso', 'a.mp4', 7.9, {'resolution': '720p'})", lambda: VI.source_refusee("effacer-perso", "a.mp4", 7.9, {"resolution": "720p"})),
+        ("VI.source_refusee('effacer-perso', 'a.mp4', 30, {'resolution': '480p'})", lambda: VI.source_refusee("effacer-perso", "a.mp4", 30, {"resolution": "480p"})),
+        ("VI.source_refusee('effacer-perso', 'a.mp4', 100, {'resolution': '480p'})", lambda: VI.source_refusee("effacer-perso", "a.mp4", 100, {"resolution": "480p"})),
+        ("VI.source_refusee('effets-pixverse', 'a.mp4', 3)", lambda: VI.source_refusee("effets-pixverse", "a.mp4", 3)),
+        ("VI.options_valides('effets-pixverse', {'duration': '10', 'resolution': '1080p'})", lambda: VI.options_valides("effets-pixverse", {"duration": "10", "resolution": "1080p"})),
+        ("VI.options_valides('recadrer', {'inconnue': 1})", lambda: VI.options_valides("recadrer", {"inconnue": 1})),
+        ("VI.options_valides('agrandir', {'upscale_factor': 'abc'})", lambda: VI.options_valides("agrandir", {"upscale_factor": "abc"})),
+        ("VI.options_valides('agrandir', {'upscale_factor': 99})", lambda: VI.options_valides("agrandir", {"upscale_factor": 99})),
+        ("VI.prompt_valide('retoucher-flux3', 'x' * 2000)", lambda: VI.prompt_valide("retoucher-flux3", "x" * 2000)),
+        ("devis vfx effacer-objet", lambda: PR.estimate(VI.op_vfx("effacer-objet", 4.0, {"enable_pass2_refinement": True, "mask_prompt": "m"}))["breakdown"][0]["label"]),
+        ("devis vfx inserer-h3", lambda: PR.estimate(VI.op_vfx("inserer-h3", 7.5, {}, 1280, 720))["breakdown"][0]["label"]),
+        ("devis vfx agrandir", lambda: PR.estimate(VI.op_vfx("agrandir", 25, {}, 1280, 720))["breakdown"][0]["label"]),
+        ("devis sfx mirelo-1.6", lambda: PR.estimate({"kind": "sfx", "modele": "mirelo-1.6", "secondes": 4, "echantillons": 2})["breakdown"][0]["label"]),
+        ("devis sfx kling-v2a", lambda: PR.estimate({"kind": "sfx_video", "modele": "kling-v2a", "secondes": 6})["breakdown"][0]["label"]),
+        ("devis détourage sam3-sujet x3", lambda: PR.estimate({"kind": "detourage", "modele": "sam3-sujet", "images": 3})["breakdown"][0]["label"]),
+        ("devis détourage birefnet-v2-video 95 images", lambda: PR.estimate({"kind": "detourage", "modele": "birefnet-v2-video", "images_video": 95})["breakdown"][0]["label"]),
+        ("devis détourage local-rembg", lambda: PR.estimate({"kind": "detourage", "modele": "local-rembg", "images": 2})["breakdown"][0]["label"]),
+        ("devis matte BiRefNet", lambda: PR.estimate(MT.op_devis("general", 6.5))["breakdown"][0]["label"]),
+        ("devis objets3d", lambda: PR.estimate({"kind": "objets3d", "modele": "sam-3-3d-objects", "n": 2})["breakdown"][0]["label"]),
+        ("devis musique ace-step", lambda: PR.estimate({"kind": "music", "model": "ace-step", "duration_s": 45, "n": 2})["breakdown"][0]["label"]),
+        ("devis musique elevenlabs-music-2.5", lambda: PR.estimate({"kind": "music", "model": "elevenlabs-music-2.5", "duration_s": 90})["breakdown"][0]["label"]),
+        ("devis musique mureka-9.5 paroles", lambda: PR.estimate({"kind": "music", "model": "mureka-9.5", "paroles": True})["breakdown"][0]["label"]),
+        ("devis musique lyria-3.5", lambda: PR.estimate({"kind": "music", "model": "lyria-3.5"})["breakdown"][0]["label"]),
+        ("MT.note_prix('pixelcut-video')", lambda: MT.note_prix("pixelcut-video")),
+        ("MT.USD_NOTE", lambda: MT.USD_NOTE),
+        ("musique : notes lyria3 durée + graine", lambda: (MS.preparer({"model": "lyria3", "prompt": "x", "duration_s": 12, "seed": 3})["notes"])),
+        ("musique : notes lyria-3.5 paroles", lambda: (MS.preparer({"model": "lyria-3.5", "prompt": "x", "lyrics": "la", "duration_s": 12})["notes"])),
+        ("musique : minimax-music-20 sans paroles", lambda: MS.preparer({"model": "minimax-music-20", "prompt": "x"})),
+        ("musique : minimax-music-3 sans paroles", lambda: MS.preparer({"model": "minimax-music-3", "prompt": "x"})),
+        ("musique : stable-audio-3 9999 s", lambda: MS.preparer({"model": "stable-audio-3", "prompt": "x", "duration_s": 9999})),
+        ("musique : sans description", lambda: MS.preparer({"model": "lyria3", "prompt": ""})),
+        ("SX.duree_sfx('mirelo-1.6', 'abc')", lambda: SX.duree_sfx("mirelo-1.6", "abc")),
+        ("SX.entree_sfx('sonilo-video', SX.SFX_TEXTE)", lambda: SX.entree_sfx("sonilo-video", SX.SFX_TEXTE)),
+        ("SX.build_request('hunyuan-foley', video_url='u', prompt='')", lambda: SX.build_request("hunyuan-foley", video_url="u", prompt="")),
+        ("DT.sujet_de('sam31-video', '')", lambda: DT.sujet_de("sam31-video", "")),
     ]
-    check("6b en français (str, sans en-tête) : le texte d'avant, au caractère près",
-          [str(x) for x in exemples[:4]] == attendu_fr, [str(x) for x in exemples[:4]])
+    ATTENDU_6B = {
+        "VI.source_refusee('relight-h3', 'a.mp4', 30)": "Rééclairer (MiniMax H3) : la vidéo doit durer 15 s au plus (celle-ci : 30.0 s)",
+        "VI.source_refusee('relight-h3', 'a.mp4', 0.5)": "Rééclairer (MiniMax H3) : 56 images au moins à 24 i/s, soit 2.33 s (celle-ci : 0.5 s)",
+        "VI.source_refusee('retoucher-flux3', 'a.mp4', 20)": "Modifier par une phrase (rapide) : la vidéo doit durer moins de 15 s (celle-ci : 20.0 s)",
+        "VI.source_refusee('retoucher-flux3', 'a.mp4', 5, None, None, 60_000_000)": "Modifier par une phrase (rapide) : moins de 50 Mo (celle-ci : 60.0 Mo)",
+        "VI.source_refusee('retoucher-kling', 'a.mp4', 5, None, None, 300_000_000)": "Modifier par une phrase (Kling O3) : 200 Mo au plus (celle-ci : 300.0 Mo)",
+        "VI.source_refusee('retoucher-kling', 'a.mp4', 5, None, (100, 5000))": "Modifier par une phrase (Kling O3) : côtés de 720 à 3840 px exigés (celle-ci : 100x5000)",
+        "VI.source_refusee('effacer-perso', 'a.mp4', 7.9, {'resolution': '720p'})": "Effacer un personnage (plaque propre) : en 720p, 145 images au plus à 24 i/s (≈ 6 s, budget du modèle) — celle-ci en demande 190 (7.9 s) : passez en 480p ou coupez le plan",
+        "VI.source_refusee('effacer-perso', 'a.mp4', 30, {'resolution': '480p'})": "Effacer un personnage (plaque propre) : 481 images au plus à 24 i/s, soit 20.0 s (celle-ci : 30.0 s) — coupez le plan d'abord",
+        "VI.source_refusee('effacer-perso', 'a.mp4', 100, {'resolution': '480p'})": "Effacer un personnage (plaque propre) : 481 images au plus à 24 i/s, soit 20.0 s (celle-ci : 100.0 s) — coupez le plan d'abord",
+        "VI.source_refusee('effets-pixverse', 'a.mp4', 3)": "Effet prêt à l'emploi (PixVerse) part d'une image (.png, .jpg, .jpeg, .webp)",
+        "VI.options_valides('effets-pixverse', {'duration': '10', 'resolution': '1080p'})": "!Effet prêt à l'emploi (PixVerse) : l'option « effect » est requise",
+        "VI.options_valides('recadrer', {'inconnue': 1})": "!Changer le format (9:16 ↔ 16:9) : option inconnue inconnue (permises : aspect_ratio, resolution)",
+        "VI.options_valides('agrandir', {'upscale_factor': 'abc'})": "!Agrandir / netteté (Topaz) : upscale_factor attend un nombre",
+        "VI.options_valides('agrandir', {'upscale_factor': 99})": "!Agrandir / netteté (Topaz) : upscale_factor doit valoir de 1 à 4 (reçu 99)",
+        "VI.prompt_valide('retoucher-flux3', 'x' * 2000)": "!Modifier par une phrase (rapide) : description trop longue (2000 caractères, 1500 au plus)",
+        "devis vfx effacer-objet": "Effacer un objet nommé (passe 2 + masque SAM 3)",
+        "devis vfx inserer-h3": "Insérer une scène (MiniMax H3) (scène générée 5 s · 768p) — jetons de référence au-delà de 4 096 non chiffrés (0,02 $ / 1 000)",
+        "devis vfx agrandir": "Agrandir / netteté (Topaz) (25 s -> 3 x 10 s · sortie 4k)",
+        "devis sfx mirelo-1.6": "Mirelo SFX 1.6 — prix à mesurer x2",
+        "devis sfx kling-v2a": "Kling vidéo → son x1",
+        "devis détourage sam3-sujet x3": "SAM 3 — garder un sujet nommé x3",
+        "devis détourage birefnet-v2-video 95 images": "BiRefNet v2 vidéo — prix à mesurer",
+        "devis détourage local-rembg": "rembg (local, gratuit)",
+        "devis matte BiRefNet": "Détourage vidéo (BiRefNet) — prix à mesurer",
+        "devis objets3d": "SAM 3 — objets 3D x2 — unité fal à confirmer au premier tir",
+        "devis musique ace-step": "Musique (ACE-Step (paroles)) 45 s x2",
+        "devis musique elevenlabs-music-2.5": "Musique (ElevenLabs Music 2.5) 90 s = 2 min x1",
+        "devis musique mureka-9.5 paroles": "Musique (Mureka 9.5 avec paroles) x1",
+        "devis musique lyria-3.5": "Musique (Lyria 3.5 (Google)) — prix à mesurer x1",
+        "MT.note_prix('pixelcut-video')": "",
+        "MT.USD_NOTE": "prix à mesurer : fal n'affiche que « $0 per compute second » (06/10/2026) — lire le montant sur le tableau de bord fal après ce tir, puis l'écrire dans pricing.birefnet_video_usd_per_s",
+        "musique : notes lyria3 durée + graine": "Lyria 3 (Google) impose sa durée (30 s) — la durée demandée a été ignorée. | Lyria 3 (Google) n'accepte pas de graine — le résultat n'est pas reproductible.",
+        "musique : notes lyria-3.5 paroles": "Lyria 3.5 (Google) impose sa durée — la durée demandée a été ignorée. | Lyria 3.5 (Google) ne prend pas de paroles — le texte saisi a été ignoré.",
+        "musique : minimax-music-20 sans paroles": "!MiniMax Music 2.0 exige des paroles (10 à 3000 caractères).",
+        "musique : minimax-music-3 sans paroles": "!MiniMax Music 3 exige des paroles (10 caractères au moins, balises non comptées).",
+        "musique : stable-audio-3 9999 s": "!duration_s doit être entre 1 et 380 s pour Stable Audio 3.",
+        "musique : sans description": "!Décris la musique voulue, ou choisis une ambiance.",
+        "SX.duree_sfx('mirelo-1.6', 'abc')": "!durée invalide (un nombre de secondes, ou rien pour la durée du modèle)",
+        "SX.entree_sfx('sonilo-video', SX.SFX_TEXTE)": "!Sonilo 1.1 (vidéo) ne part pas d'une description (connus : elevenlabs-direct, elevenlabs-v2-fal, sonilo-1.1, mirelo-1.6, stable-audio-3-sfx)",
+        "SX.build_request('hunyuan-foley', video_url='u', prompt='')": "!Hunyuan Video Foley : décrivez le son voulu : ce modèle exige une description (« prompt » vide)",
+        "DT.sujet_de('sam31-video', '')": "!SAM 3.1 — suivre un sujet nommé : dites quel sujet garder : ce modèle détoure un sujet NOMMÉ (« sujet » vide)",
+    }
+    rendu_fr, rendu_en = {}, {}
+    for nom, f in CAS_6B:
+        try:
+            r = f()
+            obj = r
+            if isinstance(r, list):                       # les notes de la carte Musique : une ligne par note
+                rendu_fr[nom] = " | ".join(map(str, r))
+                rendu_en[nom] = " | ".join(I.texte(x, "en") for x in r)
+                continue
+            rendu_fr[nom] = str(r) if r is not None and not isinstance(r, dict) else ("<dict>" if isinstance(r, dict) else None)
+        except Exception as e:  # noqa: BLE001
+            obj = getattr(e, "message", e)
+            rendu_fr[nom] = "!" + str(obj)
+        rendu_en[nom] = None if obj is None or isinstance(obj, dict) else I.texte(obj, "en")
+    ecarts = {k: (rendu_fr.get(k), v) for k, v in ATTENDU_6B.items() if rendu_fr.get(k) != v}
+    check(f"6b table figée ({len(ATTENDU_6B)} appels : bornes, poids, images, durées, devis VFX / bruitage / détourage / "
+          "matte / SAM 3 / musique, notes et refus Musique, bruitages) : le français d'avant, à l'octet",
+          len(ATTENDU_6B) >= 40 and not ecarts, ecarts)
+    restes = {k: v for k, v in rendu_en.items() if v and ACCENTS.search(v.replace("→", "").replace("↔", ""))}
+    check("6b' les mêmes appels en anglais (texte(…, 'en')) : aucun accent français", not restes, restes)
+
+    # _detourage_controles sans `nommer` : le nom traduit AVANT d'être tronqué (un Nom coupé perdait son id)
+    from fastapi import HTTPException
+    from app.api import routes as R
+
+    class _Req:
+        def __init__(self, lang):
+            self.headers = {"accept-language": lang}
+
+    def refus_controle(lang):
+        try:
+            R._detourage_controles("local-rembg", DT.VIDEO, None, _Req(lang))
+        except HTTPException as e:
+            return e.detail
+        return None
+    d_en, d_fr = refus_controle("en"), refus_controle("fr")
+    check("6i _detourage_controles('local-rembg', VIDEO) en anglais : nom anglais, aucun français",
+          bool(d_en) and "rembg (local, free)" in d_en and not ACCENTS.search(d_en), d_en)
+    try:
+        DT.entree("local-rembg", DT.VIDEO)
+        avant = None
+    except ValueError as e:
+        avant = str(e)
+    check("6j … et en français, le message d'avant (le ValueError du registre), à l'octet", d_fr == avant, (d_fr, avant))
     ens = [I.texte(x, "en") for x in exemples]
     check("6c en anglais : aucun accent français, le nom du modèle traduit (ia.nom.<id>)",
           all(not ACCENTS.search(t.replace("→", "")) for t in ens) and "Kling video → sound" in ens[3]

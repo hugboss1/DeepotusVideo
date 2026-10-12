@@ -33,7 +33,6 @@ from app.config import settings
 from app.i18n import Refus   # t192 : refus traduisibles (texte = le français)
 
 IMAGE, VIDEO = "detourage_image", "detourage_video"
-DEMANDE_SUJET = "dites quel sujet garder : ce modèle détoure un sujet NOMMÉ (« sujet » vide)"
 
 
 def _e(nature, label, voie, endpoint=None, fixes=None, prompt=False, prix=None, unite="image", ext=".png",

@@ -3,7 +3,10 @@
 Le français est la langue de référence : chaque clé de `messages.json` a son texte `fr`, l'anglais en est la
 traduction. La langue d'une requête vient de l'en-tête Accept-Language que le runtime /shared/dz-i18n.js ajoute aux
 appels /api/, sinon du réglage UI_LANG. Les messages pas encore migrés restent écrits en dur (lot L10) ; les bancs
-qui lisent un `detail` français tournent sans en-tête, donc en français.
+qui lisent un `detail` français tournent sans en-tête ET isolent leur dossier de données (DEEPOTUS_DATA_DIR
+temporaire : pas de .env, donc UI_LANG = « fr », le défaut de app.config) — donc en français. Un banc lancé SANS
+dossier isolé hérite du .env de l'installation (UI_LANG=en sur un poste en anglais) : c'est la cause des 6 rouges
+connus de test_i18n_l4_serveur sur ce poste.
 """
 import json
 import pathlib
@@ -70,7 +73,12 @@ class Nom(str):
 
 
 def nom_modele(mid, libelle, lang=None) -> str:
-    """Le nom d'un modèle dans la langue `lang` : français = le libellé ; sinon ia.nom.<id>, à défaut le libellé."""
+    """Le nom d'un modèle dans la langue `lang` : français = le libellé ; sinon ia.nom.<id>, à défaut le libellé.
+
+    L'espace ia.nom.<id> est PARTAGÉ par tous les registres (détourage, matte, bruitages, VFX IA, SAM 3, musique) :
+    aucun id n'y est en double au 12/10/2026 (vérifié par test_i18n_generation_ia [3h]), et la garde « fr de la clé ==
+    libellé reçu » empêche qu'un id générique repris par un autre registre (« general », « matting ») y prenne le nom
+    d'un autre modèle : la clé ne sert alors pas, le libellé passe tel quel."""
     lang = borne(lang) or "fr"
     if lang == "fr":
         return str(libelle)
@@ -81,7 +89,7 @@ def nom_modele(mid, libelle, lang=None) -> str:
 class Message(str):
     """Un message serveur traduisible, transporté comme une chaîne : str(m) = le français."""
 
-    def __new__(cls, cle, **vars):
+    def __new__(cls, cle, /, **vars):
         s = str.__new__(cls, msg(cle, "fr", **vars))
         s.cle, s.vars = cle, vars
         return s
@@ -93,7 +101,7 @@ class Message(str):
 class Refus(ValueError):
     """Un refus nommé d'un service (ValueError dont le texte est le français), rendu dans une langue par `texte`."""
 
-    def __init__(self, cle, **vars):
+    def __init__(self, cle, /, **vars):
         self.message = Message(cle, **vars)
         super().__init__(str(self.message))
 
@@ -104,4 +112,6 @@ def texte(x, lang=None) -> str:
         return x.message.dans(lang)
     if isinstance(x, Message):
         return x.dans(lang)
+    if isinstance(x, Nom):
+        return nom_modele(x.mid, str(x), lang)
     return str(x)

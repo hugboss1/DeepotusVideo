@@ -1,4 +1,5 @@
 """FastAPI route definitions — v1.3 (batch multi-seeds)."""
+import contextvars
 import asyncio
 import hashlib
 import json
@@ -1454,7 +1455,7 @@ async def post_asset3d_view_rejouer(job: str, index: int, background_tasks: Back
 
 
 @router.post("/assets/3d/{job}/views/{index}/detourer")
-async def post_asset3d_view_detourer(job: str, index: int, body: dict = None):
+async def post_asset3d_view_detourer(job: str, index: int, body: dict = None, request: Request = None):
     """Body {via?: "local"|"fal", modele?, sujet?}. Le local est gratuit et rapide : réponse directe. fal (rembg) est
     gardé. t186 (G4) : `modele` = un id detourage_image du registre (remplace `via`) — clé absente 503 avant la garde,
     sujet manquant 400, garde sur une image (kind « detourage »)."""
@@ -1462,7 +1463,7 @@ async def post_asset3d_view_detourer(job: str, index: int, body: dict = None):
     body = body or {}
     via = "fal" if str(body.get("via") or "local") == "fal" else "local"
     modele = str(body.get("modele") or "").strip() or None
-    sujet = _detourage_controles(modele, "detourage_image", body.get("sujet")) if modele else None
+    sujet = _detourage_controles(modele, "detourage_image", body.get("sujet"), request) if modele else None
     _vues_ou_http(AV.verifier_detourage, job, index)
     if await _asset3d_occupe(job):
         raise HTTPException(409, "Une opération est déjà en cours sur ce jeu de vues — attends qu'elle finisse.")
@@ -2455,7 +2456,7 @@ def _sprite_dir(job: str) -> Path:
 
 
 @router.post("/assets/sprite")
-async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
+async def assets_sprite(body: dict, background_tasks: BackgroundTasks, request: Request = None):
     """Game Assets 2D: video render -> frames -> sprite sheet + pack Unity.
     Mirrors /assets/3d: pre-register a sprite2d JobRecord, run in the
     background, record what was produced in cost_meta. Poll GET /api/jobs/{id}.
@@ -2479,7 +2480,7 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
     if opts.get("modele"):
         # t186 (G4) : un modèle du registre — id, puis clé absente 503, puis sujet manquant 400, AVANT la garde ;
         # puis la garde sur max_frames images
-        opts["sujet"] = _detourage_controles(opts["modele"], "detourage_image", body.get("sujet"))
+        opts["sujet"] = _detourage_controles(opts["modele"], "detourage_image", body.get("sujet"), request)
         if opts["modele"] == "local-rembg":
             try:   # même refus d'emblée que l'ancien chemin local (sinon chaque image échouerait en tâche de fond)
                 import rembg  # noqa: F401
@@ -4553,22 +4554,22 @@ async def generate_sfx_audio(request: Request):
     try:
         _SX.entree_sfx(modele, _SX.SFX_TEXTE)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, _txt_g(e, request))
     cle = _SX.cle_sfx_manquante(modele)
     if cle:
         raise _refus_cle(cle, _nom_g(modele, _SX.SFX_MODELS[modele]["label"]), request)
     prompt = str(payload.get("prompt") or "").strip()
     if not prompt:
-        raise HTTPException(400, "Décris le son à générer (prompt vide).")
+        raise HTTPException(400, _msg_g("ia.sfx.decrire", request))
     if len(prompt) > 450:
-        raise HTTPException(400, "Prompt trop long (450 caractères max).")
+        raise HTTPException(400, _msg_g("ia.sfx.prompt_450", request))
     raw_dur = payload.get("duration_s")
     duration_s = None
     if raw_dur not in (None, "", 0, "auto"):
         try:
             duration_s = float(raw_dur)
         except (TypeError, ValueError):
-            raise HTTPException(400, "duration_s invalide (0.5–22 s ou null).")
+            raise HTTPException(400, _msg_g("ia.sfx.duree_route", request))
     try:
         prompt_influence = float(payload.get("prompt_influence", 0.3))
     except (TypeError, ValueError):
@@ -4583,7 +4584,7 @@ async def generate_sfx_audio(request: Request):
         try:
             duree = _SX.duree_sfx(modele, duration_s)
         except ValueError as e:
-            raise HTTPException(400, str(e))
+            raise HTTPException(400, _txt_g(e, request))
         _op = _SX.op_sfx(modele, _SX.secondes_facturees(modele, duree), variations)
         await _plafond(_op, "son")
         try:
@@ -4604,7 +4605,7 @@ async def generate_sfx_audio(request: Request):
     try:
         duration_s = _SX.duree_sfx(_SX.DEFAUT_TEXTE, duration_s)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, _txt_g(e, request))
     _op = {"kind": "sfx", "duration_s": duration_s, "n": variations}
     await _plafond(_op, "son")
     from app.services import sfx_service
@@ -4701,7 +4702,7 @@ async def generate_sfx_video(request: Request):
     try:
         e = _SX.entree_sfx(modele, _SX.SFX_VIDEO)
     except ValueError as x:
-        raise HTTPException(400, str(x))
+        raise HTTPException(400, _txt_g(x, request))
     devis = bool(payload.get("devis"))
     if not devis:
         cle = _SX.cle_sfx_manquante(modele)
@@ -4894,13 +4895,13 @@ async def generate_music_audio(request: Request):
     try:
         _mid, _m = music_service.modele_de(payload)
     except music_service.MusicError as e:
-        raise HTTPException(e.status, e.message)
+        raise HTTPException(e.status, _txt_g(e.message, request))
     if not (settings.FAL_KEY or "").strip():
-        raise _refus_cle("FAL_KEY", _m["label"], request)
+        raise _refus_cle("FAL_KEY", _nom_g(_mid, _m["label"]), request)
     try:
         prep = music_service.preparer(payload)
     except music_service.MusicError as e:
-        raise HTTPException(e.status, e.message)
+        raise HTTPException(e.status, _txt_g(e.message, request))
     # tâche #16 ; la DURÉE descend aussi (T102) : ACE-Step est facturé à la seconde ; t187 : `paroles` pour un
     # modèle dont le prix en dépend (Mureka)
     _op = {"kind": "music", "model": payload.get("model") or "", "duration_s": payload.get("duration_s")}
@@ -4908,11 +4909,14 @@ async def generate_music_audio(request: Request):
         _op["paroles"] = prep["paroles"]
     await _plafond(_op, "son")
     try:
-        return await music_service.generate_music(payload, prep)
+        res = await music_service.generate_music(payload, prep)
     except music_service.MusicError as e:
-        raise HTTPException(e.status, e.message)
+        raise HTTPException(e.status, _txt_g(e.message, request))
     except Exception as e:
         raise HTTPException(502, f"fal.ai: {str(e)[:300]}")
+    if isinstance(res, dict) and res.get("notes"):   # t192 : les notes affichées par la carte Musique
+        res = dict(res, notes=[_txt_g(n, request) for n in res["notes"]])
+    return res
 
 
 @router.get("/audio/stems-models")
@@ -5049,11 +5053,11 @@ async def matte_start(request: Request):
         mid = MT.detourer(src, model, label=src.stem[:16], sujet=sujet)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return {"ok": True, "matte_id": mid, "usd_note": MT.note_prix(model)}
+    return {"ok": True, "matte_id": mid, "usd_note": _txt_g(MT.note_prix(model), request)}
 
 
 @router.get("/matte-models")
-async def matte_models():
+async def matte_models(request: Request = None):
     """T103 (D2b) — le registre de détourage, SERVI : le rack ne recopie aucun libellé.
     t186 (G4) : `models` garde en tête les trois anciennes clés (id, label d'avant — BiRefNet v2 vidéo), puis
     les autres modèles vidéo du registre unique (detourage_video) ; chaque entrée porte aussi usd, unite, note,
@@ -5068,7 +5072,7 @@ async def matte_models():
               for k, v in MT.MATTE_MODELS.items()]
     models += [dict({k: e.get(k) for k in champs}, id=e["id"], label=e["label"], registre=e["id"])
                for e in reg if e["id"] != "birefnet-v2-video"]
-    return {"models": models, "default": "general", "usd_note": MT.USD_NOTE, "registre": reg}
+    return {"models": models, "default": "general", "usd_note": _txt_g(MT.USD_NOTE, request), "registre": reg}
 
 
 @router.get("/matte/file/{name}")
@@ -5085,11 +5089,13 @@ async def matte_file(name: str):
 
 
 @router.get("/matte/{matte_id}")
-async def matte_status(matte_id: str):
+async def matte_status(matte_id: str, request: Request = None):
     from app.services import matte_service as MT
     st = MT.status(matte_id)
     if st["status"] == "unknown":
         raise HTTPException(404, "matte inconnu")
+    if st.get("usd_note"):   # t192 : la note de prix (app.i18n.Message) dans la langue de la requête
+        st = dict(st, usd_note=_txt_g(st["usd_note"], request))
     return st
 
 
@@ -6021,10 +6027,16 @@ def _garde_cout(ops: list, *max_usds) -> float:
     return total
 
 
+# t192 (relecture) : la Request de la route en cours quand un cœur partagé ne la reçoit pas en argument
+# (_generate_image_core, _process_image_core : des bancs les remplacent par des fonctions à signature fixe)
+_HTTP_G: contextvars.ContextVar = contextvars.ContextVar("dz_http_g", default=None)
+
+
 def _lang_g(http=None) -> str:
-    """t192 (G10) : la langue d'un refus des lots « Génération IA » — celle de la requête (Accept-Language), sinon
-    UI_LANG (route sans Request : la langue de l'interface)."""
+    """t192 (G10) : la langue d'un refus des lots « Génération IA » — celle de la requête (Accept-Language ; la
+    requête passée, sinon celle posée dans _HTTP_G par la route), sinon UI_LANG (la langue de l'interface)."""
     from app import i18n as _i18n
+    http = http if http is not None else _HTTP_G.get()
     return _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
 
 
@@ -6038,6 +6050,12 @@ def _txt_g(x, http=None) -> str:
     """t192 : le texte d'un refus de service (app.i18n.Refus / Message, sinon str) dans la langue du refus."""
     from app import i18n as _i18n
     return _i18n.texte(x, _lang_g(http))
+
+
+def _i18n_nom(mid, libelle, http=None) -> str:
+    """t192 : le nom d'un modèle RENDU dans la langue du refus (pour un f-string : 502 d'un fournisseur)."""
+    from app import i18n as _i18n
+    return _i18n.nom_modele(mid, libelle, _lang_g(http))
 
 
 def _nom_g(mid, libelle):
@@ -6075,12 +6093,15 @@ def _detourage_controles(mid, nature: str, sujet=None, http=None, nommer=None):
     manquant pour un modèle qui l'exige (SAM 3, Bria objet, SAM 3.1) -> 400. Rend le sujet nettoyé (ou None).
     t191 : `nommer` (id -> nom NEUTRE de langue, ex. catalogue_ia.libelle_ecran) — les trois refus sont alors dits
     dans la langue de la requête (messages.json ia.detour.*, ia.cle.absente_tir) en nommant le modèle par ce nom, et
-    non par le libellé du registre, écrit en français. Sans `nommer` : les messages d'avant, inchangés."""
+    non par le libellé du registre, écrit en français. Sans `nommer` : en français (Accept-Language fr, ou sans
+    en-tête avec UI_LANG fr), les messages d'avant, inchangés à l'octet ; dans une autre langue (t192), les refus
+    ia.detour.* avec le nom ia.nom.<id> (app.i18n.nom_modele)."""
     from app.services import detourage as _DT
     from app import i18n as _i18n
     lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
     if not nommer and lang != "fr":   # t192 : en anglais, les mêmes refus que t191 (ia.detour.*), nom par ia.nom.<id>
-        nommer = lambda m: _i18n.Nom(m, (_DT.REGISTRE.get(m) or {}).get("label", m))   # noqa: E731
+        # le nom est rendu TRADUIT (une str simple) : le `[:40]` plus bas ne doit pas couper un Nom (qui perdrait son id)
+        nommer = lambda m: _i18n.nom_modele(m, (_DT.REGISTRE.get(m) or {}).get("label", m), lang)   # noqa: E731
     try:
         _DT.entree(str(mid or ""), nature)
     except ValueError as e:
@@ -8268,7 +8289,13 @@ async def cost_estimate(body: dict, request: Request):
     """Preview budget for a planned op (single edit / plan / campaign)."""
     _require_localhost(request)
     from app.services import pricing as _pricing
-    return _pricing.estimate(body or {})
+    est = _pricing.estimate(body or {})
+    # t192 (G10) : une ligne dont le libellé est un app.i18n.Message / Nom (lots G4-G7, matte, musique) se dit dans la
+    # langue de la requête ; les autres libellés et toute réponse en français restent tels quels
+    for ln in est.get("breakdown") or []:
+        if isinstance(ln, dict) and not type(ln.get("label")) is str and isinstance(ln.get("label"), str):
+            ln["label"] = _txt_g(ln["label"], request)
+    return est
 
 
 # Providers dont un job terminé N'ENGAGE AUCUNE DÉPENSE, et POURQUOI — le
@@ -8874,12 +8901,16 @@ async def import_image_url(body: dict):
 
 
 @router.post("/images/generate", dependencies=[Depends(_require_local_depense)])
-async def generate_image(body: dict, background_tasks: BackgroundTasks):
+async def generate_image(body: dict, background_tasks: BackgroundTasks, request: Request = None):
     """Provenance (28/08) : l'enveloppe indexe les images rendues par les
     trois chemins modèles d'un coup — source = hint `source` du body si
     slug connu (appelants ciblés : épisodes, planificateur…), sinon
     `generation`."""
-    out = await _generate_image_core(body, background_tasks)
+    _jeton = _HTTP_G.set(request)          # t192 : la langue des refus du cœur (sa signature reste à 2 arguments)
+    try:
+        out = await _generate_image_core(body, background_tasks)
+    finally:
+        _HTTP_G.reset(_jeton)
     try:
         src = str(body.get("source") or "").strip().lower()
         if src not in LI.SOURCES:
@@ -9040,10 +9071,14 @@ _CROP_RATIOS = {"9:16": (9, 16), "16:9": (16, 9), "1:1": (1, 1),
 
 
 @router.post("/images/process")
-async def process_image(body: dict):
+async def process_image(body: dict, request: Request = None):
     """Provenance (28/08) : l'enveloppe indexe `retouche` d'un coup les
     fichiers rendus par les 8 ops du cœur ({images:[…]}) — un seul site."""
-    out = await _process_image_core(body)
+    _jeton = _HTTP_G.set(request)          # t192 : la langue des refus du cœur (sa signature reste à 1 argument)
+    try:
+        out = await _process_image_core(body)
+    finally:
+        _HTTP_G.reset(_jeton)
     try:
         if isinstance(out, dict) and out.get("images"):
             # tâche #79 : la mère (le fichier retouché) et l'opération qui en tire chaque image
@@ -9152,7 +9187,7 @@ async def _process_image_core(body: dict):
             # `modele`, les deux chemins d'avant ci-dessous restent tels quels (api = rembg fal, local = rembg).
             from app.services import detourage as _DT
             mid = str(body.get("modele"))
-            sujet = _detourage_controles(mid, _DT.IMAGE, body.get("sujet"))
+            sujet = _detourage_controles(mid, _DT.IMAGE, body.get("sujet"), _HTTP_G.get())
             await _plafond(_DT.op_cout(mid, images=1), str(body.get("source") or "bibliotheque")[:24])
             try:
                 nom = await _DT.detourer_image(mid, src, sujet)
@@ -9160,7 +9195,7 @@ async def _process_image_core(body: dict):
                 raise HTTPException(400, _txt_g(e))
             except Exception as e:  # noqa: BLE001 — l'échec fournisseur se NOMME (502), jamais un 500 muet
                 logger.error(f"détourage {mid} en échec : {e}")
-                raise HTTPException(502, f"{_DT.REGISTRE[mid]['label']} : {e}")
+                raise HTTPException(502, f"{_i18n_nom(mid, _DT.REGISTRE[mid]['label'])} : {e}")
             logger.info(f"images/process remove-bg {mid}: {fname} -> {nom}")
             return {"images": [nom], "op": op, "modele": mid}
         if method == "local":

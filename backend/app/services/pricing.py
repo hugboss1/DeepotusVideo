@@ -548,7 +548,8 @@ def _ligne_sfx(op: dict, p: dict) -> dict:
     except (TypeError, ValueError):
         n = 1
     taux = taux_sfx(mid, p)
-    label = e["label"] + (" — prix à mesurer" if not taux else "")
+    from app.i18n import Message, Nom   # t192 : la ligne se dit dans la langue de la requête (/cost/estimate)
+    label = Nom(mid, e["label"]) if taux else Message("pricing.a_mesurer", label=Nom(mid, e["label"]))
     if e["unite"] == "s":
         sec = op.get("secondes", op.get("duration_s"))
         if e["nature"] == _S.SFX_TEXTE:
@@ -560,8 +561,9 @@ def _ligne_sfx(op: dict, p: dict) -> dict:
             sec = max(0.0, float(sec or 0))
         except (TypeError, ValueError):
             sec = 0.0
-        return _line("fal", f"{label} {sec:g} s x{n}", sec * n, "s", sec * n * taux)
-    return _line("fal", f"{label} x{n}", n, e["unite"], n * taux)
+        return _line("fal", Message("pricing.ligne_sec", label=label, sec=f"{sec:g}", n=n), sec * n, "s",
+                     sec * n * taux)
+    return _line("fal", Message("pricing.ligne_x", label=label, n=n), n, e["unite"], n * taux)
 
 
 _VFX_MULT_PIXVERSE = {"5": 1.0, "8": 2.0, "10": 2.2}
@@ -648,7 +650,8 @@ def _ligne_objets3d(op: dict, p: dict) -> dict:
         return _line("fal", f"Storyboard 3D : modèle inconnu {mid[:24]!r} (non chiffré)", 1, "job", 0.0)
     n = max(1, int(op.get("n", 1) or 1))
     taux = taux_objets3d(mid, p)
-    label = f"{e['label']} x{n} — {_SB.UNITE_NOTE}" + (" — prix à mesurer" if not taux else "")
+    from app.i18n import Message, Nom   # t192
+    label = Message("pricing.objets3d.ligne" + ("" if taux else "_a_mesurer"), modele=Nom(mid, e['label']), n=n)
     return _line("fal", label, n, "requete", n * taux)
 
 
@@ -668,14 +671,15 @@ def _ligne_detourage(op: dict, p: dict) -> dict:
     if e is None:
         return _line("fal", f"Détourage : modèle inconnu {mid[:24]!r} (non chiffré)", 1, "job", 0.0)
     n_img = max(1, int(op.get("images", 1) or 1))
+    from app.i18n import Message, Nom   # t192
     if e["voie"] == "local":
-        return _line("local", e["label"], n_img, "img", 0.0)
+        return _line("local", Nom(mid, e["label"]), n_img, "img", 0.0)
     taux = taux_detourage(mid, p)
-    label = e["label"] + (" — prix à mesurer" if not taux else "")
+    label = Nom(mid, e["label"]) if taux else Message("pricing.a_mesurer", label=Nom(mid, e["label"]))
     fps = float(op.get("fps") or 30) or 30.0
     unite = e["unite"]
     if unite == "image":
-        return _line("fal", f"{label} x{n_img}", n_img, "img", n_img * taux)
+        return _line("fal", Message("pricing.ligne_x", label=label, n=n_img), n_img, "img", n_img * taux)
     if unite == "s":
         sec = op.get("secondes")
         if sec is None and op.get("images_video") is not None:
@@ -687,7 +691,8 @@ def _ligne_detourage(op: dict, p: dict) -> dict:
     if imgs is None:
         imgs = math.ceil(max(0.0, float(op.get("secondes") or 0)) * fps)
     tranches = math.ceil(max(0, int(imgs)) / taille)
-    return _line("fal", f"{label} ({int(imgs)} images, {tranches} x {taille})", tranches, unite, tranches * taux)
+    return _line("fal", Message("pricing.detour.tranches", label=label, imgs=int(imgs), t=tranches, taille=taille),
+                 tranches, unite, tranches * taux)
 
 
 def estimate(op: dict, p: dict | None = None) -> dict:
@@ -856,7 +861,8 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         # qui se lit « à mesurer » n'est pas un zéro qui se lit « gratuit ».
         dur = float(op.get("duration_s", 0))
         taux = float(p.get("birefnet_video_usd_per_s", DEFAULTS["birefnet_video_usd_per_s"]))
-        lines.append(_line("fal", "Détourage vidéo (BiRefNet)" + (" — prix à mesurer" if not taux else ""),
+        from app.i18n import Message   # t192
+        lines.append(_line("fal", Message("pricing.matte.ligne" + ("" if taux else "_a_mesurer")),
                            dur, "s", dur * taux))
     elif kind == "matte_image":
         # t168d : l'aperçu du détourage, UNE image — même règle que la vidéo : un taux inconnu se dit « à mesurer »
@@ -1028,6 +1034,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
     elif kind == "music":
         # tâche #16 : le prix PAR GÉNÉRATION du catalogue de music_service (une seule source)
         from app.services import music_service as _mu
+        from app.i18n import Message   # t192 : lignes traduisibles (/cost/estimate)
         mid = str(op.get("model") or "").strip() or _mu.DEFAULT_MUSIC_MODEL
         m = _mu.MUSIC_MODELS.get(mid) or _mu.MUSIC_MODELS[_mu.DEFAULT_MUSIC_MODEL]
         n = max(1, int(op.get("n", 1)))
@@ -1036,23 +1043,24 @@ def estimate(op: dict, p: dict | None = None) -> dict:
             # enverra (même fonction, même défaut), sinon le devis et la garde mentiraient. t187 : le prix passe
             # par la règle unique usd_de, comme les deux autres branches.
             sec = _mu.billed_seconds(m, op.get("duration_s"))
-            lines.append(_line("fal", f"Musique ({m['label']}) {sec} s x{n}", n * sec, "s",
+            lines.append(_line("fal", Message("pricing.musique.sec", modele=_mu._nom(m), sec=sec, n=n), n * sec, "s",
                                n * _mu.usd_de(m, op.get("duration_s"))))
         elif m.get("usd_unit") == "min":
             # t187 (G5) : ElevenLabs Music — 0,60 $ par minute de sortie ARRONDIE À LA MINUTE SUPÉRIEURE (usd_de)
             sec = _mu.billed_seconds(m, op.get("duration_s"))
             mins = math.ceil((sec or 0) / 60)
-            lines.append(_line("fal", f"Musique ({m['label']}) {sec} s = {mins} min x{n}", n * mins, "min",
-                               n * _mu.usd_de(m, op.get("duration_s"))))
+            lines.append(_line("fal", Message("pricing.musique.min", modele=_mu._nom(m), sec=sec, mins=mins, n=n),
+                               n * mins, "min", n * _mu.usd_de(m, op.get("duration_s"))))
         else:
             # t187 (G5) : Mureka — le prix dépend de la présence de paroles (`paroles` dans l'op) ; « à mesurer »
             # quand le tarif vaut 0 (Lyria 3.5, MiniMax Music 3, Stable Audio 3)
             par = bool(op.get("paroles"))
             usd = _mu.usd_de(m, None, par)
-            lbl = m["label"] + (" avec paroles" if par and m.get("usd_paroles") is not None
-                                else " sans paroles" if m.get("usd_paroles") is not None else "")
-            lines.append(_line("fal", f"Musique ({lbl}){'' if usd else ' — prix à mesurer'} x{n}", n, "piste",
-                               n * usd))
+            lbl = (Message("pricing.musique.avec_paroles", modele=_mu._nom(m)) if par and m.get("usd_paroles") is not None
+                   else Message("pricing.musique.sans_paroles", modele=_mu._nom(m)) if m.get("usd_paroles") is not None
+                   else _mu._nom(m))
+            lines.append(_line("fal", Message("pricing.musique.piste" + ("" if usd else "_a_mesurer"), modele=lbl, n=n),
+                               n, "piste", n * usd))
     elif kind == "vfx_ia":
         lines.append(_ligne_vfx(op, p))   # t188 (G6) : un geste VFX IA (registre vfx_ia)
     elif kind == "objets3d":
