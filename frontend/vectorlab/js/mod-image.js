@@ -54,7 +54,7 @@ export function image_hrefs(doc) {
       if (o.type === "groupe") visiter(o.enfants);
     }
   };
-  for (const c of doc.calques || []) visiter(c.objets);
+  for (const c of [...(doc.calques || []), ...Object.values(doc.symboles || {})]) visiter(c.objets);
   return out;
 }
 
@@ -68,7 +68,7 @@ export function image_rev_max(doc, href) {
       if (o.type === "groupe") visiter(o.enfants);
     }
   };
-  for (const c of doc.calques || []) visiter(c.objets);
+  for (const c of [...(doc.calques || []), ...Object.values(doc.symboles || {})]) visiter(c.objets);
   return rev;
 }
 
@@ -115,22 +115,22 @@ export function initImage(VL) {
     return new Promise((res, rej) => cv.toBlob((b) => b ? res(b)
       : rej(new Error(T("vectorlab.image.reencodage"))), "image/png"));
   }
-  async function poserBlob(blob, calqueId) {
+  async function poserBlob(blob, calqueId, placer = image_poser_spec) {
     if (!etat.docId) throw new Error(T("vectorlab.image.aucun_doc"));
     const im = await decoder(blob);
     const nat = { w: im.naturalWidth, h: im.naturalHeight };
     const png = await versPNG(blob, im);
     const href = await deposer(png);
-    const spec = image_poser_spec(nat, etat.doc.taille);
+    const spec = placer(nat, etat.doc.taille);
     const id = VL.executer(op_ajouter, calqueId || etat.calqueActif,
       { type: "image", ...spec, href, nat, style: {} });
     if (id) { VL.setOutil("select"); VL.setSelection([id]); }
     return id;
   }
-  async function poserDepuisLibrary(nom, calqueId) {
+  async function poserDepuisLibrary(nom, calqueId, placer) {
     const r = await chercher("/api/images/" + encodeURIComponent(nom));
     if (!r.ok) throw new Error(T("vectorlab.image.biblio_introuvable", { nom, status: r.status }));
-    const id = await poserBlob(await r.blob(), calqueId);
+    const id = await poserBlob(await r.blob(), calqueId, placer);
     // t190 : VL.executer AVALE l'échec de op_ajouter (calque verrouillé ou supprimé entre-temps) — jamais « posée »
     if (!id) throw new Error(T("vectorlab.image.pose_impossible", { nom }));
     VL.toast(T("vectorlab.image.posee", { nom }));

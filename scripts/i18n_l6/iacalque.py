@@ -46,11 +46,19 @@ ENTREES = [
     S(IMG, 92, "    const r = await fetch(`/api/vector/docs/", "    const r = await chercher(`/api/vector/docs/", {}),
     S(IMG, 129, '    const r = await fetch("/api/images/" + encodeURIComponent(nom));',
       '    const r = await chercher("/api/images/" + encodeURIComponent(nom));', {}),
-    S(IMG, 116, "async function poserBlob(blob) {", "async function poserBlob(blob, calqueId) {", {}),
+    # suite de t190 (guide) : la pose d'une image GUIDÉE passe sa propre règle (`placer`, image_poser_page de
+    # mod-iacalque : le cadre du format demandé ramené sur la page) ; par défaut, image_poser_spec comme avant
+    S(IMG, 116, "async function poserBlob(blob) {", "async function poserBlob(blob, calqueId, placer = image_poser_spec) {", {}),
+    S(IMG, 122, "const spec = image_poser_spec(nat, etat.doc.taille);", "const spec = placer(nat, etat.doc.taille);", {}),
+    # suite de t190 : les images des SYMBOLES (doc.symboles[id].objets) sont inlinées à l'export comme les autres
+    S(IMG, 55, "for (const c of doc.calques || []) visiter(c.objets);",
+      "for (const c of [...(doc.calques || []), ...Object.values(doc.symboles || {})]) visiter(c.objets);", {}),
+    S(IMG, 69, "for (const c of doc.calques || []) visiter(c.objets);",
+      "for (const c of [...(doc.calques || []), ...Object.values(doc.symboles || {})]) visiter(c.objets);", {}),
     S(IMG, 123, "VL.executer(op_ajouter, etat.calqueActif,", "VL.executer(op_ajouter, calqueId || etat.calqueActif,", {}),
-    S(IMG, 128, "async function poserDepuisLibrary(nom) {", "async function poserDepuisLibrary(nom, calqueId) {", {}),
+    S(IMG, 128, "async function poserDepuisLibrary(nom) {", "async function poserDepuisLibrary(nom, calqueId, placer) {", {}),
     S(IMG, 131, "    await poserBlob(await r.blob());",
-      c('    const id = await poserBlob(await r.blob(), calqueId);\n'
+      c('    const id = await poserBlob(await r.blob(), calqueId, placer);\n'
         '    // t190 : VL.executer AVALE l\'échec de op_ajouter (calque verrouillé ou supprimé entre-temps) — jamais « posée »\n'
         '    if (!id) throw new Error(T("vectorlab.image.pose_impossible", { nom }));'),
       {"vectorlab.image.pose_impossible": ("pose de « {nom} » impossible", "could not place “{nom}”")}),
@@ -200,4 +208,28 @@ export function op_image_remplacer(doc, id, href, nat) {
       "all layers are locked: unlock one to place the image on it"),
     H("vectorlab.iacalque.meme_image", "le détourage rendrait la même image : rien n'est remplacé",
       "background removal would return the same image: nothing is replaced"),
+    # suite de t190 (12/10) : la case « Guider par les calques du dessous » (mod-iacalque, hors base L6)
+    H("vectorlab.iacalque.guide", "Guider par les calques du dessous",
+      "Guide with the layers below"),
+    H("vectorlab.iacalque.guide_aide", "Le modèle part du rendu de ce qui est visible SOUS le calque cible (calques inférieurs visibles, au format de la page) ; seuls les modèles qui acceptent une image d'entrée sont proposés",
+      "The model starts from a render of what is visible BELOW the target layer (visible lower layers, at the page format); only models that accept an input image are offered"),
+    H("vectorlab.iacalque.guide_aucun_modele", "aucun modèle de la liste ne sait partir d'une image : décochez « Guider par les calques du dessous »",
+      "no model in the list can start from an image: untick “Guide with the layers below”"),
+    H("vectorlab.iacalque.guide_choisir", "choisissez un modèle qui sait partir d'une image pour guider",
+      "choose a model that can start from an image to guide"),
+    H("vectorlab.iacalque.guide_modele", "« {modele} » ne sait pas partir d'une image : choisissez un modèle qui guide",
+      "“{modele}” cannot start from an image: choose a model that can guide"),
+    H("vectorlab.iacalque.guide_modele_remplace", "« {avant} » ne sait pas partir d'une image : « {apres} » est choisi pour guider",
+      "“{avant}” cannot start from an image: “{apres}” is chosen to guide"),
+    H("vectorlab.iacalque.guide_rien", "rien n'est visible sous « {nom} » : aucun calque du dessous à envoyer comme guide",
+      "nothing is visible below “{nom}”: no lower layer to send as a guide"),
+    H("vectorlab.iacalque.guide_sans_nom", "la Bibliothèque n'a rendu aucun nom pour le guide",
+      "the Library returned no name for the guide"),
+    H("vectorlab.iacalque.posee_guide", "« {nom} » posée sur « {calque} », guidée par « {guide} »",
+      "“{nom}” placed on “{calque}”, guided by “{guide}”"),
+    H("vectorlab.iacalque.guide_garde", "{raison} — guide gardé en Bibliothèque : {guide}",
+      "{raison} — guide kept in the Library: {guide}"),
+    H("vectorlab.iacalque.guide_page_etiree",
+      "la page {w}×{h} est trop allongée pour servir de guide : le dessous n'y ferait que {px} px",
+      "the {w}×{h} page is too elongated to serve as a guide: the layers below would be only {px} px"),
 ]
