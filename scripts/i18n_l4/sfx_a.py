@@ -299,4 +299,12 @@ ENTREES = [
       "No music — import a file: it will land on track A2."),
     # t143 : étiquette de type « VOIX » (capitales, invisible au contrôle lexical) — vue à la preuve de L3
     L(2783, 'sfx.types.voix_tag', 'VOIX', 'VOICE'),
+    # t187 (G5, génération IA enrichie, 12/10/2026) — changement FONCTIONNEL posé APRÈS L4 : le modèle du
+    # bruitage (registre sfx_service, natures sfx_texte / sfx_video), son prix lu au devis du serveur, et
+    # « Depuis la vidéo » sur le clip sélectionné. Les retouches avant la dernière édition G1 de la couche
+    # gardent la LONGUEUR (commentaire ou indentation compensés) ; le code neuf est en fin de couche.
+    # Mêmes retouches dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(14887, '/* ── POST /api/audio/sfx — génération ElevenLabs ─────────────────────────── */\r\nfunction svxGenSfx(o){\r\n  o=o||{};\r\n  var body={prompt:String(o.prompt||"").slice(0,450)};\r\n  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.5,22);\r\n  if(o.prompt_influence!=null)body.prompt_influence=svxClamp(o.prompt_influence,0,1);\r\n  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));',
+      '/* ── POST /api/audio/sfx — modèle choisi (t187) ──────── */\r\nfunction svxGenSfx(o){\r\n  o=o||{};\r\n  var body={prompt:String(o.prompt||"").slice(0,450)};\r\n  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.5,22);\r\n  if(o.prompt_influence!=null)body.prompt_influence=svxClamp(o.prompt_influence,0,1);\r\n  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));svxSfxCorps(body,o);',
+      {}),
 ]

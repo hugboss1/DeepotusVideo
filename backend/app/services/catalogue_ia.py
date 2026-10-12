@@ -165,6 +165,59 @@ def _detourage_video() -> list[dict]:
     return _detourages("detourage_video")
 
 
+# t187 (G5) : ElevenLabs SFX a deux voies — l'API directe (ELEVENLABS_API_KEY) et fal (FAL_KEY).
+JUMEAUX_SFX = {"elevenlabs-direct": "elevenlabs-v2-fal", "elevenlabs-v2-fal": "elevenlabs-direct"}
+
+
+def _sfx(nature: str) -> list[dict]:
+    """t187 (G5) : une entrée par id du registre des bruitages (app.services.sfx_service.SFX_MODELS), dans son
+    ordre (ElevenLabs direct en tête, son jumeau fal juste après). `usd` = pricing.taux_sfx dans son unité (« s »
+    par seconde de sortie et par échantillon, « video », « son ») ; `note` « a_mesurer » à 0 $ ; `prompt` : le
+    modèle exige une description (Hunyuan Foley, Kling, et tous les modèles texte) ; `voix` : le modèle sait garder
+    la parole de la vidéo (Sonilo vidéo)."""
+    from app.services import sfx_service as SX
+    p = P.load()
+    out = []
+    for mid in SX.ids_sfx(nature):
+        e = SX.SFX_MODELS[mid]
+        usd = P.taux_sfx(mid, p)
+        out.append({"id": mid, "label": e["label"], "voie": e["voie"], "usd": usd, "unite": e["unite"],
+                    "jumeau": JUMEAUX_SFX.get(mid), "note": "" if usd else NOTE_A_MESURER,
+                    "prompt": bool(e["prompt_requis"]), "voix": bool(e["champs"]["voix"]),
+                    "duree": list(e["bornes"]) if e.get("bornes") else None})
+    return out
+
+
+@source("sfx_texte")
+def _sfx_texte() -> list[dict]:
+    """Bruitage sur description : ElevenLabs (direct, puis via fal), Sonilo, Mirelo, Stable Audio 3."""
+    return _sfx("sfx_texte")
+
+
+@source("sfx_video")
+def _sfx_video() -> list[dict]:
+    """Bruitage d'une vidéo : son seul (Sonilo, Kling) ou vidéo sonorisée (Mirelo, Hunyuan Foley, ThinkSound)."""
+    return _sfx("sfx_video")
+
+
+@source("musique")
+def _musique() -> list[dict]:
+    """t187 (G5) : une entrée par id de music_service.MUSIC_MODELS (le défaut d'avant, lyria3, inchangé). `usd` =
+    le prix d'UNE génération dans son unité (« piste », « s », « min ») ; Mureka porte aussi `usd_paroles`."""
+    from app.services import music_service as MS
+    out = []
+    for mid, m in MS.MUSIC_MODELS.items():
+        usd = float(m.get("usd") or 0.0)
+        x = {"id": mid, "label": m["label"], "voie": "fal", "usd": usd,
+             "unite": {"s": "s", "min": "min"}.get(m.get("usd_unit", "gen"), "piste"),
+             "jumeau": None, "note": "" if usd else NOTE_A_MESURER,
+             "paroles": bool(m.get("lyrics")), "defaut": mid == MS.DEFAULT_MUSIC_MODEL}
+        if m.get("usd_paroles") is not None:
+            x["usd_paroles"] = float(m["usd_paroles"])
+        out.append(x)
+    return out
+
+
 def servis_puis_sans_cle(d: dict | None) -> list[dict]:
     """t183 (G1) : la liste d'un sélecteur raster à partir de la réponse de
     /image-models — les modèles SERVIS d'abord (`models`, dispo=True), puis

@@ -188,7 +188,8 @@ def test_catalogue_musique_complet():
     assert c["default"] in {m["id"] for m in c["models"]}
     assert len(c["moods"]) >= 6
     for m in c["models"]:
-        assert m["usd"] > 0 and m["desc"]
+        # t187 (G5) : un modèle au prix encore inconnu (Lyria 3.5, MiniMax Music 3, Stable Audio 3) le DIT
+        assert (m["usd"] > 0 or m["note"] == "a_mesurer") and m["desc"]
 
 
 def test_prompt_combine_ambiance_et_texte():

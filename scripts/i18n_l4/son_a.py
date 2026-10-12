@@ -271,4 +271,17 @@ ENTREES = [
     L(37514, 'son.ducking.leger', 'léger', 'light'),
     L(37558, 'son.ducking.moyen', 'moyen', 'medium'),
     L(37605, 'son.ducking.fort', 'fort', 'strong'),
+    # t187 (G5, génération IA enrichie, 12/10/2026) — changement FONCTIONNEL posé APRÈS L4 : le prix d'une carte
+    # du rail Musique dit « prix à mesurer » à 0 $ (Lyria 3.5, MiniMax Music 3, Stable Audio 3), compte la minute
+    # ENTAMÉE d'ElevenLabs Music et le prix AVEC paroles de Mureka. Longueur égale (deux commentaires rendent ce
+    # que la fonction et l'appel ajoutent) : la table G1 repère les éditions de cette couche par position.
+    S(27003, '/* le prix affiché d\'un modèle de musique : par génération, ou à la seconde (ACE-Step) sur la durée choisie */\r\nfunction svmMusicPrice(v,dur){\r\n  return v.usd_unit==="s"?"~$"+(v.usd*dur).toFixed(3)+" · "+dur+" s":"~$"+v.usd.toFixed(2)}',
+      '/* t187 : prix d\'un modèle, à 0 $ « à mesurer » */\r\nfunction svmMusicPrice(v,dur,ly){var u=ly&&v.usd_lyrics!=null&&ly.replace(/\\[[^\\[\\]\\n]{1,24}\\]/g,"").trim()?v.usd_lyrics:v.usd,c=v.usd_unit==="s"?u*dur:v.usd_unit==="min"?u*Math.ceil(dur/60):u;\r\n  return !(u>0)?dzT("ia.prix.a_mesurer"):"~$"+c.toFixed(v.usd_unit==="s"||Math.round(c*1000)%10?3:2)+(v.usd_unit==="s"||v.usd_unit==="min"?" · "+dur+" s":"")}',
+      {}),
+    S(28292, "/* T102 : les paroles se montrent quand le modèle les prend ET que la voix est\r\n     demandée — ou TOUJOURS si le modèle n'a pas d'interrupteur instrumental\r\n     (Music 2.0 : paroles obligatoires ; avant, l'état « instrumental » par\r\n     défaut les cachait à jamais) */",
+      '/* T102 : paroles si le modèle les prend et voix demandée \r\n\r\n\r\n   */',
+      {}),
+    S(32425, 'children:svmMusicPrice(v,v.duration?Math.min(v.duration[1],Math.max(v.duration[0],dur)):dur)})]}),',
+      'children:svmMusicPrice(v,v.duration?Math.min(v.duration[1],Math.max(v.duration[0],dur)):dur,model===v.id&&showLyr?lyrics:"")})]}),',
+      {}),
 ]

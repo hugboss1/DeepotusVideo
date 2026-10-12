@@ -4524,18 +4524,39 @@ async def put_audio_meta(filename: str, request: Request):
 
 @router.post("/audio/sfx")
 async def generate_sfx_audio(request: Request):
-    """Génération de bruitages ElevenLabs (sound-generation).
+    """Génération de bruitages sur description.
 
     Body: {prompt: str ≤ 450, duration_s: 0.5–22 | null (auto),
-    prompt_influence: 0..1 = 0.3, variations: 1..4 = 1}. Variations =
-    appels séquentiels ; chaque .mp3 atterrit dans le dossier audio de la
-    Bibliothèque (sidecar kind « sfx ») → {ok, items:[{filename, url, name,
-    size_kb, dur}], warning?}. Erreurs provider → 4xx {detail:
-    « ElevenLabs: … »} (toasts fournisseur)."""
+    prompt_influence: 0..1 = 0.3, variations: 1..4 = 1, modele?: id sfx_texte}.
+    Variations = appels séquentiels (Mirelo : num_samples) ; chaque son
+    atterrit dans le dossier audio de la Bibliothèque (sidecar kind « sfx »)
+    → {ok, items:[{filename, url, name, size_kb, dur}], modele, warning?,
+    note?}. Erreurs provider → 4xx {detail: « ElevenLabs: … »} (toasts
+    fournisseur).
+
+    t187 (G5) : `modele` choisit dans le registre (sfx_service.SFX_MODELS,
+    nature sfx_texte). Sans `modele` : ElevenLabs direct si sa clé est posée
+    (le chemin d'avant, inchangé) ; sans clé ElevenLabs mais avec FAL_KEY, son
+    jumeau `elevenlabs-v2-fal`, avec `note: "via fal"`. Ordre des refus : id
+    inconnu -> 400 ; clé absente -> 503 qui la nomme (AVANT toute garde : zéro
+    ligne `depenses`) ; description / durée -> 400 ; garde des plafonds ; tir."""
     try:
         payload = await request.json()
     except Exception:
         payload = {}
+    payload = payload if isinstance(payload, dict) else {}
+    from app.services import sfx_service as _SX
+    note = None
+    modele = str(payload.get("modele") or "").strip()
+    if not modele:
+        modele, note = _SX.modele_par_defaut()
+    try:
+        _SX.entree_sfx(modele, _SX.SFX_TEXTE)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    cle = _SX.cle_sfx_manquante(modele)
+    if cle:
+        raise _refus_cle(cle, _SX.SFX_MODELS[modele]["label"], request)
     prompt = str(payload.get("prompt") or "").strip()
     if not prompt:
         raise HTTPException(400, "Décris le son à générer (prompt vide).")
@@ -4556,8 +4577,27 @@ async def generate_sfx_audio(request: Request):
         variations = int(payload.get("variations", 1))
     except (TypeError, ValueError):
         variations = 1
-    if (settings.ELEVENLABS_API_KEY or "").strip():   # tâche #16 (sans clé, le service refuse sans dépenser)
-        await _plafond({"kind": "sfx", "duration_s": duration_s, "n": variations}, "son")
+    variations = max(1, min(4, variations))
+    if modele != _SX.DEFAUT_TEXTE:
+        # t187 (G5) : un modèle fal du registre — la durée bornée au modèle, la garde sur SON devis, puis le tir
+        try:
+            duree = _SX.duree_sfx(modele, duration_s)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        await _plafond(_SX.op_sfx(modele, _SX.secondes_facturees(modele, duree), variations), "son")
+        try:
+            res = await _SX.generer_sfx(modele, prompt=prompt, duree=duree, echantillons=variations,
+                                        influence=prompt_influence if "prompt_influence" in payload else None)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(502, f"fal.ai: {str(e)[:300]}")
+        out = {"ok": True, "items": res["items"], "modele": modele}
+        if note:
+            out["note"] = note
+        return out
+    # tâche #16 : ElevenLabs direct, le chemin d'avant (la clé est posée : le 503 est passé plus haut)
+    await _plafond({"kind": "sfx", "duration_s": duration_s, "n": variations}, "son")
     from app.services import sfx_service
     loop = asyncio.get_running_loop()
     try:
@@ -4569,10 +4609,115 @@ async def generate_sfx_audio(request: Request):
         raise HTTPException(e.status, e.message)
     except Exception as e:
         raise HTTPException(502, f"ElevenLabs: {str(e)[:300]}")
-    out = {"ok": True, "items": items}
+    out = {"ok": True, "items": items, "modele": modele}
     if warning:
         out["warning"] = warning
     return out
+
+
+_SFXV_EXTS = (".mp4", ".mov", ".webm", ".m4v")
+
+
+async def _sfx_video_source(payload: dict) -> Path:
+    """t187 (G5) — la vidéo d'un bruitage, CONFINÉE : `clip_id` (ou `job_id`) = l'id du job d'un clip du Montage
+    (son rendu fini, lu en base) ; `video_filename` = un nom NU d'une vidéo du dossier des vidéos importées
+    (outputs/uploads), sans séparateur ni « .. », extension vidéo. 400 si rien n'est donné ou si le nom est
+    refusé, 404 si la vidéo n'existe pas."""
+    from app.services.montage_service import _resolve_src
+    jid = str(payload.get("clip_id") or payload.get("job_id") or "").strip()
+    nom = str(payload.get("video_filename") or "").strip()
+    if jid:
+        if len(jid) > 64 or not re.fullmatch(r"[A-Za-z0-9_-]+", jid):
+            raise HTTPException(400, "clip_id refusé")
+        src = await _resolve_src({"job_id": jid})
+        if src is None or not src.is_file():
+            raise HTTPException(404, "vidéo introuvable pour ce clip")
+        return src
+    if not nom:
+        raise HTTPException(400, "donnez la vidéo à bruiter : clip_id (un clip du Montage) ou video_filename")
+    if (nom != Path(nom).name or "/" in nom or "\\" in nom or ".." in nom or ":" in nom
+            or Path(nom).suffix.lower() not in _SFXV_EXTS):
+        raise HTTPException(400, "video_filename refusé : un nom de vidéo nu (.mp4, .mov, .webm, .m4v)")
+    dossier = (settings.outputs_path / "uploads").resolve()
+    q = (dossier / nom).resolve()
+    if q.parent != dossier or not q.is_file():
+        raise HTTPException(404, f"vidéo introuvable : {nom}")
+    return q
+
+
+async def _sfx_video_job(dest: Path, titre: str) -> str:
+    """t187 (G5) — une vidéo SONORISÉE rendue par le modèle devient un job FINI (comme /videos/upload) : elle entre
+    dans la Bibliothèque (Rendus) et se pose dans le Montage par son job_id."""
+    from app.services.storage import JobRecord, async_session_factory
+    dur = await asyncio.to_thread(_probe_seconds, str(dest)) or 0.0
+    job_id = str(uuid4())
+    async with async_session_factory() as session:
+        session.add(JobRecord(
+            id=job_id, status=JobStatus.DONE.value, progress=100, title=titre[:120] or dest.stem,
+            image_filename=dest.name, final_video_path=str(dest), video_path=str(dest),
+            duration_s=int(round(dur)) if dur else None, provider="sfx_video", current_step="Sonorisée",
+            completed_at=datetime.utcnow()))
+        await session.commit()
+    return job_id
+
+
+@router.post("/audio/sfx-video")
+async def generate_sfx_video(request: Request):
+    """t187 (G5) — le BRUITAGE D'UNE VIDÉO. Body {clip_id | video_filename, modele (id sfx_video, défaut
+    sonilo-video), prompt?, garder_voix? (Sonilo : garde la parole), devis?}. Le modèle rend un son seul (Sonilo,
+    Kling) ou la vidéo SONORISÉE (Mirelo, Hunyuan Foley, ThinkSound) : le son rejoint le dossier audio de la
+    Bibliothèque (sidecar kind « sfx » ; extrait de la vidéo quand le modèle n'en rend pas à part) et la vidéo
+    devient un job fini → {ok, items, videos: [{job_id, filename}], modele, usd}.
+    `devis: true` : rien n'est tiré ni écrit — {devis: true, usd, secondes, modele}, LE MÊME chiffre que la garde
+    (l'écran l'annonce avant le clic ; le modèle sans clé garde son prix).
+    PAYANT. Ordre des refus : id inconnu ou d'une autre nature -> 400 ; clé absente -> 503 qui la nomme (AVANT
+    toute garde : zéro ligne `depenses`) ; vidéo absente / refusée -> 400 / 404 ; description exigée (Hunyuan
+    Foley, Kling) -> 400 ; garde des plafonds (durée de la source) ; tir."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    payload = payload if isinstance(payload, dict) else {}
+    from app.services import sfx_service as _SX
+    modele = str(payload.get("modele") or _SX.DEFAUT_VIDEO).strip()
+    try:
+        e = _SX.entree_sfx(modele, _SX.SFX_VIDEO)
+    except ValueError as x:
+        raise HTTPException(400, str(x))
+    devis = bool(payload.get("devis"))
+    if not devis:
+        cle = _SX.cle_sfx_manquante(modele)
+        if cle:
+            raise _refus_cle(cle, e["label"], request)
+    src = await _sfx_video_source(payload)
+    dur = await asyncio.get_running_loop().run_in_executor(None, _SX._probe_duration, src)
+    op = _SX.op_sfx(modele, round(float(dur or 0), 3), 1)
+    if devis:
+        from app.services import pricing as _pricing
+        return {"devis": True, "modele": modele, "secondes": op["secondes"],
+                "usd": _pricing.estimate(op)["total_usd"]}
+    prompt = str(payload.get("prompt") or "").strip()
+    if len(prompt) > 450:
+        raise HTTPException(400, "Prompt trop long (450 caractères max).")
+    if e["prompt_requis"] and not prompt:
+        raise HTTPException(400, f"{e['label']} : {_SX.DEMANDE_PROMPT}")
+    garder = payload.get("garder_voix")
+    garder = None if garder is None else bool(garder)
+    await _plafond(op, "son", src.name)
+    try:
+        res = await _SX.generer_sfx(modele, prompt=prompt, duree=float(dur) if dur else None, video=src,
+                                    garder_voix=garder)
+    except ValueError as x:
+        raise HTTPException(400, str(x))
+    except Exception as x:  # noqa: BLE001
+        raise HTTPException(502, f"fal.ai: {str(x)[:300]}")
+    videos = []
+    for v in res["videos"]:
+        jid = await _sfx_video_job(v, f"{src.stem[:60]} · {e['label']}")
+        videos.append({"job_id": jid, "filename": v.name})
+    from app.services import pricing as _pricing
+    return {"ok": True, "items": res["items"], "videos": videos, "modele": modele,
+            "usd": _pricing.estimate(op)["total_usd"]}
 
 
 @router.get("/music-models")
@@ -4606,13 +4751,28 @@ async def generate_music_audio(request: Request):
         payload = await request.json()
     except Exception:
         payload = {}
-    if settings.FAL_KEY:   # tâche #16
-        # la DURÉE descend aussi (T102) : ACE-Step est facturé à la seconde
-        await _plafond({"kind": "music", "model": (payload or {}).get("model") or "",
-                        "duration_s": (payload or {}).get("duration_s")}, "son")
+    payload = payload if isinstance(payload, dict) else {}
     from app.services import music_service
+    # t187 (G5) : l'ordre des refus — id inconnu 400 ; clé absente 503 qui la nomme (AVANT la garde : zéro ligne
+    # `depenses`) ; description / paroles exigées / durée 400 ; garde ; tir
     try:
-        return await music_service.generate_music(payload or {})
+        _mid, _m = music_service.modele_de(payload)
+    except music_service.MusicError as e:
+        raise HTTPException(e.status, e.message)
+    if not (settings.FAL_KEY or "").strip():
+        raise _refus_cle("FAL_KEY", _m["label"], request)
+    try:
+        prep = music_service.preparer(payload)
+    except music_service.MusicError as e:
+        raise HTTPException(e.status, e.message)
+    # tâche #16 ; la DURÉE descend aussi (T102) : ACE-Step est facturé à la seconde ; t187 : `paroles` pour un
+    # modèle dont le prix en dépend (Mureka)
+    _op = {"kind": "music", "model": payload.get("model") or "", "duration_s": payload.get("duration_s")}
+    if _m.get("usd_paroles") is not None:
+        _op["paroles"] = prep["paroles"]
+    await _plafond(_op, "son")
+    try:
+        return await music_service.generate_music(payload, prep)
     except music_service.MusicError as e:
         raise HTTPException(e.status, e.message)
     except Exception as e:

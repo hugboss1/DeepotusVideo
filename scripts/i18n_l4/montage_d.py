@@ -351,4 +351,12 @@ ENTREES = [
     S(460590, '"Vue "+v[1]',
       'dzT("montage.vues.vue",{nom:v[1]})',
       {'montage.vues.vue': ('Vue {nom}', '{nom} view')}),
+    # t187 (G5, génération IA enrichie, 12/10/2026) — changement FONCTIONNEL posé APRÈS L4 : le modèle du
+    # bruitage (registre sfx_service, natures sfx_texte / sfx_video), son prix lu au devis du serveur, et
+    # « Depuis la vidéo » sur le clip sélectionné. Les retouches avant la dernière édition G1 de la couche
+    # gardent la LONGUEUR (commentaire ou indentation compensés) ; le code neuf est en fin de couche.
+    # Mêmes retouches dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(393288, '        return d2&&d2.Drawer?r.jsx(d2.Drawer,{open:sfxOn,\r\n          onClose:function(){setSfxOn(!1)},\r\n          onInsert:sfxInsert,playheadSec:ph,defaultTab:"sfx"}):null})(),',
+      '        return d2&&d2.Drawer?r.jsx(d2.Drawer,{open:sfxOn,\r\n  onClose:function(){setSfxOn(!1)},\r\n         onInsert:sfxInsert,playheadSec:ph,clip:sel,defaultTab:"sfx"}):null})(),',
+      {}),
 ]

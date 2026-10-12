@@ -167,8 +167,8 @@ ENTREES = [
 
     # DzSonVfx : carte SFX (génération réelle par la couche DzSfx)
     L(60388, 'son.sfx.titre_generer', 'Générer des SFX', 'Generate SFX'),
-    L(60475, 'son.sfx.prix_aide', '2 variations par génération — crédits ElevenLabs',
-      '2 variations per generation — ElevenLabs credits'),
+    # t187 : le prix fixe « $0.03 » de la carte (et sa bulle) remplacé par le sélecteur de modèle et SON prix
+    # (S en fin de groupe)
     L(60721, 'son.sfx.prompt_exemple', 'Décris le son — « vague qui claque sur un rocher, grave »',
       'Describe the sound — “wave slapping a rock, deep”'),
     L(60806, 'son.sfx.prompt', 'Description du son à générer', 'Description of the sound to generate'),
@@ -176,9 +176,13 @@ ENTREES = [
       'Duration in seconds (0.5 to 22) — 0: duration chosen by the model'),
     L(61197, 'son.sfx.duree', 'Durée du son en secondes (0 : automatique)', 'Sound duration in seconds (0: automatic)'),
     X(61440, _DB),
-    L(61564, 'son.sfx.generer_aide',
-      'Générer 2 variations (~$0.03 — crédits ElevenLabs), sauvegardées dans la Bibliothèque (sons)',
-      'Generate 2 variations (~$0.03 — ElevenLabs credits), saved to the Library (sounds)'),
+    # t187 : la bulle ne recopie plus un prix (celui du modèle choisi est affiché à côté) — même code, texte neuf
+    S(61564, '"Générer 2 variations (~$0.03 — crédits ElevenLabs), sauvegardées dans la Bibliothèque (sons)"',
+      'dzT("son.sfx.generer_aide")',
+      {'son.sfx.generer_aide': ('Générer 2 variations avec le modèle choisi (son prix est affiché à côté), '
+                                'sauvegardées dans la Bibliothèque (sons)',
+                                'Generate 2 variations with the chosen model (its price is shown next to it), '
+                                'saved to the Library (sounds)')}),
     L(61743, 'son.commun.generation', 'génération…', 'generating…'),
     L(61757, 'son.commun.generer', 'Générer', 'Generate'),
     L(61857, 'son.commun.echec', 'Échec : ', 'Failed: '),
@@ -385,4 +389,12 @@ ENTREES = [
     X(99330, _COMBO),
     X(99344, _COMBO),
     L(99360, 'son.raccourci.reserve_entree', "réservée à l'activation des boutons", 'reserved for activating buttons'),
+    # t187 (G5, génération IA enrichie, 12/10/2026) — changement FONCTIONNEL posé APRÈS L4 : le modèle du
+    # bruitage (registre sfx_service, natures sfx_texte / sfx_video), son prix lu au devis du serveur, et
+    # « Depuis la vidéo » sur le clip sélectionné. Les retouches avant la dernière édition G1 de la couche
+    # gardent la LONGUEUR (commentaire ou indentation compensés) ; le code neuf est en fin de couche.
+    # Mêmes retouches dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(60418, 'r.jsx("span",{className:"svm-genprice",\r\n          title:"2 variations par génération — crédits ElevenLabs",children:"$0.03"})',
+      'r.jsx(svmSfx().Choix||"span",\r\n                                                    {dur:sfxDur,n:2})',
+      {}),
 ]

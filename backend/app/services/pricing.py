@@ -190,6 +190,19 @@ DEFAULTS = {
     "veed_rmbg_usd_per_30f": 0.012,   # veed/video-background-removal/fast, par tranche de 30 images (refine ON, prudent)
     "pixelcut_video_usd_per_30f": 0.022,   # pixelcut/video-background-removal, par tranche de 30 images
     "sam31_video_usd_per_16f": 0.01,  # fal-ai/sam-3-1/video, par tranche de 16 images
+    # t187 (G5, 12/10/2026) : le registre des bruitages (app.services.sfx_service.SFX_MODELS), pages fal relues le
+    # 12/10/2026. 0.0 = « à mesurer » (lire le tableau de bord fal après le premier tir, écrire ici, daté).
+    "elevenlabs_sfx_fal_usd": 0.0,    # fal-ai/elevenlabs/sound-effects/v2 — prix non affiché : à mesurer
+    "sonilo_sfx_usd_per_s": 0.0018,   # sonilo/v1.1/text-to-sound-effects, par seconde de sortie et par échantillon
+    "mirelo_sfx_usd": 0.0,            # mirelo-ai/sfx1.6/text-to-audio — à mesurer
+    "stable_audio3_sfx_usd": 0.0,     # fal-ai/stable-audio-3/small/sfx/text-to-audio — à mesurer
+    "sonilo_video_usd_per_s": 0.009,  # sonilo/v1.1/video-to-sound-effects, par seconde de sortie et par échantillon
+    "mirelo_video_usd": 0.0,          # mirelo-ai/sfx1.6/video-to-video — à mesurer
+    "kling_v2a_usd": 0.035,           # fal-ai/kling-video/video-to-audio, par vidéo
+    "hunyuan_foley_usd": 0.0,         # fal-ai/hunyuan-video-foley — à mesurer
+    # fal-ai/thinksound : 0,001 $ par seconde de CALCUL, durée de calcul inconnue d'avance — aucune durée inventée,
+    # 0 « à mesurer » tant qu'un premier tir n'a pas été lu sur le tableau de bord fal
+    "thinksound_usd": 0.0,
     "elevenlabs_isolation_chars_per_min": 1000.0,
     # Avatar live G2 (t163, 10/10/2026) : Voice Changer (voix -> voix), ~1 000 crédits par minute (relevé tiers
     # du 07/2026 sur la liste officielle, même grille que l'isolation) — à confirmer sur elevenlabs.io/pricing.
@@ -474,6 +487,59 @@ def taux_detourage(mid: str, p: dict | None = None) -> float:
         return float(p.get(e["prix"], DEFAULTS.get(e["prix"], 0.0)) or 0.0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def taux_sfx(mid: str, p: dict | None = None) -> float:
+    """t187 (G5) — LE taux d'un modèle du registre des bruitages (app.services.sfx_service.SFX_MODELS), dans son
+    unité (« s » : par seconde de sortie et par échantillon ; « video » ; « son ») : la clé de prix de l'entrée lue
+    dans la table (`p`, sinon pricing.load), repli DEFAULTS. ElevenLabs direct : la grille ElevenLabs d'avant
+    (crédits par seconde x $ par caractère). 0 pour un id inconnu ou une valeur illisible. Source unique du
+    catalogue (catalogue_ia) et du devis (_ligne_sfx)."""
+    from app.services import sfx_service as _S
+    e = _S.SFX_MODELS.get(str(mid or ""))
+    if not e:
+        return 0.0
+    p = p if p is not None else load()
+    try:
+        if e["voie"] == "elevenlabs":
+            return float(p.get("elevenlabs_sfx_credits_per_s", 40.0)) * float(
+                p.get("elevenlabs_usd_per_char", DEFAULTS["elevenlabs_usd_per_char"]))
+        return float(p.get(e["prix"], DEFAULTS.get(e["prix"], 0.0)) or 0.0) if e.get("prix") else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _ligne_sfx(op: dict, p: dict) -> dict:
+    """t187 (G5) — UNE ligne de devis pour un bruitage fal du registre (kind « sfx » avec `modele`, ou
+    « sfx_video »), nommée par le libellé du modèle et suffixée « — prix à mesurer » quand son taux vaut 0.
+      · unité « s »     : `secondes` (la durée qui partira, sinon le défaut du schéma ; en vidéo, la durée de la
+                          source) x `echantillons` x le tarif ;
+      · unité « video » / « son » : `echantillons` x le tarif.
+    Un id inconnu se dit « non chiffré »."""
+    from app.services import sfx_service as _S
+    mid = str(op.get("modele") or "")
+    e = _S.SFX_MODELS.get(mid)
+    if e is None:
+        return _line("fal", f"Bruitage : modèle inconnu {mid[:24]!r} (non chiffré)", 1, "job", 0.0)
+    try:
+        n = max(1, min(4, int(op.get("echantillons", op.get("n", op.get("variations", 1))) or 1)))
+    except (TypeError, ValueError):
+        n = 1
+    taux = taux_sfx(mid, p)
+    label = e["label"] + (" — prix à mesurer" if not taux else "")
+    if e["unite"] == "s":
+        sec = op.get("secondes", op.get("duration_s"))
+        if e["nature"] == _S.SFX_TEXTE:
+            try:
+                sec = _S.secondes_facturees(mid, sec)
+            except ValueError:
+                sec = _S.secondes_facturees(mid, None)
+        try:
+            sec = max(0.0, float(sec or 0))
+        except (TypeError, ValueError):
+            sec = 0.0
+        return _line("fal", f"{label} {sec:g} s x{n}", sec * n, "s", sec * n * taux)
+    return _line("fal", f"{label} x{n}", n, e["unite"], n * taux)
 
 
 def _ligne_detourage(op: dict, p: dict) -> dict:
@@ -859,11 +925,28 @@ def estimate(op: dict, p: dict | None = None) -> dict:
             sec = _mu.billed_seconds(m, op.get("duration_s"))
             lines.append(_line("fal", f"Musique ({m['label']}) {sec} s x{n}", n * sec, "s",
                                n * sec * float(m["usd"])))
+        elif m.get("usd_unit") == "min":
+            # t187 (G5) : ElevenLabs Music — 0,60 $ par minute de sortie ARRONDIE À LA MINUTE SUPÉRIEURE (usd_de)
+            sec = _mu.billed_seconds(m, op.get("duration_s"))
+            mins = math.ceil((sec or 0) / 60)
+            lines.append(_line("fal", f"Musique ({m['label']}) {sec} s = {mins} min x{n}", n * mins, "min",
+                               n * _mu.usd_de(m, op.get("duration_s"))))
         else:
-            lines.append(_line("fal", f"Musique ({m['label']}) x{n}", n, "piste", n * float(m["usd"])))
+            # t187 (G5) : Mureka — le prix dépend de la présence de paroles (`paroles` dans l'op) ; « à mesurer »
+            # quand le tarif vaut 0 (Lyria 3.5, MiniMax Music 3, Stable Audio 3)
+            par = bool(op.get("paroles"))
+            usd = _mu.usd_de(m, None, par)
+            lbl = m["label"] + (" avec paroles" if par and m.get("usd_paroles") is not None
+                                else " sans paroles" if m.get("usd_paroles") is not None else "")
+            lines.append(_line("fal", f"Musique ({lbl}){'' if usd else ' — prix à mesurer'} x{n}", n, "piste",
+                               n * usd))
+    elif kind == "sfx_video":
+        lines.append(_ligne_sfx(op, p))   # t187 (G5) : une vidéo -> son bruitage (registre sfx_service)
+    elif kind == "sfx" and str(op.get("modele") or "") not in ("", "elevenlabs-direct"):
+        lines.append(_ligne_sfx(op, p))   # t187 (G5) : un modèle fal du registre ; sans `modele` : ElevenLabs direct
     elif kind == "sfx":
-        n = max(1, min(4, int(op.get("n", op.get("variations", 1)) or 1)))
-        d = op.get("duration_s")
+        n = max(1, min(4, int(op.get("n", op.get("variations", op.get("echantillons", 1))) or 1)))
+        d = op.get("duration_s", op.get("secondes"))
         cr = (float(d) * float(p.get("elevenlabs_sfx_credits_per_s", 40.0)) if d not in (None, "", 0)
               else float(p.get("elevenlabs_sfx_credits_auto", 200.0)))
         lines.append(_line("elevenlabs", f"Bruitage x{n}", cr * n, "chars", cr * n * float(p["elevenlabs_usd_per_char"])))
