@@ -895,3 +895,18 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 .onglet-modifie { display: inline-flex; color: var(--accent); }
 .onglet-modifie[hidden], .cmp-alerte[hidden], .hi-alerte[hidden] { display: none; }
 .onglet-modifie svg { width: 8px; height: 8px; }
+/* ---- t191 : panneau « Nouveau calque IA » / « Retirer le fond du calque » (mod-iacalque.js) — coquille des dialogues
+   de réglage (.pl-reglage : fixe, au-dessus de la scène), un peu plus large ---- */
+.pl-iacalque { width: 340px; }
+.pl-iacalque [hidden] { display: none !important; }
+.pl-iac-x { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0;
+  border: 0; border-radius: 4px; background: transparent; color: var(--ink-muted); cursor: pointer; }
+.pl-iac-x:hover { color: var(--ink-strong); background: var(--bg-base); }
+.pl-iac-lieu { margin: 0; color: var(--ink-soft); }
+.pl-iac-prompt { min-height: 64px; resize: vertical; padding: 6px 8px; background: var(--bg-base); border: 1px solid var(--stroke);
+  border-radius: 3px; color: var(--ink); font: 12px var(--f-ui); }
+.pl-iac-prompt:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; }
+.pl-iac-prix { margin: 0; color: var(--ink-soft); font: 11px var(--f-mono); }
+.pl-iac-etat { margin: 0; min-height: 1em; color: var(--ink-muted); font-size: 11px; }
+.pl-iacalque .pl-reglage-pied { justify-content: flex-end; }
+.pl-iacalque .pl-bouton.principal { min-width: 120px; }

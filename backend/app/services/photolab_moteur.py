@@ -1303,10 +1303,12 @@ def _descendants(calques, cible, dedans=False):
     return out
 
 
-def exporter_calque(s: SessionMoteur, layer, fmt: str, base: str, echelle: int = 100, quality=None):
+def exporter_calque(s: SessionMoteur, layer, fmt: str, base: str, echelle: int = 100, quality=None, rogner: bool = True):
     """Calque › Exporter sous / Exportation rapide -> (nom sous exports/, génération). Sur une COPIE : la cible et ses
     groupes parents montrés, ses enfants tels quels, tout le reste masqué ; rognage du transparent ; échelle en % ;
-    enregistrement ; la copie est refermée. Calque vide (tout transparent) -> ValueError."""
+    enregistrement ; la copie est refermée. Calque vide (tout transparent) -> ValueError. t191 : `rogner=False` garde
+    la TOILE entière (l'apparence du calque à sa place : ombre portée, masque compris) — l'appelant rogne lui-même
+    et connaît ainsi le décalage exact."""
     def fn(appel, gen):
         actif, n_avant, insp = _ouvrir_original(appel)
         visee = insp.get("activeLayer") if layer is None else layer
@@ -1323,12 +1325,13 @@ def exporter_calque(s: SessionMoteur, layer, fmt: str, base: str, echelle: int =
                     ex("layer.showLayers", layer=cible[c["id"]])
                 elif c["id"] not in enfants:
                     ex("layer.hideLayers", layer=cible[c["id"]])
-            try:
-                ex("image.trim", basedOn="transparent")
-            except MoteurErreur as e:
-                if "nothing to trim" in str(e):
-                    raise ValueError("calque vide : rien à exporter") from None
-                raise
+            if rogner:
+                try:
+                    ex("image.trim", basedOn="transparent")
+                except MoteurErreur as e:
+                    if "nothing to trim" in str(e):
+                        raise ValueError("calque vide : rien à exporter") from None
+                    raise
             if echelle != 100:
                 i = appel("doc.inspect") or {}
                 ex("image.imageSize", width=max(1, round(i["width"] * echelle / 100)),
@@ -1367,18 +1370,23 @@ def revenir(s: SessionMoteur):
     return s.sequence(fn)
 
 
-def placer(s: SessionMoteur, chemin: str, nom: str, objet_dynamique: bool = True, reduire: bool = True):
+def placer(s: SessionMoteur, chemin: str, nom: str, objet_dynamique: bool = True, reduire: bool = True, centre=None,
+           au_dessus_de=None):
     """Placer incorporé -> ({"layer", "bounds"}, génération). L'image (déjà copiée sous entrees/) est ouverte, copiée
     entière, refermée ; collée au centre du document actif, convertie en objet dynamique, nommée, et réduite pour tenir
     dans la toile si elle dépasse (comme la référence). Le presse-papiers du moteur est réécrit. t159 : les deux
     préférences de la référence (Paramètres : « toujours créer des objets dynamiques », « redimensionner pendant le
-    placement ») — sans objet dynamique, un calque de pixels."""
+    placement ») — sans objet dynamique, un calque de pixels. t191 : `centre` [x, y] (défaut : le centre de la
+    toile) — le détourage d'un calque repose l'image détourée pile à la place de l'original ; `au_dessus_de` (id) :
+    ce calque est sélectionné DANS la même séquence, juste avant le collage (le collage se pose au-dessus de lui)."""
     relatif(chemin)
 
     def fn(appel, gen):
         ex = lambda c, **p: appel("engine.execute", {"command": c, "params": p})
         actif, _n, insp = _ouvrir_original(appel)
         w, h = insp.get("width"), insp.get("height")
+        if au_dessus_de is not None:
+            ex("layer.select", layer=au_dessus_de, mode="replace")
         res = appel("doc.open", {"path": chemin}) or {}
         idx, iw, ih = res.get("index"), res.get("width"), res.get("height")
         if not all(isinstance(x, int) and not isinstance(x, bool) for x in (idx, iw, ih)):
@@ -1389,7 +1397,7 @@ def placer(s: SessionMoteur, chemin: str, nom: str, objet_dynamique: bool = True
         finally:
             appel("doc.close", {"index": idx})
             ex("document.activate", document=actif)
-        ex("edit.paste", center=[w / 2, h / 2])
+        ex("edit.paste", center=list(centre) if centre else [w / 2, h / 2])
         if objet_dynamique:
             lid = (ex("layer.smartObjects.convertToSmartObject") or {}).get("layer")
         else:

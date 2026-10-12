@@ -2,7 +2,8 @@
 
 L'écran (P2) ne parle qu'à ces routes. Les fichiers n'entrent et ne sortent que par elles : une image de la
 Bibliothèque est COPIÉE dans <données>/photolab/entrees/ avant d'être ouverte (le moteur ne lit que son dossier),
-les rendus et exports sont servis depuis rendus/ et exports/. Rien de payant : le moteur est local.
+les rendus et exports sont servis depuis rendus/ et exports/. Le moteur est local et gratuit ; seules /calque/ia et
+/calque/detourer (t191) dépensent — chez le fournisseur d'image ou de détourage, gardées par les plafonds.
 
 Chaque réponse qui a parlé au moteur porte l'en-tête X-Photolab-Generation : la génération du processus qui a
 répondu. Si elle change entre deux demandes, le moteur a été relancé et les documents ouverts ont disparu.
@@ -20,7 +21,7 @@ import time
 import unicodedata
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.services import photolab_moteur as PM
@@ -873,3 +874,317 @@ async def notes_importer(body: dict):
     if isinstance(doc, bool) or not isinstance(doc, int) or doc < 0:
         raise HTTPException(400, f"document : index entier attendu, reçu {doc!r}")
     return _json(*await _pool(lambda s: functools.partial(PM.importer_notes, s), doc))
+
+
+# ── t191 (G9, « Génération IA ») : calque IA et détourage NON destructif ─────────────────────────────────────────────
+# Les deux seules routes PAYANTES du pont (recensement : tests/_recensement_payant.py, module « photolab »). Le moteur ne
+# change pas : une image générée (ou détourée) est rangée dans la Bibliothèque, copiée sous entrees/, puis posée par
+# `PM.placer` en calque de PIXELS au-dessus du calque choisi. Tout refus GRATUIT (document, calque, clé, modèle, sujet,
+# prompt, format, calque vide) part AVANT la garde des plafonds — qui écrit la ligne de dépense — et avant tout appel
+# payant. APRÈS la dépense, aucune réponse n'est un 409 (l'écran pourrait rejouer le POST : deuxième génération,
+# deuxième ligne) : un échec de la pose est un 502 qui dit que l'image payée est gardée dans la Bibliothèque.
+TAILLES_IA = ("portrait_16_9", "portrait_4_3", "square_hd", "landscape_4_3", "landscape_16_9")
+CATEGORIE_DEPENSE = "photolab"
+_CLES_IA = {"prompt", "modele", "taille", "detourer", "modeleDetour", "sujet", "auDessusDe", "nom", "reduire"}
+_CLES_DETOUR = {"layer", "modele", "sujet"}
+
+
+def _depense_locale(request: Request) -> None:
+    """La garde « machine locale » des générations payantes (routes._require_local_depense), lue à l'appel."""
+    from app.api.routes import _require_local_depense
+    _require_local_depense(request)
+
+
+def _m(cle: str, http: Request | None, **v) -> str:
+    """Un message serveur (app/i18n/messages.json) dans la langue de la requête (Accept-Language, sinon UI_LANG)."""
+    from app import i18n as _i18n
+    lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+    return _i18n.msg(cle, lang, **v)
+
+
+def _nom_modele(model: str) -> str:
+    """Le nom d'un modèle dans un message : neutre de langue (catalogue_ia.libelle_ecran : « FLUX schnell », sinon l'id)."""
+    from app.services import catalogue_ia as CI
+    return CI.libelle_ecran(model)
+
+
+def _inconnues(corps: dict, admises: set, http):
+    x = sorted(set(corps) - admises)
+    if x:
+        raise HTTPException(400, _m("photolab.ia.parametre_inconnu", http, champ=str(x[0])[:40]))
+
+
+def _booleen(corps: dict, cle: str, defaut: bool, http) -> bool:
+    v = corps.get(cle, defaut)
+    if not isinstance(v, bool):
+        raise HTTPException(400, _m("photolab.ia.booleen", http, champ=cle))
+    return v
+
+
+def _empreinte(sl) -> tuple | None:
+    """(index actif, nom, chemin) du document actif d'un session.list — son identité, la révision exceptée (le document
+    peut être retouché pendant la génération : la pose reste légitime)."""
+    if not isinstance(sl, dict) or not isinstance(sl.get("active"), int):
+        return None
+    d = next((x for x in sl.get("documents") or [] if isinstance(x, dict) and x.get("index") == sl.get("active")), None)
+    return (sl["active"], d.get("name"), d.get("path")) if d else None
+
+
+async def _document_et_calque(cible, http):
+    """(doc.inspect, calque visé, empreinte du document) — 409 sans document ouvert, 404 calque inconnu, 400 groupe ou
+    identifiant illisible. Gratuit : appelé AVANT la dépense."""
+    if not isinstance(cible, int) or isinstance(cible, bool) or cible < 0:
+        raise HTTPException(400, _m("photolab.ia.calque_illisible", http, calque=repr(cible)[:40]))
+    sl, _ = await _appeler("session.list")
+    empreinte = _empreinte(sl)
+    if empreinte is None or not sl.get("documents"):
+        raise HTTPException(409, _m("photolab.ia.aucun_document", http))
+    insp, _ = await _appeler("doc.inspect")
+    calque = next((c for c in PM._a_plat((insp or {}).get("layers")) if c.get("id") == cible), None)
+    if calque is None:
+        raise HTTPException(404, _m("photolab.ia.calque_inconnu", http, calque=cible))
+    if PM._conteneur(calque):
+        raise HTTPException(400, _m("photolab.ia.calque_groupe", http, nom=calque.get("name") or cible))
+    return insp or {}, calque, empreinte
+
+
+async def _toujours_la(empreinte, cible) -> bool:
+    """Juste avant la pose (après la génération, qui dure de quelques secondes à deux minutes) : le document actif est-il
+    toujours celui du départ, et le calque visé y est-il encore ? Sinon rien n'est posé (on collerait dans un autre
+    document, ou au-dessus d'un calque disparu)."""
+    sl, _ = await _appeler("session.list")
+    if _empreinte(sl) != empreinte:
+        return False
+    insp, _ = await _appeler("doc.inspect")
+    return any(c.get("id") == cible for c in PM._a_plat((insp or {}).get("layers")))
+
+
+def _vers_entrees(nom: str, taille_max=None, taille_exacte=None) -> tuple[str, bool]:
+    """Copie PNG d'une image de la Bibliothèque sous entrees/ (le moteur ne lit que son dossier) -> (chemin relatif,
+    réduite ?). `taille_max` (w, h) : réduite pour tenir dans la toile — la pose reste en DEUX étapes d'historique
+    (Coller, Renommer) au lieu de trois avec la transformation du moteur ; `taille_exacte` : remise à la taille de la
+    région détourée (un fournisseur peut rendre une autre définition), pour qu'elle retombe pile à sa place."""
+    from PIL import Image
+    src = _image_biblio(nom)
+    if src is None:
+        raise ValueError(f"image introuvable dans la Bibliothèque : {nom}")
+    souche = os.path.splitext(nom)[0]
+    h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
+    chemin = PM.relatif(f"entrees/{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}.png")
+    with Image.open(src) as im:
+        im.load()
+        out = im.convert("RGBA")
+    reduite = False
+    if taille_exacte and out.size != tuple(taille_exacte):
+        out = out.resize(tuple(taille_exacte), Image.LANCZOS)
+    elif taille_max and (out.width > taille_max[0] or out.height > taille_max[1]):
+        f = min(taille_max[0] / out.width, taille_max[1] / out.height)
+        out = out.resize((max(1, round(out.width * f)), max(1, round(out.height * f))), Image.LANCZOS)
+        reduite = True
+    out.save(PM.dossier_travail() / chemin, format="PNG")
+    return chemin, reduite
+
+
+def _apres_depense(e: HTTPException, image: str, http) -> HTTPException:
+    """Un échec APRÈS la dépense : jamais un 409 (l'écran le rejouerait) — 502 qui dit l'image gardée et son nom."""
+    raison = e.detail if isinstance(e.detail, str) else str(e.detail)
+    return HTTPException(502, _m("photolab.ia.pose_echouee", http, nom=image, raison=raison))
+
+
+async def _poser(image, nom_calque, au_dessus_de, empreinte, http, taille_max=None, taille_exacte=None, centre=None):
+    """Pose APRÈS la dépense : revérification du document, copie sous entrees/, puis PM.placer en calque de PIXELS
+    (objet_dynamique=False) — sélection du calque visé, collage, renommage dans UNE séquence du moteur. Tout échec est
+    un 502 qui garde le nom de l'image payée. -> (pose, génération, réduite)."""
+    try:
+        if not await _toujours_la(empreinte, au_dessus_de):
+            raise HTTPException(409, _m("photolab.ia.document_change", http))
+        try:
+            chemin, reduite = await asyncio.to_thread(_vers_entrees, image, taille_max, taille_exacte)
+        except (OSError, ValueError) as e:
+            raise HTTPException(500, str(e))
+        pose, gen = await _pool(lambda s: functools.partial(PM.placer, s), chemin, nom_calque, False,
+                                taille_max is not None, centre, au_dessus_de)
+        return pose, gen, reduite
+    except HTTPException as e:
+        raise _apres_depense(e, image, http)
+
+
+async def _noter(files, **kw):
+    """L'index de la Bibliothèque : une panne ne casse pas le tir, mais elle se journalise."""
+    from loguru import logger
+    from app.services import library_index as LI
+    try:
+        await LI.noter(files, "photolab", **kw)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"photolab : index de la Bibliothèque ignoré pour {files} : {type(e).__name__}: {e}")
+
+
+async def _generer_image(model: str, prompt: str, taille: str, http) -> tuple[str, dict]:
+    """FLUX par la route (comme /images/generate : `_flux_generate`, graine rendue) ; tout autre id par la façade
+    `IP.generate` — y compris GPT Image 1 / 2 en direct, que la façade sert par son chemin OpenAI (_openai_generate),
+    là où /images/generate a encore le sien. -> (nom de l'image rangée dans la Bibliothèque, sortie du générateur).
+    Échec du fournisseur : 502 qui nomme le modèle et le TYPE d'erreur, jamais son texte brut (doctrine
+    routes._erreur_fournisseur : il peut porter un en-tête ou une clé) ; le détail va au journal."""
+    from loguru import logger
+    from app.api import routes as R
+    from app.services import image_providers as IP
+    try:
+        if model == "flux":
+            out = await R._flux_generate(prompt, taille, 1)
+        else:
+            out = await IP.generate(model, prompt, taille, 1)
+    except HTTPException as e:
+        logger.error(f"photolab /calque/ia : {model} en échec : {e.detail}")
+        raise HTTPException(502, _m("photolab.ia.fournisseur", http, modele=_nom_modele(model), type="HTTP " + str(e.status_code)))
+    except Exception as e:  # noqa: BLE001 — RuntimeError, httpx, fal_client : 502, jamais un 500 muet
+        logger.error(f"photolab /calque/ia : {model} en échec : {type(e).__name__}: {e}")
+        raise HTTPException(502, _m("photolab.ia.fournisseur", http, modele=_nom_modele(model), type=type(e).__name__))
+    noms = (out or {}).get("images") or []
+    if not noms:
+        raise HTTPException(502, _m("photolab.ia.fournisseur", http, modele=_nom_modele(model), type="0 image"))
+    return noms[0], out
+
+
+@router.post("/calque/ia", dependencies=[Depends(_depense_locale)])
+async def calque_ia(body: dict, request: Request):
+    """{prompt, modele?, taille, detourer?, modeleDetour?, sujet?, auDessusDe, nom?, reduire?} -> {layer, bounds, usd,
+    image, nom, reduite, detourEchec?}. Génère UNE image, la détoure sur demande, la pose en calque de pixels AU-DESSUS
+    du calque `auDessusDe`, nommé « IA — <15 premiers caractères du prompt> » (ou `nom`), réduite à la toile si elle la
+    dépasse (`reduire`, vrai par défaut : la préférence « redimensionner pendant le placement »). Annuler (Ctrl+Z) en
+    DEUX étapes : Renommer puis Coller. Un détourage qui échoue APRÈS la génération payée n'efface rien : l'image est
+    posée telle quelle et `detourEchec` le dit."""
+    from loguru import logger
+    from app.api import routes as R
+    from app.services import catalogue_ia as CI, detourage as DT, image_providers as IP
+    corps = body if isinstance(body, dict) else {}
+    _inconnues(corps, _CLES_IA, request)
+    # 1. refus GRATUITS, aucun appel payant : forme de la demande…
+    prompt = str(corps.get("prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(400, _m("photolab.ia.prompt_vide", request))
+    taille = corps.get("taille", "square_hd")
+    if taille not in TAILLES_IA:
+        raise HTTPException(400, _m("photolab.ia.taille", request, taille=str(taille)[:40], tailles=", ".join(TAILLES_IA)))
+    detourer = _booleen(corps, "detourer", False, request)
+    reduire = _booleen(corps, "reduire", True, request)
+    model = str(corps.get("modele") or "").strip().lower()
+    if not model:
+        async with R.async_session_factory() as _s:              # le générateur par défaut des Réglages
+            model = (await R._atelier_setting(_s, "image_model_default")).strip().lower() or "flux"
+    if model not in IP.PROVIDERS:
+        raise HTTPException(400, _m("photolab.ia.modele_inconnu", request, modele=model[:40]))
+    if IP.est_vectoriel(model):
+        raise HTTPException(400, _m("photolab.ia.modele_vectoriel", request, modele=model))
+    # … document et calque (moteur local, gratuit)…
+    insp, calque, empreinte = await _document_et_calque(corps.get("auDessusDe"), request)
+    # … clé de l'image, puis les refus du DÉTOURAGE (modèle, clé, sujet) — tous avant la génération payée
+    manque = IP.missing_key(model)
+    if manque:
+        raise R._refus_cle(manque, _nom_modele(model), request)
+    sujet, mdet = None, None
+    if detourer:
+        mdet = str(corps.get("modeleDetour") or "")
+        sujet = R._detourage_controles(mdet, DT.IMAGE, corps.get("sujet"), request, nommer=CI.libelle_ecran)
+    nom_calque = str(corps.get("nom") or "").strip()[:120] or _m("photolab.ia.nom_calque", request, debut=prompt[:15])
+    # 2. la garde des plafonds : le MÊME devis que /api/cost/estimate (campagne image + détourage)
+    ops = [{"kind": "image", "n": 1, "model": model}] + ([DT.op_cout(mdet, images=1)] if detourer else [])
+    garde = await R._plafond(ops, CATEGORIE_DEPENSE)
+    usd = round(float(((garde or {}).get("devis") or {}).get("total_usd") or 0.0), 6)
+    # 3. génération (même chemin que /images/generate), rangée dans la Bibliothèque avec sa recette (graine FLUX gardée)
+    image, sortie = await _generer_image(model, prompt, taille, request)
+    recette = R._recette_generation({"prompt": prompt, "model": model, "size": taille, "source": "photolab"},
+                                    {**(sortie or {}), "model": model, "prompt": prompt})
+    await _noter([image], recette=recette)
+    # 4. détourage éventuel : un échec n'efface pas l'image payée, elle est posée telle quelle
+    detour_echec = ""
+    if detourer:
+        try:
+            from app.config import settings
+            detouree = await DT.detourer_image(mdet, settings.images_path / image, sujet)
+            await _noter([detouree], parent=image, relation="detourage")
+            image = detouree
+        except Exception as e:  # noqa: BLE001 — fournisseur en 502, réponse vide… : dit (le type), jamais muet
+            logger.warning(f"photolab /calque/ia : détourage {mdet} en échec après la génération : {type(e).__name__}: {e}")
+            detour_echec = _m("photolab.ia.fournisseur", request, modele=mdet, type=type(e).__name__)
+    # 5-7. pose (revérifiée) : un calque de PIXELS au-dessus du calque choisi, nommé
+    taille_max = (insp.get("width"), insp.get("height")) if reduire else None
+    pose, gen, reduite = await _poser(image, nom_calque, calque["id"], empreinte, request, taille_max=taille_max)
+    rep = {"layer": pose.get("layer"), "bounds": pose.get("bounds"), "usd": usd, "image": image, "nom": nom_calque,
+           "reduite": reduite}
+    if detour_echec:
+        rep["detourEchec"] = detour_echec
+    return _json(rep, gen)
+
+
+def _region_opaque(src: Path) -> tuple[tuple, Path] | None:
+    """L'export du calque à la taille de la TOILE (son apparence à sa place : ombre portée, masque compris) rogné à
+    sa région non transparente -> ((x0, y0, x1, y1), PNG rogné écrit à côté), ou None si rien n'est visible."""
+    from PIL import Image
+    with Image.open(src) as im:
+        im = im.convert("RGBA")
+        boite = im.getchannel("A").getbbox()
+        if not boite:
+            return None
+        rogne = src.with_name(src.stem + "-region.png")
+        im.crop(boite).save(rogne, format="PNG")
+    return boite, rogne
+
+
+@router.post("/calque/detourer", dependencies=[Depends(_depense_locale)])
+async def calque_detourer(body: dict, request: Request):
+    """{layer, modele, sujet?} -> {layer, bounds, usd, image, original}. « Retirer le fond du calque », NON
+    destructif : l'apparence du calque (ombre, masque compris) est exportée À LA TAILLE DE LA TOILE sur une copie du
+    document, rognée ici à sa région visible (dont on connaît ainsi la place exacte), détourée, posée en calque de
+    pixels AU-DESSUS de l'original, centrée sur cette région ; l'original est MASQUÉ (layer.setProps visible:false),
+    jamais supprimé. Annuler (Ctrl+Z) en TROIS étapes : Propriétés du calque, Renommer, Coller."""
+    from loguru import logger
+    from app.api import routes as R
+    from app.services import catalogue_ia as CI, detourage as DT
+    corps = body if isinstance(body, dict) else {}
+    _inconnues(corps, _CLES_DETOUR, request)
+    insp, calque, empreinte = await _document_et_calque(corps.get("layer"), request)
+    nom_original = calque.get("name") or str(calque["id"])
+    if PM.PR.kind_de(calque) is not None:
+        raise HTTPException(400, _m("photolab.ia.calque_sans_pixels", request, nom=nom_original))
+    mid = str(corps.get("modele") or "")
+    sujet = R._detourage_controles(mid, DT.IMAGE, corps.get("sujet"), request, nommer=CI.libelle_ecran)
+    # 1. export de l'apparence (gratuit, local) AVANT la garde : un calque invisible est refusé sans dépense
+    async with _VERROU_EXPORT:
+        fichier, _ = await _pool(lambda s: functools.partial(PM.exporter_calque, s), calque["id"], "png",
+                                 _base_sure(nom_original, "calque") + "-detour", 100, None, False)
+    src = PM.dossier_travail() / "exports" / fichier
+    region = None
+    try:
+        region = await asyncio.to_thread(_region_opaque, src)
+        if region is None:
+            raise HTTPException(400, _m("photolab.ia.calque_vide", request, nom=nom_original))
+        (x0, y0, x1, y1), rogne = region
+        garde = await R._plafond(DT.op_cout(mid, images=1), CATEGORIE_DEPENSE)
+        usd = round(float(((garde or {}).get("devis") or {}).get("total_usd") or 0.0), 6)
+        # 2. détourage — le résultat est rangé dans la Bibliothèque (rien de payé ne se perd)
+        try:
+            image = await DT.detourer_image(mid, rogne, sujet)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:  # noqa: BLE001 — 502 qui nomme le modèle et le type ; rien n'a été touché au document
+            logger.error(f"photolab /calque/detourer : {mid} en échec : {type(e).__name__}: {e}")
+            raise HTTPException(502, _m("photolab.ia.fournisseur", request, modele=mid, type=type(e).__name__))
+    finally:
+        for f in (src, region[1] if region else None):
+            try:
+                if f is not None:
+                    f.unlink()
+            except OSError:
+                pass
+    await _noter([image], relation="detourage")
+    # 3. pose (revérifiée) au-dessus de l'original, centrée sur la région visible exportée
+    nom = _m("photolab.ia.nom_detoure", request, nom=str(nom_original)[:100])
+    pose, gen, _ = await _poser(image, nom, calque["id"], empreinte, request, taille_exacte=(x1 - x0, y1 - y0),
+                                centre=[(x0 + x1) / 2, (y0 + y1) / 2])
+    # 4. l'original MASQUÉ, jamais supprimé
+    try:
+        _, gen = await _appeler("engine.execute", {"command": "layer.setProps", "params": {"layer": calque["id"], "visible": False}})
+    except HTTPException as e:
+        raise _apres_depense(e, image, request)
+    return _json({"layer": pose.get("layer"), "bounds": pose.get("bounds"), "usd": usd, "image": image,
+                  "original": calque["id"]}, gen)

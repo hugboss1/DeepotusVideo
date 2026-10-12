@@ -284,11 +284,12 @@ check("double application refusée", r.returncode != 0 and "double application" 
 
 # ── [c0] pages des labs ──────────────────────────────────────────────────────
 print("[c0] pages des labs")
-for lab in ("atelier", "materialforge", "spritelab"):   # relecture : le Photolab (G9) ne le charge pas encore
+for lab in ("atelier", "materialforge", "spritelab", "photolab"):   # t191 (G9) : le Photolab le charge (calque IA)
     html = (R / f"frontend/{lab}/index.html").read_text(encoding="utf-8")
     check(f"{lab} charge dz-modeles-ia.js (une fois)", html.count('<script src="/shared/dz-modeles-ia.js"></script>') == 1)
-check("NÉGATIF : le Photolab ne charge pas dz-modeles-ia.js (rien ne l'y utilise avant G9)",
-      "dz-modeles-ia.js" not in (R / "frontend/photolab/index.html").read_text(encoding="utf-8"))
+check("t191 : le Photolab charge dz-modeles-ia.js AVANT ses modules (le panneau du calque IA s'en sert)",
+      0 <= (R / "frontend/photolab/index.html").read_text(encoding="utf-8").find('src="/shared/dz-modeles-ia.js"')
+      < (R / "frontend/photolab/index.html").read_text(encoding="utf-8").find('src="js/core.js"'))
 
 # ── [c1] Card Forge ─────────────────────────────────────────────────────────
 print("[c1] Card Forge")
