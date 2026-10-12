@@ -1,0 +1,1257 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "python scripts/guide/serve_guide_ia.py (clé fal FACTICE, génération et détourage SIMULÉS, tout appel sortant intercepté ; sème le chapitre « Le phare de Brume-Noire »), puis semer_calques_ia.py et semer_videos.py http://127.0.0.1:8809. Aucune dépense possible.",
+ "scenes": [
+  {
+   "scene": "modeles-et-cles/liste",
+   "url": "/materialforge/",
+   "titre": {
+    "fr": "Une liste de modèles",
+    "en": "A model list"
+   },
+   "legende": {
+    "fr": "Un groupe par voie (la clé fal, ou votre propre clé), le prix sur chaque option, la clé qui manque nommée.",
+    "en": "One group per route (the fal key, or your own key), the price on each option, the missing key named."
+   },
+   "clip": "css:#railLeft",
+   "avant": [
+    {
+     "attente": 2500
+    },
+    {
+     "js": "const m = document.querySelector('main.mf'); m.style.gridTemplateColumns = getComputedStyle(m).gridTemplateColumns.replace(/^\\S+/, '600px'); const s = document.querySelector('#model'); s.size = 18; s.style.height = 'auto'; s.style.width = '100%'",
+     "attente": 600
+    }
+   ],
+   "captures": [
+    {
+     "nom": "liste"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#model optgroup:first-of-type",
+     "bulle": {
+      "fr": "Via la clé fal : une seule clé pour tous ces modèles",
+      "en": "With the fal key: one key for all these models"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": "css:#model optgroup:first-of-type option:nth-of-type(9)",
+     "bulle": {
+      "fr": "Chaque option affiche son prix",
+      "en": "Each option shows its price"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:#model option[data-sans-cle]",
+     "bulle": {
+      "fr": "Clé absente : l'option reste choisissable",
+      "en": "Missing key: the option can still be chosen"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "modeles-et-cles/cle-absente",
+   "url": "/materialforge/",
+   "titre": {
+    "fr": "Une option sans sa clé",
+    "en": "An option without its key"
+   },
+   "legende": {
+    "fr": "Choisie, l'option sans clé est refusée au lancement, avant toute dépense : posez la clé dans Réglages.",
+    "en": "Once chosen, the option without a key is refused at launch, before any spending: add the key in Settings."
+   },
+   "clip": "css:#railLeft",
+   "avant": [
+    {
+     "attente": 2500
+    },
+    {
+     "js": "const m = document.querySelector('main.mf'); m.style.gridTemplateColumns = getComputedStyle(m).gridTemplateColumns.replace(/^\\S+/, '600px'); document.querySelector('#model').style.width = '100%'",
+     "attente": 500
+    },
+    {
+     "js": "const s = document.querySelector('#model'); s.value = s.querySelector('[data-sans-cle]').value; s.dispatchEvent(new Event('change', {bubbles: true}))",
+     "attente": 800
+    },
+    {
+     "saisir": [
+      "css:#prompt",
+      {
+       "fr": "fer rouillé",
+       "en": "rusty iron"
+      }
+     ]
+    }
+   ],
+   "captures": [
+    {
+     "nom": "choisie"
+    },
+    {
+     "nom": "refus",
+     "etapes": [
+      {
+       "clic": "css:#genBtn",
+       "apres": 4000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#model",
+     "bulle": {
+      "fr": "GPT Image 2 en direct : clé OpenAI à ajouter",
+      "en": "GPT Image 2 direct: OpenAI key to add"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.0,
+     "curseur": "css:#genBtn",
+     "clic": true
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:.status.err",
+     "bulle": {
+      "fr": "Refusé au lancement : rien n'est facturé",
+      "en": "Refused at launch: nothing is charged"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio/composition-fl",
+   "url": "/",
+   "titre": {
+    "fr": "Une image de fin dans le Studio",
+    "en": "A last frame in the Studio"
+   },
+   "legende": {
+    "fr": "Une image branchée sur l'entrée end du nœud Seedance devient la dernière image du plan ; un modèle qui ne la prend pas propose Veo 3.1 Fast.",
+    "en": "An image wired to the Seedance node's end input becomes the shot's last frame; a model that can't take it offers Veo 3.1 Fast."
+   },
+   "avant": [
+    {
+     "clic": "texte:Studio",
+     "apres": 2500
+    },
+    {
+     "clic": "texte:Seedance solo",
+     "apres": 2500
+    },
+    {
+     "glisser": [
+      "css:[data-node-id=\"n1\"] [data-port-side=\"out\"]",
+      "css:[data-node-id=\"n2\"] [data-port-id=\"end\"]"
+     ],
+     "apres": 1200
+    },
+    {
+     "clic": "css:[data-node-id=\"n2\"]",
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "branche"
+    },
+    {
+     "nom": "refus",
+     "etapes": [
+      {
+       "clic": "css:[data-dzvmsel] button[data-dzselect]",
+       "apres": 900
+      },
+      {
+       "js": "[...document.querySelectorAll('[data-dzvmsel] span')].find(e => e.textContent.trim().startsWith('PixVerse v6')).closest('button').scrollIntoView({block: 'center'})",
+       "attente": 500
+      },
+      {
+       "clic": "contient:PixVerse v6 ·",
+       "apres": 1200
+      }
+     ]
+    },
+    {
+     "nom": "veo",
+     "etapes": [
+      {
+       "clic": "css:button[data-dzvmfl]",
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-node-id=\"n2\"] [data-port-id=\"end\"]",
+     "bulle": {
+      "fr": "Une image sur l'entrée end",
+      "en": "An image on the end input"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-dzvmsel]",
+     "bulle": {
+      "fr": "Le modèle prend l'image de fin",
+      "en": "The model takes the last frame"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:[data-dzvmflabsent]",
+     "bulle": {
+      "fr": "Ce modèle refuserait l'image de fin",
+      "en": "This model would refuse the last frame"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:[data-dzvmsel]",
+     "bulle": {
+      "fr": "Veo 3.1 Fast : début et fin",
+      "en": "Veo 3.1 Fast: first and last frame"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "chapitres/sam3",
+   "url": "/atelier/",
+   "titre": {
+    "fr": "Reconstruire un plan en 3D",
+    "en": "Rebuild a shot in 3D"
+   },
+   "legende": {
+    "fr": "Depuis la carte d'un plan, SAM 3 isole les objets nommés de l'image et les pose en 3D dans le Plateau du plan.",
+    "en": "From a shot's card, SAM 3 isolates the named objects in the image and places them in 3D on the shot's Stage."
+   },
+   "avant": [
+    {
+     "clic": "css:button.tab[data-mode=\"board\"]",
+     "apres": 2000
+    },
+    {
+     "js": "document.querySelectorAll('.shot-card')[0].id = 'plan1'"
+    }
+   ],
+   "captures": [
+    {
+     "nom": "carte"
+    },
+    {
+     "nom": "boite",
+     "etapes": [
+      {
+       "clic": "css:#plan1 .act-objets3d",
+       "apres": 2000
+      }
+     ]
+    },
+    {
+     "nom": "plateau",
+     "etapes": [
+      {
+       "clic": "css:.dzp-pied .btn.primary",
+       "apres": 6000
+      },
+      {
+       "clic": {
+        "fr": "texte:Ouvrir le Plateau",
+        "en": "texte:Open the Stage"
+       },
+       "apres": 7000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "css:#plan1 .act-objets3d",
+     "clic": true,
+     "bulle": {
+      "fr": "Reconstruire en 3D (SAM 3)",
+      "en": "Rebuild in 3D (SAM 3)"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": "css:.dzp-champ",
+     "bulle": {
+      "fr": "Les objets à isoler",
+      "en": "The objects to isolate"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": "css:.dzp-prix",
+     "bulle": {
+      "fr": "Le prix, annoncé avant",
+      "en": "The price, shown beforehand"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:#canevas",
+     "bulle": {
+      "fr": "Les objets posés dans le Plateau du plan",
+      "en": "The objects placed on the shot's Stage"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "chapitres/plateau-capture",
+   "url": "/atelier/",
+   "titre": {
+    "fr": "Capturer le début et la fin",
+    "en": "Capture the start and end"
+   },
+   "legende": {
+    "fr": "Dans le Plateau, un keyframe puis Capturer début / fin ; Appliquer au plan écrit les deux images dans le plan.",
+    "en": "On the Stage, a keyframe then Capture start / end; Apply to shot writes both images into the shot."
+   },
+   "avant": [
+    {
+     "clic": "css:button.tab[data-mode=\"board\"]",
+     "apres": 2000
+    },
+    {
+     "js": "document.querySelectorAll('.shot-card')[0].id = 'plan1'"
+    },
+    {
+     "clic": "css:#plan1 .act-plateau",
+     "apres": 7000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "keyframe",
+     "etapes": [
+      {
+       "clic": "css:#btnKf",
+       "apres": 1000
+      }
+     ]
+    },
+    {
+     "nom": "captures",
+     "etapes": [
+      {
+       "clic": "css:#btnCapture",
+       "apres": 4000
+      },
+      {
+       "defiler": "css:#captures"
+      }
+     ]
+    },
+    {
+     "nom": "plan",
+     "etapes": [
+      {
+       "defiler": "css:#btnPlan"
+      },
+      {
+       "clic": "css:#btnPlan",
+       "apres": 1500
+      },
+      {
+       "defiler": "css:#versPlan"
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": "css:#btnKf",
+     "bulle": {
+      "fr": "Un keyframe au moins",
+      "en": "At least one keyframe"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:#captures",
+     "bulle": {
+      "fr": "Début et fin, rangés dans la Bibliothèque",
+      "en": "Start and end, saved to the Library"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:#versPlan",
+     "bulle": {
+      "fr": "Ce qui sera écrit dans le plan",
+      "en": "What will be written to the shot"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "chapitres/plan-video",
+   "url": "/atelier/",
+   "titre": {
+    "fr": "Générer la vidéo du plan",
+    "en": "Generate the shot's video"
+   },
+   "legende": {
+    "fr": "Avec un début et une fin, seuls les modèles qui acceptent une image de fin sont proposés ; le devis du serveur est gratuit.",
+    "en": "With a start and an end, only models that accept a last frame are offered; the server estimate is free."
+   },
+   "avant": [
+    {
+     "clic": "css:button.tab[data-mode=\"board\"]",
+     "apres": 2000
+    },
+    {
+     "js": "document.querySelectorAll('.shot-card')[1].id = 'plan2'"
+    },
+    {
+     "defiler": "css:#plan2"
+    }
+   ],
+   "captures": [
+    {
+     "nom": "carte"
+    },
+    {
+     "nom": "boite",
+     "etapes": [
+      {
+       "clic": "css:#plan2 .act-video",
+       "apres": 3500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "css:#plan2 .act-video",
+     "clic": true,
+     "bulle": {
+      "fr": "Générer le plan (vidéo)",
+      "en": "Generate the shot (video)"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": "css:.dzp-imgs",
+     "bulle": {
+      "fr": "Début et fin du Plateau",
+      "en": "Start and end from the Stage"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:.dzp-prix",
+     "bulle": {
+      "fr": "Le devis du serveur, gratuit",
+      "en": "The server estimate, free"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/sfx-modeles",
+   "url": "/",
+   "titre": {
+    "fr": "Choisir le modèle des bruitages",
+    "en": "Pick the sound effects model"
+   },
+   "legende": {
+    "fr": "Rail SFX, Générer des SFX : le modèle et son prix ; un modèle via fal se lance en deux clics, le premier donne le devis.",
+    "en": "SFX rail, Generate SFX: the model and its price; a model via fal runs in two clicks, the first gives the estimate."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "js": "[...document.querySelectorAll('.svm-gen')].find(e => /^SFX/.test(e.innerText.trim())).click()",
+     "attente": 1500
+    },
+    {
+     "defiler": "css:input.svm-sfxprompt"
+    }
+   ],
+   "captures": [
+    {
+     "nom": "modele"
+    },
+    {
+     "nom": "arme",
+     "etapes": [
+      {
+       "js": "const s = document.querySelector('select.svx-sfxmsel'); s.value = 'sonilo-1.1'; s.dispatchEvent(new Event('change', {bubbles: true}))",
+       "attente": 1200
+      },
+      {
+       "saisir": [
+        "css:input.svm-sfxprompt",
+        {
+         "fr": "vague qui claque sur un rocher",
+         "en": "wave crashing on a rock"
+        }
+       ]
+      },
+      {
+       "js": "document.querySelector('input.svm-sfxprompt').closest('.svm-card, section, div').parentElement.querySelectorAll('button.svm-nbgold').forEach(b => { if (/^(Générer|Generate)$/.test(b.textContent.trim())) b.click() })",
+       "attente": 3000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:select.svx-sfxmsel",
+     "bulle": {
+      "fr": "Le modèle, groupé par voie, avec son prix",
+      "en": "The model, grouped by route, with its price"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:.svx-sfxmprix",
+     "bulle": {
+      "fr": "Premier clic : le prix ; le second lance",
+      "en": "First click: the price; the second runs it"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/vfx-ia",
+   "url": "/",
+   "titre": {
+    "fr": "VFX IA : un geste sur une vidéo",
+    "en": "AI VFX: one action on a video"
+   },
+   "legende": {
+    "fr": "Rail VFX IA : la vidéo source, douze gestes avec leur prix ; Estimer puis lancer donne d'abord le devis.",
+    "en": "AI VFX rail: the source video, twelve actions with their price; Estimate, then run gives the estimate first."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "js": "[...document.querySelectorAll('.svm-gen')].find(e => e.querySelector('*') && /VFX\\s*(IA|AI)|AI\\s*VFX/.test(e.innerText.split(String.fromCharCode(10)).join(' '))).click()",
+     "attente": 2000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "gestes"
+    },
+    {
+     "nom": "devis",
+     "etapes": [
+      {
+       "clic": "css:button[data-dzvfxia=\"jour-nuit\"]",
+       "apres": 1000
+      },
+      {
+       "clic": "css:button.svm-nbgold",
+       "apres": 6000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": "css:[data-dzvfxia=\"rail\"]",
+     "bulle": {
+      "fr": "La vidéo source",
+      "en": "The source video"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "css:button[data-dzvfxia=\"jour-nuit\"]",
+     "clic": true,
+     "bulle": {
+      "fr": "Un geste et son prix",
+      "en": "An action and its price"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "surligne": "css:button.svm-nbgold",
+     "bulle": {
+      "fr": "Le devis d'abord ; le second clic lance",
+      "en": "The estimate first; the second click runs it"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/sfx-video",
+   "url": "/",
+   "titre": {
+    "fr": "Sonoriser un clip",
+    "en": "Add sound to a clip"
+   },
+   "legende": {
+    "fr": "Montage, clip sélectionné, puce sons › Générer › Depuis la vidéo : le modèle écoute l'image et rend un bruitage.",
+    "en": "Montage, clip selected, sounds chip › Generate › From the video: the model watches the picture and returns a sound effect."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Montage",
+      "en": "texte:Edit"
+     },
+     "apres": 4000
+    },
+    {
+     "clic": "css:.svm-clip",
+     "apres": 1500
+    },
+    {
+     "clic": "css:.svm-sfxchip",
+     "apres": 1500
+    },
+    {
+     "clic": {
+      "fr": "texte:Générer",
+      "en": "texte:Generate"
+     },
+     "apres": 1500
+    },
+    {
+     "defiler": "css:[data-dzsfxv]"
+    }
+   ],
+   "captures": [
+    {
+     "nom": "bloc"
+    },
+    {
+     "nom": "devis",
+     "etapes": [
+      {
+       "clic": "css:button[data-dzsfxvgo]",
+       "apres": 6000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:[data-dzsfxv]",
+     "bulle": {
+      "fr": "Depuis la vidéo : le clip sélectionné",
+      "en": "From the video: the selected clip"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:button[data-dzsfxvgo]",
+     "bulle": {
+      "fr": "Le devis d'abord ; le second clic lance",
+      "en": "The estimate first; the second click runs it"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "montage/detour-modeles",
+   "url": "/",
+   "titre": {
+    "fr": "Détourer avec le modèle de son choix",
+    "en": "Cut out with the model of your choice"
+   },
+   "legende": {
+    "fr": "Inspecteur du clip, Effets sur ce clip : le modèle de détourage et son prix ; le premier clic donne le devis.",
+    "en": "Clip inspector, Effects on this clip: the cutout model and its price; the first click gives the estimate."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Montage",
+      "en": "texte:Edit"
+     },
+     "apres": 4000
+    },
+    {
+     "clic": "css:.svm-clip",
+     "apres": 1500
+    },
+    {
+     "defiler": "css:.vfx-matte"
+    }
+   ],
+   "captures": [
+    {
+     "nom": "modele",
+     "etapes": [
+      {
+       "js": "const s = document.querySelector('.vfx-matte select'); s.value = [...s.options].find(o => /Bria/.test(o.textContent)).value; s.dispatchEvent(new Event('change', {bubbles: true}))",
+       "attente": 1200
+      }
+     ]
+    },
+    {
+     "nom": "devis",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Détourer (fal)",
+        "en": "texte:Cut out (fal)"
+       },
+       "apres": 4000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:.vfx-matte select",
+     "bulle": {
+      "fr": "Le modèle de détourage et son prix",
+      "en": "The cutout model and its price"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:.vfx-matte",
+     "bulle": {
+      "fr": "Le devis ; le second clic détoure",
+      "en": "The estimate; the second click cuts out"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab/ia-calque",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "Une image IA sur un calque",
+    "en": "An AI image on a layer"
+   },
+   "legende": {
+    "fr": "Le bouton du calque ouvre le panneau : calque visé, modèle, détourage, prix total ; l'image se pose sur ce calque, sous le titre.",
+    "en": "The layer button opens the panel: target layer, model, background removal, total price; the image lands on that layer, below the title."
+   },
+   "avant": [
+    {
+     "js": "Object.keys(localStorage).filter(k => k.startsWith('dz_vl_brouillon')).forEach(k => localStorage.removeItem(k))"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche à calques",
+     "apres": 3500
+    },
+    {
+     "clic": "css:[data-onglet=\"calques\"]",
+     "apres": 600
+    },
+    {
+     "js": "VL.zoomAjuster(); VL.etat.calqueActif = 'c2'; VL.rendre()",
+     "attente": 800
+    },
+    {
+     "defiler": "css:[data-act=\"ia\"]"
+    }
+   ],
+   "captures": [
+    {
+     "nom": "calques"
+    },
+    {
+     "nom": "panneau",
+     "etapes": [
+      {
+       "clic": "css:[data-act=\"ia\"]",
+       "apres": 2500
+      },
+      {
+       "saisir": [
+        "css:#iacPrompt",
+        {
+         "fr": "un chat assis, illustration",
+         "en": "a sitting cat, illustration"
+        }
+       ]
+      },
+      {
+       "clic": "css:#iacDetourer",
+       "apres": 800
+      },
+      {
+       "js": "const s = document.querySelector('#iacDetour'); s.value = 'bria-rmbg'; s.dispatchEvent(new Event('change', {bubbles: true}))",
+       "attente": 1800
+      }
+     ]
+    },
+    {
+     "nom": "pose",
+     "etapes": [
+      {
+       "clic": "css:#iacGo",
+       "apres": 9000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "css:[data-act=\"ia\"]",
+     "clic": true,
+     "bulle": {
+      "fr": "Image IA sur ce calque",
+      "en": "AI image on this layer"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": "css:#iacCalque",
+     "bulle": {
+      "fr": "Le calque visé",
+      "en": "The target layer"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:#iacPrix",
+     "bulle": {
+      "fr": "Le prix total : image et détourage",
+      "en": "The total price: image and background removal"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:#iacEtat",
+     "bulle": {
+      "fr": "Posée sur le calque Image, sous le titre",
+      "en": "Placed on the Image layer, below the title"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "vectorlab/retirer-fond",
+   "url": "/vectorlab/",
+   "titre": {
+    "fr": "Retirer le fond d'une image",
+    "en": "Remove an image's background"
+   },
+   "legende": {
+    "fr": "Onglet Image : choisissez le modèle de détourage, son prix s'affiche ; Ctrl+Z rend l'image d'avant.",
+    "en": "Image tab: pick the background removal model, its price shows; Ctrl+Z brings back the previous image."
+   },
+   "avant": [
+    {
+     "js": "Object.keys(localStorage).filter(k => k.startsWith('dz_vl_brouillon')).forEach(k => localStorage.removeItem(k))"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": "texte:Affiche à calques",
+     "apres": 3500
+    },
+    {
+     "clic": "css:[data-onglet=\"calques\"]",
+     "apres": 600
+    },
+    {
+     "js": "VL.zoomAjuster(); VL.etat.calqueActif = 'c2'; VL.rendre(); VL.iaCalque.ouvrir('c2')",
+     "attente": 2500
+    },
+    {
+     "saisir": [
+      "css:#iacPrompt",
+      {
+       "fr": "un chat assis, illustration",
+       "en": "a sitting cat, illustration"
+      }
+     ]
+    },
+    {
+     "clic": "css:#iacGo",
+     "apres": 9000
+    },
+    {
+     "clic": "css:#iaCalqueDlg [data-act=\"fermer\"]",
+     "apres": 600
+    },
+    {
+     "clic": "css:[data-onglet=\"image\"]",
+     "apres": 800
+    },
+    {
+     "js": "const s = document.querySelector('#imDetourModele'); s.value = 'bria-rmbg'; s.dispatchEvent(new Event('change', {bubbles: true}))",
+     "attente": 1800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "image"
+    },
+    {
+     "nom": "detoure",
+     "etapes": [
+      {
+       "clic": "css:#imDetourer",
+       "apres": 8000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#imDetourModele",
+     "bulle": {
+      "fr": "Le modèle de détourage et son prix",
+      "en": "The removal model and its price"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.2,
+     "curseur": "css:#imDetourer",
+     "clic": true,
+     "bulle": {
+      "fr": "Retirer le fond",
+      "en": "Remove the background"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:#canvasHost image",
+     "bulle": {
+      "fr": "Fond retiré ; Ctrl+Z rend l'image d'avant",
+      "en": "Background removed; Ctrl+Z brings back the previous image"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab-avance/ia-calque",
+   "url": "/photolab/",
+   "titre": {
+    "fr": "Nouveau calque IA",
+    "en": "New AI layer"
+   },
+   "legende": {
+    "fr": "Le bouton IA du pied des calques : prompt, modèle, détourage et prix ; le calque se place au-dessus du calque choisi.",
+    "en": "The AI button at the foot of the layers: prompt, model, background removal and price; the layer goes above the chosen layer."
+   },
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": {
+      "fr": "contient:Ouvrir depuis la Bibliothèque",
+      "en": "contient:Open from the Library"
+     },
+     "apres": 1800
+    },
+    {
+     "saisir": [
+      "css:input.lib-recherche",
+      "paysage"
+     ]
+    },
+    {
+     "attente": 1500
+    },
+    {
+     "clic": "texte:paysage-demo.png",
+     "apres": 4500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "calques"
+    },
+    {
+     "nom": "panneau",
+     "etapes": [
+      {
+       "clic": "css:.cq-pied [data-act=\"ia\"]",
+       "apres": 2500
+      },
+      {
+       "saisir": [
+        "css:.pl-iac-prompt",
+        {
+         "fr": "une montgolfière rouge, photo",
+         "en": "a red hot-air balloon, photo"
+        }
+       ]
+      },
+      {
+       "js": "document.querySelector('.pl-iacalque input[type=checkbox]').click()",
+       "attente": 600
+      },
+      {
+       "js": "const s = document.querySelectorAll('.pl-iacalque select')[2]; s.value = 'bria-rmbg'; s.dispatchEvent(new Event('change', {bubbles: true}))",
+       "attente": 1800
+      }
+     ]
+    },
+    {
+     "nom": "pose",
+     "etapes": [
+      {
+       "clic": "css:.pl-iacalque [data-act=\"lancer\"]",
+       "apres": 10000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "css:.cq-pied [data-act=\"ia\"]",
+     "clic": true,
+     "bulle": {
+      "fr": "Nouveau calque IA…",
+      "en": "New AI layer…"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": "css:.pl-iac-lieu",
+     "bulle": {
+      "fr": "Où se place le nouveau calque",
+      "en": "Where the new layer goes"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:.pl-iac-prix",
+     "bulle": {
+      "fr": "Le prix total, annoncé avant",
+      "en": "The total price, shown beforehand"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:.cq-liste",
+     "bulle": {
+      "fr": "Un calque de pixels au-dessus du fond",
+      "en": "A pixel layer above the background"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "photolab-avance/detourer-calque",
+   "url": "/photolab/",
+   "titre": {
+    "fr": "Retirer le fond d'un calque",
+    "en": "Remove a layer's background"
+   },
+   "legende": {
+    "fr": "Calque › Retirer le fond du calque : la copie détourée se pose au-dessus, l'original reste dessous, masqué.",
+    "en": "Layer › Remove layer background: the cut-out copy goes on top, the original stays below, hidden."
+   },
+   "avant": [
+    {
+     "js": "fetch('/api/photolab/espaces',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:1,actif:'essentiel',verrouille:false,modifs:{},perso:[]})}).then(r=>r.json())"
+    },
+    {
+     "js": "fetch('/api/photolab/executer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'file.closeAll',params:{}})}).then(r=>r.json())"
+    },
+    {
+     "aller": "/photolab/"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "clic": {
+      "fr": "contient:Ouvrir depuis la Bibliothèque",
+      "en": "contient:Open from the Library"
+     },
+     "apres": 1800
+    },
+    {
+     "saisir": [
+      "css:input.lib-recherche",
+      "paysage"
+     ]
+    },
+    {
+     "attente": 1500
+    },
+    {
+     "clic": "texte:paysage-demo.png",
+     "apres": 4500
+    },
+    {
+     "clic": "css:.cq-pied [data-act=\"ia\"]",
+     "apres": 2500
+    },
+    {
+     "saisir": [
+      "css:.pl-iac-prompt",
+      {
+       "fr": "un chat assis, illustration",
+       "en": "a sitting cat, illustration"
+      }
+     ]
+    },
+    {
+     "clic": "css:.pl-iacalque [data-act=\"lancer\"]",
+     "apres": 10000
+    },
+    {
+     "clic": "css:.pl-iacalque [data-act=\"fermer\"]",
+     "apres": 600
+    }
+   ],
+   "captures": [
+    {
+     "nom": "menu",
+     "etapes": [
+      {
+       "js": "[...document.querySelectorAll('.menu-bouton')].find(b => /^(Calque|Layer)$/.test(b.textContent.trim())).click()",
+       "attente": 700
+      }
+     ]
+    },
+    {
+     "nom": "panneau",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Retirer le fond du calque",
+        "en": "texte:Remove layer background"
+       },
+       "apres": 2500
+      },
+      {
+       "js": "const s = document.querySelectorAll('.pl-iacalque select')[2]; s.value = 'bria-rmbg'; s.dispatchEvent(new Event('change', {bubbles: true}))",
+       "attente": 1800
+      }
+     ]
+    },
+    {
+     "nom": "detoure",
+     "etapes": [
+      {
+       "clic": "css:.pl-iacalque [data-act=\"lancer\"]",
+       "apres": 10000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "texte:Retirer le fond du calque",
+      "en": "texte:Remove layer background"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Calque › Retirer le fond du calque",
+      "en": "Layer › Remove layer background"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:.pl-iac-prix",
+     "bulle": {
+      "fr": "Le modèle choisi et son prix",
+      "en": "The chosen model and its price"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.2,
+     "surligne": "css:.cq-liste",
+     "bulle": {
+      "fr": "La copie détourée au-dessus, l'original masqué dessous",
+      "en": "The cut-out copy on top, the original hidden below"
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "Retirer le fond d'une image",
+    "en": "Remove an image's background"
+  },
+  "legende": {
+    "fr": "Onglet Image : choisissez le modèle de détourage, son prix s'affiche ; Ctrl+Z rend l'image d'avant.",
+    "en": "Image tab: pick the background removal model, its price shows; Ctrl+Z brings back the previous image."
+  },
+  "captures": [
+    {
+      "fr": "image.fr.webp",
+      "en": "image.en.webp"
+    },
+    {
+      "fr": "detoure.fr.webp",
+      "en": "detoure.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1255,
+        589,
+        177,
+        40
+      ],
+      "bulle": {
+        "fr": "Le modèle de détourage et son prix",
+        "en": "The removal model and its price"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1264,
+        647
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Retirer le fond",
+        "en": "Remove the background"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        373,
+        268,
+        498,
+        498
+      ],
+      "bulle": {
+        "fr": "Fond retiré ; Ctrl+Z rend l'image d'avant",
+        "en": "Background removed; Ctrl+Z brings back the previous image"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1255,
+        589,
+        177,
+        40
+      ],
+      "bulle": {
+        "fr": "Le modèle de détourage et son prix",
+        "en": "The removal model and its price"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1277,
+        655
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Retirer le fond",
+        "en": "Remove the background"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        373,
+        268,
+        498,
+        498
+      ],
+      "bulle": {
+        "fr": "Fond retiré ; Ctrl+Z rend l'image d'avant",
+        "en": "Background removed; Ctrl+Z brings back the previous image"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

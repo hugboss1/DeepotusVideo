@@ -1,0 +1,72 @@
+{
+  "titre": {
+    "fr": "Capturer le début et la fin",
+    "en": "Capture the start and end"
+  },
+  "legende": {
+    "fr": "Dans le Plateau, un keyframe puis Capturer début / fin ; Appliquer au plan écrit les deux images dans le plan.",
+    "en": "On the Stage, a keyframe then Capture start / end; Apply to shot writes both images into the shot."
+  },
+  "captures": [
+    {
+      "fr": "keyframe.fr.webp",
+      "en": "keyframe.en.webp"
+    },
+    {
+      "fr": "captures.fr.webp",
+      "en": "captures.en.webp"
+    },
+    {
+      "fr": "plan.fr.webp",
+      "en": "plan.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        1147,
+        234,
+        98,
+        38
+      ],
+      "bulle": {
+        "fr": "Un keyframe au moins",
+        "en": "At least one keyframe"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1147,
+        0,
+        287,
+        900
+      ],
+      "bulle": {
+        "fr": "Début et fin, rangés dans la Bibliothèque",
+        "en": "Start and end, saved to the Library"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1147,
+        566,
+        287,
+        328
+      ],
+      "bulle": {
+        "fr": "Ce qui sera écrit dans le plan",
+        "en": "What will be written to the shot"
+      }
+    }
+  ]
+}

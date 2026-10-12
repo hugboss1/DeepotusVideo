@@ -214,6 +214,7 @@ export function initCalques(PL) {
   // t191 : nouveau calque IA au-dessus du calque actif (mod-iacalque.js, lu à l'exécution : aucun import croisé)
   const bIa = bouton("", "dz-media-generer-image", T("photolab.calques.ia"));
   bIa.dataset.act = "ia";
+  bIa.id = "pl-calque-ia";           // t193 : sa fiche didactique (aide/index.json)
   const bGroupe = bouton("", "dz-action-nouveau-dossier", T("photolab.calques.nouveau_groupe"));
   const bNouveau = bouton("", "dz-calque-nouveau", T("photolab.calques.nouveau"));
   const bDupliquer = bouton("", "dz-action-dupliquer", T("photolab.calques.dupliquer"));

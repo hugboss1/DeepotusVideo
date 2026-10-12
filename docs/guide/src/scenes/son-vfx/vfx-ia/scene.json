@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "VFX IA : un geste sur une vidéo",
+    "en": "AI VFX: one action on a video"
+  },
+  "legende": {
+    "fr": "Rail VFX IA : la vidéo source, douze gestes avec leur prix ; Estimer puis lancer donne d'abord le devis.",
+    "en": "AI VFX rail: the source video, twelve actions with their price; Estimate, then run gives the estimate first."
+  },
+  "captures": [
+    {
+      "fr": "gestes.fr.webp",
+      "en": "gestes.en.webp"
+    },
+    {
+      "fr": "devis.fr.webp",
+      "en": "devis.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        514,
+        116,
+        914,
+        101
+      ],
+      "bulle": {
+        "fr": "La vidéo source",
+        "en": "The source video"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        971,
+        374
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Un geste et son prix",
+        "en": "An action and its price"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        1279,
+        723,
+        132,
+        34
+      ],
+      "bulle": {
+        "fr": "Le devis d'abord ; le second clic lance",
+        "en": "The estimate first; the second click runs it"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        514,
+        116,
+        914,
+        101
+      ],
+      "bulle": {
+        "fr": "La vidéo source",
+        "en": "The source video"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        971,
+        374
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Un geste et son prix",
+        "en": "An action and its price"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        1317,
+        723,
+        94,
+        34
+      ],
+      "bulle": {
+        "fr": "Le devis d'abord ; le second clic lance",
+        "en": "The estimate first; the second click runs it"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

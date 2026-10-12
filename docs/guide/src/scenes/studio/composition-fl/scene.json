@@ -1,0 +1,86 @@
+{
+  "titre": {
+    "fr": "Une image de fin dans le Studio",
+    "en": "A last frame in the Studio"
+  },
+  "legende": {
+    "fr": "Une image branchée sur l'entrée end du nœud Seedance devient la dernière image du plan ; un modèle qui ne la prend pas propose Veo 3.1 Fast.",
+    "en": "An image wired to the Seedance node's end input becomes the shot's last frame; a model that can't take it offers Veo 3.1 Fast."
+  },
+  "captures": [
+    {
+      "fr": "branche.fr.webp",
+      "en": "branche.en.webp"
+    },
+    {
+      "fr": "refus.fr.webp",
+      "en": "refus.en.webp"
+    },
+    {
+      "fr": "veo.fr.webp",
+      "en": "veo.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        767,
+        300,
+        24,
+        24
+      ],
+      "bulle": {
+        "fr": "Une image sur l'entrée end",
+        "en": "An image on the end input"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1108,
+        177,
+        324,
+        62
+      ],
+      "bulle": {
+        "fr": "Le modèle prend l'image de fin",
+        "en": "The model takes the last frame"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1108,
+        213,
+        324,
+        97
+      ],
+      "bulle": {
+        "fr": "Ce modèle refuserait l'image de fin",
+        "en": "This model would refuse the last frame"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1108,
+        177,
+        324,
+        62
+      ],
+      "bulle": {
+        "fr": "Veo 3.1 Fast : début et fin",
+        "en": "Veo 3.1 Fast: first and last frame"
+      }
+    }
+  ]
+}

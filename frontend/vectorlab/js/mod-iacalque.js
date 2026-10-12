@@ -669,6 +669,8 @@ export function initIaCalque(VL) {
     // tapé et les listes de modèles restent ; une liste de modèles illisible est relue
     if (!construit) squelette(el);
     else { majCalques(); if (etatCatalogue === "echec") chargerModeles(); }
+    // t193 : le « ? » de la fiche didactique de « Générer » — l'encart n'observe que les panneaux de droite, pas #stage
+    if (VL.didact && typeof VL.didact.poserQ === "function") VL.didact.poserQ();
     const p = $("#iacPrompt");
     if (p) p.focus();
   }

@@ -1,0 +1,26 @@
+<p class="chapeau-chap">You will know how to read a list of AI models: which key is used, what one run costs, and what to do when a key is missing. Five minutes, free; the same lists are used across the whole app.</p>
+
+<h3>Two routes for the same model</h3>
+<figure class="scene" data-scene="modeles-et-cles/liste"></figure>
+<p>Wherever you generate (images, videos, sounds, background removal), the model list is sorted into groups, one per <strong>route</strong>. You keep all your keys: each list offers every route, and you choose model by model.</p>
+<div class="cartes">
+<article><i data-dz="dz-nav-cles-api"></i><h4>With the fal key</h4><p>A single fal.ai key opens most models: FLUX, Nano Banana, GPT Image, Seedream, Veo, Kling… The label says "via fal" when the same model also exists direct.</p></article>
+<article><i data-dz="dz-etat-ia"></i><h4>With your key</h4><p>The model paid directly to its provider: OpenAI, Gemini, ElevenLabs, Meshy, HeyGen. Handy if you already have an account and credits there.</p></article>
+<article><i data-dz="dz-action-detourer"></i><h4>Local, free</h4><p>Some tools run on your PC, such as rembg background removal or plain background: no key, no spending.</p></article>
+</div>
+
+<h3>Read an option's price</h3>
+<p>Each option shows its unit price after the name: <strong>$0.04/image</strong>, <strong>$0.10/s</strong> of video, <strong>$0.0018/s</strong> of sound, <strong>/30 images</strong> for a video cutout. An option marked <strong>price to be measured</strong> is paid, but its rate isn't known yet: it is never shown as free.</p>
+<p>Before a run, the screen shows the <strong>total price</strong> worked out by the server for what you ask: an image and its background removal, a 6 s video… Your spending caps check this very amount, see <a href="#budget">Keep spending under control</a>.</p>
+
+<h3>An "add the key" option</h3>
+<figure class="scene" data-scene="modeles-et-cles/cle-absente"></figure>
+<ol class="etapes">
+<li>An option whose key is missing stays visible <strong>and can be chosen</strong>; it carries the note "add the … key in Settings".</li>
+<li>If you run it, the run is refused at once, before any spending, naming the missing key.</li>
+<li>Add the key in <span class="chemin"><b class="ui">Settings</b> › <b class="ui">API keys</b></span> (see <a href="#cles">Connect your keys</a>): it works right away, no restart. Or pick the same option with the fal key.</li>
+</ol>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Model names (Flux 3, Veo 3.1 Fast, Sonilo…) are proper names: they stay the same in French and English.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>A run whose price exceeds your cap is refused before the call. The most expensive actions run in two clicks: the first shows the estimate, the second runs it.</p></aside>

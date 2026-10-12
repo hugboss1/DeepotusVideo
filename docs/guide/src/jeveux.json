@@ -13,6 +13,7 @@
   {"fr": "imprimer mon jeu de cartes", "en": "print my card game", "cible": "cardforge"},
   {"fr": "imprimer une figurine en 3D", "en": "3D-print a figurine", "cible": "etabli"},
   {"fr": "savoir combien je dépense", "en": "know how much I spend", "cible": "budget"},
+  {"fr": "choisir un modèle d'IA et la clé qui le paie", "en": "pick an AI model and the key that pays for it", "cible": "modeles-et-cles"},
   {"fr": "comprendre une icône", "en": "understand an icon", "cible": "icones"},
   {"fr": "régler un problème", "en": "fix a problem", "cible": "depannage"}
  ]

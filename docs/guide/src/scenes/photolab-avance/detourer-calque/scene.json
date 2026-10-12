@@ -1,0 +1,118 @@
+{
+  "titre": {
+    "fr": "Retirer le fond d'un calque",
+    "en": "Remove a layer's background"
+  },
+  "legende": {
+    "fr": "Calque › Retirer le fond du calque : la copie détourée se pose au-dessus, l'original reste dessous, masqué.",
+    "en": "Layer › Remove layer background: the cut-out copy goes on top, the original stays below, hidden."
+  },
+  "captures": [
+    {
+      "fr": "menu.fr.webp",
+      "en": "menu.en.webp"
+    },
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    },
+    {
+      "fr": "detoure.fr.webp",
+      "en": "detoure.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        260,
+        116
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Calque › Retirer le fond du calque",
+        "en": "Layer › Remove layer background"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        783,
+        265,
+        326,
+        26
+      ],
+      "bulle": {
+        "fr": "Le modèle choisi et son prix",
+        "en": "The chosen model and its price"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3.2,
+      "surligne": [
+        1157,
+        558,
+        283,
+        294
+      ],
+      "bulle": {
+        "fr": "La copie détourée au-dessus, l'original masqué dessous",
+        "en": "The cut-out copy on top, the original hidden below"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        230,
+        116
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Calque › Retirer le fond du calque",
+        "en": "Layer › Remove layer background"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        783,
+        265,
+        326,
+        26
+      ],
+      "bulle": {
+        "fr": "Le modèle choisi et son prix",
+        "en": "The chosen model and its price"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3.2,
+      "surligne": [
+        1157,
+        558,
+        283,
+        294
+      ],
+      "bulle": {
+        "fr": "La copie détourée au-dessus, l'original masqué dessous",
+        "en": "The cut-out copy on top, the original hidden below"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

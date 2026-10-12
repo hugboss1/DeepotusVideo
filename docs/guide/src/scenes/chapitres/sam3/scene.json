@@ -1,0 +1,85 @@
+{
+  "titre": {
+    "fr": "Reconstruire un plan en 3D",
+    "en": "Rebuild a shot in 3D"
+  },
+  "legende": {
+    "fr": "Depuis la carte d'un plan, SAM 3 isole les objets nommés de l'image et les pose en 3D dans le Plateau du plan.",
+    "en": "From a shot's card, SAM 3 isolates the named objects in the image and places them in 3D on the shot's Stage."
+  },
+  "captures": [
+    {
+      "fr": "carte.fr.webp",
+      "en": "carte.en.webp"
+    },
+    {
+      "fr": "boite.fr.webp",
+      "en": "boite.en.webp"
+    },
+    {
+      "fr": "plateau.fr.webp",
+      "en": "plateau.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        96,
+        461
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Reconstruire en 3D (SAM 3)",
+        "en": "Rebuild in 3D (SAM 3)"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        471,
+        320,
+        498,
+        42
+      ],
+      "bulle": {
+        "fr": "Les objets à isoler",
+        "en": "The objects to isolate"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        471,
+        517,
+        498,
+        42
+      ],
+      "bulle": {
+        "fr": "Le prix, annoncé avant",
+        "en": "The price, shown beforehand"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        492,
+        54,
+        426,
+        748
+      ],
+      "bulle": {
+        "fr": "Les objets posés dans le Plateau du plan",
+        "en": "The objects placed on the shot's Stage"
+      }
+    }
+  ]
+}

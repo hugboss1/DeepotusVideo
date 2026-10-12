@@ -231,7 +231,7 @@ button:disabled { opacity: .4; cursor: default; }
 .vl-didact-phrase { font-size: 13px; line-height: 1.45; color: var(--ink); padding: 0 12px 10px; }
 .vl-didact-q { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--stroke-strong); background: transparent;
   color: var(--ink-soft); font-size: 11px; line-height: 16px; cursor: help; margin-left: 4px; }
-#outils .vl-didact-q, .rg-grille .vl-didact-q { display: none; }
+#outils .vl-didact-q, .rg-grille .vl-didact-q, .cq-pied .vl-didact-q { display: none; }
 /* t140 : À propos — crédits en tête, licences à gauche, texte de la licence choisie à droite */
 .pl-dlg.apropos .pl-dlg-corps { overflow: hidden; }
 .ap-tete p { margin: 0 0 4px; color: var(--ink-soft); }

@@ -11,7 +11,8 @@ import { KINDS, idReglage } from "../js/mod-reglages.js";
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ids = [...EMPLACEMENTS.map((_, i) => idEmplacement(i)), ...KINDS.map((k) => idReglage(k.kind)),
-  "pl-espace"];          // t151 : le sélecteur d'espace de travail (mod-espaces.js)
+  "pl-espace",           // t151 : le sélecteur d'espace de travail (mod-espaces.js)
+  "pl-calque-ia", "pl-iac-detourer"];   // t193 : le calque IA (pied des Calques) et le détourage (mod-iacalque.js)
 const sources = [readFileSync(join(racine, "index.html"), "utf-8"),
   ...readdirSync(join(racine, "js")).filter((n) => n.endsWith(".js")).map((n) => readFileSync(join(racine, "js", n), "utf-8")),
   ids.map((i) => `id="${i}"`).join("\n")];
@@ -27,8 +28,8 @@ ok("phrases courtes (≤ 25 mots), sans jargon", index.every((f) => f.phrase.spl
   index.map((f) => f.phrase.split(/\s+/).length));
 const html = readFileSync(join(racine, "index.html"), "utf-8"), css = readFileSync(join(racine, "photolab.css"), "utf-8");
 ok("l'encart partagé est chargé, sur le dossier aide/ du Photolab", /import \{ initDidact \} from "\/vectorlab\/js\/mod-didact\.js"; initDidact\(\{\}, \{ aide: "aide\/", racine: "body" \}\);/.test(html));
-ok("dans les barres d'icônes, le « ? » est masqué (pas de case en plus dans la colonne d'outils)",
-  /#outils \.vl-didact-q, \.rg-grille \.vl-didact-q \{ display: none; \}/.test(css));
+ok("dans les barres d'icônes (outils, grille de réglages, pied des Calques — t193), le « ? » est masqué : pas de case en plus",
+  /#outils \.vl-didact-q, \.rg-grille \.vl-didact-q, \.cq-pied \.vl-didact-q \{ display: none; \}/.test(css));
 
 if (echecs.length) { console.error("QA aide photolab : " + echecs.length + " échec(s)\n  " + echecs.join("\n  ")); process.exit(1); }
 console.log("QA aide photolab : PASS (fiches valides, animations 320×200 à trois temps, ids présents)");

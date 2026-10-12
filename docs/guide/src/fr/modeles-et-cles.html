@@ -1,0 +1,26 @@
+<p class="chapeau-chap">Vous saurez lire une liste de modèles d'IA : quelle clé sert, combien coûte un tir, et quoi faire quand une clé manque. Cinq minutes, gratuit ; les mêmes listes servent dans toute l'application.</p>
+
+<h3>Deux voies pour un même modèle</h3>
+<figure class="scene" data-scene="modeles-et-cles/liste"></figure>
+<p>Partout où l'on génère (images, vidéos, sons, détourage), la liste des modèles est rangée en groupes, un par <strong>voie</strong>. Vous gardez toutes vos clés : chaque liste propose toutes les voies, et vous choisissez modèle par modèle.</p>
+<div class="cartes">
+<article><i data-dz="dz-nav-cles-api"></i><h4>Via la clé fal</h4><p>Une seule clé fal.ai ouvre la plupart des modèles : FLUX, Nano Banana, GPT Image, Seedream, Veo, Kling… Le libellé dit « via fal » quand le même modèle existe aussi en direct.</p></article>
+<article><i data-dz="dz-etat-ia"></i><h4>Avec votre clé</h4><p>Le modèle payé directement chez son fournisseur : OpenAI, Gemini, ElevenLabs, Meshy, HeyGen. Utile si vous avez déjà un compte et des crédits chez lui.</p></article>
+<article><i data-dz="dz-action-detourer"></i><h4>Local, gratuit</h4><p>Certains outils tournent sur votre PC, comme le détourage rembg ou le fond uni : ni clé ni dépense.</p></article>
+</div>
+
+<h3>Lire le prix d'une option</h3>
+<p>Chaque option affiche son prix unitaire après le nom : <strong>$0.04/image</strong>, <strong>$0.10/s</strong> de vidéo, <strong>$0.0018/s</strong> de son, <strong>/30 images</strong> pour un détourage vidéo. Une option marquée <strong>prix à mesurer</strong> est payante, mais son tarif n'est pas encore relevé : elle n'est jamais présentée comme gratuite.</p>
+<p>Avant un tir, l'écran affiche le <strong>prix total</strong> calculé par le serveur pour ce que vous demandez : une image et son détourage, une vidéo de 6 s… C'est ce même montant que vérifient vos plafonds, voir <a href="#budget">Maîtriser ses dépenses</a>.</p>
+
+<h3>Une option « clé à ajouter »</h3>
+<figure class="scene" data-scene="modeles-et-cles/cle-absente"></figure>
+<ol class="etapes">
+<li>Une option dont la clé manque reste visible <strong>et choisissable</strong> ; elle porte la mention « clé … à ajouter dans Réglages ».</li>
+<li>Si vous la lancez, le tir est refusé tout de suite, avant toute dépense, avec le nom de la clé qui manque.</li>
+<li>Posez la clé dans <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Clés d'API</b></span> (voir <a href="#cles">Brancher ses clés</a>) : elle sert aussitôt, sans redémarrer. Ou prenez la même option via la clé fal.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Les noms de modèles (Flux 3, Veo 3.1 Fast, Sonilo…) sont des noms propres : ils restent les mêmes en français et en anglais.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Un tir dont le prix dépasse votre plafond est refusé avant l'appel. Les actions les plus chères se lancent en deux clics : le premier affiche le devis, le second lance.</p></aside>

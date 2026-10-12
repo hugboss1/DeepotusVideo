@@ -1,0 +1,64 @@
+{
+  "titre": {
+    "fr": "Une liste de modèles",
+    "en": "A model list"
+  },
+  "legende": {
+    "fr": "Un groupe par voie (la clé fal, ou votre propre clé), le prix sur chaque option, la clé qui manque nommée.",
+    "en": "One group per route (the fal key, or your own key), the price on each option, the missing key named."
+  },
+  "captures": [
+    {
+      "fr": "liste.fr.webp",
+      "en": "liste.en.webp"
+    }
+  ],
+  "taille": [
+    600,
+    854
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        17,
+        100,
+        565,
+        216
+      ],
+      "bulle": {
+        "fr": "Via la clé fal : une seule clé pour tous ces modèles",
+        "en": "With the fal key: one key for all these models"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        17,
+        253,
+        565,
+        29
+      ],
+      "bulle": {
+        "fr": "Chaque option affiche son prix",
+        "en": "Each option shows its price"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        17,
+        321,
+        565,
+        29
+      ],
+      "bulle": {
+        "fr": "Clé absente : l'option reste choisissable",
+        "en": "Missing key: the option can still be chosen"
+      }
+    }
+  ]
+}

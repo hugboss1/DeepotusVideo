@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Détourer avec le modèle de son choix",
+    "en": "Cut out with the model of your choice"
+  },
+  "legende": {
+    "fr": "Inspecteur du clip, Effets sur ce clip : le modèle de détourage et son prix ; le premier clic donne le devis.",
+    "en": "Clip inspector, Effects on this clip: the cutout model and its price; the first click gives the estimate."
+  },
+  "captures": [
+    {
+      "fr": "modele.fr.webp",
+      "en": "modele.en.webp"
+    },
+    {
+      "fr": "devis.fr.webp",
+      "en": "devis.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1151,
+        247,
+        279,
+        33
+      ],
+      "bulle": {
+        "fr": "Le modèle de détourage et son prix",
+        "en": "The cutout model and its price"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1151,
+        220,
+        279,
+        137
+      ],
+      "bulle": {
+        "fr": "Le devis ; le second clic détoure",
+        "en": "The estimate; the second click cuts out"
+      }
+    }
+  ]
+}

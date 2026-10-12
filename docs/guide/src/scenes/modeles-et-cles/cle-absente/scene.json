@@ -1,0 +1,63 @@
+{
+  "titre": {
+    "fr": "Une option sans sa clé",
+    "en": "An option without its key"
+  },
+  "legende": {
+    "fr": "Choisie, l'option sans clé est refusée au lancement, avant toute dépense : posez la clé dans Réglages.",
+    "en": "Once chosen, the option without a key is refused at launch, before any spending: add the key in Settings."
+  },
+  "captures": [
+    {
+      "fr": "choisie.fr.webp",
+      "en": "choisie.en.webp"
+    },
+    {
+      "fr": "refus.fr.webp",
+      "en": "refus.en.webp"
+    }
+  ],
+  "taille": [
+    600,
+    854
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        7,
+        93,
+        585,
+        44
+      ],
+      "bulle": {
+        "fr": "GPT Image 2 en direct : clé OpenAI à ajouter",
+        "en": "GPT Image 2 direct: OpenAI key to add"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2,
+      "curseur": [
+        300,
+        823
+      ],
+      "clic": true
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        7,
+        821,
+        585,
+        27
+      ],
+      "bulle": {
+        "fr": "Refusé au lancement : rien n'est facturé",
+        "en": "Refused at launch: nothing is charged"
+      }
+    }
+  ]
+}

@@ -70,6 +70,26 @@
     "fichier_en": "carte.carteTuiles.en.webp"
   },
   {
+    "id": "iacGo",
+    "titre": "Image IA sur le calque",
+    "phrase": "Tu écris ce que tu veux voir : l'image apparaît sur le calque choisi, sous ton texte.",
+    "fichier": "iacalque.iacGo.webp",
+    "version": 1,
+    "titre_en": "AI image on layer",
+    "phrase_en": "You write what you want to see: the picture appears on the chosen layer, under your text.",
+    "fichier_en": "iacalque.iacGo.en.webp"
+  },
+  {
+    "id": "imDetourer",
+    "titre": "Retirer le fond",
+    "phrase": "Le fond autour de ton image disparaît : il ne reste que le sujet, posé sur ton dessin.",
+    "fichier": "iacalque.imDetourer.webp",
+    "version": 1,
+    "titre_en": "Remove the background",
+    "phrase_en": "The background around your picture disappears: only the subject is left, sitting on your drawing.",
+    "fichier_en": "iacalque.imDetourer.en.webp"
+  },
+  {
     "id": "impDepouilleR",
     "titre": "Dépouille des flancs",
     "phrase": "Les côtés de ta pièce penchent : plus tu tournes, plus le bas devient large et le haut petit.",

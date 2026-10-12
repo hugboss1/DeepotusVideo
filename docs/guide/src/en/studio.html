@@ -13,6 +13,15 @@
 <li>Read the estimated cost, then <b class="ui">Run</b>. That amount is sent as a cap: the render cannot cost more. <b class="ui">Save</b> keeps the graph under a name.</li>
 </ol>
 
+<h3>A first and a last frame</h3>
+<figure class="scene" data-scene="studio/composition-fl"></figure>
+<ol class="etapes">
+<li>Wire an Image node that has a file to the Seedance node's <strong>end</strong> input: that image becomes the shot's last frame, while the <strong>image</strong> input stays the first.</li>
+<li>In the inspector, models that accept a last frame move to the top of the list; the "Slot last frame" line confirms which file is used.</li>
+<li>If the chosen model can't take a last frame, a banner warns that the launch would be refused. Its <b class="ui">Veo 3.1 Fast (first and last frame)</b> button switches to that model; nothing changes without this click.</li>
+</ol>
+<p>The last frame also goes into a Concatenate, a UGC or spatial composition, and from Quick › Composition. Models that accept it: Seedance, Kling v3 Pro and Standard, Veo 3.1 via fal, MiniMax H3, Wan 3.0, LTX 2.5.</p>
+
 <h3>Never pay twice for what is done</h3>
 <p>The paid render of a Seedance or HeyGen node is <strong>pinned</strong> automatically: as long as its request does not change, it is reused for free, and the estimated cost says which nodes are.</p>
 <div class="cartes">

@@ -15,7 +15,7 @@
  *   "temps": [{"capture": 0, "duree": 2.4, "curseur": "texte:X", "clic": true, "surligne": "texte:Y", "voile": true,
  *              "ancre": "texte:Z", "bulle": {"fr","en"}}] }]}
  * Étapes : {"aller": "/chemin"}, {"clic": ref}, {"saisir": [ref, "texte"]}, {"touche": "Escape"}, {"attente": ms},
- *          {"js": "code exécuté dans la page"}, {"defiler": ref}.
+ *          {"js": "code exécuté dans la page"}, {"defiler": ref}, {"glisser": [ref départ, ref arrivée]}.
  */
 const puppeteer = require("puppeteer-core");
 const fs = require("fs");
@@ -73,6 +73,11 @@ async function etape(page, e) {
     await page.mouse.click(b[0] + b[2] / 2, b[1] + b[3] / 2); await page.keyboard.type(R(e.saisir[1]), { delay: 15 }); await pause(500); }
   // clic par coordonnées : SEULEMENT quand l'élément n'a ni libellé ni sélecteur stable (losange de jonction du Montage)
   if (e.clicxy) { await page.mouse.click(e.clicxy[0], e.clicxy[1]); await pause(e.apres || 900); }
+  // t193 : glisser d'un repère à un autre, à la vraie souris (brancher un port du Studio)
+  if (e.glisser) { const a = await boite(page, e.glisser[0]), b = await boite(page, e.glisser[1]);
+    if (!a || !b) throw new Error("introuvable : " + JSON.stringify(!a ? e.glisser[0] : e.glisser[1]));
+    await page.mouse.move(a[0] + a[2] / 2, a[1] + a[3] / 2); await page.mouse.down();
+    await page.mouse.move(b[0] + b[2] / 2, b[1] + b[3] / 2, { steps: 14 }); await page.mouse.up(); await pause(e.apres || 900); }
   if (e.touche) { await page.keyboard.press(e.touche); await pause(400); }
   if (e.defiler) { await page.evaluate(ref => { const css = ref.startsWith("css:") ? ref.slice(4) : null;
     const el = css ? document.querySelector(css) : [...document.querySelectorAll("h2,h3,h4,button,div,section,label,span")]
