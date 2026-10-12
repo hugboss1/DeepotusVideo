@@ -5329,6 +5329,12 @@
     "groupe": "export"
    },
    {
+    "pos": 12149,
+    "avant": "$(\"#impHauteurs\").querySelectorAll",
+    "apres": "$(\"#impHauteursPx\").querySelectorAll",
+    "groupe": "impression"
+   },
+   {
     "pos": 12436,
     "avant": "\"pixel-art : aucun pixel opaque\"",
     "apres": "vlT(\"vectorlab.impression.pixel_vide\")",
@@ -5441,6 +5447,12 @@
     "avant": "title=\"Préremplit la table : clair haut, sombre bas\">par luminosité</button>",
     "apres": "title=\"${vlT(\"vectorlab.impression.lum_titre\")}\">${vlT(\"vectorlab.impression.par_luminosite\")}</button>",
     "groupe": "export"
+   },
+   {
+    "pos": 20704,
+    "avant": "imp-hauteurs\" id=\"impHauteurs\">",
+    "apres": "imp-hauteurs\" id=\"impHauteursPx\">",
+    "groupe": "impression"
    },
    {
     "pos": 20753,
@@ -5575,10 +5587,22 @@
     "groupe": "export"
    },
    {
+    "pos": 25009,
+    "avant": "$(\"#impHauteurs\").innerHTML",
+    "apres": "$(\"#impHauteursPx\").innerHTML",
+    "groupe": "impression"
+   },
+   {
     "pos": 25235,
     "avant": "<i class=\"tr-etat\">aucun pixel opaque</i>",
     "apres": "<i class=\"tr-etat\">${vlT(\"vectorlab.impression.aucun_pixel\")}</i>",
     "groupe": "export"
+   },
+   {
+    "pos": 25443,
+    "avant": "$(\"#impHauteurs\").innerHTML",
+    "apres": "$(\"#impHauteursPx\").innerHTML",
+    "groupe": "impression"
    },
    {
     "pos": 26382,
