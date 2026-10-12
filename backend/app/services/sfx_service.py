@@ -259,9 +259,10 @@ def generate_sfx(prompt: str, duration_s: float | None = None,
 #   · Sonilo 1.1 vidéo : video_url, prompt, segments, audio_format, keep_speech_vocal -> `audio` + `audios`.
 #   · Mirelo SFX 1.6 vidéo -> vidéo : video_url, text_prompt, duration 1-60 (DÉFAUT 10 : on envoie la durée de la
 #     source, bornée à 60), num_samples -> `video` (liste) : la vidéo SONORISÉE.
-#   · Kling vidéo -> son : video_url, sound_effect_prompt, background_music_prompt, asmr_mode -> `video` + `audio`.
-#     ATTENTION : background_music_prompt a pour DÉFAUT « intense car race » côté fal ; le plan (banc [0]) n'envoie
-#     que {video_url, sound_effect_prompt} — écart signalé, voir le rapport t187.
+#   · Kling vidéo -> son : video_url, sound_effect_prompt (≤ 200 caractères), background_music_prompt, asmr_mode
+#     -> `video` + `audio`. background_music_prompt a pour DÉFAUT « intense car race » côté fal : on envoie `null`
+#     EXPLICITEMENT (anyOf string|null au schéma). Vidéo d'entrée : 3 à 20 s, .mp4 ou .mov seulement — refus nommés
+#     AVANT la garde (route), jamais de coupe silencieuse de la description.
 #   · Hunyuan Video Foley : video_url ET text_prompt REQUIS -> `video`.
 #   · ThinkSound : video_url, prompt -> `video`.
 # PRIX relevés le 12/10/2026 : Sonilo texte 0,0018 $ / s de sortie / échantillon ; Sonilo vidéo 0,009 $ / s de sortie
@@ -275,12 +276,13 @@ DEMANDE_PROMPT = "décrivez le son voulu : ce modèle exige une description (« 
 
 
 def _m(nature, label, voie, endpoint, champs, fixe=None, prix=None, unite="son", bornes=None, defaut_s=None,
-       prompt_requis=False):
+       prompt_requis=False, prompt_max=450, video_s=None, video_ext=None):
     ch = {"prompt": None, "duree": None, "video": None, "echantillons": None, "voix": None, "influence": None}
     ch.update(champs)
     return {"nature": nature, "label": label, "voie": voie, "endpoint": endpoint, "champs": ch,
             "fixe": dict(fixe or {}), "prix": prix, "unite": unite, "bornes": bornes, "defaut_s": defaut_s,
-            "prompt_requis": bool(prompt_requis)}
+            "prompt_requis": bool(prompt_requis), "prompt_max": int(prompt_max),
+            "video_s": video_s, "video_ext": tuple(video_ext) if video_ext else None}
 
 
 # ORDRE = ordre des sélecteurs. Le défaut texte (ElevenLabs direct) en tête, son jumeau fal juste après.
@@ -308,8 +310,9 @@ SFX_MODELS: dict[str, dict] = {
                        {"video": "video_url", "prompt": "text_prompt", "duree": "duration",
                         "echantillons": "num_samples"}, prix="mirelo_video_usd", bornes=(1.0, 60.0)),
     "kling-v2a": _m(SFX_VIDEO, "Kling vidéo → son", "fal", "fal-ai/kling-video/video-to-audio",
-                    {"video": "video_url", "prompt": "sound_effect_prompt"}, prix="kling_v2a_usd", unite="video",
-                    prompt_requis=True),   # sans description, fal pose « Car tires screech… » (défaut du schéma)
+                    {"video": "video_url", "prompt": "sound_effect_prompt"}, {"background_music_prompt": None},
+                    prix="kling_v2a_usd", unite="video", prompt_requis=True, prompt_max=200, video_s=(3.0, 20.0),
+                    video_ext=(".mp4", ".mov")),   # sans description, fal pose « Car tires screech… » (défaut du schéma)
     "hunyuan-foley": _m(SFX_VIDEO, "Hunyuan Video Foley", "fal", "fal-ai/hunyuan-video-foley",
                         {"video": "video_url", "prompt": "text_prompt"}, prix="hunyuan_foley_usd",
                         prompt_requis=True),
@@ -407,7 +410,9 @@ def build_request(mid: str, prompt=None, duree=None, video_url=None, echantillon
         if not str(video_url or "").strip():
             raise ValueError(f"{e['label']} part d'une vidéo : aucune vidéo fournie")
         args[ch["video"]] = str(video_url)
-    p = str(prompt or "").strip()[:450]
+    p = str(prompt or "").strip()
+    if len(p) > e["prompt_max"]:
+        raise ValueError(f"{e['label']} : description trop longue ({len(p)} caractères, {e['prompt_max']} au plus)")
     if e["prompt_requis"] and not p:
         raise ValueError(f"{e['label']} : {DEMANDE_PROMPT}")
     if ch["prompt"] and p:
@@ -429,6 +434,24 @@ def build_request(mid: str, prompt=None, duree=None, video_url=None, echantillon
         except (TypeError, ValueError):
             pass
     return e["endpoint"], args
+
+
+def video_refusee(mid: str, chemin: Path, secondes) -> str | None:
+    """La raison NOMMÉE pour laquelle ce modèle refuse cette vidéo (format, durée hors de ses bornes), None si elle
+    passe. Les routes en font un 400 AVANT la garde des plafonds."""
+    e = entree_sfx(mid)
+    ext = Path(chemin).suffix.lower()
+    if e.get("video_ext") and ext not in e["video_ext"]:
+        return f"{e['label']} n'accepte que {', '.join(e['video_ext'])} (vidéo {ext or 'sans extension'})"
+    b = e.get("video_s")
+    if b:
+        try:
+            s = float(secondes or 0)
+        except (TypeError, ValueError):
+            s = 0.0
+        if not b[0] <= s <= b[1]:
+            return f"{e['label']} : la vidéo doit durer de {b[0]:g} à {b[1]:g} s (celle-ci : {s:.1f} s)"
+    return None
 
 
 def op_sfx(mid: str, secondes=None, echantillons: int = 1) -> dict:
@@ -506,7 +529,7 @@ async def generer_sfx(mid: str, prompt=None, duree=None, video: Path | None = No
     import asyncio
     from uuid import uuid4
     e = entree_sfx(mid)
-    p = str(prompt or "").strip()[:450]
+    p = str(prompt or "").strip()
     build_request(mid, p, duree, "http://a-blanc" if e["champs"]["video"] else None, echantillons, garder_voix)
     url_video = None
     if e["champs"]["video"]:

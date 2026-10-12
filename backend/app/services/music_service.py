@@ -76,7 +76,9 @@ MUSIC_MODELS: dict = {
                 "44.1 kHz stéréo. Idéal pour itérer sur une ambiance.",
         "duration": (10, 180), "fixed_duration": None,
         "lyrics": False, "instrumental": False, "seed": False,
-        "usd": 0.04,
+        # t187 : tarif relu le 12/10/2026, 0,02 $ par minute de sortie — compté à la minute ENTAMÉE (borne
+        # prudente, comme ElevenLabs Music) ; c'était 0,04 $ fixe
+        "usd": 0.02, "usd_unit": "min",
     },
     # ── T102 (plan-son-vfx T6, P4) : la chanson chantée ─────────────────────
     # Schémas relus le 06/10/2026 sur l'openapi « queue » de fal :

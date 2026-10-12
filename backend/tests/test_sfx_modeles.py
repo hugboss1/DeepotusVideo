@@ -135,6 +135,8 @@ _ffmpeg("-f", "lavfi", "-i", "color=c=red:s=64x64:d=2", "-c:v", "libx264", "-pix
 UPLOADS = settings.outputs_path / "uploads"
 UPLOADS.mkdir(parents=True, exist_ok=True)
 shutil.copy2(MP4, UPLOADS / "plan.mp4")
+# Kling exige une source de 3 à 20 s : un plan de 4 s pour lui
+_ffmpeg("-f", "lavfi", "-i", "color=c=green:s=64x64:d=4", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(UPLOADS / "plan4.mp4"))
 
 # ── seams de sfx_service : des enregistreurs ────────────────────────────────
 SEAMS = {"up": [], "sub": [], "dl": []}
@@ -206,7 +208,22 @@ check("eleven fal : prompt_influence seulement si donné, borné 0..1",
 check("eleven fal : endpoint v2 et mp3_44100_128",
       ep == "fal-ai/elevenlabs/sound-effects/v2" and a.get("output_format") == "mp3_44100_128", (ep, a))
 ep, a = S.build_request("kling-v2a", prompt="pas sur gravier", video_url="https://x/v.mp4")
-check("kling v2a", a == {"video_url": "https://x/v.mp4", "sound_effect_prompt": "pas sur gravier"}, a)
+check("kling v2a", a == {"video_url": "https://x/v.mp4", "sound_effect_prompt": "pas sur gravier",
+                         "background_music_prompt": None}, a)
+check("kling v2a : background_music_prompt null EXPLICITE (sinon fal pose « intense car race »)",
+      "background_music_prompt" in a and a["background_music_prompt"] is None, a)
+try:
+    S.build_request("kling-v2a", prompt="x" * 201, video_url="https://x/v.mp4")
+    check("kling v2a : description > 200 -> ValueError (pas de coupe silencieuse)", False)
+except ValueError as e:
+    check("kling v2a : description > 200 -> ValueError (pas de coupe silencieuse)", "200" in str(e), str(e))
+check("kling v2a : 200 caractères passent tels quels",
+      len(S.build_request("kling-v2a", prompt="y" * 200, video_url="https://x/v.mp4")[1]["sound_effect_prompt"]) == 200)
+check("kling v2a : vidéo .webm, 2 s, 21 s refusées ; .mov 3 s et .mp4 20 s acceptées",
+      S.video_refusee("kling-v2a", pathlib.Path("a.webm"), 5) and S.video_refusee("kling-v2a", pathlib.Path("a.mp4"), 2)
+      and S.video_refusee("kling-v2a", pathlib.Path("a.mp4"), 21) and not S.video_refusee("kling-v2a",
+      pathlib.Path("a.mov"), 3) and not S.video_refusee("kling-v2a", pathlib.Path("a.mp4"), 20)
+      and not S.video_refusee("sonilo-video", pathlib.Path("a.webm"), 120))
 check("kling v2a : endpoint", ep == "fal-ai/kling-video/video-to-audio", ep)
 ep, a = S.build_request("stable-audio-3-sfx", prompt="vent", duree=500)
 check("stable audio 3 SFX : durée bornée à 120, wav",
@@ -423,8 +440,17 @@ for corps, code, quoi in (({"modele": "sonilo-video"}, 400, "aucune vidéo"),
     check(f"confinement : {quoi} -> {code}", st == code, f"{st} {js}")
 st, js = call("POST", "/audio/sfx-video", {"modele": "hunyuan-foley", "video_filename": "plan.mp4"})
 check("hunyuan sans description -> 400", st == 400 and "description" in detail(js), f"{st} {js}")
-st, js = call("POST", "/audio/sfx-video", {"modele": "kling-v2a", "video_filename": "plan.mp4", "prompt": " "})
+st, js = call("POST", "/audio/sfx-video", {"modele": "kling-v2a", "video_filename": "plan4.mp4", "prompt": " "})
 check("kling sans description -> 400 (sinon fal pose « Car tires screech… »)", st == 400, f"{st} {js}")
+st, js = call("POST", "/audio/sfx-video", {"modele": "kling-v2a", "video_filename": "plan4.mp4", "prompt": "z" * 201})
+check("kling description > 200 -> 400 nommé", st == 400 and "200" in detail(js), f"{st} {js}")
+_ffmpeg("-f", "lavfi", "-i", "color=c=red:s=64x64:d=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(UPLOADS / "un_s.mp4"))
+shutil.copy2(MP4, UPLOADS / "plan.webm")
+st, js = call("POST", "/audio/sfx-video", {"modele": "kling-v2a", "video_filename": "un_s.mp4", "prompt": "pas"})
+check("kling, source de 1 s -> 400 nommé (3 à 20 s) AVANT la garde", st == 400 and "3 à 20 s" in detail(js),
+      f"{st} {js}")
+st, js = call("POST", "/audio/sfx-video", {"modele": "kling-v2a", "video_filename": "plan.webm", "prompt": "pas"})
+check("kling, source .webm -> 400 nommé (.mp4, .mov)", st == 400 and ".mov" in detail(js), f"{st} {js}")
 check("refus : zéro ligne depenses, rien envoyé", n_depenses() == d0 and SEAMS["sub"] == [] and SEAMS["up"] == [], "")
 st, devis = call("POST", "/audio/sfx-video", {"modele": "sonilo-video", "video_filename": "plan.mp4", "devis": True})
 check("devis sonilo vidéo, source de 2 s = 0,018 $, rien tiré ni écrit",
@@ -442,6 +468,16 @@ check("sonilo vidéo : la vidéo part (upload), keep_speech_vocal True, un son r
 check("même chiffre avant (devis) et après (réponse du tir)", st == 200 and js.get("usd") == devis.get("usd"),
       f"{devis.get('usd')} / {js.get('usd') if isinstance(js, dict) else js}")
 check("TÉMOIN : la garde passe et écrit UNE ligne depenses (0,018 $)", n_depenses() == d0 + 1, f"{d0} -> {n_depenses()}")
+_lc = sqlite3.connect(str(W / "t.db"))
+try:
+    _lig = _lc.execute("SELECT parent_filename, relation, source, kind FROM library_assets WHERE filename=?",
+                       (js["items"][0]["filename"] if st == 200 else "",)).fetchone()
+except sqlite3.OperationalError as _x:
+    _lig = str(_x)
+finally:
+    _lc.close()
+check("Bibliothèque : le son a pour MÈRE la vidéo bruitée (relation « bruitage », source sonvfx, kind audio)",
+      _lig == ("plan.mp4", "bruitage", "sonvfx", "audio"), _lig)
 raz()
 REPONSE["v"] = {"video": [{"url": "http://fal.test/sono.mp4"}], "model": "m"}
 st, js = call("POST", "/audio/sfx-video", {"modele": "mirelo-video", "video_filename": "plan.mp4", "prompt": "foule"})
@@ -469,15 +505,16 @@ async def _mk_job():
     from app.services.storage import JobRecord as JR
     async with async_session_factory() as s:
         s.add(JR(id=_cid, status="done", progress=100, title="plan", image_filename="plan.mp4",
-                 final_video_path=str(UPLOADS / "plan.mp4"), video_path=str(UPLOADS / "plan.mp4")))
+                 final_video_path=str(UPLOADS / "plan4.mp4"), video_path=str(UPLOADS / "plan4.mp4")))
         await s.commit()
 loop.run_until_complete(_mk_job())
 raz()
 REPONSE["v"] = {"video": {"url": "http://fal.test/k.mp4"}, "audio": {"url": "http://fal.test/k.wav"}}
 st, js = call("POST", "/audio/sfx-video", {"modele": "kling-v2a", "clip_id": _cid, "prompt": "pas sur gravier"})
-check("kling par clip_id : EXACTEMENT {video_url, sound_effect_prompt}",
+check("kling par clip_id : EXACTEMENT {video_url, sound_effect_prompt, background_music_prompt: null}",
       st == 200 and SEAMS["sub"] == [("fal-ai/kling-video/video-to-audio",
-                                      {"video_url": "http://fal.test/in", "sound_effect_prompt": "pas sur gravier"})],
+                                      {"video_url": "http://fal.test/in", "sound_effect_prompt": "pas sur gravier",
+                                       "background_music_prompt": None})],
       f"{st} {js} {SEAMS['sub']}")
 check("kling rend son ET vidéo : un son (celui du modèle, pas d'extraction) et un job",
       st == 200 and len(js["items"]) == 1 and js["items"][0]["filename"].endswith(".wav") and len(js["videos"]) == 1,
@@ -489,7 +526,7 @@ OPS.clear()
 st, js = call("POST", "/audio/sfx-video", {"modele": "sonilo-video", "clip_id": _cid})
 check("la garde reçoit l'op sfx_video (durée de la source) et arrête AVANT tout envoi",
       st == 402 and OPS and OPS[-1]["kind"] == "sfx_video" and OPS[-1]["modele"] == "sonilo-video"
-      and abs(OPS[-1]["secondes"] - 2.0) < 0.1 and SEAMS["up"] == [] and SEAMS["sub"] == [], f"{st} {OPS} {SEAMS}")
+      and abs(OPS[-1]["secondes"] - 4.0) < 0.1 and SEAMS["up"] == [] and SEAMS["sub"] == [], f"{st} {OPS} {SEAMS}")
 R._plafond = _PLAF
 check("aucun appel réseau réel (gardes fal_client)", RESEAU["n"] == 0, RESEAU["noms"])
 
@@ -506,6 +543,9 @@ check("catalogue musique : « à mesurer » pour lyria-3.5, minimax-music-3, sta
 check("catalogue musique : ElevenLabs 0,60 $/min ; Mureka 0,75 $ (0,225 $ avec paroles)",
       mu["elevenlabs-music-2.5"]["usd"] == 0.60 and mu["elevenlabs-music-2.5"]["unite"] == "min"
       and mu["mureka-9.5"]["usd"] == 0.75 and mu["mureka-9.5"]["usd_paroles"] == 0.225, "")
+for _sec, _usd in ((90, 0.04), (60, 0.02), (61, 0.04), (180, 0.06), (None, 0.04)):
+    _e = P.estimate({"kind": "music", "model": "cassetteai", "duration_s": _sec})
+    check(f"CassetteAI {_sec} s = {_usd} $ (0,02 $/min, minute entamée)", abs(_e["total_usd"] - _usd) < 1e-9, _e)
 check("cassetteai : endpoint en minuscules (catalogue fal), durée 10-180 (schéma)",
       MS.MUSIC_MODELS["cassetteai"]["endpoint"] == "cassetteai/music-generator"
       and MS.MUSIC_MODELS["cassetteai"]["duration"] == (10, 180))

@@ -4691,14 +4691,18 @@ async def generate_sfx_video(request: Request):
             raise _refus_cle(cle, e["label"], request)
     src = await _sfx_video_source(payload)
     dur = await asyncio.get_running_loop().run_in_executor(None, _SX._probe_duration, src)
+    refus = _SX.video_refusee(modele, src, dur)   # format, durée (Kling : .mp4/.mov, 3 à 20 s)
+    if refus:
+        raise HTTPException(400, refus)
     op = _SX.op_sfx(modele, round(float(dur or 0), 3), 1)
     if devis:
         from app.services import pricing as _pricing
         return {"devis": True, "modele": modele, "secondes": op["secondes"],
                 "usd": _pricing.estimate(op)["total_usd"]}
     prompt = str(payload.get("prompt") or "").strip()
-    if len(prompt) > 450:
-        raise HTTPException(400, "Prompt trop long (450 caractères max).")
+    if len(prompt) > e["prompt_max"]:
+        raise HTTPException(400, f"{e['label']} : description trop longue ({len(prompt)} caractères, "
+                                 f"{e['prompt_max']} au plus).")
     if e["prompt_requis"] and not prompt:
         raise HTTPException(400, f"{e['label']} : {_SX.DEMANDE_PROMPT}")
     garder = payload.get("garder_voix")
@@ -4715,6 +4719,9 @@ async def generate_sfx_video(request: Request):
     for v in res["videos"]:
         jid = await _sfx_video_job(v, f"{src.stem[:60]} · {e['label']}")
         videos.append({"job_id": jid, "filename": v.name})
+    # la Bibliothèque : chaque son a pour MÈRE la vidéo bruitée (relation « bruitage », lignée de la fiche)
+    await LI.noter([it["filename"] for it in res["items"]], "sonvfx", kind="audio", parent=src.name,
+                   relation="bruitage")
     from app.services import pricing as _pricing
     return {"ok": True, "items": res["items"], "videos": videos, "modele": modele,
             "usd": _pricing.estimate(op)["total_usd"]}
