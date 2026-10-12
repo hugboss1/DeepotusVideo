@@ -143,6 +143,12 @@ export function initTypo(VL) {
     ta.style.cssText = `left:${ex}px;top:${ey}px;width:${w}px;font-family:"${s.police || "Segoe UI"}";font-size:${corps * etat.zoom}px;font-weight:${s.graisse || "normal"};letter-spacing:${(s.interlettrage || 0) * etat.zoom}px;line-height:${s.interligne || 1.2};color:${typeof s.fond === "string" && /^#/.test(s.fond) ? s.fond : "#1F1512"};text-align:${{ middle: "center", end: "right" }[s.ancre] || "left"}`;
     stage.appendChild(ta);
     editeur = { ta, id, neuf };
+    // le champ vit DANS #stage : sans garde, le pointerdown d'un clic dedans remonte au gestionnaire de l'outil
+    // Sélection (mod-tools, en bulle sur #stage, setPointerCapture) et l'éditeur se FERME au lieu de placer le
+    // curseur (vu à la preuve 8799). Mêmes gestes gardés que garderClics de mod-iacalque et le dialogue de mod-ia.
+    for (const t of ["pointerdown", "mousedown", "dblclick", "contextmenu", "wheel"]) {
+      ta.addEventListener(t, (ev) => ev.stopPropagation(), t === "wheel" ? { passive: true } : false);
+    }
     ta.addEventListener("keydown", (ev) => {
       ev.stopPropagation();
       if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); fermerEditeur(true); }

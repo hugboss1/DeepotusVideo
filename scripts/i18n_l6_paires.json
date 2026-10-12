@@ -10195,6 +10195,12 @@
     "groupe": "texte"
    },
    {
+    "pos": 7298,
+    "avant": "    stage.appendChild(ta);\r\n    editeur = { ta, id, neuf };",
+    "apres": "    stage.appendChild(ta);\r\n    editeur = { ta, id, neuf };\r\n    // le champ vit DANS #stage : sans garde, le pointerdown d'un clic dedans remonte au gestionnaire de l'outil\r\n    // Sélection (mod-tools, en bulle sur #stage, setPointerCapture) et l'éditeur se FERME au lieu de placer le\r\n    // curseur (vu à la preuve 8799). Mêmes gestes gardés que garderClics de mod-iacalque et le dialogue de mod-ia.\r\n    for (const t of [\"pointerdown\", \"mousedown\", \"dblclick\", \"contextmenu\", \"wheel\"]) {\r\n      ta.addEventListener(t, (ev) => ev.stopPropagation(), t === \"wheel\" ? { passive: true } : false);\r\n    }",
+    "groupe": "typoclics"
+   },
+   {
     "pos": 8708,
     "avant": "\"sélectionner un texte\"",
     "apres": "vlT(\"vectorlab.typo.selectionner_texte\")",
