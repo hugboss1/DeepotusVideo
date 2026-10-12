@@ -4951,6 +4951,12 @@
     "avant": "`${n} formes posées · ${d.provider}`\r\n                  + (d.modele ? ` · ${d.modele}` : \"\")\r\n                  + ` — sélectionnées sur la page : déplaçables et `\r\n                  + `redimensionnables comme une forme ; « Dégrouper » les `\r\n                  + `rend indépendantes, l'outil Nœuds édite leurs points`",
     "apres": "T(\"vectorlab.ia.posees\", { n, fournisseur: d.provider, modele: d.modele ? ` · ${d.modele}` : \"\" })",
     "groupe": "outils_lab"
+   },
+   {
+    "pos": 8706,
+    "avant": "  const el = hote();\r\n  if (el) {",
+    "apres": "  const el = hote();\r\n  if (el) {\r\n    // le dialogue vit DANS #stage : sans garde, le pointerdown d'un contrôle remonte au gestionnaire de l'outil\r\n    // Sélection (mod-tools, en bulle sur #stage) qui pose setPointerCapture(#stage) — le click part alors sur\r\n    // #stage, la croix ne ferme pas, « Générer » ne part pas (vu à la preuve 8799). Mêmes gestes gardés que\r\n    // garderClics de mod-iacalque ; la poignée de glisser (pointerdown du dialogue, plus bas) n'en souffre pas.\r\n    for (const t of [\"pointerdown\", \"mousedown\", \"dblclick\", \"contextmenu\", \"wheel\"]) {\r\n      el.addEventListener(t, (ev) => ev.stopPropagation(), t === \"wheel\" ? { passive: true } : false);\r\n    }",
+    "groupe": "iaclics"
    }
   ],
   "js/mod-image.js": [
