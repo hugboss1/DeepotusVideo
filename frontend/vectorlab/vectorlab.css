@@ -354,6 +354,8 @@ details[id] > summary.panneau-tete > button { margin-left: auto; }
 /* t190-bis : le panneau « Image IA sur le calque » s'ouvre À GAUCHE — le dialogue IA du canevas est à droite :
    ouverts ensemble, ils ne se couvrent pas */
 .iac-dlg { right: auto; left: 14px; }
+/* une ligne masquée (Détourage, Sujet) reste masquée : `.ia-moteur { display:flex }` l'emportait sur [hidden] */
+.iac-dlg [hidden] { display: none; }
 .iac-case { cursor: pointer; color: var(--aff-texte); }
 .iac-case input[type="checkbox"] { accent-color: #4a90e2; margin: 0; }
 .iac-sujet { height: 22px; background: var(--aff-champ); color: var(--aff-texte);

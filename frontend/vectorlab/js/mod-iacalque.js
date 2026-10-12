@@ -16,6 +16,10 @@
 // par une NOUVELLE image du magasin du document en UNE commande (op_image_remplacer de mod-doc via VL.executer) :
 // Ctrl+Z rend l'image d'avant, dont le PNG reste au magasin.
 //
+// La case « Guider par les calques du dessous » (suite du 12/10) : le rendu PNG des calques visibles SOUS le calque
+// cible part en Bibliothèque puis à /images/process op « edit » ; le sélecteur ne propose alors que les modèles qui
+// acceptent une image d'entrée (catalogue `edit`). Voir docGuide plus bas.
+//
 // Les gestes du panneau : garderClics (mod-flottant, en bulle) et VL.dansPanneau (les outils en CAPTURE sortent).
 // La logique PURE est en tête (banc qa/iacalque.test.mjs) ; initIaCalque ne touche le DOM qu'à l'appel.
 import { T } from "./mod-i18n.js";
@@ -176,11 +180,13 @@ export function unSeulVol(fn, apres) {
 // (chargement), illisible (raison « catalogue » : message + Réessayer) ou lue mais VIDE (raison « vide » : aucun
 // modèle d'image à proposer) — sinon le serveur tirerait le modèle par défaut sans prix affiché. JAMAIS gris pour une clé manquante : l'option sans clé reste choisissable, le 503
 // n'arrive qu'au lancement (décision de l'utilisateur 11/10).
-//   catalogue : "chargement" | "ok" | "echec" ; modele : la valeur de la liste ("" = aucune)
-export function etatGenerer({ enVol, cible, catalogue, modele }) {
+//   catalogue : "chargement" | "ok" | "echec" ; modele : la valeur de la liste ("" = aucune) ; guide : la case
+//   « Guider par les calques du dessous » (liste lue sans aucun modèle qui sache partir d'une image : raison « guide »)
+export function etatGenerer({ enVol, cible, catalogue, modele, guide = false }) {
   if (enVol) return { gris: true, raison: "" };
   if (!cible) return { gris: true, raison: "calque" };
   if (catalogue === "echec") return { gris: true, raison: "catalogue" };
+  if (catalogue === "ok" && !modele && guide) return { gris: true, raison: "guide" };
   if (catalogue === "ok" && !modele) return { gris: true, raison: "vide" };
   if (catalogue !== "ok") return { gris: true, raison: "" };
   return { gris: false, raison: "" };
@@ -200,18 +206,30 @@ export function verifierDetour(o, info, { sansCase = false } = {}) {
 }
 
 // le tir : cible vérifiée, génération, détourage éventuel, pose sur LE calque demandé — d = {doc(), post(url,
-// corps), poser(nom, calqueId) → id (faux = pose refusée : VL.executer avale l'erreur), infoDetour(id)?}
-// (fetch et pose réels dans la page, faux au banc). Tout refus GRATUIT part avant le premier POST. Un détourage
+// corps), poser(nom, calqueId) → id (faux = pose refusée : VL.executer avale l'erreur), infoDetour(id)?,
+// modelesImage()? → la liste du catalogue, guide(docGuide, calqueId)? → nom du guide déposé en Bibliothèque}
+// (fetch et pose réels dans la page, faux au banc). Tout refus GRATUIT part avant le premier POST — avec la case
+// « guide » : modèle qui sait partir d'une image, quelque chose de visible sous le calque cible. Un détourage
 // qui échoue APRÈS la génération payée (plafond refusé, fournisseur en 502…) n'efface pas l'image payée : elle est
 // posée telle quelle et `detourEchec` le dit. Une pose impossible le dit aussi, avec le nom gardé en Bibliothèque.
 export async function executerPlan(o, d) {
   verifierCible(d.doc(), o.calqueId);
   requete(o);
+  let docG = null;
+  if (o.guide) {
+    verifierGuide(o, d.modelesImage ? await d.modelesImage() : null);
+    docG = docGuide(d.doc(), o.calqueId);
+  }
   verifierDetour(o, o.detourer && d.infoDetour ? await d.infoDetour(o.modeleDetour) : null);
-  let nom = null, detourEchec = "";
+  let nom = null, detourEchec = "", guide = "";
   for (const e of etapes(o)) {
     if (e.op === "generer") {
-      const r = await d.post("/api/images/generate", requete(o));
+      let r;
+      if (docG) {
+        // le guide d'abord (dépôt gratuit en Bibliothèque), puis l'édition payante qui part de lui
+        guide = await d.guide(docG, o.calqueId);
+        r = await d.post("/api/images/process", requeteGuide({ ...o, filename: guide }));
+      } else r = await d.post("/api/images/generate", requete(o));
       nom = (r && r.images || [])[0];
       if (!nom) throw new Error(T("vectorlab.image.generation_vide"));
     } else if (e.op === "detourer") {
@@ -230,7 +248,9 @@ export async function executerPlan(o, d) {
         throw new Error(T("vectorlab.iacalque.pose_echouee", { raison: String(x && x.message || x), nom }));
       }
       if (!id) throw new Error(T("vectorlab.iacalque.pose_echouee", { raison: T("vectorlab.iacalque.pose_refusee"), nom }));
-      return detourEchec ? { nom, id, detourEchec } : { nom, id };
+      const out = detourEchec ? { nom, id, detourEchec } : { nom, id };
+      if (guide) out.guide = guide;
+      return out;
     }
   }
 }
@@ -262,10 +282,98 @@ export function nomDepot(docId, href) {
   return `vector_${a(docId)}_detour_${a(href)}.png`;
 }
 
-// le nom rendu par /api/images/upload, ou une erreur lisible (jamais un « filename » undefined envoyé au détourage)
-export function nomDuDepot(d) {
-  if (!d || !d.filename) throw new Error(T("vectorlab.iacalque.biblio_sans_nom"));
+// le nom rendu par /api/images/upload, ou une erreur lisible (jamais un « filename » undefined envoyé au détourage
+// ni à l'édition guidée) — `cle` : le message du dépôt concerné (image à détourer par défaut, ou guide)
+export function nomDuDepot(d, cle = "vectorlab.iacalque.biblio_sans_nom") {
+  if (!d || !d.filename) throw new Error(T(cle));
   return String(d.filename);
+}
+
+/* ── le GUIDE (suite de t190, 12/10) : l'image de ce qui est visible SOUS le calque cible ──
+   Case « Guider par les calques du dessous » : le rendu PNG des calques INFÉRIEURS visibles (au format de la page,
+   fond de page compris) est déposé en Bibliothèque puis envoyé à POST /api/images/process op « edit » (l'image
+   d'entrée du modèle) au lieu de /images/generate. La provenance relie l'image produite à son guide (l'enveloppe de
+   /images/process note parent = filename, relation = « edit »). Seuls les modèles dont l'entrée du catalogue porte
+   `edit: true` savent partir d'une image. Le prix : la garde de l'op edit chiffre {kind: "image", model, n} — le
+   MÊME devis que la génération (devisCorps), donc le même chiffre avant et après le clic. */
+
+// les modèles qui acceptent une image d'entrée (champ `edit` de /api/ia/catalogue?nature=image)
+export function guidables(mods) {
+  return (mods || []).filter((m) => m && m.edit === true);
+}
+
+// un calque se voit : ni masqué, ni à opacité nulle, et il porte au moins un objet
+function calqueVu(c) {
+  return !!c && c.visible !== false && !(c.opacite !== undefined && !(+c.opacite > 0))
+    && Array.isArray(c.objets) && c.objets.length > 0;
+}
+
+// le document du guide : une COPIE qui ne garde que les calques visibles SOUS le calque cible (le calque cible et
+// ceux du dessus exclus) ; le document de l'écran et son historique ne sont jamais touchés. Rien de visible sous
+// le calque → refus gratuit, avant tout envoi (un fond de page seul n'est pas un guide).
+export function docGuide(doc, calqueId) {
+  const cs = (doc && doc.calques) || [];
+  const i = cs.findIndex((c) => c.id === calqueId);
+  if (i < 0) throw new Error(T("vectorlab.iacalque.calque_absent", { id: String(calqueId) }));
+  const dessous = cs.slice(0, i).filter(calqueVu);
+  if (!dessous.length) throw new Error(T("vectorlab.iacalque.guide_rien", { nom: cs[i].nom || cs[i].id }));
+  const copie = JSON.parse(JSON.stringify(doc));
+  const garder = new Set(dessous.map((c) => c.id));
+  copie.calques = copie.calques.filter((c) => garder.has(c.id));
+  return copie;
+}
+
+// le guide demandé est complet AVANT tout envoi : un modèle choisi, et qui sait partir d'une image (`mods` = la
+// liste du catalogue ; null = inconnue, le serveur tranchera)
+export function verifierGuide(o, mods) {
+  if (!o || !o.guide) return;
+  if (!o.modele) throw new Error(T("vectorlab.iacalque.guide_choisir"));
+  if (mods && !guidables(mods).some((m) => m.id === o.modele)) {
+    throw new Error(T("vectorlab.iacalque.guide_modele", { modele: String(o.modele) }));
+  }
+}
+
+// le corps de POST /api/images/process op « edit » (routes.py : filename, prompt, model, n, size, source)
+export function requeteGuide(o) {
+  const q = requete(o);
+  if (!q.model) throw new Error(T("vectorlab.iacalque.guide_choisir"));
+  if (!o.filename) throw new Error(T("vectorlab.iacalque.guide_sans_nom"));
+  return { op: "edit", filename: String(o.filename), prompt: q.prompt, model: q.model, n: 1, size: q.size, source: q.source };
+}
+
+// le nom du guide en Bibliothèque : UNIQUE (un `vector_` est réécrit en place par /images/upload — la lignée d'une
+// image guidée doit garder SON guide)
+export function nomGuide(docId, calqueId, t) {
+  const a = (s) => String(s || "").replace(/[^A-Za-z0-9_-]+/g, "-");
+  return `vector_${a(docId)}_guide_${a(calqueId)}_${(+t || 0).toString(36)}.png`;
+}
+
+// l'échelle du rendu : 1536 px au plus grand côté, jamais plus de 2× la page
+export function echelleGuide(taille) {
+  const w = +(taille && taille.w), h = +(taille && taille.h);
+  if (!(w > 0 && h > 0)) return 1;
+  return Math.min(2, 1536 / Math.max(w, h));
+}
+
+// SVG → Image → canvas → PNG (comme l'export PNG de mod-export) ; `blanc` : un guide sans fond de page est posé
+// sur blanc (les modèles d'édition lisent mal la transparence)
+export function rasteriserGuide(svg, taille, k, blanc) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    const img = new Image();
+    img.onload = () => {
+      const w = Math.max(1, Math.round(taille.w * k)), h = Math.max(1, Math.round(taille.h * k));
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      const cx = cv.getContext("2d");
+      if (blanc) { cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, w, h); }
+      cx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      cv.toBlob((png) => png ? res(png) : rej(new Error(T("vectorlab.export.rasterisation_vide"))), "image/png");
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(T("vectorlab.export.svg_navigateur"))); };
+    img.src = url;
+  });
 }
 
 /* ── DOM ── */
@@ -327,6 +435,14 @@ export function initIaCalque(VL) {
       return id;
     },
     infoDetour: async (id) => infoDe(await catalogue("detourage_image").catch(() => []), id),
+    modelesImage: () => catalogue("image").catch(() => null),
+    // le guide : les calques du dessous compilés par l'export du Vectorlab (VL.svgCourant, images inlinées), rendus
+    // en PNG ici et déposés en Bibliothèque sous un nom unique — le document et l'historique ne bougent pas
+    guide: async (docG, calqueId) => {
+      const svg = await VL.svgCourant(false, null, docG);
+      const png = await rasteriserGuide(svg, docG.taille, echelleGuide(docG.taille), !docG.fond);
+      return deposerFichier(png, nomGuide(etat.docId, calqueId, Date.now()), "vectorlab.iacalque.guide_sans_nom");
+    },
   };
   const lancer = unSeulVol(async (o) => {
     VL.toast(T("vectorlab.image.generation"));
@@ -334,7 +450,9 @@ export function initIaCalque(VL) {
   }, () => majBouton());
 
   /* ── le panneau ── */
-  let cible = "", modsDetour = [], retour = null, etatCatalogue = "chargement", messageEcrit = "";
+  let cible = "", modsDetour = [], modsImage = [], retour = null, etatCatalogue = "chargement", messageEcrit = "";
+  const dire = (t) => { const e = $("#iacEtat"); if (e) e.textContent = t; };   // relu à chaque fois
+  const guideCoche = () => !!($("#iacGuide") || {}).checked;
   function hote() {
     let el = $("#iaCalqueDlg");
     if (el) return el;
@@ -356,6 +474,7 @@ export function initIaCalque(VL) {
     calqueId: cible,
     prompt: ($("#iacPrompt") || {}).value || "",
     modele: ($("#iacModele") || {}).value || "",
+    guide: guideCoche(),
     detourer: !!($("#iacDetourer") || {}).checked,
     modeleDetour: ($("#iacDetour") || {}).value || "",
     sujet: ($("#iacSujet") || {}).value || "",
@@ -372,6 +491,7 @@ export function initIaCalque(VL) {
         <label class="ia-moteur">${T("vectorlab.iacalque.calque")}
           <select id="iacCalque" title="${T("vectorlab.iacalque.calque_aide")}">${optionsCalques(etat.doc, cible)}</select></label>
         <textarea id="iacPrompt" data-dz-ia="image" rows="3" placeholder="${T("vectorlab.iacalque.placeholder")}"></textarea>
+        <label class="ia-moteur iac-case" title="${T("vectorlab.iacalque.guide_aide")}"><input type="checkbox" id="iacGuide"${lire("dz_vl_iac_guide") === "1" ? " checked" : ""}/>${T("vectorlab.iacalque.guide")}</label>
         <label class="ia-moteur">${T("vectorlab.ia.modele")}
           <select id="iacModele" title="${T("vectorlab.iacalque.modele_aide")}"><option value="">…</option></select></label>
         <label class="ia-moteur iac-case"><input type="checkbox" id="iacDetourer"/>${T("vectorlab.iacalque.retirer_fond")}</label>
@@ -395,11 +515,24 @@ export function initIaCalque(VL) {
     etatCatalogue = "chargement";
     majBouton();
     catalogue("image").then((l) => {
-      const sel = $("#iacModele"), M = MI();
-      if (sel && sel.isConnected && M) M.remplir(sel, l, { valeur: lire("dz_vl_iac_modele") });
+      modsImage = l;
+      remplirModeles();
       etatCatalogue = "ok";
       majBouton(); majDevis();
     }).catch(() => { etatCatalogue = "echec"; majBouton(); });
+  }
+  // le sélecteur de modèles : tous, ou — case « guide » cochée — les seuls qui savent partir d'une image (une option
+  // sans clé reste choisissable). Le modèle en place (ou mémorisé) qui ne sait pas guider cède la place au premier
+  // qui sait, et on le dit.
+  function remplirModeles() {
+    const sel = $("#iacModele"), M = MI();
+    if (!sel || !sel.isConnected || !M) return;
+    const guide = guideCoche(), voulu = sel.value || lire("dz_vl_iac_modele");
+    M.remplir(sel, guide ? guidables(modsImage) : modsImage, { valeur: voulu });
+    const nom = (id) => { const m = modsImage.find((x) => x.id === id); return m ? (m.label || m.id) : String(id); };
+    if (guide && voulu && sel.value && sel.value !== voulu && modsImage.some((m) => m.id === voulu)) {
+      dire(T("vectorlab.iacalque.guide_modele_remplace", { avant: nom(voulu), apres: nom(sel.value) }));
+    }
   }
   // la liste des calques seule (réouverture, calque ajouté / renommé / verrouillé / masqué) : le prompt, les
   // listes de modèles et le message restent
@@ -418,7 +551,7 @@ export function initIaCalque(VL) {
   function majBouton() {
     const go = $("#iacGo"), tx = $("#iacGoTexte");
     if (!go || !tx) return;
-    const { gris, raison } = etatGenerer({ enVol: lancer.enVol, cible, catalogue: etatCatalogue, modele: ($("#iacModele") || {}).value || "" });
+    const { gris, raison } = etatGenerer({ enVol: lancer.enVol, cible, catalogue: etatCatalogue, modele: ($("#iacModele") || {}).value || "", guide: guideCoche() });
     tx.textContent = lancer.enVol ? T("vectorlab.iacalque.en_cours") : T("vectorlab.iacalque.generer_sur", { nom: nomCalque(cible) });
     go.disabled = gris;
     const e = $("#iacEtat"), re = $("#iacReessayer"), sep = $("#iacSep");
@@ -426,7 +559,8 @@ export function initIaCalque(VL) {
     if (sep) sep.hidden = raison !== "catalogue";
     const m = raison === "calque" ? T("vectorlab.iacalque.aucun_calque_libre")
       : raison === "catalogue" ? T("vectorlab.iacalque.catalogue_absent")
-        : raison === "vide" ? T("vectorlab.iacalque.modeles_vides") : "";
+        : raison === "vide" ? T("vectorlab.iacalque.modeles_vides")
+          : raison === "guide" ? T("vectorlab.iacalque.guide_aucun_modele") : "";
     if (e) {
       // la raison est écrite ; une raison levée efface SON message (jamais l'issue d'un tir)
       if (m) e.textContent = m;
@@ -458,11 +592,12 @@ export function initIaCalque(VL) {
 
   async function tirer() {
     if (lancer.enVol) return;                       // anti-double tir : le second clic ne relance rien
-    if (etatGenerer({ enVol: false, cible, catalogue: etatCatalogue, modele: ($("#iacModele") || {}).value || "" }).gris) return;
-    const c = choix(), dire = (t) => { const e = $("#iacEtat"); if (e) e.textContent = t; };   // relu à chaque fois
+    if (etatGenerer({ enVol: false, cible, catalogue: etatCatalogue, modele: ($("#iacModele") || {}).value || "", guide: guideCoche() }).gris) return;
+    const c = choix();
     try {
       verifierCible(etat.doc, c.calqueId);          // AVANT toute dépense
       requete(c);
+      if (c.guide) { verifierGuide(c, modsImage); docGuide(etat.doc, c.calqueId); }   // aucun POST, pas même le dépôt
       verifierDetour(c, infoDe(modsDetour, c.modeleDetour));
     } catch (e) { dire(e.message); VL.toast(e.message, true); return; }
     if (c.modele) ecrire("dz_vl_iac_modele", c.modele);
@@ -475,7 +610,8 @@ export function initIaCalque(VL) {
       if (r && r.detourEchec) {
         const t = T("vectorlab.iacalque.detour_echoue_pose", { raison: r.detourEchec, calque: nomCalque(c.calqueId) });
         dire(t); VL.toast(t, true);
-      } else if (r) dire(T("vectorlab.iacalque.posee", { nom: r.nom, calque: nomCalque(c.calqueId) }));
+      } else if (r && r.guide) dire(T("vectorlab.iacalque.posee_guide", { nom: r.nom, calque: nomCalque(c.calqueId), guide: r.guide }));
+      else if (r) dire(T("vectorlab.iacalque.posee", { nom: r.nom, calque: nomCalque(c.calqueId) }));
     } catch (e) {
       dire(e.message);
       VL.toast(e.message, true);
@@ -495,8 +631,9 @@ export function initIaCalque(VL) {
       const id = ev.target.id;
       if (id === "iacCalque") { cible = ev.target.value; majBouton(); }
       if (id === "iacModele") majBouton();
+      if (id === "iacGuide") { ecrire("dz_vl_iac_guide", ev.target.checked ? "1" : "0"); remplirModeles(); majBouton(); }
       if (id === "iacDetourer" || id === "iacDetour") majSujet();
-      if (id === "iacModele" || id === "iacDetourer" || id === "iacDetour") majDevis();
+      if (id === "iacModele" || id === "iacGuide" || id === "iacDetourer" || id === "iacDetour") majDevis();
     });
     el.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape") { ev.preventDefault(); fermer(); }
@@ -540,16 +677,21 @@ export function initIaCalque(VL) {
   const suivantRendu = VL.surRendu;
   VL.surRendu = () => { if (suivantRendu) suivantRendu(); if (ouvert()) majCalques(); };
 
+  // un PNG déposé en Bibliothèque par la route d'import (gratuite) : le nom rendu, ou une erreur lisible
+  async function deposerFichier(blob, nom, cle) {
+    const fd = new FormData();
+    fd.append("file", new File([blob], nom, { type: "image/png" }));
+    const u = await chercher("/api/images/upload", { method: "POST", body: fd, cache: "no-store" });
+    const d = await u.json().catch(() => ({}));
+    if (!u.ok) throw new Error(messageErreur(u.status, d, u.statusText));
+    return nomDuDepot(d, cle);
+  }
+
   /* ── « Retirer le fond » du panneau Image ── */
   async function versBiblio(o) {
     const r = await chercher(VL.imageUrl(o.href, o.rev, o.px), { cache: "no-store" });
     if (!r.ok) throw new Error(T("vectorlab.iacalque.image_illisible", { href: o.href }));
-    const fd = new FormData();
-    fd.append("file", new File([await r.blob()], nomDepot(etat.docId, o.href), { type: "image/png" }));
-    const u = await chercher("/api/images/upload", { method: "POST", body: fd, cache: "no-store" });
-    const d = await u.json().catch(() => ({}));
-    if (!u.ok) throw new Error(messageErreur(u.status, d, u.statusText));
-    return nomDuDepot(d);
+    return deposerFichier(await r.blob(), nomDepot(etat.docId, o.href));
   }
   async function deposer(nom) {
     const r = await chercher("/api/images/" + encodeURIComponent(nom), { cache: "no-store" });

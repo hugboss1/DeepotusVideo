@@ -1,14 +1,16 @@
 // iacalque.test.mjs — t190 (G8) : l'image IA PAR CALQUE et « Retirer le fond » réversible. Logique PURE de
 // mod-iacalque (format d'après la page, corps des routes réelles, plan du tir, cible refusée avant toute
 // dépense, anti-double tir, libellé du prix serveur), le tir de bout en bout sur de FAUSSES routes, et
-// l'annulation du détourage par le vrai Historique de mod-doc. t190-bis : le VRAI initIaCalque tourne sur un
+// l'annulation du détourage par le vrai Historique de mod-doc. Suite du 12/10 : le GUIDE (calques du dessous
+// rendus, déposés, envoyés à /images/process op edit) — volet [guide], pur puis sur le vrai initIaCalque. t190-bis : le VRAI initIaCalque tourne sur un
 // mini-DOM par id (le panneau, la liste des modèles illisible → « Générer » gris + Réessayer, la réouverture qui
 // garde le prompt, la liste des calques qui suit le document, le focus rendu, la ligne « Retirer le fond »).
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { taillePour, requete, requeteDetour, etapes, verifierCible, calquesCibles, devisCorps, libellePrix,
          messageErreur, unSeulVol, executerPlan, retirerFondFlux, nomDepot, TAILLES, brancherPoignee, verifierDetour,
-         etatGenerer, devisDetour, optionsCalques, cibleValide, chercher, nomDuDepot, initIaCalque }
+         etatGenerer, devisDetour, optionsCalques, cibleValide, chercher, nomDuDepot, initIaCalque,
+         guidables, docGuide, verifierGuide, requeteGuide, nomGuide, echelleGuide }
   from "../js/mod-iacalque.js";
 import { garderClics, GESTES_GARDES } from "../js/mod-flottant.js";
 import { docVierge } from "../js/mod-biblio.js";
@@ -198,6 +200,108 @@ const banc = () => {
   try { verifierDetour({ detourer: false, modeleDetour: "" }, { prompt: true, dispo: false }); } catch (e) { rien = false; }
   ok("[detour-avant] sans détourage : rien à vérifier", rien);
   ok("[prix] sans modèle choisi : aucun devis (pas de prix faux)", devisCorps({ modele: "", detourer: true, modeleDetour: "bria-rmbg" }) === null);
+}
+
+/* ── [guide] pur : les calques du DESSOUS visibles, le corps de l'op edit, les refus gratuits ── */
+const docQuatre = () => ({ id: "d1", taille: { w: 800, h: 600 }, fond: "#ffffff", calques: [
+  { id: "c1", nom: "Fond", visible: true, objets: [{ id: "r1", type: "rect", x: 0, y: 0, w: 10, h: 10, style: {} }] },
+  { id: "c2", nom: "Masqué", visible: false, objets: [{ id: "r2", type: "rect", x: 0, y: 0, w: 10, h: 10, style: {} }] },
+  { id: "c3", nom: "Cible", visible: true, objets: [{ id: "r3", type: "rect", x: 0, y: 0, w: 10, h: 10, style: {} }] },
+  { id: "c4", nom: "Dessus", visible: true, objets: [{ id: "r4", type: "rect", x: 0, y: 0, w: 10, h: 10, style: {} }] }] });
+{
+  const M = [{ id: "a", edit: true }, { id: "b", edit: false }, { id: "c" }, { id: "d", edit: true, dispo: false }];
+  ok("[guide] guidables : les seuls modèles edit:true (un sans clé compris)", egal(guidables(M).map((m) => m.id), ["a", "d"]));
+  const doc = docQuatre(), avantJson = JSON.stringify(doc);
+  const g = docGuide(doc, "c3");
+  ok("[guide] docGuide : seuls les calques visibles SOUS la cible (ni la cible, ni le masqué, ni le dessus)",
+     egal(g.calques.map((c) => c.id), ["c1"]), g.calques.map((c) => c.id).join(","));
+  ok("[guide] docGuide : le fond et le format de la page suivent", g.fond === "#ffffff" && egal(g.taille, { w: 800, h: 600 }));
+  ok("[guide] docGuide : le document de l'écran n'est pas touché (copie)", JSON.stringify(doc) === avantJson && g !== doc && g.calques[0] !== doc.calques[0]);
+  ok("[guide] docGuide sous le dessus : le dessous visible ET la cible d'avant, jamais le masqué",
+     egal(docGuide(doc, "c4").calques.map((c) => c.id), ["c1", "c3"]));
+  let m1 = "";
+  try { docGuide(doc, "c1"); } catch (e) { m1 = e.message; }
+  ok("[guide] calque du bas : rien dessous, refus lisible", /rien n'est visible sous « Fond »/.test(m1), m1);
+  const d2 = docQuatre(); d2.calques[0].visible = false;
+  let m2 = "";
+  try { docGuide(d2, "c3"); } catch (e) { m2 = e.message; }
+  ok("[guide] le seul dessous est masqué : refus (le fond de page seul n'est pas un guide)", /rien n'est visible/.test(m2), m2);
+  const d3 = docQuatre(); d3.calques[0].opacite = 0;
+  let m3 = "";
+  try { docGuide(d3, "c3"); } catch (e) { m3 = e.message; }
+  ok("[guide] dessous à opacité nulle : refus", /rien n'est visible/.test(m3), m3);
+  const d4 = docQuatre(); d4.calques[0].objets = [];
+  let m4 = "";
+  try { docGuide(d4, "c3"); } catch (e) { m4 = e.message; }
+  ok("[guide] dessous vide : refus", /rien n'est visible/.test(m4), m4);
+  let m5 = "", m6 = "", m7 = "";
+  try { verifierGuide({ guide: true, modele: "b" }, M); } catch (e) { m5 = e.message; }
+  try { verifierGuide({ guide: true, modele: "" }, M); } catch (e) { m6 = e.message; }
+  try { verifierGuide({ guide: false, modele: "b" }, M); } catch (e) { m7 = "levé"; }
+  ok("[guide] verifierGuide : un modèle qui ne sait pas partir d'une image est refusé, nommé", /« b » ne sait pas/.test(m5), m5);
+  ok("[guide] verifierGuide : sans modèle, refus", /choisissez un modèle/.test(m6), m6);
+  ok("[guide] verifierGuide : case décochée, rien à vérifier", !m7);
+  let sansErreur = true;
+  try { verifierGuide({ guide: true, modele: "d" }, M); } catch (e) { sansErreur = false; }
+  ok("[guide] verifierGuide : un modèle edit SANS clé passe (le 503 viendra du serveur)", sansErreur);
+  const q = requeteGuide({ prompt: " un renard ", modele: "flux-3", taille: "landscape_4_3", filename: "vector_d1_guide_c3_x.png" });
+  ok("[guide] requeteGuide : le corps de /images/process op edit",
+     egal(q, { op: "edit", filename: "vector_d1_guide_c3_x.png", prompt: "un renard", model: "flux-3", n: 1, size: "landscape_4_3", source: "vectorlab" }), JSON.stringify(q));
+  let m8 = "";
+  try { requeteGuide({ prompt: "x", modele: "flux-3" }); } catch (e) { m8 = e.message; }
+  ok("[guide] requeteGuide sans guide déposé : refus lisible", /guide/.test(m8) && !/^vectorlab\./.test(m8), m8);
+  const n1 = nomGuide("doc 1", "c3", 1000), n2 = nomGuide("doc 1", "c3", 2000);
+  ok("[guide] nomGuide : préfixe vector_ (provenance vectorlab) et UNIQUE (un vector_ est réécrit en place)",
+     /^vector_doc-1_guide_c3_[0-9a-z]+\.png$/.test(n1) && n1 !== n2, n1 + " " + n2);
+  ok("[guide] echelleGuide : 1536 px au plus grand côté, jamais plus de 2×",
+     echelleGuide({ w: 3072, h: 1000 }) === 0.5 && echelleGuide({ w: 400, h: 300 }) === 2 && echelleGuide(null) === 1);
+  // le prix : la garde de l'op edit chiffre {kind:"image", model, n} — le devis du panneau est CELUI-LÀ
+  const routes = lit("../../../backend/app/api/routes.py");
+  const blocEdit = routes.slice(routes.indexOf('if op in ("edit", "variations"):'), routes.indexOf('raise HTTPException(400, f"Unknown op: {op}")'));
+  ok("[guide] la garde de l'op edit (routes.py) chiffre kind « image » avec le modèle",
+     /await _plafond\(\{"kind": "image", "n": n, "model": model\}/.test(blocEdit) && /image_path=src/.test(blocEdit));
+  ok("[guide] devis du tir guidé : kind « image » + le modèle (le même que la garde de l'op edit), détourage en plus",
+     egal(devisCorps({ modele: "flux-3", guide: true, detourer: true, modeleDetour: "bria-rmbg" }),
+          { kind: "campaign", ops: [{ kind: "image", model: "flux-3", n: 1 }, { kind: "detourage", modele: "bria-rmbg", images: 1 }] }));
+  const eg = etatGenerer({ enVol: false, cible: "c3", catalogue: "ok", modele: "", guide: true });
+  ok("[guide] etatGenerer : case cochée sans modèle qui guide → gris, raison « guide »", eg.gris && eg.raison === "guide", JSON.stringify(eg));
+}
+{
+  // le tir guidé de bout en bout sur de fausses routes : guide déposé, PUIS l'op edit, jamais /images/generate
+  const doc = docQuatre();
+  const appels = [], poses = [], guides = [];
+  const MODS = [{ id: "flux-3", edit: true }, { id: "texte-seul", edit: false }];
+  const d = {
+    doc: () => doc,
+    modelesImage: async () => MODS,
+    guide: async (docG, calqueId) => { guides.push({ ids: docG.calques.map((c) => c.id), calqueId }); appels.push({ url: "depot" }); return "vector_d1_guide_c3_k.png"; },
+    post: async (url, corps) => { appels.push({ url, corps }); return url === "/api/images/process" && corps.op === "edit" ? { images: ["gen_g.png"] } : { images: ["gen_det.png"] }; },
+    poser: async (nom, calqueId) => { poses.push({ nom, calqueId }); return "o5"; },
+  };
+  const r = await executerPlan({ calqueId: "c3", prompt: "un renard", modele: "flux-3", taille: "landscape_4_3", guide: true,
+                                 detourer: true, modeleDetour: "bria-rmbg" }, d);
+  ok("[guide] tir : dépôt du guide, op edit, puis détourage — jamais /images/generate",
+     egal(appels.map((a) => a.url), ["depot", "/api/images/process", "/api/images/process"]) && appels[1].corps.op === "edit" && appels[2].corps.op === "remove-bg",
+     JSON.stringify(appels.map((a) => a.url + (a.corps ? ":" + a.corps.op : ""))));
+  ok("[guide] tir : le guide rendu = les seuls calques du dessous visibles", egal(guides, [{ ids: ["c1"], calqueId: "c3" }]), JSON.stringify(guides));
+  ok("[guide] tir : l'op edit part du guide déposé, avec le modèle et le prompt",
+     appels[1].corps.filename === "vector_d1_guide_c3_k.png" && appels[1].corps.model === "flux-3" && appels[1].corps.prompt === "un renard", JSON.stringify(appels[1].corps));
+  ok("[guide] tir : le détourage porte sur l'image GUIDÉE, posée sur la cible", appels[2].corps.filename === "gen_g.png" && egal(poses, [{ nom: "gen_det.png", calqueId: "c3" }]));
+  ok("[guide] tir : le résultat nomme son guide", r.guide === "vector_d1_guide_c3_k.png" && r.id === "o5", JSON.stringify(r));
+  appels.length = 0; guides.length = 0;
+  let mr = "";
+  try { await executerPlan({ calqueId: "c1", prompt: "x", modele: "flux-3", guide: true }, d); } catch (e) { mr = e.message; }
+  ok("[guide] rien sous le calque : refus, AUCUN envoi (ni dépôt ni POST)", /rien n'est visible/.test(mr) && !appels.length && !guides.length, mr + " / " + appels.length);
+  let mm = "";
+  try { await executerPlan({ calqueId: "c3", prompt: "x", modele: "texte-seul", guide: true }, d); } catch (e) { mm = e.message; }
+  ok("[guide] modèle qui ne guide pas : refus, AUCUN envoi", /ne sait pas partir/.test(mm) && !appels.length, mm + " / " + appels.length);
+  const d0 = { ...d, modelesImage: async () => [{ id: "texte-seul", edit: false }] };
+  let m0 = "";
+  try { await executerPlan({ calqueId: "c3", prompt: "x", modele: "texte-seul", guide: true }, d0); } catch (e) { m0 = e.message; }
+  ok("[guide] aucun modèle qui guide : refus, AUCUN envoi", !!m0 && !appels.length, m0);
+  await executerPlan({ calqueId: "c3", prompt: "x", modele: "texte-seul", guide: false }, d);
+  ok("[guide] case décochée : le chemin d'avant (/images/generate seul, aucun guide)",
+     egal(appels.map((a) => a.url), ["/api/images/generate"]) && !guides.length, JSON.stringify(appels.map((a) => a.url)));
 }
 
 /* ── [vol] un second clic pendant le vol ne relance rien ── */
@@ -639,7 +743,9 @@ const docImage = () => {
        /liste des modèles indisponible/.test(reg.get("iacEtat").textContent) && reg.get("iacReessayer").hidden === false, reg.get("iacEtat").textContent);
     ok("[catalogue] aucun devis demandé sans modèle (pas de prix faux)", !appels.some((a) => a.url === "/api/cost/estimate"));
     // la liste revient — avec un modèle SANS clé : choisissable, et « Générer » s'allume quand même
-    modeles.image = [{ id: "flux-3", dispo: false, cle: "FAL_KEY", usd: 0.048, unite: "image" }];
+    modeles.image = [{ id: "flux-3", dispo: false, cle: "FAL_KEY", usd: 0.048, unite: "image", edit: true },
+                     { id: "texte-seul", label: "Texte seul", dispo: true, usd: 0.003, unite: "image", edit: false },
+                     { id: "gpt-image-2", label: "GPT Image 2", dispo: false, cle: "OPENAI_API_KEY", usd: 0.12, unite: "image", edit: true }];
     reg.get("iacReessayer").tirer("click");
     await attendre();
     ok("[catalogue] Réessayer relit la liste : modèle choisi, « Générer » ACTIF même sans clé", reg.get("iacModele").value === "flux-3" && go.disabled === false);
@@ -722,6 +828,111 @@ const docImage = () => {
     const ligne3 = new El("div");
     VL.iaCalque.ligneDetour(ligne3, { id: "i2", type: "image", href: "img2.png" });
     ok("[detour] une autre image : son propre sujet (vide)", ligne3.querySelector("#imDetourSujet").value === "");
+    /* ── [guide] le VRAI panneau : la case, le sélecteur restreint aux modèles edit, le rendu des SEULS calques du
+       dessous visibles (VL.svgCourant espionné), le dépôt PUIS l'op edit, les refus sans envoi, la case décochée ── */
+    {
+      const stock = new Map();
+      globalThis.localStorage = { getItem: (k) => (stock.has(k) ? stock.get(k) : null), setItem: (k, v) => stock.set(k, String(v)) };
+      VL.etat.doc = docQuatre(); VL.etat.docId = "d1";     // c1 Fond, c2 Masqué, c3 Cible, c4 Dessus
+      const rendus = [], poses2 = [], envois = [], dessins = [];
+      VL.svgCourant = async (transparent, cadre, docBase) => {
+        rendus.push({ transparent, ids: docBase.calques.map((c) => c.id), fond: docBase.fond }); return "<svg/>";
+      };
+      VL.poserDepuisLibrary = async (nom, calqueId) => { poses2.push({ nom, calqueId }); return "o8"; };
+      // le rendu PNG du navigateur (Image → canvas → toBlob), simulé
+      globalThis.Image = class { set src(u) { this._src = u; setTimeout(() => this.onload && this.onload(), 0); } get src() { return this._src; } };
+      const creer0 = globalThis.document.createElement;
+      globalThis.document.createElement = (t) => (t === "canvas" ? { width: 0, height: 0,
+        getContext: () => ({ fillRect: () => dessins.push("blanc"), drawImage: (i, x, y, w, h) => dessins.push(`image ${w}x${h}`) }),
+        toBlob: (cb) => cb(new Blob(["png"], { type: "image/png" })) } : creer0(t));
+      window.fetch = async (url, init) => {
+        const corps = init && typeof init.body === "string" ? JSON.parse(init.body) : null;
+        const fichier = init && init.body && typeof init.body.get === "function" ? init.body.get("file") : null;
+        envois.push({ url, corps, fichier: fichier ? fichier.name : null });
+        if (url === "/api/cost/estimate") return fetchFaux(url, init);
+        if (url === "/api/images/upload") return { ok: true, status: 200, json: async () => ({ filename: fichier.name }) };
+        if (url === "/api/images/process") return { ok: true, status: 200, json: async () => ({ images: ["gen_guide.png"], op: corps.op }) };
+        if (url === "/api/images/generate") return { ok: true, status: 200, json: async () => ({ images: ["gen_txt.png"] }) };
+        return { ok: false, status: 500, statusText: "x", json: async () => ({}) };
+      };
+      const tirs = () => envois.filter((e) => e.url !== "/api/cost/estimate").map((e) => e.url);
+      VL.iaCalque.ouvrir("c3");
+      await attendre();
+      const caseG = reg.get("iacGuide"), selM = reg.get("iacModele"), goG = reg.get("iacGo");
+      ok("[guide] la case « Guider par les calques du dessous » est au panneau, décochée par défaut",
+         caseG && caseG.attrs.type === "checkbox" && caseG.checked === false && /Guider par les calques du dessous/.test(dlg.innerHTML), caseG && caseG.attrs.type);
+      ok("[guide] case décochée : tous les modèles raster", egal(selM.valeurs, ["flux-3", "texte-seul", "gpt-image-2"]), JSON.stringify(selM.valeurs));
+      selM.value = "texte-seul"; selM.tirer("change");
+      caseG.checked = true; caseG.tirer("change");
+      await attendre();
+      ok("[guide] case cochée : le sélecteur ne propose que les modèles edit — un modèle SANS clé reste proposé",
+         egal(selM.valeurs, ["flux-3", "gpt-image-2"]), JSON.stringify(selM.valeurs));
+      ok("[guide] le modèle en place ne sait pas guider : le premier qui sait est pris, et c'est dit",
+         selM.value === "flux-3" && /« Texte seul » ne sait pas partir d'une image : « flux-3 »/.test(reg.get("iacEtat").textContent), reg.get("iacEtat").textContent);
+      ok("[guide] le choix de la case est mémorisé", stock.get("dz_vl_iac_guide") === "1");
+      {
+        const ctx = { window: {} };
+        vm.runInNewContext(lit("../../shared/dz-modeles-ia.js"), ctx);
+        const opts = ctx.window.DzModelesIA.grouper(guidables(modeles.image)).flatMap((g) => g.options);
+        ok("[guide] les options restreintes (vrai DzModelesIA) : jamais désactivées, la clé manquante dite",
+           opts.length === 2 && opts.every((o) => o.desactive === false && o.sansCle && /clé/.test(o.texte)), JSON.stringify(opts));
+      }
+      const devisG = envois.filter((e) => e.url === "/api/cost/estimate").pop();
+      ok("[guide] le devis du tir guidé : kind « image » du modèle qui guide (celui de la garde de l'op edit)",
+         devisG && egal(devisG.corps, { kind: "campaign", ops: [{ kind: "image", model: "flux-3", n: 1 }] }) && /\$0\.048/.test(reg.get("iacPrix").textContent),
+         JSON.stringify(devisG && devisG.corps) + " " + reg.get("iacPrix").textContent);
+      ok("[guide] « Générer » actif (modèle sans clé : le 503 viendra au lancement)", goG.disabled === false);
+      reg.get("iacPrompt").value = "un renard en vitrail";
+      goG.tirer("click");
+      await attendre(14);
+      ok("[guide] le tir : dépôt du guide en Bibliothèque PUIS POST /api/images/process — jamais /images/generate",
+         egal(tirs(), ["/api/images/upload", "/api/images/process"]), JSON.stringify(tirs()));
+      const depot = envois.find((e) => e.url === "/api/images/upload"), edit = envois.find((e) => e.url === "/api/images/process");
+      ok("[guide] le guide porte un nom vector_ unique (provenance vectorlab)", /^vector_d1_guide_c3_[0-9a-z]+\.png$/.test(depot.fichier || ""), depot.fichier);
+      ok("[guide] l'op edit : {op:\"edit\", filename: le guide déposé, model, prompt, n:1}",
+         edit && edit.corps.op === "edit" && edit.corps.filename === depot.fichier && edit.corps.model === "flux-3"
+         && edit.corps.prompt === "un renard en vitrail" && edit.corps.n === 1 && edit.corps.source === "vectorlab", JSON.stringify(edit && edit.corps));
+      ok("[guide] le rendu : les SEULS calques du dessous visibles (ni la cible, ni le masqué, ni le dessus), fond gardé, opaque",
+         egal(rendus, [{ transparent: false, ids: ["c1"], fond: "#ffffff" }]), JSON.stringify(rendus));
+      ok("[guide] au format de la page (800×600 → 1536×1152), sans aplat blanc quand la page a un fond", egal(dessins, ["image 1536x1152"]), JSON.stringify(dessins));
+      ok("[guide] l'image guidée est posée sur le calque cible, et c'est dit (guide nommé)",
+         egal(poses2, [{ nom: "gen_guide.png", calqueId: "c3" }]) && /guidée par « vector_d1_guide_c3_/.test(reg.get("iacEtat").textContent), reg.get("iacEtat").textContent);
+      ok("[guide] le document n'a pas bougé (le rendu travaille sur une copie)", VL.etat.doc.calques.length === 4 && VL.etat.doc.calques[2].objets.length === 1);
+      // rien sous le calque : refus gratuit, aucun envoi (ni dépôt, ni POST)
+      envois.length = 0; rendus.length = 0; toasts.length = 0;
+      VL.iaCalque.ouvrir("c1");
+      await attendre();
+      goG.tirer("click");
+      await attendre(8);
+      ok("[guide] rien sous le calque : aucun envoi, ni rendu ; le refus est dit",
+         !tirs().length && !rendus.length && /rien n'est visible sous « Fond »/.test(reg.get("iacEtat").textContent) && toasts.some((t) => /rien n'est visible/.test(t)),
+         JSON.stringify(tirs()) + " " + reg.get("iacEtat").textContent);
+      // aucun modèle qui guide : « Générer » gris, la raison, aucun envoi (ni par le bouton, ni par Ctrl+Entrée)
+      for (const m of modeles.image) m.flagEdit = m.edit, m.edit = false;
+      caseG.checked = false; caseG.tirer("change");
+      caseG.checked = true; caseG.tirer("change");
+      reg.get("iacCalque").value = "c3"; reg.get("iacCalque").tirer("change");
+      await attendre();
+      envois.length = 0;
+      goG.tirer("click");
+      reg.get("iacPrompt").tirer("keydown", { key: "Enter", ctrlKey: true });
+      await attendre(8);
+      ok("[guide] aucun modèle qui guide : « Générer » gris, la raison écrite, AUCUN envoi",
+         selM.value === "" && goG.disabled === true && /aucun modèle de la liste ne sait partir d'une image/.test(reg.get("iacEtat").textContent) && !tirs().length,
+         `${selM.value} ${goG.disabled} ${reg.get("iacEtat").textContent} ${JSON.stringify(tirs())}`);
+      for (const m of modeles.image) { m.edit = m.flagEdit; delete m.flagEdit; }
+      // case décochée : le chemin d'avant, inchangé (/images/generate, aucun guide)
+      caseG.checked = false; caseG.tirer("change");
+      await attendre();
+      envois.length = 0; rendus.length = 0;
+      goG.tirer("click");
+      await attendre(10);
+      ok("[guide] case décochée : mémorisée, tous les modèles reviennent", stock.get("dz_vl_iac_guide") === "0" && selM.valeurs.length === 3);
+      ok("[guide] case décochée : POST /api/images/generate seul, ni dépôt ni rendu",
+         egal(tirs(), ["/api/images/generate"]) && !rendus.length && envois.find((e) => e.url === "/api/images/generate").corps.model === selM.value,
+         JSON.stringify(tirs()));
+      delete globalThis.Image;
+    }
   } finally {
     Object.assign(globalThis, avant);
   }
