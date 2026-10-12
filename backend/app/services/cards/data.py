@@ -2711,8 +2711,10 @@ async def post_lot_generer(did: str, body: Any = Body(default=None)):
     m = next((x for x in DL.modeles() if x["id"] == d["model"]), None)
     if not m or not m["cle"]:
         # t183 : le refus nomme la CLÉ (le modèle reste choisissable à l'écran, décision du 11/10)
-        raise HTTPException(503, f"{(m or {}).get('cle_nom') or 'La clé'} non configurée (Réglages) pour "
-                                 f"« {d['model']} » — rien n'a été lancé.")
+        from app import i18n as _i18n   # t192 : dans la langue de l'interface (route sans Request)
+        _lg = _i18n.langue_ui()
+        raise HTTPException(503, _i18n.msg("cartes.lot.cle_absente", _lg, modele=d['model'],
+                                           nom_cle=(m or {}).get('cle_nom') or _i18n.msg("cartes.lot.la_cle", _lg)))
     from datetime import datetime, timezone
     from app.services import library_index as _LI
     from app.services import plafonds as _PLAF

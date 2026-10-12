@@ -1165,7 +1165,8 @@ async def calque_detourer(body: dict, request: Request):
         try:
             image = await DT.detourer_image(mid, rogne, sujet)
         except ValueError as e:
-            raise HTTPException(400, str(e))
+            from app import i18n as _i18n   # t192 : detourage lève des Refus (rembg absent, chroma pas uni…)
+            raise HTTPException(400, _i18n.texte(e, _i18n.langue_requete(request)))
         except Exception as e:  # noqa: BLE001 — 502 qui nomme le modèle et le type ; rien n'a été touché au document
             logger.error(f"photolab /calque/detourer : {mid} en échec : {type(e).__name__}: {e}")
             raise HTTPException(502, _m("photolab.ia.fournisseur", request, modele=mid, type=type(e).__name__))

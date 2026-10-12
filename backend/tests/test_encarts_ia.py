@@ -115,7 +115,8 @@ check("lit le catalogue unique (`tous` de /api/image-models), sans les modèles 
 check("rend des en-têtes de voie (dzia-ogrp, ia.voie.*)", "dzia-ogrp" in ch and '"ia.voie."' in ch)
 check("vidéo : un modèle sans clé est choisissable (sansCle: !m.available)", "sansCle: !m.available" in ch)
 check("cas grisé : « clé X à ajouter dans Réglages — absent du sélecteur de la vue »",
-      re.search(r"x\.sansCle \? CLE_A_AJOUTER : CLE_ABSENTE\)\(x\.cle\) \+ \" — \"\)\s*\+ \"absent du sélecteur de la vue\"",
+      # t192 : la mention passe par TP("ia.pastille.hors_vue", <français d'avant>) (commun.json)
+      re.search(r"x\.sansCle \? CLE_A_AJOUTER : CLE_ABSENTE\)\(x\.cle\) \+ \" — \"\)\s*\+ TP\(\"ia\.pastille\.hors_vue\", \"absent du sélecteur de la vue\"\)",
                 ch) is not None)
 
 # ── [a3] copies dist ─────────────────────────────────────────────────────────

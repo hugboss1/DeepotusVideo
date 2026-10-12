@@ -3,7 +3,10 @@
 Le français est la langue de référence : chaque clé de `messages.json` a son texte `fr`, l'anglais en est la
 traduction. La langue d'une requête vient de l'en-tête Accept-Language que le runtime /shared/dz-i18n.js ajoute aux
 appels /api/, sinon du réglage UI_LANG. Les messages pas encore migrés restent écrits en dur (lot L10) ; les bancs
-qui lisent un `detail` français tournent sans en-tête, donc en français.
+qui lisent un `detail` français tournent sans en-tête ET isolent leur dossier de données (DEEPOTUS_DATA_DIR
+temporaire : pas de .env, donc UI_LANG = « fr », le défaut de app.config) — donc en français. Un banc lancé SANS
+dossier isolé hérite du .env de l'installation (UI_LANG=en sur un poste en anglais) : c'est la cause des 6 rouges
+connus de test_i18n_l4_serveur sur ce poste.
 """
 import json
 import pathlib
@@ -47,4 +50,68 @@ def msg(cle: str, lang: str | None = None, **vars) -> str:
     if not e:
         return cle
     s = e.get(borne(lang) or "fr") or e.get("fr") or cle
+    vars = {k: (nom_modele(v.mid, str(v), lang) if isinstance(v, Nom) else v.dans(lang) if isinstance(v, Message)
+                else v) for k, v in vars.items()}
     return re.sub(r"\{(\w+)\}", lambda m: str(vars[m.group(1)]) if m.group(1) in vars else m.group(0), s)
+
+
+# ── t192 (G10) : les refus des lots « Génération IA » G0-G9 dans la langue de la requête ─────────────────────────
+# Un service (vfx_ia, sfx_service, detourage, storyboard3d) ne connaît pas la langue de la requête : il rend un
+# `Message` (une chaîne dont le texte est le FRANÇAIS — les bancs, les f-strings et les journaux n'y voient rien de
+# neuf) ou lève un `Refus` (ValueError du même texte), qui gardent leur clé et leurs variables ; la route les rend
+# dans la langue de la requête par `texte(x, lang)`. Un nom de modèle passe par `Nom(id, libellé)` : le libellé du
+# registre (français) en français, la clé `ia.nom.<id>` de messages.json dans une autre langue (sinon le libellé,
+# nom propre).
+
+class Nom(str):
+    """Le nom d'un modèle dans un message : sa chaîne est le libellé du registre ; `mid` son id."""
+
+    def __new__(cls, mid, libelle=None):
+        s = str.__new__(cls, str(libelle if libelle is not None else mid))
+        s.mid = str(mid or "")
+        return s
+
+
+def nom_modele(mid, libelle, lang=None) -> str:
+    """Le nom d'un modèle dans la langue `lang` : français = le libellé ; sinon ia.nom.<id>, à défaut le libellé.
+
+    L'espace ia.nom.<id> est PARTAGÉ par tous les registres (détourage, matte, bruitages, VFX IA, SAM 3, musique) :
+    aucun id n'y est en double au 12/10/2026 (vérifié par test_i18n_generation_ia [3h]), et la garde « fr de la clé ==
+    libellé reçu » empêche qu'un id générique repris par un autre registre (« general », « matting ») y prenne le nom
+    d'un autre modèle : la clé ne sert alors pas, le libellé passe tel quel."""
+    lang = borne(lang) or "fr"
+    if lang == "fr":
+        return str(libelle)
+    e = _DICO.get(f"ia.nom.{mid}")
+    return (e.get(lang) if e and e.get("fr") == str(libelle) else None) or str(libelle)
+
+
+class Message(str):
+    """Un message serveur traduisible, transporté comme une chaîne : str(m) = le français."""
+
+    def __new__(cls, cle, /, **vars):
+        s = str.__new__(cls, msg(cle, "fr", **vars))
+        s.cle, s.vars = cle, vars
+        return s
+
+    def dans(self, lang) -> str:
+        return msg(self.cle, lang, **self.vars)
+
+
+class Refus(ValueError):
+    """Un refus nommé d'un service (ValueError dont le texte est le français), rendu dans une langue par `texte`."""
+
+    def __init__(self, cle, /, **vars):
+        self.message = Message(cle, **vars)
+        super().__init__(str(self.message))
+
+
+def texte(x, lang=None) -> str:
+    """Le texte d'un refus (Refus, Message, ou n'importe quelle exception / chaîne) dans la langue `lang`."""
+    if isinstance(x, Refus):
+        return x.message.dans(lang)
+    if isinstance(x, Message):
+        return x.dans(lang)
+    if isinstance(x, Nom):
+        return nom_modele(x.mid, str(x), lang)
+    return str(x)

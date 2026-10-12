@@ -102,3 +102,20 @@ def particules(payload: dict, lang) -> dict:
     for a in out.get("anims", []):
         a["name"] = _t(f"particules.anim.{a.get('id')}.nom", a.get("name"), lang)
     return out
+
+
+def musique(payload: dict, lang) -> dict:
+    """t192 (G10) — /music-models, la carte Musique de Son & VFX (catalogue rafraîchi par G5) : {models:[{id,label,
+    desc,…}], moods:[{id,name,prompt}]} -> copie traduite (clés musique.<id>.nom / musique.<id>.desc,
+    musique.ambiance.<id>). Le `prompt` d'une ambiance part au modèle : jamais traduit."""
+    lang = _lang(lang)
+    if lang == "fr":
+        return payload
+    out = copy.deepcopy(payload)
+    for m in out.get("models", []):
+        i = m.get("id")
+        m["label"] = _t(f"musique.{i}.nom", m.get("label"), lang)
+        m["desc"] = _t(f"musique.{i}.desc", m.get("desc"), lang)
+    for a in out.get("moods", []):
+        a["name"] = _t(f"musique.ambiance.{a.get('id')}", a.get("name"), lang)
+    return out

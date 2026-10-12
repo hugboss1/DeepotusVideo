@@ -49,9 +49,8 @@ MATTE_MODELS = {
 }
 ARGS_FIXED = {"video_output_type": "PRORES4444 (.mov)", "refine_foreground": True,
               "operating_resolution": "1024x1024", "video_quality": "high"}
-USD_NOTE = ("prix à mesurer : fal n'affiche que « $0 per compute second » (06/10/2026) — "
-            "lire le montant sur le tableau de bord fal après ce tir, puis l'écrire dans "
-            "pricing.birefnet_video_usd_per_s")
+from app.i18n import Message, Nom   # noqa: E402  t192 : la note se dit dans la langue de la requête (routes du matte)
+USD_NOTE = Message("matte.note_birefnet")   # « prix à mesurer : fal n'affiche que « $0 per compute second » … »
 _JOBS: dict[str, dict] = {}
 _JOBS_MAX = 40
 _SAFE = re.compile(r"^[A-Za-z0-9_-]+\.(?:mov|webm)$")
@@ -172,8 +171,8 @@ def note_prix(model_key: str) -> str:
         return USD_NOTE
     e = DT.REGISTRE.get(model_key) or {}
     taux = P.taux_detourage(model_key)
-    return "" if taux else (f"prix à mesurer : {e.get('label', model_key)} — lire le montant sur le tableau de "
-                            f"bord fal après ce tir, puis l'écrire dans pricing.{e.get('prix')}")
+    return "" if taux else Message("matte.note_a_mesurer", modele=Nom(model_key, e.get('label', model_key)),
+                                   champ=e.get("prix"))
 
 
 async def _run(mid: str, src: Path, model_key: str, sujet: str | None = None) -> None:
