@@ -9035,7 +9035,14 @@ async def _process_image_core(body: dict):
     Retour {images:[filenames]} — sauvées dans la Library comme gen_*.png."""
     op = (body.get("op") or "").strip().lower()
     fname = (body.get("filename") or "").strip()
+    # Confinement (comme _nom_nu) : un nom NU de la Library, refusé AVANT toute garde de plafond —
+    # « ../x.png », « C:/… » ou « a\b.png » sortaient du dossier et partaient chez fal.
+    if fname and (fname != Path(fname).name or "/" in fname or "\\" in fname or ".." in fname
+                  or ":" in fname):
+        raise HTTPException(400, f"filename refusé : un nom d'image nu de la Library est attendu, reçu {fname!r}")
     src = settings.images_path / fname
+    if fname and src.resolve().parent != settings.images_path.resolve():
+        raise HTTPException(400, f"filename refusé : hors du dossier des images ({fname!r})")
     if not fname or not src.is_file():
         raise HTTPException(400, f"Source image not found: {fname or '(none)'}")
     from PIL import Image as _PILImage
