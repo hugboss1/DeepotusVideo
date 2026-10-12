@@ -132,12 +132,13 @@ export async function chercher(url, init, f = (typeof window !== "undefined" && 
 // modèle d'image à proposer) — sinon le serveur tirerait le modèle par défaut sans prix affiché. JAMAIS gris pour une clé manquante : l'option sans clé reste choisissable, le 503
 // n'arrive qu'au lancement (décision de l'utilisateur 11/10).
 //   catalogue : "chargement" | "ok" | "echec" ; modele : la valeur de la liste ("" = aucune) ; guide : la case
-//   « Guider par les calques du dessous » (liste lue sans aucun modèle qui sache partir d'une image : raison « guide »)
-export function etatGenerer({ enVol, cible, catalogue, modele, guide = false }) {
+//   « Guider par les calques du dessous » (liste lue, NON vide, sans aucun modèle qui sache partir d'une image : raison
+//   « guide » ; une liste vide reste « vide » — décocher n'y changerait rien) ; nbModeles : la taille de la liste lue
+export function etatGenerer({ enVol, cible, catalogue, modele, guide = false, nbModeles = 1 }) {
   if (enVol) return { gris: true, raison: "" };
   if (!cible) return { gris: true, raison: "calque" };
   if (catalogue === "echec") return { gris: true, raison: "catalogue" };
-  if (catalogue === "ok" && !modele && guide) return { gris: true, raison: "guide" };
+  if (catalogue === "ok" && !modele && guide && nbModeles > 0) return { gris: true, raison: "guide" };
   if (catalogue === "ok" && !modele) return { gris: true, raison: "vide" };
   if (catalogue !== "ok") return { gris: true, raison: "" };
   return { gris: false, raison: "" };
@@ -151,18 +152,22 @@ export const verifierDetour = (o, info, opts) => C.verifierDetour(o, info, tr, o
 
 // le tir : cible vérifiée, génération, détourage éventuel, pose sur LE calque demandé — d = {doc(), post(url,
 // corps), poser(nom, calqueId) → id (faux = pose refusée : VL.executer avale l'erreur), infoDetour(id)?,
-// modelesImage()? → la liste du catalogue, guide(docGuide, calqueId)? → nom du guide déposé en Bibliothèque}
+// modelesImage()? → la liste du catalogue, guide(docGuide, calqueId, cadre)? → nom du guide déposé en Bibliothèque}
 // (fetch et pose réels dans la page, faux au banc). Tout refus GRATUIT part avant le premier POST — avec la case
 // « guide » : modèle qui sait partir d'une image, quelque chose de visible sous le calque cible. Un détourage
 // qui échoue APRÈS la génération payée (plafond refusé, fournisseur en 502…) n'efface pas l'image payée : elle est
 // posée telle quelle et `detourEchec` le dit. Une pose impossible le dit aussi, avec le nom gardé en Bibliothèque.
+// Un tir guidé qui échoue après le dépôt du guide (503, 402, 502…) dit le guide gardé en Bibliothèque (jamais
+// supprimé d'office) ; l'image guidée est posée par image_poser_page (le cadre du format ramené sur la page).
 export async function executerPlan(o, d) {
   verifierCible(d.doc(), o.calqueId);
-  requete(o);
-  let docG = null;
+  const { size } = requete(o);
+  // le guide est FIGÉ avant le premier await : le document tel qu'au clic (o.docGuide, pris par le panneau)
+  let docG = null, cadre = null;
   if (o.guide) {
+    docG = o.docGuide || docGuide(d.doc(), o.calqueId);
+    cadre = cadreGuide(docG.taille, size);
     verifierGuide(o, d.modelesImage ? await d.modelesImage() : null);
-    docG = docGuide(d.doc(), o.calqueId);
   }
   verifierDetour(o, o.detourer && d.infoDetour ? await d.infoDetour(o.modeleDetour) : null);
   let nom = null, detourEchec = "", guide = "";
@@ -171,9 +176,17 @@ export async function executerPlan(o, d) {
       let r;
       if (docG) {
         // le guide d'abord (dépôt gratuit en Bibliothèque), puis l'édition payante qui part de lui
-        guide = await d.guide(docG, o.calqueId);
-        r = await d.post("/api/images/process", requeteGuide({ ...o, filename: guide }));
-      } else r = await d.post("/api/images/generate", requete(o));
+        guide = await d.guide(docG, o.calqueId, cadre);
+        try {
+          r = await d.post("/api/images/process", requeteGuide({ ...o, filename: guide }));
+        } catch (x) {
+          throw new Error(T("vectorlab.iacalque.guide_garde", { raison: String(x && x.message || x), guide }));
+        }
+        nom = (r && r.images || [])[0];
+        if (!nom) throw new Error(T("vectorlab.iacalque.guide_garde", { raison: T("vectorlab.image.generation_vide"), guide }));
+        continue;
+      }
+      r = await d.post("/api/images/generate", requete(o));
       nom = (r && r.images || [])[0];
       if (!nom) throw new Error(T("vectorlab.image.generation_vide"));
     } else if (e.op === "detourer") {
@@ -187,7 +200,7 @@ export async function executerPlan(o, d) {
       let id;
       try {
         verifierCible(d.doc(), e.calqueId);        // verrouillé ou supprimé PENDANT le vol
-        id = await d.poser(nom, e.calqueId);
+        id = await d.poser(nom, e.calqueId, cadre ? (nat, taille) => image_poser_page(nat, taille, cadre) : undefined);
       } catch (x) {
         throw new Error(T("vectorlab.iacalque.pose_echouee", { raison: String(x && x.message || x), nom }));
       }
@@ -237,7 +250,10 @@ export function nomDuDepot(d, cle = "vectorlab.iacalque.biblio_sans_nom") {
    Case « Guider par les calques du dessous » : le rendu PNG des calques INFÉRIEURS visibles (au format de la page,
    fond de page compris) est déposé en Bibliothèque puis envoyé à POST /api/images/process op « edit » (l'image
    d'entrée du modèle) au lieu de /images/generate. La provenance relie l'image produite à son guide (l'enveloppe de
-   /images/process note parent = filename, relation = « edit »). Seuls les modèles dont l'entrée du catalogue porte
+   /images/process note parent = filename, relation = « edit »). Sa SOURCE reste « retouche », celle de toutes les
+   ops de /images/process : la Bibliothèque classe par fonction (une édition est une retouche) et le parent, lui, est
+   un `vector_` noté « vectorlab » — noter ici la source du corps changerait le classement des huit ops pour un seul
+   appelant ; le serveur n'est donc pas touché. Seuls les modèles dont l'entrée du catalogue porte
    `edit: true` savent partir d'une image. Le prix : la garde de l'op edit chiffre {kind: "image", model, n} — le
    MÊME devis que la génération (devisCorps), donc le même chiffre avant et après le clic. */
 
@@ -246,10 +262,17 @@ export function guidables(mods) {
   return (mods || []).filter((m) => m && m.edit === true);
 }
 
-// un calque se voit : ni masqué, ni à opacité nulle, et il porte au moins un objet
+// un objet DESSINABLE : tout objet hors groupe ; un groupe l'est s'il contient (à toute profondeur) un dessinable
+function dessinable(o) {
+  if (!o) return false;
+  if (o.type === "groupe") return (o.enfants || []).some(dessinable);
+  return true;
+}
+
+// un calque se voit : ni masqué, ni à opacité nulle, et il porte au moins un objet dessinable
 function calqueVu(c) {
   return !!c && c.visible !== false && !(c.opacite !== undefined && !(+c.opacite > 0))
-    && Array.isArray(c.objets) && c.objets.length > 0;
+    && Array.isArray(c.objets) && c.objets.some(dessinable);
 }
 
 // le document du guide : une COPIE qui ne garde que les calques visibles SOUS le calque cible (le calque cible et
@@ -292,26 +315,51 @@ export function nomGuide(docId, calqueId, t) {
   return `vector_${a(docId)}_guide_${a(calqueId)}_${(+t || 0).toString(36)}.png`;
 }
 
-// l'échelle du rendu : 1536 px au plus grand côté, jamais plus de 2× la page
-export function echelleGuide(taille) {
-  const w = +(taille && taille.w), h = +(taille && taille.h);
-  if (!(w > 0 && h > 0)) return 1;
-  return Math.min(2, 1536 / Math.max(w, h));
+// le CADRE du guide : un canevas au rapport du format DEMANDÉ (taillePour : le preset le plus proche de la page),
+// 1536 px au plus grand côté, la page centrée dedans en « contain » ({W, H} le canevas, k l'échelle page → canevas,
+// {ox, oy} le coin de la page). Le résultat du modèle couvre ce canevas : image_poser_page le ramène sur la page.
+// Une page si allongée que le dessous y tiendrait sur moins de GUIDE_PLANCHER px (bannière 10000×100) : refus nommé,
+// jamais un guide de quelques pixels envoyé au modèle.
+export const GUIDE_COTE = 1536, GUIDE_PLANCHER = 64;
+export function cadreGuide(taille, size) {
+  const pw = +(taille && taille.w), ph = +(taille && taille.h);
+  if (!(pw > 0 && ph > 0)) throw new Error(T("vectorlab.image.taille_inconnue"));
+  const r = C.RAPPORTS[size] || 1;
+  const W = r >= 1 ? GUIDE_COTE : Math.round(GUIDE_COTE * r);
+  const H = r >= 1 ? Math.round(GUIDE_COTE / r) : GUIDE_COTE;
+  const k = Math.min(W / pw, H / ph);
+  const petit = Math.min(pw * k, ph * k);
+  if (petit < GUIDE_PLANCHER) throw new Error(T("vectorlab.iacalque.guide_page_etiree", { w: pw, h: ph, px: Math.round(petit) }));
+  return { W, H, k, ox: (W - pw * k) / 2, oy: (H - ph * k) / 2 };
 }
 
-// SVG → Image → canvas → PNG (comme l'export PNG de mod-export) ; `blanc` : un guide sans fond de page est posé
-// sur blanc (les modèles d'édition lisent mal la transparence)
-export function rasteriserGuide(svg, taille, k, blanc) {
+// la pose d'une image GUIDÉE : son cadre entier (le canevas du guide, quelle que soit sa taille native) ramené sur
+// la page — la page est couverte EXACTEMENT, les marges du format débordent hors page. Pas de plafond « jamais
+// agrandie » ici (image_poser_spec, la pose ordinaire, rendait 1376×768 au milieu d'une page 1920×1080).
+export function image_poser_page(nat, taille, cadre) {
+  if (!(nat && nat.w > 0 && nat.h > 0)) throw new Error(T("vectorlab.image.taille_inconnue"));
+  const { W, H, k, ox, oy } = cadre;
+  return { x: Math.round(-ox / k), y: Math.round(-oy / k), w: Math.max(1, Math.round(W / k)), h: Math.max(1, Math.round(H / k)) };
+}
+
+// SVG → Image → canvas → PNG : le canevas du cadre, rempli du fond de page (blanc sans fond : les modèles
+// d'édition lisent mal la transparence), la page dessinée à sa place. Copie VOLONTAIRE de la rasterisation de
+// mod-export plutôt qu'un rasteriserSVG partagé : celle-ci vit dans la fermeture d'initExport, ses messages sont des
+// éditions L de la saisie L6 (export.py) sur les mêmes lignes qu'une édition S devrait remplacer, la mise en page
+// diffère (canevas du format, page décalée) et mod-iacalque importerait mod-export, qui importe mod-image, qui
+// importe mod-iacalque (cycle).
+export function rasteriserGuide(svg, taille, cadre, fond) {
   return new Promise((res, rej) => {
     const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
     const img = new Image();
     img.onload = () => {
-      const w = Math.max(1, Math.round(taille.w * k)), h = Math.max(1, Math.round(taille.h * k));
       const cv = document.createElement("canvas");
-      cv.width = w; cv.height = h;
+      cv.width = cadre.W; cv.height = cadre.H;
       const cx = cv.getContext("2d");
-      if (blanc) { cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, w, h); }
-      cx.drawImage(img, 0, 0, w, h);
+      cx.fillStyle = "#ffffff";
+      if (fond) cx.fillStyle = fond;                // une couleur illisible est ignorée : le blanc reste
+      cx.fillRect(0, 0, cadre.W, cadre.H);
+      cx.drawImage(img, cadre.ox, cadre.oy, taille.w * cadre.k, taille.h * cadre.k);
       URL.revokeObjectURL(url);
       cv.toBlob((png) => png ? res(png) : rej(new Error(T("vectorlab.export.rasterisation_vide"))), "image/png");
     };
@@ -373,8 +421,8 @@ export function initIaCalque(VL) {
     doc: () => etat.doc,
     post: poster,
     // le calque actif ne change qu'une fois la pose RÉUSSIE
-    poser: async (nom, calqueId) => {
-      const id = await VL.poserDepuisLibrary(nom, calqueId);
+    poser: async (nom, calqueId, placer) => {
+      const id = await VL.poserDepuisLibrary(nom, calqueId, placer);
       if (id) etat.calqueActif = calqueId;
       return id;
     },
@@ -382,9 +430,9 @@ export function initIaCalque(VL) {
     modelesImage: () => catalogue("image").catch(() => null),
     // le guide : les calques du dessous compilés par l'export du Vectorlab (VL.svgCourant, images inlinées), rendus
     // en PNG ici et déposés en Bibliothèque sous un nom unique — le document et l'historique ne bougent pas
-    guide: async (docG, calqueId) => {
+    guide: async (docG, calqueId, cadre) => {
       const svg = await VL.svgCourant(false, null, docG);
-      const png = await rasteriserGuide(svg, docG.taille, echelleGuide(docG.taille), !docG.fond);
+      const png = await rasteriserGuide(svg, docG.taille, cadre, docG.fond || "");
       return deposerFichier(png, nomGuide(etat.docId, calqueId, Date.now()), "vectorlab.iacalque.guide_sans_nom");
     },
   };
@@ -397,6 +445,10 @@ export function initIaCalque(VL) {
   let cible = "", modsDetour = [], modsImage = [], retour = null, etatCatalogue = "chargement", messageEcrit = "";
   const dire = (t) => { const e = $("#iacEtat"); if (e) e.textContent = t; };   // relu à chaque fois
   const guideCoche = () => !!($("#iacGuide") || {}).checked;
+  // le modèle préféré de chaque mode : un tir guidé n'écrase pas celui du mode non guidé ; au décochage, le modèle
+  // d'avant la bascule revient
+  const CLE_MODELE = "dz_vl_iac_modele", CLE_MODELE_GUIDE = "dz_vl_iac_modele_guide";
+  let avantGuide = "";
   function hote() {
     let el = $("#iaCalqueDlg");
     if (el) return el;
@@ -460,7 +512,7 @@ export function initIaCalque(VL) {
     majBouton();
     catalogue("image").then((l) => {
       modsImage = l;
-      remplirModeles();
+      remplirModeles(guideCoche() ? (lire(CLE_MODELE_GUIDE) || lire(CLE_MODELE)) : lire(CLE_MODELE));
       etatCatalogue = "ok";
       majBouton(); majDevis();
     }).catch(() => { etatCatalogue = "echec"; majBouton(); });
@@ -468,10 +520,10 @@ export function initIaCalque(VL) {
   // le sélecteur de modèles : tous, ou — case « guide » cochée — les seuls qui savent partir d'une image (une option
   // sans clé reste choisissable). Le modèle en place (ou mémorisé) qui ne sait pas guider cède la place au premier
   // qui sait, et on le dit.
-  function remplirModeles() {
+  function remplirModeles(voulu) {
     const sel = $("#iacModele"), M = MI();
     if (!sel || !sel.isConnected || !M) return;
-    const guide = guideCoche(), voulu = sel.value || lire("dz_vl_iac_modele");
+    const guide = guideCoche();
     M.remplir(sel, guide ? guidables(modsImage) : modsImage, { valeur: voulu });
     const nom = (id) => { const m = modsImage.find((x) => x.id === id); return m ? (m.label || m.id) : String(id); };
     if (guide && voulu && sel.value && sel.value !== voulu && modsImage.some((m) => m.id === voulu)) {
@@ -495,7 +547,7 @@ export function initIaCalque(VL) {
   function majBouton() {
     const go = $("#iacGo"), tx = $("#iacGoTexte");
     if (!go || !tx) return;
-    const { gris, raison } = etatGenerer({ enVol: lancer.enVol, cible, catalogue: etatCatalogue, modele: ($("#iacModele") || {}).value || "", guide: guideCoche() });
+    const { gris, raison } = etatGenerer({ enVol: lancer.enVol, cible, catalogue: etatCatalogue, modele: ($("#iacModele") || {}).value || "", guide: guideCoche(), nbModeles: modsImage.length });
     tx.textContent = lancer.enVol ? T("vectorlab.iacalque.en_cours") : T("vectorlab.iacalque.generer_sur", { nom: nomCalque(cible) });
     go.disabled = gris;
     const e = $("#iacEtat"), re = $("#iacReessayer"), sep = $("#iacSep");
@@ -536,15 +588,19 @@ export function initIaCalque(VL) {
 
   async function tirer() {
     if (lancer.enVol) return;                       // anti-double tir : le second clic ne relance rien
-    if (etatGenerer({ enVol: false, cible, catalogue: etatCatalogue, modele: ($("#iacModele") || {}).value || "", guide: guideCoche() }).gris) return;
+    if (etatGenerer({ enVol: false, cible, catalogue: etatCatalogue, modele: ($("#iacModele") || {}).value || "", guide: guideCoche(), nbModeles: modsImage.length }).gris) return;
     const c = choix();
     try {
       verifierCible(etat.doc, c.calqueId);          // AVANT toute dépense
       requete(c);
-      if (c.guide) { verifierGuide(c, modsImage); docGuide(etat.doc, c.calqueId); }   // aucun POST, pas même le dépôt
+      if (c.guide) {                                 // aucun POST, pas même le dépôt ; le guide est FIGÉ au clic
+        verifierGuide(c, modsImage);
+        c.docGuide = docGuide(etat.doc, c.calqueId);
+        cadreGuide(c.docGuide.taille, taillePour(etat.doc.taille));
+      }
       verifierDetour(c, infoDe(modsDetour, c.modeleDetour));
     } catch (e) { dire(e.message); VL.toast(e.message, true); return; }
-    if (c.modele) ecrire("dz_vl_iac_modele", c.modele);
+    if (c.modele) ecrire(c.guide ? CLE_MODELE_GUIDE : CLE_MODELE, c.modele);
     if (c.modeleDetour) ecrire("dz_vl_iac_detour", c.modeleDetour);
     const p = lancer(c);
     majBouton();
@@ -575,7 +631,13 @@ export function initIaCalque(VL) {
       const id = ev.target.id;
       if (id === "iacCalque") { cible = ev.target.value; majBouton(); }
       if (id === "iacModele") majBouton();
-      if (id === "iacGuide") { ecrire("dz_vl_iac_guide", ev.target.checked ? "1" : "0"); remplirModeles(); majBouton(); }
+      if (id === "iacGuide") {
+        const sel = $("#iacModele");
+        ecrire("dz_vl_iac_guide", ev.target.checked ? "1" : "0");
+        if (ev.target.checked) { avantGuide = (sel && sel.value) || ""; remplirModeles(lire(CLE_MODELE_GUIDE) || avantGuide); }
+        else remplirModeles(avantGuide || lire(CLE_MODELE));
+        majBouton();
+      }
       if (id === "iacDetourer" || id === "iacDetour") majSujet();
       if (id === "iacModele" || id === "iacGuide" || id === "iacDetourer" || id === "iacDetour") majDevis();
     });

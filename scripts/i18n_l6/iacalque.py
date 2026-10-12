@@ -46,11 +46,19 @@ ENTREES = [
     S(IMG, 92, "    const r = await fetch(`/api/vector/docs/", "    const r = await chercher(`/api/vector/docs/", {}),
     S(IMG, 129, '    const r = await fetch("/api/images/" + encodeURIComponent(nom));',
       '    const r = await chercher("/api/images/" + encodeURIComponent(nom));', {}),
-    S(IMG, 116, "async function poserBlob(blob) {", "async function poserBlob(blob, calqueId) {", {}),
+    # suite de t190 (guide) : la pose d'une image GUIDÉE passe sa propre règle (`placer`, image_poser_page de
+    # mod-iacalque : le cadre du format demandé ramené sur la page) ; par défaut, image_poser_spec comme avant
+    S(IMG, 116, "async function poserBlob(blob) {", "async function poserBlob(blob, calqueId, placer = image_poser_spec) {", {}),
+    S(IMG, 122, "const spec = image_poser_spec(nat, etat.doc.taille);", "const spec = placer(nat, etat.doc.taille);", {}),
+    # suite de t190 : les images des SYMBOLES (doc.symboles[id].objets) sont inlinées à l'export comme les autres
+    S(IMG, 55, "for (const c of doc.calques || []) visiter(c.objets);",
+      "for (const c of [...(doc.calques || []), ...Object.values(doc.symboles || {})]) visiter(c.objets);", {}),
+    S(IMG, 69, "for (const c of doc.calques || []) visiter(c.objets);",
+      "for (const c of [...(doc.calques || []), ...Object.values(doc.symboles || {})]) visiter(c.objets);", {}),
     S(IMG, 123, "VL.executer(op_ajouter, etat.calqueActif,", "VL.executer(op_ajouter, calqueId || etat.calqueActif,", {}),
-    S(IMG, 128, "async function poserDepuisLibrary(nom) {", "async function poserDepuisLibrary(nom, calqueId) {", {}),
+    S(IMG, 128, "async function poserDepuisLibrary(nom) {", "async function poserDepuisLibrary(nom, calqueId, placer) {", {}),
     S(IMG, 131, "    await poserBlob(await r.blob());",
-      c('    const id = await poserBlob(await r.blob(), calqueId);\n'
+      c('    const id = await poserBlob(await r.blob(), calqueId, placer);\n'
         '    // t190 : VL.executer AVALE l\'échec de op_ajouter (calque verrouillé ou supprimé entre-temps) — jamais « posée »\n'
         '    if (!id) throw new Error(T("vectorlab.image.pose_impossible", { nom }));'),
       {"vectorlab.image.pose_impossible": ("pose de « {nom} » impossible", "could not place “{nom}”")}),
@@ -219,4 +227,9 @@ export function op_image_remplacer(doc, id, href, nat) {
       "the Library returned no name for the guide"),
     H("vectorlab.iacalque.posee_guide", "« {nom} » posée sur « {calque} », guidée par « {guide} »",
       "“{nom}” placed on “{calque}”, guided by “{guide}”"),
+    H("vectorlab.iacalque.guide_garde", "{raison} — guide gardé en Bibliothèque : {guide}",
+      "{raison} — guide kept in the Library: {guide}"),
+    H("vectorlab.iacalque.guide_page_etiree",
+      "la page {w}×{h} est trop allongée pour servir de guide : le dessous n'y ferait que {px} px",
+      "the {w}×{h} page is too elongated to serve as a guide: the layers below would be only {px} px"),
 ]
