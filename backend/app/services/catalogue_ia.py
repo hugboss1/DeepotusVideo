@@ -238,7 +238,10 @@ def _vfx() -> list[dict]:
         out.append({"id": mid, "label": e["label"], "voie": "fal", "usd": usd, "unite": e["unite"],
                     "jumeau": None, "note": "" if usd else NOTE_A_MESURER, "phrase": e["phrase"],
                     "entree": e["entree"], "prompt": e["prompt"], "image": e["image"], "options": opts,
-                    "video_s": list(e["video_s"]) if e["video_s"] else None})
+                    "video_s": list(e["video_s"]) if e["video_s"] else None,
+                    # Topaz : le prix dépend de la taille de SORTIE (classe du côté court) — le catalogue sert la
+                    # classe la plus basse, l'écran dit « dès »
+                    "des": e["unite"] == "tranche10s"})
     return out
 
 

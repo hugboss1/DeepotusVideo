@@ -565,7 +565,7 @@ _VFX_MULT_PIXVERSE = {"5": 1.0, "8": 2.0, "10": 2.2}
 def taux_vfx(mid: str, op: dict | None = None, p: dict | None = None) -> float:
     """t188 (G6) — LE taux d'un geste VFX IA (app.services.vfx_ia.REGISTRE), dans son unité : « s » (selon la
     résolution choisie), « mp », « video » (passe 1 ou 2, + le masque SAM 3 quand mask_prompt part), « tranche10s »
-    (classe de la hauteur de sortie), « effet » (base 5 s de la résolution x 1 / 2 / 2,2 selon la durée). `op` : les
+    (classe du côté court de sortie ; au catalogue, la plus basse : « dès »), « effet » (base 5 s de la résolution x 1 / 2 / 2,2 selon la durée). `op` : les
     options et dimensions de la demande (None : les défauts du geste — le prix affiché au catalogue). Clé de prix lue
     dans la table (`p`, sinon pricing.load), repli DEFAULTS. 0 pour un id inconnu ou une valeur illisible (« à
     mesurer »). Source unique du catalogue (catalogue_ia), du devis (_ligne_vfx) et donc de la garde."""
@@ -575,10 +575,7 @@ def taux_vfx(mid: str, op: dict | None = None, p: dict | None = None) -> float:
         return 0.0
     p = p if p is not None else load()
     op = op or {}
-    o = dict(op.get("options") or {})
-    for nom, spec in e["options"].items():
-        if o.get(nom) in (None, "") and spec["defaut"] is not None:
-            o[nom] = spec["defaut"]
+    o = _V.options_completees(mid, op.get("options"))
     brut = p.get(e["prix"], DEFAULTS.get(e["prix"], 0.0))
     try:
         u = e["unite"]
@@ -590,8 +587,8 @@ def taux_vfx(mid: str, op: dict | None = None, p: dict | None = None) -> float:
             masque = o.get("mask_prompt") or (not op and e["options"].get("mask_prompt", {}).get("requis"))
             return base + (float(d.get("masque", 0.0) or 0.0) if masque else 0.0)
         if u == "tranche10s":
-            return float((brut or {}).get(_V.classe_topaz(op.get("hauteur"), o.get("upscale_factor")) if op
-                                          else "720p", 0.0) or 0.0)
+            cl = _V.classe_topaz(op.get("largeur"), op.get("hauteur"), o.get("upscale_factor")) if op else "720p"
+            return float((brut or {}).get(cl, 0.0) or 0.0)
         if u == "effet":
             return float((brut or {}).get(str(o.get("resolution")), 0.0) or 0.0) * _VFX_MULT_PIXVERSE.get(
                 str(o.get("duration")), 1.0)

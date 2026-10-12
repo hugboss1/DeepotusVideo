@@ -1215,19 +1215,30 @@ window.DzVfx={ready:!0,Panel:VfxPanel,Stack:VfxStack,Bounds:VfxBounds,
    La vidéo rendue devient un job fini (Bibliothèque → Rendus, provenance « vfx_ia »). Partagé avec le rail
    « VFX IA » de Son & VFX par window.DzVfx.ia. Ces fonctions vivent ICI, après la dernière édition G1 de la
    couche : la table dzglyph_paires.json repère les éditions par position. */
-var VFX_IA={cat:null,prom:null};
-function vfxIaCatalogue(){
-  if(VFX_IA.cat)return Promise.resolve(VFX_IA.cat);
-  if(!VFX_IA.prom)VFX_IA.prom=fetch("/api/vfx-ia/modeles").then(function(r2){return r2.ok?r2.json():null})
-    .then(function(d){VFX_IA.cat=(d&&d.modeles)||[];return VFX_IA.cat})
-    .catch(function(){VFX_IA.prom=null;return []});
+var VFX_IA={cat:null,prom:null,imgs:null};
+/* le catalogue : SEULE une réponse ok (un tableau `modeles`) est gardée ; une erreur HTTP ou réseau REJETTE (l'écran
+   dit l'échec et propose « Réessayer », jamais « chargement… » à vie ni une liste vide). `frais` : relu à chaque
+   affichage (la mention « clé à ajouter » suit la clé posée entre-temps), le dernier bon catalogue montré en attendant */
+function vfxIaCatalogue(frais){
+  if(VFX_IA.cat&&!frais)return Promise.resolve(VFX_IA.cat);
+  if(!VFX_IA.prom)VFX_IA.prom=fetch("/api/vfx-ia/modeles")
+    .then(function(r2){if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()})
+    .then(function(d){if(!d||!Array.isArray(d.modeles))throw new Error("catalogue");
+      VFX_IA.prom=null;VFX_IA.cat=d.modeles;return VFX_IA.cat})
+    .catch(function(e){VFX_IA.prom=null;throw e});
   return VFX_IA.prom}
-/* les images de la Bibliothèque (image de la lumière, référence, image à animer), les plus récentes d'abord */
+/* les images de la Bibliothèque (image de la lumière, référence, image à animer), les plus récentes d'abord ;
+   lues une fois, et seulement quand un geste en demande une */
 function vfxIaImages(){
-  return fetch("/api/images").then(function(r2){return r2.ok?r2.json():null})
-    .then(function(d){return ((d&&d.images)||[]).slice().sort(function(a,b){return (b.mtime||0)-(a.mtime||0)})
-      .slice(0,80).map(function(i){return i.filename})})
+  if(VFX_IA.imgs)return Promise.resolve(VFX_IA.imgs);
+  return fetch("/api/images").then(function(r2){if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()})
+    .then(function(d){VFX_IA.imgs=((d&&d.images)||[]).slice().sort(function(a,b){return (b.mtime||0)-(a.mtime||0)})
+      .slice(0,80).map(function(i){return i.filename});return VFX_IA.imgs})
     .catch(function(){return []})}
+/* le geste choisi est mémorisé (dz_vfxia_geste) ; un stockage refusé n'empêche rien */
+var VFX_IA_LS="dz_vfxia_geste";
+function vfxIaGesteLu(){try{return localStorage.getItem(VFX_IA_LS)||""}catch(_e){return ""}}
+function vfxIaGesteEcrit(id){try{localStorage.setItem(VFX_IA_LS,id)}catch(_e){}}
 /* titre et phrase de chaque geste (la phrase dit à l'utilisateur ce qu'il doit donner) */
 function vfxIaTextes(){return {
   "relight-h3":[dzT("vfx.ia.relight_h3.titre"),dzT("vfx.ia.relight_h3.phrase")],
@@ -1257,11 +1268,13 @@ function vfxIaUnite(u){return ({s:dzT("vfx.ia.unite.s"),mp:dzT("vfx.ia.unite.mp"
 function vfxIaUsd(v){v=Number(v);if(!(v>0)||!isFinite(v))return "";
   var s=v<0.01?String(Number(v.toPrecision(5))):(Math.round(v*1000)/1000).toFixed(3);
   while(/\.\d{3,}$/.test(s)&&s.charAt(s.length-1)==="0")s=s.slice(0,-1);return "$"+s}
+/* `des` (Topaz) : le prix dépend de la taille de sortie, le catalogue sert la classe la plus basse -> « dès … » */
 function vfxIaPrix(m){var p=vfxIaUsd(m.usd);
-  return (p?p+vfxIaUnite(m.unite):dzT("ia.prix.a_mesurer"))+(m.dispo===!1&&m.cle?" · "+dzT("ia.cle.a_ajouter",{cle:m.cle}):"")}
+  return (p?(m.des?dzT("vfx.ia.des",{prix:p+vfxIaUnite(m.unite)}):p+vfxIaUnite(m.unite)):dzT("ia.prix.a_mesurer"))+(m.dispo===!1&&m.cle?" · "+dzT("ia.cle.a_ajouter",{cle:m.cle}):"")}
 function vfxIaVide(){return {prompt:"",image:"",opts:{},filtres:{}}}
-/* le corps de POST /api/vfx-ia : la source (clip_id = le job du plan), le geste, ce que l'utilisateur a saisi */
-function vfxIaCorps(m,st,job){var c={modele:m.id},o={},k;
+/* le corps de POST /api/vfx-ia : la source (clip_id = le job du plan), le geste, ce que l'utilisateur a saisi,
+   l'écran d'origine (« rail » Son & VFX, « rack » Montage : la catégorie du plafond) */
+function vfxIaCorps(m,st,job,origine){var c={modele:m.id,origine:origine||"rail"},o={},k;
   if(m.entree==="video"&&job)c.clip_id=job;
   if(m.prompt&&String(st.prompt||"").trim())c.prompt=String(st.prompt).trim();
   if(m.image&&st.image)c.image_filename=st.image;
@@ -1279,10 +1292,14 @@ function vfxIaPost(corps){
     .then(function(r2){return r2.json().catch(function(){return {}}).then(function(d){
       if(!r2.ok){var x2=d&&d.detail;throw new Error(typeof x2==="string"?x2:(x2&&x2.message)||("HTTP "+r2.status))}
       return d})})}
+/* le devis armé, SEULEMENT s'il a été demandé pour la saisie affichée (un devis qui arrive tard pour une saisie
+   modifiée depuis n'est ni montré ni tiré) */
+function vfxIaArme(arm,m,st,job,origine){
+  return arm&&m&&arm.sig===JSON.stringify(vfxIaCorps(m,st,job,origine))?arm:null}
 /* les deux clics : `arm` = le devis en attente ({sig, usd, detail}), valable pour CETTE saisie seulement */
 function vfxIaClic(m,st,job,g){
   if(g.busy)return;var manque=vfxIaManque(m,st,job);if(manque){g.note(manque);return}
-  var corps=vfxIaCorps(m,st,job),sig=JSON.stringify(corps);
+  var corps=vfxIaCorps(m,st,job,g.origine),sig=JSON.stringify(corps);
   if(!g.arm||g.arm.sig!==sig){
     vfxIaPost(Object.assign({devis:!0},corps))
       .then(function(d){g.setArm({sig:sig,usd:d.usd,detail:d.detail||""})})
@@ -1303,6 +1320,8 @@ function VfxIaChamps(props){
     "aria-label":dzT("vfx.ia.prompt"),
     placeholder:m.prompt==="requis"?dzT("vfx.ia.prompt_requis"):dzT("vfx.ia.prompt_facultatif"),
     onChange:function(e){props.set({prompt:e.target.value})}},"p"));
+  /* rééclairer : la référence est une image de LUMIÈRE (schéma : un rendu de sphère montrant l'éclairage voulu) */
+  if(m.image==="requis"&&m.entree==="video")out.push(r.jsx("div",{className:k.aide,children:dzT("vfx.ia.image_lumiere_aide")},"ia"));
   if(m.image)out.push(r.jsxs("select",{className:k.sel,value:st.image,"aria-label":dzT("vfx.ia.image"),
     onChange:function(e){props.set({image:e.target.value})},children:[
     r.jsx("option",{value:"",children:m.image==="requis"?(m.entree==="image"?dzT("vfx.ia.image_animer"):dzT("vfx.ia.image_lumiere"))
@@ -1341,31 +1360,38 @@ function VfxIaChamps(props){
 function VfxIaRack(props){
   var US=x.useState,EF=x.useEffect,clip=props.clip;
   var s1=US(VFX_IA.cat),cat=s1[0],setCat=s1[1];
-  var s2=US(""),mid=s2[0],setMid=s2[1];
+  var s2=US(vfxIaGesteLu()),mid=s2[0],setMid=s2[1];
   var s3=US(vfxIaVide()),st=s3[0],setSt=s3[1];
   var s4=US(null),arm=s4[0],setArm=s4[1];
   var s5=US(!1),busy=s5[0],setBusy=s5[1];
-  var s6=US([]),imgs=s6[0],setImgs=s6[1];
-  EF(function(){var vivant=!0;vfxIaCatalogue().then(function(c){if(vivant)setCat(c)});
-    vfxIaImages().then(function(l){if(vivant)setImgs(l)});return function(){vivant=!1}},[]);
+  var s6=US(VFX_IA.imgs||[]),imgs=s6[0],setImgs=s6[1];
+  var s7=US(!1),err=s7[0],setErr=s7[1];
+  function charger(v){setErr(!1);vfxIaCatalogue(!0).then(function(c){if(v.on)setCat(c)},function(){if(v.on)setErr(!0)})}
+  EF(function(){var v={on:!0};charger(v);return function(){v.on=!1}},[]);
   EF(function(){setArm(null)},[clip&&clip.id]);
-  if(!clip||!clip.src||!clip.src.job_id)return null;
   var vids=(cat||[]).filter(function(v){return v.entree==="video"});
   var m=vids.filter(function(v){return v.id===mid})[0]||vids[0];
-  var job=clip.src.job_id,g={busy:busy,arm:arm,setArm:setArm,setBusy:setBusy,note:props.onNote};
+  EF(function(){var v={on:!0};if(m&&m.image)vfxIaImages().then(function(l){if(v.on)setImgs(l)});
+    return function(){v.on=!1}},[m&&m.image?m.id:""]);
+  if(!clip||!clip.src||!clip.src.job_id)return null;
+  var job=clip.src.job_id,g={busy:busy,arm:arm,setArm:setArm,setBusy:setBusy,note:props.onNote,origine:"rack"};
+  var armOk=vfxIaArme(arm,m,st,job,"rack");
   return r.jsxs("div",{className:"vfx-matte vfx-ia","data-dzvfxia":"rack",children:[
     r.jsx("span",{className:"vfx-mlbl",children:dzT("vfx.ia.section")}),
     vids.length?r.jsx("select",{className:"vfx-sel",value:m?m.id:"","aria-label":dzT("vfx.ia.geste"),
-      onChange:function(e){setMid(e.target.value);setSt(vfxIaVide());setArm(null)},
+      onChange:function(e){setMid(e.target.value);vfxIaGesteEcrit(e.target.value);setSt(vfxIaVide());setArm(null)},
       children:vids.map(function(v){return r.jsx("option",{value:v.id,children:vfxIaTitre(v)+" · "+vfxIaPrix(v)},v.id)})})
+      :err?r.jsxs("div",{className:"vfx-mhint","data-dzvfxiaerr":"1",children:[dzT("vfx.ia.catalogue_echec")," ",
+        r.jsx("button",{className:"vfx-btn",onClick:function(){charger({on:!0})},children:dzT("vfx.ia.reessayer")})]})
       :r.jsx("div",{className:"vfx-mhint",children:dzT("vfx.ia.chargement")}),
     m?r.jsx("div",{className:"vfx-mhint vfx-iaphrase",children:vfxIaPhrase(m)}):null,
     m?r.jsx(VfxIaChamps,{m:m,st:st,images:imgs,k:{bloc:"vfx-iachamps",texte:"vfx-sel vfx-iatexte",sel:"vfx-sel",
-      num:"vfx-sel vfx-ianum",ligne:"vfx-prow",lbl:"vfx-plabel"},
+      num:"vfx-sel vfx-ianum",ligne:"vfx-prow",lbl:"vfx-plabel",aide:"vfx-mhint"},
       set:function(p){setSt(Object.assign({},st,p));setArm(null)}}):null,
     m?r.jsx("button",{className:"vfx-btn","data-off":busy?"":void 0,title:dzT("vfx.ia.bouton_aide"),
       onClick:function(){vfxIaClic(m,st,job,g)},
-      children:busy?dzT("vfx.ia.en_cours"):arm?dzT("vfx.ia.confirmer"):dzT("vfx.ia.lancer")}):null,
-    arm?r.jsx("div",{className:"vfx-mhint",children:vfxIaDevisTxt(arm)}):null]})}
+      children:busy?dzT("vfx.ia.en_cours"):armOk?dzT("vfx.ia.confirmer"):dzT("vfx.ia.lancer")}):null,
+    armOk?r.jsx("div",{className:"vfx-mhint",children:vfxIaDevisTxt(armOk)}):null]})}
 /* t188 : les aides des VFX IA, pour le rail « VFX IA » de Son & VFX */
-window.DzVfx.ia={catalogue:vfxIaCatalogue,images:vfxIaImages,titre:vfxIaTitre,phrase:vfxIaPhrase,prix:vfxIaPrix,clic:vfxIaClic,devisTxt:vfxIaDevisTxt,Champs:VfxIaChamps,Rack:VfxIaRack};
+window.DzVfx.ia={catalogue:vfxIaCatalogue,images:vfxIaImages,titre:vfxIaTitre,phrase:vfxIaPhrase,prix:vfxIaPrix,clic:vfxIaClic,devisTxt:vfxIaDevisTxt,Champs:VfxIaChamps,Rack:VfxIaRack,arme:vfxIaArme,
+  gesteLu:vfxIaGesteLu,gesteEcrit:vfxIaGesteEcrit,dernier:function(){return VFX_IA.cat}};

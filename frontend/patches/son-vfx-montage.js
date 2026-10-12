@@ -957,9 +957,9 @@ function DzSonVfx(props){
           r.jsx("div",{className:"svm-vfxtype",children:v.type})]})]},v.id)})}),
     r.jsx("div",{className:"svm-note",children:dzT("son.post.note")})]});
 
-  /* Contenu central (t188 : + VFX IA) (bourrage volontaire : longueurs figées par la table G1, par position)                                                                                                             
-
-
+  /* Contenu central — piloté par le générateur choisi, comme le rail. Côté
+     SFX, le catalogue livré (gratuit) passe AVANT la génération facturée.
+     t188 : + VFX IA. (bourrage volontaire : table G1 par position)  
    */
   var center=
     selGen==="sfx"?r.jsxs(r.Fragment,{children:[
@@ -6816,8 +6816,8 @@ function svmVfxIaRail(){return r.jsxs(r.Fragment,{children:[
   r.jsx("div",{className:"svm-note",style:{marginTop:0},children:dzT("vfx.ia.rail_note")})]})}
 function SvmVfxIa(props){
   var US=x.useState,EF=x.useEffect,I=svmVfxIa();
-  var s1=US(null),cat=s1[0],setCat=s1[1];
-  var s2=US(""),mid=s2[0],setMid=s2[1];
+  var s1=US(I?I.dernier():null),cat=s1[0],setCat=s1[1];
+  var s2=US(I?I.gesteLu():""),mid=s2[0],setMid=s2[1];
   var s3=US({prompt:"",image:"",opts:{}}),st=s3[0],setSt=s3[1];
   var s4=US(null),arm=s4[0],setArm=s4[1];
   var s5=US(!1),busy=s5[0],setBusy=s5[1];
@@ -6825,18 +6825,28 @@ function SvmVfxIa(props){
   var s7=US(null),jobs=s7[0],setJobs=s7[1];
   var s8=US(""),job=s8[0],setJob=s8[1];
   var s9=US(null),res=s9[0],setRes=s9[1];
-  EF(function(){var vivant=!0,ia=svmVfxIa();
-    if(ia){ia.catalogue().then(function(c){if(vivant)setCat(c)});ia.images().then(function(l){if(vivant)setImgs(l)})}
-    fetch("/api/jobs?video=1&limit=40").then(function(r2){return r2.ok?r2.json():[]})
-      .then(function(l){if(!vivant)return;l=(l||[]).filter(function(j){return j.status==="done"});setJobs(l);
-        if(l[0])setJob(function(v){return v||l[0].job_id})})
-      .catch(function(){if(vivant)setJobs([])});
-    return function(){vivant=!1}},[]);
+  var sA=US(!1),err=sA[0],setErr=sA[1];
+  function charger(v){var ia=svmVfxIa();if(!ia)return;setErr(!1);
+    ia.catalogue(!0).then(function(c){if(v.on)setCat(c)},function(){if(v.on)setErr(!0)})}
+  EF(function(){var v={on:!0};charger(v);
+    /* les vidéos TERMINÉES, filtrées par le serveur avant sa fenêtre (done=1) */
+    fetch("/api/jobs?video=1&done=1&limit=40").then(function(r2){return r2.ok?r2.json():[]})
+      .then(function(l){if(!v.on)return;l=l||[];setJobs(l);if(l[0])setJob(function(j){return j||l[0].job_id})})
+      .catch(function(){if(v.on)setJobs([])});
+    return function(){v.on=!1}},[]);
+  var m=cat&&(cat.filter(function(v){return v.id===mid})[0]||cat[0]);
+  EF(function(){var v={on:!0},ia=svmVfxIa();if(ia&&m&&m.image)ia.images().then(function(l){if(v.on)setImgs(l)});
+    return function(){v.on=!1}},[m&&m.image?m.id:""]);
   if(!I)return r.jsx("div",{className:"svm-card",children:r.jsx("div",{className:"svm-note",children:dzT("vfx.ia.indisponible")})});
-  if(cat===null)return r.jsx("div",{className:"svm-card",children:r.jsx("div",{className:"svm-note",children:dzT("vfx.ia.chargement")})});
-  var m=cat.filter(function(v){return v.id===mid})[0]||cat[0];
+  if(cat===null)return r.jsx("div",{className:"svm-card",children:err?r.jsxs("div",{className:"svm-note","data-dzvfxiaerr":"1",children:[
+      dzT("vfx.ia.catalogue_echec")," ",r.jsx("button",{className:"svm-secbtn",onClick:function(){charger({on:!0})},
+        children:dzT("vfx.ia.reessayer")})]})
+    :r.jsx("div",{className:"svm-note",children:dzT("vfx.ia.chargement")})});
   function setSaisie(p){setSt(Object.assign({},st,p));setArm(null)}
-  var g={busy:busy,arm:arm,setArm:setArm,setBusy:setBusy,note:props.onNote,done:function(d){setRes(d)}};
+  /* après un tir, la vidéo rendue devient la source proposée : on enchaîne deux gestes */
+  var g={busy:busy,arm:arm,setArm:setArm,setBusy:setBusy,note:props.onNote,origine:"rail",done:function(d){setRes(d);
+    if(d.job_id&&m&&m.entree==="video"){setJobs(function(l){return [{job_id:d.job_id,title:d.filename,status:"done"}].concat(l||[])});setJob(d.job_id)}}};
+  var armOk=I.arme(arm,m,st,job,"rail");
   return r.jsxs(r.Fragment,{children:[
     r.jsxs("div",{className:"svm-card","data-dzvfxia":"rail",children:[
       r.jsx(SvmLabel,{children:dzT("vfx.ia.source")}),
@@ -6845,23 +6855,25 @@ function SvmVfxIa(props){
       :jobs.length?r.jsx("select",{className:"svm-secbtn",value:job,"aria-label":dzT("vfx.ia.source"),style:{marginTop:8,width:"100%"},
         onChange:function(e){setJob(e.target.value);setArm(null)},
         children:jobs.map(function(j){return r.jsx("option",{value:j.job_id,children:(j.title||j.image_filename||j.job_id)+(j.duration_s?" · "+j.duration_s+" s":"")},j.job_id)})})
-      :r.jsx("div",{className:"svm-note",style:{marginTop:6},children:dzT("vfx.ia.aucune_video")})]}),
+      :r.jsx("div",{className:"svm-note",style:{marginTop:6},children:dzT("vfx.ia.aucune_video")}),
+      err?r.jsxs("div",{className:"svm-note","data-dzvfxiaerr":"1",children:[dzT("vfx.ia.catalogue_echec")," ",
+        r.jsx("button",{className:"svm-secbtn",onClick:function(){charger({on:!0})},children:dzT("vfx.ia.reessayer")})]}):null]}),
     r.jsxs("div",{className:"svm-card",children:[
       r.jsx(SvmLabel,{children:dzT("vfx.ia.gestes")}),
       r.jsx("div",{className:"svm-modellist",children:cat.map(function(v){
         return r.jsxs("button",{className:"svm-model","data-sel":m&&m.id===v.id?"":void 0,"data-dzvfxia":v.id,
-          onClick:function(){if(v.id!==(m&&m.id)){setMid(v.id);setSt({prompt:"",image:"",opts:{}});setArm(null)}},children:[
+          onClick:function(){if(v.id!==(m&&m.id)){setMid(v.id);I.gesteEcrit(v.id);setSt({prompt:"",image:"",opts:{}});setArm(null)}},children:[
           r.jsxs("div",{className:"svm-genrow",children:[
             r.jsx("span",{className:"svm-genname",children:I.titre(v)}),
             r.jsx("span",{className:"svm-genprice",children:I.prix(v)})]}),
           r.jsx("div",{className:"svm-gendesc",children:I.phrase(v)})]},v.id)})}),
       m?r.jsx(I.Champs,{m:m,st:st,images:imgs,set:setSaisie,k:{bloc:"svm-vfxiachamps",texte:"svm-musicprompt",
-        sel:"svm-secbtn",num:"svm-transdur",ligne:"svm-switchrow",lbl:"svm-dur"}}):null,
+        sel:"svm-secbtn",num:"svm-transdur",ligne:"svm-switchrow",lbl:"svm-dur",aide:"svm-note"}}):null,
       m?r.jsxs("div",{className:"svm-toolrow",style:{marginTop:12,flexWrap:"wrap"},children:[
-        arm?r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},children:I.devisTxt(arm)}):null,
+        armOk?r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},children:I.devisTxt(armOk)}):null,
         r.jsx("button",{className:"svm-nbgold","data-off":busy?"":void 0,title:dzT("vfx.ia.bouton_aide"),
           onClick:function(){I.clic(m,st,job,g)},
-          children:busy?dzT("vfx.ia.en_cours"):arm?dzT("vfx.ia.confirmer"):dzT("vfx.ia.lancer")})]}):null]}),
+          children:busy?dzT("vfx.ia.en_cours"):armOk?dzT("vfx.ia.confirmer"):dzT("vfx.ia.lancer")})]}):null]}),
     res?r.jsxs("div",{className:"svm-card",children:[
       r.jsx(SvmLabel,{children:dzT("vfx.ia.resultat")}),
       r.jsxs("div",{className:"svm-toolrow",style:{marginTop:10},children:[

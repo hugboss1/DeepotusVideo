@@ -427,7 +427,7 @@ ENTREES = [
       '  var railBottom=selGen==="vfxia"?svmVfxIaRail():\r\n    selGen==="voiceover"?',
       {}),
     S(65081, "  /* Contenu central — piloté par LE générateur sélectionné, comme le rail.\r\n     Ordre volontaire côté SFX : le catalogue livré (gratuit, sans clé) passe\r\n     AVANT la génération facturée. Un nouvel utilisateur doit pouvoir écouter\r\n     et poser un son avant qu'on lui parle de crédits. */",
-      '  /* Contenu central (t188 : + VFX IA) (bourrage volontaire : longueurs figées par la table G1, par position)                                                                                                             \r\n\r\n\r\n   */',
+      '  /* Contenu central — piloté par le générateur choisi, comme le rail. Côté\r\n     SFX, le catalogue livré (gratuit) passe AVANT la génération facturée.\r\n     t188 : + VFX IA. (bourrage volontaire : table G1 par position)  \r\n   */',
       {}),
     S(65760, '    selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):',
       '    selGen==="vfxia"?r.jsx(SvmVfxIa,{onNote:fireNote,go:props.go}):selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):',

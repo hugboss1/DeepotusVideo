@@ -4628,6 +4628,19 @@ async def generate_sfx_audio(request: Request):
 _SFXV_EXTS = (".mp4", ".mov", ".webm", ".m4v")
 
 
+def _nom_nu(nom: str, dossier: Path, exts: tuple, champ: str, quoi: str, objet: str) -> Path:
+    """t188 : un nom de fichier NU confiné à `dossier` (sans séparateur, « .. » ni lecteur, extension de `exts`) ->
+    son chemin ; 400 si le nom est refusé, 404 s'il n'existe pas. Partagé par /audio/sfx-video et /vfx-ia."""
+    if (nom != Path(nom).name or "/" in nom or "\\" in nom or ".." in nom or ":" in nom
+            or Path(nom).suffix.lower() not in exts):
+        raise HTTPException(400, f"{champ} refusé : un nom {quoi} nu ({', '.join(exts)})")
+    d = dossier.resolve()
+    q = (d / nom).resolve()
+    if q.parent != d or not q.is_file():
+        raise HTTPException(404, f"{objet} introuvable : {nom}")
+    return q
+
+
 async def _sfx_video_source(payload: dict, quoi: str = "à bruiter") -> Path:
     """t187 (G5) — la vidéo d'un bruitage, CONFINÉE : `clip_id` (ou `job_id`) = l'id du job d'un clip du Montage
     (son rendu fini, lu en base) ; `video_filename` = un nom NU d'une vidéo du dossier des vidéos importées
@@ -4645,14 +4658,7 @@ async def _sfx_video_source(payload: dict, quoi: str = "à bruiter") -> Path:
         return src
     if not nom:
         raise HTTPException(400, f"donnez la vidéo {quoi} : clip_id (un clip du Montage) ou video_filename")
-    if (nom != Path(nom).name or "/" in nom or "\\" in nom or ".." in nom or ":" in nom
-            or Path(nom).suffix.lower() not in _SFXV_EXTS):
-        raise HTTPException(400, "video_filename refusé : un nom de vidéo nu (.mp4, .mov, .webm, .m4v)")
-    dossier = (settings.outputs_path / "uploads").resolve()
-    q = (dossier / nom).resolve()
-    if q.parent != dossier or not q.is_file():
-        raise HTTPException(404, f"vidéo introuvable : {nom}")
-    return q
+    return _nom_nu(nom, settings.outputs_path / "uploads", _SFXV_EXTS, "video_filename", "de vidéo", "vidéo")
 
 
 async def _sfx_video_job(dest: Path, titre: str, provider="sfx_video", etape: str = "Sonorisée") -> str:
@@ -4750,14 +4756,12 @@ async def _vfx_ia_image(nom) -> Path | None:
     nom = str(nom or "").strip()
     if not nom:
         return None
-    if (nom != Path(nom).name or "/" in nom or "\\" in nom or ".." in nom or ":" in nom
-            or Path(nom).suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp")):
-        raise HTTPException(400, "image_filename refusé : un nom d'image nu (.png, .jpg, .jpeg, .webp)")
-    dossier = settings.images_path.resolve()
-    q = (dossier / nom).resolve()
-    if q.parent != dossier or not q.is_file():
-        raise HTTPException(404, f"image introuvable : {nom}")
-    return q
+    from app.services.vfx_ia import EXT_IMAGE
+    return _nom_nu(nom, settings.images_path, EXT_IMAGE, "image_filename", "d'image", "image")
+
+
+# l'écran d'où part le tir -> la catégorie du plafond (plafonds.CATEGORIES)
+_VFX_IA_ORIGINES = {"rail": "son", "rack": "montage"}
 
 
 @router.get("/vfx-ia/modeles")
@@ -4771,7 +4775,8 @@ async def vfx_ia_modeles():
 @router.post("/vfx-ia", dependencies=[Depends(_require_local_depense)])
 async def vfx_ia_appliquer(request: Request):
     """t188 (G6) — un VFX IA sur une vidéo (ou une image pour PixVerse). Body {clip_id | video_filename, modele (id du
-    registre vfx_ia), prompt?, image_filename?, options?, devis?}. La vidéo rendue devient un job FINI (provider
+    registre vfx_ia), prompt?, image_filename?, options?, devis?, origine? (« rail » = Son & VFX, « rack » = Montage :
+    la catégorie du plafond, « son » ou « montage »)}. La vidéo rendue devient un job FINI (provider
     « vfx_ia ») et entre dans la Bibliothèque avec sa provenance (source sonvfx, relation « vfx_ia », mère = la
     source, recette = geste + options) -> {ok, modele, job_id, filename, usd, seed}.
     `devis: true` : rien n'est tiré ni écrit — {devis: true, modele, secondes, usd, detail}, LE MÊME chiffre que la
@@ -4801,13 +4806,14 @@ async def vfx_ia_appliquer(request: Request):
         opts = _VI.options_valides(modele, payload.get("options"))
     except ValueError as x:
         raise HTTPException(400, str(x))
+    origine = str(payload.get("origine") or "rail")
+    if origine not in _VFX_IA_ORIGINES:
+        raise HTTPException(400, f"origine refusée : {origine[:20]!r} ({', '.join(_VFX_IA_ORIGINES)})")
     image = await _vfx_ia_image(payload.get("image_filename"))
-    if image is not None and not e["image"]:
-        raise HTTPException(400, f"{e['label']} ne prend pas d'image")
-    if image is None and e["image"] == "requis":
-        quoi = "l'image à animer" if e["entree"] == "image" else "l'image de la lumière voulue"
-        raise HTTPException(400, f"{e['label']} : donnez {quoi} (image_filename)")
-    src, dur, larg, haut = image, None, None, None
+    refus = _VI.image_refusee(modele, image is not None)
+    if refus:
+        raise HTTPException(400, refus)
+    src, dur, larg, haut, octets = image, None, None, None, None
     if e["entree"] == "video":
         src = await _sfx_video_source(payload, "à retoucher")
         loop = asyncio.get_running_loop()
@@ -4816,8 +4822,9 @@ async def vfx_ia_appliquer(request: Request):
             # ffprobe absent ou en échec, job qui n'est pas une vidéo : la garde chiffrerait 0 s et laisserait tirer
             raise HTTPException(400, f"durée de la vidéo illisible : {src.name} (ffprobe) — rien n'est envoyé")
         larg, haut = await loop.run_in_executor(None, _VI.dimensions, src)
-    refus = _VI.source_refusee(modele, src, dur) or (_VI.insertion_refusee(opts, dur) if modele == "inserer-h3"
-                                                     else None)
+        octets = src.stat().st_size
+    refus = (_VI.source_refusee(modele, src, dur, opts, (larg, haut), octets)
+             or (_VI.insertion_refusee(opts, dur) if modele == "inserer-h3" else None))
     if refus:
         raise HTTPException(400, refus)
     from app.services import pricing as _pricing
@@ -4826,7 +4833,7 @@ async def vfx_ia_appliquer(request: Request):
     if devis:
         return {"devis": True, "modele": modele, "secondes": op["secondes"], "usd": est["total_usd"],
                 "detail": est["breakdown"][0]["label"] if est["breakdown"] else ""}
-    await _plafond(op, "son", src.name)
+    await _plafond(op, _VFX_IA_ORIGINES[origine], src.name)
     try:
         res = await _VI.appliquer_vfx(modele, video=src if e["entree"] == "video" else None,
                                       image=image, prompt=prompt, options=opts, secondes=op["secondes"])
@@ -6863,7 +6870,7 @@ def _job_to_dict(j) -> dict:
 @router.get("/jobs")
 async def list_jobs(limit: int = 50, offset: int = 0, providers: str | None = None,
                     q: str | None = None, video: int = 0, min_rating: int = 0,
-                    fav: int = 0):
+                    fav: int = 0, done: int = 0):
     """E-2 (23/09/2026) : `offset` pagine, `providers` est une liste séparée
     par des virgules, `q` cherche dans le titre, `video=1` ne garde que les
     artefacts vidéo selon `montage_service.media_rules()` — le MÊME juge que
@@ -6871,14 +6878,15 @@ async def list_jobs(limit: int = 50, offset: int = 0, providers: str | None = No
     emprunts à montage_service dans ce fichier). Bornes ramenées dans
     `Pipeline.list_jobs`. D-34 (24/09/2026) : `min_rating` (0..5, ramené)
     ne garde que les rendus notés au moins autant — filtre AVANT le limit.
-    Bibliothèque #77 (03/10/2026) : `fav=1` ne garde que les favoris, idem."""
+    Bibliothèque #77 (03/10/2026) : `fav=1` ne garde que les favoris, idem.
+    t188 (12/10/2026) : `done=1` ne garde que les jobs terminés, AVANT le limit (le rail VFX IA)."""
     provs = [p.strip() for p in providers.split(",") if p.strip()] if providers else None
     exts = None
     if video:
         from app.services import montage_service as _ms
         exts = tuple(_ms.media_rules().get("video_exts") or ())
     jobs = await Pipeline.list_jobs(limit=limit, offset=offset, providers=provs, q=q, video_exts=exts,
-                                    min_rating=min_rating, fav=fav)
+                                    min_rating=min_rating, fav=fav, done=done)
     return [_job_to_dict(j) for j in jobs]
 
 

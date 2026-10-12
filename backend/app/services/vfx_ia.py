@@ -4,23 +4,29 @@
 UN registre (`REGISTRE`, 12 gestes, tous servis par la clé fal), schémas fal relus le 12/10/2026 :
   · relight-h3       minimax/h3-max/relight : video_url + reference_image_url REQUIS ; resolution 480P|768P|1080P|2K
                      (défaut chez nous 768P), aspect_ratio (défaut chez nous « adaptive » : le schéma pose 16:9, qui
-                     recadrerait une source verticale), seed. Source de 15 s au plus (schéma).
-  · inserer-h3       minimax/h3-max/insert-video : video_url, start_time (1,625 à 60 s), resume_time (<= 60 s) REQUIS ;
+                     recadrerait une source verticale), seed. Source de 15 s au plus et de 56 images au moins à 24 i/s
+                     (environ 2,34 s), schéma ; la référence est un RENDU DE SPHÈRE montrant l'éclairage voulu.
+  · inserer-h3       minimax/h3-max/insert-video : video_url, start_time (1,625 à 60 s), resume_time (> 1,625 et <= 60 s)
+                     REQUIS ;
                      prompt, duration (scène générée, 5 à 13 s, défaut 5 — TOUJOURS envoyée : c'est elle qui est
                      facturée), resolution 480p|768p, reference_image_urls, color_match, enable_prompt_expansion, seed.
   · effacer-perso    fal-ai/ltx-2.3-quality/clean-plate      } video_url requis ; prompt, resolution 480p|720p (côté
   · jour-nuit        fal-ai/ltx-2.3-quality/day-to-night     } COURT, l'autre suit le format de la source), seed ;
   · eau              fal-ai/ltx-2.3-quality/water-simulation } num_frames / frames_per_second calculés ICI depuis la
   · coloriser        fal-ai/ltx-2.3-quality/colorization     } durée de la source (24 i/s, 9 à 481 images : au-delà,
-                     refus nommé, jamais de coupe muette). enable_detail_refine n'est JAMAIS envoyé (x4 le prix).
+                     refus nommé, jamais de coupe muette) ; budget IC-LoRA du schéma (« ~6 s en 720p, ~15 s en 480p »,
+                     422 au-delà) : 145 images au plus en 720p, 361 en 480p, refus nommé avant la garde.
+                     enable_detail_refine n'est JAMAIS envoyé (x4 le prix).
   · effacer-objet    fal-ai/void-video-inpainting : video_url + prompt (le fond voulu) REQUIS ; mask_prompt (l'objet à
                      effacer, exigé chez nous : sans masque vidéo fourni, c'est lui qui fait générer le masque SAM 3),
                      enable_pass2_refinement.
   · retoucher-kling  fal-ai/kling-video/o3/pro/video-to-video/edit : prompt + video_url REQUIS ; keep_audio TOUJOURS
-                     True (le son du plan reste) ; image_urls (une image de référence). Source .mp4/.mov de 3 à 15 s.
-  · retoucher-flux3  blackforestlabs/flux-3/edit-video : prompt + video_url REQUIS. MP4 de moins de 15 s.
+                     True (le son du plan reste) ; image_urls (une image de référence). Source .mp4/.mov de 3 à 15 s,
+                     côtés de 720 à 3 840 px, 200 Mo au plus.
+  · retoucher-flux3  blackforestlabs/flux-3/edit-video : prompt + video_url REQUIS. MP4 de MOINS de 15 s et de 50 Mo.
   · recadrer         fal-ai/ltx-2.3/reframe : video_url ; aspect_ratio 1:1|4:5|5:4|9:16|16:9 (défaut chez nous 9:16),
-                     resolution 720p|1080p (défaut chez nous 720p ; le schéma pose 1080p, deux fois plus cher).
+                     resolution 720p|1080p (défaut chez nous 720p ; le schéma pose 1080p, deux fois plus cher). 60 s au
+                     plus (schéma).
   · agrandir         topaz/upscale/video/precision : video_url ; upscale_factor 1 à 4 (défaut 2), model « Proteus ».
   · effets-pixverse  fal-ai/pixverse/v5.5/effects : effect + image_url REQUIS ; duration 5|8|10, resolution
                      360p|540p|720p|1080p (1080p interdit en 10 s : refus nommé). Une IMAGE -> une vidéo.
@@ -28,7 +34,7 @@ UN registre (`REGISTRE`, 12 gestes, tous servis par la clé fal), schémas fal r
 PRIX (pages fal relues le 12/10/2026 ; les tarifs vivent dans pricing.DEFAULTS, `pricing.taux_vfx` est LA fonction de
 taux, `unites` ci-dessous la quantité) : unité « s » (seconde de source, ou de scène générée pour l'insertion), « mp »
 (mégapixel généré = largeur x hauteur x images, arrondi au MP supérieur), « video », « tranche10s » (Topaz : tranche
-de 10 s de SORTIE arrondie une fois par travail, classe de résolution = hauteur de sortie), « effet » (PixVerse : la
+de 10 s de SORTIE arrondie une fois par travail, classe de résolution = CÔTÉ COURT de sortie), « effet » (PixVerse : la
 base 5 s par résolution, x2 en 8 s, x2,2 en 10 s). La colorisation n'affiche AUCUN prix : 0 « prix à mesurer ».
 
 AUCUN appel réseau hors des trois coutures `_upload`, `_fal_subscribe`, `_download` (celles de sfx_service, que les
@@ -45,11 +51,9 @@ from loguru import logger
 
 from app.config import settings
 
-NATURE = "vfx"
 PROMPT_MAX = 1500
 FPS_LTX = 24                        # images par seconde envoyées aux quatre effets LTX (défaut du schéma)
 IMAGES_LTX = (9, 481)               # num_frames du schéma LTX
-EXT_VIDEO = (".mp4", ".mov", ".webm", ".m4v")
 EXT_IMAGE = (".png", ".jpg", ".jpeg", ".webp")
 
 # PixVerse v5.5 effects : la liste COMPLÈTE de l'énumération `effect` du schéma fal, relue le 12/10/2026 (154
@@ -100,12 +104,15 @@ _LTX = {"resolution": _o(("480p", "720p"), "720p"), "seed": _SEED}
 
 
 def _g(label, endpoint, unite, prix, phrase, entree="video", prompt=None, image=None, options=None, fixe=None,
-       video_s=None, video_ext=None, image_champ=None):
+       video_s=None, video_ext=None, image_champ=None, strict=False, images_min=None, cote=None, octets_max=None):
     """Une entrée du registre. `prompt` / `image` : None (le geste n'en prend pas), "facultatif" ou "requis" ;
-    `image_champ` : le champ fal de l'image (chaîne, ou liste si le champ est une liste d'URL)."""
+    `image_champ` : le champ fal de l'image (chaîne, ou liste si le champ est une liste d'URL). Bornes de la SOURCE
+    relues au schéma : `video_s` (secondes ; `strict` : la borne haute est exclue, « under 15 seconds »),
+    `images_min` (à 24 i/s), `cote` (px, côté court et côté long), `octets_max` (Mo décimaux, prudent)."""
     return {"label": label, "endpoint": endpoint, "unite": unite, "prix": prix, "phrase": phrase, "entree": entree,
             "prompt": prompt, "image": image, "image_champ": image_champ, "options": dict(options or {}),
-            "fixe": dict(fixe or {}), "video_s": video_s, "video_ext": tuple(video_ext) if video_ext else None}
+            "fixe": dict(fixe or {}), "video_s": video_s, "video_ext": tuple(video_ext) if video_ext else None,
+            "strict": bool(strict), "images_min": images_min, "cote": cote, "octets_max": octets_max}
 
 
 # ORDRE = ordre des cartes (rail Son & VFX, section IA du rack). `phrase` : la phrase de l'utilisateur (l'écran la
@@ -113,8 +120,8 @@ def _g(label, endpoint, unite, prix, phrase, entree="video", prompt=None, image=
 REGISTRE: dict[str, dict] = {
     "relight-h3": _g(
         "Rééclairer (MiniMax H3)", "minimax/h3-max/relight", "s", "vfx_relight_usd_per_s",
-        "Rééclairer : donnez une image de la lumière voulue.", image="requis",
-        image_champ="reference_image_url",
+        "Rééclairer : donnez une image de la LUMIÈRE voulue (idéalement une sphère éclairée comme la scène doit l'être).",
+        image="requis", image_champ="reference_image_url", images_min=56,
         options={"resolution": _o(("480P", "768P", "1080P", "2K"), "768P"),
                  "aspect_ratio": _o(("adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"), "adaptive"),
                  "seed": _SEED},
@@ -124,7 +131,7 @@ REGISTRE: dict[str, dict] = {
         "Insérer une scène : dites où elle commence, où le plan reprend, et ce qui s'y passe.",
         prompt="facultatif", image="facultatif", image_champ=["reference_image_urls"],
         options={"start_time": _o(num=(1.625, 60.0), requis=True),
-                 "resume_time": _o(num=(0.0, 60.0), requis=True),
+                 "resume_time": _o(num=(1.625, 60.0), requis=True),   # > 1,625 STRICT (vérifié plus bas)
                  "duration": _o(num=(5.0, 13.0), defaut=5),
                  "resolution": _o(("480p", "768p"), "768p"),
                  "color_match": _o(bool_=True), "enable_prompt_expansion": _o(bool_=True), "seed": _SEED},
@@ -150,16 +157,16 @@ REGISTRE: dict[str, dict] = {
         "Modifier par une phrase (Kling O3)", "fal-ai/kling-video/o3/pro/video-to-video/edit", "s",
         "vfx_kling_edit_usd_per_s", "Modifier par une phrase : décrivez le changement, le mouvement et le son restent.",
         prompt="requis", image="facultatif", image_champ=["image_urls"], fixe={"keep_audio": True},
-        video_s=(3.0, 15.0), video_ext=(".mp4", ".mov")),
+        video_s=(3.0, 15.0), video_ext=(".mp4", ".mov"), cote=(720, 3840), octets_max=200),
     "retoucher-flux3": _g(
         "Modifier par une phrase (rapide)", "blackforestlabs/flux-3/edit-video", "s", "vfx_flux3_edit_usd_per_s",
         "Modifier par une phrase, en rapide : décrivez le changement voulu.", prompt="requis",
-        video_s=(0.0, 15.0), video_ext=(".mp4",)),
+        video_s=(0.0, 15.0), video_ext=(".mp4",), strict=True, octets_max=50),
     "recadrer": _g(
         "Changer le format (9:16 ↔ 16:9)", "fal-ai/ltx-2.3/reframe", "s", "vfx_reframe_usd_per_s",
         "Changer le format : choisissez le nouveau cadre, l'IA complète les bords.",
         options={"aspect_ratio": _o(("1:1", "4:5", "5:4", "9:16", "16:9"), "9:16"),
-                 "resolution": _o(("720p", "1080p"), "720p")}),
+                 "resolution": _o(("720p", "1080p"), "720p")}, video_s=(0.0, 60.0)),
     "agrandir": _g(
         "Agrandir / netteté (Topaz)", "topaz/upscale/video/precision", "tranche10s", "vfx_topaz_usd_per_10s",
         "Agrandir : la vidéo gagne en taille et en netteté (x2 par défaut).",
@@ -194,8 +201,9 @@ def cle_manquante(mid: str) -> str | None:
 
 def options_valides(mid: str, options) -> dict:
     """Les options de l'écran, VALIDÉES contre le schéma du geste et complétées de leurs défauts : clé inconnue,
-    valeur hors énumération, nombre hors bornes, option requise absente -> ValueError nommée (la route en fait un 400
-    AVANT la garde). Les règles croisées (1080p interdit en 10 s, reprise avant le début) sont vérifiées ici aussi."""
+    valeur hors énumération, nombre hors bornes, texte qui n'est pas une chaîne, option requise absente ->
+    ValueError nommée (la route en fait un 400 AVANT la garde). Les règles croisées (1080p interdit en 10 s, reprise
+    avant le début ou à 1,625 s pile) sont vérifiées ici aussi."""
     e = entree(mid)
     if options in (None, ""):
         options = {}
@@ -238,8 +246,10 @@ def options_valides(mid: str, options) -> dict:
                     raise ValueError(f"{e['label']} : {nom} attend un entier")
                 x = int(x)
             out[nom] = x
-        else:   # texte libre (mask_prompt)
-            s = str(v).strip()
+        else:   # texte libre (mask_prompt) : une CHAÎNE, rien d'autre
+            if not isinstance(v, str):
+                raise ValueError(f"{e['label']} : {nom} attend un texte")
+            s = v.strip()
             if not s:
                 if spec["requis"]:
                     raise ValueError(f"{e['label']} : l'option « {nom} » est requise")
@@ -247,12 +257,26 @@ def options_valides(mid: str, options) -> dict:
             if len(s) > 300:
                 raise ValueError(f"{e['label']} : {nom} trop long ({len(s)} caractères, 300 au plus)")
             out[nom] = s
-    if mid == "inserer-h3" and out["resume_time"] < out["start_time"]:
-        raise ValueError(f"{e['label']} : la reprise ({out['resume_time']:g} s) précède le début "
-                         f"({out['start_time']:g} s)")
+    if mid == "inserer-h3":
+        if out["resume_time"] <= 1.625:   # exclusiveMinimum du schéma
+            raise ValueError(f"{e['label']} : la reprise doit venir APRÈS 1,625 s (reçu {out['resume_time']:g} s)")
+        if out["resume_time"] < out["start_time"]:
+            raise ValueError(f"{e['label']} : la reprise ({out['resume_time']:g} s) précède le début "
+                             f"({out['start_time']:g} s)")
     if mid == "effets-pixverse" and out.get("duration") == "10" and out.get("resolution") == "1080p":
         raise ValueError(f"{e['label']} : 1080p n'existe pas en 10 s (5 ou 8 s en 1080p, ou 10 s en 720p)")
     return out
+
+
+def options_completees(mid: str, options) -> dict:
+    """Les options d'une demande DÉJÀ validée (ou brutes, au catalogue), les défauts du geste comblant ce qui manque —
+    partagée par `unites` (la quantité) et pricing.taux_vfx (le taux)."""
+    e = REGISTRE[mid]
+    o = dict(options or {})
+    for nom, spec in e["options"].items():
+        if o.get(nom) in (None, "") and spec["defaut"] is not None:
+            o[nom] = spec["defaut"]
+    return o
 
 
 def prompt_valide(mid: str, prompt) -> str:
@@ -266,23 +290,38 @@ def prompt_valide(mid: str, prompt) -> str:
     return p if e["prompt"] else ""
 
 
+def image_refusee(mid: str, presente: bool) -> str | None:
+    """LE refus d'image (route et build_request) : image exigée absente, ou image donnée à un geste qui n'en prend
+    pas ; None si tout va."""
+    e = entree(mid)
+    if presente and not e["image"]:
+        return f"{e['label']} ne prend pas d'image"
+    if not presente and e["image"] == "requis":
+        quoi = "l'image à animer" if e["entree"] == "image" else "l'image de la lumière voulue"
+        return f"{e['label']} : donnez {quoi} (image_filename)"
+    return None
+
+
 def images_ltx(secondes) -> int:
-    """num_frames envoyé aux effets LTX : la durée de la source à 24 i/s, arrondie au-dessus (au quart d'image
-    près), 9 images au moins. La même fonction chiffre le devis et fabrique la requête."""
+    """num_frames envoyé aux effets LTX : la durée de la source à 24 i/s, arrondie à l'image supérieure (une
+    tolérance d'un millionième d'image absorbe l'erreur de flottant), 9 images au moins. La même fonction chiffre le
+    devis et fabrique la requête, sur la MÊME durée (celle de l'op)."""
     try:
         s = max(0.0, float(secondes or 0))
     except (TypeError, ValueError):
         s = 0.0
-    n = s * FPS_LTX
-    k = round(n)
-    # une durée arrondie au millième (le devis) ne doit pas gagner une image : à moins d'un quart d'image près, on
-    # garde l'image entière ; sinon on couvre la durée (arrondi au-dessus)
-    return max(IMAGES_LTX[0], int(k if abs(n - k) < 0.25 else math.ceil(n)))
+    return max(IMAGES_LTX[0], int(math.ceil(s * FPS_LTX - 1e-6)))
 
 
-def source_refusee(mid: str, chemin, secondes) -> str | None:
-    """La raison NOMMÉE pour laquelle ce geste refuse cette source (format, durée hors bornes, trop d'images LTX),
-    None si elle passe. La route en fait un 400 AVANT la garde."""
+# budget IC-LoRA des effets LTX quality (schéma : « roughly 6s at 720p or 15s at 480p », 422 au-delà), en images à
+# 24 i/s : 6 s x 24 + 1 et 15 s x 24 + 1 (le compte d'images LTX est de la forme 8k + 1)
+BUDGET_LTX = {"720p": 145, "480p": 361}
+
+
+def source_refusee(mid: str, chemin, secondes, options=None, dims=None, octets=None) -> str | None:
+    """La raison NOMMÉE pour laquelle ce geste refuse cette source, None si elle passe — la route en fait un 400
+    AVANT la garde. Bornes relues au schéma : format, durée (bornes, borne haute exclue si `strict`), images
+    minimales à 24 i/s (relight), budget IC-LoRA LTX selon la résolution choisie, côtés en px (Kling), poids."""
     e = entree(mid)
     ext = Path(str(chemin)).suffix.lower()
     if e["entree"] == "image":
@@ -294,12 +333,33 @@ def source_refusee(mid: str, chemin, secondes) -> str | None:
     except (TypeError, ValueError):
         s = 0.0
     b = e["video_s"]
-    if b and not b[0] <= s <= b[1]:
-        bas = f"de {b[0]:g} à {b[1]:g} s" if b[0] else f"{b[1]:g} s au plus"
+    if b and (not b[0] <= s <= b[1] or (e["strict"] and s >= b[1])):
+        haut = f"moins de {b[1]:g} s" if e["strict"] else f"{b[1]:g} s au plus"
+        bas = f"de {b[0]:g} à {b[1]:g} s" if b[0] else haut
         return f"{e['label']} : la vidéo doit durer {bas} (celle-ci : {s:.1f} s)"
-    if e["unite"] == "mp" and images_ltx(s) > IMAGES_LTX[1]:
-        return (f"{e['label']} : {IMAGES_LTX[1]} images au plus à {FPS_LTX} i/s, soit "
-                f"{IMAGES_LTX[1] / FPS_LTX:.1f} s (celle-ci : {s:.1f} s) — coupez le plan d'abord")
+    if e["images_min"] and s * FPS_LTX < e["images_min"] - 1e-6:
+        return (f"{e['label']} : {e['images_min']} images au moins à {FPS_LTX} i/s, soit "
+                f"{e['images_min'] / FPS_LTX:.2f} s (celle-ci : {s:.1f} s)")
+    if e["unite"] == "mp":
+        res = options_completees(mid, options).get("resolution") or "720p"
+        n = images_ltx(s)
+        if n > IMAGES_LTX[1]:
+            return (f"{e['label']} : {IMAGES_LTX[1]} images au plus à {FPS_LTX} i/s, soit "
+                    f"{IMAGES_LTX[1] / FPS_LTX:.1f} s (celle-ci : {s:.1f} s) — coupez le plan d'abord")
+        if n > BUDGET_LTX.get(res, BUDGET_LTX["720p"]):
+            m = BUDGET_LTX[res]
+            conseil = "passez en 480p ou coupez le plan" if res == "720p" else "coupez le plan"
+            return (f"{e['label']} : en {res}, {m} images au plus à {FPS_LTX} i/s (≈ {(m - 1) / FPS_LTX:g} s, budget du "
+                    f"modèle) — celle-ci en demande {n} ({s:.1f} s) : {conseil}")
+    if e["cote"] and dims and dims[0] and dims[1]:
+        lo, hi = e["cote"]
+        if min(dims) < lo or max(dims) > hi:
+            return (f"{e['label']} : côtés de {lo} à {hi} px exigés (celle-ci : {dims[0]}x{dims[1]})")
+    if e["octets_max"] and octets is not None:
+        lim = e["octets_max"] * 1_000_000
+        if octets > lim or (e["strict"] and octets >= lim):
+            return (f"{e['label']} : {'moins de ' if e['strict'] else ''}{e['octets_max']} Mo"
+                    f"{'' if e['strict'] else ' au plus'} (celle-ci : {octets / 1e6:.1f} Mo)")
     return None
 
 
@@ -331,10 +391,10 @@ def build_request(mid: str, video_url=None, image_url=None, prompt=None, options
             raise ValueError(f"{e['label']} part d'une vidéo : aucune vidéo fournie")
         args["video_url"] = str(video_url)
     img = str(image_url or "").strip()
-    if e["image"] == "requis" and not img:
-        quoi = "l'image à animer" if e["entree"] == "image" else "l'image de la lumière voulue"
-        raise ValueError(f"{e['label']} : donnez {quoi} (image_filename)")
-    if img and e["image"]:
+    refus = image_refusee(mid, bool(img))
+    if refus:
+        raise ValueError(refus)
+    if img:
         ch = e["image_champ"]
         if isinstance(ch, list):
             args[ch[0]] = [img]
@@ -357,18 +417,20 @@ def _pair(n: float) -> int:
     return k + (k % 2)
 
 
-def classe_topaz(hauteur, facteur) -> str:
-    """La classe de prix Topaz : la HAUTEUR de sortie (hauteur source x facteur) — <= 720 « 720p », <= 1080 « 1080p »,
-    au-delà « 4k ». Hauteur inconnue : 1080 supposée (prudent : x2 = 4k)."""
+def classe_topaz(largeur, hauteur, facteur) -> str:
+    """La classe de prix Topaz : le CÔTÉ COURT de sortie (côté court de la source x facteur) — <= 720 « 720p »,
+    <= 1080 « 1080p », au-delà « 4k » (un 1080x1920 vertical est un « 1080p »). Dimensions inconnues : 1080 supposé
+    (prudent : x2 = 4k)."""
     try:
-        h = float(hauteur or 0) or 1080.0
+        cotes = [float(c) for c in (largeur, hauteur) if c and float(c) > 0]
     except (TypeError, ValueError):
-        h = 1080.0
+        cotes = []
+    court = min(cotes) if cotes else 1080.0
     try:
         f = float(facteur or 2)
     except (TypeError, ValueError):
         f = 2.0
-    s = h * f
+    s = court * f
     return "720p" if s <= 720 else "1080p" if s <= 1080 else "4k"
 
 
@@ -392,12 +454,9 @@ def megapixels(secondes, resolution, largeur=None, hauteur=None) -> tuple:
 
 def unites(mid: str, op: dict) -> tuple:
     """(quantité, détail) facturés d'une demande, dans l'unité du geste. `op` : {secondes, options, largeur,
-    hauteur} (options déjà validées ou brutes : les défauts du geste comblent ce qui manque)."""
+    hauteur} (options validées ou brutes : options_completees comble les défauts)."""
     e = REGISTRE[mid]
-    o = dict(op.get("options") or {})
-    for nom, spec in e["options"].items():
-        if o.get(nom) in (None, "") and spec["defaut"] is not None:
-            o[nom] = spec["defaut"]
+    o = options_completees(mid, op.get("options"))
     try:
         sec = max(0.0, float(op.get("secondes") or 0))
     except (TypeError, ValueError):
@@ -414,7 +473,8 @@ def unites(mid: str, op: dict) -> tuple:
         return mp, f"{lw}x{lh} x {imgs} images = {mp} MP"
     if u == "tranche10s":
         t = max(1, int(math.ceil(sec / 10 - 1e-9)))
-        return t, f"{sec:g} s -> {t} x 10 s · {classe_topaz(op.get('hauteur'), o.get('upscale_factor'))}"
+        cl = classe_topaz(op.get("largeur"), op.get("hauteur"), o.get("upscale_factor"))
+        return t, f"{sec:g} s -> {t} x 10 s · sortie {cl}"
     if u == "effet":
         return 1, f"{o.get('duration')} s · {o.get('resolution')}"
     # « video » : une vidéo ; la passe 2 et le masque SAM 3 sont dans le taux
@@ -425,8 +485,8 @@ def unites(mid: str, op: dict) -> tuple:
 
 
 def op_vfx(mid: str, secondes=None, options=None, largeur=None, hauteur=None) -> dict:
-    """L'op de devis (pricing.estimate, kind « vfx_ia ») d'une demande — LE même pour le devis, la garde et l'`usd`
-    rendu après le tir."""
+    """L'op de devis (pricing.estimate, kind « vfx_ia ») d'une demande — LE même pour le devis, la garde, l'`usd`
+    rendu après le tir et la requête (la route passe `op["secondes"]` au tir)."""
     entree(mid)
     return {"kind": "vfx_ia", "modele": str(mid), "secondes": None if secondes is None else round(float(secondes), 3),
             "options": dict(options or {}), "largeur": largeur, "hauteur": hauteur}
@@ -435,16 +495,30 @@ def op_vfx(mid: str, secondes=None, options=None, largeur=None, hauteur=None) ->
 # ─────────────────────────────── source (ffprobe) ─────────────────────────
 
 def dimensions(path: Path) -> tuple:
-    """(largeur, hauteur) du premier flux vidéo (ffprobe), (None, None) si illisible."""
+    """(largeur, hauteur) AFFICHÉES du premier flux vidéo (ffprobe) : une rotation de 90° ou 270° (side_data
+    « rotation », ou l'ancienne balise « rotate ») échange les deux côtés — un téléphone filme en 1920x1080 tourné.
+    (None, None) si illisible."""
+    import json
     from app.services.sfx_service import _bin
     try:
         out = subprocess.run(
-            [_bin("ffprobe"), "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
-             "-of", "csv=p=0:s=x", str(path)],
-            check=False, capture_output=True, text=True, timeout=30).stdout.strip().splitlines()
-        w, h = (int(x) for x in out[0].split("x")[:2])
-        return (w, h) if w > 0 and h > 0 else (None, None)
-    except (ValueError, IndexError, FileNotFoundError, OSError, subprocess.TimeoutExpired):
+            [_bin("ffprobe"), "-v", "error", "-select_streams", "v:0", "-show_entries",
+             "stream=width,height:stream_tags=rotate:stream_side_data=rotation", "-of", "json", str(path)],
+            check=False, capture_output=True, text=True, timeout=30).stdout
+        st = (json.loads(out or "{}").get("streams") or [{}])[0]
+        w, h = int(st.get("width") or 0), int(st.get("height") or 0)
+        if w <= 0 or h <= 0:
+            return None, None
+        rot = 0.0
+        for sd in st.get("side_data_list") or []:
+            if "rotation" in sd:
+                rot = float(sd["rotation"])
+        if not rot and (st.get("tags") or {}).get("rotate"):
+            rot = float(st["tags"]["rotate"])
+        if int(round(abs(rot))) % 180 == 90:
+            w, h = h, w
+        return w, h
+    except (ValueError, TypeError, IndexError, KeyError, FileNotFoundError, OSError, subprocess.TimeoutExpired):
         return None, None
 
 
@@ -514,4 +588,4 @@ async def appliquer_vfx(mid: str, video: Path | None = None, image: Path | None 
     return {"video": dest, "seed": seed if isinstance(seed, int) else None}
 
 
-appliquer = appliquer_vfx   # le nom du plan (t188) ; le recensement des dépenses suit `appliquer_vfx`
+appliquer = appliquer_vfx   # le nom du plan (t188, « async appliquer ») ; le recensement des dépenses suit `appliquer_vfx`

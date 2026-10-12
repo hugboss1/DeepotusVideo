@@ -15,18 +15,22 @@ Ce que le banc tient :
   [2] devis : flux3 5 s = 0,15 $ (plan) ; MP arrondi au supérieur (1280x720x121 = 112 MP) et côté court (854x480) ;
       Topaz par tranche de 10 s et classe de la hauteur de SORTIE ; PixVerse 5 / 8 / 10 s ; VOID passe 2 + masque ;
       insertion sur la scène générée + jetons non chiffrés dits ; colorisation 0 « prix à mesurer » ;
-  [3] route : PAYANTES la liste, recensement (gardée, puits appliquer_vfx) ; ordre des refus (400 id -> 503 FAL_KEY
+  [3] route (bornes du schéma relues : budget IC-LoRA LTX, 56 images du relight, côtés et poids Kling, moins de
+      15 s et 50 Mo FLUX, 60 s du reframe — 400 nommé AVANT la garde, chacune avec son banc négatif) : PAYANTES la liste, recensement (gardée, puits appliquer_vfx) ; ordre des refus (400 id -> 503 FAL_KEY
       AVANT tout -> 400 champ / option / source) ; sans clé : ZÉRO ligne depenses, devis servi ; confinement vidéo,
       clip et image ; durée illisible -> 400 avant la garde (devis compris) ; bornes par geste ; devis = garde =
       usd rendu ; témoin UNE ligne depenses ; arguments EXACTS à fal ; job fini (provider vfx_ia) ; Bibliothèque
-      (mère = source, relation vfx_ia, kind video, recette) ; la garde arrête AVANT tout envoi ;
+      (mère = source, relation vfx_ia, kind video, recette ; la fiche connaît le fichier) ; la garde arrête AVANT tout
+      envoi, catégorie « son » depuis le rail, « montage » depuis le rack ; /jobs?done=1 filtre AVANT la fenêtre ;
   [4] écrans (statique) : couches = blocs du bundle, rail inséré en fin de couche, branches centre et bas du rail,
       section IA sous « Détourer », aucun prix ni effet recopié, aucun disabled pour la clé, i18n fr/en, compteurs
       figés (useState 731, DzTracks 181) ;
   [5] écrans sous node, DANS UN DOM MINIMAL : le rail Son & VFX monte avec les aides EXPORTÉES par la couche vfxrack
       (window.DzVfx.ia — la liaison entre les deux couches), les cartes se cliquent dans le DOM, les champs suivent
       le schéma, 1er clic = devis, 2e clic = tir, même chiffre ; sans clé, cartes choisissables et 503 au clic ; la
-      section IA du rack sur un plan sélectionné (clip_id = son job).
+      section IA du rack sur un plan sélectionné (clip_id = son job) ; catalogue en échec -> message + « Réessayer »
+      (jamais « chargement… » à vie) ; un devis tardif pour une saisie modifiée n'est ni montré ni tiré ; le geste
+      choisi est mémorisé ; les images ne sont lues que pour un geste qui en prend.
 
 AUCUN appel réseau réel : les fal_client.* sont des gardes qui COMPTENT ; les seams de vfx_ia sont des
 enregistreurs. Run (depuis backend/) : & $PY tests/test_vfx_ia.py"""
@@ -134,6 +138,15 @@ UPLOADS.mkdir(parents=True, exist_ok=True)
 _video("plan.mp4", 2)
 _video("plan4.mp4", 4, "green")
 _video("long21.mp4", 21, "blue")
+_video("plan3.mp4", 3, "white")
+_video("plan7.mp4", 7, "gray")
+_video("long61.mp4", 61, "yellow")
+# Kling exige des côtés de 720 à 3 840 px : un plan de 4 s en 720x720 pour lui
+_ffmpeg("-f", "lavfi", "-i", "color=c=green:s=720x720:d=4", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        str(UPLOADS / "kling720.mp4"))
+# un plan tourné de 90° (téléphone) : codé 64x32, AFFICHÉ 32x64
+_ffmpeg("-f", "lavfi", "-i", "color=c=red:s=64x32:d=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(W / "brut.mp4"))
+_ffmpeg("-display_rotation", "90", "-i", str(W / "brut.mp4"), "-c", "copy", str(UPLOADS / "tourne.mp4"))
 shutil.copy2(UPLOADS / "plan.mp4", UPLOADS / "plan.mov")
 (UPLOADS / "faux.mp4").write_bytes(b"pas une video")
 Image.new("RGB", (32, 32), (200, 180, 40)).save(settings.images_path / "lumiere.png")
@@ -237,6 +250,10 @@ check("insertion : start_time requis", "start_time" in (refuse(V.build_request, 
                                                                options={"resume_time": 3}) or ""))
 check("insertion : reprise avant le début refusée", "précède" in (refuse(
     V.build_request, "inserer-h3", video_url="u", options={"start_time": 4, "resume_time": 3}) or ""))
+check("insertion : reprise à 1,625 s pile refusée (exclusiveMinimum du schéma)", "APRÈS 1,625" in (refuse(
+    V.build_request, "inserer-h3", video_url="u", options={"start_time": 1.625, "resume_time": 1.625}) or ""))
+check("options texte : une valeur qui n'est pas une chaîne est refusée (mask_prompt)", "texte" in (refuse(
+    V.build_request, "effacer-objet", video_url="u", prompt="mur", options={"mask_prompt": ["chaise"]}) or ""))
 check("insertion : start_time < 1,625 s refusé (schéma)", refuse(V.build_request, "inserer-h3", video_url="u",
                                                                 options={"start_time": 1, "resume_time": 3}))
 check("insertion : duration hors 5-13 refusée", refuse(V.build_request, "inserer-h3", video_url="u",
@@ -249,6 +266,8 @@ check("LTX : enable_detail_refine n'est JAMAIS envoyé (x4 le prix), ni comme op
       all("enable_detail_refine" not in V.REGISTRE[m]["options"] and "enable_detail_refine" not in V.REGISTRE[m]["fixe"]
           for m in V.REGISTRE) and refuse(V.build_request, "jour-nuit", video_url="u",
                                           options={"enable_detail_refine": True}))
+check("LTX : images = arrondi à l'image supérieure (5,01 s -> 121 ; 121/24 s -> 121 pile)",
+      V.images_ltx(5.01) == 121 and V.images_ltx(121 / 24) == 121 and V.images_ltx(5.0) == 120)
 check("LTX : 9 images au moins (schéma)", V.build_request("jour-nuit", video_url="u", secondes=0.1)[1]["num_frames"] == 9)
 check("eau, jour-nuit, coloriser : leurs endpoints LTX 2.3 quality",
       V.build_request("eau", video_url="u")[0] == "fal-ai/ltx-2.3-quality/water-simulation"
@@ -341,7 +360,8 @@ check("GET /vfx-ia/modeles = alias de /ia/catalogue?nature=vfx", st == 200 and s
 print("\n[2] devis")
 e = P.estimate({"kind": "vfx_ia", "modele": "retoucher-flux3", "secondes": 5})
 check("flux3 5 s = 0,15 $", abs(e["total_usd"] - 0.15) < 1e-9, e)
-e = P.estimate(V.op_vfx("jour-nuit", 121 / 24, {"resolution": "720p"}, 1280, 720))
+e = P.estimate({"kind": "vfx_ia", "modele": "jour-nuit", "secondes": 121 / 24, "options": {"resolution": "720p"},
+                "largeur": 1280, "hauteur": 720})
 check("LTX : 1280x720 x 121 images = 112 MP (arrondi au supérieur) x 0,0024075 = 0,2696 $ (exemple de la page fal)",
       e["breakdown"][0]["units"] == 112 and abs(e["total_usd"] - 0.2696) < 1e-9 and "112 MP" in e["breakdown"][0]["label"], e)
 check("LTX 480p : côté court 480, l'autre suit le format (16:9 -> 854x480), vertical -> 480x854",
@@ -352,7 +372,10 @@ check("LTX : dimensions illisibles -> 16:9 supposé", V.megapixels(5, "720p", No
 e = P.estimate(V.op_vfx("agrandir", 12, {}, 1280, 720))
 check("Topaz : 12 s -> 2 tranches de 10 s ; 720 x2 = 1440 de haut -> classe 4k (0,60) = 1,20 $",
       abs(e["total_usd"] - 1.2) < 1e-9 and e["breakdown"][0]["units"] == 2, e)
-check("Topaz : la classe = hauteur de SORTIE (360 x2 = 720 -> 720p ; 540 x2 = 1080 -> 1080p ; 1080 x1 -> 1080p)",
+check("Topaz : un 1080x1920 VERTICAL x1 est un 1080p (côté court), pas un 4k (la hauteur l'aurait classé 4k)",
+      abs(P.estimate(V.op_vfx("agrandir", 9, {"upscale_factor": 1}, 1080, 1920))["total_usd"] - 0.20) < 1e-9
+      and V.classe_topaz(1080, 1920, 1) == "1080p")
+check("Topaz : la classe = CÔTÉ COURT de sortie (360 x2 = 720 -> 720p ; 540 x2 = 1080 -> 1080p ; 1080 x1 -> 1080p)",
       abs(P.estimate(V.op_vfx("agrandir", 9, {}, 640, 360))["total_usd"] - 0.10) < 1e-9
       and abs(P.estimate(V.op_vfx("agrandir", 9, {}, 960, 540))["total_usd"] - 0.20) < 1e-9
       and abs(P.estimate(V.op_vfx("agrandir", 9, {"upscale_factor": 1}, 1920, 1080))["total_usd"] - 0.20) < 1e-9)
@@ -379,6 +402,25 @@ check("colorisation : 0 $ et la ligne dit « prix à mesurer »", e["total_usd"]
       and "prix à mesurer" in e["breakdown"][0]["label"], e)
 e = P.estimate({"kind": "vfx_ia", "modele": "zzz"})
 check("geste inconnu : « non chiffré », 0 $", e["total_usd"] == 0.0 and "non chiffré" in e["breakdown"][0]["label"], e)
+check("Topaz au catalogue : la classe la plus basse, marquée « dès » (le prix dépend de la sortie)",
+      _cat["agrandir"]["des"] is True and not any(_cat[k]["des"] for k in _cat if k != "agrandir"))
+check("bornes du schéma (unitaires) : budget LTX 720p 145 images / 480p 361, relight 56 images, Kling côtés et 200 Mo, "
+      "FLUX moins de 15 s et de 50 Mo, reframe 60 s",
+      V.BUDGET_LTX == {"720p": 145, "480p": 361}
+      and "passez en 480p" in (V.source_refusee("jour-nuit", "a.mp4", 7, {"resolution": "720p"}) or "")
+      and V.source_refusee("jour-nuit", "a.mp4", 6, {"resolution": "720p"}) is None
+      and V.source_refusee("jour-nuit", "a.mp4", 7, {"resolution": "480p"}) is None
+      and V.source_refusee("eau", "a.mp4", 15.1, {"resolution": "480p"}) is not None
+      and V.source_refusee("relight-h3", "a.mp4", 2.3) and V.source_refusee("relight-h3", "a.mp4", 2.34) is None
+      and "720 à 3840 px" in (V.source_refusee("retoucher-kling", "a.mp4", 4, dims=(64, 64)) or "")
+      and V.source_refusee("retoucher-kling", "a.mp4", 4, dims=(720, 1280)) is None
+      and V.source_refusee("retoucher-kling", "a.mp4", 4, dims=(2160, 3841)) is not None
+      and V.source_refusee("retoucher-kling", "a.mp4", 4, dims=(720, 720), octets=200_000_001) is not None
+      and V.source_refusee("retoucher-kling", "a.mp4", 4, dims=(720, 720), octets=200_000_000) is None
+      and "moins de 15 s" in (V.source_refusee("retoucher-flux3", "a.mp4", 15.0) or "")
+      and V.source_refusee("retoucher-flux3", "a.mp4", 14.9) is None
+      and V.source_refusee("retoucher-flux3", "a.mp4", 5, octets=50_000_000) is not None
+      and V.source_refusee("recadrer", "a.mp4", 60.5) is not None and V.source_refusee("recadrer", "a.mp4", 60) is None)
 check("UNE fonction de taux pour toutes les unités (taux_vfx), lue dans DEFAULTS",
       all(V.REGISTRE[m]["prix"] in P.DEFAULTS for m in V.REGISTRE)
       and {V.REGISTRE[m]["unite"] for m in V.REGISTRE} == {"s", "mp", "video", "tranche10s", "effet"})
@@ -440,13 +482,38 @@ for corps, code, quoi in (
         ({"modele": "relight-h3", "video_filename": "long21.mp4", "image_filename": "lumiere.png"}, 400,
          "relight : 21 s > 15 s"),
         ({"modele": "inserer-h3", "video_filename": "plan4.mp4", "options": {"start_time": 2, "resume_time": 5}}, 400,
-         "reprise hors de la vidéo")):
+         "reprise hors de la vidéo"),
+        ({"modele": "jour-nuit", "video_filename": "plan7.mp4"}, 400, "LTX 720p : 7 s > budget de 145 images"),
+        ({"modele": "recadrer", "video_filename": "long61.mp4"}, 400, "reframe : 61 s > 60 s"),
+        ({"modele": "relight-h3", "video_filename": "plan.mp4", "image_filename": "lumiere.png"}, 400,
+         "relight : 2 s < 56 images"),
+        ({"modele": "retoucher-kling", "video_filename": "plan4.mp4", "prompt": "x"}, 400, "kling : 64x64 < 720 px"),
+        ({"modele": "agrandir", "video_filename": "plan.mp4", "origine": "ailleurs"}, 400, "origine hors liste")):
     st, js = call("POST", "/vfx-ia", corps)
     check(f"refus : {quoi} -> {code}", st == code, f"{st} {js}")
 st, js = call("POST", "/vfx-ia", {"modele": "retoucher-kling", "video_filename": "plan.mp4", "prompt": "x"})
 check("kling : le refus de durée NOMME les bornes", "3 à 15 s" in detail(js), detail(js))
 st, js = call("POST", "/vfx-ia", {"modele": "jour-nuit", "video_filename": "long21.mp4"})
 check("LTX : le refus nomme 481 images (pas de coupe silencieuse)", "481 images" in detail(js), detail(js))
+st, js = call("POST", "/vfx-ia", {"modele": "jour-nuit", "video_filename": "plan7.mp4"})
+check("LTX : le refus du budget conseille « passez en 480p ou coupez le plan »", "passez en 480p" in detail(js), detail(js))
+st, js = call("POST", "/vfx-ia", {"modele": "jour-nuit", "video_filename": "plan7.mp4", "devis": True,
+                                  "options": {"resolution": "480p"}})
+check("LTX : les mêmes 7 s en 480p passent (devis servi)", st == 200 and js.get("devis") is True, f"{st} {js}")
+st, js = call("POST", "/vfx-ia", {"modele": "relight-h3", "video_filename": "plan.mp4", "image_filename": "lumiere.png"})
+check("relight : le refus nomme les 56 images", "56 images" in detail(js), detail(js))
+st, js = call("POST", "/vfx-ia", {"modele": "retoucher-kling", "video_filename": "plan4.mp4", "prompt": "x"})
+check("kling : le refus nomme les côtés (64x64)", "720 à 3840 px" in detail(js) and "64x64" in detail(js), detail(js))
+_om = V.REGISTRE["retoucher-flux3"]["octets_max"]
+V.REGISTRE["retoucher-flux3"]["octets_max"] = 0.000001   # 1 octet : le poids RÉEL du fichier (stat) est lu par la route
+st, js = call("POST", "/vfx-ia", {"modele": "retoucher-flux3", "video_filename": "plan.mp4", "prompt": "x",
+                                  "devis": True})
+V.REGISTRE["retoucher-flux3"]["octets_max"] = _om
+check("FLUX : le poids du fichier (stat) est contrôlé par la route, 400 nommé en Mo", st == 400 and "Mo" in detail(js),
+      f"{st} {js}")
+check("dimensions : la rotation du flux est lue (codé 64x32, tourné de 90° -> 32x64)",
+      V.dimensions(UPLOADS / "tourne.mp4") == (32, 64) and V.dimensions(W / "brut.mp4") == (64, 32),
+      (V.dimensions(UPLOADS / "tourne.mp4"), V.dimensions(W / "brut.mp4")))
 st, js = call("POST", "/vfx-ia", {"modele": "agrandir", "video_filename": "faux.mp4"})
 check("durée illisible (ffprobe rend 0) -> 400 nommé AVANT la garde", st == 400 and "illisible" in detail(js), f"{st} {js}")
 st, js = call("POST", "/vfx-ia", {"modele": "agrandir", "video_filename": "faux.mp4", "devis": True})
@@ -492,21 +559,27 @@ check("Bibliothèque : la recette garde le geste, l'endpoint, la description",
       _lig and len(_lig) > 5 and json.loads(_lig[5] or "{}").get("modele") == "retoucher-flux3"
       and json.loads(_lig[5] or "{}").get("endpoint") == "blackforestlabs/flux-3/edit-video"
       and json.loads(_lig[5] or "{}").get("prompt") == "neige", _lig)
-# ── Kling par clip_id (le job d'un plan du Montage) ──────────────────────────
+st, fi = call("GET", f"/library/fiche/{js.get('filename', '')}")
+check("fiche de la Bibliothèque : kind video, le fichier est trouvé (poids lu, pas d'image ouverte)",
+      st == 200 and fi.get("kind") == "video" and (fi.get("fichier") or {}).get("octets", 0) > 0
+      and (fi.get("fichier") or {}).get("largeur") is None and fi.get("job_id") == _jid, f"{st} {fi}")
+# ── Kling par clip_id (le job d'un plan du Montage, 720x720) ─────────────────
 _cid = "clip-job-188"
 
 
 async def _mk_job():
     async with async_session_factory() as s:
-        s.add(JobRecord(id=_cid, status="done", progress=100, title="plan", image_filename="plan4.mp4",
-                        final_video_path=str(UPLOADS / "plan4.mp4"), video_path=str(UPLOADS / "plan4.mp4")))
+        s.add(JobRecord(id=_cid, status="done", progress=100, title="plan", image_filename="kling720.mp4",
+                        final_video_path=str(UPLOADS / "kling720.mp4"), video_path=str(UPLOADS / "kling720.mp4")))
+        s.add(JobRecord(id="job-en-cours", status="running", progress=10, title="pas fini", image_filename="plan.mp4",
+                        final_video_path=str(UPLOADS / "plan.mp4"), video_path=str(UPLOADS / "plan.mp4")))
         await s.commit()
 loop.run_until_complete(_mk_job())
 raz()
 st, js = call("POST", "/vfx-ia", {"modele": "retoucher-kling", "clip_id": _cid, "prompt": "ciel orageux"})
 check("kling par clip_id : EXACTEMENT {keep_audio: True, video_url, prompt} ; 4 s x 0,168 = 0,672 $",
       st == 200 and SEAMS["sub"] == [("fal-ai/kling-video/o3/pro/video-to-video/edit",
-                                      {"keep_audio": True, "video_url": "http://fal.test/plan4.mp4",
+                                      {"keep_audio": True, "video_url": "http://fal.test/kling720.mp4",
                                        "prompt": "ciel orageux"})]
       and abs(js.get("usd", 0) - 0.672) < 1e-6, f"{st} {js} {SEAMS['sub']}")
 raz()
@@ -531,13 +604,13 @@ check("effacer un objet : mask_prompt + passe 2 -> 0,15 $",
                                            "mask_prompt": "la chaise", "enable_pass2_refinement": True}
       and abs(js.get("usd", 0) - 0.15) < 1e-9, f"{st} {js}")
 raz()
-st, js = call("POST", "/vfx-ia", {"modele": "relight-h3", "video_filename": "plan.mp4", "image_filename": "lumiere.png",
+st, js = call("POST", "/vfx-ia", {"modele": "relight-h3", "video_filename": "plan3.mp4", "image_filename": "lumiere.png",
                                   "options": {"resolution": "1080P"}})
-check("relight : la vidéo PUIS l'image de la lumière partent, reference_image_url ; 2 s x 0,16 (1080P) = 0,32",
-      st == 200 and SEAMS["up"] == ["plan.mp4", "lumiere.png"]
-      and SEAMS["sub"][0][1] == {"video_url": "http://fal.test/plan.mp4", "reference_image_url": "http://fal.test/lumiere.png",
+check("relight : la vidéo PUIS l'image de la lumière partent, reference_image_url ; 3 s x 0,16 (1080P) = 0,48",
+      st == 200 and SEAMS["up"] == ["plan3.mp4", "lumiere.png"]
+      and SEAMS["sub"][0][1] == {"video_url": "http://fal.test/plan3.mp4", "reference_image_url": "http://fal.test/lumiere.png",
                                  "resolution": "1080P", "aspect_ratio": "adaptive"}
-      and abs(js.get("usd", 0) - 0.32) < 1e-9, f"{st} {js} {SEAMS}")
+      and abs(js.get("usd", 0) - 0.48) < 1e-9, f"{st} {js} {SEAMS}")
 raz()
 st, js = call("POST", "/vfx-ia", {"modele": "inserer-h3", "video_filename": "plan4.mp4", "prompt": "un dragon",
                                   "image_filename": "affiche.png",
@@ -566,6 +639,17 @@ st, js = call("POST", "/vfx-ia", {"modele": "coloriser", "video_filename": "plan
 check("colorisation : devis 0 $ « prix à mesurer »", st == 200 and js.get("usd") == 0.0
       and "prix à mesurer" in js.get("detail", ""), f"{st} {js}")
 raz()
+raz()
+_ap = loop.run_until_complete(V.appliquer("agrandir", video=UPLOADS / "plan.mp4", secondes=2.0))
+check("`appliquer` (nom du plan) = appliquer_vfx : tire et range la vidéo",
+      V.appliquer is V.appliquer_vfx and _ap["video"].is_file() and _ap["seed"] == 42
+      and SEAMS["sub"][0][0] == "topaz/upscale/video/precision", (_ap, SEAMS["sub"]))
+raz()
+st, jl = call("GET", "/jobs", params={"video": 1, "done": 1, "limit": 200})
+st0, jl0 = call("GET", "/jobs", params={"video": 1, "limit": 200})
+check("/jobs?done=1 : seulement les terminés (filtre AVANT la fenêtre) ; sans lui, le job en cours y est",
+      st == 200 and jl and all(j["status"] == "done" for j in jl) and "job-en-cours" not in [j["job_id"] for j in jl]
+      and "job-en-cours" in [j["job_id"] for j in jl0], [(j["job_id"], j["status"]) for j in jl0][:6])
 REPONSE["v"] = {"seed": 3}
 st, js = call("POST", "/vfx-ia", {"modele": "agrandir", "video_filename": "plan.mp4"})
 check("réponse fal sans vidéo -> 502 nommé (rien rangé)", st == 502 and "aucune vidéo" in detail(js), f"{st} {js}")
@@ -573,8 +657,12 @@ _PLAF = R._plafond
 OPS = []
 
 
+CATS = []
+
+
 async def _plaf_402(op, cat, ref=None):
     OPS.append(op)
+    CATS.append(cat)
     raise HTTPException(402, "stop banc")
 
 
@@ -584,6 +672,9 @@ st, js = call("POST", "/vfx-ia", {"modele": "retoucher-kling", "clip_id": _cid, 
 check("la garde reçoit l'op vfx_ia (durée de la source) et arrête AVANT tout envoi",
       st == 402 and OPS and OPS[-1]["kind"] == "vfx_ia" and OPS[-1]["modele"] == "retoucher-kling"
       and abs(OPS[-1]["secondes"] - 4.0) < 0.1 and SEAMS["up"] == [] and SEAMS["sub"] == [], f"{st} {OPS} {SEAMS}")
+st, js = call("POST", "/vfx-ia", {"modele": "agrandir", "clip_id": _cid, "origine": "rack"})
+check("catégorie du plafond : « son » depuis le rail (défaut), « montage » depuis le rack du Montage",
+      CATS[-2:] == ["son", "montage"], CATS)
 R._plafond = _PLAF
 check("aucun appel réseau réel (gardes fal_client)", RESEAU["n"] == 0, RESEAU["noms"])
 
@@ -629,6 +720,9 @@ check("le prix et les options viennent du SERVEUR : catalogue /api/vfx-ia/modele
       "aucun tarif ni effet recopié",
       'fetch("/api/vfx-ia/modeles")' in _QVFX and 'vfxIaPost(Object.assign({devis:!0},corps))' in _QVFX
       and not re.search(r"0\.0024|0\.168|0\.03\b|0\.08\b|Earth Zoom|Proteus|768P", _Q))
+check("catalogue : seule une réponse ok est gardée ; erreur HTTP ou réseau -> rejet, « Réessayer » dans le rail et le rack",
+      'if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()' in _QVFX and "return []});\n  return VFX_IA.prom" not in _QVFX
+      and _QVFX.count('dzT("vfx.ia.reessayer")') == 1 and _QSON.count('dzT("vfx.ia.reessayer")') == 2)
 check("aucun « disabled » dans les queues (jamais grisé pour une clé ; occupé = data-off)",
       "disabled" not in _Q and '"data-off":busy?"":void 0' in _QVFX and '"data-off":busy?"":void 0' in _QSON)
 check("aucun useState ajouté au compteur : hooks par l'alias US=x.useState", "x.useState(" not in _Q
@@ -674,17 +768,21 @@ else:
         _DEVIS[_m] = _d if _s == 200 else {"erreur": _s}
     _DICO_FR = {k: v for k, v in _DICO.items() if k.startswith(("vfx.", "son.", "ia."))}
     _HARN = r"""
-var DICO=__DICO__,CAT=__CAT__,CATSANS=__CATSANS__,DEVIS=__DEVIS__,SANSCLE=false;
+var DICO=__DICO__,CAT=__CAT__,CATSANS=__CATSANS__,DEVIS=__DEVIS__,SANSCLE=false,CAT_KO=0,RETARD=null;
+var LS={dz_vfxia_geste:"retoucher-flux3"};
+var localStorage={getItem:function(k){return k in LS?LS[k]:null},setItem:function(k,v){LS[k]=String(v)}};
 function dzT(k,v){var t=(DICO[k]&&DICO[k].fr)||k;for(var x2 in (v||{}))t=t.split('{'+x2+'}').join(String(v[x2]));return t}
 var CALLS=[],NOTES=[];
 var window={DZ_I18N:DICO,DzVfx:{ready:!0}};   /* l'export du contrat précède la queue (vérifié en [4]) */
 function rep(st,js){return Promise.resolve({ok:st<400,status:st,json:function(){return Promise.resolve(js)}})}
 function fetch(u,o){o=o||{};var b=o.body?JSON.parse(o.body):null;CALLS.push({u:u,m:o.method||"GET",b:b});
-  if(u==="/api/vfx-ia/modeles")return rep(200,{nature:"vfx",modeles:SANSCLE?CATSANS:CAT});
+  if(u==="/api/vfx-ia/modeles"){if(CAT_KO){CAT_KO--;return CAT_KO%2?Promise.reject(new Error("réseau")):rep(500,{detail:"panne"})}
+    return rep(200,{nature:"vfx",modeles:SANSCLE?CATSANS:CAT})}
   if(u==="/api/images")return rep(200,{images:[{filename:"vieux.png",mtime:1},{filename:"lumiere.png",mtime:9}]});
-  if(u.indexOf("/api/jobs?video=1")===0)return rep(200,[{job_id:"job-1",title:"Plan mer",status:"done",duration_s:4},
-    {job_id:"job-2",title:"En cours",status:"running"}]);
+  if(u.indexOf("/api/jobs?")===0)return rep(200,[{job_id:"job-1",title:"Plan mer",status:"done",duration_s:4}]);
   if(u==="/api/vfx-ia"&&SANSCLE&&!b.devis)return rep(503,{detail:"clé FAL_KEY absente : ajoutez-la dans Réglages"});
+  if(u==="/api/vfx-ia"&&b.devis&&RETARD){var p0=new Promise(function(res){RETARD.push(res)});
+    return p0.then(function(){return rep(200,DEVIS[b.modele])})}
   if(u==="/api/vfx-ia"&&b.devis)return DEVIS[b.modele]?rep(200,DEVIS[b.modele]):rep(400,{detail:"devis inconnu"});
   if(u==="/api/vfx-ia")return rep(200,{ok:true,modele:b.modele,job_id:"j-new",filename:"vfxia_abcd1234.mp4",usd:(DEVIS[b.modele]||{}).usd});
   return rep(404,{detail:"inconnu "+u})}
@@ -745,8 +843,18 @@ __QSON__
   /* 1. le rail : la queue sonvfx a inséré « VFX IA » après « VFX particules » */
   OUT.gens=SVM_GENS.map(function(g){return g.id});OUT.tab=SVM_GEN_TAB.vfxia;
   OUT.ia_exporte=!!(window.DzVfx&&window.DzVfx.ia&&window.DzVfx.ia.Champs===VfxIaChamps);
+  /* 0. catalogue en PANNE (HTTP 500) : message + « Réessayer », rien de gardé ; le clic relit et les cartes viennent */
+  CAT_KO=1;var R0=new Racine(SvmVfxIa,{onNote:function(){}});var D0=await cycle(R0);
+  OUT.panne={err:D0.qsa(attr("data-dzvfxiaerr")).length,cartes:D0.qsa(cls("svm-model")).length,cache:VFX_IA.cat};
+  cliquer(D0.qsa(attr("data-dzvfxiaerr"))[0].qsa(function(n){return n.tagName==="button"})[0]);await tick();D0=await cycle(R0);
+  OUT.panne_apres={err:D0.qsa(attr("data-dzvfxiaerr")).length,cartes:D0.qsa(cls("svm-model")).length};
+  OUT.images_flux=CALLS.filter(function(c){return c.u==="/api/images"}).length;
+  OUT.jobs_url=CALLS.filter(function(c){return c.u.indexOf("/api/jobs?")===0}).map(function(c){return c.u})[0];
+  LS.dz_vfxia_geste="relight-h3";ENF={};
   var R=new Racine(SvmVfxIa,{onNote:function(m){NOTES.push(m)},go:function(v){OUT.go=v}});
   var D=await cycle(R);
+  OUT.images_relight=CALLS.filter(function(c){return c.u==="/api/images"}).length;
+  OUT.aide_lumiere=D.qsa(function(n){return n.tagName!=="#text"&&n.textContent()===dzT("vfx.ia.image_lumiere_aide")}).length;
   var cartes=D.qsa(cls("svm-model"));
   OUT.cartes=cartes.map(function(c){return c.getAttribute("data-dzvfxia")});
   OUT.textes=cartes.map(function(c){return c.textContent()});
@@ -756,6 +864,7 @@ __QSON__
   OUT.disabled=D.qsa(attr("disabled")).length;
   /* 2. cliquer la carte FLUX 3 DANS LE DOM : elle se sélectionne, le champ de description apparaît */
   cliquer(D.qsa(attr("data-dzvfxia","retoucher-flux3"))[0]);D=await cycle(R);
+  OUT.geste_memo=LS.dz_vfxia_geste;
   OUT.sel1=D.qsa(cls("svm-model")).filter(attr("data-sel")).map(function(c){return c.getAttribute("data-dzvfxia")});
   OUT.champs1=D.qsa(function(n){return n.tagName==="textarea"||n.tagName==="select"||n.tagName==="input"}).map(function(n){return n.tagName+":"+(n.attrs["aria-label"]||"")});
   var bouton=function(){return D.qsa(cls("svm-nbgold"))[0]};
@@ -775,6 +884,18 @@ __QSON__
   OUT.note_tir=NOTES.slice(-1)[0];
   OUT.resultat=D.qsa(cls("svm-primarybtn")).map(function(n){return n.textContent()});
   cliquer(D.qsa(cls("svm-primarybtn"))[0]);
+  OUT.source_apres=D.qsa(function(n){return n.tagName==="select"&&n.attrs["aria-label"]===dzT("vfx.ia.source")}).map(function(s){
+    return {v:s.value,opts:s.qsa(function(o){return o.tagName==="option"}).map(function(o){return o.attrs.value})}})[0];
+  /* 2b. un devis TARDIF : demandé pour « neige », il arrive après que la saisie est passée à « grêle » -> ni montré ni tiré */
+  RETARD=[];ta=D.qsa(function(n){return n.tagName==="textarea"})[0];changer(ta,"neige");D=await cycle(R);
+  CALLS.length=0;cliquer(bouton());await tick();
+  ta=D.qsa(function(n){return n.tagName==="textarea"})[0];changer(ta,"grêle");D=await cycle(R);
+  RETARD.forEach(function(f){f()});RETARD=null;await tick();D=await cycle(R);
+  OUT.tardif={bouton:bouton().textContent(),devis:D.qsa(cls("svm-note")).filter(function(n){return n.textContent().indexOf("Devis")===0}).length};
+  cliquer(bouton());await tick();
+  OUT.tardif.tir=CALLS.filter(function(c){return c.u==="/api/vfx-ia"&&!c.b.devis}).length;
+  D=await cycle(R);
+  ta=D.qsa(function(n){return n.tagName==="textarea"})[0];changer(ta,"neige");D=await cycle(R);
   /* 3. une saisie qui change DÉSARME le devis */
   CALLS.length=0;cliquer(bouton());await tick();D=await cycle(R);
   ta=D.qsa(function(n){return n.tagName==="textarea"})[0];changer(ta,"pluie");D=await cycle(R);
@@ -818,6 +939,12 @@ __QSON__
   OUT.sans_note=NOTES.slice(-1)[0];
   SANSCLE=false;VFX_IA.cat=null;VFX_IA.prom=null;
   /* 7. le rack : la section IA sur le plan sélectionné (clip_id = son job), gestes vidéo seulement */
+  /* 7a. rack : catalogue en panne RÉSEAU -> « Réessayer », puis la liste */
+  VFX_IA.cat=null;CAT_KO=2;ENF={};var R5=new Racine(VfxIaRack,{clip:{id:"c9",src:{job_id:"j9"}},onNote:function(){}});
+  var D5=await cycle(R5);OUT.rack_panne=D5.qsa(attr("data-dzvfxiaerr")).length;
+  CAT_KO=0;cliquer(D5.qsa(attr("data-dzvfxiaerr"))[0].qsa(function(n){return n.tagName==="button"})[0]);await tick();D5=await cycle(R5);
+  OUT.rack_panne_apres=D5.qsa(function(n){return n.tagName==="select"}).length>0&&!D5.qsa(attr("data-dzvfxiaerr")).length;
+  LS.dz_vfxia_geste="relight-h3";
   ENF={};var R3=new Racine(VfxIaRack,{clip:{id:"c1",src:{job_id:"clip-job-188"}},onNote:function(m){NOTES.push(m)}});
   var D3=await cycle(R3);
   var gsel=D3.qsa(function(n){return n.tagName==="select"&&n.attrs["aria-label"]===dzT("vfx.ia.geste")})[0];
@@ -860,10 +987,25 @@ __QSON__
               O["ia_exporte"] is True)
         check("rail : les 12 gestes en cartes .svm-model dans le DOM, le premier choisi",
               O["cartes"] == list(V.REGISTRE) and O["sel0"] == ["relight-h3"], O["cartes"])
+        check("catalogue en panne (HTTP 500) : message + « Réessayer », AUCUNE carte vide, rien gardé en cache",
+              O["panne"] == {"err": 1, "cartes": 0, "cache": None}, O["panne"])
+        check("« Réessayer » relit le catalogue : les 12 cartes viennent, le message s'en va",
+              O["panne_apres"] == {"err": 0, "cartes": 12}, O["panne_apres"])
+        check("images lues SEULEMENT pour un geste qui en prend (FLUX mémorisé : aucune ; relight : une)",
+              O["images_flux"] == 0 and O["images_relight"] == 1, (O["images_flux"], O["images_relight"]))
+        check("relight : l'aide dit que la référence est une image de LUMIÈRE (sphère éclairée)",
+              O["aide_lumiere"] == 1 and "sphère" in _VFXJ["vfx.ia.image_lumiere_aide"]["fr"], O["aide_lumiere"])
+        check("les vidéos sources sont filtrées par le SERVEUR (done=1)", "done=1" in (O["jobs_url"] or ""), O["jobs_url"])
+        check("le geste choisi est mémorisé (dz_vfxia_geste)", O["geste_memo"] == "retoucher-flux3", O["geste_memo"])
+        check("après un tir, la vidéo rendue devient la source proposée (deux gestes à la suite)",
+              O["source_apres"] == {"v": "j-new", "opts": ["j-new", "job-1"]}, O["source_apres"])
+        check("devis TARDIF pour une saisie modifiée : ni montré, ni armé ; le clic suivant redemande un devis (aucun tir)",
+              O["tardif"] == {"bouton": "Estimer puis lancer", "devis": 0, "tir": 0}, O["tardif"])
+        check("rack : catalogue en panne réseau -> « Réessayer », puis la liste des gestes",
+              O["rack_panne"] == 1 and O["rack_panne_apres"] is True, (O["rack_panne"], O["rack_panne_apres"]))
         check("chaque carte : titre traduit, prix du serveur avec unité (le MP LTX en entier : $0.0024075, jamais « $0.002 »), phrase",
-              O["textes"][0].startswith("Rééclairer$0.08/s") and "donnez une image de la lumière" in O["textes"][0]
-              and "$0.0024075/MP" in O["textes"][4] and "$0.1/10 s" not in O["textes"][10]
-              and "$0.10/10 s" in O["textes"][10] and "$0.20/5 s" in O["textes"][11]
+              O["textes"][0].startswith("Rééclairer$0.08/s") and "image de la LUMIÈRE voulue" in O["textes"][0]
+              and "$0.0024075/MP" in O["textes"][4] and "dès $0.10/10 s" in O["textes"][10] and "$0.20/5 s" in O["textes"][11]
               and "prix à mesurer" in O["textes"][6], O["textes"])
         check("source : les vidéos TERMINÉES de la Bibliothèque, la première choisie",
               O["source"] == {"v": "job-1", "opts": ["job-1"]}, O["source"])
@@ -875,11 +1017,12 @@ __QSON__
               O["sans_desc"])
         check("1er clic : UN devis (devis:true, clip_id = le job choisi, modèle, description, options vides)",
               O["devis_appels"] == [{"devis": True, "modele": "retoucher-flux3", "clip_id": "job-1", "prompt": "neige",
-                                     "options": {}}] and O["bouton1"] == "Lancer pour de bon", O["devis_appels"])
+                                     "options": {}, "origine": "rail"}] and O["bouton1"] == "Lancer pour de bon", O["devis_appels"])
         check("le devis s'affiche : LE chiffre du serveur et son détail",
               O["devis_txt"] == f"Devis : $0.12 — {_fl['detail']} · cliquer encore pour lancer", O["devis_txt"])
         check("2e clic : UN tir, même corps sans devis ; la note redit le MÊME chiffre",
-              O["tir"] == [{"modele": "retoucher-flux3", "clip_id": "job-1", "prompt": "neige", "options": {}}]
+              O["tir"] == [{"modele": "retoucher-flux3", "clip_id": "job-1", "prompt": "neige", "options": {},
+                            "origine": "rail"}]
               and O["note_tir"] == "Vidéo ajoutée à la Bibliothèque (Rendus) : vfxia_abcd1234.mp4 ($0.12)",
               (O["tir"], O["note_tir"]))
         check("après le tir : « Ouvrir le Montage » mène au Montage", O["resultat"] == ["Ouvrir le Montage"]
@@ -912,12 +1055,13 @@ __QSON__
               O["rack_phrase"])
         check("rack : 1er clic = devis sur clip_id = le job du plan, objet à effacer en options",
               O["rack_devis"] == [{"devis": True, "modele": "effacer-objet", "clip_id": "clip-job-188",
-                                   "prompt": "un mur", "options": {"mask_prompt": "la chaise"}}], O["rack_devis"])
+                                   "prompt": "un mur", "options": {"mask_prompt": "la chaise"}, "origine": "rack"}], O["rack_devis"])
         check("rack : le devis affiché = celui du serveur (0,10 $ : 0,05 + masque SAM 3)",
               (O["rack_hint"] or "").startswith("Devis : $0.10 — ") and abs(_DEVIS["effacer-objet"]["usd"] - 0.10) < 1e-9,
               O["rack_hint"])
         check("rack : 2e clic = le tir", O["rack_tir"] == [{"modele": "effacer-objet", "clip_id": "clip-job-188",
-                                                          "prompt": "un mur", "options": {"mask_prompt": "la chaise"}}],
+                                                          "prompt": "un mur", "options": {"mask_prompt": "la chaise"},
+                                                          "origine": "rack"}],
               O["rack_tir"])
         check("rack : un plan sans job (pas une vidéo rendue) n'a pas de section IA", O["rack_sans_job"] == 0,
               O["rack_sans_job"])
