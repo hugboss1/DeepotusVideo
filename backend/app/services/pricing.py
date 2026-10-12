@@ -203,6 +203,23 @@ DEFAULTS = {
     # fal-ai/thinksound : 0,001 $ par seconde de CALCUL, durée de calcul inconnue d'avance — aucune durée inventée,
     # 0 « à mesurer » tant qu'un premier tir n'a pas été lu sur le tableau de bord fal
     "thinksound_usd": 0.0,
+    # t188 (G6, 12/10/2026) : les VFX IA (app.services.vfx_ia.REGISTRE), pages fal relues le 12/10/2026. Un tarif
+    # par résolution quand la page en donne plusieurs ; 0.0 = « à mesurer ».
+    "vfx_relight_usd_per_s": {"480P": 0.05, "768P": 0.08, "1080P": 0.16, "2K": 0.32},   # minimax/h3-max/relight,
+                                      # par seconde de vidéo (= durée de la source)
+    "vfx_insert_usd_per_s": {"480p": 0.05, "768p": 0.06},   # minimax/h3-max/insert-video, par seconde de SCÈNE
+                                      # générée (`duration`) ; au-delà de 4 096 jetons de référence, 0,02 $ / 1 000 (non chiffrable)
+    "vfx_ltx_usd_per_mp": 0.0024075,  # fal-ai/ltx-2.3-quality/{clean-plate,day-to-night,water-simulation}, par MP généré
+    "vfx_colorisation_usd_per_mp": 0.0,   # fal-ai/ltx-2.3-quality/colorization — la page n'affiche aucun prix : à mesurer
+    "vfx_void_usd": {"passe1": 0.05, "passe2": 0.10, "masque": 0.05},   # fal-ai/void-video-inpainting, par vidéo ;
+                                      # + 0,05 $ pour le masque SAM 3 (mask_prompt)
+    "vfx_kling_edit_usd_per_s": 0.168,   # fal-ai/kling-video/o3/pro/video-to-video/edit, par seconde générée
+    "vfx_flux3_edit_usd_per_s": 0.03,    # blackforestlabs/flux-3/edit-video, par seconde (720p)
+    "vfx_reframe_usd_per_s": {"720p": 0.10, "1080p": 0.20},   # fal-ai/ltx-2.3/reframe, par seconde de la source
+    "vfx_topaz_usd_per_10s": {"720p": 0.10, "1080p": 0.20, "4k": 0.60},   # topaz/upscale/video/precision (Proteus),
+                                      # par tranche de 10 s de sortie, arrondie une fois par travail
+    "vfx_pixverse_usd_5s": {"360p": 0.15, "540p": 0.15, "720p": 0.20, "1080p": 0.40},   # fal-ai/pixverse/v5.5/effects,
+                                      # clip unique sans audio, 5 s ; 8 s = x2, 10 s = x2,2
     "elevenlabs_isolation_chars_per_min": 1000.0,
     # Avatar live G2 (t163, 10/10/2026) : Voice Changer (voix -> voix), ~1 000 crédits par minute (relevé tiers
     # du 07/2026 sur la liste officielle, même grille que l'isolation) — à confirmer sur elevenlabs.io/pricing.
@@ -542,6 +559,64 @@ def _ligne_sfx(op: dict, p: dict) -> dict:
     return _line("fal", f"{label} x{n}", n, e["unite"], n * taux)
 
 
+_VFX_MULT_PIXVERSE = {"5": 1.0, "8": 2.0, "10": 2.2}
+
+
+def taux_vfx(mid: str, op: dict | None = None, p: dict | None = None) -> float:
+    """t188 (G6) — LE taux d'un geste VFX IA (app.services.vfx_ia.REGISTRE), dans son unité : « s » (selon la
+    résolution choisie), « mp », « video » (passe 1 ou 2, + le masque SAM 3 quand mask_prompt part), « tranche10s »
+    (classe du côté court de sortie ; au catalogue, la plus basse : « dès »), « effet » (base 5 s de la résolution x 1 / 2 / 2,2 selon la durée). `op` : les
+    options et dimensions de la demande (None : les défauts du geste — le prix affiché au catalogue). Clé de prix lue
+    dans la table (`p`, sinon pricing.load), repli DEFAULTS. 0 pour un id inconnu ou une valeur illisible (« à
+    mesurer »). Source unique du catalogue (catalogue_ia), du devis (_ligne_vfx) et donc de la garde."""
+    from app.services import vfx_ia as _V
+    e = _V.REGISTRE.get(str(mid or ""))
+    if not e:
+        return 0.0
+    p = p if p is not None else load()
+    op = op or {}
+    o = _V.options_completees(mid, op.get("options"))
+    brut = p.get(e["prix"], DEFAULTS.get(e["prix"], 0.0))
+    try:
+        u = e["unite"]
+        if u == "video":
+            d = brut if isinstance(brut, dict) else {}
+            base = float(d.get("passe2" if o.get("enable_pass2_refinement") else "passe1", 0.0) or 0.0)
+            # le masque SAM 3 : quand mask_prompt part — au catalogue (sans op), il est compté puisque le geste
+            # l'exige (le prix affiché est celui du tir le plus simple)
+            masque = o.get("mask_prompt") or (not op and e["options"].get("mask_prompt", {}).get("requis"))
+            return base + (float(d.get("masque", 0.0) or 0.0) if masque else 0.0)
+        if u == "tranche10s":
+            cl = _V.classe_topaz(op.get("largeur"), op.get("hauteur"), o.get("upscale_factor")) if op else "720p"
+            return float((brut or {}).get(cl, 0.0) or 0.0)
+        if u == "effet":
+            return float((brut or {}).get(str(o.get("resolution")), 0.0) or 0.0) * _VFX_MULT_PIXVERSE.get(
+                str(o.get("duration")), 1.0)
+        if isinstance(brut, dict):
+            return float(brut.get(str(o.get("resolution")), 0.0) or 0.0)
+        return float(brut or 0.0)
+    except (TypeError, ValueError, AttributeError):
+        return 0.0
+
+
+def _ligne_vfx(op: dict, p: dict) -> dict:
+    """t188 (G6) — UNE ligne de devis pour un geste VFX IA : quantité (vfx_ia.unites) x taux (taux_vfx), nommée par
+    le libellé du geste et suffixée « — prix à mesurer » quand le taux vaut 0. L'insertion H3 rappelle que les jetons
+    de référence au-delà de 4 096 (0,02 $ / 1 000) ne sont pas chiffrables d'avance. Un id inconnu se dit « non
+    chiffré »."""
+    from app.services import vfx_ia as _V
+    mid = str(op.get("modele") or "")
+    e = _V.REGISTRE.get(mid)
+    if e is None:
+        return _line("fal", f"VFX IA : geste inconnu {mid[:24]!r} (non chiffré)", 1, "job", 0.0)
+    q, det = _V.unites(mid, op)
+    taux = taux_vfx(mid, op, p)
+    label = f"{e['label']} ({det})" + (" — prix à mesurer" if not taux else "")
+    if mid == "inserer-h3":
+        label += " — jetons de référence au-delà de 4 096 non chiffrés (0,02 $ / 1 000)"
+    return _line("fal", label, q, e["unite"], q * taux)
+
+
 def _ligne_detourage(op: dict, p: dict) -> dict:
     """t186 (G4) — UNE ligne de devis pour un détourage du registre (app.services.detourage.REGISTRE), nommée
     par le libellé du modèle et suffixée « — prix à mesurer » quand son taux vaut 0.
@@ -596,6 +671,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
       {"kind":"campaign","ops":[op,...]}
       {"kind":"sprite2d","frames":16,"remove_bg":"api"}
       {"kind":"detourage","modele":"bria-rmbg","images":1}   (t186 : secondes / images_video / fps en vidéo)
+      {"kind":"vfx_ia","modele":"retoucher-flux3","secondes":5}   (t188 : options, largeur, hauteur)
     Returns {breakdown:[line...], total_usd, credits:{provider:n}}.
     """
     p = p or load()
@@ -941,6 +1017,8 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                                 else " sans paroles" if m.get("usd_paroles") is not None else "")
             lines.append(_line("fal", f"Musique ({lbl}){'' if usd else ' — prix à mesurer'} x{n}", n, "piste",
                                n * usd))
+    elif kind == "vfx_ia":
+        lines.append(_ligne_vfx(op, p))   # t188 (G6) : un geste VFX IA (registre vfx_ia)
     elif kind == "sfx_video":
         lines.append(_ligne_sfx(op, p))   # t187 (G5) : une vidéo -> son bruitage (registre sfx_service)
     elif kind == "sfx" and str(op.get("modele") or "") not in ("", "elevenlabs-direct"):

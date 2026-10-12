@@ -38,6 +38,7 @@ PUITS = {
     "generate_music", "generate_sfx", "_generate_scene_vo", "generate_long", "generate_sprites",
     "separer_stems", "isoler_voix",   # T100 : Demucs (fal) et l'isolation de voix (ElevenLabs)
     "generer_sfx",   # t187 : le registre des bruitages (fal) — texte (/audio/sfx avec modele) et vidéo (/audio/sfx-video)
+    "appliquer_vfx",   # t188 : le registre des VFX IA (fal) — POST /vfx-ia
     "detourer",   # T103 : le matte vidéo BiRefNet (fal)
     "detourer_image",   # t186 : le registre unique du détourage (fal, ou local gratuit ; la vidéo passe par MT.detourer)
     # transcription

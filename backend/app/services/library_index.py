@@ -141,9 +141,12 @@ async def noter(files, source: str, kind: str = "image",
     # Bibliothèque #78 (03/10/2026) : ce qui est produit pendant qu'un projet
     # est actif y entre. UN seul site, parce que tous les producteurs de
     # fichiers passent par ici (les jobs : library_projects.installer).
+    # t188 (G6) : une VIDÉO notée (VFX IA) entre au projet actif par son JOB (library_projects.installer), jamais
+    # comme une image
     from app.services import library_projects as _LP
-    await _LP.ranger_dans_actif([Path(str(n)).name for n in files if Path(str(n)).name],
-                                "audio" if kind == "audio" else "image")
+    if kind != "video":
+        await _LP.ranger_dans_actif([Path(str(n)).name for n in files if Path(str(n)).name],
+                                    "audio" if kind == "audio" else "image")
     if kind == "image":   # tâche #81 : la couleur dominante de chaque nouvelle image, en tâche de fond
         from app.services import library_couleur as _LCOL
         _LCOL.en_fond([Path(str(n)).name for n in files if Path(str(n)).name])

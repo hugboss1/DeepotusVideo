@@ -218,6 +218,33 @@ def _musique() -> list[dict]:
     return out
 
 
+@source("vfx")
+def _vfx() -> list[dict]:
+    """t188 (G6) : une entrée par geste du registre des VFX IA (app.services.vfx_ia.REGISTRE), dans son ordre. `usd`
+    = pricing.taux_vfx aux options PAR DÉFAUT du geste, dans son unité (« s », « mp », « video », « tranche10s »,
+    « effet ») ; `note` « a_mesurer » à 0 $ (la colorisation) ; `phrase` : la phrase de l'utilisateur (l'écran la
+    traduit par vfx.ia.<id>.phrase) ; `entree` « video » ou « image » ; `prompt` / `image` : None, « facultatif »
+    ou « requis » ; `options` : le schéma des options (choix, défaut, bornes, requis) — l'écran construit ses
+    champs d'après lui, sans liste recopiée (les effets PixVerse compris)."""
+    from app.services import vfx_ia as V
+    p = P.load()
+    out = []
+    for mid in V.ids():
+        e = V.REGISTRE[mid]
+        usd = P.taux_vfx(mid, None, p)
+        opts = {k: {"choix": list(s["choix"]) if s["choix"] else None, "defaut": s["defaut"],
+                    "num": list(s["num"]) if s["num"] else None, "entier": s["entier"], "bool": s["bool"],
+                    "requis": s["requis"]} for k, s in e["options"].items()}
+        out.append({"id": mid, "label": e["label"], "voie": "fal", "usd": usd, "unite": e["unite"],
+                    "jumeau": None, "note": "" if usd else NOTE_A_MESURER, "phrase": e["phrase"],
+                    "entree": e["entree"], "prompt": e["prompt"], "image": e["image"], "options": opts,
+                    "video_s": list(e["video_s"]) if e["video_s"] else None,
+                    # Topaz : le prix dépend de la taille de SORTIE (classe du côté court) — le catalogue sert la
+                    # classe la plus basse, l'écran dit « dès »
+                    "des": e["unite"] == "tranche10s"})
+    return out
+
+
 def servis_puis_sans_cle(d: dict | None) -> list[dict]:
     """t183 (G1) : la liste d'un sélecteur raster à partir de la réponse de
     /image-models — les modèles SERVIS d'abord (`models`, dispo=True), puis

@@ -38,6 +38,8 @@ def alerte_licence(licence: str | None) -> bool:
 def _chemin(nom: str, kind: str | None) -> Path | None:
     if kind == "audio":
         p = settings.images_path.parent / "audio" / nom
+    elif kind == "video":   # t188 : la vidéo d'un VFX IA vit avec les vidéos importées (outputs/uploads)
+        p = settings.outputs_path / "uploads" / nom
     else:
         p = settings.images_path / nom
     return p if p.is_file() else None
@@ -50,7 +52,7 @@ def _fichier(p: Path | None, kind: str | None) -> dict | None:
     out = {"octets": st.st_size,
            "modifie": datetime.fromtimestamp(st.st_mtime, timezone.utc).isoformat(timespec="seconds"),
            "largeur": None, "hauteur": None, "format": p.suffix.lower().lstrip(".")}
-    if kind != "audio":
+    if kind not in ("audio", "video"):
         try:
             from PIL import Image
             with Image.open(p) as im:
