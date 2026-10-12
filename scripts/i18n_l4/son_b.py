@@ -167,18 +167,20 @@ ENTREES = [
 
     # DzSonVfx : carte SFX (génération réelle par la couche DzSfx)
     L(60388, 'son.sfx.titre_generer', 'Générer des SFX', 'Generate SFX'),
-    L(60475, 'son.sfx.prix_aide', '2 variations par génération — crédits ElevenLabs',
-      '2 variations per generation — ElevenLabs credits'),
+    # t187 : le prix fixe « $0.03 » et sa bulle remplacés par le sélecteur de modèle (S plus bas),
     L(60721, 'son.sfx.prompt_exemple', 'Décris le son — « vague qui claque sur un rocher, grave »',
       'Describe the sound — “wave slapping a rock, deep”'),
     L(60806, 'son.sfx.prompt', 'Description du son à générer', 'Description of the sound to generate'),
-    L(61107, 'son.sfx.duree_aide', 'Durée en secondes (0,5 à 22) — 0 : durée choisie par le modèle',
-      'Duration in seconds (0.5 to 22) — 0: duration chosen by the model'),
+    # t187 : texte neuf (L convertie en S)
+    S(61107, '"Durée en secondes (0,5 à 22) — 0 : durée choisie par le modèle"',
+      'dzT("son.sfx.duree_aide")',
+      {'son.sfx.duree_aide': ('Durée en secondes, bornée par le modèle choisi — 0 : durée choisie par le modèle', 'Duration in seconds, capped by the chosen model — 0: duration chosen by the model')}),
     L(61197, 'son.sfx.duree', 'Durée du son en secondes (0 : automatique)', 'Sound duration in seconds (0: automatic)'),
     X(61440, _DB),
-    L(61564, 'son.sfx.generer_aide',
-      'Générer 2 variations (~$0.03 — crédits ElevenLabs), sauvegardées dans la Bibliothèque (sons)',
-      'Generate 2 variations (~$0.03 — ElevenLabs credits), saved to the Library (sounds)'),
+    # t187 : texte neuf (L convertie en S)
+    S(61564, '"Générer 2 variations (~$0.03 — crédits ElevenLabs), sauvegardées dans la Bibliothèque (sons)"',
+      'dzT("son.sfx.generer_aide")',
+      {'son.sfx.generer_aide': ('Générer 2 variations avec le modèle choisi (son prix est affiché à côté), sauvegardées dans la Bibliothèque (sons)', 'Generate 2 variations with the chosen model (its price is shown next to it), saved to the Library (sounds)')}),
     L(61743, 'son.commun.generation', 'génération…', 'generating…'),
     L(61757, 'son.commun.generer', 'Générer', 'Generate'),
     L(61857, 'son.commun.echec', 'Échec : ', 'Failed: '),
@@ -385,4 +387,31 @@ ENTREES = [
     X(99330, _COMBO),
     X(99344, _COMBO),
     L(99360, 'son.raccourci.reserve_entree', "réservée à l'activation des boutons", 'reserved for activating buttons'),
+    # t187 (G5, génération IA enrichie, 12/10/2026) — changement FONCTIONNEL posé APRÈS L4 : le modèle du
+    # bruitage (registre sfx_service, natures sfx_texte / sfx_video) et SON prix (devis du serveur), deux
+    # clics hors ElevenLabs direct, la durée bornée au modèle, « Depuis la vidéo » sur le clip sélectionné,
+    # le rail Musique listé sans clé. Avant la dernière édition G1 de la couche, chaque fenêtre entre deux
+    # éditions G1 garde sa LONGUEUR et ses lignes (commentaires compensés) ; le code neuf est en fin de
+    # couche. Mêmes retouches dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(46575, '  /* génération : DzSfx.genSfx → POST /api/audio/sfx (2 variations) ; chaque\r\n     fichier rejoint la Bibliothèque (sons) et donc le tiroir Sons du Montage */',
+      '  /* génération : DzSfx.genSfx (t187 : 2 clics hors\r\n     ElevenLabs direct, coût redit) (bourrage G1)   */',
+      {}),
+    S(46944, '    if(sfxBusy)return;\r\n    setSfxBusy(!0);setSfxErr(',
+      '    if(sfxBusy||d.arme(sfxDur,2,fireNote))return;\r\n    setSfxBusy(!0);setSfxErr(',
+      {}),
+    S(47222, '        setSfxBusy(!1);setSfxItems(items)})',
+      '        setSfxBusy(!1);setSfxItems(items);fireNote(d.prixNote(o))})',
+      {}),
+    S(60062, "  /* carte SFX — couche DzSfx chargée : VRAIE génération (prompt + durée +\r\n     2 variations jouables, « Ouvrir le Montage ») ; absente : maquette d'avant */",
+      "  /* carte SFX — couche DzSfx chargée : VRAIE génération ; t187 : modèle,\r\n     prix et durée max du registre ; absente : maquette d'avant        */",
+      {}),
+    S(60418, 'r.jsx("span",{className:"svm-genprice",\r\n          title:"2 variations par génération — crédits ElevenLabs",children:"$0.03"})',
+      'r.jsx(svmSfx().Choix||"span",\r\n          {dur:sfxDur,n:2})',
+      {}),
+    S(61061, 'max:22,step:.5,value:sfxDur,',
+      'max:svmSfx().dmax(),step:.5,value:Math.min(sfxDur,svmSfx().dmax()),',
+      {}),
+    S(61318, 'if(isFinite(v))setSfxDur(Math.max(0,Math.min(22,v)))}}),',
+      'if(isFinite(v))setSfxDur(Math.max(0,Math.min(svmSfx().dmax(),v)))}}),',
+      {}),
 ]

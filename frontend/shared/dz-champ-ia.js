@@ -877,6 +877,19 @@
       } };
   }
   function A_fixe(libelle) { return { liste: null, fixe: libelle }; }
+  /* t187 (G5) : le SFX se choisit dans la vue (sélecteur du registre des bruitages, couche Sons, carte SFX et tiroir) :
+     la pastille LIT le modèle choisi (libellé de l'option, sans son prix) ; sans sélecteur à côté, ElevenLabs SFX
+     (le défaut d'avant) */
+  function A_sfx() {
+    return { liste: null, pourquoi: "le modèle de bruitage se choisit à côté du champ", texte: function (el) {
+      // la couche pose data-dzsfxm="texte" sur le <span> qui ENVELOPPE le <select> (le sélecteur vidéo, sur le <select>)
+      var s = proche(el, '[data-dzsfxm="texte"] select, select[data-dzsfxm="texte"]', null, 8), o = null;
+      var l = s && s.options ? Array.prototype.slice.call(s.options) : [];
+      for (var i = 0; i < l.length; i++) if (l[i].value === s.value) { o = l[i]; break; }
+      if (!o && s && s.selectedIndex >= 0) o = s.options[s.selectedIndex];
+      return o ? String(o.textContent || "").split(" · ")[0].trim() : "ElevenLabs SFX";
+    } };
+  }
   function A_defaut(liste, lire, pourquoi, charge) {   // lecture seule : ce que la vue enverra
     return { liste: liste, lire: lire, pourquoi: pourquoi, charge: charge };
   }
@@ -901,8 +914,8 @@
     "chapitres-illus": A_re("image", "[data-dzselect]", { parListe: true, secours: imageGlobale }),
     "son-paroles": A_cartes("musique"),
     "son-musique": A_cartes("musique"),
-    "son-sfx": A_fixe("ElevenLabs SFX"),
-    "montage-sons": A_fixe("ElevenLabs SFX"),
+    "son-sfx": A_sfx(),
+    "montage-sons": A_sfx(),
     "templates-ia": A_defaut("image", imageGlobale, "le modèle d'image global : Library, Chapitres, Réglages"),
     "library-image": A_re("image", "[data-dzselect]", { parListe: true, secours: imageGlobale }),
     /* Game Assets en LECTURE SEULE (mesuré à l'écran le 27/09) : le moteur 3D

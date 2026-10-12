@@ -404,11 +404,11 @@ function SvmLyricsEditor(props){
         onChange:function(e){var n=secs.slice();n[i]=Object.assign({},s,{text:e.target.value});set(n)}}),
       r.jsx("button",{className:"svm-minibtn",title:dzT("son.paroles.retirer"),"aria-label":dzT("son.paroles.retirer_n",{n:(i+1)}),
         onClick:function(){set(secs.filter(function(_s,j){return j!==i}))},children:__dzGl("dz-action-supprimer")})]},i)})]})}
-/* le prix affiché d'un modèle de musique : par génération, ou à la seconde (ACE-Step) sur la durée choisie */
-function svmMusicPrice(v,dur){
-  return v.usd_unit==="s"?"~$"+(v.usd*dur).toFixed(3)+" · "+dur+" s":"~$"+v.usd.toFixed(2)}
+/* t187 : prix, clé */
+function svmMusicPrice(v,dur,ly){var u=ly&&v.usd_paroles!=null&&ly.replace(/\[[^\[\]\n]{1,24}\]/g,"").trim()?v.usd_paroles:v.usd,c=v.usd_unit==="s"?u*dur:v.usd_unit==="min"?u*Math.ceil(dur/60):u;
+  return (!(u>0)?dzT("ia.prix.a_mesurer"):"~$"+c.toFixed(v.usd_unit==="s"||Math.round(c*1000)%10?3:2)+(v.usd_unit==="s"||v.usd_unit==="min"?" · "+dur+" s":""))+(v.dispo===!1&&v.cle?" · "+dzT("ia.cle.a_ajouter",{cle:v.cle}):"")}
 
-/* ── Musique : génération fal.ai sur la clé déjà configurée ─────────────── */
+/* Musique (fal.ai) */
 function SvmMusic(props){
   var s1=x.useState(null),cat=s1[0],setCat=s1[1];
   var s2=x.useState(""),model=s2[0],setModel=s2[1];
@@ -427,16 +427,16 @@ function SvmMusic(props){
       .catch(function(){if(alive)setCat({enabled:!1,models:[],moods:[]})});
     return function(){alive=!1}},[]);
   var m=cat&&cat.models.filter(function(v){return v.id===model})[0];
-  /* T102 : les paroles se montrent quand le modèle les prend ET que la voix est
-     demandée — ou TOUJOURS si le modèle n'a pas d'interrupteur instrumental
-     (Music 2.0 : paroles obligatoires ; avant, l'état « instrumental » par
-     défaut les cachait à jamais) */
+  /* T102 : paroles si le modèle les prend et voix demandée (bourrage volontaire : longueurs figées par la table G1, par position)                            
+
+
+   */
   var showLyr=!!(m&&m.lyrics&&(!m.instrumental||!inst));
   var durNow=m&&m.duration?Math.min(m.duration[1],Math.max(m.duration[0],dur)):dur;
   function go(){
     if(busy||!m)return;
     if(!prompt.trim()&&!mood){setErr(dzT("son.musique.choisir"));return}
-    /* les BALISES ne comptent pas (même règle que le serveur) : une section vide passait la borne à elle seule */
+    /* balises non comptées */
     if(m.lyrics_required&&lyrics.replace(/\[[^\[\]\n]{1,24}\]/g,"").trim().length<10){setErr(dzT("son.musique.paroles_exigees",{modele:m.label}));return}
     setBusy(!0);setErr("");setRes(null);
     fetch("/api/audio/music",{method:"POST",
@@ -454,7 +454,7 @@ function SvmMusic(props){
 
   if(cat===null)return r.jsx("div",{className:"svm-card",
     children:r.jsx("div",{className:"svm-note",children:dzT("son.musique.chargement")})});
-  if(!cat.enabled)return r.jsxs("div",{className:"svm-target",children:[
+if(!cat.models[0])return r.jsxs("div",{className:"svm-target",children:[
     r.jsx("span",{className:"svm-targettag",children:dzT("son.musique.cle_requise")}),
     r.jsx("div",{style:{color:"var(--ink2)",fontSize:12.5,fontWeight:600,marginBottom:6},
       children:dzT("son.musique.cle_titre")}),
@@ -485,7 +485,7 @@ function SvmMusic(props){
           onClick:function(){setModel(v.id)},children:[
           r.jsxs("div",{className:"svm-genrow",children:[
             r.jsx("span",{className:"svm-genname",children:v.label}),
-            r.jsx("span",{className:"svm-genprice",children:svmMusicPrice(v,v.duration?Math.min(v.duration[1],Math.max(v.duration[0],dur)):dur)})]}),
+            r.jsx("span",{className:"svm-genprice",children:svmMusicPrice(v,v.duration?Math.min(v.duration[1],Math.max(v.duration[0],dur)):dur,model===v.id&&showLyr?lyrics:"")})]}),
           r.jsx("div",{className:"svm-gendesc",children:v.desc}),
           r.jsxs("div",{className:"svm-modelcaps",children:[
             r.jsx("span",{className:"svm-cap","data-on":v.duration?"":void 0,
@@ -694,19 +694,19 @@ function DzSonVfx(props){
     a.onended=function(){setSfxPlay("")};
     a.play().catch(function(){setSfxPlay("");
       fireNote(dzT("son.commun.lecture_bloquee"))})}
-  /* génération : DzSfx.genSfx → POST /api/audio/sfx (2 variations) ; chaque
-     fichier rejoint la Bibliothèque (sons) et donc le tiroir Sons du Montage */
+  /* génération : DzSfx.genSfx (t187 : 2 clics hors
+     ElevenLabs direct, coût redit) (bourrage G1)   */
   function genSfxGo(){
     var d=svmSfx();if(!d||!d.genSfx)return;
     var p=sfxPrompt.trim();
     if(!p){setSfxErr(dzT("son.sfx.decrire_dabord"));return}
-    if(sfxBusy)return;
+    if(sfxBusy||d.arme(sfxDur,2,fireNote))return;
     setSfxBusy(!0);setSfxErr("");
     d.genSfx({prompt:p,duration_s:sfxDur>0?sfxDur:null,prompt_influence:.3,variations:2})
       .then(function(o){
         var items=(o&&o.items)||[];
         if(!items.length)throw new Error(dzT("son.sfx.aucun_son_retourne"));
-        setSfxBusy(!1);setSfxItems(items)})
+        setSfxBusy(!1);setSfxItems(items);fireNote(d.prixNote(o))})
       .catch(function(e){setSfxBusy(!1);setSfxErr(String(e&&e.message||e))})}
 
 
@@ -889,25 +889,25 @@ function DzSonVfx(props){
       r.jsx("div",{children:body})]})}
   var postPanel=targetPanel(dzT("son.cible.post_titre"),dzT("son.cible.post_corps"));
 
-  /* carte SFX — couche DzSfx chargée : VRAIE génération (prompt + durée +
-     2 variations jouables, « Ouvrir le Montage ») ; absente : maquette d'avant */
+  /* carte SFX — couche DzSfx chargée : VRAIE génération ; t187 : modèle,
+     prix et durée max du registre ; absente : maquette d'avant        */
   var sfxCard=svmSfx()?
     r.jsxs("div",{className:"svm-card",children:[
       r.jsxs("div",{className:"svm-cardhead",children:[
         r.jsx(SvmLabel,{children:dzT("son.sfx.titre_generer")}),
-        r.jsx("span",{className:"svm-genprice",
-          title:dzT("son.sfx.prix_aide"),children:"$0.03"})]}),
+        r.jsx(svmSfx().Choix||"span",
+          {dur:sfxDur,n:2})]}),
       r.jsxs("div",{className:"svm-sfxform",children:[
         r.jsx("input",{className:"svm-sfxprompt",type:"text",maxLength:450,value:sfxPrompt,
           placeholder:dzT("son.sfx.prompt_exemple"),
           "aria-label":dzT("son.sfx.prompt"),
           onChange:function(e){setSfxPrompt(e.target.value);if(sfxErr)setSfxErr("")},
           onKeyDown:function(e){if(e.key==="Enter")genSfxGo()}}),
-        r.jsx("input",{className:"svm-transdur",type:"number",min:0,max:22,step:.5,value:sfxDur,
+        r.jsx("input",{className:"svm-transdur",type:"number",min:0,max:svmSfx().dmax(),step:.5,value:Math.min(sfxDur,svmSfx().dmax()),
           title:dzT("son.sfx.duree_aide"),
           "aria-label":dzT("son.sfx.duree"),
           onChange:function(e){var v=Number(e.target.value);
-            if(isFinite(v))setSfxDur(Math.max(0,Math.min(22,v)))}}),
+            if(isFinite(v))setSfxDur(Math.max(0,Math.min(svmSfx().dmax(),v)))}}),
         r.jsx("span",{className:"svm-dur",children:sfxDur>0?"s":"auto"}),
         r.jsx("button",{className:"svm-nbgold","data-off":sfxBusy||!sfxPrompt.trim()?"":void 0,
           title:dzT("son.sfx.generer_aide"),
@@ -5958,8 +5958,8 @@ function DzMontage(props){
          exclusifs ; l'insertion passe par addAsset (playhead / piste du type) */
       (function(){var d2=svmSfx();
         return d2&&d2.Drawer?r.jsx(d2.Drawer,{open:sfxOn,
-          onClose:function(){setSfxOn(!1)},
-          onInsert:sfxInsert,playheadSec:ph,defaultTab:"sfx"}):null})(),
+  onClose:function(){setSfxOn(!1)},
+         onInsert:sfxInsert,playheadSec:ph,clip:sel,defaultTab:"sfx"}):null})(),
       /* tiroir Sous-titres (DzSubs.Drawer) — même emplacement que Sons et
          Narration, les trois exclusifs */
       subsPanel(),

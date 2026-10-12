@@ -62,10 +62,21 @@ def _audio_dir() -> Path:
     return p
 
 
+def _bin(nom: str) -> str:
+    """ffmpeg / ffprobe : celui du PATH, sinon celui de l'installation (%LOCALAPPDATA%\\DeepotusVideoGen\\bin),
+    comme fal_video_tools._bin et effects_preview.ffmpeg_bin."""
+    import shutil
+    exe = shutil.which(nom)
+    if exe:
+        return exe
+    cand = os.path.expandvars(r"%LOCALAPPDATA%\DeepotusVideoGen\bin" + f"\\{nom}.exe")
+    return cand if os.path.isfile(cand) else nom
+
+
 def _probe_duration(path: Path) -> float:
     try:
         out = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+            [_bin("ffprobe"), "-v", "error", "-show_entries", "format=duration",
              "-of", "csv=p=0", str(path)],
             check=False, capture_output=True, text=True, timeout=30).stdout.strip()
         return max(0.0, float(out))
@@ -241,6 +252,363 @@ def generate_sfx(prompt: str, duration_s: float | None = None,
             logger.info(f"sfx: {fn} ({items[-1]['size_kb']} KB, {dur}s) — "
                         f"« {prompt[:60]} »")
     return items, warning
+
+
+# ───────────── t187 (G5) : le registre des bruitages, texte ET vidéo ─────────────
+# Plan « Génération IA enrichie » (2026-10-11), section t187. UNE entrée par modèle : sa nature (`sfx_texte` : une
+# description -> un son ; `sfx_video` : une vidéo -> son bruitage, ou la vidéo sonorisée), sa voie (« elevenlabs » =
+# l'API directe, le chemin d'avant `generate_sfx` ; « fal »), son endpoint, la table `champs` qui NOMME le champ fal de
+# chaque réglage (prompt, durée, vidéo, échantillons, voix gardée — None = le modèle ne le prend pas), ses arguments
+# `fixe`, sa clé de prix (pricing.DEFAULTS, lue par pricing.taux_sfx) et son unité de facturation.
+#
+# SCHÉMAS FAL RELUS LE 12/10/2026 (openapi « queue » de chaque endpoint) ; aucun autre nom de paramètre n'est inventé.
+#   · ElevenLabs v2 (fal) : text, duration_seconds 0,5-22, prompt_influence, loop, output_format -> `audio`.
+#     `loop` (son bouclable) est NOMMÉ dans `champs` mais jamais envoyé par défaut (aucun écran ne le demande :
+#     build_request(…, boucle=True) le pose).
+#   · Sonilo 1.1 texte : prompt, duration 0,5-180 (défaut 8), audio_format wav|mp3|aac|flac -> `audio` + `audios`.
+#   · Mirelo SFX 1.6 texte : text_prompt, duration 0,1-60 (défaut 10), num_samples 1-4 (DÉFAUT 2 : toujours envoyé,
+#     sinon fal facture deux sons pour un) -> `audio` (liste).
+#   · Stable Audio 3 small SFX : prompt, duration 1-120 (défaut 30), output_format -> `audio`.
+#   · Sonilo 1.1 vidéo : video_url, prompt, segments, audio_format, keep_speech_vocal -> `audio` + `audios`.
+#   · Mirelo SFX 1.6 vidéo -> vidéo : video_url, text_prompt, duration 1-60 (DÉFAUT 10 : on envoie la durée de la
+#     source, bornée à 60), num_samples -> `video` (liste) : la vidéo SONORISÉE.
+#   · Kling vidéo -> son : video_url, sound_effect_prompt (≤ 200 caractères), background_music_prompt, asmr_mode
+#     -> `video` + `audio`. background_music_prompt a pour DÉFAUT « intense car race » côté fal : on envoie `null`
+#     EXPLICITEMENT (anyOf string|null au schéma). Vidéo d'entrée : 3 à 20 s, .mp4 ou .mov seulement — refus nommés
+#     AVANT la garde (route), jamais de coupe silencieuse de la description.
+#   · Hunyuan Video Foley : video_url ET text_prompt REQUIS -> `video`.
+#   · ThinkSound : video_url, prompt -> `video`.
+# PRIX relevés le 12/10/2026 : Sonilo texte 0,0018 $ / s de sortie / échantillon ; Sonilo vidéo 0,009 $ / s de sortie
+# / échantillon ; Kling vidéo -> son 0,035 $ la vidéo. ThinkSound : 0,001 $ par seconde de CALCUL (durée inconnue
+# d'avance) -> 0 « à mesurer ». À MESURER (0 $) : ElevenLabs v2 (fal), Mirelo texte et vidéo, Stable Audio 3 SFX,
+# Hunyuan Foley.
+SFX_TEXTE, SFX_VIDEO = "sfx_texte", "sfx_video"
+DEFAUT_TEXTE, JUMEAU_FAL = "elevenlabs-direct", "elevenlabs-v2-fal"
+DEFAUT_VIDEO = "sonilo-video"
+DEMANDE_PROMPT = "décrivez le son voulu : ce modèle exige une description (« prompt » vide)"
+
+
+def _m(nature, label, voie, endpoint, champs, fixe=None, prix=None, unite="son", bornes=None, defaut_s=None,
+       prompt_requis=False, prompt_max=450, video_s=None, video_ext=None, son_seul=False):
+    ch = {"prompt": None, "duree": None, "video": None, "echantillons": None, "voix": None, "influence": None,
+          "boucle": None}
+    ch.update(champs)
+    return {"nature": nature, "label": label, "voie": voie, "endpoint": endpoint, "champs": ch,
+            "fixe": dict(fixe or {}), "prix": prix, "unite": unite, "bornes": bornes, "defaut_s": defaut_s,
+            "prompt_requis": bool(prompt_requis), "prompt_max": int(prompt_max),
+            "video_s": video_s, "video_ext": tuple(video_ext) if video_ext else None, "son_seul": bool(son_seul)}
+
+
+# ORDRE = ordre des sélecteurs. Le défaut texte (ElevenLabs direct) en tête, son jumeau fal juste après.
+SFX_MODELS: dict[str, dict] = {
+    "elevenlabs-direct": _m(SFX_TEXTE, "ElevenLabs SFX", "elevenlabs", None,
+                            {"prompt": "text", "duree": "duration_seconds"}, unite="s", bornes=(0.5, 22.0),
+                            prompt_requis=True),
+    "elevenlabs-v2-fal": _m(SFX_TEXTE, "ElevenLabs SFX v2 (via fal)", "fal", "fal-ai/elevenlabs/sound-effects/v2",
+                            {"prompt": "text", "duree": "duration_seconds", "influence": "prompt_influence",
+                             "boucle": "loop"},
+                            {"output_format": "mp3_44100_128"},
+                            prix="elevenlabs_sfx_fal_usd", bornes=(0.5, 22.0), prompt_requis=True),
+    "sonilo-1.1": _m(SFX_TEXTE, "Sonilo 1.1", "fal", "sonilo/v1.1/text-to-sound-effects",
+                     {"prompt": "prompt", "duree": "duration"}, {"audio_format": "wav"},
+                     prix="sonilo_sfx_usd_per_s", unite="s", bornes=(0.5, 180.0), defaut_s=8.0, prompt_requis=True),
+    "mirelo-1.6": _m(SFX_TEXTE, "Mirelo SFX 1.6", "fal", "mirelo-ai/sfx1.6/text-to-audio",
+                     {"prompt": "text_prompt", "duree": "duration", "echantillons": "num_samples"},
+                     prix="mirelo_sfx_usd", bornes=(0.1, 60.0), defaut_s=10.0, prompt_requis=True),
+    "stable-audio-3-sfx": _m(SFX_TEXTE, "Stable Audio 3 SFX", "fal", "fal-ai/stable-audio-3/small/sfx/text-to-audio",
+                             {"prompt": "prompt", "duree": "duration"}, {"output_format": "wav"},
+                             prix="stable_audio3_sfx_usd", bornes=(1.0, 120.0), defaut_s=30.0, prompt_requis=True),
+    "sonilo-video": _m(SFX_VIDEO, "Sonilo 1.1 (vidéo)", "fal", "sonilo/v1.1/video-to-sound-effects",
+                       {"video": "video_url", "prompt": "prompt", "voix": "keep_speech_vocal"},
+                       {"audio_format": "wav"}, prix="sonilo_video_usd_per_s", unite="s"),
+    "mirelo-video": _m(SFX_VIDEO, "Mirelo SFX 1.6 (vidéo sonorisée)", "fal", "mirelo-ai/sfx1.6/video-to-video",
+                       {"video": "video_url", "prompt": "text_prompt", "duree": "duration",
+                        "echantillons": "num_samples"}, prix="mirelo_video_usd", bornes=(1.0, 60.0),
+                       video_s=(1.0, 60.0)),   # schéma : duration 1-60 — au-delà, refus nommé (pas de coupe)
+    "kling-v2a": _m(SFX_VIDEO, "Kling vidéo → son", "fal", "fal-ai/kling-video/video-to-audio",
+                    {"video": "video_url", "prompt": "sound_effect_prompt"}, {"background_music_prompt": None},
+                    prix="kling_v2a_usd", unite="video", prompt_requis=True, prompt_max=200, video_s=(3.0, 20.0),
+                    video_ext=(".mp4", ".mov"), son_seul=True),   # rend aussi la vidéo : on ne garde que le son   # sans description, fal pose « Car tires screech… » (défaut du schéma)
+    "hunyuan-foley": _m(SFX_VIDEO, "Hunyuan Video Foley", "fal", "fal-ai/hunyuan-video-foley",
+                        {"video": "video_url", "prompt": "text_prompt"}, prix="hunyuan_foley_usd",
+                        prompt_requis=True),
+    "thinksound": _m(SFX_VIDEO, "ThinkSound", "fal", "fal-ai/thinksound",
+                     {"video": "video_url", "prompt": "prompt"}, prix="thinksound_usd"),
+}
+
+
+def ids_sfx(nature: str) -> list[str]:
+    """Les ids d'une nature (sfx_texte / sfx_video), dans l'ordre du registre."""
+    return [k for k, e in SFX_MODELS.items() if e["nature"] == nature]
+
+
+def entree_sfx(mid: str, nature: str | None = None) -> dict:
+    """L'entrée d'un id — ValueError nommée si l'id est inconnu ou d'une autre nature."""
+    e = SFX_MODELS.get(str(mid or ""))
+    if e is None:
+        raise ValueError(f"modèle de bruitage inconnu : {str(mid)[:40]!r} "
+                         f"(connus : {', '.join(ids_sfx(nature) if nature else SFX_MODELS)})")
+    if nature and e["nature"] != nature:
+        quoi = "une description" if nature == SFX_TEXTE else "une vidéo"
+        raise ValueError(f"{e['label']} ne part pas d'{quoi} (connus : {', '.join(ids_sfx(nature))})")
+    return e
+
+
+def cle_sfx(mid: str) -> str | None:
+    """Le NOM de la clé qu'exige ce modèle (ELEVENLABS_API_KEY, FAL_KEY), None pour un id inconnu."""
+    e = SFX_MODELS.get(str(mid or ""))
+    if e is None:
+        return None
+    return "ELEVENLABS_API_KEY" if e["voie"] == "elevenlabs" else "FAL_KEY"
+
+
+def cle_sfx_manquante(mid: str) -> str | None:
+    """Le nom de la clé absente (les routes en font un 503 AVANT toute garde de dépense), None si elle est posée."""
+    cle = cle_sfx(mid)
+    if cle is None:
+        return None
+    return None if str(getattr(settings, cle, "") or "").strip() else cle
+
+
+def modele_par_defaut() -> tuple[str, str | None]:
+    """(id, note) du modèle de /audio/sfx quand l'écran n'en nomme aucun : ElevenLabs direct si sa clé est posée
+    (le chemin d'avant, inchangé) ; sinon, avec la seule clé fal, son jumeau `elevenlabs-v2-fal` et la note
+    « via fal » (le gain « une seule clé ») ; sans aucune clé, ElevenLabs direct — la route refuse en 503."""
+    if str(settings.ELEVENLABS_API_KEY or "").strip():
+        return DEFAUT_TEXTE, None
+    if str(settings.FAL_KEY or "").strip():
+        return JUMEAU_FAL, "via fal"
+    return DEFAUT_TEXTE, None
+
+
+def duree_sfx(mid: str, duree) -> float | int | None:
+    """La durée qui partira : None (le modèle choisit) ou la valeur BORNÉE à la plage du modèle, son type gardé
+    (un 4 reste 4). ValueError si elle n'est pas un nombre."""
+    if duree in (None, "", 0, "auto"):
+        return None
+    if isinstance(duree, bool) or not isinstance(duree, (int, float)):
+        try:
+            duree = float(duree)
+        except (TypeError, ValueError):
+            raise ValueError("durée invalide (un nombre de secondes, ou rien pour la durée du modèle)")
+    if duree != duree or duree <= 0:
+        raise ValueError("durée invalide (un nombre de secondes positif)")
+    b = SFX_MODELS.get(str(mid or ""), {}).get("bornes")
+    if b:
+        lo, hi = b
+        if duree < lo:
+            return lo
+        if duree > hi:
+            return hi
+    return duree
+
+
+def secondes_facturees(mid: str, duree=None) -> float | None:
+    """La durée chiffrée par le devis d'un modèle à la seconde : celle envoyée, sinon le défaut du schéma fal."""
+    d = duree_sfx(mid, duree)
+    if d is None:
+        d = SFX_MODELS.get(str(mid or ""), {}).get("defaut_s")
+    return None if d is None else float(d)
+
+
+def build_request(mid: str, prompt=None, duree=None, video_url=None, echantillons=None,
+                  garder_voix=None, influence=None, boucle=None) -> tuple[str, dict]:
+    """(endpoint, arguments) de l'appel fal, fabriqués à partir de la table `champs` de l'entrée : les arguments
+    fixes d'abord, puis la vidéo, la description, la durée (bornée), les échantillons, la voix gardée — chacun
+    SEULEMENT si le modèle le prend. ValueError : id inconnu, voie directe (ElevenLabs : aucune requête fal),
+    description manquante pour un modèle qui l'exige, vidéo manquante pour un modèle vidéo."""
+    e = entree_sfx(mid)
+    if e["voie"] != "fal":
+        raise ValueError(f"{e['label']} passe par l'API directe : aucune requête fal")
+    ch = e["champs"]
+    args = dict(e["fixe"])
+    if ch["video"]:
+        if not str(video_url or "").strip():
+            raise ValueError(f"{e['label']} part d'une vidéo : aucune vidéo fournie")
+        args[ch["video"]] = str(video_url)
+    p = str(prompt or "").strip()
+    if len(p) > e["prompt_max"]:
+        raise ValueError(f"{e['label']} : description trop longue ({len(p)} caractères, {e['prompt_max']} au plus)")
+    if e["prompt_requis"] and not p:
+        raise ValueError(f"{e['label']} : {DEMANDE_PROMPT}")
+    if ch["prompt"] and p:
+        args[ch["prompt"]] = p
+    d = duree_sfx(mid, duree)
+    if ch["duree"] and d is not None:
+        args[ch["duree"]] = d
+    if ch["echantillons"]:
+        try:
+            n = int(echantillons or 1)
+        except (TypeError, ValueError):
+            n = 1
+        args[ch["echantillons"]] = max(1, min(4, n))
+    if ch["voix"] and garder_voix is not None:
+        args[ch["voix"]] = bool(garder_voix)
+    if ch["influence"] and influence is not None:
+        try:
+            args[ch["influence"]] = round(max(0.0, min(1.0, float(influence))), 3)
+        except (TypeError, ValueError):
+            pass
+    if ch["boucle"] and boucle is not None:
+        args[ch["boucle"]] = bool(boucle)
+    return e["endpoint"], args
+
+
+def video_refusee(mid: str, chemin: Path, secondes) -> str | None:
+    """La raison NOMMÉE pour laquelle ce modèle refuse cette vidéo (format, durée hors de ses bornes), None si elle
+    passe. Les routes en font un 400 AVANT la garde des plafonds."""
+    e = entree_sfx(mid)
+    ext = Path(chemin).suffix.lower()
+    if e.get("video_ext") and ext not in e["video_ext"]:
+        return f"{e['label']} n'accepte que {', '.join(e['video_ext'])} (vidéo {ext or 'sans extension'})"
+    b = e.get("video_s")
+    if b:
+        try:
+            s = float(secondes or 0)
+        except (TypeError, ValueError):
+            s = 0.0
+        if not b[0] <= s <= b[1]:
+            return f"{e['label']} : la vidéo doit durer de {b[0]:g} à {b[1]:g} s (celle-ci : {s:.1f} s)"
+    return None
+
+
+def op_sfx(mid: str, secondes=None, echantillons: int = 1) -> dict:
+    """L'op de devis (pricing.estimate) d'une demande : kind « sfx » (texte) ou « sfx_video »."""
+    e = entree_sfx(mid)
+    return {"kind": "sfx" if e["nature"] == SFX_TEXTE else "sfx_video", "modele": str(mid),
+            "secondes": None if secondes is None else float(secondes),
+            "echantillons": max(1, min(4, int(echantillons or 1)))}
+
+
+async def _upload(path: Path) -> str:                               # seam
+    import fal_client
+    return await fal_client.upload_file_async(str(path))
+
+
+async def _fal_subscribe(endpoint: str, arguments: dict) -> dict:   # seam
+    import fal_client
+    return await fal_client.subscribe_async(endpoint, arguments=arguments, with_logs=False)
+
+
+async def _download(url: str, dest: Path) -> None:                  # seam
+    tmp = dest.with_name(dest.name + ".part")
+    try:
+        async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=600) as c:
+            r = await c.get(url)
+            r.raise_for_status()
+            tmp.write_bytes(r.content)
+        os.replace(tmp, dest)
+    finally:
+        tmp.unlink(missing_ok=True)   # échec réseau ou disque : pas de .part orphelin
+
+
+def _urls(res, cle: str) -> list[str]:
+    """Les URL d'un champ de sortie fal, quelle que soit sa forme : un File {url}, une chaîne, une liste de File
+    (Mirelo `audio` / `video`). `audio` cherche aussi `audios` (Sonilo rend les deux : on ne double pas)."""
+    if not isinstance(res, dict):
+        return []
+    out = []
+    for k in ((cle, cle + "s") if cle == "audio" else (cle,)):
+        v = res.get(k)
+        for x in (v if isinstance(v, list) else [v]):
+            u = x.get("url") if isinstance(x, dict) else (x if isinstance(x, str) and x.startswith("http") else None)
+            if u and u not in out:
+                out.append(str(u))
+        if out:
+            break
+    return out
+
+
+_EXT_AUDIO = (".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".opus")
+_EXT_VIDEO = (".mp4", ".mov", ".webm", ".m4v")
+
+
+def _ext(url: str, defaut: str, permis: tuple) -> str:
+    e = Path(str(url).split("?")[0]).suffix.lower()
+    return e if e in permis else defaut
+
+
+def extraire_audio(video: Path, dest: Path) -> bool:
+    """La piste son d'une vidéo sonorisée -> un mp3 (ffmpeg local, gratuit). False si la vidéo n'a pas de son."""
+    try:
+        r = subprocess.run([_bin("ffmpeg"), "-y", "-v", "error", "-i", str(video), "-vn", "-c:a", "libmp3lame",
+                            "-q:a", "3", str(dest)], capture_output=True, timeout=300, check=False)
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return False
+    return r.returncode == 0 and dest.is_file() and dest.stat().st_size > 0
+
+
+async def generer_sfx(mid: str, prompt=None, duree=None, video: Path | None = None, echantillons: int = 1,
+                      garder_voix=None, dossier_video: Path | None = None, influence=None) -> dict:
+    """Tire UN modèle fal du registre et range ce qu'il rend. PAYANT : la route a passé la clé (503) et la garde
+    des plafonds AVANT. Un modèle texte sans champ « échantillons » (Sonilo, Stable Audio, ElevenLabs v2) est tiré
+    `echantillons` fois de suite ; Mirelo reçoit num_samples. Les sons -> dossier audio de la Bibliothèque
+    (`sfx_<slug>_<hhmmss><n>.<ext>`, sidecar kind « sfx », modèle nommé) ; une vidéo rendue (sonorisée) ->
+    `dossier_video` (`sfxv_<hex8>.<ext>`) et, si le modèle ne rend aucun son à part, sa piste son extraite en mp3.
+    Rend {"items": [{filename, url, name, size_kb, dur}], "videos": [Path]}. ValueError : requête invalide ;
+    RuntimeError : réponse fal sans résultat."""
+    import asyncio
+    from uuid import uuid4
+    e = entree_sfx(mid)
+    p = str(prompt or "").strip()
+    build_request(mid, p, duree, "http://a-blanc" if e["champs"]["video"] else None, echantillons, garder_voix)
+    url_video = None
+    if e["champs"]["video"]:
+        if video is None or not Path(video).is_file():
+            raise ValueError("vidéo source introuvable")
+        url_video = await _upload(Path(video))
+    n = max(1, min(4, int(echantillons or 1)))
+    tirs = 1 if (e["champs"]["echantillons"] or e["nature"] == SFX_VIDEO) else n
+    folder = _audio_dir()
+    stamp = datetime.now().strftime("%H%M%S")
+    slug = _slug(p or e["label"])
+    items: list[dict] = []
+    videos: list[Path] = []
+
+    async def _ranger_son(url: str, dest: Path, src_video: str | None = None):
+        dur = round(await asyncio.to_thread(_probe_duration, dest), 2)
+        record_meta(dest.name, {"prompt": p or e["label"], "kind": "sfx", "model": mid, "provider": "fal",
+                                "duration_s": duree_sfx(mid, duree),
+                                **({"video": src_video} if src_video else {}),
+                                "created": datetime.now().isoformat(timespec="seconds")})
+        items.append({"filename": dest.name, "url": f"/api/audio/{dest.name}", "name": dest.name,
+                      "size_kb": dest.stat().st_size // 1024, "dur": dur})
+
+    def _dest_son(ext: str) -> Path:
+        k = len(items) + 1
+        dest = folder / f"sfx_{slug}_{stamp}{k}{ext}"
+        while dest.exists():
+            dest = folder / f"sfx_{slug}_{stamp}{k}_{os.urandom(2).hex()}{ext}"
+        return dest
+
+    for _ in range(tirs):
+        endpoint, args = build_request(mid, p, duree, url_video, n, garder_voix, influence)
+        logger.info("sfx [{}] -> {} · args={}", mid, endpoint, {k: v for k, v in args.items() if k != "video_url"})
+        res = await _fal_subscribe(endpoint, args)
+        sons, vids = _urls(res, "audio"), _urls(res, "video")
+        if sons and e["son_seul"]:
+            vids = []   # Kling : le son à part suffit (la vidéo rendue n'est pas rangée)
+        if not sons and not vids:
+            cles = ", ".join(map(str, res)) if isinstance(res, dict) else type(res).__name__
+            raise RuntimeError(f"fal.ai ({e['label']}) : aucun son dans la réponse (clés : {cles})")
+        for u in sons:
+            dest = _dest_son(_ext(u, ".wav", _EXT_AUDIO))
+            await _download(u, dest)
+            await _ranger_son(u, dest)
+        for u in vids:
+            dv = Path(dossier_video or (settings.outputs_path / "uploads"))
+            dv.mkdir(parents=True, exist_ok=True)
+            vdest = dv / f"sfxv_{uuid4().hex[:8]}{_ext(u, '.mp4', _EXT_VIDEO)}"
+            await _download(u, vdest)
+            videos.append(vdest)
+            if not sons:
+                dest = _dest_son(".mp3")
+                if await asyncio.to_thread(extraire_audio, vdest, dest):
+                    await _ranger_son(u, dest, src_video=vdest.name)
+    return {"items": items, "videos": videos}
+
+
+generer = generer_sfx   # le nom du plan (t187, étape 3) ; le recensement des dépenses suit `generer_sfx`
 
 
 # ──────────────────── vocabulaire FX (contrat partagé) ─────────────────────

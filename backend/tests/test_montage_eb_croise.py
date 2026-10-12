@@ -147,9 +147,10 @@ MESURE = {"seedance", "heygen", "composition", "template", "news", "episode", "u
           "montage_proxy", "montage_stab",
           "extend",   # 01/10/2026 (tache #51) : l'extension Quick, rangee dans « Studio »
           "animatique",   # 02/10/2026 (tache #66) : l'instantane d'animatique envoye au Montage — affiche « tel quel »
+          "sfx_video",   # 12/10/2026 (t187) : la vidéo sonorisée par /audio/sfx-video — rangée dans « Studio »
           "recast"}   # 10/10/2026 (t162, Avatar live G1) : Recast et voix -> voix — « tel quel » (le groupe ira avec G7 : la
                       # couche Montage du bundle est en cours de traduction dans une autre session)
-check("x1_les_providers_du_backend_sont_exactement_les_quatorze_mesures",
+check("x1_les_providers_du_backend_sont_exactement_les_quinze_mesures",   # t187 : + sfx_video
       len(BACK) >= 10 and BACK == MESURE, sorted(BACK ^ MESURE))
 check("x1_chaque_cle_de_la_table_est_un_provider_connu_du_backend",
       len(TABLE) >= 5 and set(TABLE) <= BACK, sorted(set(TABLE) - BACK))

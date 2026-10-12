@@ -52,7 +52,7 @@ ENTREES = [
     L(8902, 'son.gen.sfx_desc', '606 bruitages livrés + génération sur description',
       '606 bundled sound effects + generation from a description'),
     S(8954, 'price:"gratuit"', 'price:dzT("son.gen.prix_sfx")',
-      {"son.gen.prix_sfx": ("génération : crédits ElevenLabs", "generation: ElevenLabs credits")}),
+      {"son.gen.prix_sfx": ("génération : au prix du modèle choisi", "generation: at the chosen model price")}),
     S(9065, 'price:"$0.08"', 'price:dzT("son.gen.prix_modele")', {"son.gen.prix_modele": ("prix selon le modèle choisi", "price depends on the chosen model")}),
     L(9009, 'son.gen.voix_off', 'Voix off', 'Voiceover'),
     L(9025, 'son.gen.voix_off_desc', "Voix IA ou clonage d'une voix humaine", 'AI voice or cloning of a human voice'),
@@ -271,4 +271,28 @@ ENTREES = [
     L(37514, 'son.ducking.leger', 'léger', 'light'),
     L(37558, 'son.ducking.moyen', 'moyen', 'medium'),
     L(37605, 'son.ducking.fort', 'fort', 'strong'),
+    # t187 (G5, génération IA enrichie, 12/10/2026) — changement FONCTIONNEL posé APRÈS L4 : le modèle du
+    # bruitage (registre sfx_service, natures sfx_texte / sfx_video) et SON prix (devis du serveur), deux
+    # clics hors ElevenLabs direct, la durée bornée au modèle, « Depuis la vidéo » sur le clip sélectionné,
+    # le rail Musique listé sans clé. Avant la dernière édition G1 de la couche, chaque fenêtre entre deux
+    # éditions G1 garde sa LONGUEUR et ses lignes (commentaires compensés) ; le code neuf est en fin de
+    # couche. Mêmes retouches dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(27003, '/* le prix affiché d\'un modèle de musique : par génération, ou à la seconde (ACE-Step) sur la durée choisie */\r\nfunction svmMusicPrice(v,dur){\r\n  return v.usd_unit==="s"?"~$"+(v.usd*dur).toFixed(3)+" · "+dur+" s":"~$"+v.usd.toFixed(2)}',
+      '/* t187 : prix, clé */\r\nfunction svmMusicPrice(v,dur,ly){var u=ly&&v.usd_paroles!=null&&ly.replace(/\\[[^\\[\\]\\n]{1,24}\\]/g,"").trim()?v.usd_paroles:v.usd,c=v.usd_unit==="s"?u*dur:v.usd_unit==="min"?u*Math.ceil(dur/60):u;\r\n  return (!(u>0)?dzT("ia.prix.a_mesurer"):"~$"+c.toFixed(v.usd_unit==="s"||Math.round(c*1000)%10?3:2)+(v.usd_unit==="s"||v.usd_unit==="min"?" · "+dur+" s":""))+(v.dispo===!1&&v.cle?" · "+dzT("ia.cle.a_ajouter",{cle:v.cle}):"")}',
+      {}),
+    S(27242, '/* ── Musique : génération fal.ai sur la clé déjà configurée ─────────────── */',
+      '/* Musique (fal.ai) */',
+      {}),
+    S(28290, "  /* T102 : les paroles se montrent quand le modèle les prend ET que la voix est\r\n     demandée — ou TOUJOURS si le modèle n'a pas d'interrupteur instrumental\r\n     (Music 2.0 : paroles obligatoires ; avant, l'état « instrumental » par\r\n     défaut les cachait à jamais) */",
+      '  /* T102 : paroles si le modèle les prend et voix demandée (bourrage volontaire : longueurs figées par la table G1, par position)                            \r\n\r\n\r\n   */',
+      {}),
+    S(28843, '    /* les BALISES ne comptent pas (même règle que le serveur) : une section vide passait la borne à elle seule */',
+      '    /* balises non comptées */',
+      {}),
+    S(30127, '  if(!cat.enabled)return r.jsxs("div",{className:"svm-target",children:[',
+      'if(!cat.models[0])return r.jsxs("div",{className:"svm-target",children:[',
+      {}),
+    S(32425, 'children:svmMusicPrice(v,v.duration?Math.min(v.duration[1],Math.max(v.duration[0],dur)):dur)})]}),',
+      'children:svmMusicPrice(v,v.duration?Math.min(v.duration[1],Math.max(v.duration[0],dur)):dur,model===v.id&&showLyr?lyrics:"")})]}),',
+      {}),
 ]

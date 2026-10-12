@@ -35,9 +35,10 @@ check("Music 2.0 : endpoint v2, paroles OBLIGATOIRES, prompt borné à 2000 (sch
       and m20["prompt_max"] == 2000 and m20["usd"] == 0.03 and m20["usd_unit"] == "gen", str(m20))
 check("aucun « Music 3 » inventé (v3 : 404 le 06/10)",
       not any("v3" in v["endpoint"] or "music-03" in v["endpoint"] for v in MS.MUSIC_MODELS.values()))
-check("les anciennes entrées gardent leur prix par génération",
+check("les anciennes entrées gardent leur prix par génération (t187 : CassetteAI passe à la minute entamée)",
       all(MS.MUSIC_MODELS[k].get("usd_unit", "gen") == "gen" for k in ("lyria3", "stable-audio-25",
-                                                                         "minimax-music-26", "cassetteai")))
+                                                                         "minimax-music-26"))
+      and MS.MUSIC_MODELS["cassetteai"]["usd_unit"] == "min" and MS.MUSIC_MODELS["cassetteai"]["usd"] == 0.02)
 
 print("\n[2] paroles normalisées")
 L = "[Verse]\nSous la mer\n\n[Refrain]\nDeepotus\n\n[Pont]\nremonte"

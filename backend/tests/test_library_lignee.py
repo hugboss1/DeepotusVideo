@@ -183,10 +183,11 @@ async def main():
         "T102 /audio/duck": '"sonvfx", kind="audio", parent=r["parent"], relation="mix")',
         # t111 : les vues découpées restent « atelier » (celles de #62), la capture 3D entre en « sprites »
         "t111 /assets/sprite/from-board + /assets/sprite/capture": 'LI.noter(noms, "atelier")',
+        "t187 /audio/sfx-video": '"sonvfx", kind="audio", parent=src.name,\n                   relation="bruitage")',
     }
     texte = (RACINE / "backend/app/api/routes.py").read_text(encoding="utf-8")
     sites = texte.count("LI.noter(")
-    attendus = r_ro.decode("utf-8").count("LI.noter(") + 1 + 2 + 1 + 2
+    attendus = r_ro.decode("utf-8").count("LI.noter(") + 1 + 2 + 1 + 2 + 1
     check(f"I1 producteurs dans routes.py : les 19 de la base + ceux de {', '.join(AJOUTS)} = {attendus}",
           r_ro.decode("utf-8").count("LI.noter(") == 19 and sites == attendus
           and all(m in texte for m in AJOUTS.values()), str(sites))

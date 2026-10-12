@@ -173,7 +173,7 @@ ENTREES = [
     X(33514, "sélecteur CSS"),
     # genGo : génération SFX
     S(34660, 'its.length+" variation"+(its.length>1?"s":"")+" générée"+\r\n          (its.length>1?"s":"")+" — cartes ci-dessous, insérables ou déplaçables."',
-      '(its.length>1?dzT("sfx.generer.variations.plusieurs",{n:its.length})\r\n          :dzT("sfx.generer.variations.un",{n:its.length}))',
+      '(its.length>1?dzT("sfx.generer.variations.plusieurs",{n:its.length})\r\n          :dzT("sfx.generer.variations.un",{n:its.length}))+svxSfxPrixFin(d)',
       {"sfx.generer.variations.un": ("{n} variation générée — cartes ci-dessous, insérables ou déplaçables.",
                                      "{n} variation generated — cards below, ready to insert or drag."),
        "sfx.generer.variations.plusieurs": ("{n} variations générées — cartes ci-dessous, insérables ou déplaçables.",
@@ -299,4 +299,28 @@ ENTREES = [
       "No music — import a file: it will land on track A2."),
     # t143 : étiquette de type « VOIX » (capitales, invisible au contrôle lexical) — vue à la preuve de L3
     L(2783, 'sfx.types.voix_tag', 'VOIX', 'VOICE'),
+    # t187 (G5, génération IA enrichie, 12/10/2026) — changement FONCTIONNEL posé APRÈS L4 : le modèle du
+    # bruitage (registre sfx_service, natures sfx_texte / sfx_video) et SON prix (devis du serveur), deux
+    # clics hors ElevenLabs direct, la durée bornée au modèle, « Depuis la vidéo » sur le clip sélectionné,
+    # le rail Musique listé sans clé. Avant la dernière édition G1 de la couche, chaque fenêtre entre deux
+    # éditions G1 garde sa LONGUEUR et ses lignes (commentaires compensés) ; le code neuf est en fin de
+    # couche. Mêmes retouches dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(14887, '/* ── POST /api/audio/sfx — génération ElevenLabs ─────────────────────────── */\r\nfunction svxGenSfx(o){\r\n  o=o||{};\r\n  var body={prompt:String(o.prompt||"").slice(0,450)};\r\n  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.5,22);\r\n  if(o.prompt_influence!=null)body.prompt_influence=svxClamp(o.prompt_influence,0,1);\r\n  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));',
+      '/* POST /api/audio/sfx (t187)         */\r\nfunction svxGenSfx(o){\r\n  o=o||{};\r\n  var body={prompt:String(o.prompt||"").slice(0,450)};\r\n  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.1,600);\r\n  if(o.prompt_influence!=null)body.prompt_influence=svxClamp(o.prompt_influence,0,1);\r\n  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));svxSfxCorps(body,o);',
+      {}),
+    S(15951, '      return {items:items}})}',
+      '      return {items:items,usd:o2.d&&o2.d.usd}})}',
+      {}),
+    S(33881, '    if(!p||gBusy)return;\r\n    setGBusy(!0);',
+      '    if(!p||gBusy||svxSfxArmeTexte(gAuto?0:gDur,gVar,fireNote))return;\r\n    setGBusy(!0);',
+      {}),
+    S(34079, '        /* nom canonique = filename (les rangées et {audio:...} le réutilisent) */',
+      '        /* nom canonique = filename    */',
+      {}),
+    S(34405, '        /* coût réel estimé : 40 crédits × durée générée, sommé sur les variations */',
+      '        /* crédits : ElevenLabs direct (t187) */',
+      {}),
+    S(34574, '        setGCost(real>0?Math.round(real):null);',
+      '        setGCost(real>0&&svxSfxDirect()?Math.round(real):null);',
+      {}),
 ]

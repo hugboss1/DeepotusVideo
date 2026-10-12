@@ -256,13 +256,13 @@ var svxFxPresets=[
    {type:"compressor",params:{threshold_db:-22,ratio:3,attack_ms:15,release_ms:200}},
    {type:"normalize",params:{target_lufs:-16}}]}];
 
-/* ── POST /api/audio/sfx — génération ElevenLabs ─────────────────────────── */
+/* POST /api/audio/sfx (t187)         */
 function svxGenSfx(o){
   o=o||{};
   var body={prompt:String(o.prompt||"").slice(0,450)};
-  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.5,22);
+  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.1,600);
   if(o.prompt_influence!=null)body.prompt_influence=svxClamp(o.prompt_influence,0,1);
-  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));
+  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));svxSfxCorps(body,o);
   return fetch("/api/audio/sfx",{method:"POST",
     headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
     .then(function(res){return res.json().catch(function(){return {}})
@@ -274,7 +274,7 @@ function svxGenSfx(o){
         return {name:it.name||fn,filename:fn,
           url:it.url||("/api/audio/"+encodeURIComponent(fn)),
           dur:svxN(it.dur,0)}});
-      return {items:items}})}
+      return {items:items,usd:o2.d&&o2.d.usd}})}
 
 /* ── SvxWave — mini-waveform canvas (pics svmWavePeaks) + progression or ──
    prog 0..1 = portion jouée (barres repeintes --accent : la lecture est un
@@ -611,24 +611,24 @@ const SvxDrawer=(props)=>{
   /* génération SFX */
   function genGo(){
     var p=gPrompt.trim();
-    if(!p||gBusy)return;
+    if(!p||gBusy||svxSfxArmeTexte(gAuto?0:gDur,gVar,fireNote))return;
     setGBusy(!0);
     svxGenSfx({prompt:p,duration_s:gAuto?null:gDur,
       prompt_influence:gInf/100,variations:gVar})
       .then(function(d){
         setGBusy(!1);
-        /* nom canonique = filename (les rangées et {audio:...} le réutilisent) */
+        /* nom canonique = filename    */
         var its=(d.items||[]).map(function(it){
           return {name:it.filename||it.name,filename:it.filename,url:it.url,
             dur:it.dur,kind:"sfx",prompt:p}});
         setGRes(function(rs){return its.concat(rs).slice(0,24)});
-        /* coût réel estimé : 40 crédits × durée générée, sommé sur les variations */
+        /* crédits : ElevenLabs direct (t187) */
         var real=0;
         its.forEach(function(gi){real+=40*svxN(gi.dur,0)});
-        setGCost(real>0?Math.round(real):null);
+        setGCost(real>0&&svxSfxDirect()?Math.round(real):null);
         refresh();
         fireNote((its.length>1?dzT("sfx.generer.variations.plusieurs",{n:its.length})
-          :dzT("sfx.generer.variations.un",{n:its.length})))})
+          :dzT("sfx.generer.variations.un",{n:its.length}))+svxSfxPrixFin(d))})
       .catch(function(e){setGBusy(!1);fireNote(String(e&&e.message||e))})}
 
   function renameGo(item){
@@ -921,7 +921,7 @@ const SvxDrawer=(props)=>{
         onChange:function(e){setGPrompt(e.target.value)},
         onKeyDown:function(e){
           if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();genGo()}}}),
-      r.jsx("div",{className:"svx-gex",children:SVX_EXAMPLES.map(function(ex){
+      svxSfxR(gAuto?0:gDur,gVar,props.clip,gPrompt,refresh,fireNote),r.jsx("div",{className:"svx-gex",children:SVX_EXAMPLES.map(function(ex){
         return r.jsx("button",{className:"svx-gexchip",
           onClick:function(){setGPrompt(ex)},children:ex},ex)})}),
       r.jsxs("div",{className:"svx-grow",children:[
@@ -929,15 +929,15 @@ const SvxDrawer=(props)=>{
         r.jsx("button",{className:"svx-gsegbtn","data-on":gAuto?"":void 0,
           title:dzT("sfx.gen.auto_aide"),
           onClick:function(){setGAuto(!gAuto)},children:"auto"}),
-        r.jsx("input",{className:"svx-gslider",type:"range",min:0.5,max:22,step:0.5,
-          value:gDur,disabled:gAuto,"aria-label":dzT("sfx.gen.duree_secondes"),
+        r.jsx("input",{className:"svx-gslider",type:"range",min:0.5,max:svxDmax(),step:0.5,
+          value:Math.min(gDur,svxDmax()),disabled:gAuto,"aria-label":dzT("sfx.gen.duree_secondes"),
           onChange:function(e){setGDur(svxN(e.target.value,3));setGAuto(!1)}}),
-        r.jsx("input",{className:"svx-gnum svm-mono",type:"number",min:0.5,max:22,
-          step:0.1,value:gAuto?"":gDur,disabled:gAuto,placeholder:"—",
+        r.jsx("input",{className:"svx-gnum svm-mono",type:"number",min:0.5,max:svxDmax(),
+          step:0.1,value:gAuto?"":Math.min(gDur,svxDmax()),disabled:gAuto,placeholder:"—",
           "aria-label":dzT("sfx.gen.duree_precise"),
           onChange:function(e){
             var v=svxN(e.target.value,gDur);
-            setGDur(svxClamp(v,0.5,22));setGAuto(!1)}}),
+            setGDur(svxClamp(v,0.5,svxDmax()));setGAuto(!1)}}),
         r.jsx("span",{className:"svx-gunit",children:"s"})]}),
       r.jsxs("div",{className:"svx-grow",children:[
         r.jsx("span",{className:"svx-glabel",children:dzT("sfx.gen.variations")}),
@@ -955,8 +955,8 @@ const SvxDrawer=(props)=>{
         r.jsx("span",{className:"svx-gval svm-mono",children:gInf+" %"})]}),
       r.jsxs("div",{className:"svx-gfoot",children:[
         r.jsx("span",{className:"svx-gcost svm-mono",
-          title:dzT("sfx.gen.estimation_aide"),
-          children:cost==null?dzT("sfx.gen.cout_auto"):dzT("sfx.gen.cout",{n:cost})}),
+          title:svxSfxEstAide(),
+          children:cost==null?svxSfxCout(gDur,gVar,1):svxSfxCout(gDur,gVar,0)}),
         r.jsx("button",{className:"svm-goldbtn svx-gold","data-busy":gBusy?"":void 0,
           disabled:gBusy||!gPrompt.trim(),
           onClick:genGo,
@@ -980,7 +980,7 @@ const SvxDrawer=(props)=>{
             r.jsx("span",{className:"svx-idur svm-mono",
               children:h.dur?svmShort(h.dur):""})]},h.name)})})]}):null]})}
 
-  /* T101 (plan-son-vfx T5) : `inline` = monté dans la page (Bibliothèque → Audio), toujours ouvert, sans « Fermer » */
+  /* T101     */
   if(!open&&!props.inline)return null;
   return r.jsxs("aside",{className:"svx-drawer"+(props.inline?" svx-inline":""),ref:rootRef,tabIndex:-1,
     onKeyDown:onKey,"aria-label":dzT("sfx.tiroir.aria"),
@@ -1542,6 +1542,182 @@ const SvxMeter=(props)=>{
       r.jsx("div",{className:"svx-mhint",
         children:pin?dzT("sfx.metre.fermer_indice"):dzT("sfx.metre.figer_indice")})]}):null]})};
 
+/* ── t187 (G5, génération IA enrichie) : le MODÈLE du bruitage, texte ET vidéo ──────────
+   Le registre des bruitages (backend sfx_service.SFX_MODELS) est servi par GET
+   /api/ia/catalogue (natures sfx_texte et sfx_video) : chaque option porte son prix (lu au
+   catalogue) et, sans clé, la mention « clé X à ajouter dans Réglages » — elle reste
+   CHOISISSABLE (jamais disabled) : la route refuse en 503 avant toute dépense. Le choix est
+   commun au tiroir Sons et à la carte SFX de Son & VFX (localStorage dz_sfx_modele et
+   dz_sfx_modele_video ; vide = le défaut du serveur : ElevenLabs direct, ou son jumeau via
+   fal sans clé ElevenLabs). Le PRIX annoncé est le devis du SERVEUR — POST /api/cost/estimate
+   (kind « sfx ») pour une description, POST /api/audio/sfx-video avec devis:true pour un
+   clip — le même chiffre que la garde des plafonds, avant ET après le clic. « Depuis la
+   vidéo » (clip vidéo sélectionné dans la timeline) : 1er clic = arme, 2e clic = tir.
+   Ces fonctions vivent APRÈS la dernière édition G1 de la couche (table dzglyph_paires.json :
+   éditions repérées par position) ; un useReducer (et non useState) rafraîchit l'affichage.
+   « (bourrage G1) » dans un commentaire plus haut = bourrage volontaire : longueurs figées par la
+   table G1, par position (chaque fenêtre entre deux éditions G1 garde sa longueur). */
+var SVX_SFXM={texte:"",video:"",voix:!1,cat:{},prix:{},subs:[],arm:null,armT:null,busy:!1};
+var SVX_SFXM_LS="dz_sfx_modele",SVX_SFXM_LSV="dz_sfx_modele_video";
+try{SVX_SFXM.texte=localStorage.getItem(SVX_SFXM_LS)||"";SVX_SFXM.video=localStorage.getItem(SVX_SFXM_LSV)||""}catch(_e){}
+/* les libellés du catalogue arrivent en français : ceux qui portent un suffixe à traduire passent par dzT */
+var SVX_SFXM_NOMS={"sonilo-video":dzT("son.sfx.libelle.sonilo_video"),
+  "mirelo-video":dzT("son.sfx.libelle.mirelo_video"),"kling-v2a":dzT("son.sfx.libelle.kling_v2a")};
+function svxSfxPing(){SVX_SFXM.subs.slice().forEach(function(f){try{f()}catch(_e){}})}
+function svxSfxAbonne(t){
+  x.useEffect(function(){SVX_SFXM.subs.push(t);
+    return function(){var i=SVX_SFXM.subs.indexOf(t);if(i>=0)SVX_SFXM.subs.splice(i,1)}},[])}
+/* l'échec n'est PAS gardé pour la session : il est réessayé au prochain affichage (5 s au plus tôt, sans boucle) */
+function svxSfxCat(nat){
+  var c=SVX_SFXM.cat[nat];
+  if(c&&!(c.err&&Date.now()-c.err>5000))return c.l;
+  SVX_SFXM.cat[nat]={l:c&&c.err?c.l:null};
+  var rate=function(){SVX_SFXM.cat[nat]={l:[],err:Date.now()};svxSfxPing()};
+  fetch("/api/ia/catalogue?nature="+nat).then(function(res){return res.ok?res.json():null})
+    .then(function(d){if(!d||!d.modeles){rate();return}SVX_SFXM.cat[nat]={l:d.modeles};svxSfxPing()})
+    .catch(rate);
+  return SVX_SFXM.cat[nat].l}
+/* les options d'un sélecteur, groupées par VOIE (clé fal, clé ElevenLabs), comme DzModelesIA */
+var SVX_SFXM_VOIES={fal:dzT("ia.voie.fal"),elevenlabs:dzT("ia.voie.elevenlabs")};
+function svxSfxOptions(l){
+  var ordre=["fal","elevenlabs"],par={};
+  (l||[]).forEach(function(m){var k=m.voie||"fal";(par[k]=par[k]||[]).push(m)});
+  return ordre.concat(Object.keys(par).filter(function(k){return ordre.indexOf(k)<0})).filter(function(k){return par[k]})
+    .map(function(k){return r.jsx("optgroup",{label:SVX_SFXM_VOIES[k]||k,
+      children:par[k].map(function(m){return r.jsx("option",{value:m.id,children:svxSfxTexte(m)},m.id)})},k)})}
+function svxSfxMod(nat,id){var l=svxSfxCat(nat)||[];
+  for(var i=0;i<l.length;i++)if(l[i].id===id)return l[i];return null}
+/* le modèle EFFECTIF : le choix mémorisé s'il est encore servi, sinon le défaut du serveur */
+function svxSfxEff(nat){
+  var l=svxSfxCat(nat)||[],v=nat==="sfx_video"?SVX_SFXM.video:SVX_SFXM.texte;
+  if(v&&svxSfxMod(nat,v))return v;
+  if(nat==="sfx_video")return l.length?l[0].id:"";
+  var d=svxSfxMod(nat,"elevenlabs-direct"),f=svxSfxMod(nat,"elevenlabs-v2-fal");
+  return d&&d.dispo===!1&&f&&f.dispo!==!1?f.id:"elevenlabs-direct"}
+function svxSfxUsd(m){var v=Number(m&&m.usd);
+  if(!(v>0)||!isFinite(v))return dzT("ia.prix.a_mesurer");
+  return "$"+String(Math.round(v*10000)/10000)+(m.unite==="s"?"/s":m.unite==="video"?" / "+dzT("son.sfx.unite_video"):"")}
+function svxSfxTexte(m){
+  return (SVX_SFXM_NOMS[m.id]||m.label||m.id)+" · "+svxSfxUsd(m)
+    +(m.dispo===!1&&m.cle?" · "+dzT("ia.cle.a_ajouter",{cle:m.cle}):"")}
+function svxSfxChoisir(nat,v){
+  if(nat==="sfx_video")SVX_SFXM.video=v;else SVX_SFXM.texte=v;
+  SVX_SFXM.arm=null;SVX_SFXM.armT=null;
+  try{localStorage.setItem(nat==="sfx_video"?SVX_SFXM_LSV:SVX_SFXM_LS,v)}catch(_e){}
+  svxSfxPing()}
+/* le corps de POST /api/audio/sfx reçoit le modèle CHOISI (rien : le défaut du serveur) */
+function svxSfxCorps(body,o){
+  var m=o&&o.modele!=null?String(o.modele):SVX_SFXM.texte,c=SVX_SFXM.cat.sfx_texte;
+  if(m&&(!c||!c.l||svxSfxMod("sfx_texte",m)))body.modele=m}
+/* le devis du serveur, mis en cache par corps : undefined pendant la lecture, null si refusé */
+function svxSfxDevis(url,body){
+  var k=url+" "+JSON.stringify(body),e=SVX_SFXM.prix[k];
+  if(e)return e.usd;
+  SVX_SFXM.prix[k]={usd:void 0};
+  fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(res){return res.ok?res.json():null})
+    .then(function(d){var u=d&&(typeof d.total_usd==="number"?d.total_usd:typeof d.usd==="number"?d.usd:null);
+      SVX_SFXM.prix[k]={usd:u==null?null:u};svxSfxPing()})
+    .catch(function(){SVX_SFXM.prix[k]={usd:null};svxSfxPing()});
+  return void 0}
+function svxSfxPrixTxt(usd){
+  return usd===void 0?dzT("sfx.action.prix_attente"):usd==null?"—"
+    :usd>0?"~$"+usd.toFixed(usd<0.1?3:2):dzT("ia.prix.a_mesurer")}
+/* l'ancienne estimation en crédits ne parle que pour ElevenLabs direct ; un modèle fal a son prix à côté du sélecteur */
+function svxSfxCout(dur,n,auto){
+  if(svxSfxEff("sfx_texte")!=="elevenlabs-direct")return "";
+  return auto?dzT("sfx.gen.cout_auto"):dzT("sfx.gen.cout",{n:Math.round(40*dur)*n})}
+/* le sélecteur sfx_texte + SON prix (devis du serveur pour cette durée et ces variations) */
+function svxSfxDirect(){return svxSfxEff("sfx_texte")==="elevenlabs-direct"}
+/* la durée maximale du modèle CHOISI (catalogue `duree`) ; 22 s (ElevenLabs) tant que le catalogue n'est pas lu */
+function svxDmax(){var m=svxSfxMod("sfx_texte",svxSfxEff("sfx_texte"));return m&&m.duree?Number(m.duree[1]):22}
+/* la bulle « ~40 crédits ElevenLabs par seconde » ne parle que pour ElevenLabs direct */
+function svxSfxEstAide(){return svxSfxEff("sfx_texte")==="elevenlabs-direct"?dzT("sfx.gen.estimation_aide"):void 0}
+/* le devis du serveur pour le modèle effectif, cette durée et ces variations */
+function svxSfxDevisTexte(dur,n){var d=Number(dur)>0?Number(dur):null;
+  return svxSfxCat("sfx_texte")?svxSfxDevis("/api/cost/estimate",{kind:"sfx",modele:svxSfxEff("sfx_texte"),secondes:d,
+    echantillons:Math.max(1,Math.min(4,Math.round(Number(n)||1)))}):void 0}
+/* un modèle autre qu'ElevenLabs direct s'ARME en deux clics : le 1er annonce le prix (devis), le 2e tire */
+function svxSfxCleArme(dur,n){return [svxSfxEff("sfx_texte"),Number(dur)>0?Number(dur):0,n].join("|")}
+function svxSfxArmeTexte(dur,n,note){
+  /* PENDANT la lecture du catalogue, le modèle effectif n'est pas connu (le serveur choisira peut-être le jumeau
+     fal) : rien ne part. En cas d'ÉCHEC de la lecture, on laisse partir sans `modele` : le serveur choisit son défaut */
+  var l=svxSfxCat("sfx_texte"),c=SVX_SFXM.cat.sfx_texte;
+  if(!l){note(dzT("son.sfx.catalogue_attente"));return !0}
+  if(c&&c.err){SVX_SFXM.armT=null;return !1}
+  if(svxSfxEff("sfx_texte")==="elevenlabs-direct"){SVX_SFXM.armT=null;return !1}
+  var k=svxSfxCleArme(dur,n);
+  if(SVX_SFXM.armT===k){SVX_SFXM.armT=null;svxSfxPing();return !1}
+  SVX_SFXM.armT=k;svxSfxPing();
+  note(dzT("sfx.action.armee",{prix:svxSfxPrixTxt(svxSfxDevisTexte(dur,n))}));return !0}
+/* la note de fin : le MÊME chiffre que le devis annoncé (`usd` de la réponse, même op que la garde) */
+function svxSfxPrixFin(d){return d&&typeof d.usd==="number"?" · "+svxSfxPrixTxt(d.usd):""}
+function svxSfxPrixNote(d){return d&&typeof d.usd==="number"?dzT("son.sfx.cout_fin",{prix:svxSfxPrixTxt(d.usd)}):""}
+function SvxSfxChoix(props){
+  var t=x.useReducer(function(n){return n+1},0)[1];
+  svxSfxAbonne(t);
+  var l=svxSfxCat("sfx_texte"),v=svxSfxEff("sfx_texte");
+  var usd=svxSfxDevisTexte(props.dur,props.n),armee=SVX_SFXM.armT===svxSfxCleArme(props.dur,props.n);
+  return r.jsxs("span",{className:"svx-sfxm","data-dzsfxm":"texte",children:[
+    r.jsx("select",{className:"svx-select svx-sfxmsel",value:v,
+      "aria-label":dzT("son.sfx.modele"),title:dzT("son.sfx.modele"),
+      onChange:function(e){svxSfxChoisir("sfx_texte",e.target.value)},
+      children:svxSfxOptions(l)}),
+    r.jsx("span",{className:"svm-genprice svx-sfxmprix","data-arme":armee?"":void 0,title:dzT("son.sfx.prix_modele"),
+      children:armee?svxSfxPrixTxt(usd)+" — "+dzT("son.sfx.confirmer"):svxSfxPrixTxt(usd)})]})}
+/* « Depuis la vidéo » : le clip VIDÉO sélectionné dans la timeline (job rendu) part à un modèle sfx_video */
+function svxSfxClipVideo(c){return !!(c&&c.src&&c.src.job_id&&!/^a/.test(String(c.tr||"")))}
+function SvxSfxVideo(props){
+  var t=x.useReducer(function(n){return n+1},0)[1];
+  svxSfxAbonne(t);
+  var c=props.clip,l=svxSfxCat("sfx_video"),v=svxSfxEff("sfx_video"),m=svxSfxMod("sfx_video",v);
+  var corps={clip_id:String(c.src.job_id),modele:v};
+  if(m&&m.voix)corps.garder_voix=!!SVX_SFXM.voix;
+  var usd=l&&v?svxSfxDevis("/api/audio/sfx-video",Object.assign({devis:!0},corps)):void 0;
+  var p=String(props.prompt||"").trim(),cle=JSON.stringify(corps)+"|"+p,armed=SVX_SFXM.arm===cle;
+  function go(){
+    if(SVX_SFXM.busy||!v)return;
+    if(m&&m.prompt&&!p){props.note(dzT("son.sfx.decrire_video"));return}
+    if(!armed){SVX_SFXM.arm=cle;t();return}
+    SVX_SFXM.arm=null;SVX_SFXM.busy=!0;t();
+    fetch("/api/audio/sfx-video",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(Object.assign({prompt:p},corps))})
+      .then(function(res){return res.json().catch(function(){return {}})
+        .then(function(d){if(!res.ok)throw new Error(d.detail&&d.detail.message||d.detail||dzT("sfx.action.echec_code",{code:res.status}));return d})})
+      .then(function(d){SVX_SFXM.busy=!1;t();if(props.refresh)props.refresh();
+        var it=(d.items||[])[0];
+        props.note(dzT("son.sfx.video_fait",{nom:it?it.filename:"—",prix:svxSfxPrixTxt(typeof d.usd==="number"?d.usd:null)})
+          +((d.videos||[]).length?" "+dzT("son.sfx.video_sonorisee"):""))})
+      .catch(function(e){SVX_SFXM.busy=!1;t();props.note(String(e&&e.message||e))})}
+  return r.jsxs("div",{className:"svx-sfxv","data-dzsfxv":"1",children:[
+    r.jsx(SvmLabel,{children:dzT("son.sfx.depuis_video")}),
+    r.jsx("div",{className:"svx-note",children:dzT("son.sfx.video_aide",{clip:c.label||c.id||""})}),
+    r.jsxs("div",{className:"svx-grow",children:[
+      r.jsx("select",{className:"svx-select svx-sfxmsel",value:v,"data-dzsfxm":"video",
+        "aria-label":dzT("son.sfx.modele"),title:dzT("son.sfx.modele"),
+        onChange:function(e){svxSfxChoisir("sfx_video",e.target.value)},
+        children:svxSfxOptions(l)}),
+      m&&m.voix?r.jsxs("label",{className:"svx-sfxvoix",children:[
+        r.jsx("input",{type:"checkbox",checked:!!SVX_SFXM.voix,"data-dzsfxvoix":"1",
+          onChange:function(e){SVX_SFXM.voix=!!e.target.checked;SVX_SFXM.arm=null;t()}}),
+        dzT("son.sfx.garder_voix")]}):null]}),
+    r.jsx("button",{className:"svm-goldbtn svx-gold"+(armed?" svx-armed":""),"data-dzsfxvgo":"1",
+      "data-busy":SVX_SFXM.busy?"":void 0,disabled:!!SVX_SFXM.busy,
+      title:armed?dzT("sfx.action.armee",{prix:svxSfxPrixTxt(usd)}):dzT("son.sfx.prix_modele"),
+      onClick:go,children:SVX_SFXM.busy?dzT("sfx.gen.en_cours")
+        :armed?svxSfxPrixTxt(usd)+" — "+dzT("son.sfx.confirmer")
+        :dzT("son.sfx.depuis_video")+" · "+svxSfxPrixTxt(usd)})]})}
+/* la rangée « Modèle » de l'onglet Générer du tiroir, puis le bruitage du clip vidéo sélectionné (Montage) ;
+   `clip` undefined = tiroir hors Montage (Bibliothèque) : rien ; null ou non vidéo : l'indication */
+function svxSfxR(dur,n,clip,prompt,refresh,note){
+  return r.jsxs(r.Fragment,{children:[
+    r.jsxs("div",{className:"svx-grow svx-sfxmrow",children:[
+      r.jsx("span",{className:"svx-glabel",children:dzT("son.sfx.modele")}),
+      r.jsx(SvxSfxChoix,{dur:dur,n:n})]}),
+    clip===void 0?null:svxSfxClipVideo(clip)
+      ?r.jsx(SvxSfxVideo,{clip:clip,prompt:prompt,refresh:refresh,note:note})
+      :r.jsx("div",{className:"svx-note svx-sfxvnone",children:dzT("son.sfx.video_sans_clip")})]})}
+
 /* ── export contrat ──────────────────────────────────────────────────────── */
 window.DzSfx={ready:!0,Drawer:SvxDrawer,Rack:SvxRack,Meter:SvxMeter,
-  genSfx:svxGenSfx,fxPresets:svxFxPresets};
+  genSfx:svxGenSfx,fxPresets:svxFxPresets,Choix:SvxSfxChoix,arme:svxSfxArmeTexte,prixNote:svxSfxPrixNote,dmax:svxDmax};

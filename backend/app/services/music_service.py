@@ -69,12 +69,16 @@ MUSIC_MODELS: dict = {
     },
     "cassetteai": {
         "label": "CassetteAI", "provider": "fal",
-        "endpoint": "CassetteAI/music-generator",
+        # t187 (12/10/2026) : le catalogue fal liste la forme minuscule (les deux casses répondent) ; schéma relu :
+        # `duration` 10-180 (la borne basse était 5 : une demande à 5 s rendait une 422)
+        "endpoint": "cassetteai/music-generator",
         "desc": "Le rapide : jusqu'à 3 min en quelques secondes de calcul, "
                 "44.1 kHz stéréo. Idéal pour itérer sur une ambiance.",
-        "duration": (5, 180), "fixed_duration": None,
+        "duration": (10, 180), "fixed_duration": None,
         "lyrics": False, "instrumental": False, "seed": False,
-        "usd": 0.04,
+        # t187 : tarif relu le 12/10/2026, 0,02 $ par minute de sortie — compté à la minute ENTAMÉE (borne
+        # prudente, comme ElevenLabs Music) ; c'était 0,04 $ fixe
+        "usd": 0.02, "usd_unit": "min",
     },
     # ── T102 (plan-son-vfx T6, P4) : la chanson chantée ─────────────────────
     # Schémas relus le 06/10/2026 sur l'openapi « queue » de fal :
@@ -104,6 +108,68 @@ MUSIC_MODELS: dict = {
         # « $0.03 per generation » (page modèle, 06/10)
         "usd": 0.03, "usd_unit": "gen", "lyrics_style": "minimax",
         "lyrics_required": True, "prompt_max": 2000,
+    },
+    # ── t187 (G5, plan « Génération IA enrichie ») : musique à jour ─────────
+    # Schémas relus le 12/10/2026 sur l'openapi « queue » de fal ; aucun autre
+    # nom de paramètre n'est inventé. Ces entrées NOMMENT leurs champs fal
+    # (`champs` : prompt, duree [+ duree_ms], paroles, instrumental, seed,
+    # negatif) et leurs arguments `fixe` — `_payload_champs` les lit, sans les
+    # règles historiques (seconds_total, lyrics_prompt, is_instrumental) des
+    # entrées d'avant. Prix : Lyria 3.5, MiniMax Music 3 et Stable Audio 3 « à
+    # mesurer » (0 $) ; ElevenLabs Music 0,60 $ par minute de sortie ARRONDIE À
+    # LA MINUTE SUPÉRIEURE ; Mureka 9.5 0,225 $ la requête AVEC paroles,
+    # 0,75 $ la requête sur description seule.
+    "lyria-3.5": {
+        "label": "Lyria 3.5 (Google)", "provider": "fal",
+        "endpoint": "google/lyria-3.5",
+        "desc": "La nouvelle génération Lyria : description et ce qu'il faut "
+                "éviter (prompt négatif). Durée choisie par le modèle.",
+        "duration": None, "fixed_duration": None,
+        "lyrics": False, "instrumental": False, "seed": False,
+        "usd": 0.0, "champs": {"prompt": "prompt", "negatif": "negative_prompt"},
+    },
+    "elevenlabs-music-2.5": {
+        "label": "ElevenLabs Music 2.5", "provider": "fal",
+        "endpoint": "elevenlabs/music/v2.5",
+        "desc": "Piste de 3 s à 10 min, instrumentale ou chantée. Facturée "
+                "à la minute entamée.",
+        "duration": (3, 600), "fixed_duration": None, "default_s": 60,
+        "lyrics": False, "instrumental": True, "seed": True,
+        "usd": 0.60, "usd_unit": "min",
+        "champs": {"prompt": "prompt", "duree": "music_length_ms", "duree_ms": True,
+                   "instrumental": "force_instrumental", "seed": "seed"},
+        "fixe": {"output_format": "mp3_44100_128"}, "prompt_max": 4100,
+    },
+    "minimax-music-3": {
+        "label": "MiniMax Music 3", "provider": "fal",
+        "endpoint": "minimax/music-3",
+        "desc": "Chanson chantée : description ET paroles obligatoires, "
+                "jusqu'à 5 min.",
+        "duration": (1, 300), "fixed_duration": None, "default_s": 60,
+        "lyrics": True, "instrumental": False, "seed": True,
+        "usd": 0.0, "lyrics_style": "minimax", "lyrics_required": True,
+        "champs": {"prompt": "prompt", "duree": "duration", "paroles": "lyrics", "seed": "seed"},
+    },
+    "stable-audio-3": {
+        "label": "Stable Audio 3", "provider": "fal",
+        "endpoint": "fal-ai/stable-audio-3/medium/text-to-audio",
+        "desc": "Durée libre jusqu'à 380 s, nappes et ambiances ; prompt "
+                "négatif et graine reproductible.",
+        "duration": (1, 380), "fixed_duration": None, "default_s": 60,
+        "lyrics": False, "instrumental": False, "seed": True,
+        "usd": 0.0,
+        "champs": {"prompt": "prompt", "duree": "duration", "negatif": "negative_prompt", "seed": "seed"},
+    },
+    "mureka-9.5": {
+        "label": "Mureka 9.5", "provider": "fal",
+        "endpoint": "mureka/api/generate/song",
+        "desc": "Chanson complète, avec vos paroles (0,225 $) ou sur simple "
+                "description (0,75 $).",
+        "duration": None, "fixed_duration": None,
+        "lyrics": True, "instrumental": False, "seed": False,
+        "usd": 0.75, "usd_paroles": 0.225, "lyrics_style": "minimax",
+        "champs": {"prompt": "prompt", "paroles": "lyrics"},
+        "fixe": {"model": "mureka-9.5"}, "lyrics_max": 5000,
     },
 }
 # la convention de balises de 2.6 est celle de Music 2.0 ([Verse]/[Chorus])
@@ -157,8 +223,9 @@ class MusicError(Exception):
 
 def catalog() -> dict:
     """Ce que l'UI a besoin de savoir pour dessiner le formulaire."""
+    dispo = bool(str(settings.FAL_KEY or "").strip())
     return {
-        "enabled": bool(settings.FAL_KEY),
+        "enabled": dispo,
         "default": DEFAULT_MUSIC_MODEL,
         "models": [
             {"id": k, "label": v["label"], "desc": v["desc"],
@@ -167,7 +234,14 @@ def catalog() -> dict:
              "instrumental": v["instrumental"], "seed": v["seed"],
              "usd": v["usd"], "usd_unit": v.get("usd_unit", "gen"),
              "lyrics_style": v.get("lyrics_style"),
-             "lyrics_required": bool(v.get("lyrics_required"))}
+             "lyrics_required": bool(v.get("lyrics_required")),
+             # t187 : le prix AVEC paroles quand il diffère (Mureka) ; None ailleurs
+             "usd_paroles": v.get("usd_paroles"),
+             # t187 : « a_mesurer » quand le prix vaut 0 (jamais « gratuit » : l'écran dit « prix à mesurer »)
+             "note": "" if v["usd"] else "a_mesurer",
+             # t187 : la voie et SA clé — un modèle sans clé reste LISTÉ et choisissable (décision du 11/10/2026),
+             # la carte dit « clé FAL_KEY à ajouter dans Réglages », le tir est refusé en 503 avant toute dépense
+             "voie": "fal", "cle": "FAL_KEY", "dispo": dispo}
             for k, v in MUSIC_MODELS.items()],
         "moods": MOODS,
     }
@@ -237,8 +311,28 @@ def lyrics_skeleton(persona_id: str = "deepotus", theme: str = "") -> str:
 def default_seconds(model: dict) -> int | None:
     """La durée envoyée quand l'utilisateur n'en donne pas — UNE fonction,
     lue par `_payload` ET par l'estimation (pricing) : un modèle facturé à la
-    seconde doit être chiffré sur la durée qui partira vraiment."""
-    return model["duration"][1] // 2 if model.get("duration") else None
+    seconde doit être chiffré sur la durée qui partira vraiment. t187 : une
+    entrée peut nommer son défaut (`default_s`, 60 s pour ElevenLabs Music :
+    le milieu de 3-600 s coûterait 3 $ par défaut)."""
+    if not model.get("duration"):
+        return None
+    return int(model.get("default_s") or model["duration"][1] // 2)
+
+
+def usd_de(model: dict, duration_s=None, paroles: bool = False) -> float:
+    """t187 — LE prix d'UNE génération d'un modèle de musique, lu par le devis
+    (pricing, kind « music ») ET par la réponse de generate_music : « gen »
+    (par génération ; Mureka : `usd_paroles` quand des paroles partent),
+    « s » (à la seconde, sur la durée envoyée), « min » (à la minute de sortie
+    ARRONDIE À LA MINUTE SUPÉRIEURE, ElevenLabs Music)."""
+    import math
+    base = float(model.get("usd_paroles") if (paroles and model.get("usd_paroles") is not None)
+                 else model.get("usd") or 0.0)
+    unit = model.get("usd_unit", "gen")
+    if unit in ("s", "min"):
+        sec = billed_seconds(model, duration_s) or 0
+        return base * (sec if unit == "s" else math.ceil(sec / 60))
+    return base
 
 
 def billed_seconds(model: dict, duration_s=None) -> int | None:
@@ -254,8 +348,73 @@ def billed_seconds(model: dict, duration_s=None) -> int | None:
     return max(lo, min(hi, d))
 
 
+def _duree(model: dict, dur) -> int:
+    """t187 : la durée envoyée par une entrée à `champs`, bornée à la plage du modèle — 400 nommé sinon."""
+    lo, hi = model["duration"]
+    try:
+        d = (int(round(float(dur))) if dur not in (None, "", 0)
+             else default_seconds(model))
+    except (TypeError, ValueError):
+        raise MusicError(400, f"duration_s invalide ({lo}-{hi} s).")
+    if not lo <= d <= hi:
+        raise MusicError(400, f"duration_s doit être entre {lo} et {hi} s "
+                              f"pour {model['label']}.")
+    return d
+
+
+def _payload_champs(model: dict, prompt: str, body: dict) -> tuple[dict, list[str]]:
+    """t187 — la charge utile d'une entrée qui NOMME ses champs fal (`champs`) : rien d'autre ne part."""
+    ch = model["champs"]
+    args: dict = dict(model.get("fixe") or {})
+    notes: list[str] = []
+    args[ch["prompt"]] = prompt[:model.get("prompt_max", _MAX_PROMPT)]
+    dur = body.get("duration_s")
+    if ch.get("duree") and model.get("duration"):
+        d = _duree(model, dur)
+        args[ch["duree"]] = d * 1000 if ch.get("duree_ms") else d
+    elif dur not in (None, "", 0):
+        notes.append(f"{model['label']} impose sa durée — la durée demandée "
+                     f"a été ignorée.")
+    lyrics = str(body.get("lyrics") or "").strip()
+    chante = len(_TAG_RX.sub("", lyrics).strip())
+    if ch.get("paroles"):
+        if model.get("lyrics_required") and chante < 10:
+            raise MusicError(400, f"{model['label']} exige des paroles "
+                                  f"(10 caractères au moins, balises non comptées).")
+        if chante:
+            args[ch["paroles"]] = normalize_lyrics(
+                lyrics, model.get("lyrics_style"))[:model.get("lyrics_max", _MAX_LYRICS)]
+    elif lyrics:
+        notes.append(f"{model['label']} ne prend pas de paroles — le texte "
+                     f"saisi a été ignoré.")
+    if ch.get("instrumental") and model.get("instrumental"):
+        args[ch["instrumental"]] = bool(body.get("instrumental", True))
+    neg = str(body.get("negative_prompt") or "").strip()
+    if ch.get("negatif") and neg:
+        args[ch["negatif"]] = neg[:_MAX_PROMPT]
+    seed = body.get("seed")
+    if ch.get("seed") and seed not in (None, ""):
+        try:
+            args[ch["seed"]] = int(seed)
+        except (TypeError, ValueError):
+            raise MusicError(400, "seed doit être un entier.")
+    elif seed not in (None, "") and not ch.get("seed"):
+        notes.append(f"{model['label']} n'accepte pas de graine — le résultat "
+                     f"n'est pas reproductible.")
+    return args, notes
+
+
+def paroles_envoyees(model: dict, body: dict) -> bool:
+    """t187 : des paroles partiront-elles ? (le prix de Mureka en dépend)."""
+    if not (model.get("champs") or {}).get("paroles"):
+        return False
+    return bool(_TAG_RX.sub("", str((body or {}).get("lyrics") or "")).strip())
+
+
 def _payload(model: dict, prompt: str, body: dict) -> tuple[dict, list[str]]:
     """Charge utile fal + liste des réglages ignorés faute de support."""
+    if model.get("champs"):
+        return _payload_champs(model, prompt, body)
     args: dict = {"prompt": prompt}
     notes: list[str] = []
 
@@ -360,10 +519,32 @@ def _filename(prompt: str, ext: str) -> str:
     return f"musique_{base}_{stamp}{ext}"
 
 
-async def generate_music(body: dict) -> dict:
+def modele_de(body: dict) -> tuple[str, dict]:
+    """t187 : (id, entrée) du modèle demandé (défaut : DEFAULT_MUSIC_MODEL) — 400 nommé pour un id inconnu."""
+    model_id = str((body or {}).get("model") or DEFAULT_MUSIC_MODEL).strip()
+    model = MUSIC_MODELS.get(model_id)
+    if model is None:
+        raise MusicError(400, f"modèle de musique inconnu : {model_id!r} "
+                              f"(voir GET /api/music-models)")
+    return model_id, model
+
+
+def preparer(body: dict) -> dict:
+    """t187 — les refus GRATUITS d'une demande (id, description, paroles exigées, durée, graine), AVANT la garde
+    des plafonds : la route l'appelle d'abord, puis garde, puis tire avec ce qu'elle rend."""
+    body = body or {}
+    model_id, model = modele_de(body)
+    prompt = build_prompt(body.get("prompt", ""), body.get("mood", ""))
+    args, notes = _payload(model, prompt, body)
+    return {"model_id": model_id, "model": model, "prompt": prompt, "args": args, "notes": notes,
+            "paroles": paroles_envoyees(model, body)}
+
+
+async def generate_music(body: dict, prep: dict | None = None) -> dict:
     """Génère une piste et la dépose dans la Bibliothèque (sons).
 
     Retourne {ok, item:{filename,url,name,dur,size_kb}, model, prompt, notes}.
+    t187 : `prep` = le résultat de `preparer` (la route l'a déjà calculé avant sa garde).
     """
     import asyncio
 
@@ -371,18 +552,14 @@ async def generate_music(body: dict) -> dict:
 
     from app.services import sfx_service
 
-    if not settings.FAL_KEY:
-        raise MusicError(400, "fal.ai: aucune clé configurée "
-                              "(Réglages → clés API).")
+    if not str(settings.FAL_KEY or "").strip():
+        # filet : la route /audio/music refuse déjà en 503 (nommant FAL_KEY) AVANT sa garde ; un appelant direct
+        # reçoit le même code
+        raise MusicError(503, "fal.ai: clé FAL_KEY à ajouter dans Réglages.")
 
-    model_id = str(body.get("model") or DEFAULT_MUSIC_MODEL).strip()
-    model = MUSIC_MODELS.get(model_id)
-    if model is None:
-        raise MusicError(400, f"modèle de musique inconnu : {model_id!r} "
-                              f"(voir GET /api/music-models)")
-
-    prompt = build_prompt(body.get("prompt", ""), body.get("mood", ""))
-    args, notes = _payload(model, prompt, body)
+    prep = prep or preparer(body)
+    model_id, model, prompt = prep["model_id"], prep["model"], prep["prompt"]
+    args, notes = prep["args"], prep["notes"]
 
     logger.info("music [{}] -> {} · args={}", model_id, model["endpoint"],
                 {k: v for k, v in args.items()
@@ -424,8 +601,7 @@ async def generate_music(body: dict) -> dict:
                  "size_kb": dest.stat().st_size // 1024},
         "model": model_id, "model_label": model["label"],
         "prompt": prompt, "notes": notes,
-        # un modèle à la seconde coûte usd x la durée DEMANDÉE (celle envoyée)
-        "usd": (round(model["usd"] * args["duration"], 6)
-                if model.get("usd_unit") == "s" and "duration" in args
-                else model["usd"]),
+        # un modèle à la seconde coûte usd x la durée DEMANDÉE (celle envoyée) ; t187 : la règle unique usd_de
+        # (minute entamée d'ElevenLabs Music, prix avec / sans paroles de Mureka)
+        "usd": round(usd_de(model, (body or {}).get("duration_s"), prep["paroles"]), 6),
     }

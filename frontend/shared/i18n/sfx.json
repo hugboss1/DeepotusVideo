@@ -122,7 +122,7 @@
   "sfx.fx.seuil": {"fr": "Seuil", "en": "Threshold"},
   "sfx.fx.stereo": {"fr": "Stéréo", "en": "Stereo"},
   "sfx.fx.temps": {"fr": "Temps", "en": "Time"},
-  "sfx.gen.auto_aide": {"fr": "ElevenLabs choisit la durée la plus naturelle", "en": "ElevenLabs picks the most natural duration"},
+  "sfx.gen.auto_aide": {"fr": "Le modèle choisit la durée la plus naturelle", "en": "The model picks the most natural duration"},
   "sfx.gen.cout": {"fr": "≈ {n} crédits", "en": "≈ {n} credits"},
   "sfx.gen.cout_auto": {"fr": "≈ 40 crédits/s · total selon durée générée", "en": "≈ 40 credits/s · total depends on generated duration"},
   "sfx.gen.cout_reel_aide": {"fr": "Coût réel estimé de la dernière génération — 40 crédits × durée générée × variations", "en": "Estimated actual cost of the last generation — 40 credits × generated duration × variations"},
