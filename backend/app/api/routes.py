@@ -6059,20 +6059,29 @@ def _detourage_controles(mid, nature: str, sujet=None, http=None):
         raise HTTPException(400, str(e))
 
 
+def _cle_video_manquante(video_model) -> str | None:
+    """t189 (relecture) — LA source unique de la clé qui MANQUE au modèle vidéo choisi (W-a : Google ->
+    GEMINI_API_KEY, sinon FAL_KEY), ou None. Les clés sont lues SANS leurs espaces (strip) : une FAL_KEY faite
+    d'espaces manque, partout (503 des routes de tir, `cle_absente` du devis du plan)."""
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
+    _mdl = VIDEO_MODELS.get(video_model or DEFAULT_VIDEO_MODEL)
+    if _mdl and _mdl["provider"] == "google":
+        return None if str(settings.GEMINI_API_KEY or "").strip() else "GEMINI_API_KEY"
+    return None if str(settings.FAL_KEY or "").strip() else "FAL_KEY"
+
+
 def _cle_video_ou_503(video_model, http=None) -> None:
     """La clé qu'exige le modèle vidéo choisi (W-a : Google -> GEMINI_API_KEY,
     sinon FAL_KEY). t183 (G1) — décision de l'utilisateur (11/10/2026) : un
     modèle sans sa clé reste CHOISISSABLE dans tous les sélecteurs ; c'est ici
     que le tir est refusé, en 503 qui nomme la clé et les Réglages, AVANT
-    toute garde de dépense (_garde_cout, _plafond) : aucune ligne `depenses`."""
-    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
+    toute garde de dépense (_garde_cout, _plafond) : aucune ligne `depenses`.
+    t189 (relecture) : la clé manquante vient de _cle_video_manquante (strip)."""
+    from app.services.fal_service import DEFAULT_VIDEO_MODEL
     mid = video_model or DEFAULT_VIDEO_MODEL
-    _mdl = VIDEO_MODELS.get(mid)
-    if _mdl and _mdl["provider"] == "google":
-        if not settings.has_gemini:
-            raise _refus_cle("GEMINI_API_KEY", mid, http)
-    elif not settings.FAL_KEY:
-        raise _refus_cle("FAL_KEY", mid, http)
+    cle = _cle_video_manquante(mid)
+    if cle:
+        raise _refus_cle(cle, mid, http)
 
 
 def _fin_video_ou_400(video_model, image_fin, http=None) -> None:
@@ -10627,7 +10636,9 @@ def _shot_dict(s) -> dict:
             # t127 (Plateau 3D, P4) : le pont depuis le Plateau
             "motion_prompt": getattr(s, "motion_prompt", None) or "",
             "keyframe_image": getattr(s, "keyframe_image", None),
-            "keyframe_end": getattr(s, "keyframe_end", None)}
+            "keyframe_end": getattr(s, "keyframe_end", None),
+            # t189 (G7) : le job de la vidéo du plan (POST /shots/{id}/video)
+            "video": getattr(s, "video", None)}
 
 
 async def _list_shots(session, chapter_id: str):
@@ -11022,6 +11033,231 @@ async def generate_shot_image(shot_id: str, body: dict, http: Request = None):
         await session.commit()
         await session.refresh(s)
         return _shot_dict(s)
+
+
+# ── t189 (G7, plan « Génération IA enrichie », 12/10/2026) : storyboard 3D → Plateau → plan vidéo ─────────────────────
+# Règle de la maison pour une route payante, dans CET ordre : 404 plan / 400 id de modèle → 503 clé absente
+# (_refus_cle, AVANT toute garde : aucune ligne `depenses`) → 400 champs et bornes → garde des plafonds → tir.
+# Devis = garde = coût rendu (le même op).
+
+@router.post("/shots/{shot_id}/objets3d", dependencies=[Depends(_require_local_depense)])
+async def shot_objets3d(shot_id: str, body: dict, http: Request = None):
+    """Le storyboard 3D d'un plan : SAM 3 (fal) reconstruit les objets de son image (production, sinon croquis) en
+    GLB placés, posés comme instances de la scène du Plateau liée au plan (créée, ou mise à jour : anciennes
+    instances sam3_* retirées, un sujet gardé devient décor). Body : {prompt?, boxes?, modele?, detection_threshold?}.
+    Rend {scene_id, objets: [{id, nom, job, role}], n, usd}. PAYANT (0,02 $ par requête, unité fal à confirmer)."""
+    from app.services import storyboard3d as SB
+    from app.services import scene3d_routes as _SR
+    from app.services.storage import Shot, async_session_factory
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+    if not s:
+        raise HTTPException(404, "Shot not found")
+    mid = str(body.get("modele") or SB.DEFAUT)
+    if mid not in SB.MODELES:
+        raise HTTPException(400, f"Modèle de storyboard 3D inconnu : {mid[:40]} (connus : {', '.join(SB.MODELES)}).")
+    if not (settings.FAL_KEY or "").strip():          # t183 : 503 qui nomme la clé, AVANT toute garde de dépense
+        raise _refus_cle("FAL_KEY", SB.MODELES[mid]["label"], http)
+    nom = SB.image_source(s)
+    if not nom or not (settings.images_path / nom).is_file():
+        raise HTTPException(400, "Ce plan n'a ni image de production ni croquis : générez-en un avant le storyboard 3D.")
+    taille = None
+    if body.get("boxes"):
+        # relecture t189 : les boîtes sont bornées par la taille RÉELLE de l'image source, avant la garde
+        try:
+            with PILImage.open(settings.images_path / nom) as _im:
+                taille = _im.size
+        except Exception:  # noqa: BLE001
+            raise HTTPException(400, f"Image source du plan illisible : {nom}")
+    try:
+        boites = SB.valider_boites(body.get("boxes"), taille=taille)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    prompt = body.get("prompt")
+    if not SB.MODELES[mid]["corps"] and not boites and not SB.nettoyer_prompt(prompt):
+        raise HTTPException(400, "Décrivez les objets à reconstruire (ex. « personnage, table »), ou tracez des boîtes.")
+    seuil = body.get("detection_threshold")
+    if seuil is not None:
+        lo, hi = SB.SEUIL_BORNES
+        try:
+            seuil = float(seuil)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "detection_threshold : un nombre de 0,1 à 1.")
+        if isinstance(body.get("detection_threshold"), bool) or not (lo <= seuil <= hi):
+            raise HTTPException(400, "detection_threshold : un nombre de 0,1 à 1.")
+        if SB.MODELES[mid]["corps"]:
+            seuil = None                                 # le modèle « corps » n'a pas ce réglage
+    # relecture t189 : la scène doit pouvoir recevoir jusqu'à _MAX_OBJETS objets SAM 3 en plus de ce qu'elle garde
+    gardees = await SB.instances_gardees(shot_id)
+    if len(gardees) + SB._MAX_OBJETS > _SR._MAX_INSTANCES:
+        raise HTTPException(400, f"La scène du plan garde déjà {len(gardees)} instances : il en faut au plus "
+                                 f"{_SR._MAX_INSTANCES - SB._MAX_OBJETS} pour accueillir jusqu'à {SB._MAX_OBJETS} "
+                                 f"objets SAM 3 ({_SR._MAX_INSTANCES} par scène). Retirez-en au Plateau.")
+    await _plafond(SB.op_devis(mid), "chapitres")       # avant la dépense
+    try:
+        return await SB.reconstruire(shot_id, prompt, boites, mid, seuil)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:  # noqa: BLE001 — une réponse de fal inexploitable se DIT, sans scène corrompue
+        logger.warning(f"storyboard 3D {shot_id} : {e}")
+        raise HTTPException(502, str(e)[:400] if "SAM 3" in str(e) else f"SAM 3 (fal) : {str(e)[:380]}")
+
+
+_VIDEO_PLAN_FL = "veo-3.1-fast-fal"     # t189 : le défaut d'un plan AVEC image de fin (Veo 3.1 Fast first-last, fal)
+
+
+def _video_plan(s, body: dict | None, http=None) -> dict:
+    """t189 (relecture) — LE calcul de la vidéo d'un plan, partagé par le devis GRATUIT (GET /shots/{id}/video/devis)
+    et la route payante (POST /shots/{id}/video) : devis = garde = coût par construction. Sans E/S réseau, sans
+    dépense. Choisit les images (début : borne du Plateau, sinon production, sinon croquis ; fin : keyframe_end), le
+    modèle (Veo 3.1 Fast first-last avec une fin, le défaut de l'app sans), la durée GÉNÉRÉE (celle du plan, arrondie,
+    3-60, bornée par le modèle : natif + plafond video_max_gen_s — c'est elle qui est facturée), la résolution, et
+    construit l'op de devis. Rend aussi le PREMIER refus que la route payante rendrait (`refus`, `refus_code`,
+    `refus_etape` « modele » ou « champs »), dans son ordre — sauf la clé absente, rendue à part (`cle_absente`) :
+    un modèle sans clé reste choisissable et son prix se montre."""
+    from app.services import pricing as _pr
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL, accepte_fin
+    body = body if isinstance(body, dict) else {}
+    origines = (("plateau", getattr(s, "keyframe_image", None)), ("production", getattr(s, "image", None)),
+                ("croquis", getattr(s, "sketch_image", None)))
+    debut = next(({"nom": Path(str(v)).name, "origine": o} for o, v in origines if v), None)
+    fin = {"nom": Path(str(s.keyframe_end)).name} if getattr(s, "keyframe_end", None) else None
+    mid = str(body.get("video_model") or (_VIDEO_PLAN_FL if fin else DEFAULT_VIDEO_MODEL))
+    out = {"video_model": mid, "debut": debut, "fin": fin, "fl": False, "duree_s": None, "resolution": None,
+           "usd": None, "op": None, "prompt": "", "cle_absente": None, "refus": None, "refus_code": None,
+           "refus_etape": None}
+
+    def _refus(code, msg, etape="champs"):
+        if out["refus"] is None:
+            out.update(refus=msg, refus_code=code, refus_etape=etape)
+
+    m = VIDEO_MODELS.get(mid)
+    if m is None:
+        _refus(400, f"Modèle vidéo inconnu : {mid[:48]} (ids : {', '.join(VIDEO_MODELS)}).", "modele")
+        return out
+    out["cle_absente"] = _cle_video_manquante(mid)     # la MÊME source que le 503 de la route payante
+    out["fl"] = bool(fin) and accepte_fin(m)
+    try:
+        _fin_video_ou_400(mid, fin["nom"] if fin else None, http)   # t184 : la fin sur un modèle sans first-last
+    except HTTPException as e:
+        _refus(400, e.detail)
+    if not debut:
+        _refus(400, "Ce plan n'a aucune image de départ : capturez-la au Plateau, ou générez son image de production "
+                    "ou son croquis.")
+    elif not (settings.images_path / debut["nom"]).is_file():
+        _refus(404, f"Image de départ introuvable : {debut['nom']}")
+    if fin and not (settings.images_path / fin["nom"]).is_file():
+        _refus(404, f"Image de fin introuvable : {fin['nom']}")
+    out["prompt"] = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
+    if not out["prompt"]:
+        _refus(400, "Décrivez le mouvement du plan (prompt de mouvement ou action) avant sa vidéo.")
+    try:
+        demande = float(body.get("duration_s") or s.duration_s or 4.0)
+        if demande != demande or demande in (float("inf"), float("-inf")):
+            raise ValueError
+    except (TypeError, ValueError):
+        _refus(400, "duration_s : un nombre de secondes.")
+        demande = float(s.duration_s or 4.0)
+    demande = max(3, min(60, int(round(demande))))
+    duree = max(3, min(60, _pr.video_gen_seconds(mid, demande)))   # bornée par le modèle (natif + plafond)
+    resolution = str(body.get("resolution") or "720p")
+    if resolution not in ("720p", "1080p"):
+        _refus(400, "resolution : 720p ou 1080p.")
+        resolution = "720p"
+    op = _pr.video_request_op(mid, duree, resolution)
+    out.update(duree_s=duree, resolution=resolution, op=op,
+               usd=_pr.estimate({"kind": "campaign", "ops": [op]})["total_usd"])
+    return out
+
+
+@router.get("/shots/{shot_id}/video/devis")
+async def shot_video_devis(shot_id: str, video_model: str = "", resolution: str = "", duration_s: str = "",
+                           http: Request = None):
+    """t189 (relecture) — le devis GRATUIT de la vidéo d'un plan : exactement ce que POST /shots/{id}/video
+    facturerait (même calcul, _video_plan). Aucune garde, aucune dépense. La clé absente ne bloque pas le devis
+    (`cle_absente`) ; `refus` = le message 400/404 que la route payante rendrait, sinon null.
+    Rend {video_model, duree_s, resolution, usd, debut: {nom, origine}|null, fin: {nom}|null, fl, refus,
+    cle_absente}."""
+    from app.services.storage import Shot, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+    if not s:
+        raise HTTPException(404, "Shot not found")
+    calc = _video_plan(s, {"video_model": video_model or None, "resolution": resolution or None,
+                           "duration_s": duration_s or None}, http)
+    rep = {k: calc[k] for k in ("video_model", "duree_s", "resolution", "usd", "debut", "fin", "fl", "refus",
+                                "cle_absente")}
+    return rep
+
+
+@router.post("/shots/{shot_id}/video", dependencies=[Depends(_require_local_depense)])
+async def shot_video(shot_id: str, body: dict, background_tasks: BackgroundTasks, http: Request = None):
+    """La VIDÉO d'un plan : début = la borne du Plateau (keyframe_image), sinon l'image de production, sinon le croquis ;
+    fin = keyframe_end ; prompt = motion_prompt du plan, sinon son action. Modèle par défaut : Veo 3.1 Fast
+    first-last avec une fin, le défaut vidéo de l'app sans (le défaut GLOBAL ne change pas). Les gardes de
+    /generate, dans le même ordre, catégorie « chapitres ». 9:16, sans voix off ni sous-titres, durée du plan bornée
+    par le modèle. Body : {video_model?, duration_s?, resolution? (720p par défaut), max_usd?}. Le calcul (images,
+    modèle, durée, op) est celui du devis gratuit (_video_plan).
+    Le job est rattaché AVANT la fin du rendu (`shot.video`) ; rend le plan | {job_id, usd}."""
+    from pydantic import ValidationError
+    from app.models.schemas import AspectRatio, CameraMove, PromptSource
+    from app.services.storage import Shot, async_session_factory
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:     # relecture M7 : LECTURE seule, fermée avant les gardes
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        calc = _video_plan(s, body, http)
+        camera_move = s.camera_move
+    mid = calc["video_model"]
+    if calc["refus_etape"] == "modele":
+        raise HTTPException(calc["refus_code"], calc["refus"])
+    _cle_video_ou_503(mid, http)                        # t183 : 503 AVANT toute garde de dépense
+    if calc["refus"]:                                   # t184 (fin sans FL), images, prompt, durée, résolution
+        raise HTTPException(calc["refus_code"], calc["refus"])
+    debut = calc["debut"]["nom"]
+    fin = calc["fin"]["nom"] if calc["fin"] else None
+    try:
+        max_usd = float(body["max_usd"]) if body.get("max_usd") is not None else None
+    except (TypeError, ValueError):
+        raise HTTPException(422, "max_usd doit être un nombre fini >= 0")
+    try:
+        camera = CameraMove(camera_move) if camera_move else None
+    except ValueError:
+        camera = None
+    try:
+        req = GenerateRequest(image_filename=debut, image_filename_end=fin, custom_prompt=calc["prompt"],
+                              prompt_source=PromptSource.CUSTOM, video_model=mid, camera=camera,
+                              aspect_ratio=AspectRatio.VERTICAL, duration_s=calc["duree_s"],
+                              resolution=calc["resolution"], voiceover_enabled=False, max_usd=max_usd)
+    except ValidationError as e:
+        raise HTTPException(400, f"requête vidéo du plan illisible : {e.errors()[0].get('msg', '')}"[:300])
+    total = _garde_cout([calc["op"]], req.max_usd)
+    await _plafond([calc["op"]] + _op_voix_off(req), "chapitres")   # avant la dépense
+    job_id = str(uuid4())
+    async with async_session_factory() as session:     # relecture I1 : le job QUEUED et shot.video, d'UN seul commit
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        await Pipeline.creer_job(req, job_id, session=session)
+        s.video = job_id                                 # rattaché AVANT la fin du rendu, à un job qui EXISTE
+        s.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(s)
+        out = _shot_dict(s) | {"job_id": job_id, "usd": total}
+
+    async def _run():
+        try:
+            await pipeline.run(req, job_id=job_id)   # REPREND le job créé ci-dessus
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"vidéo du plan {shot_id} ({job_id}) : {e}")
+            await Pipeline.echouer_si_en_attente(job_id, str(e))   # jamais de job fantôme en QUEUED
+
+    background_tasks.add_task(_run)
+    return out
 
 
 # Tâche #62 (plan chapitres T6, 02/10/2026) : la DÉRIVE de l'image de production, en LECTURE (décision du 02/10) —
@@ -11948,6 +12184,24 @@ async def _anim_shots(chapter_id: str) -> tuple[list, dict | None]:
     return shots, narrateur
 
 
+async def _anim_videos(shots: list) -> list:
+    """t189 (G7) : chaque plan reçoit `video_fichier` = le fichier de SA vidéo (shot.video) quand ce job est TERMINÉ et
+    que le fichier existe (rendu final, sinon le clip brut), None sinon — animatique_service.plan reste pur."""
+    from sqlalchemy import select as _sel
+    from app.services.storage import JobRecord, async_session_factory
+    ids = {s.get("video") for s in shots if s.get("video")}
+    fichiers: dict = {}
+    if ids:
+        async with async_session_factory() as session:
+            for j in (await session.execute(_sel(JobRecord).where(JobRecord.id.in_(ids)))).scalars().all():
+                if j.status != JobStatus.DONE.value:
+                    continue
+                f = next((c for c in (j.final_video_path, j.video_path) if c and Path(c).is_file()), None)
+                if f:
+                    fichiers[j.id] = str(f)
+    return [dict(s, video_fichier=fichiers.get(s.get("video"))) for s in shots]
+
+
 def _anim_voix_a_payer(shots: list, narrateur: dict | None, lang: str, d: Path) -> list[tuple[str, str, Path]]:
     """[(shot_id, texte, fichier de cache)] des voix témoins à faire ; celles déjà en cache sont gratuites."""
     from app.services import animatique_service as AN
@@ -12009,6 +12263,7 @@ async def animatique_rendre(chapter_id: str, body: dict, background_tasks: Backg
                                      "c'est lui qui lit la voix témoin.")
         a_faire = [t for _i, t, f in _anim_voix_a_payer(shots, narrateur, lang, d) if not f.is_file()]
         await _plafond(_op_tts(" ".join(a_faire)), "chapitres")     # avant la dépense ; le cache ne coûte rien
+    shots = await _anim_videos(shots)        # t189 : la vidéo terminée d'un plan prime sur son image
     jid = str(uuid4())
     _ms_register(jid, {"job_id": jid, "phase": "animatique", "chapter_i": 0, "chapter_n": len(shots),
                        "message": "Animatique…", "done": False, "error": None, "stats": {}})

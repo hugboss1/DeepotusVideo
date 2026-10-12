@@ -245,6 +245,23 @@ def _vfx() -> list[dict]:
     return out
 
 
+@source("objets3d")
+def _objets3d() -> list[dict]:
+    """t189 (G7) : le storyboard 3D — SAM 3 de fal (app.services.storyboard3d.MODELES), objets (défaut) ou corps
+    humain. `usd` = pricing.taux_objets3d, par requête ; `unite_a_confirmer` : la page fal dit « per unit » sans
+    nommer l'unité (relevé du 12/10/2026) — l'écran le traduit, le chiffre se confirme au premier tir ; `corps` :
+    le modèle ne reconstruit que les corps humains (une seule instance « sujet »)."""
+    from app.services import storyboard3d as SB
+    p = P.load()
+    out = []
+    for mid, m in SB.MODELES.items():
+        usd = P.taux_objets3d(mid, p)
+        out.append({"id": mid, "label": m["label"], "voie": "fal", "usd": usd, "unite": "requete",
+                    "jumeau": None, "note": "" if usd else NOTE_A_MESURER, "unite_a_confirmer": True,
+                    "corps": bool(m["corps"]), "defaut": mid == SB.DEFAUT})
+    return out
+
+
 def servis_puis_sans_cle(d: dict | None) -> list[dict]:
     """t183 (G1) : la liste d'un sélecteur raster à partir de la réponse de
     /image-models — les modèles SERVIS d'abord (`models`, dispo=True), puis

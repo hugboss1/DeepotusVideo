@@ -220,6 +220,11 @@ DEFAULTS = {
                                       # par tranche de 10 s de sortie, arrondie une fois par travail
     "vfx_pixverse_usd_5s": {"360p": 0.15, "540p": 0.15, "720p": 0.20, "1080p": 0.40},   # fal-ai/pixverse/v5.5/effects,
                                       # clip unique sans audio, 5 s ; 8 s = x2, 10 s = x2,2
+    # t189 (G7, 12/10/2026) : le storyboard 3D (app.services.storyboard3d.MODELES). Les deux pages fal affichent
+    # « $0.02 per unit » SANS dire l'unité : chiffré 0,02 $ par REQUÊTE, unité à confirmer au premier tir (tableau de
+    # bord fal). Ne pas confondre avec sam3_image_usd (fal-ai/sam-3/image, le détourage, 0,005 $).
+    "sam3_3d_objects_usd": 0.02,      # fal-ai/sam-3/3d-objects, par requête (unité fal à confirmer)
+    "sam3_3d_body_usd": 0.02,         # fal-ai/sam-3/3d-body, par requête (unité fal à confirmer)
     "elevenlabs_isolation_chars_per_min": 1000.0,
     # Avatar live G2 (t163, 10/10/2026) : Voice Changer (voix -> voix), ~1 000 crédits par minute (relevé tiers
     # du 07/2026 sur la liste officielle, même grille que l'isolation) — à confirmer sur elevenlabs.io/pricing.
@@ -617,6 +622,36 @@ def _ligne_vfx(op: dict, p: dict) -> dict:
     return _line("fal", label, q, e["unite"], q * taux)
 
 
+def taux_objets3d(mid: str, p: dict | None = None) -> float:
+    """t189 (G7) — LE taux par requête d'un modèle du storyboard 3D (app.services.storyboard3d.MODELES) : sa clé de
+    prix lue dans la table (`p`, sinon pricing.load), repli DEFAULTS ; 0 pour un id inconnu ou une valeur illisible.
+    Source unique du catalogue (catalogue_ia) et du devis (_ligne_objets3d), donc de la garde."""
+    from app.services import storyboard3d as _SB
+    e = _SB.MODELES.get(str(mid or ""))
+    if not e:
+        return 0.0
+    p = p if p is not None else load()
+    try:
+        v = float(p.get(e["prix"], DEFAULTS.get(e["prix"], 0.0)) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    return v if math.isfinite(v) and v >= 0 else 0.0
+
+
+def _ligne_objets3d(op: dict, p: dict) -> dict:
+    """t189 (G7) — UNE ligne de devis pour `n` requêtes SAM 3 (storyboard 3D), qui DIT que l'unité de fal est à
+    confirmer (la page affiche « per unit » sans la nommer). Un id inconnu se dit « non chiffré »."""
+    from app.services import storyboard3d as _SB
+    mid = str(op.get("modele") or _SB.DEFAUT)
+    e = _SB.MODELES.get(mid)
+    if e is None:
+        return _line("fal", f"Storyboard 3D : modèle inconnu {mid[:24]!r} (non chiffré)", 1, "job", 0.0)
+    n = max(1, int(op.get("n", 1) or 1))
+    taux = taux_objets3d(mid, p)
+    label = f"{e['label']} x{n} — {_SB.UNITE_NOTE}" + (" — prix à mesurer" if not taux else "")
+    return _line("fal", label, n, "requete", n * taux)
+
+
 def _ligne_detourage(op: dict, p: dict) -> dict:
     """t186 (G4) — UNE ligne de devis pour un détourage du registre (app.services.detourage.REGISTRE), nommée
     par le libellé du modèle et suffixée « — prix à mesurer » quand son taux vaut 0.
@@ -672,6 +707,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
       {"kind":"sprite2d","frames":16,"remove_bg":"api"}
       {"kind":"detourage","modele":"bria-rmbg","images":1}   (t186 : secondes / images_video / fps en vidéo)
       {"kind":"vfx_ia","modele":"retoucher-flux3","secondes":5}   (t188 : options, largeur, hauteur)
+      {"kind":"objets3d","modele":"sam-3-3d-objects","n":1}   (t189 : storyboard 3D SAM 3, par requête)
     Returns {breakdown:[line...], total_usd, credits:{provider:n}}.
     """
     p = p or load()
@@ -1019,6 +1055,8 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                                n * usd))
     elif kind == "vfx_ia":
         lines.append(_ligne_vfx(op, p))   # t188 (G6) : un geste VFX IA (registre vfx_ia)
+    elif kind == "objets3d":
+        lines.append(_ligne_objets3d(op, p))   # t189 (G7) : le storyboard 3D (SAM 3 objets / corps)
     elif kind == "sfx_video":
         lines.append(_ligne_sfx(op, p))   # t187 (G5) : une vidéo -> son bruitage (registre sfx_service)
     elif kind == "sfx" and str(op.get("modele") or "") not in ("", "elevenlabs-direct"):

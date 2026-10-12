@@ -99,13 +99,33 @@ async def _fal_subscribe(endpoint: str, arguments: dict) -> dict:   # seam
                                             with_logs=False)
 
 
-async def _download(url: str, dest: Path) -> None:                  # seam
+async def _download(url: str, dest: Path, max_octets: int | None = None) -> None:   # seam
+    """Rapatrie `url` vers `dest` (via un .part, puis os.replace). t189 (relecture) : `max_octets` facultatif — le
+    corps est alors lu en FLUX et le téléchargement s'arrête (RuntimeError nommée, .part effacé) dès qu'il dépasse
+    la borne ; sans lui, le comportement d'avant, octet pour octet (les autres appelants ne le passent pas)."""
     async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=600) as c:
-        r = await c.get(url)
-        r.raise_for_status()
+        if max_octets is None:
+            r = await c.get(url)
+            r.raise_for_status()
+            tmp = dest.with_name(dest.name + ".part")
+            tmp.write_bytes(r.content)
+            os.replace(tmp, dest)
+            return
         tmp = dest.with_name(dest.name + ".part")
-        tmp.write_bytes(r.content)
-        os.replace(tmp, dest)
+        try:
+            async with c.stream("GET", url) as r:
+                r.raise_for_status()
+                n = 0
+                with open(tmp, "wb") as f:
+                    async for bloc in r.aiter_bytes():
+                        n += len(bloc)
+                        if n > int(max_octets):
+                            raise RuntimeError(f"téléchargement refusé : plus de {int(max_octets) // (1024 * 1024)} Mo "
+                                               f"({int(max_octets)} octets au plus)")
+                        f.write(bloc)
+            os.replace(tmp, dest)
+        finally:
+            tmp.unlink(missing_ok=True)
 
 
 def status(mid: str) -> dict:

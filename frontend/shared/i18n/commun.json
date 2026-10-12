@@ -70,6 +70,8 @@
   "detour.modele.sam3_sujet": {"fr": "SAM 3 — garder un sujet nommé", "en": "SAM 3 — keep a named subject"},
   "detour.modele.bria_objet": {"fr": "Bria — extraire un objet nommé", "en": "Bria — extract a named object"},
   "detour.modele.rembg_fal": {"fr": "rembg (fal, ancien)", "en": "rembg (fal, legacy)"},
+  "detour.modele.sam_3_3d_objects": {"fr": "SAM 3 — objets 3D", "en": "SAM 3 — 3D objects"},
+  "detour.modele.sam_3_3d_body": {"fr": "SAM 3 — corps humain 3D", "en": "SAM 3 — 3D human body"},
   "detour.modele.birefnet_v2_video": {"fr": "BiRefNet v2 vidéo", "en": "BiRefNet v2 video"},
   "detour.modele.veed_video_rapide": {"fr": "VEED rapide", "en": "VEED fast"},
   "detour.modele.pixelcut_video": {"fr": "Pixelcut vidéo", "en": "Pixelcut video"},

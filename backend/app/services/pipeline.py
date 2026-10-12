@@ -275,21 +275,11 @@ class Pipeline:
         await session.commit()
         await session.refresh(job)
 
-    async def run(
-        self,
-        request: GenerateRequest,
-        batch_id: str | None = None,
-        batch_index: int | None = None,
-        batch_size: int | None = None,
-    ) -> str:
-        """Run the full pipeline. Returns the job_id.
-
-        Optional batch_id/batch_index/batch_size let multiple jobs be grouped
-        in the UI as variations of the same prompt.
-        """
-        job_id = str(uuid4())
-        async with async_session_factory() as session:
-            job = JobRecord(
+    @staticmethod
+    def nouveau_job(request: GenerateRequest, job_id: str, batch_id: str | None = None,
+                    batch_index: int | None = None, batch_size: int | None = None) -> JobRecord:
+        """t189 (relecture) : LE JobRecord QUEUED d'un rendu (celui que `run` insérait seul). Construit, non inséré."""
+        return JobRecord(
                 id=job_id,
                 status=JobStatus.QUEUED.value,
                 image_filename=request.image_filename,
@@ -309,8 +299,59 @@ class Pipeline:
                              or DEFAULT_VIDEO_MODEL),
                 created_at=datetime.utcnow(),
             )
+
+    @classmethod
+    async def creer_job(cls, request: GenerateRequest, job_id: str, session: AsyncSession | None = None,
+                        **lot) -> JobRecord:
+        """t189 (relecture) : insère le job QUEUED AVANT le rendu. Avec `session`, dans la transaction de l'appelant
+        (ajouté, PAS commité : POST /shots/{id}/video le crée avec `shot.video`, d'un seul commit) ; sans, dans sa
+        propre session, commité. `run(..., job_id=)` reprend ensuite ce job au lieu d'en insérer un."""
+        job = cls.nouveau_job(request, job_id, **lot)
+        if session is not None:
             session.add(job)
-            await session.commit()
+            return job
+        async with async_session_factory() as s:
+            s.add(job)
+            await s.commit()
+        return job
+
+    @staticmethod
+    async def echouer_si_en_attente(job_id: str, erreur: str) -> bool:
+        """t189 (relecture) : un job créé d'avance dont le rendu a levé AVANT de le prendre en main passe FAILED —
+        jamais de job fantôme bloqué en QUEUED. Un job déjà terminé (done / failed) n'est pas touché."""
+        async with async_session_factory() as s:
+            j = await s.get(JobRecord, job_id)
+            if j is None or j.status in (JobStatus.DONE.value, JobStatus.FAILED.value):
+                return False
+            j.status, j.error, j.current_step = JobStatus.FAILED.value, str(erreur)[:2000], "Failed"
+            j.completed_at = datetime.utcnow()
+            await s.commit()
+            return True
+
+    async def run(
+        self,
+        request: GenerateRequest,
+        batch_id: str | None = None,
+        batch_index: int | None = None,
+        batch_size: int | None = None,
+        job_id: str | None = None,
+    ) -> str:
+        """Run the full pipeline. Returns the job_id.
+
+        Optional batch_id/batch_index/batch_size let multiple jobs be grouped
+        in the UI as variations of the same prompt.
+
+        t189 (G7) : `job_id` (facultatif, nommé) — l'id choisi par l'appelant ; si ce job EXISTE déjà (créé d'avance
+        par `creer_job`, POST /shots/{id}/video), il est REPRIS, sinon il est inséré comme avant. Sans `job_id` (/generate
+        et les autres appelants) : un id neuf et un job inséré ici, comme avant.
+        """
+        job_id = job_id or str(uuid4())
+        async with async_session_factory() as session:
+            job = await session.get(JobRecord, job_id)
+            if job is None:
+                job = self.nouveau_job(request, job_id, batch_id, batch_index, batch_size)
+                session.add(job)
+                await session.commit()
             _save_source_graph(job_id, getattr(request, "source_graph", None))
             quick_recipe.save(job_id, getattr(request, "quick_recipe", None))   # plan Quick T1 : AVANT tout appel payant
 

@@ -39,6 +39,7 @@ PUITS = {
     "separer_stems", "isoler_voix",   # T100 : Demucs (fal) et l'isolation de voix (ElevenLabs)
     "generer_sfx",   # t187 : le registre des bruitages (fal) — texte (/audio/sfx avec modele) et vidéo (/audio/sfx-video)
     "appliquer_vfx",   # t188 : le registre des VFX IA (fal) — POST /vfx-ia
+    "reconstruire",   # t189 : le storyboard 3D (SAM 3 objets / corps, fal) — POST /shots/{shot_id}/objets3d
     "detourer",   # T103 : le matte vidéo BiRefNet (fal)
     "detourer_image",   # t186 : le registre unique du détourage (fal, ou local gratuit ; la vidéo passe par MT.detourer)
     # transcription

@@ -70,6 +70,8 @@ PAYANTES = {
     ("routes", "POST", "/assets/3d/{job}/convert"),   # T105 : fbx/usdz/blend par Meshy convert   # T104 : rig + animations Meshy d'un job fal (crédits)
     ("routes", "POST", "/audio/sfx-video"),   # t187 (G5) : le bruitage d'une vidéo (Sonilo, Mirelo, Kling, Hunyuan, ThinkSound)
     ("routes", "POST", "/vfx-ia"),   # t188 (G6) : les 12 VFX IA vidéo -> vidéo (MiniMax H3, LTX 2.3, VOID, Kling O3, FLUX 3, Topaz, PixVerse)
+    ("routes", "POST", "/shots/{shot_id}/objets3d"),   # t189 (G7) : le storyboard 3D, SAM 3 (fal) — puits `reconstruire`
+    ("routes", "POST", "/shots/{shot_id}/video"),   # t189 (G7) : la vidéo d'un plan (pipeline.run, Veo FL par défaut avec une fin)
     ("routes", "POST", "/audio/stems"), ("routes", "POST", "/audio/isolate"),   # T100 : Demucs (fal), isolation ElevenLabs
     # t111 (plan-sprites T9) : la feuille de directions passe par assets_sprite — chroma local par défaut, mais un
     # `remove_bg: "api"` atteint le puits fal, et la garde est celle d'assets_sprite (gardée PAR la porte commune)

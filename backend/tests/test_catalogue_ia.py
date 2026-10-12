@@ -318,8 +318,8 @@ check("edit du catalogue = FAL_IMAGES (True hors FAL_IMAGES)",
 check("recraft : sortie svg, edit False",
       any(e["id"] == "recraft-4.1-vecteur" and e["sortie"] == "svg" and e["edit"] is False for e in _cat))
 # t184 (G2) : les natures vidéo s'ajoutent (image -> vidéo, first-last-frame)
-check("natures() publiques = détourage (t186), image, musique, sfx_texte, sfx_video (t187), vfx (t188), vidéo",
-      CI.natures() == ("detourage_image", "detourage_video", "image", "musique", "sfx_texte", "sfx_video",
+check("natures() publiques = détourage (t186), image, musique, sfx_texte, sfx_video (t187), objets3d (t189), vfx (t188), vidéo",
+      CI.natures() == ("detourage_image", "detourage_video", "image", "musique", "objets3d", "sfx_texte", "sfx_video",
                        "vfx", "video_fl", "video_i2v"), str(CI.natures()))
 check("gpt-image-1-mini dans PROVIDERS (OPENAI_API_KEY)",
       (IP.PROVIDERS.get("gpt-image-1-mini") or {}).get("needs") == "OPENAI_API_KEY")
