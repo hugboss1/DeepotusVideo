@@ -28,6 +28,7 @@ t203 (13/10/2026) : `DzComptesEspace`, sous la liste des espaces, gère les comp
 t204 (13/10/2026) : le Planificateur — `DzPostComptes` dans l'éditeur de post (comptes de l'espace du post), mappeur
 et enregistrement des posts (espace_id, comptes), liste rechargée au changement d'espace.
 t205 (13/10/2026) : `DzOnboardingPersona`, l'assistant en 8 étapes (bouton « Définir le persona » de chaque espace).
+t207 (13/10/2026) : Quick lit les contenus de l'espace actif (C1-C6) ; `DzContenusBtn`/`DzContenusDlg`.
 t206 (13/10/2026) : `DzIdentite`, l'identité visuelle (bouton « Identité visuelle » de chaque espace ; /api/espaces/{id}/identite).
 Run : python scripts/patch_bundle_dzespace.py [--check]
 """
@@ -460,6 +461,74 @@ AIDES_IDV = (
     'kit(),planche()]})]})})}'
 )
 
+# t207 (Espaces de marque E7) : les CONTENUS de l'espace actif dans Quick (galerie, catégories, ingrédients du
+# générateur, vibes) — Deepotus garde la liste livrée — et « Modèles de l'espace » (proposer sans IA ou par IA, cocher,
+# ajouter ou remplacer).
+AIDES_CT = (
+    'var dzEspCt=null,dzCtAbonnes=[],dzCtEnCours=null,dzPromptAuto=null;'
+    'function dzCtCharger(force){if(dzCtEnCours&&!force)return dzCtEnCours;dzCtEnCours=fetch("/api/espaces/actif").then(function(r2){'
+    'if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()}).then(function(e){return fetch("/api/espaces/"+encodeURIComponent(e.id)+"/contenus")'
+    '.then(function(r2){if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()}).then(function(d){dzEspCt={id:e.id,nom:e.nom,data:d};'
+    'dzCtAbonnes.slice().forEach(function(f){try{f()}catch(_e){}});return dzEspCt})}).catch(function(){dzCtEnCours=null;return null});return dzCtEnCours}'
+    'try{window.addEventListener("deepotus:espace-refresh",function(){dzCtCharger(!0)})}catch(_e){}'
+    'function dzCtUse(){const[v,f]=x.useReducer(function(n){return n+1},0);x.useEffect(function(){var g=function(){f()};dzCtAbonnes.push(g);'
+    'dzCtCharger();return function(){dzCtAbonnes=dzCtAbonnes.filter(function(h){return h!==g})}},[]);return v}'
+    'function dzCt(k,d){if(!dzEspCt)return d;var v=dzEspCt.data&&dzEspCt.data[k],vide=v==null||(Array.isArray(v)?!v.length:typeof v==="object"&&!Object.keys(v).length);'
+    'if(k==="vibes"||dzEspCt.id==="deepotus")return vide?d:v;return vide?(Array.isArray(d)?[]:{}):v}'
+    'function DzContenusBtn(){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},{ouvert:!1});dzCtUse();'
+    'var vide=!!dzEspCt&&dzEspCt.id!=="deepotus"&&!((dzEspCt.data||{}).prompt_templates||[]).length;'
+    'return r.jsxs(r.Fragment,{children:[r.jsx("button",{type:"button","data-dz-ct-ouvrir":"1",title:dzT("espaces.ct.ouvrir_titre"),disabled:!dzEspCt,'
+    'onClick:function(){maj({ouvert:!0})},style:{fontSize:11.5,padding:"3px 8px",background:vide?"var(--brand)":"transparent",color:vide?"#fff":"var(--ink-soft)",'
+    'border:"1px solid var(--stroke)",borderRadius:4,cursor:"pointer"},children:dzT("espaces.ct.ouvrir")}),'
+    'st.ouvert&&dzEspCt&&r.jsx(DzContenusDlg,{espace:dzEspCt.id,nom:dzEspCt.nom||dzEspCt.id,fermer:function(){maj({ouvert:!1})}},"ct:"+dzEspCt.id)]})}'
+    'function DzContenusDlg({espace:esp,nom:nomEsp,fermer:fermer}){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},'
+    '{dv:null,cat:"",prop:null,coche:{},tout:!1,busy:!1,err:"",msg:""});var base="/api/espaces/"+encodeURIComponent(esp)+"/contenus";'
+    'x.useEffect(function(){fetch(base+"/devis").then(function(r2){return r2.json()}).then(function(dv){maj({dv:dv})}).catch(function(){})},[esp]);'
+    'var dd=(dzEspCt&&dzEspCt.data)||{},cats=dd.prompt_cats||[],vide=!(dd.prompt_templates||[]).length;'
+    'function faire(p,ok){maj({busy:!0,err:"",msg:""});return p.then(function(v){maj({busy:!1});ok&&ok(v)},function(e){maj({busy:!1,err:String(e&&e.message||e)})})}'
+    'function proposer(llm){faire(dzEspEnvoyer(base+"/generer","POST",{llm:llm,categorie:st.cat||null}),function(p){var c={};'
+    '(p.prompt_templates||[]).forEach(function(t){c[t.id]=!0});maj({prop:p,coche:c,tout:vide&&!st.cat})})}'
+    'function appliquer(mode){var ids=Object.keys(st.coche).filter(function(k){return st.coche[k]});faire(dzEspEnvoyer(base+"/appliquer","POST",'
+    '{proposition:st.prop,mode:mode,categorie:st.cat||null,ids:ids,tout:st.tout}),function(){dzCtCharger(!0);maj({msg:dzT("espaces.ct.applique",{n:ids.length}),prop:null})})}'
+    'var bt={fontSize:12,padding:"6px 12px",background:"var(--bg-panel-2)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:4,cursor:"pointer"};'
+    'var btP=Object.assign({},bt,{background:"var(--brand)",borderColor:"var(--brand)",color:"#fff"});'
+    'var aide={margin:0,fontSize:12,color:"var(--ink-soft)"},dv=st.dv&&st.dv.devis,t0=dv&&dv.total_usd;'
+    'var prix=st.dv&&!st.dv.llm?dzT("espaces.ct.prix_sans_llm"):t0>0?(((window.DzModelesIA&&window.DzModelesIA.prixUsd)||dzPrixUsd)(t0,"")):dzT("espaces.ct.prix_local");'
+    'var pr=st.prop,ec=(pr&&pr._ecartes)||[];'
+    'return r.jsx("div",{role:"dialog","aria-modal":"true","aria-label":dzT("espaces.ct.titre",{nom:nomEsp}),"data-dz-ct":esp,'
+    'style:{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:60},'
+    'onKeyDown:function(ev){ev.key==="Escape"&&fermer&&fermer()},children:r.jsxs("div",{style:{width:"min(760px,94vw)",maxHeight:"90vh",overflow:"auto",'
+    'background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:8,padding:18,display:"flex",flexDirection:"column",gap:12},children:['
+    'r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8},children:['
+    'r.jsx("h2",{style:{margin:0,fontSize:16,color:"var(--ink-strong)"},children:dzT("espaces.ct.titre",{nom:nomEsp})}),'
+    'r.jsx("button",{type:"button",style:bt,"aria-label":dzT("espaces.onb.fermer"),onClick:fermer,children:dzT("espaces.onb.fermer")})]}),'
+    'r.jsx("p",{style:aide,children:dzT("espaces.ct.aide")}),'
+    'st.err&&r.jsx("div",{role:"alert",style:{fontSize:12,color:"var(--red)"},children:st.err}),'
+    'st.msg&&r.jsx("div",{role:"status",style:{fontSize:12,color:"var(--green)"},children:st.msg}),'
+    'r.jsxs("div",{style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"},children:['
+    'r.jsxs("select",{"aria-label":dzT("espaces.ct.categorie"),"data-dz-ct-cat":"1",value:st.cat,disabled:st.busy,onChange:function(ev){maj({cat:ev.target.value,prop:null})},'
+    'style:{fontSize:12,padding:"5px 6px",background:"var(--bg-panel-2)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:4},'
+    'children:[r.jsx("option",{value:"",children:dzT("espaces.ct.toutes")},"__toutes"),cats.map(function(c){return r.jsx("option",{value:c.id,"data-dz-brut":"1",children:c.label},"cat:"+c.id)})]}),'
+    'r.jsx("button",{type:"button","data-dz-ct-proposer":"1",style:bt,disabled:st.busy,onClick:function(){proposer(!1)},children:dzT("espaces.ct.proposer")}),'
+    'r.jsx("button",{type:"button","data-dz-ct-proposer-ia":"1",style:bt,disabled:st.busy||!(st.dv&&st.dv.llm),'
+    'title:st.dv&&!st.dv.llm?dzT("espaces.ct.sans_llm"):"",onClick:function(){proposer(!0)},children:dzT("espaces.ct.proposer_ia",{prix:prix})})]}),'
+    'pr&&r.jsxs("div",{"data-dz-ct-prop":"1",style:{display:"flex",flexDirection:"column",gap:8},children:['
+    'pr.note&&r.jsx("p",{style:aide,children:pr.note}),'
+    'ec.length>0&&r.jsx("p",{style:Object.assign({},aide,{color:"var(--red)"}),children:dzT("espaces.ct.ecartes",{n:ec.length})}),'
+    '!(pr.prompt_templates||[]).length&&r.jsx("p",{style:aide,children:dzT("espaces.ct.aucun")}),'
+    '(pr.prompt_templates||[]).map(function(t){return r.jsxs("label",{style:{display:"flex",gap:8,alignItems:"flex-start",fontSize:12.5,color:"var(--ink-strong)",'
+    'padding:"6px 8px",border:"1px solid var(--stroke)",borderRadius:4,background:"var(--bg-panel-2)"},children:['
+    'r.jsx("input",{type:"checkbox",checked:!!st.coche[t.id],onChange:function(ev){var c=Object.assign({},st.coche);c[t.id]=ev.target.checked;maj({coche:c})}}),'
+    'r.jsxs("span",{style:{display:"flex",flexDirection:"column",gap:2},children:[r.jsx("span",{"data-dz-brut":"1",style:{fontWeight:600},children:(t.emoji?t.emoji+" ":"")+t.title}),'
+    'r.jsx("span",{"data-dz-brut":"1",style:{fontSize:11.5,color:"var(--ink-soft)"},children:t.body})]})]},"tp:"+t.id)}),'
+    '!st.cat&&r.jsxs("label",{style:{display:"flex",gap:6,alignItems:"center",fontSize:12,color:"var(--ink-soft)"},children:['
+    'r.jsx("input",{type:"checkbox","data-dz-ct-tout":"1",checked:st.tout,onChange:function(ev){maj({tout:ev.target.checked})}}),dzT("espaces.ct.tout")]}),'
+    'r.jsxs("div",{style:{display:"flex",gap:8},children:[r.jsx("button",{type:"button","data-dz-ct-ajouter":"1",style:btP,disabled:st.busy,'
+    'onClick:function(){appliquer("ajouter")},children:dzT("espaces.ct.ajouter")}),'
+    'r.jsx("button",{type:"button","data-dz-ct-remplacer":"1",style:bt,disabled:st.busy,onClick:function(){appliquer("remplacer")},'
+    'children:dzT(st.cat?"espaces.ct.remplacer_cat":"espaces.ct.remplacer_tout")})]})]})]})})}'
+)
+
 RAIL = 'function tg({view:e,setView:t,collapsed:n,setCollapsed:o}){const i=ji();'
 CARTE = ('r.jsxs("div",{style:{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between"},'
          'children:[r.jsx("span",{style:{fontFamily:"var(--f-mono)",fontSize:10,color:"var(--ink-muted)"},children:"v2.8.0"})')
@@ -478,7 +547,7 @@ SHELL_APRES = (
 )
 
 PAIRES = [
-    (RAIL, AIDES + AIDES_IDV + RAIL),                                                  # S1
+    (RAIL, AIDES + AIDES_IDV + AIDES_CT + RAIL),                                       # S1
     (CARTE, 'r.jsx(DzEspaceSel,{setView:t}),' + CARTE),                                # S2
     (SHELL, SHELL_APRES),                                                              # S3
     ('const ym=["diag","coffre","appareils","keys","accounts","personas",',            # S4
@@ -497,6 +566,21 @@ PAIRES = [
      '"channels"in U&&(T.channels=U.channels),"comptes"in U&&(T.comptes=U.comptes),'),
     ('r.jsx(ie,{label:dzT("scheduler.post.canaux"),',                                   # S10
      'r.jsx(DzPostComptes,{post:e,onChange:s}),r.jsx(ie,{label:dzT("scheduler.post.canaux"),'),
+    # t207 — C1-C6 : Quick lit les contenus de l'espace actif (galerie, catégories, ingrédients, vibes) ; bouton « Modèles »
+    ('function nm({onPick:e}){const[t,n]=x.useState("all"),o=x.useMemo(()=>t==="all"?fd:fd.filter(i=>i.cat===t),[t]);return r.jsxs("div",{children:[r.jsxs("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8},children:[r.jsx(md,{on:t==="all",onClick:()=>n("all"),children:"All"}),qh.map(i=>',
+     'function nm({onPick:e}){var dzCv=dzCtUse(),dzFd=dzCt("prompt_templates",fd);const[t,n]=x.useState("all"),o=x.useMemo(()=>t==="all"?dzFd:dzFd.filter(i=>i.cat===t),[t,dzCv,dzFd]);return r.jsxs("div",{children:[dzFd.length===0&&r.jsx("div",{"data-dz-ct-vide":"1",style:{fontSize:12,color:"var(--ink-muted)",padding:"4px 0 8px"},children:dzT("espaces.ct.vide")}),r.jsxs("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8},children:[r.jsx(md,{on:t==="all",onClick:()=>n("all"),children:"All"}),dzCt("prompt_cats",qh).map(i=>'),
+    ('const h={};Object.entries(hd).forEach(',
+     'const h={};Object.entries(dzCt("ingredients",hd)).forEach('),
+    ('children:[Object.entries(hd).map(([h,b])=>',
+     'children:[Object.entries(dzCt("ingredients",hd)).map(([h,b])=>'),
+    ('children:Zh[h]}',
+     'children:Zh[h]||h}'),
+    ('[H,F]=x.useState(""),I=[{id:"cinematic",preset:"cinematic",tags:""}',
+     '[H,F]=x.useState(""),dzCvQ=dzCtUse(),I=dzCt("vibes",[{id:"cinematic",preset:"cinematic",tags:""}'),
+    ('tags:"chiaroscuro noir, deep shadows, single key light, neon rim, smoke"}],[A,V]=x.useState("cinematic");',
+     'tags:"chiaroscuro noir, deep shadows, single key light, neon rim, smoke"}]),[A,V]=x.useState("cinematic");x.useEffect(function(){if(!dzEspCt)return;var dft="A deep-sea throne lit by bioluminescent currents, slow cinematic push-in, indigo and cyan, particles drifting.",tp=dzCt("prompt_templates",[]),v=dzEspCt.id==="deepotus"?dft:(tp.length?tp[0].body:"");if((s===dft||s===dzPromptAuto)&&s!==v){dzPromptAuto=v;a(v)}},[dzCvQ]);'),   # + le prompt par défaut suit l'espace tant qu'il n'est pas modifié
+    ('right:r.jsx(K,{variant:"ghost",size:"sm",icon:"dz-nav-prompts",onClick:()=>d(!0),children:dzT("quick.gabarits.generer")})',
+     'right:r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[r.jsx(DzContenusBtn,{}),r.jsx(K,{variant:"ghost",size:"sm",icon:"dz-nav-prompts",onClick:()=>d(!0),children:dzT("quick.gabarits.generer")})]})'),
 ]
 # S3 bis : les DEUX passages de setActivePersonaId (Réglages, Onboarding) — même texte, remplacés ensemble
 PERSO = ("setActivePersonaId:j,savePersona:E", "setActivePersonaId:dzJ,savePersona:E", 2)

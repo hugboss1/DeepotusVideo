@@ -95,6 +95,10 @@
   "fr": "Aucun LLM configuré (Réglages → clés API) : la réécriture a besoin d'Anthropic, d'OpenAI ou de Gemini.",
   "en": "No LLM configured (Settings → API keys): rewriting needs Anthropic, OpenAI or Gemini."
  },
+ "Aucun LLM configuré (Réglages → clés API) : utilisez la proposition sans IA.": {
+  "fr": "Aucun LLM configuré (Réglages → clés API) : utilisez la proposition sans IA.",
+  "en": "No LLM configured (Settings → API keys): use the suggestion without AI."
+ },
  "Aucun LLM configuré (Réglages → clés API) — l'agent manuscrit a besoin d'un modèle.": {
   "fr": "Aucun LLM configuré (Réglages → clés API) — l'agent manuscrit a besoin d'un modèle.",
   "en": "No LLM configured (Settings → API keys) — the manuscript agent needs a model."
@@ -4415,6 +4419,22 @@
   "fr": "cases et graine entiers, densite reelle",
   "en": "cases and graine are integers, densite is a real number"
  },
+ "catégorie en double : {cid}": {
+  "fr": "catégorie en double : {cid}",
+  "en": "duplicate category: {cid}"
+ },
+ "catégorie inconnue : {categorie}": {
+  "fr": "catégorie inconnue : {categorie}",
+  "en": "unknown category: {categorie}"
+ },
+ "catégorie inconnue : {cat}": {
+  "fr": "catégorie inconnue : {cat}",
+  "en": "unknown category: {cat}"
+ },
+ "catégorie n°{v} invalide": {
+  "fr": "catégorie n°{v} invalide",
+  "en": "category #{v} invalid"
+ },
  "ce document n'a pas de fichier enregistré à relire": {
   "fr": "ce document n'a pas de fichier enregistré à relire",
   "en": "this document has no saved file to reload"
@@ -5411,6 +5431,10 @@
   "fr": "habillage : {quoi} — un index entier à partir de 0 est attendu (reçu {v})",
   "en": "dressing: {quoi} — an integer index from 0 is expected (got {v})"
  },
+ "hashtags : une liste de {MAX_TAGS} textes au plus": {
+  "fr": "hashtags : une liste de {MAX_TAGS} textes au plus",
+  "en": "hashtags: a list of {MAX_TAGS} texts at most"
+ },
  "height_m : entre 0,2 et 20 m.": {
   "fr": "height_m : entre 0,2 et 20 m.",
   "en": "height_m: between 0.2 and 20 m."
@@ -5610,6 +5634,14 @@
  "index : entier positif attendu : {index}": {
   "fr": "index : entier positif attendu : {index}",
   "en": "index: positive integer expected: {index}"
+ },
+ "ingredients : un objet de {MAX_ING} familles au plus": {
+  "fr": "ingredients : un objet de {MAX_ING} familles au plus",
+  "en": "ingredients: an object of {MAX_ING} families at most"
+ },
+ "ingredients.{k} : une liste de {MAX_ING_VAL} textes au plus": {
+  "fr": "ingredients.{k} : une liste de {MAX_ING_VAL} textes au plus",
+  "en": "ingredients.{k}: a list of {MAX_ING_VAL} texts at most"
  },
  "instance illisible.": {
   "fr": "instance illisible.",
@@ -5963,6 +5995,10 @@
   "fr": "le sujet n'a pas encore de dimensions (maillage non mesuré) : posez-le d'abord.",
   "en": "the subject has no dimensions yet (mesh not measured): place it first."
  },
+ "les contenus s'écrivent en objet JSON": {
+  "fr": "les contenus s'écrivent en objet JSON",
+  "en": "contents are written as a JSON object"
+ },
  "les keyframes doivent avancer dans le temps.": {
   "fr": "les keyframes doivent avancer dans le temps.",
   "en": "keyframes must move forward in time."
@@ -6219,6 +6255,10 @@
   "fr": "method doit valoir 'offset' ou 'mirror'",
   "en": "method must be 'offset' or 'mirror'"
  },
+ "mode : ajouter ou remplacer": {
+  "fr": "mode : ajouter ou remplacer",
+  "en": "mode: add or replace"
+ },
  "mode : « remplacer » ou « ajouter »": {
   "fr": "mode : « remplacer » ou « ajouter »",
   "en": "mode: \"remplacer\" or \"ajouter\""
@@ -6250,6 +6290,18 @@
  "modèle de détourage inconnu : {v} (connus : {v2})": {
   "fr": "modèle de détourage inconnu : {v} (connus : {v2})",
   "en": "unknown cut-out model: {v} (known: {v2})"
+ },
+ "modèle en double : {tid}": {
+  "fr": "modèle en double : {tid}",
+  "en": "duplicate template: {tid}"
+ },
+ "modèle n°{v} invalide": {
+  "fr": "modèle n°{v} invalide",
+  "en": "template #{v} invalid"
+ },
+ "modèle {tid} : catégorie inconnue ({v})": {
+  "fr": "modèle {tid} : catégorie inconnue ({v})",
+  "en": "template {tid}: unknown category ({v})"
  },
  "modèle « {modele} » absent de la table de tarifs : aucun tir n'est lancé sans son prix": {
   "fr": "modèle « {modele} » absent de la table de tarifs : aucun tir n'est lancé sans son prix",
@@ -6883,6 +6935,14 @@
   "fr": "prompt vide",
   "en": "empty prompt"
  },
+ "prompt_cats : une liste de {MAX_CATS} catégories au plus": {
+  "fr": "prompt_cats : une liste de {MAX_CATS} catégories au plus",
+  "en": "prompt_cats: a list of {MAX_CATS} categories at most"
+ },
+ "prompt_templates : une liste de {MAX_TPL} modèles au plus": {
+  "fr": "prompt_templates : une liste de {MAX_TPL} modèles au plus",
+  "en": "prompt_templates: a list of {MAX_TPL} templates at most"
+ },
  "quand : debut ou fin.": {
   "fr": "quand : debut ou fin.",
   "en": "quand: debut or fin."
@@ -7423,6 +7483,22 @@
   "fr": "version {version} absente du registre",
   "en": "version {version} not in the registry"
  },
+ "vibe en double : {vid}": {
+  "fr": "vibe en double : {vid}",
+  "en": "duplicate vibe: {vid}"
+ },
+ "vibe n°{v} invalide": {
+  "fr": "vibe n°{v} invalide",
+  "en": "vibe #{v} invalid"
+ },
+ "vibe {vid} : preset parmi {v}": {
+  "fr": "vibe {vid} : preset parmi {v}",
+  "en": "vibe {vid}: preset among {v}"
+ },
+ "vibes : une liste de {MAX_VIBES} au plus": {
+  "fr": "vibes : une liste de {MAX_VIBES} au plus",
+  "en": "vibes: a list of {MAX_VIBES} at most"
+ },
  "vidéo source introuvable": {
   "fr": "vidéo source introuvable",
   "en": "source video not found"
@@ -7530,6 +7606,14 @@
  "{cases} cases de {cote} px depassent {APERCU_PX_MAX} px de cote : {v} cases au plus pour ce jeu": {
   "fr": "{cases} cases de {cote} px depassent {APERCU_PX_MAX} px de cote : {v} cases au plus pour ce jeu",
   "en": "{cases} cells of {cote} px exceed {APERCU_PX_MAX} px per side: {v} cells at most for this set"
+ },
+ "{champ} : de {mini} à {maxi} caractères": {
+  "fr": "{champ} : de {mini} à {maxi} caractères",
+  "en": "{champ}: {mini} to {maxi} characters"
+ },
+ "{champ} : identifiant en minuscules, chiffres, tiret ou souligné (40 au plus)": {
+  "fr": "{champ} : identifiant en minuscules, chiffres, tiret ou souligné (40 au plus)",
+  "en": "{champ}: identifier in lowercase letters, digits, hyphen or underscore (40 at most)"
  },
  "{champ} : pas de nom d'artiste ni de « à la manière de » (« {fautif} ») — décrivez le style par descripteurs : palette, lumière, matière, cadrage, époque": {
   "fr": "{champ} : pas de nom d'artiste ni de « à la manière de » (« {fautif} ») — décrivez le style par descripteurs : palette, lumière, matière, cadrage, époque",

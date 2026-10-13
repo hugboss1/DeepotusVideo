@@ -107,6 +107,82 @@
     "fr": "Comptes de diffusion — {nom}",
     "en": "Publishing accounts — {nom}"
   },
+  "espaces.ct.aide": {
+    "fr": "Une proposition n'écrit rien : cochez les modèles à garder, puis ajoutez-les ou remplacez. Sans IA, elle est tirée du persona et de son identité ; par IA, elle est devisée et passe sous le plafond.",
+    "en": "A suggestion writes nothing: tick the templates to keep, then add them or replace. Without AI it comes from the persona and its identity; with AI it is quoted and goes through the spending cap."
+  },
+  "espaces.ct.ajouter": {
+    "fr": "Ajouter les modèles cochés",
+    "en": "Add the ticked templates"
+  },
+  "espaces.ct.applique": {
+    "fr": "{n} modèle(s) enregistré(s) dans l'espace.",
+    "en": "{n} template(s) saved to the space."
+  },
+  "espaces.ct.aucun": {
+    "fr": "Aucun modèle proposé.",
+    "en": "No template suggested."
+  },
+  "espaces.ct.categorie": {
+    "fr": "Catégorie à proposer",
+    "en": "Category to suggest"
+  },
+  "espaces.ct.ecartes": {
+    "fr": "{n} modèle(s) écarté(s) : nom d'artiste ou interdit du persona.",
+    "en": "{n} template(s) dropped: artist name or persona taboo."
+  },
+  "espaces.ct.ouvrir": {
+    "fr": "Modèles de l'espace",
+    "en": "Space templates"
+  },
+  "espaces.ct.ouvrir_titre": {
+    "fr": "Proposer, ajouter ou remplacer les modèles de prompt de l'espace actif",
+    "en": "Suggest, add or replace the active space's prompt templates"
+  },
+  "espaces.ct.prix_local": {
+    "fr": "LLM local, gratuit",
+    "en": "local LLM, free"
+  },
+  "espaces.ct.prix_sans_llm": {
+    "fr": "aucun LLM configuré",
+    "en": "no LLM configured"
+  },
+  "espaces.ct.proposer": {
+    "fr": "Proposer (sans IA, gratuit)",
+    "en": "Suggest (no AI, free)"
+  },
+  "espaces.ct.proposer_ia": {
+    "fr": "Proposer par IA ({prix})",
+    "en": "Suggest with AI ({prix})"
+  },
+  "espaces.ct.remplacer_cat": {
+    "fr": "Remplacer cette catégorie",
+    "en": "Replace this category"
+  },
+  "espaces.ct.remplacer_tout": {
+    "fr": "Remplacer tous les modèles",
+    "en": "Replace all templates"
+  },
+  "espaces.ct.sans_llm": {
+    "fr": "Aucun LLM configuré : Réglages → clés API.",
+    "en": "No LLM configured: Settings → API keys."
+  },
+  "espaces.ct.titre": {
+    "fr": "Modèles de l'espace — {nom}",
+    "en": "Space templates — {nom}"
+  },
+  "espaces.ct.tout": {
+    "fr": "Reprendre aussi les catégories, les ingrédients du générateur et les vibes",
+    "en": "Also take the categories, generator ingredients and vibes"
+  },
+  "espaces.ct.toutes": {
+    "fr": "Toutes les catégories",
+    "en": "All categories"
+  },
+  "espaces.ct.vide": {
+    "fr": "Aucun modèle pour cet espace : « Modèles de l'espace » en propose.",
+    "en": "No template for this space yet: \"Space templates\" suggests some."
+  },
   "espaces.erreur.lecture": {
     "fr": "Espaces illisibles : le serveur local répond-il ?",
     "en": "Spaces unreadable: is the local server running?"
