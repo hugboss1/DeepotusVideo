@@ -1,0 +1,264 @@
+{
+  "version": 1,
+  "prompt_templates": [
+    {
+      "id": "deep-throne",
+      "cat": "cinematic",
+      "title": "Deep throne",
+      "emoji": "🐙",
+      "short": "Slow push toward a luminous throne",
+      "body": "A deep-sea throne lit by bioluminescent currents, slow cinematic push-in, indigo and cyan, particles drifting, anamorphic lens flares, 35mm grain, atmospheric haze."
+    },
+    {
+      "id": "oracle-eye",
+      "cat": "cinematic",
+      "title": "Oracle eye",
+      "emoji": "👁",
+      "short": "Macro of a glowing oracle eye",
+      "body": "Extreme macro of an oracle eye, iris like a galaxy, reflections of red neon glyphs, slow zoom-out revealing tentacles, anamorphic, shallow depth of field, soft underwater volumetrics."
+    },
+    {
+      "id": "abyss-descent",
+      "cat": "cinematic",
+      "title": "Abyss descent",
+      "emoji": "🌊",
+      "short": "Vertical fall into deep blue",
+      "body": "Vertical descent into a midnight-blue abyss, godrays piercing from above, scale plankton drifting, slow handheld with subtle camera shake, mood: solemn, prophetic."
+    },
+    {
+      "id": "shoal-ascend",
+      "cat": "deep-sea",
+      "title": "Shoal ascends",
+      "emoji": "🐟",
+      "short": "Hundreds of tentacles swirling up",
+      "body": "A shoal of tiny red-glow octopi spiraling upward through dark water, like sparks rising, lo-fi cinematic, crimson highlights against deep teal, slow-motion."
+    },
+    {
+      "id": "tentacle-coin",
+      "cat": "deep-sea",
+      "title": "Tentacle coin",
+      "emoji": "🪙",
+      "short": "Tentacle wraps a glowing coin",
+      "body": "A bioluminescent red tentacle slowly wraps around a glowing Solana-style coin, droplets of light, dark watery background, hyper-detailed, macro lens, cinematic."
+    },
+    {
+      "id": "submarine-port",
+      "cat": "deep-sea",
+      "title": "Porthole watch",
+      "emoji": "🛸",
+      "short": "Looking out a submarine porthole",
+      "body": "POV through a brass submarine porthole into deep cyan water, a single red octopus eye drifting closer, slow push-in, condensation on the glass, dramatic, lonely."
+    },
+    {
+      "id": "red-noir",
+      "cat": "noir",
+      "title": "Red noir prophecy",
+      "emoji": "🔴",
+      "short": "Hard red shadows, smoke",
+      "body": "Noir-lit scene of an oracle silhouette in a smoky room, single hard red light source, deep shadows, rain on windows, slow dolly, 35mm, high contrast monochrome with red accent."
+    },
+    {
+      "id": "glitch-throne",
+      "cat": "glitch",
+      "title": "Glitch throne",
+      "emoji": "⚡",
+      "short": "Datamoshed bioluminescent throne",
+      "body": "Datamoshed bioluminescent throne, red and cyan chromatic aberration, scan-lines, brief frame stutters, glitch art aesthetic, otherworldly, 12fps stutter inside 24fps footage."
+    },
+    {
+      "id": "flicker-eye",
+      "cat": "glitch",
+      "title": "Flicker eye",
+      "emoji": "👁",
+      "short": "Eye flickers between worlds",
+      "body": "A close-up eye flickering between two realities — abyss and city — with VHS noise, CRT scanlines, color bleed between red and cyan, slow blink at midpoint."
+    },
+    {
+      "id": "liquid-time",
+      "cat": "dream",
+      "title": "Liquid time",
+      "emoji": "⏳",
+      "short": "Hourglass under water",
+      "body": "Slow-motion hourglass underwater, the sand replaced by tiny glowing octopi, suspended in indigo, cathedral light, dreamlike, surrealist composition, painterly."
+    },
+    {
+      "id": "echo-shoal",
+      "cat": "dream",
+      "title": "Echo shoal",
+      "emoji": "🪞",
+      "short": "Mirror corridor of shoals",
+      "body": "A corridor of mirrors reflecting an infinite shoal of red octopi, refracted light, dreamlike, infinite recursion, soft focus edges, ambient mist."
+    },
+    {
+      "id": "chart-deep",
+      "cat": "documentary",
+      "title": "Chart of the deep",
+      "emoji": "📈",
+      "short": "Holographic candle chart",
+      "body": "Holographic candle chart floating in dark water, candles cast in red and green light, slow camera orbit, particles drifting through the chart, documentary tone."
+    },
+    {
+      "id": "oracle-desk",
+      "cat": "documentary",
+      "title": "Oracle’s desk",
+      "emoji": "📜",
+      "short": "Lit desk with scrolls and a tentacle",
+      "body": "Top-down view of a wooden desk in candlelight, parchment with red glyphs, a tentacle reaching from off-frame to a coin, slow dolly-in, intimate, documentary feel."
+    },
+    {
+      "id": "red-flash",
+      "cat": "social",
+      "title": "Red flash drop",
+      "emoji": "⚡",
+      "short": "1s flash → logo lock-up",
+      "body": "Hard red flash to black, then the Deepotus mark fades in at center, single sonar ping, sub-second, punchy social opener."
+    },
+    {
+      "id": "tickerwall",
+      "cat": "social",
+      "title": "Tickerwall",
+      "emoji": "📰",
+      "short": "Stack of scrolling red headlines",
+      "body": "Stack of red horizontal news ticker lines scrolling at different speeds, dark navy background, brand mark floats top-right, 30fps, ultra-readable."
+    }
+  ],
+  "prompt_cats": [
+    {
+      "id": "cinematic",
+      "label": "Cinematic"
+    },
+    {
+      "id": "deep-sea",
+      "label": "Deep-sea"
+    },
+    {
+      "id": "noir",
+      "label": "Noir"
+    },
+    {
+      "id": "glitch",
+      "label": "Glitch"
+    },
+    {
+      "id": "dream",
+      "label": "Dream"
+    },
+    {
+      "id": "documentary",
+      "label": "Documentary"
+    },
+    {
+      "id": "social",
+      "label": "Social"
+    }
+  ],
+  "ingredients": {
+    "subject": [
+      "throne",
+      "oracle eye",
+      "tentacle",
+      "submarine",
+      "abyss",
+      "shoal",
+      "glowing coin",
+      "candle chart",
+      "ink cloud"
+    ],
+    "mood": [
+      "prophetic",
+      "glitchy",
+      "dreamy",
+      "tense",
+      "triumphant",
+      "meditative",
+      "noir",
+      "playful"
+    ],
+    "light": [
+      "bioluminescent",
+      "neon red",
+      "godrays",
+      "sodium-yellow",
+      "single hard light",
+      "soft volumetric",
+      "candlelight"
+    ],
+    "motion": [
+      "slow push-in",
+      "slow orbit",
+      "locked-off",
+      "handheld micro-shake",
+      "vertical descent",
+      "vertical rise",
+      "dolly-out"
+    ],
+    "palette": [
+      "indigo+cyan",
+      "red+black",
+      "amber+navy",
+      "monochrome+red accent",
+      "muted teal",
+      "lo-fi VHS"
+    ],
+    "lens": [
+      "anamorphic",
+      "35mm",
+      "50mm",
+      "wide 24mm",
+      "macro",
+      "fisheye"
+    ],
+    "fx": [
+      "particles drifting",
+      "volumetric haze",
+      "rain on glass",
+      "chromatic aberration",
+      "grain",
+      "lens flares",
+      "scanlines",
+      "condensation"
+    ]
+  },
+  "vibes": [
+    {
+      "id": "cinematic",
+      "preset": "cinematic",
+      "tags": ""
+    },
+    {
+      "id": "ugc_raw",
+      "preset": "ugc_raw",
+      "tags": "shot on phone, handheld, available light, slight motion blur"
+    },
+    {
+      "id": "hybrid",
+      "preset": "hybrid",
+      "tags": ""
+    },
+    {
+      "id": "documentary",
+      "preset": "cinematic",
+      "tags": "documentary realism, observational, natural light, candid framing"
+    },
+    {
+      "id": "glitch",
+      "preset": "hybrid",
+      "tags": "glitch aesthetic, datamosh, RGB shift, scanlines, VHS chroma noise"
+    },
+    {
+      "id": "dream",
+      "preset": "cinematic",
+      "tags": "dreamlike haze, soft focus, drifting motion, pastel bloom"
+    },
+    {
+      "id": "deep-sea",
+      "preset": "cinematic",
+      "tags": "deep-sea bioluminescence, indigo and cyan tones, particulate currents, slow push-in"
+    },
+    {
+      "id": "noir",
+      "preset": "cinematic",
+      "tags": "chiaroscuro noir, deep shadows, single key light, neon rim, smoke"
+    }
+  ]
+}

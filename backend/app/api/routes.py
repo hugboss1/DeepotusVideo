@@ -7583,6 +7583,83 @@ async def upload_brand_kit_logo(kit_id: str, request: Request, file: UploadFile 
     return {"kit_id": kit_id, "kits": _bk.lister()}
 
 
+# ---- t200 (Espaces de marque E0) : plusieurs marques/projets. Lecture libre ; écritures réservées à la machine locale. ----
+
+@router.get("/espaces")
+async def list_espaces(archives: bool = False):
+    from app.services import espaces as _es
+    return {"espaces": _es.lister(archives=archives), "actif": _es.lire()["actif"]}
+
+
+@router.get("/espaces/actif")
+async def get_espace_actif():
+    from app.services import espaces as _es
+    return _es.actif()
+
+
+@router.post("/espaces")
+async def create_espace(body: dict, request: Request):
+    """Un espace neuf (nom, couleur ?, kit_id ?) : persona squelette, contenus vides, son propre kit sauf kit_id."""
+    _require_localhost(request)
+    from app.services import espaces as _es
+    try:
+        e = _es.creer(body if isinstance(body, dict) else {})
+    except ValueError as e2:
+        raise HTTPException(400, str(e2))
+    return {"espace": e, "espaces": _es.lister()}
+
+
+@router.post("/espaces/{espace_id}")
+async def update_espace(espace_id: str, body: dict, request: Request):
+    _require_localhost(request)
+    from app.services import espaces as _es
+    try:
+        e = _es.modifier(espace_id, body if isinstance(body, dict) else {})
+    except KeyError:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    except ValueError as e2:
+        raise HTTPException(400, str(e2))
+    return {"espace": e, "espaces": _es.lister()}
+
+
+@router.post("/espaces/{espace_id}/activate")
+async def activate_espace(espace_id: str, request: Request):
+    _require_localhost(request)
+    from app.services import espaces as _es
+    try:
+        e = _es.activer(espace_id)
+    except KeyError:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    except ValueError as e2:
+        raise HTTPException(400, str(e2))
+    return {"actif": e["id"], "espace": e, "branding": _read_branding()}
+
+
+@router.post("/espaces/{espace_id}/archive")
+async def archive_espace(espace_id: str, body: dict, request: Request):
+    _require_localhost(request)
+    from app.services import espaces as _es
+    r = _es.archiver(espace_id, bool((body or {}).get("archive", True)))
+    if r == "absent":
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    if r == "actif":
+        raise HTTPException(400, "L'espace actif ne s'archive pas : activez-en un autre d'abord.")
+    if r == "seul":
+        raise HTTPException(400, "C'est le dernier espace : il en faut au moins un.")
+    return {"espaces": _es.lister(archives=True)}
+
+
+@router.get("/espaces/{espace_id}/contenus")
+async def get_espace_contenus(espace_id: str):
+    from app.services import espaces as _es
+    if not _es.id_valide(espace_id):
+        raise HTTPException(404, "espace inconnu")
+    try:
+        return _es.contenus(espace_id)
+    except KeyError:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+
+
 # ============ v1.14: editable caption pack (Telegram Premium tags) ============
 # The Scheduler caption editor offers one-tap branded tags. The default set is
 # deepotus-flavoured; this endpoint lets the user (or a white-label reseller)
