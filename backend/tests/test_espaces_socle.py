@@ -62,8 +62,8 @@ if ES:
     BK.enregistrer({"name": "Client X"})                             # un 2e kit : le kit de deepotus reste « deepotus »
     doc = ES.lire()
     e0 = doc["espaces"].get("deepotus", {})
-    check("M1 l'existant devient l'espace « deepotus », ACTIF, au kit « deepotus », non archive",
-          doc["actif"] == "deepotus" and e0.get("nom") == "Deepotus" and e0.get("kit_id") == "deepotus" and e0.get("archive") is False, str(doc))
+    check("M1 l'existant devient l'espace « deepotus », ACTIF, qui SUIT le kit de Branding (kit_id vide), non archive",
+          doc["actif"] == "deepotus" and e0.get("nom") == "Deepotus" and e0.get("kit_id") is None and e0.get("archive") is False, str(doc))
     check("M2 persona.json de l'espace = le persona livre A L'OCTET", (D / "deepotus" / "persona.json").read_bytes() == PERSONA_LIVRE)
     check("M3 contenus.json de l'espace = la graine (liste Quick actuelle) A L'OCTET",
           (D / "deepotus" / "contenus.json").read_bytes() == (RACINE / "backend/app/espaces/deepotus_contenus.json").read_bytes())
@@ -96,11 +96,10 @@ if ES:
     check("E2 un espace neuf a un persona SQUELETTE a son nom (rien de Deepotus) et des contenus vides",
           pers.get("persona_id") == eid and pers.get("display_name") == "Rippled" and "deepotus" not in json.dumps(pers).lower()
           and cont == {"version": 1, "prompt_templates": [], "prompt_cats": [], "ingredients": {}, "vibes": []}, str(pers) + str(cont))
-    check("E3 un espace neuf recoit son PROPRE kit (cree, au nom de l'espace) — il ne partage pas celui de Deepotus",
-          vue[eid]["kit_id"] not in kits_avant and BK.lire()["kits"][vue[eid]["kit_id"]]["name"] == "Rippled")
-    _k = BK.lire()["kits"][vue[eid]["kit_id"]]
-    check("E3b ... et ce kit ne porte rien de Deepotus (taglines comprises : t202, vu à l'écran)",
-          _k["app_name"] == "RIPPLED" and _k["tagline_1"] == "Rippled" and "deep" not in json.dumps(_k).lower(), str(_k))
+    # Décision de l'utilisateur (13/10/2026, après t205) : un espace neuf REPREND le kit défini dans Branding (l'actif) ;
+    # aucun kit n'est fabriqué à son nom.
+    check("E3 un espace neuf SUIT le kit de Réglages › Branding (kit_id vide), aucun kit créé",
+          vue[eid]["kit_id"] is None and set(BK.lire()["kits"]) == kits_avant and ES.kit_de_l_espace(eid)["id"] == BK.lire()["actif"], str(vue[eid]))
     r2 = ES.creer({"nom": "Client", "kit_id": "deepotus"})
     check("E4 creer avec un kit EXISTANT le reprend sans en creer", r2["kit_id"] == "deepotus")
     for mauvais, quoi in (({"nom": ""}, "nom vide"), ({"nom": "A", "couleur": "rouge"}, "couleur"), ({"nom": "A", "kit_id": "inconnu"}, "kit inconnu")):
@@ -108,8 +107,22 @@ if ES:
             ES.creer(mauvais); check(f"E5 refus ({quoi})", False)
         except ValueError:
             check(f"E5 refus ({quoi})", True)
+    kit_ui = BK.lire()["actif"]
+    kc = BK.enregistrer({"name": "Contenus Rippled", "app_name": "RIPPLED"})
+    BK.activer(kit_ui)
+    ES.modifier(eid, {"kit_id": kc})
     ES.activer(eid)
-    check("E6 activer : l'espace devient actif ET son kit devient le kit actif", ES.actif()["id"] == eid and BK.actif()["id"] == vue[eid]["kit_id"])
+    check("E6 activer un espace NE change PAS le kit de l'interface (logo et nom de l'application inchangés)",
+          ES.actif()["id"] == eid and BK.lire()["actif"] == kit_ui, f"{BK.lire()['actif']} != {kit_ui}")
+    check("E6b le kit de l'espace sert à SES contenus (kit_de_l_espace), pas à l'interface",
+          ES.kit_de_l_espace()["id"] == kc and ES.kit_de_l_espace("deepotus")["id"] == kit_ui)
+    from app.services.template_service import TemplateEngine as _TE
+    _tpl = {"name": "t", "canvas": {"width": 64, "height": 64}, "slots": [{"id": "s", "type": "text", "text": "{{brand.app_name}}"}]}
+    try:
+        _res = _TE().resoudre(_tpl)
+        check("E6c un gabarit rendu sous l'espace prend SON kit pour les jetons {{brand.x}}", "RIPPLED" in json.dumps(_res), json.dumps(_res)[:200])
+    except Exception as _e:  # noqa: BLE001
+        check("E6c un gabarit rendu sous l'espace prend SON kit pour les jetons {{brand.x}}", False, repr(_e)[:200])
     for x, attendu in ((eid, "actif"), ("absent", "absent")):
         check(f"E7 archiver refuse : {attendu}", ES.archiver(x, True) == attendu)
     ES.activer("deepotus")
@@ -158,6 +171,25 @@ if ES:
     nb = len(c.get("/api/espaces?archives=true").json()["espaces"])
     check("R11 ecriture depuis le reseau local sans jeton d'appareil -> refusee (401/403), rien de cree",
           dist.post("/api/espaces", json={"nom": "Intrus"}).status_code in (401, 403) and len(c.get("/api/espaces?archives=true").json()["espaces"]) == nb)
+
+print("\n[K] réparation unique du kit de l'interface (installations d'avant le 13/10)")
+if ES:
+    ES.activer("deepotus")
+    doc = json.loads((D / "espaces.json").read_text(encoding="utf-8"))
+    doc.pop("kit_app_repare", None)
+    doc["espaces"]["deepotus"]["kit_id"] = "deepotus"           # l'état d'avant : Deepotus au kit « deepotus »
+    doc["espaces"][eid]["kit_id"] = kc
+    (D / "espaces.json").write_text(json.dumps(doc), encoding="utf-8")
+    BK.activer(kc)                                               # l'ancien comportement : le kit de Rippled habille l'interface
+    ES.lire()
+    apres = json.loads((D / "espaces.json").read_text(encoding="utf-8"))
+    check("K1 à la lecture, l'interface reprend le kit de Deepotus ; Deepotus suit désormais Branding ; marqué fait",
+          BK.lire()["actif"] == "deepotus" and apres["espaces"]["deepotus"]["kit_id"] is None
+          and apres["espaces"][eid]["kit_id"] == kc and apres.get("kit_app_repare") is True, f"{BK.lire()['actif']} {apres}")
+    BK.activer(kc)                                               # un choix fait ENSUITE dans Branding
+    ES.lire()
+    check("K2 jamais rejouée : un choix fait ensuite dans Branding est respecté", BK.lire()["actif"] == kc)
+    BK.activer("deepotus")
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

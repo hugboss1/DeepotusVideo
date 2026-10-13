@@ -76,9 +76,8 @@ def _migrer() -> dict:
         shutil.copyfile(PERSONA_LIVRE, d / "persona.json")
     if not (d / "contenus.json").exists():
         shutil.copyfile(GRAINE_DEEPOTUS, d / "contenus.json")
-    kits = brand_kits.lire()
-    kit = "deepotus" if "deepotus" in kits["kits"] else kits["actif"]
-    return {"actif": "deepotus", "espaces": {"deepotus": {
+    kit = None                       # Deepotus SUIT le kit de Réglages › Branding (décision du 13/10, après t205)
+    return {"actif": "deepotus", "kit_app_repare": True, "espaces": {"deepotus": {   # installation neuve : rien à réparer
         "nom": "Deepotus", "couleur": "#ef4444", "kit_id": kit, "archive": False, "created_at": _maintenant()}}}
 
 
@@ -102,6 +101,8 @@ def lire() -> dict:
         if _sain(doc):
             if doc.get("actif") not in doc["espaces"]:
                 doc["actif"] = sorted(doc["espaces"])[0]
+            if not doc.get("kit_app_repare"):
+                _reparer_kit_app(doc)
             return doc
         cote = f.with_name(f"espaces.json.illisible-{datetime.now():%Y%m%d-%H%M%S}")
         f.replace(cote)
@@ -152,14 +153,11 @@ def creer(champs: dict) -> dict:
         raise ValueError(f"{MAX_ESPACES} espaces au plus : archivez-en ou supprimez-en un d'abord")
     nom = _nom(champs.get("nom"))
     couleur = _couleur(champs.get("couleur"), "#ef4444")
-    kit = champs.get("kit_id")
-    if kit not in (None, ""):
-        if kit not in brand_kits.lire()["kits"]:
-            raise ValueError(f"kit inconnu : {kit}")
-    else:
-        # t202 : brand_kits ignore un champ VIDE (il garderait « From the deep, / for the deep. » de Deepotus, vu à
-        # l'écran) : les taglines d'un espace neuf sont donc posées, neutres — son nom, puis un point médian.
-        kit = brand_kits.enregistrer({"name": nom, "app_name": nom.upper()[:60], "tagline_1": nom, "tagline_2": "·"})
+    # Décision de l'utilisateur (13/10/2026, après t205) : un espace neuf SUIT le kit défini dans Réglages › Branding
+    # (kit_id vide) — aucun kit n'est fabriqué à son nom ; on peut lui en choisir un pour SES contenus (Réglages › Espaces).
+    kit = champs.get("kit_id") or None
+    if kit is not None and kit not in brand_kits.lire()["kits"]:
+        raise ValueError(f"kit inconnu : {kit}")
     eid = "esp_" + uuid.uuid4().hex[:8]
     _ecrire_json(dossier() / eid / "persona.json", {
         "persona_id": eid, "display_name": nom, "version": 2, "vibe_keywords": [], "default_negative_prompt": "",
@@ -179,16 +177,19 @@ def modifier(eid: str, champs: dict) -> dict:
         e["nom"] = _nom(champs.get("nom"))
     if "couleur" in champs:
         e["couleur"] = _couleur(champs.get("couleur"), e.get("couleur") or "#ef4444")
-    if "kit_id" in champs:
-        if champs["kit_id"] not in brand_kits.lire()["kits"]:
+    if "kit_id" in champs:                     # vide = suivre le kit de Réglages › Branding
+        if champs["kit_id"] and champs["kit_id"] not in brand_kits.lire()["kits"]:
             raise ValueError(f"kit inconnu : {champs['kit_id']}")
-        e["kit_id"] = champs["kit_id"]
+        e["kit_id"] = champs["kit_id"] or None
     _ecrire(doc)
     return _vue(eid, e, doc["actif"])
 
 
 def activer(eid: str) -> dict:
-    """Rend l'espace actif et active son kit (s'il existe encore). KeyError = inconnu, ValueError = archive."""
+    """Rend l'espace actif. KeyError = inconnu, ValueError = archivé.
+    Décision de l'utilisateur (13/10/2026, après t205) : le logo et le nom de l'APPLICATION ne changent JAMAIS avec
+    l'espace ou le persona — activer un espace ne touche plus au kit actif (celui de Réglages › Branding, qui habille
+    l'interface). Le kit d'un espace ne sert qu'à SES contenus (jetons {{brand.x}} des gabarits : kit_de_l_espace)."""
     doc = lire()
     if eid not in doc["espaces"]:
         raise KeyError(eid)
@@ -196,10 +197,38 @@ def activer(eid: str) -> dict:
         raise ValueError("cet espace est archivé : désarchivez-le d'abord")
     doc["actif"] = eid
     _ecrire(doc)
-    kit = doc["espaces"][eid].get("kit_id")
-    if kit in brand_kits.lire()["kits"]:
-        brand_kits.activer(kit)
     return _vue(eid, doc["espaces"][eid], eid)
+
+
+def kit_de_l_espace(eid=None) -> dict:
+    """Le kit des CONTENUS de l'espace (courant par défaut) : celui qu'il nomme s'il existe encore, sinon (vide ou kit
+    supprimé) le kit actif de Réglages › Branding. N'habille jamais l'interface."""
+    kid = (lire()["espaces"].get(resoudre(eid)) or {}).get("kit_id")
+    for v in brand_kits.lister():
+        if v["id"] == kid:
+            return v
+    return brand_kits.actif()
+
+
+def _reparer_kit_app(doc: dict) -> None:
+    """Une fois : avant le 13/10, activer un espace activait son kit — l'interface a pu rester habillée du kit d'un
+    autre espace (« RIPPLED »). Si le kit actif est celui d'un espace autre que Deepotus, on rend à l'interface le kit
+    de Deepotus. Marqué fait dans espaces.json : jamais rejoué (un choix fait ensuite dans Branding est respecté)."""
+    try:
+        kits = brand_kits.lire()
+        dz = doc["espaces"].get("deepotus") or {}
+        deep = dz.get("kit_id") if dz.get("kit_id") in kits["kits"] else ("deepotus" if "deepotus" in kits["kits"] else None)
+        autres = {e.get("kit_id") for k, e in doc["espaces"].items() if k != "deepotus"} - {None}
+        if deep and kits["actif"] != deep and kits["actif"] in autres:
+            brand_kits.activer(deep)
+            logger.info(f"kit de l'interface rendu à Deepotus ({kits['actif']} -> {deep})")
+        if dz:
+            dz["kit_id"] = None                 # Deepotus suit désormais le kit de Branding
+    except Exception as e:  # noqa: BLE001 — jamais une lecture d'espaces perdue pour ça
+        logger.warning(f"réparation du kit de l'interface : {e}")
+        return
+    doc["kit_app_repare"] = True
+    _ecrire(doc)
 
 
 def archiver(eid: str, archive: bool = True) -> str:
