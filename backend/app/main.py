@@ -265,6 +265,27 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+# Traduction L10 (t150, 12/10/2026) : le `detail` d'une HTTPException rendu dans la langue de l'en-tête
+# Accept-Language (posé par /shared/dz-i18n.js sur les appels /api/). Sans en-tête : inchangé (les bancs).
+from fastapi.exception_handlers import http_exception_handler as _http_exception_handler
+from starlette.exceptions import HTTPException as _StarletteHTTPException
+
+
+@app.exception_handler(_StarletteHTTPException)
+async def _http_exception_traduite(request, exc):
+    from app.i18n import langue_entete
+    from app.i18n import erreurs as _ERR
+    lang = langue_entete(request.headers.get("accept-language"))
+    if lang:
+        try:
+            d = _ERR.detail(exc.detail, lang)
+            if d is not exc.detail:
+                exc = _StarletteHTTPException(exc.status_code, detail=d, headers=getattr(exc, "headers", None))
+        except Exception as e:  # noqa: BLE001 — une traduction ratée ne masque jamais l'erreur d'origine
+            logger.warning(f"traduction d'erreur ignorée : {e}")
+    return await _http_exception_handler(request, exc)
+
 # CORS — the Vite dev server only. A shipped install serves the UI from this
 # same origin and needs no cross-origin grant, so leaving credentialed access
 # open to :5173/:3000 would just hand any local process that binds those ports
