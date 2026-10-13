@@ -7682,6 +7682,62 @@ async def get_espace_contenus(espace_id: str):
         raise HTTPException(404, f"espace inconnu : {espace_id}")
 
 
+# ---- t203 (Espaces de marque E3) : plusieurs comptes de diffusion par plateforme, rattachés à un espace. Jamais une
+# valeur secrète en sortie ; écritures réservées à la machine locale ; un coffre posé mais fermé refuse un secret (409).
+
+def _compte_erreur(e: Exception):
+    from app.services import coffre as _C, comptes as _cpt
+    if isinstance(e, _C.CoffreVerrouille):
+        return HTTPException(409, f"Coffre verrouillé : {e}")
+    if isinstance(e, _cpt.CompteHistorique):
+        return HTTPException(409, str(e))
+    if isinstance(e, KeyError):
+        return HTTPException(404, f"inconnu : {e.args[0] if e.args else ''}")
+    return HTTPException(400, str(e))
+
+
+@router.get("/comptes")
+async def list_comptes(espace: str = ""):
+    """Les comptes de diffusion d'un espace (l'actif par défaut ; « * » = tous), historiques compris pour Deepotus."""
+    from app.services import comptes as _cpt, espaces as _es
+    eid = None if espace == "*" else (espace or _es.lire()["actif"])
+    return {"espace": eid, "comptes": _cpt.lister(eid),
+            "plateformes": {p: {"libelle": v[0], "champs": [{"nom": c, "secret": sec} for c, sec in v[1]],
+                                "requis": list(v[2]), "oauth": v[3]} for p, v in _cpt.PLATEFORMES.items()}}
+
+
+@router.post("/comptes")
+async def create_compte(body: dict, request: Request):
+    _require_localhost(request)
+    from app.services import comptes as _cpt
+    try:
+        return {"compte": _cpt.creer(body if isinstance(body, dict) else {})}
+    except Exception as e:  # noqa: BLE001 — traduit en 400/404/409 par _compte_erreur
+        raise _compte_erreur(e)
+
+
+@router.post("/comptes/{compte_id}")
+async def update_compte(compte_id: str, body: dict, request: Request):
+    """libelle, handle et/ou valeurs {CHAMP: valeur} (valeur vide = effacer le champ)."""
+    _require_localhost(request)
+    from app.services import comptes as _cpt
+    try:
+        return {"compte": _cpt.modifier(compte_id, body if isinstance(body, dict) else {})}
+    except Exception as e:  # noqa: BLE001
+        raise _compte_erreur(e)
+
+
+@router.delete("/comptes/{compte_id}")
+async def delete_compte(compte_id: str, request: Request):
+    _require_localhost(request)
+    from app.services import comptes as _cpt
+    try:
+        _cpt.supprimer(compte_id)
+    except Exception as e:  # noqa: BLE001
+        raise _compte_erreur(e)
+    return {"deleted": compte_id}
+
+
 # ============ v1.14: editable caption pack (Telegram Premium tags) ============
 # The Scheduler caption editor offers one-tap branded tags. The default set is
 # deepotus-flavoured; this endpoint lets the user (or a white-label reseller)
@@ -8819,6 +8875,22 @@ async def test_channel(body: dict, request: Request):
     route lit des jetons, elle passe donc par la garde de boucle locale des Réglages."""
     _require_localhost(request)
     ch = (body or {}).get("channel")
+    # t203 : {"compte": id} teste CE compte de diffusion (ses identifiants) ; sans compte, les clés plates d'avant
+    cpt = (body or {}).get("compte")
+    if cpt:
+        from app.services import comptes as _cpt
+        try:
+            if _cpt.obtenir(cpt)["plateforme"] != ch:
+                raise HTTPException(400, f"le compte {cpt} n'est pas un compte {ch}")
+        except KeyError:
+            raise HTTPException(404, f"compte inconnu : {cpt}")
+        with _cpt.sous_compte(cpt):
+            return await _test_channel(ch)
+    return await _test_channel(ch)
+
+
+async def _test_channel(ch):
+    from app.services.comptes import cred as settings      # noqa: F811 — t203 : les identifiants du compte courant
     if ch == "telegram":
         if not settings.has_telegram:
             raise HTTPException(503, "Telegram keys not set")
@@ -8914,39 +8986,60 @@ def _oauth_page(titre: str, texte: str, code: int = 200) -> HTMLResponse:
                         f"<p>{_html.escape(texte)}</p></body>", status_code=code)
 
 
-async def _oauth_start(canal: str, request: Request):
+_OAUTH_COMPTE: dict = {}          # t203 : state -> compte de diffusion connecté par ce parcours (None = clés plates)
+
+
+async def _oauth_start(canal: str, request: Request, compte: str = ""):
     _require_localhost(request)
     cid, csec, _rt, nom, quoi = _OAUTH_CLES[canal]
-    if not (str(getattr(settings, cid) or "").strip() and str(getattr(settings, csec) or "").strip()):
-        raise HTTPException(400, f"{nom} : renseignez {cid} et {csec} ({quoi}) dans les Réglages")
-    from app.services import coffre as _C
-    if _C.verrouille():
-        raise HTTPException(409, f"Coffre verrouillé : ouvrez-le (Réglages → Coffre) avant de connecter {nom}, "
-                                 "sinon le jeton rendu ne pourrait pas être gardé.")
-    return RedirectResponse(_oauth_module(canal).auth_url(uuid4().hex), status_code=302)
+    from app.services import comptes as _cpt
+    if compte:
+        try:
+            if _cpt.obtenir(compte)["plateforme"] != canal:
+                raise HTTPException(400, f"le compte {compte} n'est pas un compte {nom}")
+        except KeyError:
+            raise HTTPException(404, f"compte inconnu : {compte}")
+    with _cpt.sous_compte(compte or None):
+        if not (str(getattr(_cpt.cred, cid) or "").strip() and str(getattr(_cpt.cred, csec) or "").strip()):
+            raise HTTPException(400, f"{nom} : renseignez {cid} et {csec} ({quoi}) dans les Réglages")
+        from app.services import coffre as _C
+        if _C.verrouille():
+            raise HTTPException(409, f"Coffre verrouillé : ouvrez-le (Réglages → Coffre) avant de connecter {nom}, "
+                                     "sinon le jeton rendu ne pourrait pas être gardé.")
+        state = uuid4().hex
+        url = _oauth_module(canal).auth_url(state)
+    while len(_OAUTH_COMPTE) >= 32:
+        _OAUTH_COMPTE.pop(next(iter(_OAUTH_COMPTE)))
+    _OAUTH_COMPTE[state] = compte if compte and not compte.startswith(_cpt.HISTO) else None
+    return RedirectResponse(url, status_code=302)
 
 
 async def _oauth_callback(canal: str, request: Request, code: str, state: str, error: str):
     _require_localhost(request)
     _cid, _csec, rt_nom, nom, _q = _OAUTH_CLES[canal]
     m = _oauth_module(canal)
+    compte = _OAUTH_COMPTE.pop(state, None) if state else None
     if error or not state or state not in m._VERIFS:
         m._VERIFS.pop(state, None)
         return _oauth_page(f"{nom} : connexion refusée", error or "état inconnu ou déjà utilisé — recommencez depuis les Réglages", 400)
-    rt = await m.exchange_code(code, state)
-    if not rt:
-        return _oauth_page(f"{nom} : aucun refresh token reçu",
-                           f"Révoquez l'accès de l'application dans votre compte {nom}, puis recommencez « Connecter ».", 502)
-    from app.services import coffre as _C
-    ou = _C.enregistrer_cle(rt_nom, rt)
+    from app.services import comptes as _cpt
+    try:
+        with _cpt.sous_compte(compte):      # le client OAuth et le jeton rendu sont ceux du compte de ce parcours
+            rt = await m.exchange_code(code, state)
+            if not rt:
+                return _oauth_page(f"{nom} : aucun refresh token reçu",
+                                   f"Révoquez l'accès de l'application dans votre compte {nom}, puis recommencez « Connecter ».", 502)
+            ou = _cpt.garder_secret(rt_nom, rt)
+    except KeyError:
+        return _oauth_page(f"{nom} : compte supprimé", "Le compte de diffusion a été supprimé pendant la connexion.", 404)
     garde = {"coffre": "gardé dans le coffre", "env": "gardé dans les réglages",
              "memoire": "coffre fermé : gardé pour cette session seulement"}[ou]
     return _oauth_page(f"{nom} connecté", f"Jeton {garde}. Vous pouvez fermer cet onglet.")
 
 
 @router.get("/oauth/youtube/start")
-async def oauth_youtube_start(request: Request):
-    return await _oauth_start("youtube", request)
+async def oauth_youtube_start(request: Request, compte: str = ""):
+    return await _oauth_start("youtube", request, compte)
 
 
 @router.get("/oauth/youtube/callback")
@@ -8955,8 +9048,8 @@ async def oauth_youtube_callback(request: Request, code: str = "", state: str = 
 
 
 @router.get("/oauth/tiktok/start")
-async def oauth_tiktok_start(request: Request):
-    return await _oauth_start("tiktok", request)
+async def oauth_tiktok_start(request: Request, compte: str = ""):
+    return await _oauth_start("tiktok", request, compte)
 
 
 @router.get("/oauth/tiktok/callback/")

@@ -26,6 +26,7 @@ import httpx
 from loguru import logger
 
 from app.config import settings, SSL_VERIFY
+from app.services.comptes import cred   # t203 : identifiants du compte courant (clés plates sans compte)
 from app.services import metrics_service, publishers
 from app.services.publishers import PublishResult
 
@@ -57,7 +58,7 @@ def auth_url(state: str) -> str:
     _VERIFS[state] = verif
     defi = base64.urlsafe_b64encode(hashlib.sha256(verif.encode()).digest()).rstrip(b"=").decode()
     return AUTH_URL + "?" + urlencode({
-        "client_id": settings.YOUTUBE_CLIENT_ID, "redirect_uri": redirect_uri(),
+        "client_id": cred.YOUTUBE_CLIENT_ID, "redirect_uri": redirect_uri(),
         "response_type": "code", "scope": SCOPES, "access_type": "offline",
         "prompt": "consent", "state": state,
         "code_challenge": defi, "code_challenge_method": "S256"})
@@ -71,8 +72,8 @@ async def exchange_code(code: str, state: str) -> str:
         return ""
     async with _client() as c:
         r = await c.post(TOKEN_URL, data={
-            "code": code, "client_id": settings.YOUTUBE_CLIENT_ID,
-            "client_secret": settings.YOUTUBE_CLIENT_SECRET, "code_verifier": verif,
+            "code": code, "client_id": cred.YOUTUBE_CLIENT_ID,
+            "client_secret": cred.YOUTUBE_CLIENT_SECRET, "code_verifier": verif,
             "redirect_uri": redirect_uri(), "grant_type": "authorization_code"})
     if r.status_code != 200:
         logger.warning(f"youtube oauth {r.status_code}: {r.text[:200]}")
@@ -83,9 +84,9 @@ async def exchange_code(code: str, state: str) -> str:
 async def access_token() -> str:
     async with _client() as c:
         r = await c.post(TOKEN_URL, data={
-            "refresh_token": settings.YOUTUBE_REFRESH_TOKEN,
-            "client_id": settings.YOUTUBE_CLIENT_ID,
-            "client_secret": settings.YOUTUBE_CLIENT_SECRET,
+            "refresh_token": cred.YOUTUBE_REFRESH_TOKEN,
+            "client_id": cred.YOUTUBE_CLIENT_ID,
+            "client_secret": cred.YOUTUBE_CLIENT_SECRET,
             "grant_type": "refresh_token"})
     if r.status_code != 200:
         raise RuntimeError(f"youtube token {r.status_code}: {r.text[:160]}")
@@ -158,5 +159,5 @@ async def fetch_stats(video_ids: list[str]) -> dict[str, dict]:
     return out
 
 
-publishers.register("youtube", lambda: settings.has_youtube, publish)
+publishers.register("youtube", lambda: cred.has_youtube, publish)
 metrics_service.FETCHERS["youtube"] = fetch_stats   # tâche #29 : la passe de métriques

@@ -26,6 +26,7 @@ from pathlib import Path
 import httpx
 
 from app.config import settings, SSL_VERIFY
+from app.services.comptes import cred   # t203 : identifiants du compte courant (clés plates sans compte)
 from app.services import metrics_service, publishers
 from app.services.publishers import PublishResult
 
@@ -42,18 +43,18 @@ def _client(timeout: float = 60.0) -> httpx.AsyncClient:
 
 
 def _graph() -> str:
-    tok = settings.IG_ACCESS_TOKEN.strip()
+    tok = cred.IG_ACCESS_TOKEN.strip()
     hote = "graph.instagram.com" if tok.startswith("IG") else "graph.facebook.com"
     return f"https://{hote}/{VERSION}"
 
 
 def _scrub(text: str) -> str:
-    tok = settings.IG_ACCESS_TOKEN.strip()
+    tok = cred.IG_ACCESS_TOKEN.strip()
     return text.replace(tok, "***") if tok else text
 
 
 def available() -> bool:
-    return settings.has_instagram and RESUMABLE_SUPPORTED
+    return cred.has_instagram and RESUMABLE_SUPPORTED
 
 
 async def _morceaux(path: str):
@@ -68,7 +69,7 @@ async def _morceaux(path: str):
 async def publish(caption: str, video_path, image_path, meta: dict) -> PublishResult:
     if not video_path or not Path(video_path).is_file():
         return PublishResult(False, "instagram: un Reel exige une vidéo (aucun rendu attaché)")
-    tok, ig, g = settings.IG_ACCESS_TOKEN.strip(), settings.IG_BUSINESS_ID.strip(), _graph()
+    tok, ig, g = cred.IG_ACCESS_TOKEN.strip(), cred.IG_BUSINESS_ID.strip(), _graph()
     size = Path(video_path).stat().st_size
     try:
         async with _client(timeout=900.0) as c:
@@ -122,7 +123,7 @@ def _valeur(d: dict) -> int:
 
 async def fetch_insights(media_ids: list[str]) -> dict[str, dict]:
     out = {}
-    tok, g = settings.IG_ACCESS_TOKEN.strip(), _graph()
+    tok, g = cred.IG_ACCESS_TOKEN.strip(), _graph()
     async with _client() as c:
         for mid in media_ids:
             r = await c.get(f"{g}/{mid}/insights", params={"metric": METRICS, "access_token": tok})

@@ -25,6 +25,7 @@ from loguru import logger
 from sqlalchemy import select, update as _sa_update
 
 from app.config import settings, SSL_VERIFY
+from app.services.comptes import cred   # t203 : identifiants du compte courant (clés plates sans compte)
 from app.services import metrics_service, plan_schema, publishers
 from app.services.publishers import PublishResult
 from app.services.storage import CampaignBrief, ScheduledPost, JobRecord, async_session_factory
@@ -545,10 +546,10 @@ async def plan_from_document(text: str, *, days: int = 30,
 def _x_client():
     import tweepy
     return tweepy.Client(
-        consumer_key=settings.X_API_KEY,
-        consumer_secret=settings.X_API_SECRET,
-        access_token=settings.X_ACCESS_TOKEN,
-        access_token_secret=settings.X_ACCESS_SECRET,
+        consumer_key=cred.X_API_KEY,
+        consumer_secret=cred.X_API_SECRET,
+        access_token=cred.X_ACCESS_TOKEN,
+        access_token_secret=cred.X_ACCESS_SECRET,
     )
 
 
@@ -556,8 +557,8 @@ def _x_api_v1():
     """v1.1 API object — still required for chunked media upload."""
     import tweepy
     auth = tweepy.OAuth1UserHandler(
-        settings.X_API_KEY, settings.X_API_SECRET,
-        settings.X_ACCESS_TOKEN, settings.X_ACCESS_SECRET)
+        cred.X_API_KEY, cred.X_API_SECRET,
+        cred.X_ACCESS_TOKEN, cred.X_ACCESS_SECRET)
     return tweepy.API(auth)
 
 
@@ -590,7 +591,7 @@ async def publish_x(caption: str, *, video_path: str | None = None,
                     image_path: str | None = None,
                     retries: int = 2, reply_to: str | None = None) -> tuple[bool, str, str | None]:
     """Post to X with media. One retry on transient failure. Never raises."""
-    if not settings.has_x:
+    if not cred.has_x:
         return False, "X keys not set (X_API_KEY/SECRET + ACCESS_TOKEN/SECRET)", None
     last = ("", None)
     for attempt in range(retries):
@@ -766,7 +767,7 @@ async def vary_caption(caption: str, *, persona: dict | None = None, forbidden: 
 
 def _scrub_token(text: str) -> str:
     """Redact the Telegram bot token from anything user- or log-facing."""
-    tok = (settings.TELEGRAM_BOT_TOKEN or "").strip()
+    tok = (cred.TELEGRAM_BOT_TOKEN or "").strip()
     if tok and tok in text:
         text = text.replace(tok, "***")
     return re.sub(r"/bot\d+:[A-Za-z0-9_-]+", "/bot***", text)
@@ -776,9 +777,9 @@ async def publish_telegram(caption: str, *, video_path: str | None = None,
                            image_path: str | None = None) -> tuple[bool, str]:
     """Send to the configured Telegram chat. Video > photo > text.
     Returns (ok, detail). Never raises."""
-    if not settings.has_telegram:
+    if not cred.has_telegram:
         return False, "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set"
-    base = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}"
+    base = f"https://api.telegram.org/bot{cred.TELEGRAM_BOT_TOKEN}"
     cap = (caption or "")[:1024]  # media caption hard limit
     try:
         async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=120.0) as client:
@@ -786,7 +787,7 @@ async def publish_telegram(caption: str, *, video_path: str | None = None,
                 with open(video_path, "rb") as f:
                     r = await client.post(
                         f"{base}/sendVideo",
-                        data={"chat_id": settings.TELEGRAM_CHAT_ID,
+                        data={"chat_id": cred.TELEGRAM_CHAT_ID,
                               "caption": cap, "supports_streaming": "true"},
                         files={"video": (Path(video_path).name, f,
                                          "video/mp4")},
@@ -795,7 +796,7 @@ async def publish_telegram(caption: str, *, video_path: str | None = None,
                 with open(image_path, "rb") as f:
                     r = await client.post(
                         f"{base}/sendPhoto",
-                        data={"chat_id": settings.TELEGRAM_CHAT_ID,
+                        data={"chat_id": cred.TELEGRAM_CHAT_ID,
                               "caption": cap},
                         files={"photo": (Path(image_path).name, f,
                                          "image/png")},
@@ -803,7 +804,7 @@ async def publish_telegram(caption: str, *, video_path: str | None = None,
             else:
                 r = await client.post(
                     f"{base}/sendMessage",
-                    json={"chat_id": settings.TELEGRAM_CHAT_ID,
+                    json={"chat_id": cred.TELEGRAM_CHAT_ID,
                           "text": (caption or "")[:4096]},
                 )
         j = r.json()
@@ -864,8 +865,8 @@ async def _pub_x(caption, video_path, image_path, meta) -> PublishResult:
     return PublishResult(ok, f"x: {detail}", tid)
 
 
-publishers.register("telegram", lambda: settings.has_telegram, _pub_telegram)
-publishers.register("x", lambda: settings.has_x, _pub_x)
+publishers.register("telegram", lambda: cred.has_telegram, _pub_telegram)
+publishers.register("x", lambda: cred.has_x, _pub_x)
 # les adaptateurs des autres canaux s'enregistrent à leur import (plan scheduler T3+)
 from app.services import youtube_publisher, instagram_publisher, tiktok_publisher  # noqa: E402,F401
 

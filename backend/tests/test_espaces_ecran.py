@@ -171,8 +171,26 @@ check("4.2 l'onglet, son rendu et sa rubrique de recherche (une fois chacun)",
       and s.count('espaces:dzT("espaces.reglages.onglet")};return(e&&dzRubriques') == 1)
 check("4.3 le sélecteur du rail est sous la tagline, avant la version", s.count('r.jsx(DzEspaceSel,{setView:t}),r.jsxs("div",{style:{marginTop:10,') == 1)
 check("4.4 les noms d'espaces et de kits ne sont pas traduits par la surcouche (data-dz-brut)",
-      M.AIDES.count('"data-dz-brut":"1",children:e.nom') == 1 and M.AIDES.count('"data-dz-brut":"1",style:{fontSize:13') == 1
+      M.AIDES.count('"data-dz-brut":"1",children:e.nom') == 1 and M.AIDES.count('"data-dz-brut":"1",style:{fontSize:13') == 2   # nom d'espace + libellé de compte (t203)
       and '"data-dz-brut":"1",children:k.name' in M.AIDES)
+
+print("\n[5] t203 : les comptes de diffusion de l'espace actif")
+_i = M.AIDES.find("function DzComptesEspace(")
+CPT = M.AIDES[_i:]
+check("5.1 DzComptesEspace posé une fois, rendu une fois sous la liste des espaces (clé = l'espace actif)",
+      s.count("function DzComptesEspace(") == 1 and s.count("r.jsx(DzComptesEspace,{espace:st.actif,") == 1)
+check("5.2 aucun secret relu : un champ secret part VIDE (« posé » en indication), jamais f.valeur",
+      'value:val!=null?val:f.secret?"":f.valeur||""' in CPT and 'placeholder:f.secret&&f.pose?dzT("espaces.comptes.pose")' in CPT)
+check("5.3 une saisie vide ne change rien (seules les valeurs saisies partent)", 'if(x2!==""&&x2!=null)v[k]=x2' in CPT)
+check("5.4 OAuth PAR compte (?compte=), onglet ouvert AVANT l'appel, erreur dite dans la ligne",
+      '"/api/oauth/"+c.plateforme+"/start"+(c.historique?"":"?compte="+encodeURIComponent(c.id))' in CPT
+      and CPT.index('w=window.open("","_blank")') < CPT.index('fetch(u,{redirect:"manual"})'))
+check("5.5 tester passe le compte (sauf historique) ; supprimer en deux clics, sans window.confirm ni __dzDialogue",
+      'compte:c.historique?void 0:c.id' in CPT and '"data-dz-compte-suppr":c.id' in CPT
+      and "window.confirm" not in CPT and "__dzDialogue" not in CPT)
+check("5.6 un compte historique n'offre ni identifiants ni suppression ici (renvoi vers Comptes connectés)",
+      '!c.historique&&r.jsx("button"' in CPT and '!c.historique&&(st.suppr===c.id' in CPT and 'dzT("espaces.comptes.historique")' in CPT)
+check("5.7 toujours aucun useState (731)", "x.useState(" not in M.AIDES and s.count("x.useState(") == 731)
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)
