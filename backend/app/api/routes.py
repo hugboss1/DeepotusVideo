@@ -7914,6 +7914,66 @@ async def get_espace_contenus(espace_id: str):
         raise HTTPException(404, f"espace inconnu : {espace_id}")
 
 
+# ---- t207 (Espaces de marque E7) : les CONTENUS DE DÉPART de l'espace (modèles Quick, catégories, ingrédients, vibes,
+# hashtags). Proposer sans IA est gratuit ; par LLM : clé vérifiée (503) AVANT la garde, puis le plafond. Rien n'est
+# écrit avant « appliquer ».
+
+@router.put("/espaces/{espace_id}/contenus")
+async def put_espace_contenus(espace_id: str, body: dict, request: Request):
+    _require_localhost(request)
+    from app.services import contenus_espace as _ce
+    eid = _onb_espace(espace_id)
+    try:
+        return _ce.ecrire(eid, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/espaces/{espace_id}/contenus/devis")
+async def get_espace_contenus_devis(espace_id: str):
+    """Le devis d'une proposition par LLM et la disponibilité de la voie. Aucune garde, aucune dépense."""
+    from app.services import contenus_espace as _ce, pricing as _pr, plafonds as _PLAF, summarizer as _sm
+    _onb_espace(espace_id)
+    return {"llm": bool(_sm._available_providers()), "devis": _pr.estimate(_PLAF.op_llm(*_ce.jetons_llm()))}
+
+
+@router.post("/espaces/{espace_id}/contenus/generer")
+async def post_espace_contenus_generer(espace_id: str, body: dict, request: Request):
+    """Une PROPOSITION de contenus ({"llm": bool, "categorie": id?}) — rien n'est écrit."""
+    _require_localhost(request)
+    from app.services import contenus_espace as _ce
+    eid = _onb_espace(espace_id)
+    cat = str((body or {}).get("categorie") or "").strip() or None
+    if cat and cat not in {c["id"] for c in _ce.espaces.contenus(eid).get("prompt_cats", [])} \
+            and cat not in {c[0] for c in _ce._CATS_DEFAUT} | set(_ce._DIRECTIONS):
+        raise HTTPException(400, f"catégorie inconnue : {cat}")
+    if (body or {}).get("llm"):
+        from app.services import summarizer as _sm, plafonds as _PLAF
+        if not _sm._available_providers():
+            raise HTTPException(503, "Aucun LLM configuré (Réglages → clés API) : utilisez la proposition sans IA.")
+        await _plafond(_PLAF.op_llm(*_ce.jetons_llm()), "quick", f"contenus:{eid}")
+        return await asyncio.to_thread(_ce.proposition_llm, eid, cat)
+    try:
+        return _ce.proposition_manuelle(eid, cat)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/espaces/{espace_id}/contenus/appliquer")
+async def post_espace_contenus_appliquer(espace_id: str, body: dict, request: Request):
+    """Écrit les modèles cochés d'une proposition : {proposition, mode: ajouter|remplacer, categorie?, ids?, tout?}."""
+    _require_localhost(request)
+    from app.services import contenus_espace as _ce
+    eid = _onb_espace(espace_id)
+    b = body or {}
+    try:
+        return _ce.appliquer(eid, b.get("proposition"), str(b.get("mode") or "ajouter"),
+                             str(b.get("categorie") or "").strip() or None,
+                             b.get("ids") if isinstance(b.get("ids"), list) else None, bool(b.get("tout")))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 # ---- t203 (Espaces de marque E3) : plusieurs comptes de diffusion par plateforme, rattachés à un espace. Jamais une
 # valeur secrète en sortie ; écritures réservées à la machine locale ; un coffre posé mais fermé refuse un secret (409).
 

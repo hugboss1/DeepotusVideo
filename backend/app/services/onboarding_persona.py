@@ -386,4 +386,6 @@ def valider(eid: str, proposition: dict | None = None) -> dict:
     d["proposition"] = prop
     d["valide_le"] = nouveau["onboarding"]["valide_le"]
     _ecrire(eid, d)
+    from app.services import contenus_espace          # t207 : un espace sans modèle reçoit ses contenus de départ
+    contenus_espace.semer_si_vide(eid)
     return p
