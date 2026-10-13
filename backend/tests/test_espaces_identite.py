@@ -211,6 +211,54 @@ _lg = IDV.lire(rip)["logo"]
 (IDV.dossier(rip) / _lg).write_bytes(png("#abcdef"))          # même nom, autre CONTENU
 check("L6 une image qui change (même nom) rend la planche périmée", c.get(B).json()["etat_planche"] == "perimee")
 
+print("\n[K] le kit des contenus de l'espace (D4)")
+from app.services import brand_kits as BK                           # noqa: E402
+KITS_AVANT = BK._fichier().read_bytes()
+ACTIF_APP = BK.actif()["id"]
+check("K0 rien de ce qui précède n'a touché aux kits de marque (Deepotus et l'application intacts)",
+      ACTIF_APP == "deepotus" and BK.lire()["kits"].keys() == {"deepotus"} and ES.kit_de_l_espace(rip)["id"] == "deepotus"
+      and c.get(B).json()["kit"]["branding"] is True)
+c.put(B, json={"palette": [{"hex": "#fef3c7", "role": "fond"}, {"hex": "#EA580C", "role": "accent"}, {"hex": "#0ea5e9", "role": "primaire"}]})
+ES.ecrire_persona(rip, dict(ES.persona(rip), ecran={"id": rip, "handle": "@rippled", "catchphrase": "Make waves."}))
+k1 = c.post(f"{B}/kit")
+kv = BK.lire()["kits"].get(IDV.kit_id(rip), {})
+logo_id = IDV.dossier(rip) / IDV.lire(rip)["logo"]
+check("K1 le kit idv_<espace> : couleurs par rôle (primaire, accent), nom et accroches du PERSONA, logo de l'identité",
+      k1.status_code == 200 and kv.get("brand_color") == "#0EA5E9" and kv.get("accent_color") == "#EA580C"
+      and kv.get("app_name") == "Rippled" and kv.get("tagline_1") == "Make waves." and kv.get("tagline_2") == "@rippled"
+      and BK.logo_path(IDV.kit_id(rip)).read_bytes() == logo_id.read_bytes(), (k1.text[:200], kv))
+check("K2 rien de Deepotus dans ce kit", not any("deep" in str(v).lower() for v in kv.values()), kv)
+check("K3 associé aux CONTENUS de l'espace, JAMAIS activé (l'application garde son kit)",
+      ES.kit_de_l_espace(rip)["id"] == IDV.kit_id(rip) and BK.actif()["id"] == ACTIF_APP
+      and k1.json()["kit"]["depuis_identite"] is True and ES.kit_de_l_espace("deepotus")["id"] == "deepotus")
+from app.services.template_service import TemplateEngine           # noqa: E402
+with ES.sous_espace(rip):
+    _tpl = TemplateEngine().resoudre({"layers": [{"type": "text", "text": "{{brand.app_name}}", "color": "{{brand.brand_color}}"}]})
+check("K4 un gabarit rendu dans l'espace prend ses couleurs et son nom", "#0EA5E9" in str(_tpl) and "Rippled" in str(_tpl), str(_tpl)[:200])
+c.put(B, json={"palette": [{"hex": "#16a34a", "role": "primaire"}]})
+kv2 = BK.lire()["kits"][IDV.kit_id(rip)]
+check("K5 la palette change : le kit SUIT (accent = marque faute d'autre couleur)", kv2["brand_color"] == "#16A34A"
+      and kv2["accent_color"] == "#16A34A", kv2)
+_nl = up("logo", png("#facc15")).json()["nom"]
+check("K6 un nouveau logo : le kit suit", BK.logo_path(IDV.kit_id(rip)).read_bytes() == (IDV.dossier(rip) / _nl).read_bytes())
+c.delete(f"{B}/images/{_nl}")
+check("K7 le logo retiré : le kit n'a plus de logo", BK.logo_path(IDV.kit_id(rip)) is None)
+up("logo", png("#facc15"))
+BK.activer(IDV.kit_id(rip))
+_kb = BK._fichier().read_bytes()
+k8 = c.post(f"{B}/kit")
+c.put(B, json={"palette": [{"hex": "#000000", "role": "primaire"}]})
+check("K8 si ce kit habille l'application (activé à la main) : synchroniser -> 400, et l'identité n'y touche plus",
+      k8.status_code == 400 and "application" in k8.text and BK._fichier().read_bytes() == _kb, k8.text[:200])
+BK.activer(ACTIF_APP)
+ES.modifier(rip, {"kit_id": "deepotus"})
+_kb = BK._fichier().read_bytes()
+c.put(B, json={"palette": [{"hex": "#123456", "role": "primaire"}]})
+check("K9 l'espace a choisi un autre kit : l'identité ne touche à aucun kit", BK._fichier().read_bytes() == _kb
+      and c.get(B).json()["kit"]["depuis_identite"] is False)
+check("K10 depuis le réseau local sans jeton -> refusé", dist.post(f"{B}/kit").status_code in (401, 403))
+ES.modifier(rip, {"kit_id": ""})
+
 print("\n[R] les références passées aux modèles")
 src = _tmp / "images" / "a_retoucher.png"
 src.write_bytes(png("#888888"))

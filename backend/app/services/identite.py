@@ -12,7 +12,8 @@ Spec docs/superpowers/specs/2026-10-13-espaces-de-marque.md (D4). Le dossier por
     `app/espaces/deepotus_identite.json`, qui reprend le « DNA » autrefois codé en dur dans prompt_engine — ses prompts
     restent identiques à l'octet ;
   - la planche d'identité : composée par Pillow (GRATUIT, aucun tir), puis validée ; elle est « périmée » dès qu'une
-    pièce qu'elle montre change.
+    pièce qu'elle montre change ;
+  - le kit des contenus de l'espace (`idv_<espace>`, D4) : couleurs et logo tirés de l'identité, sur demande.
 Le logo d'un persona sert à SES contenus : il n'habille jamais l'application (décision du 13/10).
 Les images de référence sont recopiées dans la Bibliothèque (`identite_<espace>_<nom>`) pour les modèles qui lisent
 une image de la Bibliothèque (image→vidéo, avatar) ; la copie est refaite si elle a disparu (le dossier fait foi).
@@ -28,7 +29,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from app.services import espaces
+from app.services import brand_kits, espaces
 
 GRAINE_DEEPOTUS = Path(__file__).resolve().parent.parent / "espaces" / "deepotus_identite.json"
 GENRES = {"logo": 1, "mascotte": 6, "produits": 12}
@@ -194,7 +195,9 @@ def ecrire(eid: str, champs) -> dict:
         doc["style_ecrit"] = _sans_artiste(_texte(champs["style_ecrit"], "style_ecrit", MAX_STYLE), "style écrit")
     if "adn" in champs:
         doc["adn"] = _adn(champs["adn"])
-    return _ecrire(eid, doc)
+    _ecrire(eid, doc)
+    _suivre_kit(eid)
+    return doc
 
 
 # ---- les images ------------------------------------------------------------------------------------------------------
@@ -236,6 +239,8 @@ def ajouter_image(eid: str, genre: str, data: bytes) -> str:
         doc[genre] = actuels + [nom]
     _ecrire(eid, doc)
     publier(eid, nom)
+    if genre == "logo":
+        _suivre_kit(eid)
     return nom
 
 
@@ -247,7 +252,8 @@ def _effacer(eid: str, nom: str) -> None:
 
 def retirer_image(eid: str, nom: str) -> bool:
     doc = lire(eid)
-    if doc["logo"] == nom:
+    logo = doc["logo"] == nom
+    if logo:
         doc["logo"] = None
     elif nom in doc["mascotte"]:
         doc["mascotte"].remove(nom)
@@ -257,6 +263,8 @@ def retirer_image(eid: str, nom: str) -> bool:
         return False
     _ecrire(eid, doc)
     _effacer(eid, nom)
+    if logo:
+        _suivre_kit(eid)
     return True
 
 
@@ -497,4 +505,84 @@ def vue(eid: str) -> dict:
     doc["bibliotheque"] = {n: nom_bibliotheque(eid, n) for n in
                            ([doc["logo"]] if doc["logo"] else []) + doc["mascotte"] + doc["produits"]}
     doc["plafonds"] = dict(GENRES)
+    k = espaces.kit_de_l_espace(eid)
+    doc["kit"] = {"id": k["id"], "name": k.get("name"), "brand_color": k.get("brand_color"),
+                  "accent_color": k.get("accent_color"), "logo": bool(k.get("logo")), "depuis_identite": k["id"] == kit_id(eid),
+                  "branding": not (espaces.lire()["espaces"][eid].get("kit_id"))}
     return doc
+
+
+# ---- le kit des CONTENUS de l'espace, tiré de l'identité (D4) ---------------------------------------------------------
+# Un vrai kit de marque `idv_<espace>` (Réglages › Branding le liste) : couleur de marque = rôle « primaire », accent =
+# rôle « accent » (sinon les deux premières couleurs), logo du persona, nom et accroches du PERSONA (jamais celles de
+# Deepotus). Associé à l'espace pour SES contenus (kit_de_l_espace) ; il n'est JAMAIS activé (le logo et le nom de
+# l'application ne suivent pas l'espace) et s'il habille l'application (activé à la main dans Branding), on n'y touche
+# plus. Tant que l'espace l'utilise, il suit l'identité (palette, logo) à chaque enregistrement.
+
+def kit_id(eid: str) -> str:
+    return ("idv_" + eid)[:40]
+
+
+def _hex_role(pal: list, *roles) -> str | None:
+    for c in pal:
+        if c.get("role", "").strip().lower() in roles:
+            return c["hex"]
+    return None
+
+
+def _kit_champs(eid: str) -> dict:
+    doc = lire(eid)
+    p = espaces.persona(eid)
+    e = espaces.lire()["espaces"][eid]
+    nom_esp = e.get("nom") or eid
+    nom = (p.get("display_name") or nom_esp).strip()
+    pal = doc["palette"]
+    marque = _hex_role(pal, "primaire", "primary", "principale", "principal", "marque", "brand") \
+        or (pal[0]["hex"] if pal else e.get("couleur") or "#ef4444")
+    autres = [c["hex"] for c in pal if c["hex"] != marque]
+    accent = _hex_role(pal, "accent", "secondaire", "secondary") or (autres[0] if autres else marque)
+    ec, idt = p.get("ecran") or {}, p.get("identite") or {}
+    handle = (ec.get("handle") or "").strip()
+    produits = [x for x in (idt.get("produits") or []) if isinstance(x, str) and x.strip()]
+    return {"name": f"{nom_esp} (identité)", "app_name": nom, "app_sub": produits[0] if produits else nom,
+            "tagline_1": (ec.get("catchphrase") or idt.get("mission") or nom).strip(),
+            "tagline_2": (handle if handle not in ("", "@") else idt.get("url") or nom).strip(),
+            "brand_color": marque, "accent_color": accent}
+
+
+def kit_de_l_identite(eid: str) -> dict | None:
+    """La vue du kit idv_<espace> s'il existe."""
+    kid = kit_id(eid)
+    return next((v for v in brand_kits.lister() if v["id"] == kid), None)
+
+
+def synchroniser_kit(eid: str, associer: bool = False) -> dict:
+    """Crée ou met à jour le kit idv_<espace> depuis l'identité ; `associer` en fait le kit des contenus de l'espace.
+    ValueError si ce kit habille l'application (activé dans Réglages › Branding) : on ne touche pas à l'interface."""
+    kid = kit_id(eid)
+    if brand_kits.lire()["actif"] == kid:
+        raise ValueError("ce kit habille l'application (Réglages › Branding) : activez-y un autre kit d'abord — "
+                         "le logo et le nom de l'application ne suivent jamais un persona")
+    brand_kits.enregistrer(dict(_kit_champs(eid), id=kid))
+    dest = brand_kits.dossier() / "logos" / f"{kid}.png"
+    doc = lire(eid)
+    src = chemin_image(eid, doc["logo"]) if doc["logo"] else None
+    if src is not None:
+        shutil.copyfile(src, dest)
+    else:
+        dest.unlink(missing_ok=True)
+    if associer:
+        espaces.modifier(eid, {"kit_id": kid})
+    return kit_de_l_identite(eid)
+
+
+def _suivre_kit(eid: str) -> None:
+    """Après une écriture de l'identité : le kit suit, si l'espace l'utilise encore et qu'il n'habille pas l'app."""
+    kid = kit_id(eid)
+    try:
+        if (espaces.lire()["espaces"][eid].get("kit_id") == kid and kid in brand_kits.lire()["kits"]
+                and brand_kits.lire()["actif"] != kid):
+            synchroniser_kit(eid)
+    except Exception as e:  # noqa: BLE001 — l'identité est écrite ; le kit se resynchronise au prochain geste
+        from loguru import logger
+        logger.warning(f"kit de l'identité {eid} : {e}")

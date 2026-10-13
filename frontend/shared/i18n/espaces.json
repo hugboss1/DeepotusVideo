@@ -187,6 +187,38 @@
     "fr": "Code hexadécimal",
     "en": "Hex code"
   },
+  "espaces.idv.kit": {
+    "fr": "Kit des contenus de l'espace",
+    "en": "Space content kit"
+  },
+  "espaces.idv.kit_aide": {
+    "fr": "Les gabarits rendus dans cet espace prennent ses couleurs et son logo. Tiré de l'identité ENREGISTRÉE ; jamais appliqué à l'application (Réglages › Branding).",
+    "en": "Templates rendered in this space use its colours and logo. Built from the SAVED identity; never applied to the app (Settings › Branding)."
+  },
+  "espaces.idv.kit_creer": {
+    "fr": "Créer le kit depuis l'identité",
+    "en": "Build the kit from the identity"
+  },
+  "espaces.idv.kit_etat.autre": {
+    "fr": "Utilise le kit « {nom} », choisi pour cet espace.",
+    "en": "Uses the \"{nom}\" kit chosen for this space."
+  },
+  "espaces.idv.kit_etat.branding": {
+    "fr": "Suit le kit de Réglages › Branding ({nom}).",
+    "en": "Follows the Settings › Branding kit ({nom})."
+  },
+  "espaces.idv.kit_etat.identite": {
+    "fr": "Utilise le kit tiré de l'identité ({nom}) : il suit la palette et le logo.",
+    "en": "Uses the kit built from the identity ({nom}): it follows the palette and the logo."
+  },
+  "espaces.idv.kit_fait": {
+    "fr": "Kit de l'espace à jour.",
+    "en": "Space kit updated."
+  },
+  "espaces.idv.kit_maj": {
+    "fr": "Mettre à jour le kit",
+    "en": "Update the kit"
+  },
   "espaces.idv.logo_aide": {
     "fr": "Pour les contenus de ce persona seulement : le logo de l'application reste celui de Réglages › Branding.",
     "en": "For this persona's content only: the app logo stays the one in Settings › Branding."

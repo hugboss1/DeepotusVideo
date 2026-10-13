@@ -7880,6 +7880,19 @@ async def post_identite_planche(espace_id: str, request: Request):
     return _idv.vue(eid)
 
 
+@router.post("/espaces/{espace_id}/identite/kit")
+async def post_identite_kit(espace_id: str, request: Request):
+    """D4 : le kit des CONTENUS de l'espace tiré de l'identité (couleurs, logo) — jamais activé pour l'application."""
+    _require_localhost(request)
+    from app.services import identite as _idv
+    eid = _idv_espace(espace_id)
+    try:
+        _idv.synchroniser_kit(eid, associer=True)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _idv.vue(eid)
+
+
 @router.post("/espaces/{espace_id}/identite/planche/valider")
 async def post_identite_planche_valider(espace_id: str, request: Request):
     _require_localhost(request)
