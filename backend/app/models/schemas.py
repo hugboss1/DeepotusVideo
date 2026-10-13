@@ -298,6 +298,8 @@ class GenerateHeyGenCinematicRequest(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=10000)
     look_ids: List[str] = Field(..., min_length=1, max_length=3)
     reference_images: List[MediaName] = Field(default_factory=list, max_length=3)
+    # t206 : compléter les références (3 au plus) par celles de l'identité de l'espace (mascotte, puis produits)
+    identite: bool = False
     duration_s: Optional[int] = Field(None, ge=4, le=15)
     auto_duration: bool = False
     aspect_ratio: Literal["9:16", "16:9", "1:1"] = "9:16"
@@ -493,7 +495,8 @@ class ImageItem(BaseModel):
 class BuildPromptRequest(BaseModel):
     """Generate a Seedance prompt from free-text keywords or raw prompt.
 
-    The engine injects deepotus DNA (mascot, deep sea, brand) and structures
+    The engine injects the active space's persona identity (t206 : descriptors of identite/, the former
+    hard-coded deepotus DNA for Deepotus) and structures
     output for Seedance 2.0 ([Subject][Action][Camera][Setting][Lighting][Style][Pacing]).
     """
     intent: str = Field(..., description="Free-text intent or keywords")
@@ -501,7 +504,7 @@ class BuildPromptRequest(BaseModel):
     duration_s: int = 5
     aspect_ratio: AspectRatio = AspectRatio.VERTICAL
     voiceover_language: Language = Language.EN
-    inject_persona: bool = Field(True, description="Add deepotus mascot/deep-sea/brand DNA")
+    inject_persona: bool = Field(True, description="Add the active persona's identity descriptors (Settings > Spaces > Visual identity)")
     preserve_user_words: bool = Field(True, description="Keep user words verbatim where possible")
     voice_mode: Optional[VoiceMode] = Field(None, description="Apply brand voice mode style hints")
 

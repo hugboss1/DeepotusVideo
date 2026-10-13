@@ -6565,6 +6565,13 @@ async def generate_heygen_cinematic(request: GenerateHeyGenCinematicRequest,
                if not (settings.images_path / f).exists()]
     if missing:
         raise HTTPException(404, f"Reference image(s) not in Library: {missing}")
+    if request.identite:      # t206 : la mascotte et les produits de l'espace, copiés dans la Bibliothèque au besoin
+        from app.services import identite as _idv, espaces as _es
+        place = 3 - len(request.reference_images or [])
+        ajout = _idv.references_bibliotheque(_es.espace_courant(), n=place) if place > 0 else []
+        if not ajout and place > 0:
+            raise HTTPException(400, "Aucune image de référence dans l'identité de l'espace (Réglages › Espaces).")
+        request.reference_images = list(request.reference_images or []) + ajout
     # tâche #16 : garde mensuelle + coût RÉEL (delta du solde HeyGen, attribuable à un seul rendu en vol)
     from app.services import plafonds as _PLAF
     _ref_hg = f"hg:{uuid4().hex}"
@@ -7786,6 +7793,103 @@ async def onboarding_valider(espace_id: str, body: dict, request: Request):
         return _onb.valider(eid, (body or {}).get("proposition"))
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+# ---- t206 (Espaces de marque E6) : l'IDENTITÉ VISUELLE d'un persona (dossier identite/ de l'espace). Lecture libre ;
+# écritures locales ; rien de payant (la planche est composée par Pillow). Le logo sert aux CONTENUS du persona, jamais
+# à l'habillage de l'application.
+
+def _idv_espace(espace_id: str) -> str:
+    from app.services import espaces as _es
+    if not _es.id_valide(espace_id) or espace_id not in _es.lire()["espaces"]:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    return espace_id
+
+
+@router.get("/espaces/{espace_id}/identite")
+async def get_identite(espace_id: str):
+    from app.services import identite as _idv
+    return _idv.vue(_idv_espace(espace_id))
+
+
+@router.put("/espaces/{espace_id}/identite")
+async def put_identite(espace_id: str, body: dict, request: Request):
+    """Palette, typographies, style écrit (sans nom d'artiste), ADN des prompts. Rien d'écrit sur un refus."""
+    _require_localhost(request)
+    from app.services import identite as _idv
+    eid = _idv_espace(espace_id)
+    try:
+        _idv.ecrire(eid, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _idv.vue(eid)
+
+
+@router.post("/espaces/{espace_id}/identite/images/{genre}")
+async def post_identite_image(espace_id: str, genre: str, request: Request, file: UploadFile = File(...)):
+    _require_localhost(request)
+    from app.services import identite as _idv
+    eid = _idv_espace(espace_id)
+    data = await file.read()
+    try:
+        nom = _idv.ajouter_image(eid, genre, data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"nom": nom, "identite": _idv.vue(eid)}
+
+
+@router.post("/espaces/{espace_id}/identite/importer")
+async def post_identite_importer(espace_id: str, body: dict, request: Request):
+    """Range des images déjà dans la Bibliothèque ({genre, fichiers}) — les références de l'onboarding, par exemple."""
+    _require_localhost(request)
+    from app.services import identite as _idv
+    eid = _idv_espace(espace_id)
+    try:
+        noms = _idv.importer_bibliotheque(eid, str((body or {}).get("genre") or ""), (body or {}).get("fichiers"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"noms": noms, "identite": _idv.vue(eid)}
+
+
+@router.delete("/espaces/{espace_id}/identite/images/{nom}")
+async def delete_identite_image(espace_id: str, nom: str, request: Request):
+    _require_localhost(request)
+    from app.services import identite as _idv
+    eid = _idv_espace(espace_id)
+    if not _idv.retirer_image(eid, nom):
+        raise HTTPException(404, f"image inconnue : {nom}")
+    return _idv.vue(eid)
+
+
+@router.get("/espaces/{espace_id}/identite/fichier/{nom}")
+async def get_identite_fichier(espace_id: str, nom: str):
+    from app.services import identite as _idv
+    p = _idv.chemin_image(_idv_espace(espace_id), nom)
+    if p is None:
+        raise HTTPException(404, "image inconnue")
+    return FileResponse(str(p), media_type="image/png", headers={"Cache-Control": "no-cache"})
+
+
+@router.post("/espaces/{espace_id}/identite/planche")
+async def post_identite_planche(espace_id: str, request: Request):
+    """Compose la planche d'identité (Pillow, gratuit) ; elle attend la validation."""
+    _require_localhost(request)
+    from app.services import identite as _idv
+    eid = _idv_espace(espace_id)
+    await asyncio.to_thread(_idv.composer_planche, eid)
+    return _idv.vue(eid)
+
+
+@router.post("/espaces/{espace_id}/identite/planche/valider")
+async def post_identite_planche_valider(espace_id: str, request: Request):
+    _require_localhost(request)
+    from app.services import identite as _idv
+    eid = _idv_espace(espace_id)
+    try:
+        _idv.valider_planche(eid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _idv.vue(eid)
 
 
 @router.get("/espaces/{espace_id}/contenus")
@@ -9684,6 +9788,19 @@ async def _process_image_core(body: dict):
         # fantôme suivie d'un 502).
         if IP.est_vectoriel(model):
             raise HTTPException(400, _msg_g("ia.image.pas_de_retouche", None, modele=model))
+        refs_idv = []
+        if body.get("identite"):
+            # t206 : les références de l'identité de l'espace (mascotte, produits) — seulement pour un modèle qui
+            # prend PLUSIEURS images ; refusé AVANT la garde de dépense (aucune ligne écrite)
+            from app.services import identite as _idv, espaces as _es
+            if not (model in ("nano-banana", "nano-banana-pro")
+                    or (model in IP.FAL_IMAGES and IP.FAL_IMAGES[model].get("edit"))):
+                raise HTTPException(400, f"{model or 'FLUX Kontext'} ne prend qu'une image : choisissez un modèle à "
+                                         "références multiples (Nano Banana…) pour garder l'identité.")
+            refs_idv = _idv.references(_es.espace_courant(), n=IP.REF_MAX - 1)
+            if not refs_idv:
+                raise HTTPException(400, "Aucune image de référence dans l'identité de l'espace (Réglages › Espaces).")
+            prompt = f"{prompt} Keep the character and the products exactly as in the reference images."
         # façade du registre (ids fal, nano-banana-pro, GPT Image 2.5) testée
         # AVANT le préfixe : nano-banana-pro tombait sur Kontext sans le dire
         if IP.via_facade(model) or model.startswith("gpt-image") \
@@ -9694,8 +9811,8 @@ async def _process_image_core(body: dict):
                                          f"(Réglages) pour {model}.")
             await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])
             try:
-                out = await IP.generate(model, prompt, size, n,
-                                        image_path=src)
+                out = await (IP.generate(model, prompt, size, n, image_paths=[src] + refs_idv) if refs_idv
+                             else IP.generate(model, prompt, size, n, image_path=src))
             except RuntimeError as e:
                 raise HTTPException(502, str(e))
             except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502
