@@ -1,0 +1,1568 @@
+{
+ "cap_EN_Les profondeurs s'ouvrent. Une pièce monte": "Les profondeurs s'ouvrent.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "cap_EN_a glowing coin rising": "a glowing coin rising.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "cap_EN_x": "x.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "cap_FR_Les profondeurs s'ouvrent. Une pièce monte": "Les profondeurs s'ouvrent.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "cap_FR_a glowing coin rising": "a glowing coin rising.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "cap_FR_x": "x.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "chain_titre": [
+  "Hello",
+  "x"
+ ],
+ "generic_EN": "From the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "generic_FR": "From the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "heygen_cap_None": "Hello there.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "heygen_cap_alpha": "Hello there.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "heygen_cap_memer": "Hello there.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "heygen_cap_oracle": "Hello there.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "heygen_cap_prophet": "Hello there.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "heygen_cap_zen": "Hello there.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+ "lyrics": "[Verse]\nDeepotus — from the deep\ndeep sea, octopus mascot, Solana, memecoin\n\n[Chorus]\nDeepotus, from the deep\n\n[Verse]\n…\n\n[Bridge]\n…\n\n[Chorus]\nDeepotus, from the deep",
+ "lyrics_theme": "[Verse]\nDeepotus — tides\ndeep sea, octopus mascot, Solana, memecoin\n\n[Chorus]\nDeepotus, tides\n\n[Verse]\n…\n\n[Bridge]\n…\n\n[Chorus]\nDeepotus, tides",
+ "news_EN_None_None_40": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has seen this script before. It rarely ends well. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. Stay liquid, stay skeptical. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 31
+ },
+ "news_EN_None_None_90": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has seen this script before. It rarely ends well. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Stay liquid, stay skeptical. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 41
+ },
+ "news_EN_None_rates matter_40": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "angle framing injected",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has seen this script before. It rarely ends well. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. Stay liquid, stay skeptical. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 36
+ },
+ "news_EN_None_rates matter_90": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has seen this script before. It rarely ends well. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Stay liquid, stay skeptical. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 46
+ },
+ "news_EN_alpha_None_40": {
+  "rationale": [
+   "tone=alpha (direct, chiffre, sans ornement ; pour un)",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Signal check. No noise. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Move accordingly. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 32
+ },
+ "news_EN_alpha_None_90": {
+  "rationale": [
+   "tone=alpha (direct, chiffre, sans ornement ; pour un)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Signal check. No noise. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Move accordingly. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 32
+ },
+ "news_EN_alpha_rates matter_40": {
+  "rationale": [
+   "tone=alpha (direct, chiffre, sans ornement ; pour un)",
+   "angle framing injected",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Signal check. No noise. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Move accordingly. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 37
+ },
+ "news_EN_alpha_rates matter_90": {
+  "rationale": [
+   "tone=alpha (direct, chiffre, sans ornement ; pour un)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Signal check. No noise. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Move accordingly. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 37
+ },
+ "news_EN_memer_None_40": {
+  "rationale": [
+   "tone=memer (rapide, moqueuse, complice ; pour l'absu)",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Okay, news dump, deepotus style. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. That's the lore. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 34
+ },
+ "news_EN_memer_None_90": {
+  "rationale": [
+   "tone=memer (rapide, moqueuse, complice ; pour l'absu)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Okay, news dump, deepotus style. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. That's the lore. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 34
+ },
+ "news_EN_memer_rates matter_40": {
+  "rationale": [
+   "tone=memer (rapide, moqueuse, complice ; pour l'absu)",
+   "angle framing injected",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Okay, news dump, deepotus style. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. That's the lore. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 39
+ },
+ "news_EN_memer_rates matter_90": {
+  "rationale": [
+   "tone=memer (rapide, moqueuse, complice ; pour l'absu)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Okay, news dump, deepotus style. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. That's the lore. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 39
+ },
+ "news_EN_oracle_None_40": {
+  "rationale": [
+   "tone=oracle (calme, sentencieux, image marine ; la vo)",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has been watching. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. The current decides. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 34
+ },
+ "news_EN_oracle_None_90": {
+  "rationale": [
+   "tone=oracle (calme, sentencieux, image marine ; la vo)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has been watching. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. The current decides. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 34
+ },
+ "news_EN_oracle_rates matter_40": {
+  "rationale": [
+   "tone=oracle (calme, sentencieux, image marine ; la vo)",
+   "angle framing injected",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has been watching. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. The current decides. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 39
+ },
+ "news_EN_oracle_rates matter_90": {
+  "rationale": [
+   "tone=oracle (calme, sentencieux, image marine ; la vo)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has been watching. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. The current decides. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 39
+ },
+ "news_EN_prophet_None_40": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has seen this script before. It rarely ends well. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. Stay liquid, stay skeptical. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 31
+ },
+ "news_EN_prophet_None_90": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has seen this script before. It rarely ends well. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Stay liquid, stay skeptical. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 41
+ },
+ "news_EN_prophet_rates matter_40": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "angle framing injected",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has seen this script before. It rarely ends well. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. Stay liquid, stay skeptical. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 36
+ },
+ "news_EN_prophet_rates matter_90": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has seen this script before. It rarely ends well. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Stay liquid, stay skeptical. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 46
+ },
+ "news_EN_zen_None_40": {
+  "rationale": [
+   "tone=zen (posee, lente, rassurante ; pour un sujet)",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Breathe. Then look. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Stay steady. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 31
+ },
+ "news_EN_zen_None_90": {
+  "rationale": [
+   "tone=zen (posee, lente, rassurante ; pour un sujet)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Breathe. Then look. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Stay steady. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 31
+ },
+ "news_EN_zen_rates matter_40": {
+  "rationale": [
+   "tone=zen (posee, lente, rassurante ; pour un sujet)",
+   "angle framing injected",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Breathe. Then look. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Stay steady. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 36
+ },
+ "news_EN_zen_rates matter_90": {
+  "rationale": [
+   "tone=zen (posee, lente, rassurante ; pour un sujet)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Breathe. Then look. The deepotus read: rates matter. Apparently, The central bank kept rates unchanged. Somehow, Activity hit a record high this week. In today's circus, Court rules on token case | CoinDesk. Stay steady. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 36
+ },
+ "news_FR_None_None_40": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs ont deja vu ce film. Ca finit rarement bien. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Restez liquides, restez sceptiques. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 33
+ },
+ "news_FR_None_None_90": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs ont deja vu ce film. Ca finit rarement bien. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Restez liquides, restez sceptiques. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 44
+ },
+ "news_FR_None_rates matter_40": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "angle framing injected",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs ont deja vu ce film. Ca finit rarement bien. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Restez liquides, restez sceptiques. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 37
+ },
+ "news_FR_None_rates matter_90": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs ont deja vu ce film. Ca finit rarement bien. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Restez liquides, restez sceptiques. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 48
+ },
+ "news_FR_alpha_None_40": {
+  "rationale": [
+   "tone=alpha (direct, chiffre, sans ornement ; pour un)",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Point signal. Zero bruit. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Agis en consequence. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 36
+ },
+ "news_FR_alpha_None_90": {
+  "rationale": [
+   "tone=alpha (direct, chiffre, sans ornement ; pour un)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Point signal. Zero bruit. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Agis en consequence. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 36
+ },
+ "news_FR_alpha_rates matter_40": {
+  "rationale": [
+   "tone=alpha (direct, chiffre, sans ornement ; pour un)",
+   "angle framing injected",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Point signal. Zero bruit. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Agis en consequence. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 29
+ },
+ "news_FR_alpha_rates matter_90": {
+  "rationale": [
+   "tone=alpha (direct, chiffre, sans ornement ; pour un)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Point signal. Zero bruit. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Agis en consequence. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 40
+ },
+ "news_FR_memer_None_40": {
+  "rationale": [
+   "tone=memer (rapide, moqueuse, complice ; pour l'absu)",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Bon, revue de presse, version deepotus. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Voila le lore. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 38
+ },
+ "news_FR_memer_None_90": {
+  "rationale": [
+   "tone=memer (rapide, moqueuse, complice ; pour l'absu)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Bon, revue de presse, version deepotus. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Voila le lore. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 38
+ },
+ "news_FR_memer_rates matter_40": {
+  "rationale": [
+   "tone=memer (rapide, moqueuse, complice ; pour l'absu)",
+   "angle framing injected",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Bon, revue de presse, version deepotus. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Voila le lore. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 31
+ },
+ "news_FR_memer_rates matter_90": {
+  "rationale": [
+   "tone=memer (rapide, moqueuse, complice ; pour l'absu)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Bon, revue de presse, version deepotus. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Voila le lore. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 42
+ },
+ "news_FR_oracle_None_40": {
+  "rationale": [
+   "tone=oracle (calme, sentencieux, image marine ; la vo)",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs observaient. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Le courant decide. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 35
+ },
+ "news_FR_oracle_None_90": {
+  "rationale": [
+   "tone=oracle (calme, sentencieux, image marine ; la vo)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs observaient. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Le courant decide. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 35
+ },
+ "news_FR_oracle_rates matter_40": {
+  "rationale": [
+   "tone=oracle (calme, sentencieux, image marine ; la vo)",
+   "angle framing injected",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs observaient. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Le courant decide. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 39
+ },
+ "news_FR_oracle_rates matter_90": {
+  "rationale": [
+   "tone=oracle (calme, sentencieux, image marine ; la vo)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs observaient. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Le courant decide. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 39
+ },
+ "news_FR_prophet_None_40": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs ont deja vu ce film. Ca finit rarement bien. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Restez liquides, restez sceptiques. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 33
+ },
+ "news_FR_prophet_None_90": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs ont deja vu ce film. Ca finit rarement bien. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Restez liquides, restez sceptiques. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 44
+ },
+ "news_FR_prophet_rates matter_40": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "angle framing injected",
+   "2/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs ont deja vu ce film. Ca finit rarement bien. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Restez liquides, restez sceptiques. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 37
+ },
+ "news_FR_prophet_rates matter_90": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs ont deja vu ce film. Ca finit rarement bien. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Restez liquides, restez sceptiques. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 48
+ },
+ "news_FR_zen_None_40": {
+  "rationale": [
+   "tone=zen (posee, lente, rassurante ; pour un sujet)",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Respire. Puis regarde. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Reste stable. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 34
+ },
+ "news_FR_zen_None_90": {
+  "rationale": [
+   "tone=zen (posee, lente, rassurante ; pour un sujet)",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Respire. Puis regarde. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Reste stable. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 34
+ },
+ "news_FR_zen_rates matter_40": {
+  "rationale": [
+   "tone=zen (posee, lente, rassurante ; pour un sujet)",
+   "angle framing injected",
+   "3/3 headlines kept within 40 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Respire. Puis regarde. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Reste stable. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 38
+ },
+ "news_FR_zen_rates matter_90": {
+  "rationale": [
+   "tone=zen (posee, lente, rassurante ; pour un sujet)",
+   "angle framing injected",
+   "3/3 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Respire. Puis regarde. Lecture deepotus: rates matter. Apparemment, The central bank kept rates unchanged. Comme par hasard, Activity hit a record high this week. Au programme du cirque, Court rules on token case | CoinDesk. Reste stable. Deepotus.",
+  "suggested_caption": "Central bank holds rates steady.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 38
+ },
+ "news_vide_EN": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "0/0 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "The deep has seen this script before. It rarely ends well. Stay liquid, stay skeptical. Deepotus.",
+  "suggested_caption": "Deepotus.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 16
+ },
+ "news_vide_FR": {
+  "rationale": [
+   "tone=prophet (cynical/humorous prophet)",
+   "0/0 headlines kept within 90 words",
+   "brand scrub + vocabulary filter applied",
+   "deterministic draft (LLM polish not requested)"
+  ],
+  "script": "Les profondeurs ont deja vu ce film. Ca finit rarement bien. Restez liquides, restez sceptiques. Deepotus.",
+  "suggested_caption": "Deepotus.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 16
+ },
+ "polish_desc_EN_None": [
+  "cynical, dry-witty deep-sea prophet"
+ ],
+ "polish_desc_EN_alpha": [
+  "direct, chiffre, sans ornement ; pour un mouvement de marche"
+ ],
+ "polish_desc_EN_memer": [
+  "rapide, moqueuse, complice ; pour l'absurde"
+ ],
+ "polish_desc_EN_oracle": [
+  "calme, sentencieux, image marine ; la voix par defaut"
+ ],
+ "polish_desc_EN_prophet": [
+  "cynical, dry-witty deep-sea prophet",
+  "",
+  "",
+  "calme, sentencieux, image marine ; la voix par defaut",
+  "calme, sentencieux, image marine ; la voix par defaut",
+  "direct, chiffre, sans ornement ; pour un mouvement de marche",
+  "direct, chiffre, sans ornement ; pour un mouvement de marche",
+  "posee, lente, rassurante ; pour un sujet sans drame",
+  "posee, lente, rassurante ; pour un sujet sans drame",
+  "rapide, moqueuse, complice ; pour l'absurde",
+  "rapide, moqueuse, complice ; pour l'absurde",
+  "",
+  "",
+  "",
+  "",
+  "calme, sentencieux, image marine ; la voix par defaut",
+  "calme, sentencieux, image marine ; la voix par defaut",
+  "direct, chiffre, sans ornement ; pour un mouvement de marche",
+  "direct, chiffre, sans ornement ; pour un mouvement de marche",
+  "posee, lente, rassurante ; pour un sujet sans drame",
+  "posee, lente, rassurante ; pour un sujet sans drame",
+  "rapide, moqueuse, complice ; pour l'absurde",
+  "rapide, moqueuse, complice ; pour l'absurde",
+  "",
+  "",
+  "",
+  "",
+  "calme, sentencieux, image marine ; la voix par defaut",
+  "calme, sentencieux, image marine ; la voix par defaut",
+  "direct, chiffre, sans ornement ; pour un mouvement de marche",
+  "direct, chiffre, sans ornement ; pour un mouvement de marche",
+  "posee, lente, rassurante ; pour un sujet sans drame",
+  "posee, lente, rassurante ; pour un sujet sans drame",
+  "rapide, moqueuse, complice ; pour l'absurde",
+  "rapide, moqueuse, complice ; pour l'absurde",
+  "",
+  ""
+ ],
+ "polish_desc_EN_zen": [
+  "posee, lente, rassurante ; pour un sujet sans drame"
+ ],
+ "polish_desc_FR_None": [
+  "cynical, dry-witty deep-sea prophet"
+ ],
+ "polish_desc_FR_alpha": [
+  "direct, chiffre, sans ornement ; pour un mouvement de marche"
+ ],
+ "polish_desc_FR_memer": [
+  "rapide, moqueuse, complice ; pour l'absurde"
+ ],
+ "polish_desc_FR_oracle": [
+  "calme, sentencieux, image marine ; la voix par defaut"
+ ],
+ "polish_desc_FR_prophet": [
+  "cynical, dry-witty deep-sea prophet"
+ ],
+ "polish_desc_FR_zen": [
+  "posee, lente, rassurante ; pour un sujet sans drame"
+ ],
+ "rank_prompt": [
+  "Brand brief: deep-sea crypto brand, community of traders\n\nHeadlines:\n- id=a | Solana record\n\nScore each headline 0-100 for how much it deserves today's video.",
+  "Brand brief: solana\n\nHeadlines:\n- id=a | Solana record\n\nScore each headline 0-100 for how much it deserves today's video."
+ ],
+ "rank_system": [
+  "You score news headlines for a deep-sea themed crypto brand called deepotus, which publishes one short vertical video per day. Reply with JSON ONLY: a list of {\"id\": str, \"score\": int 0-100, \"pourquoi\": str}, one entry per headline given, no preamble, no code fence.",
+  "You score news headlines for a deep-sea themed crypto brand called deepotus, which publishes one short vertical video per day. Reply with JSON ONLY: a list of {\"id\": str, \"score\": int 0-100, \"pourquoi\": str}, one entry per headline given, no preamble, no code fence."
+ ],
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_None_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Les profondeurs s'ouvrent. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 11
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_None_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Les profondeurs s'ouvrent. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 11
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_alpha_24": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Cut the noise. Les profondeurs s'ouvrent. You have a window. It's closing.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 12
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_alpha_60": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Cut the noise. Les profondeurs s'ouvrent. You have a window. It's closing. Deepotus. Now.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 14
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_memer_24": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: Les profondeurs s'ouvrent. You see it. I see it. Let's not pretend.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 13
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_memer_60": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: Les profondeurs s'ouvrent. You see it. I see it. Let's not pretend. Deepotus.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 14
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_oracle_24": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Listen carefully. Les profondeurs s'ouvrent. The deep rarely speaks. But when it does, you listen.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 15
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_oracle_60": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Listen carefully. Les profondeurs s'ouvrent. The deep rarely speaks. But when it does, you listen. Deepotus.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 16
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_prophet_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Les profondeurs s'ouvrent. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 11
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_prophet_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Les profondeurs s'ouvrent. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 11
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_zen_24": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Breathe. Les profondeurs s'ouvrent. Markets rise and fall. Your posture shouldn't follow them.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 13
+ },
+ "script_EN_Les profondeurs s'ouvrent. Une pièce monte_zen_60": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Breathe. Les profondeurs s'ouvrent. Markets rise and fall. Your posture shouldn't follow them. Deepotus. Patience.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 15
+ },
+ "script_EN_a glowing coin rising_None_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "a glowing coin rising. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "a glowing coin rising.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 12
+ },
+ "script_EN_a glowing coin rising_None_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "a glowing coin rising. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "a glowing coin rising.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 12
+ },
+ "script_EN_a glowing coin rising_alpha_24": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Cut the noise. a glowing coin rising. You have a window. It's closing.",
+  "suggested_caption": "a glowing coin rising.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 13
+ },
+ "script_EN_a glowing coin rising_alpha_60": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Cut the noise. a glowing coin rising. You have a window. It's closing. Deepotus. Now.",
+  "suggested_caption": "a glowing coin rising.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 15
+ },
+ "script_EN_a glowing coin rising_memer_24": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: a glowing coin rising. You see it. I see it. Let's not pretend.",
+  "suggested_caption": "a glowing coin rising.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 14
+ },
+ "script_EN_a glowing coin rising_memer_60": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: a glowing coin rising. You see it. I see it. Let's not pretend. Deepotus.",
+  "suggested_caption": "a glowing coin rising.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 15
+ },
+ "script_EN_a glowing coin rising_oracle_24": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Listen carefully. a glowing coin rising. The deep rarely speaks. But when it does, you listen.",
+  "suggested_caption": "a glowing coin rising.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 16
+ },
+ "script_EN_a glowing coin rising_oracle_60": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Listen carefully. a glowing coin rising. The deep rarely speaks. But when it does, you listen. Deepotus.",
+  "suggested_caption": "a glowing coin rising.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 17
+ },
+ "script_EN_a glowing coin rising_prophet_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "a glowing coin rising. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "a glowing coin rising.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 12
+ },
+ "script_EN_a glowing coin rising_prophet_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "a glowing coin rising. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "a glowing coin rising.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 12
+ },
+ "script_EN_a glowing coin rising_zen_24": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Breathe. a glowing coin rising. Markets rise and fall. Your posture shouldn't follow them.",
+  "suggested_caption": "a glowing coin rising.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 14
+ },
+ "script_EN_a glowing coin rising_zen_60": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Breathe. a glowing coin rising. Markets rise and fall. Your posture shouldn't follow them. Deepotus. Patience.",
+  "suggested_caption": "a glowing coin rising.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 16
+ },
+ "script_EN_x_None_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "x. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "x.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 9
+ },
+ "script_EN_x_None_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "x. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "x.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 9
+ },
+ "script_EN_x_alpha_24": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Cut the noise. x. You have a window. It's closing.",
+  "suggested_caption": "x.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 10
+ },
+ "script_EN_x_alpha_60": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Cut the noise. x. You have a window. It's closing. Deepotus. Now.",
+  "suggested_caption": "x.\n\nMove accordingly. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 12
+ },
+ "script_EN_x_memer_24": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: x. You see it. I see it. Let's not pretend.",
+  "suggested_caption": "x.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 11
+ },
+ "script_EN_x_memer_60": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: x. You see it. I see it. Let's not pretend. Deepotus.",
+  "suggested_caption": "x.\n\nThat's the lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 12
+ },
+ "script_EN_x_oracle_24": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Listen carefully. x. The deep rarely speaks. But when it does, you listen.",
+  "suggested_caption": "x.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 13
+ },
+ "script_EN_x_oracle_60": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Listen carefully. x. The deep rarely speaks. But when it does, you listen. Deepotus.",
+  "suggested_caption": "x.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 14
+ },
+ "script_EN_x_prophet_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "x. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "x.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 9
+ },
+ "script_EN_x_prophet_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "x. What matters is underneath. Deepotus. From the deep.",
+  "suggested_caption": "x.\n\nFrom the deep. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 9
+ },
+ "script_EN_x_zen_24": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Breathe. x. Markets rise and fall. Your posture shouldn't follow them.",
+  "suggested_caption": "x.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 11
+ },
+ "script_EN_x_zen_60": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Breathe. x. Markets rise and fall. Your posture shouldn't follow them. Deepotus. Patience.",
+  "suggested_caption": "x.\n\nStay steady. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 13
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_None_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Les profondeurs s'ouvrent. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 15
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_None_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Les profondeurs s'ouvrent. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 15
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_alpha_24": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Pas de blabla. Les profondeurs s'ouvrent. Tu as une fenetre. Elle se ferme.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 13
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_alpha_60": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Pas de blabla. Les profondeurs s'ouvrent. Tu as une fenetre. Elle se ferme. Deepotus. Maintenant.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 15
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_memer_24": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: Les profondeurs s'ouvrent. T'es la, je suis la. On va pas faire semblant.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 14
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_memer_60": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: Les profondeurs s'ouvrent. T'es la, je suis la. On va pas faire semblant. Deepotus.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 15
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_oracle_24": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Ecoute attentivement. Les profondeurs s'ouvrent. Les profondeurs parlent rarement. Mais quand elles parlent, on ecoute.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 15
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_oracle_60": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Ecoute attentivement. Les profondeurs s'ouvrent. Les profondeurs parlent rarement. Mais quand elles parlent, on ecoute. Deepotus.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 16
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_prophet_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Les profondeurs s'ouvrent. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 15
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_prophet_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Les profondeurs s'ouvrent. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 15
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_zen_24": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Respire. Les profondeurs s'ouvrent. Les marches montent et descendent. Ta posture ne devrait pas suivre.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 15
+ },
+ "script_FR_Les profondeurs s'ouvrent. Une pièce monte_zen_60": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Respire. Les profondeurs s'ouvrent. Les marches montent et descendent. Ta posture ne devrait pas suivre. Deepotus. Patience.",
+  "suggested_caption": "Les profondeurs s'ouvrent.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 17
+ },
+ "script_FR_a glowing coin rising_None_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "a glowing coin rising. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "a glowing coin rising.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 16
+ },
+ "script_FR_a glowing coin rising_None_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "a glowing coin rising. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "a glowing coin rising.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 16
+ },
+ "script_FR_a glowing coin rising_alpha_24": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Pas de blabla. a glowing coin rising. Tu as une fenetre. Elle se ferme.",
+  "suggested_caption": "a glowing coin rising.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 14
+ },
+ "script_FR_a glowing coin rising_alpha_60": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Pas de blabla. a glowing coin rising. Tu as une fenetre. Elle se ferme. Deepotus. Maintenant.",
+  "suggested_caption": "a glowing coin rising.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 16
+ },
+ "script_FR_a glowing coin rising_memer_24": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: a glowing coin rising. T'es la, je suis la. On va pas faire semblant.",
+  "suggested_caption": "a glowing coin rising.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 15
+ },
+ "script_FR_a glowing coin rising_memer_60": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: a glowing coin rising. T'es la, je suis la. On va pas faire semblant. Deepotus.",
+  "suggested_caption": "a glowing coin rising.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 16
+ },
+ "script_FR_a glowing coin rising_oracle_24": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Ecoute attentivement. a glowing coin rising. Les profondeurs parlent rarement. Mais quand elles parlent, on ecoute.",
+  "suggested_caption": "a glowing coin rising.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 16
+ },
+ "script_FR_a glowing coin rising_oracle_60": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Ecoute attentivement. a glowing coin rising. Les profondeurs parlent rarement. Mais quand elles parlent, on ecoute. Deepotus.",
+  "suggested_caption": "a glowing coin rising.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 17
+ },
+ "script_FR_a glowing coin rising_prophet_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "a glowing coin rising. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "a glowing coin rising.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 16
+ },
+ "script_FR_a glowing coin rising_prophet_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "a glowing coin rising. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "a glowing coin rising.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 16
+ },
+ "script_FR_a glowing coin rising_zen_24": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Respire. a glowing coin rising. Les marches montent et descendent. Ta posture ne devrait pas suivre.",
+  "suggested_caption": "a glowing coin rising.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 16
+ },
+ "script_FR_a glowing coin rising_zen_60": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Respire. a glowing coin rising. Les marches montent et descendent. Ta posture ne devrait pas suivre. Deepotus. Patience.",
+  "suggested_caption": "a glowing coin rising.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 18
+ },
+ "script_FR_x_None_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "x. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "x.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 13
+ },
+ "script_FR_x_None_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "x. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "x.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 13
+ },
+ "script_FR_x_alpha_24": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Pas de blabla. x. Tu as une fenetre. Elle se ferme.",
+  "suggested_caption": "x.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 11
+ },
+ "script_FR_x_alpha_60": {
+  "rationale": [
+   "voice_mode=alpha applied (direct, chiffre, sans ornement ; pour un mouvement de marche)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Pas de blabla. x. Tu as une fenetre. Elle se ferme. Deepotus. Maintenant.",
+  "suggested_caption": "x.\n\nAgis en consequence. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "alpha",
+  "word_count": 13
+ },
+ "script_FR_x_memer_24": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: x. T'es la, je suis la. On va pas faire semblant.",
+  "suggested_caption": "x.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 12
+ },
+ "script_FR_x_memer_60": {
+  "rationale": [
+   "voice_mode=memer applied (rapide, moqueuse, complice ; pour l'absurde)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "POV: x. T'es la, je suis la. On va pas faire semblant. Deepotus.",
+  "suggested_caption": "x.\n\nVoila le lore. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "memer",
+  "word_count": 13
+ },
+ "script_FR_x_oracle_24": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Ecoute attentivement. x. Les profondeurs parlent rarement. Mais quand elles parlent, on ecoute.",
+  "suggested_caption": "x.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 13
+ },
+ "script_FR_x_oracle_60": {
+  "rationale": [
+   "voice_mode=oracle applied (calme, sentencieux, image marine ; la voix par defaut)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Ecoute attentivement. x. Les profondeurs parlent rarement. Mais quand elles parlent, on ecoute. Deepotus.",
+  "suggested_caption": "x.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "oracle",
+  "word_count": 14
+ },
+ "script_FR_x_prophet_24": {
+  "rationale": [
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "x. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "x.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 13
+ },
+ "script_FR_x_prophet_60": {
+  "rationale": [
+   "deepotus persona injected (brand cues + sign-off)",
+   "used default tone scaffold (no voice_mode set)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "x. C'est ce qu'il y a en dessous qui compte. Deepotus. Des profondeurs.",
+  "suggested_caption": "x.\n\nDes profondeurs. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": null,
+  "word_count": 13
+ },
+ "script_FR_x_zen_24": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Respire. x. Les marches montent et descendent. Ta posture ne devrait pas suivre.",
+  "suggested_caption": "x.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 13
+ },
+ "script_FR_x_zen_60": {
+  "rationale": [
+   "voice_mode=zen applied (posee, lente, rassurante ; pour un sujet sans drame)",
+   "deepotus persona injected (brand cues + sign-off)",
+   "vocabulary filter applied (avoid_completely from persona)",
+   "deterministic draft (no LLM key)"
+  ],
+  "script": "Respire. x. Les marches montent et descendent. Ta posture ne devrait pas suivre. Deepotus. Patience.",
+  "suggested_caption": "x.\n\nReste stable. 🐙\n\n#Deepotus #Solana #SOL #Memecoin",
+  "voice_mode_applied": "zen",
+  "word_count": 15
+ },
+ "story_prompt": [
+  "Split this chapter into about 3 sequential scenes for a narrated video. For each scene return: \"text\" = the chapter text for that scene, COPIED VERBATIM and in order so concatenating all texts reproduces the chapter; and \"illustration_prompt\" = a vivid cinematic image prompt in English (deep-sea, bioluminescent, atmospheric). Return ONLY a JSON array [{\"text\":\"...\",\"illustration_prompt\":\"...\"}].\n\nChapter:\nOne. Two. Three.",
+  "Split this chapter into about 3 sequential scenes for a narrated video. For each scene return: \"text\" = the chapter text for that scene, COPIED VERBATIM and in order so concatenating all texts reproduces the chapter; and \"illustration_prompt\" = a concise subject-focused image prompt in French (characters, setting, action, mood) WITHOUT any style vocabulary — no medium, palette or art-movement words, the visual style is applied separately. Return ONLY a JSON array [{\"text\":\"...\",\"illustration_prompt\":\"...\"}].\n\nChapter:\nOne. Two. Three."
+ ],
+ "story_system": [
+  "You are a storyboard director for DEEPOTUS, a deep-sea / abyssal themed brand. You split a narrated novel chapter into visual scenes and write a vivid image prompt for each. Return ONLY valid JSON.",
+  "You are a storyboard director. You split a narrated novel chapter into visual scenes and write a concise subject-focused image prompt for each. Return ONLY valid JSON."
+ ],
+ "vo_EN_Les profondeurs s'ouvrent. Une pièce monte": "Les profondeurs s'ouvrent. That's why deepotus.",
+ "vo_EN_a glowing coin rising": "a glowing coin rising. That's why deepotus.",
+ "vo_EN_x": "x. That's why deepotus.",
+ "vo_FR_Les profondeurs s'ouvrent. Une pièce monte": "Les profondeurs s'ouvrent. Voila pourquoi deepotus.",
+ "vo_FR_a glowing coin rising": "a glowing coin rising. Voila pourquoi deepotus.",
+ "vo_FR_x": "x. Voila pourquoi deepotus."
+}

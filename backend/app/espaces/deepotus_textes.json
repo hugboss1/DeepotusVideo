@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "nom": "Deepotus",
+  "signature": {"EN": "From the deep. 🐙", "FR": "Des profondeurs. 🐙"},
+  "voix_off": {"EN": "{s}. That's why deepotus.", "FR": "{s}. Voila pourquoi deepotus."},
+  "script_persona": "deepotus persona injected (brand cues + sign-off)",
+  "script": {
+    "EN": {
+      "oracle": ["Listen carefully.", "{s}.", "The deep rarely speaks. But when it does, you listen.", "Deepotus."],
+      "alpha": ["Cut the noise.", "{s}.", "You have a window. It's closing.", "Deepotus. Now."],
+      "zen": ["Breathe.", "{s}.", "Markets rise and fall. Your posture shouldn't follow them.", "Deepotus. Patience."],
+      "memer": ["POV: {s60}.", "You see it. I see it.", "Let's not pretend.", "Deepotus."],
+      "defaut": ["{s}.", "What matters is underneath.", "Deepotus. From the deep."]
+    },
+    "FR": {
+      "oracle": ["Ecoute attentivement.", "{s}.", "Les profondeurs parlent rarement. Mais quand elles parlent, on ecoute.", "Deepotus."],
+      "alpha": ["Pas de blabla.", "{s}.", "Tu as une fenetre. Elle se ferme.", "Deepotus. Maintenant."],
+      "zen": ["Respire.", "{s}.", "Les marches montent et descendent. Ta posture ne devrait pas suivre.", "Deepotus. Patience."],
+      "memer": ["POV: {s60}.", "T'es la, je suis la.", "On va pas faire semblant.", "Deepotus."],
+      "defaut": ["{s}.", "C'est ce qu'il y a en dessous qui compte.", "Deepotus. Des profondeurs."]
+    }
+  },
+  "news": {
+    "EN": {
+      "accroches": {
+        "oracle": "The deep has been watching.",
+        "alpha": "Signal check. No noise.",
+        "zen": "Breathe. Then look.",
+        "memer": "Okay, news dump, deepotus style.",
+        "prophet": "The deep has seen this script before. It rarely ends well."
+      },
+      "signatures": {
+        "oracle": "The current decides. Deepotus.",
+        "alpha": "Move accordingly. Deepotus.",
+        "zen": "Stay steady. Deepotus.",
+        "memer": "That's the lore. Deepotus.",
+        "prophet": "Stay liquid, stay skeptical. Deepotus."
+      },
+      "liaisons": ["Apparently,", "Somehow,", "In today's circus,", "Predictably,", "Brace yourselves,"],
+      "angle": "The deepotus read: {a}."
+    },
+    "FR": {
+      "accroches": {
+        "oracle": "Les profondeurs observaient.",
+        "alpha": "Point signal. Zero bruit.",
+        "zen": "Respire. Puis regarde.",
+        "memer": "Bon, revue de presse, version deepotus.",
+        "prophet": "Les profondeurs ont deja vu ce film. Ca finit rarement bien."
+      },
+      "signatures": {
+        "oracle": "Le courant decide. Deepotus.",
+        "alpha": "Agis en consequence. Deepotus.",
+        "zen": "Reste stable. Deepotus.",
+        "memer": "Voila le lore. Deepotus.",
+        "prophet": "Restez liquides, restez sceptiques. Deepotus."
+      },
+      "liaisons": ["Apparemment,", "Comme par hasard,", "Au programme du cirque,", "Sans surprise,", "Accrochez-vous,"],
+      "angle": "Lecture deepotus : {a}."
+    }
+  },
+  "news_ton": "cynical/humorous prophet",
+  "news_voix": "cynical, dry-witty deep-sea prophet",
+  "news_tri_systeme": "You score news headlines for a deep-sea themed crypto brand called deepotus, which publishes one short vertical video per day. Reply with JSON ONLY: a list of {\"id\": str, \"score\": int 0-100, \"pourquoi\": str}, one entry per headline given, no preamble, no code fence.",
+  "news_tri_brief": "deep-sea crypto brand, community of traders",
+  "news_titre": "News deepotus",
+  "musique_theme": "from the deep",
+  "storyboard_systeme": "You are a storyboard director for DEEPOTUS, a deep-sea / abyssal themed brand. You split a narrated novel chapter into visual scenes and write a vivid image prompt for each. Return ONLY valid JSON.",
+  "storyboard_consigne": "\"illustration_prompt\" = a vivid cinematic image prompt in {langue} (deep-sea, bioluminescent, atmospheric)"
+}

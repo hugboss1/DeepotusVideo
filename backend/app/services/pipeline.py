@@ -946,7 +946,7 @@ class Pipeline:
             else:
                 tail = ex
             return f"{first_line}.\n\n{tail}\n\n{tags}"
-        return f"{first_line}.\n\nFrom the deep. 🐙\n\n{tags}"
+        return f"{first_line}.\n\n{self.engine.textes['signature']['EN']}\n\n{tags}"   # t208 : signature de l'espace
 
     # ----- Composition pipeline (v1.4) -----
 

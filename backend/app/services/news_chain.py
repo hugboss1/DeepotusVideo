@@ -104,7 +104,8 @@ async def valider(lot: dict, *, channels: list[str] | None = None, mode: str = "
         raise ValueError("le lot ne porte aucun article : rien a programmer")
     quand = _quand(lot.get("creneau")).astimezone(timezone.utc)
     canaux = [c for c in (channels or ["x"]) if str(c).strip()] or ["x"]
-    titre = str(articles[0].get("title") or "News deepotus")[:200]
+    from app.services import textes_espace           # t208 : le titre de repli est celui de l'espace
+    titre = str(articles[0].get("title") or textes_espace.textes()["news_titre"])[:200]
     ids = await marketing.materialize_plan(
         [{"title": titre, "caption": lot.get("caption") or "", "channels": canaux, "day_offset": 0,
           "time": quand.strftime("%H:%M"), "format": "reel", "hook": (lot.get("script") or "")[:200],

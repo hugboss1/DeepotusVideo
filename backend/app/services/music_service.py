@@ -311,7 +311,12 @@ def lyrics_skeleton(persona_id: str | None = None, theme: str = "") -> str:
         d = {}
     name = str(d.get("display_name") or pid).split(" — ")[0]
     kws = ", ".join(str(k) for k in (d.get("vibe_keywords") or [])[:4])
-    t = str(theme or "").strip()[:120] or "from the deep"
+    from app.services import textes_espace    # t208 : le thème de repli est celui de l'espace
+    try:
+        repli = textes_espace.textes(persona_id)["musique_theme"]
+    except Exception:  # noqa: BLE001
+        repli = "the story so far"
+    t = str(theme or "").strip()[:120] or repli
     return (f"[Verse]\n{name} — {t}\n{kws}\n\n[Chorus]\n{name}, {t}\n\n"
             f"[Verse]\n…\n\n[Bridge]\n…\n\n[Chorus]\n{name}, {t}")
 

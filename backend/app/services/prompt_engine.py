@@ -193,6 +193,12 @@ class PromptEngine:
         return espaces.persona(self.persona_id)
 
     @property
+    def textes(self) -> dict:
+        """t208 : les textes de marque de l'espace (signatures, échafaudages, News) — app/services/textes_espace.py."""
+        from app.services import textes_espace
+        return textes_espace.textes(self.persona_id)
+
+    @property
     def templates(self) -> dict[str, PromptTemplate]:
         lst = self.persona.get("templates") or []
         cle = json.dumps(lst, sort_keys=True, ensure_ascii=False)
@@ -323,9 +329,9 @@ class PromptEngine:
     def _generic_caption(self, language: Language) -> str:
         tags = self.persona.get("default_hashtags_pool", [])[:4]
         tag_line = " ".join(tags)
-        if language.value == "FR":
-            return f"From the deep. 🐙\n\n{tag_line}"
-        return f"From the deep. 🐙\n\n{tag_line}"
+        # t208 : la signature de l'espace (Deepotus : « From the deep. 🐙 » dans les DEUX langues, comme avant)
+        sign = self.textes["signature"]["EN"]
+        return f"{sign}\n\n{tag_line}"
 
     # ------- Builder: generate prompt from free-text intent -------
 
@@ -422,7 +428,7 @@ class PromptEngine:
 
     def _suggest_caption_from_intent(self, intent: str, lang: Language,
                                      mode_block: Optional[dict] = None) -> str:
-        """Build a minimalistic deepotus-flavored caption around the intent.
+        """Build a minimalistic caption around the intent, signed by the space (t208).
 
         If a voice_mode block is provided, lean toward its example caption style.
         """
@@ -441,20 +447,17 @@ class PromptEngine:
             else:
                 closing = inspiration
             return f"{snippet}.\n\n{closing}\n\n{tags}"
-        if lang.value == "FR":
-            base = f"{snippet}.\n\nDes profondeurs. 🐙"
-        else:
-            base = f"{snippet}.\n\nFrom the deep. 🐙"
+        from app.services.textes_espace import langue
+        base = f"{snippet}.\n\n{self.textes['signature'][langue(lang)]}"
         return f"{base}\n\n{tags}"
 
     def _suggest_voiceover_from_intent(self, intent: str, lang: Language) -> str:
         """Generate a short punchy voiceover line from the intent."""
+        from app.services.textes_espace import langue, remplir
         snippet = intent.strip().rstrip(".").split(".")[0]
         if len(snippet) > 80:
             snippet = snippet[:80]
-        if lang.value == "FR":
-            return f"{snippet}. Voila pourquoi deepotus."
-        return f"{snippet}. That's why deepotus."
+        return remplir(self.textes["voix_off"][langue(lang)], s=snippet)
 
     # ---------- v1.5: Universal Builder extensions ----------
 
@@ -475,7 +478,7 @@ class PromptEngine:
         - Body (1-2 sentences) — develop the idea
         - Sign-off (1 phrase) — brand close
 
-        Applies voice_mode tone if provided, deepotus vocabulary filter,
+        Applies voice_mode tone if provided, the persona's vocabulary filter,
         and the persona's example caption style as anchor.
         """
         # Import here to avoid circular references at module load time
@@ -496,73 +499,13 @@ class PromptEngine:
         if mode_block:
             rationale.append(f"voice_mode={mode_value} applied ({mode_block.get('description', '')[:60]})")
         if inject_persona:
-            rationale.append("deepotus persona injected (brand cues + sign-off)")
+            rationale.append(self.textes["script_persona"])
 
-        # Tone-specific scaffolds
-        if language == Language.FR:
-            scaffolds = {
-                "oracle": [
-                    f"Ecoute attentivement.",
-                    f"{snippet}.",
-                    "Les profondeurs parlent rarement. Mais quand elles parlent, on ecoute.",
-                    "Deepotus.",
-                ],
-                "alpha": [
-                    f"Pas de blabla.",
-                    f"{snippet}.",
-                    "Tu as une fenetre. Elle se ferme.",
-                    "Deepotus. Maintenant.",
-                ],
-                "zen": [
-                    "Respire.",
-                    f"{snippet}.",
-                    "Les marches montent et descendent. Ta posture ne devrait pas suivre.",
-                    "Deepotus. Patience.",
-                ],
-                "memer": [
-                    f"POV: {snippet[:60]}.",
-                    "T'es la, je suis la.",
-                    "On va pas faire semblant.",
-                    "Deepotus.",
-                ],
-            }
-            default = [
-                f"{snippet}.",
-                "C'est ce qu'il y a en dessous qui compte.",
-                "Deepotus. Des profondeurs.",
-            ]
-        else:
-            scaffolds = {
-                "oracle": [
-                    "Listen carefully.",
-                    f"{snippet}.",
-                    "The deep rarely speaks. But when it does, you listen.",
-                    "Deepotus.",
-                ],
-                "alpha": [
-                    "Cut the noise.",
-                    f"{snippet}.",
-                    "You have a window. It's closing.",
-                    "Deepotus. Now.",
-                ],
-                "zen": [
-                    "Breathe.",
-                    f"{snippet}.",
-                    "Markets rise and fall. Your posture shouldn't follow them.",
-                    "Deepotus. Patience.",
-                ],
-                "memer": [
-                    f"POV: {snippet[:60]}.",
-                    "You see it. I see it.",
-                    "Let's not pretend.",
-                    "Deepotus.",
-                ],
-            }
-            default = [
-                f"{snippet}.",
-                "What matters is underneath.",
-                "Deepotus. From the deep.",
-            ]
+        # Tone-specific scaffolds — t208 : ceux de l'espace (Deepotus : la graine, mot pour mot)
+        from app.services.textes_espace import langue, remplir
+        _ech = remplir(self.textes["script"][langue(language)], s=snippet, s60=snippet[:60])
+        default = _ech["defaut"]
+        scaffolds = {k: v for k, v in _ech.items() if k != "defaut"}
 
         if mode_value and mode_value in scaffolds:
             parts = scaffolds[mode_value]
@@ -607,7 +550,7 @@ class PromptEngine:
             closing = ex.split("\n", 1)[1].strip() if "\n" in ex else ex
             caption = f"{first_line}.\n\n{closing}\n\n{tags}"
         else:
-            sign = "Des profondeurs. 🐙" if language == Language.FR else "From the deep. 🐙"
+            sign = self.textes["signature"][langue(language)]
             caption = f"{first_line}.\n\n{sign}\n\n{tags}"
         caption = _filter_avoid_words(self.persona, caption)
 
@@ -632,7 +575,7 @@ class PromptEngine:
         polished, prov = _sum.rewrite_script(
             script,
             voice_desc=(mode_block.get("description", "") if mode_block
-                        else "cynical, dry-witty deep-sea prophet"),
+                        else self.textes["news_voix"]),
             language=("FR" if is_fr else "EN"),
             max_words=max_words,
         )
@@ -650,7 +593,7 @@ class PromptEngine:
         angle: Optional[str] = None,
         polir: bool = True,
     ) -> "BuildScriptResponse":
-        """Turn selected news items into a deepotus-voice spoken script.
+        """Turn selected news items into a spoken script in the space's voice (t208).
 
         `polir=False` (tâche #35, 30/09/2026) : brouillon déterministe, AUCUN appel au LLM même quand une clé existe —
         la chaîne News prépare ses lots gratuitement ; le polissage se demande post par post (`polish_news_script`).
@@ -675,60 +618,22 @@ class PromptEngine:
         is_fr = language == Language.FR
         rationale: list[str] = []
 
-        if is_fr:
-            hooks = {
-                "oracle": "Les profondeurs observaient.",
-                "alpha": "Point signal. Zero bruit.",
-                "zen": "Respire. Puis regarde.",
-                "memer": "Bon, revue de presse, version deepotus.",
-                "prophet": "Les profondeurs ont deja vu ce film. Ca finit "
-                           "rarement bien.",
-            }
-            default_hook = hooks["prophet"]
-            signoffs = {
-                "oracle": "Le courant decide. Deepotus.",
-                "alpha": "Agis en consequence. Deepotus.",
-                "zen": "Reste stable. Deepotus.",
-                "memer": "Voila le lore. Deepotus.",
-                "prophet": "Restez liquides, restez sceptiques. Deepotus.",
-            }
-            default_sign = signoffs["prophet"]
-            conns = ["Apparemment,", "Comme par hasard,",
-                     "Au programme du cirque,", "Sans surprise,",
-                     "Accrochez-vous,"]
-            angle_tpl = "Lecture deepotus : {a}."
-        else:
-            hooks = {
-                "oracle": "The deep has been watching.",
-                "alpha": "Signal check. No noise.",
-                "zen": "Breathe. Then look.",
-                "memer": "Okay, news dump, deepotus style.",
-                "prophet": "The deep has seen this script before. It "
-                           "rarely ends well.",
-            }
-            default_hook = hooks["prophet"]
-            signoffs = {
-                "oracle": "The current decides. Deepotus.",
-                "alpha": "Move accordingly. Deepotus.",
-                "zen": "Stay steady. Deepotus.",
-                "memer": "That's the lore. Deepotus.",
-                "prophet": "Stay liquid, stay skeptical. Deepotus.",
-            }
-            default_sign = signoffs["prophet"]
-            conns = ["Apparently,", "Somehow,", "In today's circus,",
-                     "Predictably,", "Brace yourselves,"]
-            angle_tpl = "The deepotus read: {a}."
+        # t208 : accroches, signatures, liaisons et angle de l'espace (Deepotus : la graine, mot pour mot ; son
+        # « prophet » cynique est la voix News par défaut, un autre espace a un commentateur neutre)
+        from app.services.textes_espace import remplir
+        _tx = self.textes
+        _nw = _tx["news"]["FR" if is_fr else "EN"]
+        hooks, signoffs, conns = _nw["accroches"], _nw["signatures"], _nw["liaisons"]
+        default_hook, default_sign = hooks["prophet"], signoffs["prophet"]
+        angle_tpl = _nw["angle"]
 
-        # News default voice = the deepotus "prophet" (cynical + dry-witty).
-        # An explicit voice_mode still overrides hook/sign-off; the cynical
-        # connectors stay (that IS the deepotus news character).
         tone = mode_value if mode_value else "prophet"
         hook = hooks.get(tone, default_hook)
         signoff = signoffs.get(tone, default_sign)
         rationale.append(
             f"tone={tone}"
             + (f" ({mode_block.get('description','')[:40]})"
-               if mode_block else " (cynical/humorous prophet)"))
+               if mode_block else f" ({_tx['news_ton']})"))
 
         def _condense(text: str, limit: int = 28) -> str:
             t = " ".join((text or "").split())
@@ -744,7 +649,7 @@ class PromptEngine:
         segs: list[str] = [hook]
         n_angle = 0
         if angle and angle.strip():
-            segs.append(angle_tpl.format(a=angle.strip().rstrip(".")))
+            segs.append(remplir(angle_tpl, a=angle.strip().rstrip(".")))
             n_angle = 1
             rationale.append("angle framing injected")
         used = 0
@@ -793,14 +698,13 @@ class PromptEngine:
                 rationale.append("deterministic draft (LLM rewrite skipped)")
 
         tags = " ".join(self.persona.get("default_hashtags_pool", [])[:4])
-        lead = _condense(_g(items[0], "title"))[:90] if items else "Deepotus"
+        lead = _condense(_g(items[0], "title"))[:90] if items else _tx["nom"]
         if mode_block:
             ex = mode_block.get(
                 f"example_caption_{'fr' if is_fr else 'en'}", "")
             closing = ex.split("\n", 1)[1].strip() if "\n" in ex else ex
         else:
-            closing = ("Des profondeurs. 🐙" if is_fr
-                       else "From the deep. 🐙")
+            closing = _tx["signature"]["FR" if is_fr else "EN"]
         caption = _filter_avoid_words(
             self.persona, f"{lead}.\n\n{closing}\n\n{tags}")
 

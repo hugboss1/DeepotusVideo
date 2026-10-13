@@ -30,6 +30,7 @@ et enregistrement des posts (espace_id, comptes), liste rechargée au changement
 t205 (13/10/2026) : `DzOnboardingPersona`, l'assistant en 8 étapes (bouton « Définir le persona » de chaque espace).
 t207 (13/10/2026) : Quick lit les contenus de l'espace actif (C1-C6) ; `DzContenusBtn`/`DzContenusDlg`.
 t206 (13/10/2026) : `DzIdentite`, l'identité visuelle (bouton « Identité visuelle » de chaque espace ; /api/espaces/{id}/identite).
+t208 (13/10/2026) : S11, l'exemple des notes de Quick devient neutre (plus de « $DEEPOTUS Pyth-feed »).
 Run : python scripts/patch_bundle_dzespace.py [--check]
 """
 import pathlib
@@ -581,6 +582,10 @@ PAIRES = [
      'tags:"chiaroscuro noir, deep shadows, single key light, neon rim, smoke"}]),[A,V]=x.useState("cinematic");x.useEffect(function(){if(!dzEspCt)return;var dft="A deep-sea throne lit by bioluminescent currents, slow cinematic push-in, indigo and cyan, particles drifting.",tp=dzCt("prompt_templates",[]),v=dzEspCt.id==="deepotus"?dft:(tp.length?tp[0].body:"");if((s===dft||s===dzPromptAuto)&&s!==v){dzPromptAuto=v;a(v)}},[dzCvQ]);'),   # + le prompt par défaut suit l'espace tant qu'il n'est pas modifié
     ('right:r.jsx(K,{variant:"ghost",size:"sm",icon:"dz-nav-prompts",onClick:()=>d(!0),children:dzT("quick.gabarits.generer")})',
      'right:r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[r.jsx(DzContenusBtn,{}),r.jsx(K,{variant:"ghost",size:"sm",icon:"dz-nav-prompts",onClick:()=>d(!0),children:dzT("quick.gabarits.generer")})]})'),
+    # t208 — S11 l'exemple des notes du générateur Quick ne cite plus le jeton Deepotus ; il reste en ANGLAIS (décision
+    # L2 : ce texte part au modèle, qui attend l'anglais)
+    ('placeholder:"e.g. fits the $DEEPOTUS Pyth-feed announcement"',                    # S11
+     'placeholder:"e.g. fits the next launch announcement"'),
 ]
 # S3 bis : les DEUX passages de setActivePersonaId (Réglages, Onboarding) — même texte, remplacés ensemble
 PERSO = ("setActivePersonaId:j,savePersona:E", "setActivePersonaId:dzJ,savePersona:E", 2)
