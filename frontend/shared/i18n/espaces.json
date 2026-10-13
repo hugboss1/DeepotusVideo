@@ -1,0 +1,82 @@
+{
+  "espaces.action.activer": {
+    "fr": "Activer",
+    "en": "Activate"
+  },
+  "espaces.action.annuler": {
+    "fr": "Annuler",
+    "en": "Cancel"
+  },
+  "espaces.action.archiver": {
+    "fr": "Archiver",
+    "en": "Archive"
+  },
+  "espaces.action.desarchiver": {
+    "fr": "Désarchiver",
+    "en": "Unarchive"
+  },
+  "espaces.action.enregistrer": {
+    "fr": "Enregistrer",
+    "en": "Save"
+  },
+  "espaces.action.renommer": {
+    "fr": "Renommer",
+    "en": "Rename"
+  },
+  "espaces.champ.kit": {
+    "fr": "Kit de marque",
+    "en": "Brand kit"
+  },
+  "espaces.erreur.lecture": {
+    "fr": "Espaces illisibles : le serveur local répond-il ?",
+    "en": "Spaces unreadable: is the local server running?"
+  },
+  "espaces.etat.actif": {
+    "fr": "actif",
+    "en": "active"
+  },
+  "espaces.etat.archive": {
+    "fr": "archivé",
+    "en": "archived"
+  },
+  "espaces.etat.chargement": {
+    "fr": "Chargement des espaces…",
+    "en": "Loading spaces…"
+  },
+  "espaces.nouveau.couleur": {
+    "fr": "Couleur de l'espace",
+    "en": "Space colour"
+  },
+  "espaces.nouveau.creer": {
+    "fr": "Créer l'espace",
+    "en": "Create space"
+  },
+  "espaces.nouveau.nom": {
+    "fr": "Nom du nouvel espace",
+    "en": "New space name"
+  },
+  "espaces.reglages.aide": {
+    "fr": "Un espace par marque, produit ou client : son persona, son kit de marque et, bientôt, ses comptes de diffusion. L'espace actif s'applique à toute l'application ; un travail lancé garde son espace jusqu'au bout.",
+    "en": "One space per brand, product or client: its persona, its brand kit and, soon, its publishing accounts. The active space applies across the whole app; a job keeps its space until it finishes."
+  },
+  "espaces.reglages.onglet": {
+    "fr": "Espaces",
+    "en": "Brand spaces"
+  },
+  "espaces.reglages.titre": {
+    "fr": "Espaces de marque",
+    "en": "Brand spaces"
+  },
+  "espaces.reglages.voir_archives": {
+    "fr": "Afficher les espaces archivés",
+    "en": "Show archived spaces"
+  },
+  "espaces.sel.gerer": {
+    "fr": "Gérer les espaces…",
+    "en": "Manage spaces…"
+  },
+  "espaces.sel.titre": {
+    "fr": "Espace actif",
+    "en": "Active space"
+  }
+}

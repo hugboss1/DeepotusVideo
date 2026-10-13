@@ -308,6 +308,7 @@ _RUBRIQUES = {
     "personas": "Personas", "branding": "Branding", "pack": "Caption pack", "defaults": "Provider defaults",
     "paths": "Paths", "news": "News", "appearance": "Appearance", "pricing": "Pricing & budget",
     "transfert": "Transfert entre machines",
+    "espaces": "Espaces",          # t202 : onglet posé par le maillon de queue dzespace
 }
 _INDEX_FIXE = [
     ("diag", "Diagnostic", "diagnostic santé état disque poids journal erreurs version soldes crédits test des clés"),
@@ -320,6 +321,9 @@ _INDEX_FIXE = [
     ("keys", "Clés API", "clé api jeton token fournisseur guide tester enregistrer"),
     ("accounts", "Comptes connectés", "comptes réseaux sociaux publication x twitter telegram youtube instagram tester"),
     ("personas", "Personas", "persona ton voix audience personnage profil"),
+    # t202 (13/10/2026) : les espaces de marque (plusieurs marques, produits ou clients sur une instance)
+    ("espaces", "Espaces de marque", "espace marque produit client projet multi-marques rippled kit persona "
+                                     "activer archiver workspace"),
     ("branding", "Kit de marque", "marque logo nom de l'application couleur identité branding"),
     ("pack", "Pack de légendes", "légendes étiquettes tags emoji icône caption"),
     ("defaults", "Fournisseurs par défaut", "défaut fournisseur génération d'image flux gpt image voix résumeur "

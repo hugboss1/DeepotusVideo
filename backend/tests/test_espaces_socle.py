@@ -98,6 +98,9 @@ if ES:
           and cont == {"version": 1, "prompt_templates": [], "prompt_cats": [], "ingredients": {}, "vibes": []}, str(pers) + str(cont))
     check("E3 un espace neuf recoit son PROPRE kit (cree, au nom de l'espace) — il ne partage pas celui de Deepotus",
           vue[eid]["kit_id"] not in kits_avant and BK.lire()["kits"][vue[eid]["kit_id"]]["name"] == "Rippled")
+    _k = BK.lire()["kits"][vue[eid]["kit_id"]]
+    check("E3b ... et ce kit ne porte rien de Deepotus (taglines comprises : t202, vu à l'écran)",
+          _k["app_name"] == "RIPPLED" and _k["tagline_1"] == "Rippled" and "deep" not in json.dumps(_k).lower(), str(_k))
     r2 = ES.creer({"nom": "Client", "kit_id": "deepotus"})
     check("E4 creer avec un kit EXISTANT le reprend sans en creer", r2["kit_id"] == "deepotus")
     for mauvais, quoi in (({"nom": ""}, "nom vide"), ({"nom": "A", "couleur": "rouge"}, "couleur"), ({"nom": "A", "kit_id": "inconnu"}, "kit inconnu")):

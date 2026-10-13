@@ -334,10 +334,20 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzespace(bundle: str) -> str:
+    """Le bundle d'avant les espaces de marque à l'écran (maillon de queue patch_bundle_dzespace, t202, posé APRÈS
+    encartsia) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzespace as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_encartsia(bundle: str) -> str:
     """Le bundle d'avant les sélecteurs de modèle alignés sur le catalogue (maillon de queue patch_bundle_encartsia,
     t183, posé APRÈS dzguide) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel
     quel."""
+    bundle = avant_dzespace(bundle)              # t202 : le maillon posé APRÈS encartsia, défait d'abord
     import patch_bundle_encartsia as _m
     if _m.MARKER not in bundle:
         return bundle
