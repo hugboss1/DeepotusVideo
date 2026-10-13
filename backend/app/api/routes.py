@@ -6941,7 +6941,7 @@ def _job_to_dict(j) -> dict:
 @router.get("/jobs")
 async def list_jobs(limit: int = 50, offset: int = 0, providers: str | None = None,
                     q: str | None = None, video: int = 0, min_rating: int = 0,
-                    fav: int = 0, done: int = 0):
+                    fav: int = 0, done: int = 0, request: Request = None):
     """E-2 (23/09/2026) : `offset` pagine, `providers` est une liste séparée
     par des virgules, `q` cherche dans le titre, `video=1` ne garde que les
     artefacts vidéo selon `montage_service.media_rules()` — le MÊME juge que
@@ -6958,7 +6958,9 @@ async def list_jobs(limit: int = 50, offset: int = 0, providers: str | None = No
         exts = tuple(_ms.media_rules().get("video_exts") or ())
     jobs = await Pipeline.list_jobs(limit=limit, offset=offset, providers=provs, q=q, video_exts=exts,
                                     min_rating=min_rating, fav=fav, done=done)
-    return [_job_to_dict(j) for j in jobs]
+    from app.i18n import erreurs as _ERR   # t150 (L10) : étape et erreur dans la langue de l'en-tête, sinon telles quelles
+    lang = _ERR.langue(request)
+    return [_ERR.job(_job_to_dict(j), lang) for j in jobs]
 
 
 #: (path, mtime_ns) -> duration. A finished render never changes, and the
@@ -6996,11 +6998,12 @@ def _probe_seconds(path: str | None) -> float | None:
 
 
 @router.get("/jobs/{job_id}")
-async def get_job(job_id: str):
+async def get_job(job_id: str, request: Request = None):
     j = await Pipeline.get_job(job_id)
     if not j:
         raise HTTPException(404, "Job not found")
-    d = _job_to_dict(j)
+    from app.i18n import erreurs as _ERR
+    d = _ERR.job(_job_to_dict(j), _ERR.langue(request))
     d["duration_real_s"] = await asyncio.to_thread(_probe_seconds, j.final_video_path)
     return d
 
