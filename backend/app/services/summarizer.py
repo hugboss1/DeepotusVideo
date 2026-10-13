@@ -177,7 +177,7 @@ def _chat_dispatch(prompt: str, system: str,
 
 def rewrite_script(draft: str, *, voice_desc: str = "", language: str = "EN",
                    max_words: int = 90) -> tuple[str | None, str]:
-    """LLM-polish a deterministic avatar-script draft in the deepotus voice.
+    """LLM-polish a deterministic avatar-script draft in the voice of the current brand space.
 
     Returns (text, provider) on success, or (None, "") so callers keep the
     deterministic draft. Never raises.
@@ -185,14 +185,8 @@ def rewrite_script(draft: str, *, voice_desc: str = "", language: str = "EN",
     if not available() or not (draft or "").strip():
         return None, ""
     lang = "French" if str(language).upper().startswith("FR") else "English"
-    system = (
-        "You are a scriptwriter for DEEPOTUS, a deep-sea themed crypto brand "
-        "whose mascot is an octopus from the deep. You rewrite short scripts "
-        "for an AI avatar to read aloud. Keep the brand name 'Deepotus' and "
-        "its sign-off. Make it punchy, natural and varied. No hashtags, no "
-        "stage directions, no quotation marks, no preamble. Return ONLY the "
-        "script text."
-    )
+    from app.services import textes_espace   # t208-bis : le prompt de l'espace (Deepotus : la graine, à l'octet)
+    system = textes_espace.textes()["polir_systeme"]
     prompt = (
         f"Rewrite this short avatar script in {lang}"
         + (f", in this voice: {voice_desc}" if voice_desc else "")

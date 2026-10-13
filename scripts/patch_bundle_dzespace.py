@@ -32,6 +32,9 @@ t207 (13/10/2026) : Quick lit les contenus de l'espace actif (C1-C6) ; `DzConten
 t206 (13/10/2026) : `DzIdentite`, l'identité visuelle (bouton « Identité visuelle » de chaque espace ; /api/espaces/{id}/identite).
 t208 (13/10/2026) : S11, l'exemple des notes de Quick devient neutre (plus de « $DEEPOTUS Pyth-feed ») ; S12, la voix
 off par défaut de Quick suit l'espace (`dzVoixSuit`).
+t208-bis (13/10/2026) : `dzMq(clé)` — les textes Deepotus restés en dur dans le Studio (nœud Texte = script HeyGen
+par défaut, compilateur, devis, légendes « planifier », vignette, bandeau de marque, élément texte de l'animation),
+le prompt d'illustration News et le nom par défaut de l'avatar photo suivent l'espace actif (paires M1-M12).
 Run : python scripts/patch_bundle_dzespace.py [--check]
 """
 import pathlib
@@ -536,6 +539,21 @@ AIDES_CT = (
     'children:dzT(st.cat?"espaces.ct.remplacer_cat":"espaces.ct.remplacer_tout")})]})]})]})})}'
 )
 
+# t208-bis — les textes de marque du Studio, des News et de l'avatar photo. Deepotus (ou rien de chargé) : MOT POUR MOT
+# les littéraux d'avant ; un autre espace : un texte neutre à son nom (anglais, comme l'original : ils partent à HeyGen,
+# au générateur d'images ou au Planificateur). Lit `dzEspCache` (chargé par le sélecteur du rail au démarrage, relu à
+# chaque activation) ; `typeof` : l'aide s'exécute aussi seul (sonde node des bancs).
+AIDES_MQ = (
+    'function dzMq(k){var c=typeof dzEspCache!=="undefined"&&dzEspCache?dzEspCache:null,id=c&&c.actif||"deepotus";'
+    'if(id==="deepotus")return{texte:"From the deep, the prophecy ascends.",legende:"Drop from the deep. 🐙",'
+    'legende_shell:"New drop from the deep. 🐙",vignette:"🐙 DEEPOTUS · from the deep",bandeau_mark:"🐙",'
+    'bandeau_texte:"DEEPOTUS",anim_texte:"DEEPOTUS",news_illus:"deepotus news illustration, cinematic deep-sea",'
+    'avatar:"Custom deepotus avatar"}[k];'
+    'var e=(c.espaces||[]).filter(function(x){return x.id===id})[0],n=String(e&&e.nom||"").trim()||id,N=n.toUpperCase();'
+    'return{texte:"Meet "+n+".",legende:"New from "+n+".",legende_shell:"New from "+n+".",vignette:N,bandeau_mark:"",'
+    'bandeau_texte:N,anim_texte:N,news_illus:n+" news illustration, cinematic",avatar:"Custom "+n+" avatar"}[k]}'
+)
+
 RAIL = 'function tg({view:e,setView:t,collapsed:n,setCollapsed:o}){const i=ji();'
 CARTE = ('r.jsxs("div",{style:{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between"},'
          'children:[r.jsx("span",{style:{fontFamily:"var(--f-mono)",fontSize:10,color:"var(--ink-muted)"},children:"v2.8.0"})')
@@ -554,7 +572,7 @@ SHELL_APRES = (
 )
 
 PAIRES = [
-    (RAIL, AIDES + AIDES_IDV + AIDES_CT + RAIL),                                       # S1
+    (RAIL, AIDES + AIDES_IDV + AIDES_CT + AIDES_MQ + RAIL),                                       # S1
     (CARTE, 'r.jsx(DzEspaceSel,{setView:t}),' + CARTE),                                # S2
     (SHELL, SHELL_APRES),                                                              # S3
     ('const ym=["diag","coffre","appareils","keys","accounts","personas",',            # S4
@@ -596,6 +614,32 @@ PAIRES = [
     # de Quick, après dzCvQ (déjà déclaré) : aucun useState ajouté
     ('[R,W]=x.useState("From the deep, the prophet speaks. The shoal awakens."),',      # S12
      '[R,W]=x.useState("From the deep, the prophet speaks. The shoal awakens."),dzVq=dzVoixSuit(R,W,dzCvQ),'),
+    # t208-bis — M1-M12 : les sites lisent dzMq (getters dans le catalogue Me : la valeur est lue à la naissance du
+    # nœud et à chaque fusion des props, jamais au chargement du module)
+    ('outPorts:[{id:"out",type:"text"}],props:{value:"From the deep, the prophecy ascends."}}',             # M1
+     'outPorts:[{id:"out",type:"text"}],props:{get value(){return dzMq("texte")}}}'),
+    ('script=(scr&&scr.props&&scr.props.value)||"From the deep, the prophecy ascends.",',                 # M2
+     'script=(scr&&scr.props&&scr.props.value)||dzMq("texte"),'),
+    ('b=((p=h==null?void 0:h.props)==null?void 0:p.value)||"From the deep, the prophecy ascends.";',       # M3
+     'b=((p=h==null?void 0:h.props)==null?void 0:p.value)||dzMq("texte");'),
+    ('String(sc&&sc.props&&sc.props.value||"From the deep, the prophecy ascends.").trim()',                # M4
+     'String(sc&&sc.props&&sc.props.value||dzMq("texte")).trim()'),
+    ('caption:"Drop from the deep. 🐙"})',                                                                 # M5
+     'caption:dzMq("legende")})'),
+    ('caption:F.caption||"New drop from the deep. 🐙",',                                                   # M6
+     'caption:F.caption||dzMq("legende_shell"),'),
+    (':"🐙 DEEPOTUS · from the deep"})]})',                                                                # M7
+     ':dzMq("vignette")})]})'),
+    ('props:{mark:"🐙",text:"DEEPOTUS"}}',                                                                 # M8
+     'props:{get mark(){return dzMq("bandeau_mark")},get text(){return dzMq("bandeau_texte")}}}'),
+    ('if(t==="text")b.text="DEEPOTUS";',                                                                   # M9
+     'if(t==="text")b.text=dzMq("anim_texte");'),
+    ('children:cur.text||"DEEPOTUS"}',                                                                     # M10
+     'children:cur.text||dzMq("anim_texte")}'),
+    ('x.useState(newsTitle||"deepotus news illustration, cinematic deep-sea")',                            # M11
+     'x.useState(newsTitle||dzMq("news_illus"))'),
+    ('createPhotoAvatar:async(e,t="Custom deepotus avatar")=>',                                            # M12
+     'createPhotoAvatar:async(e,t=dzMq("avatar"))=>'),
 ]
 # S3 bis : les DEUX passages de setActivePersonaId (Réglages, Onboarding) — même texte, remplacés ensemble
 PERSO = ("setActivePersonaId:j,savePersona:E", "setActivePersonaId:dzJ,savePersona:E", 2)
