@@ -7897,7 +7897,38 @@ def _post_to_dict(p: ScheduledPost) -> dict:
         "thread_of": p.thread_of, "thread_index": p.thread_index, "series_id": p.series_id,
         "recycled_from": p.recycled_from, "published_by": p.published_by,
         "delegue_a": p.delegue_a,   # plan mobile T8 : confié à un appareil
+        # t204 (Espaces de marque E4) : l'espace du post (vide = d'avant les espaces = Deepotus) et ses comptes cibles
+        "espace_id": getattr(p, "espace_id", None) or "deepotus",
+        "comptes": _comptes_du_post(p),
     }
+
+
+def _comptes_du_post(p: ScheduledPost) -> list:
+    try:
+        d = json.loads(p.comptes) if getattr(p, "comptes", None) else []
+    except (ValueError, TypeError):
+        return []
+    return [c for c in d if isinstance(c, str)] if isinstance(d, list) else []
+
+
+def _poser_comptes(p: ScheduledPost, ids) -> None:
+    """t204 : pose les comptes cibles d'un post, après la GARDE (inconnu 404, autre espace 409, forme 400) ; les canaux
+    du post suivent ses comptes (les écrans et le reste du Scheduler lisent toujours `channels`). Liste vide = retour
+    aux canaux d'avant (rien ne change aux canaux)."""
+    from app.services import comptes as _cpt
+    try:
+        vues = _cpt.verifier_cibles(p.espace_id, ids)
+    except KeyError as e:
+        raise HTTPException(404, f"compte inconnu : {e.args[0] if e.args else ''}")
+    except PermissionError as e:
+        raise HTTPException(409, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not vues:
+        p.comptes = None
+        return
+    p.comptes = json.dumps([v["id"] for v in vues])
+    p.channels = ",".join(dict.fromkeys(v["plateforme"] for v in vues))
 
 
 def _remote_ids(p: ScheduledPost) -> dict | None:
@@ -7909,7 +7940,7 @@ def _remote_ids(p: ScheduledPost) -> dict | None:
 
 
 @router.get("/schedule")
-async def list_schedule(days_back: int = 365, days_forward: int = 365):
+async def list_schedule(days_back: int = 365, days_forward: int = 365, espace: str = ""):
     """Scheduled posts. Les posts encore actionnables (draft/scheduled/ready)
     sont TOUJOURS renvoyés quel que soit leur run_at : l'ancienne fenêtre
     [−30 j, +90 j] les faisait « disparaître » silencieusement du Scheduler
@@ -7917,13 +7948,18 @@ async def list_schedule(days_back: int = 365, days_forward: int = 365):
     en base). La fenêtre ne borne plus que l'historique posted/failed."""
     lo = _dt.utcnow() - _td(days=days_back)
     hi = _dt.utcnow() + _td(days=days_forward)
+    q = (_select(ScheduledPost)
+         .where(_or(
+             ScheduledPost.status.in_(("draft", "scheduled", "ready")),
+             _and(ScheduledPost.run_at >= lo, ScheduledPost.run_at <= hi))))
+    # t204 : les posts de l'espace COURANT (« * » = tous) ; un post d'avant les espaces (vide) est de Deepotus
+    if espace != "*":
+        from app.services import espaces as _es
+        e = _es.resoudre(espace or None)
+        q = q.where(ScheduledPost.espace_id == e) if e != "deepotus" else q.where(
+            _or(ScheduledPost.espace_id == e, ScheduledPost.espace_id.is_(None)))
     async with async_session_factory() as session:
-        res = await session.execute(
-            _select(ScheduledPost)
-            .where(_or(
-                ScheduledPost.status.in_(("draft", "scheduled", "ready")),
-                _and(ScheduledPost.run_at >= lo, ScheduledPost.run_at <= hi)))
-            .order_by(ScheduledPost.run_at.asc()))
+        res = await session.execute(q.order_by(ScheduledPost.run_at.asc()))
         return [_post_to_dict(p) for p in res.scalars().all()]
 
 
@@ -7956,6 +7992,16 @@ async def create_scheduled_post(body: dict):
                if isinstance(body.get("brief"), dict) and body["brief"]
                else None),
     )
+    # t204 : l'espace (celui de la requête par défaut ; un espace nommé doit exister) puis les comptes cibles, gardés
+    from app.services import espaces as _es
+    if body.get("espace_id"):
+        if body["espace_id"] not in _es.lire()["espaces"]:
+            raise HTTPException(404, f"espace inconnu : {body['espace_id']}")
+        p.espace_id = body["espace_id"]
+    else:
+        p.espace_id = _es.espace_courant()
+    if body.get("comptes"):
+        _poser_comptes(p, body["comptes"])
     async with async_session_factory() as session:
         session.add(p)
         await session.commit()
@@ -7973,13 +8019,15 @@ async def update_scheduled_post(post_id: str, body: dict):
             raise HTTPException(404, "Post not found")
         # plan scheduler T10 (tâche #30) : l'empreinte du CONTENU avant modification — seule une valeur qui change
         # vraiment dévalide (un formulaire renvoyé tel quel, ou un statut seul, ne casse pas la validation)
-        avant = (p.title, p.caption, p.channels, p.run_at, p.job_id, p.source_image, p.brief)
+        avant = (p.title, p.caption, p.channels, p.run_at, p.job_id, p.source_image, p.brief, p.comptes)
         if "title" in body:
             p.title = (body["title"] or "")[:200]
         if "caption" in body:
             p.caption = body["caption"] or ""
         if "channels" in body:
             p.channels = ",".join(body["channels"] or [])
+        if "comptes" in body:                   # t204 : après channels — les canaux suivent les comptes
+            _poser_comptes(p, body["comptes"])
         if "run_at" in body and body["run_at"]:
             try:
                 p.run_at = _dt.fromisoformat(
@@ -8001,7 +8049,7 @@ async def update_scheduled_post(post_id: str, body: dict):
             p.brief = (json.dumps(body["brief"], ensure_ascii=False)
                        if isinstance(body["brief"], dict) and body["brief"]
                        else None)
-        if p.validated_at and avant != (p.title, p.caption, p.channels, p.run_at, p.job_id, p.source_image, p.brief):
+        if p.validated_at and avant != (p.title, p.caption, p.channels, p.run_at, p.job_id, p.source_image, p.brief, p.comptes):
             p.validated_at, p.mode, p.status = None, "assisted", "draft"
         await session.commit()
         await session.refresh(p)
@@ -8138,7 +8186,8 @@ async def create_recycled_post(body: dict):
             caption=str(body.get("caption") or src.caption or "")[:4000],
             channels=src.channels, run_at=run_at, status="draft", mode="assisted", format=src.format,
             hook=src.hook, script_idea=src.script_idea, image_idea=src.image_idea,
-            source_image=src.source_image, job_id=src.job_id, brief=src.brief, recycled_from=src.id)
+            source_image=src.source_image, job_id=src.job_id, brief=src.brief, recycled_from=src.id,
+            espace_id=src.espace_id, comptes=src.comptes)           # t204 : même espace, mêmes comptes
         session.add(p)
         await session.commit()
         return _post_to_dict(p)
@@ -8288,10 +8337,24 @@ async def add_thread_post(post_id: str, body: dict):
             id=str(uuid4()), title=f"{(tete.title or 'Fil')[:180]} ({idx + 1})",
             caption=caption[:4000], channels="x", run_at=tete.run_at + _td(minutes=2 * idx),
             status="scheduled", mode=parent.mode, format=parent.format,
-            plan_id=parent.plan_id, thread_of=racine, thread_index=idx)
+            plan_id=parent.plan_id, thread_of=racine, thread_index=idx,
+            espace_id=tete.espace_id, comptes=_comptes_x(tete))     # t204 : le MÊME compte X que la tête
         session.add(p)
         await session.commit()
         return _post_to_dict(p)
+
+
+def _comptes_x(tete: ScheduledPost):
+    """t204 : la suite d'un fil part du compte X de sa tête (ses autres cibles ne sont pas des fils X)."""
+    from app.services import comptes as _cpt
+    ids = []
+    for cid in _comptes_du_post(tete):
+        try:
+            if _cpt.obtenir(cid)["plateforme"] == "x":
+                ids.append(cid)
+        except KeyError:
+            continue
+    return json.dumps(ids[:1]) if ids else None
 
 
 @router.post("/schedule/{post_id}/fire")

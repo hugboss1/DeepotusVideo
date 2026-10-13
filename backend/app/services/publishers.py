@@ -58,7 +58,9 @@ async def _publier(channel: str, caption: str, video_path: Optional[str],
     entry = _REGISTRY.get(channel)
     if not entry or not entry[0]():
         return PublishResult(False, f"{channel}: assisted (no auto adapter)")
-    ok, msg = quota.check(channel)
+    from app.services import comptes
+    cle_q = comptes.cle_quota(channel, comptes.courant())       # t204 : un quota PAR COMPTE
+    ok, msg = quota.check(cle_q)
     if not ok:
         return PublishResult(False, msg)
     try:
@@ -67,5 +69,5 @@ async def _publier(channel: str, caption: str, video_path: Optional[str],
         logger.warning(f"publish {channel} raised: {e}")
         return PublishResult(False, f"{channel} error: {e}")
     if res.ok:
-        quota.count(channel)
+        quota.count(cle_q)
     return res

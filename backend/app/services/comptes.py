@@ -311,3 +311,40 @@ def de_l_espace(cid: str, espace_id: str) -> bool:
     if (cid or "").startswith(HISTO):
         return espace_id == "deepotus"
     return (_lire()["comptes"].get(cid) or {}).get("espace_id") == espace_id
+
+
+# ---- t204 (Espaces de marque E4) : les comptes CIBLES d'un post du Planificateur ---------------------------------------
+
+def espace_du_post(espace_id) -> str:
+    """Un post d'avant les espaces (espace_id vide) appartient à Deepotus."""
+    return espace_id or "deepotus"
+
+
+def verifier_cibles(espace_id, ids) -> list:
+    """Les vues des comptes cibles d'un post, dans l'ordre, sans doublon. KeyError = compte inconnu ; PermissionError =
+    compte d'un AUTRE espace (jamais un post client sur un compte Deepotus, ni l'inverse)."""
+    if ids is None:
+        return []
+    if not isinstance(ids, list):
+        raise ValueError("comptes doit être une liste d'identifiants")
+    eid, out, vus = espace_du_post(espace_id), [], set()
+    for cid in ids:
+        if not isinstance(cid, str) or cid in vus:
+            continue
+        v = obtenir(cid)
+        if not de_l_espace(cid, eid):
+            raise PermissionError(f"le compte {v['libelle']} ({cid}) n'appartient pas à l'espace de ce post")
+        out.append(v)
+        vus.add(cid)
+    return out
+
+
+def cle_distante(vue: dict) -> str:
+    """La clé de remote_ids d'une cible : le nom du canal pour un compte historique (comme avant), sinon
+    « canal:id » — deux comptes X d'un même post ne se marchent jamais dessus."""
+    return vue["plateforme"] if vue.get("historique") else f"{vue['plateforme']}:{vue['id']}"
+
+
+def cle_quota(canal: str, cid) -> str:
+    """Le compteur de quota d'une publication : par COMPTE (« x@c1a2b3c4d ») ; sans compte ou historique, le canal."""
+    return f"{canal}@{cid}" if cid and _ID.match(cid) else canal
