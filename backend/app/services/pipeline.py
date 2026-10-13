@@ -1649,7 +1649,8 @@ class Pipeline:
     @staticmethod
     async def list_jobs(limit: int = 50, offset: int = 0, providers=None,
                         q: str | None = None, video_exts=None,
-                        min_rating: int = 0, fav: int = 0, done: int = 0) -> list[JobRecord]:
+                        min_rating: int = 0, fav: int = 0, done: int = 0,
+                        espace: str | None = None) -> list[JobRecord]:
         """La fenêtre des jobs récents servie par `GET /api/jobs`.
 
         E-2 (23/09/2026) : pagination `offset`, filtre `providers` (liste de
@@ -1730,6 +1731,11 @@ class Pipeline:
         # t188 (12/10/2026) : terminés seulement (le rail VFX IA), même place, avant le `limit`
         if done:
             stmt = stmt.where(JobRecord.status == "done")
+        # t209 (Espaces de marque E9) : l'espace du job, même place, avant le `limit` ; vide = Deepotus
+        from app.services import espaces as _es
+        cond = _es.filtre(JobRecord.espace_id, espace)
+        if cond is not None:
+            stmt = stmt.where(cond)
         async with async_session_factory() as session:
             res = await session.execute(
                 stmt.order_by(JobRecord.created_at.desc()).offset(offset).limit(limit)

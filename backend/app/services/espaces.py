@@ -115,7 +115,34 @@ def lire() -> dict:
 def _vue(eid: str, e: dict, actif: str) -> dict:
     return {"id": eid, "nom": e.get("nom") or eid, "couleur": e.get("couleur") or "#ef4444",
             "kit_id": e.get("kit_id"), "archive": bool(e.get("archive")), "created_at": e.get("created_at"),
-            "actif": eid == actif}
+            "actif": eid == actif, "plafond_usd": plafond_valide(e.get("plafond_usd"))}
+
+
+def plafond_valide(v) -> float:
+    """t209 : le plafond mensuel OPTIONNEL d'un espace, en $ ; illisible, négatif ou non fini = 0 = aucun (comme le
+    plafond global : jamais une ouverture, jamais un refus de l'écran)."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return 0.0
+    v = float(v)
+    return round(v, 4) if v > 0 and v == v and v != float("inf") else 0.0
+
+
+def filtre(colonne, eid):
+    """t209 (Espaces de marque E9) : la condition SQL « appartient à l'espace `eid` ». Une ligne d'avant les espaces
+    (colonne vide) est de Deepotus. `eid` vide ou « * » : None = aucun filtre (tout, comme avant)."""
+    from sqlalchemy import or_
+    if not eid or eid == "*":
+        return None
+    if eid == "deepotus":
+        return or_(colonne.is_(None), colonne == "", colonne == "deepotus")
+    return colonne == eid
+
+
+def de_l_espace(valeur, eid) -> bool:
+    """Le même jugement que `filtre`, en Python (une ligne d'index, un fichier jamais indexé = None)."""
+    if not eid or eid == "*":
+        return True
+    return (valeur or "deepotus") == eid
 
 
 def actif() -> dict:
@@ -181,6 +208,8 @@ def modifier(eid: str, champs: dict) -> dict:
         if champs["kit_id"] and champs["kit_id"] not in brand_kits.lire()["kits"]:
             raise ValueError(f"kit inconnu : {champs['kit_id']}")
         e["kit_id"] = champs["kit_id"] or None
+    if "plafond_usd" in champs:                # t209 : 0 = aucun plafond propre à l'espace
+        e["plafond_usd"] = plafond_valide(champs.get("plafond_usd"))
     _ecrire(doc)
     return _vue(eid, e, doc["actif"])
 

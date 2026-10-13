@@ -23,7 +23,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.config import DATA_ROOT
 
@@ -108,6 +108,10 @@ async def _registre():
     async with async_session_factory() as s:
         conn = await s.connection()
         await conn.run_sync(lambda sc: Depense.__table__.create(sc, checkfirst=True))
+        # t209 : une table d'avant les espaces, sur une base qui n'a pas vu init_db, reçoit sa colonne ici
+        cols = {r[1] for r in (await conn.execute(text("PRAGMA table_info(depenses)"))).fetchall()}
+        if "espace_id" not in cols:
+            await conn.execute(text("ALTER TABLE depenses ADD COLUMN espace_id VARCHAR(40)"))
         yield s
 
 
@@ -116,14 +120,29 @@ def mois_courant() -> str:
     return time.strftime("%Y-%m")
 
 
-async def _cumul(mois: str) -> dict:
+async def _lignes(s, mois: str, espace: str | None = None) -> list:
+    """Les lignes du mois, de l'espace `espace` seulement s'il est donné (t209 : vide = Deepotus, « * » = tout)."""
+    from app.services import espaces as _es
+    from app.services.storage import Depense
+    q = select(Depense).where(Depense.mois == mois)
+    cond = _es.filtre(Depense.espace_id, espace)
+    if cond is not None:
+        q = q.where(cond)
+    return (await s.execute(q.order_by(Depense.quand, Depense.id))).scalars().all()
+
+
+def _effectif(l) -> float:
+    return float(l.reel_usd) if l.reel_usd is not None else float(l.estime_usd or 0.0)
+
+
+async def _cumul(mois: str, espace: str | None = None) -> dict:
     """Somme du mois, relue en base, par moteur : estimé, réel (quand connu), EFFECTIF = réel là où il existe,
-    estimé ailleurs."""
+    estimé ailleurs. t209 : `espace` restreint à un espace."""
     from app.services.storage import Depense
     par: dict[str, dict] = {}
     depuis = ""
     async with _registre() as s:
-        lignes = (await s.execute(select(Depense).where(Depense.mois == mois))).scalars().all()
+        lignes = await _lignes(s, mois, espace)
         prem = (await s.execute(select(Depense).order_by(Depense.quand))).scalars().first()
         if prem is not None:
             depuis = prem.quand.strftime("%Y-%m-%d")
@@ -168,7 +187,7 @@ async def etat(mois: str | None = None) -> dict:
 RAPPROCHABLES = {"meshy", "heygen"}
 
 
-async def tableau(mois: str | None = None) -> dict:
+async def tableau(mois: str | None = None, espace: str | None = None) -> dict:
     """Une ligne par (moteur, catégorie), avec l'ÉTAT de son chiffre — jamais mélangés :
       reel                   tous les tirs du groupe ont un réel fournisseur ;
       reel-partiel           une partie seulement : l'effectif mêle réel et estimé, et le nombre est dit ;
@@ -176,13 +195,14 @@ async def tableau(mois: str | None = None) -> dict:
       estime-non-rapproche   un moteur rapprochable dont AUCUN tir n'a pu être rattaché — le taire le ferait
                              passer pour un estimé ordinaire.
     L'effectif se calcule LIGNE par LIGNE (réel là où il existe, estimé ailleurs), comme `_cumul` des plafonds ;
-    l'écart (réel − estimé) ne porte que sur les tirs rapprochés, jamais sur un réel absent."""
+    l'écart (réel − estimé) ne porte que sur les tirs rapprochés, jamais sur un réel absent.
+    t209 (Espaces de marque E9) : `espace` restreint le tableau à un espace (absent ou « * » = tout)."""
     from app.services.storage import Depense
     mois = mois or mois_courant()
     groupes: dict = {}
     depuis = ""
     async with _registre() as s:
-        lignes = (await s.execute(select(Depense).where(Depense.mois == mois))).scalars().all()
+        lignes = await _lignes(s, mois, espace)
         prem = (await s.execute(select(Depense).order_by(Depense.quand))).scalars().first()
         if prem is not None:
             depuis = prem.quand.strftime("%Y-%m-%d")
@@ -217,9 +237,83 @@ async def tableau(mois: str | None = None) -> dict:
     te = round(sum(g["estime_usd"] for g in out), 6)
     tr = round(sum(g["reel_usd"] or 0.0 for g in out), 6)
     tf = round(sum(g["effectif_usd"] for g in out), 6)
-    return {"mois": mois, "depuis": depuis, "lignes": out,
+    return {"mois": mois, "depuis": depuis, "lignes": out, "espace": espace or "*",
             "total": {"estime_usd": te, "reel_usd": tr, "effectif_usd": tf,
                       "couverture_pct": round(100.0 * tr / tf, 1) if tf else 0.0}}
+
+
+# t209 (Espaces de marque E9, 14/10/2026) — les dépenses PAR ESPACE et le relevé qui sert à facturer un client.
+async def par_espace(mois: str | None = None) -> dict:
+    """Le mois de chaque espace (archivés compris : on facture aussi ce qui est fini) : estimé, réel, effectif, son
+    plafond propre et le pourcentage atteint. Une ligne d'avant les espaces compte pour Deepotus."""
+    from app.services import espaces as _es
+    from app.services.storage import Depense
+    mois = mois or mois_courant()
+    doc = _es.lire()
+    out = {eid: {"nom": e.get("nom") or eid, "estime_usd": 0.0, "reel_usd": 0.0, "effectif_usd": 0.0, "tirs": 0,
+                 "plafond_usd": _es.plafond_valide(e.get("plafond_usd"))} for eid, e in doc["espaces"].items()}
+    async with _registre() as s:
+        lignes = (await s.execute(select(Depense).where(Depense.mois == mois))).scalars().all()
+    for l in lignes:
+        eid = l.espace_id or "deepotus"
+        d = out.setdefault(eid, {"nom": eid, "estime_usd": 0.0, "reel_usd": 0.0, "effectif_usd": 0.0, "tirs": 0,
+                                 "plafond_usd": 0.0})
+        d["estime_usd"] = round(d["estime_usd"] + float(l.estime_usd or 0.0), 6)
+        if l.reel_usd is not None:
+            d["reel_usd"] = round(d["reel_usd"] + float(l.reel_usd), 6)
+        d["effectif_usd"] = round(d["effectif_usd"] + _effectif(l), 6)
+        d["tirs"] += 1
+    for d in out.values():
+        d["pct"] = round(100.0 * d["effectif_usd"] / d["plafond_usd"], 1) if d["plafond_usd"] > 0 else 0.0
+    return {"mois": mois, "par_espace": out}
+
+
+_RELEVE = {
+    "fr": {"sep": ";", "dec": ",", "etat": ("réel", "estimé"),
+           "tete": ["Date", "Moteur", "Écran", "Opération", "Estimé (USD)", "Réel (USD)", "Effectif (USD)", "État",
+                    "Référence"]},
+    "en": {"sep": ",", "dec": ".", "etat": ("actual", "estimated"),
+           "tete": ["Date", "Engine", "Screen", "Operation", "Estimated (USD)", "Actual (USD)", "Effective (USD)",
+                    "Status", "Reference"]},
+}
+
+
+def _slug(nom: str) -> str:
+    import re
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(nom or "")).encode("ascii", "ignore").decode("ascii").lower()
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")[:40] or "espace"
+
+
+async def releve(espace: str, mois: str | None = None, langue: str | None = None) -> tuple[str, str]:
+    """Le relevé CSV d'UN espace pour un mois : une ligne par tir (date locale, moteur, écran, opération, estimé,
+    réel, effectif, état, référence) puis le total. Français par défaut (« ; » et virgule décimale, ce qu'ouvre un
+    tableur français) ; en anglais « , » et point. UTF-8 avec BOM. Rend (nom de fichier, texte)."""
+    import csv
+    import io
+    from app.services import espaces as _es
+    mois = mois or mois_courant()
+    L = _RELEVE["en" if str(langue or "").lower().startswith("en") else "fr"]
+    nom = (_es.lire()["espaces"].get(espace) or {}).get("nom") or espace
+
+    def n(v):
+        return "" if v is None else f"{float(v):.4f}".replace(".", L["dec"])
+    async with _registre() as s:
+        lignes = await _lignes(s, mois, espace)
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=L["sep"], lineterminator="\r\n")
+    w.writerow(L["tete"])
+    te = tr = tf = 0.0
+    for l in lignes:
+        quand = l.quand.replace(tzinfo=__import__("datetime").timezone.utc).astimezone() if l.quand else None
+        w.writerow([quand.strftime("%Y-%m-%d %H:%M") if quand else "", l.moteur, l.categorie or "", l.op or "",
+                    n(l.estime_usd or 0.0), n(l.reel_usd), n(_effectif(l)),
+                    L["etat"][0] if l.reel_usd is not None else L["etat"][1], l.ref or ""])
+        te += float(l.estime_usd or 0.0)
+        tr += float(l.reel_usd or 0.0)
+        tf += _effectif(l)
+    w.writerow(["Total", "", "", "", n(te), n(tr), n(tf), "", ""])
+    return f"releve_{_slug(nom)}_{mois}.csv", "\ufeff" + buf.getvalue()
 
 
 def _fr(v: float) -> str:
@@ -232,14 +326,16 @@ def _fr(v: float) -> str:
     return (s + "0" if len(s.split(".")[1]) < 2 else s).replace(".", ",")
 
 
-def _refus(motif, moteur, deja, devis, plafond, categorie) -> HTTPException:
+def _refus(motif, moteur, deja, devis, plafond, categorie, espace: str = "") -> HTTPException:
     ou = f" (écran « {categorie} »)" if categorie else ""
-    qui = "toutes dépenses confondues" if motif == "global" else f"le moteur « {moteur} »"
+    qui = ("toutes dépenses confondues" if motif == "global"
+           else f"l'espace « {espace} »" if motif == "espace" else f"le moteur « {moteur} »")
     msg = (f"Plafond mensuel atteint : {qui} a déjà coûté {_fr(deja)} $ ce mois-ci ; ce tir{ou} ajouterait "
            f"{_fr(devis)} $ et passerait au-dessus de {_fr(plafond)} $. Confirmez pour tirer quand même, ou relevez "
-           f"le plafond dans Réglages → Pricing & budget.")
+           + ("le plafond dans Réglages → Espaces." if motif == "espace" else
+              "le plafond dans Réglages → Pricing & budget."))
     return HTTPException(402, {"dz_plafond": {
-        "motif": motif, "moteur": moteur, "categorie": categorie, "deja_usd": round(deja, 4),
+        "motif": motif, "moteur": moteur, "categorie": categorie, "espace": espace, "deja_usd": round(deja, 4),
         "devis_usd": round(devis, 4), "plafond_usd": round(plafond, 4), "message": msg}})
 
 
@@ -268,6 +364,16 @@ async def verifier(op: dict, categorie: str = "", ref: str | None = None, confir
             somme = sum(x["usd"] for x in devis["breakdown"] if x["provider"] == m)
             if somme > 0 and deja + somme > pm + 1e-9:
                 raise _refus("moteur", m, deja, somme, pm, categorie)
+    if not ok and devis["total_usd"] > 0:
+        # t209 (Espaces de marque E9) : le plafond OPTIONNEL de l'espace du tir, en plus du global et des moteurs
+        from app.services import espaces as _es
+        eid = _es.espace_courant()
+        e = _es.lire()["espaces"].get(eid) or {}
+        pe = _es.plafond_valide(e.get("plafond_usd"))
+        if pe > 0:
+            deja_e = sum(v["effectif_usd"] for v in (await _cumul(mois, eid))["par_moteur"].values())
+            if deja_e + devis["total_usd"] > pe + 1e-9:
+                raise _refus("espace", "", deja_e, devis["total_usd"], pe, categorie, e.get("nom") or eid)
 
     kind = str((op or {}).get("kind") or "")[:32]
     neuves = []

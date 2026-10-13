@@ -35,6 +35,9 @@ off par défaut de Quick suit l'espace (`dzVoixSuit`).
 t208-bis (13/10/2026) : `dzMq(clé)` — les textes Deepotus restés en dur dans le Studio (nœud Texte = script HeyGen
 par défaut, compilateur, devis, légendes « planifier », vignette, bandeau de marque, élément texte de l'animation),
 le prompt d'illustration News et le nom par défaut de l'avatar photo suivent l'espace actif (paires M1-M12).
+t209 (14/10/2026) : la Bibliothèque montre l'espace actif ou tous (`DzBibEspace` dans l'en-tête, `dzBibQ` passé à
+/images, /jobs et /audio, paires B1-B6) ; Réglages › Espaces : dépense du mois, plafond propre et relevé CSV de
+chaque espace (`DzDepEspace`).
 Run : python scripts/patch_bundle_dzespace.py [--check]
 """
 import pathlib
@@ -153,7 +156,8 @@ AIDES = (
     'function(x2){maj({busy:!1,err:String(x2&&x2.message||x2)})})},children:dzT("espaces.action.activer")}),'
     '!act&&r.jsx("button",{type:"button",disabled:st.busy,style:bt,onClick:function(){'
     'agir(dzEspEnvoyer(base(e.id)+"/archive","POST",{archive:!e.archive}))},'
-    'children:dzT(e.archive?"espaces.action.desarchiver":"espaces.action.archiver")})]},e.id)})}),'
+    'children:dzT(e.archive?"espaces.action.desarchiver":"espaces.action.archiver")}),'
+    'r.jsx(DzDepEspace,{espace:e.id},"dep:"+e.id)]},e.id)})}),'   # t209 : clé PRÉFIXÉE
     'r.jsxs("label",{style:{fontSize:12,color:"var(--ink-soft)",display:"flex",gap:6,alignItems:"center"},children:['
     'r.jsx("input",{type:"checkbox",checked:st.arch,onChange:function(ev){maj({arch:ev.target.checked})}}),'
     'dzT("espaces.reglages.voir_archives")]}),'
@@ -539,6 +543,59 @@ AIDES_CT = (
     'children:dzT(st.cat?"espaces.ct.remplacer_cat":"espaces.ct.remplacer_tout")})]})]})]})})}'
 )
 
+# t209 (Espaces de marque E9) — la Bibliothèque PAR ESPACE et les dépenses de chaque espace.
+#  - `dzBibTous` : la Bibliothèque montre l'espace actif (défaut) ou tous ; `dzBibQ(sep)` rend « ?espace=<id> » (rien
+#    pour « tous » ou tant que les espaces ne sont pas lus : tout, comme avant) ; l'événement `dz-bib-esp` recharge la
+#    Bibliothèque, et un changement d'espace la recharge AUSSI que la barre des projets (`dz-projets`) ;
+#  - `DzBibEspace` : le sélecteur de l'en-tête (abonné à dzEspCache : le nom suit un renommage) ;
+#  - `DzDepEspace` : sous chaque espace de Réglages › Espaces, la dépense effective du mois, le pourcentage du plafond
+#    propre, le plafond (0 = aucun, enregistré à la sortie du champ ou à Entrée) et le relevé CSV, téléchargé par fetch
+#    (l'en-tête Accept-Language de l'app donne la langue du relevé) — jamais une navigation.
+AIDES_BIB = (
+    'var dzBibTous=!1;function dzBibEsp(){return dzBibTous?"*":(typeof dzEspCache!=="undefined"&&dzEspCache&&dzEspCache.actif)||""}'
+    'function dzBibQ(sep){var e=dzBibEsp();return e&&e!=="*"?sep+"espace="+encodeURIComponent(e):""}'
+    'function dzBibSignal(){try{window.dispatchEvent(new Event("dz-bib-esp"))}catch(_e){}}'
+    'try{window.addEventListener("deepotus:espace-refresh",function(){dzBibSignal();'
+    'try{window.dispatchEvent(new Event("dz-projets"))}catch(_e){}})}catch(_e){}'
+    'function DzBibEspace(){const[,f]=x.useReducer(function(n){return n+1},0);x.useEffect(function(){var g=function(){f()};'
+    'dzEspAbonnes.push(g);dzEspCache||dzEspCharger().catch(function(){});return function(){dzEspAbonnes=dzEspAbonnes.filter(function(h){return h!==g})}},[]);'
+    'var a=dzEspCache&&(dzEspCache.espaces||[]).filter(function(e){return e.id===dzEspCache.actif})[0];'
+    'return r.jsxs("select",{"data-dz-bib-espace":"1",value:dzBibTous?"*":"actif","aria-label":dzT("espaces.bib.titre"),title:dzT("espaces.bib.titre"),'
+    'onChange:function(ev){dzBibTous=ev.target.value==="*";f();dzBibSignal()},style:{fontSize:12,padding:"4px 6px",background:"var(--bg-panel-2)",'
+    'color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:4,maxWidth:200},children:['
+    'r.jsx("option",{value:"actif","data-dz-brut":"1",children:dzT("espaces.bib.cet_espace",{nom:a?a.nom:"…"})},"actif"),'
+    'r.jsx("option",{value:"*",children:dzT("espaces.bib.tous")},"tous")]})}'
+    'var dzDepP=null,dzDepD=null,dzDepAb=[];'
+    'function dzDepCharger(force){if(dzDepP&&!force)return dzDepP;dzDepP=fetch("/api/reglages/depenses/espaces").then(function(r2){'
+    'if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()}).then(function(d){dzDepD=d;dzDepAb.slice().forEach(function(f){try{f()}catch(_e){}});return d})'
+    '.catch(function(){dzDepP=null;return null});return dzDepP}'
+    'function dzDepFr(v){var n=Math.round((Number(v)||0)*100)/100;try{return n.toLocaleString(document.documentElement.lang||void 0,'
+    '{minimumFractionDigits:2,maximumFractionDigits:2})}catch(_e){return n.toFixed(2)}}'
+    'function DzDepEspace({espace:esp}){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},{v:null,busy:!1,err:""});'
+    'x.useEffect(function(){var g=function(){maj({})};dzDepAb.push(g);dzDepCharger(!dzDepD);'
+    'return function(){dzDepAb=dzDepAb.filter(function(h){return h!==g})}},[]);'
+    'var d=dzDepD&&dzDepD.par_espace&&dzDepD.par_espace[esp]||{effectif_usd:0,plafond_usd:0,pct:0},mois=dzDepD&&dzDepD.mois||"";'
+    'var pl=st.v!=null?st.v:String(d.plafond_usd||0);'
+    'function enreg(){var n=Number(String(pl).replace(",","."));maj({busy:!0,err:""});'
+    'dzEspEnvoyer("/api/espaces/"+encodeURIComponent(esp),"POST",{plafond_usd:isFinite(n)&&n>0?n:0}).then(function(){return dzDepCharger(!0)})'
+    '.then(function(){maj({busy:!1,v:null})},function(e){maj({busy:!1,err:String(e&&e.message||e)})})}'
+    'function releve(){maj({busy:!0,err:""});fetch("/api/reglages/depenses/releve?espace="+encodeURIComponent(esp)+(mois?"&mois="+mois:""))'
+    '.then(function(r2){if(!r2.ok)throw new Error("HTTP "+r2.status);var m=/filename="([^"]+)"/.exec(r2.headers.get("content-disposition")||"");'
+    'return r2.blob().then(function(b){var u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=m?m[1]:"releve.csv";'
+    'document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4e3)})})'
+    '.then(function(){maj({busy:!1})},function(e){maj({busy:!1,err:String(e&&e.message||e)})})}'
+    'var bt={fontSize:11.5,padding:"3px 8px",background:"var(--bg-panel-2)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:4,cursor:"pointer"};'
+    'return r.jsxs("div",{"data-dz-dep-espace":esp,style:{flexBasis:"100%",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",fontSize:11.5,color:"var(--ink-soft)"},children:['
+    'r.jsx("span",{"data-dz-dep-mois":esp,children:dzT("espaces.dep.mois",{montant:dzDepFr(d.effectif_usd)})}),'
+    'd.plafond_usd>0&&r.jsx("span",{"data-dz-dep-pct":esp,style:{color:d.pct>=100?"var(--red)":d.pct>=80?"var(--amber)":"var(--ink-soft)"},children:dzT("espaces.dep.pct",{pct:d.pct})}),'
+    'r.jsxs("label",{title:dzT("espaces.dep.plafond_aide"),style:{display:"flex",gap:4,alignItems:"center"},children:[dzT("espaces.dep.plafond"),'
+    'r.jsx("input",{"data-dz-dep-plafond":esp,type:"number",min:0,step:"0.01",value:pl,disabled:st.busy,onChange:function(ev){maj({v:ev.target.value})},'
+    'onBlur:function(){st.v!=null&&enreg()},onKeyDown:function(ev){ev.key==="Enter"&&enreg()},style:{width:80,fontSize:11.5,padding:"3px 6px",'
+    'background:"var(--bg-panel-2)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:4}})]}),'
+    'r.jsx("button",{type:"button","data-dz-dep-releve":esp,disabled:st.busy,title:dzT("espaces.dep.releve_aide"),onClick:releve,style:bt,children:dzT("espaces.dep.releve")}),'
+    'st.err&&r.jsx("span",{role:"alert",style:{color:"var(--red)"},children:st.err})]})}'
+)
+
 # t208-bis — les textes de marque du Studio, des News et de l'avatar photo. Deepotus (ou rien de chargé) : MOT POUR MOT
 # les littéraux d'avant ; un autre espace : un texte neutre à son nom (anglais, comme l'original : ils partent à HeyGen,
 # au générateur d'images ou au Planificateur). Lit `dzEspCache` (chargé par le sélecteur du rail au démarrage, relu à
@@ -572,7 +629,7 @@ SHELL_APRES = (
 )
 
 PAIRES = [
-    (RAIL, AIDES + AIDES_IDV + AIDES_CT + AIDES_MQ + RAIL),                                       # S1
+    (RAIL, AIDES + AIDES_IDV + AIDES_CT + AIDES_BIB + AIDES_MQ + RAIL),                                       # S1
     (CARTE, 'r.jsx(DzEspaceSel,{setView:t}),' + CARTE),                                # S2
     (SHELL, SHELL_APRES),                                                              # S3
     ('const ym=["diag","coffre","appareils","keys","accounts","personas",',            # S4
@@ -640,6 +697,22 @@ PAIRES = [
      'x.useState(newsTitle||dzMq("news_illus"))'),
     ('createPhotoAvatar:async(e,t="Custom deepotus avatar")=>',                                            # M12
      'createPhotoAvatar:async(e,t=dzMq("avatar"))=>'),
+    # t209 — B1-B6 : la Bibliothèque par espace. L'API garde ses appels d'avant (sans argument : tout) ; seule la
+    # Bibliothèque passe dzBibQ ; le sélecteur va dans l'en-tête, après le tri (la ligne de la barre des projets est
+    # figée par test_library_projets_ecran et test_library_corbeille_ecran)
+    ('listImages:()=>Ge("/images",{images:[]})',                                                           # B1
+     'listImages:(dzQ)=>Ge("/images"+(dzQ||""),{images:[]})'),
+    ('listJobs:(e=50)=>Ge(`/jobs?limit=${e}`,[])',                                                          # B2
+     'listJobs:(e=50,dzQ)=>Ge(`/jobs?limit=${e}`+(dzQ||""),[])'),
+    ('listAudio:()=>Ge("/audio",{audio:[]})',                                                               # B3
+     'listAudio:(dzQ)=>Ge("/audio"+(dzQ||""),{audio:[]})'),
+    ('[D.listImages(),D.listJobs(80),D.listAudio()]',                                                       # B4
+     '[D.listImages(dzBibQ("?")),D.listJobs(80,dzBibQ("&")),D.listAudio(dzBibQ("?"))]'),
+    ('Q();const ee=setInterval(Q,8e3);return()=>{C=!1,clearInterval(ee)}},[]);',                            # B5
+     'Q();const ee=setInterval(Q,8e3),dzBq=function(){Q()};window.addEventListener("dz-bib-esp",dzBq);'
+     'return()=>{C=!1,clearInterval(ee),window.removeEventListener("dz-bib-esp",dzBq)}},[]);'),
+    ('onChange:v=>LsortS(v),style:{width:130}}),',                                                          # B6
+     'onChange:v=>LsortS(v),style:{width:130}}),r.jsx(DzBibEspace,{}),'),
 ]
 # S3 bis : les DEUX passages de setActivePersonaId (Réglages, Onboarding) — même texte, remplacés ensemble
 PERSO = ("setActivePersonaId:j,savePersona:E", "setActivePersonaId:dzJ,savePersona:E", 2)

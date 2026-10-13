@@ -23,6 +23,18 @@
     "fr": "Renommer",
     "en": "Rename"
   },
+  "espaces.bib.cet_espace": {
+    "fr": "Cet espace : {nom}",
+    "en": "This space: {nom}"
+  },
+  "espaces.bib.titre": {
+    "fr": "Espace dont la Bibliothèque montre les fichiers et les rendus",
+    "en": "Space whose files and renders the Library shows"
+  },
+  "espaces.bib.tous": {
+    "fr": "Tous les espaces",
+    "en": "All spaces"
+  },
   "espaces.champ.kit": {
     "fr": "Kit de marque",
     "en": "Brand kit"
@@ -182,6 +194,30 @@
   "espaces.ct.vide": {
     "fr": "Aucun modèle pour cet espace : « Modèles de l'espace » en propose.",
     "en": "No template for this space yet: \"Space templates\" suggests some."
+  },
+  "espaces.dep.mois": {
+    "fr": "Ce mois : {montant} $",
+    "en": "This month: ${montant}"
+  },
+  "espaces.dep.pct": {
+    "fr": "{pct} % du plafond",
+    "en": "{pct}% of the cap"
+  },
+  "espaces.dep.plafond": {
+    "fr": "Plafond mensuel ($)",
+    "en": "Monthly cap ($)"
+  },
+  "espaces.dep.plafond_aide": {
+    "fr": "Plafond propre à cet espace, en plus du plafond global ; 0 = aucun",
+    "en": "This space's own cap, on top of the global cap; 0 = none"
+  },
+  "espaces.dep.releve": {
+    "fr": "Relevé du mois (CSV)",
+    "en": "Month statement (CSV)"
+  },
+  "espaces.dep.releve_aide": {
+    "fr": "Les dépenses de cet espace ce mois-ci, à remettre au client",
+    "en": "This space's spending this month, to hand to the client"
   },
   "espaces.erreur.lecture": {
     "fr": "Espaces illisibles : le serveur local répond-il ?",
