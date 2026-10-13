@@ -119,9 +119,31 @@ check("F1 plus de « $DEEPOTUS Pyth-feed », un exemple neutre (anglais, décisi
       "Pyth-feed" not in BUNDLE and BUNDLE.count('placeholder:"e.g. fits the next launch announcement"') == 1)
 sys.path.insert(0, str(RACINE / "scripts"))
 import patch_bundle_dzespace as DZE                                   # noqa: E402
-avant = DZE.defaire(BUNDLE)
-check("F2 l'inverse du maillon rend l'exemple d'avant", 'placeholder:"e.g. fits the $DEEPOTUS Pyth-feed announcement"'
-      in avant and DZE.appliquer(avant) == BUNDLE)
+try:
+    avant = DZE.defaire(BUNDLE)
+except AssertionError as e:                 # un bundle qui n'est pas celui du maillon : dit, la suite est jugée quand même
+    avant = str(e)
+check("F2 l'inverse du maillon rend l'exemple d'avant et la voix off d'avant",
+      'placeholder:"e.g. fits the $DEEPOTUS Pyth-feed announcement"' in avant and "dzVoixSuit" not in avant
+      and DZE.appliquer(avant) == BUNDLE, avant[:120])
+
+print("[G] écran : la voix off par défaut de Quick suit l'espace")
+VQ = 'x.useState("From the deep, the prophet speaks. The shoal awakens."),dzVq=dzVoixSuit(R,W,dzCvQ),'
+check("G1 la voix off de Quick passe par dzVoixSuit (aucun useState ajouté)",
+      BUNDLE.count(VQ) == 1 and BUNDLE.count("function dzVoixSuit(") == 1 and BUNDLE.count("x.useState(") == 731)
+i = BUNDLE.index("var dzVoixAuto=null;")
+fn = BUNDLE[i:BUNDLE.index("return null}", i) + len("return null}")]
+js = ("var x={useEffect:function(f){f()}};var dzEspCt=null;" + fn + ";var out=[],v,D='From the deep, the prophet speaks. The shoal awakens.';"
+      "function set(n){v=n;out.push(n)}"
+      "v=D;dzVoixSuit(v,set,0);out.push('|');"                                   # contenus pas encore lus : rien
+      "dzEspCt={id:'deepotus',nom:'Deepotus'};dzVoixSuit(v,set,1);out.push('|');"  # Deepotus : inchangée
+      "dzEspCt={id:'esp_1',nom:'Rippled'};dzVoixSuit(v,set,2);out.push('|');"      # autre espace : Meet Rippled.
+      "dzEspCt={id:'esp_2',nom:'Acme'};dzVoixSuit(v,set,3);out.push('|');"         # encore auto : suit
+      "v='Ma voix';dzEspCt={id:'deepotus',nom:'Deepotus'};dzVoixSuit(v,set,4);"     # modifiée : jamais écrasée
+      "console.log(JSON.stringify(out))")
+rn = subprocess.run(["node", "-e", js], capture_output=True, text=True, encoding="utf-8")
+check("G2 Deepotus inchangée, autre espace « Meet <nom>. », une saisie n'est jamais écrasée",
+      rn.stdout.strip() == json.dumps(["|", "|", "Meet Rippled.", "|", "Meet Acme.", "|"], separators=(",", ":")), rn.stdout + rn.stderr)
 
 print("[E] remplir")
 check("E1 seules les clés données", TX.remplir('{"id": str} {nom} {s}', nom="R") == '{"id": str} R {s}')
