@@ -192,7 +192,7 @@
     "en": "Space content kit"
   },
   "espaces.idv.kit_aide": {
-    "fr": "Les gabarits rendus dans cet espace prennent ses couleurs et son logo. Tiré de l'identité ENREGISTRÉE ; jamais appliqué à l'application (Réglages › Branding).",
+    "fr": "Les gabarits rendus dans cet espace prennent ses couleurs et son logo. Tiré de l'identité ENREGISTRÉE ; jamais appliqué à l'application (Réglages › Identité visuelle).",
     "en": "Templates rendered in this space use its colors and logo. Built from the SAVED identity; never applied to the app (Settings › Branding)."
   },
   "espaces.idv.kit_creer": {
@@ -204,7 +204,7 @@
     "en": "Uses the \"{nom}\" kit chosen for this space."
   },
   "espaces.idv.kit_etat.branding": {
-    "fr": "Suit le kit de Réglages › Branding ({nom}).",
+    "fr": "Suit le kit de Réglages › Identité visuelle ({nom}).",
     "en": "Follows the Settings › Branding kit ({nom})."
   },
   "espaces.idv.kit_etat.identite": {
@@ -220,12 +220,12 @@
     "en": "Update the kit"
   },
   "espaces.idv.logo_aide": {
-    "fr": "Pour les contenus de ce persona seulement : le logo de l'application reste celui de Réglages › Branding.",
+    "fr": "Pour les contenus de ce persona seulement : le logo de l'application reste celui de Réglages › Identité visuelle.",
     "en": "For this persona's content only: the app logo stays the one in Settings › Branding."
   },
   "espaces.idv.ouvrir": {
-    "fr": "Identité visuelle",
-    "en": "Visual identity"
+    "fr": "Identité du persona",
+    "en": "Persona identity"
   },
   "espaces.idv.palette": {
     "fr": "Palette",
@@ -292,16 +292,16 @@
     "en": "warm terracotta tones, matte ceramic textures, soft side light"
   },
   "espaces.idv.titre": {
-    "fr": "Identité visuelle — {nom}",
-    "en": "Visual identity — {nom}"
+    "fr": "Identité du persona — {nom}",
+    "en": "Persona identity — {nom}"
   },
   "espaces.idv.typo_ajouter": {
     "fr": "Ajouter une typographie",
-    "en": "Add a typeface"
+    "en": "Add a font"
   },
   "espaces.idv.typo_nom": {
     "fr": "Police",
-    "en": "Typeface"
+    "en": "Font"
   },
   "espaces.idv.typo_usage": {
     "fr": "Usage (titres, texte…)",
@@ -309,7 +309,7 @@
   },
   "espaces.idv.typos": {
     "fr": "Typographies",
-    "en": "Typefaces"
+    "en": "Fonts"
   },
   "espaces.idv.valider": {
     "fr": "Valider la planche",

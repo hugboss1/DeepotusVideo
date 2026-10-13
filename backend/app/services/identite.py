@@ -433,7 +433,7 @@ def composer_planche(eid: str) -> dict:
     img = Image.new("RGB", (W, H), "#14161c")
     dr = ImageDraw.Draw(img)
     dr.text((48, 30), nom, font=_police(52), fill="#f4f4f5")
-    dr.text((48, 96), "Identité visuelle", font=_police(24), fill="#a1a1aa")
+    dr.text((48, 96), "Identité du persona", font=_police(24), fill="#a1a1aa")
 
     def coller(nom_img, x, y, cote):
         p = dossier(eid) / nom_img
@@ -561,8 +561,8 @@ def synchroniser_kit(eid: str, associer: bool = False) -> dict:
     ValueError si ce kit habille l'application (activé dans Réglages › Branding) : on ne touche pas à l'interface."""
     kid = kit_id(eid)
     if brand_kits.lire()["actif"] == kid:
-        raise ValueError("ce kit habille l'application (Réglages › Branding) : activez-y un autre kit d'abord — "
-                         "le logo et le nom de l'application ne suivent jamais un persona")
+        raise ValueError("ce kit habille l'application (Réglages › Identité visuelle) : activez-y un autre kit "
+                         "d'abord — le logo et le nom de l'application ne suivent jamais un persona")
     brand_kits.enregistrer(dict(_kit_champs(eid), id=kid))
     dest = brand_kits.dossier() / "logos" / f"{kid}.png"
     doc = lire(eid)
