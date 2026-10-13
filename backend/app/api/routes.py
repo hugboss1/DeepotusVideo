@@ -6700,10 +6700,16 @@ async def generate_extend(request: ExtendRequest, background_tasks: BackgroundTa
                             message=f"Extension queued ({FV.prix(request.model, request.son):.2f} $). Poll GET /jobs.")
 
 
+def _avatar_nom_espace() -> str:
+    """t208-bis : le nom par défaut d'un avatar photo vient de l'espace (Deepotus : celui d'avant, à l'octet)."""
+    from app.services import textes_espace
+    return textes_espace.textes()["avatar_nom"]
+
+
 @router.post("/heygen/photo-avatar/create", response_model=PhotoAvatarCreateResponse)
 async def create_photo_avatar_endpoint(
     file: UploadFile = File(...),
-    avatar_name: str = "Custom deepotus avatar",
+    avatar_name: str = "",
     group_name: str = "",
     do_train: bool = True,
 ):
@@ -6738,7 +6744,7 @@ async def create_photo_avatar_endpoint(
         client = HeyGenClient()
         result = await client.create_photo_avatar(
             file_path=tmp_path,
-            avatar_name=avatar_name or "Custom deepotus avatar",
+            avatar_name=avatar_name or _avatar_nom_espace(),
             group_name=group_name or None,
             do_train=do_train,
         )

@@ -217,6 +217,10 @@ print("\n[3] le ≈ $ du graphe, la memoire de l'estimation affichee et le plafo
 PURE3 = _entre(bun, "function dzStudioOps(", "function DzVideoModelSel(")   # dzStudioOps .. dzRunWith, sans hook
 # tache #67 : dzStudioOps consulte dzPinReemploi (un noeud epingle n'est pas facture) -- extrait du bundle livre, pas recopie
 PIN3 = _entre(bun, "function dzPinRendu(", "function dzPinNb(") if "function dzPinRendu(" in bun else ""
+# t208-bis : le texte par defaut d'un HeyGen sans script vient de dzMq (espaces de marque) -- extrait lui aussi ;
+# sans espace charge il rend le texte d'avant
+if "function dzMq(" in bun:
+    PIN3 += "\n" + _entre(bun, "function dzMq(", "function tg(")
 G = {"nodes": [{"id": "i", "type": "Image", "props": {}}, {"id": "s", "type": "Seedance", "props": {"durationS": 15, "model": "seedance-2.5"}},
                {"id": "t", "type": "Text", "props": {"value": "  Un script de quarante caracteres pile.  "}},
                {"id": "h", "type": "HeyGenAvatar", "props": {}}, {"id": "h2", "type": "HeyGenAvatar", "props": {}},

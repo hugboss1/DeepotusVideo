@@ -82,6 +82,11 @@ NEUTRES = {
     "storyboard_systeme": ("You are a storyboard director for {marque}. You split a narrated novel chapter into visual "
                            "scenes and write a vivid image prompt for each. Return ONLY valid JSON."),
     "storyboard_consigne": "\"illustration_prompt\" = a vivid cinematic image prompt in {langue} ({style})",
+    # t208-bis : le nom par défaut d'un avatar photo HeyGen, le prompt système du polissage des scripts d'avatar
+    "avatar_nom": "Custom {nom} avatar",
+    "polir_systeme": ("You are a scriptwriter for {marque}. You rewrite short scripts for an AI avatar to read aloud. "
+                      "Keep the brand name '{nom}' and its sign-off. Make it punchy, natural and varied. No hashtags, "
+                      "no stage directions, no quotation marks, no preamble. Return ONLY the script text."),
 }
 
 
