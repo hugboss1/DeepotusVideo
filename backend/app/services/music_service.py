@@ -299,15 +299,14 @@ def normalize_lyrics(text: str, style: str | None,
     return _TAG_RX.sub(sub, str(text or "").strip())[:_MAX_LYRICS]
 
 
-def lyrics_skeleton(persona_id: str = "deepotus", theme: str = "") -> str:
+def lyrics_skeleton(persona_id: str | None = None, theme: str = "") -> str:
     """Squelette [Verse]/[Chorus]/[Verse]/[Bridge]/[Chorus] nourri par la
     persona (nom, mots-clés d'univers) — un point de départ, jamais des
     paroles finies. Persona illisible : le squelette sort quand même."""
-    import json
-    from app.services.elevenlabs_service import PERSONAS_DIR
-    pid = re.sub(r"[^a-z0-9_-]", "", str(persona_id or "").lower()) or "deepotus"
+    from app.services import espaces          # t201 : le persona de l'espace (courant par defaut)
+    pid = str(persona_id or "")
     try:
-        d = json.loads((PERSONAS_DIR / f"{pid}.json").read_text(encoding="utf-8"))
+        d = espaces.persona(persona_id)
     except Exception:  # noqa: BLE001
         d = {}
     name = str(d.get("display_name") or pid).split(" — ")[0]

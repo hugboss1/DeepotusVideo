@@ -21,15 +21,11 @@ from app.config import settings
 PERSONAS_DIR = Path(__file__).parent.parent / "personas"
 
 
-def _load_persona_voice_ids(persona_id: str = "deepotus") -> dict:
-    """Load voice_ids block from persona JSON, or empty dict if absent."""
-    path = PERSONAS_DIR / f"{persona_id}.json"
-    if not path.exists():
-        return {}
+def _load_persona_voice_ids(persona_id: str | None = None) -> dict:
+    """Le bloc voice_ids du persona de l'espace (courant par defaut, t201), ou {} s'il n'y en a pas."""
     try:
-        with path.open("r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data.get("voice_ids", {}) or {}
+        from app.services import espaces
+        return espaces.persona(persona_id).get("voice_ids", {}) or {}
     except Exception as e:
         logger.warning(f"Could not load persona voice_ids: {e}")
         return {}
@@ -148,9 +144,13 @@ def _chunk_text(text: str, max_chars: int = 2500) -> list[str]:
 class VoiceoverService:
     """Generates voiceover audio (mp3) from script text via ElevenLabs."""
 
-    def __init__(self, persona_id: str = "deepotus"):
+    def __init__(self, persona_id: str | None = None):
         self.persona_id = persona_id
-        self._persona_voice_ids = _load_persona_voice_ids(persona_id)
+
+    @property
+    def _persona_voice_ids(self) -> dict:
+        """Relu a chaque usage (t201) : le service global suit l'espace courant."""
+        return _load_persona_voice_ids(self.persona_id)
 
     @staticmethod
     def is_enabled() -> bool:

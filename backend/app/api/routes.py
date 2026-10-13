@@ -92,7 +92,7 @@ def _require_local_depense(request: Request) -> None:
     host = (request.client.host if request.client else "") or ""
     if host not in _HOTES_LOCAUX:
         raise HTTPException(403, "Génération payante réservée à la machine locale — rien n'a été lancé.")
-pipeline = Pipeline(persona_id="deepotus")
+pipeline = Pipeline()                  # t201 : le persona suit l'espace courant (fige par requete)
 template_engine = TemplateEngine()
 
 
@@ -4872,7 +4872,7 @@ async def music_lyrics_skeleton(theme: str = ""):
     par la persona deepotus — un point de départ gratuit (aucun appel), que
     l'éditeur de paroles de Son & VFX pose dans ses sections."""
     from app.services import music_service
-    return {"lyrics": music_service.lyrics_skeleton("deepotus", theme=theme)}
+    return {"lyrics": music_service.lyrics_skeleton(theme=theme)}
 
 
 @router.post("/audio/music")
@@ -7647,6 +7647,28 @@ async def archive_espace(espace_id: str, body: dict, request: Request):
     if r == "seul":
         raise HTTPException(400, "C'est le dernier espace : il en faut au moins un.")
     return {"espaces": _es.lister(archives=True)}
+
+
+@router.get("/espaces/{espace_id}/persona")
+async def get_espace_persona(espace_id: str):
+    """t201 : le persona v2 de l'espace, normalise (cles par defaut presentes)."""
+    from app.services import espaces as _es
+    if not _es.id_valide(espace_id) or espace_id not in _es.lire()["espaces"]:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    return _es.persona(espace_id)
+
+
+@router.put("/espaces/{espace_id}/persona")
+async def put_espace_persona(espace_id: str, body: dict, request: Request):
+    """t201 : remplace le persona de l'espace apres validation (modeles passes a PromptTemplate) ; rien sur un refus."""
+    _require_localhost(request)
+    from app.services import espaces as _es
+    try:
+        return _es.ecrire_persona(espace_id, body)
+    except KeyError:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/espaces/{espace_id}/contenus")

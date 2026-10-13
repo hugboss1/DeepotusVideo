@@ -225,3 +225,125 @@ def contenus(eid: str) -> dict:
         return doc if isinstance(doc, dict) else dict(CONTENUS_VIDES)
     except (OSError, ValueError):
         return dict(CONTENUS_VIDES)
+
+
+# ---- t201 (Espaces de marque E1) : le persona v2 PAR ESPACE ----------------------------------------------------------
+# L'espace « courant » d'un traitement = celui fige pour la requete (middleware de main.py) ou pose par sous_espace(),
+# sinon l'espace actif. Une tache de fond lancee pendant une requete herite de son contexte : elle garde son espace
+# meme si l'utilisateur en active un autre pendant qu'elle tourne.
+from contextlib import contextmanager                                   # noqa: E402
+from contextvars import ContextVar                                      # noqa: E402
+
+_ESPACE: ContextVar = ContextVar("dz_espace_courant", default=None)
+PERSONA_DEFAUTS = {"version": 2, "vibe_keywords": [], "default_negative_prompt": "", "default_hashtags_pool": [],
+                   "voice_modes": {}, "voice_ids": {}, "templates": [], "identite": {}, "audience": {}, "ton": {},
+                   "visuel": {}}
+_LISTES = ("vibe_keywords", "default_hashtags_pool")
+_OBJETS = ("voice_modes", "voice_ids", "brand_colors", "identite", "audience", "ton", "visuel")
+_TEXTES = ("default_negative_prompt",)
+_MAX_PERSONA = 1_000_000
+_cache_persona: dict = {}
+
+
+def espace_courant() -> str:
+    doc = lire()
+    e = _ESPACE.get()
+    return e if e in doc["espaces"] else doc["actif"]
+
+
+def figer(eid: str | None = None):
+    """Fige l'espace du contexte courant (l'actif par defaut). Rend le jeton a passer a liberer()."""
+    return _ESPACE.set(eid if eid is not None else lire()["actif"])
+
+
+def liberer(jeton) -> None:
+    _ESPACE.reset(jeton)
+
+
+@contextmanager
+def sous_espace(eid: str):
+    j = figer(eid)
+    try:
+        yield
+    finally:
+        liberer(j)
+
+
+def resoudre(eid=None) -> str:
+    """L'id d'espace a lire : `eid` s'il est connu, sinon l'espace courant (un id hostile ne touche pas le disque)."""
+    return eid if id_valide(eid) and eid in lire()["espaces"] else espace_courant()
+
+
+def persona(eid=None) -> dict:
+    """Le persona v2 de l'espace (courant par defaut), normalise EN MEMOIRE (le fichier n'est pas reecrit). Relu quand
+    le fichier change. Illisible : Deepotus retombe sur le persona livre, un autre espace sur un squelette a son nom."""
+    eid = resoudre(eid)
+    f = chemin(eid, "persona.json")
+    try:
+        st = f.stat()
+        cle = (str(f), st.st_mtime_ns, st.st_size)
+        doc = _cache_persona.get(cle)
+        if doc is None:
+            doc = json.loads(f.read_text(encoding="utf-8"))
+            if not isinstance(doc, dict):
+                raise ValueError("persona.json n'est pas un objet")
+            _cache_persona.clear()
+            _cache_persona[cle] = doc
+    except (OSError, ValueError) as e:
+        logger.warning(f"persona de l'espace {eid} illisible ({e}) : repli")
+        doc = (json.loads(PERSONA_LIVRE.read_text(encoding="utf-8")) if eid == "deepotus"
+               else {"display_name": lire()["espaces"][eid].get("nom") or eid})
+    out = json.loads(json.dumps(doc))
+    for k, v in PERSONA_DEFAUTS.items():
+        out.setdefault(k, json.loads(json.dumps(v)))
+    out.setdefault("persona_id", eid)
+    out.setdefault("display_name", lire()["espaces"][eid].get("nom") or eid)
+    return out
+
+
+def _valider_persona(doc) -> dict:
+    from app.models.schemas import PromptTemplate
+    if not isinstance(doc, dict):
+        raise ValueError("le persona doit être un objet JSON")
+    if len(json.dumps(doc, ensure_ascii=False)) > _MAX_PERSONA:
+        raise ValueError("persona trop gros (1 Mo au plus)")
+    nom = doc.get("display_name")
+    if not isinstance(nom, str) or not nom.strip():
+        raise ValueError("display_name : le persona a besoin d'un nom")
+    for k in _LISTES:
+        if k in doc and not (isinstance(doc[k], list) and all(isinstance(x, str) for x in doc[k])):
+            raise ValueError(f"{k} doit être une liste de textes")
+    for k in _OBJETS:
+        if k in doc and not isinstance(doc[k], dict):
+            raise ValueError(f"{k} doit être un objet")
+    for k in _TEXTES:
+        if k in doc and not isinstance(doc[k], str):
+            raise ValueError(f"{k} doit être un texte")
+    tpls = doc.get("templates", [])
+    if not isinstance(tpls, list):
+        raise ValueError("templates doit être une liste")
+    vus = set()
+    for i, t in enumerate(tpls):
+        if not isinstance(t, dict):
+            raise ValueError(f"modèle n°{i + 1} invalide : pas un objet")
+        try:
+            PromptTemplate(**t)
+        except Exception as e:  # noqa: BLE001 — l'erreur pydantic, dite en une ligne
+            raise ValueError(f"modèle n°{i + 1} invalide : {e}".splitlines()[0])
+        if t["id"] in vus:
+            raise ValueError(f"id de modèle en double : {t['id']}")
+        vus.add(t["id"])
+    out = dict(doc)
+    out["display_name"] = nom.strip()[:120]
+    out["version"] = 2
+    return out
+
+
+def ecrire_persona(eid: str, doc) -> dict:
+    """Remplace le persona de l'espace apres validation (rien n'est ecrit sur un refus). KeyError = espace inconnu."""
+    if not id_valide(eid) or eid not in lire()["espaces"]:
+        raise KeyError(eid)
+    propre = _valider_persona(doc)
+    propre["persona_id"] = eid
+    _ecrire_json(chemin(eid, "persona.json"), propre)
+    return persona(eid)

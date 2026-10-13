@@ -246,7 +246,7 @@ def _apply_voiceover_post(final_path: Path, vo_path: Path | None, ducking=None) 
 
 
 class Pipeline:
-    def __init__(self, persona_id: str = "deepotus"):
+    def __init__(self, persona_id: str | None = None):
         self.engine = PromptEngine(persona_id=persona_id)
         self.fal = FalSeedanceClient()
         self.voice = VoiceoverService()
