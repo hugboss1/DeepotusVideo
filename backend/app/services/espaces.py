@@ -157,7 +157,9 @@ def creer(champs: dict) -> dict:
         if kit not in brand_kits.lire()["kits"]:
             raise ValueError(f"kit inconnu : {kit}")
     else:
-        kit = brand_kits.enregistrer({"name": nom, "app_name": nom.upper(), "app_sub": "", "tagline_1": "", "tagline_2": ""})
+        # t202 : brand_kits ignore un champ VIDE (il garderait « From the deep, / for the deep. » de Deepotus, vu à
+        # l'écran) : les taglines d'un espace neuf sont donc posées, neutres — son nom, puis un point médian.
+        kit = brand_kits.enregistrer({"name": nom, "app_name": nom.upper()[:60], "tagline_1": nom, "tagline_2": "·"})
     eid = "esp_" + uuid.uuid4().hex[:8]
     _ecrire_json(dossier() / eid / "persona.json", {
         "persona_id": eid, "display_name": nom, "version": 2, "vibe_keywords": [], "default_negative_prompt": "",

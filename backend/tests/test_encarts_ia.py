@@ -272,7 +272,10 @@ except AssertionError as e:            # une paire introuvable : le bundle a dé
 check("avant_encartsia défait les paires : plus de marqueur, `models` revient",
       sans is not None and ENC.MARKER not in sans and "(mm.models||[]).map(function(m){return{value:m.id,label:m.label}})" in sans,
       erreur_inv[:200])
-check("aller-retour exact à l'octet", sans is not None and ENC.appliquer(sans) == B)
+# t202 : le maillon dzespace est posé APRÈS celui-ci (avant_encartsia le défait d'abord) : l'aller-retour se compare
+# au bundle vu d'avant dzespace.
+check("aller-retour exact à l'octet (vu d'avant dzespace, t202, posé après)",
+      sans is not None and ENC.appliquer(sans) == AIDE.avant_dzespace(B))
 try:
     _sans_g = AIDE.avant_dzguide(B)
 except AssertionError:
