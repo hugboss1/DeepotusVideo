@@ -30,7 +30,8 @@ et enregistrement des posts (espace_id, comptes), liste rechargée au changement
 t205 (13/10/2026) : `DzOnboardingPersona`, l'assistant en 8 étapes (bouton « Définir le persona » de chaque espace).
 t207 (13/10/2026) : Quick lit les contenus de l'espace actif (C1-C6) ; `DzContenusBtn`/`DzContenusDlg`.
 t206 (13/10/2026) : `DzIdentite`, l'identité visuelle (bouton « Identité visuelle » de chaque espace ; /api/espaces/{id}/identite).
-t208 (13/10/2026) : S11, l'exemple des notes de Quick devient neutre (plus de « $DEEPOTUS Pyth-feed »).
+t208 (13/10/2026) : S11, l'exemple des notes de Quick devient neutre (plus de « $DEEPOTUS Pyth-feed ») ; S12, la voix
+off par défaut de Quick suit l'espace (`dzVoixSuit`).
 Run : python scripts/patch_bundle_dzespace.py [--check]
 """
 import pathlib
@@ -476,6 +477,11 @@ AIDES_CT = (
     'dzCtCharger();return function(){dzCtAbonnes=dzCtAbonnes.filter(function(h){return h!==g})}},[]);return v}'
     'function dzCt(k,d){if(!dzEspCt)return d;var v=dzEspCt.data&&dzEspCt.data[k],vide=v==null||(Array.isArray(v)?!v.length:typeof v==="object"&&!Object.keys(v).length);'
     'if(k==="vibes"||dzEspCt.id==="deepotus")return vide?d:v;return vide?(Array.isArray(d)?[]:{}):v}'
+    # t208 — la voix off par défaut de Quick suit l'espace tant qu'elle n'a pas été modifiée (comme le prompt, t207) :
+    # Deepotus garde sa phrase, un autre espace reçoit « Meet <nom>. » (anglais, comme la phrase d'origine)
+    'var dzVoixAuto=null;function dzVoixSuit(v,set,cv){x.useEffect(function(){if(!dzEspCt)return;'
+    'var dft="From the deep, the prophet speaks. The shoal awakens.",n=dzEspCt.id==="deepotus"?dft:"Meet "+(dzEspCt.nom||dzEspCt.id)+".";'
+    'if((v===dft||v===dzVoixAuto)&&v!==n){dzVoixAuto=n;set(n)}},[cv]);return null}'
     'function DzContenusBtn(){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},{ouvert:!1});dzCtUse();'
     'var vide=!!dzEspCt&&dzEspCt.id!=="deepotus"&&!((dzEspCt.data||{}).prompt_templates||[]).length;'
     'return r.jsxs(r.Fragment,{children:[r.jsx("button",{type:"button","data-dz-ct-ouvrir":"1",title:dzT("espaces.ct.ouvrir_titre"),disabled:!dzEspCt,'
@@ -586,6 +592,10 @@ PAIRES = [
     # L2 : ce texte part au modèle, qui attend l'anglais)
     ('placeholder:"e.g. fits the $DEEPOTUS Pyth-feed announcement"',                    # S11
      'placeholder:"e.g. fits the next launch announcement"'),
+    # t208 — S12 la voix off par défaut suit l'espace (dzVoixSuit, dans AIDES_CT) ; un déclarateur de plus dans le const
+    # de Quick, après dzCvQ (déjà déclaré) : aucun useState ajouté
+    ('[R,W]=x.useState("From the deep, the prophet speaks. The shoal awakens."),',      # S12
+     '[R,W]=x.useState("From the deep, the prophet speaks. The shoal awakens."),dzVq=dzVoixSuit(R,W,dzCvQ),'),
 ]
 # S3 bis : les DEUX passages de setActivePersonaId (Réglages, Onboarding) — même texte, remplacés ensemble
 PERSO = ("setActivePersonaId:j,savePersona:E", "setActivePersonaId:dzJ,savePersona:E", 2)
