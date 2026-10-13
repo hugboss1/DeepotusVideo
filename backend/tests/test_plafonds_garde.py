@@ -30,6 +30,7 @@ def check(label, cond, detail=""):
 PAYANTES = {
     ("routes", "POST", "/espaces/{espace_id}/onboarding/vignettes"),   # t205 : vignettes d'ambiance (FLUX)
     ("routes", "POST", "/espaces/{espace_id}/onboarding/synthese"),    # t205 : synthèse du persona par LLM (sur demande)
+    ("routes", "POST", "/espaces/{espace_id}/contenus/generer"),       # t207 : contenus de départ par LLM (sur demande)
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
     ("photolab", "POST", "/calque/detourer"),    # t191 : « Retirer le fond du calque » (détourage, non destructif)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer
