@@ -32,7 +32,7 @@ const CIBLE = path.join(RACINE, 'backend', 'app', 'espaces', 'deepotus_contenus.
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const texte = JSON.stringify(extraire(), null, 2) + '\n';
   if (process.argv.includes('--check')) {
-    const ok = fs.existsSync(CIBLE) && fs.readFileSync(CIBLE, 'utf8') === texte;
+    const ok = fs.existsSync(CIBLE) && fs.readFileSync(CIBLE, 'utf8').replace(/\r\n/g, '\n') === texte;   // git peut l'extraire en CRLF
     console.log(ok ? 'a jour' : 'PERIME : relancer sans --check');
     process.exit(ok ? 0 : 1);
   }
