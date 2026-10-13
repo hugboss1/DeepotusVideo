@@ -197,20 +197,28 @@ def _phrase_curseurs(request) -> str:
 
 
 class PromptEngine:
-    def __init__(self, persona_id: str = "deepotus"):
-        self.persona_id = persona_id
-        self.persona = self._load_persona(persona_id)
-        self.templates: dict[str, PromptTemplate] = {
-            t["id"]: PromptTemplate(**t) for t in self.persona["templates"]
-        }
+    """t201 (Espaces de marque E1) : le persona est celui d'un ESPACE, relu a chaque usage. Sans argument, c'est
+    l'espace courant (fige par requete, sinon l'actif) : l'instance globale du Pipeline suit l'espace choisi. Avec un
+    id d'espace connu, cet espace-la."""
 
-    @staticmethod
-    def _load_persona(persona_id: str) -> dict:
-        path = PERSONAS_DIR / f"{persona_id}.json"
-        if not path.exists():
-            raise FileNotFoundError(f"Persona file not found: {path}")
-        with path.open("r", encoding="utf-8") as f:
-            return json.load(f)
+    def __init__(self, persona_id: str | None = None):
+        self.persona_id = persona_id
+        self._cle_tpl = None
+        self._tpl: dict[str, PromptTemplate] = {}
+
+    @property
+    def persona(self) -> dict:
+        from app.services import espaces
+        return espaces.persona(self.persona_id)
+
+    @property
+    def templates(self) -> dict[str, PromptTemplate]:
+        lst = self.persona.get("templates") or []
+        cle = json.dumps(lst, sort_keys=True, ensure_ascii=False)
+        if cle != self._cle_tpl:
+            self._tpl = {t["id"]: PromptTemplate(**t) for t in lst}
+            self._cle_tpl = cle
+        return self._tpl
 
     def list_templates(self) -> list[PromptTemplate]:
         return list(self.templates.values())

@@ -25,7 +25,7 @@ _SYSTEME = (
 
 def _persona() -> dict:
     from app.services.prompt_engine import PromptEngine
-    return PromptEngine("deepotus").persona
+    return PromptEngine().persona          # t201 : le persona de l'espace courant
 
 
 def _deterministe(items: list[dict]) -> tuple[str, str]:

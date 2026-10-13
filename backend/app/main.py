@@ -320,6 +320,24 @@ _ALLOWED_ORIGIN_HOSTS = {"127.0.0.1", "localhost", "::1", "", APP_HOSTNAME}
 
 
 @app.middleware("http")
+async def _espace_de_la_requete(request, call_next):
+    """t201 (Espaces de marque E1) : l'espace actif est FIGE pour toute la requete et pour les taches de fond qu'elle
+    lance (elles heritent du contexte) — un travail garde son persona si l'utilisateur change d'espace entre-temps."""
+    if not request.url.path.startswith("/api"):
+        return await call_next(request)
+    from app.services import espaces as _es
+    try:
+        jeton = _es.figer()
+    except Exception as e:  # noqa: BLE001 — jamais une requete perdue pour ca : l'espace actif sera lu a l'usage
+        logger.warning(f"espace de la requete non fige : {e}")
+        return await call_next(request)
+    try:
+        return await call_next(request)
+    finally:
+        _es.liberer(jeton)
+
+
+@app.middleware("http")
 async def _csrf_origin_guard(request, call_next):
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         origin = request.headers.get("origin")
