@@ -24,7 +24,7 @@ from app.config import settings, SSL_VERIFY
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
-_UA = "Mozilla/5.0 (compatible; DeepotusNewsBot/1.7; +local)"
+_UA = "Mozilla/5.0 (compatible; NewsReader/1.7; +local)"   # t208 : neutre (une instance sert plusieurs marques)
 MAX_ITEMS = 300
 PER_FEED = 25
 REFRESH_INTERVAL_S = 24 * 3600
@@ -361,7 +361,7 @@ class NewsService:
                     status = f"{status}+rss"
             # Optional faithful LLM summary (Anthropic) over the richest
             # text we have (full body, else title + RSS snippet). The
-            # deepotus 'prophet' tone is layered on later by prompt_engine.
+            # space's news voice is layered on later by prompt_engine.
             if summarizer.available():
                 src = body or (
                     f"{it.get('title','')}. {it.get('summary','')}").strip()

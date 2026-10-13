@@ -26,12 +26,8 @@ EN_TETE_MAX = 5          # « les 3 a 5 meilleurs du jour en tete » (R8 P1)
 LOT_MAX = 40             # articles envoyes au LLM en un appel
 TITRE_MAX = 140
 
-_SYSTEME = (
-    "You score news headlines for a deep-sea themed crypto brand called "
-    "deepotus, which publishes one short vertical video per day. Reply with "
-    "JSON ONLY: a list of {\"id\": str, \"score\": int 0-100, \"pourquoi\": "
-    "str}, one entry per headline given, no preamble, no code fence."
-)
+# t208 (Espaces de marque E8) : le prompt système et le brief par défaut sont ceux de l'espace courant
+# (app/services/textes_espace.py ; Deepotus : la graine, mot pour mot).
 
 
 def jetons_llm(n: int) -> tuple[int, int]:
@@ -111,11 +107,13 @@ def _scores_llm(items: list[dict], brief: str) -> tuple[dict, str]:
     from app.services import summarizer
     lot = items[:LOT_MAX]
     lignes = "\n".join(f'- id={it.get("id")} | {str(it.get("title") or "")[:TITRE_MAX]}' for it in lot)
-    prompt = (f"Brand brief: {brief or 'deep-sea crypto brand, community of traders'}"
+    from app.services import textes_espace
+    tx = textes_espace.textes()
+    prompt = (f"Brand brief: {brief or tx['news_tri_brief']}"
               f"\n\nHeadlines:\n{lignes}\n\n"
               "Score each headline 0-100 for how much it deserves today's video.")
     try:
-        brut, fournisseur = summarizer._chat_dispatch(prompt, _SYSTEME, jetons_llm(len(lot))[1])
+        brut, fournisseur = summarizer._chat_dispatch(prompt, tx["news_tri_systeme"], jetons_llm(len(lot))[1])
     except Exception as e:  # noqa: BLE001 - un fournisseur ne casse pas l'ecran
         logger.warning(f"news_rank: dispatch en echec ({e}) - deterministe")
         return {}, ""

@@ -29,6 +29,7 @@ t204 (13/10/2026) : le Planificateur — `DzPostComptes` dans l'éditeur de post
 et enregistrement des posts (espace_id, comptes), liste rechargée au changement d'espace.
 t205 (13/10/2026) : `DzOnboardingPersona`, l'assistant en 8 étapes (bouton « Définir le persona » de chaque espace).
 t206 (13/10/2026) : `DzIdentite`, l'identité visuelle (bouton « Identité visuelle » de chaque espace ; /api/espaces/{id}/identite).
+t208 (13/10/2026) : S11, l'exemple des notes de Quick devient neutre (plus de « $DEEPOTUS Pyth-feed »).
 Run : python scripts/patch_bundle_dzespace.py [--check]
 """
 import pathlib
@@ -497,6 +498,10 @@ PAIRES = [
      '"channels"in U&&(T.channels=U.channels),"comptes"in U&&(T.comptes=U.comptes),'),
     ('r.jsx(ie,{label:dzT("scheduler.post.canaux"),',                                   # S10
      'r.jsx(DzPostComptes,{post:e,onChange:s}),r.jsx(ie,{label:dzT("scheduler.post.canaux"),'),
+    # t208 — S11 l'exemple des notes du générateur Quick ne cite plus le jeton Deepotus ; il reste en ANGLAIS (décision
+    # L2 : ce texte part au modèle, qui attend l'anglais)
+    ('placeholder:"e.g. fits the $DEEPOTUS Pyth-feed announcement"',                    # S11
+     'placeholder:"e.g. fits the next launch announcement"'),
 ]
 # S3 bis : les DEUX passages de setActivePersonaId (Réglages, Onboarding) — même texte, remplacés ensemble
 PERSO = ("setActivePersonaId:j,savePersona:E", "setActivePersonaId:dzJ,savePersona:E", 2)

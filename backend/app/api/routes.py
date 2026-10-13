@@ -5513,12 +5513,10 @@ def _ai_scenes(script: str, lang: str, sujet_seul: bool = False) -> list[dict]:
                     f"medium, palette or art-movement words, the visual "
                     f"style is applied separately")
     else:
-        system = ("You are a storyboard director for DEEPOTUS, a deep-sea / abyssal "
-                  "themed brand. You split a narrated novel chapter into visual scenes "
-                  "and write a vivid image prompt for each. Return ONLY valid JSON.")
-        consigne = (f"\"illustration_prompt\" = a vivid cinematic image "
-                    f"prompt in {langname} (deep-sea, bioluminescent, "
-                    f"atmospheric)")
+        from app.services import textes_espace   # t208 : le storyboard de l'espace (Deepotus : la graine)
+        _tx = textes_espace.textes()
+        system = _tx["storyboard_systeme"]
+        consigne = textes_espace.remplir(_tx["storyboard_consigne"], langue=langname)
     prompt = (
         f"Split this chapter into about {n} sequential scenes for a narrated video. "
         f"For each scene return: \"text\" = the chapter text for that scene, COPIED "
