@@ -165,7 +165,7 @@
   },
   "espaces.idv.couleur": {
     "fr": "Couleur",
-    "en": "Colour"
+    "en": "Color"
   },
   "espaces.idv.enregistre": {
     "fr": "Identité enregistrée.",
@@ -193,7 +193,7 @@
   },
   "espaces.idv.kit_aide": {
     "fr": "Les gabarits rendus dans cet espace prennent ses couleurs et son logo. Tiré de l'identité ENREGISTRÉE ; jamais appliqué à l'application (Réglages › Branding).",
-    "en": "Templates rendered in this space use its colours and logo. Built from the SAVED identity; never applied to the app (Settings › Branding)."
+    "en": "Templates rendered in this space use its colors and logo. Built from the SAVED identity; never applied to the app (Settings › Branding)."
   },
   "espaces.idv.kit_creer": {
     "fr": "Créer le kit depuis l'identité",
@@ -233,7 +233,7 @@
   },
   "espaces.idv.palette_ajouter": {
     "fr": "Ajouter une couleur",
-    "en": "Add a colour"
+    "en": "Add a color"
   },
   "espaces.idv.planche": {
     "fr": "Planche d'identité",
