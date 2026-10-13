@@ -226,6 +226,16 @@ pe = c.get("/api/reglages/depenses/espaces").json()["par_espace"]
 check("L6 /depenses/espaces dit le plafond et le pourcentage", pe[rip]["plafond_usd"] == 25
       and abs(pe[rip]["pct"] - round(100 * pe[rip]["effectif_usd"] / 25, 1)) < 1e-9 and pe["deepotus"]["plafond_usd"] == 0, str(pe))
 
+from app.services import pricing as PRI                             # noqa: E402
+c1 = PRI.estimate({"kind": "image", "n": 1, "model": "flux"})["total_usd"]
+pe = c.get("/api/reglages/depenses/espaces").json()["par_espace"]
+juste = round(pe[rip]["effectif_usd"] + c1 + 0.001, 4)
+c.post(f"/api/espaces/{rip}", json={"plafond_usd": juste})
+check("L7 le plafond de Rippled ne compte QUE les dépenses de Rippled (Deepotus a dépensé bien plus)",
+      pe["deepotus"]["effectif_usd"] > juste - pe[rip]["effectif_usd"] and asyncio.run(tir(rip)) == "ok"
+      and isinstance(asyncio.run(tir(rip)), dict), str((pe, juste, c1)))
+c.post(f"/api/espaces/{rip}", json={"plafond_usd": 0})
+
 print("[E] écran (maillon dzespace)")
 BUNDLE = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_text(encoding="utf-8")
 SITES = {
