@@ -123,6 +123,198 @@
     "fr": "Chargement des espaces…",
     "en": "Loading spaces…"
   },
+  "espaces.idv.adn": {
+    "fr": "ADN des prompts",
+    "en": "Prompt DNA"
+  },
+  "espaces.idv.adn.decor_defaut": {
+    "fr": "Décor par défaut",
+    "en": "Default setting"
+  },
+  "espaces.idv.adn.eclairages": {
+    "fr": "Éclairages proposés (un par ligne)",
+    "en": "Suggested lighting (one per line)"
+  },
+  "espaces.idv.adn.explication": {
+    "fr": "Phrase d'explication",
+    "en": "Explanation line"
+  },
+  "espaces.idv.adn.reperes": {
+    "fr": "Repères : mots qui disent que le persona est déjà là (virgules)",
+    "en": "Markers: words showing the persona is already there (commas)"
+  },
+  "espaces.idv.adn.touches_decor": {
+    "fr": "Touches ajoutées au décor (une par ligne)",
+    "en": "Touches added to the setting (one per line)"
+  },
+  "espaces.idv.adn.touches_sujet": {
+    "fr": "Touches ajoutées au sujet (une par ligne)",
+    "en": "Touches added to the subject (one per line)"
+  },
+  "espaces.idv.adn_aide": {
+    "fr": "Ce que le générateur de prompt ajoute quand « injecter le persona » est coché. Un champ vide est déduit du style écrit et de la palette (valeur grisée).",
+    "en": "What the prompt builder adds when \"inject persona\" is on. An empty field is derived from the written style and the palette (greyed value)."
+  },
+  "espaces.idv.ajouter": {
+    "fr": "Ajouter…",
+    "en": "Add…"
+  },
+  "espaces.idv.composer": {
+    "fr": "Composer la planche",
+    "en": "Build the sheet"
+  },
+  "espaces.idv.couleur": {
+    "fr": "Couleur",
+    "en": "Color"
+  },
+  "espaces.idv.enregistre": {
+    "fr": "Identité enregistrée.",
+    "en": "Identity saved."
+  },
+  "espaces.idv.genre.logo": {
+    "fr": "Logo du persona",
+    "en": "Persona logo"
+  },
+  "espaces.idv.genre.mascotte": {
+    "fr": "Mascotte ou personnage",
+    "en": "Mascot or character"
+  },
+  "espaces.idv.genre.produits": {
+    "fr": "Photos produit",
+    "en": "Product photos"
+  },
+  "espaces.idv.hex": {
+    "fr": "Code hexadécimal",
+    "en": "Hex code"
+  },
+  "espaces.idv.kit": {
+    "fr": "Kit des contenus de l'espace",
+    "en": "Space content kit"
+  },
+  "espaces.idv.kit_aide": {
+    "fr": "Les gabarits rendus dans cet espace prennent ses couleurs et son logo. Tiré de l'identité ENREGISTRÉE ; jamais appliqué à l'application (Réglages › Identité visuelle).",
+    "en": "Templates rendered in this space use its colors and logo. Built from the SAVED identity; never applied to the app (Settings › Branding)."
+  },
+  "espaces.idv.kit_creer": {
+    "fr": "Créer le kit depuis l'identité",
+    "en": "Build the kit from the identity"
+  },
+  "espaces.idv.kit_etat.autre": {
+    "fr": "Utilise le kit « {nom} », choisi pour cet espace.",
+    "en": "Uses the \"{nom}\" kit chosen for this space."
+  },
+  "espaces.idv.kit_etat.branding": {
+    "fr": "Suit le kit de Réglages › Identité visuelle ({nom}).",
+    "en": "Follows the Settings › Branding kit ({nom})."
+  },
+  "espaces.idv.kit_etat.identite": {
+    "fr": "Utilise le kit tiré de l'identité ({nom}) : il suit la palette et le logo.",
+    "en": "Uses the kit built from the identity ({nom}): it follows the palette and the logo."
+  },
+  "espaces.idv.kit_fait": {
+    "fr": "Kit de l'espace à jour.",
+    "en": "Space kit updated."
+  },
+  "espaces.idv.kit_maj": {
+    "fr": "Mettre à jour le kit",
+    "en": "Update the kit"
+  },
+  "espaces.idv.logo_aide": {
+    "fr": "Pour les contenus de ce persona seulement : le logo de l'application reste celui de Réglages › Identité visuelle.",
+    "en": "For this persona's content only: the app logo stays the one in Settings › Branding."
+  },
+  "espaces.idv.ouvrir": {
+    "fr": "Identité du persona",
+    "en": "Persona identity"
+  },
+  "espaces.idv.palette": {
+    "fr": "Palette",
+    "en": "Palette"
+  },
+  "espaces.idv.palette_ajouter": {
+    "fr": "Ajouter une couleur",
+    "en": "Add a color"
+  },
+  "espaces.idv.planche": {
+    "fr": "Planche d'identité",
+    "en": "Identity sheet"
+  },
+  "espaces.idv.planche_aide": {
+    "fr": "Composée à partir de l'identité ENREGISTRÉE — gratuite, aucun tir de modèle.",
+    "en": "Built from the SAVED identity — free, no model call."
+  },
+  "espaces.idv.planche_etat.a_valider": {
+    "fr": "À valider.",
+    "en": "Waiting for validation."
+  },
+  "espaces.idv.planche_etat.absente": {
+    "fr": "Pas encore de planche.",
+    "en": "No sheet yet."
+  },
+  "espaces.idv.planche_etat.perimee": {
+    "fr": "Périmée : l'identité a changé depuis. Recomposez-la.",
+    "en": "Out of date: the identity changed since. Rebuild it."
+  },
+  "espaces.idv.planche_etat.validee": {
+    "fr": "Validée.",
+    "en": "Validated."
+  },
+  "espaces.idv.planche_validee": {
+    "fr": "Planche validée.",
+    "en": "Sheet validated."
+  },
+  "espaces.idv.recomposer": {
+    "fr": "Recomposer",
+    "en": "Rebuild"
+  },
+  "espaces.idv.references_aide": {
+    "fr": "La mascotte et les produits servent de références aux modèles qui en acceptent (retouche à références multiples, avatar cinématique) ; une copie est rangée dans la Bibliothèque pour l'image de départ d'une vidéo.",
+    "en": "The mascot and products are passed as references to models that accept them (multi-reference edit, cinematic avatar); a copy is kept in the Library to use as a video's start image."
+  },
+  "espaces.idv.remplacer": {
+    "fr": "Remplacer…",
+    "en": "Replace…"
+  },
+  "espaces.idv.role": {
+    "fr": "Rôle (primaire, fond…)",
+    "en": "Role (primary, background…)"
+  },
+  "espaces.idv.style": {
+    "fr": "Style écrit",
+    "en": "Written style"
+  },
+  "espaces.idv.style_aide": {
+    "fr": "Des descripteurs séparés par des virgules (palette, lumière, matière, cadrage, époque) — jamais de nom d'artiste ni de « à la manière de ».",
+    "en": "Comma-separated descriptors (palette, light, material, framing, era) — never an artist's name or \"in the style of\"."
+  },
+  "espaces.idv.style_exemple": {
+    "fr": "tons terre cuite chauds, textures céramiques mates, lumière latérale douce",
+    "en": "warm terracotta tones, matte ceramic textures, soft side light"
+  },
+  "espaces.idv.titre": {
+    "fr": "Identité du persona — {nom}",
+    "en": "Persona identity — {nom}"
+  },
+  "espaces.idv.typo_ajouter": {
+    "fr": "Ajouter une typographie",
+    "en": "Add a font"
+  },
+  "espaces.idv.typo_nom": {
+    "fr": "Police",
+    "en": "Font"
+  },
+  "espaces.idv.typo_usage": {
+    "fr": "Usage (titres, texte…)",
+    "en": "Use (headings, body…)"
+  },
+  "espaces.idv.typos": {
+    "fr": "Typographies",
+    "en": "Fonts"
+  },
+  "espaces.idv.valider": {
+    "fr": "Valider la planche",
+    "en": "Validate the sheet"
+  },
   "espaces.nouveau.couleur": {
     "fr": "Couleur de l'espace",
     "en": "Space colour"

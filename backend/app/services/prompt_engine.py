@@ -2,7 +2,8 @@
 
 New in v1.2:
 - generate_from_intent(): builds a Seedance prompt from free-text keywords
-- Deepotus DNA injection: ensures persona elements (mascot, deep sea, brand) are present
+- Persona identity injection: the active space's identity descriptors (t206 : app/services/identite.py ; for
+  Deepotus, the former hard-coded DNA, now the shipped seed app/espaces/deepotus_identite.json)
 - Smart category detection (camera/lighting/mood from input text)
 """
 import json
@@ -79,24 +80,6 @@ PACING_KEYWORDS = {
     "medium": ["medium", "balanced", "steady"],
     "fast": ["fast", "punchy", "energetic", "chaotic", "shock", "react"],
 }
-
-# Deepotus DNA elements — pulled in by the builder when persona injection is on
-DEEPOTUS_DNA = {
-    "subject_flavors": [
-        "with subtle bioluminescent cyan accents",
-        "with a deepotus emblem visible in the scene",
-        "in deepotus brand colors (cyan and violet glow)",
-        "with a faint underwater shimmer overlay",
-    ],
-    "setting_flavors": [
-        "with deep blue ambient atmosphere",
-        "with subtle underwater particles drifting",
-        "with a hint of deep sea aesthetic in the background",
-    ],
-    "default_subject": "the deepotus character (octopus mascot with bioluminescent details)",
-    "default_setting": "deep blue ambient environment with cyan accent lighting",
-}
-
 
 def _voice_mode_block(persona: dict, mode_value: Optional[str]) -> Optional[dict]:
     """Resolve a voice mode dict from the persona JSON, or None if absent.
@@ -179,12 +162,10 @@ def _detect(text: str, taxonomy: dict) -> Optional[str]:
     return None
 
 
-def _has_persona_dna(text: str) -> bool:
-    """Check if text already mentions deepotus persona elements."""
-    persona_words = ["deepotus", "octopus", "tentacle", "deep sea", "abyss", "underwater",
-                     "bioluminescent", "solana", "memecoin"]
-    lower = text.lower()
-    return any(w in lower for w in persona_words)
+def _has_persona_dna(text: str, reperes) -> bool:
+    """t206 : le texte nomme-t-il déjà le persona (ses repères, lus dans son identité) ?"""
+    from app.services import identite
+    return identite.a_le_persona(text, reperes)
 
 
 def _phrase_curseurs(request) -> str:
@@ -350,11 +331,13 @@ class PromptEngine:
 
     def generate_from_intent(self, req: BuildPromptRequest) -> BuildPromptResponse:
         """Convert free-text intent/keywords into a structured Seedance prompt
-        with deepotus DNA injection.
+        with the persona's identity injection (t206 : identite.adn de l'espace ; Deepotus à l'octet).
         """
         intent = req.intent.strip()
         if not intent:
             raise ValueError("Intent cannot be empty")
+        from app.services import identite
+        adn = identite.adn(self.persona_id)
 
         # Step 1: detect structural elements from input
         detected_camera = _detect(intent, CAMERA_KEYWORDS)
@@ -365,29 +348,25 @@ class PromptEngine:
         camera = detected_camera or random.choice([
             "slow push-in", "tracking shot", "handheld with subtle shake",
         ])
-        lighting = detected_lighting or random.choice([
-            "neon city lights, cyan and magenta",
-            "bioluminescent underwater glow",
-            "dark moody chiaroscuro",
-        ])
+        lighting = detected_lighting or random.choice(adn["eclairages"])
 
-        # Step 3: build subject + action — keep user words verbatim, add DNA if missing
+        # Step 3: build subject + action — keep user words verbatim, add the identity if missing
         subject = intent
-        if req.inject_persona and not _has_persona_dna(intent):
-            flavor = random.choice(DEEPOTUS_DNA["subject_flavors"])
+        if req.inject_persona and adn["touches_sujet"] and not _has_persona_dna(intent, adn["reperes"]):
+            flavor = random.choice(adn["touches_sujet"])
             subject = f"{intent}, {flavor}"
 
-        # Step 4: derive setting — try to extract from intent, else use deepotus default
+        # Step 4: derive setting — try to extract from intent, else use the persona's default setting
         setting_match = re.search(
             r"\b(in|at|inside|on)\s+([a-z][a-z\s]{3,40}?)(?:[.,;]|$)",
             intent.lower()
         )
         if setting_match:
             setting = setting_match.group(2).strip()
-            if req.inject_persona and not _has_persona_dna(setting):
-                setting = f"{setting}, {random.choice(DEEPOTUS_DNA['setting_flavors'])}"
+            if req.inject_persona and adn["touches_decor"] and not _has_persona_dna(setting, adn["reperes"]):
+                setting = f"{setting}, {random.choice(adn['touches_decor'])}"
         else:
-            setting = (DEEPOTUS_DNA["default_setting"] if req.inject_persona
+            setting = (adn["decor_defaut"] if req.inject_persona and adn["decor_defaut"]
                        else "neutral environment")
 
         # Step 5: action — try to detect verb phrase, else use generic motion
@@ -429,7 +408,7 @@ class PromptEngine:
         caption = _filter_avoid_words(self.persona, caption)
 
         explanation = self._explain_build(detected_camera, detected_lighting,
-                                          detected_pacing, req.inject_persona)
+                                          detected_pacing, req.inject_persona, adn)
 
         return BuildPromptResponse(
             prompt=prompt,
@@ -920,7 +899,7 @@ class PromptEngine:
 
     @staticmethod
     def _explain_build(camera: Optional[str], lighting: Optional[str],
-                       pacing: str, inject: bool) -> str:
+                       pacing: str, inject: bool, adn: Optional[dict] = None) -> str:
         bits = []
         if camera:
             bits.append(f"detected camera move from your text ({camera})")
@@ -932,5 +911,9 @@ class PromptEngine:
             bits.append("picked default cinematic lighting")
         bits.append(f"pacing inferred: {pacing}")
         if inject:
-            bits.append("deepotus DNA injected (mascot/deep-sea/brand cues)")
+            a = adn or {}
+            if a.get("touches_sujet") or a.get("touches_decor") or a.get("decor_defaut"):
+                bits.append(a.get("explication") or "persona identity injected")
+            else:
+                bits.append("no identity descriptors for this persona yet (Settings > Spaces > Visual identity)")
         return ". ".join(bits) + "."

@@ -83,6 +83,14 @@ DYN |= {"espaces.onb.personnage." + x for x in ("mascotte", "humain", "abstrait"
 DYN |= {"espaces.onb.direction." + x for x in ("cinema", "lumineux", "graphique", "organique")}
 _CH = _re.search(r"var CH=(\[\[.*?\]\]);", M.AIDES)
 DYN |= {"espaces.onb.prop." + c[0].replace(".", "_", 1) for c in (json.loads(_CH.group(1)) if _CH else [])}
+# t206 : DzIdentite compose ses clés (genres d'image, états de la planche, champs de l'ADN depuis DZ_IDV_ADN)
+_ADN = _re.search(r"var DZ_IDV_ADN=(\[\[.*?\]\]);", M.AIDES_IDV)
+DYN |= {"espaces.idv.adn." + c[0] for c in (json.loads(_ADN.group(1)) if _ADN else [])}
+DYN |= {"espaces.idv.genre." + g for g in ("logo", "mascotte", "produits")}
+DYN |= {"espaces.idv.planche_etat." + e for e in ("absente", "a_valider", "validee", "perimee")}
+DYN |= {"espaces.idv.kit_etat." + e for e in ("identite", "branding", "autre")}
+check("1.2c DzIdentite : 6 champs d'ADN, aucun useState", _ADN is not None and len(json.loads(_ADN.group(1))) == 6
+      and "x.useState(" not in M.AIDES_IDV)
 check("1.2b chaque clé COMPOSÉE par l'assistant existe en français et en anglais",
       len(ETAPES_ONB) == 8 and all(ZONE.get(k, {}).get("fr") and ZONE.get(k, {}).get("en") for k in DYN),
       str(sorted(k for k in DYN if not (ZONE.get(k, {}).get("fr") and ZONE.get(k, {}).get("en")))))

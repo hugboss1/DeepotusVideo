@@ -28,6 +28,7 @@ t203 (13/10/2026) : `DzComptesEspace`, sous la liste des espaces, gère les comp
 t204 (13/10/2026) : le Planificateur — `DzPostComptes` dans l'éditeur de post (comptes de l'espace du post), mappeur
 et enregistrement des posts (espace_id, comptes), liste rechargée au changement d'espace.
 t205 (13/10/2026) : `DzOnboardingPersona`, l'assistant en 8 étapes (bouton « Définir le persona » de chaque espace).
+t206 (13/10/2026) : `DzIdentite`, l'identité visuelle (bouton « Identité visuelle » de chaque espace ; /api/espaces/{id}/identite).
 Run : python scripts/patch_bundle_dzespace.py [--check]
 """
 import pathlib
@@ -140,6 +141,7 @@ AIDES = (
     ':r.jsx("button",{type:"button",disabled:st.busy,style:bt,onClick:function(){maj({edit:e.id,editNom:e.nom})},'
     'children:dzT("espaces.action.renommer")}),'
     '!e.archive&&r.jsx("button",{type:"button","data-dz-onb-ouvrir":e.id,style:bt,onClick:function(){maj({onb:e.id})},children:dzT("espaces.onb.ouvrir")}),'
+    '!e.archive&&r.jsx("button",{type:"button","data-dz-idv-ouvrir":e.id,style:bt,onClick:function(){maj({idv:e.id})},children:dzT("espaces.idv.ouvrir")}),'
     '!act&&!e.archive&&r.jsx("button",{type:"button","data-dz-espace-activer":e.id,disabled:st.busy,style:bt,onClick:function(){'
     'maj({busy:!0,err:""});dzEspActiver(e.id).then(function(){return charger()}).then(function(){maj({busy:!1})},'
     'function(x2){maj({busy:!1,err:String(x2&&x2.message||x2)})})},children:dzT("espaces.action.activer")}),'
@@ -151,6 +153,8 @@ AIDES = (
     'dzT("espaces.reglages.voir_archives")]}),'
     'st.onb&&r.jsx(DzOnboardingPersona,{espace:st.onb,nom:((st.liste||[]).find(function(e){return e.id===st.onb})||{}).nom||"",'
     'fermer:function(){maj({onb:""})}},"onb:"+st.onb),'   # clé PRÉFIXÉE : voisin de DzComptesEspace (même id d'espace)
+    'st.idv&&r.jsx(DzIdentite,{espace:st.idv,nom:((st.liste||[]).find(function(e){return e.id===st.idv})||{}).nom||"",'
+    'fermer:function(){maj({idv:""})}},"idv:"+st.idv),'   # t206 : clé PRÉFIXÉE elle aussi
     'st.actif&&r.jsx(DzComptesEspace,{espace:st.actif,nom:((st.liste||[]).find(function(e){return e.id===st.actif})||{}).nom||""},"cpt:"+st.actif)]})}'
     # t203 — les comptes de diffusion de l'espace ACTIF (plusieurs X, Telegram… par espace). Aucun secret n'est jamais
     # relu : un champ secret dit « posé » ou non ; une saisie vide ne change rien. OAuth (YouTube, TikTok) PAR compte :
@@ -349,6 +353,113 @@ AIDES = (
     'st.i<DZ_ONB_ETAPES.length-1&&r.jsx("button",{type:"button","data-dz-onb-suivant":"1",style:btP,disabled:st.busy,onClick:function(){aller(st.i+1)},children:dzT("espaces.onb.suivant")})]})]})})}'
 )
 
+# t206 (Espaces de marque E6) : `DzIdentite`, l'identité visuelle d'un espace (logo, mascotte, produits, palette,
+# typographies, style écrit sans nom d'artiste, ADN des prompts, planche composée puis validée). Le logo d'un persona
+# sert à ses contenus : il n'habille jamais l'application.
+AIDES_IDV = (
+    'var DZ_IDV_ADN=[["touches_sujet","l"],["touches_decor","l"],["decor_defaut","t"],["reperes","v"],["eclairages","l"],["explication","t"]];'
+    'function DzIdentite({espace:esp,nom:nomEsp,fermer:fermer}){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},'
+    '{d:null,pal:[],typos:[],style:"",adn:{},busy:!1,err:"",msg:"",v:0});'
+    'var base="/api/espaces/"+encodeURIComponent(esp)+"/identite";'
+    'function remplir(d,tout){if(!tout){maj({d:d,v:Date.now()});return}var a=d.adn||{},t={};DZ_IDV_ADN.forEach(function(c){var v=a[c[0]];'
+    't[c[0]]=v==null?"":Array.isArray(v)?v.join(c[1]==="v"?", ":"\\n"):String(v)});'
+    'maj({d:d,v:Date.now(),pal:(d.palette||[]).map(function(c){return Object.assign({},c)}),typos:(d.typographies||[]).map(function(c){return Object.assign({},c)}),'
+    'style:d.style_ecrit||"",adn:t})}'
+    'function charger(){return fetch(base).then(function(r2){if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()}).then(function(d){remplir(d,!0)})'
+    '.catch(function(e){maj({err:String(e&&e.message||e)})})}'
+    'x.useEffect(function(){charger()},[esp]);'
+    'function faire(p,msg,tout){maj({busy:!0,err:"",msg:""});return p.then(function(j){var v=j&&j.identite||j;v&&v.palette&&remplir(v,tout);maj({busy:!1,msg:msg||""})},'
+    'function(e){maj({busy:!1,err:String(e&&e.message||e)})})}'
+    'function envoyer(g,fs){faire(fs.reduce(function(p,fi){return p.then(function(){var fd=new FormData();fd.append("file",fi);'
+    'return fetch(base+"/images/"+g,{method:"POST",body:fd}).then(function(r2){return r2.json().catch(function(){return{}}).then(function(j){'
+    'if(!r2.ok)throw new Error(j&&j.detail?String(j.detail):"HTTP "+r2.status);return j})})})},Promise.resolve(null)),"",!1)}'
+    'function lignes(t){return String(t||"").split("\\n").map(function(s2){return s2.trim()}).filter(Boolean)}'
+    'function virg(t){return String(t||"").split(",").map(function(s2){return s2.trim()}).filter(Boolean)}'
+    'function enregistrer(){var a={};DZ_IDV_ADN.forEach(function(c){var v=String(st.adn[c[0]]||"");if(!v.trim())return;'
+    'a[c[0]]=c[1]==="t"?v.trim():c[1]==="v"?virg(v):lignes(v)});'
+    'faire(dzEspEnvoyer(base,"PUT",{palette:st.pal.filter(function(c){return c.hex}),typographies:st.typos.filter(function(t){return(t.nom||"").trim()}),'
+    'style_ecrit:st.style,adn:a}),dzT("espaces.idv.enregistre"),!0)}'
+    'function pal(i,o){maj({pal:st.pal.map(function(c,j){return j===i?Object.assign({},c,o):c})})}'
+    'function tp(i,o){maj({typos:st.typos.map(function(c,j){return j===i?Object.assign({},c,o):c})})}'
+    'var champ={fontSize:12.5,padding:"6px 8px",background:"var(--bg-panel-2)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:4,width:"100%",boxSizing:"border-box"};'
+    'var bt={fontSize:12,padding:"6px 12px",background:"var(--bg-panel-2)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:4,cursor:"pointer"};'
+    'var btP=Object.assign({},bt,{background:"var(--brand)",borderColor:"var(--brand)",color:"#fff"});'
+    'var titre={fontSize:12.5,fontWeight:600,color:"var(--ink-strong)"},aide={margin:0,fontSize:11.5,color:"var(--ink-soft)"};'
+    'var d=st.d;function img(n){return base+"/fichier/"+encodeURIComponent(n)+"?v="+st.v}'
+    'function vignettes(g){var noms=g==="logo"?(d.logo?[d.logo]:[]):d[g]||[],max=(d.plafonds||{})[g]||1;'
+    'return r.jsxs("div",{"data-dz-idv-genre":g,style:{display:"flex",flexDirection:"column",gap:6},children:['
+    'r.jsx("div",{style:titre,children:dzT("espaces.idv.genre."+g)+" ("+noms.length+"/"+max+")"}),'
+    'g==="logo"&&r.jsx("p",{style:aide,children:dzT("espaces.idv.logo_aide")}),'
+    'r.jsxs("div",{style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"},children:[noms.map(function(n){return r.jsxs("div",{style:{position:"relative"},children:['
+    'r.jsx("img",{src:img(n),alt:dzT("espaces.idv.genre."+g),style:{width:84,height:84,objectFit:"contain",background:"var(--bg-panel-2)",borderRadius:4,border:"1px solid var(--stroke)"}}),'
+    'r.jsx("button",{type:"button","aria-label":dzT("espaces.onb.retirer"),title:dzT("espaces.onb.retirer"),disabled:st.busy,'
+    'style:Object.assign({},bt,{position:"absolute",top:2,right:2,padding:"0 6px"}),onClick:function(){faire(dzEspEnvoyer(base+"/images/"+encodeURIComponent(n),"DELETE"),"",!1)},children:"×"})]},"im:"+n)}),'
+    '(g==="logo"||noms.length<max)&&r.jsxs("label",{style:Object.assign({},bt,{display:"inline-flex",alignItems:"center",opacity:st.busy?.6:1}),children:['
+    'dzT(g==="logo"&&noms.length?"espaces.idv.remplacer":"espaces.idv.ajouter"),'
+    'r.jsx("input",{type:"file",accept:"image/png,image/jpeg,image/webp",multiple:g!=="logo","data-dz-idv-fichier":g,"aria-label":dzT("espaces.idv.genre."+g),'
+    'style:{display:"none"},disabled:st.busy,onChange:function(ev){var fs=[].slice.call(ev.target.files||[]);ev.target.value="";fs.length&&envoyer(g,fs)}})]})]})]},"g:"+g)}'
+    'function palette(){return r.jsxs("div",{"data-dz-idv-palette":"1",style:{display:"flex",flexDirection:"column",gap:6},children:['
+    'r.jsx("div",{style:titre,children:dzT("espaces.idv.palette")}),'
+    'st.pal.map(function(c,i){return r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:['
+    'r.jsx("input",{type:"color",value:/^#[0-9a-fA-F]{6}$/.test(c.hex||"")?c.hex:"#000000","aria-label":dzT("espaces.idv.couleur"),'
+    'onChange:function(ev){pal(i,{hex:ev.target.value.toUpperCase()})},style:{width:34,height:28,padding:0,border:"1px solid var(--stroke)",background:"none",flex:"0 0 auto"}}),'
+    'r.jsx("input",{value:c.hex||"","aria-label":dzT("espaces.idv.hex"),onChange:function(ev){pal(i,{hex:ev.target.value})},style:Object.assign({},champ,{width:96,flex:"0 0 auto",fontFamily:"var(--f-mono)"})}),'
+    'r.jsx("input",{value:c.role||"",placeholder:dzT("espaces.idv.role"),"aria-label":dzT("espaces.idv.role"),onChange:function(ev){pal(i,{role:ev.target.value})},style:champ}),'
+    'r.jsx("button",{type:"button",style:bt,"aria-label":dzT("espaces.onb.retirer"),onClick:function(){maj({pal:st.pal.filter(function(_c,j){return j!==i})})},children:"×"})]},"pal:"+i)}),'
+    'st.pal.length<12&&r.jsx("div",{children:r.jsx("button",{type:"button",style:bt,onClick:function(){maj({pal:st.pal.concat([{hex:"#3B82F6",role:""}])})},'
+    'children:dzT("espaces.idv.palette_ajouter")})})]})}'
+    'function typos(){return r.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:6},children:['
+    'r.jsx("div",{style:titre,children:dzT("espaces.idv.typos")}),'
+    'st.typos.map(function(c,i){return r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:['
+    'r.jsx("input",{value:c.nom||"",placeholder:dzT("espaces.idv.typo_nom"),"aria-label":dzT("espaces.idv.typo_nom"),onChange:function(ev){tp(i,{nom:ev.target.value})},style:champ}),'
+    'r.jsx("input",{value:c.usage||"",placeholder:dzT("espaces.idv.typo_usage"),"aria-label":dzT("espaces.idv.typo_usage"),onChange:function(ev){tp(i,{usage:ev.target.value})},style:champ}),'
+    'r.jsx("button",{type:"button",style:bt,"aria-label":dzT("espaces.onb.retirer"),onClick:function(){maj({typos:st.typos.filter(function(_c,j){return j!==i})})},children:"×"})]},"typo:"+i)}),'
+    'st.typos.length<6&&r.jsx("div",{children:r.jsx("button",{type:"button",style:bt,onClick:function(){maj({typos:st.typos.concat([{nom:"",usage:""}])})},'
+    'children:dzT("espaces.idv.typo_ajouter")})})]})}'
+    'function adn(){var ef=d.adn_effectif||{};return r.jsxs("details",{"data-dz-idv-adn":"1",style:{display:"flex",flexDirection:"column",gap:6},children:['
+    'r.jsx("summary",{style:Object.assign({},titre,{cursor:"pointer"}),children:dzT("espaces.idv.adn")}),'
+    'r.jsx("p",{style:aide,children:dzT("espaces.idv.adn_aide")}),'
+    'DZ_IDV_ADN.map(function(c){var e=ef[c[0]],ph=Array.isArray(e)?e.join(c[1]==="v"?", ":"\\n"):e||"",lab=dzT("espaces.idv.adn."+c[0]);'
+    'return r.jsxs("label",{style:{display:"flex",flexDirection:"column",gap:3,fontSize:12,color:"var(--ink-soft)",marginTop:6},children:[lab,'
+    'c[1]==="l"?r.jsx("textarea",{rows:3,value:st.adn[c[0]]||"",placeholder:ph,"aria-label":lab,onChange:function(ev){var a=Object.assign({},st.adn);a[c[0]]=ev.target.value;maj({adn:a})},style:champ})'
+    ':r.jsx("input",{value:st.adn[c[0]]||"",placeholder:ph,"aria-label":lab,onChange:function(ev){var a=Object.assign({},st.adn);a[c[0]]=ev.target.value;maj({adn:a})},style:champ})]},"adn:"+c[0])})]})}'
+    'function kit(){var k=d.kit||{},etat=k.depuis_identite?"identite":k.branding?"branding":"autre";'
+    'return r.jsxs("div",{"data-dz-idv-kit":etat,style:{display:"flex",flexDirection:"column",gap:6},children:['
+    'r.jsx("div",{style:titre,children:dzT("espaces.idv.kit")}),r.jsx("p",{style:aide,children:dzT("espaces.idv.kit_aide")}),'
+    'r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center",fontSize:12,color:"var(--ink-soft)"},children:['
+    'r.jsx("span",{"aria-hidden":"true",style:{width:14,height:14,borderRadius:3,background:k.brand_color,border:"1px solid var(--stroke)"}}),'
+    'r.jsx("span",{"aria-hidden":"true",style:{width:14,height:14,borderRadius:3,background:k.accent_color,border:"1px solid var(--stroke)"}}),'
+    'r.jsx("span",{children:dzT("espaces.idv.kit_etat."+etat,{nom:k.name||""})})]}),'
+    'r.jsx("div",{children:r.jsx("button",{type:"button","data-dz-idv-kit-creer":"1",style:bt,disabled:st.busy,'
+    'onClick:function(){faire(dzEspEnvoyer(base+"/kit","POST"),dzT("espaces.idv.kit_fait"),!1)},children:dzT(k.depuis_identite?"espaces.idv.kit_maj":"espaces.idv.kit_creer")})})]})}'
+    'function planche(){var e=d.etat_planche||"absente",pl=d.planche||{};return r.jsxs("div",{"data-dz-idv-planche":e,style:{display:"flex",flexDirection:"column",gap:6},children:['
+    'r.jsx("div",{style:titre,children:dzT("espaces.idv.planche")}),r.jsx("p",{style:aide,children:dzT("espaces.idv.planche_aide")}),'
+    'r.jsx("div",{role:"status",style:{fontSize:12,color:e==="validee"?"var(--green)":e==="perimee"?"var(--red)":"var(--ink-soft)"},children:dzT("espaces.idv.planche_etat."+e)}),'
+    'pl.fichier&&e!=="absente"&&r.jsx("img",{src:img(pl.fichier),alt:dzT("espaces.idv.planche"),style:{width:"100%",borderRadius:4,border:"1px solid var(--stroke)"}}),'
+    'r.jsxs("div",{style:{display:"flex",gap:8},children:[r.jsx("button",{type:"button","data-dz-idv-composer":"1",style:bt,disabled:st.busy,'
+    'onClick:function(){faire(dzEspEnvoyer(base+"/planche","POST"),"",!1)},children:dzT(e==="absente"?"espaces.idv.composer":"espaces.idv.recomposer")}),'
+    'e==="a_valider"&&r.jsx("button",{type:"button","data-dz-idv-valider":"1",style:btP,disabled:st.busy,'
+    'onClick:function(){faire(dzEspEnvoyer(base+"/planche/valider","POST"),dzT("espaces.idv.planche_validee"),!1)},children:dzT("espaces.idv.valider")})]})]})}'
+    'return r.jsx("div",{role:"dialog","aria-modal":"true","aria-label":dzT("espaces.idv.titre",{nom:nomEsp}),"data-dz-idv":esp,'
+    'style:{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:60},'
+    'onKeyDown:function(ev){ev.key==="Escape"&&fermer&&fermer()},children:r.jsxs("div",{style:{width:"min(820px,94vw)",maxHeight:"90vh",overflow:"auto",background:"var(--bg-panel)",'
+    'border:"1px solid var(--stroke)",borderRadius:8,padding:18,display:"flex",flexDirection:"column",gap:14},children:['
+    'r.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8},children:['
+    'r.jsx("h2",{style:{margin:0,fontSize:16,color:"var(--ink-strong)"},children:dzT("espaces.idv.titre",{nom:nomEsp})}),'
+    'r.jsx("button",{type:"button",style:bt,"aria-label":dzT("espaces.onb.fermer"),onClick:fermer,children:dzT("espaces.onb.fermer")})]}),'
+    'st.err&&r.jsx("div",{role:"alert",style:{fontSize:12,color:"var(--red)"},children:st.err}),'
+    'st.msg&&r.jsx("div",{role:"status",style:{fontSize:12,color:"var(--green)"},children:st.msg}),'
+    '!d?r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:dzT("espaces.etat.chargement")}):r.jsxs(r.Fragment,{children:['
+    'vignettes("logo"),vignettes("mascotte"),vignettes("produits"),r.jsx("p",{style:aide,children:dzT("espaces.idv.references_aide")}),'
+    'palette(),typos(),'
+    'r.jsxs("label",{style:{display:"flex",flexDirection:"column",gap:4},children:[r.jsx("span",{style:titre,children:dzT("espaces.idv.style")}),'
+    'r.jsx("textarea",{rows:3,value:st.style,"aria-label":dzT("espaces.idv.style"),placeholder:dzT("espaces.idv.style_exemple"),onChange:function(ev){maj({style:ev.target.value})},style:champ}),'
+    'r.jsx("span",{style:aide,children:dzT("espaces.idv.style_aide")})]}),'
+    'adn(),'
+    'r.jsx("div",{children:r.jsx("button",{type:"button","data-dz-idv-enregistrer":"1",style:btP,disabled:st.busy,onClick:enregistrer,children:dzT("espaces.action.enregistrer")})}),'
+    'kit(),planche()]})]})})}'
+)
+
 RAIL = 'function tg({view:e,setView:t,collapsed:n,setCollapsed:o}){const i=ji();'
 CARTE = ('r.jsxs("div",{style:{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between"},'
          'children:[r.jsx("span",{style:{fontFamily:"var(--f-mono)",fontSize:10,color:"var(--ink-muted)"},children:"v2.8.0"})')
@@ -367,7 +478,7 @@ SHELL_APRES = (
 )
 
 PAIRES = [
-    (RAIL, AIDES + RAIL),                                                              # S1
+    (RAIL, AIDES + AIDES_IDV + RAIL),                                                  # S1
     (CARTE, 'r.jsx(DzEspaceSel,{setView:t}),' + CARTE),                                # S2
     (SHELL, SHELL_APRES),                                                              # S3
     ('const ym=["diag","coffre","appareils","keys","accounts","personas",',            # S4

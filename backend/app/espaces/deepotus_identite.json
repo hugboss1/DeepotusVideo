@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "palette": [
+    {"hex": "#00E0FF", "role": "primaire"},
+    {"hex": "#7B2CFF", "role": "secondaire"},
+    {"hex": "#F5C518", "role": "accent"},
+    {"hex": "#020D24", "role": "fond"}
+  ],
+  "typographies": [],
+  "style_ecrit": "bioluminescent cyan and violet accents, deep-sea atmosphere, abyssal blue ambience, underwater particles, soft glow on dark backgrounds",
+  "adn": {
+    "touches_sujet": [
+      "with subtle bioluminescent cyan accents",
+      "with a deepotus emblem visible in the scene",
+      "in deepotus brand colors (cyan and violet glow)",
+      "with a faint underwater shimmer overlay"
+    ],
+    "touches_decor": [
+      "with deep blue ambient atmosphere",
+      "with subtle underwater particles drifting",
+      "with a hint of deep sea aesthetic in the background"
+    ],
+    "decor_defaut": "deep blue ambient environment with cyan accent lighting",
+    "reperes": ["deepotus", "octopus", "tentacle", "deep sea", "abyss", "underwater", "bioluminescent", "solana", "memecoin"],
+    "eclairages": ["neon city lights, cyan and magenta", "bioluminescent underwater glow", "dark moody chiaroscuro"],
+    "explication": "deepotus DNA injected (mascot/deep-sea/brand cues)"
+  },
+  "logo": null,
+  "mascotte": [],
+  "produits": [],
+  "planche": null
+}

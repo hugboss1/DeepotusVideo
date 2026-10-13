@@ -239,6 +239,10 @@
   "fr": "Aucune entité extraite — vérifie le manuscrit / le LLM",
   "en": "No entity extracted — check the manuscript / the LLM"
  },
+ "Aucune image de référence dans l'identité de l'espace (Réglages › Espaces).": {
+  "fr": "Aucune image de référence dans l'identité de l'espace (Réglages › Espaces).",
+  "en": "No reference image in the space's identity (Settings › Spaces)."
+ },
  "Aucune image recue pour ce rendu": {
   "fr": "Aucune image recue pour ce rendu",
   "en": "No images received for this render"
@@ -3847,6 +3851,10 @@
   "fr": "`tirs` doit être une liste",
   "en": "`tirs` must be a list"
  },
+ "absent de la Bibliothèque : {f}": {
+  "fr": "absent de la Bibliothèque : {f}",
+  "en": "not in the Library: {f}"
+ },
  "absente(s) de la Bibliothèque : {v}": {
   "fr": "absente(s) de la Bibliothèque : {v}",
   "en": "missing from the Library: {v}"
@@ -3894,6 +3902,18 @@
  "actions : une liste d'identifiants entiers de la bibliothèque Meshy.": {
   "fr": "actions : une liste d'identifiants entiers de la bibliothèque Meshy.",
   "en": "actions: a list of integer IDs from the Meshy library."
+ },
+ "adn doit être un objet": {
+  "fr": "adn doit être un objet",
+  "en": "dna must be an object"
+ },
+ "adn.{k} : champ inconnu": {
+  "fr": "adn.{k} : champ inconnu",
+  "en": "dna.{k}: unknown field"
+ },
+ "adn.{k} doit être une liste de textes": {
+  "fr": "adn.{k} doit être une liste de textes",
+  "en": "dna.{k} must be a list of texts"
  },
  "adresse de résultat inattendue : {v}": {
   "fr": "adresse de résultat inattendue : {v}",
@@ -4215,6 +4235,10 @@
   "fr": "aucune pièce à réparer dans la scène active",
   "en": "no part to repair in the active scene"
  },
+ "aucune planche : composez-la d'abord": {
+  "fr": "aucune planche : composez-la d'abord",
+  "en": "no sheet: build it first"
+ },
  "aucune primitive triangle dans le GLB": {
   "fr": "aucune primitive triangle dans le GLB",
   "en": "no triangle primitive in the GLB"
@@ -4399,6 +4423,14 @@
   "fr": "ce jeu de vues a déjà été tiré : le maillage existe. Prépare un nouveau jeu pour retirer.",
   "en": "this view set has already been run: the mesh exists. Prepare a new set to run again."
  },
+ "ce kit habille l'application (Réglages › Identité visuelle) : activez-y un autre kit d'abord — le logo et le nom de l'application ne suivent jamais un persona": {
+  "fr": "ce kit habille l'application (Réglages › Identité visuelle) : activez-y un autre kit d'abord — le logo et le nom de l'application ne suivent jamais un persona",
+  "en": "this kit dresses the app (Settings › Branding): activate another kit there first — the app's logo and name never follow a persona"
+ },
+ "ce n'est pas une image lisible ({name})": {
+  "fr": "ce n'est pas une image lisible ({name})",
+  "en": "not a readable image ({name})"
+ },
  "ce n'est pas une image.": {
   "fr": "ce n'est pas une image.",
   "en": "this is not an image."
@@ -4450,6 +4482,10 @@
  "champ inconnu : {k}.": {
   "fr": "champ inconnu : {k}.",
   "en": "unknown field: {k}."
+ },
+ "champ inconnu : {v}": {
+  "fr": "champ inconnu : {v}",
+  "en": "unknown field: {v}"
  },
  "champ inconnu : {v} — attendus : {v2}": {
   "fr": "champ inconnu : {v} — attendus : {v2}",
@@ -5063,6 +5099,10 @@
   "fr": "fichiers (liste de noms) attendu",
   "en": "fichiers (list of names) expected"
  },
+ "fichiers : une liste de noms de la Bibliothèque": {
+  "fr": "fichiers : une liste de noms de la Bibliothèque",
+  "en": "files: a list of Library names"
+ },
  "filename (ou job_id) requis.": {
   "fr": "filename (ou job_id) requis.",
   "en": "filename (or job_id) required."
@@ -5198,6 +5238,10 @@
  "genre de préréglage inconnu : {genre}": {
   "fr": "genre de préréglage inconnu : {genre}",
   "en": "unknown preset kind: {genre}"
+ },
+ "genre inconnu : {genre} — connus : {v}": {
+  "fr": "genre inconnu : {genre} — connus : {v}",
+  "en": "unknown kind: {genre} — known: {v}"
  },
  "geste VFX IA inconnu : {v} (connus : {v2})": {
   "fr": "geste VFX IA inconnu : {v} (connus : {v2})",
@@ -5483,6 +5527,14 @@
   "fr": "image hors de la Bibliothèque : {nom}",
   "en": "image outside the Library: {nom}"
  },
+ "image inconnue": {
+  "fr": "image inconnue",
+  "en": "unknown image"
+ },
+ "image inconnue : {nom}": {
+  "fr": "image inconnue : {nom}",
+  "en": "unknown image: {nom}"
+ },
  "image introuvable": {
   "fr": "image introuvable",
   "en": "image not found"
@@ -5498,6 +5550,10 @@
  "image source introuvable": {
   "fr": "image source introuvable",
   "en": "source image not found"
+ },
+ "image trop lourde (8 Mo au plus)": {
+  "fr": "image trop lourde (8 Mo au plus)",
+  "en": "image too large (8 MB at most)"
  },
  "image vide ou trop lourde (12 Mo au plus).": {
   "fr": "image vide ou trop lourde (12 Mo au plus).",
@@ -5675,6 +5731,10 @@
   "fr": "kit inconnu : {v}",
   "en": "unknown kit: {v}"
  },
+ "l'identité s'écrit en objet JSON": {
+  "fr": "l'identité s'écrit en objet JSON",
+  "en": "the identity is written as a JSON object"
+ },
  "la Bibliothèque reçoit du png ou du jpg, pas {fmt}": {
   "fr": "la Bibliothèque reçoit du png ou du jpg, pas {fmt}",
   "en": "the Library accepts png or jpg, not {fmt}"
@@ -5702,6 +5762,10 @@
  "la moitié qui reçoit le connecteur est trop mince : {v} de profondeur pour {besoin_b} de trou. Réduis la hauteur.": {
   "fr": "la moitié qui reçoit le connecteur est trop mince : {v} de profondeur pour {besoin_b} de trou. Réduis la hauteur.",
   "en": "the half receiving the connector is too thin: {v} deep for a {besoin_b} hole. Reduce the height."
+ },
+ "la planche est périmée (l'identité a changé depuis) : recomposez-la avant de la valider": {
+  "fr": "la planche est périmée (l'identité a changé depuis) : recomposez-la avant de la valider",
+  "en": "the sheet is out of date (the identity changed since): rebuild it before validating"
  },
  "la source « {src_nom} » a change depuis la publication : la couche « {role} » decrit l'image precedente — republie le manifeste depuis la piece Import": {
   "fr": "la source « {src_nom} » a change depuis la publication : la couche « {role} » decrit l'image precedente — republie le manifeste depuis la piece Import",
@@ -6387,6 +6451,10 @@
   "fr": "nom de dossier invalide",
   "en": "invalid folder name"
  },
+ "nom de fichier invalide : {f}": {
+  "fr": "nom de fichier invalide : {f}",
+  "en": "invalid file name: {f}"
+ },
  "nom de fichier refusé": {
   "fr": "nom de fichier refusé",
   "en": "file name rejected"
@@ -6479,9 +6547,17 @@
   "fr": "pack doit être une liste",
   "en": "pack must be a list"
  },
+ "palette : une liste de {MAX_PALETTE} couleurs au plus": {
+  "fr": "palette : une liste de {MAX_PALETTE} couleurs au plus",
+  "en": "palette: a list of {MAX_PALETTE} colors at most"
+ },
  "palette must be one of: {v}": {
   "fr": "palette doit valoir l'une de ces valeurs : {v}",
   "en": "palette must be one of: {v}"
+ },
+ "palette n°{v} : couleur #RRGGBB attendue": {
+  "fr": "palette n°{v} : couleur #RRGGBB attendue",
+  "en": "palette #{v}: #RRGGBB color expected"
  },
  "paramètre inconnu : {v}": {
   "fr": "paramètre inconnu : {v}",
@@ -7279,6 +7355,18 @@
   "fr": "type de connecteur « {type} » — {v} sont attendus",
   "en": "connector type “{type}” — {v} expected"
  },
+ "typographie n°{v} : nom manquant": {
+  "fr": "typographie n°{v} : nom manquant",
+  "en": "typeface #{v}: name missing"
+ },
+ "typographie n°{v} invalide": {
+  "fr": "typographie n°{v} invalide",
+  "en": "typeface #{v} invalid"
+ },
+ "typographies : {MAX_TYPOS} au plus": {
+  "fr": "typographies : {MAX_TYPOS} au plus",
+  "en": "typefaces: {MAX_TYPOS} at most"
+ },
  "téléchargement refusé : plus de {v} Mo ({max_octets} octets au plus)": {
   "fr": "téléchargement refusé : plus de {v} Mo ({max_octets} octets au plus)",
   "en": "download refused: more than {v} MB ({max_octets} bytes at most)"
@@ -7443,6 +7531,10 @@
   "fr": "{cases} cases de {cote} px depassent {APERCU_PX_MAX} px de cote : {v} cases au plus pour ce jeu",
   "en": "{cases} cells of {cote} px exceed {APERCU_PX_MAX} px per side: {v} cells at most for this set"
  },
+ "{champ} : pas de nom d'artiste ni de « à la manière de » (« {fautif} ») — décrivez le style par descripteurs : palette, lumière, matière, cadrage, époque": {
+  "fr": "{champ} : pas de nom d'artiste ni de « à la manière de » (« {fautif} ») — décrivez le style par descripteurs : palette, lumière, matière, cadrage, époque",
+  "en": "{champ}: no artist name and no \"in the style of\" (\"{fautif}\") — describe the style with descriptors: palette, light, material, framing, era"
+ },
  "{champ} : une couleur #rrggbb est attendue (« {valeur} »)": {
   "fr": "{champ} : une couleur #rrggbb est attendue (« {valeur} »)",
   "en": "{champ}: a #rrggbb color is expected (“{valeur}”)"
@@ -7450,6 +7542,10 @@
  "{champ} attend {taille} valeurs, reçu {v}": {
   "fr": "{champ} attend {taille} valeurs, reçu {v}",
   "en": "{champ} expects {taille} values, got {v}"
+ },
+ "{champ} doit être un texte": {
+  "fr": "{champ} doit être un texte",
+  "en": "{champ} must be a text"
  },
  "{champ} refusé : un nom {quoi} nu ({v})": {
   "fr": "{champ} refusé : un nom {quoi} nu ({v})",
@@ -7934,6 +8030,10 @@
  "{fname} : couche trop lourde ({taille_src} o, maximum {MAX_LAYER_BYTES} o)": {
   "fr": "{fname} : couche trop lourde ({taille_src} o, maximum {MAX_LAYER_BYTES} o)",
   "en": "{fname}: layer too large ({taille_src} B, maximum {MAX_LAYER_BYTES} B)"
+ },
+ "{genre} : {v} images au plus — retirez-en une d'abord": {
+  "fr": "{genre} : {v} images au plus — retirez-en une d'abord",
+  "en": "{genre}: {v} images at most — remove one first"
  },
  "{iid} : dims positives attendues.": {
   "fr": "{iid} : dims positives attendues.",
@@ -8638,6 +8738,10 @@
  "{v} indisponible : {e}": {
   "fr": "{v} indisponible : {e}",
   "en": "{v} unavailable: {e}"
+ },
+ "{v} ne prend qu'une image : choisissez un modèle à références multiples (Nano Banana…) pour garder l'identité.": {
+  "fr": "{v} ne prend qu'une image : choisissez un modèle à références multiples (Nano Banana…) pour garder l'identité.",
+  "en": "{v} takes a single image: choose a multi-reference model (Nano Banana…) to keep the identity."
  },
  "{v} niveaux — Unity en accepte {MAX_NIVEAUX} au plus (LOD Group)": {
   "fr": "{v} niveaux — Unity en accepte {MAX_NIVEAUX} au plus (LOD Group)",
