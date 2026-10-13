@@ -113,14 +113,14 @@ SCENARIO = r"""
   function shell(){var z=etat.z;
     var _us=0;var x2={useState:function(i){_us++;var k=_us===1?"z":"P";if(!(k in etat))etat[k]=typeof i==="function"?i():i;
       return[etat[k],function(v){etat[k]=typeof v==="function"?v(etat[k]):v}]},useEffect:function(f){f()}};
-    var x=x2, rm=etat.z;
+    var x=x2, rm=etat.z, _=function(){etat.recharges=(etat.recharges||0)+1};   // t204 : la liste des posts
     __SHELL__
     return{E:E,dzJ:dzJ}}
   serveur.actif="deepotus"; var h=shell(); await attendre();
   out.demarrageDeep=etat.P;out.presetDeep=JSON.stringify(etat.z[0]);
   serveur.persona.deepotus.ecran={id:"oracle",name:"Oracle"};
   ecout["deepotus:espace-refresh"].forEach(function(f){f()}); await attendre();
-  out.ecranDeep=etat.P;
+  out.ecranDeep=etat.P; out.recharges=etat.recharges||0;
   serveur.actif="esp_r"; delete serveur.persona.esp_r.ecran;
   ecout["deepotus:espace-refresh"].forEach(function(f){f()}); await attendre();
   out.neuf=etat.P; out.neufNom=(etat.z.find(function(p){return p.id==="esp_r"})||{}).name;
@@ -161,6 +161,8 @@ check("3.4 ... de la forme d'un persona d'écran (champs de rs())",
       o.get("neufForme") == "banned,catchphrase,emojiPolicy,formality,handle,id,languages,name,preferred,role,tone,voiceMode", str(o.get("neufForme")))
 check("3.5 savePersona écrit aussi dans l'espace actif", o.get("save") == "rip2" and o.get("saveP") == "rip2", str(o))
 check("3.6 choisir un persona (dzJ, passé aux Réglages et à l'Onboarding) l'écrit dans l'espace", o.get("choix") == "oracle", str(o))
+check("3.8 t204 : changer d'espace recharge aussi la liste des posts du Planificateur (un rechargement par événement)",
+      o.get("recharges") == 1, str(o.get("recharges")))
 check("3.7 les deux passages de setActivePersonaId sont branchés sur dzJ", s.count("setActivePersonaId:dzJ,savePersona:E") == 2
       and "setActivePersonaId:j," not in s)
 
@@ -191,6 +193,23 @@ check("5.5 tester passe le compte (sauf historique) ; supprimer en deux clics, s
 check("5.6 un compte historique n'offre ni identifiants ni suppression ici (renvoi vers Comptes connectés)",
       '!c.historique&&r.jsx("button"' in CPT and '!c.historique&&(st.suppr===c.id' in CPT and 'dzT("espaces.comptes.historique")' in CPT)
 check("5.7 toujours aucun useState (731)", "x.useState(" not in M.AIDES and s.count("x.useState(") == 731)
+
+print("\n[6] t204 : le Planificateur par compte")
+check("6.1 le mappeur des posts garde espace et comptes ; l'enregistrement différé envoie les comptes ; une fois chacun",
+      s.count('delegueA:e.delegue_a||null,espaceId:e.espace_id||"deepotus",comptes:e.comptes||[]}}') == 1
+      and s.count('"channels"in U&&(T.channels=U.channels),"comptes"in U&&(T.comptes=U.comptes),') == 1)
+check("6.2 l'éditeur montre les comptes de l'espace du post, au-dessus des canaux",
+      s.count('r.jsx(DzPostComptes,{post:e,onChange:s}),r.jsx(ie,{label:dzT("scheduler.post.canaux"),') == 1
+      and s.count("function DzPostComptes(") == 1)
+_PC = M.AIDES[M.AIDES.find("function DzPostComptes("):]
+check("6.3 cocher pose les comptes ET les canaux qui en découlent ; tout décocher = comptes vides, canaux gardés",
+      "oc({comptes:n,channels:ch})" in _PC and "if(!n.length){oc({comptes:[]});return}" in _PC)
+check("6.4 un post hors Deepotus sans compte est signalé ; la liste vient de l'espace DU POST",
+      'esp!=="deepotus"&&!choisis.length' in _PC and '"/api/comptes?espace="+encodeURIComponent(esp)' in _PC
+      and 'var esp=p.espaceId||"deepotus"' in _PC)
+_i = s.find("function Lm(")
+check("6.5 test_scheduler_bundle : le rechargement reste dans les 3000 caractères après function Lm(",
+      all(0 <= s.find(a, _i) - _i < 3000 for a in ("deepotus:schedule-reload", "function R(){o&&o()}", "reloadPosts:o")))
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

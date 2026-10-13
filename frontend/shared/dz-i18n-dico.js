@@ -5169,6 +5169,8 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "espaces.nouveau.couleur": {"fr": "Couleur de l'espace", "en": "Space colour"},
   "espaces.nouveau.creer": {"fr": "Créer l'espace", "en": "Create space"},
   "espaces.nouveau.nom": {"fr": "Nom du nouvel espace", "en": "New space name"},
+  "espaces.post.sans_compte": {"fr": "Aucun compte choisi : ce post ne partira pas (il ne passe jamais par les comptes de Deepotus).", "en": "No account selected: this post will not go out (it never uses Deepotus's accounts)."},
+  "espaces.post.titre": {"fr": "Comptes de diffusion", "en": "Publishing accounts"},
   "espaces.reglages.aide": {"fr": "Un espace par marque, produit ou client : son persona, son kit de marque et, bientôt, ses comptes de diffusion. L'espace actif s'applique à toute l'application ; un travail lancé garde son espace jusqu'au bout.", "en": "One space per brand, product or client: its persona, its brand kit and, soon, its publishing accounts. The active space applies across the whole app; a job keeps its space until it finishes."},
   "espaces.reglages.onglet": {"fr": "Espaces", "en": "Brand spaces"},
   "espaces.reglages.titre": {"fr": "Espaces de marque", "en": "Brand spaces"},

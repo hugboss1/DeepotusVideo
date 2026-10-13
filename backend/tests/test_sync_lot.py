@@ -182,7 +182,11 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
 print("\n[U] l'ecran du Scheduler (bundle ecrit)")
 import shutil as _sh                                                # noqa: E402
 _B = (_ICI.parents[1] / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_text(encoding="utf-8")
-check("U1 le post du Scheduler porte la delegation (wh : delegueA)", _B.count("brief:e.brief||null,delegueA:e.delegue_a||null}}") == 1)
+# t204 : le maillon de queue dzespace prolonge le mappeur (espaceId, comptes) : lu dans le bundle d'avant lui
+import _i18n_l1_aide as _AIDE_U                                     # noqa: E402
+check("U1 le post du Scheduler porte la delegation (wh : delegueA)",
+      _AIDE_U.avant_dzespace(_B).count("brief:e.brief||null,delegueA:e.delegue_a||null}}") == 1
+      and _B.count("brief:e.brief||null,delegueA:e.delegue_a||null,") == 1)
 # t142 (09/10) : la traduction L2 passe le libelle, le title et les toasts par dzT("cle") ; la borne de fin suit la cle,
 # le francais de chaque cle reste verifie, et le clic s'execute avec le prelude dzT (en francais)
 import _i18n_l1_aide as AIDE                                        # noqa: E402

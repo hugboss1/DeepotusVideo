@@ -88,6 +88,15 @@ class MeshyTaskRecord(Base):
     local_files: Mapped[Optional[str]] = mapped_column(Text, nullable=True)     # JSON
 
 
+def _espace_par_defaut():
+    """t204 : l'espace courant (figé par requête) d'un post neuf ; aucun espace lisible -> vide (= Deepotus)."""
+    try:
+        from app.services import espaces
+        return espaces.espace_courant()
+    except Exception:  # noqa: BLE001 — jamais un post perdu pour ça
+        return None
+
+
 class ScheduledPost(Base):
     """v1.9 — one planned publication. Created by hand in the Scheduler or
     materialized from a marketing plan. The schedule loop fires due posts:
@@ -141,6 +150,11 @@ class ScheduledPost(Base):
     # (échec rapporté, rendu, reprise à la main, appareil révoqué). Aucun doublon possible.
     delegue_a: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     delegue_le: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # t204 (Espaces de marque E4) : l'espace du post (par défaut celui de la requête qui le crée — vaut pour TOUS les
+    # créateurs : plan, séries, News, montage, recyclage) ; vide = un post d'avant les espaces = Deepotus. `comptes` :
+    # la liste JSON des comptes de diffusion CIBLES (services/comptes.py) ; vide = les canaux d'avant (clés plates).
+    espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True, default=lambda: _espace_par_defaut())
+    comptes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class PostMetric(Base):
@@ -691,6 +705,8 @@ SCHEDULED_POSTS_COLUMNS = [
     ("recycled_from", "VARCHAR(36)"), ("published_by", "VARCHAR(40)"),
     # plan mobile T8 (tâche #57) : la délégation à un appareil
     ("delegue_a", "VARCHAR(36)"), ("delegue_le", "DATETIME"),
+    # t204 (Espaces de marque E4) : l'espace du post et ses comptes cibles
+    ("espace_id", "VARCHAR(40)"), ("comptes", "TEXT"),
 ]
 
 

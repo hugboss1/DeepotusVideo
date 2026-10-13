@@ -25,6 +25,8 @@ backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `a
 Lecture et écriture en OCTETS.
 t203 (13/10/2026) : `DzComptesEspace`, sous la liste des espaces, gère les comptes de diffusion de l'espace ACTIF
 (GET/POST/DELETE /api/comptes, /api/channels/test avec `compte`, OAuth par compte) ; aucun secret relu.
+t204 (13/10/2026) : le Planificateur — `DzPostComptes` dans l'éditeur de post (comptes de l'espace du post), mappeur
+et enregistrement des posts (espace_id, comptes), liste rechargée au changement d'espace.
 Run : python scripts/patch_bundle_dzespace.py [--check]
 """
 import pathlib
@@ -205,6 +207,33 @@ AIDES = (
     'r.jsx("input",{value:st.handle,maxLength:80,placeholder:dzT("espaces.comptes.handle"),"aria-label":dzT("espaces.comptes.handle"),'
     'onChange:function(ev){maj({handle:ev.target.value})},style:champ}),'
     'r.jsx("button",{type:"submit",style:bt,disabled:st.busy||!st.data,children:dzT("espaces.comptes.ajouter")})]})]})}'
+    # t204 — dans l'éditeur d'un post du Planificateur : les comptes de diffusion de SON espace (cache par espace).
+    # Cocher un compte pose `comptes` ET les canaux qui en découlent (le serveur fait de même et garde l'espace :
+    # 409 pour un compte d'un autre espace). Un post d'un autre espace que Deepotus sans compte est signalé : il ne
+    # partira jamais par les comptes de Deepotus.
+    'var dzPcCache={};'
+    'function DzPostComptes({post:p,onChange:oc}){const[,maj]=x.useReducer(function(n){return n+1},0);'
+    'var esp=p.espaceId||"deepotus",d=dzPcCache[esp];'
+    'x.useEffect(function(){if(dzPcCache[esp])return;dzPcCache[esp]={chargement:!0};'
+    'fetch("/api/comptes?espace="+encodeURIComponent(esp)).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()})'
+    '.then(function(j){dzPcCache[esp]={liste:j.comptes||[],pl:j.plateformes||{}};maj()},function(){delete dzPcCache[esp];maj()})},[esp]);'
+    'var choisis=p.comptes||[],liste=d&&d.liste||[];'
+    'function basculer(c){var n=choisis.indexOf(c.id)>=0?choisis.filter(function(i){return i!==c.id}):choisis.concat([c.id]);'
+    'if(!n.length){oc({comptes:[]});return}'
+    'var ch=[];n.forEach(function(i){var v=liste.find(function(x2){return x2.id===i});v&&ch.indexOf(v.plateforme)<0&&ch.push(v.plateforme)});'
+    'oc({comptes:n,channels:ch})}'
+    'return r.jsxs("div",{"data-dz-post-comptes":p.id,style:{display:"flex",flexDirection:"column",gap:6,marginBottom:12},children:['
+    'r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",textTransform:"uppercase",letterSpacing:".04em"},children:dzT("espaces.post.titre")}),'
+    '!d||d.chargement?r.jsx("div",{style:{fontSize:11.5,color:"var(--ink-muted)"},children:dzT("espaces.etat.chargement")})'
+    ':!liste.length?r.jsx("div",{style:{fontSize:11.5,color:"var(--ink-muted)"},children:dzT("espaces.comptes.aucun")})'
+    ':r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:4},children:liste.map(function(c){var on=choisis.indexOf(c.id)>=0;'
+    'return r.jsxs("label",{"data-dz-post-compte":c.id,style:{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--ink-strong)",cursor:"pointer"},children:['
+    'r.jsx("input",{type:"checkbox",checked:on,onChange:function(){basculer(c)}}),'
+    'r.jsx("span",{style:{fontFamily:"var(--f-mono)",fontSize:10.5,color:"var(--ink-muted)",minWidth:62},children:(d.pl[c.plateforme]||{}).libelle||c.plateforme}),'
+    'r.jsx("span",{"data-dz-brut":"1",children:c.libelle+(c.handle?" "+c.handle:"")}),'
+    '!c.disponible&&r.jsx("span",{style:{fontSize:10.5,color:"var(--amber)"},children:dzT("espaces.comptes.incomplet")})]},c.id)})}),'
+    'esp!=="deepotus"&&!choisis.length&&r.jsx("div",{role:"alert","data-dz-post-sans-compte":"1",style:{fontSize:11.5,color:"var(--amber)"},'
+    'children:dzT("espaces.post.sans_compte")})]})}'
 )
 
 RAIL = 'function tg({view:e,setView:t,collapsed:n,setCollapsed:o}){const i=ji();'
@@ -220,8 +249,8 @@ SHELL_APRES = (
     'var f=p&&p.ecran&&p.ecran.id?p.ecran:e.id==="deepotus"?null:Object.assign(rs(),{id:e.id,name:p&&p.display_name||e.nom});'
     'if(!f){j("deepotus");return}'
     'N(function(I){return I.some(function(M){return M.id===f.id})?I.map(function(M){return M.id===f.id?Object.assign({},M,f):M})'
-    ':I.concat([f])});j(f.id)})}go();window.addEventListener("deepotus:espace-refresh",go);'
-    'return function(){vivant=!1;window.removeEventListener("deepotus:espace-refresh",go)}},[]);'
+    ':I.concat([f])});j(f.id)})}go();function sur(){go();_()}window.addEventListener("deepotus:espace-refresh",sur);'
+    'return function(){vivant=!1;window.removeEventListener("deepotus:espace-refresh",sur)}},[]);'
 )
 
 PAIRES = [
@@ -236,6 +265,14 @@ PAIRES = [
      's==="transfert"&&r.jsx(DzTransfert,{}),s==="espaces"&&r.jsx(DzEspaces,{})]}),r.jsx(Au,{open:!!l,'),
     ('transfert:dzT("reglages.onglet.transfert")};return(e&&dzRubriques',              # S7
      'transfert:dzT("reglages.onglet.transfert"),espaces:dzT("espaces.reglages.onglet")};return(e&&dzRubriques'),
+    # t204 — S8 le mappeur des posts garde l'espace et les comptes ; S9 l'enregistrement différé les envoie ;
+    # S10 l'éditeur montre les comptes de l'espace du post, au-dessus des canaux
+    ('delegueA:e.delegue_a||null}}',                                                    # S8
+     'delegueA:e.delegue_a||null,espaceId:e.espace_id||"deepotus",comptes:e.comptes||[]}}'),
+    ('"channels"in U&&(T.channels=U.channels),',                                        # S9
+     '"channels"in U&&(T.channels=U.channels),"comptes"in U&&(T.comptes=U.comptes),'),
+    ('r.jsx(ie,{label:dzT("scheduler.post.canaux"),',                                   # S10
+     'r.jsx(DzPostComptes,{post:e,onChange:s}),r.jsx(ie,{label:dzT("scheduler.post.canaux"),'),
 ]
 # S3 bis : les DEUX passages de setActivePersonaId (Réglages, Onboarding) — même texte, remplacés ensemble
 PERSO = ("setActivePersonaId:j,savePersona:E", "setActivePersonaId:dzJ,savePersona:E", 2)

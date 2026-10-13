@@ -909,6 +909,33 @@ async def fire_post(post_id: str) -> dict:
             return {"ok": False, "error": "post not found"}
         channels = [c for c in (post.channels or "").split(",") if c]
         sent, errors = [], []
+        # t204 (Espaces de marque E4) : les CIBLES = (clé de remote_ids, canal, compte). Un post qui nomme ses comptes
+        # publie compte par compte (chacun ses identifiants, son quota, sa clé « canal:id ») ; sans comptes, un post de
+        # Deepotus garde le chemin d'avant (canaux, clés plates) ; un post d'un AUTRE espace sans comptes n'est JAMAIS
+        # publié par les clés plates de Deepotus — refusé, dit, le post reste prêt.
+        from app.services import comptes as _cpt
+        espace_post = _cpt.espace_du_post(getattr(post, "espace_id", None))
+        try:
+            ids_comptes = json.loads(post.comptes) if getattr(post, "comptes", None) else []
+        except (ValueError, TypeError):
+            ids_comptes = []
+        cibles: list = []
+        if ids_comptes:
+            for cid in ids_comptes:
+                try:
+                    v = _cpt.verifier_cibles(espace_post, [cid])[0]
+                except (KeyError, PermissionError, ValueError, IndexError) as e:
+                    errors.append(f"compte {cid} : {e if not isinstance(e, KeyError) else 'inconnu (supprimé ?)'}")
+                    continue
+                cibles.append((_cpt.cle_distante(v), v["plateforme"], None if v["historique"] else v["id"]))
+        elif espace_post != "deepotus":
+            post.status = "ready"
+            post.error = (f"aucun compte de diffusion choisi : un post de l'espace « {espace_post} » ne part jamais "
+                          "par les comptes de Deepotus — choisissez ses comptes dans le Planificateur")
+            await session.commit()
+            return {"ok": False, "error": post.error, "status": post.status}
+        else:
+            cibles = [(ch, ch, None) for ch in channels]
         try:
             video = await _job_video_path(post.job_id)
             # When there's no video, attach the post's still image
@@ -946,9 +973,10 @@ async def fire_post(post_id: str) -> dict:
                     res_p = await session.execute(select(ScheduledPost).where(ScheduledPost.id == post.thread_of))
                     amont = res_p.scalar_one_or_none()
                 rid = None
+                cle_x = next((k for k, ch_, _c in cibles if ch_ == "x"), "x")   # t204 : le MÊME compte X que la tête
                 if amont is not None and amont.remote_ids:
                     try:
-                        rid = (json.loads(amont.remote_ids) or {}).get("x")
+                        rid = (json.loads(amont.remote_ids) or {}).get(cle_x)
                     except (ValueError, TypeError):
                         rid = None
                 if not rid:
@@ -958,17 +986,17 @@ async def fire_post(post_id: str) -> dict:
                     await session.commit()
                     return {"ok": False, "error": post.error, "status": post.status}
                 meta["reply_to"] = rid
-            for ch in channels:
-                if ch in remote:
-                    sent.append(f"{ch}: déjà publié ({remote[ch]})")
+            for cle, ch, cid in cibles:
+                if cle in remote:
+                    sent.append(f"{cle}: déjà publié ({remote[cle]})")
                     continue
                 cap = tg_caption if (ch == "telegram" and tg_caption) else (post.caption or post.title)
-                res = await publishers.publish(ch, cap, video, image, meta)
+                res = await publishers.publish(ch, cap, video, image, meta, compte=cid)
                 if res.ok:
                     sent.append(res.detail)
                     if res.remote_id:
-                        remote[ch] = res.remote_id
-                        if ch == "x":
+                        remote[cle] = res.remote_id
+                        if ch == "x" and not post.x_post_id:
                             post.x_post_id = res.remote_id
                 else:
                     errors.append(res.detail)

@@ -99,6 +99,53 @@ async def refresh_all(max_per_channel: int = 10) -> dict[str, int]:
                     p.metrics = json.dumps(m.get("brut", m))   # performance_context lit le format BRUT de X
                 n += 1
             counts[ch] = n
+        # t204 (Espaces de marque E4) : les publications PAR COMPTE (clé « canal:id » de remote_ids) sont lues avec les
+        # identifiants de CE compte ; la métrique garde le canal (les analyses agrègent par canal, comme avant).
+        from app.services import comptes as _cpt
+        par_compte: dict = {}
+        for p in posts:
+            try:
+                rem = json.loads(p.remote_ids) if p.remote_ids else {}
+            except (ValueError, TypeError):
+                rem = {}
+            for k, rid in (rem or {}).items() if isinstance(rem, dict) else ():
+                if ":" in k and rid and k.split(":", 1)[0] in FETCHERS:
+                    par_compte.setdefault(tuple(k.split(":", 1)), []).append((p, rid))
+        for (ch, cid), pairs in par_compte.items():
+            try:
+                bloc = _cpt.sous_compte(cid)
+                bloc.__enter__()
+            except KeyError:
+                continue                             # compte supprimé depuis : plus d'identifiants pour lire
+            try:
+                if not _disponible(ch):
+                    continue
+                borne = max_per_channel
+                if ch == "x":
+                    borne = min(borne, quota.LIMITS["x_lecture"][1] - quota.used("x_lecture"))
+                    if borne <= 0:
+                        continue
+                pairs = pairs[:borne]
+                try:
+                    got = await FETCHERS[ch]([rid for _p, rid in pairs])
+                except Exception as e:
+                    logger.warning(f"metrics {ch}:{cid}: {e}")
+                    continue
+            finally:
+                bloc.__exit__(None, None, None)
+            if ch == "x":
+                quota.count("x_lecture", n=len(pairs))
+            n = 0
+            for p, rid in pairs:
+                m = got.get(rid)
+                if not m:
+                    continue
+                session.add(PostMetric(id=str(uuid4()), post_id=p.id, channel=ch, remote_id=rid,
+                                       views=int(m.get("views", 0)), likes=int(m.get("likes", 0)),
+                                       comments=int(m.get("comments", 0)), shares=int(m.get("shares", 0)),
+                                       saves=int(m.get("saves", 0)), raw=json.dumps(m.get("brut", m))))
+                n += 1
+            counts[f"{ch}:{cid}"] = n
         await session.commit()
     return counts
 

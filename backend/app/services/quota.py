@@ -43,14 +43,19 @@ def _save(d: dict) -> None:
     tmp.replace(_FILE)
 
 
+def _limite(channel: str):
+    """t204 : un compteur PAR COMPTE (« x@c1a2b3c4d ») a le plafond de son canal."""
+    return LIMITS.get(channel) or LIMITS.get(channel.split("@", 1)[0])
+
+
 def used(channel: str, now: datetime | None = None) -> int:
-    lim = LIMITS.get(channel)
+    lim = _limite(channel)
     return int(_load().get(channel, {}).get(_key(lim[0], now), 0)) if lim else 0
 
 
 def check(channel: str, now: datetime | None = None) -> tuple[bool, str]:
     """(True, 'n/plafond') ou (False, message parlant qui nomme la source)."""
-    lim = LIMITS.get(channel)
+    lim = _limite(channel)
     if not lim:
         return True, ""
     n = used(channel, now)
@@ -62,7 +67,7 @@ def check(channel: str, now: datetime | None = None) -> tuple[bool, str]:
 def count(channel: str, now: datetime | None = None, n: int = 1) -> int:
     """+n (1 par défaut) sur la période courante. Synchrone de bout en bout : entre la lecture et l'écriture, la boucle d'événements
     ne rend pas la main — deux publications concurrentes ne peuvent pas perdre un compte."""
-    lim = LIMITS.get(channel)
+    lim = _limite(channel)
     if not lim:
         return 0
     d = _load()
