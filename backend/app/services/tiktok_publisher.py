@@ -28,6 +28,7 @@ import httpx
 from loguru import logger
 
 from app.config import settings, SSL_VERIFY
+from app.services.comptes import cred   # t203 : identifiants du compte courant (clés plates sans compte)
 from app.services import metrics_service, publishers
 from app.services.publishers import PublishResult
 
@@ -45,6 +46,13 @@ POLL_EVERY_S, POLL_MAX = POLL_EVERY_S_DEFAUT, 60   # 5 minutes
 _VERIFS: dict[str, str] = {}
 _VERIFS_MAX = 16
 _jeton: dict = {"valeur": "", "expire": 0.0}
+_jetons: dict = {}                 # t203 : le jeton d'accès PAR COMPTE (le compte historique garde `_jeton`)
+
+
+def _cache() -> dict:
+    from app.services import comptes
+    cid = comptes.courant()
+    return _jeton if not cid else _jetons.setdefault(cid, {"valeur": "", "expire": 0.0})
 
 
 def redirect_uri() -> str:
@@ -56,7 +64,7 @@ def _client(timeout: float = 60.0) -> httpx.AsyncClient:
 
 
 def _scrub(text: str) -> str:
-    for v in (settings.TIKTOK_CLIENT_SECRET, settings.TIKTOK_REFRESH_TOKEN, _jeton["valeur"]):
+    for v in (cred.TIKTOK_CLIENT_SECRET, cred.TIKTOK_REFRESH_TOKEN, _cache()["valeur"]):
         v = (v or "").strip()
         if v:
             text = text.replace(v, "***")
@@ -72,6 +80,7 @@ def _chunks(size: int) -> tuple[int, int]:
 
 def _oublier_jeton() -> None:
     _jeton.update(valeur="", expire=0.0)
+    _jetons.clear()
 
 
 def auth_url(state: str) -> str:
@@ -80,15 +89,15 @@ def auth_url(state: str) -> str:
         _VERIFS.pop(next(iter(_VERIFS)))
     _VERIFS[state] = verif
     return AUTH_URL + "?" + urlencode({
-        "client_key": settings.TIKTOK_CLIENT_KEY, "scope": SCOPES, "redirect_uri": redirect_uri(),
+        "client_key": cred.TIKTOK_CLIENT_KEY, "scope": SCOPES, "redirect_uri": redirect_uri(),
         "state": state, "response_type": "code",
         "code_challenge": hashlib.sha256(verif.encode()).hexdigest(), "code_challenge_method": "S256"})
 
 
 async def _token(grant: dict) -> dict:
     async with _client() as c:
-        r = await c.post(TOKEN_URL, data={"client_key": settings.TIKTOK_CLIENT_KEY,
-                                          "client_secret": settings.TIKTOK_CLIENT_SECRET, **grant},
+        r = await c.post(TOKEN_URL, data={"client_key": cred.TIKTOK_CLIENT_KEY,
+                                          "client_secret": cred.TIKTOK_CLIENT_SECRET, **grant},
                          headers={"Content-Type": "application/x-www-form-urlencoded"})
     j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
     if r.status_code != 200 or not j.get("access_token"):
@@ -112,16 +121,17 @@ async def exchange_code(code: str, state: str) -> str:
 
 
 async def access_token() -> str:
-    if _jeton["valeur"] and time.time() < _jeton["expire"] - 60:
-        return _jeton["valeur"]
-    j = await _token({"grant_type": "refresh_token", "refresh_token": settings.TIKTOK_REFRESH_TOKEN})
-    _jeton.update(valeur=j["access_token"], expire=time.time() + float(j.get("expires_in") or 0))
+    jt = _cache()
+    if jt["valeur"] and time.time() < jt["expire"] - 60:
+        return jt["valeur"]
+    j = await _token({"grant_type": "refresh_token", "refresh_token": cred.TIKTOK_REFRESH_TOKEN})
+    jt.update(valeur=j["access_token"], expire=time.time() + float(j.get("expires_in") or 0))
     neuf = str(j.get("refresh_token") or "")
-    if neuf and neuf != settings.TIKTOK_REFRESH_TOKEN:
-        from app.services import coffre
-        ou = coffre.enregistrer_cle("TIKTOK_REFRESH_TOKEN", neuf)
+    if neuf and neuf != cred.TIKTOK_REFRESH_TOKEN:
+        from app.services import comptes      # t203 : rangé dans le compte qui l'a produit (clé plate sans compte)
+        ou = comptes.garder_secret("TIKTOK_REFRESH_TOKEN", neuf)
         logger.info(f"tiktok : refresh token renouvelé, gardé ({ou})")
-    return _jeton["valeur"]
+    return jt["valeur"]
 
 
 def _erreur(r: httpx.Response) -> str:
@@ -137,7 +147,7 @@ async def publish(caption: str, video_path, image_path, meta: dict) -> PublishRe
         return PublishResult(False, "tiktok: une vidéo est requise (aucun rendu attaché)")
     size = Path(video_path).stat().st_size
     chunk, n = _chunks(size)
-    voulu = meta.get("privacy", "PUBLIC_TO_EVERYONE") if settings.TIKTOK_AUDITED else "SELF_ONLY"
+    voulu = meta.get("privacy", "PUBLIC_TO_EVERYONE") if cred.TIKTOK_AUDITED else "SELF_ONLY"
     try:
         tok = await access_token()
         hdr = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json; charset=UTF-8"}
@@ -189,7 +199,7 @@ async def publish(caption: str, video_path, image_path, meta: dict) -> PublishRe
                 return PublishResult(False, f"tiktok: statut jamais PUBLISH_COMPLETE après {POLL_MAX} sondages")
         ref = post_id or pid
         note = (" — publié en PRIVÉ (client TikTok non audité : SELF_ONLY tant que l'audit n'est pas passé)"
-                if not settings.TIKTOK_AUDITED else "")
+                if not cred.TIKTOK_AUDITED else "")
         return PublishResult(True, f"tiktok: {ref}{note}", ref or None)
     except Exception as e:
         return PublishResult(False, f"tiktok error: {_scrub(str(e))}")
@@ -215,5 +225,5 @@ async def fetch_stats(video_ids: list[str]) -> dict[str, dict]:
     return out
 
 
-publishers.register("tiktok", lambda: settings.has_tiktok, publish)
+publishers.register("tiktok", lambda: cred.has_tiktok, publish)
 metrics_service.FETCHERS["tiktok"] = fetch_stats   # tâche #29 : la passe de métriques

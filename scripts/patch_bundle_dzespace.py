@@ -23,6 +23,8 @@ Maillon de QUEUE, APRÈS encartsia (dont il sonde le marqueur) ; comme lui, il g
 l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzespace` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_encartsia`.
 Lecture et écriture en OCTETS.
+t203 (13/10/2026) : `DzComptesEspace`, sous la liste des espaces, gère les comptes de diffusion de l'espace ACTIF
+(GET/POST/DELETE /api/comptes, /api/channels/test avec `compte`, OAuth par compte) ; aucun secret relu.
 Run : python scripts/patch_bundle_dzespace.py [--check]
 """
 import pathlib
@@ -140,7 +142,69 @@ AIDES = (
     'children:dzT(e.archive?"espaces.action.desarchiver":"espaces.action.archiver")})]},e.id)})}),'
     'r.jsxs("label",{style:{fontSize:12,color:"var(--ink-soft)",display:"flex",gap:6,alignItems:"center"},children:['
     'r.jsx("input",{type:"checkbox",checked:st.arch,onChange:function(ev){maj({arch:ev.target.checked})}}),'
-    'dzT("espaces.reglages.voir_archives")]})]})}'
+    'dzT("espaces.reglages.voir_archives")]}),'
+    'st.actif&&r.jsx(DzComptesEspace,{espace:st.actif,nom:((st.liste||[]).find(function(e){return e.id===st.actif})||{}).nom||""},st.actif)]})}'
+    # t203 — les comptes de diffusion de l'espace ACTIF (plusieurs X, Telegram… par espace). Aucun secret n'est jamais
+    # relu : un champ secret dit « posé » ou non ; une saisie vide ne change rien. OAuth (YouTube, TikTok) PAR compte :
+    # /api/oauth/<p>/start?compte=<id>, l'onglet ouvert AVANT l'appel (sinon le bloqueur de fenêtres le refuse), une
+    # erreur du serveur (400/409) dite dans la ligne. Supprimer = deux clics (jamais de window.confirm).
+    'function DzComptesEspace({espace:esp,nom:nomEsp}){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},'
+    '{data:null,plat:"x",libelle:"",handle:"",err:"",busy:!1,ouvert:"",saisie:{},msg:{},suppr:""});'
+    'function charger(){return fetch("/api/comptes?espace="+encodeURIComponent(esp)).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);'
+    'return r.json()}).then(function(d){maj({data:d})}).catch(function(){maj({err:dzT("espaces.erreur.lecture")})})}'
+    'x.useEffect(function(){charger()},[esp]);'
+    'function agir(p){maj({busy:!0,err:""});return p.then(function(){return charger()}).then(function(){maj({busy:!1})},'
+    'function(e){maj({busy:!1,err:String(e&&e.message||e)})})}'
+    'function dire(id,t){var m=Object.assign({},st.msg);m[id]=t;maj({msg:m})}'
+    'function tester(c){dire(c.id,dzT("espaces.comptes.test_en_cours"));dzEspEnvoyer("/api/channels/test","POST",{channel:c.plateforme,'
+    'compte:c.historique?void 0:c.id}).then(function(j){dire(c.id,(j.ok?"✓ ":"✗ ")+(j.detail||""))},function(e){dire(c.id,"✗ "+(e&&e.message||e))})}'
+    'function connecter(c){var u="/api/oauth/"+c.plateforme+"/start"+(c.historique?"":"?compte="+encodeURIComponent(c.id)),w=null;'
+    'try{w=window.open("","_blank")}catch(_e){}fetch(u,{redirect:"manual"}).then(function(r){if(r.type==="opaqueredirect"||r.status===302){'
+    'w?w.location=u:window.open(u,"_blank");dire(c.id,dzT("espaces.comptes.connexion_ouverte"));return}w&&w.close();'
+    'return r.json().then(function(j){dire(c.id,"✗ "+(j&&j.detail||"HTTP "+r.status))})}).catch(function(e){w&&w.close();dire(c.id,"✗ "+(e&&e.message||e))})}'
+    'function enregistrer(c){var v={};Object.keys(st.saisie).forEach(function(k){var x2=st.saisie[k];if(x2!==""&&x2!=null)v[k]=x2});'
+    'if(!Object.keys(v).length){maj({ouvert:""});return}'
+    'agir(dzEspEnvoyer("/api/comptes/"+encodeURIComponent(c.id),"POST",{valeurs:v})).then(function(){maj({ouvert:"",saisie:{}})})}'
+    'var pl=st.data&&st.data.plateformes||{},cs=st.data&&st.data.comptes||[];'
+    'var bt={fontSize:11.5,padding:"4px 10px",background:"var(--bg-panel-2)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:4,cursor:"pointer"};'
+    'var champ={fontSize:12,padding:"5px 8px",background:"var(--bg-panel-2)",color:"var(--ink-strong)",border:"1px solid var(--stroke)",borderRadius:4};'
+    'return r.jsxs("div",{"data-dz-comptes":esp,style:{display:"flex",flexDirection:"column",gap:10,marginTop:8,paddingTop:14,borderTop:"1px solid var(--stroke)"},children:['
+    'r.jsx("h3",{style:{margin:0,fontSize:14,color:"var(--ink-strong)"},children:dzT("espaces.comptes.titre",{nom:nomEsp})}),'
+    'r.jsx("p",{style:{margin:0,fontSize:12,color:"var(--ink-soft)",maxWidth:640},children:dzT("espaces.comptes.aide")}),'
+    'st.err&&r.jsx("div",{role:"alert",style:{fontSize:12,color:"var(--red)"},children:st.err}),'
+    'st.data&&!cs.length&&r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:dzT("espaces.comptes.aucun")}),'
+    'cs.map(function(c){var ouv=st.ouvert===c.id;return r.jsxs("div",{"data-dz-compte":c.id,style:{display:"flex",flexDirection:"column",gap:6,padding:"8px 10px",'
+    'border:"1px solid var(--stroke)",borderRadius:6,background:"var(--bg-panel)"},children:[r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"},children:['
+    'r.jsx("span",{style:{fontSize:10.5,fontFamily:"var(--f-mono)",color:"var(--ink-muted)",minWidth:64},children:(pl[c.plateforme]||{}).libelle||c.plateforme}),'
+    'r.jsx("strong",{"data-dz-brut":"1",style:{fontSize:13,color:"var(--ink-strong)"},children:c.libelle}),'
+    'c.handle&&r.jsx("span",{"data-dz-brut":"1",style:{fontSize:11.5,color:"var(--ink-soft)"},children:c.handle}),'
+    'r.jsx("span",{style:{fontSize:10.5,color:c.disponible?"var(--green)":"var(--amber)"},children:dzT(c.disponible?"espaces.comptes.disponible":"espaces.comptes.incomplet")}),'
+    'r.jsxs("span",{style:{marginLeft:"auto",display:"flex",gap:6,flexWrap:"wrap"},children:['
+    '!c.historique&&r.jsx("button",{type:"button",style:bt,disabled:st.busy,onClick:function(){maj({ouvert:ouv?"":c.id,saisie:{}})},children:dzT("espaces.comptes.identifiants")}),'
+    'c.oauth&&r.jsx("button",{type:"button",style:bt,onClick:function(){connecter(c)},children:dzT("espaces.comptes.connecter")}),'
+    'r.jsx("button",{type:"button",style:bt,onClick:function(){tester(c)},children:dzT("espaces.comptes.tester")}),'
+    '!c.historique&&(st.suppr===c.id?r.jsx("button",{type:"button","data-dz-compte-suppr":c.id,style:Object.assign({},bt,{color:"var(--red)",borderColor:"var(--red)"}),disabled:st.busy,'
+    'onClick:function(){maj({suppr:""});agir(fetch("/api/comptes/"+encodeURIComponent(c.id),{method:"DELETE"}).then(function(r2){if(!r2.ok)return r2.json().catch(function(){return{}})'
+    '.then(function(j){throw new Error(j&&j.detail||"HTTP "+r2.status)})}))},children:dzT("espaces.comptes.confirmer")})'
+    ':r.jsx("button",{type:"button",style:bt,onClick:function(){maj({suppr:c.id})},children:dzT("espaces.comptes.supprimer")}))]})]}),'
+    'c.historique&&r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("espaces.comptes.historique")}),'
+    'st.msg[c.id]&&r.jsx("div",{"data-dz-compte-msg":c.id,style:{fontSize:11.5,color:"var(--ink-soft)"},children:st.msg[c.id]}),'
+    'ouv&&r.jsxs("form",{onSubmit:function(ev){ev.preventDefault();enregistrer(c)},style:{display:"grid",gridTemplateColumns:"minmax(160px,auto) 1fr",gap:6,alignItems:"center"},children:['
+    'c.champs.map(function(f){var val=st.saisie[f.nom];return[r.jsx("label",{style:{fontSize:11,fontFamily:"var(--f-mono)",color:"var(--ink-soft)"},children:f.nom},f.nom+"l"),'
+    'f.nom==="TIKTOK_AUDITED"?r.jsx("input",{type:"checkbox","aria-label":f.nom,checked:val!=null?!!val:!!f.valeur,onChange:function(ev){var z=Object.assign({},st.saisie);'
+    'z[f.nom]=ev.target.checked;maj({saisie:z})}},f.nom):r.jsx("input",{type:f.secret?"password":"text","aria-label":f.nom,autoComplete:"off",'
+    'value:val!=null?val:f.secret?"":f.valeur||"",placeholder:f.secret&&f.pose?dzT("espaces.comptes.pose"):"",onChange:function(ev){var z=Object.assign({},st.saisie);'
+    'z[f.nom]=ev.target.value;maj({saisie:z})},style:champ},f.nom)]}),'
+    'r.jsx("span",{}),r.jsx("span",{children:r.jsx("button",{type:"submit",style:bt,disabled:st.busy,children:dzT("espaces.comptes.enregistrer")})})]})]},c.id)}),'
+    'r.jsxs("form",{"data-dz-compte-nouveau":"1",onSubmit:function(ev){ev.preventDefault();agir(dzEspEnvoyer("/api/comptes","POST",{espace_id:esp,plateforme:st.plat,'
+    'libelle:st.libelle.trim(),handle:st.handle.trim()})).then(function(){maj({libelle:"",handle:""})})},style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"},children:['
+    'r.jsx("select",{value:st.plat,"aria-label":dzT("espaces.comptes.plateforme"),onChange:function(ev){maj({plat:ev.target.value})},style:champ,'
+    'children:Object.keys(pl).map(function(k){return r.jsx("option",{value:k,children:pl[k].libelle},k)})}),'
+    'r.jsx("input",{value:st.libelle,maxLength:80,placeholder:dzT("espaces.comptes.libelle"),"aria-label":dzT("espaces.comptes.libelle"),'
+    'onChange:function(ev){maj({libelle:ev.target.value})},style:champ}),'
+    'r.jsx("input",{value:st.handle,maxLength:80,placeholder:dzT("espaces.comptes.handle"),"aria-label":dzT("espaces.comptes.handle"),'
+    'onChange:function(ev){maj({handle:ev.target.value})},style:champ}),'
+    'r.jsx("button",{type:"submit",style:bt,disabled:st.busy||!st.data,children:dzT("espaces.comptes.ajouter")})]})]})}'
 )
 
 RAIL = 'function tg({view:e,setView:t,collapsed:n,setCollapsed:o}){const i=ji();'

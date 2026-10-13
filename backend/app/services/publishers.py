@@ -37,7 +37,24 @@ def available_channels() -> set[str]:
 
 
 async def publish(channel: str, caption: str, video_path: Optional[str],
-                  image_path: Optional[str], meta: dict | None = None) -> PublishResult:
+                  image_path: Optional[str], meta: dict | None = None, compte: Optional[str] = None) -> PublishResult:
+    """t203 : `compte` (id d'un compte de diffusion) -> l'adaptateur lit SES identifiants ; sans compte, les clés plates
+    d'avant (comportement inchangé). Un compte d'une autre plateforme ou inconnu est refusé sans appel réseau."""
+    if compte:
+        from app.services import comptes
+        try:
+            v = comptes.obtenir(compte)
+        except KeyError:
+            return PublishResult(False, f"{channel}: compte inconnu ({compte})")
+        if v["plateforme"] != channel:
+            return PublishResult(False, f"{channel}: le compte {compte} est un compte {v['plateforme']}")
+        with comptes.sous_compte(compte):
+            return await _publier(channel, caption, video_path, image_path, meta)
+    return await _publier(channel, caption, video_path, image_path, meta)
+
+
+async def _publier(channel: str, caption: str, video_path: Optional[str],
+                   image_path: Optional[str], meta: dict | None = None) -> PublishResult:
     entry = _REGISTRY.get(channel)
     if not entry or not entry[0]():
         return PublishResult(False, f"{channel}: assisted (no auto adapter)")
