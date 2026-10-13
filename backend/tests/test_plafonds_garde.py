@@ -28,6 +28,8 @@ def check(label, cond, detail=""):
 # Les routes qui DÉPENSENT, relevées le 29/09 (rapport de classement + lecture du code). Une route neuve qui atteint
 # un puits sans être ici rougit A2 ; une route d'ici qui perd sa garde rougit A1.
 PAYANTES = {
+    ("routes", "POST", "/espaces/{espace_id}/onboarding/vignettes"),   # t205 : vignettes d'ambiance (FLUX)
+    ("routes", "POST", "/espaces/{espace_id}/onboarding/synthese"),    # t205 : synthèse du persona par LLM (sur demande)
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
     ("photolab", "POST", "/calque/detourer"),    # t191 : « Retirer le fond du calque » (détourage, non destructif)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer

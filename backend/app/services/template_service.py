@@ -390,6 +390,9 @@ class TemplateEngine:
         tpl = deplier(_convertir(tpl))   # tâche #76 : un gabarit envoyé en ligne peut porter encore un bloc `transitions`
         if not _bk.jetons(tpl):
             return tpl
+        if kit is None:                       # t205 bis : le kit des contenus de l'ESPACE courant (jamais l'interface)
+            from app.services import espaces as _es
+            kit = _es.kit_de_l_espace()
         return _bk.appliquer(tpl, kit)
 
     def render(

@@ -7671,6 +7671,123 @@ async def put_espace_persona(espace_id: str, body: dict, request: Request):
         raise HTTPException(400, str(e))
 
 
+# ---- t205 (Espaces de marque E5) : l'ONBOARDING d'un persona (8 étapes, brouillon par espace). Lecture libre ;
+# écritures locales ; vignettes et synthèse par LLM payantes (clé vérifiée AVANT la garde, puis plafond).
+
+def _onb_espace(espace_id: str) -> str:
+    from app.services import espaces as _es
+    if not _es.id_valide(espace_id) or espace_id not in _es.lire()["espaces"]:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    return espace_id
+
+
+@router.get("/espaces/{espace_id}/onboarding")
+async def get_onboarding(espace_id: str):
+    """Le brouillon, les 4 directions d'ambiance, les DEVIS (vignettes, synthèse par LLM) et la disponibilité des
+    voies payantes. Aucune garde, aucune dépense."""
+    from app.services import onboarding_persona as _onb, pricing as _pr, plafonds as _PLAF, summarizer as _sm
+    eid = _onb_espace(espace_id)
+    d = _onb.brouillon(eid)
+    d["directions"] = d.get("directions") or _onb.directions(d)
+    d["devis"] = {"vignettes": _pr.estimate({"kind": "image", "n": 4, "model": "flux"}),
+                  "llm": _pr.estimate(_PLAF.op_llm(*_onb.jetons_llm()))}
+    d["voies"] = {"vignettes": bool(settings.FAL_KEY), "llm": bool(_sm._available_providers())}
+    d["etapes_connues"] = list(_onb.ETAPES)
+    return d
+
+
+@router.put("/espaces/{espace_id}/onboarding/{etape}")
+async def put_onboarding_etape(espace_id: str, etape: str, body: dict, request: Request):
+    _require_localhost(request)
+    from app.services import onboarding_persona as _onb
+    eid = _onb_espace(espace_id)
+    try:
+        return _onb.enregistrer_etape(eid, etape, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/espaces/{espace_id}/onboarding")
+async def delete_onboarding(espace_id: str, request: Request):
+    _require_localhost(request)
+    from app.services import onboarding_persona as _onb
+    _onb.effacer(_onb_espace(espace_id))
+    return {"efface": espace_id}
+
+
+@router.post("/espaces/{espace_id}/onboarding/lire-url")
+async def onboarding_lire_url(espace_id: str, body: dict, request: Request):
+    """Lit la page PUBLIQUE du produit (jamais une adresse privée, chaque redirection revérifiée) : nom et pitch proposés."""
+    _require_localhost(request)
+    from app.services import onboarding_persona as _onb
+    _onb_espace(espace_id)
+    try:
+        return await asyncio.to_thread(_onb.lire_url, str((body or {}).get("url") or ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:  # noqa: BLE001 — le réseau
+        raise HTTPException(502, f"page illisible : {e}"[:300])
+
+
+@router.post("/espaces/{espace_id}/onboarding/vignettes", dependencies=[Depends(_require_local_depense)])
+async def onboarding_vignettes(espace_id: str, body: dict | None = None):
+    """Les vignettes des directions d'ambiance (FLUX schnell, une image par direction ; `ids` pour n'en tirer que
+    certaines). Clé fal absente : 503 AVANT la garde ; puis le plafond ; puis les tirs."""
+    from app.services import onboarding_persona as _onb
+    eid = _onb_espace(espace_id)
+    d = _onb.brouillon(eid)
+    dirs = d.get("directions") or _onb.directions(d)
+    voulus = (body or {}).get("ids")
+    cibles = [x for x in dirs if not voulus or x["id"] in voulus]
+    if not cibles:
+        raise HTTPException(400, "aucune direction à illustrer")
+    if not settings.FAL_KEY:
+        raise HTTPException(503, "Clé FAL_KEY à ajouter dans Réglages : les vignettes passent par fal.")
+    await _plafond({"kind": "image", "n": len(cibles), "model": "flux"}, "reglages", f"onboarding:{eid}")
+    faites = {}
+    for x in cibles:
+        out = await _flux_generate(x["prompt"], "square_hd", 1)
+        if out.get("images"):
+            faites[x["id"]] = out["images"][0]
+    try:
+        from app.services import library_index as LI
+        await LI.noter(list(faites.values()), "generation")
+    except Exception as e:  # noqa: BLE001 — l'index ne fait jamais échouer
+        logger.warning(f"onboarding : index Bibliothèque : {e}")
+    return _onb.poser_vignettes(eid, faites)
+
+
+@router.post("/espaces/{espace_id}/onboarding/synthese")
+async def onboarding_synthese(espace_id: str, body: dict, request: Request):
+    """La proposition de persona : sans IA (gratuite, toujours possible) ou par LLM ({"llm": true} : clé vérifiée
+    AVANT la garde, plafond, repli sur la manuelle s'il ne rend rien de lisible). Rien n'est écrit dans le persona."""
+    _require_localhost(request)
+    from app.services import onboarding_persona as _onb
+    eid = _onb_espace(espace_id)
+    if (body or {}).get("llm"):
+        from app.services import summarizer as _sm, plafonds as _PLAF
+        if not _sm._available_providers():
+            raise HTTPException(503, "Aucun LLM configuré (Réglages → clés API) : utilisez la synthèse sans IA.")
+        await _plafond(_PLAF.op_llm(*_onb.jetons_llm()), "reglages", f"onboarding:{eid}")
+        prop = await asyncio.to_thread(_onb.synthese_llm, eid)
+    else:
+        prop = _onb.synthese_manuelle(eid)
+    _onb.proposer(eid, prop)
+    return prop
+
+
+@router.post("/espaces/{espace_id}/onboarding/valider")
+async def onboarding_valider(espace_id: str, body: dict, request: Request):
+    """Écrit la proposition (éventuellement corrigée : {"proposition": …}) dans le persona de l'espace."""
+    _require_localhost(request)
+    from app.services import onboarding_persona as _onb
+    eid = _onb_espace(espace_id)
+    try:
+        return _onb.valider(eid, (body or {}).get("proposition"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.get("/espaces/{espace_id}/contenus")
 async def get_espace_contenus(espace_id: str):
     from app.services import espaces as _es

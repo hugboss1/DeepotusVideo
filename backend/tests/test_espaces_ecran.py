@@ -62,11 +62,31 @@ check("0.11 node --check du bundle", r.returncode == 0, r.stderr[:300])
 
 print("\n[1] le dictionnaire")
 ZONE = json.loads((RACINE / "frontend/shared/i18n/espaces.json").read_text(encoding="utf-8"))
-cles = set(re.findall(r'"(espaces\.[a-z_.]+)"', s))          # dzT("…") et le ternaire archiver/desarchiver
+cles = {k for k in re.findall(r'"(espaces\.[a-z_.]+)"', s) if not k.endswith(".")}   # t205 : un préfixe de clé composée n'est pas une clé          # dzT("…") et le ternaire archiver/desarchiver
 check("1.1 au moins 18 clés espaces.* lues dans le bundle", len(cles) >= 18, str(sorted(cles)))
+# (les clés composées de l'assistant t205 sont contrôlées en 1.2b)
 manq = [k for k in cles if not (ZONE.get(k, {}).get("fr") and ZONE.get(k, {}).get("en"))]
 check("1.2 chacune a son français ET son anglais", not manq, str(manq))
-check("1.3 aucune clé morte dans espaces.json", set(ZONE) <= cles, str(set(ZONE) - cles))
+# t205 : l'assistant d'onboarding construit ses clés (étapes, champs, curseurs, directions, champs de proposition)
+# à partir de sa table DZ_ONB_ETAPES : ces clés-là sont recomposées ici depuis la même table, lue dans le maillon.
+import re as _re
+_tab = _re.search(r"var DZ_ONB_ETAPES=(\[.*?\]\]\]);", M.AIDES)
+ETAPES_ONB = json.loads(_tab.group(1)) if _tab else []
+DYN = set()
+for _k, _champs in ETAPES_ONB:
+    DYN |= {"espaces.onb.etape." + _k, "espaces.onb.aide." + _k}
+    for _c, _g in _champs:
+        DYN.add(f"espaces.onb.champ.{_k}.{_c}")
+        if _g == "n":
+            DYN |= {f"espaces.onb.curseur.{_c}.bas", f"espaces.onb.curseur.{_c}.haut"}
+DYN |= {"espaces.onb.personnage." + x for x in ("mascotte", "humain", "abstrait", "aucun")}
+DYN |= {"espaces.onb.direction." + x for x in ("cinema", "lumineux", "graphique", "organique")}
+_CH = _re.search(r"var CH=(\[\[.*?\]\]);", M.AIDES)
+DYN |= {"espaces.onb.prop." + c[0].replace(".", "_", 1) for c in (json.loads(_CH.group(1)) if _CH else [])}
+check("1.2b chaque clé COMPOSÉE par l'assistant existe en français et en anglais",
+      len(ETAPES_ONB) == 8 and all(ZONE.get(k, {}).get("fr") and ZONE.get(k, {}).get("en") for k in DYN),
+      str(sorted(k for k in DYN if not (ZONE.get(k, {}).get("fr") and ZONE.get(k, {}).get("en")))))
+check("1.3 aucune clé morte dans espaces.json", set(ZONE) <= cles | DYN, str(set(ZONE) - cles - DYN))
 dico = (RACINE / "frontend/shared/dz-i18n-dico.js").read_text(encoding="utf-8")
 check("1.4 le dictionnaire assemblé les porte (et sa copie dist est identique)",
       all(json.dumps(k) in dico for k in cles)
@@ -144,8 +164,13 @@ except Exception:
     o = {}
     print(r.stdout[-800:], r.stderr[-1500:])
 check("2.1 activer : POST …/activate puis GET /api/espaces", o.get("activer", [])[:2] == ["POST /api/espaces/esp_r/activate {}", "GET /api/espaces"], str(o.get("activer")))
-check("2.2 ... puis deepotus:espace-refresh ET deepotus:brand-refresh (la carte de marque relit le kit)",
-      o.get("evts") == ["deepotus:espace-refresh", "deepotus:brand-refresh"] and o.get("cache") == "esp_r", str(o.get("evts")))
+# Décision de l'utilisateur (13/10/2026, après t205) : le logo et le nom de l'application ne suivent JAMAIS l'espace —
+# activer un espace ne rafraîchit plus le branding (le kit de l'interface ne change pas).
+check("2.2 ... puis deepotus:espace-refresh SEUL (jamais deepotus:brand-refresh : l'interface garde son kit)",
+      o.get("evts") == ["deepotus:espace-refresh"] and o.get("cache") == "esp_r", str(o.get("evts")))
+check("2.2b le choix du kit d'un espace propose d'abord « Kit de Branding » (vide = suivre l'application)",
+      'children:[r.jsx("option",{value:"",\'\n    \'children:dzT("espaces.champ.kit_branding")}' in open(RACINE / "scripts/patch_bundle_dzespace.py", encoding="utf-8").read().replace("\r\n", "\n")
+      or 'children:[r.jsx("option",{value:"",children:dzT("espaces.champ.kit_branding")},"__branding")]' in M.AIDES)
 check("2.3 un refus rend le `detail` du serveur, sans événement", o.get("refus") == "espace inconnu : esp_x" and o.get("evtsRefus") == [], str(o.get("refus")))
 check("2.4 enregistrer le persona de l'écran : PUT dans l'espace ACTIF, `ecran` posé, les autres champs gardés",
       (o.get("ecrit") or {}).get("ecran") == {"id": "rip", "name": "Rip"} and (o.get("ecrit") or {}).get("display_name") == "Rippled"
@@ -210,6 +235,34 @@ check("6.4 un post hors Deepotus sans compte est signalé ; la liste vient de l'
 _i = s.find("function Lm(")
 check("6.5 test_scheduler_bundle : le rechargement reste dans les 3000 caractères après function Lm(",
       all(0 <= s.find(a, _i) - _i < 3000 for a in ("deepotus:schedule-reload", "function R(){o&&o()}", "reloadPosts:o")))
+
+print("\n[7] t205 : l'assistant d'onboarding du persona")
+_OB = M.AIDES[M.AIDES.find("function DzOnboardingPersona("):]
+check("7.1 un bouton « Définir le persona » par espace non archivé ; l'assistant monté une fois",
+      '!e.archive&&r.jsx("button",{type:"button","data-dz-onb-ouvrir":e.id' in M.AIDES and s.count("function DzOnboardingPersona(") == 1
+      and 'st.onb&&r.jsx(DzOnboardingPersona,' in M.AIDES)
+check("7.2 huit étapes dans l'ordre de la spec D3",
+      [e[0] for e in ETAPES_ONB] == ["produit", "audience", "personnage", "ton", "ambiance", "references", "interdits", "synthese"])
+check("7.3 chaque passage d'étape ENREGISTRE l'étape (PUT) avant de changer",
+      'function aller(j){faire(enregistrer().then(' in _OB and 'return dzEspEnvoyer(base+"/"+k,"PUT",v)' in _OB)
+check("7.4 vignettes et synthèse par IA : prix affiché, bouton grisé sans la voie (clé)",
+      'dzT("espaces.onb.generer_vignettes",{prix:st.d&&st.d.voies&&st.d.voies.vignettes?usd(dv)' in _OB
+      and 'disabled:st.busy||!(st.d&&st.d.voies&&st.d.voies.vignettes)' in _OB
+      and 'dzT("espaces.onb.synthese_llm",{prix:st.d&&st.d.voies&&st.d.voies.llm?usd(dv)' in _OB
+      and ':dzT("espaces.onb.sans_llm")' in _OB and 'disabled:st.busy||!(st.d&&st.d.voies&&st.d.voies.llm)' in _OB)
+check("7.4b jamais un prix vide entre parenthèses : sans voie, le bouton dit pourquoi (clé, aucun LLM)",
+      _OB.count('usd(dv)||dzT("ia.prix.a_mesurer")') == 2)
+check("7.9 clés React PRÉFIXÉES pour l'assistant et les comptes (même id d'espace côte à côte : sinon instances dupliquées, vu à l'écran)",
+      '"onb:"+st.onb)' in M.AIDES and '"cpt:"+st.actif)' in M.AIDES and ",st.onb)" not in M.AIDES and ",st.actif)]" not in M.AIDES)
+check("7.5 rien n'est écrit dans le persona avant VALIDER ; valider rafraîchit l'espace (persona d'écran relu)",
+      _OB.count('base+"/valider"') == 1 and "dzEspSignal();" in _OB[_OB.find('base+"/valider"'):])
+check("7.6 aucune fenêtre du navigateur (prompt/confirm/alert), dialogue modal accessible",
+      not any(x in _OB for x in ("window.prompt", "window.confirm", "alert(")) and 'role:"dialog","aria-modal":"true"' in _OB)
+check("7.8 une liste « séparée par des virgules » se tape BRUTE (la virgule reste), convertie à l'enregistrement et à la validation",
+      'onChange:function(ev){poser(n,ev.target.value)}' in _OB and 'c[1]==="l"&&!Array.isArray(st.f[c[0]])?liste(st.f[c[0]])' in _OB
+      and 'onChange:function(ev){pp(ch,ev.target.value)}' in _OB and '{proposition:propre()}' in _OB
+      and "poser(n,liste(" not in _OB and "pp(ch,liste(" not in _OB)
+check("7.7 toujours aucun useState (731) et le bundle passe node --check", "x.useState(" not in M.AIDES and s.count("x.useState(") == 731)
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)
