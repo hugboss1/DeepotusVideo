@@ -61,6 +61,8 @@ class JobRecord(Base):
     # Bibliothèque #77 (03/10/2026) — favori du rendu, 1 = favori, NULL/0 = non. Il vivait dans le
     # navigateur (localStorage `dz_fav_renders`) ; INDÉPENDANT de `rating` (décision de l'utilisateur).
     fav: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # t209 (Espaces de marque E9) : l'espace de création, figé par la requête ; vide = d'avant les espaces = Deepotus
+    espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True, default=lambda: _espace_par_defaut())
 
 
 class MeshyTaskRecord(Base):
@@ -373,6 +375,8 @@ class LibraryAsset(Base):
     # Tâche #82 PR C (04/10/2026) : la LÉGENDE d'une image par un modèle vision (payant, prix annoncé), et ce modèle
     legende: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     legende_modele: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+    # t209 (Espaces de marque E9) : l'espace de création, figé par la requête ; vide = d'avant les espaces = Deepotus
+    espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True, default=lambda: _espace_par_defaut())
 
 
 class LibraryComment(Base):
@@ -404,6 +408,8 @@ class LibraryProject(Base):
     epingle: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime,
                                                  default=datetime.utcnow)
+    # t209 (Espaces de marque E9) : l'espace de création, figé par la requête ; vide = d'avant les espaces = Deepotus
+    espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True, default=lambda: _espace_par_defaut())
 
 
 class LibraryProjectItem(Base):
@@ -613,6 +619,8 @@ class Depense(Base):
     reel_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     reel_unites: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     ref: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    # t209 (Espaces de marque E9) : l'espace de création, figé par la requête ; vide = d'avant les espaces = Deepotus
+    espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True, default=lambda: _espace_par_defaut())
 
 
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
@@ -671,6 +679,8 @@ V1_2_NEW_COLUMNS = [
     ("parent_job_id", "VARCHAR(36)"),
     # Bibliothèque #77 (03/10/2026) — favori du rendu, repris du navigateur
     ("fav", "INTEGER"),
+    # t209 (Espaces de marque E9) : l'espace du job
+    ("espace_id", "VARCHAR(40)"),
 ]
 
 
@@ -767,7 +777,14 @@ LIBRARY_ASSETS_COLUMNS = [
     ("couleur", "VARCHAR(7)"), ("teinte", "VARCHAR(12)"),
     ("recette", "TEXT"),   # tâche #80
     ("legende", "TEXT"), ("legende_modele", "VARCHAR(60)"),   # tâche #82 PR C
+    ("espace_id", "VARCHAR(40)"),   # t209 (Espaces de marque E9)
 ]
+
+# t209 (Espaces de marque E9, 14/10/2026) — projets de la Bibliothèque et dépenses rattachés à un espace. Une ligne
+# d'avant (espace vide) est de Deepotus. `depenses` est aussi créée à la volée par plafonds._registre, qui pose la
+# colonne de la même façon sur une base ouverte sans init_db.
+LIBRARY_PROJECTS_COLUMNS = [("espace_id", "VARCHAR(40)")]
+DEPENSES_COLUMNS = [("espace_id", "VARCHAR(40)")]
 
 
 async def _auto_migrate():
@@ -844,7 +861,9 @@ async def _auto_migrate():
                                ("bible_entities", BIBLE_ENTITIES_COLUMNS),
                                ("shots", SHOTS_COLUMNS),
                                ("vector_docs", VECTOR_DOCS_COLUMNS),
-                               ("library_assets", LIBRARY_ASSETS_COLUMNS)):
+                               ("library_assets", LIBRARY_ASSETS_COLUMNS),
+                               ("library_projects", LIBRARY_PROJECTS_COLUMNS),
+                               ("depenses", DEPENSES_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:

@@ -282,7 +282,7 @@ async def reconcilier() -> int:
 _CHAMPS = ("source", "origin", "kind", "tags", "fav", "note",
            "parent_filename", "relation", "licence", "auteur", "source_url",
            "sha256", "taille_o", "couleur", "teinte",
-           "job_id", "deck_id", "doc_id")
+           "job_id", "deck_id", "doc_id", "espace_id")
 
 _CHAMPS_EDITABLES = ("tags", "fav", "note", "licence", "auteur",
                      "source_url", "parent_filename", "relation")

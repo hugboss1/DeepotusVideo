@@ -311,6 +311,7 @@
   "erreur.2272adc4dc": {"fr": "Raffinement 3D", "en": "Refine 3D", "src": "en"},
   "erreur.227a9755a5": {"fr": "order : les indices de frames sont des entiers", "en": "order: frame indices are integers", "src": "en"},
   "erreur.22bf3e0f84": {"fr": "Le fichier ne contient pas un graphe Studio (objet JSON attendu).", "en": "The file does not contain a Studio graph (JSON object expected).", "src": "fr"},
+  "erreur.22c93c7f8d": {"fr": "espace inconnu : {espace}", "en": "unknown space: {espace}", "src": "fr"},
   "erreur.22e571cc54": {"fr": "pdf : taille de page nulle", "en": "pdf: zero page size", "src": "fr"},
   "erreur.22fed7cfb0": {"fr": "entity_id attendu", "en": "entity_id expected", "src": "fr"},
   "erreur.230535c4c0": {"fr": "aucune app native ouverte : rien à reprendre", "en": "no native app open: nothing to bring back", "src": "fr"},

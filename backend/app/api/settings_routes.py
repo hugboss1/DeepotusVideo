@@ -277,15 +277,44 @@ async def plafonds_ecrire(body: dict, request: Request):
     return P.enregistrer(body)
 
 
-@router.get("/depenses")
-async def depenses(request: Request, mois: str | None = None):
-    """Tâche #21 : le tableau réel contre estimé du mois (ou `mois=AAAA-MM`). Le registre commence le jour où la
-    garde des plafonds a été installée : `depuis` le dit, plutôt que de laisser croire à un historique qui n'existe pas."""
-    _local(request)
-    from app.services import plafonds as P
+def _mois_lisible(mois: str | None) -> None:
     if mois is not None and not (len(mois) == 7 and mois[4] == "-" and mois[:4].isdigit() and mois[5:].isdigit()):
         raise HTTPException(400, "mois illisible : AAAA-MM attendu")
-    return await P.tableau(mois)
+
+
+@router.get("/depenses")
+async def depenses(request: Request, mois: str | None = None, espace: str | None = None):
+    """Tâche #21 : le tableau réel contre estimé du mois (ou `mois=AAAA-MM`). Le registre commence le jour où la
+    garde des plafonds a été installée : `depuis` le dit, plutôt que de laisser croire à un historique qui n'existe pas.
+    t209 (Espaces de marque E9) : `espace` restreint à un espace (absent ou « * » = tout)."""
+    _local(request)
+    from app.services import plafonds as P
+    _mois_lisible(mois)
+    return await P.tableau(mois, espace)
+
+
+@router.get("/depenses/espaces")
+async def depenses_par_espace(request: Request, mois: str | None = None):
+    """t209 : le mois de chaque espace (estimé, réel, effectif, plafond propre, pourcentage)."""
+    _local(request)
+    from app.services import plafonds as P
+    _mois_lisible(mois)
+    return await P.par_espace(mois)
+
+
+@router.get("/depenses/releve")
+async def depenses_releve(request: Request, espace: str, mois: str | None = None):
+    """t209 : le relevé CSV d'un espace pour un mois, à remettre à un client (pièce jointe)."""
+    _local(request)
+    from fastapi.responses import Response
+    from app.i18n import erreurs as _ERR
+    from app.services import espaces as _es, plafonds as P
+    _mois_lisible(mois)
+    if espace not in _es.lire()["espaces"]:
+        raise HTTPException(404, f"espace inconnu : {espace}")
+    nom, texte = await P.releve(espace, mois, _ERR.langue(request))
+    return Response(content=texte.encode("utf-8"), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
 
 
 @router.get("/plafonds/etat")
@@ -293,8 +322,7 @@ async def plafonds_etat(request: Request, mois: str | None = None):
     """Le mois en cours (ou `mois=AAAA-MM`) : estimé, réel, effectif, pourcentages et alertes, global et par moteur."""
     _local(request)
     from app.services import plafonds as P
-    if mois is not None and not (len(mois) == 7 and mois[4] == "-" and mois[:4].isdigit() and mois[5:].isdigit()):
-        raise HTTPException(400, "mois illisible : AAAA-MM attendu")
+    _mois_lisible(mois)
     return await P.etat(mois)
 
 

@@ -53,8 +53,17 @@ def couleur_valide(c) -> bool:
     return c in (None, "") or bool(_COULEUR.match(str(c)))
 
 
+def cle_actif(eid: str | None = None) -> str:
+    """t209 (Espaces de marque E9) : le projet actif est propre à chaque espace. Deepotus garde la clé d'avant (sa
+    valeur ne bouge pas) ; un autre espace a la sienne."""
+    from app.services import espaces as _es
+    eid = eid or _es.espace_courant()
+    return CLE_ACTIF if eid == "deepotus" else f"{CLE_ACTIF}:{eid}"[:60]
+
+
 def _vue(p, n: int | None = None) -> dict:
-    d = {"id": p.id, "nom": p.nom, "couleur": p.couleur, "epingle": bool(p.epingle)}
+    d = {"id": p.id, "nom": p.nom, "couleur": p.couleur, "epingle": bool(p.epingle),
+         "espace_id": p.espace_id or "deepotus"}
     if n is not None:
         d["n"] = n
     return d
@@ -75,14 +84,20 @@ async def creer(nom: str, couleur: str | None = None, epingle: bool = False) -> 
         return _vue(p)
 
 
-async def lister(ref: str | None = None) -> list[dict]:
-    """Tous les projets, ou seulement ceux qui contiennent `ref` — la question
-    « où sert cet asset ? ». Chacun porte son nombre d'items."""
+async def lister(ref: str | None = None, espace: str | None = None) -> list[dict]:
+    """Les projets de l'espace `espace` (None = l'espace courant, « * » = tous — t209), ou seulement ceux qui
+    contiennent `ref`, quel que soit leur espace — la question « où sert cet asset ? ». Chacun porte son nombre
+    d'items."""
+    from app.services import espaces as _es
     _A, P, I, S = _t()
     async with S() as s:
         q = select(P)
         if ref:
             q = q.join(I, I.project_id == P.id).where(I.ref == str(ref))
+        else:
+            cond = _es.filtre(P.espace_id, espace if espace is not None else _es.espace_courant())
+            if cond is not None:
+                q = q.where(cond)
         projets = list((await s.execute(q.order_by(P.created_at.desc()))).scalars())
         cnt = dict((await s.execute(select(I.project_id, func.count()).group_by(I.project_id))).fetchall())
     return [_vue(p, cnt.get(p.id, 0)) for p in projets]
@@ -174,8 +189,8 @@ async def supprimer(pid: str) -> None:
             raise KeyError(pid)
         await s.execute(delete(I).where(I.project_id == pid))
         await s.delete(p)
-        row = await s.get(A, CLE_ACTIF)
-        if row is not None and row.value == pid:
+        # t209 : il peut être l'actif de son espace (clé propre à chaque espace)
+        for row in (await s.execute(select(A).where(A.key.like(CLE_ACTIF + "%"), A.value == pid))).scalars():
             row.value = ""
         await s.commit()
 
@@ -216,7 +231,7 @@ async def actif() -> dict:
     se lit vide (jamais un rangement dans le vide)."""
     A, P, _I, S = _t()
     async with S() as s:
-        row = await s.get(A, CLE_ACTIF)
+        row = await s.get(A, cle_actif())
         pid = (row.value or "") if row is not None else ""
         p = await s.get(P, pid) if pid else None
         return {"id": p.id, "nom": p.nom} if p is not None else {"id": ""}
@@ -229,9 +244,10 @@ async def poser_actif(pid: str) -> dict:
     async with S() as s:
         if pid and await s.get(P, pid) is None:
             raise KeyError(pid)
-        row = await s.get(A, CLE_ACTIF)
+        cle = cle_actif()
+        row = await s.get(A, cle)
         if row is None:
-            row = A(key=CLE_ACTIF)
+            row = A(key=cle)
             s.add(row)
         row.value = pid
         await s.commit()

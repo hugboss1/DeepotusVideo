@@ -3666,7 +3666,9 @@ async def generate_news_illustration_route(
 # ---- Images ----
 
 @router.get("/images")
-async def list_images():
+async def list_images(espace: str | None = None):
+    """t209 (Espaces de marque E9) : `espace` filtre la Bibliothèque (« * » ou absent = tout, comme avant) ; un fichier
+    jamais indexé est de Deepotus."""
     folder = settings.images_path
     if not folder.exists():
         return {"folder": str(folder), "images": [], "sources": LI.SOURCES,
@@ -3704,6 +3706,9 @@ async def list_images():
         for c in ("parent_filename", "relation", "licence", "auteur",
                   "source_url", "couleur", "teinte"):
             setattr(it, c, connu.get(c))
+    if espace and espace != "*":
+        from app.services import espaces as _es
+        items = [it for it in items if _es.de_l_espace((prov.get(it.filename) or {}).get("espace_id"), espace)]
     # le catalogue slug -> libellé voyage avec la liste : les chips du front
     # le lisent ici (source unique, 02/10/2026 — « mobile » sortait en slug)
     return {"folder": str(folder), "images": [i.model_dump() for i in items],
@@ -4185,10 +4190,11 @@ async def _corps_objet(request: Request) -> dict:
 
 
 @router.get("/library/projets")
-async def library_projets(ref: str | None = None):
-    """Tous les projets (avec leur nombre d'items), ou ceux qui contiennent `ref`."""
+async def library_projets(ref: str | None = None, espace: str | None = None):
+    """Les projets de l'espace courant (avec leur nombre d'items ; `espace=*` = tous, t209), ou ceux qui contiennent
+    `ref`, quel que soit leur espace."""
     from app.services import library_projects as LP
-    return {"projets": await LP.lister(ref)}
+    return {"projets": await LP.lister(ref, espace)}
 
 
 @router.post("/library/projets")
@@ -4313,8 +4319,9 @@ def _audio_dir() -> Path:
 
 
 @router.get("/audio")
-async def list_audio():
-    """List uploaded audio assets for the Library + Studio audio nodes."""
+async def list_audio(espace: str | None = None):
+    """List uploaded audio assets for the Library + Studio audio nodes.
+    t209 (Espaces de marque E9) : `espace` filtre comme /images (« * » ou absent = tout ; jamais indexé = Deepotus)."""
     d = _audio_dir()
     out = []
     for p in sorted(d.glob("*"), key=lambda f: f.stat().st_mtime, reverse=True):
@@ -4322,6 +4329,10 @@ async def list_audio():
             st = p.stat()
             out.append({"name": p.name, "url": f"/api/audio/{p.name}",
                         "size_kb": st.st_size // 1024, "mtime": int(st.st_mtime)})   # T101 : tri par date du tiroir
+    if espace and espace != "*":
+        from app.services import espaces as _es
+        prov = await LI.carte()
+        out = [a for a in out if _es.de_l_espace((prov.get(a["name"]) or {}).get("espace_id"), espace)]
     return {"audio": out}
 
 
@@ -6952,7 +6963,7 @@ def _job_to_dict(j) -> dict:
 @router.get("/jobs")
 async def list_jobs(limit: int = 50, offset: int = 0, providers: str | None = None,
                     q: str | None = None, video: int = 0, min_rating: int = 0,
-                    fav: int = 0, done: int = 0, request: Request = None):
+                    fav: int = 0, done: int = 0, espace: str | None = None, request: Request = None):
     """E-2 (23/09/2026) : `offset` pagine, `providers` est une liste séparée
     par des virgules, `q` cherche dans le titre, `video=1` ne garde que les
     artefacts vidéo selon `montage_service.media_rules()` — le MÊME juge que
@@ -6961,14 +6972,15 @@ async def list_jobs(limit: int = 50, offset: int = 0, providers: str | None = No
     `Pipeline.list_jobs`. D-34 (24/09/2026) : `min_rating` (0..5, ramené)
     ne garde que les rendus notés au moins autant — filtre AVANT le limit.
     Bibliothèque #77 (03/10/2026) : `fav=1` ne garde que les favoris, idem.
-    t188 (12/10/2026) : `done=1` ne garde que les jobs terminés, AVANT le limit (le rail VFX IA)."""
+    t188 (12/10/2026) : `done=1` ne garde que les jobs terminés, AVANT le limit (le rail VFX IA).
+    t209 (14/10/2026) : `espace` ne garde que les jobs de cet espace (« * » ou absent = tous), AVANT le limit."""
     provs = [p.strip() for p in providers.split(",") if p.strip()] if providers else None
     exts = None
     if video:
         from app.services import montage_service as _ms
         exts = tuple(_ms.media_rules().get("video_exts") or ())
     jobs = await Pipeline.list_jobs(limit=limit, offset=offset, providers=provs, q=q, video_exts=exts,
-                                    min_rating=min_rating, fav=fav, done=done)
+                                    min_rating=min_rating, fav=fav, done=done, espace=espace)
     from app.i18n import erreurs as _ERR   # t150 (L10) : étape et erreur dans la langue de l'en-tête, sinon telles quelles
     lang = _ERR.langue(request)
     return [_ERR.job(_job_to_dict(j), lang) for j in jobs]

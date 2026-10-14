@@ -241,8 +241,10 @@ _sig = inspect.signature(PL.Pipeline.list_jobs)
 # L7-B D-34 (24/09/2026) : un sixieme parametre, `min_rating` (note minimale, filtre avant le limit ;
 # banc test_montage_l7b_notes.py) -- les cinq de E-2 restent en tete, dans le meme ordre.
 # #77 PR A (03/10) : + fav (favoris seulement, defaut 0 = filtre inactif ; GET /api/jobs sans fav inchange).
+# t188 (12/10) : + done ; t209 (14/10) : + espace (Espaces de marque E9 ; None = tous, GET /api/jobs sans espace inchange).
 check("eb_pipeline_list_jobs_porte_les_cinq_parametres_plus_min_rating_de_D34",
-      list(_sig.parameters) == ["limit", "offset", "providers", "q", "video_exts", "min_rating", "fav"], list(_sig.parameters))
+      list(_sig.parameters) == ["limit", "offset", "providers", "q", "video_exts", "min_rating", "fav", "done", "espace"],
+      list(_sig.parameters))
 
 c.__exit__(None, None, None)
 print(f"\n=== {ok} passed, {fail} failed ===")
