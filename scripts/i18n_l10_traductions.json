@@ -2723,10 +2723,6 @@
   "fr": "Patron impossible : {name}",
   "en": "Template failed: {name}"
  },
- "Persona file not found: {path}": {
-  "fr": "Fichier de persona introuvable : {path}",
-  "en": "Persona file not found: {path}"
- },
  "Personnage inconnu : choisissez un Personnage (images de référence avec consentement).": {
   "fr": "Personnage inconnu : choisissez un Personnage (images de référence avec consentement).",
   "en": "Unknown character: choose a Character (reference images with consent)."
@@ -9074,5 +9070,265 @@
  "espace inconnu : {espace}": {
   "fr": "espace inconnu : {espace}",
   "en": "unknown space: {espace}"
+ },
+ "espace inconnu : {espace_id}": {
+  "fr": "espace inconnu : {espace_id}",
+  "en": "unknown space: {espace_id}"
+ },
+ "L'espace actif ne s'archive pas : activez-en un autre d'abord.": {
+  "fr": "L'espace actif ne s'archive pas : activez-en un autre d'abord.",
+  "en": "The active space cannot be archived: activate another one first."
+ },
+ "C'est le dernier espace : il en faut au moins un.": {
+  "fr": "C'est le dernier espace : il en faut au moins un.",
+  "en": "This is the last space: at least one is needed."
+ },
+ "aucune direction à illustrer": {
+  "fr": "aucune direction à illustrer",
+  "en": "no direction to illustrate"
+ },
+ "Clé FAL_KEY à ajouter dans Réglages : les vignettes passent par fal.": {
+  "fr": "Clé FAL_KEY à ajouter dans Réglages : les vignettes passent par fal.",
+  "en": "Add the FAL_KEY key in Settings: thumbnails go through fal."
+ },
+ "espace inconnu": {
+  "fr": "espace inconnu",
+  "en": "unknown space"
+ },
+ "Coffre verrouillé : {e}": {
+  "fr": "Coffre verrouillé : {e}",
+  "en": "Vault locked: {e}"
+ },
+ "inconnu : {v}": {
+  "fr": "inconnu : {v}",
+  "en": "unknown: {v}"
+ },
+ "Aucun LLM configuré (Réglages → clés API) : utilisez la synthèse sans IA.": {
+  "fr": "Aucun LLM configuré (Réglages → clés API) : utilisez la synthèse sans IA.",
+  "en": "No LLM configured (Settings → API keys): use the synthesis without AI."
+ },
+ "compte inconnu : {v}": {
+  "fr": "compte inconnu : {v}",
+  "en": "unknown account: {v}"
+ },
+ "le compte {cpt} n'est pas un compte {ch}": {
+  "fr": "le compte {cpt} n'est pas un compte {ch}",
+  "en": "account {cpt} is not a {ch} account"
+ },
+ "compte inconnu : {cpt}": {
+  "fr": "compte inconnu : {cpt}",
+  "en": "unknown account: {cpt}"
+ },
+ "le compte {compte} n'est pas un compte {nom}": {
+  "fr": "le compte {compte} n'est pas un compte {nom}",
+  "en": "account {compte} is not a {nom} account"
+ },
+ "compte inconnu : {compte}": {
+  "fr": "compte inconnu : {compte}",
+  "en": "unknown account: {compte}"
+ },
+ "compte ou champ invalide : {cid}/{champ}": {
+  "fr": "compte ou champ invalide : {cid}/{champ}",
+  "en": "invalid account or field: {cid}/{champ}"
+ },
+ "plateforme inconnue : {p} — connues : {v}": {
+  "fr": "plateforme inconnue : {p} — connues : {v}",
+  "en": "unknown platform: {p} — known: {v}"
+ },
+ "{MAX_COMPTES} comptes au plus": {
+  "fr": "{MAX_COMPTES} comptes au plus",
+  "en": "{MAX_COMPTES} accounts at most"
+ },
+ "comptes doit être une liste d'identifiants": {
+  "fr": "comptes doit être une liste d'identifiants",
+  "en": "accounts must be a list of identifiers"
+ },
+ "{c} n'est pas un champ d'un compte {v}": {
+  "fr": "{c} n'est pas un champ d'un compte {v}",
+  "en": "{c} is not a field of a {v} account"
+ },
+ "le compte {libelle} ({cid}) n'appartient pas à l'espace de ce post": {
+  "fr": "le compte {libelle} ({cid}) n'appartient pas à l'espace de ce post",
+  "en": "account {libelle} ({cid}) does not belong to this post's space"
+ },
+ "un espace a besoin d'un nom": {
+  "fr": "un espace a besoin d'un nom",
+  "en": "a space needs a name"
+ },
+ "couleur doit être #RRGGBB (reçu : {v})": {
+  "fr": "couleur doit être #RRGGBB (reçu : {v})",
+  "en": "color must be #RRGGBB (received: {v})"
+ },
+ "{MAX_ESPACES} espaces au plus : archivez-en ou supprimez-en un d'abord": {
+  "fr": "{MAX_ESPACES} espaces au plus : archivez-en ou supprimez-en un d'abord",
+  "en": "{MAX_ESPACES} spaces at most: archive or delete one first"
+ },
+ "kit inconnu : {kit}": {
+  "fr": "kit inconnu : {kit}",
+  "en": "unknown kit: {kit}"
+ },
+ "cet espace est archivé : désarchivez-le d'abord": {
+  "fr": "cet espace est archivé : désarchivez-le d'abord",
+  "en": "this space is archived: unarchive it first"
+ },
+ "le persona doit être un objet JSON": {
+  "fr": "le persona doit être un objet JSON",
+  "en": "the persona must be a JSON object"
+ },
+ "persona trop gros (1 Mo au plus)": {
+  "fr": "persona trop gros (1 Mo au plus)",
+  "en": "persona too large (1 MB at most)"
+ },
+ "display_name : le persona a besoin d'un nom": {
+  "fr": "display_name : le persona a besoin d'un nom",
+  "en": "display_name: the persona needs a name"
+ },
+ "templates doit être une liste": {
+  "fr": "templates doit être une liste",
+  "en": "templates must be a list"
+ },
+ "{k} doit être une liste de textes": {
+  "fr": "{k} doit être une liste de textes",
+  "en": "{k} must be a list of texts"
+ },
+ "{k} doit être un objet": {
+  "fr": "{k} doit être un objet",
+  "en": "{k} must be an object"
+ },
+ "{k} doit être un texte": {
+  "fr": "{k} doit être un texte",
+  "en": "{k} must be a text"
+ },
+ "modèle n°{v} invalide : pas un objet": {
+  "fr": "modèle n°{v} invalide : pas un objet",
+  "en": "template no. {v} invalid: not an object"
+ },
+ "id de modèle en double : {id}": {
+  "fr": "id de modèle en double : {id}",
+  "en": "duplicate template id: {id}"
+ },
+ "persona.json n'est pas un objet": {
+  "fr": "persona.json n'est pas un objet",
+  "en": "persona.json is not an object"
+ },
+ "paquet d'espace vide": {
+  "fr": "paquet d'espace vide",
+  "en": "empty space package"
+ },
+ "paquet d'espace trop lourd (40 Mo au plus)": {
+  "fr": "paquet d'espace trop lourd (40 Mo au plus)",
+  "en": "space package too large (40 MB at most)"
+ },
+ "paquet d'espace : {MAX_ENTREES} entrées au plus": {
+  "fr": "paquet d'espace : {MAX_ENTREES} entrées au plus",
+  "en": "space package: {MAX_ENTREES} entries at most"
+ },
+ "paquet d'espace trop lourd une fois décompressé": {
+  "fr": "paquet d'espace trop lourd une fois décompressé",
+  "en": "space package too large once unpacked"
+ },
+ "ce n'est pas un paquet d'espace (espace.json absent ou d'un autre format)": {
+  "fr": "ce n'est pas un paquet d'espace (espace.json absent ou d'un autre format)",
+  "en": "this is not a space package (espace.json missing or of another format)"
+ },
+ "paquet d'espace d'une version plus récente : mettez l'application à jour": {
+  "fr": "paquet d'espace d'une version plus récente : mettez l'application à jour",
+  "en": "space package from a newer version: update the application"
+ },
+ "paquet d'espace : persona.json manquant": {
+  "fr": "paquet d'espace : persona.json manquant",
+  "en": "space package: persona.json missing"
+ },
+ "paquet d'espace : identite/identite.json illisible": {
+  "fr": "paquet d'espace : identite/identite.json illisible",
+  "en": "space package: identite/identite.json unreadable"
+ },
+ "paquet d'espace : comptes.json illisible": {
+  "fr": "paquet d'espace : comptes.json illisible",
+  "en": "space package: comptes.json unreadable"
+ },
+ "ce n'est pas un paquet d'espace (.zip illisible)": {
+  "fr": "ce n'est pas un paquet d'espace (.zip illisible)",
+  "en": "this is not a space package (unreadable .zip)"
+ },
+ "paquet d'espace : {nom} illisible": {
+  "fr": "paquet d'espace : {nom} illisible",
+  "en": "space package: {nom} unreadable"
+ },
+ "paquet d'espace : onboarding.json illisible": {
+  "fr": "paquet d'espace : onboarding.json illisible",
+  "en": "space package: onboarding.json unreadable"
+ },
+ "paquet d'espace : kit/kit.json illisible": {
+  "fr": "paquet d'espace : kit/kit.json illisible",
+  "en": "space package: kit/kit.json unreadable"
+ },
+ "paquet d'espace : compte n°{v} illisible": {
+  "fr": "paquet d'espace : compte n°{v} illisible",
+  "en": "space package: account no. {v} unreadable"
+ },
+ "paquet d'espace abîmé (entrée illisible)": {
+  "fr": "paquet d'espace abîmé (entrée illisible)",
+  "en": "damaged space package (unreadable entry)"
+ },
+ "étape inconnue : {etape} — connues : {v}": {
+  "fr": "étape inconnue : {etape} — connues : {v}",
+  "en": "unknown step: {etape} — known: {v}"
+ },
+ "une étape s'écrit en objet JSON": {
+  "fr": "une étape s'écrit en objet JSON",
+  "en": "a step is written as a JSON object"
+ },
+ "adresse http(s) attendue": {
+  "fr": "adresse http(s) attendue",
+  "en": "http(s) address expected"
+ },
+ "aucune proposition à valider : lancez d'abord la synthèse": {
+  "fr": "aucune proposition à valider : lancez d'abord la synthèse",
+  "en": "no proposal to validate: run the synthesis first"
+ },
+ "proposition incomplète : persona d'écran absent": {
+  "fr": "proposition incomplète : persona d'écran absent",
+  "en": "incomplete proposal: screen persona missing"
+ },
+ "{etape}.{k} : champ inconnu": {
+  "fr": "{etape}.{k} : champ inconnu",
+  "en": "{etape}.{k}: unknown field"
+ },
+ "produit.url doit être une adresse http(s)": {
+  "fr": "produit.url doit être une adresse http(s)",
+  "en": "produit.url must be an http(s) address"
+ },
+ "trop de redirections": {
+  "fr": "trop de redirections",
+  "en": "too many redirects"
+ },
+ "la page répond {status_code}": {
+  "fr": "la page répond {status_code}",
+  "en": "the page answers {status_code}"
+ },
+ "{etape}.{k} doit être un texte": {
+  "fr": "{etape}.{k} doit être un texte",
+  "en": "{etape}.{k} must be a text"
+ },
+ "references.images : nom de fichier invalide ({n})": {
+  "fr": "references.images : nom de fichier invalide ({n})",
+  "en": "references.images: invalid file name ({n})"
+ },
+ "adresse privée ou locale refusée": {
+  "fr": "adresse privée ou locale refusée",
+  "en": "private or local address refused"
+ },
+ "{etape}.{k} doit être une liste de textes": {
+  "fr": "{etape}.{k} doit être une liste de textes",
+  "en": "{etape}.{k} must be a list of texts"
+ },
+ "{etape}.{k} doit être un nombre de 0 à 100": {
+  "fr": "{etape}.{k} doit être un nombre de 0 à 100",
+  "en": "{etape}.{k} must be a number from 0 to 100"
+ },
+ "{etape}.{k} : choisir parmi {v}": {
+  "fr": "{etape}.{k} : choisir parmi {v}",
+  "en": "{etape}.{k}: choose from {v}"
  }
 }

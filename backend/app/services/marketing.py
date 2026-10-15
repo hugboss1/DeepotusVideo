@@ -1023,6 +1023,38 @@ async def fire_post(post_id: str) -> dict:
 
 # ---------------------------------------------------------------- the loop
 
+def _espaces_archives() -> set:
+    """t210 : les ids des espaces archivés (vide si espaces.json est illisible : jamais une boucle arrêtée pour ça).
+    LECTURE SEULE du fichier : jamais `espaces.lire()`, qui migre et écrit — la boucle démarre avec l'application et
+    ferait la migration en même temps qu'une requête (deux écritures, WinError 32 sous Windows)."""
+    try:
+        from app.services import espaces as _es
+        f = _es.dossier() / "espaces.json"
+        if not f.is_file():
+            return set()
+        doc = json.loads(f.read_text(encoding="utf-8"))
+        return {k for k, v in (doc.get("espaces") or {}).items() if isinstance(v, dict) and v.get("archive")}
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"schedule: espaces illisibles ({e})")
+        return set()
+
+
+async def posts_en_attente(espace_id: str) -> int:
+    """t210 : les posts encore à partir (programmés ou prêts) d'un espace — ceux qu'un archivage met en pause."""
+    from sqlalchemy import func, or_
+    cond = ScheduledPost.espace_id == espace_id
+    if espace_id == "deepotus":
+        cond = or_(cond, ScheduledPost.espace_id.is_(None))
+    try:
+        async with async_session_factory() as session:
+            res = await session.execute(select(func.count()).select_from(ScheduledPost)
+                                        .where(ScheduledPost.status.in_(("scheduled", "ready"))).where(cond))
+            return int(res.scalar() or 0)
+    except Exception as e:  # noqa: BLE001 — un compte d'information : jamais un archivage refusé pour ça
+        logger.warning(f"posts en attente de {espace_id} : {e}")
+        return 0
+
+
 async def tick(marker: list[str | None] | None = None) -> None:
     """Un tour de boucle (plan scheduler T10, tâche #30), appelable par un banc. `marker[0]` porte la date de la
     dernière passe de métriques (jour UTC) d'un tour à l'autre."""
@@ -1045,6 +1077,9 @@ async def tick(marker: list[str | None] | None = None) -> None:
             .where(ScheduledPost.delegue_a.is_(None)))     # plan mobile T8 : un post CONFIÉ à un appareil n'est pas au PC
         due = list(res.scalars().all())
     due.sort(key=lambda p: (p.thread_index or 0, p.run_at))   # un fil part dans l'ordre de ses index (T15)
+    archives = _espaces_archives()
+    if archives:                     # t210 : un espace ARCHIVÉ ne publie plus ; ses posts attendent son désarchivage
+        due = [p for p in due if (p.espace_id or "deepotus") not in archives]
     for post in due:
         try:
             if post.mode == "auto":

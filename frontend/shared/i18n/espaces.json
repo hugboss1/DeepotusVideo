@@ -19,9 +19,17 @@
     "fr": "Enregistrer",
     "en": "Save"
   },
+  "espaces.action.exporter": {
+    "fr": "Exporter",
+    "en": "Export"
+  },
   "espaces.action.renommer": {
     "fr": "Renommer",
     "en": "Rename"
+  },
+  "espaces.archive.en_pause": {
+    "fr": "« {nom} » archivé : {n} publication(s) programmée(s) en pause jusqu'au désarchivage.",
+    "en": "“{nom}” archived: {n} scheduled post(s) paused until it is unarchived."
   },
   "espaces.bib.cet_espace": {
     "fr": "Cet espace : {nom}",
@@ -235,6 +243,10 @@
     "fr": "Chargement des espaces…",
     "en": "Loading spaces…"
   },
+  "espaces.export.aide": {
+    "fr": "Télécharge un paquet .zip de l'espace (persona, identité, contenus, kit, comptes) à remettre ou à recharger ailleurs. Aucun secret n'y est jamais écrit.",
+    "en": "Downloads a .zip package of the space (persona, identity, content, kit, accounts) to hand over or load elsewhere. No secret is ever written to it."
+  },
   "espaces.idv.adn": {
     "fr": "ADN des prompts",
     "en": "Prompt DNA"
@@ -426,6 +438,26 @@
   "espaces.idv.valider": {
     "fr": "Valider la planche",
     "en": "Validate the sheet"
+  },
+  "espaces.import.aide": {
+    "fr": "Crée un espace neuf à partir d'un paquet .zip exporté. Les secrets des comptes sont à ressaisir.",
+    "en": "Creates a new space from an exported .zip package. Account secrets must be entered again."
+  },
+  "espaces.import.bouton": {
+    "fr": "Importer un espace…",
+    "en": "Import a space…"
+  },
+  "espaces.import.fait": {
+    "fr": "Espace « {nom} » importé.",
+    "en": "Space “{nom}” imported."
+  },
+  "espaces.import.ignores": {
+    "fr": "Fichiers inconnus ignorés : {n}.",
+    "en": "Unknown files ignored: {n}."
+  },
+  "espaces.import.ressaisir": {
+    "fr": "Comptes dont les secrets sont à ressaisir : {n}.",
+    "en": "Accounts whose secrets must be entered again: {n}."
   },
   "espaces.nouveau.couleur": {
     "fr": "Couleur de l'espace",
