@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "Créer l'espace d'une marque",
+    "en": "Create a brand's space"
+  },
+  "legende": {
+    "fr": "Réglages › Espaces de marque : un nom et une couleur, puis le persona en huit étapes.",
+    "en": "Settings › Brand spaces: a name and a colour, then the persona in eight steps."
+  },
+  "captures": [
+    {
+      "fr": "liste.fr.webp",
+      "en": "liste.en.webp"
+    },
+    {
+      "fr": "persona.fr.webp",
+      "en": "persona.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        258,
+        180,
+        844,
+        41
+      ],
+      "bulle": {
+        "fr": "Un nom, une couleur : Créer l'espace",
+        "en": "A name, a colour: Create space"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        1029,
+        501
+      ],
+      "clic": true,
+      "surligne": [
+        258,
+        472,
+        844,
+        130
+      ],
+      "bulle": {
+        "fr": "Chaque marque a sa ligne et son persona",
+        "en": "Each brand has its row and its persona"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "L'assistant en huit étapes : rien n'est écrit avant de valider",
+        "en": "The eight-step assistant: nothing is written until you validate"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        258,
+        161,
+        844,
+        41
+      ],
+      "bulle": {
+        "fr": "Un nom, une couleur : Créer l'espace",
+        "en": "A name, a colour: Create space"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        835,
+        446
+      ],
+      "clic": true,
+      "surligne": [
+        258,
+        417,
+        844,
+        130
+      ],
+      "bulle": {
+        "fr": "Chaque marque a sa ligne et son persona",
+        "en": "Each brand has its row and its persona"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "L'assistant en huit étapes : rien n'est écrit avant de valider",
+        "en": "The eight-step assistant: nothing is written until you validate"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

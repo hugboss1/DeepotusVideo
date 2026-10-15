@@ -4,7 +4,7 @@ Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
 - 1094 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 42 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 39 chapitres dans le sommaire v3, en 6 familles.
+- 40 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -122,6 +122,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Langue de l'interface** : Basculer l'interface entre français et anglais depuis les Réglages, appliqué à chaud. — *Réglages → rangée « Langue de l'interface »* (PR #262 · commit 368f29ea · t134)
 - [x] **Modèle de voix (TTS) par défaut** : Choisir le modèle ElevenLabs avec lequel naissent les nouveaux nœuds Voiceover. — *Réglages → Fournisseurs par défaut → « Modèle de voix (TTS) par défaut »* (PR #260 · commit bfe667bb · t130)
 - [x] **Modèle vidéo par défaut** : Choisir le modèle avec lequel naissent les nouveaux nœuds Seedance du Studio (les nœuds existants gardent le leur). — *Réglages → Fournisseurs par défaut → « Modèle vidéo par défaut »* (PR #260 · commit bfe667bb · t130)
+
+### Travailler pour plusieurs marques (`marques`, lot t211, reprend : nouveau) — 0 manques
+
 
 ### Changer d'ordinateur (`transfert`, lot t171, reprend : c16) — 0 manques
 
@@ -1468,3 +1471,4 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t180 | 42 | 42 |
 | t181 | 0 | 0 |
 | t193 | 0 | 0 |
+| t211 | 0 | 0 |

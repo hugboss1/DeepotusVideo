@@ -1,0 +1,508 @@
+{
+ "base": "http://127.0.0.1:8823",
+ "scenes": [
+  {
+   "scene": "marques/creer",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Créer l'espace d'une marque",
+    "en": "Create a brand's space"
+   },
+   "legende": {
+    "fr": "Réglages › Espaces de marque : un nom et une couleur, puis le persona en huit étapes.",
+    "en": "Settings › Brand spaces: a name and a colour, then the persona in eight steps."
+   },
+   "avant": [
+    {
+     "js": "fetch('/api/espaces/deepotus/activate',{method:'POST'}).then(function(){return fetch('/api/espaces?archives=true')}).then(function(r){return r.json()}).then(function(j){return Promise.all(j.espaces.filter(function(e){return /\\(\\d+\\)$/.test(e.nom)&&!e.archive}).map(function(e){return fetch('/api/espaces/'+e.id+'/archive',{method:'POST',headers:{'Content-Type':'application/json'},body:'{\"archive\":true}'})}))}).then(function(){window.dispatchEvent(new Event('deepotus:espace-refresh'))})"
+    },
+    {
+     "attente": 800
+    },
+    {
+     "aller": "/"
+    },
+    {
+     "attente": 7000
+    },
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1200
+    },
+    {
+     "clic": {
+      "fr": "texte:Espaces",
+      "en": "texte:Brand spaces"
+     },
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "liste"
+    },
+    {
+     "nom": "persona",
+     "etapes": [
+      {
+       "clic": "css:[data-dz-onb-ouvrir=\"esp_ea4fa3ef\"]",
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-dz-espace-nouveau]",
+     "bulle": {
+      "fr": "Un nom, une couleur : Créer l'espace",
+      "en": "A name, a colour: Create space"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "curseur": "css:[data-dz-onb-ouvrir=\"esp_ea4fa3ef\"]",
+     "clic": true,
+     "surligne": "css:[data-dz-espace=\"esp_ea4fa3ef\"]",
+     "bulle": {
+      "fr": "Chaque marque a sa ligne et son persona",
+      "en": "Each brand has its row and its persona"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "bulle": {
+      "fr": "L'assistant en huit étapes : rien n'est écrit avant de valider",
+      "en": "The eight-step assistant: nothing is written until you validate"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "marques/quick",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Changer de marque dans Quick",
+    "en": "Switch brand in Quick"
+   },
+   "legende": {
+    "fr": "Le menu persona de Quick change l'espace actif : modèles, ambiances et voix suivent.",
+    "en": "Quick's persona menu changes the active space: templates, vibes and voice follow."
+   },
+   "avant": [
+    {
+     "js": "fetch('/api/espaces/deepotus/activate',{method:'POST'}).then(function(){return fetch('/api/espaces?archives=true')}).then(function(r){return r.json()}).then(function(j){return Promise.all(j.espaces.filter(function(e){return /\\(\\d+\\)$/.test(e.nom)&&!e.archive}).map(function(e){return fetch('/api/espaces/'+e.id+'/archive',{method:'POST',headers:{'Content-Type':'application/json'},body:'{\"archive\":true}'})}))}).then(function(){window.dispatchEvent(new Event('deepotus:espace-refresh'))})"
+    },
+    {
+     "attente": 800
+    },
+    {
+     "aller": "/"
+    },
+    {
+     "attente": 7000
+    },
+    {
+     "clic": "texte:Quick",
+     "apres": 1800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "menu",
+     "etapes": [
+      {
+       "clic": "css:[data-dz-qp-ouvrir]",
+       "apres": 700
+      }
+     ]
+    },
+    {
+     "nom": "modeles",
+     "etapes": [
+      {
+       "clic": "css:[data-dz-qp-id=\"esp_ea4fa3ef\"]",
+       "apres": 1500
+      },
+      {
+       "js": "new Promise(function(r){var n=0;(function f(){if(document.querySelector('main').innerText.indexOf('Onde calme')>=0||n++>60)return r();setTimeout(f,250)})()})"
+      },
+      {
+       "defiler": {
+        "fr": "texte:Gabarits de prompt",
+        "en": "texte:Prompt templates"
+       }
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[role=listbox]",
+     "bulle": {
+      "fr": "Un persona par marque",
+      "en": "One persona per brand"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.4,
+     "surligne": "css:[data-dz-qp-ouvrir]",
+     "bulle": {
+      "fr": "Rippled devient l'espace actif",
+      "en": "Rippled becomes the active space"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "texte:Onde calme",
+     "voile": true,
+     "bulle": {
+      "fr": "Ses modèles de prompt à lui",
+      "en": "Its own prompt templates"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "marques/exporter",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Remettre l'espace d'un client",
+    "en": "Hand over a client's space"
+   },
+   "legende": {
+    "fr": "Exporter télécharge un paquet sans secret ; Importer un espace… en crée un neuf ailleurs.",
+    "en": "Export downloads a package without secrets; Import a space… creates a new one elsewhere."
+   },
+   "avant": [
+    {
+     "js": "fetch('/api/espaces/deepotus/activate',{method:'POST'}).then(function(){return fetch('/api/espaces?archives=true')}).then(function(r){return r.json()}).then(function(j){return Promise.all(j.espaces.filter(function(e){return /\\(\\d+\\)$/.test(e.nom)&&!e.archive}).map(function(e){return fetch('/api/espaces/'+e.id+'/archive',{method:'POST',headers:{'Content-Type':'application/json'},body:'{\"archive\":true}'})}))}).then(function(){window.dispatchEvent(new Event('deepotus:espace-refresh'))})"
+    },
+    {
+     "attente": 800
+    },
+    {
+     "aller": "/"
+    },
+    {
+     "attente": 7000
+    },
+    {
+     "clic": {
+      "fr": "texte:Réglages",
+      "en": "texte:Settings"
+     },
+     "apres": 1200
+    },
+    {
+     "clic": {
+      "fr": "texte:Espaces",
+      "en": "texte:Brand spaces"
+     },
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "exporter"
+    },
+    {
+     "nom": "importer",
+     "etapes": [
+      {
+       "js": "(async function(){var r=await fetch('/api/espaces/esp_ea4fa3ef/export');var b=await r.blob();var inp=document.querySelector('[data-dz-espace-importer] input[type=file]');var dt=new DataTransfer();dt.items.add(new File([b],'espace-rippled.zip',{type:'application/zip'}));inp.files=dt.files;inp.dispatchEvent(new Event('change',{bubbles:true}))})()"
+      },
+      {
+       "attente": 2500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "curseur": "css:[data-dz-espace-exporter=\"esp_ea4fa3ef\"]",
+     "surligne": "css:[data-dz-espace-exporter=\"esp_ea4fa3ef\"]",
+     "bulle": {
+      "fr": "Exporter : un .zip, aucun secret",
+      "en": "Export: a .zip, no secret"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.4,
+     "curseur": "css:[data-dz-espace-importer]",
+     "clic": true,
+     "surligne": "css:[data-dz-espace-importer]",
+     "bulle": {
+      "fr": "Importer : toujours un espace neuf",
+      "en": "Import: always a new space"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "surligne": "css:[data-dz-espace-msg]",
+     "voile": true,
+     "bulle": {
+      "fr": "Les identifiants des comptes se ressaisissent",
+      "en": "Account credentials are entered again"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "quick/seedance",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Un clip animé avec Quick",
+    "en": "An animated clip with Quick"
+   },
+   "legende": {
+    "fr": "Quick, onglet Seedance : l'image de départ, les paramètres, le coût estimé, puis Générer.",
+    "en": "Quick, Seedance tab: the start image, the parameters, the estimated cost, then Generate."
+   },
+   "avant": [
+    {
+     "js": "fetch('/api/espaces/deepotus/activate',{method:'POST'}).then(function(){return fetch('/api/espaces?archives=true')}).then(function(r){return r.json()}).then(function(j){return Promise.all(j.espaces.filter(function(e){return /\\(\\d+\\)$/.test(e.nom)&&!e.archive}).map(function(e){return fetch('/api/espaces/'+e.id+'/archive',{method:'POST',headers:{'Content-Type':'application/json'},body:'{\"archive\":true}'})}))}).then(function(){window.dispatchEvent(new Event('deepotus:espace-refresh'))})"
+    },
+    {
+     "attente": 800
+    },
+    {
+     "aller": "/"
+    },
+    {
+     "attente": 7000
+    },
+    {
+     "clic": "texte:Quick",
+     "apres": 1800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "source"
+    },
+    {
+     "nom": "parametres",
+     "etapes": [
+      {
+       "defiler": {
+        "fr": "texte:Modèle",
+        "en": "texte:Model"
+       }
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": {
+      "fr": "css:button[aria-label=\"Voix off\"]",
+      "en": "css:button[aria-label=\"Voiceover\"]"
+     },
+     "bulle": {
+      "fr": "Les onglets en icônes : le nom au survol",
+      "en": "Icon tabs: hover for the name"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Image de départ",
+      "en": "texte:Start image"
+     },
+     "bulle": {
+      "fr": "Glissez l'image à animer",
+      "en": "Drop the picture to animate"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "contient:Coût estimé",
+      "en": "contient:Est. cost"
+     },
+     "voile": true,
+     "bulle": {
+      "fr": "Le coût s'affiche avant de cliquer",
+      "en": "The cost is shown before you click"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "quick/camera",
+   "clip": "css:main",
+   "titre": {
+    "fr": "Diriger la caméra",
+    "en": "Direct the camera"
+   },
+   "legende": {
+    "fr": "Les curseurs de caméra deviennent une phrase ajoutée au prompt ; la Galerie montre les mouvements.",
+    "en": "Camera sliders become a sentence added to the prompt; the Gallery shows the moves."
+   },
+   "avant": [
+    {
+     "js": "fetch('/api/espaces/deepotus/activate',{method:'POST'}).then(function(){return fetch('/api/espaces?archives=true')}).then(function(r){return r.json()}).then(function(j){return Promise.all(j.espaces.filter(function(e){return /\\(\\d+\\)$/.test(e.nom)&&!e.archive}).map(function(e){return fetch('/api/espaces/'+e.id+'/archive',{method:'POST',headers:{'Content-Type':'application/json'},body:'{\"archive\":true}'})}))}).then(function(){window.dispatchEvent(new Event('deepotus:espace-refresh'))})"
+    },
+    {
+     "attente": 800
+    },
+    {
+     "aller": "/"
+    },
+    {
+     "attente": 7000
+    },
+    {
+     "clic": "texte:Quick",
+     "apres": 1800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "curseurs",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "contient:CAMÉRA (CURSEURS)",
+        "en": "contient:CAMERA (SLIDERS)"
+       },
+       "apres": 900
+      }
+     ]
+    },
+    {
+     "nom": "galerie",
+     "etapes": [
+      {
+       "defiler": {
+        "fr": "texte:Galerie",
+        "en": "texte:Gallery"
+       }
+      },
+      {
+       "clic": {
+        "fr": "texte:Galerie",
+        "en": "texte:Gallery"
+       },
+       "apres": 2500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "contient:CAMÉRA (CURSEURS)",
+      "en": "contient:CAMERA (SLIDERS)"
+     },
+     "bulle": {
+      "fr": "Six curseurs, une phrase de caméra",
+      "en": "Six sliders, one camera sentence"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "bulle": {
+      "fr": "La Galerie montre chaque mouvement de caméra",
+      "en": "The Gallery shows each camera move"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "tour/coque",
+   "titre": {
+    "fr": "L'écran de l'application",
+    "en": "The app screen"
+   },
+   "legende": {
+    "fr": "Le rail des écrans à gauche, la barre du haut avec la commande rapide, le compteur de dépenses et l'état des clés.",
+    "en": "The screen rail on the left, the top bar with the quick command, the spending counter and the key status."
+   },
+   "captures": [
+    {
+     "nom": "coque"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:aside",
+     "voile": true,
+     "ancre": {
+      "fr": "texte:Bibliothèque",
+      "en": "texte:Library"
+     },
+     "bulle": {
+      "fr": "Le rail : un écran par tâche",
+      "en": "The rail: one screen per task"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "texte:Commande rapide…",
+      "en": "texte:Quick command…"
+     },
+     "surligne": {
+      "fr": "texte:Commande rapide…",
+      "en": "texte:Quick command…"
+     },
+     "bulle": {
+      "fr": "Ctrl+K : aller n'importe où au clavier",
+      "en": "Ctrl+K: go anywhere from the keyboard"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "texte:$0",
+     "voile": true,
+     "bulle": {
+      "fr": "Dépenses du mois et état des clés, toujours visibles",
+      "en": "This month's spending and key status, always in sight"
+     }
+    }
+   ],
+   "avant": [
+    {
+     "js": "fetch('/api/espaces/deepotus/activate',{method:'POST'}).then(function(){return fetch('/api/espaces?archives=true')}).then(function(r){return r.json()}).then(function(j){return Promise.all(j.espaces.filter(function(e){return /\\(\\d+\\)$/.test(e.nom)&&!e.archive}).map(function(e){return fetch('/api/espaces/'+e.id+'/archive',{method:'POST',headers:{'Content-Type':'application/json'},body:'{\"archive\":true}'})}))}).then(function(){window.dispatchEvent(new Event('deepotus:espace-refresh'))})"
+    },
+    {
+     "attente": 800
+    },
+    {
+     "aller": "/"
+    },
+    {
+     "attente": 7000
+    }
+   ]
+  }
+ ]
+}

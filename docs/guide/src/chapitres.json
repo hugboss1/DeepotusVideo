@@ -119,6 +119,17 @@
       "etat": "v3"
     },
     {
+      "id": "marques",
+      "famille": "demarrer",
+      "lot": "t211",
+      "icone": "dz-media-persona",
+      "fr": "Travailler pour plusieurs marques",
+      "en": "Work for several brands",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
       "id": "transfert",
       "famille": "demarrer",
       "lot": "t171",

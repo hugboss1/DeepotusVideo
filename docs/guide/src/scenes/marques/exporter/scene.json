@@ -1,0 +1,136 @@
+{
+  "titre": {
+    "fr": "Remettre l'espace d'un client",
+    "en": "Hand over a client's space"
+  },
+  "legende": {
+    "fr": "Exporter télécharge un paquet sans secret ; Importer un espace… en crée un neuf ailleurs.",
+    "en": "Export downloads a package without secrets; Import a space… creates a new one elsewhere."
+  },
+  "captures": [
+    {
+      "fr": "exporter.fr.webp",
+      "en": "exporter.en.webp"
+    },
+    {
+      "fr": "importer.fr.webp",
+      "en": "importer.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        510,
+        539
+      ],
+      "surligne": [
+        471,
+        520,
+        78,
+        39
+      ],
+      "bulle": {
+        "fr": "Exporter : un .zip, aucun secret",
+        "en": "Export: a .zip, no secret"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.4,
+      "curseur": [
+        1030,
+        200
+      ],
+      "clic": true,
+      "surligne": [
+        957,
+        181,
+        145,
+        39
+      ],
+      "bulle": {
+        "fr": "Importer : toujours un espace neuf",
+        "en": "Import: always a new space"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        258,
+        223,
+        844,
+        29
+      ],
+      "voile": true,
+      "bulle": {
+        "fr": "Les identifiants des comptes se ressaisissent",
+        "en": "Account credentials are entered again"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        303,
+        484
+      ],
+      "surligne": [
+        269,
+        465,
+        68,
+        39
+      ],
+      "bulle": {
+        "fr": "Exporter : un .zip, aucun secret",
+        "en": "Export: a .zip, no secret"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.4,
+      "curseur": [
+        1041,
+        182
+      ],
+      "clic": true,
+      "surligne": [
+        981,
+        163,
+        121,
+        39
+      ],
+      "bulle": {
+        "fr": "Importer : toujours un espace neuf",
+        "en": "Import: always a new space"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        258,
+        205,
+        844,
+        29
+      ],
+      "voile": true,
+      "bulle": {
+        "fr": "Les identifiants des comptes se ressaisissent",
+        "en": "Account credentials are entered again"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

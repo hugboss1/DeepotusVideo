@@ -1,0 +1,47 @@
+<p class="chapeau-chap">Vous saurez faire vivre plusieurs marques dans la même installation (Deepotus, une nouvelle marque, un client) sans jamais les mélanger : chacune a son persona, son identité, ses modèles Quick, ses comptes de diffusion, sa Bibliothèque et ses dépenses. Gratuit ; seules les propositions par IA de l'assistant sont payantes, et leur prix s'affiche avant.</p>
+
+<h3>Créer l'espace d'une marque</h3>
+<figure class="scene" data-scene="marques/creer"></figure>
+<ol class="etapes">
+<li>Ouvrez <b class="ui">Réglages</b> › <b class="ui">Espaces de marque</b>. Votre installation a déjà un espace : <strong>Deepotus</strong>, qui garde tout ce que vous aviez avant.</li>
+<li>Tapez le nom de la marque, choisissez sa couleur, puis <b class="ui">Créer l'espace</b>. L'espace neuf est vide et pas encore actif.</li>
+<li>Sur sa ligne, <b class="ui">Définir le persona</b> ouvre un assistant en huit étapes : ce que vous promouvez, l'audience, le personnage, le ton et la voix, l'univers visuel, les références, les interdits, puis la synthèse. Rien n'est écrit avant que vous validiez.</li>
+<li><b class="ui">Identité du persona</b> range le logo, la mascotte, les photos produit, la palette, les typographies et un style écrit. Le moteur de prompt s'en sert à la place de l'univers Deepotus.</li>
+<li>Cliquez <b class="ui">Activer</b> : toute l'application passe dans cet espace.</li>
+</ol>
+
+<h3>Passer d'une marque à l'autre</h3>
+<figure class="scene" data-scene="marques/quick"></figure>
+<p>Deux endroits, un seul réglage : le menu <strong>Espace actif</strong> sous la carte de marque, en bas du rail, et le menu <strong>persona</strong> en haut de <b class="ui">Quick</b>. Changer dans l'un change l'autre, ainsi que la Bibliothèque. Dans Quick, les modèles de prompt, les ambiances et la voix off par défaut deviennent ceux de la marque choisie.</p>
+<ol class="etapes">
+<li>Dans Quick, ouvrez le menu persona en haut de l'écran et choisissez la marque.</li>
+<li>Les <strong>Prompt templates</strong> se rechargent avec les modèles de l'espace. Un espace neuf n'en a pas encore : <b class="ui">Modèles de l'espace</b> en propose, sans IA et gratuitement, à partir du persona ; cochez ceux à garder.</li>
+<li><b class="ui">+ Nouveau persona…</b>, en bas du même menu, ouvre Réglages › Espaces de marque pour en créer un.</li>
+</ol>
+
+<h3>Publier sur les comptes de la marque</h3>
+<div class="cartes">
+<article><i data-dz="dz-reseau-x"></i><h4>Des comptes par espace</h4><p>Sous la liste des espaces, <strong>Comptes de diffusion</strong> gère les comptes de l'espace actif : plusieurs X ou Telegram si besoin, chacun avec ses identifiants. <b class="ui">Tester</b> vérifie un compte ; <b class="ui">Connecter</b> lance l'accord de YouTube ou TikTok.</p></article>
+<article><i data-dz="dz-nav-scheduler"></i><h4>Le Planificateur suit l'espace</h4><p>Il montre les posts de l'espace actif. Dans un post, <strong>Comptes de diffusion</strong> propose seulement les comptes de cette marque.</p></article>
+<article><i data-dz="dz-etat-verrouille"></i><h4>Jamais sur le mauvais compte</h4><p>Un post d'un client ne peut pas partir sur un compte de Deepotus : l'application refuse l'envoi.</p></article>
+</div>
+
+<h3>Ranger les fichiers et facturer</h3>
+<div class="cartes">
+<article><i data-dz="dz-nav-bibliotheque"></i><h4>Bibliothèque par espace</h4><p>Le menu de l'en-tête affiche <strong>Cet espace</strong> ou <b class="ui">Tous les espaces</b>. Chaque rendu est rangé dans l'espace où il a été lancé, même si vous changez d'espace pendant qu'il tourne.</p></article>
+<article><i data-dz="dz-etat-plafond"></i><h4>Dépense et plafond</h4><p>Chaque ligne d'espace montre ce qu'il a coûté ce mois-ci. Un <strong>plafond mensuel</strong> propre à l'espace s'ajoute au plafond global ; 0 veut dire aucun plafond.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>Relevé pour le client</h4><p><b class="ui">Relevé du mois (CSV)</b> télécharge les dépenses de l'espace, prêtes à joindre à une facture.</p></article>
+</div>
+
+<h3>Remettre ou archiver l'espace d'un client</h3>
+<figure class="scene" data-scene="marques/exporter"></figure>
+<ol class="etapes">
+<li><b class="ui">Exporter</b>, sur la ligne de l'espace, télécharge un paquet .zip : persona, identité et ses images, modèles Quick, kit de marque et liste des comptes. <strong>Aucun secret n'y entre</strong> : jetons et mots de passe restent sur votre PC.</li>
+<li>Sur une autre installation, <b class="ui">Importer un espace…</b> crée un espace neuf à partir du paquet, sans jamais en remplacer un. Le message dit combien de comptes attendent leurs identifiants : ressaisissez-les dans <strong>Comptes de diffusion</strong>.</li>
+<li>À la fin d'un contrat, <b class="ui">Archiver</b> range l'espace : il quitte les menus, et ses publications programmées sont mises en pause. <b class="ui">Désarchiver</b>, avec <b class="ui">Afficher les espaces archivés</b>, les relance.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Un seul espace est actif à la fois, pour toute l'application. Un rendu, une publication ou une tâche déjà lancés gardent leur espace jusqu'au bout.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Le logo et le nom de l'application ne changent jamais avec l'espace : ils se règlent dans <b class="ui">Réglages</b> › <b class="ui">Identité visuelle</b>. Le kit choisi pour un espace ne sert qu'aux contenus de cette marque.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>L'espace actif ne s'archive pas : activez-en un autre d'abord. Il reste toujours au moins un espace.</p></aside>

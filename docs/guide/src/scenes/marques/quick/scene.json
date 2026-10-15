@@ -1,0 +1,118 @@
+{
+  "titre": {
+    "fr": "Changer de marque dans Quick",
+    "en": "Switch brand in Quick"
+  },
+  "legende": {
+    "fr": "Le menu persona de Quick change l'espace actif : modèles, ambiances et voix suivent.",
+    "en": "Quick's persona menu changes the active space: templates, vibes and voice follow."
+  },
+  "captures": [
+    {
+      "fr": "menu.fr.webp",
+      "en": "menu.en.webp"
+    },
+    {
+      "fr": "modeles.fr.webp",
+      "en": "modeles.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        10,
+        232,
+        339,
+        146
+      ],
+      "bulle": {
+        "fr": "Un persona par marque",
+        "en": "One persona per brand"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.4,
+      "surligne": [
+        10,
+        84,
+        339,
+        43
+      ],
+      "bulle": {
+        "fr": "Rippled devient l'espace actif",
+        "en": "Rippled becomes the active space"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        26,
+        518,
+        161,
+        29
+      ],
+      "voile": true,
+      "bulle": {
+        "fr": "Ses modèles de prompt à lui",
+        "en": "Its own prompt templates"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        10,
+        217,
+        339,
+        146
+      ],
+      "bulle": {
+        "fr": "Un persona par marque",
+        "en": "One persona per brand"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.4,
+      "surligne": [
+        10,
+        91,
+        339,
+        43
+      ],
+      "bulle": {
+        "fr": "Rippled devient l'espace actif",
+        "en": "Rippled becomes the active space"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        26,
+        511,
+        161,
+        29
+      ],
+      "voile": true,
+      "bulle": {
+        "fr": "Ses modèles de prompt à lui",
+        "en": "Its own prompt templates"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}
