@@ -5497,6 +5497,12 @@
     "groupe": "montage_a"
    },
    {
+    "pos": 174255,
+    "avant": "var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\r\n      if(lv.style.transform!==dzT)lv.style.transform=dzT;",
+    "apres": "var dzZ=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\r\n      if(lv.style.transform!==dzZ)lv.style.transform=dzZ;",
+    "groupe": "montage_a"
+   },
+   {
     "pos": 179140,
     "avant": "\"Overlay — glisser : déplacer · poignées : échelle / rotation · double-clic : plein cadre\"",
     "apres": "dzT(\"montage.overlay.aide\")",

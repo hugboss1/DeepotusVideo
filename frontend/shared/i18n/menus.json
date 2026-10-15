@@ -1,0 +1,6 @@
+{
+  "quick.garde.ecran": {"fr": "L’écran Quick a rencontré une erreur.", "en": "The Quick screen ran into an error."},
+  "quick.garde.reessayer": {"fr": "Réessayer", "en": "Retry"},
+  "quick.garde.retour": {"fr": "Revenir à Seedance", "en": "Back to Seedance"},
+  "quick.garde.titre": {"fr": "Cet onglet a rencontré une erreur.", "en": "This tab ran into an error."}
+}

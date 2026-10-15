@@ -20,7 +20,8 @@ Ce que ce banc garde :
   [E] maillon de queue `dzquick` : posé après dzespace, inverse exact, `avant_dzquick` en tête d'`avant_dzespace`,
       aucun .bak, comptes figés intacts (useState 731, v2.8.0 ×4, DzTracks 181) ;
   [F] clés FR/EN `quick.garde.*`, catalogue assemblé à jour ;
-  [G] Montage : la source de la couche sonvfx n'a plus `var dzT=` et le bloc du bundle est à jour.
+  [G] Montage : la source de la couche sonvfx n'a plus `var dzT=` (dzZ, même longueur), le bloc du bundle est à jour
+      et la retouche est consignée (L4 montage_a, RETOUCHES de G1) : les générateurs --check restent à jour.
 Run (depuis backend/) : & $PY tests/test_quick_voix_off.py"""
 import json, pathlib, re, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -207,7 +208,8 @@ check("E9 sonde amont sur dzespace, lecture/écriture en octets",
       '("dzespace", "function DzEspaceSel(", 1)' in src_dq and "read_bytes()" in src_dq and "read_text(" not in src_dq)
 
 print("[F] clés FR/EN")
-Q = json.loads((RACINE / "frontend" / "shared" / "i18n" / "quick.json").read_text(encoding="utf-8"))
+# quick.json appartient au générateur L2 : les clés du lot « Menus » vivent dans menus.json
+Q = json.loads((RACINE / "frontend" / "shared" / "i18n" / "menus.json").read_text(encoding="utf-8"))
 ATT = {"quick.garde.titre": ("Cet onglet a rencontré une erreur.", "This tab ran into an error."),
        "quick.garde.reessayer": ("Réessayer", "Retry"),
        "quick.garde.ecran": ("L’écran Quick a rencontré une erreur.", "The Quick screen ran into an error."),
@@ -220,10 +222,17 @@ check("F2 catalogue assemblé à jour", ra.returncode == 0, ra.stdout[-200:] + r
 
 print("[G] Montage : l'aperçu vivant ne masque plus dzT")
 SRC = (RACINE / "frontend" / "patches" / "son-vfx-montage.js").read_text(encoding="utf-8")
-check("G1 la source sonvfx n'a plus de déclaration dzT", declarations(SRC) == [] and "var dzTz=DzTracks.dzCss(" in SRC)
+check("G1 la source sonvfx n'a plus de déclaration dzT (renommée dzZ, même longueur : positions G1 intactes)",
+      declarations(SRC) == [] and "var dzZ=DzTracks.dzCss(" in SRC
+      and "if(lv.style.transform!==dzZ)lv.style.transform=dzZ;" in SRC)
 rl = subprocess.run([sys.executable, str(RACINE / "scripts" / "refresh_layer.py"), "--layer", "sonvfx", "--check"],
                     capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(RACINE), env=_ENV)
 check("G2 bloc SONVFX du bundle = sa source (refresh_layer --check)", rl.returncode == 0, (rl.stdout + rl.stderr)[-300:])
+for gen in ("i18n_l4_generer.py", "i18n_l2_generer.py", "icones/g1_generer.py"):
+    rg = subprocess.run([sys.executable, str(RACINE / "scripts" / gen), "--check"], capture_output=True, text=True,
+                        encoding="utf-8", errors="replace", cwd=str(RACINE), env=_ENV)
+    check(f"G3 {gen} --check à jour (la retouche est consignée : L4 montage_a, RETOUCHES de G1)",
+          rg.returncode == 0, (rg.stdout + rg.stderr)[-200:])
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

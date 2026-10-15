@@ -508,4 +508,11 @@ ENTREES = [
        'montage.touches.entree': ('Entrée', 'Enter', 'contexte')}),
     S(135912, 'DzTracks.comboToKey(svmKeyLabel(id)||(a&&a.combo)||"")',
       'DzTracks.comboToKey(km.byId[id]||(a&&a.combo)||"")', {}),
+    # t212 (Menus : Quick, 15/10/2026) — changement FONCTIONNEL posé APRÈS L4 : `var dzT` masquait la traduction
+    # globale dans tout liveSync, qui appelle ensuite dzT("montage.overlay.aide") pour la bulle d'une couche
+    # (TypeError dès qu'une couche s'affiche). Renommée dzZ : MÊME LONGUEUR, les positions G1 ne bougent pas.
+    # Même retouche dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(174255, 'var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\r\n      if(lv.style.transform!==dzT)lv.style.transform=dzT;',
+      'var dzZ=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\r\n      if(lv.style.transform!==dzZ)lv.style.transform=dzZ;',
+      {}),
 ]
