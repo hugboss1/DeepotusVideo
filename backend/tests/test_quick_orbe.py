@@ -100,7 +100,7 @@ try{
 try{H.slots=[];H.effets=[];AC.casse=true;delete win.__dzOrbeCtx;const A2={ecoute:{},paused:true,addEventListener(n,f){this.ecoute[n]=f},removeEventListener(){}};
  document.querySelector=q=>A2;let V=null;const rd=()=>{for(let n=0;n<20;n++){H.i=0;H.sale=false;V=M.DzQuickOrbe({});const ef=H.effets;H.effets=[];ef.forEach(f=>f());if(!H.sale&&!ef.length)return}};
  rd();M.dzVoixEtatPoser(false,{url:"/files/b.mp3"});rd();IV.filter(v=>v.on).forEach(v=>v.f());A2.ecoute.play();rd();
- OUT.C={etat:V.p["data-dz-orbe"],analyse:V.p["data-analyse"]||null}}catch(e){OUT.C={err:String(e&&e.stack||e)}}
+ OUT.C={etat:V.p["data-dz-orbe"],analyse:V.p["data-analyse"]||null};OUT.stylesApresRemontage=STYLES.filter(s=>s.id==="dz-orbe-style").length}catch(e){OUT.C={err:String(e&&e.stack||e)}}
 OUT.css=M.DZ_ORBE_CSS;
 process.stdout.write(JSON.stringify(OUT));
 """
@@ -132,7 +132,8 @@ check("B0 rendu sans erreur", "err" not in B, str(B.get("err"))[:500])
 rp = B.get("repos") or {}
 check("B1 au repos : data-dz-orbe=repos, trois ondes, cœur (nappe + reflet), légende de la voix off",
       rp == {"etat": "repos", "leg": "⟦quick.scene.voix_off⟧", "ondes": 3, "coeur": 1, "nappe": 1, "reflet": 1, "racine": "dz-orbe"}, str(rp))
-check("B2 style injecté UNE fois (#dz-orbe-style), même après un second rendu", B.get("style") == 1 and B.get("style2") == 1)
+check("B2 style injecté UNE fois (#dz-orbe-style), même après un second rendu et un second orbe monté",
+      B.get("style") == 1 and B.get("style2") == 1 and OUT.get("stylesApresRemontage") == 1, str(OUT.get("stylesApresRemontage")))
 check("B3 écoute l'évènement dz:voix-etat", B.get("ecoute") == 1)
 g = B.get("gen") or {}
 check("B4 génération (busy) → data-dz-orbe=gen, légende « quick.voix.generation », état global publié",
@@ -159,8 +160,17 @@ css = OUT.get("css") or ""
 check("C1 trois états stylés (gen et lecture plus rapides que le repos)",
       '[data-dz-orbe=gen]' in css and '[data-dz-orbe=lecture]' in css and "dz-orbe-tour 9s" in css)
 m = re.search(r"@media \(prefers-reduced-motion:reduce\)\{(.*?)\}\}", css)
-check("C2 prefers-reduced-motion fige nappe, ondes et cœur", bool(m) and "animation:none!important" in m.group(1)
-      and all(c in m.group(1) for c in (".dz-orbe-nappe", ".dz-orbe-onde", ".dz-orbe-coeur")), str(m and m.group(1))[:300])
+fige = re.findall(r"([^{}]+)\{animation:none!important\}", m.group(1)) if m else []
+sel = {s.strip() for s in fige[0].split(",")} if len(fige) == 1 else set()
+check("C2 prefers-reduced-motion fige nappe, ondes et cœur (une règle animation:none!important sur les trois)",
+      sel == {".dz-orbe-nappe", ".dz-orbe-onde", ".dz-orbe-coeur"}, str(fige))
+def _duree(selecteur):
+    mm = re.search(re.escape(selecteur) + r"\{[^}]*?animation(?:-duration)?:(?:[a-z-]+ )?([\d.]+)s", css)
+    return float(mm.group(1)) if mm else None
+dr, dg = _duree(".dz-orbe-nappe"), _duree(".dz-orbe[data-dz-orbe=gen] .dz-orbe-nappe")
+orp, ogn = _duree(".dz-orbe-onde"), _duree(".dz-orbe[data-dz-orbe=gen] .dz-orbe-onde")
+check("C1b la génération tourne et ondule au moins deux fois plus vite que le repos",
+      None not in (dr, dg, orp, ogn) and dg * 2 <= dr and ogn * 2 <= orp, str((dr, dg, orp, ogn)))
 check("C3 l'échelle du cœur suit --dz-orbe-niv ; en lecture analysée la pulsation CSS se coupe",
       "var(--dz-orbe-niv)" in css and "[data-dz-orbe=lecture][data-analyse] .dz-orbe-coeur{animation:none}" in css)
 check("C4 aucune position fixe, l'orbe ne capte pas les clics (zoom de la carte)", "position:fixed" not in css

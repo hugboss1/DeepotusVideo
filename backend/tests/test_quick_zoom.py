@@ -19,6 +19,9 @@ Ce que ce banc garde :
   [D] clé FR/EN `quick.zoom.recadrer` dans menus.json, catalogue assemblé à jour ;
   [E] maillon de queue `dzquick` : paires t216 ×1, aucune avec « aria-label », inverse exact, `avant_dzquick` rend
       l'aperçu d'avant, comptes figés intacts (useState 731, v2.8.0 ×4, DzTracks 181), aucun .bak.
+t217 (retour de l'utilisateur, 15/10) : ce n'est plus l'image mais la CARTE d'aperçu entière qui zoome — DzQuickZoom
+est le calque de la zone (carte dans le flux), molette partout pour agrandir ET réduire, glisser dès que la vue n'est
+pas à 100 %, badge au coin de la zone, tous les onglets (plus d'option off) ; [C] vise la carte, plus le contenu.
 Run (depuis backend/) : & $PY tests/test_quick_zoom.py"""
 import json, os, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")

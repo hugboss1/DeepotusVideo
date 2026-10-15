@@ -31,8 +31,12 @@ sur 46b94085) :
   t216 — zoom à la molette sur l'aperçu (comme le Vectorlab et le Photolab).
   - Z0 : `dzVueZoom` (pure) et `DzQuickZoom` : molette autour du curseur (z*1.0015^-deltaY, 0,25 à 8), écouteur natif
     {passive:false}, glisser une fois agrandi, double-clic / touche 0 / badge « 100 % » recadrent ;
-  - Z1-Z2 : l'aperçu `DzQuickStage(…)||repli` est enveloppé (off sur Voix off), clé onglet + image + avatar = retour à
-    100 % à chaque changement.
+  - Z1-Z2 (t217, retour de l'utilisateur) : c'est la CARTE d'aperçu entière (en-tête, contenu, pied) qui est enveloppée,
+    sur tous les onglets ; `DzQuickZoom` est le calque de la zone (molette partout, agrandir ET réduire, glisser dès que
+    la vue n'est pas à 100 %, badge au coin de la zone).
+  t218 — l'orbe vocal de l'aperçu Voix off (choix de l'utilisateur sur maquette).
+  - Z0 porte aussi `DzQuickOrbe` et ses aides ; O1 : l'aperçu de `um` rend l'orbe sur Voix off (le corps de DzQuickStage
+    n'est pas touché) ; V1 : `DzQuickVoice` publie busy / res (`dzVoixEtatPoser` → `dz:voix-etat`).
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 ».
 Clés dzT « quick.garde.* », « quick.onglet.composition », « quick.persona.* » et « quick.zoom.recadrer » : frontend/shared/i18n/menus.json (FR/EN), assemblées par scripts/i18n_assembler.py.
 
