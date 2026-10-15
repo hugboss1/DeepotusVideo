@@ -38,6 +38,10 @@ BUNDLE = RACINE / "frontend/dist/assets/index-BEOJX8L5.js"
 octets = BUNDLE.read_bytes()
 s = octets.decode("utf-8")
 base = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True, cwd=str(RACINE)).stdout
+# t212 (15/10/2026) : seul changement du bundle HORS maillons de queue depuis la base — la couche sonvfx renomme
+# `var dzT` (qui masquait la traduction globale dans liveSync) en dzZ, même longueur ; la base attendue le porte aussi
+_T212 = b"var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\n      if(lv.style.transform!==dzT)lv.style.transform=dzT;"
+base = base.replace(_T212, _T212.replace(b"dzT", b"dzZ")) if base.count(_T212) == 1 else b""
 
 print("[0] témoin et réversibilité")
 check("0.1 TÉMOIN : la base n'a ni le sélecteur ni l'onglet", base and b"function DzEspaceSel(" not in base and b'"/api/espaces' not in base)
@@ -48,7 +52,9 @@ check("0.3 avant_dzespace(livré) == la base, OCTET POUR OCTET (aux CRLF d'extra
       lambda: AIDE.avant_dzespace(s).replace(CRLF, LF).encode("utf-8") == base)
 check("0.4 avant_encartsia défait dzespace d'abord (la chaîne d'inverses reste complète)",
       lambda: "function DzEspaceSel(" not in AIDE.avant_encartsia(s) and "function dzImgOpts(" not in AIDE.avant_encartsia(s))
-check("0.5 appliquer(base) == livré (le maillon rejoué sur la base redonne le livré)", lambda: M.appliquer(base.decode("utf-8").replace(LF, CRLF)) == s)
+# t212 : le maillon dzquick est posé APRÈS celui-ci : le livré se compare vu d'avant dzquick
+check("0.5 appliquer(base) == livré (le maillon rejoué sur la base redonne le livré)",
+      lambda: M.appliquer(base.decode("utf-8").replace(LF, CRLF)) == AIDE.avant_dzquick(s))
 check("0.6 comptes figés intacts : x.useState( 731, v2.8.0 x4, DzTracks 181",
       s.count("x.useState(") == 731 and s.count("v2.8.0") == 4 and s.count("DzTracks") == 181)
 check("0.7 CRLF homogènes (octets)", octets.count(b"\r\n") > 15000 and octets.count(b"\n") == octets.count(b"\r\n"))

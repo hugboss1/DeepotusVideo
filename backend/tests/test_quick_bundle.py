@@ -361,7 +361,8 @@ check("P3 la recette porte la voix (onglet Voix) et son application la rejoue",
 i_qv = s.find("function DzQuickVoice(")
 qv = s[i_qv:i_qv + 20000]
 check("P4 DzQuickVoice expose son etat et ecoute l'evenement (retire au demontage)",
-      "window.__dzQuickVoiceGet=function(){return{text:txt,lang:lang,voice_id:vid,voice_name:vnm,model:dzM,tune:dzT}};" in qv
+      # t212 : l'etat du reglage de voix s'appelle dzTu (dzT masquait la traduction globale)
+      "window.__dzQuickVoiceGet=function(){return{text:txt,lang:lang,voice_id:vid,voice_name:vnm,model:dzM,tune:dzTu}};" in qv
       and 'window.removeEventListener("deepotus:quick-voice",onV)' in qv)
 if node:
     js = r"""
@@ -425,7 +426,7 @@ var ecouteurs={},effets=[],set={};globalThis.localStorage={setItem:function(k,v)
 globalThis.window={addEventListener:function(n,f){ecouteurs[n]=f},removeEventListener:function(n,f){if(ecouteurs[n]===f)delete ecouteurs[n]},
   __dzQuickVoicePending:{text:"en attente",lang:"en"}};
 var x={useRef:function(v){return{current:v}},useEffect:function(f){effets.push(f)}};
-var txt="t0",lang="fr",vid="",vnm="App",dzM="m0",dzT={s:1};
+var txt="t0",lang="fr",vid="",vnm="App",dzM="m0",dzTu={s:1};
 function setTxt(v){set.txt=v}function setLang(v){set.lang=v}function setVid(v){set.vid=v}function setVnm(v){set.vnm=v}
 function dzSetM(v){set.m=v}function dzSetT(v){set.t=v}
 """ + qv[a_qv:b_qv] + r"""
