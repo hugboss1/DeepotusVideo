@@ -208,7 +208,7 @@ try:
 except SystemExit as e:
     aller = str(e)
 check("D7 maillon dzquick : aller-retour exact, avant_dzquick identique, sans orbe",
-      aller == BUNDLE and AIDE.avant_dzquick(BUNDLE) == avant and "DzQuickOrbe" not in avant)
+      aller == BUNDLE and AIDE.avant_dzquick(BUNDLE) == AIDE.avant_dzreglages(avant) and "DzQuickOrbe" not in avant)
 check("D8 comptes figés intacts", BUNDLE.count("x.useState(") == 731 and BUNDLE.count("v2.8.0") == 4
       and BUNDLE.count("DzTracks") == 181)
 

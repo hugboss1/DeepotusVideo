@@ -172,7 +172,7 @@ try:
     avant_aide = AIDE.avant_dzquick(BUNDLE)
 except AssertionError as e:
     avant_aide = str(e)
-check("D4 avant_dzquick rend le tableau d'avant", len(t213) == 2 and avant_aide == avant
+check("D4 avant_dzquick rend le tableau d'avant", len(t213) == 2 and avant_aide == AIDE.avant_dzreglages(avant)
       and '["comp","Composition","dz-cat-composition",' in avant and '"aria-label":Z' not in avant)
 check("D5 comptes figés intacts", BUNDLE.count("x.useState(") == 731 and BUNDLE.count("v2.8.0") == 4
       and BUNDLE.count("DzTracks") == 181)

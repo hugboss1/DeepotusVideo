@@ -272,7 +272,7 @@ try:
     avant_aide = AIDE.avant_dzquick(BUNDLE)
 except AssertionError as e:
     avant_aide = str(e)
-check("F3 avant_dzquick rend la ligne figée d'avant", avant_aide == avant and avant.count(LIGNE_FIGEE) == 1
+check("F3 avant_dzquick rend la ligne figée d'avant", avant_aide == AIDE.avant_dzreglages(avant) and avant.count(LIGNE_FIGEE) == 1
       and "DzQuickPersona" not in avant)
 check("F4 comptes figés intacts", BUNDLE.count("x.useState(") == 731 and BUNDLE.count("v2.8.0") == 4
       and BUNDLE.count("DzTracks") == 181)

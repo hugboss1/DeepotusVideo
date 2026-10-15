@@ -10392,6 +10392,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "reglages.pack.remplacer": {"fr": "Remplacer", "en": "Replace"},
   "reglages.pack.retirer": {"fr": "Retirer l'étiquette", "en": "Remove tag"},
   "reglages.pack.titre": {"fr": "Pack de sous-titres", "en": "Caption pack"},
+  "reglages.pastille.clic_tarifs": {"fr": "\n\nClic → Réglages → Tarifs et budget.", "en": "\n\nClick → Settings → Pricing & budget."},
   "reglages.personas.actif": {"fr": "actif", "en": "active"},
   "reglages.personas.aide_debut": {"fr": "Chaque persona est un fichier JSON : ", "en": "Each persona is a JSON file at "},
   "reglages.personas.aide_fin": {"fr": ". Le persona actif règle le scénariste des News, le ton du générateur de prompts et la voix off par défaut. Les personas fournis sont en lecture seule : dupliquez-en un pour le modifier.", "en": ". The active one drives the News scripter, the prompt generator's tone, and the default Voiceover. Built-in personas are read-only; duplicate any of them to edit."},

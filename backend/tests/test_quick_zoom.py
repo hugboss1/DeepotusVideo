@@ -232,7 +232,7 @@ try:
     avant_aide = AIDE.avant_dzquick(BUNDLE)
 except AssertionError as e:
     avant_aide = str(e)
-check("E4 avant_dzquick rend l'aperçu d'avant", avant_aide == avant and "DzQuickZoom" not in avant and avant.count(APPEL) == 1)
+check("E4 avant_dzquick rend l'aperçu d'avant", avant_aide == AIDE.avant_dzreglages(avant) and "DzQuickZoom" not in avant and avant.count(APPEL) == 1)
 check("E5 comptes figés intacts", BUNDLE.count("x.useState(") == 731 and BUNDLE.count("v2.8.0") == 4
       and BUNDLE.count("DzTracks") == 181)
 check("E6 aucun .bak_dzquick laissé", not (BUN_P.parent / (BUN_P.name + ".bak_dzquick")).exists())
