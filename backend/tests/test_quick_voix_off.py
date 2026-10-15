@@ -193,7 +193,7 @@ except (AssertionError, SystemExit) as e:
     avant = str(e)
 check("E2 inverse exact : aller-retour à l'octet", DQ.MARKER not in avant and DQ.appliquer(avant) == BUNDLE)
 check("E3 l'inverse rend le défaut d'avant (dzT=dztS[0])", "dzT=dztS[0]," in avant)
-check("E4 avant_dzquick = inverse du maillon", AIDE.avant_dzquick(BUNDLE) == avant)
+check("E4 avant_dzquick = inverse du maillon", AIDE.avant_dzquick(BUNDLE) == AIDE.avant_dzreglages(avant))  # t219
 src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
 j = src_aide.find("def avant_dzespace(")
 check("E5 avant_dzquick appelé EN TÊTE d'avant_dzespace",
