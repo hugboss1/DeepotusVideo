@@ -28,8 +28,13 @@ sur 46b94085) :
   - P1 : il remplace la ligne figée de Quick. Prompt (dzPromptAuto), voix (dzVoixSuit), galerie nm et vibes suivent
     déjà l'espace via dzCtCharger (maillon dzespace) ;
   - P2 : une vibe choisie absente de l'espace retombe sur la première vibe de l'espace (le sélecteur affichait « — »).
+  t216 — zoom à la molette sur l'aperçu (comme le Vectorlab et le Photolab).
+  - Z0 : `dzVueZoom` (pure) et `DzQuickZoom` : molette autour du curseur (z*1.0015^-deltaY, 0,25 à 8), écouteur natif
+    {passive:false}, glisser une fois agrandi, double-clic / touche 0 / badge « 100 % » recadrent ;
+  - Z1-Z2 : l'aperçu `DzQuickStage(…)||repli` est enveloppé (off sur Voix off), clé onglet + image + avatar = retour à
+    100 % à chaque changement.
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 ».
-Clés dzT « quick.garde.* », « quick.onglet.composition » et « quick.persona.* » : frontend/shared/i18n/menus.json (FR/EN), assemblées par scripts/i18n_assembler.py.
+Clés dzT « quick.garde.* », « quick.onglet.composition », « quick.persona.* » et « quick.zoom.recadrer » : frontend/shared/i18n/menus.json (FR/EN), assemblées par scripts/i18n_assembler.py.
 
 Maillon de QUEUE, APRÈS dzespace (dont il sonde le marqueur) ; il garde un .js.bak_dzquick le temps de l'écriture puis
 le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzquick` dans
@@ -143,6 +148,43 @@ QPERSONA = (
     'children:dzT("quick.persona.note")})]})}'
 )
 
+# t216 — Z0 : le zoom de l'aperçu. `dzVueZoom` (pure, testable sous node) : la molette zoome AUTOUR DU CURSEUR
+# (z*1.0015^-deltaY, bornes 0,25 à 8, comme le Vectorlab), le glisser déplace une fois agrandi, « neutre » recadre.
+# `DzQuickZoom` (useReducer, aucun useState) : écouteur de molette NATIF {passive:false} (le onWheel de React est passif),
+# transform translate() scale() ancrée en 0 0, double-clic / touche 0 / badge « 100 % » recadrent ; `off` (Voix off) rend
+# les enfants tels quels. Le glisser natif de l'<img> (image fantôme, pointercancel) est bloqué par onDragStart : sans
+# lui, un vrai glisser à la souris ne déplaçait rien. Posé devant `var dzQpPers` : aucune paire figée n'est coupée.
+ZOOM = (
+    'var dzVueZoom={neutre:function(){return{z:1,x:0,y:0}},borner:function(z){return z<.25?.25:z>8?8:z},'
+    'autour:function(v,px,py,dy){var z2=dzVueZoom.borner(v.z*Math.pow(1.0015,-dy));if(z2===v.z)return v;var k=z2/v.z;'
+    'return{z:z2,x:px-(px-v.x)*k,y:py-(py-v.y)*k}},'
+    'glisser:function(v,dx,dy){return v.z>1?{z:v.z,x:v.x+dx,y:v.y+dy}:v},'
+    'reduire:function(v,a){return a.t==="molette"?dzVueZoom.autour(v,a.px,a.py,a.dy):a.t==="glisser"?'
+    'dzVueZoom.glisser(v,a.dx,a.dy):v.z===1&&v.x===0&&v.y===0?v:dzVueZoom.neutre()}};'
+    'function DzQuickZoom({off,children:ch}){const[v,envoi]=x.useReducer(dzVueZoom.reduire,null,dzVueZoom.neutre),'
+    'boite=x.useRef(null),glis=x.useRef(null);'
+    'x.useEffect(function(){var b=boite.current;if(off||!b)return;var f=function(ev){ev.preventDefault();'
+    'var rc=b.getBoundingClientRect();envoi({t:"molette",px:ev.clientX-rc.left,py:ev.clientY-rc.top,dy:ev.deltaY})};'
+    'b.addEventListener("wheel",f,{passive:!1});return function(){b.removeEventListener("wheel",f)}},[off]);'
+    'if(off)return ch;var recadrer=function(){envoi({t:"neutre"})},fin=function(){glis.current=null};'
+    'return r.jsxs("div",{ref:boite,"data-dz-qz":"1",tabIndex:0,onDoubleClick:recadrer,'
+    'onKeyDown:function(ev){if(ev.key==="0"){ev.preventDefault();recadrer()}},'
+    'onPointerDown:function(ev){if(v.z<=1||ev.button!==0)return;glis.current={x:ev.clientX,y:ev.clientY};'
+    'try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch(_e){}},'
+    'onPointerMove:function(ev){var g=glis.current;if(!g)return;glis.current={x:ev.clientX,y:ev.clientY};'
+    'envoi({t:"glisser",dx:ev.clientX-g.x,dy:ev.clientY-g.y})},onPointerUp:fin,onPointerCancel:fin,'
+    'onDragStart:function(ev){ev.preventDefault()},'
+    'style:{position:"absolute",inset:0,overflow:"hidden",outline:"none",touchAction:"none",userSelect:"none",'
+    'cursor:v.z>1?"grab":"zoom-in"},children:[r.jsx("div",{"data-dz-qz-vue":"1",style:{position:"absolute",inset:0,'
+    'transformOrigin:"0 0",transform:"translate("+v.x+"px,"+v.y+"px) scale("+v.z+")"},children:ch}),'
+    'r.jsx("button",{type:"button","data-dz-qz-badge":"1",title:dzT("quick.zoom.recadrer"),'
+    'onClick:function(ev){ev.stopPropagation();recadrer()},onPointerDown:function(ev){ev.stopPropagation()},'
+    'onDoubleClick:function(ev){ev.stopPropagation()},style:{position:"absolute",top:38,right:12,zIndex:3,'
+    'fontFamily:"var(--f-mono)",fontSize:10,padding:"2px 6px",borderRadius:4,border:"1px solid var(--stroke)",'
+    'background:"#02060daa",color:v.z===1?"var(--ink-soft)":"var(--cyan)",cursor:"pointer"},'
+    'children:Math.round(v.z*100)+" %"})]})}'
+)
+
 PAIRES = [
     # t212 — Q1-Q4 : l'état du réglage de voix ne s'appelle plus dzT
     ('),dzT=dztS[0],dzSetT=dztS[1],',                                                                       # Q1
@@ -201,6 +243,14 @@ PAIRES = [
     ('},[dzCvQ]);function M(){',                                                                                # P2
      '},[dzCvQ]);x.useEffect(function(){if(I.length&&!I.some(function(z){return z.id===A}))V(I[0].id)},[dzCvQ]);'
      'function M(){'),
+    # t216 — Z0 le zoom, posé devant les aides de t214 ; Z1-Z2 l'appel DzQuickStage(…)||repli de l'aperçu est enveloppé,
+    # `off` sur Voix off, clé par onglet + image + avatar (la vue revient à 100 % à chaque changement)
+    ('var dzQpPers={};',                                                                                     # Z0
+     ZOOM + 'var dzQpPers={};'),
+    ('DzQuickStage({tab:o,img:w,layout:We,avatarUrl:',                                                        # Z1
+     'r.jsx(DzQuickZoom,{off:o==="voice",children:DzQuickStage({tab:o,img:w,layout:We,avatarUrl:'),
+    ('dzT("quick.apercu.importer")})]}),r.jsxs("div",{style:{position:"absolute",bottom:14',                   # Z2
+     'dzT("quick.apercu.importer")})]})},"dzqz-"+o+"|"+(w||"")+"|"+(C||"")),r.jsxs("div",{style:{position:"absolute",bottom:14'),
 ]
 
 
