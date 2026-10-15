@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -62,7 +63,14 @@ def _ecrire_json(f: Path, doc) -> None:
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_name(f.name + ".tmp")
     tmp.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(f)
+    for essai in range(6):          # t210 : sous Windows, un lecteur qui tient le fichier refuse le remplacement un instant
+        try:
+            tmp.replace(f)
+            return
+        except PermissionError:
+            if essai == 5:
+                raise
+            time.sleep(0.05 * (essai + 1))
 
 
 def _maintenant() -> str:

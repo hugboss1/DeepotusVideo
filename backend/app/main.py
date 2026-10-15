@@ -326,8 +326,24 @@ async def _espace_de_la_requete(request, call_next):
     if not request.url.path.startswith("/api"):
         return await call_next(request)
     from app.services import espaces as _es
+    voulu = request.headers.get("x-dz-espace")
+    if voulu:
+        # t210 (Espaces de marque E10) : un client (skill deepotus-comms, script) travaille DANS un espace sans changer
+        # l'espace actif de l'écran. Un espace inconnu ou archivé est refusé : jamais un repli silencieux sur l'actif.
+        from fastapi.responses import JSONResponse
+        from app.i18n import erreurs as _ERR
+        try:
+            doc = _es.lire()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"espace demandé non lu : {e}")
+            doc = {"espaces": {}}
+        if not _es.id_valide(voulu) or voulu not in doc["espaces"]:
+            return JSONResponse({"detail": _ERR.detail(f"espace inconnu : {voulu[:60]}", _ERR.langue(request))}, 404)
+        if doc["espaces"][voulu].get("archive"):
+            return JSONResponse({"detail": _ERR.detail("cet espace est archivé : désarchivez-le d'abord",
+                                                       _ERR.langue(request))}, 409)
     try:
-        jeton = _es.figer()
+        jeton = _es.figer(voulu or None)
     except Exception as e:  # noqa: BLE001 — jamais une requete perdue pour ca : l'espace actif sera lu a l'usage
         logger.warning(f"espace de la requete non fige : {e}")
         return await call_next(request)

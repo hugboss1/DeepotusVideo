@@ -7632,6 +7632,34 @@ async def create_espace(body: dict, request: Request):
     return {"espace": e, "espaces": _es.lister()}
 
 
+@router.post("/espaces/importer")
+async def import_espace(request: Request, file: UploadFile = File(...)):
+    """t210 (Espaces de marque E10) : un paquet d'espace (.zip SANS secrets) devient un espace NEUF, non actif. Rend
+    l'espace, les comptes dont les secrets sont à ressaisir et les entrées ignorées. Déclarée AVANT /espaces/{id}."""
+    _require_localhost(request)
+    from app.services import espaces as _es, espaces_paquet as _ep
+    data = await file.read(_ep.MAX_ZIP + 1)
+    try:
+        r = _ep.importer(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {**r, "espaces": _es.lister()}
+
+
+@router.get("/espaces/{espace_id}/export")
+async def export_espace(espace_id: str, request: Request):
+    """t210 : le paquet de l'espace (persona, contenus, identité, kit, comptes) — aucun secret, jamais."""
+    _require_localhost(request)
+    from fastapi.responses import Response as _Rep
+    from app.services import espaces_paquet as _ep
+    try:
+        data, nom = _ep.exporter(espace_id)
+    except KeyError:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    return _Rep(content=data, media_type="application/zip",
+                headers={"Content-Disposition": f'attachment; filename="{nom}"', "Cache-Control": "no-store"})
+
+
 @router.post("/espaces/{espace_id}")
 async def update_espace(espace_id: str, body: dict, request: Request):
     _require_localhost(request)
@@ -7669,7 +7697,9 @@ async def archive_espace(espace_id: str, body: dict, request: Request):
         raise HTTPException(400, "L'espace actif ne s'archive pas : activez-en un autre d'abord.")
     if r == "seul":
         raise HTTPException(400, "C'est le dernier espace : il en faut au moins un.")
-    return {"espaces": _es.lister(archives=True)}
+    # t210 : les posts programmés d'un espace archivé attendent (la boucle les saute) ; l'écran dit combien
+    from app.services import marketing as _mk
+    return {"espaces": _es.lister(archives=True), "en_pause": await _mk.posts_en_attente(espace_id)}
 
 
 @router.get("/espaces/{espace_id}/persona")

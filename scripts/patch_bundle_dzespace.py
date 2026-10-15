@@ -35,6 +35,9 @@ off par défaut de Quick suit l'espace (`dzVoixSuit`).
 t208-bis (13/10/2026) : `dzMq(clé)` — les textes Deepotus restés en dur dans le Studio (nœud Texte = script HeyGen
 par défaut, compilateur, devis, légendes « planifier », vignette, bandeau de marque, élément texte de l'animation),
 le prompt d'illustration News et le nom par défaut de l'avatar photo suivent l'espace actif (paires M1-M12).
+t210 (15/10/2026) : Réglages › Espaces — « Exporter » (paquet .zip sans secrets, GET /api/espaces/{id}/export) sur
+chaque espace, « Importer un espace… » (POST /api/espaces/importer : un espace neuf, les secrets à ressaisir), et
+l'archivage dit combien de posts programmés sont mis en pause.
 t209 (14/10/2026) : la Bibliothèque montre l'espace actif ou tous (`DzBibEspace` dans l'en-tête, `dzBibQ` passé à
 /images, /jobs et /audio, paires B1-B6) ; Réglages › Espaces : dépense du mois, plafond propre et relevé CSV de
 chaque espace (`DzDepEspace`).
@@ -100,7 +103,7 @@ AIDES = (
     'st.err&&r.jsx("div",{role:"alert",style:{fontSize:10.5,color:"var(--red)",marginTop:4},children:st.err})]})}'
     # Réglages › Espaces
     'function DzEspaces(){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},'
-    '{liste:null,actif:"",kits:[],arch:!1,nom:"",couleur:"#3b82f6",err:"",busy:!1,edit:"",editNom:""});'
+    '{liste:null,actif:"",kits:[],arch:!1,nom:"",couleur:"#3b82f6",err:"",busy:!1,edit:"",editNom:"",msg:""});'
     'function charger(){return Promise.all([fetch("/api/espaces?archives=true").then(function(r){return r.json()}),'
     'fetch("/api/brand-kits").then(function(r){return r.json()})]).then(function(v){maj({liste:v[0].espaces||[],'
     'actif:v[0].actif,kits:v[1].kits||[]})}).catch(function(){maj({err:dzT("espaces.erreur.lecture")})})}'
@@ -109,6 +112,12 @@ AIDES = (
     'return dzEspCharger()}).then(function(){signal&&dzEspSignal();maj({busy:!1})},function(e){'
     'maj({busy:!1,err:String(e&&e.message||e)})})}'
     'function base(id){return"/api/espaces/"+encodeURIComponent(id)}'
+    # t210 — importer un paquet d'espace (.zip sans secrets) : un espace NEUF ; la réponse dit les secrets à ressaisir
+    'function importer(f){if(!f)return;var fd=new FormData();fd.append("file",f);maj({msg:""});'
+    'agir(fetch("/api/espaces/importer",{method:"POST",body:fd}).then(function(rp){return rp.json().catch(function(){return{}})'
+    '.then(function(j){if(!rp.ok)throw new Error(j&&j.detail?String(j.detail):"HTTP "+rp.status);var n=(j.a_ressaisir||[]).length,'
+    'ig=(j.ignores||[]).length;maj({msg:dzT("espaces.import.fait",{nom:(j.espace||{}).nom||""})'
+    '+(n?" "+dzT("espaces.import.ressaisir",{n:n}):"")+(ig?" "+dzT("espaces.import.ignores",{n:ig}):"")})})}))}'
     'var bt={fontSize:11.5,padding:"4px 10px",background:"var(--bg-panel-2)",color:"var(--ink-strong)",'
     'border:"1px solid var(--stroke)",borderRadius:4,cursor:"pointer"};'
     'var champ={fontSize:12,padding:"5px 8px",background:"var(--bg-panel-2)",color:"var(--ink-strong)",'
@@ -124,7 +133,12 @@ AIDES = (
     'onChange:function(ev){maj({nom:ev.target.value})},style:Object.assign({},champ,{minWidth:220})}),'
     'r.jsx("input",{type:"color",value:st.couleur,title:dzT("espaces.nouveau.couleur"),"aria-label":dzT("espaces.nouveau.couleur"),'
     'onChange:function(ev){maj({couleur:ev.target.value})},style:{width:36,height:28,padding:0,border:0,background:"none"}}),'
-    'r.jsx("button",{type:"submit",disabled:st.busy||!st.nom.trim(),style:bt,children:dzT("espaces.nouveau.creer")})]}),'
+    'r.jsx("button",{type:"submit",disabled:st.busy||!st.nom.trim(),style:bt,children:dzT("espaces.nouveau.creer")}),'
+    'r.jsxs("label",{"data-dz-espace-importer":"1",title:dzT("espaces.import.aide"),style:Object.assign({},bt,'
+    '{marginLeft:"auto",opacity:st.busy?.5:1}),children:[dzT("espaces.import.bouton"),r.jsx("input",{type:"file",'
+    'accept:".zip,application/zip",disabled:st.busy,style:{display:"none"},onChange:function(ev){var f=ev.target.files&&'
+    'ev.target.files[0];ev.target.value="";importer(f)}})]})]}),'
+    'st.msg&&r.jsx("div",{role:"status","data-dz-espace-msg":"1",style:{fontSize:12,color:"var(--ink-soft)"},children:st.msg}),'
     'st.err&&r.jsx("div",{role:"alert",style:{fontSize:12,color:"var(--red)"},children:st.err}),'
     'st.liste===null&&!st.err&&r.jsx("div",{style:{fontSize:12,color:"var(--ink-muted)"},children:dzT("espaces.etat.chargement")}),'
     'r.jsx("div",{style:{display:"flex",flexDirection:"column",gap:6},children:vues.map(function(e){'
@@ -154,8 +168,11 @@ AIDES = (
     '!act&&!e.archive&&r.jsx("button",{type:"button","data-dz-espace-activer":e.id,disabled:st.busy,style:bt,onClick:function(){'
     'maj({busy:!0,err:""});dzEspActiver(e.id).then(function(){return charger()}).then(function(){maj({busy:!1})},'
     'function(x2){maj({busy:!1,err:String(x2&&x2.message||x2)})})},children:dzT("espaces.action.activer")}),'
-    '!act&&r.jsx("button",{type:"button",disabled:st.busy,style:bt,onClick:function(){'
-    'agir(dzEspEnvoyer(base(e.id)+"/archive","POST",{archive:!e.archive}))},'
+    'r.jsx("a",{href:base(e.id)+"/export",download:"","data-dz-espace-exporter":e.id,title:dzT("espaces.export.aide"),'
+    'style:Object.assign({},bt,{textDecoration:"none"}),children:dzT("espaces.action.exporter")}),'
+    '!act&&r.jsx("button",{type:"button",disabled:st.busy,style:bt,onClick:function(){var ar=!e.archive;maj({msg:""});'
+    'agir(dzEspEnvoyer(base(e.id)+"/archive","POST",{archive:ar}).then(function(j){'
+    'ar&&j&&j.en_pause&&maj({msg:dzT("espaces.archive.en_pause",{n:j.en_pause,nom:e.nom})})}))},'
     'children:dzT(e.archive?"espaces.action.desarchiver":"espaces.action.archiver")}),'
     'r.jsx(DzDepEspace,{espace:e.id},"dep:"+e.id)]},e.id)})}),'   # t209 : clé PRÉFIXÉE
     'r.jsxs("label",{style:{fontSize:12,color:"var(--ink-soft)",display:"flex",gap:6,alignItems:"center"},children:['
@@ -572,7 +589,7 @@ AIDES_BIB = (
     'function dzDepFr(v,k){k=k==null?2:k;var n=Math.round((Number(v)||0)*Math.pow(10,k))/Math.pow(10,k);try{return n.toLocaleString(document.documentElement.lang||void 0,'
     '{minimumFractionDigits:k,maximumFractionDigits:k})}catch(_e){return n.toFixed(k)}}'
     'function DzDepEspace({espace:esp}){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},{v:null,busy:!1,err:""});'
-    'x.useEffect(function(){var g=function(){maj({})};dzDepAb.push(g);dzDepCharger(!dzDepD);'
+    'x.useEffect(function(){var g=function(){maj({})};dzDepAb.push(g);dzDepCharger(!dzDepD||!(dzDepD.par_espace||{})[esp]);'   # t210 : un espace neuf ou importé recharge le mois
     'return function(){dzDepAb=dzDepAb.filter(function(h){return h!==g})}},[]);'
     'var d=dzDepD&&dzDepD.par_espace&&dzDepD.par_espace[esp]||{effectif_usd:0,plafond_usd:0,pct:0},mois=dzDepD&&dzDepD.mois||"";'
     'var pl=st.v!=null?st.v:String(d.plafond_usd||0);'
