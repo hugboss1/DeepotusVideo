@@ -17,8 +17,12 @@ sur 46b94085) :
     rail et les autres écrans utilisables.
   (Le même masquage, dans l'aperçu vivant du Montage — `var dzT=DzTracks.dzCss` de liveSync —, est corrigé dans la
   SOURCE de la couche, frontend/patches/son-vfx-montage.js, rafraîchie par scripts/refresh_layer.py --layer sonvfx.)
+  t213 — la barre d'onglets débordait de la colonne de 360 px (« Composition », « Voiced… » coupés).
+  - T1 : « Composition » passe par dzT (quick.onglet.composition, EN « Compositing ») ;
+  - T2 : icônes seules (`flex:"0 0 auto"`), l'onglet actif garde son libellé dans un span en ellipse (`flex:1`) ;
+    `title` (la bulle) et `aria-label` = libellé sur chaque bouton, la bulle « désactivé — clé requise » reste.
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 ».
-Clés dzT « quick.garde.* » : frontend/shared/i18n/quick.json (FR/EN), assemblées par scripts/i18n_assembler.py.
+Clés dzT « quick.garde.* » et « quick.onglet.composition » : frontend/shared/i18n/menus.json (FR/EN), assemblées par scripts/i18n_assembler.py.
 
 Maillon de QUEUE, APRÈS dzespace (dont il sonde le marqueur) ; il garde un .js.bak_dzquick le temps de l'écriture puis
 le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzquick` dans
@@ -87,6 +91,25 @@ PAIRES = [
     ('s==="quick"&&r.jsx(um,{variant:e,activePersona:z.find(F=>F.id===P)})',                                  # G3
      's==="quick"&&r.jsx(DzQuickGarde,{onglet:"seedance",ecran:!0,'
      'children:r.jsx(um,{variant:e,activePersona:z.find(F=>F.id===P)})},"dzqg-ecran")'),
+    # t213 — T1-T2 : la barre d'onglets tient dans la colonne de 360 px. Icônes seules ; `title` (la bulle) et
+    # `aria-label` = libellé sur chaque bouton (la bulle « désactivé — clé requise » des onglets sans clé reste) ;
+    # l'onglet ACTIF garde son libellé, dans un span en ellipse ; « Composition » passe par dzT
+    ('["comp","Composition","dz-cat-composition",',                                                          # T1
+     '["comp",dzT("quick.onglet.composition"),"dz-cat-composition",'),
+    ('title:je?dzT("quick.onglet.desactive",{nom:Z}):"",style:{flex:1,height:28,padding:"0 8px",'            # T2
+     'background:o===B?"var(--bg-panel-2)":"transparent",border:o===B?"1px solid var(--stroke-strong)":'
+     '"1px solid transparent",color:je?"var(--ink-muted)":o===B?"var(--ink-strong)":"var(--ink-soft)",'
+     'borderRadius:"var(--r-sm)",cursor:je?"not-allowed":"pointer",fontSize:11.5,fontWeight:500,opacity:je?.55:1,'
+     'display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6},'
+     'children:[r.jsx(X,{name:fe,size:12}),Z]},B))',
+     'title:je?dzT("quick.onglet.desactive",{nom:Z}):Z,"aria-label":Z,style:{flex:o===B?1:"0 0 auto",minWidth:0,'
+     'overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",height:28,padding:"0 8px",'
+     'background:o===B?"var(--bg-panel-2)":"transparent",border:o===B?"1px solid var(--stroke-strong)":'
+     '"1px solid transparent",color:je?"var(--ink-muted)":o===B?"var(--ink-strong)":"var(--ink-soft)",'
+     'borderRadius:"var(--r-sm)",cursor:je?"not-allowed":"pointer",fontSize:11.5,fontWeight:500,opacity:je?.55:1,'
+     'display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6},'
+     'children:[r.jsx(X,{name:fe,size:12,style:{flexShrink:0}}),o===B&&r.jsx("span",{style:{minWidth:0,'
+     'overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:Z})]},B))'),
 ]
 
 
