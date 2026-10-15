@@ -426,7 +426,7 @@ var ecouteurs={},effets=[],set={};globalThis.localStorage={setItem:function(k,v)
 globalThis.window={addEventListener:function(n,f){ecouteurs[n]=f},removeEventListener:function(n,f){if(ecouteurs[n]===f)delete ecouteurs[n]},
   __dzQuickVoicePending:{text:"en attente",lang:"en"}};
 var x={useRef:function(v){return{current:v}},useEffect:function(f){effets.push(f)}};
-var txt="t0",lang="fr",vid="",vnm="App",dzM="m0",dzT={s:1};
+var txt="t0",lang="fr",vid="",vnm="App",dzM="m0",dzTu={s:1};
 function setTxt(v){set.txt=v}function setLang(v){set.lang=v}function setVid(v){set.vid=v}function setVnm(v){set.vnm=v}
 function dzSetM(v){set.m=v}function dzSetT(v){set.t=v}
 """ + qv[a_qv:b_qv] + r"""
