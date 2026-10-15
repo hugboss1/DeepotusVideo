@@ -118,6 +118,14 @@ check("cas grisé : « clé X à ajouter dans Réglages — absent du sélecteur
       # t192 : la mention passe par TP("ia.pastille.hors_vue", <français d'avant>) (commun.json)
       re.search(r"x\.sansCle \? CLE_A_AJOUTER : CLE_ABSENTE\)\(x\.cle\) \+ \" — \"\)\s*\+ TP\(\"ia\.pastille\.hors_vue\", \"absent du sélecteur de la vue\"\)",
                 ch) is not None)
+# t215 (15/10/2026) : encarts animés au repos, pastilles en bas DANS l'encart, micro 24 px
+check("t215 : l'IntersectionObserver de pause hors écran est facultatif (page ou harnais sans IO : aucune erreur)",
+      re.search(r"if \(!io && W\.IntersectionObserver\)", ch) is not None and "new IntersectionObserver" not in ch
+      and "dzia-hors" in ch)
+check("t215 : le repos tourne (9 s) et le reflet est à 0,55 ; le focus garde 6 s",
+      "dzia-tour 9s" in ch and "--dzia-holo:.55" in ch and "animation-duration:6s,5.5s" in ch)
+check("t215 : la barre de multiligne est posée à 6 px du bas, 6 + 16 px de la droite (poignée), plus jamais à cheval",
+      "r.bottom - rb.height - 6" in ch and "6 + 16" in ch and "st.coin" not in ch)
 
 # ── [a3] copies dist ─────────────────────────────────────────────────────────
 print("[a3] copies dist")

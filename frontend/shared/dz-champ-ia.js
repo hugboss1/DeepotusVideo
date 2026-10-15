@@ -17,18 +17,22 @@
    main est honoré partout.
 
    HABILLAGE (variante B de la maquette) : liseré conic-gradient violet
-   #8b5cf6 → bleu #3b82f6 → orange #f97316 et halo faible au repos, FIXES ;
-   au :focus-within, rotation (6 s) et reflet holographique (screen, 5,5 s)
-   avec une trame fine ; prefers-reduced-motion fige tout. Le champ n'est
+   #8b5cf6 → bleu #3b82f6 → orange #f97316 et halo faible ; t215 (1.3.0,
+   15/10/2026) : AU REPOS l'anneau tourne lentement (9 s) et le reflet est à
+   0,55 ; au :focus-within, rotation (6 s) et reflet holographique plein
+   (screen, 5,5 s) avec une trame fine ; un champ HORS ÉCRAN (IntersectionObserver,
+   classe dzia-hors) est mis en pause ; prefers-reduced-motion fige tout. Le champ n'est
    JAMAIS déplacé : un champ React re-parenté dans un conteneur étranger fait
    lever `removeChild`/`insertBefore` à React au prochain rendu conditionnel.
    Le liseré est peint PAR LE CHAMP LUI-MÊME (couches de fond : son propre fond
    en padding-box au-dessus du dégradé en border-box, bordure transparente de
    même épaisseur) : ni sa taille ni sa place ne changent. La BARRE (badge
    « IA » + emplacement `data-dzia-slot="modele"` qui porte la PASTILLE DE
-   MODÈLE (T9, voir plus bas) et emplacement `"micro"` (T10)) est un frère ABSOLU posé juste après le champ, recalé sur son coin
-   droit ; une réserve de padding (champs border-box seulement) empêche le
-   texte de passer dessous. Le parent statique devient `position:relative`
+   MODÈLE (T9, voir plus bas) et emplacement `"micro"` (T10)) est un frère ABSOLU posé juste après le champ, TOUJOURS
+   DANS l'encart (t215) : en bas à droite d'un multiligne (6 px du bas, 6 + 16 px de la droite pour la poignée), centrée
+   à droite d'un champ sur une ligne ; une réserve de padding (en bas, ou à droite sur une ligne ; champs border-box
+   seulement) empêche le texte de passer dessous ; un champ trop étroit ne garde que le badge, la pastille réduite à
+   son icône (.dzia-mini) et le micro. Le parent statique devient `position:relative`
    seulement s'il n'a aucun descendant absolu (sinon la barre se recale au
    défilement).
 
@@ -43,7 +47,7 @@
   var W = window, D = document;
   if (W.DzChampIA) return;
 
-  var VERSION = "1.2.0";
+  var VERSION = "1.3.0";
   var GENRES = ["video", "image", "anim", "sfx", "musique", "3d"];
 
   /* La table. `page` borne une règle à une page à part (préfixe du chemin). */
@@ -106,7 +110,8 @@
   var CSS = [
     "@property --dzia-ang{syntax:'<angle>';inherits:false;initial-value:0deg}",
     "@property --dzia-holo{syntax:'<number>';inherits:false;initial-value:0}",
-    /* repos : liseré fixe, halo faible, reflet éteint (--dzia-holo 0), animations en pause */
+    /* t215 — repos : l'anneau tourne lentement (9 s), le reflet balaie doucement (--dzia-holo .55), halo faible.
+       UNE seule propriété @property est animée par @keyframes (--dzia-ang) ; --dzia-holo n'est qu'en transition */
     ".dzia-lis.dzia-lis{border-color:transparent!important;" +
       "background-image:" +
         "linear-gradient(115deg,transparent 30%,rgba(139,92,246,calc(.10*var(--dzia-holo,0))) 42%,rgba(59,130,246,calc(.14*var(--dzia-holo,0))) 50%,rgba(249,115,22,calc(.10*var(--dzia-holo,0))) 58%,transparent 70%)," +
@@ -120,16 +125,17 @@
       "background-repeat:no-repeat,repeat,no-repeat,no-repeat,no-repeat!important;" +
       "background-blend-mode:screen,normal,normal,normal,normal!important;" +
       "box-shadow:0 0 10px -3px rgba(139,92,246,.30),0 0 12px -5px rgba(249,115,22,.24)!important;" +
-      "animation:dzia-tour 6s linear infinite,dzia-balai 5.5s ease-in-out infinite;" +
-      "animation-play-state:paused,paused;" +
+      "animation:dzia-tour 9s linear infinite,dzia-balai 8s ease-in-out infinite;--dzia-holo:.55;" +
       "transition:box-shadow .3s ease,--dzia-holo .4s ease}",
     ".dzia-bord.dzia-bord{border-style:solid!important;border-width:1px!important}",
     /* champ sans liseré possible (ni bord, ni parent bordé, ni padding à rendre) : halo seul */
     ".dzia-halo.dzia-halo{box-shadow:0 0 10px -3px rgba(139,92,246,.30),0 0 12px -5px rgba(249,115,22,.24)!important;transition:box-shadow .3s ease}",
     ".dzia-halo.dzia-halo:focus-within{box-shadow:0 0 14px -2px rgba(139,92,246,.55),0 0 18px -4px rgba(59,130,246,.42),0 0 16px -5px rgba(249,115,22,.40)!important}",
-    /* focus : le liseré tourne, le reflet holographique balaie */
-    ".dzia-lis.dzia-lis:focus-within{animation-play-state:running,running;--dzia-holo:1;outline:none;" +
+    /* focus : l'animation d'édition (6 s, reflet plein, halo renforcé), pendant toute l'édition */
+    ".dzia-lis.dzia-lis:focus-within{animation-duration:6s,5.5s;--dzia-holo:1;outline:none;" +
       "box-shadow:0 0 14px -2px rgba(139,92,246,.55),0 0 18px -4px rgba(59,130,246,.42),0 0 16px -5px rgba(249,115,22,.40)!important}",
+    /* t215 : hors écran (IntersectionObserver), plus rien ne tourne — le Vectorlab a beaucoup de champs */
+    ".dzia-lis.dzia-lis.dzia-hors:not(:focus-within){animation-play-state:paused,paused}",
     /* parent peint (composant `le`) : l'anneau de focus du champ nu ferait un second cadre dedans */
     ".dzia-lis>.dzia-champ:focus,.dzia-lis>.dzia-champ:focus-visible{outline:none!important;box-shadow:none!important}",
     "@keyframes dzia-tour{to{--dzia-ang:360deg}}",
@@ -145,6 +151,8 @@
       "opacity:.6;transition:opacity .3s ease;user-select:none;pointer-events:auto;cursor:text}",
     ".dzia-champ:focus-within+.dzia-barre .dzia-badge{opacity:1}",
     ".dzia-emp{display:inline-flex;align-items:center;gap:4px;pointer-events:auto}",
+    /* t215 : champ très étroit (#vitIaPrompt, 73 px) — seul le micro reste dans l'encart */
+    ".dzia-barre.dzia-seul .dzia-badge,.dzia-barre.dzia-seul [data-dzia-slot=modele]{display:none!important}",
     ".dzia-emp:empty{display:none}",
     /* T9 : la pastille de modèle (un seul bouton, grisé par aria-disabled) et sa liste */
     ".dzia-modele{display:inline-flex;align-items:center;gap:3px;max-width:118px;height:18px;margin:0;padding:0 6px 0 7px;" +
@@ -177,13 +185,14 @@
     /* t183 : l'en-tête d'une voie (clé fal, votre clé OpenAI…) */
     ".dzia-ogrp{padding:6px 8px 2px;color:#a78bfa;font:600 10.5px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.04em}",
     /* T10 : le micro (un seul bouton dont l'état change), la note d'état, le dialogue maison de repli */
-    ".dzia-micro{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin:0;padding:0;" +
-      "border-radius:999px;border:1px solid rgba(139,92,246,.55);background:rgba(18,20,26,.92);color:#e5e7eb;" +
+    /* t215 : 24 px (icône 15 px), contraste un peu plus fort au repos */
+    ".dzia-micro{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;margin:0;padding:0;" +
+      "border-radius:999px;border:1px solid rgba(139,92,246,.8);background:rgba(22,24,31,.96);color:#f3f4f6;" +
       "font:700 9px/1 system-ui,-apple-system,'Segoe UI',sans-serif;cursor:pointer;pointer-events:auto;box-sizing:border-box;flex-shrink:0}",
     ".dzia-micro:hover{border-color:#3b82f6}",
     ".dzia-micro[aria-disabled=true]{cursor:default;opacity:.62;border-style:dashed;border-color:rgba(148,163,184,.35)}",
     ".dzia-micro[aria-busy=true]{cursor:progress}",
-    ".dzia-mico,.dzia-mstop{display:flex;align-items:center;justify-content:center;width:11px;height:11px}",
+    ".dzia-mico,.dzia-mstop{display:flex;align-items:center;justify-content:center;width:15px;height:15px}",
     ".dzia-ecoute .dzia-micro{border-color:#ef4444;background:#b91c1c;color:#fff;animation:dzia-pouls 1.2s ease-in-out infinite}",
     "@keyframes dzia-pouls{50%{box-shadow:0 0 0 4px rgba(239,68,68,.28)}}",
     ".dzia-note{position:fixed;z-index:2147483000;max-width:360px;padding:5px 9px;border-radius:8px;background:#15171c;" +
@@ -283,6 +292,22 @@
 
   var suivis = [];
   var ro = W.ResizeObserver ? new W.ResizeObserver(function () { planifierSync(); }) : null;
+  /* t215 : UN IntersectionObserver (créé au premier liseré) met en pause l'anneau d'un champ hors écran (dzia-hors) ;
+     sans IntersectionObserver (vieux navigateur, harnais), l'anneau tourne simplement partout */
+  var io = null;
+  function vigie() {
+    if (!io && W.IntersectionObserver) {
+      try {
+        io = new W.IntersectionObserver(function (l) {
+          for (var i = 0; i < l.length; i++) {
+            var t = l[i].target;
+            if (t && t.classList) t.classList.toggle("dzia-hors", !l[i].isIntersecting);
+          }
+        }, { rootMargin: "120px" });
+      } catch (e) { io = null; }
+    }
+    return io;
+  }
 
   function creerBarre(el) {
     var b = D.createElement("span");
@@ -354,7 +379,7 @@
       genre: genre, regle: regle ? regle.id : null, manuel: !regle, parent: p,
       boite: c.boxSizing === "border-box", pad: pads(c), padInline: null,
       inline0: [el.style.paddingTop, el.style.paddingRight, el.style.paddingBottom, el.style.paddingLeft],
-      reserve: null, coin: false, cible: null, barre: null
+      reserve: null, sansReserve: false, etroit: false, pleine: 0, seul: false, moyenne: 0, cible: null, barre: null
     };
     var t0 = taille(el), tp0 = taille(p), cible = null;
     if ((parseFloat(c.borderTopWidth) || 0) > 0) cible = el;
@@ -395,6 +420,7 @@
     veiller();
     if (dic.indispo && !dic.active) dic.indispo = "";      // P1 #12 : un champ neuf (retour des Réglages) oublie l'indisponibilité
     if (ro) { try { ro.observe(el); if (p) ro.observe(p); } catch (e) {} }
+    if (cible && vigie()) { try { io.observe(cible); } catch (e) {} }
     synchroniserUn(el);
   }
 
@@ -414,14 +440,16 @@
     if (k >= 0) suivis.splice(k, 1);
     var cibles = [el];
     if (st.cible && st.cible !== el) cibles.push(st.cible);
+    if (io && st.cible) { try { io.unobserve(st.cible); } catch (e) {} }
     for (var i = 0; i < cibles.length; i++) {
-      cibles[i].classList.remove("dzia-lis");
+      cibles[i].classList.remove("dzia-lis", "dzia-hors");
       cibles[i].style.removeProperty("--dzia-fond");
       cibles[i].style.removeProperty("--dzia-sous");
     }
     el.classList.remove("dzia-champ", "dzia-bord", "dzia-halo");
     el.style.paddingTop = st.inline0[0]; el.style.paddingRight = st.inline0[1];
     el.style.paddingBottom = st.inline0[2]; el.style.paddingLeft = st.inline0[3];
+    if (st.hauteur) el.style.height = "";                 // t215 : la hauteur d'origine posée par la réserve
     if (!st.manuel) el.removeAttribute("data-dz-ia");
     el.removeAttribute("data-dz-ia-regle");
     var p = st.parent, reste = false;
@@ -482,46 +510,70 @@
     if (noteEl && noteEl.__el === el) placerNote();
     var rb = b.getBoundingClientRect(), r = el.getBoundingClientRect();
     var mono = el.tagName === "INPUT" || r.height < 44;
+    // une textarea redimensionnable garde sa poignée du coin bas droit libre (t215 : 6 px + 16 px de poignée)
+    var droite = !mono && el.tagName === "TEXTAREA" && cs(el).resize !== "none" ? 6 + 16 : 6;
+    rb = etroitir(el, st, b, rb, r.width, mono, droite);
     reserver(el, st, rb, mono);
     r = el.getBoundingClientRect();
     var gl = parseFloat(b.style.left) || 0, gt = parseFloat(b.style.top) || 0;
-    // une textarea redimensionnable garde sa poignée du coin bas droit libre
-    var droite = !mono && el.tagName === "TEXTAREA" && cs(el).resize !== "none" ? 16 : 6;
     var wl = r.right - rb.width - droite, wt;
-    if (st.coin) wt = r.top - rb.height / 2;                 // à cheval sur le bord haut
-    else if (mono) wt = r.top + (r.height - rb.height) / 2;  // centrée, dans le champ
-    else wt = r.bottom - rb.height - 5;                       // coin bas droit, dans le champ
+    if (mono) wt = r.top + (r.height - rb.height) / 2;   // centrée à droite, dans le champ
+    else wt = r.bottom - rb.height - 6;                   // en bas à droite, dans le champ (t215)
     var nl = px(gl + wl - rb.left), nt = px(gt + wt - rb.top);
     if (b.style.left !== nl) b.style.left = nl;
     if (b.style.top !== nt) b.style.top = nt;
   }
+  /* t215 (15/10/2026) : la barre ne sort JAMAIS de l'encart (le mode « à cheval sur le bord haut » de P1 #12 est
+     retiré). Un champ trop étroit pour la barre complète — sur une ligne : moins de 160 px laissés au texte ou plus de
+     la moitié du champ couverte (mesuré : #iaTexte du Vectorlab, 312 px, barre 166 px) ; en multiligne : la barre ne
+     tient pas entre les marges — garde le badge, la pastille réduite à son icône (.dzia-mini) et le micro. La largeur
+     de la barre COMPLÈTE est retenue (st.pleine) : on en sort quand le champ s'élargit. Second palier (mesuré sur
+     8799 : #vitIaPrompt du Vitrail, 73 px, que la barre réduite de 72 px couvrait en entier) : si la barre réduite
+     laisse moins de 80 px au texte (ou ne tient pas en multiligne), seul le micro reste (.dzia-seul ; le liseré dit
+     déjà « champ IA »). Rend la mesure de la barre après ces bascules. */
+  function etroitir(el, st, b, rb, lg, mono, droite) {
+    if (!rb.width || !(lg > 0)) return rb;
+    if (st.pastille) {
+      if (!st.etroit) st.pleine = rb.width;
+      var w = st.pleine || rb.width;
+      var e = mono ? (lg - w < 160 || w > lg / 2) : (w + droite + 6 > lg);
+      if (e !== st.etroit) { st.etroit = e; rafraichirPastille(el); rb = b.getBoundingClientRect(); }
+    }
+    if (!st.seul) st.moyenne = rb.width;
+    var m = st.moyenne || rb.width;
+    var s = mono ? lg - m < 80 : m + droite + 6 > lg;
+    if (s !== st.seul) { st.seul = s; b.classList.toggle("dzia-seul", s); rb = b.getBoundingClientRect(); }
+    return rb;
+  }
   /* Réserve de padding sous la barre, pour que le texte ne passe pas dessous :
-     à droite tant que la barre est étroite, en bas pour une barre large sur un
-     champ multiligne (T9/T10). MESURÉE : si la taille du champ bouge (champ
+     en bas d'un champ multiligne (t215 : hauteur de la barre + 6 px), à droite
+     d'un champ sur une ligne. MESURÉE : si la taille du champ bouge (champ
      content-box, input à largeur de contenu, textarea auto-extensible), la
-     réserve est retirée et la barre passe « à cheval » sur le bord haut. */
+     réserve est retirée pour de bon — la barre reste DANS l'encart. */
   function reserver(el, st, rb, mono) {
-    if (st.coin || !rb.width) return;
-    if (!st.boite) { st.coin = true; return; }
-    /* P1 #12 (28/09/2026) : sur une ligne, une barre qui laisse moins de 160 px au texte ou couvre plus de la moitié du
-       champ passe à cheval sur le bord haut (mesuré : #iaTexte du Vectorlab, 312 px, barre 166 px — le centre du
-       champ était sous le badge, 129 px restaient au texte) */
-    var lg = el.getBoundingClientRect().width;
-    if (mono && lg > 0 && (lg - rb.width < 160 || rb.width > lg / 2)) { st.coin = true; return; }
-    var bas = !mono && rb.width > 60;
-    var cle = (bas ? "b" : "r") + Math.round(bas ? rb.height : rb.width);
+    if (st.sansReserve || !rb.width) return;
+    if (!st.boite) { st.sansReserve = true; return; }
+    var cle = (mono ? "r" : "b") + Math.round(mono ? rb.width : rb.height);
     if (st.reserve === cle) return;
-    var t0 = taille(el), avant = [el.style.paddingRight, el.style.paddingBottom];
-    if (bas) {
+    var t0 = taille(el), h0 = el.offsetHeight, avant = [el.style.paddingRight, el.style.paddingBottom];
+    if (!mono) {
       el.style.paddingRight = px(st.pad.r);
       el.style.paddingBottom = px(st.pad.b + rb.height + 6);
     } else {
       el.style.paddingBottom = px(st.pad.b);
       el.style.paddingRight = px(st.pad.r + rb.width + 10);
     }
+    /* t215 (mesuré sur 8799) : le Prompt de Quick est une textarea à `rows`, de hauteur automatique — la réserve
+       du bas la ferait grandir. Sa hauteur d'ORIGINE est alors posée (rendue au détachement) : la taille ne bouge
+       pas, le texte défile au-dessus de la barre. Une hauteur déjà posée (auto-extension, poignée) n'est pas touchée. */
+    if (taille(el) !== t0 && !mono && el.tagName === "TEXTAREA" && !el.style.height && !st.hauteur) {
+      el.style.height = px(h0);
+      st.hauteur = true;
+    }
     if (taille(el) !== t0) {
       el.style.paddingRight = avant[0]; el.style.paddingBottom = avant[1];
-      st.coin = true;
+      if (st.hauteur) { el.style.height = ""; st.hauteur = false; }
+      st.sansReserve = true; st.reserve = null;
       return;
     }
     st.reserve = cle;
@@ -1022,7 +1074,7 @@
   function rafraichirPastille(el) {
     var st = el.__dzia, b = st && st.pastille, m = st && st.modele;
     if (!b || !m) return;
-    var label, titre, fige = true, id = null, mini = el.offsetWidth > 0 && el.offsetWidth < 200;
+    var label, titre, fige = true, id = null, mini = !!st.etroit || (el.offsetWidth > 0 && el.offsetWidth < 200);
     if (m.fixe) {
       label = TPx(m.fixe);
       titre = TP("ia.pastille.fixe", "Modèle : {modele} — choisi par la vue (pas de choix de modèle ici)", { modele: label });
@@ -1324,7 +1376,7 @@
     b.setAttribute("title", TITRE_V1);
     var i = D.createElement("span");
     i.className = "dzia-mico";
-    i.appendChild(glyphe("dz-media-dicter", 11));
+    i.appendChild(glyphe("dz-media-dicter", 15));
     b.appendChild(i);
     b.addEventListener("mousedown", function (ev) { ev.preventDefault(); });   // le champ garde le focus et son curseur
     b.addEventListener("pointerdown", function (ev) { ev.stopPropagation(); }); // Vectorlab : pas un geste d'outil
@@ -1355,7 +1407,7 @@
       var ic = s.firstElementChild, deja = ic ? ic.getAttribute("data-dz-icone") || "" : "";
       if (deja !== cle || s.textContent !== txt) {
         s.textContent = txt;
-        if (cle) s.appendChild(glyphe(cle, cle === "dz-media-arret" ? 9 : 11));
+        if (cle) s.appendChild(glyphe(cle, cle === "dz-media-arret" ? 12 : 15));
       }
     }
     poserAttr(b, "title", titre);
