@@ -7,5 +7,6 @@
   "quick.persona.choisir": {"fr": "Changer de persona", "en": "Switch persona"},
   "quick.persona.libelle": {"fr": "persona", "en": "persona"},
   "quick.persona.note": {"fr": "Espace actif global : Quick, le rail et la Bibliothèque le suivent ensemble.", "en": "Global active space: Quick, the rail and the Library all follow it."},
-  "quick.persona.nouveau": {"fr": "+ Nouveau persona…", "en": "+ New persona…"}
+  "quick.persona.nouveau": {"fr": "+ Nouveau persona…", "en": "+ New persona…"},
+  "quick.zoom.recadrer": {"fr": "Revenir à 100 % (double-clic ou touche 0)", "en": "Back to 100% (double-click or 0 key)"}
 }

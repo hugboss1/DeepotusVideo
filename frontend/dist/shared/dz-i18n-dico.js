@@ -10023,6 +10023,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "quick.voix.sans_echantillon": {"fr": "Pas d'échantillon", "en": "No sample"},
   "quick.voix.texte_aide": {"fr": "Texte bref à dire — la limite suit le modèle choisi (narrations longues : flux Chapitres).", "en": "Short text to speak — the limit follows the chosen model (long narrations: Chapters flow)."},
   "quick.voix.titre": {"fr": "Voix", "en": "Voice"},
+  "quick.zoom.recadrer": {"fr": "Revenir à 100 % (double-clic ou touche 0)", "en": "Back to 100% (double-click or 0 key)"},
   "reglages.appareils.aide": {"fr": "Un téléphone appairé peut LIRE ce que ce PC produit, par le Wi-Fi de la maison. Il ne peut ni écrire, ni dépenser, ni voir vos clés : celles-ci voyagent seulement par l’archive chiffrée du Coffre.", "en": "A paired phone can READ what this PC produces, over your home Wi-Fi. It cannot write, spend, or see your keys: those travel only through the Vault's encrypted archive."},
   "reglages.appareils.appaire": {"fr": "« {nom} » appairé", "en": "“{nom}” paired"},
   "reglages.appareils.appaire_le": {"fr": "appairé le {date}", "en": "paired on {date}"},
