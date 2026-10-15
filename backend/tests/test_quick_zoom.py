@@ -19,6 +19,9 @@ Ce que ce banc garde :
   [D] clé FR/EN `quick.zoom.recadrer` dans menus.json, catalogue assemblé à jour ;
   [E] maillon de queue `dzquick` : paires t216 ×1, aucune avec « aria-label », inverse exact, `avant_dzquick` rend
       l'aperçu d'avant, comptes figés intacts (useState 731, v2.8.0 ×4, DzTracks 181), aucun .bak.
+t217 (retour de l'utilisateur, 15/10) : ce n'est plus l'image mais la CARTE d'aperçu entière qui zoome — DzQuickZoom
+est le calque de la zone (carte dans le flux), molette partout pour agrandir ET réduire, glisser dès que la vue n'est
+pas à 100 %, badge au coin de la zone, tous les onglets (plus d'option off) ; [C] vise la carte, plus le contenu.
 Run (depuis backend/) : & $PY tests/test_quick_zoom.py"""
 import json, os, pathlib, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -64,7 +67,7 @@ try{const A={};const v0=Z.neutre();A.neutre=v0;
  const v2=Z.autour(v1,30,200,120);A.fixe2=Math.abs((30-v2.x)/v2.z-(30-v1.x)/v1.z)<1e-9&&Math.abs((200-v2.y)/v2.z-(200-v1.y)/v1.z)<1e-9;
  A.max=Z.autour(v0,0,0,-1e6).z;A.min=Z.autour(v0,0,0,1e6).z;A.borne=[Z.borner(.1),Z.borner(9),Z.borner(2)];
  A.formule=Math.abs(Z.autour(v0,0,0,100).z-Math.pow(1.0015,-100))<1e-12;
- A.glis100=Z.glisser(v0,10,5);A.glis2=Z.glisser({z:2,x:0,y:0},10,5);
+ A.glis100=Z.glisser(v0,10,5);A.glis2=Z.glisser({z:2,x:0,y:0},10,5);A.glisDemi=Z.glisser({z:.5,x:0,y:0},10,5);
  A.red=[Z.reduire({z:3,x:4,y:5},{t:"neutre"}),Z.reduire(v0,{t:"glisser",dx:3,dy:4})];
  OUT.A=A}catch(e){OUT.A={err:String(e&&e.stack||e)}}
 // [B] composant
@@ -80,6 +83,8 @@ try{
  rendre();const B={};
  B.ecoute=!!ECOUTE.wheel&&ECOUTE.wheel.o&&ECOUTE.wheel.o.passive===false;
  B.t0=vue().p.style.transform;B.origine=vue().p.style.transformOrigin;B.badge0=badge().p.children;B.enfant=vue().p.children===enfant;
+ // t217 : le calque occupe la zone (étiré, relatif) ; la vue garde la CARTE dans le flux (pas d'absolu), centrée
+ B.calque=VUE.p.style;B.vueStyle=vue().p.style;B.badgeStyle=badge().p.style;
  let pd=0;ECOUTE.wheel.f({clientX:150,clientY:120,deltaY:-462.1,preventDefault(){pd++}});rendre();
  B.pd=pd;B.badge1=badge().p.children;B.t1=vue().p.style.transform;B.curseur=VUE.p.style.cursor;
  // glisser
@@ -94,10 +99,15 @@ try{
  // à 100 % : le glisser ne bouge rien
  VUE.p.onPointerDown({button:0,clientX:0,clientY:0,pointerId:1,currentTarget:{setPointerCapture(){}}});VUE.p.onPointerMove({clientX:40,clientY:40});rendre();
  B.glis100=vue().p.style.transform;
+ // t217 : RÉDUIRE (molette vers le bas) puis glisser : la carte réduite se déplace aussi
+ ECOUTE.wheel.f({clientX:150,clientY:120,deltaY:462.1,preventDefault(){}});rendre();B.reduit=badge().p.children;B.curseurReduit=VUE.p.style.cursor;
+ const tr0=vue().p.style.transform;VUE.p.onPointerDown({button:0,clientX:0,clientY:0,pointerId:2,currentTarget:{setPointerCapture(){}}});
+ VUE.p.onPointerMove({clientX:12,clientY:-8});rendre();VUE.p.onPointerUp({});B.trReduit=[tr0,vue().p.style.transform];
+ VUE.p.onDoubleClick({});rendre();
  // le glisser natif de l'<img> est bloqué (sinon pointercancel : un vrai glisser ne déplace rien)
  let dsp=0;VUE.p.onDragStart&&VUE.p.onDragStart({preventDefault(){dsp++}});B.dragstart=dsp;B.select=VUE.p.style.userSelect;
- // off : enfants tels quels, écouteur retiré
- PROPS={off:true,children:enfant};rendre();B.off=VUE===enfant;B.retire=retire;
+ // t217 : plus d'option « off » — la Voix off zoome aussi (la carte entière)
+ PROPS={off:true,children:enfant};rendre();B.off=!!(VUE&&VUE.p&&VUE.p["data-dz-qz"])&&B.ecoute;B.retire=retire;
  OUT.B=B}catch(e){OUT.B={err:String(e&&e.stack||e)}}
 process.stdout.write(JSON.stringify(OUT));
 """
@@ -123,8 +133,9 @@ check("A2 le point sous le curseur reste fixe (zoom avant puis arrière)", A.get
 check("A3 facteur z*1.0015^-deltaY (deltaY -462 ≈ ×2)", A.get("formule") is True and abs((A.get("z1") or 0) - 2) < 0.01,
       repr(A.get("z1")))
 check("A4 bornes 0,25 et 8", A.get("max") == 8 and A.get("min") == 0.25 and A.get("borne") == [0.25, 8, 2])
-check("A5 glisser : rien à 100 %, déplacement une fois agrandi",
-      A.get("glis100") == {"z": 1, "x": 0, "y": 0} and A.get("glis2") == {"z": 2, "x": 10, "y": 5})
+check("A5 glisser : rien à 100 %, déplacement une fois agrandi OU réduit (t217)",
+      A.get("glis100") == {"z": 1, "x": 0, "y": 0} and A.get("glis2") == {"z": 2, "x": 10, "y": 5}
+      and A.get("glisDemi") == {"z": 0.5, "x": 10, "y": 5}, str(A.get("glisDemi")))
 check("A6 réducteur : neutre recadre, glisser à 100 % ne bouge rien",
       A.get("red") == [{"z": 1, "x": 0, "y": 0}, {"z": 1, "x": 0, "y": 0}])
 
@@ -155,18 +166,36 @@ check("B8 le badge recadre sans propager le clic", B.get("badgeClic") == "100 %"
 check("B9 à 100 % le glisser ne bouge rien", B.get("glis100") == "translate(0px,0px) scale(1)")
 check("B11 le glisser natif de l'image est bloqué (onDragStart → preventDefault), pas de sélection",
       B.get("dragstart") == 1 and B.get("select") == "none")
-check("B10 off (Voix off) : enfants tels quels, écouteur retiré", B.get("off") is True and B.get("retire") == 1)
+check("B10 t217 : plus d'option off — la Voix off zoome aussi (calque rendu, écouteur gardé)",
+      B.get("off") is True and B.get("retire") == 0, str((B.get("off"), B.get("retire"))))
+ca, vs, bs = B.get("calque") or {}, B.get("vueStyle") or {}, B.get("badgeStyle") or {}
+check("B12 t217 : le calque occupe la zone (flex 1, étiré, relatif, débordement visible)",
+      ca.get("flex") == 1 and ca.get("alignSelf") == "stretch" and ca.get("position") == "relative"
+      and ca.get("display") == "flex" and ca.get("overflow") == "visible", str(ca))
+check("B13 t217 : la vue garde la CARTE dans le flux (pas d'absolu) et la centre",
+      vs.get("flex") == 1 and vs.get("display") == "flex" and vs.get("alignItems") == "center"
+      and vs.get("justifyContent") == "center" and "position" not in vs and "inset" not in vs, str(vs))
+check("B14 t217 : badge au coin de la ZONE (haut droite du calque)", bs.get("position") == "absolute" and bs.get("top") == 0
+      and bs.get("right") == 0, str(bs))
+TR = [tf(t) for t in (B.get("trReduit") or [None, None])]
+check("B15 t217 : la molette vers le bas RÉDUIT (50 %), curseur « grab », et la carte réduite se glisse (+12, -8)",
+      B.get("reduit") == "50 %" and B.get("curseurReduit") == "grab" and None not in TR
+      and abs(TR[1][0] - TR[0][0] - 12) < 1e-6 and abs(TR[1][1] - TR[0][1] + 8) < 1e-6, repr((B.get("reduit"), B.get("trReduit"))))
 
 print("[C] câblage dans Quick")
 r0 = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True, cwd=str(RACINE))
 B0 = r0.stdout.decode("utf-8") if r0.returncode == 0 else ""
 check("C0 témoin : la base d3cd9d16 appelle DzQuickStage sans zoom", B0.count(APPEL) == 1 and "DzQuickZoom" not in B0)
-ENV = 'r.jsx(DzQuickZoom,{off:o==="voice",children:' + APPEL
-check("C1 l'appel DzQuickStage(…)||repli est enveloppé par DzQuickZoom, off sur Voix off", BUNDLE.count(ENV) == 1
-      and BUNDLE.count(APPEL) == 1 and "r.jsx(DzQuickStage" not in BUNDLE)
-CLE = 'dzT("quick.apercu.importer")})]})},"dzqz-"+o+"|"+(w||"")+"|"+(C||""))'
-check("C2 clé par onglet + image + avatar : la vue revient à 100 %", BUNDLE.count(CLE) == 1
-      and BUNDLE.find(CLE) > BUNDLE.find(ENV) > BUNDLE.find("function um({variant:e,activePersona:t}){"))
+# t217 : c'est la CARTE entière (en-tête, contenu, pied) qui est enveloppée, plus le seul contenu
+CARTE = 'r.jsxs("div",{style:{...je,background:"linear-gradient(160deg, #053040 0%, #02060d 80%)"'
+ENV = 'r.jsx(DzQuickZoom,{children:' + CARTE
+FIN = '," · ",h,"s"]})]})]})}),o!=="voice"&&r.jsxs("div",{style:{position:"absolute",bottom:24'
+check("C1 t217 : la carte d'aperçu entière est enveloppée par DzQuickZoom (tous onglets)", BUNDLE.count(ENV) == 1
+      and BUNDLE.count(CARTE) == 1 and 'DzQuickZoom,{off' not in BUNDLE)
+check("C2 t217 : l'enveloppe se ferme juste après la carte (pied compris), avant la ligne de coût",
+      BUNDLE.count(FIN) == 1 and BUNDLE.find(FIN) > BUNDLE.find(ENV) > BUNDLE.find("function um({variant:e,activePersona:t}){"))
+check("C2b t217 : le contenu DzQuickStage(…)||repli redevient celui d'avant t216 (ni enveloppe, ni clé dzqz-)",
+      BUNDLE.count(APPEL) == 1 and "dzqz-" not in BUNDLE and 'children:' + APPEL not in BUNDLE)
 check("C3 une seule définition de DzQuickZoom et de dzVueZoom", BUNDLE.count("function DzQuickZoom(") == 1
       and BUNDLE.count("var dzVueZoom=") == 1)
 
@@ -183,8 +212,8 @@ check("D3 catalogue assemblé à jour (i18n_assembler --check)", ra.returncode =
 print("[E] maillon de queue dzquick")
 import patch_bundle_dzquick as DQ                                    # noqa: E402
 import _i18n_l1_aide as AIDE                                          # noqa: E402
-t216 = [p for p in DQ.PAIRES if "DzQuickZoom" in p[1] or "dzqz-" in p[1]]
-check("E1 trois paires t216, chacune ×1 dans le bundle", len(t216) == 3 and all(BUNDLE.count(p[1]) == 1 for p in t216))
+t216 = [p for p in DQ.PAIRES if "DzQuickZoom" in p[1] or "dzqz-" in p[1] or p[0].startswith('," · ",h,"s"]})')]
+check("E1 trois paires du zoom (Z0, Z1 carte, Z2 fin de carte), chacune ×1 dans le bundle", len(t216) == 3 and all(BUNDLE.count(p[1]) == 1 for p in t216))
 check("E2 aucune paire t216 ne porte « aria-label », aucun useState", all("aria-label" not in p[1] and "x.useState" not in p[1]
                                                                           for p in t216))
 try:
