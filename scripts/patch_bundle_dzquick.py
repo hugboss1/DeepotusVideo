@@ -158,28 +158,29 @@ ZOOM = (
     'var dzVueZoom={neutre:function(){return{z:1,x:0,y:0}},borner:function(z){return z<.25?.25:z>8?8:z},'
     'autour:function(v,px,py,dy){var z2=dzVueZoom.borner(v.z*Math.pow(1.0015,-dy));if(z2===v.z)return v;var k=z2/v.z;'
     'return{z:z2,x:px-(px-v.x)*k,y:py-(py-v.y)*k}},'
-    'glisser:function(v,dx,dy){return v.z>1?{z:v.z,x:v.x+dx,y:v.y+dy}:v},'
+    'glisser:function(v,dx,dy){return v.z!==1?{z:v.z,x:v.x+dx,y:v.y+dy}:v},'
     'reduire:function(v,a){return a.t==="molette"?dzVueZoom.autour(v,a.px,a.py,a.dy):a.t==="glisser"?'
     'dzVueZoom.glisser(v,a.dx,a.dy):v.z===1&&v.x===0&&v.y===0?v:dzVueZoom.neutre()}};'
-    'function DzQuickZoom({off,children:ch}){const[v,envoi]=x.useReducer(dzVueZoom.reduire,null,dzVueZoom.neutre),'
+    'function DzQuickZoom({children:ch}){const[v,envoi]=x.useReducer(dzVueZoom.reduire,null,dzVueZoom.neutre),'
     'boite=x.useRef(null),glis=x.useRef(null);'
-    'x.useEffect(function(){var b=boite.current;if(off||!b)return;var f=function(ev){ev.preventDefault();'
+    'x.useEffect(function(){var b=boite.current;if(!b)return;var f=function(ev){ev.preventDefault();'
     'var rc=b.getBoundingClientRect();envoi({t:"molette",px:ev.clientX-rc.left,py:ev.clientY-rc.top,dy:ev.deltaY})};'
-    'b.addEventListener("wheel",f,{passive:!1});return function(){b.removeEventListener("wheel",f)}},[off]);'
-    'if(off)return ch;var recadrer=function(){envoi({t:"neutre"})},fin=function(){glis.current=null};'
+    'b.addEventListener("wheel",f,{passive:!1});return function(){b.removeEventListener("wheel",f)}},[]);'
+    'var recadrer=function(){envoi({t:"neutre"})},fin=function(){glis.current=null};'
     'return r.jsxs("div",{ref:boite,"data-dz-qz":"1",tabIndex:0,onDoubleClick:recadrer,'
     'onKeyDown:function(ev){if(ev.key==="0"){ev.preventDefault();recadrer()}},'
-    'onPointerDown:function(ev){if(v.z<=1||ev.button!==0)return;glis.current={x:ev.clientX,y:ev.clientY};'
+    'onPointerDown:function(ev){if(v.z===1||ev.button!==0)return;glis.current={x:ev.clientX,y:ev.clientY};'
     'try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch(_e){}},'
     'onPointerMove:function(ev){var g=glis.current;if(!g)return;glis.current={x:ev.clientX,y:ev.clientY};'
     'envoi({t:"glisser",dx:ev.clientX-g.x,dy:ev.clientY-g.y})},onPointerUp:fin,onPointerCancel:fin,'
     'onDragStart:function(ev){ev.preventDefault()},'
-    'style:{position:"absolute",inset:0,overflow:"hidden",outline:"none",touchAction:"none",userSelect:"none",'
-    'cursor:v.z>1?"grab":"zoom-in"},children:[r.jsx("div",{"data-dz-qz-vue":"1",style:{position:"absolute",inset:0,'
+    'style:{position:"relative",flex:1,alignSelf:"stretch",display:"flex",overflow:"visible",outline:"none",'
+    'touchAction:"none",userSelect:"none",cursor:v.z!==1?"grab":"zoom-in"},children:[r.jsx("div",{"data-dz-qz-vue":"1",'
+    'style:{flex:1,display:"flex",alignItems:"center",justifyContent:"center",'
     'transformOrigin:"0 0",transform:"translate("+v.x+"px,"+v.y+"px) scale("+v.z+")"},children:ch}),'
     'r.jsx("button",{type:"button","data-dz-qz-badge":"1",title:dzT("quick.zoom.recadrer"),'
     'onClick:function(ev){ev.stopPropagation();recadrer()},onPointerDown:function(ev){ev.stopPropagation()},'
-    'onDoubleClick:function(ev){ev.stopPropagation()},style:{position:"absolute",top:38,right:12,zIndex:3,'
+    'onDoubleClick:function(ev){ev.stopPropagation()},style:{position:"absolute",top:0,right:0,zIndex:3,'
     'fontFamily:"var(--f-mono)",fontSize:10,padding:"2px 6px",borderRadius:4,border:"1px solid var(--stroke)",'
     'background:"#02060daa",color:v.z===1?"var(--ink-soft)":"var(--cyan)",cursor:"pointer"},'
     'children:Math.round(v.z*100)+" %"})]})}'
@@ -243,14 +244,15 @@ PAIRES = [
     ('},[dzCvQ]);function M(){',                                                                                # P2
      '},[dzCvQ]);x.useEffect(function(){if(I.length&&!I.some(function(z){return z.id===A}))V(I[0].id)},[dzCvQ]);'
      'function M(){'),
-    # t216 — Z0 le zoom, posé devant les aides de t214 ; Z1-Z2 l'appel DzQuickStage(…)||repli de l'aperçu est enveloppé,
-    # `off` sur Voix off, clé par onglet + image + avatar (la vue revient à 100 % à chaque changement)
+    # t216/t217 — Z0 le zoom, posé devant les aides de t214. t217 (retour de l'utilisateur) : c'est la CARTE d'aperçu
+    # entière (en-tête, contenu, pied) qui est enveloppée — Z1 juste avant elle, Z2 juste après sa fermeture, avant la
+    # ligne de coût —, sur tous les onglets ; le zoom n'est plus remis à 100 % à chaque image
     ('var dzQpPers={};',                                                                                     # Z0
      ZOOM + 'var dzQpPers={};'),
-    ('DzQuickStage({tab:o,img:w,layout:We,avatarUrl:',                                                        # Z1
-     'r.jsx(DzQuickZoom,{off:o==="voice",children:DzQuickStage({tab:o,img:w,layout:We,avatarUrl:'),
-    ('dzT("quick.apercu.importer")})]}),r.jsxs("div",{style:{position:"absolute",bottom:14',                   # Z2
-     'dzT("quick.apercu.importer")})]})},"dzqz-"+o+"|"+(w||"")+"|"+(C||"")),r.jsxs("div",{style:{position:"absolute",bottom:14'),
+    ('r.jsxs("div",{style:{...je,background:"linear-gradient(160deg, #053040 0%, #02060d 80%)"',               # Z1
+     'r.jsx(DzQuickZoom,{children:r.jsxs("div",{style:{...je,background:"linear-gradient(160deg, #053040 0%, #02060d 80%)"'),
+    ('," · ",h,"s"]})]})]}),o!=="voice"&&r.jsxs("div",{style:{position:"absolute",bottom:24',                 # Z2
+     '," · ",h,"s"]})]})]})}),o!=="voice"&&r.jsxs("div",{style:{position:"absolute",bottom:24'),
 ]
 
 
