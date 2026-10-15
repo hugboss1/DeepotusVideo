@@ -186,6 +186,84 @@ ZOOM = (
     'children:Math.round(v.z*100)+" %"})]})}'
 )
 
+# t218 — l'ORBE VOCAL de l'aperçu Voix off (choix de l'utilisateur sur maquette, 15/10). Motif des agents vocaux :
+# cœur sphérique (nappe conique cyan / violet / orange qui tourne, reflet), trois ondes, légende. Trois états :
+# repos (lent), génération (`busy` de DzQuickVoice, publié par `dzVoixEtatPoser` → évènement `dz:voix-etat`), lecture
+# (l'<audio> du résultat joue : le niveau RMS RÉEL, lu par un AnalyserNode créé une fois par élément, pilote
+# --dz-orbe-niv ; si l'analyse échoue, pulsation CSS). rAF seulement pendant la lecture, reduced-motion fige tout,
+# style injecté une fois (#dz-orbe-style). Aucun useState, aucune clé neuve (quick.scene.voix_off, quick.voix.generation).
+ORBE_CSS = (
+    '.dz-orbe{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;'
+    'gap:22px;padding:16px;pointer-events:none}'
+    '.dz-orbe-scene{position:relative;width:150px;height:150px;display:flex;align-items:center;justify-content:center}'
+    '.dz-orbe-onde{position:absolute;inset:15px;border-radius:50%;border:1.5px solid rgba(139,92,246,.55);opacity:0;'
+    'animation:dz-orbe-onde 3.6s cubic-bezier(.2,.6,.3,1) infinite}'
+    '.dz-orbe-onde:nth-child(2){animation-delay:1.2s;border-color:rgba(0,229,255,.5)}'
+    '.dz-orbe-onde:nth-child(3){animation-delay:2.4s;border-color:rgba(249,115,22,.45)}'
+    '.dz-orbe-coeur{--dz-orbe-niv:0;position:relative;width:96px;height:96px;border-radius:50%;overflow:hidden;'
+    'background:#061826;box-shadow:0 0 34px rgba(0,229,255,.28),0 0 70px rgba(139,92,246,.22),inset 0 0 22px rgba(0,0,0,.55);'
+    'transform:scale(calc(1 + var(--dz-orbe-niv) * .22));transition:transform .08s linear;'
+    'animation:dz-orbe-souffle 4.5s ease-in-out infinite}'
+    '.dz-orbe-nappe{position:absolute;inset:-30%;background:conic-gradient(from 0deg,#00e5ff,#8b5cf6,#f97316,#3b82f6,#00e5ff);'
+    'filter:blur(14px);animation:dz-orbe-tour 9s linear infinite}'
+    '.dz-orbe-reflet{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 32% 28%,'
+    'rgba(255,255,255,.55),rgba(255,255,255,0) 38%),radial-gradient(circle at 70% 80%,rgba(2,6,13,.55),rgba(2,6,13,0) 60%)}'
+    '.dz-orbe-legende{max-width:78%;font-size:11px;line-height:1.45;color:var(--ink-soft);text-align:center}'
+    '.dz-orbe[data-dz-orbe=gen] .dz-orbe-nappe{animation-duration:2.6s}'
+    '.dz-orbe[data-dz-orbe=gen] .dz-orbe-onde{animation-duration:1.5s}'
+    '.dz-orbe[data-dz-orbe=gen] .dz-orbe-onde:nth-child(2){animation-delay:.5s}'
+    '.dz-orbe[data-dz-orbe=gen] .dz-orbe-onde:nth-child(3){animation-delay:1s}'
+    '.dz-orbe[data-dz-orbe=gen] .dz-orbe-coeur{animation:dz-orbe-souffle-fort 1.1s ease-in-out infinite}'
+    '.dz-orbe[data-dz-orbe=lecture] .dz-orbe-nappe{animation-duration:4s}'
+    '.dz-orbe[data-dz-orbe=lecture] .dz-orbe-onde{animation-duration:2s}'
+    '.dz-orbe[data-dz-orbe=lecture][data-analyse] .dz-orbe-coeur{animation:none}'
+    '.dz-orbe[data-dz-orbe=lecture]:not([data-analyse]) .dz-orbe-coeur{animation:dz-orbe-souffle-fort .6s ease-in-out infinite}'
+    '@keyframes dz-orbe-tour{to{transform:rotate(360deg)}}'
+    '@keyframes dz-orbe-onde{0%{transform:scale(.72);opacity:0}15%{opacity:.85}100%{transform:scale(1.55);opacity:0}}'
+    '@keyframes dz-orbe-souffle{0%,100%{transform:scale(.97)}50%{transform:scale(1.04)}}'
+    '@keyframes dz-orbe-souffle-fort{0%,100%{transform:scale(.95)}50%{transform:scale(1.12)}}'
+    '@media (prefers-reduced-motion:reduce){.dz-orbe-nappe,.dz-orbe-onde,.dz-orbe-coeur{animation:none!important}'
+    '.dz-orbe-onde{opacity:.25;transform:scale(1.1)}.dz-orbe-coeur{transition:none}}'
+)
+ORBE = (
+    'var dzVoixEtat={busy:!1,url:""};'
+    'function dzVoixEtatPoser(b,res){var e={busy:!!b,url:res&&res.url||""};dzVoixEtat=e;window.dzVoixEtat=e;'
+    'try{window.dispatchEvent(new CustomEvent("dz:voix-etat",{detail:e}))}catch(_e){}}'
+    'function dzOrbeEtat(e,lecture){return lecture?"lecture":e&&e.busy?"gen":"repos"}'
+    'function dzOrbeNiveau(o){if(!o||!o.length)return 0;var s=0;for(var i=0;i<o.length;i++){var d=(o[i]-128)/128;s+=d*d}'
+    'var v=Math.sqrt(s/o.length)*3;return v>1?1:v}'
+    'var DZ_ORBE_CSS="' + ORBE_CSS + '";'
+    'function dzOrbeStyle(){if(document.getElementById("dz-orbe-style"))return;var s=document.createElement("style");'
+    's.id="dz-orbe-style";s.textContent=DZ_ORBE_CSS;document.head.appendChild(s)}'
+    'function DzQuickOrbe(){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},null,'
+    'function(){return{e:dzVoixEtat,lecture:!1,analyse:!1}}),coeur=x.useRef(null);'
+    'x.useEffect(function(){dzOrbeStyle();var f=function(ev){maj({e:ev&&ev.detail||{busy:!1,url:""}})};'
+    'window.addEventListener("dz:voix-etat",f);return function(){window.removeEventListener("dz:voix-etat",f)}},[]);'
+    'var url=st.e&&st.e.url||"";'
+    'x.useEffect(function(){if(!url)return;var a=null,fini=!1,an=null,buf=null,raf=0,'
+    'niv=function(v){var c=coeur.current;c&&c.style&&c.style.setProperty("--dz-orbe-niv",v)},'
+    'tic=function(){if(fini)return;if(an){an.getByteTimeDomainData(buf);niv(dzOrbeNiveau(buf).toFixed(3))}'
+    'raf=requestAnimationFrame(tic)},'
+    'arreter=function(){if(raf)cancelAnimationFrame(raf);raf=0;niv("0");maj({lecture:!1,analyse:!1})},'
+    'jouer=function(){an=null;try{if(!a.__dzOrbe){var C=window.AudioContext||window.webkitAudioContext,'
+    'ctx=window.__dzOrbeCtx||(window.__dzOrbeCtx=new C()),src=ctx.createMediaElementSource(a),n=ctx.createAnalyser();'
+    'n.fftSize=512;src.connect(n);n.connect(ctx.destination);a.__dzOrbe={ctx:ctx,an:n}}'
+    'a.__dzOrbe.ctx.resume&&a.__dzOrbe.ctx.resume();an=a.__dzOrbe.an;buf=new Uint8Array(an.fftSize)}catch(_e){an=null}'
+    'maj({lecture:!0,analyse:!!an});if(an&&!raf)tic()},'
+    't=setInterval(function(){if(a)return;a=document.querySelector("[data-dzvores=\\"ok\\"] audio");if(!a)return;'
+    'clearInterval(t);a.addEventListener("play",jouer);a.addEventListener("pause",arreter);'
+    'a.addEventListener("ended",arreter);if(!a.paused)jouer()},300);'
+    'return function(){fini=!0;clearInterval(t);if(raf)cancelAnimationFrame(raf);if(a){a.removeEventListener("play",jouer);'
+    'a.removeEventListener("pause",arreter);a.removeEventListener("ended",arreter)}}},[url]);'
+    'var etat=dzOrbeEtat(st.e,st.lecture);'
+    'return r.jsxs("div",{className:"dz-orbe","data-dz-orbe":etat,"data-analyse":st.analyse&&etat==="lecture"?"1":void 0,'
+    'children:[r.jsxs("div",{className:"dz-orbe-scene",children:[r.jsx("span",{className:"dz-orbe-onde"},"o1"),'
+    'r.jsx("span",{className:"dz-orbe-onde"},"o2"),r.jsx("span",{className:"dz-orbe-onde"},"o3"),'
+    'r.jsxs("div",{ref:coeur,className:"dz-orbe-coeur",children:[r.jsx("span",{className:"dz-orbe-nappe"},"n"),'
+    'r.jsx("span",{className:"dz-orbe-reflet"},"r")]},"c")]}),r.jsx("div",{className:"dz-orbe-legende",'
+    'children:etat==="gen"?dzT("quick.voix.generation"):dzT("quick.scene.voix_off")})]})}'
+)
+
 PAIRES = [
     # t212 — Q1-Q4 : l'état du réglage de voix ne s'appelle plus dzT
     ('),dzT=dztS[0],dzSetT=dztS[1],',                                                                       # Q1
@@ -248,7 +326,13 @@ PAIRES = [
     # entière (en-tête, contenu, pied) qui est enveloppée — Z1 juste avant elle, Z2 juste après sa fermeture, avant la
     # ligne de coût —, sur tous les onglets ; le zoom n'est plus remis à 100 % à chaque image
     ('var dzQpPers={};',                                                                                     # Z0
-     ZOOM + 'var dzQpPers={};'),
+     ZOOM + ORBE + 'var dzQpPers={};'),
+    # t218 — O1 l'aperçu de um rend l'orbe sur Voix off (le corps de DzQuickStage, remplacement figé du maillon montage,
+    # n'est pas touché) ; V1 DzQuickVoice publie busy / res (busy est déclaré plus haut dans la même liste de const)
+    ('DzQuickStage({tab:o,img:w,layout:We,avatarUrl:',                                                        # O1
+     'o==="voice"?r.jsx(DzQuickOrbe,{}):DzQuickStage({tab:o,img:w,layout:We,avatarUrl:'),
+    ('res=q7[0],setRes=q7[1]',                                                                               # V1
+     'res=q7[0],setRes=q7[1],dzVoE=x.useEffect(function(){dzVoixEtatPoser(busy,res)},[busy,res])'),
     ('r.jsxs("div",{style:{...je,background:"linear-gradient(160deg, #053040 0%, #02060d 80%)"',               # Z1
      'r.jsx(DzQuickZoom,{children:r.jsxs("div",{style:{...je,background:"linear-gradient(160deg, #053040 0%, #02060d 80%)"'),
     ('," · ",h,"s"]})]})]}),o!=="voice"&&r.jsxs("div",{style:{position:"absolute",bottom:24',                 # Z2
