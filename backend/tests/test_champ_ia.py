@@ -1660,6 +1660,11 @@ def main():
     m = re.search(r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{(.*?)\}\s*\}", css, re.S)
     check("reduced-motion : @media qui coupe toute animation (animation:none)",
           bool(m) and "animation:none" in m.group(1).replace(" ", "") and ".dzia-lis" in m.group(1), str(m and m.group(1))[:300])
+    # t215 : l'anneau tourne désormais au repos — c'est la règle de l'ANNEAU (repos et focus) qui doit tout figer
+    rm = [c.replace(" ", "") for s, c in re.findall(r"([^{}]+)\{([^{}]*)\}", m.group(1) if m else "")
+          if ".dzia-lis.dzia-lis," in s.replace(" ", "") and ":focus-within" in s]
+    check("t215 : reduced-motion fige l'anneau au repos ET au focus (animation:none!important sur .dzia-lis)",
+          len(rm) == 1 and "animation:none!important" in rm[0], str(rm))
     check("barre absolue et sans capture des clics (le champ reste cliquable)",
           re.search(r"\.dzia-barre\{[^}]*position:absolute", css) is not None
           and re.search(r"\.dzia-barre\{[^}]*pointer-events:none", css) is not None)
