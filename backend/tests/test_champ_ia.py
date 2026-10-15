@@ -267,7 +267,8 @@ class Element extends Noeud {
   }
   get offsetWidth() { return ((this._rect || {}).width || 0) + (this._grandit && this.style.paddingRight ? 14 : 0)
     + (this._granditBord && this.classList.contains("dzia-bord") ? 2 : 0); }
-  get offsetHeight() { return ((this._rect || {}).height || 0) + (this._granditB && this.style.paddingBottom ? 14 : 0); }
+  get offsetHeight() { return ((this._rect || {}).height || 0) + (this._granditB && this.style.paddingBottom ? 14 : 0)
+    + (this._rows && this.style.paddingBottom && !this.style.height ? 14 : 0); }
   get clientHeight() { return this.offsetHeight; }
   get offsetParent() { return this._cache ? null : (this.parentNode || null); }
   focus() { document.activeElement = this; } blur() {}
@@ -972,8 +973,14 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
     const tGr = el("textarea", { placeholder: "Describe an image to create… (t215 auto-extensible)" }, body, { left: 10, top: 900, width: 400, height: 120 });
     tGr._granditB = true;
     const iMono = el("input", { placeholder: "Describe an image to create… (t215 une ligne)" }, body, { left: 10, top: 1100, width: 400, height: 30 });
+    // mesuré sur 8799 : le Prompt de Quick est une textarea à `rows` (hauteur auto) — le padding la ferait grandir
+    const tRows = el("textarea", { placeholder: "Describe an image to create… (t215 rows)", rows: "6" }, body, { left: 10, top: 1300, width: 400, height: 131 });
+    tRows._rows = true;
     A.marquer(document.body); await pause(30); A.synchroniser(); A.synchroniser();
-    R.t215 = { res: geo(tRes), fixe: geo(tFixe), cb: geo(tCb), gr: geo(tGr), mono: geo(iMono) };
+    R.t215 = { res: geo(tRes), fixe: geo(tFixe), cb: geo(tCb), gr: geo(tGr), mono: geo(iMono), rows: geo(tRows) };
+    R.t215.rows.hauteur = tRows.style.height || ""; R.t215.rows.oh = tRows.offsetHeight;
+    body.removeChild(tRows); A.synchroniser();
+    R.t215.rowsDefait = { hauteur: tRows.style.height || "", pb: tRows.style.paddingBottom || "" };
     const mic = tRes.nextSibling.querySelector(".dzia-micro"), ico = mic && mic.querySelector("svg");
     R.t215.ico = ico ? ico.getAttribute("width") : null;
     // pause hors écran : l'IntersectionObserver suit l'élément PEINT, pose / retire dzia-hors, oublie au détachement
@@ -1627,6 +1634,9 @@ def main():
     ec = [c for s, c in rh if s == ".dzia-ecoute .dzia-micro"]
     check("t215 : l'animation « écoute » est inchangée (dzia-pouls 1,2 s)",
           len(ec) == 1 and "animation:dzia-pouls1.2sease-in-outinfinite" in ec[0], str(ec))
+    seul = [c for s, c in rh if s == ".dzia-barre.dzia-seul .dzia-badge,.dzia-barre.dzia-seul [data-dzia-slot=modele]"]
+    check("t215 : champ très étroit (.dzia-seul) → badge et pastille masqués, le micro reste",
+          len(seul) == 1 and "display:none!important" in seul[0] and not any("dzia-seul" in s and "micro" in s for s, c in rh), str(seul))
     t = R.get("t215") or {}
     check("t215 : scénario joué sans erreur", bool(t) and not R.get("t215err"), str(R.get("t215err")))
     g = t.get("res") or {}
@@ -1643,6 +1653,11 @@ def main():
     g = t.get("gr") or {}
     check("t215 : réserve qui ferait grandir le champ → retirée, barre toujours en bas DANS l'encart",
           g.get("bas") == 6 and g.get("pb") == "" and not g.get("coin"), str(g))
+    g = t.get("rows") or {}
+    check("t215 : textarea à `rows` (Prompt de Quick) → hauteur figée à sa taille d'origine, réserve en bas posée, taille intacte",
+          g.get("hauteur") == "131px" and g.get("oh") == 131 and g.get("pb") == "30px" and g.get("bas") == 6, str(g))
+    check("t215 : détachée → la hauteur figée et la réserve sont rendues", t.get("rowsDefait") == {"hauteur": "", "pb": ""},
+          str(t.get("rowsDefait")))
     g = t.get("mono") or {}
     check("t215 : input sur une ligne → barre centrée verticalement à droite, padding droit réservé (8 + 30 + 10)",
           g.get("droite") == 6 and g.get("haut") == 7 and g.get("bas") == 7 and g.get("pr") == "48px", str(g))

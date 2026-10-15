@@ -65,7 +65,9 @@ const gbr0 = Element.prototype.getBoundingClientRect;
 Element.prototype.getBoundingClientRect = function () {
   const r = gbr0.call(this);
   /* t215 : une barre dont la pastille est réduite (.dzia-mini) ne garde que badge + pastille-icône + micro : 76 px */
-  const l = this.classList.contains("dzia-barre") && this.querySelector(".dzia-mini") ? 76 : BARRE_L;
+  /* … et une barre réduite au seul micro (.dzia-seul, champ très étroit) : 24 px */
+  const l = !this.classList.contains("dzia-barre") ? BARRE_L : this.classList.contains("dzia-seul") ? 24
+    : this.querySelector(".dzia-mini") ? 76 : BARRE_L;
   if (BARRE_L && this.classList.contains("dzia-barre")) return Object.assign({}, r, { width: l, right: r.left + l });
   return r;
 };
@@ -113,7 +115,16 @@ const ouverts = () => IV.filter(v => !CL.includes(v.id));
   R.etroit = { coin: !!st.coin, reserve: st.reserve || null, padR: tIa.style.paddingRight || "", top: rbIa ? rbIa.top : null,
     attendu: 348 - (rbIa ? rbIa.height : 0) / 2, centre: 348 + (40 - (rbIa ? rbIa.height : 0)) / 2,
     mini: !!(bIa && bIa.querySelector && bIa.querySelector(".dzia-mini")), micro: !!(bIa && bIa.querySelector && bIa.querySelector(".dzia-micro")),
-    droite: rbIa ? Math.round(425 + 312 - rbIa.right) : null };
+    droite: rbIa ? Math.round(425 + 312 - rbIa.right) : null, seul: !!(bIa && bIa.classList.contains("dzia-seul")) };
+  // t215, mesuré sur 8799 : #vitIaPrompt fait 73 px — même la barre réduite (72 px) le couvrait en entier
+  const tVit = el("input", { id: "vitIaPrompt", type: "text" }, hv, { left: 1221, top: 788, width: 73, height: 28 });
+  A.marquer(document.body); A.synchroniser(); A.synchroniser();
+  const bV = tVit.nextSibling, rbV = bV && bV.getBoundingClientRect ? bV.getBoundingClientRect() : null;
+  R.tresEtroit = { marque: !!tVit.__dzia, seul: !!(bV && bV.classList.contains("dzia-seul")), largeur: rbV ? rbV.width : null,
+    droite: rbV ? Math.round(1221 + 73 - rbV.right) : null, reserve: (tVit.__dzia || {}).reserve || null };
+  // et il en sort quand il s'élargit (la barre réduite au micro n'est pas un état définitif)
+  tVit._rect = { left: 900, top: 788, width: 394, height: 28 }; A.synchroniser(); A.synchroniser();
+  R.tresEtroit.elargi = { seul: !!(bV && bV.classList.contains("dzia-seul")), mini: !!(bV && bV.querySelector(".dzia-mini")) };
   // temoin : l'application principale (/) essaie bien la regle sans page ; un champ LARGE garde sa reserve a droite
   body.textContent = ""; window.location.pathname = "/";
   const hs = el("div", {}, body);
@@ -220,6 +231,14 @@ check("4.2 la barre reduite reste DANS le champ, centree verticalement a droite 
       and e.get("droite") == 6, _d(e))
 check("4.3 et la marge reservee a droite est celle de la barre reduite (76 px), plus celle de 166",
       str(e.get("reserve")).startswith("r76"), _d(e))
+check("4.3b #iaTexte garde badge + pastille-icone + micro (la barre reduite tient : pas reduite au seul micro)",
+      e.get("seul") is False, _d(e))
+t = N.get("tresEtroit") or {}
+check("4.5 #vitIaPrompt (73 px, mesure 8799) : barre reduite au SEUL micro (.dzia-seul), dedans, marge reservee r24",
+      t.get("marque") is True and t.get("seul") is True and t.get("largeur") == 24 and t.get("droite") == 6
+      and str(t.get("reserve")).startswith("r24"), _d(t))
+check("4.6 le meme champ elargi (394 px) retrouve badge et pastille (sort de .dzia-seul)",
+      (t.get("elargi") or {}).get("seul") is False, _d(t))
 check("4.4 temoin : un champ LARGE (700 px) garde la barre complete dans le champ, marge reservee a droite",
       (N.get("spa") or {}).get("largeCoin") is False and str((N.get("spa") or {}).get("largeReserve")).startswith("r166")
       and (N.get("spa") or {}).get("largeMini") is False, _d(N.get("spa")))

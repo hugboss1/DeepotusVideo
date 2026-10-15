@@ -151,6 +151,8 @@
       "opacity:.6;transition:opacity .3s ease;user-select:none;pointer-events:auto;cursor:text}",
     ".dzia-champ:focus-within+.dzia-barre .dzia-badge{opacity:1}",
     ".dzia-emp{display:inline-flex;align-items:center;gap:4px;pointer-events:auto}",
+    /* t215 : champ très étroit (#vitIaPrompt, 73 px) — seul le micro reste dans l'encart */
+    ".dzia-barre.dzia-seul .dzia-badge,.dzia-barre.dzia-seul [data-dzia-slot=modele]{display:none!important}",
     ".dzia-emp:empty{display:none}",
     /* T9 : la pastille de modèle (un seul bouton, grisé par aria-disabled) et sa liste */
     ".dzia-modele{display:inline-flex;align-items:center;gap:3px;max-width:118px;height:18px;margin:0;padding:0 6px 0 7px;" +
@@ -377,7 +379,7 @@
       genre: genre, regle: regle ? regle.id : null, manuel: !regle, parent: p,
       boite: c.boxSizing === "border-box", pad: pads(c), padInline: null,
       inline0: [el.style.paddingTop, el.style.paddingRight, el.style.paddingBottom, el.style.paddingLeft],
-      reserve: null, sansReserve: false, etroit: false, pleine: 0, cible: null, barre: null
+      reserve: null, sansReserve: false, etroit: false, pleine: 0, seul: false, moyenne: 0, cible: null, barre: null
     };
     var t0 = taille(el), tp0 = taille(p), cible = null;
     if ((parseFloat(c.borderTopWidth) || 0) > 0) cible = el;
@@ -447,6 +449,7 @@
     el.classList.remove("dzia-champ", "dzia-bord", "dzia-halo");
     el.style.paddingTop = st.inline0[0]; el.style.paddingRight = st.inline0[1];
     el.style.paddingBottom = st.inline0[2]; el.style.paddingLeft = st.inline0[3];
+    if (st.hauteur) el.style.height = "";                 // t215 : la hauteur d'origine posée par la réserve
     if (!st.manuel) el.removeAttribute("data-dz-ia");
     el.removeAttribute("data-dz-ia-regle");
     var p = st.parent, reste = false;
@@ -509,7 +512,7 @@
     var mono = el.tagName === "INPUT" || r.height < 44;
     // une textarea redimensionnable garde sa poignée du coin bas droit libre (t215 : 6 px + 16 px de poignée)
     var droite = !mono && el.tagName === "TEXTAREA" && cs(el).resize !== "none" ? 6 + 16 : 6;
-    if (etroitir(el, st, rb, r.width, mono, droite)) rb = b.getBoundingClientRect();
+    rb = etroitir(el, st, b, rb, r.width, mono, droite);
     reserver(el, st, rb, mono);
     r = el.getBoundingClientRect();
     var gl = parseFloat(b.style.left) || 0, gt = parseFloat(b.style.top) || 0;
@@ -524,16 +527,23 @@
      retiré). Un champ trop étroit pour la barre complète — sur une ligne : moins de 160 px laissés au texte ou plus de
      la moitié du champ couverte (mesuré : #iaTexte du Vectorlab, 312 px, barre 166 px) ; en multiligne : la barre ne
      tient pas entre les marges — garde le badge, la pastille réduite à son icône (.dzia-mini) et le micro. La largeur
-     de la barre COMPLÈTE est retenue (st.pleine) : on en sort quand le champ s'élargit. Rend true si l'état change. */
-  function etroitir(el, st, rb, lg, mono, droite) {
-    if (!st.pastille || !rb.width || !(lg > 0)) return false;
-    if (!st.etroit) st.pleine = rb.width;
-    var w = st.pleine || rb.width;
-    var e = mono ? (lg - w < 160 || w > lg / 2) : (w + droite + 6 > lg);
-    if (e === st.etroit) return false;
-    st.etroit = e;
-    rafraichirPastille(el);
-    return true;
+     de la barre COMPLÈTE est retenue (st.pleine) : on en sort quand le champ s'élargit. Second palier (mesuré sur
+     8799 : #vitIaPrompt du Vitrail, 73 px, que la barre réduite de 72 px couvrait en entier) : si la barre réduite
+     laisse moins de 80 px au texte (ou ne tient pas en multiligne), seul le micro reste (.dzia-seul ; le liseré dit
+     déjà « champ IA »). Rend la mesure de la barre après ces bascules. */
+  function etroitir(el, st, b, rb, lg, mono, droite) {
+    if (!rb.width || !(lg > 0)) return rb;
+    if (st.pastille) {
+      if (!st.etroit) st.pleine = rb.width;
+      var w = st.pleine || rb.width;
+      var e = mono ? (lg - w < 160 || w > lg / 2) : (w + droite + 6 > lg);
+      if (e !== st.etroit) { st.etroit = e; rafraichirPastille(el); rb = b.getBoundingClientRect(); }
+    }
+    if (!st.seul) st.moyenne = rb.width;
+    var m = st.moyenne || rb.width;
+    var s = mono ? lg - m < 80 : m + droite + 6 > lg;
+    if (s !== st.seul) { st.seul = s; b.classList.toggle("dzia-seul", s); rb = b.getBoundingClientRect(); }
+    return rb;
   }
   /* Réserve de padding sous la barre, pour que le texte ne passe pas dessous :
      en bas d'un champ multiligne (t215 : hauteur de la barre + 6 px), à droite
@@ -545,7 +555,7 @@
     if (!st.boite) { st.sansReserve = true; return; }
     var cle = (mono ? "r" : "b") + Math.round(mono ? rb.width : rb.height);
     if (st.reserve === cle) return;
-    var t0 = taille(el), avant = [el.style.paddingRight, el.style.paddingBottom];
+    var t0 = taille(el), h0 = el.offsetHeight, avant = [el.style.paddingRight, el.style.paddingBottom];
     if (!mono) {
       el.style.paddingRight = px(st.pad.r);
       el.style.paddingBottom = px(st.pad.b + rb.height + 6);
@@ -553,8 +563,16 @@
       el.style.paddingBottom = px(st.pad.b);
       el.style.paddingRight = px(st.pad.r + rb.width + 10);
     }
+    /* t215 (mesuré sur 8799) : le Prompt de Quick est une textarea à `rows`, de hauteur automatique — la réserve
+       du bas la ferait grandir. Sa hauteur d'ORIGINE est alors posée (rendue au détachement) : la taille ne bouge
+       pas, le texte défile au-dessus de la barre. Une hauteur déjà posée (auto-extension, poignée) n'est pas touchée. */
+    if (taille(el) !== t0 && !mono && el.tagName === "TEXTAREA" && !el.style.height && !st.hauteur) {
+      el.style.height = px(h0);
+      st.hauteur = true;
+    }
     if (taille(el) !== t0) {
       el.style.paddingRight = avant[0]; el.style.paddingBottom = avant[1];
+      if (st.hauteur) { el.style.height = ""; st.hauteur = false; }
       st.sansReserve = true; st.reserve = null;
       return;
     }
