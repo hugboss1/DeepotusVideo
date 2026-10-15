@@ -38,6 +38,8 @@ le prompt d'illustration News et le nom par défaut de l'avatar photo suivent l'
 t210 (15/10/2026) : Réglages › Espaces — « Exporter » (paquet .zip sans secrets, GET /api/espaces/{id}/export) sur
 chaque espace, « Importer un espace… » (POST /api/espaces/importer : un espace neuf, les secrets à ressaisir), et
 l'archivage dit combien de posts programmés sont mis en pause.
+t211 (15/10/2026) : la pastille « Toutes » de la galerie des modèles Quick traduite ; T1-T2, les catégories, titres
+et résumés des modèles (données de l'espace) portent data-dz-brut.
 t209 (14/10/2026) : la Bibliothèque montre l'espace actif ou tous (`DzBibEspace` dans l'en-tête, `dzBibQ` passé à
 /images, /jobs et /audio, paires B1-B6) ; Réglages › Espaces : dépense du mois, plafond propre et relevé CSV de
 chaque espace (`DzDepEspace`).
@@ -491,10 +493,12 @@ AIDES_IDV = (
 # générateur, vibes) — Deepotus garde la liste livrée — et « Modèles de l'espace » (proposer sans IA ou par IA, cocher,
 # ajouter ou remplacer).
 AIDES_CT = (
-    'var dzEspCt=null,dzCtAbonnes=[],dzCtEnCours=null,dzPromptAuto=null;'
-    'function dzCtCharger(force){if(dzCtEnCours&&!force)return dzCtEnCours;dzCtEnCours=fetch("/api/espaces/actif").then(function(r2){'
+    # t211 : dzCtSeq — deux changements d'espace rapprochés : la réponse d'une requête DÉPASSÉE est ignorée (sinon les
+    # modèles de Deepotus, arrivés en retard, écrasaient ceux de Rippled sous un menu qui montre Rippled)
+    'var dzEspCt=null,dzCtAbonnes=[],dzCtEnCours=null,dzPromptAuto=null,dzCtSeq=0;'
+    'function dzCtCharger(force){if(dzCtEnCours&&!force)return dzCtEnCours;var dzN=++dzCtSeq;dzCtEnCours=fetch("/api/espaces/actif").then(function(r2){'
     'if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()}).then(function(e){return fetch("/api/espaces/"+encodeURIComponent(e.id)+"/contenus")'
-    '.then(function(r2){if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()}).then(function(d){dzEspCt={id:e.id,nom:e.nom,data:d};'
+    '.then(function(r2){if(!r2.ok)throw new Error("HTTP "+r2.status);return r2.json()}).then(function(d){if(dzN!==dzCtSeq)return dzEspCt;dzEspCt={id:e.id,nom:e.nom,data:d};'
     'dzCtAbonnes.slice().forEach(function(f){try{f()}catch(_e){}});return dzEspCt})}).catch(function(){dzCtEnCours=null;return null});return dzCtEnCours}'
     'try{window.addEventListener("deepotus:espace-refresh",function(){dzCtCharger(!0)})}catch(_e){}'
     'function dzCtUse(){const[v,f]=x.useReducer(function(n){return n+1},0);x.useEffect(function(){var g=function(){f()};dzCtAbonnes.push(g);'
@@ -667,7 +671,7 @@ PAIRES = [
      'r.jsx(DzPostComptes,{post:e,onChange:s}),r.jsx(ie,{label:dzT("scheduler.post.canaux"),'),
     # t207 — C1-C6 : Quick lit les contenus de l'espace actif (galerie, catégories, ingrédients, vibes) ; bouton « Modèles »
     ('function nm({onPick:e}){const[t,n]=x.useState("all"),o=x.useMemo(()=>t==="all"?fd:fd.filter(i=>i.cat===t),[t]);return r.jsxs("div",{children:[r.jsxs("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8},children:[r.jsx(md,{on:t==="all",onClick:()=>n("all"),children:"All"}),qh.map(i=>',
-     'function nm({onPick:e}){var dzCv=dzCtUse(),dzFd=dzCt("prompt_templates",fd);const[t,n]=x.useState("all"),o=x.useMemo(()=>t==="all"?dzFd:dzFd.filter(i=>i.cat===t),[t,dzCv,dzFd]);return r.jsxs("div",{children:[dzFd.length===0&&r.jsx("div",{"data-dz-ct-vide":"1",style:{fontSize:12,color:"var(--ink-muted)",padding:"4px 0 8px"},children:dzT("espaces.ct.vide")}),r.jsxs("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8},children:[r.jsx(md,{on:t==="all",onClick:()=>n("all"),children:"All"}),dzCt("prompt_cats",qh).map(i=>'),
+     'function nm({onPick:e}){var dzCv=dzCtUse(),dzFd=dzCt("prompt_templates",fd);const[t,n]=x.useState("all"),o=x.useMemo(()=>t==="all"?dzFd:dzFd.filter(i=>i.cat===t),[t,dzCv,dzFd]);return r.jsxs("div",{children:[dzFd.length===0&&r.jsx("div",{"data-dz-ct-vide":"1",style:{fontSize:12,color:"var(--ink-muted)",padding:"4px 0 8px"},children:dzT("espaces.ct.vide")}),r.jsxs("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8},children:[r.jsx(md,{on:t==="all",onClick:()=>n("all"),children:dzT("espaces.ct.filtre_toutes")}),dzCt("prompt_cats",qh).map(i=>'),
     ('const h={};Object.entries(hd).forEach(',
      'const h={};Object.entries(dzCt("ingredients",hd)).forEach('),
     ('children:[Object.entries(hd).map(([h,b])=>',
@@ -730,6 +734,14 @@ PAIRES = [
      'return()=>{C=!1,clearInterval(ee),window.removeEventListener("dz-bib-esp",dzBq)}},[]);'),
     ('onChange:v=>LsortS(v),style:{width:130}}),',                                                          # B6
      'onChange:v=>LsortS(v),style:{width:130}}),r.jsx(DzBibEspace,{}),'),
+    # t211 — T1-T2 : les catégories, titres et résumés des modèles Quick sont des DONNÉES de l'espace : jamais traduits
+    # par le runtime (une catégorie « Produit » devenait « Multiply » en anglais, homonyme d'un mode de fusion)
+    ('onClick:()=>n(i.id),children:i.label},i.id))]})',                                                     # T1
+     'onClick:()=>n(i.id),children:r.jsx("span",{"data-dz-brut":"1",children:i.label})},i.id))]})'),
+    ('r.jsx("div",{style:{fontSize:12,color:"var(--ink-strong)",fontWeight:500},children:i.title}),'
+     'r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:i.short})',   # T2
+     'r.jsx("div",{"data-dz-brut":"1",style:{fontSize:12,color:"var(--ink-strong)",fontWeight:500},children:i.title}),'
+     'r.jsx("div",{"data-dz-brut":"1",style:{fontSize:10.5,color:"var(--ink-soft)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:i.short})'),
 ]
 # S3 bis : les DEUX passages de setActivePersonaId (Réglages, Onboarding) — même texte, remplacés ensemble
 PERSO = ("setActivePersonaId:j,savePersona:E", "setActivePersonaId:dzJ,savePersona:E", 2)

@@ -151,6 +151,10 @@
     "fr": "{n} modèle(s) écarté(s) : nom d'artiste ou interdit du persona.",
     "en": "{n} template(s) dropped: artist name or persona taboo."
   },
+  "espaces.ct.filtre_toutes": {
+    "fr": "Toutes",
+    "en": "All"
+  },
   "espaces.ct.ouvrir": {
     "fr": "Modèles de l'espace",
     "en": "Space templates"
@@ -848,8 +852,8 @@
     "en": "Publishing accounts"
   },
   "espaces.reglages.aide": {
-    "fr": "Un espace par marque, produit ou client : son persona, son kit de marque et, bientôt, ses comptes de diffusion. L'espace actif s'applique à toute l'application ; un travail lancé garde son espace jusqu'au bout.",
-    "en": "One space per brand, product or client: its persona, its brand kit and, soon, its publishing accounts. The active space applies across the whole app; a job keeps its space until it finishes."
+    "fr": "Un espace par marque, produit ou client : son persona, son identité, ses modèles Quick, ses comptes de diffusion, sa Bibliothèque et ses dépenses. L'espace actif s'applique à toute l'application ; un travail lancé garde son espace jusqu'au bout.",
+    "en": "One space per brand, product or client: its persona, its identity, its Quick templates, its publishing accounts, its Library and its spending. The active space applies across the whole app; a job keeps its space until it finishes."
   },
   "espaces.reglages.onglet": {
     "fr": "Espaces",

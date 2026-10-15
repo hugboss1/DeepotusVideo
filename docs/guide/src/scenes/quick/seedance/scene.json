@@ -24,10 +24,24 @@
   "temps": [
     {
       "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        303,
+        121,
+        42,
+        40
+      ],
+      "bulle": {
+        "fr": "Les onglets en icônes : le nom au survol",
+        "en": "Icon tabs: hover for the name"
+      }
+    },
+    {
+      "capture": 0,
       "duree": 2.6,
       "surligne": [
         8,
-        342,
+        376,
         343,
         28
       ],
@@ -38,24 +52,10 @@
     },
     {
       "capture": 1,
-      "duree": 2.6,
-      "surligne": [
-        8,
-        495,
-        343,
-        28
-      ],
-      "bulle": {
-        "fr": "Modèle, durée et format",
-        "en": "Model, duration and format"
-      }
-    },
-    {
-      "capture": 1,
       "duree": 3,
       "surligne": [
         8,
-        814,
+        738,
         74,
         29
       ],
@@ -69,10 +69,24 @@
   "temps_en": [
     {
       "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        303,
+        121,
+        42,
+        40
+      ],
+      "bulle": {
+        "fr": "Les onglets en icônes : le nom au survol",
+        "en": "Icon tabs: hover for the name"
+      }
+    },
+    {
+      "capture": 0,
       "duree": 2.6,
       "surligne": [
         8,
-        342,
+        361,
         343,
         28
       ],
@@ -83,24 +97,10 @@
     },
     {
       "capture": 1,
-      "duree": 2.6,
-      "surligne": [
-        8,
-        495,
-        343,
-        28
-      ],
-      "bulle": {
-        "fr": "Modèle, durée et format",
-        "en": "Model, duration and format"
-      }
-    },
-    {
-      "capture": 1,
       "duree": 3,
       "surligne": [
         8,
-        814,
+        746,
         56,
         29
       ],
