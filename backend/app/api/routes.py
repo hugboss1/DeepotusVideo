@@ -7277,10 +7277,17 @@ async def set_key(body: dict, request: Request):
         entries = [{"name": name, "value": value}] if name else []
     if not entries:
         raise HTTPException(400, "No entries to write")
+    from app.services import moteurs_texte as _MT
     for e in entries:
         n = (e.get("name") or "").strip()
         if n not in _ALLOWED_ENV_KEYS:
             raise HTTPException(400, f"Key not allowed: {n}")
+        try:                                    # t220 : une clé collée dans un *_MODEL est refusée (lot entier)
+            _MT.verifier_modele(n, e.get("value"))
+        except ValueError as err:
+            raise HTTPException(400, str(err))
+    from app.services import vector_illustration as _VI
+    _VI._CATALOGUE.clear()                      # t220 : une clé ou un modèle change -> les listes se relisent
 
     # Tâche #20 : coffre OUVERT -> les secrets y vont (jamais au .env en clair) ; coffre posé mais FERMÉ -> refus, un
     # secret écrit en clair à sa place annulerait le coffre.
@@ -7364,6 +7371,7 @@ async def get_provider_defaults(request: Request):
     plan_avail = [p for p in _PLAN_PRIORITY if _plan_available(p)]
     pref_plan = settings.PLANNER_PROVIDER.strip().lower()
     active_plan = pref_plan if (pref_plan and pref_plan in plan_avail) else (plan_avail[0] if plan_avail else "")
+    from app.services import moteurs_texte as _MT
     return {
         "roles": {
             "summarizer": {
@@ -7377,21 +7385,82 @@ async def get_provider_defaults(request: Request):
                 "preference": settings.PLANNER_PROVIDER,
             },
         },
+        # t220 : une ligne par moteur de texte (configuré ou non, modèle sain, alerte si le réglage contient une clé)
+        "moteurs": _MT.etat(),
     }
+
+
+@router.get("/settings/provider-defaults/modeles")
+async def get_provider_models(moteur: str, request: Request):
+    """t220 : la VRAIE liste des modèles de texte d'un moteur (`modeles_de`, en cache de session ; jamais une clé)."""
+    _require_localhost(request)
+    from app.services import moteurs_texte as _MT, vector_illustration as _VI
+    if moteur not in _MT.MOTEURS:
+        raise HTTPException(400, f"Moteur inconnu : {moteur}")
+    if not _MT.configure(moteur):
+        return {"moteur": moteur, "configure": False, "modeles": []}
+    mods = await asyncio.to_thread(_VI.modeles_de, moteur)
+    # `modeles_de` remet le modèle des Réglages en tête même quand le fournisseur ne répond pas : `lisible` dit si la
+    # liste a vraiment été lue (sinon l'écran annonce « liste illisible » plutôt que « 1 modèle publié »)
+    defaut = _VI.modele_defaut(moteur)
+    return {"moteur": moteur, "configure": True, "modeles": [m for m in mods if not _MT.ressemble_a_une_cle(m)],
+            "lisible": any(m != defaut for m in mods)}
+
+
+@router.post("/settings/provider-defaults/tester")
+async def test_provider_model(body: dict, request: Request):
+    """t220 : « Tester » un nom de modèle SANS rien dépenser — il est (ou non) dans la liste que publie le fournisseur.
+    `etat` : connu / inconnu / non_verifiable (liste illisible : hors ligne, jeton refusé)."""
+    _require_localhost(request)
+    from app.services import moteurs_texte as _MT, vector_illustration as _VI
+    moteur = str((body or {}).get("moteur") or "").strip()
+    modele = str((body or {}).get("modele") or "").strip()
+    if moteur not in _MT.MOTEURS:
+        raise HTTPException(400, f"Moteur inconnu : {moteur}")
+    try:
+        _MT.verifier_modele(_MT.CLE_MODELE[moteur], modele)
+    except ValueError as err:
+        raise HTTPException(400, str(err))
+    # la liste PUBLIÉE (sans le modèle des Réglages que `modeles_de` remet en tête) : relue à chaque clic, un GET gratuit
+    publies = await asyncio.to_thread(_VI.publies, moteur) if _MT.configure(moteur) else []
+    if not publies:
+        return {"moteur": moteur, "modele": modele, "ok": None, "etat": "non_verifiable"}
+    connu = modele in publies
+    return {"moteur": moteur, "modele": modele, "ok": connu, "etat": "connu" if connu else "inconnu"}
 
 
 @router.post("/settings/provider-defaults")
 async def set_provider_defaults(body: dict, request: Request):
+    """Les rôles (summarizer / planner → SUMMARIZER_PROVIDER / PLANNER_PROVIDER, "" = automatique) et, t220, les
+    modèles par défaut des moteurs de texte (`modeles: {moteur: nom}` → ANTHROPIC_MODEL…). Tout est vérifié AVANT
+    d'écrire : un moteur inconnu ou une clé collée dans un *_MODEL refuse la requête entière (400)."""
     _require_localhost(request)
+    from app.services import moteurs_texte as _MT, vector_illustration as _VI
     allowed_roles = {"summarizer": "SUMMARIZER_PROVIDER", "planner": "PLANNER_PROVIDER"}
     changes: dict[str, str] = {}
     for role, value in (body or {}).items():
         env_key = allowed_roles.get(role)
         if not env_key:
             continue
-        changes[env_key] = str(value or "").strip().lower()
+        moteur = str(value or "").strip().lower()
+        if moteur and moteur not in _MT.MOTEURS:
+            raise HTTPException(400, f"Moteur inconnu : {moteur}")
+        changes[env_key] = moteur
+    modeles = (body or {}).get("modeles")
+    if modeles is not None and not isinstance(modeles, dict):
+        raise HTTPException(400, "`modeles` doit être un objet (moteur → modèle)")
+    for moteur, nom in (modeles or {}).items():
+        if moteur not in _MT.MOTEURS:
+            raise HTTPException(400, f"Moteur inconnu : {moteur}")
+        cle = _MT.CLE_MODELE[moteur]
+        try:
+            _MT.verifier_modele(cle, str(nom or ""))
+        except ValueError as err:
+            raise HTTPException(400, str(err))
+        changes[cle] = str(nom or "").strip()
     if not changes:
         raise HTTPException(400, "No valid role/provider pairs")
+    _VI._CATALOGUE.clear()
     p = _env_path()
     lines = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
     seen: set[str] = set()
@@ -7417,6 +7486,7 @@ async def set_provider_defaults(body: dict, request: Request):
     return {
         "ok": True,
         "written": changes,
+        "moteurs": _MT.etat(),
         "restart_required": bool(a_froid),
         "message": ("Enregistré et appliqué tout de suite." if not a_froid else
                     "Enregistré. Redémarrage nécessaire pour : " + ", ".join(a_froid) + "."),

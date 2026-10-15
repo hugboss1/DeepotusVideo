@@ -9330,5 +9330,17 @@
  "{etape}.{k} : choisir parmi {v}": {
   "fr": "{etape}.{k} : choisir parmi {v}",
   "en": "{etape}.{k}: choose from {v}"
+ },
+ "Moteur inconnu : {moteur}": {
+  "fr": "Moteur inconnu : {moteur}",
+  "en": "Unknown engine: {moteur}"
+ },
+ "`modeles` doit être un objet (moteur → modèle)": {
+  "fr": "`modeles` doit être un objet (moteur → modèle)",
+  "en": "`modeles` must be an object (engine → model)"
+ },
+ "{nom_cle} : cette valeur ressemble à une clé d'API, pas à un nom de modèle": {
+  "fr": "{nom_cle} : cette valeur ressemble à une clé d'API, pas à un nom de modèle",
+  "en": "{nom_cle}: this value looks like an API key, not a model name"
  }
 }
