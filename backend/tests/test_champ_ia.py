@@ -267,7 +267,7 @@ class Element extends Noeud {
   }
   get offsetWidth() { return ((this._rect || {}).width || 0) + (this._grandit && this.style.paddingRight ? 14 : 0)
     + (this._granditBord && this.classList.contains("dzia-bord") ? 2 : 0); }
-  get offsetHeight() { return (this._rect || {}).height || 0; }
+  get offsetHeight() { return ((this._rect || {}).height || 0) + (this._granditB && this.style.paddingBottom ? 14 : 0); }
   get clientHeight() { return this.offsetHeight; }
   get offsetParent() { return this._cache ? null : (this.parentNode || null); }
   focus() { document.activeElement = this; } blur() {}
@@ -290,7 +290,7 @@ document.documentElement = html; document.head = head; document.body = body; doc
 let REDUIT = false;
 const DEFAUT_CS = { backgroundColor: "rgb(20, 22, 28)", borderTopWidth: "1px", boxSizing: "border-box",
   position: "static", paddingTop: "8px", paddingRight: "8px", paddingBottom: "8px", paddingLeft: "8px", display: "block" };
-const RO_LOG = [];
+const RO_LOG = [], IO_LOG = [];
 class MO { constructor(cb) { this.cb = cb; this.file = []; this.cible = null; this.opts = null; OBS.push(this); }
   observe(c, o) { this.cible = c; this.opts = o || null; } disconnect() { this.cible = null; }
   _vider() { const f = this.file; this.file = []; if (f.length) this.cb(f, this); } }
@@ -365,6 +365,10 @@ const window = {
   matchMedia(q) { return { matches: /reduce/.test(q) ? REDUIT : false, addEventListener() {}, addListener() {} }; },
   MutationObserver: MO,
   ResizeObserver: class { observe(t) { RO_LOG.push(["o", t]); } unobserve(t) { RO_LOG.push(["u", t]); } disconnect() {} },
+  /* t215 : faux IntersectionObserver (le banc rejoue son rappel à la main) */
+  IntersectionObserver: class { constructor(cb, o) { this.cb = cb; this.o = o || null; this.cibles = []; IO_LOG.push(this); }
+    observe(t) { if (!this.cibles.includes(t)) this.cibles.push(t); } unobserve(t) { this.cibles = this.cibles.filter(x => x !== t); }
+    disconnect() { this.cibles = []; } },
   addEventListener(t, f, c) { Noeud.prototype.addEventListener.call(this, t, f, c); }, removeEventListener() {},
   setTimeout: (f, ms) => { TIMERS.push(ms); return setTimeout(f, ms); }, clearTimeout: t => clearTimeout(t),
   setInterval: () => 0, clearInterval: () => {},
@@ -954,6 +958,36 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
     sl.value = "elevenlabs-direct"; A.synchroniser(); await pause(20);
     R.t187.p2 = vuP(in187);
   } catch (e) { R.t187err = String(e && e.stack || e).slice(0, 400); }
+  // ---------- t215 (15/10/2026) : pastilles EN BAS, DANS l'encart ; jamais à cheval ; pause hors écran ----------
+  try {
+    body.textContent = ""; window.location.pathname = "/";
+    const geo = (f) => { const b = f.nextSibling, rb = b.getBoundingClientRect(), r = f.getBoundingClientRect();
+      return { droite: Math.round(r.right - rb.right), bas: Math.round(r.bottom - rb.bottom), haut: Math.round(rb.top - r.top),
+        pb: f.style.paddingBottom || "", pr: f.style.paddingRight || "", coin: !!(f.__dzia && f.__dzia.coin) }; };
+    const tRes = el("textarea", { placeholder: "Describe an image to create… (t215 poignée)" }, body, { left: 10, top: 300, width: 400, height: 120 });
+    const tFixe = el("textarea", { placeholder: "Describe an image to create… (t215 sans poignée)" }, body, { left: 10, top: 500, width: 400, height: 120 });
+    tFixe._cs = { resize: "none" };
+    const tCb = el("textarea", { placeholder: "Describe an image to create… (t215 content-box)" }, body, { left: 10, top: 700, width: 400, height: 120 });
+    tCb._cs = { boxSizing: "content-box" };
+    const tGr = el("textarea", { placeholder: "Describe an image to create… (t215 auto-extensible)" }, body, { left: 10, top: 900, width: 400, height: 120 });
+    tGr._granditB = true;
+    const iMono = el("input", { placeholder: "Describe an image to create… (t215 une ligne)" }, body, { left: 10, top: 1100, width: 400, height: 30 });
+    A.marquer(document.body); await pause(30); A.synchroniser(); A.synchroniser();
+    R.t215 = { res: geo(tRes), fixe: geo(tFixe), cb: geo(tCb), gr: geo(tGr), mono: geo(iMono) };
+    const mic = tRes.nextSibling.querySelector(".dzia-micro"), ico = mic && mic.querySelector("svg");
+    R.t215.ico = ico ? ico.getAttribute("width") : null;
+    // pause hors écran : l'IntersectionObserver suit l'élément PEINT, pose / retire dzia-hors, oublie au détachement
+    const io = IO_LOG.length ? IO_LOG[IO_LOG.length - 1] : null;
+    R.t215.io = { n: IO_LOG.length, suit: !!(io && io.cibles.includes(tRes)) };
+    if (io) {
+      io.cb([{ target: tRes, isIntersecting: false }]); R.t215.io.hors = tRes.classList.contains("dzia-hors");
+      R.t215.io.autre = tFixe.classList.contains("dzia-hors");
+      io.cb([{ target: tRes, isIntersecting: true }]); R.t215.io.revenu = !tRes.classList.contains("dzia-hors");
+      io.cb([{ target: tRes, isIntersecting: false }]);
+      body.removeChild(tRes); A.synchroniser();
+      R.t215.io.oublie = !io.cibles.includes(tRes) && !tRes.classList.contains("dzia-hors");
+    }
+  } catch (e) { R.t215err = String(e && e.stack || e).slice(0, 400); }
   // ---------- reduced-motion : la règle du média est présente (la cascade est celle du navigateur) ----------
   process.stdout.write(JSON.stringify(R), () => process.exit(0));
 })().catch(e => { process.stdout.write(JSON.stringify({ erreur: String(e && e.stack || e) }), () => process.exit(0)); });
@@ -1104,8 +1138,8 @@ def main():
     check("NÉGATIF : un parent bordé qui ne SERRE pas le champ (une carte entière) n'est jamais peint",
           not ca.get("carteLis") and ca.get("champLis") and ca.get("bord"), str(ca))
     gr = R.get("grand") or {}
-    check("réserve qui ferait grandir le champ : retirée (taille intacte), barre à cheval sur le bord haut",
-          gr.get("largeur") == 300 and gr.get("pad") in ("", None) and gr.get("haut") == -8, str(gr))
+    check("réserve qui ferait grandir le champ : retirée (taille intacte), barre centrée DANS le champ (t215 : plus à cheval)",
+          gr.get("largeur") == 300 and gr.get("pad") in ("", None) and gr.get("haut") == 7, str(gr))
     check("TÉMOIN : champ border-box ordinaire → réserve de padding à droite (8 + 30 + 10)",
           R.get("reserve") == "48px", str(R.get("reserve")))
     check("barre : badge « IA »", st("quick").get("badge") == "IA", str(st("quick").get("badge")))
@@ -1565,13 +1599,64 @@ def main():
     check("style : reflet holographique (screen) et trame",
           "screen" in css and "repeating-linear-gradient(" in css)
     regles_css = [(sel.strip(), corps) for sel, corps in re.findall(r"([^{}]+)\{([^{}]*)\}", css)]
-    run = [s for s, c in regles_css if "running" in c]
-    check("animation seulement au :focus-within (toute règle « running » est au :focus-within)",
-          bool(run) and all(":focus-within" in s for s in run), str(run))
     hors_media = re.sub(r"@media[^{]*\{.*?\}\s*\}", "", css, flags=re.S)
-    base = [c for s, c in re.findall(r"([^{}]+)\{([^{}]*)\}", hors_media)
-            if s.strip().startswith(".dzia-lis") and ":focus" not in s and "animation" in c]
-    check("au repos : animations en pause (variante B)", bool(base) and all("paused" in c for c in base), str(base)[:300])
+    rh = [(s.strip(), c.replace(" ", "")) for s, c in re.findall(r"([^{}]+)\{([^{}]*)\}", hors_media)]
+    # t215 (15/10/2026) : l'anneau tourne AU REPOS, plus lent et plus doux ; le focus reprend l'animation d'avant
+    repos = [c for s, c in rh if s == ".dzia-lis.dzia-lis"]
+    check("t215 : au repos, l'anneau tourne (dzia-tour ~9 s et dzia-balai, jamais en pause), reflet à 0,55",
+          len(repos) == 1 and re.search(r"animation:dzia-tour9slinearinfinite,dzia-balai[\d.]+s", repos[0]) is not None
+          and "paused" not in repos[0] and "--dzia-holo:.55" in repos[0], str(repos)[:400])
+    foc = [c for s, c in rh if s == ".dzia-lis.dzia-lis:focus-within"]
+    check("t215 : au :focus-within, l'animation d'avant (6 s / 5,5 s), reflet à 1, halo renforcé",
+          len(foc) == 1 and "animation-duration:6s,5.5s" in foc[0] and "--dzia-holo:1" in foc[0] and "box-shadow:" in foc[0], str(foc)[:400])
+    hors = [(s, c) for s, c in rh if "dzia-hors" in s]
+    check("t215 : hors écran (.dzia-hors), les animations sont en pause",
+          len(hors) == 1 and "animation-play-state:paused,paused" in hors[0][1] and ".dzia-lis" in hors[0][0], str(hors))
+    anim = set(re.findall(r"(--[\w-]+)\s*:", " ".join(re.findall(r"@keyframes[^{]*\{(.*?\})\s*\}", css, re.S))))
+    props = set(re.findall(r"@property\s+(--[\w-]+)", css))
+    check("t215 : UNE seule propriété @property animée par @keyframes (--dzia-ang ; --dzia-holo n'est qu'en transition)",
+          anim == {"--dzia-ang"} and anim <= props, f"{anim} {props}")
+    check("t215 : plus aucune règle « paused » hors de .dzia-hors (le repos ne fige plus)",
+          all("dzia-hors" in s for s, c in rh if "paused" in c), str([s for s, c in rh if "paused" in c]))
+    mic = [c for s, c in rh if s == ".dzia-micro"]
+    check("t215 : micro de 24 px (au lieu de 18)", len(mic) == 1 and "width:24px" in mic[0] and "height:24px" in mic[0], str(mic))
+    ico = [c for s, c in rh if s == ".dzia-mico,.dzia-mstop"]
+    check("t215 : icône du micro de 15 px (au lieu de 11)", len(ico) == 1 and "width:15px" in ico[0] and "height:15px" in ico[0], str(ico))
+    check("t215 : contraste du micro plus fort au repos (bord violet ≥ .7)",
+          len(mic) == 1 and re.search(r"border:1pxsolidrgba\(139,92,246,\.(7|8|9)\d*\)", mic[0]) is not None, str(mic))
+    ec = [c for s, c in rh if s == ".dzia-ecoute .dzia-micro"]
+    check("t215 : l'animation « écoute » est inchangée (dzia-pouls 1,2 s)",
+          len(ec) == 1 and "animation:dzia-pouls1.2sease-in-outinfinite" in ec[0], str(ec))
+    t = R.get("t215") or {}
+    check("t215 : scénario joué sans erreur", bool(t) and not R.get("t215err"), str(R.get("t215err")))
+    g = t.get("res") or {}
+    check("t215 : textarea à poignée → barre EN BAS, DANS l'encart (6 px du bas, 6 + 16 px de la droite)",
+          g.get("bas") == 6 and g.get("droite") == 22 and not g.get("coin"), str(g))
+    check("t215 : padding-bottom réservé = padding 8 + barre 16 + 6 ; padding droit NON réservé",
+          g.get("pb") == "30px" and g.get("pr") in ("8px", ""), str(g))
+    g = t.get("fixe") or {}
+    check("t215 : textarea sans poignée (resize:none) → barre à 6 px du bas et de la droite",
+          g.get("bas") == 6 and g.get("droite") == 6 and g.get("pb") == "30px", str(g))
+    g = t.get("cb") or {}
+    check("t215 : champ content-box → pas de réserve, mais barre toujours DANS (jamais à cheval sur le bord)",
+          g.get("bas") == 6 and (g.get("haut") or -1) >= 0 and not g.get("coin") and g.get("pb") == "", str(g))
+    g = t.get("gr") or {}
+    check("t215 : réserve qui ferait grandir le champ → retirée, barre toujours en bas DANS l'encart",
+          g.get("bas") == 6 and g.get("pb") == "" and not g.get("coin"), str(g))
+    g = t.get("mono") or {}
+    check("t215 : input sur une ligne → barre centrée verticalement à droite, padding droit réservé (8 + 30 + 10)",
+          g.get("droite") == 6 and g.get("haut") == 7 and g.get("bas") == 7 and g.get("pr") == "48px", str(g))
+    check("t215 : icône du micro posée à 15 px", t.get("ico") == "15", str(t.get("ico")))
+    io = t.get("io") or {}
+    check("t215 : un seul IntersectionObserver, qui suit l'élément peint",
+          io.get("n") == 1 and io.get("suit") is True, str(io))
+    check("t215 : hors écran → dzia-hors sur CE champ seulement ; de retour → retiré",
+          io.get("hors") is True and io.get("autre") is False and io.get("revenu") is True, str(io))
+    check("t215 : champ détaché → plus suivi, dzia-hors retiré", io.get("oublie") is True, str(io))
+    src = SRC.read_text(encoding="utf-8")
+    check("t215 : plus de mode « coin » à cheval sur le bord haut dans la couche",
+          "st.coin" not in src and "rb.height / 2" not in src, "")
+    check("t215 : version 1.3.0", 'var VERSION = "1.3.0";' in src, "")
     m = re.search(r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{(.*?)\}\s*\}", css, re.S)
     check("reduced-motion : @media qui coupe toute animation (animation:none)",
           bool(m) and "animation:none" in m.group(1).replace(" ", "") and ".dzia-lis" in m.group(1), str(m and m.group(1))[:300])
