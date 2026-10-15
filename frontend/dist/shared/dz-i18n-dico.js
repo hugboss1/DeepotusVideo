@@ -9931,6 +9931,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "quick.lipsync.note": {"fr": "Kling LipSync : le clip natif doit durer 2 à 10 s (Duration ≤ 10 s), la voix 2 à 60 s et 5 Mo au plus. 0,014 $ par seconde de clip, au palier de 5 s (0,07 $ ou 0,14 $), chiffré avant le rendu.", "en": "Kling LipSync: the native clip must last 2 to 10 s (Duration ≤ 10 s), the voice 2 to 60 s and 5 MB at most. $0.014 per second of clip, in 5 s steps ($0.07 or $0.14), priced before rendering."},
   "quick.lipsync.voix": {"fr": "Voix off à synchroniser", "en": "Voiceover to sync"},
   "quick.modele.titre": {"fr": "Modèle", "en": "Model"},
+  "quick.onglet.composition": {"fr": "Composition", "en": "Compositing"},
   "quick.onglet.desactive": {"fr": "{nom} désactivé — clé d’API requise absente de backend/.env", "en": "{nom} disabled — required API key missing in backend/.env"},
   "quick.onglet.voix_off": {"fr": "Voix off", "en": "Voiceover"},
   "quick.parametres.duree": {"fr": "Durée", "en": "Duration"},
