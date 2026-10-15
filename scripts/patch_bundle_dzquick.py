@@ -21,8 +21,15 @@ sur 46b94085) :
   - T1 : « Composition » passe par dzT (quick.onglet.composition, EN « Compositing ») ;
   - T2 : icônes seules (`flex:"0 0 auto"`), l'onglet actif garde son libellé dans un span en ellipse (`flex:1`) ;
     `title` (la bulle) et `aria-label` = libellé sur chaque bouton, la bulle « désactivé — clé requise » reste.
+  t214 — la ligne figée « persona Deepotus prophet » devient un MENU des espaces/personas.
+  - P0 : `DzQuickPersona` (useReducer + dzCtUse) liste `GET /api/espaces` (non archivés) avec avatar, nom du persona et
+    mode de voix (aucun badge sans voiceMode explicite) ; un choix appelle `dzEspActiver(id)` (espace actif GLOBAL, une
+    note le dit) ; « + Nouveau persona… » ouvre Réglages › Espaces ; recharge sur deepotus:espace-refresh ;
+  - P1 : il remplace la ligne figée de Quick. Prompt (dzPromptAuto), voix (dzVoixSuit), galerie nm et vibes suivent
+    déjà l'espace via dzCtCharger (maillon dzespace) ;
+  - P2 : une vibe choisie absente de l'espace retombe sur la première vibe de l'espace (le sélecteur affichait « — »).
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 ».
-Clés dzT « quick.garde.* » et « quick.onglet.composition » : frontend/shared/i18n/menus.json (FR/EN), assemblées par scripts/i18n_assembler.py.
+Clés dzT « quick.garde.* », « quick.onglet.composition » et « quick.persona.* » : frontend/shared/i18n/menus.json (FR/EN), assemblées par scripts/i18n_assembler.py.
 
 Maillon de QUEUE, APRÈS dzespace (dont il sonde le marqueur) ; il garde un .js.bak_dzquick le temps de l'écriture puis
 le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzquick` dans
@@ -68,6 +75,74 @@ GARDE = (
     'onClick:function(){self.props.retour&&self.props.retour()},children:dzT("quick.garde.retour")})]})]})}}'
 )
 
+# t214 — P0 : le menu des personas/espaces de Quick. Les personas des espaces sont lus une fois chacun
+# (`/api/espaces/{id}/persona`, cache dzQpPers vidé sur deepotus:espace-refresh) ; le badge de voix ne vient que d'un
+# persona écran EXPLICITE (clé `ecran`, ou le preset livré de Deepotus) : le squelette rs() du shell pose « prophet »
+# par défaut, on ne le montre pas. Aucun useState (compte figé 731), aucun « aria-label » (le banc des onglets repère
+# ses paires ainsi).
+QPERSONA = (
+    'var dzQpPers={};function dzQpPersona(id){if(dzQpPers[id]!==void 0)return;dzQpPers[id]=null;'
+    'fetch("/api/espaces/"+encodeURIComponent(id)+"/persona").then(function(r2){if(!r2.ok)throw new Error("HTTP "+r2.status);'
+    'return r2.json()}).then(function(p){dzQpPers[id]=p||{};dzEspAvertir()},function(){dzQpPers[id]={};dzEspAvertir()})}'
+    'function dzQpEntree(e,t){var p=dzQpPers[e.id],ec=p&&p.ecran&&p.ecran.id?p.ecran:null;'
+    'if(!ec&&e.id==="deepotus"){try{ec=(Array.isArray(rm)?rm:[]).find(function(m){return m.id==="deepotus"})||null}catch(_e){}}'
+    'if(e.actif&&t&&(ec?t.id===ec.id:!p))ec=Object.assign({},t,{voiceMode:ec?t.voiceMode:e.id==="deepotus"?t.voiceMode:""});'
+    'return{id:e.id,espace:e.nom||e.id,nom:ec&&ec.name||p&&p.display_name||e.nom||e.id,avatar:ec&&ec.avatar||"dz-media-persona",'
+    'voix:ec&&ec.voiceMode||"",couleur:e.couleur||"var(--brand)",actif:!!e.actif}}'
+    'function DzQuickPersona({p:t}){const[st,maj]=x.useReducer(function(o,n){return Object.assign({},o,n)},'
+    '{ouvert:!1,busy:!1,err:""}),boite=x.useRef(null);dzCtUse();'
+    'x.useEffect(function(){var f=function(){maj({})},g=function(){dzQpPers={};maj({})};dzEspAbonnes.push(f);'
+    'window.addEventListener("deepotus:espace-refresh",g);'
+    'dzEspCache||dzEspCharger().catch(function(){maj({err:dzT("espaces.erreur.lecture")})});'
+    'return function(){dzEspAbonnes=dzEspAbonnes.filter(function(h){return h!==f});'
+    'window.removeEventListener("deepotus:espace-refresh",g)}},[]);'
+    'var liste=(dzEspCache&&dzEspCache.espaces||[]).filter(function(e){return!e.archive});'
+    'x.useEffect(function(){liste.forEach(function(e){dzQpPersona(e.id)})});'
+    'x.useEffect(function(){if(!st.ouvert)return;var dehors=function(ev){var b=boite.current;'
+    'if(b&&b.contains&&ev&&ev.target&&b.contains(ev.target))return;maj({ouvert:!1})},'
+    'echap=function(ev){ev&&ev.key==="Escape"&&maj({ouvert:!1})};document.addEventListener("mousedown",dehors);'
+    'document.addEventListener("keydown",echap);return function(){document.removeEventListener("mousedown",dehors);'
+    'document.removeEventListener("keydown",echap)}},[st.ouvert]);'
+    'var ents=liste.map(function(e){return dzQpEntree(e,t)}),cur=ents.find(function(e){return e.actif})||'
+    '(t?{id:t.id,nom:t.name,avatar:t.avatar||"dz-media-persona",voix:"",couleur:"var(--brand)",actif:!0}:null);'
+    'function choisir(id){if(!dzEspCache||id===dzEspCache.actif){maj({ouvert:!1});return}maj({ouvert:!1,busy:!0,err:""});'
+    'dzEspActiver(id).then(function(){maj({busy:!1})},function(e){maj({busy:!1,err:String(e&&e.message||e)})})}'
+    'function nouveau(){maj({ouvert:!1});try{var u=new URL(window.location.href);u.searchParams.set("section","espaces");'
+    'window.history.replaceState(null,"",u)}catch(_e){}try{window.dispatchEvent(new CustomEvent("deepotus:navigate",'
+    '{detail:{view:"settings",section:"espaces"}}))}catch(_e){}}'
+    'function badge(v){return v?r.jsx("span",{className:"mono","data-dz-brut":"1",style:{fontSize:10,color:"var(--ink-muted)",'
+    'flexShrink:0},children:v}):null}'
+    'function ligne(e,grand){return[r.jsx(X,{name:e.avatar,size:grand?14:12,style:{color:e.couleur,flexShrink:0}},"a"),'
+    'r.jsxs("span",{style:{minWidth:0,flex:1,display:"flex",flexDirection:"column",textAlign:"left"},children:['
+    'r.jsx("span",{"data-dz-brut":"1",style:{fontSize:11.5,color:"var(--ink-strong)",fontWeight:500,overflow:"hidden",'
+    'textOverflow:"ellipsis",whiteSpace:"nowrap"},children:e.nom}),grand&&e.espace&&e.espace!==e.nom&&r.jsx("span",'
+    '{"data-dz-brut":"1",style:{fontSize:10,color:"var(--ink-muted)",overflow:"hidden",textOverflow:"ellipsis",'
+    'whiteSpace:"nowrap"},children:e.espace})]},"n"),badge(e.voix)]}'
+    'return r.jsxs("div",{ref:boite,"data-dz-qp":"1",style:{marginTop:10,position:"relative"},children:['
+    'r.jsxs("button",{type:"button","data-dz-qp-ouvrir":"1",title:dzT("quick.persona.choisir"),"aria-haspopup":"listbox",'
+    '"aria-expanded":!!st.ouvert,disabled:st.busy||!cur,onClick:function(){maj({ouvert:!st.ouvert})},style:{width:"100%",'
+    'display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"var(--bg-panel-2)",border:"1px solid '
+    'var(--stroke)",borderRadius:"var(--r-sm)",cursor:st.busy?"wait":"pointer",color:"inherit",font:"inherit",'
+    'opacity:st.busy?.6:1},children:[r.jsx("span",{style:{fontSize:11,color:"var(--ink-soft)",flexShrink:0},'
+    'children:dzT("quick.persona.libelle")}),cur?ligne(cur,!1):null,r.jsx(X,{name:"dz-action-deplier",size:12,'
+    'style:{color:"var(--ink-muted)",flexShrink:0,transform:st.ouvert?"rotate(180deg)":"none"}})]}),'
+    'st.ouvert&&r.jsxs("div",{role:"listbox",style:{position:"absolute",left:0,right:0,top:"calc(100% + 4px)",zIndex:40,'
+    'background:"var(--bg-panel)",border:"1px solid var(--stroke-strong)",borderRadius:"var(--r-sm)",'
+    'boxShadow:"0 10px 30px rgba(0,0,0,.45)",padding:4,maxHeight:280,overflowY:"auto"},children:['
+    'ents.map(function(e){return r.jsxs("button",{type:"button",role:"option","aria-selected":e.actif,'
+    '"data-dz-qp-id":e.id,onClick:function(){choisir(e.id)},style:{width:"100%",display:"flex",alignItems:"center",'
+    'gap:8,padding:"6px 8px",background:e.actif?"var(--bg-panel-2)":"transparent",border:"0",borderRadius:4,'
+    'cursor:"pointer",color:"inherit",font:"inherit"},children:[ligne(e,!0),r.jsx("span",{style:{width:14,flexShrink:0,'
+    'display:"inline-flex"},children:e.actif&&r.jsx(X,{name:"dz-action-valider",size:12,style:{color:"var(--brand)"}})})]},'
+    '"dzqp-"+e.id)}),r.jsx("div",{style:{height:1,background:"var(--stroke)",margin:"4px 2px"}}),'
+    'r.jsx("button",{type:"button","data-dz-qp-nouveau":"1",onClick:nouveau,style:{width:"100%",textAlign:"left",'
+    'padding:"6px 8px",background:"transparent",border:"0",borderRadius:4,cursor:"pointer",fontSize:11.5,'
+    'color:"var(--brand)"},children:dzT("quick.persona.nouveau")})]}),'
+    'st.err&&r.jsx("div",{role:"alert",style:{fontSize:10.5,color:"var(--red)",marginTop:4},children:st.err}),'
+    'r.jsx("div",{"data-dz-qp-note":"1",style:{fontSize:10.5,color:"var(--ink-muted)",marginTop:4},'
+    'children:dzT("quick.persona.note")})]})}'
+)
+
 PAIRES = [
     # t212 — Q1-Q4 : l'état du réglage de voix ne s'appelle plus dzT
     ('),dzT=dztS[0],dzSetT=dztS[1],',                                                                       # Q1
@@ -110,6 +185,22 @@ PAIRES = [
      'display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6},'
      'children:[r.jsx(X,{name:fe,size:12,style:{flexShrink:0}}),o===B&&r.jsx("span",{style:{minWidth:0,'
      'overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:Z})]},B))'),
+    # t214 — P0 le menu des personas, posé devant la garde ; P1 il remplace la ligne figée « persona Deepotus prophet »
+    ('class DzQuickGarde extends x.Component{',                                                               # P0
+     QPERSONA + 'class DzQuickGarde extends x.Component{'),
+    ('t&&r.jsxs("div",{style:{marginTop:10,display:"flex",alignItems:"center",gap:8,padding:"6px 10px",'          # P1
+     'background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)"},children:['
+     'r.jsx(X,{name:t.avatar||"dz-media-persona",size:12,style:{color:"var(--brand)"}}),r.jsx("span",{style:{fontSize:11,'
+     'color:"var(--ink-soft)"},children:"persona"}),r.jsx("span",{style:{fontSize:11.5,color:"var(--ink-strong)",'
+     'fontWeight:500},children:t.name}),r.jsx("span",{style:{flex:1}}),r.jsx("span",{className:"mono",style:{fontSize:10,'
+     'color:"var(--ink-muted)"},children:t.voiceMode})]})',
+     'r.jsx(DzQuickPersona,{p:t},"dzqpers")'),
+    # P2 — au changement d'espace, une vibe choisie qui n'existe plus dans l'espace retombe sur la première de l'espace
+    # (la génération le faisait déjà via M(), mais le sélecteur affichait « — »)
+    # (un effet À PART, posé après celui du prompt : la paire C5 de dzespace reste intacte)
+    ('},[dzCvQ]);function M(){',                                                                                # P2
+     '},[dzCvQ]);x.useEffect(function(){if(I.length&&!I.some(function(z){return z.id===A}))V(I[0].id)},[dzCvQ]);'
+     'function M(){'),
 ]
 
 
