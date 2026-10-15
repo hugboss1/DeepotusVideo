@@ -3,5 +3,9 @@
   "quick.garde.reessayer": {"fr": "Réessayer", "en": "Retry"},
   "quick.garde.retour": {"fr": "Revenir à Seedance", "en": "Back to Seedance"},
   "quick.garde.titre": {"fr": "Cet onglet a rencontré une erreur.", "en": "This tab ran into an error."},
-  "quick.onglet.composition": {"fr": "Composition", "en": "Compositing"}
+  "quick.onglet.composition": {"fr": "Composition", "en": "Compositing"},
+  "quick.persona.choisir": {"fr": "Changer de persona", "en": "Switch persona"},
+  "quick.persona.libelle": {"fr": "persona", "en": "persona"},
+  "quick.persona.note": {"fr": "Espace actif global : Quick, le rail et la Bibliothèque le suivent ensemble.", "en": "Global active space: Quick, the rail and the Library all follow it."},
+  "quick.persona.nouveau": {"fr": "+ Nouveau persona…", "en": "+ New persona…"}
 }
