@@ -2612,8 +2612,8 @@ function DzMontage(props){
       /* D-13 : le zoom dynamique EN DIRECT -- meme geometrie que le zoompan
          du rendu, sur la <video> active ; ecrit seulement s'il change --
          l'origine 0 0 est posee par la feuille (.svm-live>.svm-livemedia) */
-      var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));
-      if(lv.style.transform!==dzT)lv.style.transform=dzT;
+      var dzTz=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));
+      if(lv.style.transform!==dzTz)lv.style.transform=dzTz;
       /* vitesse du clip V1 (C) : la source défile à vitesse × la timeline —
          le mapping tête→temps source ET le playbackRate suivent, l'aperçu
          est fidèle au rendu (clamp 0.25..4 : la plage HTMLMediaElement) */

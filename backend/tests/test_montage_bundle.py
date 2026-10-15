@@ -15229,10 +15229,11 @@ check("DZ2_les_rectangles_vivent_dans_svm_tf_et_lisent_le_cadre",
 # (1/1 dans le .bak), PAS un repli dans R_V3 : en tete de liveSync ni la
 # <video> ni le clip actif ne sont connus. La transformation n'est ecrite
 # que si elle change ; l'origine est 0 0.
-_DZ_LIVE = 'var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));'
+# t212 (15/10/2026) : la variable s'appelle dzTz -- `var dzT` masquait la traduction globale dans liveSync
+_DZ_LIVE = 'var dzTz=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));'
 check("DZ3_le_zoom_en_direct_ecrit_la_video_active_hors_R_V3",
       s.count(_DZ_LIVE) == 1 and s.count("DzTracks.dzCss(") == 1
-      and s.count("if(lv.style.transform!==dzT)lv.style.transform=dzT;") == 1
+      and s.count("if(lv.style.transform!==dzTz)lv.style.transform=dzTz;") == 1
       and s.count("transformOrigin") == _bak.count("transformOrigin")  # l'origine vient de la feuille
       and "dzCss" not in P.R_V3 and "dzOf" not in P.R_V3
       and (_bak.count("      lv._svmClip=c.id;") == 1 and _bak.count("DzTracks.dzCss(") == 0 if _bak else False),

@@ -361,7 +361,8 @@ check("P3 la recette porte la voix (onglet Voix) et son application la rejoue",
 i_qv = s.find("function DzQuickVoice(")
 qv = s[i_qv:i_qv + 20000]
 check("P4 DzQuickVoice expose son etat et ecoute l'evenement (retire au demontage)",
-      "window.__dzQuickVoiceGet=function(){return{text:txt,lang:lang,voice_id:vid,voice_name:vnm,model:dzM,tune:dzT}};" in qv
+      # t212 : l'etat du reglage de voix s'appelle dzTu (dzT masquait la traduction globale)
+      "window.__dzQuickVoiceGet=function(){return{text:txt,lang:lang,voice_id:vid,voice_name:vnm,model:dzM,tune:dzTu}};" in qv
       and 'window.removeEventListener("deepotus:quick-voice",onV)' in qv)
 if node:
     js = r"""
