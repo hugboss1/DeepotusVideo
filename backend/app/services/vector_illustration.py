@@ -51,6 +51,9 @@ _CATALOGUE: dict[str, list[str]] = {}      # cache de session, par moteur
 
 
 def cle_de(moteur: str) -> str:
+    if moteur.startswith("local:"):         # t223 : un serveur local est prêt dès qu'il a un modèle
+        from app.services import moteurs_texte as _MT
+        return "local" if _MT.configure(moteur) else ""
     if moteur.startswith("fl:"):            # t222 : un fournisseur libre est prêt quand sa clé ET un modèle sont posés
         from app.services import moteurs_texte as _MT
         return "fl" if _MT.configure(moteur) else ""
@@ -69,7 +72,8 @@ def modele_defaut(moteur: str) -> str:
 
 
 def moteurs_configures() -> list[str]:
-    from app.services import moteurs_texte as _MT     # t222 : les intégrés, puis les fournisseurs libres
+    from app.services import moteurs_texte as _MT     # t222 : les intégrés, puis les fournisseurs libres (t223 : puis
+    #                                                   les serveurs locaux)
     return [m for m in _MT.tous() if cle_de(m)]
 
 
@@ -102,6 +106,13 @@ def modeles_de(moteur: str, *, timeout: float = 6.0) -> list[str]:
         ids = [v["defaut"]] + [i for i in v["modeles"] if i != v["defaut"]] if v["defaut"] else list(v["modeles"])
         _CATALOGUE[moteur] = ids
         return ids
+    if moteur.startswith("local:"):         # t223 : la liste ENREGISTRÉE du serveur local, défaut en tête
+        from app.services import serveurs_locaux as _SL
+        sid = _SL.de_moteur(moteur)
+        v = _SL.obtenir(sid) if sid else {"modeles": [], "defaut": ""}
+        ids = [v["defaut"]] + [i for i in v["modeles"] if i != v["defaut"]] if v["defaut"] else list(v["modeles"])
+        _CATALOGUE[moteur] = ids
+        return ids
     defaut = modele_defaut(moteur)
     ids = publies(moteur, timeout=timeout)
     if defaut:
@@ -121,6 +132,14 @@ def publies(moteur: str, *, timeout: float = 6.0) -> list[str]:
         fid = _FL.de_moteur(moteur)
         try:
             return _FL.lire_modeles_de(fid) if fid else []
+        except ValueError as e:
+            logger.warning(f"vectorlab: liste des modèles {moteur} indisponible: {e}")
+            return []
+    if moteur.startswith("local:"):         # t223 : /api/tags (Ollama) ou /models (compatible OpenAI), gratuit
+        from app.services import serveurs_locaux as _SL
+        sid = _SL.de_moteur(moteur)
+        try:
+            return _SL.lire_modeles_de(sid) if sid else []
         except ValueError as e:
             logger.warning(f"vectorlab: liste des modèles {moteur} indisponible: {e}")
             return []
@@ -187,6 +206,12 @@ def tirer(moteur: str, modele: str, prompt: str, systeme: str,
         if not fid:
             raise RuntimeError(f"moteur inconnu : {moteur}")
         return _FL.tirer(fid, mod, prompt, systeme, max_tokens, timeout=timeout)
+    if moteur.startswith("local:"):         # t223 : le serveur local (Ollama natif ou compatible OpenAI)
+        from app.services import serveurs_locaux as _SL
+        sid = _SL.de_moteur(moteur)
+        if not sid:
+            raise RuntimeError(f"moteur inconnu : {moteur}")
+        return _SL.tirer(sid, mod, prompt, systeme, max_tokens, timeout=max(timeout, 180.0))
     if moteur == "anthropic":
         body = {"model": mod, "max_tokens": max_tokens,
                 "messages": [{"role": "user", "content": prompt}]}

@@ -77,11 +77,27 @@ def _available_providers() -> list[str]:
         "gemini": lambda: bool(settings.GEMINI_API_KEY.strip()),
     }
     from app.services import moteurs_texte as _MT     # t222 : puis les fournisseurs libres prêts (clé + modèle)
-    return [p for p in _PRIORITY if checks.get(p, lambda: False)()] + [m for m in _MT.libres() if _MT.configure(m)]
+    return [p for p in _PRIORITY if checks.get(p, lambda: False)()] + [m for m in _MT.libres() if _MT.configure(m)] \
+        + [m for m in _MT.locaux() if _MT.configure(m)]  # t223 : puis les serveurs locaux prêts (un modèle)
+
+
+def _local_chat(moteur: str, prompt: str, system: str, max_tokens: int) -> str | None:
+    """t223 : un serveur local `local:<id>`, à son modèle par défaut. None sur tout échec (même contrat qu'ici)."""
+    from app.services import serveurs_locaux as _SL
+    sid = _SL.de_moteur(moteur)
+    if not sid:
+        return None
+    try:
+        return _SL.tirer(sid, "", prompt, system, max_tokens).strip() or None
+    except RuntimeError as e:
+        logger.warning(f"llm[{moteur}] error: {e}")
+        return None
 
 
 def _libre_chat(moteur: str, prompt: str, system: str, max_tokens: int) -> str | None:
     """t222 : un fournisseur libre `fl:<id>`, à son modèle par défaut. None sur tout échec (même contrat qu'ici)."""
+    if moteur.startswith("local:"):         # t223 : même chemin pour un serveur local
+        return _local_chat(moteur, prompt, system, max_tokens)
     from app.services import fournisseurs_llm as _FL
     fid = _FL.de_moteur(moteur)
     if not fid:
@@ -128,7 +144,7 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
         return None
     src = src[:16000]
     provider = active_provider()
-    fn = _PROVIDERS.get(provider) or (_libre_resume(provider) if provider.startswith("fl:") else None)
+    fn = _PROVIDERS.get(provider) or (_libre_resume(provider) if provider.startswith(("fl:", "local:")) else None)
     if fn:
         result = fn(src, title, language, target_words)
         if result:
@@ -136,7 +152,7 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
     for p in _available_providers():
         if p == provider:
             continue
-        fn = _PROVIDERS.get(p) or (_libre_resume(p) if p.startswith("fl:") else None)
+        fn = _PROVIDERS.get(p) or (_libre_resume(p) if p.startswith(("fl:", "local:")) else None)
         if fn:
             result = fn(src, title, language, target_words)
             if result:
@@ -198,7 +214,7 @@ def _chat_dispatch(prompt: str, system: str,
         elif p == "gemini":
             from app.services.gemini_llm import chat as _c
             out = _c(prompt, system=system, max_tokens=max_tokens)
-        elif p.startswith("fl:"):
+        elif p.startswith(("fl:", "local:")):
             out = _libre_chat(p, prompt, system, max_tokens)
         if out:
             return out, p

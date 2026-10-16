@@ -5,7 +5,9 @@ endroit qui dit quels moteurs de texte existent, quelle clé les ouvre et quel r
 Aujourd'hui : les quatre intégrés (`anthropic`, `openai`, `gemini`, `ollama`, ids inchangés : les choix déjà
 enregistrés gardent leur sens). t222 (16/10) y ajoute les fournisseurs libres compatibles OpenAI : le moteur `fl:<id>`
 (services/fournisseurs_llm.py), dans `tous()` après les intégrés ; `MOTEURS` reste la liste des intégrés seuls.
-t223 (serveurs locaux `local:<id>`) y ajoutera les siens.
+t223 (16/10) y ajoute les serveurs de LLM locaux (services/serveurs_locaux.py) : le moteur `local:<id>`, après les
+fournisseurs libres ; la première ligne de ces serveurs est le couple OLLAMA_URL / OLLAMA_MODEL, c'est-à-dire le
+moteur intégré `ollama` lui-même (id inchangé).
 
 LA GARDE. Relevé du 15/10 sur la machine de l'utilisateur : `GEMINI_MODEL` contenait une CLÉ (`AIza…`, la même que
 `GEMINI_API_KEY`), parce que Clés d'API présentait ce réglage comme un champ de clé. Chaque appel de texte Gemini
@@ -60,17 +62,29 @@ def libres() -> list[str]:
     return [FL.PREFIXE + i for i in FL.ids()]
 
 
+def locaux() -> list[str]:
+    """t223 : les moteurs `local:<id>` des serveurs locaux ajoutés, dans l'ordre de leur création."""
+    from app.services import serveurs_locaux as SL
+    return [SL.PREFIXE + i for i in SL.ids()]
+
+
 def tous() -> list[str]:
-    """Tous les moteurs de texte connus : les intégrés d'abord (ids inchangés), puis les fournisseurs libres."""
-    return list(MOTEURS) + libres()
+    """Tous les moteurs de texte connus : les intégrés d'abord (ids inchangés), puis les fournisseurs libres, puis
+    les serveurs locaux (t223)."""
+    return list(MOTEURS) + libres() + locaux()
 
 
 def est_libre(moteur: str) -> bool:
     return str(moteur or "").startswith("fl:")
 
 
+def est_local(moteur: str) -> bool:
+    """t223 : un serveur local ajouté (`local:<id>`) — gratuit, comme `ollama`."""
+    return str(moteur or "").startswith("local:")
+
+
 def connu(moteur: str) -> bool:
-    return moteur in MOTEURS or moteur in libres()
+    return moteur in MOTEURS or moteur in libres() or moteur in locaux()
 
 
 def _libre(moteur: str) -> dict | None:
@@ -79,14 +93,26 @@ def _libre(moteur: str) -> dict | None:
     return FL.obtenir(fid) if fid else None
 
 
+def _local(moteur: str) -> dict | None:
+    from app.services import serveurs_locaux as SL
+    sid = SL.de_moteur(moteur)
+    return SL.obtenir(sid) if sid else None
+
+
 def nom(moteur: str) -> str:
     if moteur in NOMS:
         return NOMS[moteur]
+    if est_local(moteur):
+        v = _local(moteur)
+        return v["nom"] if v else str(moteur or "")
     v = _libre(moteur) if est_libre(moteur) else None
     return v["nom"] if v else str(moteur or "")
 
 
 def modele_brut(moteur: str) -> str:
+    if est_local(moteur):
+        v = _local(moteur)
+        return str((v or {}).get("defaut") or "").strip()
     if est_libre(moteur):
         v = _libre(moteur)
         return str((v or {}).get("defaut") or "").strip()
@@ -105,6 +131,9 @@ def modele_sain(moteur: str) -> str:
 
 
 def configure(moteur: str) -> bool:
+    if est_local(moteur):         # t223 : un serveur local est prêt dès qu'il a un modèle (clé facultative)
+        v = _local(moteur)
+        return bool(v and (v["defaut"] or v["modeles"]))
     if est_libre(moteur):
         v = _libre(moteur)
         return bool(v and v["cle_posee"] and (v["defaut"] or v["modeles"]))
@@ -122,4 +151,7 @@ def etat() -> list[dict]:
     for m in libres():          # t222 : le modèle par défaut d'un fournisseur libre vit dans fournisseurs_llm.json
         out.append({"moteur": m, "nom": nom(m), "configure": configure(m), "cle_modele": m,
                     "modele": modele_sain(m), "fautif": False, "alerte": "", "libre": True})
+    for m in locaux():          # t223 : le modèle par défaut d'un serveur local vit dans serveurs_locaux.json
+        out.append({"moteur": m, "nom": nom(m), "configure": configure(m), "cle_modele": m,
+                    "modele": modele_sain(m), "fautif": False, "alerte": "", "local": True})
     return out

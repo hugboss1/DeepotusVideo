@@ -28,6 +28,8 @@ Plan docs/superpowers/plans/2026-10-15-optimisation-menus-reglages.md. Ce qu'il 
   (champ `rubrique` du serveur) ; les orphelines reçoivent un champ (D0-D2, C0-C1, N1 : détail plus bas).
   t222 (16/10, relevé sur 1ad154a5) — Clés d'API › « Fournisseurs libres (compatibles OpenAI) » : ajouter, lire la
   liste des modèles, tester, supprimer en deux clics (L0-L1 : détail plus bas).
+  t223 (16/10, relevé sur e544888a) — Clés d'API › LLM local : plusieurs serveurs (Ollama natif ou compatible
+  OpenAI), la première ligne étant le couple OLLAMA_URL / OLLAMA_MODEL (S0-S1 : détail plus bas).
   Aucune paire ne doit recopier un remplacement de scripts/dzglyph_paires.json (vu : `size:"sm",icon:
   "dz-action-enregistrer",onClick` en est un — l'ordre des props de nos boutons l'évite).
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 ».
@@ -426,6 +428,120 @@ WM_APPEL = "r.jsx(wm,{serverKeys:g,onSaved:()=>{m(),No()}})"
 PAIRES += [
     (WM, COMPOSANTS_L + WM),                                                                                # L0
     (WM_APPEL, 'r.jsx(DzFournLibres,{onSaved:()=>{m(),No()}}),' + WM_APPEL),                                # L1
+]
+
+
+# ── t223 : LLM local, plusieurs serveurs (16/10, relevé sur e544888a) ─────────────────────────────────────────────────
+# L'encart « LLM local (Ollama) » (`wm`) ne réglait qu'un couple OLLAMA_URL / OLLAMA_MODEL, en API Ollama native. Le
+# serveur (services/serveurs_locaux.py, routes /api/reglages/serveurs-locaux) décrit désormais une LISTE : la première
+# ligne est ce couple, lu tel quel (moteur `ollama`, réglé par `wm` resté intact : ses useState comptent dans les 731),
+# puis les serveurs ajoutés (Ollama natif ou compatible OpenAI : LM Studio, llama.cpp, vLLM), moteur `local:<id>`.
+#   S0 : DzServeursLocaux (+ aides dzSl*) devant `var dzFlVide=` (hors des tranches que lit le banc de t222) : la liste
+#        (nom, URL, moteur · type, modèle par défaut, « n modèles · gratuit », prêt / sans modèle), par ligne Lire les
+#        modèles / Tester (la première ligne aussi) / Supprimer en DEUX clics (pas la première), Remplacer la clé pour un
+#        serveur compatible OpenAI ; « + Ajouter un serveur » : préréglage (Ollama, LM Studio, llama.cpp, vLLM), type,
+#        nom, URL, clé facultative (OpenAI seulement), Lire les modèles (par le serveur), modèles, défaut. Réemploie
+#        dzFlAppel / dzFlTon / dzFlChamp de L0 ; aucun useState ; ordre de style de champ hors du compte 2.2 ; bouton
+#        Enregistrer à l'ordre de props de t220-t222 ;
+#   S1 : la liste se pose juste APRÈS `wm` dans Clés d'API ; elle se relit quand les clés se relisent (`cles:g`).
+COMPOSANTS_S = (
+    'var dzSlVide={nom:"",url:"",type:"ollama",cle:"",modeles:"",defaut:"",pre:""},dzSlRacine="/api/reglages/serveurs'
+    '-locaux";function dzSlSaisie(attr,v,ph,surv,type){return r.jsx("input",{"data-dzsl":attr,type:type||"text",value'
+    ':v,placeholder:ph,autoComplete:"off",spellCheck:!1,onChange:function(e){surv(e.target.value)},style:{minWidth:0,'
+    'boxSizing:"border-box",width:"100%",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:"v'
+    'ar(--r-sm)",padding:"6px 10px",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:12}})}function dzSl'
+    'Type(t){return t==="openai"?dzT("reglages.locaux.type_openai"):dzT("reglages.locaux.type_ollama")}function DzSer'
+    'veursLocaux({cles:cles,onSaved:onSaved}){var rs=x.useReducer(function(o,n){return Object.assign({},o,typeof n==='
+    '"function"?n(o):n)},{l:null,pre:[],err:"",ouvert:!1,f:dzSlVide,lus:null,msg:"",ton:"",busy:!1,conf:"",rm:{},cles'
+    ':{}}),st=rs[0],maj=rs[1];function charger(){return dzFlAppel(dzSlRacine).then(function(d){maj({l:d.serveurs||[],'
+    'pre:d.prereglages||[],err:""})}).catch(function(e){maj({l:[],err:String(e&&e.message||e)})})}x.useEffect(functio'
+    'n(){charger()},[cles]);function prevenir(){charger();onSaved&&onSaved()}function champ(k,v){maj(function(o){var '
+    'f=Object.assign({},o.f);f[k]=v;if(k==="type"&&v!=="openai")f.cle="";return{f:f,msg:""}})}function prereglage(id)'
+    '{maj(function(o){var p=o.pre.find(function(q){return q.id===id});return{f:Object.assign({},o.f,{pre:id},p?{nom:p'
+    '.nom,url:p.url,type:p.type}:{}),msg:""}})}function fini(msg,ton,plus){maj(Object.assign({busy:!1,msg:msg,ton:ton'
+    '},plus||{}))}function lireForm(){var f=st.f;maj({busy:!0,msg:""});dzFlAppel(dzSlRacine+"/lire-modeles","POST",{u'
+    'rl:f.url,type:f.type,cle:f.type==="openai"?f.cle:""}).then(function(d){var m=d.modeles||[];maj(function(o){retur'
+    'n{busy:!1,ton:"green",lus:m,msg:dzT("reglages.locaux.n_lus",{n:m.length}),f:Object.assign({},o.f,{modeles:m.join'
+    '(", "),defaut:o.f.defaut||m[0]||""})}})}).catch(function(e){fini(String(e&&e.message||e),"red")})}function creer'
+    '(){var f=st.f;maj({busy:!0,msg:""});dzFlAppel(dzSlRacine,"POST",{nom:f.nom,url:f.url,type:f.type,cle:f.type==="o'
+    'penai"?f.cle:"",modeles:f.modeles,defaut:f.defaut}).then(function(){fini(dzT("commun.etat.enregistre"),"green",{'
+    'ouvert:!1,f:dzSlVide,lus:null});prevenir()}).catch(function(e){fini(String(e&&e.message||e),"red")})}function di'
+    're(id,t,ton){maj(function(o){var rm=Object.assign({},o.rm);rm[id]={t:t,ton:ton};return{rm:rm}})}function modifie'
+    'r(id,corps,ok){return dzFlAppel(dzSlRacine+"/"+id,"POST",corps).then(function(){dire(id,ok||dzT("commun.etat.enr'
+    'egistre"),"green");prevenir();return!0}).catch(function(e){dire(id,String(e&&e.message||e),"red");return!1})}fun'
+    'ction lireLigne(p){dire(p.id,"…","");dzFlAppel(dzSlRacine+"/lire-modeles","POST",{id:p.id}).then(function(d){var'
+    ' m=d.modeles||[],t=dzT("reglages.locaux.n_lus",{n:m.length});if(p.integre){dire(p.id,t+(m.length?" : "+m.slice(0'
+    ',6).join(", ")+(m.length>6?"…":""):""),"green");return}return modifier(p.id,{modeles:m},t)}).catch(function(e){d'
+    'ire(p.id,String(e&&e.message||e),"red")})}function tester(p){dire(p.id,"…","");dzFlAppel(dzSlRacine+"/"+p.id+"/t'
+    'ester","POST",{}).then(function(d){dire(p.id,d.etat==="ok"?dzT("reglages.locaux.test_ok",{n:d.n}):String(d.cause'
+    '||d.etat),d.etat==="ok"?"green":"red")}).catch(function(e){dire(p.id,String(e&&e.message||e),"red")})}function s'
+    'upprimer(p){if(st.conf!==p.id){maj({conf:p.id});return}maj({conf:""});dzFlAppel(dzSlRacine+"/"+p.id,"DELETE").th'
+    'en(function(){maj({msg:dzT("reglages.locaux.supprime"),ton:"green",err:""});prevenir()}).catch(function(e){dire('
+    'p.id,String(e&&e.message||e),"red")})}function cle(id,v){maj(function(o){var c=Object.assign({},o.cles);c[id]=v;'
+    'return{cles:c}})}function remplacer(p){var v=(st.cles[p.id]||"").trim();if(!v)return;modifier(p.id,{cle:v}).then'
+    '(function(ok){ok&&cle(p.id,"")})}var l=st.l,f=st.f,pret=!!f.url.trim(),opts=[{value:"",label:dzT("reglages.locau'
+    'x.autre")}].concat(st.pre.map(function(p){return{value:p.id,label:p.nom}})),types=[{value:"ollama",label:dzT("re'
+    'glages.locaux.type_ollama")},{value:"openai",label:dzT("reglages.locaux.type_openai")}];return r.jsxs("div",{"da'
+    'ta-dzsl":"encart",style:{marginTop:16},children:[r.jsx("div",{className:"display",style:{fontSize:13.5,color:"va'
+    'r(--ink-strong)",marginBottom:4},children:dzT("reglages.locaux.titre")}),r.jsx("div",{style:{fontSize:11.5,color'
+    ':"var(--ink-soft)",marginBottom:10,maxWidth:640},children:dzT("reglages.locaux.aide")}),r.jsxs(jt,{style:{paddin'
+    'g:0},children:[l===null?r.jsx("div",{style:{padding:"14px 18px",fontSize:11.5,color:"var(--ink-soft)"},children:'
+    'dzT("reglages.commun.chargement")},"ch"):null,...(l||[]).map(function(p,i){var m=st.rm[p.id],mods=(p.defaut&&p.m'
+    'odeles.indexOf(p.defaut)<0?[p.defaut]:[]).concat(p.modeles),arme=st.conf===p.id,prete=!!(p.defaut||p.modeles.len'
+    'gth),ouv=p.type==="openai"&&!p.integre;return r.jsxs("div",{"data-dzsl":"ligne-"+p.id,style:{padding:"12px 18px"'
+    ',borderTop:i?"1px solid var(--stroke)":"none"},children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns'
+    ':"minmax(0,200px) minmax(0,1fr) auto",gap:14,alignItems:"center"},children:[r.jsxs("div",{style:{minWidth:0},chi'
+    'ldren:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:p.nom}),r.jsx("div",{className:"mon'
+    'o",title:p.url,style:{fontSize:10.5,color:"var(--ink-muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpac'
+    'e:"nowrap"},children:p.url}),r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-soft)",marginTop:'
+    '2},children:p.moteur+" · "+dzSlType(p.type)+(p.cle_posee?" · "+dzT("reglages.cles.posee"):"")})]}),r.jsxs("div",'
+    '{style:{display:"flex",gap:8,alignItems:"center",minWidth:0,flexWrap:"wrap"},children:[p.integre?r.jsx("span",{c'
+    'lassName:"mono","data-dzsl":"defaut-"+p.id,style:{fontSize:11.5,color:"var(--ink-strong)"},children:p.defaut||"—'
+    '"}):r.jsx("div",{"data-dzsl":"defaut-"+p.id,style:{flex:"1 1 180px",minWidth:0},children:r.jsx(re,{value:p.defau'
+    't,options:mods.length?mods.map(function(n){return{value:n,label:n}}):[{value:"",label:"—"}],onChange:function(v)'
+    '{v&&v!==p.defaut&&modifier(p.id,{defaut:v})}})}),r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-soft)"},chi'
+    'ldren:(p.integre?dzT("reglages.locaux.integre"):dzT("reglages.libres.n_modeles",{n:p.modeles.length}))+" · "+dzT'
+    '("son.commun.gratuit")})]}),r.jsx(te,{tone:prete?"green":"neutral",dot:!0,children:prete?dzT("reglages.defauts.p'
+    'ret"):dzT("reglages.locaux.sans_modele")})]}),r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center",marg'
+    'inTop:10,flexWrap:"wrap"},children:[ouv?r.jsx("div",{style:{flex:"1 1 200px",minWidth:0},children:dzSlSaisie("cl'
+    'e-"+p.id,st.cles[p.id]||"",p.cle_posee?dzT("reglages.cles.coller_nouvelle"):dzT("reglages.locaux.cle"),function('
+    'v){cle(p.id,v)},"password")}):null,ouv?r.jsx(K,{variant:"outline",size:"sm","data-dzsl":"remplacer-"+p.id,onClic'
+    'k:function(){remplacer(p)},disabled:!(st.cles[p.id]||"").trim(),children:dzT("reglages.libres.remplacer")}):null'
+    ',r.jsx(K,{variant:"outline",size:"sm","data-dzsl":"lire-"+p.id,onClick:function(){lireLigne(p)},children:dzT("re'
+    'glages.locaux.lire")}),r.jsx(K,{variant:"outline",size:"sm","data-dzsl":"tester-"+p.id,onClick:function(){tester'
+    '(p)},children:dzT("reglages.diag.tester")}),p.integre?null:r.jsx(K,{variant:arme?"danger":"ghost",size:"sm","dat'
+    'a-dzsl":"suppr-"+p.id,onClick:function(){supprimer(p)},children:arme?dzT("espaces.comptes.confirmer"):dzT("commu'
+    'n.action.supprimer")})]}),m?r.jsx("div",{"data-dzsl":"msg-"+p.id,style:{fontSize:10.5,marginTop:6,color:dzFlTon('
+    'm.ton),overflowWrap:"anywhere"},children:m.t}):null]},"sl-"+p.id)})]}),st.ouvert?r.jsxs(jt,{"data-dzsl":"form",s'
+    'tyle:{padding:14,marginTop:12},children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"minmax(0,1fr) '
+    'minmax(0,1fr) minmax(0,1fr)",gap:12,alignItems:"end"},children:[dzFlChamp(dzT("vfx.commun.prereglage"),r.jsx(re,'
+    '{value:f.pre,options:opts,onChange:prereglage})),dzFlChamp(dzT("photolab.param.type"),r.jsx(re,{value:f.type,opt'
+    'ions:types,onChange:function(v){champ("type",v)}})),dzFlChamp(dzT("reglages.personas.nom"),dzSlSaisie("nom",f.no'
+    'm,"LM Studio",function(v){champ("nom",v)}))]}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:f.type==='
+    '"openai"?"minmax(0,2fr) minmax(0,1fr) auto":"minmax(0,1fr) auto",gap:12,alignItems:"end",marginTop:10},children:'
+    '[dzFlChamp(dzT("reglages.cles.ollama_url"),dzSlSaisie("url",f.url,f.type==="openai"?"http://127.0.0.1:1234/v1":"'
+    'http://127.0.0.1:11434",function(v){champ("url",v)})),f.type==="openai"?dzFlChamp(dzT("reglages.locaux.cle"),dzS'
+    'lSaisie("cle",f.cle,dzT("reglages.cles.coller"),function(v){champ("cle",v)},"password")):null,r.jsx(K,{variant:"'
+    'outline",size:"sm","data-dzsl":"lire-form",onClick:lireForm,disabled:st.busy||!f.url.trim(),children:dzT("reglag'
+    'es.locaux.lire")})]}),r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"minmax(0,2fr) minmax(0,1fr)",gap:'
+    '12,alignItems:"end",marginTop:10},children:[dzFlChamp(dzT("reglages.libres.modeles"),dzSlSaisie("modeles",f.mode'
+    'les,dzT("reglages.locaux.modeles_aide"),function(v){champ("modeles",v)})),dzFlChamp(dzT("reglages.locaux.defaut"'
+    '),st.lus&&st.lus.length?r.jsx(re,{value:f.defaut,options:st.lus.map(function(n){return{value:n,label:n}}),onChan'
+    'ge:function(v){champ("defaut",v)}}):dzSlSaisie("defaut",f.defaut,dzT("reglages.libres.defaut_aide"),function(v){'
+    'champ("defaut",v)}))]}),r.jsxs("div",{style:{display:"flex",gap:8,marginTop:12,alignItems:"center"},children:[r.'
+    'jsx(K,{variant:"primary",icon:"dz-action-enregistrer",size:"sm","data-dzsl":"creer",onClick:creer,disabled:st.bu'
+    'sy||!pret,children:dzT("reglages.commun.enregistrer")}),r.jsx(K,{variant:"ghost",size:"sm","data-dzsl":"annuler"'
+    ',onClick:function(){maj({ouvert:!1,f:dzSlVide,lus:null,msg:""})},children:dzT("commun.action.annuler")})]})]}):r'
+    '.jsx("div",{style:{marginTop:12},children:r.jsx(K,{variant:"outline",size:"sm","data-dzsl":"ajouter",onClick:fun'
+    'ction(){maj({ouvert:!0,msg:"",conf:""})},children:dzT("reglages.locaux.ajouter")})}),st.msg||st.err?r.jsx("div",'
+    '{"data-dzsl":"msg",style:{fontSize:11,marginTop:8,color:st.err?"var(--red)":dzFlTon(st.ton)},children:st.msg||st'
+    '.err}):null]})}'
+)
+FL_VIDE = 'var dzFlVide={nom:"",base:"",cle:"",modeles:"",defaut:"",pre:""},dzFlRacine='
+
+PAIRES += [
+    (FL_VIDE, COMPOSANTS_S + FL_VIDE),                                                                     # S0
+    (WM_APPEL, WM_APPEL + ',r.jsx(DzServeursLocaux,{cles:g,onSaved:()=>{m(),No()}})'),                      # S1
 ]
 
 
