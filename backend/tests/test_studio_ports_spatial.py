@@ -23,7 +23,7 @@ Ce que ce banc garde :
   [D] maillon de queue dzstudio : paires B* au maillon EXISTANT (pas dans spatialports), inverse = 02f8162c octet pour
       octet, sans les B* = 0b62e7c4 (t225), comptes figés.
 Run (depuis backend/) : & $PY tests/test_studio_ports_spatial.py"""
-import json, os, pathlib, subprocess, sys, tempfile
+import json, os, pathlib, re, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _ICI = pathlib.Path(__file__).resolve().parent
 RACINE = _ICI.parent.parent
@@ -143,8 +143,10 @@ check("P8 mode séquentiel : brand toujours exposé", "brand" in [p.get("id") fo
 print("[Q] qi : plus jamais {x:0,y:0}")
 Q = OUT.get("qi") or {}
 bi, Ru, Mu = OUT.get("bi"), OUT.get("Ru"), OUT.get("Mu")
+_oy = re.search(r"var dzPortGeo=\{b:1,oy:(\d+),", BUNDLE)          # t227 : oy 10 → 8 (lu, plus en dur)
+OY = int(_oy.group(1)) if _oy else None
 def ligne(i):
-    return 1 + Ru + 10 + i * Mu + 8 if Ru is not None else None
+    return 1 + Ru + OY + i * Mu + 8 if Ru is not None and OY is not None else None
 check("Q0 qi extrait", isinstance(Q, dict) and "err" not in Q, str(Q)[:300])
 check("Q1 port introuvable (entrée) ≠ {0,0} : bord gauche, ligne sous le dernier port",
       Q.get("in_absent") == {"x": 1, "y": ligne(3)}, str(Q.get("in_absent")))
@@ -234,7 +236,7 @@ check("D4 inverse = 02f8162c octet pour octet", avant is not None and base_t224 
       and AIDE.avant_dzstudio(BUNDLE).encode("utf-8") == base_t224)
 def sans_b(s):
     for a_, r_ in M.PAIRES:
-        if (a_, r_) not in PB:
+        if (a_, r_) not in PB and (a_, r_) not in getattr(M, "PAIRES_C", []):   # t227 : les C* viennent après t225
             s = s.replace(a_, r_, 1)
     return s
 check("D5 sans les B* = 0b62e7c4 (t225) octet pour octet", avant is not None and base_t225 is not None
