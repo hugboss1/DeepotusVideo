@@ -75,6 +75,21 @@ lignes de port à 16 unités (ellipse + title sur « HeyGen avatar (reads the sc
 4. Preuve : le lien Brand strip → Composition spatiale arrive au milieu du rond `brand` (≤ 0,5 px), FR et EN ; un
    rendu d'aperçu sans clé n'est pas exigé (dit comme tel).
 
+**Fait le 16/10** : relevé — `dzCompose` sautait la région `brand_strip` (seuls video_slot/image_slot sont lus) et le
+backend (template_service) la dessine d'après ses `items` (fond, logo PNG `marks/…`, texte « $DEEPOTUS ») : le nœud
+relié à `brand` n'était lu par personne ; le Bandeau de marque ne porte qu'un texte (espace actif) et un emoji. Décision
+de l'utilisateur : (a) avec le texte relié. B1 : `dzSpatialSlots` expose `brand` (type image, slot = id de la région,
+libellé « brand », aucun texte neuf) pour la 1re région brand_strip, après les ports existants, sans doublon si une
+image_slot a déjà pris `brand`. B2 : `qi` d'un port introuvable → bord du nœud, ligne sous le dernier port (plus jamais
+(0,0)). B3 : `dzCompose` mappe la région au port ; le texte du Bandeau relié (ou celui du catalogue) remplace le 1er
+item texte, le logo PNG reste, l'emoji est ignoré ; texte vide ou identique, autre type de nœud → région intacte. B4 :
+`hasMods` inclut ce changement. Sans lien, rendu identique. Garde ajoutée au maillon : marqueur présent mais paires
+manquantes → refus (« partiellement appliqué »). Banc `test_studio_ports_spatial.py` 43/43 (18 rouges sur 0b62e7c4),
+`test_studio_ancrage` B9 mis à jour (40/40), 14 mutants tués par des checks fonctionnels, inverse = 02f8162c et sans
+les B* = 0b62e7c4 octet pour octet. Mesure navigateur (8797), 9 liens sur 9 dont Bandeau de marque → `brand` : écart
+max 0,000 px à 30/75/105/150 %, en FR et en EN. Aperçu de l'inspecteur (bandeau « 🐙 DEEPOTUS / $DEEP » en dur) non
+touché ; rendu réel sans clé non exigé, non fait. Captures : `docs/superpowers/specs/assets/2026-10-16-studio/t226-*`.
+
 ## t227 — En-têtes de ports : air au-dessus de l'encart, même mise en page partout (P1, M) — demande 2
 
 Dépend de t225 (même géométrie `dzPortGeo`).

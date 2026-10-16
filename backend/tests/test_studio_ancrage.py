@@ -133,7 +133,8 @@ check("B6 qi.y = centre y du rond rendu, i = 0..5", L and all(eq(p["qy"], p["cy"
 check("B7 pas entre deux ports = Mu", L and all(eq(L[k + 2]["qy"] - L[k]["qy"], Mu) for k in range(len(L) - 2)))
 check("B8 relevé du 16/10 : 1er rond à 55 sous le haut du nœud (bordure + Ru + 10 + 8)",
       L and L[0]["qy"] == 1 + Ru + 10 + 8 == 55, str(L[0]["qy"] if L else None))
-check("B9 port introuvable : inchangé ici (t226)", OUT.get("absent") == {"x": 0, "y": 0}, str(OUT.get("absent")))
+check("B9 port introuvable (t226) : bord du nœud, ligne sous le dernier port, jamais (0,0)",
+      OUT.get("absent") == {"x": 1, "y": 1 + Ru + 10 + 6 * Mu + 8} if Ru is not None else False, str(OUT.get("absent")))
 
 print("[C] ligne de port : rond en haut, étiquette sur une ligne")
 check("C1 rond ancré en haut de ligne (alignItems flex-start)", L and all(p.get("align") == "flex-start" for p in L),
