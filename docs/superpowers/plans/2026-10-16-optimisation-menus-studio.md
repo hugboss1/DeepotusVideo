@@ -54,6 +54,14 @@ unités quel que soit leur nombre → la 1re ligne déborde de 6 dans l'encart, 
 5. Preuve : graphe « Post reel News », écarts |dx|, |dy| ≤ 0,5 px d'écran pour TOUS les liens à 30 %, 75 %, 105 %,
    150 %, avant et après un vrai glisser de nœud, en FR puis en EN (libellés plus longs) ; capture avec repères.
 
+**Fait le 16/10** : `dzPortGeo={b:1,oy:10,p:Mu,lh:16,r:16}` (A0), `qi` = centre du rond (A1), ligne `ud` de hauteur
+`lh`, rond en haut, débord `r/2` (A2), étiquette une ligne + `title` (A3). `oy` garde 10 : la mise en page ne bouge
+pas, seuls les bouts des liens rejoignent les ronds (t227 changera `oy`). Banc 40/40 (17 rouges sur 02f8162c), 16
+mutants tués, inverse = 02f8162c octet pour octet. Mesure navigateur (8797), 8 liens sur 9 (le 9e, Bandeau de marque →
+`brand`, est t226) : écart max 0,000 px avant glisser et ≤ 0,008 px après glisser à 30/75/105/150 %, en FR et en EN ;
+lignes de port à 16 unités (ellipse + title sur « HeyGen avatar (reads the script) · av »). Captures :
+`docs/superpowers/specs/assets/2026-10-16-studio/t225-*`.
+
 ## t226 — Port « brand » de Composition spatiale (P1, S) — demande 1 (Brand strip → Spatial compose)
 
 1. Relevé ciblé d'abord (noté dans la PR) : `dzCompose` lit-il le nœud relié à `brand` pour une région `brand_strip`
