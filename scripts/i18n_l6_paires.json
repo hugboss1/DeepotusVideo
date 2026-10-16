@@ -5031,6 +5031,12 @@
     "groupe": "iaclics"
    },
    {
+    "pos": 2522,
+    "avant": "  function rendre() {",
+    "apres": "  // t224 : la bulle de « Générer » dit le vrai coût du moteur — un serveur local (ollama, local:<id>) est gratuit ;\r\n  // un fournisseur libre (fl:<id>) n'a pas de tarif connu : « prix à mesurer », jamais « gratuit »\r\n  function bulleGenerer(id) {\r\n    const v = { moteur: nomMoteur(id) };\r\n    if (id === \"ollama\" || id.startsWith(\"local:\")) return T(\"vectorlab.ia.gratuit\", v);\r\n    if (id.startsWith(\"fl:\")) return T(\"vectorlab.ia.a_mesurer\", v);\r\n    return T(\"vectorlab.ia.payant\", v);\r\n  }\r\n\r\n  function rendre() {",
+    "groupe": "iacout"
+   },
+   {
     "pos": 3029,
     "avant": "\"moteurs introuvables — relancer l'application\"",
     "apres": "T(\"vectorlab.ia.moteurs_introuvables\")",
@@ -5105,7 +5111,7 @@
    {
     "pos": 5553,
     "avant": "\"APPEL PAYANT sur votre clé \" + nomMoteur(choisi)\r\n              + \" — quelques centièmes de centime\"",
-    "apres": "T(\"vectorlab.ia.payant\", { moteur: nomMoteur(choisi) })",
+    "apres": "bulleGenerer(choisi)",
     "groupe": "outils_lab"
    },
    {

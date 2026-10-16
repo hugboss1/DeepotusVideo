@@ -1,0 +1,50 @@
+{
+  "titre": {
+    "fr": "Un moteur par rôle",
+    "en": "One engine per role"
+  },
+  "legende": {
+    "fr": "Réglages › Fournisseurs par défaut : le moteur de texte de chaque rôle, puis le modèle par défaut de chaque moteur, avec Tester.",
+    "en": "Settings › Provider defaults: the text engine of each role, then each engine's default model, with Test."
+  },
+  "captures": [
+    {
+      "fr": "roles.fr.webp",
+      "en": "roles.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        259,
+        484,
+        842,
+        90
+      ],
+      "bulle": {
+        "fr": "Chaque rôle choisit son moteur : intégré, fournisseur libre ou serveur local",
+        "en": "Each role picks its engine: built-in, free provider or local server"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        259,
+        706,
+        842,
+        94
+      ],
+      "bulle": {
+        "fr": "Le modèle par défaut de chaque moteur, lu chez le fournisseur",
+        "en": "Each engine's default model, read from the provider"
+      }
+    }
+  ]
+}

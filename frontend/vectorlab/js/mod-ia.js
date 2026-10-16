@@ -61,6 +61,15 @@ export function initIA(VL) {
     return m ? `${id} · ${modele || m.defaut}` : id;
   }
 
+  // t224 : la bulle de « Générer » dit le vrai coût du moteur — un serveur local (ollama, local:<id>) est gratuit ;
+  // un fournisseur libre (fl:<id>) n'a pas de tarif connu : « prix à mesurer », jamais « gratuit »
+  function bulleGenerer(id) {
+    const v = { moteur: nomMoteur(id) };
+    if (id === "ollama" || id.startsWith("local:")) return T("vectorlab.ia.gratuit", v);
+    if (id.startsWith("fl:")) return T("vectorlab.ia.a_mesurer", v);
+    return T("vectorlab.ia.payant", v);
+  }
+
   function rendre() {
     const el = hote();
     if (!el || el.hidden) return;
@@ -111,7 +120,7 @@ export function initIA(VL) {
         <button id="iaGo" class="primaire" ${sans || busy ? "disabled" : ""}
           title="${muet ? T("vectorlab.ia.route_muette")
             : sans ? T("vectorlab.ia.sans_cle")
-            : T("vectorlab.ia.payant", { moteur: nomMoteur(choisi) })}"
+            : bulleGenerer(choisi)}"
           >${dzi("dz-media-generer-image", 16)}${busy ? "…" : T("vectorlab.ia.generer")}</button>
       </div>`;
     const t = $("#iaTexte");

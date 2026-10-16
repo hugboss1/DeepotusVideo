@@ -415,9 +415,7 @@ ENTREES = [
     L(FI, 114, '"Aucune clé de modèle de langage (Réglages)"', "vectorlab.ia.sans_cle",
       "Aucune clé de modèle de langage (Réglages)", "No language model key (Settings)"),
     S(FI, 115, '"APPEL PAYANT sur votre clé " + nomMoteur(choisi)\r\n              + " — quelques centièmes de centime"',
-      'T("vectorlab.ia.payant", { moteur: nomMoteur(choisi) })',
-      {"vectorlab.ia.payant": ("APPEL PAYANT sur votre clé {moteur} — quelques centièmes de centime",
-                               "PAID CALL on your {moteur} key — a few hundredths of a cent")}),
+      'bulleGenerer(choisi)', {}),      # t224 : le texte dépend du moteur (scripts/i18n_l6/iacout.py)
     L(FI, 117, '"Générer"', "vectorlab.ia.generer", "Générer", "Generate"),
     L(FI, 147, '"décrire d\'abord l\'illustration"', "vectorlab.ia.decrire_dabord",
       "décrire d'abord l'illustration", "describe the illustration first"),

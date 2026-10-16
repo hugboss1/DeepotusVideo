@@ -1,0 +1,98 @@
+{
+  "titre": {
+    "fr": "La pastille des dépenses",
+    "en": "The spending badge"
+  },
+  "legende": {
+    "fr": "Le compteur en dollars de l'en-tête : un clic ouvre Réglages › Tarifs et budget, de n'importe quel écran.",
+    "en": "The dollar counter in the header: one click opens Settings › Pricing & budget, from any screen."
+  },
+  "captures": [
+    {
+      "fr": "entete.fr.webp",
+      "en": "entete.en.webp"
+    },
+    {
+      "fr": "tarifs.fr.webp",
+      "en": "tarifs.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        1052,
+        28
+      ],
+      "clic": true,
+      "surligne": [
+        1019,
+        10,
+        65,
+        36
+      ],
+      "bulle": {
+        "fr": "Un clic sur le compteur du mois",
+        "en": "One click on the month's counter"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        234,
+        600,
+        235,
+        46
+      ],
+      "bulle": {
+        "fr": "Tarifs et budget s'ouvre, même si Réglages l'était déjà",
+        "en": "Pricing & budget opens, even if Settings was already open"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        1046,
+        28
+      ],
+      "clic": true,
+      "surligne": [
+        1014,
+        10,
+        65,
+        36
+      ],
+      "bulle": {
+        "fr": "Un clic sur le compteur du mois",
+        "en": "One click on the month's counter"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        234,
+        600,
+        235,
+        46
+      ],
+      "bulle": {
+        "fr": "Tarifs et budget s'ouvre, même si Réglages l'était déjà",
+        "en": "Pricing & budget opens, even if Settings was already open"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

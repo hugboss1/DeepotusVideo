@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Ajouter un fournisseur libre",
+    "en": "Add a free provider"
+  },
+  "legende": {
+    "fr": "Réglages › Clés d'API › Fournisseurs libres : DeepSeek, OpenRouter, Mistral, Groq… La clé va au coffre, les modèles rejoignent toutes les listes.",
+    "en": "Settings › API keys › Free providers: DeepSeek, OpenRouter, Mistral, Groq… The key goes to the vault, the models join every list."
+  },
+  "captures": [
+    {
+      "fr": "liste.fr.webp",
+      "en": "liste.en.webp"
+    },
+    {
+      "fr": "form.fr.webp",
+      "en": "form.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        259,
+        405,
+        842,
+        146
+      ],
+      "bulle": {
+        "fr": "Le moteur fl:deepseek : clé posée, prix à mesurer",
+        "en": "The fl:deepseek engine: key set, price to be measured"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.4,
+      "surligne": [
+        258,
+        351,
+        844,
+        254
+      ],
+      "bulle": {
+        "fr": "Préréglage, nom, URL https et clé",
+        "en": "Preset, name, https URL and key"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "curseur": [
+        1042,
+        472
+      ],
+      "bulle": {
+        "fr": "Lire la liste : les modèles publiés par le fournisseur",
+        "en": "Read the list: the models the provider publishes"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        259,
+        405,
+        842,
+        146
+      ],
+      "bulle": {
+        "fr": "Le moteur fl:deepseek : clé posée, prix à mesurer",
+        "en": "The fl:deepseek engine: key set, price to be measured"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.4,
+      "surligne": [
+        258,
+        351,
+        844,
+        254
+      ],
+      "bulle": {
+        "fr": "Préréglage, nom, URL https et clé",
+        "en": "Preset, name, https URL and key"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "curseur": [
+        1038,
+        472
+      ],
+      "bulle": {
+        "fr": "Lire la liste : les modèles publiés par le fournisseur",
+        "en": "Read the list: the models the provider publishes"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

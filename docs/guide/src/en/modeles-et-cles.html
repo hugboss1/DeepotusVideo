@@ -13,6 +13,14 @@
 <p>Each option shows its unit price after the name: <strong>$0.04/image</strong>, <strong>$0.10/s</strong> of video, <strong>$0.0018/s</strong> of sound, <strong>/30 images</strong> for a video cutout. An option marked <strong>price to be measured</strong> is paid, but its rate isn't known yet: it is never shown as free.</p>
 <p>Before a run, the screen shows the <strong>total price</strong> worked out by the server for what you ask: an image and its background removal, a 6 s video… Your spending caps check this very amount, see <a href="#budget">Keep spending under control</a>.</p>
 
+<h3>Text engines</h3>
+<p>The text engine lists (the Vectorlab AI dialog, the roles of <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Provider defaults</b></span>) gather three kinds of engines. The tooltip of the Vectorlab <b class="ui">Generate</b> button says, for the chosen engine, what the call costs.</p>
+<div class="cartes">
+<article><i data-dz="dz-nav-cles-api"></i><h4>Built-in</h4><p>Anthropic, OpenAI, Gemini: paid on your key, a few hundredths of a cent per illustration or summary.</p></article>
+<article><i data-dz="dz-etat-attente"></i><h4>Free providers</h4><p>The <code>fl:…</code> engines (DeepSeek, OpenRouter…): <strong>price to be measured</strong>. The cap applies to a per-token estimate, at the dearest built-in rate.</p></article>
+<article><i data-dz="dz-etat-ia"></i><h4>Local servers</h4><p><code>ollama</code> and the <code>local:…</code> engines run on your PC or your network: free, nothing is charged.</p></article>
+</div>
+
 <h3>An "add the key" option</h3>
 <figure class="scene" data-scene="modeles-et-cles/cle-absente"></figure>
 <ol class="etapes">

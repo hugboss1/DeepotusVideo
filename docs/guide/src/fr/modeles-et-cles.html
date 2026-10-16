@@ -13,6 +13,14 @@
 <p>Chaque option affiche son prix unitaire après le nom : <strong>$0.04/image</strong>, <strong>$0.10/s</strong> de vidéo, <strong>$0.0018/s</strong> de son, <strong>/30 images</strong> pour un détourage vidéo. Une option marquée <strong>prix à mesurer</strong> est payante, mais son tarif n'est pas encore relevé : elle n'est jamais présentée comme gratuite.</p>
 <p>Avant un tir, l'écran affiche le <strong>prix total</strong> calculé par le serveur pour ce que vous demandez : une image et son détourage, une vidéo de 6 s… C'est ce même montant que vérifient vos plafonds, voir <a href="#budget">Maîtriser ses dépenses</a>.</p>
 
+<h3>Les moteurs de texte</h3>
+<p>Les listes de moteurs de texte (dialogue IA du Vectorlab, rôles de <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Fournisseurs par défaut</b></span>) réunissent trois sortes de moteurs. La bulle du bouton <b class="ui">Générer</b> du Vectorlab dit, pour le moteur choisi, ce que coûte l'appel.</p>
+<div class="cartes">
+<article><i data-dz="dz-nav-cles-api"></i><h4>Intégrés</h4><p>Anthropic, OpenAI, Gemini : payants sur votre clé, quelques centièmes de centime par illustration ou résumé.</p></article>
+<article><i data-dz="dz-etat-attente"></i><h4>Fournisseurs libres</h4><p>Les moteurs <code>fl:…</code> (DeepSeek, OpenRouter…) : <strong>prix à mesurer</strong>. Le plafond s'applique sur une estimation par jetons, au tarif le plus cher des intégrés.</p></article>
+<article><i data-dz="dz-etat-ia"></i><h4>Serveurs locaux</h4><p><code>ollama</code> et les moteurs <code>local:…</code> tournent sur votre PC ou votre réseau : gratuits, rien n'est débité.</p></article>
+</div>
+
 <h3>Une option « clé à ajouter »</h3>
 <figure class="scene" data-scene="modeles-et-cles/cle-absente"></figure>
 <ol class="etapes">
