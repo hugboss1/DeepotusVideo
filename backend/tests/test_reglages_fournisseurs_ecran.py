@@ -196,7 +196,7 @@ check("D3 Diagnostic : l'alerte à la place de l'aperçu, en rouge",
       "(c.alerte?dzT(\"reglages.fournisseurs.cle_dans_modele\"):(c.apercu||''))" in BUNDLE
       and "(c.alerte?'var(--red)':'var(--ink-muted)')" in BUNDLE)
 check("D4 Clés d'API : GEMINI_MODEL rendu par DzCleVersDefauts",
-      'h=g[k.k];if(k.k==="GEMINI_MODEL")return r.jsx(DzCleVersDefauts,{k:k,c:c},k.k);return r.jsxs(' in BUNDLE)
+      'h=g[k.k];if(k.k==="GEMINI_MODEL")return r.jsx(DzCleVersDefauts,{k:k,c:c},k.k);' in BUNDLE)   # t221 : DzCleTexte suit
 check("D5 DzCleVersDefauts : texte et bouton → rubrique defaults", "reglages.fournisseurs.se_regle_ailleurs" in (R.get("versTxt") or "")
       and R.get("ouverts") == ["defaults"], repr((R.get("versTxt"), R.get("ouverts"))))
 check("D6 composants ×1", all(BUNDLE.count(f"function {n}(") == 1 for n in ("DzFournDefauts", "DzFournModele",

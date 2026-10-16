@@ -24,6 +24,8 @@ Plan docs/superpowers/plans/2026-10-15-optimisation-menus-reglages.md. Ce qu'il 
     (l'état `n` et la liste `s` d'Em restent, morts : retirer leur useState changerait le compte figé) ;
   - F3 : Diagnostic, l'alerte « contient une clé, pas un nom de modèle » à la place de l'aperçu ;
   - F4 : Clés d'API, la ligne GEMINI_MODEL renvoie vers Fournisseurs par défaut.
+  t221 (16/10, relevé sur c784c6e8) — Diagnostic : chaque ligne porte « Régler » vers la rubrique où la clé se règle
+  (champ `rubrique` du serveur) ; les orphelines reçoivent un champ (D0-D2, C0-C1, N1 : détail plus bas).
   Aucune paire ne doit recopier un remplacement de scripts/dzglyph_paires.json (vu : `size:"sm",icon:
   "dz-action-enregistrer",onClick` en est un — l'ordre des props de nos boutons l'évite).
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 ».
@@ -206,6 +208,86 @@ PAIRES += [
      "dzT(\"reglages.fournisseurs.cle_dans_modele\"):(c.apercu||''))})"),
     (CLES_LIGNE,                                                                                            # F4
      CLES_LIGNE + 'if(k.k==="GEMINI_MODEL")return r.jsx(DzCleVersDefauts,{k:k,c:c},k.k);'),
+]
+
+# ── t221 : Diagnostic, chaque clé a son endroit (16/10, relevé sur c784c6e8) ──────────────────────────────────────────
+# Le Diagnostic listait les clés de l'allowlist sans dire où les régler ; DECART_API_KEY (hors de l'écran Avatar live),
+# ARTICLE_READER_FALLBACK et ELEVENLABS_VOICE_ID_FR / _EN ne se réglaient nulle part. Le serveur dit désormais la
+# rubrique de chaque ligne (`rubrique`, table RUBRIQUE_DE_CLE de settings_routes, tirée de l'allowlist).
+#   D0 : dzFuNeuves (les lignes de C0), dzRgCle (POST /api/settings/keys d'UNE valeur, l'erreur du serveur dite), DzDiagRegler (le bouton « Régler » :
+#        dzOuvrirReglages(rubrique) SANS `aller`, Réglages est déjà ouvert et son écoute change de rubrique),
+#        DzCleTexte (un réglage texte de Clés d'API qui n'est pas un secret : champ clair, Enregistrer) et
+#        DzNewsLecteur (la bascule du lecteur public, lue sur /api/health), posés devant DzDiag ;
+#   D1-D2 : la ligne du Diagnostic gagne une colonne et le bouton ;
+#   C0 : Clés d'API, trois lignes neuves (Decart, voix FR, voix EN — ces deux-là `texte:!0`), rendues par
+#        `Fu.concat(dzFuNeuves())` : le littéral `Fu` reste intact (test_p1_figma_token : Figma en dernier) ;
+#   C1 : une ligne `texte` est rendue par DzCleTexte ; N1 : Réglages › News montre la bascule sous son aide.
+COMPOSANTS_D = (
+    'function dzRgCle(nom,val){return fetch("/api/settings/keys",{method:"POST",headers:{"Content-Type":'
+    '"application/json"},body:JSON.stringify({name:nom,value:val})}).then(function(R){return R.json().catch(function(){'
+    'return{}}).then(function(d){if(!R.ok||d.ok===!1)throw new Error(String(d&&(d.detail||d.error)||("HTTP "+R.status)));'
+    'return d})})}'
+    'function DzDiagRegler({c:c}){if(!c.rubrique)return r.jsx("div",{});return r.jsx(K,{variant:"ghost",size:"sm",'
+    '"data-dzdiag-regler":c.rubrique,title:dzT("reglages.diag.regler_aide"),onClick:function(){dzOuvrirReglages(c.rubrique)},'
+    'children:dzT("reglages.diag.regler")})}'
+    'function DzCleTexte({k:k,c:c,h:h,relire:relire}){'
+    'var rs=x.useReducer(function(o,n){return Object.assign({},o,n)},{v:"",msg:"",err:!1,busy:!1}),st=rs[0],maj=rs[1];'
+    'function enregistrer(){var v=st.v.trim();if(!v)return;maj({busy:!0,msg:""});dzRgCle(k.k,v).then(function(){'
+    'maj({busy:!1,v:"",msg:dzT("commun.etat.enregistre"),err:!1});relire&&relire()}).catch(function(e){'
+    'maj({busy:!1,msg:String(e&&e.message||e),err:!0})})}'
+    'return r.jsxs("div",{"data-dzcle-texte":k.k,style:{display:"grid",gridTemplateColumns:"180px minmax(0,1fr) auto",'
+    'gap:14,alignItems:"center",padding:"14px 18px",borderTop:c?"1px solid var(--stroke)":"none"},children:['
+    'r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:k.label}),'
+    'r.jsxs("div",{className:"mono",title:k.k+" · "+k.why,style:{fontSize:10.5,color:"var(--ink-muted)",overflow:"hidden",'
+    'textOverflow:"ellipsis",whiteSpace:"nowrap"},children:[k.k," · ",k.why]}),h&&h.preview?r.jsxs("div",{className:"mono",'
+    'style:{fontSize:10,color:"var(--ink-soft)",marginTop:2},children:[dzT("reglages.cles.actuelle"),h.preview]}):null]}),'
+    'r.jsxs("div",{style:{minWidth:0},children:[r.jsx("input",{type:"text","data-dzcle-saisie":k.k,value:st.v,'
+    'placeholder:dzT("avatar.perso.voix_id"),onChange:function(e){maj({v:e.target.value,msg:""})},style:{minWidth:0,'
+    'width:"100%",boxSizing:"border-box",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:'
+    '"var(--r-sm)",padding:"6px 10px",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:12}}),'
+    'st.msg?r.jsx("div",{"data-dzcle-msg":st.err?"erreur":"ok",style:{fontSize:10.5,marginTop:4,color:st.err?"var(--red)":'
+    '"var(--green)"},children:st.msg}):null]}),'
+    'r.jsx(K,{variant:"primary",icon:"dz-action-enregistrer",size:"sm",onClick:enregistrer,disabled:st.busy||!st.v.trim(),'
+    'children:st.busy?"…":dzT("reglages.commun.enregistrer")})]})}'
+    'function DzNewsLecteur(){'
+    'var rs=x.useReducer(function(o,n){return Object.assign({},o,n)},{on:null,msg:"",err:!1}),st=rs[0],maj=rs[1];'
+    'x.useEffect(function(){var vif=!0;fetch("/api/health").then(function(R){return R.json()}).then(function(d){'
+    'vif&&typeof(d&&d.article_reader_fallback)==="boolean"&&maj({on:d.article_reader_fallback})}).catch(function(){});'
+    'return function(){vif=!1}},[]);'
+    'function basculer(v){maj({msg:""});dzRgCle("ARTICLE_READER_FALLBACK",v?"true":"false").then(function(){'
+    'maj({on:v,msg:dzT("commun.etat.enregistre"),err:!1})}).catch(function(e){maj({msg:String(e&&e.message||e),err:!0})})}'
+    'return r.jsxs(jt,{"data-dzlecteur":st.on===null?"inconnu":st.on?"actif":"coupe",style:{padding:"12px 14px",'
+    'marginBottom:14},children:[r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",gap:12,'
+    'alignItems:"center"},children:[r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},'
+    'children:dzT("reglages.news.lecteur")}),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-soft)",marginTop:2},'
+    'children:dzT("reglages.news.lecteur_aide")}),r.jsx("div",{className:"mono",style:{fontSize:10,color:"var(--ink-muted)",'
+    'marginTop:2},children:"ARTICLE_READER_FALLBACK"})]}),st.on===null?r.jsx("span",{style:{color:"var(--ink-muted)"},'
+    'children:"…"}):r.jsx(Ze,{checked:st.on,onChange:basculer})]}),st.msg?r.jsx("div",{"data-dzlecteur-msg":st.err?'
+    '"erreur":"ok",style:{fontSize:10.5,marginTop:6,color:st.err?"var(--red)":"var(--green)"},children:st.msg}):null]})}'
+)
+DIAG = "function DzDiag(){"
+DIAG_GRILLE = "'data-dzdiag-cle':c.cle,style:{display:'grid',gridTemplateColumns:'210px 90px 1fr auto',gap:10,"
+DIAG_FIN = "onClick:()=>tester(c.cle),children:dzT(\"reglages.diag.tester\")}):r.jsx('div',{})]},c.cle)"
+FU_MAP = 'children:Fu.map((k,c)=>{const p='
+FU_NEUVES = (
+    'function dzFuNeuves(){return[{k:"DECART_API_KEY",label:dzT("reglages.cles.decart"),why:dzT('
+    '"reglages.cles.decart_pourquoi"),health:"decart_configured"},{k:"ELEVENLABS_VOICE_ID_FR",label:dzT('
+    '"reglages.cles.voix_fr"),why:dzT("reglages.cles.voix_pourquoi"),health:"voiceover_enabled",texte:!0},'
+    '{k:"ELEVENLABS_VOICE_ID_EN",label:dzT("reglages.cles.voix_en"),why:dzT("reglages.cles.voix_pourquoi"),'
+    'health:"voiceover_enabled",texte:!0}]}'
+)
+VERS_DEFAUTS = 'if(k.k==="GEMINI_MODEL")return r.jsx(DzCleVersDefauts,{k:k,c:c},k.k);'
+NEWS_AIDE = 'children:dzT("reglages.news.aide")}),'
+
+PAIRES += [
+    (DIAG, FU_NEUVES + COMPOSANTS_D + DIAG),                                                                # D0
+    (DIAG_GRILLE, DIAG_GRILLE.replace("1fr auto'", "1fr auto auto'")),                                       # D1
+    (DIAG_FIN, DIAG_FIN.replace("r.jsx('div',{})]},c.cle)",                                                 # D2
+                                "r.jsx('div',{}),r.jsx(DzDiagRegler,{c:c})]},c.cle)")),
+    (FU_MAP, 'children:Fu.concat(dzFuNeuves()).map((k,c)=>{const p='),                                      # C0
+    (VERS_DEFAUTS,                                                                                          # C1
+     VERS_DEFAUTS + 'if(k.texte)return r.jsx(DzCleTexte,{k:k,c:c,h:h,relire:function(){m(),No()}},k.k);'),
+    (NEWS_AIDE, NEWS_AIDE + 'r.jsx(DzNewsLecteur,{}),'),                                                    # N1
 ]
 
 
