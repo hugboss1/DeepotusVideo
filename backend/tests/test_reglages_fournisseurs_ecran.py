@@ -238,7 +238,7 @@ check("F1 aller-retour à l'octet", rejoue == BUNDLE and DR.MARKER not in avant)
 check("F2 l'avant a le défaut d'origine (rôles locaux, « Enregistré localement »)",
       "...s.map((a,l)=>{const d=a.options" in avant and 'dzT("reglages.defauts.aide_2")' in avant
       and "DzFournDefauts" not in avant)
-check("F3 avant_dzreglages = défaire", AIDE.avant_dzreglages(BUNDLE) == avant)
+check("F3 avant_dzreglages = défaire", AIDE.avant_dzreglages(BUNDLE) == AIDE.avant_dzlogo(avant))  # dzlogo, posé après, défait d'abord
 try:
     _g1 = [p["remplace"] for p in json.loads((RACINE / "scripts" / "dzglyph_paires.json").read_bytes().decode("utf-8"))["paires"]]
 except (OSError, ValueError, KeyError):
