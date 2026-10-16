@@ -1841,6 +1841,8 @@
   "vectorlab.vitrail.ia_ph": {"fr": "décrire une illustration…", "en": "describe an illustration…"},
   "vectorlab.vitrail.ia_poses": {"fr": "{n} tracés posés ({provider})", "en": "{n} paths placed ({provider})"},
   "vectorlab.vitrail.ia_titre": {"fr": "Illustration vectorielle par le modèle de langage configuré (Réglages) — APPEL PAYANT sur votre clé, quelques centièmes de centime ; pose des masses de verre en un groupe", "en": "Vector illustration by the configured language model (Settings) — PAID CALL on your key, a few hundredths of a cent; places glass masses as one group"},
+  "vectorlab.vitrail.ia_titre_a_mesurer": {"fr": "Illustration vectorielle par {moteur} (Réglages) — appel sur votre clé, prix à mesurer : l'application ne connaît pas son tarif ; pose des masses de verre en un groupe", "en": "Vector illustration by {moteur} (Settings) — call on your key, price to be measured: the app does not know its rate; places glass masses as one group"},
+  "vectorlab.vitrail.ia_titre_gratuit": {"fr": "Illustration vectorielle par {moteur} (Réglages) — tourne sur votre machine ou votre réseau : gratuit, rien n'est débité ; pose des masses de verre en un groupe", "en": "Vector illustration by {moteur} (Settings) — runs on your machine or network: free, nothing is charged; places glass masses as one group"},
   "vectorlab.vitrail.iris": {"fr": "Iris stylisé", "en": "Stylized iris"},
   "vectorlab.vitrail.iris_titre": {"fr": "Iris stylisé (groupe)", "en": "Stylized iris (group)"},
   "vectorlab.vitrail.joints": {"fr": "Joints", "en": "Joins"},

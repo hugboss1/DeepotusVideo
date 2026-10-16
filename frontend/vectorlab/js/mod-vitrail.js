@@ -562,6 +562,19 @@ export function initVitrail(VL) {
     return id ? formes.length : 0;
   };
 
+  // le moteur qu'emploie POST /vector/illustration sans `provider` : le premier de GET …/moteurs, puis celui que
+  // rend chaque appel réussi — {moteur, defaut}, null tant qu'il est inconnu
+  let iaMoteur = null;
+  // la bulle du bouton IA dit le vrai coût de ce moteur, comme bulleGenerer (mod-ia.js) : un serveur local (ollama,
+  // local:<id>) est gratuit ; un fournisseur libre (fl:<id>) est « prix à mesurer », jamais « gratuit »
+  function bulleIA() {
+    const id = iaMoteur ? iaMoteur.moteur : "";
+    const v = { moteur: iaMoteur && iaMoteur.defaut ? `${id} · ${iaMoteur.defaut}` : id };
+    if (id === "ollama" || id.startsWith("local:")) return T("vectorlab.vitrail.ia_titre_gratuit", v);
+    if (id.startsWith("fl:")) return T("vectorlab.vitrail.ia_titre_a_mesurer", v);
+    return T("vectorlab.vitrail.ia_titre");
+  }
+
   async function iaLancer() {
     const champ = $("#vitIaPrompt");
     const q = (champ && champ.value || "").trim();
@@ -575,6 +588,7 @@ export function initVitrail(VL) {
         body: JSON.stringify({ prompt: q }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.detail || r.statusText);
+      if (d.provider) iaMoteur = { moteur: d.provider, defaut: d.modele || "" };
       const n = VL.iaPoser(d, q);
       regl.iaBusy = false; regl.iaErr = false;
       regl.iaMsg = T("vectorlab.vitrail.ia_poses", { n, provider: d.provider });
@@ -682,7 +696,7 @@ export function initVitrail(VL) {
         <input id="vitIaPrompt" type="text"
                placeholder="${T("vectorlab.vitrail.ia_ph")}"/>
         <button id="vitIaGo" ${regl.iaBusy ? "disabled" : ""}
-          title="${T("vectorlab.vitrail.ia_titre")}">${dzi("dz-media-generer-image", 16)}${regl.iaBusy ? "…" : T("vectorlab.vitrail.ia")}</button></div>
+          title="${bulleIA()}">${dzi("dz-media-generer-image", 16)}${regl.iaBusy ? "…" : T("vectorlab.vitrail.ia")}</button></div>
       ${regl.iaMsg ? `<div class="vit-iamsg ${regl.iaErr ? "err" : ""}"
         >${regl.iaMsg}</div>` : ""}
       ${ancres.length ? `
@@ -804,6 +818,16 @@ export function initVitrail(VL) {
       () => insererMotif((f, x, y) => motif_halo(f, x, y, 80)));
   }
 
+  fetch("/api/vector/illustration/moteurs").then((r) => r.ok ? r.json() : null)
+    .then((d) => {
+      const m = d && Array.isArray(d.moteurs) && d.moteurs[0];
+      iaMoteur = m ? { moteur: m.moteur, defaut: m.defaut || "" } : null;
+      // la liste peut arriver tard (les intégrés sont interrogés au réseau) : redessiner le panneau effacerait une
+      // saisie en cours — seule la bulle du bouton change (data-tip quand l'infobulle la montre déjà)
+      const b = $("#vitIaGo");
+      if (b) b.setAttribute(b.dataset.tip !== undefined ? "data-tip" : "title", bulleIA());
+    })
+    .catch(() => { /* route muette : la bulle garde le texte d'avant */ });
   fetch("/api/vector/vitrail").then((r) => r.ok ? r.json() : null)
     .then((d) => { famille = d && d.famille; rendrePanneau(); })
     .catch(() => { famille = null; rendrePanneau(); });
