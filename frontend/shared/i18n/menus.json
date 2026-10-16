@@ -9,5 +9,16 @@
   "quick.persona.note": {"fr": "Espace actif global : Quick, le rail et la Bibliothèque le suivent ensemble.", "en": "Global active space: Quick, the rail and the Library all follow it."},
   "quick.persona.nouveau": {"fr": "+ Nouveau persona…", "en": "+ New persona…"},
   "quick.zoom.recadrer": {"fr": "Revenir à 100 % (double-clic ou touche 0)", "en": "Back to 100% (double-click or 0 key)"},
+  "reglages.fournisseurs.aide": {"fr": "Choisissez le moteur de texte de chaque rôle et le modèle par défaut de chaque moteur. Enregistré dans le .env de l'application et appliqué tout de suite.", "en": "Pick the text engine for each role and each engine's default model. Saved to the app's .env and applied right away."},
+  "reglages.fournisseurs.auto": {"fr": "Automatique ({moteur})", "en": "Automatic ({moteur})"},
+  "reglages.fournisseurs.cle_dans_modele": {"fr": "contient une clé, pas un nom de modèle", "en": "contains a key, not a model name"},
+  "reglages.fournisseurs.liste_illisible": {"fr": "Liste du fournisseur illisible (hors ligne ou clé refusée)", "en": "Provider's list unreadable (offline or key refused)"},
+  "reglages.fournisseurs.modele_de": {"fr": "Modèle par défaut — {moteur}", "en": "Default model — {moteur}"},
+  "reglages.fournisseurs.n_modeles": {"fr": "{n} modèles publiés", "en": "{n} published models"},
+  "reglages.fournisseurs.saisir_nom": {"fr": "ou saisissez un nom (vide = défaut)", "en": "or type a name (empty = default)"},
+  "reglages.fournisseurs.se_regle_ailleurs": {"fr": "Se règle dans Réglages › Fournisseurs par défaut, avec la liste des modèles et un bouton Tester.", "en": "Set in Settings › Provider defaults, with the model list and a Test button."},
+  "reglages.fournisseurs.test_connu": {"fr": "Modèle publié par le fournisseur.", "en": "Model published by the provider."},
+  "reglages.fournisseurs.test_inconnu": {"fr": "Ce modèle n'est pas dans la liste du fournisseur.", "en": "This model is not in the provider's list."},
+  "reglages.fournisseurs.test_non_verifiable": {"fr": "Liste du fournisseur illisible : vérification impossible.", "en": "Provider's list unreadable: cannot check."},
   "reglages.pastille.clic_tarifs": {"fr": "\n\nClic → Réglages → Tarifs et budget.", "en": "\n\nClick → Settings → Pricing & budget."}
 }

@@ -21,7 +21,11 @@ def available() -> bool:
 
 
 def _url(action: str = "generateContent") -> str:
-    return f"{GOOGLE_API_BASE}/models/{settings.GEMINI_MODEL}:{action}"
+    # t220 : un GEMINI_MODEL qui contient une clé (relevé chez l'utilisateur le 15/10) n'est jamais mis dans l'URL :
+    # on retombe sur le défaut du code, et l'écran comme le Diagnostic signalent la valeur fautive.
+    from app.services import moteurs_texte as _MT
+    modele = _MT.modele_sain("gemini") or type(settings).model_fields["GEMINI_MODEL"].default
+    return f"{GOOGLE_API_BASE}/models/{modele}:{action}"
 
 
 def _headers() -> dict:

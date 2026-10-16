@@ -31,7 +31,7 @@ async def diagnostic_complet(request: Request):
     """L'écran unique : version, poids disque, journal, clés (masquées), soldes."""
     _local(request)
     from app.api.routes import _ALLOWED_ENV_KEYS, _mask, _read_env_file
-    from app.services import coffre as C, diagnostic as D
+    from app.services import coffre as C, diagnostic as D, moteurs_texte as MT
     env = _read_env_file()
     cles = []
     for k in sorted(_ALLOWED_ENV_KEYS):
@@ -41,6 +41,11 @@ async def diagnostic_complet(request: Request):
             v, source = C.lire_cle(k), "coffre"
         if not v and C.verrouille() and k in C.SECRETES:
             cles.append({"cle": k, "definie": None, "apercu": "", "source": "coffre-verrouille", "testable": D.testable(k)})
+            continue
+        # t220 : un *_MODEL qui contient une clé est SIGNALÉ (jamais effacé), et son aperçu n'est pas rendu, même masqué
+        if k.endswith("_MODEL") and MT.ressemble_a_une_cle(v):
+            cles.append({"cle": k, "definie": True, "apercu": "", "source": source, "testable": False,
+                         "alerte": MT.ALERTE_CLE})
             continue
         cles.append({"cle": k, "definie": bool(v), "apercu": _mask(v), "source": source, "testable": D.testable(k)})
     try:

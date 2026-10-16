@@ -60,12 +60,9 @@ def cle_de(moteur: str) -> str:
 
 
 def modele_defaut(moteur: str) -> str:
-    return {
-        "anthropic": settings.ANTHROPIC_MODEL,
-        "openai": settings.OPENAI_MODEL,
-        "gemini": settings.GEMINI_MODEL,
-        "ollama": settings.OLLAMA_MODEL,
-    }.get(moteur, "").strip()
+    # t220 : un *_MODEL qui contient une clé n'est jamais relu (ni en tête de liste, ni dans une URL)
+    from app.services import moteurs_texte as _MT
+    return _MT.modele_sain(moteur)
 
 
 def moteurs_configures() -> list[str]:
@@ -95,6 +92,18 @@ def modeles_de(moteur: str, *, timeout: float = 6.0) -> list[str]:
     if moteur in _CATALOGUE:
         return _CATALOGUE[moteur]
     defaut = modele_defaut(moteur)
+    ids = publies(moteur, timeout=timeout)
+    if defaut:
+        ids = [defaut] + [i for i in ids if i != defaut]
+    if not ids and defaut:
+        ids = [defaut]
+    _CATALOGUE[moteur] = ids
+    return ids
+
+
+def publies(moteur: str, *, timeout: float = 6.0) -> list[str]:
+    """La liste que le fournisseur PUBLIE, telle quelle (texte seulement, triée, sans cache) ; [] si illisible.
+    t220 : le bouton « Tester » des Réglages la lit pour dire si un nom de modèle existe, sans rien dépenser."""
     ids: list[str] = []
     try:
         if moteur == "anthropic":
@@ -130,11 +139,6 @@ def modeles_de(moteur: str, *, timeout: float = 6.0) -> list[str]:
         logger.warning(f"vectorlab: liste des modèles {moteur} indisponible: {e}")
     ids = _texte_seulement([i for i in ids if i])
     ids.sort()
-    if defaut:
-        ids = [defaut] + [i for i in ids if i != defaut]
-    if not ids and defaut:
-        ids = [defaut]
-    _CATALOGUE[moteur] = ids
     return ids
 
 
