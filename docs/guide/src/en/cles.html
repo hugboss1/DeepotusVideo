@@ -1,4 +1,4 @@
-<p class="chapeau-chap">You will set an AI provider's key, choose which engine does what, and protect your keys with a password. Ten minutes, free; keys are created with each provider.</p>
+<p class="chapeau-chap">You will set an AI provider's key, choose which engine does what, connect a free provider or a server on your network, and protect your keys with a password. Ten minutes, free; keys are created with each provider.</p>
 
 <h3>Before you start</h3>
 <p>An API key is a code the provider gives you on its website, in your account. It lets the app work on your behalf; the provider bills you. Only one is required to start: <strong>fal.ai</strong>.</p>
@@ -6,7 +6,7 @@
 <h3>Set a key</h3>
 <figure class="scene" data-scene="cles/cles"></figure>
 <ol class="etapes">
-<li>Open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">API keys</b></span>. Each provider has its row and its status: <strong>missing</strong> until a key is set.</li>
+<li>Open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">API keys</b></span>. Each provider has its row and its status: <strong>missing</strong> until a key is set. The fal, heygen and voice badges in the header lead here in one click.</li>
 <li>Click <b class="ui">Guide</b>: it tells where to create the key with the provider and how it is billed.</li>
 <li>Paste the key in the field, then <b class="ui">Save</b>. It works <strong>right away</strong>, no restart.</li>
 <li>Click <b class="ui">Test</b> on the row: the provider says whether it accepts the key, without spending anything.</li>
@@ -18,22 +18,48 @@
 <tr><th>Key</th><th>What it unlocks</th></tr>
 <tr><td>fal.ai</td><td>Pictures (FLUX) and video clips (Seedance). The only key you need.</td></tr>
 <tr><td>HeyGen</td><td>Talking avatars, alone or in a composition.</td></tr>
-<tr><td>ElevenLabs</td><td>Voiceover and narration.</td></tr>
+<tr><td>ElevenLabs</td><td>Voiceover and narration; two fields set the default French and English voices.</td></tr>
 <tr><td>Anthropic, OpenAI or Gemini</td><td>News summaries, post plans, scripts and storyboards written by AI. One is enough; OpenAI also makes pictures (GPT Image).</td></tr>
+<tr><td>Free provider (DeepSeek, OpenRouter, Mistral, Groq…)</td><td>The same texts, from a service that speaks the OpenAI API. Price to be measured.</td></tr>
+<tr><td>Local servers (no key)</td><td>Ollama, LM Studio, llama.cpp or vLLM on your PC or your network: free, nothing leaves your place.</td></tr>
 <tr><td>Meshy</td><td>Premium picture-to-3D (optional, Meshy subscription).</td></tr>
+<tr><td>Decart</td><td>The Live mode of Avatar live, billed per second.</td></tr>
 <tr><td>Figma</td><td>Import Figma layers into the Library and Templates.</td></tr>
-<tr><td>Ollama (no key)</td><td>An AI model installed on your PC for post plans: free, nothing leaves your machine.</td></tr>
 </table></div>
 <p>Network keys (X, Telegram, YouTube, Instagram, TikTok) go into <b class="ui">Connected accounts</b>: see <a href="#comptes">Connect your accounts</a>.</p>
 
 <h3>Choose the engine for each job</h3>
-<p>In <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Provider defaults</b></span>, each role has its engine: picture generation, voice, picture to video, avatar, voiceover, news summary, post planning. Only keys actually set are offered.</p>
+<figure class="scene" data-scene="cles/defauts"></figure>
+<ol class="etapes">
+<li>Open <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Provider defaults</b></span>. The image to video, avatar and voiceover rows say which key serves them and whether it is set.</li>
+<li><b class="ui">News summarizer</b> and <b class="ui">Schedule planner</b> each pick a text engine: a built-in one (Anthropic, OpenAI, Gemini, Ollama), a free provider or a local server. "Automatic" takes the first engine that is ready.</li>
+<li>Further down, each configured engine has its <strong>Default model</strong> row: pick from the list read from the provider, or type a name. <b class="ui">Test</b> checks that the model is published, without spending anything; <b class="ui">Save</b> applies it at once.</li>
+</ol>
+<p>The choice is written to the app's settings file: it applies to every screen. A model name that looks like a key pasted by mistake is refused and flagged in red.</p>
 <div class="cartes">
 <article><i data-dz="dz-media-generer-video"></i><h4>Default video model</h4><p>The model new Seedance nodes start with in the Studio. Each node can change it.</p></article>
 <article><i data-dz="dz-media-voix"></i><h4>Default voice model</h4><p>The ElevenLabs model of new voiceover nodes.</p></article>
-<article><i data-dz="dz-etat-ia"></i><h4>Local AI with Ollama</h4><p>Install Ollama, download a model, then enter its name in the <b class="ui">Local LLM (Ollama)</b> card of API keys.</p></article>
-<article><i data-dz="dz-nav-reglages"></i><h4>Gemini: pick the version</h4><p>Left empty, the “Gemini — model” field always follows the latest Flash version; fill it in to pin one.</p></article>
 </div>
+
+<h3>Add a free provider</h3>
+<figure class="scene" data-scene="cles/libres"></figure>
+<ol class="etapes">
+<li>In <b class="ui">API keys</b>, scroll down to <b class="ui">Free providers (OpenAI-compatible)</b>, then <b class="ui">+ Add a provider</b>.</li>
+<li>Pick a preset (DeepSeek, OpenRouter, Mistral, Groq, Together, xAI) or type a name and an https URL. Paste the key.</li>
+<li><b class="ui">Read the list</b> asks the provider for its models; keep the ones you need and the default model, then <b class="ui">Save</b>.</li>
+<li>On the row, <b class="ui">Test</b> checks the key, <b class="ui">Replace the key</b> sets a new one, <b class="ui">Delete</b> asks for a second click (<b class="ui">Confirm deletion</b>) and erases the key.</li>
+</ol>
+<p>The provider becomes the <code>fl:&lt;name&gt;</code> engine: its models join every text model list (the Vectorlab AI dialog, the roles above). The key goes to the vault and is never shown again.</p>
+
+<h3>Connect several local servers</h3>
+<figure class="scene" data-scene="cles/locaux"></figure>
+<ol class="etapes">
+<li>Under <b class="ui">Local LLM (Ollama)</b>, the <b class="ui">Local servers</b> list starts with your Ollama, set just above.</li>
+<li><b class="ui">+ Add a server</b>: pick a preset (Ollama, LM Studio, llama.cpp, vLLM); the URL must be on this PC or on your local network.</li>
+<li><b class="ui">Read the models</b> fills the list, pick the default model, then <b class="ui">Save</b>.</li>
+<li><b class="ui">Test</b> says whether the server answers and how many models it publishes.</li>
+</ol>
+<p>Each server becomes the <code>local:&lt;name&gt;</code> engine, free, in the same lists as free providers.</p>
 
 <h3>Protect your keys in the vault</h3>
 <figure class="scene" data-scene="cles/coffre"></figure>
@@ -48,4 +74,4 @@
 <h3>Good to know</h3>
 <aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>The vault password is stored nowhere: if lost, it cannot be recovered. Write it down, or keep an encrypted archive.</p></aside>
 <aside class="astuce"><i data-dz="dz-etat-information"></i><p><b class="ui">Export archive</b> creates a <code>.dzk</code> file that carries your keys, caps and rates to another PC or your phone, protected by its own password. <b class="ui">Import an archive…</b> takes them back.</p></aside>
-<aside class="astuce"><i data-dz="dz-etat-information"></i><p><span class="chemin"><b class="ui">Settings</b> › <b class="ui">Diagnostics</b></span> shows the status of all keys at once (never their value) and the providers' balances.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p><span class="chemin"><b class="ui">Settings</b> › <b class="ui">Diagnostics</b></span> shows the status of all keys at once (never their value) and the providers' balances. Each row carries <b class="ui">Set up</b>, which opens the section where the key is set.</p></aside>

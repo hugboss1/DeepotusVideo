@@ -1,0 +1,108 @@
+{
+  "base": "http://127.0.0.1:8833",
+  "scenes": [
+    {
+      "scene": "cles/defauts",
+      "titre": {"fr": "Un moteur par rôle", "en": "One engine per role"},
+      "legende": {
+        "fr": "Réglages › Fournisseurs par défaut : le moteur de texte de chaque rôle, puis le modèle par défaut de chaque moteur, avec Tester.",
+        "en": "Settings › Provider defaults: the text engine of each role, then each engine's default model, with Test."
+      },
+      "avant": [
+        {"clic": {"fr": "texte:Réglages", "en": "texte:Settings"}, "apres": 1300},
+        {"clic": {"fr": "texte:Fournisseurs par défaut", "en": "texte:Provider defaults"}, "apres": 2500}
+      ],
+      "captures": [
+        {"nom": "roles", "etapes": [{"defiler": "css:[data-dzfourn=\"role-planner\"]"}, {"attente": 800}]}
+      ],
+      "temps": [
+        {"capture": 0, "duree": 2.8, "surligne": "css:[data-dzfourn=\"role-summarizer\"]",
+         "bulle": {"fr": "Chaque rôle choisit son moteur : intégré, fournisseur libre ou serveur local",
+                   "en": "Each role picks its engine: built-in, free provider or local server"}},
+        {"capture": 0, "duree": 2.8, "surligne": "css:[data-dzfourn=\"modele-fl:deepseek\"]",
+         "bulle": {"fr": "Le modèle par défaut de chaque moteur, lu chez le fournisseur",
+                   "en": "Each engine's default model, read from the provider"}}
+      ],
+      "clip": "css:main"
+    },
+    {
+      "scene": "cles/libres",
+      "titre": {"fr": "Ajouter un fournisseur libre", "en": "Add a free provider"},
+      "legende": {
+        "fr": "Réglages › Clés d'API › Fournisseurs libres : DeepSeek, OpenRouter, Mistral, Groq… La clé va au coffre, les modèles rejoignent toutes les listes.",
+        "en": "Settings › API keys › Free providers: DeepSeek, OpenRouter, Mistral, Groq… The key goes to the vault, the models join every list."
+      },
+      "avant": [
+        {"clic": {"fr": "texte:Réglages", "en": "texte:Settings"}, "apres": 1300},
+        {"clic": {"fr": "texte:Clés d'API", "en": "texte:API keys"}, "apres": 2000}
+      ],
+      "captures": [
+        {"nom": "liste", "etapes": [{"defiler": "css:[data-dzfl=\"ligne-deepseek\"]"}, {"attente": 600}]},
+        {"nom": "form", "etapes": [{"clic": "css:[data-dzfl=\"ajouter\"]", "apres": 800},
+                                   {"defiler": "css:[data-dzfl=\"form\"]"}, {"attente": 600}]}
+      ],
+      "temps": [
+        {"capture": 0, "duree": 2.8, "surligne": "css:[data-dzfl=\"ligne-deepseek\"]",
+         "bulle": {"fr": "Le moteur fl:deepseek : clé posée, prix à mesurer",
+                   "en": "The fl:deepseek engine: key set, price to be measured"}},
+        {"capture": 1, "duree": 2.4, "surligne": "css:[data-dzfl=\"form\"]",
+         "bulle": {"fr": "Préréglage, nom, URL https et clé", "en": "Preset, name, https URL and key"}},
+        {"capture": 1, "duree": 2.6, "curseur": "css:[data-dzfl=\"lire-form\"]",
+         "bulle": {"fr": "Lire la liste : les modèles publiés par le fournisseur",
+                   "en": "Read the list: the models the provider publishes"}}
+      ],
+      "clip": "css:main"
+    },
+    {
+      "scene": "cles/locaux",
+      "titre": {"fr": "Plusieurs serveurs locaux", "en": "Several local servers"},
+      "legende": {
+        "fr": "Réglages › Clés d'API › Serveurs locaux : Ollama, LM Studio, llama.cpp ou vLLM, sur ce PC ou le réseau local. Gratuit.",
+        "en": "Settings › API keys › Local servers: Ollama, LM Studio, llama.cpp or vLLM, on this PC or the local network. Free."
+      },
+      "avant": [
+        {"clic": {"fr": "texte:Réglages", "en": "texte:Settings"}, "apres": 1300},
+        {"clic": {"fr": "texte:Clés d'API", "en": "texte:API keys"}, "apres": 2000}
+      ],
+      "captures": [
+        {"nom": "liste", "etapes": [{"defiler": "css:[data-dzsl=\"ligne-lmstudio\"]"}, {"attente": 600}]},
+        {"nom": "teste", "etapes": [{"clic": "css:[data-dzsl=\"tester-lmstudio\"]", "apres": 2000}]}
+      ],
+      "temps": [
+        {"capture": 0, "duree": 2.6, "surligne": "css:[data-dzsl=\"ligne-ollama\"]",
+         "bulle": {"fr": "La première ligne : votre Ollama, réglé juste au-dessus",
+                   "en": "The first row: your Ollama, set just above"}},
+        {"capture": 0, "duree": 2.6, "surligne": "css:[data-dzsl=\"ligne-lmstudio\"]",
+         "bulle": {"fr": "Un serveur ajouté : moteur local:lmstudio, gratuit",
+                   "en": "An added server: local:lmstudio engine, free"}},
+        {"capture": 1, "duree": 2.8, "curseur": "css:[data-dzsl=\"tester-lmstudio\"]", "clic": true,
+         "surligne": "css:[data-dzsl=\"msg-lmstudio\"]",
+         "bulle": {"fr": "Tester : le serveur répond et publie ses modèles",
+                   "en": "Test: the server answers and publishes its models"}}
+      ],
+      "clip": "css:main"
+    },
+    {
+      "scene": "budget/pastille",
+      "titre": {"fr": "La pastille des dépenses", "en": "The spending badge"},
+      "legende": {
+        "fr": "Le compteur en dollars de l'en-tête : un clic ouvre Réglages › Tarifs et budget, de n'importe quel écran.",
+        "en": "The dollar counter in the header: one click opens Settings › Pricing & budget, from any screen."
+      },
+      "captures": [
+        {"nom": "entete"},
+        {"nom": "tarifs", "etapes": [{"clic": {"fr": "css:[title*=\"Tarifs et budget\"]", "en": "css:[title*=\"Pricing & budget\"]"},
+                                      "apres": 2000}]}
+      ],
+      "temps": [
+        {"capture": 0, "duree": 2.6, "curseur": {"fr": "css:[title*=\"Tarifs et budget\"]", "en": "css:[title*=\"Pricing & budget\"]"},
+         "clic": true,
+         "surligne": {"fr": "css:[title*=\"Tarifs et budget\"]", "en": "css:[title*=\"Pricing & budget\"]"},
+         "bulle": {"fr": "Un clic sur le compteur du mois", "en": "One click on the month's counter"}},
+        {"capture": 1, "duree": 3.0, "surligne": {"fr": "texte:Tarifs et budget", "en": "texte:Pricing & budget"},
+         "bulle": {"fr": "Tarifs et budget s'ouvre, même si Réglages l'était déjà",
+                   "en": "Pricing & budget opens, even if Settings was already open"}}
+      ]
+    }
+  ]
+}

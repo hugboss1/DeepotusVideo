@@ -1,0 +1,126 @@
+{
+  "titre": {
+    "fr": "Plusieurs serveurs locaux",
+    "en": "Several local servers"
+  },
+  "legende": {
+    "fr": "Réglages › Clés d'API › Serveurs locaux : Ollama, LM Studio, llama.cpp ou vLLM, sur ce PC ou le réseau local. Gratuit.",
+    "en": "Settings › API keys › Local servers: Ollama, LM Studio, llama.cpp or vLLM, on this PC or the local network. Free."
+  },
+  "captures": [
+    {
+      "fr": "liste.fr.webp",
+      "en": "liste.en.webp"
+    },
+    {
+      "fr": "teste.fr.webp",
+      "en": "teste.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        259,
+        510,
+        842,
+        122
+      ],
+      "bulle": {
+        "fr": "La première ligne : votre Ollama, réglé juste au-dessus",
+        "en": "The first row: your Ollama, set just above"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        259,
+        620,
+        842,
+        157
+      ],
+      "bulle": {
+        "fr": "Un serveur ajouté : moteur local:lmstudio, gratuit",
+        "en": "An added server: local:lmstudio engine, free"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "curseur": [
+        967,
+        744
+      ],
+      "clic": true,
+      "surligne": [
+        277,
+        759,
+        806,
+        27
+      ],
+      "bulle": {
+        "fr": "Tester : le serveur répond et publie ses modèles",
+        "en": "Test: the server answers and publishes its models"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        259,
+        510,
+        842,
+        122
+      ],
+      "bulle": {
+        "fr": "La première ligne : votre Ollama, réglé juste au-dessus",
+        "en": "The first row: your Ollama, set just above"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        259,
+        620,
+        842,
+        157
+      ],
+      "bulle": {
+        "fr": "Un serveur ajouté : moteur local:lmstudio, gratuit",
+        "en": "An added server: local:lmstudio engine, free"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "curseur": [
+        994,
+        743
+      ],
+      "clic": true,
+      "surligne": [
+        277,
+        759,
+        806,
+        27
+      ],
+      "bulle": {
+        "fr": "Tester : le serveur répond et publie ses modèles",
+        "en": "Test: the server answers and publishes its models"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

@@ -1,4 +1,4 @@
-<p class="chapeau-chap">Vous saurez poser la clé d'un fournisseur d'IA, choisir quel moteur sert à quoi, et protéger vos clés par un mot de passe. Dix minutes, gratuit ; les clés se créent chez chaque fournisseur.</p>
+<p class="chapeau-chap">Vous saurez poser la clé d'un fournisseur d'IA, choisir quel moteur sert à quoi, brancher un fournisseur libre ou un serveur sur votre réseau, et protéger vos clés par un mot de passe. Dix minutes, gratuit ; les clés se créent chez chaque fournisseur.</p>
 
 <h3>Avant de commencer</h3>
 <p>Une clé d'API est un code que le fournisseur vous donne sur son site, dans votre compte. Elle autorise l'application à travailler pour vous ; c'est lui qui facture. Une seule est indispensable pour démarrer : <strong>fal.ai</strong>.</p>
@@ -6,7 +6,7 @@
 <h3>Poser une clé</h3>
 <figure class="scene" data-scene="cles/cles"></figure>
 <ol class="etapes">
-<li>Ouvrez <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Clés d'API</b></span>. Chaque fournisseur a sa ligne et son état : <strong>manquante</strong> tant qu'aucune clé n'est posée.</li>
+<li>Ouvrez <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Clés d'API</b></span>. Chaque fournisseur a sa ligne et son état : <strong>manquante</strong> tant qu'aucune clé n'est posée. Les pastilles fal, heygen et voix de l'en-tête mènent ici d'un clic.</li>
 <li>Cliquez <b class="ui">Guide</b> : il dit où créer la clé chez le fournisseur et comment elle est facturée.</li>
 <li>Collez la clé dans le champ, puis <b class="ui">Enregistrer</b>. Elle sert <strong>tout de suite</strong>, sans redémarrer.</li>
 <li>Cliquez <b class="ui">Tester</b> sur la ligne : le fournisseur dit s'il accepte la clé, sans rien dépenser.</li>
@@ -18,22 +18,48 @@
 <tr><th>Clé</th><th>Ce qu'elle débloque</th></tr>
 <tr><td>fal.ai</td><td>Images (FLUX) et clips vidéo (Seedance). La seule clé indispensable.</td></tr>
 <tr><td>HeyGen</td><td>Avatars qui parlent, seuls ou dans une composition.</td></tr>
-<tr><td>ElevenLabs</td><td>Voix off et narration.</td></tr>
+<tr><td>ElevenLabs</td><td>Voix off et narration ; deux champs fixent la voix française et la voix anglaise par défaut.</td></tr>
 <tr><td>Anthropic, OpenAI ou Gemini</td><td>Résumés d'actualité, plans de posts, scripts et storyboards écrits par l'IA. Une seule suffit ; OpenAI fait aussi des images (GPT Image).</td></tr>
+<tr><td>Fournisseur libre (DeepSeek, OpenRouter, Mistral, Groq…)</td><td>Les mêmes textes, chez un service qui parle l'API OpenAI. Prix à mesurer.</td></tr>
+<tr><td>Serveurs locaux (sans clé)</td><td>Ollama, LM Studio, llama.cpp ou vLLM sur votre PC ou votre réseau : gratuit, rien ne sort de chez vous.</td></tr>
 <tr><td>Meshy</td><td>Image vers objet 3D haut de gamme (facultatif, abonnement Meshy).</td></tr>
+<tr><td>Decart</td><td>Le Direct de l'Avatar live, facturé à la seconde.</td></tr>
 <tr><td>Figma</td><td>Importer des calques Figma dans la Bibliothèque et les Modèles.</td></tr>
-<tr><td>Ollama (sans clé)</td><td>Un modèle d'IA installé sur votre PC pour les plans de posts : gratuit, rien ne sort de chez vous.</td></tr>
 </table></div>
 <p>Les clés des réseaux (X, Telegram, YouTube, Instagram, TikTok) se posent dans <b class="ui">Comptes connectés</b> : voir <a href="#comptes">Connecter ses comptes</a>.</p>
 
 <h3>Choisir le moteur de chaque tâche</h3>
-<p>Dans <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Fournisseurs par défaut</b></span>, chaque rôle a son moteur : génération d'images, voix, image vers vidéo, avatar, voix off, résumé des News, planification des posts. Seules les clés réellement posées y sont proposées.</p>
+<figure class="scene" data-scene="cles/defauts"></figure>
+<ol class="etapes">
+<li>Ouvrez <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Fournisseurs par défaut</b></span>. Les lignes image vers vidéo, avatar et voix off disent quelle clé les sert et si elle est posée.</li>
+<li><b class="ui">Résumé des News</b> et <b class="ui">Planification des posts</b> choisissent chacun un moteur de texte : un intégré (Anthropic, OpenAI, Gemini, Ollama), un fournisseur libre ou un serveur local. « Automatique » prend le premier moteur prêt.</li>
+<li>Plus bas, chaque moteur configuré a sa ligne <strong>Modèle par défaut</strong> : choisissez dans la liste lue chez le fournisseur, ou tapez un nom. <b class="ui">Tester</b> vérifie que le modèle est publié, sans rien dépenser ; <b class="ui">Enregistrer</b> l'applique aussitôt.</li>
+</ol>
+<p>Le choix est écrit dans le fichier de réglages de l'application : il vaut pour tous les écrans. Un nom de modèle qui ressemble à une clé collée par erreur est refusé et signalé en rouge.</p>
 <div class="cartes">
 <article><i data-dz="dz-media-generer-video"></i><h4>Modèle vidéo par défaut</h4><p>Le modèle avec lequel naissent les nouveaux nœuds Seedance du Studio. Chaque nœud peut en changer.</p></article>
 <article><i data-dz="dz-media-voix"></i><h4>Modèle de voix par défaut</h4><p>Le modèle ElevenLabs des nouveaux nœuds de voix off.</p></article>
-<article><i data-dz="dz-etat-ia"></i><h4>IA locale avec Ollama</h4><p>Installez Ollama, téléchargez un modèle, puis indiquez son nom dans la carte <b class="ui">LLM local (Ollama)</b> des Clés d'API.</p></article>
-<article><i data-dz="dz-nav-reglages"></i><h4>Gemini : choisir la version</h4><p>Le champ « Gemini — modèle » vide suit toujours la dernière version Flash ; remplissez-le pour en figer une.</p></article>
 </div>
+
+<h3>Ajouter un fournisseur libre</h3>
+<figure class="scene" data-scene="cles/libres"></figure>
+<ol class="etapes">
+<li>Dans <b class="ui">Clés d'API</b>, descendez jusqu'à <b class="ui">Fournisseurs libres (compatibles OpenAI)</b>, puis <b class="ui">+ Ajouter un fournisseur</b>.</li>
+<li>Choisissez un préréglage (DeepSeek, OpenRouter, Mistral, Groq, Together, xAI) ou tapez un nom et une URL en https. Collez la clé.</li>
+<li><b class="ui">Lire la liste</b> demande au fournisseur ses modèles ; gardez ceux qui vous servent et le modèle par défaut, puis <b class="ui">Enregistrer</b>.</li>
+<li>Sur la ligne, <b class="ui">Tester</b> vérifie la clé, <b class="ui">Remplacer la clé</b> en pose une nouvelle, <b class="ui">Supprimer</b> demande un second clic (<b class="ui">Confirmer la suppression</b>) et efface la clé.</li>
+</ol>
+<p>Le fournisseur devient le moteur <code>fl:&lt;nom&gt;</code> : ses modèles rejoignent toutes les listes de modèles de texte (dialogue IA du Vectorlab, rôles ci-dessus). La clé va au coffre et n'est jamais réaffichée.</p>
+
+<h3>Brancher plusieurs serveurs locaux</h3>
+<figure class="scene" data-scene="cles/locaux"></figure>
+<ol class="etapes">
+<li>Sous <b class="ui">LLM local (Ollama)</b>, la liste <b class="ui">Serveurs locaux</b> commence par votre Ollama, réglé juste au-dessus.</li>
+<li><b class="ui">+ Ajouter un serveur</b> : choisissez un préréglage (Ollama, LM Studio, llama.cpp, vLLM) ; l'URL doit être sur ce PC ou sur votre réseau local.</li>
+<li><b class="ui">Lire les modèles</b> remplit la liste, choisissez le modèle par défaut, puis <b class="ui">Enregistrer</b>.</li>
+<li><b class="ui">Tester</b> dit si le serveur répond et combien de modèles il publie.</li>
+</ol>
+<p>Chaque serveur devient le moteur <code>local:&lt;nom&gt;</code>, gratuit, dans les mêmes listes que les fournisseurs libres.</p>
 
 <h3>Protéger vos clés dans le coffre</h3>
 <figure class="scene" data-scene="cles/coffre"></figure>
@@ -48,4 +74,4 @@
 <h3>Bon à savoir</h3>
 <aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Le mot de passe du coffre n'est stocké nulle part : perdu, il ne se retrouve pas. Notez-le, ou gardez une archive chiffrée.</p></aside>
 <aside class="astuce"><i data-dz="dz-etat-information"></i><p><b class="ui">Exporter l’archive</b> crée un fichier <code>.dzk</code> qui emporte vos clés, vos plafonds et vos tarifs vers un autre PC ou votre téléphone, protégé par son propre mot de passe. <b class="ui">Importer une archive…</b> les reprend.</p></aside>
-<aside class="astuce"><i data-dz="dz-etat-information"></i><p><span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Diagnostic</b></span> montre l'état de toutes les clés d'un coup (jamais leur valeur) et les soldes des fournisseurs.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p><span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Diagnostic</b></span> montre l'état de toutes les clés d'un coup (jamais leur valeur) et les soldes des fournisseurs. Chaque ligne porte <b class="ui">Régler</b>, qui ouvre la rubrique où la clé se règle.</p></aside>
