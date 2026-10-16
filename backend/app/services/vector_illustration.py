@@ -51,6 +51,9 @@ _CATALOGUE: dict[str, list[str]] = {}      # cache de session, par moteur
 
 
 def cle_de(moteur: str) -> str:
+    if moteur.startswith("fl:"):            # t222 : un fournisseur libre est prêt quand sa clé ET un modèle sont posés
+        from app.services import moteurs_texte as _MT
+        return "fl" if _MT.configure(moteur) else ""
     return {
         "anthropic": settings.ANTHROPIC_API_KEY,
         "openai": settings.OPENAI_API_KEY,
@@ -66,7 +69,8 @@ def modele_defaut(moteur: str) -> str:
 
 
 def moteurs_configures() -> list[str]:
-    return [m for m in MOTEURS if cle_de(m)]
+    from app.services import moteurs_texte as _MT     # t222 : les intégrés, puis les fournisseurs libres
+    return [m for m in _MT.tous() if cle_de(m)]
 
 
 # Les modèles qu'un fournisseur publie et qui ne savent pas tenir une
@@ -91,6 +95,13 @@ def modeles_de(moteur: str, *, timeout: float = 6.0) -> list[str]:
     """
     if moteur in _CATALOGUE:
         return _CATALOGUE[moteur]
+    if moteur.startswith("fl:"):            # t222 : la liste ENREGISTRÉE (lue par « Lire la liste »), défaut en tête
+        from app.services import fournisseurs_llm as _FL
+        fid = _FL.de_moteur(moteur)
+        v = _FL.obtenir(fid) if fid else {"modeles": [], "defaut": ""}
+        ids = [v["defaut"]] + [i for i in v["modeles"] if i != v["defaut"]] if v["defaut"] else list(v["modeles"])
+        _CATALOGUE[moteur] = ids
+        return ids
     defaut = modele_defaut(moteur)
     ids = publies(moteur, timeout=timeout)
     if defaut:
@@ -105,6 +116,14 @@ def publies(moteur: str, *, timeout: float = 6.0) -> list[str]:
     """La liste que le fournisseur PUBLIE, telle quelle (texte seulement, triée, sans cache) ; [] si illisible.
     t220 : le bouton « Tester » des Réglages la lit pour dire si un nom de modèle existe, sans rien dépenser."""
     ids: list[str] = []
+    if moteur.startswith("fl:"):            # t222 : GET {base}/models du fournisseur libre (gratuit)
+        from app.services import fournisseurs_llm as _FL
+        fid = _FL.de_moteur(moteur)
+        try:
+            return _FL.lire_modeles_de(fid) if fid else []
+        except ValueError as e:
+            logger.warning(f"vectorlab: liste des modèles {moteur} indisponible: {e}")
+            return []
     try:
         if moteur == "anthropic":
             r = httpx.get("https://api.anthropic.com/v1/models?limit=100",
@@ -162,6 +181,12 @@ def tirer(moteur: str, modele: str, prompt: str, systeme: str,
     mod = (modele or modele_defaut(moteur)).strip()
     if not mod:
         raise RuntimeError(f"aucun modèle pour « {moteur} »")
+    if moteur.startswith("fl:"):            # t222 : POST {base}/chat/completions du fournisseur libre
+        from app.services import fournisseurs_llm as _FL
+        fid = _FL.de_moteur(moteur)
+        if not fid:
+            raise RuntimeError(f"moteur inconnu : {moteur}")
+        return _FL.tirer(fid, mod, prompt, systeme, max_tokens, timeout=timeout)
     if moteur == "anthropic":
         body = {"model": mod, "max_tokens": max_tokens,
                 "messages": [{"role": "user", "content": prompt}]}

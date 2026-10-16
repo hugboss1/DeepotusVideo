@@ -3,8 +3,9 @@
 Plan docs/superpowers/plans/2026-10-15-optimisation-menus-reglages.md (section Architecture). Ce module est le seul
 endroit qui dit quels moteurs de texte existent, quelle clé les ouvre et quel réglage porte leur modèle par défaut.
 Aujourd'hui : les quatre intégrés (`anthropic`, `openai`, `gemini`, `ollama`, ids inchangés : les choix déjà
-enregistrés gardent leur sens). t222 (fournisseurs libres `fl:<id>`) et t223 (serveurs locaux `local:<id>`) y
-ajouteront leurs moteurs.
+enregistrés gardent leur sens). t222 (16/10) y ajoute les fournisseurs libres compatibles OpenAI : le moteur `fl:<id>`
+(services/fournisseurs_llm.py), dans `tous()` après les intégrés ; `MOTEURS` reste la liste des intégrés seuls.
+t223 (serveurs locaux `local:<id>`) y ajoutera les siens.
 
 LA GARDE. Relevé du 15/10 sur la machine de l'utilisateur : `GEMINI_MODEL` contenait une CLÉ (`AIza…`, la même que
 `GEMINI_API_KEY`), parce que Clés d'API présentait ce réglage comme un champ de clé. Chaque appel de texte Gemini
@@ -53,7 +54,42 @@ def verifier_modele(nom_cle: str, valeur: str | None) -> None:
         raise ValueError(f"{nom_cle} : cette valeur ressemble à une clé d'API, pas à un nom de modèle")
 
 
+def libres() -> list[str]:
+    """t222 : les moteurs `fl:<id>` des fournisseurs libres, dans l'ordre de leur création."""
+    from app.services import fournisseurs_llm as FL
+    return [FL.PREFIXE + i for i in FL.ids()]
+
+
+def tous() -> list[str]:
+    """Tous les moteurs de texte connus : les intégrés d'abord (ids inchangés), puis les fournisseurs libres."""
+    return list(MOTEURS) + libres()
+
+
+def est_libre(moteur: str) -> bool:
+    return str(moteur or "").startswith("fl:")
+
+
+def connu(moteur: str) -> bool:
+    return moteur in MOTEURS or moteur in libres()
+
+
+def _libre(moteur: str) -> dict | None:
+    from app.services import fournisseurs_llm as FL
+    fid = FL.de_moteur(moteur)
+    return FL.obtenir(fid) if fid else None
+
+
+def nom(moteur: str) -> str:
+    if moteur in NOMS:
+        return NOMS[moteur]
+    v = _libre(moteur) if est_libre(moteur) else None
+    return v["nom"] if v else str(moteur or "")
+
+
 def modele_brut(moteur: str) -> str:
+    if est_libre(moteur):
+        v = _libre(moteur)
+        return str((v or {}).get("defaut") or "").strip()
     cle = CLE_MODELE.get(moteur)
     return str(getattr(settings, cle, "") or "").strip() if cle else ""
 
@@ -69,6 +105,9 @@ def modele_sain(moteur: str) -> str:
 
 
 def configure(moteur: str) -> bool:
+    if est_libre(moteur):
+        v = _libre(moteur)
+        return bool(v and v["cle_posee"] and (v["defaut"] or v["modeles"]))
     cle = CLE_ACCES.get(moteur)
     return bool(cle and str(getattr(settings, cle, "") or "").strip())
 
@@ -80,4 +119,7 @@ def etat() -> list[dict]:
         fautif = modele_fautif(m)
         out.append({"moteur": m, "nom": NOMS[m], "configure": configure(m), "cle_modele": CLE_MODELE[m],
                     "modele": modele_sain(m), "fautif": fautif, "alerte": ALERTE_CLE if fautif else ""})
+    for m in libres():          # t222 : le modèle par défaut d'un fournisseur libre vit dans fournisseurs_llm.json
+        out.append({"moteur": m, "nom": nom(m), "configure": configure(m), "cle_modele": m,
+                    "modele": modele_sain(m), "fautif": False, "alerte": "", "libre": True})
     return out
