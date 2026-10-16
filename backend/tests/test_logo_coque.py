@@ -203,8 +203,10 @@ if M:
     check("E5 la sonde amont tient sur l'avant", all(avant.count(j) == n for _t, j, n in M.SONDE_AMONT))
     check("E6 comptes figés intacts (useState 731, v2.8.0 ×4, DzTracks 181)",
           BUNDLE.count("x.useState(") == 731 and BUNDLE.count("v2.8.0") == 4 and BUNDLE.count("DzTracks") == 181)
-    check("E7 avant_dzlogo = défaire", AIDE.avant_dzlogo(BUNDLE) == avant)
-    check("E8 avant_dzlogo sans marqueur : rendu tel quel", AIDE.avant_dzlogo(avant) == avant)
+    # t225 (16/10) : avant_dzlogo défait d'abord dzstudio, le maillon posé APRÈS lui
+    avant_q = M.defaire(AIDE.avant_dzstudio(BUNDLE))
+    check("E7 avant_dzlogo = défaire (après avant_dzstudio)", AIDE.avant_dzlogo(BUNDLE) == avant_q)
+    check("E8 avant_dzlogo sans marqueur : rendu tel quel", AIDE.avant_dzlogo(avant_q) == avant_q)
     src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
     j = src_aide.find("def avant_dzreglages(")
     check("E9 avant_dzlogo appelé EN TÊTE d'avant_dzreglages",
