@@ -7150,6 +7150,9 @@ async def health():
         # v2.1 (3D Studio) : clé réelle OU simulateur local MESHY_MOCK
         "has_meshy": settings.has_meshy,
         "figma_configured": bool(str(settings.FIGMA_TOKEN or "").strip()),
+        # t221 : la ligne « Decart » de Clés d'API et la bascule du lecteur public de Réglages › News
+        "decart_configured": bool(str(getattr(settings, "DECART_API_KEY", "") or "").strip()),
+        "article_reader_fallback": bool(settings.ARTICLE_READER_FALLBACK),
         "meshy_enabled": settings.has_meshy or bool(settings.MESHY_MOCK),
         "meshy_mock": bool(settings.MESHY_MOCK),
         "summarizer_enabled": settings.has_summarizer,

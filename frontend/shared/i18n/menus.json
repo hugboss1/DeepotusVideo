@@ -9,6 +9,13 @@
   "quick.persona.note": {"fr": "Espace actif global : Quick, le rail et la Bibliothèque le suivent ensemble.", "en": "Global active space: Quick, the rail and the Library all follow it."},
   "quick.persona.nouveau": {"fr": "+ Nouveau persona…", "en": "+ New persona…"},
   "quick.zoom.recadrer": {"fr": "Revenir à 100 % (double-clic ou touche 0)", "en": "Back to 100% (double-click or 0 key)"},
+  "reglages.cles.decart": {"fr": "Decart (Avatar live · Direct)", "en": "Decart (Avatar live · Live)"},
+  "reglages.cles.decart_pourquoi": {"fr": "Direct en temps réel · facturé à la seconde · platform.decart.ai", "en": "Real-time Live · billed per second · platform.decart.ai"},
+  "reglages.cles.voix_en": {"fr": "ElevenLabs — voix anglaise par défaut", "en": "ElevenLabs — default English voice"},
+  "reglages.cles.voix_fr": {"fr": "ElevenLabs — voix française par défaut", "en": "ElevenLabs — default French voice"},
+  "reglages.cles.voix_pourquoi": {"fr": "voix lue quand aucune n'est choisie · elevenlabs.io → Voices", "en": "voice used when none is picked · elevenlabs.io → Voices"},
+  "reglages.diag.regler": {"fr": "Régler", "en": "Set up"},
+  "reglages.diag.regler_aide": {"fr": "Ouvre la rubrique des Réglages où cette clé se règle.", "en": "Opens the Settings section where this key is set."},
   "reglages.fournisseurs.aide": {"fr": "Choisissez le moteur de texte de chaque rôle et le modèle par défaut de chaque moteur. Enregistré dans le .env de l'application et appliqué tout de suite.", "en": "Pick the text engine for each role and each engine's default model. Saved to the app's .env and applied right away."},
   "reglages.fournisseurs.auto": {"fr": "Automatique ({moteur})", "en": "Automatic ({moteur})"},
   "reglages.fournisseurs.cle_dans_modele": {"fr": "contient une clé, pas un nom de modèle", "en": "contains a key, not a model name"},
@@ -20,5 +27,7 @@
   "reglages.fournisseurs.test_connu": {"fr": "Modèle publié par le fournisseur.", "en": "Model published by the provider."},
   "reglages.fournisseurs.test_inconnu": {"fr": "Ce modèle n'est pas dans la liste du fournisseur.", "en": "This model is not in the provider's list."},
   "reglages.fournisseurs.test_non_verifiable": {"fr": "Liste du fournisseur illisible : vérification impossible.", "en": "Provider's list unreadable: cannot check."},
+  "reglages.news.lecteur": {"fr": "Lecteur public de secours (r.jina.ai)", "en": "Public fallback reader (r.jina.ai)"},
+  "reglages.news.lecteur_aide": {"fr": "Quand un article reste bloqué (bandeau de cookies, anti-robot), son adresse est envoyée à ce service public, qui en rend le texte. Coupé : le résumé du flux RSS reste.", "en": "When an article stays blocked (cookie banner, anti-bot), its address is sent to this public service, which returns the text. Off: the RSS feed summary stays."},
   "reglages.pastille.clic_tarifs": {"fr": "\n\nClic → Réglages → Tarifs et budget.", "en": "\n\nClick → Settings → Pricing & budget."}
 }

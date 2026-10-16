@@ -39,15 +39,18 @@ async def diagnostic_complet(request: Request):
         v, source = env.get(k, ""), "env"
         if not v and C.ouvert() and C.lire_cle(k):
             v, source = C.lire_cle(k), "coffre"
+        ru = rubrique_de(k)             # t221 : le bouton « Régler » de la ligne ouvre cette rubrique
         if not v and C.verrouille() and k in C.SECRETES:
-            cles.append({"cle": k, "definie": None, "apercu": "", "source": "coffre-verrouille", "testable": D.testable(k)})
+            cles.append({"cle": k, "definie": None, "apercu": "", "source": "coffre-verrouille", "testable": D.testable(k),
+                         "rubrique": ru})
             continue
         # t220 : un *_MODEL qui contient une clé est SIGNALÉ (jamais effacé), et son aperçu n'est pas rendu, même masqué
         if k.endswith("_MODEL") and MT.ressemble_a_une_cle(v):
             cles.append({"cle": k, "definie": True, "apercu": "", "source": source, "testable": False,
-                         "alerte": MT.ALERTE_CLE})
+                         "alerte": MT.ALERTE_CLE, "rubrique": ru})
             continue
-        cles.append({"cle": k, "definie": bool(v), "apercu": _mask(v), "source": source, "testable": D.testable(k)})
+        cles.append({"cle": k, "definie": bool(v), "apercu": _mask(v), "source": source, "testable": D.testable(k),
+                     "rubrique": ru})
     try:
         soldes = await _soldes()
     except Exception as e:  # noqa: BLE001 — un solde muet ne masque pas le reste
@@ -379,6 +382,30 @@ _CLES_ECRAN = {
                  # tâche #31 (30/09) : Connected accounts affiche TikTok
                  "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED"),
 }
+
+
+# t221 (16/10/2026) : où chaque clé autorisée SE RÈGLE — le bouton « Régler » du Diagnostic ouvre cette rubrique de la
+# barre de `xm` (`ym`). Aucune clé de l'allowlist sans rubrique, et chacune est affichée par la sienne (banc
+# test_reglages_diagnostic). Les rôles et les *_MODEL se règlent dans Fournisseurs par défaut depuis t220.
+RUBRIQUE_DE_CLE = {
+    **{k: "keys" for k in _CLES_ECRAN["keys"]},
+    **{k: "accounts" for k in _CLES_ECRAN["accounts"]},
+    "DECART_API_KEY": "keys",                                           # t221 : ligne « Decart » de Clés d'API
+    "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys",  # t221 : voix par défaut, champs texte
+    "ANTHROPIC_MODEL": "defaults", "OPENAI_MODEL": "defaults", "GEMINI_MODEL": "defaults", "OLLAMA_MODEL": "defaults",
+    "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults",
+    "ARTICLE_READER_FALLBACK": "news",                                  # t221 : bascule de Réglages › News
+}
+
+
+def rubrique_de(cle: str) -> str:
+    """La rubrique à ouvrir pour régler `cle`. Fournisseurs par défaut ne montre la ligne de modèle que d'un moteur
+    configuré (ou fautif) : pour un moteur sans clé, c'est la clé qu'il faut poser d'abord, dans Clés d'API."""
+    from app.services import moteurs_texte as MT
+    for m, km in MT.CLE_MODELE.items():
+        if km == cle and not (MT.configure(m) or MT.modele_fautif(m)):
+            return "keys"
+    return RUBRIQUE_DE_CLE.get(cle, "")
 
 
 @router.get("/index")
