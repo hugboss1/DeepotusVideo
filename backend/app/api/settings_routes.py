@@ -51,6 +51,18 @@ async def diagnostic_complet(request: Request):
             continue
         cles.append({"cle": k, "definie": bool(v), "apercu": _mask(v), "source": source, "testable": D.testable(k),
                      "rubrique": ru})
+    # t222 : une ligne par fournisseur libre (sa clé DZF_<ID>_API_KEY, hors allowlist) — posée ou non, JAMAIS d'aperçu
+    # (la clé n'est jamais relue), réglée dans Clés d'API › Fournisseurs libres ; pas de « Tester » ici (l'encart l'a)
+    from app.services import fournisseurs_llm as FL
+    for v in FL.lister():
+        k = v["cle"]
+        if not v["cle_posee"] and C.verrouille():
+            cles.append({"cle": k, "definie": None, "apercu": "", "source": "coffre-verrouille", "testable": False,
+                         "rubrique": "keys", "fournisseur": v["nom"]})
+            continue
+        cles.append({"cle": k, "definie": v["cle_posee"], "apercu": "",
+                     "source": "coffre" if C.ouvert() and C.lire_cle(k) else "env", "testable": False,
+                     "rubrique": "keys", "fournisseur": v["nom"]})
     try:
         soldes = await _soldes()
     except Exception as e:  # noqa: BLE001 — un solde muet ne masque pas le reste
@@ -406,6 +418,87 @@ def rubrique_de(cle: str) -> str:
         if km == cle and not (MT.configure(m) or MT.modele_fautif(m)):
             return "keys"
     return RUBRIQUE_DE_CLE.get(cle, "")
+
+
+# ── t222 : les fournisseurs libres compatibles OpenAI (Clés d'API › Fournisseurs libres) ─────────────────────────────
+# Lecture ET écriture réservées à la machine locale (`_local`) ; aucune valeur de clé en sortie, jamais.
+
+def _fl_erreur(e: Exception) -> HTTPException:
+    from app.services import coffre as _C, fournisseurs_llm as _FL
+    if isinstance(e, _C.CoffreVerrouille):
+        return HTTPException(409, f"Coffre verrouillé : {e}")
+    if isinstance(e, _FL.FournisseurInconnu):
+        return HTTPException(404, f"Fournisseur libre inconnu : {e.args[0] if e.args else ''}")
+    return HTTPException(400, str(e))
+
+
+@router.get("/fournisseurs-libres")
+async def lister_fournisseurs_libres(request: Request):
+    _local(request)
+    from app.services import fournisseurs_llm as FL
+    return {"fournisseurs": FL.lister(), "prereglages": FL.PREREGLAGES}
+
+
+@router.post("/fournisseurs-libres")
+async def creer_fournisseur_libre(body: dict, request: Request):
+    """{nom, base, cle?, modeles?, defaut?} : la clé part au coffre (ou au .env) et n'est jamais renvoyée."""
+    _local(request)
+    from app.services import fournisseurs_llm as FL
+    try:
+        return {"fournisseur": FL.creer(body if isinstance(body, dict) else {})}
+    except Exception as e:  # noqa: BLE001 — traduit en 400/404/409 par _fl_erreur
+        raise _fl_erreur(e)
+
+
+@router.post("/fournisseurs-libres/lire-modeles")
+async def lire_modeles_fournisseur_libre(body: dict, request: Request):
+    """« Lire la liste » = GET {base}/models (gratuit) : d'un fournisseur enregistré (`id`), ou d'un fournisseur en
+    cours d'ajout (`base` + `cle`, la clé n'est ni gardée ni renvoyée)."""
+    import asyncio
+    _local(request)
+    from app.services import fournisseurs_llm as FL
+    b = body if isinstance(body, dict) else {}
+    try:
+        if b.get("id"):
+            mods = await asyncio.to_thread(FL.lire_modeles_de, str(b["id"]))
+        else:
+            mods = await asyncio.to_thread(FL.lire_modeles, str(b.get("base") or ""), str(b.get("cle") or ""))
+    except Exception as e:  # noqa: BLE001
+        raise _fl_erreur(e)
+    return {"modeles": mods}
+
+
+@router.post("/fournisseurs-libres/{fid}")
+async def modifier_fournisseur_libre(fid: str, body: dict, request: Request):
+    _local(request)
+    from app.services import fournisseurs_llm as FL
+    try:
+        return {"fournisseur": FL.modifier(fid, body if isinstance(body, dict) else {})}
+    except Exception as e:  # noqa: BLE001
+        raise _fl_erreur(e)
+
+
+@router.post("/fournisseurs-libres/{fid}/tester")
+async def tester_fournisseur_libre(fid: str, request: Request):
+    """Sans rien dépenser : la liste publiée se lit-elle avec cette clé ? (`etat` : ok / refus / sans_cle)."""
+    import asyncio
+    _local(request)
+    from app.services import fournisseurs_llm as FL
+    try:
+        return await asyncio.to_thread(FL.tester, fid)
+    except Exception as e:  # noqa: BLE001
+        raise _fl_erreur(e)
+
+
+@router.delete("/fournisseurs-libres/{fid}")
+async def supprimer_fournisseur_libre(fid: str, request: Request):
+    _local(request)
+    from app.services import fournisseurs_llm as FL
+    try:
+        FL.supprimer(fid)
+    except Exception as e:  # noqa: BLE001
+        raise _fl_erreur(e)
+    return {"deleted": fid}
 
 
 @router.get("/index")

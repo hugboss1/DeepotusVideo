@@ -219,6 +219,39 @@ _PLAN_PROVIDERS = {
 _PLAN_PRIORITY = ["anthropic", "openai", "gemini", "ollama"]
 
 
+def _moteurs_plan() -> list[str]:
+    """t222 : l'ordre du planificateur — les intégrés, puis les fournisseurs libres (`fl:<id>`)."""
+    from app.services import moteurs_texte as _MT
+    return _PLAN_PRIORITY + _MT.libres()
+
+
+async def _libre_plan_de(moteur: str, prompt: str, days: int, posts_per_day: int,
+                         channels: list[str], language: str,
+                         persona: dict | None) -> list[dict] | None:
+    """t222 : le plan par un fournisseur libre compatible OpenAI. None sur tout échec (repli déterministe)."""
+    import asyncio as _aio
+    from app.services import fournisseurs_llm as _FL
+    fid = _FL.de_moteur(moteur)
+    if not fid:
+        return None
+    sys = plan_schema.system_prompt(days, posts_per_day, language,
+                                    plan_schema.persona_desc(persona))
+    try:
+        text = await _aio.to_thread(_FL.tirer, fid, "", prompt, sys, plan_schema.MAX_TOKENS, timeout=120.0)
+        return plan_schema.parse_llm_posts(text, days)
+    except Exception as e:
+        logger.warning(f"plan: {moteur} call failed: {e}")
+        return None
+
+
+def _plan_fn(engine: str):
+    if engine.startswith("fl:"):
+        async def fn(*a):
+            return await _libre_plan_de(engine, *a)
+        return fn
+    return _PLAN_PROVIDERS.get(engine)
+
+
 def _plan_available(name: str) -> bool:
     checks = {
         "anthropic": lambda: bool(settings.ANTHROPIC_API_KEY.strip()),
@@ -226,6 +259,9 @@ def _plan_available(name: str) -> bool:
         "gemini": lambda: bool(settings.GEMINI_API_KEY.strip()),
         "ollama": lambda: bool(settings.OLLAMA_MODEL.strip()),
     }
+    if str(name or "").startswith("fl:"):
+        from app.services import moteurs_texte as _MT
+        return _MT.configure(name)
     return checks.get(name, lambda: False)()
 
 
@@ -244,11 +280,11 @@ async def generate_plan(prompt: str, *, days: int = 7,
     full_prompt = "\n\n".join(m for m in morceaux if m)
     interdits = (brief or {}).get("forbidden") or []
     pref = settings.PLANNER_PROVIDER.strip().lower()
-    order = [p for p in _PLAN_PRIORITY if _plan_available(p)]
+    order = [p for p in _moteurs_plan() if _plan_available(p)]
     if pref and pref in order:
         order = [pref] + [p for p in order if p != pref]
     for engine in order:
-        fn = _PLAN_PROVIDERS.get(engine)
+        fn = _plan_fn(engine)
         if fn:
             posts = await fn(full_prompt, days, posts_per_day, channels,
                              language, persona)
@@ -501,13 +537,13 @@ async def plan_from_document(text: str, *, days: int = 30,
         f"DOCUMENT:\n{doc}"
     )
     pref = settings.PLANNER_PROVIDER.strip().lower()
-    order = [p for p in _PLAN_PRIORITY if _plan_available(p)]
+    order = [p for p in _moteurs_plan() if _plan_available(p)]
     if pref and pref in order:
         order = [pref] + [p for p in order if p != pref]
     posts = None
     engine = "deterministic"
     for eng in order:
-        fn = _PLAN_PROVIDERS.get(eng)
+        fn = _plan_fn(eng)
         if fn:
             # posts_per_day=0 : le nombre de posts suit le document.
             posts = await fn(prompt, days, 0, channels, language, persona)
@@ -742,12 +778,12 @@ async def vary_caption(caption: str, *, persona: dict | None = None, forbidden: 
     de mot, apply_forbidden). Jamais la même chaîne que l'originale. Rend (légende, moteur)."""
     base = (caption or "").strip()
     forbidden = forbidden or []
-    order = [p for p in _PLAN_PRIORITY if _plan_available(p)] if use_llm else []
+    order = [p for p in _moteurs_plan() if _plan_available(p)] if use_llm else []
     if order:
         prompt = ("Rewrite this social post so it says the same thing with a different opening and rhythm. Same "
                   "language. One or two sentences. No hashtags. Answer with the rewrite only.\n\n" + base[:1500])
         try:
-            posts = await _PLAN_PROVIDERS[order[0]](prompt, 1, 1, ["x"], "FR", persona)
+            posts = await _plan_fn(order[0])(prompt, 1, 1, ["x"], "FR", persona)
             neuf = ((posts or [{}])[0].get("caption") or "").strip()
             if neuf and neuf != base:
                 out, _r = apply_forbidden([{"caption": neuf}], forbidden)

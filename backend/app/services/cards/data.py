@@ -2500,10 +2500,14 @@ def trad_cellules(columns: list, rows: list, real_map: dict, off: Any, source: s
 
 def _trad_moteur(moteur: str) -> dict:
     from app.config import settings
-    from app.services import summarizer as SZ
-    if moteur not in ("auto", "ollama"):
+    from app.services import moteurs_texte as MT, summarizer as SZ
+    # t222 : un fournisseur libre `fl:<id>` se choisit aussi (payant, prix à mesurer : estimation par jetons)
+    if moteur not in ("auto", "ollama") and not (MT.est_libre(moteur) and MT.connu(moteur)):
         raise ValueError(f"Moteur inconnu : {moteur!r} (auto ou ollama)")
-    dispo = {"auto": bool(SZ._available_providers()), "ollama": bool(settings.has_ollama)}
+    dispo = {"auto": bool(SZ._available_providers()), "ollama": bool(settings.has_ollama),
+             **{m: MT.configure(m) for m in MT.libres()}}
+    if MT.est_libre(moteur):
+        return {"dispo": dispo, "fournisseur": moteur, "payant": True, "pret": dispo.get(moteur, False)}
     if moteur == "ollama":
         return {"dispo": dispo, "fournisseur": "ollama", "payant": False, "pret": dispo["ollama"]}
     return {"dispo": dispo, "fournisseur": (SZ.active_provider() or "") if dispo["auto"] else "",
@@ -2582,6 +2586,9 @@ async def post_traduire(did: str, body: Any = Body(default=None)):
         if moteur == "ollama":
             from app.services import vector_illustration as VI
             txt = VI.tirer("ollama", settings.OLLAMA_MODEL, prompt, systeme, max_tokens=n_tok)
+        elif moteur.startswith("fl:"):
+            from app.services import vector_illustration as VI
+            txt = VI.tirer(moteur, "", prompt, systeme, max_tokens=n_tok)
         else:
             from app.services import summarizer as SZ
             txt, _p = SZ._chat_dispatch(prompt, systeme, n_tok)

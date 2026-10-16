@@ -26,6 +26,8 @@ Plan docs/superpowers/plans/2026-10-15-optimisation-menus-reglages.md. Ce qu'il 
   - F4 : Clés d'API, la ligne GEMINI_MODEL renvoie vers Fournisseurs par défaut.
   t221 (16/10, relevé sur c784c6e8) — Diagnostic : chaque ligne porte « Régler » vers la rubrique où la clé se règle
   (champ `rubrique` du serveur) ; les orphelines reçoivent un champ (D0-D2, C0-C1, N1 : détail plus bas).
+  t222 (16/10, relevé sur 1ad154a5) — Clés d'API › « Fournisseurs libres (compatibles OpenAI) » : ajouter, lire la
+  liste des modèles, tester, supprimer en deux clics (L0-L1 : détail plus bas).
   Aucune paire ne doit recopier un remplacement de scripts/dzglyph_paires.json (vu : `size:"sm",icon:
   "dz-action-enregistrer",onClick` en est un — l'ordre des props de nos boutons l'évite).
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 ».
@@ -288,6 +290,142 @@ PAIRES += [
     (VERS_DEFAUTS,                                                                                          # C1
      VERS_DEFAUTS + 'if(k.texte)return r.jsx(DzCleTexte,{k:k,c:c,h:h,relire:function(){m(),No()}},k.k);'),
     (NEWS_AIDE, NEWS_AIDE + 'r.jsx(DzNewsLecteur,{}),'),                                                    # N1
+]
+
+
+# ── t222 : les fournisseurs libres compatibles OpenAI (16/10, relevé sur 1ad154a5) ───────────────────────────────────
+# Clés d'API n'avait qu'un encart « LLM local » : aucun moyen d'ajouter DeepSeek, OpenRouter, Mistral, Groq… Le serveur
+# (services/fournisseurs_llm.py, routes /api/reglages/fournisseurs-libres) garde la description sans secret et la clé
+# au coffre ou au .env (DZF_<ID>_API_KEY), jamais relue ; chaque fournisseur devient le moteur de texte `fl:<id>`.
+#   L0 : DzFournLibres (+ aides dzFl*) devant `wm` (l'encart « LLM local ») : la liste (nom, base, moteur, clé posée,
+#        modèle par défaut, « prix à mesurer »), par ligne Remplacer la clé / Lire la liste / Tester / Supprimer (DEUX
+#        clics : le premier arme « Confirmer la suppression »), et « + Ajouter un fournisseur » : préréglage, nom, URL de
+#        base, clé, « Lire la liste » (GET {base}/models par le serveur), modèles en saisie libre, modèle par défaut.
+#        Aucun useState (useReducer, mises à jour fonctionnelles pour les réponses tardives) ; un champ neuf n'a pas
+#        l'ordre de style compté par test_p2_cles_ecran 2.2 ; le bouton Enregistrer a l'ordre de props de t220 ;
+#   L1 : l'encart se pose dans Clés d'API, juste avant « LLM local ».
+COMPOSANTS_L = (
+    'var dzFlVide={nom:"",base:"",cle:"",modeles:"",defaut:"",pre:""},dzFlRacine="/api/reglages/fournisseurs-libres";'
+    'function dzFlAppel(url,methode,corps){return fetch(url,{method:methode||"GET",headers:{"Content-Type":'
+    '"application/json"},body:corps?JSON.stringify(corps):void 0}).then(dzFdJson)}'
+    'function dzFlTon(t){return t==="red"?"var(--red)":t==="green"?"var(--green)":"var(--ink-muted)"}'
+    'function dzFlChamp(lib,el){return r.jsxs("label",{style:{display:"flex",flexDirection:"column",gap:4,minWidth:0,'
+    'fontSize:11,color:"var(--ink-soft)"},children:[lib,el]})}'
+    'function dzFlSaisie(attr,v,ph,surv,type){return r.jsx("input",{"data-dzfl":attr,type:type||"text",value:v,'
+    'placeholder:ph,autoComplete:"off",spellCheck:!1,onChange:function(e){surv(e.target.value)},style:{minWidth:0,'
+    'boxSizing:"border-box",width:"100%",background:"var(--bg-base)",border:"1px solid var(--stroke)",borderRadius:'
+    '"var(--r-sm)",padding:"6px 10px",color:"var(--ink-strong)",fontFamily:"var(--f-mono)",fontSize:12}})}'
+    'function DzFournLibres({onSaved:onSaved}){'
+    'var rs=x.useReducer(function(o,n){return Object.assign({},o,typeof n==="function"?n(o):n)},{l:null,pre:[],err:"",'
+    'ouvert:!1,f:dzFlVide,lus:null,msg:"",ton:"",busy:!1,conf:"",rm:{},cles:{}}),st=rs[0],maj=rs[1];'
+    'function charger(){return dzFlAppel(dzFlRacine).then(function(d){maj({l:d.fournisseurs||[],pre:d.prereglages||[],'
+    'err:""})}).catch(function(e){maj({l:[],err:String(e&&e.message||e)})})}'
+    'x.useEffect(function(){charger()},[]);'
+    'function prevenir(){charger();onSaved&&onSaved()}'
+    'function champ(k,v){maj(function(o){var f=Object.assign({},o.f);f[k]=v;return{f:f,msg:""}})}'
+    'function prereglage(id){maj(function(o){var p=o.pre.find(function(q){return q.id===id});return{f:Object.assign({},'
+    'o.f,{pre:id},p?{nom:p.nom,base:p.base}:{}),msg:""}})}'
+    'function fini(msg,ton,plus){maj(Object.assign({busy:!1,msg:msg,ton:ton},plus||{}))}'
+    'function lireForm(){maj({busy:!0,msg:""});dzFlAppel(dzFlRacine+"/lire-modeles","POST",{base:st.f.base,cle:st.f.cle})'
+    '.then(function(d){var m=d.modeles||[];maj(function(o){return{busy:!1,ton:"green",lus:m,msg:dzT('
+    '"reglages.libres.n_lus",{n:m.length}),f:Object.assign({},o.f,{modeles:m.join(", "),defaut:o.f.defaut||m[0]||""})}})})'
+    '.catch(function(e){fini(String(e&&e.message||e),"red")})}'
+    'function creer(){var f=st.f;maj({busy:!0,msg:""});dzFlAppel(dzFlRacine,"POST",{nom:f.nom,base:f.base,cle:f.cle,'
+    'modeles:f.modeles,defaut:f.defaut}).then(function(){fini(dzT("commun.etat.enregistre"),"green",{ouvert:!1,f:dzFlVide,'
+    'lus:null});prevenir()}).catch(function(e){fini(String(e&&e.message||e),"red")})}'
+    'function dire(id,t,ton){maj(function(o){var rm=Object.assign({},o.rm);rm[id]={t:t,ton:ton};return{rm:rm}})}'
+    'function modifier(id,corps,ok){return dzFlAppel(dzFlRacine+"/"+id,"POST",corps).then(function(){dire(id,ok||'
+    'dzT("commun.etat.enregistre"),"green");prevenir();return!0}).catch(function(e){dire(id,String(e&&e.message||e),'
+    '"red");return!1})}'
+    'function lireLigne(p){dire(p.id,"…","");dzFlAppel(dzFlRacine+"/lire-modeles","POST",{id:p.id}).then(function(d){'
+    'var m=d.modeles||[];return modifier(p.id,{modeles:m},dzT("reglages.libres.n_lus",{n:m.length}))}).catch(function(e){'
+    'dire(p.id,String(e&&e.message||e),"red")})}'
+    'function tester(p){dire(p.id,"…","");dzFlAppel(dzFlRacine+"/"+p.id+"/tester","POST",{}).then(function(d){'
+    'dire(p.id,d.etat==="ok"?dzT("reglages.libres.test_ok",{n:d.n}):d.etat==="sans_cle"?dzT("reglages.libres.sans_cle"):'
+    'String(d.cause||d.etat),d.etat==="ok"?"green":"red")}).catch(function(e){dire(p.id,String(e&&e.message||e),"red")})}'
+    'function supprimer(p){if(st.conf!==p.id){maj({conf:p.id});return}maj({conf:""});dzFlAppel(dzFlRacine+"/"+p.id,'
+    '"DELETE").then(function(){maj({msg:dzT("reglages.libres.supprime"),ton:"green",err:""});prevenir()}).catch('
+    'function(e){dire(p.id,String(e&&e.message||e),"red")})}'
+    'function cle(id,v){maj(function(o){var c=Object.assign({},o.cles);c[id]=v;return{cles:c}})}'
+    'function remplacer(p){var v=(st.cles[p.id]||"").trim();if(!v)return;modifier(p.id,{cle:v}).then(function(ok){'
+    'ok&&cle(p.id,"")})}'
+    'var l=st.l,f=st.f,pret=!!(f.nom.trim()&&f.base.trim()),opts=[{value:"",label:dzT("reglages.libres.autre")}].concat('
+    'st.pre.map(function(p){return{value:p.id,label:p.nom}}));'
+    'return r.jsxs("div",{"data-dzfl":"encart",style:{marginTop:22},children:['
+    'r.jsx("div",{className:"display",style:{fontSize:15,color:"var(--ink-strong)",marginBottom:4},children:'
+    'dzT("reglages.libres.titre")}),'
+    'r.jsx("div",{style:{fontSize:11.5,color:"var(--ink-soft)",marginBottom:12,maxWidth:640},children:'
+    'dzT("reglages.libres.aide")}),'
+    'r.jsxs(jt,{style:{padding:0},children:['
+    'l===null?r.jsx("div",{style:{padding:"14px 18px",fontSize:11.5,color:"var(--ink-soft)"},children:'
+    'dzT("reglages.commun.chargement")},"ch"):l.length===0?r.jsx("div",{"data-dzfl":"vide",style:{padding:"14px 18px",'
+    'fontSize:11.5,color:"var(--ink-soft)"},children:dzT("reglages.libres.aucun")},"vide"):null,'
+    '...(l||[]).map(function(p,i){var m=st.rm[p.id],mods=(p.defaut&&p.modeles.indexOf(p.defaut)<0?[p.defaut]:[]).concat('
+    'p.modeles),arme=st.conf===p.id;'
+    'return r.jsxs("div",{"data-dzfl":"ligne-"+p.id,style:{padding:"14px 18px",borderTop:i?"1px solid var(--stroke)":'
+    '"none"},children:['
+    'r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"200px minmax(0,1fr) auto",gap:14,alignItems:"center"},'
+    'children:['
+    'r.jsxs("div",{style:{minWidth:0},children:[r.jsx("div",{style:{fontSize:12.5,color:"var(--ink-strong)"},children:'
+    'p.nom}),r.jsx("div",{className:"mono",title:p.base,style:{fontSize:10.5,color:"var(--ink-muted)",overflow:"hidden",'
+    'textOverflow:"ellipsis",whiteSpace:"nowrap"},children:p.base}),r.jsx("div",{className:"mono",style:{fontSize:10,'
+    'color:"var(--ink-soft)",marginTop:2},children:p.moteur+" · "+p.cle})]}),'
+    'r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center",minWidth:0,flexWrap:"wrap"},children:['
+    'r.jsx("div",{"data-dzfl":"defaut-"+p.id,style:{flex:"1 1 180px",minWidth:0},children:r.jsx(re,{value:p.defaut,'
+    'options:mods.length?mods.map(function(n){return{value:n,label:n}}):[{value:"",label:"—"}],onChange:function(v){'
+    'v&&v!==p.defaut&&modifier(p.id,{defaut:v})}})}),'
+    'r.jsx("span",{style:{fontSize:10.5,color:"var(--ink-soft)"},children:dzT("reglages.libres.n_modeles",'
+    '{n:p.modeles.length})+" · "+dzT("ia.prix.a_mesurer")})]}),'
+    'r.jsx(te,{tone:p.cle_posee?"green":"red",dot:!0,children:p.cle_posee?dzT("reglages.cles.posee"):'
+    'dzT("reglages.cles.manquante")})]}),'
+    'r.jsxs("div",{style:{display:"flex",gap:8,alignItems:"center",marginTop:10,flexWrap:"wrap"},children:['
+    'r.jsx("div",{style:{flex:"1 1 220px",minWidth:0},children:dzFlSaisie("cle-"+p.id,st.cles[p.id]||"",p.cle_posee?'
+    'dzT("reglages.cles.coller_nouvelle"):dzT("reglages.cles.coller"),function(v){cle(p.id,v)},"password")}),'
+    'r.jsx(K,{variant:"outline",size:"sm","data-dzfl":"remplacer-"+p.id,onClick:function(){remplacer(p)},'
+    'disabled:!(st.cles[p.id]||"").trim(),children:dzT("reglages.libres.remplacer")}),'
+    'r.jsx(K,{variant:"outline",size:"sm","data-dzfl":"lire-"+p.id,onClick:function(){lireLigne(p)},disabled:'
+    '!p.cle_posee,children:dzT("reglages.libres.lire")}),'
+    'r.jsx(K,{variant:"outline",size:"sm","data-dzfl":"tester-"+p.id,onClick:function(){tester(p)},children:'
+    'dzT("reglages.diag.tester")}),'
+    'r.jsx(K,{variant:arme?"danger":"ghost",size:"sm","data-dzfl":"suppr-"+p.id,onClick:function(){supprimer(p)},'
+    'children:arme?dzT("espaces.comptes.confirmer"):dzT("commun.action.supprimer")})]}),'
+    'm?r.jsx("div",{"data-dzfl":"msg-"+p.id,style:{fontSize:10.5,marginTop:6,color:dzFlTon(m.ton)},children:m.t}):null]},'
+    '"fl-"+p.id)})]}),'
+    'st.ouvert?r.jsxs(jt,{"data-dzfl":"form",style:{padding:14,marginTop:12},children:['
+    'r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr) minmax(0,2fr)",gap:12,'
+    'alignItems:"end"},children:['
+    'dzFlChamp(dzT("vfx.commun.prereglage"),r.jsx(re,{value:f.pre,options:opts,onChange:prereglage})),'
+    'dzFlChamp(dzT("reglages.personas.nom"),dzFlSaisie("nom",f.nom,"DeepSeek",function(v){champ("nom",v)})),'
+    'dzFlChamp(dzT("reglages.libres.base"),dzFlSaisie("base",f.base,"https://api.example.com/v1",function(v){'
+    'champ("base",v)}))]}),'
+    'r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",gap:12,alignItems:"end",marginTop:10},'
+    'children:[dzFlChamp(dzT("reglages.comptes.champ.api_key"),dzFlSaisie("cle",f.cle,dzT("reglages.cles.coller"),'
+    'function(v){champ("cle",v)},"password")),'
+    'r.jsx(K,{variant:"outline",size:"sm","data-dzfl":"lire-form",onClick:lireForm,disabled:st.busy||!f.base.trim()||'
+    '!f.cle.trim(),children:dzT("reglages.libres.lire")})]}),'
+    'r.jsxs("div",{style:{display:"grid",gridTemplateColumns:"minmax(0,2fr) minmax(0,1fr)",gap:12,alignItems:"end",'
+    'marginTop:10},children:['
+    'dzFlChamp(dzT("reglages.libres.modeles"),dzFlSaisie("modeles",f.modeles,dzT("reglages.libres.modeles_aide"),'
+    'function(v){champ("modeles",v)})),'
+    'dzFlChamp(dzT("reglages.libres.defaut"),st.lus&&st.lus.length?r.jsx(re,{value:f.defaut,options:st.lus.map('
+    'function(n){return{value:n,label:n}}),onChange:function(v){champ("defaut",v)}}):dzFlSaisie("defaut",f.defaut,'
+    'dzT("reglages.libres.defaut_aide"),function(v){champ("defaut",v)}))]}),'
+    'r.jsxs("div",{style:{display:"flex",gap:8,marginTop:12,alignItems:"center"},children:['
+    'r.jsx(K,{variant:"primary",icon:"dz-action-enregistrer",size:"sm","data-dzfl":"creer",onClick:creer,disabled:'
+    'st.busy||!pret,children:dzT("reglages.commun.enregistrer")}),'
+    'r.jsx(K,{variant:"ghost",size:"sm",onClick:function(){maj({ouvert:!1,f:dzFlVide,lus:null,msg:""})},children:'
+    'dzT("commun.action.annuler")})]})]}):'
+    'r.jsx("div",{style:{marginTop:12},children:r.jsx(K,{variant:"outline",size:"sm","data-dzfl":"ajouter",onClick:'
+    'function(){maj({ouvert:!0,msg:"",conf:""})},children:dzT("reglages.libres.ajouter")})}),'
+    'st.msg||st.err?r.jsx("div",{"data-dzfl":"msg",style:{fontSize:11,marginTop:8,color:st.err?"var(--red)":'
+    'dzFlTon(st.ton)},children:st.msg||st.err}):null]})}'
+)
+WM = "function wm({serverKeys:e,onSaved:t}){"
+WM_APPEL = "r.jsx(wm,{serverKeys:g,onSaved:()=>{m(),No()}})"
+
+PAIRES += [
+    (WM, COMPOSANTS_L + WM),                                                                                # L0
+    (WM_APPEL, 'r.jsx(DzFournLibres,{onSaved:()=>{m(),No()}}),' + WM_APPEL),                                # L1
 ]
 
 

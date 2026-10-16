@@ -55,6 +55,8 @@
   "ia.voie.elevenlabs": {"fr": "avec votre clé ElevenLabs", "en": "with your ElevenLabs key"},
   "ia.voie.meshy": {"fr": "avec votre clé Meshy", "en": "with your Meshy key"},
   "ia.voie.heygen": {"fr": "avec votre clé HeyGen", "en": "with your HeyGen key"},
+  "ia.voie.anthropic": {"fr": "avec votre clé Anthropic", "en": "with your Anthropic key"},
+  "ia.voie.libre": {"fr": "avec la clé du fournisseur", "en": "with the provider's key"},
   "ia.voie.local": {"fr": "local, gratuit", "en": "local, free"},
   "ia.prix.a_mesurer": {"fr": "prix à mesurer", "en": "price to be measured"},
   "ia.cle.absente": {"fr": "clé {cle} absente", "en": "{cle} key missing"},

@@ -268,6 +268,28 @@ def _objets3d() -> list[dict]:
     return out
 
 
+@source("texte")
+def _textes() -> list[dict]:
+    """t222 (16/10/2026) : les MOTEURS de texte — les intégrés (ids inchangés) puis les fournisseurs libres `fl:<id>`.
+    Une entrée par moteur (pas par modèle : la liste d'un fournisseur se lit sur le réseau, ce catalogue n'en fait
+    aucun) avec ses modèles connus et son défaut. Un fournisseur libre n'a pas de tarif : usd 0 et note « a_mesurer »
+    (jamais « gratuit ») ; le plafond s'applique sur l'estimation par jetons de pricing.estimate."""
+    from app.services import fournisseurs_llm as FL, moteurs_texte as MT
+    grille = (P.load() or {}).get("llm_usd_per_mtok") or P.DEFAULTS["llm_usd_per_mtok"]
+    out = []
+    for m in MT.MOTEURS:
+        r = grille.get(m) or {}
+        out.append({"id": m, "label": MT.NOMS[m], "voie": "local" if m == "ollama" else m,
+                    "usd": 0.0 if m == "ollama" else float(r.get("out") or 0.0), "unite": "mtok",
+                    "jumeau": None, "note": "", "modeles": [MT.modele_sain(m)] if MT.modele_sain(m) else [],
+                    "defaut": MT.modele_sain(m), "cle": MT.CLE_ACCES[m], "dispo": MT.configure(m)})
+    for v in FL.lister():
+        out.append({"id": v["moteur"], "label": v["nom"], "voie": "libre", "usd": 0.0, "unite": "mtok",
+                    "jumeau": None, "note": NOTE_A_MESURER, "modeles": v["modeles"], "defaut": v["defaut"],
+                    "cle": v["cle"], "dispo": MT.configure(v["moteur"])})
+    return out
+
+
 def servis_puis_sans_cle(d: dict | None) -> list[dict]:
     """t183 (G1) : la liste d'un sélecteur raster à partir de la réponse de
     /image-models — les modèles SERVIS d'abord (`models`, dispo=True), puis
@@ -296,7 +318,8 @@ def lister(nature: str) -> list[dict]:
     for e in _SOURCES[nature]():
         e = dict(e)
         e["nature"] = nature
-        e["cle"] = CLES.get(e["voie"])
-        e["dispo"] = _dispo(e["voie"])
+        # t222 : une source qui connaît sa clé et sa disponibilité (les moteurs de texte) les donne elle-même
+        e["cle"] = e["cle"] if "cle" in e else CLES.get(e["voie"])
+        e["dispo"] = e["dispo"] if "dispo" in e else _dispo(e["voie"])
         out.append(e)
     return out

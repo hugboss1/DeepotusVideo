@@ -7370,8 +7370,8 @@ async def set_key(body: dict, request: Request):
 async def get_provider_defaults(request: Request):
     _require_localhost(request)
     from app.services.summarizer import active_provider as sum_active, _available_providers as sum_avail
-    from app.services.marketing import _plan_available, _PLAN_PRIORITY
-    plan_avail = [p for p in _PLAN_PRIORITY if _plan_available(p)]
+    from app.services.marketing import _plan_available, _moteurs_plan
+    plan_avail = [p for p in _moteurs_plan() if _plan_available(p)]
     pref_plan = settings.PLANNER_PROVIDER.strip().lower()
     active_plan = pref_plan if (pref_plan and pref_plan in plan_avail) else (plan_avail[0] if plan_avail else "")
     from app.services import moteurs_texte as _MT
@@ -7398,7 +7398,7 @@ async def get_provider_models(moteur: str, request: Request):
     """t220 : la VRAIE liste des modèles de texte d'un moteur (`modeles_de`, en cache de session ; jamais une clé)."""
     _require_localhost(request)
     from app.services import moteurs_texte as _MT, vector_illustration as _VI
-    if moteur not in _MT.MOTEURS:
+    if not _MT.connu(moteur):                   # t222 : les fournisseurs libres `fl:<id>` aussi
         raise HTTPException(400, f"Moteur inconnu : {moteur}")
     if not _MT.configure(moteur):
         return {"moteur": moteur, "configure": False, "modeles": []}
@@ -7418,10 +7418,10 @@ async def test_provider_model(body: dict, request: Request):
     from app.services import moteurs_texte as _MT, vector_illustration as _VI
     moteur = str((body or {}).get("moteur") or "").strip()
     modele = str((body or {}).get("modele") or "").strip()
-    if moteur not in _MT.MOTEURS:
+    if not _MT.connu(moteur):
         raise HTTPException(400, f"Moteur inconnu : {moteur}")
     try:
-        _MT.verifier_modele(_MT.CLE_MODELE[moteur], modele)
+        _MT.verifier_modele(_MT.CLE_MODELE.get(moteur, "FL_MODEL"), modele)
     except ValueError as err:
         raise HTTPException(400, str(err))
     # la liste PUBLIÉE (sans le modèle des Réglages que `modeles_de` remet en tête) : relue à chaque clic, un GET gratuit
@@ -7446,21 +7446,35 @@ async def set_provider_defaults(body: dict, request: Request):
         if not env_key:
             continue
         moteur = str(value or "").strip().lower()
-        if moteur and moteur not in _MT.MOTEURS:
+        if moteur and not _MT.connu(moteur):
             raise HTTPException(400, f"Moteur inconnu : {moteur}")
         changes[env_key] = moteur
     modeles = (body or {}).get("modeles")
     if modeles is not None and not isinstance(modeles, dict):
         raise HTTPException(400, "`modeles` doit être un objet (moteur → modèle)")
+    libres: dict[str, str] = {}
     for moteur, nom in (modeles or {}).items():
-        if moteur not in _MT.MOTEURS:
+        if not _MT.connu(moteur):
             raise HTTPException(400, f"Moteur inconnu : {moteur}")
-        cle = _MT.CLE_MODELE[moteur]
+        cle = _MT.CLE_MODELE.get(moteur, "FL_MODEL")
         try:
             _MT.verifier_modele(cle, str(nom or ""))
         except ValueError as err:
             raise HTTPException(400, str(err))
-        changes[cle] = str(nom or "").strip()
+        if _MT.est_libre(moteur):               # t222 : le défaut d'un fournisseur libre vit dans fournisseurs_llm.json
+            libres[moteur] = str(nom or "").strip()
+        else:
+            changes[cle] = str(nom or "").strip()
+    if libres:
+        from app.services import fournisseurs_llm as _FL
+        try:
+            for moteur, nom in libres.items():
+                _FL.modifier(_FL.de_moteur(moteur), {"defaut": nom})
+        except ValueError as err:
+            raise HTTPException(400, str(err))
+        if not changes:
+            _VI._CATALOGUE.clear()
+            return {"ok": True, "written": {}, "libres": sorted(libres), "moteurs": _MT.etat()}
     if not changes:
         raise HTTPException(400, "No valid role/provider pairs")
     _VI._CATALOGUE.clear()

@@ -9342,5 +9342,89 @@
  "{nom_cle} : cette valeur ressemble à une clé d'API, pas à un nom de modèle": {
   "fr": "{nom_cle} : cette valeur ressemble à une clé d'API, pas à un nom de modèle",
   "en": "{nom_cle}: this value looks like an API key, not a model name"
+ },
+ "Fournisseur libre inconnu : {v}": {
+  "fr": "Fournisseur libre inconnu : {v}",
+  "en": "Unknown free provider: {v}"
+ },
+ "identifiant de fournisseur invalide : {fid}": {
+  "fr": "identifiant de fournisseur invalide : {fid}",
+  "en": "invalid provider id: {fid}"
+ },
+ "URL de base : https:// obligatoire": {
+  "fr": "URL de base : https:// obligatoire",
+  "en": "Base URL: https:// required"
+ },
+ "URL de base illisible": {
+  "fr": "URL de base illisible",
+  "en": "Unreadable base URL"
+ },
+ "URL de base : ni identifiants, ni paramètres dans l'adresse (la clé a son propre champ)": {
+  "fr": "URL de base : ni identifiants, ni paramètres dans l'adresse (la clé a son propre champ)",
+  "en": "Base URL: no credentials or parameters in the address (the key has its own field)"
+ },
+ "URL de base : adresse locale ou privée refusée ici (les serveurs locaux ont leur encart)": {
+  "fr": "URL de base : adresse locale ou privée refusée ici (les serveurs locaux ont leur encart)",
+  "en": "Base URL: local or private address refused here (local servers have their own panel)"
+ },
+ "{MAX_MODELES} modèles au plus par fournisseur": {
+  "fr": "{MAX_MODELES} modèles au plus par fournisseur",
+  "en": "{MAX_MODELES} models at most per provider"
+ },
+ "nom du fournisseur requis": {
+  "fr": "nom du fournisseur requis",
+  "en": "provider name required"
+ },
+ "{MAX_FOURNISSEURS} fournisseurs libres au plus": {
+  "fr": "{MAX_FOURNISSEURS} fournisseurs libres au plus",
+  "en": "{MAX_FOURNISSEURS} free providers at most"
+ },
+ "clé du fournisseur absente": {
+  "fr": "clé du fournisseur absente",
+  "en": "provider key missing"
+ },
+ "le fournisseur a refusé la liste : {v}": {
+  "fr": "le fournisseur a refusé la liste : {v}",
+  "en": "the provider refused the list: {v}"
+ },
+ "aucun modèle pour « {nom} »": {
+  "fr": "aucun modèle pour « {nom} »",
+  "en": "no model for \"{nom}\""
+ },
+ "clé absente pour « {nom} »": {
+  "fr": "clé absente pour « {nom} »",
+  "en": "key missing for \"{nom}\""
+ },
+ "fournisseur injoignable : nom d'hôte introuvable": {
+  "fr": "fournisseur injoignable : nom d'hôte introuvable",
+  "en": "provider unreachable: host name not found"
+ },
+ "un nom de modèle ressemble à une clé d'API": {
+  "fr": "un nom de modèle ressemble à une clé d'API",
+  "en": "a model name looks like an API key"
+ },
+ "nom de modèle invalide : {v}": {
+  "fr": "nom de modèle invalide : {v}",
+  "en": "invalid model name: {v}"
+ },
+ "fournisseur injoignable : {name}": {
+  "fr": "fournisseur injoignable : {name}",
+  "en": "provider unreachable: {name}"
+ },
+ "réponse du fournisseur illisible (pas une liste de modèles OpenAI)": {
+  "fr": "réponse du fournisseur illisible (pas une liste de modèles OpenAI)",
+  "en": "unreadable provider response (not an OpenAI model list)"
+ },
+ "fournisseur libre inconnu : {fid}": {
+  "fr": "fournisseur libre inconnu : {fid}",
+  "en": "unknown free provider: {fid}"
+ },
+ "{nom} injoignable : {name}": {
+  "fr": "{nom} injoignable : {name}",
+  "en": "{nom} unreachable: {name}"
+ },
+ "{nom} : réponse illisible": {
+  "fr": "{nom} : réponse illisible",
+  "en": "{nom}: unreadable response"
  }
 }

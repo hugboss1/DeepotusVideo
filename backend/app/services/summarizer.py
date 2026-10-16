@@ -76,7 +76,35 @@ def _available_providers() -> list[str]:
         "openai": lambda: bool(settings.OPENAI_API_KEY.strip()),
         "gemini": lambda: bool(settings.GEMINI_API_KEY.strip()),
     }
-    return [p for p in _PRIORITY if checks.get(p, lambda: False)()]
+    from app.services import moteurs_texte as _MT     # t222 : puis les fournisseurs libres prêts (clé + modèle)
+    return [p for p in _PRIORITY if checks.get(p, lambda: False)()] + [m for m in _MT.libres() if _MT.configure(m)]
+
+
+def _libre_chat(moteur: str, prompt: str, system: str, max_tokens: int) -> str | None:
+    """t222 : un fournisseur libre `fl:<id>`, à son modèle par défaut. None sur tout échec (même contrat qu'ici)."""
+    from app.services import fournisseurs_llm as _FL
+    fid = _FL.de_moteur(moteur)
+    if not fid:
+        return None
+    try:
+        return _FL.tirer(fid, "", prompt, system, max_tokens, timeout=90.0).strip() or None
+    except RuntimeError as e:
+        logger.warning(f"llm[{moteur}] error: {e}")
+        return None
+
+
+def _libre_resume(moteur: str):
+    def fn(text: str, title: str, language: str, target_words: int) -> str | None:
+        lang = "French" if str(language).upper().startswith("FR") else "English"
+        prompt = (
+            f"Summarize this news article in about {target_words} words in "
+            f"{lang} (it is fine to go longer if the article is dense; use "
+            f"short paragraphs if needed). Stay neutral and factual: no "
+            f"opinion, no hype, no hashtags, no preamble — return only the "
+            f"summary.\n\nTitle: {title}\n\nArticle:\n{text}"
+        )
+        return _libre_chat(moteur, prompt, "", max(400, min(4000, int(target_words * 2.0) + 200)))
+    return fn
 
 
 def available() -> bool:
@@ -100,7 +128,7 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
         return None
     src = src[:16000]
     provider = active_provider()
-    fn = _PROVIDERS.get(provider)
+    fn = _PROVIDERS.get(provider) or (_libre_resume(provider) if provider.startswith("fl:") else None)
     if fn:
         result = fn(src, title, language, target_words)
         if result:
@@ -108,7 +136,7 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
     for p in _available_providers():
         if p == provider:
             continue
-        fn = _PROVIDERS.get(p)
+        fn = _PROVIDERS.get(p) or (_libre_resume(p) if p.startswith("fl:") else None)
         if fn:
             result = fn(src, title, language, target_words)
             if result:
@@ -170,6 +198,8 @@ def _chat_dispatch(prompt: str, system: str,
         elif p == "gemini":
             from app.services.gemini_llm import chat as _c
             out = _c(prompt, system=system, max_tokens=max_tokens)
+        elif p.startswith("fl:"):
+            out = _libre_chat(p, prompt, system, max_tokens)
         if out:
             return out, p
     return None, ""
