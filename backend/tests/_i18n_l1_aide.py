@@ -334,9 +334,19 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzlogo(bundle: str) -> str:
+    """Le bundle d'avant le logo figé de la coque (maillon de queue patch_bundle_dzlogo, 16/10, posé APRÈS
+    dzreglages) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzlogo as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzreglages(bundle: str) -> str:
     """Le bundle d'avant l'optimisation du menu Réglages (maillon de queue patch_bundle_dzreglages, t219, posé APRÈS
     dzquick) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    bundle = avant_dzlogo(bundle)                # 16/10 : le maillon posé APRÈS dzreglages, défait d'abord
     import patch_bundle_dzreglages as _m
     if _m.MARKER not in bundle:
         return bundle

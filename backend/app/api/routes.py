@@ -7804,6 +7804,17 @@ async def get_espace_persona(espace_id: str):
     return _es.persona(espace_id)
 
 
+@router.get("/espaces/{espace_id}/logo")
+async def get_espace_logo(espace_id: str):
+    """Le logo de la MARQUE de l'espace (16/10) : celui du kit qu'il nomme, sinon le kit actif de Branding, sinon le
+    logo livré. Montré dans l'encart du bas de la colonne de menu ; le logo de l'application, en haut, ne le lit
+    jamais (figé sur le logo livré)."""
+    from app.services import espaces as _es
+    if not _es.id_valide(espace_id) or espace_id not in _es.lire()["espaces"]:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    return _servir_logo(_es.kit_de_l_espace(espace_id)["id"])
+
+
 @router.put("/espaces/{espace_id}/persona")
 async def put_espace_persona(espace_id: str, body: dict, request: Request):
     """t201 : remplace le persona de l'espace apres validation (modeles passes a PromptTemplate) ; rien sur un refus."""

@@ -159,12 +159,12 @@ if DR:
     try:
         a1 = AIDE.avant_dzreglages(BUNDLE)
         a2 = AIDE.avant_dzquick(BUNDLE)
-        a2_attendu = DQ.defaire(avant)
+        a2_attendu = DQ.defaire(AIDE.avant_dzlogo(avant))  # dzlogo d'abord
     except Exception as e:                                            # noqa: BLE001
         a1 = a2 = repr(e); a2_attendu = None
-    check("E6 avant_dzreglages rend l'avant", a1 == avant)
+    check("E6 avant_dzreglages rend l'avant (dzlogo, posé après, défait d'abord)", a1 == AIDE.avant_dzlogo(avant))
     check("E7 avant_dzquick défait dzreglages d'abord", a2 == a2_attendu)
-    check("E8 avant_dzreglages sans marqueur : rendu tel quel", AIDE.avant_dzreglages(avant) == avant
+    check("E8 avant_dzreglages sans marqueur : rendu tel quel", AIDE.avant_dzreglages(avant) == AIDE.avant_dzlogo(avant)
           if isinstance(avant, str) and DR.MARKER not in avant else False)
 try:
     import json as _j

@@ -221,7 +221,7 @@ check("F1 aller-retour à l'octet", rejoue == BUNDLE and DR.MARKER not in avant)
 check("F2 l'avant a le défaut d'origine (ligne sans bouton, aucune ligne Decart ni voix, News sans bascule)",
       "gridTemplateColumns:'210px 90px 1fr auto',gap:10" in avant and "DzDiagRegler" not in avant
       and "DECART_API_KEY" not in avant and "DzNewsLecteur" not in avant)
-check("F3 avant_dzreglages = défaire", AIDE.avant_dzreglages(BUNDLE) == avant)
+check("F3 avant_dzreglages = défaire", AIDE.avant_dzreglages(BUNDLE) == AIDE.avant_dzlogo(avant))  # dzlogo, posé après, défait d'abord
 try:
     _g1 = [p["remplace"] for p in json.loads((RACINE / "scripts" / "dzglyph_paires.json").read_bytes().decode("utf-8"))["paires"]]
 except (OSError, ValueError, KeyError):
