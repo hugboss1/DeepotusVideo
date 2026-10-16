@@ -11051,6 +11051,12 @@
     "groupe": "texte"
    },
    {
+    "pos": 25717,
+    "avant": "  async function iaLancer() {",
+    "apres": "  // le moteur qu'emploie POST /vector/illustration sans `provider` : le premier de GET …/moteurs, puis celui que\r\n  // rend chaque appel réussi — {moteur, defaut}, null tant qu'il est inconnu\r\n  let iaMoteur = null;\r\n  // la bulle du bouton IA dit le vrai coût de ce moteur, comme bulleGenerer (mod-ia.js) : un serveur local (ollama,\r\n  // local:<id>) est gratuit ; un fournisseur libre (fl:<id>) est « prix à mesurer », jamais « gratuit »\r\n  function bulleIA() {\r\n    const id = iaMoteur ? iaMoteur.moteur : \"\";\r\n    const v = { moteur: iaMoteur && iaMoteur.defaut ? `${id} · ${iaMoteur.defaut}` : id };\r\n    if (id === \"ollama\" || id.startsWith(\"local:\")) return T(\"vectorlab.vitrail.ia_titre_gratuit\", v);\r\n    if (id.startsWith(\"fl:\")) return T(\"vectorlab.vitrail.ia_titre_a_mesurer\", v);\r\n    return T(\"vectorlab.vitrail.ia_titre\");\r\n  }\r\n\r\n  async function iaLancer() {",
+    "groupe": "vitrailcout"
+   },
+   {
     "pos": 25865,
     "avant": "\"décrire d'abord l'illustration\"",
     "apres": "T(\"vectorlab.vitrail.ia_decrire\")",
@@ -11061,6 +11067,12 @@
     "avant": "\"génération…\"",
     "apres": "T(\"vectorlab.vitrail.ia_generation\")",
     "groupe": "texte"
+   },
+   {
+    "pos": 26361,
+    "avant": "      const n = VL.iaPoser(d, q);",
+    "apres": "      if (d.provider) iaMoteur = { moteur: d.provider, defaut: d.modele || \"\" };\r\n      const n = VL.iaPoser(d, q);",
+    "groupe": "vitrailcout"
    },
    {
     "pos": 26463,
@@ -11191,7 +11203,7 @@
    {
     "pos": 32170,
     "avant": "\r\n          title=\"Illustration vectorielle par le modèle de langage configuré (Réglages) — APPEL PAYANT sur votre clé, quelques centièmes de centime ; pose des masses de verre en un groupe\"",
-    "apres": "\r\n          title=\"${T(\"vectorlab.vitrail.ia_titre\")}\"",
+    "apres": "\r\n          title=\"${bulleIA()}\"",
     "groupe": "texte"
    },
    {
@@ -11265,6 +11277,12 @@
     "avant": "`${MOTIFS[regl.motif].titre} : glissez une zone sur la`\r\n                 + \" page pour poser le panneau\"",
     "apres": "T(\"vectorlab.vitrail.glissez\", { titre: MOTIFS[regl.motif].titre })",
     "groupe": "texte"
+   },
+   {
+    "pos": 38236,
+    "avant": "  fetch(\"/api/vector/vitrail\")",
+    "apres": "  fetch(\"/api/vector/illustration/moteurs\").then((r) => r.ok ? r.json() : null)\r\n    .then((d) => {\r\n      const m = d && Array.isArray(d.moteurs) && d.moteurs[0];\r\n      iaMoteur = m ? { moteur: m.moteur, defaut: m.defaut || \"\" } : null;\r\n      // la liste peut arriver tard (les intégrés sont interrogés au réseau) : redessiner le panneau effacerait une\r\n      // saisie en cours — seule la bulle du bouton change (data-tip quand l'infobulle la montre déjà)\r\n      const b = $(\"#vitIaGo\");\r\n      if (b) b.setAttribute(b.dataset.tip !== undefined ? \"data-tip\" : \"title\", bulleIA());\r\n    })\r\n    .catch(() => { /* route muette : la bulle garde le texte d'avant */ });\r\n  fetch(\"/api/vector/vitrail\")",
+    "groupe": "vitrailcout"
    }
   ],
   "js/mod-vivants.js": [

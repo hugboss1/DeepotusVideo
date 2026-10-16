@@ -404,9 +404,8 @@ ENTREES = [
       {"vectorlab.vitrail.ia_ph": ("décrire une illustration…", "describe an illustration…")}),
     S("js/mod-vitrail.js", 684,
       '\r\n          title="Illustration vectorielle par le modèle de langage configuré (Réglages) — APPEL PAYANT sur votre clé, quelques centièmes de centime ; pose des masses de verre en un groupe"',
-      '\r\n          title="${T("vectorlab.vitrail.ia_titre")}"',
-      {"vectorlab.vitrail.ia_titre": ("Illustration vectorielle par le modèle de langage configuré (Réglages) — APPEL PAYANT sur votre clé, quelques centièmes de centime ; pose des masses de verre en un groupe",
-                                      "Vector illustration by the configured language model (Settings) — PAID CALL on your key, a few hundredths of a cent; places glass masses as one group")}),
+      '\r\n          title="${bulleIA()}"',
+      {}),  # la bulle suit le moteur (16/10/2026) : bulleIA() et ses trois clés sont consignées dans vitrailcout.py
     L("js/mod-vitrail.js", 685, '"IA"', "vectorlab.vitrail.ia", "IA", "AI"),
     S("js/mod-vitrail.js", 689, '>palette de la fiche<', '>${T("vectorlab.vitrail.palette_fiche")}<',
       {"vectorlab.vitrail.palette_fiche": ("palette de la fiche", "sheet palette")}),

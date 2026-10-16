@@ -379,7 +379,7 @@ ENTREES = [
     L(684005, "reglages.defauts.voix_off", "Voix off (hors avatar)", "Voiceover (non-avatar)"),
     L(684035, "reglages.defauts.voix_off_aide", "ElevenLabs pour la narration des plans Seedance", "ElevenLabs for narration on Seedance clips"),
     L(684135, "reglages.defauts.resume", "Résumé des News", "News summarizer"),
-    L(684158, "reglages.defauts.resume_aide", "Anthropic, OpenAI ou Gemini pour des résumés d'articles neutres", "Anthropic, OpenAI or Gemini for neutral article summaries"),
+    L(684158, "reglages.defauts.resume_aide", "Anthropic, OpenAI, Gemini, un fournisseur libre ou un serveur local pour des résumés d'articles neutres", "Anthropic, OpenAI, Gemini, a free provider or a local server for neutral article summaries"),  # 16/10/2026 : le rôle accepte fl:<id> (t222) et local:<id> (t223)
     L(684303, "reglages.defauts.planif", "Planification des posts", "Schedule planner"),
     L(684327, "reglages.defauts.planif_aide", "Plan marketing généré par un LLM", "LLM-powered marketing plan generation"),
     L(684587, "reglages.defauts.titre", "Fournisseurs par défaut", "Provider defaults"),

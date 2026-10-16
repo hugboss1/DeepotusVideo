@@ -227,7 +227,7 @@
   "reglages.defauts.planif_aide": {"fr": "Plan marketing généré par un LLM", "en": "LLM-powered marketing plan generation"},
   "reglages.defauts.pret": {"fr": "prêt", "en": "ready"},
   "reglages.defauts.resume": {"fr": "Résumé des News", "en": "News summarizer"},
-  "reglages.defauts.resume_aide": {"fr": "Anthropic, OpenAI ou Gemini pour des résumés d'articles neutres", "en": "Anthropic, OpenAI or Gemini for neutral article summaries"},
+  "reglages.defauts.resume_aide": {"fr": "Anthropic, OpenAI, Gemini, un fournisseur libre ou un serveur local pour des résumés d'articles neutres", "en": "Anthropic, OpenAI, Gemini, a free provider or a local server for neutral article summaries"},
   "reglages.defauts.titre": {"fr": "Fournisseurs par défaut", "en": "Provider defaults"},
   "reglages.defauts.video": {"fr": "Image → vidéo", "en": "Image → video"},
   "reglages.defauts.video_aide": {"fr": "Seedance / fal.ai pour les plans cinématiques", "en": "Seedance / fal.ai for cinematic clips"},
