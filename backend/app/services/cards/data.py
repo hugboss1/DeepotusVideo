@@ -2502,10 +2502,13 @@ def _trad_moteur(moteur: str) -> dict:
     from app.config import settings
     from app.services import moteurs_texte as MT, summarizer as SZ
     # t222 : un fournisseur libre `fl:<id>` se choisit aussi (payant, prix à mesurer : estimation par jetons)
-    if moteur not in ("auto", "ollama") and not (MT.est_libre(moteur) and MT.connu(moteur)):
+    # t223 : un serveur local `local:<id>` aussi (gratuit, comme ollama)
+    if moteur not in ("auto", "ollama") and not ((MT.est_libre(moteur) or MT.est_local(moteur)) and MT.connu(moteur)):
         raise ValueError(f"Moteur inconnu : {moteur!r} (auto ou ollama)")
     dispo = {"auto": bool(SZ._available_providers()), "ollama": bool(settings.has_ollama),
-             **{m: MT.configure(m) for m in MT.libres()}}
+             **{m: MT.configure(m) for m in MT.libres() + MT.locaux()}}
+    if MT.est_local(moteur):
+        return {"dispo": dispo, "fournisseur": moteur, "payant": False, "pret": dispo.get(moteur, False)}
     if MT.est_libre(moteur):
         return {"dispo": dispo, "fournisseur": moteur, "payant": True, "pret": dispo.get(moteur, False)}
     if moteur == "ollama":
@@ -2586,7 +2589,7 @@ async def post_traduire(did: str, body: Any = Body(default=None)):
         if moteur == "ollama":
             from app.services import vector_illustration as VI
             txt = VI.tirer("ollama", settings.OLLAMA_MODEL, prompt, systeme, max_tokens=n_tok)
-        elif moteur.startswith("fl:"):
+        elif moteur.startswith(("fl:", "local:")):
             from app.services import vector_illustration as VI
             txt = VI.tirer(moteur, "", prompt, systeme, max_tokens=n_tok)
         else:

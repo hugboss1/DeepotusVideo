@@ -9426,5 +9426,69 @@
  "{nom} : réponse illisible": {
   "fr": "{nom} : réponse illisible",
   "en": "{nom}: unreadable response"
+ },
+ "Serveur local inconnu : {v}": {
+  "fr": "Serveur local inconnu : {v}",
+  "en": "unknown local server: {v}"
+ },
+ "identifiant de serveur invalide : {sid}": {
+  "fr": "identifiant de serveur invalide : {sid}",
+  "en": "invalid server id: {sid}"
+ },
+ "type de serveur inconnu (ollama ou openai)": {
+  "fr": "type de serveur inconnu (ollama ou openai)",
+  "en": "unknown server type (ollama or openai)"
+ },
+ "URL du serveur : http:// ou https:// obligatoire": {
+  "fr": "URL du serveur : http:// ou https:// obligatoire",
+  "en": "Server URL: http:// or https:// required"
+ },
+ "URL du serveur illisible": {
+  "fr": "URL du serveur illisible",
+  "en": "unreadable server URL"
+ },
+ "URL du serveur : ni identifiants, ni paramètres dans l'adresse": {
+  "fr": "URL du serveur : ni identifiants, ni paramètres dans l'adresse",
+  "en": "Server URL: no credentials and no parameters in the address"
+ },
+ "URL du serveur : adresse publique refusée ici (un service en ligne est un fournisseur libre)": {
+  "fr": "URL du serveur : adresse publique refusée ici (un service en ligne est un fournisseur libre)",
+  "en": "Server URL: public address refused here (an online service is a free provider)"
+ },
+ "{MAX_MODELES} modèles au plus par serveur": {
+  "fr": "{MAX_MODELES} modèles au plus par serveur",
+  "en": "{MAX_MODELES} models at most per server"
+ },
+ "la première ligne (Ollama intégré) se règle dans l'encart « LLM local » ci-dessus": {
+  "fr": "la première ligne (Ollama intégré) se règle dans l'encart « LLM local » ci-dessus",
+  "en": "the first line (built-in Ollama) is set in the \"Local LLM\" box above"
+ },
+ "clé : seulement pour un serveur compatible OpenAI": {
+  "fr": "clé : seulement pour un serveur compatible OpenAI",
+  "en": "key: only for an OpenAI-compatible server"
+ },
+ "{MAX_SERVEURS} serveurs locaux au plus": {
+  "fr": "{MAX_SERVEURS} serveurs locaux au plus",
+  "en": "{MAX_SERVEURS} local servers at most"
+ },
+ "le serveur a refusé la liste : {v}": {
+  "fr": "le serveur a refusé la liste : {v}",
+  "en": "the server refused the list: {v}"
+ },
+ "serveur injoignable : nom d'hôte introuvable": {
+  "fr": "serveur injoignable : nom d'hôte introuvable",
+  "en": "server unreachable: host name not found"
+ },
+ "serveur injoignable : {name}": {
+  "fr": "serveur injoignable : {name}",
+  "en": "server unreachable: {name}"
+ },
+ "réponse du serveur illisible (pas une liste de modèles)": {
+  "fr": "réponse du serveur illisible (pas une liste de modèles)",
+  "en": "unreadable server response (not a model list)"
+ },
+ "serveur local inconnu : {sid}": {
+  "fr": "serveur local inconnu : {sid}",
+  "en": "unknown local server: {sid}"
  }
 }

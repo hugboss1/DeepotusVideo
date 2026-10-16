@@ -63,6 +63,13 @@ async def diagnostic_complet(request: Request):
         cles.append({"cle": k, "definie": v["cle_posee"], "apercu": "",
                      "source": "coffre" if C.ouvert() and C.lire_cle(k) else "env", "testable": False,
                      "rubrique": "keys", "fournisseur": v["nom"]})
+    # t223 : une ligne par serveur local ajouté (`local:<id>`) — prêt dès qu'il a un modèle ; l'aperçu dit l'URL et
+    # le modèle (aucun secret : une URL d'ici n'a ni identifiants ni paramètres, la clé éventuelle n'est jamais lue)
+    from app.services import serveurs_locaux as SL
+    for v in SL.lister()[1:]:
+        cles.append({"cle": v["moteur"], "definie": MT.configure(v["moteur"]),
+                     "apercu": v["url"] + (" · " + v["defaut"] if v["defaut"] else ""), "source": "fichier",
+                     "testable": False, "rubrique": "keys", "serveur": v["nom"], "cle_posee": v["cle_posee"]})
     try:
         soldes = await _soldes()
     except Exception as e:  # noqa: BLE001 — un solde muet ne masque pas le reste
@@ -499,6 +506,90 @@ async def supprimer_fournisseur_libre(fid: str, request: Request):
     except Exception as e:  # noqa: BLE001
         raise _fl_erreur(e)
     return {"deleted": fid}
+
+
+# ── t223 : les serveurs de LLM locaux (Clés d'API › LLM local) ──────────────────────────────────────────────────────
+# La boucle locale et le réseau privé ne sont permis QU'ICI (services/serveurs_locaux.py). Lecture ET écriture
+# réservées à la machine locale (`_local`) : un autre appareil ne peut ni lire ni écrire ; jamais une clé en sortie.
+
+def _sl_erreur(e: Exception) -> HTTPException:
+    from app.services import coffre as _C, serveurs_locaux as _SL
+    if isinstance(e, _C.CoffreVerrouille):
+        return HTTPException(409, f"Coffre verrouillé : {e}")
+    if isinstance(e, _SL.ServeurInconnu):
+        return HTTPException(404, f"Serveur local inconnu : {e.args[0] if e.args else ''}")
+    return HTTPException(400, str(e))
+
+
+@router.get("/serveurs-locaux")
+async def lister_serveurs_locaux(request: Request):
+    """La première ligne (OLLAMA_URL / OLLAMA_MODEL, moteur `ollama`) puis les serveurs ajoutés, et les préréglages."""
+    _local(request)
+    from app.services import serveurs_locaux as SL
+    return {"serveurs": SL.lister(), "prereglages": SL.PREREGLAGES}
+
+
+@router.post("/serveurs-locaux")
+async def creer_serveur_local(body: dict, request: Request):
+    """{url, type (ollama | openai), nom?, cle?, modeles?, defaut?} : la clé éventuelle part au coffre (ou au .env)."""
+    _local(request)
+    from app.services import serveurs_locaux as SL
+    try:
+        return {"serveur": SL.creer(body if isinstance(body, dict) else {})}
+    except Exception as e:  # noqa: BLE001 — traduit en 400/404/409 par _sl_erreur
+        raise _sl_erreur(e)
+
+
+@router.post("/serveurs-locaux/lire-modeles")
+async def lire_modeles_serveur_local(body: dict, request: Request):
+    """« Lire les modèles » (gratuit) : d'un serveur enregistré (`id`, « ollama » pour la première ligne), ou d'un
+    serveur en cours d'ajout (`url` + `type` [+ `cle`], la clé n'est ni gardée ni renvoyée)."""
+    import asyncio
+    _local(request)
+    from app.services import serveurs_locaux as SL
+    b = body if isinstance(body, dict) else {}
+    try:
+        if b.get("id"):
+            mods = await asyncio.to_thread(SL.lire_modeles_de, str(b["id"]))
+        else:
+            mods = await asyncio.to_thread(SL.lire_modeles, str(b.get("url") or ""), str(b.get("type") or "ollama"),
+                                           str(b.get("cle") or ""))
+    except Exception as e:  # noqa: BLE001
+        raise _sl_erreur(e)
+    return {"modeles": mods}
+
+
+@router.post("/serveurs-locaux/{sid}")
+async def modifier_serveur_local(sid: str, body: dict, request: Request):
+    _local(request)
+    from app.services import serveurs_locaux as SL
+    try:
+        return {"serveur": SL.modifier(sid, body if isinstance(body, dict) else {})}
+    except Exception as e:  # noqa: BLE001
+        raise _sl_erreur(e)
+
+
+@router.post("/serveurs-locaux/{sid}/tester")
+async def tester_serveur_local(sid: str, request: Request):
+    """Sans rien générer : la liste des modèles se lit-elle ? (`etat` : ok / refus)."""
+    import asyncio
+    _local(request)
+    from app.services import serveurs_locaux as SL
+    try:
+        return await asyncio.to_thread(SL.tester, sid)
+    except Exception as e:  # noqa: BLE001
+        raise _sl_erreur(e)
+
+
+@router.delete("/serveurs-locaux/{sid}")
+async def supprimer_serveur_local(sid: str, request: Request):
+    _local(request)
+    from app.services import serveurs_locaux as SL
+    try:
+        SL.supprimer(sid)
+    except Exception as e:  # noqa: BLE001
+        raise _sl_erreur(e)
+    return {"deleted": sid}
 
 
 @router.get("/index")

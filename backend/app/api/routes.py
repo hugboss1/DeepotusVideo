@@ -7453,6 +7453,7 @@ async def set_provider_defaults(body: dict, request: Request):
     if modeles is not None and not isinstance(modeles, dict):
         raise HTTPException(400, "`modeles` doit être un objet (moteur → modèle)")
     libres: dict[str, str] = {}
+    locaux: dict[str, str] = {}
     for moteur, nom in (modeles or {}).items():
         if not _MT.connu(moteur):
             raise HTTPException(400, f"Moteur inconnu : {moteur}")
@@ -7463,18 +7464,23 @@ async def set_provider_defaults(body: dict, request: Request):
             raise HTTPException(400, str(err))
         if _MT.est_libre(moteur):               # t222 : le défaut d'un fournisseur libre vit dans fournisseurs_llm.json
             libres[moteur] = str(nom or "").strip()
+        elif _MT.est_local(moteur):             # t223 : celui d'un serveur local, dans serveurs_locaux.json
+            locaux[moteur] = str(nom or "").strip()
         else:
             changes[cle] = str(nom or "").strip()
-    if libres:
-        from app.services import fournisseurs_llm as _FL
+    if libres or locaux:
+        from app.services import fournisseurs_llm as _FL, serveurs_locaux as _SL
         try:
             for moteur, nom in libres.items():
                 _FL.modifier(_FL.de_moteur(moteur), {"defaut": nom})
+            for moteur, nom in locaux.items():
+                _SL.modifier(_SL.de_moteur(moteur), {"defaut": nom})
         except ValueError as err:
             raise HTTPException(400, str(err))
         if not changes:
             _VI._CATALOGUE.clear()
-            return {"ok": True, "written": {}, "libres": sorted(libres), "moteurs": _MT.etat()}
+            return {"ok": True, "written": {}, "libres": sorted(libres), "locaux": sorted(locaux),
+                    "moteurs": _MT.etat()}
     if not changes:
         raise HTTPException(400, "No valid role/provider pairs")
     _VI._CATALOGUE.clear()

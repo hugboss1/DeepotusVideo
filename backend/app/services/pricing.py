@@ -887,6 +887,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         if prov in ("ollama", "local"):
             # tâche #16 (29/09/2026) : un LLM LOCAL (Ollama) est gratuit — il tombait sur le tarif OpenAI par repli
             lines.append(_line("local", "LLM local (Ollama)", it + ot, "tok", 0.0))
+        elif str(prov).startswith("local:"):
+            # t223 (16/10/2026) : un serveur LOCAL ajouté (Ollama, LM Studio, llama.cpp, vLLM) est gratuit comme Ollama
+            # — c'est ce qui le distingue d'un fournisseur libre `fl:*` (« prix à mesurer »)
+            lines.append(_line(prov, "LLM local", it + ot, "tok", 0.0))
         elif str(prov).startswith("fl:"):
             # t222 (16/10/2026) : un fournisseur libre n'a pas de tarif connu — jamais « gratuit ». Le plafond
             # s'applique sur une ESTIMATION par jetons au tarif Anthropic de la grille (le plus cher des intégrés) ;

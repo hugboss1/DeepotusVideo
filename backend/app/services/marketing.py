@@ -220,9 +220,10 @@ _PLAN_PRIORITY = ["anthropic", "openai", "gemini", "ollama"]
 
 
 def _moteurs_plan() -> list[str]:
-    """t222 : l'ordre du planificateur — les intégrés, puis les fournisseurs libres (`fl:<id>`)."""
+    """t222 : l'ordre du planificateur — les intégrés, puis les fournisseurs libres (`fl:<id>`), puis les serveurs
+    locaux (`local:<id>`, t223)."""
     from app.services import moteurs_texte as _MT
-    return _PLAN_PRIORITY + _MT.libres()
+    return _PLAN_PRIORITY + _MT.libres() + _MT.locaux()
 
 
 async def _libre_plan_de(moteur: str, prompt: str, days: int, posts_per_day: int,
@@ -231,6 +232,19 @@ async def _libre_plan_de(moteur: str, prompt: str, days: int, posts_per_day: int
     """t222 : le plan par un fournisseur libre compatible OpenAI. None sur tout échec (repli déterministe)."""
     import asyncio as _aio
     from app.services import fournisseurs_llm as _FL
+    if moteur.startswith("local:"):         # t223 : un serveur local, même contrat
+        from app.services import serveurs_locaux as _SL
+        sid = _SL.de_moteur(moteur)
+        if not sid:
+            return None
+        sys = plan_schema.system_prompt(days, posts_per_day, language,
+                                        plan_schema.persona_desc(persona))
+        try:
+            text = await _aio.to_thread(_SL.tirer, sid, "", prompt, sys, plan_schema.MAX_TOKENS)
+            return plan_schema.parse_llm_posts(text, days)
+        except Exception as e:
+            logger.warning(f"plan: {moteur} call failed: {e}")
+            return None
     fid = _FL.de_moteur(moteur)
     if not fid:
         return None
@@ -245,7 +259,7 @@ async def _libre_plan_de(moteur: str, prompt: str, days: int, posts_per_day: int
 
 
 def _plan_fn(engine: str):
-    if engine.startswith("fl:"):
+    if engine.startswith(("fl:", "local:")):
         async def fn(*a):
             return await _libre_plan_de(engine, *a)
         return fn
@@ -259,7 +273,7 @@ def _plan_available(name: str) -> bool:
         "gemini": lambda: bool(settings.GEMINI_API_KEY.strip()),
         "ollama": lambda: bool(settings.OLLAMA_MODEL.strip()),
     }
-    if str(name or "").startswith("fl:"):
+    if str(name or "").startswith(("fl:", "local:")):
         from app.services import moteurs_texte as _MT
         return _MT.configure(name)
     return checks.get(name, lambda: False)()

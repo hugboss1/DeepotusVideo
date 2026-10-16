@@ -305,7 +305,8 @@ check("I8 aucune clé dzT construite (test_i18n_l1 3b)", not re.search(r'dzT\("[
 check("I9 aucun dzT local (règle t212)", not re.search(r"\bdzT\s*=", src))
 check("I10 le style compté par test_p2_cles_ecran 2.2 reste ×1",
       BUNDLE.count('style:{width:"100%",minWidth:0,boxSizing:"border-box",background:"var(--bg-base)",') == 1)
-check("I11 19 paires (R0-R5, F0-F4, D0-D2, C0-C1, N1, L0-L1)", len(DR.PAIRES) == 19, len(DR.PAIRES))
+check("I11 les paires de t222 (L0-L1) sont les 18e et 19e (t223 ajoute S0-S1 après elles)",
+      len(DR.PAIRES) >= 19 and DR.PAIRES[17][0] == DR.WM and DR.PAIRES[18][0] == DR.WM_APPEL, len(DR.PAIRES))
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

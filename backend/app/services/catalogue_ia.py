@@ -287,6 +287,11 @@ def _textes() -> list[dict]:
         out.append({"id": v["moteur"], "label": v["nom"], "voie": "libre", "usd": 0.0, "unite": "mtok",
                     "jumeau": None, "note": NOTE_A_MESURER, "modeles": v["modeles"], "defaut": v["defaut"],
                     "cle": v["cle"], "dispo": MT.configure(v["moteur"])})
+    from app.services import serveurs_locaux as SL     # t223 : puis les serveurs locaux, voie « local », gratuits
+    for v in SL.lister()[1:]:
+        out.append({"id": v["moteur"], "label": v["nom"], "voie": "local", "usd": 0.0, "unite": "mtok",
+                    "jumeau": None, "note": "", "modeles": v["modeles"], "defaut": v["defaut"],
+                    "cle": v["cle"] or None, "dispo": MT.configure(v["moteur"])})
     return out
 
 
