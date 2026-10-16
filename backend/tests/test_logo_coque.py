@@ -157,6 +157,9 @@ check("B3 changer d'espace change l'URL", B.get("r", "").startswith("/api/espace
 check("B4 changer le kit de Branding change l'URL (retour à Deepotus relu)", B.get("dzKit") not in (None, B.get("dz")))
 check("B5 changer le kit de l'espace change l'URL", B.get("rKit") not in (None, B.get("r")))
 check("B6 la version change l'URL (logo re-téléversé)", B.get("dzV") not in (None, B.get("dz")))
+check("B8 forme exacte : espace, kit de Branding, kit de l'espace, version",
+      B.get("rKit") == "/api/espaces/esp_r/logo?k=deepotus&e=kit_z&v=0" and B.get("dz") == "/api/espaces/deepotus/logo?k=deepotus&e=&v=0",
+      f"{B.get('rKit')} {B.get('dz')}")
 check("B7 id et kit encodés (rien d'injecté dans le chemin)",
       str(B.get("hostile", "")).startswith("/api/espaces/a%2Fb%3Fc/logo?") and "k%26x" in str(B.get("hostile")),
       str(B.get("hostile")))
