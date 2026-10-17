@@ -48,7 +48,8 @@ def litteraux_neufs(a, r):
 
 print("[K] aucune chaîne en dur dans les paires dzstudio")
 NEUFS = [(k, s) for k, (a, r) in enumerate(M.PAIRES) for s in litteraux_neufs(a, r)]
-check("K1 les 19 paires sont lues (AB + C + F + D + E)", len(M.PAIRES) == 19, str(len(M.PAIRES)))
+check("K1 les paires sont toutes lues (AB + C + F + D + E = 19, puis les familles ajoutées après t230)",
+      len(M.PAIRES) == 19 + len(getattr(M, "PAIRES_G", [])), str(len(M.PAIRES)))
 phrases = [s for _, s in NEUFS if PHRASE.search(s) and not s.startswith(("var(", "[data-", "radial-gradient"))]
 check("K2 aucun littéral neuf n'est une phrase", not phrases, str(phrases[:5]))
 non_ascii = sorted({s for _, s in NEUFS if any(ord(c) > 127 for c in s)} - LISTE_BLANCHE)
