@@ -169,7 +169,9 @@ def git_bundle(rev):
 
 
 PD = list(getattr(M, "PAIRES_D", []))
-check("D1 famille D* déclarée (PAIRES_D, 3 paires) et à la fin de PAIRES", len(PD) == 3 and M.PAIRES[-len(PD):] == PD,
+_NAD = len(M.PAIRES_AB + M.PAIRES_C + M.PAIRES_F)            # t229 : les E* viennent après les D* → borné à ses familles
+check("D1 famille D* déclarée (PAIRES_D, 3 paires), juste après AB + C + F", len(PD) == 3
+      and M.PAIRES[:_NAD] == M.PAIRES_AB + M.PAIRES_C + M.PAIRES_F and M.PAIRES[_NAD:_NAD + len(PD)] == PD,
       str(len(PD)))
 try:
     avant = M.defaire(BUNDLE)
