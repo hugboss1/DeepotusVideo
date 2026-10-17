@@ -183,6 +183,18 @@ Dépend de t225-t229. Clés FR/EN des textes neufs éventuels (bulle t226, pasti
 dans les paires dzstudio » ; chapitre Studio du guide : scènes montrant des nœuds recapturées avec le skill
 guide-deepotus (liens ancrés, en-têtes aérés), guide FR/EN et PDF reconstruits.
 
+**Fait le 17/10** : relevé sur dbc773f1 — les 19 paires dzstudio n'écrivent AUCUNE phrase visible (jetons de code,
+identifiant de port « brand », séparateur « · », pastille « ⌘ » dont l'infobulle relit le texte dzT de l'encart) : pas de
+clé neuve (la « bulle » de t226 n'existe pas, l'option (a) l'ayant rendue inutile). Banc `test_studio_traduction_guide.py`
+16/16 (8 rouges sur dbc773f1) : K, aucun littéral neuf qui soit une phrase, un mot hors jetons connus ou du non-ASCII
+hors liste blanche, chaque dzT des paires a sa clé FR/EN ; G, chapitre Studio FR/EN. Guide : section « Se déplacer dans
+le graphe » / « Move around the graph » (bouton du milieu pour déplacer, molette autour du pointeur, boutons autour du
+centre, canevas sous la barre, pastille, liens au milieu des ronds, noms de port raccourcis) + carte « Bandeau de
+marque » / « Brand strip » (entrée brand de la Composition spatiale). Plan de capture `t230.json` : studio/graphe et
+studio/composition-fl recapturés, nouvelle scène studio/vue (75 % puis deux clics +, pastille repliée), backend
+`serve_guide_ia.py` 8809. Guide FR/EN et 4 PDF reconstruits, `--check` à jour, `test_guide_v3` 383/383,
+`test_etabli_outils_page` 59 ; 12 mutants tués. Preuve au navigateur (8809) FR et EN : `t230-guide-{fr,en}.jpg`.
+
 ## Ordre
 
 t225 → t226 → t227 (même maillon `dzstudio`, à la suite), puis t228 / t229 (indépendantes, après l'avis de

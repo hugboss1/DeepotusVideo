@@ -1,0 +1,67 @@
+{
+  "titre": {
+    "fr": "Zoomer sans perdre le graphe",
+    "en": "Zoom without losing the graph"
+  },
+  "legende": {
+    "fr": "Les boutons de zoom gardent le centre de la vue en place ; l'encart des raccourcis se replie en pastille quand un nœud passe dessous.",
+    "en": "The zoom buttons keep the centre of the view in place; the shortcuts box folds into a badge when a node goes under it."
+  },
+  "captures": [
+    {
+      "fr": "depart.fr.webp",
+      "en": "depart.en.webp"
+    },
+    {
+      "fr": "zoom.fr.webp",
+      "en": "zoom.en.webp"
+    }
+  ],
+  "taille": [
+    1920,
+    1080
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        499,
+        1030,
+        128,
+        44
+      ],
+      "bulle": {
+        "fr": "Les boutons de zoom, en bas à gauche",
+        "en": "The zoom buttons, bottom left"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "curseur": [
+        605,
+        1052
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Le centre de la vue reste en place",
+        "en": "The centre of the view stays put"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1869,
+        110,
+        44,
+        41
+      ],
+      "bulle": {
+        "fr": "Un nœud dessous : l'encart se replie",
+        "en": "A node underneath: the box folds away"
+      }
+    }
+  ]
+}
