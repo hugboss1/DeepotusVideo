@@ -1,0 +1,282 @@
+{
+ "fr-1500-insp": {
+  "vw": 1500,
+  "insp": true,
+  "gbarH": "107px",
+  "gbarBas": 163,
+  "canevasHaut": 163,
+  "ecart": 0,
+  "premierNoeud": 208,
+  "sousBarre": 0,
+  "racc": [
+   904.8,
+   175,
+   1147,
+   207.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nœuds⌘K palette⌘⏎ exécuter"
+ },
+ "fr-1500-sans-insp": {
+  "vw": 1500,
+  "insp": false,
+  "gbarH": "75px",
+  "gbarBas": 131,
+  "canevasHaut": 131,
+  "ecart": 0,
+  "premierNoeud": 176,
+  "sousBarre": 0,
+  "racc": [
+   1244.8,
+   143,
+   1487,
+   175.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nœuds⌘K palette⌘⏎ exécuter"
+ },
+ "fr-1920-insp": {
+  "vw": 1920,
+  "insp": true,
+  "gbarH": "75px",
+  "gbarBas": 131,
+  "canevasHaut": 131,
+  "ecart": 0,
+  "premierNoeud": 176,
+  "sousBarre": 0,
+  "racc": [
+   1324.8,
+   143,
+   1567,
+   175.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nœuds⌘K palette⌘⏎ exécuter"
+ },
+ "fr-1920-sans-insp": {
+  "vw": 1920,
+  "insp": false,
+  "gbarH": "48px",
+  "gbarBas": 104,
+  "canevasHaut": 104,
+  "ecart": 0,
+  "premierNoeud": 149,
+  "sousBarre": 0,
+  "racc": [
+   1664.8,
+   116,
+   1907,
+   148.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nœuds⌘K palette⌘⏎ exécuter"
+ },
+ "fr-glisser-sous-encart": {
+  "vw": 1500,
+  "insp": true,
+  "gbarH": "107px",
+  "gbarBas": 163,
+  "canevasHaut": 163,
+  "ecart": 0,
+  "premierNoeud": 181,
+  "sousBarre": 0,
+  "racc": [
+   1115,
+   175,
+   1147,
+   203.5
+  ],
+  "pli": "1",
+  "title": "/ nœuds ⌘K palette ⌘⏎ exécuter",
+  "raccSurNoeud": 0,
+  "texte": "/ nœuds⌘K palette⌘⏎ exécuter"
+ },
+ "fr-glisser-retour": {
+  "vw": 1500,
+  "insp": true,
+  "gbarH": "107px",
+  "gbarBas": 163,
+  "canevasHaut": 163,
+  "ecart": 0,
+  "premierNoeud": 208,
+  "sousBarre": 0,
+  "racc": [
+   904.8,
+   175,
+   1147,
+   207.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nœuds⌘K palette⌘⏎ exécuter"
+ },
+ "fr-nouveau": {
+  "vw": 1500,
+  "insp": true,
+  "gbarH": "107px",
+  "gbarBas": 163,
+  "canevasHaut": 163,
+  "ecart": 0,
+  "premierNoeud": 343,
+  "sousBarre": 0,
+  "racc": [
+   904.8,
+   175,
+   1147,
+   207.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nœuds⌘K palette⌘⏎ exécuter"
+ },
+ "en-1500-insp": {
+  "vw": 1500,
+  "insp": true,
+  "gbarH": "75px",
+  "gbarBas": 131,
+  "canevasHaut": 131,
+  "ecart": 0,
+  "premierNoeud": 176,
+  "sousBarre": 0,
+  "racc": [
+   935.6,
+   143,
+   1147,
+   175.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nodes⌘K palette⌘⏎ run"
+ },
+ "en-1500-sans-insp": {
+  "vw": 1500,
+  "insp": false,
+  "gbarH": "75px",
+  "gbarBas": 131,
+  "canevasHaut": 131,
+  "ecart": 0,
+  "premierNoeud": 176,
+  "sousBarre": 0,
+  "racc": [
+   1275.6,
+   143,
+   1487,
+   175.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nodes⌘K palette⌘⏎ run"
+ },
+ "en-1920-insp": {
+  "vw": 1920,
+  "insp": true,
+  "gbarH": "75px",
+  "gbarBas": 131,
+  "canevasHaut": 131,
+  "ecart": 0,
+  "premierNoeud": 176,
+  "sousBarre": 0,
+  "racc": [
+   1355.6,
+   143,
+   1567,
+   175.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nodes⌘K palette⌘⏎ run"
+ },
+ "en-1920-sans-insp": {
+  "vw": 1920,
+  "insp": false,
+  "gbarH": "48px",
+  "gbarBas": 104,
+  "canevasHaut": 104,
+  "ecart": 0,
+  "premierNoeud": 149,
+  "sousBarre": 0,
+  "racc": [
+   1695.6,
+   116,
+   1907,
+   148.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nodes⌘K palette⌘⏎ run"
+ },
+ "en-glisser-sous-encart": {
+  "vw": 1500,
+  "insp": true,
+  "gbarH": "75px",
+  "gbarBas": 131,
+  "canevasHaut": 131,
+  "ecart": 0,
+  "premierNoeud": 149,
+  "sousBarre": 0,
+  "racc": [
+   1115,
+   143,
+   1147,
+   171.5
+  ],
+  "pli": "1",
+  "title": "/ nodes ⌘K palette ⌘⏎ run",
+  "raccSurNoeud": 1,
+  "texte": "/ nodes⌘K palette⌘⏎ run"
+ },
+ "en-glisser-retour": {
+  "vw": 1500,
+  "insp": true,
+  "gbarH": "75px",
+  "gbarBas": 131,
+  "canevasHaut": 131,
+  "ecart": 0,
+  "premierNoeud": 176,
+  "sousBarre": 0,
+  "racc": [
+   935.6,
+   143,
+   1147,
+   175.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nodes⌘K palette⌘⏎ run"
+ },
+ "en-nouveau": {
+  "vw": 1500,
+  "insp": true,
+  "gbarH": "75px",
+  "gbarBas": 131,
+  "canevasHaut": 131,
+  "ecart": 0,
+  "premierNoeud": 311,
+  "sousBarre": 0,
+  "racc": [
+   935.6,
+   143,
+   1147,
+   175.5
+  ],
+  "pli": "0",
+  "title": "",
+  "raccSurNoeud": 0,
+  "texte": "/ nodes⌘K palette⌘⏎ run"
+ }
+}

@@ -189,7 +189,9 @@ def git_bundle(rev):
 
 
 PF = list(getattr(M, "PAIRES_F", []))
-check("D1 famille F* déclarée (PAIRES_F) et à la fin de PAIRES", len(PF) >= 2 and M.PAIRES[-len(PF):] == PF, str(len(PF)))
+_AVF = len(M.PAIRES_AB) + len(M.PAIRES_C)                       # t228 : d'autres familles suivent les F* (D*)
+check("D1 famille F* déclarée (PAIRES_F), juste après PAIRES_AB + PAIRES_C", len(PF) >= 2
+      and M.PAIRES[:_AVF] == M.PAIRES_AB + M.PAIRES_C and M.PAIRES[_AVF:_AVF + len(PF)] == PF, str(len(PF)))
 try:
     avant = M.defaire(BUNDLE)
 except AssertionError as e:
@@ -202,7 +204,7 @@ check("D3 inverse = 02f8162c octet pour octet", avant is not None and base_t224 
 
 
 def sans_f(s):
-    for a_, r_ in M.PAIRES[:len(M.PAIRES) - len(PF)]:
+    for a_, r_ in M.PAIRES_AB + M.PAIRES_C:                      # borné à ses familles (t228 ajoute les D* après)
         s = s.replace(a_, r_, 1)
     return s
 
