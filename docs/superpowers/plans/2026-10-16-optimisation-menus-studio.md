@@ -144,6 +144,22 @@ mais le graphe de départ, « Nouveau » et le recadrage décalent le pan initia
 soit visible ; l'encart des raccourcis se replie en pastille quand il chevauche un nœud. Demander l'avis de l'utilisateur
 avant de coder. Banc `test_studio_canevas_barre.py` + preuve à 1500 et 1920 px, inspecteur ouvert et fermé.
 
+**Fait le 17/10** : relevé sur eda56717 (8796) — seul 1500 px + inspecteur ouvert est touché (barre 107, haut d'Article
+News / Script News / Avatar HeyGen masqué de 14 px, encart `top:60` FIXE dans le canevas, posé sur Avatar HeyGen) ; à
+1500 fermé et à 1920 la barre fait 75 / 48 et rien ne chevauche ; aucune fonction de recadrage n'existe (pan {0,0} au
+départ et sur « Nouveau »). Maquette des options sur le vrai Studio (`t228-maquette.png`). Décision de l'utilisateur :
+option B (le canevas commence SOUS la barre, pas de pan décalé, qui serait faux dès que la barre change de hauteur),
+encart replié en pastille quand il chevauche un nœud, pas de bouton « Recadrer ». Paires D0-D2 (`PAIRES_D`, en fin de
+PAIRES) : D0 `dzRaccRef` devant `__dzGbarRef` (test sur la taille PLEINE mémorisée, pastille « ⌘ » + infobulle = texte
+de l'encart dans la langue active, ResizeObserver sur le canevas) ; D1 canevas `top:"var(--dz-gbar-h, 48px)"` ; D2
+encart à `top:12`, `ref` en ligne rappelée à chaque rendu, `data-dz-racc-plein` / `data-dz-racc-pastille`. Aucun texte
+neuf, aucun useState. Banc `test_studio_canevas_barre.py` 31/31 (23 rouges sur eda56717), 16 mutants tués ;
+`test_studio_apercu_bandeau` D1/D4 bornés à ses familles. Preuve (Edge sans fenêtre par CDP, clics et glisser réels, 8796) :
+FR et EN, 1500 / 1920, inspecteur ouvert et fermé : canevas collé sous la barre (écart 0 ; barre 107/75/75/48 en FR,
+75/75/75/48 en EN), aucun nœud sous la barre ; Avatar HeyGen glissé sous l'encart → pastille, infobulle « / nœuds ⌘K
+palette ⌘⏎ exécuter » / « / nodes ⌘K palette ⌘⏎ run », retour → encart plein ; « Nouveau » : graphe visible. Captures et
+mesures : `docs/superpowers/specs/assets/2026-10-16-studio/t228-*`.
+
 ## t229 — A2 : boutons de zoom ± centrés sur la vue (P1, S) — anomalie hors demandes
 
 Les boutons zooment autour du coin (0,0) ; la molette autour du curseur. Correctif : les boutons appliquent la même

@@ -54,11 +54,21 @@ remplacé depuis B3 par le texte du Bandeau de marque relié au port de la régi
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 », aucun texte visible neuf (le
 `title` réutilise le libellé et le type déjà affichés).
 
+t228 (17/10) — A1 : la barre du graphe passe sur deux ou trois lignes (107 px à 1500 px, inspecteur ouvert) mais le
+canevas restait à `top:48` : le haut des nœuds passait sous la barre et l'encart des raccourcis (`top:60`) recouvrait
+Avatar HeyGen. Décision de l'utilisateur sur maquette (t228-maquette.png) : option B, pastille, pas de « Recadrer ».
+  - D0 : `dzRaccRef(el)` devant `__dzGbarRef` : si un nœud chevauche l'encart PLEIN (taille mémorisée tant qu'il est
+    plein, donc pas d'oscillation), l'encart se replie en pastille « ⌘ » dont l'infobulle est le texte complet (lu
+    dans l'encart, donc dans la langue active) ; un ResizeObserver sur le canevas relance le test ;
+  - D1 : le canevas commence sous la barre, `top:"var(--dz-gbar-h, 48px)"`, et suit sa hauteur en direct ;
+  - D2 : l'encart à `top:12` du canevas, `ref` en ligne (rappelée à chaque rendu : pan, zoom, glisser), texte complet
+    dans `data-dz-racc-plein` (mêmes clés dzT), pastille `data-dz-racc-pastille`. Aucun texte visible neuf.
+
 Maillon de QUEUE, APRÈS dzlogo (dont il sonde le marqueur) ; il garde un .js.bak_dzstudio le temps de l'écriture
 puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzstudio` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_dzlogo`. Lecture et écriture
 en OCTETS. Bancs : backend/tests/test_studio_ancrage.py (t225), test_studio_ports_spatial.py (t226),
-test_studio_entetes.py (t227), test_studio_apercu_bandeau.py (suite de t227).
+test_studio_entetes.py (t227), test_studio_apercu_bandeau.py (suite de t227), test_studio_canevas_barre.py (t228).
 Run : python scripts/patch_bundle_dzstudio.py [--check]
 """
 import pathlib
@@ -157,7 +167,38 @@ PAIRES_F = [
      'whiteSpace:"nowrap"},children:it.text},"b"):null]},ix);'),
 ]
 
-PAIRES = PAIRES_AB + PAIRES_C + PAIRES_F                           # C1 réécrit la sortie de A0 : l'ordre compte (défaire à rebours)
+PAIRES_D = [
+    ('function __dzGbarRef(el){',                                                                             # D0
+     'function dzRaccRef(el){if(!el)return;var cv=el.parentNode;if(!cv)return;'
+     'function f(){var pl=el.querySelector("[data-dz-racc-plein]"),pa=el.querySelector("[data-dz-racc-pastille]");'
+     'if(!pl||!pa)return;var e=el.getBoundingClientRect();'
+     'if(el.getAttribute("data-dz-pli")!=="1"){el.__dzW=e.width;el.__dzH=e.height}'
+     'var R=e.right,T=e.top,L=R-(el.__dzW||0),B=T+(el.__dzH||0),hit=!1,ns=cv.querySelectorAll("[data-node-id]"),i,n;'
+     'for(i=0;i<ns.length&&!hit;i++){n=ns[i].getBoundingClientRect();hit=n.left<R&&n.right>L&&n.top<B&&n.bottom>T}'
+     'el.setAttribute("data-dz-pli",hit?"1":"0");pl.style.display=hit?"none":"flex";'
+     'pa.style.display=hit?"inline-flex":"none";el.style.padding=hit?"4px 6px":"6px 10px";'
+     'el.style.borderRadius=hit?"999px":"var(--r-sm)";el.title=hit?Array.prototype.map.call(pl.childNodes,'
+     'function(z){return String(z.textContent||"").trim()}).join(" "):""}'
+     'f();if(!el.__dzRo){try{el.__dzRo=new ResizeObserver(f);el.__dzRo.observe(cv)}catch(_e){}}}'
+     'function __dzGbarRef(el){'),
+    ('onDrop:Q,style:{position:"absolute",inset:0,top:48,backgroundColor:"#02060d"',                         # D1
+     'onDrop:Q,style:{position:"absolute",inset:0,top:"var(--dz-gbar-h, 48px)",backgroundColor:"#02060d"'),
+    ('r.jsxs("div",{style:{position:"absolute",right:12,top:60,zIndex:4,display:"flex",alignItems:"center",gap:8,'  # D2
+     'padding:"6px 10px",background:"var(--bg-panel)",border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",'
+     'fontSize:11,color:"var(--ink-soft)"},children:[r.jsx("kbd",{style:ns,children:"/"}),'
+     'dzT("studio.graphe.raccourci_noeuds"),r.jsx("kbd",{style:ns,children:"⌘K"})," palette",'
+     'r.jsx("kbd",{style:ns,children:"⌘⏎"}),dzT("studio.graphe.raccourci_executer")]})',
+     'r.jsxs("div",{ref:function(e_){dzRaccRef(e_)},"data-dz-racc":"1",style:{position:"absolute",right:12,top:12,'
+     'zIndex:4,display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"var(--bg-panel)",'
+     'border:"1px solid var(--stroke)",borderRadius:"var(--r-sm)",fontSize:11,color:"var(--ink-soft)"},'
+     'children:[r.jsxs("span",{"data-dz-racc-plein":"1",style:{display:"flex",alignItems:"center",gap:8,'
+     'whiteSpace:"nowrap"},children:[r.jsx("kbd",{style:ns,children:"/"}),'
+     'dzT("studio.graphe.raccourci_noeuds"),r.jsx("kbd",{style:ns,children:"⌘K"})," palette",'
+     'r.jsx("kbd",{style:ns,children:"⌘⏎"}),dzT("studio.graphe.raccourci_executer")]}),'
+     'r.jsx("span",{"data-dz-racc-pastille":"1",style:{display:"none"},children:r.jsx("kbd",{style:ns,children:"⌘"})})]})'),
+]
+
+PAIRES = PAIRES_AB + PAIRES_C + PAIRES_F + PAIRES_D                # C1 réécrit la sortie de A0 : l'ordre compte (défaire à rebours)
 
 
 def lire(p):
