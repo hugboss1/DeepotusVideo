@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 720" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="1240" height="720" fill="#02060d"/>
+  <text x="20" y="30" fill="#e8eef6" font-size="16" font-weight="700">Maquette — Studio › Animation, option (iii) « Direction motion » + entrées direction / script (17/10/2026)</text>
+  <text x="20" y="50" fill="#8b98a8" font-size="12">Proposition à valider : rien n'est codé. Les libellés FR seront des clés dzT (FR + EN).</text>
+  <!-- grille du canevas -->
+  <g fill="#1a2433"><circle cx="40" cy="80" r="1"/></g>
+  <rect x="20" y="64" width="800" height="636" fill="#050b14" stroke="#1c2736"/>
+  <!-- noeud Texte -->
+  <g transform="translate(60,110)">
+    <rect width="200" height="96" rx="8" fill="#0d1520" stroke="#e08a2c"/>
+    <circle cx="14" cy="16" r="3" fill="#e08a2c"/><text x="24" y="20" fill="#e8eef6" font-size="12" font-weight="700">Texte</text>
+    <text x="150" y="40" fill="#8b98a8" font-size="9">out · text</text><circle cx="200" cy="37" r="7" fill="#9aa6b5" stroke="#0d1520" stroke-width="2"/>
+    <rect x="10" y="50" width="180" height="36" rx="5" fill="#081019"/>
+    <text x="18" y="66" fill="#cfd8e3" font-size="10">« Le 2e épisode sort vendredi.</text><text x="18" y="79" fill="#cfd8e3" font-size="10">Trois raisons de le voir… »</text>
+  </g>
+  <!-- noeud Direction motion -->
+  <g transform="translate(60,260)">
+    <rect width="220" height="150" rx="8" fill="#0d1520" stroke="#ff5d8f" stroke-width="2"/>
+    <circle cx="14" cy="16" r="3" fill="#ff5d8f"/><text x="24" y="20" fill="#e8eef6" font-size="12" font-weight="700">Direction motion</text>
+    <text x="146" y="40" fill="#8b98a8" font-size="9">direction · motion</text><circle cx="220" cy="37" r="7" fill="#ff5d8f" stroke="#0d1520" stroke-width="2"/>
+    <rect x="10" y="52" width="200" height="88" rx="5" fill="#081019"/>
+    <text x="18" y="70" fill="#8b98a8" font-size="9">STYLE</text><text x="70" y="70" fill="#ffd166" font-size="10">Kinetic type</text>
+    <text x="18" y="90" fill="#8b98a8" font-size="9">SOURCE</text><text x="70" y="90" fill="#cfd8e3" font-size="10">skill · cinetic (MIT) ✎</text>
+    <text x="18" y="110" fill="#8b98a8" font-size="9">MOTEUR</text><text x="70" y="110" fill="#cfd8e3" font-size="10">local:lmstudio · qwen2.5</text>
+    <rect x="70" y="118" width="54" height="15" rx="7" fill="#123b26"/><text x="78" y="129" fill="#59d38c" font-size="9">gratuit</text>
+  </g>
+  <!-- noeud Animation -->
+  <g transform="translate(400,180)">
+    <rect width="220" height="170" rx="8" fill="#0d1520" stroke="#f5b82e" stroke-width="2"/>
+    <circle cx="14" cy="16" r="3" fill="#ff5d8f"/><text x="24" y="20" fill="#e8eef6" font-size="12" font-weight="700">Animation</text>
+    <circle cx="0" cy="37" r="7" fill="#9aa6b5" stroke="#0d1520" stroke-width="2"/><text x="12" y="40" fill="#8b98a8" font-size="9">base · av</text>
+    <circle cx="0" cy="59" r="7" fill="#ff5d8f" stroke="#0d1520" stroke-width="2"/><text x="12" y="62" fill="#ffb3c9" font-size="9">direction · motion  (neuf)</text>
+    <circle cx="0" cy="81" r="7" fill="#9aa6b5" stroke="#0d1520" stroke-width="2"/><text x="12" y="84" fill="#ffb3c9" font-size="9">script · text  (neuf)</text>
+    <text x="178" y="40" fill="#8b98a8" font-size="9">out · av</text><circle cx="220" cy="37" r="7" fill="#9aa6b5" stroke="#0d1520" stroke-width="2"/>
+    <rect x="10" y="100" width="200" height="60" rx="5" fill="#081019"/>
+    <text x="60" y="126" fill="#f5b82e" font-size="11">↗ 6 éléments</text><text x="40" y="146" fill="#8b98a8" font-size="9">chorégraphiés · kinetic type</text>
+  </g>
+  <!-- liens -->
+  <path d="M260 147 C 330 147, 330 261, 400 261" stroke="#9aa6b5" stroke-width="2" fill="none"/>
+  <path d="M280 297 C 340 297, 340 239, 400 239" stroke="#ff5d8f" stroke-width="2" fill="none"/>
+  <!-- Rendu -->
+  <g transform="translate(680,200)">
+    <rect width="120" height="90" rx="8" fill="#0d1520" stroke="#3ea66b"/>
+    <text x="22" y="20" fill="#e8eef6" font-size="12" font-weight="700">Rendu</text>
+    <circle cx="0" cy="37" r="7" fill="#9aa6b5" stroke="#0d1520" stroke-width="2"/><text x="12" y="40" fill="#8b98a8" font-size="9">in · av</text>
+  </g>
+  <path d="M620 217 C 650 217, 650 237, 680 237" stroke="#9aa6b5" stroke-width="2" fill="none"/>
+  <!-- Option B (plus tard) -->
+  <g transform="translate(400,470)">
+    <rect width="380" height="96" rx="8" fill="none" stroke="#5a6676" stroke-dasharray="6 5"/>
+    <text x="14" y="24" fill="#8b98a8" font-size="12" font-weight="700">Plus tard, option B (t238, à trancher)</text>
+    <text x="14" y="46" fill="#8b98a8" font-size="11">Nœud « Rendu motion code » : le moteur écrit une page</text>
+    <text x="14" y="64" fill="#8b98a8" font-size="11">HTML/SVG animée, rendue en MP4 dans un bac à sable ;</text>
+    <text x="14" y="82" fill="#8b98a8" font-size="11">sa sortie av se branche en « base » de l'Animation.</text>
+  </g>
+  <text x="40" y="660" fill="#8b98a8" font-size="11">Le script arrive par l'entrée « script » depuis n'importe quel nœud texte (Texte, Prompt, Script News) — ou d'un champ de l'inspecteur.</text>
+  <text x="40" y="680" fill="#8b98a8" font-size="11">Une même Direction motion peut piloter plusieurs Animations (style de marque cohérent sur une série).</text>
+
+  <!-- Inspecteur -->
+  <rect x="840" y="64" width="380" height="636" fill="#0a111b" stroke="#1c2736"/>
+  <text x="860" y="94" fill="#e8eef6" font-size="16" font-weight="700">Direction motion</text>
+  <text x="860" y="112" fill="#8b98a8" font-size="11">style, source et moteur de la chorégraphie</text>
+  <text x="860" y="142" fill="#8b98a8" font-size="11" font-weight="700">⌄ STYLE</text>
+  <g font-size="10">
+    <rect x="860" y="152" width="80" height="22" rx="11" fill="#3a2a05" stroke="#f5b82e"/><text x="871" y="167" fill="#ffd166">Kinetic type</text>
+    <rect x="946" y="152" width="74" height="22" rx="11" fill="#101a26" stroke="#2a3646"/><text x="958" y="167" fill="#cfd8e3">Product UI</text>
+    <rect x="1026" y="152" width="54" height="22" rx="11" fill="#101a26" stroke="#2a3646"/><text x="1038" y="167" fill="#cfd8e3">Charts</text>
+    <rect x="1086" y="152" width="64" height="22" rx="11" fill="#101a26" stroke="#2a3646"/><text x="1096" y="167" fill="#cfd8e3">Diagrams</text>
+    <rect x="1156" y="152" width="44" height="22" rx="11" fill="#101a26" stroke="#2a3646"/><text x="1166" y="167" fill="#cfd8e3">+ 7</text>
+  </g>
+  <text x="860" y="198" fill="#8b98a8" font-size="11">Rythme</text><rect x="920" y="188" width="280" height="4" rx="2" fill="#1f2b3a"/><circle cx="1050" cy="190" r="7" fill="#f2f5f9"/>
+  <text x="860" y="232" fill="#8b98a8" font-size="11" font-weight="700">⌄ SOURCE</text>
+  <rect x="860" y="242" width="340" height="28" rx="6" fill="#081019" stroke="#2a3646"/>
+  <text x="870" y="260" fill="#cfd8e3" font-size="11">skill · cinetic — Leonxlnx/cinetic</text>
+  <rect x="1138" y="249" width="54" height="15" rx="7" fill="#12243b"/><text x="1149" y="260" fill="#7fb6ff" font-size="9">MIT ↗</text>
+  <text x="860" y="290" fill="#8b98a8" font-size="11">Consigne du skill (modifiable) — texte d'exemple fictif</text>
+  <rect x="860" y="298" width="340" height="150" rx="6" fill="#050b14" stroke="#f5b82e"/>
+  <g fill="#cfd8e3" font-size="10" font-family="Consolas, monospace">
+    <text x="870" y="318"># Cinetic — launch film director</text>
+    <text x="870" y="334">Concept first: one idea, one verb.</text>
+    <text x="870" y="350">Beats: hook 0-1.5 s, reveal, proof, CTA.</text>
+    <text x="870" y="366">Type: heavy grotesk, max 4 words/beat;</text>
+    <text x="870" y="382">easing overshoot on entries, linear exits…</text>
+    <text x="870" y="406" fill="#ffd166">+ Rester dans la palette du kit de marque.</text>
+  </g>
+  <text x="870" y="440" fill="#5a6676" font-size="9">1 284 / 8 000 car.</text>
+  <rect x="1080" y="456" width="120" height="24" rx="6" fill="#101a26" stroke="#2a3646"/><text x="1092" y="472" fill="#cfd8e3" font-size="10">Revenir à l'original</text>
+  <text x="860" y="510" fill="#8b98a8" font-size="11" font-weight="700">⌄ MOTEUR</text>
+  <rect x="860" y="520" width="230" height="28" rx="6" fill="#081019" stroke="#2a3646"/><text x="870" y="538" fill="#cfd8e3" font-size="11">local:lmstudio · qwen2.5-14b</text>
+  <rect x="1098" y="526" width="56" height="16" rx="8" fill="#123b26"/><text x="1108" y="538" fill="#59d38c" font-size="9">gratuit</text>
+  <text x="860" y="568" fill="#5a6676" font-size="9">Anthropic · OpenAI · Gemini · fournisseurs libres (prix à mesurer) · serveurs locaux</text>
+  <text x="860" y="598" fill="#8b98a8" font-size="11" font-weight="700">› BIBLIOTHÈQUE MOTION</text>
+  <text x="860" y="616" fill="#5a6676" font-size="9">Importer un prompt (avec lien vers son auteur) · Installer un skill (licence lue avant)</text>
+  <rect x="860" y="640" width="340" height="36" rx="8" fill="#f5b82e"/><text x="960" y="663" fill="#1a1205" font-size="13" font-weight="700">✦ Chorégraphier</text>
+  <text x="862" y="694" fill="#5a6676" font-size="9">(bouton de l'inspecteur Animation — rappelé ici pour la lecture)</text>
+</svg>

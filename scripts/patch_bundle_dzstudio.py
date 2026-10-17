@@ -70,12 +70,20 @@ t229 (17/10) — A2 : les boutons de zoom ± ne changeaient que le zoom (`b(R=>�
     canevas ; rien à la borne (J===h) ; sans canevas, le zoom change seul ;
   - E1 / E2 : les boutons − / + l'appellent avec `N.current` (mêmes bornes .3 / 1.5, même pas .1). Aucun texte neuf.
 
+Animation (17/10) — le champ « Preset » de l'inspecteur Animation n'agissait pas. Relevé sur 39241c15 : `mk(t)` crée
+chaque élément avec deux `keyframes`, que l'aperçu (`dzKfs`) et le rendu backend (`animation_service.kfs_of`) lisent
+en priorité ; `applyPreset` n'écrivait que `from`/`to` → preset enregistré mais ignoré, et le menu montrant le nom
+enregistré, re-choisir le même ne déclenchait rien.
+  - G1 : `applyPreset` écrit deux keyframes (t 0 = from + easing du preset, t 1 = to), retire from/to, ramène la
+    keyframe active à 0 ; `dzPresetDe(el)` rend le nom du preset si les keyframes sont exactement les siennes, sinon "" ;
+  - G2 : le menu Preset affiche `dzPresetDe(cur)` (périmé ou retouché → « — », re-choisissable). Aucun texte neuf.
+
 Maillon de QUEUE, APRÈS dzlogo (dont il sonde le marqueur) ; il garde un .js.bak_dzstudio le temps de l'écriture
 puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzstudio` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_dzlogo`. Lecture et écriture
 en OCTETS. Bancs : backend/tests/test_studio_ancrage.py (t225), test_studio_ports_spatial.py (t226),
 test_studio_entetes.py (t227), test_studio_apercu_bandeau.py (suite de t227), test_studio_canevas_barre.py (t228),
-test_studio_zoom_boutons.py (t229).
+test_studio_zoom_boutons.py (t229), test_studio_animation_preset.py (Preset).
 Run : python scripts/patch_bundle_dzstudio.py [--check]
 """
 import pathlib
@@ -216,7 +224,22 @@ PAIRES_E = [
      'r.jsx(se,{name:"dz-action-zoom-avant",size:26,onClick:()=>dzZoomCentre(N.current,h,Math.min(1.5,h+.1),z,b)})'),
 ]
 
-PAIRES = PAIRES_AB + PAIRES_C + PAIRES_F + PAIRES_D + PAIRES_E     # C1 réécrit la sortie de A0 : l'ordre compte (défaire à rebours)
+PAIRES_G = [
+    ('function applyPreset(name){var p=PRESETS[name];if(!p||!cur)return;var a=els.slice();'                  # G1
+     'a[sel]=Object.assign({},a[sel],{from:Object.assign({},p.from),to:Object.assign({},p.to),'
+     'easing:p.easing||a[sel].easing,preset:name});setEls(a)}',
+     'function applyPreset(name){var p=PRESETS[name];if(!p||!cur)return;var a=els.slice();'
+     'var ne=Object.assign({},a[sel],{keyframes:[Object.assign({t:0},p.from,{easing:p.easing}),'
+     'Object.assign({t:1},p.to)],easing:p.easing||a[sel].easing,preset:name});delete ne.from;delete ne.to;'
+     'a[sel]=ne;setEls(a);setAk(0)}'
+     'function dzPresetDe(el){var n=el&&el.preset,p=n&&PRESETS[n];if(!p)return "";var k=dzKfs(el);'
+     'if(k.length!==2)return "";var ok=Object.keys(p.from).every(function(c){return k[0][c]===p.from[c]})'
+     '&&Object.keys(p.to).every(function(c){return k[1][c]===p.to[c]});return ok?n:""}'),
+    ('r.jsx(O,{label:"Preset",children:r.jsx(re,{value:cur.preset||"",',                                    # G2
+     'r.jsx(O,{label:"Preset",children:r.jsx(re,{value:dzPresetDe(cur),'),
+]
+
+PAIRES = PAIRES_AB + PAIRES_C + PAIRES_F + PAIRES_D + PAIRES_E + PAIRES_G     # C1 réécrit la sortie de A0 : l'ordre compte (défaire à rebours)
 
 
 def lire(p):
