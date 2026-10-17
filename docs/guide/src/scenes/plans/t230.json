@@ -1,0 +1,257 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "python scripts/guide/serve_guide_ia.py (clé fal FACTICE, aucun appel sortant, port 8809). t230 : scènes du Studio recapturées après t225-t229 (liens ancrés, en-têtes aérés, canevas sous la barre, zoom centré).",
+ "scenes": [
+  {
+   "scene": "studio/graphe",
+   "titre": {
+    "fr": "Le Studio",
+    "en": "The Studio"
+   },
+   "legende": {
+    "fr": "La palette des nœuds, le graphe, l'inspecteur ; en haut, l'aperçu gratuit, le coût et Exécuter.",
+    "en": "The nodes palette, the graph, the inspector; at the top, the free preview, the cost and Run."
+   },
+   "avant": [
+    {
+     "clic": "texte:Studio",
+     "apres": 2500
+    },
+    {
+     "clic": "css:button.dz-insp-fold",
+     "apres": 900,
+     "facultatif": true
+    }
+   ],
+   "captures": [
+    {
+     "nom": "graphe"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:GRAPHES DE DÉPART",
+      "en": "contient:STARTER GRAPHS"
+     },
+     "bulle": {
+      "fr": "Partez d'un graphe tout prêt",
+      "en": "Start from a ready-made graph"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Aperçu",
+      "en": "texte:Preview"
+     },
+     "bulle": {
+      "fr": "Aperçu : voir avant de payer",
+      "en": "Preview: see before paying"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "curseur": {
+      "fr": "texte:Exécuter",
+      "en": "texte:Run"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Exécuter : le coût affiché devient le plafond",
+      "en": "Run: the cost shown becomes the cap"
+     }
+    }
+   ],
+   "taille": [
+    1920,
+    1080
+   ]
+  },
+  {
+   "scene": "studio/composition-fl",
+   "url": "/",
+   "titre": {
+    "fr": "Une image de fin dans le Studio",
+    "en": "A last frame in the Studio"
+   },
+   "legende": {
+    "fr": "Une image branchée sur l'entrée end du nœud Seedance devient la dernière image du plan ; un modèle qui ne la prend pas propose Veo 3.1 Fast.",
+    "en": "An image wired to the Seedance node's end input becomes the shot's last frame; a model that can't take it offers Veo 3.1 Fast."
+   },
+   "avant": [
+    {
+     "clic": "texte:Studio",
+     "apres": 2500
+    },
+    {
+     "clic": "css:.dz-insp-handle",
+     "apres": 900,
+     "facultatif": true
+    },
+    {
+     "clic": "texte:Seedance solo",
+     "apres": 2500
+    },
+    {
+     "glisser": [
+      "css:[data-node-id=\"n1\"] [data-port-side=\"out\"]",
+      "css:[data-node-id=\"n2\"] [data-port-id=\"end\"]"
+     ],
+     "apres": 1200
+    },
+    {
+     "clic": "css:[data-node-id=\"n2\"]",
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "branche"
+    },
+    {
+     "nom": "refus",
+     "etapes": [
+      {
+       "clic": "css:[data-dzvmsel] button[data-dzselect]",
+       "apres": 900
+      },
+      {
+       "js": "[...document.querySelectorAll('[data-dzvmsel] span')].find(e => e.textContent.trim().startsWith('PixVerse v6')).closest('button').scrollIntoView({block: 'center'})",
+       "attente": 500
+      },
+      {
+       "clic": "contient:PixVerse v6 ·",
+       "apres": 1200
+      }
+     ]
+    },
+    {
+     "nom": "veo",
+     "etapes": [
+      {
+       "clic": "css:button[data-dzvmfl]",
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-node-id=\"n2\"] [data-port-id=\"end\"]",
+     "bulle": {
+      "fr": "Une image sur l'entrée end",
+      "en": "An image on the end input"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-dzvmsel]",
+     "bulle": {
+      "fr": "Le modèle prend l'image de fin",
+      "en": "The model takes the last frame"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:[data-dzvmflabsent]",
+     "bulle": {
+      "fr": "Ce modèle refuserait l'image de fin",
+      "en": "This model would refuse the last frame"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:[data-dzvmsel]",
+     "bulle": {
+      "fr": "Veo 3.1 Fast : début et fin",
+      "en": "Veo 3.1 Fast: first and last frame"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio/vue",
+   "titre": {
+    "fr": "Zoomer sans perdre le graphe",
+    "en": "Zoom without losing the graph"
+   },
+   "legende": {
+    "fr": "Les boutons de zoom gardent le centre de la vue en place ; l'encart des raccourcis se replie en pastille quand un nœud passe dessous.",
+    "en": "The zoom buttons keep the centre of the view in place; the shortcuts box folds into a badge when a node goes under it."
+   },
+   "avant": [
+    {
+     "clic": "texte:Studio",
+     "apres": 2500
+    },
+    {
+     "clic": "css:button.dz-insp-fold",
+     "apres": 900,
+     "facultatif": true
+    }
+   ],
+   "captures": [
+    {
+     "nom": "depart"
+    },
+    {
+     "nom": "zoom",
+     "etapes": [
+      {
+       "clic": "css:div[style*=\"left: 12px; bottom: 12px\"] > button:last-of-type",
+       "apres": 700
+      },
+      {
+       "clic": "css:div[style*=\"left: 12px; bottom: 12px\"] > button:last-of-type",
+       "apres": 1200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:div[style*=\"left: 12px; bottom: 12px\"]",
+     "bulle": {
+      "fr": "Les boutons de zoom, en bas à gauche",
+      "en": "The zoom buttons, bottom left"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "curseur": "css:div[style*=\"left: 12px; bottom: 12px\"] > button:last-of-type",
+     "clic": true,
+     "bulle": {
+      "fr": "Le centre de la vue reste en place",
+      "en": "The centre of the view stays put"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:[data-dz-racc]",
+     "bulle": {
+      "fr": "Un nœud dessous : l'encart se replie",
+      "en": "A node underneath: the box folds away"
+     }
+    }
+   ],
+   "taille": [
+    1920,
+    1080
+   ]
+  }
+ ]
+}
