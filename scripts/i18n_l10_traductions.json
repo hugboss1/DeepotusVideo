@@ -9626,5 +9626,17 @@
  "moteur « {v} » non configuré (Réglages)": {
   "fr": "moteur « {v} » non configuré (Réglages)",
   "en": "engine “{v}” is not configured (Settings)"
+ },
+ "Le script est vide.": {
+  "fr": "Le script est vide.",
+  "en": "The script is empty."
+ },
+ "sortie sans liste d'éléments": {
+  "fr": "sortie sans liste d'éléments",
+  "en": "output without a list of elements"
+ },
+ "aucun élément valide dans la sortie": {
+  "fr": "aucun élément valide dans la sortie",
+  "en": "no valid element in the output"
  }
 }
