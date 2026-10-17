@@ -99,3 +99,17 @@ async def installer(request: Request):
         return await MB.installer_skill(corps.get("source"))
     except (ValueError, LookupError, PermissionError, RuntimeError) as e:
         raise _http(e) from None
+
+
+@router.post("/choregraphier")
+async def choregraphier(request: Request):
+    """t234 — script + direction → éléments du nœud Animation (app.services.motion_choregraphe). Un moteur absent ou
+    non configuré n'est pas une erreur : le repli déterministe répond. Un plafond dépassé remonte (402 dz_plafond)."""
+    _local(request)
+    corps = await _corps(request)
+    from app.i18n import langue_requete
+    from app.services import motion_choregraphe as CH
+    try:
+        return await CH.choregraphier(corps, langue_requete(request))
+    except (ValueError, LookupError, PermissionError) as e:
+        raise _http(e) from None
