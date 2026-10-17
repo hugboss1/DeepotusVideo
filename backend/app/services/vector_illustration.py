@@ -196,75 +196,12 @@ def tirer(moteur: str, modele: str, prompt: str, systeme: str,
 
     Lève `RuntimeError` avec la cause : l'écran vient d'afficher le nom du
     modèle qui va dépenser la clé, un repli silencieux le ferait mentir.
+    t232 (17/10/2026) : le code de l'appel vit dans `moteurs_texte.tirer`
+    (commun au Studio) ; le Vectorlab l'appelle tel quel, en texte.
     """
-    mod = (modele or modele_defaut(moteur)).strip()
-    if not mod:
-        raise RuntimeError(f"aucun modèle pour « {moteur} »")
-    if moteur.startswith("fl:"):            # t222 : POST {base}/chat/completions du fournisseur libre
-        from app.services import fournisseurs_llm as _FL
-        fid = _FL.de_moteur(moteur)
-        if not fid:
-            raise RuntimeError(f"moteur inconnu : {moteur}")
-        return _FL.tirer(fid, mod, prompt, systeme, max_tokens, timeout=timeout)
-    if moteur.startswith("local:"):         # t223 : le serveur local (Ollama natif ou compatible OpenAI)
-        from app.services import serveurs_locaux as _SL
-        sid = _SL.de_moteur(moteur)
-        if not sid:
-            raise RuntimeError(f"moteur inconnu : {moteur}")
-        return _SL.tirer(sid, mod, prompt, systeme, max_tokens, timeout=max(timeout, 180.0))
-    if moteur == "anthropic":
-        body = {"model": mod, "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}]}
-        if systeme:
-            body["system"] = systeme
-        r = httpx.post("https://api.anthropic.com/v1/messages",
-                       headers={"x-api-key": settings.ANTHROPIC_API_KEY,
-                                "anthropic-version": "2023-06-01",
-                                "content-type": "application/json"},
-                       json=body, timeout=timeout, verify=SSL_VERIFY)
-        if r.status_code != 200:
-            raise RuntimeError(f"Anthropic HTTP {r.status_code} — "
-                               f"{r.text[:200]}")
-        return "".join(b.get("text", "") for b in (r.json().get("content") or [])
-                       if b.get("type") == "text")
-    if moteur == "openai":
-        msgs = ([{"role": "system", "content": systeme}] if systeme else []) \
-            + [{"role": "user", "content": prompt}]
-        r = httpx.post("https://api.openai.com/v1/chat/completions",
-                       headers={"Authorization":
-                                f"Bearer {settings.OPENAI_API_KEY}",
-                                "Content-Type": "application/json"},
-                       json={"model": mod, "max_tokens": max_tokens,
-                             "messages": msgs},
-                       timeout=timeout, verify=SSL_VERIFY)
-        if r.status_code != 200:
-            raise RuntimeError(f"OpenAI HTTP {r.status_code} — {r.text[:200]}")
-        ch = r.json().get("choices") or []
-        return (ch[0].get("message", {}).get("content", "") if ch else "")
-    if moteur == "gemini":
-        from app.services.gemini_llm import _headers
-        from app.services.google_video import GOOGLE_API_BASE
-        body = {"contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"maxOutputTokens": max_tokens}}
-        if systeme:
-            body["systemInstruction"] = {"parts": [{"text": systeme}]}
-        r = httpx.post(f"{GOOGLE_API_BASE}/models/{mod}:generateContent",
-                       headers=_headers(), json=body, timeout=timeout,
-                       verify=SSL_VERIFY)
-        if r.status_code != 200:
-            raise RuntimeError(f"Gemini HTTP {r.status_code} — {r.text[:200]}")
-        cand = r.json().get("candidates") or []
-        parts = (cand[0].get("content", {}).get("parts", []) if cand else [])
-        return "".join(p.get("text", "") for p in parts)
-    if moteur == "ollama":
-        r = httpx.post(f"{settings.OLLAMA_URL.rstrip('/')}/api/generate",
-                       json={"model": mod, "prompt": prompt, "system": systeme,
-                             "stream": False},
-                       timeout=timeout, verify=SSL_VERIFY)
-        if r.status_code != 200:
-            raise RuntimeError(f"Ollama HTTP {r.status_code} — {r.text[:200]}")
-        return str(r.json().get("response") or "")
-    raise RuntimeError(f"moteur inconnu : {moteur}")
+    from app.services import moteurs_texte as _MT
+    return _MT.tirer(moteur, modele, prompt, systeme, max_tokens,
+                     timeout=timeout)
 
 
 # ── le SVG rendu ÉDITABLE ──────────────────────────────────────────────
