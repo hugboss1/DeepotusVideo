@@ -12837,6 +12837,18 @@ async def vector_illustration(body: dict):
     return {"ok": True, "formes": formes, "viewbox": vb,
             "provider": moteur, "modele": modele}
 
+
+@router.get("/motion/moteurs")
+async def motion_moteurs(request: Request):
+    """t232 (Studio : Animation, 17/10/2026) — les moteurs de texte que le Studio peut faire chorégraphier : une ligne
+    par moteur de `moteurs_texte.etat()` (configuré, modèle sain, alerte), plus `cout` — la bulle de `mod-ia.js` :
+    `gratuit` (ollama, local:<id>), `a_mesurer` (fl:<id>), `payant` (intégrés). Réservée à la boucle locale comme les
+    autres Réglages. Rien n'est appelé ici : la vraie liste des modèles reste `/settings/provider-defaults/modeles`."""
+    _require_localhost(request)
+    from app.services import moteurs_texte as _MT
+    return {"moteurs": [dict(l, cout=_MT.nature_cout(l["moteur"])) for l in _MT.etat()]}
+
+
 @router.get("/vector/vitrail")
 async def vector_vitrail():
     """Le mode vitrail du Vectorlab lit la FICHE ÉPINGLÉE
