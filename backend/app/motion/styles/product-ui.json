@@ -1,0 +1,44 @@
+{
+  "theme": "product-ui",
+  "version": 1,
+  "titre": {
+    "fr": "Interface produit",
+    "en": "Product UI"
+  },
+  "consigne": {
+    "fr": "L'interface est la vedette : on montre le produit qui travaille, pas une promesse. Partir d'un écran entier et propre, puis plonger sur la fonction qui compte, une seule à la fois. Un pointeur ou un surlignage guide l'œil vers l'endroit où cliquer ; le résultat apparaît juste après le geste. Données de démonstration crédibles, jamais de faux texte. Mouvements de caméra doux (zoom, léger panoramique), aucun élément qui tremble. Un sous-titre court nomme le bénéfice à chaque étape ; la fin revient sur l'écran entier avec le nom du produit.",
+    "en": "The interface is the star: show the product at work, not a promise. Start from a clean full screen, then dive into the feature that matters, one at a time. A pointer or a highlight leads the eye to where the click happens; the result appears right after the gesture. Believable demo data, never placeholder text. Gentle camera moves (zoom, slight pan), nothing that jitters. A short caption names the benefit at each step; the ending pulls back to the full screen with the product name."
+  },
+  "rythme": {
+    "fr": "Posé : 1,5 à 3 s par étape, le temps de lire le geste et son effet.",
+    "en": "Measured: 1.5 to 3 s per step, enough to read the gesture and its effect."
+  },
+  "cadence_s": [
+    1.5,
+    3.0
+  ],
+  "easings": [
+    "easeInOut",
+    "smooth",
+    "easeInOutSine",
+    "easeOut"
+  ],
+  "presets": [
+    "zoom-in",
+    "slide-up",
+    "fade-in",
+    "slide-left",
+    "ken-burns"
+  ],
+  "duree_s": {
+    "min": 10,
+    "type": 20,
+    "max": 45
+  },
+  "formats": [
+    "16:9",
+    "9:16",
+    "4:5"
+  ],
+  "auteur": "DeepotusVideo (fiche maison, t233)"
+}

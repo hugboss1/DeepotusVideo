@@ -9490,5 +9490,125 @@
  "serveur local inconnu : {sid}": {
   "fr": "serveur local inconnu : {sid}",
   "en": "unknown local server: {sid}"
+ },
+ "La bibliothèque motion n'est accessible que depuis ce PC.": {
+  "fr": "La bibliothèque motion n'est accessible que depuis ce PC.",
+  "en": "The motion library is only accessible from this PC."
+ },
+ "Corps JSON attendu.": {
+  "fr": "Corps JSON attendu.",
+  "en": "JSON body expected."
+ },
+ "Entrée inconnue : {eid}": {
+  "fr": "Entrée inconnue : {eid}",
+  "en": "Unknown entry: {eid}"
+ },
+ "Champ invalide : {nom}": {
+  "fr": "Champ invalide : {nom}",
+  "en": "Invalid field: {nom}"
+ },
+ "Champ obligatoire : {nom}": {
+  "fr": "Champ obligatoire : {nom}",
+  "en": "Required field: {nom}"
+ },
+ "Champ trop long : {nom} (au plus {maxi} caractères).": {
+  "fr": "Champ trop long : {nom} (au plus {maxi} caractères).",
+  "en": "Field too long: {nom} (at most {maxi} characters)."
+ },
+ "L'URL d'attribution est obligatoire : un import cite toujours sa source (lien de la fiche ou du post d'origine).": {
+  "fr": "L'URL d'attribution est obligatoire : un import cite toujours sa source (lien de la fiche ou du post d'origine).",
+  "en": "The attribution URL is required: an import always credits its source (link to the original entry or post)."
+ },
+ "URL d'attribution invalide : une adresse http(s)://… attendue.": {
+  "fr": "URL d'attribution invalide : une adresse http(s)://… attendue.",
+  "en": "Invalid attribution URL: an http(s)://… address is expected."
+ },
+ "Champ invalide : themes": {
+  "fr": "Champ invalide : themes",
+  "en": "Invalid field: themes"
+ },
+ "Bibliothèque pleine : {MAX_ENTREES} entrées au plus.": {
+  "fr": "Bibliothèque pleine : {MAX_ENTREES} entrées au plus.",
+  "en": "Library full: {MAX_ENTREES} entries at most."
+ },
+ "Les fiches de style maison sont en lecture seule : importez un prompt ou installez un skill pour une direction à vous.": {
+  "fr": "Les fiches de style maison sont en lecture seule : importez un prompt ou installez un skill pour une direction à vous.",
+  "en": "Built-in style sheets are read-only: import a prompt or install a skill for a direction of your own."
+ },
+ "Seul un skill a un texte d'origine.": {
+  "fr": "Seul un skill a un texte d'origine.",
+  "en": "Only a skill has an original text."
+ },
+ "Chemin refusé : {brut} — un dossier du dépôt, sans « .. » ni chemin absolu.": {
+  "fr": "Chemin refusé : {brut} — un dossier du dépôt, sans « .. » ni chemin absolu.",
+  "en": "Path refused: {brut} — a folder of the repository, without “..” or an absolute path."
+ },
+ "Source du skill attendue : owner/repo[:chemin] ou une URL github.com.": {
+  "fr": "Source du skill attendue : owner/repo[:chemin] ou une URL github.com.",
+  "en": "Skill source expected: owner/repo[:path] or a github.com URL."
+ },
+ "Source refusée : {s}": {
+  "fr": "Source refusée : {s}",
+  "en": "Source refused: {s}"
+ },
+ "Dépôt refusé : {proprio}/{depot}": {
+  "fr": "Dépôt refusé : {proprio}/{depot}",
+  "en": "Repository refused: {proprio}/{depot}"
+ },
+ "Référence refusée : {ref}": {
+  "fr": "Référence refusée : {ref}",
+  "en": "Reference refused: {ref}"
+ },
+ "Hôte refusé : {url} — seuls github.com et raw.githubusercontent.com sont permis.": {
+  "fr": "Hôte refusé : {url} — seuls github.com et raw.githubusercontent.com sont permis.",
+  "en": "Host refused: {url} — only github.com and raw.githubusercontent.com are allowed."
+ },
+ "Skill déjà installé : {eid}": {
+  "fr": "Skill déjà installé : {eid}",
+  "en": "Skill already installed: {eid}"
+ },
+ "Thème inconnu : {t}": {
+  "fr": "Thème inconnu : {t}",
+  "en": "Unknown theme: {t}"
+ },
+ "Champ non modifiable : {k}": {
+  "fr": "Champ non modifiable : {k}",
+  "en": "Field cannot be changed: {k}"
+ },
+ "Hôte refusé : {v} — seuls github.com et raw.githubusercontent.com sont permis.": {
+  "fr": "Hôte refusé : {v} — seuls github.com et raw.githubusercontent.com sont permis.",
+  "en": "Host refused: {v} — only github.com and raw.githubusercontent.com are allowed."
+ },
+ "GitHub injoignable : {e}": {
+  "fr": "GitHub injoignable : {e}",
+  "en": "GitHub unreachable: {e}"
+ },
+ "SKILL.md introuvable dans {depot} ({v}).": {
+  "fr": "SKILL.md introuvable dans {depot} ({v}).",
+  "en": "SKILL.md not found in {depot} ({v})."
+ },
+ "SKILL.md n'est pas un texte : installation refusée.": {
+  "fr": "SKILL.md n'est pas un texte : installation refusée.",
+  "en": "SKILL.md is not text: installation refused."
+ },
+ "Aucune licence dans {depot} : installation refusée (MIT, Apache-2.0, BSD ou ISC requise).": {
+  "fr": "Aucune licence dans {depot} : installation refusée (MIT, Apache-2.0, BSD ou ISC requise).",
+  "en": "No licence in {depot}: installation refused (MIT, Apache-2.0, BSD or ISC required)."
+ },
+ "Licence non reconnue dans {depot} : installation refusée (MIT, Apache-2.0, BSD ou ISC requise).": {
+  "fr": "Licence non reconnue dans {depot} : installation refusée (MIT, Apache-2.0, BSD ou ISC requise).",
+  "en": "Licence not recognised in {depot}: installation refused (MIT, Apache-2.0, BSD or ISC required)."
+ },
+ "Redirection refusée pour {nom} : le skill doit être servi directement par raw.githubusercontent.com.": {
+  "fr": "Redirection refusée pour {nom} : le skill doit être servi directement par raw.githubusercontent.com.",
+  "en": "Redirect refused for {nom}: the skill must be served directly by raw.githubusercontent.com."
+ },
+ "GitHub a répondu HTTP {status_code} pour {nom}.": {
+  "fr": "GitHub a répondu HTTP {status_code} pour {nom}.",
+  "en": "GitHub answered HTTP {status_code} for {nom}."
+ },
+ "Fichier trop gros : {nom} (au plus {v} Ko).": {
+  "fr": "Fichier trop gros : {nom} (au plus {v} Ko).",
+  "en": "File too large: {nom} (at most {v} KB)."
  }
 }
