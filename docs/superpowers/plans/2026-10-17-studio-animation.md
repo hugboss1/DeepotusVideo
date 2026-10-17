@@ -220,9 +220,15 @@ Bancs :
 `moteurs_texte.tirer(…, effort=None)` et `tirer_garde(…, effort=None)` :
 
 - `None` / `"auto"` = rien n'est envoyé (le défaut du modèle s'applique) ;
-- sinon le niveau est traduit par fournisseur, seulement si CE modèle l'accepte :
-  - Anthropic : `output_config.effort` (`low`/`medium`/`high`/`xhigh`/`max` ; `xhigh` à partir d'Opus 4.7 ;
-    Haiku 4.5 et les modèles antérieurs le refusent) ;
+- sinon le niveau est traduit par fournisseur, seulement si CE modèle l'accepte. Le modèle est celui choisi
+  dans le nœud, sinon celui des Réglages › Valeurs par défaut (l'utilisateur y règle déjà `claude-opus-5-5`, 18/10) :
+  les niveaux se décident sur ce modèle, jamais sur un défaut figé du code ;
+  - Anthropic : `output_config.effort`. Niveaux par modèle, lus de préférence dans les `capabilities` de l'API
+    Modèles (`GET /v1/models`, déjà interrogée pour la liste publiée) et, à défaut, par une table de familles tenue
+    à jour : Fable 5 / 5.1, Opus 5.5 / 5 / 4.8 / 4.7, Sonnet 5.5 / 5, Haiku 5.5 → `low`/`medium`/`high`/`xhigh`/`max` ;
+    Opus 4.6 / Sonnet 4.6 → `low`/`medium`/`high`/`max` ; Opus 4.5 → `low`/`medium`/`high` ; Haiku 4.5 et plus anciens
+    → aucun (« Auto » seul). Le défaut du modèle est affiché à côté d'« Auto » (`medium` pour Opus 5.5 et Haiku 5.5,
+    `high` ailleurs) ;
   - OpenAI, Gemini, Ollama et serveurs locaux, fournisseurs libres : relever la documentation à jour de chacun
     (paramètre, valeurs, modèles concernés) AVANT d'écrire, sans rien supposer ; un fournisseur sans réglage
     connu n'expose que « Auto ».
@@ -230,8 +236,13 @@ Bancs :
 - `estimer(…, effort)` : la sortie maximale estimée croît avec l'effort ; l'estimation reste faite AVANT l'appel,
   sous les plafonds.
 
-`GET /api/motion/moteurs` ajoute, par moteur, `efforts` (les niveaux possibles pour le modèle par défaut) ; une route
-`GET /api/motion/moteurs/efforts?moteur=&modele=` donne ceux d'un modèle précis. Le Vectorlab et les autres appelants
+**Sélections des générateurs mises à jour.** Le choix de modèle d'un générateur de chorégraphie (Direction motion)
+offre TOUTE la liste publiée par le fournisseur, comme Réglages › Valeurs par défaut (14 modèles Anthropic, 88 OpenAI,
+32 Gemini relevés le 18/10, via `modeles_de`), le modèle des Réglages en tête et présélectionné.
+
+`GET /api/motion/moteurs` ajoute, par moteur, le modèle des Réglages et ses `efforts` (niveaux + défaut) ;
+`GET /api/settings/provider-defaults/modeles?moteur=` rend, à côté de chaque modèle, ses `efforts` (même calcul), pour
+que le sélecteur d'effort suive le modèle choisi sans autre appel. Le Vectorlab et les autres appelants
 gardent leur comportement (effort absent = inchangé, banc de non-régression).
 
 Bancs : faux serveurs par fournisseur (corps reçu : niveau présent ou absent), refus d'un niveau non accepté,

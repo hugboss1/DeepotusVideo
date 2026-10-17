@@ -55,7 +55,8 @@ l'effort aujourd'hui (`moteurs_texte.tirer` n'a pas ce paramètre).
 Côté Anthropic (documentation à jour) : `output_config.effort` = `low` | `medium` | `high` | `xhigh` | `max`.
 - Opus 5.5 / Haiku 5.5 : défaut `medium` ; les autres modèles récents : défaut `high`.
 - `xhigh` : à partir d'Opus 4.7.
-- Haiku 4.5 (modèle par défaut actuel de notre moteur `anthropic`) le REFUSE.
+- Haiku 4.5 le REFUSE. Les niveaux se décident donc sur le modèle réellement choisi (nœud, sinon Réglages ›
+  Valeurs par défaut, où l'utilisateur sélectionne déjà `claude-opus-5-5`), jamais sur un défaut figé du code.
 
 Les autres moteurs ont leur propre réglage, à relever modèle par modèle au plan, sans le supposer : OpenAI (modèles de
 raisonnement), Gemini (réflexion), Ollama / serveurs locaux (selon le modèle), fournisseurs libres (selon l'API).
@@ -70,7 +71,8 @@ raisonnement), Gemini (réflexion), Ollama / serveurs locaux (selon le modèle),
 | P4 | Police et palette en champs | Police et couleurs = kit de marque de l'espace actif | Garder le kit par défaut ; champs **Police / Palette** facultatifs qui le remplacent pour cette direction. |
 | P5 | Curseurs Créativité / Rythme / Finition, 5 crans, milieu = neutre | Rien | **Trois curseurs** dans Direction motion, phrases de consigne écrites par nous (FR/EN). En option A : Créativité et Rythme → consigne ; Finition → validation (repli plus strict à « rapide », seconde passe de vérification des bornes et de la lisibilité à « soignée »). En option B : nombre de passes de revue. |
 | P6 | Une partie « inputs » : le modèle demande avant de commencer | Le chorégraphe ne demande rien | Ne pas reproduire (A est un appel unique) ; les champs du nœud jouent ce rôle. |
-| P7 | Recommandation « modèle de pointe, effort max » | Moteur + modèle + bulle de coût, sans effort | **Sélecteur d'effort** dans Direction motion, à côté du modèle : « Auto (défaut du modèle) », puis les niveaux que CE moteur et CE modèle acceptent (exposés par `GET /api/motion/moteurs`). `moteurs_texte.tirer(…, effort=)` le traduit par fournisseur ; un niveau non accepté n'est jamais envoyé (Haiku 4.5 → « Auto » seulement, dit dans la bulle). L'estimation de coût AVANT l'appel tient compte de l'effort (sortie maximale plus grande), sous les plafonds. |
+| P7 | Recommandation « modèle de pointe, effort max » | Moteur + modèle + bulle de coût, sans effort | **Sélecteur d'effort** dans Direction motion, à côté du modèle : « Auto (défaut du modèle) », puis les niveaux que CE moteur et CE modèle acceptent (exposés par `GET /api/motion/moteurs`). `moteurs_texte.tirer(…, effort=)` le traduit par fournisseur ; un niveau non accepté n'est jamais envoyé (un modèle ancien n'offre qu'« Auto », dit dans la bulle) ; le choix de
+modèle offre toute la liste publiée, comme Réglages › Valeurs par défaut, celui des Réglages présélectionné (18/10). L'estimation de coût AVANT l'appel tient compte de l'effort (sortie maximale plus grande), sous les plafonds. |
 | P8 | Valeurs gardées dans le navigateur pour le prompt suivant | Valeurs gardées dans le nœud | Garder dans le nœud ; un bouton « Reprendre mes précisions » réutilise celles du dernier nœud Direction motion. |
 | P9 | Prompts écrits pour un agent qui code et rend une page animée | Option A (JSON borné) livrée ; B (t238) en attente | Les sections `direction` / `structure` nourrissent A ; `build` / `gotchas` ne servent qu'à **B**. À rappeler au moment de trancher t238. |
 
