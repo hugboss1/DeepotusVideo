@@ -166,6 +166,17 @@ Les boutons zooment autour du coin (0,0) ; la molette autour du curseur. Correct
 formule que la molette avec le CENTRE du canevas comme pivot (pan recalculé). Banc `test_studio_zoom_boutons.py`
 (formule extraite sous node : le point central du canevas reste fixe à ± 0,5 px). Preuve au vrai clic.
 
+**Fait le 17/10** : relevé sur 1be65c00 — les boutons faisaient `b(R=>Math.max(.3,R-.1))` / `b(R=>Math.min(1.5,R+.1))`
+sans toucher au pan (`transformOrigin:"0 0"`) ; la molette `M` garde le point sous le curseur. Paires E0-E2 (`PAIRES_E`,
+après les D*) : E0 `dzZoomCentre(cv,h,J,z,b)` au niveau du module devant `dzRaccRef` (formule de la molette, pivot =
+centre du rectangle du canevas ; rien à la borne ; sans canevas, zoom seul) ; E1 / E2 les boutons − / + l'appellent avec
+`N.current` (bornes .3 / 1.5, pas .1 inchangés). Aucun texte neuf, aucun useState. Banc `test_studio_zoom_boutons.py`
+26/26 (17 rouges sur 1be65c00 ; les VRAIES expressions onClick extraites du bundle et exécutées sous node), 13 mutants
+tués ; `test_studio_canevas_barre` D1 borné à ses familles. Preuve (Edge sans fenêtre par CDP, clics réels, 8797,
+1500 px, inspecteur ouvert, canevas 666 px) : FR et EN, suite + + + − − − − − + (85→105→55→65 %), le point du graphe
+au centre du canevas ne bouge pas (dérive 0,0 px ; pan {−44,4 ; −49,13} au premier +). Captures et mesures :
+`docs/superpowers/specs/assets/2026-10-16-studio/t229-*`.
+
 ## t230 — Traduction et guide du Studio (P1, S)
 
 Dépend de t225-t229. Clés FR/EN des textes neufs éventuels (bulle t226, pastille t228), banc K « aucune chaîne en dur

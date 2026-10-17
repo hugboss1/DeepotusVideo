@@ -64,11 +64,18 @@ Avatar HeyGen. Décision de l'utilisateur sur maquette (t228-maquette.png) : opt
   - D2 : l'encart à `top:12` du canevas, `ref` en ligne (rappelée à chaque rendu : pan, zoom, glisser), texte complet
     dans `data-dz-racc-plein` (mêmes clés dzT), pastille `data-dz-racc-pastille`. Aucun texte visible neuf.
 
+t229 (17/10) — A2 : les boutons de zoom ± ne changeaient que le zoom (`b(R=>…)`) : la vue pivotait autour du coin
+(0,0) du canevas et partait en haut à gauche, alors que la molette pivote autour du curseur.
+  - E0 : `dzZoomCentre(cv,h,J,z,b)` devant `dzRaccRef` : même formule que la molette, pivot = centre du rectangle du
+    canevas ; rien à la borne (J===h) ; sans canevas, le zoom change seul ;
+  - E1 / E2 : les boutons − / + l'appellent avec `N.current` (mêmes bornes .3 / 1.5, même pas .1). Aucun texte neuf.
+
 Maillon de QUEUE, APRÈS dzlogo (dont il sonde le marqueur) ; il garde un .js.bak_dzstudio le temps de l'écriture
 puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzstudio` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_dzlogo`. Lecture et écriture
 en OCTETS. Bancs : backend/tests/test_studio_ancrage.py (t225), test_studio_ports_spatial.py (t226),
-test_studio_entetes.py (t227), test_studio_apercu_bandeau.py (suite de t227), test_studio_canevas_barre.py (t228).
+test_studio_entetes.py (t227), test_studio_apercu_bandeau.py (suite de t227), test_studio_canevas_barre.py (t228),
+test_studio_zoom_boutons.py (t229).
 Run : python scripts/patch_bundle_dzstudio.py [--check]
 """
 import pathlib
@@ -198,7 +205,18 @@ PAIRES_D = [
      'r.jsx("span",{"data-dz-racc-pastille":"1",style:{display:"none"},children:r.jsx("kbd",{style:ns,children:"⌘"})})]})'),
 ]
 
-PAIRES = PAIRES_AB + PAIRES_C + PAIRES_F + PAIRES_D                # C1 réécrit la sortie de A0 : l'ordre compte (défaire à rebours)
+PAIRES_E = [
+    ('function dzRaccRef(el){',                                                                               # E0
+     'function dzZoomCentre(cv,h,J,z,b){if(J===h)return;var W=cv&&cv.getBoundingClientRect?cv.getBoundingClientRect():null;'
+     'if(W){var S=W.width/2,L=W.height/2;z(function(ce){return{x:S-(S-ce.x)*(J/h),y:L-(L-ce.y)*(J/h)}})}b(J)}'
+     'function dzRaccRef(el){'),
+    ('r.jsx(se,{name:"dz-action-zoom-arriere",size:26,onClick:()=>b(R=>Math.max(.3,R-.1))})',                 # E1
+     'r.jsx(se,{name:"dz-action-zoom-arriere",size:26,onClick:()=>dzZoomCentre(N.current,h,Math.max(.3,h-.1),z,b)})'),
+    ('r.jsx(se,{name:"dz-action-zoom-avant",size:26,onClick:()=>b(R=>Math.min(1.5,R+.1))})',                  # E2
+     'r.jsx(se,{name:"dz-action-zoom-avant",size:26,onClick:()=>dzZoomCentre(N.current,h,Math.min(1.5,h+.1),z,b)})'),
+]
+
+PAIRES = PAIRES_AB + PAIRES_C + PAIRES_F + PAIRES_D + PAIRES_E     # C1 réécrit la sortie de A0 : l'ordre compte (défaire à rebours)
 
 
 def lire(p):
