@@ -1,0 +1,43 @@
+{
+  "theme": "photos",
+  "version": 1,
+  "titre": {
+    "fr": "Photos",
+    "en": "Photos"
+  },
+  "consigne": {
+    "fr": "Les photos sont la matière première ; le mouvement les fait respirer sans les trahir. Chaque image avance lentement (zoom doux ou léger travelling) vers son point d'intérêt, visage ou objet. Les enchaînements sont des fondus ou des glissements, jamais des effets tape-à-l'œil. Profondeur obtenue en décalant le sujet et le fond quand l'image est détourée. Légendes sobres, en bas, une ligne. Garder la couleur d'origine ; une seule teinte commune peut unifier la série. Le meilleur cliché vient en dernier et tient plus longtemps.",
+    "en": "Photos are the raw material; motion lets them breathe without betraying them. Each image moves slowly (gentle zoom or slight dolly) towards its point of interest, a face or an object. Transitions are fades or slides, never flashy effects. Depth comes from offsetting subject and background when the image is cut out. Quiet captions, at the bottom, one line. Keep the original colour; a single shared tint may unify the series. The best shot comes last and holds longer."
+  },
+  "rythme": {
+    "fr": "Contemplatif : 2,5 à 4 s par photo, fondus d'une demi-seconde.",
+    "en": "Contemplative: 2.5 to 4 s per photo, half-second fades."
+  },
+  "cadence_s": [
+    2.5,
+    4.0
+  ],
+  "easings": [
+    "linear",
+    "easeInOutSine",
+    "smooth"
+  ],
+  "presets": [
+    "ken-burns",
+    "fade-in",
+    "zoom-in",
+    "slide-left"
+  ],
+  "duree_s": {
+    "min": 10,
+    "type": 20,
+    "max": 45
+  },
+  "formats": [
+    "16:9",
+    "9:16",
+    "4:5",
+    "1:1"
+  ],
+  "auteur": "DeepotusVideo (fiche maison, t233)"
+}

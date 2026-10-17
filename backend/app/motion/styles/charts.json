@@ -1,0 +1,41 @@
+{
+  "theme": "charts",
+  "version": 1,
+  "titre": {
+    "fr": "Graphiques",
+    "en": "Charts"
+  },
+  "consigne": {
+    "fr": "Un graphique raconte un seul chiffre. Poser d'abord le cadre (axes, unité, période) en sobre, puis faire pousser les données dans l'ordre de lecture : barres de gauche à droite, courbe qui se trace, secteurs qui s'ouvrent. Une seule couleur d'accent pour la valeur qui compte, tout le reste en gris. Les nombres comptent jusqu'à leur valeur et s'arrêtent net. Étiquettes directement sur les données plutôt qu'une légende. La conclusion est écrite en clair à la fin, en une phrase courte, à côté du chiffre mis en avant.",
+    "en": "A chart tells a single number. First lay down the frame (axes, unit, period) in a quiet tone, then grow the data in reading order: bars left to right, a line that draws itself, slices that open. One accent colour for the value that matters, everything else grey. Numbers count up to their value and stop dead. Label the data directly rather than with a legend. The takeaway is written plainly at the end, in one short sentence, next to the highlighted figure."
+  },
+  "rythme": {
+    "fr": "Progressif : 1,5 à 2,5 s par série, une pause sur la valeur clé.",
+    "en": "Progressive: 1.5 to 2.5 s per series, a pause on the key value."
+  },
+  "cadence_s": [
+    1.5,
+    2.5
+  ],
+  "easings": [
+    "easeOut",
+    "easeInOutSine",
+    "linear"
+  ],
+  "presets": [
+    "fade-in",
+    "slide-up",
+    "zoom-in"
+  ],
+  "duree_s": {
+    "min": 10,
+    "type": 20,
+    "max": 40
+  },
+  "formats": [
+    "16:9",
+    "1:1",
+    "4:5"
+  ],
+  "auteur": "DeepotusVideo (fiche maison, t233)"
+}

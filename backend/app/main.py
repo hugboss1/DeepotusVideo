@@ -487,6 +487,9 @@ app.include_router(photolab_router, prefix="/api/photolab")
 # Avatar live G0 (t161, 10/10/2026) : /api/avatar-live — Personnages, sessions du Direct (Decart Lucy 2.5)
 from app.api.avatar_live_routes import router as avatar_live_router
 app.include_router(avatar_live_router, prefix="/api/avatar-live")
+# Bibliothèque motion (t233, 17/10/2026) : /api/motion/biblio, /api/motion/skills/installer — styles maison, imports, skills
+from app.api.motion_biblio_routes import router as motion_biblio_router
+app.include_router(motion_biblio_router, prefix="/api/motion")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

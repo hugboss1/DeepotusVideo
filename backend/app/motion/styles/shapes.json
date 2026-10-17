@@ -1,0 +1,47 @@
+{
+  "theme": "shapes",
+  "version": 1,
+  "titre": {
+    "fr": "Formes",
+    "en": "Shapes"
+  },
+  "consigne": {
+    "fr": "Motion design géométrique : cercles, carrés, lignes et triangles en aplats, une palette de trois couleurs au plus. Les formes ont du poids : elles prennent de l'élan avant de partir, dépassent légèrement leur cible puis se posent. Elles se répondent en chaîne, l'arrivée de l'une déclenche le départ de la suivante. Grille invisible mais stricte, symétries franches, beaucoup de vide autour. Une forme finit toujours par se transformer en logo ou en mot, c'est la chute de la séquence.",
+    "en": "Geometric motion design: flat circles, squares, lines and triangles, a palette of three colours at most. Shapes have weight: they wind up before moving, overshoot their target slightly, then settle. They answer one another in a chain, one landing triggers the next departure. An invisible but strict grid, clear symmetry, plenty of empty space around. One shape always ends up turning into the logo or a word: that is the payoff of the sequence."
+  },
+  "rythme": {
+    "fr": "Rebondissant : un mouvement toutes les 0,3 à 0,7 s, en cascade.",
+    "en": "Bouncy: a move every 0.3 to 0.7 s, cascading."
+  },
+  "cadence_s": [
+    0.3,
+    0.7
+  ],
+  "easings": [
+    "easeOutBack",
+    "overshoot",
+    "easeOutBounce",
+    "anticipate",
+    "easeInOut"
+  ],
+  "presets": [
+    "pop",
+    "zoom-in",
+    "slide-up",
+    "slide-down",
+    "slide-left",
+    "slide-right"
+  ],
+  "duree_s": {
+    "min": 5,
+    "type": 12,
+    "max": 20
+  },
+  "formats": [
+    "16:9",
+    "9:16",
+    "1:1",
+    "4:5"
+  ],
+  "auteur": "DeepotusVideo (fiche maison, t233)"
+}

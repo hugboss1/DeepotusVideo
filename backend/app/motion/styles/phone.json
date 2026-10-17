@@ -1,0 +1,42 @@
+{
+  "theme": "phone",
+  "version": 1,
+  "titre": {
+    "fr": "Téléphone",
+    "en": "Phone"
+  },
+  "consigne": {
+    "fr": "Tout se passe dans la main : un téléphone vertical, cadré serré, l'écran occupe l'essentiel de l'image. On voit le pouce taper ou faire défiler, chaque appui marqué par un petit cercle qui s'efface. Les écrans de l'application s'enchaînent comme dans la vraie vie, en glissant. Gros texte d'accroche au-dessus ou au-dessous du téléphone, deux à quatre mots, lisible sans le son. Couleurs de l'application respectées. La fin montre l'écran clé de l'app avec un appel à l'action clair.",
+    "en": "Everything happens in the hand: a vertical phone, framed tight, the screen filling most of the picture. The thumb taps or scrolls, each press marked by a small fading circle. App screens follow one another as in real life, sliding. A big hook line above or below the phone, two to four words, readable without sound. The app's colours are respected. The ending shows the app's key screen with a clear call to action."
+  },
+  "rythme": {
+    "fr": "Vif : un geste toutes les 1 à 2 s, l'accroche dans la première seconde.",
+    "en": "Snappy: a gesture every 1 to 2 s, the hook within the first second."
+  },
+  "cadence_s": [
+    1.0,
+    2.0
+  ],
+  "easings": [
+    "easeOut",
+    "easeOutBack",
+    "smooth"
+  ],
+  "presets": [
+    "slide-up",
+    "pop",
+    "zoom-in",
+    "fade-in"
+  ],
+  "duree_s": {
+    "min": 8,
+    "type": 15,
+    "max": 30
+  },
+  "formats": [
+    "9:16",
+    "4:5",
+    "1:1"
+  ],
+  "auteur": "DeepotusVideo (fiche maison, t233)"
+}
