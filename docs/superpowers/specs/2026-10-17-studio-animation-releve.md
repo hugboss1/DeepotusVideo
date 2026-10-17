@@ -342,6 +342,8 @@ Notre nœud Animation, lui, sait jouer une **liste d'éléments à clés**. D'o�
 
 Recommandation : (a).
 
+**Décision de l'utilisateur (17/10) : A puis B, (iii), (a)** — les trois recommandations.
+
 **Recommandation d'ensemble : A puis B, (iii), (a).** Le lot est découpé pour que A soit utile seul (t232-t237).
 B (t238) attend une seconde validation, après mesure de la qualité de A.
 

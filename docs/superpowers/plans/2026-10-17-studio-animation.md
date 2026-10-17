@@ -4,9 +4,13 @@
 
 **Statut.** t231 est fait sur la branche `claude/studio-animation-06e533`, non poussée.
 
-**t232-t238 restent À LANCER.** Ils dépendent d'abord de la réponse de l'utilisateur à Q1 / Q2 / Q3 (§ B5 de la spec).
-Le plan ci-dessous suit les recommandations **A puis B, (iii), (a)** ; si l'utilisateur tranche autrement, les tâches
-concernées sont réécrites avant d'être lancées.
+**t232-t238 sont À LANCER.** L'utilisateur a tranché le 17/10 (§ B5 de la spec) en retenant les trois recommandations :
+
+- Q1 : **A puis B** ;
+- Q2 : **(iii) mixte**, le nœud « Direction motion » ;
+- Q3 : **(a)** fiches maison + imports + skills.
+
+t238 (B) attend toujours une seconde validation, après t234.
 
 ---
 
