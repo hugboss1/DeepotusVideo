@@ -166,13 +166,13 @@ except ImportError as e:
 if M:
     import _i18n_l1_aide as AIDE                                     # noqa: E402
     try:
-        avant = M.defaire(BUNDLE)
+        avant = M.defaire(AIDE.avant_dzmotion(BUNDLE))       # t235 : le maillon dzmotion, posé APRÈS, défait d'abord
     except AssertionError as e:                                      # une paire absente du livré
         check("D0 les paires du maillon sont toutes dans le livré", False, str(e)[:160])
         print(f"\n{ok} passed, {fail} failed")
         sys.exit(1)
     check("D1 marqueur ×1 dans le livré, absent avant", BUNDLE.count(M.MARKER) == 1 and M.MARKER not in avant)
-    check("D2 aller-retour exact", M.appliquer(avant) == BUNDLE)
+    check("D2 aller-retour exact", M.appliquer(avant) == AIDE.avant_dzmotion(BUNDLE))
     check("D3 l'avant = la géométrie d'origine (Ru+12+a*Mu, 8+n*Mu+2, alignItems center)",
           "d=Ru+12+a*Mu" in avant and "top:8+n*Mu+2" in avant and "dzPortGeo" not in avant)
     check("D4 sonde amont : dzlogo et version", any(t == "dzlogo" for t, _j, _n in M.SONDE_AMONT)

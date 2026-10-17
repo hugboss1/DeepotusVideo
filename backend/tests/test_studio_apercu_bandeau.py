@@ -193,7 +193,7 @@ _AVF = len(M.PAIRES_AB) + len(M.PAIRES_C)                       # t228 : d'autre
 check("D1 famille F* déclarée (PAIRES_F), juste après PAIRES_AB + PAIRES_C", len(PF) >= 2
       and M.PAIRES[:_AVF] == M.PAIRES_AB + M.PAIRES_C and M.PAIRES[_AVF:_AVF + len(PF)] == PF, str(len(PF)))
 try:
-    avant = M.defaire(BUNDLE)
+    avant = M.defaire(AIDE.avant_dzmotion(BUNDLE))       # t235 : le maillon dzmotion, posé APRÈS, défait d'abord
 except AssertionError as e:
     avant = None
     check("D2 toutes les paires sont dans le livré", False, str(e)[:160])
@@ -211,7 +211,7 @@ def sans_f(s):
 
 check("D4 sans les F* = 55893568 (t227) octet pour octet", avant is not None and base_t227 is not None and bool(PF)
       and sans_f(avant).encode("utf-8") == base_t227)
-check("D5 aller-retour exact", avant is not None and M.appliquer(avant) == BUNDLE)
+check("D5 aller-retour exact", avant is not None and M.appliquer(avant) == AIDE.avant_dzmotion(BUNDLE))
 check("D6 comptes figés (useState 731, v2.8.0 ×4, DzTracks 181)",
       BUNDLE.count("x.useState(") == 731 and BUNDLE.count("v2.8.0") == 4 and BUNDLE.count("DzTracks") == 181)
 check("D7 octets : CRLF préservés, aucun LF nu", RAW.count(b"\r\n") > 15000 and RAW.count(b"\n") == RAW.count(b"\r\n"))
