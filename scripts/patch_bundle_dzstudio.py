@@ -26,15 +26,39 @@ le backend la dessine d'après ses `items` : le nœud relié n'était lu par per
     de marque y est relié, son texte (ou celui du catalogue, l'espace actif) remplace le 1er item texte ; le logo PNG
     du modèle reste, l'emoji du nœud est ignoré ; texte vide ou identique → région intacte ;
   - B4 : le gabarit modifié part au rendu quand le bandeau a changé (`hasMods`).
-Sans lien, rendu identique. La hauteur du corps des ports (t227) n'est PAS touchée ici : t227-t229 ajoutent leurs
-familles de paires (C*, D*, E*) à ce maillon.
+Sans lien, rendu identique.
+
+t227 — de l'air au-dessus de l'encart, même mise en page sur tous les nœuds (défaut 2 du relevé). Le corps des ports
+avait une hauteur FIXE (`minHeight:16`+`padding:"8px 0"` = 16) et l'encart se posait 4 plus bas : la 1re ligne
+débordait de 6 dans l'encart, les suivantes s'imprimaient dessus. Valeurs validées sur maquette par l'utilisateur
+(variante B, docs/superpowers/specs/assets/2026-10-16-studio/t227-maquette.png) : oy 8, lh 16, Mu 22, air 10 MESURÉ
+sous le bas de la dernière ligne.
+  - C1 : `dzPortGeo` passe à oy 8 et gagne `air` ; `dzPortBodyH(nIn,nOut)` = oy + (n − 1)·p + lh + air (n = max,
+    oy + air sans port) et `dzVisInPorts(e,u)` (ports d'entrée VISIBLES : Concatenate tronqué à sourceCount 2..6,
+    `dzNodeInPorts` pour Composition spatiale, sinon le catalogue) posés devant `qi` ;
+  - C2 : le corps des ports de `Th` prend la hauteur `dzPortBodyH(visibles, sorties)` et rend les lignes d'entrée
+    depuis `dzVisInPorts` (une seule source pour la hauteur et les lignes) ;
+  - C3 : l'encart perd sa marge haute (`margin:"0 10px"`) : l'air est dans le corps, donc identique pour l'encart
+    (variante reef) et pour le pied (variante classique).
+L'aperçu de composition de l'inspecteur (dzPvCell) n'est pas touché par les C*. t228-t229 ajoutent leurs familles (D*, E*).
+
+Suite de t227 (17/10) — l'aperçu de composition montre le VRAI bandeau. Relevé sur 55893568 : `dzPreviewModel` ne
+gardait de la région brand_strip que son fond, et `dzPvCell` écrivait « 🐙 DEEPOTUS » / « $DEEP » en dur, quels que
+soient le modèle et le Bandeau relié ; le rendu réel pose le logo PNG du modèle (item `mark`) et le 1er item texte,
+remplacé depuis B3 par le texte du Bandeau de marque relié au port de la région.
+  - F1 : `dzPreviewModel` calcule pour la région le texte EFFECTIF avec la règle de B3 (port de la région via
+    `dzSpatialSlots`, nœud BrandStrip relié, texte du nœud ou du catalogue, vide → texte du modèle ; aucun item texte →
+    aucun texte), sa couleur, et la présence d'un logo ;
+  - F2 : `dzPvCell` affiche ce texte (ellipse + `title`, à droite) et le pictogramme du logo seulement si le modèle a
+    un `mark` ; plus de « $DEEP » en dur. Aucun texte visible neuf.
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 », aucun texte visible neuf (le
 `title` réutilise le libellé et le type déjà affichés).
 
 Maillon de QUEUE, APRÈS dzlogo (dont il sonde le marqueur) ; il garde un .js.bak_dzstudio le temps de l'écriture
 puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzstudio` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_dzlogo`. Lecture et écriture
-en OCTETS. Bancs : backend/tests/test_studio_ancrage.py (t225), test_studio_ports_spatial.py (t226).
+en OCTETS. Bancs : backend/tests/test_studio_ancrage.py (t225), test_studio_ports_spatial.py (t226),
+test_studio_entetes.py (t227), test_studio_apercu_bandeau.py (suite de t227).
 Run : python scripts/patch_bundle_dzstudio.py [--check]
 """
 import pathlib
@@ -56,7 +80,7 @@ SONDE_AMONT = [
     ("useState", "x.useState(", 731),
 ]
 
-PAIRES = [
+PAIRES_AB = [
     ('Eh=30;function qi(',                                                                                  # A0
      'Eh=30;var dzPortGeo={b:1,oy:10,p:Mu,lh:16,r:16};function qi('),
     ('const l=t==="in"?0:bi,d=Ru+12+a*Mu;return{x:l,y:d}',                                                  # A1
@@ -98,6 +122,43 @@ PAIRES = [
      'var hasMods=regions.length!==tpl.regions.length||loud!=null||!!music||__trMod||__brMod;'),
 ]
 
+PAIRES_C = [
+    ('var dzPortGeo={b:1,oy:10,p:Mu,lh:16,r:16};function qi(',                                              # C1
+     'var dzPortGeo={b:1,oy:8,p:Mu,lh:16,r:16,air:10};'
+     'function dzPortBodyH(nIn,nOut){var n=Math.max(nIn,nOut);'
+     'return dzPortGeo.oy+(n>0?(n-1)*dzPortGeo.p+dzPortGeo.lh:0)+dzPortGeo.air}'
+     'function dzVisInPorts(e,u){return e.type==="Concatenate"?u.inPorts.slice(0,Math.max(2,Math.min(6,'
+     '(e.props&&e.props.sourceCount)||3))):(typeof dzNodeInPorts==="function"&&dzNodeInPorts(e))||u.inPorts}'
+     'function qi('),
+    ('r.jsxs("div",{style:{position:"relative",minHeight:16,padding:"8px 0"},children:[(e.type==="Concatenate"?'  # C2
+     'u.inPorts.slice(0,Math.max(2,Math.min(6,(e.props&&e.props.sourceCount)||3))):(typeof dzNodeInPorts==="function"'
+     '&&dzNodeInPorts(e))||u.inPorts).map(',
+     'r.jsxs("div",{style:{position:"relative",height:dzPortBodyH(dzVisInPorts(e,u).length,u.outPorts.length)},'
+     'children:[dzVisInPorts(e,u).map('),
+    ('m&&r.jsx("div",{style:{height:zh,margin:"4px 10px 0",',                                               # C3
+     'm&&r.jsx("div",{style:{height:zh,margin:"0 10px",'),
+]
+
+PAIRES_F = [
+    ('else if(r.type==="brand_strip")items.push(Object.assign(b,{kind:"brand",bg:r.background_color||"#02060d"}));',  # F1
+     'else if(r.type==="brand_strip"){var it6=r.items||[],tx6=null,k6;'
+     'for(k6=0;k6<it6.length&&!tx6;k6++)it6[k6]&&it6[k6].type==="text"&&(tx6=it6[k6]);'
+     'var sl6=r.slot_name||r.id,pt6=null,ps6=dzSpatialSlots(tpl,l.props||{}).ports;'
+     'for(k6=0;k6<ps6.length&&!pt6;k6++)ps6[k6].slot===sl6&&(pt6=ps6[k6].id);'
+     'var bn6=pt6&&Wt(e,l.id,pt6),P6=bn6&&bn6.type==="BrandStrip"?'
+     'Object.assign({},(Me.BrandStrip&&Me.BrandStrip.props)||{},bn6.props||{}):null,'
+     't6=P6?String(P6.text==null?"":P6.text).trim():"";'
+     'items.push(Object.assign(b,{kind:"brand",bg:r.background_color||"#02060d",'
+     'mark:it6.some(function(z){return z&&z.type==="mark"}),text:tx6?(t6||String(tx6.text||"")):"",'
+     'color:tx6&&tx6.color||"#00e5ff"}))}'),
+    ('children:[r.jsx("span",{children:"🐙 DEEPOTUS"},"a"),r.jsx("span",{children:"$DEEP"},"b")]},ix);',       # F2
+     'children:[it.mark!==!1&&r.jsx("span",{children:"🐙 DEEPOTUS"},"a"),it.text?r.jsx("span",{title:it.text,'
+     'style:{color:it.color||"#00e5ff",marginLeft:"auto",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",'
+     'whiteSpace:"nowrap"},children:it.text},"b"):null]},ix);'),
+]
+
+PAIRES = PAIRES_AB + PAIRES_C + PAIRES_F                           # C1 réécrit la sortie de A0 : l'ordre compte (défaire à rebours)
+
 
 def lire(p):
     b = p.read_bytes()
@@ -127,16 +188,27 @@ def defaire(s: str) -> str:
     return s
 
 
+def partiel(s: str) -> bool:
+    """Marqueur présent mais le défaire complet échoue : une famille de paires manque (bundle d'une tâche antérieure).
+    t227 : C1 réécrit la sortie de A0, on ne peut plus compter chaque remplacement isolément."""
+    if MARKER not in s:
+        return False
+    try:
+        defaire(s)
+    except AssertionError:
+        return True
+    return False
+
+
 def main() -> None:
     check = "--check" in sys.argv
     s, bom = lire(BUNDLE)
     if MARKER in s:
         if s.count(MARKER) != MARKER_ATTENDU:
             raise SystemExit(f"[{TAG}] marqueur x{s.count(MARKER)}")
-        manque = [r[:60] for _a, r in PAIRES if s.count(r) != 1]
-        if manque:                                      # t226 : une famille ajoutée après coup (ex. A* sans B*)
-            raise SystemExit(f"[{TAG}] partiellement appliqué ({len(manque)} paire(s) absente(s)) — "
-                             f"repartir d'avant_dzstudio : {manque[0]!r}")
+        if partiel(s):                                  # t226 : une famille ajoutée après coup (ex. A*+B* sans C*)
+            raise SystemExit(f"[{TAG}] partiellement appliqué — repartir d'avant_dzstudio "
+                             f"(défaire avec le maillon d'avant l'ajout, puis appliquer)")
         print(f"[{TAG}] déjà appliqué")
         return
     for tag, jeton, attendu in SONDE_AMONT:

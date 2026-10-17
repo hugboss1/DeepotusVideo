@@ -106,6 +106,36 @@ Dépend de t225 (même géométrie `dzPortGeo`).
    HeyGen avatar, Illustr. News, Bandeau de marque, Composition spatiale (2 et 5 scènes), Avatar maître, Rendu,
    Génér. d'images ; FR et EN ; variante classique (sans encart) vérifiée aussi. Liens toujours ≤ 0,5 px.
 
+**Fait le 16/10** : maquette des deux variantes (`t227-maquette.png`) ; la formule écrite au point 1 (oy + n·Mu + air)
+laissait en réalité 16 sous la dernière ligne (air + Mu − lh) ; décision de l'utilisateur : variante B, air 10 MESURÉ
+→ corps = oy + (n − 1)·Mu + lh + air (= 22n + 12), n = max(nIn visibles, nOut). C1 : `dzPortGeo` passe à oy 8 et gagne
+`air:10` ; `dzPortBodyH` et `dzVisInPorts` (Concatenate tronqué, `dzNodeInPorts` pour Composition spatiale, port `brand`
+de t226 compris) devant `qi`. C2 : corps des ports de `Th` à hauteur `dzPortBodyH(visibles, sorties)`, lignes d'entrée
+depuis `dzVisInPorts`. C3 : encart `margin:"0 10px"` (l'air est dans le corps, donc identique pour l'encart et pour le
+pied de la variante classique). C1 réécrit la sortie de A0 : la garde « partiellement appliqué » passe par un défaire
+complet (`partiel()`). Banc `test_studio_entetes.py` 40/40 (22 rouges sur 0b883708 ; rendu réel de `Th` sous node pour
+les 36 types du catalogue + Concatenate 2/3/6/9 + Composition spatiale 2/5 scènes, deux variantes) ; `test_studio_ancrage`
+B8 (53) / B9 / C8 / D15 et `test_studio_ports_spatial` Q1-Q5 (oy lu) / D5 mis à jour ; 12 mutants tués ; inverse =
+02f8162c et sans les C* = 0b883708 octet pour octet. Preuve 8797, graphe « Post reel News » + Génér. d'images : 9 types,
+écart encart − dernière ligne = 10,000 à 30/75/100(110)/150 %, FR et EN, lignes à 16 même avec libellés EN tronqués,
+9 liens à 0,000 px ; Composition spatiale Montage Film 2 et 5 scènes : corps 56 / 122, écart 10 (les 2 liens vers
+`avatar`/`brand` absents de ce gabarit tombent une ligne sous le dernier port, comportement B2). Variante classique :
+inaccessible dans l'app (`lg` en dur sur `reef`), vérifiée par le banc seulement. Aperçu de l'inspecteur (dzPvCell,
+« 🐙 DEEPOTUS / $DEEP » en dur) non touché, diverge toujours du Bandeau relié. Captures :
+`docs/superpowers/specs/assets/2026-10-16-studio/t227-*`.
+
+**Suite de t227, faite le 17/10 (demande de l'utilisateur) — l'aperçu de composition montre le vrai bandeau.** Relevé :
+`dzPreviewModel` ne gardait de la région brand_strip que son fond et `dzPvCell` écrivait « 🐙 DEEPOTUS » / « $DEEP » en
+dur. Correction de la note ci-dessus : le texte du Bandeau relié est « DEEPOTUS » (catalogue de l'espace actif) ;
+« 🐙 DEEPOTUS · from the deep » est la vignette du nœud, pas son texte. Paires F1-F2 (`PAIRES_F`) dans `dzstudio` :
+F1, `dzPreviewModel` calcule le texte EFFECTIF avec la règle de B3 (port de la région via `dzSpatialSlots`, Bandeau
+relié, texte du nœud ou du catalogue, vide → texte du modèle, aucun item texte → aucun texte), sa couleur et la
+présence d'un logo ; F2, `dzPvCell` affiche ce texte (ellipse + `title`) et le pictogramme du logo seulement si le
+modèle a un `mark`. Banc `test_studio_apercu_bandeau.py` 38/38 (28 rouges sur 55893568) dont 11 cas « aperçu == texte
+envoyé par dzCompose » ; 12 mutants tués ; `test_studio_entetes` D1/D4 et `test_studio_ports_spatial` D5 rendus
+indépendants des familles suivantes. Preuve 8797, saisie au clavier dans le Bandeau : FR « MAMARQUE », EN
+« MY BRAND · deep » affichés dans l'aperçu (captures `t227s-apercu-bandeau-*`).
+
 ## t228 — A1 : barre du graphe sur deux lignes et canevas (P1, S) — anomalie hors demandes, à trancher
 
 Constat : barre 107 px (`--dz-gbar-h`), canevas à `top:48` fixe → 59 px du graphe sous la barre ; l'encart des

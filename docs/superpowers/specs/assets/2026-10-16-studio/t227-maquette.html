@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>t227 maquette en-têtes</title>
+<style>
+:root{--bg:#02060d;--panel:#0b1622;--panel2:#10202f;--stroke:#1e3346;--ink:#d8e6f2;--soft:#8fa6ba;--muted:#5f7891;--cyan:#00e5ff}
+body{margin:0;background:var(--bg);color:var(--ink);font:12px system-ui,Segoe UI,sans-serif;padding:16px}
+h1{font-size:15px;margin:0 0 4px}h2{font-size:12.5px;margin:0 0 2px;color:var(--cyan)}p.n{margin:0 0 10px;color:var(--soft);font-size:11px;max-width:300px}
+.grid{display:grid;grid-template-columns:repeat(3,320px);gap:18px 28px}.col{padding:4px 18px}
+.node{position:relative;width:220px;border:1px solid #2fa3c4;border-radius:14px;background:linear-gradient(180deg,var(--panel2),var(--panel));margin:0 0 18px 0}
+.node.cl{border-radius:10px;background:var(--panel)}
+.hd{height:36px;box-sizing:border-box;padding:0 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--stroke);font-weight:600;font-size:12.5px}
+.ic{width:18px;height:18px;border-radius:5px;background:#0e3a4a}
+.body{position:relative}
+.row{position:absolute;display:flex;align-items:flex-start;gap:6px;width:130px;height:16px}
+.row.in{left:-8px}.row.out{right:-8px;flex-direction:row-reverse}
+.dot{width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:2px solid var(--c);background:var(--bg);flex-shrink:0}
+.lb{font-size:10.5px;line-height:16px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reef{height:92px;margin:0 10px;border-radius:8px;border:1px solid var(--stroke);background:repeating-linear-gradient(45deg,#0d2a40,#0d2a40 6px,#0a2236 6px,#0a2236 12px);position:relative}
+.ft{display:flex;align-items:center;justify-content:space-between;font:10.5px ui-monospace,monospace;color:var(--muted)}
+.gap{position:absolute;left:96px;width:28px;border-left:1px dashed #ff5a7a;font:9.5px ui-monospace,monospace;color:#ff5a7a;padding-left:3px;box-sizing:border-box;z-index:3;display:flex;align-items:center}
+.ov{position:absolute;inset:auto 0;background:#ff5a7a33;z-index:2}
+.leg{margin-top:12px;color:var(--soft);font-size:11px;max-width:1000px}
+</style></head><body>
+<h1>t227 — en-têtes de ports : maquette (dimensions réelles du Studio, échelle 1)</h1>
+<p class="n" style="max-width:1000px">Nœud 220 de large, en-tête 36, rond 16 ancré en haut d'une ligne de 16, pas 22 (Mu), encart 92, pied 30 (avec encart) ou 14 (classique). Trait rouge = écart entre le bas de la dernière ligne de ports et l'encart (ou le pied) ; zone rose = chevauchement.</p>
+<div class="grid" id="g"></div>
+<p class="leg"><b>A</b> applique la formule écrite au plan : corps = oy + n·Mu + air (8 + 22n + 10). L'écart réellement visible sous la dernière ligne est alors air + (Mu − lh) = 16.<br>
+<b>B</b> pose l'encart à exactement « air » sous le bas de la dernière ligne : corps = oy + (n−1)·Mu + lh + air (= 22n + 12) → écart mesuré 10 pour tous les types, c'est ce que vérifiera la preuve au navigateur (« encart − bas de la dernière ligne = air »).</p>
+<script>
+const C={text:"#b48cff",data:"#ffc857",image:"#3ddc97",av:"#00e5ff",video:"#4da3ff",audio:"#ff8fb1"};
+const N=[
+ {t:"Article News",i:[],o:[["out","data"]]},
+ {t:"Script News",i:[["news","data"],["brief","text"]],o:[["script","text"],["title","text"]]},
+ {t:"Composition spatiale (5 scènes)",i:[["reel_1","video"],["reel_2","video"],["reel_3","video"],["avatar","av"],["brand","image"]],o:[["out","video"]]},
+];
+const V={
+ actuel:{nom:"Actuel (base t226)",oy:10,body:n=>16,mt:4},
+ A:{nom:"A — formule du plan",oy:8,body:n=>8+n*22+10,mt:0},
+ B:{nom:"B — écart = air (recommandé)",oy:8,body:n=>8+(n-1)*22+16+10,mt:0},
+};
+function node(nd,v,reef){
+ const n=Math.max(nd.i.length,nd.o.length),bh=v.body(n);
+ const el=document.createElement("div");el.className="node"+(reef?"":" cl");
+ let h=`<div class="hd"><span class="ic"></span><span>${nd.t}</span></div><div class="body" style="height:${bh}px">`;
+ const row=(p,k,s)=>`<div class="row ${s}" style="top:${v.oy+k*22}px"><span class="dot" style="--c:${C[p[1]]}"></span><span class="lb">${p[0]}</span></div>`;
+ nd.i.forEach((p,k)=>h+=row(p,k,"in"));nd.o.forEach((p,k)=>h+=row(p,k,"out"));
+ const last=v.oy+(n-1)*22+16, top=bh+v.mt, g=top-last;
+ if(g>=0)h+=`<div class="gap" style="top:${last}px;height:${g}px">${g}</div>`;
+ else h+=`<div class="ov" style="top:${top}px;height:${-g}px"></div><div class="gap" style="top:${top}px;height:${-g}px;border-color:#ff5a7a">−${-g}</div>`;
+ h+=`</div>`;
+ h+=reef?`<div class="reef" style="margin-top:${v.mt}px"></div><div class="ft" style="height:30px;padding:0 12px"><span>~0 s</span><span>0,00 $</span></div>`
+        :`<div class="ft" style="height:14px;padding:${v.mt}px 10px 6px"><span>~0 s</span><span>0,00 $</span></div>`;
+ el.innerHTML=h;return el;
+}
+const g=document.getElementById("g");
+for(const reef of [true,false])for(const k of ["actuel","A","B"]){
+ const v=V[k],col=document.createElement("div");col.className="col";
+ col.innerHTML=`<h2>${v.nom} — ${reef?"avec encart":"classique"}</h2><p class="n">oy ${v.oy} · lh 16 · Mu 22 · ${k==="actuel"?"corps fixe 16 + marge 4":"air 10"}</p>`;
+ N.forEach(nd=>col.appendChild(node(nd,v,reef)));g.appendChild(col);
+}
+</script></body></html>
