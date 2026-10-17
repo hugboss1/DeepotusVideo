@@ -16,10 +16,22 @@ partait alors vers `models/AIza…:generateContent` : il échouait, et la clé �
   - toute écriture d'un `*_MODEL` qui y ressemble est refusée (400, `verifier_modele`) ;
   - une valeur déjà fautive n'est JAMAIS effacée toute seule, mais elle n'est jamais relue non plus : `modele_sain`
     rend "" (l'écran et le Diagnostic la signalent ; les appels retombent sur le défaut du code).
+
+L'APPEL (t232, lot « Studio : Animation », 17/10/2026). `tirer(moteur, modele, prompt, systeme, max_tokens, json)` est
+extrait de `vector_illustration.tirer` (qui l'appelle désormais, sans changement de comportement) pour servir hors
+Vectorlab — d'abord le chorégraphe du nœud Animation (t234). UN appel, au moteur ET au modèle demandés, jamais un
+repli muet. `tirer_garde` ajoute ce que les routes payantes font avant de dépenser : l'estimation (`estimer`) puis la
+garde des plafonds (`plafonds.verifier`), AVANT l'appel. `json=True` demande un document JSON (mode natif quand le
+moteur en a un) et rend l'objet extrait — une DONNÉE, jamais évaluée.
 """
 from __future__ import annotations
 
-from app.config import settings
+import json as _json
+import re
+
+import httpx
+
+from app.config import SSL_VERIFY, settings
 
 MOTEURS = ("anthropic", "openai", "gemini", "ollama")
 
@@ -155,3 +167,167 @@ def etat() -> list[dict]:
         out.append({"moteur": m, "nom": nom(m), "configure": configure(m), "cle_modele": m,
                     "modele": modele_sain(m), "fautif": False, "alerte": "", "local": True})
     return out
+
+
+# ── l'appel (t232) ────────────────────────────────────────────────────────────────────────────────────────────────
+
+def nature_cout(moteur: str) -> str:
+    """La bulle de coût de `mod-ia.js` (t224) : un serveur local est « gratuit », un fournisseur libre n'a pas de tarif
+    connu (« a_mesurer », jamais gratuit), un intégré est « payant »."""
+    if moteur == "ollama" or est_local(moteur):
+        return "gratuit"
+    return "a_mesurer" if est_libre(moteur) else "payant"
+
+
+def estimer(moteur: str, prompt: str, systeme: str = "", max_tokens: int = 4000) -> dict:
+    """L'op d'estimation d'UN appel, au moteur choisi : ~4 caractères par jeton en entrée, `max_tokens` en sortie (le
+    pire cas). `pricing.estimate` la chiffre : 0 pour un local, tarif Anthropic + `a_mesurer` pour un fl."""
+    from app.services import plafonds as _PLAF
+    n = len(prompt or "") + len(systeme or "")
+    return _PLAF.op_llm(-(-n // 4), int(max_tokens), str(moteur or ""))
+
+
+CONSIGNE_JSON = "Réponds UNIQUEMENT par un document JSON valide, sans texte autour."
+MAX_JSON = 200_000                          # caractères : au-delà, la réponse n'est pas lue
+
+
+def extraire_json(texte: str):
+    """Le premier document JSON (objet ou tableau) d'une réponse : seul, dans un bloc ```json, ou entouré de texte.
+    `json.loads` seulement — rien n'est jamais évalué. RuntimeError si aucun, ou si la réponse est trop longue."""
+    t = str(texte or "").strip()
+    if len(t) > MAX_JSON:
+        raise RuntimeError("réponse JSON trop longue")
+    bloc = re.search(r"```(?:json)?\s*(.*?)```", t, re.S | re.I)
+    dec = _json.JSONDecoder()
+    for cand in ([bloc.group(1).strip()] if bloc else []) + [t]:
+        try:
+            v = _json.loads(cand)
+        except ValueError:
+            v = None
+        if isinstance(v, (dict, list)):
+            return v
+        essais = 0
+        for i, ch in enumerate(cand):
+            if ch not in "{[":
+                continue
+            essais += 1
+            if essais > 50:
+                break
+            try:
+                v, _ = dec.raw_decode(cand, i)
+            except ValueError:
+                continue
+            if isinstance(v, (dict, list)):
+                return v
+    raise RuntimeError("réponse illisible : aucun document JSON")
+
+
+def tirer(moteur: str, modele: str, prompt: str, systeme: str, max_tokens: int = 4000, json: bool = False, *,
+          timeout: float = 90.0):
+    """UN appel, au moteur ET au modèle demandés — jamais un repli muet.
+
+    Lève `RuntimeError` avec la cause : l'écran vient d'afficher le nom du modèle qui va dépenser la clé, un repli
+    silencieux le ferait mentir. Le modèle vide prend `modele_sain` ; un modèle qui ressemble à une clé est refusé avant
+    tout envoi (il finirait dans une URL ou un corps de requête). `json=True` : rend l'objet (`extraire_json`).
+    Aucune garde de dépense ici : c'est `tirer_garde`, ou la route appelante (le Vectorlab a la sienne).
+    """
+    mod = (modele or modele_sain(moteur)).strip()
+    if not mod:
+        raise RuntimeError(f"aucun modèle pour « {moteur} »")
+    if ressemble_a_une_cle(mod):
+        raise RuntimeError(f"le modèle demandé pour « {moteur} » ressemble à une clé d'API, pas à un nom de modèle")
+    if json:
+        systeme = f"{systeme}\n\n{CONSIGNE_JSON}" if systeme else CONSIGNE_JSON
+    txt = _appeler(moteur, mod, prompt, systeme, max_tokens, json, timeout)
+    return extraire_json(txt) if json else txt
+
+
+def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, json: bool, timeout: float) -> str:
+    if moteur.startswith("fl:"):            # t222 : POST {base}/chat/completions du fournisseur libre
+        from app.services import fournisseurs_llm as _FL
+        fid = _FL.de_moteur(moteur)
+        if not fid:
+            raise RuntimeError(f"moteur inconnu : {moteur}")
+        return _FL.tirer(fid, mod, prompt, systeme, max_tokens, timeout=timeout)
+    if moteur.startswith("local:"):         # t223 : le serveur local (Ollama natif ou compatible OpenAI)
+        from app.services import serveurs_locaux as _SL
+        sid = _SL.de_moteur(moteur)
+        if not sid:
+            raise RuntimeError(f"moteur inconnu : {moteur}")
+        return _SL.tirer(sid, mod, prompt, systeme, max_tokens, timeout=max(timeout, 180.0))
+    if moteur == "anthropic":
+        body = {"model": mod, "max_tokens": max_tokens,
+                "messages": [{"role": "user", "content": prompt}]}
+        if systeme:
+            body["system"] = systeme
+        r = httpx.post("https://api.anthropic.com/v1/messages",
+                       headers={"x-api-key": settings.ANTHROPIC_API_KEY,
+                                "anthropic-version": "2023-06-01",
+                                "content-type": "application/json"},
+                       json=body, timeout=timeout, verify=SSL_VERIFY)
+        if r.status_code != 200:
+            raise RuntimeError(f"Anthropic HTTP {r.status_code} — "
+                               f"{r.text[:200]}")
+        return "".join(b.get("text", "") for b in (r.json().get("content") or [])
+                       if b.get("type") == "text")
+    if moteur == "openai":
+        msgs = ([{"role": "system", "content": systeme}] if systeme else []) \
+            + [{"role": "user", "content": prompt}]
+        body = {"model": mod, "max_tokens": max_tokens, "messages": msgs}
+        if json:
+            body["response_format"] = {"type": "json_object"}
+        r = httpx.post("https://api.openai.com/v1/chat/completions",
+                       headers={"Authorization":
+                                f"Bearer {settings.OPENAI_API_KEY}",
+                                "Content-Type": "application/json"},
+                       json=body,
+                       timeout=timeout, verify=SSL_VERIFY)
+        if r.status_code != 200:
+            raise RuntimeError(f"OpenAI HTTP {r.status_code} — {r.text[:200]}")
+        ch = r.json().get("choices") or []
+        return (ch[0].get("message", {}).get("content", "") if ch else "")
+    if moteur == "gemini":
+        from app.services.gemini_llm import _headers
+        from app.services.google_video import GOOGLE_API_BASE
+        body = {"contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"maxOutputTokens": max_tokens}}
+        if json:
+            body["generationConfig"]["responseMimeType"] = "application/json"
+        if systeme:
+            body["systemInstruction"] = {"parts": [{"text": systeme}]}
+        r = httpx.post(f"{GOOGLE_API_BASE}/models/{mod}:generateContent",
+                       headers=_headers(), json=body, timeout=timeout,
+                       verify=SSL_VERIFY)
+        if r.status_code != 200:
+            raise RuntimeError(f"Gemini HTTP {r.status_code} — {r.text[:200]}")
+        cand = r.json().get("candidates") or []
+        parts = (cand[0].get("content", {}).get("parts", []) if cand else [])
+        return "".join(p.get("text", "") for p in parts)
+    if moteur == "ollama":
+        body = {"model": mod, "prompt": prompt, "system": systeme, "stream": False}
+        if json:
+            body["format"] = "json"
+        r = httpx.post(f"{settings.OLLAMA_URL.rstrip('/')}/api/generate",
+                       json=body, timeout=timeout, verify=SSL_VERIFY)
+        if r.status_code != 200:
+            raise RuntimeError(f"Ollama HTTP {r.status_code} — {r.text[:200]}")
+        return str(r.json().get("response") or "")
+    raise RuntimeError(f"moteur inconnu : {moteur}")
+
+
+async def tirer_garde(moteur: str, modele: str, prompt: str, systeme: str, max_tokens: int = 4000,
+                      json: bool = False, *, categorie: str = "motion", ref: str | None = None,
+                      timeout: float = 90.0):
+    """`tirer` sous les gardes d'une route payante, pour un appelant hors Vectorlab (t234) : moteur connu et configuré,
+    puis l'estimation et `plafonds.verifier` AVANT l'appel (402 `dz_plafond` si le mois déborderait ; un local est
+    gratuit et passe). L'appel lui-même tourne hors de la boucle (il est bloquant)."""
+    import asyncio
+    from app.services import plafonds as _PLAF
+    if not connu(moteur):
+        raise RuntimeError(f"moteur inconnu : {moteur}")
+    if not configure(moteur):
+        raise RuntimeError(f"moteur « {nom(moteur)} » non configuré (Réglages)")
+    await _PLAF.verifier(estimer(moteur, prompt, systeme, max_tokens), categorie, ref)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None, lambda: tirer(moteur, modele, prompt, systeme, max_tokens, json, timeout=timeout))

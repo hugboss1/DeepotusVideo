@@ -9490,5 +9490,21 @@
  "serveur local inconnu : {sid}": {
   "fr": "serveur local inconnu : {sid}",
   "en": "unknown local server: {sid}"
+ },
+ "réponse illisible : aucun document JSON": {
+  "fr": "réponse illisible : aucun document JSON",
+  "en": "unreadable reply: no JSON document"
+ },
+ "réponse JSON trop longue": {
+  "fr": "réponse JSON trop longue",
+  "en": "JSON reply too long"
+ },
+ "le modèle demandé pour « {moteur} » ressemble à une clé d'API, pas à un nom de modèle": {
+  "fr": "le modèle demandé pour « {moteur} » ressemble à une clé d'API, pas à un nom de modèle",
+  "en": "the model requested for “{moteur}” looks like an API key, not a model name"
+ },
+ "moteur « {v} » non configuré (Réglages)": {
+  "fr": "moteur « {v} » non configuré (Réglages)",
+  "en": "engine “{v}” is not configured (Settings)"
  }
 }
