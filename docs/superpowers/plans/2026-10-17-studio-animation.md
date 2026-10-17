@@ -1,6 +1,7 @@
 # Plan — lot « Studio : Animation » (17/10/2026)
 
-**Spec :** `docs/superpowers/specs/2026-10-17-studio-animation-releve.md` (relevé daté, licence, options).
+**Spec :** `docs/superpowers/specs/2026-10-17-studio-animation-releve.md` (relevé daté, licence, options), complétée
+par `docs/superpowers/specs/2026-10-18-studio-animation-personnalisation.md` (personnalisation et effort, tableau P1-P9).
 
 **Statut.** t231 est fait sur la branche `claude/studio-animation-06e533`, non poussée.
 
@@ -11,6 +12,11 @@
 - Q3 : **(a)** fiches maison + imports + skills.
 
 t238 (B) attend toujours une seconde validation, après t234.
+
+**18/10.** t232-t235 sont faits (t234 : PR #381 ; t235 : commit local 42cb17bf). L'utilisateur a validé le tableau
+d'écart P1-P9 de la spec du 18/10 et demandé d'insérer ses tâches AVANT t236 : **t239** (effort des moteurs),
+**t240** (personnalisation côté chorégraphe), **t241** (rubrique « Personnaliser » du nœud). Nouvel ordre :
+t239 ∥ t240 → t241 → t236 → t237.
 
 ---
 
@@ -209,6 +215,75 @@ Bancs :
 - chaîne dzmotion (sans = base octet pour octet, inverse, comptes) ;
 - banc K.
 
+### t239 — Effort du modèle : `moteurs_texte` et `GET /api/motion/moteurs` (backend, M) — spec 18/10 § P7
+
+`moteurs_texte.tirer(…, effort=None)` et `tirer_garde(…, effort=None)` :
+
+- `None` / `"auto"` = rien n'est envoyé (le défaut du modèle s'applique) ;
+- sinon le niveau est traduit par fournisseur, seulement si CE modèle l'accepte :
+  - Anthropic : `output_config.effort` (`low`/`medium`/`high`/`xhigh`/`max` ; `xhigh` à partir d'Opus 4.7 ;
+    Haiku 4.5 et les modèles antérieurs le refusent) ;
+  - OpenAI, Gemini, Ollama et serveurs locaux, fournisseurs libres : relever la documentation à jour de chacun
+    (paramètre, valeurs, modèles concernés) AVANT d'écrire, sans rien supposer ; un fournisseur sans réglage
+    connu n'expose que « Auto ».
+- Un niveau non accepté n'est JAMAIS envoyé : il retombe sur « Auto », et la réponse le dit (`effort_applique`).
+- `estimer(…, effort)` : la sortie maximale estimée croît avec l'effort ; l'estimation reste faite AVANT l'appel,
+  sous les plafonds.
+
+`GET /api/motion/moteurs` ajoute, par moteur, `efforts` (les niveaux possibles pour le modèle par défaut) ; une route
+`GET /api/motion/moteurs/efforts?moteur=&modele=` donne ceux d'un modèle précis. Le Vectorlab et les autres appelants
+gardent leur comportement (effort absent = inchangé, banc de non-régression).
+
+Bancs : faux serveurs par fournisseur (corps reçu : niveau présent ou absent), refus d'un niveau non accepté,
+estimation par niveau, non-régression du Vitrail, mutations.
+
+### t240 — Personnalisation côté chorégraphe : champs des fiches, précisions, curseurs, tempo (backend, L) — § P1-P6, P8
+
+Sur la base de t234 (`motion_choregraphe`) et t233 (`motion_biblio`) :
+
+- **P1 — Fiches maison à champs.** Les 11 fiches (écrites par nous) déclarent `champs` : id, libellé FR/EN, aide
+  FR/EN, défaut, type texte / nombre / liste, bornes. Leur consigne cite `{{id}}`. `direction.champs` de la requête
+  est substitué (vide ou absent → défaut ; texte tronqué, nombre borné, id inconnu ignoré).
+- **P2 — Bloc de précisions.** Pour un prompt importé ou un skill : `direction.precisions` (à quoi ça sert, durée,
+  couleurs, police, autre chose) est ajouté APRÈS la consigne, avec la règle « en cas de conflit, ces précisions
+  priment ». Le texte importé n'est pas modifié.
+- **P3 — Tempo.** `tempo_bpm` (40-220, facultatif) : le prompt système le donne ; la validation et le repli calent
+  `start` sur les temps (au temps le plus proche, bornes respectées). Format et durée de la requête peuvent
+  remplacer ceux du graphe.
+- **P4 — Police / palette.** `marque` accepte déjà {couleur, marque, police} : les champs du nœud la remplacent.
+- **P5 — Curseurs.** `direction.curseurs = {creativite, rythme, finition}`, entiers 0-4, 2 = neutre. Créativité et
+  Rythme ajoutent une phrase de consigne écrite par nous (FR/EN, fichier de données du dépôt) en fin de direction.
+  Finition, en option A : 0-1 → une seule tentative avant le repli ; 3-4 → une passe de vérification de plus
+  (bornes, lisibilité : pas deux textes au même endroit au même instant, tenue minimale) avant de rendre les éléments.
+- **P6.** Rien n'est demandé à l'utilisateur pendant l'appel (les champs du nœud jouent ce rôle).
+- `GET /api/motion/biblio/{id}` d'une fiche rend ses `champs` ; les phrases des curseurs sont exposées par une route
+  de lecture pour l'écran.
+
+Bancs : substitution (défaut, borne, id inconnu), bloc de précisions (ordre, règle de priorité, texte d'origine
+intact), tempo (starts sur les temps), curseurs (phrase présente / absente au neutre, tentatives selon la finition),
+garde G3 (nos phrases n'empruntent rien au catalogue), mutations.
+
+### t241 — Rubrique « Personnaliser » de Direction motion (bundle, maillon dzmotion, L) — § P1-P5, P7, P8
+
+Dépend de t235, t239 et t240.
+
+- Rubrique « Personnaliser » générée depuis les `champs` de la fiche choisie : libellé, aide d'une ligne, défaut en
+  texte d'exemple (champ vide = défaut).
+- Pour un prompt ou un skill : le bloc de précisions (5 champs), avec l'aperçu de la règle « mes précisions priment ».
+- Trois curseurs à 5 crans (Créativité, Rythme, Finition) ; le libellé de l'état et la phrase ajoutée sont montrés.
+- Tempo (BPM), remplacements facultatifs du format, de la durée, de la police et de la palette (kit de marque par
+  défaut).
+- **Effort** : sélecteur à côté du modèle, « Auto » puis les niveaux que ce moteur et ce modèle acceptent (t239) ; la
+  bulle de coût le mentionne.
+- « Reprendre mes précisions » (P8) : copie celles du dernier nœud Direction motion du graphe.
+- `dzMotionPayload` envoie `champs`, `precisions`, `curseurs`, `tempo_bpm`, `effort` et les remplacements.
+- Une phrase = une clé dzT `studio.motion.*` FR + EN (motion.json) ; hooks par l'alias `dzMoUS` (HOOKS chiffré) ;
+  ports et ancrage inchangés.
+
+Bancs : sous node, vraies fonctions (payload complet, champ vide = défaut, effort non proposé quand le modèle ne
+l'accepte pas), chaîne dzmotion, banc K. Preuve FR/EN au vrai clic : un champ, un curseur et l'effort modifient le
+corps envoyé et la chorégraphie produite (faux moteur qui renvoie ce qu'il reçoit), MP4 conforme.
+
 ### t236 — Bandeau de bibliothèque motion dans l'inspecteur (bundle, M)
 
 Rubrique « Bibliothèque motion » de l'inspecteur de « Direction motion » :
@@ -218,6 +293,8 @@ Rubrique « Bibliothèque motion » de l'inspecteur de « Direction motion » :
 - **lister, filtrer par thème, supprimer**.
 
 Rien ne part sur le réseau sans un clic.
+
+Depuis t241 : le formulaire d'import montre aussi l'aperçu du bloc de précisions (spec 18/10 § P2).
 
 Preuve : l'import puis la sélection modifient la chorégraphie produite (faux moteur qui renvoie la consigne reçue).
 
@@ -256,13 +333,18 @@ rendue en MP4 par Edge sans fenêtre, image par image (CDP, horloge virtuelle).
 
 ```
 t231 (fait) ─┐
-t232 ── t233 ── t234 ── t235 ── t236 ── t237
-                          └──────────────── t238 (à trancher)
+t232 ── t233 ── t234 ── t235 ──┐
+                 │              ├── t241 ── t236 ── t237
+                 ├── t239 ──────┤
+                 └── t240 ──────┘
+                 └──────────────────────────────────── t238 (à trancher)
 ```
 
 - t232 et t233 sont indépendants l'un de l'autre et peuvent tourner en parallèle (fichiers disjoints).
 - t234 dépend des deux.
-- t235 et t236 touchent le bundle : ils passent un à la fois.
+- t235, t241 et t236 touchent le bundle : ils passent un à la fois, dans cet ordre.
+- t239 (moteurs_texte, routes) et t240 (motion_choregraphe, motion_biblio, fiches) ont des fichiers disjoints : ils
+  peuvent tourner en parallèle, chacun dans sa session.
 
 ## Preuves attendues par tâche
 
@@ -271,5 +353,8 @@ t232 ── t233 ── t234 ── t235 ── t236 ── t237
 | t232 | appel réel au faux Ollama et au faux fl ; le Vitrail inchangé (FR / EN) |
 | t233 | installation d'un skill MIT depuis un faux miroir GitHub local ; refus d'un dépôt sans licence ; import d'un prompt avec attribution |
 | t234 | MP4 rendu depuis une chorégraphie (positions mesurées, comme t231) ; repli sans moteur |
+| t239 | corps reçus par les faux serveurs : niveau d'effort présent quand accepté, absent sinon ; Vitrail inchangé |
+| t240 | chorégraphie d'une fiche à champs remplis, curseurs et tempo (starts sur les temps, mesurés) ; bloc de précisions |
+| t241 | au vrai clic FR / EN : champ, curseur, tempo et effort changent le corps envoyé et la chorégraphie → MP4 conforme |
 | t235 / t236 | au vrai clic FR puis EN : Direction motion → Chorégraphier → éléments dans la liste → Exécuter → MP4 conforme ; consigne de skill éditée → payload modifié |
 | t237 | guide FR / EN, scènes, PDF |
