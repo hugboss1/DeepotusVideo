@@ -1,0 +1,43 @@
+{
+  "theme": "characters",
+  "version": 1,
+  "titre": {
+    "fr": "Personnages",
+    "en": "Characters"
+  },
+  "consigne": {
+    "fr": "Un personnage qui veut quelque chose. Silhouette lisible au premier regard, deux ou trois poses clés par action, et l'animation entre les deux : on prépare le geste (anticipation), on l'exécute, on amortit (rebond, léger écrasement). Raconter en trois temps : la situation, l'action, la réaction. Le décor reste simple et ne bouge que s'il sert l'histoire. Les émotions passent par la posture et le rythme plutôt que par le texte ; s'il y a des mots, ils sont rares et courts.",
+    "en": "A character who wants something. A silhouette readable at first glance, two or three key poses per action, and animation in between: prepare the gesture (anticipation), perform it, cushion it (bounce, slight squash). Tell it in three beats: the situation, the action, the reaction. The set stays simple and only moves when it serves the story. Emotions come through posture and timing rather than text; if there are words, they are rare and short."
+  },
+  "rythme": {
+    "fr": "Narratif : 1 à 3 s par pose, une tenue sur la réaction.",
+    "en": "Narrative: 1 to 3 s per pose, a hold on the reaction."
+  },
+  "cadence_s": [
+    1.0,
+    3.0
+  ],
+  "easings": [
+    "anticipate",
+    "easeOutBack",
+    "easeInOut",
+    "easeOutBounce"
+  ],
+  "presets": [
+    "pop",
+    "slide-left",
+    "slide-right",
+    "fade-in"
+  ],
+  "duree_s": {
+    "min": 10,
+    "type": 30,
+    "max": 60
+  },
+  "formats": [
+    "16:9",
+    "9:16",
+    "1:1"
+  ],
+  "auteur": "DeepotusVideo (fiche maison, t233)"
+}

@@ -1,0 +1,41 @@
+{
+  "theme": "code",
+  "version": 1,
+  "titre": {
+    "fr": "Code",
+    "en": "Code"
+  },
+  "consigne": {
+    "fr": "Montrer du code qu'on a le temps de lire. Fond sombre, police à chasse fixe (JetBrains Mono) assez grande pour un écran de téléphone, coloration syntaxique discrète. Le code apparaît ligne par ligne ou se tape au rythme d'une vraie frappe ; la ligne qui change est surlignée, le reste s'atténue. Une seule idée par écran, dix lignes au plus. Le résultat (sortie du terminal, rendu, test vert) apparaît juste après le code qui le produit. Pas d'effet de pluie de caractères ni de faux piratage.",
+    "en": "Show code people have time to read. Dark background, monospace font (JetBrains Mono) large enough for a phone screen, discreet syntax colouring. Code appears line by line or is typed at a real typing pace; the line that changes is highlighted, the rest dims. One idea per screen, ten lines at most. The result (terminal output, render, green test) appears right after the code that produces it. No raining characters, no fake hacking."
+  },
+  "rythme": {
+    "fr": "Lisible : 1,5 à 3 s par ligne importante, tenue sur le résultat.",
+    "en": "Readable: 1.5 to 3 s per important line, a hold on the result."
+  },
+  "cadence_s": [
+    1.5,
+    3.0
+  ],
+  "easings": [
+    "linear",
+    "easeOut",
+    "easeInOut"
+  ],
+  "presets": [
+    "fade-in",
+    "slide-up",
+    "slide-left"
+  ],
+  "duree_s": {
+    "min": 10,
+    "type": 25,
+    "max": 60
+  },
+  "formats": [
+    "16:9",
+    "1:1",
+    "9:16"
+  ],
+  "auteur": "DeepotusVideo (fiche maison, t233)"
+}

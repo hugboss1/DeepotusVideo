@@ -1,0 +1,41 @@
+{
+  "theme": "particles",
+  "version": 1,
+  "titre": {
+    "fr": "Particules",
+    "en": "Particles"
+  },
+  "consigne": {
+    "fr": "Une atmosphère plus qu'un objet : beaucoup de petits éléments (points, étincelles, poussière lumineuse) répartis sur deux ou trois plans de profondeur, les plus proches plus grands, plus flous et plus rapides. Ils dérivent lentement, puis se rassemblent pour former un mot, une forme ou le logo, et se dispersent à nouveau. Fond sombre, lumière douce, une seule teinte dominante. Jamais d'explosion gratuite : chaque mouvement d'ensemble suit une intention et laisse le message lisible au centre.",
+    "en": "An atmosphere rather than an object: many small elements (dots, sparks, glowing dust) spread over two or three depth layers, the nearest ones bigger, blurrier and faster. They drift slowly, then gather to form a word, a shape or the logo, and scatter again. Dark background, soft light, one dominant hue. Never a gratuitous explosion: each collective move follows an intent and keeps the message readable at the centre."
+  },
+  "rythme": {
+    "fr": "Lent et continu : dérive de fond, un rassemblement toutes les 3 à 6 s.",
+    "en": "Slow and continuous: background drift, a gathering every 3 to 6 s."
+  },
+  "cadence_s": [
+    3.0,
+    6.0
+  ],
+  "easings": [
+    "linear",
+    "easeInOutSine",
+    "easeOut"
+  ],
+  "presets": [
+    "fade-in",
+    "zoom-in",
+    "ken-burns"
+  ],
+  "duree_s": {
+    "min": 6,
+    "type": 15,
+    "max": 30
+  },
+  "formats": [
+    "16:9",
+    "9:16",
+    "1:1"
+  ],
+  "auteur": "DeepotusVideo (fiche maison, t233)"
+}

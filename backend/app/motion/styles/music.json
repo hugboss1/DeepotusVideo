@@ -1,0 +1,44 @@
+{
+  "theme": "music",
+  "version": 1,
+  "titre": {
+    "fr": "Musique",
+    "en": "Music"
+  },
+  "consigne": {
+    "fr": "L'image suit la musique, pas l'inverse. Relever le tempo et caler chaque changement visuel sur un temps ou un demi-temps ; les accents (caisse claire, coup de basse) déclenchent les apparitions les plus fortes. Construire une courbe d'énergie : intro calme et clairsemée, montée qui densifie et accélère, point culminant sur le refrain ou la chute, sortie qui se vide. Les éléments pulsent légèrement en mesure même quand rien n'entre. Couper au silence plutôt qu'au milieu d'une note.",
+    "en": "The picture follows the music, not the other way round. Find the tempo and lock every visual change to a beat or half-beat; accents (snare, bass hit) trigger the strongest entrances. Build an energy curve: a calm, sparse intro, a rise that thickens and speeds up, a peak on the chorus or the drop, an outro that empties out. Elements pulse gently in time even when nothing enters. Cut on silence rather than in the middle of a note."
+  },
+  "rythme": {
+    "fr": "Calé sur le tempo : un changement par temps (0,4 à 1 s selon le BPM).",
+    "en": "Locked to the tempo: one change per beat (0.4 to 1 s depending on BPM)."
+  },
+  "cadence_s": [
+    0.4,
+    1.0
+  ],
+  "easings": [
+    "easeOutBounce",
+    "overshoot",
+    "easeOutBack",
+    "linear"
+  ],
+  "presets": [
+    "pop",
+    "zoom-in",
+    "slide-up",
+    "slide-down",
+    "fade-in"
+  ],
+  "duree_s": {
+    "min": 10,
+    "type": 20,
+    "max": 60
+  },
+  "formats": [
+    "16:9",
+    "9:16",
+    "1:1"
+  ],
+  "auteur": "DeepotusVideo (fiche maison, t233)"
+}
