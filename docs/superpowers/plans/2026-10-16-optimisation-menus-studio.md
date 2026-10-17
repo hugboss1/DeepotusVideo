@@ -124,6 +124,18 @@ inaccessible dans l'app (`lg` en dur sur `reef`), vérifiée par le banc seuleme
 « 🐙 DEEPOTUS / $DEEP » en dur) non touché, diverge toujours du Bandeau relié. Captures :
 `docs/superpowers/specs/assets/2026-10-16-studio/t227-*`.
 
+**Suite de t227, faite le 17/10 (demande de l'utilisateur) — l'aperçu de composition montre le vrai bandeau.** Relevé :
+`dzPreviewModel` ne gardait de la région brand_strip que son fond et `dzPvCell` écrivait « 🐙 DEEPOTUS » / « $DEEP » en
+dur. Correction de la note ci-dessus : le texte du Bandeau relié est « DEEPOTUS » (catalogue de l'espace actif) ;
+« 🐙 DEEPOTUS · from the deep » est la vignette du nœud, pas son texte. Paires F1-F2 (`PAIRES_F`) dans `dzstudio` :
+F1, `dzPreviewModel` calcule le texte EFFECTIF avec la règle de B3 (port de la région via `dzSpatialSlots`, Bandeau
+relié, texte du nœud ou du catalogue, vide → texte du modèle, aucun item texte → aucun texte), sa couleur et la
+présence d'un logo ; F2, `dzPvCell` affiche ce texte (ellipse + `title`) et le pictogramme du logo seulement si le
+modèle a un `mark`. Banc `test_studio_apercu_bandeau.py` 38/38 (28 rouges sur 55893568) dont 11 cas « aperçu == texte
+envoyé par dzCompose » ; 12 mutants tués ; `test_studio_entetes` D1/D4 et `test_studio_ports_spatial` D5 rendus
+indépendants des familles suivantes. Preuve 8797, saisie au clavier dans le Bandeau : FR « MAMARQUE », EN
+« MY BRAND · deep » affichés dans l'aperçu (captures `t227s-apercu-bandeau-*`).
+
 ## t228 — A1 : barre du graphe sur deux lignes et canevas (P1, S) — anomalie hors demandes, à trancher
 
 Constat : barre 107 px (`--dz-gbar-h`), canevas à `top:48` fixe → 59 px du graphe sous la barre ; l'encart des

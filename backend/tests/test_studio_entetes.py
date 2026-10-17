@@ -218,7 +218,9 @@ def git_bundle(rev):
 
 
 PC = list(getattr(M, "PAIRES_C", []))
-check("D1 famille C* déclarée (PAIRES_C) et à la fin de PAIRES", len(PC) >= 3 and M.PAIRES[-len(PC):] == PC, str(len(PC)))
+_nab = len(getattr(M, "PAIRES_AB", []))                             # les familles suivantes (F*…) viennent après
+check("D1 famille C* déclarée (PAIRES_C), juste après A*+B* dans PAIRES", len(PC) >= 3 and _nab
+      and M.PAIRES[_nab:_nab + len(PC)] == PC, str(len(PC)))
 try:
     avant = M.defaire(BUNDLE)
 except AssertionError as e:
@@ -231,7 +233,7 @@ check("D3 inverse = 02f8162c octet pour octet", avant is not None and base_t224 
 
 
 def sans_c(s):
-    for a_, r_ in M.PAIRES[:len(M.PAIRES) - len(PC)]:
+    for a_, r_ in M.PAIRES[:_nab]:
         s = s.replace(a_, r_, 1)
     return s
 

@@ -40,7 +40,17 @@ sous le bas de la dernière ligne.
     depuis `dzVisInPorts` (une seule source pour la hauteur et les lignes) ;
   - C3 : l'encart perd sa marge haute (`margin:"0 10px"`) : l'air est dans le corps, donc identique pour l'encart
     (variante reef) et pour le pied (variante classique).
-L'aperçu de composition de l'inspecteur (dzPvCell) n'est pas touché. t228-t229 ajoutent leurs familles (D*, E*).
+L'aperçu de composition de l'inspecteur (dzPvCell) n'est pas touché par les C*. t228-t229 ajoutent leurs familles (D*, E*).
+
+Suite de t227 (17/10) — l'aperçu de composition montre le VRAI bandeau. Relevé sur 55893568 : `dzPreviewModel` ne
+gardait de la région brand_strip que son fond, et `dzPvCell` écrivait « 🐙 DEEPOTUS » / « $DEEP » en dur, quels que
+soient le modèle et le Bandeau relié ; le rendu réel pose le logo PNG du modèle (item `mark`) et le 1er item texte,
+remplacé depuis B3 par le texte du Bandeau de marque relié au port de la région.
+  - F1 : `dzPreviewModel` calcule pour la région le texte EFFECTIF avec la règle de B3 (port de la région via
+    `dzSpatialSlots`, nœud BrandStrip relié, texte du nœud ou du catalogue, vide → texte du modèle ; aucun item texte →
+    aucun texte), sa couleur, et la présence d'un logo ;
+  - F2 : `dzPvCell` affiche ce texte (ellipse + `title`, à droite) et le pictogramme du logo seulement si le modèle a
+    un `mark` ; plus de « $DEEP » en dur. Aucun texte visible neuf.
 Aucun useState ajouté (compte figé 731), aucun DzTracks, rien qui touche « v2.8.0 », aucun texte visible neuf (le
 `title` réutilise le libellé et le type déjà affichés).
 
@@ -48,7 +58,7 @@ Maillon de QUEUE, APRÈS dzlogo (dont il sonde le marqueur) ; il garde un .js.ba
 puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzstudio` dans
 backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_dzlogo`. Lecture et écriture
 en OCTETS. Bancs : backend/tests/test_studio_ancrage.py (t225), test_studio_ports_spatial.py (t226),
-test_studio_entetes.py (t227).
+test_studio_entetes.py (t227), test_studio_apercu_bandeau.py (suite de t227).
 Run : python scripts/patch_bundle_dzstudio.py [--check]
 """
 import pathlib
@@ -129,7 +139,25 @@ PAIRES_C = [
      'm&&r.jsx("div",{style:{height:zh,margin:"0 10px",'),
 ]
 
-PAIRES = PAIRES_AB + PAIRES_C                           # C1 réécrit la sortie de A0 : l'ordre compte (défaire à rebours)
+PAIRES_F = [
+    ('else if(r.type==="brand_strip")items.push(Object.assign(b,{kind:"brand",bg:r.background_color||"#02060d"}));',  # F1
+     'else if(r.type==="brand_strip"){var it6=r.items||[],tx6=null,k6;'
+     'for(k6=0;k6<it6.length&&!tx6;k6++)it6[k6]&&it6[k6].type==="text"&&(tx6=it6[k6]);'
+     'var sl6=r.slot_name||r.id,pt6=null,ps6=dzSpatialSlots(tpl,l.props||{}).ports;'
+     'for(k6=0;k6<ps6.length&&!pt6;k6++)ps6[k6].slot===sl6&&(pt6=ps6[k6].id);'
+     'var bn6=pt6&&Wt(e,l.id,pt6),P6=bn6&&bn6.type==="BrandStrip"?'
+     'Object.assign({},(Me.BrandStrip&&Me.BrandStrip.props)||{},bn6.props||{}):null,'
+     't6=P6?String(P6.text==null?"":P6.text).trim():"";'
+     'items.push(Object.assign(b,{kind:"brand",bg:r.background_color||"#02060d",'
+     'mark:it6.some(function(z){return z&&z.type==="mark"}),text:tx6?(t6||String(tx6.text||"")):"",'
+     'color:tx6&&tx6.color||"#00e5ff"}))}'),
+    ('children:[r.jsx("span",{children:"🐙 DEEPOTUS"},"a"),r.jsx("span",{children:"$DEEP"},"b")]},ix);',       # F2
+     'children:[it.mark!==!1&&r.jsx("span",{children:"🐙 DEEPOTUS"},"a"),it.text?r.jsx("span",{title:it.text,'
+     'style:{color:it.color||"#00e5ff",marginLeft:"auto",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",'
+     'whiteSpace:"nowrap"},children:it.text},"b"):null]},ix);'),
+]
+
+PAIRES = PAIRES_AB + PAIRES_C + PAIRES_F                           # C1 réécrit la sortie de A0 : l'ordre compte (défaire à rebours)
 
 
 def lire(p):

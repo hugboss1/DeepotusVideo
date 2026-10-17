@@ -236,7 +236,7 @@ check("D4 inverse = 02f8162c octet pour octet", avant is not None and base_t224 
       and AIDE.avant_dzstudio(BUNDLE).encode("utf-8") == base_t224)
 def sans_b(s):
     for a_, r_ in M.PAIRES:
-        if (a_, r_) not in PB and (a_, r_) not in getattr(M, "PAIRES_C", []):   # t227 : les C* viennent après t225
+        if (a_, r_) not in PB and (a_, r_) in getattr(M, "PAIRES_AB", M.PAIRES):   # t227 : C*, F*… viennent après
             s = s.replace(a_, r_, 1)
     return s
 check("D5 sans les B* = 0b62e7c4 (t225) octet pour octet", avant is not None and base_t225 is not None
