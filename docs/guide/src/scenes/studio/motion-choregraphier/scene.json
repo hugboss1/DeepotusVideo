@@ -1,0 +1,146 @@
+{
+  "titre": {
+    "fr": "Direction motion → Chorégraphier → aperçu",
+    "en": "Motion direction → Choreograph → preview"
+  },
+  "legende": {
+    "fr": "La Direction motion donne le style, la source et le moteur ; Chorégraphier pose les éléments de l'Animation ; l'aperçu gratuit les montre en mouvement.",
+    "en": "The Motion direction gives the style, the source and the engine; Choreograph places the Animation's elements; the free preview shows them moving."
+  },
+  "captures": [
+    {
+      "fr": "direction.fr.webp",
+      "en": "direction.en.webp"
+    },
+    {
+      "fr": "choregraphier.fr.webp",
+      "en": "choregraphier.en.webp"
+    },
+    {
+      "fr": "apercu.fr.webp",
+      "en": "apercu.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        517,
+        397,
+        177,
+        158
+      ],
+      "bulle": {
+        "fr": "Direction motion : le style, la source, le moteur",
+        "en": "Motion direction: the style, the source, the engine"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "curseur": [
+        1270,
+        268
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Chorégraphier : le moteur pose chaque ligne du script",
+        "en": "Choreograph: the engine places each line of the script"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        768,
+        272,
+        323,
+        563
+      ],
+      "bulle": {
+        "fr": "Aperçu gratuit : les mots entrent un à un",
+        "en": "Free preview: the words come in one by one"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1117,
+        284,
+        306,
+        28
+      ],
+      "bulle": {
+        "fr": "Le bilan dit qui a chorégraphié et à quel prix",
+        "en": "The summary says who choreographed it and at what cost"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        517,
+        365,
+        177,
+        158
+      ],
+      "bulle": {
+        "fr": "Direction motion : le style, la source, le moteur",
+        "en": "Motion direction: the style, the source, the engine"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "curseur": [
+        1270,
+        268
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Chorégraphier : le moteur pose chaque ligne du script",
+        "en": "Choreograph: the engine places each line of the script"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        768,
+        240,
+        323,
+        563
+      ],
+      "bulle": {
+        "fr": "Aperçu gratuit : les mots entrent un à un",
+        "en": "Free preview: the words come in one by one"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1117,
+        284,
+        306,
+        28
+      ],
+      "bulle": {
+        "fr": "Le bilan dit qui a chorégraphié et à quel prix",
+        "en": "The summary says who choreographed it and at what cost"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

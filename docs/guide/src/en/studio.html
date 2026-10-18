@@ -1,4 +1,4 @@
-<p class="chapeau-chap">You will compose a video piece by piece by linking nodes, see it before paying, never pay twice for what is done, and reuse a graph like a recipe. Paid depending on the nodes; the graph's cost is shown before running.</p>
+<p class="chapeau-chap">You will compose a video piece by piece by linking nodes, see it before paying, never pay twice for what is done, reuse a graph like a recipe and have an AI choreograph your texts. Paid depending on the nodes; the graph's cost is shown before running.</p>
 
 <h3>The Studio screen</h3>
 <figure class="scene" data-scene="studio/graphe"></figure>
@@ -40,6 +40,25 @@
 <li>Run the recipe with new values: a quote is shown, you confirm. Unchanged nodes are reused for free.</li>
 <li>From a picture in the Library, <strong>Send to</strong> also offers to run a recipe on it.</li>
 </ol>
+
+<h3>Animate with AI</h3>
+<p>A text engine can place the words of an Animation for you: where they come in, when, and with which move. Free with a local engine (Ollama); on a paid key, the cost is estimated before sending.</p>
+<figure class="scene" data-scene="studio/motion-choregraphier"></figure>
+<ol class="etapes">
+<li>Drag in a <b class="ui">Motion direction</b> node (Animations category) and link its output to an Animation's <strong>direction</strong> input. Link a Text node to its <strong>script</strong> input: one line per beat.</li>
+<li>In the Motion direction's inspector, choose the <b class="ui">Style</b> (one built-in sheet per theme), the <b class="ui">Source</b> and the <b class="ui">Engine</b>; the node's panel sums them up in one line.</li>
+<li>Select the Animation, then <b class="ui">Choreograph</b>. The elements land in the list; if there were some already, the app asks before replacing them, and <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings them back.</li>
+<li><b class="ui">Preview</b> shows the animation, for free. Without an engine, the built-in choreography splits the script: nothing is sent.</li>
+</ol>
+<figure class="scene" data-scene="studio/motion-personnaliser"></figure>
+<p>The <b class="ui">Customise</b> section adjusts the brief without asking you anything during the call: the sheet's fields (an empty field keeps its default), three sliders — Creativity, Pace, Polish — whose added sentence is shown, a tempo in BPM, the format, the duration, the font and the colours. Next to the model, <b class="ui">Effort</b> offers <b class="ui">Auto</b> and then only the levels this model accepts.</p>
+<figure class="scene" data-scene="studio/motion-biblio"></figure>
+<ol class="etapes">
+<li><b class="ui">Import a prompt</b>: title, pasted text, URL of the original page (required), author, themes. The attribution stays on show; the preview shows your specifics added after the prompt, which stays intact.</li>
+<li><b class="ui">Install a skill</b>: type <code>owner/repo</code>, then <b class="ui">Read the licence</b>. The licence text is shown BEFORE anything is installed; a repository without an MIT, Apache-2.0, BSD or ISC licence is refused.</li>
+<li><b class="ui">My library</b>: <b class="ui">Filter by theme</b>, <b class="ui">Use</b> to make it the node's Source, <b class="ui">Delete</b> after confirming. A skill's instructions are edited in the node; <b class="ui">Back to the original</b> restores them.</li>
+</ol>
+<aside class="attention"><i data-dz="dz-etat-origine"></i><p>Prompts still belong to their creators. Only import what you are allowed to use: the page URL and the author travel with the prompt, and nothing is fetched from a prompt site on your behalf.</p></aside>
 
 <h3>Go further</h3>
 <div class="cartes">

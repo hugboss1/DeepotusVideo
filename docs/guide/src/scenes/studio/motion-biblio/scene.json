@@ -1,0 +1,172 @@
+{
+  "titre": {
+    "fr": "La Bibliothèque motion",
+    "en": "The Motion library"
+  },
+  "legende": {
+    "fr": "Importer un prompt avec l'URL de sa fiche, lire la licence d'un skill avant de l'installer, filtrer et utiliser sa bibliothèque.",
+    "en": "Import a prompt with the URL of its page, read a skill's licence before installing it, filter and use your library."
+  },
+  "captures": [
+    {
+      "fr": "importer.fr.webp",
+      "en": "importer.en.webp"
+    },
+    {
+      "fr": "skill.fr.webp",
+      "en": "skill.en.webp"
+    },
+    {
+      "fr": "liste.fr.webp",
+      "en": "liste.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1122,
+        498,
+        296,
+        44
+      ],
+      "bulle": {
+        "fr": "L'URL de la fiche d'origine est obligatoire",
+        "en": "The URL of the original page is required"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1122,
+        536,
+        296,
+        182
+      ],
+      "bulle": {
+        "fr": "Vos précisions s'ajouteront après le prompt",
+        "en": "Your specifics will be added after the prompt"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1131,
+        506,
+        278,
+        28
+      ],
+      "bulle": {
+        "fr": "La licence est lue AVANT l'installation",
+        "en": "The licence is read BEFORE installing"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "curseur": [
+        1212,
+        710
+      ],
+      "bulle": {
+        "fr": "Rien n'est installé sans ce clic",
+        "en": "Nothing is installed without this click"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1122,
+        475,
+        296,
+        91
+      ],
+      "bulle": {
+        "fr": "Filtrer par thème, puis Utiliser ou Supprimer",
+        "en": "Filter by theme, then Use or Delete"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1122,
+        498,
+        296,
+        44
+      ],
+      "bulle": {
+        "fr": "L'URL de la fiche d'origine est obligatoire",
+        "en": "The URL of the original page is required"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1122,
+        536,
+        296,
+        182
+      ],
+      "bulle": {
+        "fr": "Vos précisions s'ajouteront après le prompt",
+        "en": "Your specifics will be added after the prompt"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1131,
+        507,
+        278,
+        28
+      ],
+      "bulle": {
+        "fr": "La licence est lue AVANT l'installation",
+        "en": "The licence is read BEFORE installing"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "curseur": [
+        1219,
+        710
+      ],
+      "bulle": {
+        "fr": "Rien n'est installé sans ce clic",
+        "en": "Nothing is installed without this click"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1122,
+        475,
+        296,
+        91
+      ],
+      "bulle": {
+        "fr": "Filtrer par thème, puis Utiliser ou Supprimer",
+        "en": "Filter by theme, then Use or Delete"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

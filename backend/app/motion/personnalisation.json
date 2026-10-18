@@ -42,7 +42,7 @@
     },
     "finition": {
       "libelle": {"fr": "Finition", "en": "Polish"},
-      "poles": {"fr": ["rapide", "soignée"], "en": ["quick", "meticulous"]},
+      "poles": {"fr": ["rapide", "soignée"], "en": ["quick", "polished"]},
       "crans": [
         {"etat": {"fr": "Très rapide", "en": "Very quick"}, "phrase": null,
          "effet": {"fr": "Une seule tentative, puis le repli.", "en": "A single attempt, then the fallback."}},
@@ -50,7 +50,7 @@
          "effet": {"fr": "Une seule tentative, puis le repli.", "en": "A single attempt, then the fallback."}},
         {"etat": {"fr": "Normale", "en": "Normal"}, "phrase": null,
          "effet": {"fr": "Deux tentatives, puis le repli.", "en": "Two attempts, then the fallback."}},
-        {"etat": {"fr": "Soignée", "en": "Careful"}, "phrase": null,
+        {"etat": {"fr": "Soignée", "en": "Polished"}, "phrase": null,
          "effet": {"fr": "Deux tentatives, puis une vérification : bornes, pas deux textes au même endroit au même instant, chaque élément tenu 0,5 s au moins.",
                    "en": "Two attempts, then a check: bounds, no two texts in the same place at the same time, every element held for at least 0.5 s."}},
         {"etat": {"fr": "Méticuleuse", "en": "Meticulous"}, "phrase": null,
