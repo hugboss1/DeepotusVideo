@@ -1,14 +1,86 @@
 {
   "theme": "product-ui",
-  "version": 1,
+  "version": 2,
   "titre": {
     "fr": "Interface produit",
     "en": "Product UI"
   },
   "consigne": {
-    "fr": "L'interface est la vedette : on montre le produit qui travaille, pas une promesse. Partir d'un écran entier et propre, puis plonger sur la fonction qui compte, une seule à la fois. Un pointeur ou un surlignage guide l'œil vers l'endroit où cliquer ; le résultat apparaît juste après le geste. Données de démonstration crédibles, jamais de faux texte. Mouvements de caméra doux (zoom, léger panoramique), aucun élément qui tremble. Un sous-titre court nomme le bénéfice à chaque étape ; la fin revient sur l'écran entier avec le nom du produit.",
-    "en": "The interface is the star: show the product at work, not a promise. Start from a clean full screen, then dive into the feature that matters, one at a time. A pointer or a highlight leads the eye to where the click happens; the result appears right after the gesture. Believable demo data, never placeholder text. Gentle camera moves (zoom, slight pan), nothing that jitters. A short caption names the benefit at each step; the ending pulls back to the full screen with the product name."
+    "fr": "L'interface est la vedette : on montre le produit qui travaille, pas une promesse. Partir d'un écran entier et propre, puis plonger sur {{fonction}}, une seule à la fois. {{guide}} guide l'œil vers l'endroit où cliquer ; le résultat apparaît juste après le geste. Données de démonstration crédibles, jamais de faux texte. Mouvements de caméra doux (zoom, léger panoramique), aucun élément qui tremble. Un sous-titre court nomme le bénéfice à chaque étape ; la fin revient sur l'écran entier avec {{produit}}.",
+    "en": "The interface is the star: show the product at work, not a promise. Start from a clean full screen, then dive into {{fonction}}, one at a time. {{guide}} leads the eye to where the click happens; the result appears right after the gesture. Believable demo data, never placeholder text. Gentle camera moves (zoom, slight pan), nothing that jitters. A short caption names the benefit at each step; the ending pulls back to the full screen with {{produit}}."
   },
+  "champs": [
+    {
+      "id": "fonction",
+      "type": "texte",
+      "libelle": {
+        "fr": "Fonction montrée",
+        "en": "Feature shown"
+      },
+      "aide": {
+        "fr": "La fonction du produit à mettre en avant.",
+        "en": "The product feature to put forward."
+      },
+      "defaut": {
+        "fr": "la fonction qui compte",
+        "en": "the feature that matters"
+      },
+      "max": 80
+    },
+    {
+      "id": "guide",
+      "type": "liste",
+      "libelle": {
+        "fr": "Guide de l'œil",
+        "en": "Eye guide"
+      },
+      "aide": {
+        "fr": "Ce qui montre où cliquer.",
+        "en": "What shows where to click."
+      },
+      "defaut": "les_deux",
+      "options": [
+        {
+          "valeur": "les_deux",
+          "libelle": {
+            "fr": "Un pointeur ou un surlignage",
+            "en": "A pointer or a highlight"
+          }
+        },
+        {
+          "valeur": "pointeur",
+          "libelle": {
+            "fr": "Un pointeur",
+            "en": "A pointer"
+          }
+        },
+        {
+          "valeur": "surlignage",
+          "libelle": {
+            "fr": "Un surlignage",
+            "en": "A highlight"
+          }
+        }
+      ]
+    },
+    {
+      "id": "produit",
+      "type": "texte",
+      "libelle": {
+        "fr": "Fin",
+        "en": "Ending"
+      },
+      "aide": {
+        "fr": "Ce qui s'affiche sur l'écran entier final.",
+        "en": "What the final full screen shows."
+      },
+      "defaut": {
+        "fr": "le nom du produit",
+        "en": "the product name"
+      },
+      "max": 80
+    }
+  ],
   "rythme": {
     "fr": "Posé : 1,5 à 3 s par étape, le temps de lire le geste et son effet.",
     "en": "Measured: 1.5 to 3 s per step, enough to read the gesture and its effect."
@@ -40,5 +112,5 @@
     "9:16",
     "4:5"
   ],
-  "auteur": "DeepotusVideo (fiche maison, t233)"
+  "auteur": "DeepotusVideo (fiche maison, t233 ; champs t240)"
 }

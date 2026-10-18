@@ -1,14 +1,67 @@
 {
   "theme": "particles",
-  "version": 1,
+  "version": 2,
   "titre": {
     "fr": "Particules",
     "en": "Particles"
   },
   "consigne": {
-    "fr": "Une atmosphère plus qu'un objet : beaucoup de petits éléments (points, étincelles, poussière lumineuse) répartis sur deux ou trois plans de profondeur, les plus proches plus grands, plus flous et plus rapides. Ils dérivent lentement, puis se rassemblent pour former un mot, une forme ou le logo, et se dispersent à nouveau. Fond sombre, lumière douce, une seule teinte dominante. Jamais d'explosion gratuite : chaque mouvement d'ensemble suit une intention et laisse le message lisible au centre.",
-    "en": "An atmosphere rather than an object: many small elements (dots, sparks, glowing dust) spread over two or three depth layers, the nearest ones bigger, blurrier and faster. They drift slowly, then gather to form a word, a shape or the logo, and scatter again. Dark background, soft light, one dominant hue. Never a gratuitous explosion: each collective move follows an intent and keeps the message readable at the centre."
+    "fr": "Une atmosphère plus qu'un objet : beaucoup de petits éléments ({{matiere}}) répartis sur deux ou trois plans de profondeur, les plus proches plus grands, plus flous et plus rapides. Ils dérivent lentement, puis se rassemblent pour former {{forme}}, et se dispersent à nouveau. Fond sombre, lumière douce, une seule teinte dominante : {{teinte}}. Jamais d'explosion gratuite : chaque mouvement d'ensemble suit une intention et laisse le message lisible au centre.",
+    "en": "An atmosphere rather than an object: many small elements ({{matiere}}) spread over two or three depth layers, the nearest ones bigger, blurrier and faster. They drift slowly, then gather to form {{forme}}, and scatter again. Dark background, soft light, one dominant hue: {{teinte}}. Never a gratuitous explosion: each collective move follows an intent and keeps the message readable at the centre."
   },
+  "champs": [
+    {
+      "id": "matiere",
+      "type": "texte",
+      "libelle": {
+        "fr": "Matière",
+        "en": "Material"
+      },
+      "aide": {
+        "fr": "De quoi sont faites les particules.",
+        "en": "What the particles are made of."
+      },
+      "defaut": {
+        "fr": "points, étincelles, poussière lumineuse",
+        "en": "dots, sparks, glowing dust"
+      },
+      "max": 80
+    },
+    {
+      "id": "forme",
+      "type": "texte",
+      "libelle": {
+        "fr": "Ce qu'elles forment",
+        "en": "What they form"
+      },
+      "aide": {
+        "fr": "Ce que les particules dessinent en se rassemblant.",
+        "en": "What the particles draw when they gather."
+      },
+      "defaut": {
+        "fr": "un mot, une forme ou le logo",
+        "en": "a word, a shape or the logo"
+      },
+      "max": 80
+    },
+    {
+      "id": "teinte",
+      "type": "texte",
+      "libelle": {
+        "fr": "Teinte dominante",
+        "en": "Dominant hue"
+      },
+      "aide": {
+        "fr": "La couleur qui domine l'image.",
+        "en": "The colour that dominates the picture."
+      },
+      "defaut": {
+        "fr": "celle de la marque",
+        "en": "the brand's"
+      },
+      "max": 80
+    }
+  ],
   "rythme": {
     "fr": "Lent et continu : dérive de fond, un rassemblement toutes les 3 à 6 s.",
     "en": "Slow and continuous: background drift, a gathering every 3 to 6 s."
@@ -37,5 +90,5 @@
     "9:16",
     "1:1"
   ],
-  "auteur": "DeepotusVideo (fiche maison, t233)"
+  "auteur": "DeepotusVideo (fiche maison, t233 ; champs t240)"
 }

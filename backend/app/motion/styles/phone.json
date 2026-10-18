@@ -1,14 +1,86 @@
 {
   "theme": "phone",
-  "version": 1,
+  "version": 2,
   "titre": {
     "fr": "Téléphone",
     "en": "Phone"
   },
   "consigne": {
-    "fr": "Tout se passe dans la main : un téléphone vertical, cadré serré, l'écran occupe l'essentiel de l'image. On voit le pouce taper ou faire défiler, chaque appui marqué par un petit cercle qui s'efface. Les écrans de l'application s'enchaînent comme dans la vraie vie, en glissant. Gros texte d'accroche au-dessus ou au-dessous du téléphone, deux à quatre mots, lisible sans le son. Couleurs de l'application respectées. La fin montre l'écran clé de l'app avec un appel à l'action clair.",
-    "en": "Everything happens in the hand: a vertical phone, framed tight, the screen filling most of the picture. The thumb taps or scrolls, each press marked by a small fading circle. App screens follow one another as in real life, sliding. A big hook line above or below the phone, two to four words, readable without sound. The app's colours are respected. The ending shows the app's key screen with a clear call to action."
+    "fr": "Tout se passe dans la main : un téléphone vertical, cadré serré, l'écran occupe l'essentiel de l'image. On voit le pouce {{geste}}, chaque appui marqué par un petit cercle qui s'efface. Les écrans de l'application s'enchaînent comme dans la vraie vie, en glissant. Gros texte d'accroche au-dessus ou au-dessous du téléphone, {{accroche}}, lisible sans le son. Couleurs de l'application respectées. La fin montre l'écran clé de l'app avec {{appel}}.",
+    "en": "Everything happens in the hand: a vertical phone, framed tight, the screen filling most of the picture. The thumb {{geste}}, each press marked by a small fading circle. App screens follow one another as in real life, sliding. A big hook line above or below the phone, {{accroche}}, readable without sound. The app's colours are respected. The ending shows the app's key screen with {{appel}}."
   },
+  "champs": [
+    {
+      "id": "geste",
+      "type": "liste",
+      "libelle": {
+        "fr": "Geste",
+        "en": "Gesture"
+      },
+      "aide": {
+        "fr": "Ce que fait le pouce.",
+        "en": "What the thumb does."
+      },
+      "defaut": "les_deux",
+      "options": [
+        {
+          "valeur": "les_deux",
+          "libelle": {
+            "fr": "taper ou faire défiler",
+            "en": "taps or scrolls"
+          }
+        },
+        {
+          "valeur": "taper",
+          "libelle": {
+            "fr": "taper",
+            "en": "taps"
+          }
+        },
+        {
+          "valeur": "defiler",
+          "libelle": {
+            "fr": "faire défiler",
+            "en": "scrolls"
+          }
+        }
+      ]
+    },
+    {
+      "id": "accroche",
+      "type": "texte",
+      "libelle": {
+        "fr": "Accroche",
+        "en": "Hook line"
+      },
+      "aide": {
+        "fr": "Le gros texte autour du téléphone.",
+        "en": "The big text around the phone."
+      },
+      "defaut": {
+        "fr": "deux à quatre mots",
+        "en": "two to four words"
+      },
+      "max": 80
+    },
+    {
+      "id": "appel",
+      "type": "texte",
+      "libelle": {
+        "fr": "Appel à l'action",
+        "en": "Call to action"
+      },
+      "aide": {
+        "fr": "Ce que l'on invite à faire à la fin.",
+        "en": "What viewers are invited to do at the end."
+      },
+      "defaut": {
+        "fr": "un appel à l'action clair",
+        "en": "a clear call to action"
+      },
+      "max": 80
+    }
+  ],
   "rythme": {
     "fr": "Vif : un geste toutes les 1 à 2 s, l'accroche dans la première seconde.",
     "en": "Snappy: a gesture every 1 to 2 s, the hook within the first second."
@@ -38,5 +110,5 @@
     "4:5",
     "1:1"
   ],
-  "auteur": "DeepotusVideo (fiche maison, t233)"
+  "auteur": "DeepotusVideo (fiche maison, t233 ; champs t240)"
 }

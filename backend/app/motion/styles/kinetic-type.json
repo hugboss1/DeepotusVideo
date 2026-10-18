@@ -1,14 +1,82 @@
 {
   "theme": "kinetic-type",
-  "version": 1,
+  "version": 2,
   "titre": {
     "fr": "Typographie cinétique",
     "en": "Kinetic type"
   },
   "consigne": {
-    "fr": "La typographie porte tout le message : pas d'illustration, les mots sont l'image. Une idée par temps, trois mots à l'écran au plus, un mot-clé par phrase mis en avant par la taille, la graisse ou la couleur d'accent. Polices grasses et condensées (Anton, Bebas Neue, Archivo Black) sur un fond uni très contrasté. Chaque mot entre avec une intention : il claque, glisse ou grossit, puis reste lisible au moins une demi-seconde avant de céder la place. La hiérarchie ne change jamais en cours de route ; la dernière réplique tient plus longtemps et se termine sur la marque.",
-    "en": "Typography carries the whole message: no illustration, the words are the picture. One idea per beat, three words on screen at most, one keyword per line pushed forward by size, weight or the accent colour. Bold condensed faces (Anton, Bebas Neue, Archivo Black) on a flat, high-contrast background. Every word enters with intent: it snaps, slides or grows, then stays readable for at least half a second before making room. The hierarchy never changes midway; the last line holds longer and lands on the brand."
+    "fr": "La typographie porte tout le message : pas d'illustration, les mots sont l'image. Une idée par temps, {{mots_max}} mots à l'écran au plus, un mot-clé par phrase mis en avant par la taille, la graisse ou la couleur d'accent. Polices grasses et condensées ({{polices}}) sur {{fond}}. Chaque mot entre avec une intention : il claque, glisse ou grossit, puis reste lisible au moins une demi-seconde avant de céder la place. La hiérarchie ne change jamais en cours de route ; la dernière réplique tient plus longtemps et se termine sur {{fin}}.",
+    "en": "Typography carries the whole message: no illustration, the words are the picture. One idea per beat, {{mots_max}} words on screen at most, one keyword per line pushed forward by size, weight or the accent colour. Bold condensed faces ({{polices}}) on {{fond}}. Every word enters with intent: it snaps, slides or grows, then stays readable for at least half a second before making room. The hierarchy never changes midway; the last line holds longer and lands on {{fin}}."
   },
+  "champs": [
+    {
+      "id": "mots_max",
+      "type": "nombre",
+      "libelle": {
+        "fr": "Mots à l'écran",
+        "en": "Words on screen"
+      },
+      "aide": {
+        "fr": "Combien de mots au plus en même temps.",
+        "en": "How many words at most at the same time."
+      },
+      "defaut": 3,
+      "min": 1,
+      "max": 6
+    },
+    {
+      "id": "polices",
+      "type": "texte",
+      "libelle": {
+        "fr": "Polices",
+        "en": "Typefaces"
+      },
+      "aide": {
+        "fr": "Les familles de caractères à privilégier.",
+        "en": "The type families to favour."
+      },
+      "defaut": {
+        "fr": "Anton, Bebas Neue, Archivo Black",
+        "en": "Anton, Bebas Neue, Archivo Black"
+      },
+      "max": 80
+    },
+    {
+      "id": "fond",
+      "type": "texte",
+      "libelle": {
+        "fr": "Fond",
+        "en": "Background"
+      },
+      "aide": {
+        "fr": "Ce qu'il y a derrière les mots.",
+        "en": "What sits behind the words."
+      },
+      "defaut": {
+        "fr": "un fond uni très contrasté",
+        "en": "a flat, high-contrast background"
+      },
+      "max": 80
+    },
+    {
+      "id": "fin",
+      "type": "texte",
+      "libelle": {
+        "fr": "Dernier mot",
+        "en": "Last word"
+      },
+      "aide": {
+        "fr": "Sur quoi la séquence se termine.",
+        "en": "What the sequence lands on."
+      },
+      "defaut": {
+        "fr": "la marque",
+        "en": "the brand"
+      },
+      "max": 80
+    }
+  ],
   "rythme": {
     "fr": "Rapide et calé sur la parole : un changement toutes les 0,4 à 0,8 s, une respiration avant la chute.",
     "en": "Fast and locked to the voice: a change every 0.4 to 0.8 s, one breath before the payoff."
@@ -40,5 +108,5 @@
     "1:1",
     "16:9"
   ],
-  "auteur": "DeepotusVideo (fiche maison, t233)"
+  "auteur": "DeepotusVideo (fiche maison, t233 ; champs t240)"
 }

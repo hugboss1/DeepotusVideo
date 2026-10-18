@@ -1,14 +1,86 @@
 {
   "theme": "diagrams",
-  "version": 1,
+  "version": 2,
   "titre": {
     "fr": "Schémas",
     "en": "Diagrams"
   },
   "consigne": {
-    "fr": "Construire le schéma pièce par pièce, dans l'ordre où on l'expliquerait au tableau. Chaque bloc arrive à sa place définitive, jamais déplacé ensuite ; les flèches se tracent pour montrer le sens du flux, de gauche à droite ou de haut en bas. Formes simples et arrondies, deux ou trois couleurs qui veulent dire quelque chose (entrée, traitement, sortie). Libellés courts dans les blocs. Quand tout est posé, un parcours lumineux suit le chemin complet une fois, puis l'image entière reste à l'écran pour être lue.",
-    "en": "Build the diagram piece by piece, in the order you would explain it on a whiteboard. Each block lands in its final place and never moves afterwards; arrows draw themselves to show the direction of flow, left to right or top to bottom. Simple rounded shapes, two or three colours that mean something (input, process, output). Short labels inside the blocks. Once everything is in place, a light pulse travels the full path once, then the whole picture stays on screen to be read."
+    "fr": "Construire le schéma pièce par pièce, dans l'ordre où on l'expliquerait au tableau. Chaque bloc arrive à sa place définitive, jamais déplacé ensuite ; les flèches se tracent pour montrer le sens du flux, {{sens}}. Formes simples et arrondies, deux ou trois couleurs qui veulent dire quelque chose ({{couleurs}}). Libellés courts dans les blocs. Quand tout est posé, {{final}}, puis l'image entière reste à l'écran pour être lue.",
+    "en": "Build the diagram piece by piece, in the order you would explain it on a whiteboard. Each block lands in its final place and never moves afterwards; arrows draw themselves to show the direction of flow, {{sens}}. Simple rounded shapes, two or three colours that mean something ({{couleurs}}). Short labels inside the blocks. Once everything is in place, {{final}}, then the whole picture stays on screen to be read."
   },
+  "champs": [
+    {
+      "id": "sens",
+      "type": "liste",
+      "libelle": {
+        "fr": "Sens du flux",
+        "en": "Flow direction"
+      },
+      "aide": {
+        "fr": "Dans quel sens le schéma se lit.",
+        "en": "Which way the diagram reads."
+      },
+      "defaut": "libre",
+      "options": [
+        {
+          "valeur": "libre",
+          "libelle": {
+            "fr": "de gauche à droite ou de haut en bas",
+            "en": "left to right or top to bottom"
+          }
+        },
+        {
+          "valeur": "horizontal",
+          "libelle": {
+            "fr": "de gauche à droite",
+            "en": "left to right"
+          }
+        },
+        {
+          "valeur": "vertical",
+          "libelle": {
+            "fr": "de haut en bas",
+            "en": "top to bottom"
+          }
+        }
+      ]
+    },
+    {
+      "id": "couleurs",
+      "type": "texte",
+      "libelle": {
+        "fr": "Sens des couleurs",
+        "en": "Colour meaning"
+      },
+      "aide": {
+        "fr": "Ce que veut dire chaque couleur.",
+        "en": "What each colour stands for."
+      },
+      "defaut": {
+        "fr": "entrée, traitement, sortie",
+        "en": "input, process, output"
+      },
+      "max": 80
+    },
+    {
+      "id": "final",
+      "type": "texte",
+      "libelle": {
+        "fr": "Geste final",
+        "en": "Final move"
+      },
+      "aide": {
+        "fr": "Ce qui se passe quand tout est posé.",
+        "en": "What happens once everything is in place."
+      },
+      "defaut": {
+        "fr": "un parcours lumineux suit le chemin complet une fois",
+        "en": "a light pulse travels the full path once"
+      },
+      "max": 120
+    }
+  ],
   "rythme": {
     "fr": "Pédagogique : 1 à 2 s par bloc, une tenue finale de 3 s au moins.",
     "en": "Teaching pace: 1 to 2 s per block, a final hold of at least 3 s."
@@ -37,5 +109,5 @@
     "16:9",
     "1:1"
   ],
-  "auteur": "DeepotusVideo (fiche maison, t233)"
+  "auteur": "DeepotusVideo (fiche maison, t233 ; champs t240)"
 }

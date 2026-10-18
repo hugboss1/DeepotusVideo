@@ -1,14 +1,86 @@
 {
   "theme": "photos",
-  "version": 1,
+  "version": 2,
   "titre": {
     "fr": "Photos",
     "en": "Photos"
   },
   "consigne": {
-    "fr": "Les photos sont la matière première ; le mouvement les fait respirer sans les trahir. Chaque image avance lentement (zoom doux ou léger travelling) vers son point d'intérêt, visage ou objet. Les enchaînements sont des fondus ou des glissements, jamais des effets tape-à-l'œil. Profondeur obtenue en décalant le sujet et le fond quand l'image est détourée. Légendes sobres, en bas, une ligne. Garder la couleur d'origine ; une seule teinte commune peut unifier la série. Le meilleur cliché vient en dernier et tient plus longtemps.",
-    "en": "Photos are the raw material; motion lets them breathe without betraying them. Each image moves slowly (gentle zoom or slight dolly) towards its point of interest, a face or an object. Transitions are fades or slides, never flashy effects. Depth comes from offsetting subject and background when the image is cut out. Quiet captions, at the bottom, one line. Keep the original colour; a single shared tint may unify the series. The best shot comes last and holds longer."
+    "fr": "Les photos sont la matière première ; le mouvement les fait respirer sans les trahir. Chaque image avance lentement ({{mouvement}}) vers {{point}}. Les enchaînements sont des fondus ou des glissements, jamais des effets tape-à-l'œil. Profondeur obtenue en décalant le sujet et le fond quand l'image est détourée. Légendes : {{legendes}}. Garder la couleur d'origine ; une seule teinte commune peut unifier la série. Le meilleur cliché vient en dernier et tient plus longtemps.",
+    "en": "Photos are the raw material; motion lets them breathe without betraying them. Each image moves slowly ({{mouvement}}) towards {{point}}. Transitions are fades or slides, never flashy effects. Depth comes from offsetting subject and background when the image is cut out. Captions: {{legendes}}. Keep the original colour; a single shared tint may unify the series. The best shot comes last and holds longer."
   },
+  "champs": [
+    {
+      "id": "mouvement",
+      "type": "liste",
+      "libelle": {
+        "fr": "Mouvement",
+        "en": "Movement"
+      },
+      "aide": {
+        "fr": "Comment chaque photo bouge.",
+        "en": "How each photo moves."
+      },
+      "defaut": "les_deux",
+      "options": [
+        {
+          "valeur": "les_deux",
+          "libelle": {
+            "fr": "zoom doux ou léger travelling",
+            "en": "gentle zoom or slight dolly"
+          }
+        },
+        {
+          "valeur": "zoom",
+          "libelle": {
+            "fr": "zoom doux",
+            "en": "gentle zoom"
+          }
+        },
+        {
+          "valeur": "travelling",
+          "libelle": {
+            "fr": "léger travelling",
+            "en": "slight dolly"
+          }
+        }
+      ]
+    },
+    {
+      "id": "point",
+      "type": "texte",
+      "libelle": {
+        "fr": "Point d'intérêt",
+        "en": "Point of interest"
+      },
+      "aide": {
+        "fr": "Vers quoi avance chaque image.",
+        "en": "What each image moves towards."
+      },
+      "defaut": {
+        "fr": "son point d'intérêt, visage ou objet",
+        "en": "its point of interest, a face or an object"
+      },
+      "max": 80
+    },
+    {
+      "id": "legendes",
+      "type": "texte",
+      "libelle": {
+        "fr": "Légendes",
+        "en": "Captions"
+      },
+      "aide": {
+        "fr": "L'allure des légendes.",
+        "en": "How captions look."
+      },
+      "defaut": {
+        "fr": "sobres, en bas, une ligne",
+        "en": "quiet, at the bottom, one line"
+      },
+      "max": 80
+    }
+  ],
   "rythme": {
     "fr": "Contemplatif : 2,5 à 4 s par photo, fondus d'une demi-seconde.",
     "en": "Contemplative: 2.5 to 4 s per photo, half-second fades."
@@ -39,5 +111,5 @@
     "4:5",
     "1:1"
   ],
-  "auteur": "DeepotusVideo (fiche maison, t233)"
+  "auteur": "DeepotusVideo (fiche maison, t233 ; champs t240)"
 }

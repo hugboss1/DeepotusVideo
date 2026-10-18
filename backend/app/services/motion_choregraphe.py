@@ -17,10 +17,23 @@ dur) rend un JSON borné que l'on verse tel quel dans le nœud Animation (t235 b
 
 La forme d'un élément est celle de `mk()` du composant DzAnimation (bundle) : id, type, style, keyframes, start, dur,
 hold, preset, text | filename — c'est aussi ce que lit `animation_service.transform_at` au rendu.
+
+Personnalisation (t240, 18/10/2026, spec « personnalisation » § P1-P6, P8) — tout vient des champs du nœud, rien n'est
+demandé pendant l'appel (P6) :
+  - `direction.champs` : les valeurs des `champs` d'une fiche maison, substituées aux `{{id}}` de sa consigne (vide ou
+    absent → défaut ; texte nettoyé et tronqué ; nombre borné ; liste hors options → défaut ; id inconnu ignoré) ;
+  - `direction.precisions` (prompt importé ou skill seulement) : un bloc APRÈS la consigne, sous la règle « en cas de
+    conflit, ces précisions priment » ; le texte importé n'est pas touché ;
+  - `direction.curseurs` {creativite, rythme, finition} 0-4, 2 = neutre : nos phrases (backend/app/motion/
+    personnalisation.json) en fin de direction pour Créativité et Rythme ; Finition 0-1 → une tentative, 3-4 → une
+    passe de vérification (bornes, deux textes au même endroit au même instant, tenue minimale) ;
+  - `tempo_bpm` 40-220 : donné au modèle, et chaque `start` (modèle ou repli) calé sur le temps le plus proche.
 """
+import json
 import math
 import re
 import unicodedata
+from pathlib import Path
 
 from app.services import motion_biblio as MB
 
@@ -42,6 +55,16 @@ TAILLE = (12, 400)
 DEFAUT_CLE = {"x": 50, "y": 50, "scale": 1, "rotation": 0, "opacity": 1}
 POLICE_DEFAUT = "Anton"
 COULEUR_DEFAUT = "#00e5ff"             # le cyan de mk() : la couleur d'un élément neuf du nœud
+PERSO_FICHIER = Path(__file__).resolve().parent.parent / "motion" / "personnalisation.json"
+CURSEURS = ("creativite", "rythme", "finition")
+NEUTRE = 2
+TEMPO = (40, 220)
+MAX_PRECISION = 300
+MAX_CHAMP = 400
+PRECISIONS = ("usage", "duree", "couleurs", "police", "autre")
+TENUE_MIN = {3: 0.5, 4: 0.8}            # finition → tenue minimale (s) vérifiée
+PROCHE = (10, 8)                        # deux textes à moins de 10 % en x et 8 % en y : « au même endroit »
+_CHAMP_ID = re.compile(r"\{\{([a-z0-9_]+)\}\}")
 
 # Les presets du nœud (PRESETS de DzAnimation, bundle), écrits en deux keyframes comme `applyPreset` (t231).
 _PRESETS = {
@@ -103,10 +126,80 @@ def _loc(v, langue: str) -> str:
     return str(v or "")
 
 
+def personnalisation() -> dict:
+    """Les curseurs (états, phrases, effets) et le bloc de précisions, FR / EN — fichier de données du dépôt."""
+    return json.loads(PERSO_FICHIER.read_text(encoding="utf-8"))
+
+
+def _valeur_champ(c: dict, v, langue: str):
+    """(valeur rendue, texte substitué) d'un champ de fiche ; vide, absent ou fautif → le défaut."""
+    t = c.get("type")
+    if t == "nombre":
+        lo, hi, defaut = c.get("min", 0), c.get("max", 0), c.get("defaut", 0)
+        if isinstance(v, str):
+            try:
+                v = float(v.replace(",", ".")) if v.strip() else None
+            except ValueError:
+                v = None
+        x = _nombre(v, defaut, lo, hi)
+        x = int(x) if float(x).is_integer() else x
+        return x, "%g" % x
+    if t == "liste":
+        ops = {o.get("valeur"): o for o in c.get("options") or [] if isinstance(o, dict)}
+        cle = v if isinstance(v, str) and v in ops else c.get("defaut")
+        return cle, _loc((ops.get(cle) or {}).get("libelle"), langue)
+    maxi = int(c.get("max") or 80) if isinstance(c.get("max"), int) else 80
+    x = _propre(v, min(maxi, MAX_CHAMP))
+    if not x:
+        x = _loc(c.get("defaut"), langue)
+    return x, x
+
+
+def substituer(fiche, valeurs, langue: str = "fr") -> tuple:
+    """(consigne de la fiche dans `langue`, valeurs appliquées) : chaque `{{id}}` reçoit la valeur du nœud ou le
+    défaut. Une seule passe : une valeur qui contient elle-même `{{…}}` n'est jamais substituée à son tour."""
+    if not fiche:
+        return "", {}
+    valeurs = valeurs if isinstance(valeurs, dict) else {}
+    appliques, textes = {}, {}
+    for c in fiche.get("champs") or []:
+        if isinstance(c, dict) and isinstance(c.get("id"), str):
+            appliques[c["id"]], textes[c["id"]] = _valeur_champ(c, valeurs.get(c["id"]), langue)
+    consigne = _CHAMP_ID.sub(lambda m: textes.get(m.group(1), m.group(0)), _loc(fiche.get("consigne"), langue))
+    return consigne, appliques
+
+
+def precisions(v) -> dict:
+    """Les cinq précisions connues, nettoyées (une ligne) et tronquées ; une clé inconnue ou vide est ignorée."""
+    v = v if isinstance(v, dict) else {}
+    return {k: _propre(v[k], MAX_PRECISION) for k in PRECISIONS if _propre(v.get(k), MAX_PRECISION)}
+
+
+def curseurs(v) -> dict:
+    """{creativite, rythme, finition} entiers 0-4 ; absent ou fautif → 2 (neutre)."""
+    v = v if isinstance(v, dict) else {}
+    out = {}
+    for k in CURSEURS:
+        x = v.get(k)
+        if isinstance(x, float) and x.is_integer():
+            x = int(x)
+        out[k] = min(4, max(0, x)) if isinstance(x, int) and not isinstance(x, bool) else NEUTRE
+    return out
+
+
+def tempo(v):
+    """BPM borné 40-220 ; absent, nul ou illisible → None (pas de tempo)."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v <= 0:
+        return None
+    x = min(TEMPO[1], max(TEMPO[0], v))
+    return int(x) if float(x).is_integer() else round(x, 2)
+
+
 def direction(d, langue: str = "fr") -> dict:
-    """{fiche, consigne, source} depuis `{style, source, consigne}`. Style : une fiche maison (`style-<thème>`) ;
-    source : l'id (ou {id}) d'un prompt importé ou d'un skill — sa consigne ; `consigne` (éditée dans le nœud) prime.
-    LookupError pour un style ou une source inconnus."""
+    """{fiche, consigne, source, consigne_style, champs, precisions, curseurs} depuis `{style, source, consigne,
+    champs, precisions, curseurs}`. Style : une fiche maison (`style-<thème>`), sa consigne aux champs substitués ;
+    source : l'id (ou {id}) d'un prompt importé ou d'un skill — sa consigne ; `consigne` (éditée dans le nœud) prime ;
+    les précisions ne valent que pour une source. LookupError pour un style ou une source inconnus."""
     d = d if isinstance(d, dict) else {}
     langue = langue if langue in ("fr", "en") else "fr"
     fiche = None
@@ -130,17 +223,40 @@ def direction(d, langue: str = "fr") -> dict:
     edite = d.get("consigne")
     if isinstance(edite, str) and edite.strip():
         texte = edite
+    consigne_style, champs = substituer(fiche, d.get("champs"), langue)
     return {"fiche": fiche, "source": sid, "consigne": _propre(texte or "", MAX_CONSIGNE, lignes=True),
-            "langue": langue}
+            "langue": langue, "consigne_style": consigne_style, "champs": champs,
+            "precisions": precisions(d.get("precisions")) if sid else {}, "curseurs": curseurs(d.get("curseurs"))}
 
 
 # ── le prompt ─────────────────────────────────────────────────────────────────────────────────────────────────────
-def systeme(d: dict, aspect: str, duree_s: float, images=()) -> str:
-    """Le prompt système : le schéma JSON imposé, puis la direction (style, rythme, consigne)."""
+def _fin_de_direction(d: dict, lg: str) -> list:
+    """Les phrases des curseurs Créativité et Rythme hors du neutre, puis le bloc de précisions (qui priment)."""
+    perso = personnalisation()
+    out = []
+    for k in ("creativite", "rythme"):
+        cran = (perso["curseurs"][k]["crans"] or [])[(d.get("curseurs") or {}).get(k, NEUTRE)]
+        if cran.get("phrase"):
+            out.append(_loc(cran["phrase"], lg))
+    if out:
+        out = ["", "CURSEURS :"] + out
+    pr = d.get("precisions") or {}
+    if pr:
+        bloc = perso["precisions"]
+        libelles = {c["id"]: _loc(c["libelle"], lg) for c in bloc["champs"]}
+        out += ["", _loc(bloc["titre"], lg) + " — " + _loc(bloc["regle"], lg)]
+        out += [f"- {libelles[k]} : {pr[k]}" for k in PRECISIONS if k in pr]
+    return out
+
+
+def systeme(d: dict, aspect: str, duree_s: float, images=(), tempo_bpm=None) -> str:
+    """Le prompt système : le schéma JSON imposé, puis la direction (style aux champs substitués, rythme, consigne,
+    tempo, phrases des curseurs, bloc de précisions)."""
     imgs = ", ".join(images) if images else "(aucune)"
     lignes = [
         "Tu es le chorégraphe du nœud Animation de DeepotusVideo. Tu transformes un script en éléments animés.",
-        "Rends UN objet JSON {\"elements\": [...]} et rien d'autre. Schéma d'un élément :",
+        "Ne pose aucune question : tout ce qu'il faut savoir est ci-dessous. Rends UN objet JSON {\"elements\": [...]} "
+        "et rien d'autre. Schéma d'un élément :",
         '  "type" : "text" | "sticker" | "image" ;',
         '  "text" (type "text") : une ligne du script, mot pour mot, %d caractères au plus ;' % MAX_TEXTE,
         '  "filename" (types "sticker" / "image") : UNIQUEMENT un de ces fichiers déjà présents : %s ; jamais une URL, '
@@ -159,14 +275,18 @@ def systeme(d: dict, aspect: str, duree_s: float, images=()) -> str:
     f = d.get("fiche")
     lg = d.get("langue", "fr")
     if f:
-        lignes += ["", "STYLE — " + _loc(f.get("titre"), lg), _loc(f.get("consigne"), lg),
+        lignes += ["", "STYLE — " + _loc(f.get("titre"), lg), d.get("consigne_style") or _loc(f.get("consigne"), lg),
                    "Rythme : " + _loc(f.get("rythme"), lg)]
         if f.get("easings"):
             lignes.append("Easings privilégiés : " + ", ".join(e for e in f["easings"] if e in EASINGS))
         if f.get("presets"):
             lignes.append("Presets autorisés : " + ", ".join(p for p in f["presets"] if p in PRESETS))
+    if tempo_bpm:
+        lignes += ["", "TEMPO : %g BPM — un temps = %g s ; chaque \"start\" tombe sur un temps (un multiple de %g s)."
+                   % (tempo_bpm, round(60 / tempo_bpm, 4), round(60 / tempo_bpm, 4))]
     if d.get("consigne"):
         lignes += ["", "CONSIGNE DE DIRECTION :", d["consigne"]]
+    lignes += _fin_de_direction(d, lg)
     return "\n".join(lignes)
 
 
@@ -291,20 +411,92 @@ def valider(sortie, *, images, marque: dict, duree_s: float) -> list:
     return out
 
 
+# ── tempo et vérification ─────────────────────────────────────────────────────────────────────────────────────────
+def sur_le_temps(t: float, bpm, duree_s: float) -> float:
+    """`t` calé sur le temps le plus proche, sans dépasser la dernière entrée possible (duree_s - 0,05)."""
+    maxi = max(0.0, duree_s - 0.05)
+    if not bpm:
+        return min(maxi, max(0.0, t))
+    b = 60 / bpm
+    s = round(max(0.0, t) / b) * b
+    if s > maxi + 1e-9:
+        s = math.floor(maxi / b + 1e-9) * b
+    return round(s, 4)
+
+
+def caler(elements: list, bpm, duree_s: float) -> list:
+    """Chaque `start` sur un temps ; durée d'entrée et tenue rebornées dans la durée totale."""
+    if not bpm:
+        return elements
+    for e in elements:
+        e["start"] = sur_le_temps(e["start"], bpm, duree_s)
+        e["dur"] = round(min(e["dur"], max(0.05, duree_s - e["start"])), 4)
+        e["hold"] = round(max(0.0, min(e["hold"], duree_s - e["start"] - e["dur"])), 4)
+    return elements
+
+
+def verifier(elements: list, duree_s: float, finition: int) -> tuple:
+    """La passe de vérification de la finition 3-4 : (éléments, corrections). Bornes rejouées ; deux textes au même
+    endroit (position finale) au même instant → le premier cède la place quand le second entre, s'il reste assez tenu,
+    sinon le second est décalé en hauteur ; chaque élément tenu au moins TENUE_MIN s quand la durée le permet."""
+    tmin = TENUE_MIN.get(finition, 0.5)
+    n = 0
+    for e in elements:
+        avant = (e["start"], e["dur"], e["hold"])
+        e["start"] = round(min(max(0.0, e["start"]), max(0.0, duree_s - 0.05)), 4)
+        e["dur"] = round(min(max(0.05, e["dur"]), max(0.05, duree_s - e["start"])), 4)
+        e["hold"] = round(max(0.0, min(e["hold"], duree_s - e["start"] - e["dur"])), 4)
+        if (e["start"], e["dur"], e["hold"]) != avant:
+            n += 1
+    textes = sorted((e for e in elements if e["type"] == "text"), key=lambda e: e["start"])
+    for i, a in enumerate(textes):
+        for b in textes[i + 1:]:
+            ka, kb = a["keyframes"][-1], b["keyframes"][-1]
+            fin_a, fin_b = a["start"] + a["dur"] + a["hold"], b["start"] + b["dur"] + b["hold"]
+            if abs(ka["x"] - kb["x"]) >= PROCHE[0] or abs(ka["y"] - kb["y"]) >= PROCHE[1] \
+                    or not (a["start"] < fin_b and b["start"] < fin_a):
+                continue
+            if b["start"] - a["start"] >= tmin and b["start"] > a["start"]:
+                a["hold"] = round(max(0.0, b["start"] - a["start"] - a["dur"]), 4)
+                a["dur"] = round(min(a["dur"], b["start"] - a["start"]), 4)
+            else:
+                dy = 12 if ka["y"] <= 50 else -12
+                for k in b["keyframes"]:
+                    k["y"] = round(min(100, max(0, k["y"] + dy)), 4)
+            n += 1
+    for e in elements:
+        if e["dur"] + e["hold"] < tmin - 1e-9:
+            hold = round(min(tmin - e["dur"], max(0.0, duree_s - e["start"] - e["dur"])), 4)
+            if hold > e["hold"]:
+                e["hold"] = hold
+                n += 1
+    return elements, n
+
+
 # ── le repli déterministe ─────────────────────────────────────────────────────────────────────────────────────────
-def repli(script: str, fiche, m: dict, duree_s: float) -> list:
+def repli(script: str, fiche, m: dict, duree_s: float, bpm=None) -> list:
     """Une ligne non vide = un élément texte ; presets du style dans l'ordre (fade-in sans style) ; chaque ligne reçoit
-    une tranche du temps proportionnelle à ses mots : elle entre au début de sa tranche et tient jusqu'à la suivante."""
+    une tranche du temps proportionnelle à ses mots : elle entre au début de sa tranche et tient jusqu'à la suivante.
+    Avec un tempo, chaque début de tranche est calé sur un temps (strictement croissant tant que la durée le permet)."""
     lignes = [_propre(l, MAX_TEXTE) for l in str(script or "").splitlines()]
     lignes = [l for l in lignes if l][:MAX_ELEMENTS]
     presets = [p for p in ((fiche or {}).get("presets") or []) if p in _PRESETS] or ["fade-in"]
     mots = [max(1, len(l.split())) for l in lignes]
     total = sum(mots) or 1
-    out, cumul = [], 0
-    for i, l in enumerate(lignes):
-        debut = round(duree_s * cumul / total, 3)
+    debuts, cumul = [], 0
+    for i in range(len(lignes)):
+        t = round(duree_s * cumul / total, 3)
         cumul += mots[i]
-        fin = round(duree_s * cumul / total, 3)       # la dernière tranche finit à duree_s
+        if bpm:
+            t = sur_le_temps(t, bpm, duree_s)
+            if debuts and t <= debuts[-1]:
+                suivant = round(debuts[-1] + 60 / bpm, 4)
+                t = suivant if suivant <= duree_s - 0.05 else debuts[-1]
+        debuts.append(t)
+    out = []
+    for i, l in enumerate(lignes):
+        debut = debuts[i]
+        fin = debuts[i + 1] if i + 1 < len(lignes) else duree_s   # la dernière tranche finit à duree_s
         tranche = max(0.001, fin - debut)
         dur = round(min(tranche, max(0.2, min(0.8, tranche * 0.35))), 3)
         preset = presets[i % len(presets)]
@@ -319,8 +511,9 @@ def repli(script: str, fiche, m: dict, duree_s: float) -> list:
 
 # ── l'appel ───────────────────────────────────────────────────────────────────────────────────────────────────────
 async def choregraphier(corps: dict, langue: str = "fr") -> dict:
-    """{elements, moteur, modele, cout, repli, raison, tentatives, aspect, duree_s}. ValueError (script vide),
-    LookupError (style / source inconnus) ; un plafond dépassé remonte (402). Tout le reste finit en repli."""
+    """{elements, moteur, modele, cout, repli, raison, tentatives, aspect, duree_s, effort, effort_applique, champs,
+    precisions, curseurs, tempo_bpm, marque, verification}. ValueError (script vide), LookupError (style / source
+    inconnus) ; un plafond dépassé remonte (402). Tout le reste finit en repli."""
     from app.services import moteurs_texte as MT
     from app.services import pricing
     if not isinstance(corps, dict):
@@ -341,9 +534,21 @@ async def choregraphier(corps: dict, langue: str = "fr") -> dict:
     rep = {"moteur": moteur, "modele": modele, "aspect": aspect, "duree_s": duree, "repli": False, "raison": "",
            "tentatives": 0, "cout": {"nature": MT.nature_cout(moteur) if moteur else "gratuit", "estime_usd": 0.0},
            "effort": effort or "auto", "effort_applique": ""}
+    dd = corps.get("direction") if isinstance(corps.get("direction"), dict) else {}
+    bpm = tempo(corps.get("tempo_bpm")) if corps.get("tempo_bpm") is not None else tempo(dd.get("tempo_bpm"))
+    finition = d["curseurs"]["finition"]
+    rep.update(champs=d["champs"], precisions=bool(d["precisions"]), curseurs=d["curseurs"], tempo_bpm=bpm, marque=m,
+               verification={"faite": False, "corrections": 0})
+
+    def _fini(r: dict, elements: list) -> dict:
+        elements = caler(elements, bpm, duree)
+        if finition >= 3:
+            elements, n = verifier(elements, duree, finition)
+            r["verification"] = {"faite": True, "corrections": n}
+        return dict(r, elements=elements)
 
     def _repli(raison: str) -> dict:
-        return dict(rep, elements=repli(script, fiche, m, duree), repli=True, raison=raison)
+        return _fini(dict(rep, repli=True, raison=raison), repli(script, fiche, m, duree, bpm))
 
     if not moteur:
         return _repli("sans_moteur")
@@ -357,9 +562,9 @@ async def choregraphier(corps: dict, langue: str = "fr") -> dict:
         rep["modele"] = ""
         return _repli("modele_fautif")
     rep["effort_applique"] = MT.effort_applique(moteur, modele, effort)     # t239 : "" = Auto (rien envoyé)
-    sy = systeme(d, aspect, duree, images)
+    sy = systeme(d, aspect, duree, images, bpm)
     erreur = ""
-    for n in (1, 2):
+    for n in ((1,) if finition <= 1 else (1, 2)):           # finition 0-1 : une seule tentative avant le repli
         p = prompt(script, aspect, duree, erreur)
         rep["tentatives"] = n
         rep["cout"]["estime_usd"] = round(rep["cout"]["estime_usd"]
@@ -368,7 +573,7 @@ async def choregraphier(corps: dict, langue: str = "fr") -> dict:
         try:
             sortie = await MT.tirer_garde(moteur, modele, p, sy, MAX_TOKENS, json=True, categorie="motion",
                                           effort=effort)
-            return dict(rep, elements=valider(sortie, images=images, marque=m, duree_s=duree))
+            return _fini(rep, valider(sortie, images=images, marque=m, duree_s=duree))
         except (RuntimeError, ValueError) as e:
             erreur = str(e)
     return _repli("sortie_invalide")
