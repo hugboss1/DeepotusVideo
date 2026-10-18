@@ -1,14 +1,18 @@
 {
- "count": 36,
+ "count": 37,
  "source": "index-BEOJX8L5.js",
  "types": {
   "Animation": {
    "cat": "motion",
    "in": [
-    "base"
+    "base",
+    "direction",
+    "script"
    ],
    "in_types": {
-    "base": "av"
+    "base": "av",
+    "direction": "direction",
+    "script": "text"
    },
    "out": [
     "out"
@@ -231,6 +235,18 @@
     "out": "audio"
    },
    "title": "Loudness norm."
+  },
+  "MotionDirection": {
+   "cat": "motion",
+   "in": [],
+   "in_types": {},
+   "out": [
+    "direction"
+   ],
+   "out_types": {
+    "direction": "direction"
+   },
+   "title": "Motion direction"
   },
   "MusicTrack": {
    "cat": "audio",

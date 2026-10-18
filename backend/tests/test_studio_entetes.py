@@ -222,7 +222,7 @@ _nab = len(getattr(M, "PAIRES_AB", []))                             # les famill
 check("D1 famille C* déclarée (PAIRES_C), juste après A*+B* dans PAIRES", len(PC) >= 3 and _nab
       and M.PAIRES[_nab:_nab + len(PC)] == PC, str(len(PC)))
 try:
-    avant = M.defaire(BUNDLE)
+    avant = M.defaire(AIDE.avant_dzmotion(BUNDLE))       # t235 : le maillon dzmotion, posé APRÈS, défait d'abord
 except AssertionError as e:
     avant = None
     check("D2 toutes les paires sont dans le livré", False, str(e)[:160])
@@ -240,7 +240,7 @@ def sans_c(s):
 
 check("D4 sans les C* = 0b883708 (t226) octet pour octet", avant is not None and base_t226 is not None and PC
       and sans_c(avant).encode("utf-8") == base_t226)
-check("D5 aller-retour exact", avant is not None and M.appliquer(avant) == BUNDLE)
+check("D5 aller-retour exact", avant is not None and M.appliquer(avant) == AIDE.avant_dzmotion(BUNDLE))
 check("D6 comptes figés (useState 731, v2.8.0 ×4, DzTracks 181)",
       BUNDLE.count("x.useState(") == 731 and BUNDLE.count("v2.8.0") == 4 and BUNDLE.count("DzTracks") == 181)
 check("D7 octets : CRLF préservés, aucun LF nu", RAW.count(b"\r\n") > 15000 and RAW.count(b"\n") == RAW.count(b"\r\n"))
