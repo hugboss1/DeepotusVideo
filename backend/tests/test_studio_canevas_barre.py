@@ -174,7 +174,7 @@ check("D1 famille D* déclarée (PAIRES_D, 3 paires), juste après AB + C + F", 
       and M.PAIRES[:_NAD] == M.PAIRES_AB + M.PAIRES_C + M.PAIRES_F and M.PAIRES[_NAD:_NAD + len(PD)] == PD,
       str(len(PD)))
 try:
-    avant = M.defaire(BUNDLE)
+    avant = M.defaire(AIDE.avant_dzmotion(BUNDLE))       # t235 : le maillon dzmotion, posé APRÈS, défait d'abord
 except AssertionError as e:
     avant = None
     check("D2 toutes les paires sont dans le livré", False, str(e)[:160])
@@ -192,7 +192,7 @@ def sans_d(s):
 
 check("D4 sans les D* = eda56717 (t227 livré) octet pour octet", avant is not None and base_t227 is not None and bool(PD)
       and sans_d(avant).encode("utf-8") == base_t227)
-check("D5 aller-retour exact", avant is not None and M.appliquer(avant) == BUNDLE)
+check("D5 aller-retour exact", avant is not None and M.appliquer(avant) == AIDE.avant_dzmotion(BUNDLE))
 check("D6 comptes figés (useState 731, v2.8.0 ×4, DzTracks 181)",
       BUNDLE.count("x.useState(") == 731 and BUNDLE.count("v2.8.0") == 4 and BUNDLE.count("DzTracks") == 181)
 check("D7 octets : CRLF préservés, aucun LF nu", RAW.count(b"\r\n") > 15000 and RAW.count(b"\n") == RAW.count(b"\r\n"))

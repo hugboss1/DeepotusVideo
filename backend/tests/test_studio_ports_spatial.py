@@ -226,7 +226,7 @@ check("D2 spatialports non réécrit (couche amont)", not sp_src.exists() or "dz
       and subprocess.run(["git", "diff", "--quiet", "0b62e7c4", "--", "scripts/patch_bundle_spatialports.py"],
                          cwd=str(RACINE)).returncode == 0)
 try:
-    avant = M.defaire(BUNDLE)
+    avant = M.defaire(AIDE.avant_dzmotion(BUNDLE))       # t235 : le maillon dzmotion, posé APRÈS, défait d'abord
 except AssertionError as e:
     avant = None
     check("D3 toutes les paires sont dans le livré", False, str(e)[:160])
@@ -241,7 +241,7 @@ def sans_b(s):
     return s
 check("D5 sans les B* = 0b62e7c4 (t225) octet pour octet", avant is not None and base_t225 is not None
       and sans_b(avant).encode("utf-8") == base_t225)
-check("D6 aller-retour exact", avant is not None and M.appliquer(avant) == BUNDLE)
+check("D6 aller-retour exact", avant is not None and M.appliquer(avant) == AIDE.avant_dzmotion(BUNDLE))
 check("D7 marqueur ×1", BUNDLE.count(M.MARKER) == 1)
 check("D8 comptes figés (useState 731, v2.8.0 ×4, DzTracks 181)",
       BUNDLE.count("x.useState(") == 731 and BUNDLE.count("v2.8.0") == 4 and BUNDLE.count("DzTracks") == 181)
