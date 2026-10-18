@@ -44,6 +44,7 @@ BUN_P = RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
 RAW = BUN_P.read_bytes()
 BUNDLE = RAW.decode("utf-8")
 BASE = "bed401ad"            # origin/main 86c60a02 + t234 (refs/heads/claude/motion-choregraphe-t234-868f68), dzstudio en queue
+NEUTRES = {"creativite": 2, "rythme": 2, "finition": 2}   # t241 : curseurs neutres, champs vides, effort « auto » (banc test_studio_motion_personnaliser)
 
 print("[A] câblage dans le livré")
 check("A1 type de port `direction` (couleur des Animations)",
@@ -217,18 +218,18 @@ except ValueError:
     F = {"err": (rn.stdout or "")[-300:] + (rn.stderr or "")[-300:]}
 check("F0 catalogue, Wt, bloc du maillon et DzAnimation extraits et exécutés", "err" not in F, str(F.get("err", ""))[:400])
 check("F1 graphe complet → corps de t234 (script relié, direction, consigne du skill, Rendu 1:1, durée, images uniques)",
-      F.get("p1") == {"script": "Ligne 1\nLigne 2", "direction": {"style": "style-charts", "source": "skill-a-b", "consigne": "EDIT"},
-                      "moteur": "ollama", "modele": "llama3", "aspect": "1:1", "duree_s": 12, "images": ["a.png", "s.png"]},
+      F.get("p1") == {"script": "Ligne 1\nLigne 2", "direction": {"style": "style-charts", "source": "skill-a-b", "consigne": "EDIT", "champs": {}, "curseurs": NEUTRES, "precisions": {}},
+                      "moteur": "ollama", "modele": "llama3", "effort": "auto", "aspect": "1:1", "duree_s": 12, "images": ["a.png", "s.png"]},
       str(F.get("p1")))
 check("F2 rien de relié : le champ Script, direction vide, 9:16, durée du catalogue (8 s)",
-      F.get("p2") == {"script": "Bonjour\nMonde", "direction": {"style": "", "source": None, "consigne": ""}, "moteur": "",
-                      "modele": "", "aspect": "9:16", "duree_s": 8, "images": []}, str(F.get("p2")))
+      F.get("p2") == {"script": "Bonjour\nMonde", "direction": {"style": "", "source": None, "consigne": "", "champs": {}, "curseurs": NEUTRES}, "moteur": "",
+                      "modele": "", "effort": "auto", "aspect": "9:16", "duree_s": 8, "images": []}, str(F.get("p2")))
 check("F3 source prompt : la consigne ne part pas (le prompt est en lecture seule)",
-      (F.get("p3") or {}).get("direction") == {"style": "style-kinetic-type", "source": "prompt-x", "consigne": ""},
+      (F.get("p3") or {}).get("direction") == {"style": "style-kinetic-type", "source": "prompt-x", "consigne": "", "champs": {}, "curseurs": NEUTRES, "precisions": {}},
       str(F.get("p3")))
 check("F4 Script News relié sur `script` : son texte, le champ du nœud ignoré", (F.get("p4") or {}).get("script") == "Script des news")
 check("F5 Texte au texte par défaut (dzMq) ; un nœud qui n'est pas Direction motion sur `direction` est ignoré",
-      (F.get("p5") or {}).get("script") == "MQ:texte" and (F.get("p5") or {}).get("direction") == {"style": "", "source": None, "consigne": ""}
+      (F.get("p5") or {}).get("script") == "MQ:texte" and (F.get("p5") or {}).get("direction") == {"style": "", "source": None, "consigne": "", "champs": {}, "curseurs": NEUTRES}
       and (F.get("p5") or {}).get("moteur") == "" and (F.get("p5") or {}).get("modele") == "",
       str(F.get("p5")))
 check("F6 les cinq codes `raison` de t234 → cinq clés dzT, inconnu → rien",
@@ -264,17 +265,17 @@ check("F14 consigne éditée dans le nœud : gardée dans le nœud, compteur à 
       c2.get("v") == "MA CONSIGNE" and c2.get("props") == "MA CONSIGNE" and c2.get("prompt") is False
       and c2.get("cpt") == 'studio.motion.compteur_modifie{"n":11,"max":8000}', str(c2))
 check("F15 la consigne éditée part dans le corps de t234", (F.get("pEdite") or {}).get("direction") == {
-    "style": "style-kinetic-type", "source": "skill-y", "consigne": "MA CONSIGNE"}, str(F.get("pEdite")))
+    "style": "style-kinetic-type", "source": "skill-y", "consigne": "MA CONSIGNE", "champs": {}, "curseurs": NEUTRES, "precisions": {}}, str(F.get("pEdite")))
 check("F16 changer de moteur vide le modèle ; ses modèles sont lus ; modèle par défaut = celui des Réglages ; bulle « prix à mesurer »",
       F.get("setsMoteur") == [["moteur", "fl:deepseek"], ["modele", ""]]
       and F.get("modeles") == [{"value": "deepseek-chat", "label": "deepseek-chat"}, {"value": "deepseek-reasoner", "label": "deepseek-reasoner"}]
       and F.get("modeleVal") == "deepseek-chat"
-      and F.get("bulle1") == 'studio.motion.cout_a_mesurer{"moteur":"fl:deepseek · deepseek-chat"}', str(F.get("bulle1")))
+      and F.get("bulle1") == 'studio.motion.cout_a_mesurer{"moteur":"fl:deepseek · deepseek-chat"} · studio.motion.effort_bulle_seul', str(F.get("bulle1")))
 P_ = F.get("prompt") or {}
 check("F17 prompt : texte en lecture seule, lien vers la fiche d'origine (nouvel onglet, noopener), auteur, pas de consigne éditable ; bulle gratuite d'Ollama",
       P_.get("txt") == "TXT" and P_.get("ro") is True and P_.get("href") == "https://exemple.org/p/1" and P_.get("target") == "_blank"
       and "noopener" in str(P_.get("rel")) and P_.get("consigne") is False and P_.get("auteur") is True
-      and P_.get("bulle") == 'studio.motion.cout_gratuit{"moteur":"ollama · llama3"}', str(P_))
+      and P_.get("bulle") == 'studio.motion.cout_gratuit{"moteur":"ollama · llama3"} · studio.motion.effort_bulle_seul', str(P_))
 check("F18 encart en une ligne : style · source · moteur · modèle (titres de la bibliothèque), `title` = le texte ; inconnu → id nu, maison",
       (F.get("encart") or {}).get("title") == "Graphiques · S1 · ollama · llama3"
       and "Graphiques · S1 · ollama · llama3" in (F.get("encart") or {}).get("txt", "")
@@ -447,7 +448,7 @@ if M:
 
     NEUFS = [s for a, r_ in M.PAIRES for s in neufs(a, r_)]
     CLES = sorted({s for s in NEUFS if s.startswith("studio.motion.")})
-    phrases = [s for s in NEUFS if PHRASE.search(s) and not s.startswith(("var(", "1px solid", "noopener noreferrer"))]
+    phrases = [s for s in NEUFS if PHRASE.search(s) and not s.startswith(("var(", "1px solid", "1px dashed", "noopener noreferrer"))]
     check("K1 aucun littéral neuf n'est une phrase", not phrases, str(phrases[:5]))
     non_ascii = sorted({s for s in NEUFS if any(ord(c) > 127 for c in s)} - LISTE_BLANCHE)
     check("K2 aucun littéral neuf non ASCII hors liste blanche (accents = texte français)", not non_ascii, str(non_ascii))
@@ -457,7 +458,11 @@ if M:
               "undefined", "string", "en", "fr", "keydown", "z", "input", "textarea", "select", "div", "span", "a", "button", "POST",
               "ollama", "status", "flex", "center", "hidden", "ellipsis", "nowrap", "vertical", "inherit", "none", "pointer",
               "default", "ie", "_blank", "bloc", "encart", "bulle", "fiche", "compteur", "revenir", "message", "choregraphier",
-              "inline", "inline-flex", "box", "border-box", "noopener"}
+              "inline", "inline-flex", "box", "border-box", "noopener",
+              # t241 (rubrique Personnaliser) : propriétés du nœud, types de champ des fiches, types d'input, clés React
+              "champs", "precisions", "curseurs", "creativite", "rythme", "finition", "tempo", "aspect", "duree", "police",
+              "couleur", "couleur_marque", "effort", "auto", "liste", "nombre", "number", "range", "color", "uppercase",
+              "perso", "apercu", "reprendre", "prec", "ra", "format"}
     mots = sorted({s for s in NEUFS if re.fullmatch(r"[A-Za-z_]+", s)} - JETONS)
     check("K3 mots seuls neufs : uniquement des jetons de code connus", not mots, str(mots))
     dico = {}
