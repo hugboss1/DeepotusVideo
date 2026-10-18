@@ -9,8 +9,23 @@ import httpx
 from loguru import logger
 
 from app.config import settings, SSL_VERIFY
+from app.services.moteurs_texte import _openai_raisonne
 
 _API = "https://api.openai.com/v1/chat/completions"
+
+
+def _corps(max_tokens: int, messages: list, temperature: float | None = None) -> dict:
+    """Le corps de la requête pour settings.OPENAI_MODEL. Un modèle de raisonnement (o1, o3, o4-mini, gpt-5*,
+    gpt-6* : moteurs_texte._openai_raisonne) refuse `max_tokens` (référence Chat Completions : déprécié, « non
+    compatible avec les modèles o-series ») et, son effort n'étant pas `none`, `temperature` (guide « latest model »,
+    relevés le 18/10/2026) : sa sortie part en `max_completion_tokens`, sans température. Les autres : inchangés."""
+    model = settings.OPENAI_MODEL
+    if _openai_raisonne(model):
+        return {"model": model, "max_completion_tokens": max_tokens, "messages": messages}
+    body = {"model": model, "max_tokens": max_tokens, "messages": messages}
+    if temperature is not None:
+        body["temperature"] = temperature
+    return body
 
 
 def available() -> bool:
@@ -40,11 +55,8 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
                 "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": settings.OPENAI_MODEL,
-                "max_tokens": max(400, min(4000, int(target_words * 2.0) + 200)),
-                "messages": [{"role": "user", "content": prompt}],
-            },
+            json=_corps(max(400, min(4000, int(target_words * 2.0) + 200)),
+                        [{"role": "user", "content": prompt}]),
             timeout=90.0,
             verify=SSL_VERIFY,
         )
@@ -76,12 +88,7 @@ def chat(prompt: str, *, system: str = "", max_tokens: int = 600,
                 "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": settings.OPENAI_MODEL,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": msgs,
-            },
+            json=_corps(max_tokens, msgs, temperature),
             timeout=60.0,
             verify=SSL_VERIFY,
         )
@@ -115,14 +122,10 @@ async def generate_plan(prompt: str, days: int, posts_per_day: int,
                     "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
                     "Content-Type": "application/json",
                 },
-                json={
-                    "model": settings.OPENAI_MODEL,
-                    "max_tokens": plan_schema.MAX_TOKENS,
-                    "messages": [
-                        {"role": "system", "content": sys},
-                        {"role": "user", "content": prompt},
-                    ],
-                },
+                json=_corps(plan_schema.MAX_TOKENS, [
+                    {"role": "system", "content": sys},
+                    {"role": "user", "content": prompt},
+                ]),
             )
             if r.status_code != 200:
                 logger.warning(f"openai plan HTTP {r.status_code}: {r.text[:200]}")

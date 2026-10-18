@@ -337,8 +337,10 @@ async def choregraphier(corps: dict, langue: str = "fr") -> dict:
     m = marque(corps.get("marque"))
     moteur = corps.get("moteur").strip() if isinstance(corps.get("moteur"), str) else ""
     modele = corps.get("modele").strip() if isinstance(corps.get("modele"), str) else ""
+    effort = corps.get("effort").strip().lower()[:16] if isinstance(corps.get("effort"), str) else None
     rep = {"moteur": moteur, "modele": modele, "aspect": aspect, "duree_s": duree, "repli": False, "raison": "",
-           "tentatives": 0, "cout": {"nature": MT.nature_cout(moteur) if moteur else "gratuit", "estime_usd": 0.0}}
+           "tentatives": 0, "cout": {"nature": MT.nature_cout(moteur) if moteur else "gratuit", "estime_usd": 0.0},
+           "effort": effort or "auto", "effort_applique": ""}
 
     def _repli(raison: str) -> dict:
         return dict(rep, elements=repli(script, fiche, m, duree), repli=True, raison=raison)
@@ -354,15 +356,18 @@ async def choregraphier(corps: dict, langue: str = "fr") -> dict:
     if MT.ressemble_a_une_cle(modele):
         rep["modele"] = ""
         return _repli("modele_fautif")
+    rep["effort_applique"] = MT.effort_applique(moteur, modele, effort)     # t239 : "" = Auto (rien envoyé)
     sy = systeme(d, aspect, duree, images)
     erreur = ""
     for n in (1, 2):
         p = prompt(script, aspect, duree, erreur)
         rep["tentatives"] = n
         rep["cout"]["estime_usd"] = round(rep["cout"]["estime_usd"]
-                                          + pricing.estimate(MT.estimer(moteur, p, sy, MAX_TOKENS))["total_usd"], 6)
+                                          + pricing.estimate(MT.estimer(moteur, p, sy, MAX_TOKENS, effort,
+                                                                                     modele=modele))["total_usd"], 6)
         try:
-            sortie = await MT.tirer_garde(moteur, modele, p, sy, MAX_TOKENS, json=True, categorie="motion")
+            sortie = await MT.tirer_garde(moteur, modele, p, sy, MAX_TOKENS, json=True, categorie="motion",
+                                          effort=effort)
             return dict(rep, elements=valider(sortie, images=images, marque=m, duree_s=duree))
         except (RuntimeError, ValueError) as e:
             erreur = str(e)

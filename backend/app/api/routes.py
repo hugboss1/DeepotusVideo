@@ -7406,8 +7406,12 @@ async def get_provider_models(moteur: str, request: Request):
     # `modeles_de` remet le modèle des Réglages en tête même quand le fournisseur ne répond pas : `lisible` dit si la
     # liste a vraiment été lue (sinon l'écran annonce « liste illisible » plutôt que « 1 modèle publié »)
     defaut = _VI.modele_defaut(moteur)
-    return {"moteur": moteur, "configure": True, "modeles": [m for m in mods if not _MT.ressemble_a_une_cle(m)],
-            "lisible": any(m != defaut for m in mods)}
+    mods = [m for m in mods if not _MT.ressemble_a_une_cle(m)]
+    # t239 : à côté de chaque modèle, ses niveaux d'effort (même calcul que l'appel) ; `defaut` = le modèle des
+    # Réglages, en tête et présélectionné par les sélecteurs des générateurs
+    efforts = await asyncio.to_thread(lambda: {m: _MT.efforts(moteur, m) for m in mods})
+    return {"moteur": moteur, "configure": True, "modeles": mods, "defaut": defaut,
+            "lisible": any(m != defaut for m in mods), "efforts": efforts}
 
 
 @router.post("/settings/provider-defaults/tester")
@@ -12843,10 +12847,18 @@ async def motion_moteurs(request: Request):
     """t232 (Studio : Animation, 17/10/2026) — les moteurs de texte que le Studio peut faire chorégraphier : une ligne
     par moteur de `moteurs_texte.etat()` (configuré, modèle sain, alerte), plus `cout` — la bulle de `mod-ia.js` :
     `gratuit` (ollama, local:<id>), `a_mesurer` (fl:<id>), `payant` (intégrés). Réservée à la boucle locale comme les
-    autres Réglages. Rien n'est appelé ici : la vraie liste des modèles reste `/settings/provider-defaults/modeles`."""
+    autres Réglages. Rien n'est appelé ici : la vraie liste des modèles reste `/settings/provider-defaults/modeles`.
+    t239 : chaque ligne ajoute `efforts` = {modele, niveaux, defaut, source} du modèle des Réglages (`modele`) — un
+    moteur non configuré n'en a pas (Auto) ; seul Ollama interroge son /api/show local et gratuit."""
     _require_localhost(request)
     from app.services import moteurs_texte as _MT
-    return {"moteurs": [dict(l, cout=_MT.nature_cout(l["moteur"])) for l in _MT.etat()]}
+
+    def _lignes():
+        return [dict(l, cout=_MT.nature_cout(l["moteur"]),
+                     efforts=_MT.efforts(l["moteur"], l["modele"]) if l["configure"] and l["modele"]
+                     else {"modele": l["modele"], "niveaux": [], "defaut": "", "source": "aucune"})
+                for l in _MT.etat()]
+    return {"moteurs": await asyncio.to_thread(_lignes)}
 
 
 @router.get("/vector/vitrail")
