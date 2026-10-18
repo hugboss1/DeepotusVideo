@@ -194,6 +194,14 @@ _CAPS: dict = {}                            # {moteur: {modele: capabilities}} l
 
 _OPENAI_RAISONNEMENT = re.compile(r"^(o1|o3|o3-mini|o4-mini|gpt-5|gpt-6)(?:$|[.\-])")
 _OPENAI_EXCLUS = re.compile(r"(chat|-pro\b|-pro-|^o1-mini|^o1-preview|audio|search|realtime|image)")
+
+
+def _openai_raisonne(mod: str) -> bool:
+    """Un modèle OpenAI de RAISONNEMENT (o1, o3, o4-mini, gpt-5*, gpt-6*, hors variantes chat / pro / …) : il prend
+    `reasoning_effort` et refuse `max_tokens` (déprécié, « non compatible avec les modèles o-series » d'après la
+    référence Chat Completions relevée le 18/10/2026) — sa sortie maximale part en `max_completion_tokens`."""
+    return bool(_OPENAI_RAISONNEMENT.match(mod)) and not _OPENAI_EXCLUS.search(mod)
+
 _GEMINI = {                                 # id publié → (niveaux, défaut), tableau officiel relevé le 18/10/2026
     "gemini-3.8-flash": (("low", "medium", "high"), "medium"),
     "gemini-3.6-flash": (("minimal", "low", "medium", "high"), "medium"),
@@ -274,7 +282,7 @@ def efforts(moteur: str, modele: str | None = None) -> dict:
             tniv, defaut = _table_anthropic(mod)
             niv, source = (lues, "api") if lues is not None else (tniv, "table" if tniv else "aucune")
         elif moteur == "openai":
-            if _OPENAI_RAISONNEMENT.match(mod) and not _OPENAI_EXCLUS.search(mod):
+            if _openai_raisonne(mod):
                 niv, defaut, source = ("low", "medium", "high"), "medium", "table"
         elif moteur == "gemini":
             if mod in _GEMINI:
@@ -428,7 +436,8 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
     if moteur == "openai":
         msgs = ([{"role": "system", "content": systeme}] if systeme else []) \
             + [{"role": "user", "content": prompt}]
-        body = {"model": mod, "max_tokens": max_tokens, "messages": msgs}
+        body = {"model": mod, ("max_completion_tokens" if _openai_raisonne(mod) else "max_tokens"): max_tokens,
+                "messages": msgs}
         if json:
             body["response_format"] = {"type": "json_object"}
         if effort:
