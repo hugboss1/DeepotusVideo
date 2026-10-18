@@ -462,7 +462,12 @@ if M:
               # t241 (rubrique Personnaliser) : propriétés du nœud, types de champ des fiches, types d'input, clés React
               "champs", "precisions", "curseurs", "creativite", "rythme", "finition", "tempo", "aspect", "duree", "police",
               "couleur", "couleur_marque", "effort", "auto", "liste", "nombre", "number", "range", "color", "uppercase",
-              "perso", "apercu", "reprendre", "prec", "ra", "format"}
+              "perso", "apercu", "reprendre", "prec", "ra", "format",
+              # t236 (bandeau Bibliothèque motion) : méthode HTTP, valeurs CSS, champs et états du magasin dzMoBib
+              # (ti/tx/u/au/th/sk/ap/fl, busy = import / lire / installer / suppr), clés React des lignes du bandeau
+              "DELETE", "wrap", "biblio", "ti", "tx", "u", "au", "th", "sk", "ap", "fl", "import", "lire", "installer",
+              "suppr", "ia", "bt", "bx", "bu", "ba", "bth", "bat", "bap", "bi", "sa", "bs", "bl", "bf", "bli", "bv", "bm",
+              "b", "i", "s", "t"}
     mots = sorted({s for s in NEUFS if re.fullmatch(r"[A-Za-z_]+", s)} - JETONS)
     check("K3 mots seuls neufs : uniquement des jetons de code connus", not mots, str(mots))
     dico = {}

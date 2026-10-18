@@ -91,12 +91,26 @@ async def supprimer(eid: str, request: Request):
         raise _http(e) from None
 
 
-@router.post("/skills/installer")
-async def installer(request: Request):
+@router.post("/skills/apercu")
+async def apercu(request: Request):
+    """t236 — lit SKILL.md et la licence d'un dépôt SANS rien installer : l'écran montre la licence AVANT que
+    l'utilisateur confirme. Mêmes refus que l'installation (sans licence permissive → 400)."""
     _local(request)
     corps = await _corps(request)
     try:
-        return await MB.installer_skill(corps.get("source"))
+        return await MB.apercu_skill(corps.get("source"))
+    except (ValueError, LookupError, PermissionError, RuntimeError) as e:
+        raise _http(e) from None
+
+
+@router.post("/skills/installer")
+async def installer(request: Request):
+    """`licence` (facultatif) = l'identifiant montré par l'aperçu : une licence qui a changé entre-temps est refusée."""
+    _local(request)
+    corps = await _corps(request)
+    lic = corps.get("licence")
+    try:
+        return await MB.installer_skill(corps.get("source"), lic if isinstance(lic, str) else None)
     except (ValueError, LookupError, PermissionError, RuntimeError) as e:
         raise _http(e) from None
 

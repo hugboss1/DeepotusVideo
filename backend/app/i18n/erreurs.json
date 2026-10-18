@@ -2122,6 +2122,7 @@
   "erreur.dcf43a92b7": {"fr": "google : aucune vidéo dans la réponse — {v}", "en": "google: no video in response — {v}", "src": "en"},
   "erreur.dd3b49e5d9": {"fr": "{ou} : texte attendu", "en": "{ou}: text expected", "src": "fr"},
   "erreur.dda62f7708": {"fr": "Le maillage est déjà en texture « {cible} » — repayer la même passe ne changerait rien.", "en": "The mesh already has the \"{cible}\" texture — paying again for the same pass would change nothing.", "src": "fr"},
+  "erreur.ddadc50a71": {"fr": "La licence de {depot} a changé depuis l'aperçu ({licence} → {spdx}) : relisez-la avant d'installer.", "en": "The licence of {depot} has changed since the preview ({licence} → {spdx}): read it again before installing.", "src": "fr"},
   "erreur.ddb1ebc465": {"fr": "Seuls le JPEG et le PNG sont acceptes", "en": "Only JPEG and PNG are accepted", "src": "fr"},
   "erreur.ddca4ac236": {"fr": "{k} doit être un texte", "en": "{k} must be a text", "src": "fr"},
   "erreur.ddf23a9855": {"fr": "Module GLB indisponible: {e}", "en": "GLB module unavailable: {e}", "src": "fr"},

@@ -417,8 +417,9 @@ def _id_skill(src: dict) -> str:
     return f"skill-{slug or 'sans-nom'}"
 
 
-async def installer_skill(source) -> dict:
-    src = analyser_source(source)
+async def _lire_skill(src: dict) -> dict:
+    """SKILL.md + licence (+ NOTICE pour Apache-2.0) d'une source déjà analysée, téléchargés et vérifiés, SANS rien
+    écrire : partagé par l'aperçu (t236, la licence montrée avant de confirmer) et l'installation."""
     eid = _id_skill(src)
     if _fichier_entree(eid).is_file():
         raise ValueError(f"Skill déjà installé : {eid}")
@@ -457,6 +458,38 @@ async def installer_skill(source) -> dict:
         notice = None
         if spdx == "Apache-2.0":
             notice = await _telecharger(client, f"{lic_dossier}/NOTICE", "NOTICE", MAX_LICENCE)
+    return {"eid": eid, "depot": depot, "brut": brut, "texte": texte, "lic_brut": lic_brut, "lic_nom": lic_nom,
+            "spdx": spdx, "notice": notice}
+
+
+def _url_github(src: dict) -> str:
+    return f"https://github.com/{src['proprio']}/{src['depot']}/tree/{src['ref']}" +         (f"/{src['chemin']}" if src["chemin"] else "")
+
+
+async def apercu_skill(source) -> dict:
+    """t236 — ce que l'installation ferait, SANS rien écrire : nom, description, dépôt et la licence lue (identifiant
+    et texte), pour que l'écran la montre AVANT que l'utilisateur confirme. Mêmes refus que l'installation."""
+    src = analyser_source(source)
+    lu = await _lire_skill(src)
+    tete = _en_tete(lu["texte"])
+    return {"id": lu["eid"], "titre": (tete.get("name") or src["depot"])[:MAX_TITRE],
+            "description": tete.get("description", ""),
+            "source": {"depot": lu["depot"], "chemin": src["chemin"], "ref": src["ref"], "url": _url_github(src)},
+            "licence": lu["spdx"], "fichier_licence": lu["lic_nom"],
+            "licence_texte": lu["lic_brut"].decode("utf-8", "replace"), "notice": lu["notice"] is not None,
+            "taille": len(lu["brut"])}
+
+
+async def installer_skill(source, licence=None) -> dict:
+    """Installe un skill. `licence` (facultatif, t236) = l'identifiant montré par l'aperçu : s'il ne correspond plus à
+    la licence téléchargée maintenant, l'installation est refusée (l'utilisateur confirme ce qu'il a lu)."""
+    src = analyser_source(source)
+    lu = await _lire_skill(src)
+    eid, depot, brut, texte = lu["eid"], lu["depot"], lu["brut"], lu["texte"]
+    lic_brut, lic_nom, spdx, notice = lu["lic_brut"], lu["lic_nom"], lu["spdx"], lu["notice"]
+    if licence is not None and licence != spdx:
+        raise ValueError(f"La licence de {depot} a changé depuis l'aperçu ({licence} → {spdx}) : relisez-la avant "
+                         "d'installer.")
     # Écriture : un dossier temporaire, puis renommé — un refus plus haut n'a rien laissé.
     racine = _dossier_skills()
     racine.mkdir(parents=True, exist_ok=True)
@@ -472,7 +505,7 @@ async def installer_skill(source) -> dict:
         shutil.rmtree(tmp, ignore_errors=True)
         raise
     tete = _en_tete(texte)
-    url_gh = f"https://github.com/{depot}/tree/{src['ref']}" + (f"/{src['chemin']}" if src["chemin"] else "")
+    url_gh = _url_github(src)
     e = {"id": eid, "nature": "skill", "titre": (tete.get("name") or src["depot"])[:MAX_TITRE],
          "description": tete.get("description", ""), "themes": [],
          "source": {"depot": depot, "chemin": src["chemin"], "ref": src["ref"], "url": url_gh},

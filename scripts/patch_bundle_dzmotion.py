@@ -43,6 +43,22 @@ maillon, mêmes paires, M5 élargi :
     (aspect, duree_s, marque {couleur, marque, police}). Ports, ancrage et hooks inchangés.
   Banc : backend/tests/test_studio_motion_personnaliser.py.
 
+t236 (18/10/2026, plan § t236, spec 2026-10-17 § B3 et 2026-10-18 § 3) — même maillon, mêmes paires, M5 élargi par la
+constante BIBLIO (posée devant DzMotionDirection) et l'appel `dzMotionBiblio(e,o,P,f)` dans l'inspecteur, avant
+« Personnaliser » : rubrique « Bibliothèque motion » (repliée) —
+  - importer un prompt : titre / texte / URL d'attribution (obligatoire) / auteur / thèmes (noms des fiches maison),
+    attribution montrée en direct, aperçu du bloc de précisions (titre, règle, les 5 précisions de
+    GET /api/motion/personnalisation) ; POST /api/motion/biblio ;
+  - installer un skill `owner/repo[:chemin]` : « Lire la licence » → POST /api/motion/skills/apercu (route neuve de
+    t236, rien d'écrit), licence montrée (identifiant, fichier, texte) AVANT « Installer sous licence X » →
+    POST /api/motion/skills/installer {source, licence} (refus si la licence a changé entre-temps) ;
+  - liste des prompts et skills filtrable par thème, attribution (lien vers la fiche / le dépôt, auteur, licence),
+    « Utiliser » (pose la source), « Supprimer » après confirmation (DELETE, source vidée si c'était elle) ;
+  - après chaque import / installation / suppression : dzMoCharger(true) → la liste Source se rafraîchit.
+  Rien ne part sur le réseau sans un clic. La saisie vit dans le magasin module `dzMoBib` (par nœud) et se redessine
+  par l'état de rafraîchissement existant : AUCUN hook neuf (dzMoUS 2, dzMoUE 3). Confirmations hors couche 24 → 25.
+  Banc : backend/tests/test_studio_motion_biblio.py (et test_motion_skill_apercu.py pour la route).
+
 Comptes figés : `x.useState(` reste à 731 (une cinquantaine de bancs le sondent sur le livré) ; les hooks du maillon
 passent par l'alias `dzMoUS` (comme `dzAvUS` des nœuds Avatar) : DEUX appels, chiffrés dans le banc — l'état de
 rafraîchissement de DzMotionDirection et le bilan de DzAnimation. v2.8.0 ×4, DzTracks 181, dzglyph_paires.json et le
@@ -79,9 +95,117 @@ TA = ('{width:"100%",resize:"vertical",fontSize:12,lineHeight:1.4,padding:"8px",
 BTN = ('{fontSize:11,padding:"4px 8px",borderRadius:6,cursor:"pointer",background:"var(--bg-base)",'
        'border:"1px solid var(--stroke)",color:"var(--ink)"}')
 
+BIBLIO = (
+    'function dzMoBibEtat(id){return dzMoBib[id]||(dzMoBib[id]={ti:"",tx:"",u:"",au:"",th:[],sk:"",ap:null,fl:"",msg:"",'
+    'err:!1,busy:""})}'
+    'function dzMoEnvoyer(u,m,b){return fetch(u,{method:m,headers:{"Content-Type":"application/json"},'
+    'body:b==null?void 0:JSON.stringify(b)}).then(function(r_){return r_.json().catch(function(){return null})'
+    '.then(function(j){return{ok:r_.ok,j:j}})}).catch(function(){return{ok:!1,j:null}})}'
+    'function dzMoThemes(){return(dzMoCache.lst||[]).filter(function(z){return z.nature==="style"}).map(function(z){'
+    'return{id:String((z.themes||[])[0]||z.id),titre:dzMoTitre(z)}})}'
+    'function dzMotionBiblio(e,o,P,f){var B=dzMoBibEtat(e.id),C=dzMoCache,pe=C.perso,TH=dzMoThemes(),busy=!!B.busy,'
+    'u=String(B.u||"").trim(),au=String(B.au||"").trim(),pret=!!(String(B.ti).trim()&&String(B.tx).trim()&&u),'
+    'lst=(C.lst||[]).filter(function(z){return(z.nature==="prompt"||z.nature==="skill")&&(!B.fl||(z.themes||[]).indexOf(B.fl)>=0)}),'
+    'k_=[],a=B.ap;'
+    'function m(k,v){B[k]=v;f()}'
+    'function dit(t,err){B.msg=t;B.err=!!err;B.busy="";f()}'
+    'function nomTh(t){var z=TH.find(function(q){return q.id===t});return z?z.titre:t}'
+    'async function importer(){if(!pret){dit(dzT("studio.motion.bib_import_manque"),!0);return}B.busy="import";B.msg="";f();'
+    'var R_=await dzMoEnvoyer("/api/motion/biblio","POST",{titre:B.ti,texte:B.tx,url:u,auteur:B.au,themes:B.th.slice()});'
+    'if(!R_.ok||!R_.j||!R_.j.id){dit(dzMotionErreur(R_.j),!0);return}B.ti="";B.tx="";B.u="";B.au="";B.th=[];'
+    'await dzMoCharger(!0);dit(dzT("studio.motion.bib_import_fait",{titre:R_.j.titre}))}'
+    'async function lire(){var s_=String(B.sk||"").trim();if(!s_)return;B.busy="lire";B.ap=null;B.msg="";f();'
+    'var R_=await dzMoEnvoyer("/api/motion/skills/apercu","POST",{source:s_});'
+    'if(!R_.ok||!R_.j||!R_.j.licence){dit(dzMotionErreur(R_.j),!0);return}B.ap=Object.assign({},R_.j,{sk:s_});dit("")}'
+    'async function installer(){var a_=B.ap;if(!a_)return;B.busy="installer";B.msg="";f();'
+    'var R_=await dzMoEnvoyer("/api/motion/skills/installer","POST",{source:a_.sk,licence:a_.licence});B.ap=null;'
+    'if(!R_.ok||!R_.j||!R_.j.id){dit(dzMotionErreur(R_.j),!0);return}B.sk="";await dzMoCharger(!0);'
+    'dit(dzT("studio.motion.bib_skill_fait",{titre:dzMoTitre(R_.j),licence:R_.j.licence}))}'
+    'async function supprimer(z){if(!(await window.__dzDialogue.confirmer(dzT("studio.motion.bib_supprimer_q",{titre:dzMoTitre(z)}),'
+    '{titre:dzT("studio.motion.bib_titre"),ok:dzT("studio.motion.bib_supprimer")})))return;B.busy="suppr";B.msg="";f();'
+    'var R_=await dzMoEnvoyer("/api/motion/biblio/"+encodeURIComponent(z.id),"DELETE");if(!R_.ok){dit(dzMotionErreur(R_.j),!0);return}'
+    'String(P.source||"")===z.id&&(o("source",""),o("consigne",""));delete C.fiches[z.id];await dzMoCharger(!0);'
+    'dit(dzT("studio.motion.bib_supprime",{titre:dzMoTitre(z)}))}'
+    'B.msg&&k_.push(r.jsx("div",{"data-dz-motion":"bib-message",role:"status",style:{fontSize:11,margin:"0 0 8px",'
+    'color:B.err?"var(--red)":"var(--ink-soft)"},children:B.msg},"bm"));'
+    # ── importer un prompt ──
+    'k_.push(dzMoSous(dzT("studio.motion.bib_importer")),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",'
+    'marginBottom:8,lineHeight:1.35},children:dzT("studio.motion.bib_import_aide")},"ia"),'
+    'r.jsx(O,{label:dzT("studio.motion.bib_champ_titre"),children:r.jsx(le,{"data-dz-motion":"bib-titre",value:B.ti,maxLength:200,'
+    'onChange:function(w){m("ti",w)}})},"bt"),'
+    'r.jsx(O,{label:dzT("studio.motion.bib_champ_texte"),children:r.jsx("textarea",{"data-dz-motion":"bib-texte",value:B.tx,'
+    'maxLength:20000,rows:5,onChange:function(ev){m("tx",ev.target.value)},style:dzMoTA})},"bx"),'
+    'r.jsx(O,{label:dzT("studio.motion.bib_champ_url"),hint:dzT("studio.motion.bib_champ_url_aide"),children:r.jsx(le,'
+    '{"data-dz-motion":"bib-url",value:B.u,maxLength:2048,placeholder:"https://",onChange:function(w){m("u",w)}})},"bu"),'
+    'r.jsx(O,{label:dzT("studio.motion.bib_champ_auteur"),children:r.jsx(le,{"data-dz-motion":"bib-auteur",value:B.au,maxLength:120,'
+    'onChange:function(w){m("au",w)}})},"ba"),'
+    'r.jsx(O,{label:dzT("studio.motion.bib_champ_themes"),children:r.jsx("div",{style:{display:"flex",flexWrap:"wrap",gap:4},'
+    'children:TH.map(function(t){var on=B.th.indexOf(t.id)>=0;return r.jsx("button",{"data-dz-motion":"bib-theme-"+t.id,'
+    '"aria-pressed":on,onClick:function(){m("th",on?B.th.filter(function(q){return q!==t.id}):B.th.concat([t.id]))},'
+    'style:Object.assign({},dzMoBTN,on?{background:"var(--nd-motion)",color:"#04121c",borderColor:"var(--nd-motion)"}:{}),'
+    'children:t.titre},t.id)})})},"bth"),'
+    'r.jsx("div",{"data-dz-motion":"bib-attribution",style:{fontSize:11,color:u?"var(--ink-soft)":"var(--amber)",marginBottom:6,'
+    'wordBreak:"break-all"},children:u?au?dzT("studio.motion.bib_attribution",{auteur:au,url:u}):'
+    'dzT("studio.motion.bib_attribution_url",{url:u}):dzT("studio.motion.bib_attribution_vide")},"bat"),'
+    'pe&&pe.precisions?r.jsxs("div",{"data-dz-motion":"bib-apercu",style:{fontSize:11,lineHeight:1.4,padding:"6px 8px",'
+    'borderRadius:6,border:"1px dashed var(--stroke-strong)",background:"var(--bg-base)",color:"var(--ink-soft)",marginBottom:6},'
+    'children:[r.jsx("div",{style:{color:"var(--ink-muted)",marginBottom:2},children:dzT("studio.motion.bib_apercu_aide")},"q0"),'
+    'r.jsx("div",{style:{color:"var(--ink)"},children:dzT("studio.motion.apercu_regle",{titre:dzMoLoc(pe.precisions.titre),'
+    'regle:dzMoLoc(pe.precisions.regle)})},"q1")].concat((pe.precisions.champs||[]).map(function(c){return r.jsx("div",'
+    '{children:dzT("studio.motion.bib_apercu_champ",{libelle:dzMoLoc(c.libelle)})},"q-"+c.id)}))},"bap"):null,'
+    'r.jsx("button",{"data-dz-motion":"bib-importer",disabled:busy||!pret,title:pret?void 0:dzT("studio.motion.bib_import_manque"),'
+    'onClick:importer,style:Object.assign({},dzMoBTN,{marginBottom:6,cursor:busy||!pret?"default":"pointer",opacity:busy||!pret?.5:1}),'
+    'children:B.busy==="import"?dzT("studio.motion.en_cours"):dzT("studio.motion.bib_importer_ok")},"bi"));'
+    # ── installer un skill ──
+    'k_.push(dzMoSous(dzT("studio.motion.bib_skill")),r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",marginBottom:8,'
+    'lineHeight:1.35},children:dzT("studio.motion.bib_skill_aide")},"sa"),'
+    'r.jsx(O,{label:dzT("studio.motion.bib_skill_source"),children:r.jsx(le,{"data-dz-motion":"bib-skill",value:B.sk,maxLength:400,'
+    'placeholder:dzT("studio.motion.bib_skill_exemple"),onChange:function(w){B.ap=null;m("sk",w)}})},"bs"),'
+    'a?r.jsxs("div",{"data-dz-motion":"bib-licence",style:{padding:8,borderRadius:8,border:"1px solid var(--stroke-strong)",'
+    'background:"var(--surface-2)",marginBottom:6},children:[r.jsx("div",{style:{fontSize:12,fontWeight:600,color:"var(--ink-strong)"},'
+    'children:dzT("studio.motion.bib_skill_de",{titre:dzMoTitre(a),depot:(a.source&&a.source.depot)||""})},"l0"),'
+    'a.description?r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",margin:"2px 0 4px"},children:a.description},"l1"):null,'
+    'r.jsx("div",{"data-dz-motion":"bib-licence-id",style:{fontSize:11,color:"var(--ink)",margin:"4px 0"},'
+    'children:dzT("studio.motion.bib_skill_licence",{licence:a.licence,fichier:a.fichier_licence||""})},"l2"),'
+    'r.jsx("textarea",{readOnly:!0,"data-dz-motion":"bib-licence-texte",value:String(a.licence_texte||""),rows:6,style:dzMoTA},"l3"),'
+    'r.jsx("div",{style:{fontSize:10.5,color:"var(--ink-muted)",margin:"4px 0 6px"},children:dzT("studio.motion.bib_skill_confirmer_aide")},"l4"),'
+    'r.jsxs("div",{style:{display:"flex",gap:6},children:[r.jsx("button",{"data-dz-motion":"bib-installer",disabled:busy,'
+    'onClick:installer,style:Object.assign({},dzMoBTN,{fontWeight:600}),children:B.busy==="installer"?dzT("studio.motion.en_cours"):'
+    'dzT("studio.motion.bib_skill_installer",{licence:a.licence})},"l5"),r.jsx("button",{"data-dz-motion":"bib-annuler",disabled:busy,'
+    'onClick:function(){m("ap",null)},style:dzMoBTN,children:dzT("studio.motion.bib_annuler")},"l6")]},"l7")]},"bl"):'
+    'r.jsx("button",{"data-dz-motion":"bib-lire",disabled:busy||!String(B.sk||"").trim(),onClick:lire,'
+    'style:Object.assign({},dzMoBTN,{marginBottom:6,opacity:busy||!String(B.sk||"").trim()?.5:1}),'
+    'children:B.busy==="lire"?dzT("studio.motion.bib_skill_lecture"):dzT("studio.motion.bib_skill_lire")},"bl"));'
+    # ── la liste ──
+    'k_.push(dzMoSous(dzT("studio.motion.bib_liste")),r.jsx(O,{label:dzT("studio.motion.bib_filtre"),children:r.jsx(re,'
+    '{value:B.fl,options:[{value:"",label:dzT("studio.motion.bib_filtre_tous")}].concat(TH.map(function(t){'
+    'return{value:t.id,label:t.titre}})),onChange:function(w){m("fl",w)}})},"bf"),'
+    'lst.length?r.jsx("div",{"data-dz-motion":"bib-liste",children:lst.map(function(z){var sk_=z.nature==="skill",'
+    'url=sk_?z.source&&z.source.url:z.url,on=String(P.source||"")===z.id,'
+    'inf=[sk_?dzT("studio.motion.bib_nature_skill",{licence:z.licence||""}):dzT("studio.motion.bib_nature_prompt")]'
+    '.concat(z.auteur?[dzT("studio.motion.bib_par",{auteur:z.auteur})]:[]).concat(sk_&&z.source&&z.source.depot?[z.source.depot]:[])'
+    '.concat((z.themes||[]).map(nomTh));'
+    'return r.jsxs("div",{"data-dz-motion":"bib-"+z.id,style:{padding:"6px 8px",borderRadius:6,border:"1px solid var(--stroke)",'
+    'background:"var(--bg-base)",marginBottom:6},children:[r.jsx("div",{title:dzMoTitre(z),style:{fontSize:12,fontWeight:600,'
+    'color:"var(--ink-strong)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:dzMoTitre(z)},"t"),'
+    'r.jsx("div",{"data-dz-motion":"bib-info",style:{fontSize:10.5,color:"var(--ink-muted)",margin:"2px 0 4px"},'
+    'children:inf.join(" · ")},"i"),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:6},children:['
+    'url?r.jsx("a",{href:url,target:"_blank",rel:"noopener noreferrer","data-dz-motion":"bib-lien",style:{flex:1,fontSize:11,'
+    'color:"var(--cyan)"},children:sk_?dzT("studio.motion.bib_depot"):dzT("studio.motion.bib_fiche")},"a"):'
+    'r.jsx("span",{style:{flex:1}},"a"),r.jsx("button",{"data-dz-motion":"bib-utiliser",disabled:on,onClick:function(){'
+    'o("source",z.id);o("consigne","")},style:Object.assign({},dzMoBTN,{opacity:on?.5:1}),'
+    'children:on?dzT("studio.motion.bib_utilisee"):dzT("studio.motion.bib_utiliser")},"u"),'
+    'r.jsx("button",{"data-dz-motion":"bib-supprimer",disabled:busy,onClick:function(){return supprimer(z)},style:dzMoBTN,'
+    'children:dzT("studio.motion.bib_supprimer")},"s")]},"b")]},z.id)})},"bli"):'
+    'r.jsx("div",{"data-dz-motion":"bib-vide",style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6},'
+    'children:dzT("studio.motion.bib_vide")},"bv"));'
+    'return r.jsx(ie,{label:dzT("studio.motion.bib_titre"),defaultOpen:!1,children:r.jsx("div",{"data-dz-motion":"biblio",'
+    'style:{padding:"0 0 6px"},children:k_})})}'
+)
+
 FONCTIONS = (
     'var dzMoUS=x.useState,dzMoUE=x.useEffect,dzMoMAX=8000,dzMoCache={lst:null,mot:null,mods:{},effs:{},fiches:{},perso:null,'
-    'p:null,pm:null,pp:null},dzMoPile={},dzMoTA=' + TA + ',dzMoBTN=' + BTN + ','
+    'p:null,pm:null,pp:null},dzMoPile={},dzMoBib={},dzMoTA=' + TA + ',dzMoBTN=' + BTN + ','
     'dzMoCURS=["creativite","rythme","finition"],dzMoFORMATS=["16:9","9:16","1:1","4:5"],dzMoHEX=/^#[0-9a-fA-F]{6}$/;'
     'function dzMoProps(n){return Object.assign({},(n&&Me[n.type]&&Me[n.type].props)||{},(n&&n.props)||{})}'
     'function dzMoNature(id){id=String(id||"");return id.indexOf("skill-")===0?"skill":id.indexOf("prompt-")===0?"prompt":""}'
@@ -222,6 +346,7 @@ FONCTIONS = (
     'dzMoCouleur(dzT("studio.motion.couleur"),"couleur",P,o),dzMoCouleur(dzT("studio.motion.couleur_marque"),"couleur_marque",P,o));'
     'return r.jsx(ie,{label:dzT("studio.motion.personnaliser"),defaultOpen:!0,children:r.jsx("div",{"data-dz-motion":"perso",'
     'style:{padding:"0 0 6px"},children:k_})})}'
+    + BIBLIO +
     'function DzMotionDirection({node:e,graph:g,set:o}){var st_=dzMoUS(0),bump=st_[1],C=dzMoCache,P=dzMoProps(e),'
     'src=String(P.source||""),nat=dzMoNature(src),moteur=String(P.moteur||"");'
     'function f(){bump(function(z){return z+1})}'
@@ -260,7 +385,7 @@ FONCTIONS = (
     'color:modif?"var(--amber)":"var(--ink-soft)"},children:modif?dzT("studio.motion.compteur_modifie",{n:cons.length,max:dzMoMAX}):'
     'dzT("studio.motion.compteur",{n:cons.length,max:dzMoMAX})}),r.jsx("button",{"data-dz-motion":"revenir",disabled:!modif,'
     'onClick:function(){o("consigne",orig)},style:dzMoBTN,children:dzT("studio.motion.revenir")})]})]})}):null,'
-    'dzMotionPerso(P,o,g,e,nat),'
+    'dzMotionBiblio(e,o,P,f),dzMotionPerso(P,o,g,e,nat),'
     'r.jsx(O,{label:dzT("studio.motion.moteur"),children:r.jsx(re,{value:moteur,'
     'options:[{value:"",label:dzT("studio.motion.moteur_aucun")}].concat(mot.map(function(z){return{value:z.moteur,'
     'label:z.configure?z.moteur:dzT("studio.motion.moteur_non_configure",{moteur:z.moteur})}})),'
