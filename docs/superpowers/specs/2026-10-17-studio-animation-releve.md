@@ -152,7 +152,7 @@ aujourd'hui sur cette machine.
 **Le site.** Sa description : *« A collection of motion videos made with Claude Opus 5.5, with the prompts and skills
 behind them. »*
 
-- Curateur : @p4nthera_ (lien X).
+- Curateur : un compte X (pseudo non repris ici).
 - Menus :
   - Templates ;
   - Submit ;
@@ -183,45 +183,45 @@ Le bloc **Skill** contient une description, une commande `npx skills add …` et
 
 **Les 11 thèmes** (`contentTags`, souvent 2 ou 3 par entrée) :
 
-| Thème | Entrées | Exemples de titres |
+| Thème | Entrées | Genre de vidéos (décrit par nous, titres non repris) |
 |---|---|---|
-| product-ui | 100 | Shape morphing through UI states, Photo print app launch film |
-| kinetic-type | 97 | Bold kinetic type showreel, Motion designer showreel |
-| music | 50 | Abstract motion design reel |
-| shapes | 44 | TypingMind logo reveal |
-| particles | 43 | History of AI timeline |
-| charts | 33 | Derivative concept explainer |
-| diagrams | 31 | Negroni recipe animation, Animated business explainer |
-| characters | 27 | Lighthouse keeper silent short, Pelican riding a bicycle |
-| photos | 23 | Engraving-style Claude ad, Travel visa service promo |
-| phone | 22 | UGC ad generator promo |
-| code | 21 | Recursion explained in genres |
+| product-ui | 100 | morphings d'interface, films de lancement d'application |
+| kinetic-type | 97 | showreels de typographie animée |
+| music | 50 | bobines abstraites calées sur la musique |
+| shapes | 44 | révélations de logo par formes |
+| particles | 43 | frises et chronologies en particules |
+| charts | 33 | explications de concepts par graphiques |
+| diagrams | 31 | recettes et explications métier en schémas |
+| characters | 27 | courts métrages muets à personnages |
+| photos | 23 | publicités à partir de photos (gravure, promo de service) |
+| phone | 22 | promos au format téléphone |
+| code | 21 | notions de programmation expliquées |
 
 **Formats** : 200 horizontaux (surtout 1920×1080, quelques 1920×816), 19 verticaux (720×1280), 14 carrés.
 
-**Les prompts sont très courts.** Trois exemples :
+**Les prompts sont très courts.** Trois exemples, résumés par nous (texte d'origine non repris) :
 
-- « Go all out. » ;
-- « Make a 1-minute educational video about <url> with synthesized voice narration. » ;
-- « Make a 45-second silent short film… Invent the story. »
+- une consigne de trois mots qui demande au modèle de tout donner ;
+- une vidéo éducative d'une minute sur une page web donnée, avec narration par voix de synthèse ;
+- un court métrage muet de 45 secondes dont le modèle invente l'histoire.
 
 Toute la direction vient du modèle et des **skills** : c'est là qu'est la valeur à reprendre.
 
 **Les 4 skills** — tous des dépôts GitHub. Licences vérifiées par `gh api` le 17/10 :
 
-| Entrée | Commande | Dépôt | Licence |
+| Entrée (décrite par nous) | Commande | Dépôt | Licence |
 |---|---|---|---|
-| Cinetic skill launch film (@LexnLin) | `npx skills add Leonxlnx/cinetic` | Leonxlnx/cinetic, 238 ★ | **MIT** |
-| Animated agent session story (@jake11moran), Stack HyperFrames | `npx skills add heygen-com/hyperframes-community-skills --skill session-story` | heygen-com/hyperframes-community-skills | **Apache-2.0** |
-| Indian civilisation history film (@BuildFastWithAI), prompt + skill | `npx skills@latest add https://github.com/buildfastwithai/buildfast-skills` | buildfastwithai/buildfast-skills | **MIT** |
-| Reddit marketing tool launch video (@anthonyriera) | non relevé | non relevé | à vérifier |
+| 1 — film de lancement d'un skill | `npx skills add Leonxlnx/cinetic` | Leonxlnx/cinetic, 238 ★ | **MIT** |
+| 2 — récit animé d'une session d'agent, Stack HyperFrames | `npx skills add heygen-com/hyperframes-community-skills --skill session-story` | heygen-com/hyperframes-community-skills | **Apache-2.0** |
+| 3 — film d'histoire, prompt + skill | `npx skills@latest add https://github.com/buildfastwithai/buildfast-skills` | buildfastwithai/buildfast-skills | **MIT** |
+| 4 — vidéo de lancement d'un outil marketing | non relevé | non relevé | à vérifier |
 
 La fiche de la 4e entrée n'est pas archivée.
 
 **Les « Templates »** sont deux prompts réécrits par le site, avec des champs à personnaliser :
 
-- « The 3D template » ;
-- « The showreel prompt » (le prompt d'origine sert dans 51 vidéos).
+- un gabarit 3D ;
+- un gabarit de showreel (le prompt d'origine sert dans 51 vidéos).
 
 Annoncés ensuite : explainer, product film, short film.
 
@@ -231,7 +231,7 @@ Annoncés ensuite : explainer, product film, short film.
 - le blog ;
 - le formulaire Submit ;
 - la page « Customize a prompt » en action ;
-- la fiche anthonyriera.
+- la fiche de la 4e entrée à skill.
 
 ### B3. Licence et conditions d'usage — ce qu'on peut mettre dans le dépôt
 
