@@ -150,7 +150,11 @@ def publies(moteur: str, *, timeout: float = 6.0) -> list[str]:
                                    "anthropic-version": "2023-06-01"},
                           timeout=timeout, verify=SSL_VERIFY)
             if r.status_code == 200:
-                ids = [m.get("id", "") for m in (r.json().get("data") or [])]
+                data = [m for m in (r.json().get("data") or []) if isinstance(m, dict)]
+                ids = [m.get("id", "") for m in data]
+                from app.services import moteurs_texte as _MT     # t239 : les niveaux d'effort publiés par modèle
+                for m in data:
+                    _MT.noter_capacites("anthropic", m.get("id", ""), m.get("capabilities"))
         elif moteur == "openai":
             r = httpx.get("https://api.openai.com/v1/models",
                           headers={"Authorization":
