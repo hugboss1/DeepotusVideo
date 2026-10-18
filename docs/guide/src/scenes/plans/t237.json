@@ -1,0 +1,441 @@
+{
+ "base": "http://127.0.0.1:8811",
+ "preparation": "python scripts/guide/serve_guide_motion.py (port 8811, faux Ollama 8812, faux miroir GitHub 8813, aucune dépense). t237 : section « Animer avec l'IA » du chapitre Studio. Garde G3 : graphe « Démo motion », prompts et skills de démonstration ÉCRITS PAR DEEPOTUS, aucun contenu d'un catalogue tiers.",
+ "scenes": [
+  {
+   "scene": "studio/motion-choregraphier",
+   "taille": [
+    1440,
+    900
+   ],
+   "titre": {
+    "fr": "Direction motion → Chorégraphier → aperçu",
+    "en": "Motion direction → Choreograph → preview"
+   },
+   "legende": {
+    "fr": "La Direction motion donne le style, la source et le moteur ; Chorégraphier pose les éléments de l'Animation ; l'aperçu gratuit les montre en mouvement.",
+    "en": "The Motion direction gives the style, the source and the engine; Choreograph places the Animation's elements; the free preview shows them moving."
+   },
+   "avant": [
+    {
+     "clic": "texte:Studio",
+     "apres": 2500
+    },
+    {
+     "clic": {
+      "fr": "css:button[aria-label=\"Ouvrir un graphe\"]",
+      "en": "css:button[aria-label=\"Open a graph\"]"
+     },
+     "apres": 900
+    },
+    {
+     "clic": "css:[role=menuitem]",
+     "apres": 2500
+    },
+    {
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "direction",
+     "etapes": [
+      {
+       "clic": "css:[data-node-id=\"md\"]",
+       "apres": 2500
+      }
+     ]
+    },
+    {
+     "nom": "choregraphier",
+     "etapes": [
+      {
+       "clic": "css:[data-node-id=\"an\"]",
+       "apres": 1500
+      }
+     ]
+    },
+    {
+     "nom": "apercu",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Chorégraphier",
+        "en": "texte:Choreograph"
+       },
+       "apres": 3000
+      },
+      {
+       "clic": {
+        "fr": "texte:Aperçu",
+        "en": "texte:Preview"
+       },
+       "apres": 1000
+      },
+      {
+       "attente": 30000
+      },
+      {
+       "js": "(async()=>{const v=document.querySelector('video');if(!v)return;v.pause();v.currentTime=3.6;await new Promise(r=>v.addEventListener('seeked',r,{once:true}));})()"
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:[data-node-id=\"md\"]",
+     "bulle": {
+      "fr": "Direction motion : le style, la source, le moteur",
+      "en": "Motion direction: the style, the source, the engine"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "curseur": {
+      "fr": "texte:Chorégraphier",
+      "en": "texte:Choreograph"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Chorégraphier : le moteur pose chaque ligne du script",
+      "en": "Choreograph: the engine places each line of the script"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:video",
+     "bulle": {
+      "fr": "Aperçu gratuit : les mots entrent un à un",
+      "en": "Free preview: the words come in one by one"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "contient:Éléments chorégraphiés",
+      "en": "contient:Choreographed elements"
+     },
+     "bulle": {
+      "fr": "Le bilan dit qui a chorégraphié et à quel prix",
+      "en": "The summary says who choreographed it and at what cost"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio/motion-personnaliser",
+   "taille": [
+    1440,
+    900
+   ],
+   "titre": {
+    "fr": "Personnaliser la Direction motion",
+    "en": "Customise the Motion direction"
+   },
+   "legende": {
+    "fr": "Les champs de la fiche, trois curseurs et l'effort du modèle changent la consigne envoyée, sans rien vous demander pendant l'appel.",
+    "en": "The sheet's fields, three sliders and the model's effort change the brief that is sent, without asking you anything during the call."
+   },
+   "avant": [
+    {
+     "clic": "texte:Studio",
+     "apres": 2500
+    },
+    {
+     "clic": {
+      "fr": "css:button[aria-label=\"Ouvrir un graphe\"]",
+      "en": "css:button[aria-label=\"Open a graph\"]"
+     },
+     "apres": 900
+    },
+    {
+     "clic": "css:[role=menuitem]",
+     "apres": 2500
+    },
+    {
+     "attente": 1500
+    },
+    {
+     "clic": "css:[data-node-id=\"md\"]",
+     "apres": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "champs",
+     "etapes": [
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"champ-fond\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      },
+      {
+       "saisir": [
+        "css:[data-dz-motion=\"champ-fond\"]",
+        {
+         "fr": "un ciel violet profond",
+         "en": "a deep purple sky"
+        }
+       ]
+      },
+      {
+       "js": "(()=>{const s=document.querySelector('[data-dz-motion=\"cran-creativite\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(s,'4');s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));})()"
+      },
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"curseur-creativite\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      }
+     ]
+    },
+    {
+     "nom": "effort",
+     "etapes": [
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"bulle\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      },
+      {
+       "clic": {
+        "fr": "texte:Auto (défaut du modèle : medium)",
+        "en": "texte:Auto (model default: medium)"
+       },
+       "apres": 700
+      },
+      {
+       "clic": "texte:high",
+       "apres": 900
+      },
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"bulle\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:[data-dz-motion=\"champ-fond\"]",
+     "bulle": {
+      "fr": "Un champ laissé vide garde son défaut",
+      "en": "A field left empty keeps its default"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:[data-dz-motion=\"curseur-creativite\"]",
+     "bulle": {
+      "fr": "Créativité sur Libre : la phrase ajoutée est affichée",
+      "en": "Creativity on Free: the added sentence is shown"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:[data-dz-motion=\"bulle\"]",
+     "bulle": {
+      "fr": "Effort high : la bulle de coût le mentionne",
+      "en": "Effort high: the cost bubble mentions it"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio/motion-biblio",
+   "taille": [
+    1440,
+    900
+   ],
+   "titre": {
+    "fr": "La Bibliothèque motion",
+    "en": "The Motion library"
+   },
+   "legende": {
+    "fr": "Importer un prompt avec l'URL de sa fiche, lire la licence d'un skill avant de l'installer, filtrer et utiliser sa bibliothèque.",
+    "en": "Import a prompt with the URL of its page, read a skill's licence before installing it, filter and use your library."
+   },
+   "avant": [
+    {
+     "clic": "texte:Studio",
+     "apres": 2500
+    },
+    {
+     "clic": {
+      "fr": "css:button[aria-label=\"Ouvrir un graphe\"]",
+      "en": "css:button[aria-label=\"Open a graph\"]"
+     },
+     "apres": 900
+    },
+    {
+     "clic": "css:[role=menuitem]",
+     "apres": 2500
+    },
+    {
+     "attente": 1500
+    },
+    {
+     "clic": "css:[data-node-id=\"md\"]",
+     "apres": 3000
+    },
+    {
+     "clic": {
+      "fr": "texte:Bibliothèque motion",
+      "en": "texte:Motion library"
+     },
+     "apres": 900
+    }
+   ],
+   "captures": [
+    {
+     "nom": "importer",
+     "etapes": [
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"bib-titre\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      },
+      {
+       "saisir": [
+        "css:[data-dz-motion=\"bib-titre\"]",
+        {
+         "fr": "Nos mots qui montent",
+         "en": "Words that rise"
+        }
+       ]
+      },
+      {
+       "saisir": [
+        "css:[data-dz-motion=\"bib-texte\"]",
+        {
+         "fr": "Fais monter chaque mot depuis le bas de l'écran, un par temps, puis garde le dernier.",
+         "en": "Bring each word up from the bottom of the screen, one per beat, then keep the last one."
+        }
+       ]
+      },
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"bib-auteur\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      },
+      {
+       "saisir": [
+        "css:[data-dz-motion=\"bib-url\"]",
+        "https://deepotus.xyz/demo/mots-qui-montent"
+       ]
+      },
+      {
+       "saisir": [
+        "css:[data-dz-motion=\"bib-auteur\"]",
+        "Equipe Deepotus"
+       ]
+      },
+      {
+       "clic": "css:[data-dz-motion=\"bib-theme-kinetic-type\"]",
+       "apres": 600
+      },
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"bib-attribution\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      }
+     ]
+    },
+    {
+     "nom": "skill",
+     "etapes": [
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"bib-skill\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      },
+      {
+       "saisir": [
+        "css:[data-dz-motion=\"bib-skill\"]",
+        "deepotus-demo/vague-mit"
+       ]
+      },
+      {
+       "clic": "css:[data-dz-motion=\"bib-lire\"]",
+       "apres": 3000
+      },
+      {
+       "js": "(()=>{const el=[...document.querySelectorAll('div,span')].filter(x=>x.children.length===0&&/^(Licence lue|Licence read)/.test((x.textContent||'').trim()))[0];if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      }
+     ]
+    },
+    {
+     "nom": "liste",
+     "etapes": [
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"bib-liste\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      },
+      {
+       "clic": {
+        "fr": "texte:Tous les thèmes",
+        "en": "texte:All themes"
+       },
+       "apres": 700
+      },
+      {
+       "clic": {
+        "fr": "texte:Graphiques",
+        "en": "texte:Charts"
+       },
+       "apres": 900
+      },
+      {
+       "js": "(()=>{const el=document.querySelector('[data-dz-motion=\"bib-liste\"]');if(!el)throw new Error('repère absent');const s=el.closest('.scroll');const r=el.getBoundingClientRect(),c=s.getBoundingClientRect();s.scrollTop+=(r.top+r.height/2)-(c.top+c.height/2);let e=s.parentElement;while(e){e.scrollTop=0;e=e.parentElement;}document.scrollingElement.scrollTop=0;})()"
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:[data-dz-motion=\"bib-attribution\"]",
+     "bulle": {
+      "fr": "L'URL de la fiche d'origine est obligatoire",
+      "en": "The URL of the original page is required"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:[data-dz-motion=\"bib-apercu\"]",
+     "bulle": {
+      "fr": "Vos précisions s'ajouteront après le prompt",
+      "en": "Your specifics will be added after the prompt"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": {
+      "fr": "contient:Licence lue : MIT",
+      "en": "contient:Licence read: MIT"
+     },
+     "bulle": {
+      "fr": "La licence est lue AVANT l'installation",
+      "en": "The licence is read BEFORE installing"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "curseur": {
+      "fr": "texte:Installer sous licence MIT",
+      "en": "texte:Install under the MIT licence"
+     },
+     "bulle": {
+      "fr": "Rien n'est installé sans ce clic",
+      "en": "Nothing is installed without this click"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:[data-dz-motion=\"bib-liste\"]",
+     "bulle": {
+      "fr": "Filtrer par thème, puis Utiliser ou Supprimer",
+      "en": "Filter by theme, then Use or Delete"
+     }
+    }
+   ]
+  }
+ ]
+}

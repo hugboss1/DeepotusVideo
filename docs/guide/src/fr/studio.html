@@ -1,4 +1,4 @@
-<p class="chapeau-chap">Vous saurez composer une vidéo pièce par pièce en reliant des nœuds, la voir avant de payer, ne jamais repayer ce qui est déjà fait, et réutiliser un graphe comme une recette. Payant selon les nœuds ; le coût du graphe s'affiche avant de lancer.</p>
+<p class="chapeau-chap">Vous saurez composer une vidéo pièce par pièce en reliant des nœuds, la voir avant de payer, ne jamais repayer ce qui est déjà fait, réutiliser un graphe comme une recette et faire chorégraphier vos textes par une IA. Payant selon les nœuds ; le coût du graphe s'affiche avant de lancer.</p>
 
 <h3>L'écran du Studio</h3>
 <figure class="scene" data-scene="studio/graphe"></figure>
@@ -40,6 +40,25 @@
 <li>Lancez la recette avec de nouvelles valeurs : un devis s'affiche, vous confirmez. Les nœuds inchangés sont réutilisés gratuitement.</li>
 <li>Depuis une image de la Bibliothèque, <strong>Envoyer vers</strong> propose aussi de lancer une recette sur elle.</li>
 </ol>
+
+<h3>Animer avec l'IA</h3>
+<p>Un moteur de texte peut placer pour vous les mots d'une Animation : où ils entrent, quand, avec quel mouvement. Gratuit avec un moteur local (Ollama) ; sur une clé payante, le coût est estimé avant l'envoi.</p>
+<figure class="scene" data-scene="studio/motion-choregraphier"></figure>
+<ol class="etapes">
+<li>Glissez un nœud <b class="ui">Direction motion</b> (catégorie Animations) et reliez sa sortie à l'entrée <strong>direction</strong> d'une Animation. Reliez un nœud Texte à son entrée <strong>script</strong> : une ligne par réplique.</li>
+<li>Dans l'inspecteur de la Direction motion, choisissez le <b class="ui">Style</b> (une fiche maison par thème), la <b class="ui">Source</b> et le <b class="ui">Moteur</b> ; l'encart du nœud les résume en une ligne.</li>
+<li>Sélectionnez l'Animation, puis <b class="ui">Chorégraphier</b>. Les éléments arrivent dans la liste ; s'il y en avait déjà, l'application demande avant de les remplacer, et <kbd>Ctrl</kbd>+<kbd>Z</kbd> les fait revenir.</li>
+<li><b class="ui">Aperçu</b> montre l'animation, gratuitement. Sans moteur, la chorégraphie maison découpe le script : rien n'est envoyé.</li>
+</ol>
+<figure class="scene" data-scene="studio/motion-personnaliser"></figure>
+<p>La rubrique <b class="ui">Personnaliser</b> règle la consigne sans rien vous demander pendant l'appel : les champs de la fiche (un champ vide garde son défaut), trois curseurs — Créativité, Rythme, Finition — dont la phrase ajoutée s'affiche, un tempo en BPM, le format, la durée, la police et les couleurs. À côté du modèle, <b class="ui">Effort</b> propose <b class="ui">Auto</b> puis les seuls niveaux que ce modèle accepte.</p>
+<figure class="scene" data-scene="studio/motion-biblio"></figure>
+<ol class="etapes">
+<li><b class="ui">Importer un prompt</b> : titre, texte collé, URL de la fiche d'origine (obligatoire), auteur, thèmes. L'attribution reste affichée ; l'aperçu montre vos précisions ajoutées après le prompt, qui reste intact.</li>
+<li><b class="ui">Installer un skill</b> : tapez <code>owner/repo</code>, puis <b class="ui">Lire la licence</b>. Le texte de la licence s'affiche AVANT toute installation ; un dépôt sans licence MIT, Apache-2.0, BSD ou ISC est refusé.</li>
+<li><b class="ui">Ma bibliothèque</b> : <b class="ui">Filtrer par thème</b>, <b class="ui">Utiliser</b> pour en faire la Source du nœud, <b class="ui">Supprimer</b> après confirmation. La consigne d'un skill se modifie dans le nœud ; <b class="ui">Revenir à l'original</b> la restaure.</li>
+</ol>
+<aside class="attention"><i data-dz="dz-etat-origine"></i><p>Les prompts restent à leurs créateurs. N'importez que ce que vous avez le droit d'utiliser : l'URL de la fiche et l'auteur voyagent avec le prompt, et rien n'est récupéré à votre place sur un site de prompts.</p></aside>
 
 <h3>Aller plus loin</h3>
 <div class="cartes">

@@ -1,0 +1,68 @@
+{
+  "titre": {
+    "fr": "Personnaliser la Direction motion",
+    "en": "Customise the Motion direction"
+  },
+  "legende": {
+    "fr": "Les champs de la fiche, trois curseurs et l'effort du modèle changent la consigne envoyée, sans rien vous demander pendant l'appel.",
+    "en": "The sheet's fields, three sliders and the model's effort change the brief that is sent, without asking you anything during the call."
+  },
+  "captures": [
+    {
+      "fr": "champs.fr.webp",
+      "en": "champs.en.webp"
+    },
+    {
+      "fr": "effort.fr.webp",
+      "en": "effort.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1133,
+        323,
+        274,
+        30
+      ],
+      "bulle": {
+        "fr": "Un champ laissé vide garde son défaut",
+        "en": "A field left empty keeps its default"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        1122,
+        477,
+        296,
+        86
+      ],
+      "bulle": {
+        "fr": "Créativité sur Libre : la phrase ajoutée est affichée",
+        "en": "Creativity on Free: the added sentence is shown"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1108,
+        726,
+        324,
+        58
+      ],
+      "bulle": {
+        "fr": "Effort high : la bulle de coût le mentionne",
+        "en": "Effort high: the cost bubble mentions it"
+      }
+    }
+  ]
+}
