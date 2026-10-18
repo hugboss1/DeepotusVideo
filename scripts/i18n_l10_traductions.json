@@ -9638,5 +9638,9 @@
  "aucun élément valide dans la sortie": {
   "fr": "aucun élément valide dans la sortie",
   "en": "no valid element in the output"
+ },
+ "La licence de {depot} a changé depuis l'aperçu ({licence} → {spdx}) : relisez-la avant d'installer.": {
+  "fr": "La licence de {depot} a changé depuis l'aperçu ({licence} → {spdx}) : relisez-la avant d'installer.",
+  "en": "The licence of {depot} has changed since the preview ({licence} → {spdx}): read it again before installing."
  }
 }
