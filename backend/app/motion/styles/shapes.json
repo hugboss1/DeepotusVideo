@@ -1,14 +1,65 @@
 {
   "theme": "shapes",
-  "version": 1,
+  "version": 2,
   "titre": {
     "fr": "Formes",
     "en": "Shapes"
   },
   "consigne": {
-    "fr": "Motion design géométrique : cercles, carrés, lignes et triangles en aplats, une palette de trois couleurs au plus. Les formes ont du poids : elles prennent de l'élan avant de partir, dépassent légèrement leur cible puis se posent. Elles se répondent en chaîne, l'arrivée de l'une déclenche le départ de la suivante. Grille invisible mais stricte, symétries franches, beaucoup de vide autour. Une forme finit toujours par se transformer en logo ou en mot, c'est la chute de la séquence.",
-    "en": "Geometric motion design: flat circles, squares, lines and triangles, a palette of three colours at most. Shapes have weight: they wind up before moving, overshoot their target slightly, then settle. They answer one another in a chain, one landing triggers the next departure. An invisible but strict grid, clear symmetry, plenty of empty space around. One shape always ends up turning into the logo or a word: that is the payoff of the sequence."
+    "fr": "Motion design géométrique : {{formes}} en aplats, une palette de {{couleurs_max}} couleurs au plus. Les formes ont du poids : elles prennent de l'élan avant de partir, dépassent légèrement leur cible puis se posent. Elles se répondent en chaîne, l'arrivée de l'une déclenche le départ de la suivante. Grille invisible mais stricte, symétries franches, beaucoup de vide autour. Une forme finit toujours par devenir {{chute}}, c'est la chute de la séquence.",
+    "en": "Geometric motion design: flat {{formes}}, a palette of {{couleurs_max}} colours at most. Shapes have weight: they wind up before moving, overshoot their target slightly, then settle. They answer one another in a chain, one landing triggers the next departure. An invisible but strict grid, clear symmetry, plenty of empty space around. One shape always ends up turning into {{chute}}: that is the payoff of the sequence."
   },
+  "champs": [
+    {
+      "id": "formes",
+      "type": "texte",
+      "libelle": {
+        "fr": "Formes",
+        "en": "Shapes"
+      },
+      "aide": {
+        "fr": "Les formes géométriques employées.",
+        "en": "The geometric shapes used."
+      },
+      "defaut": {
+        "fr": "cercles, carrés, lignes et triangles",
+        "en": "circles, squares, lines and triangles"
+      },
+      "max": 80
+    },
+    {
+      "id": "couleurs_max",
+      "type": "nombre",
+      "libelle": {
+        "fr": "Couleurs",
+        "en": "Colours"
+      },
+      "aide": {
+        "fr": "Le nombre de couleurs de la palette au plus.",
+        "en": "The number of palette colours at most."
+      },
+      "defaut": 3,
+      "min": 1,
+      "max": 6
+    },
+    {
+      "id": "chute",
+      "type": "texte",
+      "libelle": {
+        "fr": "Chute",
+        "en": "Payoff"
+      },
+      "aide": {
+        "fr": "Ce que devient la dernière forme.",
+        "en": "What the last shape turns into."
+      },
+      "defaut": {
+        "fr": "le logo ou un mot",
+        "en": "the logo or a word"
+      },
+      "max": 80
+    }
+  ],
   "rythme": {
     "fr": "Rebondissant : un mouvement toutes les 0,3 à 0,7 s, en cascade.",
     "en": "Bouncy: a move every 0.3 to 0.7 s, cascading."
@@ -43,5 +94,5 @@
     "1:1",
     "4:5"
   ],
-  "auteur": "DeepotusVideo (fiche maison, t233)"
+  "auteur": "DeepotusVideo (fiche maison, t233 ; champs t240)"
 }

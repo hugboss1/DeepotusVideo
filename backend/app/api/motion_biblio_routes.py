@@ -101,6 +101,16 @@ async def installer(request: Request):
         raise _http(e) from None
 
 
+@router.get("/personnalisation")
+async def personnalisation(request: Request):
+    """t240 — pour la rubrique « Personnaliser » de Direction motion : les curseurs (états, phrases ajoutées, effet de
+    la finition), le bloc de précisions (libellés, aide, règle de priorité) et les bornes du tempo, en FR et EN."""
+    _local(request)
+    from app.services import motion_choregraphe as CH
+    p = CH.personnalisation()
+    return {"neutre": p["neutre"], "curseurs": p["curseurs"], "precisions": p["precisions"], "tempo": p["tempo"]}
+
+
 @router.post("/choregraphier")
 async def choregraphier(request: Request):
     """t234 — script + direction → éléments du nœud Animation (app.services.motion_choregraphe). Un moteur absent ou

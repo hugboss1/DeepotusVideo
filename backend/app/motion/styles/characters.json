@@ -1,14 +1,67 @@
 {
   "theme": "characters",
-  "version": 1,
+  "version": 2,
   "titre": {
     "fr": "Personnages",
     "en": "Characters"
   },
   "consigne": {
-    "fr": "Un personnage qui veut quelque chose. Silhouette lisible au premier regard, deux ou trois poses clés par action, et l'animation entre les deux : on prépare le geste (anticipation), on l'exécute, on amortit (rebond, léger écrasement). Raconter en trois temps : la situation, l'action, la réaction. Le décor reste simple et ne bouge que s'il sert l'histoire. Les émotions passent par la posture et le rythme plutôt que par le texte ; s'il y a des mots, ils sont rares et courts.",
-    "en": "A character who wants something. A silhouette readable at first glance, two or three key poses per action, and animation in between: prepare the gesture (anticipation), perform it, cushion it (bounce, slight squash). Tell it in three beats: the situation, the action, the reaction. The set stays simple and only moves when it serves the story. Emotions come through posture and timing rather than text; if there are words, they are rare and short."
+    "fr": "{{personnage}} qui veut {{desir}}. Silhouette lisible au premier regard, deux ou trois poses clés par action, et l'animation entre les deux : on prépare le geste (anticipation), on l'exécute, on amortit (rebond, léger écrasement). Raconter en trois temps : {{recit}}. Le décor reste simple et ne bouge que s'il sert l'histoire. Les émotions passent par la posture et le rythme plutôt que par le texte ; s'il y a des mots, ils sont rares et courts.",
+    "en": "{{personnage}} who wants {{desir}}. A silhouette readable at first glance, two or three key poses per action, and animation in between: prepare the gesture (anticipation), perform it, cushion it (bounce, slight squash). Tell it in three beats: {{recit}}. The set stays simple and only moves when it serves the story. Emotions come through posture and timing rather than text; if there are words, they are rare and short."
   },
+  "champs": [
+    {
+      "id": "personnage",
+      "type": "texte",
+      "libelle": {
+        "fr": "Personnage",
+        "en": "Character"
+      },
+      "aide": {
+        "fr": "Qui est le héros.",
+        "en": "Who the hero is."
+      },
+      "defaut": {
+        "fr": "Un personnage",
+        "en": "A character"
+      },
+      "max": 80
+    },
+    {
+      "id": "desir",
+      "type": "texte",
+      "libelle": {
+        "fr": "Ce qu'il veut",
+        "en": "What it wants"
+      },
+      "aide": {
+        "fr": "Le but du personnage.",
+        "en": "The character's goal."
+      },
+      "defaut": {
+        "fr": "quelque chose",
+        "en": "something"
+      },
+      "max": 80
+    },
+    {
+      "id": "recit",
+      "type": "texte",
+      "libelle": {
+        "fr": "Les trois temps",
+        "en": "The three beats"
+      },
+      "aide": {
+        "fr": "Les étapes de l'histoire.",
+        "en": "The steps of the story."
+      },
+      "defaut": {
+        "fr": "la situation, l'action, la réaction",
+        "en": "the situation, the action, the reaction"
+      },
+      "max": 120
+    }
+  ],
   "rythme": {
     "fr": "Narratif : 1 à 3 s par pose, une tenue sur la réaction.",
     "en": "Narrative: 1 to 3 s per pose, a hold on the reaction."
@@ -39,5 +92,5 @@
     "9:16",
     "1:1"
   ],
-  "auteur": "DeepotusVideo (fiche maison, t233)"
+  "auteur": "DeepotusVideo (fiche maison, t233 ; champs t240)"
 }

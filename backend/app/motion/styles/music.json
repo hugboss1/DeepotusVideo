@@ -1,14 +1,86 @@
 {
   "theme": "music",
-  "version": 1,
+  "version": 2,
   "titre": {
     "fr": "Musique",
     "en": "Music"
   },
   "consigne": {
-    "fr": "L'image suit la musique, pas l'inverse. Relever le tempo et caler chaque changement visuel sur un temps ou un demi-temps ; les accents (caisse claire, coup de basse) déclenchent les apparitions les plus fortes. Construire une courbe d'énergie : intro calme et clairsemée, montée qui densifie et accélère, point culminant sur le refrain ou la chute, sortie qui se vide. Les éléments pulsent légèrement en mesure même quand rien n'entre. Couper au silence plutôt qu'au milieu d'une note.",
-    "en": "The picture follows the music, not the other way round. Find the tempo and lock every visual change to a beat or half-beat; accents (snare, bass hit) trigger the strongest entrances. Build an energy curve: a calm, sparse intro, a rise that thickens and speeds up, a peak on the chorus or the drop, an outro that empties out. Elements pulse gently in time even when nothing enters. Cut on silence rather than in the middle of a note."
+    "fr": "L'image suit la musique, pas l'inverse. Relever le tempo et caler chaque changement visuel sur un temps ou un demi-temps ; les accents ({{accents}}) déclenchent les apparitions les plus fortes. Construire une courbe d'énergie : intro calme et clairsemée, montée qui densifie et accélère, point culminant sur {{sommet}}, sortie qui se vide. {{pulsation}} Couper au silence plutôt qu'au milieu d'une note.",
+    "en": "The picture follows the music, not the other way round. Find the tempo and lock every visual change to a beat or half-beat; accents ({{accents}}) trigger the strongest entrances. Build an energy curve: a calm, sparse intro, a rise that thickens and speeds up, a peak on {{sommet}}, an outro that empties out. {{pulsation}} Cut on silence rather than in the middle of a note."
   },
+  "champs": [
+    {
+      "id": "accents",
+      "type": "texte",
+      "libelle": {
+        "fr": "Accents",
+        "en": "Accents"
+      },
+      "aide": {
+        "fr": "Les sons qui déclenchent les entrées fortes.",
+        "en": "The sounds that trigger the strong entrances."
+      },
+      "defaut": {
+        "fr": "caisse claire, coup de basse",
+        "en": "snare, bass hit"
+      },
+      "max": 80
+    },
+    {
+      "id": "sommet",
+      "type": "texte",
+      "libelle": {
+        "fr": "Point culminant",
+        "en": "Peak"
+      },
+      "aide": {
+        "fr": "Le moment où l'énergie est au plus haut.",
+        "en": "The moment the energy is highest."
+      },
+      "defaut": {
+        "fr": "le refrain ou la chute",
+        "en": "the chorus or the drop"
+      },
+      "max": 80
+    },
+    {
+      "id": "pulsation",
+      "type": "liste",
+      "libelle": {
+        "fr": "Pulsation",
+        "en": "Pulse"
+      },
+      "aide": {
+        "fr": "Ce que font les éléments entre deux entrées.",
+        "en": "What elements do between two entrances."
+      },
+      "defaut": "legere",
+      "options": [
+        {
+          "valeur": "legere",
+          "libelle": {
+            "fr": "Les éléments pulsent légèrement en mesure même quand rien n'entre.",
+            "en": "Elements pulse gently in time even when nothing enters."
+          }
+        },
+        {
+          "valeur": "aucune",
+          "libelle": {
+            "fr": "Les éléments restent immobiles quand rien n'entre.",
+            "en": "Elements stay still when nothing enters."
+          }
+        },
+        {
+          "valeur": "forte",
+          "libelle": {
+            "fr": "Les éléments pulsent nettement à chaque temps, même quand rien n'entre.",
+            "en": "Elements pulse clearly on every beat, even when nothing enters."
+          }
+        }
+      ]
+    }
+  ],
   "rythme": {
     "fr": "Calé sur le tempo : un changement par temps (0,4 à 1 s selon le BPM).",
     "en": "Locked to the tempo: one change per beat (0.4 to 1 s depending on BPM)."
@@ -40,5 +112,5 @@
     "9:16",
     "1:1"
   ],
-  "auteur": "DeepotusVideo (fiche maison, t233)"
+  "auteur": "DeepotusVideo (fiche maison, t233 ; champs t240)"
 }

@@ -1,0 +1,80 @@
+{
+  "note": "t240 (18/10/2026) — curseurs et bloc de précisions de Direction motion. Textes écrits par DeepotusVideo.",
+  "neutre": 2,
+  "curseurs": {
+    "creativite": {
+      "libelle": {"fr": "Créativité", "en": "Creativity"},
+      "poles": {"fr": ["prudente", "libre"], "en": ["careful", "free"]},
+      "crans": [
+        {"etat": {"fr": "Très prudente", "en": "Very careful"},
+         "phrase": {"fr": "Reste au plus près de la consigne : n'ajoute aucune idée, garde des mouvements simples et attendus.",
+                    "en": "Stay as close to the brief as you can: add no ideas of your own, keep the moves simple and expected."}},
+        {"etat": {"fr": "Prudente", "en": "Careful"},
+         "phrase": {"fr": "Reste fidèle à la consigne ; tu peux varier un seul détail par élément (un easing, un angle d'entrée).",
+                    "en": "Stay faithful to the brief; you may vary a single detail per element (an easing, an entry angle)."}},
+        {"etat": {"fr": "Telle quelle", "en": "As written"}, "phrase": null},
+        {"etat": {"fr": "Audacieuse", "en": "Bold"},
+         "phrase": {"fr": "Prends des libertés mesurées : une entrée inattendue ou un contraste d'échelle par séquence, sans trahir la consigne.",
+                    "en": "Take measured liberties: one unexpected entrance or one contrast of scale per sequence, without betraying the brief."}},
+        {"etat": {"fr": "Libre", "en": "Free"},
+         "phrase": {"fr": "Réinterprète la consigne librement et surprends à chaque élément (trajectoire, rotation, échelle), tant que chaque texte reste lisible.",
+                    "en": "Reinterpret the brief freely and surprise with every element (path, rotation, scale), as long as every text stays readable."}}
+      ]
+    },
+    "rythme": {
+      "libelle": {"fr": "Rythme", "en": "Pace"},
+      "poles": {"fr": ["calme", "frénétique"], "en": ["calm", "frantic"]},
+      "crans": [
+        {"etat": {"fr": "Très calme", "en": "Very calm"},
+         "phrase": {"fr": "Cadence très calme : au plus un changement toutes les deux secondes, de longues tenues, des entrées lentes.",
+                    "en": "Very calm cadence: at most one change every two seconds, long holds, slow entrances."}},
+        {"etat": {"fr": "Posé", "en": "Steady"},
+         "phrase": {"fr": "Cadence posée : laisse chaque élément respirer avant le suivant, aucune entrée précipitée.",
+                    "en": "Steady cadence: let each element breathe before the next one, no rushed entrance."}},
+        {"etat": {"fr": "Tel quel", "en": "As written"}, "phrase": null},
+        {"etat": {"fr": "Vif", "en": "Lively"},
+         "phrase": {"fr": "Cadence vive : enchaîne les éléments sans temps mort, avec des entrées courtes et franches.",
+                    "en": "Lively cadence: chain the elements with no dead time, with short, clean entrances."}},
+        {"etat": {"fr": "Frénétique", "en": "Frantic"},
+         "phrase": {"fr": "Cadence frénétique : un changement presque à chaque instant, des entrées très courtes, aucune pause sauf la dernière tenue.",
+                    "en": "Frantic cadence: a change almost every instant, very short entrances, no pause except the final hold."}}
+      ]
+    },
+    "finition": {
+      "libelle": {"fr": "Finition", "en": "Polish"},
+      "poles": {"fr": ["rapide", "soignée"], "en": ["quick", "meticulous"]},
+      "crans": [
+        {"etat": {"fr": "Très rapide", "en": "Very quick"}, "phrase": null,
+         "effet": {"fr": "Une seule tentative, puis le repli.", "en": "A single attempt, then the fallback."}},
+        {"etat": {"fr": "Rapide", "en": "Quick"}, "phrase": null,
+         "effet": {"fr": "Une seule tentative, puis le repli.", "en": "A single attempt, then the fallback."}},
+        {"etat": {"fr": "Normale", "en": "Normal"}, "phrase": null,
+         "effet": {"fr": "Deux tentatives, puis le repli.", "en": "Two attempts, then the fallback."}},
+        {"etat": {"fr": "Soignée", "en": "Careful"}, "phrase": null,
+         "effet": {"fr": "Deux tentatives, puis une vérification : bornes, pas deux textes au même endroit au même instant, chaque élément tenu 0,5 s au moins.",
+                   "en": "Two attempts, then a check: bounds, no two texts in the same place at the same time, every element held for at least 0.5 s."}},
+        {"etat": {"fr": "Méticuleuse", "en": "Meticulous"}, "phrase": null,
+         "effet": {"fr": "Deux tentatives, puis une vérification plus stricte : chaque élément tenu 0,8 s au moins.",
+                   "en": "Two attempts, then a stricter check: every element held for at least 0.8 s."}}
+      ]
+    }
+  },
+  "precisions": {
+    "titre": {"fr": "MES PRÉCISIONS", "en": "MY SPECIFICS"},
+    "regle": {"fr": "En cas de conflit avec la consigne ci-dessus, ces précisions priment.",
+              "en": "Where they conflict with the brief above, these specifics take precedence."},
+    "champs": [
+      {"id": "usage", "libelle": {"fr": "À quoi ça sert", "en": "What it is for"},
+       "aide": {"fr": "Le but de la vidéo, en une phrase.", "en": "The purpose of the video, in one sentence."}},
+      {"id": "duree", "libelle": {"fr": "Durée", "en": "Duration"},
+       "aide": {"fr": "La durée voulue, si elle diffère du prompt.", "en": "The length you want, if it differs from the prompt."}},
+      {"id": "couleurs", "libelle": {"fr": "Couleurs", "en": "Colours"},
+       "aide": {"fr": "Les couleurs à employer.", "en": "The colours to use."}},
+      {"id": "police", "libelle": {"fr": "Police", "en": "Typeface"},
+       "aide": {"fr": "La police des textes.", "en": "The typeface for the texts."}},
+      {"id": "autre", "libelle": {"fr": "Autre chose", "en": "Anything else"},
+       "aide": {"fr": "Tout ce qui doit encore être dit.", "en": "Anything else that needs saying."}}
+    ]
+  },
+  "tempo": {"min": 40, "max": 220}
+}
