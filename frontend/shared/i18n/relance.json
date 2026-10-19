@@ -1,0 +1,9 @@
+{
+  "coque.file.reessayer_direct_aide": {"fr": "Relance le même rendu motion code (local, gratuit)", "en": "Runs the same motion code render again (local, free)"},
+  "coque.file.reessayer_echec": {"fr": "La relance a échoué : {e}", "en": "Retry failed: {e}"},
+  "coque.file.reessayer_lance": {"fr": "Rendu relancé : « {titre} »", "en": "Render restarted: “{titre}”"},
+  "coque.file.reessayer_quick": {"fr": "Réessayer dans Quick", "en": "Retry in Quick"},
+  "coque.file.reessayer_quick_aide": {"fr": "Rouvre Quick prérempli : rien n'est lancé ni payé avant « Générer »", "en": "Reopens Quick prefilled: nothing runs or is charged until you press Generate"},
+  "coque.file.reessayer_studio": {"fr": "Réessayer dans le Studio", "en": "Retry in Studio"},
+  "coque.file.reessayer_studio_aide": {"fr": "Rouvre le graphe dans le Studio : rien n'est lancé ni payé avant le rendu", "en": "Reopens the graph in Studio: nothing runs or is charged until you render"}
+}

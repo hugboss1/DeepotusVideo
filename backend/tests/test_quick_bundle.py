@@ -31,7 +31,8 @@ print("\n[A] le bundle ecrit")
 check("A1 l'amont est intact (Quick unique, pickers et envois)", s.count("function um(") == 1 and s.count("__dzLibPicker") == 11
       and s.count("__dzSendTo") == 3)
 check("A2 __dzQuickStart 3 -> 4 (dzQuickApply pose le global quand les images ne sont pas chargees)", s.count("__dzQuickStart") == 4)
-check("A3 __dzReopenQuick : definition + modal + carte de la file", s.count("__dzReopenQuick") == 3 and s.count("function __dzReopenQuick(") == 1
+# 19/10 : 3 -> 4, le « Réessayer dans Quick » du Job Dock (maillon dzdock, __dzRelancer) l'appelle aussi
+check("A3 __dzReopenQuick : definition + modal + carte de la file + Réessayer du Dock", s.count("__dzReopenQuick") == 4 and s.count("function __dzReopenQuick(") == 1
       and s.count("function __dzQuickFromJob(") == 1)
 check("A4 les trois payloads portent la recette EN TETE", s.count("quick_recipe:dzQuickRecipe()") == 3
       and "je={quick_recipe:dzQuickRecipe(),camera_ctrl:dzCam(),video_model:VMQ||void 0,image_filename:w," in s
