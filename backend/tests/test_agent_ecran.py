@@ -195,6 +195,12 @@ def test_releve_envoye():
     cadre = (SHARED / "dz-agent-cadre.js").read_text(encoding="utf-8")
     assert 'd.dzAgent === "releve"' in cadre and 'dzAgent: "visibles"' in cadre
     assert cadre.count("ev.origin !== location.origin") == 1   # une seule garde, en tête, pour les deux messages
+    # seuls les labs qui chargent le répondeur sont interrogés (sinon 400 ms d'attente à chaque question)
+    m = re.search(r"const LABS_CADRES = /\^\\/\(([a-z0-9|]+)\)\\//;", src)
+    assert m, "ligne LABS_CADRES introuvable"
+    repondeurs = sorted(h.parent.name for h in (RACINE / "frontend").glob("*/index.html")
+                        if "/shared/dz-agent-cadre.js" in h.read_text(encoding="utf-8"))
+    assert sorted(m.group(1).split("|")) == repondeurs
 
 
 if __name__ == "__main__":

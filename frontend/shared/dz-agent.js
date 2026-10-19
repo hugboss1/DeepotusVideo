@@ -318,9 +318,10 @@ if (!window.__dzAgent) {
       } catch (e) { clearTimeout(fini); window.removeEventListener("message", h); ok(null); }
     });
   }
-  // C4 : le relevé de l'écran ouvert — la page (hors tiroir et bouton) + le lab visible, s'il y en a un. Il ne
-  // bloque jamais l'envoi : le lab a 400 ms pour répondre, toute erreur donne [] (la question part sans relevé).
-  const LABS_CADRES = /^\/(vectorlab|photolab|spritelab|tilelab|cardforge|materialforge|studio3d)\//;
+  // C4 : le relevé de l'écran ouvert — la page (hors tiroir et bouton) + le lab visible, s'il charge le répondeur
+  // /shared/dz-agent-cadre.js (liste vérifiée par test_agent_ecran.py ; un autre cadre ferait attendre 400 ms pour
+  // rien). Il ne bloque jamais l'envoi : le lab a 400 ms pour répondre, toute erreur donne [] (la question part sans relevé).
+  const LABS_CADRES = /^\/(vectorlab|photolab|spritelab|tilelab)\//;
   function cadreVisible() {
     return Array.from(document.querySelectorAll("iframe")).find((f) => {
       const r = f.getBoundingClientRect();
