@@ -2,19 +2,21 @@
 """Motion code (t238, lot « Studio : Animation », option B validée par l'utilisateur le 19/10/2026).
 
 Le moteur de texte CHOISI (registre `moteurs_texte`, jamais un fournisseur codé en dur) écrit une page HTML / SVG /
-Canvas animée — durée, cadence et taille imposées — que l'on rend en MP4 image par image, dans Edge sans fenêtre piloté
-par CDP, sur une horloge VIRTUELLE. La page est une DONNÉE : elle n'est jamais évaluée hors du bac à sable.
+Canvas animée — durée, cadence et taille imposées — que l'on rend en MP4 image par image, dans un navigateur sans fenêtre
+piloté par CDP, sur une horloge VIRTUELLE. Ce navigateur est le moteur LIVRÉ avec l'application (chrome-headless-shell
+épinglé, `trouver_moteur`) ; Edge du PC ne sert qu'en secours. La page est une DONNÉE : elle n'est jamais évaluée
+hors du bac à sable.
 
 Bac à sable (plan § t238) :
   - la page est contrôlée AVANT tout lancement (`controler`) : aucun appel réseau, aucune navigation, aucune ressource
     externe, aucun cadre, 10 Mo au plus — sinon REFUS, sans rien exécuter ;
   - elle vit dans un document `data:` (opaque, sans accès fichier) sous la CSP
     `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:` ;
-  - Edge part sur un profil JETABLE (dossier temporaire supprimé à la fin), réseau coupé (mandataire mort), domaine
-    `Fetch` qui refuse toute requête, téléchargements refusés, fenêtres neuves bloquées ; une navigation demandée par la
+  - le navigateur part sur un profil JETABLE (dossier temporaire supprimé à la fin), réseau coupé (mandataire mort),
+    domaine `Fetch` qui refuse toute requête, téléchargements refusés, fenêtres neuves bloquées ; une navigation demandée par la
     page (top.location…) ARRÊTE le rendu ;
   - délai de 120 s au plus pour tout le rendu : au-delà (boucle infinie…), le processus et ses enfants sont tués et le
-    profil effacé — arrêt PROPRE, jamais un Edge orphelin.
+    profil effacé — arrêt PROPRE, jamais un navigateur orphelin.
 
 Horloge virtuelle : un script posé par `Page.addScriptToEvaluateOnNewDocument` (donc AVANT la page) remplace
 performance.now, Date, setTimeout / setInterval, requestAnimationFrame et Math.random (graine fixe) ; pour chaque image
@@ -50,6 +52,10 @@ DUREE = (1, 60)
 DUREE_DEFAUT = 8
 MAX_TOKENS = 16000
 MAX_RAPPELS = 10000                     # minuteries tirées par image au plus (setTimeout(f, 0) récursif)
+# Le moteur sans fenêtre LIVRÉ avec l'application (épinglé dans vendor/chrome-headless-shell.json, fourni par
+# scripts/vendor_chrome_headless_shell.py, jamais téléchargé ici) ; Edge du PC ne sert plus qu'en secours (19/10).
+NAVIGATEUR_VERSION = "155.0.8059.84"
+RACINE_APP = Path(__file__).resolve().parents[3]          # le dépôt, ou %LOCALAPPDATA%\DeepotusVideoGen installé
 _ID = re.compile(r"^mc-[0-9a-f]{16}$")
 
 MESSAGES = {
@@ -62,8 +68,10 @@ MESSAGES = {
                 "en": "Rendering stopped: the page tried to open a window."},
     "delai": {"fr": "Rendu arrêté : la page ne répond plus ({etape}, délai de {s} s dépassé — boucle infinie ?).",
               "en": "Rendering stopped: the page stopped responding ({etape}, {s} s limit exceeded — infinite loop?)."},
-    "edge": {"fr": "Microsoft Edge est introuvable sur ce PC : le rendu motion code en a besoin.",
-             "en": "Microsoft Edge was not found on this PC: motion code rendering needs it."},
+    "moteur": {"fr": "Le moteur de rendu motion code livré avec Deepotus Video Gen est absent (et Microsoft Edge est "
+                     "introuvable) : réinstalle l'application.",
+               "en": "The motion code renderer shipped with Deepotus Video Gen is missing (and Microsoft Edge was not "
+                     "found): reinstall the application."},
     "ffmpeg": {"fr": "L'encodage vidéo a échoué (ffmpeg).", "en": "Video encoding failed (ffmpeg)."},
     "navigateur": {"fr": "Le navigateur du bac à sable s'est arrêté ({details}).",
                    "en": "The sandbox browser stopped ({details})."},
@@ -175,10 +183,25 @@ try{document.getAnimations().forEach(function(a){if(!W.has(a))W.set(a,ms);a.paus
 if(typeof window.dzFrame==="function")run(window.dzFrame,[ms/1000]);return window.__dzErreurs}})();"""
 
 
-# ── Edge sans fenêtre, par CDP ────────────────────────────────────────────────────────────────────────────────────
+# ── le navigateur sans fenêtre, par CDP ───────────────────────────────────────────────────────────────────────────
+def moteur_embarque() -> Path:
+    """Où l'installeur pose le moteur livré (le même chemin dans le dépôt une fois le script de récupération lancé)."""
+    return (RACINE_APP / "vendor" / f"chrome-headless-shell-{NAVIGATEUR_VERSION}" / "chrome-headless-shell-win64"
+            / "chrome-headless-shell.exe")
+
+
+def trouver_moteur():
+    """Le navigateur du bac à sable : DEEPOTUS_NAVIGATEUR puis DEEPOTUS_EDGE (bancs), puis le moteur EMBARQUÉ, puis
+    Edge du PC en secours ; None s'il n'y a rien. Une variable vers un fichier absent est ignorée."""
+    for c in (os.environ.get("DEEPOTUS_NAVIGATEUR", ""), os.environ.get("DEEPOTUS_EDGE", ""), str(moteur_embarque())):
+        if c and os.path.isfile(c):
+            return c
+    return trouver_edge()
+
+
 def trouver_edge():
-    """Le chemin de msedge.exe (DEEPOTUS_EDGE l'emporte, pour un banc), sinon None."""
-    cands = [os.environ.get("DEEPOTUS_EDGE", "")]
+    """Le chemin de msedge.exe installé sur ce PC (le secours), sinon None."""
+    cands = []
     for var in ("PROGRAMFILES(X86)", "PROGRAMFILES", "LOCALAPPDATA"):
         if os.environ.get(var):
             cands.append(os.path.join(os.environ[var], "Microsoft", "Edge", "Application", "msedge.exe"))
@@ -272,8 +295,11 @@ def _lancer_edge(edge: str, profil: str, delai_demarrage: float = 20.0):
             "--disable-features=Translate,MediaRouter,OptimizationHints,AutofillServerCommunication",
             "--proxy-server=http://127.0.0.1:9", "--proxy-bypass-list=<-loopback>", "--block-new-web-contents",
             "--deny-permission-prompts", "--mute-audio", "--hide-scrollbars", "about:blank"]
-    p = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    try:
+        p = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except OSError:                              # exécutable abîmé ou illisible : un arrêt « navigateur », pas une trace
+        return None, None
     f = Path(profil) / "DevToolsActivePort"
     fin = time.monotonic() + delai_demarrage
     while time.monotonic() < fin:
@@ -300,9 +326,9 @@ def rendre_page(html: str, sortie, *, W: int, H: int, fps: int = FPS_DEFAUT, dur
         if refus == ["taille"]:
             raise Arret("taille", langue)
         raise Arret("refus", langue, details=details_refus(refus, langue))
-    edge = edge or trouver_edge()
+    edge = edge or trouver_moteur()
     if not edge:
-        raise Arret("edge", langue)
+        raise Arret("moteur", langue)
     sortie = Path(sortie)
     n = max(1, int(round(float(duree_s) * int(fps))))
     fin = time.monotonic() + float(delai)

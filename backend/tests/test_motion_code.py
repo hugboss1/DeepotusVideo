@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """t238 (lot « Studio : Animation », option B validée le 19/10/2026) — Motion code : le moteur écrit une page animée,
-rendue en MP4 par Edge sans fenêtre, image par image, dans un bac à sable strict.
+rendue en MP4 par un navigateur sans fenêtre, image par image, dans un bac à sable strict.
 
 Plan docs/superpowers/plans/2026-10-17-studio-animation.md (t238). Zéro dépense : un FAUX OLLAMA écoute sur 127.0.0.1
 (port tiré au hasard, jamais 8765) ; un FAUX HÔTE note toute requête — une page ne doit JAMAIS l'atteindre. Le VRAI
-Edge de ce PC rend les pages (le banc est rouge sans lui). Ce que ce banc garde :
+navigateur du bac à sable (le moteur embarqué, chrome-headless-shell épinglé ; Edge du PC en secours) rend les pages
+(le banc est rouge sans lui). Ce que ce banc garde :
   [M] le module et ses bornes (CSP exacte, 10 Mo, 120 s, 12-60 i/s, 1-60 s) ;
   [C] le contrôle statique : page saine (SVG avec espace de noms) admise ; fetch, XHR, WebSocket, import(), Worker,
       top.location, location.href, window.open, iframe / link / object, image http, meta refresh, > 10 Mo REFUSÉS ;
@@ -13,7 +14,7 @@ Edge de ce PC rend les pages (le banc est rouge sans lui). Ce que ce banc garde 
       requestAnimationFrame + performance.now, setTimeout, animation CSS, Math.random déterministe) ;
   [P] pages piégées : refus AVANT tout lancement (aucun profil créé) ; navigation et fenêtre construites à l'exécution
       → arrêt ; fetch déguisé → aucune requête reçue ; boucle infinie au chargement et dans dzFrame → arrêt PROPRE
-      (aucun Edge du bac à sable vivant, profil effacé, aucune sortie partielle) ;
+      (aucun navigateur du bac à sable vivant, profil effacé, aucune sortie partielle) ;
   [W] l'écriture : appel au moteur choisi en texte (pas en JSON), plafond vérifié AVANT la requête, contrat de la page
       et direction (style, consigne) dans le prompt système ; page refusée → seconde tentative qui dit pourquoi, puis
       repli ; sans moteur / non configuré → repli sans requête ; plafond dépassé → 402 sans requête ;
@@ -77,8 +78,9 @@ check("M2 bornes : 10 Mo, 120 s, 12-60 i/s, 1-60 s", MC.MAX_PAGE == 10 * 1024 * 
 check("M3 bornes() : format inconnu → 9:16, fps et durée bornés",
       MC.bornes("x", 500, 900) == ("9:16", 1080, 1920, 60, 60.0) and MC.bornes("16:9", 2, -3)[3:] == (12, 1.0)
       and MC.bornes("1:1", float("nan"), None)[3:] == (30, 8.0), [MC.bornes("x", 500, 900), MC.bornes("16:9", 2, -3)])
-EDGE = MC.trouver_edge()
-check("M4 Edge trouvé sur ce PC", bool(EDGE), EDGE)
+EDGE = MC.trouver_moteur()          # le moteur embarqué, ou DEEPOTUS_NAVIGATEUR / DEEPOTUS_EDGE, ou Edge en secours
+check("M4 navigateur du bac à sable trouvé sur ce poste", bool(EDGE), EDGE)
+NOM_MOTEUR = pathlib.Path(EDGE or "msedge.exe").name
 
 # ── [C] contrôle statique ─────────────────────────────────────────────────────────────────────────────────────────
 print("[C] contrôle statique")
@@ -167,8 +169,8 @@ def profils():
 
 def edges_du_bac():
     r = subprocess.run(["powershell", "-NoProfile", "-Command",
-                        "(Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | Where-Object { $_.CommandLine "
-                        "-like '*dz_motion_code_*' }).Count"], capture_output=True, text=True)
+                        "@(Get-CimInstance Win32_Process -Filter \"Name='%s'\" | Where-Object { $_.CommandLine "
+                        "-like '*dz_motion_code_*' }).Count" % NOM_MOTEUR], capture_output=True, text=True)
     try:
         return int((r.stdout or "0").strip() or 0)
     except ValueError:
@@ -224,7 +226,7 @@ if f1.is_file():
     cb = {k: centre(im, "b") for k, im in pos.items()}
     check("B6 animation CSS calée sur l'horloge (2 s linéaire : 0 → 400 px)",
           all(cb[k] is not None and abs(cb[k] - (400 * k / 25 / 2 + 10)) <= 4 for k in cb), cb)
-check("B7 profil jetable effacé, aucun Edge du bac à sable vivant", profils() == P0 and edges_du_bac() == 0,
+check("B7 profil jetable effacé, aucun navigateur du bac à sable vivant", profils() == P0 and edges_du_bac() == 0,
       (profils(), edges_du_bac()))
 # déterminisme : Math.random, setTimeout et Date.now virtuels (lus dans le titre au dernier appel)
 TITRE = HORLOGE_PAGE.replace('document.title=[R,late,Date.now()].join("|")',
@@ -577,7 +579,7 @@ print("[L] erreurs traduites")
 rc = subprocess.run([sys.executable, str(RACINE / "scripts" / "i18n_l10_erreurs.py"), "--check"], capture_output=True,
                     text=True, encoding="utf-8", errors="replace")
 check("L1 i18n_l10_erreurs --check vert", rc.returncode == 0, (rc.stdout or "")[-600:] + (rc.stderr or "")[-300:])
-check("L2 fin : aucun Edge du bac à sable vivant, aucun profil jetable restant", edges_du_bac() == 0 and profils() == P0,
+check("L2 fin : aucun navigateur du bac à sable vivant, aucun profil jetable restant", edges_du_bac() == 0 and profils() == P0,
       (edges_du_bac(), profils()))
 
 print(f"\n{ok} PASS, {fail} FAIL")
