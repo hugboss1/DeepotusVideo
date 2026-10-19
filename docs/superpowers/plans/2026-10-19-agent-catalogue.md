@@ -272,6 +272,10 @@ def extraire(racine) -> dict:
     return out
 ```
 
+Limite connue : la fenêtre de 600 caractères après `"button",{` peut attraper l'infobulle d'un élément voisin
+quand le bouton n'a pas la sienne ; l'ordre « première clé trouvée » la limite. Le skill corrige au cas par cas en
+C2 (une fiche fausse se voit à la rédaction, en lisant le code).
+
 - [ ] **Étape 4 : lancer** → `3 passed`.
 - [ ] **Étape 5 : commit** — `git add scripts/agent/catalogue_sources.py backend/tests/test_agent_catalogue.py` ;
   message « agent : catalogue C1, sources i18n et bundle ».
