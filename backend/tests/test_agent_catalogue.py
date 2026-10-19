@@ -461,3 +461,44 @@ def test_rapport(depot, capsys):
     assert C.main(["--racine", str(depot), "--rapport"]) == 0
     sortie = capsys.readouterr().out
     assert "montage" in sortie and "extrait" in sortie
+
+
+# --- le VRAI catalogue (docs/agent/catalogue), sur le dépôt réel ---
+import catalogue_commun as CC                                              # noqa: E402
+
+VUES = ("quick", "studio", "episodes", "sonvfx", "montage", "scheduler", "templates", "news", "library", "assets3d",
+        "vectorlab", "photolab", "avatarlive", "settings", "commun")
+CADRES = {None, *CC.CADRE_DE_ZONE.values(), *(c for _, c in S.LABS.values())}
+TYPES = {"bouton", "champ", "outil", "reglage", "onglet", "menu", "icone", "raccourci", "panneau"}
+
+
+def test_cadres_attendus():
+    assert "/avatar/" in CADRES and "/vectorlab/" in CADRES and None in CADRES
+
+
+def test_vrai_catalogue_a_jour():
+    assert C.main(["--check"]) == 0
+
+
+def test_vrai_catalogue_integre():
+    fiches = C.charger()
+    assert len(fiches) >= 300, len(fiches)
+    chapitres = {c["id"] for c in json.loads((RACINE / "docs/guide/src/chapitres.json")
+                                             .read_text(encoding="utf-8"))["chapitres"]}
+    for f in fiches.values():
+        assert f["ecran"] in VUES and f.get("cadre") in CADRES and f["etat"] in C.ETATS, f["id"]
+        assert f["type"] in TYPES, (f["id"], f["type"])
+        assert set(f["libelle"]) == {"fr", "en"}, f["id"]
+        if f["infobulle"] is not None:
+            assert set(f["infobulle"]) == {"fr", "en"}, f["id"]
+        assert f["libelle"]["fr"] or (f["infobulle"] or {}).get("fr"), f["id"]
+        assert f["sources"], f["id"]
+        assert f.get("guide") in (None, *chapitres), f["id"]
+        if f["etat"] == "redige":
+            for l in ("fr", "en"):
+                assert 0 < len(f["role"][l]) <= 300, (f["id"], l)
+                assert isinstance(f["synonymes"][l], list), (f["id"], l)
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__, "-q"]))

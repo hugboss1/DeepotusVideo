@@ -1,0 +1,7 @@
+{
+  "ecran": "avatarlive",
+  "fiches": [
+    {"id": "avatar.perso.cloner_aide", "ecran": "avatarlive", "cadre": "/avatar/", "type": "bouton", "libelle": {"fr": "", "en": ""}, "infobulle": {"fr": "1 à 5 extraits de la voix seule, 30 s à 3 min au total", "en": "1 to 5 clips of the voice alone, 30 s to 3 min in total"}, "icone": null, "role": {"fr": "", "en": ""}, "synonymes": {"fr": [], "en": []}, "guide": null, "localisateur": null, "sources": ["frontend/avatar/avatar.js"], "empreinte": "271398d261c7", "etat": "extrait"},
+    {"id": "avatar.perso.voix_id", "ecran": "avatarlive", "cadre": null, "type": "champ", "libelle": {"fr": "", "en": ""}, "infobulle": {"fr": "Identifiant de voix ElevenLabs", "en": "ElevenLabs voice ID"}, "icone": null, "role": {"fr": "", "en": ""}, "synonymes": {"fr": [], "en": []}, "guide": null, "localisateur": null, "sources": ["i18n:avatar.perso.voix_id"], "empreinte": "099fd013a80c", "etat": "extrait"}
+  ]
+}
