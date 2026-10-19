@@ -7,7 +7,8 @@
 // moteur} ; sous chaque réponse, un bouton par action (Montre-moi / Y aller / Guide). L'historique reste dans
 // sessionStorage (dz_agent_hist) ; le moteur choisi dans localStorage (dz_agent_moteur). Un 402 `dz_plafond` est
 // traité par la couche /shared/dz-plafonds.js (elle enveloppe window.fetch) : rien à faire ici.
-import { etapes, historiqueBorne, choisir, composer, candidats, versEcran, cliquable, prix } from "./dz-agent-logique.js";
+import { etapes, historiqueBorne, choisir, composer, candidats, versEcran, cliquable, prix, releverVisibles,
+  MAX_VISIBLES } from "./dz-agent-logique.js";
 import { creerPointeur } from "./dz-agent-pointeur.js";
 import { capturer, captureDisponible } from "./dz-agent-vision.js";
 
@@ -244,7 +245,8 @@ if (!window.__dzAgent) {
     dessiner(true);
     try {
       const r = await fetch("/api/agent/demander", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, historique: avant, ecran: vue(), lang: lang(), moteur: choix.value || "" }) });
+        body: JSON.stringify({ question: q, historique: avant, ecran: vue(), lang: lang(), moteur: choix.value || "",
+          visibles: await releve() }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
       if (typeof j.texte !== "string" || !j.texte.trim()) throw new Error("—");
@@ -316,6 +318,42 @@ if (!window.__dzAgent) {
       } catch (e) { clearTimeout(fini); window.removeEventListener("message", h); ok(null); }
     });
   }
+  // C4 : le relevé de l'écran ouvert — la page (hors tiroir et bouton) + le lab visible, s'il y en a un. Il ne
+  // bloque jamais l'envoi : le lab a 400 ms pour répondre, toute erreur donne [] (la question part sans relevé).
+  const LABS_CADRES = /^\/(vectorlab|photolab|spritelab|tilelab|cardforge|materialforge|studio3d)\//;
+  function cadreVisible() {
+    return Array.from(document.querySelectorAll("iframe")).find((f) => {
+      const r = f.getBoundingClientRect();
+      let chemin = "";
+      try { chemin = new URL(f.getAttribute("src") || "", location.href).pathname; } catch (e) { chemin = ""; }
+      return r.width > 0 && r.height > 0 && LABS_CADRES.test(chemin) && f.contentWindow;
+    }) || null;
+  }
+  function releveDuCadre(cadre) {
+    const id = ++numero;
+    return new Promise((ok) => {
+      const fini = setTimeout(() => { window.removeEventListener("message", h); ok([]); }, 400);
+      function h(ev) {
+        if (ev.origin !== location.origin || ev.source !== cadre.contentWindow || !ev.data
+          || ev.data.dzAgent !== "visibles" || ev.data.id !== id) return;
+        clearTimeout(fini);
+        window.removeEventListener("message", h);
+        ok(Array.isArray(ev.data.items) ? ev.data.items : []);
+      }
+      window.addEventListener("message", h);
+      try { cadre.contentWindow.postMessage({ dzAgent: "releve", id }, location.origin); }
+      catch (e) { clearTimeout(fini); window.removeEventListener("message", h); ok([]); }
+    });
+  }
+  async function releve() {
+    try {
+      const ici = releverVisibles(document, (x) => tiroir.contains(x) || bouton.contains(x));
+      const cadre = cadreVisible();
+      const lab = cadre ? await releveDuCadre(cadre) : [];
+      return [...lab, ...ici].slice(0, MAX_VISIBLES);
+    } catch (e) { return []; }
+  }
+
   function introuvable(actionsDuMessage) {
     const guides = (Array.isArray(actionsDuMessage) ? actionsDuMessage : []).filter((x) => x && x.type === "guide");
     hist.push({ role: "assistant", texte: T("agent.action.introuvable"), actions: guides, erreur: true });
@@ -415,7 +453,9 @@ if (!window.__dzAgent) {
       if (!captureDisponible()) return dire("agent.vision.indisponible", guides);
       const vus = (await moteursConnus()).filter((m) => m.vision);
       if (!vus.length) return dire("agent.vision.aucun_moteur", guides);
-      const corps = { question: msg.question, historique: msg.avant || [], ecran: vue(), lang: lang() };
+      // le même relevé part avec le devis (/api/agent/estimer) et l'envoi : le serveur chiffre le même message
+      const corps = { question: msg.question, historique: msg.avant || [], ecran: vue(), lang: lang(),
+        visibles: await releve() };
       const ok = await accord(vus, corps);
       if (!ok) return;
       let cap;

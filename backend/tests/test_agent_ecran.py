@@ -188,5 +188,14 @@ def test_fermer_ou_recommencer_annule_l_accord_et_la_vision_occupee_repond():
     assert I18N["agent.vision.occupe"]["en"] == "Wait for the current answer to finish."
 
 
+def test_releve_envoye():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert src.count("visibles: await releve()") == 2, "question texte ET question avec capture"
+    assert "releverVisibles(document" in src and 'dzAgent: "releve"' in src
+    cadre = (SHARED / "dz-agent-cadre.js").read_text(encoding="utf-8")
+    assert 'd.dzAgent === "releve"' in cadre and 'dzAgent: "visibles"' in cadre
+    assert cadre.count("ev.origin !== location.origin") == 1   # une seule garde, en tête, pour les deux messages
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
