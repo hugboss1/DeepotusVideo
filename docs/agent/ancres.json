@@ -16,16 +16,16 @@
     {"id": "rail.photolab", "ecran": "photolab", "selecteur": "button.dzNavItem", "texte": {"fr": "Photolab", "en": "Photolab"}, "fr": "Photolab dans la barre de gauche", "en": "Photolab in the left bar"},
     {"id": "rail.avatarlive", "ecran": "avatarlive", "selecteur": "button.dzNavItem", "texte": {"fr": "Avatar live", "en": "Avatar live"}, "fr": "Avatar live dans la barre de gauche", "en": "Avatar live in the left bar"},
     {"id": "rail.reglages", "ecran": "settings", "selecteur": "button.dzNavItem", "texte": {"fr": "Réglages", "en": "Settings"}, "fr": "Réglages dans la barre de gauche", "en": "Settings in the left bar"},
-    {"id": "reglages.cles", "ecran": "settings", "reglages": "keys", "fr": "Réglages › Clés API", "en": "Settings › API keys"},
-    {"id": "reglages.coffre", "ecran": "settings", "reglages": "coffre", "fr": "Réglages › Coffre à clés", "en": "Settings › Key vault"},
+    {"id": "reglages.cles", "ecran": "settings", "reglages": "keys", "fr": "Réglages › Clés d'API", "en": "Settings › API keys"},
+    {"id": "reglages.coffre", "ecran": "settings", "reglages": "coffre", "fr": "Réglages › Coffre", "en": "Settings › Vault"},
     {"id": "reglages.comptes", "ecran": "settings", "reglages": "accounts", "fr": "Réglages › Comptes connectés", "en": "Settings › Connected accounts"},
     {"id": "reglages.personas", "ecran": "settings", "reglages": "personas", "fr": "Réglages › Personas", "en": "Settings › Personas"},
     {"id": "reglages.espaces", "ecran": "settings", "reglages": "espaces", "fr": "Réglages › Espaces de marque", "en": "Settings › Brand spaces"},
-    {"id": "reglages.marque", "ecran": "settings", "reglages": "branding", "fr": "Réglages › Kit de marque", "en": "Settings › Brand kit"},
-    {"id": "reglages.defauts", "ecran": "settings", "reglages": "defaults", "fr": "Réglages › Valeurs par défaut", "en": "Settings › Provider defaults"},
+    {"id": "reglages.marque", "ecran": "settings", "reglages": "branding", "fr": "Réglages › Identité visuelle", "en": "Settings › Branding"},
+    {"id": "reglages.defauts", "ecran": "settings", "reglages": "defaults", "fr": "Réglages › Fournisseurs par défaut (et langue)", "en": "Settings › Provider defaults (and language)"},
     {"id": "reglages.budget", "ecran": "settings", "reglages": "pricing", "fr": "Réglages › Tarifs et budget", "en": "Settings › Pricing & budget"},
-    {"id": "reglages.diagnostic", "ecran": "settings", "reglages": "diag", "fr": "Réglages › Diagnostic et mise à jour", "en": "Settings › Diagnostics and update"},
-    {"id": "reglages.apparence", "ecran": "settings", "reglages": "appearance", "fr": "Réglages › Apparence et langue", "en": "Settings › Appearance and language"},
-    {"id": "reglages.appareils", "ecran": "settings", "reglages": "appareils", "fr": "Réglages › Appareils (mobile)", "en": "Settings › Devices (mobile)"}
+    {"id": "reglages.diagnostic", "ecran": "settings", "reglages": "diag", "fr": "Réglages › Diagnostic (et mise à jour)", "en": "Settings › Diagnostics (and update)"},
+    {"id": "reglages.apparence", "ecran": "settings", "reglages": "appearance", "fr": "Réglages › Apparence", "en": "Settings › Appearance"},
+    {"id": "reglages.appareils", "ecran": "settings", "reglages": "appareils", "fr": "Réglages › Appareils", "en": "Settings › Devices"}
   ]
 }
