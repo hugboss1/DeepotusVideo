@@ -358,7 +358,9 @@ def images_valides(images) -> list[dict]:
     rien n'est décodé au-delà de la vérification. RuntimeError sinon (rien n'est envoyé)."""
     if not images:
         return []
-    if not isinstance(images, list) or len(images) > MAX_IMAGES:
+    if not isinstance(images, list):
+        raise RuntimeError("images illisibles : liste attendue")
+    if len(images) > MAX_IMAGES:
         raise RuntimeError(f"au plus {MAX_IMAGES} images par appel")
     out = []
     for im in images:
@@ -522,7 +524,8 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
     if moteur == "gemini":
         from app.services.gemini_llm import _headers
         from app.services.google_video import GOOGLE_API_BASE
-        parts = [{"inlineData": {"mimeType": i["mime"], "data": i["b64"]}} for i in (images or [])]             + [{"text": prompt}]
+        parts = [{"inlineData": {"mimeType": i["mime"], "data": i["b64"]}} for i in (images or [])] \
+            + [{"text": prompt}]
         body = {"contents": [{"parts": parts}],
                 "generationConfig": {"maxOutputTokens": max_tokens}}
         if json:
@@ -570,12 +573,15 @@ async def tirer_garde(moteur: str, modele: str, prompt: str, systeme: str, max_t
     if not configure(moteur):
         raise RuntimeError(f"moteur « {nom(moteur)} » non configuré (Réglages)")
     ims = images_valides(images)
-    mod_vu = modele or modele_sain(moteur)
-    if ims and not vision(moteur, mod_vu or None):
-        raise RuntimeError(f"le modèle {mod_vu} ne lit pas les images")
+    loop = asyncio.get_running_loop()
+    if ims:
+        mod = (modele or modele_sain(moteur)).strip()
+        if not mod:
+            raise RuntimeError(f"aucun modèle pour « {moteur} »")
+        if not await loop.run_in_executor(None, vision, moteur, mod):      # Ollama : /api/show, bloquant
+            raise RuntimeError(f"le modèle {mod} ne lit pas les images")
     await _PLAF.verifier(estimer(moteur, prompt, systeme, max_tokens, effort, modele=modele, images=len(ims)),
                          categorie, ref)
-    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         None, lambda: tirer(moteur, modele, prompt, systeme, max_tokens, json, timeout=timeout, effort=effort,
                             images=ims))

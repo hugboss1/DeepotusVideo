@@ -56,6 +56,13 @@ def test_images_valides():
             MT.images_valides(mauvais)
 
 
+def test_images_pas_une_liste_message_distinct():
+    with pytest.raises(RuntimeError, match="liste attendue"):
+        MT.images_valides({"mime": "image/png", "b64": PNG})
+    with pytest.raises(RuntimeError, match="au plus"):
+        MT.images_valides([{"mime": "image/png", "b64": PNG}] * (MT.MAX_IMAGES + 1))
+
+
 def test_estimer_compte_les_images():
     sans = MT.estimer("anthropic", "x" * 400, "", 100)
     avec = MT.estimer("anthropic", "x" * 400, "", 100, images=2)
@@ -106,6 +113,7 @@ def test_openai_image_en_url_data(monkeypatch):
     c = vu[0][1]["messages"][-1]["content"]
     assert c[0] == {"type": "text", "text": "où ?"}
     assert c[1]["type"] == "image_url" and c[1]["image_url"]["url"] == f"data:image/png;base64,{PNG}"
+    assert c[1]["image_url"]["detail"] == "high"
 
 
 def test_gemini_image_inline(monkeypatch):

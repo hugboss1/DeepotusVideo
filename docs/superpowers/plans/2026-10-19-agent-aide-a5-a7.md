@@ -467,17 +467,20 @@ Les branches `fl:` et `local:` ne changent pas (`vision` y rend toujours faux, `
 
 Dans `tirer_garde`, signature `..., timeout: float = 90.0, effort=None, images=None):`, ajouter à la docstring
 `A5 : les images sont vérifiées et refusées AVANT la garde (un moteur aveugle ne déclenche jamais de 402).`, puis
-remplacer le corps après le refus « non configuré » par (une variable simple dans la f-string : le générateur L10 en
-fait un gabarit lisible `{mod_vu}`) :
+remplacer le corps après le refus « non configuré » par (la variable s'appelle `mod`, comme dans `tirer` : le générateur L10 en
+fait le même gabarit `{mod}` ; `vision` peut faire un POST synchrone vers Ollama, donc il tourne hors de la boucle) :
 
 ```python
     ims = images_valides(images)
-    mod_vu = modele or modele_sain(moteur)
-    if ims and not vision(moteur, mod_vu or None):
-        raise RuntimeError(f"le modèle {mod_vu} ne lit pas les images")
+    loop = asyncio.get_running_loop()
+    if ims:
+        mod = (modele or modele_sain(moteur)).strip()
+        if not mod:
+            raise RuntimeError(f"aucun modèle pour « {moteur} »")
+        if not await loop.run_in_executor(None, vision, moteur, mod):      # Ollama : /api/show, bloquant
+            raise RuntimeError(f"le modèle {mod} ne lit pas les images")
     await _PLAF.verifier(estimer(moteur, prompt, systeme, max_tokens, effort, modele=modele, images=len(ims)),
                          categorie, ref)
-    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         None, lambda: tirer(moteur, modele, prompt, systeme, max_tokens, json, timeout=timeout, effort=effort,
                             images=ims))
@@ -487,7 +490,8 @@ fait un gabarit lisible `{mod_vu}`) :
 
 Lancer : `& $PY tests/test_moteurs_texte_images.py` → aucun échec.
 Non-régression : `& $PY tests/test_moteurs_texte_tirer.py`, `& $PY tests/test_moteurs_openai_sortie.py`,
-`& $PY tests/test_motion_choregraphe.py` → aucun FAIL.
+`& $PY tests/test_motion_choregraphe.py` → aucun FAIL, sauf E1 (`i18n_l10_erreurs --check`, 6 messages neufs sans
+traduction) : ce seul FAIL reste jusqu'à la Tâche 5, qui traduit les messages (L10).
 
 - [ ] **Étape 5 : commiter**
 
@@ -1009,7 +1013,7 @@ entrée par gabarit, avec ces traductions :
 | `image illisible : base64 invalide` | `unreadable image: invalid base64` |
 | `image trop lourde (4,5 Mo au plus)` | `image too large (4.5 MB at most)` |
 | `le modèle {mod} ne lit pas les images` | `the model {mod} cannot read images` |
-| `le modèle {mod_vu} ne lit pas les images` | `the model {mod_vu} cannot read images` |
+| `images illisibles : liste attendue` | `unreadable images: a list is expected` |
 | `Image jointe illisible.` | `The attached image is unreadable.` |
 | `Ce moteur ne lit pas les images : choisis-en un qui voit l'écran.` | `This engine cannot read images: choose one that can see the screen.` |
 | `Montant accepté (max_usd) manquant ou invalide.` | `Accepted amount (max_usd) missing or invalid.` |
