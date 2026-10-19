@@ -30,9 +30,15 @@ async def _corps(request: Request):
         taille = int(request.headers.get("content-length") or 0)
     except ValueError:
         taille = 0
-    brut = await request.body()
-    if taille > MAX_CORPS or len(brut) > MAX_CORPS:
-        raise HTTPException(413, "Demande trop lourde.")
+    if taille > MAX_CORPS:
+        raise HTTPException(413, "Demande trop lourde.")        # refus AVANT de lire
+    morceaux, total = [], 0
+    async for morceau in request.stream():                       # lecture en flux, coupée à MAX_CORPS + 1 octets
+        total += len(morceau)
+        if total > MAX_CORPS:
+            raise HTTPException(413, "Demande trop lourde.")
+        morceaux.append(morceau)
+    brut = b"".join(morceaux)
     try:
         return json.loads(brut or b"null")
     except ValueError:

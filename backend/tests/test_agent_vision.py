@@ -29,7 +29,8 @@ def test_point_xy_seulement_avec_une_capture():
     assert rejets == 0 and actions == [{"type": "point_xy", "cible": "640,360", "x": 640, "y": 360,
                                         "largeur": 1280, "hauteur": 720, "libelle": "Générer"}]
     assert A.analyser("[POINT:640,360:Générer]") == ("", [], 1)              # sans capture : refusé
-    assert A.analyser("[POINT:1281,10:x]", dims)[2] == 1                     # hors de la capture
+    assert A.analyser("[POINT:1280,10:x]", dims)[2] == 1                     # hors de la capture (bornes strictes)
+    assert A.analyser("[POINT:1279,719:x]", dims)[2] == 0
     assert A.analyser("[POINT:10, 20]", dims)[1][0]["libelle"] == ""         # libellé facultatif, espaces tolérés
     assert A.analyser("[POINT:reglages.cles]", dims)[1][0]["type"] == "point"   # une ancre reste une ancre
     assert A.analyser("[VOIR]", dims) == ("", [], 1)                         # pas de seconde capture en boucle
@@ -39,6 +40,8 @@ def test_point_xy_libelle_borne_et_sans_code():
     dims = {"largeur": 1280, "hauteur": 720}
     a = A.analyser("[POINT:1,2:" + "<b>x</b>\t" * 8 + "]", dims)[1][0]   # 76 car. : sous la borne de 80 de BALISE
     assert len(a["libelle"]) <= 60 and "\t" not in a["libelle"]
+    b = A.analyser("[POINT:1,2:Gé\u202enérer\u200b]", dims)[1][0]
+    assert b["libelle"] == "Générer"                                     # contrôle et format Unicode retirés
 
 
 def _moteur(monkeypatch, voit=True):
@@ -84,7 +87,8 @@ def test_demander_capture_refusee(monkeypatch):
     with pytest.raises(ValueError):
         asyncio.run(A.demander(corps))                        # moteur aveugle
     _moteur(monkeypatch)
-    for mauvais in ({"max_usd": None}, {"max_usd": -1}, {"max_usd": float("nan")}, {"max_usd": True}):
+    for mauvais in ({"max_usd": None}, {"max_usd": -1}, {"max_usd": float("nan")}, {"max_usd": True},
+                     {"max_usd": 10 ** 400}):
         with pytest.raises(ValueError):
             asyncio.run(A.demander(dict(corps, **mauvais)))
     for image in ({**IMAGE, "largeur": 5000}, {**IMAGE, "mime": "image/gif"}, {**IMAGE, "b64": "%%%"}, "x"):
@@ -137,7 +141,8 @@ def test_messages_traduits():
     import json, subprocess
     racine = pathlib.Path(__file__).resolve().parents[2]
     r = subprocess.run([sys.executable, str(racine / "scripts" / "i18n_l10_erreurs.py"), "--check"],
-                       capture_output=True, text=True, encoding="utf-8", cwd=str(racine))
+                       capture_output=True, text=True, encoding="utf-8", cwd=str(racine),
+                       env={**os.environ, "PYTHONIOENCODING": "utf-8"})
     assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-800:]
     t = json.loads((racine / "scripts" / "i18n_l10_traductions.json").read_text(encoding="utf-8"))
     assert "Image jointe illisible." in t and "Demande trop lourde." in t

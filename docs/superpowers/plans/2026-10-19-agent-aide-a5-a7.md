@@ -544,7 +544,8 @@ def test_point_xy_seulement_avec_une_capture():
     assert rejets == 0 and actions == [{"type": "point_xy", "cible": "640,360", "x": 640, "y": 360,
                                         "largeur": 1280, "hauteur": 720, "libelle": "Générer"}]
     assert A.analyser("[POINT:640,360:Générer]") == ("", [], 1)              # sans capture : refusé
-    assert A.analyser("[POINT:1281,10:x]", dims)[2] == 1                     # hors de la capture
+    assert A.analyser("[POINT:1280,10:x]", dims)[2] == 1                     # hors de la capture (bornes strictes)
+    assert A.analyser("[POINT:1279,719:x]", dims)[2] == 0
     assert A.analyser("[POINT:10, 20]", dims)[1][0]["libelle"] == ""         # libellé facultatif, espaces tolérés
     assert A.analyser("[POINT:reglages.cles]", dims)[1][0]["type"] == "point"   # une ancre reste une ancre
     assert A.analyser("[VOIR]", dims) == ("", [], 1)                         # pas de seconde capture en boucle
@@ -554,6 +555,8 @@ def test_point_xy_libelle_borne_et_sans_code():
     dims = {"largeur": 1280, "hauteur": 720}
     a = A.analyser("[POINT:1,2:" + "<b>x</b>\t" * 8 + "]", dims)[1][0]   # 76 car. : sous la borne de 80 de BALISE
     assert len(a["libelle"]) <= 60 and "\t" not in a["libelle"]
+    b = A.analyser("[POINT:1,2:Gé\u202enérer\u200b]", dims)[1][0]
+    assert b["libelle"] == "Générer"                                     # contrôle et format Unicode retirés
 
 
 if __name__ == "__main__":
@@ -586,6 +589,11 @@ XY = re.compile(r"^(\d{1,5})\s*,\s*(\d{1,5})\s*(?::(.*))?$")
 Remplacer `_action` par :
 
 ```python
+def _sans_controle(t: str) -> str:
+    """Sans caractères de contrôle ni de format Unicode (catégories C* : U+202E, zéro-largeur…) : le libellé s'affiche."""
+    return "".join(" " if c.isspace() else c for c in t if c.isspace() or not unicodedata.category(c).startswith("C"))
+
+
 def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
     """image : {largeur, hauteur} de la capture jointe à l'appel (A5) — seule une réponse à une capture peut rendre des
     coordonnées, et jamais une nouvelle demande de capture."""
@@ -600,9 +608,9 @@ def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
         m = XY.match(cible)
         if m:
             x, y = int(m.group(1)), int(m.group(2))
-            if x <= image["largeur"] and y <= image["hauteur"]:
+            if x < image["largeur"] and y < image["hauteur"]:
                 return {"type": "point_xy", "cible": f"{x},{y}", "x": x, "y": y, "largeur": image["largeur"],
-                        "hauteur": image["hauteur"], "libelle": _ligne(m.group(3) or "", 60)}
+                        "hauteur": image["hauteur"], "libelle": _ligne(_sans_controle(m.group(3) or ""), 60)}
         return None
     if typ == "VOIR" and not cible and not image:
         return {"type": "voir", "cible": "ecran"}
@@ -696,7 +704,8 @@ def test_demander_capture_refusee(monkeypatch):
     with pytest.raises(ValueError):
         asyncio.run(A.demander(corps))                        # moteur aveugle
     _moteur(monkeypatch)
-    for mauvais in ({"max_usd": None}, {"max_usd": -1}, {"max_usd": float("nan")}, {"max_usd": True}):
+    for mauvais in ({"max_usd": None}, {"max_usd": -1}, {"max_usd": float("nan")}, {"max_usd": True},
+                     {"max_usd": 10 ** 400}):
         with pytest.raises(ValueError):
             asyncio.run(A.demander(dict(corps, **mauvais)))
     for image in ({**IMAGE, "largeur": 5000}, {**IMAGE, "mime": "image/gif"}, {**IMAGE, "b64": "%%%"}, "x"):
@@ -721,7 +730,7 @@ Attendu : `AttributeError: … has no attribute 'estimer_vue'` (et `CoutChange`)
 
 - [ ] **Étape 3 : implémenter**
 
-En tête de `agent_aide.py`, ajouter `import asyncio` et `import math` aux imports. Après `SANS_CLE = {...}` :
+En tête de `agent_aide.py`, ajouter `import asyncio`, `import math` et `import unicodedata` aux imports. Après `SANS_CLE = {...}` :
 
 ```python
 # A5 : la vision en secours. La consigne voyage dans la QUESTION (le système reste identique d'un appel à l'autre).
@@ -821,9 +830,15 @@ async def demander(corps, lang: str = "fr") -> dict:
         if not await asyncio.to_thread(MT.vision, moteur):
             raise ValueError("Ce moteur ne lit pas les images : choisis-en un qui voit l'écran.")
         mx = corps.get("max_usd")
-        if isinstance(mx, bool) or not isinstance(mx, (int, float)) or not math.isfinite(mx) or mx < 0:
+        if isinstance(mx, bool) or not isinstance(mx, (int, float)):
             raise ValueError("Montant accepté (max_usd) manquant ou invalide.")
-        if _cout(p, sys_txt) > float(mx) + EPS_USD:
+        try:
+            mx = float(mx)              # un entier géant (10**400) lève OverflowError
+        except (OverflowError, ValueError):
+            raise ValueError("Montant accepté (max_usd) manquant ou invalide.") from None
+        if not math.isfinite(mx) or mx < 0:
+            raise ValueError("Montant accepté (max_usd) manquant ou invalide.")
+        if await asyncio.to_thread(_cout, p, sys_txt) > mx + EPS_USD:      # peut interroger Ollama (synchrone)
             raise CoutChange()
     sortie = await MT.tirer_garde(moteur, "", p["prompt"], sys_txt, MAX_TOKENS, categorie="aide", effort="low",
                                   images=p["images"])
@@ -908,7 +923,8 @@ def test_messages_traduits():
     import json, subprocess
     racine = pathlib.Path(__file__).resolve().parents[2]
     r = subprocess.run([sys.executable, str(racine / "scripts" / "i18n_l10_erreurs.py"), "--check"],
-                       capture_output=True, text=True, encoding="utf-8", cwd=str(racine))
+                       capture_output=True, text=True, encoding="utf-8", cwd=str(racine),
+                       env={**os.environ, "PYTHONIOENCODING": "utf-8"})
     assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-800:]
     t = json.loads((racine / "scripts" / "i18n_l10_traductions.json").read_text(encoding="utf-8"))
     assert "Image jointe illisible." in t and "Demande trop lourde." in t
@@ -956,9 +972,15 @@ async def _corps(request: Request):
         taille = int(request.headers.get("content-length") or 0)
     except ValueError:
         taille = 0
-    brut = await request.body()
-    if taille > MAX_CORPS or len(brut) > MAX_CORPS:
-        raise HTTPException(413, "Demande trop lourde.")
+    if taille > MAX_CORPS:
+        raise HTTPException(413, "Demande trop lourde.")        # refus AVANT de lire
+    morceaux, total = [], 0
+    async for morceau in request.stream():                       # lecture en flux, coupée à MAX_CORPS + 1 octets
+        total += len(morceau)
+        if total > MAX_CORPS:
+            raise HTTPException(413, "Demande trop lourde.")
+        morceaux.append(morceau)
+    brut = b"".join(morceaux)
     try:
         return json.loads(brut or b"null")
     except ValueError:

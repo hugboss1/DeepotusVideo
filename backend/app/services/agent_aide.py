@@ -11,6 +11,7 @@ import asyncio
 import json
 import math
 import re
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 
@@ -102,6 +103,11 @@ MAX_ACTIONS = 6
 XY = re.compile(r"^(\d{1,5})\s*,\s*(\d{1,5})\s*(?::(.*))?$")
 
 
+def _sans_controle(t: str) -> str:
+    """Sans caractères de contrôle ni de format Unicode (catégories C* : U+202E, zéro-largeur…) : le libellé s'affiche."""
+    return "".join(" " if c.isspace() else c for c in t if c.isspace() or not unicodedata.category(c).startswith("C"))
+
+
 def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
     """image : {largeur, hauteur} de la capture jointe à l'appel (A5) — seule une réponse à une capture peut rendre des
     coordonnées, et jamais une nouvelle demande de capture."""
@@ -116,9 +122,9 @@ def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
         m = XY.match(cible)
         if m:
             x, y = int(m.group(1)), int(m.group(2))
-            if x <= image["largeur"] and y <= image["hauteur"]:
+            if x < image["largeur"] and y < image["hauteur"]:
                 return {"type": "point_xy", "cible": f"{x},{y}", "x": x, "y": y, "largeur": image["largeur"],
-                        "hauteur": image["hauteur"], "libelle": _ligne(m.group(3) or "", 60)}
+                        "hauteur": image["hauteur"], "libelle": _ligne(_sans_controle(m.group(3) or ""), 60)}
         return None
     if typ == "VOIR" and not cible and not image:
         return {"type": "voir", "cible": "ecran"}
@@ -257,9 +263,15 @@ async def demander(corps, lang: str = "fr") -> dict:
         if not await asyncio.to_thread(MT.vision, moteur):
             raise ValueError("Ce moteur ne lit pas les images : choisis-en un qui voit l'écran.")
         mx = corps.get("max_usd")
-        if isinstance(mx, bool) or not isinstance(mx, (int, float)) or not math.isfinite(mx) or mx < 0:
+        if isinstance(mx, bool) or not isinstance(mx, (int, float)):
             raise ValueError("Montant accepté (max_usd) manquant ou invalide.")
-        if _cout(p, sys_txt) > float(mx) + EPS_USD:
+        try:
+            mx = float(mx)              # un entier géant (10**400) lève OverflowError
+        except (OverflowError, ValueError):
+            raise ValueError("Montant accepté (max_usd) manquant ou invalide.") from None
+        if not math.isfinite(mx) or mx < 0:
+            raise ValueError("Montant accepté (max_usd) manquant ou invalide.")
+        if await asyncio.to_thread(_cout, p, sys_txt) > mx + EPS_USD:      # peut interroger Ollama (synchrone)
             raise CoutChange()
     sortie = await MT.tirer_garde(moteur, "", p["prompt"], sys_txt, MAX_TOKENS, categorie="aide", effort="low",
                                   images=p["images"])
