@@ -81,9 +81,24 @@ def _ligne(v, n: int = 60) -> str:
     return " ".join(str(v or "").split())[:n]
 
 
-def systeme(ecran: str, lang: str, espace: str = "") -> str:
-    """AGENT.md + chapitres + « Je veux… » + ancres + vues, puis le contexte EN DERNIER : tout ce qui précède
-    « ## Contexte » est identique d'une question à l'autre (cache du préfixe chez le fournisseur)."""
+NON_REDIGE = {"fr": "— pas encore rédigé : décris seulement ce qui est visible",
+              "en": "— not written yet: describe only what is visible"}
+NON_DOCUMENTE = {"fr": "non documenté", "en": "not documented"}
+
+
+def _fiche_ligne(x: dict, cle: str, avec_role: bool = True) -> str:
+    lib = ((x.get("libelle") or {}).get(cle) or (x.get("infobulle") or {}).get(cle) or x["id"])
+    pt = " [pointable]" if x.get("localisateur") else ""
+    ou = x.get("ecran") or "partout"
+    if not avec_role:
+        return f"- {x['id']} « {lib} »{pt}"
+    role = (x.get("role") or {}).get(cle) or ""
+    return f"- {x['id']} ({ou}) « {lib} »{pt} : {role or NON_REDIGE[cle]}"
+
+
+def systeme(ecran: str, lang: str, espace: str = "", pertinents=(), visibles=None) -> str:
+    """AGENT.md + chapitres + « Je veux… » + ancres + vues, puis « ## Contexte » ; les sections qui changent à chaque
+    question (éléments pertinents, écran relevé) viennent APRÈS, pour garder le préfixe identique (cache)."""
     ecran, espace = _ligne(ecran, 30), _ligne(espace)
     k = connaissance()
     en = lang == "en"
@@ -91,10 +106,19 @@ def systeme(ecran: str, lang: str, espace: str = "") -> str:
     chap = "\n".join(f"- {c['id']} : {c[cle]}" for c in k["chapitres"].values())
     jv = "\n".join(f"- {e[cle]} → {e['cible']}" for e in k["jeveux"])
     anc = "\n".join(f"- {a['id']} ({'partout' if a.get('partout') or not a.get('ecran') else a['ecran']}) : {a[cle]}" for a in k["ancres"].values())
-    return (f"{k['agent']}\n\n## Chapitres (id : titre)\n{chap}\n\n## Je veux…\n{jv}\n\n"
-            f"## Ancres (id (écran) : libellé)\n{anc}\n\n## Vues\n{', '.join(VUES)}\n\n"
-            f"## Contexte\n- écran ouvert : {ecran or 'inconnu'}\n- espace de marque actif : {espace or 'inconnu'}\n"
-            f"- langue : {'English' if en else 'français'}\n")
+    s = (f"{k['agent']}\n\n## Chapitres (id : titre)\n{chap}\n\n## Je veux…\n{jv}\n\n"
+         f"## Ancres (id (écran) : libellé)\n{anc}\n\n## Vues\n{', '.join(VUES)}\n\n"
+         f"## Contexte\n- écran ouvert : {ecran or 'inconnu'}\n- espace de marque actif : {espace or 'inconnu'}\n"
+         f"- langue : {'English' if en else 'français'}\n")
+    if pertinents:
+        s += "\n## Éléments pertinents (id (écran) « libellé » : rôle)\n" + "\n".join(
+            _fiche_ligne(x, cle) for x in pertinents) + "\n"
+    if visibles and (visibles.get("reconnus") or visibles.get("inconnus")):
+        lignes = [_fiche_ligne(x, cle, avec_role=False) for x in visibles.get("reconnus", [])]
+        lignes += [f"- « {v['t'] or v['i']} »" + (f" ({v['i']})" if v["t"] and v["i"] else "")
+                   + f" — {NON_DOCUMENTE[cle]}" for v in visibles.get("inconnus", [])]
+        s += "\n## À l'écran maintenant\n" + "\n".join(lignes) + "\n"
+    return s
 
 
 CATALOGUE = DOSSIER / "catalogue"
@@ -200,6 +224,16 @@ def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
                 "texte": a.get("texte"), "cadre": a.get("cadre"), "reglages": a.get("reglages"),
                 "partout": bool(a.get("partout")), "libelle": a.get("libelle"),
                 "fr": a["fr"], "en": a["en"]}
+    if typ == "POINT" and cible in catalogue() and catalogue()[cible].get("localisateur"):
+        x = catalogue()[cible]
+        loc = x["localisateur"]
+        lib = x.get("libelle") or {}
+        tip = x.get("infobulle") or {}
+        return {"type": "point", "cible": cible, "ecran": None if x.get("ecran") == "commun" else x.get("ecran"),
+                "selecteur": loc.get("selecteur"), "texte": loc.get("texte"), "cadre": x.get("cadre") or loc.get("cadre"),
+                "reglages": loc.get("reglages"), "partout": bool(loc.get("partout") or x.get("ecran") == "commun"),
+                "libelle": loc.get("libelle"), "fr": lib.get("fr") or tip.get("fr") or cible,
+                "en": lib.get("en") or tip.get("en") or cible}
     if typ == "POINT" and image:
         m = XY.match(cible)
         if m:

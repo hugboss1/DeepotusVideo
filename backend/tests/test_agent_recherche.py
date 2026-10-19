@@ -70,5 +70,29 @@ def test_vrai_catalogue_charge():
     assert all(f["etat"] != "retire" for f in A.catalogue().values())
 
 
+def test_sections_apres_contexte(faux):
+    s = A.systeme("montage", "fr", "", pertinents=A.chercher("scinder"),
+                  visibles={"reconnus": [FAUX["vectorlab.creer"]], "inconnus": [{"t": "Bidule", "i": "fait un truc"}]})
+    tete, fin = s.split("## Contexte")
+    assert "## Éléments pertinents" not in tete and "## Éléments pertinents" in fin
+    assert "montage.lame (montage) « lame · Alt+C » [pointable] : Coupe le clip" in fin
+    assert "## À l'écran maintenant" in fin and "vectorlab.creer « Créer »" in fin
+    assert "« Bidule » (fait un truc) — non documenté" in fin
+    assert A.systeme("quick", "fr", "").split("## Contexte")[0] == tete      # préfixe stable
+
+
+def test_fiche_non_redigee_signalee(faux):
+    s = A.systeme("vectorlab", "en", "", pertinents=[FAUX["vectorlab.creer"]])
+    assert "vectorlab.creer (vectorlab) « Create » : — not written yet: describe only what is visible" in s
+
+
+def test_point_sur_fiche(faux):
+    _, actions, rejets = A.analyser("[POINT:montage.lame] [POINT:sonvfx.extraire]")
+    assert rejets == 1 and len(actions) == 1
+    a = actions[0]
+    assert a["type"] == "point" and a["selecteur"] == "button" and a["texte"] == LOC["texte"]
+    assert a["ecran"] == "montage" and a["fr"] == "lame · Alt+C" and a["partout"] is False
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
