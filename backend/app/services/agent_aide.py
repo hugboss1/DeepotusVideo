@@ -118,7 +118,7 @@ def choisir_moteur(demande: str = "") -> str:
     premier configuré tout court ; "" si aucun. Jamais de repli d'un moteur demandé vers un autre."""
     from app.services import moteurs_texte as MT
     if demande:
-        return demande if MT.connu(demande) and MT.configure(demande) else ""
+        return demande if MT.connu(demande) and MT.configure(demande) and not MT.modele_fautif(demande) else ""
     lignes = [l["moteur"] for l in MT.etat() if l["configure"] and not l.get("fautif")]
     for p in PREFERENCE:
         if p in lignes:

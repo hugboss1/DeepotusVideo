@@ -102,7 +102,10 @@ def test_choix_du_moteur(monkeypatch):
     assert A.choisir_moteur() == ""
     monkeypatch.setattr(MT, "connu", lambda m: m == "gemini")
     monkeypatch.setattr(MT, "configure", lambda m: m == "gemini")
-    assert A.choisir_moteur("gemini") == "gemini" and A.choisir_moteur("inconnu") == ""
+    monkeypatch.setattr(MT, "etat", _faux_etat("openai"))
+    assert A.choisir_moteur("gemini") == "gemini" and A.choisir_moteur("inconnu") == ""   # jamais de repli
+    monkeypatch.setattr(MT, "modele_fautif", lambda m: m == "gemini")
+    assert A.choisir_moteur("gemini") == ""                    # modèle qui ressemble à une clé : refusé
 
 
 def test_categorie_aide():
