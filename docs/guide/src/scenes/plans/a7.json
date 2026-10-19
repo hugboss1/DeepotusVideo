@@ -1,0 +1,63 @@
+{
+ "base": "http://127.0.0.1:8815",
+ "preparation": "python scripts/guide/serve_guide_agent.py (port 8815, faux Ollama 8816 « llava-demo » qui voit, faux Voicebox 8817, aucune dépense). A7 : chapitre « Demander à Deepotus ». Réponses écrites par le faux Ollama de Deepotus, ancres et chapitres réels.",
+ "scenes": [
+  {"scene": "demander/tiroir", "taille": [1440, 900],
+   "titre": {"fr": "F1 → question → réponse en étapes", "en": "F1 → question → step-by-step answer"},
+   "legende": {"fr": "Le tiroir s'ouvre avec F1 ; la réponse tient en quelques étapes, avec ses boutons.", "en": "The drawer opens with F1; the answer fits in a few steps, with its buttons."},
+   "avant": [{"attente": 1500}],
+   "captures": [
+    {"nom": "ouvert", "etapes": [{"touche": "F1"}, {"attente": 800}]},
+    {"nom": "question", "etapes": [{"saisir": ["css:#dzAgentTiroir textarea", {"fr": "Où je mets ma clé ?", "en": "Where do I put my key?"}]}]},
+    {"nom": "reponse", "etapes": [{"touche": "Enter"}, {"attente": 3000}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 2.2, "surligne": "css:#dzAgentTiroir", "bulle": {"fr": "F1 ouvre le tiroir", "en": "F1 opens the drawer"}, "ancre": "css:#dzAgentTiroir h2"},
+    {"capture": 1, "duree": 2.0, "curseur": "css:#dzAgentTiroir textarea", "surligne": "css:#dzAgentTiroir textarea"},
+    {"capture": 2, "duree": 3.0, "surligne": "css:#dzAgentTiroir .dzAgentActions", "bulle": {"fr": "Montre-moi, Guide", "en": "Show me, Guide"}, "ancre": "css:#dzAgentTiroir .dzAgentActions"}
+   ]},
+  {"scene": "demander/montrer", "taille": [1440, 900],
+   "titre": {"fr": "Montre-moi → le curseur va au bouton", "en": "Show me → the cursor goes to the button"},
+   "legende": {"fr": "Un curseur lumineux glisse jusqu'au bouton et l'entoure, avec son nom dans une bulle.", "en": "A glowing cursor glides to the button and circles it, with its name in a bubble."},
+   "avant": [{"attente": 1500}, {"touche": "F1"}, {"attente": 600},
+             {"saisir": ["css:#dzAgentTiroir textarea", {"fr": "Comment monter ma vidéo ?", "en": "How do I edit my video?"}]},
+             {"touche": "Enter"}, {"attente": 3000}],
+   "captures": [
+    {"nom": "bouton", "etapes": []},
+    {"nom": "halo", "etapes": [{"clic": {"fr": "contient:Montre-moi", "en": "contient:Show me"}}, {"attente": 2000}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 2.0, "curseur": {"fr": "contient:Montre-moi", "en": "contient:Show me"}, "clic": true},
+    {"capture": 1, "duree": 3.0}
+   ]},
+  {"scene": "demander/regarder", "taille": [1440, 900],
+   "titre": {"fr": "Regarder l'écran → accord → pointage", "en": "Look at the screen → consent → pointing"},
+   "legende": {"fr": "Le coût s'affiche avant toute capture ; le partage de l'onglet est demandé par le navigateur (non filmé).", "en": "The cost shows before any capture; the browser asks to share the tab (not filmed)."},
+   "avant": [{"attente": 1500}, {"touche": "F1"}, {"attente": 600},
+             {"saisir": ["css:#dzAgentTiroir textarea", {"fr": "Où est le bouton bidule ?", "en": "Where is the gizmo button?"}]},
+             {"touche": "Enter"}, {"attente": 3000}],
+   "captures": [
+    {"nom": "voir", "etapes": []},
+    {"nom": "accord", "etapes": [{"clic": {"fr": "texte:Regarder l'écran", "en": "texte:Look at the screen"}}, {"attente": 1800}]},
+    {"nom": "pointe", "etapes": [{"clic": {"fr": "texte:Annuler", "en": "texte:Cancel"}},
+      {"js": "const b=[...document.querySelectorAll('aside button')].find(x=>(x.innerText||'').trim().startsWith('Quick'));const r=b.getBoundingClientRect();window.__dzAgentExecuter({type:'point_xy',x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),largeur:innerWidth,hauteur:innerHeight,libelle:'Quick',vue:{l:innerWidth,h:innerHeight}})"},
+      {"attente": 2000}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 2.2, "surligne": {"fr": "texte:Regarder l'écran", "en": "texte:Look at the screen"}},
+    {"capture": 1, "duree": 3.2, "surligne": "css:.dzAgentAccord", "bulle": {"fr": "Coût affiché avant", "en": "Cost shown first"}, "ancre": "css:.dzAgentAccord"},
+    {"capture": 2, "duree": 2.6}
+   ]},
+  {"scene": "demander/voix", "taille": [1440, 900],
+   "titre": {"fr": "Dicter, puis écouter la réponse", "en": "Dictate, then listen to the answer"},
+   "legende": {"fr": "Le micro remplit la saisie ; le haut-parleur lit la réponse avec la voix des Réglages.", "en": "The mic fills the input; the speaker reads the answer with the voice from Settings."},
+   "avant": [{"attente": 1500}, {"touche": "F1"}, {"attente": 600},
+             {"saisir": ["css:#dzAgentTiroir textarea", {"fr": "Où je mets ma clé ?", "en": "Where do I put my key?"}]},
+             {"touche": "Enter"}, {"attente": 3000}],
+   "captures": [{"nom": "voix", "etapes": []}],
+   "temps": [
+    {"capture": 0, "duree": 2.2, "curseur": "css:.dzAgentPied button[aria-pressed]", "surligne": "css:.dzAgentPied button[aria-pressed]", "bulle": {"fr": "Dicter", "en": "Dictate"}, "ancre": "css:.dzAgentPied button[aria-pressed]"},
+    {"capture": 0, "duree": 2.4, "curseur": "css:.dzAgentActions button[aria-pressed]", "surligne": "css:.dzAgentActions button[aria-pressed]", "bulle": {"fr": "Lire à voix haute", "en": "Read aloud"}, "ancre": "css:.dzAgentActions button[aria-pressed]"}
+   ]}
+ ]
+}
