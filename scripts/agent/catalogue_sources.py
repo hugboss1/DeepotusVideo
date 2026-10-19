@@ -244,9 +244,11 @@ def depuis_bundle(racine: pathlib.Path, dico: dict, inv: dict) -> dict:
     def icone(attrs):
         for n in ("icon", "icone"):
             if n in attrs:
-                m = RE_ICONE_LIT.search(b, *attrs[n])
-                if m:
-                    return m.group(1)
+                noms = RE_ICONE_LIT.findall(b, *attrs[n])
+                if len(noms) >= 2 and noms[0].startswith("dz-etat-"):
+                    return noms[1]                       # icon:j?"dz-etat-attente":"dz-B" → l'icône au repos
+                if noms:
+                    return noms[0]
         if "children" in attrs:                          # glyphe dans le contenu propre (__dzGlT, composant icône)
             a, z = attrs["children"]
             k = bisect.bisect_right(debuts, a)
