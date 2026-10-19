@@ -113,19 +113,46 @@ assert.deepEqual(L.etapes({ type: "voir", cible: "ecran" }, "quick"), [{ faire: 
 assert.deepEqual(L.etapes({ type: "point_xy", x: 1, y: 2, largeur: 10, hauteur: 10 }, "quick"), [{ faire: "pointer_xy" }]);
 assert.deepEqual(L.etapes({ type: "point_xy", x: "a", y: 2 }, "quick"), [], "coordonnées douteuses : rien");
 
-// C4 — relevé des éléments visibles (faux document)
+// C4 — relevé des éléments visibles (faux document) : libellés des contrôles seulement, jamais le contenu
 const fauxDoc = (els) => ({ querySelectorAll: () => els });
-const n = (t, title, w = 10, vis = true) => ({
-  textContent: t, getAttribute: (a) => (a === "title" ? title : null),
-  getBoundingClientRect: () => ({ width: vis ? w : 0, height: vis ? 10 : 0 }),
-});
+const n = (t, title, w = 10, vis = true, o = {}) => {
+  const attrs = { title, role: o.role, href: o.href, placeholder: o.placeholder, "aria-label": o.aria };
+  return {
+    tagName: o.tag || "BUTTON", textContent: t, innerText: o.innerText, isContentEditable: !!o.editable,
+    getAttribute: (a) => (attrs[a] == null ? null : attrs[a]),
+    closest: (q) => (q === "nav" && o.nav ? {} : null),
+    getBoundingClientRect: () => ({ width: vis ? w : 0, height: vis ? 10 : 0 }),
+  };
+};
 const rel = L.releverVisibles(fauxDoc([n("Rendre", "Rendu final"), n("Rendre", "Rendu final"), n("caché", "", 10, false),
   n("  a\n b  ", ""), n("", ""), n("x".repeat(200), "")]));
-assert.deepEqual(rel.slice(0, 2), [{ t: "Rendre", i: "Rendu final" }, { t: "a b", i: "" }]);
-assert.equal(rel.length, 3, "doublon, invisible et vide écartés");
-assert.equal(rel[2].t.length, 80);
+assert.deepEqual(rel, [{ t: "Rendre", i: "Rendu final" }, { t: "a", i: "" }],
+  "doublon, invisible, vide et texte long écartés ; première ligne non vide");
 assert.equal(L.releverVisibles(fauxDoc(Array.from({ length: 300 }, (_, k) => n("b" + k, "")))).length, L.MAX_VISIBLES);
 assert.deepEqual(L.releverVisibles(fauxDoc([n("moi", "")]), () => true), [], "exclure() écarte le tiroir");
+// vie privée : un champ ne donne jamais son texte, seulement son infobulle / aria-label / placeholder
+assert.deepEqual(L.releverVisibles(fauxDoc([n("secret de l'utilisateur", "Narration", 10, true, { tag: "TEXTAREA" })])),
+  [{ t: "", i: "Narration" }]);
+assert.deepEqual(L.releverVisibles(fauxDoc([n("secret", null, 10, true, { tag: "TEXTAREA", placeholder: "Ton texte" })])),
+  [{ t: "", i: "Ton texte" }]);
+assert.deepEqual(L.releverVisibles(fauxDoc([n("secret de l'utilisateur", null, 10, true, { tag: "INPUT" }),
+  n("secret", null, 10, true, { tag: "SELECT" }), n("secret", null, 10, true, { tag: "DIV", editable: true })])), [],
+  "champ sans infobulle : rien");
+// libellé collé : la première ligne de innerText
+assert.deepEqual(L.releverVisibles(fauxDoc([n("QuickGénérateurs en un clic", "", 10, true,
+  { innerText: "Quick\nGénérateurs en un clic" })])), [{ t: "Quick", i: "" }]);
+// plus de 40 caractères : du contenu, pas un libellé (l'infobulle reste)
+assert.deepEqual(L.releverVisibles(fauxDoc([n("y".repeat(60), "Bloc 3", 10, true, { innerText: "y".repeat(60) })])),
+  [{ t: "", i: "Bloc 3" }]);
+// pas un contrôle (div [title]) : jamais de texte
+assert.deepEqual(L.releverVisibles(fauxDoc([n("Sous la surface", "Piste voix", 10, true,
+  { tag: "DIV", innerText: "Sous la surface" })])), [{ t: "", i: "Piste voix" }]);
+// contrôles par rôle et liens : le texte est gardé
+assert.deepEqual(L.releverVisibles(fauxDoc([n("Onglet", "", 10, true, { tag: "DIV", role: "tab", innerText: "Onglet" }),
+  n("Lien", "", 10, true, { tag: "A", href: "#x", innerText: "Lien" }),
+  n("Ancre", "", 10, true, { tag: "A", innerText: "Ancre" })])).map((x) => x.t), ["Onglet", "Lien"]);
+// le rail (nav) est exclu
+assert.deepEqual(L.releverVisibles(fauxDoc([n("Quick", "", 10, true, { nav: true })])), [], "rail exclu");
 assert.deepEqual(L.releverVisibles({ querySelectorAll: () => { throw new Error("x"); } }), []);
 
 // 6. le module n'utilise aucun objet du navigateur à l'import
