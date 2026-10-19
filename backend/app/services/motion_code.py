@@ -46,6 +46,8 @@ CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'
 MAX_PAGE = 10 * 1024 * 1024             # octets UTF-8 de la page
 DELAI = 120.0                           # secondes, tout le rendu
 DELAI_APPEL = 20.0                      # secondes, une commande CDP (chargement, une image)
+DELAI_PAR_IMAGE = 0.5                   # secondes de rendu par image (≈ 5 × les 80-95 ms mesurés en 1080×1920)
+DELAI_ECRITURE = 420.0                  # secondes, un appel au moteur : 16 000 jetons à 40 jetons/s au moins
 FPS = (12, 60)
 FPS_DEFAUT = 30
 DUREE = (1, 60)
@@ -498,9 +500,23 @@ def systeme(d: dict, W: int, H: int, duree_s: float, fps: int, m: dict, tempo_bp
 
 def prompt(script: str, aspect: str, W: int, H: int, duree_s: float, fps: int, erreur: str = "") -> str:
     p = f"Format {aspect} ({W}×{H}), {duree_s:g} s, {fps} images/s.\nSCRIPT :\n{script}"
-    if erreur:
+    if erreur == "delai":
+        p += ("\n\nTa réponse précédente n'est pas arrivée à temps. Écris une page plus courte : moins d'éléments, "
+              "du code compact, aucune donnée inutile.")
+    elif erreur:
         p += f"\n\nTa page précédente a été refusée ({erreur[:200]}). Réécris-la en respectant le bac à sable."
     return p
+
+
+def _echec_moteur(e: BaseException) -> str:
+    """La raison d'un appel au moteur qui n'a rien rendu : `delai` (délai dépassé), `erreur_moteur` (HTTP, réseau),
+    `sortie_invalide` (réponse illisible)."""
+    import httpx
+    if isinstance(e, (TimeoutError, httpx.TimeoutException)):
+        return "delai"
+    if isinstance(e, httpx.HTTPError) or re.search(r"\bHTTP \d{3}\b", str(e)):
+        return "erreur_moteur"
+    return "sortie_invalide"
 
 
 # ── les pages enregistrées ────────────────────────────────────────────────────────────────────────────────────────
@@ -535,10 +551,17 @@ def bornes(aspect, fps, duree_s) -> tuple:
     return aspect, W, H, f, d
 
 
-def rendre(pid, sortie, *, aspect="9:16", fps=FPS_DEFAUT, duree_s=DUREE_DEFAUT, langue="fr", delai=DELAI) -> dict:
+def delai_rendu(fps, duree_s) -> float:
+    """Le délai de TOUT le rendu : 120 s au moins, 0,5 s par image au-delà (15 s à 60 i/s = 900 images → 450 s). Une page
+    qui boucle reste arrêtée par le délai de 20 s par commande."""
+    return max(DELAI, max(1, int(round(float(duree_s) * int(fps)))) * DELAI_PAR_IMAGE)
+
+
+def rendre(pid, sortie, *, aspect="9:16", fps=FPS_DEFAUT, duree_s=DUREE_DEFAUT, langue="fr", delai=None) -> dict:
     """La page enregistrée `pid`, contrôlée de nouveau (un fichier modifié à la main est refusé aussi), rendue en MP4."""
     aspect, W, H, f, d = bornes(aspect, fps, duree_s)
-    return rendre_page(lire(pid), sortie, W=W, H=H, fps=f, duree_s=d, langue=langue, delai=delai)
+    return rendre_page(lire(pid), sortie, W=W, H=H, fps=f, duree_s=d, langue=langue,
+                       delai=delai_rendu(f, d) if delai is None else delai)
 
 
 # ── l'écriture par le moteur ──────────────────────────────────────────────────────────────────────────────────────
@@ -585,8 +608,13 @@ async def ecrire(corps: dict, langue: str = "fr") -> dict:
         return _repli("modele_fautif")
     rep["effort_applique"] = MT.effort_applique(moteur, modele, effort)
     sy = systeme(d, W, H, duree, fps, m, bpm)
+    import httpx
     erreur, raison = "", "sortie_invalide"
-    for n in ((1,) if d["curseurs"]["finition"] <= 1 else (1, 2)):
+    for n in (1, 2):
+        # Une 2e tentative : toujours après un délai dépassé ou une erreur du moteur (rien n'a été écrit) ; après une
+        # page refusée ou illisible, seulement au-dessus de la Finition 1 (comportement de t238).
+        if n == 2 and raison not in ("delai", "erreur_moteur") and d["curseurs"]["finition"] <= 1:
+            break
         p = prompt(script, aspect, W, H, duree, fps, erreur)
         rep["tentatives"] = n
         rep["cout"]["estime_usd"] = round(rep["cout"]["estime_usd"]
@@ -594,9 +622,10 @@ async def ecrire(corps: dict, langue: str = "fr") -> dict:
                                                                          modele=modele))["total_usd"], 6)
         try:
             texte = await MT.tirer_garde(moteur, modele, p, sy, MAX_TOKENS, json=False, categorie="motion",
-                                         effort=effort, timeout=180.0)
-        except RuntimeError as e:
-            erreur, raison = str(e), "sortie_invalide"
+                                         effort=effort, timeout=DELAI_ECRITURE)
+        except (RuntimeError, TimeoutError, httpx.HTTPError) as e:     # le plafond (HTTPException 402) remonte
+            raison = _echec_moteur(e)
+            erreur = "delai" if raison == "delai" else ""
             continue
         html = extraire_page(texte)
         refus = controler(html)

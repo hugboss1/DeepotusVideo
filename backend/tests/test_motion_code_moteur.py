@@ -283,8 +283,9 @@ check("V11 build : appelle le script, vérifie l'arbre préparé, copie manifest
       "vendor_chrome_headless_shell.py" in ps and "--verifier" in ps and "chrome-headless-shell.json" in ps
       and "NOTICE-chrome-headless-shell.txt" in ps, "")
 src = (RACINE / "backend" / "app" / "services" / "motion_code.py").read_text("utf-8")
-check("V12 l'application ne télécharge jamais le moteur (aucun urllib / requests / httpx dans motion_code)",
-      not re.search(r"\b(urllib|requests|httpx)\b", src))
+check("V12 l'application ne télécharge jamais le moteur (aucun appel réseau dans motion_code ; httpx n'y sert qu'à "
+      "reconnaître les exceptions d'un appel au moteur de texte)",
+      not re.search(r"\b(urllib|requests)\b|httpx\.(get|post|put|stream|request|Client|AsyncClient)\b", src))
 
 # ── [E] le vrai moteur embarqué, s'il est fourni sur ce poste ─────────────────────────────────────────────────────
 print("[E] moteur embarqué réel")
