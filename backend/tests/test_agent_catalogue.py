@@ -59,12 +59,23 @@ def _depot(tmp_path, bundle):
                                              "commun.lit.lecture": {"fr": "Lecture (Espace)", "en": "Play (Space)"}}))
     _ecrire(i18n / "a.json", json.dumps(CLES_A, ensure_ascii=False))
     _ecrire(i18n / "vectorlab.json", json.dumps({"vectorlab.core.grille_titre": {"fr": "Grille", "en": "Grid"},
-                                                 "vectorlab.calques.renommer_titre": {"fr": "Renommer", "en": "Rename"}}))
+                                                 "vectorlab.calques.renommer_titre": {"fr": "Renommer", "en": "Rename"},
+                                                 "vectorlab.pixel.teinte": {"fr": "Teinte", "en": "Hue"},
+                                                 "vectorlab.pixel.remplir_titre": {"fr": "Remplir", "en": "Fill"},
+                                                 "vectorlab.pixel.vlt_aide": {"fr": "Aide", "en": "Help"},
+                                                 "vectorlab.pixel.boite_titre": {"fr": "Boîte", "en": "Box"}}))
     _ecrire(i18n / "photolab.json", json.dumps({"photolab.outil.pinceau": {"fr": "Pinceau", "en": "Brush"}}))
     _ecrire(i18n / "avatar.json", json.dumps({"avatar.direct.lancer": {"fr": "Lancer le direct", "en": "Start live"}}))
     _ecrire(tmp_path / "frontend" / "dist" / "assets" / "index-TEST.js", bundle)
     _ecrire(tmp_path / "frontend" / "vectorlab" / "js" / "core.js", 'b.title = T("vectorlab.core.grille_titre");\n'
             'const n = await VL.dialogue.saisir({ titre: T("vectorlab.calques.renommer_titre") });')
+    _ecrire(tmp_path / "frontend" / "vectorlab" / "js" / "mod-pixelui.js", "\n".join([
+        'p.innerHTML = `<div class="ap-ligne"><input type="number" id="pxH" min="-180" title="${T("vectorlab.pixel.teinte")}"/>',
+        '  <button id="pxRemplir" ${o ? "" : "disabled"} title="${T("vectorlab.pixel.remplir_titre")}">OK</button></div>`;',
+        'b.title = vlT("vectorlab.pixel.vlt_aide");',
+        'await ouvrirDialogue(PL, {',
+        '  titre: T("vectorlab.pixel.boite_titre"), classe: "large",',
+        '});']))
     _ecrire(tmp_path / "frontend" / "vectorlab" / "index.html", "<html></html>")
     _ecrire(tmp_path / "frontend" / "photolab" / "index.html", "<html></html>")
     _ecrire(tmp_path / "frontend" / "avatar" / "avatar.js",
@@ -246,3 +257,15 @@ def test_exclusions_du_skill(depot):
     e = S.extraire(depot)
     assert "coque.rail.replier" not in e and not any(k.startswith("reglages.") for k in e)
     assert "montage.outils.lame" in e and "vectorlab.fiche.plume" in e
+
+
+def test_gabarits_du_vectorlab(depot):
+    e = S.extraire(depot)
+    assert e["vectorlab.pixel.teinte"]["type"] == "champ"            # title="${T(…)}" porté par un <input>
+    assert e["vectorlab.pixel.remplir_titre"]["type"] == "bouton"    # … par un <button>
+    assert e["vectorlab.pixel.remplir_titre"]["infobulle"]["en"] == "Fill"
+    assert e["vectorlab.pixel.vlt_aide"]["cadre"] == "/vectorlab/"   # vlT(…) comme T(…)
+
+
+def test_dialogue_sur_deux_lignes(depot):
+    assert "vectorlab.pixel.boite_titre" not in S.extraire(depot)    # ouvrirDialogue(PL, { puis titre: T(…)

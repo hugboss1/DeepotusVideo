@@ -48,7 +48,9 @@ RE_ELEMENT = re.compile(r'\.jsxs?\(\s*("[a-zA-Z][a-zA-Z0-9-]*"|[A-Za-z_$][\w$.]*
 RE_CLE = re.compile(r'dzT\("([a-z0-9_.]+)"\s*[,)]')              # dzT("cle") ou dzT("cle",{params})
 RE_ICONE_LIT = re.compile(r'"(dz-[a-z0-9-]+)"')
 RE_ICONE = re.compile(r'icone?:"(dz-[a-z0-9-]+)"')
-RE_T_LAB = re.compile(r'(title|titre|"aria-label"|tip)\s*[:=]\s*(?:T|dzT|t)\("([a-z0-9_.]+)"\)')
+# infobulle d'un lab : title: T("k"), b.title = T("k"), et la forme gabarit title="${T("k")}" ; T, dzT, t ou vlT
+RE_T_LAB = re.compile(r'(title|titre|"aria-label"|aria-label|tip)\s*[:=]\s*(?:"\$\{\s*)?(?:T|dzT|t|vlT)\("([a-z0-9_.]+)"\)')
+RE_BALISE = re.compile(r"<([A-Za-z][\w-]*)")
 # une ligne de lab qui ouvre un dialogue : son « titre: T(…) » est le titre de la boîte, pas un élément
 RE_DIALOGUE = re.compile(r"saisir\(|confirmer\(|valider:|dialogue", re.I)
 EXCLUS = ("docs", "agent", "catalogue", "_exclus.json")   # faux éléments écartés par le skill connaissance-agent
@@ -325,6 +327,27 @@ def _ajouter(out: dict, nouveaux: dict) -> None:
             out[k] = e
 
 
+def _infobulles_lab(texte: str):
+    """(clé, position) des infobulles d'un fichier de lab, hors lignes de dialogue (la ligne OU la précédente :
+    « ouvrirDialogue(PL, { » puis « titre: T(…) »)."""
+    debut, avant = 0, ""
+    for ligne in texte.splitlines(keepends=True):
+        if not (RE_DIALOGUE.search(ligne) or RE_DIALOGUE.search(avant)):
+            for m in RE_T_LAB.finditer(ligne):
+                yield m.group(2), debut + m.start()
+        debut, avant = debut + len(ligne), ligne
+
+
+def _type_lab(texte: str, pos: int) -> str:
+    """« champ » si l'attribut est dans la balise ouvrante d'un <input>/<select>/<textarea> (gabarit HTML), sinon
+    « bouton »."""
+    lt = texte.rfind("<", 0, pos)
+    if lt < 0 or ">" in texte[lt:pos].replace("=>", ""):   # hors balise (b.title = T(…)) ; « => » n'en ferme pas
+        return "bouton"
+    m = RE_BALISE.match(texte, lt)
+    return "champ" if m and m.group(1).lower() in CHAMPS else "bouton"
+
+
 def depuis_labs(racine: pathlib.Path, dico: dict) -> dict:
     """Les infobulles T("cle") des labs en cadre intégré (index.html, *.js, js/*.js), plus le registre des outils du
     Photolab (photolab.outil.<id>)."""
@@ -336,12 +359,12 @@ def depuis_labs(racine: pathlib.Path, dico: dict) -> dict:
             if not f.exists():
                 continue
             rel = f.relative_to(racine).as_posix()
-            lignes = f.read_text(encoding="utf-8", errors="replace").splitlines()
-            for _a, k in (c for l in lignes if not RE_DIALOGUE.search(l) for c in RE_T_LAB.findall(l)):
+            texte = f.read_text(encoding="utf-8", errors="replace")
+            for k, pos in _infobulles_lab(texte):
                 if k not in dico or message(k):
                     continue
-                e = out.get(k) or {**_base(k, "bouton", dico), "ecran": ec, "cadre": cadre, "libelle": dict(VIDE),
-                                   "infobulle": _texte(dico, k), "sources": []}
+                e = out.get(k) or {**_base(k, _type_lab(texte, pos), dico), "ecran": ec, "cadre": cadre,
+                                   "libelle": dict(VIDE), "infobulle": _texte(dico, k), "sources": []}
                 e["sources"] = sorted(set(e["sources"]) | {rel})
                 out[k] = e
     for k in dico:
