@@ -60,10 +60,13 @@ def _depot(tmp_path, bundle):
     _ecrire(i18n / "a.json", json.dumps(CLES_A, ensure_ascii=False))
     _ecrire(i18n / "vectorlab.json", json.dumps({"vectorlab.core.grille_titre": {"fr": "Grille", "en": "Grid"}}))
     _ecrire(i18n / "photolab.json", json.dumps({"photolab.outil.pinceau": {"fr": "Pinceau", "en": "Brush"}}))
+    _ecrire(i18n / "avatar.json", json.dumps({"avatar.direct.lancer": {"fr": "Lancer le direct", "en": "Start live"}}))
     _ecrire(tmp_path / "frontend" / "dist" / "assets" / "index-TEST.js", bundle)
     _ecrire(tmp_path / "frontend" / "vectorlab" / "js" / "core.js", 'b.title = T("vectorlab.core.grille_titre");')
     _ecrire(tmp_path / "frontend" / "vectorlab" / "index.html", "<html></html>")
     _ecrire(tmp_path / "frontend" / "photolab" / "index.html", "<html></html>")
+    _ecrire(tmp_path / "frontend" / "avatar" / "avatar.js",
+            'el("button", { type: "button", title: T("avatar.direct.lancer"), onclick: go });')
     _ecrire(tmp_path / "frontend" / "vectorlab" / "aide" / "index.json", json.dumps(
         [{"id": "plume", "titre": "Plume", "phrase": "Trace des courbes.", "titre_en": "Pen", "phrase_en": "Draws curves."}]))
     _ecrire(tmp_path / "backend" / "app" / "api" / "settings_routes.py",
@@ -197,3 +200,35 @@ def test_litteral_ecran_de_la_cle_proche(tmp_path):
     b = 'r.jsx("button",{onClick:f,children:dzT("montage.outils.lame")});r.jsx("button",{onClick:f,title:"Zoom"})'
     lit = [x for x in S.extraire(_depot(tmp_path, b)).values() if x["id"].startswith("lit.")]
     assert len(lit) == 1 and lit[0]["ecran"] == "montage"
+
+
+def test_labs(depot):
+    e = S.extraire(depot)
+    g = e["vectorlab.core.grille_titre"]
+    assert g["ecran"] == "vectorlab" and g["cadre"] == "/vectorlab/" and g["infobulle"]["en"] == "Grid"
+    assert "frontend/vectorlab/js/core.js" in g["sources"]
+    p = e["photolab.outil.pinceau"]
+    assert p["type"] == "outil" and p["cadre"] == "/photolab/" and p["libelle"]["en"] == "Brush"
+
+
+def test_avatar_live(depot):
+    a = S.extraire(depot)["avatar.direct.lancer"]
+    assert a["ecran"] == "avatarlive" and a["cadre"] == "/avatar/" and a["infobulle"]["en"] == "Start live"
+    assert a["sources"] == ["frontend/avatar/avatar.js"]
+
+
+def test_meme_cle_bundle_et_lab(tmp_path):
+    b = 'r.jsx("button",{onClick:f,title:dzT("vectorlab.core.grille_titre")})'
+    e = S.extraire(_depot(tmp_path, b))
+    g = e["vectorlab.core.grille_titre"]                       # une seule fiche, sources fusionnées
+    assert set(g["sources"]) == {"i18n:vectorlab.core.grille_titre", "frontend/vectorlab/js/core.js"}
+    assert g["infobulle"]["en"] == "Grid" and g["cadre"] == "/vectorlab/"
+
+
+def test_reglages_et_fiches(depot):
+    e = S.extraire(depot)
+    r = e["reglages.keys.cles-api"]
+    assert r["type"] == "reglage" and r["ecran"] == "settings" and r["reglages"] == "keys"
+    assert r["libelle"]["fr"] == "Clés API"
+    f = e["vectorlab.fiche.plume"]
+    assert f["fiche"] == "plume" and f["cadre"] == "/vectorlab/" and f["infobulle"]["en"] == "Draws curves."

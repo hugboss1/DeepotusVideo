@@ -36,7 +36,9 @@ CADRE_DE_ZONE = {"vectorlab": "/vectorlab/", "photolab": "/photolab/", "sprites"
 ROLES_MESSAGES = {"echec", "erreur", "err", "vide", "aucun", "aucune", "chargement", "en_cours", "illisible",
                   "refuse", "fait", "enregistre", "pose", "plusieurs", "un", "redaction", "lecture", "generation",
                   "manquant", "manquante", "manque", "attente", "pret"}
-LABS = {"vectorlab": "/vectorlab/", "photolab": "/photolab/"}
+# labs servis en cadre intégré dont le code est lu en clair : dossier de frontend/ → (écran, cadre)
+LABS = {"vectorlab": ("vectorlab", "/vectorlab/"), "photolab": ("photolab", "/photolab/"),
+        "avatar": ("avatarlive", "/avatar/")}
 LAB_DE_DOSSIER = {"vectorlab": ("vectorlab", "/vectorlab/"), "photolab": ("photolab", "/photolab/"),
                   "spritelab": ("assets3d", "/spritelab/"), "tilelab": ("assets3d", "/tilelab/")}
 
@@ -305,11 +307,91 @@ def depuis_bundle(racine: pathlib.Path, dico: dict, inv: dict) -> dict:
     return out
 
 
+def _slug(t: str) -> str:
+    import unicodedata
+    s = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", "-", s).strip("-")[:40] or _sha8(t)
+
+
+def _ajouter(out: dict, nouveaux: dict) -> None:
+    """Une clé déjà vue (bundle, autre lab) garde sa 1re fiche ; seules les sources s'ajoutent."""
+    for k, e in nouveaux.items():
+        if k in out:
+            out[k]["sources"] = sorted(set(out[k]["sources"]) | set(e["sources"]))
+        else:
+            out[k] = e
+
+
+def depuis_labs(racine: pathlib.Path, dico: dict) -> dict:
+    """Les infobulles T("cle") des labs en cadre intégré (index.html, *.js, js/*.js), plus le registre des outils du
+    Photolab (photolab.outil.<id>)."""
+    out = {}
+    for dossier_lab, (ec, cadre) in LABS.items():
+        dossier = racine / "frontend" / dossier_lab
+        fichiers = [dossier / "index.html", *sorted(dossier.glob("*.js")), *sorted((dossier / "js").glob("*.js"))]
+        for f in fichiers:
+            if not f.exists():
+                continue
+            rel = f.relative_to(racine).as_posix()
+            for _a, k in RE_T_LAB.findall(f.read_text(encoding="utf-8", errors="replace")):
+                if k not in dico or message(k):
+                    continue
+                e = out.get(k) or {**_base(k, "bouton", dico), "ecran": ec, "cadre": cadre, "libelle": dict(VIDE),
+                                   "infobulle": _texte(dico, k), "sources": []}
+                e["sources"] = sorted(set(e["sources"]) | {rel})
+                out[k] = e
+    for k in dico:
+        if k.startswith("photolab.outil.") and not message(k):
+            e = {**_base(k, "outil", dico), "ecran": "photolab", "cadre": "/photolab/"}
+            if k in out:                                  # outil aussi lu en infobulle : une fiche, sources fusionnées
+                e["sources"] = sorted(set(e["sources"]) | set(out[k]["sources"]))
+            out[k] = e
+    return out
+
+
+def depuis_reglages(racine: pathlib.Path, inv: dict) -> dict:
+    """Les rubriques de la recherche des Réglages (_INDEX_FIXE de settings_routes.py)."""
+    f = racine / "backend" / "app" / "api" / "settings_routes.py"
+    if not f.exists():
+        return {}
+    valeur = []
+    for n in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+        if isinstance(n, ast.Assign) and any(getattr(t, "id", None) == "_INDEX_FIXE" for t in n.targets):
+            valeur = ast.literal_eval(n.value)
+    out = {}
+    for section, libelle, _mots in valeur:
+        i = f"reglages.{section}.{_slug(libelle)}"
+        if i in out:
+            continue
+        out[i] = {"id": i, "ecran": "settings", "cadre": None, "type": "reglage",
+                  "libelle": {"fr": libelle, "en": inv.get(libelle, libelle)}, "infobulle": None, "icone": None,
+                  "sources": ["backend/app/api/settings_routes.py#_INDEX_FIXE"], "reglages": section}
+    return out
+
+
+def depuis_fiches(racine: pathlib.Path) -> dict:
+    """Les fiches didactiques des labs (frontend/<lab>/aide/index.json)."""
+    out = {}
+    for f in sorted((racine / "frontend").glob("*/aide/index.json")):
+        dossier = f.parent.parent.name
+        ec, cadre = LAB_DE_DOSSIER.get(dossier, ("commun", None))
+        for x in json.loads(f.read_text(encoding="utf-8")):
+            i = f"{dossier}.fiche.{x['id']}"
+            out[i] = {"id": i, "ecran": ec, "cadre": cadre, "type": "outil",
+                      "libelle": {"fr": x["titre"], "en": x.get("titre_en") or x["titre"]},
+                      "infobulle": {"fr": x["phrase"], "en": x.get("phrase_en") or x["phrase"]}, "icone": None,
+                      "sources": [f.relative_to(racine).as_posix()], "fiche": x["id"]}
+    return out
+
+
 def extraire(racine) -> dict:
-    """Tous les éléments bruts du dépôt, par id."""
+    """Tous les éléments bruts du dépôt, par id. Une clé vue par plusieurs sources : une seule fiche (la 1re)."""
     racine = pathlib.Path(racine)
     dico = dictionnaire(racine)
     inv = inverse(dico)
     out = {}
     out.update(depuis_bundle(racine, dico, inv))
+    _ajouter(out, depuis_labs(racine, dico))
+    _ajouter(out, depuis_reglages(racine, inv))
+    _ajouter(out, depuis_fiches(racine))
     return out
