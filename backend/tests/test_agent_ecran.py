@@ -113,5 +113,26 @@ def test_capture_de_l_onglet():
     assert "window.isSecureContext" in src
 
 
+def test_vision_dans_le_tiroir():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert 'from "./dz-agent-vision.js"' in src
+    r = src[src.index("async function regarder("):]
+    assert r.index("captureDisponible()") < r.index("accord(") < r.index("capturer(") < r.index("envoyerVue("), \
+        "disponibilité, accord (devis), capture, envoi : dans cet ordre"
+    assert "/api/agent/estimer" in src and "max_usd" in src
+    assert ".filter((m) => m.vision)" in src, "l'accord ne propose que les moteurs qui voient"
+    assert 'e.faire === "voir"' in src and 'e.faire === "pointer_xy"' in src
+    assert "versEcran(" in src and "cliquable(" in src and "document.elementFromPoint(" in src
+    assert "occupe || enVue" in src, "une seule demande à la fois"
+
+
+def test_libelles_vision():
+    for k in ("agent.vision.voir", "agent.vision.accord", "agent.vision.accord_gratuit", "agent.vision.envoyer",
+              "agent.vision.annuler", "agent.vision.moteur", "agent.vision.indisponible", "agent.vision.aucun_moteur",
+              "agent.vision.refusee", "agent.vision.onglet", "agent.vision.ici", "agent.vision.devis"):
+        assert k in I18N, k
+    assert "${usd}" in I18N["agent.vision.accord"]["en"] and "{usd} $" in I18N["agent.vision.accord"]["fr"]
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

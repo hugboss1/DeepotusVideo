@@ -7,8 +7,9 @@
 // moteur} ; sous chaque réponse, un bouton par action (Montre-moi / Y aller / Guide). L'historique reste dans
 // sessionStorage (dz_agent_hist) ; le moteur choisi dans localStorage (dz_agent_moteur). Un 402 `dz_plafond` est
 // traité par la couche /shared/dz-plafonds.js (elle enveloppe window.fetch) : rien à faire ici.
-import { etapes, historiqueBorne, choisir, composer, candidats } from "./dz-agent-logique.js";
+import { etapes, historiqueBorne, choisir, composer, candidats, versEcran, cliquable, prix } from "./dz-agent-logique.js";
 import { creerPointeur } from "./dz-agent-pointeur.js";
+import { capturer, captureDisponible } from "./dz-agent-vision.js";
 
 if (!window.__dzAgent) {
   window.__dzAgent = true;
@@ -51,14 +52,16 @@ if (!window.__dzAgent) {
 .dzAgentPied{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--stroke,#2a2930)}
 .dzAgentPied textarea{flex:1;resize:none;min-height:38px;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:8px;padding:6px}
 .dzAgentTete select{background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
-.dzAgentTete button:disabled,.dzAgentPied button:disabled{opacity:.5;cursor:default}` });
+.dzAgentTete button:disabled,.dzAgentPied button:disabled{opacity:.5;cursor:default}
+.dzAgentAccord select{margin:6px 0;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
+.dzAgentAccord p{margin:0}` });
 
   const fil = el("div", { class: "dzAgentFil", role: "log", "aria-live": "polite" });
   const saisie = el("textarea", { placeholder: T("agent.tiroir.placeholder"), "aria-label": T("agent.tiroir.placeholder") });
   const choix = el("select", { "aria-label": T("agent.moteur.libelle"), title: T("agent.moteur.libelle") });
   const btnEnvoyer = el("button", { texte: T("agent.tiroir.envoyer"), on: { click: () => envoyer() } });
   const btnNouvelle = el("button", { texte: "↺", title: T("agent.tiroir.nouvelle"), "aria-label": T("agent.tiroir.nouvelle"),
-    on: { click: () => { if (occupe) return; hist = []; garder(); dessiner(); } } });
+    on: { click: () => { if (occupe || enVue) return; hist = []; garder(); dessiner(); } } });
   const tiroir = el("aside", { id: "dzAgentTiroir", class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
     el("div", { class: "dzAgentTete" }, [
       el("h2", { texte: T("agent.tiroir.titre") }), choix, btnNouvelle,
@@ -79,33 +82,41 @@ if (!window.__dzAgent) {
     else if (focusDedans) bouton.focus();     // le focus ne reste pas dans un tiroir masqué
   }
 
+  let etatAgent = null;     // réponse de /api/agent/etat (moteurs avec cout et vision ; voix en A6)
   async function chargerMoteurs() {
     if (choix.dataset.charge) return;
     choix.dataset.charge = "1";
     try {
       const r = await fetch("/api/agent/etat");
       const j = await r.json();
+      etatAgent = j;
       choix.replaceChildren(el("option", { value: "", texte: T("agent.moteur.auto") }),
         ...j.moteurs.map((m) => el("option", { value: m.moteur,
           texte: `${m.nom} · ${T(m.cout === "gratuit" ? "agent.moteur.cout_gratuit" : "agent.moteur.cout_payant")}` })));
       choix.value = lire(window.localStorage, "dz_agent_moteur") || "";
     } catch (e) { delete choix.dataset.charge; }
   }
+  async function moteursConnus() {
+    if (!etatAgent) await chargerMoteurs();
+    return etatAgent && Array.isArray(etatAgent.moteurs) ? etatAgent.moteurs : [];
+  }
   choix.addEventListener("change", () => ecrire(window.localStorage, "dz_agent_moteur", choix.value));
 
   // actionsDuMessage : toutes les actions du message d'où vient le clic (l'ancre introuvable renvoie vers ses guides)
-  function boutonAction(a, actionsDuMessage) {
+  function boutonAction(a, actionsDuMessage, msg) {
     const l = lang();
     const libelle = a.type === "point" ? T("agent.action.montrer", { libelle: a[l] || a.fr })
+      : a.type === "point_xy" ? T("agent.action.montrer", { libelle: a.libelle || T("agent.vision.ici") })
+      : a.type === "voir" ? T("agent.vision.voir")
       : a.type === "guide" ? T("agent.action.guide", { titre: a[l] || a.fr }) : T("agent.action.aller");
-    return el("button", { texte: libelle, on: { click: () => executer(a, actionsDuMessage) } });
+    return el("button", { texte: libelle, on: { click: () => executer(a, actionsDuMessage, msg) } });
   }
 
   function dessiner(enAttente) {
     const msgs = hist.length ? hist : [{ role: "assistant", texte: T("agent.tiroir.accueil") }];
     fil.replaceChildren(...msgs.map((m) => {
       const b = el("div", { class: "dzAgentMsg", "data-role": m.role, texte: m.texte });
-      if (m.actions && m.actions.length) b.appendChild(el("div", { class: "dzAgentActions" }, m.actions.map((x) => boutonAction(x, m.actions))));
+      if (m.actions && m.actions.length) b.appendChild(el("div", { class: "dzAgentActions" }, m.actions.map((x) => boutonAction(x, m.actions, m))));
       return b;
     }));
     if (enAttente) fil.appendChild(el("div", { class: "dzAgentMsg", "data-role": "assistant", texte: T("agent.reponse.reflechit") }));
@@ -113,10 +124,10 @@ if (!window.__dzAgent) {
   }
 
   // un seul envoi à la fois ; un échec rend la question à la saisie et ne part jamais dans l'historique du serveur
-  let occupe = false;
+  let occupe = false, enVue = false;
   async function envoyer() {
     const q = saisie.value.trim();
-    if (!q || occupe) return;
+    if (!q || occupe || enVue) return;
     occupe = true;
     btnEnvoyer.disabled = true;
     btnNouvelle.disabled = true;
@@ -131,7 +142,8 @@ if (!window.__dzAgent) {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
       if (typeof j.texte !== "string" || !j.texte.trim()) throw new Error("—");
-      hist.push({ role: "assistant", texte: j.texte, actions: Array.isArray(j.actions) ? j.actions : [] });
+      hist.push({ role: "assistant", texte: j.texte, actions: Array.isArray(j.actions) ? j.actions : [],
+        question: q, avant });
     } catch (e) {
       const i = hist.indexOf(question);
       if (i >= 0) hist.splice(i, 1);
@@ -231,8 +243,111 @@ if (!window.__dzAgent) {
     if (moi !== tourPointeur || !n.isConnected) return;
     montrer(n, a[lang()] || a.fr);
   }
+  // ── A5 : la vision en secours. Accord (moteurs qui voient, devis gratuit), capture de CET onglet tiroir masqué,
+  // second appel avec max_usd = le montant affiché, puis pointage du premier point rendu.
+  const cacher = () => { effacerPointeur(); tiroir.style.visibility = "hidden"; bouton.style.visibility = "hidden"; };
+  const reafficher = () => { tiroir.style.visibility = ""; bouton.style.visibility = ""; };
+  function dire(cle, guides) {
+    hist.push({ role: "assistant", texte: T(cle), actions: guides || [], erreur: true });
+    garder(); dessiner();
+  }
+
+  // rend {moteur, usd} accepté, ou null (annulé)
+  function accord(vus, corps) {
+    return new Promise((fin) => {
+      const texte = el("p", { texte: T("agent.vision.devis") });
+      const sel = el("select", { "aria-label": T("agent.vision.moteur"), title: T("agent.vision.moteur") },
+        vus.map((m) => el("option", { value: m.moteur, texte: m.nom })));
+      sel.value = (vus.find((m) => m.moteur === choix.value) || vus[0]).moteur;
+      if (vus.length < 2) sel.hidden = true;
+      const oui = el("button", { texte: T("agent.vision.envoyer") });
+      const non = el("button", { texte: T("agent.vision.annuler") });
+      const boite = el("div", { class: "dzAgentMsg dzAgentAccord", "data-role": "assistant", role: "group" },
+        [texte, sel, el("div", { class: "dzAgentActions" }, [oui, non])]);
+      let devis = null, tour = 0;
+      const fermer = (r) => { boite.remove(); fin(r); };
+      async function chiffrer() {
+        const moi = ++tour;
+        oui.disabled = true; devis = null;
+        texte.textContent = T("agent.vision.devis");
+        try {
+          const r = await fetch("/api/agent/estimer", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...corps, moteur: sel.value }) });
+          const j = await r.json().catch(() => ({}));
+          if (moi !== tour) return;
+          if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
+          devis = j;
+          texte.textContent = T(j.cout === "gratuit" ? "agent.vision.accord_gratuit" : "agent.vision.accord",
+            { nom: j.nom, usd: prix(j.usd, lang()) });
+          oui.disabled = !j.vision;
+        } catch (e) { if (moi === tour) texte.textContent = T("agent.reponse.erreur", { msg: (e && e.message) || "—" }); }
+      }
+      sel.addEventListener("change", chiffrer);
+      oui.addEventListener("click", () => { if (devis) fermer({ moteur: devis.moteur, usd: devis.usd }); });
+      non.addEventListener("click", () => fermer(null));
+      fil.appendChild(boite);
+      fil.scrollTop = fil.scrollHeight;
+      chiffrer();
+    });
+  }
+
+  async function regarder(msg, actionsDuMessage) {
+    if (occupe || enVue || !msg || !msg.question) return;
+    const guides = (actionsDuMessage || []).filter((x) => x && x.type === "guide");
+    if (!captureDisponible()) return dire("agent.vision.indisponible", guides);
+    const vus = (await moteursConnus()).filter((m) => m.vision);
+    if (!vus.length) return dire("agent.vision.aucun_moteur", guides);
+    enVue = true;
+    try {
+      const corps = { question: msg.question, historique: msg.avant || [], ecran: vue(), lang: lang() };
+      const ok = await accord(vus, corps);
+      if (!ok) return;
+      let cap;
+      try { cap = await capturer({ avant: cacher, apres: reafficher }); }
+      catch (e) {
+        return dire(e && e.name === "NotAllowedError" ? "agent.vision.refusee"
+          : e && e.message === "autre-surface" ? "agent.vision.onglet" : "agent.vision.indisponible", guides);
+      }
+      await envoyerVue({ ...corps, moteur: ok.moteur, max_usd: ok.usd,
+        image: { mime: cap.mime, b64: cap.b64, largeur: cap.largeur, hauteur: cap.hauteur } }, cap.vue);
+    } finally { enVue = false; }
+  }
+
+  async function envoyerVue(corps, vueCapture) {
+    occupe = true; btnEnvoyer.disabled = true; btnNouvelle.disabled = true;
+    dessiner(true);
+    let premier = null, actions = [];
+    try {
+      const r = await fetch("/api/agent/demander", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corps) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
+      actions = (Array.isArray(j.actions) ? j.actions : []).map((x) => (x && x.type === "point_xy" ? { ...x, vue: vueCapture } : x));
+      hist.push({ role: "assistant", texte: j.texte || "", actions });
+      premier = actions.find((x) => x && x.type === "point_xy") || null;
+    } catch (e) {
+      hist.push({ role: "assistant", texte: T("agent.reponse.erreur", { msg: (e && e.message) || "—" }), erreur: true });
+    } finally {
+      occupe = false; btnEnvoyer.disabled = false; btnNouvelle.disabled = false;
+      garder(); dessiner();
+    }
+    if (premier) executer(premier, actions);       // à la Clicky : on montre tout de suite ce qu'on a trouvé
+  }
+
+  // un point rendu en pixels de la capture : l'élément cliquable dessous, sinon un petit halo sur le point
+  async function pointerXY(a, moi) {
+    effacerPointeur();
+    const p = versEcran(a, a.vue || { l: window.innerWidth, h: window.innerHeight });
+    if (!p || moi !== tourPointeur) return;
+    const sous = document.elementFromPoint(p.x, p.y);
+    const n = sous && !tiroir.contains(sous) && !bouton.contains(sous) && sous.tagName !== "IFRAME" ? cliquable(sous) : null;
+    const libelle = a.libelle || T("agent.vision.ici");
+    if (n) return montrer(n, libelle);
+    montrer({ rect: () => ({ x: p.x - 16, y: p.y - 16, w: 32, h: 32 }) }, libelle);
+  }
+
   // le jeton est pris AVANT toute navigation : un clic A (autre écran) puis un clic B (écran courant) → A abandonne
-  async function executer(a, actionsDuMessage) {
+  async function executer(a, actionsDuMessage, msg) {
     const moi = ++tourPointeur;
     for (const e of etapes(a, vue())) {
       if (moi !== tourPointeur) return;
@@ -240,6 +355,8 @@ if (!window.__dzAgent) {
       else if (e.faire === "reglages") { ouvrirReglages(e.section); await attendre(300); }
       else if (e.faire === "guide") window.open("/guide/#" + e.chapitre, "_blank", "noopener");
       else if (e.faire === "pointer") await pointer(a, actionsDuMessage || [], moi);
+      else if (e.faire === "pointer_xy") await pointerXY(a, moi);
+      else if (e.faire === "voir") await regarder(msg, actionsDuMessage || []);
     }
   }
   window.__dzAgentExecuter = executer;     // point d'entrée de débogage et de preuve (console)
