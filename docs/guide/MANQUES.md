@@ -2,9 +2,9 @@
 
 Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
-- 1094 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 42 sont payantes.
+- 1098 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 45 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 40 chapitres dans le sommaire v3, en 6 familles.
+- 41 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -23,6 +23,15 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Écritures réservées à la machine locale** : Aucun autre appareil du réseau ne peut modifier, générer ou dépenser : toute écriture vers l'app depuis un autre hôte est refusée (« Écriture réservée à la machine locale »), les lectures restent ouvertes. (PR #51 · commits 001e3295, 838f9689 · P1 #14)
 - [x] **Import d'images : homonymes conservés** : Une image du même nom qu'une existante n'écrase plus rien : elle devient nom-1, nom-2… (PR #96 · commit e3d06489)
 - [x] **Import d'images : non-images refusées** : Un fichier qui n'est pas une vraie image (PNG, JPEG, WebP, GIF, BMP, AVIF) est refusé avec un message qui le nomme, et rien n'entre en Bibliothèque. — *Tout dépôt / upload d'image* (PR #96 · commit e3d06489)
+
+### Demander à Deepotus (`demander`, lot A7, reprend : nouveau) — 4 manques
+
+**Application (tiroir « Demander », F1)** — accès : Bouton « ? Demander » en bas à droite de chaque écran, ou F1
+
+- [x] **Demander à Deepotus** **payant** : Pose une question sur l'application : réponse en quelques étapes, avec le moteur de texte choisi (gratuit avec Ollama, sinon sous le plafond « aide »). — *F1 ou « ? Demander » → Moteur → question → Entrée* (chantier agent-guide · A0-A4)
+- [x] **Montre-moi, Y aller, Guide** : Sous une réponse : un curseur lumineux montre le bouton (en changeant d'écran au besoin), ouvre l'écran ou le chapitre du guide. — *Boutons sous la réponse* (chantier agent-guide · A2-A4)
+- [x] **Regarder l'écran** **payant** : Quand aucun bouton connu ne convient, l'assistant propose de voir une capture de l'onglet ; accord et coût d'abord, moteurs qui voient seulement ; le curseur pointe l'endroit trouvé. — *Regarder l'écran → Capturer et envoyer* (chantier agent-guide · A5)
+- [x] **Dicter et écouter** **payant** : Le micro du tiroir dicte la question ; le haut-parleur lit la réponse avec la voix des Réglages (Voicebox gratuit, ElevenLabs sous le plafond « aide »). — *Micro à côté d'Envoyer ; haut-parleur sous la réponse* (chantier agent-guide · A6)
 
 ### Installer, choisir sa langue, mettre à jour (`installer`, lot t171, reprend : c0) — 21 manques
 
@@ -1457,6 +1466,7 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 
 | Lot | Fonctions | Écrites |
 |---|---|---|
+| A7 | 4 | 4 |
 | t168 | 0 | 0 |
 | t170 | 46 | 46 |
 | t171 | 82 | 82 |

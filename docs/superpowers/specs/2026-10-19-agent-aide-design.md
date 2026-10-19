@@ -1,6 +1,6 @@
 # Assistant « Demander à Deepotus » — conception (19/10/2026)
 
-Mise à jour 19/10/2026 : reflète la livraison A0-A4 (A5, A6 et A7 restent à faire). Les sections décrivent ce qui est livré ; l'intention d'origine est conservée.
+Mise à jour 19/10/2026 : reflète la livraison A0-A7 (plan A5-A7 : `docs/superpowers/plans/2026-10-19-agent-aide-a5-a7.md`). Les sections décrivent ce qui est livré ; l'intention d'origine est conservée.
 
 Branche `chantier/agent-guide`, depuis origin/main 8fbde2ed.
 Inspiration : `farzaa/clicky` (AGENTS.md + assistant qui pointe à l'écran).
@@ -102,12 +102,19 @@ Objet `{version, note, ancres}`. Chaque ancre :
 - `GET /api/agent/etat` → `{moteur, moteurs[{moteur, nom, cout}], ancres, chapitres}`.
 - Garde : localhost comme le reste ; question bornée (2 000 car.), historique borné.
 
-### Vision en secours (A5, hors périmètre de la livraison A0-A4)
-Prévu, non livré : `[VOIR]`, `[POINT:x,y]`, paramètre `image`, moteurs capables de vision.
-1. Le modèle répond `[VOIR]` quand aucune ancre ne convient.
-2. Le tiroir **demande** à l'utilisateur (coût estimé affiché).
-3. Capture dans la page (canvas de la zone visible), réduite à ≤ 1280 px.
-4. Second `POST /api/agent/demander` avec `image` → `[POINT:x,y:libellé]` en coordonnées de la capture.
+### Vision en secours (A5, livré)
+1. Le modèle répond `[VOIR]` quand aucune ancre ne convient (règle 2 d'`AGENT.md`) → action `{type:"voir"}`.
+2. Le tiroir **demande** l'accord : seuls les moteurs qui voient (`moteurs_texte.vision` : Claude, GPT-4o et suivants,
+   o1/o3/o4-mini, Gemini, Ollama « vision » ; jamais `fl:`/`local:`) ; devis gratuit `POST /api/agent/estimer`
+   (consigne de vue à taille nominale 1280×800, `JETONS_IMAGE` = 1600 par image).
+3. Capture de **l'onglet courant** par `getDisplayMedia` (`/shared/dz-agent-vision.js`, le navigateur demande aussi le
+   partage) : tiroir masqué, une seule image, pistes coupées, refus si ce n'est pas cet onglet (surface et rapport
+   largeur/hauteur à 6 %), JPEG 0,8 réduit à ≤ 1280 px. Écart volontaire avec l'intention « canvas de la zone
+   visible » : aucune bibliothèque de capture DOM, et une copie DOM perdrait labs en cadre, canvas et vidéos.
+4. Second `POST /api/agent/demander` avec `image` et `max_usd` (409 si le coût recalculé dépasse, tolérance 0,0001 $) ;
+   la consigne voyage dans la question (système inchangé). `[POINT:x,y:libellé]` n'est accepté qu'après une capture,
+   borné à la capture, libellé nettoyé (60 car., sans caractères de contrôle) → action `point_xy`, pointée sur
+   l'élément cliquable sous le point (le tiroir se ferme s'il le couvre).
 
 ## 3. Interface
 
@@ -120,6 +127,10 @@ chargé par `frontend/dist/index.html` comme `dz-plafonds.js`. Fichiers livrés 
   (`frontend/shared/i18n/agent.json`).
 - Sous chaque réponse : boutons « Y aller », « Montre-moi », « Ouvrir le
   guide », construits depuis `actions`.
+- A6 : micro à côté d'« Envoyer » (dictée de `/shared/dz-champ-ia.js` par `DzChampIA.dictee.basculer`, état reçu par
+  l'événement `dzia-dictee`, abandonnée à la fermeture) ; sous chaque réponse, « Lire à voix haute » →
+  `POST /api/agent/lire` (voix des Réglages : Voicebox gratuit, ElevenLabs sous le plafond « aide » ; MP3 en cache
+  `agent_lectures`, hors Bibliothèque, clé = fournisseur + langue + voix + texte, 30 gardés, un verrou par clé).
 - Historique en `sessionStorage` (`dz_agent_hist`), envoyé seulement au moteur
   choisi.
 
@@ -143,6 +154,10 @@ chargé par `frontend/dist/index.html` comme `dz-plafonds.js`. Fichiers livrés 
 | Plafond « aide » atteint | 402 → confirmation habituelle (`X-DZ-Plafond: confirme`) |
 | Ancre introuvable dans la page | « Je ne trouve pas ce bouton ici » + chapitre du guide |
 | Moteur sans vision et `[VOIR]` | Le tiroir le dit et propose le guide |
+| Partage d'onglet refusé ou impossible | « Capture annulée : rien n'a été envoyé » + guide |
+| Autre onglet ou écran entier partagé | Refus, rien n'est envoyé |
+| Coût changé depuis l'accord | 409, rien n'est envoyé |
+| Aucune voix (ni clé ElevenLabs ni Voicebox) | Bouton « Lire » absent ; 503 sur la route |
 | Erreur réseau / moteur | Message clair, question conservée pour réessayer |
 
 ## 5. Tests
@@ -152,7 +167,11 @@ existent), `test_agent_aide.py` (balises, moteur simulé, repli, `MAX_TOKENS`/ef
 (copies `frontend/dist/shared` identiques, i18n FR/EN, branchement) et `frontend/shared/qa/agent_logique.test.mjs`
 (logique pure sous node). Le relevé des sélecteurs sur la page réelle a été fait à la main : il n'y a pas de banc
 sur le backend de preuve (le script de service des preuves du guide est `scripts/guide/serve_guide.py`, port 8809,
-et non plus 8799). Preuve à l'écran faite en FR et en EN, lab en iframe compris (halo vérifié sur le bon outil). Reste à faire : un test de sélecteurs automatisé.
+et non plus 8799). Preuve à l'écran faite en FR et en EN, lab en iframe compris (halo vérifié sur le bon outil). A5-A7 : `test_moteurs_texte_images.py`, `test_agent_vision.py`, `test_agent_voix.py`, `test_agent_guide.py` ; route
+`/lire` recensée payante (`test_plafonds_garde`). Backend de preuve du chapitre : `scripts/guide/serve_guide_agent.py`
+(8815, faux Ollama qui voit, faux Voicebox). Preuve A5/A6 dans le navigateur intégré : accord, refus propre de la
+capture (volet sans partage d'écran), appel avec image et halo ; la capture réelle, le micro réel et la voix réelle
+restent à vérifier dans Chrome. Reste à faire : un test de sélecteurs automatisé.
 
 ## 6. Lots
 
@@ -163,9 +182,9 @@ et non plus 8799). Preuve à l'écran faite en FR et en EN, lab en iframe compri
 | A2 (livré) | Service + routes + catégorie de plafond « aide » + réglage du moteur |
 | A3 (livré) | Tiroir, F1, boutons d'action, i18n |
 | A4 (livré) | Pointeur (courbe, halo, navigation, iframes) |
-| A5 | Vision en secours |
-| A6 | Voix : dictée (micro navigateur) + lecture par le TTS existant |
-| A7 | Chapitre du guide « Demander à Deepotus » (skill guide-deepotus) |
+| A5 (livré) | Vision en secours |
+| A6 (livré) | Voix : dictée (micro navigateur) + lecture par le TTS existant |
+| A7 (livré) | Chapitre du guide « Demander à Deepotus » (skill guide-deepotus), id `demander` |
 
 ### A0 — `AGENTS.md` racine
 Sur le modèle de Clicky : Vue d'ensemble · Architecture (backend FastAPI,

@@ -9650,5 +9650,61 @@
  "La question est vide.": {
   "fr": "La question est vide.",
   "en": "The question is empty."
+ },
+ "au plus {MAX_IMAGES} images par appel": {
+  "fr": "au plus {MAX_IMAGES} images par appel",
+  "en": "at most {MAX_IMAGES} images per call"
+ },
+ "image illisible : type ou contenu manquant": {
+  "fr": "image illisible : type ou contenu manquant",
+  "en": "unreadable image: type or content missing"
+ },
+ "image illisible : base64 invalide": {
+  "fr": "image illisible : base64 invalide",
+  "en": "unreadable image: invalid base64"
+ },
+ "image trop lourde (4,5 Mo au plus)": {
+  "fr": "image trop lourde (4,5 Mo au plus)",
+  "en": "image too large (4.5 MB at most)"
+ },
+ "le modèle {mod} ne lit pas les images": {
+  "fr": "le modèle {mod} ne lit pas les images",
+  "en": "the model {mod} cannot read images"
+ },
+ "images illisibles : liste attendue": {
+  "fr": "images illisibles : liste attendue",
+  "en": "unreadable images: a list is expected"
+ },
+ "Image jointe illisible.": {
+  "fr": "Image jointe illisible.",
+  "en": "The attached image is unreadable."
+ },
+ "Ce moteur ne lit pas les images : choisis-en un qui voit l'écran.": {
+  "fr": "Ce moteur ne lit pas les images : choisis-en un qui voit l'écran.",
+  "en": "This engine cannot read images: choose one that can see the screen."
+ },
+ "Montant accepté (max_usd) manquant ou invalide.": {
+  "fr": "Montant accepté (max_usd) manquant ou invalide.",
+  "en": "Accepted amount (max_usd) missing or invalid."
+ },
+ "Le coût a changé depuis ton accord : rien n'a été envoyé. Redemande.": {
+  "fr": "Le coût a changé depuis ton accord : rien n'a été envoyé. Redemande.",
+  "en": "The cost changed since you agreed: nothing was sent. Ask again."
+ },
+ "Demande trop lourde.": {
+  "fr": "Demande trop lourde.",
+  "en": "Request too large."
+ },
+ "Rien à lire.": {
+  "fr": "Rien à lire.",
+  "en": "Nothing to read."
+ },
+ "Aucune voix disponible : ajoute la clé ElevenLabs ou lance Voicebox (Réglages).": {
+  "fr": "Aucune voix disponible : ajoute la clé ElevenLabs ou lance Voicebox (Réglages).",
+  "en": "No voice available: add the ElevenLabs key or start Voicebox (Settings)."
+ },
+ "Lecture impossible : {e}": {
+  "fr": "Lecture impossible : {e}",
+  "en": "Cannot read aloud: {e}"
  }
 }

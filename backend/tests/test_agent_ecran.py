@@ -24,7 +24,7 @@ def test_dictionnaire_assemble():
         assert f'"{k}"' in dico, k
 
 
-FICHIERS = ["dz-agent.js", "dz-agent-logique.js", "dz-agent-pointeur.js"]
+FICHIERS = ["dz-agent.js", "dz-agent-logique.js", "dz-agent-pointeur.js", "dz-agent-vision.js"]
 BALISE_SPA = '<script type="module" src="/shared/dz-agent.js"></script>'
 
 
@@ -101,6 +101,91 @@ def test_tiroir_exclu_des_candidats():
     src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
     assert "!tiroir.contains(" in src, "le tiroir ne se vise pas lui-même"
     assert "!bouton.contains(" in src, "ni le bouton « Demander »"
+
+
+def test_capture_de_l_onglet():
+    src = (SHARED / "dz-agent-vision.js").read_text(encoding="utf-8")
+    assert "getDisplayMedia(" in src and "preferCurrentTab: true" in src
+    assert 'displaySurface !== "browser"' in src and "memeOnglet(" in src, "seul CET onglet est accepté"
+    assert "reduire(" in src and 'toDataURL("image/jpeg", 0.8)' in src
+    assert src.count(".stop()") >= 1 and "finally" in src, "les pistes sont coupées quoi qu'il arrive"
+    assert "avant()" in src and "apres()" in src, "le tiroir est masqué pendant la prise"
+    assert "window.isSecureContext" in src
+
+
+def test_vision_dans_le_tiroir():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert 'from "./dz-agent-vision.js"' in src
+    r = src[src.index("async function regarder("):]
+    assert r.index("captureDisponible()") < r.index("accord(") < r.index("capturer(") < r.index("envoyerVue("), \
+        "disponibilité, accord (devis), capture, envoi : dans cet ordre"
+    assert "/api/agent/estimer" in src and "max_usd" in src
+    assert ".filter((m) => m.vision)" in src, "l'accord ne propose que les moteurs qui voient"
+    assert 'e.faire === "voir"' in src and 'e.faire === "pointer_xy"' in src
+    assert "versEcran(" in src and "cliquable(" in src and "document.elementsFromPoint(" in src
+    assert "occupe || enVue" in src, "une seule demande à la fois"
+
+
+def test_libelles_vision():
+    for k in ("agent.vision.voir", "agent.vision.accord", "agent.vision.accord_gratuit", "agent.vision.envoyer",
+              "agent.vision.annuler", "agent.vision.moteur", "agent.vision.indisponible", "agent.vision.aucun_moteur",
+              "agent.vision.refusee", "agent.vision.onglet", "agent.vision.ici", "agent.vision.devis"):
+        assert k in I18N, k
+    assert "${usd}" in I18N["agent.vision.accord"]["en"] and "{usd} $" in I18N["agent.vision.accord"]["fr"]
+
+
+def test_corrections_de_revue_du_tiroir():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    d = src[src.index("function dessiner("):src.index("// un seul envoi")]
+    assert "boiteAccord" in d, "dessiner() remet la boîte d'accord au bas du fil"
+    assert "boiteAccord = null" in src and "boiteAccord = boite" in src
+    r = src[src.index("async function regarder("):src.index("async function envoyerVue(")]
+    assert r.index("enVue = true") < r.index("captureDisponible()") < r.index("moteursConnus()"), "verrou dès l'entrée"
+    assert "btnEnvoyer.disabled = true" in r and "btnEnvoyer.disabled = false" in r
+    assert "let chargement = null" in src and "chargement = null; chargerMoteurs()" in src
+    assert "dataset.charge" not in src
+    p = src[src.index("async function pointerXY("):]
+    assert "tiroir.getBoundingClientRect()" in p and "basculer(false)" in p and "document.elementsFromPoint(" in p
+    assert p.index("attendre(60)") < p.index("moi !== tourPointeur", p.index("attendre(60)")) < p.index("elementsFromPoint(")
+    assert "window.innerHeight - v.h" in p, "décalage du bandeau de partage"
+    assert "agent.vision.accord_inconnu" in src and 'j.cout === "a_mesurer"' in src
+    assert 'x.type !== "voir"' in src, "pas de nouvelle capture en réponse à une capture"
+    e = src[src.index("async function envoyerVue("):src.index("async function pointerXY(")]
+    assert "!j.texte.trim()" in e and "oui.focus()" in src
+
+
+def test_capture_meme_image_pour_vue_et_taille():
+    src = (SHARED / "dz-agent-vision.js").read_text(encoding="utf-8")
+    assert "requestVideoFrameCallback((_, meta)" in src and "meta.width" in src
+    assert src.count("window.innerHeight") == 1, "la vue n'est mesurée qu'une fois, avec l'image"
+    assert "agent.vision.accord_inconnu" in I18N
+
+
+def test_point_xy_rejoue_ailleurs_ne_pointe_pas():
+    """Revue finale : un point_xy rejoué après un changement d'écran ou de largeur renvoie vers les guides."""
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    e = src[src.index("async function envoyerVue("):src.index("async function pointerXY(")]
+    assert "vue: vueCapture, ecran: vue()" in e, "l'écran de la capture est attaché à chaque point_xy"
+    p = src[src.index("async function pointerXY("):src.index("// le jeton est pris AVANT")]
+    assert "a.ecran !== vue()" in p and "window.innerWidth - v.l" in p and "* 0.04" in p
+    assert p.index("introuvable(actionsDuMessage)") < p.index("versEcran(a, v)")
+    assert "pointerXY(a, moi, actionsDuMessage" in src
+
+
+def test_fermer_ou_recommencer_annule_l_accord_et_la_vision_occupee_repond():
+    """Revue finale : tiroir fermé ou ↺ pendant l'accord = annulation ; « Regarder » pendant une réponse = message."""
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert "let annulerAccord = null" in src
+    a = src[src.index("function accord("):src.index("async function regarder(")]
+    assert "annulerAccord = () => fermer(null)" in a and "annulerAccord = null" in a
+    b = src[src.index("function basculer("):src.index("let etatAgent")]
+    assert "annulerAccord" in b and b.index("annulerAccord") < b.index("arreterLecture()")
+    n = src[src.index("const btnNouvelle"):src.index("const tiroir = el(")]
+    assert "annulerAccord" in n
+    r = src[src.index("async function regarder("):src.index("async function envoyerVue(")]
+    assert "agent.vision.occupe" in r and r.index("agent.vision.occupe") < r.index("enVue = true")
+    assert I18N["agent.vision.occupe"]["fr"] == "Attends la fin de la réponse en cours."
+    assert I18N["agent.vision.occupe"]["en"] == "Wait for the current answer to finish."
 
 
 if __name__ == "__main__":
