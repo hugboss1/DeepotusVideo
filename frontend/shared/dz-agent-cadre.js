@@ -8,7 +8,7 @@ import { choisir } from "./dz-agent-logique.js";
 if (!window.__dzAgentCadre && window.parent !== window) {
   window.__dzAgentCadre = true;
   window.addEventListener("message", (ev) => {
-    if (ev.origin !== location.origin || !ev.source) return;
+    if (ev.origin !== location.origin || !ev.source || ev.source !== window.parent) return;
     const d = ev.data;
     if (!d || d.dzAgent !== "trouve" || typeof d.selecteur !== "string") return;
     let rect = null;

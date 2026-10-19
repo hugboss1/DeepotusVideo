@@ -186,23 +186,29 @@ if (!window.__dzAgent) {
   // bulle se posent sur la cible. Calques éphémères, au-dessus de tout, transparents aux clics. Un seul pointage à la
   // fois : chaque nouveau pointage (ou un clic hors du tiroir) annule le précédent — animation, minuterie, écouteurs.
   const reduit = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  let calques = [], anim = 0, minuterie = 0, suivre = null, tourPointeur = 0;
+  let calques = [], anim = 0, minuterie = 0, suivre = null, tourPointeur = 0, interieur = null;
   function effacerPointeur() {
     if (anim) cancelAnimationFrame(anim);
     if (minuterie) clearTimeout(minuterie);
     anim = 0; minuterie = 0;
     if (suivre) { window.removeEventListener("scroll", suivre, true); window.removeEventListener("resize", suivre); suivre = null; }
+    if (interieur) {                                  // écouteurs posés DANS le lab et pas encore servis
+      const w = interieur; interieur = null;
+      try { w.removeEventListener("pointerdown", effacerPointeur, true); w.removeEventListener("scroll", effacerPointeur, true); } catch (e) { /* lab parti */ }
+    }
     calques.forEach((c) => c.remove());
     calques = [];
   }
 
-  // cible : un nœud DOM, ou {rect: () => ({x, y, w, h}) | null} pour un élément d'un lab en cadre intégré
-  function montrer(cible, libelle) {
+  // cible : un nœud DOM, ou {rect: () => ({x, y, w, h}) | null} pour un élément d'un lab en cadre intégré ;
+  // fenetre (facultatif) : la fenêtre du lab, dont le premier clic ou défilement intérieur efface le pointeur.
+  // Une cible disparue (rect null, nœud détaché) efface le pointeur au lieu de le poser au mauvais endroit.
+  function montrer(cible, libelle, fenetre) {
     effacerPointeur();
     const mesurer = cible.rect ? () => {
-      const q = cible.rect() || { x: 0, y: 0, w: 0, h: 0 };
-      return { x: q.x, y: q.y, width: q.w, height: q.h, bottom: q.y + q.h };
-    } : () => cible.getBoundingClientRect();
+      const q = cible.rect();
+      return q ? { x: q.x, y: q.y, width: q.w, height: q.h, bottom: q.y + q.h } : null;
+    } : () => (cible.isConnected ? cible.getBoundingClientRect() : null);
     const b = bouton.getBoundingClientRect();
     const depart = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
     const curseur = el("div", { class: "dzAgentCurseur" });
@@ -216,6 +222,7 @@ if (!window.__dzAgent) {
     // recalcule la place de la cible : au départ, puis à chaque défilement / redimensionnement (même pendant l'arc)
     const placer = () => {
       const r = mesurer();
+      if (!r) { effacerPointeur(); return false; }
       arrivee = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
       Object.assign(halo.style, { left: r.x - 6 + "px", top: r.y - 6 + "px", width: r.width + 12 + "px", height: r.height + 12 + "px" });
       const hb = bulle.offsetHeight || 24, lb = bulle.offsetWidth || 0;
@@ -223,9 +230,16 @@ if (!window.__dzAgent) {
       bulle.style.left = Math.max(8, Math.min(r.x, window.innerWidth - lb - 8)) + "px";
       bulle.style.top = Math.max(8, Math.min(haut, window.innerHeight - hb - 8)) + "px";
       if (pose) curseur.style.transform = `translate(${arrivee.x}px,${arrivee.y}px)`;
+      return true;
     };
-    placer();
+    if (!placer()) return;
     suivre = () => placer();
+    if (fenetre) {
+      try {
+        for (const e of ["pointerdown", "scroll"]) fenetre.addEventListener(e, effacerPointeur, { capture: true, once: true });
+        interieur = fenetre;
+      } catch (e) { /* fenêtre inaccessible : la minuterie et Échap suffisent */ }
+    }
     window.addEventListener("scroll", suivre, { capture: true, passive: true });
     window.addEventListener("resize", suivre);
     const finir = () => {
@@ -287,10 +301,14 @@ if (!window.__dzAgent) {
         if (moi !== tourPointeur) return;
         if (!t) await attendre(250);
       }
+      if (moi !== tourPointeur) return;
       if (!t) return introuvable(actionsDuMessage);
       // suit le défilement de la page (place du cadre) mais pas celui DANS le lab : rectangle intérieur figé
-      return montrer({ rect: () => t.cadre.isConnected ? composer(t.cadre.getBoundingClientRect(), t.interne) : null },
-        a[lang()] || a.fr);
+      return montrer({ rect: () => {
+        if (!t.cadre.isConnected) return null;
+        const b = t.cadre.getBoundingClientRect();
+        return b.width > 0 && b.height > 0 ? composer(b, t.interne) : null;     // cadre démonté ou masqué
+      } }, a[lang()] || a.fr, t.cadre.contentWindow);
     }
     const n = await trouver(a, 4000);
     if (moi !== tourPointeur) return;                                            // un autre pointage a pris la main

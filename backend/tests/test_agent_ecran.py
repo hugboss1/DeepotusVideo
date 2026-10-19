@@ -78,10 +78,13 @@ def test_cadre_copie_et_balises():
 def test_cadre_verifie_l_origine():
     src = (SHARED / "dz-agent-cadre.js").read_text(encoding="utf-8")
     assert "ev.origin !== location.origin" in src and "postMessage(" in src
-    assert "ev.source" in src and "d.libelle" in src, "répond à la source, lit le sous-élément libellé comme le tiroir"
+    assert "ev.source !== window.parent" in src, "le cadre ne répond qu'à la SPA qui l'héberge"
+    assert "d.libelle" in src, "répond à la source, lit le sous-élément libellé comme le tiroir"
     agent = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
     assert "ev.origin !== location.origin" in agent, "le tiroir ne lit que les réponses de même origine"
     assert "ev.source !== cadre.contentWindow" in agent, "la réponse vient du cadre interrogé"
+    assert "b.width > 0 && b.height > 0 ? composer(b, t.interne) : null" in agent, "cadre démonté ou masqué : rect nul"
+    assert "if (!r) { effacerPointeur(); return false; }" in agent, "rect nul : le pointeur s'efface"
 
 
 if __name__ == "__main__":
