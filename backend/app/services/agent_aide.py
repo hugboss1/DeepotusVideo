@@ -87,12 +87,12 @@ NON_DOCUMENTE = {"fr": "non documenté", "en": "not documented"}
 
 
 def _fiche_ligne(x: dict, cle: str, avec_role: bool = True) -> str:
-    lib = ((x.get("libelle") or {}).get(cle) or (x.get("infobulle") or {}).get(cle) or x["id"])
+    lib = _ligne((x.get("libelle") or {}).get(cle) or (x.get("infobulle") or {}).get(cle) or x["id"], 80)
     pt = " [pointable]" if x.get("localisateur") else ""
-    ou = x.get("ecran") or "partout"
+    ou = "partout" if x.get("ecran") in (None, "", "commun") else x["ecran"]
     if not avec_role:
         return f"- {x['id']} « {lib} »{pt}"
-    role = (x.get("role") or {}).get(cle) or ""
+    role = _ligne((x.get("role") or {}).get(cle), 400)
     return f"- {x['id']} ({ou}) « {lib} »{pt} : {role or NON_REDIGE[cle]}"
 
 
@@ -115,8 +115,9 @@ def systeme(ecran: str, lang: str, espace: str = "", pertinents=(), visibles=Non
             _fiche_ligne(x, cle) for x in pertinents) + "\n"
     if visibles and (visibles.get("reconnus") or visibles.get("inconnus")):
         lignes = [_fiche_ligne(x, cle, avec_role=False) for x in visibles.get("reconnus", [])]
-        lignes += [f"- « {v['t'] or v['i']} »" + (f" ({v['i']})" if v["t"] and v["i"] else "")
-                   + f" — {NON_DOCUMENTE[cle]}" for v in visibles.get("inconnus", [])]
+        for v in visibles.get("inconnus", []):
+            t, i = _ligne(v.get("t"), 80), _ligne(v.get("i"), 80)
+            lignes.append(f"- « {t or i} »" + (f" ({i})" if t and i else "") + f" — {NON_DOCUMENTE[cle]}")
         s += "\n## À l'écran maintenant\n" + "\n".join(lignes) + "\n"
     return s
 
@@ -232,8 +233,8 @@ def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
         return {"type": "point", "cible": cible, "ecran": None if x.get("ecran") == "commun" else x.get("ecran"),
                 "selecteur": loc.get("selecteur"), "texte": loc.get("texte"), "cadre": x.get("cadre") or loc.get("cadre"),
                 "reglages": loc.get("reglages"), "partout": bool(loc.get("partout") or x.get("ecran") == "commun"),
-                "libelle": loc.get("libelle"), "fr": lib.get("fr") or tip.get("fr") or cible,
-                "en": lib.get("en") or tip.get("en") or cible}
+                "libelle": loc.get("libelle"), "fr": _ligne(lib.get("fr") or tip.get("fr") or cible, 60),
+                "en": _ligne(lib.get("en") or tip.get("en") or cible, 60)}
     if typ == "POINT" and image:
         m = XY.match(cible)
         if m:
