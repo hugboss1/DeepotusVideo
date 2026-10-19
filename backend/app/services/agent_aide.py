@@ -352,6 +352,13 @@ def _cout(p: dict, sys_txt: str) -> float:
     return round(float(PR.estimate(op).get("total_usd") or 0.0), 4)
 
 
+def _systeme_question(p: dict) -> str:
+    """Le message système d'une question : un seul point pour le devis et l'envoi, qui restent le même texte."""
+    vis = rapprocher(p.get("visibles") or [], p["lang"]) if p.get("visibles") else None
+    ids = [x["id"] for x in (vis or {}).get("reconnus", [])]
+    return systeme(p["ecran"], p["lang"], _espace(), pertinents=chercher(p["q"], p["ecran"], ids), visibles=vis)
+
+
 def estimer_vue(corps, lang: str = "fr") -> dict:
     """Le devis GRATUIT d'un appel avec capture : {moteur, nom, usd, cout, vision}. Aucune image n'est lue ici."""
     from app.services import moteurs_texte as MT
@@ -361,7 +368,7 @@ def estimer_vue(corps, lang: str = "fr") -> dict:
     if not p["moteur"]:
         return {"moteur": "", "nom": "", "usd": 0.0, "cout": "", "vision": False}
     return {"moteur": p["moteur"], "nom": MT.nom(p["moteur"]), "cout": MT.nature_cout(p["moteur"]),
-            "vision": MT.vision(p["moteur"]), "usd": _cout(p, systeme(p["ecran"], p["lang"], _espace()))}
+            "vision": MT.vision(p["moteur"]), "usd": _cout(p, _systeme_question(p))}
 
 
 async def demander(corps, lang: str = "fr") -> dict:
@@ -374,7 +381,7 @@ async def demander(corps, lang: str = "fr") -> dict:
     if not moteur:
         _, actions, _ = analyser("[POINT:reglages.cles] [GUIDE:cles]")
         return {"texte": SANS_CLE[lang], "actions": actions, "moteur": "", "nom": "", "rejets": 0, "sans_cle": True}
-    sys_txt = systeme(p["ecran"], lang, _espace())
+    sys_txt = _systeme_question(p)
     if p["images"]:
         if not await asyncio.to_thread(MT.vision, moteur):
             raise ValueError("Ce moteur ne lit pas les images : choisis-en un qui voit l'écran.")

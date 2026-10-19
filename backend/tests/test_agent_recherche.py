@@ -10,6 +10,7 @@ os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_tmp / 't.db').as_posix()}"
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from app.services import agent_aide as A                                    # noqa: E402
+from app.services import moteurs_texte as MT                                # noqa: E402
 
 LOC = {"selecteur": "button", "texte": {"fr": "lame · Alt+C", "en": "blade · Alt+C"}}
 FAUX = {
@@ -92,6 +93,21 @@ def test_point_sur_fiche(faux):
     a = actions[0]
     assert a["type"] == "point" and a["selecteur"] == "button" and a["texte"] == LOC["texte"]
     assert a["ecran"] == "montage" and a["fr"] == "lame · Alt+C" and a["partout"] is False
+
+
+def test_demander_envoie_les_pertinents(faux, monkeypatch):
+    vu = {}
+
+    async def faux_tirer(moteur, modele, prompt, systeme, max_tokens=4000, json=False, **kw):
+        vu["systeme"] = systeme
+        return "Utilise la lame.\n[POINT:montage.lame]"
+
+    monkeypatch.setattr(A, "choisir_moteur", lambda d="": "anthropic")
+    monkeypatch.setattr(MT, "tirer_garde", faux_tirer)
+    monkeypatch.setattr(A, "_espace", lambda: "")
+    r = asyncio.run(A.demander({"question": "comment scinder un clip ?", "ecran": "montage", "lang": "fr"}))
+    assert "## Éléments pertinents" in vu["systeme"] and "montage.lame" in vu["systeme"]
+    assert r["actions"][0]["cible"] == "montage.lame"
 
 
 if __name__ == "__main__":
