@@ -59,6 +59,21 @@ constante BIBLIO (posée devant DzMotionDirection) et l'appel `dzMotionBiblio(e,
   par l'état de rafraîchissement existant : AUCUN hook neuf (dzMoUS 2, dzMoUE 3). Confirmations hors couche 24 → 25.
   Banc : backend/tests/test_studio_motion_biblio.py (et test_motion_skill_apercu.py pour la route).
 
+t238 (19/10/2026, plan § t238, option B « Motion code » validée par l'utilisateur) — même maillon, famille C :
+  - M1 : le nœud neuf `MotionCode` (« Rendu motion code », catégorie motion) : entrées `direction` et `script`, sortie
+    `out` de type av, propriétés script / durationS / fps / pageId ; M2 le range dans « Animations », M3 son encart
+    (page écrite ou non), M4 son inspecteur `DzMotionCode` ;
+  - M5 : la constante CODE (posée devant DzAnimation) : `dzMotionCodePayload` = le corps de t234 compilé par
+    `dzMotionPayload` (direction reliée, script relié ou champ, format, durée) + la cadence ; « Écrire la page » →
+    POST /api/motion/code/ecrire (le moteur de Direction motion écrit la page ; coût estimé et plafond AVANT l'appel,
+    côté serveur), bilan (moteur, taille, coût, ou repli et sa raison), page en LECTURE SEULE (texte d'une zone de
+    saisie, jamais un document : elle ne s'exécute que dans le bac à sable du serveur) ;
+  - M8 : la base de l'Animation reliée à un MotionCode = {source_kind:"motion_code", page_id, aspect, fps, duree_s} de
+    l'Animation (le serveur rend la page au rendu) ; M9 : sans page écrite, la compilation le dit au lieu d'un fond
+    uni ; M10 : un MotionCode relié à l'entrée `in` du Rendu (sans Animation) → POST /api/motion/code/rendre (job).
+  UN hook neuf (l'état de DzMotionCode) : dzMoUS 2 → 3 ; aucun dzMoUE ni confirmation neufs.
+  Banc : backend/tests/test_studio_motion_code.py (et test_motion_code.py pour le serveur et le bac à sable).
+
 Comptes figés : `x.useState(` reste à 731 (une cinquantaine de bancs le sondent sur le livré) ; les hooks du maillon
 passent par l'alias `dzMoUS` (comme `dzAvUS` des nœuds Avatar) : DEUX appels, chiffrés dans le banc — l'état de
 rafraîchissement de DzMotionDirection et le bilan de DzAnimation. v2.8.0 ×4, DzTracks 181, dzglyph_paires.json et le
@@ -79,7 +94,7 @@ BAK = BUNDLE.parent / (BUNDLE.name + ".bak_dzmotion")
 TAG = "dzmotion"
 MARKER = "function DzMotionDirection("
 MARKER_ATTENDU = 1
-HOOKS = 2                       # appels à l'alias dzMoUS (voir l'en-tête)
+HOOKS = 3                       # appels à l'alias dzMoUS (voir l'en-tête ; t238 : + l'état de DzMotionCode)
 
 SONDE_AMONT = [
     ("dzstudio", "var dzPortGeo={", 1),
@@ -400,6 +415,70 @@ FONCTIONS = (
     'margin:"2px 0 4px"},children:bulle})]})}'
 )
 
+CODE = (
+    'var dzMoCode={};'
+    'function dzMoKo(n){return dzT("studio.motion.code_ko",{n:(Math.max(0,Number(n)||0)/1024).toFixed(1)})}'
+    'function dzMotionCodePayload(g,a){var c=dzMotionPayload(g,a),P=dzMoProps(a);delete c.images;'
+    'c.fps=Math.min(60,Math.max(12,Math.round(Number(P.fps)||30)));return c}'
+    'function dzMotionCodeBase(b3,anim,n){var P=dzMoProps(b3);return P.pageId?{source_kind:"motion_code",'
+    'page_id:String(P.pageId),aspect:n,fps:Number(anim.props&&anim.props.fps)||30,'
+    'duree_s:Number(anim.props&&anim.props.durationS)||8}:null}'
+    'function dzMotionCodeRendu(g,mc,n,o){var P=dzMoProps(mc);if(!P.pageId)return{ok:!1,error:dzT("studio.motion.code_sans_page")};'
+    'var corps={page_id:String(P.pageId),aspect:n,fps:Number(P.fps)||30,duree_s:Number(P.durationS)||8,title:o,source_graph:g};'
+    'return{ok:!0,summary:dzT("studio.motion.code_resume",{id:String(P.pageId)}),run:function(){'
+    'return fetch("/api/motion/code/rendre",{method:"POST",headers:{"Content-Type":"application/json"},'
+    'body:JSON.stringify(corps)}).then(function(r3){return r3.ok?r3.json():{ok:!1,error:dzT("studio.motion.code_rendre_echec")}})}}}'
+    'function dzMotionCodeBilan(j){var t=dzMoKo(j.taille);return j.repli?dzT("studio.motion.code_bilan_repli",{taille:t,'
+    'raison:j.raison==="page_refusee"?dzT("studio.motion.code_raison_refusee",{motifs:String(j.refus_texte||"")}):'
+    'dzMotionRaison(j.raison)}):dzT("studio.motion.code_bilan",{moteur:j.moteur+(j.modele?" · "+j.modele:""),taille:t,'
+    'cout:dzMotionCout(j.cout)})}'
+    'function dzMotionCodeEncart(P){var id=String(P.pageId||""),s=id?dzT("studio.motion.code_encart",{id:id}):'
+    'dzT("studio.motion.code_encart_vide");return r.jsxs("div",{title:s,"data-dz-motion":"code-encart",style:{width:"100%",'
+    'height:"100%",display:"flex",alignItems:"center",gap:6,padding:"0 10px",boxSizing:"border-box",background:"#0b1016",'
+    'color:"var(--nd-motion)",fontSize:11},children:[r.jsx(X,{name:"dz-cat-animation",size:12}),'
+    'r.jsx("span",{style:{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:s})]})}'
+    'function DzMotionCode({node:e,graph:g,set:o}){var st_=dzMoUS(null),et=st_[0],setEt=st_[1],P=dzMoProps(e),'
+    'pid=String(P.pageId||""),dn=dzMotionDirection(g,e),sn=Wt(g,e.id,"script"),busy=!!(et&&et.busy),cd=pid?dzMoCode[pid]:null;'
+    'function vu(){setEt(function(z){return Object.assign({},z||{})})}'
+    'if(!dzMoCache.lst&&!dzMoCache.p)dzMoCharger().then(vu);'
+    'if(pid&&cd===void 0){dzMoCode[pid]=null;dzMoJson("/api/motion/code/"+encodeURIComponent(pid)).then(function(j){'
+    'dzMoCode[pid]=j&&typeof j.html==="string"?j:!1;vu()})}'
+    'async function ecrire(){var c=dzMotionCodePayload(g,e);if(!c.script.trim()){'
+    'setEt({err:!0,msg:dzT("studio.motion.script_vide")});return}setEt({busy:!0,msg:dzT("studio.motion.code_en_cours")});'
+    'try{var rq=await fetch("/api/motion/code/ecrire",{method:"POST",headers:{"Content-Type":"application/json"},'
+    'body:JSON.stringify(c)}),j=await rq.json().catch(function(){return null});'
+    'if(!rq.ok||!j||!j.page_id){setEt({err:!0,msg:dzMotionErreur(j)});return}'
+    'delete dzMoCode[j.page_id];o("pageId",j.page_id);setEt({msg:dzMotionCodeBilan(j)})}'
+    'catch(_e){setEt({err:!0,msg:dzT("studio.motion.echec")})}}'
+    'var dl=dn?dzT("studio.motion.direction_reliee",{resume:dzMotionResume(dzMoProps(dn))}):dzT("studio.motion.direction_absente");'
+    'return r.jsxs(ie,{label:dzT("studio.motion.code_titre"),children:['
+    'r.jsx("div",{"data-dz-motion":"code-direction",title:dl,style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6,'
+    'overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:dl}),'
+    'sn?r.jsx("div",{"data-dz-motion":"code-script-relie",style:{fontSize:11,color:"var(--ink-soft)",marginBottom:6},'
+    'children:dzT("studio.motion.script_relie",{titre:(Me[sn.type]&&Me[sn.type].title)||sn.type})}):'
+    'r.jsx(O,{label:dzT("studio.motion.script"),children:r.jsx("textarea",{"data-dz-motion":"code-script",'
+    'value:String(P.script||""),onChange:function(ev){o("script",ev.target.value)},rows:4,'
+    'placeholder:dzT("studio.motion.script_aide"),style:dzMoTA})}),'
+    'r.jsx(O,{label:dzT("studio.motion.duree"),children:r.jsx(le,{"data-dz-motion":"code-duree",type:"number",min:1,max:60,'
+    'value:String(P.durationS==null?"":P.durationS),onChange:function(w){o("durationS",w===""?"":Number(w))}})}),'
+    'r.jsx(O,{label:dzT("studio.motion.code_fps"),children:r.jsx(le,{"data-dz-motion":"code-fps",type:"number",min:12,max:60,'
+    'value:String(P.fps==null?"":P.fps),onChange:function(w){o("fps",w===""?"":Number(w))}})}),'
+    'r.jsx("button",{"data-dz-motion":"code-ecrire",onClick:ecrire,disabled:busy,style:{width:"100%",fontSize:12,'
+    'fontWeight:600,padding:"7px",borderRadius:7,border:"none",background:"var(--nd-motion)",color:"#04121c",'
+    'cursor:busy?"default":"pointer"},children:busy?dzT("studio.motion.code_en_cours"):pid?dzT("studio.motion.code_reecrire"):'
+    'dzT("studio.motion.code_ecrire")}),'
+    'et&&et.msg?r.jsx("div",{"data-dz-motion":"code-message",role:"status",style:{fontSize:11,marginTop:6,'
+    'color:et.err?"var(--red)":"var(--ink-soft)"},children:et.msg}):null,'
+    'r.jsx("div",{"data-dz-motion":"code-page",style:{fontSize:11,marginTop:6,color:pid?"var(--ink)":"var(--amber)"},'
+    'children:pid?dzT("studio.motion.code_page",{id:pid,taille:cd&&cd.taille!=null?dzMoKo(cd.taille):"—"}):'
+    'dzT("studio.motion.code_sans_page")}),'
+    'r.jsx("div",{"data-dz-motion":"code-bac",style:{fontSize:10.5,marginTop:4,color:"var(--ink-muted)",lineHeight:1.4},'
+    'children:dzT("studio.motion.code_bac")}),'
+    'pid?r.jsx(ie,{label:dzT("studio.motion.code_lecture"),defaultOpen:!1,children:r.jsx("textarea",{readOnly:!0,'
+    '"data-dz-motion":"code-html",value:cd&&cd.html?cd.html:"",rows:10,spellCheck:!1,style:Object.assign({},dzMoTA,'
+    '{fontFamily:"var(--font-mono, monospace)",fontSize:11})})}):null]})}'
+)
+
 HOOKS_ANIM = (
     'var moS=dzMoUS(null),moEt=moS[0],setMoEt=moS[1];'
     'dzMoUE(function(){function k(ev){if(!(ev.ctrlKey||ev.metaKey)||ev.shiftKey||ev.altKey||String(ev.key||"").toLowerCase()!=="z")return;'
@@ -444,20 +523,35 @@ PAIRES = [
      'inPorts:[{id:"base",type:"av"},{id:"direction",type:"direction"},{id:"script",type:"text"}],'
      'outPorts:[{id:"out",type:"av"}],props:{durationS:8,fps:30,elements:[],selected:0,script:""}},'
      'MotionDirection:{cat:"motion",title:dzT("studio.motion.titre"),desc:dzT("studio.motion.desc"),inPorts:[],'
-     'outPorts:[{id:"direction",type:"direction"}],props:{style:"style-kinetic-type",source:"",consigne:"",moteur:"",modele:""}},'),
+     'outPorts:[{id:"direction",type:"direction"}],props:{style:"style-kinetic-type",source:"",consigne:"",moteur:"",modele:""}},'
+     'MotionCode:{cat:"motion",title:dzT("studio.motion.code_titre"),desc:dzT("studio.motion.code_desc"),'
+     'inPorts:[{id:"direction",type:"direction"},{id:"script",type:"text"}],outPorts:[{id:"out",type:"av"}],'
+     'props:{script:"",durationS:8,fps:30,pageId:""}},'),
     ('{cat:"motion",types:["Animation"]}',                                                                      # M2
-     '{cat:"motion",types:["Animation","MotionDirection"]}'),
+     '{cat:"motion",types:["Animation","MotionDirection","MotionCode"]}'),
     ('):n==="Animation"?r.jsxs(',                                                                               # M3
-     '):n==="MotionDirection"?dzMotionEncart(o):n==="Animation"?r.jsxs('),
+     '):n==="MotionCode"?dzMotionCodeEncart(o):n==="MotionDirection"?dzMotionEncart(o):n==="Animation"?r.jsxs('),
     ('e.type==="Animation"?r.jsx(DzAnimation,{node:e,graph:g,set:o}):',                                         # M4
+     'e.type==="MotionCode"?r.jsx(DzMotionCode,{node:e,graph:g,set:o}):'
      'e.type==="MotionDirection"?r.jsx(DzMotionDirection,{node:e,graph:g,set:o}):'
      'e.type==="Animation"?r.jsx(DzAnimation,{node:e,graph:g,set:o}):'),
     ('function DzAnimation({node:e,graph:g,set:o}){',                                                          # M5
-     FONCTIONS + 'function DzAnimation({node:e,graph:g,set:o}){'),
+     FONCTIONS + CODE + 'function DzAnimation({node:e,graph:g,set:o}){'),
     ('var ms=x.useState("from"),mode=ms[0],setMode=ms[1];',                                                    # M6
      HOOKS_ANIM + 'var ms=x.useState("from"),mode=ms[0],setMode=ms[1];'),
     ('children:"+ Image"})]}),els.length?',                                                                     # M7
      'children:"+ Image"})]}),moBloc(),els.length?'),
+    ('if(dzIsImgNode(b3))return b3.props&&b3.props.filename?{source_kind:"upload",upload_filename:b3.props.filename}:null;'  # M8
+     'return null};',
+     'if(b3.type==="MotionCode")return dzMotionCodeBase(b3,anim,n);'
+     'if(dzIsImgNode(b3))return b3.props&&b3.props.filename?{source_kind:"upload",upload_filename:b3.props.filename}:null;'
+     'return null};'),
+    ('var bn=Wt(e,anim.id,"base"),aEls=(anim.props&&anim.props.elements)||[];',                                   # M9
+     'var bn=Wt(e,anim.id,"base"),aEls=(anim.props&&anim.props.elements)||[];'
+     'if(bn&&bn.type==="MotionCode"&&!(bn.props&&bn.props.pageId))return{ok:!1,error:dzT("studio.motion.code_sans_page")};'),
+    ('return{ok:!1,error:dzT("studio.compil.impossible")}}const Zi={',                                           # M10
+     'var mcN=Wt(e,t.id,"in");if(mcN&&mcN.type==="MotionCode")return dzMotionCodeRendu(e,mcN,n,o);'
+     'return{ok:!1,error:dzT("studio.compil.impossible")}}const Zi={'),
 ]
 
 

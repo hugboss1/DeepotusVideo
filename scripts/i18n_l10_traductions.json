@@ -2655,6 +2655,10 @@
   "fr": "PNG trop lourd (plus de 96 Mo)",
   "en": "PNG too large (over 96 MB)"
  },
+ "Page motion code inconnue.": {
+  "fr": "Page motion code inconnue.",
+  "en": "Unknown motion code page."
+ },
  "Page {v} hors du plan ({pages} page(s))": {
   "fr": "Page {v} hors du plan ({pages} page(s))",
   "en": "Page {v} outside the layout ({pages} page(s))"
@@ -3102,6 +3106,10 @@
  "Remotion engine is optional and not configured. Ship a Remotion project under remotion/ and set it up, or use engine='ffmpeg' (default).": {
   "fr": "Le moteur Remotion est facultatif et non configuré. Fournissez un projet Remotion sous remotion/ et configurez-le, ou utilisez engine='ffmpeg' (par défaut).",
   "en": "Remotion engine is optional and not configured. Ship a Remotion project under remotion/ and set it up, or use engine='ffmpeg' (default)."
+ },
+ "Rendering": {
+  "fr": "Rendu",
+  "en": "Rendering"
  },
  "Rendering news reel": {
   "fr": "Rendu du reel d'actu",

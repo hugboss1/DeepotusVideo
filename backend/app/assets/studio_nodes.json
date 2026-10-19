@@ -1,5 +1,5 @@
 {
- "count": 37,
+ "count": 38,
  "source": "index-BEOJX8L5.js",
  "types": {
   "Animation": {
@@ -235,6 +235,24 @@
     "out": "audio"
    },
    "title": "Loudness norm."
+  },
+  "MotionCode": {
+   "cat": "motion",
+   "in": [
+    "direction",
+    "script"
+   ],
+   "in_types": {
+    "direction": "direction",
+    "script": "text"
+   },
+   "out": [
+    "out"
+   ],
+   "out_types": {
+    "out": "av"
+   },
+   "title": "Motion code render"
   },
   "MotionDirection": {
    "cat": "motion",

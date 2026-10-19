@@ -4,7 +4,7 @@
 Boucle locale SEULEMENT, en lecture comme en écriture : la bibliothèque est celle du PC (imports collés par
 l'utilisateur, skills installés dans son dossier de données). Le service est app.services.motion_biblio.
 """
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
 from app.services import motion_biblio as MB
 
@@ -137,3 +137,101 @@ async def choregraphier(request: Request):
         return await CH.choregraphier(corps, langue_requete(request))
     except (ValueError, LookupError, PermissionError) as e:
         raise _http(e) from None
+
+
+@router.post("/code/ecrire")
+async def code_ecrire(request: Request):
+    """t238 — le moteur choisi écrit la page HTML / SVG / Canvas d'un nœud « Rendu motion code » (app.services.
+    motion_code). Coût estimé et plafond vérifié AVANT l'appel (402 dz_plafond) ; une page refusée par le contrôle du
+    bac à sable, une réponse illisible, un moteur absent : la page de repli. Rien n'est exécuté ici."""
+    _local(request)
+    corps = await _corps(request)
+    from app.i18n import langue_requete
+    from app.services import motion_code as MC
+    try:
+        r = await MC.ecrire(corps, langue_requete(request))
+    except (ValueError, LookupError, PermissionError) as e:
+        raise _http(e) from None
+    r["refus_texte"] = MC.details_refus(r.get("refus") or [], langue_requete(request))
+    return r
+
+
+@router.get("/code/{pid}")
+async def code_lire(pid: str, request: Request):
+    """La page enregistrée, en TEXTE dans du JSON (jamais servie comme document : elle ne s'exécute que dans le bac à
+    sable), avec ses motifs de refus éventuels."""
+    _local(request)
+    from app.services import motion_code as MC
+    try:
+        html = MC.lire(pid)
+    except LookupError as e:
+        raise _http(e) from None
+    return {"page_id": pid, "taille": len(html.encode("utf-8")), "refus": MC.controler(html), "html": html}
+
+
+@router.post("/code/rendre")
+async def code_rendre(request: Request, background_tasks: BackgroundTasks):
+    """La page `page_id` rendue en MP4 dans le bac à sable, en tâche de fond : un job comme /api/animate (Job Dock,
+    Bibliothèque, « Rouvrir dans le Studio »), sous le MÊME provider `animation` (rangé dans « Studio » par la couche
+    Montage ; la liste des providers est figée par test_montage_eb_croise). GET /api/jobs/{job_id} ; un refus ou un
+    arrêt du bac à sable = job en échec avec son message (FR / EN)."""
+    _local(request)
+    corps = await _corps(request)
+    import asyncio
+    import json
+    from datetime import datetime
+    from uuid import uuid4
+    from loguru import logger
+    from app.config import settings
+    from app.i18n import langue_requete
+    from app.models.schemas import JobStatus
+    from app.services import motion_code as MC
+    from app.services.storage import JobRecord, async_session_factory
+    langue = langue_requete(request)
+    pid = corps.get("page_id")
+    try:
+        MC.lire(pid)
+    except LookupError as e:
+        raise _http(e) from None
+    aspect, _w, _h, fps, duree = MC.bornes(corps.get("aspect"), corps.get("fps"), corps.get("duree_s"))
+    job_id = str(uuid4())
+    sortie = settings.outputs_path / f"mcode_{job_id[:8]}.mp4"
+    if corps.get("source_graph"):
+        try:
+            gdir = settings.outputs_path / "_graphs"
+            gdir.mkdir(parents=True, exist_ok=True)
+            (gdir / f"{job_id}.json").write_text(json.dumps(corps["source_graph"], ensure_ascii=False), encoding="utf-8")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"source_graph save failed for motion code {job_id}: {e}")
+    titre = corps.get("title") if isinstance(corps.get("title"), str) and corps.get("title").strip() else "Motion code"
+    async with async_session_factory() as session:
+        session.add(JobRecord(id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10, title=titre[:200],
+                              image_filename=sortie.name, aspect_ratio=aspect, provider="animation",
+                              current_step="Rendering"))
+        await session.commit()
+
+    async def _run():
+        try:
+            r = await asyncio.to_thread(MC.rendre, pid, sortie, aspect=aspect, fps=fps, duree_s=duree, langue=langue)
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                jr.status = JobStatus.DONE.value
+                jr.progress = 100
+                jr.final_video_path = jr.video_path = str(sortie)
+                jr.duration_s = int(round(r["duree_s"]))
+                jr.current_step = "Complete"
+                jr.completed_at = datetime.utcnow()
+                await session.commit()
+        except Exception as e:  # noqa: BLE001 — refus, arrêt du bac à sable, encodage : le job le dit
+            if not isinstance(e, MC.Arret):
+                logger.exception(f"motion code job {job_id} failed: {e}")
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)
+                    jr.current_step = "Failed"
+                    await session.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued", "page_id": pid, "aspect": aspect, "fps": fps, "duree_s": duree}
