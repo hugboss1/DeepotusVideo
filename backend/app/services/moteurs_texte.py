@@ -26,8 +26,10 @@ moteur en a un) et rend l'objet extrait — une DONNÉE, jamais évaluée.
 """
 from __future__ import annotations
 
+import base64
 import json as _json
 import re
+import time
 
 import httpx
 
@@ -190,6 +192,8 @@ _CINQ = ("low", "medium", "high", "xhigh", "max")
 # la sortie maximale demandée (et estimée) grandit avec l'effort : la réflexion se compte dans la sortie
 _FACTEUR_SORTIE = {"minimal": 1.25, "low": 1.5, "medium": 2.0, "high": 3.0, "xhigh": 4.0, "max": 6.0}
 PLAFOND_SORTIE = 32_000
+_ECHECS_OLLAMA: dict = {}                    # {modèle: instant monotone du dernier échec de /api/show} (30 s, A5)
+DELAI_ECHEC_OLLAMA = 30.0
 _CAPS: dict = {}                            # {moteur: {modele: capabilities}} lues chez le fournisseur
 
 _OPENAI_RAISONNEMENT = re.compile(r"^(o1|o3|o3-mini|o4-mini|gpt-5|gpt-6)(?:$|[.\-])")
@@ -258,14 +262,18 @@ def _show_ollama(modele: str, timeout: float = 4.0) -> dict:
     deja = _CAPS.get("ollama", {}).get(modele)
     if deja is not None:
         return deja
+    if time.monotonic() - _ECHECS_OLLAMA.get(modele, -1e9) < DELAI_ECHEC_OLLAMA:
+        return {}                                               # échec récent : pas de nouvelle attente à chaque F1
     try:
         r = httpx.post(f"{settings.OLLAMA_URL.rstrip('/')}/api/show", json={"model": modele}, timeout=timeout,
                        verify=SSL_VERIFY)
         caps = r.json() if r.status_code == 200 else None
     except Exception:                                           # noqa: BLE001
         caps = None
-    if not isinstance(caps, dict):              # injoignable : rien retenu (Ollama peut démarrer plus tard)
+    if not isinstance(caps, dict):              # injoignable : capacités non retenues, l'ÉCHEC l'est 30 s (Ollama peut
+        _ECHECS_OLLAMA[modele] = time.monotonic()   # démarrer plus tard, mais on n'attend pas 4 s à chaque ouverture)
         return {}
+    _ECHECS_OLLAMA.pop(modele, None)
     noter_capacites("ollama", modele, {"thinking": caps.get("thinking"), "capabilities": caps.get("capabilities")})
     return _CAPS["ollama"][modele]
 
@@ -319,6 +327,79 @@ def sortie_max(max_tokens: int, applique: str) -> int:
     return max(int(max_tokens), min(PLAFOND_SORTIE, int(round(int(max_tokens) * f))))
 
 
+# ── les images (A5, assistant « Demander », 19/10/2026) ──────────────────────────────────────────────────────────
+# Spec 2026-10-19-agent-aide-design.md § 2 « Vision en secours ». UN appel peut joindre des images (une capture
+# d'écran) ; seuls les modèles qui les lisent en reçoivent. Relevé de la documentation des fournisseurs le 19/10/2026 :
+# tous les Claude 3 et suivants, les GPT-4o / 4.1 / 4.5 / 4-turbo / 5 / 6 et o1 / o3 / o4-mini d'OpenAI (pas les
+# variantes audio, temps réel, recherche, ni o1-mini / o1-preview / o3-mini), tous les Gemini de génération, et les
+# modèles Ollama dont /api/show annonce « vision ». Fournisseurs libres (fl:) et serveurs ajoutés (local:) : aucune API
+# commune pour le dire → non.
+JETONS_IMAGE = 1600            # pire cas par image ≤ 1 280 px (Anthropic ≈ l×h/750 ; OpenAI « high » ≤ 1 105)
+JETONS_IMAGE_MINI = 2500       # OpenAI *-mini / *-nano / o4-mini : patchs de 32 px × multiplicateur (A5, revue finale)
+JETONS_IMAGE_4O_MINI = 2833 + 6 * 5667   # gpt-4o-mini : 2 833 de base + 5 667 par tuile, 6 tuiles pour ≤ 1 280 px
+MAX_IMAGES = 4
+MAX_IMAGE_OCTETS = 4_500_000   # image décodée, sous la limite de 5 Mo d'Anthropic
+TYPES_IMAGE = ("image/jpeg", "image/png", "image/webp")
+_OPENAI_VISION = re.compile(r"^(gpt-4o|gpt-4\.1|gpt-4\.5|gpt-4-turbo|gpt-5|gpt-6|o1|o3|o4-mini)(?:$|[.\-])")
+_OPENAI_SANS_VISION = re.compile(r"(audio|realtime|search|transcribe|tts|^o1-mini|^o1-preview|^o3-mini)")
+
+
+def vision(moteur: str, modele: str | None = None) -> bool:
+    """Vrai si CE moteur et CE modèle (sinon celui des Réglages) lisent les images."""
+    brut = (modele or modele_sain(moteur) or "").strip()
+    mod = brut.lower()
+    if not mod or ressemble_a_une_cle(brut):
+        return False
+    if moteur == "anthropic":
+        return mod.startswith("claude-") and not mod.startswith(("claude-2", "claude-instant"))
+    if moteur == "openai":
+        return bool(_OPENAI_VISION.match(mod)) and not _OPENAI_SANS_VISION.search(mod)
+    if moteur == "gemini":
+        return mod.startswith("gemini-") and not any(x in mod for x in ("embedding", "-tts", "aqa"))
+    if moteur == "ollama":
+        caps = _show_ollama(brut).get("capabilities")
+        return isinstance(caps, list) and "vision" in caps
+    return False
+
+
+def jetons_image(moteur: str, modele: str | None = None) -> int:
+    """Les jetons d'entrée comptés pour UNE image ≤ 1 280 px (pire cas) chez CE moteur et CE modèle (sinon celui des
+    Réglages). gpt-4o-mini facture une image en detail high bien plus cher que les autres (6 tuiles) ; les *-mini /
+    *-nano / o4-mini d'OpenAI comptent par patchs de 32 px avec un multiplicateur."""
+    if moteur == "openai":
+        mod = (modele or modele_sain(moteur) or "").strip().lower()
+        if mod.startswith("gpt-4o-mini"):
+            return JETONS_IMAGE_4O_MINI
+        if mod.startswith("o4-mini") or re.search(r"-(mini|nano)(?:$|[.\-])", mod):
+            return JETONS_IMAGE_MINI
+    return JETONS_IMAGE
+
+
+def images_valides(images) -> list[dict]:
+    """[{mime, b64}] vérifiées : type connu, base64 strict, ni vide ni trop lourde, MAX_IMAGES au plus. Une DONNÉE :
+    rien n'est décodé au-delà de la vérification. RuntimeError sinon (rien n'est envoyé)."""
+    if not images:
+        return []
+    if not isinstance(images, list):
+        raise RuntimeError("images illisibles : liste attendue")
+    if len(images) > MAX_IMAGES:
+        raise RuntimeError(f"au plus {MAX_IMAGES} images par appel")
+    out = []
+    for im in images:
+        mime = im.get("mime") if isinstance(im, dict) else None
+        b64 = im.get("b64") if isinstance(im, dict) else None
+        if mime not in TYPES_IMAGE or not isinstance(b64, str) or not b64:
+            raise RuntimeError("image illisible : type ou contenu manquant")
+        try:
+            brut = base64.b64decode(b64, validate=True)
+        except ValueError:
+            raise RuntimeError("image illisible : base64 invalide") from None
+        if not brut or len(brut) > MAX_IMAGE_OCTETS:
+            raise RuntimeError("image trop lourde (4,5 Mo au plus)")
+        out.append({"mime": mime, "b64": b64})
+    return out
+
+
 # ── l'appel (t232) ────────────────────────────────────────────────────────────────────────────────────────────────
 
 def nature_cout(moteur: str) -> str:
@@ -330,15 +411,16 @@ def nature_cout(moteur: str) -> str:
 
 
 def estimer(moteur: str, prompt: str, systeme: str = "", max_tokens: int = 4000, effort=None, *,
-            modele: str = "") -> dict:
+            modele: str = "", images: int = 0) -> dict:
     """L'op d'estimation d'UN appel, au moteur choisi : ~4 caractères par jeton en entrée, `max_tokens` en sortie (le
     pire cas). `pricing.estimate` la chiffre : 0 pour un local, tarif Anthropic + `a_mesurer` pour un fl.
     t239 : avec un `effort` que le modèle accepte (celui de l'appel, sinon celui des Réglages), la sortie estimée est
-    celle qui sera demandée (`sortie_max`) ; sans effort, ou effort refusé, rien ne change."""
+    celle qui sera demandée (`sortie_max`) ; sans effort, ou effort refusé, rien ne change.
+    A5 : chaque image jointe compte `jetons_image(moteur, modele)` jetons d'entrée (JETONS_IMAGE par défaut)."""
     from app.services import plafonds as _PLAF
     n = len(prompt or "") + len(systeme or "")
     out = sortie_max(int(max_tokens), effort_applique(moteur, modele, effort)) if effort is not None else int(max_tokens)
-    return _PLAF.op_llm(-(-n // 4), out, str(moteur or ""))
+    return _PLAF.op_llm(-(-n // 4) + max(0, int(images or 0)) * jetons_image(moteur, modele or None), out, str(moteur or ""))
 
 
 CONSIGNE_JSON = "Réponds UNIQUEMENT par un document JSON valide, sans texte autour."
@@ -377,7 +459,7 @@ def extraire_json(texte: str):
 
 
 def tirer(moteur: str, modele: str, prompt: str, systeme: str, max_tokens: int = 4000, json: bool = False, *,
-          timeout: float = 90.0, effort=None):
+          timeout: float = 90.0, effort=None, images=None):
     """UN appel, au moteur ET au modèle demandés — jamais un repli muet.
 
     Lève `RuntimeError` avec la cause : l'écran vient d'afficher le nom du modèle qui va dépenser la clé, un repli
@@ -386,24 +468,28 @@ def tirer(moteur: str, modele: str, prompt: str, systeme: str, max_tokens: int =
     Aucune garde de dépense ici : c'est `tirer_garde`, ou la route appelante (le Vectorlab a la sienne).
     t239 : `effort` (None / "auto" = rien) n'est envoyé que si CE modèle l'accepte (`effort_applique`) ; la sortie
     maximale et le délai grandissent alors avec lui.
+    A5 : images = [{mime, b64}] (images_valides) ; refusées avant tout envoi si CE modèle ne les lit pas (vision).
     """
     mod = (modele or modele_sain(moteur)).strip()
     if not mod:
         raise RuntimeError(f"aucun modèle pour « {moteur} »")
     if ressemble_a_une_cle(mod):
         raise RuntimeError(f"le modèle demandé pour « {moteur} » ressemble à une clé d'API, pas à un nom de modèle")
+    ims = images_valides(images)
+    if ims and not vision(moteur, mod):
+        raise RuntimeError(f"le modèle {mod} ne lit pas les images")
     if json:
         systeme = f"{systeme}\n\n{CONSIGNE_JSON}" if systeme else CONSIGNE_JSON
     eff = effort_applique(moteur, mod, effort) if effort is not None else ""
     if eff:
         max_tokens = sortie_max(max_tokens, eff)
         timeout = min(600.0, timeout * _FACTEUR_SORTIE[eff]) if eff in _FACTEUR_SORTIE else timeout
-    txt = _appeler(moteur, mod, prompt, systeme, max_tokens, json, timeout, eff)
+    txt = _appeler(moteur, mod, prompt, systeme, max_tokens, json, timeout, eff, ims)
     return extraire_json(txt) if json else txt
 
 
 def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, json: bool, timeout: float,
-             effort: str = "") -> str:
+             effort: str = "", images: list | None = None) -> str:
     if moteur.startswith("fl:"):            # t222 : POST {base}/chat/completions du fournisseur libre
         from app.services import fournisseurs_llm as _FL
         fid = _FL.de_moteur(moteur)
@@ -417,8 +503,10 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
             raise RuntimeError(f"moteur inconnu : {moteur}")
         return _SL.tirer(sid, mod, prompt, systeme, max_tokens, timeout=max(timeout, 180.0))
     if moteur == "anthropic":
+        contenu = ([{"type": "image", "source": {"type": "base64", "media_type": i["mime"], "data": i["b64"]}}
+                    for i in images] + [{"type": "text", "text": prompt}]) if images else prompt
         body = {"model": mod, "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}]}
+                "messages": [{"role": "user", "content": contenu}]}
         if systeme:
             body["system"] = systeme
         if effort:
@@ -434,8 +522,11 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
         return "".join(b.get("text", "") for b in (r.json().get("content") or [])
                        if b.get("type") == "text")
     if moteur == "openai":
+        contenu = ([{"type": "text", "text": prompt}]
+                   + [{"type": "image_url", "image_url": {"url": f"data:{i['mime']};base64,{i['b64']}",
+                                                          "detail": "high"}} for i in images]) if images else prompt
         msgs = ([{"role": "system", "content": systeme}] if systeme else []) \
-            + [{"role": "user", "content": prompt}]
+            + [{"role": "user", "content": contenu}]
         body = {"model": mod, ("max_completion_tokens" if _openai_raisonne(mod) else "max_tokens"): max_tokens,
                 "messages": msgs}
         if json:
@@ -455,7 +546,9 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
     if moteur == "gemini":
         from app.services.gemini_llm import _headers
         from app.services.google_video import GOOGLE_API_BASE
-        body = {"contents": [{"parts": [{"text": prompt}]}],
+        parts = [{"inlineData": {"mimeType": i["mime"], "data": i["b64"]}} for i in (images or [])] \
+            + [{"text": prompt}]
+        body = {"contents": [{"parts": parts}],
                 "generationConfig": {"maxOutputTokens": max_tokens}}
         if json:
             body["generationConfig"]["responseMimeType"] = "application/json"
@@ -473,6 +566,8 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
         return "".join(p.get("text", "") for p in parts)
     if moteur == "ollama":
         body = {"model": mod, "prompt": prompt, "system": systeme, "stream": False}
+        if images:
+            body["images"] = [i["b64"] for i in images]
         if json:
             body["format"] = "json"
         if effort:
@@ -487,18 +582,28 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
 
 async def tirer_garde(moteur: str, modele: str, prompt: str, systeme: str, max_tokens: int = 4000,
                       json: bool = False, *, categorie: str = "motion", ref: str | None = None,
-                      timeout: float = 90.0, effort=None):
+                      timeout: float = 90.0, effort=None, images=None):
     """`tirer` sous les gardes d'une route payante, pour un appelant hors Vectorlab (t234) : moteur connu et configuré,
     puis l'estimation et `plafonds.verifier` AVANT l'appel (402 `dz_plafond` si le mois déborderait ; un local est
     gratuit et passe). L'appel lui-même tourne hors de la boucle (il est bloquant). t239 : l'estimation suit l'effort
-    réellement appliqué au modèle réellement choisi."""
+    réellement appliqué au modèle réellement choisi.
+    A5 : les images sont vérifiées et refusées AVANT la garde (un moteur aveugle ne déclenche jamais de 402)."""
     import asyncio
     from app.services import plafonds as _PLAF
     if not connu(moteur):
         raise RuntimeError(f"moteur inconnu : {moteur}")
     if not configure(moteur):
         raise RuntimeError(f"moteur « {nom(moteur)} » non configuré (Réglages)")
-    await _PLAF.verifier(estimer(moteur, prompt, systeme, max_tokens, effort, modele=modele), categorie, ref)
+    ims = images_valides(images)
     loop = asyncio.get_running_loop()
+    if ims:
+        mod = (modele or modele_sain(moteur)).strip()
+        if not mod:
+            raise RuntimeError(f"aucun modèle pour « {moteur} »")
+        if not await loop.run_in_executor(None, vision, moteur, mod):      # Ollama : /api/show, bloquant
+            raise RuntimeError(f"le modèle {mod} ne lit pas les images")
+    await _PLAF.verifier(estimer(moteur, prompt, systeme, max_tokens, effort, modele=modele, images=len(ims)),
+                         categorie, ref)
     return await loop.run_in_executor(
-        None, lambda: tirer(moteur, modele, prompt, systeme, max_tokens, json, timeout=timeout, effort=effort))
+        None, lambda: tirer(moteur, modele, prompt, systeme, max_tokens, json, timeout=timeout, effort=effort,
+                            images=ims))

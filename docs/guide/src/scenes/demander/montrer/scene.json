@@ -1,0 +1,58 @@
+{
+  "titre": {
+    "fr": "Montre-moi → le curseur va au bouton",
+    "en": "Show me → the cursor goes to the button"
+  },
+  "legende": {
+    "fr": "Un curseur lumineux glisse jusqu'au bouton et l'entoure, avec son nom dans une bulle.",
+    "en": "A glowing cursor glides to the button and circles it, with its name in a bubble."
+  },
+  "captures": [
+    {
+      "fr": "bouton.fr.webp",
+      "en": "bouton.en.webp"
+    },
+    {
+      "fr": "halo.fr.webp",
+      "en": "halo.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2,
+      "curseur": [
+        1210,
+        180
+      ],
+      "clic": true
+    },
+    {
+      "capture": 1,
+      "duree": 3
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2,
+      "curseur": [
+        1156,
+        160
+      ],
+      "clic": true
+    },
+    {
+      "capture": 1,
+      "duree": 3
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
