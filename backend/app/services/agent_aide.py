@@ -13,6 +13,7 @@ import json
 import math
 import re
 import unicodedata
+from collections import Counter
 from functools import lru_cache
 from pathlib import Path
 
@@ -98,6 +99,83 @@ def systeme(ecran: str, lang: str, espace: str = "") -> str:
 
 # toute balise MAJUSCULE entre crochets, avec ou sans cible : les connues deviennent des actions, les autres sont
 # retirées (comptées) — l'écran ne voit jamais une balise
+CATALOGUE = DOSSIER / "catalogue"
+MAX_PERTINENTS = 15
+POIDS = (("libelle", 3.0), ("synonymes", 3.0), ("infobulle", 2.0), ("role", 1.0))
+MOTS_VIDES = {"le", "la", "les", "un", "une", "des", "de", "du", "et", "ou", "en", "au", "aux", "je", "tu", "il",
+              "ce", "ca", "est", "pour", "par", "sur", "dans", "avec", "comment", "quoi", "que", "qui", "mon",
+              "ma", "mes", "the", "an", "of", "to", "in", "on", "is", "how", "do", "i", "my", "what", "where"}
+
+
+@lru_cache(maxsize=1)
+def catalogue() -> dict:
+    """Les fiches non retirées de docs/agent/catalogue/*.json (lues une fois par processus)."""
+    fiches = {}
+    if CATALOGUE.is_dir():
+        for f in sorted(CATALOGUE.glob("*.json")):
+            if f.name.startswith("_"):
+                continue
+            for x in json.loads(f.read_text(encoding="utf-8"))["fiches"]:
+                if x.get("etat") != "retire":
+                    fiches[x["id"]] = x
+    return fiches
+
+
+def _mots(t) -> list:
+    t = unicodedata.normalize("NFKD", str(t or "")).encode("ascii", "ignore").decode().lower()
+    return [m for m in re.findall(r"[a-z0-9]+", t) if len(m) >= 2 and m not in MOTS_VIDES]
+
+
+def _racine(m: str) -> str:
+    return m[:5] if len(m) > 5 else m           # « coupe », « couper », « coupez » se rejoignent
+
+
+@lru_cache(maxsize=1)
+def _index() -> tuple:
+    docs, df = {}, Counter()
+    for i, x in catalogue().items():
+        poids = {}
+        for champ, w in POIDS:
+            v = x.get(champ) or {}
+            for lang in ("fr", "en"):
+                t = v.get(lang) if isinstance(v, dict) else None
+                t = " ".join(t) if isinstance(t, list) else (t or "")
+                for m in _mots(t):
+                    r = _racine(m)
+                    poids[r] = max(poids.get(r, 0.0), w)
+        docs[i] = poids
+        df.update(poids.keys())
+    n = max(1, len(docs))
+    return docs, {r: math.log(1 + n / c) for r, c in df.items()}
+
+
+def chercher(question, ecran: str = "", visibles=(), n: int = MAX_PERTINENTS) -> list:
+    """Les fiches les plus proches de la question : mots communs pondérés par champ et par rareté, ×1,5 sur l'écran
+    ouvert, +3 pour un élément visible maintenant. [] si la question n'a aucun mot utile."""
+    q = {_racine(m) for m in _mots(question)}
+    if not q:
+        return []
+    docs, idf = _index()
+    fiches, vis, res = catalogue(), set(visibles or ()), []
+    for i, poids in docs.items():
+        s = sum(poids[r] * idf.get(r, 0.0) for r in q if r in poids)
+        if not s:
+            continue
+        if ecran and fiches[i].get("ecran") == ecran:
+            s *= 1.5
+        if i in vis:
+            s += 3.0
+        res.append((-s, i))
+    return [fiches[i] for _, i in sorted(res)[:n]]
+
+
+@lru_cache(maxsize=1)
+def _par_texte() -> dict:
+    """Provisoire : rempli à la tâche 9."""
+    return {}
+
+
+
 BALISE = re.compile(r"\[([A-Z]{2,8})(?::([^\[\]\n]{1,80}))?\]")
 MAX_ACTIONS = 6
 # A5 : coordonnées rendues par un moteur qui a VU une capture (pixels de la capture), libellé facultatif
