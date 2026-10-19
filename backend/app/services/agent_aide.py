@@ -12,6 +12,8 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from loguru import logger
+
 RACINE = Path(__file__).resolve().parents[3]
 DOSSIER = RACINE / "docs" / "agent"
 GUIDE = RACINE / "docs" / "guide" / "src"
@@ -22,6 +24,18 @@ VUES = ("quick", "studio", "episodes", "sonvfx", "montage", "scheduler", "templa
 # de plus, « transfert », que l'écran n'ouvre pas par section)
 SECTIONS_REGLAGES = ("diag", "coffre", "appareils", "keys", "accounts", "personas", "branding", "pack", "defaults",
                      "paths", "news", "appearance", "pricing", "espaces")
+
+MAX_QUESTION = 2000
+MAX_HISTORIQUE = 10
+MAX_TOUR = 1000
+MAX_TOKENS = 900
+PREFERENCE = ("anthropic", "openai", "gemini")
+SANS_CLE = {
+    "fr": "Aucun moteur de texte n'est branché : l'assistant a besoin d'une clé (Anthropic, OpenAI, Gemini) ou d'un "
+          "serveur local. Ouvre les Réglages › Clés d'API, colle ta clé, puis repose ta question.",
+    "en": "No text engine is connected: the assistant needs an API key (Anthropic, OpenAI, Gemini) or a local "
+          "server. Open Settings › API keys, paste your key, then ask again.",
+}
 
 
 @lru_cache(maxsize=1)
@@ -97,3 +111,71 @@ def analyser(texte) -> tuple[str, list, int]:
     propre = "\n".join(l.strip() for l in propre.split("\n"))
     propre = re.sub(r"\n{3,}", "\n\n", propre).strip()
     return propre, actions, rejets
+
+
+def choisir_moteur(demande: str = "") -> str:
+    """Le moteur demandé s'il est connu ET configuré ; sans demande, le premier configuré dans PREFERENCE, puis le
+    premier configuré tout court ; "" si aucun. Jamais de repli d'un moteur demandé vers un autre."""
+    from app.services import moteurs_texte as MT
+    if demande:
+        return demande if MT.connu(demande) and MT.configure(demande) else ""
+    lignes = [l["moteur"] for l in MT.etat() if l["configure"] and not l.get("fautif")]
+    for p in PREFERENCE:
+        if p in lignes:
+            return p
+    return lignes[0] if lignes else ""
+
+
+def _espace() -> str:
+    try:
+        from app.services import espaces as ES
+        return str(ES.actif().get("nom") or "")
+    except Exception:  # noqa: BLE001 — l'espace n'est qu'un contexte : son absence ne bloque pas l'aide
+        return ""
+
+
+def _historique(h) -> str:
+    if not isinstance(h, list):
+        return ""
+    lignes = []
+    for t in h[-MAX_HISTORIQUE:]:
+        if isinstance(t, dict) and t.get("role") in ("user", "assistant") and isinstance(t.get("texte"), str):
+            qui = "Utilisateur" if t["role"] == "user" else "Assistant"
+            lignes.append(f"{qui} : {t['texte'].strip()[:MAX_TOUR]}")
+    return ("Échange précédent :\n" + "\n".join(lignes) + "\n\nNouvelle question : ") if lignes \
+        else "Nouvelle question : "
+
+
+async def demander(corps, lang: str = "fr") -> dict:
+    """{texte, actions, moteur, nom, rejets, sans_cle}. ValueError : corps ou question invalides. RuntimeError :
+    le moteur a échoué. HTTPException 402 : plafond « aide » (remonte tel quel jusqu'au dialogue de l'écran)."""
+    from app.services import moteurs_texte as MT
+    if not isinstance(corps, dict):
+        raise ValueError("Corps JSON attendu.")
+    q = corps.get("question")
+    q = q.strip()[:MAX_QUESTION] if isinstance(q, str) else ""
+    if not q:
+        raise ValueError("La question est vide.")
+    lang = "en" if (corps.get("lang") or lang) == "en" else "fr"
+    ecran = corps.get("ecran") if corps.get("ecran") in VUES else ""
+    demande = corps.get("moteur").strip() if isinstance(corps.get("moteur"), str) else ""
+    moteur = choisir_moteur(demande)
+    if not moteur:
+        _, actions, _ = analyser("[POINT:reglages.cles] [GUIDE:cles]")
+        return {"texte": SANS_CLE[lang], "actions": actions, "moteur": "", "nom": "", "rejets": 0, "sans_cle": True}
+    sortie = await MT.tirer_garde(moteur, "", _historique(corps.get("historique")) + q,
+                                  systeme(ecran, lang, _espace()), MAX_TOKENS, categorie="aide")
+    texte, actions, rejets = analyser(sortie)
+    if rejets:
+        logger.info(f"agent_aide : {rejets} balise(s) inconnue(s) retirée(s) ({moteur})")
+    return {"texte": texte, "actions": actions, "moteur": moteur, "nom": MT.nom(moteur), "rejets": rejets,
+            "sans_cle": False}
+
+
+def etat() -> dict:
+    from app.services import moteurs_texte as MT
+    k = connaissance()
+    moteurs = [{"moteur": l["moteur"], "nom": l["nom"], "cout": MT.nature_cout(l["moteur"])}
+               for l in MT.etat() if l["configure"] and not l.get("fautif")]
+    return {"moteur": choisir_moteur(), "moteurs": moteurs, "ancres": len(k["ancres"]),
+            "chapitres": len(k["chapitres"])}

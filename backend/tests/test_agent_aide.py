@@ -82,3 +82,63 @@ def test_nettoyage_lineaire():
 
 def test_fins_de_ligne_crlf():
     assert A.analyser("a\r\n[POINT:rail.quick]\r\nb")[0] == "a\n\nb"
+
+
+from app.services import moteurs_texte as MT                                 # noqa: E402
+from app.services import plafonds as PLAF                                    # noqa: E402
+
+
+def _faux_etat(*configures):
+    return lambda: [{"moteur": m, "nom": m.title(), "configure": m in configures, "fautif": False}
+                    for m in ("anthropic", "openai", "gemini", "ollama")]
+
+
+def test_choix_du_moteur(monkeypatch):
+    monkeypatch.setattr(MT, "etat", _faux_etat("ollama", "openai"))
+    assert A.choisir_moteur() == "openai"                      # préférence anthropic > openai > gemini
+    monkeypatch.setattr(MT, "etat", _faux_etat("ollama"))
+    assert A.choisir_moteur() == "ollama"                      # sinon le premier configuré
+    monkeypatch.setattr(MT, "etat", _faux_etat())
+    assert A.choisir_moteur() == ""
+    monkeypatch.setattr(MT, "connu", lambda m: m == "gemini")
+    monkeypatch.setattr(MT, "configure", lambda m: m == "gemini")
+    assert A.choisir_moteur("gemini") == "gemini" and A.choisir_moteur("inconnu") == ""
+
+
+def test_categorie_aide():
+    assert "aide" in PLAF.CATEGORIES
+
+
+def test_demander_appelle_tirer_garde(monkeypatch):
+    vu = {}
+
+    async def faux(moteur, modele, prompt, systeme, max_tokens=4000, json=False, *, categorie="", **kw):
+        vu.update(moteur=moteur, prompt=prompt, systeme=systeme, categorie=categorie, max_tokens=max_tokens)
+        return "Va dans les Réglages.\n[POINT:reglages.cles]\n[POINT:invente]"
+
+    monkeypatch.setattr(A, "choisir_moteur", lambda d="": "anthropic")
+    monkeypatch.setattr(MT, "tirer_garde", faux)
+    monkeypatch.setattr(A, "_espace", lambda: "Deepotus")
+    r = asyncio.run(A.demander({"question": "  Où mettre ma clé ?  ", "ecran": "quick", "lang": "fr",
+                                "historique": [{"role": "user", "texte": "bonjour"},
+                                               {"role": "assistant", "texte": "Salut"}, {"role": "pirate"}]}))
+    assert vu["categorie"] == "aide" and vu["moteur"] == "anthropic" and vu["max_tokens"] == A.MAX_TOKENS
+    assert vu["prompt"].endswith("Nouvelle question : Où mettre ma clé ?")
+    assert "Utilisateur : bonjour" in vu["prompt"] and "pirate" not in vu["prompt"]
+    assert "écran ouvert : quick" in vu["systeme"] and "Deepotus" in vu["systeme"]
+    assert r["texte"] == "Va dans les Réglages." and [a["cible"] for a in r["actions"]] == ["reglages.cles"]
+    assert r["rejets"] == 1 and r["moteur"] == "anthropic"
+
+
+def test_demander_sans_moteur_repond_sans_llm(monkeypatch):
+    monkeypatch.setattr(A, "choisir_moteur", lambda d="": "")
+    r = asyncio.run(A.demander({"question": "help", "lang": "en"}))
+    assert r["sans_cle"] is True and r["moteur"] == ""
+    assert r["actions"][0]["cible"] == "reglages.cles" and "key" in r["texte"].lower()
+
+
+def test_demander_bornes():
+    with pytest.raises(ValueError):
+        asyncio.run(A.demander({"question": "   "}))
+    with pytest.raises(ValueError):
+        asyncio.run(A.demander("pas un objet"))
