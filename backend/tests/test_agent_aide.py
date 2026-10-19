@@ -125,7 +125,8 @@ def test_demander_appelle_tirer_garde(monkeypatch):
     vu = {}
 
     async def faux(moteur, modele, prompt, systeme, max_tokens=4000, json=False, *, categorie="", **kw):
-        vu.update(moteur=moteur, prompt=prompt, systeme=systeme, categorie=categorie, max_tokens=max_tokens)
+        vu.update(moteur=moteur, prompt=prompt, systeme=systeme, categorie=categorie, max_tokens=max_tokens,
+                  effort=kw.get("effort"))
         return "Va dans les Réglages.\n[POINT:reglages.cles]\n[POINT:invente]"
 
     monkeypatch.setattr(A, "choisir_moteur", lambda d="": "anthropic")
@@ -140,6 +141,32 @@ def test_demander_appelle_tirer_garde(monkeypatch):
     assert "écran ouvert : quick" in vu["systeme"] and "Deepotus" in vu["systeme"]
     assert r["texte"] == "Va dans les Réglages." and [a["cible"] for a in r["actions"]] == ["reglages.cles"]
     assert r["rejets"] == 1 and r["moteur"] == "anthropic"
+    assert vu["effort"] == "low" and A.MAX_TOKENS == 2000
+
+
+def _repondre(monkeypatch, sortie):
+    async def faux(*a, **kw):
+        return sortie
+    monkeypatch.setattr(A, "choisir_moteur", lambda d="": "anthropic")
+    monkeypatch.setattr(MT, "tirer_garde", faux)
+    monkeypatch.setattr(A, "_espace", lambda: "")
+
+
+def test_reponse_faite_de_balises_a_un_texte_de_repli(monkeypatch):
+    _repondre(monkeypatch, "[POINT:reglages.cles]")
+    r = asyncio.run(A.demander({"question": "q", "lang": "fr"}))
+    assert r["texte"] == "Voici où regarder :" and [a["cible"] for a in r["actions"]] == ["reglages.cles"]
+    r = asyncio.run(A.demander({"question": "q", "lang": "en"}))
+    assert r["texte"] == "Here is where to look:"
+
+
+def test_reponse_vide_sans_action_renvoie_au_guide(monkeypatch):
+    _repondre(monkeypatch, "  ")
+    r = asyncio.run(A.demander({"question": "q", "lang": "fr"}))
+    assert r["texte"] == "Je n'ai pas de réponse utile ; le guide peut aider."
+    assert [(a["type"], a["cible"]) for a in r["actions"]] == [("guide", "tour")]
+    r = asyncio.run(A.demander({"question": "q", "lang": "en"}))
+    assert r["texte"] == "I have no useful answer; the guide can help."
 
 
 def test_demander_sans_moteur_repond_sans_llm(monkeypatch):

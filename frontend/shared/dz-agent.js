@@ -200,7 +200,7 @@ if (!window.__dzAgent) {
   }
   function introuvable(actionsDuMessage) {
     const guides = (Array.isArray(actionsDuMessage) ? actionsDuMessage : []).filter((x) => x && x.type === "guide");
-    hist.push({ role: "assistant", texte: T("agent.action.introuvable"), actions: guides });
+    hist.push({ role: "assistant", texte: T("agent.action.introuvable"), actions: guides, erreur: true });
     garder(); dessiner();
   }
 
@@ -242,7 +242,7 @@ if (!window.__dzAgent) {
       else if (e.faire === "pointer") await pointer(a, actionsDuMessage || [], moi);
     }
   }
-  window.__dzAgentExecuter = executer;     // pour la tâche 11 et les preuves
+  window.__dzAgentExecuter = executer;     // point d'entrée de débogage et de preuve (console)
 
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape" && pointeur.actif()) effacerPointeur();     // n'empêche pas la suite (fermeture du tiroir)

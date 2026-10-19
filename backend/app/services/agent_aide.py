@@ -28,7 +28,10 @@ SECTIONS_REGLAGES = ("diag", "coffre", "appareils", "keys", "accounts", "persona
 MAX_QUESTION = 2000
 MAX_HISTORIQUE = 10
 MAX_TOUR = 1000
-MAX_TOKENS = 900
+MAX_TOKENS = 2000   # les moteurs qui raisonnent comptent la réflexion dans la sortie
+REPONSE_VIDE = {"fr": "Voici où regarder :", "en": "Here is where to look:"}
+SANS_REPONSE = {"fr": "Je n'ai pas de réponse utile ; le guide peut aider.",
+                "en": "I have no useful answer; the guide can help."}
 PREFERENCE = ("anthropic", "openai", "gemini")
 SANS_CLE = {
     "fr": "Aucun moteur de texte n'est branché : l'assistant a besoin d'une clé (Anthropic, OpenAI, Gemini) ou d'un "
@@ -165,8 +168,14 @@ async def demander(corps, lang: str = "fr") -> dict:
         _, actions, _ = analyser("[POINT:reglages.cles] [GUIDE:cles]")
         return {"texte": SANS_CLE[lang], "actions": actions, "moteur": "", "nom": "", "rejets": 0, "sans_cle": True}
     sortie = await MT.tirer_garde(moteur, "", _historique(corps.get("historique")) + q,
-                                  systeme(ecran, lang, _espace()), MAX_TOKENS, categorie="aide")
+                                  systeme(ecran, lang, _espace()), MAX_TOKENS, categorie="aide", effort="low")
     texte, actions, rejets = analyser(sortie)
+    if not texte:
+        if actions:
+            texte = REPONSE_VIDE[lang]
+        else:
+            texte = SANS_REPONSE[lang]
+            actions = analyser("[GUIDE:tour]")[1]
     if rejets:
         logger.info(f"agent_aide : {rejets} balise(s) inconnue(s) retirée(s) ({moteur})")
     return {"texte": texte, "actions": actions, "moteur": moteur, "nom": MT.nom(moteur), "rejets": rejets,
