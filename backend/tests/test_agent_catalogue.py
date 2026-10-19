@@ -58,11 +58,13 @@ def _depot(tmp_path, bundle):
     _ecrire(i18n / "coque.json", json.dumps({"coque.rail.replier": {"fr": "Replier", "en": "Collapse"},
                                              "commun.lit.lecture": {"fr": "Lecture (Espace)", "en": "Play (Space)"}}))
     _ecrire(i18n / "a.json", json.dumps(CLES_A, ensure_ascii=False))
-    _ecrire(i18n / "vectorlab.json", json.dumps({"vectorlab.core.grille_titre": {"fr": "Grille", "en": "Grid"}}))
+    _ecrire(i18n / "vectorlab.json", json.dumps({"vectorlab.core.grille_titre": {"fr": "Grille", "en": "Grid"},
+                                                 "vectorlab.calques.renommer_titre": {"fr": "Renommer", "en": "Rename"}}))
     _ecrire(i18n / "photolab.json", json.dumps({"photolab.outil.pinceau": {"fr": "Pinceau", "en": "Brush"}}))
     _ecrire(i18n / "avatar.json", json.dumps({"avatar.direct.lancer": {"fr": "Lancer le direct", "en": "Start live"}}))
     _ecrire(tmp_path / "frontend" / "dist" / "assets" / "index-TEST.js", bundle)
-    _ecrire(tmp_path / "frontend" / "vectorlab" / "js" / "core.js", 'b.title = T("vectorlab.core.grille_titre");')
+    _ecrire(tmp_path / "frontend" / "vectorlab" / "js" / "core.js", 'b.title = T("vectorlab.core.grille_titre");\n'
+            'const n = await VL.dialogue.saisir({ titre: T("vectorlab.calques.renommer_titre") });')
     _ecrire(tmp_path / "frontend" / "vectorlab" / "index.html", "<html></html>")
     _ecrire(tmp_path / "frontend" / "photolab" / "index.html", "<html></html>")
     _ecrire(tmp_path / "frontend" / "avatar" / "avatar.js",
@@ -232,3 +234,15 @@ def test_reglages_et_fiches(depot):
     assert r["libelle"]["fr"] == "Clés API"
     f = e["vectorlab.fiche.plume"]
     assert f["fiche"] == "plume" and f["cadre"] == "/vectorlab/" and f["infobulle"]["en"] == "Draws curves."
+
+
+def test_titre_de_dialogue_ecarte(depot):
+    assert "vectorlab.calques.renommer_titre" not in S.extraire(depot)   # saisir({ titre: … }) : pas un élément
+
+
+def test_exclusions_du_skill(depot):
+    _ecrire(depot / "docs" / "agent" / "catalogue" / "_exclus.json", json.dumps(
+        {"ids": ["coque.rail.replier"], "prefixes": ["reglages."], "note": "test"}))
+    e = S.extraire(depot)
+    assert "coque.rail.replier" not in e and not any(k.startswith("reglages.") for k in e)
+    assert "montage.outils.lame" in e and "vectorlab.fiche.plume" in e

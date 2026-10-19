@@ -49,6 +49,9 @@ RE_CLE = re.compile(r'dzT\("([a-z0-9_.]+)"\s*[,)]')              # dzT("cle") ou
 RE_ICONE_LIT = re.compile(r'"(dz-[a-z0-9-]+)"')
 RE_ICONE = re.compile(r'icone?:"(dz-[a-z0-9-]+)"')
 RE_T_LAB = re.compile(r'(title|titre|"aria-label"|tip)\s*[:=]\s*(?:T|dzT|t)\("([a-z0-9_.]+)"\)')
+# une ligne de lab qui ouvre un dialogue : son « titre: T(…) » est le titre de la boîte, pas un élément
+RE_DIALOGUE = re.compile(r"saisir\(|confirmer\(|valider:|dialogue", re.I)
+EXCLUS = ("docs", "agent", "catalogue", "_exclus.json")   # faux éléments écartés par le skill connaissance-agent
 RE_LETTRE = re.compile(r"[A-Za-zÀ-ÿ]")
 CHAMPS = {"input", "select", "textarea"}
 LITTERAL_MAX = 200
@@ -333,7 +336,8 @@ def depuis_labs(racine: pathlib.Path, dico: dict) -> dict:
             if not f.exists():
                 continue
             rel = f.relative_to(racine).as_posix()
-            for _a, k in RE_T_LAB.findall(f.read_text(encoding="utf-8", errors="replace")):
+            lignes = f.read_text(encoding="utf-8", errors="replace").splitlines()
+            for _a, k in (c for l in lignes if not RE_DIALOGUE.search(l) for c in RE_T_LAB.findall(l)):
                 if k not in dico or message(k):
                     continue
                 e = out.get(k) or {**_base(k, "bouton", dico), "ecran": ec, "cadre": cadre, "libelle": dict(VIDE),
@@ -394,4 +398,9 @@ def extraire(racine) -> dict:
     _ajouter(out, depuis_labs(racine, dico))
     _ajouter(out, depuis_reglages(racine, inv))
     _ajouter(out, depuis_fiches(racine))
+    f = racine.joinpath(*EXCLUS)
+    if f.exists():                                       # ids exacts et préfixes que le skill a écartés
+        x = json.loads(f.read_text(encoding="utf-8"))
+        ids, prefixes = set(x.get("ids") or []), tuple(x.get("prefixes") or [])
+        out = {k: v for k, v in out.items() if k not in ids and not (prefixes and k.startswith(prefixes))}
     return out
