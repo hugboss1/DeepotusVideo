@@ -49,6 +49,12 @@
     {"id": "bibliotheque.nouveau_projet", "ecran": "library", "selecteur": "button", "texte": {"fr": "＋ Nouveau projet", "en": "＋ New project"}, "fr": "Bibliothèque › Nouveau projet", "en": "Library › New project"},
     {"id": "bibliotheque.corbeille", "ecran": "library", "selecteur": "button", "texte": {"fr": "Corbeille", "en": "Trash"}, "fr": "Bibliothèque › Corbeille", "en": "Library › Trash"},
     {"id": "bibliotheque.recherche", "ecran": "library", "selecteur": "button", "texte": {"fr": "Recherche", "en": "Search"}, "fr": "Bibliothèque › Recherche", "en": "Library › Search"},
-    {"id": "bibliotheque.creer_image", "ecran": "library", "selecteur": "button", "texte": {"fr": "Créer l'image", "en": "Create image"}, "fr": "Bibliothèque › Créer l'image", "en": "Library › Create image"}
+    {"id": "bibliotheque.creer_image", "ecran": "library", "selecteur": "button", "texte": {"fr": "Créer l'image", "en": "Create image"}, "fr": "Bibliothèque › Créer l'image", "en": "Library › Create image"},
+    {"id": "vectorlab.creer", "ecran": "vectorlab", "cadre": "/vectorlab/", "selecteur": "button.primaire", "texte": {"fr": "Créer", "en": "Create"}, "fr": "Vectorlab › Créer le document", "en": "Vectorlab › Create the document"},
+    {"id": "vectorlab.mode_pixel", "ecran": "vectorlab", "cadre": "/vectorlab/", "selecteur": "button:not(.mb-titre)", "texte": {"fr": "Pixel", "en": "Pixel"}, "fr": "Vectorlab › mode Pixel", "en": "Vectorlab › Pixel mode"},
+    {"id": "vectorlab.raccourcis", "ecran": "vectorlab", "cadre": "/vectorlab/", "selecteur": "button.pb-icone", "texte": {"fr": "Raccourcis clavier (F1)", "en": "Keyboard shortcuts (F1)"}, "fr": "Vectorlab › Raccourcis clavier", "en": "Vectorlab › Keyboard shortcuts"},
+    {"id": "photolab.menu_filtre", "ecran": "photolab", "cadre": "/photolab/", "selecteur": "button.menu-bouton", "texte": {"fr": "Filtre", "en": "Filter"}, "fr": "Photolab › menu Filtre", "en": "Photolab › Filter menu"},
+    {"id": "photolab.recadrage", "ecran": "photolab", "cadre": "/photolab/", "selecteur": "button", "texte": {"fr": "Recadrage", "en": "Crop"}, "fr": "Photolab › outil Recadrage", "en": "Photolab › Crop tool"},
+    {"id": "photolab.pinceau", "ecran": "photolab", "cadre": "/photolab/", "selecteur": "button", "texte": {"fr": "Pinceau", "en": "Brush"}, "fr": "Photolab › outil Pinceau", "en": "Photolab › Brush tool"}
   ]
 }
