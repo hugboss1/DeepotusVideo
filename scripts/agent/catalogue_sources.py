@@ -52,7 +52,8 @@ CHAMPS = {"input", "select", "textarea"}
 LITTERAL_MAX = 200
 VIDE = {"fr": "", "en": ""}
 # lecture d'un objet de props : les caractères qui comptent hors chaîne, les chaînes, l'intérieur d'un gabarit
-_RE_SPECIAL = re.compile(r"[{}()\[\]\"'`,]")
+_RE_SPECIAL = re.compile(r"[{}()\[\]\"'`,]|/\*|//")      # « / » seul (division, regex) : rien
+_RE_TETE = re.compile(r"(?:\s+|/\*[\s\S]*?\*/|//[^\n]*)*")      # blancs et commentaires devant un attribut
 _RE_CHAINE = {'"': re.compile(r'"(?:[^"\\\n]|\\.)*"'), "'": re.compile(r"'(?:[^'\\\n]|\\.)*'")}
 _RE_GABARIT = re.compile(r"\\[\s\S]|`|\$\{")
 _RE_ATTR = re.compile(r'\s*("[^"]+"|[A-Za-z_$][\w$]*)\s*:')
@@ -109,7 +110,7 @@ def _bundle(racine: pathlib.Path) -> str:
 
 def _objet(s: str, i: int, memo: dict):
     """s[i] == '{' → (position de la '}' fermante, virgules de 1er niveau), ou None si l'objet ne se referme pas.
-    Saute les chaînes "…" '…' et les gabarits `…${…}…` (échappements compris). `memo` garde les objets déjà
+    Saute les chaînes "…" '…', les gabarits `…${…}…` (échappements compris) et les commentaires /* … */, // …. `memo` garde les objets déjà
     bornés : un objet imbriqué déjà lu est enjambé d'un coup (d'où la lecture des éléments de la fin vers le début).
     Limite connue : un littéral d'expression régulière contenant un guillemet ou une accolade fausse la lecture."""
     pile, virgules, j = [], [], i
@@ -128,7 +129,15 @@ def _objet(s: str, i: int, memo: dict):
         if not m:
             return None
         j, c = m.start(), m.group()
-        if c in _RE_CHAINE:
+        if c == "/*":                                    # une apostrophe de commentaire n'ouvre pas de chaîne
+            k = s.find("*/", j + 2)
+            if k < 0:
+                return None
+            j = k + 2
+        elif c == "//":
+            k = s.find("\n", j)
+            j = k if k >= 0 else len(s)
+        elif c in _RE_CHAINE:
             m = _RE_CHAINE[c].match(s, j)
             if not m:
                 return None
@@ -160,6 +169,7 @@ def _attributs(s: str, i: int, fin: int, virgules: list) -> dict:
     """attributs de PREMIER niveau de l'objet s[i..fin] : nom (sans guillemets) → (début, fin) de la valeur."""
     out, bornes = {}, [i] + virgules + [fin]
     for a, b in zip(bornes, bornes[1:]):
+        a += _RE_TETE.match(s, a + 1).end() - (a + 1)  # sauter blancs et commentaires de tête
         seg = s[a + 1:b]
         m = _RE_ATTR.match(seg)
         if m:
@@ -183,6 +193,12 @@ def _elements(b: str) -> list:
             out.append((m.start(), m.group(1), _attributs(b, i, r[0], r[1])))
     out.reverse()
     return out
+
+
+def _etat_de_ternaire(avant: str, texte: dict) -> bool:
+    """1re branche d'un ternaire (« cond ? dzT(A) : … ») dont le texte FR finit par « … » : un état passager."""
+    fr = (texte.get("fr") or "").rstrip() if isinstance(texte, dict) else ""
+    return avant.rstrip().endswith("?") and fr.endswith(("…", "..."))
 
 
 def _retenu(balise: str, attrs: dict):
@@ -216,9 +232,13 @@ def depuis_bundle(racine: pathlib.Path, dico: dict, inv: dict) -> dict:
                 k = bisect.bisect_left(debuts, a)
                 if k < len(debuts) and debuts[k] < z:
                     z = debuts[k]
-            for k in RE_CLE.findall(b, a, z):
-                if k in dico and not message(k):
-                    return k
+            for m in RE_CLE.finditer(b, a, z):
+                k = m.group(1)
+                if k not in dico or message(k):
+                    continue
+                if coupe and _etat_de_ternaire(b[a:m.start()], dico[k]):
+                    continue                             # busy?dzT("…envoi…"):dzT("envoyer") → la branche au repos
+                return k
         return None
 
     def icone(attrs):
