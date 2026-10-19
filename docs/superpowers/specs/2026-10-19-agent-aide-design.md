@@ -71,7 +71,7 @@ Objet `{version, note, ancres}`. Chaque ancre :
   l'élément), `partout` (ancre du rail ou de la coque, valable sur tout écran), `reglages` (section à ouvrir),
   `cadre` (chemin du lab en iframe, `/vectorlab/`…, ou `null`), `fr`, `en` (libellés de la bulle).
 - Il n'y a **pas** d'attribut `data-dz-ancre` : les sélecteurs sont relevés sur la page réelle (à la main, FR et EN).
-- Environ 50 ancres : le rail, les Réglages, les écrans, et quelques ancres de lab.
+- 54 ancres : 14 du rail, 11 de Réglages, 23 d'écrans (Quick, Studio, Montage, Bibliothèque) et 6 de labs (Vectorlab, Photolab), relevées FR et EN sur la page réelle.
 - Les ancres de Réglages ouvrent la section (événement `dz-reglages-section` et `?section=`) **sans pointeur**,
   c'est voulu : la rubrique ouverte suffit.
 
@@ -152,7 +152,7 @@ existent), `test_agent_aide.py` (balises, moteur simulé, repli, `MAX_TOKENS`/ef
 (copies `frontend/dist/shared` identiques, i18n FR/EN, branchement) et `frontend/shared/qa/agent_logique.test.mjs`
 (logique pure sous node). Le relevé des sélecteurs sur la page réelle a été fait à la main : il n'y a pas de banc
 sur le backend de preuve (le script de service des preuves du guide est `scripts/guide/serve_guide.py`, port 8809,
-et non plus 8799). Restent à faire : preuve à l'écran FR et EN dans un lab en iframe, et le test de sélecteurs automatisé.
+et non plus 8799). Preuve à l'écran faite en FR et en EN, lab en iframe compris (halo vérifié sur le bon outil). Reste à faire : un test de sélecteurs automatisé.
 
 ## 6. Lots
 
@@ -171,7 +171,7 @@ et non plus 8799). Restent à faire : preuve à l'écran FR et EN dans un lab en
 Sur le modèle de Clicky : Vue d'ensemble · Architecture (backend FastAPI,
 bundle `frontend/dist` patché par `scripts/patch_bundle_*.py`, labs en pages
 autonomes, `/shared`) · Fichiers clés · Lancer et tester (python embarqué,
-backend de preuve 8799, `repatch_all.py`, `run-tests.ps1`) · Conventions
+backend de preuve `scripts/guide/serve_guide.py` (8809), `repatch_all.py`, `run-tests.ps1`) · Conventions
 (français langue de référence, `dzT`, plafonds sur toute route payante,
 copies identiques `dist/shared`, jamais reconstruire `dist` depuis `src`) ·
 Git (branches `chantier/*`/`claude/*`, PR, installation vérifiée par
