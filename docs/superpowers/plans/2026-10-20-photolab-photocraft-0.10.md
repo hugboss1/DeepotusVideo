@@ -32,6 +32,14 @@ Spec d'écart, annexes `specs/photocraft-0.10/`, outils `scripts/photocraft_rele
 - Bancs de fidélité, aperçu, peinture, texte, transformation, masques, mesure rejoués contre le CLI 0.10 ;
   chaque écart de pixels consigné (espacement retouche, bicubique, Niveaux, Postériser…).
 - `ETATS_MOTEUR` de l'historique régénéré depuis les sources 0.10. Retrait du moteur 0.3.0.
+- **Mesuré en M1 (20/10)** : `test_photolab_non_regression --commandes tests/photocraft_commandes_0.10.0.json` est
+  ROUGE — 9 entrées qui marchent repasseraient « bientôt » (`edit.paste`, 3 `edit.pasteSpecial.*`,
+  `edit.transform.flip*` ×2, `rotate180`, `rotate90Cw/Ccw`). Cause : 0.10 leur ajoute
+  `"target":"pixels"|"mask"|"quickMask"|{"channel":i}=Channels panel target (…)`, que `photolab_registre.parser`
+  lit comme un champ `?` OBLIGATOIRE (défaut en texte libre) → `sansEcran`. À corriger dans le parseur (un défaut
+  texte = optionnel ; union de chaînes et d'objet) ou par `CORRECTIONS_CHAMPS`, puis le banc doit passer au vert.
+- Seule différence entre la liste reconstruite (statique) et la capture réelle : les `params` des 24
+  `layer.newAdjustmentLayer.*` — la capture fait foi.
 - Fini quand : non-régression d'écran verte (aucune entrée perdue), 29 bancs + 35 QA verts sur 0.10.
 
 ## M3 — t252 · Retouche : Pièce, Déplacement basé sur le contenu, Tampon de motif, Œil rouge, Supprimer

@@ -9,7 +9,8 @@ l'utilise après chaque extraction. Il refuse aussi un moteur qui importerait le
 msvcp, UCRT) : la 0.3.0 n'en dépend pas, l'installeur ne pose donc aucun redistribuable — une version qui en
 dépendrait doit d'abord le faire poser.
 
-Usage : python scripts/verifier_vendor.py [<dossier du moteur>] [--ecrire]
+Usage : python scripts/verifier_vendor.py [<dossier du moteur>] [--ecrire] [--manifeste <vendor/photocraft-X.json>]
+  --manifeste : (t250) vérifier une version CANDIDATE contre son propre manifeste.
   --ecrire : (développement) réécrit `fichiers` d'après le dossier — seulement juste après une extraction vérifiée.
 """
 import hashlib, json, pathlib, struct, sys
@@ -102,15 +103,16 @@ def crt(imports) -> list:
 
 
 def main(args) -> int:
-    m = json.loads(MANIFESTE.read_text("utf-8"))
-    pos = [a for a in args if not a.startswith("--")]
+    chemin = pathlib.Path(args[args.index("--manifeste") + 1]) if "--manifeste" in args else MANIFESTE
+    m = json.loads(chemin.read_text("utf-8"))
+    pos = [a for i, a in enumerate(args) if not a.startswith("--") and (i == 0 or args[i - 1] != "--manifeste")]
     dossier = pathlib.Path(pos[0]) if pos else RACINE / m["binaire"]["dossier"]
     if not dossier.is_dir():
         print(f"moteur absent : {dossier}", file=sys.stderr)
         return 1
     if "--ecrire" in args:
         m["fichiers"] = empreintes(dossier)
-        MANIFESTE.write_text(json.dumps(m, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        chemin.write_text(json.dumps(m, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"manifeste réécrit : {len(m['fichiers'])} fichiers")
         return 0
     ecarts = comparer(m.get("fichiers") or {}, dossier)

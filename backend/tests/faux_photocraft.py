@@ -77,9 +77,10 @@ def registre():
     """t138 : le VRAI registre de photocraft-cli 0.3.0 (copie tests/photocraft_commandes_0.3.0.json), pour que la
     liste blanche du pont soit éprouvée sur ce qu'elle verra, plus les commandes de banc dz.* (sans paramètres) :
     sans elles le pont refuserait « commande inconnue du moteur »."""
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "photocraft_commandes_0.3.0.json"),
-              encoding="utf-8") as f:
-        reel = json.load(f)
+    # t250 : le registre de la version épinglée (vendor/photocraft.json), plus le nom en dur.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import photocraft_version
+    reel = photocraft_version.commandes()
     return reel + [{"id": d, "label": d, "menu": [], "shortcut": None, "params": "{}", "enabled": True} for d in BANC]
 
 

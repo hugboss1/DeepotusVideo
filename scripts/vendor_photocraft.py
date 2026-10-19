@@ -4,7 +4,9 @@ Lit vendor/photocraft.json, télécharge l'archive Windows de la release officie
 vérifie taille et sha256 AVANT d'extraire, extrait dans vendor/photocraft-0.3.0/ (jamais versionné). Une empreinte
 fausse arrête tout : rien n'est extrait. Une entrée d'archive qui sortirait du dossier (../, chemin absolu) est refusée.
 
-Usage : python scripts/vendor_photocraft.py [--archive <zip déjà téléchargé>]
+Usage : python scripts/vendor_photocraft.py [--archive <zip déjà téléchargé>] [--manifeste <vendor/photocraft-X.json>]
+  --manifeste : (t250) fournir une version CANDIDATE à côté de la version épinglée, sans toucher vendor/photocraft.json ;
+                l'archive va dans son propre dossier (vendor/photocraft-<version>/), les deux cohabitent.
 """
 import hashlib, json, pathlib, shutil, subprocess, sys, tempfile, zipfile
 
@@ -62,8 +64,12 @@ def telecharger(m: dict, dossier: pathlib.Path) -> pathlib.Path:
     return dest
 
 
+def manifeste(args) -> pathlib.Path:
+    return pathlib.Path(args[args.index("--manifeste") + 1]) if "--manifeste" in args else MANIFESTE
+
+
 def main(args) -> int:
-    m = json.loads(MANIFESTE.read_text("utf-8"))
+    m = json.loads(manifeste(args).read_text("utf-8"))
     b = m["binaire"]
     cible = RACINE / b["dossier"]
     with tempfile.TemporaryDirectory() as t:
