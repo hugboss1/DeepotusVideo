@@ -348,7 +348,10 @@ if (!window.__dzAgent) {
   }
   async function releve() {
     try {
-      const ici = releverVisibles(document, (x) => tiroir.contains(x) || bouton.contains(x));
+      // hors tiroir, bouton et rail de la SPA (nav : les ancres le décrivent déjà, il mangerait le budget) ; les
+      // labs, eux, gardent leurs nav (barre de menus, outils)
+      const ici = releverVisibles(document, (x) => tiroir.contains(x) || bouton.contains(x)
+        || !!(x.closest && x.closest("nav")));
       const cadre = cadreVisible();
       const lab = cadre ? await releveDuCadre(cadre) : [];
       return [...lab, ...ici].slice(0, MAX_VISIBLES);

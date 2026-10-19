@@ -155,8 +155,11 @@ assert.deepEqual(L.releverVisibles(fauxDoc([n("Sous la surface", "Piste voix", 1
 assert.deepEqual(L.releverVisibles(fauxDoc([n("Onglet", "", 10, true, { tag: "DIV", role: "tab", innerText: "Onglet" }),
   n("Lien", "", 10, true, { tag: "A", href: "#x", innerText: "Lien" }),
   n("Ancre", "", 10, true, { tag: "A", innerText: "Ancre" })])).map((x) => x.t), ["Onglet", "Lien"]);
-// le rail (nav) est exclu
-assert.deepEqual(L.releverVisibles(fauxDoc([n("Quick", "", 10, true, { nav: true })])), [], "rail exclu");
+// nav : gardé par défaut (menus et outils des labs sont des nav) ; la SPA exclut son rail par le prédicat
+assert.deepEqual(L.releverVisibles(fauxDoc([n("Fichier", "", 10, true, { nav: true })])), [{ t: "Fichier", i: "" }],
+  "nav gardé sans prédicat");
+assert.deepEqual(L.releverVisibles(fauxDoc([n("Quick", "", 10, true, { nav: true }), n("Ok", "")]),
+  (x) => !!(x.closest && x.closest("nav"))), [{ t: "Ok", i: "" }], "rail exclu par le prédicat");
 // vie privée : une zone marquée [data-dz-agent-ignorer] (grille de fichiers…) est exclue
 assert.deepEqual(L.releverVisibles(fauxDoc([n("photo_vacances.png", "", 10, true, { ignorer: true }), n("Ok", "")])),
   [{ t: "Ok", i: "" }], "zone ignorée exclue");

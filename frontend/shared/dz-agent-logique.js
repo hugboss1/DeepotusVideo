@@ -123,7 +123,8 @@ export function prix(usd, lang) {
 // - seul un contrôle (button, a[href], role tab / menuitem / button) donne un texte : la première ligne non vide de
 //   innerText (« Quick » et non « QuickGénérateurs en un clic »), écartée au-delà de 40 caractères (c'est alors du
 //   contenu, l'aperçu d'un bloc par ex.) ;
-// - le rail (nav) est exclu : les ancres le décrivent déjà, il mangerait le budget.
+// - toute zone marquée data-dz-agent-ignorer (grille de fichiers…) est exclue. Les nav sont GARDÉS ici (menus et
+//   outils des labs) : la SPA exclut son rail par le prédicat exclure (/shared/dz-agent.js).
 export const MAX_VISIBLES = 120;
 const MAX_TEXTE = 80;
 const MAX_LIBELLE = 40;
@@ -160,8 +161,8 @@ export function releverVisibles(doc, exclure = () => false, max = MAX_VISIBLES) 
     if (out.length >= max) break;
     try {
       if (exclure(x)) continue;
-      // le rail (nav) et toute zone marquée data-dz-agent-ignorer (grille de fichiers…) ne sont jamais relevés
-      if (typeof x.closest === "function" && (x.closest("nav") || x.closest("[data-dz-agent-ignorer]"))) continue;
+      // une zone marquée data-dz-agent-ignorer (grille de fichiers…) n'est jamais relevée
+      if (typeof x.closest === "function" && x.closest("[data-dz-agent-ignorer]")) continue;
       const r = x.getBoundingClientRect();
       if (!(r.width > 0 && r.height > 0)) continue;
       if (!(r.bottom > 0 && r.top < hauteur && r.right > 0 && r.left < largeur)) continue;   // hors fenêtre

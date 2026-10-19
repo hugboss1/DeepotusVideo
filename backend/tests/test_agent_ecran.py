@@ -205,6 +205,12 @@ def test_releve_envoye():
     r = cadre[cadre.index('d.dzAgent === "releve"'):cadre.index('d.dzAgent !== "trouve"')]
     assert "try { items = releverVisibles(document); } catch (e) { items = []; }" in r
     assert r.index("catch (e) { items = []; }") < r.index('dzAgent: "visibles"')
+    # le rail (nav) est exclu dans la SPA seulement : les menus et outils des labs sont des nav, gardés
+    appel = src[src.index("releverVisibles(document,"):]
+    appel = appel[:appel.index(";")]
+    assert 'closest("nav")' in appel, "le prédicat du document principal exclut le rail"
+    assert 'closest("nav")' not in (SHARED / "dz-agent-logique.js").read_text(encoding="utf-8")
+    assert "releverVisibles(document)" in cadre, "le répondeur des labs n'exclut rien"
 
 
 if __name__ == "__main__":
