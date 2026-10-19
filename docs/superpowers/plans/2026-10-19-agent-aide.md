@@ -1249,24 +1249,24 @@ Lancer : `& $PY tests/test_agent_ecran.py`. Attendu : `FileNotFoundError ... age
 
 ```json
 {
-  "agent.bouton": {"fr": "Demander", "en": "Ask"},
-  "agent.bouton_titre": {"fr": "Demander à Deepotus (F1)", "en": "Ask Deepotus (F1)"},
-  "agent.titre": {"fr": "Demander à Deepotus", "en": "Ask Deepotus"},
-  "agent.accueil": {"fr": "Pose ta question sur l'application : je t'explique en quelques étapes et je te montre où cliquer.", "en": "Ask anything about the app: I'll explain in a few steps and show you where to click."},
-  "agent.placeholder": {"fr": "Comment je… ?", "en": "How do I…?"},
-  "agent.envoyer": {"fr": "Envoyer", "en": "Send"},
-  "agent.fermer": {"fr": "Fermer", "en": "Close"},
-  "agent.nouvelle": {"fr": "Nouvelle conversation", "en": "New conversation"},
-  "agent.moteur": {"fr": "Moteur", "en": "Engine"},
-  "agent.moteur_auto": {"fr": "Automatique", "en": "Automatic"},
-  "agent.reflechit": {"fr": "Je cherche…", "en": "Looking…"},
-  "agent.montrer": {"fr": "Montre-moi : {libelle}", "en": "Show me: {libelle}"},
-  "agent.aller": {"fr": "Y aller", "en": "Go there"},
-  "agent.guide": {"fr": "Guide : {titre}", "en": "Guide: {titre}"},
-  "agent.introuvable": {"fr": "Je ne trouve pas ce bouton sur cet écran. Le chapitre du guide t'aidera.", "en": "I can't find this button on this screen. The guide chapter will help."},
-  "agent.erreur": {"fr": "La réponse n'est pas arrivée : {msg}", "en": "No answer came back: {msg}"},
-  "agent.cout_gratuit": {"fr": "gratuit", "en": "free"},
-  "agent.cout_payant": {"fr": "payant, sous le plafond « aide »", "en": "paid, under the \"help\" cap"}
+  "agent.tiroir.bouton": {"fr": "Demander", "en": "Ask"},
+  "agent.tiroir.bouton_titre": {"fr": "Demander à Deepotus (F1)", "en": "Ask Deepotus (F1)"},
+  "agent.tiroir.titre": {"fr": "Demander à Deepotus", "en": "Ask Deepotus"},
+  "agent.tiroir.accueil": {"fr": "Pose ta question sur l'application : je t'explique en quelques étapes et je te montre où cliquer.", "en": "Ask anything about the app: I'll explain in a few steps and show you where to click."},
+  "agent.tiroir.placeholder": {"fr": "Comment je… ?", "en": "How do I…?"},
+  "agent.tiroir.envoyer": {"fr": "Envoyer", "en": "Send"},
+  "agent.tiroir.fermer": {"fr": "Fermer", "en": "Close"},
+  "agent.tiroir.nouvelle": {"fr": "Nouvelle conversation", "en": "New conversation"},
+  "agent.moteur.libelle": {"fr": "Moteur", "en": "Engine"},
+  "agent.moteur.auto": {"fr": "Automatique", "en": "Automatic"},
+  "agent.reponse.reflechit": {"fr": "Je cherche…", "en": "Looking…"},
+  "agent.action.montrer": {"fr": "Montre-moi : {libelle}", "en": "Show me: {libelle}"},
+  "agent.action.aller": {"fr": "Y aller", "en": "Go there"},
+  "agent.action.guide": {"fr": "Guide : {titre}", "en": "Guide: {titre}"},
+  "agent.action.introuvable": {"fr": "Je ne trouve pas ce bouton sur cet écran. Le chapitre du guide t'aidera.", "en": "I can't find this button on this screen. The guide chapter will help."},
+  "agent.reponse.erreur": {"fr": "La réponse n'est pas arrivée : {msg}", "en": "No answer came back: {msg}"},
+  "agent.moteur.cout_gratuit": {"fr": "gratuit", "en": "free"},
+  "agent.moteur.cout_payant": {"fr": "payant, sous le plafond « aide »", "en": "paid, under the \"help\" cap"}
 }
 ```
 
@@ -1320,7 +1320,7 @@ def test_balise_dans_la_spa():
 
 def test_cles_employees_existent():
     src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
-    employees = set(re.findall(r'T\("(agent\.[a-z_]+)"', src))
+    employees = set(re.findall(r'T\("(agent\.[a-z_.]+)"', src))
     assert employees, "le tiroir passe par T(…)"
     assert employees <= set(I18N), employees - set(I18N)
     assert not re.search(r">[A-ZÀ-Ý][a-zà-ÿ]{3,}[^<]*<", src), "aucun texte visible en dur dans le HTML généré"
@@ -1399,19 +1399,19 @@ if (!window.__dzAgent) {
 .dzAgentTete select{background:var(--panel-2,#141c2e);color:inherit;border:1px solid var(--line,#24304a);border-radius:6px}` });
 
   const fil = el("div", { class: "dzAgentFil", role: "log", "aria-live": "polite" });
-  const saisie = el("textarea", { placeholder: T("agent.placeholder"), "aria-label": T("agent.placeholder") });
-  const choix = el("select", { "aria-label": T("agent.moteur"), title: T("agent.moteur") });
-  const tiroir = el("aside", { class: "dzAgentTiroir", "aria-label": T("agent.titre") }, [
+  const saisie = el("textarea", { placeholder: T("agent.tiroir.placeholder"), "aria-label": T("agent.tiroir.placeholder") });
+  const choix = el("select", { "aria-label": T("agent.moteur.libelle"), title: T("agent.moteur.libelle") });
+  const tiroir = el("aside", { class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
     el("div", { class: "dzAgentTete" }, [
-      el("h2", { texte: T("agent.titre") }), choix,
-      el("button", { texte: "↺", title: T("agent.nouvelle"), "aria-label": T("agent.nouvelle"),
+      el("h2", { texte: T("agent.tiroir.titre") }), choix,
+      el("button", { texte: "↺", title: T("agent.tiroir.nouvelle"), "aria-label": T("agent.tiroir.nouvelle"),
         on: { click: () => { hist = []; garder(); dessiner(); } } }),
-      el("button", { texte: "×", title: T("agent.fermer"), "aria-label": T("agent.fermer"), on: { click: () => basculer(false) } }),
+      el("button", { texte: "×", title: T("agent.tiroir.fermer"), "aria-label": T("agent.tiroir.fermer"), on: { click: () => basculer(false) } }),
     ]),
     fil,
-    el("div", { class: "dzAgentPied" }, [saisie, el("button", { texte: T("agent.envoyer"), on: { click: () => envoyer() } })]),
+    el("div", { class: "dzAgentPied" }, [saisie, el("button", { texte: T("agent.tiroir.envoyer"), on: { click: () => envoyer() } })]),
   ]);
-  const bouton = el("button", { class: "dzAgentBtn", texte: "? " + T("agent.bouton"), title: T("agent.bouton_titre"),
+  const bouton = el("button", { class: "dzAgentBtn", texte: "? " + T("agent.tiroir.bouton"), title: T("agent.tiroir.bouton_titre"),
     on: { click: () => basculer() } });
 
   function basculer(ouvrir) {
@@ -1426,9 +1426,9 @@ if (!window.__dzAgent) {
     try {
       const r = await fetch("/api/agent/etat");
       const j = await r.json();
-      choix.replaceChildren(el("option", { value: "", texte: T("agent.moteur_auto") }),
+      choix.replaceChildren(el("option", { value: "", texte: T("agent.moteur.auto") }),
         ...j.moteurs.map((m) => el("option", { value: m.moteur,
-          texte: `${m.nom} · ${T(m.cout === "gratuit" ? "agent.cout_gratuit" : "agent.cout_payant")}` })));
+          texte: `${m.nom} · ${T(m.cout === "gratuit" ? "agent.moteur.cout_gratuit" : "agent.moteur.cout_payant")}` })));
       choix.value = lire(window.localStorage, "dz_agent_moteur") || "";
     } catch (e) { delete choix.dataset.charge; }
   }
@@ -1436,19 +1436,19 @@ if (!window.__dzAgent) {
 
   function boutonAction(a) {
     const l = lang();
-    const libelle = a.type === "point" ? T("agent.montrer", { libelle: a[l] || a.fr })
-      : a.type === "guide" ? T("agent.guide", { titre: a[l] || a.fr }) : T("agent.aller");
+    const libelle = a.type === "point" ? T("agent.action.montrer", { libelle: a[l] || a.fr })
+      : a.type === "guide" ? T("agent.action.guide", { titre: a[l] || a.fr }) : T("agent.action.aller");
     return el("button", { texte: libelle, on: { click: () => executer(a) } });
   }
 
   function dessiner(enAttente) {
-    const msgs = hist.length ? hist : [{ role: "assistant", texte: T("agent.accueil") }];
+    const msgs = hist.length ? hist : [{ role: "assistant", texte: T("agent.tiroir.accueil") }];
     fil.replaceChildren(...msgs.map((m) => {
       const b = el("div", { class: "dzAgentMsg", "data-role": m.role, texte: m.texte });
       if (m.actions && m.actions.length) b.appendChild(el("div", { class: "dzAgentActions" }, m.actions.map(boutonAction)));
       return b;
     }));
-    if (enAttente) fil.appendChild(el("div", { class: "dzAgentMsg", "data-role": "assistant", texte: T("agent.reflechit") }));
+    if (enAttente) fil.appendChild(el("div", { class: "dzAgentMsg", "data-role": "assistant", texte: T("agent.reponse.reflechit") }));
     fil.scrollTop = fil.scrollHeight;
   }
 
@@ -1466,7 +1466,7 @@ if (!window.__dzAgent) {
       if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
       hist.push({ role: "assistant", texte: j.texte, actions: j.actions || [] });
     } catch (e) {
-      hist.push({ role: "assistant", texte: T("agent.erreur", { msg: e.message }) });
+      hist.push({ role: "assistant", texte: T("agent.reponse.erreur", { msg: e.message }) });
       saisie.value = q;
     }
     garder();
@@ -1500,7 +1500,7 @@ if (!window.__dzAgent) {
   }
   async function pointer(a) {
     const n = await trouver(a, 4000);
-    if (!n) { hist.push({ role: "assistant", texte: T("agent.introuvable") }); garder(); dessiner(); return; }
+    if (!n) { hist.push({ role: "assistant", texte: T("agent.action.introuvable") }); garder(); dessiner(); return; }
     n.scrollIntoView({ block: "center", behavior: "smooth" });
   }
   async function executer(a) {
@@ -1641,7 +1641,7 @@ c) Remplacer `async function pointer(a) { … }` par :
 
   async function pointer(a) {
     const n = await trouver(a, 4000);
-    if (!n) { hist.push({ role: "assistant", texte: T("agent.introuvable") }); garder(); dessiner(); return; }
+    if (!n) { hist.push({ role: "assistant", texte: T("agent.action.introuvable") }); garder(); dessiner(); return; }
     n.scrollIntoView({ block: "center" });
     await attendre(60);
     const r = n.getBoundingClientRect();
@@ -1790,7 +1790,7 @@ c) Au début de `pointer(a)`, ajouter la branche des cadres :
     if (a.cadre) {
       let r = null;
       for (const fin = Date.now() + 4000; !r && Date.now() < fin;) { r = await demanderAuCadre(a); if (!r) await attendre(250); }
-      if (!r) { hist.push({ role: "assistant", texte: T("agent.introuvable") }); garder(); dessiner(); return; }
+      if (!r) { hist.push({ role: "assistant", texte: T("agent.action.introuvable") }); garder(); dessiner(); return; }
       return montrer(r, a[lang()] || a.fr);
     }
 ```
