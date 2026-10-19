@@ -115,3 +115,29 @@ export function prix(usd, lang) {
   const t = (Number(usd) || 0).toFixed(4);
   return lang === "en" ? t : t.replace(".", ",");
 }
+
+// C4 (spec 2026-10-19-agent-catalogue-design.md § 4) : les éléments visibles de l'écran ouvert, envoyés avec la
+// question ; texte + infobulle seulement (jamais le contenu des documents), bornés.
+export const MAX_VISIBLES = 120;
+const MAX_TEXTE = 80;
+const SEL_VISIBLES = 'button, [role="tab"], [role="menuitem"], a[href], [title], [aria-label]';
+const court = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, MAX_TEXTE);
+
+export function releverVisibles(doc, exclure = () => false, max = MAX_VISIBLES) {
+  let noeuds = [];
+  try { noeuds = Array.from(doc.querySelectorAll(SEL_VISIBLES)); } catch (e) { return []; }
+  const out = [], vus = new Set();
+  for (const x of noeuds) {
+    if (out.length >= max) break;
+    if (exclure(x)) continue;
+    const r = x.getBoundingClientRect();
+    if (!(r.width > 0 && r.height > 0)) continue;
+    const t = court(x.textContent), i = court(x.getAttribute("title") || x.getAttribute("aria-label") || "");
+    if (!t && !i) continue;
+    const k = t + "\u0001" + i;
+    if (vus.has(k)) continue;
+    vus.add(k);
+    out.push({ t, i });
+  }
+  return out;
+}

@@ -113,6 +113,21 @@ assert.deepEqual(L.etapes({ type: "voir", cible: "ecran" }, "quick"), [{ faire: 
 assert.deepEqual(L.etapes({ type: "point_xy", x: 1, y: 2, largeur: 10, hauteur: 10 }, "quick"), [{ faire: "pointer_xy" }]);
 assert.deepEqual(L.etapes({ type: "point_xy", x: "a", y: 2 }, "quick"), [], "coordonnées douteuses : rien");
 
+// C4 — relevé des éléments visibles (faux document)
+const fauxDoc = (els) => ({ querySelectorAll: () => els });
+const n = (t, title, w = 10, vis = true) => ({
+  textContent: t, getAttribute: (a) => (a === "title" ? title : null),
+  getBoundingClientRect: () => ({ width: vis ? w : 0, height: vis ? 10 : 0 }),
+});
+const rel = L.releverVisibles(fauxDoc([n("Rendre", "Rendu final"), n("Rendre", "Rendu final"), n("caché", "", 10, false),
+  n("  a\n b  ", ""), n("", ""), n("x".repeat(200), "")]));
+assert.deepEqual(rel.slice(0, 2), [{ t: "Rendre", i: "Rendu final" }, { t: "a b", i: "" }]);
+assert.equal(rel.length, 3, "doublon, invisible et vide écartés");
+assert.equal(rel[2].t.length, 80);
+assert.equal(L.releverVisibles(fauxDoc(Array.from({ length: 300 }, (_, k) => n("b" + k, "")))).length, L.MAX_VISIBLES);
+assert.deepEqual(L.releverVisibles(fauxDoc([n("moi", "")]), () => true), [], "exclure() écarte le tiroir");
+assert.deepEqual(L.releverVisibles({ querySelectorAll: () => { throw new Error("x"); } }), []);
+
 // 6. le module n'utilise aucun objet du navigateur à l'import
 assert.equal(typeof globalThis.document, "undefined");
 console.log("agent_logique : OK");
