@@ -49,7 +49,7 @@ Sélection directe, Plume libre et de courbure, Ajout/Suppression/Conversion de 
 `path.transform`, tracé de détourage, copier/coller fond et contour ; Texte vertical, Masques de texte H/V
 (`type.createSelection`), texte sur tracé, taille ± (raccourcis). `mod-trace` et `mod-texte` étendus.
 
-## M6 — t255 · Panneau Actions (si Q1 = oui)
+## M6 — t255 · Panneau Actions (Q1 = oui, 20/10)
 Enregistrer, rejouer, lister, éditer, couleur, conditions ; import/export `.atn` par la Bibliothèque en `data`
 (jamais `path`) ; Fichier › Automatisation › Traitement par lots vers la Bibliothèque. Scripts et droplets
 restent écartés.

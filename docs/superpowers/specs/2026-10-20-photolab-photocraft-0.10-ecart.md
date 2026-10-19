@@ -128,8 +128,8 @@ dont 62 critiques ; `run --out`/`convert` écrasent l'entrée (#7437, nous n'uti
 
 ## 5. Questions à trancher
 
-- **Q1** — Rouvrir le panneau **Actions** (enregistrer/rejouer/.atn, sans scripts ExtendScript ni droplets) ?
-  Proposition : oui, en M6.
+- **Q1 — TRANCHÉE le 20/10 par l'utilisateur : OUI.** Le panneau **Actions** est rouvert (enregistrer,
+  rejouer, import/export .atn) en M6 ; scripts ExtendScript et droplets restent écartés (D9).
 - **Q2** — Les interactifs D9 (Fluidité, Marionnette, Point de fuite, Camera Raw) restent écartés ; le moteur
   sait les APPLIQUER mais l'édition est dans le shell egui. Proposition : les laisser, ou les ouvrir par le
   repli « app native » (déjà en place) — à décider plus tard.
