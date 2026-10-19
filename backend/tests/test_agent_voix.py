@@ -113,5 +113,15 @@ def test_etat_voix(monkeypatch):
     assert A.etat_voix() == {"fournisseur": "", "nom": "", "cout": ""}
 
 
+def test_lecture_dans_le_tiroir():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert '"/api/agent/lire"' in src and "URL.revokeObjectURL(" in src and "new Audio(" in src
+    assert "etatAgent.voix" in src, "le bouton n'apparaît que si une voix est disponible"
+    assert 'glyphe("dz-media-audio")' in src
+    for k in ("agent.voix.lire_gratuit", "agent.voix.lire_payant", "agent.voix.stop", "agent.voix.erreur"):
+        assert k in I18N, k
+    assert "{nom}" in I18N["agent.voix.lire_payant"]["fr"] and "{msg}" in I18N["agent.voix.erreur"]["en"]
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

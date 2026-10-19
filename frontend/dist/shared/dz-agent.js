@@ -91,7 +91,7 @@ if (!window.__dzAgent) {
     btnMicro.dataset.etat = e;
   });
   const btnNouvelle = el("button", { texte: "↺", title: T("agent.tiroir.nouvelle"), "aria-label": T("agent.tiroir.nouvelle"),
-    on: { click: () => { if (occupe || enVue) return; hist = []; garder(); dessiner(); } } });
+    on: { click: () => { if (occupe || enVue) return; arreterLecture(); hist = []; garder(); dessiner(); } } });
   const tiroir = el("aside", { id: "dzAgentTiroir", class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
     el("div", { class: "dzAgentTete" }, [
       el("h2", { texte: T("agent.tiroir.titre") }), choix, btnNouvelle,
@@ -108,8 +108,9 @@ if (!window.__dzAgent) {
     const focusDedans = tiroir.contains(document.activeElement);
     tiroir.dataset.ouvert = o ? "1" : "0";
     bouton.setAttribute("aria-expanded", o ? "true" : "false");
-    if (o) { chargement = null; chargerMoteurs(); saisie.focus(); }     // rechargé : une clé ajoutée à chaud compte
+    if (o) { chargement = null; chargerMoteurs().then(() => { if (!occupe) dessiner(); }); saisie.focus(); }     // la voix connue fait apparaître « Lire »     // rechargé : une clé ajoutée à chaud compte
     else {
+      arreterLecture();
       if (dicteeEnCours()) { try { dictee().arreter(); } catch (e) { /* rien à arrêter */ } }
       if (focusDedans) bouton.focus();     // le focus ne reste pas dans un tiroir masqué
     }
@@ -148,11 +149,57 @@ if (!window.__dzAgent) {
     return el("button", { texte: libelle, on: { click: () => executer(a, actionsDuMessage, msg) } });
   }
 
+  // A6 : une réponse lue par la voix des Réglages (POST /api/agent/lire -> MP3). Un clic sur le bouton en cours arrête.
+  let lecture = null;     // {audio, url, bouton, texte}
+  function arreterLecture() {
+    if (!lecture) return;
+    const l = lecture; lecture = null;
+    try { l.audio.pause(); } catch (e) { /* déjà arrêtée */ }
+    URL.revokeObjectURL(l.url);
+    l.bouton.setAttribute("aria-pressed", "false");
+  }
+  async function lireTexte(texte, b) {
+    const deja = lecture && lecture.bouton === b;
+    arreterLecture();
+    if (deja) return;
+    b.disabled = true;
+    try {
+      const r = await fetch("/api/agent/lire", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texte, lang: lang() }) });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(typeof j.detail === "string" ? j.detail : String(r.status)); }
+      const url = URL.createObjectURL(await r.blob());
+      const audio = new Audio(url);
+      lecture = { audio, url, bouton: b, texte };
+      b.setAttribute("aria-pressed", "true");
+      b.title = T("agent.voix.stop");
+      audio.addEventListener("ended", () => { if (lecture && lecture.audio === audio) arreterLecture(); });
+      await audio.play();
+    } catch (e) {
+      arreterLecture();
+      hist.push({ role: "assistant", texte: T("agent.voix.erreur", { msg: (e && e.message) || "—" }), erreur: true });
+      garder(); dessiner();
+    } finally { b.disabled = false; }
+  }
+  function boutonLire(m) {
+    const v = etatAgent && etatAgent.voix;
+    if (!v || !v.fournisseur || m.role !== "assistant" || m.erreur || !m.texte) return null;
+    const titre = T(v.cout === "gratuit" ? "agent.voix.lire_gratuit" : "agent.voix.lire_payant", { nom: v.nom });
+    const b = el("button", { type: "button", title: titre, "aria-label": titre, "aria-pressed": "false" }, [glyphe("dz-media-audio")]);
+    if (lecture && lecture.texte === m.texte) {     // un nouveau dessin du fil ne fait pas perdre le bouton de la lecture en cours
+      lecture.bouton = b; b.setAttribute("aria-pressed", "true"); b.title = T("agent.voix.stop");
+    }
+    b.addEventListener("click", () => lireTexte(m.texte, b));
+    return b;
+  }
+
   function dessiner(enAttente) {
     const msgs = hist.length ? hist : [{ role: "assistant", texte: T("agent.tiroir.accueil") }];
     fil.replaceChildren(...msgs.map((m) => {
       const b = el("div", { class: "dzAgentMsg", "data-role": m.role, texte: m.texte });
-      if (m.actions && m.actions.length) b.appendChild(el("div", { class: "dzAgentActions" }, m.actions.map((x) => boutonAction(x, m.actions, m))));
+      const boutons = (m.actions || []).map((x) => boutonAction(x, m.actions, m));
+      const lireB = hist.includes(m) ? boutonLire(m) : null;     // le message d'accueil n'est pas dans l'historique
+      if (lireB) boutons.push(lireB);
+      if (boutons.length) b.appendChild(el("div", { class: "dzAgentActions" }, boutons));
       return b;
     }));
     if (enAttente) fil.appendChild(el("div", { class: "dzAgentMsg", "data-role": "assistant", texte: T("agent.reponse.reflechit") }));
