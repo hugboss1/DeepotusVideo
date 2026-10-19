@@ -54,6 +54,12 @@ class _FausseVoix:
         pathlib.Path(output_path).write_bytes(b"ID3faux-mp3")
 
 
+def _faux_voicebox(text, output_path, language="EN", voice_id=None, **kw):
+    _FausseVoix.appels.append((text, language, "voicebox"))
+    pathlib.Path(output_path).write_bytes(b"ID3faux-mp3")
+    return pathlib.Path(output_path)
+
+
 def _preparer(monkeypatch, fournisseur):
     _FausseVoix.appels = []
     gardes = []
@@ -62,6 +68,7 @@ def _preparer(monkeypatch, fournisseur):
         gardes.append((op, categorie))
     monkeypatch.setattr(VP, "resolve_provider", lambda requested=None: fournisseur)
     monkeypatch.setattr(ES, "VoiceoverService", _FausseVoix)
+    monkeypatch.setattr(VP, "voicebox_tts", _faux_voicebox)
     monkeypatch.setattr(PLAF, "verifier", verifier)
     from app.main import app
     return TestClient(app), gardes
@@ -159,6 +166,23 @@ def test_lecture_dans_le_tiroir():
     assert 'audio.addEventListener("error"' in src
     assert "{nom}" in I18N["agent.voix.lire_payant"]["fr"] and "{msg}" in I18N["agent.voix.erreur"]["en"]
 
+
+def test_lire_voicebox_ne_replie_jamais_sur_elevenlabs(monkeypatch):
+    """Revue finale : Voicebox choisi puis tombé, la route ne doit pas retomber sur ElevenLabs (payant, sans garde)."""
+    c, gardes = _preparer(monkeypatch, "voicebox")
+
+    class Interdite:
+        def generate_long(self, *a, **k):
+            raise AssertionError("ElevenLabs ne doit jamais être appelé quand la voix est Voicebox")
+    monkeypatch.setattr(ES, "VoiceoverService", Interdite)
+    r = c.post("/api/agent/lire", json={"texte": "Voix locale seulement.", "lang": "fr"})
+    assert r.status_code == 200 and _FausseVoix.appels == [("Voix locale seulement.", "fr", "voicebox")] and gardes == []
+
+    def tombe(**k):
+        raise RuntimeError("Voicebox injoignable")
+    monkeypatch.setattr(VP, "voicebox_tts", tombe)
+    r = c.post("/api/agent/lire", json={"texte": "Autre texte jamais lu.", "lang": "fr"})
+    assert r.status_code == 502 and "Voicebox" in r.text
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

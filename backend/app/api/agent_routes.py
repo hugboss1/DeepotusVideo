@@ -111,8 +111,12 @@ async def lire(request: Request):
                 from app.services.elevenlabs_service import VoiceoverService
                 tmp = dest.with_name(f"{dest.stem}.{uuid.uuid4().hex}.part")
                 try:
-                    await loop.run_in_executor(None, lambda: VoiceoverService().generate_long(
-                        text=texte, output_path=tmp, language=lang, provider=prov))
+                    if prov == "voicebox":     # jamais de repli muet sur ElevenLabs (payant) si Voicebox tombe entre-temps
+                        await loop.run_in_executor(None, lambda: VP.voicebox_tts(
+                            text=texte, output_path=tmp, language=lang))
+                    else:
+                        await loop.run_in_executor(None, lambda: VoiceoverService().generate_long(
+                            text=texte, output_path=tmp, language=lang, provider=prov))
                     tmp.replace(dest)
                 except Exception as e:  # noqa: BLE001 — la cause est rendue à l'écran, la clé n'y figure jamais
                     tmp.unlink(missing_ok=True)
