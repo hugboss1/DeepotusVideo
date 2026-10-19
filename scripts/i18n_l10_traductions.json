@@ -9694,5 +9694,17 @@
  "Demande trop lourde.": {
   "fr": "Demande trop lourde.",
   "en": "Request too large."
+ },
+ "Rien à lire.": {
+  "fr": "Rien à lire.",
+  "en": "Nothing to read."
+ },
+ "Aucune voix disponible : ajoute la clé ElevenLabs ou lance Voicebox (Réglages).": {
+  "fr": "Aucune voix disponible : ajoute la clé ElevenLabs ou lance Voicebox (Réglages).",
+  "en": "No voice available: add the ElevenLabs key or start Voicebox (Settings)."
+ },
+ "Lecture impossible : {e}": {
+  "fr": "Lecture impossible : {e}",
+  "en": "Cannot read aloud: {e}"
  }
 }

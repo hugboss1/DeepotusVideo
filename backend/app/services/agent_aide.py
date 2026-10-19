@@ -8,6 +8,7 @@ transforme les balises de la réponse en actions pour l'écran. Il n'exécute RI
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import math
 import re
@@ -295,4 +296,49 @@ def etat() -> dict:
                 "vision": MT.vision(l["moteur"])}
                for l in MT.etat() if l["configure"] and not l.get("fautif")]
     return {"moteur": choisir_moteur(), "moteurs": moteurs, "ancres": len(k["ancres"]),
-            "chapitres": len(k["chapitres"])}
+            "chapitres": len(k["chapitres"]), "voix": etat_voix()}
+
+
+# ── A6 : la lecture à voix haute (voix des Réglages : Voicebox local gratuit, ElevenLabs payant) ──
+MAX_LECTURE = 1500               # caractères lus au plus : une réponse de l'assistant tient en dessous
+GARDER_LECTURES = 30             # MP3 gardés dans le cache (les plus récents)
+NOMS_VOIX = {"elevenlabs": "ElevenLabs", "voicebox": "Voicebox"}
+
+
+def texte_a_lire(t) -> str:
+    """Le texte d'une réponse à lire : une chaîne, sans balise, espaces réduits, bornée."""
+    if not isinstance(t, str):
+        return ""
+    return " ".join(BALISE.sub(" ", t).split())[:MAX_LECTURE]
+
+
+def dossier_lectures() -> Path:
+    """Le cache des lectures, À PART de la Bibliothèque (jamais listé comme un média de l'utilisateur)."""
+    from app.config import settings
+    d = settings.images_path.parent / "agent_lectures"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def chemin_lecture(fournisseur: str, lang: str, texte: str) -> Path:
+    h = hashlib.sha1(f"{fournisseur}|{lang}|{texte}".encode("utf-8")).hexdigest()[:20]
+    return dossier_lectures() / f"{h}.mp3"
+
+
+def op_lecture(fournisseur: str, texte: str) -> dict | None:
+    """L'op de la garde des plafonds : ElevenLabs au caractère ; Voicebox (local) ne coûte rien -> None."""
+    return {"kind": "elevenlabs", "chars": len(texte)} if fournisseur == "elevenlabs" else None
+
+
+def elaguer_lectures(garder: int = GARDER_LECTURES) -> None:
+    fichiers = sorted(dossier_lectures().glob("*.mp3"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for p in fichiers[garder:]:
+        p.unlink(missing_ok=True)
+
+
+def etat_voix() -> dict:
+    """{fournisseur, nom, cout} de la voix des Réglages ; fournisseur "" : aucune voix (le tiroir cache « Lire »)."""
+    from app.services import voice_providers as VP
+    p = VP.resolve_provider()
+    return {"fournisseur": p, "nom": NOMS_VOIX.get(p, ""),
+            "cout": "gratuit" if p == "voicebox" else ("payant" if p else "")}

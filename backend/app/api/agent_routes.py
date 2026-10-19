@@ -10,6 +10,7 @@ import asyncio
 import json
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 
 from app.services import agent_aide as A
 
@@ -75,3 +76,38 @@ async def demander(request: Request):
         raise HTTPException(400, str(e)) from None
     except RuntimeError as e:
         raise HTTPException(502, str(e)) from None
+
+
+@router.post("/lire")
+async def lire(request: Request):
+    """A6 : lit une réponse de l'assistant avec la voix des Réglages. Voicebox (local) est gratuit ; ElevenLabs passe
+    par le plafond « aide ». Le MP3 va dans un cache à part, jamais dans la Bibliothèque ; une réponse déjà lue repart
+    du cache sans rien dépenser."""
+    _local(request)
+    corps = await _corps(request)
+    texte = A.texte_a_lire(corps.get("texte") if isinstance(corps, dict) else None)
+    if not texte:
+        raise HTTPException(400, "Rien à lire.")
+    lang = "en" if isinstance(corps, dict) and corps.get("lang") == "en" else "fr"
+    loop = asyncio.get_running_loop()
+    from app.services import voice_providers as VP
+    prov = await loop.run_in_executor(None, VP.resolve_provider)
+    if not prov:
+        raise HTTPException(503, "Aucune voix disponible : ajoute la clé ElevenLabs ou lance Voicebox (Réglages).")
+    dest = A.chemin_lecture(prov, lang, texte)
+    if not dest.is_file():
+        op = A.op_lecture(prov, texte)
+        if op:
+            from app.services import plafonds as _PLAF
+            await _PLAF.verifier(op, "aide")
+        from app.services.elevenlabs_service import VoiceoverService
+        tmp = dest.with_name(dest.stem + ".part.mp3")
+        try:
+            await loop.run_in_executor(None, lambda: VoiceoverService().generate_long(
+                text=texte, output_path=tmp, language=lang, provider=prov))
+            tmp.replace(dest)
+        except Exception as e:  # noqa: BLE001 — la cause est rendue à l'écran, la clé n'y figure jamais
+            tmp.unlink(missing_ok=True)
+            raise HTTPException(502, f"Lecture impossible : {e}") from None
+        await loop.run_in_executor(None, A.elaguer_lectures)
+    return FileResponse(str(dest), media_type="audio/mpeg")
