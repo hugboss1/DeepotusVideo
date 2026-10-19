@@ -299,12 +299,12 @@ def rapprocher(visibles: list, ecran: str = "") -> dict:
     def choisir(ids):
         if not ecran:
             return ids[0]
-        return (next((i for i in ids if fiches[i].get("ecran") == ecran), None)
-                or next((i for i in ids if fiches[i].get("ecran") == "commun"), None) or ids[0])
+        ids = [i for i in ids if ici(i)]            # jamais une fiche d'un autre écran
+        return (next((i for i in ids if fiches[i].get("ecran") == ecran), None) or (ids[0] if ids else None))
 
     for v in visibles:
         cles = [c for c in (_cle_texte(v["t"]), _cle_texte(v["i"])) if c]
-        i = next((choisir(exact[c]) for c in cles if c in exact), None)
+        i = next((j for c in cles if c in exact for j in [choisir(exact[c])] if j), None)
         if not i:
             i = next((j for c in cles for m, j in motifs if ici(j) and m.match(c)), None)
         if not i:

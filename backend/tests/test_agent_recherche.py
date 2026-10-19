@@ -210,5 +210,16 @@ def test_visibles_balises_et_fichiers():
     assert A.MAX_INCONNUS == 20
 
 
+def test_exact_limite_a_l_ecran_ouvert(faux, monkeypatch):
+    monkeypatch.setattr(A, "catalogue", lambda: {"photolab.proprietes.document": _fiche("photolab.proprietes.document",
+                                                                                      "photolab", "Document")})
+    A._par_texte.cache_clear()
+    v = [{"t": "Document", "i": ""}]
+    r = A.rapprocher(v, "vectorlab")
+    assert r["reconnus"] == [] and r["inconnus"] == v                      # mieux vaut « non documenté » qu'un mauvais écran
+    assert [x["id"] for x in A.rapprocher(v, "photolab")["reconnus"]] == ["photolab.proprietes.document"]
+    assert [x["id"] for x in A.rapprocher(v)["reconnus"]] == ["photolab.proprietes.document"]   # sans écran : tous
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
