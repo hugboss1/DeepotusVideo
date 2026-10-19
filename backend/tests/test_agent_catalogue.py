@@ -276,3 +276,50 @@ def test_dialogue_sur_deux_lignes(depot):
 
 def test_dialogue_coquille_reglage(depot):
     assert "photolab.masquer.titre" not in S.extraire(depot)         # coquilleReglage(PL, { puis titre: T(…)
+
+
+import catalogue as C                                                       # noqa: E402
+
+
+def _fiche(i="a.b.c", lib="x", etat=None, role=""):
+    f = {"id": i, "ecran": "montage", "cadre": None, "type": "bouton", "libelle": {"fr": lib, "en": lib},
+         "infobulle": None, "icone": None, "sources": ["i18n:" + i]}
+    if etat:
+        f.update(etat=etat, role={"fr": role, "en": role}, synonymes={"fr": ["s"], "en": ["s"]},
+                 localisateur={"selecteur": "button", "texte": {"fr": lib, "en": lib}}, guide="montage",
+                 empreinte=C.empreinte(f))
+    return f
+
+
+def test_fusion_neuve_et_preservee():
+    neuf = C.fusionner({}, {"a.b.c": _fiche()})["a.b.c"]
+    assert neuf["etat"] == "extrait" and neuf["role"] == {"fr": "", "en": ""} and neuf["localisateur"] is None
+    ancien = _fiche(etat="redige", role="Coupe.")
+    f = C.fusionner({"a.b.c": ancien}, {"a.b.c": _fiche()})["a.b.c"]
+    assert f["etat"] == "redige" and f["role"]["fr"] == "Coupe." and f["synonymes"]["fr"] == ["s"]
+    assert f["localisateur"]["selecteur"] == "button" and f["guide"] == "montage"
+
+
+def test_fusion_perime_retire_revient():
+    ancien = _fiche(etat="redige", role="Coupe.")
+    f = C.fusionner({"a.b.c": ancien}, {"a.b.c": _fiche(lib="autre")})["a.b.c"]
+    assert f["etat"] == "perime" and f["role"]["fr"] == "Coupe."
+    assert C.fusionner({"a.b.c": f}, {"a.b.c": _fiche(lib="autre")})["a.b.c"]["etat"] == "perime"   # reste à relire
+    r = C.fusionner({"a.b.c": ancien}, {})["a.b.c"]
+    assert r["etat"] == "retire"
+    assert C.fusionner({"a.b.c": r}, {"a.b.c": _fiche()})["a.b.c"]["etat"] == "redige"
+
+
+def test_ecran_fixe_preserve():
+    ancien = {**_fiche(etat="redige", role="R"), "ecran": "quick", "ecran_fixe": True}
+    assert C.fusionner({"a.b.c": ancien}, {"a.b.c": _fiche()})["a.b.c"]["ecran"] == "quick"
+
+
+def test_ecriture_stable(tmp_path):
+    fiches = C.fusionner({}, {"z.y.x": _fiche("z.y.x"), "a.b.c": _fiche()})
+    C.ecrire(tmp_path, fiches)
+    txt = (tmp_path / "montage.json").read_text(encoding="utf-8")
+    assert txt.index('"a.b.c"') < txt.index('"z.y.x"') and txt.count("\n") == 7
+    assert C.charger(tmp_path) == fiches
+    C.ecrire(tmp_path, fiches)
+    assert (tmp_path / "montage.json").read_text(encoding="utf-8") == txt
