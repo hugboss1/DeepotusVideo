@@ -1,5 +1,7 @@
 # Assistant « Demander à Deepotus » — conception (19/10/2026)
 
+Mise à jour 19/10/2026 : reflète la livraison A0-A4 (A5, A6 et A7 restent à faire). Les sections décrivent ce qui est livré ; l'intention d'origine est conservée.
+
 Branche `chantier/agent-guide`, depuis origin/main 8fbde2ed.
 Inspiration : `farzaa/clicky` (AGENTS.md + assistant qui pointe à l'écran).
 
@@ -59,57 +61,59 @@ Mode d'emploi **pour l'assistant** (pas pour les développeurs) :
    ses ancres et son chapitre (comme la section *Self-Update* de Clicky).
 
 ### `ancres.json`
+Objet `{version, note, ancres}`. Chaque ancre :
 ```json
-[{ "id": "quick.generer", "ecran": "quick", "selecteur": "[data-dz-ancre='quick.generer'], button…",
-   "cadre": null, "fr": "Bouton Générer", "en": "Generate button" }]
+{ "id": "quick.generer", "ecran": "quick", "selecteur": "button…", "libelle": "…",
+  "texte": {"fr": "Générer", "en": "Generate"}, "partout": false, "reglages": null, "cadre": null,
+  "fr": "Bouton Générer", "en": "Generate button" }
 ```
-- `ecran` : une des vues ci-dessus ; `cadre` : chemin du lab en iframe
-  (`/vectorlab/`…) ou `null`.
-- `selecteur` : on privilégie un attribut stable ; à défaut un sélecteur relevé
-  sur la page réelle.
-- Premier jeu : ≈ 30 ancres (Quick, Studio, Montage, Réglages, Bibliothèque).
-- Ancres spéciales sans sélecteur : `reglages.<section>` ouvre la rubrique via
-  `dzOuvrirReglages`.
+- Champs : `id`, `ecran`, `selecteur`, `libelle`, `texte{fr,en}` (texte visible servant à retrouver
+  l'élément), `partout` (ancre du rail ou de la coque, valable sur tout écran), `reglages` (section à ouvrir),
+  `cadre` (chemin du lab en iframe, `/vectorlab/`…, ou `null`), `fr`, `en` (libellés de la bulle).
+- Il n'y a **pas** d'attribut `data-dz-ancre` : les sélecteurs sont relevés sur la page réelle (à la main, FR et EN).
+- Environ 50 ancres : le rail, les Réglages, les écrans, et quelques ancres de lab.
+- Les ancres de Réglages ouvrent la section (événement `dz-reglages-section` et `?section=`) **sans pointeur**,
+  c'est voulu : la rubrique ouverte suffit.
 
 ## 2. Serveur
 
 `backend/app/services/agent_aide.py` + `backend/app/api/agent_routes.py`.
 
 - `POST /api/agent/demander`
-  `{question, historique[≤ 10], ecran, lang, image?}` →
-  `{texte, actions:[{type, cible, libelle}], moteur, cout_estime}`.
-- Système assemblé : `AGENT.md` + résumé `chapitres.json`/`jeveux.json` (titre
-  et écrans, dans la langue) + ancres de l'écran courant (toutes les ancres en
-  liste courte) + espace de marque actif (nom seulement) + langue. Préfixe
-  stable pour profiter du cache de prompt.
-- Appel : `tirer_garde(..., categorie="aide")`. Nouvelle catégorie **« aide »**
-  dans `plafonds.CATEGORIES`. Moteur réglable dans Réglages › Défauts
-  (clé `reglages.defauts.agent`), Haiku par défaut.
-- Balises de sortie, analysées côté serveur :
-  - `[POINT:<ancre>]` → `{type:"point"}`
-  - `[ALLER:<vue>]` → `{type:"aller"}`
-  - `[GUIDE:<chapitre>]` → `{type:"guide"}`
-  - `[VOIR]` → `{type:"voir"}` (demande de capture, § vision)
-  - `[POINT:x,y:<libellé>]` → uniquement en réponse à un appel avec image.
-  Ancre, vue ou chapitre inconnus : balise **retirée**, compteur journalisé.
-  Le texte rendu ne contient plus aucune balise.
-- `GET /api/agent/etat` → moteur, clé présente, nombre d'ancres, vision
-  disponible.
-- Garde : routes en localhost comme le reste ; question bornée (2 000 car.),
-  historique borné.
+  requête `{question, historique[≤ 10], ecran, lang, moteur}` →
+  réponse `{texte, actions, moteur, nom, rejets, sans_cle}`. Trois formes d'action :
+  `{type:"point", cible, ecran, selecteur, texte, cadre, reglages, partout, libelle, fr, en}`,
+  `{type:"aller", cible}`, `{type:"guide", cible, fr, en}`.
+- Système assemblé, dans cet ordre : `AGENT.md` + chapitres + « Je veux… » + **toutes** les ancres (celles de
+  l'écran ou « partout ») + vues, puis le contexte (écran, espace de marque, langue) **en dernier**, borné à une
+  ligne : le préfixe est identique d'une question à l'autre.
+- Moteur : choisi dans le tiroir (`localStorage` `dz_agent_moteur`) ; en automatique Anthropic › OpenAI › Gemini ›
+  premier configuré. Jamais de repli d'un moteur demandé vers un autre ; un modèle fautif est refusé.
+- Appel : `tirer_garde(..., categorie="aide", effort="low")` avec `MAX_TOKENS` = 2000 (les moteurs qui raisonnent
+  comptent la réflexion dans la sortie ; l'effort n'est appliqué que si le modèle l'accepte). Catégorie **« aide »**
+  dans `plafonds.CATEGORIES`.
+- Cache : seulement le cache implicite du préfixe chez OpenAI et Gemini. Pas de `cache_control` Anthropic pour
+  l'instant (à faire plus tard).
+- Balises de sortie, analysées côté serveur : `[POINT:<ancre>]`, `[ALLER:<vue>]`, `[GUIDE:<chapitre>]`. Inconnues :
+  retirées et comptées (`rejets`). `MAX_ACTIONS` = 6, dédoublonnage ; AGENT.md demande ≤ 3 balises. Réponse faite
+  seulement de balises : texte de repli (« Voici où regarder : »). Réponse vide sans action : message d'excuse et
+  action guide `tour`.
+- Sans moteur configuré : réponse sans LLM (`sans_cle: true`) avec pointage `reglages.cles` et guide `cles`.
+- `GET /api/agent/etat` → `{moteur, moteurs[{moteur, nom, cout}], ancres, chapitres}`.
+- Garde : localhost comme le reste ; question bornée (2 000 car.), historique borné.
 
-### Vision en secours
+### Vision en secours (A5, hors périmètre de la livraison A0-A4)
+Prévu, non livré : `[VOIR]`, `[POINT:x,y]`, paramètre `image`, moteurs capables de vision.
 1. Le modèle répond `[VOIR]` quand aucune ancre ne convient.
 2. Le tiroir **demande** à l'utilisateur (coût estimé affiché).
 3. Capture dans la page (canvas de la zone visible), réduite à ≤ 1280 px.
-4. Second `POST /api/agent/demander` avec `image` → `[POINT:x,y:libellé]` en
-   coordonnées de la capture, converties en coordonnées écran par le tiroir.
-Seuls les moteurs capables de vision sont proposés ; sinon le tiroir le dit.
+4. Second `POST /api/agent/demander` avec `image` → `[POINT:x,y:libellé]` en coordonnées de la capture.
 
 ## 3. Interface
 
 `frontend/shared/dz-agent.js` (+ copie identique `frontend/dist/shared/`),
-chargé par `frontend/dist/index.html` comme `dz-plafonds.js`.
+chargé par `frontend/dist/index.html` comme `dz-plafonds.js`. Fichiers livrés : `dz-agent.js` (tiroir),
+`dz-agent-logique.js` (logique pure, testée sous node), `dz-agent-pointeur.js` (calque), `dz-agent-cadre.js` (labs).
 
 - Bouton flottant « ? Demander » + raccourci **F1** → tiroir à droite.
 - Style Editorial Lab (DESIGN.md / PRODUCT.md) ; libellés via `dzT`
@@ -124,7 +128,7 @@ chargé par `frontend/dist/index.html` comme `dz-plafonds.js`.
   Bézier** jusqu'à la cible, puis halo + bulle avec le libellé (≈ 3 s, ou
   jusqu'au clic).
 - Cible sur un autre écran : `deepotus:navigate`, puis attente de l'élément
-  (≤ 4 s, `MutationObserver`).
+  (sondage toutes les 150 ms pendant 4 s ; pas de `MutationObserver`).
 - Labs en iframe : `frontend/shared/dz-agent-cadre.js`, ajouté aux labs,
   répond par `postMessage` à `{dzAgent:"trouve", selecteur}` avec le rectangle
   de l'élément ; le calque compose avec la position de l'iframe. Origine
@@ -143,30 +147,22 @@ chargé par `frontend/dist/index.html` comme `dz-plafonds.js`.
 
 ## 5. Tests
 
-- `backend/tests/test_agent_connaissance.py` : chaque chapitre cité dans
-  `AGENT.md` existe dans `chapitres.json` ; chaque ancre citée existe dans
-  `ancres.json` ; chaque `ecran` est une vue connue.
-- `backend/tests/test_agent_balises.py` : analyse des balises (valides,
-  inconnues retirées, texte hostile, balises imbriquées, coordonnées hors
-  image).
-- `backend/tests/test_agent_routes.py` : `demander` avec moteur simulé, garde
-  plafond (`test_plafonds_garde` doit rester vert), bornes d'entrée.
-- `backend/tests/test_agent_ancres_reelles.py` : sur le backend de preuve 8799,
-  chaque sélecteur d'`ancres.json` trouve exactement un élément.
-- Copies identiques `frontend/shared/dz-agent*.js` ↔ `frontend/dist/shared/`.
-- Dictionnaire i18n complet FR/EN.
-- Preuve à l'écran FR et EN : question → réponse → « Montre-moi » → curseur sur
-  le bouton, y compris dans un lab en iframe.
+Tests réels : `backend/tests/test_agents_md.py`, `test_agent_connaissance.py` (chapitres, ancres et écrans cités
+existent), `test_agent_aide.py` (balises, moteur simulé, repli, `MAX_TOKENS`/effort), `test_agent_ecran.py`
+(copies `frontend/dist/shared` identiques, i18n FR/EN, branchement) et `frontend/shared/qa/agent_logique.test.mjs`
+(logique pure sous node). Le relevé des sélecteurs sur la page réelle a été fait à la main : il n'y a pas de banc
+sur le backend de preuve (le script de service des preuves du guide est `scripts/guide/serve_guide.py`, port 8809,
+et non plus 8799). Restent à faire : preuve à l'écran FR et EN dans un lab en iframe, et le test de sélecteurs automatisé.
 
 ## 6. Lots
 
 | Lot | Contenu |
 |---|---|
-| A0 | `AGENTS.md` racine pour les agents de code (+ `CLAUDE.md` qui y renvoie) |
-| A1 | `docs/agent/AGENT.md` + `ancres.json` + tests de cohérence |
-| A2 | Service + routes + catégorie de plafond « aide » + réglage du moteur |
-| A3 | Tiroir, F1, boutons d'action, i18n |
-| A4 | Pointeur (courbe, halo, navigation, iframes) |
+| A0 (livré) | `AGENTS.md` racine pour les agents de code (+ `CLAUDE.md` qui y renvoie) |
+| A1 (livré) | `docs/agent/AGENT.md` + `ancres.json` + tests de cohérence |
+| A2 (livré) | Service + routes + catégorie de plafond « aide » + réglage du moteur |
+| A3 (livré) | Tiroir, F1, boutons d'action, i18n |
+| A4 (livré) | Pointeur (courbe, halo, navigation, iframes) |
 | A5 | Vision en secours |
 | A6 | Voix : dictée (micro navigateur) + lecture par le TTS existant |
 | A7 | Chapitre du guide « Demander à Deepotus » (skill guide-deepotus) |
@@ -185,9 +181,8 @@ Windows).
 
 ## Risques
 
-- **Sélecteurs fragiles** dans un bundle minifié patché : on ajoute des
-  attributs `data-dz-ancre` par patch quand c'est possible, et le test sur
-  8799 casse dès qu'une ancre disparaît.
+- **Sélecteurs fragiles** dans un bundle minifié patché : les ancres sont relevées
+  sur la page réelle et une ancre introuvable renvoie vers le guide. Un test automatisé de sélecteurs reste à faire.
 - **Dérive de `AGENT.md`** : tests de cohérence + section « tenir à jour » +
   ligne dans la checklist du skill guide-deepotus.
-- **Coût** : Haiku + cache du préfixe ; vision seulement après accord explicite.
+- **Coût** : Moteur choisi par l'utilisateur + cache implicite du préfixe (OpenAI, Gemini) ; vision seulement après accord explicite.
