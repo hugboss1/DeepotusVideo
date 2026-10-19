@@ -8,6 +8,7 @@ transforme les balises de la réponse en actions pour l'écran. Il n'exécute RI
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -54,3 +55,45 @@ def systeme(ecran: str, lang: str, espace: str = "") -> str:
             f"## Ancres (id (écran) : libellé)\n{anc}\n\n## Vues\n{', '.join(VUES)}\n\n"
             f"## Contexte\n- écran ouvert : {ecran or 'inconnu'}\n- espace de marque actif : {espace or 'inconnu'}\n"
             f"- langue : {'English' if en else 'français'}\n")
+
+
+# toute balise MAJUSCULE entre crochets, avec ou sans cible : les connues deviennent des actions, les autres sont
+# retirées (comptées) — l'écran ne voit jamais une balise
+BALISE = re.compile(r"\[([A-Z]{2,8})(?::([^\[\]\n]{1,80}))?\]")
+MAX_ACTIONS = 6
+
+
+def _action(typ: str, cible: str) -> dict | None:
+    k = connaissance()
+    if typ == "POINT" and cible in k["ancres"]:
+        a = k["ancres"][cible]
+        return {"type": "point", "cible": cible, "ecran": a.get("ecran"), "selecteur": a.get("selecteur"),
+                "texte": a.get("texte"), "cadre": a.get("cadre"), "reglages": a.get("reglages"),
+                "fr": a["fr"], "en": a["en"]}
+    if typ == "ALLER" and cible in VUES:
+        return {"type": "aller", "cible": cible}
+    if typ == "GUIDE" and cible in k["chapitres"]:
+        c = k["chapitres"][cible]
+        return {"type": "guide", "cible": cible, "fr": c["fr"], "en": c["en"]}
+    return None
+
+
+def analyser(texte) -> tuple[str, list, int]:
+    """(texte sans balises ni indentation, actions dédoublonnées ≤ MAX_ACTIONS, nombre de balises rejetées)."""
+    actions, vus, rejets = [], set(), 0
+
+    def remplacer(m):
+        nonlocal rejets
+        a = _action(m.group(1), (m.group(2) or "").strip())
+        if a is None:
+            rejets += 1
+        elif (a["type"], a["cible"]) not in vus and len(actions) < MAX_ACTIONS:
+            vus.add((a["type"], a["cible"]))
+            actions.append(a)
+        return ""
+
+    propre = BALISE.sub(remplacer, str(texte or ""))
+    propre = re.sub(r"[ \t]+\n", "\n", propre)
+    propre = re.sub(r"\n{3,}", "\n\n", propre)
+    propre = re.sub(r"(?m)^[ \t]+", "", propre).strip()      # un modèle recopie parfois une indentation d'exemple
+    return propre, actions, rejets
