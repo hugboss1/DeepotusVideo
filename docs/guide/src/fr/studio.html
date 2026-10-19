@@ -60,6 +60,27 @@
 </ol>
 <aside class="attention"><i data-dz="dz-etat-origine"></i><p>Les prompts restent à leurs créateurs. N'importez que ce que vous avez le droit d'utiliser : l'URL de la fiche et l'auteur voyagent avec le prompt, et rien n'est récupéré à votre place sur un site de prompts.</p></aside>
 
+<h3>Animation ou Rendu motion code ?</h3>
+<p>Deux nœuds animent à partir d'une Direction motion, mais ils ne fabriquent pas la même chose. Choisissez avant de construire le graphe.</p>
+<div class="tableau"><table>
+<tr><th>Question</th><th>Animation</th><th>Rendu motion code</th></tr>
+<tr><td>Ce qui bouge</td><td>Des textes (position, taille, opacité, rotation) posés sur une base : image, clip ou rendu.</td><td>Une page entière écrite par le moteur (HTML, SVG, Canvas) : formes, schémas, interface redessinée, mouvements de caméra.</td></tr>
+<tr><td>D'où viennent les éléments</td><td><b class="ui">Chorégraphier</b> ou <b class="ui">+ Texte</b>, dans son inspecteur. Les entrées reliées seules ne créent rien.</td><td><b class="ui">Écrire la page</b>, dans son inspecteur, à partir de la direction et du script reliés.</td></tr>
+<tr><td>Coût</td><td>Gratuit sans moteur (chorégraphie maison) ; sinon estimé avant l'envoi.</td><td>Estimé avant l'envoi ; sans moteur, une page de repli simple et gratuite.</td></tr>
+<tr><td>À choisir pour</td><td>Des titres et des répliques sur votre visuel.</td><td>Un prompt de motion design complet, comme ceux de prompt-motion.com.</td></tr>
+</table></div>
+<p>Pour rendre un prompt de motion design importé :</p>
+<ol class="etapes">
+<li>Dans la Direction motion, <b class="ui">Importer un prompt</b> : titre, texte collé, URL de la fiche, puis <b class="ui">Importer</b>. Choisissez-le ensuite dans <b class="ui">Source</b> : tant que la Source reste « Aucune », il n'est pas utilisé.</li>
+<li>Dans <b class="ui">Personnaliser</b>, donnez vos précisions : marque, durée, couleurs, police. Elles passent après le prompt importé et priment en cas de conflit.</li>
+<li>Reliez un nœud Texte ou Prompt à l'entrée <strong>script</strong> : une ligne par phrase à voir à l'écran. Une consigne de style n'a pas sa place ici, chaque ligne deviendrait un texte.</li>
+<li>Ajoutez un nœud <b class="ui">Rendu motion code</b>. Reliez la Direction motion à son entrée <strong>direction</strong>, le texte à <strong>script</strong>, et sa sortie à l'entrée <strong>in</strong> du Rendu.</li>
+<li>Dans son inspecteur, réglez <b class="ui">Durée (s)</b> et <b class="ui">Images par seconde</b>, puis <b class="ui">Écrire la page</b>. Le bilan dit quel moteur l'a écrite et ce qu'elle a coûté. « Page de repli » veut dire que le bac à sable a refusé la page du moteur : <b class="ui">Réécrire la page</b>.</li>
+<li><b class="ui">Exécuter</b> : la page est rendue image par image en MP4, qui arrive dans le Job Dock et la Bibliothèque.</li>
+</ol>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>« Ajoute au moins un élément au nœud Animation » : l'Animation est vide. Relier une Direction motion et un script ne suffit pas. Cliquez <b class="ui">Chorégraphier</b> (ou <b class="ui">+ Texte</b>), ou passez par le Rendu motion code.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>La page s'écrit dans un bac à sable sans réseau, rendue par un navigateur livré avec l'application. Elle ne peut ni ouvrir un site ni charger une image distante : le logo et les captures d'un site sont redessinés, pas repris. Le nœud Image ne se branche pas sur le Rendu motion code.</p></aside>
+
 <h3>Aller plus loin</h3>
 <div class="cartes">
 <article><i data-dz="dz-action-duel"></i><h4>Duel de moteurs</h4><p>Sur un nœud de génération d'images, le même prompt part sur deux modèles après accord sur le coût ; vous comparez côte à côte et gardez le gagnant.</p></article>

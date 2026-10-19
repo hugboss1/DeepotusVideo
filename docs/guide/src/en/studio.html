@@ -60,6 +60,27 @@
 </ol>
 <aside class="attention"><i data-dz="dz-etat-origine"></i><p>Prompts still belong to their creators. Only import what you are allowed to use: the page URL and the author travel with the prompt, and nothing is fetched from a prompt site on your behalf.</p></aside>
 
+<h3>Animation or Motion code render?</h3>
+<p>Two nodes animate from a Motion direction, but they do not make the same thing. Choose before you build the graph.</p>
+<div class="tableau"><table>
+<tr><th>Question</th><th>Animation</th><th>Motion code render</th></tr>
+<tr><td>What moves</td><td>Texts (position, size, opacity, rotation) laid over a base: image, clip or render.</td><td>A whole page written by the engine (HTML, SVG, Canvas): shapes, diagrams, a redrawn interface, camera moves.</td></tr>
+<tr><td>Where the elements come from</td><td><b class="ui">Choreograph</b> or <b class="ui">+ Text</b>, in its inspector. Linked inputs alone create nothing.</td><td><b class="ui">Write the page</b>, in its inspector, from the linked direction and script.</td></tr>
+<tr><td>Cost</td><td>Free without an engine (built-in choreography); otherwise estimated before sending.</td><td>Estimated before sending; without an engine, a simple fallback page, for free.</td></tr>
+<tr><td>Pick it for</td><td>Titles and lines over your visual.</td><td>A complete motion design prompt, like those on prompt-motion.com.</td></tr>
+</table></div>
+<p>To render an imported motion design prompt:</p>
+<ol class="etapes">
+<li>In the Motion direction, <b class="ui">Import a prompt</b>: title, pasted text, URL of the page, then <b class="ui">Import</b>. Then pick it in <b class="ui">Source</b>: as long as the Source stays “None”, it is not used.</li>
+<li>In <b class="ui">Customise</b>, give your specifics: brand, duration, colours, font. They come after the imported prompt and win if they conflict.</li>
+<li>Link a Text or Prompt node to the <strong>script</strong> input: one line per sentence to show on screen. A style brief does not belong here: each line would become a text.</li>
+<li>Add a <b class="ui">Motion code render</b> node. Link the Motion direction to its <strong>direction</strong> input, the text to <strong>script</strong>, and its output to the Render's <strong>in</strong> input.</li>
+<li>In its inspector, set <b class="ui">Duration (s)</b> and <b class="ui">Frames per second</b>, then <b class="ui">Write the page</b>. The summary says which engine wrote it and what it cost. “Fallback page” means the sandbox refused the engine's page: <b class="ui">Rewrite the page</b>.</li>
+<li><b class="ui">Run</b>: the page is rendered frame by frame to an MP4, which lands in the Job Dock and the Library.</li>
+</ol>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>“Add at least one element to the Animation node”: the Animation is empty. Linking a Motion direction and a script is not enough. Click <b class="ui">Choreograph</b> (or <b class="ui">+ Text</b>), or use the Motion code render instead.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>The page is written in a sandbox without network, rendered by a browser shipped with the app. It can neither open a site nor load a remote image: a site's logo and screenshots are redrawn, not reused. The Image node does not plug into the Motion code render.</p></aside>
+
 <h3>Go further</h3>
 <div class="cartes">
 <article><i data-dz="dz-action-duel"></i><h4>Engine duel</h4><p>On a picture generation node, the same prompt goes to two models once you agree on the cost; you compare side by side and keep the winner.</p></article>
