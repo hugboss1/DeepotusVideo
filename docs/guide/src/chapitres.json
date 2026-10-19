@@ -53,6 +53,19 @@
       "etat": "v3"
     },
     {
+      "id": "demander",
+      "famille": "demarrer",
+      "lot": "A7",
+      "icone": "dz-action-aide",
+      "fr": "Demander à Deepotus",
+      "en": "Ask Deepotus",
+      "anciens": [],
+      "ecrans": [
+        "Application (tiroir « Demander », F1)"
+      ],
+      "etat": "v3"
+    },
+    {
       "id": "installer",
       "famille": "demarrer",
       "lot": "t171",

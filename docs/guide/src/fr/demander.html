@@ -1,0 +1,51 @@
+<p class="chapeau-chap">Vous saurez poser une question sur l'application sans la quitter : Deepotus répond en quelques étapes, vous emmène au bon écran et montre le bouton à cliquer. Deux minutes ; il faut un moteur de texte branché (une clé, ou Ollama sur ce PC).</p>
+
+<h3>Avant de commencer</h3>
+<p>L'assistant se sert d'un moteur de texte que vous avez déjà : Anthropic, OpenAI, Gemini, ou un serveur local comme Ollama. Sans moteur, il vous montre où poser une clé. Il <strong>n'exécute jamais</strong> d'action payante à votre place : il explique et montre, vous cliquez.</p>
+
+<h3>Poser une question</h3>
+<figure class="scene" data-scene="demander/tiroir"></figure>
+<ol class="etapes">
+<li>Appuyez sur <kbd>F1</kbd>, ou cliquez <b class="ui">Demander</b> (le bouton marqué « ? ») en bas à droite : le tiroir s'ouvre.</li>
+<li>Choisissez le <b class="ui">Moteur</b> en haut du tiroir, ou laissez <b class="ui">Automatique</b>. Chaque moteur dit s'il est gratuit ou payant.</li>
+<li>Tapez votre question, par exemple « où je mets ma clé ? », puis <kbd>Entrée</kbd>.</li>
+<li>La réponse tient en quelques étapes. Dessous, des boutons : <b class="ui">Montre-moi</b>, <b class="ui">Y aller</b>, <b class="ui">Guide</b>.</li>
+</ol>
+
+<h3>Se faire montrer le bouton</h3>
+<figure class="scene" data-scene="demander/montrer"></figure>
+<ol class="etapes">
+<li>Cliquez <b class="ui">Montre-moi</b> : si le bouton est sur un autre écran, l'application y va d'abord.</li>
+<li>Un curseur lumineux glisse jusqu'au bouton et l'entoure, avec son nom dans une bulle. Il disparaît au premier clic.</li>
+<li>Cliquez <b class="ui">Guide</b> pour ouvrir le chapitre qui en parle, dans un nouvel onglet.</li>
+</ol>
+
+<h3>Quand l'assistant ne connaît pas le bouton</h3>
+<figure class="scene" data-scene="demander/regarder"></figure>
+<ol class="etapes">
+<li>La réponse propose <b class="ui">Regarder l'écran</b>. Cliquez-le seulement si vous êtes d'accord.</li>
+<li>Le tiroir dit quel moteur verra la capture et combien elle coûte. Seuls les moteurs qui lisent les images sont proposés.</li>
+<li>Cliquez <b class="ui">Capturer et envoyer</b> : votre navigateur demande de partager l'onglet ; choisissez <strong>cet onglet</strong>. <b class="ui">Annuler</b> n'envoie rien.</li>
+<li>L'assistant répond et le curseur montre l'endroit trouvé.</li>
+</ol>
+
+<h3>Dicter et écouter</h3>
+<figure class="scene" data-scene="demander/voix"></figure>
+<ol class="etapes">
+<li>Cliquez le micro à côté de <b class="ui">Envoyer</b> et parlez ; cliquez-le encore pour arrêter. Le texte arrive dans la saisie : relisez avant d'envoyer.</li>
+<li>Sous une réponse, le bouton haut-parleur la lit avec la voix choisie dans les Réglages. Avec Voicebox, c'est gratuit.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Une question coûte quelques fractions de centime avec un moteur payant, comptées dans le plafond « aide » de <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Tarifs et budget</b></span>. Avec Ollama sur ce PC, c'est gratuit. Regarder l'écran coûte un peu plus : le prix s'affiche avant.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>La dictée par le navigateur est gratuite. Quand elle passe par le serveur, l'application affiche la durée et le coût avant d'envoyer quoi que ce soit.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>La capture d'écran part vers le moteur choisi. Fermez d'abord ce que vous ne voulez pas montrer.</p></aside>
+
+<h3>Raccourcis</h3>
+<div class="tableau"><table>
+<tr><th>Touche</th><th>Effet</th></tr>
+<tr><td><kbd>F1</kbd></td><td>Ouvrir ou fermer le tiroir</td></tr>
+<tr><td><kbd>Entrée</kbd></td><td>Envoyer la question</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>Entrée</kbd></td><td>Aller à la ligne</td></tr>
+<tr><td><kbd>Échap</kbd></td><td>Effacer le pointeur, puis fermer le tiroir</td></tr>
+</table></div>
