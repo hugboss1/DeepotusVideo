@@ -26,7 +26,6 @@
     {"id": "reglages.budget", "ecran": "settings", "reglages": "pricing", "fr": "Réglages › Tarifs et budget", "en": "Settings › Pricing & budget"},
     {"id": "reglages.diagnostic", "ecran": "settings", "reglages": "diag", "fr": "Réglages › Diagnostic et mise à jour", "en": "Settings › Diagnostics and update"},
     {"id": "reglages.apparence", "ecran": "settings", "reglages": "appearance", "fr": "Réglages › Apparence et langue", "en": "Settings › Appearance and language"},
-    {"id": "reglages.appareils", "ecran": "settings", "reglages": "appareils", "fr": "Réglages › Appareils (mobile)", "en": "Settings › Devices (mobile)"},
-    {"id": "reglages.transfert", "ecran": "settings", "reglages": "transfert", "fr": "Réglages › Transfert entre machines", "en": "Settings › Transfer between machines"}
+    {"id": "reglages.appareils", "ecran": "settings", "reglages": "appareils", "fr": "Réglages › Appareils (mobile)", "en": "Settings › Devices (mobile)"}
   ]
 }

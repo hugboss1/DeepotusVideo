@@ -13,7 +13,9 @@ from app.services import agent_aide as A                                    # no
 ANCRES = json.loads((RACINE / "docs" / "agent" / "ancres.json").read_text(encoding="utf-8"))["ancres"]
 CHAPITRES = {c["id"] for c in json.loads((RACINE / "docs" / "guide" / "src" / "chapitres.json")
                                          .read_text(encoding="utf-8"))["chapitres"]}
-BUNDLE = next((RACINE / "frontend" / "dist" / "assets").glob("index-*.js")).read_text(encoding="utf-8")
+_BUNDLES = sorted((RACINE / "frontend" / "dist" / "assets").glob("index-*.js"))
+assert len(_BUNDLES) == 1, f"un seul bundle index-*.js attendu dans frontend/dist/assets : {_BUNDLES}"
+BUNDLE = _BUNDLES[0].read_text(encoding="utf-8")
 DICO = (RACINE / "frontend" / "shared" / "dz-i18n-dico.js").read_text(encoding="utf-8")
 LABS = {"/vectorlab/", "/photolab/", "/spritelab/", "/tilelab/"}
 
@@ -62,6 +64,20 @@ def test_agent_md_ne_cite_que_l_existant():
         if cible.startswith("<"):
             continue                                        # gabarit de la règle (« [POINT:<ancre>] »)
         assert {"POINT": cible in ids, "ALLER": cible in A.VUES, "GUIDE": cible in CHAPITRES}[typ], (typ, cible)
+
+
+def test_sections_connues_du_bundle():
+    """Les sections que l'écran sait ouvrir (dzReglagesEcoute) sont relues DANS le bundle,
+    sans dépendre des noms minifiés."""
+    listes = [json.loads(m.group(0)) for m in re.finditer(r'\[(?:"[a-z]+",?){10,20}\]', BUNDLE)
+              if '"diag"' in m.group(0) and '"pricing"' in m.group(0)]
+    assert listes, "liste des sections de Réglages introuvable dans le bundle"
+    assert set(A.SECTIONS_REGLAGES) <= set(listes[0]), set(A.SECTIONS_REGLAGES) - set(listes[0])
+
+
+def test_vues_presentes_dans_le_bundle():
+    for v in A.VUES:
+        assert f'id:"{v}"' in BUNDLE, v
 
 
 if __name__ == "__main__":

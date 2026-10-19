@@ -12,9 +12,10 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parents[3]
 DOSSIER = RACINE / "docs" / "agent"
 GUIDE = RACINE / "docs" / "guide" / "src"
-# les vues du rail de la SPA (bundle : `Yu`), dans l'ordre du rail
+# les vues du rail de la SPA, dans l'ordre du rail
 VUES = ("quick", "studio", "episodes", "sonvfx", "montage", "scheduler", "templates", "news", "library", "assets3d",
         "vectorlab", "photolab", "avatarlive", "settings")
-# les sections des Réglages (settings_routes._RUBRIQUES)
+# les sections des Réglages que l'écran sait ouvrir (`dzReglagesEcoute` du bundle ; settings_routes._RUBRIQUES en a une
+# de plus, « transfert », que l'écran n'ouvre pas par section)
 SECTIONS_REGLAGES = ("diag", "coffre", "appareils", "keys", "accounts", "personas", "branding", "pack", "defaults",
-                     "paths", "news", "appearance", "pricing", "transfert", "espaces")
+                     "paths", "news", "appearance", "pricing", "espaces")
