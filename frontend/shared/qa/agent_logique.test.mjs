@@ -81,6 +81,38 @@ assert.equal(L.candidats(faux, "b").at(0).noeud, n1);
 assert.deepEqual(L.candidats(faux, "!!"), [], "sélecteur invalide : aucun candidat");
 assert.equal(L.choisir(L.candidats(faux, "b", ".lbl"), { texte: { fr: "Studio" } }, "fr"), 0);
 
+// 8. A5 : capture réduite, point de la capture → écran, même onglet, élément cliquable, prix, étapes
+assert.deepEqual(L.reduire(2560, 1440), { l: 1280, h: 720 });
+assert.deepEqual(L.reduire(800, 600), { l: 800, h: 600 }, "jamais agrandie");
+assert.deepEqual(L.reduire(1000, 3000), { l: 427, h: 1280 });
+assert.equal(L.reduire(0, 10), null);
+assert.equal(L.COTE_MAX, 1280);
+const p5 = { x: 640, y: 360, largeur: 1280, hauteur: 720 };
+assert.deepEqual(L.versEcran(p5, { l: 1920, h: 1080 }), { x: 960, y: 540 });
+assert.deepEqual(L.versEcran({ ...p5, x: 5000, y: -3 }, { l: 1920, h: 1080 }), { x: 1920, y: 0 }, "borné");
+assert.equal(L.versEcran({ x: 1, y: 1, largeur: 0, hauteur: 0 }, { l: 10, h: 10 }), null);
+assert.equal(L.versEcran(p5, null), null);
+assert.equal(L.versEcran({ ...p5, x: "a" }, { l: 10, h: 10 }), null);
+assert.ok(L.memeOnglet(2560, 1314, { l: 1280, h: 657 }));
+assert.ok(!L.memeOnglet(1920, 1080, { l: 1280, h: 657 }), "écran entier 16:9 contre un onglet plus bas : refusé");
+assert.ok(!L.memeOnglet(0, 0, { l: 1, h: 1 }));
+const nn = (tag, role, parent) => ({ tagName: tag, getAttribute: (k) => (k === "role" ? role : null), parentElement: parent || null });
+const bt = nn("BUTTON", null), sp = nn("SPAN", null, bt);
+assert.equal(L.cliquable(sp), bt, "remonte au bouton");
+const onglet = nn("DIV", "tab");
+assert.equal(L.cliquable(nn("I", null, onglet)), onglet, "rôle d'onglet");
+assert.equal(L.cliquable(nn("DIV", null, nn("DIV", null))), null, "rien de cliquable : null");
+assert.equal(L.cliquable(null), null);
+let profond = bt;
+for (let i = 0; i < 7; i++) profond = nn("SPAN", null, profond);
+assert.equal(L.cliquable(profond), null, "6 niveaux au plus");
+assert.equal(L.prix(0.01234, "fr"), "0,0123");
+assert.equal(L.prix(0.01234, "en"), "0.0123");
+assert.equal(L.prix("x", "fr"), "0,0000");
+assert.deepEqual(L.etapes({ type: "voir", cible: "ecran" }, "quick"), [{ faire: "voir" }]);
+assert.deepEqual(L.etapes({ type: "point_xy", x: 1, y: 2, largeur: 10, hauteur: 10 }, "quick"), [{ faire: "pointer_xy" }]);
+assert.deepEqual(L.etapes({ type: "point_xy", x: "a", y: 2 }, "quick"), [], "coordonnées douteuses : rien");
+
 // 6. le module n'utilise aucun objet du navigateur à l'import
 assert.equal(typeof globalThis.document, "undefined");
 console.log("agent_logique : OK");

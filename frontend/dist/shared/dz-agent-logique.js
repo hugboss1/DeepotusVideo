@@ -58,6 +58,8 @@ export function etapes(action, vueCourante) {
   if (!action) return [];
   if (action.type === "aller") return VUES.includes(action.cible) ? [{ faire: "aller", vue: action.cible }] : [];
   if (action.type === "guide") return /^[a-z0-9-]+$/.test(action.cible || "") ? [{ faire: "guide", chapitre: action.cible }] : [];
+  if (action.type === "voir") return [{ faire: "voir" }];
+  if (action.type === "point_xy") return Number.isFinite(action.x) && Number.isFinite(action.y) ? [{ faire: "pointer_xy" }] : [];
   if (action.type !== "point") return [];
   const out = [];
   if (action.ecran && !action.partout && VUES.includes(action.ecran) && action.ecran !== vueCourante) out.push({ faire: "aller", vue: action.ecran });
@@ -70,4 +72,46 @@ export function historiqueBorne(h) {
   return (Array.isArray(h) ? h : [])
     .filter((t) => t && (t.role === "user" || t.role === "assistant") && typeof t.texte === "string")
     .slice(-MAX_HISTORIQUE);
+}
+
+// ── A5 : la vision en secours (capture de l'onglet, réponse en pixels de la capture) ──
+export const COTE_MAX = 1280;
+
+// la taille d'une capture réduite : grand côté ≤ max, proportions gardées, jamais agrandie
+export function reduire(l, h, max = COTE_MAX) {
+  if (!(l > 0 && h > 0)) return null;
+  const k = Math.min(1, max / Math.max(l, h));
+  return { l: Math.max(1, Math.round(l * k)), h: Math.max(1, Math.round(h * k)) };
+}
+
+// un point rendu en pixels de la capture → coordonnées de la fenêtre (vue : {l, h} au moment de la capture), borné
+export function versEcran(a, vue) {
+  if (!a || !vue || !(a.largeur > 0 && a.hauteur > 0) || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+  const x = Math.min(Math.max(0, a.x), a.largeur) * (vue.l / a.largeur);
+  const y = Math.min(Math.max(0, a.y), a.hauteur) * (vue.h / a.hauteur);
+  return { x: Math.round(x), y: Math.round(y) };
+}
+
+// l'image vient-elle de CET onglet ? même rapport largeur / hauteur que la fenêtre, à tol près
+export function memeOnglet(l, h, vue, tol = 0.04) {
+  if (!(l > 0 && h > 0) || !vue || !(vue.l > 0 && vue.h > 0)) return false;
+  const r = vue.l / vue.h;
+  return Math.abs(l / h - r) <= tol * r;
+}
+
+// l'élément à montrer sous un point : le plus proche ancêtre cliquable (6 niveaux au plus), sinon null
+const CLIQUABLES = ["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA", "LABEL", "SUMMARY"];
+const ROLES = ["button", "tab", "menuitem", "link", "checkbox", "switch", "option"];
+export function cliquable(n) {
+  for (let x = n, i = 0; x && i < 6; x = x.parentElement, i++) {
+    const role = x.getAttribute ? x.getAttribute("role") : null;
+    if (CLIQUABLES.includes(x.tagName) || ROLES.includes(role)) return x;
+  }
+  return null;
+}
+
+// un montant en dollars, 4 décimales, virgule en français
+export function prix(usd, lang) {
+  const t = (Number(usd) || 0).toFixed(4);
+  return lang === "en" ? t : t.replace(".", ",");
 }
