@@ -32,6 +32,7 @@ if (!window.__dzAgent) {
 
   let hist = [];
   try { hist = historiqueBorne(JSON.parse(lire(window.sessionStorage, "dz_agent_hist") || "[]")); } catch (e) { hist = []; }
+  let boiteAccord = null;     // la boîte d'accord en cours : dessiner() la remet au bas du fil
   const garder = () => ecrire(window.sessionStorage, "dz_agent_hist", JSON.stringify(historiqueBorne(hist)));
 
   const css = el("style", { texte: `
@@ -78,26 +79,29 @@ if (!window.__dzAgent) {
     const focusDedans = tiroir.contains(document.activeElement);
     tiroir.dataset.ouvert = o ? "1" : "0";
     bouton.setAttribute("aria-expanded", o ? "true" : "false");
-    if (o) { chargerMoteurs(); saisie.focus(); }
+    if (o) { chargement = null; chargerMoteurs(); saisie.focus(); }     // rechargé : une clé ajoutée à chaud compte
     else if (focusDedans) bouton.focus();     // le focus ne reste pas dans un tiroir masqué
   }
 
   let etatAgent = null;     // réponse de /api/agent/etat (moteurs avec cout et vision ; voix en A6)
-  async function chargerMoteurs() {
-    if (choix.dataset.charge) return;
-    choix.dataset.charge = "1";
-    try {
-      const r = await fetch("/api/agent/etat");
-      const j = await r.json();
-      etatAgent = j;
-      choix.replaceChildren(el("option", { value: "", texte: T("agent.moteur.auto") }),
-        ...j.moteurs.map((m) => el("option", { value: m.moteur,
-          texte: `${m.nom} · ${T(m.cout === "gratuit" ? "agent.moteur.cout_gratuit" : "agent.moteur.cout_payant")}` })));
-      choix.value = lire(window.localStorage, "dz_agent_moteur") || "";
-    } catch (e) { delete choix.dataset.charge; }
+  let chargement = null;    // la promesse du chargement en cours ; remise à null à chaque ouverture du tiroir
+  function chargerMoteurs() {
+    if (chargement) return chargement;
+    chargement = (async () => {
+      try {
+        const r = await fetch("/api/agent/etat");
+        const j = await r.json();
+        etatAgent = j;
+        choix.replaceChildren(el("option", { value: "", texte: T("agent.moteur.auto") }),
+          ...j.moteurs.map((m) => el("option", { value: m.moteur,
+            texte: `${m.nom} · ${T(m.cout === "gratuit" ? "agent.moteur.cout_gratuit" : "agent.moteur.cout_payant")}` })));
+        choix.value = lire(window.localStorage, "dz_agent_moteur") || "";
+      } catch (e) { chargement = null; }
+    })();
+    return chargement;
   }
   async function moteursConnus() {
-    if (!etatAgent) await chargerMoteurs();
+    await chargerMoteurs();
     return etatAgent && Array.isArray(etatAgent.moteurs) ? etatAgent.moteurs : [];
   }
   choix.addEventListener("change", () => ecrire(window.localStorage, "dz_agent_moteur", choix.value));
@@ -120,6 +124,7 @@ if (!window.__dzAgent) {
       return b;
     }));
     if (enAttente) fil.appendChild(el("div", { class: "dzAgentMsg", "data-role": "assistant", texte: T("agent.reponse.reflechit") }));
+    if (boiteAccord) fil.appendChild(boiteAccord);
     fil.scrollTop = fil.scrollHeight;
   }
 
@@ -265,7 +270,7 @@ if (!window.__dzAgent) {
       const boite = el("div", { class: "dzAgentMsg dzAgentAccord", "data-role": "assistant", role: "group" },
         [texte, sel, el("div", { class: "dzAgentActions" }, [oui, non])]);
       let devis = null, tour = 0;
-      const fermer = (r) => { boite.remove(); fin(r); };
+      const fermer = (r) => { boiteAccord = null; boite.remove(); fin(r); };
       async function chiffrer() {
         const moi = ++tour;
         oui.disabled = true; devis = null;
@@ -277,14 +282,17 @@ if (!window.__dzAgent) {
           if (moi !== tour) return;
           if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
           devis = j;
-          texte.textContent = T(j.cout === "gratuit" ? "agent.vision.accord_gratuit" : "agent.vision.accord",
-            { nom: j.nom, usd: prix(j.usd, lang()) });
+          texte.textContent = j.cout === "gratuit" ? T("agent.vision.accord_gratuit", { nom: j.nom })
+            : j.cout === "a_mesurer" ? T("agent.vision.accord_inconnu", { nom: j.nom })
+            : T("agent.vision.accord", { nom: j.nom, usd: prix(j.usd, lang()) });
           oui.disabled = !j.vision;
+          if (j.vision) oui.focus();
         } catch (e) { if (moi === tour) texte.textContent = T("agent.reponse.erreur", { msg: (e && e.message) || "—" }); }
       }
       sel.addEventListener("change", chiffrer);
       oui.addEventListener("click", () => { if (devis) fermer({ moteur: devis.moteur, usd: devis.usd }); });
       non.addEventListener("click", () => fermer(null));
+      boiteAccord = boite;
       fil.appendChild(boite);
       fil.scrollTop = fil.scrollHeight;
       chiffrer();
@@ -293,12 +301,13 @@ if (!window.__dzAgent) {
 
   async function regarder(msg, actionsDuMessage) {
     if (occupe || enVue || !msg || !msg.question) return;
-    const guides = (actionsDuMessage || []).filter((x) => x && x.type === "guide");
-    if (!captureDisponible()) return dire("agent.vision.indisponible", guides);
-    const vus = (await moteursConnus()).filter((m) => m.vision);
-    if (!vus.length) return dire("agent.vision.aucun_moteur", guides);
-    enVue = true;
+    enVue = true;                                  // dès l'entrée : aucune autre demande pendant le chargement
+    btnEnvoyer.disabled = true;
     try {
+      const guides = (actionsDuMessage || []).filter((x) => x && x.type === "guide");
+      if (!captureDisponible()) return dire("agent.vision.indisponible", guides);
+      const vus = (await moteursConnus()).filter((m) => m.vision);
+      if (!vus.length) return dire("agent.vision.aucun_moteur", guides);
       const corps = { question: msg.question, historique: msg.avant || [], ecran: vue(), lang: lang() };
       const ok = await accord(vus, corps);
       if (!ok) return;
@@ -310,7 +319,7 @@ if (!window.__dzAgent) {
       }
       await envoyerVue({ ...corps, moteur: ok.moteur, max_usd: ok.usd,
         image: { mime: cap.mime, b64: cap.b64, largeur: cap.largeur, hauteur: cap.hauteur } }, cap.vue);
-    } finally { enVue = false; }
+    } finally { enVue = false; btnEnvoyer.disabled = false; }
   }
 
   async function envoyerVue(corps, vueCapture) {
@@ -322,8 +331,10 @@ if (!window.__dzAgent) {
         body: JSON.stringify(corps) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
-      actions = (Array.isArray(j.actions) ? j.actions : []).map((x) => (x && x.type === "point_xy" ? { ...x, vue: vueCapture } : x));
-      hist.push({ role: "assistant", texte: j.texte || "", actions });
+      if (typeof j.texte !== "string" || !j.texte.trim()) throw new Error("—");
+      // pas de nouvelle demande de capture en réponse à une capture
+      actions = (Array.isArray(j.actions) ? j.actions : []).filter((x) => x && x.type !== "voir").map((x) => (x && x.type === "point_xy" ? { ...x, vue: vueCapture } : x));
+      hist.push({ role: "assistant", texte: j.texte, actions });
       premier = actions.find((x) => x && x.type === "point_xy") || null;
     } catch (e) {
       hist.push({ role: "assistant", texte: T("agent.reponse.erreur", { msg: (e && e.message) || "—" }), erreur: true });
@@ -337,10 +348,21 @@ if (!window.__dzAgent) {
   // un point rendu en pixels de la capture : l'élément cliquable dessous, sinon un petit halo sur le point
   async function pointerXY(a, moi) {
     effacerPointeur();
-    const p = versEcran(a, a.vue || { l: window.innerWidth, h: window.innerHeight });
+    const v = a.vue || { l: window.innerWidth, h: window.innerHeight };
+    const p = versEcran(a, v);
     if (!p || moi !== tourPointeur) return;
-    const sous = document.elementFromPoint(p.x, p.y);
-    const n = sous && !tiroir.contains(sous) && !bouton.contains(sous) && sous.tagName !== "IFRAME" ? cliquable(sous) : null;
+    // le bandeau « partage de cet onglet » du navigateur réduit la fenêtre PENDANT la capture : si la hauteur a changé
+    // depuis, un point du quart bas de la vue capturée (barres, boutons du bas) suit le bas de la fenêtre.
+    if (window.innerHeight !== v.h && p.y > v.h * 0.75) p.y += window.innerHeight - v.h;
+    // le tiroir couvre le point : on le ferme pour voir ce qu'il cachait (le point vient de la capture, tiroir masqué)
+    const tb = tiroir.getBoundingClientRect();
+    if (tiroir.dataset.ouvert === "1" && p.x >= tb.left && p.x <= tb.right && p.y >= tb.top && p.y <= tb.bottom) {
+      basculer(false);
+      await attendre(60);
+      if (moi !== tourPointeur) return;
+    }
+    const sous = document.elementsFromPoint(p.x, p.y).find((e) => !tiroir.contains(e) && !bouton.contains(e));
+    const n = sous && sous.tagName !== "IFRAME" ? cliquable(sous) : null;
     const libelle = a.libelle || T("agent.vision.ici");
     if (n) return montrer(n, libelle);
     montrer({ rect: () => ({ x: p.x - 16, y: p.y - 16, w: 32, h: 32 }) }, libelle);

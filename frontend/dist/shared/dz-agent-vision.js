@@ -12,10 +12,16 @@ export function captureDisponible() {
 }
 
 const image = () => new Promise((ok) => requestAnimationFrame(() => ok()));
+// Les dimensions de l'image ET la taille de la fenêtre sont relevées dans le MÊME rappel : le bandeau « partage de cet
+// onglet » du navigateur change la hauteur de la fenêtre au moment où il apparaît ou disparaît.
 function nouvelleImage(video) {
   return new Promise((ok) => {
-    const t = setTimeout(ok, 600);
-    if (typeof video.requestVideoFrameCallback === "function") video.requestVideoFrameCallback(() => { clearTimeout(t); ok(); });
+    const mesure = (meta) => ok({
+      vw: (meta && meta.width) || video.videoWidth, vh: (meta && meta.height) || video.videoHeight,
+      vue: { l: window.innerWidth, h: window.innerHeight },
+    });
+    const t = setTimeout(() => mesure(null), 600);
+    if (typeof video.requestVideoFrameCallback === "function") video.requestVideoFrameCallback((_, meta) => { clearTimeout(t); mesure(meta); });
   });
 }
 
@@ -39,9 +45,7 @@ export async function capturer({ avant, apres } = {}) {
     try {
       await image();
       await image();
-      await nouvelleImage(video);                 // une image prise APRÈS le masquage du tiroir
-      const vue = { l: window.innerWidth, h: window.innerHeight };
-      const vw = video.videoWidth, vh = video.videoHeight;
+      const { vw, vh, vue } = await nouvelleImage(video);     // une image prise APRÈS le masquage du tiroir
       if (!memeOnglet(vw, vh, vue)) throw new Error("autre-surface");
       const d = reduire(vw, vh);
       if (!d) throw new Error("capture-vide");

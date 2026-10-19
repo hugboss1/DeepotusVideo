@@ -1204,7 +1204,7 @@ export function versEcran(a, vue) {
 }
 
 // l'image vient-elle de CET onglet ? même rapport largeur / hauteur que la fenêtre, à tol près
-export function memeOnglet(l, h, vue, tol = 0.04) {
+export function memeOnglet(l, h, vue, tol = 0.06) {
   if (!(l > 0 && h > 0) || !vue || !(vue.l > 0 && vue.h > 0)) return false;
   const r = vue.l / vue.h;
   return Math.abs(l / h - r) <= tol * r;
@@ -1291,10 +1291,16 @@ export function captureDisponible() {
 }
 
 const image = () => new Promise((ok) => requestAnimationFrame(() => ok()));
+// Les dimensions de l'image ET la taille de la fenêtre sont relevées dans le MÊME rappel : le bandeau « partage de cet
+// onglet » du navigateur change la hauteur de la fenêtre au moment où il apparaît ou disparaît.
 function nouvelleImage(video) {
   return new Promise((ok) => {
-    const t = setTimeout(ok, 600);
-    if (typeof video.requestVideoFrameCallback === "function") video.requestVideoFrameCallback(() => { clearTimeout(t); ok(); });
+    const mesure = (meta) => ok({
+      vw: (meta && meta.width) || video.videoWidth, vh: (meta && meta.height) || video.videoHeight,
+      vue: { l: window.innerWidth, h: window.innerHeight },
+    });
+    const t = setTimeout(() => mesure(null), 600);
+    if (typeof video.requestVideoFrameCallback === "function") video.requestVideoFrameCallback((_, meta) => { clearTimeout(t); mesure(meta); });
   });
 }
 
@@ -1318,9 +1324,7 @@ export async function capturer({ avant, apres } = {}) {
     try {
       await image();
       await image();
-      await nouvelleImage(video);                 // une image prise APRÈS le masquage du tiroir
-      const vue = { l: window.innerWidth, h: window.innerHeight };
-      const vw = video.videoWidth, vh = video.videoHeight;
+      const { vw, vh, vue } = await nouvelleImage(video);     // une image prise APRÈS le masquage du tiroir
       if (!memeOnglet(vw, vh, vue)) throw new Error("autre-surface");
       const d = reduire(vw, vh);
       if (!d) throw new Error("capture-vide");
@@ -1403,6 +1407,7 @@ Ajouter à `frontend/shared/i18n/agent.json` (avant l'accolade finale, virgule a
   "agent.vision.devis": {"fr": "Je calcule le coût…", "en": "Working out the cost…"},
   "agent.vision.accord": {"fr": "Pour trouver ce bouton, je dois voir l'écran : une capture de cet onglet part vers {nom}, pour environ {usd} $ sous le plafond « aide ». Ton navigateur va ensuite te demander de partager l'onglet.", "en": "To find this button I need to see the screen: a capture of this tab goes to {nom}, for about ${usd} under the \"help\" cap. Your browser will then ask you to share the tab."},
   "agent.vision.accord_gratuit": {"fr": "Pour trouver ce bouton, je dois voir l'écran : une capture de cet onglet part vers {nom}, sur ce PC, gratuitement. Ton navigateur va ensuite te demander de partager l'onglet.", "en": "To find this button I need to see the screen: a capture of this tab goes to {nom}, on this PC, for free. Your browser will then ask you to share the tab."},
+  "agent.vision.accord_inconnu": {"fr": "Pour trouver ce bouton, je dois voir l'écran : une capture de cet onglet part vers {nom}, pour un coût que ce fournisseur ne publie pas, sous le plafond « aide ». Ton navigateur va ensuite te demander de partager l'onglet.", "en": "To find this button I need to see the screen: a capture of this tab goes to {nom}, at a cost this provider does not publish, under the \"help\" cap. Your browser will then ask you to share the tab."},
   "agent.vision.envoyer": {"fr": "Capturer et envoyer", "en": "Capture and send"},
   "agent.vision.annuler": {"fr": "Annuler", "en": "Cancel"},
   "agent.vision.moteur": {"fr": "Moteur qui voit l'écran", "en": "Engine that can see the screen"},
@@ -1436,21 +1441,24 @@ c) Remplacer `chargerMoteurs` par une version qui garde l'état, et ajouter `mot
 
 ```js
   let etatAgent = null;     // réponse de /api/agent/etat (moteurs avec cout et vision ; voix en A6)
-  async function chargerMoteurs() {
-    if (choix.dataset.charge) return;
-    choix.dataset.charge = "1";
-    try {
-      const r = await fetch("/api/agent/etat");
-      const j = await r.json();
-      etatAgent = j;
-      choix.replaceChildren(el("option", { value: "", texte: T("agent.moteur.auto") }),
-        ...j.moteurs.map((m) => el("option", { value: m.moteur,
-          texte: `${m.nom} · ${T(m.cout === "gratuit" ? "agent.moteur.cout_gratuit" : "agent.moteur.cout_payant")}` })));
-      choix.value = lire(window.localStorage, "dz_agent_moteur") || "";
-    } catch (e) { delete choix.dataset.charge; }
+  let chargement = null;    // la promesse du chargement en cours ; remise à null à chaque ouverture du tiroir
+  function chargerMoteurs() {
+    if (chargement) return chargement;
+    chargement = (async () => {
+      try {
+        const r = await fetch("/api/agent/etat");
+        const j = await r.json();
+        etatAgent = j;
+        choix.replaceChildren(el("option", { value: "", texte: T("agent.moteur.auto") }),
+          ...j.moteurs.map((m) => el("option", { value: m.moteur,
+            texte: `${m.nom} · ${T(m.cout === "gratuit" ? "agent.moteur.cout_gratuit" : "agent.moteur.cout_payant")}` })));
+        choix.value = lire(window.localStorage, "dz_agent_moteur") || "";
+      } catch (e) { chargement = null; }
+    })();
+    return chargement;
   }
   async function moteursConnus() {
-    if (!etatAgent) await chargerMoteurs();
+    await chargerMoteurs();
     return etatAgent && Array.isArray(etatAgent.moteurs) ? etatAgent.moteurs : [];
   }
 ```
@@ -1511,7 +1519,7 @@ f) Ajouter, après la fonction `pointer`, la vision en secours :
       const boite = el("div", { class: "dzAgentMsg dzAgentAccord", "data-role": "assistant", role: "group" },
         [texte, sel, el("div", { class: "dzAgentActions" }, [oui, non])]);
       let devis = null, tour = 0;
-      const fermer = (r) => { boite.remove(); fin(r); };
+      const fermer = (r) => { boiteAccord = null; boite.remove(); fin(r); };
       async function chiffrer() {
         const moi = ++tour;
         oui.disabled = true; devis = null;
@@ -1523,14 +1531,17 @@ f) Ajouter, après la fonction `pointer`, la vision en secours :
           if (moi !== tour) return;
           if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
           devis = j;
-          texte.textContent = T(j.cout === "gratuit" ? "agent.vision.accord_gratuit" : "agent.vision.accord",
-            { nom: j.nom, usd: prix(j.usd, lang()) });
+          texte.textContent = j.cout === "gratuit" ? T("agent.vision.accord_gratuit", { nom: j.nom })
+            : j.cout === "a_mesurer" ? T("agent.vision.accord_inconnu", { nom: j.nom })
+            : T("agent.vision.accord", { nom: j.nom, usd: prix(j.usd, lang()) });
           oui.disabled = !j.vision;
+          if (j.vision) oui.focus();
         } catch (e) { if (moi === tour) texte.textContent = T("agent.reponse.erreur", { msg: (e && e.message) || "—" }); }
       }
       sel.addEventListener("change", chiffrer);
       oui.addEventListener("click", () => { if (devis) fermer({ moteur: devis.moteur, usd: devis.usd }); });
       non.addEventListener("click", () => fermer(null));
+      boiteAccord = boite;
       fil.appendChild(boite);
       fil.scrollTop = fil.scrollHeight;
       chiffrer();
@@ -1539,12 +1550,13 @@ f) Ajouter, après la fonction `pointer`, la vision en secours :
 
   async function regarder(msg, actionsDuMessage) {
     if (occupe || enVue || !msg || !msg.question) return;
-    const guides = (actionsDuMessage || []).filter((x) => x && x.type === "guide");
-    if (!captureDisponible()) return dire("agent.vision.indisponible", guides);
-    const vus = (await moteursConnus()).filter((m) => m.vision);
-    if (!vus.length) return dire("agent.vision.aucun_moteur", guides);
-    enVue = true;
+    enVue = true;                                  // dès l'entrée : aucune autre demande pendant le chargement
+    btnEnvoyer.disabled = true;
     try {
+      const guides = (actionsDuMessage || []).filter((x) => x && x.type === "guide");
+      if (!captureDisponible()) return dire("agent.vision.indisponible", guides);
+      const vus = (await moteursConnus()).filter((m) => m.vision);
+      if (!vus.length) return dire("agent.vision.aucun_moteur", guides);
       const corps = { question: msg.question, historique: msg.avant || [], ecran: vue(), lang: lang() };
       const ok = await accord(vus, corps);
       if (!ok) return;
@@ -1556,7 +1568,7 @@ f) Ajouter, après la fonction `pointer`, la vision en secours :
       }
       await envoyerVue({ ...corps, moteur: ok.moteur, max_usd: ok.usd,
         image: { mime: cap.mime, b64: cap.b64, largeur: cap.largeur, hauteur: cap.hauteur } }, cap.vue);
-    } finally { enVue = false; }
+    } finally { enVue = false; btnEnvoyer.disabled = false; }
   }
 
   async function envoyerVue(corps, vueCapture) {
@@ -1568,8 +1580,10 @@ f) Ajouter, après la fonction `pointer`, la vision en secours :
         body: JSON.stringify(corps) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
-      actions = (Array.isArray(j.actions) ? j.actions : []).map((x) => (x && x.type === "point_xy" ? { ...x, vue: vueCapture } : x));
-      hist.push({ role: "assistant", texte: j.texte || "", actions });
+      if (typeof j.texte !== "string" || !j.texte.trim()) throw new Error("—");
+      // pas de nouvelle demande de capture en réponse à une capture
+      actions = (Array.isArray(j.actions) ? j.actions : []).filter((x) => x && x.type !== "voir").map((x) => (x && x.type === "point_xy" ? { ...x, vue: vueCapture } : x));
+      hist.push({ role: "assistant", texte: j.texte, actions });
       premier = actions.find((x) => x && x.type === "point_xy") || null;
     } catch (e) {
       hist.push({ role: "assistant", texte: T("agent.reponse.erreur", { msg: (e && e.message) || "—" }), erreur: true });
@@ -1583,10 +1597,21 @@ f) Ajouter, après la fonction `pointer`, la vision en secours :
   // un point rendu en pixels de la capture : l'élément cliquable dessous, sinon un petit halo sur le point
   async function pointerXY(a, moi) {
     effacerPointeur();
-    const p = versEcran(a, a.vue || { l: window.innerWidth, h: window.innerHeight });
+    const v = a.vue || { l: window.innerWidth, h: window.innerHeight };
+    const p = versEcran(a, v);
     if (!p || moi !== tourPointeur) return;
-    const sous = document.elementFromPoint(p.x, p.y);
-    const n = sous && !tiroir.contains(sous) && !bouton.contains(sous) && sous.tagName !== "IFRAME" ? cliquable(sous) : null;
+    // le bandeau « partage de cet onglet » du navigateur réduit la fenêtre PENDANT la capture : si la hauteur a changé
+    // depuis, un point du quart bas de la vue capturée (barres, boutons du bas) suit le bas de la fenêtre.
+    if (window.innerHeight !== v.h && p.y > v.h * 0.75) p.y += window.innerHeight - v.h;
+    // le tiroir couvre le point : on le ferme pour voir ce qu'il cachait (le point vient de la capture, tiroir masqué)
+    const tb = tiroir.getBoundingClientRect();
+    if (tiroir.dataset.ouvert === "1" && p.x >= tb.left && p.x <= tb.right && p.y >= tb.top && p.y <= tb.bottom) {
+      basculer(false);
+      await attendre(60);
+      if (moi !== tourPointeur) return;
+    }
+    const sous = document.elementsFromPoint(p.x, p.y).find((e) => !tiroir.contains(e) && !bouton.contains(e));
+    const n = sous && sous.tagName !== "IFRAME" ? cliquable(sous) : null;
     const libelle = a.libelle || T("agent.vision.ici");
     if (n) return montrer(n, libelle);
     montrer({ rect: () => ({ x: p.x - 16, y: p.y - 16, w: 32, h: 32 }) }, libelle);
@@ -1610,6 +1635,15 @@ g) Remplacer `executer` :
     }
   }
 ```
+
+h) Corrections de revue (déjà reportées dans le code ci-dessus) à faire aussi dans le reste de `dz-agent.js` :
+`let boiteAccord = null;` à côté de `let hist`, et `dessiner()` ajoute `if (boiteAccord) fil.appendChild(boiteAccord);`
+avant le défilement ; `basculer(true)` fait `chargement = null; chargerMoteurs();` (clé ajoutée à chaud) ;
+`regarder` pose `enVue = true` et désactive `btnEnvoyer` dès l'entrée (réactivé dans le `finally`) ; `pointerXY`
+décale `y` du bandeau de partage, ferme le tiroir s'il couvre le point, puis lit `document.elementsFromPoint`.
+Dans `dz-agent-vision.js`, `nouvelleImage` rend les dimensions de l'image et la taille de la fenêtre relevées dans le
+même rappel de `requestVideoFrameCallback`. `memeOnglet` tolère 6 % (Tâche 7). Deux tests statiques de
+`test_agent_ecran.py` (`test_corrections_de_revue_du_tiroir`, `test_capture_meme_image_pour_vue_et_taille`) les gardent.
 
 - [ ] **Étape 5 : copier, lancer et voir réussir**
 

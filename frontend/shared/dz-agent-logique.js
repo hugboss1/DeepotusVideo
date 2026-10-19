@@ -93,7 +93,7 @@ export function versEcran(a, vue) {
 }
 
 // l'image vient-elle de CET onglet ? même rapport largeur / hauteur que la fenêtre, à tol près
-export function memeOnglet(l, h, vue, tol = 0.04) {
+export function memeOnglet(l, h, vue, tol = 0.06) {
   if (!(l > 0 && h > 0) || !vue || !(vue.l > 0 && vue.h > 0)) return false;
   const r = vue.l / vue.h;
   return Math.abs(l / h - r) <= tol * r;

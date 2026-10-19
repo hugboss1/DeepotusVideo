@@ -122,7 +122,7 @@ def test_vision_dans_le_tiroir():
     assert "/api/agent/estimer" in src and "max_usd" in src
     assert ".filter((m) => m.vision)" in src, "l'accord ne propose que les moteurs qui voient"
     assert 'e.faire === "voir"' in src and 'e.faire === "pointer_xy"' in src
-    assert "versEcran(" in src and "cliquable(" in src and "document.elementFromPoint(" in src
+    assert "versEcran(" in src and "cliquable(" in src and "document.elementsFromPoint(" in src
     assert "occupe || enVue" in src, "une seule demande à la fois"
 
 
@@ -132,6 +132,33 @@ def test_libelles_vision():
               "agent.vision.refusee", "agent.vision.onglet", "agent.vision.ici", "agent.vision.devis"):
         assert k in I18N, k
     assert "${usd}" in I18N["agent.vision.accord"]["en"] and "{usd} $" in I18N["agent.vision.accord"]["fr"]
+
+
+def test_corrections_de_revue_du_tiroir():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    d = src[src.index("function dessiner("):src.index("// un seul envoi")]
+    assert "boiteAccord" in d, "dessiner() remet la boîte d'accord au bas du fil"
+    assert "boiteAccord = null" in src and "boiteAccord = boite" in src
+    r = src[src.index("async function regarder("):src.index("async function envoyerVue(")]
+    assert r.index("enVue = true") < r.index("captureDisponible()") < r.index("moteursConnus()"), "verrou dès l'entrée"
+    assert "btnEnvoyer.disabled = true" in r and "btnEnvoyer.disabled = false" in r
+    assert "let chargement = null" in src and "chargement = null; chargerMoteurs()" in src
+    assert "dataset.charge" not in src
+    p = src[src.index("async function pointerXY("):]
+    assert "tiroir.getBoundingClientRect()" in p and "basculer(false)" in p and "document.elementsFromPoint(" in p
+    assert p.index("attendre(60)") < p.index("moi !== tourPointeur", p.index("attendre(60)")) < p.index("elementsFromPoint(")
+    assert "window.innerHeight - v.h" in p, "décalage du bandeau de partage"
+    assert "agent.vision.accord_inconnu" in src and 'j.cout === "a_mesurer"' in src
+    assert 'x.type !== "voir"' in src, "pas de nouvelle capture en réponse à une capture"
+    e = src[src.index("async function envoyerVue("):src.index("async function pointerXY(")]
+    assert "!j.texte.trim()" in e and "oui.focus()" in src
+
+
+def test_capture_meme_image_pour_vue_et_taille():
+    src = (SHARED / "dz-agent-vision.js").read_text(encoding="utf-8")
+    assert "requestVideoFrameCallback((_, meta)" in src and "meta.width" in src
+    assert src.count("window.innerHeight") == 1, "la vue n'est mesurée qu'une fois, avec l'image"
+    assert "agent.vision.accord_inconnu" in I18N
 
 
 if __name__ == "__main__":
