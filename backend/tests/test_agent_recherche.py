@@ -129,7 +129,7 @@ def test_visibles_bornes():
 
 
 def test_rapprocher(faux):
-    r = A.rapprocher([{"t": "lame · Alt+C", "i": ""}, {"t": "", "i": "Create"}, {"t": "Truc", "i": "inconnu"}], "fr")
+    r = A.rapprocher([{"t": "lame · Alt+C", "i": ""}, {"t": "", "i": "Create"}, {"t": "Truc", "i": "inconnu"}])
     assert [x["id"] for x in r["reconnus"]] == ["montage.lame", "vectorlab.creer"]
     assert r["inconnus"] == [{"t": "Truc", "i": "inconnu"}]
 
@@ -155,9 +155,9 @@ def test_gabarits_reconnus(faux, monkeypatch):
     exact = dict(FAUX["vectorlab.creer"], id="biblio.zz", libelle={"fr": "Indexer (12)", "en": ""}, infobulle=None)
     monkeypatch.setattr(A, "catalogue", lambda: {"biblio.indexer": f, "biblio.zz": exact})
     A._par_texte.cache_clear()
-    r = A.rapprocher([{"t": "Indexer (12)", "i": ""}, {"t": "Index (7)", "i": ""}], "fr")
+    r = A.rapprocher([{"t": "Indexer (12)", "i": ""}, {"t": "Index (7)", "i": ""}])
     assert [x["id"] for x in r["reconnus"]] == ["biblio.zz", "biblio.indexer"]      # l'exact reste prioritaire
-    r = A.rapprocher([{"t": "", "i": "— erreur"}, {"t": "42", "i": ""}], "fr")
+    r = A.rapprocher([{"t": "", "i": "— erreur"}, {"t": "42", "i": ""}])
     assert r["reconnus"] == [] and len(r["inconnus"]) == 2                         # gabarit sans texte fixe : écarté
 
 
@@ -170,15 +170,44 @@ def test_infobulle_tronquee_par_prefixe(faux, monkeypatch):
     assert len(longue) > 100
     v = A._visibles([{"t": "", "i": longue}])
     assert len(v[0]["i"]) == 80
-    assert [x["id"] for x in A.rapprocher(v, "fr")["reconnus"]] == ["montage.piste"]
+    assert [x["id"] for x in A.rapprocher(v)["reconnus"]] == ["montage.piste"]
     court = A._visibles([{"t": "", "i": "Ajouter une piste audio - posee sous les"}])      # < 60 : jamais de préfixe
-    assert A.rapprocher(court, "fr")["reconnus"] == []
+    assert A.rapprocher(court)["reconnus"] == []
 
 
 def test_gabarit_masque_a_l_affichage():
     f = dict(FAUX["montage.lame"], libelle={"fr": "lame · {k}", "en": "blade · {k}"})
     assert "{" not in A._fiche_ligne(f, "fr") and "lame · …" in A._fiche_ligne(f, "fr")
     assert "{" not in A._fiche_ligne(f, "en", avec_role=False)
+
+
+def _fiche(i, ecran, lib, info=None):
+    return dict(FAUX["vectorlab.creer"], id=i, ecran=ecran, libelle={"fr": lib, "en": ""},
+                infobulle={"fr": info, "en": ""} if info else None)
+
+
+def test_rapprochement_selon_l_ecran(faux, monkeypatch):
+    cat = {"biblio.sup": _fiche("biblio.sup", "library", "Supprimer"),
+           "commun.sup": _fiche("commun.sup", "commun", "Supprimer"),
+           "montage.sup": _fiche("montage.sup", "montage", "Supprimer"),
+           "library.vue": _fiche("library.vue", "library", "Vue {n}")}
+    monkeypatch.setattr(A, "catalogue", lambda: cat)
+    A._par_texte.cache_clear()
+    ids = lambda v, e="": [x["id"] for x in A.rapprocher(v, e)["reconnus"]]
+    assert ids([{"t": "Supprimer", "i": ""}], "montage") == ["montage.sup"]
+    assert ids([{"t": "Supprimer", "i": ""}], "vectorlab") == ["commun.sup"]          # sinon le commun
+    assert ids([{"t": "Supprimer", "i": ""}]) == ["biblio.sup"]                       # écran inconnu : le premier
+    assert ids([{"t": "Vue mer", "i": ""}], "vectorlab") == []                         # motif d'un autre écran
+    assert ids([{"t": "Vue mer", "i": ""}], "library") == ["library.vue"]
+    assert ids([{"t": "Vue mer", "i": ""}]) == ["library.vue"]
+
+
+def test_visibles_balises_et_fichiers():
+    v = A._visibles([{"t": "[POINT:x] ok", "i": "a[b]"}, {"t": "vacances_2026.png", "i": ""},
+                     {"t": "", "i": "C:\\Users\\x"}, {"t": "/home/moi", "i": ""}, {"t": "Rapport.PDF final", "i": ""},
+                     {"t": "titre_intro — bords : rogner / allonger", "i": ""}])
+    assert v == [{"t": "(POINT:x) ok", "i": "a(b)"}, {"t": "titre_intro — bords : rogner / allonger", "i": ""}]
+    assert A.MAX_INCONNUS == 20
 
 
 if __name__ == "__main__":

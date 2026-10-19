@@ -201,7 +201,11 @@ def chercher(question, ecran: str = "", visibles=(), n: int = MAX_PERTINENTS) ->
 MAX_VISIBLES = 120
 MAX_TEXTE_VISIBLE = 80
 MAX_RECONNUS = 40
-MAX_INCONNUS = 30
+MAX_INCONNUS = 20
+
+
+FICHIER = re.compile(r"(?i)\.(png|jpe?g|webp|gif|svg|mp4|mov|webm|mkv|wav|mp3|ogg|flac|psd|tiff?|bmp|pdf|json|glb|gltf"
+                    r"|fbx|obj|stl|blend|zip)\b|[\\/][A-Za-z]")
 
 
 def _visibles(v) -> list:
@@ -218,6 +222,10 @@ def _visibles(v) -> list:
         t = x.get("t") if isinstance(x.get("t"), str) else ""
         i = x.get("i") if isinstance(x.get("i"), str) else ""
         t, i = _ligne(_sans_controle(t), MAX_TEXTE_VISIBLE), _ligne(_sans_controle(i), MAX_TEXTE_VISIBLE)
+        if FICHIER.search(t) or FICHIER.search(i):      # nom de fichier ou chemin : jamais envoyé (vie privée)
+            continue
+        # aucune balise [XXX] ne passe : le modèle pourrait la recopier dans sa réponse
+        t, i = t.replace("[", "(").replace("]", ")"), i.replace("[", "(").replace("]", ")")
         if t or i:
             out.append({"t": t, "i": i})
     return out
@@ -260,34 +268,47 @@ def _par_texte() -> tuple:
                         vus.add((m.pattern, i))
                         motifs.append((m, i))
                 else:
-                    out.setdefault(c, i)
+                    out.setdefault(c, []).append(i)
                     if len(c) >= MIN_PREFIXE:
                         longs.append((c, i))
     return out, motifs, sorted(longs)
 
 
-def _par_prefixe(c: str, longs: list):
+def _par_prefixe(c: str, longs: list, ok=lambda i: True):
     """La première fiche (par id) dont un texte long COMMENCE par c (c vient d'un relevé tronqué)."""
     if len(c) < MIN_PREFIXE:
         return None
     k, trouves = bisect.bisect_left(longs, (c, "")), []
     while k < len(longs) and longs[k][0].startswith(c):
-        trouves.append(longs[k][1])
+        if ok(longs[k][1]):
+            trouves.append(longs[k][1])
         k += 1
     return min(trouves) if trouves else None
 
 
-def rapprocher(visibles: list, lang: str = "fr") -> dict:
+def rapprocher(visibles: list, ecran: str = "") -> dict:
     """{reconnus: [fiches], inconnus: [{t, i}]} — un élément visible est reconnu par son texte, sinon son infobulle ;
-    l'égalité exacte passe avant les textes à gabarit."""
+    l'égalité exacte passe avant les textes à gabarit, puis le début des textes longs. Un texte partagé entre écrans
+    va à la fiche de l'écran ouvert, puis à `commun`, puis à la première ; les motifs et le préfixe ne visent que
+    l'écran ouvert et `commun` (écran vide : tous)."""
     (exact, motifs, longs), fiches, rec, inc, vus = _par_texte(), catalogue(), [], [], set()
+
+    def ici(i):
+        return not ecran or fiches[i].get("ecran") in (ecran, "commun", None, "")
+
+    def choisir(ids):
+        if not ecran:
+            return ids[0]
+        return (next((i for i in ids if fiches[i].get("ecran") == ecran), None)
+                or next((i for i in ids if fiches[i].get("ecran") == "commun"), None) or ids[0])
+
     for v in visibles:
         cles = [c for c in (_cle_texte(v["t"]), _cle_texte(v["i"])) if c]
-        i = next((exact[c] for c in cles if c in exact), None)
+        i = next((choisir(exact[c]) for c in cles if c in exact), None)
         if not i:
-            i = next((j for c in cles for m, j in motifs if m.match(c)), None)
+            i = next((j for c in cles for m, j in motifs if ici(j) and m.match(c)), None)
         if not i:
-            i = next((j for c in cles for j in [_par_prefixe(c, longs)] if j), None)
+            i = next((j for c in cles for j in [_par_prefixe(c, longs, ici)] if j), None)
         if i and i not in vus:
             vus.add(i)
             if len(rec) < MAX_RECONNUS:
@@ -450,7 +471,7 @@ def _cout(p: dict, sys_txt: str) -> float:
 
 def _systeme_question(p: dict) -> str:
     """Le message système d'une question : un seul point pour le devis et l'envoi, qui restent le même texte."""
-    vis = rapprocher(p.get("visibles") or [], p["lang"]) if p.get("visibles") else None
+    vis = rapprocher(p.get("visibles") or [], p["ecran"]) if p.get("visibles") else None
     ids = [x["id"] for x in (vis or {}).get("reconnus", [])]
     return systeme(p["ecran"], p["lang"], _espace(), pertinents=chercher(p["q"], p["ecran"], ids), visibles=vis)
 
