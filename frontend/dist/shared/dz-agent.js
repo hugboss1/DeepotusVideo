@@ -7,7 +7,7 @@
 // moteur} ; sous chaque réponse, un bouton par action (Montre-moi / Y aller / Guide). L'historique reste dans
 // sessionStorage (dz_agent_hist) ; le moteur choisi dans localStorage (dz_agent_moteur). Un 402 `dz_plafond` est
 // traité par la couche /shared/dz-plafonds.js (elle enveloppe window.fetch) : rien à faire ici.
-import { etapes, historiqueBorne, choisir, courbe } from "./dz-agent-logique.js";
+import { etapes, historiqueBorne, choisir, courbe, composer } from "./dz-agent-logique.js";
 
 if (!window.__dzAgent) {
   window.__dzAgent = true;
@@ -196,8 +196,13 @@ if (!window.__dzAgent) {
     calques = [];
   }
 
+  // cible : un nœud DOM, ou {rect: () => ({x, y, w, h}) | null} pour un élément d'un lab en cadre intégré
   function montrer(cible, libelle) {
     effacerPointeur();
+    const mesurer = cible.rect ? () => {
+      const q = cible.rect() || { x: 0, y: 0, w: 0, h: 0 };
+      return { x: q.x, y: q.y, width: q.w, height: q.h, bottom: q.y + q.h };
+    } : () => cible.getBoundingClientRect();
     const b = bouton.getBoundingClientRect();
     const depart = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
     const curseur = el("div", { class: "dzAgentCurseur" });
@@ -210,7 +215,7 @@ if (!window.__dzAgent) {
     let arrivee = depart, pose = false;
     // recalcule la place de la cible : au départ, puis à chaque défilement / redimensionnement (même pendant l'arc)
     const placer = () => {
-      const r = cible.getBoundingClientRect();
+      const r = mesurer();
       arrivee = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
       Object.assign(halo.style, { left: r.x - 6 + "px", top: r.y - 6 + "px", width: r.width + 12 + "px", height: r.height + 12 + "px" });
       const hb = bulle.offsetHeight || 24, lb = bulle.offsetWidth || 0;
@@ -242,16 +247,54 @@ if (!window.__dzAgent) {
   }
   document.addEventListener("pointerdown", (ev) => { if (calques.length && !tiroir.contains(ev.target)) effacerPointeur(); }, true);
 
+  // un lab en cadre intégré (a.cadre = "/vectorlab/"…) : on demande au répondeur /shared/dz-agent-cadre.js le
+  // rectangle de l'élément ; seule une réponse de même origine, venue de CE cadre et portant notre id, compte.
+  let numero = 0;
+  function demanderAuCadre(a) {
+    const cadres = Array.from(document.querySelectorAll("iframe")).filter((f) => (f.getAttribute("src") || "").includes(a.cadre));
+    const cadre = cadres.find((f) => { const b = f.getBoundingClientRect(); return b.width > 0 && b.height > 0; }) || cadres[0];
+    if (!cadre || !cadre.contentWindow) return Promise.resolve(null);
+    const id = ++numero;
+    return new Promise((ok) => {
+      const fini = setTimeout(() => { window.removeEventListener("message", h); ok(null); }, 1500);
+      function h(ev) {
+        if (ev.origin !== location.origin || ev.source !== cadre.contentWindow) return;
+        if (!ev.data || ev.data.dzAgent !== "rect" || ev.data.id !== id) return;
+        clearTimeout(fini);
+        window.removeEventListener("message", h);
+        ok(ev.data.rect ? { cadre, interne: ev.data.rect } : null);
+      }
+      window.addEventListener("message", h);
+      try {
+        cadre.contentWindow.postMessage({ dzAgent: "trouve", id, selecteur: a.selecteur, libelle: a.libelle || "",
+          texte: a.texte, lang: lang() }, location.origin);
+      } catch (e) { clearTimeout(fini); window.removeEventListener("message", h); ok(null); }
+    });
+  }
+  function introuvable(actionsDuMessage) {
+    const guides = (Array.isArray(actionsDuMessage) ? actionsDuMessage : []).filter((x) => x && x.type === "guide");
+    hist.push({ role: "assistant", texte: T("agent.action.introuvable"), actions: guides });
+    garder(); dessiner();
+  }
+
   // moi : jeton pris par executer au clic ; un clic plus récent l'invalide (vérifié après chaque attente)
   async function pointer(a, actionsDuMessage, moi) {
     effacerPointeur();
+    if (a.cadre) {
+      let t = null;
+      for (const fin = Date.now() + 4000; !t && Date.now() < fin;) {
+        t = await demanderAuCadre(a);                // cadre absent ou pas encore chargé : on réessaie
+        if (moi !== tourPointeur) return;
+        if (!t) await attendre(250);
+      }
+      if (!t) return introuvable(actionsDuMessage);
+      // suit le défilement de la page (place du cadre) mais pas celui DANS le lab : rectangle intérieur figé
+      return montrer({ rect: () => t.cadre.isConnected ? composer(t.cadre.getBoundingClientRect(), t.interne) : null },
+        a[lang()] || a.fr);
+    }
     const n = await trouver(a, 4000);
     if (moi !== tourPointeur) return;                                            // un autre pointage a pris la main
-    if (!n) {
-      const guides = (Array.isArray(actionsDuMessage) ? actionsDuMessage : []).filter((x) => x && x.type === "guide");
-      hist.push({ role: "assistant", texte: T("agent.action.introuvable"), actions: guides });
-      garder(); dessiner(); return;
-    }
+    if (!n) return introuvable(actionsDuMessage);
     n.scrollIntoView({ block: "center" });
     await attendre(60);
     if (moi !== tourPointeur || !n.isConnected) return;

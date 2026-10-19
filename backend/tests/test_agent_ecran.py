@@ -63,5 +63,26 @@ def test_pointeur_present():
     assert "if (reduit()) return finir();" in src, "le mouvement réduit saute l'animation"
 
 
+LABS = ["vectorlab", "photolab", "spritelab", "tilelab"]
+BALISE_LAB = '<script type="module" src="/shared/dz-agent-cadre.js"></script>'
+
+
+def test_cadre_copie_et_balises():
+    assert (SHARED / "dz-agent-cadre.js").read_bytes() == (DIST / "dz-agent-cadre.js").read_bytes()
+    for lab in LABS:
+        html = (RACINE / "frontend" / lab / "index.html").read_text(encoding="utf-8")
+        assert html.count(BALISE_LAB) == 1, lab
+        assert html.index("/shared/dz-plafonds.js") < html.index(BALISE_LAB), lab
+
+
+def test_cadre_verifie_l_origine():
+    src = (SHARED / "dz-agent-cadre.js").read_text(encoding="utf-8")
+    assert "ev.origin !== location.origin" in src and "postMessage(" in src
+    assert "ev.source" in src and "d.libelle" in src, "répond à la source, lit le sous-élément libellé comme le tiroir"
+    agent = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert "ev.origin !== location.origin" in agent, "le tiroir ne lit que les réponses de même origine"
+    assert "ev.source !== cadre.contentWindow" in agent, "la réponse vient du cadre interrogé"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
