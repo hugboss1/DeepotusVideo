@@ -57,7 +57,7 @@ def test_ancres_du_rail_partout():
 
 def test_balises_inconnues_retirees_et_comptees():
     texte, actions, rejets = A.analyser("A [POINT:bouton.invente] B [ALLER:nulle-part] [GUIDE:x] [VOIR] [FOO:bar]")
-    assert actions == [] and rejets == 5
+    assert actions == [{"type": "voir", "cible": "ecran"}] and rejets == 4     # A5 : [VOIR] est connue
     assert "[" not in texte and texte == "A  B"
 
 

@@ -78,9 +78,13 @@ def systeme(ecran: str, lang: str, espace: str = "") -> str:
 # retirées (comptées) — l'écran ne voit jamais une balise
 BALISE = re.compile(r"\[([A-Z]{2,8})(?::([^\[\]\n]{1,80}))?\]")
 MAX_ACTIONS = 6
+# A5 : coordonnées rendues par un moteur qui a VU une capture (pixels de la capture), libellé facultatif
+XY = re.compile(r"^(\d{1,5})\s*,\s*(\d{1,5})\s*(?::(.*))?$")
 
 
-def _action(typ: str, cible: str) -> dict | None:
+def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
+    """image : {largeur, hauteur} de la capture jointe à l'appel (A5) — seule une réponse à une capture peut rendre des
+    coordonnées, et jamais une nouvelle demande de capture."""
     k = connaissance()
     if typ == "POINT" and cible in k["ancres"]:
         a = k["ancres"][cible]
@@ -88,6 +92,16 @@ def _action(typ: str, cible: str) -> dict | None:
                 "texte": a.get("texte"), "cadre": a.get("cadre"), "reglages": a.get("reglages"),
                 "partout": bool(a.get("partout")), "libelle": a.get("libelle"),
                 "fr": a["fr"], "en": a["en"]}
+    if typ == "POINT" and image:
+        m = XY.match(cible)
+        if m:
+            x, y = int(m.group(1)), int(m.group(2))
+            if x <= image["largeur"] and y <= image["hauteur"]:
+                return {"type": "point_xy", "cible": f"{x},{y}", "x": x, "y": y, "largeur": image["largeur"],
+                        "hauteur": image["hauteur"], "libelle": _ligne(m.group(3) or "", 60)}
+        return None
+    if typ == "VOIR" and not cible and not image:
+        return {"type": "voir", "cible": "ecran"}
     if typ == "ALLER" and cible in VUES:
         return {"type": "aller", "cible": cible}
     if typ == "GUIDE" and cible in k["chapitres"]:
@@ -96,13 +110,14 @@ def _action(typ: str, cible: str) -> dict | None:
     return None
 
 
-def analyser(texte) -> tuple[str, list, int]:
-    """(texte sans balises ni indentation, actions dédoublonnées ≤ MAX_ACTIONS, nombre de balises rejetées)."""
+def analyser(texte, image: dict | None = None) -> tuple[str, list, int]:
+    """(texte sans balises ni indentation, actions dédoublonnées ≤ MAX_ACTIONS, nombre de balises rejetées).
+    image : {largeur, hauteur} quand la réponse vient d'un appel avec capture (A5)."""
     actions, vus, rejets = [], set(), 0
 
     def remplacer(m):
         nonlocal rejets
-        a = _action(m.group(1), (m.group(2) or "").strip())
+        a = _action(m.group(1), (m.group(2) or "").strip(), image)
         if a is None:
             rejets += 1
         elif (a["type"], a["cible"]) not in vus and len(actions) < MAX_ACTIONS:
