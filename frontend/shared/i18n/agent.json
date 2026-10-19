@@ -29,6 +29,7 @@
   "agent.vision.aucun_moteur": {"fr": "Aucun moteur branché ne lit les images (il en faut un : Claude, GPT-4o ou plus récent, Gemini, ou un modèle Ollama « vision »). Le chapitre du guide t'aidera.", "en": "No connected engine can read images (you need one: Claude, GPT-4o or newer, Gemini, or an Ollama \"vision\" model). The guide chapter will help."},
   "agent.vision.refusee": {"fr": "Capture annulée : rien n'a été envoyé.", "en": "Capture cancelled: nothing was sent."},
   "agent.vision.onglet": {"fr": "Il faut partager « cet onglet », pas un autre onglet ni l'écran entier : rien n'a été envoyé.", "en": "You need to share \"this tab\", not another tab or the whole screen: nothing was sent."},
+  "agent.vision.occupe": {"fr": "Attends la fin de la réponse en cours.", "en": "Wait for the current answer to finish."},
   "agent.vision.ici": {"fr": "Ici", "en": "Here"},
   "agent.voix.dicter": {"fr": "Dicter la question", "en": "Dictate the question"},
   "agent.voix.arreter": {"fr": "Arrêter la dictée", "en": "Stop dictation"},

@@ -30,6 +30,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "agent.vision.ici": {"fr": "Ici", "en": "Here"},
   "agent.vision.indisponible": {"fr": "Ce navigateur ne sait pas capturer l'onglet. Le chapitre du guide t'aidera.", "en": "This browser cannot capture the tab. The guide chapter will help."},
   "agent.vision.moteur": {"fr": "Moteur qui voit l'écran", "en": "Engine that can see the screen"},
+  "agent.vision.occupe": {"fr": "Attends la fin de la réponse en cours.", "en": "Wait for the current answer to finish."},
   "agent.vision.onglet": {"fr": "Il faut partager « cet onglet », pas un autre onglet ni l'écran entier : rien n'a été envoyé.", "en": "You need to share \"this tab\", not another tab or the whole screen: nothing was sent."},
   "agent.vision.refusee": {"fr": "Capture annulée : rien n'a été envoyé.", "en": "Capture cancelled: nothing was sent."},
   "agent.vision.voir": {"fr": "Regarder l'écran", "en": "Look at the screen"},

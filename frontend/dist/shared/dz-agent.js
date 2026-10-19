@@ -41,6 +41,7 @@ if (!window.__dzAgent) {
 
   let hist = [];
   try { hist = historiqueBorne(JSON.parse(lire(window.sessionStorage, "dz_agent_hist") || "[]")); } catch (e) { hist = []; }
+  let annulerAccord = null;   // ferme la boîte d'accord en cours sur « annuler » (tiroir fermé, ↺) : rien n'est envoyé
   let boiteAccord = null;     // la boîte d'accord en cours : dessiner() la remet au bas du fil
   const garder = () => ecrire(window.sessionStorage, "dz_agent_hist", JSON.stringify(historiqueBorne(hist)));
 
@@ -95,7 +96,9 @@ if (!window.__dzAgent) {
     btnMicro.dataset.etat = e;
   });
   const btnNouvelle = el("button", { texte: "↺", title: T("agent.tiroir.nouvelle"), "aria-label": T("agent.tiroir.nouvelle"),
-    on: { click: () => { if (occupe || enVue) return; arreterLecture(); hist = []; garder(); dessiner(); } } });
+    on: { click: () => {
+      if (annulerAccord) annulerAccord(); else if (occupe || enVue) return;
+      arreterLecture(); hist = []; garder(); dessiner(); } } });
   const tiroir = el("aside", { id: "dzAgentTiroir", class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
     el("div", { class: "dzAgentTete" }, [
       el("h2", { texte: T("agent.tiroir.titre") }), choix, btnNouvelle,
@@ -112,6 +115,7 @@ if (!window.__dzAgent) {
     const focusDedans = tiroir.contains(document.activeElement);
     tiroir.dataset.ouvert = o ? "1" : "0";
     bouton.setAttribute("aria-expanded", o ? "true" : "false");
+    if (!o && annulerAccord) annulerAccord();      // fermer le tiroir pendant l'accord l'annule
     if (o) { chargement = null; chargerMoteurs().then(() => { if (!occupe) dessiner(); }); saisie.focus(); }     // rechargé : une clé ajoutée à chaud compte ; la voix connue fait apparaître « Lire »
     else {
       arreterLecture();
@@ -367,7 +371,8 @@ if (!window.__dzAgent) {
       const boite = el("div", { class: "dzAgentMsg dzAgentAccord", "data-role": "assistant", role: "group" },
         [texte, sel, el("div", { class: "dzAgentActions" }, [oui, non])]);
       let devis = null, tour = 0;
-      const fermer = (r) => { boiteAccord = null; boite.remove(); fin(r); };
+      const fermer = (r) => { boiteAccord = null; annulerAccord = null; boite.remove(); fin(r); };
+      annulerAccord = () => fermer(null);
       async function chiffrer() {
         const moi = ++tour;
         oui.disabled = true; devis = null;
@@ -397,6 +402,11 @@ if (!window.__dzAgent) {
   }
 
   async function regarder(msg, actionsDuMessage) {
+    if (occupe) {                                  // une réponse est en cours : on le dit au lieu de ne rien faire
+      hist.push({ role: "assistant", texte: T("agent.vision.occupe"), erreur: true });
+      garder(); dessiner(true);
+      return;
+    }
     if (occupe || enVue || !msg || !msg.question) return;
     enVue = true;                                  // dès l'entrée : aucune autre demande pendant le chargement
     btnEnvoyer.disabled = true;

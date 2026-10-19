@@ -172,5 +172,21 @@ def test_point_xy_rejoue_ailleurs_ne_pointe_pas():
     assert "pointerXY(a, moi, actionsDuMessage" in src
 
 
+def test_fermer_ou_recommencer_annule_l_accord_et_la_vision_occupee_repond():
+    """Revue finale : tiroir fermé ou ↺ pendant l'accord = annulation ; « Regarder » pendant une réponse = message."""
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert "let annulerAccord = null" in src
+    a = src[src.index("function accord("):src.index("async function regarder(")]
+    assert "annulerAccord = () => fermer(null)" in a and "annulerAccord = null" in a
+    b = src[src.index("function basculer("):src.index("let etatAgent")]
+    assert "annulerAccord" in b and b.index("annulerAccord") < b.index("arreterLecture()")
+    n = src[src.index("const btnNouvelle"):src.index("const tiroir = el(")]
+    assert "annulerAccord" in n
+    r = src[src.index("async function regarder("):src.index("async function envoyerVue(")]
+    assert "agent.vision.occupe" in r and r.index("agent.vision.occupe") < r.index("enVue = true")
+    assert I18N["agent.vision.occupe"]["fr"] == "Attends la fin de la réponse en cours."
+    assert I18N["agent.vision.occupe"]["en"] == "Wait for the current answer to finish."
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
