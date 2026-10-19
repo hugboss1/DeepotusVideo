@@ -71,3 +71,14 @@ def test_texte_hostile():
 def test_indentation_retiree():
     texte, _, _ = A.analyser("Voici :\n    1. Ouvre les Réglages\n\t2. Colle la clé\n    [POINT:reglages.cles]")
     assert texte == "Voici :\n1. Ouvre les Réglages\n2. Colle la clé"
+
+
+def test_nettoyage_lineaire():
+    import time
+    t0 = time.perf_counter()
+    texte, actions, _ = A.analyser(" ".join(["[POINT:rail.quick]"] * 100_000) + " fin")
+    assert time.perf_counter() - t0 < 2.0 and texte == "fin" and len(actions) == 1
+
+
+def test_fins_de_ligne_crlf():
+    assert A.analyser("a\r\n[POINT:rail.quick]\r\nb")[0] == "a\n\nb"

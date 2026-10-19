@@ -93,7 +93,7 @@ def analyser(texte) -> tuple[str, list, int]:
         return ""
 
     propre = BALISE.sub(remplacer, str(texte or ""))
-    propre = re.sub(r"[ \t]+\n", "\n", propre)
-    propre = re.sub(r"\n{3,}", "\n\n", propre)
-    propre = re.sub(r"(?m)^[ \t]+", "", propre).strip()      # un modèle recopie parfois une indentation d'exemple
+    # linéaire (« [ \t]+\n » en re.sub est quadratique) ; retire aussi l'indentation qu'un modèle recopie, et les \r
+    propre = "\n".join(l.strip() for l in propre.split("\n"))
+    propre = re.sub(r"\n{3,}", "\n\n", propre).strip()
     return propre, actions, rejets
