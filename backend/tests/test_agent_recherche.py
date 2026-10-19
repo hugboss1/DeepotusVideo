@@ -149,5 +149,17 @@ def test_demander_avec_visibles(faux, monkeypatch):
     assert "## À l'écran maintenant" in vu["systeme"] and "« Zorg » — non documenté" in vu["systeme"]
 
 
+def test_gabarits_reconnus(faux, monkeypatch):
+    f = dict(FAUX["vectorlab.creer"], id="biblio.indexer", ecran="library",
+             libelle={"fr": "Indexer ({n})", "en": "Index ({n})"}, infobulle={"fr": "— {msg}", "en": "{n}"})
+    exact = dict(FAUX["vectorlab.creer"], id="biblio.zz", libelle={"fr": "Indexer (12)", "en": ""}, infobulle=None)
+    monkeypatch.setattr(A, "catalogue", lambda: {"biblio.indexer": f, "biblio.zz": exact})
+    A._par_texte.cache_clear()
+    r = A.rapprocher([{"t": "Indexer (12)", "i": ""}, {"t": "Index (7)", "i": ""}], "fr")
+    assert [x["id"] for x in r["reconnus"]] == ["biblio.zz", "biblio.indexer"]      # l'exact reste prioritaire
+    r = A.rapprocher([{"t": "", "i": "— erreur"}, {"t": "42", "i": ""}], "fr")
+    assert r["reconnus"] == [] and len(r["inconnus"]) == 2                         # gabarit sans texte fixe : écarté
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

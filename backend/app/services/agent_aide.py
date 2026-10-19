@@ -226,25 +226,49 @@ def _cle_texte(t) -> str:
     return " ".join(t.split())
 
 
+GABARIT = re.compile(r"\{[^{}]*\}")
+MIN_FIXE = 3        # un gabarit sans au moins ce nombre de caractères fixes reconnaîtrait n'importe quoi
+
+
+def _motif(c: str):
+    """Un texte à gabarit (« indexer ({n}) ») → motif ancré, ou None s'il n'a pas assez de texte fixe."""
+    morceaux = GABARIT.split(c)
+    if len(morceaux) < 2 or not any(len(m.strip()) >= MIN_FIXE for m in morceaux):
+        return None
+    return re.compile("^" + ".+?".join(re.escape(m) for m in morceaux) + "$")
+
+
 @lru_cache(maxsize=1)
-def _par_texte() -> dict:
-    """texte normalisé (libellé ou infobulle, FR et EN) → id de fiche (le premier par ordre d'id)."""
-    out = {}
+def _par_texte() -> tuple:
+    """(exact, motifs) : exact = texte normalisé (libellé ou infobulle, FR et EN) → id de fiche (le premier par ordre
+    d'id) ; motifs = [(motif, id)] pour les textes à gabarit {…}, triés par id."""
+    out, motifs, vus = {}, [], set()
     for i in sorted(catalogue()):
         x = catalogue()[i]
         for champ in ("libelle", "infobulle"):
             for lang in ("fr", "en"):
                 c = _cle_texte((x.get(champ) or {}).get(lang))
-                if c:
+                if not c:
+                    continue
+                if "{" in c:
+                    m = _motif(c)
+                    if m and (m.pattern, i) not in vus:
+                        vus.add((m.pattern, i))
+                        motifs.append((m, i))
+                else:
                     out.setdefault(c, i)
-    return out
+    return out, motifs
 
 
 def rapprocher(visibles: list, lang: str = "fr") -> dict:
-    """{reconnus: [fiches], inconnus: [{t, i}]} — un élément visible est reconnu par son texte, sinon son infobulle."""
-    idx, fiches, rec, inc, vus = _par_texte(), catalogue(), [], [], set()
+    """{reconnus: [fiches], inconnus: [{t, i}]} — un élément visible est reconnu par son texte, sinon son infobulle ;
+    l'égalité exacte passe avant les textes à gabarit."""
+    (exact, motifs), fiches, rec, inc, vus = _par_texte(), catalogue(), [], [], set()
     for v in visibles:
-        i = idx.get(_cle_texte(v["t"])) or idx.get(_cle_texte(v["i"]))
+        cles = [c for c in (_cle_texte(v["t"]), _cle_texte(v["i"])) if c]
+        i = next((exact[c] for c in cles if c in exact), None)
+        if not i:
+            i = next((j for c in cles for m, j in motifs if m.match(c)), None)
         if i and i not in vus:
             vus.add(i)
             if len(rec) < MAX_RECONNUS:
