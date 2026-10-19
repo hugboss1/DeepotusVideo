@@ -12,7 +12,8 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 
 ## Architecture
 - **Backend** FastAPI dans `backend/app` : les routes sont dans `api/`, les services dans `services/`, l'application
-  dans `main.py`. Les données de l'utilisateur sont dans `%LOCALAPPDATA%\DeepotusVideoGen`.
+  dans `main.py`. Les données de l'utilisateur sont dans `%LOCALAPPDATA%\DeepotusVideoGenData` ;
+  `%LOCALAPPDATA%\DeepotusVideoGen` est le dossier de l'application (Python embarqué).
 - **SPA** : le bundle `frontend/dist/assets/index-*.js` est **prébâti puis patché**. On ne le reconstruit jamais
   depuis `frontend/src` (voir `frontend/SOURCE.md`). Toute modification passe par un script
   `scripts/patch_bundle_<tag>.py` (paires d'ancres uniques, sonde amont, `.bak_<tag>`, `--check`), et toute la chaîne
