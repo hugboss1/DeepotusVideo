@@ -21,7 +21,7 @@
     {"id": "reglages.comptes", "ecran": "settings", "reglages": "accounts", "fr": "Réglages › Comptes connectés", "en": "Settings › Connected accounts"},
     {"id": "reglages.personas", "ecran": "settings", "reglages": "personas", "fr": "Réglages › Personas", "en": "Settings › Personas"},
     {"id": "reglages.espaces", "ecran": "settings", "reglages": "espaces", "fr": "Réglages › Espaces de marque", "en": "Settings › Brand spaces"},
-    {"id": "reglages.marque", "ecran": "settings", "reglages": "branding", "fr": "Réglages › Identité visuelle", "en": "Settings › Branding"},
+    {"id": "reglages.marque", "ecran": "settings", "reglages": "branding", "fr": "Réglages › Identité visuelle (kits de marque)", "en": "Settings › Branding (brand kits)"},
     {"id": "reglages.defauts", "ecran": "settings", "reglages": "defaults", "fr": "Réglages › Fournisseurs par défaut (et langue)", "en": "Settings › Provider defaults (and language)"},
     {"id": "reglages.budget", "ecran": "settings", "reglages": "pricing", "fr": "Réglages › Tarifs et budget", "en": "Settings › Pricing & budget"},
     {"id": "reglages.diagnostic", "ecran": "settings", "reglages": "diag", "fr": "Réglages › Diagnostic (et mise à jour)", "en": "Settings › Diagnostics (and update)"},

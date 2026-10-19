@@ -86,8 +86,27 @@ def test_agent_md_structure():
               "## Tenir ce fichier à jour"):
         assert s in t, s
     for v in A.VUES:
-        assert f"[ALLER:{v}]" in t, v                     # chaque écran a sa ligne dans la carte
+        # chaque écran a son élément de liste (une puce, éventuellement sur plusieurs lignes) dans la carte
+        assert any(b.startswith("- ") and f"[ALLER:{v}]" in b for b in re.split(r"\n(?=- |\n|#)", t)), v
+    for marqueur in ("5 étapes", "3 balises", "mot de passe"):
+        assert marqueur in t, marqueur
     assert len(t) < 24_000, "AGENT.md doit tenir dans un message système raisonnable"
+
+
+def test_aucune_balise_dans_une_phrase():
+    """Le serveur retire chaque balise de la réponse : une balise au milieu d'une phrase laisse un trou. Sur chaque
+    ligne, tout ce qui suit la PREMIÈRE balise ne doit donc être que des balises et des espaces."""
+    t = (RACINE / "docs" / "agent" / "AGENT.md").read_text(encoding="utf-8")
+    balise = re.compile(r"\[(POINT|ALLER|GUIDE):[^\]]+\]")
+    vues = 0
+    for ligne in t.splitlines():
+        m = balise.search(ligne)
+        if not m or "<" in ligne:                          # les gabarits de règle (<ancre>) sont exemptés
+            continue
+        vues += 1
+        reste = ligne[m.start():]
+        assert re.fullmatch(r"(\s*\[(POINT|ALLER|GUIDE):[^\]]+\])+\s*", reste), ligne
+    assert vues > 20
 
 
 if __name__ == "__main__":
