@@ -161,5 +161,25 @@ def test_gabarits_reconnus(faux, monkeypatch):
     assert r["reconnus"] == [] and len(r["inconnus"]) == 2                         # gabarit sans texte fixe : écarté
 
 
+def test_infobulle_tronquee_par_prefixe(faux, monkeypatch):
+    longue = "Ajouter une piste audio - posee sous les pistes audio existantes, au-dessus des pistes video et des titres"
+    f = dict(FAUX["vectorlab.creer"], id="montage.piste", ecran="montage", libelle={"fr": "audio", "en": ""},
+             infobulle={"fr": longue, "en": ""})
+    monkeypatch.setattr(A, "catalogue", lambda: {"montage.piste": f})
+    A._par_texte.cache_clear()
+    assert len(longue) > 100
+    v = A._visibles([{"t": "", "i": longue}])
+    assert len(v[0]["i"]) == 80
+    assert [x["id"] for x in A.rapprocher(v, "fr")["reconnus"]] == ["montage.piste"]
+    court = A._visibles([{"t": "", "i": "Ajouter une piste audio - posee sous les"}])      # < 60 : jamais de préfixe
+    assert A.rapprocher(court, "fr")["reconnus"] == []
+
+
+def test_gabarit_masque_a_l_affichage():
+    f = dict(FAUX["montage.lame"], libelle={"fr": "lame · {k}", "en": "blade · {k}"})
+    assert "{" not in A._fiche_ligne(f, "fr") and "lame · …" in A._fiche_ligne(f, "fr")
+    assert "{" not in A._fiche_ligne(f, "en", avec_role=False)
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

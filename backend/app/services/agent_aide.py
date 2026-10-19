@@ -8,6 +8,7 @@ transforme les balises de la réponse en actions pour l'écran. Il n'exécute RI
 from __future__ import annotations
 
 import asyncio
+import bisect
 import hashlib
 import json
 import math
@@ -87,7 +88,8 @@ NON_DOCUMENTE = {"fr": "non documenté", "en": "not documented"}
 
 
 def _fiche_ligne(x: dict, cle: str, avec_role: bool = True) -> str:
-    lib = _ligne((x.get("libelle") or {}).get(cle) or (x.get("infobulle") or {}).get(cle) or x["id"], 80)
+    lib = (x.get("libelle") or {}).get(cle) or (x.get("infobulle") or {}).get(cle) or x["id"]
+    lib = _ligne(GABARIT.sub("…", str(lib)), 80)        # le modèle ne voit jamais « lame · {k} »
     pt = " [pointable]" if x.get("localisateur") else ""
     ou = "partout" if x.get("ecran") in (None, "", "commun") else x["ecran"]
     if not avec_role:
@@ -227,6 +229,7 @@ def _cle_texte(t) -> str:
 
 
 GABARIT = re.compile(r"\{[^{}]*\}")
+MIN_PREFIXE = 60    # sous cette longueur, un début de texte est trop ambigu
 MIN_FIXE = 3        # un gabarit sans au moins ce nombre de caractères fixes reconnaîtrait n'importe quoi
 
 
@@ -240,9 +243,10 @@ def _motif(c: str):
 
 @lru_cache(maxsize=1)
 def _par_texte() -> tuple:
-    """(exact, motifs) : exact = texte normalisé (libellé ou infobulle, FR et EN) → id de fiche (le premier par ordre
-    d'id) ; motifs = [(motif, id)] pour les textes à gabarit {…}, triés par id."""
-    out, motifs, vus = {}, [], set()
+    """(exact, motifs, longs) : exact = texte normalisé (libellé ou infobulle, FR et EN) → id de fiche (le premier par ordre
+    d'id) ; motifs = [(motif, id)] pour les textes à gabarit {…}, triés par id ; longs = [(texte, id)] triée, pour les
+    textes d'au moins MIN_PREFIXE caractères (le relevé tronque à 80 : on les retrouve par leur début)."""
+    out, motifs, vus, longs = {}, [], set(), []
     for i in sorted(catalogue()):
         x = catalogue()[i]
         for champ in ("libelle", "infobulle"):
@@ -257,18 +261,33 @@ def _par_texte() -> tuple:
                         motifs.append((m, i))
                 else:
                     out.setdefault(c, i)
-    return out, motifs
+                    if len(c) >= MIN_PREFIXE:
+                        longs.append((c, i))
+    return out, motifs, sorted(longs)
+
+
+def _par_prefixe(c: str, longs: list):
+    """La première fiche (par id) dont un texte long COMMENCE par c (c vient d'un relevé tronqué)."""
+    if len(c) < MIN_PREFIXE:
+        return None
+    k, trouves = bisect.bisect_left(longs, (c, "")), []
+    while k < len(longs) and longs[k][0].startswith(c):
+        trouves.append(longs[k][1])
+        k += 1
+    return min(trouves) if trouves else None
 
 
 def rapprocher(visibles: list, lang: str = "fr") -> dict:
     """{reconnus: [fiches], inconnus: [{t, i}]} — un élément visible est reconnu par son texte, sinon son infobulle ;
     l'égalité exacte passe avant les textes à gabarit."""
-    (exact, motifs), fiches, rec, inc, vus = _par_texte(), catalogue(), [], [], set()
+    (exact, motifs, longs), fiches, rec, inc, vus = _par_texte(), catalogue(), [], [], set()
     for v in visibles:
         cles = [c for c in (_cle_texte(v["t"]), _cle_texte(v["i"])) if c]
         i = next((exact[c] for c in cles if c in exact), None)
         if not i:
             i = next((j for c in cles for m, j in motifs if m.match(c)), None)
+        if not i:
+            i = next((j for c in cles for j in [_par_prefixe(c, longs)] if j), None)
         if i and i not in vus:
             vus.add(i)
             if len(rec) < MAX_RECONNUS:
