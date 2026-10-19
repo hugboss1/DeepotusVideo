@@ -32,12 +32,13 @@ CAS = {
                    'r.jsx(K,{title:dzT("a.b.com_voisin")})',
     "repos": 'r.jsx("button",{onClick:f,children:busy?dzT("a.b.envoi"):dzT("a.b.envoyer")})',
     "points_hors_ternaire": 'r.jsx("button",{onClick:f,children:dzT("a.b.parcourir")})',
+    "icone_repos": 'r.jsx(K,{onClick:f,icon:j?"dz-etat-attente":"dz-action-generer",children:dzT("a.b.gen")})',
     "noeud": 'r.jsx(K,{onClick:f,title:dzT("avatar.noeud.visage")})',
     "deux_fois": 'r.jsx("button",{onClick:f,title:dzT("a.b.lancer_aide"),children:dzT("a.b.lancer")})',
 }
 CLES_A = {k: {"fr": k.rsplit(".", 1)[-1], "en": k.rsplit(".", 1)[-1].upper()} for k in (
     "a.b.ok", "a.b.champ", "a.b.lancer", "a.b.lancer_aide", "a.b.duree", "a.b.cherche", "a.b.fermer_aide", "a.b.fermer_aria", "a.b.x",
-    "a.b.voisin", "a.b.y", "a.b.z", "a.b.montage_vide", "a.b.favori", "a.b.interne", "a.b.com", "a.b.com_voisin", "a.b.param", "a.b.param_aide", "a.b.filtre", "avatar.noeud.visage")}
+    "a.b.voisin", "a.b.y", "a.b.z", "a.b.montage_vide", "a.b.favori", "a.b.interne", "a.b.gen", "a.b.com", "a.b.com_voisin", "a.b.param", "a.b.param_aide", "a.b.filtre", "avatar.noeud.visage")}
 
 CLES_A.update({"a.b.envoi": {"fr": "Envoi…", "en": "Sending…"}, "a.b.envoyer": {"fr": "Envoyer", "en": "Send"},
                "a.b.parcourir": {"fr": "Parcourir...", "en": "Browse..."}})
@@ -139,6 +140,10 @@ def test_commentaires_sautes(cas):
 def test_ternaire_branche_au_repos(cas):
     assert "a.b.envoi" not in cas and cas["a.b.envoyer"]["libelle"]["fr"] == "Envoyer"
     assert cas["a.b.parcourir"]["libelle"]["fr"] == "Parcourir..."   # « … » hors ternaire : un vrai bouton
+
+
+def test_icone_au_repos(cas):
+    assert cas["a.b.gen"]["icone"] == "dz-action-generer"     # icon:j?"dz-etat-…":"dz-B" → l'icône au repos
 
 
 def test_doublon_un_element_une_fiche(cas):
