@@ -29,6 +29,15 @@ if (!window.__dzAgent) {
     for (const c of enfants || []) n.appendChild(c);
     return n;
   };
+  const NS = "http://www.w3.org/2000/svg";
+  const glyphe = (cle) => {
+    const s = document.createElementNS(NS, "svg");
+    for (const [k, v] of Object.entries({ class: "dzi", width: "16", height: "16", "aria-hidden": "true", focusable: "false", "data-dz-icone": cle })) s.setAttribute(k, v);
+    const u = document.createElementNS(NS, "use");
+    u.setAttribute("href", "/shared/icons/dz-icons.svg#" + cle);
+    s.appendChild(u);
+    return s;
+  };
 
   let hist = [];
   try { hist = historiqueBorne(JSON.parse(lire(window.sessionStorage, "dz_agent_hist") || "[]")); } catch (e) { hist = []; }
@@ -51,6 +60,7 @@ if (!window.__dzAgent) {
 .dzAgentActions button,.dzAgentTete button,.dzAgentPied button{background:transparent;color:inherit;border:1px solid var(--stroke,#2a2930);
  border-radius:8px;padding:4px 8px;cursor:pointer;font:inherit}
 .dzAgentPied{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--stroke,#2a2930)}
+.dzAgentPied button[aria-pressed="true"]{border-color:#ef4444;background:#b91c1c;color:#fff}
 .dzAgentPied textarea{flex:1;resize:none;min-height:38px;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:8px;padding:6px}
 .dzAgentTete select{background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
 .dzAgentTete button:disabled,.dzAgentPied button:disabled{opacity:.5;cursor:default}
@@ -61,6 +71,25 @@ if (!window.__dzAgent) {
   const saisie = el("textarea", { placeholder: T("agent.tiroir.placeholder"), "aria-label": T("agent.tiroir.placeholder") });
   const choix = el("select", { "aria-label": T("agent.moteur.libelle"), title: T("agent.moteur.libelle") });
   const btnEnvoyer = el("button", { texte: T("agent.tiroir.envoyer"), on: { click: () => envoyer() } });
+  // A6 : la dictée passe par la couche des champs IA (/shared/dz-champ-ia.js) : voie 1 du navigateur, voie 2
+  // enregistrée avec devis et accord. Le tiroir ne règle que son bouton, sur l'événement `dzia-dictee`.
+  const dictee = () => (window.DzChampIA && window.DzChampIA.dictee) || null;
+  const dicteeEnCours = () => { const d = dictee(); try { return !!d && d.etat().etat !== "repos"; } catch (e) { return false; } };
+  const btnMicro = el("button", { type: "button", "aria-pressed": "false", title: T("agent.voix.dicter"),
+    "aria-label": T("agent.voix.dicter"), on: { click: () => {
+      const d = dictee();
+      if (!d || typeof d.basculer !== "function") return dire("agent.voix.indisponible");
+      d.basculer(saisie);
+    } } }, [glyphe("dz-media-dicter")]);
+  saisie.addEventListener("dzia-dictee", (ev) => {
+    const e = (ev.detail && ev.detail.etat) || "repos";
+    const ecoute = e === "ecoute" || e === "prise";
+    btnMicro.setAttribute("aria-pressed", ecoute ? "true" : "false");
+    btnMicro.title = T(ecoute ? "agent.voix.arreter" : "agent.voix.dicter");
+    btnMicro.setAttribute("aria-label", btnMicro.title);
+    btnMicro.replaceChildren(glyphe(ecoute ? "dz-media-arret" : "dz-media-dicter"));
+    btnMicro.dataset.etat = e;
+  });
   const btnNouvelle = el("button", { texte: "↺", title: T("agent.tiroir.nouvelle"), "aria-label": T("agent.tiroir.nouvelle"),
     on: { click: () => { if (occupe || enVue) return; hist = []; garder(); dessiner(); } } });
   const tiroir = el("aside", { id: "dzAgentTiroir", class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
@@ -69,7 +98,7 @@ if (!window.__dzAgent) {
       el("button", { texte: "×", title: T("agent.tiroir.fermer"), "aria-label": T("agent.tiroir.fermer"), on: { click: () => basculer(false) } }),
     ]),
     fil,
-    el("div", { class: "dzAgentPied" }, [saisie, btnEnvoyer]),
+    el("div", { class: "dzAgentPied" }, [saisie, btnMicro, btnEnvoyer]),
   ]);
   const bouton = el("button", { class: "dzAgentBtn", texte: "? " + T("agent.tiroir.bouton"), title: T("agent.tiroir.bouton_titre"),
     "aria-expanded": "false", "aria-controls": "dzAgentTiroir", on: { click: () => basculer() } });
@@ -80,7 +109,10 @@ if (!window.__dzAgent) {
     tiroir.dataset.ouvert = o ? "1" : "0";
     bouton.setAttribute("aria-expanded", o ? "true" : "false");
     if (o) { chargement = null; chargerMoteurs(); saisie.focus(); }     // rechargé : une clé ajoutée à chaud compte
-    else if (focusDedans) bouton.focus();     // le focus ne reste pas dans un tiroir masqué
+    else {
+      if (dicteeEnCours()) { try { dictee().arreter(); } catch (e) { /* rien à arrêter */ } }
+      if (focusDedans) bouton.focus();     // le focus ne reste pas dans un tiroir masqué
+    }
   }
 
   let etatAgent = null;     // réponse de /api/agent/etat (moteurs avec cout et vision ; voix en A6)
@@ -386,7 +418,7 @@ if (!window.__dzAgent) {
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape" && pointeur.actif()) effacerPointeur();     // n'empêche pas la suite (fermeture du tiroir)
     if (ev.key === "F1") { ev.preventDefault(); if (!ev.repeat) basculer(); }
-    else if (ev.key === "Escape" && tiroir.dataset.ouvert === "1" && tiroir.contains(ev.target)) {
+    else if (ev.key === "Escape" && tiroir.dataset.ouvert === "1" && tiroir.contains(ev.target) && !dicteeEnCours()) {
       ev.preventDefault(); ev.stopPropagation(); basculer(false);
     }
     else if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing && ev.target === saisie) { ev.preventDefault(); envoyer(); }

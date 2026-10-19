@@ -25,5 +25,18 @@ def test_dictee_ouverte_aux_autres_champs():
     assert (SHARED / "dz-champ-ia.js").read_bytes() == (DIST / "dz-champ-ia.js").read_bytes()
 
 
+I18N = json.loads((SHARED / "i18n" / "agent.json").read_text(encoding="utf-8"))
+
+
+def test_micro_du_tiroir():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert "DzChampIA.dictee" in src and ".basculer(saisie)" in src
+    assert 'saisie.addEventListener("dzia-dictee"' in src
+    assert 'glyphe("dz-media-dicter")' in src and '"dz-media-arret"' in src
+    assert "dicteeEnCours()" in src, "Échap pendant la dictée l'arrête sans fermer le tiroir"
+    for k in ("agent.voix.dicter", "agent.voix.arreter", "agent.voix.indisponible"):
+        assert k in I18N and I18N[k]["fr"] and I18N[k]["en"], k
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
