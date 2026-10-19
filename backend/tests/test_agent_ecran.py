@@ -201,6 +201,10 @@ def test_releve_envoye():
     repondeurs = sorted(h.parent.name for h in (RACINE / "frontend").glob("*/index.html")
                         if "/shared/dz-agent-cadre.js" in h.read_text(encoding="utf-8"))
     assert sorted(m.group(1).split("|")) == repondeurs
+    # M5 : une erreur du relevé dans le lab donne [] et la réponse part quand même (pas d'attente de 400 ms)
+    r = cadre[cadre.index('d.dzAgent === "releve"'):cadre.index('d.dzAgent !== "trouve"')]
+    assert "try { items = releverVisibles(document); } catch (e) { items = []; }" in r
+    assert r.index("catch (e) { items = []; }") < r.index('dzAgent: "visibles"')
 
 
 if __name__ == "__main__":

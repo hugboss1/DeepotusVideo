@@ -13,7 +13,9 @@ if (!window.__dzAgentCadre && window.parent !== window) {
     if (ev.origin !== location.origin || !ev.source || ev.source !== window.parent) return;
     const d = ev.data;
     if (d && d.dzAgent === "releve") {
-      ev.source.postMessage({ dzAgent: "visibles", id: d.id, items: releverVisibles(document) }, location.origin);
+      let items;
+      try { items = releverVisibles(document); } catch (e) { items = []; }
+      ev.source.postMessage({ dzAgent: "visibles", id: d.id, items }, location.origin);
       return;
     }
     if (!d || d.dzAgent !== "trouve" || typeof d.selecteur !== "string") return;

@@ -120,8 +120,12 @@ const n = (t, title, w = 10, vis = true, o = {}) => {
   return {
     tagName: o.tag || "BUTTON", textContent: t, innerText: o.innerText, isContentEditable: !!o.editable,
     getAttribute: (a) => (attrs[a] == null ? null : attrs[a]),
-    closest: (q) => (q === "nav" && o.nav ? {} : null),
-    getBoundingClientRect: () => ({ width: vis ? w : 0, height: vis ? 10 : 0 }),
+    closest: (q) => ((q === "nav" && o.nav) || (q === "[data-dz-agent-ignorer]" && o.ignorer) ? {} : null),
+    getBoundingClientRect: () => {
+      const x = o.x ?? 0, y = o.y ?? 0, l = vis ? w : 0, h = vis ? 10 : 0;
+      return { width: l, height: h, left: x, top: y, right: x + l, bottom: y + h };
+    },
+    style: o.style || {},
   };
 };
 const rel = L.releverVisibles(fauxDoc([n("Rendre", "Rendu final"), n("Rendre", "Rendu final"), n("caché", "", 10, false),
@@ -153,6 +157,20 @@ assert.deepEqual(L.releverVisibles(fauxDoc([n("Onglet", "", 10, true, { tag: "DI
   n("Ancre", "", 10, true, { tag: "A", innerText: "Ancre" })])).map((x) => x.t), ["Onglet", "Lien"]);
 // le rail (nav) est exclu
 assert.deepEqual(L.releverVisibles(fauxDoc([n("Quick", "", 10, true, { nav: true })])), [], "rail exclu");
+// vie privée : une zone marquée [data-dz-agent-ignorer] (grille de fichiers…) est exclue
+assert.deepEqual(L.releverVisibles(fauxDoc([n("photo_vacances.png", "", 10, true, { ignorer: true }), n("Ok", "")])),
+  [{ t: "Ok", i: "" }], "zone ignorée exclue");
+// M4 : seulement ce qui est DANS la fenêtre, et pas visibility:hidden (faux defaultView)
+const vueDoc = (els, style = () => ({ visibility: "visible" })) =>
+  ({ querySelectorAll: () => els, defaultView: { innerWidth: 800, innerHeight: 600, getComputedStyle: style } });
+assert.deepEqual(L.releverVisibles(vueDoc([n("Dedans", "", 10, true, { x: 100, y: 100 }),
+  n("Dessous", "", 10, true, { x: 100, y: 900 }), n("Dessus", "", 10, true, { x: 100, y: -50 }),
+  n("Droite", "", 10, true, { x: 850, y: 100 }), n("Gauche", "", 10, true, { x: -30, y: 100 }),
+  n("Bord", "", 10, true, { x: 795, y: 595 })])).map((x) => x.t), ["Dedans", "Bord"], "hors fenêtre écartés");
+assert.deepEqual(L.releverVisibles(vueDoc([n("Caché", "", 10, true, { style: { visibility: "hidden" } }), n("Vu", "")],
+  (x) => x.style)).map((x) => x.t), ["Vu"], "visibility:hidden écarté");
+assert.deepEqual(L.releverVisibles(fauxDoc([n("Loin", "", 10, true, { x: 5000, y: 5000 })])).map((x) => x.t), ["Loin"],
+  "sans defaultView : pas de filtre de fenêtre");
 assert.deepEqual(L.releverVisibles({ querySelectorAll: () => { throw new Error("x"); } }), []);
 
 // 6. le module n'utilise aucun objet du navigateur à l'import

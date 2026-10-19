@@ -150,14 +150,22 @@ function libelle(x) {
 export function releverVisibles(doc, exclure = () => false, max = MAX_VISIBLES) {
   let noeuds = [];
   try { noeuds = Array.from(doc.querySelectorAll(SEL_VISIBLES)); } catch (e) { return []; }
+  // la fenêtre : lue sur doc.defaultView s'il existe (un faux document sans vue n'est pas filtré)
+  const vue = doc && doc.defaultView ? doc.defaultView : null;
+  const largeur = vue && vue.innerWidth > 0 ? vue.innerWidth : Infinity;
+  const hauteur = vue && vue.innerHeight > 0 ? vue.innerHeight : Infinity;
+  const styleDe = vue && typeof vue.getComputedStyle === "function" ? (x) => vue.getComputedStyle(x) : null;
   const out = [], vus = new Set();
   for (const x of noeuds) {
     if (out.length >= max) break;
     try {
       if (exclure(x)) continue;
-      if (typeof x.closest === "function" && x.closest("nav")) continue;
+      // le rail (nav) et toute zone marquée data-dz-agent-ignorer (grille de fichiers…) ne sont jamais relevés
+      if (typeof x.closest === "function" && (x.closest("nav") || x.closest("[data-dz-agent-ignorer]"))) continue;
       const r = x.getBoundingClientRect();
       if (!(r.width > 0 && r.height > 0)) continue;
+      if (!(r.bottom > 0 && r.top < hauteur && r.right > 0 && r.left < largeur)) continue;   // hors fenêtre
+      if (styleDe && styleDe(x).visibility === "hidden") continue;
       const t = libelle(x);
       const i = court(x.getAttribute("title") || x.getAttribute("aria-label") || x.getAttribute("placeholder") || "");
       if (!t && !i) continue;
