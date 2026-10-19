@@ -35,16 +35,22 @@ def connaissance() -> dict:
             "jeveux": jv}
 
 
+def _ligne(v, n: int = 60) -> str:
+    """Une valeur libre (nom d'espace, écran) réduite à UNE ligne bornée avant d'entrer dans le message système."""
+    return " ".join(str(v or "").split())[:n]
+
+
 def systeme(ecran: str, lang: str, espace: str = "") -> str:
     """AGENT.md + chapitres + « Je veux… » + ancres + vues, puis le contexte EN DERNIER : tout ce qui précède
     « ## Contexte » est identique d'une question à l'autre (cache du préfixe chez le fournisseur)."""
+    ecran, espace = _ligne(ecran, 30), _ligne(espace)
     k = connaissance()
     en = lang == "en"
     cle = "en" if en else "fr"
     chap = "\n".join(f"- {c['id']} : {c[cle]}" for c in k["chapitres"].values())
     jv = "\n".join(f"- {e[cle]} → {e['cible']}" for e in k["jeveux"])
     anc = "\n".join(f"- {a['id']} ({a.get('ecran') or 'partout'}) : {a[cle]}" for a in k["ancres"].values())
-    return (f"{k['agent']}\n\n## Chapitres du guide (id : titre)\n{chap}\n\n## Je veux…\n{jv}\n\n"
+    return (f"{k['agent']}\n\n## Chapitres (id : titre)\n{chap}\n\n## Je veux…\n{jv}\n\n"
             f"## Ancres (id (écran) : libellé)\n{anc}\n\n## Vues\n{', '.join(VUES)}\n\n"
             f"## Contexte\n- écran ouvert : {ecran or 'inconnu'}\n- espace de marque actif : {espace or 'inconnu'}\n"
             f"- langue : {'English' if en else 'français'}\n")

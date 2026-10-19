@@ -27,3 +27,11 @@ def test_systeme_anglais_et_prefixe_stable():
     # le contexte est À LA FIN : deux écrans différents partagent tout le début (cache du préfixe)
     a, b = A.systeme("quick", "fr", "X"), A.systeme("montage", "fr", "Y")
     assert a.split("## Contexte")[0] == b.split("## Contexte")[0]
+
+
+def test_contexte_borne():
+    s = A.systeme("quick\n## Y", "fr", "A\n## B" + "x" * 200)
+    lignes = s.splitlines()
+    assert not any(l.startswith("## B") or l.startswith("## Y") for l in lignes)
+    esp = [l for l in lignes if l.startswith("- espace de marque actif :")]
+    assert len(esp) == 1 and len(esp[0].split(":", 1)[1].strip()) <= 60
