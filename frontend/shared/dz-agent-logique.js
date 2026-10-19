@@ -22,6 +22,20 @@ export function choisir(candidats, ancre, lang) {
   return proche ? proche.i : -1;
 }
 
+// les candidats d'un sélecteur dans `doc` (la page, ou le document d'un lab) : [{noeud, texte, titre, visible}].
+// libelle (facultatif, ex. ".dzNavLbl") : sélecteur RELATIF à l'élément trouvé, du sous-élément dont le texte sert
+// à la comparaison (le rail : l'icône et le badge ne doivent pas brouiller le libellé). Ne touche qu'à `doc`.
+export function candidats(doc, selecteur, libelle) {
+  let n = [];
+  try { n = Array.from(doc.querySelectorAll(selecteur)); } catch (e) { n = []; }
+  return n.map((x) => {
+    const r = x.getBoundingClientRect();
+    let sous = null;
+    try { sous = libelle ? x.querySelector(libelle) : null; } catch (e) { sous = null; }
+    return { noeud: x, texte: (sous || x).textContent, titre: x.getAttribute("title") || "", visible: r.width > 0 && r.height > 0 };
+  });
+}
+
 // un rectangle relevé DANS un cadre intégré → coordonnées de la page
 export function composer(cadre, interne) {
   if (!cadre || !interne) return null;

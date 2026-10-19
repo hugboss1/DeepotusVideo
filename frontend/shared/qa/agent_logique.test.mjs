@@ -67,6 +67,20 @@ assert.equal(L.choisir([{ texte: "", titre: "Bibliothèque", visible: true }], {
 assert.deepEqual(L.historiqueBorne(null), []);
 assert.deepEqual(L.historiqueBorne([{ role: "user", texte: 5 }, { role: "user", texte: "ok" }]), [{ role: "user", texte: "ok" }]);
 
+// 5 bis. candidats : un faux document minimal (querySelectorAll, faux nœuds)
+const nd = (texte, titre, w, sous) => ({ textContent: texte, getAttribute: (k) => (k === "title" ? titre : null),
+  getBoundingClientRect: () => ({ width: w, height: w }),
+  querySelector: (q) => { if (q === "!") throw new Error("sélecteur invalide"); return q === ".lbl" ? sous || null : null; } });
+const n1 = nd("🎬 Studio 3", "", 10, { textContent: "Studio" }), n2 = nd("Caché", "Montage", 0);
+const faux = { querySelectorAll: (q) => { if (q === "!!") throw new Error("invalide"); return q === "b" ? [n1, n2] : []; } };
+assert.deepEqual(L.candidats(faux, "b", ".lbl").map(({ texte, titre, visible }) => ({ texte, titre, visible })),
+  [{ texte: "Studio", titre: "", visible: true }, { texte: "Caché", titre: "Montage", visible: false }], "libellé lu dans le sous-élément");
+assert.equal(L.candidats(faux, "b", "").at(0).texte, "🎬 Studio 3", "sans libelle : le texte entier");
+assert.equal(L.candidats(faux, "b", "!").at(0).texte, "🎬 Studio 3", "libelle invalide : repli sur l'élément");
+assert.equal(L.candidats(faux, "b").at(0).noeud, n1);
+assert.deepEqual(L.candidats(faux, "!!"), [], "sélecteur invalide : aucun candidat");
+assert.equal(L.choisir(L.candidats(faux, "b", ".lbl"), { texte: { fr: "Studio" } }, "fr"), 0);
+
 // 6. le module n'utilise aucun objet du navigateur à l'import
 assert.equal(typeof globalThis.document, "undefined");
 console.log("agent_logique : OK");

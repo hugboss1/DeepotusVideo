@@ -24,7 +24,7 @@ def test_dictionnaire_assemble():
         assert f'"{k}"' in dico, k
 
 
-FICHIERS = ["dz-agent.js", "dz-agent-logique.js"]
+FICHIERS = ["dz-agent.js", "dz-agent-logique.js", "dz-agent-pointeur.js"]
 BALISE_SPA = '<script type="module" src="/shared/dz-agent.js"></script>'
 
 
@@ -40,7 +40,7 @@ def test_balise_dans_la_spa():
 
 
 def test_cles_employees_existent():
-    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    src = "".join((SHARED / f).read_text(encoding="utf-8") for f in ("dz-agent.js", "dz-agent-pointeur.js"))
     employees = set(re.findall(r'"(agent\.[a-z_]+\.[a-z_.]+)"', src))
     assert employees, "le tiroir passe par T(…)"
     assert employees <= set(I18N), employees - set(I18N)
@@ -57,7 +57,8 @@ def test_banc_node_logique():
 
 
 def test_pointeur_present():
-    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    src = (SHARED / "dz-agent-pointeur.js").read_text(encoding="utf-8")
+    assert 'import { creerPointeur } from "./dz-agent-pointeur.js";' in (SHARED / "dz-agent.js").read_text(encoding="utf-8")
     assert "courbe(" in src and "dzAgentCurseur" in src and "dzAgentHalo" in src
     assert 'matchMedia("(prefers-reduced-motion' in src, "le mouvement réduit est lu en JS"
     assert "if (reduit()) return finir();" in src, "le mouvement réduit saute l'animation"
@@ -84,7 +85,9 @@ def test_cadre_verifie_l_origine():
     assert "ev.origin !== location.origin" in agent, "le tiroir ne lit que les réponses de même origine"
     assert "ev.source !== cadre.contentWindow" in agent, "la réponse vient du cadre interrogé"
     assert "b.width > 0 && b.height > 0 ? composer(b, t.interne) : null" in agent, "cadre démonté ou masqué : rect nul"
-    assert "if (!r) { effacerPointeur(); return false; }" in agent, "rect nul : le pointeur s'efface"
+    pointeur = (SHARED / "dz-agent-pointeur.js").read_text(encoding="utf-8")
+    assert "if (!r) { effacerPointeur(); return false; }" in pointeur, "rect nul : le pointeur s'efface"
+    assert "candidats(document, d.selecteur" in src, "le cadre lit les candidats comme le tiroir (logique partagée)"
 
 
 if __name__ == "__main__":

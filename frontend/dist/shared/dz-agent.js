@@ -7,7 +7,8 @@
 // moteur} ; sous chaque réponse, un bouton par action (Montre-moi / Y aller / Guide). L'historique reste dans
 // sessionStorage (dz_agent_hist) ; le moteur choisi dans localStorage (dz_agent_moteur). Un 402 `dz_plafond` est
 // traité par la couche /shared/dz-plafonds.js (elle enveloppe window.fetch) : rien à faire ici.
-import { etapes, historiqueBorne, choisir, courbe, composer } from "./dz-agent-logique.js";
+import { etapes, historiqueBorne, choisir, composer, candidats } from "./dz-agent-logique.js";
+import { creerPointeur } from "./dz-agent-pointeur.js";
 
 if (!window.__dzAgent) {
   window.__dzAgent = true;
@@ -50,14 +51,7 @@ if (!window.__dzAgent) {
 .dzAgentPied{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--stroke,#2a2930)}
 .dzAgentPied textarea{flex:1;resize:none;min-height:38px;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:8px;padding:6px}
 .dzAgentTete select{background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
-.dzAgentTete button:disabled,.dzAgentPied button:disabled{opacity:.5;cursor:default}
-.dzAgentCurseur{position:fixed;left:0;top:0;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;z-index:2147483002;
- pointer-events:none;background:var(--cyan,#f0b429);box-shadow:0 0 16px 4px var(--cyan-glow,rgba(240,180,41,.33))}
-.dzAgentHalo{position:fixed;z-index:2147483002;pointer-events:none;border:2px solid var(--cyan,#f0b429);border-radius:10px;
- box-shadow:0 0 0 4px var(--cyan-glow,rgba(240,180,41,.33)),0 0 24px var(--cyan-glow,rgba(240,180,41,.33));transition:opacity .4s}
-.dzAgentBulle{position:fixed;z-index:2147483002;pointer-events:none;background:var(--bg-panel,#151519);color:var(--ink-strong,#eaf2ff);
- border:1px solid var(--cyan,#f0b429);border-radius:8px;padding:4px 8px;font-family:inherit;font-size:12px;font-weight:600;line-height:1.3;white-space:nowrap;transition:opacity .4s}
-@media (prefers-reduced-motion: reduce){.dzAgentHalo,.dzAgentBulle{transition:none}}` });
+.dzAgentTete button:disabled,.dzAgentPied button:disabled{opacity:.5;cursor:default}` });
 
   const fil = el("div", { class: "dzAgentFil", role: "log", "aria-live": "polite" });
   const saisie = el("textarea", { placeholder: T("agent.tiroir.placeholder"), "aria-label": T("agent.tiroir.placeholder") });
@@ -159,18 +153,6 @@ if (!window.__dzAgent) {
     try { const u = new URL(window.location.href); u.searchParams.set("section", section); window.history.replaceState(null, "", u); } catch (e) { /* URL non modifiable : l'événement suffit */ }
     window.dispatchEvent(new CustomEvent("dz-reglages-section", { detail: { section } }));
   }
-  // libelle (facultatif, ex. ".dzNavLbl") : sélecteur RELATIF à l'élément trouvé, du sous-élément dont le texte sert
-  // à la comparaison (le rail : l'icône et le badge ne doivent pas brouiller le libellé).
-  function candidats(doc, selecteur, libelle) {
-    let n = [];
-    try { n = Array.from(doc.querySelectorAll(selecteur)); } catch (e) { n = []; }
-    return n.map((x) => {
-      const r = x.getBoundingClientRect();
-      let sous = null;
-      try { sous = libelle ? x.querySelector(libelle) : null; } catch (e) { sous = null; }
-      return { noeud: x, texte: (sous || x).textContent, titre: x.getAttribute("title") || "", visible: r.width > 0 && r.height > 0 };
-    });
-  }
   async function trouver(a, delaiMs) {
     const fin = Date.now() + delaiMs;
     do {
@@ -182,84 +164,14 @@ if (!window.__dzAgent) {
     return null;
   }
 
-  // ── le pointeur à la Clicky : un curseur part du bouton « Demander », décrit un arc (courbe), puis un halo et une
-  // bulle se posent sur la cible. Calques éphémères, au-dessus de tout, transparents aux clics. Un seul pointage à la
-  // fois : chaque nouveau pointage (ou un clic hors du tiroir) annule le précédent — animation, minuterie, écouteurs.
-  const reduit = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  let calques = [], anim = 0, minuterie = 0, suivre = null, tourPointeur = 0, interieur = null;
-  function effacerPointeur() {
-    if (anim) cancelAnimationFrame(anim);
-    if (minuterie) clearTimeout(minuterie);
-    anim = 0; minuterie = 0;
-    if (suivre) { window.removeEventListener("scroll", suivre, true); window.removeEventListener("resize", suivre); suivre = null; }
-    if (interieur) {                                  // écouteurs posés DANS le lab et pas encore servis
-      const w = interieur; interieur = null;
-      try { w.removeEventListener("pointerdown", effacerPointeur, true); w.removeEventListener("scroll", effacerPointeur, true); } catch (e) { /* lab parti */ }
-    }
-    calques.forEach((c) => c.remove());
-    calques = [];
-  }
-
-  // cible : un nœud DOM, ou {rect: () => ({x, y, w, h}) | null} pour un élément d'un lab en cadre intégré ;
-  // fenetre (facultatif) : la fenêtre du lab, dont le premier clic ou défilement intérieur efface le pointeur.
-  // Une cible disparue (rect null, nœud détaché) efface le pointeur au lieu de le poser au mauvais endroit.
-  function montrer(cible, libelle, fenetre) {
-    effacerPointeur();
-    const mesurer = cible.rect ? () => {
-      const q = cible.rect();
-      return q ? { x: q.x, y: q.y, width: q.w, height: q.h, bottom: q.y + q.h } : null;
-    } : () => (cible.isConnected ? cible.getBoundingClientRect() : null);
-    const b = bouton.getBoundingClientRect();
-    const depart = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-    const curseur = el("div", { class: "dzAgentCurseur" });
-    const halo = el("div", { class: "dzAgentHalo" });
-    const bulle = el("div", { class: "dzAgentBulle", texte: libelle });
-    halo.style.opacity = "0"; bulle.style.opacity = "0";
-    curseur.style.transform = `translate(${depart.x}px,${depart.y}px)`;
-    document.body.append(curseur, halo, bulle);
-    calques = [curseur, halo, bulle];
-    let arrivee = depart, pose = false;
-    // recalcule la place de la cible : au départ, puis à chaque défilement / redimensionnement (même pendant l'arc)
-    const placer = () => {
-      const r = mesurer();
-      if (!r) { effacerPointeur(); return false; }
-      arrivee = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-      Object.assign(halo.style, { left: r.x - 6 + "px", top: r.y - 6 + "px", width: r.width + 12 + "px", height: r.height + 12 + "px" });
-      const hb = bulle.offsetHeight || 24, lb = bulle.offsetWidth || 0;
-      const haut = r.y - hb - 10 >= 8 ? r.y - hb - 10 : r.bottom + 10;          // au-dessus, sinon en dessous
-      bulle.style.left = Math.max(8, Math.min(r.x, window.innerWidth - lb - 8)) + "px";
-      bulle.style.top = Math.max(8, Math.min(haut, window.innerHeight - hb - 8)) + "px";
-      if (pose) curseur.style.transform = `translate(${arrivee.x}px,${arrivee.y}px)`;
-      return true;
-    };
-    if (!placer()) return;
-    suivre = () => placer();
-    if (fenetre) {
-      try {
-        for (const e of ["pointerdown", "scroll"]) fenetre.addEventListener(e, effacerPointeur, { capture: true, once: true });
-        interieur = fenetre;
-      } catch (e) { /* fenêtre inaccessible : la minuterie et Échap suffisent */ }
-    }
-    window.addEventListener("scroll", suivre, { capture: true, passive: true });
-    window.addEventListener("resize", suivre);
-    const finir = () => {
-      anim = 0; pose = true;
-      curseur.style.transform = `translate(${arrivee.x}px,${arrivee.y}px)`;
-      halo.style.opacity = "1"; bulle.style.opacity = "1";
-      minuterie = setTimeout(effacerPointeur, 3200);
-    };
-    if (reduit()) return finir();
-    const debut = performance.now(), duree = 700;
-    const pas = (t) => {
-      const k = Math.max(0, Math.min(1, (t - debut) / duree));
-      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;         // ease-in-out
-      const p = courbe(depart, arrivee, e);
-      curseur.style.transform = `translate(${p.x}px,${p.y}px)`;
-      if (k < 1) anim = requestAnimationFrame(pas); else finir();
-    };
-    anim = requestAnimationFrame(pas);
-  }
-  document.addEventListener("pointerdown", (ev) => { if (calques.length && !tiroir.contains(ev.target)) effacerPointeur(); }, true);
+  // ── le pointeur à la Clicky (/shared/dz-agent-pointeur.js) : il part du bouton « Demander » ; un clic dans le
+  // tiroir ne l'efface pas.
+  const pointeur = creerPointeur({
+    depart: () => { const b = bouton.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; },
+    ignorer: (cible) => tiroir.contains(cible),
+  });
+  const effacerPointeur = pointeur.effacer, montrer = pointeur.montrer;
+  let tourPointeur = 0;
 
   // un lab en cadre intégré (a.cadre = "/vectorlab/"…) : on demande au répondeur /shared/dz-agent-cadre.js le
   // rectangle de l'élément ; seule une réponse de même origine, venue de CE cadre et portant notre id, compte.
@@ -332,7 +244,7 @@ if (!window.__dzAgent) {
   window.__dzAgentExecuter = executer;     // pour la tâche 11 et les preuves
 
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape" && calques.length) effacerPointeur();     // n'empêche pas la suite (fermeture du tiroir)
+    if (ev.key === "Escape" && pointeur.actif()) effacerPointeur();     // n'empêche pas la suite (fermeture du tiroir)
     if (ev.key === "F1") { ev.preventDefault(); if (!ev.repeat) basculer(); }
     else if (ev.key === "Escape" && tiroir.dataset.ouvert === "1" && tiroir.contains(ev.target)) {
       ev.preventDefault(); ev.stopPropagation(); basculer(false);
