@@ -334,9 +334,19 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzdock(bundle: str) -> str:
+    """Le bundle d'avant le « Réessayer » branché du Job Dock (maillon de queue patch_bundle_dzdock, 19/10, posé APRÈS
+    dzmotion) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzdock as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzmotion(bundle: str) -> str:
     """Le bundle d'avant Direction motion et « Chorégraphier » (maillon de queue patch_bundle_dzmotion, t235, 17/10,
     posé APRÈS dzstudio) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    bundle = avant_dzdock(bundle)                # 19/10 : le maillon posé APRÈS dzmotion, défait d'abord
     import patch_bundle_dzmotion as _m
     if _m.MARKER not in bundle:
         return bundle

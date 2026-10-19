@@ -277,13 +277,13 @@ def maillon_de(rev):
 
 
 base = git_bundle(BASE)
-avant = M.defaire(BUNDLE)
+avant = M.defaire(AIDE.avant_dzdock(BUNDLE))       # 19/10 : le maillon dzdock, posé APRÈS dzmotion, défait d'abord
 base_s = base.decode("utf-8") if base else ""
 MB_ = maillon_de(BASE)
 avant_base = MB_.defaire(base_s) if base else None
 check("D1 marqueur ×1 ; sans le maillon = la base sans SON maillon, octet pour octet (le reste du bundle est intouché)",
       BUNDLE.count(M.MARKER) == 1 and base is not None and avant == avant_base, "base introuvable" if base is None else "")
-check("D2 aller-retour exact, avant_dzmotion = défaire", M.appliquer(avant) == BUNDLE and AIDE.avant_dzmotion(BUNDLE) == avant)
+check("D2 aller-retour exact, avant_dzmotion = défaire", M.appliquer(avant) == AIDE.avant_dzdock(BUNDLE) and AIDE.avant_dzmotion(BUNDLE) == avant)
 check("D3 la famille C garde les ancres M0-M7 de la base et ajoute trois paires (M8 base, M9 sans page, M10 Rendu)",
       base is not None and [a_ for a_, _r in M.PAIRES[:len(MB_.PAIRES)]] == [a_ for a_, _r in MB_.PAIRES]
       and len(MB_.PAIRES) == 8 and len(M.PAIRES) == 11)

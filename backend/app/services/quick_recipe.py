@@ -53,3 +53,9 @@ def load(job_id: str) -> dict | None:
     except (OSError, ValueError):
         return None
     return d if isinstance(d, dict) else None
+
+
+def existe(job_id: str) -> bool:
+    """Job Dock « Réessayer » (19/10/2026) : ce job a-t-il une recette ? Sans la lire (la liste des jobs l'appelle)."""
+    p = _chemin(job_id)
+    return p is not None and p.is_file()
