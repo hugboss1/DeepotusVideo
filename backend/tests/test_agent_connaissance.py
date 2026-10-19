@@ -120,5 +120,12 @@ def test_aucune_balise_dans_une_phrase():
     assert vues > 20
 
 
+def test_agent_md_explique_voir():
+    t = (RACINE / "docs" / "agent" / "AGENT.md").read_text(encoding="utf-8")
+    regle = t.split("## Comment répondre", 1)[1].split("## Tenir ce fichier à jour", 1)[0]
+    assert "`[VOIR]`" in regle and "aucune ancre" in regle
+    assert "[POINT:x,y" not in t, "les coordonnées ne s'écrivent qu'après une capture : la consigne les demande"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
