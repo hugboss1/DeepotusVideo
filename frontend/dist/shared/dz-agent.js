@@ -430,7 +430,7 @@ if (!window.__dzAgent) {
       if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
       if (typeof j.texte !== "string" || !j.texte.trim()) throw new Error("—");
       // pas de nouvelle demande de capture en réponse à une capture
-      actions = (Array.isArray(j.actions) ? j.actions : []).filter((x) => x && x.type !== "voir").map((x) => (x && x.type === "point_xy" ? { ...x, vue: vueCapture } : x));
+      actions = (Array.isArray(j.actions) ? j.actions : []).filter((x) => x && x.type !== "voir").map((x) => (x && x.type === "point_xy" ? { ...x, vue: vueCapture, ecran: vue() } : x));
       hist.push({ role: "assistant", texte: j.texte, actions });
       premier = actions.find((x) => x && x.type === "point_xy") || null;
     } catch (e) {
@@ -443,9 +443,12 @@ if (!window.__dzAgent) {
   }
 
   // un point rendu en pixels de la capture : l'élément cliquable dessous, sinon un petit halo sur le point
-  async function pointerXY(a, moi) {
+  async function pointerXY(a, moi, actionsDuMessage) {
     effacerPointeur();
     const v = a.vue || { l: window.innerWidth, h: window.innerHeight };
+    // rejoué après un changement d'écran, ou une fenêtre redimensionnée : le point ne correspond plus à la page
+    // (la hauteur peut bouger : bandeau de partage, compensé plus bas)
+    if ((a.ecran && a.ecran !== vue()) || Math.abs(window.innerWidth - v.l) > v.l * 0.04) return introuvable(actionsDuMessage);
     const p = versEcran(a, v);
     if (!p || moi !== tourPointeur) return;
     // le bandeau « partage de cet onglet » du navigateur réduit la fenêtre PENDANT la capture : si la hauteur a changé
@@ -474,7 +477,7 @@ if (!window.__dzAgent) {
       else if (e.faire === "reglages") { ouvrirReglages(e.section); await attendre(300); }
       else if (e.faire === "guide") window.open("/guide/#" + e.chapitre, "_blank", "noopener");
       else if (e.faire === "pointer") await pointer(a, actionsDuMessage || [], moi);
-      else if (e.faire === "pointer_xy") await pointerXY(a, moi);
+      else if (e.faire === "pointer_xy") await pointerXY(a, moi, actionsDuMessage || []);
       else if (e.faire === "voir") await regarder(msg, actionsDuMessage || []);
     }
   }

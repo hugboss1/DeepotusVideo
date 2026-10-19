@@ -161,5 +161,16 @@ def test_capture_meme_image_pour_vue_et_taille():
     assert "agent.vision.accord_inconnu" in I18N
 
 
+def test_point_xy_rejoue_ailleurs_ne_pointe_pas():
+    """Revue finale : un point_xy rejoué après un changement d'écran ou de largeur renvoie vers les guides."""
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    e = src[src.index("async function envoyerVue("):src.index("async function pointerXY(")]
+    assert "vue: vueCapture, ecran: vue()" in e, "l'écran de la capture est attaché à chaque point_xy"
+    p = src[src.index("async function pointerXY("):src.index("// le jeton est pris AVANT")]
+    assert "a.ecran !== vue()" in p and "window.innerWidth - v.l" in p and "* 0.04" in p
+    assert p.index("introuvable(actionsDuMessage)") < p.index("versEcran(a, v)")
+    assert "pointerXY(a, moi, actionsDuMessage" in src
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
