@@ -278,7 +278,123 @@ def test_dialogue_coquille_reglage(depot):
     assert "photolab.masquer.titre" not in S.extraire(depot)         # coquilleReglage(PL, { puis titre: T(…)
 
 
-import catalogue as C                                                       # noqa: E402
+# ── robustesse des sources (relecture du 19/10) ──────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("contenu", [
+    "{pas du json",                                                   # JSON invalide
+    '["coque.rail.replier"]',                                         # racine non objet
+    '{"ids": [], "prefixes": "reglages."}',                           # une chaîne : un tuple de lettres effacerait tout
+    '{"ids": "coque.rail.replier"}',
+    '{"ids": [12], "prefixes": []}',                                  # éléments non chaînes
+    '{"ids": [], "prefixes": [null]}',
+])
+def test_exclusions_mal_formees(depot, contenu):
+    _ecrire(depot / "docs" / "agent" / "catalogue" / "_exclus.json", contenu)
+    with pytest.raises(RuntimeError, match=r"docs/agent/catalogue/_exclus\.json illisible : "):
+        S.extraire(depot)
+
+
+def test_exclusions_absentes(depot):
+    assert S._exclusions(depot) == (set(), ())
+
+
+def test_index_fixe_annote(depot):
+    _ecrire(depot / "backend" / "app" / "api" / "settings_routes.py",
+            '_INDEX_FIXE: list = [\n    ("keys", "Clés API", "clé api jeton"),\n]\n')
+    assert "reglages.keys.cles-api" in S.extraire(depot)
+
+
+@pytest.mark.parametrize("source", [
+    "AUTRE = []\n",                                                   # affectation introuvable
+    "_INDEX_FIXE = construire()\n",                                   # valeur non littérale
+    '_INDEX_FIXE = [("keys", "Clés API")]\n',                          # tuple de 2 éléments
+])
+def test_index_fixe_illisible(depot, source):
+    _ecrire(depot / "backend" / "app" / "api" / "settings_routes.py", source)
+    with pytest.raises(RuntimeError, match=r"settings_routes\.py.*_INDEX_FIXE"):
+        S.extraire(depot)
+
+
+def test_index_fixe_absent(depot):
+    (depot / "backend" / "app" / "api" / "settings_routes.py").unlink()
+    assert not any(k.startswith("reglages.") for k in S.extraire(depot))
+
+
+def test_dialogue_ne_filtre_que_titre(depot):
+    _ecrire(depot / "frontend" / "vectorlab" / "js" / "mod-dialogue.js", "\n".join([
+        'h.innerHTML = `<h3>${spec.titre}</h3><button class="dialogue-x" title="${T("vectorlab.dialogue.fermer")}">×</button>`;',
+        'const r = await saisir({',
+        '  titre: T("vectorlab.dialogue.saisie_titre"),',
+        '});']))
+    i18n = depot / "frontend" / "shared" / "i18n" / "vectorlab.json"
+    d = json.loads(i18n.read_text(encoding="utf-8"))
+    d.update({"vectorlab.dialogue.fermer": {"fr": "Fermer", "en": "Close"},
+              "vectorlab.dialogue.saisie_titre": {"fr": "Saisie", "en": "Input"}})
+    i18n.write_text(json.dumps(d), encoding="utf-8")
+    e = S.extraire(depot)
+    assert e["vectorlab.dialogue.fermer"]["infobulle"]["en"] == "Close"     # title= jamais filtré par la règle
+    assert "vectorlab.dialogue.saisie_titre" not in e                       # titre: après saisir( : écarté
+
+
+def test_motif_de_dialogue_resserre():
+    assert S.RE_DIALOGUE.search("VL.dialogue.saisir({") and S.RE_DIALOGUE.search("ouvrirDialogue(PL, {")
+    assert S.RE_DIALOGUE.search("coquilleReglage(PL, {") and S.RE_DIALOGUE.search("{ valider: ok }")
+    assert S.RE_DIALOGUE.search("return dialogueExport({")               # photolab mod-documents.js
+    assert not S.RE_DIALOGUE.search("dialogues.forEach(x)") and not S.RE_DIALOGUE.search("ressaisir(x)")
+
+
+@pytest.mark.parametrize("contenu", ["[{pas du json", '{"id": "plume"}'])
+def test_fiches_illisibles(depot, contenu):
+    _ecrire(depot / "frontend" / "vectorlab" / "aide" / "index.json", contenu)
+    with pytest.raises(RuntimeError, match=r"frontend/vectorlab/aide/index\.json"):
+        S.extraire(depot)
+
+
+def test_fiche_incomplete_ignoree(depot):
+    _ecrire(depot / "frontend" / "vectorlab" / "aide" / "index.json", json.dumps(
+        [{"id": "plume", "titre": "Plume", "phrase": "Trace."}, {"id": "gomme", "titre": "Gomme"}, {"titre": "x"}]))
+    e = S.extraire(depot)
+    assert "vectorlab.fiche.plume" in e and "vectorlab.fiche.gomme" not in e
+    assert S.IGNOREES == ["frontend/vectorlab/aide/index.json#gomme", "frontend/vectorlab/aide/index.json#2"]
+    S.extraire(_depot(depot, BUNDLE))                                       # remise à zéro à chaque extraction
+    assert S.IGNOREES == []
+
+
+def test_pas_de_francais_dans_en(depot):
+    _ecrire(depot / "frontend" / "vectorlab" / "aide" / "index.json", json.dumps(
+        [{"id": "plume", "titre": "Plume", "phrase": "Trace des courbes."}]))
+    e = S.extraire(depot)
+    assert e["reglages.keys.cles-api"]["libelle"] == {"fr": "Clés API", "en": ""}   # aucune traduction connue
+    f = e["vectorlab.fiche.plume"]
+    assert f["libelle"]["en"] == "" and f["infobulle"]["en"] == ""
+
+
+def test_bundle_unique(depot):
+    _ecrire(depot / "frontend" / "dist" / "assets" / "index-AUTRE.js", BUNDLE)
+    with pytest.raises(RuntimeError, match="index-"):
+        S.extraire(depot)
+
+
+def test_bundle_absent(depot):
+    (depot / "frontend" / "dist" / "assets" / "index-TEST.js").unlink()
+    assert S._bundle(depot) == "" and "vectorlab.core.grille_titre" in S.extraire(depot)
+
+
+def test_outil_photolab_garde_son_infobulle(depot):
+    _ecrire(depot / "frontend" / "photolab" / "js" / "outils.js", 'b.title = T("photolab.outil.pinceau");')
+    p = S.extraire(depot)["photolab.outil.pinceau"]
+    assert p["infobulle"] == {"fr": "Pinceau", "en": "Brush"}
+    assert set(p["sources"]) == {"i18n:photolab.outil.pinceau", "frontend/photolab/js/outils.js"}
+
+
+def test_deterministe(tmp_path):
+    racine = _depot(tmp_path, ";".join(CAS.values()) + ";" + BUNDLE)
+    a, b = S.extraire(racine), S.extraire(racine)
+    assert list(a) == list(b) and all(a[k]["sources"] == b[k]["sources"] for k in a)
+    assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+import catalogue as C                                                      # noqa: E402
 
 
 def _fiche(i="a.b.c", lib="x", etat=None, role=""):
