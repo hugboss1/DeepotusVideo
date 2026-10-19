@@ -470,7 +470,9 @@ if M:
               "suppr", "ia", "bt", "bx", "bu", "ba", "bth", "bat", "bap", "bi", "sa", "bs", "bl", "bf", "bli", "bv", "bm",
               "b", "i", "s", "t",
               # t238 (nœud Rendu motion code) : type et propriétés du nœud, port du Rendu, source de base, raison du repli
-              "MotionCode", "durationS", "fps", "pageId", "in", "motion_code", "page_refusee"}
+              "MotionCode", "durationS", "fps", "pageId", "in", "motion_code", "page_refusee",
+              # 19/10 (PR #390, délais) : raisons du repli quand le moteur ne répond pas à temps ou renvoie une erreur
+              "delai", "erreur_moteur"}
     mots = sorted({s for s in NEUFS if re.fullmatch(r"[A-Za-z_]+", s)} - JETONS)
     check("K3 mots seuls neufs : uniquement des jetons de code connus", not mots, str(mots))
     dico = {}

@@ -1,0 +1,19 @@
+Deepotus Video Gen — Rendu motion code : composant tiers
+========================================================
+
+Le nœud Studio « Rendu motion code » rend ses pages animées dans un navigateur sans fenêtre livré avec l'application,
+tel que publié et vérifié fichier par fichier (vendor/chrome-headless-shell.json) :
+
+  chrome-headless-shell 155.0.8059.84 (Chrome for Testing, canal Stable, révision Chromium 1697595)
+  Construit et publié par Google LLC à partir du projet open source Chromium (https://www.chromium.org/).
+  Archive officielle : https://storage.googleapis.com/chrome-for-testing-public/155.0.8059.84/win64/chrome-headless-shell-win64.zip
+  sha256 de l'archive : 5ca590a4968864e219ea25ccd134597ef8898a733a4698c07fc3e8b2c480fef4
+
+Licence : Chromium est distribué sous licence BSD-3-Clause (Copyright The Chromium Authors). Les composants tiers
+qu'il intègre (V8, Skia, ICU, ANGLE, SwiftShader, libpng, zlib…) sont sous leurs propres licences. Le texte complet de
+toutes ces licences et avis est livré tel quel à côté du moteur :
+    chrome-headless-shell-155.0.8059.84/chrome-headless-shell-win64/LICENSE.headless_shell
+
+Seules les langues fr et en-US du moteur sont livrées ; aucun autre fichier de l'archive n'est modifié.
+Le moteur n'est jamais téléchargé par l'application : il est posé par l'installeur. Microsoft Edge, s'il est installé,
+ne sert qu'en secours quand ce moteur manque.

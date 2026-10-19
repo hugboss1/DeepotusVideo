@@ -343,7 +343,12 @@ check("D3 ancres M0-M7 identiques à 52efd328, paires M0 / M6 / M7 identiques : 
       and all(M.PAIRES[i] == MB.PAIRES[i] for i in (0, 6, 7)))
 check("D4 M5 = celui de 52efd328 + le magasin dzMoBib + BIBLIO devant DzMotionDirection + l'appel dans l'inspecteur",
       MB is not None and bool(BIBS) and M.FONCTIONS.replace("dzMoBib={},", "", 1).replace(BIBS, "", 1)
-      .replace("dzMotionBiblio(e,o,P,f),", "", 1) == MB.FONCTIONS)
+      .replace("dzMotionBiblio(e,o,P,f),", "", 1)
+      # 19/10 (PR #390, délais) : deux raisons de repli et la clé d'échec choisie par l'appelant
+      .replace('c==="delai"?dzT("studio.motion.raison_delai"):c==="erreur_moteur"?dzT("studio.motion.raison_erreur_moteur"):',
+               "", 1)
+      .replace("function dzMotionErreur(j,k){", "function dzMotionErreur(j){", 1)
+      .replace('dzT(k||"studio.motion.echec")', 'dzT("studio.motion.echec")', 1) == MB.FONCTIONS)
 check("D5 hooks : dzMoUS 3 (= HOOKS ; t236 aucun neuf : la saisie vit dans dzMoBib ; t238 : l'état de DzMotionCode), "
       "dzMoUE 3 ; x.useState( 731",
       BUNDLE.count("dzMoUS(") == 3 == M.HOOKS and BUNDLE.count("dzMoUE(") == 3 and BUNDLE.count("x.useState(") == 731

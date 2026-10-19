@@ -2,19 +2,21 @@
 """Motion code (t238, lot « Studio : Animation », option B validée par l'utilisateur le 19/10/2026).
 
 Le moteur de texte CHOISI (registre `moteurs_texte`, jamais un fournisseur codé en dur) écrit une page HTML / SVG /
-Canvas animée — durée, cadence et taille imposées — que l'on rend en MP4 image par image, dans Edge sans fenêtre piloté
-par CDP, sur une horloge VIRTUELLE. La page est une DONNÉE : elle n'est jamais évaluée hors du bac à sable.
+Canvas animée — durée, cadence et taille imposées — que l'on rend en MP4 image par image, dans un navigateur sans fenêtre
+piloté par CDP, sur une horloge VIRTUELLE. Ce navigateur est le moteur LIVRÉ avec l'application (chrome-headless-shell
+épinglé, `trouver_moteur`) ; Edge du PC ne sert qu'en secours. La page est une DONNÉE : elle n'est jamais évaluée
+hors du bac à sable.
 
 Bac à sable (plan § t238) :
   - la page est contrôlée AVANT tout lancement (`controler`) : aucun appel réseau, aucune navigation, aucune ressource
     externe, aucun cadre, 10 Mo au plus — sinon REFUS, sans rien exécuter ;
   - elle vit dans un document `data:` (opaque, sans accès fichier) sous la CSP
     `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:` ;
-  - Edge part sur un profil JETABLE (dossier temporaire supprimé à la fin), réseau coupé (mandataire mort), domaine
-    `Fetch` qui refuse toute requête, téléchargements refusés, fenêtres neuves bloquées ; une navigation demandée par la
+  - le navigateur part sur un profil JETABLE (dossier temporaire supprimé à la fin), réseau coupé (mandataire mort),
+    domaine `Fetch` qui refuse toute requête, téléchargements refusés, fenêtres neuves bloquées ; une navigation demandée par la
     page (top.location…) ARRÊTE le rendu ;
   - délai de 120 s au plus pour tout le rendu : au-delà (boucle infinie…), le processus et ses enfants sont tués et le
-    profil effacé — arrêt PROPRE, jamais un Edge orphelin.
+    profil effacé — arrêt PROPRE, jamais un navigateur orphelin.
 
 Horloge virtuelle : un script posé par `Page.addScriptToEvaluateOnNewDocument` (donc AVANT la page) remplace
 performance.now, Date, setTimeout / setInterval, requestAnimationFrame et Math.random (graine fixe) ; pour chaque image
@@ -44,12 +46,18 @@ CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'
 MAX_PAGE = 10 * 1024 * 1024             # octets UTF-8 de la page
 DELAI = 120.0                           # secondes, tout le rendu
 DELAI_APPEL = 20.0                      # secondes, une commande CDP (chargement, une image)
+DELAI_PAR_IMAGE = 0.5                   # secondes de rendu par image (≈ 5 × les 80-95 ms mesurés en 1080×1920)
+DELAI_ECRITURE = 420.0                  # secondes, un appel au moteur : 16 000 jetons à 40 jetons/s au moins
 FPS = (12, 60)
 FPS_DEFAUT = 30
 DUREE = (1, 60)
 DUREE_DEFAUT = 8
 MAX_TOKENS = 16000
 MAX_RAPPELS = 10000                     # minuteries tirées par image au plus (setTimeout(f, 0) récursif)
+# Le moteur sans fenêtre LIVRÉ avec l'application (épinglé dans vendor/chrome-headless-shell.json, fourni par
+# scripts/vendor_chrome_headless_shell.py, jamais téléchargé ici) ; Edge du PC ne sert plus qu'en secours (19/10).
+NAVIGATEUR_VERSION = "155.0.8059.84"
+RACINE_APP = Path(__file__).resolve().parents[3]          # le dépôt, ou %LOCALAPPDATA%\DeepotusVideoGen installé
 _ID = re.compile(r"^mc-[0-9a-f]{16}$")
 
 MESSAGES = {
@@ -62,8 +70,14 @@ MESSAGES = {
                 "en": "Rendering stopped: the page tried to open a window."},
     "delai": {"fr": "Rendu arrêté : la page ne répond plus ({etape}, délai de {s} s dépassé — boucle infinie ?).",
               "en": "Rendering stopped: the page stopped responding ({etape}, {s} s limit exceeded — infinite loop?)."},
-    "edge": {"fr": "Microsoft Edge est introuvable sur ce PC : le rendu motion code en a besoin.",
-             "en": "Microsoft Edge was not found on this PC: motion code rendering needs it."},
+    "delai_total": {"fr": "Rendu arrêté : la durée de rendu permise ({s} s) est dépassée ({etape}). La page est trop lente : "
+                          "réduisez la durée, les images par seconde ou la complexité de la page.",
+                    "en": "Rendering stopped: the allowed render time ({s} s) was exceeded ({etape}). The page is too slow: "
+                          "lower the duration, the frames per second or the page's complexity."},
+    "moteur": {"fr": "Le moteur de rendu motion code livré avec Deepotus Video Gen est absent (et Microsoft Edge est "
+                     "introuvable) : réinstalle l'application.",
+               "en": "The motion code renderer shipped with Deepotus Video Gen is missing (and Microsoft Edge was not "
+                     "found): reinstall the application."},
     "ffmpeg": {"fr": "L'encodage vidéo a échoué (ffmpeg).", "en": "Video encoding failed (ffmpeg)."},
     "navigateur": {"fr": "Le navigateur du bac à sable s'est arrêté ({details}).",
                    "en": "The sandbox browser stopped ({details})."},
@@ -175,10 +189,25 @@ try{document.getAnimations().forEach(function(a){if(!W.has(a))W.set(a,ms);a.paus
 if(typeof window.dzFrame==="function")run(window.dzFrame,[ms/1000]);return window.__dzErreurs}})();"""
 
 
-# ── Edge sans fenêtre, par CDP ────────────────────────────────────────────────────────────────────────────────────
+# ── le navigateur sans fenêtre, par CDP ───────────────────────────────────────────────────────────────────────────
+def moteur_embarque() -> Path:
+    """Où l'installeur pose le moteur livré (le même chemin dans le dépôt une fois le script de récupération lancé)."""
+    return (RACINE_APP / "vendor" / f"chrome-headless-shell-{NAVIGATEUR_VERSION}" / "chrome-headless-shell-win64"
+            / "chrome-headless-shell.exe")
+
+
+def trouver_moteur():
+    """Le navigateur du bac à sable : DEEPOTUS_NAVIGATEUR puis DEEPOTUS_EDGE (bancs), puis le moteur EMBARQUÉ, puis
+    Edge du PC en secours ; None s'il n'y a rien. Une variable vers un fichier absent est ignorée."""
+    for c in (os.environ.get("DEEPOTUS_NAVIGATEUR", ""), os.environ.get("DEEPOTUS_EDGE", ""), str(moteur_embarque())):
+        if c and os.path.isfile(c):
+            return c
+    return trouver_edge()
+
+
 def trouver_edge():
-    """Le chemin de msedge.exe (DEEPOTUS_EDGE l'emporte, pour un banc), sinon None."""
-    cands = [os.environ.get("DEEPOTUS_EDGE", "")]
+    """Le chemin de msedge.exe installé sur ce PC (le secours), sinon None."""
+    cands = []
     for var in ("PROGRAMFILES(X86)", "PROGRAMFILES", "LOCALAPPDATA"):
         if os.environ.get(var):
             cands.append(os.path.join(os.environ[var], "Microsoft", "Edge", "Application", "msedge.exe"))
@@ -238,11 +267,15 @@ class _Cdp:
 
     def appel(self, methode: str, params=None, *, etape: str = "", delai: float = DELAI_APPEL, langue="fr", sid=True):
         i = self.envoyer(methode, params, sid)
-        borne = min(time.monotonic() + delai, self.fin)
+        debut = time.monotonic()
+        borne = min(debut + delai, self.fin)
         while True:
             reste = borne - time.monotonic()
             if reste <= 0:
-                raise Arret("delai", langue, etape=etape or methode,
+                # Le budget de TOUT le rendu épuisé avant le délai de la commande : la page avance, trop lentement ;
+                # sinon la commande elle-même est figée (boucle infinie ?).
+                total = borne >= self.fin and borne < debut + delai
+                raise Arret("delai_total" if total else "delai", langue, etape=etape or methode,
                             s=int(round(self.total if borne >= self.fin else delai)))
             try:
                 brut = self.ws.recv(timeout=reste)
@@ -272,8 +305,11 @@ def _lancer_edge(edge: str, profil: str, delai_demarrage: float = 20.0):
             "--disable-features=Translate,MediaRouter,OptimizationHints,AutofillServerCommunication",
             "--proxy-server=http://127.0.0.1:9", "--proxy-bypass-list=<-loopback>", "--block-new-web-contents",
             "--deny-permission-prompts", "--mute-audio", "--hide-scrollbars", "about:blank"]
-    p = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    try:
+        p = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except OSError:                              # exécutable abîmé ou illisible : un arrêt « navigateur », pas une trace
+        return None, None
     f = Path(profil) / "DevToolsActivePort"
     fin = time.monotonic() + delai_demarrage
     while time.monotonic() < fin:
@@ -300,9 +336,9 @@ def rendre_page(html: str, sortie, *, W: int, H: int, fps: int = FPS_DEFAUT, dur
         if refus == ["taille"]:
             raise Arret("taille", langue)
         raise Arret("refus", langue, details=details_refus(refus, langue))
-    edge = edge or trouver_edge()
+    edge = edge or trouver_moteur()
     if not edge:
-        raise Arret("edge", langue)
+        raise Arret("moteur", langue)
     sortie = Path(sortie)
     n = max(1, int(round(float(duree_s) * int(fps))))
     fin = time.monotonic() + float(delai)
@@ -472,9 +508,23 @@ def systeme(d: dict, W: int, H: int, duree_s: float, fps: int, m: dict, tempo_bp
 
 def prompt(script: str, aspect: str, W: int, H: int, duree_s: float, fps: int, erreur: str = "") -> str:
     p = f"Format {aspect} ({W}×{H}), {duree_s:g} s, {fps} images/s.\nSCRIPT :\n{script}"
-    if erreur:
+    if erreur == "delai":
+        p += ("\n\nTa réponse précédente n'est pas arrivée à temps. Écris une page plus courte : moins d'éléments, "
+              "du code compact, aucune donnée inutile.")
+    elif erreur:
         p += f"\n\nTa page précédente a été refusée ({erreur[:200]}). Réécris-la en respectant le bac à sable."
     return p
+
+
+def _echec_moteur(e: BaseException) -> str:
+    """La raison d'un appel au moteur qui n'a rien rendu : `delai` (délai dépassé), `erreur_moteur` (HTTP, réseau),
+    `sortie_invalide` (réponse illisible)."""
+    import httpx
+    if isinstance(e, (TimeoutError, httpx.TimeoutException)):
+        return "delai"
+    if isinstance(e, httpx.HTTPError) or re.search(r"\bHTTP \d{3}\b", str(e)):
+        return "erreur_moteur"
+    return "sortie_invalide"
 
 
 # ── les pages enregistrées ────────────────────────────────────────────────────────────────────────────────────────
@@ -509,10 +559,17 @@ def bornes(aspect, fps, duree_s) -> tuple:
     return aspect, W, H, f, d
 
 
-def rendre(pid, sortie, *, aspect="9:16", fps=FPS_DEFAUT, duree_s=DUREE_DEFAUT, langue="fr", delai=DELAI) -> dict:
+def delai_rendu(fps, duree_s) -> float:
+    """Le délai de TOUT le rendu : 120 s au moins, 0,5 s par image au-delà (15 s à 60 i/s = 900 images → 450 s). Une page
+    qui boucle reste arrêtée par le délai de 20 s par commande."""
+    return max(DELAI, max(1, int(round(float(duree_s) * int(fps)))) * DELAI_PAR_IMAGE)
+
+
+def rendre(pid, sortie, *, aspect="9:16", fps=FPS_DEFAUT, duree_s=DUREE_DEFAUT, langue="fr", delai=None) -> dict:
     """La page enregistrée `pid`, contrôlée de nouveau (un fichier modifié à la main est refusé aussi), rendue en MP4."""
     aspect, W, H, f, d = bornes(aspect, fps, duree_s)
-    return rendre_page(lire(pid), sortie, W=W, H=H, fps=f, duree_s=d, langue=langue, delai=delai)
+    return rendre_page(lire(pid), sortie, W=W, H=H, fps=f, duree_s=d, langue=langue,
+                       delai=delai_rendu(f, d) if delai is None else delai)
 
 
 # ── l'écriture par le moteur ──────────────────────────────────────────────────────────────────────────────────────
@@ -559,8 +616,13 @@ async def ecrire(corps: dict, langue: str = "fr") -> dict:
         return _repli("modele_fautif")
     rep["effort_applique"] = MT.effort_applique(moteur, modele, effort)
     sy = systeme(d, W, H, duree, fps, m, bpm)
+    import httpx
     erreur, raison = "", "sortie_invalide"
-    for n in ((1,) if d["curseurs"]["finition"] <= 1 else (1, 2)):
+    for n in (1, 2):
+        # Une 2e tentative : toujours après un délai dépassé ou une erreur du moteur (rien n'a été écrit) ; après une
+        # page refusée ou illisible, seulement au-dessus de la Finition 1 (comportement de t238).
+        if n == 2 and raison not in ("delai", "erreur_moteur") and d["curseurs"]["finition"] <= 1:
+            break
         p = prompt(script, aspect, W, H, duree, fps, erreur)
         rep["tentatives"] = n
         rep["cout"]["estime_usd"] = round(rep["cout"]["estime_usd"]
@@ -568,9 +630,10 @@ async def ecrire(corps: dict, langue: str = "fr") -> dict:
                                                                          modele=modele))["total_usd"], 6)
         try:
             texte = await MT.tirer_garde(moteur, modele, p, sy, MAX_TOKENS, json=False, categorie="motion",
-                                         effort=effort, timeout=180.0)
-        except RuntimeError as e:
-            erreur, raison = str(e), "sortie_invalide"
+                                         effort=effort, timeout=DELAI_ECRITURE)
+        except (RuntimeError, TimeoutError, httpx.HTTPError) as e:     # le plafond (HTTPException 402) remonte
+            raison = _echec_moteur(e)
+            erreur = "delai" if raison == "delai" else ""
             continue
         html = extraire_page(texte)
         refus = controler(html)

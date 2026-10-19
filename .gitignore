@@ -67,3 +67,5 @@ graphify-out/
 .superpowers/
 # t136 : moteur du Photolab, fourni par scripts/vendor_photocraft.py (epingle dans vendor/photocraft.json)
 vendor/photocraft-*/
+# 19/10 : navigateur du rendu motion code, fourni par scripts/vendor_chrome_headless_shell.py (vendor/chrome-headless-shell.json)
+vendor/chrome-headless-shell-*/

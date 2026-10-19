@@ -253,6 +253,31 @@ if ($LASTEXITCODE -ge 8) { throw "robocopy licences-photocraft failed ($LASTEXIT
 if ($LASTEXITCODE -ne 0) { throw "photocraft : l'arbre prepare n'est pas conforme au manifeste (voir ECART ci-dessus)" }
 Write-Host "  photocraft 0.3.0 verifie dans app\vendor (+ NOTICE et licences)" -ForegroundColor Green
 
+# ---- 4d. chrome-headless-shell : le navigateur du rendu motion code (19/10) --
+# Epingle dans vendor\chrome-headless-shell.json (version CfT, archive officielle, sha256, langues fr + en-US, et
+# chaque fichier garde). Absent du poste de build : vendor_chrome_headless_shell.py le telecharge, verifie l'archive
+# AVANT d'extraire et ne garde que les langues listees. Puis l'arbre PREPARE est verifie fichier par fichier ; la
+# licence (LICENSE.headless_shell) est dans l'arbre, la NOTICE et le manifeste a cote. Ecart = build arrete.
+# L'application ne telecharge jamais ce moteur ; Edge du PC ne sert qu'en secours.
+$chsVer = "155.0.8059.84"
+$chsSrc = Join-Path $AppDir "vendor\chrome-headless-shell-$chsVer"
+$chsStage = Join-Path $stageApp "vendor\chrome-headless-shell-$chsVer"
+if (-not (Test-Path $chsSrc)) {
+    Write-Host "chrome-headless-shell absent du poste : archive officielle (vendor_chrome_headless_shell.py)" -ForegroundColor Cyan
+    & $buildPy (Join-Path $AppDir "scripts\vendor_chrome_headless_shell.py")
+    if ($LASTEXITCODE -ne 0) { throw "vendor_chrome_headless_shell.py a echoue ($LASTEXITCODE)" }
+}
+if (-not (Test-Path $chsStage)) {
+    robocopy $chsSrc $chsStage /E /NFL /NDL /NJH /NJS | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "robocopy chrome-headless-shell failed ($LASTEXITCODE)" }
+}
+foreach ($n in @("chrome-headless-shell.json", "NOTICE-chrome-headless-shell.txt")) {
+    Copy-Item (Join-Path $AppDir "vendor\$n") (Join-Path $stageApp "vendor\$n") -Force
+}
+& $buildPy (Join-Path $AppDir "scripts\vendor_chrome_headless_shell.py") --verifier $chsStage
+if ($LASTEXITCODE -ne 0) { throw "chrome-headless-shell : l'arbre prepare n'est pas conforme au manifeste (voir ECART ci-dessus)" }
+Write-Host "  chrome-headless-shell $chsVer verifie dans app\vendor (+ NOTICE et licence)" -ForegroundColor Green
+
 # ---- 5. Compile with Inno Setup ---------------------------------------------
 $iscc = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",

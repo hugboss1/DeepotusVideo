@@ -1,0 +1,326 @@
+{
+  "nom": "chrome-headless-shell",
+  "version": "155.0.8059.84",
+  "revision_chromium": "1697595",
+  "canal": "Stable (Chrome for Testing, relevé du 19/10/2026)",
+  "source": "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json",
+  "licence": "BSD-3-Clause (Chromium) + avis tiers dans LICENSE.headless_shell",
+  "binaire": {
+    "archive": "chrome-headless-shell-win64.zip",
+    "url": "https://storage.googleapis.com/chrome-for-testing-public/155.0.8059.84/win64/chrome-headless-shell-win64.zip",
+    "taille": 123681250,
+    "sha256": "5ca590a4968864e219ea25ccd134597ef8898a733a4698c07fc3e8b2c480fef4",
+    "exe": "chrome-headless-shell-win64/chrome-headless-shell.exe",
+    "dossier": "vendor/chrome-headless-shell-155.0.8059.84"
+  },
+  "langues": [
+    "en-US",
+    "fr"
+  ],
+  "fichiers": {
+    "chrome-headless-shell-win64/ABOUT": {
+      "taille": 257,
+      "sha256": "122b32f3ee3f1e8d65c774f5257fc6cc2127b666148ced0ce2efa3ea57e1d93c"
+    },
+    "chrome-headless-shell-win64/chrome-headless-shell.exe": {
+      "taille": 217146368,
+      "sha256": "64db9686dab042ba3282f7ab6fef98de266b015fd4d056c30760244425091d39"
+    },
+    "chrome-headless-shell-win64/headless_command_resources.pak": {
+      "taille": 3109,
+      "sha256": "8be045eeba9f670fe9e75682f2246ec5ba4d63eae115681b956000558d45e131"
+    },
+    "chrome-headless-shell-win64/headless_lib_data.pak": {
+      "taille": 732735,
+      "sha256": "2ef0f8e81cdffc43633af03ad37e8efabd3cccb87b1c71127faf4704bd96826e"
+    },
+    "chrome-headless-shell-win64/headless_lib_strings.pak": {
+      "taille": 4984179,
+      "sha256": "7aa9156f2b50c2543f2cbce98706ab94050793d0c64aa126824b886c90d0a0d4"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-af.hyb": {
+      "taille": 72640,
+      "sha256": "5487ee44a4cd706d0086522e90c59c76cdf2ac68ce506fd3eae6054b9220c0cf"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-as.hyb": {
+      "taille": 703,
+      "sha256": "c2784e33158a807135850f7125a7eaabe472b3cfc7afb82c74f02da69ea250fe"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-be.hyb": {
+      "taille": 6098,
+      "sha256": "25b7cfa039f82ac92990e1789de40988d490db9b613852fb24036b38ff87893c"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-bg.hyb": {
+      "taille": 3467,
+      "sha256": "7593f0395081e3eeb2d8516d10746608afd826cffd4e7e37d53936993d200a13"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-bn.hyb": {
+      "taille": 703,
+      "sha256": "c2784e33158a807135850f7125a7eaabe472b3cfc7afb82c74f02da69ea250fe"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-cs.hyb": {
+      "taille": 64245,
+      "sha256": "97a4755fe9e653a08969f1933e3db19c712078b227bd5aa6799093abc5a0edc3"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-cu.hyb": {
+      "taille": 52842,
+      "sha256": "2baee19d5024ff87dcf3a1b9d0da1b3ac5a1e506adeead3b96a4de5395d0290e"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-cy.hyb": {
+      "taille": 35913,
+      "sha256": "4d0569fe2f4b41b3164cf610310e1d996fd2c553cc39de6062e50f4e033cc207"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-da.hyb": {
+      "taille": 6967,
+      "sha256": "86fdfc8db62cdaa11f615dad3712da1f4708294e029a4aad0fc285d4ea16c4bd"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-de-1901.hyb": {
+      "taille": 121393,
+      "sha256": "8c5fa4b29519d17593e923bc6a9a284df7a6d07fac42f897110b8fb2e0baeef5"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-de-1996.hyb": {
+      "taille": 120412,
+      "sha256": "d673805547a0228d2f57a5ad551b8760cfcc521f38c49284ed3976e3515bca49"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-de-ch-1901.hyb": {
+      "taille": 120218,
+      "sha256": "8223a912160354e05735522fdb339dc59b353ad5d1e4f4cfa94898dc348e748f"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-el.hyb": {
+      "taille": 4219,
+      "sha256": "76ae3454fb0045adb83094832578aa4749ce4dc694c4edcf85b419c1e2d9bcd3"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-en-gb.hyb": {
+      "taille": 46607,
+      "sha256": "ae4b78009d18e849d87458677151ee3aad1608ad72ec050dfd2421d22e7d031f"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-en-us.hyb": {
+      "taille": 59802,
+      "sha256": "03727cd6f4aa71b203c4c74ca6987ac7d87f13037337ac6f4b6996c2a0dc5f8c"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-es.hyb": {
+      "taille": 14995,
+      "sha256": "137461792537a2e56a6475e81e2b9ad7a2bdabf1f4738fae186dca3022357349"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-et.hyb": {
+      "taille": 21421,
+      "sha256": "10079c66014dd2e6abfef5a018e6553fd5a036afb96bd2a235440a188f88b15e"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-eu.hyb": {
+      "taille": 665,
+      "sha256": "e2778a4fc7b8f064a32b6a44bc29f10e264d9d6214b8edb8ebd1f5f6d68e2eb2"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-fr.hyb": {
+      "taille": 8165,
+      "sha256": "00bd8b2d398d77575da2bfbbc5ec641aad7f2a87d4a31186ec169e85a27de5b7"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-ga.hyb": {
+      "taille": 35824,
+      "sha256": "1e3043f395bfb2a4c43d0480ba2f168ed622881cc3482359ca6e99821e983be8"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-gl.hyb": {
+      "taille": 9289,
+      "sha256": "89d98eff14e2cf1c2314efdf392339e62d7e786f100202a7377bf7b22095a0c5"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-gu.hyb": {
+      "taille": 655,
+      "sha256": "af0edb67c2219b803c3eb6c1dee6f2d41a3fe00468a9da8be8ef5056d701abf3"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-hi.hyb": {
+      "taille": 687,
+      "sha256": "f4df224d459fd111698dd5a13613c5bbf0ed11f04278d60230d028010eac0c42"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-hr.hyb": {
+      "taille": 3031,
+      "sha256": "d5f066a5657f1d7c39d053956df204b7926f40d2fe4f69573af09d909066e26c"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-hu.hyb": {
+      "taille": 317251,
+      "sha256": "8b3a16268cc932b226c17ff405b3cfb6eb38a9511a2043d653dc03729efceac1"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-hy.hyb": {
+      "taille": 605,
+      "sha256": "9b34dfca85cb27546829f104f137757efb274934c1e9d4991f55ad564962a76a"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-it.hyb": {
+      "taille": 2512,
+      "sha256": "f9c027d7fd44b01cd5e1cdf802e20c63560673098af18bea0930ba9af334e0f7"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-ka.hyb": {
+      "taille": 9996,
+      "sha256": "2472271c7955c67e9fdb86d0cd3c5d88f5e598da4f44b6741284b2bbcb2e4d52"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-kn.hyb": {
+      "taille": 711,
+      "sha256": "2b999d0a152f804601aa8f38ff0d3a6e5949977bf1daa76fa888acae21526287"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-la.hyb": {
+      "taille": 1839,
+      "sha256": "fd4b6f36135cd3b932e350ec2017dfd89d2e36ac226f54e4c8f2e4bc6db0593d"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-lt.hyb": {
+      "taille": 7774,
+      "sha256": "6fe2da26a96834fb9aecbe586d40f728df0ef676a4f235450054e66841b9e2ca"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-lv.hyb": {
+      "taille": 38602,
+      "sha256": "65962ccb5055e4c693e5ac493d6affdc810ec168eb2942f5705b7f4e464f9993"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-ml.hyb": {
+      "taille": 776,
+      "sha256": "90572db8f49b01ec6a102732cdf14fc3f07d363cbe0d261103e583043164e888"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-mn-cyrl.hyb": {
+      "taille": 5142,
+      "sha256": "0d2731f16aa2c90faec8e63260358cbccede403faf95e3af8c66bc2db0729ca0"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-mr.hyb": {
+      "taille": 687,
+      "sha256": "f4df224d459fd111698dd5a13613c5bbf0ed11f04278d60230d028010eac0c42"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-mul-ethi.hyb": {
+      "taille": 3740,
+      "sha256": "f2fac1bd069ffe5cd1112d94cc31137ed38a1b161093ecd74c9c1688428b688b"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-nb.hyb": {
+      "taille": 145263,
+      "sha256": "c2771fbb1bfff7db5e267dc7a4505a9675c6b98cfe7a8f7ae5686d7a5a2b3dd0"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-nl.hyb": {
+      "taille": 77080,
+      "sha256": "5ebde398944b461cf940f0520c5a49c0882b6f36f9ac5cda0538c8c8b44fb7ca"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-nn.hyb": {
+      "taille": 145263,
+      "sha256": "5bcbb58eaf65f13f6d039244d942f37c127344e3a0a2e6c32d08236945132809"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-or.hyb": {
+      "taille": 647,
+      "sha256": "4e9cd302baffc4ea3e9652327ea24072ebf37b5c4fc0719292bdac10aaad665b"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-pa.hyb": {
+      "taille": 607,
+      "sha256": "470329d28faa484f945d78ffefb176dcb6f2032c753e25bc014106ad24b2c68a"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-pt.hyb": {
+      "taille": 1414,
+      "sha256": "f6fbf1bcb260cc86256fc494f388f7b27d10865fbf8f61517dee25af4d58d6e8"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-ru.hyb": {
+      "taille": 19886,
+      "sha256": "336ce2048ffd31b7bcaf435e53badfaf0579e405042d49adbc0823f6be5f9614"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-sk.hyb": {
+      "taille": 64103,
+      "sha256": "138c5990961da21993653f54a413ddacb8921d6d70b892b7ca154d6e8ad2028c"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-sl.hyb": {
+      "taille": 6631,
+      "sha256": "ad746c68562603ac3b15e89da03c76e081c08e7d9c8d4c9f64763e53d696c77c"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-sq.hyb": {
+      "taille": 2013,
+      "sha256": "bc29c9401ce952414cbaebc5c8ee1d27c1706c6f77807b5ff713e2124438b3ca"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-sv.hyb": {
+      "taille": 72119,
+      "sha256": "56642aa5a37625ff9d034761d16b034d4ba5be74090cbd825956bbce2775ecd1"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-ta.hyb": {
+      "taille": 554,
+      "sha256": "40fda94856a86f065de8baa6184ea63dcdb011ee4ca498a7c1fee44c99314c67"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-te.hyb": {
+      "taille": 703,
+      "sha256": "516fa9654fa3aeaab480d40eaf6ad78fc039086bd8edc144be3d59525edcac29"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-tk.hyb": {
+      "taille": 2712,
+      "sha256": "77fdaed29bd842aaa976ab7ef81b617a15c0a2d1ebd1161c1bf26b79a108b5cd"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-uk.hyb": {
+      "taille": 19417,
+      "sha256": "1c626abe40d43f6d56a01b5b40305d7c7d6481f616eac00a3f3aaaaca8388786"
+    },
+    "chrome-headless-shell-win64/hyphen-data/hyph-und-ethi.hyb": {
+      "taille": 3484,
+      "sha256": "1de83cb787dfaf53fb7e6e8db3aae5008ad24ebdd28be02031306ea9e9f3e285"
+    },
+    "chrome-headless-shell-win64/icudtl.dat": {
+      "taille": 10819840,
+      "sha256": "495c45cc7a65562ec461f860c310c6b66e006acd96833f61d1aa31f77fe18cf1"
+    },
+    "chrome-headless-shell-win64/libEGL.dll": {
+      "taille": 456192,
+      "sha256": "4300501aa382a145ba409780085d5e906e5e206f10f409db3bef5d70ef0c3071"
+    },
+    "chrome-headless-shell-win64/libGLESv2.dll": {
+      "taille": 456192,
+      "sha256": "4005551f4190c80cfa746be5d9a7bda3f3fd86e2148abee35bae02de5f2a802c"
+    },
+    "chrome-headless-shell-win64/LICENSE.headless_shell": {
+      "taille": 2451393,
+      "sha256": "1b6e83846a68f8f0a383057c78d180d58ec11a0abfcba380f11d5c2f4b45b273"
+    },
+    "chrome-headless-shell-win64/locales/en-US.pak": {
+      "taille": 515398,
+      "sha256": "235bd7c6a6ff2cf472b7f979bae724f131564e24f653abcb9b039c9b7054df41"
+    },
+    "chrome-headless-shell-win64/locales/en-US_FEMININE.pak": {
+      "taille": 18,
+      "sha256": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    "chrome-headless-shell-win64/locales/en-US_MASCULINE.pak": {
+      "taille": 18,
+      "sha256": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    "chrome-headless-shell-win64/locales/en-US_NEUTER.pak": {
+      "taille": 18,
+      "sha256": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    "chrome-headless-shell-win64/locales/fr.pak": {
+      "taille": 678427,
+      "sha256": "c8eff90da8c37b3051f5130c8b48a842def0af9f2354ba5c5f588f2a5ccaedee"
+    },
+    "chrome-headless-shell-win64/locales/fr_FEMININE.pak": {
+      "taille": 18,
+      "sha256": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    "chrome-headless-shell-win64/locales/fr_MASCULINE.pak": {
+      "taille": 18,
+      "sha256": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    "chrome-headless-shell-win64/locales/fr_NEUTER.pak": {
+      "taille": 18,
+      "sha256": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    "chrome-headless-shell-win64/resources/accessibility/reading_mode_gdocs_helper/content.js": {
+      "taille": 439,
+      "sha256": "6c0aeaaf9a71ad68aa45764c111e70bb23aa0fbf406644a375b6b709cbbe4b6e"
+    },
+    "chrome-headless-shell-win64/resources/accessibility/reading_mode_gdocs_helper/gdocs_script.js": {
+      "taille": 1425,
+      "sha256": "d291adabcfcb1a4a4a2ffacdd9d04fdb473ab0d6903556bef7446be9c3646d86"
+    },
+    "chrome-headless-shell-win64/resources/accessibility/reading_mode_gdocs_helper_manifest.json": {
+      "taille": 2400,
+      "sha256": "38ed3ea22134cb4a59c2ea16b25a7cbb58cbb18aca8ff78684a7c2bd3d27a391"
+    },
+    "chrome-headless-shell-win64/v8_context_snapshot.bin": {
+      "taille": 753952,
+      "sha256": "dd240da5924e883563c15c408f931e196f4b3007415cfbe34cdeca87aa98792d"
+    },
+    "chrome-headless-shell-win64/vk_swiftshader.dll": {
+      "taille": 5396480,
+      "sha256": "a88cfbca4a6f43224ce67264f245ff9d166cf502acabce2cab3d3eca693868e2"
+    },
+    "chrome-headless-shell-win64/vk_swiftshader_icd.json": {
+      "taille": 106,
+      "sha256": "32d83ff113fef532a9f97e0d2831f8656628ab1c99e9060f0332b1532839afd9"
+    },
+    "chrome-headless-shell-win64/vulkan-1.dll": {
+      "taille": 988672,
+      "sha256": "d2d5ecae81dd07a80d51c4d9804aa83f298f43a18063f898e6685e0aee909ff2"
+    }
+  }
+}

@@ -325,7 +325,8 @@ check("K1 chaque clé dzT de la famille C a son FR ET son EN", bool(cles) and no
 MO = json.loads((RACINE / "frontend" / "shared" / "i18n" / "motion.json").read_bytes().decode("utf-8"))
 neuves = sorted(k for k in MO if k.startswith("studio.motion.code_"))
 check("K2 les clés studio.motion.code_* de motion.json = celles employées (aucune orpheline)",
-      neuves == sorted(k for k in cles if k.startswith("studio.motion.code_")) and len(neuves) == 18, neuves)
+      neuves == sorted(k for k in cles if k.startswith("studio.motion.code_")) and len(neuves) == 20, neuves)
+# 19/10 (PR #390, délais) : 18 → 20 — code_echec (l'écriture échoue) et code_en_cours_aide (le temps à attendre).
 check("K3 mêmes {variables} en FR et en EN", all(sorted(re.findall(r"\{(\w+)\}", MO[k]["fr"]))
                                                 == sorted(re.findall(r"\{(\w+)\}", MO[k]["en"])) for k in neuves))
 check("K4 bilan en anglais : passe par dzT (langue de l'écran)", (F.get("en") or "").startswith("studio.motion.code_bilan"))
