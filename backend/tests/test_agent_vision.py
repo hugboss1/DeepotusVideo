@@ -102,5 +102,46 @@ def test_etat_dit_quels_moteurs_voient(monkeypatch):
     assert {m["moteur"]: m["vision"] for m in j["moteurs"]} == {"anthropic": True, "ollama": False}
 
 
+from fastapi.testclient import TestClient                                   # noqa: E402
+
+
+def _client():
+    from app.main import app
+    return TestClient(app)
+
+
+def test_route_estimer(monkeypatch):
+    monkeypatch.setattr(A, "estimer_vue", lambda corps, lang="fr": {"moteur": "x", "usd": 0.01, "lang": lang})
+    c = _client()
+    r = c.post("/api/agent/estimer", json={"question": "q"}, headers={"Accept-Language": "en"})
+    assert r.status_code == 200 and r.json()["lang"] == "en"
+    assert c.post("/api/agent/estimer", content="pas du json",
+                  headers={"Content-Type": "application/json"}).status_code == 400
+
+
+def test_route_demander_cout_change_409(monkeypatch):
+    async def change(corps, lang="fr"):
+        raise A.CoutChange()
+    monkeypatch.setattr(A, "demander", change)
+    r = _client().post("/api/agent/demander", json={"question": "q"})
+    assert r.status_code == 409 and "accord" in r.json()["detail"]
+
+
+def test_route_demander_trop_lourde():
+    r = _client().post("/api/agent/demander", content=b"{" + b" " * 8_000_001 + b"}",
+                       headers={"Content-Type": "application/json"})
+    assert r.status_code == 413
+
+
+def test_messages_traduits():
+    import json, subprocess
+    racine = pathlib.Path(__file__).resolve().parents[2]
+    r = subprocess.run([sys.executable, str(racine / "scripts" / "i18n_l10_erreurs.py"), "--check"],
+                       capture_output=True, text=True, encoding="utf-8", cwd=str(racine))
+    assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-800:]
+    t = json.loads((racine / "scripts" / "i18n_l10_traductions.json").read_text(encoding="utf-8"))
+    assert "Image jointe illisible." in t and "Demande trop lourde." in t
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
