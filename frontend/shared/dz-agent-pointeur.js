@@ -21,7 +21,7 @@ export function creerPointeur({ depart, ignorer }) {
   style.textContent = CSS;
   const div = (classe, texte) => { const n = document.createElement("div"); n.className = classe; if (texte) n.textContent = texte; return n; };
   const reduit = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  let calques = [], anim = 0, minuterie = 0, suivre = null, interieur = null;
+  let calques = [], anim = 0, minuterie = 0, suivre = null, interieur = null, tour = 0;
 
   function effacerPointeur() {
     if (anim) cancelAnimationFrame(anim);
@@ -41,6 +41,7 @@ export function creerPointeur({ depart, ignorer }) {
   // Une cible disparue (rect null, nœud détaché) efface le pointeur au lieu de le poser au mauvais endroit.
   function montrer(cible, libelle, fenetre) {
     effacerPointeur();
+    const moi = ++tour;
     if (!style.isConnected) document.head.appendChild(style);
     const mesurer = cible.rect ? () => {
       const q = cible.rect();
@@ -70,11 +71,18 @@ export function creerPointeur({ depart, ignorer }) {
     };
     if (!placer()) return;
     suivre = () => placer();
+    // posés après deux images : le défilement du scrollIntoView du répondeur (livré à l'image suivante) ne doit pas
+    // effacer le pointeur qu'il vient de faire poser ; rien n'est posé si ce pointage a été effacé ou remplacé.
     if (fenetre) {
-      try {
-        for (const e of ["pointerdown", "scroll"]) fenetre.addEventListener(e, effacerPointeur, { capture: true, once: true });
-        interieur = fenetre;
-      } catch (e) { /* fenêtre inaccessible : la minuterie et Échap suffisent */ }
+      const poser = () => {
+        if (moi !== tour || !calques.length || interieur) return;
+        try {
+          for (const e of ["pointerdown", "scroll"]) fenetre.addEventListener(e, effacerPointeur, { capture: true, once: true });
+          interieur = fenetre;
+        } catch (e) { /* lab parti */ }
+      };
+      try { fenetre.requestAnimationFrame(() => fenetre.requestAnimationFrame(poser)); }
+      catch (e) { /* fenêtre inaccessible : la minuterie et Échap suffisent */ }
     }
     window.addEventListener("scroll", suivre, { capture: true, passive: true });
     window.addEventListener("resize", suivre);

@@ -87,6 +87,7 @@ def test_cadre_verifie_l_origine():
     assert "b.width > 0 && b.height > 0 ? composer(b, t.interne) : null" in agent, "cadre démonté ou masqué : rect nul"
     pointeur = (SHARED / "dz-agent-pointeur.js").read_text(encoding="utf-8")
     assert "if (!r) { effacerPointeur(); return false; }" in pointeur, "rect nul : le pointeur s'efface"
+    assert "requestAnimationFrame(poser)" in pointeur, "écouteurs du lab posés après le défilement de mise en vue"
     assert "candidats(document, d.selecteur" in src, "le cadre lit les candidats comme le tiroir (logique partagée)"
 
 
