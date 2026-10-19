@@ -80,5 +80,15 @@ def test_vues_presentes_dans_le_bundle():
         assert f'id:"{v}"' in BUNDLE, v
 
 
+def test_agent_md_structure():
+    t = (RACINE / "docs" / "agent" / "AGENT.md").read_text(encoding="utf-8")
+    for s in ("## Qui tu aides", "## Les écrans", "## Parcours", "## Pièges fréquents", "## Comment répondre",
+              "## Tenir ce fichier à jour"):
+        assert s in t, s
+    for v in A.VUES:
+        assert f"[ALLER:{v}]" in t, v                     # chaque écran a sa ligne dans la carte
+    assert len(t) < 24_000, "AGENT.md doit tenir dans un message système raisonnable"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
