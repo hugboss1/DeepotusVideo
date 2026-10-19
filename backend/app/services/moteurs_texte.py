@@ -435,7 +435,7 @@ def extraire_json(texte: str):
 
 
 def tirer(moteur: str, modele: str, prompt: str, systeme: str, max_tokens: int = 4000, json: bool = False, *,
-          timeout: float = 90.0, effort=None):
+          timeout: float = 90.0, effort=None, images=None):
     """UN appel, au moteur ET au modèle demandés — jamais un repli muet.
 
     Lève `RuntimeError` avec la cause : l'écran vient d'afficher le nom du modèle qui va dépenser la clé, un repli
@@ -444,24 +444,28 @@ def tirer(moteur: str, modele: str, prompt: str, systeme: str, max_tokens: int =
     Aucune garde de dépense ici : c'est `tirer_garde`, ou la route appelante (le Vectorlab a la sienne).
     t239 : `effort` (None / "auto" = rien) n'est envoyé que si CE modèle l'accepte (`effort_applique`) ; la sortie
     maximale et le délai grandissent alors avec lui.
+    A5 : images = [{mime, b64}] (images_valides) ; refusées avant tout envoi si CE modèle ne les lit pas (vision).
     """
     mod = (modele or modele_sain(moteur)).strip()
     if not mod:
         raise RuntimeError(f"aucun modèle pour « {moteur} »")
     if ressemble_a_une_cle(mod):
         raise RuntimeError(f"le modèle demandé pour « {moteur} » ressemble à une clé d'API, pas à un nom de modèle")
+    ims = images_valides(images)
+    if ims and not vision(moteur, mod):
+        raise RuntimeError(f"le modèle {mod} ne lit pas les images")
     if json:
         systeme = f"{systeme}\n\n{CONSIGNE_JSON}" if systeme else CONSIGNE_JSON
     eff = effort_applique(moteur, mod, effort) if effort is not None else ""
     if eff:
         max_tokens = sortie_max(max_tokens, eff)
         timeout = min(600.0, timeout * _FACTEUR_SORTIE[eff]) if eff in _FACTEUR_SORTIE else timeout
-    txt = _appeler(moteur, mod, prompt, systeme, max_tokens, json, timeout, eff)
+    txt = _appeler(moteur, mod, prompt, systeme, max_tokens, json, timeout, eff, ims)
     return extraire_json(txt) if json else txt
 
 
 def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, json: bool, timeout: float,
-             effort: str = "") -> str:
+             effort: str = "", images: list | None = None) -> str:
     if moteur.startswith("fl:"):            # t222 : POST {base}/chat/completions du fournisseur libre
         from app.services import fournisseurs_llm as _FL
         fid = _FL.de_moteur(moteur)
@@ -475,8 +479,10 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
             raise RuntimeError(f"moteur inconnu : {moteur}")
         return _SL.tirer(sid, mod, prompt, systeme, max_tokens, timeout=max(timeout, 180.0))
     if moteur == "anthropic":
+        contenu = ([{"type": "image", "source": {"type": "base64", "media_type": i["mime"], "data": i["b64"]}}
+                    for i in images] + [{"type": "text", "text": prompt}]) if images else prompt
         body = {"model": mod, "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}]}
+                "messages": [{"role": "user", "content": contenu}]}
         if systeme:
             body["system"] = systeme
         if effort:
@@ -492,8 +498,11 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
         return "".join(b.get("text", "") for b in (r.json().get("content") or [])
                        if b.get("type") == "text")
     if moteur == "openai":
+        contenu = ([{"type": "text", "text": prompt}]
+                   + [{"type": "image_url", "image_url": {"url": f"data:{i['mime']};base64,{i['b64']}",
+                                                          "detail": "high"}} for i in images]) if images else prompt
         msgs = ([{"role": "system", "content": systeme}] if systeme else []) \
-            + [{"role": "user", "content": prompt}]
+            + [{"role": "user", "content": contenu}]
         body = {"model": mod, ("max_completion_tokens" if _openai_raisonne(mod) else "max_tokens"): max_tokens,
                 "messages": msgs}
         if json:
@@ -513,7 +522,8 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
     if moteur == "gemini":
         from app.services.gemini_llm import _headers
         from app.services.google_video import GOOGLE_API_BASE
-        body = {"contents": [{"parts": [{"text": prompt}]}],
+        parts = [{"inlineData": {"mimeType": i["mime"], "data": i["b64"]}} for i in (images or [])]             + [{"text": prompt}]
+        body = {"contents": [{"parts": parts}],
                 "generationConfig": {"maxOutputTokens": max_tokens}}
         if json:
             body["generationConfig"]["responseMimeType"] = "application/json"
@@ -531,6 +541,8 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
         return "".join(p.get("text", "") for p in parts)
     if moteur == "ollama":
         body = {"model": mod, "prompt": prompt, "system": systeme, "stream": False}
+        if images:
+            body["images"] = [i["b64"] for i in images]
         if json:
             body["format"] = "json"
         if effort:
@@ -545,18 +557,25 @@ def _appeler(moteur: str, mod: str, prompt: str, systeme: str, max_tokens: int, 
 
 async def tirer_garde(moteur: str, modele: str, prompt: str, systeme: str, max_tokens: int = 4000,
                       json: bool = False, *, categorie: str = "motion", ref: str | None = None,
-                      timeout: float = 90.0, effort=None):
+                      timeout: float = 90.0, effort=None, images=None):
     """`tirer` sous les gardes d'une route payante, pour un appelant hors Vectorlab (t234) : moteur connu et configuré,
     puis l'estimation et `plafonds.verifier` AVANT l'appel (402 `dz_plafond` si le mois déborderait ; un local est
     gratuit et passe). L'appel lui-même tourne hors de la boucle (il est bloquant). t239 : l'estimation suit l'effort
-    réellement appliqué au modèle réellement choisi."""
+    réellement appliqué au modèle réellement choisi.
+    A5 : les images sont vérifiées et refusées AVANT la garde (un moteur aveugle ne déclenche jamais de 402)."""
     import asyncio
     from app.services import plafonds as _PLAF
     if not connu(moteur):
         raise RuntimeError(f"moteur inconnu : {moteur}")
     if not configure(moteur):
         raise RuntimeError(f"moteur « {nom(moteur)} » non configuré (Réglages)")
-    await _PLAF.verifier(estimer(moteur, prompt, systeme, max_tokens, effort, modele=modele), categorie, ref)
+    ims = images_valides(images)
+    mod_vu = modele or modele_sain(moteur)
+    if ims and not vision(moteur, mod_vu or None):
+        raise RuntimeError(f"le modèle {mod_vu} ne lit pas les images")
+    await _PLAF.verifier(estimer(moteur, prompt, systeme, max_tokens, effort, modele=modele, images=len(ims)),
+                         categorie, ref)
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
-        None, lambda: tirer(moteur, modele, prompt, systeme, max_tokens, json, timeout=timeout, effort=effort))
+        None, lambda: tirer(moteur, modele, prompt, systeme, max_tokens, json, timeout=timeout, effort=effort,
+                            images=ims))

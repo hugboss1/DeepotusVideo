@@ -63,5 +63,99 @@ def test_estimer_compte_les_images():
     assert avec["out_tok"] == sans["out_tok"] == 100
 
 
+class _Rep:
+    def __init__(self, obj):
+        self.status_code, self._obj, self.text = 200, obj, ""
+
+    def json(self):
+        return self._obj
+
+
+REPONSES = {"anthropic": {"content": [{"type": "text", "text": "ok"}]},
+            "openai": {"choices": [{"message": {"content": "ok"}}]},
+            "gemini": {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]},
+            "ollama": {"response": "ok"}}
+
+
+def _espion(monkeypatch, moteur):
+    vu = []
+
+    def post(url, **kw):
+        vu.append((url, kw.get("json")))
+        return _Rep(REPONSES[moteur])
+    monkeypatch.setattr(MT.httpx, "post", post)
+    from app.services import gemini_llm
+    monkeypatch.setattr(gemini_llm, "_headers", lambda: {})
+    return vu
+
+
+IMG = [{"mime": "image/png", "b64": PNG}]
+
+
+def test_anthropic_image_avant_le_texte(monkeypatch):
+    vu = _espion(monkeypatch, "anthropic")
+    assert MT.tirer("anthropic", "claude-haiku-4-5-20251001", "où ?", "sys", 50, images=IMG) == "ok"
+    c = vu[0][1]["messages"][0]["content"]
+    assert c[0] == {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": PNG}}
+    assert c[-1] == {"type": "text", "text": "où ?"}
+
+
+def test_openai_image_en_url_data(monkeypatch):
+    vu = _espion(monkeypatch, "openai")
+    MT.tirer("openai", "gpt-4o-mini", "où ?", "sys", 50, images=IMG)
+    c = vu[0][1]["messages"][-1]["content"]
+    assert c[0] == {"type": "text", "text": "où ?"}
+    assert c[1]["type"] == "image_url" and c[1]["image_url"]["url"] == f"data:image/png;base64,{PNG}"
+
+
+def test_gemini_image_inline(monkeypatch):
+    vu = _espion(monkeypatch, "gemini")
+    MT.tirer("gemini", "gemini-flash-latest", "où ?", "sys", 50, images=IMG)
+    parts = vu[0][1]["contents"][0]["parts"]
+    assert parts[0] == {"inlineData": {"mimeType": "image/png", "data": PNG}} and parts[-1] == {"text": "où ?"}
+
+
+def test_ollama_images_brutes(monkeypatch):
+    vu = _espion(monkeypatch, "ollama")
+    monkeypatch.setattr(MT, "_show_ollama", lambda mod, timeout=4.0: {"capabilities": ["vision"]})
+    MT.tirer("ollama", "llava", "où ?", "sys", 50, images=IMG)
+    assert vu[0][1]["images"] == [PNG] and vu[0][1]["prompt"] == "où ?"
+
+
+def test_sans_image_rien_ne_change(monkeypatch):
+    vu = _espion(monkeypatch, "anthropic")
+    MT.tirer("anthropic", "claude-haiku-4-5-20251001", "où ?", "sys", 50)
+    assert vu[0][1]["messages"][0]["content"] == "où ?"
+    vu = _espion(monkeypatch, "ollama")
+    MT.tirer("ollama", "llama3", "où ?", "sys", 50)
+    assert "images" not in vu[0][1]
+
+
+def test_modele_aveugle_refuse_sans_requete(monkeypatch):
+    vu = _espion(monkeypatch, "openai")
+    with pytest.raises(RuntimeError):
+        MT.tirer("openai", "gpt-3.5-turbo", "où ?", "sys", 50, images=IMG)
+    with pytest.raises(RuntimeError):
+        MT.tirer("openai", "gpt-4o-mini", "où ?", "sys", 50, images=[{"mime": "image/gif", "b64": PNG}])
+    assert vu == []
+
+
+def test_tirer_garde_chiffre_l_image_et_refuse_avant_le_plafond(monkeypatch):
+    from app.services import plafonds as PLAF
+    vu_ops = []
+
+    async def verifier(op, categorie, ref=None):
+        vu_ops.append(op)
+    monkeypatch.setattr(PLAF, "verifier", verifier)
+    monkeypatch.setattr(MT, "configure", lambda m: True)
+    vu = _espion(monkeypatch, "anthropic")
+    asyncio.run(MT.tirer_garde("anthropic", "claude-haiku-4-5-20251001", "p", "s", 50, categorie="aide", images=IMG))
+    assert vu_ops[0]["in_tok"] >= MT.JETONS_IMAGE and vu
+    vu_ops.clear()
+    with pytest.raises(RuntimeError):
+        asyncio.run(MT.tirer_garde("openai", "gpt-3.5-turbo", "p", "s", 50, categorie="aide", images=IMG))
+    assert vu_ops == []                                           # refusé AVANT la garde : aucun 402 trompeur
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
