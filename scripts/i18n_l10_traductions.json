@@ -9642,5 +9642,13 @@
  "La licence de {depot} a changé depuis l'aperçu ({licence} → {spdx}) : relisez-la avant d'installer.": {
   "fr": "La licence de {depot} a changé depuis l'aperçu ({licence} → {spdx}) : relisez-la avant d'installer.",
   "en": "The licence of {depot} has changed since the preview ({licence} → {spdx}): read it again before installing."
+ },
+ "L'assistant n'est accessible que depuis ce PC.": {
+  "fr": "L'assistant n'est accessible que depuis ce PC.",
+  "en": "The assistant is only available from this PC."
+ },
+ "La question est vide.": {
+  "fr": "La question est vide.",
+  "en": "The question is empty."
  }
 }
