@@ -52,7 +52,8 @@ RE_ICONE = re.compile(r'icone?:"(dz-[a-z0-9-]+)"')
 RE_T_LAB = re.compile(r'(title|titre|"aria-label"|aria-label|tip)\s*[:=]\s*(?:"\$\{\s*)?(?:T|dzT|t|vlT)\("([a-z0-9_.]+)"\)')
 RE_BALISE = re.compile(r"<([A-Za-z][\w-]*)")
 # une ligne de lab qui ouvre un dialogue : son « titre: T(…) » est le titre de la boîte, pas un élément
-RE_DIALOGUE = re.compile(r"saisir\(|confirmer\(|valider:|dialogue", re.I)
+# (« dialogue » couvre aussi ouvrirDialogue( ; coquilleReglage( ouvre les boîtes de réglage du Photolab)
+RE_DIALOGUE = re.compile(r"saisir\(|confirmer\(|valider:|dialogue|coquilleReglage\(", re.I)
 EXCLUS = ("docs", "agent", "catalogue", "_exclus.json")   # faux éléments écartés par le skill connaissance-agent
 RE_LETTRE = re.compile(r"[A-Za-zÀ-ÿ]")
 CHAMPS = {"input", "select", "textarea"}

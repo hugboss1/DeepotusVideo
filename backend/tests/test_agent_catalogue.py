@@ -64,7 +64,8 @@ def _depot(tmp_path, bundle):
                                                  "vectorlab.pixel.remplir_titre": {"fr": "Remplir", "en": "Fill"},
                                                  "vectorlab.pixel.vlt_aide": {"fr": "Aide", "en": "Help"},
                                                  "vectorlab.pixel.boite_titre": {"fr": "Boîte", "en": "Box"}}))
-    _ecrire(i18n / "photolab.json", json.dumps({"photolab.outil.pinceau": {"fr": "Pinceau", "en": "Brush"}}))
+    _ecrire(i18n / "photolab.json", json.dumps({"photolab.outil.pinceau": {"fr": "Pinceau", "en": "Brush"},
+                                                "photolab.masquer.titre": {"fr": "Masquer", "en": "Mask"}}))
     _ecrire(i18n / "avatar.json", json.dumps({"avatar.direct.lancer": {"fr": "Lancer le direct", "en": "Start live"}}))
     _ecrire(tmp_path / "frontend" / "dist" / "assets" / "index-TEST.js", bundle)
     _ecrire(tmp_path / "frontend" / "vectorlab" / "js" / "core.js", 'b.title = T("vectorlab.core.grille_titre");\n'
@@ -78,6 +79,8 @@ def _depot(tmp_path, bundle):
         '});']))
     _ecrire(tmp_path / "frontend" / "vectorlab" / "index.html", "<html></html>")
     _ecrire(tmp_path / "frontend" / "photolab" / "index.html", "<html></html>")
+    _ecrire(tmp_path / "frontend" / "photolab" / "js" / "mod-masquer.js",
+            'const coq = coquilleReglage(PL, {' + chr(10) + '  titre: T("photolab.masquer.titre"), classe: "pl-masquer",' + chr(10) + '});')
     _ecrire(tmp_path / "frontend" / "avatar" / "avatar.js",
             'el("button", { type: "button", title: T("avatar.direct.lancer"), onclick: go });')
     _ecrire(tmp_path / "frontend" / "vectorlab" / "aide" / "index.json", json.dumps(
@@ -269,3 +272,7 @@ def test_gabarits_du_vectorlab(depot):
 
 def test_dialogue_sur_deux_lignes(depot):
     assert "vectorlab.pixel.boite_titre" not in S.extraire(depot)    # ouvrirDialogue(PL, { puis titre: T(…)
+
+
+def test_dialogue_coquille_reglage(depot):
+    assert "photolab.masquer.titre" not in S.extraire(depot)         # coquilleReglage(PL, { puis titre: T(…)
