@@ -101,3 +101,47 @@ def ecrire(dossier, fiches: dict) -> None:
             f.unlink()
     for ecran, liste in groupes.items():
         (dossier / f"{ecran}.json").write_text(texte_fichier(ecran, liste), encoding="utf-8", newline="\n")
+
+
+def calculer(racine: pathlib.Path) -> tuple[pathlib.Path, dict, dict]:
+    dossier = racine / "docs" / "agent" / "catalogue"
+    existants = charger(dossier) if dossier.is_dir() else {}
+    return dossier, existants, fusionner(existants, S.extraire(racine))
+
+
+def couverture(dossier: pathlib.Path) -> list:
+    f = dossier / "_couverture.json"
+    return json.loads(f.read_text(encoding="utf-8")).get("ecrans", []) if f.exists() else []
+
+
+def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    racine = pathlib.Path(argv[argv.index("--racine") + 1]) if "--racine" in argv else RACINE
+    dossier, existants, fiches = calculer(racine)
+    if "--check" in argv:
+        attendu = {e: texte_fichier(e, l) for e, l in par_ecran(fiches).items()}
+        present = {f.stem: f.read_text(encoding="utf-8") for f in dossier.glob("*.json")
+                   if not f.name.startswith("_")} if dossier.is_dir() else {}
+        if attendu != present:
+            print("catalogue PAS à jour : lance python scripts/agent/catalogue.py puis le skill connaissance-agent")
+            return 1
+        couverts = set(couverture(dossier))
+        reste = sorted(f["id"] for f in fiches.values() if f.get("ecran") in couverts and f["etat"] != "redige")
+        if reste:
+            print(f"{len(reste)} fiche(s) à rédiger sur des écrans couverts : {', '.join(reste[:20])}")
+            return 1
+        print(f"catalogue à jour : {len(fiches)} fiches")
+        return 0
+    if "--rapport" in argv:
+        for ecran, liste in sorted(par_ecran(fiches).items()):
+            n = {e: sum(1 for f in liste if f["etat"] == e) for e in ETATS}
+            print(f"{ecran:12} " + "  ".join(f"{e}={n[e]}" for e in ETATS))
+        return 0
+    ecrire(dossier, fiches)
+    print(f"{len(fiches)} fiches écrites dans {dossier}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.exit(main())

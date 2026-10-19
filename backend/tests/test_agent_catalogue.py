@@ -323,3 +323,25 @@ def test_ecriture_stable(tmp_path):
     assert C.charger(tmp_path) == fiches
     C.ecrire(tmp_path, fiches)
     assert (tmp_path / "montage.json").read_text(encoding="utf-8") == txt
+
+
+def test_check(depot):
+    d = depot / "docs" / "agent" / "catalogue"
+    assert C.main(["--racine", str(depot)]) == 0
+    _ecrire(d / "_couverture.json", '{"ecrans": []}')
+    assert C.main(["--racine", str(depot), "--check"]) == 0
+    i18n = depot / "frontend" / "shared" / "i18n" / "montage.json"
+    i18n.write_text(i18n.read_text(encoding="utf-8").replace("couper le clip", "scinder le clip"), encoding="utf-8")
+    assert C.main(["--racine", str(depot), "--check"]) == 1                 # pas à jour : il faut relancer
+    assert C.main(["--racine", str(depot)]) == 0
+    assert C.main(["--racine", str(depot), "--check"]) == 0
+    assert (d / "_couverture.json").exists()                                # l'écriture ne supprime pas les `_*.json`
+    _ecrire(d / "_couverture.json", '{"ecrans": ["montage"]}')
+    assert C.main(["--racine", str(depot), "--check"]) == 1                 # écran couvert avec du « extrait »
+
+
+def test_rapport(depot, capsys):
+    C.main(["--racine", str(depot)])
+    assert C.main(["--racine", str(depot), "--rapport"]) == 0
+    sortie = capsys.readouterr().out
+    assert "montage" in sortie and "extrait" in sortie
