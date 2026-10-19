@@ -121,5 +121,33 @@ def test_textes_aplatis(faux, monkeypatch):
     assert "\n" not in actions[0]["fr"]
 
 
+def test_visibles_bornes():
+    v = A._visibles([{"t": "x" * 200, "i": "a‮b"}, "pas un objet", {"t": 3}, {"t": "", "i": ""}]
+                    + [{"t": f"b{n}", "i": ""} for n in range(200)])
+    assert v[0] == {"t": "x" * 80, "i": "ab"} and len(v) == A.MAX_VISIBLES
+    assert A._visibles(None) == [] and A._visibles("x") == []
+
+
+def test_rapprocher(faux):
+    r = A.rapprocher([{"t": "lame · Alt+C", "i": ""}, {"t": "", "i": "Create"}, {"t": "Truc", "i": "inconnu"}], "fr")
+    assert [x["id"] for x in r["reconnus"]] == ["montage.lame", "vectorlab.creer"]
+    assert r["inconnus"] == [{"t": "Truc", "i": "inconnu"}]
+
+
+def test_demander_avec_visibles(faux, monkeypatch):
+    vu = {}
+
+    async def faux_tirer(moteur, modele, prompt, systeme, max_tokens=4000, json=False, **kw):
+        vu["systeme"] = systeme
+        return "ok"
+
+    monkeypatch.setattr(A, "choisir_moteur", lambda d="": "anthropic")
+    monkeypatch.setattr(MT, "tirer_garde", faux_tirer)
+    monkeypatch.setattr(A, "_espace", lambda: "")
+    asyncio.run(A.demander({"question": "à quoi sert ce bouton ?", "ecran": "montage", "lang": "fr",
+                            "visibles": [{"t": "lame · Alt+C", "i": ""}, {"t": "Zorg", "i": ""}]}))
+    assert "## À l'écran maintenant" in vu["systeme"] and "« Zorg » — non documenté" in vu["systeme"]
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

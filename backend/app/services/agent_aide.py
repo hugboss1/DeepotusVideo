@@ -196,10 +196,62 @@ def chercher(question, ecran: str = "", visibles=(), n: int = MAX_PERTINENTS) ->
     return [fiches[i] for _, i in sorted(res)[:n]]
 
 
+MAX_VISIBLES = 120
+MAX_TEXTE_VISIBLE = 80
+MAX_RECONNUS = 40
+MAX_INCONNUS = 30
+
+
+def _visibles(v) -> list:
+    """Le relevé de l'écran envoyé par le tiroir, borné et nettoyé ; une entrée illisible est ignorée (pas d'erreur :
+    le relevé n'est qu'un contexte)."""
+    if not isinstance(v, list):
+        return []
+    out = []
+    for x in v:
+        if len(out) >= MAX_VISIBLES:
+            break
+        if not isinstance(x, dict):
+            continue
+        t = x.get("t") if isinstance(x.get("t"), str) else ""
+        i = x.get("i") if isinstance(x.get("i"), str) else ""
+        t, i = _ligne(_sans_controle(t), MAX_TEXTE_VISIBLE), _ligne(_sans_controle(i), MAX_TEXTE_VISIBLE)
+        if t or i:
+            out.append({"t": t, "i": i})
+    return out
+
+
+def _cle_texte(t) -> str:
+    t = unicodedata.normalize("NFKD", str(t or "")).encode("ascii", "ignore").decode().lower()
+    return " ".join(t.split())
+
+
 @lru_cache(maxsize=1)
 def _par_texte() -> dict:
-    """Provisoire : rempli à la tâche 9."""
-    return {}
+    """texte normalisé (libellé ou infobulle, FR et EN) → id de fiche (le premier par ordre d'id)."""
+    out = {}
+    for i in sorted(catalogue()):
+        x = catalogue()[i]
+        for champ in ("libelle", "infobulle"):
+            for lang in ("fr", "en"):
+                c = _cle_texte((x.get(champ) or {}).get(lang))
+                if c:
+                    out.setdefault(c, i)
+    return out
+
+
+def rapprocher(visibles: list, lang: str = "fr") -> dict:
+    """{reconnus: [fiches], inconnus: [{t, i}]} — un élément visible est reconnu par son texte, sinon son infobulle."""
+    idx, fiches, rec, inc, vus = _par_texte(), catalogue(), [], [], set()
+    for v in visibles:
+        i = idx.get(_cle_texte(v["t"])) or idx.get(_cle_texte(v["i"]))
+        if i and i not in vus:
+            vus.add(i)
+            if len(rec) < MAX_RECONNUS:
+                rec.append(fiches[i])
+        elif not i and len(inc) < MAX_INCONNUS:
+            inc.append(v)
+    return {"reconnus": rec, "inconnus": inc}
 
 
 # toute balise MAJUSCULE entre crochets, avec ou sans cible : les connues deviennent des actions, les autres sont
@@ -340,7 +392,7 @@ def _preparer(corps, lang: str) -> dict:
     base = _historique(corps.get("historique")) + q
     vue = "\n\n" + CONSIGNE_VUE[lang]
     return {"q": q, "lang": lang, "ecran": ecran, "moteur": choisir_moteur(demande), "image": image,
-            "images": images,
+            "images": images, "visibles": _visibles(corps.get("visibles")),
             "prompt": base + (vue.format(l=image["largeur"], h=image["hauteur"]) if image else ""),
             "devis": base + vue.format(l=VUE_NOMINALE[0], h=VUE_NOMINALE[1])}
 
