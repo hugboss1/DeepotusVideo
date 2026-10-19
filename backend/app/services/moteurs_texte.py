@@ -26,6 +26,7 @@ moteur en a un) et rend l'objet extrait — une DONNÉE, jamais évaluée.
 """
 from __future__ import annotations
 
+import base64
 import json as _json
 import re
 
@@ -319,6 +320,62 @@ def sortie_max(max_tokens: int, applique: str) -> int:
     return max(int(max_tokens), min(PLAFOND_SORTIE, int(round(int(max_tokens) * f))))
 
 
+# ── les images (A5, assistant « Demander », 19/10/2026) ──────────────────────────────────────────────────────────
+# Spec 2026-10-19-agent-aide-design.md § 2 « Vision en secours ». UN appel peut joindre des images (une capture
+# d'écran) ; seuls les modèles qui les lisent en reçoivent. Relevé de la documentation des fournisseurs le 19/10/2026 :
+# tous les Claude 3 et suivants, les GPT-4o / 4.1 / 4.5 / 4-turbo / 5 / 6 et o1 / o3 / o4-mini d'OpenAI (pas les
+# variantes audio, temps réel, recherche, ni o1-mini / o1-preview / o3-mini), tous les Gemini de génération, et les
+# modèles Ollama dont /api/show annonce « vision ». Fournisseurs libres (fl:) et serveurs ajoutés (local:) : aucune API
+# commune pour le dire → non.
+JETONS_IMAGE = 1600            # pire cas par image ≤ 1 280 px (Anthropic ≈ l×h/750 ; OpenAI « high » ≤ 1 105)
+MAX_IMAGES = 4
+MAX_IMAGE_OCTETS = 4_500_000   # image décodée, sous la limite de 5 Mo d'Anthropic
+TYPES_IMAGE = ("image/jpeg", "image/png", "image/webp")
+_OPENAI_VISION = re.compile(r"^(gpt-4o|gpt-4\.1|gpt-4\.5|gpt-4-turbo|gpt-5|gpt-6|o1|o3|o4-mini)(?:$|[.\-])")
+_OPENAI_SANS_VISION = re.compile(r"(audio|realtime|search|transcribe|tts|^o1-mini|^o1-preview|^o3-mini)")
+
+
+def vision(moteur: str, modele: str | None = None) -> bool:
+    """Vrai si CE moteur et CE modèle (sinon celui des Réglages) lisent les images."""
+    brut = (modele or modele_sain(moteur) or "").strip()
+    mod = brut.lower()
+    if not mod or ressemble_a_une_cle(brut):
+        return False
+    if moteur == "anthropic":
+        return mod.startswith("claude-") and not mod.startswith(("claude-2", "claude-instant"))
+    if moteur == "openai":
+        return bool(_OPENAI_VISION.match(mod)) and not _OPENAI_SANS_VISION.search(mod)
+    if moteur == "gemini":
+        return mod.startswith("gemini-") and not any(x in mod for x in ("embedding", "-tts", "aqa"))
+    if moteur == "ollama":
+        caps = _show_ollama(brut).get("capabilities")
+        return isinstance(caps, list) and "vision" in caps
+    return False
+
+
+def images_valides(images) -> list[dict]:
+    """[{mime, b64}] vérifiées : type connu, base64 strict, ni vide ni trop lourde, MAX_IMAGES au plus. Une DONNÉE :
+    rien n'est décodé au-delà de la vérification. RuntimeError sinon (rien n'est envoyé)."""
+    if not images:
+        return []
+    if not isinstance(images, list) or len(images) > MAX_IMAGES:
+        raise RuntimeError(f"au plus {MAX_IMAGES} images par appel")
+    out = []
+    for im in images:
+        mime = im.get("mime") if isinstance(im, dict) else None
+        b64 = im.get("b64") if isinstance(im, dict) else None
+        if mime not in TYPES_IMAGE or not isinstance(b64, str) or not b64:
+            raise RuntimeError("image illisible : type ou contenu manquant")
+        try:
+            brut = base64.b64decode(b64, validate=True)
+        except ValueError:
+            raise RuntimeError("image illisible : base64 invalide") from None
+        if not brut or len(brut) > MAX_IMAGE_OCTETS:
+            raise RuntimeError("image trop lourde (4,5 Mo au plus)")
+        out.append({"mime": mime, "b64": b64})
+    return out
+
+
 # ── l'appel (t232) ────────────────────────────────────────────────────────────────────────────────────────────────
 
 def nature_cout(moteur: str) -> str:
@@ -330,15 +387,16 @@ def nature_cout(moteur: str) -> str:
 
 
 def estimer(moteur: str, prompt: str, systeme: str = "", max_tokens: int = 4000, effort=None, *,
-            modele: str = "") -> dict:
+            modele: str = "", images: int = 0) -> dict:
     """L'op d'estimation d'UN appel, au moteur choisi : ~4 caractères par jeton en entrée, `max_tokens` en sortie (le
     pire cas). `pricing.estimate` la chiffre : 0 pour un local, tarif Anthropic + `a_mesurer` pour un fl.
     t239 : avec un `effort` que le modèle accepte (celui de l'appel, sinon celui des Réglages), la sortie estimée est
-    celle qui sera demandée (`sortie_max`) ; sans effort, ou effort refusé, rien ne change."""
+    celle qui sera demandée (`sortie_max`) ; sans effort, ou effort refusé, rien ne change.
+    A5 : chaque image jointe compte JETONS_IMAGE jetons d'entrée."""
     from app.services import plafonds as _PLAF
     n = len(prompt or "") + len(systeme or "")
     out = sortie_max(int(max_tokens), effort_applique(moteur, modele, effort)) if effort is not None else int(max_tokens)
-    return _PLAF.op_llm(-(-n // 4), out, str(moteur or ""))
+    return _PLAF.op_llm(-(-n // 4) + max(0, int(images or 0)) * JETONS_IMAGE, out, str(moteur or ""))
 
 
 CONSIGNE_JSON = "Réponds UNIQUEMENT par un document JSON valide, sans texte autour."
