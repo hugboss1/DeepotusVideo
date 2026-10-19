@@ -9023,6 +9023,44 @@
      "payant": false
     }
    ]
+  },
+  {
+   "ecran": "Application (tiroir « Demander », F1)",
+   "acces": "Bouton « ? Demander » en bas à droite de chaque écran, ou F1",
+   "fonctions": [
+    {
+     "nom": "Demander à Deepotus",
+     "quoi": "Pose une question sur l'application : réponse en quelques étapes, avec le moteur de texte choisi (gratuit avec Ollama, sinon sous le plafond « aide »).",
+     "comment": "F1 ou « ? Demander » → Moteur → question → Entrée",
+     "depuis": "2026-10-19",
+     "ref": "chantier agent-guide · A0-A4",
+     "payant": true
+    },
+    {
+     "nom": "Montre-moi, Y aller, Guide",
+     "quoi": "Sous une réponse : un curseur lumineux montre le bouton (en changeant d'écran au besoin), ouvre l'écran ou le chapitre du guide.",
+     "comment": "Boutons sous la réponse",
+     "depuis": "2026-10-19",
+     "ref": "chantier agent-guide · A2-A4",
+     "payant": false
+    },
+    {
+     "nom": "Regarder l'écran",
+     "quoi": "Quand aucun bouton connu ne convient, l'assistant propose de voir une capture de l'onglet ; accord et coût d'abord, moteurs qui voient seulement ; le curseur pointe l'endroit trouvé.",
+     "comment": "Regarder l'écran → Capturer et envoyer",
+     "depuis": "2026-10-19",
+     "ref": "chantier agent-guide · A5",
+     "payant": true
+    },
+    {
+     "nom": "Dicter et écouter",
+     "quoi": "Le micro du tiroir dicte la question ; le haut-parleur lit la réponse avec la voix des Réglages (Voicebox gratuit, ElevenLabs sous le plafond « aide »).",
+     "comment": "Micro à côté d'Envoyer ; haut-parleur sous la réponse",
+     "depuis": "2026-10-19",
+     "ref": "chantier agent-guide · A6",
+     "payant": true
+    }
+   ]
   }
  ]
 }

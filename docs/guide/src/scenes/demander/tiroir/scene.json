@@ -1,0 +1,136 @@
+{
+  "titre": {
+    "fr": "F1 → question → réponse en étapes",
+    "en": "F1 → question → step-by-step answer"
+  },
+  "legende": {
+    "fr": "Le tiroir s'ouvre avec F1 ; la réponse tient en quelques étapes, avec ses boutons.",
+    "en": "The drawer opens with F1; the answer fits in a few steps, with its buttons."
+  },
+  "captures": [
+    {
+      "fr": "ouvert.fr.webp",
+      "en": "ouvert.en.webp"
+    },
+    {
+      "fr": "question.fr.webp",
+      "en": "question.en.webp"
+    },
+    {
+      "fr": "reponse.fr.webp",
+      "en": "reponse.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "surligne": [
+        1034,
+        0,
+        406,
+        900
+      ],
+      "bulle": {
+        "fr": "F1 ouvre le tiroir",
+        "en": "F1 opens the drawer"
+      },
+      "ancre": [
+        1145,
+        37
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2,
+      "curseur": [
+        1187,
+        864
+      ],
+      "surligne": [
+        1049,
+        831,
+        275,
+        65
+      ]
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1059,
+        179,
+        363,
+        77
+      ],
+      "bulle": {
+        "fr": "Montre-moi, Guide",
+        "en": "Show me, Guide"
+      },
+      "ancre": [
+        1241,
+        250
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "surligne": [
+        1034,
+        0,
+        406,
+        900
+      ],
+      "bulle": {
+        "fr": "F1 ouvre le tiroir",
+        "en": "F1 opens the drawer"
+      },
+      "ancre": [
+        1152,
+        37
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2,
+      "curseur": [
+        1195,
+        864
+      ],
+      "surligne": [
+        1049,
+        831,
+        292,
+        65
+      ]
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1059,
+        179,
+        363,
+        77
+      ],
+      "bulle": {
+        "fr": "Montre-moi, Guide",
+        "en": "Show me, Guide"
+      },
+      "ancre": [
+        1241,
+        250
+      ]
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

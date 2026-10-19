@@ -31,6 +31,7 @@ PAYANTES = {
     ("routes", "POST", "/espaces/{espace_id}/onboarding/vignettes"),   # t205 : vignettes d'ambiance (FLUX)
     ("routes", "POST", "/espaces/{espace_id}/onboarding/synthese"),    # t205 : synthèse du persona par LLM (sur demande)
     ("routes", "POST", "/espaces/{espace_id}/contenus/generer"),       # t207 : contenus de départ par LLM (sur demande)
+    ("agent", "POST", "/lire"),   # A6 (19/10/2026) : la réponse de l'assistant lue à voix haute (garde « aide »)
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
     ("photolab", "POST", "/calque/detourer"),    # t191 : « Retirer le fond du calque » (détourage, non destructif)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer
@@ -131,6 +132,9 @@ anciens["avatar_live"] = _av.replace("_PLAF.verifier(", "_sans_garde(") if "_PLA
 # t191 : les routes payantes du Photolab n'existaient pas en bfec23e — même témoin : le source actuel privé de sa garde
 _pl = (RP.MODULES["photolab"]).read_text(encoding="utf-8")
 anciens["photolab"] = _pl.replace("_plafond(", "_sans_garde(") if "_plafond(" in _pl else None
+# A6 : la route de lecture de l'assistant n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
+_ag = (RP.MODULES["agent"]).read_text(encoding="utf-8")
+anciens["agent"] = _ag.replace("_PLAF.verifier(", "_sans_garde(") if "_PLAF.verifier(" in _ag else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

@@ -1,0 +1,100 @@
+{
+  "titre": {
+    "fr": "Regarder l'écran → accord → pointage",
+    "en": "Look at the screen → consent → pointing"
+  },
+  "legende": {
+    "fr": "Le coût s'affiche avant toute capture ; le partage de l'onglet est demandé par le navigateur (non filmé).",
+    "en": "The cost shows before any capture; the browser asks to share the tab (not filmed)."
+  },
+  "captures": [
+    {
+      "fr": "voir.fr.webp",
+      "en": "voir.en.webp"
+    },
+    {
+      "fr": "accord.fr.webp",
+      "en": "accord.en.webp"
+    },
+    {
+      "fr": "pointe.fr.webp",
+      "en": "pointe.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "surligne": [
+        1059,
+        159,
+        125,
+        42
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        1049,
+        242,
+        383,
+        122
+      ],
+      "bulle": {
+        "fr": "Coût affiché avant",
+        "en": "Cost shown first"
+      },
+      "ancre": [
+        1241,
+        358
+      ]
+    },
+    {
+      "capture": 2,
+      "duree": 2.6
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "surligne": [
+        1059,
+        159,
+        137,
+        42
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        1049,
+        242,
+        383,
+        122
+      ],
+      "bulle": {
+        "fr": "Coût affiché avant",
+        "en": "Cost shown first"
+      },
+      "ancre": [
+        1241,
+        358
+      ]
+    },
+    {
+      "capture": 2,
+      "duree": 2.6
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

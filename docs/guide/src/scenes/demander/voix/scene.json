@@ -1,0 +1,116 @@
+{
+  "titre": {
+    "fr": "Dicter, puis écouter la réponse",
+    "en": "Dictate, then listen to the answer"
+  },
+  "legende": {
+    "fr": "Le micro remplit la saisie ; le haut-parleur lit la réponse avec la voix des Réglages.",
+    "en": "The mic fills the input; the speaker reads the answer with the voice from Settings."
+  },
+  "captures": [
+    {
+      "fr": "voix.fr.webp",
+      "en": "voix.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1340,
+        864
+      ],
+      "surligne": [
+        1318,
+        831,
+        43,
+        65
+      ],
+      "bulle": {
+        "fr": "Dicter",
+        "en": "Dictate"
+      },
+      "ancre": [
+        1340,
+        890
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1368,
+        235
+      ],
+      "surligne": [
+        1347,
+        214,
+        43,
+        42
+      ],
+      "bulle": {
+        "fr": "Lire à voix haute",
+        "en": "Read aloud"
+      },
+      "ancre": [
+        1368,
+        250
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1357,
+        864
+      ],
+      "surligne": [
+        1335,
+        831,
+        43,
+        65
+      ],
+      "bulle": {
+        "fr": "Dicter",
+        "en": "Dictate"
+      },
+      "ancre": [
+        1357,
+        890
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1343,
+        235
+      ],
+      "surligne": [
+        1321,
+        214,
+        43,
+        42
+      ],
+      "bulle": {
+        "fr": "Lire à voix haute",
+        "en": "Read aloud"
+      },
+      "ancre": [
+        1343,
+        250
+      ]
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
