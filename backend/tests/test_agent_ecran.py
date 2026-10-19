@@ -24,7 +24,7 @@ def test_dictionnaire_assemble():
         assert f'"{k}"' in dico, k
 
 
-FICHIERS = ["dz-agent.js", "dz-agent-logique.js", "dz-agent-pointeur.js"]
+FICHIERS = ["dz-agent.js", "dz-agent-logique.js", "dz-agent-pointeur.js", "dz-agent-vision.js"]
 BALISE_SPA = '<script type="module" src="/shared/dz-agent.js"></script>'
 
 
@@ -101,6 +101,16 @@ def test_tiroir_exclu_des_candidats():
     src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
     assert "!tiroir.contains(" in src, "le tiroir ne se vise pas lui-même"
     assert "!bouton.contains(" in src, "ni le bouton « Demander »"
+
+
+def test_capture_de_l_onglet():
+    src = (SHARED / "dz-agent-vision.js").read_text(encoding="utf-8")
+    assert "getDisplayMedia(" in src and "preferCurrentTab: true" in src
+    assert 'displaySurface !== "browser"' in src and "memeOnglet(" in src, "seul CET onglet est accepté"
+    assert "reduire(" in src and 'toDataURL("image/jpeg", 0.8)' in src
+    assert src.count(".stop()") >= 1 and "finally" in src, "les pistes sont coupées quoi qu'il arrive"
+    assert "avant()" in src and "apres()" in src, "le tiroir est masqué pendant la prise"
+    assert "window.isSecureContext" in src
 
 
 if __name__ == "__main__":
