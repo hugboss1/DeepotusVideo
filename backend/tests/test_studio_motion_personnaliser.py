@@ -311,7 +311,8 @@ check("C1 « Chorégraphier » envoie le corps complet (champs, précisions, cur
 
 print("[D] comptes du maillon")
 check("D1 route de personnalisation lue ; efforts des modèles retenus", '"/api/motion/personnalisation"' in BUNDLE and "dzMoCache.effs[" in BUNDLE)
-check("D2 hooks : toujours DEUX appels dzMoUS, TROIS dzMoUE ; x.useState( 731", BUNDLE.count("dzMoUS(") == 2
+check("D2 hooks : dzMoUS 3 (t238 : + l'état de DzMotionCode ; rien de neuf pour Personnaliser), TROIS dzMoUE ; "
+      "x.useState( 731", BUNDLE.count("dzMoUS(") == 3
       and BUNDLE.count("dzMoUE(") == 3 and BUNDLE.count("x.useState(") == 731)
 
 print("[K] textes")

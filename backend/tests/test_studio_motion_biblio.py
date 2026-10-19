@@ -336,14 +336,17 @@ check("D1 sans la famille t236 = le bundle de 52efd328 octet pour octet (défair
       base is not None and MB is not None and MB.appliquer(avant).encode("utf-8") == crlf(base))
 check("D2 inverse : avant_dzmotion(livré) = défaire ; aller-retour exact",
       AIDE.avant_dzmotion(BUNDLE) == avant and M.appliquer(avant) == BUNDLE)
-check("D3 paires des ports, de la palette, de l'encart et de l'Animation (M0-M4, M6, M7) identiques à 52efd328 : ancrage inchangé",
-      MB is not None and len(M.PAIRES) == len(MB.PAIRES) == 8
-      and all(M.PAIRES[i] == MB.PAIRES[i] for i in (0, 1, 2, 3, 4, 6, 7)))
+# t238 (19/10) : la famille C (nœud MotionCode) élargit M1-M5 et ajoute M8-M10 ; les ANCRES de M0-M7 ne bougent pas.
+check("D3 ancres M0-M7 identiques à 52efd328, paires M0 / M6 / M7 identiques : ancrage inchangé (t238 : + M8-M10)",
+      MB is not None and len(MB.PAIRES) == 8 and len(M.PAIRES) == 11
+      and all(M.PAIRES[i][0] == MB.PAIRES[i][0] for i in range(8))
+      and all(M.PAIRES[i] == MB.PAIRES[i] for i in (0, 6, 7)))
 check("D4 M5 = celui de 52efd328 + le magasin dzMoBib + BIBLIO devant DzMotionDirection + l'appel dans l'inspecteur",
       MB is not None and bool(BIBS) and M.FONCTIONS.replace("dzMoBib={},", "", 1).replace(BIBS, "", 1)
       .replace("dzMotionBiblio(e,o,P,f),", "", 1) == MB.FONCTIONS)
-check("D5 hooks : dzMoUS 2 (= HOOKS, aucun neuf : la saisie vit dans dzMoBib), dzMoUE 3 ; x.useState( 731",
-      BUNDLE.count("dzMoUS(") == 2 == M.HOOKS and BUNDLE.count("dzMoUE(") == 3 and BUNDLE.count("x.useState(") == 731
+check("D5 hooks : dzMoUS 3 (= HOOKS ; t236 aucun neuf : la saisie vit dans dzMoBib ; t238 : l'état de DzMotionCode), "
+      "dzMoUE 3 ; x.useState( 731",
+      BUNDLE.count("dzMoUS(") == 3 == M.HOOKS and BUNDLE.count("dzMoUE(") == 3 and BUNDLE.count("x.useState(") == 731
       and bool(BIBS) and "dzMoUS(" not in BIBS and "useState" not in BIBS)
 hors_b = base.decode("utf-8").count("await window.__dzDialogue.confirmer(") if base else -1
 check("D6 confirmations 24 → 25 : la seule neuve est la suppression du bandeau",

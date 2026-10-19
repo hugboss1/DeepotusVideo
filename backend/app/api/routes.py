@@ -618,7 +618,7 @@ async def get_job_graph(job_id: str):
         raise HTTPException(500, "Graph unreadable")
 
 
-async def _resolve_base_to_path(src):
+async def _resolve_base_to_path(src, langue: str = "fr"):
     """Resolve the Animation node's `base` source to an absolute clip path.
 
     Accepts None, an absolute/relative path string, or a slot-source dict
@@ -627,6 +627,20 @@ async def _resolve_base_to_path(src):
     (None -> the compositor falls back to a solid canvas)."""
     if not src:
         return None
+    if isinstance(src, dict) and src.get("source_kind") == "motion_code":
+        # t238 : la page d'un nœud « Rendu motion code », rendue dans le bac à sable (app.services.motion_code) au
+        # format, à la cadence et à la durée de l'Animation. La page est adressée par son contenu : même page, mêmes
+        # réglages → le même fichier, rendu une seule fois. Un refus ou un arrêt du bac à sable remonte (job en échec).
+        from app.services import motion_code as MC
+        aspect, _w, _h, fps, duree = MC.bornes(src.get("aspect"), src.get("fps"), src.get("duree_s"))
+        MC.lire(src.get("page_id"))
+        out = settings.outputs_path / f"mcode_base_{src['page_id'][3:]}_{aspect.replace(':', 'x')}_{fps}_{duree:g}.mp4"
+        if not out.is_file():
+            tmp = out.with_suffix(".part.mp4")
+            await asyncio.to_thread(MC.rendre, src["page_id"], tmp, aspect=aspect, fps=fps, duree_s=duree,
+                                    langue=langue)
+            tmp.replace(out)
+        return out
     from app.services.storage import JobRecord, async_session_factory
     if isinstance(src, str):
         p = Path(src)
@@ -660,7 +674,7 @@ async def _resolve_base_to_path(src):
 
 
 @router.post("/animate")
-async def animate(body: dict, background_tasks: BackgroundTasks):
+async def animate(body: dict, background_tasks: BackgroundTasks, request: Request):
     """Render the Animation node: composite animated elements over a base clip.
 
     Mirrors the layout-render flow — mint a job id, save the Studio source graph
@@ -672,6 +686,8 @@ async def animate(body: dict, background_tasks: BackgroundTasks):
     from app.services.storage import JobRecord, async_session_factory
     from app.services.animation_service import render_animation
 
+    from app.i18n import langue_requete
+    langue = langue_requete(request)
     job_id = str(uuid4())
     short = job_id[:8]
     aspect = str(body.get("aspect") or "9:16")
@@ -698,7 +714,7 @@ async def animate(body: dict, background_tasks: BackgroundTasks):
 
     async def _run():
         try:
-            base = await _resolve_base_to_path(body.get("base"))
+            base = await _resolve_base_to_path(body.get("base"), langue)
             payload = {**body, "base": (str(base) if base else None), "aspect": aspect}
             out = await asyncio.to_thread(render_animation, payload, short)
             dur = await asyncio.to_thread(_probe_seconds, str(out)) or float(body.get("duration_s") or 0)

@@ -57,8 +57,10 @@ BUN_AV = AIDE.avant_i18n(BUN)
 _AVATAR = {"Recast", "VoixVoix"}
 # t235 (17/10/2026) : 36 -> 37 types (MotionDirection, « Direction motion ») ; posé par le maillon de queue dzmotion APRÈS la
 # traduction, titré d'emblée par dzT("studio.motion.titre")
-_MOTION = {"MotionDirection"}
-check("A1 37 types, chacun present au registre du bundle avec sa categorie et son titre", doc["count"] == 37 == len(T)
+# t238 (19/10/2026) : 37 -> 38 types (MotionCode, « Rendu motion code »), même maillon de queue dzmotion, titré par
+# dzT("studio.motion.code_titre")
+_MOTION = {"MotionDirection", "MotionCode"}
+check("A1 38 types, chacun present au registre du bundle avec sa categorie et son titre", doc["count"] == 38 == len(T)
       and all(f'{n}:{{cat:"{d["cat"]}",title:"{d["title"]}"' in BUN_AV for n, d in T.items() if n not in _AVATAR | _MOTION)
       and all(f'{n}:{{cat:"{d["cat"]}",title:dzT("avatar.noeud.' in BUN for n, d in T.items() if n in _AVATAR)
       and all(f'{n}:{{cat:"{d["cat"]}",title:dzT("studio.motion.' in BUN for n, d in T.items() if n in _MOTION)
@@ -70,7 +72,7 @@ check("A2 les ports sont ceux du bundle (Seedance image/end/prompt -> out ; Rend
       and T.get("Image", {}).get("in") == [] and T.get("Image", {}).get("out") == ["out"] and T.get("Render", {}).get("out") == [])
 r = subprocess.run([sys.executable, str(RACINE / "scripts" / "qa" / "dump_studio_registry.py"), "--check"], capture_output=True,
                    text=True, encoding="utf-8", errors="replace", cwd=str(RACINE))   # t142 : stderr du script en cp1252
-check("A3 DERIVE : le miroir suit le bundle livre (dump --check)", r.returncode == 0 and "a jour (37 types)" in (r.stdout or ""),
+check("A3 DERIVE : le miroir suit le bundle livre (dump --check)", r.returncode == 0 and "a jour (38 types)" in (r.stdout or ""),
       (r.stdout or "") + (r.stderr or ""))
 import importlib.util, io, contextlib                               # noqa: E402
 _sp = importlib.util.spec_from_file_location("dz_dump", RACINE / "scripts" / "qa" / "dump_studio_registry.py")
@@ -123,7 +125,7 @@ if SG:
     check("V2 le graphe rendu n'a PAS d'id (il s'ouvre non enregistre) et garde son nom", "id" not in g and g["name"] == "essai")
     m = sain(); m["nodes"][1]["type"] = "SoraDeluxe"
     e = refus(m)
-    check("V3 type inconnu : REFUS qui nomme le type, le noeud et le nombre de types connus", bool(e) and "SoraDeluxe" in e and "sd" in e and "37" in e, str(e))
+    check("V3 type inconnu : REFUS qui nomme le type, le noeud et le nombre de types connus", bool(e) and "SoraDeluxe" in e and "sd" in e and "38" in e, str(e))
     m = sain(); m["nodes"][2]["id"] = "im"
     e = refus(m)
     check("V4 identifiant en double : refus qui le nomme", bool(e) and "double" in e and "im" in e, str(e))

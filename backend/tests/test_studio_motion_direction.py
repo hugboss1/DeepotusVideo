@@ -56,7 +56,8 @@ check("A2 Animation : entrées base, direction, script ; propriété script",
 check("A3 nœud MotionDirection : catégorie motion, titre dzT, sortie direction",
       'MotionDirection:{cat:"motion",title:dzT("studio.motion.titre"),desc:dzT("studio.motion.desc"),inPorts:[],'
       'outPorts:[{id:"direction",type:"direction"}],' in BUNDLE)
-check("A4 palette : Direction motion rangée dans Animations", '{cat:"motion",types:["Animation","MotionDirection"]}' in BUNDLE)
+check("A4 palette : Direction motion rangée dans Animations (t238 : puis Rendu motion code)",
+      '{cat:"motion",types:["Animation","MotionDirection","MotionCode"]}' in BUNDLE)
 check("A5 encart et inspecteur", 'n==="MotionDirection"?dzMotionEncart(o):n==="Animation"?' in BUNDLE
       and 'e.type==="MotionDirection"?r.jsx(DzMotionDirection,{node:e,graph:g,set:o}):e.type==="Animation"?' in BUNDLE)
 check("A6 Chorégraphier appelle t234 en POST JSON", 'fetch("/api/motion/choregraphier",{method:"POST"' in BUNDLE)
@@ -411,8 +412,8 @@ if M:
         check("D7 avant_dzstudio(livré) == avant_dzstudio(avant) == dzstudio défait de l'avant",
               AIDE.avant_dzstudio(BUNDLE) == AIDE.avant_dzstudio(avant) == MS.defaire(avant))
     check("D8 x.useState( reste à 731 (sondé par une cinquantaine de bancs) ; les hooks du maillon passent par l'alias dzMoUS : "
-          "DEUX appels (l'état de rafraîchissement de DzMotionDirection, le bilan de DzAnimation)",
-          BUNDLE.count("x.useState(") == 731 and BUNDLE.count("dzMoUS(") == 2 == M.HOOKS and "var dzMoUS=x.useState," in BUNDLE
+          "TROIS appels (l'état de rafraîchissement de DzMotionDirection, le bilan de DzAnimation ; t238 : l'état de DzMotionCode)",
+          BUNDLE.count("x.useState(") == 731 and BUNDLE.count("dzMoUS(") == 3 == M.HOOKS and "var dzMoUS=x.useState," in BUNDLE
           and BUNDLE.count("dzMoUE(") == 3)
     check("D9 v2.8.0 ×4, DzTracks 181", BUNDLE.count("v2.8.0") == 4 and BUNDLE.count("DzTracks") == 181)
     try:
@@ -467,7 +468,9 @@ if M:
               # (ti/tx/u/au/th/sk/ap/fl, busy = import / lire / installer / suppr), clés React des lignes du bandeau
               "DELETE", "wrap", "biblio", "ti", "tx", "u", "au", "th", "sk", "ap", "fl", "import", "lire", "installer",
               "suppr", "ia", "bt", "bx", "bu", "ba", "bth", "bat", "bap", "bi", "sa", "bs", "bl", "bf", "bli", "bv", "bm",
-              "b", "i", "s", "t"}
+              "b", "i", "s", "t",
+              # t238 (nœud Rendu motion code) : type et propriétés du nœud, port du Rendu, source de base, raison du repli
+              "MotionCode", "durationS", "fps", "pageId", "in", "motion_code", "page_refusee"}
     mots = sorted({s for s in NEUFS if re.fullmatch(r"[A-Za-z_]+", s)} - JETONS)
     check("K3 mots seuls neufs : uniquement des jetons de code connus", not mots, str(mots))
     dico = {}
@@ -492,8 +495,8 @@ if M:
 print("[R] miroir du registre des nœuds")
 MIR = json.loads((RACINE / "backend" / "app" / "assets" / "studio_nodes.json").read_bytes().decode("utf-8"))
 T = MIR.get("types", {})
-check("R1 37 types ; MotionDirection (motion, « Motion direction », sortie direction de type direction, aucune entrée)",
-      MIR.get("count") == 37 == len(T) and (T.get("MotionDirection") or {}).get("cat") == "motion"
+check("R1 38 types (t238 : + MotionCode) ; MotionDirection (motion, « Motion direction », sortie direction, aucune entrée)",
+      MIR.get("count") == 38 == len(T) and (T.get("MotionDirection") or {}).get("cat") == "motion"
       and (T.get("MotionDirection") or {}).get("title") == "Motion direction" and (T.get("MotionDirection") or {}).get("in") == []
       and (T.get("MotionDirection") or {}).get("out_types") == {"direction": "direction"}, str(T.get("MotionDirection")))
 check("R2 Animation : entrées base (av), direction (direction), script (text)", (T.get("Animation") or {}).get("in") == ["base", "direction", "script"]

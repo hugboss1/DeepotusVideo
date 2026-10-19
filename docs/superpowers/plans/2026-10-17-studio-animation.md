@@ -317,9 +317,15 @@ Preuve : l'import puis la sélection modifient la chorégraphie produite (faux m
   - encadré licence : « les prompts restent à leurs créateurs ».
 - Guide FR / EN et PDF reconstruits.
 
-### t238 — Option B « Motion code » (L, À TRANCHER APRÈS t234)
+### t238 — Option B « Motion code » (L) — FAIT (commit local, 19/10)
 
-Ne se lance que si l'utilisateur la confirme, après avoir vu la qualité de A.
+Confirmée par l'utilisateur le 19/10, après la fusion et l'installation du lot A (main 8fbde2ed).
+
+**Livré.** `backend/app/services/motion_code.py` (contrôle statique, enveloppe CSP, horloge virtuelle, Edge sans fenêtre
+par CDP, repli écrit par nous), routes `POST /api/motion/code/ecrire`, `GET /api/motion/code/{id}` (texte dans du JSON),
+`POST /api/motion/code/rendre` (job), base `{source_kind:"motion_code"}` de `/api/animate` ; nœud `MotionCode` (famille C
+du maillon dzmotion : M1-M5 élargis, M8-M10 neufs ; dzMoUS 2 → 3) ; 18 clés `studio.motion.code_*` FR + EN. Bancs
+`test_motion_code.py` et `test_studio_motion_code.py`.
 
 **Nœud « Rendu motion code ».** Le moteur écrit une page HTML / SVG / Canvas (durée, fps, taille imposées). Elle est
 rendue en MP4 par Edge sans fenêtre, image par image (CDP, horloge virtuelle).
