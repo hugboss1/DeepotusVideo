@@ -185,5 +185,22 @@ def test_estimer_utilise_le_modele_de_l_appel_ou_celui_des_reglages(monkeypatch)
     assert d["in_tok"] - sans["in_tok"] == 36835
 
 
+def test_show_ollama_retient_un_echec_30_secondes(monkeypatch):
+    """Revue finale : Ollama injoignable ne fait pas attendre 4 s à chaque F1 ; l'échec est retenu 30 s, puis on réessaie."""
+    appels = []
+
+    def post(*a, **k):
+        appels.append(1)
+        raise ConnectionError("hors ligne")
+    monkeypatch.setattr(MT.httpx, "post", post)
+    t = [1000.0]
+    monkeypatch.setattr(MT.time, "monotonic", lambda: t[0])
+    MT._ECHECS_OLLAMA.clear()
+    assert MT._show_ollama("modele-mort") == {} and MT._show_ollama("modele-mort") == {} and len(appels) == 1
+    assert MT.vision("ollama", "modele-mort") is False and len(appels) == 1
+    t[0] += 31
+    assert MT._show_ollama("modele-mort") == {} and len(appels) == 2          # le délai passé, on réessaie
+    MT._ECHECS_OLLAMA.clear()
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

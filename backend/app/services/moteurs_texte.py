@@ -29,6 +29,7 @@ from __future__ import annotations
 import base64
 import json as _json
 import re
+import time
 
 import httpx
 
@@ -191,6 +192,8 @@ _CINQ = ("low", "medium", "high", "xhigh", "max")
 # la sortie maximale demandée (et estimée) grandit avec l'effort : la réflexion se compte dans la sortie
 _FACTEUR_SORTIE = {"minimal": 1.25, "low": 1.5, "medium": 2.0, "high": 3.0, "xhigh": 4.0, "max": 6.0}
 PLAFOND_SORTIE = 32_000
+_ECHECS_OLLAMA: dict = {}                    # {modèle: instant monotone du dernier échec de /api/show} (30 s, A5)
+DELAI_ECHEC_OLLAMA = 30.0
 _CAPS: dict = {}                            # {moteur: {modele: capabilities}} lues chez le fournisseur
 
 _OPENAI_RAISONNEMENT = re.compile(r"^(o1|o3|o3-mini|o4-mini|gpt-5|gpt-6)(?:$|[.\-])")
@@ -259,14 +262,18 @@ def _show_ollama(modele: str, timeout: float = 4.0) -> dict:
     deja = _CAPS.get("ollama", {}).get(modele)
     if deja is not None:
         return deja
+    if time.monotonic() - _ECHECS_OLLAMA.get(modele, -1e9) < DELAI_ECHEC_OLLAMA:
+        return {}                                               # échec récent : pas de nouvelle attente à chaque F1
     try:
         r = httpx.post(f"{settings.OLLAMA_URL.rstrip('/')}/api/show", json={"model": modele}, timeout=timeout,
                        verify=SSL_VERIFY)
         caps = r.json() if r.status_code == 200 else None
     except Exception:                                           # noqa: BLE001
         caps = None
-    if not isinstance(caps, dict):              # injoignable : rien retenu (Ollama peut démarrer plus tard)
+    if not isinstance(caps, dict):              # injoignable : capacités non retenues, l'ÉCHEC l'est 30 s (Ollama peut
+        _ECHECS_OLLAMA[modele] = time.monotonic()   # démarrer plus tard, mais on n'attend pas 4 s à chaque ouverture)
         return {}
+    _ECHECS_OLLAMA.pop(modele, None)
     noter_capacites("ollama", modele, {"thinking": caps.get("thinking"), "capabilities": caps.get("capabilities")})
     return _CAPS["ollama"][modele]
 
