@@ -487,7 +487,7 @@ Une ligne par écran : ce qu'on y fait, le chapitre du guide.
 - **Passer l'interface en anglais / français** : [POINT:reglages.apparence]. [GUIDE:installer]
 - **Mettre à jour l'application** : [POINT:reglages.diagnostic]. [GUIDE:installer]
 - **Utiliser le téléphone** : [POINT:reglages.appareils]. [GUIDE:mobile]
-- **Changer de PC** : [POINT:reglages.transfert]. [GUIDE:transfert]
+- **Changer de PC** : Réglages › Transfert entre machines (l'écran ne l'ouvre pas par section). [GUIDE:transfert]
 - **Raccourcis clavier** : [GUIDE:raccourcis]. **Ça ne marche pas** : [GUIDE:depannage].
 
 ## Pièges fréquents
@@ -939,7 +939,7 @@ def test_route_etat(monkeypatch):
     r = _client().get("/api/agent/etat")
     assert r.status_code == 200
     j = r.json()
-    assert j["moteur"] == "anthropic" and j["ancres"] >= 26 and j["chapitres"] >= 40
+    assert j["moteur"] == "anthropic" and j["ancres"] >= 25 and j["chapitres"] >= 40
 
 
 def test_route_demander(monkeypatch):
@@ -1868,7 +1868,7 @@ Par exemple : « **Première vidéo** : [POINT:rail.quick] → écrire l'idée �
 - [ ] **Étape 4 : lancer les bancs**
 
 Lancer : `& $PY tests/test_agent_connaissance.py` et `& $PY tests/test_agent_aide.py`.
-Attendu : tout vert. `test_route_etat` attend `ancres >= 26` et reste valable.
+Attendu : tout vert. `test_route_etat` attend `ancres >= 25` et reste valable.
 
 - [ ] **Étape 5 : prouver deux ancres à l'écran**
 
