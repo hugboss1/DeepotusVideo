@@ -165,5 +165,25 @@ def test_tirer_garde_chiffre_l_image_et_refuse_avant_le_plafond(monkeypatch):
     assert vu_ops == []                                           # refusé AVANT la garde : aucun 402 trompeur
 
 
+@pytest.mark.parametrize("moteur,modele,attendu", [
+    ("openai", "gpt-4o-mini", 36835), ("openai", "gpt-4o-mini-2024-07-18", 36835),
+    ("openai", "gpt-4.1-mini", 2500), ("openai", "gpt-5-mini", 2500), ("openai", "gpt-5-nano", 2500),
+    ("openai", "o4-mini", 2500),
+    ("openai", "gpt-4o", 1600), ("openai", "gpt-5", 1600), ("anthropic", "claude-opus-5-5", 1600),
+    ("gemini", "gemini-flash-latest", 1600),
+])
+def test_jetons_image_par_modele(moteur, modele, attendu):
+    assert MT.jetons_image(moteur, modele) == attendu
+
+
+def test_estimer_utilise_le_modele_de_l_appel_ou_celui_des_reglages(monkeypatch):
+    sans = MT.estimer("openai", "x" * 400, "", 100, modele="gpt-4o-mini")
+    avec = MT.estimer("openai", "x" * 400, "", 100, modele="gpt-4o-mini", images=1)
+    assert avec["in_tok"] - sans["in_tok"] == 36835
+    monkeypatch.setattr(MT, "modele_sain", lambda m: "gpt-4o-mini")
+    d = MT.estimer("openai", "x" * 400, "", 100, images=1)
+    assert d["in_tok"] - sans["in_tok"] == 36835
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

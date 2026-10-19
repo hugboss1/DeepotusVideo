@@ -328,6 +328,8 @@ def sortie_max(max_tokens: int, applique: str) -> int:
 # modèles Ollama dont /api/show annonce « vision ». Fournisseurs libres (fl:) et serveurs ajoutés (local:) : aucune API
 # commune pour le dire → non.
 JETONS_IMAGE = 1600            # pire cas par image ≤ 1 280 px (Anthropic ≈ l×h/750 ; OpenAI « high » ≤ 1 105)
+JETONS_IMAGE_MINI = 2500       # OpenAI *-mini / *-nano / o4-mini : patchs de 32 px × multiplicateur (A5, revue finale)
+JETONS_IMAGE_4O_MINI = 2833 + 6 * 5667   # gpt-4o-mini : 2 833 de base + 5 667 par tuile, 6 tuiles pour ≤ 1 280 px
 MAX_IMAGES = 4
 MAX_IMAGE_OCTETS = 4_500_000   # image décodée, sous la limite de 5 Mo d'Anthropic
 TYPES_IMAGE = ("image/jpeg", "image/png", "image/webp")
@@ -351,6 +353,19 @@ def vision(moteur: str, modele: str | None = None) -> bool:
         caps = _show_ollama(brut).get("capabilities")
         return isinstance(caps, list) and "vision" in caps
     return False
+
+
+def jetons_image(moteur: str, modele: str | None = None) -> int:
+    """Les jetons d'entrée comptés pour UNE image ≤ 1 280 px (pire cas) chez CE moteur et CE modèle (sinon celui des
+    Réglages). gpt-4o-mini facture une image en detail high bien plus cher que les autres (6 tuiles) ; les *-mini /
+    *-nano / o4-mini d'OpenAI comptent par patchs de 32 px avec un multiplicateur."""
+    if moteur == "openai":
+        mod = (modele or modele_sain(moteur) or "").strip().lower()
+        if mod.startswith("gpt-4o-mini"):
+            return JETONS_IMAGE_4O_MINI
+        if mod.startswith("o4-mini") or re.search(r"-(mini|nano)(?:$|[.\-])", mod):
+            return JETONS_IMAGE_MINI
+    return JETONS_IMAGE
 
 
 def images_valides(images) -> list[dict]:
@@ -394,11 +409,11 @@ def estimer(moteur: str, prompt: str, systeme: str = "", max_tokens: int = 4000,
     pire cas). `pricing.estimate` la chiffre : 0 pour un local, tarif Anthropic + `a_mesurer` pour un fl.
     t239 : avec un `effort` que le modèle accepte (celui de l'appel, sinon celui des Réglages), la sortie estimée est
     celle qui sera demandée (`sortie_max`) ; sans effort, ou effort refusé, rien ne change.
-    A5 : chaque image jointe compte JETONS_IMAGE jetons d'entrée."""
+    A5 : chaque image jointe compte `jetons_image(moteur, modele)` jetons d'entrée (JETONS_IMAGE par défaut)."""
     from app.services import plafonds as _PLAF
     n = len(prompt or "") + len(systeme or "")
     out = sortie_max(int(max_tokens), effort_applique(moteur, modele, effort)) if effort is not None else int(max_tokens)
-    return _PLAF.op_llm(-(-n // 4) + max(0, int(images or 0)) * JETONS_IMAGE, out, str(moteur or ""))
+    return _PLAF.op_llm(-(-n // 4) + max(0, int(images or 0)) * jetons_image(moteur, modele or None), out, str(moteur or ""))
 
 
 CONSIGNE_JSON = "Réponds UNIQUEMENT par un document JSON valide, sans texte autour."
