@@ -91,5 +91,17 @@ def test_cadre_verifie_l_origine():
     assert "candidats(document, d.selecteur" in src, "le cadre lit les candidats comme le tiroir (logique partagée)"
 
 
+def test_langue_lue_comme_fonction():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert 'typeof window.dzLang === "function"' in src, "dzLang est une fonction dans la SPA"
+    assert 'window.dzLang === "en"' not in src
+
+
+def test_tiroir_exclu_des_candidats():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert "!tiroir.contains(" in src, "le tiroir ne se vise pas lui-même"
+    assert "!bouton.contains(" in src, "ni le bouton « Demander »"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

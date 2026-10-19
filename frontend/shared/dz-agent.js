@@ -14,7 +14,7 @@ if (!window.__dzAgent) {
   window.__dzAgent = true;
 
   const T = (k, v) => (window.dzT ? window.dzT(k, v) : k);
-  const lang = () => (window.dzLang === "en" ? "en" : "fr");
+  const lang = () => { const l = typeof window.dzLang === "function" ? window.dzLang() : window.dzLang; return l === "en" ? "en" : "fr"; };
   const lire = (s, k) => { try { return s.getItem(k); } catch (e) { return null; } };
   const ecrire = (s, k, v) => { try { s.setItem(k, v); } catch (e) { /* stockage indisponible : rien de grave */ } };
   const vue = () => lire(window.localStorage, "dz_view") || "quick";
@@ -156,7 +156,8 @@ if (!window.__dzAgent) {
   async function trouver(a, delaiMs) {
     const fin = Date.now() + delaiMs;
     do {
-      const c = candidats(document, a.selecteur, a.libelle);
+      // jamais le tiroir ni le bouton « Demander » eux-mêmes (indices de choisir sur la liste filtrée)
+      const c = candidats(document, a.selecteur, a.libelle).filter((x) => !tiroir.contains(x.noeud) && !bouton.contains(x.noeud));
       const i = choisir(c, a, lang());
       if (i >= 0) return c[i].noeud;
       await attendre(150);
