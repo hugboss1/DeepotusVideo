@@ -17,6 +17,8 @@ from __future__ import annotations
 import json
 import re
 
+from app.services.photolab_neuves import COMMANDES_NEUVES_FERMEES
+
 TYPES = ("number", "int", "bool", "enum", "color", "str", "layerId", "index", "docIndex",
          "json", "struct", "intArray", "union", "?")
 OPAQUES = ("json", "struct", "intArray", "union", "?")
@@ -31,6 +33,9 @@ _SCALAIRES = {"bool": "bool", "json": "json", "str": "str", "text": "str", "name
               "id": "layerId", "index": "index", "doc": "docIndex", "color": "color",
               "group": "str", "n": "int"}
 _POINTS_DE_SUSPENSION = ("…", "...")
+# t251 : forme EXACTE de la cible de canal ajoutée en 0.10 et le début de son défaut (prose du moteur).
+_CIBLE_CANAL = '"pixels"|"mask"|"quickMask"|{"channel":i}'
+_CIBLE_CANAL_DEFAUT = "Channels panel target"
 
 
 # Limite connue : les guillemets échappés (\") ne sont pas gérés par _decouper, _objet_et_queue ni _premier_egal ;
@@ -206,6 +211,10 @@ def parser(texte) -> dict:
             reste, note = _sans_note(reste)
             type_txt, defaut = _premier_egal(reste)
             decrit, optionnel = _type_de(type_txt)
+            # t251 : la cible de canal de photocraft 0.10 (Coller, Symétrie, Rotation…) — défaut posé par le MOTEUR
+            # (« Channels panel target ») : l'omettre redonne le comportement 0.3.0, donc opaque mais optionnelle.
+            if type_txt.strip() == _CIBLE_CANAL and defaut is not None and defaut.strip().startswith(_CIBLE_CANAL_DEFAUT):
+                decrit, optionnel = {"type": "union", "variantes": ["pixels", "mask", "quickMask", '{"channel":i}']}, True
             optionnel = optionnel or (defaut is not None and defaut.strip().endswith("?"))
             champ = {"cle": cle, **decrit, "optionnel": optionnel}
             if defaut is not None:
@@ -225,6 +234,15 @@ def parser(texte) -> dict:
 CORRECTIONS_CHAMPS = {
     ("image.adjustments.exposure", "exposure"): {"entier": False, "unite": "ev"},
     ("layer.newAdjustmentLayer.exposure", "exposure"): {"entier": False, "unite": "ev"},
+    # t251 : photocraft 0.10 écrit `"layer":id|str | "name":str` (un id OU un nom) et `"#rrggbb"|[r,g,b,a?]` — le
+    # parseur en fait des opaques, que le pont ne vérifie plus qu'en taille. L'écran n'envoie qu'un id et un hex :
+    # on garde la vérification 0.3.0 (identique à ce que le parseur donne sur 0.3.0, donc sans effet là-bas).
+    ("layer.select", "layer"): {"type": "layerId"},
+    ("tools.setColors", "foreground"): {"type": "color", "formes": ["hex"]},
+    ("tools.setColors", "background"): {"type": "color", "formes": ["hex"]},
+    # t251 : contour d'ombre portée (0.10) écrit en liste de noms entre guillemets OU courbe : même union opaque que le
+    # `contour` des autres styles (innerShadow, outerGlow, satin), que le parseur lit déjà ainsi.
+    ("layer.layerStyle.dropShadow", "contour"): {"type": "union", "variantes": ["name", "curve"]},
 }
 
 
@@ -236,9 +254,13 @@ def structurer(commandes: list[dict]) -> dict[str, dict]:
         d = parser(c.get("params"))
         champs = [{**ch, **CORRECTIONS_CHAMPS[(c["id"], ch.get("cle"))]} if (c["id"], ch.get("cle")) in CORRECTIONS_CHAMPS
                   else ch for ch in d["champs"]]
+        # t251 : un champ réparé par une correction explicite n'est plus un fragment inconnu
+        corriges = {k for (i, k) in CORRECTIONS_CHAMPS if i == c["id"]}
+        inconnus = [x for x in d["inconnus"] if not any(x.lstrip().startswith(f'"{k}"') for k in corriges)]
+        ok = d["ok"] or (bool(d["champs"] or d["inconnus"]) and not inconnus and "raison" not in d)
         sortie[c["id"]] = {"id": c["id"], "label": c.get("label"), "menu": c.get("menu") or [],
-                           "enabled": c.get("enabled", True), "champs": champs, "ok": d["ok"],
-                           "inconnus": d["inconnus"], "queue": d["queue"]}
+                           "enabled": c.get("enabled", True), "champs": champs, "ok": ok,
+                           "inconnus": inconnus, "queue": d["queue"]}
     return sortie
 
 
@@ -274,6 +296,7 @@ KINDS = {"BrightnessContrast": "brightnessContrast", "Levels": "levels", "Curves
          "BlackWhite": "blackWhite", "PhotoFilter": "photoFilter", "ChannelMixer": "channelMixer", "Invert": "invert",
          "Posterize": "posterize", "Threshold": "threshold", "GradientMap": "gradientMap",
          "SelectiveColor": "selectiveColor", "ColorLookup": "colorLookup"}
+_KINDS_COMMANDE = frozenset(KINDS.values())   # t251 : forme 0.10 de doc.inspect, {"kind": <l'un d'eux>, "params"}
 
 # Les 28 modes de fusion du moteur : ids acceptés par layer.setProps et libellés anglais rendus par doc.inspect.
 # Le moteur compare sans casse, espaces, tirets ni soulignés ; un style de calque accepte N'IMPORTE quelle chaîne et
@@ -297,6 +320,9 @@ def kind_de(calque) -> str | None:
     """Le kind d'un calque de réglage d'après sa variante `adjustment` (dict à une clé, ou chaîne « Invert ») ;
     None pour un calque qui n'est pas un réglage ou une variante inconnue."""
     a = calque.get("adjustment") if isinstance(calque, dict) else None
+    if isinstance(a, dict) and isinstance(a.get("kind"), str) and isinstance(a.get("params"), dict):
+        # t251 : photocraft 0.10 — {"kind": "<kind de commande>", "params": {…}} (inverse exact des paramètres)
+        return a["kind"] if a["kind"] in _KINDS_COMMANDE else None
     if isinstance(a, str):
         return KINDS.get(a)
     if isinstance(a, dict) and len(a) == 1:
@@ -415,6 +441,9 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         raise ValueError(f"commande réservée aux routes du Photolab : {cid}")
     if cid not in registre:
         raise ValueError(f"commande inconnue du moteur : {cid}")
+    if cid in COMMANDES_NEUVES_FERMEES:
+        # t251 : ajoutée par photocraft 0.10 — ouverte lot par lot, jamais par la seule montée de version
+        raise ValueError(f"commande de photocraft 0.10 pas encore ouverte au Photolab : {cid}")
     if params is None:
         params = {}
     if not isinstance(params, dict):
@@ -590,6 +619,8 @@ def _colorise(params, etat) -> bool:
     if "colorize" in params:
         return params["colorize"] is True
     h = etat.get("HueSaturation") if isinstance(etat, dict) else None
+    if isinstance(etat, dict) and etat.get("kind") == "hueSaturation":     # t251 : forme 0.10 {kind, params}
+        h = etat.get("params")
     return isinstance(h, dict) and h.get("colorize") is True
 
 
@@ -690,11 +721,23 @@ SCHEMAS.update({("colorBalance", k): _s_equilibre for k in ("shadows", "midtones
 SCHEMAS.update({("hueSaturation", k): _s_gamme_teinte for k in ("reds", "yellows", "greens", "cyans", "blues", "magentas")})
 
 
+def _s_neuf_ferme(cid, cle, v, champs, ctx):
+    raise ValueError(f"{cid} : {cle} : paramètre de photocraft 0.10 pas encore ouvert au Photolab")
+
+
+# t251 : champs opaques ajoutés par 0.10 à des réglages déjà ouverts (pipettes noir/gris/blanc des Niveaux et Courbes,
+# points du Remplacement de couleur) — FERMÉS comme les commandes neuves tant qu'un lot ne leur donne pas de schéma.
+SCHEMAS.update({(k, "eyedropper"): _s_neuf_ferme for k in ("levels", "curves")})
+SCHEMAS[("replaceColor", "points")] = _s_neuf_ferme
+
+
 # ── t158 : Image › Mode et Informations sur le fichier ──────────────────────────────────────────────────────────────
-# Profils intégrés du moteur 0.3.0 par espace (edit.profileInfo, relevé 09/10 ; le banc les compare au vrai moteur).
+# Profils intégrés du moteur épinglé par espace (edit.profileInfo, relevé 09/10 sur 0.3.0, 20/10 sur 0.10.0 ; le banc les compare au vrai moteur).
 PROFILS_MODE = {
-    "image.mode.rgb": ("working", "srgb", "display-p3", "adobe-rgb-compat", "prophoto-compat", "linear-srgb", "rec2020"),
-    "image.mode.grayscale": ("working", "sgray", "gray-gamma-2.2"),
+    # t251 : 0.10 ajoute aces-cg (RVB) et dot-gain-20-compat (gris) — espace relevé par edit.profileInfo `colorSpace`
+    "image.mode.rgb": ("working", "srgb", "display-p3", "adobe-rgb-compat", "prophoto-compat", "linear-srgb", "rec2020",
+                       "aces-cg"),
+    "image.mode.grayscale": ("working", "sgray", "gray-gamma-2.2", "dot-gain-20-compat"),
     "image.mode.cmyk": ("working", "coated-cmyk"),
     "image.mode.lab": ("working", "lab-d50"),
 }

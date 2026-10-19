@@ -42,6 +42,30 @@ Spec d'écart, annexes `specs/photocraft-0.10/`, outils `scripts/photocraft_rele
   `layer.newAdjustmentLayer.*` — la capture fait foi.
 - Fini quand : non-régression d'écran verte (aucune entrée perdue), 29 bancs + 35 QA verts sur 0.10.
 
+### M2 — mesuré et fait (20/10)
+Bascule : `vendor/photocraft.json` = 0.10.0 (manifeste candidat retiré), repli de version 0.10.0. Ruptures réelles
+trouvées par les bancs sur le vrai moteur, et leur traitement — rien de ce que l'écran faisait n'est retiré :
+- **Cible de canal** `target` (Coller, Symétrie, Rotation…) lue comme champ requis → 9 entrées grisées : forme exacte
+  reconnue, opaque optionnelle (`photolab_registre._CIBLE_CANAL`). Non-régression d'écran verte sur 0.10.
+- **142 commandes neuves fermées** (`photolab_neuves.py`) + champs opaques neufs des réglages (`eyedropper`,
+  `replaceColor.points`) fermés par schéma : rien ne s'ouvre par la seule montée.
+- **`doc.inspect` des calques de réglage** : `{kind, params}` (inverse exact des paramètres) au lieu de la variante
+  interne. Pont (`kind_de`, `_colorise`) et écran (`kindDe`, `depuisInspect` via `variante10`) lisent les deux formes ;
+  équivalence prouvée cas par cas sur les fixtures 0.3.0 et 0.10 (qa/reglages10). **Perte** : 0.10 ne dit plus QUEL
+  LUT porte un Color Lookup — la liste n'en choisit aucun (le moteur garde le sien).
+- **`layer.hideLayers` bascule** en 0.10 (un calque caché est remontré) : l'export d'un calque ne cache plus que le
+  visible (sinon un calque caché par l'utilisateur reparaissait dans l'export). Banc 3i2.
+- **Calque uni créé sur une sélection = masqué** en 0.10 : `_remplissage` lui rend un masque blanc (vues de
+  Sélectionner et masquer, vignettes de masques).
+- **Révéler la sélection** retire la sélection en 0.10 (comme Photoshop) ; une commande indisponible renvoie une erreur
+  (« not available right now ») — le pont testait déjà `hasSelection` avant `select.deselect`.
+- Parseur : `layer.select.layer` (`id|str | "name"`), `tools.setColors` (`"#rrggbb"|[r,g,b,a?]`) et le contour
+  d'ombre portée corrigés explicitement → vérification identique à 0.3.0.
+- Profils intégrés : + `aces-cg` (RVB), `dot-gain-20-compat` (gris). Libellés FR/EN de 11 paramètres et 6 valeurs
+  neufs. Placer : frange bicubique d'1 px (Keys −0,75, amont 0.9) figée par version.
+- `ETATS_MOTEUR` : noms inchangés dans les sources 0.10.0 (aucune régénération nécessaire).
+- Licences : NOTICE amont 0.10.0 (+ libfacedetection, BSD-3-Clause, texte livré), les 4 autres textes identiques.
+
 ## M3 — t252 · Retouche : Pièce, Déplacement basé sur le contenu, Tampon de motif, Œil rouge, Supprimer
 `paint.patch`, `contentAwareMove`, `patternStamp`, `redEye`, `remove` sur le modèle de `mod-peinture` ;
 symétrie de peinture (`paint.setSymmetry`…) ; clés Mode et Tous les calques du Pot et du Correcteur localisé

@@ -41,7 +41,8 @@ check("1a le manifeste liste chaque fichier livré (2 exe, 2 licences du moteur,
 check("1b chaque entrée : taille entière > 0 et sha256 de 64 hex, chemins relatifs en /",
       all(isinstance(v.get("taille"), int) and v["taille"] > 0 and len(v.get("sha256", "")) == 64
           and "\\" not in k and not k.startswith("/") and ".." not in k for k, v in FICHIERS.items()), FICHIERS)
-check("1c la provenance du manifeste est dite (archive vérifiée)", "9997f7df" in json.dumps(M.get("fichiers_source", "")))
+check("1c la provenance du manifeste est dite (archive vérifiée)",
+      M["binaire"]["sha256"][:12] in json.dumps(M.get("fichiers_source", "")), M.get("fichiers_source"))
 if DOSSIER.is_dir() and V:
     check("1d le dossier du moteur de ce poste est conforme au manifeste", V.comparer(FICHIERS, DOSSIER) == [],
           V.comparer(FICHIERS, DOSSIER))
@@ -131,20 +132,21 @@ if pwsh and etape and DOSSIER.is_dir():
                                 "-stageApp", str(stage), "-buildPy", sys.executable, "-Bloc", str(T / "bloc.ps1")],
                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
             return p.stdout + p.stderr
-        faux = T / "faux" / "vendor" / "photocraft-0.3.0" / "photocraft-0.3.0-windows-x64-portable"
+        _v = M["version"]   # t251 : le dossier suit la version épinglée
+        faux = T / "faux" / "vendor" / f"photocraft-{_v}" / f"photocraft-{_v}-windows-x64-portable"
         faux.mkdir(parents=True)
         (faux / "photocraft-cli.exe").write_bytes(b"MZ pas le vrai moteur")
         out = jouer(T / "faux")
         check("4g exécutée : un moteur non conforme dans l'arbre préparé ARRÊTE le build", "ETAPE:ARRET" in out and "ETAPE:OK" not in out, out[-400:])
-        vrai = T / "vrai" / "vendor" / "photocraft-0.3.0"
+        vrai = T / "vrai" / "vendor" / f"photocraft-{_v}"
         shutil.copytree(DOSSIER, vrai, ignore=shutil.ignore_patterns("PhotoCraftData"))
-        (vrai / "photocraft-0.3.0-windows-x64-portable" / "PhotoCraftData").mkdir()
-        (vrai / "photocraft-0.3.0-windows-x64-portable" / "PhotoCraftData" / "preferences.json").write_text("{}")
+        (vrai / f"photocraft-{_v}-windows-x64-portable" / "PhotoCraftData").mkdir()
+        (vrai / f"photocraft-{_v}-windows-x64-portable" / "PhotoCraftData" / "preferences.json").write_text("{}")
         out = jouer(T / "vrai")
         check("4h exécutée : le vrai moteur passe ; NOTICE, manifeste et licences posés ; préférences du poste retirées",
               "ETAPE:OK" in out and (T / "vrai" / "vendor" / "NOTICE-photocraft.txt").is_file()
               and (T / "vrai" / "vendor" / "photocraft.json").is_file() and (T / "vrai" / "vendor" / "licences-photocraft" / "NOTICE").is_file()
-              and not (vrai / "photocraft-0.3.0-windows-x64-portable" / "PhotoCraftData").exists(), out[-400:])
+              and not (vrai / f"photocraft-{_v}-windows-x64-portable" / "PhotoCraftData").exists(), out[-400:])
     finally:
         shutil.rmtree(T, ignore_errors=True)
 else:
@@ -156,7 +158,7 @@ nt = notice.read_text("utf-8") if notice.is_file() else ""
 check("5a vendor/NOTICE-photocraft.txt existe", bool(nt))
 for n in sorted(x for x in noms if x.startswith(("LICENSE", "OFL"))):
     check(f"5b NOTICE cite {n}", n in nt)
-check("5c NOTICE : version, dépôt, double licence, icônes Lucide (ISC)", "0.3.0" in nt and "storytold/photocraft" in nt
+check("5c NOTICE : version, dépôt, double licence, icônes Lucide (ISC)", M["version"] in nt and "storytold/photocraft" in nt
       and "MIT" in nt and "Apache" in nt and "Lucide" in nt and "ISC" in nt)
 LIC = RACINE / "vendor" / "licences-photocraft"
 for n, empreinte in (("NOTICE", "Third-party material"), ("OFL-Inter.txt", "Open Font License"),

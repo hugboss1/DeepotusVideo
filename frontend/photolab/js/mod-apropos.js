@@ -15,6 +15,7 @@ export function libelleLicence(nom, T) {
   if (base === "LICENSE-APACHE") return T("photolab.apropos.lic.apache");
   if (base === "LICENSE-SCOWL.txt") return T("photolab.apropos.lic.scowl");
   if (base === "LICENSE-lucide.txt") return T("photolab.apropos.lic.lucide");
+  if (base === "LICENSE-libfacedetection.txt") return T("photolab.apropos.lic.visages");   // t251 : photocraft 0.10
   const m = /^OFL-(.+)\.txt$/.exec(base);
   if (m && FAMILLES[m[1]]) return T("photolab.apropos.lic.police", { famille: FAMILLES[m[1]] });
   return base;
@@ -25,7 +26,7 @@ const RANG = (nom) => (nom === "NOTICE-photocraft.txt" ? 0 : nom === "licences-p
 // info = réponse de GET /licences (ou null si le pont ne répond pas : les crédits restent).
 export function contenuApropos(info, T) {
   const i = info || {};
-  const version = i.version || "0.3.0";
+  const version = i.version || "0.10.0";
   const licence = String(i.licence || "MIT OR Apache-2.0").replace(" OR ", " " + T("photolab.apropos.ou") + " ");
   const lignes = [
     T("photolab.apropos.moteur_v", { version, licence }),

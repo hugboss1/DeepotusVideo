@@ -446,7 +446,8 @@ async def scenario():
             elif cas == "masque":
                 ex("select.rect", x=10, y=20, width=20, height=40)
                 ex("layer.layerMask.revealSelection")
-                ex("select.deselect")
+                if s.appeler("doc.inspect").get("hasSelection"):   # t251 : 0.10 la retire après le masque
+                    ex("select.deselect")
             else:
                 pannes["taille_detour"] = 2
             attendu = region_attendue(lid)
@@ -462,7 +463,8 @@ async def scenario():
         lid = calque_vert()
         ex("select.rect", x=150, y=0, width=10, height=10)
         ex("layer.layerMask.revealSelection")
-        ex("select.deselect")
+        if s.appeler("doc.inspect").get("hasSelection"):   # t251 : 0.10 la retire après le masque
+            ex("select.deselect")
         nl, nd = len(await lire_lignes()), len(appels["detour"])
         r = await c.post(DET, json={"layer": lid, "modele": "bria-rmbg"})
         check("3.9 calque entièrement masqué (rien de visible) : 400 AVANT la dépense, aucun détourage",

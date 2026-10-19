@@ -480,7 +480,7 @@ from app.services.dictation_service import router as dictation_router
 app.include_router(dictation_router, prefix="/api")
 # __DZ_DICTATION_ROUTER_END__
 # __DZ_PHOTOLAB_ROUTER_BEGIN__
-# Photolab (t136, 07/10/2026) : /api/photolab — pont vers le moteur photocraft-cli 0.3.0 (décision D1)
+# Photolab (t136, 07/10/2026) : /api/photolab — pont vers le moteur photocraft-cli épinglé (vendor/photocraft.json, 0.10.0 depuis t251) (décision D1)
 from app.api.photolab_routes import router as photolab_router
 app.include_router(photolab_router, prefix="/api/photolab")
 # __DZ_PHOTOLAB_ROUTER_END__

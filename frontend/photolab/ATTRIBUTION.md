@@ -1,6 +1,6 @@
 # Attribution — Photolab
 
-L'écran Photolab pilote le moteur **photocraft** (`photocraft-cli` 0.3.0, épinglé), publié sous licence MIT OU Apache-2.0.
+L'écran Photolab pilote le moteur **photocraft** (`photocraft-cli` 0.10.0, épinglé depuis le 20/10/2026 ; 0.3.0 avant), publié sous licence MIT OU Apache-2.0.
 
 Reprises de photocraft 0.3.0 :
 

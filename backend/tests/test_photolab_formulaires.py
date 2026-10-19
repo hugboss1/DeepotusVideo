@@ -45,6 +45,10 @@ sys.path.insert(0, str(BACKEND / "tests"))  # t250 : registre de la version épi
 import photocraft_version as _PV  # noqa: E402
 COMMANDES = json.loads(_PV.fichier_commandes().read_text(encoding="utf-8"))
 REG = PR.structurer(COMMANDES)
+# t251 : les commandes ajoutées par 0.10 restent fermées (photolab_neuves) : hors du périmètre de l'écran tant qu'un
+# lot ne les ouvre pas (le banc test_photolab_registre 9c prouve qu'elles sont refusées).
+from app.services.photolab_neuves import COMMANDES_NEUVES_FERMEES  # noqa: E402
+REG = {k: v for k, v in REG.items() if k not in COMMANDES_NEUVES_FERMEES}
 
 print("[1] formulaires remplis par mod-champs.js (node)")
 node = shutil.which("node")

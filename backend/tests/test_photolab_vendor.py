@@ -19,11 +19,12 @@ def check(label, cond, detail=""):
 
 M = json.loads((RACINE / "vendor" / "photocraft.json").read_text("utf-8"))
 b = M.get("binaire", {})
-check("1 manifeste : version 0.3.0, tag v0.3.0, licence MIT OR Apache-2.0",
-      M.get("version") == "0.3.0" and M.get("tag") == "v0.3.0" and M.get("licence") == "MIT OR Apache-2.0", M)
+# t251 : moteur épinglé = 0.10.0 (0.3.0 retiré).
+check("1 manifeste : version 0.10.0, tag v0.10.0, licence MIT OR Apache-2.0",
+      M.get("version") == "0.10.0" and M.get("tag") == "v0.10.0" and M.get("licence") == "MIT OR Apache-2.0", M)
 check("2 archive Windows épinglée (nom, taille, sha256 de la release)",
-      b.get("archive") == "photocraft-0.3.0-windows-x64-portable.zip" and b.get("taille") == 65251740
-      and b.get("sha256") == "9997f7df3a6f0717b46bb0f503b3d920c3beedeb9e9c4e1ff2ef3b8671acd47e", b)
+      b.get("archive") == "photocraft-0.10.0-windows-x64-portable.zip" and b.get("taille") == 84828713
+      and b.get("sha256") == "66b7e47d66589eb6947c8d7417c80fa44621cf83823ffdc47f42024eb03bd5d2", b)
 
 import vendor_photocraft as V                                  # noqa: E402
 
@@ -126,7 +127,7 @@ gi = (RACINE / ".gitignore").read_text("utf-8")
 check("7 les binaires ne sont jamais versionnés (.gitignore vendor/photocraft-*/)", "vendor/photocraft-*/" in gi)
 
 # ── t250 (Photolab M1) : la version CANDIDATE 0.10.0 cohabite avec l'épinglée ; une seule source de version ──
-C = json.loads((RACINE / "vendor" / "photocraft-0.10.0.json").read_text("utf-8"))
+C = M        # t251 : le candidat 0.10.0 est devenu l'épinglé (vendor/photocraft-0.10.0.json retiré : une seule source)
 cb = C.get("binaire", {})
 check("8 manifeste candidat : 0.10.0, tag v0.10.0, archive officielle (taille, sha256 recoupés le 20/10)",
       C.get("version") == "0.10.0" and C.get("tag") == "v0.10.0" and C.get("licence") == "MIT OR Apache-2.0"
@@ -154,7 +155,7 @@ with tempfile.TemporaryDirectory() as t:
     (t / "vendor" / "photocraft.json").write_text("{pas du json", "utf-8")
     illisible = PM._version_epinglee(t)
 check("12 version lue du manifeste ; manifeste illisible : la dernière épinglée connue (le backend démarre)",
-      lue == "9.9.9" and illisible == "0.3.0", (lue, illisible))
+      lue == "9.9.9" and illisible == "0.10.0", (lue, illisible))
 
 # verifier_vendor --manifeste --ecrire réécrit le manifeste CANDIDAT, jamais l'épinglé (défaut vu en t250).
 import verifier_vendor as VV                                    # noqa: E402
@@ -180,25 +181,27 @@ check("14 registre 0.10.0 : champs nouveaux du moteur gardés tels quels (disabl
       all({"id", "label", "menu", "params", "shortcut", "enabled", "needsDocument", "disabledReason"} <= set(c) for c in R10)
       and any("keywords" in c for c in R10))
 
-# Le script de capture s'éprouve sur le VRAI moteur 0.3.0 : il doit redonner à l'octet (fins de ligne mises à part) le
-# registre capturé à la main en t138. Binaire : PHOTOCRAFT_CLI, sinon vendor/, sinon l'installation.
+# Le script de capture s'éprouve sur le VRAI moteur épinglé : il doit redonner à l'octet (fins de ligne mises à part)
+# le registre versionné (t250 : contrôlé aussi sur 0.3.0 contre la copie de t138). Binaire : PHOTOCRAFT_CLI, sinon
+# vendor/, sinon l'installation.
 import os, glob                                                 # noqa: E402
 import photocraft_commandes as PCAP                             # noqa: E402
-cands = [os.environ.get("PHOTOCRAFT_CLI", "")] + sorted(glob.glob(str(RACINE / "vendor" / "photocraft-0.3.0" / "*" / "photocraft-cli.exe"))) \
-    + sorted(glob.glob(os.path.join(os.environ.get("LOCALAPPDATA", ""), "DeepotusVideoGen", "vendor", "photocraft-0.3.0", "*", "photocraft-cli.exe")))
-cli03 = next((pathlib.Path(c) for c in cands if c and pathlib.Path(c).is_file() and "0.3.0" in PCAP.version_cli(pathlib.Path(c)).split()), None)
+V = M["version"]
+cands = [os.environ.get("PHOTOCRAFT_CLI", "")] + sorted(glob.glob(str(RACINE / "vendor" / f"photocraft-{V}" / "*" / "photocraft-cli.exe"))) \
+    + sorted(glob.glob(os.path.join(os.environ.get("LOCALAPPDATA", ""), "DeepotusVideoGen", "vendor", f"photocraft-{V}", "*", "photocraft-cli.exe")))
+cli03 = next((pathlib.Path(c) for c in cands if c and pathlib.Path(c).is_file() and V in PCAP.version_cli(pathlib.Path(c)).split()), None)
 if cli03 is None:
-    check("15 photocraft-cli 0.3.0 trouvé pour éprouver la capture (sinon cette section est rouge)", False)
+    check(f"15 photocraft-cli {V} trouvé pour éprouver la capture (sinon cette section est rouge)", False)
 else:
     with tempfile.TemporaryDirectory() as t:
         sortie = pathlib.Path(t) / "c.json"
         code = PCAP.main(["--cli", str(cli03), "--sortie", str(sortie)])
-        attendu = (RACINE / "backend" / "tests" / "photocraft_commandes_0.3.0.json").read_bytes().replace(b"\r\n", b"\n")
-        check("15 la capture rejouée sur le vrai 0.3.0 redonne le registre de t138 à l'octet",
+        attendu = (RACINE / "backend" / "tests" / f"photocraft_commandes_{V}.json").read_bytes().replace(b"\r\n", b"\n")
+        check(f"15 la capture rejouée sur le vrai {V} redonne le registre versionné à l'octet",
               code == 0 and sortie.read_bytes() == attendu)
     with tempfile.TemporaryDirectory() as t:
         mf = pathlib.Path(t) / "m.json"
-        mf.write_text(json.dumps({"version": "0.10.0", "binaire": {"dossier": "x", "cli": "photocraft-cli.exe"}}), "utf-8")
+        mf.write_text(json.dumps({"version": "9.9.9", "binaire": {"dossier": "x", "cli": "photocraft-cli.exe"}}), "utf-8")
         refus = PCAP.main(["--manifeste", str(mf), "--cli", str(cli03), "--sortie", str(pathlib.Path(t) / "c.json")])
         check("16 un binaire d'une autre version que le manifeste : rien n'est écrit",
               refus == 1 and not (pathlib.Path(t) / "c.json").exists())
