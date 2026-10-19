@@ -1384,7 +1384,18 @@
     slot.appendChild(b);
     return b;
   }
+  /* A6 (assistant « Demander », 19/10/2026) : chaque changement d'état de la dictée d'un champ est annoncé sur le
+     champ lui-même (`dzia-dictee`, detail {etat, voie}) — le tiroir de l'assistant, qui n'est pas un champ IA marqué,
+     y règle son propre bouton micro. Une seule annonce par état. */
+  function signalerDictee(el) {
+    var a = dic.active && dic.active.el === el ? dic.active : null;
+    var e = a ? a.etat : "repos";
+    if (el.__dziaSignal === e) return;
+    el.__dziaSignal = e;
+    try { el.dispatchEvent(new W.CustomEvent("dzia-dictee", { detail: { etat: e, voie: a ? a.voie : voieDictee() } })); } catch (x) {}
+  }
   function rafraichirMicro(el) {
+    signalerDictee(el);
     var st = el.__dzia, b = st && st.micro;
     if (!b) return;
     var a = dic.active && dic.active.el === el ? dic.active : null;
@@ -1708,7 +1719,8 @@
     dictee: {
       voie: voieDictee,
       etat: function () { var a = dic.active; return { etat: a ? a.etat : "repos", voie: a ? a.voie : voieDictee(), voie1Ko: dic.voie1Ko, indispo: indispo(), veille: !!tVeille }; },
-      arreter: arreterDictee
+      arreter: arreterDictee,
+      basculer: basculerDictee      // A6 : la dictée pour un champ non marqué (le tiroir de l'assistant)
     }
   };
   if (D.body) demarrer();
