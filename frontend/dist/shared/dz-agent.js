@@ -33,28 +33,29 @@ if (!window.__dzAgent) {
   const garder = () => ecrire(window.sessionStorage, "dz_agent_hist", JSON.stringify(historiqueBorne(hist)));
 
   const css = el("style", { texte: `
-.dzAgentBtn{position:fixed;right:18px;bottom:18px;z-index:2147483000;border:1px solid var(--cyan,#3ee6d0);
- background:var(--panel,#0e1422);color:var(--ink-strong,#eaf2ff);border-radius:999px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;line-height:1;
- cursor:pointer;box-shadow:0 0 18px rgba(62,230,208,.25)}
-.dzAgentTiroir{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);z-index:2147483001;display:none;flex-direction:column;
- background:var(--panel,#0e1422);color:var(--ink,#c9d4e8);border-left:1px solid var(--line,#24304a);font-family:inherit;font-size:13px;line-height:1.5}
+.dzAgentBtn{position:fixed;right:18px;bottom:18px;z-index:9990;border:1px solid var(--cyan,#3ee6d0);
+ background:var(--bg-panel,#151519);color:var(--ink-strong,#eaf2ff);border-radius:999px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;line-height:1;
+ cursor:pointer;box-shadow:0 0 18px var(--cyan-glow,rgba(240,180,41,.33))}
+.dzAgentTiroir{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);z-index:9991;display:none;flex-direction:column;
+ background:var(--bg-panel,#151519);color:var(--ink,#c9d4e8);border-left:1px solid var(--stroke,#2a2930);font-family:inherit;font-size:13px;line-height:1.5}
 .dzAgentTiroir[data-ouvert="1"]{display:flex}
-.dzAgentTete{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line,#24304a)}
+.dzAgentTete{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--stroke,#2a2930)}
 .dzAgentTete h2{flex:1;margin:0;font-size:14px;color:var(--ink-strong,#eaf2ff)}
 .dzAgentFil{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
-.dzAgentMsg{white-space:pre-wrap;border-radius:10px;padding:8px 10px;background:var(--panel-2,#141c2e)}
+.dzAgentMsg{white-space:pre-wrap;border-radius:10px;padding:8px 10px;background:var(--bg-panel-2,#1c1c21)}
 .dzAgentMsg[data-role="user"]{align-self:flex-end;background:var(--cyan-soft,rgba(62,230,208,.12))}
 .dzAgentActions{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.dzAgentActions button,.dzAgentTete button,.dzAgentPied button{background:transparent;color:inherit;border:1px solid var(--line,#24304a);
+.dzAgentActions button,.dzAgentTete button,.dzAgentPied button{background:transparent;color:inherit;border:1px solid var(--stroke,#2a2930);
  border-radius:8px;padding:4px 8px;cursor:pointer;font:inherit}
-.dzAgentPied{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--line,#24304a)}
-.dzAgentPied textarea{flex:1;resize:none;min-height:38px;background:var(--panel-2,#141c2e);color:inherit;border:1px solid var(--line,#24304a);border-radius:8px;padding:6px}
-.dzAgentTete select{background:var(--panel-2,#141c2e);color:inherit;border:1px solid var(--line,#24304a);border-radius:6px}` });
+.dzAgentPied{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--stroke,#2a2930)}
+.dzAgentPied textarea{flex:1;resize:none;min-height:38px;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:8px;padding:6px}
+.dzAgentTete select{background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}` });
 
   const fil = el("div", { class: "dzAgentFil", role: "log", "aria-live": "polite" });
   const saisie = el("textarea", { placeholder: T("agent.tiroir.placeholder"), "aria-label": T("agent.tiroir.placeholder") });
   const choix = el("select", { "aria-label": T("agent.moteur.libelle"), title: T("agent.moteur.libelle") });
-  const tiroir = el("aside", { class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
+  const btnEnvoyer = el("button", { texte: T("agent.tiroir.envoyer"), on: { click: () => envoyer() } });
+  const tiroir = el("aside", { id: "dzAgentTiroir", class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
     el("div", { class: "dzAgentTete" }, [
       el("h2", { texte: T("agent.tiroir.titre") }), choix,
       el("button", { texte: "↺", title: T("agent.tiroir.nouvelle"), "aria-label": T("agent.tiroir.nouvelle"),
@@ -62,15 +63,18 @@ if (!window.__dzAgent) {
       el("button", { texte: "×", title: T("agent.tiroir.fermer"), "aria-label": T("agent.tiroir.fermer"), on: { click: () => basculer(false) } }),
     ]),
     fil,
-    el("div", { class: "dzAgentPied" }, [saisie, el("button", { texte: T("agent.tiroir.envoyer"), on: { click: () => envoyer() } })]),
+    el("div", { class: "dzAgentPied" }, [saisie, btnEnvoyer]),
   ]);
   const bouton = el("button", { class: "dzAgentBtn", texte: "? " + T("agent.tiroir.bouton"), title: T("agent.tiroir.bouton_titre"),
-    on: { click: () => basculer() } });
+    "aria-expanded": "false", "aria-controls": "dzAgentTiroir", on: { click: () => basculer() } });
 
   function basculer(ouvrir) {
     const o = ouvrir === undefined ? tiroir.dataset.ouvert !== "1" : ouvrir;
+    const focusDedans = tiroir.contains(document.activeElement);
     tiroir.dataset.ouvert = o ? "1" : "0";
+    bouton.setAttribute("aria-expanded", o ? "true" : "false");
     if (o) { chargerMoteurs(); saisie.focus(); }
+    else if (focusDedans) bouton.focus();     // le focus ne reste pas dans un tiroir masqué
   }
 
   async function chargerMoteurs() {
@@ -105,25 +109,36 @@ if (!window.__dzAgent) {
     fil.scrollTop = fil.scrollHeight;
   }
 
+  // un seul envoi à la fois ; un échec rend la question à la saisie et ne part jamais dans l'historique du serveur
+  let occupe = false;
   async function envoyer() {
     const q = saisie.value.trim();
-    if (!q) return;
+    if (!q || occupe) return;
+    occupe = true;
+    btnEnvoyer.disabled = true;
     saisie.value = "";
-    const avant = historiqueBorne(hist).map(({ role, texte }) => ({ role, texte }));
-    hist.push({ role: "user", texte: q });
+    const avant = historiqueBorne(hist.filter((m) => !m.erreur)).map(({ role, texte }) => ({ role, texte }));
+    const question = { role: "user", texte: q };
+    hist.push(question);
     dessiner(true);
     try {
       const r = await fetch("/api/agent/demander", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: q, historique: avant, ecran: vue(), lang: lang(), moteur: choix.value || "" }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
-      hist.push({ role: "assistant", texte: j.texte, actions: j.actions || [] });
+      if (typeof j.texte !== "string" || !j.texte.trim()) throw new Error("—");
+      hist.push({ role: "assistant", texte: j.texte, actions: Array.isArray(j.actions) ? j.actions : [] });
     } catch (e) {
-      hist.push({ role: "assistant", texte: T("agent.reponse.erreur", { msg: e.message }) });
-      saisie.value = q;
+      const i = hist.indexOf(question);
+      if (i >= 0) hist.splice(i, 1);
+      hist.push({ role: "assistant", texte: T("agent.reponse.erreur", { msg: (e && e.message) || "—" }), erreur: true });
+      if (!saisie.value.trim()) saisie.value = q;     // ne pas écraser ce que l'utilisateur a retapé
+    } finally {
+      occupe = false;
+      btnEnvoyer.disabled = false;
+      garder();
+      dessiner();
     }
-    garder();
-    dessiner();
   }
 
   // ── les actions (le pointeur arrive à la tâche 11) ──
@@ -171,9 +186,11 @@ if (!window.__dzAgent) {
   window.__dzAgentExecuter = executer;     // pour la tâche 11 et les preuves
 
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "F1") { ev.preventDefault(); basculer(); }
-    else if (ev.key === "Escape" && tiroir.dataset.ouvert === "1") basculer(false);
-    else if (ev.key === "Enter" && !ev.shiftKey && ev.target === saisie) { ev.preventDefault(); envoyer(); }
+    if (ev.key === "F1") { ev.preventDefault(); if (!ev.repeat) basculer(); }
+    else if (ev.key === "Escape" && tiroir.dataset.ouvert === "1" && tiroir.contains(ev.target)) {
+      ev.preventDefault(); ev.stopPropagation(); basculer(false);
+    }
+    else if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing && ev.target === saisie) { ev.preventDefault(); envoyer(); }
   });
 
   const monter = () => { document.head.appendChild(css); document.body.append(bouton, tiroir); dessiner(); };

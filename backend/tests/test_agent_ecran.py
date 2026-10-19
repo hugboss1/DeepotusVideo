@@ -41,7 +41,7 @@ def test_balise_dans_la_spa():
 
 def test_cles_employees_existent():
     src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
-    employees = set(re.findall(r'T\("(agent\.[a-z_.]+)"', src))
+    employees = set(re.findall(r'"(agent\.[a-z_]+\.[a-z_.]+)"', src))
     assert employees, "le tiroir passe par T(…)"
     assert employees <= set(I18N), employees - set(I18N)
     assert not re.search(r">[A-ZÀ-Ý][a-zà-ÿ]{3,}[^<]*<", src), "aucun texte visible en dur dans le HTML généré"
