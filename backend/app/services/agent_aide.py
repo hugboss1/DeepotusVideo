@@ -64,7 +64,7 @@ def systeme(ecran: str, lang: str, espace: str = "") -> str:
     cle = "en" if en else "fr"
     chap = "\n".join(f"- {c['id']} : {c[cle]}" for c in k["chapitres"].values())
     jv = "\n".join(f"- {e[cle]} → {e['cible']}" for e in k["jeveux"])
-    anc = "\n".join(f"- {a['id']} ({a.get('ecran') or 'partout'}) : {a[cle]}" for a in k["ancres"].values())
+    anc = "\n".join(f"- {a['id']} ({'partout' if a.get('partout') or not a.get('ecran') else a['ecran']}) : {a[cle]}" for a in k["ancres"].values())
     return (f"{k['agent']}\n\n## Chapitres (id : titre)\n{chap}\n\n## Je veux…\n{jv}\n\n"
             f"## Ancres (id (écran) : libellé)\n{anc}\n\n## Vues\n{', '.join(VUES)}\n\n"
             f"## Contexte\n- écran ouvert : {ecran or 'inconnu'}\n- espace de marque actif : {espace or 'inconnu'}\n"
@@ -83,6 +83,7 @@ def _action(typ: str, cible: str) -> dict | None:
         a = k["ancres"][cible]
         return {"type": "point", "cible": cible, "ecran": a.get("ecran"), "selecteur": a.get("selecteur"),
                 "texte": a.get("texte"), "cadre": a.get("cadre"), "reglages": a.get("reglages"),
+                "partout": bool(a.get("partout")), "libelle": a.get("libelle"),
                 "fr": a["fr"], "en": a["en"]}
     if typ == "ALLER" and cible in VUES:
         return {"type": "aller", "cible": cible}

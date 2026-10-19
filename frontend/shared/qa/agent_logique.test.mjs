@@ -51,6 +51,22 @@ const b2 = L.historiqueBorne(h);
 assert.equal(b2.length, 10);
 assert.equal(b2[9].texte, "t13");
 
+// 7. renforts (mutations survivantes)
+assert.equal(L.choisir([{ texte: "Studio nouveau", visible: true }, { texte: "Studio", visible: true }], { texte: { fr: "Studio" } }, "fr"), 1, "exact avant tout");
+assert.equal(L.choisir([{ texte: "Mon Studio", visible: true }, { texte: "Studio 3D", visible: true }], { texte: { fr: "Studio" } }, "fr"), 1, "commence par avant inclusion");
+const loin = L.courbe({ x: 0, y: 0 }, { x: 2000, y: 0 }, 0.5);
+assert.ok(Math.abs(loin.y) <= 80 + 1e-9, "plafond de 160 px sur l'écart");
+assert.equal(L.courbe({ x: 0, y: 0 }, { x: 400, y: 0 }, 0.5).y, 60, "sens de l'arc figé");
+const vert = L.courbe({ x: 0, y: 0 }, { x: 0, y: 400 }, 0.5);
+assert.ok(Math.abs(vert.x + 60) < 1e-9 && Math.abs(vert.y - 200) < 1e-9, "arc vertical");
+assert.deepEqual(L.etapes({ type: "point", ecran: "inconnu", selecteur: "b" }, "quick"), [{ faire: "pointer" }]);
+assert.deepEqual(L.etapes({ type: "point", ecran: "montage", partout: true, selecteur: "button.dzNavItem" }, "quick"), [{ faire: "pointer" }], "ancre du rail : jamais de navigation");
+assert.equal(L.choisir(C, { texte: { fr: "Quick" } }, "en"), 0, "repli sur le français");
+assert.equal(L.choisir([{ texte: "Son  &\nVFX", visible: true }], { texte: { fr: "Son & VFX" } }, "fr"), 0, "blancs normalisés");
+assert.equal(L.choisir([{ texte: "", titre: "Bibliothèque", visible: true }], { texte: { fr: "Bibliothèque" } }, "fr"), 0, "title seul");
+assert.deepEqual(L.historiqueBorne(null), []);
+assert.deepEqual(L.historiqueBorne([{ role: "user", texte: 5 }, { role: "user", texte: "ok" }]), [{ role: "user", texte: "ok" }]);
+
 // 6. le module n'utilise aucun objet du navigateur à l'import
 assert.equal(typeof globalThis.document, "undefined");
 console.log("agent_logique : OK");

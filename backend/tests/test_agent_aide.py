@@ -46,6 +46,15 @@ def test_balises_valides_deviennent_actions():
     assert p["fr"] == "Réglages › Clés d'API" and actions[1]["en"]
 
 
+def test_ancres_du_rail_partout():
+    a = A.analyser("[POINT:rail.montage]")[1][0]
+    assert a["partout"] is True and a["libelle"] == ".dzNavLbl"
+    ligne = [l for l in A.systeme("quick", "fr").splitlines() if l.startswith("- rail.montage ")][0]
+    assert "(partout)" in ligne, ligne
+    ligne2 = [l for l in A.systeme("quick", "fr").splitlines() if l.startswith("- rail.montage ")][0]
+    assert "(montage)" not in ligne2
+
+
 def test_balises_inconnues_retirees_et_comptees():
     texte, actions, rejets = A.analyser("A [POINT:bouton.invente] B [ALLER:nulle-part] [GUIDE:x] [VOIR] [FOO:bar]")
     assert actions == [] and rejets == 5

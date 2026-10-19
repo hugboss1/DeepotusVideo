@@ -57,6 +57,17 @@ def test_le_rail_complet():
     assert rail == set(A.VUES), set(A.VUES) - rail
 
 
+def test_rail_partout_et_libelle():
+    rail = [a for a in ANCRES if a["id"].startswith("rail.")]
+    assert len(rail) == 14
+    for a in rail:
+        assert a.get("partout") is True, a["id"]
+    for a in ANCRES:
+        if a.get("libelle"):
+            assert a["libelle"].lstrip(".") in BUNDLE, a["id"]
+    assert all(a.get("libelle") == ".dzNavLbl" for a in rail)
+
+
 def test_agent_md_ne_cite_que_l_existant():
     t = (RACINE / "docs" / "agent" / "AGENT.md").read_text(encoding="utf-8")
     ids = {a["id"] for a in ANCRES}

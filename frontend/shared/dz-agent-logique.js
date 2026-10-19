@@ -16,6 +16,8 @@ export function choisir(candidats, ancre, lang) {
   if (!t) return vis.length ? vis[0].i : -1;
   const exact = vis.find((c) => norm(c.texte) === t || norm(c.titre) === t);
   if (exact) return exact.i;
+  const debut = vis.find((c) => norm(c.texte).startsWith(t) || norm(c.titre).startsWith(t));
+  if (debut) return debut.i;
   const proche = vis.find((c) => norm(c.texte).includes(t) || norm(c.titre).includes(t));
   return proche ? proche.i : -1;
 }
@@ -44,7 +46,7 @@ export function etapes(action, vueCourante) {
   if (action.type === "guide") return /^[a-z0-9-]+$/.test(action.cible || "") ? [{ faire: "guide", chapitre: action.cible }] : [];
   if (action.type !== "point") return [];
   const out = [];
-  if (action.ecran && VUES.includes(action.ecran) && action.ecran !== vueCourante) out.push({ faire: "aller", vue: action.ecran });
+  if (action.ecran && !action.partout && VUES.includes(action.ecran) && action.ecran !== vueCourante) out.push({ faire: "aller", vue: action.ecran });
   if (action.reglages) out.push({ faire: "reglages", section: action.reglages });
   else out.push({ faire: "pointer" });
   return out;
