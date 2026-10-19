@@ -59,7 +59,8 @@ def test_banc_node_logique():
 def test_pointeur_present():
     src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
     assert "courbe(" in src and "dzAgentCurseur" in src and "dzAgentHalo" in src
-    assert "prefers-reduced-motion" in src, "le mouvement réduit saute l'animation"
+    assert 'matchMedia("(prefers-reduced-motion' in src, "le mouvement réduit est lu en JS"
+    assert "if (reduit()) return finir();" in src, "le mouvement réduit saute l'animation"
 
 
 if __name__ == "__main__":

@@ -242,8 +242,8 @@ if (!window.__dzAgent) {
   }
   document.addEventListener("pointerdown", (ev) => { if (calques.length && !tiroir.contains(ev.target)) effacerPointeur(); }, true);
 
-  async function pointer(a, actionsDuMessage) {
-    const moi = ++tourPointeur;
+  // moi : jeton pris par executer au clic ; un clic plus récent l'invalide (vérifié après chaque attente)
+  async function pointer(a, actionsDuMessage, moi) {
     effacerPointeur();
     const n = await trouver(a, 4000);
     if (moi !== tourPointeur) return;                                            // un autre pointage a pris la main
@@ -257,17 +257,21 @@ if (!window.__dzAgent) {
     if (moi !== tourPointeur || !n.isConnected) return;
     montrer(n, a[lang()] || a.fr);
   }
+  // le jeton est pris AVANT toute navigation : un clic A (autre écran) puis un clic B (écran courant) → A abandonne
   async function executer(a, actionsDuMessage) {
+    const moi = ++tourPointeur;
     for (const e of etapes(a, vue())) {
+      if (moi !== tourPointeur) return;
       if (e.faire === "aller") { aller(e.vue); await attendre(350); }
       else if (e.faire === "reglages") { ouvrirReglages(e.section); await attendre(300); }
       else if (e.faire === "guide") window.open("/guide/#" + e.chapitre, "_blank", "noopener");
-      else if (e.faire === "pointer") await pointer(a, actionsDuMessage || []);
+      else if (e.faire === "pointer") await pointer(a, actionsDuMessage || [], moi);
     }
   }
   window.__dzAgentExecuter = executer;     // pour la tâche 11 et les preuves
 
   document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && calques.length) effacerPointeur();     // n'empêche pas la suite (fermeture du tiroir)
     if (ev.key === "F1") { ev.preventDefault(); if (!ev.repeat) basculer(); }
     else if (ev.key === "Escape" && tiroir.dataset.ouvert === "1" && tiroir.contains(ev.target)) {
       ev.preventDefault(); ev.stopPropagation(); basculer(false);
