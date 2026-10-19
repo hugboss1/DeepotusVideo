@@ -490,6 +490,9 @@ app.include_router(avatar_live_router, prefix="/api/avatar-live")
 # Bibliothèque motion (t233, 17/10/2026) : /api/motion/biblio, /api/motion/skills/installer — styles maison, imports, skills
 from app.api.motion_biblio_routes import router as motion_biblio_router
 app.include_router(motion_biblio_router, prefix="/api/motion")
+# Assistant « Demander à Deepotus » (19/10/2026) : /api/agent/etat, /api/agent/demander — aide à l'usage de l'app
+from app.api.agent_routes import router as agent_router
+app.include_router(agent_router, prefix="/api/agent")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

@@ -145,3 +145,48 @@ def test_demander_bornes():
         asyncio.run(A.demander({"question": "   "}))
     with pytest.raises(ValueError):
         asyncio.run(A.demander("pas un objet"))
+
+
+from fastapi.testclient import TestClient                                   # noqa: E402
+
+
+def _client():
+    from app.main import app
+    return TestClient(app)
+
+
+def test_route_etat(monkeypatch):
+    monkeypatch.setattr(MT, "etat", _faux_etat("anthropic"))
+    r = _client().get("/api/agent/etat")
+    assert r.status_code == 200
+    j = r.json()
+    assert j["moteur"] == "anthropic" and j["ancres"] >= 25 and j["chapitres"] >= 40
+
+
+def test_route_demander(monkeypatch):
+    async def faux(corps, lang="fr"):
+        return {"texte": f"ok {lang}", "actions": [], "moteur": "x", "nom": "X", "rejets": 0, "sans_cle": False}
+    monkeypatch.setattr(A, "demander", faux)
+    c = _client()
+    r = c.post("/api/agent/demander", json={"question": "q"}, headers={"Accept-Language": "en"})
+    assert r.status_code == 200 and r.json()["texte"] == "ok en"
+    assert c.post("/api/agent/demander", content="pas du json",
+                  headers={"Content-Type": "application/json"}).status_code == 400
+
+
+def test_route_erreurs(monkeypatch):
+    async def vide(corps, lang="fr"):
+        raise ValueError("La question est vide.")
+
+    async def panne(corps, lang="fr"):
+        raise RuntimeError("moteur en panne")
+    c = _client()
+    monkeypatch.setattr(A, "demander", vide)
+    assert c.post("/api/agent/demander", json={}).status_code == 400
+    monkeypatch.setattr(A, "demander", panne)
+    r = c.post("/api/agent/demander", json={"question": "q"})
+    assert r.status_code == 502 and "panne" in r.json()["detail"]
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__, "-q"]))
