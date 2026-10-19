@@ -70,6 +70,10 @@ MESSAGES = {
                 "en": "Rendering stopped: the page tried to open a window."},
     "delai": {"fr": "Rendu arrêté : la page ne répond plus ({etape}, délai de {s} s dépassé — boucle infinie ?).",
               "en": "Rendering stopped: the page stopped responding ({etape}, {s} s limit exceeded — infinite loop?)."},
+    "delai_total": {"fr": "Rendu arrêté : la durée de rendu permise ({s} s) est dépassée ({etape}). La page est trop lente : "
+                          "réduisez la durée, les images par seconde ou la complexité de la page.",
+                    "en": "Rendering stopped: the allowed render time ({s} s) was exceeded ({etape}). The page is too slow: "
+                          "lower the duration, the frames per second or the page's complexity."},
     "moteur": {"fr": "Le moteur de rendu motion code livré avec Deepotus Video Gen est absent (et Microsoft Edge est "
                      "introuvable) : réinstalle l'application.",
                "en": "The motion code renderer shipped with Deepotus Video Gen is missing (and Microsoft Edge was not "
@@ -263,11 +267,15 @@ class _Cdp:
 
     def appel(self, methode: str, params=None, *, etape: str = "", delai: float = DELAI_APPEL, langue="fr", sid=True):
         i = self.envoyer(methode, params, sid)
-        borne = min(time.monotonic() + delai, self.fin)
+        debut = time.monotonic()
+        borne = min(debut + delai, self.fin)
         while True:
             reste = borne - time.monotonic()
             if reste <= 0:
-                raise Arret("delai", langue, etape=etape or methode,
+                # Le budget de TOUT le rendu épuisé avant le délai de la commande : la page avance, trop lentement ;
+                # sinon la commande elle-même est figée (boucle infinie ?).
+                total = borne >= self.fin and borne < debut + delai
+                raise Arret("delai_total" if total else "delai", langue, etape=etape or methode,
                             s=int(round(self.total if borne >= self.fin else delai)))
             try:
                 brut = self.ws.recv(timeout=reste)

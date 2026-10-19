@@ -323,13 +323,15 @@ check("P5 fetch / XHR / image déguisés : AUCUNE requête reçue, l'appel écho
       e is None and not HITS and f.is_file() and centre_rouge(image(f, 11)) is not None, (e, HITS))
 P_avant = profils()
 e, dt, f = piege("<html><script>while(true){}</script></html>", delai=6)
-check("P6 boucle infinie au chargement → ARRÊT PROPRE « delai » (≈ le délai, pas plus)",
-      e is not None and e.code == "delai" and 5.5 <= dt < 20 and "6 s" in str(e), (e, dt))
+# 19/10 (PR #390) : ce banc fixe un budget TOTAL de 6 s, sous les 20 s par commande : c'est lui qui borne → « delai_total »
+# (le message dit le budget) ; en usage réel le budget vaut au moins 120 s et une commande figée donne « delai ».
+check("P6 boucle infinie au chargement → ARRÊT PROPRE « delai » / « delai_total » (≈ le délai, pas plus)",
+      e is not None and e.code in ("delai", "delai_total") and 5.5 <= dt < 20 and "6 s" in str(e), (e, dt))
 check("P7 … Edge du bac à sable tué, profil effacé, aucune sortie partielle",
       edges_du_bac() == 0 and profils() == P_avant and not f.exists(), (edges_du_bac(), profils()))
 e, dt, f = piege("<html><script>window.dzFrame=function(t){if(t>0.4)for(;;){}}</script></html>", delai=6)
-check("P8 boucle infinie dans dzFrame → ARRÊT « delai » à l'image fautive, propre",
-      e is not None and e.code == "delai" and ("image 6" in str(e) or "image 7" in str(e)) and edges_du_bac() == 0
+check("P8 boucle infinie dans dzFrame → ARRÊT « delai » / « delai_total » à l'image fautive, propre",
+      e is not None and e.code in ("delai", "delai_total") and ("image 6" in str(e) or "image 7" in str(e)) and edges_du_bac() == 0
       and profils() == P_avant and not f.exists(), (e, dt))
 e, dt, f = piege(GROS)
 check("P9 page de plus de 10 Mo → refus « taille », sans lancement", e is not None and e.code == "taille" and dt < 3, e)

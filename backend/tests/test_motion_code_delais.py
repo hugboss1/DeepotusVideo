@@ -123,6 +123,40 @@ finally:
 check("E12 rendre passe le délai calculé (60 i/s × 15 s → 450 s)", vus.get("delai") == 450, vus)
 check("E13 délai par commande inchangé (20 s) et plancher 120 s", MC.DELAI_APPEL == 20 and MC.DELAI == 120)
 
+
+class _WsMuet:
+    def recv(self, timeout=None):
+        import time as _t
+        _t.sleep(min(timeout or 0.05, 0.05))
+        raise TimeoutError
+
+    def send(self, m):
+        pass
+
+
+def arret_de(fin_dans, delai, total, langue="fr"):
+    import time as _t
+    c = object.__new__(MC._Cdp)
+    c.ws, c.n, c.sid, c.surveiller, c.total = _WsMuet(), 0, None, (lambda *a: None), total
+    c.fin = _t.monotonic() + fin_dans
+    try:
+        c.appel("Page.captureScreenshot", {}, etape="capture 580", delai=delai, langue=langue)
+    except MC.Arret as e:
+        return e
+    return None
+
+
+e = arret_de(0.3, 20.0, 450.0)
+check("E14 budget TOTAL épuisé (page lente, pas figée) → « delai_total » : le dit, sans « boucle infinie »",
+      e is not None and e.code == "delai_total" and "450 s" in str(e) and "capture 580" in str(e)
+      and "boucle" not in str(e) and "images par seconde" in str(e), e)
+e = arret_de(60.0, 1.0, 450.0, "en")
+check("E15 une commande figée (délai par commande) → « delai » (boucle infinie ?), inchangé ; EN",
+      e is not None and e.code == "delai" and "infinite loop" in str(e), e)
+check("E16 delai_total traduit (FR / EN, mêmes variables)", "delai_total" in MC.MESSAGES
+      and sorted(re.findall(r"\{(\w+)\}", MC.MESSAGES["delai_total"]["fr"]))
+      == sorted(re.findall(r"\{(\w+)\}", MC.MESSAGES["delai_total"]["en"])) == ["etape", "s"])
+
 print("[T] textes")
 mj = json.loads((RACINE / "frontend" / "shared" / "i18n" / "motion.json").read_text("utf-8"))
 CLES = ("studio.motion.raison_delai", "studio.motion.raison_erreur_moteur", "studio.motion.code_echec",
