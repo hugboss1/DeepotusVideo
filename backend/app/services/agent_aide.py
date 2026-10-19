@@ -97,10 +97,11 @@ def systeme(ecran: str, lang: str, espace: str = "") -> str:
             f"- langue : {'English' if en else 'français'}\n")
 
 
-# toute balise MAJUSCULE entre crochets, avec ou sans cible : les connues deviennent des actions, les autres sont
-# retirées (comptées) — l'écran ne voit jamais une balise
 CATALOGUE = DOSSIER / "catalogue"
 MAX_PERTINENTS = 15
+# bonus mesurés le 19/10 sur le catalogue non rédigé ; à revoir après C2
+BONUS_ECRAN = 2.0       # multiplicateur pour l'écran ouvert
+BONUS_VISIBLE = 6.0     # ajout pour un élément visible maintenant
 POIDS = (("libelle", 3.0), ("synonymes", 3.0), ("infobulle", 2.0), ("role", 1.0))
 MOTS_VIDES = {"le", "la", "les", "un", "une", "des", "de", "du", "et", "ou", "en", "au", "aux", "je", "tu", "il",
               "ce", "ca", "est", "pour", "par", "sur", "dans", "avec", "comment", "quoi", "que", "qui", "mon",
@@ -122,7 +123,8 @@ def catalogue() -> dict:
 
 
 def _mots(t) -> list:
-    t = unicodedata.normalize("NFKD", str(t or "")).encode("ascii", "ignore").decode().lower()
+    t = re.sub(r"\{[^{}]*\}", " ", str(t or ""))                 # les gabarits {k}, {piste}… ne sont pas des mots
+    t = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode().lower()
     return [m for m in re.findall(r"[a-z0-9]+", t) if len(m) >= 2 and m not in MOTS_VIDES]
 
 
@@ -150,8 +152,8 @@ def _index() -> tuple:
 
 
 def chercher(question, ecran: str = "", visibles=(), n: int = MAX_PERTINENTS) -> list:
-    """Les fiches les plus proches de la question : mots communs pondérés par champ et par rareté, ×1,5 sur l'écran
-    ouvert, +3 pour un élément visible maintenant. [] si la question n'a aucun mot utile."""
+    """Les fiches les plus proches de la question : mots communs pondérés par champ et par rareté, ×BONUS_ECRAN
+    sur l'écran ouvert, +BONUS_VISIBLE pour un élément visible maintenant. [] si la question n'a aucun mot utile."""
     q = {_racine(m) for m in _mots(question)}
     if not q:
         return []
@@ -162,9 +164,9 @@ def chercher(question, ecran: str = "", visibles=(), n: int = MAX_PERTINENTS) ->
         if not s:
             continue
         if ecran and fiches[i].get("ecran") == ecran:
-            s *= 1.5
+            s *= BONUS_ECRAN
         if i in vis:
-            s += 3.0
+            s += BONUS_VISIBLE
         res.append((-s, i))
     return [fiches[i] for _, i in sorted(res)[:n]]
 
@@ -175,7 +177,8 @@ def _par_texte() -> dict:
     return {}
 
 
-
+# toute balise MAJUSCULE entre crochets, avec ou sans cible : les connues deviennent des actions, les autres sont
+# retirées (comptées) — l'écran ne voit jamais une balise
 BALISE = re.compile(r"\[([A-Z]{2,8})(?::([^\[\]\n]{1,80}))?\]")
 MAX_ACTIONS = 6
 # A5 : coordonnées rendues par un moteur qui a VU une capture (pixels de la capture), libellé facultatif

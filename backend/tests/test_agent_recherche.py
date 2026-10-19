@@ -23,6 +23,10 @@ FAUX = {
                         "libelle": {"fr": "Créer", "en": "Create"}, "infobulle": None,
                         "role": {"fr": "", "en": ""}, "synonymes": {"fr": [], "en": []},
                         "localisateur": None, "etat": "extrait"},
+    "sonvfx.extraire": {"id": "sonvfx.extraire", "ecran": "sonvfx", "cadre": None, "type": "bouton",
+                        "libelle": {"fr": "Extraire le son → {piste}", "en": "Extract the sound → {piste}"},
+                        "infobulle": None, "role": {"fr": "", "en": ""}, "synonymes": {"fr": [], "en": []},
+                        "localisateur": None, "etat": "extrait"},
     "photolab.couper": {"id": "photolab.couper", "ecran": "photolab", "cadre": "/photolab/", "type": "outil",
                         "libelle": {"fr": "Recadrage", "en": "Crop"}, "infobulle": None,
                         "role": {"fr": "Coupe les bords de l'image.", "en": "Crops the image."},
@@ -52,6 +56,11 @@ def test_bonus_ecran_et_visible(faux):
     ids = [x["id"] for x in A.chercher("couper", "photolab", visibles=["montage.lame"])]
     assert ids[0] == "montage.lame"
     assert len(A.chercher("couper", n=1)) == 1
+
+
+def test_gabarits_hors_index(faux):
+    assert A.chercher("piste") == []                                  # {piste} est un gabarit, pas un mot
+    assert A.chercher("extraire le son")[0]["id"] == "sonvfx.extraire"
 
 
 def test_vrai_catalogue_charge():
