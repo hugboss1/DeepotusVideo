@@ -8,6 +8,7 @@ le coût recalculé dépasse le montant accepté).
 """
 import asyncio
 import json
+import uuid
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -17,6 +18,7 @@ from app.services import agent_aide as A
 router = APIRouter()
 
 _HOTES_LOCAUX = ("127.0.0.1", "::1", "localhost", "testclient")
+_VERROUS_LECTURE: dict[str, asyncio.Lock] = {}     # un verrou par MP3 du cache (A6)
 MAX_CORPS = 8_000_000           # une capture JPEG de 1 280 px tient très en dessous
 
 
@@ -94,20 +96,29 @@ async def lire(request: Request):
     prov = await loop.run_in_executor(None, VP.resolve_provider)
     if not prov:
         raise HTTPException(503, "Aucune voix disponible : ajoute la clé ElevenLabs ou lance Voicebox (Réglages).")
-    dest = A.chemin_lecture(prov, lang, texte)
+    dest = A.chemin_lecture(prov, lang, texte, A.voix_lecture(prov, lang))
     if not dest.is_file():
-        op = A.op_lecture(prov, texte)
-        if op:
-            from app.services import plafonds as _PLAF
-            await _PLAF.verifier(op, "aide")
-        from app.services.elevenlabs_service import VoiceoverService
-        tmp = dest.with_name(dest.stem + ".part.mp3")
-        try:
-            await loop.run_in_executor(None, lambda: VoiceoverService().generate_long(
-                text=texte, output_path=tmp, language=lang, provider=prov))
-            tmp.replace(dest)
-        except Exception as e:  # noqa: BLE001 — la cause est rendue à l'écran, la clé n'y figure jamais
-            tmp.unlink(missing_ok=True)
-            raise HTTPException(502, f"Lecture impossible : {e}") from None
-        await loop.run_in_executor(None, A.elaguer_lectures)
+        if len(_VERROUS_LECTURE) > 100:                  # on ne garde que les verrous encore tenus
+            for k in [k for k, v in _VERROUS_LECTURE.items() if not v.locked()]:
+                _VERROUS_LECTURE.pop(k, None)
+        verrou = _VERROUS_LECTURE.setdefault(dest.stem, asyncio.Lock())
+        async with verrou:                               # deux lectures du même texte : une seule garde, une seule voix
+            if not dest.is_file():
+                op = A.op_lecture(prov, texte)
+                if op:
+                    from app.services import plafonds as _PLAF
+                    await _PLAF.verifier(op, "aide")
+                from app.services.elevenlabs_service import VoiceoverService
+                tmp = dest.with_name(f"{dest.stem}.{uuid.uuid4().hex}.part")
+                try:
+                    await loop.run_in_executor(None, lambda: VoiceoverService().generate_long(
+                        text=texte, output_path=tmp, language=lang, provider=prov))
+                    tmp.replace(dest)
+                except Exception as e:  # noqa: BLE001 — la cause est rendue à l'écran, la clé n'y figure jamais
+                    tmp.unlink(missing_ok=True)
+                    raise HTTPException(502, f"Lecture impossible : {e}") from None
+                try:
+                    await loop.run_in_executor(None, A.elaguer_lectures)
+                except Exception:  # noqa: BLE001 — un échec d'élagage ne fait jamais échouer la lecture
+                    pass
     return FileResponse(str(dest), media_type="audio/mpeg")

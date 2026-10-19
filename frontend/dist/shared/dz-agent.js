@@ -60,6 +60,7 @@ if (!window.__dzAgent) {
 .dzAgentActions button,.dzAgentTete button,.dzAgentPied button{background:transparent;color:inherit;border:1px solid var(--stroke,#2a2930);
  border-radius:8px;padding:4px 8px;cursor:pointer;font:inherit}
 .dzAgentPied{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--stroke,#2a2930)}
+.dzAgentPied button[aria-busy="true"]{opacity:.6}
 .dzAgentPied button[aria-pressed="true"]{border-color:#ef4444;background:#b91c1c;color:#fff}
 .dzAgentPied textarea{flex:1;resize:none;min-height:38px;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:8px;padding:6px}
 .dzAgentTete select{background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
@@ -74,7 +75,8 @@ if (!window.__dzAgent) {
   // A6 : la dictée passe par la couche des champs IA (/shared/dz-champ-ia.js) : voie 1 du navigateur, voie 2
   // enregistrée avec devis et accord. Le tiroir ne règle que son bouton, sur l'événement `dzia-dictee`.
   const dictee = () => (window.DzChampIA && window.DzChampIA.dictee) || null;
-  const dicteeEnCours = () => { const d = dictee(); try { return !!d && d.etat().etat !== "repos"; } catch (e) { return false; } };
+  // l'état de la dictée DE ce champ (annoncé par `dzia-dictee`), pas celui d'un autre champ de la page
+  const dicteeEnCours = () => { const e = btnMicro.dataset.etat; return !!e && e !== "repos" && e !== "fini"; };
   const btnMicro = el("button", { type: "button", "aria-pressed": "false", title: T("agent.voix.dicter"),
     "aria-label": T("agent.voix.dicter"), on: { click: () => {
       const d = dictee();
@@ -84,10 +86,12 @@ if (!window.__dzAgent) {
   saisie.addEventListener("dzia-dictee", (ev) => {
     const e = (ev.detail && ev.detail.etat) || "repos";
     const ecoute = e === "ecoute" || e === "prise";
+    const occupee = ["micro", "estime", "accord", "envoi", "fin"].includes(e);
     btnMicro.setAttribute("aria-pressed", ecoute ? "true" : "false");
-    btnMicro.title = T(ecoute ? "agent.voix.arreter" : "agent.voix.dicter");
+    btnMicro.setAttribute("aria-busy", occupee ? "true" : "false");
+    btnMicro.title = T(occupee ? "agent.voix.occupe" : ecoute ? "agent.voix.arreter" : "agent.voix.dicter");
     btnMicro.setAttribute("aria-label", btnMicro.title);
-    btnMicro.replaceChildren(glyphe(ecoute ? "dz-media-arret" : "dz-media-dicter"));
+    btnMicro.replaceChildren(occupee ? document.createTextNode("…") : glyphe(ecoute ? "dz-media-arret" : "dz-media-dicter"));
     btnMicro.dataset.etat = e;
   });
   const btnNouvelle = el("button", { texte: "↺", title: T("agent.tiroir.nouvelle"), "aria-label": T("agent.tiroir.nouvelle"),
@@ -108,10 +112,10 @@ if (!window.__dzAgent) {
     const focusDedans = tiroir.contains(document.activeElement);
     tiroir.dataset.ouvert = o ? "1" : "0";
     bouton.setAttribute("aria-expanded", o ? "true" : "false");
-    if (o) { chargement = null; chargerMoteurs().then(() => { if (!occupe) dessiner(); }); saisie.focus(); }     // la voix connue fait apparaître « Lire »     // rechargé : une clé ajoutée à chaud compte
+    if (o) { chargement = null; chargerMoteurs().then(() => { if (!occupe) dessiner(); }); saisie.focus(); }     // rechargé : une clé ajoutée à chaud compte ; la voix connue fait apparaître « Lire »
     else {
       arreterLecture();
-      if (dicteeEnCours()) { try { dictee().arreter(); } catch (e) { /* rien à arrêter */ } }
+      if (dicteeEnCours()) { try { dictee().abandonner(saisie); } catch (e) { /* rien à abandonner */ } }
       if (focusDedans) bouton.focus();     // le focus ne reste pas dans un tiroir masqué
     }
   }
@@ -150,45 +154,59 @@ if (!window.__dzAgent) {
   }
 
   // A6 : une réponse lue par la voix des Réglages (POST /api/agent/lire -> MP3). Un clic sur le bouton en cours arrête.
-  let lecture = null;     // {audio, url, bouton, texte}
+  let lecture = null;     // {ctrl, bouton, texte, msg, titre, audio?, url?}
+  function etatBouton(l, enCours) {
+    l.bouton.setAttribute("aria-pressed", enCours ? "true" : "false");
+    const t = enCours ? T("agent.voix.stop") : l.titre;
+    l.bouton.title = t; l.bouton.setAttribute("aria-label", t);
+  }
   function arreterLecture() {
     if (!lecture) return;
     const l = lecture; lecture = null;
-    try { l.audio.pause(); } catch (e) { /* déjà arrêtée */ }
-    URL.revokeObjectURL(l.url);
-    l.bouton.setAttribute("aria-pressed", "false");
+    try { l.ctrl.abort(); } catch (e) { /* déjà interrompue */ }
+    if (l.audio) { try { l.audio.pause(); } catch (e) { /* déjà arrêtée */ } }
+    if (l.url) URL.revokeObjectURL(l.url);
+    etatBouton(l, false);
   }
-  async function lireTexte(texte, b) {
+  function erreurLecture(e) {
+    hist.push({ role: "assistant", texte: T("agent.voix.erreur", { msg: (e && e.message) || "—" }), erreur: true });
+    garder(); dessiner(occupe);
+  }
+  async function lireTexte(m, b, titre) {
     const deja = lecture && lecture.bouton === b;
     arreterLecture();
     if (deja) return;
-    b.disabled = true;
+    const moi = { ctrl: new AbortController(), bouton: b, texte: m.texte, msg: m, titre };
+    lecture = moi;                                   // posée AVANT le fetch : fermer ou ↺ pendant le chargement l'abandonne
+    etatBouton(moi, true);
+    let url = "";
     try {
       const r = await fetch("/api/agent/lire", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texte, lang: lang() }) });
+        body: JSON.stringify({ texte: m.texte, lang: lang() }), signal: moi.ctrl.signal });
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(typeof j.detail === "string" ? j.detail : String(r.status)); }
-      const url = URL.createObjectURL(await r.blob());
+      const blob = await r.blob();
+      if (lecture !== moi) return;                   // arrêtée ou remplacée pendant le chargement : on ne joue pas
+      url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      lecture = { audio, url, bouton: b, texte };
-      b.setAttribute("aria-pressed", "true");
-      b.title = T("agent.voix.stop");
-      audio.addEventListener("ended", () => { if (lecture && lecture.audio === audio) arreterLecture(); });
+      moi.audio = audio; moi.url = url; url = "";
+      audio.addEventListener("ended", () => { if (lecture === moi) arreterLecture(); });
+      audio.addEventListener("error", () => { if (lecture === moi) { arreterLecture(); erreurLecture(new Error("audio")); } });
       await audio.play();
     } catch (e) {
-      arreterLecture();
-      hist.push({ role: "assistant", texte: T("agent.voix.erreur", { msg: (e && e.message) || "—" }), erreur: true });
-      garder(); dessiner();
-    } finally { b.disabled = false; }
+      if (url) URL.revokeObjectURL(url);
+      if (e && e.name === "AbortError") return;      // interrompue par l'utilisateur : silence
+      if (lecture === moi) { arreterLecture(); erreurLecture(e); }
+    }
   }
   function boutonLire(m) {
     const v = etatAgent && etatAgent.voix;
     if (!v || !v.fournisseur || m.role !== "assistant" || m.erreur || !m.texte) return null;
     const titre = T(v.cout === "gratuit" ? "agent.voix.lire_gratuit" : "agent.voix.lire_payant", { nom: v.nom });
     const b = el("button", { type: "button", title: titre, "aria-label": titre, "aria-pressed": "false" }, [glyphe("dz-media-audio")]);
-    if (lecture && lecture.texte === m.texte) {     // un nouveau dessin du fil ne fait pas perdre le bouton de la lecture en cours
-      lecture.bouton = b; b.setAttribute("aria-pressed", "true"); b.title = T("agent.voix.stop");
+    if (lecture && lecture.msg === m) {              // un nouveau dessin du fil ne fait pas perdre le bouton de la lecture en cours
+      lecture.bouton = b; lecture.titre = titre; etatBouton(lecture, true);
     }
-    b.addEventListener("click", () => lireTexte(m.texte, b));
+    b.addEventListener("click", () => lireTexte(m, b, titre));
     return b;
   }
 

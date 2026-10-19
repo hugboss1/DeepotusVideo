@@ -320,8 +320,17 @@ def dossier_lectures() -> Path:
     return d
 
 
-def chemin_lecture(fournisseur: str, lang: str, texte: str) -> Path:
-    h = hashlib.sha1(f"{fournisseur}|{lang}|{texte}".encode("utf-8")).hexdigest()[:20]
+def voix_lecture(fournisseur: str, lang: str) -> str:
+    """La voix et le modèle réglés pour cette langue : changer de voix dans les Réglages ne relit pas l'ancien MP3."""
+    from app.config import settings
+    if fournisseur == "elevenlabs":
+        v = getattr(settings, "ELEVENLABS_VOICE_ID_" + ("EN" if lang == "en" else "FR"), "")
+        return f"{v}|{getattr(settings, 'ELEVENLABS_MODEL', '')}"
+    return str(getattr(settings, "VOICEBOX_URL", "") or "")
+
+
+def chemin_lecture(fournisseur: str, lang: str, texte: str, voix: str = "") -> Path:
+    h = hashlib.sha1(f"{fournisseur}|{voix}|{lang}|{texte}".encode("utf-8")).hexdigest()[:20]
     return dossier_lectures() / f"{h}.mp3"
 
 
@@ -331,9 +340,18 @@ def op_lecture(fournisseur: str, texte: str) -> dict | None:
 
 
 def elaguer_lectures(garder: int = GARDER_LECTURES) -> None:
-    fichiers = sorted(dossier_lectures().glob("*.mp3"), key=lambda p: p.stat().st_mtime, reverse=True)
-    for p in fichiers[garder:]:
-        p.unlink(missing_ok=True)
+    datees = []
+    for p in dossier_lectures().glob("*.mp3"):          # les `.part` en cours d'écriture ne sont jamais comptés
+        try:
+            datees.append((p.stat().st_mtime, p))
+        except OSError:
+            continue                                     # disparu entre-temps (autre requête) : ignoré
+    datees.sort(key=lambda x: x[0], reverse=True)
+    for _, p in datees[garder:]:
+        try:
+            p.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def etat_voix() -> dict:

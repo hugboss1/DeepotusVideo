@@ -1720,6 +1720,7 @@
       voie: voieDictee,
       etat: function () { var a = dic.active; return { etat: a ? a.etat : "repos", voie: a ? a.voie : voieDictee(), voie1Ko: dic.voie1Ko, indispo: indispo(), veille: !!tVeille }; },
       arreter: arreterDictee,
+      abandonner: abandonnerDictee,   // A6 : abandon SANS rien envoyer, pour le champ donné seulement
       basculer: basculerDictee      // A6 : la dictée pour un champ non marqué (le tiroir de l'assistant)
     }
   };

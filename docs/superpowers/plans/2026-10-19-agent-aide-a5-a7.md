@@ -2278,6 +2278,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
+**Corrections de revue des Tâches 11-14 (déjà reportées dans le code livré ; le code des étapes ci-dessus est l'état AVANT revue) :**
+
+- `/lire` : verrou par clé de cache au niveau du module (`_VERROUS_LECTURE`), `dest.is_file()` revérifié SOUS le verrou avant la garde ; MP3 temporaire `<stem>.<uuid>.part` ; clé du cache = `chemin_lecture(fournisseur, lang, texte, voix)` avec `voix_lecture()` (voix et modèle ElevenLabs de la langue, ou `VOICEBOX_URL`). Banc : deux lectures simultanées d'une seule boucle (httpx `ASGITransport`, pas `TestClient` : un verrou asyncio ne se partage pas entre boucles) → une garde, une génération.
+- `elaguer_lectures` ignore les `.part`, les fichiers disparus et les erreurs d'`unlink` ; la route ne fait jamais échouer la réponse sur un échec d'élagage.
+- Écran : `lecture = {ctrl, bouton, texte, msg, titre}` posée AVANT le `fetch` (`AbortController`), `arreterLecture` fait `ctrl.abort()`, `AbortError` ignorée, rien n'est joué si la lecture a été remplacée pendant le chargement, `audio` « error » → message, erreur → `dessiner(occupe)`, reprise de l'état au redessin par `lecture.msg === m`, `title` et `aria-label` restaurés dans les deux sens.
+- Dictée : `DzChampIA.dictee.abandonner(el)` ; le tiroir l'appelle à la fermeture et ne regarde que l'état de SA dictée (`btnMicro.dataset.etat`) ; états occupés → `aria-busy` et titre `agent.voix.occupe`.
+
 ### Tâche 15 : A6, preuve à l'écran
 
 - [ ] **Étape 1 :** lancer le backend de preuve de la tâche 16 (ou `preuve_a5.py` complété d'un faux Voicebox qui

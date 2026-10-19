@@ -33,6 +33,7 @@
   "agent.voix.dicter": {"fr": "Dicter la question", "en": "Dictate the question"},
   "agent.voix.arreter": {"fr": "Arrêter la dictée", "en": "Stop dictation"},
   "agent.voix.indisponible": {"fr": "La dictée n'est pas disponible sur cette page.", "en": "Dictation is not available on this page."},
+  "agent.voix.occupe": {"fr": "Dictée en cours…", "en": "Dictation in progress…"},
   "agent.voix.lire_gratuit": {"fr": "Lire à voix haute ({nom}, gratuit)", "en": "Read aloud ({nom}, free)"},
   "agent.voix.lire_payant": {"fr": "Lire à voix haute ({nom}, payant, sous le plafond « aide »)", "en": "Read aloud ({nom}, paid, under the \"help\" cap)"},
   "agent.voix.stop": {"fr": "Arrêter la lecture", "en": "Stop reading"},

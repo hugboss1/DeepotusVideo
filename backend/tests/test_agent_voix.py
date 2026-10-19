@@ -34,7 +34,8 @@ def test_micro_du_tiroir():
     assert 'saisie.addEventListener("dzia-dictee"' in src
     assert 'glyphe("dz-media-dicter")' in src and '"dz-media-arret"' in src
     assert "dicteeEnCours()" in src, "Échap pendant la dictée l'arrête sans fermer le tiroir"
-    for k in ("agent.voix.dicter", "agent.voix.arreter", "agent.voix.indisponible"):
+    assert "abandonner(saisie)" in src and "abandonner: abandonnerDictee" in (SHARED / "dz-champ-ia.js").read_text(encoding="utf-8")
+    for k in ("agent.voix.dicter", "agent.voix.arreter", "agent.voix.indisponible", "agent.voix.occupe"):
         assert k in I18N and I18N[k]["fr"] and I18N[k]["en"], k
 
 
@@ -82,6 +83,37 @@ def test_lire_elevenlabs_sous_le_plafond_aide(monkeypatch):
     assert gardes == [({"kind": "elevenlabs", "chars": len("Hello there.")}, "aide")]
 
 
+def test_lectures_simultanees_une_seule_garde(monkeypatch):
+    import time
+    import httpx
+    _preparer(monkeypatch, "elevenlabs")
+    gardes, gen = [], []
+
+    async def verifier(op, categorie, ref=None):
+        gardes.append((op, categorie))
+        await asyncio.sleep(0.05)
+    monkeypatch.setattr(PLAF, "verifier", verifier)
+
+    class Lente(_FausseVoix):
+        def generate_long(self, text, output_path, language="EN", provider=None, **kw):
+            gen.append(text); time.sleep(0.3)
+            pathlib.Path(output_path).write_bytes(b"ID3lent")
+    monkeypatch.setattr(ES, "VoiceoverService", Lente)
+    from app.main import app
+
+    async def deux():       # UNE boucle d'événements, comme le serveur : les deux requêtes se disputent le verrou
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as c:
+            corps = {"texte": "Bonjour tout seul.", "lang": "fr"}
+            return await asyncio.gather(c.post("/api/agent/lire", json=corps), c.post("/api/agent/lire", json=corps))
+    rs = asyncio.run(deux())
+    assert [r.status_code for r in rs] == [200, 200] and len(gen) == 1 and len(gardes) == 1
+
+
+def test_cle_du_cache_depend_de_la_voix():
+    a = A.chemin_lecture("elevenlabs", "fr", "x", "v1|m")
+    assert a != A.chemin_lecture("elevenlabs", "fr", "x", "v2|m") and a == A.chemin_lecture("elevenlabs", "fr", "x", "v1|m")
+
+
 def test_lire_refus(monkeypatch):
     c, _ = _preparer(monkeypatch, "")
     assert c.post("/api/agent/lire", json={"texte": "x"}).status_code == 503
@@ -104,6 +136,9 @@ def test_elaguer_garde_les_plus_recents():
     A.elaguer_lectures()
     restes = sorted(p.name for p in d.glob("*.mp3"))
     assert len(restes) == A.GARDER_LECTURES and "f000.mp3" not in restes
+    (d / "x.abc.part").write_bytes(b"x")
+    A.elaguer_lectures()
+    assert (d / "x.abc.part").exists(), "un .part en cours n'est pas élagué"
 
 
 def test_etat_voix(monkeypatch):
@@ -120,6 +155,8 @@ def test_lecture_dans_le_tiroir():
     assert 'glyphe("dz-media-audio")' in src
     for k in ("agent.voix.lire_gratuit", "agent.voix.lire_payant", "agent.voix.stop", "agent.voix.erreur"):
         assert k in I18N, k
+    assert "new AbortController()" in src and "ctrl.abort()" in src and "lecture.msg === m" in src
+    assert 'audio.addEventListener("error"' in src
     assert "{nom}" in I18N["agent.voix.lire_payant"]["fr"] and "{msg}" in I18N["agent.voix.erreur"]["en"]
 
 

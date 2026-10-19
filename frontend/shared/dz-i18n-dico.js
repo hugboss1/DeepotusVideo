@@ -39,6 +39,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "agent.voix.indisponible": {"fr": "La dictée n'est pas disponible sur cette page.", "en": "Dictation is not available on this page."},
   "agent.voix.lire_gratuit": {"fr": "Lire à voix haute ({nom}, gratuit)", "en": "Read aloud ({nom}, free)"},
   "agent.voix.lire_payant": {"fr": "Lire à voix haute ({nom}, payant, sous le plafond « aide »)", "en": "Read aloud ({nom}, paid, under the \"help\" cap)"},
+  "agent.voix.occupe": {"fr": "Dictée en cours…", "en": "Dictation in progress…"},
   "agent.voix.stop": {"fr": "Arrêter la lecture", "en": "Stop reading"},
   "atelier.at1_bib.ajouter_lib": {"fr": "Ajouter depuis la Library", "en": "Add from the Library"},
   "atelier.at1_bib.alias": {"fr": "alias :", "en": "aliases:"},
