@@ -40,7 +40,18 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 
 ## Parcours
 - **Première vidéo** : ouvrir Quick, choisir l'onglet (clip animé, avatar, composition, voix off) ; le coût s'affiche
-  avant de lancer. → [POINT:rail.quick] [GUIDE:quick]
+  avant de lancer ; le bouton « Générer … » est en bas du formulaire. → [POINT:rail.quick] [POINT:quick.onglet_seedance] [GUIDE:quick]
+- **Choisir le persona de Quick** (ton et voix du texte) : le sélecteur de persona en haut du formulaire.
+  → [POINT:quick.persona] [GUIDE:quick]
+- **Réutiliser des réglages de Quick** : Presets › Enregistrer…, puis choisir le preset la fois suivante.
+  → [POINT:quick.preset_enregistrer] [GUIDE:quick]
+- **Choisir un mouvement de caméra** : Quick › Galerie de mouvements. → [POINT:quick.galerie] [GUIDE:quick]
+- **Écrire un meilleur prompt** : Quick › Ouvrir le générateur de prompts. → [POINT:quick.generateur_prompts] [GUIDE:quick]
+- **Composer une vidéo pièce par pièce** : Studio, Nouveau, relier les nœuds, Aperçu (gratuit) puis Exécuter ;
+  Enregistrer garde le graphe, Recette le fige, Exporter télécharge. → [POINT:studio.nouveau] [POINT:studio.apercu] [GUIDE:studio]
+- **Lancer un graphe du Studio** : bouton Exécuter (payant selon les nœuds). → [POINT:studio.executer] [GUIDE:studio]
+- **Réutiliser un graphe** : Studio › Enregistrer, ou Recette pour le figer. → [POINT:studio.enregistrer] [POINT:studio.recette] [GUIDE:studio]
+- **Récupérer un rendu du Studio** : Studio › Exporter. → [POINT:studio.exporter] [GUIDE:studio]
 - **Brancher une clé d'API** : dans Réglages › Clés d'API, coller la clé, Enregistrer, puis Tester. Une seule clé est
   indispensable pour démarrer : fal.ai. → [POINT:reglages.cles] [GUIDE:cles]
 - **Choisir les modèles par défaut et la langue de l'interface** : Réglages › Fournisseurs par défaut (rangée « Langue
@@ -53,9 +64,18 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   → [POINT:reglages.marque] [GUIDE:reglages]
 - **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés, puis programmer dans le
   Planificateur. → [POINT:reglages.comptes] [POINT:rail.planificateur] [GUIDE:comptes]
-- **Monter et livrer** : ouvrir le Montage, puis le bouton Rendre de la barre du haut.
-  → [POINT:rail.montage] [GUIDE:montage-livrer]
-- **Retrouver un fichier** : ouvrir la Bibliothèque. → [POINT:rail.bibliotheque] [GUIDE:bibliotheque]
+- **Monter et livrer** : ouvrir le Montage, vérifier avec Preview (480p, gratuit), puis Rendre (master 1080) et
+  Publier. → [POINT:montage.preview] [POINT:montage.rendre] [GUIDE:montage-livrer]
+- **Ajouter des vidéos ou des sons au montage** : tiroir Médias (vos rendus) ou tiroir Sons. → [POINT:montage.medias] [POINT:montage.sons] [GUIDE:montage]
+- **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]
+- **Publier un montage** : Montage › Publier, une fois le rendu final fait. → [POINT:montage.publier] [GUIDE:montage-livrer]
+- **Retrouver un fichier** : ouvrir la Bibliothèque, puis Recherche (légende, tags, prompts).
+  → [POINT:rail.bibliotheque] [POINT:bibliotheque.recherche] [GUIDE:bibliotheque]
+- **Importer ses propres fichiers** : Bibliothèque › Importer une vidéo, ou Importer une image.
+  → [POINT:bibliotheque.importer_video] [POINT:bibliotheque.importer_image] [GUIDE:bibliotheque]
+- **Ranger par projet** : Bibliothèque › Nouveau projet. → [POINT:bibliotheque.nouveau_projet] [GUIDE:bibliotheque]
+- **Récupérer un fichier jeté** : Bibliothèque › Corbeille. → [POINT:bibliotheque.corbeille] [GUIDE:bibliotheque]
+- **Créer une image** : Bibliothèque › Créer l'image. → [POINT:bibliotheque.creer_image] [GUIDE:bibliotheque]
 - **Passer l'interface en anglais ou en français** : Réglages › Fournisseurs par défaut, rangée « Langue de
   l'interface ». → [POINT:reglages.defauts] [GUIDE:installer]
 - **Mettre à jour l'application** : Réglages › Diagnostic, bouton Vérifier. → [POINT:reglages.diagnostic] [GUIDE:installer]
