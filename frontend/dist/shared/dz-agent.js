@@ -7,7 +7,7 @@
 // moteur} ; sous chaque réponse, un bouton par action (Montre-moi / Y aller / Guide). L'historique reste dans
 // sessionStorage (dz_agent_hist) ; le moteur choisi dans localStorage (dz_agent_moteur). Un 402 `dz_plafond` est
 // traité par la couche /shared/dz-plafonds.js (elle enveloppe window.fetch) : rien à faire ici.
-import { etapes, historiqueBorne, choisir } from "./dz-agent-logique.js";
+import { etapes, historiqueBorne, choisir, courbe } from "./dz-agent-logique.js";
 
 if (!window.__dzAgent) {
   window.__dzAgent = true;
@@ -49,17 +49,25 @@ if (!window.__dzAgent) {
  border-radius:8px;padding:4px 8px;cursor:pointer;font:inherit}
 .dzAgentPied{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--stroke,#2a2930)}
 .dzAgentPied textarea{flex:1;resize:none;min-height:38px;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:8px;padding:6px}
-.dzAgentTete select{background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}` });
+.dzAgentTete select{background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
+.dzAgentTete button:disabled,.dzAgentPied button:disabled{opacity:.5;cursor:default}
+.dzAgentCurseur{position:fixed;left:0;top:0;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;z-index:2147483002;
+ pointer-events:none;background:var(--cyan,#f0b429);box-shadow:0 0 16px 4px var(--cyan-glow,rgba(240,180,41,.33))}
+.dzAgentHalo{position:fixed;z-index:2147483002;pointer-events:none;border:2px solid var(--cyan,#f0b429);border-radius:10px;
+ box-shadow:0 0 0 4px var(--cyan-glow,rgba(240,180,41,.33)),0 0 24px var(--cyan-glow,rgba(240,180,41,.33));transition:opacity .4s}
+.dzAgentBulle{position:fixed;z-index:2147483002;pointer-events:none;background:var(--bg-panel,#151519);color:var(--ink-strong,#eaf2ff);
+ border:1px solid var(--cyan,#f0b429);border-radius:8px;padding:4px 8px;font-family:inherit;font-size:12px;font-weight:600;line-height:1.3;white-space:nowrap;transition:opacity .4s}
+@media (prefers-reduced-motion: reduce){.dzAgentHalo,.dzAgentBulle{transition:none}}` });
 
   const fil = el("div", { class: "dzAgentFil", role: "log", "aria-live": "polite" });
   const saisie = el("textarea", { placeholder: T("agent.tiroir.placeholder"), "aria-label": T("agent.tiroir.placeholder") });
   const choix = el("select", { "aria-label": T("agent.moteur.libelle"), title: T("agent.moteur.libelle") });
   const btnEnvoyer = el("button", { texte: T("agent.tiroir.envoyer"), on: { click: () => envoyer() } });
+  const btnNouvelle = el("button", { texte: "↺", title: T("agent.tiroir.nouvelle"), "aria-label": T("agent.tiroir.nouvelle"),
+    on: { click: () => { if (occupe) return; hist = []; garder(); dessiner(); } } });
   const tiroir = el("aside", { id: "dzAgentTiroir", class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
     el("div", { class: "dzAgentTete" }, [
-      el("h2", { texte: T("agent.tiroir.titre") }), choix,
-      el("button", { texte: "↺", title: T("agent.tiroir.nouvelle"), "aria-label": T("agent.tiroir.nouvelle"),
-        on: { click: () => { hist = []; garder(); dessiner(); } } }),
+      el("h2", { texte: T("agent.tiroir.titre") }), choix, btnNouvelle,
       el("button", { texte: "×", title: T("agent.tiroir.fermer"), "aria-label": T("agent.tiroir.fermer"), on: { click: () => basculer(false) } }),
     ]),
     fil,
@@ -91,18 +99,19 @@ if (!window.__dzAgent) {
   }
   choix.addEventListener("change", () => ecrire(window.localStorage, "dz_agent_moteur", choix.value));
 
-  function boutonAction(a) {
+  // actionsDuMessage : toutes les actions du message d'où vient le clic (l'ancre introuvable renvoie vers ses guides)
+  function boutonAction(a, actionsDuMessage) {
     const l = lang();
     const libelle = a.type === "point" ? T("agent.action.montrer", { libelle: a[l] || a.fr })
       : a.type === "guide" ? T("agent.action.guide", { titre: a[l] || a.fr }) : T("agent.action.aller");
-    return el("button", { texte: libelle, on: { click: () => executer(a) } });
+    return el("button", { texte: libelle, on: { click: () => executer(a, actionsDuMessage) } });
   }
 
   function dessiner(enAttente) {
     const msgs = hist.length ? hist : [{ role: "assistant", texte: T("agent.tiroir.accueil") }];
     fil.replaceChildren(...msgs.map((m) => {
       const b = el("div", { class: "dzAgentMsg", "data-role": m.role, texte: m.texte });
-      if (m.actions && m.actions.length) b.appendChild(el("div", { class: "dzAgentActions" }, m.actions.map(boutonAction)));
+      if (m.actions && m.actions.length) b.appendChild(el("div", { class: "dzAgentActions" }, m.actions.map((x) => boutonAction(x, m.actions))));
       return b;
     }));
     if (enAttente) fil.appendChild(el("div", { class: "dzAgentMsg", "data-role": "assistant", texte: T("agent.reponse.reflechit") }));
@@ -116,6 +125,7 @@ if (!window.__dzAgent) {
     if (!q || occupe) return;
     occupe = true;
     btnEnvoyer.disabled = true;
+    btnNouvelle.disabled = true;
     saisie.value = "";
     const avant = historiqueBorne(hist.filter((m) => !m.erreur)).map(({ role, texte }) => ({ role, texte }));
     const question = { role: "user", texte: q };
@@ -136,12 +146,13 @@ if (!window.__dzAgent) {
     } finally {
       occupe = false;
       btnEnvoyer.disabled = false;
+      btnNouvelle.disabled = false;
       garder();
       dessiner();
     }
   }
 
-  // ── les actions (le pointeur arrive à la tâche 11) ──
+  // ── les actions ──
   const attendre = (ms) => new Promise((ok) => setTimeout(ok, ms));
   function aller(v) { window.dispatchEvent(new CustomEvent("deepotus:navigate", { detail: { view: v } })); }
   function ouvrirReglages(section) {
@@ -170,17 +181,88 @@ if (!window.__dzAgent) {
     } while (Date.now() < fin);
     return null;
   }
-  async function pointer(a) {
-    const n = await trouver(a, 4000);
-    if (!n) { hist.push({ role: "assistant", texte: T("agent.action.introuvable") }); garder(); dessiner(); return; }
-    n.scrollIntoView({ block: "center", behavior: "smooth" });
+
+  // ── le pointeur à la Clicky : un curseur part du bouton « Demander », décrit un arc (courbe), puis un halo et une
+  // bulle se posent sur la cible. Calques éphémères, au-dessus de tout, transparents aux clics. Un seul pointage à la
+  // fois : chaque nouveau pointage (ou un clic hors du tiroir) annule le précédent — animation, minuterie, écouteurs.
+  const reduit = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  let calques = [], anim = 0, minuterie = 0, suivre = null, tourPointeur = 0;
+  function effacerPointeur() {
+    if (anim) cancelAnimationFrame(anim);
+    if (minuterie) clearTimeout(minuterie);
+    anim = 0; minuterie = 0;
+    if (suivre) { window.removeEventListener("scroll", suivre, true); window.removeEventListener("resize", suivre); suivre = null; }
+    calques.forEach((c) => c.remove());
+    calques = [];
   }
-  async function executer(a) {
+
+  function montrer(cible, libelle) {
+    effacerPointeur();
+    const b = bouton.getBoundingClientRect();
+    const depart = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    const curseur = el("div", { class: "dzAgentCurseur" });
+    const halo = el("div", { class: "dzAgentHalo" });
+    const bulle = el("div", { class: "dzAgentBulle", texte: libelle });
+    halo.style.opacity = "0"; bulle.style.opacity = "0";
+    curseur.style.transform = `translate(${depart.x}px,${depart.y}px)`;
+    document.body.append(curseur, halo, bulle);
+    calques = [curseur, halo, bulle];
+    let arrivee = depart, pose = false;
+    // recalcule la place de la cible : au départ, puis à chaque défilement / redimensionnement (même pendant l'arc)
+    const placer = () => {
+      const r = cible.getBoundingClientRect();
+      arrivee = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      Object.assign(halo.style, { left: r.x - 6 + "px", top: r.y - 6 + "px", width: r.width + 12 + "px", height: r.height + 12 + "px" });
+      const hb = bulle.offsetHeight || 24, lb = bulle.offsetWidth || 0;
+      const haut = r.y - hb - 10 >= 8 ? r.y - hb - 10 : r.bottom + 10;          // au-dessus, sinon en dessous
+      bulle.style.left = Math.max(8, Math.min(r.x, window.innerWidth - lb - 8)) + "px";
+      bulle.style.top = Math.max(8, Math.min(haut, window.innerHeight - hb - 8)) + "px";
+      if (pose) curseur.style.transform = `translate(${arrivee.x}px,${arrivee.y}px)`;
+    };
+    placer();
+    suivre = () => placer();
+    window.addEventListener("scroll", suivre, { capture: true, passive: true });
+    window.addEventListener("resize", suivre);
+    const finir = () => {
+      anim = 0; pose = true;
+      curseur.style.transform = `translate(${arrivee.x}px,${arrivee.y}px)`;
+      halo.style.opacity = "1"; bulle.style.opacity = "1";
+      minuterie = setTimeout(effacerPointeur, 3200);
+    };
+    if (reduit()) return finir();
+    const debut = performance.now(), duree = 700;
+    const pas = (t) => {
+      const k = Math.max(0, Math.min(1, (t - debut) / duree));
+      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;         // ease-in-out
+      const p = courbe(depart, arrivee, e);
+      curseur.style.transform = `translate(${p.x}px,${p.y}px)`;
+      if (k < 1) anim = requestAnimationFrame(pas); else finir();
+    };
+    anim = requestAnimationFrame(pas);
+  }
+  document.addEventListener("pointerdown", (ev) => { if (calques.length && !tiroir.contains(ev.target)) effacerPointeur(); }, true);
+
+  async function pointer(a, actionsDuMessage) {
+    const moi = ++tourPointeur;
+    effacerPointeur();
+    const n = await trouver(a, 4000);
+    if (moi !== tourPointeur) return;                                            // un autre pointage a pris la main
+    if (!n) {
+      const guides = (Array.isArray(actionsDuMessage) ? actionsDuMessage : []).filter((x) => x && x.type === "guide");
+      hist.push({ role: "assistant", texte: T("agent.action.introuvable"), actions: guides });
+      garder(); dessiner(); return;
+    }
+    n.scrollIntoView({ block: "center" });
+    await attendre(60);
+    if (moi !== tourPointeur || !n.isConnected) return;
+    montrer(n, a[lang()] || a.fr);
+  }
+  async function executer(a, actionsDuMessage) {
     for (const e of etapes(a, vue())) {
       if (e.faire === "aller") { aller(e.vue); await attendre(350); }
-      else if (e.faire === "reglages") ouvrirReglages(e.section);
+      else if (e.faire === "reglages") { ouvrirReglages(e.section); await attendre(300); }
       else if (e.faire === "guide") window.open("/guide/#" + e.chapitre, "_blank", "noopener");
-      else if (e.faire === "pointer") await pointer(a);
+      else if (e.faire === "pointer") await pointer(a, actionsDuMessage || []);
     }
   }
   window.__dzAgentExecuter = executer;     // pour la tâche 11 et les preuves
