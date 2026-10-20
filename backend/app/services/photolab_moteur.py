@@ -22,8 +22,20 @@ from pathlib import Path
 
 from app.services import photolab_registre as PR
 
-VERSION = "0.3.0"
 RACINE_APP = Path(__file__).resolve().parents[3]          # le dépôt, ou %LOCALAPPDATA%\DeepotusVideoGen installé
+
+
+def _version_epinglee(racine: Path) -> str:
+    """t250 : la version ÉPINGLÉE vient du manifeste vendor/photocraft.json (livré avec l'installation, étape 4c) —
+    une montée de moteur ne change que lui. Manifeste illisible : la dernière version épinglée connue, pour que le
+    backend démarre quand même (le moteur sera alors dit absent, jamais un autre pris à sa place)."""
+    try:
+        return str(json.loads((racine / "vendor" / "photocraft.json").read_text("utf-8"))["version"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return "0.10.0"
+
+
+VERSION = _version_epinglee(RACINE_APP)
 SOUS_DOSSIERS = ("entrees", "rendus", "exports")
 _REL = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*")
 # Noms de périphériques Windows : « CON.png » désigne le périphérique, pas un fichier, même avec une extension.
@@ -996,7 +1008,13 @@ def _au_sommet(appel):
 def _remplissage(appel, couleur):
     """Un calque de remplissage uni au-dessus du calque actif -> son id (le calque actif après création)."""
     _ex(appel, "layer.newFillLayer.solidColor", {"color": couleur})
-    return (appel("doc.inspect") or {}).get("activeLayer")
+    insp = appel("doc.inspect") or {}
+    lid = insp.get("activeLayer")
+    # t251 : photocraft 0.10 donne au calque uni le masque de la sélection courante (0.3.0 : jamais masqué). Ce calque
+    # doit COUVRIR tout le document : son masque est rendu entièrement blanc, la sélection reste intacte.
+    if insp.get("hasSelection") and any(c.get("id") == lid and c.get("hasMask") for c in _a_plat(insp.get("layers"))):
+        _ex(appel, "layer.layerMask.revealAll", {"layer": lid})
+    return lid
 
 
 def _masquer_par_selection(appel, calque, montrer=True):
@@ -1320,10 +1338,15 @@ def exporter_calque(s: SessionMoteur, layer, fmt: str, base: str, echelle: int =
 
         def travail(cible):
             ex = lambda c, **p: appel("engine.execute", {"command": c, "params": p})
+            # t251 : photocraft 0.10 fait de layer.hideLayers une BASCULE (un calque déjà caché est remontré) : on ne
+            # cache que ce qui est visible et ne montre que ce qui est caché, sinon un calque masqué par l'utilisateur
+            # reparaîtrait dans l'export.
             for c in _a_plat(insp.get("layers")):
+                visible = c.get("visible") is not False
                 if c["id"] in lignee:
-                    ex("layer.showLayers", layer=cible[c["id"]])
-                elif c["id"] not in enfants:
+                    if not visible:
+                        ex("layer.showLayers", layer=cible[c["id"]])
+                elif c["id"] not in enfants and visible:
                     ex("layer.hideLayers", layer=cible[c["id"]])
             if rogner:
                 try:

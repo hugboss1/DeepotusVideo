@@ -6973,7 +6973,30 @@ def _job_to_dict(j) -> dict:
         "rating": int(getattr(j, "rating", None) or 0),
         # Bibliothèque #77 (03/10/2026) : favori du rendu, indépendant de la note
         "fav": bool(getattr(j, "fav", None)),
+        # Job Dock « Réessayer » (19/10/2026) : comment relancer ce job en échec (None = bouton masqué)
+        "relance": _relance_de(j),
     }
+
+
+def _relance_de(j) -> str | None:
+    """Job Dock « Réessayer » (19/10/2026, option (a) validée par l'utilisateur) — ce qu'un job EN ÉCHEC garde pour être
+    relancé. « direct » : un rendu motion code (provider animation, sortie mcode_*) dont le graphe Studio porte le nœud
+    MotionCode — local et gratuit, l'écran rappelle POST /api/motion/code/rendre avec la même page. « quick » : une recette
+    Quick (le formulaire exact) — Quick rouvre prérempli, rien ne part avant « Générer » (estimation, plafond). « studio » :
+    un graphe Studio — le Studio le rouvre, rien ne part avant le rendu. None : rien de quoi relancer (bouton masqué).
+    Deux `is_file` seulement pour un job en échec : la liste des jobs est relue toutes les 2,5 s."""
+    if getattr(j, "status", None) != JobStatus.FAILED.value:
+        return None
+    jid = str(getattr(j, "id", "") or "")
+    if not jid or Path(jid).name != jid:
+        return None
+    from app.services import quick_recipe
+    graphe = (settings.outputs_path / "_graphs" / f"{jid}.json").is_file()
+    if graphe and j.provider == "animation" and str(j.image_filename or "").startswith("mcode_"):
+        return "direct"
+    if quick_recipe.existe(jid):
+        return "quick"
+    return "studio" if graphe else None
 
 
 @router.get("/jobs")

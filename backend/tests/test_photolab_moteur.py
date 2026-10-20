@@ -58,10 +58,10 @@ except PM.MoteurAbsent as e:
     absent_dit = "vendor_photocraft.py" in str(e)
 check("1e binaire introuvable : MoteurAbsent qui dit comment le fournir", absent_dit)
 os.environ.pop("PHOTOCRAFT_CLI")
-vend = racine_vide / "vendor" / "photocraft-0.3.0" / "photocraft-0.3.0-windows-x64"
+vend = racine_vide / "vendor" / f"photocraft-{PM.VERSION}" / f"photocraft-{PM.VERSION}-windows-x64"
 vend.mkdir(parents=True)
 (vend / "photocraft-cli.exe").write_bytes(b"MZ")
-check("1f sinon : vendor/photocraft-0.3.0/** sous la racine de l'application", PM.chemin_cli() == vend / "photocraft-cli.exe",
+check(f"1f sinon : vendor/photocraft-{PM.VERSION}/** sous la racine de l'application", PM.chemin_cli() == vend / "photocraft-cli.exe",
       PM.chemin_cli())
 PM.RACINE_APP = RACINE_APP_0
 
@@ -177,7 +177,9 @@ print("\n[3] les commandes refusées (t138 A2 : liste blanche sur le registre du
 # Depuis t138 le pont n'admet que ce que le registre décrit (clés, types, bornes) : les cas sont relus contre la copie
 # du registre réel. Les refus de fichiers t136 restent tous des refus, pour une raison au moins aussi forte.
 from app.services import photolab_registre as PR             # noqa: E402
-REG = PR.structurer(_json.loads((BACKEND / "tests" / "photocraft_commandes_0.3.0.json").read_text(encoding="utf-8")))
+sys.path.insert(0, str(BACKEND / "tests"))  # t250 : registre de la version épinglée (vendor/photocraft.json)
+import photocraft_version as _PV  # noqa: E402
+REG = PR.structurer(_json.loads(_PV.fichier_commandes().read_text(encoding="utf-8")))
 
 
 def _refusee(cid, params, reg=REG):

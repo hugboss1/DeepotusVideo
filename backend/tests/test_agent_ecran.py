@@ -215,3 +215,25 @@ def test_releve_envoye():
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+def test_t260_bulle_ancree_ou_flottante():
+    """t260 : la bulle ne couvre plus les panneaux. Ancrée dans la barre du haut par défaut, flottante et déplaçable
+    au choix, place gardée dans localStorage, repli flottant sans barre, menu du clic droit et épingle du tiroir."""
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    logique = (SHARED / "dz-agent-logique.js").read_text(encoding="utf-8")
+    assert 'export function placeLue(v) { return PLACES.includes(v) ? v : "barre"; }' in logique, "défaut : la barre"
+    assert '"dz_agent_place"' in src and '"dz_agent_pos"' in src
+    assert 'document.querySelector("#root header")' in src, "ancrage dans la barre du haut de la coque"
+    assert '.dzAgentBtn[data-place="barre"]{position:static' in src, "ancrée : dans le flux, ne recouvre rien"
+    assert "new MutationObserver(" in src and "veilleur.observe(" in src, "React remonte la barre : on s'y remet"
+    for ev in ("pointerdown", "pointermove", "pointerup", "pointercancel", "contextmenu"):
+        assert f'bouton.addEventListener("{ev}"' in src, ev
+    assert "if (sansClic) { sansClic = false; return; }" in src, "un glisser n'ouvre pas le tiroir"
+    debut = src.index('bouton.addEventListener("pointerdown"')
+    assert "setPointerCapture" in src[debut:src.index('bouton.addEventListener("pointermove"')],         "capture dès l'appui : un geste vif sort du bouton au premier mouvement (vu en preuve au-dessus du Photolab)"
+    assert "guet = setTimeout(" in src and "requestAnimationFrame(" not in src, "le veilleur dort avec rAF quand la fenêtre est masquée (vu en preuve)"
+    assert 'window.addEventListener("resize"' in src and "borner(" in src, "tenue dans la fenêtre"
+    assert "btnEpingle" in src and "dz-etat-epingle" in src
+    for k in ("agent.place.ancrer", "agent.place.flottant", "agent.place.coin", "agent.place.menu", "agent.place.astuce"):
+        assert k in I18N and f'"{k}"' in src, k

@@ -1,7 +1,7 @@
 // core.js — le cœur du Photolab (B1) : objet PL, aides communes (sélecteur, icônes en ligne, toasts),
 // puis initialisation des modules dans l'ordre. Les autres modules arrivent avec les tâches suivantes.
 import { initApi } from "./mod-api.js";
-import { initVue } from "./mod-vue.js";
+import { initVue, initRotationVue } from "./mod-vue.js";
 import { initOutils } from "./mod-outils.js";
 import { initMenus } from "./mod-menus.js";
 import { initCycle } from "./mod-cycle.js";
@@ -19,6 +19,8 @@ import { initGestes } from "./mod-gestes.js";
 import { initSelection } from "./mod-selection.js";
 import { initDeplacer } from "./mod-deplacer.js";
 import { initRecadrer } from "./mod-recadrer.js";
+import { initPerspective } from "./mod-perspective.js";
+import { initEchantillons } from "./mod-echantillons.js";
 import { initPipette } from "./mod-pipette.js";
 import { initPeinture } from "./mod-peinture.js";
 import { initPinceaux } from "./mod-pinceaux.js";
@@ -132,6 +134,8 @@ initGestes(PL);       // répartiteur des gestes + aperçu #fourmis, AVANT les o
 initSelection(PL);
 initDeplacer(PL);
 initRecadrer(PL);
+initPerspective(PL);   // t253 : Recadrage de perspective
+initRotationVue(PL);   // t253 : outil Rotation de la vue (la rotation elle-même est dans initVue)
 initPipette(PL);
 initPeinture(PL);     // t155 : après la pipette (Alt-clic des pinceaux la réutilise) et le répartiteur des gestes
 initPinceaux(PL);     // t155 : après la peinture (PL.optionsPeintureDe) ; branche Fenêtre › Pinceaux… dans PL.actions
@@ -142,6 +146,7 @@ initNuancier(PL);
 initPresets(PL, "degrades");
 initPresets(PL, "motifs");
 initInfos(PL);
+initEchantillons(PL);  // t253 : après les Infos, qui montrent les points de mesure sous leurs lectures
 initCouches(PL);
 initCompositions(PL);
 initPresets(PL, "formes");     // t156 : panneaux Formes (groupe Couleur) et Styles (groupe Propriétés)

@@ -21287,6 +21287,41 @@
   ]
  },
  {
+  "cle": "dz-outil-photo-deplacer-contenu",
+  "famille": "outil-photo",
+  "sens": "Outil Déplacement basé sur le contenu (déplacer ou étendre une sélection, le fond est reconstruit).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Déplacement basé sur le contenu (J)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-photo-deplacer",
+    "Déplacement bouge un calque ; Déplacement basé sur le contenu bouge une zone et reconstruit le fond. Silhouette : carré en tirets ≠ pointeur."
+   ],
+   [
+    "dz-outil-photo-piece",
+    "La Pièce répare une zone avec une autre ; le Déplacement basé sur le contenu déplace la zone. Silhouette : croix fléchée ≠ carré plein et flèche coudée."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "croix de déplacement sortant d'une sélection",
+   "sujet": "croix de déplacement",
+   "support": "sélection source en tirets",
+   "badge": "",
+   "serie": "retouche",
+   "silhouette": "croix fléchée pleine en haut à droite, carré en tirets pâle en bas à gauche"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-outil-photo-doigt",
   "famille": "outil-photo",
   "sens": "Outil Doigt (étale les pixels).",
@@ -21327,6 +21362,37 @@
    "badge": "",
    "serie": "retouche-locale",
    "silhouette": "main fermée, index pointé en diagonale"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-outil-photo-echantillonneur",
+  "famille": "outil-photo",
+  "sens": "Outil Échantillonneur de couleur (pose des points de mesure lus dans Infos).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Échantillonneur de couleur (I)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-vec-pipette",
+    "La Pipette prend une couleur ; l'Échantillonneur pose un point de mesure permanent. Silhouette : réticule ≠ goutte."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "pipette au-dessus d'un réticule",
+   "sujet": "pipette",
+   "support": "réticule",
+   "badge": "",
+   "serie": "outils",
+   "silhouette": "pipette pleine en diagonale, réticule pâle en bas à gauche"
   },
   "source_logo": "",
   "kit": []
@@ -21483,8 +21549,7 @@
    "Photolab"
   ],
   "libelles": [
-   "Pièce — bientôt",
-   "Pièce — bientôt [J]"
+   "Pièce (J)"
   ],
   "anciens": [
    "lucide-bandage"
@@ -21613,6 +21678,76 @@
   "kit": [
    "dz-outil-photo-recadrer"
   ]
+ },
+ {
+  "cle": "dz-outil-photo-recadrer-perspective",
+  "famille": "outil-photo",
+  "sens": "Outil Recadrage de perspective (redresse un quadrilatère en rectangle).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Recadrage de perspective (C)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-photo-recadrer",
+    "Le Recadrage coupe un rectangle ; le Recadrage de perspective redresse un quadrilatère. Silhouette : montants penchés ≠ dièse droit."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "dièse de recadrage aux montants penchés",
+   "sujet": "quatre barres convergentes",
+   "support": "",
+   "badge": "",
+   "serie": "outils",
+   "silhouette": "dièse aux montants penchés qui convergent vers le haut"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-outil-photo-rotation-vue",
+  "famille": "outil-photo",
+  "sens": "Outil Rotation de la vue (tourner l'affichage sans toucher l'image).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Rotation de la vue (R)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-action-actualiser",
+    "Actualiser recharge ; la Rotation de la vue tourne l'affichage. Silhouette : une flèche autour d'une page ≠ deux flèches."
+   ],
+   [
+    "dz-action-recalculer",
+    "Recalculer relance un calcul ; la Rotation de la vue tourne l'affichage. Silhouette : page inclinée au centre."
+   ],
+   [
+    "dz-outil-vec-main",
+    "La Main fait défiler ; la Rotation de la vue fait tourner. Silhouette : flèche circulaire ≠ main."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "page inclinée dans une flèche circulaire",
+   "sujet": "flèche circulaire",
+   "support": "page inclinée",
+   "badge": "",
+   "serie": "outils",
+   "silhouette": "flèche circulaire ouverte pleine autour d'un rectangle pâle incliné"
+  },
+  "source_logo": "",
+  "kit": []
  },
  {
   "cle": "dz-outil-photo-selection-ajouter",
@@ -21930,6 +22065,45 @@
   "kit": []
  },
  {
+  "cle": "dz-outil-photo-supprimer",
+  "famille": "outil-photo",
+  "sens": "Outil Supprimer (peindre sur un objet pour l'effacer et reconstruire le fond).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Supprimer (J)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-photo-correcteur-tache",
+    "Le Correcteur localisé répare une petite tache ; Supprimer retire un objet entier. Silhouette : pinceau ≠ pansement."
+   ],
+   [
+    "dz-outil-px-pinceau",
+    "Le Pinceau peint une couleur ; Supprimer efface un objet. Silhouette : cercle en tirets pâle ≠ pinceau seul."
+   ],
+   [
+    "dz-action-supprimer",
+    "Supprimer (action) retire un élément de l'application ; l'outil Supprimer retouche des pixels. Silhouette : pinceau et cercle en tirets ≠ corbeille."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "pinceau qui fait disparaître un objet",
+   "sujet": "pinceau",
+   "support": "silhouette de l'objet en tirets",
+   "badge": "",
+   "serie": "retouche",
+   "silhouette": "pinceau plein en diagonale, cercle en tirets pâle en bas à gauche"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-outil-photo-tampon",
   "famille": "outil-photo",
   "sens": "Outil Tampon de duplication / de clonage (Alt-clic = source).",
@@ -21979,6 +22153,72 @@
    "dz-outil-photo-clone",
    "dz-outil-px-tampon"
   ]
+ },
+ {
+  "cle": "dz-outil-photo-tampon-motif",
+  "famille": "outil-photo",
+  "sens": "Outil Tampon de motif (peint le motif courant).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Tampon de motif (S)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-photo-tampon",
+    "Le Tampon de duplication recopie l'image depuis une source ; le Tampon de motif peint un motif. Silhouette : semelle percée de trois carreaux, trace en carreaux ≠ semelle pleine, trace en aplat."
+   ],
+   [
+    "dz-edit-motif",
+    "Le motif est une ressource ; le Tampon de motif est l'outil qui le peint. Silhouette : tampon à manche ≠ carreaux seuls."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "tampon encreur à motif",
+   "sujet": "manche et semelle évidée de carreaux",
+   "support": "trace en carreaux",
+   "badge": "",
+   "serie": "retouche",
+   "silhouette": "tampon à manche rond, semelle percée de trois carreaux, trois carreaux pâles dessous"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-outil-photo-yeux-rouges",
+  "famille": "outil-photo",
+  "sens": "Outil Œil rouge (cliquer sur une pupille rouge pour l'assombrir).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Œil rouge (J)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-etat-visible",
+    "Visible est un état (afficher, masquer) ; l'Œil rouge est un outil de retouche. Silhouette : réticule de quatre traits sur une amande évidée ≠ œil plein à iris évidé."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "œil visé par un réticule",
+   "sujet": "pupille et réticule",
+   "support": "amande de l'œil",
+   "badge": "",
+   "serie": "retouche",
+   "silhouette": "amande pâle évidée au centre, pupille pleine entourée de quatre traits"
+  },
+  "source_logo": "",
+  "kit": []
  },
  {
   "cle": "dz-outil-px-baguette",
@@ -22324,6 +22564,41 @@
   "kit": []
  },
  {
+  "cle": "dz-outil-px-lasso-magnetique",
+  "famille": "outil-px",
+  "sens": "Outil Lasso magnétique (la sélection s'accroche aux bords de l'image).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Lasso magnétique (L)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-px-lasso",
+    "Le Lasso suit la main ; le Lasso magnétique s'accroche aux bords. Silhouette : aimant en U ≠ corde."
+   ],
+   [
+    "dz-edit-aimanter",
+    "Aimanter accroche des objets à une grille ; le Lasso magnétique accroche une sélection aux bords. Silhouette : boucle de lasso ≠ aimant seul."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "lasso dont la corde est un aimant",
+   "sujet": "boucle du lasso",
+   "support": "aimant en U",
+   "badge": "",
+   "serie": "selection",
+   "silhouette": "boucle ovale inclinée pleine, aimant en U pâle en bas à gauche"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-outil-px-lasso-polygonal",
   "famille": "outil-px",
   "sens": "Outil Lasso polygonal (segment par segment).",
@@ -22659,6 +22934,41 @@
   ]
  },
  {
+  "cle": "dz-outil-px-selection-colonne",
+  "famille": "outil-px",
+  "sens": "Outil Sélection d'une colonne (une colonne de 1 px sur toute la hauteur).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Sélection d'une colonne (M)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-px-selection-rangee",
+    "Colonne verticale ≠ rangée horizontale."
+   ],
+   [
+    "dz-action-disposition-colonne",
+    "Disposition en colonne range des panneaux ; l'outil Colonne sélectionne des pixels. Silhouette : tirets ≠ blocs."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "colonne de sélection en tirets entre deux bords d'image",
+   "sujet": "ligne en tirets",
+   "support": "bords d'image",
+   "badge": "",
+   "serie": "selection",
+   "silhouette": "quatre tirets verticaux pleins entre deux barres pâles"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-outil-px-selection-ellipse",
   "famille": "outil-px",
   "sens": "Outil Sélection elliptique.",
@@ -22700,6 +23010,41 @@
    "badge": "",
    "serie": "selections",
    "silhouette": "ellipse en tirets"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-outil-px-selection-rangee",
+  "famille": "outil-px",
+  "sens": "Outil Sélection d'une rangée (une ligne de 1 px sur toute la largeur).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Sélection d'une rangée (M)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-px-selection",
+    "Le Rectangle sélectionne une zone ; la Rangée une ligne d'un pixel. Silhouette : une seule ligne en tirets ≠ cadre en tirets."
+   ],
+   [
+    "dz-outil-px-selection-colonne",
+    "Rangée horizontale ≠ colonne verticale (même dessin tourné d'un quart)."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "ligne de sélection en tirets entre deux bords d'image",
+   "sujet": "ligne en tirets",
+   "support": "bords d'image",
+   "badge": "",
+   "serie": "selection",
+   "silhouette": "quatre tirets horizontaux pleins entre deux barres pâles"
   },
   "source_logo": "",
   "kit": []

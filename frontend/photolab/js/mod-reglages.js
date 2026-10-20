@@ -47,6 +47,7 @@ export function idReglage(kind) { return "pl-aj-" + kind; }
 // tout autre calque, ou une variante qu'un moteur plus récent aurait ajoutée (l'écran ne saurait pas l'éditer).
 export function kindDe(calque) {
   const a = calque && calque.adjustment;
+  if (estForme10(a)) return PAR_KIND.has(a.kind) ? a.kind : null;
   if (typeof a === "string") return PAR_VARIANTE.get(a) || null;
   if (a && typeof a === "object" && !Array.isArray(a)) {
     const cles = Object.keys(a);
@@ -77,6 +78,38 @@ const hexDe = (rgb) => (Array.isArray(rgb) && rgb.length >= 3
 const objet = (x) => (x && typeof x === "object" && !Array.isArray(x) ? x : {});
 const tableau = (v, n, f) => Array.from({ length: n }, (_, i) => f(Array.isArray(v) ? v[i] : undefined));
 
+// t251 — photocraft 0.10 décrit le réglage par {kind, params} (adjust_params::to_params, l'inverse exact des
+// paramètres de commande) au lieu de la variante interne {Curves: {master, per_channel…}} de 0.3.0. On ramène la forme
+// 0.10 à la variante 0.3.0 pour que la conversion ci-dessous, éprouvée sur le vrai moteur, reste la SEULE règle :
+// le banc qa/reglages10 vérifie, cas par cas sur les deux fixtures, que les paramètres rendus sont identiques.
+function estForme10(a) {
+  return !!a && typeof a === "object" && !Array.isArray(a) && typeof a.kind === "string" && objet(a.params) === a.params;
+}
+const vers01 = (v) => nombre(v) / 255;
+const rgb01 = (h) => (typeof h === "string" && /^#[0-9a-fA-F]{6}$/.test(h)
+  ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) : null);
+const niveaux01 = (c) => { const s = objet(c);
+  return { in_black: vers01(s.inBlack), gamma: nombre(s.gamma, 1), in_white: vers01(nombre(s.inWhite, 255)),
+    out_black: vers01(s.outBlack), out_white: vers01(nombre(s.outWhite, 255)) }; };
+const courbe01 = (l) => (Array.isArray(l) ? l : []).map((p) => ({ input: vers01(Array.isArray(p) ? p[0] : 0), output: vers01(Array.isArray(p) ? p[1] : 0) }));
+function variante10(kind, q) {
+  switch (kind) {
+    case "levels": return { master: niveaux01(q), per_channel: ["red", "green", "blue"].map((c) => niveaux01(q[c])) };
+    case "curves": return { master: courbe01(q.points), per_channel: ["red", "green", "blue"].map((c) => courbe01(q[c])) };
+    case "hueSaturation": return { hue: q.hue, saturation: q.saturation, lightness: q.lightness, colorize: q.colorize,
+      ranges: GAMMES_TEINTE.map((g) => { const r = objet(q[g]); return { hue: r.hue, saturation: r.saturation, lightness: r.lightness, bounds: r.range }; }) };
+    case "colorBalance": return { shadows: q.shadows, midtones: q.midtones, highlights: q.highlights, preserve_luminosity: q.preserveLuminosity };
+    case "blackWhite": return { weights: GAMMES_TEINTE.map((g) => q[g]), tint: q.tint === true ? rgb01(q.tintColor) : null };
+    case "photoFilter": return { color: rgb01(q.color), density: nombre(q.density, 25) / 100, preserve_luminosity: q.preserveLuminosity };
+    case "channelMixer": return { monochrome: q.monochrome, matrix: ["red", "green", "blue"].map((c) => tableau(q[c], 4, (x) => nombre(x) / 100)) };
+    case "threshold": return { level: vers01(nombre(q.level, 128)) };
+    case "gradientMap": return { reverse: q.reverse, dither: q.dither,
+      stops: (Array.isArray(q.stops) ? q.stops : []).map((s) => (Array.isArray(s) ? [s[0], rgb01(s[1])] : null)) };
+    case "selectiveColor": return { relative: q.method !== "absolute", adjustments: GAMMES_SELECTIVE.map((g) => q[g]) };
+    default: return { ...q };                // brightnessContrast, exposure, vibrance, posterize : mêmes clés
+  }
+}
+
 function canalNiveaux(o) {
   const s = objet(o);
   return normaliserNiveaux({ inBlack: de01(s.in_black), gamma: arrondi(nombre(s.gamma, 1)), inWhite: de01(nombre(s.in_white, 1)),
@@ -95,6 +128,13 @@ export function depuisInspect(kind, adjustment, lutList) {
   const info = infoKind(kind);
   if (!info) return {};
   if (kind === "invert") return {};
+  if (estForme10(adjustment)) {
+    if (adjustment.kind !== kind) return {};
+    const q = adjustment.params;
+    // 0.10 ne dit plus QUEL LUT est posé : `lut` reste absent (le moteur garde le sien), jamais « none » inventé.
+    if (kind === "colorLookup") return { interpolation: q.interpolation === "tetrahedral" ? "tetrahedral" : "trilinear", dither: q.dither === true };
+    adjustment = { [info.variante]: variante10(kind, q) };
+  }
   const o = adjustment && typeof adjustment === "object" ? adjustment[info.variante] : null;
   if (!o || typeof o !== "object") return {};
   switch (kind) {

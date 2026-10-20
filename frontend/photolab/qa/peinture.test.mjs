@@ -16,15 +16,18 @@ function check(label, cond, detail = "") { if (cond) ok++; else { ko++; console.
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 // 1. les outils
+// t252 : + Supprimer, Tampon de motif, Œil rouge, Pièce, Déplacement basé sur le contenu (moteur 0.10)
 const ATTENDUS = ["brush", "pencil", "mixerBrush", "eraser", "backgroundEraser", "magicEraser", "cloneStamp", "historyBrush",
-  "spotHealing", "healing", "gradient", "paintBucket", "blur", "sharpen", "smudge", "dodge", "burn", "sponge"];
-check("1.1 18 outils de peinture et de retouche", eq(Object.keys(OUTILS_PEINTURE).sort(), [...ATTENDUS].sort()), Object.keys(OUTILS_PEINTURE));
+  "spotHealing", "healing", "gradient", "paintBucket", "blur", "sharpen", "smudge", "dodge", "burn", "sponge",
+  "remove", "patternStamp", "redEye", "patch", "contentAwareMove"];
+check("1.1 23 outils de peinture et de retouche", eq(Object.keys(OUTILS_PEINTURE).sort(), [...ATTENDUS].sort()), Object.keys(OUTILS_PEINTURE));
 const tous = EMPLACEMENTS.flat();
 check("1.2 chacun existe dans la barre d'outils", ATTENDUS.every((id) => tous.some((o) => o.id === id)));
-check("1.3 la Pièce n'est pas un outil de peinture (absente du moteur 0.3.0)", !("patch" in OUTILS_PEINTURE));
+check("1.3 t252 : la Pièce est un outil (sorte « piece » : glisser de la sélection)", OUTILS_PEINTURE.patch && OUTILS_PEINTURE.patch.sorte === "piece");
 check("1.4 chaque outil a ses options et un défaut pour chacune", ATTENDUS.every((id) => {
   const d = defautsPeinture(id);
-  return optionsPeinture(id).length > 0 && optionsPeinture(id).every((o) => d[o.cle] !== undefined);
+  // t252 : une option `doc` (symétrie) vit dans le document, pas dans les réglages : aucun défaut d'outil
+  return optionsPeinture(id).length > 0 && optionsPeinture(id).every((o) => o.doc ? d[o.cle] === undefined : d[o.cle] !== undefined);
 }));
 check("1.5 les défauts sont DANS leurs bornes", ATTENDUS.every((id) => {
   const d = defautsPeinture(id);
@@ -67,7 +70,7 @@ c = commandeTrait("healing", P, o("healing", { taille: 19, durete: 100, fusion: 
 check("2.9 Correcteur -> paint.healingBrush", c.command === "paint.healingBrush"
   && eq(c.params, { points: P, size: 19, hardness: 100, aligned: true, sampleLayer: "current", mode: "normal" }), c);
 c = commandeTrait("spotHealing", P, o("spotHealing", { taille: 19, durete: 100, type: "createTexture" }), C);
-check("2.10 Correcteur de tache -> type", c.command === "paint.spotHealing" && eq(c.params, { points: P, size: 19, hardness: 100, type: "createTexture" }), c);
+check("2.10 Correcteur de tache -> type", c.command === "paint.spotHealing" && eq(c.params, { points: P, size: 19, hardness: 100, type: "createTexture", sampleAllLayers: false }), c);
 c = commandeTrait("historyBrush", P, o("historyBrush", { taille: 21, durete: 0, opacite: 70, flux: 100 }), C);
 check("2.11 Forme d'historique -> 0..100", c.command === "paint.historyBrush" && eq(c.params, { points: P, size: 21, hardness: 0, opacity: 70, flow: 100 }), c);
 c = commandeTrait("blur", P, o("blur", { taille: 13, durete: 0, intensite: 50, tousCalques: false }), C);
@@ -92,7 +95,7 @@ check("2.20 taille arrondie et bornée", commandeTrait("brush", P, o("brush", { 
 const DOC = { width: 100, height: 50 };
 c = commandeClic("paintBucket", 10.7, 20.2, o("paintBucket", { tolerance: 40, opacite: 80, lissage: true, contigu: false }), C, DOC);
 check("3.1 Pot -> pixel entier, premier plan", c.command === "paint.bucket"
-  && eq(c.params, { x: 10, y: 20, tolerance: 40, contiguous: false, antiAlias: true, contents: "foreground", opacity: 80, color: "#112233" }), c);
+  && eq(c.params, { x: 10, y: 20, tolerance: 40, contiguous: false, antiAlias: true, contents: "foreground", opacity: 80, color: "#112233", sampleAllLayers: false }), c);
 c = commandeClic("magicEraser", 3, 4, o("magicEraser", { tolerance: 32, lissage: true, contigu: true, tousCalques: false, opacite: 100 }), C, DOC);
 check("3.2 Gomme magique", c.command === "paint.magicEraser"
   && eq(c.params, { x: 3, y: 4, tolerance: 32, antiAlias: true, contiguous: true, sampleAllLayers: false, opacity: 100 }), c);

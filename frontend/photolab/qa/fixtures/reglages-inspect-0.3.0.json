@@ -1,0 +1,1601 @@
+{
+ "blackWhite/base": {
+  "adjustment": {
+   "BlackWhite": {
+    "tint": [
+     0.7529411911964417,
+     0.501960813999176,
+     0.250980406999588
+    ],
+    "weights": [
+     50.0,
+     70.0,
+     30.0,
+     55.0,
+     10.0,
+     90.0
+    ]
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "blues": 10,
+   "cyans": 55,
+   "greens": 30,
+   "magentas": 90,
+   "reds": 50,
+   "tint": true,
+   "tintColor": "#c08040",
+   "yellows": 70
+  },
+  "kind": "blackWhite",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "blackWhite/sans-teinte": {
+  "adjustment": {
+   "BlackWhite": {
+    "tint": null,
+    "weights": [
+     50.0,
+     60.0,
+     40.0,
+     60.0,
+     20.0,
+     80.0
+    ]
+   }
+  },
+  "cas": "sans-teinte",
+  "envoye": {
+   "reds": 50
+  },
+  "kind": "blackWhite",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "brightnessContrast/base": {
+  "adjustment": {
+   "BrightnessContrast": {
+    "brightness": 20.0,
+    "contrast": -15.0,
+    "legacy": true
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "brightness": 20,
+   "contrast": -15,
+   "legacy": true
+  },
+  "kind": "brightnessContrast",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "channelMixer/base": {
+  "adjustment": {
+   "ChannelMixer": {
+    "matrix": [
+     [
+      0.800000011920929,
+      0.20000000298023224,
+      0.0,
+      0.0
+     ],
+     [
+      0.05000000074505806,
+      0.8999999761581421,
+      0.05000000074505806,
+      0.10000000149011612
+     ],
+     [
+      0.0,
+      0.10000000149011612,
+      0.8999999761581421,
+      -0.05000000074505806
+     ]
+    ],
+    "monochrome": false
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "blue": [
+    0,
+    10,
+    90,
+    -5
+   ],
+   "green": [
+    5,
+    90,
+    5,
+    10
+   ],
+   "red": [
+    80,
+    20,
+    0,
+    0
+   ]
+  },
+  "kind": "channelMixer",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "channelMixer/monochrome": {
+  "adjustment": {
+   "ChannelMixer": {
+    "matrix": [
+     [
+      0.30000001192092896,
+      0.6000000238418579,
+      0.10000000149011612,
+      0.05000000074505806
+     ],
+     [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+     ]
+    ],
+    "monochrome": true
+   }
+  },
+  "cas": "monochrome",
+  "envoye": {
+   "gray": [
+    30,
+    60,
+    10,
+    5
+   ],
+   "monochrome": true
+  },
+  "kind": "channelMixer",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "colorBalance/base": {
+  "adjustment": {
+   "ColorBalance": {
+    "highlights": [
+     -10.0,
+     0.0,
+     0.0
+    ],
+    "midtones": [
+     0.0,
+     0.0,
+     20.0
+    ],
+    "preserve_luminosity": false,
+    "shadows": [
+     10.0,
+     -5.0,
+     0.0
+    ]
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "highlights": [
+    -10,
+    0,
+    0
+   ],
+   "midtones": [
+    0,
+    0,
+    20
+   ],
+   "preserveLuminosity": false,
+   "shadows": [
+    10,
+    -5,
+    0
+   ]
+  },
+  "kind": "colorBalance",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "colorLookup/base": {
+  "adjustment": {
+   "ColorLookup": {
+    "dither": true,
+    "lut": null,
+    "lutElague": true,
+    "name": "Warm Filter",
+    "size": 33,
+    "tetrahedral": true
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "dither": true,
+   "interpolation": "tetrahedral",
+   "lut": "warm"
+  },
+  "kind": "colorLookup",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "colorLookup/none": {
+  "adjustment": {
+   "ColorLookup": {
+    "dither": false,
+    "lut": null,
+    "name": "",
+    "size": 0,
+    "tetrahedral": false
+   }
+  },
+  "cas": "none",
+  "envoye": {
+   "lut": "none"
+  },
+  "kind": "colorLookup",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "curves/base": {
+  "adjustment": {
+   "Curves": {
+    "black": [],
+    "master": [
+     {
+      "input": 0.0,
+      "output": 0.0
+     },
+     {
+      "input": 0.250980406999588,
+      "output": 0.1568627506494522
+     },
+     {
+      "input": 0.7529411911964417,
+      "output": 0.8627451062202454
+     },
+     {
+      "input": 1.0,
+      "output": 1.0
+     }
+    ],
+    "per_channel": [
+     [
+      {
+       "input": 0.0,
+       "output": 0.0
+      },
+      {
+       "input": 1.0,
+       "output": 1.0
+      }
+     ],
+     [
+      {
+       "input": 0.0,
+       "output": 0.0
+      },
+      {
+       "input": 1.0,
+       "output": 1.0
+      }
+     ],
+     [
+      {
+       "input": 0.0,
+       "output": 0.0
+      },
+      {
+       "input": 0.501960813999176,
+       "output": 0.5882353186607361
+      },
+      {
+       "input": 1.0,
+       "output": 1.0
+      }
+     ]
+    ],
+    "space": "Rgb"
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "blue": [
+    [
+     0,
+     0
+    ],
+    [
+     128,
+     150
+    ],
+    [
+     255,
+     255
+    ]
+   ],
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     64,
+     40
+    ],
+    [
+     192,
+     220
+    ],
+    [
+     255,
+     255
+    ]
+   ]
+  },
+  "kind": "curves",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "curves/canal-identite": {
+  "adjustment": {
+   "Curves": {
+    "black": [],
+    "master": [
+     {
+      "input": 0.0,
+      "output": 0.0
+     },
+     {
+      "input": 0.250980406999588,
+      "output": 0.1568627506494522
+     },
+     {
+      "input": 1.0,
+      "output": 1.0
+     }
+    ],
+    "per_channel": [
+     [
+      {
+       "input": 0.0,
+       "output": 0.0
+      },
+      {
+       "input": 1.0,
+       "output": 1.0
+      }
+     ],
+     [
+      {
+       "input": 0.0,
+       "output": 0.0
+      },
+      {
+       "input": 1.0,
+       "output": 1.0
+      }
+     ],
+     [
+      {
+       "input": 0.0,
+       "output": 0.0
+      },
+      {
+       "input": 0.501960813999176,
+       "output": 0.5882353186607361
+      },
+      {
+       "input": 1.0,
+       "output": 1.0
+      }
+     ]
+    ],
+    "space": "Rgb"
+   }
+  },
+  "cas": "canal-identite",
+  "envoye": {
+   "blue": [
+    [
+     0,
+     0
+    ],
+    [
+     128,
+     150
+    ],
+    [
+     255,
+     255
+    ]
+   ],
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     64,
+     40
+    ],
+    [
+     255,
+     255
+    ]
+   ],
+   "red": [
+    [
+     0,
+     0
+    ],
+    [
+     255,
+     255
+    ]
+   ]
+  },
+  "kind": "curves",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "exposure/base": {
+  "adjustment": {
+   "Exposure": {
+    "exposure": 0.5,
+    "gamma": 1.2000000476837158,
+    "offset": -0.019999999552965164
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "exposure": 0.5,
+   "gamma": 1.2,
+   "offset": -0.02
+  },
+  "kind": "exposure",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "gradientMap/base": {
+  "adjustment": {
+   "GradientMap": {
+    "dither": true,
+    "reverse": true,
+    "stops": [
+     [
+      0.0,
+      [
+       0.062745101749897,
+       0.062745101749897,
+       0.1882352977991104
+      ]
+     ],
+     [
+      0.4000000059604645,
+      [
+       0.7529411911964417,
+       0.250980406999588,
+       0.125490203499794
+      ]
+     ],
+     [
+      1.0,
+      [
+       1.0,
+       0.9411764740943909,
+       0.6901960968971252
+      ]
+     ]
+    ]
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "dither": true,
+   "reverse": true,
+   "stops": [
+    [
+     0,
+     "#101030"
+    ],
+    [
+     0.4,
+     "#c04020"
+    ],
+    [
+     1,
+     "#fff0b0"
+    ]
+   ]
+  },
+  "kind": "gradientMap",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "hueSaturation/base": {
+  "adjustment": {
+   "HueSaturation": {
+    "colorize": false,
+    "hue": 25.0,
+    "lightness": 5.0,
+    "ranges": [
+     {
+      "bounds": [
+       -45.0,
+       -15.0,
+       15.0,
+       45.0
+      ],
+      "hue": 10.0,
+      "lightness": 0.0,
+      "saturation": 5.0
+     },
+     {
+      "bounds": [
+       15.0,
+       45.0,
+       75.0,
+       105.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     },
+     {
+      "bounds": [
+       75.0,
+       105.0,
+       135.0,
+       165.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     },
+     {
+      "bounds": [
+       135.0,
+       165.0,
+       195.0,
+       225.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     },
+     {
+      "bounds": [
+       190.0,
+       210.0,
+       250.0,
+       270.0
+      ],
+      "hue": 3.0,
+      "lightness": 5.0,
+      "saturation": 4.0
+     },
+     {
+      "bounds": [
+       255.0,
+       285.0,
+       315.0,
+       345.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     }
+    ],
+    "saturation": -10.0
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "blues": {
+    "hue": 3,
+    "lightness": 5,
+    "range": [
+     190,
+     210,
+     250,
+     270
+    ],
+    "saturation": 4
+   },
+   "hue": 25,
+   "lightness": 5,
+   "reds": {
+    "hue": 10,
+    "lightness": 0,
+    "saturation": 5
+   },
+   "saturation": -10
+  },
+  "kind": "hueSaturation",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "hueSaturation/colorize": {
+  "adjustment": {
+   "HueSaturation": {
+    "colorize": true,
+    "hue": 200.0,
+    "lightness": -5.0,
+    "ranges": [
+     {
+      "bounds": [
+       -45.0,
+       -15.0,
+       15.0,
+       45.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     },
+     {
+      "bounds": [
+       15.0,
+       45.0,
+       75.0,
+       105.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     },
+     {
+      "bounds": [
+       75.0,
+       105.0,
+       135.0,
+       165.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     },
+     {
+      "bounds": [
+       135.0,
+       165.0,
+       195.0,
+       225.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     },
+     {
+      "bounds": [
+       195.0,
+       225.0,
+       255.0,
+       285.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     },
+     {
+      "bounds": [
+       255.0,
+       285.0,
+       315.0,
+       345.0
+      ],
+      "hue": 0.0,
+      "lightness": 0.0,
+      "saturation": 0.0
+     }
+    ],
+    "saturation": 40.0
+   }
+  },
+  "cas": "colorize",
+  "envoye": {
+   "colorize": true,
+   "hue": 200,
+   "lightness": -5,
+   "saturation": 40
+  },
+  "kind": "hueSaturation",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "invert/base": {
+  "adjustment": "Invert",
+  "cas": "base",
+  "envoye": {},
+  "kind": "invert",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "levels/base": {
+  "adjustment": {
+   "Levels": {
+    "black": {
+     "gamma": 1.0,
+     "in_black": 0.0,
+     "in_white": 1.0,
+     "out_black": 0.0,
+     "out_white": 1.0
+    },
+    "master": {
+     "gamma": 1.2999999523162842,
+     "in_black": 0.0784313753247261,
+     "in_white": 0.9019607901573181,
+     "out_black": 0.019607843831181526,
+     "out_white": 0.9803921580314636
+    },
+    "per_channel": [
+     {
+      "gamma": 1.0,
+      "in_black": 0.03921568766236305,
+      "in_white": 1.0,
+      "out_black": 0.0,
+      "out_white": 1.0
+     },
+     {
+      "gamma": 1.0,
+      "in_black": 0.0,
+      "in_white": 1.0,
+      "out_black": 0.0,
+      "out_white": 1.0
+     },
+     {
+      "gamma": 1.0,
+      "in_black": 0.0,
+      "in_white": 1.0,
+      "out_black": 0.0,
+      "out_white": 1.0
+     }
+    ],
+    "space": "Rgb"
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "gamma": 1.3,
+   "inBlack": 20,
+   "inWhite": 230,
+   "outBlack": 5,
+   "outWhite": 250,
+   "red": {
+    "inBlack": 10
+   }
+  },
+  "kind": "levels",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "photoFilter/base": {
+  "adjustment": {
+   "PhotoFilter": {
+    "color": [
+     0.0,
+     0.4274509847164154,
+     1.0
+    ],
+    "density": 0.4000000059604645,
+    "preserve_luminosity": false
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "density": 40,
+   "filter": "cooling80",
+   "preserveLuminosity": false
+  },
+  "kind": "photoFilter",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "posterize/base": {
+  "adjustment": {
+   "Posterize": {
+    "levels": 6
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "levels": 6
+  },
+  "kind": "posterize",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "selectiveColor/base": {
+  "adjustment": {
+   "SelectiveColor": {
+    "adjustments": [
+     [
+      10.0,
+      0.0,
+      -5.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      1.0,
+      2.0,
+      3.0,
+      4.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    ],
+    "relative": false
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "black": 4,
+   "colors": "neutrals",
+   "cyan": 1,
+   "magenta": 2,
+   "method": "absolute",
+   "reds": [
+    10,
+    0,
+    -5,
+    0
+   ],
+   "yellow": 3
+  },
+  "kind": "selectiveColor",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "threshold/base": {
+  "adjustment": {
+   "Threshold": {
+    "level": 0.3921568691730499
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "level": 100
+  },
+  "kind": "threshold",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ },
+ "vibrance/base": {
+  "adjustment": {
+   "Vibrance": {
+    "saturation": -10.0,
+    "vibrance": 30.0
+   }
+  },
+  "cas": "base",
+  "envoye": {
+   "saturation": -10,
+   "vibrance": 30
+  },
+  "kind": "vibrance",
+  "lut_list": [
+   {
+    "id": "warm",
+    "label": "Warm Filter"
+   },
+   {
+    "id": "cool",
+    "label": "Cool Filter"
+   },
+   {
+    "id": "tealOrange",
+    "label": "Teal & Orange"
+   },
+   {
+    "id": "bleachBypass",
+    "label": "Bleach Bypass"
+   },
+   {
+    "id": "fadedFilm",
+    "label": "Faded Film"
+   },
+   {
+    "id": "dayForNight",
+    "label": "Day for Night"
+   },
+   {
+    "id": "monoContrast",
+    "label": "Mono High Contrast"
+   },
+   {
+    "id": "crossProcess",
+    "label": "Cross Process"
+   }
+  ]
+ }
+}

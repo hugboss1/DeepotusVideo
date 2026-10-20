@@ -11,6 +11,9 @@
   [4] le runtime dz-icons.js EXÉCUTÉ sous node : dzIcone rend chaque clé (classe dzi, taille, aria-hidden sans titre,
       role=img + aria-label avec titre, échappement du titre), image pour les clés « image », chaîne vide et
       avertissement pour une clé inconnue.
+Arbre INSTALLÉ (%LOCALAPPDATA%\DeepotusVideoGen, sans .git) : les sources de dessin (docs/icones) ne sont pas livrées
+avec l'application — [1], [2] et 3.1 y sont SAUTÉS en le disant (t253), et les clés viennent de la suite servie ; dans
+un dépôt (.git présent) des sources absentes restent ROUGES.
 Run : & $PY tests/test_icones_suite.py   (depuis backend/)
 """
 import json, pathlib, re, shutil, subprocess, sys
@@ -35,38 +38,52 @@ def check(label, cond, detail=""):
         print(f"  FAIL {label}  {str(detail)[:400]}")
 
 
-lexique = json.loads((DOCS / "suite-finale" / "lexique.json").read_text(encoding="utf-8"))
-cles = {x["cle"] for x in lexique}
-svgs = {p.stem for p in (DOCS / "suite-finale" / "svg").glob("dz-*.svg")}
+IMAGES_CLES = {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}
+SOURCES = (DOCS / "suite-finale" / "lexique.json").is_file()
+INSTALLE = not (ROOT / ".git").exists()
+if not SOURCES:
+    # t253 : jamais un saut silencieux — seul l'arbre installé (pas de .git) peut ne pas avoir les sources
+    check("0.1 sources de dessin absentes : seulement dans l'arbre INSTALLÉ (pas de .git)", INSTALLE, ROOT)
+    print("  --   [1], [2] et 3.1 SAUTÉS : docs/icones (sources de dessin) n'est pas livré avec l'application")
+    js = (SRC / "dz-icons.js").read_text(encoding="utf-8")
+    m = re.search(r"var I = (\{.*?\n\});\n  var IMG = (\{.*?\});", js, re.S)
+    cles = (set(json.loads(m.group(1))) | set(json.loads(m.group(2)))) if m else set()
+    check("0.2 clés relues dans la suite servie (dz-icons.js)", len(cles) == 536, len(cles))
+else:
+    lexique = json.loads((DOCS / "suite-finale" / "lexique.json").read_text(encoding="utf-8"))
+    cles = {x["cle"] for x in lexique}
+    svgs = {p.stem for p in (DOCS / "suite-finale" / "svg").glob("dz-*.svg")}
 
-print("[1] source")
-check("1.1 une icône dessinée par clé du lexique (526)", svgs == cles and len(cles) == 526,
-      sorted(cles ^ svgs)[:10])
-r = subprocess.run([sys.executable, "-I", str(DOCS / "generateurs" / "refonte" / "lint.py"), str(DOCS / "suite-finale" / "svg")],
-                   capture_output=True, text=True, encoding="utf-8")
-check("1.2 lint de la charte : 0 erreur", r.returncode == 0 and '"en_erreur": 0' in r.stdout, r.stdout[-400:] + r.stderr[-200:])
-sens = [x["sens"] for x in lexique]
-check("1.3 un sens par clé, jamais deux fois le même", len(set(sens)) == len(sens))
+if SOURCES:
+    print("[1] source")
+    check("1.1 une icône dessinée par clé du lexique (536 : 526 + 4 outils de retouche t252 + 6 outils t253)", svgs == cles and len(cles) == 536,
+          sorted(cles ^ svgs)[:10])
+    r = subprocess.run([sys.executable, "-I", str(DOCS / "generateurs" / "refonte" / "lint.py"), str(DOCS / "suite-finale" / "svg")],
+                       capture_output=True, text=True, encoding="utf-8")
+    check("1.2 lint de la charte : 0 erreur", r.returncode == 0 and '"en_erreur": 0' in r.stdout, r.stdout[-400:] + r.stderr[-200:])
+    sens = [x["sens"] for x in lexique]
+    check("1.3 un sens par clé, jamais deux fois le même", len(set(sens)) == len(sens))
 
-print("[2] choix de l'utilisateur")
-choix = json.loads((DOCS / "choix-utilisateur.json").read_text(encoding="utf-8"))
-check("2.1 chaque clé choisie existe dans la suite", set(choix) <= cles, sorted(set(choix) - cles))
-check("2.2 options valides", all(re.fullmatch(r"refonte|kit:dz-[a-z0-9-]+|actuel:.+", v["option"]) for v in choix.values()))
-check("2.3 cinq préférences « actuel » (logo, icônes d application = logo, splash, pointeur Lucide)",
-      {k for k, v in choix.items() if v["option"].startswith("actuel:")} == {"dz-marque-poulpe", "dz-marque-splash", "dz-outil-photo-doigt", "dz-marque-icone-app", "dz-marque-icone-adaptative"})
+    print("[2] choix de l'utilisateur")
+    choix = json.loads((DOCS / "choix-utilisateur.json").read_text(encoding="utf-8"))
+    check("2.1 chaque clé choisie existe dans la suite", set(choix) <= cles, sorted(set(choix) - cles))
+    check("2.2 options valides", all(re.fullmatch(r"refonte|kit:dz-[a-z0-9-]+|actuel:.+", v["option"]) for v in choix.values()))
+    check("2.3 cinq préférences « actuel » (logo, icônes d application = logo, splash, pointeur Lucide)",
+          {k for k, v in choix.items() if v["option"].startswith("actuel:")} == {"dz-marque-poulpe", "dz-marque-splash", "dz-outil-photo-doigt", "dz-marque-icone-app", "dz-marque-icone-adaptative"})
 
 print("[3] générateur et copies")
-r = subprocess.run([sys.executable, "-I", str(ROOT / "scripts" / "icones" / "construire_suite.py"), "--check"],
-                   capture_output=True, text=True, encoding="utf-8")
-check("3.1 construire_suite --check : sorties à jour", r.returncode == 0, r.stdout + r.stderr)
+if SOURCES:
+    r = subprocess.run([sys.executable, "-I", str(ROOT / "scripts" / "icones" / "construire_suite.py"), "--check"],
+                       capture_output=True, text=True, encoding="utf-8")
+    check("3.1 construire_suite --check : sorties à jour", r.returncode == 0, r.stdout + r.stderr)
 for nom in ("dz-icons.svg", "dz-icons.js", "dz-icons.css"):
     a, b = SRC / nom, DIST / nom
     check(f"3.2 {nom} : copie servie identique à la source",
           a.exists() and b.exists() and a.read_bytes().replace(b"\r\n", b"\n") == b.read_bytes().replace(b"\r\n", b"\n"))
 sprite = (SRC / "dz-icons.svg").read_text(encoding="utf-8")
 ids = re.findall(r'<symbol id="([^"]+)"', sprite)
-check("3.3 sprite : un symbole par icône dessinée (522 = 526 − logo, splash et icônes d application en image), ids uniques",
-      len(ids) == 522 and len(set(ids)) == 522 and set(ids) == cles - {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}, len(ids))
+check("3.3 sprite : un symbole par icône dessinée (532 = 536 − logo, splash et icônes d application en image), ids uniques",
+      len(ids) == 532 and len(set(ids)) == 532 and set(ids) == cles - {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}, len(ids))
 css = (SRC / "dz-icons.css").read_text(encoding="utf-8")
 check("3.5 css : le remplissage currentColor épargne les icônes au trait (fill=none, pointeur Lucide)",
       'svg.dzi:not([fill="none"]){fill:currentColor}' in css and "svg.dzi{fill" not in css)
@@ -96,7 +113,7 @@ console.log(JSON.stringify(out));
         o = json.loads(r.stdout.strip().splitlines()[-1])
     except Exception:
         o = {}
-    check("4.1 522 dessins et 4 images", o.get("n") == 522 and set((o.get("img") or {})) == {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}, r.stderr[-300:])
+    check("4.1 532 dessins et 4 images", o.get("n") == 532 and set((o.get("img") or {})) == {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}, r.stderr[-300:])
     check("4.2 chaque clé se rend (classe dzi, taille posée une fois, décorative par défaut)", o.get("toutes") is True)
     check("4.3 avec titre : role=img et aria-label échappé",
           'role="img" aria-label="Fermer &lt;&quot;x&quot;&gt;"' in (o.get("titre") or "") and "aria-hidden" not in (o.get("titre") or ""))

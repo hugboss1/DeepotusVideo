@@ -1,0 +1,3041 @@
+{
+  "_source": "Reconstruction statique du registre CommandSpec (crates/engine/src) ; v0.3.0 reconstruite = 776/776 identique au JSON runtime.",
+  "base": "v0.3.0",
+  "cible": "main 3a896a5e (19/10/2026)",
+  "totaux": {
+    "v0.3.0": 776,
+    "v0.5.0": 817,
+    "v0.6.0": 851,
+    "v0.7.0": 858,
+    "v0.8.2": 892,
+    "v0.9.0": 909,
+    "v0.10.0": 918,
+    "main 3a896a5e": 918
+  },
+  "ajoutes": [
+    {
+      "id": "layer.mergeGroup",
+      "label": "Merge Group",
+      "menu": [
+        "Layer"
+      ],
+      "shortcut": null,
+      "params": "{\"layer\":id?}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "document.move",
+      "label": "Move Document",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"document\":index?,\"to\":index}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "layer.layerStyle.replace",
+      "label": "Edit Layer Style",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id,\"effects\":[{\"kind\":\"dropShadow|innerShadow|outerGlow|innerGlow|stroke|colorOverlay|gradientOverlay|patternOverlay|satin|bevelEmboss\",\"params\":{…layer.layerStyle.<kind> params…},\"fx\":<effect snapshot carried through the Layer Style dialog, optional>}]} (replaces the layer's whole effect list; an entry with `fx` edits that effect with the params present, one without builds from params)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "layer.layerStyle.makeDefault",
+      "label": "Make Layer Style Default",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"kind\":\"stroke|dropShadow|innerShadow|outerGlow|innerGlow|colorOverlay|gradientOverlay|patternOverlay|satin|bevelEmboss\",\"params\":{…param set…}} (stores the user default the Layer Style dialog's Reset to Default restores)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "layer.layerStyle.defaultFor",
+      "label": "Layer Style Default",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"kind\":str} → {\"params\":{…},\"user\":bool} (the saved user default, else the factory defaults)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "layer.list",
+      "label": "List Layers",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"document\":index?,\"flat\":bool=false} → {\"layers\":[{\"id\",\"name\",\"kind\",\"visible\",\"bounds\":[x,y,w,h]|null,\"selected\",\"active\",\"children\"?}],\"activeLayer\":id?} (top-down; groups list their \"children\", or with \"flat\" every layer is one row with its \"depth\" and \"parent\" group id)",
+      "apparu_dans": "v0.10.0"
+    },
+    {
+      "id": "filter.render.relight",
+      "label": "Relight…",
+      "menu": [
+        "Filter",
+        "Render"
+      ],
+      "shortcut": null,
+      "params": "{\"angle\":-180..180=45,\"elevation\":0..90=40,\"intensity\":0..100=40,\"ambient\":0..100=55,\"warmth\":-100..100=0,\"softness\":1..100=25}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "filter.other.colorToAlpha",
+      "label": "Color to Alpha…",
+      "menu": [
+        "Filter",
+        "Other"
+      ],
+      "shortcut": null,
+      "params": "{\"color\":color=#ffffff,\"transparencyThreshold\":0..1=0,\"opacityThreshold\":0..1=1}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "layer.fill.solidColor.set",
+      "label": "Solid Color…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id? (default active),\"document\":id? (reject a stale dialog),\"color\":\"#rrggbb\"|\"#rrggbbaa\"|[r,g,b,a?]|{mode,c:[f32;4],alpha:f32}}; RGB values without alpha preserve it; stored Color preserves its model and precision",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "layer.fill.pattern.set",
+      "label": "Pattern Fill…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id? (default active; a Pattern Fill layer),\"document\":id? (reject a stale dialog),\"pattern\":id|name?,\"scale\":1..1000?,\"angle\":-180..180?,\"link\":bool?,\"phase\":[x,y]? (Snap to Origin: [0,0])}; omitted values keep the layer's",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "type.increaseSize",
+      "label": "Increase Type Size",
+      "menu": [],
+      "shortcut": "Cmd+Shift+.",
+      "params": "{\"layer\":id?,\"range\":[startChar,endChar]? (default all),\"by\":pt? (as the layer appears)}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "type.decreaseSize",
+      "label": "Decrease Type Size",
+      "menu": [],
+      "shortcut": "Cmd+Shift+,",
+      "params": "{\"layer\":id?,\"range\":[startChar,endChar]? (default all),\"by\":pt? (as the layer appears)}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "type.increaseSizeMore",
+      "label": "Increase Type Size by 10",
+      "menu": [],
+      "shortcut": "Cmd+Alt+Shift+.",
+      "params": "{\"layer\":id?,\"range\":[startChar,endChar]? (default all),\"by\":pt? (as the layer appears)}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "type.decreaseSizeMore",
+      "label": "Decrease Type Size by 10",
+      "menu": [],
+      "shortcut": "Cmd+Alt+Shift+,",
+      "params": "{\"layer\":id?,\"range\":[startChar,endChar]? (default all),\"by\":pt? (as the layer appears)}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "type.createSelection",
+      "label": "Type Mask",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id? (a type layer whose glyphs become the selection),\"removeLayer\":bool=false (delete that layer in the same step: the Type Mask tools' temporary text),\"operation\":\"new|add|subtract|intersect\"=\"new\",\"antialias\":\"none|sharp|crisp|strong|smooth\"?, …without \"layer\", type.create's keys: \"text\",\"x\",\"y\" or \"box\",\"orientation\",\"font\",\"size\",\"align\",…}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "select.float",
+      "label": "Float Selection",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"dx\":px=0,\"dy\":px=0,\"copy\":bool=false,\"target\":\"pixels\"|\"mask\"=\"pixels\" (mask: float the selected part of the layer's mask, the hole takes the background colour)} → {layer, offset} (cuts the selected pixels of the active layer into a floating piece the first time, or with copy leaves them and floats a duplicate; on the Background the hole takes the background colour; then moves it by whole pixels; dropped by select.drop or any other command, put back by edit.undo)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "select.drop",
+      "label": "Drop Floating Selection",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} → {dropped, offset} (drops the floating piece into its layer and moves the selection with it: one history step)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.transform",
+      "label": "Free Transform Path",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str|\"work\"|\"layer\"=\"work\",\"layer\":id? (with layer target),\"matrix\":[a,b,c,d,e,f] | \"quad\":[[x,y]×4] (Distort/Perspective: where the frame's corners go, clockwise from top-left) | \"style\"|\"mesh\"|\"warp\":… (Warp, as edit.transform.warp) | \"translateX\":px?,\"translateY\":px?,\"scaleX\":factor?,\"scaleY\":factor?,\"angle\":degrees?,\"rect\":[x0,y0,x1,y1]? (the quad's or warp's frame; default = path control bounds)} (numeric transforms pivot on path bounds center)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.clippingPath.set",
+      "label": "Clipping Path",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":savedPathName,\"flatness\":0..100=0} (PSD export clipping path)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.clippingPath.clear",
+      "label": "Clear Clipping Path",
+      "menu": [],
+      "shortcut": null,
+      "params": "{}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.style.copyFill",
+      "label": "Copy Fill",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} (copies active shape layer fill)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.style.copyStroke",
+      "label": "Copy Complete Stroke",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} (copies active shape layer stroke)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.style.pasteFill",
+      "label": "Paste Fill",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id?} (pastes copied fill onto active shape layer)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.style.pasteStroke",
+      "label": "Paste Complete Stroke",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id?} (pastes copied stroke onto active shape layer)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.moveAnchors",
+      "label": "Drag Anchor Points",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str|\"work\"|\"layer\"=\"work\",\"layer\":id? (with \"layer\": a shape layer's path or a vector mask),\"anchors\":[[subpath,knot],…],\"move\":[dx,dy],\"curvature\":bool=false (anchors move with their handles; Direct Selection drag. curvature = the Curvature Pen's drag: every smooth knot of the touched subpaths gets its handles recomputed so the curve flows through the anchors)} → {name,path}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.moveHandle",
+      "label": "Drag Direction Point",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str|\"work\"|\"layer\"=\"work\",\"layer\":id? (with \"layer\": a shape layer's path or a vector mask),\"subpath\":i,\"knot\":j,\"handle\":\"in|out\",\"to\":[x,y],\"independent\":bool=false (a smooth point turns its other handle to stay collinear; independent = ⌥ / Convert Point, makes a corner)} → {name,path}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.bendSegment",
+      "label": "Drag Segment",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str|\"work\"|\"layer\"=\"work\",\"layer\":id? (with \"layer\": a shape layer's path or a vector mask),\"subpath\":i,\"knot\":j (the segment leaving it),\"t\":0..1=0.5 (where it was grabbed),\"move\":[dx,dy] (a straight segment moves with its anchors; a curve reshapes through the dragged point)} → {name,path}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.convertPoint",
+      "label": "Convert Point",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str|\"work\"|\"layer\"=\"work\",\"layer\":id? (with \"layer\": a shape layer's path or a vector mask),\"subpath\":i,\"knot\":j,\"out\":[x,y]? (none: corner with retracted handles; given: smooth with this out handle and its mirror),\"curvature\":bool=false (the Curvature Pen's double-click: toggles smooth/corner and reflows the smooth knots of the subpath; out ignored)} → {name,path}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "path.addAnchor",
+      "label": "Add Anchor Point",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str|\"work\"|\"layer\"=\"work\",\"layer\":id? (with \"layer\": a shape layer's path or a vector mask),\"subpath\":i,\"knot\":j (the segment leaving it),\"t\":0<t<1=0.5 (where on the segment) (a curve is split there without changing its shape and gets a smooth anchor; a straight segment gets a corner) (the result also has anchor:{subpath,knot})} → {name,path}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "path.deleteAnchor",
+      "label": "Delete Anchor Point",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str|\"work\"|\"layer\"=\"work\",\"layer\":id? (with \"layer\": a shape layer's path or a vector mask),\"subpath\":i,\"knot\":j (its neighbours are joined, keeping their handles; a subpath's last anchor removes the subpath; the path's only anchor is refused) (the result also has subpathRemoved:bool)} → {name,path}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "layer.removeBackground",
+      "label": "Remove Background",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id?,\"sampleAllLayers\":bool=false,\"refine\":bool=true} → {layer,bounds} (adds a layer mask from Select Subject; the Background becomes a normal layer)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "paint.setSymmetry",
+      "label": "Set Painting Symmetry",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"mode\":\"vertical|horizontal|dual|diagonal\",\"center\":[x,y]?,\"rotation\":degrees=0}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "paint.symmetryFromPath",
+      "label": "Make Symmetry Path",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":\"work\"|\"layer\"|savedPathName=\"work\"} — mirror Brush, Pencil and Eraser strokes across the path",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "paint.symmetryDisable",
+      "label": "Disable Painting Symmetry",
+      "menu": [],
+      "shortcut": null,
+      "params": "{}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "view.editGuide",
+      "label": "Edit Guide",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"orientation\":\"horizontal|vertical\",\"index\":n,\"newOrientation\":\"horizontal|vertical\"?,\"position\":px or \"<number><unit>\"?,\"color\":name or \"#rrggbb\"?} (Edit Selected Guides: units and colours as for view.newGuide; % is of the new orientation's extent; whatever is left out stays as it was)",
+      "apparu_dans": "v0.10.0"
+    },
+    {
+      "id": "view.setRulerOrigin",
+      "label": "Set Ruler Origin",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"x\":px,\"y\":px} (the rulers' zero point in document pixels; the rulers and Info panel measure from it)",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "view.resetRulerOrigin",
+      "label": "Reset Ruler Origin",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} (zero point back at the image's top-left)",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "brush.presets.update",
+      "label": "Update Brush Preset",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":string?=the preset the current brush was picked from,\"brush\":{…BrushSettings}?=current brush}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "brush.presets.setCurrent",
+      "label": "Set Current Brush Preset",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":string}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "brush.presets.importImage",
+      "label": "Import Brush from Image…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"path\":\"image file (PNG, JPEG, TIFF, PSD…)\"?,\"data\":base64 bytes?,\"fileName\":string? (with data: the file's name, for its format and the default preset name),\"name\":string?=file name,\"select\":bool=true (make it the current brush)} → {name, width, height}",
+      "apparu_dans": "v0.10.0"
+    },
+    {
+      "id": "actions.load",
+      "label": "Load Actions…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"path\":\".atn file\"?,\"data\":base64 bytes?,\"set\":name? (override the file's set name),\"replace\":bool=true (replace the actions of a set of the same name)} → {set, actions:[names], steps, unsupported:[{action, step, event, name}], functionKeys:[{action, key}], warnings}. Photoshop steps PhotoCraft cannot play become actions.photoshopStep steps (kept for Save Actions; they fail at playback with the step's name); tool selections and other steps with no document effect are imported switched off. Layer references by name replay in any document.",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "actions.save",
+      "label": "Save Actions…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"path\":\".atn file\"? (else the bytes come back as base64 `data`),\"set\":name? (that set's actions; default: every action, as the set \"PhotoCraft Actions\"),\"action\":name|index? (one action),\"skipUnsupported\":bool=false (leave out steps with no Photoshop equivalent instead of failing)} → {set, actions:[names], steps, bytes, skipped:[{action, step, id}], path|data}",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "actions.stopMessage",
+      "label": "Stop",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"message\":str,\"allowContinue\":bool=false} (Photoshop's Insert Stop: a step that shows the message; headless playback continues when allowContinue is set and otherwise stops the action with the message)",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "actions.photoshopStep",
+      "label": "Photoshop Step",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"event\":id,\"name\":str,\"descriptor\":base64?} (a step from a .atn file PhotoCraft has no command for: fails at playback, written back by actions.save)",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "actions.insert",
+      "label": "Insert Step",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index, \"id\":command id, \"params\":{}?, \"at\":index?=end} → {action, step, id, steps}. Inserts a step at the 0-based position (Photoshop's Insert Stop… with id actions.stopMessage, Insert Menu Item… with any command). Pending recorded steps count; flags of the steps after it follow them.",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "actions.dialog",
+      "label": "Toggle Step Dialog",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index, \"step\":index?, \"enabled\":bool?} → {action, dialogs:[step…]}. The Actions panel's dialog toggle: the desktop shell shows the step's dialog, seeded with its recorded params, and resumes playback when it is confirmed; headless playback runs the recorded params. Omitted enabled flips it; without step, every step: on unless all already are, or as enabled says.",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "actions.conditional",
+      "label": "Conditional",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"if\":condition, \"then\":action name|null, \"else\":action name|null} → {if, holds, played, ran?, failed?}. Photoshop's Insert Conditional: conditions always|never|isOpen|landscape|square|portrait|modeIsRGB|modeIsCMYK|modeIsGrayscale|modeIsLab|modeIsBitmap|modeIsIndexed|modeIsDuotone|modeIsMultichannel|depth8|depth16|depth32|unsaved|hasSelection|hasLayers|hasAlphaChannels|isBackground|isPixelLayer|isAdjustmentLayer|isShapeLayer|isTypeLayer|isSmartObject|isLayerGroup|isLocked|isVisible|hasPixelMask|hasVectorMask|hasEffects (layer conditions test the active layer). The branch plays as actions.play does; its failure stops the calling action.",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "actions.assignSet",
+      "label": "Move to Set",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index, \"set\":name|null} → {action, set}. The set folder the Actions panel shows the action under (what Load Actions fills and Save Actions writes); null takes it out of any set.",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "swatches.list",
+      "label": "Swatches",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} → {groups:[{name,swatches:[{name,model,values,hex,kind?}]}],count}. values are in Color Picker units; hex is the colour in the RGB working space.",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.add",
+      "label": "New Swatch…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"color\":\"#rrggbb\"|{\"model\":\"rgb|hsb|cmyk|lab|gray\",\"values\":[rgb 0..255 | hue°,s%,b% | c%,m%,y%,k% | L,a,b | k%]}?=foreground,\"name\":str?=\"Color Swatch N\",\"group\":name?=first (created when missing),\"index\":n?=end,\"kind\":\"process|global|spot\"=\"process\"} → {name,group,index}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.delete",
+      "label": "Delete Swatch",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"swatch\":name (or \"index\":n across all groups),\"group\":name? (narrows the name lookup); \"swatch\" may be a list of names} → {deleted:[names]}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.rename",
+      "label": "Rename Swatch…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"swatch\":name (or \"index\":n across all groups),\"group\":name? (narrows the name lookup),\"name\":str} → {name}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.move",
+      "label": "Move Swatch",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"swatch\":name (or \"index\":n across all groups),\"group\":name? (narrows the name lookup),\"to\":group?=its own group,\"position\":n?=end} → {group,position}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.newGroup",
+      "label": "New Swatch Group…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str=\"Group\" (made unique),\"swatches\":[names]? (moved into the new group)} → {group,moved}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.renameGroup",
+      "label": "Rename Swatch Group…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"group\":name,\"name\":str} → {group}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.deleteGroup",
+      "label": "Delete Swatch Group",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"group\":name,\"keepSwatches\":bool=false (move its swatches into the group above)} → {group,deleted|kept}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.use",
+      "label": "Use Swatch",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"swatch\":name (or \"index\":n across all groups),\"group\":name? (narrows the name lookup),\"target\":\"foreground|background\"=\"foreground\"} → {swatch,target,hex}. CMYK, Lab and gray swatches are converted to the RGB working space with colour management.",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.reset",
+      "label": "Reset Swatches",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"append\":bool=false (add the defaults instead of replacing the library)} → {groups,count}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.import",
+      "label": "Import Swatches…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"path\":\".aco or .ase file\"?,\"data\":base64 bytes?,\"format\":\"aco|ase\"? (detected),\"mode\":\"append|replace\"=\"append\",\"group\":str?=file name (the group for ungrouped colours)} → {format,mode,groups,count,warnings}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "swatches.export",
+      "label": "Export Swatches…",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"format\":\"aco|ase\"?=from path, else aco,\"path\":file? (else the bytes come back as base64 `data`),\"group\":name? (only that group),\"swatches\":[names]? (only these)} → {format,count,bytes,warnings,path|data}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "paint.patternStamp",
+      "label": "Pattern Stamp",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"pattern\":id|name?=Patterns panel current,\"scale\":1..1000 %=100,\"angle\":deg=0,\"aligned\":bool=true,\"impressionist\":bool=false,\"mode\":\"normal|multiply|…\"=\"normal\",\"phase\":[px,py]? → {\"damage\",\"phase\",\"aligned\",\"pattern\"}}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "paint.patch",
+      "label": "Patch",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"offset\":[dx,dy] (how far the selection was dragged),\"mode\":\"source|destination\"=\"source\",\"contentAware\":bool=false (fill the selection content-aware from the dragged-to place; a background job),\"structure\":1..7=4 (content-aware: 3..7 copy the middle exactly, 1..2 re-synthesise more of it),\"color\":0..10=0 (content-aware: how far the copy's level adapts to the selection's surroundings),\"sampleAllLayers\":bool=false (content-aware),\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target} → {\"damage\",\"offset\"}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "paint.contentAwareMove",
+      "label": "Content-Aware Move",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"offset\":[dx,dy] (how far the selection was dragged),\"mode\":\"move|extend\"=\"move\",\"structure\":1..7=4 (3..7 copy the content exactly but for a band about a patch wide along its edge; 2 widens the band, 1 re-synthesises the content too),\"color\":0..10=0 (0 keeps the content's level; higher values bring it towards its new place, by up to about 0.04 × color),\"sampleAllLayers\":bool=false,\"scaleX\":%=100,\"scaleY\":%=100 (Transform On Drop: 1..10000, negative flips),\"rotate\":deg=0 (Transform On Drop, clockwise; scale and rotation are about the selection's centre, before the offset; a transformed patch may reach past the canvas edge),\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target} → {\"damage\",\"offset\",\"mode\",\"transformed\"?} (a background job; the selection moves, and is transformed, with the content)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "paint.remove",
+      "label": "Remove",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"strokes\":[[[x,y,pressure?],…],…]? (several strokes removed together, as one job and one undo step; else \"points\"),\"closeLoops\":bool=true (a stroke around an object removes what it encloses),\"sampleAllLayers\":bool=false,\"newLayer\":bool=false (the fill goes to a new layer above the target, which stays as it was) → {\"damage\",\"layer\"?} (a background job)}",
+      "apparu_dans": "v0.7.0"
+    },
+    {
+      "id": "paint.redEye",
+      "label": "Red Eye",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"x\":px, \"y\":px} | {\"points\":[[x,y],…] (at most 64)},\"pupilSize\":1..100=50,\"darken\":0..100=50,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i} → {\"damage\":[x,y,w,h], \"pixels\":n}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "image.perspectiveCrop",
+      "label": "Perspective Crop",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"corners\":[[x,y],[x,y],[x,y],[x,y]] (top-left, top-right, bottom-right, bottom-left; a convex quad, document px),\"width\":px,\"height\":px,\"resolution\":ppi,\"interpolation\":\"bicubic|bilinear|nearest\"=\"bicubic\"} → {width,height,resolution,corners} (the quad is mapped onto an upright width x height canvas, all layers, one undo step; no width/height: the quad's mean side lengths, one alone keeps its proportions; type, shape, fill and smart object layers are rasterized)",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "select.magneticLasso",
+      "label": "Magnetic Lasso",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"points\":[[x,y],…] (≥3 fastening points in order; with trace=false, the finished outline),\"width\":1..256=10 (px: follows edges this close to the points),\"contrast\":1..100=10 (%: weaker edges are ignored),\"close\":\"magnetic|straight\"=\"magnetic\" (how the last point joins the first),\"trace\":bool=true,\"mode\":\"replace|add|subtract|intersect\"=\"replace\",\"antiAlias\":bool=true,\"feather\":0..1000=0 (px)}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "layer.toggleLockTransparency",
+      "label": "Lock Transparent Pixels",
+      "menu": [],
+      "shortcut": "/",
+      "params": "{\"layer\":id?} (toggles; several layers selected: locks them all unless every one is locked)",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "layer.showOnly",
+      "label": "Show Only This Layer",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id?} → {shownAlone} (⌥-click a layer's eye; again restores the other layers' visibility)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "layer.new.backgroundFromLayer",
+      "label": "Background From Layer",
+      "menu": [
+        "Layer",
+        "New"
+      ],
+      "shortcut": null,
+      "params": "{\"layer\":id?} (the active layer by default; transparent pixels take the background colour and the layer drops to the bottom as the locked Background)",
+      "apparu_dans": "v0.7.0"
+    },
+    {
+      "id": "file.revealInFinder",
+      "label": "Reveal in Finder",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"document\":index? (default active),\"dryRun\":bool=false}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "file.exrParts",
+      "label": "EXR Parts Info",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"path\":str (the EXR file)}",
+      "apparu_dans": "v0.7.0"
+    },
+    {
+      "id": "file.openExrParts",
+      "label": "Open EXR Parts…",
+      "menu": [
+        "File"
+      ],
+      "shortcut": null,
+      "params": "{\"path\":str (the EXR file),\"view\":\"both|left|right\"=\"both\",\"part/<name>\":bool (import this part as a layer),\"group/<name>\":bool (import this channel group as a layer),\"precomp\":bool=false (add the additive beauty precomp from the AOVs)}",
+      "apparu_dans": "v0.7.0"
+    },
+    {
+      "id": "type.attachToPath",
+      "label": "Type on a Path",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id? (default active Type layer),\"shape\":layerId? (a shape layer; default the work path),\"subpath\":index=0,\"start\":px=0 (offset along the path),\"flip\":bool=false (run along the path the other way, on its other side)}",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "type.detachFromPath",
+      "label": "Release Type from Path",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id?}",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "type.hitTest",
+      "label": "Hit-Test Type",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id?, \"x\":px, \"y\":px} → {\"layer\",\"index\":char,\"line\",\"inside\":bool}. No layer: the topmost visible type layer whose laid-out text or rendered pixels contain the point (same order as the Type tool); a miss is an error. With a layer, index is the nearest caret even when inside is false",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "type.caret",
+      "label": "Type Caret",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id?, \"index\":char (0..=length; empty text is 0)} → {\"index\",\"line\",\"segment\":[[x,y],[x,y]]} caret segment in document pixels, for rotated and vertical type too",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "type.navigate",
+      "label": "Navigate Type",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id?, \"index\":char, \"move\":\"wordPrev|wordNext|linePrev|lineNext|lineStart|lineEnd|start|end\", \"x\":px?} → {\"index\"}. Words are alphanumeric runs. x is the document x to keep across linePrev/lineNext (a caret segment's x); omitted uses the caret's own column. Empty text returns index 0",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "layer.smartObjects.updateChanged",
+      "label": "Update Changed Linked Content",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} — re-render the active document's linked smart objects whose files changed on disk since they were last seen (size or modification time); the desktop app does this by itself every two seconds, as Photoshop does while a document is open. Files seen for the first time are only remembered. One Update Modified Content undo step per file → {updated: [layer ids]}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "layer.smartObjects.convertToLayers",
+      "label": "Convert to Layers",
+      "menu": [
+        "Layer",
+        "Smart Objects"
+      ],
+      "shortcut": null,
+      "params": "{\"layer\":id?} (contents unpacked at the placement: one layer, or a group named after the smart object; smart filters are discarded)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "layer.smartFilter.transfer",
+      "label": "Move or Copy Smart Filters",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"from\":id,\"to\":id,\"filter\":u32? (default: all, with the filter mask),\"copy\":bool=false}",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "layer.copyToDocument",
+      "label": "Copy Layers to Document",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"document\":index (destination),\"layers\":[id,…]?=the source's selected layers,\"source\":index?=active,\"center\":bool=false (centre on the destination's canvas),\"at\":[x,y]? (centre the copies on this point),\"offset\":[dx,dy]?=[0,0] (from their place in the source),\"name\":str? (one layer: the copy's name)}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "edit.deleteAndFillSelection",
+      "label": "Delete and Fill Selection",
+      "menu": [],
+      "shortcut": null,
+      "params": "{}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "edit.fillHistory",
+      "label": "Fill from History",
+      "menu": [],
+      "shortcut": "Cmd+Alt+Backspace",
+      "params": "{\"state\":n? (default: the History Brush's source, the oldest state still held),\"layer\":id?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?,\"preserveTransparency\":bool?}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "document.sampleColor",
+      "label": "Sample Color",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"x\":f64,\"y\":f64,\"size\":\"point\"|1|3|5|11|31|51|101=1,\"sampleLayer\":\"current\"|\"currentAndBelow\"|\"all\"|\"allNoAdjustments\"|\"currentAndBelowNoAdjustments\"=\"all\"} → [r,g,b,a] (the Eyedropper's Sample Size and Sample: the composite pixel, or the average of the size×size square centred on it, clipped to the canvas; transparent off the canvas)",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "image.detectFaces",
+      "label": "Detect Faces",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"minScore\":0..1=0.5,\"sampleAllLayers\":bool=true} → {\"faces\":[{\"score\",\"rect\":[x,y,w,h],\"landmarks\":{\"rightEye\",\"leftEye\",\"nose\",\"mouthRight\",\"mouthLeft\"}: [x,y] each},…]} (best first; \"rightEye\" is the one on the image's left)",
+      "apparu_dans": "v0.10.0"
+    },
+    {
+      "id": "view.colorSamplers.add",
+      "label": "Add Color Sampler",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"x\":f64,\"y\":f64} → the new point {index, number, position, rgb, cmyk}; errors at the 10-point limit or off the canvas",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "view.colorSamplers.move",
+      "label": "Move Color Sampler",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"index\":n,\"x\":f64,\"y\":f64}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "view.colorSamplers.delete",
+      "label": "Delete Color Sampler",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"index\":n}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "view.colorSamplers.clear",
+      "label": "Clear Color Samplers",
+      "menu": [],
+      "shortcut": null,
+      "params": "{}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "view.colorSamplers.list",
+      "label": "Color Samplers",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} → {max, samplers:[{index, number, position, rgb, cmyk}]}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "tools.decreaseBrushSize",
+      "label": "Decrease Brush Size",
+      "menu": [],
+      "shortcut": "[",
+      "params": "{}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "tools.increaseBrushSize",
+      "label": "Increase Brush Size",
+      "menu": [],
+      "shortcut": "]",
+      "params": "{}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "tools.decreaseBrushHardness",
+      "label": "Decrease Brush Hardness",
+      "menu": [],
+      "shortcut": "Shift+[",
+      "params": "{}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "tools.increaseBrushHardness",
+      "label": "Increase Brush Hardness",
+      "menu": [],
+      "shortcut": "Shift+]",
+      "params": "{}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "tools.rotateBrush",
+      "label": "Rotate Brush Tip",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"degrees\":-360..360 (positive anticlockwise; ← / → while painting send 1, ⇧ 15)}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "channel.target.layerMask",
+      "label": "Target Layer Mask",
+      "menu": [],
+      "shortcut": "Cmd+\\",
+      "params": "{}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "select.loadLuminosity",
+      "label": "Load Luminosity",
+      "menu": [],
+      "shortcut": "Cmd+Alt+2",
+      "params": "{}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "layer.layerStyle.transferEffects",
+      "label": "Move Layer Effects",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"from\":id,\"to\":id,\"effect\":index? (default: all effects),\"copy\":bool=false}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "layer.setLabelColor",
+      "label": "Layer Color",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"color\":\"none|red|orange|yellow|green|seafoam|blue|indigo|magenta|fuchsia|violet|gray\",\"layer\":id?} (no layer: selected layers; groups include descendants)",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "edit.transform.warpGrid",
+      "label": "Warp Grid",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"warp\":{…}? (the warp being edited; returned with the new mesh),\"rect\":[x0,y0,x1,y1]?,\"size\":n|\"default\"|\"3\"|\"4\"|\"5\" (square patches, 1..=64; 1 and \"default\" are the single-patch grid)} — without `warp`/`style`/`mesh`, edits the active smart object's warp. The surface is kept and the new lines are real splits at i/n.",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "layer.artboard.addBeside",
+      "label": "Add Artboard Beside",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id? (default: the active artboard),\"side\":\"left|right|top|bottom\"=\"right\",\"duplicate\":bool=false (copy the board with its contents instead of an empty one)} → {layer, rect} (the Artboard tool's \"+\" buttons: same size, a 100 px gap away, past any board in the way)",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "history.undo",
+      "label": "Undo",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} (the same action as `edit.undo`)",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "history.redo",
+      "label": "Redo",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} (the same action as `edit.redo`)",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "history.deleteState",
+      "label": "Delete State",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"state\":index?} (History entry, 0 = oldest; default the current state) → {states,current}: removes the state and every later one",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "history.newDocument",
+      "label": "New Document from State",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"state\":index?,\"name\":str?} (History entry, 0 = oldest; default the current state) → {document,name}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "history.newSnapshot",
+      "label": "New Snapshot",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str?=\"Snapshot N\",\"from\":\"fullDocument\"|\"mergedLayers\"|\"currentLayer\"=\"fullDocument\"} → {snapshot,name}: a named copy of the document for the session (not a history state)",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "history.selectSnapshot",
+      "label": "Select Snapshot",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"snapshot\":id} → {snapshot,name}: the document returns to the snapshot as a new history state named after it",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "history.renameSnapshot",
+      "label": "Rename Snapshot",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"snapshot\":id,\"name\":str} → {snapshot,name}",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "history.deleteSnapshot",
+      "label": "Delete Snapshot",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"snapshot\":id} → {snapshot,snapshots}: the document and its history are unchanged",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "history.selectState",
+      "label": "Select History State",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"state\":index} (History entry as the panel lists them: 0 = oldest, then the current state, then the redo states) → {state,changed,current?}: returns the document to that state in one step; the states after it stay redoable",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "gradient.presets.stop",
+      "label": "Edit Gradient Stop",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":\"add|move|delete|color|opacity\",\"kind\":\"color|opacity\"=\"color\",\"index\":stop number,\"location\":0..1,\"color\":\"#rrggbb\"|\"foreground\"|\"background\" (add: default the colour there),\"opacity\":0..100} → {\"current\"}. Edits the Gradient tool's current gradient (no layer, midpoints stay centred).",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "document.presets.list",
+      "label": "List Document Presets",
+      "menu": [],
+      "shortcut": null,
+      "params": "{}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "document.presets.get",
+      "label": "Get Document Preset",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str} -> {preset,params} (params for file.new; no document is created)",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "document.presets.save",
+      "label": "Save Document Preset",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str (trimmed, ASCII case-insensitive unique, 1..255 characters),\"settings\":{\"width\":px,\"height\":px,\"resolution\":ppi=72,\"mode\":\"rgb|gray|cmyk|lab\"=\"rgb\",\"depth\":8|16|32=8,\"background\":\"white|black|transparent|backgroundColor|#rrggbb\"=\"white\",\"backgroundColor\":[r,g,b]?,\"unit\":\"px|in|cm|mm|pt|pica\"=\"px\",\"resolutionUnit\":\"in|cm\"=\"in\"}}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "document.presets.delete",
+      "label": "Delete Document Preset",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str}",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "document.recent.list",
+      "label": "List Recent Document Settings",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} -> {recent:[settings]} (newest first; each settings.command params minus unit/resolutionUnit go to file.new)",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "document.recent.add",
+      "label": "Add Recent Document Settings",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"settings\":{same fields as document.presets.save}} (File › New records each document it creates; newest first, max 20, duplicates collapsed)",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "file.export.presets.list",
+      "label": "List Export Presets",
+      "menu": [],
+      "shortcut": null,
+      "params": "{}",
+      "apparu_dans": "v0.10.0"
+    },
+    {
+      "id": "file.export.presets.get",
+      "label": "Get Export Preset",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str} -> {preset} (settings for Export As; nothing is exported)",
+      "apparu_dans": "v0.10.0"
+    },
+    {
+      "id": "file.export.presets.save",
+      "label": "Save Export Preset",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str,\"settings\":{\"format\":\"png|jpg|webp|tif|tga|ico\",\"quality\":1..100,\"lossless\":bool,\"transparency\":bool,\"scale\":1..1000,\"width\":px,\"height\":px,\"lockAspect\":bool,\"sizing\":\"scale|pixels\",\"metadata\":\"none|exif|all\",\"profile\":\"document|srgb\",\"embedProfile\":bool,\"tgaBits\":\"auto|24|32\"}} (a saved name is replaced)",
+      "apparu_dans": "v0.10.0"
+    },
+    {
+      "id": "file.export.presets.delete",
+      "label": "Delete Export Preset",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str}",
+      "apparu_dans": "v0.10.0"
+    },
+    {
+      "id": "file.print.printers",
+      "label": "Printers",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} → {supported, printers: [{name, default}]} (supported: Windows; elsewhere Print spools with lp)",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "file.print.page",
+      "label": "Printer Page",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"printer\":name? (default printer),\"printerSettings\":hex?} → {printer, paper: [w,h] pt, printable: [x,y,w,h] pt from the top-left, dpi: [x,y]} (Windows)",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "file.printers",
+      "label": "Printers",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} → {printers:[{name, default}], default:name|null} (the system spooler's printers; a name is Print's \"printer\")",
+      "apparu_dans": "v0.9.0"
+    },
+    {
+      "id": "edit.installedProfiles",
+      "label": "Installed Profiles",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"class\":\"any|input|display|output|deviceLink|colorSpace|abstract|namedColor\"=\"any\",\"colorSpace\":\"any|rgb|cmyk|gray\"=\"any\"} → {profiles: [{path, description, class, colorSpace}], dirs} (the OS profile folders; pass a path as any command's \"profile\")",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "layer.selectInRect",
+      "label": "Select Layers in Marquee",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"x\":px,\"y\":px,\"width\":px,\"height\":px,\"target\":\"layer|group\"=\"layer\",\"mode\":\"replace|add\"=\"replace\"} → {layers} (the layers whose content touches the rect, topmost first; none leaves the selection as it is)",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "layer.new.frame",
+      "label": "New Frame",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"x\":i32,\"y\":i32,\"width\":u32,\"height\":u32,\"shape\":\"rectangle|ellipse\"=\"rectangle\",\"layer\":id?,\"name\":str?} → {layer, frame:[x,y,w,h], shape}: Frame tool; a group clipped to the shape, holding pixel, type, shape or smart object layer `layer` if given",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "layer.rasterize.layerStyle",
+      "label": "Layer Style",
+      "menu": [
+        "Layer",
+        "Rasterize"
+      ],
+      "shortcut": null,
+      "params": "{\"layer\":id?} (no layer: every selected layer with effects; bakes the effects, fill opacity and masks into the pixels)",
+      "apparu_dans": "v0.7.0"
+    },
+    {
+      "id": "layer.setEffectsVisible",
+      "label": "Show/Hide Effects",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id?,\"index\":n?,\"visible\":bool?} (no index: all of the layer's effects, the \"Effects\" row; index: the effect at that position in the layer's list; no visible: toggle)",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "layer.toggleMaskOverlay",
+      "label": "Toggle Layer Mask Overlay",
+      "menu": [],
+      "shortcut": "\\",
+      "params": "{\"layer\":id?} (shows or hides the active layer's mask as a 50% red rubylith over the composite, the `\\` key; view state, not an undo step; painting while shown paints the mask)",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "layer.layerMask.edit",
+      "label": "Edit Layer Mask",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"layer\":id? (default active),\"document\":id? (reject a stale dialog),\"density\":0..100?,\"feather\":0..1000? (pixels)} → {layer,density,feather}; at least one property required; mask pixels are preserved",
+      "apparu_dans": "v0.7.0"
+    },
+    {
+      "id": "actions.move",
+      "label": "Move Action or Step",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index, \"step\":index?, \"to\":index}. Move a step within its action, or the action itself. to is the final zero-based index. Pending recorded steps can be moved.",
+      "apparu_dans": "v0.6.0"
+    },
+    {
+      "id": "actions.list",
+      "label": "List Actions",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} → {actions:[{name, steps:count, set:name|null}], recording:name|null}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "actions.get",
+      "label": "Get Action",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index} → {name, steps:[[id, params]…], disabled:[step…], dialogs:[step…], set:name|null, color:str} (steps is the shape file.automate.batch and droplets take; disabled lists the 0-based steps playback skips; dialogs the steps whose dialog Photoshop would show; set the action set from Load Actions; color is the Button Mode swatch, or empty)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "actions.record",
+      "label": "Record Action",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"name\":str? (new action, default \"Action N\")} or {\"action\":name|index} (append) → {action, index}",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "actions.stop",
+      "label": "Stop Recording",
+      "menu": [],
+      "shortcut": null,
+      "params": "{} → {action, steps:count} (steps recorded since actions.record, queries and action-editing commands omitted)",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "actions.play",
+      "label": "Play Action",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index, \"from\":step?} → {action, ran, failed?:{step, id, error}}. step and from are 0-based; steps switched off with actions.toggle are skipped. Stops at the first error (the command still returns ok, with failed set) and leaves one history step per step that ran. Nested calls are supported up to 16 levels; cycles are rejected. Recording stores a named call rather than its expanded commands. Each step is checked with Session::authorize when one is installed.",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "actions.delete",
+      "label": "Delete Action",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index, \"step\":index?} → {deleted:name} or {action, deletedStep, steps:count}. step is 0-based, including pending recorded steps. Whole-action deletion is refused while recording.",
+      "apparu_dans": "v0.5.0"
+    },
+    {
+      "id": "actions.toggle",
+      "label": "Toggle Action Steps",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index, \"step\":index?, \"enabled\":bool?} → {action, disabled:[step…]}. Switch one 0-based step (including pending recorded steps) on or off for playback, Batch and droplets; omitted enabled flips it. Without step, switch every step: on unless all already are, or as enabled says.",
+      "apparu_dans": "v0.8.2"
+    },
+    {
+      "id": "actions.rename",
+      "label": "Rename Action",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index, \"name\":str} → {action, index}. The name must not be empty or whitespace-only and must be unique. Nested Play Action steps and the action's function key follow the rename.",
+      "apparu_dans": "v0.7.0"
+    },
+    {
+      "id": "actions.setColor",
+      "label": "Set Action Color",
+      "menu": [],
+      "shortcut": null,
+      "params": "{\"action\":name|index, \"color\":\"\"|\"red\"|\"orange\"|\"yellow\"|\"green\"|\"blue\"|\"violet\"|\"gray\"} → {action, color}. The Button Mode colour. Empty clears it.",
+      "apparu_dans": "v0.10.0"
+    }
+  ],
+  "retires": [],
+  "renommes": [],
+  "params_changes": [
+    {
+      "id": "file.new",
+      "avant": "{\"width\":u32=1920,\"height\":u32=1080,\"mode\":\"rgb|gray|cmyk|lab\"=\"rgb\",\"depth\":8|16|32=8,\"background\":\"white|black|backgroundColor|transparent|#rrggbb\"=\"white\",\"resolution\":ppi=72,\"name\":str}",
+      "apres": "{\"width\":1..300000=1920,\"height\":1..300000=1080 (pixel counts are rounded),\"mode\":\"rgb|gray|grayscale|cmyk|lab\"=\"rgb\",\"depth\":8|16|32=8,\"background\":\"white|black|backgroundColor|transparent|#rrggbb\"=\"white\",\"backgroundColor\":[r,g,b]? (0..1; defaults to toolbox colour),\"resolution\":1..30000=72 (ppi),\"name\":str}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "backgroundColor"
+      ]
+    },
+    {
+      "id": "edit.fill",
+      "avant": "{\"contents\":\"foreground|background|color|contentAware|pattern|history|black|gray|white\"=\"color\",\"color\":\"#rrggbb|[r,g,b,a]\"=foreground (contents=color),\"pattern\":id|name (contents=pattern),\"scale\":%=100,\"angle\":deg,\"state\":index? (contents=history; default the oldest state),\"colorAdaptation\":bool=true (contents=contentAware),\"mode\":\"normal|multiply|…\"=\"normal\",\"opacity\":0..100=100,\"preserveTransparency\":bool=false,\"target\":\"pixels\"|{\"channel\":i}|\"quickMask\"?}",
+      "apres": "{\"contents\":\"foreground|background|color|contentAware|pattern|history|black|gray|white\"=\"color\",\"color\":\"#rrggbb|[r,g,b,a]\"=foreground (contents=color),\"pattern\":id|name (contents=pattern),\"scale\":%=100,\"angle\":deg,\"state\":index? (contents=history; default the oldest state),\"colorAdaptation\":bool=true (contents=contentAware),\"mode\":\"normal|multiply|…\"=\"normal\",\"opacity\":0..100=100,\"preserveTransparency\":bool=false,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.clear",
+      "avant": "{}",
+      "apres": "{} (a targeted channel or Quick Mask is cleared alone)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "select.rect",
+      "avant": "{\"x\":i32,\"y\":i32,\"width\":u32,\"height\":u32,\"mode\":\"replace|add|subtract|intersect\"=\"replace\",\"ellipse\":bool=false,\"antiAlias\":bool=true,\"feather\":px=0}",
+      "apres": "{\"x\":i32,\"y\":i32,\"width\":u32,\"height\":u32,\"mode\":\"replace|add|subtract|intersect\"=\"replace\",\"ellipse\":bool=false,\"line\":\"row|column\"?,\"antiAlias\":bool=true,\"feather\":px=0}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "line"
+      ]
+    },
+    {
+      "id": "layer.new.layer",
+      "avant": "{\"name\":str?}",
+      "apres": "{\"name\":str?,\"clipToPrevious\":bool=false (Use Previous Layer to Create Clipping Mask; inside a clip group the layer joins it anyway),\"color\":\"none|red|orange|yellow|green|seafoam|blue|indigo|magenta|fuchsia|violet|gray\"=\"none\",\"mode\":\"Normal|Multiply|…\"=\"Normal\",\"opacity\":0..1=1,\"fillNeutral\":bool=false (fill with the mode's neutral color: modes without one are an error),\"position\":\"above|below\"=\"above\" (below: the Layers panel's Cmd/Ctrl-click; never under the Background)}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "clipToPrevious",
+        "color",
+        "fillNeutral",
+        "mode",
+        "opacity",
+        "position"
+      ]
+    },
+    {
+      "id": "layer.duplicate",
+      "avant": "{\"layer\":id?} (no layer: every selected layer)",
+      "apres": "{\"layer\":id?,\"inPlace\":bool=false (artboards: keep the copy on the original instead of beside it),\"name\":str? (one layer: the copy's name),\"document\":index|\"new\"=same document (Photoshop's Destination: \"new\" makes a new document the size of this canvas holding just the copies),\"documentName\":str? (the new document's name)} (no layer: every selected layer)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "document",
+        "documentName",
+        "inPlace",
+        "name"
+      ]
+    },
+    {
+      "id": "layer.select",
+      "avant": "{\"layer\":id,\"mode\":\"replace|toggle|range|add\"=\"replace\"} (toggle = ⌘-click, range = ⇧-click)",
+      "apres": "{\"layer\":id|str | \"name\":str,\"occurrence\":index?,\"mode\":\"replace|toggle|range|add|remove\"=\"replace\"} (name occurrence: zero-based document walk order; required for duplicate names; toggle = ⌘-click, range = ⇧-click, remove = deselect it, keeping at least one)",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "name",
+        "occurrence"
+      ]
+    },
+    {
+      "id": "layer.setProps",
+      "avant": "{\"layer\":id?,\"name\":str?,\"visible\":bool?,\"opacity\":0..1?,\"fill\":0..1?,\"blend\":\"Multiply|…\"?,\"clipped\":bool?,\"locked\":bool?,\"locks\":{\"transparency\",\"pixels\",\"position\",\"artboard\",\"all\":bool}?,\"channels\":[bool,…]? (Advanced Blending: which colour channels blend, R G B / C M Y K / L a b)}",
+      "apres": "{\"layer\":id?,\"layers\":[id,…]? (the same change to each, one step: the Layers panel's controls with several layers selected),\"name\":str? (one layer only),\"visible\":bool?,\"opacity\":0..1?,\"fill\":0..1?,\"blend\":\"Multiply|…\"?,\"clipped\":bool?,\"locked\":bool?,\"locks\":{\"transparency\",\"pixels\",\"position\",\"artboard\",\"all\":bool}?,\"channels\":[bool,…]? (Advanced Blending: which colour channels blend, R G B / C M Y K / L a b)}",
+      "change_dans": "v0.10.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "layer.createClippingMask",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer but the lowest clips to the layer below it)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.releaseClippingMask",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.layerMask.revealAll",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer that can take a mask)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.layerMask.hideAll",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer that can take a mask)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.layerMask.revealSelection",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer that can take a mask)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.newFillLayer.solidColor",
+      "avant": "{\"color\":\"#rrggbb\"=foreground}",
+      "apres": "{\"color\":\"#rrggbb\"=foreground,\"path\":\"work\"|saved path name|{…path}? (the active path: becomes the vector mask, making a shape; else the selection is the layer mask)}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "path"
+      ]
+    },
+    {
+      "id": "layer.newFillLayer.gradient",
+      "avant": "{\"from\":\"#rrggbb\",\"to\":\"#rrggbb\",\"angle\":deg=90,\"style\":\"linear|radial|angle|reflected|diamond\",\"reverse\":bool}",
+      "apres": "{\"from\":\"#rrggbb\",\"to\":\"#rrggbb\",\"angle\":deg=90,\"style\":\"linear|radial|angle|reflected|diamond\",\"reverse\":bool,\"path\":\"work\"|saved path name|{…path}? (the active path: becomes the vector mask; else the selection is the layer mask)}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "path"
+      ]
+    },
+    {
+      "id": "layer.setAdjustment",
+      "avant": "{\"layer\":id?, …params of that adjustment kind}",
+      "apres": "{\"layer\":id?, …params of that adjustment kind} (Levels, Curves: \"eyedropper\":{\"point\":\"black|gray|white\",\"at\":[x,y],\"size\":1..101=1} or {\"point\",…,\"color\":[r,g,b] 0..1} = the Properties panel's Set Black/Neutral Gray/White Point, sampling the image below the layer, RGB and Grayscale (no gray) only)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "at",
+        "color",
+        "eyedropper",
+        "point",
+        "size"
+      ]
+    },
+    {
+      "id": "layer.moveTo",
+      "avant": "{\"layer\":id?,\"target\":id,\"position\":\"above|below|into\"=\"above\"}",
+      "apres": "{\"layer\":id?| \"layers\":[id,…]?, \"target\":id,\"position\":\"above|below|into\"=\"above\",\"copy\":bool=false} (layers: one undoable move, document order preserved; copy: place duplicates there and leave the layers, as ⌥-dragging a Layers panel row)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "copy",
+        "layers"
+      ]
+    },
+    {
+      "id": "layer.translate",
+      "avant": "{\"layer\":id?,\"dx\":i32,\"dy\":i32} (no layer: every selected layer; linked layers follow)",
+      "apres": "{\"layer\":id?,\"dx\":i32,\"dy\":i32,\"units\":\"px\"|\"pt\"=\"px\" (pt: points, whole pixels at the document's resolution),\"target\":\"pixels\"|\"mask\"=\"pixels\"} (no layer: every selected layer; linked layers follow; target mask: a layer whose mask is unlinked moves that mask alone, a linked mask moves with the layer)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "target",
+        "units"
+      ]
+    },
+    {
+      "id": "paint.stroke",
+      "avant": "{\"points\":[[x,y,pressure?,tiltX?,tiltY?,rotation?,timeMs?,wheel?],…],\"brush\":{…BrushSettings}?,\"preset\":name?,\"size\":px?,\"hardness\":0..1?,\"opacity\":0..1?,\"flow\":0..1?,\"spacing\":0..10?,\"color\":\"#rrggbb\"?=foreground,\"mode\":\"normal|multiply|screen|…\"=\"normal\",\"erase\":bool?,\"smoothing\":0..1?,\"zoom\":number=1,\"seed\":u64?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target}",
+      "apres": "{\"points\":[[x,y,pressure?,tiltX?,tiltY?,rotation?,timeMs?,wheel?],…],\"brush\":{…BrushSettings}?,\"preset\":name?,\"size\":0.5..5000 px?,\"hardness\":0..1?,\"opacity\":0..1?,\"flow\":0..1?,\"spacing\":0..10?,\"color\":\"#rrggbb\"?=foreground,\"mode\":\"normal|multiply|screen|…|clear (erases with this brush)\"=\"normal\",\"erase\":bool?,\"smoothing\":0..1?,\"zoom\":number=1,\"seed\":u64?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "tools.setColors",
+      "avant": "{\"foreground\":\"#rrggbb\"?,\"background\":\"#rrggbb\"?}",
+      "apres": "{\"foreground\":\"#rrggbb\"|[r,g,b,a?]?,\"background\":same?,\"foregroundCmyk\":[c,m,y,k]? (inks 0..1 the foreground was picked as: a CMYK document is filled with exactly these),\"backgroundCmyk\":same?}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "backgroundCmyk",
+        "foregroundCmyk"
+      ]
+    },
+    {
+      "id": "layer.newAdjustmentLayer.levels",
+      "avant": "{\"inBlack\":0..253=0,\"gamma\":0.01..9.99=1,\"inWhite\":2..255=255,\"outBlack\":0..255=0,\"outWhite\":0..255=255,\"red\":json,\"green\":json,\"blue\":json} (top level = composite; per channel {\"inBlack\",\"gamma\",\"inWhite\",\"outBlack\",\"outWhite\"} under red/green/blue, gray, cyan/magenta/yellow/black or lightness/a/b)",
+      "apres": "{\"inBlack\":0..253=0,\"gamma\":0.01..9.99=1,\"inWhite\":2..255=255,\"outBlack\":0..255=0,\"outWhite\":0..255=255,\"red\":json,\"green\":json,\"blue\":json,\"eyedropper\":json} (top level = composite; per channel {\"inBlack\",\"gamma\",\"inWhite\",\"outBlack\",\"outWhite\"} under red/green/blue, gray, cyan/magenta/yellow/black or lightness/a/b; eyedropper = the dialog's Set Black/Neutral Gray/White Point picker {\"point\":\"black|gray|white\",\"at\":[x,y],\"size\":1..101=1} or {\"point\",…,\"color\":[r,g,b] 0..1}: black/white set each channel's input black/white to the sample, gray each channel's gamma so the sample turns neutral at its luma; RGB and Grayscale (no gray) only, applied over the given levels)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "at",
+        "color",
+        "eyedropper",
+        "point",
+        "size"
+      ]
+    },
+    {
+      "id": "image.adjustments.levels",
+      "avant": "{\"inBlack\":0..253=0,\"gamma\":0.01..9.99=1,\"inWhite\":2..255=255,\"outBlack\":0..255=0,\"outWhite\":0..255=255,\"red\":json,\"green\":json,\"blue\":json} (top level = composite; per channel {\"inBlack\",\"gamma\",\"inWhite\",\"outBlack\",\"outWhite\"} under red/green/blue, gray, cyan/magenta/yellow/black or lightness/a/b)",
+      "apres": "{\"inBlack\":0..253=0,\"gamma\":0.01..9.99=1,\"inWhite\":2..255=255,\"outBlack\":0..255=0,\"outWhite\":0..255=255,\"red\":json,\"green\":json,\"blue\":json,\"eyedropper\":json} (top level = composite; per channel {\"inBlack\",\"gamma\",\"inWhite\",\"outBlack\",\"outWhite\"} under red/green/blue, gray, cyan/magenta/yellow/black or lightness/a/b; eyedropper = the dialog's Set Black/Neutral Gray/White Point picker {\"point\":\"black|gray|white\",\"at\":[x,y],\"size\":1..101=1} or {\"point\",…,\"color\":[r,g,b] 0..1}: black/white set each channel's input black/white to the sample, gray each channel's gamma so the sample turns neutral at its luma; RGB and Grayscale (no gray) only, applied over the given levels)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "at",
+        "color",
+        "eyedropper",
+        "point",
+        "size"
+      ]
+    },
+    {
+      "id": "layer.newAdjustmentLayer.curves",
+      "avant": "{\"points\":json,\"red\":json,\"green\":json,\"blue\":json} (curves as [[in,out],…] in 0..255, 2..19 points: points = composite; red/green/blue, gray, cyan/magenta/yellow/black or lightness/a/b per channel)",
+      "apres": "{\"points\":json,\"red\":json,\"green\":json,\"blue\":json,\"pencil\":bool=false,\"smooth\":0..10=0,\"eyedropper\":json} (curves as [[in,out],…] in 0..255, 2..19 points: points = composite; red/green/blue, gray, cyan/magenta/yellow/black or lightness/a/b per channel; pencil = drawn curves (Draw to modify the curve): each curve is 256 output levels in 0..255 (point curves given are drawn in, and turning pencil off fits points to the drawing); smooth = Smooth passes over the drawn curves; eyedropper = the dialog's Set Black/Neutral Gray/White Point picker {\"point\":\"black|gray|white\",\"at\":[x,y],\"size\":1..101=1} or {\"point\",…,\"color\":[r,g,b] 0..1}, RGB and Grayscale (no gray) only, applied over the given curves)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "at",
+        "color",
+        "eyedropper",
+        "pencil",
+        "point",
+        "size",
+        "smooth"
+      ]
+    },
+    {
+      "id": "image.adjustments.curves",
+      "avant": "{\"points\":json,\"red\":json,\"green\":json,\"blue\":json} (curves as [[in,out],…] in 0..255, 2..19 points: points = composite; red/green/blue, gray, cyan/magenta/yellow/black or lightness/a/b per channel)",
+      "apres": "{\"points\":json,\"red\":json,\"green\":json,\"blue\":json,\"pencil\":bool=false,\"smooth\":0..10=0,\"eyedropper\":json} (curves as [[in,out],…] in 0..255, 2..19 points: points = composite; red/green/blue, gray, cyan/magenta/yellow/black or lightness/a/b per channel; pencil = drawn curves (Draw to modify the curve): each curve is 256 output levels in 0..255 (point curves given are drawn in, and turning pencil off fits points to the drawing); smooth = Smooth passes over the drawn curves; eyedropper = the dialog's Set Black/Neutral Gray/White Point picker {\"point\":\"black|gray|white\",\"at\":[x,y],\"size\":1..101=1} or {\"point\",…,\"color\":[r,g,b] 0..1}, RGB and Grayscale (no gray) only, applied over the given curves)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "at",
+        "color",
+        "eyedropper",
+        "pencil",
+        "point",
+        "size",
+        "smooth"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.dropShadow",
+      "avant": "{\"color\":\"#rrggbb\",\"opacity\":0..100=75,\"blend\":str=\"multiply\",\"angle\":deg=120,\"useGlobalLight\":bool,\"distance\":px=5,\"spread\":0..100,\"size\":px=5,\"knocksOut\":bool,\"add\":bool,\"layer\":id}",
+      "apres": "{\"color\":\"#rrggbb\",\"opacity\":0..100=75,\"blend\":str=\"multiply\",\"angle\":deg=120,\"useGlobalLight\":bool,\"distance\":px=5,\"spread\":0..100,\"size\":px=5,\"contour\":\"Linear|Cone|Cone - Inverted|Cove - Deep|Cove - Shallow|Gaussian|Half Round|Ring|Ring - Double|Rolling Slope - Descending|Rounded Steps|Sawtooth 1\"|{\"name\":str,\"points\":[[in 0..1,out 0..1],…],\"corners\":[bool,…]}=\"Linear\",\"antiAlias\":bool,\"noise\":0..100,\"knocksOut\":bool,\"add\":bool,\"layer\":id}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "antiAlias",
+        "contour",
+        "corners",
+        "name",
+        "noise",
+        "points"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.innerShadow",
+      "avant": "{\"color\":\"#rrggbb\",\"opacity\":0..100=75,\"blend\":str,\"angle\":deg,\"distance\":px,\"choke\":0..100,\"size\":px,\"add\":bool}",
+      "apres": "{\"color\":\"#rrggbb\",\"opacity\":0..100=75,\"blend\":str,\"angle\":deg,\"distance\":px,\"choke\":0..100,\"size\":px,\"contour\":name|curve,\"antiAlias\":bool,\"noise\":0..100,\"add\":bool}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "antiAlias",
+        "contour",
+        "noise"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.outerGlow",
+      "avant": "{\"color\":\"#rrggbb\",\"opacity\":0..100=75,\"blend\":str=\"screen\",\"technique\":\"softer|precise\",\"spread\":0..100,\"size\":px,\"range\":0..100,\"add\":bool}",
+      "apres": "{\"color\":\"#rrggbb\",\"opacity\":0..100=75,\"blend\":str=\"screen\",\"technique\":\"softer|precise\",\"spread\":0..100,\"size\":px,\"range\":0..100,\"contour\":name|curve,\"antiAlias\":bool,\"noise\":0..100,\"add\":bool}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "antiAlias",
+        "contour",
+        "noise"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.innerGlow",
+      "avant": "{\"color\":\"#rrggbb\",\"opacity\":0..100=75,\"blend\":str=\"screen\",\"technique\":\"softer|precise\",\"source\":\"edge|center\",\"choke\":0..100,\"size\":px,\"add\":bool}",
+      "apres": "{\"color\":\"#rrggbb\",\"opacity\":0..100=75,\"blend\":str=\"screen\",\"technique\":\"softer|precise\",\"source\":\"edge|center\",\"choke\":0..100,\"size\":px,\"contour\":name|curve,\"antiAlias\":bool,\"noise\":0..100,\"add\":bool}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "antiAlias",
+        "contour",
+        "noise"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.stroke",
+      "avant": "{\"size\":px=3,\"position\":\"outside|inside|center\",\"color\":\"#rrggbb\",\"from\":\"#rrggbb\",\"to\":\"#rrggbb\",\"style\":str,\"angle\":deg,\"opacity\":0..100,\"blend\":str,\"add\":bool}",
+      "apres": "{\"size\":px=3,\"position\":\"outside|inside|center\",\"color\":\"#rrggbb\",\"from\":\"#rrggbb\",\"to\":\"#rrggbb\",\"method\":\"classic|perceptual|linear|smooth\"?,\"smoothness\":0..100=100,\"style\":str,\"angle\":deg,\"opacity\":0..100,\"blend\":str,\"add\":bool}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "method",
+        "smoothness"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.gradientOverlay",
+      "avant": "{\"from\":\"#rrggbb\",\"to\":\"#rrggbb\",\"style\":\"linear|radial|angle|reflected|diamond\",\"angle\":deg=90,\"scale\":10..150=100,\"reverse\":bool,\"opacity\":0..100,\"blend\":str,\"add\":bool}",
+      "apres": "{\"from\":\"#rrggbb\",\"to\":\"#rrggbb\",\"method\":\"classic|perceptual|linear|smooth\"? (Photoshop's interpolation; omitted: straight stops),\"smoothness\":0..100=100,\"style\":\"linear|radial|angle|reflected|diamond\",\"angle\":deg=90,\"scale\":10..150=100,\"reverse\":bool,\"opacity\":0..100,\"blend\":str,\"add\":bool}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "method",
+        "smoothness"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.bevelEmboss",
+      "avant": "{\"style\":\"inner|outer|emboss|pillow|stroke\",\"technique\":\"smooth|chiselHard|chiselSoft\",\"contour\":bool,\"contourRange\":1..100=50,\"texture\":pattern id|name?,\"textureScale\":1..1000=100,\"textureDepth\":-1000..1000=100,\"textureInvert\":bool,\"textureLink\":bool=true,\"depth\":1..1000=100,\"direction\":\"up|down\",\"size\":px=5,\"soften\":px,\"angle\":deg,\"altitude\":deg,\"add\":bool}",
+      "apres": "{\"style\":\"inner|outer|emboss|pillow|stroke\",\"technique\":\"smooth|chiselHard|chiselSoft\",\"contour\":bool,\"contourName\":name|curve,\"contourRange\":1..100=50,\"contourAntiAlias\":bool,\"glossContour\":name|curve,\"texture\":pattern id|name?,\"textureScale\":1..1000=100,\"textureDepth\":-1000..1000=100,\"textureInvert\":bool,\"textureLink\":bool=true,\"depth\":1..1000=100,\"direction\":\"up|down\",\"size\":px=5,\"soften\":px,\"angle\":deg,\"altitude\":deg,\"add\":bool}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "contourAntiAlias",
+        "contourName",
+        "glossContour"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.satin",
+      "avant": "{\"color\":\"#rrggbb\",\"opacity\":0..100=50,\"blend\":str,\"angle\":deg,\"distance\":px,\"size\":px,\"invert\":bool,\"add\":bool}",
+      "apres": "{\"color\":\"#rrggbb\",\"opacity\":0..100=50,\"blend\":str,\"angle\":deg,\"distance\":px,\"size\":px,\"contour\":name|curve,\"antiAlias\":bool=true,\"invert\":bool,\"add\":bool}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "antiAlias",
+        "contour"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.clear",
+      "avant": "{\"layer\":id}",
+      "apres": "{\"layer\":id? (no layer: every selected layer that has a style),\"effect\":index? (only that effect of \"layer\", as an effect row dropped on the Layers panel's Delete button)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "effect"
+      ]
+    },
+    {
+      "id": "filter.blur.radialBlur",
+      "avant": "{\"amount\":1..100=10,\"method\":\"spin|zoom\",\"centerX\":0..1=0.5,\"centerY\":0..1=0.5}",
+      "apres": "{\"amount\":1..100=10,\"method\":\"spin|zoom\",\"quality\":\"draft|good|best\"=\"good\",\"centerX\":0..1=0.5,\"centerY\":0..1=0.5}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "quality"
+      ]
+    },
+    {
+      "id": "filter.blur.lensBlur",
+      "avant": "{\"radius\":0..100=15,\"shape\":\"hexagon|triangle|square|pentagon|heptagon|octagon\",\"bladeCurvature\":0..100=0,\"rotation\":0..360=0,\"depthMap\":\"none|transparency|layerMask\",\"focalDistance\":0..255=0,\"invert\":bool,\"brightness\":0..100=0,\"threshold\":0..255=255,\"noise\":0..100=0,\"distribution\":\"uniform|gaussian\",\"monochromatic\":bool,\"seed\":u32=0}",
+      "apres": "{\"radius\":0..100=15,\"shape\":\"hexagon|triangle|square|pentagon|heptagon|octagon\",\"bladeCurvature\":0..100=0,\"rotation\":0..360=0,\"depthMap\":\"none|transparency|layerMask|channel\",\"depthChannel\":index|name?,\"focalDistance\":0..255=0,\"invert\":bool,\"brightness\":0..100=0,\"threshold\":0..255=255,\"noise\":0..100=0,\"distribution\":\"uniform|gaussian\",\"monochromatic\":bool,\"seed\":u32=0}",
+      "change_dans": "main 3a896a5e",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "depthChannel"
+      ]
+    },
+    {
+      "id": "type.create",
+      "avant": "{\"x\":px,\"y\":px (baseline anchor of point text),\"text\":str,\"box\":[x,y,w,h]? (paragraph text),\"name\":str?,\"align\":\"left|center|right|justify…\"?, …character keys: \"font\",\"size\":pt=12,\"color\",…}",
+      "apres": "{\"x\":px,\"y\":px (baseline anchor of point text),\"text\":str,\"box\":[x,y,w,h]? (paragraph text),\"name\":str?,\"align\":\"left|center|right|justify…\"?,\"orientation\":\"horizontal|vertical\"=\"horizontal\", …character keys: \"font\",\"size\":pt=12,\"color\",…}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "orientation"
+      ]
+    },
+    {
+      "id": "type.edit",
+      "avant": "{\"layer\":id?,\"text\":str? (replace all, styles kept),\"replace\":{\"start\":char,\"end\":char,\"text\":str}?,\"runs\":[{\"start\":char,\"end\":char,…character keys}]?,\"box\":[x,y,w,h]? (to paragraph text),\"point\":[x,y]? (to point text),\"move\":[dx,dy]?,\"transform\":[a,b,c,d,e,f]?,\"antialias\":\"none|sharp|crisp|strong|smooth\"?,\"name\":str?,\"kerning\":1/1000em|\"metrics\"|\"optical\"|\"off\"? (with \"range\":[startChar,endChar]?, default all),\"kernPair\":{\"at\":caretChar,\"by\":1/1000em}? (Photoshop Alt+←/→: the pair before the caret becomes manual, its current kerning + by)}",
+      "apres": "{\"layer\":id?,\"text\":str? (replace all, styles kept),\"replace\":{\"start\":char,\"end\":char,\"text\":str}?,\"runs\":[{\"start\":char,\"end\":char,…character keys}]?,\"box\":[x,y,w,h]? (to paragraph text),\"point\":[x,y]? (to point text),\"move\":[dx,dy]?,\"transform\":[a,b,c,d,e,f]?,\"antialias\":\"none|sharp|crisp|strong|smooth\"?,\"name\":str?,\"kerning\":1/1000em|\"metrics\"|\"optical\"|\"off\"? (with \"range\":[startChar,endChar]?, default all),\"kernPair\":{\"at\":caretChar,\"by\":1/1000em}? (Alt+←/→: the pair before the caret becomes manual, its current kerning + by)}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "type.setStyle",
+      "avant": "{\"layer\":id?,\"range\":[startChar,endChar]? (default all), \"font\":str,\"fontStyle\":str,\"weight\":100..900,\"italic\":bool,\"size\":pt,\"color\":\"#rrggbb\"|[r,g,b,a],\"tracking\":1/1000em,\"leading\":pt|\"auto\",\"baselineShift\":pt,\"horizontalScale\":%,\"verticalScale\":%,\"underline\":bool,\"strikethrough\":bool,\"fauxBold\":bool,\"fauxItalic\":bool,\"kerning\":1/1000em (manual, after each character)|\"metrics\"|\"optical\"|\"off\",\"caps\":\"normal|small|all\",\"ligatures\":bool,\"discretionaryLigatures\":bool,\"features\":{\"ss01\":1},\"variations\":{\"wght\":650},\"language\":str, paragraph keys: \"align\":\"left|center|right|justify|justifyCenter|justifyRight|justifyAll\",\"firstLineIndent\":pt,\"startIndent\":pt,\"endIndent\":pt,\"spaceBefore\":pt,\"spaceAfter\":pt,\"autoLeading\":%,\"direction\":\"auto|ltr|rtl\",\"hyphenate\":bool}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"range\":[startChar,endChar]? (single layer; default all),\"metricsAsShown\":bool=false (size/leading/leadingBy include each layer's transform scale), \"font\":str,\"fontStyle\":str,\"weight\":100..900,\"italic\":bool,\"size\":0.1..=1296 pt,\"color\":\"#rrggbb\"|[r,g,b,a],\"tracking\":-1000..=10000 (1/1000 em),\"leading\":pt|\"auto\",\"baselineShift\":pt,\"horizontalScale\":%,\"verticalScale\":%,\"underline\":bool,\"strikethrough\":bool,\"fauxBold\":bool,\"fauxItalic\":bool,\"kerning\":1/1000em (manual, after each character)|\"metrics\"|\"optical\"|\"off\",\"caps\":\"normal|small|all\",\"ligatures\":bool,\"discretionaryLigatures\":bool,\"features\":{\"ss01\":1},\"variations\":{\"wght\":650},\"language\":str, relative steps from each character's own value: \"leadingBy\":pt (auto leading starts from its laid-out value; result 0.01..=5000),\"baselineShiftBy\":pt (result -5000..=5000),\"trackingBy\":1/1000 em (result -1000..=10000), paragraph keys: \"align\":\"left|center|right|justify|justifyCenter|justifyRight|justifyAll\",\"firstLineIndent\":pt,\"startIndent\":pt,\"endIndent\":pt,\"spaceBefore\":pt,\"spaceAfter\":pt,\"autoLeading\":%,\"direction\":\"auto|ltr|rtl\",\"hyphenate\":bool}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "baselineShiftBy",
+        "layers",
+        "leadingBy",
+        "metricsAsShown",
+        "trackingBy"
+      ]
+    },
+    {
+      "id": "edit.transform",
+      "avant": "{\"layer\":id?,\"rect\":[x0,y0,x1,y1]? (source frame; default = layer content ∩ selection),\"quad\":[[x,y]×4]? (where the frame's corners go, clockwise from top-left),\"matrix\":[a,b,c,d,e,f]? (affine alternative),\"interpolation\":\"bicubic|bilinear|nearest\"=\"bicubic\",\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (an unlinked mask, an alpha channel or the Quick Mask transforms alone; a linked mask moves with its layer)}",
+      "apres": "{\"layer\":id?,\"rect\":[x0,y0,x1,y1]? (source frame; default = layer content ∩ selection),\"quad\":[[x,y]×4]? (where the frame's corners go, clockwise from top-left),\"matrix\":[a,b,c,d,e,f]? (affine alternative),\"scaleX\":%?,\"scaleY\":%?,\"rotate\":deg?,\"dx\":px?,\"dy\":px? (relative alternative: scale and rotate about the frame's centre, then move, as a Photoshop action records a Free Transform),\"interpolation\":\"bicubic|bilinear|nearest\"=\"bicubic\",\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (an unlinked mask, an alpha channel or the Quick Mask transforms alone; a linked mask moves with its layer)}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "dx",
+        "dy",
+        "rotate",
+        "scaleX",
+        "scaleY"
+      ]
+    },
+    {
+      "id": "path.stroke",
+      "avant": "{\"name\":str|\"work\"|\"layer\"=\"work\",\"layer\":id? (pixel layer),\"tool\":\"brush|pencil|eraser\"=\"brush\",\"size\":px?,\"hardness\":0..1?,\"opacity\":0..100?,\"color\":\"#rrggbb\"=foreground} (current brush settings otherwise)",
+      "apres": "{\"name\":str|\"work\"|\"layer\"=\"work\",\"layer\":id? (pixel layer),\"tool\":\"brush|pencil|eraser|backgroundEraser|cloneStamp|patternStamp|healingBrush|spotHealingBrush|historyBrush|blur|sharpen|smudge|dodge|burn|sponge|colorReplacement|mixerBrush\"=\"brush\",\"simulatePressure\":bool=false (taper both ends when the brush follows pen pressure),\"size\":0.5..5000 px?,\"hardness\":0..1?,\"opacity\":0..100?,\"color\":\"#rrggbb\"=foreground} (current brush settings otherwise; tools past the Eraser run their paint.* command along the path and take its params)",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "simulatePressure"
+      ]
+    },
+    {
+      "id": "layer.vectorMask.edit",
+      "avant": "{\"layer\":id?,\"path\":{…}?,\"enabled\":bool?,\"linked\":bool?,\"density\":0..100?,\"feather\":px?,\"invert\":true?}. path: {\"subpaths\":[{\"closed\":bool=true,\"op\":\"combine|subtract|intersect|exclude\",\"knots\":[[x,y] | {\"anchor\":[x,y],\"in\":[x,y],\"out\":[x,y],\"smooth\":bool}]}],\"fillRule\":\"nonzero|evenodd\",\"inverted\":bool}",
+      "apres": "{\"layer\":id?,\"path\":{…}?,\"enabled\":bool?,\"linked\":bool?,\"density\":0..100?,\"feather\":0..1000? (pixels),\"invert\":true?}. path: {\"subpaths\":[{\"closed\":bool=true,\"op\":\"combine|subtract|intersect|exclude\",\"knots\":[[x,y] | {\"anchor\":[x,y],\"in\":[x,y],\"out\":[x,y],\"smooth\":bool}]}],\"fillRule\":\"nonzero|evenodd\",\"inverted\":bool}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.rasterize.shape",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected shape layer)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.combineShapes.unite",
+      "avant": "{\"layer\":id?,\"subpath\":index? (default all but the first)}",
+      "apres": "{\"layer\":id?,\"subpath\":index? (default all but the first)} (no layer/subpath and two or more shape layers selected: merges them into the top-most, whose components above the bottom layer's take the operation)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.combineShapes.subtractFrontShape",
+      "avant": "{\"layer\":id?,\"subpath\":index?}",
+      "apres": "{\"layer\":id?,\"subpath\":index? (default all but the first)} (no layer/subpath and two or more shape layers selected: merges them into the top-most, whose components above the bottom layer's take the operation)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.combineShapes.intersectShapeAreas",
+      "avant": "{\"layer\":id?,\"subpath\":index?}",
+      "apres": "{\"layer\":id?,\"subpath\":index? (default all but the first)} (no layer/subpath and two or more shape layers selected: merges them into the top-most, whose components above the bottom layer's take the operation)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.combineShapes.excludeOverlappingShapes",
+      "avant": "{\"layer\":id?,\"subpath\":index?}",
+      "apres": "{\"layer\":id?,\"subpath\":index? (default all but the first)} (no layer/subpath and two or more shape layers selected: merges them into the top-most, whose components above the bottom layer's take the operation)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.combineShapes.mergeShapeComponents",
+      "avant": "{\"layer\":id?,\"tolerance\":px=0.1} (bakes the path operations into plain combined outlines, traced from the exact coverage)",
+      "apres": "{\"layer\":id?,\"tolerance\":px=0.1} (bakes the path operations into plain combined outlines, traced from the exact coverage; no layer and several shape layers selected: merges them into the top-most first)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "select.convertToShape",
+      "avant": "{\"tolerance\":px=2,\"fill\":\"#rrggbb\"=foreground,\"name\":str?} → shape.info",
+      "apres": "{\"tolerance\":0.5..10 px=2} → shape.info",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [
+        "fill",
+        "name"
+      ],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "select.object",
+      "avant": "{\"rect\":[x,y,w,h],\"mode\":\"replace|add|subtract|intersect\"=\"replace\",\"sampleAllLayers\":bool=false}",
+      "apres": "{\"rect\":[x,y,w,h] | \"point\":[x,y],\"mode\":\"replace|add|subtract|intersect\"=\"replace\",\"sampleAllLayers\":bool=false} (point: the Object Finder's object under the point, as hovering previews it)",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "point"
+      ]
+    },
+    {
+      "id": "select.refineEdge",
+      "avant": "{\"radius\":px=0,\"smartRadius\":bool=false,\"smooth\":0..100=0,\"feather\":px=0,\"contrast\":0..100=0,\"shiftEdge\":-100..100=0,\"decontaminate\":bool=false,\"amount\":0..100=100,\"output\":\"selection|layerMask|newLayer|newLayerWithMask\"=\"selection\",\"sampleAllLayers\":bool=false}",
+      "apres": "{\"radius\":px=0,\"smartRadius\":bool=false,\"smooth\":0..100=0,\"feather\":px=0,\"contrast\":0..100=0,\"shiftEdge\":-100..100=0,\"decontaminate\":bool=false,\"amount\":0..100=100,\"output\":\"selection|layerMask|newLayer|newLayerWithMask|newDocument|newDocumentWithMask\"=\"selection\",\"sampleAllLayers\":bool=false,\"refineStrokes\":[{\"points\":[[x,y],…],\"size\":px=30,\"mode\":\"add|subtract\"=\"add\"},…]=[]} (refineStrokes: the Refine Edge Brush, in painting order: add refines the painted area from the image, subtract keeps the original edge there)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "mode",
+        "points",
+        "refineStrokes",
+        "size"
+      ]
+    },
+    {
+      "id": "edit.cut",
+      "avant": "{}",
+      "apres": "{} (a targeted colour channel cuts that channel only)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.copy",
+      "avant": "{}",
+      "apres": "{\"target\":\"mask\"? = the targeted mask, copied as grayscale (#2928)} (a targeted colour or alpha channel copies that channel, as grayscale)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "target"
+      ]
+    },
+    {
+      "id": "edit.paste",
+      "avant": "{\"center\":[x,y]? (view centre; default keeps the position when it overlaps the canvas)} (with no document open: a new document from the clipboard)",
+      "apres": "{\"center\":[x,y]? (view centre; default keeps the position when it overlaps the canvas),\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (not pixels: the luminosity pasted into that mask or channel)} (with no document open: a new document from the clipboard)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "channel",
+        "target"
+      ]
+    },
+    {
+      "id": "edit.pasteSpecial.pasteInPlace",
+      "avant": "{}",
+      "apres": "{\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (not pixels: the luminosity pasted into that mask or channel)}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "channel",
+        "target"
+      ]
+    },
+    {
+      "id": "view.newGuide",
+      "avant": "{\"orientation\":\"horizontal|vertical\",\"position\":px}",
+      "apres": "{\"orientation\":\"horizontal|vertical\",\"position\":px or \"<number><unit>\",\"color\":\"lightBlue|lightRed|green|mediumBlue|yellow|magenta|cyan|lightGray|black\" or \"#rrggbb\"?} (units px, in, cm, mm, pt, pc or %; % is of the width for a vertical guide, the height for a horizontal one; without a color the guide uses the guide colour in Preferences)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "color"
+      ]
+    },
+    {
+      "id": "view.moveGuide",
+      "avant": "{\"orientation\":\"horizontal|vertical\",\"index\":n,\"position\":px}",
+      "apres": "{\"orientation\":\"horizontal|vertical\",\"index\":n,\"position\":px or \"<number><unit>\"} (units as for view.newGuide)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.assignProfile",
+      "avant": "{\"profile\":\"working|srgb|display-p3|adobe-rgb-compat|prophoto-compat|linear-srgb|rec2020|gray-gamma-2.2|sgray|lab-d50|coated-cmyk|none\" (or a path to an .icc file)}",
+      "apres": "{\"profile\":\"working|srgb|display-p3|adobe-rgb-compat|prophoto-compat|linear-srgb|rec2020|gray-gamma-2.2|sgray|dot-gain-20-compat|lab-d50|coated-cmyk|none\" (or a path to an .icc file)}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.colorSettings",
+      "avant": "{\"workingRgb\":\"srgb|display-p3|adobe-rgb-compat|prophoto-compat|linear-srgb|rec2020\",\"workingCmyk\":\"coated-cmyk\",\"workingGray\":\"sgray|gray-gamma-2.2\",\"policyRgb\":\"preserve|convert|off\",\"policyCmyk\":\"preserve|convert|off\",\"policyGray\":\"preserve|convert|off\",\"askOnMismatch\":bool=true,\"askOnPaste\":bool=true,\"askOnMissing\":bool=false,\"intent\":\"relative|perceptual|saturation|absolute\",\"blendTextGamma\":1.0..2.2|bool=1.45,\"bpc\":bool=true,\"dither\":bool=true,\"monitorProfile\":\"auto|srgb|display-p3|adobe-rgb-compat|prophoto-compat|rec2020\",\"reset\":bool=false} (working spaces and the monitor profile also accept .icc paths; monitor `auto` = the main display's profile when the platform provides it, else sRGB)",
+      "apres": "{\"workingRgb\":\"srgb|display-p3|adobe-rgb-compat|prophoto-compat|linear-srgb|rec2020\",\"workingCmyk\":\"coated-cmyk\",\"workingGray\":\"dot-gain-20-compat|sgray|gray-gamma-2.2\",\"policyRgb\":\"preserve|convert|off\",\"policyCmyk\":\"preserve|convert|off\",\"policyGray\":\"preserve|convert|off\",\"askOnMismatch\":bool=true,\"askOnPaste\":bool=true,\"askOnMissing\":bool=false,\"intent\":\"relative|perceptual|saturation|absolute\",\"blendTextGamma\":1.0..2.2|bool=1.45,\"bpc\":bool=true,\"dither\":bool=true,\"monitorProfile\":\"auto|srgb|display-p3|adobe-rgb-compat|prophoto-compat|rec2020\",\"reset\":bool=false} (working spaces and the monitor profile also accept .icc paths; monitor `auto` = the main display's profile when the platform provides it, else sRGB; the reply's `monitorStatus` says which profile is in use and why: source auto|manual|fallback, reason)",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.pencil",
+      "avant": "{\"points\":[[x,y,pressure?,tiltX?,tiltY?,rotation?,timeMs?,wheel?],…],\"brush\":{…}?,\"preset\":name?,\"size\":px?,\"opacity\":0..1?,\"color\":\"#rrggbb\"?=foreground,\"mode\":\"normal|multiply|screen|…\"=\"normal\",\"erase\":bool?,\"autoErase\":bool=false,\"seed\":u64?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target}",
+      "apres": "{\"points\":[[x,y,pressure?,tiltX?,tiltY?,rotation?,timeMs?,wheel?],…],\"brush\":{…}?,\"preset\":name?,\"size\":0.5..5000 px?,\"opacity\":0..1?,\"color\":\"#rrggbb\"?=foreground,\"mode\":\"normal|multiply|screen|…|clear (erases with this brush)\"=\"normal\",\"erase\":bool?,\"block\":bool=false (a hard 16×16 screen-px square, 16/zoom doc px; size, opacity, flow, hardness and dynamics ignored: the Eraser's Block mode),\"zoom\":view zoom=1,\"autoErase\":bool=false,\"seed\":u64?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "block",
+        "zoom"
+      ]
+    },
+    {
+      "id": "paint.mixerBrush",
+      "avant": "{\"points\":[…],\"brush\":{…}?,\"preset\":name?,\"size\":px?,\"wet\":0..100=brush.mixer.wet,\"load\":0..100=brush.mixer.load,\"mix\":0..100=brush.mixer.mix,\"flow\":0..100=brush.mixer.flow,\"color\":\"#rrggbb\"?=foreground,\"sampleAllLayers\":bool=brush.mixer.sampleAllLayers,\"cleanAfterStroke\":bool=true,\"loadAfterStroke\":bool=true,\"seed\":u64?}",
+      "apres": "{\"points\":[…],\"brush\":{…}?,\"preset\":name?,\"size\":0.5..5000 px?,\"wet\":0..100=brush.mixer.wet,\"load\":0..100=brush.mixer.load,\"mix\":0..100=brush.mixer.mix,\"flow\":0..100=brush.mixer.flow,\"color\":\"#rrggbb\"?=foreground,\"sampleAllLayers\":bool=brush.mixer.sampleAllLayers,\"cleanAfterStroke\":bool=true,\"loadAfterStroke\":bool=true,\"seed\":u64?}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.colorReplacement",
+      "avant": "{\"points\":[…],\"brush\":{…}?,\"size\":px?,\"mode\":\"hue|saturation|color|luminosity\"=\"color\",\"sampling\":\"continuous|once|backgroundSwatch\"=\"continuous\",\"limits\":\"contiguous|discontiguous|findEdges\"=\"contiguous\",\"tolerance\":0..100=30,\"antiAlias\":bool=true,\"color\":\"#rrggbb\"?=foreground,\"seed\":u64?}",
+      "apres": "{\"points\":[…],\"brush\":{…}?,\"size\":px?,\"mode\":\"hue|saturation|color|luminosity\"=\"color\",\"sampling\":\"continuous|once|backgroundSwatch\"=\"continuous\",\"limits\":\"contiguous|discontiguous|findEdges\"=\"contiguous\",\"tolerance\":0..100=30,\"antiAlias\":bool=true,\"color\":\"#rrggbb\"?=foreground,\"target\":\"pixels\"=\"pixels\",\"seed\":u64?}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "target"
+      ]
+    },
+    {
+      "id": "brush.presets.save",
+      "avant": "{\"name\":string,\"brush\":{…BrushSettings}?=current brush}",
+      "apres": "{\"name\":string,\"brush\":{…BrushSettings}?=current brush,\"captureSize\":bool=true (false: picking it keeps the tool's size),\"toolSettings\":bool=true (false: picking it keeps the tool's mode, opacity, flow and pressure buttons),\"color\":bool=false (picking it sets the foreground to the current foreground)}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "captureSize",
+        "color",
+        "toolSettings"
+      ]
+    },
+    {
+      "id": "brush.presets.move",
+      "avant": "{\"name\":string,\"group\":string?=its group (\"\" = ungrouped),\"before\":name? (preset to land before) | \"index\":n? (position in the group)=end} → {name, group, index}",
+      "apres": "{\"name\":string,\"group\":string?=its group (\"\" = ungrouped),\"folder\":[name]? (nested folder names in the group, outermost first; [] = the group itself)=before's folder, else its own if it stays in its group, else [],\"before\":name? (preset to land before, in that folder) | \"index\":n? (position in the group)=end of the folder} → {name, group, folder, index}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "folder"
+      ]
+    },
+    {
+      "id": "brush.presets.moveGroup",
+      "avant": "{\"group\":string,\"before\":group? | \"index\":n? (group position)=end} → {group, index}",
+      "apres": "{\"group\":string,\"folder\":[name]? (move this nested folder instead),\"into\":{\"group\":string?,\"folder\":[name]?}? (move it inside that folder of that group, [] = directly in the group; no group = out to the top level as a group of its own; the folder keeps its content),\"before\":group? (or sibling folder name, in its new place with `into`) | \"index\":n? (group or sibling folder position, without `into`)=end} → {group, folder?, index}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "folder",
+        "into"
+      ]
+    },
+    {
+      "id": "brush.presets.renameGroup",
+      "avant": "{\"group\":string,\"newName\":string} → {group}",
+      "apres": "{\"group\":string,\"folder\":[name]? (rename this nested folder instead),\"newName\":string} → {group, folder?}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "folder"
+      ]
+    },
+    {
+      "id": "brush.presets.deleteGroup",
+      "avant": "{\"group\":string} → {deleted, count}",
+      "apres": "{\"group\":string,\"folder\":[name]? (delete this nested folder instead)} → {deleted, count}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "folder"
+      ]
+    },
+    {
+      "id": "brush.presets.importAbr",
+      "avant": "{\"path\":\".abr file\"?,\"data\":base64 bytes?,\"group\":string?=file name,\"replace\":bool=true (replace a group of the same name),\"select\":bool=false (make the first imported preset current)}",
+      "apres": "{\"path\":\".abr file\"?,\"data\":base64 bytes?,\"group\":string?=file name,\"replace\":bool=true (replace a group of the same name),\"select\":bool=false (make the first imported preset current)} → {group, imported, count, folders (nested folders kept from the file), version, warnings}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.cloneStamp",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"source\":[sx,sy] (sampled under the first point) | \"offset\":[dx,dy],\"aligned\":bool=true,\"sampleLayer\":\"current|currentAndBelow|all\"=\"current\",\"mode\":\"normal|multiply|…\"=\"normal\" → {\"damage\",\"offset\",\"aligned\",\"nextSource\"}}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"source\":[sx,sy] (sampled under the first point) | \"offset\":[dx,dy],\"aligned\":bool=true,\"sampleLayer\":\"current|currentAndBelow|all\"=\"current\",\"mode\":\"normal|multiply|…\"=\"normal\",\"wrap\":bool=false (repeat source and stroke at document edges for Pattern Preview) → {\"damage\",\"offset\",\"aligned\",\"nextSource\"}}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "wrap"
+      ]
+    },
+    {
+      "id": "paint.healingBrush",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"source\":[sx,sy] | \"offset\":[dx,dy],\"aligned\":bool=true,\"sampleLayer\":\"current|currentAndBelow|all\"=\"current\",\"mode\":\"normal|…\"=\"normal\" → {\"damage\",\"offset\",\"aligned\",\"nextSource\"}}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"source\":[sx,sy] | \"offset\":[dx,dy],\"aligned\":bool=true,\"sampleLayer\":\"current|currentAndBelow|all\"=\"current\",\"mode\":\"normal|…\"=\"normal\" → {\"damage\",\"offset\",\"aligned\",\"nextSource\"}}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.spotHealing",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"type\":\"contentAware|createTexture|proximityMatch\"=\"contentAware\"}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"type\":\"contentAware|createTexture|proximityMatch\"=\"contentAware\",\"sampleAllLayers\":bool=false}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "sampleAllLayers"
+      ]
+    },
+    {
+      "id": "paint.dodge",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"range\":\"shadows|midtones|highlights\"=\"midtones\",\"exposure\":1..100=50,\"protectTones\":bool=true}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"range\":\"shadows|midtones|highlights\"=\"midtones\",\"exposure\":1..100=50,\"protectTones\":bool=true}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.burn",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"range\":\"shadows|midtones|highlights\"=\"midtones\",\"exposure\":1..100=50,\"protectTones\":bool=true}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"range\":\"shadows|midtones|highlights\"=\"midtones\",\"exposure\":1..100=50,\"protectTones\":bool=true}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.sponge",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"mode\":\"desaturate|saturate\"=\"desaturate\",\"vibrance\":bool=true (flow = sponge strength)}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"mode\":\"desaturate|saturate\"=\"desaturate\",\"vibrance\":bool=true (flow = sponge strength)}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.blur",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"strength\":1..100=50,\"sampleAllLayers\":bool=false}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"strength\":1..100=50,\"sampleAllLayers\":bool=false}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.sharpen",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"strength\":1..100=50,\"protectDetail\":bool=true,\"sampleAllLayers\":bool=false}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"strength\":1..100=50,\"protectDetail\":bool=true,\"sampleAllLayers\":bool=false}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.smudge",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"strength\":1..100=50,\"fingerPainting\":bool=false (starts with the foreground colour),\"sampleAllLayers\":bool=false}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"strength\":1..100=50,\"fingerPainting\":bool=false (starts with the foreground colour),\"sampleAllLayers\":bool=false}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "paint.historyBrush",
+      "avant": "{\"points\":[[x,y,pressure?],…],\"size\":px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=25,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"state\":index (into history.entries; default 0 = the oldest held state, normally the Open snapshot)}",
+      "apres": "{\"points\":[[x,y,pressure?],…],\"size\":1..5000 px=tool size,\"hardness\":0..100=tool hardness,\"opacity\":1..100=100,\"flow\":1..100=100,\"spacing\":1..1000 (% of size)=Brush Settings spacing,\"layer\":id?=active,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target,\"state\":index (into history.entries; default 0 = the oldest held state, normally the Open snapshot)}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "image.imageSize",
+      "avant": "{\"width\":px,\"height\":px,\"resolution\":ppi,\"resample\":\"bicubic|bilinear|nearest|lanczos|preserveDetails|none\"=\"bicubic\"}",
+      "apres": "{\"width\":px,\"height\":px,\"percent\":%? (both sides; an explicit side wins),\"resolution\":ppi,\"keepPrintSize\":bool=false (with only a resolution: resample the pixels to keep the print size),\"resample\":\"automatic|preserveDetails|bicubicSmoother|bicubicSharper|bicubicAutomatic|bicubic|nearest|bilinear|lanczos|none\"=\"bicubic\"} → {width,height} (the document's size after the command; \"none\" changes the resolution only)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "keepPrintSize",
+        "percent"
+      ]
+    },
+    {
+      "id": "image.crop",
+      "avant": "{\"x\":px,\"y\":px,\"width\":px,\"height\":px,\"deleteCroppedPixels\":bool=true}",
+      "apres": "{\"x\":px,\"y\":px,\"width\":px,\"height\":px,\"angle\":-3600..3600=0,\"deleteCroppedPixels\":bool=true,\"contentAware\":bool=false,\"targetWidth\":px,\"targetHeight\":px,\"resolution\":ppi,\"resample\":\"bicubic|bilinear|nearest|lanczos|preserveDetails\"=\"bicubic\"} → {x,y,width,height,documentWidth,documentHeight,resolution} (targetWidth/targetHeight, both or neither: the cropped area is resampled to exactly that size, as Image Size, in the same undo step; resolution: the document's new ppi; contentAware: the Crop tool's Fill › Content-Aware Fill, the area a rotated or extending crop uncovers filled from its surroundings on the Background, else the active pixel layer)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "angle",
+        "contentAware",
+        "resample",
+        "resolution",
+        "targetHeight",
+        "targetWidth"
+      ]
+    },
+    {
+      "id": "select.magicWand",
+      "avant": "{\"x\":px,\"y\":px,\"tolerance\":0..255=32,\"contiguous\":bool=true,\"antiAlias\":bool=true,\"sampleAllLayers\":bool=false,\"mode\":\"replace|add|subtract|intersect\"=\"replace\"}",
+      "apres": "{\"x\":px,\"y\":px,\"tolerance\":0..255=32,\"contiguous\":bool=true,\"antiAlias\":bool=true,\"sampleAllLayers\":bool=false,\"mode\":\"replace|add|subtract|intersect\"=\"replace\"} (samples the visible alpha, Quick Mask, or layer mask when that is the picture)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "select.colorRange",
+      "avant": "{\"select\":\"sampledColors|reds|yellows|greens|cyans|blues|magentas|highlights|midtones|shadows|outOfGamut\"=\"sampledColors\",\"color\":\"#rrggbb\"=foreground,\"colors\":[\"#rrggbb\",…]?,\"points\":[[x,y],…]? (eyedropper samples),\"subtractPoints\":[[x,y],…]? (minus eyedropper),\"fuzziness\":0..200=40 (tones: 0..100 %=20),\"localized\":bool=false,\"range\":0..100=100 (% of the longer side),\"tonalRange\":level|[lo,hi] (shadows 65, highlights 190, midtones [105,150]),\"invert\":bool=false,\"sampleAllLayers\":bool=true,\"mode\":\"replace|add|subtract|intersect\"=\"replace\"}",
+      "apres": "{\"select\":\"sampledColors|reds|yellows|greens|cyans|blues|magentas|highlights|midtones|shadows|skinTones|outOfGamut\"=\"sampledColors\",\"color\":\"#rrggbb\"=foreground,\"colors\":[\"#rrggbb\",…]?,\"points\":[[x,y],…]? (eyedropper samples),\"subtractPoints\":[[x,y],…]? (minus eyedropper),\"order\":[\"+\"|\"-\",…]? (click order of points and subtractPoints; default all points first),\"fuzziness\":0..200=40 (tones: 0..100 %=20),\"detectFaces\":bool=false (not available yet: refused),\"localized\":bool=false,\"range\":0..100=100 (% of the longer side),\"tonalRange\":level|[lo,hi] (shadows 65, highlights 190, midtones [105,150]),\"invert\":bool=false,\"sampleAllLayers\":bool=true,\"mode\":\"replace|add|subtract|intersect\"=\"replace\"}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "detectFaces",
+        "order"
+      ]
+    },
+    {
+      "id": "select.modify.smooth",
+      "avant": "{\"radius\":1..500=1}",
+      "apres": "{\"radius\":1..500=1,\"applyAtCanvasBounds\":bool=false}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "applyAtCanvasBounds"
+      ]
+    },
+    {
+      "id": "select.modify.expand",
+      "avant": "{\"radius\":1..500=1}",
+      "apres": "{\"radius\":1..500=1,\"applyAtCanvasBounds\":bool=false}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "applyAtCanvasBounds"
+      ]
+    },
+    {
+      "id": "select.modify.contract",
+      "avant": "{\"radius\":1..500=1}",
+      "apres": "{\"radius\":1..500=1,\"applyAtCanvasBounds\":bool=false}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "applyAtCanvasBounds"
+      ]
+    },
+    {
+      "id": "select.modify.feather",
+      "avant": "{\"radius\":0.1..1000=1}",
+      "apres": "{\"radius\":0.1..1000=1,\"applyAtCanvasBounds\":bool=false}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "applyAtCanvasBounds"
+      ]
+    },
+    {
+      "id": "paint.bucket",
+      "avant": "{\"x\":px,\"y\":px,\"tolerance\":0..255=32,\"contiguous\":bool=true,\"antiAlias\":bool=true,\"contents\":\"foreground|pattern\"=\"foreground\",\"color\":\"#rrggbb\"=foreground,\"pattern\":id|name (contents=pattern),\"scale\":%=100,\"angle\":deg,\"opacity\":1..100=100,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target}",
+      "apres": "{\"x\":px,\"y\":px,\"tolerance\":0..255=32,\"contiguous\":bool=true,\"antiAlias\":bool=true,\"sampleAllLayers\":bool=false,\"contents\":\"foreground|pattern\"=\"foreground\",\"color\":\"#rrggbb\"=foreground,\"pattern\":id|name (contents=pattern),\"scale\":%=100,\"angle\":deg,\"opacity\":1..100=100,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "sampleAllLayers"
+      ]
+    },
+    {
+      "id": "paint.gradient",
+      "avant": "{\"from\":[x,y],\"to\":[x,y],\"style\":\"linear|radial|angle|reflected|diamond\"=\"linear\",\"colors\":[\"#rrggbb\",…]? (evenly spaced),\"gradient\":preset name?,\"stops\":[[t,\"#rrggbb\"|\"foreground\"|\"background\"],…]?,\"transparency\":[[t,0..100],…]? (default: the current gradient, see gradient.presets.select),\"reverse\":bool=false,\"dither\":bool=true,\"opacity\":1..100=100,\"mode\":\"normal|multiply|…\"=\"normal\",\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target}",
+      "apres": "{\"from\":[x,y],\"to\":[x,y],\"style\":\"linear|radial|angle|reflected|diamond\"=\"linear\",\"colors\":[\"#rrggbb\",…]? (evenly spaced),\"gradient\":preset name?,\"stops\":[[t,\"#rrggbb\"|\"foreground\"|\"background\"],…]?,\"transparency\":[[t,0..100],…]? (default: the current gradient, see gradient.presets.select),\"method\":\"classic|perceptual|linear|smooth\"? (Photoshop's interpolation; omitted: straight stops),\"smoothness\":0..100=100,\"reverse\":bool=false,\"dither\":bool=true,\"opacity\":1..100=100,\"mode\":\"normal|multiply|…\"=\"normal\",\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "method",
+        "smoothness"
+      ]
+    },
+    {
+      "id": "edit.stroke",
+      "avant": "{\"width\":1..250=1,\"color\":\"#rrggbb|[r,g,b,a]\"=foreground,\"location\":\"inside|center|outside\"=\"center\",\"opacity\":0..100=100}",
+      "apres": "{\"width\":1..250=1,\"color\":\"#rrggbb|[r,g,b,a]\"=foreground,\"location\":\"inside|center|outside\"=\"center\",\"mode\":\"any layer blend mode\"=\"normal\",\"opacity\":0..100=100,\"preserveTransparency\":bool=false}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "mode",
+        "preserveTransparency"
+      ]
+    },
+    {
+      "id": "edit.transform.rotate180",
+      "avant": "{}",
+      "apres": "{\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (an unlinked mask, an alpha channel or the Quick Mask turns alone)}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "channel",
+        "target"
+      ]
+    },
+    {
+      "id": "edit.transform.rotate90Cw",
+      "avant": "{}",
+      "apres": "{\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (an unlinked mask, an alpha channel or the Quick Mask turns alone)}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "channel",
+        "target"
+      ]
+    },
+    {
+      "id": "edit.transform.rotate90Ccw",
+      "avant": "{}",
+      "apres": "{\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (an unlinked mask, an alpha channel or the Quick Mask turns alone)}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "channel",
+        "target"
+      ]
+    },
+    {
+      "id": "edit.transform.flipHorizontal",
+      "avant": "{}",
+      "apres": "{\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (an unlinked mask, an alpha channel or the Quick Mask turns alone)}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "channel",
+        "target"
+      ]
+    },
+    {
+      "id": "edit.transform.flipVertical",
+      "avant": "{}",
+      "apres": "{\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (an unlinked mask, an alpha channel or the Quick Mask turns alone)}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "channel",
+        "target"
+      ]
+    },
+    {
+      "id": "edit.pasteSpecial.pasteInto",
+      "avant": "{\"center\":[x,y]?}",
+      "apres": "{\"center\":[x,y]?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (not pixels: the luminosity pasted into that mask or channel)}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "channel",
+        "target"
+      ]
+    },
+    {
+      "id": "edit.pasteSpecial.pasteOutside",
+      "avant": "{\"center\":[x,y]?}",
+      "apres": "{\"center\":[x,y]?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}=Channels panel target (not pixels: the luminosity pasted into that mask or channel)}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "channel",
+        "target"
+      ]
+    },
+    {
+      "id": "layer.new.layerFromBackground",
+      "avant": "{}",
+      "apres": "{\"ifPresent\":bool=false (true: a document without a Background is left as it is, as a Photoshop action's step needs on an image that opened as a normal layer),\"select\":bool=true (false: the targeted layer stays targeted)}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "ifPresent",
+        "select"
+      ]
+    },
+    {
+      "id": "layer.layerStyle.pasteLayerStyle",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer but the Background)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.rasterize.layer",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer it applies to)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.rasterize.type",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer it applies to)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.rasterize.fillContent",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer it applies to)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.rasterize.smartObject",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer it applies to)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.hideLayers",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (shows them instead when every targeted layer is already hidden, so ⌘, toggles)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "file.saveACopy",
+      "avant": "{\"path\":str (format from the extension),\"quality\":0..12? (JPEG),\"layers\":bool=true}",
+      "apres": "{\"path\":str (format from the extension),\"quality\":0..12? (JPEG),\"layers\":bool=true,\"overwrite\":bool=false (replace the document's own file),\"tiffLayers\":bool=false (TIFF: keep the layers; flat by default),\"tgaBits\":24|32? (TGA: 32 writes the alpha channel, or else the transparency, as the alpha; unset, 32 with an alpha channel or transparency, else 24),\"dpxBits\":8|10|12|16? (DPX: bits per sample; unset, 8 for an 8-bit document, else 16)}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "dpxBits",
+        "overwrite",
+        "tgaBits",
+        "tiffLayers"
+      ]
+    },
+    {
+      "id": "file.placeEmbedded",
+      "avant": "{\"path\":str,\"scale\":%? (default: fit when larger than the canvas),\"fit\":bool=true,\"center\":[x,y]?}",
+      "apres": "{\"path\":str,\"scale\":%? (default: fit when larger than the canvas),\"fit\":bool? (default: Preferences > General > Resize Image During Place),\"smartObject\":bool? (default: Preferences > General > Always Create Smart Objects When Placing),\"center\":[x,y]?}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "smartObject"
+      ]
+    },
+    {
+      "id": "file.placeLinked",
+      "avant": "{\"path\":str,\"scale\":%?,\"fit\":bool=true,\"center\":[x,y]?}",
+      "apres": "{\"path\":str,\"scale\":%?,\"fit\":bool? (default: Preferences > General > Resize Image During Place),\"center\":[x,y]?}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "file.fileInfo",
+      "avant": "{\"title\":str?,\"author\":str?,\"authorTitle\":str?,\"description\":str?,\"keywords\":[str]|\"a; b\"?,\"copyright\":str?,\"copyrightStatus\":\"unknown|copyrighted|publicDomain\"?,\"copyrightUrl\":str?} (no keys: read)",
+      "apres": "{\"title\":str?,\"author\":str?,\"authorTitle\":str?,\"description\":str?,\"keywords\":[str]|\"a; b\"?,\"copyright\":str?,\"copyrightStatus\":\"unknown|copyrighted|publicDomain\"?,\"copyrightUrl\":str?} (no keys: read; the result also has read-only \"camera\":{\"make\",\"model\",\"dateTaken\",\"exposure\",\"fNumber\",\"iso\",\"focalLength\",\"focalLength35mm\",\"lens\"}, present keys only)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "camera"
+      ]
+    },
+    {
+      "id": "file.automate.fitImage",
+      "avant": "{\"width\":px,\"height\":px,\"dontEnlarge\":bool=false,\"resample\":\"bicubic|bilinear|nearest|lanczos|preserveDetails\"=\"bicubic\"}",
+      "apres": "{\"width\":px,\"height\":px,\"dontEnlarge\":bool=false,\"resample\":\"automatic|preserveDetails|bicubicSmoother|bicubicSharper|bicubicAutomatic|bicubic|nearest|bilinear|lanczos\"=\"bicubic\"}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "file.automate.batch",
+      "avant": "{\"steps\":[[commandId,params]|{\"command\":id,\"params\":{}}…] (a recorded action),\"input\":folder|[paths],\"output\":folder,\"format\":\"same|png|jpg|psd|tiff|…\"=\"same\",\"quality\":0..12?} → {files, errors} (an input whose output name was already written in the run goes to errors)",
+      "apres": "{\"steps\":[[commandId,params]|{\"command\":id,\"params\":{}}…] (a recorded action),\"input\":folder|[paths],\"includeSubfolders\":bool=false (a folder input also takes the images in its subfolders, up to 32 levels and 100000 files; each result keeps its subfolder under output),\"output\":folder,\"format\":\"same|png|jpg|psd|tiff|…\"=\"same\",\"quality\":0..12?,\"naming\":string? (blank keeps source names; {name}, {serial} padded to 3 digits, {date} as YYYY-MM-DD UTC; extension added automatically),\"startingSerial\":1..4294967295=1 (input position, including failed inputs),\"tiffLayers\":bool=false,\"tgaBits\":24|32?,\"dpxBits\":8|10|12|16? (DPX: bits per sample; unset, 8 for an 8-bit document, else 16),\"calledActions\":[{\"name\",\"steps\"}…]? (the actions Play Action steps call; default: the session's)} → {files, errors} (an input whose output name was already written in the run goes to errors)",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "calledActions",
+        "dpxBits",
+        "includeSubfolders",
+        "naming",
+        "startingSerial",
+        "tgaBits",
+        "tiffLayers"
+      ]
+    },
+    {
+      "id": "file.scripts.imageProcessor",
+      "avant": "{\"input\":folder|[paths],\"output\":folder,\"format\":\"jpg|png|psd|tiff|…\"=\"jpg\",\"quality\":0..12=8,\"width\":px?,\"height\":px? (fit, never enlarge),\"convertToSrgb\":bool=false} → {files, errors} (an input whose output name was already written in the run goes to errors)",
+      "apres": "{\"input\":folder|[paths],\"includeSubfolders\":bool=false (a folder input also takes the images in its subfolders, up to 32 levels and 100000 files; each result keeps its subfolder under output),\"output\":folder,\"format\":\"jpg|png|psd|tiff|…\"=\"jpg\",\"quality\":0..12=8,\"tiffLayers\":bool=false,\"tgaBits\":24|32?,\"dpxBits\":8|10|12|16? (DPX: bits per sample; unset, 8 for an 8-bit document, else 16),\"width\":px?,\"height\":px? (fit, never enlarge),\"convertToSrgb\":bool=false} → {files, errors} (an input whose output name was already written in the run goes to errors)",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "dpxBits",
+        "includeSubfolders",
+        "tgaBits",
+        "tiffLayers"
+      ]
+    },
+    {
+      "id": "file.scripts.loadFilesIntoStack",
+      "avant": "{\"paths\":[str]|folder,\"createSmartObject\":bool=false} → new document with one layer per file (inside one smart object with createSmartObject)",
+      "apres": "{\"paths\":[str]|folder,\"align\":bool=false (Auto-Align Layers on them first),\"createSmartObject\":bool=false} → new document with one layer per file (inside one smart object with createSmartObject)",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "align"
+      ]
+    },
+    {
+      "id": "file.export.layersToFiles",
+      "avant": "{\"dir\":folder,\"format\":\"png|jpg|psd|tiff|…\"=\"png\",\"prefix\":str=document name,\"visibleOnly\":bool=true,\"quality\":0..12?} → {files}",
+      "apres": "{\"dir\":folder,\"format\":\"png|jpg|psd|tiff|…\"=\"png\",\"prefix\":str=document name,\"visibleOnly\":bool=true,\"quality\":0..12?,\"tiffLayers\":bool=false,\"tgaBits\":24|32?,\"dpxBits\":8|10|12|16? (DPX: bits per sample; unset, 8 for an 8-bit document, else 16)} → {files}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "dpxBits",
+        "tgaBits",
+        "tiffLayers"
+      ]
+    },
+    {
+      "id": "file.export.colorLookupTables",
+      "avant": "{\"path\":str? (.cube; omit to return the text),\"size\":2..256=33,\"title\":str?}",
+      "apres": "{\"path\":str? (.cube; omit to return the text),\"size\":2..129=33,\"title\":str?,\"scope\":\"all|selected\"=\"all\",\"layers\":[id,…]?} (selected layer IDs use original document stacking; masks are spatial and omitted)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers",
+        "scope"
+      ]
+    },
+    {
+      "id": "view.newGuideLayout",
+      "avant": "{\"columns\":n=0,\"width\":px?,\"gutter\":px=0,\"rows\":n=0,\"height\":px?,\"rowGutter\":px=gutter,\"margin\":px|[top,left,bottom,right]=0,\"centerColumns\":bool=false,\"clearExisting\":bool=false}",
+      "apres": "{\"columns\":n=0,\"width\":px?,\"gutter\":px=0,\"rows\":n=0,\"height\":px?,\"rowGutter\":px=gutter,\"margin\":px|[top,left,bottom,right]=0,\"centerColumns\":bool=false,\"clearExisting\":bool=false,\"target\":\"document|selectedArtboards\"=\"document\"}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "target"
+      ]
+    },
+    {
+      "id": "type.antiAlias.none",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.antiAlias.sharp",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.antiAlias.crisp",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.antiAlias.strong",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.antiAlias.smooth",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.antiAlias.windowsLcd",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.antiAlias.windows",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.orientation.horizontal",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.orientation.vertical",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.standardLigatures",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.contextualAlternates",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.discretionaryLigatures",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.swash",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.oldstyle",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.stylisticAlternates",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.titlingAlternates",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.ornaments",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.ordinals",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.openType.fractions",
+      "avant": "{\"layer\":id?,\"on\":bool? (default: toggle),\"range\":[startChar,endChar]? (default all)}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"on\":bool? (default: toggle representative),\"range\":[startChar,endChar]? (single layer; default all)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.warpText",
+      "avant": "{\"layer\":id?,\"style\":\"none|arc|arcLower|arcUpper|arch|bulge|shellLower|shellUpper|flag|wave|fish|rise|fisheye|inflate|squeeze|twist\"=\"arc\",\"bend\":-100..100=50,\"horizontalDistortion\":-100..100=0,\"verticalDistortion\":-100..100=0,\"orientation\":\"horizontal|vertical\"=\"horizontal\"}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers),\"style\":\"none|arc|arcLower|arcUpper|arch|bulge|shellLower|shellUpper|flag|wave|fish|rise|fisheye|inflate|squeeze|twist\"=\"arc\",\"orientation\":\"horizontal|vertical\"=\"horizontal\",\"bend\":-100..100=50,\"horizontalDistortion\":-100..100=0,\"verticalDistortion\":-100..100=0}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "type.loadDefaultTypeStyles",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layers"
+      ]
+    },
+    {
+      "id": "layer.smartObjects.convertToSmartObject",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (default: combine selected layers)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "filter.convertForSmartFilters",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (default: combine selected layers)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.smartObjects.exportContents",
+      "avant": "{\"layer\":id?,\"path\":str}",
+      "apres": "{\"layer\":id?,\"path\":str (another extension than the contents' own exports them in that format)}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.align.topEdges",
+      "avant": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the selection bounds with one layer and an active selection, else the selected layers' bounds)",
+      "apres": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the active selection's bounds when there is one, however many layers are selected; else one layer aligns to the canvas and several to their combined bounds)",
+      "change_dans": "v0.10.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.align.verticalCenters",
+      "avant": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the selection bounds with one layer and an active selection, else the selected layers' bounds)",
+      "apres": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the active selection's bounds when there is one, however many layers are selected; else one layer aligns to the canvas and several to their combined bounds)",
+      "change_dans": "v0.10.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.align.bottomEdges",
+      "avant": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the selection bounds with one layer and an active selection, else the selected layers' bounds)",
+      "apres": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the active selection's bounds when there is one, however many layers are selected; else one layer aligns to the canvas and several to their combined bounds)",
+      "change_dans": "v0.10.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.align.leftEdges",
+      "avant": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the selection bounds with one layer and an active selection, else the selected layers' bounds)",
+      "apres": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the active selection's bounds when there is one, however many layers are selected; else one layer aligns to the canvas and several to their combined bounds)",
+      "change_dans": "v0.10.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.align.horizontalCenters",
+      "avant": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the selection bounds with one layer and an active selection, else the selected layers' bounds)",
+      "apres": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the active selection's bounds when there is one, however many layers are selected; else one layer aligns to the canvas and several to their combined bounds)",
+      "change_dans": "v0.10.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.align.rightEdges",
+      "avant": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the selection bounds with one layer and an active selection, else the selected layers' bounds)",
+      "apres": "{\"to\":\"auto|layers|selection|canvas\"=\"auto\"} (auto: the active selection's bounds when there is one, however many layers are selected; else one layer aligns to the canvas and several to their combined bounds)",
+      "change_dans": "v0.10.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.new.groupFromLayers",
+      "avant": "{\"name\":str?}",
+      "apres": "{\"layer\":id?,\"name\":str?} (no layer: every selected layer)",
+      "change_dans": "v0.10.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "layer"
+      ]
+    },
+    {
+      "id": "edit.keyboardShortcuts",
+      "avant": "{\"set\":{\"<command id>|tools.temporary.hand|zoomIn|zoomOut\":\"Cmd+Shift+X\"|\"\"(remove)|null(default)}?,\"reset\":true|[\"<id>\",…]?,\"removeConflicts\":bool=true,\"filter\":str?,\"list\":bool=false}",
+      "apres": "{\"set\":{\"<command id>|tools.temporary.hand|zoomIn|zoomOut\":\"Cmd+Shift+X\"|\"\"(remove)|null(default)}?,\"alternates\":{\"<command id>\":[\"F3\",…]|[](none)|null(default)}?,\"reset\":true|[\"<id>\",…]?,\"removeConflicts\":bool=true,\"filter\":str?,\"list\":bool=false,\"importKys\":\"<.kys XML>\"|{\"path\":\".kys\"}?,\"useSet\":\"<name>\"|\"\"(defaults)?,\"saveSet\":\"<name>\"?,\"deleteSet\":\"<name>\"?,\"sets\":{\"<name>\":{\"shortcuts\":{…},\"alternateShortcuts\":{…}}}?,\"activeSet\":\"<name>\"|\"\"?,\"exportKys\":true|{\"path\":\".kys\"}?,\"summarize\":true|{\"mac\":bool,\"path\":\".html\"}?} (with a path the file is written and the reply has kysPath/htmlPath instead of kys/html)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "activeSet",
+        "alternateShortcuts",
+        "alternates",
+        "deleteSet",
+        "exportKys",
+        "importKys",
+        "mac",
+        "path",
+        "saveSet",
+        "sets",
+        "shortcuts",
+        "summarize",
+        "useSet"
+      ]
+    },
+    {
+      "id": "edit.contentAwareFill",
+      "avant": "{\"sampling\":\"auto|rectangular|custom\",\"margin\":px?,\"area\":[x,y,w,h]?,\"channel\":index|name?,\"colorAdaptation\":\"default|none|high|veryHigh\",\"rotationAdaptation\":\"none|low|medium|high|full\",\"scale\":bool=false,\"mirror\":bool=false,\"output\":\"current|new|duplicate\",\"seed\":u64=1}",
+      "apres": "{\"sampling\":\"auto|rectangular|custom\",\"margin\":px?,\"area\":[x,y,w,h]?,\"channel\":index|name?,\"samplingStrokes\":[{\"mode\":\"add|subtract\",\"size\":px,\"points\":[[x,y],…]}]? (the workspace's Sampling Brush, after the sampling option's area; added strokes may lie outside the window),\"fillEdits\":[{\"op\":\"new|add|subtract|intersect\",\"points\":[[x,y],…]}|{\"op\":\"expand|contract\",\"by\":px}]? (the workspace's lasso edits of the fill area, in order),\"sampleAllLayers\":bool=false,\"colorAdaptation\":\"default|none|high|veryHigh\",\"rotationAdaptation\":\"none|low|medium|high|full\",\"scale\":bool=false,\"mirror\":bool=false,\"output\":\"current|new|duplicate\",\"layer\":id?=active (the layer filled and sampled),\"seed\":u64=1}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "by",
+        "fillEdits",
+        "layer",
+        "mode",
+        "op",
+        "points",
+        "sampleAllLayers",
+        "samplingStrokes",
+        "size"
+      ]
+    },
+    {
+      "id": "edit.contentAwareScale",
+      "avant": "{\"width\":px?,\"height\":px?,\"scaleX\":1..400=100,\"scaleY\":1..400=100,\"amount\":0..100=100,\"protect\":\"none\"|channel index|name,\"protectSkinTones\":bool=false}",
+      "apres": "{\"width\":px?,\"height\":px?,\"scaleX\":1..400=100,\"scaleY\":1..400=100,\"x\":px?,\"y\":px?,\"amount\":0..100=100,\"protect\":\"none\"|channel index|name,\"protectSkinTones\":bool=false}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "id": "edit.presets.exportImportPresets",
+      "avant": "{\"action\":\"export|import\",\"kinds\":[\"brushes\",\"customShapes\"]?,\"data\":json (import),\"includeBuiltins\":bool=false}",
+      "apres": "{\"action\":\"export|import\",\"kinds\":[\"brushes\",\"customShapes\",\"tools\"]?,\"data\":json (import),\"includeBuiltins\":bool=false}",
+      "change_dans": "main 3a896a5e",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.fillForeground",
+      "avant": "{\"layer\":id?,\"target\":\"pixels\"|{\"channel\":i}|\"quickMask\"?}",
+      "apres": "{\"layer\":id?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.fillBackground",
+      "avant": "{\"layer\":id?,\"target\":\"pixels\"|{\"channel\":i}|\"quickMask\"?}",
+      "apres": "{\"layer\":id?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.fillForegroundPreserve",
+      "avant": "{\"layer\":id?,\"target\":\"pixels\"|{\"channel\":i}|\"quickMask\"?}",
+      "apres": "{\"layer\":id?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.fillBackgroundPreserve",
+      "avant": "{\"layer\":id?,\"target\":\"pixels\"|{\"channel\":i}|\"quickMask\"?}",
+      "apres": "{\"layer\":id?,\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?}",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.stampVisible",
+      "avant": "{} → {layer} (every visible layer merged into a new layer above the active one; the originals stay)",
+      "apres": "{} → {layer} (visible layers merged into a new layer above the active one, or into the active one if it is an empty pixel layer)",
+      "change_dans": "main 3a896a5e",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.autoAlignLayers",
+      "avant": "{\"projection\":\"auto|perspective|cylindrical|spherical|collage|reposition\",\"reference\":layer id?=bottom selected layer,\"geometricCorrection\":bool=false,\"interpolation\":\"bicubic|bilinear|nearest\"}",
+      "apres": "{\"projection\":\"auto|perspective|cylindrical|spherical|collage|reposition\",\"reference\":layer id?=bottom selected layer,\"geometricCorrection\":bool=false,\"interpolation\":\"bicubic|bilinear|nearest\",\"registration\":\"auto|features|intensity\"}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "registration"
+      ]
+    },
+    {
+      "id": "edit.autoBlendLayers",
+      "avant": "{\"method\":\"panorama|stack\",\"seamlessTones\":bool=true}",
+      "apres": "{\"method\":\"panorama|stack\",\"seamlessTones\":bool=true,\"haloControl\":0..8=2,\"depthMap\":bool=false}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "depthMap",
+        "haloControl"
+      ]
+    },
+    {
+      "id": "select.loadSelection",
+      "avant": "{\"channel\":index|name|\"composite\"|\"red|green|blue|…\"|\"transparency\"|\"mask\"|\"vectorMask\"|\"quickMask\"|\"selection\",\"layer\":id?,\"document\":index?,\"invert\":bool=false,\"operation\":\"new|add|subtract|intersect\"=\"new\"}",
+      "apres": "{\"channel\":index|name|\"composite\"|\"red|green|blue|…\"|\"transparency\"|\"mask\"|\"vectorMask\"|\"quickMask\"|\"selection\"|\"targeted\" (the Channels panel's target),\"layer\":id?,\"document\":index?,\"invert\":bool=false,\"operation\":\"new|add|subtract|intersect\"=\"new\"}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "image.applyImage",
+      "avant": "{\"source\":{\"document\":index?,\"layer\":id|\"merged\"=\"merged\",\"channel\":\"composite\"|\"red|…\"|index|\"selection\"|\"transparency\"|\"mask\"=\"composite\",\"invert\":bool=false},\"blending\":\"normal|multiply|screen|overlay|softLight|hardLight|colorDodge|colorBurn|darken|lighten|difference|exclusion|linearBurn|linearDodge|add|subtract|…\"=\"multiply\",\"opacity\":0..100=100,\"scale\":1..2=1,\"offset\":-255..255=0,\"preserveTransparency\":bool=false,\"mask\":{\"document\",\"layer\",\"channel\",\"invert\"}?,\"sourceChannel|sourceDocument|sourceLayer|sourceInvert|maskChannel|…\":flat form of source/mask?}",
+      "apres": "{\"source\":{\"document\":index?,\"layer\":id|name|\"merged\"=\"merged\",\"channel\":\"composite\"|\"red|…\"|index|\"selection\"|\"transparency\"|\"mask\"=\"composite\",\"invert\":bool=false},\"blending\":\"normal|multiply|screen|overlay|softLight|hardLight|colorDodge|colorBurn|darken|lighten|difference|exclusion|linearBurn|linearDodge|add|subtract|…\"=\"multiply\",\"opacity\":0..100=100,\"scale\":1..2=1,\"offset\":-255..255=0,\"preserveTransparency\":bool=false,\"mask\":{\"document\",\"layer\",\"channel\",\"invert\"}?,\"sourceChannel|sourceDocument|sourceLayer|sourceInvert|maskChannel|…\":flat form of source/mask?}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "channel.target",
+      "avant": "{\"channel\":\"composite\"|\"red|green|blue|…\"|index|name=\"composite\"}",
+      "apres": "{\"channel\":\"composite\"|\"mask\"|\"vectorMask\"|\"red|green|blue|…\"|index|name=\"composite\"}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "image.adjustments.replaceColor",
+      "avant": "{\"color\":json,\"fuzziness\":0..200=40,\"hue\":-180..180=0,\"saturation\":-100..100=0,\"lightness\":-100..100=0} (color: \"#rrggbb\", default the foreground colour)",
+      "apres": "{\"localized\":bool=false,\"color\":color,\"fuzziness\":0..200=40,\"range\":0..100=100,\"hue\":-180..180=0,\"saturation\":-100..100=0,\"lightness\":-100..100=0,\"points\":[[x,y],…]?} (color: \"#rrggbb\", default the foreground colour; Localized Color Clusters: \"points\" where the colour was picked, \"range\" % of the longer side)",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "localized",
+        "points",
+        "range"
+      ]
+    },
+    {
+      "id": "layer.layerMask.hideSelection",
+      "avant": "{\"layer\":id?}",
+      "apres": "{\"layer\":id?} (no layer: every selected layer that can take a mask)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.layerStyle.blendingOptions",
+      "avant": "{\"layer\":id?,\"blend\":\"normal|multiply|…\"?,\"opacity\":0..100?,\"fillOpacity\":0..100?,\"blendIf\":{\"channel\":\"gray|red|green|blue|cyan|…\"|index=\"gray\",\"thisLayer\":[black,white]|[blackLo,blackHi,whiteLo,whiteHi]?,\"underlying\":[…]?}|[{…},…]|null?} (Blend If values 0..255; split points fade; null resets)",
+      "apres": "{\"layer\":id?,\"blend\":\"normal|multiply|…\"?,\"opacity\":0..100?,\"fillOpacity\":0..100?,\"blendIf\":{\"channel\":\"gray|red|green|blue|cyan|…\"|index=\"gray\",\"thisLayer\":[black,white]|[blackLo,blackHi,whiteLo,whiteHi]?,\"underlying\":[…]?}|[{…},…]|null?,\"channels\":[bool,…]?,\"knockout\":\"none|shallow|deep\"?,\"blendInteriorEffectsAsGroup\":bool?,\"blendClippedLayersAsGroup\":bool?,\"transparencyShapesLayer\":bool?,\"layerMaskHidesEffects\":bool?,\"vectorMaskHidesEffects\":bool?} (Blend If values 0..255; split points fade; null resets. Advanced Blending: channels = which colour channels blend (R G B / C M Y K / L a b); PhotoCraft's defaults are knockout none, interior effects off, clipped layers as group on, transparency shapes on, masks hide effects off)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "blendClippedLayersAsGroup",
+        "blendInteriorEffectsAsGroup",
+        "channels",
+        "knockout",
+        "layerMaskHidesEffects",
+        "transparencyShapesLayer",
+        "vectorMaskHidesEffects"
+      ]
+    },
+    {
+      "id": "edit.definePattern",
+      "avant": "{\"name\":str?,\"rect\":[x0,y0,x1,y1]? (default: selection bounds, else the canvas)} → {\"pattern\":id} (added to the library; samples the visible composite)",
+      "apres": "{\"name\":text,\"rect\":[x0,y0,x1,y1]?} → {\"pattern\":id} (name: default the document's name numbered past the library's names; rect: default the selection bounds or else the canvas; added to the library from the visible composite)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "pattern.import",
+      "avant": "{\"path\":\".pat file\"}",
+      "apres": "{\"path\":\".pat file\"?,\"data\":base64 bytes? (instead of a path)} → {imported:[ids],count}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "data"
+      ]
+    },
+    {
+      "id": "layer.newFillLayer.pattern",
+      "avant": "{\"pattern\":id|name?=first library pattern,\"scale\":1..1000=100,\"angle\":deg=0,\"link\":bool=true,\"phase\":[x,y]?}",
+      "apres": "{\"pattern\":id|name?=first library pattern,\"scale\":1..1000=100,\"angle\":deg=0,\"link\":bool=true,\"phase\":[x,y]?,\"path\":\"work\"|saved path name|{…path}? (the active path: becomes the vector mask; else the selection is the layer mask)}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "path"
+      ]
+    },
+    {
+      "id": "edit.transform.warp",
+      "avant": "{\"layer\":id?,\"rect\":[x0,y0,x1,y1]? (warp box; default = layer content ∩ selection),\"style\":\"custom|none|arc|arcLower|arcUpper|arch|bulge|shellLower|shellUpper|flag|wave|fish|rise|fisheye|inflate|squeeze|twist\",\"bend\":%=50,\"hDistort\":%,\"vDistort\":%,\"vertical\":bool,\"mesh\":{\"us\":[0,…,1],\"vs\":[0,…,1],\"points\":[[x,y]…]} ((3c+1)×(3r+1) control points, row-major, document px),\"grid\":[cols,rows]?,\"warp\":{full warp object}?,\"interpolation\":\"bicubic|bilinear|nearest\"}",
+      "apres": "{\"layer\":id?,\"rect\":[x0,y0,x1,y1]? (warp box; default = layer content ∩ selection),\"style\":\"custom|none|arc|arcLower|arcUpper|arch|bulge|shellLower|shellUpper|flag|wave|fish|rise|fisheye|inflate|squeeze|twist\",\"bend\":%=50,\"hDistort\":%,\"vDistort\":%,\"vertical\":bool,\"mesh\":{\"us\":[0,…,1],\"vs\":[0,…,1],\"points\":[[x,y]…]} ((3c+1)×(3r+1) control points, row-major, document px; on a smart object `us`/`vs` span the source contents, so points equal to the placement are an identity warp even when it is skewed),\"grid\":[cols,rows]?,\"warp\":{full warp object}?,\"interpolation\":\"bicubic|bilinear|nearest\"} — on a type layer a style (or none) sets its Warp Text and the type stays editable",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layer.smartObjects.warp",
+      "avant": "{\"layer\":id?,\"rect\":[x0,y0,x1,y1]? (warp box; default = layer content ∩ selection),\"style\":\"custom|none|arc|arcLower|arcUpper|arch|bulge|shellLower|shellUpper|flag|wave|fish|rise|fisheye|inflate|squeeze|twist\",\"bend\":%=50,\"hDistort\":%,\"vDistort\":%,\"vertical\":bool,\"mesh\":{\"us\":[0,…,1],\"vs\":[0,…,1],\"points\":[[x,y]…]} ((3c+1)×(3r+1) control points, row-major, document px),\"grid\":[cols,rows]?,\"warp\":{full warp object}?,\"interpolation\":\"bicubic|bilinear|nearest\"}",
+      "apres": "{\"layer\":id?,\"rect\":[x0,y0,x1,y1]? (warp box; default = layer content ∩ selection),\"style\":\"custom|none|arc|arcLower|arcUpper|arch|bulge|shellLower|shellUpper|flag|wave|fish|rise|fisheye|inflate|squeeze|twist\",\"bend\":%=50,\"hDistort\":%,\"vDistort\":%,\"vertical\":bool,\"mesh\":{\"us\":[0,…,1],\"vs\":[0,…,1],\"points\":[[x,y]…]} ((3c+1)×(3r+1) control points, row-major, document px; on a smart object `us`/`vs` span the source contents, so points equal to the placement are an identity warp even when it is skewed),\"grid\":[cols,rows]?,\"warp\":{full warp object}?,\"interpolation\":\"bicubic|bilinear|nearest\"} — on a type layer a style (or none) sets its Warp Text and the type stays editable",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.transform.splitWarpCrosswise",
+      "avant": "{\"warp\":{…}? (the warp being edited; returned split),\"rect\":[x0,y0,x1,y1]?,\"at\":[x,y]? (document point; default = middle of the patch)} — without `warp`, edits the active smart object's warp",
+      "apres": "{\"warp\":{…}? (the warp being edited; returned split),\"rect\":[x0,y0,x1,y1]?,\"at\":[x,y]? (document point; default = middle of the patch)} — without `warp`, edits the active smart object's warp. A 1×1 custom mesh is divided at the thirds first (the guides drawn on the default grid), so splitWarpCrosswise on an identity custom warp returns a 4×4 mesh (knots at 0, 1/3, 1/2, 2/3 and 1), not a 2×2. A preset is fitted as one patch and split without that step.",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.transform.splitWarpHorizontally",
+      "avant": "{\"warp\":{…}? (the warp being edited; returned split),\"rect\":[x0,y0,x1,y1]?,\"at\":[x,y]? (document point; default = middle of the patch)} — without `warp`, edits the active smart object's warp",
+      "apres": "{\"warp\":{…}? (the warp being edited; returned split),\"rect\":[x0,y0,x1,y1]?,\"at\":[x,y]? (document point; default = middle of the patch)} — without `warp`, edits the active smart object's warp. A 1×1 custom mesh is divided at the thirds first (the guides drawn on the default grid), so splitWarpCrosswise on an identity custom warp returns a 4×4 mesh (knots at 0, 1/3, 1/2, 2/3 and 1), not a 2×2. A preset is fitted as one patch and split without that step.",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.transform.splitWarpVertically",
+      "avant": "{\"warp\":{…}? (the warp being edited; returned split),\"rect\":[x0,y0,x1,y1]?,\"at\":[x,y]? (document point; default = middle of the patch)} — without `warp`, edits the active smart object's warp",
+      "apres": "{\"warp\":{…}? (the warp being edited; returned split),\"rect\":[x0,y0,x1,y1]?,\"at\":[x,y]? (document point; default = middle of the patch)} — without `warp`, edits the active smart object's warp. A 1×1 custom mesh is divided at the thirds first (the guides drawn on the default grid), so splitWarpCrosswise on an identity custom warp returns a 4×4 mesh (knots at 0, 1/3, 1/2, 2/3 and 1), not a 2×2. A preset is fitted as one patch and split without that step.",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "edit.transform.removeWarpSplit",
+      "avant": "{\"warp\":{…}? (the warp being edited; returned split),\"rect\":[x0,y0,x1,y1]?,\"at\":[x,y]? (document point; default = middle of the patch)} — without `warp`, edits the active smart object's warp",
+      "apres": "{\"warp\":{…}? (the warp being edited; returned split),\"rect\":[x0,y0,x1,y1]?,\"at\":[x,y]? (document point; default = middle of the patch)} — without `warp`, edits the active smart object's warp. A 1×1 custom mesh is divided at the thirds first (the guides drawn on the default grid), so splitWarpCrosswise on an identity custom warp returns a 4×4 mesh (knots at 0, 1/3, 1/2, 2/3 and 1), not a 2×2. A preset is fitted as one patch and split without that step.",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "layerComp.updateWarnings",
+      "avant": "{\"clear\":bool=false (drop states of deleted layers)} → {warnings:[{comp,name,missingLayers}],count}",
+      "apres": "{\"comp\":id|name? (default: every comp; limits the report and the clear to that comp),\"clear\":bool=false (drop states of deleted layers)} → {warnings:[{comp,name,missingLayers}],count}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "comp"
+      ]
+    },
+    {
+      "id": "filter.liquify",
+      "avant": "{\"strokes\":[{\"tool\":\"forwardWarp|reconstruct|smooth|twirlCw|twirlCcw|pucker|bloat|pushLeft|freeze|thaw|reconstructAll\",\"size\":px=100,\"density\":0-100=50,\"pressure\":0-100=100,\"rate\":0-100=80,\"points\":[[x,y,pressure?]…],\"amount\":%? (reconstructAll)}…],\"meshSize\":px? (field resolution, px per node; default 2, or 4 above 4 MP),\"layer\":id?} — strokes replay in order on a fresh field; a selection limits the effect; on a smart object it becomes a smart filter",
+      "apres": "{\"strokes\":[{\"tool\":\"forwardWarp|reconstruct|smooth|twirlCw|twirlCcw|pucker|bloat|pushLeft|freeze|thaw|lassoMask|reconstructAll\",\"size\":px=100,\"density\":0-100=50,\"pressure\":0-100=100,\"rate\":0-100=80,\"points\":[[x,y,pressure?]…],\"amount\":%? (reconstructAll; lassoMask: 1 freezes the polygon in points, 0 thaws it)}…],\"meshSize\":px? (field resolution, px per node; default 2, or 4 above 4 MP),\"layer\":id?} — strokes replay in order on a fresh field; a selection limits the effect; on a smart object it becomes a smart filter",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "gradient.presets.apply",
+      "avant": "{\"preset\":name?=current|\"stops\":[[t 0..1,\"#rrggbb\"|\"foreground\"|\"background\"],…],\"transparency\":[[t,opacity 0..100],…]?,\"angle\":deg=90,\"style\":\"linear|radial|angle|reflected|diamond\"=\"linear\",\"scale\":10..150=100,\"reverse\":bool} → {layer}",
+      "apres": "{\"preset\":name?=current|\"stops\":[[t 0..1,\"#rrggbb\"|\"foreground\"|\"background\"],…],\"transparency\":[[t,opacity 0..100],…]?,\"angle\":deg=90,\"style\":\"linear|radial|angle|reflected|diamond\"=\"linear\",\"scale\":1..1000=100,\"reverse\":bool} → {layer}",
+      "change_dans": "main 3a896a5e",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "style.presets.new",
+      "avant": "{\"name\":str=\"Style\",\"group\":name?,\"layer\":id?,\"includeEffects\":bool=true,\"includeBlending\":bool=true} (from the layer's effects)",
+      "apres": "{\"name\":str=\"Style\",\"group\":name?,\"layer\":id?,\"includeEffects\":bool=true,\"includeBlending\":bool=true,\"effects\":[[kind, params]]? (explicit list, e.g. the Layer Style dialog's pending state; overrides includeEffects),\"blend\":str?,\"fillOpacity\":0..100? (override the layer's blending options)}",
+      "change_dans": "v0.5.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "blend",
+        "effects",
+        "fillOpacity"
+      ]
+    },
+    {
+      "id": "tool.presets.new",
+      "avant": "{\"name\":str?=tool,\"tool\":name,\"options\":{…}? (opaque; \"brush\" defaults to the current brush for painting tools),\"includeColor\":bool=false}",
+      "apres": "{\"name\":str?=tool (at most 255 characters; a taken name gets \" 2\", \" 3\"…),\"tool\":name (\"crop\" for Crop presets),\"options\":{…}? (opaque; \"brush\" defaults to the current brush for painting tools),\"includeColor\":bool=false}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "cloneSource.list",
+      "avant": "{} → {active,sources:[{index,source,anchor,offset,layer,width,height,rotation,flipH,flipV}],overlay}",
+      "apres": "{} → {active,sources:[{index,source,anchor,offset,layer,width,height,linked,rotation,flipH,flipV}],overlay}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "cloneSource.set",
+      "avant": "{\"index\":0..4?=active,\"source\":[x,y]? (⌥-click; re-pairs with the next stroke),\"offset\":[dx,dy]?,\"width\":%?,\"height\":%?|\"scale\":[w%,h%]?,\"rotation\":deg?,\"flipH\":bool?,\"flipV\":bool?,\"layer\":id?,\"clear\":bool?,\"select\":bool=true}",
+      "apres": "{\"index\":0..4?=active,\"source\":[x,y]? (⌥-click; re-pairs with the next stroke),\"offset\":[dx,dy]?,\"width\":%?,\"height\":%?|\"scale\":[w%,h%]?,\"linked\":bool? (W/H link: a lone width or height scales the other by the same factor),\"rotation\":deg?,\"flipH\":bool?,\"flipV\":bool?,\"layer\":id?,\"clear\":bool?,\"select\":bool=true}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "linked"
+      ]
+    },
+    {
+      "id": "slice.divide",
+      "avant": "{\"slice\":id | \"number\":n,\"horizontal\":n=1 (slices down),\"vertical\":n=1 (slices across)} → {slices}",
+      "apres": "{\"slice\":id | \"number\":n,\"horizontal\":n=1 (slices down),\"vertical\":n=1 (slices across); at most 10000 parts} → {slices}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "file.export.saveForWebLegacy",
+      "avant": "{\"preset\":\"GIF 128 Dithered|JPEG High|PNG-24|…\"?,\"format\":\"gif|png8|png24|jpeg|wbmp\"=\"png24\",\"palette\":\"perceptual|selective|adaptive|restrictive|exact|systemMac|systemWindows|uniform\"=\"selective\",\"colors\":2..256=256,\"dither\":\"none|diffusion|pattern|noise\"=\"diffusion\",\"ditherAmount\":0..100=88,\"transparency\":bool=true,\"matte\":\"#rrggbb|none\"=\"#ffffff\",\"interlaced\":bool=false,\"webSnap\":0..100=0,\"quality\":0..100=60,\"progressive\":bool=false,\"optimized\":bool=true,\"embedIcc\":bool=false,\"metadata\":\"none|copyright|copyrightAndContact|all\"=\"copyright\",\"convertToSrgb\":bool=true,\"width\"|\"height\"|\"percent\"? (image size),\"resample\":\"bicubic|bilinear|nearest\"?,\"path\":file? (whole image),\"dir\":folder? (one file per slice in images/),\"html\":bool=false,\"slices\":\"all|user\"=\"all\",\"numbers\":[n]?} → no path/dir: {bytes,width,height,colors} estimate; else {files, html, bytes}",
+      "apres": "{\"preset\":\"GIF 128 Dithered|JPEG High|PNG-24|…\"?,\"format\":\"gif|png8|png24|jpeg|wbmp\"=\"png24\",\"palette\":\"perceptual|selective|adaptive|restrictive|exact|systemMac|systemWindows|uniform\"=\"selective\",\"colors\":2..256=256,\"colorTable\":[\"#rrggbb\",…]? (fixed opaque source palette, 1–256 entries; 255 with transparency),\"colorTableEdits\":{\"0\":\"#rrggbb\",…}? (replace entries after indexing; requires colorTable),\"dither\":\"none|diffusion|pattern|noise\"=\"diffusion\",\"ditherAmount\":0..100=88,\"transparency\":bool=true,\"matte\":\"#rrggbb|none\"=\"none\" (a preset's own: white; formats without transparency go over white),\"interlaced\":bool=false,\"webSnap\":0..100=0,\"quality\":0..100=60,\"progressive\":bool=false,\"optimized\":bool=true,\"embedIcc\":bool=false,\"metadata\":\"none|copyright|copyrightAndContact|allExceptCameraInfo|all\"=\"copyright\" (EXIF only with all),\"convertToSrgb\":bool=true,\"width\"|\"height\"|\"percent\"? (image size),\"resample\":\"bicubic|bilinear|nearest\"?,\"path\":file? (whole image),\"dir\":folder? (one file per slice in images/),\"imagesFolder\":relative-folder?=\"images\",\"html\":bool=false,\"trustedSliceHtml\":bool=false (only for trusted documents; emit raw no-image cell HTML),\"slices\":\"all|user\"=\"all\",\"numbers\":[n]?} → no path/dir: {bytes,width,height,colors,colorTable,transparentIndex} estimate; else {files, html, bytes, warnings}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "colorTable",
+        "colorTableEdits",
+        "imagesFolder",
+        "trustedSliceHtml"
+      ]
+    },
+    {
+      "id": "file.export.exportPreferences",
+      "avant": "{\"quickExportFormat\":\"png|jpg|gif|webp\"?,\"quickExportLocation\":\"ask|sameFolder\"?,\"jpegQuality\":1..100?,\"metadata\":\"none|copyright|all\"?,\"convertToSrgb\":bool?} → {values}",
+      "apres": "{\"quickExportFormat\":\"png|jpg|gif|webp\"?,\"quickExportLocation\":\"ask|sameFolder\"?,\"jpegQuality\":1..100?,\"webpLossless\":bool?,\"webpQuality\":1..100?,\"metadata\":\"none|copyright|all\"?,\"convertToSrgb\":bool?} → {values}",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "webpLossless",
+        "webpQuality"
+      ]
+    },
+    {
+      "id": "file.export.quickExport",
+      "avant": "{\"path\":str? (required unless Export Preferences › Location is \"sameFolder\" and the document is saved)} → {path, format, bytes}",
+      "apres": "{\"path\":str? (required unless Export Preferences › Location is \"sameFolder\" and the document is saved)} → {path, format, bytes, warnings}",
+      "change_dans": "main 3a896a5e",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "file.automate.createDroplet",
+      "avant": "{\"path\":str (.pcdroplet),\"steps\":[[id,params]…] (the action),\"name\":str?,\"output\":folder?,\"format\":\"same|png|jpg|…\"?,\"quality\":0..12?,\"shim\":bool=true on Unix (writes <name>.command calling `photocraft-cli droplet`)} → {path, shim}",
+      "apres": "{\"path\":str (.pcdroplet),\"steps\":[[id,params]…] (the action),\"name\":str?,\"output\":folder?,\"format\":\"same|png|jpg|…\"?,\"quality\":0..12?,\"shim\":bool=true on Unix (writes <name>.command calling `photocraft-cli droplet`)} → {path, shim} (the actions its Play Action steps call are saved in the droplet)",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "file.print",
+      "avant": "{\"printer\":name? (default printer),\"copies\":1..999=1,\"paper\":\"letter|legal|tabloid|a3|a4|a5|4x6|5x7\"|[w,h] pt=\"letter\",\"orientation\":\"portrait|landscape\"=\"portrait\",\"center\":bool=true,\"top\":in?,\"left\":in?,\"scale\":%=100,\"scaleToFit\":bool=false,\"colorHandling\":\"printerManages|photocraftManages|noColorManagement\"=\"printerManages\",\"printerProfile\":profile? (photocraftManages),\"intent\":\"perceptual|relative|saturation|absolute\"=\"relative\",\"bpc\":bool=true,\"cornerCropMarks\":bool,\"centerCropMarks\":bool,\"registrationMarks\":bool,\"description\":bool,\"labels\":bool,\"output\":pdf path? (print to PDF; then \"send\" defaults to false),\"send\":bool?,\"dryRun\":bool=false (render the PDF, report the lp command, don't spool)} → {pdf, imageRect, command, sent}",
+      "apres": "{\"printerSettings\":hex? (Windows driver settings),\"printer\":name? (default printer),\"copies\":1..999=1,\"paper\":\"letter|legal|tabloid|a3|a4|a5|4x6|5x7\"|[w,h] pt=\"letter\",\"orientation\":\"portrait|landscape\"=\"portrait\",\"center\":bool=true,\"top\":in?,\"left\":in?,\"scale\":%=100,\"scaleToFit\":bool=false,\"colorHandling\":\"printerManages|photocraftManages|noColorManagement\"=\"printerManages\",\"printerProfile\":profile? (photocraftManages),\"intent\":\"perceptual|relative|saturation|absolute\"=\"relative\",\"bpc\":bool=true,\"cornerCropMarks\":bool,\"centerCropMarks\":bool,\"registrationMarks\":bool,\"description\":bool,\"labels\":bool,\"emulsionDown\":bool=false (mirror the page left to right, for sublimation and other transfer printing),\"output\":pdf path? (print to PDF; then \"send\" defaults to false),\"send\":bool?,\"printServer\":\"host[:port]|socket path\"? (default: the system's CUPS; a named server is always printed to over IPP),\"dryRun\":bool=false (render the PDF, report the backend command, don't spool; write a PDF only at an explicit output path)} → {pdf:path|null (null without explicit output), imageRect, command:diagnostic array|null, sent, spooler:where the job went|null, backend:\"lp|windows|ipp|portal\"|null}",
+      "change_dans": "v0.8.2",
+      "cles_retirees": [],
+      "cles_ajoutees": [
+        "emulsionDown",
+        "printServer",
+        "printerSettings"
+      ]
+    },
+    {
+      "id": "layer.pickAt",
+      "avant": "{\"x\":px,\"y\":px,\"target\":\"layer|group\"=\"layer\",\"select\":bool=true,\"mode\":\"replace|toggle|add\"=\"replace\",\"list\":bool=false (return every layer with pixels there, topmost first)} → {layer} | {layers}",
+      "apres": "{\"x\":px,\"y\":px,\"target\":\"layer|group\"=\"layer\",\"select\":bool=true,\"mode\":\"replace|toggle|add\"=\"replace\",\"list\":bool=false (return visible layers at the point, including text bounds, topmost first)} → {layer} | {layers}",
+      "change_dans": "v0.9.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "file.export.dataSetsAsFiles",
+      "avant": "{dir, format?:png, dataSets?[names], naming?:\"{name}|{index}|{document}\"} → {files,count}: apply each data set and export the flattened document",
+      "apres": "{dir, format?:png, dataSets?[names], naming?:\"{name}|{index}|{document}\"} → {files,count}: apply each data set and export the flattened document; colliding filenames are rejected before writing (include {index} to disambiguate)",
+      "change_dans": "v0.7.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    },
+    {
+      "id": "view.layerMask",
+      "avant": "{\"layer\":id?,\"mode\":\"off\"|\"gray\"|\"overlay\"|\"toggleGray\"|\"toggleOverlay\"=\"toggleGray\"} (gray: the mask alone, ⌥-click its thumbnail; overlay: red rubylith over the composite, ⇧⌥-click; view state, not an undo step; painting while shown paints the mask)",
+      "apres": "{\"layer\":id?,\"mode\":\"off\"|\"gray\"|\"overlay\"|\"toggleGray\"|\"toggleOverlay\"=\"toggleGray\"} (gray: the mask alone, ⌥-click its thumbnail; overlay: red rubylith over the composite, ⇧⌥-click or `\\`; view state, not an undo step; painting while shown paints the mask)",
+      "change_dans": "v0.6.0",
+      "cles_retirees": [],
+      "cles_ajoutees": []
+    }
+  ],
+  "labels_changes": [
+    {
+      "id": "select.convertToShape",
+      "avant": "Convert Selection to Shape",
+      "apres": "Convert to Shape"
+    }
+  ],
+  "menus_changes": [],
+  "raccourcis_changes": [
+    {
+      "id": "edit.preferences.general",
+      "avant": null,
+      "apres": "Cmd+K"
+    }
+  ]
+}

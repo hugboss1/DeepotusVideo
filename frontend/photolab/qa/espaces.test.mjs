@@ -120,7 +120,7 @@ check("4.9 panneau inconnu : copie inchangée", eq(basculerPanneau(d, "window.pa
 // 5. menus : sous-menu Espace de travail et coches
 const ici = dirname(fileURLToPath(import.meta.url));
 const cat = JSON.parse(readFileSync(join(ici, "..", "donnees", "menus.json"), "utf8"));
-const reg = JSON.parse(readFileSync(join(ici, "..", "..", "..", "backend", "tests", "photocraft_commandes_0.3.0.json"), "utf8"));
+const reg = JSON.parse(readFileSync(join(ici, "..", "..", "..", "backend", "tests", "photocraft_commandes_" + JSON.parse(readFileSync(join(ici, "..", "..", "..", "vendor", "photocraft.json"), "utf8")).version + ".json"), "utf8"));
 const arbre = construireMenus(cat, reg, REFUSES, "fr", t);
 const etatP = memoriser(choisir(r.etat, "perso-1"), modif);
 const dec = decorerMenus(arbre, etatP, dispositionDe(etatP, "perso-1"), t);

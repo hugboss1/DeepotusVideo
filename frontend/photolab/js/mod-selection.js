@@ -1,7 +1,8 @@
 // mod-selection.js — les outils de sélection (C3) : rectangle, ellipse, lasso, lasso polygonal, baguette magique,
 // sélection rapide, et Ctrl+A / Ctrl+D / Ctrl+Maj+I (par les raccourcis du catalogue et de l'écran). Chaque geste
 // validé = UNE commande select.* (paramètres relevés sur le vrai moteur, plan « Faits établis »).
-// Fonctions PURES exportées (qa/gestes.test.mjs).
+// t253 : sélection d'une rangée, d'une colonne, Lasso magnétique (photocraft 0.10).
+// Fonctions PURES exportées (qa/gestes.test.mjs, qa/selection-m4.test.mjs).
 
 // Rectangle {x, y, width, height} entier, jamais négatif. carre (Maj) : le plus grand côté ; centre (Alt) : depuis
 // le point d'appui. Les bords sont arrondis séparément (pas la largeur) : le rectangle colle à la grille des pixels.
@@ -70,6 +71,31 @@ export function commandeRapide(points, opts, mode) {
 export function commandeObjet(r, opts, mode) {
   if (!r || r.width < 2 || r.height < 2) return null;
   return { command: "select.object", params: { rect: [r.x, r.y, r.width, r.height], mode, sampleAllLayers: !!opts.sampleAllLayers } };
+}
+
+// t253 : Sélection d'une rangée / d'une colonne. Le moteur (select.rect line:row|column) ne prolonge PAS la ligne, il
+// nomme seulement l'état : l'écran envoie toute la largeur (rangée) ou toute la hauteur (colonne). Hors document : rien.
+export function commandeLigne(x, y, opts, mode, sens, doc) {
+  if (!doc) return null;
+  const px = Math.floor(x), py = Math.floor(y);
+  const ligne = sens === "row";
+  if (ligne ? py < 0 || py >= doc.height : px < 0 || px >= doc.width) return null;
+  const r = ligne ? { x: 0, y: py, width: doc.width, height: 1 } : { x: px, y: 0, width: 1, height: doc.height };
+  return { command: "select.rect", params: { ...r, line: ligne ? "row" : "column", mode, antiAlias: !!opts.antiAlias, feather: opts.feather || 0 } };
+}
+
+// t253 : Lasso magnétique. La fréquence (0..100, défaut 57) règle l'écart ÉCRAN entre deux points d'attache posés en
+// suivant le pointeur : 100 = tous les 4 px, 0 = tous les 100 px. Le moteur accroche le tracé aux bords entre les points
+// (largeur, contraste) ; un clic pose un point, double-clic ou Entrée ferment en suivant les bords, Alt en droite.
+export function pasFrequence(f) {
+  const n = Number.isFinite(Number(f)) && f !== "" && f !== null ? Number(f) : 57;
+  return Math.round(100 - 0.96 * Math.min(100, Math.max(0, n)));
+}
+export function ajouterAttache(points, x, y, z, espacement) { return ajouterPoint(points, x, y, z, espacement); }
+export function commandeMagnetique(points, opts, mode, droite = false) {
+  if (!points || points.length < 3) return mode === "replace" ? DESELECTION : null;
+  return { command: "select.magneticLasso", params: { points, width: opts.lassoWidth, contrast: opts.edgeContrast,
+    close: droite ? "straight" : "magnetic", trace: true, mode, antiAlias: !!opts.antiAlias, feather: opts.feather || 0 } };
 }
 
 /* ───────────── côté DOM ───────────── */
@@ -176,6 +202,52 @@ export function initSelection(PL) {
       return false;
     },
     quitter() { poly = null; },
+  };
+
+  // t253 : Sélection d'une rangée / d'une colonne : un clic.
+  for (const [id, sens] of [["rowMarquee", "row"], ["columnMarquee", "column"]]) {
+    PL.gestes[id] = {
+      appui(p, ev) { lancer(commandeLigne(p.x, p.y, o(), modeSelection(o().mode, ev.shiftKey, ev.altKey, true), sens, PL.etat.doc)); },
+      bouger() {}, relacher() {},
+    };
+  }
+
+  // t253 : Lasso magnétique : un clic commence, le pointeur pose les points d'attache (fréquence), un clic en ajoute un,
+  // clic sur le premier point, double-clic ou Entrée ferment (Alt : en droite), Retour arrière retire, Échap abandonne.
+  let mag = null;
+  const majMag = (curseur) => {
+    PL.apercu = mag ? { type: "poly", points: mag.points, curseur, fermable: curseur && fermeturePolygone(mag.points, curseur[0], curseur[1], PL.vue.v.z) } : null;
+    redessiner();
+  };
+  const fermerMag = (droite) => {
+    if (!mag) return;
+    const { points, mode } = mag; mag = null; PL.apercu = null; redessiner();
+    lancer(commandeMagnetique(points, o(), mode, droite));
+  };
+  const suivreMag = (p) => {
+    if (!mag) return;
+    mag.points = ajouterAttache(mag.points, p.x, p.y, PL.vue.v.z, pasFrequence(o().frequency));
+    majMag([p.x, p.y]);
+  };
+  PL.gestes.magneticLasso = {
+    appui(p, ev) {
+      if (!mag) { mag = { points: [], mode: modeSelection(o().mode, ev.shiftKey, ev.altKey, true) }; }
+      else if (fermeturePolygone(mag.points, p.x, p.y, PL.vue.v.z)) { fermerMag(false); return; }
+      mag.points.push([Math.round(p.x), Math.round(p.y)]);
+      majMag([p.x, p.y]);
+    },
+    bouger: suivreMag,
+    survol: suivreMag,
+    relacher() {},
+    double(p, ev) { if (mag && mag.points.length > 1) mag.points.pop(); fermerMag(!!(ev && ev.altKey)); },
+    touche(ev) {
+      if (!mag) return false;
+      if (ev.key === "Enter") { fermerMag(ev.altKey); return true; }
+      if (ev.key === "Escape") { mag = null; majMag(null); return true; }
+      if (ev.key === "Backspace") { mag.points.pop(); if (!mag.points.length) mag = null; majMag(null); return true; }
+      return false;
+    },
+    quitter() { mag = null; },
   };
 
   // Baguette magique : un clic.

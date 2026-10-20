@@ -35,8 +35,14 @@ def champ(texte, cle):
 
 
 # Le registre réel, par id : lu une seule fois, sert aux sections 1 (textes bruts) et 2.
-COMMANDES = json.loads((BACKEND / "tests" / "photocraft_commandes_0.3.0.json").read_text(encoding="utf-8"))
+sys.path.insert(0, str(BACKEND / "tests"))  # t250 : registre de la version épinglée (vendor/photocraft.json)
+import photocraft_version as _PV  # noqa: E402
+COMMANDES = json.loads(_PV.fichier_commandes().read_text(encoding="utf-8"))
 PAR_ID = {c["id"]: c for c in COMMANDES}
+# t251 : la section [1] éprouve le PARSEUR sur des textes réels figés — ceux de 0.3.0, qui ne bougent plus (le texte
+# de file.new ou des courbes a changé en 0.10 : ce n'est pas au parseur d'en répondre). [2] et suivantes : le registre
+# de la version épinglée.
+EX = {c["id"]: c for c in json.loads((BACKEND / "tests" / "photocraft_commandes_0.3.0.json").read_text(encoding="utf-8"))}
 STRUCT = PR.structurer(COMMANDES)
 
 # Nombre EXACT de descriptions du registre dont le parseur garde un fragment non typé (hors périmètre P3).
@@ -44,14 +50,21 @@ STRUCT = PR.structurer(COMMANDES)
 # `n` (int) et une union dont une variante est `[names]` (style.presets.edit et 11 autres commandes, toutes
 # hors périmètre P3 sauf style.presets.edit qui devait être sans « ? »). Les corrections couleur / énumération
 # ouverte ne changent aucune de ces descriptions (edit.fill garde `target`, etc.).
-NB_NON_OK = 126
+# t251 : 126 → 123 sur 0.3.0, la cible de canal (`target`, défaut du moteur) est désormais comprise — elle existait
+# déjà sur paint.stroke/pencil/bucket/gradient et edit.transform. 0.10.0 : 203 (descriptions enrichies : 186 changées,
+# 142 neuves ; le pont les traite en opaques bornés, comme avant). Compte par version épinglée.
+# 0.10.0 : 203 au parseur seul, 201 après les corrections explicites (layer.select, contour d'ombre ; tools.setColors
+# reste non ok : backgroundCmyk « same »).
+# t252 : 197 — les corrections des outils de retouche ouverts (setSymmetry, symmetryFromPath, patternStamp, remove).
+# t253 : 194 — échantillonneur (add, move) et morceau flottant compris après correction.
+NB_NON_OK = {"0.3.0": 123, "0.10.0": 194}[_PV.VERSION]
 
 print("\n[1] les dix exemples bruts")
-r = PR.parser(PAR_ID["filter.blur.gaussianBlur"]["params"])
+r = PR.parser(EX["filter.blur.gaussianBlur"]["params"])
 check("1a gaussianBlur -> un champ radius number 0.1..1000 défaut 1",
       r["ok"] and len(r["champs"]) == 1 and sous(r["champs"][0],
       {"cle": "radius", "type": "number", "min": 0.1, "max": 1000, "defaut": 1, "optionnel": False}), r)
-bruit = PR.parser(PAR_ID["filter.noise.addNoise"]["params"])
+bruit = PR.parser(EX["filter.noise.addNoise"]["params"])
 check("1b addNoise : 4 champs dans l'ordre amount, distribution, monochromatic, seed",
       [c["cle"] for c in bruit["champs"]] == ["amount", "distribution", "monochromatic", "seed"], bruit)
 check("1b addNoise.amount number 0.1..400 défaut 12.5", sous(bruit["champs"][0],
@@ -60,7 +73,7 @@ check("1b addNoise.distribution enum uniform|gaussian (fermée)", sous(bruit["ch
       {"type": "enum", "valeurs": ["uniform", "gaussian"]}) and not bruit["champs"][1].get("ouverte"))
 check("1b addNoise.monochromatic bool", bruit["champs"][2]["type"] == "bool")
 check("1b addNoise.seed int défaut 0", sous(bruit["champs"][3], {"type": "int", "defaut": 0}))
-nouv = PR.parser(PAR_ID["file.new"]["params"])
+nouv = PR.parser(EX["file.new"]["params"])
 check("1c file.new.mode enum rgb|gray|cmyk|lab défaut rgb", sous(nouv["champs"][2],
       {"cle": "mode", "type": "enum", "valeurs": ["rgb", "gray", "cmyk", "lab"], "defaut": "rgb"}), nouv["champs"][2])
 check("1c file.new.depth enum de nombres 8|16|32 défaut 8", sous(nouv["champs"][3],
@@ -70,38 +83,38 @@ check("1c file.new.resolution = number unité ppi défaut 72", sous(nouv["champs
 check("1c file.new.width int défaut 1920", sous(nouv["champs"][0], {"cle": "width", "type": "int", "defaut": 1920}))
 check("1c file.new.background est une énumération (pas une couleur) avec #rrggbb parmi ses valeurs",
       sous(nouv["champs"][4], {"type": "enum"}) and "#rrggbb" in nouv["champs"][4]["valeurs"])
-tc = champ(PAR_ID["layer.newAdjustmentLayer.blackWhite"]["params"], "tintColor")
+tc = champ(EX["layer.newAdjustmentLayer.blackWhite"]["params"], "tintColor")
 check("1d blackWhite.tintColor = color forme hex", tc is not None and tc["type"] == "color" and tc["formes"] == ["hex"], tc)
-fc = champ(PAR_ID["edit.fill"]["params"], "color")
+fc = champ(EX["edit.fill"]["params"], "color")
 check("1e edit.fill.color = color formes hex+rgba (testée avant l'énumération)",
       fc is not None and fc["type"] == "color" and fc["formes"] == ["hex", "rgba"] and "valeurs" not in fc, fc)
 check("1e edit.fill.color : défaut en prose = {texte} jamais envoyé, note conservée",
       fc["defaut"] == {"texte": "foreground"} and fc["note"] == "contents=color", fc)
-check("1e edit.fill.scale number % défaut 100", sous(champ(PAR_ID["edit.fill"]["params"], "scale"),
+check("1e edit.fill.scale number % défaut 100", sous(champ(EX["edit.fill"]["params"], "scale"),
       {"type": "number", "unite": "%", "defaut": 100}))
-check("1e edit.fill.pattern = union id|name", sous(champ(PAR_ID["edit.fill"]["params"], "pattern"),
+check("1e edit.fill.pattern = union id|name", sous(champ(EX["edit.fill"]["params"], "pattern"),
       {"type": "union", "variantes": ["id", "name"]}))
-courbes = PR.parser(PAR_ID["layer.newAdjustmentLayer.curves"]["params"])
+courbes = PR.parser(EX["layer.newAdjustmentLayer.curves"]["params"])
 check("1f curves : points/red/green/blue = json, ok", courbes["ok"] and
       [(c["cle"], c["type"]) for c in courbes["champs"]] == [("points", "json"), ("red", "json"), ("green", "json"), ("blue", "json")],
       courbes)
 check("1f curves : la note finale est dans la queue, pas dans un champ",
       courbes["queue"].startswith("(curves as") and all("note" not in c for c in courbes["champs"]), courbes["queue"])
-niv = PR.parser(PAR_ID["layer.newAdjustmentLayer.levels"]["params"])
+niv = PR.parser(EX["layer.newAdjustmentLayer.levels"]["params"])
 check("1g levels.inBlack int-borné 0..253 défaut 0", sous(niv["champs"][0],
       {"cle": "inBlack", "type": "number", "min": 0, "max": 253, "defaut": 0, "entier": True}), niv["champs"][0])
 check("1g levels.gamma 0.01..9.99 défaut 1", sous(niv["champs"][1], {"cle": "gamma", "min": 0.01, "max": 9.99, "defaut": 1}))
 check("1g levels.red/green/blue = json", [c["type"] for c in niv["champs"][-3:]] == ["json"] * 3, niv["champs"][-3:])
-sp = PR.parser(PAR_ID["layer.setProps"]["params"])
+sp = PR.parser(EX["layer.setProps"]["params"])
 blend = [c for c in sp["champs"] if c["cle"] == "blend"][0]
 check("1h setProps.blend = énumération OUVERTE (le … est retiré des valeurs)",
       sous(blend, {"type": "enum", "valeurs": ["Multiply"], "ouverte": True, "optionnel": True}), blend)
 check("1h setProps.opacity number 0..1 optionnel", sous([c for c in sp["champs"] if c["cle"] == "opacity"][0],
       {"type": "number", "min": 0, "max": 1, "optionnel": True}))
-sa = PR.parser(PAR_ID["layer.setAdjustment"]["params"])
+sa = PR.parser(EX["layer.setAdjustment"]["params"])
 check("1i setAdjustment : layerId optionnel, le « …params of that adjustment kind » n'est pas un champ",
       sa["champs"] == [{"cle": "layer", "type": "layerId", "optionnel": True}] and sa["ok"] and sa["inconnus"] == [], sa)
-po = PR.parser(PAR_ID["layer.layerStyle.patternOverlay"]["params"])
+po = PR.parser(EX["layer.layerStyle.patternOverlay"]["params"])
 pat = po["champs"][0]
 check("1j patternOverlay.pattern = union id|name optionnel, défaut en prose {texte}",
       sous(pat, {"cle": "pattern", "type": "union", "variantes": ["id", "name"], "optionnel": True,
@@ -109,16 +122,16 @@ check("1j patternOverlay.pattern = union id|name optionnel, défaut en prose {te
 check("1j patternOverlay.link bool défaut true ; angle number deg défaut 0",
       sous([c for c in po["champs"] if c["cle"] == "link"][0], {"type": "bool", "defaut": True}) and
       sous([c for c in po["champs"] if c["cle"] == "angle"][0], {"type": "number", "unite": "deg", "defaut": 0}))
-cu = PR.parser(PAR_ID["filter.other.custom"]["params"])
+cu = PR.parser(EX["filter.other.custom"]["params"])
 check("1k custom.kernel = intArray de 25", sous(cu["champs"][0], {"cle": "kernel", "type": "intArray", "n": 25}), cu["champs"][0])
 check("1k custom.offset number -9999..9999 défaut 0", sous(cu["champs"][2], {"cle": "offset", "min": -9999, "max": 9999, "defaut": 0}))
-arbre = PR.parser(PAR_ID["filter.render.tree"]["params"])
+arbre = PR.parser(EX["filter.render.tree"]["params"])
 check("1l tree : la signature « → {…} » finale va dans la queue", arbre["queue"].startswith("→ {layer,newLayer"), arbre["queue"])
-bo = PR.parser(PAR_ID["layer.layerStyle.blendingOptions"]["params"])
+bo = PR.parser(EX["layer.layerStyle.blendingOptions"]["params"])
 check("1m blendingOptions : blend enum ouverte, blendIf opaque (non éditable)",
       sous([c for c in bo["champs"] if c["cle"] == "blend"][0], {"type": "enum", "ouverte": True}) and
       [c for c in bo["champs"] if c["cle"] == "blendIf"][0]["type"] == "struct", bo["champs"])
-liq = PR.parser(PAR_ID["filter.liquify"]["params"])
+liq = PR.parser(EX["filter.liquify"]["params"])
 cl = {c["cle"]: c for c in liq["champs"]}
 check("1p liquify : strokes struct, meshSize number px optionnel avec note, layer layerId optionnel, queue en « — »",
       cl["strokes"]["type"] == "struct" and
@@ -144,13 +157,16 @@ check("1o type inconnu -> « ? » avec le texte brut, ok faux, listé dans incon
        and len(r["inconnus"]) == 1)(PR.parser('{"x":machin truc}')))
 
 print("\n[2] le registre réel")
-check("2a la copie du registre contient 776 entrées", len(COMMANDES) == 776, len(COMMANDES))
-check("2b structurer rend 776 ids, chacun avec id/label/menu/enabled/champs",
-      len(STRUCT) == 776 and all({"id", "label", "menu", "enabled", "champs"} <= set(v) for v in STRUCT.values()))
-filtres = sorted(i for i, c in PAR_ID.items() if i.startswith("filter.") and c["menu"][:1] == ["Filter"])
-adj_calques = sorted(i for i in PAR_ID if i.startswith("layer.newAdjustmentLayer."))
-adj_image = sorted(i for i in PAR_ID if i.startswith("image.adjustments."))
-styles = sorted(i for i in PAR_ID if i.startswith(("layer.layerStyle.", "style.presets.")))
+NB_CMD = {"0.3.0": 776, "0.10.0": 918}[_PV.VERSION]
+check(f"2a la copie du registre contient {NB_CMD} entrées", len(COMMANDES) == NB_CMD, len(COMMANDES))
+check(f"2b structurer rend {NB_CMD} ids, chacun avec id/label/menu/enabled/champs",
+      len(STRUCT) == NB_CMD and all({"id", "label", "menu", "enabled", "champs"} <= set(v) for v in STRUCT.values()))
+# t251 : le périmètre P3 est celui que l'écran atteint — sans les commandes 0.10 encore fermées (photolab_neuves).
+from app.services.photolab_neuves import COMMANDES_NEUVES_FERMEES as _FERMEES   # noqa: E402
+filtres = sorted(i for i, c in PAR_ID.items() if i.startswith("filter.") and c["menu"][:1] == ["Filter"] and i not in _FERMEES)
+adj_calques = sorted(i for i in PAR_ID if i.startswith("layer.newAdjustmentLayer.") and i not in _FERMEES)
+adj_image = sorted(i for i in PAR_ID if i.startswith("image.adjustments.") and i not in _FERMEES)
+styles = sorted(i for i in PAR_ID if i.startswith(("layer.layerStyle.", "style.presets.")) and i not in _FERMEES)
 galerie = sorted(i for i in PAR_ID if i.startswith("filter.gallery."))
 check("2c périmètre : 75 filtres du menu Filtre", len(filtres) == 75, len(filtres))
 check("2c périmètre : 16 layer.newAdjustmentLayer.*", len(adj_calques) == 16, len(adj_calques))
@@ -361,6 +377,19 @@ check("4f KINDS : 16 variantes de doc.inspect -> les 16 kinds de layer.newAdjust
 check("4g kind_de : variante d'un calque de réglage (dict ou chaîne « Invert ») ; None sinon",
       PR.kind_de({"adjustment": {"Curves": {}}}) == "curves" and PR.kind_de({"adjustment": "Invert"}) == "invert"
       and PR.kind_de({"kind": "Pixel"}) is None and PR.kind_de({"adjustment": {"Zorg": {}}}) is None)
+# t251 : photocraft 0.10 décrit le réglage par {"kind": "<kind de commande>", "params": {…}} (adjust_params::to_params)
+check("4g2 kind_de forme 0.10 {kind, params} : kind connu rendu, inconnu None ; la forme 0.3.0 reste lue",
+      PR.kind_de({"adjustment": {"kind": "curves", "params": {}}}) == "curves"
+      and PR.kind_de({"adjustment": {"kind": "invert", "params": {}}}) == "invert"
+      and PR.kind_de({"adjustment": {"kind": "zorg", "params": {}}}) is None
+      and PR.kind_de({"adjustment": {"kind": "curves"}}) is None
+      and PR.kind_de({"adjustment": {"Curves": {}}}) == "curves")
+check("4g3 colorisation lue dans l'état 0.10 (params.colorize) comme dans l'état 0.3.0",
+      PR._colorise({}, {"kind": "hueSaturation", "params": {"colorize": True}}) is True
+      and PR._colorise({}, {"kind": "hueSaturation", "params": {"colorize": False}}) is False
+      and PR._colorise({}, {"kind": "curves", "params": {"colorize": True}}) is False
+      and PR._colorise({}, {"HueSaturation": {"colorize": True}}) is True
+      and PR._colorise({"colorize": False}, {"kind": "hueSaturation", "params": {"colorize": True}}) is False)
 
 print("\n[4s] schémas des champs `json` des réglages (relevé A4 sur le vrai moteur)")
 NEW = "layer.newAdjustmentLayer."
@@ -550,17 +579,99 @@ finally:
     PR.CORRECTIONS_CHAMPS = _garde
 changes = [(i, a.get("cle"), {k: (a.get(k), b.get(k)) for k in set(a) | set(b) if a.get(k) != b.get(k)})
            for i in STRUCT for a, b in zip(BRUT[i]["champs"], STRUCT[i]["champs"]) if a != b]
-check("7a exactement 2 champs changent : l'exposition du réglage destructif et du calque de réglage",
-      sorted((i, c) for i, c, _ in changes) == [("image.adjustments.exposure", "exposure"),
-                                               ("layer.newAdjustmentLayer.exposure", "exposure")], changes)
+# t251 : en 0.10 s'ajoutent les corrections de layer.select / tools.setColors / contour d'ombre (sans effet sur 0.3.0,
+# où le parseur donne déjà ces types) — 7a/7b portent sur l'exposition seule, 7e sur les corrections de t251.
+expo = [x for x in changes if x[1] == "exposure"]
+check("7a exactement 2 champs « exposure » changent : l'exposition du réglage destructif et du calque de réglage",
+      sorted((i, c) for i, c, _ in expo) == [("image.adjustments.exposure", "exposure"),
+                                            ("layer.newAdjustmentLayer.exposure", "exposure")], expo)
 check("7b changés en entier: False, unite: ev (bornes et défaut intacts)",
-      all(d == {"entier": (True, False), "unite": (None, "ev")} for _, _, d in changes), changes)
+      all(d == {"entier": (True, False), "unite": (None, "ev")} for _, _, d in expo), expo)
+t251 = sorted((i, c) for i, c, _ in changes if c != "exposure")
+check("7e corrections t251 : seules layer.select.layer, tools.setColors.fore/background, dropShadow.contour (0.10) ; "
+      "aucune sur 0.3.0", t251 == ([] if _PV.VERSION == "0.3.0" else sorted([
+          ("layer.select", "layer"), ("tools.setColors", "foreground"), ("tools.setColors", "background"),
+          ("layer.layerStyle.dropShadow", "contour"),
+          # t252 : outils de retouche ouverts
+          ("paint.patternStamp", "size"), ("paint.patternStamp", "spacing"), ("paint.patternStamp", "scale"),
+          ("paint.remove", "size"), ("paint.remove", "spacing"), ("paint.setSymmetry", "rotation"),
+          ("paint.symmetryFromPath", "name"),
+          # t253 : échantillonneur, morceau flottant
+          ("view.colorSamplers.add", "x"), ("view.colorSamplers.add", "y"), ("view.colorSamplers.move", "index"),
+          ("view.colorSamplers.move", "x"), ("view.colorSamplers.move", "y"), ("view.colorSamplers.delete", "index"),
+          ("select.float", "target")])), t251)
 autres = [(i, c["cle"]) for i, v in STRUCT.items() for c in v["champs"]
           if c.get("cle") == "exposure" and i not in ("image.adjustments.exposure", "layer.newAdjustmentLayer.exposure")]
 check("7c les autres `exposure` du registre ne sont pas touchés", all(
     next(c for c in BRUT[i]["champs"] if c["cle"] == k) == next(c for c in STRUCT[i]["champs"] if c["cle"] == k)
     for i, k in autres), autres)
 check("7d même nombre de champs partout", all(len(BRUT[i]["champs"]) == len(STRUCT[i]["champs"]) for i in STRUCT))
+
+# t251 (M2) : 0.10 ajoute à Coller / Symétrie / Rotation une cible de canal dont le DÉFAUT est posé par le moteur
+# (« Channels panel target »). L'omettre = le comportement 0.3.0 : le champ est opaque mais OPTIONNEL, sinon l'écran
+# grise l'entrée (relevé M1 : 9 entrées). Forme reconnue exactement, rien d'autre n'est rendu optionnel.
+CIBLE = '{"target":"pixels"|"mask"|"quickMask"|{"channel":i}=Channels panel target (an unlinked mask, an alpha channel or the Quick Mask turns alone)}'
+ch = PR.parser(CIBLE)
+check("8a cible de canal : un champ union opaque, OPTIONNEL, variantes écrites, description comprise (ok)",
+      ch["ok"] and len(ch["champs"]) == 1 and sous(ch["champs"][0], {"cle": "target", "type": "union", "optionnel": True,
+      "variantes": ["pixels", "mask", "quickMask", '{"channel":i}']}), ch)
+ch2 = PR.parser('{"center":[x,y]?,"target":"pixels"|"mask"|"quickMask"|{"channel":i}=Channels panel target (not pixels: the luminosity pasted into that mask or channel)}')
+check("8b avec un autre champ devant (edit.paste) : center intact, target optionnel",
+      ch2["ok"] and [c["cle"] for c in ch2["champs"]] == ["center", "target"] and ch2["champs"][1]["optionnel"] is True, ch2)
+ch3 = PR.parser('{"target":"pixels"|"mask"}')
+check("8c une autre forme d'union de chaînes n'est PAS rendue optionnelle par cette règle",
+      not any(c.get("optionnel") for c in ch3["champs"]), ch3)
+ch4 = PR.parser('{"target":"pixels"|"mask"|"quickMask"|{"channel":i}}')
+check("8d la même forme SANS défaut du moteur reste requise", ch4["champs"] and ch4["champs"][0]["optionnel"] is False, ch4)
+
+# t251 : un champ réparé par CORRECTIONS_CHAMPS sort des `inconnus` ; s'il était le seul, la description devient `ok`.
+d_ombre = PR.structurer([{"id": "layer.layerStyle.dropShadow", "params":
+                          '{"contour":"Linear|Cone"|{"name":str,"points":[[in 0..1,out 0..1],…]}="Linear","size":px=5}'}])
+d_ombre = d_ombre["layer.layerStyle.dropShadow"]
+check("8e champ corrigé (contour d'ombre) : hors des inconnus, description ok",
+      d_ombre["ok"] is True and d_ombre["inconnus"] == [] and d_ombre["champs"][0]["type"] == "union", d_ombre)
+d_autre = PR.structurer([{"id": "layer.layerStyle.dropShadow", "params": '{"contour":"Linear"|{"x":1}="Linear","zorg":machin}'}])
+check("8f un AUTRE fragment inconnu garde la description non ok",
+      d_autre["layer.layerStyle.dropShadow"]["ok"] is False
+      and [x.split(":")[0] for x in d_autre["layer.layerStyle.dropShadow"]["inconnus"]] == ['"zorg"'], d_autre)
+# t251 : les champs opaques que 0.10 ajoute aux réglages (pipettes des Niveaux/Courbes, points de Remplacement de
+# couleur) sont FERMÉS comme les commandes neuves : refusés tant qu'un lot ne leur donne pas de schéma.
+for cid_f, cle_f in (("layer.newAdjustmentLayer.levels", "eyedropper"), ("image.adjustments.curves", "eyedropper"),
+                     ("image.adjustments.replaceColor", "points")):
+    reg10 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8")))
+    try:
+        PR.verifier(reg10, cid_f, {cle_f: [[1, 2]]}); m = None
+    except ValueError as e:
+        m = str(e)
+    check(f"8g {cid_f}.{cle_f} : champ 0.10 refusé (pas encore ouvert)", m is not None and "pas encore ouvert" in m, m)
+
+# t251 : les commandes ajoutées par 0.10 restent FERMÉES tant qu'un lot ne les ouvre pas (la liste blanche suit le
+# registre du moteur : sans cette garde, la montée de version ouvrirait 142 commandes en douce).
+from app.services.photolab_neuves import COMMANDES_NEUVES_FERMEES as NEUVES   # noqa: E402
+ids03 = {c["id"] for c in json.loads((BACKEND / "tests" / "photocraft_commandes_0.3.0.json").read_text(encoding="utf-8"))}
+ids10 = {c["id"] for c in json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8"))}
+check("9a la liste des fermées = exactement les ids de 0.10.0 absents de 0.3.0 (moins celles qu'un lot a ouvertes)",
+      NEUVES <= ids10 - ids03 and not (NEUVES & ids03), (len(NEUVES), len(ids10 - ids03)))
+OUVERTES = {"paint.patch", "paint.contentAwareMove", "paint.patternStamp", "paint.redEye", "paint.remove",   # t252
+            "paint.setSymmetry", "paint.symmetryFromPath", "paint.symmetryDisable",
+            # t253
+            "select.magneticLasso", "select.float", "select.drop", "select.loadLuminosity", "image.perspectiveCrop",
+            "view.colorSamplers.add", "view.colorSamplers.move", "view.colorSamplers.delete", "view.colorSamplers.clear",
+            "view.colorSamplers.list"}
+check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8, t253 : 10) -> 124",
+      len(NEUVES) == 124 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
+REG10 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8")))
+for cid, p in (("layer.removeBackground", {}), ("swatches.list", {}), ("actions.list", {}), ("history.undo", {})):
+    try:
+        PR.verifier(REG10, cid, p); m = None
+    except ValueError as e:
+        m = str(e)
+    check(f"9c {cid} : refusée par le pont même si le moteur 0.10 la connaît", m is not None and "pas encore ouverte" in m, m)
+try:
+    PR.verifier(REG10, "filter.blur.gaussianBlur", {"radius": 3}); m = None
+except ValueError as e:
+    m = str(e)
+check("9d une commande 0.3.0 passe toujours sur le registre 0.10", m is None, m)
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

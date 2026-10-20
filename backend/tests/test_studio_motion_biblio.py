@@ -330,12 +330,12 @@ if src_b:
     sp_ = importlib.util.spec_from_file_location("patch_dzmotion_base", p_)
     MB = importlib.util.module_from_spec(sp_)
     sp_.loader.exec_module(MB)
-avant = M.defaire(BUNDLE)
+avant = M.defaire(AIDE.avant_dzdock(BUNDLE))       # 19/10 : le maillon dzdock, posé APRÈS dzmotion, défait d'abord
 BIBS = getattr(M, "BIBLIO", "")              # la famille t236 (absente sur la base : ROUGE)
 check("D1 sans la famille t236 = le bundle de 52efd328 octet pour octet (défaire le neuf, appliquer le maillon de 52efd328)",
       base is not None and MB is not None and MB.appliquer(avant).encode("utf-8") == crlf(base))
 check("D2 inverse : avant_dzmotion(livré) = défaire ; aller-retour exact",
-      AIDE.avant_dzmotion(BUNDLE) == avant and M.appliquer(avant) == BUNDLE)
+      AIDE.avant_dzmotion(BUNDLE) == avant and M.appliquer(avant) == AIDE.avant_dzdock(BUNDLE))
 # t238 (19/10) : la famille C (nœud MotionCode) élargit M1-M5 et ajoute M8-M10 ; les ANCRES de M0-M7 ne bougent pas.
 check("D3 ancres M0-M7 identiques à 52efd328, paires M0 / M6 / M7 identiques : ancrage inchangé (t238 : + M8-M10)",
       MB is not None and len(MB.PAIRES) == 8 and len(M.PAIRES) == 11

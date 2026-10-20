@@ -15,6 +15,8 @@ BACKEND = pathlib.Path(__file__).resolve().parent.parent
 RACINE = BACKEND.parent
 sys.path.insert(0, str(BACKEND))
 from app.services import photolab_moteur as PM                # noqa: E402
+# t251 : 0.10 transforme en bicubique Keys -0.75 (amont 0.9) : une frange d'1 px à demi transparente borde l'image
+PLACE_GRAND = {"0.3.0": [0, 16, 64, 16], "0.10.0": [0, 16, 65, 17]}[PM.VERSION]
 from app.services import photolab_preferences as PF           # noqa: E402
 from app.services import photolab_registre as PR              # noqa: E402
 
@@ -255,7 +257,7 @@ def moteur():
           c["kind"] != "Smart Object" and c["name"] == "grand" and c["bounds"][2] >= 64, c)
     r, _ = PM.placer(s, "entrees/grand.png", "grand2")
     c = next(x for x in s.appeler("doc.inspect")["layers"] if x["id"] == r["layer"])
-    check("5g Placer par défaut inchangé : objet dynamique réduit à la toile", c["kind"] == "Smart Object" and c["bounds"] == [0, 16, 64, 16], c)
+    check("5g Placer par défaut inchangé : objet dynamique réduit à la toile", c["kind"] == "Smart Object" and c["bounds"] == PLACE_GRAND, c)
     return s
 
 

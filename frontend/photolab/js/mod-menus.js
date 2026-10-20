@@ -241,6 +241,15 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
     calque.entrees.splice(pos, 0, { type: "commande", id: "pl.calque.ia", libelle: t("photolab.menu.calque_ia"), raccourci: "", etat: "actif", champs: [] },
       { type: "commande", id: "pl.calque.detourer", libelle: t("photolab.menu.retirer_fond"), raccourci: "", etat: "actif", champs: [] });
   }
+  // t253 : Sélection › Charger la luminosité (select.loadLuminosity, Ctrl+Alt+2), absente du catalogue amont : juste après
+  // « Charger la sélection… ». Commande du moteur : son état suit le registre (« bientôt » si le moteur ne l'a pas).
+  const selection = menus.find((m) => m.nom === "Select");
+  if (selection) {
+    const k = selection.entrees.findIndex((e) => e.id === "select.loadSelection");
+    const pos = k >= 0 ? k + 1 : selection.entrees.length;
+    selection.entrees.splice(pos, 0, { type: "commande", id: "select.loadLuminosity", libelle: t("photolab.menu.charger_luminosite"),
+      raccourci: raccourciAffiche("Cmd+Alt+2", lang), etat: etatDe("select.loadLuminosity", idx, refuses), champs: champsDe(idx.get("select.loadLuminosity")) });
+  }
   menus.push({
     nom: "Aide", nom_affiche: t("photolab.menu.aide"),
     entrees: [{ type: "commande", id: "pl.apropos", libelle: t("photolab.menu.apropos"), raccourci: "", etat: "actif", champs: [] }],

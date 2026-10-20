@@ -102,6 +102,10 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Mauvaise marque** : les contenus suivent l'espace de marque actif (Réglages › Espaces de marque).
   → [POINT:reglages.espaces]
 - **Interface dans la mauvaise langue** : Réglages › Fournisseurs par défaut. → [POINT:reglages.defauts]
+- **Un rendu a échoué** : dans la File des rendus, le bouton de relance dit ce qu'il fait. « Réessayer » relance tout
+  de suite un rendu motion code, qui est local et gratuit. « Réessayer dans Quick » ou « Réessayer dans le Studio »
+  rouvre le formulaire ou le graphe prérempli : rien n'est lancé ni payé avant que l'utilisateur relance. Sans bouton,
+  il n'y a rien de quoi relancer : il faut refaire la demande depuis son écran.
 - **Le post ne part pas tout seul** : deux conditions. Le réseau doit être connecté (Réglages › Comptes connectés), et le
   post doit être en mode Auto (« Publication auto à l'heure dite »). Le mode par défaut est Assisté : le post est prêt à
   l'heure dite et l'utilisateur clique sur Envoyer. → [POINT:reglages.comptes] [GUIDE:planificateur]

@@ -123,9 +123,9 @@ def scenario():
     PM.FABRIQUE = None
     try:
         cli = PM.chemin_cli()
-        check("1a le binaire photocraft-cli 0.3.0 est présent (sinon cette section est rouge)", cli.is_file(), cli)
+        check(f"1a le binaire photocraft-cli {PM.VERSION} est présent (sinon cette section est rouge)", cli.is_file(), cli)
     except PM.MoteurAbsent as e:
-        check("1a le binaire photocraft-cli 0.3.0 est présent (sinon cette section est rouge)", False, e)
+        check(f"1a le binaire photocraft-cli {PM.VERSION} est présent (sinon cette section est rouge)", False, e)
         return None
     s = PM.session()
     peindre(s)
@@ -168,23 +168,27 @@ def scenario():
     check("1c les 16 kinds sont couverts en `base`, plus les cas pièges",
           sorted(k for k in fixtures if k.endswith("/base")) == sorted(f"{k}/base" for k in PM.PR.KINDS.values())
           and len(fixtures) == 16 + len(VARIANTES), sorted(fixtures))
-    cl = fixtures.get("colorLookup/base", {}).get("adjustment", {}).get("ColorLookup", {})
-    check("1d colorLookup : `adjustment.ColorLookup.lut` élagué (None, lutElague), nom lisible 'Warm Filter'",
-          cl.get("lut", 1) is None and cl.get("lutElague") is True and cl.get("name") == "Warm Filter", cl)
-    cn = fixtures.get("colorLookup/none", {}).get("adjustment", {}).get("ColorLookup", {})
-    check("1d2 colorLookup none : nom vide, taille 0, pas de LUT", cn.get("name") == "" and cn.get("size") == 0
-          and cn.get("lut") is None, cn)
-    pc = fixtures.get("curves/canal-identite", {}).get("adjustment", {}).get("Curves", {}).get("per_channel", [[]])
-    check("1d3 curves canal identité : l'état garde [{0,0},{1,1}] pour le rouge (jamais une liste vide)",
-          pc[0] == [{"input": 0.0, "output": 0.0}, {"input": 1.0, "output": 1.0}], pc)
-    bn = fixtures.get("blackWhite/sans-teinte", {}).get("adjustment", {}).get("BlackWhite", {})
-    check("1d4 blackWhite sans teinte : tint null", bn.get("tint", 1) is None, bn)
-    hc = fixtures.get("hueSaturation/colorize", {}).get("adjustment", {}).get("HueSaturation", {})
+    # t251 : photocraft 0.10 décrit l'état par {"kind", "params"} — l'inverse exact des paramètres de commande
+    # (adjust_params::to_params). Les cas pièges, relevés sur le vrai 0.10.0 :
+    prm = lambda k: (fixtures.get(k, {}).get("adjustment") or {}).get("params") or {}
+    check("1c2 forme 0.10 partout : adjustment = {kind = le kind de la commande, params}",
+          all(set(f["adjustment"]) == {"kind", "params"} and f["adjustment"]["kind"] == f["kind"] for f in fixtures.values()))
+    cl = prm("colorLookup/base")
+    check("1d colorLookup : l'état ne dit plus QUEL LUT (ni nom, ni table) — interpolation et tramage seulement",
+          cl == {"interpolation": "tetrahedral", "dither": True}, cl)
+    cn = prm("colorLookup/none")
+    check("1d2 colorLookup none : même forme, valeurs par défaut", cn == {"interpolation": "trilinear", "dither": False}, cn)
+    check("1d3 curves canal identité : l'état garde [[0,0],[255,255]] pour le rouge (jamais une liste vide)",
+          prm("curves/canal-identite").get("red") == [[0.0, 0.0], [255.0, 255.0]], prm("curves/canal-identite"))
+    bn = prm("blackWhite/sans-teinte")
+    check("1d4 blackWhite sans teinte : tint faux (la couleur par défaut #e1d3b3 reste écrite)",
+          bn.get("tint") is False and bn.get("tintColor") == "#e1d3b3", bn)
+    hc = prm("hueSaturation/colorize")
     check("1d5 hueSaturation colorize : colorize vrai, hue 200 saturation 40 conservés", hc.get("colorize") is True
           and hc.get("hue") == 200.0 and hc.get("saturation") == 40.0, hc)
-    cm = fixtures.get("channelMixer/monochrome", {}).get("adjustment", {}).get("ChannelMixer", {})
-    check("1d6 channelMixer monochrome : monochrome vrai, ligne 0 = gray", cm.get("monochrome") is True
-          and [round(v * 100) for v in cm.get("matrix", [[]])[0]] == [30, 60, 10, 5], cm)
+    cm = prm("channelMixer/monochrome")
+    check("1d6 channelMixer monochrome : monochrome vrai, gray = ligne rouge = [30,60,10,5]", cm.get("monochrome") is True
+          and cm.get("gray") == [30.0, 60.0, 10.0, 5.0] and cm.get("red") == cm.get("gray"), cm)
     variantes(s, reg)
     return fixtures
 
@@ -199,43 +203,43 @@ def variantes(s, reg):
         a = calque(s, lid)["adjustment"]
         s.appeler("engine.execute", {"command": "layer.delete", "params": {"layer": lid}})
         return a
-    a = cree("selectiveColor", {"method": "absolute", "reds": {"cyan": 10, "magenta": 0, "yellow": -5, "black": 0}})
-    check("2a selectiveColor `reds` en OBJET : accepté puis ignoré en silence (tout à zéro) — il faut un tableau [c,m,y,k]",
-          a["SelectiveColor"]["adjustments"][0] == [0.0, 0.0, 0.0, 0.0], a)
-    a = cree("selectiveColor", {"colors": "blues", "cyan": 10, "yellow": -5, "black": 3})
-    check("2b selectiveColor forme plate {colors, cyan, …} : écrit la gamme visée (blues = index 4), relative reste vrai",
-          a["SelectiveColor"]["adjustments"][4] == [10.0, 0.0, -5.0, 3.0] and a["SelectiveColor"]["relative"] is True, a)
+    try:
+        cree("selectiveColor", {"method": "absolute", "reds": {"cyan": 10, "magenta": 0, "yellow": -5, "black": 0}})
+        refus = None
+    except PM.MoteurErreur as e:
+        refus = str(e)
+    check("2a selectiveColor `reds` en OBJET : 0.10 le REFUSE (0.3.0 l'ignorait en silence) — il faut [c,m,y,k]",
+          refus is not None and "array of 4" in refus, refus)
+    a = cree("selectiveColor", {"colors": "blues", "cyan": 10, "yellow": -5, "black": 3})["params"]
+    check("2b selectiveColor forme plate {colors, cyan, …} : écrit la gamme visée (blues), méthode relative",
+          a["blues"] == [10.0, 0.0, -5.0, 3.0] and a["method"] == "relative", a)
     # Le registre ne décrit que `reds` en clé (les huit autres gammes sont dans sa note) : la liste blanche du pont les
     # ajoute (photolab_registre.GAMMES_SELECTIVE) puisque le moteur les accepte.
     p9 = {"method": "absolute", "reds": [1, 0, 0, 0], "blues": [0, 5, 0, -8], "neutrals": [1, 2, 3, 4]}
     adm, msg = admise(reg, "layer.newAdjustmentLayer.selectiveColor", p9)
-    a = cree("selectiveColor", p9)
-    check("2b2 selectiveColor : le MOTEUR accepte les gammes en tableau (blues index 4, neutrals index 7)",
-          a["SelectiveColor"]["adjustments"][4] == [0.0, 5.0, 0.0, -8.0]
-          and a["SelectiveColor"]["adjustments"][7] == [1.0, 2.0, 3.0, 4.0], a)
+    a = cree("selectiveColor", p9)["params"]
+    check("2b2 selectiveColor : le MOTEUR accepte les gammes en tableau (blues, neutrals)",
+          a["blues"] == [0.0, 5.0, 0.0, -8.0] and a["neutrals"] == [1.0, 2.0, 3.0, 4.0], a)
     check("2b3 et la liste blanche du pont les admet aussi (schémas du registre complétés)", adm, msg)
     adm, msg = admise(reg, "layer.newAdjustmentLayer.selectiveColor", {"reds": {"cyan": 10}})
     check("2b4 …mais refuse `reds` en objet, que le moteur ignorerait en silence", not adm, msg)
-    a = cree("gradientMap", {"stops": [[0, [16, 16, 48]], [1, [255, 240, 176]]]})
-    check("2c gradientMap stops en triplets [r,g,b] : accepté puis BLANC (couleurs fausses) — il faut \"#rrggbb\"",
-          all(st[1] == [1.0, 1.0, 1.0] for st in a["GradientMap"]["stops"]), a)
-    a = cree("blackWhite", {"reds": 50})
-    check("2d blackWhite sans teinte : tint null, poids par défaut 60/40/60/20/80 pour les autres",
-          a["BlackWhite"]["tint"] is None and a["BlackWhite"]["weights"] == [50.0, 60.0, 40.0, 60.0, 20.0, 80.0], a)
-    a = cree("channelMixer", {"monochrome": True, "gray": [30, 60, 10, 5]})
-    m = a["ChannelMixer"]
-    check("2e channelMixer monochrome : `gray` est la ligne matrix[0] (÷100), les deux autres lignes restent l'identité",
-          m["monochrome"] is True and [round(v * 100) for v in m["matrix"][0]] == [30, 60, 10, 5]
-          and m["matrix"][1] == [0.0, 1.0, 0.0, 0.0] and m["matrix"][2] == [0.0, 0.0, 1.0, 0.0], a)
-    a = cree("hueSaturation", {"colorize": True, "hue": 200, "saturation": 40, "lightness": -5})
-    h = a["HueSaturation"]
+    a = cree("gradientMap", {"stops": [[0, [16, 16, 48]], [1, [255, 240, 176]]]})["params"]
+    check("2c gradientMap stops en triplets [r,g,b] : toujours accepté puis BLANC en 0.10 — il faut des « #rrggbb »",
+          all(st[1] == "#ffffff" for st in a["stops"]), a)
+    a = cree("blackWhite", {"reds": 50})["params"]
+    check("2d blackWhite sans teinte : tint faux, poids par défaut 60/40/60/20/80 pour les autres",
+          a["tint"] is False and [a[g] for g in ("reds", "yellows", "greens", "cyans", "blues", "magentas")]
+          == [50.0, 60.0, 40.0, 60.0, 20.0, 80.0], a)
+    a = cree("channelMixer", {"monochrome": True, "gray": [30, 60, 10, 5]})["params"]
+    check("2e channelMixer monochrome : `gray` = ligne rouge, les deux autres lignes restent l'identité",
+          a["monochrome"] is True and a["gray"] == [30.0, 60.0, 10.0, 5.0] and a["red"] == a["gray"]
+          and a["green"] == [0.0, 100.0, 0.0, 0.0] and a["blue"] == [0.0, 0.0, 100.0, 0.0], a)
+    a = cree("hueSaturation", {"colorize": True, "hue": 200, "saturation": 40, "lightness": -5})["params"]
     check("2f hueSaturation colorize : hue 0..360 et saturation 0..100 tels quels dans l'état",
-          h["colorize"] is True and h["hue"] == 200.0 and h["saturation"] == 40.0 and h["lightness"] == -5.0, a)
-    a = cree("photoFilter", {"color": "#aa5522", "density": 33})
-    pf = a["PhotoFilter"]
-    check("2g photoFilter avec `color` : couleur/255 (f32) et densité/100 ; preserve_luminosity vrai par défaut",
-          [round(v * 255) for v in pf["color"]] == [0xaa, 0x55, 0x22] and abs(pf["density"] - 0.33) < 1e-6
-          and pf["preserve_luminosity"] is True, a)
+          a["colorize"] is True and a["hue"] == 200.0 and a["saturation"] == 40.0 and a["lightness"] == -5.0, a)
+    a = cree("photoFilter", {"color": "#aa5522", "density": 33})["params"]
+    check("2g photoFilter avec `color` : la couleur en hex, la densité en %, preserveLuminosity vrai par défaut",
+          a == {"color": "#aa5522", "density": 33.0, "preserveLuminosity": True}, a)
 
 
 def ecrire_ou_comparer(fixtures):

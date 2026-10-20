@@ -231,8 +231,11 @@ if ($gpZip -and (Test-Path $gpZip)) {
 # de build : vendor_photocraft.py le telecharge depuis la release officielle et verifie l'archive. Puis l'arbre
 # PREPARE est verifie fichier par fichier (rien d'altere, de manquant ni d'ajoute) et le moteur ne doit dependre
 # d'aucun runtime Visual C++ (la 0.3.0 n'en a pas besoin : aucun redistribuable n'est pose). Ecart = build arrete.
-$pcSrc = Join-Path $AppDir "vendor\photocraft-0.3.0"
-$pcStage = Join-Path $stageApp "vendor\photocraft-0.3.0"
+# t250 : la version vient du manifeste (une montee de moteur ne change que vendor\photocraft.json).
+$pcVersion = (Get-Content (Join-Path $AppDir "vendor\photocraft.json") -Raw -Encoding UTF8 | ConvertFrom-Json).version
+if (-not $pcVersion) { throw "vendor\photocraft.json : version absente" }
+$pcSrc = Join-Path $AppDir "vendor\photocraft-$pcVersion"
+$pcStage = Join-Path $stageApp "vendor\photocraft-$pcVersion"
 if (-not (Test-Path $pcSrc)) {
     Write-Host "photocraft absent du poste : release officielle (vendor_photocraft.py)" -ForegroundColor Cyan
     & $buildPy (Join-Path $AppDir "scripts\vendor_photocraft.py")
@@ -251,7 +254,7 @@ robocopy (Join-Path $AppDir "vendor\licences-photocraft") (Join-Path $stageApp "
 if ($LASTEXITCODE -ge 8) { throw "robocopy licences-photocraft failed ($LASTEXITCODE)" }
 & $buildPy (Join-Path $AppDir "scripts\verifier_vendor.py") $pcStage
 if ($LASTEXITCODE -ne 0) { throw "photocraft : l'arbre prepare n'est pas conforme au manifeste (voir ECART ci-dessus)" }
-Write-Host "  photocraft 0.3.0 verifie dans app\vendor (+ NOTICE et licences)" -ForegroundColor Green
+Write-Host "  photocraft $pcVersion verifie dans app\vendor (+ NOTICE et licences)" -ForegroundColor Green
 
 # ---- 4d. chrome-headless-shell : le navigateur du rendu motion code (19/10) --
 # Epingle dans vendor\chrome-headless-shell.json (version CfT, archive officielle, sha256, langues fr + en-US, et

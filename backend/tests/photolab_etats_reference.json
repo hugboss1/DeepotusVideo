@@ -1,0 +1,2745 @@
+{
+ "_source": "photocraft_commandes_0.3.0.json + écran d'origin/main (t250, 20/10/2026)",
+ "entrees": {
+  "file.new": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.open": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.openAs": {
+   "etat": "bientot",
+   "chemin": "Fichier"
+  },
+  "file.close": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.closeAll": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.closeOthers": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.save": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.saveAs": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.saveACopy": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.revert": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "pl.envoyer": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "pl.natif.ouvrir": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "pl.natif.reprendre": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.export.quickExportAsPng": {
+   "etat": "actif",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.exportAs": {
+   "etat": "actif",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.exportPreferences": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.saveForWebLegacy": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.artboardsToFiles": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.artboardsToPdf": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.layersToFiles": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.layerCompsToFiles": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.colorLookupTables": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.dataSetsAsFiles": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.pathsToIllustrator": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.export.renderVideo": {
+   "etat": "bientot",
+   "chemin": "Fichier › Exporter"
+  },
+  "file.generate.imageAssets": {
+   "etat": "bientot",
+   "chemin": "Fichier › Générer"
+  },
+  "file.placeEmbedded": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.placeLinked": {
+   "etat": "bientot",
+   "chemin": "Fichier"
+  },
+  "file.package": {
+   "etat": "bientot",
+   "chemin": "Fichier"
+  },
+  "file.automate.batch": {
+   "etat": "bientot",
+   "chemin": "Fichier › Automatisation"
+  },
+  "file.automate.createDroplet": {
+   "etat": "bientot",
+   "chemin": "Fichier › Automatisation"
+  },
+  "file.automate.cropAndStraightenPhotos": {
+   "etat": "bientot",
+   "chemin": "Fichier › Automatisation"
+  },
+  "file.automate.contactSheetII": {
+   "etat": "bientot",
+   "chemin": "Fichier › Automatisation"
+  },
+  "file.automate.conditionalModeChange": {
+   "etat": "bientot",
+   "chemin": "Fichier › Automatisation"
+  },
+  "file.automate.fitImage": {
+   "etat": "bientot",
+   "chemin": "Fichier › Automatisation"
+  },
+  "file.automate.lensCorrection": {
+   "etat": "bientot",
+   "chemin": "Fichier › Automatisation"
+  },
+  "file.automate.mergeToHdrPro": {
+   "etat": "bientot",
+   "chemin": "Fichier › Automatisation"
+  },
+  "file.automate.photomerge": {
+   "etat": "bientot",
+   "chemin": "Fichier › Automatisation"
+  },
+  "file.scripts.imageProcessor": {
+   "etat": "bientot",
+   "chemin": "Fichier › Scripts"
+  },
+  "file.scripts.deleteAllEmptyLayers": {
+   "etat": "bientot",
+   "chemin": "Fichier › Scripts"
+  },
+  "file.scripts.flattenAllLayerEffects": {
+   "etat": "bientot",
+   "chemin": "Fichier › Scripts"
+  },
+  "file.scripts.flattenAllMasks": {
+   "etat": "bientot",
+   "chemin": "Fichier › Scripts"
+  },
+  "file.scripts.scriptEventsManager": {
+   "etat": "bientot",
+   "chemin": "Fichier › Scripts"
+  },
+  "file.scripts.loadFilesIntoStack": {
+   "etat": "bientot",
+   "chemin": "Fichier › Scripts"
+  },
+  "file.scripts.statistics": {
+   "etat": "bientot",
+   "chemin": "Fichier › Scripts"
+  },
+  "file.scripts.browse": {
+   "etat": "bientot",
+   "chemin": "Fichier › Scripts"
+  },
+  "file.import.variableDataSets": {
+   "etat": "bientot",
+   "chemin": "Fichier › Importer"
+  },
+  "file.import.videoFramesToLayers": {
+   "etat": "bientot",
+   "chemin": "Fichier › Importer"
+  },
+  "file.import.notes": {
+   "etat": "actif",
+   "chemin": "Fichier › Importer"
+  },
+  "file.import.wiaSupport": {
+   "etat": "bientot",
+   "chemin": "Fichier › Importer"
+  },
+  "file.fileInfo": {
+   "etat": "actif",
+   "chemin": "Fichier"
+  },
+  "file.print": {
+   "etat": "bientot",
+   "chemin": "Fichier"
+  },
+  "file.printOneCopy": {
+   "etat": "bientot",
+   "chemin": "Fichier"
+  },
+  "file.exit": {
+   "etat": "bientot",
+   "chemin": "Fichier"
+  },
+  "edit.undo": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.redo": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.toggleLastState": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.fade": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.cut": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.copy": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.copyMerged": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.paste": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.pasteSpecial.pasteInPlace": {
+   "etat": "inactif",
+   "chemin": "Édition › Collage spécial"
+  },
+  "edit.pasteSpecial.pasteInto": {
+   "etat": "inactif",
+   "chemin": "Édition › Collage spécial"
+  },
+  "edit.pasteSpecial.pasteOutside": {
+   "etat": "inactif",
+   "chemin": "Édition › Collage spécial"
+  },
+  "edit.clear": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.search": {
+   "etat": "actif",
+   "chemin": "Édition"
+  },
+  "edit.checkSpelling": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.findAndReplaceText": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.fill": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.stroke": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.contentAwareFill": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.contentAwareScale": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.puppetWarp": {
+   "etat": "bientot",
+   "chemin": "Édition"
+  },
+  "edit.perspectiveWarp": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.freeTransform": {
+   "etat": "actif",
+   "chemin": "Édition"
+  },
+  "edit.transform.again": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.scale": {
+   "etat": "actif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.rotate": {
+   "etat": "actif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.skew": {
+   "etat": "actif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.distort": {
+   "etat": "actif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.perspective": {
+   "etat": "actif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.warp": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.splitWarpHorizontally": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.splitWarpVertically": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.splitWarpCrosswise": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.removeWarpSplit": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.rotate180": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.rotate90Cw": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.rotate90Ccw": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.flipHorizontal": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.transform.flipVertical": {
+   "etat": "inactif",
+   "chemin": "Édition › Transformation"
+  },
+  "edit.autoAlignLayers": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.autoBlendLayers": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.defineBrushPreset": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.definePattern": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.defineCustomShape": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.purge.undo": {
+   "etat": "inactif",
+   "chemin": "Édition › Purger"
+  },
+  "edit.purge.clipboard": {
+   "etat": "inactif",
+   "chemin": "Édition › Purger"
+  },
+  "edit.purge.histories": {
+   "etat": "inactif",
+   "chemin": "Édition › Purger"
+  },
+  "edit.purge.videoCache": {
+   "etat": "actif",
+   "chemin": "Édition › Purger"
+  },
+  "edit.purge.all": {
+   "etat": "inactif",
+   "chemin": "Édition › Purger"
+  },
+  "edit.presets.presetManager": {
+   "etat": "actif",
+   "chemin": "Édition › Préréglages"
+  },
+  "edit.presets.migratePresets": {
+   "etat": "bientot",
+   "chemin": "Édition › Préréglages"
+  },
+  "edit.presets.exportImportPresets": {
+   "etat": "actif",
+   "chemin": "Édition › Préréglages"
+  },
+  "edit.colorSettings": {
+   "etat": "actif",
+   "chemin": "Édition"
+  },
+  "edit.assignProfile": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.convertToProfile": {
+   "etat": "inactif",
+   "chemin": "Édition"
+  },
+  "edit.keyboardShortcuts": {
+   "etat": "actif",
+   "chemin": "Édition"
+  },
+  "edit.menus": {
+   "etat": "actif",
+   "chemin": "Édition"
+  },
+  "edit.toolbar": {
+   "etat": "actif",
+   "chemin": "Édition"
+  },
+  "edit.preferences.general": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.integrations": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.interface": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.workspace": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.tools": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.historyLog": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.fileHandling": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.export": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.performance": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.scratchDisks": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.cursors": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.transparencyAndGamut": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.unitsAndRulers": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.guidesGridAndSlices": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.plugIns": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.type": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.enhancedControls": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "edit.preferences.rawDefaults": {
+   "etat": "actif",
+   "chemin": "Édition › Préférences"
+  },
+  "image.mode.bitmap": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.grayscale": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.duotone": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.indexedColor": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.rgb": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.cmyk": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.lab": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.multichannel": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.bits8": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.bits16": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.bits32": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.mode.colorTable": {
+   "etat": "inactif",
+   "chemin": "Image › Mode"
+  },
+  "image.adjustments.brightnessContrast": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.levels": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.curves": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.exposure": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.vibrance": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.hueSaturation": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.colorBalance": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.blackWhite": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.photoFilter": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.channelMixer": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.colorLookup": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.invert": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.posterize": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.threshold": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.gradientMap": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.selectiveColor": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.shadowsHighlights": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.hdrToning": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.desaturate": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.matchColor": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.replaceColor": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.adjustments.equalize": {
+   "etat": "inactif",
+   "chemin": "Image › Ajustements"
+  },
+  "image.autoTone": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.autoContrast": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.autoColor": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.imageSize": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.canvasSize": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.imageRotation.180": {
+   "etat": "inactif",
+   "chemin": "Image › Rotation de l'image"
+  },
+  "image.imageRotation.90cw": {
+   "etat": "inactif",
+   "chemin": "Image › Rotation de l'image"
+  },
+  "image.imageRotation.90ccw": {
+   "etat": "inactif",
+   "chemin": "Image › Rotation de l'image"
+  },
+  "image.rotation.arbitrary": {
+   "etat": "inactif",
+   "chemin": "Image › Rotation de l'image"
+  },
+  "image.imageRotation.flipCanvasHorizontal": {
+   "etat": "inactif",
+   "chemin": "Image › Rotation de l'image"
+  },
+  "image.imageRotation.flipCanvasVertical": {
+   "etat": "inactif",
+   "chemin": "Image › Rotation de l'image"
+  },
+  "image.crop": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.trim": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.revealAll": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.duplicate": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.applyImage": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.calculations": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.variables.define": {
+   "etat": "inactif",
+   "chemin": "Image › Variables"
+  },
+  "image.variables.dataSets": {
+   "etat": "inactif",
+   "chemin": "Image › Variables"
+  },
+  "image.applyDataSet": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.trap": {
+   "etat": "inactif",
+   "chemin": "Image"
+  },
+  "image.analysis.setMeasurementScale": {
+   "etat": "inactif",
+   "chemin": "Image › Analyse"
+  },
+  "image.analysis.selectDataPoints": {
+   "etat": "actif",
+   "chemin": "Image › Analyse"
+  },
+  "image.analysis.recordMeasurements": {
+   "etat": "inactif",
+   "chemin": "Image › Analyse"
+  },
+  "image.analysis.rulerTool": {
+   "etat": "inactif",
+   "chemin": "Image › Analyse"
+  },
+  "image.analysis.countTool": {
+   "etat": "inactif",
+   "chemin": "Image › Analyse"
+  },
+  "image.analysis.placeScaleMarker": {
+   "etat": "inactif",
+   "chemin": "Image › Analyse"
+  },
+  "layer.new.layer": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.new.layerFromBackground": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.new.group": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.new.groupFromLayers": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.new.artboard": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.new.artboardFromGroup": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.new.artboardFromLayers": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.new.frameFromLayers": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.new.layerViaCopy": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.new.layerViaCut": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau"
+  },
+  "layer.duplicate": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "pl.calque.ia": {
+   "etat": "actif",
+   "chemin": "Calque"
+  },
+  "pl.calque.detourer": {
+   "etat": "actif",
+   "chemin": "Calque"
+  },
+  "layer.delete": {
+   "etat": "inactif",
+   "chemin": "Calque › Supprimer"
+  },
+  "layer.delete.hiddenLayers": {
+   "etat": "inactif",
+   "chemin": "Calque › Supprimer"
+  },
+  "layer.quickExportAsPng": {
+   "etat": "actif",
+   "chemin": "Calque"
+  },
+  "layer.exportAs": {
+   "etat": "actif",
+   "chemin": "Calque"
+  },
+  "layer.renameLayer": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.layerStyle.blendingOptions": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.bevelEmboss": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.stroke": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.innerShadow": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.innerGlow": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.satin": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.colorOverlay": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.gradientOverlay": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.patternOverlay": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.outerGlow": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.dropShadow": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.copyLayerStyle": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.pasteLayerStyle": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.clear": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.globalLight": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.createLayer": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.hideAllEffects": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.layerStyle.scaleEffects": {
+   "etat": "inactif",
+   "chemin": "Calque › Style de calque"
+  },
+  "layer.smartFilter.disableSmartFilters": {
+   "etat": "inactif",
+   "chemin": "Calque › Filtre intelligent"
+  },
+  "layer.smartFilter.deleteFilterMask": {
+   "etat": "inactif",
+   "chemin": "Calque › Filtre intelligent"
+  },
+  "layer.smartFilter.disableFilterMask": {
+   "etat": "inactif",
+   "chemin": "Calque › Filtre intelligent"
+  },
+  "layer.smartFilter.blendingOptions": {
+   "etat": "inactif",
+   "chemin": "Calque › Filtre intelligent"
+  },
+  "layer.smartFilter.clearSmartFilters": {
+   "etat": "inactif",
+   "chemin": "Calque › Filtre intelligent"
+  },
+  "layer.newFillLayer.solidColor": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de remplissage"
+  },
+  "layer.newFillLayer.gradient": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de remplissage"
+  },
+  "layer.newFillLayer.pattern": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de remplissage"
+  },
+  "layer.newAdjustmentLayer.brightnessContrast": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.levels": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.curves": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.exposure": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.vibrance": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.hueSaturation": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.colorBalance": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.blackWhite": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.photoFilter": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.channelMixer": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.colorLookup": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.invert": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.posterize": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.threshold": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.gradientMap": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.newAdjustmentLayer.selectiveColor": {
+   "etat": "inactif",
+   "chemin": "Calque › Nouveau calque de réglage"
+  },
+  "layer.layerContentOptions": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.layerMask.revealAll": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque de calque"
+  },
+  "layer.layerMask.hideAll": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque de calque"
+  },
+  "layer.layerMask.revealSelection": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque de calque"
+  },
+  "layer.layerMask.hideSelection": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque de calque"
+  },
+  "layer.layerMask.fromTransparency": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque de calque"
+  },
+  "layer.layerMask.delete": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque de calque"
+  },
+  "layer.layerMask.apply": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque de calque"
+  },
+  "layer.layerMask.enabled": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque de calque"
+  },
+  "layer.layerMask.linked": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque de calque"
+  },
+  "layer.maskAllObjects": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.vectorMask.revealAll": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque vectoriel"
+  },
+  "layer.vectorMask.hideAll": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque vectoriel"
+  },
+  "layer.vectorMask.currentPath": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque vectoriel"
+  },
+  "layer.vectorMask.delete": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque vectoriel"
+  },
+  "layer.vectorMask.enabled": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque vectoriel"
+  },
+  "layer.vectorMask.linked": {
+   "etat": "inactif",
+   "chemin": "Calque › Masque vectoriel"
+  },
+  "layer.createClippingMask": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.smartObjects.convertToSmartObject": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.newSmartObjectViaCopy": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.revealInFinder": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.updateModifiedContent": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.updateAllModifiedContent": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.editContents": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.relinkToFile": {
+   "etat": "bientot",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.replaceContents": {
+   "etat": "bientot",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.exportContents": {
+   "etat": "bientot",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.convertToLinked": {
+   "etat": "bientot",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.convertToEmbedded": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.stackMode.entropy": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.kurtosis": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.maximum": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.mean": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.median": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.minimum": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.range": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.skewness": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.standardDeviation": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.summation": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.stackMode.variance": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents › Mode de pile"
+  },
+  "layer.smartObjects.rasterize": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.warp": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.perspectiveWarp": {
+   "etat": "inactif",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.smartObjects.puppetWarp": {
+   "etat": "bientot",
+   "chemin": "Calque › Objets intelligents"
+  },
+  "layer.videoLayers.newBlankVideoLayer": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.newVideoLayerFromFile": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.insertBlankFrame": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.duplicateFrame": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.deleteFrame": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.replaceFootage": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.interpretFootage": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.showAlteredVideo": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.restoreFrame": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.restoreAllFrames": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.reloadFrame": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.videoLayers.rasterize": {
+   "etat": "inactif",
+   "chemin": "Calque › Calques vidéo"
+  },
+  "layer.rasterize.type": {
+   "etat": "inactif",
+   "chemin": "Calque › Rastériser"
+  },
+  "layer.rasterize.shape": {
+   "etat": "inactif",
+   "chemin": "Calque › Rastériser"
+  },
+  "layer.rasterize.fillContent": {
+   "etat": "inactif",
+   "chemin": "Calque › Rastériser"
+  },
+  "layer.rasterize.vectorMask": {
+   "etat": "inactif",
+   "chemin": "Calque › Rastériser"
+  },
+  "layer.rasterize.smartObject": {
+   "etat": "inactif",
+   "chemin": "Calque › Rastériser"
+  },
+  "layer.rasterize.video": {
+   "etat": "inactif",
+   "chemin": "Calque › Rastériser"
+  },
+  "layer.rasterize.layer": {
+   "etat": "inactif",
+   "chemin": "Calque › Rastériser"
+  },
+  "layer.rasterize.allLayers": {
+   "etat": "inactif",
+   "chemin": "Calque › Rastériser"
+  },
+  "layer.newLayerBasedSlice": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.groupLayers": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.ungroupLayers": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.hideLayers": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.arrange.bringToFront": {
+   "etat": "inactif",
+   "chemin": "Calque › Organiser"
+  },
+  "layer.arrange.bringForward": {
+   "etat": "inactif",
+   "chemin": "Calque › Organiser"
+  },
+  "layer.arrange.sendBackward": {
+   "etat": "inactif",
+   "chemin": "Calque › Organiser"
+  },
+  "layer.arrange.sendToBack": {
+   "etat": "inactif",
+   "chemin": "Calque › Organiser"
+  },
+  "layer.arrange.reverse": {
+   "etat": "inactif",
+   "chemin": "Calque › Organiser"
+  },
+  "layer.combineShapes.unite": {
+   "etat": "inactif",
+   "chemin": "Calque › Combiner les formes"
+  },
+  "layer.combineShapes.subtractFrontShape": {
+   "etat": "inactif",
+   "chemin": "Calque › Combiner les formes"
+  },
+  "layer.combineShapes.intersectShapeAreas": {
+   "etat": "inactif",
+   "chemin": "Calque › Combiner les formes"
+  },
+  "layer.combineShapes.excludeOverlappingShapes": {
+   "etat": "inactif",
+   "chemin": "Calque › Combiner les formes"
+  },
+  "layer.combineShapes.mergeShapeComponents": {
+   "etat": "inactif",
+   "chemin": "Calque › Combiner les formes"
+  },
+  "layer.align.topEdges": {
+   "etat": "inactif",
+   "chemin": "Calque › Aligner"
+  },
+  "layer.align.verticalCenters": {
+   "etat": "inactif",
+   "chemin": "Calque › Aligner"
+  },
+  "layer.align.bottomEdges": {
+   "etat": "inactif",
+   "chemin": "Calque › Aligner"
+  },
+  "layer.align.leftEdges": {
+   "etat": "inactif",
+   "chemin": "Calque › Aligner"
+  },
+  "layer.align.horizontalCenters": {
+   "etat": "inactif",
+   "chemin": "Calque › Aligner"
+  },
+  "layer.align.rightEdges": {
+   "etat": "inactif",
+   "chemin": "Calque › Aligner"
+  },
+  "layer.distribute.topEdges": {
+   "etat": "inactif",
+   "chemin": "Calque › Répartir"
+  },
+  "layer.distribute.verticalCenters": {
+   "etat": "inactif",
+   "chemin": "Calque › Répartir"
+  },
+  "layer.distribute.bottomEdges": {
+   "etat": "inactif",
+   "chemin": "Calque › Répartir"
+  },
+  "layer.distribute.leftEdges": {
+   "etat": "inactif",
+   "chemin": "Calque › Répartir"
+  },
+  "layer.distribute.horizontalCenters": {
+   "etat": "inactif",
+   "chemin": "Calque › Répartir"
+  },
+  "layer.distribute.rightEdges": {
+   "etat": "inactif",
+   "chemin": "Calque › Répartir"
+  },
+  "layer.distribute.horizontally": {
+   "etat": "inactif",
+   "chemin": "Calque › Répartir"
+  },
+  "layer.distribute.vertically": {
+   "etat": "inactif",
+   "chemin": "Calque › Répartir"
+  },
+  "layer.lockLayers": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.linkLayers": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.selectLinkedLayers": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.mergeLayers": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.mergeVisible": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.flattenImage": {
+   "etat": "inactif",
+   "chemin": "Calque"
+  },
+  "layer.matting.colorDecontaminate": {
+   "etat": "inactif",
+   "chemin": "Calque › Détourage"
+  },
+  "layer.matting.defringe": {
+   "etat": "inactif",
+   "chemin": "Calque › Détourage"
+  },
+  "layer.matting.removeBlackMatte": {
+   "etat": "inactif",
+   "chemin": "Calque › Détourage"
+  },
+  "layer.matting.removeWhiteMatte": {
+   "etat": "inactif",
+   "chemin": "Calque › Détourage"
+  },
+  "type.panels.character": {
+   "etat": "actif",
+   "chemin": "Texte › Panneaux"
+  },
+  "type.panels.paragraph": {
+   "etat": "actif",
+   "chemin": "Texte › Panneaux"
+  },
+  "type.panels.glyphs": {
+   "etat": "actif",
+   "chemin": "Texte › Panneaux"
+  },
+  "type.panels.characterStyles": {
+   "etat": "actif",
+   "chemin": "Texte › Panneaux"
+  },
+  "type.panels.paragraphStyles": {
+   "etat": "actif",
+   "chemin": "Texte › Panneaux"
+  },
+  "type.antiAlias.sharp": {
+   "etat": "inactif",
+   "chemin": "Texte › Lissage"
+  },
+  "type.antiAlias.crisp": {
+   "etat": "inactif",
+   "chemin": "Texte › Lissage"
+  },
+  "type.antiAlias.strong": {
+   "etat": "inactif",
+   "chemin": "Texte › Lissage"
+  },
+  "type.antiAlias.smooth": {
+   "etat": "inactif",
+   "chemin": "Texte › Lissage"
+  },
+  "type.antiAlias.windowsLcd": {
+   "etat": "inactif",
+   "chemin": "Texte › Lissage"
+  },
+  "type.antiAlias.windows": {
+   "etat": "inactif",
+   "chemin": "Texte › Lissage"
+  },
+  "type.orientation.horizontal": {
+   "etat": "inactif",
+   "chemin": "Texte › Orientation"
+  },
+  "type.orientation.vertical": {
+   "etat": "inactif",
+   "chemin": "Texte › Orientation"
+  },
+  "type.openType.standardLigatures": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.openType.contextualAlternates": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.openType.discretionaryLigatures": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.openType.swash": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.openType.oldstyle": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.openType.stylisticAlternates": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.openType.titlingAlternates": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.openType.ornaments": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.openType.ordinals": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.openType.fractions": {
+   "etat": "inactif",
+   "chemin": "Texte › OpenType"
+  },
+  "type.createWorkPath": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.convertToShape": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.rasterizeTypeLayer": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.convertToParagraphText": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.convertToPointText": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.warpText": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.fontPreviewSize.small": {
+   "etat": "actif",
+   "chemin": "Texte › Taille de l'aperçu des polices"
+  },
+  "type.fontPreviewSize.medium": {
+   "etat": "actif",
+   "chemin": "Texte › Taille de l'aperçu des polices"
+  },
+  "type.fontPreviewSize.large": {
+   "etat": "actif",
+   "chemin": "Texte › Taille de l'aperçu des polices"
+  },
+  "type.fontPreviewSize.extraLarge": {
+   "etat": "actif",
+   "chemin": "Texte › Taille de l'aperçu des polices"
+  },
+  "type.fontPreviewSize.huge": {
+   "etat": "actif",
+   "chemin": "Texte › Taille de l'aperçu des polices"
+  },
+  "type.languageOptions.defaultFeatures": {
+   "etat": "actif",
+   "chemin": "Texte › Options de langue"
+  },
+  "type.languageOptions.eastAsianFeatures": {
+   "etat": "actif",
+   "chemin": "Texte › Options de langue"
+  },
+  "type.languageOptions.middleEasternFeatures": {
+   "etat": "actif",
+   "chemin": "Texte › Options de langue"
+  },
+  "type.languageOptions.middleEasternAndSouthAsianComposer": {
+   "etat": "actif",
+   "chemin": "Texte › Options de langue"
+  },
+  "type.updateAllTextLayers": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.replaceAllMissingFonts": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.resolveMissingFonts": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.pasteLoremIpsum": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.loadDefaultTypeStyles": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "type.saveDefaultTypeStyles": {
+   "etat": "inactif",
+   "chemin": "Texte"
+  },
+  "select.all": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.deselect": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.reselect": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.inverse": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.convertToShape": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.allLayers": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.deselectLayers": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.findLayers": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.isolateLayers": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.colorRange": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.focusArea": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.subject": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.sky": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.selectAndMask": {
+   "etat": "actif",
+   "chemin": "Sélection"
+  },
+  "select.modify.border": {
+   "etat": "inactif",
+   "chemin": "Sélection › Modifier"
+  },
+  "select.modify.smooth": {
+   "etat": "inactif",
+   "chemin": "Sélection › Modifier"
+  },
+  "select.modify.expand": {
+   "etat": "inactif",
+   "chemin": "Sélection › Modifier"
+  },
+  "select.modify.contract": {
+   "etat": "inactif",
+   "chemin": "Sélection › Modifier"
+  },
+  "select.modify.feather": {
+   "etat": "inactif",
+   "chemin": "Sélection › Modifier"
+  },
+  "select.grow": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.similar": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.transformSelection": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.editInQuickMaskMode": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.loadSelection": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "select.saveSelection": {
+   "etat": "inactif",
+   "chemin": "Sélection"
+  },
+  "filter.lastFilter": {
+   "etat": "inactif",
+   "chemin": "Filtre"
+  },
+  "filter.convertForSmartFilters": {
+   "etat": "inactif",
+   "chemin": "Filtre"
+  },
+  "filter.filterGallery": {
+   "etat": "inactif",
+   "chemin": "Filtre"
+  },
+  "filter.cameraRaw": {
+   "etat": "bientot",
+   "chemin": "Filtre"
+  },
+  "filter.adaptiveWideAngle": {
+   "etat": "bientot",
+   "chemin": "Filtre"
+  },
+  "filter.lensCorrection": {
+   "etat": "inactif",
+   "chemin": "Filtre"
+  },
+  "filter.liquify": {
+   "etat": "bientot",
+   "chemin": "Filtre"
+  },
+  "filter.vanishingPoint": {
+   "etat": "bientot",
+   "chemin": "Filtre"
+  },
+  "filter.blur.average": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.blur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.blurMore": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.boxBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.gaussianBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.lensBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.motionBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.radialBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.shapeBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.smartBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blur.surfaceBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Flou"
+  },
+  "filter.blurGallery.fieldBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Galerie de flous"
+  },
+  "filter.blurGallery.irisBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Galerie de flous"
+  },
+  "filter.blurGallery.tiltShift": {
+   "etat": "inactif",
+   "chemin": "Filtre › Galerie de flous"
+  },
+  "filter.blurGallery.pathBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Galerie de flous"
+  },
+  "filter.blurGallery.spinBlur": {
+   "etat": "inactif",
+   "chemin": "Filtre › Galerie de flous"
+  },
+  "filter.distort.displace": {
+   "etat": "inactif",
+   "chemin": "Filtre › Déformation"
+  },
+  "filter.distort.pinch": {
+   "etat": "inactif",
+   "chemin": "Filtre › Déformation"
+  },
+  "filter.distort.polarCoordinates": {
+   "etat": "inactif",
+   "chemin": "Filtre › Déformation"
+  },
+  "filter.distort.ripple": {
+   "etat": "inactif",
+   "chemin": "Filtre › Déformation"
+  },
+  "filter.distort.shear": {
+   "etat": "inactif",
+   "chemin": "Filtre › Déformation"
+  },
+  "filter.distort.spherize": {
+   "etat": "inactif",
+   "chemin": "Filtre › Déformation"
+  },
+  "filter.distort.twirl": {
+   "etat": "inactif",
+   "chemin": "Filtre › Déformation"
+  },
+  "filter.distort.wave": {
+   "etat": "inactif",
+   "chemin": "Filtre › Déformation"
+  },
+  "filter.distort.zigZag": {
+   "etat": "inactif",
+   "chemin": "Filtre › Déformation"
+  },
+  "filter.noise.addNoise": {
+   "etat": "inactif",
+   "chemin": "Filtre › Bruit"
+  },
+  "filter.noise.despeckle": {
+   "etat": "inactif",
+   "chemin": "Filtre › Bruit"
+  },
+  "filter.noise.dustAndScratches": {
+   "etat": "inactif",
+   "chemin": "Filtre › Bruit"
+  },
+  "filter.noise.median": {
+   "etat": "inactif",
+   "chemin": "Filtre › Bruit"
+  },
+  "filter.noise.reduceNoise": {
+   "etat": "inactif",
+   "chemin": "Filtre › Bruit"
+  },
+  "filter.pixelate.colorHalftone": {
+   "etat": "inactif",
+   "chemin": "Filtre › Pixeliser"
+  },
+  "filter.pixelate.crystallize": {
+   "etat": "inactif",
+   "chemin": "Filtre › Pixeliser"
+  },
+  "filter.pixelate.facet": {
+   "etat": "inactif",
+   "chemin": "Filtre › Pixeliser"
+  },
+  "filter.pixelate.fragment": {
+   "etat": "inactif",
+   "chemin": "Filtre › Pixeliser"
+  },
+  "filter.pixelate.mezzotint": {
+   "etat": "inactif",
+   "chemin": "Filtre › Pixeliser"
+  },
+  "filter.pixelate.mosaic": {
+   "etat": "inactif",
+   "chemin": "Filtre › Pixeliser"
+  },
+  "filter.pixelate.pointillize": {
+   "etat": "inactif",
+   "chemin": "Filtre › Pixeliser"
+  },
+  "filter.render.flame": {
+   "etat": "inactif",
+   "chemin": "Filtre › Rendu"
+  },
+  "filter.render.pictureFrame": {
+   "etat": "inactif",
+   "chemin": "Filtre › Rendu"
+  },
+  "filter.render.tree": {
+   "etat": "inactif",
+   "chemin": "Filtre › Rendu"
+  },
+  "filter.render.clouds": {
+   "etat": "inactif",
+   "chemin": "Filtre › Rendu"
+  },
+  "filter.render.differenceClouds": {
+   "etat": "inactif",
+   "chemin": "Filtre › Rendu"
+  },
+  "filter.render.fibers": {
+   "etat": "inactif",
+   "chemin": "Filtre › Rendu"
+  },
+  "filter.render.lensFlare": {
+   "etat": "inactif",
+   "chemin": "Filtre › Rendu"
+  },
+  "filter.render.lightingEffects": {
+   "etat": "inactif",
+   "chemin": "Filtre › Rendu"
+  },
+  "filter.sharpen.sharpen": {
+   "etat": "inactif",
+   "chemin": "Filtre › Netteté"
+  },
+  "filter.sharpen.sharpenEdges": {
+   "etat": "inactif",
+   "chemin": "Filtre › Netteté"
+  },
+  "filter.sharpen.sharpenMore": {
+   "etat": "inactif",
+   "chemin": "Filtre › Netteté"
+  },
+  "filter.sharpen.smartSharpen": {
+   "etat": "inactif",
+   "chemin": "Filtre › Netteté"
+  },
+  "filter.sharpen.unsharpMask": {
+   "etat": "inactif",
+   "chemin": "Filtre › Netteté"
+  },
+  "filter.stylize.diffuse": {
+   "etat": "inactif",
+   "chemin": "Filtre › Styliser"
+  },
+  "filter.stylize.emboss": {
+   "etat": "inactif",
+   "chemin": "Filtre › Styliser"
+  },
+  "filter.stylize.extrude": {
+   "etat": "inactif",
+   "chemin": "Filtre › Styliser"
+  },
+  "filter.stylize.findEdges": {
+   "etat": "inactif",
+   "chemin": "Filtre › Styliser"
+  },
+  "filter.stylize.oilPaint": {
+   "etat": "inactif",
+   "chemin": "Filtre › Styliser"
+  },
+  "filter.stylize.solarize": {
+   "etat": "inactif",
+   "chemin": "Filtre › Styliser"
+  },
+  "filter.stylize.tiles": {
+   "etat": "inactif",
+   "chemin": "Filtre › Styliser"
+  },
+  "filter.stylize.traceContour": {
+   "etat": "inactif",
+   "chemin": "Filtre › Styliser"
+  },
+  "filter.stylize.wind": {
+   "etat": "inactif",
+   "chemin": "Filtre › Styliser"
+  },
+  "filter.video.deInterlace": {
+   "etat": "inactif",
+   "chemin": "Filtre › Vidéo"
+  },
+  "filter.video.ntscColors": {
+   "etat": "inactif",
+   "chemin": "Filtre › Vidéo"
+  },
+  "filter.other.custom": {
+   "etat": "bientot",
+   "chemin": "Filtre › Autre…"
+  },
+  "filter.other.hsbHsl": {
+   "etat": "inactif",
+   "chemin": "Filtre › Autre…"
+  },
+  "filter.other.highPass": {
+   "etat": "inactif",
+   "chemin": "Filtre › Autre…"
+  },
+  "filter.other.maximum": {
+   "etat": "inactif",
+   "chemin": "Filtre › Autre…"
+  },
+  "filter.other.minimum": {
+   "etat": "inactif",
+   "chemin": "Filtre › Autre…"
+  },
+  "filter.other.offset": {
+   "etat": "inactif",
+   "chemin": "Filtre › Autre…"
+  },
+  "view.proofSetup.custom": {
+   "etat": "bientot",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.workingCmyk": {
+   "etat": "bientot",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.workingCyanPlate": {
+   "etat": "inactif",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.workingMagentaPlate": {
+   "etat": "inactif",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.workingYellowPlate": {
+   "etat": "inactif",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.workingBlackPlate": {
+   "etat": "inactif",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.workingCmyPlate": {
+   "etat": "inactif",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.legacyMacintoshRgb": {
+   "etat": "inactif",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.internetStandardRgb": {
+   "etat": "bientot",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.monitorRgb": {
+   "etat": "bientot",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.colorBlindnessProtanopia": {
+   "etat": "inactif",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofSetup.colorBlindnessDeuteranopia": {
+   "etat": "inactif",
+   "chemin": "Affichage › Configuration d'épreuve"
+  },
+  "view.proofColors": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.gamutWarning": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.pixelAspectRatio.custom": {
+   "etat": "bientot",
+   "chemin": "Affichage › Format des pixels"
+  },
+  "view.pixelAspectRatio.square": {
+   "etat": "bientot",
+   "chemin": "Affichage › Format des pixels"
+  },
+  "view.pixelAspectRatio.d1DvNtsc": {
+   "etat": "bientot",
+   "chemin": "Affichage › Format des pixels"
+  },
+  "view.pixelAspectRatio.d1DvPal": {
+   "etat": "bientot",
+   "chemin": "Affichage › Format des pixels"
+  },
+  "view.pixelAspectRatio.d1DvNtscWidescreen": {
+   "etat": "bientot",
+   "chemin": "Affichage › Format des pixels"
+  },
+  "view.pixelAspectRatio.hdv1080": {
+   "etat": "bientot",
+   "chemin": "Affichage › Format des pixels"
+  },
+  "view.pixelAspectRatio.d1DvPalWidescreen": {
+   "etat": "bientot",
+   "chemin": "Affichage › Format des pixels"
+  },
+  "view.pixelAspectRatio.dvcproHd1080": {
+   "etat": "bientot",
+   "chemin": "Affichage › Format des pixels"
+  },
+  "view.pixelAspectRatio.anamorphic2To1": {
+   "etat": "bientot",
+   "chemin": "Affichage › Format des pixels"
+  },
+  "view.pixelAspectRatioCorrection": {
+   "etat": "bientot",
+   "chemin": "Affichage"
+  },
+  "view.thirtyTwoBitPreviewOptions": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.zoomIn": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.zoomOut": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.fitOnScreen": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.fitLayersOnScreen": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.fitArtboardOnScreen": {
+   "etat": "bientot",
+   "chemin": "Affichage"
+  },
+  "view.actualPixels": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.twoHundredPercent": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.printSize": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.flipHorizontal": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.screenMode.standard": {
+   "etat": "actif",
+   "chemin": "Affichage › Mode d'écran"
+  },
+  "view.screenMode.fullScreenWithMenuBar": {
+   "etat": "actif",
+   "chemin": "Affichage › Mode d'écran"
+  },
+  "view.screenMode.fullScreen": {
+   "etat": "actif",
+   "chemin": "Affichage › Mode d'écran"
+  },
+  "view.extras": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.show.layerEdges": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.selectionEdges": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.targetPath": {
+   "etat": "bientot",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.grid": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.guides": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.canvasGuides": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.artboardGuides": {
+   "etat": "bientot",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.count": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.smartGuides": {
+   "etat": "bientot",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.slices": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.notes": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.pixelGrid": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.brushPreview": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.mesh": {
+   "etat": "bientot",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.editPins": {
+   "etat": "bientot",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.all": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.show.showExtrasOptions": {
+   "etat": "actif",
+   "chemin": "Affichage › Afficher"
+  },
+  "view.rulers": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.snap": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.snapTo.guides": {
+   "etat": "actif",
+   "chemin": "Affichage › Aimanter à"
+  },
+  "view.snapTo.grid": {
+   "etat": "actif",
+   "chemin": "Affichage › Aimanter à"
+  },
+  "view.snapTo.layers": {
+   "etat": "actif",
+   "chemin": "Affichage › Aimanter à"
+  },
+  "view.snapTo.slices": {
+   "etat": "actif",
+   "chemin": "Affichage › Aimanter à"
+  },
+  "view.snapTo.documentBounds": {
+   "etat": "actif",
+   "chemin": "Affichage › Aimanter à"
+  },
+  "view.snapTo.all": {
+   "etat": "actif",
+   "chemin": "Affichage › Aimanter à"
+  },
+  "view.lockGuides": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "view.clearGuides": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.clearSelectedArtboardGuides": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.clearCanvasGuides": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.newGuide": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.newGuideLayout": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.newGuidesFromShape": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.lockSlices": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.clearSlices": {
+   "etat": "inactif",
+   "chemin": "Affichage"
+  },
+  "view.patternPreview": {
+   "etat": "bientot",
+   "chemin": "Affichage"
+  },
+  "view.pixelArtPreview": {
+   "etat": "actif",
+   "chemin": "Affichage"
+  },
+  "window.arrange.tileAllVertically": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.tileAllHorizontally": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.twoUpVertical": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.twoUpHorizontal": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.threeUpVertical": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.threeUpHorizontal": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.threeUpStacked": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.fourUp": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.sixUp": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.consolidateAllToTabs": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.cascade": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.tile": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.floatInWindow": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.floatAllInWindows": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.newWindowForDocument": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.matchZoom": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.matchLocation": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.matchRotation": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.arrange.matchAll": {
+   "etat": "bientot",
+   "chemin": "Fenêtre › Organiser"
+  },
+  "window.workspace.essentials": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.workspace.photography": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.workspace.painting": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.workspace.pixelArt": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.workspace.graphicAndWeb": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.workspace.motion": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.workspace.resetWorkspace": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.workspace.newWorkspace": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.workspace.deleteWorkspace": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.workspace.lockWorkspace": {
+   "etat": "actif",
+   "chemin": "Fenêtre › Espace de travail"
+  },
+  "window.panel.actions": {
+   "etat": "bientot",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.adjustments": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.brushSettings": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.brushes": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.channels": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.character": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.characterStyles": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.cloneSource": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.color": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.glyphs": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.gradients": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.histogram": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.history": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.info": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.layerComps": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.layers": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.measurementLog": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.modifierKeys": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.navigator": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.notes": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.paragraph": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.paragraphStyles": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.paths": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.patterns": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.properties": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.shapes": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.styles": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.swatches": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.timeline": {
+   "etat": "bientot",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.toolPresets": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.options": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "window.panel.tools": {
+   "etat": "actif",
+   "chemin": "Fenêtre"
+  },
+  "pl.apropos": {
+   "etat": "actif",
+   "chemin": "photolab.menu.aide"
+  }
+ },
+ "outils": {
+  "move": true,
+  "rectMarquee": true,
+  "ellipseMarquee": true,
+  "lasso": true,
+  "polygonLasso": true,
+  "magicWand": true,
+  "quickSelection": true,
+  "objectSelection": true,
+  "crop": true,
+  "slice": true,
+  "sliceSelect": true,
+  "eyedropper": true,
+  "ruler": true,
+  "note": true,
+  "count": true,
+  "spotHealing": true,
+  "healing": true,
+  "patch": false,
+  "brush": true,
+  "pencil": true,
+  "mixerBrush": true,
+  "cloneStamp": true,
+  "historyBrush": true,
+  "eraser": true,
+  "backgroundEraser": true,
+  "magicEraser": true,
+  "gradient": true,
+  "paintBucket": true,
+  "blur": true,
+  "sharpen": true,
+  "smudge": true,
+  "dodge": true,
+  "burn": true,
+  "sponge": true,
+  "pen": true,
+  "type": true,
+  "pathSelection": true,
+  "rectangle": true,
+  "ellipseShape": true,
+  "triangle": true,
+  "polygon": true,
+  "line": true,
+  "customShape": true,
+  "hand": true,
+  "zoom": true
+ },
+ "panneaux": {
+  "color": true,
+  "swatches": true,
+  "gradients": true,
+  "patterns": true,
+  "properties": true,
+  "adjustments": true,
+  "character": true,
+  "paragraph": true,
+  "navigator": true,
+  "histogram": true,
+  "info": true,
+  "history": true,
+  "actions": false,
+  "layerComps": true,
+  "layers": true,
+  "channels": true,
+  "paths": true
+ },
+ "traites_par_ecran": [
+  "edit.freeTransform",
+  "edit.keyboardShortcuts",
+  "edit.menus",
+  "edit.preferences.cursors",
+  "edit.preferences.enhancedControls",
+  "edit.preferences.export",
+  "edit.preferences.fileHandling",
+  "edit.preferences.general",
+  "edit.preferences.guidesGridAndSlices",
+  "edit.preferences.historyLog",
+  "edit.preferences.integrations",
+  "edit.preferences.interface",
+  "edit.preferences.performance",
+  "edit.preferences.plugIns",
+  "edit.preferences.rawDefaults",
+  "edit.preferences.scratchDisks",
+  "edit.preferences.tools",
+  "edit.preferences.transparencyAndGamut",
+  "edit.preferences.type",
+  "edit.preferences.unitsAndRulers",
+  "edit.preferences.workspace",
+  "edit.presets.exportImportPresets",
+  "edit.presets.presetManager",
+  "edit.search",
+  "edit.transform.distort",
+  "edit.transform.perspective",
+  "edit.transform.rotate",
+  "edit.transform.scale",
+  "edit.transform.skew",
+  "file.close",
+  "file.closeAll",
+  "file.closeOthers",
+  "file.export.exportAs",
+  "file.export.quickExportAsPng",
+  "file.fileInfo",
+  "file.import.notes",
+  "file.new",
+  "file.open",
+  "file.placeEmbedded",
+  "file.revert",
+  "file.save",
+  "file.saveACopy",
+  "file.saveAs",
+  "layer.exportAs",
+  "layer.quickExportAsPng",
+  "pl.calque.detourer",
+  "pl.calque.ia",
+  "pl.envoyer",
+  "pl.natif.ouvrir",
+  "pl.natif.reprendre",
+  "select.selectAndMask",
+  "type.fontPreviewSize.extraLarge",
+  "type.fontPreviewSize.huge",
+  "type.fontPreviewSize.large",
+  "type.fontPreviewSize.medium",
+  "type.fontPreviewSize.small",
+  "type.languageOptions.defaultFeatures",
+  "type.languageOptions.eastAsianFeatures",
+  "type.languageOptions.middleEasternAndSouthAsianComposer",
+  "type.languageOptions.middleEasternFeatures",
+  "type.panels.character",
+  "type.panels.characterStyles",
+  "type.panels.glyphs",
+  "type.panels.paragraph",
+  "type.panels.paragraphStyles",
+  "view.actualPixels",
+  "view.extras",
+  "view.fitLayersOnScreen",
+  "view.fitOnScreen",
+  "view.flipHorizontal",
+  "view.lockGuides",
+  "view.pixelArtPreview",
+  "view.printSize",
+  "view.rulers",
+  "view.screenMode.fullScreen",
+  "view.screenMode.fullScreenWithMenuBar",
+  "view.screenMode.standard",
+  "view.show.all",
+  "view.show.brushPreview",
+  "view.show.canvasGuides",
+  "view.show.count",
+  "view.show.grid",
+  "view.show.guides",
+  "view.show.layerEdges",
+  "view.show.notes",
+  "view.show.pixelGrid",
+  "view.show.selectionEdges",
+  "view.show.showExtrasOptions",
+  "view.show.slices",
+  "view.snap",
+  "view.snapTo.all",
+  "view.snapTo.documentBounds",
+  "view.snapTo.grid",
+  "view.snapTo.guides",
+  "view.snapTo.layers",
+  "view.snapTo.slices",
+  "view.twoHundredPercent",
+  "view.zoomIn",
+  "view.zoomOut",
+  "window.panel.adjustments",
+  "window.panel.brushSettings",
+  "window.panel.brushes",
+  "window.panel.channels",
+  "window.panel.character",
+  "window.panel.characterStyles",
+  "window.panel.cloneSource",
+  "window.panel.color",
+  "window.panel.glyphs",
+  "window.panel.gradients",
+  "window.panel.histogram",
+  "window.panel.history",
+  "window.panel.info",
+  "window.panel.layerComps",
+  "window.panel.layers",
+  "window.panel.measurementLog",
+  "window.panel.modifierKeys",
+  "window.panel.navigator",
+  "window.panel.notes",
+  "window.panel.options",
+  "window.panel.paragraph",
+  "window.panel.paragraphStyles",
+  "window.panel.paths",
+  "window.panel.patterns",
+  "window.panel.properties",
+  "window.panel.shapes",
+  "window.panel.styles",
+  "window.panel.swatches",
+  "window.panel.toolPresets",
+  "window.panel.tools",
+  "window.workspace.deleteWorkspace",
+  "window.workspace.essentials",
+  "window.workspace.graphicAndWeb",
+  "window.workspace.lockWorkspace",
+  "window.workspace.motion",
+  "window.workspace.newWorkspace",
+  "window.workspace.painting",
+  "window.workspace.photography",
+  "window.workspace.pixelArt",
+  "window.workspace.resetWorkspace"
+ ],
+ "compte": {
+  "actif": 144,
+  "inactif": 397,
+  "bientot": 91
+ }
+}

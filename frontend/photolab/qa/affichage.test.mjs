@@ -131,7 +131,7 @@ check("6.5 déplacement en miroir : le glisser vers la droite déplace vers la g
 // 7. menus
 const ici = dirname(fileURLToPath(import.meta.url));
 const cat = JSON.parse(readFileSync(join(ici, "..", "donnees", "menus.json"), "utf8"));
-const reg = JSON.parse(readFileSync(join(ici, "..", "..", "..", "backend", "tests", "photocraft_commandes_0.3.0.json"), "utf8"));
+const reg = JSON.parse(readFileSync(join(ici, "..", "..", "..", "backend", "tests", "photocraft_commandes_" + JSON.parse(readFileSync(join(ici, "..", "..", "..", "vendor", "photocraft.json"), "utf8")).version + ".json"), "utf8"));
 const arbre = construireMenus(cat, reg, REFUSES, "fr", (k) => k);
 const dec = decorerAffichage(arbre, basculer(o, "view.show.grid"));
 const plat = []; const voir = (l) => { for (const x of l) { if (x.type === "sous-menu") voir(x.entrees); else if (x.type === "commande") plat.push(x); } };
@@ -151,7 +151,7 @@ const src = (f) => readFileSync(join(ici, "..", "js", f), "utf8");
 check("8.1 mod-gestes : le point de geste passe par l'aimantation", /if \(PL\.affichage\) d = PL\.affichage\.aimanterPointDoc\(d, ev\);/.test(src("mod-gestes.js")));
 check("8.2 mod-gestes : le contour de sélection suit Afficher › Contours de la sélection", /PL\.affichage\.voir\("contoursSelection"\)/.test(src("mod-gestes.js")));
 check("8.3 mod-deplacer : le déplacement s'aimante (Ctrl l'interrompt)", /if \(PL\.affichage && !ev\.ctrlKey\) \(\{ dx, dy \} = PL\.affichage\.aimanterDeplacement\(dx, dy\)\);/.test(src("mod-deplacer.js"))
-  && /deltaGlisser\(g\.appui, ev, g\.z, !!PL\.vue\.v\.miroir\)/.test(src("mod-deplacer.js")));
+  && /deltaGlisser\(g\.appui, ev, g\.z, !!PL\.vue\.v\.miroir, PL\.vue\.v\.r \|\| 0\)/.test(src("mod-deplacer.js")));      // t253 : + rotation de la vue
 check("8.4 mod-peinture : le cercle de la pointe suit Afficher › Aperçu du pinceau", /PL\.affichage\.voir\("apercuPinceau"\)/.test(src("mod-peinture.js")));
 check("8.5 mod-vue : dessin retourné en miroir, pixels francs en aperçu pixel art", /if \(v\.miroir\) \{/.test(src("mod-vue.js")) && /!vue\.pixelArt/.test(src("mod-vue.js")));
 

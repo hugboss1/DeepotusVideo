@@ -392,7 +392,7 @@ if M:
     import _i18n_l1_aide as AIDE                                     # noqa: E402
     import patch_bundle_dzstudio as MS                               # noqa: E402
     try:
-        avant = M.defaire(BUNDLE)
+        avant = M.defaire(AIDE.avant_dzdock(BUNDLE))       # 19/10 : le maillon dzdock, posé APRÈS dzmotion, défait d'abord
     except AssertionError as e:
         avant = None
         check("D1 toutes les paires sont dans le livré", False, str(e)[:160])
@@ -400,7 +400,7 @@ if M:
     if avant is not None:
         check("D1 marqueur ×1 dans le livré, absent avant", BUNDLE.count(M.MARKER) == 1 and M.MARKER not in avant)
         check("D2 sans le maillon = la base (origin/main + t234) octet pour octet", base is not None and avant.encode("utf-8") == base)
-        check("D3 aller-retour exact", M.appliquer(avant) == BUNDLE)
+        check("D3 aller-retour exact", M.appliquer(avant) == AIDE.avant_dzdock(BUNDLE))
         check("D4 sonde amont : le marqueur de dzstudio (et sa famille G) tient sur l'avant",
               any(t == "dzstudio" for t, _j, _n in M.SONDE_AMONT) and all(avant.count(j) == n for _t, j, n in M.SONDE_AMONT))
         check("D5 avant_dzmotion = défaire ; sans marqueur : rendu tel quel", hasattr(AIDE, "avant_dzmotion")

@@ -29,6 +29,7 @@ const attendus = {
   "OFL-shippori-mincho.txt": "Police Shippori Mincho — SIL OFL 1.1",
   "licences-photocraft/LICENSE-SCOWL.txt": "Liste de mots SCOWL — licence SCOWL",
   "licences-photocraft/LICENSE-lucide.txt": "Icônes Lucide — licence ISC",
+  "licences-photocraft/LICENSE-libfacedetection.txt": "Détection de visages libfacedetection — licence BSD-3-Clause",   // t251
 };
 for (const [nom, lib] of Object.entries(attendus)) check("1.1 " + nom, libelleLicence(nom, fr) === lib, libelleLicence(nom, fr));
 check("1.2 en anglais aussi", libelleLicence("LICENSE-MIT", en) === "photocraft — MIT license" && libelleLicence("OFL-Inter.txt", en) === "Inter font — SIL OFL 1.1",
