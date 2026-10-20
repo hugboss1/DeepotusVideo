@@ -113,6 +113,22 @@ assert.deepEqual(L.etapes({ type: "voir", cible: "ecran" }, "quick"), [{ faire: 
 assert.deepEqual(L.etapes({ type: "point_xy", x: 1, y: 2, largeur: 10, hauteur: 10 }, "quick"), [{ faire: "pointer_xy" }]);
 assert.deepEqual(L.etapes({ type: "point_xy", x: "a", y: 2 }, "quick"), [], "coordonnées douteuses : rien");
 
+// 7. t260 : la place de la bulle (barre par défaut) et son bornage dans la fenêtre
+assert.equal(L.placeLue(null), "barre", "défaut : ancrée dans la barre du haut");
+assert.equal(L.placeLue("flottant"), "flottant");
+assert.equal(L.placeLue("n'importe quoi"), "barre");
+const F = { l: 1000, h: 600 }, T = { l: 80, h: 32 };
+assert.deepEqual(L.borner({ x: 500, y: 300 }, T, F), { x: 500, y: 300 }, "dedans : inchangée");
+assert.deepEqual(L.borner({ x: 990, y: 590 }, T, F), { x: 912, y: 560 }, "débord bas-droit : ramenée à 8 px du bord");
+assert.deepEqual(L.borner({ x: -50, y: -9 }, T, F), { x: 8, y: 8 }, "débord haut-gauche");
+assert.deepEqual(L.borner({ x: 10, y: 10 }, { l: 2000, h: 900 }, F), { x: 8, y: 8 }, "plus grande que la fenêtre : coin haut-gauche");
+assert.equal(L.positionLue("{\"x\":12,\"y\":40}").x, 12);
+assert.equal(L.positionLue("{\"x\":\"a\",\"y\":40}"), null, "coordonnée non numérique : rien");
+assert.equal(L.positionLue("pas du json"), null);
+assert.equal(L.positionLue(null), null);
+assert.equal(L.glisse({ x: 0, y: 0 }, { x: 3, y: 2 }), false, "petit tremblement = clic");
+assert.equal(L.glisse({ x: 0, y: 0 }, { x: 5, y: 0 }), true, "au-delà de 4 px = déplacement");
+
 // 6. le module n'utilise aucun objet du navigateur à l'import
 assert.equal(typeof globalThis.document, "undefined");
 console.log("agent_logique : OK");

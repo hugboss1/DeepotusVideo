@@ -38,5 +38,10 @@
   "agent.voix.lire_gratuit": {"fr": "Lire à voix haute ({nom}, gratuit)", "en": "Read aloud ({nom}, free)"},
   "agent.voix.lire_payant": {"fr": "Lire à voix haute ({nom}, payant, sous le plafond « aide »)", "en": "Read aloud ({nom}, paid, under the \"help\" cap)"},
   "agent.voix.stop": {"fr": "Arrêter la lecture", "en": "Stop reading"},
-  "agent.voix.erreur": {"fr": "La lecture n'a pas pu se faire : {msg}", "en": "Reading aloud failed: {msg}"}
+  "agent.voix.erreur": {"fr": "La lecture n'a pas pu se faire : {msg}", "en": "Reading aloud failed: {msg}"},
+  "agent.place.ancrer": {"fr": "Ranger dans la barre du haut", "en": "Dock in the top bar"},
+  "agent.place.flottant": {"fr": "Rendre flottant (glisser pour déplacer)", "en": "Make it float (drag to move)"},
+  "agent.place.coin": {"fr": "Ramener au coin par défaut", "en": "Back to the default corner"},
+  "agent.place.menu": {"fr": "Place du bouton Demander", "en": "Ask button position"},
+  "agent.place.astuce": {"fr": "glisser pour le déplacer, clic droit pour le ranger", "en": "drag to move it, right-click to dock it"}
 }
