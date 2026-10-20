@@ -17,7 +17,16 @@
     "lit.9155e398",
     "lit.ce381c94",
     "lit.fbc0a3c1",
-    "studio.effets.titre"
+    "studio.effets.titre",
+    "montage.raccourcis.titre",
+    "photolab.calques.lie",
+    "photolab.calques.objet_dynamique",
+    "photolab.proprietes.calque",
+    "photolab.proprietes.document",
+    "vectorlab.couleur.nouvelle",
+    "vectorlab.couleur.origine",
+    "vectorlab.image.picker_titre",
+    "vectorlab.pile.histogramme"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

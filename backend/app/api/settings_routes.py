@@ -383,6 +383,9 @@ _INDEX_FIXE = [
     ("pack", "Pack de légendes", "légendes étiquettes tags emoji icône caption"),
     ("defaults", "Fournisseurs par défaut", "défaut fournisseur génération d'image flux gpt image voix résumeur "
                                             "planificateur modèle provider"),
+    # t248 (20/10/2026) : le sélecteur de langue (DzLangueUI) vit dans cette rubrique ; sans entrée, ni la recherche
+    # ni l'assistant ne le trouvaient
+    ("defaults", "Langue de l'interface", "langue interface anglais français english french traduction"),
     ("paths", "Dossiers et versions", "chemins dossier images sorties python ffmpeg version backend api"),
     ("news", "Flux d'actualités", "news actualités rss flux article ajouter rafraîchir"),
     ("appearance", "Apparence", "apparence animations mouvement réduit halo effets"),
