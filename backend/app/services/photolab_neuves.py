@@ -14,6 +14,11 @@ Ouvertes depuis (retirées d'ici, avec leurs bancs) :
                      paint.setSymmetry, paint.symmetryFromPath, paint.symmetryDisable
   t253 (M4, 20/10) : select.magneticLasso, select.float, select.drop, select.loadLuminosity, image.perspectiveCrop,
                      view.colorSamplers.add / move / delete / clear / list
+  t254 (M5, 20/10) : path.moveAnchors, path.moveHandle, path.bendSegment, path.convertPoint, path.addAnchor,
+                     path.deleteAnchor, path.transform, path.clippingPath.set / clear, path.style.copyFill / copyStroke /
+                     pasteFill / pasteStroke, type.createSelection, type.attachToPath, type.detachFromPath,
+                     type.increaseSize / decreaseSize / increaseSizeMore / decreaseSizeMore
+                     (type.hitTest, caret, navigate restent fermées : la saisie se fait dans l'éditeur de l'écran)
 """
 
 COMMANDES_NEUVES_FERMEES = frozenset({
@@ -37,15 +42,10 @@ COMMANDES_NEUVES_FERMEES = frozenset({
     "layer.new.backgroundFromLayer", "layer.new.frame", "layer.rasterize.layerStyle", "layer.removeBackground",
     "layer.selectInRect", "layer.setEffectsVisible", "layer.setLabelColor", "layer.showOnly",
     "layer.smartFilter.transfer", "layer.smartObjects.convertToLayers", "layer.smartObjects.updateChanged", "layer.toggleLockTransparency",
-    "layer.toggleMaskOverlay", "path.addAnchor", "path.bendSegment", "path.clippingPath.clear",
-    "path.clippingPath.set", "path.convertPoint", "path.deleteAnchor", "path.moveAnchors",
-    "path.moveHandle", "path.style.copyFill", "path.style.copyStroke", "path.style.pasteFill",
-    "path.style.pasteStroke", "path.transform", "swatches.add", "swatches.delete",
-    "swatches.deleteGroup", "swatches.export", "swatches.import", "swatches.list",
-    "swatches.move", "swatches.newGroup", "swatches.rename", "swatches.renameGroup",
-    "swatches.reset", "swatches.use", "tools.decreaseBrushHardness", "tools.decreaseBrushSize",
-    "tools.increaseBrushHardness", "tools.increaseBrushSize", "tools.rotateBrush", "type.attachToPath",
-    "type.caret", "type.createSelection", "type.decreaseSize", "type.decreaseSizeMore",
-    "type.detachFromPath", "type.hitTest", "type.increaseSize", "type.increaseSizeMore",
+    "layer.toggleMaskOverlay", "swatches.add", "swatches.delete", "swatches.deleteGroup",
+    "swatches.export", "swatches.import", "swatches.list", "swatches.move",
+    "swatches.newGroup", "swatches.rename", "swatches.renameGroup", "swatches.reset",
+    "swatches.use", "tools.decreaseBrushHardness", "tools.decreaseBrushSize", "tools.increaseBrushHardness",
+    "tools.increaseBrushSize", "tools.rotateBrush", "type.caret", "type.hitTest",
     "type.navigate", "view.editGuide", "view.resetRulerOrigin", "view.setRulerOrigin",
 })

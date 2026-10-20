@@ -271,6 +271,35 @@ I["dz-outil-vec-texte-sur-chemin"] = () => [
   pl(placer(petitT(10, 3.4, 10.4, 10.6, 2.6), { rot: -24, cx: 10, cy: 8.6 })),
   pa(trait(lisse([[3.4, 20.4], [9.6, 19], [15.6, 15.4], [20.6, 10]], 12), 2.4))];
 
+// t254 (Photolab M5, 20/10/2026) : Plume libre, Plume de courbure, Ajout / Suppression / Conversion de point, Texte
+// vertical, Masques de texte horizontal et vertical. La série « plume » garde le BEC de la Plume, redessiné à cotes
+// absolues plus court (pointe en 0,0, corps vers −y), posé pointe en bas à gauche ; le geste est au ton pâle.
+const becCourt = () => {
+  const bec = `M0 0C1.6 -2.8 4.6 -5.4 4.6 -7.8L2.4 -11.2H-2.4L-4.6 -7.8C-4.6 -5.4 -1.6 -2.8 0 0Z`;
+  return union(moins(bec, G.rect(-0.8, -6.6, 1.6, 7), G.circle(0, -6.4, 1.6)), G.rect(-2.4, -14, 4.8, 2.2, 0.7));
+};
+const badgeO = type => ({ d: M.badge(type), op: 1, reserve: M.RES_BADGE });
+// Plume libre = le bec, et la trace à main levée qu'il laisse (pâle, ondulée).
+I["dz-outil-vec-plume-libre"] = () => [pl(poser(becCourt(), 9.2, 14.2, 40)),
+  pa(trait(lisse([[9.2, 14.6], [7.2, 19.4], [4.4, 16.4], [2.6, 21.4]], 12), 2.4))];
+// Plume de courbure = le bec, posé sur une courbe douce (pâle) qui passe par deux points ronds.
+I["dz-outil-vec-plume-courbure"] = () => [pl(poser(becCourt(), 12, 14.4, 0)),
+  pl(ancreRonde(...pt(12, 24, 9, 228), 2.6) + ancreRonde(...pt(12, 24, 9, 312), 2.6)), pa(arc(12, 24, 9, 2.4, 228, 312))];
+// Ajout / Suppression de point d'ancrage = le bec et le badge plus / moins (CHARTE §4).
+I["dz-outil-vec-ancre-ajouter"] = () => [badgeO("plus"), pl(poser(becCourt(), 8.6, 19.2, 30))];
+I["dz-outil-vec-ancre-supprimer"] = () => [badgeO("moins"), pl(poser(becCourt(), 7.4, 17.6, 52))];
+// Conversion de point = un angle (chevron plein) dont le sommet porte une poignée lisse (pâle, deux bouts).
+I["dz-outil-vec-point-convertir"] = () => [pl(union(trait([[4, 21], [12, 9.4], [20, 21]], 2.6), ancre(12, 9.4, 5.6))),
+  pa(union(pill(3.4, 4.4, 20.6, 4.4, 2.2), bout(3.4, 4.4), bout(20.6, 4.4)))];
+// Texte vertical = le T du Texte, la réglette pâle remplacée par une flèche vers le bas (sens d'écriture).
+const flecheBas = () => union(G.rect(17.8, 3, 2.4, 12.4, 0.4), polyR([[14.6, 14.4], [23.4, 14.4], [19, 21.2]], 0.6));
+I["dz-outil-vec-texte-vertical"] = () => [pl(M.lettreT({ k: 0.8, dx: -3.2 })), pa(flecheBas())];
+// Masque de texte = un T en TIRETS (la sélection qu'il devient, série des sélections) ; vertical : + la flèche.
+const tMasque = (l = 21.6) => { const m = (2.4 + l) / 2;
+  return tiretsPoly([[2.4, 2.4], [l, 2.4], [l, 9], [m + 3.2, 9], [m + 3.2, 21.6], [m - 3.2, 21.6], [m - 3.2, 9], [2.4, 9]], { a: 3, c: 2.6, g: 1.8 }); };
+I["dz-outil-photo-masque-texte"] = () => [pl(tMasque())];
+I["dz-outil-photo-masque-texte-vertical"] = () => [pl(tMasque(15.6)), pa(placer(flecheBas(), { dx: 1.2 }))];
+
 // ═══════════════════════════════════════ vitrail ══════════════════════════════════════════════════════
 /** Pièces d'une région séparées en sous-chemins extérieurs (aucune pièce trouée ici). */
 const pieces = d => d.split(/(?=M)/).filter(s => s.trim());

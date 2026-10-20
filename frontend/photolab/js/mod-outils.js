@@ -33,9 +33,14 @@ export const EMPLACEMENTS = [
   [{ id: "dodge", lettre: "O", icone: "dz-outil-photo-densite-moins", p2: true }, { id: "burn", lettre: "O", icone: "dz-outil-photo-densite-plus", p2: true }, { id: "sponge", lettre: "O", icone: "dz-outil-photo-eponge", p2: true }],
   // section 3 : tracés, texte, formes
   // t156 : plume, texte, sélection de tracé et formes (mod-trace, mod-texte, mod-formes)
-  [{ id: "pen", lettre: "P", icone: "dz-outil-vec-plume", p2: true }],
-  [{ id: "type", lettre: "T", icone: "dz-outil-vec-texte", p2: true }],
-  [{ id: "pathSelection", lettre: "A", icone: "dz-outil-vec-selection", p2: true }],
+  // t254 (M5, photocraft 0.10) : Plume libre, Plume de courbure, Ajout / Suppression / Conversion de point (P),
+  // Texte vertical, Masques de texte horizontal et vertical (T), Sélection directe (A)
+  [{ id: "pen", lettre: "P", icone: "dz-outil-vec-plume", p2: true }, { id: "freeformPen", lettre: "P", icone: "dz-outil-vec-plume-libre", p2: true },
+    { id: "curvaturePen", lettre: "P", icone: "dz-outil-vec-plume-courbure", p2: true }, { id: "addAnchorPoint", lettre: "P", icone: "dz-outil-vec-ancre-ajouter", p2: true },
+    { id: "deleteAnchorPoint", lettre: "P", icone: "dz-outil-vec-ancre-supprimer", p2: true }, { id: "convertPoint", lettre: "P", icone: "dz-outil-vec-point-convertir", p2: true }],
+  [{ id: "type", lettre: "T", icone: "dz-outil-vec-texte", p2: true }, { id: "verticalType", lettre: "T", icone: "dz-outil-vec-texte-vertical", p2: true },
+    { id: "horizontalTypeMask", lettre: "T", icone: "dz-outil-photo-masque-texte", p2: true }, { id: "verticalTypeMask", lettre: "T", icone: "dz-outil-photo-masque-texte-vertical", p2: true }],
+  [{ id: "pathSelection", lettre: "A", icone: "dz-outil-vec-selection", p2: true }, { id: "directSelection", lettre: "A", icone: "dz-outil-vec-noeud", p2: true }],
   [{ id: "rectangle", lettre: "U", icone: "dz-outil-vec-rectangle", p2: true }, { id: "ellipseShape", lettre: "U", icone: "dz-outil-vec-ellipse", p2: true }, { id: "triangle", lettre: "U", icone: "dz-outil-vec-triangle", p2: true }, { id: "polygon", lettre: "U", icone: "dz-outil-vec-polygone", p2: true }, { id: "line", lettre: "U", icone: "dz-outil-vec-ligne", p2: true }, { id: "customShape", lettre: "U", icone: "dz-outil-vec-forme-perso", p2: true }],
   // section 4 : navigation
   [{ id: "hand", lettre: "H", icone: "dz-outil-vec-main", p2: true }, { id: "rotateView", lettre: "R", icone: "dz-outil-photo-rotation-vue", p2: true }],

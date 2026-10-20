@@ -9734,5 +9734,29 @@
  "{cid} : paramètre(s) requis : {v}": {
   "fr": "{cid} : paramètre(s) requis : {v}",
   "en": "{cid}: required parameter(s): {v}"
+ },
+ "{cid} : t : strictement entre 0 et 1 attendu, reçu {t}": {
+  "fr": "{cid} : t : strictement entre 0 et 1 attendu, reçu {t}",
+  "en": "{cid}: t: strictly between 0 and 1 expected, got {t}"
+ },
+ "{cid} : coalesce : clé de 1 à 40 lettres, chiffres, - ou _ attendue": {
+  "fr": "{cid} : coalesce : clé de 1 à 40 lettres, chiffres, - ou _ attendue",
+  "en": "{cid}: coalesce: key of 1 to 40 letters, digits, - or _ expected"
+ },
+ "{cid} : {k} : un point [x, y] attendu (deux nombres, ±{MAX_DECALAGE} px au plus), reçu {v}": {
+  "fr": "{cid} : {k} : un point [x, y] attendu (deux nombres, ±{MAX_DECALAGE} px au plus), reçu {v}",
+  "en": "{cid}: {k}: one [x, y] point expected (two numbers, ±{MAX_DECALAGE} px at most), got {v}"
+ },
+ "{cid} : anchors : une liste de [sous-tracé, ancre] (entiers ≥ 0, {MAX_ANCRES} au plus) attendue": {
+  "fr": "{cid} : anchors : une liste de [sous-tracé, ancre] (entiers ≥ 0, {MAX_ANCRES} au plus) attendue",
+  "en": "{cid}: anchors: a list of [subpath, anchor] (integers ≥ 0, {MAX_ANCRES} at most) expected"
+ },
+ "{cid} : name : nom de tracé attendu (1 à {MAX_NOM_TRACE} caractères), reçu {v}": {
+  "fr": "{cid} : name : nom de tracé attendu (1 à {MAX_NOM_TRACE} caractères), reçu {v}",
+  "en": "{cid}: name: path name expected (1 to {MAX_NOM_TRACE} characters), got {v}"
+ },
+ "{cid} : range : [début, fin] (entiers ≥ 0, début ≤ fin) attendu, reçu {v}": {
+  "fr": "{cid} : range : [début, fin] (entiers ≥ 0, début ≤ fin) attendu, reçu {v}",
+  "en": "{cid}: range: [start, end] (integers ≥ 0, start ≤ end) expected, got {v}"
  }
 }

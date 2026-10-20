@@ -260,6 +260,22 @@ CORRECTIONS_CHAMPS = {
     ("view.colorSamplers.move", "index"): {"type": "index"},
     ("view.colorSamplers.delete", "index"): {"type": "index"},
     ("select.float", "target"): {"type": "enum", "valeurs": ["pixels", "mask"], "optionnel": True},
+    # t254 (M5) : tracés et texte. `"name":str|"work"|"layer"`, `"subpath":i`, `"knot":j`, `"t":0<t<1`, `factor`,
+    # `degrees`, `savedPathName`, `"shape":layerId?` — des « ? » pour le parseur. Le nom est vérifié en forme par
+    # _formes_m5 (1 à 64 caractères, jamais un fichier) ; bornes de l'échelle et de l'angle = celles du dialogue amont
+    # (canvas_tool_menu.rs, « Free Transform Path »).
+    **{(c, "name"): {"type": "str", "optionnel": True} for c in (
+        "path.moveAnchors", "path.moveHandle", "path.bendSegment", "path.convertPoint", "path.addAnchor",
+        "path.deleteAnchor", "path.transform")},
+    **{(c, k): {"type": "index"} for c in ("path.moveHandle", "path.bendSegment", "path.convertPoint", "path.addAnchor",
+                                           "path.deleteAnchor") for k in ("subpath", "knot")},
+    ("path.addAnchor", "t"): {"type": "number", "min": 0, "max": 1, "optionnel": True},
+    ("path.transform", "translateY"): {"type": "number", "min": -30000, "max": 30000, "unite": "px", "optionnel": True},
+    ("path.transform", "scaleX"): {"type": "number", "min": 0.01, "max": 100, "optionnel": True},
+    ("path.transform", "scaleY"): {"type": "number", "min": 0.01, "max": 100, "optionnel": True},
+    ("path.transform", "angle"): {"type": "number", "min": -360, "max": 360, "unite": "deg", "optionnel": True},
+    ("path.clippingPath.set", "name"): {"type": "str"},
+    ("type.attachToPath", "shape"): {"type": "layerId", "optionnel": True},
 }
 
 
@@ -485,13 +501,23 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         # Le registre ne décrit que `reds` ; les huit autres gammes sont dans sa note (relevé A4 : le moteur les accepte).
         for g in GAMMES_SELECTIVE:
             champs.setdefault(g, {"cle": g, "type": "json", "optionnel": True})
-    if cid == "type.create" and "type.setStyle" in registre:
+    if cid == "type.createSelection" and "type.create" in registre:
+        # t254 : le masque de texte sans `layer` prend « type.create's keys » (texte temporaire) — celles de type.create,
+        # complétées comme lui ci-dessous ; `name` n'a pas de sens pour un texte qui ne devient pas un calque.
+        for c in registre["type.create"]["champs"]:
+            if c["cle"] != "name":
+                champs.setdefault(c["cle"], c)
+    if cid in ("type.create", "type.createSelection") and "type.setStyle" in registre:
         # t156 : le registre résume ses clés de caractère et de paragraphe (« …character keys ») ; ce sont celles de
         # type.setStyle (même modèle, relevé sur le vrai moteur), sans `layer` ni `range`.
         for c in registre["type.setStyle"]["champs"]:
             if c["cle"] not in ("layer", "range"):
                 champs.setdefault(c["cle"], c)
-    if cid in ("type.setStyle", "type.create"):
+        if cid == "type.createSelection":
+            # la taille n'a pas de bornes au registre de type.create, et celles de type.setStyle (« 0.1..=1296 pt ») y
+            # sont illisibles : elles sont écrites ici
+            champs["size"] = {"cle": "size", "type": "number", "min": 0.1, "max": 1296, "unite": "pt", "optionnel": True}
+    if cid in ("type.setStyle", "type.create", "type.createSelection"):
         # t156 : « align » n'est pas décrit pour setStyle et son énumération est tronquée (« justify… ») pour create :
         # la liste complète du registre de setStyle (texte de ses paramètres), relevée sur le vrai moteur.
         champs["align"] = CHAMP_ALIGN
@@ -526,6 +552,15 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
             raise ValueError(f"{cid} : paramètre(s) requis : {', '.join(manque)}")
     if cid == "image.perspectiveCrop" and "corners" in params:
         _coins(cid, params["corners"])
+    if cid in CHAMPS_M5:
+        for c in CHAMPS_M5[cid]:
+            champs.setdefault(c["cle"], c)
+    if cid in REQUIS_M5:
+        manque = [k for k in REQUIS_M5[cid] if k not in params]
+        if manque:
+            raise ValueError(f"{cid} : paramètre(s) requis : {', '.join(manque)}")
+    if cid in FORMES_M5:
+        _formes_m5(cid, params)
     ctx = {"colorize": _colorise(params, etat)}
     for k, v in params.items():
         champ = champs.get(k)
@@ -566,6 +601,52 @@ def _coins(cid, v):
     if not (isinstance(v, list) and len(v) == 4 and all(isinstance(p, list) and len(p) == 2 and all(
             _nombre_fini(x) and abs(x) <= MAX_DECALAGE for x in p) for p in v)):
         raise ValueError(f"{cid} : corners : quatre points [x, y] attendus, reçu {v!r}")
+
+
+# ── t254 : plume et texte de photocraft 0.10 (Sélection directe, Convertir le point, ancres, courbure, détourage,
+# masque et texte sur tracé) ──────────────────────────────────────────────────────────────────────────────────────
+# `translateX` est avalé par la forme de `matrix` au parseur (« [a,b,c,d,e,f] | "quad":… | "translateX":px ») ;
+# `coalesce` (clé du moteur : les commandes de même clé ne font qu'UN état d'historique) n'est écrite nulle part :
+# l'écran s'en sert pour la Plume de courbure / libre (pose + recalcul) et le texte sur tracé (création + attache).
+_COALESCE = {"cle": "coalesce", "type": "str", "optionnel": True}
+CHAMPS_M5 = {
+    "path.transform": ({"cle": "translateX", "type": "number", "min": -30000, "max": 30000, "unite": "px", "optionnel": True},),
+    **{c: (_COALESCE,) for c in ("path.set", "shape.create", "path.moveAnchors", "path.deleteAnchor", "type.create",
+                                 "type.attachToPath")},
+}
+REQUIS_M5 = {"path.moveAnchors": ("anchors", "move"), "path.moveHandle": ("subpath", "knot", "handle", "to"),
+             "path.bendSegment": ("subpath", "knot", "move"), "path.convertPoint": ("subpath", "knot"),
+             "path.addAnchor": ("subpath", "knot"), "path.deleteAnchor": ("subpath", "knot"),
+             "path.clippingPath.set": ("name",)}
+TAILLES_TEXTE = ("type.increaseSize", "type.decreaseSize", "type.increaseSizeMore", "type.decreaseSizeMore")
+FORMES_M5 = set(REQUIS_M5) | set(CHAMPS_M5) | {"path.transform"} | set(TAILLES_TEXTE)
+MAX_ANCRES = 5000
+_CLE_COALESCE = re.compile(r"[A-Za-z0-9_-]{1,40}")
+
+
+def _formes_m5(cid, params):
+    from app.services import photolab_moteur as PM
+    for k in ("move", "to", "out"):
+        v = params.get(k)
+        if v is not None and not (isinstance(v, list) and len(v) == 2 and all(_nombre_fini(x) and abs(x) <= MAX_DECALAGE for x in v)):
+            raise ValueError(f"{cid} : {k} : un point [x, y] attendu (deux nombres, ±{MAX_DECALAGE} px au plus), reçu {v!r}")
+    if "anchors" in params:
+        v = params["anchors"]
+        if not (isinstance(v, list) and 0 < len(v) <= MAX_ANCRES and all(
+                isinstance(p, list) and len(p) == 2 and all(_entier(x) and x >= 0 for x in p) for p in v)):
+            raise ValueError(f"{cid} : anchors : une liste de [sous-tracé, ancre] (entiers ≥ 0, {MAX_ANCRES} au plus) attendue")
+    if cid == "path.addAnchor" and "t" in params and _nombre_fini(params["t"]) and not 0 < params["t"] < 1:
+        raise ValueError(f"{cid} : t : strictement entre 0 et 1 attendu, reçu {params['t']!r}")
+    if "name" in params and cid.startswith("path."):
+        v = params["name"]
+        if not isinstance(v, str) or not 0 < len(v) <= MAX_NOM_TRACE or PM._valeur_fichier(v):
+            raise ValueError(f"{cid} : name : nom de tracé attendu (1 à {MAX_NOM_TRACE} caractères), reçu {v!r}")
+    if cid in TAILLES_TEXTE and "range" in params:
+        v = params["range"]
+        if not (isinstance(v, list) and len(v) == 2 and all(_entier(x) and x >= 0 for x in v) and v[0] <= v[1]):
+            raise ValueError(f"{cid} : range : [début, fin] (entiers ≥ 0, début ≤ fin) attendu, reçu {v!r}")
+    if "coalesce" in params and not (isinstance(params["coalesce"], str) and _CLE_COALESCE.fullmatch(params["coalesce"])):
+        raise ValueError(f"{cid} : coalesce : clé de 1 à 40 lettres, chiffres, - ou _ attendue")
 
 
 # ── t157 : Sélectionner et masquer, la pile de la Galerie de filtres ────────────────────────────────────────────────

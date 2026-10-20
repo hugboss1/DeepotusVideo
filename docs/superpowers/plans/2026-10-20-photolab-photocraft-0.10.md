@@ -81,6 +81,28 @@ Sélection directe, Plume libre et de courbure, Ajout/Suppression/Conversion de 
 `path.transform`, tracé de détourage, copier/coller fond et contour ; Texte vertical, Masques de texte H/V
 (`type.createSelection`), texte sur tracé, taille ± (raccourcis). `mod-trace` et `mod-texte` étendus.
 
+### M5 — mesuré et fait (20/10)
+- 20 commandes ouvertes (neuves 104) : 13 `path.*` (ancres, poignées, segments, conversion, ajout / suppression,
+  `transform`, détourage set / clear, `style.copy/pasteFill/Stroke`) et 7 `type.*` (`createSelection`,
+  `attachToPath`, `detachFromPath`, taille ± ×4). `hitTest`, `caret`, `navigate` restent fermées (saisie à l'écran).
+- 9 outils (64 actifs) : groupe P = Plume, Plume libre, Plume de courbure, Ajout / Suppression / Conversion de point ;
+  T = Texte, Texte vertical, Masques de texte H / V ; A = Sélection de tracé, Sélection directe. 8 icônes (544).
+- Faits moteur : synchrones ; états « Drag Anchor Points », « Drag Direction Point », « Drag Segment »,
+  « Convert Point », « Add / Delete Anchor Point », « Transform Path », « Clipping Path » / « Clear Clipping Path »,
+  « Paste Fill », « Paste Complete Stroke », « Type Mask », « Change Type Size », « Type on a Path »,
+  « Release Type from Path » ; copier le fond / contour ne fait AUCUN état ; un segment DROIT courbé se déplace avec
+  ses ancres ; le détourage exige un tracé ENREGISTRÉ ; `path.info` n'a pas de `layer` (forme = calque actif) ;
+  masque de texte vide = « Type Mask » sans sélection (l'écran n'envoie rien). **`coalesce`** (clé non documentée
+  du moteur) : deux commandes de même clé = UN état (nom du premier) — Plume de courbure / libre = `path.set` (ou
+  `shape.create`) + `path.moveAnchors {move:[0,0], curvature}` (le MOTEUR calcule les poignées, D1) ; texte sur
+  tracé = `type.create` + `type.attachToPath`.
+- Le shell amont ajuste la Plume libre (`fit_trace`) hors moteur : l'écran simplifie (RDP, Ajustement de courbe
+  0,5..10 px, angles > 70°) et le moteur lisse. Menu contextuel des outils de tracé (toile et lignes du panneau
+  Tracés) : sélection, remplir, contour, détourage, Transformer le tracé (dialogue numérique amont), fond / contour.
+- Hors lot : Ajout / suppression automatique de la Plume (option amont active par défaut — changerait le clic de la
+  Plume actuelle), Ctrl pendant la Plume (Sélection directe du tracé en cours), Transformation manuelle du tracé à la
+  souris (Ctrl+T), autres calques de forme visibles comme cibles de la Sélection directe, Inverser le texte sur tracé.
+
 ## M6 — t255 · Panneau Actions (Q1 = oui, 20/10)
 Enregistrer, rejouer, lister, éditer, couleur, conditions ; import/export `.atn` par la Bibliothèque en `data`
 (jamais `path`) ; Fichier › Automatisation › Traitement par lots vers la Bibliothèque. Scripts et droplets

@@ -57,7 +57,8 @@ STRUCT = PR.structurer(COMMANDES)
 # reste non ok : backgroundCmyk « same »).
 # t252 : 197 — les corrections des outils de retouche ouverts (setSymmetry, symmetryFromPath, patternStamp, remove).
 # t253 : 194 — échantillonneur (add, move) et morceau flottant compris après correction.
-NB_NON_OK = {"0.3.0": 123, "0.10.0": 194}[_PV.VERSION]
+# t254 : 185 — les champs des tracés et du texte ouverts (name, subpath, knot, t, échelle, angle, shape) compris.
+NB_NON_OK = {"0.3.0": 123, "0.10.0": 185}[_PV.VERSION]
 
 print("\n[1] les dix exemples bruts")
 r = PR.parser(EX["filter.blur.gaussianBlur"]["params"])
@@ -599,7 +600,14 @@ check("7e corrections t251 : seules layer.select.layer, tools.setColors.fore/bac
           # t253 : échantillonneur, morceau flottant
           ("view.colorSamplers.add", "x"), ("view.colorSamplers.add", "y"), ("view.colorSamplers.move", "index"),
           ("view.colorSamplers.move", "x"), ("view.colorSamplers.move", "y"), ("view.colorSamplers.delete", "index"),
-          ("select.float", "target")])), t251)
+          ("select.float", "target"),
+          # t254 : tracés et texte
+          *[(c, "name") for c in ("path.moveAnchors", "path.moveHandle", "path.bendSegment", "path.convertPoint",
+                                  "path.addAnchor", "path.deleteAnchor", "path.transform")],
+          *[(c, k) for c in ("path.moveHandle", "path.bendSegment", "path.convertPoint", "path.addAnchor", "path.deleteAnchor")
+            for k in ("subpath", "knot")],
+          ("path.addAnchor", "t"), ("path.transform", "translateY"), ("path.transform", "scaleX"), ("path.transform", "scaleY"),
+          ("path.transform", "angle"), ("path.clippingPath.set", "name"), ("type.attachToPath", "shape")])), t251)
 autres = [(i, c["cle"]) for i, v in STRUCT.items() for c in v["champs"]
           if c.get("cle") == "exposure" and i not in ("image.adjustments.exposure", "layer.newAdjustmentLayer.exposure")]
 check("7c les autres `exposure` du registre ne sont pas touchés", all(
@@ -657,9 +665,15 @@ OUVERTES = {"paint.patch", "paint.contentAwareMove", "paint.patternStamp", "pain
             # t253
             "select.magneticLasso", "select.float", "select.drop", "select.loadLuminosity", "image.perspectiveCrop",
             "view.colorSamplers.add", "view.colorSamplers.move", "view.colorSamplers.delete", "view.colorSamplers.clear",
-            "view.colorSamplers.list"}
-check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8, t253 : 10) -> 124",
-      len(NEUVES) == 124 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
+            "view.colorSamplers.list",
+            # t254
+            "path.moveAnchors", "path.moveHandle", "path.bendSegment", "path.convertPoint", "path.addAnchor",
+            "path.deleteAnchor", "path.transform", "path.clippingPath.set", "path.clippingPath.clear",
+            "path.style.copyFill", "path.style.copyStroke", "path.style.pasteFill", "path.style.pasteStroke",
+            "type.createSelection", "type.attachToPath", "type.detachFromPath", "type.increaseSize", "type.decreaseSize",
+            "type.increaseSizeMore", "type.decreaseSizeMore"}
+check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8, t253 : 10, t254 : 20) -> 104",
+      len(NEUVES) == 104 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
 REG10 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8")))
 for cid, p in (("layer.removeBackground", {}), ("swatches.list", {}), ("actions.list", {}), ("history.undo", {})):
     try:
