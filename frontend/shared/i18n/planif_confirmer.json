@@ -1,0 +1,8 @@
+{
+  "scheduler.envoi.aucun_canal": {"fr": "aucun canal", "en": "no channel"},
+  "scheduler.envoi.publier": {"fr": "Publier", "en": "Publish"},
+  "scheduler.envoi.question": {"fr": "Publier « {titre} » maintenant sur : {canaux} ? L'envoi part tout de suite sur les réseaux connectés et ne se reprend pas ; les canaux sans connexion sont seulement marqués prêts.", "en": "Publish “{titre}” now on: {canaux}? It goes out right away on connected networks and cannot be taken back; channels without a connection are only marked ready."},
+  "scheduler.envoi.titre": {"fr": "Publier maintenant", "en": "Publish now"},
+  "scheduler.post.supprimer_q": {"fr": "Supprimer définitivement le post « {titre} » ? Il quitte le calendrier sans passer par la corbeille ; le rendu attaché reste dans la Bibliothèque.", "en": "Permanently delete the post “{titre}”? It leaves the calendar without going to the trash; the attached render stays in the Library."},
+  "scheduler.post.supprimer_titre": {"fr": "Supprimer le post", "en": "Delete post"}
+}
