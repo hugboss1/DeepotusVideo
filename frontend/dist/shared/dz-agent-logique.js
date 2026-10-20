@@ -115,3 +115,22 @@ export function prix(usd, lang) {
   const t = (Number(usd) || 0).toFixed(4);
   return lang === "en" ? t : t.replace(".", ",");
 }
+
+// t260 : la place de la bulle « Demander ». « barre » (défaut) = ancrée dans la barre du haut de la coque ;
+// « flottant » = déplaçable, position {x, y} (coin haut-gauche, px) gardée dans localStorage.
+export const PLACES = ["barre", "flottant"];
+export const MARGE_BULLE = 8;
+export function placeLue(v) { return PLACES.includes(v) ? v : "barre"; }
+export function positionLue(json) {
+  try {
+    const p = JSON.parse(json);
+    return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? { x: p.x, y: p.y } : null;
+  } catch (e) { return null; }
+}
+// tient la bulle (taille {l, h}) dans la fenêtre {l, h}, à MARGE_BULLE px des bords ; trop grande : coin haut-gauche
+export function borner(pos, taille, fenetre, marge = MARGE_BULLE) {
+  const lim = (v, max) => Math.max(marge, Math.min(v, Math.max(marge, max - marge)));
+  return { x: lim(pos.x, fenetre.l - taille.l), y: lim(pos.y, fenetre.h - taille.h) };
+}
+// un appui qui bouge de plus de 4 px est un déplacement, pas un clic
+export function glisse(a, b, seuil = 4) { return Math.hypot(b.x - a.x, b.y - a.y) > seuil; }

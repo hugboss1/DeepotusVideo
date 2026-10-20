@@ -7,7 +7,13 @@
 // moteur} ; sous chaque réponse, un bouton par action (Montre-moi / Y aller / Guide). L'historique reste dans
 // sessionStorage (dz_agent_hist) ; le moteur choisi dans localStorage (dz_agent_moteur). Un 402 `dz_plafond` est
 // traité par la couche /shared/dz-plafonds.js (elle enveloppe window.fetch) : rien à faire ici.
-import { etapes, historiqueBorne, choisir, composer, candidats, versEcran, cliquable, prix } from "./dz-agent-logique.js";
+//
+// t260 (plan 2026-10-20-agent-bulle-deplacable.md) : la bulle couvrait le pied des panneaux (Calques du Photolab…).
+// Elle a deux places, gardées dans localStorage : « barre » (défaut, dz_agent_place) = un bouton de la barre du haut
+// de la coque, qui ne recouvre rien ; « flottant » = bulle qu'on glisse où l'on veut (dz_agent_pos). On la tire hors
+// de la barre pour la rendre flottante, on la lâche sur la barre pour l'y ranger ; clic droit et épingle du tiroir
+// font la même chose. Sans barre (démarrage, mise en page sans en-tête), elle reste flottante.
+import { etapes, historiqueBorne, choisir, composer, candidats, versEcran, cliquable, prix, placeLue, positionLue, borner, glisse } from "./dz-agent-logique.js";
 import { creerPointeur } from "./dz-agent-pointeur.js";
 import { capturer, captureDisponible } from "./dz-agent-vision.js";
 
@@ -48,7 +54,14 @@ if (!window.__dzAgent) {
   const css = el("style", { texte: `
 .dzAgentBtn{position:fixed;right:18px;bottom:18px;z-index:9990;border:1px solid var(--cyan,#3ee6d0);
  background:var(--bg-panel,#151519);color:var(--ink-strong,#eaf2ff);border-radius:999px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;line-height:1;
- cursor:pointer;box-shadow:0 0 18px var(--cyan-glow,rgba(240,180,41,.33))}
+ cursor:pointer;box-shadow:0 0 18px var(--cyan-glow,rgba(240,180,41,.33));touch-action:none;user-select:none;white-space:nowrap}
+.dzAgentBtn[data-place="barre"]{position:static;flex-shrink:0;align-self:center;margin:0 6px;padding:4px 10px;font-size:12px;box-shadow:none;z-index:auto}
+.dzAgentBtn[data-glisse="1"]{cursor:grabbing;opacity:.85}
+.dzAgentMenu{position:fixed;z-index:9992;display:flex;flex-direction:column;min-width:220px;padding:4px;border:1px solid var(--stroke,#2a2930);
+ border-radius:8px;background:var(--bg-panel,#151519);color:var(--ink,#c9d4e8);font-family:inherit;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.dzAgentMenu button{background:transparent;color:inherit;border:0;border-radius:6px;padding:6px 10px;text-align:left;cursor:pointer;font:inherit}
+.dzAgentMenu button:hover,.dzAgentMenu button:focus-visible{background:var(--bg-panel-2,#1c1c21)}
+.dzAgentTete button[aria-pressed="true"]{border-color:var(--cyan,#3ee6d0)}
 .dzAgentTiroir{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);z-index:9991;display:none;flex-direction:column;
  background:var(--bg-panel,#151519);color:var(--ink,#c9d4e8);border-left:1px solid var(--stroke,#2a2930);font-family:inherit;font-size:13px;line-height:1.5}
 .dzAgentTiroir[data-ouvert="1"]{display:flex}
@@ -99,16 +112,138 @@ if (!window.__dzAgent) {
     on: { click: () => {
       if (annulerAccord) annulerAccord(); else if (occupe || enVue) return;
       arreterLecture(); hist = []; garder(); dessiner(); } } });
+  // t260 : l'épingle range la bulle dans la barre du haut, ou la rend flottante
+  const btnEpingle = el("button", { type: "button", "aria-pressed": "true",
+    on: { click: () => changerPlace(place === "barre" ? "flottant" : "barre") } }, [glyphe("dz-etat-epingle")]);
   const tiroir = el("aside", { id: "dzAgentTiroir", class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
     el("div", { class: "dzAgentTete" }, [
-      el("h2", { texte: T("agent.tiroir.titre") }), choix, btnNouvelle,
+      el("h2", { texte: T("agent.tiroir.titre") }), choix, btnEpingle, btnNouvelle,
       el("button", { texte: "×", title: T("agent.tiroir.fermer"), "aria-label": T("agent.tiroir.fermer"), on: { click: () => basculer(false) } }),
     ]),
     fil,
     el("div", { class: "dzAgentPied" }, [saisie, btnMicro, btnEnvoyer]),
   ]);
-  const bouton = el("button", { class: "dzAgentBtn", texte: "? " + T("agent.tiroir.bouton"), title: T("agent.tiroir.bouton_titre"),
-    "aria-expanded": "false", "aria-controls": "dzAgentTiroir", on: { click: () => basculer() } });
+  const bouton = el("button", { class: "dzAgentBtn", texte: "? " + T("agent.tiroir.bouton"),
+    title: T("agent.tiroir.bouton_titre") + " — " + T("agent.place.astuce"),
+    "aria-expanded": "false", "aria-controls": "dzAgentTiroir", "aria-haspopup": "menu",
+    on: { click: () => { if (sansClic) { sansClic = false; return; } basculer(); } } });
+
+  // ── t260 : la place de la bulle ──
+  let place = placeLue(lire(window.localStorage, "dz_agent_place"));
+  let pos = positionLue(lire(window.localStorage, "dz_agent_pos"));
+  let sansClic = false;          // le clic qui suit un glisser ne doit pas ouvrir le tiroir
+  const barre = () => document.querySelector("#root header");
+  const fenetre = () => ({ l: window.innerWidth, h: window.innerHeight });
+  const effacerStyle = () => Object.assign(bouton.style, { left: "", top: "", right: "", bottom: "" });
+  function poser(p) {            // bulle flottante : coin haut-gauche en px, tenue dans la fenêtre
+    const b = bouton.getBoundingClientRect();
+    const q = borner(p, { l: b.width || 80, h: b.height || 32 }, fenetre());
+    Object.assign(bouton.style, { left: q.x + "px", top: q.y + "px", right: "auto", bottom: "auto" });
+    return q;
+  }
+  function placer() {
+    const h = place === "barre" ? barre() : null;
+    if (h) {
+      if (bouton.parentNode !== h) {
+        const dernier = h.lastElementChild;      // avant le dernier bouton de la barre, à côté des compteurs
+        h.insertBefore(bouton, dernier && dernier.tagName === "BUTTON" ? dernier : null);
+      }
+      bouton.dataset.place = "barre";
+      effacerStyle();
+    } else {
+      if (bouton.parentNode !== document.body) document.body.appendChild(bouton);
+      bouton.dataset.place = "flottant";
+      if (pos) poser(pos); else effacerStyle();
+    }
+    const t = T(place === "barre" ? "agent.place.flottant" : "agent.place.ancrer");
+    btnEpingle.title = t; btnEpingle.setAttribute("aria-label", t);
+    btnEpingle.setAttribute("aria-pressed", place === "barre" ? "true" : "false");
+  }
+  function changerPlace(p, nouvellePos) {
+    place = p;
+    ecrire(window.localStorage, "dz_agent_place", p);
+    if (nouvellePos !== undefined) {
+      pos = nouvellePos;
+      if (pos) ecrire(window.localStorage, "dz_agent_pos", JSON.stringify(pos));
+      else { try { window.localStorage.removeItem("dz_agent_pos"); } catch (e) { /* stockage indisponible */ } }
+    }
+    placer();
+  }
+  // React remonte la barre (changement d'écran, de langue) ou la monte après nous : on y remet le bouton
+  let guet = 0;
+  const veilleur = new MutationObserver(() => {
+    if (guet) return;
+    guet = setTimeout(() => {      // pas requestAnimationFrame : il dort quand la fenêtre est masquée
+      guet = 0;
+      if (appui && appui.bouge) return;
+      const h = place === "barre" ? barre() : null;
+      if ((h && bouton.parentNode !== h) || !bouton.isConnected) placer();
+    }, 30);
+  });
+  window.addEventListener("resize", () => { if (bouton.dataset.place === "flottant" && pos) poser(pos); });
+
+  // glisser : depuis la barre, la bulle en sort et devient flottante ; lâchée sur la barre, elle s'y range
+  let appui = null;              // {id, depart:{x,y}, decalage:{x,y}, bouge}
+  bouton.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0) return;
+    const b = bouton.getBoundingClientRect();
+    appui = { id: ev.pointerId, depart: { x: ev.clientX, y: ev.clientY }, decalage: { x: ev.clientX - b.left, y: ev.clientY - b.top }, bouge: false };
+    // capturé DÈS l'appui : un geste vif sort du bouton au premier mouvement (souvent au-dessus d'un lab en iframe)
+    try { bouton.setPointerCapture(ev.pointerId); } catch (e) { /* capture refusée : le glisser suit tant qu'on reste dessus */ }
+  });
+  bouton.addEventListener("pointermove", (ev) => {
+    if (!appui || ev.pointerId !== appui.id) return;
+    const ici = { x: ev.clientX, y: ev.clientY };
+    if (!appui.bouge) {
+      if (!glisse(appui.depart, ici)) return;
+      appui.bouge = true;
+      bouton.dataset.glisse = "1";
+      if (bouton.dataset.place === "barre") {
+        bouton.dataset.place = "flottant";       // sort de la barre sous le pointeur, sans perdre la capture
+        document.body.appendChild(bouton);
+        try { bouton.setPointerCapture(ev.pointerId); } catch (e) { /* déplacer le nœud perd la capture : on la reprend */ }
+      }
+    }
+    poser({ x: ici.x - appui.decalage.x, y: ici.y - appui.decalage.y });
+  });
+  function lacher(ev) {
+    if (!appui || ev.pointerId !== appui.id) return;
+    const a = appui; appui = null;
+    if (!a.bouge) return;
+    delete bouton.dataset.glisse;
+    sansClic = true; setTimeout(() => { sansClic = false; }, 0);
+    const h = barre(), r = h && h.getBoundingClientRect();
+    if (r && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) return changerPlace("barre");
+    const b = bouton.getBoundingClientRect();
+    changerPlace("flottant", { x: Math.round(b.left), y: Math.round(b.top) });
+  }
+  bouton.addEventListener("pointerup", lacher);
+  bouton.addEventListener("pointercancel", (ev) => {
+    if (appui && ev.pointerId === appui.id) { appui = null; delete bouton.dataset.glisse; placer(); }
+  });
+
+  // clic droit (ou touche Menu) : le menu des places
+  let menu = null;
+  function fermerMenu() { if (menu) { menu.remove(); menu = null; } }
+  bouton.addEventListener("contextmenu", (ev) => {
+    ev.preventDefault();
+    fermerMenu();
+    const entrees = [];
+    if (place !== "barre") entrees.push(["agent.place.ancrer", () => changerPlace("barre")]);
+    if (place !== "flottant") entrees.push(["agent.place.flottant", () => changerPlace("flottant")]);
+    if (place === "flottant" && pos) entrees.push(["agent.place.coin", () => changerPlace("flottant", null)]);
+    menu = el("div", { class: "dzAgentMenu", role: "menu", "aria-label": T("agent.place.menu") },
+      entrees.map(([cle, faire]) => el("button", { type: "button", role: "menuitem", texte: T(cle),
+        on: { click: () => { fermerMenu(); faire(); bouton.focus(); } } })));
+    document.body.appendChild(menu);
+    const b = bouton.getBoundingClientRect(), m = menu.getBoundingClientRect();
+    const x = ev.clientX || b.left, y = ev.clientY || b.bottom;
+    const q = borner({ x, y: y + m.height > window.innerHeight ? y - m.height : y }, { l: m.width, h: m.height }, fenetre());
+    Object.assign(menu.style, { left: q.x + "px", top: q.y + "px" });
+    const premier = menu.querySelector("button");
+    if (premier) premier.focus();
+  });
+  document.addEventListener("pointerdown", (ev) => { if (menu && !menu.contains(ev.target)) fermerMenu(); }, true);
 
   function basculer(ouvrir) {
     const o = ouvrir === undefined ? tiroir.dataset.ouvert !== "1" : ouvrir;
@@ -495,6 +630,7 @@ if (!window.__dzAgent) {
 
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape" && pointeur.actif()) effacerPointeur();     // n'empêche pas la suite (fermeture du tiroir)
+    if (ev.key === "Escape" && menu) { ev.preventDefault(); fermerMenu(); bouton.focus(); return; }
     if (ev.key === "F1") { ev.preventDefault(); if (!ev.repeat) basculer(); }
     else if (ev.key === "Escape" && tiroir.dataset.ouvert === "1" && tiroir.contains(ev.target) && !dicteeEnCours()) {
       ev.preventDefault(); ev.stopPropagation(); basculer(false);
@@ -502,6 +638,9 @@ if (!window.__dzAgent) {
     else if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing && ev.target === saisie) { ev.preventDefault(); envoyer(); }
   });
 
-  const monter = () => { document.head.appendChild(css); document.body.append(bouton, tiroir); dessiner(); };
+  const monter = () => {
+    document.head.appendChild(css); document.body.append(bouton, tiroir); placer(); dessiner();
+    veilleur.observe(document.getElementById("root") || document.body, { childList: true, subtree: true });
+  };
   if (document.body) monter(); else document.addEventListener("DOMContentLoaded", monter);
 }
