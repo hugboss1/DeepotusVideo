@@ -20,6 +20,7 @@ import unicodedata
 from catalogue_commun import (CADRE_DE_ZONE, CHAMPS, ECRAN_DE_PREFIXE, ECRAN_DE_ZONE, ROLES_MESSAGES,  # noqa: F401
                               VIDE, _base, _sha8, _texte, ecran, message, zone)
 from catalogue_bundle import _bundle, depuis_bundle                                                # noqa: F401
+from catalogue_fabriques import fabriques
 
 # labs servis en cadre intégré : dossier de frontend/ → (écran, cadre). Une seule table pour les deux lectures :
 # le code des labs de LABS_LUS est lu en clair (infobulles T(…)), les fiches didactiques de tous (aide/index.json).
@@ -125,6 +126,16 @@ def depuis_labs(racine: pathlib.Path, dico: dict, inv: dict = None) -> dict:
                         e["libelle"] = {"fr": lib[1], "en": inv.get(lib[1], "")}
                 e["sources"] = sorted(set(e["sources"]) | {rel})
                 out[k] = e
+            for k, typ, champ, icone in fabriques(texte):   # éléments bâtis par une fabrique du lab (t261)
+                if k not in dico or message(k) or k.startswith("commun."):
+                    continue
+                e = out.get(k)
+                if e is None:
+                    e = out[k] = {**_base(k, typ, dico), "ecran": ec, "cadre": cadre, "libelle": dict(VIDE),
+                                  "infobulle": None, "icone": icone, "sources": []}
+                    e[champ] = _texte(dico, k)
+                e["sources"] = sorted(set(e["sources"]) | {rel})
+                out[k] = e
     for k in dico:
         if k.startswith("photolab.outil.") and not message(k):
             e = {**_base(k, "outil", dico), "ecran": "photolab", "cadre": "/photolab/"}
@@ -162,7 +173,7 @@ def depuis_pages(racine: pathlib.Path, dico: dict, deja: dict) -> dict:
                 continue
             cles = par_texte.get(html.unescape(t.group(1)), [])
             page = sorted(k for k in cles if k.startswith(prefixe))
-            if not page or any(k in deja or k in out for k in cles):
+            if not page or any(k in deja or k in out for k in cles if k.startswith(dossier_lab + ".")):
                 continue
             k = page[0]
             typ = "champ" if m.group(1).lower() in CHAMPS else "bouton"

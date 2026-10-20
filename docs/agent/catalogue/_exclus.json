@@ -26,7 +26,8 @@
     "vectorlab.couleur.nouvelle",
     "vectorlab.couleur.origine",
     "vectorlab.image.picker_titre",
-    "vectorlab.pile.histogramme"
+    "vectorlab.pile.histogramme",
+    "photolab.regle.redresser_aide"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"
