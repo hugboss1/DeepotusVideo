@@ -120,6 +120,17 @@ export const ETATS_MOTEUR = {
   "New Layer Based Slice": "photolab.histo.layer_slice", "Clear Slices": "photolab.histo.clear_slices",
   "Place Scale Marker": "photolab.histo.scale_marker", "Straighten": "photolab.histo.straighten",
   "Set Measurement Scale": "photolab.histo.measurement_scale",
+  // t254 (M5, photocraft 0.10) : tracés et texte (noms relevés sur le vrai moteur, banc test_photolab_m5 [2]). La
+  // Plume de courbure et la Plume libre font UN état « Work Path » / « New Shape Layer » (pose + recalcul fondus).
+  "Work Path": "photolab.traces.travail", "New Shape Layer": "photolab.histo.new_shape_layer", "New Type Layer": "photolab.histo.new_type_layer",
+  "Drag Anchor Points": "photolab.histo.drag_anchor_points", "Drag Direction Point": "photolab.histo.drag_direction_point",
+  "Drag Segment": "photolab.histo.drag_segment", "Convert Point": "photolab.outil.convert_point",
+  "Add Anchor Point": "photolab.outil.add_anchor_point", "Delete Anchor Point": "photolab.outil.delete_anchor_point",
+  "Transform Path": "photolab.histo.transform_path", "Clipping Path": "photolab.traces.detourage",
+  "Clear Clipping Path": "photolab.histo.clear_clipping_path", "Paste Fill": "photolab.histo.paste_fill",
+  "Paste Complete Stroke": "photolab.histo.paste_stroke", "Type Mask": "photolab.histo.type_mask",
+  "Change Type Size": "photolab.histo.change_type_size", "Release Type from Path": "photolab.histo.release_type",
+  "Type on a Path": "photolab.histo.type_on_path", "Save Path": "photolab.histo.save_path", "Delete Path": "photolab.traces.supprimer",
 };
 
 // Ordre : carte ci-dessus (fr et en, par le dictionnaire) -> libellé du catalogue des menus (fr) -> nom du moteur.

@@ -7,6 +7,7 @@
 // moteur rend le texte (D1). Caractère / Paragraphe appliquent type.setStyle à la sélection de l'éditeur (range) ou au
 // calque. Fonctions PURES exportées (qa/texte.test.mjs).
 import { demanderNom } from "./mod-nommer.js";
+import { toucher, segments, pointSegment } from "./mod-trace.js";
 
 export const DEFAUT_TEXTE = { font: "Inter", weight: 400, italic: false, size: 48, align: "left", antialias: "sharp", orientation: "horizontal" };
 export const SEUIL_BOITE_PX = 4;
@@ -106,8 +107,61 @@ export function paramsCreation(pl, texte, opts, couleur) {
   if (!String(texte || "").trim()) return null;
   const p = { ...pl, text: String(texte), font: opts.font, weight: opts.weight, italic: !!opts.italic, size: opts.size, color: couleur };
   if (opts.align && opts.align !== "left") p.align = alignMoteur(opts.align);
+  if (opts.orientation === "vertical") p.orientation = "vertical";               // t254 : Texte vertical
   return p;
 }
+// t254 (M5) : les quatre outils du groupe T (amont Tool::Type, VerticalType, HorizontalTypeMask, VerticalTypeMask).
+export const OUTILS_TEXTE = ["type", "verticalType", "horizontalTypeMask", "verticalTypeMask"];
+export const estMasque = (outil) => outil === "horizontalTypeMask" || outil === "verticalTypeMask";
+export const estVertical = (outil) => outil === "verticalType" || outil === "verticalTypeMask";
+// L'outil jumeau de l'autre orientation (bouton Orientation de la barre : amont, il change d'outil).
+export const jumeau = (outil) => ({ type: "verticalType", verticalType: "type", horizontalTypeMask: "verticalTypeMask", verticalTypeMask: "horizontalTypeMask" })[outil] || outil;
+// Mode de la barre des masques (comme les outils de sélection) -> `operation` de type.createSelection.
+export const OPERATIONS_MASQUE = { replace: "new", add: "add", subtract: "subtract", intersect: "intersect" };
+// type.createSelection d'un masque de texte : le texte temporaire ne devient jamais un calque (vide -> null).
+export function paramsMasque(pl, texte, opts, outil, mode = "replace") {
+  if (!String(texte || "").trim()) return null;
+  const p = { ...pl, text: String(texte), font: opts.font, weight: opts.weight, italic: !!opts.italic, size: opts.size,
+    operation: OPERATIONS_MASQUE[mode] || "new" };
+  if (estVertical(outil)) p.orientation = "vertical";
+  if (opts.align && opts.align !== "left") p.align = alignMoteur(opts.align);
+  return p;
+}
+// Distance le long du sous-tracé jusqu'au point (k, t) touché — le `start` de type.attachToPath (px document).
+export function longueurJusqua(sp, k, t, pas = 32) {
+  let l = 0;
+  for (const s of segments(sp)) {
+    const fin = s.k === k ? t : 1;
+    let prec = pointSegment(s.a, s.b, 0);
+    for (let i = 1; i <= pas; i++) {
+      const q = pointSegment(s.a, s.b, (i / pas) * fin);
+      l += Math.hypot(q[0] - prec[0], q[1] - prec[1]); prec = q;
+    }
+    if (s.k === k) break;
+  }
+  return Math.round(l * 100) / 100;
+}
+// Un clic de l'outil Texte sur un tracé (tracé de travail, ou forme du calque actif `shape`) : où attacher le texte.
+// null si le point ne touche aucun segment ni ancre des tracés donnés ({path, shape?} devant d'abord).
+export function surTrace(chemins, p, tol) {
+  for (const c of chemins || []) {
+    const t = toucher(c.path, p, tol);
+    if (!t || t.type === "poignee") continue;
+    const sp = c.path.subpaths[t.sp], start = t.type === "ancre" ? longueurJusqua(sp, t.k, 0) : longueurJusqua(sp, t.k, t.t);
+    return { subpath: t.sp, start, ...(c.shape != null ? { shape: c.shape } : {}) };
+  }
+  return null;
+}
+// type.info d'un texte posé sur un tracé : shape = {Path: {path, start, flip}} (sinon « Point » ou {Box}).
+export const surUnTrace = (info) => !!(info && info.shape && typeof info.shape === "object" && info.shape.Path);
+// Ctrl+Maj+. / , (Ctrl+Alt+Maj : de 10) -> taille du texte ± (amont menus.rs, raccourcis du registre).
+export function commandeTaille(k) {
+  if (!k || !(k.ctrlKey || k.metaKey) || !k.shiftKey) return null;
+  const plus = k.code === "Period" || k.key === "." || k.key === ">", moins = k.code === "Comma" || k.key === "," || k.key === "<";
+  if (plus === moins) return null;
+  return "type." + (plus ? "increase" : "decrease") + "Size" + (k.altKey ? "More" : "");
+}
+
 // type.edit pour un calque existant (inchangé -> null).
 export const paramsEdition = (calque, avant, apres) => (String(apres) === String(avant) ? null : { layer: calque, text: String(apres) });
 
@@ -223,14 +277,21 @@ export function initTexte(PL) {
     else if (e.bornes) { const a = PL.vue.versEcran(e.bornes[0], e.bornes[1]); gx = a.x; gy = a.y; w = Math.max(e.bornes[2] * z + px, 120); h = Math.max(e.bornes[3] * z, px * 1.3); }
     else { const a = PL.vue.versEcran(e.pl.x, e.pl.y); gx = a.x; gy = a.y - px; w = Math.max(160, px * 6); h = px * 1.3; }
     Object.assign(zone.style, { left: (r.left - rs.left + gx) + "px", top: (r.top - rs.top + gy) + "px", width: w + "px", height: h + "px" });
+    // t254 : Texte vertical (colonnes de haut en bas), masque de texte (la saisie se voit sur un voile, comme l'amont)
+    if (e.vertical && !e.boite && !e.bornes) Object.assign(zone.style, { writingMode: "vertical-rl", left: (r.left - rs.left + gx - px * 0.65) + "px", top: (r.top - rs.top + (e.pl ? PL.vue.versEcran(e.pl.x, e.pl.y).y : gy)) + "px", width: px * 1.3 + "px", height: Math.max(160, px * 6) + "px" });
+    else if (e.vertical) zone.style.writingMode = "vertical-rl";
+    if (e.masque) zone.classList.add("tx-masque");
     zone.addEventListener("keydown", (ev) => {
       ev.stopPropagation();
       // t159 : Préférences › Texte › « Échap valide le texte » (décochée : Échap annule la saisie)
       const echapValide = !PL.prefs || PL.prefs.v("type", "useEscToCommit");
       if (ev.key === "Escape" && !echapValide) { ev.preventDefault(); annuler(); return; }
-      if ((ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) || ev.key === "Escape") { ev.preventDefault(); valider(); }
+      if ((ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) || ev.key === "Escape") { ev.preventDefault(); valider(); return; }
+      // t254 : taille ± pendant la saisie (la plage choisie, sinon tout le texte)
+      const taille = commandeTaille(ev);
+      if (taille) { ev.preventDefault(); tailleEnEdition(taille); }
     });
-    zone.addEventListener("input", () => { if (!e.boite) { zone.style.width = Math.max(160, zone.scrollWidth + 8) + "px"; zone.style.height = "auto"; zone.style.height = zone.scrollHeight + "px"; } });
+    zone.addEventListener("input", () => { if (!e.boite && !e.vertical) { zone.style.width = Math.max(160, zone.scrollWidth + 8) + "px"; zone.style.height = "auto"; zone.style.height = zone.scrollHeight + "px"; } });
     scene.appendChild(zone);
     ed = { ...e, zone };
     setTimeout(() => { zone.focus(); if (e.calque) zone.select(); }, 0);
@@ -242,8 +303,32 @@ export function initTexte(PL) {
     const e = ed, texte = e.zone.value;
     ed = null; fermerEditeurDom();
     if (PL.reconstruireOptions) PL.reconstruireOptions();
+    if (e.masque) {                                       // t254 : masque de texte -> une sélection, aucun calque
+      const p = paramsMasque(e.pl, texte, opts, e.outil, opts.modeMasque);
+      if (p) await PL.executer("type.createSelection", p);
+      return;
+    }
     if (e.calque) { const p = paramsEdition(e.calque, e.avant, texte); if (p) await PL.executer("type.edit", p); }
-    else { const p = paramsCreation(e.pl, texte, opts, opts.couleur || fg()); if (p) await PL.executer("type.create", p); }
+    else {
+      const p = paramsCreation(e.pl, texte, { ...opts, orientation: e.vertical ? "vertical" : "horizontal" }, opts.couleur || fg());
+      if (!p) return;
+      if (!e.surTrace) { await PL.executer("type.create", p); return; }
+      // t254 : texte sur tracé — création et attache fondues en UN état (même clé coalesce)
+      const cle = "pl-sur-trace-" + Date.now().toString(36);
+      const r = await PL.executer("type.create", { ...p, coalesce: cle });
+      if (r && r.ok && r.r && r.r.layer != null) await PL.executer("type.attachToPath", { layer: r.r.layer, ...e.surTrace, coalesce: cle });
+    }
+  }
+  // t254 : Ctrl+Maj+. / , pendant la saisie : le texte saisi part au moteur, puis la taille de la plage (ou de tout).
+  async function tailleEnEdition(id) {
+    if (!ed || ed.masque) return;
+    const z = ed.zone, a = z.selectionStart, b = z.selectionEnd;
+    const c = await synchroniser();
+    if (c == null) return;
+    const r = await PL.executer(id, { layer: c, ...(a < b ? { range: [a, b] } : {}) });
+    const v = r && r.ok && r.r ? lecture(r.r, a) : null;
+    if (v && ed) { ed.size = v.size; z.style.fontSize = Math.max(8, v.size * PL.vue.v.z) + "px"; if (!(a < b)) opts.size = v.size; }
+    z.focus(); z.setSelectionRange(a, b);
   }
   function annuler() { ed = null; fermerEditeurDom(); if (PL.reconstruireOptions) PL.reconstruireOptions(); }
   // Avant de styler une PLAGE pendant l'édition, le texte saisi part au moteur (les positions doivent correspondre).
@@ -271,6 +356,7 @@ export function initTexte(PL) {
       if (params.font) z.style.fontFamily = `"${params.font}", sans-serif`;
       if (params.size) z.style.fontSize = Math.max(8, params.size * PL.vue.v.z) + "px";
       if (params.color) z.style.color = params.color;
+      if (ed.masque) return;                                // t254 : le masque prend les réglages à la validation
       const c = await synchroniser();
       if (c == null) return;
       await PL.executer("type.setStyle", { layer: c, ...(a < b ? { range: [a, b] } : {}), ...params });
@@ -281,45 +367,65 @@ export function initTexte(PL) {
     if (l) await PL.executer("type.setStyle", { layer: l.id, ...params });
   }
 
-  PL.gestes.type = {
+  // t254 : un geste par outil du groupe T ; les masques de texte n'éditent jamais un calque existant (texte temporaire)
+  // et l'outil Texte, cliqué sur un tracé (tracé de travail ou forme active), pose un texte qui le suit.
+  const geste = (outil) => ({
     appui(p) {
       if (ed) { valider(); return; }                               // amont : un clic ailleurs valide, sans nouveau texte
-      const l = calqueTexteSous(PL.etat.doc, [p.x, p.y]);
+      const l = estMasque(outil) ? null : calqueTexteSous(PL.etat.doc, [p.x, p.y]);
       if (l) { editerCalque(l); return; }
-      g = { a: [p.x, p.y] };
+      const tol = 6 / Math.max(0.01, PL.vue.v.z);
+      g = { a: [p.x, p.y], surTrace: !estMasque(outil) && PL.traces && PL.traces.cheminsTexte
+        ? PL.traces.cheminsTexte().then((ch) => surTrace(ch, [p.x, p.y], tol)).catch(() => null) : null };
     },
     bouger() {},
-    relacher(p) {
+    async relacher(p) {
       if (!g) return;
-      const pl = placement(g.a, [p.x, p.y], PL.vue.v.z); g = null;
+      const a = g.a, st = await g.surTrace; g = null;
+      const pl = st ? { x: Math.round(a[0] * 100) / 100, y: Math.round(a[1] * 100) / 100 } : placement(a, [p.x, p.y], PL.vue.v.z);
       ouvrirEditeur({ calque: null, pl, avant: "", boite: pl.box || null, font: opts.font, weight: opts.weight, italic: opts.italic,
-        size: opts.size, couleur: opts.couleur || fg(), align: opts.align });
+        size: opts.size, couleur: opts.couleur || fg(), align: opts.align, outil, masque: estMasque(outil), vertical: estVertical(outil),
+        surTrace: st });
     },
-    survol(p) { PL.$("#toile").style.cursor = calqueTexteSous(PL.etat.doc, [p.x, p.y]) ? "text" : "crosshair"; },
+    survol(p) { PL.$("#toile").style.cursor = !estMasque(outil) && calqueTexteSous(PL.etat.doc, [p.x, p.y]) ? "text" : "crosshair"; },
     quitter() { if (ed) valider(); g = null; },
     annuler() { g = null; },
-  };
+  });
+  for (const o of OUTILS_TEXTE) PL.gestes[o] = geste(o);
   async function editerCalque(l) {
     if (PL.etat.doc.activeLayer !== l.id) await PL.executer("layer.select", { layer: l.id, mode: "replace" });
     const inf = await (async () => { try { return await PL.post("/executer", { command: "type.info", params: { layer: l.id } }); } catch (e) { return null; } })();
     const v = lecture(inf, 0);
     if (!v) return;
-    ouvrirEditeur({ calque: l.id, pl: null, avant: v.texte, boite: null, bornes: l.bounds, font: v.font, weight: v.weight, italic: v.italic,
+    ouvrirEditeur({ calque: l.id, outil: PL.etat.outil, vertical: v.orientation === "vertical", pl: null, avant: v.texte, boite: null, bornes: l.bounds, font: v.font, weight: v.weight, italic: v.italic,
       size: v.size, couleur: v.color, align: v.align });
   }
   PL.texte = { valider, annuler, editeur: () => (ed ? { calque: ed.calque, texte: ed.zone.value } : null), appliquer, relireInfo, prefs: () => prefs };
 
-  /* barre d'options de l'outil Texte */
+  /* barre d'options de l'outil Texte (et, t254, des trois autres outils du groupe T) */
   PL.barresOutils = PL.barresOutils || {};
   PL.barresOutils.type = (barre) => {
     const champ = (lib, el) => { const w = document.createElement("label"); w.className = "opt fo-champ"; const s = document.createElement("span"); s.textContent = T(lib); w.append(s, el); barre.appendChild(w); return el; };
+    // t254 : l'orientation suit l'outil (Texte / Texte vertical, masque horizontal / vertical) ; le bouton passe à
+    // l'outil jumeau (amont) et, comme avant, bascule le calque de texte actif.
+    const outil = OUTILS_TEXTE.includes(PL.etat.outil) ? PL.etat.outil : "type";
+    opts.orientation = estVertical(outil) ? "vertical" : "horizontal";
     const ori = document.createElement("button"); ori.type = "button"; ori.className = "tr-bascule" + (opts.orientation === "vertical" ? " actif" : ""); ori.innerHTML = PL.icone("dz-edit-orientation-texte");
     ori.title = T("photolab.texte.orientation"); ori.setAttribute("aria-label", ori.title); ori.setAttribute("aria-pressed", String(opts.orientation === "vertical"));
     ori.addEventListener("click", () => {
       opts.orientation = opts.orientation === "vertical" ? "horizontal" : "vertical"; ori.classList.toggle("actif", opts.orientation === "vertical"); ori.setAttribute("aria-pressed", String(opts.orientation === "vertical"));
-      const l = calqueActifTexte(); if (l) PL.executer("type.orientation." + (opts.orientation === "vertical" ? "vertical" : "horizontal"), { layer: l.id });
+      const l = estMasque(outil) ? null : calqueActifTexte(); if (l) PL.executer("type.orientation." + (opts.orientation === "vertical" ? "vertical" : "horizontal"), { layer: l.id });
+      if (!ed && PL.choisirOutil) PL.choisirOutil(jumeau(outil));
     });
     barre.appendChild(ori);
+    if (estMasque(outil)) {
+      // Mode du masque (comme les outils de sélection) : nouvelle sélection, ajouter, soustraire, intersection
+      const m = document.createElement("select"); m.className = "tx-mode-masque";
+      for (const v of Object.keys(OPERATIONS_MASQUE)) { const o = document.createElement("option"); o.value = v; o.textContent = T("photolab.option.mode." + v); m.appendChild(o); }
+      m.value = opts.modeMasque || "replace";
+      m.addEventListener("change", () => { opts.modeMasque = m.value; });
+      champ("photolab.option.mode", m);
+    }
     barre.appendChild(selecteurPolice(opts.font, (f) => appliquer({ font: f })));
     const st = document.createElement("select"); st.className = "tx-style"; champ("photolab.texte.style", st);
     const remplirStyles = async (f) => {
@@ -343,9 +449,18 @@ export function initTexte(PL) {
       b.addEventListener("click", () => { appliquer(paramsStyle("align", v)); barre.querySelectorAll(".tx-align").forEach((x) => x.classList.toggle("actif", x === b)); });
       barre.appendChild(b);
     }
-    const coul = Object.assign(document.createElement("input"), { type: "color", value: opts.couleur || fg() });
-    coul.addEventListener("change", () => appliquer({ color: coul.value }));
-    champ("photolab.texte.couleur", coul);
+    if (!estMasque(outil)) {
+      const coul = Object.assign(document.createElement("input"), { type: "color", value: opts.couleur || fg() });
+      coul.addEventListener("change", () => appliquer({ color: coul.value }));
+      champ("photolab.texte.couleur", coul);
+      // t254 : texte sur tracé — libérer le calque actif de son tracé (type.detachFromPath)
+      const lib = document.createElement("button"); lib.type = "button"; lib.className = "tr-bascule tx-liberer"; lib.disabled = true;
+      lib.innerHTML = PL.icone("dz-outil-vec-texte-sur-chemin"); lib.append(" " + T("photolab.texte.liberer_trace"));
+      lib.title = T("photolab.texte.liberer_trace_aide");
+      lib.addEventListener("click", async () => { const l = calqueActifTexte(); if (l) { await PL.executer("type.detachFromPath", { layer: l.id }); lib.disabled = true; } });
+      barre.appendChild(lib);
+      if (calqueActifTexte()) relireInfo().then((i) => { lib.disabled = !surUnTrace(i); }).catch(() => {});
+    }
     if (ed) {
       const ok = document.createElement("button"); ok.type = "button"; ok.className = "tr-valider"; ok.innerHTML = PL.icone("dz-action-valider"); ok.title = T("photolab.texte.valider"); ok.setAttribute("aria-label", ok.title);
       ok.addEventListener("click", valider);
@@ -354,6 +469,8 @@ export function initTexte(PL) {
       barre.append(ok, ko);
     }
   };
+  // t254 : le Texte vertical et les deux masques de texte ont la même barre (orientation, mode des masques)
+  for (const o of OUTILS_TEXTE) if (o !== "type") PL.barresOutils[o] = (barre) => PL.barresOutils.type(barre);
   // Liste des polices : chaque nom dans sa police, à la taille de l'aperçu (Texte › Taille de l'aperçu des polices).
   function selecteurPolice(courante, choisir) {
     const w = document.createElement("div"); w.className = "tx-police";
@@ -617,5 +734,14 @@ export function initTexte(PL) {
     majPanneaux();
     for (const s of Object.values(etatsStyles)) if (s.relire && PL.$(s === etatsStyles.stylesCar ? "#corpsStylesCar" : "#corpsStylesPar").offsetParent) s.relire();
   });
-  if (PL.surOutil) PL.surOutil.push(() => { if (ed && PL.etat.outil !== "type") valider(); });
+  if (PL.surOutil) PL.surOutil.push(() => { if (ed && PL.etat.outil !== ed.outil) valider(); });
+  // t254 : Ctrl+Maj+. / , (Ctrl+Alt+Maj : de 10) — taille du calque de texte actif, hors saisie
+  document.addEventListener("keydown", (ev) => {
+    const id = commandeTaille(ev);
+    if (!id || ed || !PL.etat.doc || /^(INPUT|TEXTAREA|SELECT)$/.test((ev.target && ev.target.tagName) || "")) return;
+    const l = calqueActifTexte();
+    if (!l) return;
+    ev.preventDefault();
+    PL.executer(id, { layer: l.id });
+  });
 }

@@ -21494,6 +21494,68 @@
   ]
  },
  {
+  "cle": "dz-outil-photo-masque-texte",
+  "famille": "outil-photo",
+  "sens": "Outil Masque de texte horizontal (le texte saisi devient une sélection).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Masque de texte horizontal (T)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-vec-texte",
+    "Le Texte crée un calque ; le Masque de texte crée une sélection. Silhouette : T plein ≠ T en tirets."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "lettre T en pointillés de sélection",
+   "sujet": "T en tirets",
+   "support": "—",
+   "badge": "",
+   "serie": "outils",
+   "silhouette": "grand T en tirets"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-outil-photo-masque-texte-vertical",
+  "famille": "outil-photo",
+  "sens": "Outil Masque de texte vertical (texte en colonne devenu sélection).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Masque de texte vertical (T)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-photo-masque-texte",
+    "Même sélection, écrite en colonne. Silhouette : T en tirets seul ≠ T en tirets et flèche vers le bas."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "lettre T en pointillés de sélection et sens d'écriture vers le bas",
+   "sujet": "T en tirets",
+   "support": "flèche vers le bas",
+   "badge": "",
+   "serie": "outils",
+   "silhouette": "T en tirets à gauche, flèche pâle verticale à droite"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-outil-photo-nettete",
   "famille": "outil-photo",
   "sens": "Outil Netteté locale.",
@@ -23145,6 +23207,68 @@
   ]
  },
  {
+  "cle": "dz-outil-vec-ancre-ajouter",
+  "famille": "outil-vec",
+  "sens": "Outil Ajout de point d'ancrage (clic sur un segment).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Ajout de point d'ancrage (P)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-vec-ancre-supprimer",
+    "Ajouter met un point sur un segment ; Supprimer en retire un. Silhouette : badge plus ≠ badge moins."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "bec de plume et badge plus",
+   "sujet": "bec de plume court",
+   "support": "—",
+   "badge": "plus",
+   "serie": "outils",
+   "silhouette": "bec plein en diagonale, badge plus en bas à droite"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-outil-vec-ancre-supprimer",
+  "famille": "outil-vec",
+  "sens": "Outil Suppression de point d'ancrage (clic sur un point).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Suppression de point d'ancrage (P)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-vec-ancre-ajouter",
+    "Ajouter met un point sur un segment ; Supprimer en retire un. Silhouette : badge moins ≠ badge plus."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "bec de plume et badge moins",
+   "sujet": "bec de plume court",
+   "support": "—",
+   "badge": "moins",
+   "serie": "outils",
+   "silhouette": "bec plein en diagonale, badge moins en bas à droite"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-outil-vec-apparence",
   "famille": "outil-vec",
   "sens": "Menu Apparence (fond, contour, épaisseur, opacité, dégradés, effets).",
@@ -24680,6 +24804,99 @@
   ]
  },
  {
+  "cle": "dz-outil-vec-plume-courbure",
+  "famille": "outil-vec",
+  "sens": "Outil Plume de courbure (des points lisses, la courbe passe par eux).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Plume de courbure (P)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-vec-plume",
+    "La Plume tire des poignées ; la Plume de courbure ne pose que des points. Silhouette : bec seul ≠ bec debout sur une courbe à deux points."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "bec de plume posé sur une courbe douce",
+   "sujet": "bec de plume court",
+   "support": "courbe et deux points ronds",
+   "badge": "",
+   "serie": "outils",
+   "silhouette": "bec plein debout, courbe pâle en arche, deux points ronds pleins"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-outil-vec-plume-libre",
+  "famille": "outil-vec",
+  "sens": "Outil Plume libre (trace un tracé à main levée, lissé par le moteur).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Plume libre (P)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-vec-plume",
+    "La Plume pose des points un à un ; la Plume libre trace d'un seul geste. Silhouette : bec seul ≠ bec court et trace ondulée."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "bec de plume qui laisse une trace à main levée",
+   "sujet": "bec de plume court",
+   "support": "trace ondulée",
+   "badge": "",
+   "serie": "outils",
+   "silhouette": "bec plein en diagonale, trace pâle ondulée en bas à gauche"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-outil-vec-point-convertir",
+  "famille": "outil-vec",
+  "sens": "Outil Conversion de point (angle ↔ point lisse).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Conversion de point (P)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-vec-noeud-vif",
+    "Le Vectorlab rend une ancre anguleuse ; la Conversion de point bascule angle et lisse. Silhouette : chevron plein, poignée au-dessus ≠ ancre carrée, deux bras pâles."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "angle (chevron) dont le sommet porte une poignée lisse",
+   "sujet": "chevron et ancre carrée",
+   "support": "poignée horizontale à deux bouts",
+   "badge": "",
+   "serie": "outils",
+   "silhouette": "chevron plein ouvert vers le bas, poignée pâle horizontale en haut"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-outil-vec-polygone",
   "famille": "outil-vec",
   "sens": "Choix de la forme Polygone (pentagone) pour les outils de forme.",
@@ -25186,6 +25403,37 @@
    "badge": "",
    "serie": "texte-outils",
    "silhouette": "T plein incliné sur une courbe pâle"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-outil-vec-texte-vertical",
+  "famille": "outil-vec",
+  "sens": "Outil Texte vertical (colonnes de haut en bas).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Texte vertical (T)"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-outil-vec-texte",
+    "Le Texte écrit en lignes ; le Texte vertical en colonnes. Silhouette : réglette en I ≠ flèche vers le bas."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "lettre T et sens d'écriture vers le bas",
+   "sujet": "lettre T",
+   "support": "flèche vers le bas",
+   "badge": "",
+   "serie": "outils",
+   "silhouette": "T plein à gauche, flèche pâle verticale à droite"
   },
   "source_logo": "",
   "kit": []
