@@ -4710,7 +4710,7 @@
    "fonctions": [
     {
      "nom": "Moteur photocraft intégré, résultats identiques",
-     "quoi": "Chaque geste validé est calculé par le moteur photocraft-cli 0.3.0 fourni avec Deepotus : mêmes pixels que l'application d'origine, sans connexion ni coût.",
+     "quoi": "Chaque geste validé est calculé par le moteur photocraft-cli épinglé (0.10.0 depuis le 20/10/2026) fourni avec Deepotus : mêmes pixels que l'application d'origine, sans connexion ni coût.",
      "comment": "",
      "depuis": "2026-10-07",
      "ref": "PR #263 · commit 08a9ceb4 · t136",
@@ -5360,6 +5360,38 @@
      "comment": "Glisser",
      "depuis": "2026-10-09",
      "ref": "PR #274 · commit e44037ea · t156",
+     "payant": false
+    },
+    {
+     "nom": "Retouche 0.10 : Supprimer un objet, Pièce, Déplacement basé sur le contenu, Œil rouge, Tampon de motif",
+     "quoi": "Cinq outils de retouche calculés par le moteur 0.10 ; symétrie de peinture.",
+     "comment": "Groupes J et S de la barre d'outils",
+     "depuis": "2026-10-20",
+     "ref": "PR #395 · t252",
+     "payant": false
+    },
+    {
+     "nom": "Sélection 0.10 : rangée, colonne, Lasso magnétique, Recadrage de perspective, Échantillonneur, Rotation de la vue",
+     "quoi": "Six outils de sélection, de recadrage, de mesure et de vue.",
+     "comment": "Groupes M, L, C, I et H de la barre d'outils",
+     "depuis": "2026-10-20",
+     "ref": "PR #396 · t253",
+     "payant": false
+    },
+    {
+     "nom": "Tracés et texte 0.10 : Plume libre, Plume de courbure, outils de points, Sélection directe, Texte vertical, masques de texte",
+     "quoi": "Neuf outils de tracé et de texte, menu contextuel des tracés, texte sur tracé.",
+     "comment": "Groupes P, A et T de la barre d'outils",
+     "depuis": "2026-10-20",
+     "ref": "PR #398 · t254",
+     "payant": false
+    },
+    {
+     "nom": "Fiches animées des outils neufs",
+     "quoi": "Une fiche FR/EN par outil neuf, au survol long d'une ligne de groupe d'outils.",
+     "comment": "Survoler une ligne du groupe d'outils",
+     "depuis": "2026-10-21",
+     "ref": "t259",
      "payant": false
     }
    ]
@@ -6058,6 +6090,30 @@
      "comment": "Maj+clic = désactiver (croix rouge) ; Alt+clic = voir le masque seul ; Ctrl+clic = sélection ; clic sur la chaîne = lier/délier",
      "depuis": "2026-10-09",
      "ref": "PR #275 · commit 86899170 · t157",
+     "payant": false
+    },
+    {
+     "nom": "Calques 0.10",
+     "quoi": "Retirer l'arrière-plan (local), Couleur du calque, Dupliquer vers un document, Fusionner le groupe, Rééclairer, Couleur en alpha, Alt-clic sur l'œil, verrou de transparence (/).",
+     "comment": "Menu Calque et panneau Calques",
+     "depuis": "2026-10-20",
+     "ref": "PR #404 · t256",
+     "payant": false
+    },
+    {
+     "nom": "Instantanés et nuances",
+     "quoi": "Instantanés dans l'Historique, nouveau document à partir de l'état, import/export .aco/.ase du Nuancier.",
+     "comment": "Panneaux Historique et Nuancier",
+     "depuis": "2026-10-20",
+     "ref": "PR #405 · t256",
+     "payant": false
+    },
+    {
+     "nom": "Déformer",
+     "quoi": "Ctrl+T › Déformer : maillage du moteur à tirer, points et poignées.",
+     "comment": "Bouton Déformer du bandeau de transformation",
+     "depuis": "2026-10-20",
+     "ref": "PR #406 · t256",
      "payant": false
     }
    ]
@@ -9059,6 +9115,60 @@
      "depuis": "2026-10-19",
      "ref": "chantier agent-guide · A6",
      "payant": true
+    }
+   ]
+  },
+  {
+   "ecran": "Photolab — Actions, lots et exports",
+   "acces": "Photolab : onglet Actions du groupe Calques ; menus Fichier › Automatisation, Fichier › Exporter, Image › Variables",
+   "fonctions": [
+    {
+     "nom": "Panneau Actions",
+     "quoi": "Enregistrer, rejouer, éteindre une étape, dialogues à la lecture, arrêts, conditions, Modifier l'étape ; actions gardées entre deux séances.",
+     "comment": "Onglet Actions",
+     "depuis": "2026-10-20",
+     "ref": "PR #400 · t255",
+     "payant": false
+    },
+    {
+     "nom": "Traitement par lots",
+     "quoi": "Une action jouée sur des images de la Bibliothèque, chacune déposée à part avec sa lignée.",
+     "comment": "Fichier › Automatisation › Traitement par lots…",
+     "depuis": "2026-10-20",
+     "ref": "PR #400 · t255",
+     "payant": false
+    },
+    {
+     "nom": "Actions .atn",
+     "quoi": "Charger et enregistrer des fichiers d'actions par la Bibliothèque.",
+     "comment": "Menu du panneau Actions",
+     "depuis": "2026-10-20",
+     "ref": "PR #400 · t255",
+     "payant": false
+    },
+    {
+     "nom": "Ouvrir depuis l'ordinateur et formats 0.10",
+     "quoi": "ORA, Krita, Affinity, Paint.NET, EXR, DPX, DDS, TGA, raws en ouverture ; TIFF à calques, ORA, PDF d'une page à l'export.",
+     "comment": "Fichier › Ouvrir depuis l'ordinateur… ; Enregistrer sous…",
+     "depuis": "2026-10-20",
+     "ref": "PR #414 · t257",
+     "payant": false
+    },
+    {
+     "nom": "Calques et jeux de données en fichiers",
+     "quoi": "Un fichier par calque ou par jeu de données, déposé dans la Bibliothèque.",
+     "comment": "Fichier › Exporter",
+     "depuis": "2026-10-20",
+     "ref": "PR #414 · t257",
+     "payant": false
+    },
+    {
+     "nom": "Variables et préréglages d'export",
+     "quoi": "Image › Variables (Définir, Jeux de données), Appliquer un jeu de données, import CSV ; préréglages nommés de l'export.",
+     "comment": "Menus Image et Fichier",
+     "depuis": "2026-10-20",
+     "ref": "PR #414 · t257",
+     "payant": false
     }
    ]
   }

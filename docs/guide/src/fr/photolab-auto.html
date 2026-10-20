@@ -1,0 +1,30 @@
+<p class="chapeau-chap">Vous saurez enregistrer une suite de gestes du Photolab pour la rejouer d'un clic, l'appliquer à tout un lot d'images, et sortir un document autrement qu'en une seule image : un fichier par calque, un fichier par jeu de données. Gratuit, calculé sur votre PC.</p>
+
+<h3>Enregistrer une action</h3>
+<figure class="scene" data-scene="photolab/actions"></figure>
+<ol class="etapes">
+<li>Ouvrez l'onglet <b class="ui">Actions</b>, dans le groupe des Calques, ou Fenêtre › Actions.</li>
+<li>Cliquez <b class="ui">Nouvelle action</b> au pied du panneau : donnez-lui un nom, un jeu d'actions et une couleur si vous voulez, puis <b class="ui">Commencer l'enregistrement</b>.</li>
+<li>Travaillez normalement : chaque réglage, filtre ou commande appliqué au document devient une étape sous l'action.</li>
+<li><b class="ui">Arrêter</b> clôt l'enregistrement. Pour rejouer, choisissez l'action puis <b class="ui">Jouer la sélection</b> : elle s'applique au document ouvert, une étape d'historique par geste.</li>
+</ol>
+<p>Une coche éteint une étape sans l'effacer ; la case voisine ouvre son dialogue pendant la lecture, pour changer une valeur au passage. Le menu du panneau insère un arrêt avec message, une condition (« si le document est en paysage, jouer telle action »), ou une commande de menu, et <b class="ui">Modifier l'étape…</b> refait une étape avec de nouvelles valeurs.</p>
+
+<h3>Traiter un lot d'images</h3>
+<ol class="etapes">
+<li>Fichier › Automatisation › <b class="ui">Traitement par lots…</b>, ou le même article du menu du panneau Actions.</li>
+<li>Choisissez l'action, puis les images de la Bibliothèque à traiter (500 au plus), et <b class="ui">Lancer</b>.</li>
+<li>Chaque image est ouverte à part, traitée, puis déposée dans la Bibliothèque, reliée à son image d'origine. Votre document ouvert n'est pas touché.</li>
+</ol>
+
+<h3>Exporter autrement</h3>
+<div class="cartes">
+<article><i data-dz="dz-calque-nouveau"></i><h4>Calques en fichiers</h4><p>Fichier › Exporter › <b class="ui">Calques en fichiers…</b> sort chaque calque, ou les seuls calques visibles, en PNG ou JPG dans la Bibliothèque.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>Exporter sous</h4><p>Le dialogue d'export garde vos réglages en préréglages nommés et prévient quand un format perd quelque chose : calques aplatis, compression avec pertes, résolution oubliée.</p></article>
+<article><i data-dz="dz-nav-panneau-actions"></i><h4>Variables et jeux de données</h4><p>Image › Variables › <b class="ui">Définir…</b> rend un calque variable (visible ou non, texte remplacé). Un jeu de données donne une valeur à chaque variable ; Image › <b class="ui">Appliquer un jeu de données…</b> le montre.</p></article>
+<article><i data-dz="dz-action-enregistrer"></i><h4>Un fichier par jeu</h4><p>Fichier › Importer › Jeux de données variables… lit un tableau CSV ; Fichier › Exporter › <b class="ui">Jeux de données en fichiers…</b> sort une image par jeu, par exemple une carte par nom.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Vos actions restent d'une séance à l'autre. <b class="ui">Enregistrer des actions…</b> et <b class="ui">Charger des actions…</b>, dans le menu du panneau, échangent des fichiers d'actions .atn par la Bibliothèque : une étape qui n'a pas d'équivalent arrive éteinte.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Les scripts et les droplets ne sont pas pris en charge. Une action ne joue que des commandes que le Photolab sait faire : avant chaque lecture, ses étapes sont vérifiées, et une étape refusée l'arrête avec un message.</p></aside>

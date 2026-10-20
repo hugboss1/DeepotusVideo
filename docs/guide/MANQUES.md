@@ -2,9 +2,9 @@
 
 Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
-- 1098 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 45 sont payantes.
+- 1111 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 45 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 41 chapitres dans le sommaire v3, en 6 familles.
+- 42 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -600,11 +600,11 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Puce Audio : tiroir Sons** : L'onglet Audio monte le tiroir Sons de référence (tags, filtres, tri, actions) au-dessus de l'import. — *Onglet / puce Audio* (PR #214 · commit c44b914f · T101)
 - [x] **Envoyer vers Photolab / Vectorlab / Tile Lab** : Envoie une image vers le Photolab, vers un nouveau document du Vectorlab, ou comme source du Tile Lab. — *Envoyer vers → Photolab / Vectorlab / Tile Lab* (PR #266 · commit eeee9ed1 · t139)
 
-### Retoucher une photo (Photolab) (`photolab`, lot t176, reprend : nouveau) — 137 manques
+### Retoucher une photo (Photolab) (`photolab`, lot t176, reprend : nouveau) — 141 manques
 
 **Photolab — Fichier et documents** — accès : Barre des applications → icône Photolab (iris, « Retouche d'image & calques », comme le Vectorlab) ; URL /photolab/ ; menu Fichier
 
-- [x] **Moteur photocraft intégré, résultats identiques** : Chaque geste validé est calculé par le moteur photocraft-cli 0.3.0 fourni avec Deepotus : mêmes pixels que l'application d'origine, sans connexion ni coût. (PR #263 · commit 08a9ceb4 · t136)
+- [x] **Moteur photocraft intégré, résultats identiques** : Chaque geste validé est calculé par le moteur photocraft-cli épinglé (0.10.0 depuis le 20/10/2026) fourni avec Deepotus : mêmes pixels que l'application d'origine, sans connexion ni coût. (PR #263 · commit 08a9ceb4 · t136)
 - [x] **Barre d'état** : En bas : zoom, mode et profondeur (ex. RVB · 8 bits), dimensions en px, nombre de calques et messages. (PR #264 · commit db72da5b · t137)
 - [x] **Cible « Photolab » de Envoyer vers** : Depuis la Bibliothèque ou un autre écran, « Envoyer vers » ouvre l'image dans le Photolab pour la retoucher. — *Menu « Envoyer vers » → Photolab — retoucher l'image* (PR #266 · commit eeee9ed1 · t139)
 - [x] **Cible « Tile Lab » de Envoyer vers** : Une image envoyée au Tile Lab devient la source de la tuile. — *Menu « Envoyer vers » → Tile Lab — source de la tuile* (PR #266 · commit eeee9ed1 · t139)
@@ -687,6 +687,10 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Taille de l'aperçu des polices** : Taille des noms dans la liste des polices. — *Texte › Taille de l'aperçu des polices › Petite, Moyenne, Grande, Très grande, Énorme* (PR #274 · commit e44037ea · t156)
 - [x] **Texte (T)** : Crée ou modifie un calque de texte, rendu par le moteur. — *Clic = texte de point ; glisser = texte de paragraphe ; clic sur un calque de texte = l'éditer ; Ctrl+Entrée, Échap ou clic ailleurs = valider* (PR #274 · commit e44037ea · t156)
 - [x] **Triangle (U)** : Dessine un calque de forme triangle. — *Glisser* (PR #274 · commit e44037ea · t156)
+- [x] **Retouche 0.10 : Supprimer un objet, Pièce, Déplacement basé sur le contenu, Œil rouge, Tampon de motif** : Cinq outils de retouche calculés par le moteur 0.10 ; symétrie de peinture. — *Groupes J et S de la barre d'outils* (PR #395 · t252)
+- [x] **Sélection 0.10 : rangée, colonne, Lasso magnétique, Recadrage de perspective, Échantillonneur, Rotation de la vue** : Six outils de sélection, de recadrage, de mesure et de vue. — *Groupes M, L, C, I et H de la barre d'outils* (PR #396 · t253)
+- [x] **Tracés et texte 0.10 : Plume libre, Plume de courbure, outils de points, Sélection directe, Texte vertical, masques de texte** : Neuf outils de tracé et de texte, menu contextuel des tracés, texte sur tracé. — *Groupes P, A et T de la barre d'outils* (PR #398 · t254)
+- [x] **Fiches animées des outils neufs** : Une fiche FR/EN par outil neuf, au survol long d'une ligne de groupe d'outils. — *Survoler une ligne du groupe d'outils* (t259)
 **Photolab — Sélection, édition et transformation** — accès : Barre des applications → icône Photolab (iris, « Retouche d'image & calques », comme le Vectorlab) ; URL /photolab/ ; menus Sélection et Édition
 
 - [x] **Agrandir et Similaire** : Étend la sélection aux pixels voisins ou semblables. — *Sélection › Agrandir ; Sélection › Similaire* (PR #265 · commit 5331c8f3 · t138)
@@ -748,7 +752,7 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Image › Mode : conversions** : Conversion en Niveaux de gris, RVB, CMJN, Lab, Multicanal, et profondeur 8, 16 ou 32 bits/canal ; mode et profondeur cochés ; entrées impossibles grisées. — *Image › Mode › … ; confirmation « Aplatir et convertir » quand la conversion aplatit plusieurs calques* (PR #277 · commit 8ad8a6f4 · t158)
 - [x] **Table des couleurs** : Lit et modifie la table d'une image indexée : grille 16 × 16, préréglages (Corps noir, Niveaux de gris, Spectre, Système, Web), couleur transparente. — *Image › Mode › Table des couleurs… ; clic sur une case pour la changer* (PR #277 · commit 8ad8a6f4 · t158)
 
-### Calques, masques et espaces de travail (`photolab-avance`, lot t176, reprend : nouveau) — 109 manques
+### Calques, masques et espaces de travail (`photolab-avance`, lot t176, reprend : nouveau) — 112 manques
 
 **Photolab — Calques, masques et styles** — accès : Barre des applications → icône Photolab (iris, « Retouche d'image & calques », comme le Vectorlab) ; URL /photolab/ ; panneau Calques et menu Calque
 
@@ -781,6 +785,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Lier les calques** : Lie deux calques ou plus (icône de lien sur la ligne) ; un second clic les délie. — *Bouton Lier du pied du panneau Calques ou Calque › Lier les calques* (PR #275 · commit 86899170 · t157)
 - [x] **Rééditer un filtre dynamique** : Rouvre le dialogue du filtre (ou la galerie avec sa pile) avec aperçu pour changer ses réglages. — *Double-clic sur la sous-ligne du filtre* (PR #275 · commit 86899170 · t157)
 - [x] **Vignette de masque** : Vignette du masque à côté du calque, rendue par le moteur, avec chaîne de liaison. — *Maj+clic = désactiver (croix rouge) ; Alt+clic = voir le masque seul ; Ctrl+clic = sélection ; clic sur la chaîne = lier/délier* (PR #275 · commit 86899170 · t157)
+- [x] **Calques 0.10** : Retirer l'arrière-plan (local), Couleur du calque, Dupliquer vers un document, Fusionner le groupe, Rééclairer, Couleur en alpha, Alt-clic sur l'œil, verrou de transparence (/). — *Menu Calque et panneau Calques* (PR #404 · t256)
+- [x] **Instantanés et nuances** : Instantanés dans l'Historique, nouveau document à partir de l'état, import/export .aco/.ase du Nuancier. — *Panneaux Historique et Nuancier* (PR #405 · t256)
+- [x] **Déformer** : Ctrl+T › Déformer : maillage du moteur à tirer, points et poignées. — *Bouton Déformer du bandeau de transformation* (PR #406 · t256)
 **Photolab — Panneaux** — accès : Barre des applications → icône Photolab (iris, « Retouche d'image & calques », comme le Vectorlab) ; URL /photolab/ ; colonne de panneaux à droite ou menu Fenêtre
 
 - [x] **Groupe Pinceaux** : Groupe de quatre onglets : Pinceaux, Paramètres de pinceau, Source de duplication, Outils prédéfinis. — *Fenêtre › Pinceaux / Paramètres du pinceau (F5) / Source de clonage / Préréglages d'outils* (PR #268 · commit 7dc1700b · t155)
@@ -869,6 +876,17 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Résumer les raccourcis** : Télécharge la liste des raccourcis en page HTML. — *Raccourcis clavier › Résumer…* (PR #278 · commit 53dceb3b · t159)
 - [x] **Sections explicatives** : Intégrations d'IA, Journal de l'historique, Performances, Disques de travail, Extensions, Commandes avancées, Valeurs Raw : une phrase dit ce que Deepotus gère à leur place. — *Édition › Préférences › …* (PR #278 · commit 53dceb3b · t159)
 - [x] **Touches de modification** : Panneau flottant Maj / Ctrl / Alt pour écran tactile : un clic vaut pour l'action suivante, un double clic tient la touche. — *Fenêtre › Touches de modification* (PR #278 · commit 53dceb3b · t159)
+
+### Automatiser et exporter (Photolab) (`photolab-auto`, lot t259, reprend : nouveau) — 6 manques
+
+**Photolab — Actions, lots et exports** — accès : Photolab : onglet Actions du groupe Calques ; menus Fichier › Automatisation, Fichier › Exporter, Image › Variables
+
+- [x] **Panneau Actions** : Enregistrer, rejouer, éteindre une étape, dialogues à la lecture, arrêts, conditions, Modifier l'étape ; actions gardées entre deux séances. — *Onglet Actions* (PR #400 · t255)
+- [x] **Traitement par lots** : Une action jouée sur des images de la Bibliothèque, chacune déposée à part avec sa lignée. — *Fichier › Automatisation › Traitement par lots…* (PR #400 · t255)
+- [x] **Actions .atn** : Charger et enregistrer des fichiers d'actions par la Bibliothèque. — *Menu du panneau Actions* (PR #400 · t255)
+- [x] **Ouvrir depuis l'ordinateur et formats 0.10** : ORA, Krita, Affinity, Paint.NET, EXR, DPX, DDS, TGA, raws en ouverture ; TIFF à calques, ORA, PDF d'une page à l'export. — *Fichier › Ouvrir depuis l'ordinateur… ; Enregistrer sous…* (PR #414 · t257)
+- [x] **Calques et jeux de données en fichiers** : Un fichier par calque ou par jeu de données, déposé dans la Bibliothèque. — *Fichier › Exporter* (PR #414 · t257)
+- [x] **Variables et préréglages d'export** : Image › Variables (Définir, Jeux de données), Appliquer un jeu de données, import CSV ; préréglages nommés de l'export. — *Menus Image et Fichier* (PR #414 · t257)
 
 ### Dessiner en vectoriel (Vectorlab) (`vectorlab`, lot t177, reprend : nouveau) — 140 manques
 
@@ -1474,7 +1492,7 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t173 | 41 | 41 |
 | t174 | 119 | 119 |
 | t175 | 32 | 32 |
-| t176 | 275 | 275 |
+| t176 | 282 | 282 |
 | t177 | 221 | 221 |
 | t178 | 102 | 102 |
 | t179 | 56 | 56 |
@@ -1482,3 +1500,4 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t181 | 0 | 0 |
 | t193 | 0 | 0 |
 | t211 | 0 | 0 |
+| t259 | 6 | 6 |
