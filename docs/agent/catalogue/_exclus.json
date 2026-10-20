@@ -7,7 +7,15 @@
     "vectorlab.brouillon.temoin",
     "vectorlab.biblio.vignette_titre",
     "vectorlab.geo.profil",
-    "vectorlab.calques.vignette"
+    "vectorlab.calques.vignette",
+    "coque.accueil.bienvenue_titre",
+    "coque.accueil.canaux_titre",
+    "coque.accueil.generateurs_titre",
+    "coque.accueil.persona_titre",
+    "coque.accueil.pret_titre",
+    "lit.9155e398",
+    "lit.ce381c94",
+    "lit.fbc0a3c1"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"
