@@ -161,6 +161,20 @@ export function op_palette_retirer(doc, hex) {
   p.splice(i, 1);
 }
 
+/* ── pur : les pastilles fond / contour (t264, 20/10/2026, modèle du Photolab #410) ── */
+const _hexValide = (c) => typeof c === "string" && /^#[0-9a-fA-F]{3,8}$/.test(c);
+// le patch d'op_style qui échange fond et contour ; null s'il n'y a rien à échanger ou si le fond est un dégradé
+// (un contour ne porte qu'une couleur). contour: null = sans contour (comme le bouton « Sans contour »).
+export function pastilles_echanger(style) {
+  const s = style || {};
+  if (typeof s.fond === "string" && s.fond.startsWith("grad:")) return null;
+  const fond = _hexValide(s.fond) ? s.fond : null, contour = _hexValide(s.contour) ? s.contour : null;
+  if (!fond && !contour) return null;
+  return { fond: contour || "none", contour: fond };
+}
+// couleurs par défaut : fond blanc, contour noir (le D d'Illustrator)
+export const PASTILLES_DEFAUT = Object.freeze({ fond: "#FFFFFF", contour: "#000000" });
+
 /* ── DOM : le nuancier (E4) — un popover unique, ouvert par
    VL.ouvrirNuancier(hexInitial, onChoix, ancre). Rien au chargement. ── */
 export function initCouleur(VL) {

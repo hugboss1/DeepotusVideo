@@ -13,6 +13,8 @@ import html
 import json
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
 import unicodedata
 
@@ -254,6 +256,61 @@ def depuis_fiches(racine: pathlib.Path) -> dict:
     return out
 
 
+MENUS_PHOTOLAB = ("frontend", "photolab", "js", "mod-menus.js")
+CATALOGUE_MENUS = "frontend/photolab/donnees/menus.json"
+ETATS_MENU = ("actif", "inactif")    # « inactif » : grisée faute de document, l'entrée existe ; « bientot » : non
+
+
+def _registre_photolab(racine: pathlib.Path) -> list:
+    """Le registre capturé du moteur épinglé (backend/tests/photocraft_commandes_<version de vendor/photocraft.json>),
+    chaque commande avec ses `champs` (photolab_registre.structurer, comme GET /api/photolab/commandes)."""
+    version = json.loads((racine / "vendor" / "photocraft.json").read_text(encoding="utf-8"))["version"]
+    f = racine / "backend" / "tests" / f"photocraft_commandes_{version}.json"
+    if not f.exists():
+        raise RuntimeError(f"{f.relative_to(racine).as_posix()} absent : python scripts/photocraft_commandes.py")
+    brut = json.loads(f.read_text(encoding="utf-8"))
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "backend"))
+    from app.services import photolab_registre as PR                 # module pur (json, re) : sans l'application
+    reg = PR.structurer(brut)
+    return [{**c, "champs": reg.get(c.get("id"), {}).get("champs", [])} for c in brut]
+
+
+def depuis_menus_photolab(racine: pathlib.Path, dico: dict) -> dict:
+    """Les entrées de la barre de menus du Photolab qui ne sont PAS « bientôt » : la vraie construireMenus
+    (scripts/agent/photolab_menus.mjs, node) sur le registre capturé. Id photolab.menu.<commande> ; le chemin de
+    sous-menus et le raccourci affichés, par langue. Pas de mod-menus.js : rien ; node ou registre absent : RuntimeError
+    (un catalogue vidé en silence passerait toutes les fiches « retire »)."""
+    if not racine.joinpath(*MENUS_PHOTOLAB).exists():
+        return {}
+    node = shutil.which("node")
+    if not node:
+        raise RuntimeError("node introuvable : il construit les menus du Photolab (scripts/agent/photolab_menus.mjs)")
+    entree = json.dumps({"registre": _registre_photolab(racine), "dico": dico}, ensure_ascii=False)
+    p = subprocess.run([node, str(pathlib.Path(__file__).resolve().parent / "photolab_menus.mjs"), str(racine)],
+                       input=entree, capture_output=True, text=True, encoding="utf-8", timeout=120)
+    if p.returncode:
+        raise RuntimeError(f"menus du Photolab : {p.stderr.strip()[-400:]}")
+    langues = json.loads(p.stdout)
+    du_catalogue = {e.get("id") for e in json.loads((racine / CATALOGUE_MENUS).read_text(encoding="utf-8"))["entrees"]}
+    en = {}
+    for x in langues["en"]:
+        en.setdefault(x["id"], x)
+    out = {}
+    for x in langues["fr"]:
+        i = f"photolab.menu.{x['id']}"
+        if x["etat"] not in ETATS_MENU or i in out:              # une commande placée deux fois : la 1re place
+            continue
+        y = en.get(x["id"], {})
+        e = {"id": i, "ecran": "photolab", "cadre": "/photolab/", "type": "menu",
+             "libelle": {"fr": x["libelle"], "en": y.get("libelle", "")}, "infobulle": None, "icone": None,
+             "chemin": {"fr": " › ".join(x["chemin"]), "en": " › ".join(y.get("chemin", []))},
+             "sources": [CATALOGUE_MENUS if x["id"] in du_catalogue else "/".join(MENUS_PHOTOLAB)]}
+        if x["raccourci"]:
+            e["raccourci"] = {"fr": x["raccourci"], "en": y.get("raccourci", "")}
+        out[i] = e
+    return out
+
+
 def _exclusions(racine: pathlib.Path) -> tuple:
     """(ids exacts, préfixes) que le skill connaissance-agent a écartés ; fichier absent : aucune exclusion.
     Mal formé → RuntimeError (une chaîne en guise de liste deviendrait un tuple de lettres et effacerait en silence)."""
@@ -289,4 +346,5 @@ def extraire(racine) -> dict:
     _ajouter(out, depuis_pages(racine, dico, out))
     _ajouter(out, depuis_reglages(racine, inv))
     _ajouter(out, depuis_fiches(racine))
+    _ajouter(out, depuis_menus_photolab(racine, dico))
     return {k: v for k, v in out.items() if k not in ids and not (prefixes and k.startswith(prefixes))}

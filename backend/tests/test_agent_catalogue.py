@@ -669,6 +669,117 @@ def test_rapport(depot, capsys):
     assert "montage" in sortie and "extrait" in sortie
 
 
+# --- menus du Photolab : la barre GÉNÉRÉE par construireMenus (mod-menus.js), sur le registre capturé du moteur ---
+# Faux mod-menus.js : même interface que le vrai (REFUSES, construireMenus(catalogue, registre, refuses, lang, t)).
+# Une entrée refusée ou absente du registre est « bientot » ; une commande dont le registre n'a pas de `champs` aussi
+# (preuve que les champs structurés par photolab_registre arrivent bien) ; « pl.envoyer » est ajoutée par l'écran.
+FAUX_MENUS_JS = """
+export const REFUSES = ["file.import."];
+export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c) {
+  const idx = new Map(registre.map((c) => [c.id, c]));
+  const etat = (id) => refuses.some((p) => id.startsWith(p)) || !idx.has(id) || !Array.isArray(idx.get(id).champs) ? "bientot"
+    : (idx.get(id).enabled === false ? "inactif" : "actif");
+  const noms = catalogue.menus_fr || {};
+  const aff = (n) => (lang === "fr" ? noms[n] || n : n);
+  const menus = [];
+  for (const e of catalogue.entrees) {
+    const [haut, ...reste] = e.chemin;
+    let m = menus.find((x) => x.nom === haut);
+    if (!m) { m = { nom: haut, nom_affiche: aff(haut), entrees: [] }; menus.push(m); }
+    let l = m.entrees;
+    for (const n of reste) {
+      let s = l.find((x) => x.type === "sous-menu" && x.nom === n);
+      if (!s) { s = { type: "sous-menu", nom: n, nom_affiche: aff(n), entrees: [] }; l.push(s); }
+      l = s.entrees;
+    }
+    if (e.separateur) { l.push({ type: "separateur" }); continue; }
+    l.push({ type: "commande", id: e.id, libelle: lang === "fr" ? e.libelle_fr : e.libelle_en,
+             raccourci: (e.raccourci || "").replace("Cmd", "Ctrl"), etat: etat(e.id) });
+  }
+  menus[0].entrees.push({ type: "commande", id: "pl.envoyer", libelle: t("photolab.menu.envoyer"), raccourci: "", etat: "actif" });
+  return menus;
+}
+"""
+FAUX_CATALOGUE_MENUS = {"menus_fr": {"File": "Fichier", "Export": "Exporter", "Import": "Importer", "Layer": "Calque"},
+                        "entrees": [
+    {"chemin": ["File"], "id": "file.open", "libelle_fr": "Ouvrir…", "libelle_en": "Open…", "raccourci": "Cmd+O"},
+    {"chemin": ["File"], "separateur": True},
+    {"chemin": ["File", "Export"], "id": "file.export.png", "libelle_fr": "PNG rapide", "libelle_en": "Quick PNG"},
+    {"chemin": ["File", "Import"], "id": "file.import.notes", "libelle_fr": "Notes…", "libelle_en": "Notes…"},
+    {"chemin": ["Layer"], "id": "layer.absent", "libelle_fr": "Absent", "libelle_en": "Missing"},
+    {"chemin": ["Layer"], "id": "layer.mergeDown", "libelle_fr": "Fusionner", "libelle_en": "Merge Down"}]}
+FAUX_REGISTRE = [{"id": "file.open", "label": "Open…", "menu": ["File"], "enabled": True, "params": "", "shortcut": ""},
+                 {"id": "file.export.png", "label": "PNG", "menu": ["File"], "enabled": True, "params": "", "shortcut": ""},
+                 {"id": "file.import.notes", "label": "Notes", "menu": ["File"], "enabled": True, "params": "", "shortcut": ""},
+                 {"id": "layer.mergeDown", "label": "Merge", "menu": ["Layer"], "enabled": False, "params": "", "shortcut": ""}]
+
+
+def _menus_photolab(depot, registre=FAUX_REGISTRE):
+    _ecrire(depot / "frontend/photolab/js/mod-menus.js", FAUX_MENUS_JS)
+    _ecrire(depot / "frontend/photolab/donnees/menus.json", json.dumps(FAUX_CATALOGUE_MENUS, ensure_ascii=False))
+    _ecrire(depot / "vendor/photocraft.json", json.dumps({"nom": "photocraft", "version": "9.9.9"}))
+    _ecrire(depot / "backend/tests/photocraft_commandes_9.9.9.json", json.dumps(registre))
+    d = json.loads((depot / "frontend/shared/i18n/photolab.json").read_text(encoding="utf-8"))
+    d["photolab.menu.envoyer"] = {"fr": "Envoyer vers…", "en": "Send to…"}
+    _ecrire(depot / "frontend/shared/i18n/photolab.json", json.dumps(d, ensure_ascii=False))
+    return depot
+
+
+def test_menus_photolab_entree_active(depot):
+    e = S.extraire(_menus_photolab(depot))
+    o = e["photolab.menu.file.open"]
+    assert o["type"] == "menu" and o["ecran"] == "photolab" and o["cadre"] == "/photolab/"
+    assert o["libelle"] == {"fr": "Ouvrir…", "en": "Open…"} and o["infobulle"] is None and o["icone"] is None
+    assert o["chemin"] == {"fr": "Fichier", "en": "File"}
+    assert o["raccourci"] == {"fr": "Ctrl+O", "en": "Ctrl+O"}
+    assert o["sources"] == ["frontend/photolab/donnees/menus.json"]
+    x = e["photolab.menu.file.export.png"]                    # sous-menu : le chemin complet, nom affiché par langue
+    assert x["chemin"] == {"fr": "Fichier › Exporter", "en": "File › Export"} and "raccourci" not in x
+
+
+def test_menus_photolab_bientot_exclus(depot):
+    e = S.extraire(_menus_photolab(depot))
+    assert "photolab.menu.file.import.notes" not in e         # refusée par le pont : « bientôt »
+    assert "photolab.menu.layer.absent" not in e              # absente du registre : « bientôt »
+
+
+def test_menus_photolab_inactif_garde(depot):
+    e = S.extraire(_menus_photolab(depot))                    # grisée faute de document : l'entrée existe
+    assert e["photolab.menu.layer.mergeDown"]["libelle"]["en"] == "Merge Down"
+
+
+def test_menus_photolab_entree_de_l_ecran(depot):
+    p = S.extraire(_menus_photolab(depot))["photolab.menu.pl.envoyer"]
+    assert p["libelle"] == {"fr": "Envoyer vers…", "en": "Send to…"} and p["chemin"]["fr"] == "Fichier"
+    assert p["sources"] == ["frontend/photolab/js/mod-menus.js"]   # absente de menus.json : insérée par l'écran
+
+
+def test_menus_photolab_champs_structures(depot):
+    """Les champs viennent de photolab_registre.structurer, comme GET /api/photolab/commandes : sans eux le faux
+    construireMenus grise tout."""
+    e = S.extraire(_menus_photolab(depot))
+    assert "photolab.menu.file.export.png" in e
+
+
+def test_menus_photolab_absents(depot):
+    assert not any(k.startswith("photolab.menu.") for k in S.extraire(depot))   # pas de mod-menus.js : rien
+
+
+def test_menus_photolab_registre_manquant(depot):
+    _menus_photolab(depot)
+    (depot / "backend/tests/photocraft_commandes_9.9.9.json").unlink()
+    with pytest.raises(RuntimeError, match="photocraft_commandes_9.9.9"):
+        S.extraire(depot)                                     # jamais un catalogue vidé en silence
+
+
+def test_menus_photolab_empreinte_suit_le_chemin():
+    f = _fiche()
+    assert C.empreinte(f) == C.empreinte({**f, "chemin": None})          # fiches sans chemin : empreinte inchangée
+    g = {**f, "chemin": {"fr": "Fichier", "en": "File"}}
+    assert C.empreinte(g) != C.empreinte({**g, "chemin": {"fr": "Calque", "en": "Layer"}})
+    assert C.empreinte(g) != C.empreinte({**g, "raccourci": {"fr": "Ctrl+O", "en": "Ctrl+O"}})
+
+
 # --- le VRAI catalogue (docs/agent/catalogue), sur le dépôt réel ---
 import catalogue_commun as CC                                              # noqa: E402
 
@@ -693,6 +804,17 @@ def test_vrai_catalogue_langue_de_l_interface():
               if f["ecran"] == "settings" and f["libelle"]["fr"] == "Langue de l'interface"]
     assert len(langue) == 1, [f["id"] for f in langue]
     assert langue[0]["libelle"]["en"] == "Interface language" and langue[0]["type"] == "reglage"
+
+
+def test_vrai_catalogue_menus_photolab():
+    """Le vrai mod-menus.js sur le registre capturé : les entrées actives ont leur fiche, les « bientôt » non."""
+    e = S.extraire(RACINE)
+    o = e["photolab.menu.file.open"]
+    assert o["chemin"] == {"fr": "Fichier", "en": "File"} and o["libelle"]["en"].startswith("Open")
+    assert e["photolab.menu.pl.envoyer"]["sources"] == ["frontend/photolab/js/mod-menus.js"]
+    assert "photolab.menu.layer.mergeGroup" in e                # insertion M7 (INSERTIONS_M7)
+    assert "photolab.menu.file.openAs" not in e                 # refusée par le pont : « bientôt »
+    assert "photolab.menu.edit.puppetWarp" not in e             # D9 : « bientôt »
 
 
 def test_vrai_catalogue_integre():

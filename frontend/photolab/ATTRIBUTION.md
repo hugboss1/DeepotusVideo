@@ -8,5 +8,12 @@ Reprises de photocraft 0.3.0 :
 - le **catalogue des menus** et les **libellés français** des commandes, tels que photocraft les publie ;
 - la disposition générale de l'écran (cotes des barres et des panneaux).
 
+Reprise de photocraft 0.10.0 (t258, 20/10/2026) :
+
+- la **traduction française** de l'amont (`crates/ui-egui/src/i18n/fr.tsv` du tag v0.10.0, commit 8407d9ccb, blob
+  4a819b0e ; MIT OU Apache-2.0), en **repli** seulement : elle nomme les commandes du moteur absentes du catalogue des
+  menus (section `repli` de `donnees/menus.json`) ; nos libellés, et ceux du catalogue déjà en place, restent
+  prioritaires.
+
 Le design (palette, jetons, polices) est celui de Deepotus. Les autres icônes de l'écran sont celles de la suite
 Deepotus Glyph (`/shared/icons`), qui remplace depuis octobre 2026 les icônes Lucide de l'amont.

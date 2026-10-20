@@ -175,9 +175,39 @@ Q3) ; enregistrer : TIFF à calques, WebP, ORA, PDF d'une page ; Calques en fich
 `doc.exportLayers`/`doc.exportDataSets` vers la Bibliothèque (sort des `file.export` « bientôt ») ;
 préréglages d'export (`file.export.presets.*`). Garde #7025 (document actif) et #7023 (`quality` entier).
 
+### M8 — mesuré et fait (20/10)
+Sondé sur le vrai moteur 0.10 : `doc.exportLayers {dir, format, prefix, visibleOnly, quality, tiffLayers}` et
+`doc.exportDataSets {dir, format, dataSets, naming}` écrivent sous la racine (refus de `..` et d'un absolu), REFUSENT
+d'écraser (« AlreadyExists ») et ignorent une clé inconnue ; leur `quality` est sur **0..12** (au-delà : borné, 50 = 100),
+celle de `doc.save` sur 1..100 ; #7025 confirmé (`index` -> ce document reste actif) ; #7023 confirmé (`quality: 80.0` ->
+WebP sans perte en silence). `doc.save` : ORA (rattache le document), PDF (avertissement « saved flattened »), TIFF
+`tiffLayers` relu avec ses calques ; ouverture ORA, TIFF à calques, DPX, TGA, DDS ; PDF jamais en ouverture.
+**Bloqués moteur** (désactivés en automation, « ambient filesystem paths ») : `file.exrParts` / `file.openExrParts`
+(EXR multi-parties : `doc.open` seul), `file.export.presets.*` (préréglages d'export) -> gardés par Deepotus.
+Image › Variables : le registre écrit `{defs:[…]}` sans guillemets (illisible) et le moteur ne vérifie presque rien ->
+vérification clé par clé au pont (visibilité, remplacement de texte ; `pixelReplacement` = un chemin, refusé).
+Livré : Fichier › Ouvrir depuis l'ordinateur… (route `/importer`, octets bruts, extensions `PM.FORMATS_OUVERTURE`,
+1 Gio, HEIC refusé nommément — Q3 non tranchée ; ce que la Bibliothèque reçoit y passe d'abord) ; Exporter : ORA, PDF
+d'une page, TIFF à calques, avertissements du moteur traduits, préréglages (`/export/prereglages`) ; Calques en
+fichiers (`/calques/fichiers`) et Jeux de données en fichiers (`/jeux/fichiers`) déposés dans la Bibliothèque (lignée
+« retouche », dossier `sorties/<lot>` effacé) ; Importer › Jeux de données variables (`/jeux/importer`, CSV en texte) ;
+Image › Variables › Définir… / Jeux de données…, Image › Appliquer un jeu de données… (mod-exports). « bientôt » 89 -> 86.
+Restent : Préférences d'exportation (préférences du moteur), Ouvrir en tant que… (chemin), HEIC (Q3).
+
 ## M9 — t258 · Libellés : fr.tsv amont en repli
 `photocraft_catalogue.py` lit `fr.tsv` de v0.10.0 (plus le commit 3d23a708c2) ; libellés FR/EN des commandes
 neuves ; nos 412 libellés restent prioritaires ; attribution ajoutée.
+
+### M9 — mesuré et fait (20/10)
+- fr.tsv du tag v0.10.0 (commit 8407d9ccb, blob 4a819b0e recoupé avec l'API GitHub) ; empreinte calculée sur les fins de
+  ligne LF (une extraction Windows le passe en CRLF). Il ne contredit AUCUN des 627 libellés ni des noms de menus en
+  place : `menus.json` garde son arbre v0.3.0 octet pour octet (empreinte figée dans `test_photolab_libelles_m9`) ; le
+  script garde de toute façon le français en place et consigne un écart éventuel (`ecarts_amont`).
+- `menus.json` gagne `repli` : les 435 commandes du moteur 0.10 absentes de l'arbre (libellé anglais du moteur ; 118
+  traduites par le fr.tsv ; « Photoshop Step » écarté, D8).
+- Les 79 commandes ouvertes par M3-M8 ne sont dans aucun menu du catalogue : le panneau Actions montrait leur id brut.
+  `mod-libelles.js` : catalogue → nos clés (`LIBELLES_COMMANDES`, 45 clés existantes réutilisées, 34 neuves
+  `photolab.commande.*`) → repli amont → id brut. Historique : la table fr prend le repli après le catalogue.
 
 ## M10 — t259 · Installation, licences, aide
 `build-installer.ps1` (vendor 0.10.0 vérifié), NOTICE et nouvelles attributions (traductions, rgb.txt,

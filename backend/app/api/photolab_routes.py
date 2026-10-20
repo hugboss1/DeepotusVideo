@@ -35,7 +35,8 @@ router = APIRouter()
 # fichier copié n'aurait alors plus le nom qu'on ouvre.
 _NOM_IMAGE = re.compile(r"[A-Za-z0-9_]([A-Za-z0-9._ -]{0,179}[A-Za-z0-9_-])?")
 _NOM_SERVI = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,180}")
-FORMATS = ("pcraft", "psd", "psb", "png", "jpg", "webp", "tif", "tga")
+# t257 (M8) : + OpenRaster et PDF d'une page (aplati par le moteur) ; le TIFF à calques est « tif » + "calques": true.
+FORMATS = ("pcraft", "psd", "psb", "png", "jpg", "webp", "tif", "tga", "ora", "pdf")
 _COMPTEUR_RENDUS = itertools.count(1)
 _PERIPHERIQUE = re.compile(r"(con|prn|aux|nul|com[0-9]|lpt[0-9])", re.IGNORECASE)
 _APERCU = re.compile(r"apercu-\d+-\d+\.png")
@@ -334,8 +335,9 @@ def _base_sure(nom, defaut="photolab") -> str:
     return _sur(re.sub(r"[^A-Za-z0-9_-]+", "-", brut).strip("-")[:80] or defaut)
 
 
-async def _exporter(fmt, base, q):
-    """doc.save sous exports/<base>.<fmt> (suffixe -2, -3… plutôt qu'un écrasement) -> (fichier, génération)."""
+async def _exporter(fmt, base, q, calques=False):
+    """doc.save sous exports/<base>.<fmt> (suffixe -2, -3… plutôt qu'un écrasement) -> (fichier, génération,
+    avertissements du moteur). t257 : `calques` = TIFF à calques."""
     dossier = PM.dossier_travail() / "exports"
     avant = await _chemin_actif()
     async with _VERROU_EXPORT:
@@ -346,21 +348,36 @@ async def _exporter(fmt, base, q):
         p = {"path": _relatif(f"exports/{fichier}"), "format": fmt}
         if q is not None:
             p["quality"] = q
-        _, gen = await _appeler("doc.save", p)
+        if calques and fmt == "tif":
+            p["tiffLayers"] = True
+        r, gen = await _appeler("doc.save", p)
     _retenir(p["path"], _ORIGINES.get(avant))             # le moteur a rattaché le document à ce fichier
-    return fichier, gen
+    avert = [str(a) for a in (r.get("warnings") or [])][:10] if isinstance(r, dict) else []
+    return fichier, gen, avert
+
+
+def _calques(corps):
+    v = corps.get("calques", False)
+    if not isinstance(v, bool):
+        raise HTTPException(400, "calques : booléen attendu")
+    if v and corps.get("format") != "tif":
+        raise HTTPException(400, "calques : seulement pour le TIFF")
+    return v
 
 
 @router.post("/enregistrer")
 async def enregistrer(body: dict):
-    fmt = (body or {}).get("format")
+    """{"format": FORMATS, "quality"?: 1..100, "nom"?, "calques"?: bool (TIFF à calques)} -> {"fichier", "url",
+    "avertissements"} (t257 : ce que le moteur a perdu — PDF aplati, calques fusionnés…)."""
+    corps = body if isinstance(body, dict) else {}
+    fmt = corps.get("format")
     if fmt not in FORMATS:
         raise HTTPException(400, f"format hors liste : {fmt!r} ({', '.join(FORMATS)})")
     q = None
-    if "quality" in (body or {}):
-        q = _entier(body["quality"], 1, 100, "quality")
-    fichier, gen = await _exporter(fmt, _base_sure((body or {}).get("nom")), q)
-    return _json({"fichier": fichier, "url": f"/api/photolab/exports/{fichier}"}, gen)
+    if "quality" in corps:
+        q = _entier(corps["quality"], 1, 100, "quality")
+    fichier, gen, avert = await _exporter(fmt, _base_sure(corps.get("nom")), q, _calques(corps))
+    return _json({"fichier": fichier, "url": f"/api/photolab/exports/{fichier}", "avertissements": avert}, gen)
 
 
 # ── t137 (P2) : ce que l'écran ajoute au pont ────────────────────────────────────────────────────────────────────
@@ -536,10 +553,10 @@ async def copie(body: dict):
     fmt = corps.get("format")
     if fmt not in FORMATS:
         raise HTTPException(400, f"format hors liste : {fmt!r} ({', '.join(FORMATS)})")
-    q, dest = _qualite(corps), _destination(corps, fmt)
+    q, dest, calques = _qualite(corps), _destination(corps, fmt), _calques(corps)
     base = _base_sure(corps.get("nom"), "copie")
     async with _VERROU_EXPORT:                            # même dossier exports/ que /enregistrer
-        fichier, gen = await _pool(lambda s: functools.partial(PM.copie_document, s), fmt, base, q)
+        fichier, gen = await _pool(lambda s: functools.partial(PM.copie_document, s), fmt, base, q, calques)
     return await _livrer(fichier, fmt, base, dest, gen)
 
 
@@ -668,7 +685,7 @@ async def bibliotheque(body: dict):
     if not nom_doc:
         nom_doc = (await _appeler("doc.inspect"))[0].get("name")      # sans document, le moteur refuse : 422 dit
     base = _base_sure(nom_doc, "image")
-    fichier, gen = await _exporter(fmt, base, q)
+    fichier, gen, _ = await _exporter(fmt, base, q)
     src = PM.dossier_travail() / "exports" / fichier
     dossier = settings.images_path
     dossier.mkdir(parents=True, exist_ok=True)
@@ -703,6 +720,256 @@ async def bibliotheque(body: dict):
         parent = origine if _image_biblio(origine) is not None else None
     await LI.noter([nom], "photolab", doc_id=travail, parent=parent, relation="retouche" if parent else None)
     return _json({"filename": nom, "travail": travail}, gen)
+
+
+# ── t257 (M8) : formats neufs (ouvrir depuis l'ordinateur) et exports en lot vers la Bibliothèque ─────────────────────
+IMPORT_MAX = 1024 * 1024 * 1024                         # 1 Gio : un .kra ou un raw lourd passe, un disque entier non
+_NOM_IMPORT = re.compile(r"[^\\/:*?\"<>|\x00-\x1f]{1,180}")
+
+
+@router.post("/importer")
+async def importer(request: Request, nom: str):
+    """Ouvrir un fichier de l'ordinateur : le CONTENU arrive dans le corps (octets bruts), `nom` ne sert qu'à
+    l'extension (FORMATS_OUVERTURE : ORA, Krita, Affinity, Paint.NET, EXR, DPX, DDS, raws, PSD, TIFF…) et au nom du
+    document. Copié sous entrees/<empreinte du contenu>-<nom sûr>, ouvert par doc.open ; un fichier que le moteur ne sait
+    pas lire est effacé (422). Jamais un chemin : le moteur ne lit que sa racine. -> réponse de doc.open + "importe"."""
+    if not isinstance(nom, str) or not _NOM_IMPORT.fullmatch(nom) or nom.strip(" .") != nom:
+        raise HTTPException(400, f"nom de fichier refusé : {nom!r}")
+    souche, ext = os.path.splitext(nom)
+    ext = ext[1:].lower()
+    if ext in ("heic", "heif"):
+        raise HTTPException(415, "HEIC/HEIF : format non activé (décodeur soumis à brevets, à décider)")
+    if ext not in PM.FORMATS_OUVERTURE:
+        raise HTTPException(415, f"format non ouvert par le Photolab : .{ext or '?'}")
+    taille = int(request.headers.get("content-length") or 0)
+    if taille > IMPORT_MAX:
+        raise HTTPException(413, "fichier trop lourd (1 Gio au plus)")
+    contenu = await request.body()
+    if not contenu:
+        raise HTTPException(400, "fichier vide")
+    if len(contenu) > IMPORT_MAX:
+        raise HTTPException(413, "fichier trop lourd (1 Gio au plus)")
+    brut = unicodedata.normalize("NFKD", souche).encode("ascii", "ignore").decode()
+    sur = _sur(re.sub(r"[^A-Za-z0-9_-]+", "-", brut).strip("-")[:80] or "fichier")
+    h = hashlib.sha1(contenu).hexdigest()[:8]
+    chemin = _relatif(f"entrees/{h}-{sur}.{ext}")
+    cible = PM.dossier_travail() / chemin
+    await asyncio.to_thread(cible.write_bytes, contenu)
+    try:
+        resultat, gen = await _appeler("doc.open", {"path": chemin})
+    except HTTPException:
+        try:
+            cible.unlink()
+        except OSError:
+            pass
+        raise
+    _retenir(chemin, None)
+    if isinstance(resultat, dict):
+        resultat = {**resultat, "importe": True}
+    return _json(resultat, gen)
+
+
+def _deposer_lot(fichiers, base, noms):
+    """Déplace les fichiers de sorties/<lot>/ dans la Bibliothèque sous photolab_<horodatage>_<base>_<nom> (jamais
+    d'écrasement) -> [noms déposés]. Appelé sous _VERROU_BIBLIO."""
+    from app.config import settings
+    dossier = settings.images_path
+    dossier.mkdir(parents=True, exist_ok=True)
+    horo = time.strftime("%Y%m%d-%H%M%S")
+    deposes = []
+    for f, n in zip(fichiers, noms):
+        src = PM.dossier_travail() / f
+        ext = src.suffix[1:].lower()
+        nom = PM.nom_libre(dossier, f"photolab_{horo}_{base}_{_base_sure(n, 'element')}"[:170], ext)
+        shutil.copyfile(src, dossier / nom)
+        deposes.append(nom)
+    return deposes
+
+
+async def _lot_vers_bibliotheque(r, gen, base, noms):
+    """Résultat de PM.exporter_en_fichiers -> {"filenames": [...]} déposés dans la Bibliothèque, lignée « retouche »
+    vers l'image d'où vient le document actif ; le dossier sorties/<lot>/ est effacé dans tous les cas."""
+    from app.services import library_index as LI
+    try:
+        if not r["fichiers"]:
+            raise HTTPException(422, "photocraft : aucun fichier écrit (rien à exporter)")
+        async with _VERROU_BIBLIO:
+            try:
+                deposes = await asyncio.to_thread(_deposer_lot, r["fichiers"], base, noms)
+            except OSError as e:
+                raise HTTPException(500, f"copie dans la Bibliothèque impossible : {e}")
+    finally:
+        await asyncio.to_thread(shutil.rmtree, PM.dossier_travail() / r["dossier"], True)
+    origine = _ORIGINES.get(await _chemin_actif())
+    parent = origine if _image_biblio(origine) is not None else None
+    await LI.noter(deposes, "photolab", parent=parent, relation="retouche" if parent else None)
+    return _json({"filenames": deposes}, gen)
+
+
+def _format_lot(corps):
+    fmt = corps.get("format", "png")
+    if fmt not in ("png", "jpg"):
+        raise HTTPException(400, f"la Bibliothèque reçoit du png ou du jpg, pas {fmt!r}")
+    p = {"format": fmt}
+    if "quality" in corps:
+        if fmt != "jpg":
+            raise HTTPException(400, "quality : seulement pour le jpg")
+        p["quality"] = PM.qualite_douze(_entier(corps["quality"], 1, 100, "quality"))     # 1..100 -> 0..12, entier
+    return p
+
+
+_PREFIXE_CALQUE = re.compile(r"^dz_\d{4}_(.*)$")
+
+
+@router.post("/calques/fichiers")
+async def calques_fichiers(body: dict):
+    """Fichier › Exporter › Calques en fichiers : {"format": png|jpg, "quality"?: 1..100, "visibles"?: bool (défaut
+    vrai), "nom"?} -> un fichier par calque (doc.exportLayers), déposés dans la Bibliothèque -> {"filenames"}."""
+    corps = body if isinstance(body, dict) else {}
+    inconnues = set(corps) - {"format", "quality", "visibles", "nom"}
+    if inconnues:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
+    p = _format_lot(corps)
+    visibles = corps.get("visibles", True)
+    if not isinstance(visibles, bool):
+        raise HTTPException(400, "visibles : booléen attendu")
+    p.update({"visibleOnly": visibles, "prefix": "dz"})
+    nom_doc = corps.get("nom") or (await _appeler("doc.inspect"))[0].get("name")
+    base = _base_sure(nom_doc, "calques")
+    r, gen = await _pool(lambda s: functools.partial(PM.exporter_en_fichiers, s), "doc.exportLayers", p)
+    noms = []
+    for f in r["fichiers"]:
+        m = _PREFIXE_CALQUE.match(os.path.splitext(os.path.basename(f))[0])
+        noms.append(m.group(1) if m else "calque")
+    return await _lot_vers_bibliotheque(r, gen, base, noms)
+
+
+@router.post("/jeux/fichiers")
+async def jeux_fichiers(body: dict):
+    """Fichier › Exporter › Jeux de données en fichiers : {"format": png|jpg, "quality"?: 1..100, "jeux"?: [noms]
+    (défaut tous), "nom"?} -> un fichier aplati par jeu de données (doc.exportDataSets), dans la Bibliothèque."""
+    corps = body if isinstance(body, dict) else {}
+    inconnues = set(corps) - {"format", "quality", "jeux", "nom"}
+    if inconnues:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
+    p = _format_lot(corps)
+    jeux = corps.get("jeux")
+    if jeux is not None:
+        if (not isinstance(jeux, list) or not 1 <= len(jeux) <= 500
+                or not all(isinstance(j, str) and 1 <= len(j) <= 255 for j in jeux)):
+            raise HTTPException(400, "jeux : liste de 1 à 500 noms attendue")
+        p["dataSets"] = jeux
+    p["naming"] = "{index}"                               # les noms des jeux peuvent se confondre une fois nettoyés
+    nom_doc = corps.get("nom") or (await _appeler("doc.inspect"))[0].get("name")
+    base = _base_sure(nom_doc, "jeux")
+    r, gen = await _pool(lambda s: functools.partial(PM.exporter_en_fichiers, s, avec_jeux=True),
+                         "doc.exportDataSets", p)
+    choisis = [j for j in r["jeux"] if jeux is None or j in jeux]
+    noms = []
+    for f in r["fichiers"]:
+        k = os.path.splitext(os.path.basename(f))[0]
+        i = int(k) - 1 if k.isdigit() else -1
+        noms.append(choisis[i] if 0 <= i < len(choisis) else k)
+    return await _lot_vers_bibliotheque(r, gen, base, noms)
+
+
+CSV_MAX = 1024 * 1024
+SEPARATEURS = (",", ";", "\t")
+
+
+@router.post("/jeux/importer")
+async def jeux_importer(body: dict):
+    """Fichier › Importer › Jeux de données variables : {"csv": texte (1 Mio au plus), "separateur"?: , ; tabulation}
+    — l'en-tête nomme les variables, chaque ligne est un jeu. Le texte est écrit sous entrees/ puis doc.importDataSets
+    (le moteur ne lit que sa racine) ; le fichier est effacé après. -> {"imported", "dataSets"}."""
+    corps = body if isinstance(body, dict) else {}
+    inconnues = set(corps) - {"csv", "separateur"}
+    if inconnues:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
+    texte = corps.get("csv")
+    if not isinstance(texte, str) or not texte.strip():
+        raise HTTPException(400, "csv : texte attendu")
+    octets = texte.encode("utf-8")
+    if len(octets) > CSV_MAX:
+        raise HTTPException(413, "csv : 1 Mio au plus")
+    sep = corps.get("separateur")
+    if sep is not None and sep not in SEPARATEURS:
+        raise HTTPException(400, "separateur : virgule, point-virgule ou tabulation")
+    chemin = _relatif(f"entrees/jeux-{hashlib.sha1(octets).hexdigest()[:12]}.csv")
+    cible = PM.dossier_travail() / chemin
+    await asyncio.to_thread(cible.write_bytes, octets)
+    try:
+        return _json(*await _pool(lambda s: functools.partial(PM.importer_jeux, s), chemin, sep))
+    finally:
+        try:
+            cible.unlink()
+        except OSError:
+            pass
+
+
+# Préréglages d'export : `file.export.presets.*` est désactivé par le moteur en automation (« ambient filesystem
+# paths ») -> les préréglages de « Exporter… » sont gardés par Deepotus, dans <données>/photolab/prereglages-export.json.
+PREREGLAGES_MAX = 50
+
+
+def _fichier_prereglages():
+    return PM.dossier_travail() / "prereglages-export.json"
+
+
+def verifier_prereglages(liste):
+    """[{nom, format, quality?, calques?}] -> la liste propre, sinon ValueError (nom unique sans casse, 1..64)."""
+    if not isinstance(liste, list) or len(liste) > PREREGLAGES_MAX:
+        raise ValueError(f"liste de {PREREGLAGES_MAX} préréglages au plus attendue")
+    propres, vus = [], set()
+    for p in liste:
+        if not isinstance(p, dict) or set(p) - {"nom", "format", "quality", "calques"}:
+            raise ValueError("préréglage : nom, format, quality, calques")
+        nom = p.get("nom")
+        if not isinstance(nom, str) or not 1 <= len(nom.strip()) <= 64:
+            raise ValueError("préréglage : nom de 1 à 64 caractères")
+        nom = nom.strip()
+        if nom.casefold() in vus:
+            raise ValueError(f"préréglage en double : {nom}")
+        vus.add(nom.casefold())
+        if p.get("format") not in FORMATS:
+            raise ValueError(f"format hors liste : {p.get('format')!r}")
+        q = {"nom": nom, "format": p["format"]}
+        if "quality" in p:
+            v = p["quality"]
+            if not isinstance(v, int) or isinstance(v, bool) or not 1 <= v <= 100:
+                raise ValueError("quality : entier de 1 à 100 attendu")
+            q["quality"] = v
+        if "calques" in p:
+            if not isinstance(p["calques"], bool) or (p["calques"] and p["format"] != "tif"):
+                raise ValueError("calques : booléen, seulement pour le TIFF")
+            q["calques"] = p["calques"]
+        propres.append(q)
+    return propres
+
+
+@router.get("/export/prereglages")
+async def prereglages_export():
+    import json as _j
+    try:
+        liste = verifier_prereglages(_j.loads(_fichier_prereglages().read_text("utf-8")))
+    except (OSError, ValueError):
+        liste = []                                        # absent ou abîmé : aucun préréglage (jamais un 500)
+    return {"prereglages": liste}
+
+
+@router.put("/export/prereglages")
+async def prereglages_export_ecrire(body: dict):
+    """{"prereglages": [{nom, format, quality?, calques?}]} remplace la liste (écriture atomique)."""
+    import json as _j
+    try:
+        liste = verifier_prereglages((body or {}).get("prereglages"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    f = _fichier_prereglages()
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(_j.dumps(liste, ensure_ascii=False, indent=1), "utf-8")
+    os.replace(tmp, f)
+    return {"prereglages": liste}
 
 
 def _servir(sous, nom):

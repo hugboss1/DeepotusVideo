@@ -23,10 +23,12 @@ export function tranches(n, max = 100) {
 }
 
 // Les états portent le nom anglais de la commande (« Gaussian Blur », « New Layer »). En français, on reprend le
-// libellé du catalogue des menus quand il existe (sans « … ») ; sinon le nom du moteur tel quel.
+// libellé du catalogue des menus quand il existe (sans « … ») ; t258 : à défaut, la traduction de l'amont des
+// commandes hors de l'arbre (menus.json `repli`, fr.tsv de photocraft v0.10.0) ; sinon le nom du moteur tel quel.
 export function tableEtats(catalogue) {
   const t = new Map();
-  for (const e of (catalogue && catalogue.entrees) || []) {
+  const repli = Object.values((catalogue && catalogue.repli) || {});
+  for (const e of [...((catalogue && catalogue.entrees) || []), ...repli]) {
     if (!e.libelle_en || !e.libelle_fr) continue;
     const en = e.libelle_en.replace(/…$/, "").trim();
     if (!t.has(en)) t.set(en, e.libelle_fr.replace(/…$/, "").trim());
@@ -154,9 +156,16 @@ export function instantanesDe(doc) {
 export const etatBrut = (nom, affiche) => affiche === nom;
 
 // Ordre : carte ci-dessus (fr et en, par le dictionnaire) -> libellé du catalogue des menus (fr) -> nom du moteur.
+// t257 : états dont le nom porte une valeur (Image › Appliquer un jeu de données : « Apply Data Set "Été" »).
+export const ETATS_MOTIFS = [[/^Apply Data Set "(.*)"$/, "photolab.historique.appliquer_jeu"]];
+
 export function traduireEtat(nom, table, t = null) {
   const cle = ETATS_MOTEUR[nom];
   if (cle && t) { const s = t(cle); if (s && s !== cle) return s; }
+  for (const [motif, c] of ETATS_MOTIFS) {
+    const m = t && motif.exec(String(nom));
+    if (m) { const s = t(c, { nom: m[1] }); if (s && s !== c) return s; }
+  }
   return (table && table.get(nom)) || nom;
 }
 
