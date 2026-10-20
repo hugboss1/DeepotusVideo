@@ -82,6 +82,12 @@ export const ETATS_MOTEUR = {
   "Clone Stamp": "photolab.outil.clone_stamp",
   "Healing Brush": "photolab.outil.healing",
   "Spot Healing Brush": "photolab.outil.spot_healing",
+  // t252 (M3, photocraft 0.10) : noms relevés sur le vrai moteur (test_photolab_peinture [4])
+  "Patch": "photolab.outil.patch",
+  "Content-Aware Move": "photolab.outil.content_aware_move",
+  "Pattern Stamp": "photolab.outil.pattern_stamp",
+  "Red Eye": "photolab.outil.red_eye",
+  "Remove": "photolab.outil.remove",
   "History Brush": "photolab.outil.history_brush",
   "Background Eraser": "photolab.outil.background_eraser",
   "Magic Eraser": "photolab.outil.magic_eraser",

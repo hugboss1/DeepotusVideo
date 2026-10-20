@@ -16,9 +16,12 @@ export const EMPLACEMENTS = [
   [{ id: "crop", lettre: "C", icone: "dz-outil-photo-recadrer", p2: true }, { id: "slice", lettre: "C", icone: "dz-outil-vec-tranche", p2: true }, { id: "sliceSelect", lettre: "C", icone: "dz-outil-photo-selection-tranche", p2: true }],
   [{ id: "eyedropper", lettre: "I", icone: "dz-outil-vec-pipette", p2: true }, { id: "ruler", lettre: "I", icone: "dz-outil-vec-mesure", p2: true }, { id: "note", lettre: "I", icone: "dz-edit-annotation", p2: true }, { id: "count", lettre: "I", icone: "dz-outil-photo-compteur", p2: true }],
   // section 2 : peinture et retouche (P3b)
-  [{ id: "spotHealing", lettre: "J", icone: "dz-outil-photo-correcteur-tache", p2: true }, { id: "healing", lettre: "J", icone: "dz-outil-photo-correcteur", p2: true }, { id: "patch", lettre: "J", icone: "dz-outil-photo-piece", p2: false }],
+  // t252 (M3, photocraft 0.10) : Supprimer, Pièce (active), Déplacement basé sur le contenu, Œil rouge ; Tampon de motif
+  [{ id: "spotHealing", lettre: "J", icone: "dz-outil-photo-correcteur-tache", p2: true }, { id: "healing", lettre: "J", icone: "dz-outil-photo-correcteur", p2: true },
+    { id: "remove", lettre: "J", icone: "dz-outil-photo-supprimer", p2: true }, { id: "patch", lettre: "J", icone: "dz-outil-photo-piece", p2: true },
+    { id: "contentAwareMove", lettre: "J", icone: "dz-outil-photo-deplacer-contenu", p2: true }, { id: "redEye", lettre: "J", icone: "dz-outil-photo-yeux-rouges", p2: true }],
   [{ id: "brush", lettre: "B", icone: "dz-outil-px-pinceau", p2: true }, { id: "pencil", lettre: "B", icone: "dz-outil-px-crayon", p2: true }, { id: "mixerBrush", lettre: "B", icone: "dz-outil-px-pinceau-melangeur", p2: true }],
-  [{ id: "cloneStamp", lettre: "S", icone: "dz-outil-photo-tampon", p2: true }],
+  [{ id: "cloneStamp", lettre: "S", icone: "dz-outil-photo-tampon", p2: true }, { id: "patternStamp", lettre: "S", icone: "dz-outil-photo-tampon-motif", p2: true }],
   [{ id: "historyBrush", lettre: "Y", icone: "dz-outil-photo-pinceau-historique", p2: true }],
   [{ id: "eraser", lettre: "E", icone: "dz-outil-px-gomme", p2: true }, { id: "backgroundEraser", lettre: "E", icone: "dz-outil-px-gomme-fond", p2: true }, { id: "magicEraser", lettre: "E", icone: "dz-outil-px-gomme-magique", p2: true }],
   [{ id: "gradient", lettre: "G", icone: "dz-outil-px-degrade", p2: true }, { id: "paintBucket", lettre: "G", icone: "dz-outil-px-pot", p2: true }],
@@ -336,7 +339,9 @@ export function initOutils(PL) {
     w.dataset.cle = o.cle;
     const lib = document.createElement("span");
     lib.textContent = T(o.libelle);
-    const val = store[o.cle];
+    // t252 : une option `doc` (symétrie de peinture) est un état du DOCUMENT dans le moteur : lue et écrite par
+    // PL.valeurDoc / PL.changerDoc, jamais rangée dans les réglages de l'outil.
+    const val = o.doc && PL.valeurDoc ? PL.valeurDoc(o.cle) : store[o.cle];
     if (o.type === "bouton") {
       // t157 : un bouton d'action (pas une option rangée) : l'écran s'il traite l'entrée, sinon la commande du moteur.
       const b = document.createElement("button"); b.type = "button"; b.className = "pl-bouton opt-action";
@@ -372,7 +377,10 @@ export function initOutils(PL) {
         s.appendChild(op);
       }
       s.value = val;
-      s.addEventListener("change", () => { store[o.cle] = s.value; });
+      s.addEventListener("change", () => {
+        if (o.doc && PL.changerDoc) PL.changerDoc(o.cle, s.value);
+        else store[o.cle] = s.value;
+      });
       w.append(lib, s);
     } else {
       // mode (4 boutons exclusifs) ou choix (liste)

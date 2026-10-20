@@ -148,9 +148,9 @@ def moteur(reg):
     PM.FABRIQUE = None
     try:
         cli = PM.chemin_cli()
-        check("2a le binaire photocraft-cli 0.3.0 est présent (sinon cette section est rouge)", cli.is_file(), cli)
+        check(f"2a le binaire photocraft-cli {PM.VERSION} est présent (sinon cette section est rouge)", cli.is_file(), cli)
     except PM.MoteurAbsent as e:
-        check("2a le binaire photocraft-cli 0.3.0 est présent (sinon cette section est rouge)", False, e)
+        check(f"2a le binaire photocraft-cli {PM.VERSION} est présent (sinon cette section est rouge)", False, e)
         return []
     s = PM.session()
     peindre(s)
@@ -188,6 +188,100 @@ def moteur(reg):
     return noms
 
 
+# ── t252 (Photolab M3) : outils de retouche de photocraft 0.10, ouverts un à un ─────────────────────────────────────
+# (commande, paramètres tels que l'écran les envoie, nom d'historique attendu) ; Pièce et Déplacement basé sur le
+# contenu agissent sur la SÉLECTION (posée avant), l'Œil rouge sur une pupille rouge peinte avant.
+M3 = (
+    ("paint.patch", {"offset": [30, 4], "mode": "source", "contentAware": False, "structure": 4, "color": 0,
+                     "sampleAllLayers": False}, "Patch"),
+    ("paint.contentAwareMove", {"offset": [20, 6], "mode": "move", "structure": 4, "color": 0,
+                                "sampleAllLayers": False}, "Content-Aware Move"),
+    ("paint.patternStamp", {"points": P, "size": 9, "hardness": 50, "opacity": 100, "flow": 100, "mode": "normal",
+                            "aligned": True, "impressionist": False}, "Pattern Stamp"),
+    ("paint.remove", {"points": [[40, 40], [48, 46]], "size": 8, "sampleAllLayers": False, "closeLoops": True,
+                      "newLayer": False}, "Remove"),
+    ("paint.redEye", {"x": 50, "y": 14, "pupilSize": 50, "darken": 50}, "Red Eye"),
+)
+SYMETRIE = (("paint.setSymmetry", {"mode": "vertical"}), ("paint.setSymmetry", {"mode": "dual", "center": [20, 30], "rotation": 15}),
+            ("paint.symmetryDisable", {}), ("paint.symmetryFromPath", {"name": "work"}))
+# t252 : « Tous les calques » du Pot de peinture et du Correcteur localisé (sampleAllLayers, ajouté en 0.10)
+TOUS_CALQUES = (("paint.bucket", {"x": 2, "y": 2, "tolerance": 32, "contiguous": True, "antiAlias": True,
+                                  "contents": "foreground", "opacity": 100, "color": "#00ffff", "sampleAllLayers": True}),
+                ("paint.spotHealing", {"points": P[:2], "size": 9, "hardness": 50, "type": "contentAware",
+                                       "sampleAllLayers": True}))
+
+
+def retouche_m3(reg):
+    print("\n[4] t252 : Pièce, Déplacement basé sur le contenu, Tampon de motif, Supprimer, Œil rouge, symétrie")
+    for cid, p, _ in M3:
+        a, m = admise(reg, cid, p)
+        check(f"4a {cid} {sorted(p)} admis", a, m)
+    for cid, p in SYMETRIE + TOUS_CALQUES:
+        a, m = admise(reg, cid, p)
+        check(f"4a {cid} {sorted(p)} admis", a, m)
+    for cid, p in (("paint.patch", {"offset": "30,4"}), ("paint.patch", {"offset": [1, 2, 3]}), ("paint.patch", {"offset": [1e9, 0]}), ("paint.patch", {"offset": [1, 2], "structure": 8}),
+                   ("paint.patch", {"offset": [1, 2], "mode": "zorg"}), ("paint.contentAwareMove", {"offset": [1, 2], "color": 11}),
+                   ("paint.remove", {"points": P, "size": 0}), ("paint.remove", {"points": P, "size": 5001}),
+                   ("paint.patternStamp", {"points": P, "size": 5001}), ("paint.patternStamp", {"points": P, "spacing": 0}),
+                   ("paint.redEye", {"x": 1, "y": 1, "pupilSize": 0}), ("paint.redEye", {"x": 1, "y": 1, "darken": 101}),
+                   ("paint.setSymmetry", {"mode": "zorg"}), ("paint.setSymmetry", {"mode": "vertical", "rotation": "15"}),
+                   ("paint.symmetryFromPath", {"name": "C:/chemin/trace.svg"}), ("paint.symmetryFromPath", {"name": "zorg"})):
+        a, _ = admise(reg, cid, p)
+        check(f"4b {cid} {p} refusé", not a)
+
+    s = PM.session()
+    peindre(s)
+    ex = lambda c, p: s.appeler("engine.execute", {"command": c, "params": p})
+    noms = []
+    # une « pupille » rouge sur fond sombre pour l'Œil rouge
+    ex("select.rect", {"x": 44, "y": 8, "width": 12, "height": 12, "mode": "replace", "ellipse": True})
+    ex("edit.fill", {"color": "#e01818"})
+    ex("select.deselect", {})
+    for cid, p, attendu in M3:
+        if cid in ("paint.patch", "paint.contentAwareMove"):
+            ex("select.rect", {"x": 4, "y": 36, "width": 16, "height": 16, "mode": "replace"})
+        avant, h0 = empreinte(s), historique(s)
+        try:
+            ex(cid, p)
+        except PM.MoteurErreur as e:
+            check(f"4c {cid} exécuté", False, e)
+            continue
+        apres, h1 = empreinte(s), historique(s)
+        check(f"4c {cid} : le rendu change", avant != apres)
+        check(f"4d {cid} : un état « {attendu} » de plus", h1[:-1] == h0 and h1[-1:] == [attendu], h1[-3:])
+        noms.append(attendu)
+        if s.appeler("doc.inspect").get("hasSelection"):
+            ex("select.deselect", {})
+    for cid, p in TOUS_CALQUES:
+        avant = empreinte(s)
+        ex(cid, p)
+        check(f"4e {cid} avec sampleAllLayers : exécuté, le rendu change", empreinte(s) != avant)
+    # symétrie : un trait à gauche est repeint en miroir à droite ; elle se lit dans doc.inspect ; elle ne fait pas d'état
+    s.appeler("doc.new", {"width": 64, "height": 32, "background": "white"})
+    h0 = historique(s)
+    r = ex("paint.setSymmetry", {"mode": "vertical"})
+    insp = s.appeler("doc.inspect")
+    check("4f setSymmetry vertical : rendu {center, mode, rotation} et relu dans doc.inspect.symmetry",
+          r.get("mode") == "vertical" and r.get("center") == [32.0, 16.0] and insp.get("symmetry") == r, (r, insp.get("symmetry")))
+    check("4f la symétrie n'ajoute aucun état d'historique", historique(s) == h0, historique(s)[-2:])
+    ex("paint.stroke", {"points": [[6, 6], [6, 26]], "size": 4, "hardness": 1, "opacity": 1, "flow": 1, "color": "#000000"})
+    s.appeler("doc.render", {"path": PM.relatif("rendus/t252-sym.png")})
+    from PIL import Image
+    with Image.open(D / "rendus" / "t252-sym.png") as im:
+        gauche, droite = im.convert("L").getpixel((6, 16)), im.convert("L").getpixel((57, 16))
+    (D / "rendus" / "t252-sym.png").unlink()
+    check("4g trait à x=6 : peint aussi en miroir à x=57 (axe vertical au centre)", gauche < 60 and droite < 60, (gauche, droite))
+    ex("paint.symmetryDisable", {})
+    check("4h symmetryDisable : plus de symétrie dans doc.inspect", s.appeler("doc.inspect").get("symmetry") is None)
+    try:
+        ex("paint.symmetryFromPath", {"name": "work"}); m = None
+    except PM.MoteurErreur as e:
+        m = str(e)
+    check("4i symétrie depuis le tracé sans tracé de travail : refusée par le moteur (« no work path »)",
+          m is not None and "work path" in m, m)
+    return noms
+
+
 def traductions(noms):
     print("\n[3] noms d'historique traduits (ETATS_MOTEUR -> photolab.json fr/en)")
     src = (RACINE / "frontend/photolab/js/mod-historique.js").read_text(encoding="utf-8")
@@ -207,6 +301,7 @@ reg = PR.structurer(json.loads(_PV.fichier_commandes().read_text(encoding="utf-8
 try:
     liste_blanche(reg)
     noms = moteur(reg)
+    noms += retouche_m3(reg)   # t252
     traductions(noms)
 finally:
     PM.fermer()
