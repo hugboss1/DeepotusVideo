@@ -20,6 +20,14 @@
    `max_usd`, dictée) passe intact. Les demandes simultanées se posent l'une
    après l'autre.
 
+   LA MUSIQUE (20/10/2026, constat du catalogue t248). POST /api/audio/music
+   est payant (fal, plafond « son ») et partait au premier clic, sans devis
+   ni second clic. Le code qui l'appelle vit dans une couche traduite par
+   positions (L4) : la confirmation se pose donc ICI, avant l'envoi, pour
+   tous les appelants. Le dialogue nomme le modèle lu dans le corps ; Annuler
+   rend un 409 dont le `detail` est une chaîne (affichée telle quelle), rien
+   ne part. Sans dialogue maison : refus, le sens sûr.
+
    L'ALERTE. Après une écriture /api réussie (hors /api/reglages), relecture
    différée de /api/reglages/plafonds/etat : chaque plafond passé au seuil
    (80 % par défaut) est dit UNE fois par mois et par onglet, dans un bandeau
@@ -138,11 +146,36 @@
     }).catch(function () { return []; });
   }
 
+  function texte(cle, v, defaut) {
+    var t = typeof window.dzT === "function" ? window.dzT(cle, v) : "";
+    return t && t !== cle ? t : defaut;
+  }
+
+  // la musique payante se confirme AVANT l'envoi (voir l'en-tête) ; vrai = on peut envoyer
+  async function musiqueConfirmee(o) {
+    var modele = "";
+    try { modele = String((JSON.parse((o && o.body) || "{}") || {}).model || ""); } catch (e) { modele = ""; }
+    var D = window.__dzDialogue;
+    if (!D || typeof D.confirmer !== "function") return false;
+    try {
+      return !!(await D.confirmer(
+        texte("son.musique.confirmer_q", { modele: modele || "?" },
+              "Générer la musique avec " + (modele || "?") + " ? C'est payant, compté sous le plafond « son »."),
+        { titre: texte("son.musique.confirmer_titre", null, "Générer la musique"),
+          ok: texte("son.musique.confirmer_ok", null, "Générer") }));
+    } catch (e) { return false; }
+  }
+
   async function enveloppe(i, o) {
     var copie = null;
     try { if (typeof Request !== "undefined" && i instanceof Request) copie = i.clone(); } catch (e) { copie = null; }
-    var R = await ORIGINE(i, o);
     var p = chemin(i), m = methode(i, o);
+    if (p === "/api/audio/music" && m === "POST" && !(await musiqueConfirmee(o))) {
+      return new Response(JSON.stringify({ detail: texte("son.musique.annulee", null, "Annulé : rien n'a été envoyé.") }), {
+        status: 409, statusText: "Conflict", headers: { "Content-Type": "application/json" }
+      });
+    }
+    var R = await ORIGINE(i, o);
     if (R.status !== 402) {
       if (R.ok && m !== "GET" && m !== "HEAD" && p.indexOf("/api/") === 0 && p.indexOf("/api/reglages/") !== 0) planifierAlerte();
       return R;
