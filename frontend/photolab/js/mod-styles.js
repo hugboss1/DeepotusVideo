@@ -73,6 +73,14 @@ export function defautsStyle(kind) {
   return v;
 }
 
+// t256 : « Rétablir les valeurs par défaut » d'un effet -> le défaut de l'utilisateur rendu par
+// layer.layerStyle.defaultFor ({params, user: true}) par-dessus ceux du dialogue ; sans défaut de l'utilisateur (user:
+// false, les défauts d'usine du MOTEUR), ceux du dialogue — l'écran garde les siens, ceux du dialogue amont.
+export function defautEffet(kind, reponse) {
+  if (!(reponse && reponse.user === true && reponse.params && typeof reponse.params === "object")) return defautsStyle(kind);
+  return normaliserParams(kind, { ...defautsStyle(kind), ...reponse.params });
+}
+
 // Paramètres complets et coercés d'un style : chaque champ du dialogue (absent ou illisible -> défaut), rien d'autre
 // (ni layer, ni add, ni clé inconnue). Options de fusion : passThrough GARDÉ (un groupe ; coercer le refuse parce
 // qu'un effet ne le prend jamais) et toute autre saisie lue par idFusion.
@@ -287,7 +295,28 @@ export function initStyles(PL) {
     const titrePage = el("h3", "st-titre");
     const note = el("p", "st-note", T("photolab.styles.non_relisible"));
     const zone = el("div", "st-champs");
-    page.append(titrePage, note, zone);
+    // t256 : défauts de l'utilisateur, par effet (layer.layerStyle.makeDefault / defaultFor ; aucun état d'historique)
+    const defauts = el("div", "st-defauts");
+    const bDefinir = el("button", "pl-bouton st-defaut", T("photolab.styles.definir_defaut")); bDefinir.type = "button";
+    const bRetablir = el("button", "pl-bouton st-defaut", T("photolab.styles.retablir_defaut")); bRetablir.type = "button";
+    defauts.append(bDefinir, bRetablir);
+    bDefinir.addEventListener("click", async () => {
+      controles.forEach((x) => x.lire());
+      const kind = selection;
+      try {
+        await PL.post("/executer", { command: "layer.layerStyle.makeDefault", params: { kind, params: normaliserParams(kind, courant[kind].params) } });
+        PL.signaler(T("photolab.styles.defaut_enregistre"));
+      } catch (e) { /* signalé par mod-api */ }
+    });
+    bRetablir.addEventListener("click", async () => {
+      const kind = selection;
+      let r = null;
+      try { r = await PL.post("/executer", { command: "layer.layerStyle.defaultFor", params: { kind } }); } catch (e) { return; }
+      if (fini || selection !== kind) return;
+      courant = { ...courant, [kind]: { ...courant[kind], actif: true, params: defautEffet(kind, r) } };
+      dessinerListe(); dessinerPage(); planifier();
+    });
+    page.append(titrePage, note, zone, defauts);
     cols.append(liste, page);
     coq.corps.append(cols, coq.erreur);
 
@@ -349,6 +378,7 @@ export function initStyles(PL) {
     const ctx = { T, valeurs: () => courant[selection].params, poser };
     function dessinerPage() {
       titrePage.textContent = libelleStyle(selection, arbre(), T);
+      defauts.hidden = selection === OPTIONS_FUSION;
       note.hidden = !courant[selection].inconnu;
       zone.textContent = "";
       controles = [];

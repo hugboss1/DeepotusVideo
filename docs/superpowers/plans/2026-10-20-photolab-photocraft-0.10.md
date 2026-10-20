@@ -143,6 +143,18 @@ travail voisin, `layerStyle.*` neufs, `layerMask.edit` ; objets dynamiques (`con
 instantanés d'historique ; import/export .aco/.ase vers NOTRE nuancier ; Ctrl+T › Déformation
 (`edit.transform.warpGrid`).
 
+**t256 livrée en trois PR successives** (calques, puis historique + nuancier, puis Déformation).
+PR 1 — calques (20/10) : 17 commandes ouvertes (neuves 86 -> 69) ; menus Calque / Filtre complétés par
+`INSERTIONS_M7` (mod-menus : Retirer l'arrière-plan (local), Dupliquer vers un document, Couleur du calque, Fusionner
+le groupe, Nouveau › Arrière-plan d'après un calque / Plan de travail voisin / Cadre, Objets dynamiques › Convertir en
+calques, Rastériser › Style de calque, Rendu › Rééclairer, Autre › Couleur en alpha) ; panneau Calques : Alt-clic sur
+l'œil (`showOnly`), couleur d'étiquette, « / » (`toggleLockTransparency`), double-clic sur le masque (`layerMask.edit`),
+badge fx glissé (`transferEffects`, Alt : copie) ; Style de calque : Définir / Rétablir les valeurs par défaut
+(`makeDefault` / `defaultFor`). Restent fermées : `layerStyle.replace` (le dialogue applique déjà effet par effet) et
+les 5 commandes d'objets dynamiques à chemin (`relinkToFile`, `replaceContents`, `exportContents`, `convertToLinked`,
+`updateChanged`) : **le moteur 0.10 les désactive en automation** (« uses ambient filesystem paths ») — Bloqué moteur.
+Le moteur rend actif le document DESTINATAIRE de `copyToDocument` ; l'écran le suit (`PL.suivreDocumentActif`).
+
 ## M8 — t257 · Formats et exports
 Ouvrir depuis la Bibliothèque : ORA, Krita, Affinity, Paint.NET, EXR (parties), DPX, DDS, raws (HEIC selon
 Q3) ; enregistrer : TIFF à calques, WebP, ORA, PDF d'une page ; Calques en fichiers et jeux de données par

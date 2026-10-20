@@ -1,0 +1,322 @@
+# -*- coding: utf-8 -*-
+"""t256 (Photolab M7, photocraft 0.10) — calques : le pont et le VRAI moteur.
+[1] liste blanche (PM.commande_autorisee) : les 17 commandes de calques ouvertes passent avec les paramètres que
+    l'écran envoie ; formes et bornes refusées (couleur d'étiquette inconnue, cadre de taille nulle, document négatif,
+    liste de calques illisible, défaut de style aux clés inconnues, masque sans densité ni contour progressif…) ;
+    restent fermées : layerStyle.replace (le dialogue Style de calque applique déjà effet par effet), et les commandes
+    à CHEMIN des objets dynamiques — le moteur les désactive en automation (« uses ambient filesystem paths »).
+[2] VRAI moteur : chaque commande agit et nomme EXACTEMENT son état d'historique (ou n'en fait aucun).
+[3] chaque nom d'état de [2] est traduit par ETATS_MOTEUR (mod-historique.js) en fr ET en en.
+[4] enregistrées dans une action, ces commandes restent des étapes rejouables (photolab_registre.verifier_etape).
+Section VRAI moteur rouge si le binaire manque — jamais de saut silencieux.
+Run : & $PY -X utf8 tests/test_photolab_m7.py   (depuis backend/)"""
+import json, os, pathlib, re, shutil, sys, tempfile
+_tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzt256_"))
+os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_tmp / 't.db').as_posix()}"
+os.environ["IMAGES_FOLDER"] = str(_tmp / "images")
+os.environ["OUTPUTS_FOLDER"] = str(_tmp / "outputs")
+os.environ.setdefault("FAL_KEY", "test-key")
+(_tmp / "images").mkdir(parents=True, exist_ok=True)
+sys.stdout.reconfigure(encoding="utf-8")
+BACKEND = pathlib.Path(__file__).resolve().parent.parent
+RACINE = BACKEND.parent
+sys.path.insert(0, str(BACKEND))
+sys.path.insert(0, str(BACKEND / "tests"))
+from app.services import photolab_moteur as PM                # noqa: E402
+from app.services import photolab_registre as PR              # noqa: E402
+from app.services import photolab_neuves as PN                # noqa: E402
+import photocraft_version as _PV                                # noqa: E402
+
+ok = fail = 0
+
+
+def check(label, cond, detail=""):
+    global ok, fail
+    if cond:
+        ok += 1; print(f"  PASS  {label}")
+    else:
+        fail += 1; print(f"  FAIL  {label} {str(detail)[:600]}")
+
+
+def admise(reg, cid, params):
+    try:
+        PM.commande_autorisee(cid, params, reg)
+        return True, ""
+    except ValueError as e:
+        return False, str(e)
+
+
+OUVERTES_CALQUES = ("layer.removeBackground", "filter.render.relight", "filter.other.colorToAlpha", "layer.showOnly",
+                    "layer.toggleLockTransparency", "layer.setLabelColor", "layer.mergeGroup", "layer.copyToDocument",
+                    "layer.new.frame", "layer.artboard.addBeside", "layer.layerStyle.transferEffects",
+                    "layer.layerStyle.makeDefault", "layer.layerStyle.defaultFor", "layer.layerMask.edit",
+                    "layer.smartObjects.convertToLayers", "layer.new.backgroundFromLayer", "layer.rasterize.layerStyle")
+FERMEES_CALQUES = ("layer.layerStyle.replace", "layer.smartObjects.updateChanged")
+# (commande, paramètres tels que l'écran les envoie)
+ADMIS = (
+    ("layer.removeBackground", {}), ("layer.removeBackground", {"refine": False, "sampleAllLayers": True}),
+    ("filter.render.relight", {"angle": -30, "elevation": 60, "intensity": 70, "ambient": 40, "warmth": 20, "softness": 10}),
+    ("filter.other.colorToAlpha", {"color": "#ffffff", "transparencyThreshold": 0.1, "opacityThreshold": 0.9}),
+    ("layer.showOnly", {"layer": 3}), ("layer.toggleLockTransparency", {}), ("layer.toggleLockTransparency", {"layer": 4}),
+    ("layer.setLabelColor", {"color": "red", "layer": 3}), ("layer.setLabelColor", {"color": "none"}),
+    ("layer.mergeGroup", {}), ("layer.mergeGroup", {"layer": 5}),
+    ("layer.copyToDocument", {"document": 0}),
+    ("layer.copyToDocument", {"document": 2, "center": True, "layers": [3, 4], "offset": [10, -5], "name": "Copie"}),
+    ("layer.copyToDocument", {"document": 1, "at": [100.5, 40]}),
+    ("layer.new.frame", {"x": 10, "y": 20, "width": 50, "height": 40}),
+    ("layer.new.frame", {"x": -10, "y": 0, "width": 1, "height": 300000, "shape": "ellipse", "layer": 3, "name": "Cadre"}),
+    ("layer.artboard.addBeside", {"side": "left", "duplicate": True}), ("layer.artboard.addBeside", {}),
+    ("layer.layerStyle.transferEffects", {"from": 3, "to": 4}),
+    ("layer.layerStyle.transferEffects", {"from": 3, "to": 4, "copy": True, "effect": 0}),
+    ("layer.layerStyle.makeDefault", {"kind": "dropShadow", "params": {"distance": 12, "color": "#102030", "opacity": 60}}),
+    ("layer.layerStyle.makeDefault", {"kind": "stroke", "params": {"size": 3}}),
+    ("layer.layerStyle.defaultFor", {"kind": "satin"}),
+    ("layer.layerMask.edit", {"layer": 3, "density": 50}), ("layer.layerMask.edit", {"feather": 12.5}),
+    ("layer.layerMask.edit", {"density": 0, "feather": 1000}),
+    ("layer.smartObjects.convertToLayers", {}), ("layer.new.backgroundFromLayer", {"layer": 3}),
+    ("layer.rasterize.layerStyle", {}),
+)
+REFUS = (
+    ("layer.setLabelColor", {"color": "pink"}), ("layer.setLabelColor", {}),
+    ("layer.removeBackground", {"refine": "oui"}),
+    ("filter.render.relight", {"angle": 200}), ("filter.other.colorToAlpha", {"color": "blanc"}),
+    ("filter.other.colorToAlpha", {"opacityThreshold": 2}),
+    ("layer.copyToDocument", {}), ("layer.copyToDocument", {"document": -1}),
+    ("layer.copyToDocument", {"document": 1, "layers": "3"}), ("layer.copyToDocument", {"document": 1, "layers": [3, -2]}),
+    ("layer.copyToDocument", {"document": 1, "layers": []}), ("layer.copyToDocument", {"document": 1, "at": [1]}),
+    ("layer.copyToDocument", {"document": 1, "offset": [1, "2"]}), ("layer.copyToDocument", {"document": 1, "offset": [1e9, 0]}),
+    ("layer.copyToDocument", {"document": 1, "name": "C:/x.png"}),
+    ("layer.new.frame", {"x": 0, "y": 0, "width": 0, "height": 10}), ("layer.new.frame", {"x": 0, "y": 0, "width": 10}),
+    ("layer.new.frame", {"x": 0, "y": 0, "width": 10, "height": 400000}), ("layer.new.frame", {"x": 0.5, "y": 0, "width": 10, "height": 10}),
+    ("layer.new.frame", {"x": 0, "y": 0, "width": 10, "height": 10, "shape": "star"}),
+    ("layer.artboard.addBeside", {"side": "dessus"}),
+    ("layer.layerStyle.transferEffects", {"from": 3}), ("layer.layerStyle.transferEffects", {"from": 3, "to": 4, "effect": -1}),
+    ("layer.layerStyle.makeDefault", {"kind": "dropShadow"}), ("layer.layerStyle.makeDefault", {"kind": "ombre", "params": {}}),
+    ("layer.layerStyle.makeDefault", {"kind": "stroke", "params": {"taille": 9}}),
+    ("layer.layerStyle.makeDefault", {"kind": "stroke", "params": {"size": "x"}}),
+    ("layer.layerStyle.makeDefault", {"kind": "stroke", "params": {"size": 3, "layer": 4}}),
+    ("layer.layerStyle.makeDefault", {"kind": "stroke", "params": [3]}),
+    ("layer.layerStyle.defaultFor", {}), ("layer.layerStyle.defaultFor", {"kind": "../prefs"}),
+    ("layer.layerMask.edit", {}), ("layer.layerMask.edit", {"layer": 3}), ("layer.layerMask.edit", {"density": 101}),
+    ("layer.layerMask.edit", {"feather": -1}),
+    ("layer.layerStyle.replace", {"layer": 3, "effects": []}),
+    ("layer.smartObjects.updateChanged", {}),
+    ("layer.smartObjects.exportContents", {"path": "so.png"}), ("layer.smartObjects.replaceContents", {"path": "entrees/a.png"}),
+)
+
+
+def liste_blanche(reg):
+    print("\n[1] liste blanche du pont")
+    check("1.0 les 17 commandes de calques ne sont plus dans COMMANDES_NEUVES_FERMEES ; replace et updateChanged y restent",
+          not (set(OUVERTES_CALQUES) & PN.COMMANDES_NEUVES_FERMEES) and set(FERMEES_CALQUES) <= PN.COMMANDES_NEUVES_FERMEES)
+    for cid, p in ADMIS:
+        a, m = admise(reg, cid, p)
+        check(f"1a {cid} {sorted(p)} admis", a, m)
+    for cid, p in REFUS:
+        a, _ = admise(reg, cid, p)
+        check(f"1b {cid} {json.dumps(p, ensure_ascii=False)[:90]} refusé", not a)
+
+
+def historique(s):
+    h = s.appeler("doc.inspect").get("history")
+    return list(h) if isinstance(h, list) else []
+
+
+def moteur():
+    print("\n[2] VRAI moteur : chaque commande agit et nomme son état")
+    PM.fermer()
+    PM.FABRIQUE = None
+    try:
+        cli = PM.chemin_cli()
+        check(f"2a le binaire photocraft-cli {PM.VERSION} est présent (sinon cette section est rouge)", cli.is_file(), cli)
+    except PM.MoteurAbsent as e:
+        check(f"2a le binaire photocraft-cli {PM.VERSION} est présent (sinon cette section est rouge)", False, e)
+        return []
+    s = PM.session()
+    ex = lambda c, p=None: s.appeler("engine.execute", {"command": c, "params": p or {}})
+    ins = lambda: s.appeler("doc.inspect")
+    calque = lambda i: next(c for c in PM._a_plat(ins()["layers"]) if c["id"] == i)
+    noms = []
+
+    def etat(label, attendu, h0, n=1):
+        h1 = historique(s)
+        check(f"{label} : {n} état(s) « {attendu} » de plus", h1[:-n] == h0 and h1[-n:] == [attendu] * n, h1[-3:])
+        noms.append(attendu)
+
+    def erreur(c, p):
+        try:
+            ex(c, p); return None
+        except PM.MoteurErreur as e:
+            return str(e)
+
+    # Retirer l'arrière-plan (local) : sur une vraie image (sujet sur fond uni), masque posé, l'arrière-plan devient calque
+    entrees = _tmp / "photolab" / "entrees"
+    entrees.mkdir(parents=True, exist_ok=True)
+    shutil.copy(BACKEND / "app/assets/emoji/1f30a.png", entrees / "vague.png")
+    s.appeler("doc.open", {"path": "entrees/vague.png"})
+    h0 = historique(s); r = ex("layer.removeBackground", {})
+    c = calque(r["layer"])
+    check("2b Retirer l'arrière-plan (local) : un masque de fusion, l'arrière-plan devenu calque ordinaire",
+          c["hasMask"] is True and c["name"] != "Background" and len(r.get("bounds") or []) == 4, (r, c["name"]))
+    etat("2b retirer l'arrière-plan", "Remove Background", h0)
+    s.appeler("doc.close", {})
+
+    s.appeler("doc.new", {"width": 200, "height": 120, "background": "white"})
+    fond = ins()["activeLayer"]
+    ex("layer.new.layer", {}); ex("select.all"); ex("edit.fill", {"color": "#ff0000"}); ex("select.deselect")
+    a = ins()["activeLayer"]
+    h0 = historique(s); r = ex("filter.render.relight", {"angle": -30, "intensity": 70})
+    check("2c Rééclairer : le filtre et ses réglages", (r.get("filter") or {}).get("filter") == "relight" and r["filter"]["angle"] == -30, r)
+    etat("2c Rééclairer", "Relight", h0)
+    h0 = historique(s); r = ex("filter.other.colorToAlpha", {"color": "#ff0000"})
+    check("2d Couleur en alpha : le rouge devient transparent", (r.get("filter") or {}).get("filter") == "colorToAlpha", r)
+    etat("2d Couleur en alpha", "Color to Alpha", h0)
+    ex("edit.undo")
+    # Verrou de transparence : bascule, l'état est celui de layer.setProps locks (le même dans le moteur)
+    h0 = historique(s); r1 = ex("layer.toggleLockTransparency", {}); r2 = ex("layer.toggleLockTransparency", {})
+    check("2e verrou de transparence : verrouille puis déverrouille", r1 == {"locked": True} and r2 == {"locked": False}, (r1, r2))
+    h1 = historique(s)
+    check("2e deux états « Lock / Unlock Transparent Pixels »", h1[:-2] == h0 and h1[-2:] == ["Lock Transparent Pixels", "Unlock Transparent Pixels"], h1[-2:])
+    noms += ["Lock Transparent Pixels", "Unlock Transparent Pixels"]
+    ex("layer.setProps", {"layer": a, "locks": {"transparency": True, "pixels": False, "position": False, "artboard": False, "all": False}})
+    check("2e verrou posé par setProps : la bascule le relit (déverrouille)", ex("layer.toggleLockTransparency", {}) == {"locked": False})
+    m = erreur("filter.other.colorToAlpha", {"color": "#ffffff"}) if ex("layer.toggleLockTransparency", {}) == {"locked": True} else "?"
+    check("2e transparence verrouillée : Couleur en alpha refusée par le moteur", m is not None and "locked" in m, m)
+    ex("layer.toggleLockTransparency", {})
+    m = erreur("layer.toggleLockTransparency", {"layer": fond})
+    check("2e l'arrière-plan ne se verrouille pas (erreur du moteur)", m is not None and "Background" in m, m)
+    # Couleur d'étiquette : doc.inspect la relit
+    h0 = historique(s); r = ex("layer.setLabelColor", {"color": "seafoam", "layer": a})
+    check("2f couleur du calque : doc.inspect rend labelColor", r.get("layers") == [a] and calque(a)["labelColor"] == "seafoam", (r, calque(a).get("labelColor")))
+    etat("2f couleur du calque", "Layer Color", h0)
+    # Afficher seulement ce calque (Alt-clic sur l'œil), puis de nouveau : les autres reviennent
+    h0 = historique(s); r1 = ex("layer.showOnly", {"layer": a}); seul = calque(fond)["visible"]
+    r2 = ex("layer.showOnly", {"layer": a})
+    check("2g Alt-clic sur l'œil : seul ce calque, puis tous de nouveau", r1 == {"shownAlone": True} and seul is False
+          and r2 == {"shownAlone": False} and calque(fond)["visible"] is True, (r1, seul, r2))
+    h1 = historique(s)
+    check("2g états « Show Only This Layer » puis « Show Layers »", h1[:-2] == h0 and h1[-2:] == ["Show Only This Layer", "Show Layers"], h1[-2:])
+    noms += ["Show Only This Layer", "Show Layers"]
+    # Masque : densité et contour progressif
+    ex("layer.layerMask.revealAll", {})
+    h0 = historique(s); r = ex("layer.layerMask.edit", {"layer": a, "density": 50, "feather": 4})
+    check("2h masque : densité et contour progressif rendus", r == {"layer": a, "density": 50.0, "feather": 4.0}, r)
+    etat("2h modifier le masque", "Edit Layer Mask", h0)
+    m = erreur("layer.layerMask.edit", {"layer": fond, "density": 10})
+    check("2h calque sans masque : erreur du moteur (no pixel mask)", m is not None and "no pixel mask" in m, m)
+    # Styles : défaut de l'utilisateur (aucun état), transfert d'effets, pixellisation du style
+    r = ex("layer.layerStyle.defaultFor", {"kind": "dropShadow"})
+    check("2i défaut d'usine de l'ombre portée (user: false)", r.get("user") is False and r["params"].get("distance") == 5, r)
+    h0 = historique(s); ex("layer.layerStyle.makeDefault", {"kind": "dropShadow", "params": {"distance": 12}})
+    r = ex("layer.layerStyle.defaultFor", {"kind": "dropShadow"})
+    check("2i Définir par défaut puis Rétablir : le défaut de l'utilisateur", r == {"params": {"distance": 12}, "user": True}, r)
+    check("2i défauts de style : aucun état d'historique", historique(s) == h0, historique(s)[-2:])
+    ex("layer.layerStyle.stroke", {"layer": a, "size": 3})
+    ex("layer.new.layer", {}); b = ins()["activeLayer"]
+    h0 = historique(s); ex("layer.layerStyle.transferEffects", {"from": a, "to": b, "copy": True})
+    check("2j Alt-glisser fx : effets copiés (les deux calques en ont)", bool((calque(a).get("effects") or {}).get("items"))
+          and bool((calque(b).get("effects") or {}).get("items")))
+    etat("2j copier les effets", "Copy Layer Effects", h0)
+    ex("layer.layerStyle.clear", {"layer": b})
+    h0 = historique(s); ex("layer.layerStyle.transferEffects", {"from": a, "to": b})
+    check("2j glisser fx : effets déplacés", not (calque(a).get("effects") or {}).get("items") and bool((calque(b).get("effects") or {}).get("items")))
+    etat("2j déplacer les effets", "Move Layer Effects", h0)
+    h0 = historique(s); r = ex("layer.rasterize.layerStyle", {"layer": b})
+    check("2k pixelliser le style : plus d'effet", r.get("layers") == [b] and not (calque(b).get("effects") or {}).get("items"), r)
+    etat("2k pixelliser le style", "Rasterize Layer Style", h0)
+    # Fusionner le groupe
+    ex("layer.select", {"layer": a, "mode": "replace"}); ex("layer.groupLayers", {})
+    g = ins()["activeLayer"]
+    h0 = historique(s); r = ex("layer.mergeGroup", {})
+    check("2l Fusionner le groupe : un calque de pixels à la place du groupe", r == {"layer": g} and calque(g)["kind"] == "Pixel", (r, calque(g)["kind"]))
+    etat("2l fusionner le groupe", "Merge Group", h0)
+    # Cadre : un groupe découpé par la forme
+    h0 = historique(s); r = ex("layer.new.frame", {"x": 10, "y": 10, "width": 50, "height": 40, "shape": "ellipse"})
+    check("2m Nouveau cadre : un groupe masqué par l'ellipse", r.get("frame") == [10, 10, 50, 40] and r.get("shape") == "ellipse"
+          and calque(r["layer"])["kind"] == "Group" and calque(r["layer"])["hasMask"] is True, r)
+    etat("2m nouveau cadre", "New Frame", h0)
+    m = erreur("layer.new.frame", {"x": 0, "y": 0, "width": 0, "height": 10})
+    check("2m cadre de largeur nulle : erreur du moteur", m is not None and "1..=300000" in m, m)
+    # Objet dynamique -> calques
+    ex("layer.select", {"layer": g, "mode": "replace"}); ex("layer.smartObjects.convertToSmartObject", {})
+    h0 = historique(s); r = ex("layer.smartObjects.convertToLayers", {})
+    check("2n Convertir en calques : l'objet dynamique redevient un calque de pixels",
+          r.get("group") is False and calque(r["layer"])["kind"] == "Pixel", r)
+    etat("2n convertir en calques", "Convert to Layers", h0)
+    m = erreur("layer.smartObjects.convertToLayers", {})
+    check("2n sur un calque de pixels : « not available right now »", m is not None and "not available" in m, m)
+    for c, p in (("layer.smartObjects.updateChanged", {}), ("layer.smartObjects.exportContents", {"path": "so.png"})):
+        m = erreur(c, p)
+        check(f"2o {c} : désactivée par le moteur en automation (restée fermée au pont)", m is not None and "ambient filesystem paths" in m, m)
+    # Arrière-plan d'après un calque
+    m = erreur("layer.new.backgroundFromLayer", {})
+    check("2p un arrière-plan existe déjà : « not available right now »", m is not None and "already has a Background" in m, m)
+    # Plans de travail : voisin vide, puis copie
+    ex("layer.new.artboard", {"x": 0, "y": 0, "width": 100, "height": 80})
+    h0 = historique(s); r = ex("layer.artboard.addBeside", {})
+    check("2q plan de travail voisin à droite, 100 px plus loin", r.get("rect") == [200, 0, 100, 80], r)
+    etat("2q plan de travail voisin", "New Artboard", h0)
+    h0 = historique(s); r = ex("layer.artboard.addBeside", {"side": "bottom", "duplicate": True})
+    check("2q copie du plan de travail en dessous", r.get("rect") == [200, 180, 100, 80], r)
+    etat("2q copie du plan de travail", "Duplicate Artboard", h0)
+    # Copier vers un document : le DESTINATAIRE devient actif et reçoit « Duplicate Layer » ; la source ne change pas
+    s.appeler("doc.new", {"width": 100, "height": 80, "background": "transparent"})
+    h0 = historique(s); r = ex("layer.new.backgroundFromLayer", {})
+    check("2p Arrière-plan d'après un calque : le calque devient « Background »", ins()["layers"][-1]["name"] == "Background", r)
+    etat("2p arrière-plan d'après un calque", "Background From Layer", h0)
+    src = s.appeler("session.list")["active"]
+    h_src = historique(s)
+    s.appeler("doc.select", {"index": 0}); h_dst = historique(s); s.appeler("doc.select", {"index": src})
+    r = ex("layer.copyToDocument", {"document": 0, "center": True})
+    actif = s.appeler("session.list")["active"]
+    h_dst1 = historique(s)
+    s.appeler("doc.select", {"index": src})
+    check("2r Dupliquer vers un document : le destinataire devient actif, la copie y est centrée",
+          actif == 0 and r.get("document") == 0 and isinstance(r.get("offset"), list) and len(r["offset"]) == 2, (actif, r))
+    check("2r le destinataire gagne « Duplicate Layer », la source rien", h_dst1 == h_dst + ["Duplicate Layer"] and historique(s) == h_src,
+          (h_dst1[-2:], historique(s)[-2:]))
+    noms.append("Duplicate Layer")
+    m = erreur("layer.copyToDocument", {"document": src})
+    check("2r vers soi-même : erreur du moteur", m is not None and "the destination is the source" in m, m)
+    return noms
+
+
+def traductions(noms):
+    print("\n[3] noms d'historique traduits (ETATS_MOTEUR -> photolab.json fr/en)")
+    src = (RACINE / "frontend/photolab/js/mod-historique.js").read_text(encoding="utf-8")
+    bloc = src[src.index("export const ETATS_MOTEUR"):]
+    bloc = bloc[:bloc.index("};")]
+    table = dict(re.findall(r'"([^"]+)":\s*"(photolab\.[a-z0-9_.]+)"', bloc))
+    dico = json.loads((RACINE / "frontend/shared/i18n/photolab.json").read_text(encoding="utf-8"))
+    for n in sorted(set(noms)):
+        cle = table.get(n)
+        check(f"3a « {n} » -> {cle}", cle is not None and bool((dico.get(cle) or {}).get("fr"))
+              and bool((dico.get(cle) or {}).get("en")), cle)
+
+
+def etapes(reg):
+    print("\n[4] étapes d'action rejouables")
+    for cid, p in ADMIS:
+        try:
+            PR.verifier_etape(reg, cid, p)
+            check(f"4a {cid} rejouable dans une action", True)
+        except ValueError as e:
+            check(f"4a {cid} rejouable dans une action", False, e)
+    for cid, p in (("layer.setLabelColor", {"color": "pink"}), ("layer.layerStyle.makeDefault", {"kind": "stroke", "params": {"x": 1}})):
+        try:
+            PR.verifier_etape(reg, cid, p); check(f"4b {cid} mal formée refusée à la lecture", False)
+        except ValueError:
+            check(f"4b {cid} mal formée refusée à la lecture", True)
+
+
+reg = PR.structurer(_PV.commandes())
+try:
+    liste_blanche(reg)
+    etapes(reg)
+    traductions(moteur())
+finally:
+    PM.fermer()
+    shutil.rmtree(_tmp, ignore_errors=True)
+print(f"\n=== {ok} passed, {fail} failed ===")
+sys.exit(1 if fail else 0)

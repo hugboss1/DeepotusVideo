@@ -169,12 +169,14 @@ adj_calques = sorted(i for i in PAR_ID if i.startswith("layer.newAdjustmentLayer
 adj_image = sorted(i for i in PAR_ID if i.startswith("image.adjustments.") and i not in _FERMEES)
 styles = sorted(i for i in PAR_ID if i.startswith(("layer.layerStyle.", "style.presets.")) and i not in _FERMEES)
 galerie = sorted(i for i in PAR_ID if i.startswith("filter.gallery."))
-check("2c périmètre : 75 filtres du menu Filtre", len(filtres) == 75, len(filtres))
+# t256 : Rééclairer et Couleur en alpha (0.10) entrent au menu Filtre ; transferEffects, makeDefault, defaultFor aux styles.
+NB_FILTRES, NB_STYLES, NB_LAYERSTYLE = {"0.3.0": (75, 24, 19), "0.10.0": (77, 27, 22)}[_PV.VERSION]
+check(f"2c périmètre : {NB_FILTRES} filtres du menu Filtre", len(filtres) == NB_FILTRES, len(filtres))
 check("2c périmètre : 16 layer.newAdjustmentLayer.*", len(adj_calques) == 16, len(adj_calques))
 check("2c périmètre : 23 image.adjustments.* (22 réglages + colorLookup.list ; le plan disait 22 en tout)",
       len(adj_image) == 23 and "image.adjustments.colorLookup.list" in adj_image, len(adj_image))
-check("2c périmètre : 24 styles (19 layer.layerStyle.* + 5 style.presets.*)",
-      len(styles) == 24 and sum(i.startswith("layer.layerStyle.") for i in styles) == 19, len(styles))
+check(f"2c périmètre : {NB_STYLES} styles ({NB_LAYERSTYLE} layer.layerStyle.* + 5 style.presets.*)",
+      len(styles) == NB_STYLES and sum(i.startswith("layer.layerStyle.") for i in styles) == NB_LAYERSTYLE, len(styles))
 check("2c galerie : 47 effets filter.gallery.*", len(galerie) == 47, len(galerie))
 perimetre = filtres + adj_calques + adj_image + styles
 check("2d tout le périmètre P3 est `ok` (aucun fragment non typé)",
@@ -189,7 +191,7 @@ check("2f chaque description non ok a un fragment inconnu listé (aucun échec m
 check("2g chaque champ porte cle/type/optionnel, les types sont dans l'ensemble connu",
       all({"cle", "type", "optionnel"} <= set(c) and c["type"] in PR.TYPES
           for v in STRUCT.values() for c in v["champs"]))
-check("2h les 75 filtres : 10 sous-menus du menu Filtre (le plan en comptait 11) + des entrées à la racine",
+check(f"2h les {NB_FILTRES} filtres : 10 sous-menus du menu Filtre (le plan en comptait 11) + des entrées à la racine",
       len({PAR_ID[i]["menu"][1] for i in filtres if len(PAR_ID[i]["menu"]) > 1}) == 10,
       sorted({PAR_ID[i]["menu"][1] for i in filtres if len(PAR_ID[i]["menu"]) > 1}))
 check("2i toute couleur du registre porte `formes` et jamais `valeurs` (testée avant l'énumération)",
@@ -208,7 +210,7 @@ check("2m style.presets.edit : preset = union name|[names], to = str, index = in
 
 print("\n[3] périmètre P3 : aucun champ de type « ? »")
 inconnus_p3 = [(i, c["cle"]) for i in perimetre for c in STRUCT[i]["champs"] if c["type"] == "?"]
-check("3a aucun champ « ? » dans les 75 filtres, 16 calques de réglage, 23 réglages destructifs, 24 styles",
+check(f"3a aucun champ « ? » dans les {NB_FILTRES} filtres, 16 calques de réglage, 23 réglages destructifs, {NB_STYLES} styles",
       not inconnus_p3, inconnus_p3)
 check("3b aucun champ « ? » dans la galerie non plus", not [(i, c["cle"]) for i in galerie
       for c in STRUCT[i]["champs"] if c["type"] == "?"])
@@ -607,7 +609,9 @@ check("7e corrections t251 : seules layer.select.layer, tools.setColors.fore/bac
           *[(c, k) for c in ("path.moveHandle", "path.bendSegment", "path.convertPoint", "path.addAnchor", "path.deleteAnchor")
             for k in ("subpath", "knot")],
           ("path.addAnchor", "t"), ("path.transform", "translateY"), ("path.transform", "scaleX"), ("path.transform", "scaleY"),
-          ("path.transform", "angle"), ("path.clippingPath.set", "name"), ("type.attachToPath", "shape")])), t251)
+          ("path.transform", "angle"), ("path.clippingPath.set", "name"), ("type.attachToPath", "shape"),
+          # t256 : le type d'effet de layer.layerStyle.defaultFor
+          ("layer.layerStyle.defaultFor", "kind")])), t251)
 autres = [(i, c["cle"]) for i, v in STRUCT.items() for c in v["champs"]
           if c.get("cle") == "exposure" and i not in ("image.adjustments.exposure", "layer.newAdjustmentLayer.exposure")]
 check("7c les autres `exposure` du registre ne sont pas touchés", all(
@@ -675,11 +679,18 @@ OUVERTES = {"paint.patch", "paint.contentAwareMove", "paint.patternStamp", "pain
             # t255 : le panneau Actions
             "actions.assignSet", "actions.conditional", "actions.delete", "actions.dialog", "actions.get", "actions.insert",
             "actions.list", "actions.load", "actions.move", "actions.photoshopStep", "actions.play", "actions.record",
-            "actions.rename", "actions.save", "actions.setColor", "actions.stop", "actions.stopMessage", "actions.toggle"}
-check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8, t253 : 10, t254 : 20, t255 : 18) -> 86",
-      len(NEUVES) == 86 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
+            "actions.rename", "actions.save", "actions.setColor", "actions.stop", "actions.stopMessage", "actions.toggle",
+            # t256 : calques
+            "layer.removeBackground", "filter.render.relight", "filter.other.colorToAlpha", "layer.showOnly",
+            "layer.toggleLockTransparency", "layer.setLabelColor", "layer.mergeGroup", "layer.copyToDocument",
+            "layer.new.frame", "layer.artboard.addBeside", "layer.layerStyle.transferEffects",
+            "layer.layerStyle.makeDefault", "layer.layerStyle.defaultFor", "layer.layerMask.edit",
+            "layer.smartObjects.convertToLayers", "layer.new.backgroundFromLayer", "layer.rasterize.layerStyle"}
+check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8, t253 : 10, t254 : 20, t255 : 18, "
+      "t256 : 17) -> 69",
+      len(NEUVES) == 69 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
 REG10 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8")))
-for cid, p in (("layer.removeBackground", {}), ("swatches.list", {}), ("swatches.add", {}), ("history.undo", {})):
+for cid, p in (("layer.layerStyle.replace", {"layer": 1, "effects": []}), ("swatches.list", {}), ("swatches.add", {}), ("history.undo", {})):
     try:
         PR.verifier(REG10, cid, p); m = None
     except ValueError as e:
