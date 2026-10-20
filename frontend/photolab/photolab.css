@@ -161,19 +161,25 @@ button:disabled { opacity: .4; cursor: default; }
 .flyout-ligne .nom { flex: 1; }
 .flyout-ligne .lettre { color: var(--ink-muted); font: 11px var(--f-mono); }
 
-/* pastilles de couleur avant / arrière-plan */
-.pastilles { grid-column: 1 / -1; position: relative; height: 56px; margin-top: 4px; }
-.pastilles button { position: absolute; padding: 0; border: 1px solid var(--stroke-strong); border-radius: 2px; }
-.pastilles .pastille-bg { right: 8px; bottom: 6px; width: 26px; height: 26px; }
-.pastilles .pastille-fg { left: 8px; top: 4px; width: 26px; height: 26px; z-index: 1; }
-.pastilles .pastille-x, .pastilles .pastille-d {
-  width: 16px; height: 16px; background: transparent; border: 0; color: var(--ink-soft); font-size: 13px; line-height: 1;
+/* pastilles de couleur avant / arrière-plan, à la Photoshop : le premier plan (haut gauche) CHEVAUCHE l'arrière-plan
+   (bas droite), échange en haut à droite, couleurs par défaut en bas à gauche ; un carré de 54 px centré dans la
+   colonne, sur deux rangées de la grille. Sélecteurs sous #outils : « #outils button » (32 × 32) et « #outils svg »
+   l'emporteraient sinon. */
+#outils .pastilles { grid-column: 1 / -1; grid-row: span 2; justify-self: center; align-self: center;
+  position: relative; width: 54px; height: 54px; }
+#outils .pastilles button { position: absolute; padding: 0; border: 1px solid var(--stroke-strong); border-radius: 3px; }
+#outils .pastilles .pastille-fg { left: 4px; top: 4px; width: 30px; height: 30px; z-index: 2;
+  box-shadow: 0 0 0 2px var(--bg-panel); }
+#outils .pastilles .pastille-bg { left: 20px; top: 20px; width: 30px; height: 30px; z-index: 1; }
+#outils .pastilles .pastille-x, #outils .pastilles .pastille-d {
+  width: 18px; height: 18px; background: transparent; border: 0; color: var(--ink-soft); font-size: 13px; line-height: 1;
 }
-.pastilles .pastille-x { right: 8px; top: 2px; }
+#outils .pastilles .pastille-x { left: 36px; top: 0; }
+#outils .pastilles .pastille-d { left: 0; top: 36px; }
+#outils .pastilles .pastille-x:hover, #outils .pastilles .pastille-d:hover { background: transparent; color: var(--ink-strong); }
+#outils .pastilles .pastille-x svg, #outils .pastilles .pastille-d svg { width: 12px; height: 12px; }
 /* champ couleur natif : rendu (showPicker l'exige) mais invisible, replacé près de la pastille par le script */
 .pastille-choix { position: fixed; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
-.pastilles .pastille-d { left: 8px; bottom: 6px; }
-.pastilles .pastille-x:hover, .pastilles .pastille-d:hover { color: var(--ink-strong); }
 
 /* ---- barre d'options (B3) ---- */
 #options .opt-nom { color: var(--ink-strong); font-weight: 600; padding-right: 10px; border-right: 1px solid var(--stroke); }
@@ -897,7 +903,6 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 .tr-bascule svg, .tr-valider svg, .tr-annuler svg { width: 14px; height: 14px; }
 .pr-fleche svg, .pi-suppr svg, .cmp-alerte svg, .hi-alerte svg { width: 12px; height: 12px; }
 .onglet-fermer svg { width: 12px; height: 12px; }
-.pastilles .pastille-x svg, .pastilles .pastille-d svg { width: 14px; height: 14px; }
 .cq-fx svg { width: 12px; height: 12px; }
 .tr-ref-ico, .espace-ico { display: inline-flex; color: var(--ink-muted); }
 .tr-ref-ico svg { width: 14px; height: 14px; }
