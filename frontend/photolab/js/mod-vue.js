@@ -118,13 +118,41 @@ export function formaterZoom(z, lang = "fr") {
 // Un Ctrl+molette ne doit jamais zoomer la page, où que se trouve le pointeur dans le lab.
 export const ctrlSurPage = (e) => !!(e && e.ctrlKey);
 
+// t253 : Rotation de la vue. La VUE seule tourne (le canevas et ses contours, en CSS, autour de leur centre) : le document
+// n'est jamais touché. Angle en degrés, sens horaire (y vers le bas), ramené dans ]-180, 180].
+export function normaliserAngle(a) {
+  const x = Number(a);
+  if (!Number.isFinite(x) || a === "" || a === null) return 0;
+  const r = ((x % 360) + 360) % 360;
+  return r > 180 ? r - 360 : r;
+}
+// Vecteur (dx, dy) tourné de `deg` degrés.
+export function tournerVecteur(dx, dy, deg) {
+  if (!deg) return { dx, dy };
+  const r = (deg * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
+  return { dx: dx * c - dy * s, dy: dx * s + dy * c };
+}
+// Glisser de l'outil Rotation autour du centre `c` (coordonnées client), de `a` à `b` : angle de départ + angle balayé ;
+// Maj : par pas de 15°.
+export function angleGlisser(c, a, b, base, maj) {
+  const balaye = (Math.atan2(b.y - c.y, b.x - c.x) - Math.atan2(a.y - c.y, a.x - c.x)) * 180 / Math.PI;
+  const r = normaliserAngle((Number(base) || 0) + balaye);
+  return maj ? normaliserAngle(Math.round(r / 15) * 15) : r;
+}
+// Point client -> repère du canevas (w × h) tourné de `deg` autour de son centre. `rect` = sa boîte englobante à l'écran
+// (getBoundingClientRect, agrandie par la rotation), dont le centre est celui du canevas.
+export function pointeurTourne(cx, cy, rect, w, h, deg) {
+  const t = tournerVecteur(cx - (rect.left + rect.width / 2), cy - (rect.top + rect.height / 2), -deg);
+  return { x: w / 2 + t.dx, y: h / 2 + t.dy };
+}
+
 /* ───────────── côté DOM ───────────── */
 
 export function initVue(PL) {
   const toile = PL.$("#toile");
   const scene = PL.$("#scene");
   const ctx = toile.getContext("2d");
-  const v = { z: 1, ox: 0, oy: 0 };
+  const v = { z: 1, ox: 0, oy: 0, r: 0 };        // t253 : r = rotation de la vue (degrés)
   const vue = {
     v,                       // lecture seule pour les autres modules (outils : versDoc via PL.vue.versDoc)
     rendu: null,             // {image, maxSide} : dernier rendu dessiné
@@ -157,7 +185,20 @@ export function initVue(PL) {
   vue.versDoc = (x, y) => versDoc(v, x, y);
   vue.versEcran = (x, y) => versEcran(v, x, y);
   // Coordonnées d'un événement souris dans le repère CSS du canevas.
-  vue.pointeur = (ev) => { const r = toile.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
+  // t253 : vue tournée -> le point client est ramené dans le repère du canevas avant tout calcul.
+  vue.pointeur = (ev) => {
+    const r = toile.getBoundingClientRect();
+    if (v.r) return pointeurTourne(ev.clientX, ev.clientY, r, toile.clientWidth, toile.clientHeight, v.r);
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+  };
+  // t253 : tourner la vue (CSS `rotate`, qui se compose avec la translation d'aperçu du Déplacement posée en `transform`) :
+  // le canevas et les trois calques dessinés dans son repère (contours et aperçus, grille et repères, mesures).
+  vue.tourner = (a) => {
+    v.r = normaliserAngle(a);
+    const css = v.r ? v.r + "deg" : "";
+    toile.style.rotate = css;
+    for (const id of ["#fourmis", "#affichage", "#mesures"]) { const e = PL.$(id); if (e) e.style.rotate = css; }
+  };
 
   // Damier de transparence : seules les tuiles de l'intersection document ∩ vue sont dessinées (borné par la vue).
   const T_DAMIER = 8;
@@ -291,7 +332,7 @@ export function initVue(PL) {
     const g = gesteMolette(ev, !!(PL.prefs && PL.prefs.v("general", "zoomWithScrollWheel")));
     const p = vue.pointeur(ev);
     if (g.type === "zoom") appliquer(zoomAutour(v, v.z * g.facteur, p.x, p.y));
-    else appliquer(panoramique(v, g.dx, g.dy), false);
+    else { const t = tournerVecteur(g.dx, g.dy, -v.r); appliquer(panoramique(v, t.dx, t.dy), false); }      // t253 : vue tournée
   }, { passive: false });
   // M1 : Ctrl+molette (ou pincement) ne zoome JAMAIS la page du navigateur, où que soit le pointeur dans le lab.
   window.addEventListener("wheel", (ev) => { if (ctrlSurPage(ev)) ev.preventDefault(); }, { passive: false });
@@ -328,7 +369,8 @@ export function initVue(PL) {
   toile.addEventListener("pointermove", (ev) => {
     if (!glisse) return;
     if (!(ev.buttons & 5)) { finGlisse(ev); return; }       // bouton gauche (1) ou milieu (4) déjà relevé hors de la page
-    appliquer({ z: v.z, ox: glisse.ox + ev.clientX - glisse.x, oy: glisse.oy + ev.clientY - glisse.y }, false);
+    const t = tournerVecteur(ev.clientX - glisse.x, ev.clientY - glisse.y, -v.r);      // t253 : la main suit la vue tournée
+    appliquer({ z: v.z, ox: glisse.ox + t.dx, oy: glisse.oy + t.dy }, false);
   });
   toile.addEventListener("pointerup", finGlisse);
   toile.addEventListener("pointercancel", finGlisse);
@@ -362,4 +404,34 @@ export function initVue(PL) {
   window.addEventListener("blur", () => { relacherMain(); finGlisse(null); });
 
   statut();
+}
+
+// t253 : l'outil Rotation de la vue (après mod-gestes, qui crée PL.gestes) : glisser autour du centre, Maj par 15°,
+// Échap remet droit ; la barre d'options lit et écrit l'angle par PL.liensOptions, « Réinitialiser la vue » remet à 0.
+export function initRotationVue(PL) {
+  const toile = PL.$("#toile");
+  const vue = PL.vue;
+  let g = null;
+  const rafraichir = () => { if (PL.etat.outil === "rotateView" && PL.reconstruireOptions) PL.reconstruireOptions(); };
+  PL.liensOptions = PL.liensOptions || {};
+  PL.liensOptions.rotationVue = { lire: () => Math.round(vue.v.r), ecrire: (x) => vue.tourner(x) };
+  PL.actions = PL.actions || {};
+  PL.actions["pl.vue.reinitialiserRotation"] = () => { vue.tourner(0); rafraichir(); };
+  PL.gestes.rotateView = {
+    appui(p, ev) {
+      const r = toile.getBoundingClientRect();
+      g = { c: { x: r.left + r.width / 2, y: r.top + r.height / 2 }, a: { x: ev.clientX, y: ev.clientY }, base: vue.v.r };
+    },
+    bouger(p, ev) { if (g) vue.tourner(angleGlisser(g.c, g.a, { x: ev.clientX, y: ev.clientY }, g.base, ev.shiftKey)); },
+    relacher() { if (g) { g = null; rafraichir(); } },
+    annuler() { if (g) { vue.tourner(g.base); g = null; } },
+    touche(ev) {
+      if (ev.key !== "Escape") return false;
+      if (g) { vue.tourner(g.base); g = null; } else vue.tourner(0);
+      rafraichir();
+      return true;
+    },
+    survol() { toile.style.cursor = "grab"; },
+    quitter() { g = null; },
+  };
 }

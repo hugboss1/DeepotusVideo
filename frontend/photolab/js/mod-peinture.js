@@ -56,7 +56,7 @@ const ECHANTILLON = opt("liste", "echantillon", { valeurs: ["current", "currentA
 const RETOUCHE = [TAILLE, DURETE, pct("intensite", 1), TOUS];
 const DENSITE = [TAILLE, DURETE, opt("liste", "gamme", { valeurs: ["shadows", "midtones", "highlights"] }), pct("exposition", 1), CASE("protegerTons")];
 // t252 : la symétrie de peinture est un état du DOCUMENT dans le moteur (doc.inspect.symmetry), pas un réglage d'outil :
-// `doc: true` -> la barre lit et écrit par PL.valeurDoc / PL.changerDoc. Amont : Pinceau, Crayon et Gomme seulement.
+// `doc: true` -> la barre lit et écrit par PL.liensOptions.symetrie (t253). Amont : Pinceau, Crayon et Gomme seulement.
 export const MODES_SYMETRIE = ["aucune", "vertical", "horizontal", "dual", "diagonal", "trace"];
 const SYMETRIE = opt("liste", "symetrie", { valeurs: MODES_SYMETRIE, doc: true });
 export const SYMETRIQUES = ["brush", "pencil", "eraser"];
@@ -461,13 +461,15 @@ export function initPeinture(PL) {
 
   // t252 : symétrie de peinture — option de la barre liée au DOCUMENT (doc.inspect.symmetry), axes dessinés sur la toile
   // tant qu'un outil qui la suit (Pinceau, Crayon, Gomme) est choisi.
-  PL.valeurDoc = (cle) => (cle === "symetrie" ? valeurSymetrie(PL.etat.doc) : undefined);
-  PL.changerDoc = async (cle, v) => {
-    if (cle !== "symetrie") return;
-    const c = commandeSymetrie(v);
-    if (!c) return;
-    const r = await PL.executer(c.command, c.params);
-    if (!r.ok && PL.reconstruireOptions) PL.reconstruireOptions();       // refus (pas de tracé de travail) : la liste revient
+  PL.liensOptions = PL.liensOptions || {};
+  PL.liensOptions.symetrie = {
+    lire: () => valeurSymetrie(PL.etat.doc),
+    async ecrire(v) {
+      const c = commandeSymetrie(v);
+      if (!c) return;
+      const r = await PL.executer(c.command, c.params);
+      if (!r.ok && PL.reconstruireOptions) PL.reconstruireOptions();     // refus (pas de tracé de travail) : la liste revient
+    },
   };
   PL.dessinsSup = PL.dessinsSup || [];
   PL.dessinsSup.push((svg, el, ecran) => {

@@ -150,7 +150,9 @@ export function initGestes(PL) {
     } else if (a.type === "recadrage" && a.cadre) {
       const c = a.cadre;
       const p0 = ecran(c.x, c.y), p1 = ecran(c.x + c.width, c.y + c.height);
-      const d0 = ecran(0, 0), d1 = ecran(doc.width, doc.height);
+      // t253 : un cadre qui agrandit le document (Contenu pris en compte) : le voile part de l'union document ∪ cadre,
+      // sinon la partie ajoutée serait voilée comme si elle était rognée.
+      const d0 = ecran(Math.min(0, c.x), Math.min(0, c.y)), d1 = ecran(Math.max(doc.width, c.x + c.width), Math.max(doc.height, c.y + c.height));
       // Hors du cadre, le document est voilé (evenodd : rectangle du document moins le cadre).
       svg.appendChild(el("path", { d: `M${d0.x} ${d0.y}H${d1.x}V${d1.y}H${d0.x}Z M${p0.x} ${p0.y}V${p1.y}H${p1.x}V${p0.y}Z`, "fill-rule": "evenodd" }, "voile-recadrage"));
       const rc = rectVersEcran(PL.vue.v, c.x, c.y, c.width, c.height);      // t153 : normalisé (vue en miroir)

@@ -374,6 +374,37 @@ I["dz-outil-photo-yeux-rouges"] = () => {
   return [pl(reticule), pa(amande)];
 };
 
+// t253 (Photolab M4, 20/10/2026) : sélection d'une rangée / d'une colonne, lasso magnétique, recadrage de perspective,
+// échantillonneur de couleur, rotation de la vue.
+// Rangée = une ligne de sélection en tirets entre deux bords d'image pâles ; colonne = la même tournée d'un quart.
+const rangee = () => [pl(union(G.rect(2.4, 10.7, 3.4, 2.6, 0.4), G.rect(7.7, 10.7, 3.4, 2.6, 0.4), G.rect(13, 10.7, 3.4, 2.6, 0.4), G.rect(18.2, 10.7, 3.4, 2.6, 0.4))),
+  pa(union(G.rect(2.4, 3.4, 19.2, 2.6, 1.2), G.rect(2.4, 18, 19.2, 2.6, 1.2)))];
+I["dz-outil-px-selection-rangee"] = () => rangee();
+I["dz-outil-px-selection-colonne"] = () => rangee().map((c) => ({ ...c, d: placer(c.d, { rot: 90 }) }));
+// Lasso magnétique = la boucle du lasso, dont la corde est remplacée par un AIMANT en U (pâle).
+I["dz-outil-px-lasso-magnetique"] = () => {
+  const b2 = placer(ellipse(13.4, 8.8, 8.4, 6), { rot: -14, cx: 13.4, cy: 8.8 });
+  const anneau = moins(b2, placer(ellipse(13.4, 8.8, 6, 3.6), { rot: -14, cx: 13.4, cy: 8.8 }));
+  const u = union(moins(G.circle(6.6, 16.8, 4.6), G.circle(6.6, 16.8, 2.2), G.rect(1, 10, 12, 6.8)),
+    G.rect(2, 12.6, 2.4, 4.2), G.rect(8.8, 12.6, 2.4, 4.2));
+  return [pl(anneau), pa(u)];
+};
+// Recadrage de perspective = le dièse du recadrage, aux montants PENCHÉS (un cadre qui converge).
+I["dz-outil-photo-recadrer-perspective"] = () => [pl(union(pill(7.6, 2.6, 4.6, 19.6, 2.6), pill(2.6, 17.6, 21.2, 17.6, 2.6),
+  pill(4.4, 6.2, 19.4, 4.4, 2.6), pill(16.6, 2.6, 19.4, 21.2, 2.6)))];
+// Échantillonneur = la pipette, dont la goutte est remplacée par un RÉTICULE (le point mesuré).
+I["dz-outil-photo-echantillonneur"] = () => {
+  const tube = `M-1.4 -11H1.4V-3L0 0L-1.4 -3Z`;
+  const coll = G.rect(-3.4, -13.2, 6.8, 2.4, 0.8);
+  const poire = union(G.circle(0, -17.6, 3.2), G.rect(-2.2, -17.6, 4.4, 3.4, 0.4));
+  const pos = d => poser(d, 8.6, 15.2, 45);
+  const reticule = union(G.ring(5.2, 18.8, 3.6, 1.6), G.rect(4.2, 13.2, 2, 1.8, 0.4), G.rect(0.6, 17.8, 1.8, 2, 0.4));
+  return [pl(union(pos(poire), pos(coll))), pl(pos(tube)), pa(reticule)];
+};
+// Rotation de la vue = une page inclinée (pâle) dans une flèche circulaire (pleine).
+I["dz-outil-photo-rotation-vue"] = () => [pl(M.flecheCourbe({ cx: 12, cy: 12, r: 8.4, e: 2.4, a0: 150, a1: 400, hw: 7, hl: 4.6 })),
+  pa(placer(G.rect(8.4, 7.6, 7.2, 8.8, 0.8), { rot: 20 }))];
+
 // ═══════════════════════════════════════ retouche locale ══════════════════════════════════════════════
 I["dz-outil-photo-flou"] = () => [pl(M.goutte())];
 I["dz-outil-photo-nettete"] = () => [pl(polyR([[12, 2], [12, 21.6], [5.6, 21.6]], 0.6)), pa(polyR([[12, 2], [18.4, 21.6], [12, 21.6]], 0.6))];

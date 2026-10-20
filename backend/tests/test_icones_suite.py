@@ -48,7 +48,7 @@ if not SOURCES:
     js = (SRC / "dz-icons.js").read_text(encoding="utf-8")
     m = re.search(r"var I = (\{.*?\n\});\n  var IMG = (\{.*?\});", js, re.S)
     cles = (set(json.loads(m.group(1))) | set(json.loads(m.group(2)))) if m else set()
-    check("0.2 clés relues dans la suite servie (dz-icons.js)", len(cles) == 530, len(cles))
+    check("0.2 clés relues dans la suite servie (dz-icons.js)", len(cles) == 536, len(cles))
 else:
     lexique = json.loads((DOCS / "suite-finale" / "lexique.json").read_text(encoding="utf-8"))
     cles = {x["cle"] for x in lexique}
@@ -56,7 +56,7 @@ else:
 
 if SOURCES:
     print("[1] source")
-    check("1.1 une icône dessinée par clé du lexique (530 : 526 + 4 outils de retouche t252)", svgs == cles and len(cles) == 530,
+    check("1.1 une icône dessinée par clé du lexique (536 : 526 + 4 outils de retouche t252 + 6 outils t253)", svgs == cles and len(cles) == 536,
           sorted(cles ^ svgs)[:10])
     r = subprocess.run([sys.executable, "-I", str(DOCS / "generateurs" / "refonte" / "lint.py"), str(DOCS / "suite-finale" / "svg")],
                        capture_output=True, text=True, encoding="utf-8")
@@ -82,8 +82,8 @@ for nom in ("dz-icons.svg", "dz-icons.js", "dz-icons.css"):
           a.exists() and b.exists() and a.read_bytes().replace(b"\r\n", b"\n") == b.read_bytes().replace(b"\r\n", b"\n"))
 sprite = (SRC / "dz-icons.svg").read_text(encoding="utf-8")
 ids = re.findall(r'<symbol id="([^"]+)"', sprite)
-check("3.3 sprite : un symbole par icône dessinée (526 = 530 − logo, splash et icônes d application en image), ids uniques",
-      len(ids) == 526 and len(set(ids)) == 526 and set(ids) == cles - {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}, len(ids))
+check("3.3 sprite : un symbole par icône dessinée (532 = 536 − logo, splash et icônes d application en image), ids uniques",
+      len(ids) == 532 and len(set(ids)) == 532 and set(ids) == cles - {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}, len(ids))
 css = (SRC / "dz-icons.css").read_text(encoding="utf-8")
 check("3.5 css : le remplissage currentColor épargne les icônes au trait (fill=none, pointeur Lucide)",
       'svg.dzi:not([fill="none"]){fill:currentColor}' in css and "svg.dzi{fill" not in css)
@@ -113,7 +113,7 @@ console.log(JSON.stringify(out));
         o = json.loads(r.stdout.strip().splitlines()[-1])
     except Exception:
         o = {}
-    check("4.1 526 dessins et 4 images", o.get("n") == 526 and set((o.get("img") or {})) == {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}, r.stderr[-300:])
+    check("4.1 532 dessins et 4 images", o.get("n") == 532 and set((o.get("img") or {})) == {"dz-marque-poulpe", "dz-marque-splash", "dz-marque-icone-app", "dz-marque-icone-adaptative"}, r.stderr[-300:])
     check("4.2 chaque clé se rend (classe dzi, taille posée une fois, décorative par défaut)", o.get("toutes") is True)
     check("4.3 avec titre : role=img et aria-label échappé",
           'role="img" aria-label="Fermer &lt;&quot;x&quot;&gt;"' in (o.get("titre") or "") and "aria-hidden" not in (o.get("titre") or ""))

@@ -1,8 +1,11 @@
 // mod-deplacer.js — l'outil Déplacement (C3) : glisser = aperçu par translation CSS du canevas pendant le geste,
 // UNE commande au relâchement (contenu de la sélection par edit.transform, sinon le calque par layer.translate) ;
 // Maj = axe dominant ; Échap abandonne ; flèches 1 px, Maj+flèches 10 px (cumulées pendant qu'un envoi vole) ;
-// « Sélection auto. » ou Ctrl+clic = layer.pickAt. Fonctions PURES exportées (qa/gestes.test.mjs).
+// « Sélection auto. » ou Ctrl+clic = layer.pickAt. t253 : Alt-glisser une sélection en déplace une COPIE (select.float
+// copy puis select.drop : un seul état « Déplacement ») ; le glisser suit la vue tournée.
+// Fonctions PURES exportées (qa/gestes.test.mjs, qa/selection-m4.test.mjs).
 import { creerAccumulateur } from "./mod-cycle.js";
+import { tournerVecteur } from "./mod-vue.js";
 
 // Déplacement entier -> commande ; null si rien ne bouge. Sans calque actif connu, `layer` est omis (le moteur prend
 // le calque actif).
@@ -30,12 +33,23 @@ export function pasFleche(touche, maj) {
 // Delta du glisser en pixels document, mesuré en coordonnées CLIENT depuis l'appui. Surtout pas depuis le rectangle
 // de #toile : l'aperçu le translate, la mesure suivrait l'aperçu et le geste dériverait.
 // t152 : vue en miroir -> le glisser horizontal à l'écran est l'inverse du déplacement dans le document.
-export function deltaGlisser(appui, ev, z, miroir = false) {
-  const dx = (ev.clientX - appui.clientX) / z;
-  return { dx: miroir ? -dx : dx, dy: (ev.clientY - appui.clientY) / z };
+// t253 : vue tournée de `angle` degrés -> le glisser écran est ramené dans le repère du document.
+export function deltaGlisser(appui, ev, z, miroir = false, angle = 0) {
+  const t = tournerVecteur(ev.clientX - appui.clientX, ev.clientY - appui.clientY, -angle);
+  const dx = t.dx / z;
+  return { dx: miroir ? -dx : dx, dy: t.dy / z };
 }
 
 export function cumulerPas(a, b) { return { dx: a.dx + b.dx, dy: a.dy + b.dy }; }
+
+// t253 : la ou les commandes d'un déplacement. Alt + sélection : flotter une copie décalée puis la déposer (le moteur
+// n'en fait qu'un état) ; sinon la commande d'avant. Rien ne bouge : aucune.
+export function commandesDeplacement(aSelection, alt, dx, dy, calque) {
+  const x = Math.round(dx), y = Math.round(dy);
+  if (!x && !y) return [];
+  if (alt && aSelection) return [{ command: "select.float", params: { dx: x, dy: y, copy: true } }, { command: "select.drop", params: {} }];
+  return [deplacementCommande(aSelection, x, y, calque)];
+}
 
 /* ───────────── côté DOM ───────────── */
 
@@ -47,19 +61,23 @@ export function initDeplacer(PL) {
   const apercu = (dx, dy) => { const sx = PL.vue.v.miroir ? -dx : dx; toile.style.transform = dx || dy ? `translate(${sx * PL.vue.v.z}px, ${dy * PL.vue.v.z}px)` : ""; };
 
   // -> true si une commande est partie et a réussi (le rendu qui suit effacera l'aperçu, PL.surRendu).
-  async function deplacer(dx, dy) {
+  async function deplacer(dx, dy, alt = false) {
     const d = doc(); if (!d) return false;
-    const c = deplacementCommande(d.hasSelection, dx, dy, d.activeLayer);
-    if (!c) return false;
-    const r = await PL.executer(c.command, c.params);
-    return r.ok;
+    const cs = commandesDeplacement(d.hasSelection, alt, dx, dy, d.activeLayer);
+    if (!cs.length) return false;
+    for (let i = 0; i < cs.length; i++) {
+      // le flottant n'est pas un état à lui seul : pas de cycle entre flotter et déposer
+      const r = await PL.executer(cs[i].command, cs[i].params, i < cs.length - 1 ? { cycle: false } : undefined);
+      if (!r.ok) return false;
+    }
+    return true;
   }
   // Flèches : une poussée part tout de suite ; celles qui arrivent pendant qu'elle vole sont cumulées en une seule.
   const pousser = creerAccumulateur((p) => deplacer(p.dx, p.dy), cumulerPas);
 
   PL.gestes.move = {
     appui(p, ev) {
-      const geste = { appui: { clientX: ev.clientX, clientY: ev.clientY }, z: PL.vue.v.z, dx: 0, dy: 0, choix: null, annule: false };
+      const geste = { appui: { clientX: ev.clientX, clientY: ev.clientY }, z: PL.vue.v.z, dx: 0, dy: 0, choix: null, annule: false, alt: ev.altKey };
       g = geste;
       const o = PL.etat.options;
       const x = Math.floor(p.x), y = Math.floor(p.y);
@@ -77,7 +95,7 @@ export function initDeplacer(PL) {
     },
     bouger(p, ev) {
       if (!g || g.annule) return;
-      let { dx, dy } = deltaGlisser(g.appui, ev, g.z, !!PL.vue.v.miroir);
+      let { dx, dy } = deltaGlisser(g.appui, ev, g.z, !!PL.vue.v.miroir, PL.vue.v.r || 0);
       if (ev.shiftKey) ({ dx, dy } = contrainteAxe(dx, dy));
       // t152 : Affichage › Aimanter (Ctrl tenu pendant le glisser l'interrompt, comme dans la référence)
       if (PL.affichage && !ev.ctrlKey) ({ dx, dy } = PL.affichage.aimanterDeplacement(dx, dy));
@@ -90,7 +108,7 @@ export function initDeplacer(PL) {
       if (geste.choix) await geste.choix;
       // Pas de remise à zéro ici : le rendu qui suit la commande efface l'aperçu (sinon l'image sauterait en arrière
       // le temps du rendu). Seulement si rien n'est parti, ou si la commande a échoué.
-      const parti = !geste.annule && await deplacer(geste.dx, geste.dy);
+      const parti = !geste.annule && await deplacer(geste.dx, geste.dy, geste.alt);
       if (!parti) apercu(0, 0);
     },
     annuler() { g = null; apercu(0, 0); },

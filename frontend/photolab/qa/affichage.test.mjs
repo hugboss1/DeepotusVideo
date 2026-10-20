@@ -151,7 +151,7 @@ const src = (f) => readFileSync(join(ici, "..", "js", f), "utf8");
 check("8.1 mod-gestes : le point de geste passe par l'aimantation", /if \(PL\.affichage\) d = PL\.affichage\.aimanterPointDoc\(d, ev\);/.test(src("mod-gestes.js")));
 check("8.2 mod-gestes : le contour de sélection suit Afficher › Contours de la sélection", /PL\.affichage\.voir\("contoursSelection"\)/.test(src("mod-gestes.js")));
 check("8.3 mod-deplacer : le déplacement s'aimante (Ctrl l'interrompt)", /if \(PL\.affichage && !ev\.ctrlKey\) \(\{ dx, dy \} = PL\.affichage\.aimanterDeplacement\(dx, dy\)\);/.test(src("mod-deplacer.js"))
-  && /deltaGlisser\(g\.appui, ev, g\.z, !!PL\.vue\.v\.miroir\)/.test(src("mod-deplacer.js")));
+  && /deltaGlisser\(g\.appui, ev, g\.z, !!PL\.vue\.v\.miroir, PL\.vue\.v\.r \|\| 0\)/.test(src("mod-deplacer.js")));      // t253 : + rotation de la vue
 check("8.4 mod-peinture : le cercle de la pointe suit Afficher › Aperçu du pinceau", /PL\.affichage\.voir\("apercuPinceau"\)/.test(src("mod-peinture.js")));
 check("8.5 mod-vue : dessin retourné en miroir, pixels francs en aperçu pixel art", /if \(v\.miroir\) \{/.test(src("mod-vue.js")) && /!vue\.pixelArt/.test(src("mod-vue.js")));
 

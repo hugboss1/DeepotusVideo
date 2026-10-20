@@ -10,11 +10,15 @@ import { MODES_FUSION } from "./mod-calques.js";
 export const EMPLACEMENTS = [
   // section 1 : déplacement, sélections, recadrage, mesure
   [{ id: "move", lettre: "V", icone: "dz-outil-photo-deplacer", p2: true }],
-  [{ id: "rectMarquee", lettre: "M", icone: "dz-outil-px-selection", p2: true }, { id: "ellipseMarquee", lettre: "M", icone: "dz-outil-px-selection-ellipse", p2: true }],
-  [{ id: "lasso", lettre: "L", icone: "dz-outil-px-lasso", p2: true }, { id: "polygonLasso", lettre: "L", icone: "dz-outil-px-lasso-polygonal", p2: true }],
+  // t253 (M4, photocraft 0.10) : Sélection d'une rangée / d'une colonne, Lasso magnétique, Recadrage de perspective,
+  // Échantillonneur de couleur, Rotation de la vue
+  [{ id: "rectMarquee", lettre: "M", icone: "dz-outil-px-selection", p2: true }, { id: "ellipseMarquee", lettre: "M", icone: "dz-outil-px-selection-ellipse", p2: true },
+    { id: "rowMarquee", lettre: "M", icone: "dz-outil-px-selection-rangee", p2: true }, { id: "columnMarquee", lettre: "M", icone: "dz-outil-px-selection-colonne", p2: true }],
+  [{ id: "lasso", lettre: "L", icone: "dz-outil-px-lasso", p2: true }, { id: "polygonLasso", lettre: "L", icone: "dz-outil-px-lasso-polygonal", p2: true },
+    { id: "magneticLasso", lettre: "L", icone: "dz-outil-px-lasso-magnetique", p2: true }],
   [{ id: "magicWand", lettre: "W", icone: "dz-outil-px-baguette", p2: true }, { id: "quickSelection", lettre: "W", icone: "dz-outil-px-selection-rapide", p2: true }, { id: "objectSelection", lettre: "W", icone: "dz-outil-photo-selection-objet", p2: true }],
-  [{ id: "crop", lettre: "C", icone: "dz-outil-photo-recadrer", p2: true }, { id: "slice", lettre: "C", icone: "dz-outil-vec-tranche", p2: true }, { id: "sliceSelect", lettre: "C", icone: "dz-outil-photo-selection-tranche", p2: true }],
-  [{ id: "eyedropper", lettre: "I", icone: "dz-outil-vec-pipette", p2: true }, { id: "ruler", lettre: "I", icone: "dz-outil-vec-mesure", p2: true }, { id: "note", lettre: "I", icone: "dz-edit-annotation", p2: true }, { id: "count", lettre: "I", icone: "dz-outil-photo-compteur", p2: true }],
+  [{ id: "crop", lettre: "C", icone: "dz-outil-photo-recadrer", p2: true }, { id: "perspectiveCrop", lettre: "C", icone: "dz-outil-photo-recadrer-perspective", p2: true }, { id: "slice", lettre: "C", icone: "dz-outil-vec-tranche", p2: true }, { id: "sliceSelect", lettre: "C", icone: "dz-outil-photo-selection-tranche", p2: true }],
+  [{ id: "eyedropper", lettre: "I", icone: "dz-outil-vec-pipette", p2: true }, { id: "colorSampler", lettre: "I", icone: "dz-outil-photo-echantillonneur", p2: true }, { id: "ruler", lettre: "I", icone: "dz-outil-vec-mesure", p2: true }, { id: "note", lettre: "I", icone: "dz-edit-annotation", p2: true }, { id: "count", lettre: "I", icone: "dz-outil-photo-compteur", p2: true }],
   // section 2 : peinture et retouche (P3b)
   // t252 (M3, photocraft 0.10) : Supprimer, Pièce (active), Déplacement basé sur le contenu, Œil rouge ; Tampon de motif
   [{ id: "spotHealing", lettre: "J", icone: "dz-outil-photo-correcteur-tache", p2: true }, { id: "healing", lettre: "J", icone: "dz-outil-photo-correcteur", p2: true },
@@ -34,7 +38,7 @@ export const EMPLACEMENTS = [
   [{ id: "pathSelection", lettre: "A", icone: "dz-outil-vec-selection", p2: true }],
   [{ id: "rectangle", lettre: "U", icone: "dz-outil-vec-rectangle", p2: true }, { id: "ellipseShape", lettre: "U", icone: "dz-outil-vec-ellipse", p2: true }, { id: "triangle", lettre: "U", icone: "dz-outil-vec-triangle", p2: true }, { id: "polygon", lettre: "U", icone: "dz-outil-vec-polygone", p2: true }, { id: "line", lettre: "U", icone: "dz-outil-vec-ligne", p2: true }, { id: "customShape", lettre: "U", icone: "dz-outil-vec-forme-perso", p2: true }],
   // section 4 : navigation
-  [{ id: "hand", lettre: "H", icone: "dz-outil-vec-main", p2: true }],
+  [{ id: "hand", lettre: "H", icone: "dz-outil-vec-main", p2: true }, { id: "rotateView", lettre: "R", icone: "dz-outil-photo-rotation-vue", p2: true }],
   [{ id: "zoom", lettre: "Z", icone: "dz-outil-vec-loupe", p2: true }],
 ];
 // t140 : l'id DOM d'un emplacement, d'après son outil PRINCIPAL (le premier) : stable quand le flyout change l'outil montré.
@@ -88,7 +92,8 @@ export const ICONES_MODES = { replace: "dz-outil-photo-selection-nouvelle", add:
 export const OPTIONS_DEFAUT = {
   mode: "replace", feather: 0, antiAlias: true,
   tolerance: 32, contiguous: true, sampleAllLayers: false,
-  size: 30, deleteCroppedPixels: true,
+  size: 30, deleteCroppedPixels: true, contentAware: false,
+  lassoWidth: 10, edgeContrast: 10, frequency: 57,          // t253 : Lasso magnétique (bornes et défauts du moteur, fréquence de l'écran)
   autoSelect: false, autoCible: "layer",
 };
 const opt = (type, cle, extra = {}) => ({ type, cle, libelle: "photolab.option." + snake(cle), ...extra });
@@ -104,10 +109,18 @@ const OPTIONS = {
   ellipseMarquee: [MODE, CONTOUR, LISSAGE, MASQUER],
   lasso: [MODE, CONTOUR, LISSAGE, MASQUER],
   polygonLasso: [MODE, CONTOUR, LISSAGE, MASQUER],
+  rowMarquee: [MODE, CONTOUR, LISSAGE, MASQUER],
+  columnMarquee: [MODE, CONTOUR, LISSAGE, MASQUER],
+  magneticLasso: [MODE, CONTOUR, LISSAGE, opt("nombre", "lassoWidth", { min: 1, max: 256, pas: 1, unite: "px" }),
+    opt("nombre", "edgeContrast", { min: 1, max: 100, pas: 1, unite: "%" }), opt("nombre", "frequency", { min: 0, max: 100, pas: 1 }), MASQUER],
   magicWand: [MODE, opt("nombre", "tolerance", { min: 0, max: 255, pas: 1 }), LISSAGE, opt("case", "contiguous"), opt("case", "sampleAllLayers"), SUJET, MASQUER],
   quickSelection: [MODE, opt("nombre", "size", { min: 1, max: 200, pas: 1, unite: "px" }), opt("case", "sampleAllLayers"), SUJET, MASQUER],
   objectSelection: [MODE, opt("case", "sampleAllLayers"), SUJET, MASQUER],
-  crop: [opt("case", "deleteCroppedPixels")],
+  crop: [opt("case", "deleteCroppedPixels"), opt("case", "contentAware")],
+  // t253 : l'angle de la vue est lu et écrit par PL.liensOptions (doc: une valeur hors des réglages de l'outil)
+  colorSampler: [opt("bouton", "clearSamplers", { action: "pl.echantillons.effacer", icone: "dz-action-vider" })],
+  rotateView: [opt("nombre", "rotationVue", { min: -180, max: 180, pas: 1, unite: "°", doc: true }),
+    opt("bouton", "resetView", { action: "pl.vue.reinitialiserRotation", icone: "dz-outil-photo-rotation-vue" })],
   move: [opt("case", "autoSelect"), opt("choix", "autoCible", { valeurs: ["layer", "group"] })],
 };
 export const optionsPour = (id) => OPTIONS[id] || [];
@@ -339,9 +352,12 @@ export function initOutils(PL) {
     w.dataset.cle = o.cle;
     const lib = document.createElement("span");
     lib.textContent = T(o.libelle);
-    // t252 : une option `doc` (symétrie de peinture) est un état du DOCUMENT dans le moteur : lue et écrite par
-    // PL.valeurDoc / PL.changerDoc, jamais rangée dans les réglages de l'outil.
-    const val = o.doc && PL.valeurDoc ? PL.valeurDoc(o.cle) : store[o.cle];
+    // t252 : une option `doc` (symétrie de peinture) est un état du DOCUMENT dans le moteur, jamais rangée dans les
+    // réglages de l'outil. t253 : généralisé — le module qui la possède déclare PL.liensOptions[cle] = {lire, ecrire}
+    // (symétrie : mod-peinture ; angle de la vue : mod-vue).
+    const lien = o.doc && PL.liensOptions ? PL.liensOptions[o.cle] : null;
+    const val = lien ? lien.lire() : store[o.cle];
+    const ecrire = (x) => { if (lien) lien.ecrire(x); else store[o.cle] = x; };
     if (o.type === "bouton") {
       // t157 : un bouton d'action (pas une option rangée) : l'écran s'il traite l'entrée, sinon la commande du moteur.
       const b = document.createElement("button"); b.type = "button"; b.className = "pl-bouton opt-action";
@@ -357,14 +373,14 @@ export function initOutils(PL) {
     }
     if (o.type === "case") {
       const c = document.createElement("input"); c.type = "checkbox"; c.checked = !!val;
-      c.addEventListener("change", () => { store[o.cle] = c.checked; });
+      c.addEventListener("change", () => ecrire(c.checked));
       w.append(c, lib);
     } else if (o.type === "nombre") {
       const n = document.createElement("input"); n.type = "number";
       n.min = o.min; n.max = o.max; n.step = o.pas; n.value = val;
       n.addEventListener("change", () => {
         const x = Math.min(o.max, Math.max(o.min, Math.round(Number(n.value)) || 0));
-        n.value = x; store[o.cle] = x;
+        n.value = x; ecrire(x);
       });
       w.append(lib, n);
       if (o.unite) { const u = document.createElement("span"); u.className = "opt-unite"; u.textContent = o.unite; w.append(u); }
@@ -377,10 +393,7 @@ export function initOutils(PL) {
         s.appendChild(op);
       }
       s.value = val;
-      s.addEventListener("change", () => {
-        if (o.doc && PL.changerDoc) PL.changerDoc(o.cle, s.value);
-        else store[o.cle] = s.value;
-      });
+      s.addEventListener("change", () => ecrire(s.value));
       w.append(lib, s);
     } else {
       // mode (4 boutons exclusifs) ou choix (liste)
@@ -391,7 +404,7 @@ export function initOutils(PL) {
         if (o.icones && o.icones[v]) b.insertAdjacentHTML("afterbegin", PL.icone(o.icones[v]));
         b.classList.toggle("actif", val === v);
         b.addEventListener("click", () => {
-          store[o.cle] = v;
+          ecrire(v);
           PL.$$("button", g).forEach((x) => x.classList.toggle("actif", x === b));
         });
         g.appendChild(b);

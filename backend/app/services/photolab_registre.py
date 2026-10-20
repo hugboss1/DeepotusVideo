@@ -254,6 +254,12 @@ CORRECTIONS_CHAMPS = {
     ("paint.remove", "spacing"): {"type": "number", "min": 1, "max": 1000, "unite": "%", "optionnel": True},
     ("paint.setSymmetry", "rotation"): {"type": "number", "unite": "deg", "optionnel": True},
     ("paint.symmetryFromPath", "name"): {"type": "enum", "valeurs": ["work", "layer"], "optionnel": True},
+    # t253 (M4) : échantillonneur (« f64 » non compris), index ≥ 0, cible du morceau flottant (« "pixels"|"mask" »).
+    ("view.colorSamplers.add", "x"): {"type": "number"}, ("view.colorSamplers.add", "y"): {"type": "number"},
+    ("view.colorSamplers.move", "x"): {"type": "number"}, ("view.colorSamplers.move", "y"): {"type": "number"},
+    ("view.colorSamplers.move", "index"): {"type": "index"},
+    ("view.colorSamplers.delete", "index"): {"type": "index"},
+    ("select.float", "target"): {"type": "enum", "valeurs": ["pixels", "mask"], "optionnel": True},
 }
 
 
@@ -514,6 +520,12 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
             champs.setdefault(c["cle"], c)
     if cid in DECALAGES and "offset" in params:
         _decalage(cid, params["offset"])
+    if cid in REQUIS_M4:
+        manque = [k for k in REQUIS_M4[cid] if k not in params]
+        if manque:
+            raise ValueError(f"{cid} : paramètre(s) requis : {', '.join(manque)}")
+    if cid == "image.perspectiveCrop" and "corners" in params:
+        _coins(cid, params["corners"])
     ctx = {"colorize": _colorise(params, etat)}
     for k, v in params.items():
         champ = champs.get(k)
@@ -541,6 +553,19 @@ MAX_DECALAGE = 300_000
 def _decalage(cid, v):
     if not (isinstance(v, list) and len(v) == 2 and all(_nombre_fini(x) and abs(x) <= MAX_DECALAGE for x in v)):
         raise ValueError(f"{cid} : offset : [dx, dy] attendu (deux nombres, ±{MAX_DECALAGE} px au plus), reçu {v!r}")
+
+
+# ── t253 : recadrage de perspective et échantillonneur ──────────────────────────────────────────────────────────────
+# Les coins : exactement quatre points [x, y] finis (haut-gauche, haut-droite, bas-droite, bas-gauche ; la convexité
+# est vérifiée par le moteur et, avant, par l'écran). Un échantillon sans coordonnée serait une erreur du moteur.
+REQUIS_M4 = {"view.colorSamplers.add": ("x", "y"), "view.colorSamplers.move": ("index", "x", "y"),
+             "view.colorSamplers.delete": ("index",), "image.perspectiveCrop": ("corners",)}
+
+
+def _coins(cid, v):
+    if not (isinstance(v, list) and len(v) == 4 and all(isinstance(p, list) and len(p) == 2 and all(
+            _nombre_fini(x) and abs(x) <= MAX_DECALAGE for x in p) for p in v)):
+        raise ValueError(f"{cid} : corners : quatre points [x, y] attendus, reçu {v!r}")
 
 
 # ── t157 : Sélectionner et masquer, la pile de la Galerie de filtres ────────────────────────────────────────────────
