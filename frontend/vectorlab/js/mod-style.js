@@ -14,6 +14,7 @@ import { op_style, op_ordre, op_grouper, op_degrouper, op_degrade_creer,
 import { op_booleen, op_division, op_contour } from "./mod-bool.js";
 import { POLICES } from "./mod-texte3d.js";
 import { dzi } from "./mod-icones.js";
+import { pastilles_echanger, PASTILLES_DEFAUT } from "./mod-couleur.js";
 
 const POINTILLES = [["", T("vectorlab.style.trait_plein")], ["6 4", T("vectorlab.style.trait_tirets")], ["2 3", T("vectorlab.style.trait_points")]];
 const JOINTS = ["round", "miter", "bevel"];
@@ -93,6 +94,8 @@ export function initStyle(VL) {
     const s = styleReflete();
     const fondCouleur = (typeof s.fond === "string" && s.fond.startsWith("#"))
       ? s.fond : "#9DB4D6";
+    const contourVide = !s.contour || s.contour === "none";
+    const contourCouleur = contourVide ? "#1F1512" : s.contour;
     const gid = fondDegradeId();
     const g = gid && etat.doc.degrades ? etat.doc.degrades[gid] : null;
     const sel = etat.selection.length;
@@ -115,20 +118,29 @@ export function initStyle(VL) {
       </div>
 ` : ""}`;
     hote.innerHTML += `
-      <div class="ap-ligne"><span>${T("vectorlab.style.fond")}</span>
-        <button class="nu-pastille" id="apFond" style="background:${fondCouleur}"
+      ${/* t264 : les pastilles à la Photoshop (modèle du Photolab #410) — le fond (premier plan) chevauche le contour
+           (arrière-plan) ; échange en haut à droite, couleurs par défaut en bas à gauche. Hors .ap-ligne : la rangée
+           reste à l'onglet Couleur (mod-pile ne déplace que les .ap-ligne) et l'audit d'ergonomie ne mesure pas ses
+           boutons de 18 px. */ ""}
+      <div class="vl-pastilles">
+        <button class="vl-pastille-contour${contourVide ? " vide" : ""}" id="apContour"
+                style="background:${contourCouleur}" data-hex="${contourCouleur}"
+                title="${T("vectorlab.style.contour_titre")}" aria-label="${T("vectorlab.style.contour_titre")}"></button>
+        <button class="vl-pastille-fond${s.fond === "none" ? " vide" : ""}" id="apFond" style="background:${fondCouleur}"
                 data-hex="${fondCouleur}"
-                title="${T("vectorlab.style.fond_titre")}"></button>
+                title="${T("vectorlab.style.fond_titre")}" aria-label="${T("vectorlab.style.fond_titre")}"></button>
+        <button class="vl-pastille-echanger" id="apEchanger" ${pastilles_echanger(s) ? "" : "disabled"}
+                title="${T("vectorlab.style.pastilles_echanger")}" aria-label="${T("vectorlab.style.pastilles_echanger")}">${dzi("dz-edit-echanger-couleurs", 12)}</button>
+        <button class="vl-pastille-defaut" id="apDefaut"
+                title="${T("vectorlab.style.pastilles_defaut")}" aria-label="${T("vectorlab.style.pastilles_defaut")}">${dzi("dz-edit-couleurs-defaut", 12)}</button>
+      </div>
+      <div class="ap-ligne"><span>${T("vectorlab.style.fond")}</span>
         <button id="apFondAucun" class="${s.fond === "none" ? "actif" : ""}"
                 title="${T("vectorlab.style.sans_fond")}" aria-label="${T("vectorlab.style.sans_fond")}">${dzi("dz-edit-sans-couleur", 16)}</button>
         <button id="apGradL" title="${T("vectorlab.style.grad_l_titre")}" aria-label="${T("vectorlab.style.grad_l")}">${dzi("dz-edit-degrade-lineaire", 16)}</button>
         <button id="apGradR" title="${T("vectorlab.style.grad_r_titre")}" aria-label="${T("vectorlab.style.grad_r")}">${dzi("dz-edit-degrade-radial", 16)}</button>
       </div>
       <div class="ap-ligne"><span>${T("vectorlab.style.contour")}</span>
-        <button class="nu-pastille" id="apContour"
-                style="background:${s.contour && s.contour !== "none" ? s.contour : "#1F1512"}"
-                data-hex="${s.contour && s.contour !== "none" ? s.contour : "#1F1512"}"
-                title="${T("vectorlab.style.contour_titre")}"></button>
         <button id="apContourAucun"
                 class="${!s.contour || s.contour === "none" ? "actif" : ""}"
                 title="${T("vectorlab.style.sans_contour")}" aria-label="${T("vectorlab.style.sans_contour")}">${dzi("dz-edit-sans-contour", 16)}</button>
@@ -254,6 +266,11 @@ export function initStyle(VL) {
     $("#apContour").addEventListener("click", (e) =>
       VL.ouvrirNuancier(e.currentTarget.dataset.hex,
                         (hex) => appliquer({ contour: hex }), e.currentTarget));
+    $("#apEchanger").addEventListener("click", () => {
+      const patch = pastilles_echanger(styleReflete());
+      if (patch) appliquer(patch);
+    });
+    $("#apDefaut").addEventListener("click", () => appliquer({ ...PASTILLES_DEFAUT }));
     $("#apContourAucun").addEventListener("click",
       () => appliquer({ contour: null }));
     $("#apEpaisseur").addEventListener("change",

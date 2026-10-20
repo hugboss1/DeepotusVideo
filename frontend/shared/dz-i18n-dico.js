@@ -15947,6 +15947,8 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "vectorlab.style.p_ech": {"fr": "Échelle par copie", "en": "Scale per copy"},
   "vectorlab.style.p_n": {"fr": "Nombre de copies", "en": "Number of copies"},
   "vectorlab.style.p_rot": {"fr": "Rotation par copie (°)", "en": "Rotation per copy (°)"},
+  "vectorlab.style.pastilles_defaut": {"fr": "Couleurs par défaut : fond blanc, contour noir", "en": "Default colors: white fill, black stroke"},
+  "vectorlab.style.pastilles_echanger": {"fr": "Échanger le fond et le contour", "en": "Swap fill and stroke"},
   "vectorlab.style.pivot_raz": {"fr": "Ramène le pivot au centre de la sélection", "en": "Moves the pivot back to the center of the selection"},
   "vectorlab.style.pointilles": {"fr": "Pointillés", "en": "Dashes", "contexte": true},
   "vectorlab.style.puissance": {"fr": "Puissance", "en": "Power"},
