@@ -9714,5 +9714,25 @@
  "Lecture impossible : {e}": {
   "fr": "Lecture impossible : {e}",
   "en": "Cannot read aloud: {e}"
+ },
+ "{cid} : {cle} : paramètre de photocraft 0.10 pas encore ouvert au Photolab": {
+  "fr": "{cid} : {cle} : paramètre de photocraft 0.10 pas encore ouvert au Photolab",
+  "en": "{cid}: {cle}: photocraft 0.10 parameter not yet open in the Photolab"
+ },
+ "commande de photocraft 0.10 pas encore ouverte au Photolab : {cid}": {
+  "fr": "commande de photocraft 0.10 pas encore ouverte au Photolab : {cid}",
+  "en": "photocraft 0.10 command not yet open in the Photolab: {cid}"
+ },
+ "{cid} : offset : [dx, dy] attendu (deux nombres, ±{MAX_DECALAGE} px au plus), reçu {v}": {
+  "fr": "{cid} : offset : [dx, dy] attendu (deux nombres, ±{MAX_DECALAGE} px au plus), reçu {v}",
+  "en": "{cid}: offset: [dx, dy] expected (two numbers, ±{MAX_DECALAGE} px at most), got {v}"
+ },
+ "{cid} : corners : quatre points [x, y] attendus, reçu {v}": {
+  "fr": "{cid} : corners : quatre points [x, y] attendus, reçu {v}",
+  "en": "{cid}: corners: four [x, y] points expected, got {v}"
+ },
+ "{cid} : paramètre(s) requis : {v}": {
+  "fr": "{cid} : paramètre(s) requis : {v}",
+  "en": "{cid}: required parameter(s): {v}"
  }
 }

@@ -43,6 +43,12 @@ export const ETATS_MOTEUR = {
   "Rectangular Marquee": "photolab.outil.rect_marquee",
   "Elliptical Marquee": "photolab.outil.ellipse_marquee",
   "Lasso": "photolab.outil.lasso",
+  // t253 (photocraft 0.10)
+  "Magnetic Lasso": "photolab.outil.magnetic_lasso",
+  "Single Row Marquee": "photolab.outil.row_marquee",
+  "Single Column Marquee": "photolab.outil.column_marquee",
+  "Perspective Crop": "photolab.outil.perspective_crop",
+  "Load Selection": "photolab.histo.load_selection",
   "Polygonal Lasso": "photolab.outil.polygon_lasso",
   "Magic Wand": "photolab.outil.magic_wand",
   "Quick Selection": "photolab.outil.quick_selection",

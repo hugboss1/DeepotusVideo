@@ -391,7 +391,8 @@ export function initAffichage(PL) {
     return null;
   }
   const dansDocument = (p) => { const d = PL.etat.doc; return !!d && p.x >= 0 && p.y >= 0 && p.x <= d.width && p.y <= d.height; };
-  const pointScene = (ev) => { const r = scene.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+  // t253 : par le repère du canevas (PL.vue.pointeur) — il couvre la scène et suit la Rotation de la vue.
+  const pointScene = (ev) => { const p = PL.vue.pointeur(ev); return [p.x, p.y]; };
 
   // Glisser depuis une règle : un nouveau repère (horizontal depuis la règle du haut) ; relâché hors du document = rien.
   for (const [c, orientation] of [[rH, "horizontal"], [rV, "vertical"]]) {

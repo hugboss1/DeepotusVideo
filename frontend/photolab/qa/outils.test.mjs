@@ -19,7 +19,7 @@ check("1.3 identifiants uniques", new Set(tous.map((o) => o.id)).size === tous.l
 check("1.4 chaque icône est une clé de la suite Deepotus Glyph", tous.every((o) => existeIcone(o.icone)),
   tous.filter((o) => !existeIcone(o.icone)).map((o) => o.icone));
 check("1.4b Doigt = dz-outil-photo-doigt (pointeur Lucide gardé)", outilDe("smudge").icone === "dz-outil-photo-doigt");
-check("1.5 49 outils actifs (P2 : 11 ; t155 peinture et retouche : +18 ; t156 texte, formes, plume : +9 ; t157 sélection d'objet : +1 ; t160 Règle, Note, Comptage, Tranche, Sélection de tranche : +5 ; t252 Supprimer, Pièce, Déplacement basé sur le contenu, Œil rouge, Tampon de motif : +5)", tous.filter((o) => o.p2).length === 49, tous.filter((o) => o.p2).map((o) => o.id).join());
+check("1.5 49 outils actifs (P2 : 11 ; t155 peinture et retouche : +18 ; t156 texte, formes, plume : +9 ; t157 sélection d'objet : +1 ; t160 Règle, Note, Comptage, Tranche, Sélection de tranche : +5 ; t252 Supprimer, Pièce, Déplacement basé sur le contenu, Œil rouge, Tampon de motif : +5 ; t253 Rangée, Colonne, Lasso magnétique, Recadrage de perspective, Échantillonneur, Rotation de la vue : +6)", tous.filter((o) => o.p2).length === 55, tous.filter((o) => o.p2).map((o) => o.id).join());
 check("1.6 emplacementDe", emplacementDe("move") === 0 && emplacementDe("ellipseMarquee") === 1 && emplacementDe("zoom") === 19 && emplacementDe("nimporte") === -1);
 check("1.7 outilDe", outilDe("crop").lettre === "C" && outilDe("x") === null);
 check("1.8 cleNom", cleNom("rectMarquee") === "photolab.outil.rect_marquee" && cleNom("move") === "photolab.outil.move");
@@ -27,7 +27,8 @@ check("1.8 cleNom", cleNom("rectMarquee") === "photolab.outil.rect_marquee" && c
 // 2. cyclage des lettres (shortcuts.rs:327-340)
 check("2.1 M depuis move -> rectMarquee", outilParLettre("M", "move", false) === "rectMarquee");
 check("2.2 M depuis rectMarquee -> ellipseMarquee", outilParLettre("M", "rectMarquee", false) === "ellipseMarquee");
-check("2.3 M depuis ellipseMarquee -> rectMarquee", outilParLettre("M", "ellipseMarquee", false) === "rectMarquee");
+check("2.3 M depuis ellipseMarquee -> rowMarquee (t253) ; depuis columnMarquee -> rectMarquee", outilParLettre("M", "ellipseMarquee", false) === "rowMarquee"
+  && outilParLettre("M", "columnMarquee", false) === "rectMarquee");
 check("2.4 W depuis magicWand -> quickSelection", outilParLettre("W", "magicWand", false) === "quickSelection");
 check("2.5 W depuis quickSelection -> objectSelection (t157), puis magicWand", outilParLettre("W", "quickSelection", false) === "objectSelection"
   && outilParLettre("W", "objectSelection", false) === "magicWand");
@@ -44,10 +45,12 @@ check("2.11b J : healing -> remove -> patch -> contentAwareMove -> redEye -> spo
 check("2.11c t156 : P choisit la Plume ; une lettre sans outil (K) -> null", outilParLettre("P", "move", false) === "pen" && outilParLettre("K", "move", false) === null);
 check("2.12 lettre inconnue -> null", outilParLettre("K", "move", false) === null && outilParLettre("", "move", false) === null);
 check("2.13 V depuis move -> move (un seul)", outilParLettre("V", "move", false) === "move");
-check("2.14 t160 : I cycle pipette -> règle -> note -> comptage -> pipette ; C : recadrage -> tranche -> sélection de tranche",
-  outilParLettre("I", "eyedropper", false) === "ruler" && outilParLettre("I", "ruler", false) === "note" && outilParLettre("I", "note", false) === "count"
-  && outilParLettre("I", "count", false) === "eyedropper" && outilParLettre("C", "crop", false) === "slice" && outilParLettre("C", "slice", false) === "sliceSelect");
-check("2.15 L : lasso -> polygonLasso -> lasso", outilParLettre("L", "lasso", false) === "polygonLasso" && outilParLettre("L", "polygonLasso", false) === "lasso");
+check("2.14 t160 : I cycle pipette -> échantillonneur (t253) -> règle -> note -> comptage -> pipette ; C : recadrage -> perspective (t253) -> tranche -> sélection de tranche",
+  outilParLettre("I", "eyedropper", false) === "colorSampler" && outilParLettre("I", "colorSampler", false) === "ruler" && outilParLettre("I", "ruler", false) === "note"
+  && outilParLettre("I", "note", false) === "count" && outilParLettre("I", "count", false) === "eyedropper" && outilParLettre("C", "crop", false) === "perspectiveCrop"
+  && outilParLettre("C", "perspectiveCrop", false) === "slice" && outilParLettre("C", "slice", false) === "sliceSelect");
+check("2.15 L : lasso -> polygonLasso -> magneticLasso (t253) -> lasso", outilParLettre("L", "lasso", false) === "polygonLasso"
+  && outilParLettre("L", "polygonLasso", false) === "magneticLasso" && outilParLettre("L", "magneticLasso", false) === "lasso");
 check("2.16 groupeDeLettre W : 3 outils, tous actifs (t157)", groupeDeLettre("W").length === 3 && groupeDeLettre("W").filter((o) => o.p2).length === 3);
 check("2.17 outil sans lettre (blur) ignoré", groupeDeLettre("").length === 0);
 
@@ -68,7 +71,7 @@ check("4.3 baguette", kinds("magicWand") === "mode,tolerance,antiAlias,contiguou
 check("4.4 sélection rapide", kinds("quickSelection") === "mode,size,sampleAllLayers,selectSubject,selectAndMask", kinds("quickSelection"));
 check("4.4b sélection d'objet (t157)", kinds("objectSelection") === "mode,sampleAllLayers,selectSubject,selectAndMask", kinds("objectSelection"));
 check("4.4c les boutons portent l'entrée qu'ils déclenchent", optionsPour("objectSelection").filter((o) => o.type === "bouton").map((o) => o.action).join() === "select.subject,select.selectAndMask");
-check("4.5 recadrage", kinds("crop") === "deleteCroppedPixels");
+check("4.5 recadrage (t253 : + Contenu pris en compte)", kinds("crop") === "deleteCroppedPixels,contentAware", kinds("crop"));
 check("4.6 déplacement", kinds("move") === "autoSelect,autoCible", kinds("move"));
 check("4.7 main, zoom, pipette : aucune", kinds("hand") === "" && kinds("zoom") === "" && kinds("eyedropper") === "");
 check("4.8 valeurs par défaut du plan", OPTIONS_DEFAUT.tolerance === 32 && OPTIONS_DEFAUT.size === 30 && OPTIONS_DEFAUT.contiguous === true

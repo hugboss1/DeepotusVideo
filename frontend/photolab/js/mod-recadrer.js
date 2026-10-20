@@ -1,13 +1,16 @@
 // mod-recadrer.js — l'outil Recadrage (C3) : tracer un cadre (borné au document), l'ajuster par ses quatre poignées
 // (8 px écran), Entrée ou double-clic = image.crop {x, y, width, height, deleteCroppedPixels}, Échap = abandonner ;
 // sans cadre mais avec une sélection, Entrée recadre à la sélection (image.crop {}).
+// t253 : « Contenu pris en compte » (image.crop contentAware) — le cadre peut alors agrandir le document.
 // Fonctions PURES exportées (qa/gestes.test.mjs).
 import { rectDepuisGlisser } from "./mod-selection.js";
 import { rectVersEcran } from "./mod-vue.js";
 
-// Rectangle du glisser, intersecté avec le document {width, height}.
-export function rectRecadrage(x0, y0, x1, y1, opts, doc) {
+// Rectangle du glisser, intersecté avec le document {width, height}. t253 : `etendre` (option « Contenu pris en compte »)
+// laisse le cadre sortir du document — le moteur remplit ce qu'il découvre d'après les alentours.
+export function rectRecadrage(x0, y0, x1, y1, opts, doc, etendre = false) {
   const r = rectDepuisGlisser(x0, y0, x1, y1, opts || {});
+  if (etendre) return r;
   const gauche = Math.max(0, r.x), haut = Math.max(0, r.y);
   const droite = Math.min(doc.width, r.x + r.width), bas = Math.min(doc.height, r.y + r.height);
   return { x: gauche, y: haut, width: Math.max(0, droite - gauche), height: Math.max(0, bas - haut) };
@@ -26,15 +29,17 @@ export function poigneeSous(cadre, sx, sy, v, tol = 8) {
 }
 
 // Tirer une poignée jusqu'au point document (x, y) : le coin opposé reste fixe ; dépasser l'autre coin retourne le cadre.
-export function redimensionner(cadre, poignee, x, y, doc) {
+export function redimensionner(cadre, poignee, x, y, doc, etendre = false) {
   const fixeX = poignee.includes("w") ? cadre.x + cadre.width : cadre.x;
   const fixeY = poignee.includes("n") ? cadre.y + cadre.height : cadre.y;
-  return rectRecadrage(fixeX, fixeY, x, y, {}, doc);
+  return rectRecadrage(fixeX, fixeY, x, y, {}, doc, etendre);
 }
 
-export function commandeRecadrage(cadre, aSelection, deleteCroppedPixels) {
+export function commandeRecadrage(cadre, aSelection, deleteCroppedPixels, contentAware = false) {
   if (cadre && cadre.width >= 1 && cadre.height >= 1) {
-    return { command: "image.crop", params: { x: cadre.x, y: cadre.y, width: cadre.width, height: cadre.height, deleteCroppedPixels: !!deleteCroppedPixels } };
+    const params = { x: cadre.x, y: cadre.y, width: cadre.width, height: cadre.height, deleteCroppedPixels: !!deleteCroppedPixels };
+    if (contentAware) params.contentAware = true;
+    return { command: "image.crop", params };
   }
   if (!cadre && aSelection) return { command: "image.crop", params: {} };
   return null;
@@ -52,7 +57,7 @@ export function initRecadrer(PL) {
 
   function valider() {
     const d = PL.etat.doc; if (!d) return;
-    const c = commandeRecadrage(cadre, d.hasSelection, PL.etat.options.deleteCroppedPixels);
+    const c = commandeRecadrage(cadre, d.hasSelection, PL.etat.options.deleteCroppedPixels, PL.etat.options.contentAware);
     cadre = null; montrer();
     if (c) PL.executer(c.command, c.params);
     else PL.signaler(T("photolab.recadrage.aide"));
@@ -66,8 +71,9 @@ export function initRecadrer(PL) {
     },
     bouger(p, ev) {
       const d = PL.etat.doc; if (!g || !d) return;
-      cadre = g.type === "poignee" ? redimensionner(cadre, g.poignee, p.x, p.y, d)
-        : rectRecadrage(g.x0, g.y0, p.x, p.y, { carre: ev.shiftKey && !g.maj, centre: ev.altKey && !g.alt }, d);
+      const etendre = !!PL.etat.options.contentAware;
+      cadre = g.type === "poignee" ? redimensionner(cadre, g.poignee, p.x, p.y, d, etendre)
+        : rectRecadrage(g.x0, g.y0, p.x, p.y, { carre: ev.shiftKey && !g.maj, centre: ev.altKey && !g.alt }, d, etendre);
       montrer();
     },
     relacher() {
