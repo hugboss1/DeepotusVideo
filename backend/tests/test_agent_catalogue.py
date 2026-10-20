@@ -837,5 +837,34 @@ def test_vrai_catalogue_integre():
                 assert isinstance(f["synonymes"][l], list), (f["id"], l)
 
 
+def _categories_du_code() -> set:
+    """Les catégories qu'une dépense peut vraiment porter : plafonds.CATEGORIES, plus les littéraux `categorie="x"`
+    passés par le code (tirer_garde : « motion », « aide »). Rien d'autre n'existe."""
+    import re
+    from app.services import plafonds as P
+    vues = set(P.CATEGORIES)
+    for f in (RACINE / "backend" / "app").rglob("*.py"):
+        vues |= set(re.findall(r'categorie\s*(?::\s*str\s*)?=\s*"([a-z0-9_]+)"', f.read_text(encoding="utf-8")))
+    return vues
+
+
+def test_roles_ne_citent_que_des_categories_reelles():
+    """t244 (20/10/2026) : « Rejouer la recette » disait « sous le plafond generation » (une `source` que
+    _categorie_image ramène à « bibliotheque ») et les illustrations de Chapitres « bibliotheque » (elles envoient
+    « chapitres »). Un rôle ne cite qu'une catégorie de dépense qui existe, sous son id exact, dans les deux langues.
+    Et il dit « catégorie », jamais « plafond « X » » : aucun plafond par catégorie ne se règle, l'utilisateur le
+    cherchait dans les Réglages."""
+    import re
+    vues = _categories_du_code()
+    motifs = {"fr": r'catégorie\s+[«"“]\s*([A-Za-z0-9_ ]+?)\s*[»"”]', "en": r'[«"“]\s*([A-Za-z0-9_ ]+?)\s*[»"”]\s+category'}
+    rediges = [f for f in C.charger().values() if f["etat"] == "redige"]
+    faux = [(f["id"], l, m) for f in rediges for l, motif in motifs.items()
+            for m in re.findall(motif, f["role"][l]) if m not in vues]
+    assert not faux, faux
+    anciens = [f["id"] for f in rediges if re.search(r'plafonds?\s+(?:de\s+dépense\s+)?[«"“]', f["role"]["fr"])
+               or re.search(r'[»"”]\s+(?:spending\s+)?cap\b', f["role"]["en"])]
+    assert not anciens, anciens
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

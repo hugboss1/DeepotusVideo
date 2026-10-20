@@ -99,6 +99,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   → [POINT:reglages.cles]
 - **Plafond atteint** : une fenêtre « Plafond de dépense mensuel » demande de confirmer la dépense ; on peut relever le
   plafond dans Réglages › Tarifs et budget. → [POINT:reglages.budget]
+- **« Compté sous la catégorie X »** (dans une fiche) : c'est l'étiquette de la dépense — l'écran d'où elle part,
+  visible dans le tableau des dépenses et dans le message d'un refus. Ce n'est PAS un plafond qui se règle : seuls le
+  plafond global, ceux par moteur et celui de chaque espace de marque se règlent. → [POINT:reglages.budget]
 - **Mauvaise marque** : les contenus suivent l'espace de marque actif (Réglages › Espaces de marque).
   → [POINT:reglages.espaces]
 - **Interface dans la mauvaise langue** : Réglages › Fournisseurs par défaut. → [POINT:reglages.defauts]
