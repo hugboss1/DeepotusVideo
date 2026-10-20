@@ -208,7 +208,8 @@ check("10.1 identité : nom, index, génération", identiteDocument({ name: "a",
   check("8.3 touches stoppées dans la boîte", /stopPropagation\(\)/.test(src));
   check("8.4 l'aperçu passe par poserApercu", /PL\.vue\.poserApercu\(/.test(src));
   check("8.5 OK par la file FIFO (PL.executer), tout de suite (pas après attendre())", /PL\.executer\(/.test(src) && !/attendre\(\)\.then\(\(\) => PL\.executer/.test(src));
-  check("8.5b OK en échec avec aperçu posé : rendu réel relu", /PL\.executer\(c\.command, c\.params\)\.then\(\(r\) => \{ if \(!\(r && r\.ok\) && apercuAEffacer\) PL\.cycle\(\)/.test(src));
+  // t255 : la commande rendue peut passer par options.valider (panneau Actions : Insérer / Modifier l'étape) — même garde
+  check("8.5b OK en échec avec aperçu posé : rendu réel relu", /: PL\.executer\(c\.command, c\.params\);\s*Promise\.resolve\(lancer\)\.then\(\(r\) => \{\s*if \(!\(r && r\.ok\) && apercuAEffacer\) PL\.cycle\(\)/.test(src));
   check("8.5c maxSide voulu gardé à la demande", /PL\.vue\.poserApercu\(image, voulu\)/.test(src));
   check("8.5d erreur annoncée (role=alert), boîte nommée par son titre", /setAttribute\("role", "alert"\)/.test(src) && /setAttribute\("aria-labelledby"/.test(src));
   const vue = readFileSync(join(racine, "js/mod-vue.js"), "utf8");

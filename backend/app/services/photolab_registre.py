@@ -460,17 +460,19 @@ def _valeur(cid, cle, champ, v, fichier):
         _profond(cid, cle, v, fichier)
 
 
-def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
+def verifier(registre: dict, cid, params, kind=None, etat=None, etape=False) -> dict:
     """Les paramètres tels quels si le registre du moteur admet `cid` avec eux ; sinon ValueError (message français).
     `kind` : pour layer.setAdjustment seulement, le kind du calque visé (lu par la route dans doc.inspect) — ses clés
     admises sont celles de layer.newAdjustmentLayer.<kind>, plus `layer`. `etat` : l'`adjustment` de ce calque dans
-    doc.inspect (hueSaturation : bornes de la colorisation quand `colorize` n'est pas dans les paramètres)."""
+    doc.inspect (hueSaturation : bornes de la colorisation quand `colorize` n'est pas dans les paramètres).
+    `etape` (t255) : `cid` est une ÉTAPE d'action (Insérer, lecture) — PERMIS_ETAPES passe alors sous un préfixe refusé."""
     # Import tardif : PREFIXES_REFUSES reste DÉCLARÉ dans photolab_moteur.py (le banc JS menus 7.1 l'y relit), et ce
     # module reste lisible seul, sans cycle d'import (photolab_moteur importe celui-ci).
     from app.services import photolab_moteur as PM
     if not isinstance(cid, str) or not PM._ID_COMMANDE.fullmatch(cid):
         raise ValueError(f"commande illisible : {cid!r}")
-    if cid.lower().startswith(PM.PREFIXES_REFUSES) and cid not in PM.PERMIS_REFUSES:
+    if (cid.lower().startswith(PM.PREFIXES_REFUSES) and cid not in PM.PERMIS_REFUSES
+            and not (etape and cid in PERMIS_ETAPES)):
         raise ValueError(f"commande réservée aux routes du Photolab : {cid}")
     if cid not in registre:
         raise ValueError(f"commande inconnue du moteur : {cid}")
@@ -481,6 +483,12 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         params = {}
     if not isinstance(params, dict):
         raise ValueError(f"{cid} : les paramètres doivent être un objet")
+    if cid in ACTIONS_ETAPES:
+        # t255 : Arrêt, Condition, étape .atn — n'ont de sens que DANS une action (Insérer, import)
+        raise ValueError(f"{cid} : se pose comme étape d'une action (Insérer), jamais seule")
+    if cid in ACTIONS_DIRECTES:
+        _v_actions(registre, cid, params)
+        return params
     if cid in VERIFS_T158:
         # t158 : clés et formes nommées une à une (registre trop vague : « <builtin id> », json, struct)
         VERIFS_T158[cid](cid, params)
@@ -1294,3 +1302,183 @@ VERIFS_T158 = {"image.mode.duotone": _v_bichromie, "image.mode.colorTable": _v_t
                **{f"notes.{op}": _v_notes for op in ("add", "set", "delete")},
                **{f"slice.{op}": _v_tranches for op in ("new", "set", "promote", "delete", "divide")},
                "measurementLog.delete": _v_journal_supprimer}
+
+
+# ── t255 (M6) : le panneau Actions (actions.* de photocraft 0.10) ────────────────────────────────────────────────────
+# Le registre résume ces commandes en prose (« name|index », « … → {…} ») : chacune est décrite ici clé par clé. Deux
+# familles : les commandes que l'écran LANCE (ACTIONS_DIRECTES, dont la Condition, jouée par la lecture pas à pas) et
+# celles qui ne sont que des ÉTAPES posées dans une action (ACTIONS_ETAPES : Arrêt, étape .atn sans équivalent). Deux
+# clés sont du PONT, jamais envoyées au moteur (photolab_actions.executer) : `until` de actions.play (jouer un SEGMENT,
+# lecture pas à pas des dialogues et des arrêts) et `replace` de actions.insert (Modifier l'étape : l'étape `at` est
+# remplacée, ses options gardées). Une étape posée par Insérer est vérifiée
+# comme une commande de l'écran (verifier_etape) : sans cela, actions.insert puis actions.play feraient jouer au moteur
+# ce que le pont refuse (le moteur n'y vérifie rien, relevé du 20/10). actions.load / actions.save ne prennent jamais
+# `path` (refusé par le moteur en automation, et par CLES_CHEMIN) : le .atn passe en `data` (base64).
+MAX_NOM_ACTION = 128
+MAX_RANG_ACTION = 10_000
+MAX_MESSAGE_ARRET = 512
+MAX_OCTETS_ATN = 2_000_000
+COULEURS_ACTION = ("", "red", "orange", "yellow", "green", "blue", "violet", "gray")
+CONDITIONS_ACTION = ("always", "never", "isOpen", "landscape", "square", "portrait", "modeIsRGB", "modeIsCMYK",
+                     "modeIsGrayscale", "modeIsLab", "modeIsBitmap", "modeIsIndexed", "modeIsDuotone", "modeIsMultichannel",
+                     "depth8", "depth16", "depth32", "unsaved", "hasSelection", "hasLayers", "hasAlphaChannels",
+                     "isBackground", "isPixelLayer", "isAdjustmentLayer", "isShapeLayer", "isTypeLayer", "isSmartObject",
+                     "isLayerGroup", "isLocked", "isVisible", "hasPixelMask", "hasVectorMask", "hasEffects")
+ACTIONS_DIRECTES = frozenset({"actions.list", "actions.get", "actions.record", "actions.stop", "actions.play",
+                              "actions.delete", "actions.toggle", "actions.dialog", "actions.rename", "actions.setColor",
+                              "actions.move", "actions.assignSet", "actions.insert", "actions.load", "actions.save",
+                              "actions.conditional"})
+ACTIONS_ETAPES = frozenset({"actions.stopMessage", "actions.photoshopStep"})
+# Enregistré quand on crée un document pendant un enregistrement (doc.new -> file.new) : tailles, mode, fond, nom ;
+# aucun chemin. Admis comme ÉTAPE seulement (file.* reste refusé à /executer : l'écran crée par la route /nouveau).
+PERMIS_ETAPES = frozenset({"file.new"})
+# Les clés admises dépendent du filtre VISÉ dans le document (verifier_filtre_dynamique) : invérifiables hors document.
+ETAPES_NON_REJOUABLES = frozenset({"layer.smartFilter.setParams"})
+_BASE64_STRICT = re.compile(r"(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?")
+
+
+def _nom_juste(v) -> bool:
+    return (isinstance(v, str) and bool(v.strip()) and len(v) <= MAX_NOM_ACTION
+            and not any(ord(c) < 32 or ord(c) == 127 for c in v))
+
+
+def _nom_action(cid, cle, v):
+    if not _nom_juste(v):
+        raise ValueError(f"{cid} : {cle} : nom de 1 à {MAX_NOM_ACTION} caractères attendu")
+
+
+def _rang_action(cid, cle, v):
+    if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= MAX_RANG_ACTION:
+        raise ValueError(f"{cid} : {cle} : rang (entier ≥ 0) attendu")
+
+
+def _ref_action(cid, cle, v):
+    """Une action désignée par son nom ou par son rang dans le panneau."""
+    if isinstance(v, bool) or not ((isinstance(v, int) and 0 <= v <= MAX_RANG_ACTION) or _nom_juste(v)):
+        raise ValueError(f"{cid} : {cle} : nom (1 à {MAX_NOM_ACTION} caractères) ou rang (entier ≥ 0) attendu")
+
+
+def _requis_action(cid, params, cles):
+    manque = [k for k in cles if k not in params]
+    if manque:
+        raise ValueError(f"{cid} : paramètre(s) requis : {', '.join(manque)}")
+
+
+def _v_actions(registre, cid, params):
+    op = cid.split(".", 1)[1]
+    if op == "conditional":
+        _v_condition(cid, params)
+        return
+    admises = {"list": (), "stop": (), "get": ("action",), "record": ("name", "action"), "play": ("action", "from", "until"),
+               "delete": ("action", "step"), "toggle": ("action", "step", "enabled"),
+               "dialog": ("action", "step", "enabled"), "rename": ("action", "name"), "setColor": ("action", "color"),
+               "move": ("action", "step", "to"), "assignSet": ("action", "set"),
+               "insert": ("action", "id", "params", "at", "replace"),
+               "load": ("data", "set", "replace"), "save": ("set", "action", "skipUnsupported")}[op]
+    _cles(cid, params, admises)
+    _requis_action(cid, params, {"get": ("action",), "play": ("action",), "delete": ("action",), "toggle": ("action",),
+                                 "dialog": ("action",), "rename": ("action", "name"), "setColor": ("action", "color"),
+                                 "move": ("action", "to"), "assignSet": ("action", "set"), "insert": ("action", "id"),
+                                 "load": ("data",)}.get(op, ()))
+    if op == "record" and "name" in params and "action" in params:
+        raise ValueError(f"{cid} : name et action ne vont pas ensemble")
+    for k, v in params.items():
+        if k == "action":
+            _ref_action(cid, k, v)
+        elif k == "name":
+            _nom_action(cid, k, v)
+        elif k == "set" and not (op == "assignSet" and v is None):
+            _nom_action(cid, k, v)
+        elif k in ("step", "to", "from", "at", "until"):
+            _rang_action(cid, k, v)
+        elif k in ("enabled", "replace", "skipUnsupported"):
+            _booleen(cid, k, v)
+        elif k == "color" and v not in COULEURS_ACTION:
+            raise ValueError(f"{cid} : color : couleur parmi {', '.join(c or '« »' for c in COULEURS_ACTION)} attendue")
+    if op == "play" and "until" in params and params["until"] <= params.get("from", 0):
+        raise ValueError(f"{cid} : until : rang après from attendu")
+    if op == "insert" and params.get("replace") is True and "at" not in params:
+        raise ValueError(f"{cid} : replace : at requis (l'étape remplacée)")
+    if op == "load":
+        d = params["data"]
+        if (not isinstance(d, str) or not d or len(d) > (MAX_OCTETS_ATN + 2) // 3 * 4
+                or not _BASE64_STRICT.fullmatch(d)):
+            raise ValueError(f"{cid} : data : contenu d'un fichier .atn en base64 attendu "
+                             f"({MAX_OCTETS_ATN // 1_000_000} Mo au plus)")
+    if op == "insert":
+        p = params.get("params", {})
+        verifier_etape(registre, params["id"], p, pose=True)
+
+
+def _v_arret(cid, params):
+    _cles(cid, params, ("message", "allowContinue"))
+    _requis_action(cid, params, ("message",))
+    m = params["message"]
+    if (not isinstance(m, str) or not m.strip() or len(m) > MAX_MESSAGE_ARRET
+            or any(ord(c) < 32 and c not in "\n\t" for c in m)):
+        raise ValueError(f"{cid} : message : texte de 1 à {MAX_MESSAGE_ARRET} caractères attendu")
+    if "allowContinue" in params:
+        _booleen(cid, "allowContinue", params["allowContinue"])
+
+
+def _v_appel(cid, params):
+    _cles(cid, params, ("action", "from"))
+    _requis_action(cid, params, ("action",))
+    _ref_action(cid, "action", params["action"])
+    if "from" in params:
+        _rang_action(cid, "from", params["from"])
+
+
+def _v_condition(cid, params):
+    _cles(cid, params, ("if", "then", "else"))
+    _requis_action(cid, params, ("if",))
+    v = params["if"]
+    if v not in CONDITIONS_ACTION:
+        raise ValueError(f"{cid} : if : condition inconnue : {v!r}")
+    for k in ("then", "else"):
+        if params.get(k) is not None:
+            _nom_action(cid, k, params[k])
+
+
+VERIFS_ETAPES = {"actions.stopMessage": _v_arret, "actions.play": _v_appel, "actions.conditional": _v_condition}
+
+
+def verifier_etape(registre: dict, cid, params, kind=None, pose=False) -> dict:
+    """Une ÉTAPE d'action que le Photolab accepte de faire jouer au moteur — sinon ValueError. `pose` : posée à la main
+    (Insérer) plutôt que lue dans une action. `kind` : le type du calque de réglage visé quand la lecture le connaît ;
+    sans lui, layer.setAdjustment passe si UN type de réglage admet ses clés."""
+    from app.services import photolab_moteur as PM
+    if not isinstance(cid, str) or not PM._ID_COMMANDE.fullmatch(cid):
+        raise ValueError(f"commande illisible : {cid!r}")
+    if params is None:
+        params = {}
+    if not isinstance(params, dict):
+        raise ValueError(f"{cid} : les paramètres doivent être un objet")
+    if cid == "actions.photoshopStep":
+        if pose:
+            raise ValueError(f"{cid} : une étape importée d'un fichier .atn ne se pose pas à la main")
+        return params                     # inerte : le moteur la refuse à la lecture en la nommant
+    if cid in VERIFS_ETAPES:
+        VERIFS_ETAPES[cid](cid, params)
+        return params
+    if cid.startswith("actions."):
+        raise ValueError(f"{cid} : n'est pas une étape d'action")
+    if cid in ETAPES_NON_REJOUABLES:
+        raise ValueError(f"{cid} : étape que le Photolab ne sait pas rejouer")
+    if cid == "layer.setAdjustment" and kind is None:
+        for k in KINDS.values():
+            try:
+                return verifier(registre, cid, params, k)
+            except ValueError:
+                continue
+        raise ValueError(f"{cid} : aucun type de réglage n'admet ces paramètres")
+    return verifier(registre, cid, params, kind, etape=True)
+
+
+def refus_etape(registre: dict, cid, params, kind=None):
+    """None si l'étape est admise, la raison (texte) sinon."""
+    try:
+        verifier_etape(registre, cid, params, kind)
+        return None
+    except ValueError as e:
+        return str(e)

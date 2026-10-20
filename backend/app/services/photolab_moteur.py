@@ -268,6 +268,9 @@ class SessionMoteur:
         self._lignes = None
         self._ids = itertools.count(1)
         self._verrou = threading.Lock()
+        # t255 : génération où le pont a lancé un enregistrement d'action (actions.record) — ses séquences internes le
+        # suspendent alors (sequence), sinon elles s'y inscriraient
+        self.actions_gen = None
 
     def vivant(self) -> bool:
         return self._proc is not None and self._proc.poll() is None
@@ -386,7 +389,21 @@ class SessionMoteur:
                 return rep.get("result")
             raise MoteurErreur(str(rep.get("error") or "erreur du moteur"))
 
-    def sequence(self, fn, delai_s: float | None = None):
+    def _suspendre(self, proc, lignes, delai):
+        """t255 : l'action en cours d'enregistrement, arrêtée (ses étapes sont gardées), ou None. Les séquences du pont
+        (vignettes, aperçus, repères…) passent par engine.execute sur des COPIES du document : le moteur les
+        enregistrerait comme des gestes de l'utilisateur (relevé du 20/10)."""
+        try:
+            r = self._echange(proc, lignes, "engine.execute", {"command": "actions.list", "params": {}}, delai) or {}
+            nom = r.get("recording") if isinstance(r, dict) else None
+            if nom is None:
+                return None
+            self._echange(proc, lignes, "engine.execute", {"command": "actions.stop", "params": {}}, delai)
+            return nom
+        except MoteurErreur:
+            return None
+
+    def sequence(self, fn, delai_s: float | None = None, pause_actions: bool = True):
         """(résultat de fn, génération) — plusieurs étapes du moteur tenues d'un seul tenant (t137, vignettes et
         historique). Le verrou est pris UNE fois (attente bornée -> MoteurOccupe) et `fn(appel, gen)` reçoit un
         `appel(methode, params=None, delai_etape=None)` qui parle au moteur SANS reprendre le verrou : aucun autre appel
@@ -394,7 +411,9 @@ class SessionMoteur:
         COPIE que les vignettes ouvrent un instant).
         Redémarrage : le moteur est (re)lancé UNE fois, avant la première étape, et `gen` est sa génération. Si le
         processus meurt ou dépasse son délai en cours de route, les étapes suivantes lèvent MoteurErreur : jamais
-        elles ne se rejouent sur un moteur neuf et vide, dont les documents ne sont plus ceux de la séquence."""
+        elles ne se rejouent sur un moteur neuf et vide, dont les documents ne sont plus ceux de la séquence.
+        `pause_actions` (t255) : un enregistrement d'action en cours est suspendu le temps de `fn` puis repris (ajout à
+        la même action) — faux pour une séquence qui EST un geste de l'utilisateur (annuler, rétablir)."""
         delai = self.delai_s if delai_s is None else delai_s
         if not self._verrou.acquire(timeout=delai):
             raise MoteurOccupe("moteur occupé : une opération est en cours")
@@ -406,7 +425,16 @@ class SessionMoteur:
                 if self._proc is not proc or proc.poll() is not None:
                     raise MoteurErreur(f"{methode} : le moteur s'est arrêté pendant la séquence")
                 return self._echange(proc, lignes, methode, params, delai if delai_etape is None else delai_etape)
-            return fn(appel, gen), gen
+            suspendue = self._suspendre(proc, lignes, delai) if pause_actions and self.actions_gen == gen else None
+            try:
+                return fn(appel, gen), gen
+            finally:
+                if suspendue is not None and self._proc is proc and proc.poll() is None:
+                    try:
+                        self._echange(proc, lignes, "engine.execute",
+                                      {"command": "actions.record", "params": {"action": suspendue}}, delai)
+                    except MoteurErreur:
+                        pass                      # l'action a disparu : l'enregistrement s'arrête, le panneau le montre
         finally:
             self._verrou.release()
 
@@ -555,7 +583,7 @@ def historique(s: SessionMoteur, sens: str, n: int):
         r = appel("batch", {"steps": [{"command": commande} for _ in range(n)], "stopOnError": True}) or {}
         return {"inspect": elaguer_inspect(appel("doc.inspect")), "completed": int(r.get("completed") or 0),
                 "failed": int(r.get("failed") or 0)}
-    return s.sequence(fn)
+    return s.sequence(fn, pause_actions=False)            # t255 : annuler pendant un enregistrement s'enregistre (moteur)
 
 
 # ── t138 (P3, Task A3) : aperçu et histogramme calculés par le moteur sur une COPIE du document ─────────────────────

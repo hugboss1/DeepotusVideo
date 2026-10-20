@@ -63,7 +63,8 @@ check("2.3 file.saveAs traité par l'écran : actif sans registre", trouver(fich
 check("2.4 file.export.exportAs actif (sous-menu Exporter)", trouver(fichier, "file.export.exportAs").etat === "actif");
 check("2.5 file.placeEmbedded traité par l'écran (t158) : actif", trouver(fichier, "file.placeEmbedded").etat === "actif");
 check("2.5b file.openAs reste « bientôt » (écarté au t158)", trouver(fichier, "file.openAs").etat === "bientot");
-check("2.6 file.automate.batch -> bientot (préfixe refusé)", trouver(fichier, "file.automate.batch").etat === "bientot");
+check("2.6 file.automate.createDroplet -> bientot (préfixe refusé, droplets écartés D9)", trouver(fichier, "file.automate.createDroplet").etat === "bientot");
+check("2.6b t255 : file.automate.batch (Traitement par lots) servi par l'écran : actif", TRAITES_PAR_ECRAN.has("file.automate.batch") && trouver(fichier, "file.automate.batch").etat === "actif");
 for (const id of ["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs"])
   check("2.7 écran : " + id, TRAITES_PAR_ECRAN.has(id));
 
@@ -141,7 +142,7 @@ const permisReg = registre.concat(PERMIS.map((id) => ({ id, label: id, params: "
 const arbrePermis = construireMenus(catalogue, permisReg, REFUSES, "fr", (k) => k);
 check("7.5 un permis connu du registre n'est plus « bientôt » ; file.saveACopy (non permis, hors écran) le resterait sans l'écran",
   ["image.mode.rgb", "image.mode.bits16", "file.fileInfo"].every((id) => rechercherEntree(arbrePermis, id) && rechercherEntree(arbrePermis, id).etat !== "bientot")
-  && rechercherEntree(arbrePermis, "file.automate.batch").etat === "bientot");
+  && rechercherEntree(arbrePermis, "file.automate.createDroplet").etat === "bientot");
 
 // 8. actions
 const idx = indexRegistre(registre);
