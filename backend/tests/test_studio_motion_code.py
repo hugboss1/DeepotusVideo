@@ -298,7 +298,9 @@ except (OSError, ValueError, KeyError):
     _g1 = []
 check("D6 aucun remplacement G1 ne bouge ; littéral Fu intouché", bool(_g1) and all(BUNDLE.count(x_) == base_s.count(x_) for x_ in _g1)
       and BUNDLE.count("Fu") == base_s.count("Fu") and "Fu" not in CODE)
-check("D7 confirmations hors couche inchangées (aucune neuve)", BUNDLE.count("__dzDialogue.confirmer") == base_s.count("__dzDialogue.confirmer"))
+# 20/10 : le maillon dzschedconf (posé APRÈS, +3 confirmations du Planificateur) est défait avant de compter
+check("D7 confirmations hors couche inchangées (aucune neuve)",
+      AIDE.avant_dzschedconf(BUNDLE).count("__dzDialogue.confirmer") == base_s.count("__dzDialogue.confirmer"))
 check("D8 octets : CRLF préservés, aucun LF nu ; aucun .bak_dzmotion", RAW.count(b"\r\n") > 15000
       and RAW.count(b"\n") == RAW.count(b"\r\n") and not (BUN_P.parent / (BUN_P.name + ".bak_dzmotion")).exists())
 rc = subprocess.run([sys.executable, str(RACINE / "scripts" / "patch_bundle_dzmotion.py"), "--check"], capture_output=True,

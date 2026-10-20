@@ -883,6 +883,36 @@ async def nuancier_ecrire(body: dict):
         raise HTTPException(400, str(e))
 
 
+# t256 (M7 PR 3) : le maillage de Ctrl+T › Déformer (edit.transform.warpGrid) — de la géométrie, pas un geste sur le
+# document (aucun état d'historique) : joué dans une séquence, HORS de l'action en cours d'enregistrement.
+@router.post("/deformer/grille")
+async def deformer_grille(body: dict):
+    """{"style": "none", "rect": [x0, y0, x1, y1], "size"} ou {"warp": <maillage en cours>, "size"} -> {"warp"}."""
+    params = body if isinstance(body, dict) else {}
+    reg = await _pool(lambda s: functools.partial(PM.registre, s))
+    try:
+        PM.commande_autorisee("edit.transform.warpGrid", params, reg)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    def grille(s):
+        return s.sequence(lambda appel, gen: appel("engine.execute", {"command": "edit.transform.warpGrid", "params": params}))
+    return _json(*await _pool(lambda s: functools.partial(grille, s)))
+
+
+# t256 (M7 PR 2) : échanger le nuancier avec un fichier .aco / .ase (lu et écrit par le moteur, en base64 : aucun chemin)
+@router.post("/nuancier/importer")
+async def nuancier_importer(body: dict):
+    """{"data": base64, "format"?, "mode"?: append|replace} -> le nuancier enregistré, plus {"importees": n}."""
+    return await _pool(lambda s: functools.partial(NUA.importer, s), body)        # 400 / 422 : _pool
+
+
+@router.post("/nuancier/exporter")
+async def nuancier_exporter(body: dict):
+    """{"format": aco|ase, "groupes": [{nom, couleurs}]} -> {"format", "data" base64, "count"} (l'écran l'enregistre)."""
+    return await _pool(lambda s: functools.partial(NUA.exporter, s), body)        # 400 / 422 : _pool
+
+
 @router.get("/licences")
 async def licences():
     import json

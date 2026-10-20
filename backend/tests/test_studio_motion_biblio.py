@@ -355,7 +355,7 @@ check("D5 hooks : dzMoUS 3 (= HOOKS ; t236 aucun neuf : la saisie vit dans dzMoB
       and bool(BIBS) and "dzMoUS(" not in BIBS and "useState" not in BIBS)
 hors_b = base.decode("utf-8").count("await window.__dzDialogue.confirmer(") if base else -1
 check("D6 confirmations 24 → 25 : la seule neuve est la suppression du bandeau",
-      hors_b == 24 and BUNDLE.count("await window.__dzDialogue.confirmer(") == 25
+      hors_b == 24 and AIDE.avant_dzschedconf(BUNDLE).count("await window.__dzDialogue.confirmer(") == 25   # 20/10 : dzschedconf (+3, aval) défait
       and BIBS.count("await window.__dzDialogue.confirmer(") == 1, str(hors_b))
 check("D7 v2.8.0 ×4, DzTracks 181, littéral Fu inchangé", BUNDLE.count("v2.8.0") == 4 and BUNDLE.count("DzTracks") == 181
       and base is not None and BUNDLE.count("Fu") == base.decode("utf-8").count("Fu"))

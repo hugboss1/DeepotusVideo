@@ -14,6 +14,9 @@ const M = await import(pathToFileURL(join(js, "mod-menus.js")));
 
 const reg = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const PERIMETRE = /^(filter\.|image\.adjustments\.|layer\.layerStyle\.|layer\.newAdjustmentLayer\.)/;
+// t256 : commandes de photocraft 0.10 du préfixe layerStyle qu'aucun formulaire n'ouvre — l'écran écrit leurs
+// paramètres lui-même (badge fx glissé : transferEffects ; dialogue Style de calque : makeDefault {kind, params}).
+const HORS_FORMULAIRE = new Set(["layer.layerStyle.transferEffects", "layer.layerStyle.makeDefault"]);
 // Saisies hostiles : chaque champ visible reçoit la même saisie (texte, nombre, tableau…), quel que soit son type.
 const SCENARIOS = {
   defaut: (c) => C.valeurInitiale(c),
@@ -27,7 +30,7 @@ const SCENARIOS = {
   vide: () => "",
 };
 const sortie = [];
-for (const id of Object.keys(reg).filter((x) => PERIMETRE.test(x)).sort()) {
+for (const id of Object.keys(reg).filter((x) => PERIMETRE.test(x) && !HORS_FORMULAIRE.has(x)).sort()) {
   const champs = reg[id].champs;
   const visibles = C.champsVisibles(champs);
   // « bientôt » comme le menu le décide (etatDe) : les familles sur mesure (Courbes…) sont exemptées de sansEcran.

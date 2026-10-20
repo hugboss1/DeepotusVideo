@@ -5,6 +5,10 @@
 // ne contraint rien). L'image montrée pendant la session vient du MOTEUR (/apercu : edit.transform joué sur une copie) ;
 // valider = edit.transform {layer, rect, quad, interpolation} (historique « Free Transform »). Fonctions PURES exportées
 // (qa/transformation.test.mjs).
+// t256 (M7, photocraft 0.10) : le bouton « Déformer » de la barre bascule la session en MAILLAGE (Ctrl+T › Déformer de la
+// référence) : grille Par défaut / 3 × 3 / 4 × 4 / 5 × 5 rendue par le moteur (/deformer/grille = edit.transform.warpGrid,
+// la découpe garde la surface), points d'ancrage et poignées à glisser, aperçu et validation par edit.transform.warp
+// {layer, warp, interpolation} (historique « Warp »). Les fonctions pures du maillage : qa/deformer-m7.test.mjs.
 
 export const MODES = { "edit.freeTransform": "libre", "edit.transform.scale": "echelle", "edit.transform.rotate": "rotation",
   "edit.transform.skew": "inclinaison", "edit.transform.distort": "deformation", "edit.transform.perspective": "perspective" };
@@ -262,6 +266,72 @@ export function curseur(p, mode) {
   return CURSEURS[p.type];
 }
 
+/* ── t256 : Déformer (maillage de Bézier bicubique du moteur) ── */
+// Grilles offertes (« size » de edit.transform.warpGrid, liste fermée du pont) et leurs libellés.
+export const GRILLES_DEFORMER = ["default", "3", "4", "5"];
+export const LIB_GRILLES = { default: "photolab.transformation.grille_defaut", 3: "photolab.transformation.grille_3",
+  4: "photolab.transformation.grille_4", 5: "photolab.transformation.grille_5" };
+// mesh {us, vs, points} : (3c+1) × (3r+1) points de contrôle rangés par lignes ; un point d'ANCRAGE tous les 3.
+export function dimensionsMaillage(mesh) {
+  const c = mesh && Array.isArray(mesh.us) ? mesh.us.length - 1 : 0, r = mesh && Array.isArray(mesh.vs) ? mesh.vs.length - 1 : 0;
+  return { cols: 3 * c + 1, rows: 3 * r + 1 };
+}
+export const estAncre = (i, cols) => (i % cols) % 3 === 0 && Math.floor(i / cols) % 3 === 0;
+// Les poignées collées à l'ancre i (gauche, droite, haut, bas) : elles la suivent quand on la glisse.
+export function poigneesDe(i, cols, rows) {
+  const x = i % cols, y = Math.floor(i / cols), out = [];
+  if (x > 0) out.push(i - 1);
+  if (x < cols - 1) out.push(i + 1);
+  if (y > 0) out.push(i - cols);
+  if (y < rows - 1) out.push(i + cols);
+  return out;
+}
+const copieWarp = (w) => ({ ...w, mesh: { ...w.mesh, us: [...w.mesh.us], vs: [...w.mesh.vs], points: w.mesh.points.map((p) => [p[0], p[1]]) } });
+// Glisser le point i de (dx, dy) : une ancre emmène ses poignées, une poignée bouge seule (w jamais modifié).
+export function deplacerPointMaillage(w, i, dx, dy) {
+  const n = copieWarp(w), { cols, rows } = dimensionsMaillage(w.mesh);
+  const pts = estAncre(i, cols) ? [i, ...poigneesDe(i, cols, rows)] : [i];
+  for (const k of pts) n.mesh.points[k] = [w.mesh.points[k][0] + dx, w.mesh.points[k][1] + dy];
+  return n;
+}
+// Entrer en Déformer après une transformation libre : chaque point du maillage neutre (posé sur `rect`) suit le
+// quadrilatère courant — la validation applique les deux d'un seul geste.
+export function maillageSurQuad(w, rect, quad) {
+  const H = carreVersQuad(quad), n = copieWarp(w), l = rect[2] - rect[0], h = rect[3] - rect[1];
+  n.mesh.points = w.mesh.points.map(([x, y]) => appliquer(H, [(x - rect[0]) / l, (y - rect[1]) / h]));
+  return n;
+}
+// Le point le plus proche du point ÉCRAN s dans la tolérance (une ancre l'emporte sur une poignée à égalité), ou -1.
+export function pointMaillageProche(w, s, ecran, tol = TOLERANCE_PX) {
+  const { cols } = dimensionsMaillage(w.mesh);
+  let best = -1, bd = Infinity;
+  w.mesh.points.forEach(([x, y], i) => {
+    const e = ecran(x, y), d = Math.hypot(e.x - s.x, e.y - s.y) - (estAncre(i, cols) ? 0.5 : 0);
+    if (d <= tol && d < bd) { bd = d; best = i; }
+  });
+  return best;
+}
+// Validation : rien si le maillage n'a pas bougé ; sinon edit.transform.warp (coordonnées arrondies au millième).
+export function commandeDeformation(w, modifie, calque, interpolation = "bicubic") {
+  if (!w || !modifie) return null;
+  const n = copieWarp(w);
+  n.mesh.points = n.mesh.points.map((p) => [arr(p[0], 3), arr(p[1], 3)]);
+  return { command: "edit.transform.warp", params: { layer: calque, warp: n, interpolation: INTERPOLATIONS.includes(interpolation) ? interpolation : "bicubic" } };
+}
+// Tracé à l'écran : les lignes de la grille (courbes de Bézier par les ancres, lignes ET colonnes d'ancres) et les
+// segments ancre–poignée.
+export function traceMaillage(w, ecran) {
+  const { cols, rows } = dimensionsMaillage(w.mesh), P = w.mesh.points.map(([x, y]) => ecran(x, y));
+  const at = (x, y) => P[y * cols + x];
+  const courbe = (pts) => "M" + pts[0].x + " " + pts[0].y + pts.slice(1).reduce((s, p, k) => s + (k % 3 === 0 ? " C" : " ") + p.x + " " + p.y, "");
+  const lignes = [];
+  for (let y = 0; y < rows; y += 3) lignes.push(courbe(Array.from({ length: cols }, (_, x) => at(x, y))));
+  for (let x = 0; x < cols; x += 3) lignes.push(courbe(Array.from({ length: rows }, (_, y) => at(x, y))));
+  const bras = [];
+  P.forEach((p, i) => { if (estAncre(i, cols)) for (const k of poigneesDe(i, cols, rows)) bras.push([p, P[k]]); });
+  return { lignes, bras, points: P.map((p, i) => ({ ...p, ancre: estAncre(i, cols) })) };
+}
+
 /* ───────────── côté DOM ───────────── */
 
 export function initTransformer(PL) {
@@ -297,9 +367,11 @@ export function initTransformer(PL) {
     fin();
     if (PL.rendre) PL.rendre(PL.vue.maxSideVoulu());          // l'image d'avant : le dernier rendu du moteur
   }
+  // La commande de la session : le maillage en mode Déformer, sinon le quadrilatère.
+  const commandeSession = () => (s.def ? commandeDeformation(s.def.warp, s.def.modifie, s.calque, s.interp) : commande(s.etat, s.rect, s.calque, s.interp));
   function valider() {
     if (!s) return;
-    const c = commande(s.etat, s.rect, s.calque, s.interp);
+    const c = commandeSession();
     fin();
     if (c) PL.executer(c.command, c.params); else if (PL.rendre) PL.rendre(PL.vue.maxSideVoulu());
   }
@@ -313,7 +385,7 @@ export function initTransformer(PL) {
     clearTimeout(minut);
     minut = setTimeout(async () => {
       if (!s) return;
-      const c = commande(s.etat, s.rect, s.calque, s.interp), n = ++numero;
+      const c = commandeSession(), n = ++numero;
       if (!c) { if (PL.rendre) PL.rendre(PL.vue.maxSideVoulu()); return; }
       const m = PL.vue.maxSideVoulu();
       let r;
@@ -328,6 +400,14 @@ export function initTransformer(PL) {
   // Contour, 8 poignées, point de référence — appelé par le dessin de #fourmis (mod-gestes).
   PL.dessinerTransformation = (svg, el, ecran) => {
     if (!s) return;
+    if (s.def) {
+      const m = traceMaillage(s.def.warp, ecran);
+      for (const d of m.lignes) svg.appendChild(el("path", { d, fill: "none" }, "transfo-cadre"));
+      for (const [a, b] of m.bras) svg.appendChild(el("path", { d: `M${a.x} ${a.y}L${b.x} ${b.y}` }, "transfo-bras"));
+      for (const p of m.points) svg.appendChild(p.ancre ? el("rect", { x: p.x - 3.5, y: p.y - 3.5, width: 7, height: 7 }, "transfo-poignee")
+        : el("circle", { cx: p.x, cy: p.y, r: 3 }, "transfo-poignee-bezier"));
+      return;
+    }
     const q = s.etat.quad.map((p) => ecran(p[0], p[1]));
     svg.appendChild(el("path", { d: "M" + q.map((p) => p.x + " " + p.y).join(" L") + " Z", fill: "none" }, "transfo-cadre"));
     const pts = [...q, ...q.map((p, i) => { const n = q[(i + 1) % 4]; return { x: (p.x + n.x) / 2, y: (p.y + n.y) / 2 }; })];
@@ -340,6 +420,11 @@ export function initTransformer(PL) {
   const gestes = {
     appui(p, ev) {
       if (!s) return;
+      if (s.def) {
+        const i = pointMaillageProche(s.def.warp, { x: p.sx, y: p.sy }, PL.vue.versEcran);
+        g = i < 0 ? null : { point: i, d0: [p.x, p.y], w0: s.def.warp };
+        return;
+      }
       let pr = prise(s.etat, { x: p.sx, y: p.sy }, PL.vue.versEcran);
       if (ev.altKey && (pr.type === "dedans" || pr.type === "dehors")) {      // Alt-clic : le point de référence ici
         s.pile.push(s.etat); s.etat = { ...s.etat, pivot: [p.x, p.y] }; pr = { type: "pivot" };
@@ -348,21 +433,32 @@ export function initTransformer(PL) {
     },
     bouger(p, ev) {
       if (!s || !g) return;
+      if (s.def) { s.def.warp = deplacerPointMaillage(g.w0, g.point, p.x - g.d0[0], p.y - g.d0[1]); redessiner(); return; }
       s.etat = geste(g.e0, g.prise, g.d0, [p.x, p.y], s.mode, mods(ev));
       majBarre(); redessiner();
     },
     relacher() {
       if (!s || !g) return;
+      if (s.def) {
+        const w0 = g.w0; g = null;
+        if (s.def.warp !== w0) { s.def.pile.push({ warp: w0, modifie: s.def.modifie }); s.def.modifie = true; apercu(); }
+        return;
+      }
       const e0 = g.e0; g = null;
       if (s.etat !== e0) { s.pile.push(e0); apercu(); }
     },
-    survol(p) { if (s) toile.style.cursor = curseur(prise(s.etat, { x: p.sx, y: p.sy }, PL.vue.versEcran), s.mode); },
+    survol(p) {
+      if (!s) return;
+      if (s.def) { toile.style.cursor = pointMaillageProche(s.def.warp, { x: p.sx, y: p.sy }, PL.vue.versEcran) >= 0 ? "move" : "default"; return; }
+      toile.style.cursor = curseur(prise(s.etat, { x: p.sx, y: p.sy }, PL.vue.versEcran), s.mode);
+    },
     double() { valider(); },
     touche(ev) {
       if (!s) return false;
       if (ev.key === "Enter") { valider(); return true; }
       if (ev.key === "Escape") { annuler(); return true; }
       const fl = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
+      if (fl && s.def) return false;
       if (fl) { const k = ev.shiftKey ? 10 : 1; changer(placerPivot(s.etat, s.etat.pivot[0] + fl[0] * k, s.etat.pivot[1] + fl[1] * k)); return true; }
       return false;
     },
@@ -374,6 +470,10 @@ export function initTransformer(PL) {
   document.addEventListener("keydown", (ev) => {
     if (!s || !(ev.ctrlKey || ev.metaKey) || (ev.key || "").toLowerCase() !== "z") return;
     ev.preventDefault(); ev.stopPropagation();
+    if (!ev.shiftKey && s.def) {
+      if (s.def.pile.length) { const x = s.def.pile.pop(); s.def.warp = x.warp; s.def.modifie = x.modifie; redessiner(); apercu(); }
+      return;
+    }
     if (!ev.shiftKey && s.pile.length) { s.etat = s.pile.pop(); majBarre(); redessiner(); apercu(); }
   }, true);
   PL.surOutil.push(() => { if (s) annuler(); });
@@ -381,13 +481,56 @@ export function initTransformer(PL) {
 
   /* barre d'options de la session */
   let champs = {};
+  // t256 : bascule Transformation <-> Déformer. Le maillage neutre vient du moteur ; une transformation libre déjà
+  // posée y est reportée (maillageSurQuad). Revenir à la transformation abandonne le maillage.
+  async function basculerDeformation() {
+    if (!s) return;
+    if (s.def) { s.def = null; construireBarre(); redessiner(); apercu(); return; }
+    const session = s;
+    let r;
+    try { r = await PL.post("/deformer/grille", { style: "none", rect: [...s.rect], size: "default" }); } catch (e) { return; }
+    if (s !== session || !r || !r.warp) return;
+    const neutre = estIdentite(s.etat, s.rect);
+    s.def = { warp: neutre ? r.warp : maillageSurQuad(r.warp, s.rect, s.etat.quad), modifie: !neutre, grille: "default", pile: [] };
+    construireBarre(); redessiner(); apercu();
+  }
+  async function changerGrille(taille) {
+    if (!s || !s.def || !GRILLES_DEFORMER.includes(taille)) return;
+    const session = s, w0 = s.def.warp;
+    let r;
+    try { r = await PL.post("/deformer/grille", { warp: w0, size: taille }); } catch (e) { return; }
+    if (s !== session || !s.def || s.def.warp !== w0 || !r || !r.warp) return;
+    s.def.pile.push({ warp: w0, modifie: s.def.modifie });
+    s.def.warp = r.warp; s.def.grille = taille;
+    const sg = PL.$("#options .tr-grille-maillage");
+    if (sg) sg.value = taille;
+    redessiner();
+  }
+  function boutonDeformer(barre) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "tr-bascule tr-deformer" + (s.def ? " actif" : "");
+    b.innerHTML = PL.icone("dz-edit-deformer-maillage");
+    b.title = T("photolab.transformation.deformer"); b.setAttribute("aria-label", b.title); b.setAttribute("aria-pressed", String(!!s.def));
+    b.addEventListener("click", basculerDeformation);
+    barre.appendChild(b);
+  }
   function construireBarre() {
     const barre = PL.$("#options");
     barre.textContent = "";
     champs = {};
     const nom = document.createElement("span"); nom.className = "opt-nom";
-    nom.textContent = T(LIB_MODES[s.mode]);
+    nom.textContent = T(s.def ? "photolab.transformation.mode_deformer" : LIB_MODES[s.mode]);
     barre.appendChild(nom);
+    if (s.def) {
+      const wg = document.createElement("label"); wg.className = "opt opt-liste tr-champ";
+      const lg = document.createElement("span"); lg.className = "opt-lib"; lg.textContent = T("photolab.transformation.grille");
+      const sg = document.createElement("select"); sg.className = "tr-grille-maillage";
+      for (const v of GRILLES_DEFORMER) { const o = document.createElement("option"); o.value = v; o.textContent = T(LIB_GRILLES[v]); sg.appendChild(o); }
+      sg.value = s.def.grille; sg.addEventListener("change", () => changerGrille(sg.value));
+      wg.append(lg, sg); barre.appendChild(wg);
+      boutonDeformer(barre);
+      finBarre(barre);
+      return;
+    }
     // point de référence : grille 3 × 3
     const grille = document.createElement("div"); grille.className = "tr-grille"; grille.setAttribute("role", "group");
     grille.setAttribute("aria-label", T("photolab.transformation.reference"));
@@ -424,6 +567,11 @@ export function initTransformer(PL) {
     num("angle", "photolab.transformation.angle", "°", (v) => changer(rotationAutour(s.etat, v - lecture(s.etat, s.rect, s.pivot0).angle)));
     num("inclH", "photolab.transformation.incl_h", "°", (v) => changer(inclinerAutour(s.etat, "h", v - s.etat.inclH)));
     num("inclV", "photolab.transformation.incl_v", "°", (v) => changer(inclinerAutour(s.etat, "v", v - s.etat.inclV)));
+    boutonDeformer(barre);
+    finBarre(barre);
+  }
+  // Interpolation, Valider, Annuler : communs aux deux modes.
+  function finBarre(barre) {
     const wi = document.createElement("label"); wi.className = "opt opt-liste tr-champ";
     const li = document.createElement("span"); li.className = "opt-lib"; li.textContent = T("photolab.transformation.interpolation");
     const sel = document.createElement("select"); sel.className = "tr-interp";
@@ -445,5 +593,5 @@ export function initTransformer(PL) {
 
   PL.actions = PL.actions || {};
   for (const [id, mode] of Object.entries(MODES)) PL.actions[id] = () => demarrer(mode);
-  PL.transformation = { demarrer, valider, annuler, etat: () => (s ? { ...s, etat: copie(s.etat) } : null) };
+  PL.transformation = { demarrer, valider, annuler, basculerDeformation, changerGrille, etat: () => (s ? { ...s, etat: copie(s.etat) } : null) };
 }

@@ -9870,5 +9870,73 @@
  "{cid} : replace : at requis (l'étape remplacée)": {
   "fr": "{cid} : replace : at requis (l'étape remplacée)",
   "en": "{cid}: replace: at required (the replaced step)"
+ },
+ "{cid} : density ou feather requis": {
+  "fr": "{cid} : density ou feather requis",
+  "en": "{cid}: density or feather required"
+ },
+ "{cid} : layers : une liste d'ids de calques (entiers ≥ 0, {MAX_CALQUES_COPIE} au plus) attendue": {
+  "fr": "{cid} : layers : une liste d'ids de calques (entiers ≥ 0, {MAX_CALQUES_COPIE} au plus) attendue",
+  "en": "{cid}: layers: a list of layer ids (integers ≥ 0, at most {MAX_CALQUES_COPIE}) expected"
+ },
+ "{cid} : params : un objet de paramètres de l'effet attendu": {
+  "fr": "{cid} : params : un objet de paramètres de l'effet attendu",
+  "en": "{cid}: params: an object of effect parameters expected"
+ },
+ "{cid} : params : un défaut d'effet ne vise aucun calque (layer, enabled refusés)": {
+  "fr": "{cid} : params : un défaut d'effet ne vise aucun calque (layer, enabled refusés)",
+  "en": "{cid}: params: an effect default targets no layer (layer, enabled refused)"
+ },
+ "{cid} : {k} : entre -{MAX_CADRE} et {MAX_CADRE2} attendu, reçu {v}": {
+  "fr": "{cid} : {k} : entre -{MAX_CADRE} et {MAX_CADRE2} attendu, reçu {v}",
+  "en": "{cid}: {k}: between -{MAX_CADRE} and {MAX_CADRE2} expected, got {v}"
+ },
+ "{cid} : {k} : entre 1 et {MAX_CADRE} px attendu, reçu {v}": {
+  "fr": "{cid} : {k} : entre 1 et {MAX_CADRE} px attendu, reçu {v}",
+  "en": "{cid}: {k}: between 1 and {MAX_CADRE} px expected, got {v}"
+ },
+ "nuancier : fichier attendu en base64 ({MAX_OCTETS_FICHIER} octets au plus)": {
+  "fr": "nuancier : fichier attendu en base64 ({MAX_OCTETS_FICHIER} octets au plus)",
+  "en": "swatches: file expected in base64 (at most {MAX_OCTETS_FICHIER} bytes)"
+ },
+ "nuancier : clés admises : data, format, mode": {
+  "fr": "nuancier : clés admises : data, format, mode",
+  "en": "swatches: allowed keys: data, format, mode"
+ },
+ "nuancier : format aco ou ase attendu": {
+  "fr": "nuancier : format aco ou ase attendu",
+  "en": "swatches: aco or ase format expected"
+ },
+ "nuancier : mode append ou replace attendu": {
+  "fr": "nuancier : mode append ou replace attendu",
+  "en": "swatches: append or replace mode expected"
+ },
+ "nuancier : le fichier ne contient aucune couleur lisible": {
+  "fr": "nuancier : le fichier ne contient aucune couleur lisible",
+  "en": "swatches: the file contains no readable color"
+ },
+ "nuancier : clés admises : format, groupes": {
+  "fr": "nuancier : clés admises : format, groupes",
+  "en": "swatches: allowed keys: format, groupes"
+ },
+ "nuancier : 1 à {MAX_GROUPES} groupes attendus": {
+  "fr": "nuancier : 1 à {MAX_GROUPES} groupes attendus",
+  "en": "swatches: 1 to {MAX_GROUPES} groups expected"
+ },
+ "nuancier : aucune couleur à exporter": {
+  "fr": "nuancier : aucune couleur à exporter",
+  "en": "swatches: no color to export"
+ },
+ "nuancier : le moteur n'a rendu aucun fichier": {
+  "fr": "nuancier : le moteur n'a rendu aucun fichier",
+  "en": "swatches: the engine returned no file"
+ },
+ "{cid} : name : 1 à {MAX_NOM_INSTANTANE} caractères, sur une ligne": {
+  "fr": "{cid} : name : 1 à {MAX_NOM_INSTANTANE} caractères, sur une ligne",
+  "en": "{cid}: name: 1 to {MAX_NOM_INSTANTANE} characters, on one line"
+ },
+ "{cid} : warp, ou style et rect, requis": {
+  "fr": "{cid} : warp, ou style et rect, requis",
+  "en": "{cid}: warp, or style and rect, required"
  }
 }
