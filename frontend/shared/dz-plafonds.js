@@ -21,7 +21,7 @@
    après l'autre.
 
    LA MUSIQUE (20/10/2026, constat du catalogue t248). POST /api/audio/music
-   est payant (fal, plafond « son ») et partait au premier clic, sans devis
+   est payant (fal, catégorie « son ») et partait au premier clic, sans devis
    ni second clic. Le code qui l'appelle vit dans une couche traduite par
    positions (L4) : la confirmation se pose donc ICI, avant l'envoi, pour
    tous les appelants. Le dialogue nomme le modèle lu dans le corps ; Annuler
@@ -160,7 +160,7 @@
     try {
       return !!(await D.confirmer(
         texte("son.musique.confirmer_q", { modele: modele || "?" },
-              "Générer la musique avec " + (modele || "?") + " ? C'est payant, compté sous le plafond « son »."),
+              "Générer la musique avec " + (modele || "?") + " ? C'est payant, compté sous la catégorie « son »."),
         { titre: texte("son.musique.confirmer_titre", null, "Générer la musique"),
           ok: texte("son.musique.confirmer_ok", null, "Générer") }));
     } catch (e) { return false; }

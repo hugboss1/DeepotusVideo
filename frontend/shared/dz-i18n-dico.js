@@ -11568,7 +11568,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "son.musique.cle_requise": {"fr": "Clé requise", "en": "Key required"},
   "son.musique.cle_titre": {"fr": "La génération de musique passe par votre clé fal.ai", "en": "Music generation uses your fal.ai key"},
   "son.musique.confirmer_ok": {"fr": "Générer", "en": "Generate"},
-  "son.musique.confirmer_q": {"fr": "Générer la musique avec {modele} ? C'est payant, compté sous le plafond « son ».", "en": "Generate the music with {modele}? It is paid, counted under the “sound” cap."},
+  "son.musique.confirmer_q": {"fr": "Générer la musique avec {modele} ? C'est payant, compté sous la catégorie « son ».", "en": "Generate the music with {modele}? It is paid, counted under the “son” category."},
   "son.musique.confirmer_titre": {"fr": "Générer la musique", "en": "Generate music"},
   "son.musique.dans_biblio": {"fr": "dans la Bibliothèque (sons) — sélectionnable en musique de fond du Montage", "en": "in the Library (sounds) — selectable as Montage background music"},
   "son.musique.description": {"fr": "Description libre de la musique", "en": "Free description of the music"},

@@ -4,6 +4,6 @@
   "reglages.comptes.telegram_titre": {"fr": "Tester Telegram", "en": "Test Telegram"},
   "son.musique.annulee": {"fr": "Annulé : rien n'a été envoyé.", "en": "Cancelled: nothing was sent."},
   "son.musique.confirmer_ok": {"fr": "Générer", "en": "Generate"},
-  "son.musique.confirmer_q": {"fr": "Générer la musique avec {modele} ? C'est payant, compté sous le plafond « son ».", "en": "Generate the music with {modele}? It is paid, counted under the “sound” cap."},
+  "son.musique.confirmer_q": {"fr": "Générer la musique avec {modele} ? C'est payant, compté sous la catégorie « son ».", "en": "Generate the music with {modele}? It is paid, counted under the “son” category."},
   "son.musique.confirmer_titre": {"fr": "Générer la musique", "en": "Generate music"}
 }
