@@ -105,8 +105,10 @@ def main():
     # tache #82 PR A (04/10/2026) : + 1, supprimer un commentaire de revue (DzCommentaires).
     # tache #82 PR C (04/10/2026) : + 1, le prix des legendes (DzRecherche).
     # tache #82 PR D (04/10/2026) : + 1, la taille de l'installation de CLIP (DzClipBloc).
-    check("await __dzDialogue.confirmer ×25 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel + 1 recette + 1 kit + 1 rejouer + 2 corbeille/nettoyage + 1 commentaire + 1 legendes + 1 CLIP + 1 Chorégraphier de t235 + 1 suppression de la Bibliothèque motion de t236 ; la couche le cite en commentaire)",
-          hors.count("await window.__dzDialogue.confirmer(") == 25,
+    # 20/10/2026 (maillon dzschedconf) : + 3, le Planificateur confirme « Envoyer maintenant », l'envoi de l'inspecteur
+    # et la suppression d'un post (définitive, sans corbeille).
+    check("await __dzDialogue.confirmer ×28 hors couche (11 + 2 de P1es1 + 1 import du Studio + 1 duel + 1 recette + 1 kit + 1 rejouer + 2 corbeille/nettoyage + 1 commentaire + 1 legendes + 1 CLIP + 1 Chorégraphier de t235 + 1 suppression de la Bibliothèque motion de t236 + 3 du Planificateur (2 envois, 1 suppression) ; la couche le cite en commentaire)",
+          hors.count("await window.__dzDialogue.confirmer(") == 28,
           str(hors.count("await window.__dzDialogue.confirmer(")))
     check("la couche remplace window.alert et pose __dzDialogue",
           "window.alert = function" in couche and "window.__dzDialogue = {" in couche)

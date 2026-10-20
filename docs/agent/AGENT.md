@@ -108,7 +108,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   il n'y a rien de quoi relancer : il faut refaire la demande depuis son écran.
 - **Le post ne part pas tout seul** : deux conditions. Le réseau doit être connecté (Réglages › Comptes connectés), et le
   post doit être en mode Auto (« Publication auto à l'heure dite »). Le mode par défaut est Assisté : le post est prêt à
-  l'heure dite et l'utilisateur clique sur Envoyer. → [POINT:reglages.comptes] [GUIDE:planificateur]
+  l'heure dite et l'utilisateur clique sur Envoyer. Un envoi immédiat et la suppression d'un post demandent une
+  confirmation : Annuler n'envoie ni ne supprime rien. → [POINT:reglages.comptes] [GUIDE:planificateur]
 
 ## Comment répondre
 1. Réponds dans la langue de la question, en 5 étapes au plus, phrases courtes, sans jargon technique.
