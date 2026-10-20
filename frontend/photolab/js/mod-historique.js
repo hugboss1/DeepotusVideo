@@ -23,10 +23,12 @@ export function tranches(n, max = 100) {
 }
 
 // Les états portent le nom anglais de la commande (« Gaussian Blur », « New Layer »). En français, on reprend le
-// libellé du catalogue des menus quand il existe (sans « … ») ; sinon le nom du moteur tel quel.
+// libellé du catalogue des menus quand il existe (sans « … ») ; t258 : à défaut, la traduction de l'amont des
+// commandes hors de l'arbre (menus.json `repli`, fr.tsv de photocraft v0.10.0) ; sinon le nom du moteur tel quel.
 export function tableEtats(catalogue) {
   const t = new Map();
-  for (const e of (catalogue && catalogue.entrees) || []) {
+  const repli = Object.values((catalogue && catalogue.repli) || {});
+  for (const e of [...((catalogue && catalogue.entrees) || []), ...repli]) {
     if (!e.libelle_en || !e.libelle_fr) continue;
     const en = e.libelle_en.replace(/…$/, "").trim();
     if (!t.has(en)) t.set(en, e.libelle_fr.replace(/…$/, "").trim());

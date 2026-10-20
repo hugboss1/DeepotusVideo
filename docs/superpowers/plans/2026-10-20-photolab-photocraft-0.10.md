@@ -198,6 +198,17 @@ Restent : Préférences d'exportation (préférences du moteur), Ouvrir en tant 
 `photocraft_catalogue.py` lit `fr.tsv` de v0.10.0 (plus le commit 3d23a708c2) ; libellés FR/EN des commandes
 neuves ; nos 412 libellés restent prioritaires ; attribution ajoutée.
 
+### M9 — mesuré et fait (20/10)
+- fr.tsv du tag v0.10.0 (commit 8407d9ccb, blob 4a819b0e recoupé avec l'API GitHub) ; empreinte calculée sur les fins de
+  ligne LF (une extraction Windows le passe en CRLF). Il ne contredit AUCUN des 627 libellés ni des noms de menus en
+  place : `menus.json` garde son arbre v0.3.0 octet pour octet (empreinte figée dans `test_photolab_libelles_m9`) ; le
+  script garde de toute façon le français en place et consigne un écart éventuel (`ecarts_amont`).
+- `menus.json` gagne `repli` : les 435 commandes du moteur 0.10 absentes de l'arbre (libellé anglais du moteur ; 118
+  traduites par le fr.tsv ; « Photoshop Step » écarté, D8).
+- Les 79 commandes ouvertes par M3-M8 ne sont dans aucun menu du catalogue : le panneau Actions montrait leur id brut.
+  `mod-libelles.js` : catalogue → nos clés (`LIBELLES_COMMANDES`, 45 clés existantes réutilisées, 34 neuves
+  `photolab.commande.*`) → repli amont → id brut. Historique : la table fr prend le repli après le catalogue.
+
 ## M10 — t259 · Installation, licences, aide
 `build-installer.ps1` (vendor 0.10.0 vérifié), NOTICE et nouvelles attributions (traductions, rgb.txt,
 libfacedetection, icônes), À propos ; fiches didactiques des outils neufs ; chapitre Photolab du guide.
