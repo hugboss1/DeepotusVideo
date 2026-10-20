@@ -30,10 +30,12 @@ from app.config import DATA_ROOT
 _FICHIER = DATA_ROOT / "plafonds.json"
 DEFAUTS = {"global_usd": 0.0, "par_moteur": {}, "alerte_pct": 80}
 
-# Les écrans qui peuvent dépenser — le vocabulaire des catégories.
+# Les écrans qui peuvent dépenser — le vocabulaire des catégories. t265 (20/10/2026) : « motion » (Chorégraphier et
+# Réécrire la page du Studio, défaut de moteurs_texte.tirer_garde) et « mobile » (dépenses rapportées par le téléphone,
+# sync_depenses) étaient écrites en base sans être au vocabulaire ; test_constats_catalogue [Q] les tient ensemble.
 CATEGORIES = ("quick", "studio", "chapitres", "son", "montage", "news", "scheduler", "bibliotheque", "sprites",
               "tuiles", "matieres", "cartes", "moteurs3d", "marketing", "atelier", "vectorlab", "reglages",
-              "dictee", "direct", "photolab", "aide")
+              "dictee", "direct", "photolab", "aide", "motion", "mobile")
 
 CONFIRME: ContextVar[bool] = ContextVar("dz_plafond_confirme", default=False)
 
