@@ -470,6 +470,96 @@ def test_lab_libelle_voisin_de_l_infobulle(depot):
     assert e["vectorlab.flyout.titre_typo"]["libelle"] == {"fr": "", "en": ""}   # le libellé d'un AUTRE objet
 
 
+# panneau Actions du Photolab (mod-actions.js, t261) : boutons, cases, menu et dialogue bâtis par des fabriques du lab
+ACTIONS_JS = "\n".join([
+    'const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);',
+    'PL.signaler(T("photolab.actions.lot_compte", { n }));',
+    'const bouton = (icone, cle, fn, cls = "") => {',
+    '  const b = el("button", "pr-btn " + cls); b.type = "button";',
+    '  b.title = T(cle); b.setAttribute("aria-label", b.title); pied.appendChild(b); return b;',
+    '};',
+    'const bJouer = bouton("dz-media-lecture", "photolab.actions.jouer", () => jouer());',
+    'const bRien = bouton("dz-x", variable, f);',
+    'function caseAllumage(etat, aria, fn) {',
+    '  const b = el("button", "ac-case " + etat); b.setAttribute("aria-label", aria); return b;',
+    '}',
+    'row.append(caseAllumage(a.allumage, T("photolab.actions.allumer_action"), () => go()));',
+    'function champ(c, libelleCle, element) {',
+    '  const l = el("label", "ac-champ"); l.append(el("span", null, T(libelleCle)), element); c.appendChild(l);',
+    '}',
+    'champ(tete, "photolab.actions.lot_format", sFmt);',
+    'export function entreesMenu(e) {',
+    '  const it = (id, cle, actif, x = {}) => ({ id, cle, actif: !!actif, ...x });',
+    '  return [it("lot", "photolab.actions.menu.lot", e.n > 0), null];',
+    '}',
+    'function ouvrirMenu() { const l = el("div", "menu-ligne"); l.setAttribute("role", "menuitem");',
+    '  l.appendChild(el("span", "menu-lib", T(it.cle))); }',
+    'const bTout = el("button", "pl-bouton", T("photolab.actions.lot_tout")); bTout.type = "button";',
+    'const p = el("p", "ac-aide", T("photolab.actions.lot_aide"));',
+    'ouvrirDialogue(PL, { titre: T("photolab.actions.lot_titre"),',
+    '  boutons: [{ role: "annuler", libelle: T("commun.action.annuler") }, { role: "ok", libelle: T("photolab.actions.lot_lancer"), principal: true }] });',
+    'const signaler = (cle) => PL.signaler(T(cle));',
+    'signaler("photolab.actions.lot_compte");'])
+CLES_ACTIONS = {k: {"fr": k.rsplit(".", 1)[-1], "en": k.rsplit(".", 1)[-1].upper()} for k in (
+    "photolab.actions.jouer", "photolab.actions.allumer_action", "photolab.actions.lot_format", "photolab.actions.menu.lot",
+    "photolab.actions.lot_tout", "photolab.actions.lot_aide", "photolab.actions.lot_titre", "photolab.actions.lot_lancer",
+    "photolab.actions.lot_compte")}
+
+
+def _actions(depot):
+    i18n = depot / "frontend/shared/i18n"
+    d = json.loads((i18n / "photolab.json").read_text(encoding="utf-8"))
+    d.update(CLES_ACTIONS)
+    _ecrire(i18n / "photolab.json", json.dumps(d, ensure_ascii=False))
+    _ecrire(i18n / "commun.json", json.dumps({"commun.action.annuler": {"fr": "Annuler", "en": "Cancel"}}))
+    _ecrire(depot / "frontend/photolab/js/mod-actions.js", ACTIONS_JS)
+    return S.extraire(depot)
+
+
+def test_lab_fabrique_cle_et_texte(depot):
+    e = _actions(depot)
+    j = e["photolab.actions.jouer"]                           # bouton(…, "cle", …) : title = T(cle)
+    assert j["type"] == "bouton" and j["ecran"] == "photolab" and j["cadre"] == "/photolab/"
+    assert j["infobulle"] == {"fr": "jouer", "en": "JOUER"} and j["icone"] == "dz-media-lecture"
+    assert j["sources"] == ["frontend/photolab/js/mod-actions.js"]
+    a = e["photolab.actions.allumer_action"]                  # caseAllumage(…, T("cle"), …) : aria-label = texte
+    assert a["type"] == "bouton" and a["infobulle"]["en"] == "ALLUMER_ACTION"
+    c = e["photolab.actions.lot_format"]                      # champ(…, "cle", contrôle) : libellé d'un champ
+    assert c["type"] == "champ" and c["libelle"] == {"fr": "lot_format", "en": "LOT_FORMAT"} and c["infobulle"] is None
+
+
+def test_lab_menu_bouton_et_dialogue(depot):
+    e = _actions(depot)
+    m = e["photolab.actions.menu.lot"]                        # entrée de menu rendue par T(it.cle) en menuitem
+    assert m["type"] == "menu" and m["libelle"]["fr"] == "lot" and m["infobulle"] is None
+    assert e["photolab.actions.lot_tout"]["type"] == "bouton"   # el("button", classe, T(cle))
+    assert e["photolab.actions.lot_tout"]["libelle"]["en"] == "LOT_TOUT"
+    assert e["photolab.actions.lot_lancer"]["type"] == "bouton"  # boutons: [{ libelle: T(cle) }] d'un dialogue
+    for k in ("photolab.actions.lot_aide", "photolab.actions.lot_titre", "photolab.actions.lot_compte",
+              "commun.action.annuler"):
+        assert k not in e, k                                  # un paragraphe, un titre de boîte, un signal, l'action commune
+
+
+def test_lab_menu_seulement_pres_du_menuitem(depot):
+    js = ACTIONS_JS + "\n" + "\n".join(["// " + "x" * 900,
+        'const aide = (id, texte) => ({ id, texte });',
+        'aide("a", "photolab.actions.lot_compte");',
+        'function bulle(o) { return el("p", null, T(o.texte)); }'])
+    _actions(depot)
+    _ecrire(depot / "frontend/photolab/js/mod-actions.js", js)
+    e = S.extraire(depot)                                     # T(o.cle) loin de tout menuitem : pas une entrée de menu
+    assert "photolab.actions.menu.lot" in e and "photolab.actions.lot_compte" not in e
+
+
+def test_page_de_lab_texte_connu_dans_un_AUTRE_lab(depot):
+    e = _page_vectorlab(depot)
+    d = json.loads((depot / "frontend/shared/i18n/photolab.json").read_text(encoding="utf-8"))
+    d["photolab.page.plume"] = {"fr": "Plume Bézier — clic = ancre (P)", "en": "x"}
+    _ecrire(depot / "frontend/shared/i18n/photolab.json", json.dumps(d, ensure_ascii=False))
+    _ecrire(depot / "frontend/photolab/js/plume.js", 'b.title = T("photolab.page.plume");')
+    assert "vectorlab.page.outil_plume" in S.extraire(depot)   # même texte au Photolab : autre élément, fiche gardée
+
+
 def _page_vectorlab(depot):
     i18n = depot / "frontend" / "shared" / "i18n"
     d = json.loads((i18n / "vectorlab.json").read_text(encoding="utf-8"))
