@@ -175,6 +175,25 @@ Q3) ; enregistrer : TIFF à calques, WebP, ORA, PDF d'une page ; Calques en fich
 `doc.exportLayers`/`doc.exportDataSets` vers la Bibliothèque (sort des `file.export` « bientôt ») ;
 préréglages d'export (`file.export.presets.*`). Garde #7025 (document actif) et #7023 (`quality` entier).
 
+### M8 — mesuré et fait (20/10)
+Sondé sur le vrai moteur 0.10 : `doc.exportLayers {dir, format, prefix, visibleOnly, quality, tiffLayers}` et
+`doc.exportDataSets {dir, format, dataSets, naming}` écrivent sous la racine (refus de `..` et d'un absolu), REFUSENT
+d'écraser (« AlreadyExists ») et ignorent une clé inconnue ; leur `quality` est sur **0..12** (au-delà : borné, 50 = 100),
+celle de `doc.save` sur 1..100 ; #7025 confirmé (`index` -> ce document reste actif) ; #7023 confirmé (`quality: 80.0` ->
+WebP sans perte en silence). `doc.save` : ORA (rattache le document), PDF (avertissement « saved flattened »), TIFF
+`tiffLayers` relu avec ses calques ; ouverture ORA, TIFF à calques, DPX, TGA, DDS ; PDF jamais en ouverture.
+**Bloqués moteur** (désactivés en automation, « ambient filesystem paths ») : `file.exrParts` / `file.openExrParts`
+(EXR multi-parties : `doc.open` seul), `file.export.presets.*` (préréglages d'export) -> gardés par Deepotus.
+Image › Variables : le registre écrit `{defs:[…]}` sans guillemets (illisible) et le moteur ne vérifie presque rien ->
+vérification clé par clé au pont (visibilité, remplacement de texte ; `pixelReplacement` = un chemin, refusé).
+Livré : Fichier › Ouvrir depuis l'ordinateur… (route `/importer`, octets bruts, extensions `PM.FORMATS_OUVERTURE`,
+1 Gio, HEIC refusé nommément — Q3 non tranchée ; ce que la Bibliothèque reçoit y passe d'abord) ; Exporter : ORA, PDF
+d'une page, TIFF à calques, avertissements du moteur traduits, préréglages (`/export/prereglages`) ; Calques en
+fichiers (`/calques/fichiers`) et Jeux de données en fichiers (`/jeux/fichiers`) déposés dans la Bibliothèque (lignée
+« retouche », dossier `sorties/<lot>` effacé) ; Importer › Jeux de données variables (`/jeux/importer`, CSV en texte) ;
+Image › Variables › Définir… / Jeux de données…, Image › Appliquer un jeu de données… (mod-exports). « bientôt » 89 -> 86.
+Restent : Préférences d'exportation (préférences du moteur), Ouvrir en tant que… (chemin), HEIC (Q3).
+
 ## M9 — t258 · Libellés : fr.tsv amont en repli
 `photocraft_catalogue.py` lit `fr.tsv` de v0.10.0 (plus le commit 3d23a708c2) ; libellés FR/EN des commandes
 neuves ; nos 412 libellés restent prioritaires ; attribution ajoutée.

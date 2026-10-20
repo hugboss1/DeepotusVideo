@@ -81,11 +81,12 @@ export function exportRapidePrefs(prefs) {
 export const nomTelecharge = (fichier, minuscules = true) => (minuscules ? fichier : String(fichier).replace(/\.([A-Za-z0-9]+)$/, (m, x) => "." + x.toUpperCase()));
 
 export function corpsCopie(form) {
-  const f = FORMATS_EXPORT.find((x) => x.format === form.format);
+  const f = FORMATS_EXPORT.find((x) => x.id === form.format);          // t257 : par id (TIFF et TIFF à calques)
   if (!f) throw erreurSaisie("photolab.export.erreur.format");
   const destination = form.destination === "bibliotheque" ? "bibliotheque" : "telecharger";
   if (destination === "bibliotheque" && !FORMATS_BIBLIO.includes(f.format)) throw erreurSaisie("photolab.copie.erreur.biblio");
   const corps = { format: f.format, nom: String(form.nom || "").trim().slice(0, 80), destination };
+  if (f.calques) corps.calques = true;
   if (f.qualite) corps.quality = qualite(form.quality);
   return corps;
 }
@@ -316,13 +317,13 @@ export function initDocuments(PL) {
   };
 
   // Dialogue d'export commun (copie du document, calque) : format, qualité, échelle ?, nom, destination.
-  async function dialogueExport({ titre, formats, avecEchelle, nom, envoyer, cleBiblio }) {
+  async function dialogueExport({ titre, formats, avecEchelle, nom, envoyer, cleBiblio, libelle = (f) => f.toUpperCase() }) {
     let resultat = null;
     await ouvrirDialogue(PL, {
       titre,
       boutons: [{ role: "annuler", libelle: T("commun.action.annuler") }, { role: "ok", libelle: T("commun.action.exporter"), principal: true }],
       construire({ corps }) {
-        const format = liste(formats.map((f) => [f, f.toUpperCase()]), formats[0]);
+        const format = liste(formats.map((f) => [f, libelle(f)]), formats[0]);
         const qualite = saisie("90", { type: "range", min: "1", max: "100", step: "1" });
         const vq = document.createElement("span"); vq.className = "pl-unite"; vq.textContent = "90";
         qualite.addEventListener("input", () => { vq.textContent = qualite.value; });
@@ -356,7 +357,8 @@ export function initDocuments(PL) {
   function copie() {
     if (!PL.etat.doc) return;
     return dialogueExport({
-      titre: T("photolab.copie.titre"), formats: FORMATS_EXPORT.map((f) => f.format), avecEchelle: false,
+      titre: T("photolab.copie.titre"), formats: FORMATS_EXPORT.map((f) => f.id), avecEchelle: false,
+      libelle: (id) => { const f = FORMATS_EXPORT.find((x) => x.id === id); return f.cle ? T(f.cle) : f.libelle; },
       nom: T("photolab.copie.nom", { nom: nomDocument(PL.etat.doc.name) || T("photolab.nouveau.sans_titre") }),
       envoyer: (f) => PL.file(() => PL.post("/copie", corpsCopie(f))),
     });

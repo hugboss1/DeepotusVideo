@@ -59,6 +59,15 @@ export const INSERTIONS_M7 = [
   { chemin: ["Filter", "Render"], apres: "filter.render.lightingEffects", id: "filter.render.relight", cle: "photolab.menu.reeclairer" },
   { chemin: ["Filter", "Other…"], apres: null, id: "filter.other.colorToAlpha", cle: "photolab.menu.couleur_alpha" },
 ];
+// t257 (M8) : Fichier › Ouvrir depuis l'ordinateur… (mod-fichier : route /importer — ORA, Krita, Affinity, Paint.NET,
+// EXR, DPX, DDS, raws que la Bibliothèque ne reçoit pas). Même mécanisme que INSERTIONS_M7.
+export const INSERTIONS_M8 = [
+  { chemin: ["File"], apres: "file.open", id: "pl.importer", cle: "photolab.menu.importer" },
+];
+// t257 : entrées que l'écran sert par ses routes ou ses dialogues (mod-exports : /calques/fichiers, /jeux/fichiers,
+// /jeux/importer ; Image › Variables : dialogues sur mesure, commandes moteur vérifiées clé par clé par le pont).
+export const IDS_EXPORTS_M8 = ["file.export.layersToFiles", "file.export.dataSetsAsFiles", "file.import.variableDataSets",
+  "image.variables.define", "image.variables.dataSets", "image.applyDataSet"];
 // Entrées « pl.* » de M7 (mod-calques : PL.actions) et les commandes moteur dont elles ouvrent le dialogue générique.
 export const IDS_CALQUES_M7 = ["pl.calque.cadre", "pl.calque.copier_document"];
 export const DIALOGUES_ECRAN_M7 = { "pl.calque.cadre": "layer.new.frame", "pl.calque.copier_document": "layer.copyToDocument" };
@@ -68,6 +77,8 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   ...IDS_IA,
   // t256 : Calque › Nouveau › Cadre…, Calque › Dupliquer vers un document… (mod-calques)
   ...IDS_CALQUES_M7,
+  // t257 : Calques et jeux de données en fichiers, Importer des jeux, Image › Variables (mod-exports)
+  ...IDS_EXPORTS_M8,
   // t155 : le groupe Pinceaux (mod-pinceaux, PL.actions) ; window.* reste refusé au moteur
   "window.panel.brushes", "window.panel.brushSettings", "window.panel.cloneSource", "window.panel.toolPresets",
   // t151 : espaces de travail et Fenêtre › <panneau> (mod-espaces : ACTIONS_ESPACE, PANNEAUX, BARRES — banc espaces 5.9)
@@ -109,7 +120,7 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // t160 : mesure, comptage, notes, tranches (mod-mesure ; Affichage par mod-affichage, panneaux par mod-espaces)
   ...IDS_MESURE]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_IA, ...IDS_CALQUES_M7, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
+export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_IA, ...IDS_CALQUES_M7, ...IDS_EXPORTS_M8, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
   // t154 : la transformation manuelle vise le calque actif
@@ -276,7 +287,8 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
   }
   // t256 : les entrées de photocraft 0.10 (INSERTIONS_M7), dans l'ordre de la table : une insertion peut suivre la
   // précédente (Plan de travail voisin puis Cadre).
-  for (const ins of INSERTIONS_M7) {
+  // t257 : puis celles de M8 (Fichier › Ouvrir depuis l'ordinateur…).
+  for (const ins of [...INSERTIONS_M7, ...INSERTIONS_M8]) {
     let liste = (menus.find((m) => m.nom === ins.chemin[0]) || {}).entrees;
     for (const nom of ins.chemin.slice(1)) liste = liste && (liste.find((x) => x.type === "sous-menu" && x.nom === nom) || {}).entrees;
     if (!liste) continue;
