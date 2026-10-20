@@ -480,6 +480,15 @@ def test_vrai_catalogue_a_jour():
     assert C.main(["--check"]) == 0
 
 
+def test_vrai_catalogue_langue_de_l_interface():
+    """t248 : le réglage de la langue (DzLangueUI, un libellé à côté d'un sélecteur maison) échappe à l'extraction du
+    bundle ; il entre par la recherche des Réglages (_INDEX_FIXE), qui doit donc le connaître, traduit."""
+    langue = [f for f in C.charger().values()
+              if f["ecran"] == "settings" and f["libelle"]["fr"] == "Langue de l'interface"]
+    assert len(langue) == 1, [f["id"] for f in langue]
+    assert langue[0]["libelle"]["en"] == "Interface language" and langue[0]["type"] == "reglage"
+
+
 def test_vrai_catalogue_integre():
     fiches = C.charger()
     assert len(fiches) >= 300, len(fiches)

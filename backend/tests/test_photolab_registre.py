@@ -671,11 +671,15 @@ OUVERTES = {"paint.patch", "paint.contentAwareMove", "paint.patternStamp", "pain
             "path.deleteAnchor", "path.transform", "path.clippingPath.set", "path.clippingPath.clear",
             "path.style.copyFill", "path.style.copyStroke", "path.style.pasteFill", "path.style.pasteStroke",
             "type.createSelection", "type.attachToPath", "type.detachFromPath", "type.increaseSize", "type.decreaseSize",
-            "type.increaseSizeMore", "type.decreaseSizeMore"}
-check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8, t253 : 10, t254 : 20) -> 104",
-      len(NEUVES) == 104 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
+            "type.increaseSizeMore", "type.decreaseSizeMore",
+            # t255 : le panneau Actions
+            "actions.assignSet", "actions.conditional", "actions.delete", "actions.dialog", "actions.get", "actions.insert",
+            "actions.list", "actions.load", "actions.move", "actions.photoshopStep", "actions.play", "actions.record",
+            "actions.rename", "actions.save", "actions.setColor", "actions.stop", "actions.stopMessage", "actions.toggle"}
+check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8, t253 : 10, t254 : 20, t255 : 18) -> 86",
+      len(NEUVES) == 86 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
 REG10 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8")))
-for cid, p in (("layer.removeBackground", {}), ("swatches.list", {}), ("actions.list", {}), ("history.undo", {})):
+for cid, p in (("layer.removeBackground", {}), ("swatches.list", {}), ("swatches.add", {}), ("history.undo", {})):
     try:
         PR.verifier(REG10, cid, p); m = None
     except ValueError as e:

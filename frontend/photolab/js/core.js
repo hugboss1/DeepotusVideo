@@ -48,6 +48,7 @@ import { initMesure } from "./mod-mesure.js";
 import { initClavier } from "./mod-clavier.js";
 import { initModificateurs } from "./mod-modificateurs.js";
 import { initGestionnaire } from "./mod-gestionnaire.js";
+import { initActions } from "./mod-actions.js";
 
 const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
 
@@ -160,6 +161,7 @@ initModificateurs(PL);   // t159 : Fenêtre › Touches de modification (capture
 initGestionnaire(PL);    // t159 : Édition › Préréglages (gestionnaire, export / import)
 initClavier(PL);         // t159 : Raccourcis clavier et Menus — son décorateur passe APRÈS tous les autres (raccourcis, masques)
 initTransformer(PL);     // t154 : après les gestes (PL.gestesPrioritaires, PL.dessinerTransformation) et les outils (barre d'options)
+initActions(PL);         // t255 : panneau Actions et Traitement par lots — après le dialogue générique (lecture pas à pas)
 
 // Onglets du groupe Calques | Historique | Navigateur, et rail d'icônes : calques/historique/navigateur montrent leur
 // onglet ; couleur et réglages (Propriétés) replient ou déplient leur groupe.
@@ -172,6 +174,7 @@ PL.montrerOnglet = function montrerOnglet(nom) {
   if (nom === "navigateur" && PL.dessinerNavigateur) PL.dessinerNavigateur();
   if (nom === "couches" && PL.couches) { PL.couches.relireVignettes(); PL.couches.dessiner(); }
   if (nom === "traces" && PL.traces) PL.traces.dessiner();
+  if (nom === "actions" && PL.actionsPanneau) PL.actionsPanneau.relire();
   majRail();
 };
 function majRail() {

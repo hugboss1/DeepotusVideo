@@ -57,6 +57,8 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // t153 : panneaux Nuancier, Dégradés, Motifs, Compositions, Couches, Histogramme, Infos (mod-espaces : PANNEAUX)
   "window.panel.swatches", "window.panel.gradients", "window.panel.patterns", "window.panel.layerComps", "window.panel.channels",
   "window.panel.histogram", "window.panel.info",
+  // t255 : panneau Actions et Traitement par lots (mod-actions : PL.actions ; les commandes actions.* passent par le pont)
+  "window.panel.actions", "file.automate.batch",
   // t154 : transformation manuelle et ses sous-modes (mod-transformer : MODES) ; la validation passe par edit.transform
   "edit.freeTransform", "edit.transform.scale", "edit.transform.rotate", "edit.transform.skew", "edit.transform.distort",
   "edit.transform.perspective",

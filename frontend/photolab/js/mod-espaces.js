@@ -11,7 +11,7 @@ import { ouvrirDialogue } from "./mod-fichier.js";
 // t153 : Nuancier, Dégradés, Motifs (groupe Couleur), Compositions (Propriétés), Couches (Calques), et le groupe Infos.
 // t156 : Formes (Couleur), Styles (Propriétés), Tracés (Calques) et le groupe Texte.
 export const GROUPES = { couleur: ["couleur", "nuancier", "degrades", "motifs", "formes"], proprietes: ["proprietes", "ajustements", "styles", "compositions"],
-  pinceaux: ["pinceaux", "parametres", "source", "predefinis"], calques: ["calques", "couches", "traces", "historique", "navigateur"],
+  pinceaux: ["pinceaux", "parametres", "source", "predefinis"], calques: ["calques", "couches", "traces", "historique", "actions", "navigateur"],
   infos: ["histogramme", "infos", "mesures", "notes"], texte: ["caractere", "paragraphe", "glyphes", "stylesCar", "stylesPar"] };
 export const FOURNIS = ["essentiel", "base", "graphisme", "mouvement", "peinture", "photo", "pixel"];
 export const MAX_PERSO = 20;
@@ -52,6 +52,7 @@ export const PANNEAUX = {
   "window.panel.toolPresets": { groupe: "pinceaux", onglet: "predefinis" },
   "window.panel.layers": { groupe: "calques", onglet: "calques" },
   "window.panel.history": { groupe: "calques", onglet: "historique" },
+  "window.panel.actions": { groupe: "calques", onglet: "actions" },     // t255
   "window.panel.navigator": { groupe: "calques", onglet: "navigateur" },
   "window.panel.swatches": { groupe: "couleur", onglet: "nuancier" },
   "window.panel.gradients": { groupe: "couleur", onglet: "degrades" },
