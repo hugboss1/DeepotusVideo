@@ -284,6 +284,9 @@ CORRECTIONS_CHAMPS = {
     # l'id d'un instantané est écrit `id` (lu comme un calque) : un entier ≥ 0.
     ("history.newSnapshot", "from"): {"type": "enum", "valeurs": ["fullDocument", "mergedLayers", "currentLayer"], "optionnel": True},
     **{(c, "snapshot"): {"type": "index"} for c in ("history.deleteSnapshot", "history.renameSnapshot", "history.selectSnapshot")},
+    # t256 (M7 PR 3) : `"size":n|"default"|"3"|"4"|"5"` est un « ? » au parseur ; l'écran n'offre que ces quatre grilles
+    # (5 × 5 = 256 points de contrôle ; au-delà, le maillage dépasserait les bornes de taille du pont).
+    ("edit.transform.warpGrid", "size"): {"type": "enum", "valeurs": ["default", "3", "4", "5"]},
 }
 
 
@@ -577,6 +580,11 @@ def verifier(registre: dict, cid, params, kind=None, etat=None, etape=False) -> 
             raise ValueError(f"{cid} : paramètre(s) requis : {', '.join(manque)}")
     if cid in FORMES_M5:
         _formes_m5(cid, params)
+    if cid == "edit.transform.warpGrid":
+        for c in CHAMPS_WARPGRID:
+            champs.setdefault(c["cle"], c)
+        if "warp" not in params and not ("style" in params and "rect" in params):
+            raise ValueError(f"{cid} : warp, ou style et rect, requis")
     if cid in FORMES_M7:
         _formes_m7(registre, cid, params)
     ctx = {"colorize": _colorise(params, etat)}
@@ -676,6 +684,10 @@ REQUIS_M7 = {"layer.setLabelColor": ("color",), "layer.copyToDocument": ("docume
              "history.deleteSnapshot": ("snapshot",), "history.selectSnapshot": ("snapshot",),
              "history.renameSnapshot": ("snapshot", "name")}
 NOMS_M7 = ("history.newSnapshot", "history.renameSnapshot", "history.newDocument")
+# PR 3 : warpGrid prend aussi `style` (« without warp/style/mesh, edits the active smart object's warp ») — non décrit
+# au registre ; seul « none » (maillage neutre sur `rect`) a un sens pour l'écran. `warp` ou `style`+`rect` requis : sans
+# eux le moteur viserait l'objet dynamique actif.
+CHAMPS_WARPGRID = ({"cle": "style", "type": "enum", "valeurs": ["none"], "optionnel": True},)
 FORMES_M7 = set(REQUIS_M7) | {"layer.layerMask.edit"} | set(NOMS_M7)
 MAX_NOM_INSTANTANE = 64
 MAX_CADRE = 300_000                  # « `width` and `height` must be 1..=300000 » (moteur 0.10)

@@ -161,6 +161,13 @@ deleteState` restent fermées : le panneau annule déjà par /historique. Nuanci
 les routes `/nuancier/importer` et `/nuancier/exporter` (base64 : `swatches.export {path}` est désactivée en
 automation) ; la bibliothèque du moteur n'est qu'un passage (vidée, remplie, exportée, remise aux défauts d'usine dans
 UNE séquence) ; `swatches.*` restent fermées à /executer.
+PR 3 — Déformer (20/10) : `edit.transform.warpGrid` ouverte (neuves 64 -> 63, taille Par défaut / 3 / 4 / 5) par la
+route `/deformer/grille` (séquence hors enregistrement d'action : c'est de la géométrie, aucun état). Ctrl+T : bouton
+« Déformer » de la barre (icône dz-edit-deformer-maillage, 547 icônes) -> maillage du moteur, ancres (qui emmènent leurs
+poignées) et poignées à glisser, aperçu moteur (`edit.transform.warp` admis en aperçu), Ctrl+Z dans la session ; une
+transformation libre déjà posée est reportée sur le maillage ; validation `edit.transform.warp {layer, warp,
+interpolation}` = un état « Warp » (« Déformer »). Le menu Édition › Transformation › Déformer (styles prédéfinis,
+dialogue générique) n'est pas touché.
 
 ## M8 — t257 · Formats et exports
 Ouvrir depuis la Bibliothèque : ORA, Krita, Affinity, Paint.NET, EXR (parties), DPX, DDS, raws (HEIC selon

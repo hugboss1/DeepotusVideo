@@ -9934,5 +9934,9 @@
  "{cid} : name : 1 à {MAX_NOM_INSTANTANE} caractères, sur une ligne": {
   "fr": "{cid} : name : 1 à {MAX_NOM_INSTANTANE} caractères, sur une ligne",
   "en": "{cid}: name: 1 to {MAX_NOM_INSTANTANE} characters, on one line"
+ },
+ "{cid} : warp, ou style et rect, requis": {
+  "fr": "{cid} : warp, ou style et rect, requis",
+  "en": "{cid}: warp, or style and rect, required"
  }
 }

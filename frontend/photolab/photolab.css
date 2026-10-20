@@ -1007,3 +1007,6 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 .hi-instantane-icone { display: inline-flex; color: var(--ink-soft); }
 .hi-instantane-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hi-instantane .hi-bouton { width: 20px; height: 20px; }
+/* t256 (M7 PR 3) : Ctrl+T › Déformer — bras ancre-poignée et poignées de Bézier du maillage */
+#fourmis .transfo-bras { stroke: var(--accent); stroke-width: 1; opacity: .7; }
+#fourmis .transfo-poignee-bezier { fill: var(--accent); stroke: var(--ink-strong); stroke-width: 1; }

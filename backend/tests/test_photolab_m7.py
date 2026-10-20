@@ -16,6 +16,11 @@ PR 2 (historique, nuancier) :
 [6] nuancier .aco / .ase : conversion pure (groupes_depuis_moteur, fusionner), refus du pont, puis VRAI moteur : export
     de NOS groupes, réimport (append, replace), fichier illisible -> erreur, et la bibliothèque du moteur remise aux
     défauts d'usine après chaque échange.
+PR 3 (Déformer) :
+[7] Ctrl+T › Déformer : edit.transform.warpGrid ouverte (taille Par défaut / 3 / 4 / 5, style « none » + rect, ou le
+    maillage en cours `warp`) ; edit.transform.warp admise en aperçu ; VRAI moteur : maillage neutre (16 points, 100 en
+    3 × 3), découpe qui GARDE la surface (un point déplacé reste à sa place), aucun état pour la grille, « Warp » à la
+    validation, rien pour un maillage neutre.
 Section VRAI moteur rouge si le binaire manque — jamais de saut silencieux.
 Run : & $PY -X utf8 tests/test_photolab_m7.py   (depuis backend/)"""
 import json, os, pathlib, re, shutil, sys, tempfile
@@ -445,6 +450,70 @@ def nuancier(reg):
           and s.appeler("engine.execute", {"command": "swatches.list", "params": {}}) == usine, m)
 
 
+
+def deformer(reg):
+    print("\n[7] Ctrl+T › Déformer")
+    check("7.0 edit.transform.warpGrid ouverte ; edit.transform.warp admise en aperçu",
+          "edit.transform.warpGrid" not in PN.COMMANDES_NEUVES_FERMEES and PM._admise_en_apercu("edit.transform.warp"))
+    W = {"style": "custom", "bend": 0, "hDistort": 0, "vDistort": 0, "vertical": False, "bounds": [0, 0, 200, 120],
+         "mesh": {"us": [0, 1], "vs": [0, 1], "points": [[x, y] for y in (0, 40, 80, 120) for x in (0, 66.7, 133.3, 200)]}}
+    for p in ({"style": "none", "rect": [0, 0, 200, 120], "size": "default"}, {"style": "none", "rect": [10, 5, 90, 60], "size": "5"},
+              {"warp": W, "size": "3"}):
+        a, m = admise(reg, "edit.transform.warpGrid", p)
+        check(f"7a warpGrid {sorted(p)} admis", a, m)
+    a, m = admise(reg, "edit.transform.warp", {"layer": 3, "warp": W, "interpolation": "bicubic"})
+    check("7a edit.transform.warp {layer, warp, interpolation} admis", a, m)
+    for p in ({"size": "3"}, {"style": "none", "size": "3"}, {"style": "arc", "rect": [0, 0, 1, 1], "size": "3"},
+              {"style": "none", "rect": [0, 0, 1, 1], "size": "64"}, {"style": "none", "rect": [0, 0, 1, 1], "size": 3},
+              {"warp": {**W, "fichier": "C:/x.png"}, "size": "3"}):
+        a, _ = admise(reg, "edit.transform.warpGrid", p)
+        check(f"7b warpGrid {json.dumps(p)[:70]} refusé", not a)
+    try:
+        PM.chemin_cli()
+    except PM.MoteurAbsent as e:
+        check("7c le binaire du moteur est présent", False, e)
+        return
+    s = PM.session()
+    ex = lambda c, p=None: s.appeler("engine.execute", {"command": c, "params": p or {}})
+    s.appeler("doc.new", {"width": 200, "height": 120, "background": "white"})
+    ex("layer.new.layer", {}); ex("select.all"); ex("edit.fill", {"color": "#ff0000"}); ex("select.deselect")
+    calque = s.appeler("doc.inspect")["activeLayer"]
+    h0 = historique(s)
+    w1 = ex("edit.transform.warpGrid", {"style": "none", "rect": [0, 0, 200, 120], "size": "default"})["warp"]
+    w3 = ex("edit.transform.warpGrid", {"style": "none", "rect": [0, 0, 200, 120], "size": "3"})["warp"]
+    pts = w1["mesh"]["points"]
+    check("7c maillage neutre : 4 × 4 points (Par défaut), 10 × 10 en 3 × 3, bords sur le cadre, aucun état",
+          len(pts) == 16 and len(w3["mesh"]["points"]) == 100 and pts[0] == [0, 0] and pts[15] == [200, 120]
+          and w3["mesh"]["us"][1] == 1 / 3 and historique(s) == h0, (len(pts), len(w3["mesh"]["points"])))
+    w = json.loads(json.dumps(w1)); w["mesh"]["points"][5] = [w["mesh"]["points"][5][0] + 20, w["mesh"]["points"][5][1] + 15]
+    ws = ex("edit.transform.warpGrid", {"warp": w, "size": "3"})["warp"]
+    check("7d découpe 3 × 3 d'un maillage modifié : 100 points, les coins restent, la surface aussi (point (1/3,1/3) déplacé)",
+          len(ws["mesh"]["points"]) == 100 and ws["mesh"]["points"][0] == [0, 0]
+          and ws["mesh"]["points"][33] != w3["mesh"]["points"][33], ws["mesh"]["points"][33])
+    r = ex("edit.transform.warp", {"layer": calque, "warp": w1})
+    check("7e maillage neutre : rien ne change, aucun état", r.get("changed") is False and historique(s) == h0, r)
+    r = ex("edit.transform.warp", {"layer": calque, "warp": ws, "interpolation": "bicubic"})
+    check("7f valider : le calque change, UN état « Warp »", r.get("changed") is True and historique(s) == h0 + ["Warp"], (r, historique(s)[-2:]))
+    import asyncio
+
+    async def routes():
+        import httpx
+        from app.main import app
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, client=("127.0.0.1", 5000)), base_url="http://t") as c:
+            h1 = historique(s)
+            r = await c.post("/api/photolab/deformer/grille", json={"style": "none", "rect": [0, 0, 200, 120], "size": "4"})
+            j = r.json() if r.status_code == 200 else {}
+            check("7g POST /deformer/grille : le maillage 4 × 4 (169 points), aucun état", r.status_code == 200
+                  and len(((j.get("warp") or {}).get("mesh") or {}).get("points") or []) == 169 and historique(s) == h1, (r.status_code, r.text[:200]))
+            r = await c.post("/api/photolab/deformer/grille", json={"style": "none", "rect": [0, 0, 200, 120], "size": "64"})
+            check("7g grille hors liste : 400", r.status_code == 400, (r.status_code, r.text[:200]))
+            r = await c.post("/api/photolab/deformer/grille", json={"size": "3"})
+            check("7g sans maillage ni cadre : 400 (le moteur viserait l'objet dynamique)", r.status_code == 400, (r.status_code, r.text[:200]))
+            r = await c.post("/api/photolab/apercu", json={"etapes": [{"command": "edit.transform.warp", "params": {"layer": calque, "warp": ws}}], "maxSide": 64})
+            check("7h /apercu joue edit.transform.warp sur une copie : une image, le document ne change pas",
+                  r.status_code == 200 and bool(r.json().get("url")) and historique(s) == h1, (r.status_code, r.text[:200]))
+    asyncio.run(routes())
+
 reg = PR.structurer(_PV.commandes())
 try:
     liste_blanche(reg)
@@ -452,6 +521,7 @@ try:
     traductions(moteur())
     instantanes(reg)
     nuancier(reg)
+    deformer(reg)
 finally:
     PM.fermer()
     shutil.rmtree(_tmp, ignore_errors=True)
