@@ -94,7 +94,7 @@ check("4.6 galerie de filtres : éditeur sur mesure (t157) -> actif", trouver(fr
 check("4.9 Convertir pour les filtres dynamiques : actif (t157, le panneau Calques les montre)", trouver(fr[6].entrees, "filter.convertForSmartFilters").etat === "actif");
 check("4.7 courbes : famille sur mesure, jamais « bientôt » par ses opaques", trouver(fr[2].entrees, "image.adjustments.curves").etat === "actif");
 check("4.8 entrée absente du registre : champs null", trouver(fr[6].entrees, "filter.blur.average").champs === null);
-check("4.4 raccourci converti", neg.raccourci === "Ctrl+I" && trouver(fichier, "file.save").raccourci === "Ctrl+S" && trouver(fr[1].entrees, "edit.undo").raccourci === "");
+check("4.4 raccourci converti (#415 : Ctrl+Z de l'écran affiché sur Annuler)", neg.raccourci === "Ctrl+I" && trouver(fichier, "file.save").raccourci === "Ctrl+S" && trouver(fr[1].entrees, "edit.undo").raccourci === "Ctrl+Z");
 
 // 5. séparateurs
 function verifSeparateurs(entrees, chemin) {

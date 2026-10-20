@@ -70,11 +70,13 @@ const menus = [{ entrees: [{ type: "sous-menu", entrees: [{ type: "commande", id
   { type: "commande", id: "type.panels.glyphs", etat: "bientot" }] }] }];
 const dec = decorerTexte(menus, { apercu: "type.fontPreviewSize.large", langue: "type.languageOptions.eastAsianFeatures", composeur: true });
 const plats = dec[0].entrees[0].entrees;
-check("3.6 menu Texte : actifs et cochés selon les préférences", plats.every((e) => e.etat === "actif") && plats[0].coche && plats[1].coche && plats[2].coche && plats[3].coche === undefined);
+// #415 : le composeur reste grisé (mod-menus : BIENTOT_ECRAN), sans coche, même si les préférences l'avaient coché
+check("3.6 menu Texte : actifs et cochés selon les préférences (le composeur reste grisé)", [plats[0], plats[1], plats[3]].every((e) => e.etat === "actif")
+  && plats[0].coche && plats[1].coche && plats[2].etat === "bientot" && plats[2].coche === undefined && plats[3].coche === undefined);
 check("3.7 menu Texte : l'arbre reçu n'est pas modifié", menus[0].entrees[0].entrees[0].etat === "bientot");
-check("3.8 préférences : radio pour l'aperçu et la langue, bascule pour le composeur",
+check("3.8 préférences : radio pour l'aperçu et la langue ; le composeur n'est plus basculé (#415)",
   basculerPref(PREFS_DEFAUT, "type.fontPreviewSize.huge").apercu === "type.fontPreviewSize.huge" && basculerPref(PREFS_DEFAUT, LANGUES[2]).langue === LANGUES[2]
-  && basculerPref(PREFS_DEFAUT, COMPOSEUR).composeur === true && basculerPref({ ...PREFS_DEFAUT, composeur: true }, COMPOSEUR).composeur === false);
+  && basculerPref(PREFS_DEFAUT, COMPOSEUR).composeur === false && basculerPref({ ...PREFS_DEFAUT, composeur: true }, COMPOSEUR).composeur === true);
 check("3.9 tailles d'aperçu croissantes de 11 à 32 px", eq(Object.values(APERCUS), [11, 14, 18, 24, 32]));
 check("3.10 Texte › Panneaux -> onglets du groupe Texte", Object.values(PANNEAUX_TEXTE).every((o) => GROUPES.texte.includes(o)) && Object.keys(PANNEAUX_TEXTE).every((id) => PANNEAUX[id] && PANNEAUX[id].groupe === "texte"));
 
@@ -157,8 +159,8 @@ check("7.4 noms intégrés des formes et styles traduits", nomAffiche("Heart", t
 const neuf = ["pen", "type", "pathSelection", ...OUTILS_FORME];
 check("8.1 les 9 outils sont actifs (p2)", neuf.every((id) => EMPLACEMENTS.flat().find((o) => o.id === id).p2 === true));
 const ids = ["window.panel.character", "window.panel.paragraph", "window.panel.glyphs", "window.panel.characterStyles", "window.panel.paragraphStyles", "window.panel.paths",
-  "window.panel.shapes", "window.panel.styles", ...Object.keys(PANNEAUX_TEXTE), ...Object.keys(APERCUS), ...LANGUES, COMPOSEUR, "edit.search"];
-check("8.2 les 23 entrées de menu servies par l'écran", ids.length === 23 && ids.every((id) => TRAITES_PAR_ECRAN.has(id)), ids.filter((id) => !TRAITES_PAR_ECRAN.has(id)));
+  "window.panel.shapes", "window.panel.styles", ...Object.keys(PANNEAUX_TEXTE), ...Object.keys(APERCUS), ...LANGUES, "edit.search"];
+check("8.2 les 22 entrées de menu servies par l'écran (#415 : sans le composeur)", ids.length === 22 && !TRAITES_PAR_ECRAN.has(COMPOSEUR) && ids.every((id) => TRAITES_PAR_ECRAN.has(id)), ids.filter((id) => !TRAITES_PAR_ECRAN.has(id)));
 check("8.3 Fenêtre : les 8 panneaux rattachés à leur onglet", ids.slice(0, 8).every((id) => PANNEAUX[id] && GROUPES[PANNEAUX[id].groupe].includes(PANNEAUX[id].onglet)));
 const html = readFileSync(join(racine, "index.html"), "utf8"), core = readFileSync(join(racine, "js", "core.js"), "utf8");
 check("8.4 index.html : groupe Texte (5 onglets, replié), Formes, Styles, Tracés, bouton de rail", /<section id="grpTexte" class="groupe" hidden>/.test(html)

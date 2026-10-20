@@ -7,6 +7,7 @@
 // celles d'un autre document ouvert (POST /notes/importer). Fonctions PURES exportées (qa/mesure.test.mjs).
 import { ouvrirDialogue } from "./mod-fichier.js";
 import { poigneeSous, redimensionner } from "./mod-recadrer.js";
+import { OUTILS_ANALYSE } from "./mod-menus.js";
 
 export const OUTILS_MESURE = ["ruler", "count", "note", "slice", "sliceSelect"];
 const NS = "http://www.w3.org/2000/svg";
@@ -633,6 +634,8 @@ export function initMesure(PL) {
   }
   PL.actions = PL.actions || {};
   PL.actions["file.import.notes"] = importerNotes;
+  // #415 : Image › Analyse › Outil Règle / Outil Compteur choisissent l'outil (comme chez la référence)
+  for (const [id, outil] of Object.entries(OUTILS_ANALYSE)) PL.actions[id] = () => PL.choisirOutil(outil);
   // Fenêtre › Journal des mesures et Fenêtre › Notes : mod-espaces (PANNEAUX), comme les autres panneaux ; l'onglet
   // montré relit ce qu'il affiche (PL.surOngletMontre -> PL.mesure.surOnglet).
 }

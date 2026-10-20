@@ -161,7 +161,7 @@ button:disabled { opacity: .4; cursor: default; }
 .flyout-ligne .nom { flex: 1; }
 .flyout-ligne .lettre { color: var(--ink-muted); font: 11px var(--f-mono); }
 
-/* pastilles de couleur avant / arrière-plan, à la Photoshop : le premier plan (haut gauche) CHEVAUCHE l'arrière-plan
+/* pastilles de couleur avant / arrière-plan, à la façon des logiciels de retouche : le premier plan (haut gauche) CHEVAUCHE l'arrière-plan
    (bas droite), échange en haut à droite, couleurs par défaut en bas à gauche ; un carré de 54 px centré dans la
    colonne, sur deux rangées de la grille. Sélecteurs sous #outils : « #outils button » (32 × 32) et « #outils svg »
    l'emporteraient sinon. */
@@ -256,6 +256,9 @@ button:disabled { opacity: .4; cursor: default; }
 .pl-bouton.principal { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .pl-champ { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 8px; color: var(--ink-soft); }
 .pl-champ[hidden] { display: none; }
+/* #415 : Vérifier l'orthographe… — suggestions et boutons d'action */
+.pl-orthographe-suggestions { width: 100%; }
+.pl-orthographe-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .pl-champ input[type=text], .pl-champ input[type=number], .pl-champ input[type=search], .pl-champ select, .lib-recherche {
   height: 26px; min-width: 0; padding: 0 6px; background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 3px;
   color: var(--ink); font: 12px var(--f-ui);

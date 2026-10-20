@@ -213,6 +213,32 @@ export const masqueDefaut = (em) => ({ density: em && Number.isFinite(em.densite
 
 /* ───────────── côté DOM ───────────── */
 
+// #415 : Calque › Masque de calque › Activer / Lier, servies par l'écran (mod-menus : TRAITES_PAR_ECRAN) : le libellé
+// dit ce que fera le clic (« Désactiver » quand le masque est actif), d'après l'état que le panneau suit
+// (PL.etat.etatsMasques : le moteur ne le relit pas) ; grisées si le calque actif n'a pas de masque.
+export const IDS_MASQUE = ["layer.layerMask.enabled", "layer.layerMask.linked"];
+export function decorerMasque(menus, calque, em, t = (c) => c) {
+  const e0 = { active: true, lie: true, ...(em || {}) };
+  const cles = { "layer.layerMask.enabled": e0.active ? "photolab.menu.masque_desactiver" : "photolab.menu.masque_activer",
+    "layer.layerMask.linked": e0.lie ? "photolab.menu.masque_delier" : "photolab.menu.masque_lier" };
+  const voir = (es) => (es || []).map((e) => {
+    if (e.type === "sous-menu") return { ...e, entrees: voir(e.entrees) };
+    if (e.type !== "commande" || !IDS_MASQUE.includes(e.id) || e.etat === "bientot") return e;
+    return { ...e, libelle: t(cles[e.id]), etat: calque && calque.hasMask ? e.etat : "inactif" };
+  });
+  return (menus || []).map((m) => ({ ...m, entrees: voir(m.entrees) }));
+}
+
+// #415 : réponse de layer.layerContentOptions ({editor: "fill" | "adjustment:<kind>", layer}) -> l'éditeur de l'écran :
+// « proprietes » (panneau Propriétés, comme le double-clic sur la vignette), « remplissage » (aucun éditeur à l'écran :
+// layer.fill.*.set reste fermé) ou null.
+export function editeurContenu(r) {
+  const e = r && typeof r.editor === "string" ? r.editor : "";
+  if (e.startsWith("adjustment:")) return "proprietes";
+  if (e === "fill") return "remplissage";
+  return null;
+}
+
 export function initCalques(PL) {
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
   const corps = PL.$("#corpsCalques");
@@ -512,6 +538,13 @@ export function initCalques(PL) {
 
   /* ── t157 : masque de fusion d'une ligne ── */
   const etatMasque = (id) => PL.etat.etatsMasques[id] || (PL.etat.etatsMasques[id] = { active: true, lie: true });
+  // Bascules du masque (clic sur la chaîne, Maj+clic sur la vignette, Calque › Masque de calque) : l'état rendu par le
+  // moteur est gardé, le panneau et les menus le redisent.
+  async function basculerMasque(id, cle) {
+    const cmd = cle === "lie" ? "layer.layerMask.linked" : "layer.layerMask.enabled", champ = cle === "lie" ? "linked" : "enabled";
+    const r = await PL.executer(cmd, { layer: id });
+    if (r && r.ok && r.r && typeof r.r[champ] === "boolean") { etatMasque(id)[cle] = r.r[champ]; dessiner(PL.etat.doc); if (PL.menus) PL.menus.redessiner(); }
+  }
   let vueMasque = null;                  // id du calque dont le masque est montré seul sur la toile (Alt-clic)
   function masque(c) {
     if (!c.hasMask) return [];
@@ -520,8 +553,7 @@ export function initCalques(PL) {
     const chaine = bouton("cq-chaine" + (em.lie ? " lie" : ""), "dz-edit-lier", T(em.lie ? "photolab.calques.masque_lie" : "photolab.calques.masque_delie"));
     chaine.addEventListener("click", async (ev) => {
       ev.stopPropagation();
-      const r = await PL.executer("layer.layerMask.linked", { layer: c.id });
-      if (r && r.ok && r.r && typeof r.r.linked === "boolean") etatMasque(c.id).lie = r.r.linked;
+      await basculerMasque(c.id, "lie");
     });
     const box = el("span", "cq-vignette cq-masque" + (em.active ? "" : " inactif") + (vueMasque === c.id ? " vu" : ""));
     box.title = T("photolab.calques.vignette_masque");
@@ -536,11 +568,8 @@ export function initCalques(PL) {
       clearTimeout(minutClic); minutClic = null;
       const g = gesteMasque(ev);
       if (g.action === "selection") PL.executer("select.loadSelection", { channel: "mask", layer: c.id, operation: g.operation });
-      else if (g.action === "activer") {
-        PL.executer("layer.layerMask.enabled", { layer: c.id }).then((r) => {
-          if (r && r.ok && r.r && typeof r.r.enabled === "boolean") { etatMasque(c.id).active = r.r.enabled; dessiner(PL.etat.doc); }
-        });
-      } else if (g.action === "voir") voirMasque(c.id);
+      else if (g.action === "activer") basculerMasque(c.id, "active");
+      else if (g.action === "voir") voirMasque(c.id);
       else {
         if (vueMasque != null) quitterVueMasque();
         if (c.id !== actif()) PL.executer("layer.select", actionSelection(c.id, false, false));
@@ -682,6 +711,35 @@ export function initCalques(PL) {
     if (r && r.ok && r.r && typeof r.r.locked === "boolean") { PL.etat.verrous[a] = verrousApresBascule(PL.etat.verrous[a], r.r.locked); dessiner(PL.etat.doc); }
   });
   PL.actions = PL.actions || {};
+  // #415 : Calque › Masque de calque › Activer / Lier (le calque actif), libellés selon l'état
+  const calqueActif = () => (PL.etat.doc ? trouverCalque(PL.etat.doc.layers, actif()) : null);
+  PL.actions["layer.layerMask.enabled"] = () => { const c = calqueActif(); if (c && c.hasMask) basculerMasque(c.id, "active"); };
+  PL.actions["layer.layerMask.linked"] = () => { const c = calqueActif(); if (c && c.hasMask) basculerMasque(c.id, "lie"); };
+  PL.decorateursMenus = PL.decorateursMenus || [];
+  PL.decorateursMenus.push((menus) => { const c = calqueActif(); return decorerMasque(menus, c, c && PL.etat.etatsMasques[c.id], T); });
+  // #415 : Dupliquer le calque… — dialogue générique et sa liste « Document » (mod-documents) ; une copie envoyée dans
+  // un autre document ou un nouveau le rend actif : l'écran le suit, comme pour Dupliquer vers un document…
+  PL.actions["layer.duplicate"] = () => {
+    const e = entreeDe("layer.duplicate");
+    if (!e || !PL.ouvrirReglage || !PL.etat.doc) return;
+    PL.ouvrirReglage(e, {
+      valider: async (k) => {
+        if (k.params.document === undefined) return PL.executer(k.command, k.params);
+        const r = await PL.executer(k.command, k.params, { cycle: false });
+        if (r && r.ok) { if (PL.suivreDocumentActif) await PL.suivreDocumentActif(); else await PL.documentOuvert(); }
+        return r;
+      },
+    });
+  };
+  // #415 : Options de contenu du calque… — le moteur dit quel éditeur ouvrir (un calque de pixels : il refuse et le dit)
+  PL.actions["layer.layerContentOptions"] = async () => {
+    const a = actif();
+    if (a == null) return;
+    const r = await PL.executer("layer.layerContentOptions", { layer: a }, { cycle: false });
+    const ed = r && r.ok ? editeurContenu(r.r) : null;
+    if (ed === "proprietes" && PL.reglages) PL.reglages.montrer("proprietes");
+    else if (ed === "remplissage") PL.signaler(T("photolab.menu.contenu_remplissage"));
+  };
   PL.actions["pl.calque.cadre"] = () => {
     const e = entreeDe("layer.new.frame");
     if (!e || !PL.ouvrirReglage || !PL.etat.doc) return;

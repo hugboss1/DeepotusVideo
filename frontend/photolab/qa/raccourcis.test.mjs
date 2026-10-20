@@ -48,7 +48,9 @@ for (const lang of ["fr", "en"]) {
 check("5.1 Ctrl+Z annule, Ctrl+Maj+Z rétablit", RACCOURCIS_ECRAN["ctrl+z"] === "edit.undo" && RACCOURCIS_ECRAN["ctrl+shift+z"] === "edit.redo");
 check("5.2 Ctrl+Maj+I inverse la sélection", RACCOURCIS_ECRAN["ctrl+shift+i"] === "select.inverse");
 const idxFr = indexRaccourcis(construireMenus(catalogue, registre, REFUSES, "fr"));
-check("5.3 aucun conflit avec le catalogue", Object.keys(RACCOURCIS_ECRAN).every((k) => !idxFr.has(k)), Object.keys(RACCOURCIS_ECRAN).filter((k) => idxFr.has(k)));
+// #415 : les menus AFFICHENT désormais les raccourcis de l'écran sur leur entrée — l'index ne peut mener qu'à elle
+const autre = (k) => idxFr.has(k) && idxFr.get(k).id !== RACCOURCIS_ECRAN[k];
+check("5.3 aucun conflit avec le catalogue", Object.keys(RACCOURCIS_ECRAN).every((k) => !autre(k)), Object.keys(RACCOURCIS_ECRAN).filter(autre));
 
 console.log(`raccourcis : ${ok} ok, ${ko} echec(s)`);
 if (ko) process.exit(1);

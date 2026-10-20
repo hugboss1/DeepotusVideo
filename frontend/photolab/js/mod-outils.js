@@ -68,15 +68,24 @@ export function groupeDeLettre(lettre, surcharges) {
 // Cyclage de photocraft (shortcuts.rs:327-340) : la lettre du groupe de l'outil courant passe à l'outil SUIVANT du
 // groupe (si !prefMaj ou Maj tenu) ; sinon, une lettre d'un autre groupe choisit le PREMIER outil du groupe. Les
 // outils p2:false sont sautés (cycle circulaire parmi les p2:true) ; aucun outil disponible -> null.
-export function outilParLettre(lettre, courant, maj, prefMaj = false, surcharges) {
+// #415 : `masques` = outils retirés par Édition › Barre d'outils… (sautés aussi au clavier).
+export function outilParLettre(lettre, courant, maj, prefMaj = false, surcharges, masques) {
   const groupe = groupeDeLettre(lettre, surcharges);
   if (!groupe.length) return null;
-  const dispo = groupe.filter((o) => o.p2);
+  const caches = new Set(Array.isArray(masques) ? masques : []);
+  const dispo = groupe.filter((o) => o.p2 && !caches.has(o.id));
   if (!dispo.length) return null;
   const i = dispo.findIndex((o) => o.id === courant);
   if (i < 0) return dispo[0].id;                        // autre groupe (ou outil courant non disponible) : premier outil
   if (prefMaj && !maj) return dispo[i].id;              // préférence « Maj pour cycler » : on garde l'outil
   return dispo[(i + 1) % dispo.length].id;
+}
+
+// #415 : Édition › Barre d'outils… — les outils de chaque emplacement que la barre montre (un emplacement dont tous les
+// outils sont masqués disparaît de la barre ; ses outils restent dans le dialogue, prêts à revenir).
+export function emplacementsVisibles(masques) {
+  const caches = new Set(Array.isArray(masques) ? masques : []);
+  return EMPLACEMENTS.map((e) => e.filter((o) => !caches.has(o.id)));
 }
 
 // Infobulle : « Nom (V) », « Nom — bientôt » pour un outil à venir. `t` = traducteur (dzT) injecté.
@@ -153,6 +162,8 @@ export function initOutils(PL) {
   let minutLong = null;                          // minuterie de l'appui long (flyout), UNE à la fois pour toute la barre
   const annulerLong = () => { clearTimeout(minutLong); minutLong = null; };
   const montre = {};                             // index d'emplacement -> id de l'outil affiché
+  // #415 : outils masqués (Édition › Barre d'outils…, préférences de l'écran)
+  const masques = () => (PL.prefs && PL.prefs.etat && PL.prefs.etat.outils ? PL.prefs.etat.outils.masques : []);
   EMPLACEMENTS.forEach((e, i) => { montre[i] = (e.find((o) => o.p2) || e[0]).id; });
 
   /* barre d'outils */
@@ -176,7 +187,11 @@ export function initOutils(PL) {
   rafraichirBoutons();
 
   function rafraichirBoutons() {
+    const vis = emplacementsVisibles(masques());
     boutons.forEach((b, i) => {
+      b.hidden = !vis[i].length;
+      if (vis[i].length && !vis[i].some((x) => x.id === montre[i])) montre[i] = (vis[i].find((x) => x.p2) || vis[i][0]).id;
+      b.classList.toggle("groupe-outils", vis[i].length > 1);
       const o = outilDe(montre[i]);
       b.dataset.outil = o.id;
       b.title = infobulle(o, T, PL.lettresOutils ? PL.lettresOutils() : null);
@@ -197,14 +212,14 @@ export function initOutils(PL) {
     b.addEventListener("pointerdown", (ev) => {
       if (ev.button !== 0) return;
       long = false; annulerLong();
-      if (EMPLACEMENTS[i].length > 1) minutLong = setTimeout(() => { minutLong = null; long = true; ouvrirFlyout(i, b); }, 350);
+      if (emplacementsVisibles(masques())[i].length > 1) minutLong = setTimeout(() => { minutLong = null; long = true; ouvrirFlyout(i, b); }, 350);
     });
     // M4 : pointercancel (geste repris par le navigateur) annule aussi l'appui long
     for (const nom of ["pointerup", "pointerleave", "pointercancel"]) b.addEventListener(nom, annulerLong);
     b.addEventListener("click", () => { if (long) { long = false; return; } choisir(montre[i], true); });
     b.addEventListener("contextmenu", (ev) => {
       ev.preventDefault();
-      if (EMPLACEMENTS[i].length > 1) ouvrirFlyout(i, b);
+      if (emplacementsVisibles(masques())[i].length > 1) ouvrirFlyout(i, b);
     });
   }
 
@@ -222,6 +237,8 @@ export function initOutils(PL) {
     return true;
   }
   PL.choisirOutil = choisir;
+  PL.rafraichirOutils = rafraichirBoutons;          // #415 : après Édition › Barre d'outils…
+  if (PL.prefs) PL.prefs.surChange.push(() => rafraichirBoutons());
 
   // Curseur du canevas pour l'outil courant (la main temporaire — Espace tenu — prime). Exposé : la vue le rappelle
   // après un panoramique ou le relâchement d'Espace.
@@ -243,7 +260,7 @@ export function initOutils(PL) {
     fermerFlyout();
     const f = document.createElement("div");
     f.className = "flyout"; f.setAttribute("role", "menu");
-    EMPLACEMENTS[i].forEach((o) => {
+    emplacementsVisibles(masques())[i].forEach((o) => {
       const l = document.createElement("button");
       l.type = "button"; l.className = "flyout-ligne" + (o.p2 ? "" : " bientot");
       l.setAttribute("role", "menuitem");
@@ -277,7 +294,7 @@ export function initOutils(PL) {
     const k = ev.key.toUpperCase();
     if (k === "X") { ev.preventDefault(); echanger(); return; }
     if (k === "D") { ev.preventDefault(); parDefaut(); return; }
-    const id = outilParLettre(k, PL.etat.outil, ev.shiftKey, PL.etat.prefMaj, PL.lettresOutils ? PL.lettresOutils() : null);
+    const id = outilParLettre(k, PL.etat.outil, ev.shiftKey, PL.etat.prefMaj, PL.lettresOutils ? PL.lettresOutils() : null, masques());
     if (id) { ev.preventDefault(); choisir(id); }
   });
 

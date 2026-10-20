@@ -287,6 +287,32 @@ CORRECTIONS_CHAMPS = {
     # t256 (M7 PR 3) : `"size":n|"default"|"3"|"4"|"5"` est un « ? » au parseur ; l'écran n'offre que ces quatre grilles
     # (5 × 5 = 256 points de contrôle ; au-delà, le maillage dépasserait les bornes de taille du pont).
     ("edit.transform.warpGrid", "size"): {"type": "enum", "valeurs": ["default", "3", "4", "5"]},
+    # #415 (20/10) : Affichage › Nouveau repère… — `"position":px or "<number><unit>"` (requise) est un « ? » : le dialogue
+    # ne montrait que l'orientation et le moteur répondait « missing position ». L'écran offre une position en pixels, sans
+    # bornes (un champ, pas un curseur). La couleur (« ? », facultative) reste cachée : sans elle, le moteur prend celle
+    # des Préférences — une liste l'enverrait toujours.
+    ("view.newGuide", "position"): {"type": "number", "unite": "px"},
+}
+
+# #415 (20/10) : descriptions que le parseur ne peut pas lire du tout, réécrites champ par champ. Image › Recouvrement :
+# `{width:px>=1=1}` (clé sans guillemets) ne donnait aucun champ — la largeur était toujours 1 px. Borne haute : celle
+# du dialogue de l'écran (le moteur accepte plus, sans intérêt pour un recouvrement d'encres).
+CHAMPS_REECRITS = {
+    "image.trap": [{"cle": "width", "type": "number", "min": 1, "max": 100, "entier": True, "unite": "px", "optionnel": False,
+                    "defaut": 1}],
+    # Édition › Vérifier l'orthographe… : les clés de change / changeAll / addToDictionary sont écrites en prose après
+    # « ; » (« change: "layer","start","end" (chars),"word"? … ») — le parseur n'en lisait aucune et le pont refusait
+    # `start`. Toutes facultatives (la liste n'en prend aucune) ; le dialogue de l'écran (mod-verifier-texte) les envoie.
+    "edit.checkSpelling": [
+        {"cle": "action", "type": "enum", "valeurs": ["list", "change", "changeAll", "addToDictionary", "removeFromDictionary",
+                                                     "suggest"], "optionnel": False, "defaut": "list"},
+        {"cle": "allLayers", "type": "bool", "optionnel": True, "defaut": True},
+        {"cle": "layer", "type": "layerId", "optionnel": True},
+        {"cle": "ignore", "type": "struct", "forme": "[word]", "optionnel": True},
+        {"cle": "suggestions", "type": "number", "min": 0, "max": 20, "entier": True, "optionnel": True, "defaut": 5},
+        {"cle": "start", "type": "index", "optionnel": True}, {"cle": "end", "type": "index", "optionnel": True},
+        {"cle": "word", "type": "str", "optionnel": True}, {"cle": "replace", "type": "str", "optionnel": True},
+    ],
 }
 
 
@@ -296,6 +322,8 @@ def structurer(commandes: list[dict]) -> dict[str, dict]:
     sortie: dict[str, dict] = {}
     for c in commandes:
         d = parser(c.get("params"))
+        if c["id"] in CHAMPS_REECRITS:
+            d = {**d, "ok": True, "champs": [dict(x) for x in CHAMPS_REECRITS[c["id"]]], "inconnus": []}
         champs = [{**ch, **CORRECTIONS_CHAMPS[(c["id"], ch.get("cle"))]} if (c["id"], ch.get("cle")) in CORRECTIONS_CHAMPS
                   else ch for ch in d["champs"]]
         # t251 : un champ réparé par une correction explicite n'est plus un fragment inconnu

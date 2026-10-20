@@ -33,6 +33,8 @@ export const ICONES_ALIGN = { left: "dz-edit-texte-aligner-gauche", center: "dz-
 export const APERCUS = { "type.fontPreviewSize.small": 11, "type.fontPreviewSize.medium": 14, "type.fontPreviewSize.large": 18,
   "type.fontPreviewSize.extraLarge": 24, "type.fontPreviewSize.huge": 32 };
 export const LANGUES = ["type.languageOptions.defaultFeatures", "type.languageOptions.eastAsianFeatures", "type.languageOptions.middleEasternFeatures"];
+// #415 : le composeur n'a aucun réglage dans le moteur — l'entrée est grisée (mod-menus : BIENTOT_ECRAN) ; `composeur`
+// reste lu dans les préférences enregistrées, jamais modifié.
 export const COMPOSEUR = "type.languageOptions.middleEasternAndSouthAsianComposer";
 // t159 : valeur de Préférences › Texte › Aperçu des polices -> entrée du menu Texte › Taille de l'aperçu.
 export const APERCU_PREF = { small: "type.fontPreviewSize.small", medium: "type.fontPreviewSize.medium", large: "type.fontPreviewSize.large",
@@ -208,7 +210,6 @@ export function decorerTexte(menus, prefs) {
     if (e.type === "sous-menu") return { ...e, entrees: voir(e.entrees) };
     if (APERCUS[e.id] != null) return { ...e, etat: "actif", coche: p.apercu === e.id };
     if (LANGUES.includes(e.id)) return { ...e, etat: "actif", coche: p.langue === e.id };
-    if (e.id === COMPOSEUR) return { ...e, etat: "actif", coche: !!p.composeur };
     if (PANNEAUX_TEXTE[e.id]) return { ...e, etat: "actif" };
     return e;
   });
@@ -218,7 +219,6 @@ export function basculerPref(prefs, id) {
   const p = { ...PREFS_DEFAUT, ...(prefs || {}) };
   if (APERCUS[id] != null) p.apercu = id;
   else if (LANGUES.includes(id)) p.langue = id;
-  else if (id === COMPOSEUR) p.composeur = !p.composeur;
   return p;
 }
 
@@ -706,7 +706,7 @@ export function initTexte(PL) {
   PL.decorateursMenus = PL.decorateursMenus || [];
   PL.decorateursMenus.push((menus) => decorerTexte(menus, prefs));
   PL.actions = PL.actions || {};
-  for (const id of [...Object.keys(APERCUS), ...LANGUES, COMPOSEUR]) {
+  for (const id of [...Object.keys(APERCUS), ...LANGUES]) {
     PL.actions[id] = () => {
       prefs = basculerPref(prefs, id); ecrireLS(CLE_PREFS, prefs); construireParagraphe(); majPanneaux(); if (PL.menus && PL.menus.redessiner) PL.menus.redessiner();
       // t159 : la même valeur dans les préférences (Préférences › Texte › taille de l'aperçu ; langue, composeur)

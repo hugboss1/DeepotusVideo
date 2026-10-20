@@ -5,6 +5,10 @@
 // énumérations et bornes celles que prefs.set annonce — copie de backend/app/services/photolab_preferences.py (SCHEMA),
 // comparée par le banc test_photolab_preferences. Fonctions PURES exportées (qa/preferences.test.mjs).
 import { ouvrirDialogue } from "./mod-fichier.js";
+import { EMPLACEMENTS } from "./mod-outils.js";
+
+// #415 : outils que la Barre d'outils… peut masquer (tous ceux de la barre).
+const IDS_OUTILS = new Set(EMPLACEMENTS.flat().map((o) => o.id));
 
 const UNITES = ["pixels", "inches", "cm", "mm", "points", "picas", "percent"];
 const STYLES_TRAIT = ["lines", "dashedLines", "dots"];
@@ -113,7 +117,7 @@ export function etatDefaut() {
   const prefs = {};
   for (const [s, cles] of Object.entries(SCHEMA)) { prefs[s] = {}; for (const [k, spec] of Object.entries(cles)) prefs[s][k] = spec[1]; }
   return { version: 1, prefs, raccourcis: { commandes: {}, outils: {} }, menus: { masques: [], couleurs: {} }, affichage: null,
-    texte: { langue: LANGUES_TEXTE[0], composeur: false } };
+    texte: { langue: LANGUES_TEXTE[0], composeur: false }, outils: { masques: [] } };
 }
 
 // Une valeur admise par sa spécification (mêmes règles que le pont) ?
@@ -149,6 +153,9 @@ export function normaliser(brut) {
   const t = brut.texte || {};
   if (LANGUES_TEXTE.includes(t.langue)) e.texte.langue = t.langue;
   if (typeof t.composeur === "boolean") e.texte.composeur = t.composeur;
+  // #415 : Édition › Barre d'outils… — ids d'outils de la barre (mod-outils), sans doublon
+  const o = brut.outils || {};
+  if (Array.isArray(o.masques)) e.outils.masques = [...new Set(o.masques.filter((x) => typeof x === "string" && IDS_OUTILS.has(x)))];
   return e;
 }
 

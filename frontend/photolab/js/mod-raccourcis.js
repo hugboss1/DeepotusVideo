@@ -1,6 +1,6 @@
 // mod-raccourcis.js — raccourcis clavier des commandes : ceux du catalogue de photocraft (lus dans l'arbre des menus
-// générés, donc jamais recopiés à la main) et trois que l'écran ajoute (Ctrl+Z, Ctrl+Maj+Z, Ctrl+Maj+I, absents du
-// catalogue). Les lettres seules restent aux outils (mod-outils), les touches de zoom à la vue (mod-vue).
+// générés, donc jamais recopiés à la main) et ceux que l'écran ajoute (Ctrl+Z, Ctrl+Maj+Z, Ctrl+Maj+I ; #415 : Ctrl+C,
+// Ctrl+X, Ctrl+V, Suppr — absents du catalogue). Les lettres seules restent aux outils (mod-outils), les touches de zoom à la vue (mod-vue).
 // Fonctions PURES exportées (qa/raccourcis.test.mjs).
 
 const ORDRE = ["ctrl", "alt", "shift"];
@@ -63,7 +63,15 @@ export const RACCOURCIS_ECRAN = {
   "ctrl+z": "edit.undo",
   "ctrl+shift+z": "edit.redo",
   "ctrl+shift+i": "select.inverse",
+  // #415 : Édition › Copier / Couper / Coller / Effacer ; Suppr seul passe APRÈS l'outil actif (tracé, tranche : il
+  // supprime d'abord ce que l'outil a choisi)
+  "ctrl+c": "edit.copy",
+  "ctrl+x": "edit.cut",
+  "ctrl+v": "edit.paste",
+  "delete": "edit.clear",
 };
+// Commande de l'écran pour cette combinaison, ou null (Suppr est la seule touche sans Ctrl / Alt que l'écran prenne).
+export const raccourciEcran = (combo) => (combo && Object.prototype.hasOwnProperty.call(RACCOURCIS_ECRAN, combo) ? RACCOURCIS_ECRAN[combo] : null);
 
 /* ───────────── côté DOM ───────────── */
 
@@ -80,9 +88,9 @@ export function initRaccourcis(PL) {
     if (ev.defaultPrevented || (ev.repeat && !/^z$/i.test(ev.key || "")) || enSaisie(ev)) return;
     if (document.querySelector(".pl-voile, .dz-dialogue, .menu-panneau")) return;
     const combo = comboDe(ev);
-    if (!aIntercepter(combo)) return;
+    if (combo === "delete" || !aIntercepter(combo)) return;          // Suppr : écouteur de window, plus bas
     const doc = PL.etat.doc;
-    const ecran = RACCOURCIS_ECRAN[combo];
+    const ecran = raccourciEcran(combo);
     if (ecran) {
       ev.preventDefault();
       if (!doc) return;
@@ -104,5 +112,13 @@ export function initRaccourcis(PL) {
     // « inactif » vient du registre, relu après le dernier cycle : il peut retarder d'un geste (sélection qui vient
     // d'apparaître). Le moteur reste juge : on tente, il refuse au besoin.
     PL.menus.activer(e.etat === "inactif" ? { ...e, etat: "actif" } : e);
+  });
+  // #415 : Suppr = Édition › Effacer, sur window (après les écouteurs du document) : l'outil actif l'a pris d'abord s'il
+  // avait quelque chose à supprimer (ancres d'un tracé, tranche — mod-gestes : preventDefault).
+  window.addEventListener("keydown", (ev) => {
+    if (ev.defaultPrevented || ev.repeat || enSaisie(ev) || comboDe(ev) !== "delete" || !PL.etat.doc) return;
+    if (document.querySelector(".pl-voile, .dz-dialogue, .menu-panneau, .flyout")) return;
+    ev.preventDefault();
+    PL.executer(raccourciEcran("delete"), {});
   });
 }
