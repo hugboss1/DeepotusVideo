@@ -1963,6 +1963,12 @@
     "groupe": "apparence"
    },
    {
+    "pos": 6497,
+    "avant": "/* ── DOM : le nuancier (E4) — un popover unique, ouvert par",
+    "apres": "/* ── pur : les pastilles fond / contour (t264, 20/10/2026, modèle du Photolab #410) ── */\r\nconst _hexValide = (c) => typeof c === \"string\" && /^#[0-9a-fA-F]{3,8}$/.test(c);\r\n// le patch d'op_style qui échange fond et contour ; null s'il n'y a rien à échanger ou si le fond est un dégradé\r\n// (un contour ne porte qu'une couleur). contour: null = sans contour (comme le bouton « Sans contour »).\r\nexport function pastilles_echanger(style) {\r\n  const s = style || {};\r\n  if (typeof s.fond === \"string\" && s.fond.startsWith(\"grad:\")) return null;\r\n  const fond = _hexValide(s.fond) ? s.fond : null, contour = _hexValide(s.contour) ? s.contour : null;\r\n  if (!fond && !contour) return null;\r\n  return { fond: contour || \"none\", contour: fond };\r\n}\r\n// couleurs par défaut : fond blanc, contour noir (le D d'Illustrator)\r\nexport const PASTILLES_DEFAUT = Object.freeze({ fond: \"#FFFFFF\", contour: \"#000000\" });\r\n\r\n/* ── DOM : le nuancier (E4) — un popover unique, ouvert par",
+    "groupe": "t264"
+   },
+   {
     "pos": 6995,
     "avant": "\r\n      <canvas id=\"nuSV\" width=\"188\" height=\"132\" title=\"Saturation / valeur\"></canvas>\r\n      <vl-curseur-couleur id=\"nuH\" mode=\"teinte\" value=\"0\" title=\"Teinte\"></vl-curseur-couleur>\r\n      <div class=\"nu-ligne\">\r\n        <span class=\"nu-bloc\" id=\"nuAvant\" title=\"Couleur d'origine\"></span>\r\n        <span class=\"nu-bloc\" id=\"nuApres\" title=\"Nouvelle couleur\"></span>\r\n        <input id=\"nuHex\" type=\"text\" maxlength=\"7\" spellcheck=\"false\"\r\n               title=\"Hexadécimal #RRGGBB\"/>\r\n      </div>\r\n      <div class=\"nu-ligne nu-champs\">\r\n        <label>R<input data-rgb=\"r\" type=\"number\" min=\"0\" max=\"255\"/></label>\r\n        <label>V<input data-rgb=\"g\" type=\"number\" min=\"0\" max=\"255\"/></label>\r\n        <label>B<input data-rgb=\"b\" type=\"number\" min=\"0\" max=\"255\"/></label>\r\n      </div>\r\n      <div class=\"nu-ligne nu-champs\"\r\n           title=\"CMJN indicatif — conversion naïve, sans profil ICC\">\r\n        <label>C<input data-cmjn=\"c\" type=\"number\" min=\"0\" max=\"100\"/></label>\r\n        <label>M<input data-cmjn=\"m\" type=\"number\" min=\"0\" max=\"100\"/></label>\r\n        <label>J<input data-cmjn=\"j\" type=\"number\" min=\"0\" max=\"100\"/></label>\r\n        <label>N<input data-cmjn=\"n\" type=\"number\" min=\"0\" max=\"100\"/></label>\r\n      </div>\r\n      <div class=\"nu-tete\">Palette du document\r\n        <button id=\"nuPalPlus\"\r\n          title=\"Ajouter la couleur courante à la palette du document (annulable, sauvée avec lui)\" aria-label=\"Ajouter la couleur courante à la palette du document\">",
     "apres": "\r\n      <canvas id=\"nuSV\" width=\"188\" height=\"132\" title=\"${T(\"vectorlab.couleur.sv\")}\"></canvas>\r\n      <vl-curseur-couleur id=\"nuH\" mode=\"teinte\" value=\"0\" title=\"${T(\"vectorlab.couleur.teinte\")}\"></vl-curseur-couleur>\r\n      <div class=\"nu-ligne\">\r\n        <span class=\"nu-bloc\" id=\"nuAvant\" title=\"${T(\"vectorlab.couleur.origine\")}\"></span>\r\n        <span class=\"nu-bloc\" id=\"nuApres\" title=\"${T(\"vectorlab.couleur.nouvelle\")}\"></span>\r\n        <input id=\"nuHex\" type=\"text\" maxlength=\"7\" spellcheck=\"false\"\r\n               title=\"${T(\"vectorlab.couleur.hexa\")}\"/>\r\n      </div>\r\n      <div class=\"nu-ligne nu-champs\">\r\n        <label>R<input data-rgb=\"r\" type=\"number\" min=\"0\" max=\"255\"/></label>\r\n        <label>${T(\"vectorlab.couleur.canal_v\")}<input data-rgb=\"g\" type=\"number\" min=\"0\" max=\"255\"/></label>\r\n        <label>B<input data-rgb=\"b\" type=\"number\" min=\"0\" max=\"255\"/></label>\r\n      </div>\r\n      <div class=\"nu-ligne nu-champs\"\r\n           title=\"${T(\"vectorlab.couleur.cmjn_titre\")}\">\r\n        <label>C<input data-cmjn=\"c\" type=\"number\" min=\"0\" max=\"100\"/></label>\r\n        <label>M<input data-cmjn=\"m\" type=\"number\" min=\"0\" max=\"100\"/></label>\r\n        <label>${T(\"vectorlab.couleur.canal_j\")}<input data-cmjn=\"j\" type=\"number\" min=\"0\" max=\"100\"/></label>\r\n        <label>${T(\"vectorlab.couleur.canal_n\")}<input data-cmjn=\"n\" type=\"number\" min=\"0\" max=\"100\"/></label>\r\n      </div>\r\n      <div class=\"nu-tete\">${T(\"vectorlab.couleur.palette_doc\")}\r\n        <button id=\"nuPalPlus\"\r\n          title=\"${T(\"vectorlab.couleur.pal_plus_titre\")}\" aria-label=\"${T(\"vectorlab.couleur.pal_plus\")}\">",
@@ -9847,6 +9853,12 @@
     "groupe": "import"
    },
    {
+    "pos": 885,
+    "avant": "import { dzi } from \"./mod-icones.js\";",
+    "apres": "import { dzi } from \"./mod-icones.js\";\r\nimport { pastilles_echanger, PASTILLES_DEFAUT } from \"./mod-couleur.js\";",
+    "groupe": "t264"
+   },
+   {
     "pos": 952,
     "avant": "\"plein\"",
     "apres": "T(\"vectorlab.style.trait_plein\")",
@@ -9869,6 +9881,12 @@
     "avant": "\"sélectionne UN objet pour poser un dégradé\"",
     "apres": "T(\"vectorlab.style.degrade_un\")",
     "groupe": "apparence"
+   },
+   {
+    "pos": 3790,
+    "avant": "    const gid = fondDegradeId();",
+    "apres": "    const contourVide = !s.contour || s.contour === \"none\";\r\n    const contourCouleur = contourVide ? \"#1F1512\" : s.contour;\r\n    const gid = fondDegradeId();",
+    "groupe": "t264"
    },
    {
     "pos": 4234,
@@ -9901,16 +9919,22 @@
     "groupe": "apparence"
    },
    {
+    "pos": 4684,
+    "avant": "    hote.innerHTML += `",
+    "apres": "    hote.innerHTML += `\r\n      ${/* t264 : les pastilles à la Photoshop (modèle du Photolab #410) — le fond (premier plan) chevauche le contour\r\n           (arrière-plan) ; échange en haut à droite, couleurs par défaut en bas à gauche. Hors .ap-ligne : la rangée\r\n           reste à l'onglet Couleur (mod-pile ne déplace que les .ap-ligne) et l'audit d'ergonomie ne mesure pas ses\r\n           boutons de 18 px. */ \"\"}\r\n      <div class=\"vl-pastilles\">\r\n        <button class=\"vl-pastille-contour${contourVide ? \" vide\" : \"\"}\" id=\"apContour\"\r\n                style=\"background:${contourCouleur}\" data-hex=\"${contourCouleur}\"\r\n                title=\"${T(\"vectorlab.style.contour_titre\")}\" aria-label=\"${T(\"vectorlab.style.contour_titre\")}\"></button>\r\n        <button class=\"vl-pastille-fond${s.fond === \"none\" ? \" vide\" : \"\"}\" id=\"apFond\" style=\"background:${fondCouleur}\"\r\n                data-hex=\"${fondCouleur}\"\r\n                title=\"${T(\"vectorlab.style.fond_titre\")}\" aria-label=\"${T(\"vectorlab.style.fond_titre\")}\"></button>\r\n        <button class=\"vl-pastille-echanger\" id=\"apEchanger\" ${pastilles_echanger(s) ? \"\" : \"disabled\"}\r\n                title=\"${T(\"vectorlab.style.pastilles_echanger\")}\" aria-label=\"${T(\"vectorlab.style.pastilles_echanger\")}\">${dzi(\"dz-edit-echanger-couleurs\", 12)}</button>\r\n        <button class=\"vl-pastille-defaut\" id=\"apDefaut\"\r\n                title=\"${T(\"vectorlab.style.pastilles_defaut\")}\" aria-label=\"${T(\"vectorlab.style.pastilles_defaut\")}\">${dzi(\"dz-edit-couleurs-defaut\", 12)}</button>\r\n      </div>",
+    "groupe": "t264"
+   },
+   {
     "pos": 4737,
     "avant": "<span>Fond</span>",
     "apres": "<span>${T(\"vectorlab.style.fond\")}</span>",
     "groupe": "apparence"
    },
    {
-    "pos": 4879,
-    "avant": "\"\r\n                title=\"Couleur de fond — ouvre le nuancier (RGB, CMJN, hex, palettes)\">",
-    "apres": "\"\r\n                title=\"${T(\"vectorlab.style.fond_titre\")}\">",
-    "groupe": "apparence"
+    "pos": 4756,
+    "avant": "        <button class=\"nu-pastille\" id=\"apFond\" style=\"background:${fondCouleur}\"\r\n                data-hex=\"${fondCouleur}\"\r\n                title=\"Couleur de fond — ouvre le nuancier (RGB, CMJN, hex, palettes)\"></button>\r\n",
+    "apres": "",
+    "groupe": "t264"
    },
    {
     "pos": 5055,
@@ -9937,10 +9961,10 @@
     "groupe": "apparence"
    },
    {
-    "pos": 5757,
-    "avant": "\"\r\n                title=\"Couleur de contour — ouvre le nuancier\">",
-    "apres": "\"\r\n                title=\"${T(\"vectorlab.style.contour_titre\")}\">",
-    "groupe": "apparence"
+    "pos": 5522,
+    "avant": "        <button class=\"nu-pastille\" id=\"apContour\"\r\n                style=\"background:${s.contour && s.contour !== \"none\" ? s.contour : \"#1F1512\"}\"\r\n                data-hex=\"${s.contour && s.contour !== \"none\" ? s.contour : \"#1F1512\"}\"\r\n                title=\"Couleur de contour — ouvre le nuancier\"></button>\r\n",
+    "apres": "",
+    "groupe": "t264"
    },
    {
     "pos": 5946,
@@ -10079,6 +10103,12 @@
     "avant": ")}stop</button>",
     "apres": ")}${T(\"vectorlab.style.stop\")}</button>",
     "groupe": "apparence"
+   },
+   {
+    "pos": 13698,
+    "avant": "    $(\"#apContourAucun\").addEventListener(\"click\",",
+    "apres": "    $(\"#apEchanger\").addEventListener(\"click\", () => {\r\n      const patch = pastilles_echanger(styleReflete());\r\n      if (patch) appliquer(patch);\r\n    });\r\n    $(\"#apDefaut\").addEventListener(\"click\", () => appliquer({ ...PASTILLES_DEFAUT }));\r\n    $(\"#apContourAucun\").addEventListener(\"click\",",
+    "groupe": "t264"
    }
   ],
   "js/mod-texte.js": [
