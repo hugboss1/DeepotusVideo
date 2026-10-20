@@ -156,8 +156,9 @@ ENTREES = [
                                       "Outline offset (px): + thickens, − thins — on vectorized outlines")}),
     S("js/mod-typo.js", 267, 'title="Applique un contour ± à la sélection (des chemins)"',
       'title="${T("vectorlab.typo.epaissir_titre")}"',
-      {"vectorlab.typo.epaissir_titre": ("Applique un contour ± à la sélection (des chemins)",
-                                         "Applies a ± offset to the selection (paths)")}),
+      # t248 (20/10/2026, constat du catalogue) : op_contour pose une COPIE décalée au-dessus ; l'original reste
+      {"vectorlab.typo.epaissir_titre": ("Crée une copie décalée de ± la valeur, posée au-dessus de la sélection (l'original reste)",
+                                         "Creates a copy offset by ± the value, placed above the selection (the original stays)")}),
     S("js/mod-typo.js", 267, 'aria-label="Épaissir la sélection"', 'aria-label="${T("vectorlab.typo.epaissir_sel")}"',
       {"vectorlab.typo.epaissir_sel": ("Épaissir la sélection", "Thicken the selection")}),
     S("js/mod-typo.js", 268, ' title="Cadre de texte à paragraphes"', ' title="${T("vectorlab.typo.cadre_titre")}"',

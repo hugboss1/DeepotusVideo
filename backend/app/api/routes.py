@@ -5955,6 +5955,15 @@ async def _plafond(op, categorie: str, ref: str | None = None) -> dict:
     return await _PLAF.verifier(op, categorie, ref)
 
 
+def _categorie_image(body: dict) -> str:
+    """La catégorie de plafond d'une route d'images : la `source` du corps si c'est une catégorie connue (« studio »,
+    « chapitres », « scheduler »…), sinon « bibliotheque ». Relevé du catalogue t248 (20/10/2026) : Rejouer la recette
+    envoie `source: "generation"`, qui devenait une catégorie fantôme absente de plafonds.CATEGORIES."""
+    from app.services import plafonds as _PLAF
+    src = str(body.get("source") or "").strip().lower()
+    return src if src in _PLAF.CATEGORIES else "bibliotheque"
+
+
 def _op_tts(texte, model=None, provider=None) -> list:
     """[op ElevenLabs] pour un texte lu, SEULEMENT si le fournisseur de voix résolu est ElevenLabs (Voicebox est
     local et gratuit) ; texte vide -> []. t131 : `provider` = celui que la génération demande (sinon le réglage)."""
@@ -9747,7 +9756,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         if manque:
             raise HTTPException(503, f"{manque} non configurée (Réglages) "
                                      f"pour {model}.")
-        await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])   # tâche #16
+        await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))   # tâche #16
         background = (body.get("background") or "").strip().lower() or None
         try:
             out = await IP.generate(model, prompt, size, n,
@@ -9764,7 +9773,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
             # t182 : même forme que les autres refus « clé absente » (nomme la
             # clé, renvoie aux Réglages) — AVANT la garde de dépense ; t192 : dans la langue de l'interface
             raise HTTPException(503, _msg_g("ia.cle.non_configuree", None, nom_cle="OPENAI_API_KEY", modele=model))
-        await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])   # tâche #16
+        await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))   # tâche #16
         osize = ("1024x1536" if "portrait" in size
                  else "1536x1024" if "landscape" in size else "1024x1024")
         payload = {"model": model, "prompt": prompt, "n": n, "size": osize}
@@ -9805,7 +9814,7 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     seed = body.get("seed")
     seed = int(seed) if isinstance(seed, (int, float)) else None
     if settings.FAL_KEY:   # tâche #16 (sans clé, _flux_generate refuse sans dépenser)
-        await _plafond({"kind": "image", "n": n, "model": "flux"}, str(body.get("source") or "bibliotheque")[:24])
+        await _plafond({"kind": "image", "n": n, "model": "flux"}, _categorie_image(body))
     out = await _flux_generate(prompt, size, n, seed=seed)
     return {"images": out["images"], "prompt": prompt, "model": "flux",
             "seed": out.get("seed")}
@@ -9904,7 +9913,7 @@ async def _process_image_core(body: dict):
         if not settings.FAL_KEY:
             raise HTTPException(503, "FAL_KEY not configured (Settings) — "
                                      "use the 'simple' mode instead.")
-        await _plafond({"kind": "upscale", "n": 1}, str(body.get("source") or "bibliotheque")[:24])   # tâche #16
+        await _plafond({"kind": "upscale", "n": 1}, _categorie_image(body))   # tâche #16
         import fal_client
         from app.services.fal_service import FalSeedanceClient
         url = await FalSeedanceClient.upload_image(src)
@@ -9933,7 +9942,7 @@ async def _process_image_core(body: dict):
             from app.services import detourage as _DT
             mid = str(body.get("modele"))
             sujet = _detourage_controles(mid, _DT.IMAGE, body.get("sujet"), _HTTP_G.get())
-            await _plafond(_DT.op_cout(mid, images=1), str(body.get("source") or "bibliotheque")[:24])
+            await _plafond(_DT.op_cout(mid, images=1), _categorie_image(body))
             try:
                 nom = await _DT.detourer_image(mid, src, sujet)
             except ValueError as e:
@@ -9963,7 +9972,7 @@ async def _process_image_core(body: dict):
             raise HTTPException(503, "FAL_KEY not configured (Settings) — "
                                      "use the 'local (rembg)' method.")
         await _plafond({"kind": "sprite2d", "frames": 1, "remove_bg": "api"},
-                       str(body.get("source") or "bibliotheque")[:24])   # tâche #16
+                       _categorie_image(body))   # tâche #16
         import fal_client
         from app.services.fal_service import FalSeedanceClient
         url = await FalSeedanceClient.upload_image(src)
@@ -10075,7 +10084,7 @@ async def _process_image_core(body: dict):
             if manque:
                 raise HTTPException(503, f"{manque} non configurée "
                                          f"(Réglages) pour {model}.")
-            await _plafond({"kind": "image", "n": n, "model": model}, str(body.get("source") or "bibliotheque")[:24])
+            await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))
             try:
                 out = await (IP.generate(model, prompt, size, n, image_paths=[src] + refs_idv) if refs_idv
                              else IP.generate(model, prompt, size, n, image_path=src))
@@ -10089,7 +10098,7 @@ async def _process_image_core(body: dict):
         # défaut: FLUX Kontext (génération conditionnée par l'image)
         ratio = _EDIT_RATIO.get(size)
         if settings.FAL_KEY:   # tâche #16 (écart daté : Kontext est chiffré au tarif FLUX de la grille)
-            await _plafond({"kind": "image", "n": n, "model": "flux"}, str(body.get("source") or "bibliotheque")[:24])
+            await _plafond({"kind": "image", "n": n, "model": "flux"}, _categorie_image(body))
         out = await _flux_generate(prompt, size, n,
                                    model="fal-ai/flux-kontext/dev",
                                    image_path=src, ratio=ratio)

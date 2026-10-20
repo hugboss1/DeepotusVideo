@@ -154,7 +154,7 @@ check("D3 avant_dzdock défait dzschedconf d'abord",
 check("D4 aller-retour exact", lambda: PS.appliquer(PS.defaire(BUNDLE)) == BUNDLE)
 check("D5 comptes figés : x.useState( 731, DzTracks 181, v2.8.0 ×4, confirmer ×28, aucun hook neuf",
       BUNDLE.count("x.useState(") == 731 and BUNDLE.count("DzTracks") == 181 and BUNDLE.count("v2.8.0") == 4
-      and BUNDLE.count(CONF) == 28)
+      and __import__("_i18n_l1_aide").avant_dzconstats(BUNDLE).count(CONF) == 28)   # sans le maillon aval dzconstats
 check("D6 octets : CRLF partout", RAW.count(b"\r\n") > 15000 and RAW.count(b"\n") == RAW.count(b"\r\n"))
 _src = (RACINE / "scripts" / "patch_bundle_dzschedconf.py").read_bytes().decode("utf-8")
 check("D7 le maillon lit en octets", "read_text(" not in _src and "write_text(" not in _src)
