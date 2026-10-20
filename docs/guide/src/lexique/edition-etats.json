@@ -249,6 +249,16 @@
       "en": "Moves the frame one pixel in the arrow's direction."
     }
   },
+  "dz-edit-deformer-maillage": {
+    "nom": {
+      "fr": "Déformer",
+      "en": "Warp"
+    },
+    "fonction": {
+      "fr": "Passe la transformation libre en déformation par maillage, poignées sur une grille.",
+      "en": "Switches free transform to a mesh warp, with handles on a grid."
+    }
+  },
   "dz-edit-degrade-conique": {
     "nom": {
       "fr": "Dégradé conique",
@@ -927,6 +937,16 @@
     "fonction": {
       "fr": "Signale un élément fabriqué à partir d'un autre, son parent.",
       "en": "Marks an item made from another one, its parent."
+    }
+  },
+  "dz-etat-dialogue": {
+    "nom": {
+      "fr": "Dialogue de l'étape",
+      "en": "Step dialog"
+    },
+    "fonction": {
+      "fr": "Coché : à la lecture de l'action, le dialogue de l'étape s'ouvre.",
+      "en": "Checked: the step's dialog opens when the action plays."
     }
   },
   "dz-etat-enregistre": {

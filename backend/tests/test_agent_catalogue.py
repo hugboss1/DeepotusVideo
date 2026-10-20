@@ -387,6 +387,122 @@ def test_outil_photolab_garde_son_infobulle(depot):
     assert set(p["sources"]) == {"i18n:photolab.outil.pinceau", "frontend/photolab/js/outils.js"}
 
 
+# tiroir Sons (sfxstudio.js) : l'infobulle au repos est un PARAMÈTRE de la fabrique du bouton, la clé est à l'appel
+FABRIQUE = ('function actBtn(it,act,lbl,tt){var armed=q;return r.jsx("button",{className:"svx-abtn",'
+            'title:armed?dzT("a.b.armee",{prix:p}):tt,"aria-label":tt+" : "+it.name,'
+            'onClick:function(e){go(it,act)},children:armed?[p]:lbl},act)}'
+            'r.jsxs("div",{children:[k==="m"?actBtn(it,"stems",__dzGl("dz-media-stems"),dzT("a.b.stems_aide")):null,'
+            'actBtn(it,"iso",__dzGl("dz-media-isoler-voix"),dzT("a.b.iso_aide"))]})')
+CLES_A.update({k: {"fr": k.rsplit(".", 1)[-1], "en": k.rsplit(".", 1)[-1].upper()}
+               for k in ("a.b.armee", "a.b.stems_aide", "a.b.iso_aide", "a.b.local_aide")})
+
+
+def test_infobulle_en_parametre_suivie_aux_appels(tmp_path):
+    e = S.extraire(_depot(tmp_path, FABRIQUE))
+    s = e["a.b.stems_aide"]
+    assert s["type"] == "bouton" and s["infobulle"] == {"fr": "stems_aide", "en": "STEMS_AIDE"}
+    assert s["icone"] == "dz-media-stems" and s["sources"] == ["i18n:a.b.stems_aide"]
+    assert e["a.b.iso_aide"]["icone"] == "dz-media-isoler-voix"
+    assert "a.b.armee" in e                                   # le 2e clic garde sa fiche
+
+
+def test_infobulle_variable_locale_non_suivie(tmp_path):
+    b = ('function f(it,act){var tt=dzT("a.b.local_aide");return r.jsx("button",{onClick:g,title:o.it})}'
+         'f(1,dzT("a.b.stems_aide"))')
+    e = S.extraire(_depot(tmp_path, b))                       # o.it : une propriété, pas le paramètre « it »
+    assert "a.b.stems_aide" not in e
+
+
+def test_parametre_champ_et_libelle_non_suivis(tmp_path):
+    b = ('function rng(k,label){return r.jsx("input",{type:"range","aria-label":label})}rng(1,dzT("a.b.stems_aide"));'
+         'function row(label,kids){return r.jsx("button",{onClick:f,children:label})}row(dzT("a.b.iso_aide"),[])')
+    e = S.extraire(_depot(tmp_path, b))
+    assert "a.b.stems_aide" not in e and "a.b.iso_aide" not in e
+
+
+def test_parametre_nom_minifie_dans_sa_portee(tmp_path):
+    b = ('function A(){function e(t){return r.jsx("button",{onClick:f,title:t})}e(dzT("a.b.stems_aide"))}'
+         'function B(){function e(t){return t}e(dzT("a.b.iso_aide"))}')
+    e = S.extraire(_depot(tmp_path, b))                       # le « e » de B n'est pas celui de A
+    assert "a.b.stems_aide" in e and "a.b.iso_aide" not in e
+
+
+def test_parametre_branche_au_repos(tmp_path):
+    b = ('function k(t){return r.jsx("button",{onClick:f,title:t})}k(busy?dzT("a.b.armee"):dzT("a.b.iso_aide"));'
+         'k(dzT("coque.rail.replier"))')
+    e = S.extraire(_depot(tmp_path, b))
+    assert "a.b.iso_aide" in e and "a.b.armee" not in e
+    assert "coque.rail.replier" in e                          # une clé d'écran est suivie…
+
+
+def test_parametre_objet_et_sa_propriete(tmp_path):
+    b = ('function dztBouton(o){return r.jsx("button",{onClick:o.fn,title:o.title||""})}'
+         'dztBouton({fn:g,title:dzT("a.b.stems_aide")});'
+         'function row(f,i){return r.jsx("button",{onClick:g,title:f.behind?dzT("a.b.armee"):x})}'
+         'row(dzT("a.b.iso_aide"),1)')
+    e = S.extraire(_depot(tmp_path, b))
+    assert "a.b.stems_aide" in e                               # la propriété « title » de l'objet passé
+    assert "a.b.iso_aide" not in e                             # f.behind : f est un objet, pas l'infobulle
+
+
+def test_parametre_action_commune_ignoree(tmp_path):
+    _ecrire(tmp_path / "frontend" / "shared" / "i18n" / "commun.json",
+            json.dumps({"commun.action.fermer": {"fr": "Fermer", "en": "Close"}}))
+    b = 'function k(t){return r.jsx("button",{onClick:f,title:t})}k(dzT("commun.action.fermer"))'
+    assert "commun.action.fermer" not in S.extraire(_depot(tmp_path, b))   # …une action commune non
+
+
+def test_lab_libelle_voisin_de_l_infobulle(depot):
+    d = json.loads((depot / "frontend/shared/i18n/vectorlab.json").read_text(encoding="utf-8"))
+    d.update({"vectorlab.persona.vecteur": {"fr": "Vecteur", "en": "Vector"},
+              "vectorlab.persona.vecteur_titre": {"fr": "Dessin vectoriel", "en": "Vector drawing"},
+              "vectorlab.persona.pixel_titre": {"fr": "Retouche au pixel", "en": "Pixel retouching"},
+              "vectorlab.flyout.deposer": {"fr": "Déposer", "en": "Drop"},
+              "vectorlab.flyout.titre_typo": {"fr": "Typo", "en": "Type"}})
+    _ecrire(depot / "frontend/shared/i18n/vectorlab.json", json.dumps(d, ensure_ascii=False))
+    _ecrire(depot / "frontend/vectorlab/js/mod-persona.js", "\n".join([
+        '  { id: "vecteur", libelle: T("vectorlab.persona.vecteur"), titre: T("vectorlab.persona.vecteur_titre") },',
+        '  { id: "pixel", libelle: "Pixel", icone: "dz-nav-espace-pixel", titre: T("vectorlab.persona.pixel_titre") },',
+        '  return { titre: T("vectorlab.flyout.titre_typo"), entrees: [{ id: "d", libelle: T("vectorlab.flyout.deposer") }] };']))
+    e = S.extraire(depot)
+    assert e["vectorlab.persona.vecteur_titre"]["libelle"] == {"fr": "Vecteur", "en": "Vector"}
+    assert e["vectorlab.persona.pixel_titre"]["libelle"]["fr"] == "Pixel"
+    assert e["vectorlab.flyout.titre_typo"]["libelle"] == {"fr": "", "en": ""}   # le libellé d'un AUTRE objet
+
+
+def _page_vectorlab(depot):
+    i18n = depot / "frontend" / "shared" / "i18n"
+    d = json.loads((i18n / "vectorlab.json").read_text(encoding="utf-8"))
+    d.update({"vectorlab.page.outil_plume": {"fr": "Plume Bézier — clic = ancre (P)", "en": "Bézier Pen — click = anchor (P)"},
+              "vectorlab.page.filtrer_role": {"fr": "Filtrer par rôle", "en": "Filter by role"},
+              "vectorlab.page.cotes": {"fr": "Cotes", "en": "Dimensions"},
+              "vectorlab.page.forme_titre": {"fr": "Forme & gestes", "en": "Shape & gestures"},
+              "vectorlab.page.grille": {"fr": "Grille", "en": "Grid"}})
+    _ecrire(i18n / "vectorlab.json", json.dumps(d, ensure_ascii=False))
+    _ecrire(depot / "frontend" / "vectorlab" / "index.html", "\n".join([
+        '<nav id="outils"><button data-outil="plume" title="Plume Bézier — clic = ancre (P)"></button></nav>',
+        '<span title="Cotes"></span><select id="r" title="Filtrer par rôle"></select>',
+        '<summary class="panneau-tete" title="Forme &amp; gestes">x</summary>',
+        '<button id="g" title="Grille"></button><button title="Sans clé"></button>']))
+    return S.extraire(depot)
+
+
+def test_page_de_lab_titres_litteraux(depot):
+    e = _page_vectorlab(depot)
+    p = e["vectorlab.page.outil_plume"]
+    assert p["type"] == "bouton" and p["ecran"] == "vectorlab" and p["cadre"] == "/vectorlab/"
+    assert p["infobulle"]["en"] == "Bézier Pen — click = anchor (P)" and p["libelle"] == {"fr": "", "en": ""}
+    assert p["sources"] == ["frontend/vectorlab/index.html"]
+    assert e["vectorlab.page.filtrer_role"]["type"] == "champ"
+    assert "vectorlab.page.cotes" not in e and "vectorlab.page.forme_titre" not in e    # span, en-tête de section
+    assert not any(f["infobulle"] and f["infobulle"]["fr"] == "Sans clé" for f in e.values())
+
+
+def test_page_de_lab_element_deja_connu(depot):
+    e = _page_vectorlab(depot)                                # « Grille » : déjà vu par core.js sous une autre clé
+    assert "vectorlab.page.grille" not in e and "vectorlab.core.grille_titre" in e
+
+
 def test_deterministe(tmp_path):
     racine = _depot(tmp_path, ";".join(CAS.values()) + ";" + BUNDLE)
     a, b = S.extraire(racine), S.extraire(racine)

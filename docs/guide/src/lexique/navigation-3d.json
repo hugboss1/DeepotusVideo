@@ -243,6 +243,10 @@
     "nom": {"fr": "News", "en": "News"},
     "fonction": {"fr": "Ouvre l'écran qui transforme une actualité en vidéo courte.", "en": "Opens the screen that turns a news item into a short video."}
   },
+  "dz-nav-panneau-actions": {
+    "nom": {"fr": "Actions", "en": "Actions"},
+    "fonction": {"fr": "Ouvre le panneau Actions : enregistrer, rejouer et éditer des suites de commandes.", "en": "Opens the Actions panel: record, play back and edit command sequences."}
+  },
   "dz-nav-panneau-ajustements": {
     "nom": {"fr": "Ajustements", "en": "Adjustments"},
     "fonction": {"fr": "Ouvre le groupe Propriétés, Ajustements, Styles et Compositions du Photolab.", "en": "Opens the Photolab Properties, Adjustments, Styles and Comps group."}
