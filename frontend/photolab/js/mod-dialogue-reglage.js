@@ -469,6 +469,9 @@ export function initDialogueReglage(PL) {
   // t157 : `options` = {initiales, versCommande(params) -> {command, params}} — réédition d'un filtre dynamique (panneau
   // Calques) : le formulaire part des réglages du filtre, et l'aperçu comme la validation passent par la commande
   // rendue (layer.smartFilter.setParams), jamais par le filtre lui-même (il s'empilerait).
+  // t255 (panneau Actions) : `apercu: false` coupe l'aperçu (régler une étape sans l'appliquer) ; `valider(c)` remplace
+  // PL.executer pour la commande rendue (-> promesse {ok, r}) ; `apres(role, resultat)` est appelé à la fermeture
+  // (après la commande pour « ok ») — la lecture pas à pas d'une action reprend ou s'arrête là.
   PL.ouvrirReglage = function ouvrirReglage(entree, options) {
     if (!entree || !entree.id) return;
     // t158 : une liste de choix à fournir (documents, tracés) : demandée d'abord ; null = l'écran a dit pourquoi
@@ -485,7 +488,7 @@ export function initDialogueReglage(PL) {
     const champs = Array.isArray(entree.champs) ? entree.champs : [];
     const visibles = champsVisibles(champs);
     const vers = typeof options.versCommande === "function" ? options.versCommande : (p) => ({ command: id, params: p });
-    const avecApercu = estFamilleApercu(id) || options.apercu === true;      // t157 : options de fusion d'un filtre dynamique
+    const avecApercu = options.apercu === false ? false : (estFamilleApercu(id) || options.apercu === true);      // t157 : options de fusion d'un filtre dynamique
     const initiales = options.initiales ? valeursReprises(champs, options.initiales) : valeursInitiales(champs);
     let valeurs = { ...initiales };
     const choix = Array.isArray(options.choix) ? options.choix : [];
@@ -640,9 +643,14 @@ export function initDialogueReglage(PL) {
         // aperçu resté à l'écran ferait croire le filtre appliqué : on relit le vrai document.
         const c = vers(aEnvoyer());
         const apercuAEffacer = apercuPose;
-        PL.executer(c.command, c.params).then((r) => { if (!(r && r.ok) && apercuAEffacer) PL.cycle(); });
-      } else if (role === "annuler" && apercuPose) {
-        PL.cycle();
+        const lancer = typeof options.valider === "function" ? options.valider(c) : PL.executer(c.command, c.params);
+        Promise.resolve(lancer).then((r) => {
+          if (!(r && r.ok) && apercuAEffacer) PL.cycle();
+          if (typeof options.apres === "function") options.apres("ok", r);
+        });
+      } else {
+        if (role === "annuler" && apercuPose) PL.cycle();
+        if (typeof options.apres === "function") options.apres(role, null);
       }
     }
     etat.fermer = fermer;

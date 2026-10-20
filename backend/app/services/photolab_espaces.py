@@ -17,7 +17,7 @@ GROUPES = {
     "couleur": ("couleur", "nuancier", "degrades", "motifs", "formes"),
     "proprietes": ("proprietes", "ajustements", "styles", "compositions"),
     "pinceaux": ("pinceaux", "parametres", "source", "predefinis"),
-    "calques": ("calques", "couches", "traces", "historique", "navigateur"),
+    "calques": ("calques", "couches", "traces", "historique", "actions", "navigateur"),     # t255 : Actions
     "infos": ("histogramme", "infos", "mesures", "notes"),   # t153 : #grpInfos ; t160 : Journal des mesures, Notes
     "texte": ("caractere", "paragraphe", "glyphes", "stylesCar", "stylesPar"),       # t156 : #grpTexte
 }

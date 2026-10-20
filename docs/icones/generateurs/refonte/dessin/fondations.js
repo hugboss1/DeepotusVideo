@@ -101,6 +101,9 @@ I["dz-nav-panneau-infos"] = () => [pl(union(G.ring(12, 12, 4.8, 2.8), pill(12, 3
   pa(G.rect(2, 2, 20, 20, 2) + G.rect(4.2, 4.2, 15.6, 15.6, 0.8))];
 I["dz-nav-panneau-navigateur"] = () => { const nord = G.poly([[18.2, 5.8], [10.4, 10.4], [13.6, 13.6]]), sud = G.poly([[5.8, 18.2], [13.6, 13.6], [10.4, 10.4]]);
   return [pl(nord), pa(sud, { colle: true }), pa(G.ring(12, 12, 10.2, 7.8))]; };
+// t255 : panneau Actions — une action se JOUE (triangle de lecture) et se lit comme une liste d'étapes (traits)
+I["dz-nav-panneau-actions"] = () => [pl(polyR([[2.4, 4.6], [11.4, 12], [2.4, 19.4]], 1.2)),
+  pa(G.rect(14, 4.6, 8, 2.4, 1.2) + G.rect(14, 10.8, 8, 2.4, 1.2) + G.rect(14, 17, 8, 2.4, 1.2))];
 I["dz-nav-panneau-pinceaux"] = () => [pl(G.circle(17.2, 6.6, 4.4) + G.circle(10.2, 12.6, 3.3) + G.circle(4.6, 17.8, 2.4))];
 I["dz-nav-panneau-texte"] = () => [pl(M.lettreA({ k: 0.66, dx: -4.4, dy: 0.6 })), pa(G.rect(15.6, 9.6, 6.4, 2.4, 1.2) + G.rect(15.6, 14.6, 6.4, 2.4, 1.2) + G.rect(15.6, 19.6, 6.4, 2.4, 1.2))];
 I["dz-nav-panneau-ajustements"] = () => { // trois curseurs verticaux (≠ nav-reglages, horizontaux, boutons ronds)
@@ -158,6 +161,9 @@ I["dz-etat-derive"] = () => [pl(M.flecheCoudee({ x: 4.2, y: 9.6, w: 17.6, h: 9.4
 I["dz-etat-enregistre"] = () => [badge("coche"), pl(M.disquette({ x: 2.5, y: 2.5, s: 18 }))];
 I["dz-etat-modifie"] = () => [pl(union(pill(12, 2.6, 12, 21.4, 3.4), pill(...pt(12, 12, 9.4, -30), ...pt(12, 12, 9.4, 150), 3.4), pill(...pt(12, 12, 9.4, 30), ...pt(12, 12, 9.4, 210), 3.4)))];
 I["dz-etat-epingle"] = () => [pl(M.punaise())];
+// t255 : bascule de dialogue d'une étape d'action — une petite fenêtre de dialogue (barre de titre pleine, bouton)
+I["dz-etat-dialogue"] = () => [pl(union(G.rect(2, 3, 20, 5.2, 1.6), G.rect(13.2, 15, 5.8, 2.6, 1.3))),
+  pa(moins(G.rect(2, 3, 20, 18, 2.4), G.rect(4.4, 10.6, 15.2, 8, 0.8)))];
 I["dz-etat-exclu"] = () => [pl(pill(3, 3, 21, 21, 2.8)), pa(G.rect(2.6, 2.6, 18.8, 18.8, 1.6) + G.rect(4.8, 4.8, 14.4, 14.4, 0.6))];
 I["dz-etat-sans-apercu"] = () => { let cadre = polyR([[2, 4], [16.4, 4], [22, 9.6], [22, 20], [2, 20]], 1.2); cadre = moins(cadre, polyR([[4.2, 6.2], [15.4, 6.2], [19.8, 10.6], [19.8, 17.8], [4.2, 17.8]], 0.6));
   return [pl(pill(3.4, 18.6, 18.6, 5.4, 2.6)), pl(G.poly([[16.4, 4], [16.4, 9.6], [22, 9.6]])), pa(cadre)]; };
