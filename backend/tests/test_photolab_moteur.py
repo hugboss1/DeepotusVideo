@@ -58,10 +58,10 @@ except PM.MoteurAbsent as e:
     absent_dit = "vendor_photocraft.py" in str(e)
 check("1e binaire introuvable : MoteurAbsent qui dit comment le fournir", absent_dit)
 os.environ.pop("PHOTOCRAFT_CLI")
-vend = racine_vide / "vendor" / "photocraft-0.3.0" / "photocraft-0.3.0-windows-x64"
+vend = racine_vide / "vendor" / f"photocraft-{PM.VERSION}" / f"photocraft-{PM.VERSION}-windows-x64"
 vend.mkdir(parents=True)
 (vend / "photocraft-cli.exe").write_bytes(b"MZ")
-check("1f sinon : vendor/photocraft-0.3.0/** sous la racine de l'application", PM.chemin_cli() == vend / "photocraft-cli.exe",
+check(f"1f sinon : vendor/photocraft-{PM.VERSION}/** sous la racine de l'application", PM.chemin_cli() == vend / "photocraft-cli.exe",
       PM.chemin_cli())
 PM.RACINE_APP = RACINE_APP_0
 

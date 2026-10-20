@@ -14,6 +14,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 BACKEND = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND))
 from app.services import photolab_moteur as PM                # noqa: E402
+# t251 : 0.10 transforme en bicubique Keys -0.75 (amont 0.9) : une frange d'1 px à demi transparente borde l'image
+PLACE_GRAND = {"0.3.0": [0, 16, 64, 16], "0.10.0": [0, 16, 65, 17]}[PM.VERSION]
 from app.services import photolab_registre as PR              # noqa: E402
 
 ok = fail = 0
@@ -228,6 +230,18 @@ def compositions():
     check("3i export d'un calque MASQUÉ : il est montré sur la copie, reste masqué dans l'original",
           image(W / "exports" / f).size == (20, 10) and next(c for c in ap("doc.inspect")["layers"] if c["id"] == rouge)["visible"] is False)
     ex("layer.showLayers", layer=rouge)
+    # t251 : en 0.10, layer.hideLayers BASCULE (un calque déjà caché est remontré). Un AUTRE calque caché par
+    # l'utilisateur doit rester hors de l'export : sans la garde du pont, il reparaissait (ici : le rouge sur le vert).
+    vert = next(c["id"] for c in ap("doc.inspect")["layers"] if c["id"] not in (rouge,) and c.get("kind") == "Pixel"
+                and c.get("name") != "Background")
+    ex("layer.hideLayers", layer=rouge)
+    f, _ = PM.exporter_calque(s, vert, "png", "vert-seul", 100, None, False)
+    im = image(W / "exports" / f).convert("RGBA")
+    check("3i2 export d'un calque : un autre calque caché par l'utilisateur reste HORS de l'export (bascule 0.10)",
+          im.getpixel((15, 12))[3] == 0 and im.getpixel((44, 34))[1] == 255
+          and next(c for c in ap("doc.inspect")["layers"] if c["id"] == rouge)["visible"] is False,
+          (im.getpixel((15, 12)), im.getpixel((44, 34))))
+    ex("layer.showLayers", layer=rouge)
 
     check("3j Revenir sans fichier -> ValueError", refuse(PM.revenir, s))
     ap("doc.save", {"path": "exports/C.pcraft", "format": "pcraft"})
@@ -256,7 +270,7 @@ def compositions():
     c = next(x for x in ap("doc.inspect")["layers"] if x["id"] == r["layer"])
     b = c["bounds"]
     check("3n Placer : plus grand que la toile -> réduit à la largeur (64 × 16), centré verticalement",
-          b == [0, 16, 64, 16], b)
+          b == PLACE_GRAND, b)
     check("3o Placer : chemin refusé", refuse(PM.placer, s, "../x.png", "x") and refuse(PM.placer, s, "C:/x.png", "x"))
     ap("doc.close", {"index": ap("session.list")["active"]})
 

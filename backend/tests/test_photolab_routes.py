@@ -39,7 +39,7 @@ async def scenario():
     from app.main import app
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, client=("127.0.0.1", 5000)), base_url="http://t") as c:
         e = (await c.get("/api/photolab/etat")).json()
-        check("1 /etat : version 0.3.0, generation 0 avant la première demande", e.get("version") == "0.3.0"
+        check(f"1 /etat : version {PM.VERSION} (manifeste), generation 0 avant la première demande", e.get("version") == PM.VERSION == "0.10.0"
               and e.get("generation") == 0, e)
         r = await c.post("/api/photolab/nouveau", json={"width": 64, "height": 32, "background": "white"})
         check("2 /nouveau crée un document", r.status_code == 200 and r.json().get("document") == 0, r.text)
@@ -150,8 +150,8 @@ async def scenario():
             r = await c.get("/api/photolab/commandes")
             j = r.json() if r.status_code == 200 else []
             g = next((x for x in j if x.get("id") == "filter.blur.gaussianBlur"), {})
-            check("15 /commandes rend le registre du moteur (776 entrées réelles + dz.*)", r.status_code == 200
-                  and len([x for x in j if not x["id"].startswith("dz.")]) == 776 and g.get("params") == '{"radius":0.1..1000=1}',
+            check("15 /commandes rend le registre du moteur (918 entrées réelles 0.10.0 + dz.*)", r.status_code == 200
+                  and len([x for x in j if not x["id"].startswith("dz.")]) == 918 and g.get("params") == '{"radius":0.1..1000=1}',
                   r.text[:200])
             check("15b chaque entrée porte ses champs (gaussianBlur : radius number 0.1..1000)",
                   all("champs" in x for x in j) and [(f["cle"], f["type"], f.get("min"), f.get("max")) for f in g.get("champs", [])]

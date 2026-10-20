@@ -11,7 +11,13 @@ import { initReglages, GAMMES_TEINTE } from "../js/mod-reglages.js";
 let ok = 0, ko = 0;
 function check(label, cond, detail = "") { if (cond) ok++; else { ko++; console.error("ECHEC :", label, typeof detail === "string" ? detail : JSON.stringify(detail)); } }
 const racine = join(dirname(fileURLToPath(import.meta.url)), "..");
-const fixture = JSON.parse(readFileSync(join(racine, "qa/fixtures/reglages-inspect.json"), "utf8"));
+// t251 : le même banc tourne sur la fixture du moteur épinglé (0.10, forme {kind, params}) et, par
+// qa/reglages-ecran-0.3.0.test.mjs, sur celle de 0.3.0 (variantes internes) : l'éditeur doit se conduire pareil.
+const NOM_FIXTURE = globalThis.__dzFixtureReglages || "reglages-inspect.json";
+const fixture = JSON.parse(readFileSync(join(racine, "qa/fixtures", NOM_FIXTURE), "utf8"));
+const F10 = !!(fixture["levels/base"].adjustment || {}).params;
+// l'objet d'état à modifier « comme le moteur », dans l'une ou l'autre forme
+const hsEtat = (c) => (F10 ? c.adjustment.params : c.adjustment.HueSaturation);
 const json = (x) => JSON.stringify(x);
 const pause = (ms = 5) => new Promise((r) => setTimeout(r, ms));
 const copie = (x) => JSON.parse(JSON.stringify(x));
@@ -79,7 +85,7 @@ afficher(docDe(5, [hsA]));
 c = champ("saturation", "range"); c.value = "-30"; c.envoyer("input");
 const nAvant = appels.length;
 check("3.1 pendant le glisser : rien n'est envoyé", appels.length === nAvant);
-const hsB = copie(hsA); hsB.adjustment.HueSaturation.lightness = 7;           // le moteur a changé autre chose (annuler…)
+const hsB = copie(hsA); hsEtat(hsB).lightness = 7;           // le moteur a changé autre chose (annuler…)
 afficher(docDe(5, [hsB]));
 check("3.2 l'état relu réécrit les autres contrôles", champ("lightness", "number").value === "7", champ("lightness", "number").value);
 c = champ("saturation", "range"); c.value = "-30"; c.envoyer("change");
@@ -87,7 +93,7 @@ check("3.3 la saisie en cours a survécu à l'état relu : seule elle part", jso
 // curseur TENU : un état relu arrive pendant le glisser ; au relâchement (pointerup hors du panneau), le curseur et son
 // champ montrent toujours la saisie, pas l'ancienne valeur du moteur
 c = champ("saturation", "range"); c.envoyer("pointerdown"); c.value = "-60"; c.envoyer("input");
-const hsB2 = copie(hsB); hsB2.adjustment.HueSaturation.saturation = -30; hsB2.adjustment.HueSaturation.lightness = 9;
+const hsB2 = copie(hsB); hsEtat(hsB2).saturation = -30; hsEtat(hsB2).lightness = 9;
 afficher(docDe(5, [hsB2]));
 check("3.3b curseur tenu : son champ n'est pas réécrit", champ("saturation", "number").value === "-60", champ("saturation", "number").value);
 doc.envoyer("pointerup");
@@ -96,17 +102,17 @@ check("3.3c relâché : la saisie non envoyée reste affichée, le reste suit le
   champ("saturation", "number").value === "-60" && champ("lightness", "number").value === "9", [champ("saturation", "number").value, champ("lightness", "number").value]);
 c = champ("saturation", "range"); c.value = "-60"; c.envoyer("change");
 check("3.3d puis le relâchement n'envoie qu'elle", json(dernier().params) === json({ layer: 5, saturation: -60 }), dernier());
-const hsC0 = copie(hsB2); hsC0.adjustment.HueSaturation.saturation = -60;
+const hsC0 = copie(hsB2); hsEtat(hsC0).saturation = -60;
 afficher(docDe(5, [hsC0]));
 const num = champ("hue", "number"); num.focus(); num.value = "33";
-const hsC = copie(hsB); hsC.adjustment.HueSaturation.hue = 12; hsC.adjustment.HueSaturation.saturation = -30;
+const hsC = copie(hsB); hsEtat(hsC).hue = 12; hsEtat(hsC).saturation = -30;
 afficher(docDe(5, [hsC]));
 check("3.4 champ qui a le focus : jamais réécrit sous les doigts", num.value === "33", num.value);
 doc.envoyer("pointerup");                          // une fin de prise ailleurs ne le réécrit pas non plus
 await pause();
 check("3.4b fin de prise : le champ qui a le focus reste tel quel", num.value === "33", num.value);
 // structure changée (Colorer allumé par le moteur, annuler…) pendant que le champ a le focus : reconstruction DIFFÉRÉE
-const hsD = copie(hsC); hsD.adjustment.HueSaturation.colorize = true;
+const hsD = copie(hsC); hsEtat(hsD).colorize = true;
 afficher(docDe(5, [hsD]));
 check("3.4c reconstruction différée : le champ reste en place, le sélecteur aussi", num.isConnected && selects().length === 1);
 num.blur(); num.envoyer("focusout");
@@ -123,7 +129,7 @@ afficher(docDe(12, [nv]));
 const nums = () => corps.tous((x) => x.tagName === "INPUT" && x.type === "number");
 check("4.1 Niveaux : champs numériques de B4 (inBlack = 20)", nums().length === 5 && nums()[0].value === "20", nums().map((x) => x.value));
 nums()[0].focus();
-const nv2 = copie(nv); nv2.adjustment.Levels.master.in_black = 40 / 255;
+const nv2 = copie(nv); if (F10) nv2.adjustment.params.inBlack = 40; else nv2.adjustment.Levels.master.in_black = 40 / 255;
 afficher(docDe(12, [nv2]));
 check("4.2 saisie en cours : l'état relu attend", nums()[0].value === "20", nums()[0].value);
 doc.activeElement = doc.body; nums()[0].envoyer("focusout");
@@ -143,7 +149,7 @@ const actifs = () => corps.tous((x) => /pl-ton-point actif/.test(x.getAttribute(
 grille.envoyer("pointerdown", { clientX: (64 * 256 / 255) * 262 / 256, clientY: (256 - 40 * 256 / 255) * 262 / 256 });
 grille.envoyer("pointerup");
 check("4b.1 clic sur un point : actif, relâchement envoyé", actifs() === 1 && dernier().params.layer === 13, [actifs(), dernier()]);
-const cb2 = copie(cb); cb2.adjustment.Curves.master[2].output = 0.9;     // le moteur relit un autre point
+const cb2 = copie(cb); if (F10) cb2.adjustment.params.points[2][1] = 0.9 * 255; else cb2.adjustment.Curves.master[2].output = 0.9;     // le moteur relit un autre point
 afficher(docDe(13, [cb2]));
 check("4b.2 état relu : le point actif reste choisi", actifs() === 1, actifs());
 
@@ -155,7 +161,9 @@ check("5.1 Color Lookup : la liste est demandée hors cycle", nList() === 1 && a
 reponseListe = { ok: true, r: fixture["colorLookup/base"].lut_list };
 afficher(docDe(20, [calque(20, "colorLookup/base")]));
 await pause();
-check("5.2 échec précédent : redemandée, puis le LUT relu est choisi", nList() === 2 && corps.tous((x) => x.tagName === "SELECT")[0].value === "warm",
+// t251 : 0.10 ne dit plus quel LUT est posé — la liste ne choisit RIEN (jamais un LUT deviné ; le moteur garde le sien).
+check("5.2 échec précédent : redemandée, puis le LUT relu est choisi (0.10 : aucun, faute d'état)",
+  nList() === 2 && corps.tous((x) => x.tagName === "SELECT")[0].value === (F10 ? "" : "warm"),
   [nList(), (corps.tous((x) => x.tagName === "SELECT")[0] || {}).value]);
 afficher(docDe(20, [calque(20, "colorLookup/base")]));
 check("5.3 chargée une fois : plus redemandée", nList() === 2);

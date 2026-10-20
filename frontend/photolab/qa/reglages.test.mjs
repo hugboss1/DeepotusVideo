@@ -13,7 +13,8 @@ let ok = 0, ko = 0;
 function check(label, cond, detail = "") { if (cond) ok++; else { ko++; console.error("ECHEC :", label, typeof detail === "string" ? detail : JSON.stringify(detail)); } }
 const racine = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dico = JSON.parse(readFileSync(join(racine, "../shared/i18n/photolab.json"), "utf8"));
-const fixture = JSON.parse(readFileSync(join(racine, "qa/fixtures/reglages-inspect.json"), "utf8"));
+// t251 : la forme 0.3.0 reste éprouvée sur SA fixture ; la forme 0.10 l est par qa/reglages10 (équivalence).
+const fixture = JSON.parse(readFileSync(join(racine, "qa/fixtures/reglages-inspect-0.3.0.json"), "utf8"));
 const menus = JSON.parse(readFileSync(join(racine, "donnees/menus.json"), "utf8"));
 const json = (x) => JSON.stringify(x);
 
