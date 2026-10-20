@@ -999,3 +999,11 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 .cq-ligne.depot-effets { box-shadow: inset 0 0 0 2px var(--accent); }
 .st-defauts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
 .st-defauts[hidden] { display: none; }
+/* t256 (M7 PR 2) : instantanés du panneau Historique, au-dessus des états */
+.hi-instantanes { list-style: none; margin: 0 0 4px; padding: 0 0 4px; border-bottom: 1px solid var(--stroke); flex: none; }
+.hi-instantanes[hidden] { display: none; }
+.hi-instantane { height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 8px; border-radius: 3px; color: var(--ink); cursor: default; }
+.hi-instantane:hover { background: var(--bg-panel-2); color: var(--ink-strong); }
+.hi-instantane-icone { display: inline-flex; color: var(--ink-soft); }
+.hi-instantane-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hi-instantane .hi-bouton { width: 20px; height: 20px; }

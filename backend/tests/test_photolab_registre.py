@@ -58,7 +58,8 @@ STRUCT = PR.structurer(COMMANDES)
 # t252 : 197 — les corrections des outils de retouche ouverts (setSymmetry, symmetryFromPath, patternStamp, remove).
 # t253 : 194 — échantillonneur (add, move) et morceau flottant compris après correction.
 # t254 : 185 — les champs des tracés et du texte ouverts (name, subpath, knot, t, échelle, angle, shape) compris.
-NB_NON_OK = {"0.3.0": 123, "0.10.0": 185}[_PV.VERSION]
+# t256 : 184 — `from` de history.newSnapshot compris (énumération).
+NB_NON_OK = {"0.3.0": 123, "0.10.0": 184}[_PV.VERSION]
 
 print("\n[1] les dix exemples bruts")
 r = PR.parser(EX["filter.blur.gaussianBlur"]["params"])
@@ -610,8 +611,9 @@ check("7e corrections t251 : seules layer.select.layer, tools.setColors.fore/bac
             for k in ("subpath", "knot")],
           ("path.addAnchor", "t"), ("path.transform", "translateY"), ("path.transform", "scaleX"), ("path.transform", "scaleY"),
           ("path.transform", "angle"), ("path.clippingPath.set", "name"), ("type.attachToPath", "shape"),
-          # t256 : le type d'effet de layer.layerStyle.defaultFor
-          ("layer.layerStyle.defaultFor", "kind")])), t251)
+          # t256 : le type d'effet de layer.layerStyle.defaultFor ; PR 2 : instantanés
+          ("layer.layerStyle.defaultFor", "kind"), ("history.newSnapshot", "from"), ("history.deleteSnapshot", "snapshot"),
+          ("history.renameSnapshot", "snapshot"), ("history.selectSnapshot", "snapshot")])), t251)
 autres = [(i, c["cle"]) for i, v in STRUCT.items() for c in v["champs"]
           if c.get("cle") == "exposure" and i not in ("image.adjustments.exposure", "layer.newAdjustmentLayer.exposure")]
 check("7c les autres `exposure` du registre ne sont pas touchés", all(
@@ -685,10 +687,13 @@ OUVERTES = {"paint.patch", "paint.contentAwareMove", "paint.patternStamp", "pain
             "layer.toggleLockTransparency", "layer.setLabelColor", "layer.mergeGroup", "layer.copyToDocument",
             "layer.new.frame", "layer.artboard.addBeside", "layer.layerStyle.transferEffects",
             "layer.layerStyle.makeDefault", "layer.layerStyle.defaultFor", "layer.layerMask.edit",
-            "layer.smartObjects.convertToLayers", "layer.new.backgroundFromLayer", "layer.rasterize.layerStyle"}
+            "layer.smartObjects.convertToLayers", "layer.new.backgroundFromLayer", "layer.rasterize.layerStyle",
+            # t256 PR 2 : instantanés
+            "history.newSnapshot", "history.deleteSnapshot", "history.renameSnapshot", "history.selectSnapshot",
+            "history.newDocument"}
 check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8, t253 : 10, t254 : 20, t255 : 18, "
-      "t256 : 17) -> 69",
-      len(NEUVES) == 69 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
+      "t256 : 17 + 5) -> 64",
+      len(NEUVES) == 64 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
 REG10 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8")))
 for cid, p in (("layer.layerStyle.replace", {"layer": 1, "effects": []}), ("swatches.list", {}), ("swatches.add", {}), ("history.undo", {})):
     try:

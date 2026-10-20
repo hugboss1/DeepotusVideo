@@ -30,6 +30,10 @@ Ouvertes depuis (retirées d'ici, avec leurs bancs) :
                      (layer.layerStyle.replace reste fermée : le dialogue Style de calque applique effet par effet ;
                      layer.smartObjects.updateChanged / relinkToFile / replaceContents / exportContents / convertToLinked :
                      le moteur 0.10 les DÉSACTIVE en automation — « uses ambient filesystem paths »)
+  t256 (M7 PR 2, 20/10) : instantanés et document d'après un état — history.newSnapshot, deleteSnapshot,
+                     renameSnapshot, selectSnapshot, newDocument (panneau Historique). history.undo / redo / selectState /
+                     deleteState restent fermées : le panneau annule déjà par /historique. Les swatches.* restent fermées
+                     à /executer : seules les routes /nuancier/importer et /nuancier/exporter les jouent (photolab_nuancier)
 """
 
 COMMANDES_NEUVES_FERMEES = frozenset({
@@ -39,14 +43,13 @@ COMMANDES_NEUVES_FERMEES = frozenset({
     "edit.deleteAndFillSelection", "edit.fillHistory", "edit.installedProfiles", "edit.transform.warpGrid",
     "file.export.presets.delete", "file.export.presets.get", "file.export.presets.list", "file.export.presets.save",
     "file.exrParts", "file.openExrParts", "file.print.page", "file.print.printers", "file.printers",
-    "file.revealInFinder", "gradient.presets.stop", "history.deleteSnapshot", "history.deleteState",
-    "history.newDocument", "history.newSnapshot", "history.redo", "history.renameSnapshot", "history.selectSnapshot",
-    "history.selectState", "history.undo", "image.detectFaces", "layer.fill.pattern.set",
-    "layer.fill.solidColor.set", "layer.layerStyle.replace", "layer.list", "layer.selectInRect",
-    "layer.setEffectsVisible", "layer.smartFilter.transfer", "layer.smartObjects.updateChanged",
-    "layer.toggleMaskOverlay", "swatches.add", "swatches.delete", "swatches.deleteGroup", "swatches.export",
-    "swatches.import", "swatches.list", "swatches.move", "swatches.newGroup", "swatches.rename",
-    "swatches.renameGroup", "swatches.reset", "swatches.use", "tools.decreaseBrushHardness",
-    "tools.decreaseBrushSize", "tools.increaseBrushHardness", "tools.increaseBrushSize", "tools.rotateBrush",
-    "type.caret", "type.hitTest", "type.navigate", "view.editGuide", "view.resetRulerOrigin", "view.setRulerOrigin",
+    "file.revealInFinder", "gradient.presets.stop", "history.deleteState", "history.redo", "history.selectState",
+    "history.undo", "image.detectFaces", "layer.fill.pattern.set", "layer.fill.solidColor.set",
+    "layer.layerStyle.replace", "layer.list", "layer.selectInRect", "layer.setEffectsVisible",
+    "layer.smartFilter.transfer", "layer.smartObjects.updateChanged", "layer.toggleMaskOverlay", "swatches.add",
+    "swatches.delete", "swatches.deleteGroup", "swatches.export", "swatches.import", "swatches.list",
+    "swatches.move", "swatches.newGroup", "swatches.rename", "swatches.renameGroup", "swatches.reset",
+    "swatches.use", "tools.decreaseBrushHardness", "tools.decreaseBrushSize", "tools.increaseBrushHardness",
+    "tools.increaseBrushSize", "tools.rotateBrush", "type.caret", "type.hitTest", "type.navigate", "view.editGuide",
+    "view.resetRulerOrigin", "view.setRulerOrigin",
 })

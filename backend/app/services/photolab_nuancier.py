@@ -1,7 +1,8 @@
 """Nuancier du Photolab (t153, parité L3) : les groupes de nuances que l'écran garde entre deux sessions.
 
-Le moteur n'a aucune commande de nuancier (l'amont garde ses 40 nuances en dur dans l'interface) : la liste est une
-donnée Deepotus, dans `<données>/photolab/nuancier.json`. Une nuance n'est qu'une couleur `#rrggbb` et un nom
+Le moteur 0.3.0 n'avait aucune commande de nuancier (l'amont gardait ses 40 nuances en dur dans l'interface) : la
+liste est une donnée Deepotus (0.10 a une bibliothèque de nuances, qui ne sert ici qu'à lire / écrire les fichiers
+.aco / .ase : importer, exporter, en bas de ce module), dans `<données>/photolab/nuancier.json`. Une nuance n'est qu'une couleur `#rrggbb` et un nom
 facultatif ; choisir une nuance passe par `tools.setColors` (route /executer), jamais par ce fichier. Validation en
 liste blanche STRICTE ; la copie JavaScript du défaut (frontend/photolab/js/mod-nuancier.js) est comparée par le banc
 test_photolab_panneaux3.
@@ -120,3 +121,132 @@ def ecrire(obj) -> dict:
         Path(tmp).unlink(missing_ok=True)
         raise
     return etat
+
+
+# ── t256 (M7 PR 2) : échanger le nuancier avec un fichier .aco / .ase ─────────────────────────────────────────────
+# Le moteur 0.10 lit et écrit ces formats (swatches.import / swatches.export, octets en base64 : les chemins sont
+# désactivés en automation). Sa bibliothèque n'est qu'un passage : remplie, lue, puis remise aux défauts d'usine
+# (swatches.reset), d'un seul tenant (SessionMoteur.sequence : aucun appel ne s'intercale, aucune action n'enregistre).
+# NOTRE nuancier reste la référence.
+import re as _re                                                 # noqa: E402
+
+FORMATS_ECHANGE = ("aco", "ase")
+MODES_IMPORT = ("append", "replace")
+MAX_OCTETS_FICHIER = 2_000_000
+_B64 = _re.compile(r"(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?")
+_HEX_MOTEUR = _re.compile(r"#[0-9a-fA-F]{6}")
+
+
+def _nom_libre(v, defaut):
+    n = " ".join(str(v if isinstance(v, str) else "").split())[:MAX_NOM]
+    return n or defaut
+
+
+def groupes_depuis_moteur(liste: dict, ids_pris=()) -> list[dict]:
+    """swatches.list du moteur -> nos groupes {id g-n libre, nom, couleurs [{hex minuscules, nom}]} ; groupes vides
+    et nuances illisibles écartés, bornes du nuancier appliquées (MAX_GROUPES, MAX_NUANCES, MAX_NOM)."""
+    pris = set(ids_pris)
+    sortie, n = [], 1
+    for g in (liste or {}).get("groups") or []:
+        couleurs = [{"hex": s["hex"].lower(), "nom": _nom_libre(s.get("name"), "")}
+                    for s in (g.get("swatches") or []) if isinstance(s, dict) and isinstance(s.get("hex"), str)
+                    and _HEX_MOTEUR.fullmatch(s["hex"])][:MAX_NUANCES]
+        if not couleurs:
+            continue
+        while f"g-{n}" in pris:
+            n += 1
+        pris.add(f"g-{n}")
+        sortie.append({"id": f"g-{n}", "nom": _nom_libre(g.get("name"), f"g-{n}"), "couleurs": couleurs})
+        if len(sortie) >= MAX_GROUPES:
+            break
+    return sortie
+
+
+def fusionner(etat: dict, groupes: list[dict], mode: str) -> dict:
+    """`append` : les groupes importés à la suite (jusqu'à MAX_GROUPES) ; `replace` : ils remplacent les groupes
+    (les couleurs récentes restent)."""
+    garde = [] if mode == "replace" else list(etat["groupes"])
+    return {**etat, "groupes": (garde + groupes)[:MAX_GROUPES]}
+
+
+def _donnees(v) -> str:
+    if not isinstance(v, str) or not v or len(v) > (MAX_OCTETS_FICHIER * 4) // 3 + 4 or not _B64.fullmatch(v):
+        raise ValueError(f"nuancier : fichier attendu en base64 ({MAX_OCTETS_FICHIER} octets au plus)")
+    return v
+
+
+def importer(s, corps: dict) -> dict:
+    """{"data": base64, "format"?: aco|ase, "mode"?: append|replace} -> le nuancier enregistré après import, plus
+    {"importees": n} ; ValueError si la demande ou le fichier est illisible (message du moteur)."""
+    if not isinstance(corps, dict) or set(corps) - {"data", "format", "mode"}:
+        raise ValueError("nuancier : clés admises : data, format, mode")
+    data = _donnees(corps.get("data"))
+    fmt, mode = corps.get("format"), corps.get("mode", "append")
+    if fmt is not None and fmt not in FORMATS_ECHANGE:
+        raise ValueError("nuancier : format aco ou ase attendu")
+    if mode not in MODES_IMPORT:
+        raise ValueError("nuancier : mode append ou replace attendu")
+    params = {"data": data, "mode": "replace", **({"format": fmt} if fmt else {})}
+
+    def fn(appel, gen):
+        ex = lambda c, p: appel("engine.execute", {"command": c, "params": p})
+        try:
+            ex("swatches.import", params)
+            return ex("swatches.list", {})
+        finally:
+            ex("swatches.reset", {"append": False})
+    liste, _ = s.sequence(fn)
+    etat = lire()
+    groupes = groupes_depuis_moteur(liste, [g["id"] for g in etat["groupes"]] if mode == "append" else ())
+    if not groupes:
+        raise ValueError("nuancier : le fichier ne contient aucune couleur lisible")
+    nouveau = ecrire(fusionner(etat, groupes, mode))
+    return {**nouveau, "importees": sum(len(g["couleurs"]) for g in groupes)}
+
+
+def exporter(s, corps: dict) -> dict:
+    """{"format": aco|ase, "groupes": [{nom, couleurs: [{hex, nom}]}]} (les groupes TELS QUE L'ÉCRAN LES NOMME : un
+    groupe fourni porte un nom traduit) -> {"format", "data" base64, "count"}."""
+    if not isinstance(corps, dict) or set(corps) - {"format", "groupes"}:
+        raise ValueError("nuancier : clés admises : format, groupes")
+    fmt = corps.get("format")
+    if fmt not in FORMATS_ECHANGE:
+        raise ValueError("nuancier : format aco ou ase attendu")
+    groupes = corps.get("groupes")
+    if not isinstance(groupes, list) or not 0 < len(groupes) <= MAX_GROUPES:
+        raise ValueError(f"nuancier : 1 à {MAX_GROUPES} groupes attendus")
+    propres = []
+    for i, g in enumerate(groupes):
+        o = f"nuancier.groupes[{i}]"
+        _objet(g, {"nom", "couleurs"}, o)
+        nom = _nom(g["nom"], f"{o}.nom", vide_admis=False)
+        if not isinstance(g["couleurs"], list) or len(g["couleurs"]) > MAX_NUANCES:
+            raise ValueError(f"{o}.couleurs : liste de {MAX_NUANCES} nuances au plus")
+        cs = []
+        for j, c in enumerate(g["couleurs"]):
+            _objet(c, _CLES_NUANCE, f"{o}.couleurs[{j}]")
+            _hex(c["hex"], f"{o}.couleurs[{j}].hex")
+            cs.append({"hex": c["hex"], "nom": _nom(c["nom"], f"{o}.couleurs[{j}].nom", vide_admis=True)})
+        propres.append({"nom": nom, "couleurs": cs})
+    if not any(g["couleurs"] for g in propres):
+        raise ValueError("nuancier : aucune couleur à exporter")
+
+    def fn(appel, gen):
+        ex = lambda c, p: appel("engine.execute", {"command": c, "params": p})
+        try:
+            for g in (ex("swatches.list", {}) or {}).get("groups") or []:
+                ex("swatches.deleteGroup", {"group": g["name"]})
+            for g in propres:
+                if not g["couleurs"]:
+                    continue
+                nom = (ex("swatches.newGroup", {"name": g["nom"]}) or {}).get("group", g["nom"])
+                for c in g["couleurs"]:
+                    ex("swatches.add", {"color": c["hex"], "group": nom, **({"name": c["nom"]} if c["nom"] else {})})
+            return ex("swatches.export", {"format": fmt})
+        finally:
+            ex("swatches.reset", {"append": False})
+    r, _ = s.sequence(fn)
+    r = r or {}
+    if not isinstance(r.get("data"), str):
+        raise ValueError("nuancier : le moteur n'a rendu aucun fichier")
+    return {"format": fmt, "data": r["data"], "count": int(r.get("count") or 0)}
