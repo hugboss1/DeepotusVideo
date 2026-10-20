@@ -58,6 +58,16 @@ export function didact_reglages({ aide = "aide/", racine = "#panneauCalques" } =
   return { aide: a, index: a + "index.json", racine };
 }
 
+// t259 : la position de l'encart. Une option DANS un menu (flyout du Photolab) le reçoit à CÔTÉ du menu — dessous, il
+// couvrirait les lignes suivantes que l'utilisateur veut encore survoler ; ailleurs, la position de la bulle courte.
+export function didact_position(el, menu, taille, fenetre, marge = 8) {
+  if (!menu) return bulle_position(el, taille, fenetre, marge);
+  let x = menu.x + menu.w + marge;
+  if (x + taille.w > fenetre.w - marge) x = Math.max(marge, menu.x - marge - taille.w);
+  const y = Math.max(marge, Math.min(fenetre.h - marge - taille.h, el.y));
+  return { x, y, dessous: false };
+}
+
 /* ── DOM ── */
 export function initDidact(VL = {}, opts = {}) {
   const R = didact_reglages(opts);
@@ -74,9 +84,9 @@ export function initDidact(VL = {}, opts = {}) {
     courant = el;
     encart.innerHTML = didact_html(f, R.aide);
     encart.classList.remove("hidden");
-    const r = el.getBoundingClientRect();
-    const p = bulle_position({ x: r.left, y: r.top, w: r.width, h: r.height }, { w: encart.offsetWidth, h: encart.offsetHeight },
-                             { w: window.innerWidth, h: window.innerHeight }, 8);
+    const r = el.getBoundingClientRect(), m = el.closest('[role="menu"]'), rm = m ? m.getBoundingClientRect() : null;
+    const p = didact_position({ x: r.left, y: r.top, w: r.width, h: r.height }, rm && { x: rm.left, y: rm.top, w: rm.width, h: rm.height },
+                              { w: encart.offsetWidth, h: encart.offsetHeight }, { w: window.innerWidth, h: window.innerHeight }, 8);
     encart.style.left = p.x + "px"; encart.style.top = p.y + "px";
     return true;
   }

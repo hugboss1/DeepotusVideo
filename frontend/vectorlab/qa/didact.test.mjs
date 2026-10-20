@@ -1,7 +1,7 @@
 // didact.test.mjs — mod-didact : la fiche didactique d'une option (index →
 // fiche par id DOM), le compte de mots de la phrase « pour un enfant de cinq
 // ans », la validation d'une fiche et le HTML de l'encart.
-import { fiche_pour, compter_mots, valider_fiche, didact_html, didact_reglages, DIDACT_DELAI_MS, DIDACT_LARGEUR } from "../js/mod-didact.js";
+import { fiche_pour, compter_mots, valider_fiche, didact_html, didact_reglages, didact_position, DIDACT_DELAI_MS, DIDACT_LARGEUR } from "../js/mod-didact.js";
 const echecs = [];
 const ok = (nom, cond, detail = "") => { if (!cond) echecs.push(nom + (detail ? " — " + String(detail).slice(0, 200) : "")); };
 {
@@ -26,6 +26,19 @@ const ok = (nom, cond, detail = "") => { if (!cond) echecs.push(nom + (detail ? 
   ok("réglages par défaut : aide/ et le panneau des calques du Vectorlab", d0.aide === "aide/" && d0.racine === "#panneauCalques" && d0.index === "aide/index.json");
   const d1 = didact_reglages({ aide: "/spritelab/aide", racine: "body" });
   ok("réglages : un dossier sans / final en reçoit un, l'index le suit", d1.aide === "/spritelab/aide/" && d1.index === "/spritelab/aide/index.json" && d1.racine === "body");
+}
+{
+  // t259 : une option DANS un menu déroulant (flyout du Photolab) — l'encart se pose à CÔTÉ du menu, jamais dessus
+  const fen = { w: 1400, h: 900 }, taille = { w: 340, h: 260 };
+  const ligne = { x: 40, y: 200, w: 180, h: 24 }, menu = { x: 36, y: 150, w: 190, h: 120 };
+  const p = didact_position(ligne, menu, taille, fen);
+  ok("didact_position : à droite du menu, à la hauteur de la ligne", p.x === 226 + 8 && p.y === 200, JSON.stringify(p));
+  const recouvre = (q) => q.x < menu.x + menu.w && q.x + taille.w > menu.x && q.y < menu.y + menu.h && q.y + taille.h > menu.y;
+  ok("didact_position : ne recouvre pas le menu", !recouvre(p), JSON.stringify(p));
+  const pg = didact_position({ x: 1200, y: 800, w: 150, h: 24 }, { x: 1190, y: 600, w: 200, h: 230 }, taille, fen);
+  ok("didact_position : trop près du bord droit -> à gauche du menu, bornée en bas", pg.x === 1190 - 8 - 340 && pg.y === 900 - 8 - 260, JSON.stringify(pg));
+  const ps = didact_position(ligne, null, taille, fen);
+  ok("didact_position : hors menu, la position de la bulle (sous l'élément, bornée à la fenêtre)", ps.y === 200 + 24 + 8 && ps.x === 8, JSON.stringify(ps));
 }
 if (echecs.length) { console.error("ECHECS didact :\n- " + echecs.join("\n- ")); process.exit(1); }
 console.log("QA didact : PASS (11 controles)");
