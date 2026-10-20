@@ -44,22 +44,84 @@ export function parametresNouveau(form, nomDefaut = "") {
 export function orientation(w, h) { return w > h ? "paysage" : w < h ? "portrait" : "carre"; }
 
 // Formats de « Exporter… » : tous acceptés par /enregistrer (FORMATS de photolab_routes.py, vérifié par le banc).
+// t257 (M8) : + TIFF à calques (même format « tif » au pont, "calques": true), OpenRaster, PDF d'une page (aplati par le
+// moteur). `id` distingue les deux TIFF ; `cle` = un libellé à traduire.
 export const FORMATS_EXPORT = [
-  { format: "png", libelle: "PNG" },
-  { format: "jpg", libelle: "JPG", qualite: true },
-  { format: "webp", libelle: "WEBP", qualite: true },
-  { format: "tif", libelle: "TIFF" },
-  { format: "psd", libelle: "PSD" },
-  { format: "pcraft", libelle: "PCRAFT" },
+  { id: "png", format: "png", libelle: "PNG" },
+  { id: "jpg", format: "jpg", libelle: "JPG", qualite: true },
+  { id: "webp", format: "webp", libelle: "WEBP", qualite: true },
+  { id: "tif", format: "tif", libelle: "TIFF" },
+  { id: "tif-calques", format: "tif", libelle: "TIFF", cle: "photolab.export.tiff_calques", calques: true },
+  { id: "psd", format: "psd", libelle: "PSD" },
+  { id: "ora", format: "ora", libelle: "ORA" },
+  { id: "pdf", format: "pdf", libelle: "PDF", cle: "photolab.export.pdf_page" },
+  { id: "pcraft", format: "pcraft", libelle: "PCRAFT" },
 ];
 
-export function corpsExport(format, nom, quality = 90) {
-  const f = FORMATS_EXPORT.find((x) => x.format === format);
+export const formatExport = (id) => FORMATS_EXPORT.find((x) => x.id === id) || null;
+export const libelleFormat = (f, T) => (f.cle ? T(f.cle) : f.libelle);
+
+export function corpsExport(id, nom, quality = 90) {
+  const f = formatExport(id);
   if (!f) throw erreurSaisie("photolab.export.erreur.format");
-  const corps = { format, nom: String(nom || "") };
+  const corps = { format: f.format, nom: String(nom || "") };
+  if (f.calques) corps.calques = true;
   if (f.qualite) corps.quality = Math.max(1, Math.min(100, Math.round(Number(quality) || 90)));
   return corps;
 }
+
+// t257 : ce que le moteur dit avoir perdu (`warnings` de doc.save, en anglais) -> clés de message, sans doublon.
+const AVERTISSEMENTS = [[/flattened/i, "photolab.export.avert.aplati"], [/lossy/i, "photolab.export.avert.pertes"],
+  [/resolution|dpi/i, "photolab.export.avert.dpi"]];
+export function clesAvertissements(liste) {
+  const cles = (Array.isArray(liste) ? liste : []).map((a) => (AVERTISSEMENTS.find(([m]) => m.test(String(a))) || [null, "photolab.export.avert.autre"])[1]);
+  return [...new Set(cles)];
+}
+
+// t257 : préréglages de « Exporter… », gardés par le pont (/export/prereglages : file.export.presets.* est désactivé
+// par le moteur en automation). Mêmes règles que photolab_routes.verifier_prereglages.
+export const PREREGLAGES_MAX = 50;
+export function prereglageDe(nom, id, quality) {
+  const n = String(nom || "").trim();
+  if (!n || n.length > 64) throw erreurSaisie("photolab.export.prereglage.erreur.nom");
+  const corps = corpsExport(id, "", quality);
+  const p = { nom: n, format: corps.format };
+  if ("quality" in corps) p.quality = corps.quality;
+  if (corps.calques) p.calques = true;
+  return p;
+}
+export const idDePrereglage = (p) => {
+  const id = p && p.format === "tif" && p.calques ? "tif-calques" : p && p.format;
+  return formatExport(id) ? id : null;
+};
+export function rangerPrereglage(liste, p) {
+  const l = (liste || []).filter((x) => x.nom.toLowerCase() !== p.nom.toLowerCase());
+  if (l.length >= PREREGLAGES_MAX) throw erreurSaisie("photolab.export.prereglage.erreur.max");
+  const k = (liste || []).findIndex((x) => x.nom.toLowerCase() === p.nom.toLowerCase());
+  if (k < 0) return [...l, p];
+  const r = (liste || []).slice(); r[k] = p; return r;
+}
+export const retirerPrereglage = (liste, nom) => (liste || []).filter((x) => x.nom !== nom);
+
+// t257 : ouvrir un fichier de l'ordinateur. Ce que la Bibliothèque reçoit (/images/upload, décodé par Pillow) y va
+// d'abord ; les formats que seul le moteur lit passent par /importer. Copie de PM.FORMATS_OUVERTURE (banc). HEIC/HEIF :
+// non activé (question Q3, brevets HEVC).
+export const FORMATS_BIBLIOTHEQUE = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "avif"];
+export const FORMATS_OUVERTURE = ["ora", "kra", "pdn", "af", "afphoto", "afdesign", "afpub", "exr", "dpx", "dds",
+  "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "raf", "rw2", "orf", "pef", "srw", "3fr",
+  "iiq", "erf", "mrw", "x3f",
+  "psd", "psb", "pcraft", "tif", "tiff", "tga", "png", "jpg", "jpeg", "webp", "gif", "bmp"];
+export const IMPORT_MAX = 1024 * 1024 * 1024;
+export function routeFichier(nom, taille = 0) {
+  const m = /\.([A-Za-z0-9]{1,10})$/.exec(String(nom || ""));
+  const ext = m ? m[1].toLowerCase() : "";
+  if (ext === "heic" || ext === "heif") return { refus: "photolab.import.heic" };
+  if (Number(taille) > IMPORT_MAX) return { refus: "photolab.import.trop_lourd" };
+  if (FORMATS_BIBLIOTHEQUE.includes(ext)) return "bibliotheque";
+  if (FORMATS_OUVERTURE.includes(ext)) return "importer";
+  return { refus: "photolab.import.format" };
+}
+export const ACCEPTES = [...new Set([...FORMATS_BIBLIOTHEQUE, ...FORMATS_OUVERTURE])].map((e) => "." + e).join(",");
 
 // Faut-il demander avant de fermer ? Oui si la révision a bougé depuis le dernier enregistrement (ou, jamais
 // enregistré, depuis l'ouverture) ; sans repère du tout, on demande.
@@ -323,14 +385,37 @@ export function initFichier(PL) {
     if (!aDesFichiers(ev)) return;
     ev.preventDefault();
     const f = ev.dataTransfer.files && ev.dataTransfer.files[0];
-    if (!f) return;
-    const fd = new FormData(); fd.append("file", f);
-    let rep;
-    try { rep = await fetch("/api/images/upload", { method: "POST", body: fd }); } catch (e) { PL.signaler(T("photolab.moteur.injoignable"), true); return; }
-    if (!rep.ok) { PL.signaler(T("photolab.fichier.depot_refuse", { nom: f.name }), true); return; }
-    const d = await rep.json();
-    if (d && d.filename) ouvrirImage(d.filename);
+    if (f) ouvrirFichier(f);
   });
+
+  // t257 : un fichier de l'ordinateur (dépôt ou Fichier › Ouvrir depuis l'ordinateur…) — dans la Bibliothèque puis
+  // ouvert s'il est une image qu'elle reçoit, sinon ouvert par /importer (ORA, Krita, Affinity, Paint.NET, EXR, DPX, DDS,
+  // raws, PSD, TIFF…) : le document s'enregistre ensuite dans la Bibliothèque avec ses calques, comme les autres.
+  async function ouvrirFichier(f) {
+    const route = routeFichier(f.name, f.size);
+    if (route.refus) { PL.signaler(T(route.refus, { nom: f.name }), true); return; }
+    if (route === "bibliotheque") {
+      const fd = new FormData(); fd.append("file", f);
+      let rep;
+      try { rep = await fetch("/api/images/upload", { method: "POST", body: fd }); } catch (e) { PL.signaler(T("photolab.moteur.injoignable"), true); return; }
+      if (!rep.ok) { PL.signaler(T("photolab.fichier.depot_refuse", { nom: f.name }), true); return; }
+      const d = await rep.json();
+      if (d && d.filename) ouvrirImage(d.filename);
+      return;
+    }
+    try { await PL.post("/importer?nom=" + encodeURIComponent(f.name), f); } catch (e) { return; }      // signalé par mod-api
+    await apresOuverture();
+    PL.signaler(T("photolab.import.ouvert", { nom: f.name }));
+  }
+  PL.ouvrirFichier = ouvrirFichier;
+
+  function importer() {
+    const i = document.createElement("input");
+    i.type = "file"; i.accept = ACCEPTES; i.hidden = true;
+    i.addEventListener("change", () => { const f = i.files && i.files[0]; i.remove(); if (f) ouvrirFichier(f); });
+    document.body.appendChild(i);
+    i.click();
+  }
 
   /* ── Enregistrer dans la Bibliothèque (PNG + fichier de travail .pcraft, toujours un NOUVEAU fichier) ── */
   async function enregistrer() {
@@ -388,16 +473,56 @@ export function initFichier(PL) {
       ],
       construire({ corps }) {
         const format = document.createElement("select");
-        for (const f of FORMATS_EXPORT) { const o = document.createElement("option"); o.value = f.format; o.textContent = f.libelle; format.appendChild(o); }
+        for (const f of FORMATS_EXPORT) { const o = document.createElement("option"); o.value = f.id; o.textContent = libelleFormat(f, T); format.appendChild(o); }
         const qualite = entree("range", "90", { min: "1", max: "100", step: "1" });
         const vq = document.createElement("span"); vq.className = "pl-unite"; vq.textContent = "90";
         qualite.addEventListener("input", () => { vq.textContent = qualite.value; });
         const lQualite = champ(T("photolab.export.qualite"), qualite); lQualite.appendChild(vq);
-        const majQualite = () => { lQualite.hidden = !FORMATS_EXPORT.find((f) => f.format === format.value).qualite; };
+        const majQualite = () => { lQualite.hidden = !formatExport(format.value).qualite; };
         format.addEventListener("change", majQualite); majQualite();
         const nom = entree("text", nomDocument(doc.name), { maxlength: "80" });
         const erreur = document.createElement("p"); erreur.className = "pl-erreur"; erreur.setAttribute("role", "alert");
-        corps.append(champ(T("photolab.export.format"), format), lQualite, champ(T("photolab.nouveau.nom"), nom), erreur);
+
+        // t257 : préréglages (choisir = format et qualité posés ; Enregistrer = sous le nom saisi ; Supprimer)
+        let prereglages = [];
+        const choix = document.createElement("select"); choix.className = "pl-prereglage";
+        const nomP = brut(entree("text", "", { maxlength: "64", placeholder: T("photolab.export.prereglage.nom") }));
+        const bGarder = document.createElement("button"); bGarder.type = "button"; bGarder.className = "pl-bouton pl-prereglage-garder";
+        bGarder.textContent = T("photolab.export.prereglage.enregistrer");
+        const bOter = document.createElement("button"); bOter.type = "button"; bOter.className = "pl-bouton pl-prereglage-oter";
+        bOter.textContent = T("commun.action.supprimer");
+        const ligneP = document.createElement("div"); ligneP.className = "pl-prereglages"; ligneP.append(choix, nomP, bGarder, bOter);
+        const dessinerChoix = (garde = "") => {
+          choix.textContent = "";
+          const vide = document.createElement("option"); vide.value = ""; vide.textContent = T("photolab.export.prereglage.aucun"); choix.appendChild(vide);
+          for (const p of prereglages) { const o = brut(document.createElement("option")); o.value = p.nom; o.textContent = p.nom; choix.appendChild(o); }
+          choix.value = garde; bOter.disabled = !garde;
+        };
+        const ecrire = async (liste, garde) => {
+          try { prereglages = (await PL.api("PUT", "/export/prereglages", { prereglages: liste })).prereglages; }
+          catch (e) { erreur.textContent = e.message; return; }
+          dessinerChoix(garde);
+        };
+        choix.addEventListener("change", () => {
+          const p = prereglages.find((x) => x.nom === choix.value);
+          bOter.disabled = !p;
+          if (!p) return;
+          const id = idDePrereglage(p);
+          if (id) { format.value = id; majQualite(); }
+          if (p.quality) { qualite.value = String(p.quality); vq.textContent = qualite.value; }
+          nomP.value = p.nom;
+        });
+        bGarder.addEventListener("click", () => {
+          let p;
+          try { p = prereglageDe(nomP.value, format.value, qualite.value); ecrire(rangerPrereglage(prereglages, p), p.nom); erreur.textContent = ""; }
+          catch (e) { erreur.textContent = T(e.cle || "photolab.moteur.erreur"); }
+        });
+        bOter.addEventListener("click", () => { if (choix.value) ecrire(retirerPrereglage(prereglages, choix.value), ""); });
+        dessinerChoix();
+        PL.get("/export/prereglages", true).then((r) => { prereglages = (r && r.prereglages) || []; dessinerChoix(); }).catch(() => {});
+
+        corps.append(champ(T("photolab.export.prereglage"), ligneP), champ(T("photolab.export.format"), format), lQualite,
+          champ(T("photolab.nouveau.nom"), nom), erreur);
         return async () => {
           try { resultat = await PL.post("/enregistrer", corpsExport(format.value, nom.value, qualite.value)); }
           catch (e) { erreur.textContent = e.cle ? T(e.cle) : e.message; return false; }
@@ -409,7 +534,9 @@ export function initFichier(PL) {
     const a = document.createElement("a");
     a.href = resultat.url; a.download = resultat.fichier;
     document.body.appendChild(a); a.click(); a.remove();
-    PL.signaler(T("photolab.export.fait", { nom: resultat.fichier }));
+    // t257 : ce que le format a perdu (PDF aplati, calques fusionnés, compression avec pertes) dans le même message
+    const avert = clesAvertissements(resultat.avertissements).map((c) => T(c));
+    PL.signaler([T("photolab.export.fait", { nom: resultat.fichier }), ...avert].join(" "));
   }
 
   // t158 : les onglets (un par document de la session) et « Fermer » (confirmation si modifié, puis fermeture RÉELLE du
@@ -420,6 +547,7 @@ export function initFichier(PL) {
   PL.actions["file.save"] = enregistrer;
   PL.actions["file.saveAs"] = exporter;
   PL.actions["file.export.exportAs"] = exporter;
+  PL.actions["pl.importer"] = importer;
   PL.actions["pl.envoyer"] = envoyer;
   PL.actions["pl.natif.ouvrir"] = natifOuvrir;
   PL.actions["pl.natif.reprendre"] = natifReprendre;

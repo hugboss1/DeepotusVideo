@@ -1043,3 +1043,19 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 /* t256 (M7 PR 3) : Ctrl+T › Déformer — bras ancre-poignée et poignées de Bézier du maillage */
 #fourmis .transfo-bras { stroke: var(--accent); stroke-width: 1; opacity: .7; }
 #fourmis .transfo-poignee-bezier { fill: var(--accent); stroke: var(--ink-strong); stroke-width: 1; }
+/* t257 (M8) : préréglages d'Exporter, Image › Variables (Définir, Jeux de données), jeux à exporter */
+.pl-prereglages { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pl-prereglages select, .pl-prereglages input { flex: 1 1 120px; }
+.pl-variables, .pl-jeux { display: flex; flex-direction: column; gap: 6px; }
+.pl-variable { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr) minmax(140px, 1.2fr) auto; align-items: center; gap: 6px; }
+.pl-jeux { overflow: auto; max-height: 380px; }
+.pl-jeu { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(110px, 1fr); align-items: center; gap: 6px; }
+.pl-jeu-tete { color: var(--ink-muted); font-size: 11px; }
+.pl-variable select, .pl-variable input[type=text], .pl-jeu input[type=text] {
+  height: 26px; min-width: 0; padding: 0 6px; background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 3px;
+  color: var(--ink); font: 12px var(--f-ui);
+}
+.pl-jeu input[type=checkbox] { justify-self: center; }
+.pl-variable-ajouter, .pl-jeu-ajouter { align-self: flex-start; }
+.pl-jeux-choix { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
+.pl-jeu .pl-jeu-oter { justify-self: start; }

@@ -9938,5 +9938,169 @@
  "{cid} : warp, ou style et rect, requis": {
   "fr": "{cid} : warp, ou style et rect, requis",
   "en": "{cid}: warp, or style and rect, required"
+ },
+ "liste de {PREREGLAGES_MAX} préréglages au plus attendue": {
+  "fr": "liste de {PREREGLAGES_MAX} préréglages au plus attendue",
+  "en": "a list of at most {PREREGLAGES_MAX} presets expected"
+ },
+ "calques : seulement pour le TIFF": {
+  "fr": "calques : seulement pour le TIFF",
+  "en": "calques: TIFF only"
+ },
+ "nom de fichier refusé : {nom}": {
+  "fr": "nom de fichier refusé : {nom}",
+  "en": "file name refused: {nom}"
+ },
+ "HEIC/HEIF : format non activé (décodeur soumis à brevets, à décider)": {
+  "fr": "HEIC/HEIF : format non activé (décodeur soumis à brevets, à décider)",
+  "en": "HEIC/HEIF: format not enabled (patent-encumbered decoder, pending decision)"
+ },
+ "format non ouvert par le Photolab : .{v}": {
+  "fr": "format non ouvert par le Photolab : .{v}",
+  "en": "format the Photolab does not open: .{v}"
+ },
+ "fichier trop lourd (1 Gio au plus)": {
+  "fr": "fichier trop lourd (1 Gio au plus)",
+  "en": "file too large (1 GiB at most)"
+ },
+ "fichier vide": {
+  "fr": "fichier vide",
+  "en": "empty file"
+ },
+ "visibles : booléen attendu": {
+  "fr": "visibles : booléen attendu",
+  "en": "visibles: boolean expected"
+ },
+ "csv : texte attendu": {
+  "fr": "csv : texte attendu",
+  "en": "csv: text expected"
+ },
+ "csv : 1 Mio au plus": {
+  "fr": "csv : 1 Mio au plus",
+  "en": "csv: 1 MiB at most"
+ },
+ "separateur : virgule, point-virgule ou tabulation": {
+  "fr": "separateur : virgule, point-virgule ou tabulation",
+  "en": "separateur: comma, semicolon or tab"
+ },
+ "préréglage : nom, format, quality, calques": {
+  "fr": "préréglage : nom, format, quality, calques",
+  "en": "preset: nom, format, quality, calques"
+ },
+ "préréglage : nom de 1 à 64 caractères": {
+  "fr": "préréglage : nom de 1 à 64 caractères",
+  "en": "preset: name of 1 to 64 characters"
+ },
+ "préréglage en double : {nom}": {
+  "fr": "préréglage en double : {nom}",
+  "en": "duplicate preset: {nom}"
+ },
+ "format hors liste : {v}": {
+  "fr": "format hors liste : {v}",
+  "en": "format not in the list: {v}"
+ },
+ "photocraft : aucun fichier écrit (rien à exporter)": {
+  "fr": "photocraft : aucun fichier écrit (rien à exporter)",
+  "en": "photocraft: no file written (nothing to export)"
+ },
+ "quality : seulement pour le jpg": {
+  "fr": "quality : seulement pour le jpg",
+  "en": "quality: jpg only"
+ },
+ "jeux : liste de 1 à 500 noms attendue": {
+  "fr": "jeux : liste de 1 à 500 noms attendue",
+  "en": "jeux: a list of 1 to 500 names expected"
+ },
+ "quality : entier de 1 à 100 attendu": {
+  "fr": "quality : entier de 1 à 100 attendu",
+  "en": "quality: integer from 1 to 100 expected"
+ },
+ "calques : booléen, seulement pour le TIFF": {
+  "fr": "calques : booléen, seulement pour le TIFF",
+  "en": "calques: boolean, TIFF only"
+ },
+ "méthode refusée : {methode}": {
+  "fr": "méthode refusée : {methode}",
+  "en": "method refused: {methode}"
+ },
+ "index et dir sont posés par le pont": {
+  "fr": "index et dir sont posés par le pont",
+  "en": "index and dir are set by the bridge"
+ },
+ "quality : entier attendu (#7023)": {
+  "fr": "quality : entier attendu (#7023)",
+  "en": "quality: integer expected (#7023)"
+ },
+ "aucun jeu de données dans le document (Image › Variables)": {
+  "fr": "aucun jeu de données dans le document (Image › Variables)",
+  "en": "no data set in the document (Image › Variables)"
+ },
+ "{cid} : {cle} : 1 à {n} caractères, sur une ligne": {
+  "fr": "{cid} : {cle} : 1 à {n} caractères, sur une ligne",
+  "en": "{cid}: {cle}: 1 to {n} characters, on one line"
+ },
+ "{cid} : defs : liste de {MAX_VARIABLES} variables au plus attendue": {
+  "fr": "{cid} : defs : liste de {MAX_VARIABLES} variables au plus attendue",
+  "en": "{cid}: defs: a list of at most {MAX_VARIABLES} variables expected"
+ },
+ "{cid} : append : booléen attendu": {
+  "fr": "{cid} : append : booléen attendu",
+  "en": "{cid}: append: boolean expected"
+ },
+ "{cid} : dataSets : liste de {MAX_JEUX} jeux au plus attendue": {
+  "fr": "{cid} : dataSets : liste de {MAX_JEUX} jeux au plus attendue",
+  "en": "{cid}: dataSets: a list of at most {MAX_JEUX} data sets expected"
+ },
+ "{cid} : name ou index (un seul) requis": {
+  "fr": "{cid} : name ou index (un seul) requis",
+  "en": "{cid}: name or index (only one) required"
+ },
+ "{cid} : defs[{k}] : objet attendu": {
+  "fr": "{cid} : defs[{k}] : objet attendu",
+  "en": "{cid}: defs[{k}]: object expected"
+ },
+ "{cid} : variable en double : {name}": {
+  "fr": "{cid} : variable en double : {name}",
+  "en": "{cid}: duplicate variable: {name}"
+ },
+ "{cid} : defs[{k}].layer : id de calque attendu": {
+  "fr": "{cid} : defs[{k}].layer : id de calque attendu",
+  "en": "{cid}: defs[{k}].layer: layer id expected"
+ },
+ "{cid} : defs[{k}].type : visibility ou textReplacement attendu": {
+  "fr": "{cid} : defs[{k}].type : visibility ou textReplacement attendu",
+  "en": "{cid}: defs[{k}].type: visibility or textReplacement expected"
+ },
+ "{cid} : dataSets[{k}] : objet attendu": {
+  "fr": "{cid} : dataSets[{k}] : objet attendu",
+  "en": "{cid}: dataSets[{k}]: object expected"
+ },
+ "{cid} : jeu de données en double : {name}": {
+  "fr": "{cid} : jeu de données en double : {name}",
+  "en": "{cid}: duplicate data set: {name}"
+ },
+ "{cid} : dataSets[{k}].values : liste de {MAX_VARIABLES} valeurs au plus attendue": {
+  "fr": "{cid} : dataSets[{k}].values : liste de {MAX_VARIABLES} valeurs au plus attendue",
+  "en": "{cid}: dataSets[{k}].values: a list of at most {MAX_VARIABLES} values expected"
+ },
+ "{cid} : index : entier de 0 à {v} attendu": {
+  "fr": "{cid} : index : entier de 0 à {v} attendu",
+  "en": "{cid}: index: integer from 0 to {v} expected"
+ },
+ "{cid} : dataSets[{k}].values : objets attendus": {
+  "fr": "{cid} : dataSets[{k}].values : objets attendus",
+  "en": "{cid}: dataSets[{k}].values: objects expected"
+ },
+ "{cid} : dataSets[{k}].values.kind : visibility ou text attendu": {
+  "fr": "{cid} : dataSets[{k}].values.kind : visibility ou text attendu",
+  "en": "{cid}: dataSets[{k}].values.kind: visibility or text expected"
+ },
+ "{cid} : dataSets[{k}].values.value : booléen attendu (visibilité)": {
+  "fr": "{cid} : dataSets[{k}].values.value : booléen attendu (visibilité)",
+  "en": "{cid}: dataSets[{k}].values.value: boolean expected (visibility)"
+ },
+ "{cid} : dataSets[{k}].values.value : texte de {MAX_TEXTE_JEU} caractères au plus attendu": {
+  "fr": "{cid} : dataSets[{k}].values.value : texte de {MAX_TEXTE_JEU} caractères au plus attendu",
+  "en": "{cid}: dataSets[{k}].values.value: text of at most {MAX_TEXTE_JEU} characters expected"
  }
 }

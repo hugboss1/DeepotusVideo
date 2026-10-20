@@ -59,6 +59,8 @@ export function initApi(PL) {
     const opts = { method: methode, headers: {} };
     if (corps !== undefined && corps !== null) {
       if (corps instanceof FormData) opts.body = corps;
+      // t257 : un fichier de l'ordinateur (/importer) part en octets bruts
+      else if (typeof Blob !== "undefined" && corps instanceof Blob) { opts.headers["Content-Type"] = "application/octet-stream"; opts.body = corps; }
       else { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(corps); }
     }
     let rep;
