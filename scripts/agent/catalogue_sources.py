@@ -9,6 +9,7 @@ Lancé avec le python embarqué, sans importer l'application.
 from __future__ import annotations
 
 import ast
+import html
 import json
 import pathlib
 import re
@@ -64,15 +65,27 @@ def _ajouter(out: dict, nouveaux: dict) -> None:
             out[k] = e
 
 
+RE_LIBELLE_VOISIN = re.compile(r'\blibelle\s*:\s*(?:(?:T|dzT|t|vlT)\("([a-z0-9_.]+)"\)|"([^"\\]+)")')
+
+
+def _libelle_voisin(ligne: str, i: int):
+    """Le libellé posé dans le MÊME objet littéral que l'infobulle en ligne[i] — { id: "pixel", libelle: "Pixel",
+    titre: T("…") } : ("cle", k) ou ("lit", texte), sinon None. L'objet s'arrête à la 1re accolade de part et d'autre."""
+    a = max(ligne.rfind("{", 0, i), ligne.rfind("}", 0, i)) + 1
+    z = min((j for j in (ligne.find("{", i), ligne.find("}", i)) if j >= 0), default=len(ligne))
+    m = RE_LIBELLE_VOISIN.search(ligne[a:z])
+    return None if not m else ("cle", m.group(1)) if m.group(1) else ("lit", m.group(2))
+
+
 def _infobulles_lab(texte: str):
-    """(clé, position) des infobulles d'un fichier de lab. Seul l'attribut « titre » d'une ligne de dialogue est écarté
+    """(clé, position, libellé voisin) des infobulles d'un fichier de lab. Seul l'attribut « titre » d'une ligne de dialogue est écarté
     (la ligne OU la précédente : « ouvrirDialogue(PL, { » puis « titre: T(…) ») ; title et aria-label restent."""
     debut, avant = 0, ""
     for ligne in texte.splitlines(keepends=True):
         dialogue = bool(RE_DIALOGUE.search(ligne) or RE_DIALOGUE.search(avant))
         for m in RE_T_LAB.finditer(ligne):
             if not (dialogue and m.group(1) == "titre"):
-                yield m.group(2), debut + m.start()
+                yield m.group(2), debut + m.start(), _libelle_voisin(ligne, m.start())
         debut, avant = debut + len(ligne), ligne
 
 
@@ -86,9 +99,10 @@ def _type_lab(texte: str, pos: int) -> str:
     return "champ" if m and m.group(1).lower() in CHAMPS else "bouton"
 
 
-def depuis_labs(racine: pathlib.Path, dico: dict) -> dict:
-    """Les infobulles T("cle") des labs en cadre intégré (index.html, *.js, js/*.js), plus le registre des outils du
-    Photolab (photolab.outil.<id>)."""
+def depuis_labs(racine: pathlib.Path, dico: dict, inv: dict = None) -> dict:
+    """Les infobulles T("cle") des labs en cadre intégré (index.html, *.js, js/*.js), avec le libellé posé à côté dans
+    le même objet, plus le registre des outils du Photolab (photolab.outil.<id>)."""
+    inv = inv or {}
     out = {}
     for dossier_lab in LABS_LUS:
         ec, cadre = LABS[dossier_lab]
@@ -99,11 +113,16 @@ def depuis_labs(racine: pathlib.Path, dico: dict) -> dict:
                 continue
             rel = f.relative_to(racine).as_posix()
             texte = f.read_text(encoding="utf-8")
-            for k, pos in _infobulles_lab(texte):
+            for k, pos, lib in _infobulles_lab(texte):
                 if k not in dico or message(k):
                     continue
                 e = out.get(k) or {**_base(k, _type_lab(texte, pos), dico), "ecran": ec, "cadre": cadre,
                                    "libelle": dict(VIDE), "infobulle": _texte(dico, k), "sources": []}
+                if lib and not e["libelle"]["fr"]:
+                    if lib[0] == "cle" and lib[1] in dico:
+                        e["libelle"] = _texte(dico, lib[1])
+                    elif lib[0] == "lit":
+                        e["libelle"] = {"fr": lib[1], "en": inv.get(lib[1], "")}
                 e["sources"] = sorted(set(e["sources"]) | {rel})
                 out[k] = e
     for k in dico:
@@ -113,6 +132,42 @@ def depuis_labs(racine: pathlib.Path, dico: dict) -> dict:
                 e = out[k]                                # infobulle), la source i18n s'ajoute
                 e["sources"] = sorted(set(e["sources"]) | {f"i18n:{k}"})
             out[k] = e
+    return out
+
+
+# balise ouvrante d'un bouton ou d'un champ, écrite en clair dans la page d'un lab, et son infobulle littérale
+RE_BALISE_PAGE = re.compile(r"<(button|input|select|textarea)\b[^>]*>", re.I)
+RE_TITLE_PAGE = re.compile(r'\btitle="([^"$]+)"')
+
+
+def depuis_pages(racine: pathlib.Path, dico: dict, deja: dict) -> dict:
+    """Les boutons et champs de la page d'un lab (index.html) dont l'infobulle est un texte FR en clair — la barre
+    d'outils du Vectorlab : <button data-outil="plume" title="Plume Bézier — …">. La page est traduite au
+    chargement par recouvrement exact ; sa clé est celle du dictionnaire de la page (<lab>.page.*) qui porte ce texte.
+    Un texte déjà porté par une fiche connue (même bouton lu ailleurs) n'en crée pas d'autre ; sans clé : rien."""
+    out = {}
+    for dossier_lab in LABS_LUS:
+        ec, cadre = LABS[dossier_lab]
+        f = racine / "frontend" / dossier_lab / "index.html"
+        if not f.exists():
+            continue
+        rel, prefixe = f.relative_to(racine).as_posix(), f"{dossier_lab}.page."
+        par_texte = {}
+        for k, v in dico.items():
+            if isinstance(v, dict) and v.get("fr"):
+                par_texte.setdefault(v["fr"], []).append(k)
+        for m in RE_BALISE_PAGE.finditer(f.read_text(encoding="utf-8")):
+            t = RE_TITLE_PAGE.search(m.group())
+            if not t:
+                continue
+            cles = par_texte.get(html.unescape(t.group(1)), [])
+            page = sorted(k for k in cles if k.startswith(prefixe))
+            if not page or any(k in deja or k in out for k in cles):
+                continue
+            k = page[0]
+            typ = "champ" if m.group(1).lower() in CHAMPS else "bouton"
+            out[k] = {**_base(k, typ, dico), "ecran": ec, "cadre": cadre, "libelle": dict(VIDE),
+                      "infobulle": _texte(dico, k), "sources": [rel]}
     return out
 
 
@@ -219,7 +274,8 @@ def extraire(racine) -> dict:
     inv = inverse(dico)
     out = {}
     out.update(depuis_bundle(racine, dico, inv))
-    _ajouter(out, depuis_labs(racine, dico))
+    _ajouter(out, depuis_labs(racine, dico, inv))
+    _ajouter(out, depuis_pages(racine, dico, out))
     _ajouter(out, depuis_reglages(racine, inv))
     _ajouter(out, depuis_fiches(racine))
     return {k: v for k, v in out.items() if k not in ids and not (prefixes and k.startswith(prefixes))}

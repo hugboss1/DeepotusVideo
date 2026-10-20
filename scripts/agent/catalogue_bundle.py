@@ -128,6 +128,37 @@ def _elements(b: str) -> list:
     return out
 
 
+RE_FONCTION = re.compile(r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\(([^()]*)\)\s*\{")
+# identifiant nu (« tt ») ou propriété d'un identifiant (« o.title ») ; « p.name( » ou « f[0] » ne comptent pas
+RE_IDENT = re.compile(r"(?<![\w$.])([A-Za-z_$][\w$]*)(?:\.([A-Za-z_$][\w$]*))?(?![\w$.\[(])")
+_RE_CHAINES = re.compile(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'')
+FONCTIONS_TENTEES = 200                                  # fonctions nommées remontées au plus pour trouver l'englobante
+
+
+def _fonction_englobante(b: str, fonctions: list, debuts_f: list, pos: int, memo: dict):
+    """La définition (match de RE_FONCTION) de la fonction NOMMÉE la plus proche dont le corps contient pos,
+    et la fin de ce corps ; sinon None."""
+    k = bisect.bisect_left(debuts_f, pos)
+    for m in reversed(fonctions[max(0, k - FONCTIONS_TENTEES):k]):
+        r = _objet(b, m.end() - 1, memo)
+        if r and r[0] > pos:
+            return m, r[0]
+    return None
+
+
+def _appels(b: str, nom: str, a: int, z: int, memo: dict):
+    """Pour chaque appel nom(…) dans b[a:z] (hors définition) : la liste des (début, fin) de ses arguments. La
+    portée compte : un nom minifié (« e », « Q ») est réutilisé d'une fonction à l'autre."""
+    for m in re.compile(r"(?<![\w$.])" + re.escape(nom) + r"\(").finditer(b, a, z):
+        if b[max(0, m.start() - 9):m.start()].rstrip().endswith("function"):
+            continue
+        i = m.end() - 1
+        r = _objet(b, i, memo)
+        if r:
+            bornes = [i] + r[1] + [r[0]]
+            yield [(x + 1, y) for x, y in zip(bornes, bornes[1:])]
+
+
 def _etat_de_ternaire(avant: str, texte: dict) -> bool:
     """1re branche d'un ternaire (« cond ? dzT(A) : … ») dont le texte FR finit par « … » : un état passager."""
     fr = (texte.get("fr") or "").rstrip() if isinstance(texte, dict) else ""
@@ -235,5 +266,60 @@ def depuis_bundle(racine: pathlib.Path, dico: dict, inv: dict) -> dict:
             continue
         out[i] = {"id": i, "ecran": ec, "cadre": None, "type": typ, "libelle": dict(VIDE),
                   "infobulle": {"fr": fr, "en": inv.get(fr, "")}, "icone": icone(attrs), "sources": ["bundle:title"]}
+    _par_parametre(b, elements, out, dico)
     return out
+
+
+def _par_parametre(b: str, elements: list, out: dict, dico: dict) -> None:
+    """Un <button> natif fabriqué par une fonction nommée dont l'infobulle (title) est un PARAMÈTRE —
+    function actBtn(it,act,lbl,tt){… title:armed?…:tt …} — n'a pas sa clé dans l'élément : elle est à chaque appel,
+    actBtn(it,"stems",__dzGl("dz-media-stems"),dzT("sfx.action.stems_aide")). Une fiche par clé d'appel, avec l'icône
+    littérale de l'appel. Ni le libellé en paramètre (row(dzT("…titre"),…)) ni l'aria-label d'un champ ne sont
+    suivis : ces fabriques-là posent surtout des en-têtes et des étiquettes. Une action commune (commun.action.fermer)
+    passée à une fabrique n'en fait pas une fiche : sa clé sert déjà ailleurs, avec son propre écran."""
+    fonctions = list(RE_FONCTION.finditer(b))
+    debuts_f = [m.start() for m in fonctions]
+    memo, vues = {}, set()
+    for debut, balise, attrs in elements:
+        if balise != '"button"' or "title" not in attrs:
+            continue
+        usages = set(RE_IDENT.findall(_RE_CHAINES.sub('""', b[slice(*attrs["title"])])))
+        f = _fonction_englobante(b, fonctions, debuts_f, debut, memo)
+        if not f or f[0].start() in vues:
+            continue
+        nom, params = f[0].group(1), [p.strip() for p in f[0].group(2).split(",")]
+        portee = _fonction_englobante(b, fonctions, debuts_f, f[0].start(), memo)   # où le nom est visible
+        a_portee, z_portee = (portee[0].end(), portee[1]) if portee else (0, len(b))
+        rangs = sorted((params.index(x), prop) for x, prop in usages if x in params)
+        if not rangs:
+            continue
+        vues.add(f[0].start())
+        for args in _appels(b, nom, a_portee, z_portee, memo):
+            tip = None
+            for r, prop in (x for x in rangs if x[0] < len(args)):
+                a, z = args[r]
+                if prop:                                 # o.title : la propriété « title » de l'objet littéral passé
+                    i = a + len(b[a:z]) - len(b[a:z].lstrip())
+                    o = _objet(b, i, memo) if b[i:i + 1] == "{" else None
+                    attrs_o = _attributs(b, i, o[0], o[1]) if o else {}
+                    if prop not in attrs_o:
+                        continue
+                    a, z = attrs_o[prop]
+                for m in RE_CLE.finditer(b, a, z):
+                    k = m.group(1)
+                    if (k in dico and not message(k) and not k.startswith("commun.")
+                            and not b[a:m.start()].rstrip().endswith("?")):
+                        tip = k                          # « enCours ? dzT(A) : dzT(B) » → B, l'infobulle au repos
+                        break
+                if tip:
+                    break
+            if not tip:
+                continue
+            if tip in out:
+                out[tip]["sources"] = sorted(set(out[tip]["sources"]) | {f"i18n:{tip}"})
+                continue
+            e = out[tip] = _base(tip, "bouton", dico)
+            e["libelle"], e["infobulle"] = dict(VIDE), _texte(dico, tip)
+            m = RE_ICONE_LIT.search(b, args[0][0], args[-1][1])
+            e["icone"] = m.group(1) if m else None
 
