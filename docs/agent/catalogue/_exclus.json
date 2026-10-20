@@ -4,6 +4,7 @@
     "photolab.outil.bientot",
     "photolab.menu.bientot",
     "photolab.histogramme.perime",
+    "photolab.actions.sans_equivalent_etape",
     "vectorlab.brouillon.temoin",
     "vectorlab.biblio.vignette_titre",
     "vectorlab.geo.profil",
@@ -12,5 +13,5 @@
   "prefixes": [
     "vectorlab.flyout.titre_"
   ],
-  "note": "Faux éléments écartés par le skill connaissance-agent (titres de dialogue, badges, en-têtes) : l'extracteur ne les recrée pas. 20/10 : en-têtes des menus volants du Vectorlab (« return { titre: T(…) } »), titre de l'« À propos » du Photolab, suffixe « bientôt » (badge), témoins et vignettes non cliquables (span title, svg role=img)."
+  "note": "Faux éléments écartés par le skill connaissance-agent (titres de dialogue, badges, en-têtes) : l'extracteur ne les recrée pas. 20/10 : en-têtes des menus volants du Vectorlab (« return { titre: T(…) } »), titre de l'« À propos » du Photolab, suffixe « bientôt » (badge), témoins et vignettes non cliquables (span title, svg role=img). 20/10 (t255) : infobulle d'état d'une étape .atn sans équivalent (panneau Actions du Photolab)."
 }
