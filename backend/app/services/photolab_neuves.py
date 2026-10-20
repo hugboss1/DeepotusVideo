@@ -22,29 +22,36 @@ Ouvertes depuis (retirées d'ici, avec leurs bancs) :
   t255 (M6, 20/10) : les 18 actions.* (panneau Actions) — assignSet, conditional, delete, dialog, get, insert, list,
                      load, move, photoshopStep, play, record, rename, save, setColor, stop, stopMessage, toggle
                      (formes vérifiées par photolab_registre._v_actions / verifier_etape)
+  t256 (M7, 20/10) : calques — layer.removeBackground, filter.render.relight, filter.other.colorToAlpha,
+                     layer.showOnly, layer.toggleLockTransparency, layer.setLabelColor, layer.mergeGroup,
+                     layer.copyToDocument, layer.new.frame, layer.artboard.addBeside, layer.layerStyle.transferEffects /
+                     makeDefault / defaultFor, layer.layerMask.edit, layer.smartObjects.convertToLayers,
+                     layer.new.backgroundFromLayer, layer.rasterize.layerStyle (formes : photolab_registre._v_m7)
+                     (layer.layerStyle.replace reste fermée : le dialogue Style de calque applique effet par effet ;
+                     layer.smartObjects.updateChanged / relinkToFile / replaceContents / exportContents / convertToLinked :
+                     le moteur 0.10 les DÉSACTIVE en automation — « uses ambient filesystem paths »)
+  t256 (M7 PR 2, 20/10) : instantanés et document d'après un état — history.newSnapshot, deleteSnapshot,
+                     renameSnapshot, selectSnapshot, newDocument (panneau Historique). history.undo / redo / selectState /
+                     deleteState restent fermées : le panneau annule déjà par /historique. Les swatches.* restent fermées
+                     à /executer : seules les routes /nuancier/importer et /nuancier/exporter les jouent (photolab_nuancier)
+  t256 (M7 PR 3, 20/10) : edit.transform.warpGrid — le maillage de Ctrl+T › Déformer (grille Par défaut / 3 / 4 / 5 ;
+                     découpe qui garde la surface) ; la validation passe par edit.transform.warp {warp} (0.3.0, déjà ouverte)
 """
 
 COMMANDES_NEUVES_FERMEES = frozenset({
-    "brush.presets.importImage", "brush.presets.setCurrent",
-    "brush.presets.update", "channel.target.layerMask", "document.move", "document.presets.delete",
-    "document.presets.get", "document.presets.list", "document.presets.save", "document.recent.add",
-    "document.recent.list", "document.sampleColor", "edit.deleteAndFillSelection", "edit.fillHistory",
-    "edit.installedProfiles", "edit.transform.warpGrid", "file.export.presets.delete", "file.export.presets.get",
-    "file.export.presets.list", "file.export.presets.save", "file.exrParts", "file.openExrParts",
-    "file.print.page", "file.print.printers", "file.printers", "file.revealInFinder",
-    "filter.other.colorToAlpha", "filter.render.relight", "gradient.presets.stop", "history.deleteSnapshot",
-    "history.deleteState", "history.newDocument", "history.newSnapshot", "history.redo",
-    "history.renameSnapshot", "history.selectSnapshot", "history.selectState", "history.undo",
-    "image.detectFaces", "layer.artboard.addBeside", "layer.copyToDocument", "layer.fill.pattern.set",
-    "layer.fill.solidColor.set", "layer.layerMask.edit", "layer.layerStyle.defaultFor", "layer.layerStyle.makeDefault",
-    "layer.layerStyle.replace", "layer.layerStyle.transferEffects", "layer.list", "layer.mergeGroup",
-    "layer.new.backgroundFromLayer", "layer.new.frame", "layer.rasterize.layerStyle", "layer.removeBackground",
-    "layer.selectInRect", "layer.setEffectsVisible", "layer.setLabelColor", "layer.showOnly",
-    "layer.smartFilter.transfer", "layer.smartObjects.convertToLayers", "layer.smartObjects.updateChanged", "layer.toggleLockTransparency",
-    "layer.toggleMaskOverlay", "swatches.add", "swatches.delete", "swatches.deleteGroup",
-    "swatches.export", "swatches.import", "swatches.list", "swatches.move",
-    "swatches.newGroup", "swatches.rename", "swatches.renameGroup", "swatches.reset",
-    "swatches.use", "tools.decreaseBrushHardness", "tools.decreaseBrushSize", "tools.increaseBrushHardness",
-    "tools.increaseBrushSize", "tools.rotateBrush", "type.caret", "type.hitTest",
-    "type.navigate", "view.editGuide", "view.resetRulerOrigin", "view.setRulerOrigin",
+    "brush.presets.importImage", "brush.presets.setCurrent", "brush.presets.update", "channel.target.layerMask",
+    "document.move", "document.presets.delete", "document.presets.get", "document.presets.list",
+    "document.presets.save", "document.recent.add", "document.recent.list", "document.sampleColor",
+    "edit.deleteAndFillSelection", "edit.fillHistory", "edit.installedProfiles", "file.export.presets.delete",
+    "file.export.presets.get", "file.export.presets.list", "file.export.presets.save", "file.exrParts",
+    "file.openExrParts", "file.print.page", "file.print.printers", "file.printers", "file.revealInFinder",
+    "gradient.presets.stop", "history.deleteState", "history.redo", "history.selectState", "history.undo",
+    "image.detectFaces", "layer.fill.pattern.set", "layer.fill.solidColor.set", "layer.layerStyle.replace",
+    "layer.list", "layer.selectInRect", "layer.setEffectsVisible", "layer.smartFilter.transfer",
+    "layer.smartObjects.updateChanged", "layer.toggleMaskOverlay", "swatches.add", "swatches.delete",
+    "swatches.deleteGroup", "swatches.export", "swatches.import", "swatches.list", "swatches.move",
+    "swatches.newGroup", "swatches.rename", "swatches.renameGroup", "swatches.reset", "swatches.use",
+    "tools.decreaseBrushHardness", "tools.decreaseBrushSize", "tools.increaseBrushHardness",
+    "tools.increaseBrushSize", "tools.rotateBrush", "type.caret", "type.hitTest", "type.navigate", "view.editGuide",
+    "view.resetRulerOrigin", "view.setRulerOrigin",
 })

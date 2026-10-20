@@ -42,10 +42,32 @@ export const IDS_DOCUMENTS = ["file.closeAll", "file.closeOthers", "file.saveACo
   "file.placeEmbedded", "file.fileInfo", "layer.quickExportAsPng", "layer.exportAs"];
 // t191 : les deux entrées de l'écran insérées dans Calque (après « Dupliquer le calque… »), payantes, document requis.
 export const IDS_IA = ["pl.calque.ia", "pl.calque.detourer"];
+// t256 (M7) : entrées de photocraft 0.10 absentes du catalogue amont 0.3.0 (donnees/menus.json n'est jamais touché),
+// insérées par construireMenus APRÈS l'entrée `apres` du sous-menu `chemin` (en fin de sous-menu si elle manque).
+// Une commande du moteur suit le registre (« bientôt » s'il ne l'a pas) ; une entrée « pl.* » est de l'écran
+// (mod-calques : dialogue générique d'une commande moteur avec des valeurs que l'écran fournit).
+export const INSERTIONS_M7 = [
+  { chemin: ["Layer", "New"], apres: "layer.new.layerFromBackground", id: "layer.new.backgroundFromLayer", cle: "photolab.menu.arriere_plan_depuis_calque" },
+  { chemin: ["Layer", "New"], apres: "layer.new.artboardFromLayers", id: "layer.artboard.addBeside", cle: "photolab.menu.plan_voisin" },
+  { chemin: ["Layer", "New"], apres: "layer.artboard.addBeside", id: "pl.calque.cadre", cle: "photolab.menu.cadre" },
+  { chemin: ["Layer"], apres: "pl.calque.detourer", id: "layer.removeBackground", cle: "photolab.menu.retirer_fond_local" },
+  { chemin: ["Layer"], apres: "layer.removeBackground", id: "pl.calque.copier_document", cle: "photolab.menu.copier_document" },
+  { chemin: ["Layer"], apres: "layer.renameLayer", id: "layer.setLabelColor", cle: "photolab.menu.couleur_calque" },
+  { chemin: ["Layer", "Smart Objects"], apres: "layer.smartObjects.newSmartObjectViaCopy", id: "layer.smartObjects.convertToLayers", cle: "photolab.menu.convertir_calques" },
+  { chemin: ["Layer", "Rasterize"], apres: "layer.rasterize.smartObject", id: "layer.rasterize.layerStyle", cle: "photolab.calques.style" },
+  { chemin: ["Layer"], apres: "layer.mergeLayers", id: "layer.mergeGroup", cle: "photolab.menu.fusionner_groupe" },
+  { chemin: ["Filter", "Render"], apres: "filter.render.lightingEffects", id: "filter.render.relight", cle: "photolab.menu.reeclairer" },
+  { chemin: ["Filter", "Other…"], apres: null, id: "filter.other.colorToAlpha", cle: "photolab.menu.couleur_alpha" },
+];
+// Entrées « pl.* » de M7 (mod-calques : PL.actions) et les commandes moteur dont elles ouvrent le dialogue générique.
+export const IDS_CALQUES_M7 = ["pl.calque.cadre", "pl.calque.copier_document"];
+export const DIALOGUES_ECRAN_M7 = { "pl.calque.cadre": "layer.new.frame", "pl.calque.copier_document": "layer.copyToDocument" };
 export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs",
   "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre",
   // t191 : Calque › Nouveau calque IA… / Retirer le fond du calque (mod-iacalque : routes /calque/ia, /calque/detourer)
   ...IDS_IA,
+  // t256 : Calque › Nouveau › Cadre…, Calque › Dupliquer vers un document… (mod-calques)
+  ...IDS_CALQUES_M7,
   // t155 : le groupe Pinceaux (mod-pinceaux, PL.actions) ; window.* reste refusé au moteur
   "window.panel.brushes", "window.panel.brushSettings", "window.panel.cloneSource", "window.panel.toolPresets",
   // t151 : espaces de travail et Fenêtre › <panneau> (mod-espaces : ACTIONS_ESPACE, PANNEAUX, BARRES — banc espaces 5.9)
@@ -87,7 +109,7 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // t160 : mesure, comptage, notes, tranches (mod-mesure ; Affichage par mod-affichage, panneaux par mod-espaces)
   ...IDS_MESURE]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_IA, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
+export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_IA, ...IDS_CALQUES_M7, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
   // t154 : la transformation manuelle vise le calque actif
@@ -251,6 +273,17 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
     const pos = k >= 0 ? k + 1 : selection.entrees.length;
     selection.entrees.splice(pos, 0, { type: "commande", id: "select.loadLuminosity", libelle: t("photolab.menu.charger_luminosite"),
       raccourci: raccourciAffiche("Cmd+Alt+2", lang), etat: etatDe("select.loadLuminosity", idx, refuses), champs: champsDe(idx.get("select.loadLuminosity")) });
+  }
+  // t256 : les entrées de photocraft 0.10 (INSERTIONS_M7), dans l'ordre de la table : une insertion peut suivre la
+  // précédente (Plan de travail voisin puis Cadre).
+  for (const ins of INSERTIONS_M7) {
+    let liste = (menus.find((m) => m.nom === ins.chemin[0]) || {}).entrees;
+    for (const nom of ins.chemin.slice(1)) liste = liste && (liste.find((x) => x.type === "sous-menu" && x.nom === nom) || {}).entrees;
+    if (!liste) continue;
+    const k = ins.apres ? liste.findIndex((e) => e.id === ins.apres) : -1;
+    const ecran = ins.id.startsWith("pl.");
+    liste.splice(k >= 0 ? k + 1 : liste.length, 0, { type: "commande", id: ins.id, libelle: t(ins.cle), raccourci: "",
+      etat: ecran ? "actif" : etatDe(ins.id, idx, refuses), champs: ecran ? [] : champsDe(idx.get(ins.id)) });
   }
   menus.push({
     nom: "Aide", nom_affiche: t("photolab.menu.aide"),

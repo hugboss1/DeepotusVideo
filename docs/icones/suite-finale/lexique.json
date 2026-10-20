@@ -8581,6 +8581,41 @@
   "kit": []
  },
  {
+  "cle": "dz-edit-deformer-maillage",
+  "famille": "edit",
+  "sens": "Bascule la transformation (Ctrl+T) en déformation par maillage : points d'ancrage et poignées à glisser sur une grille.",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Basculer entre transformation et déformation par maillage"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-edit-grille",
+    "La grille est droite et d'un seul tenant (affichage) ; le maillage a des lignes ondulées pâles et des ancres pleines (déformer)."
+   ],
+   [
+    "dz-lab3d-maillage",
+    "Treillis 3D en losange ; ici une grille 2 × 2 ondulée à cinq ancres carrées."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "un maillage déformé",
+   "sujet": "lignes ondulées et points d'ancrage",
+   "support": "grille 2 × 2",
+   "badge": "",
+   "serie": "transformation",
+   "silhouette": "cinq carrés pleins (coins et centre), lignes ondulées pâles entre eux"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-edit-degrade-conique",
   "famille": "edit",
   "sens": "Pose un dégradé conique centré sur l'objet.",

@@ -27,9 +27,17 @@
     "nom": {"fr": "Déplacement", "en": "Move"},
     "fonction": {"fr": "Déplace le calque ou la sélection quand on glisse dessus.", "en": "Moves the layer or selection as you drag it."}
   },
+  "dz-outil-photo-deplacer-contenu": {
+    "nom": {"fr": "Déplacement de contenu", "en": "Content-Aware Move"},
+    "fonction": {"fr": "Déplace ou étend une sélection ; le fond laissé derrière est reconstruit.", "en": "Moves or extends a selection; the background left behind is rebuilt."}
+  },
   "dz-outil-photo-doigt": {
     "nom": {"fr": "Doigt", "en": "Smudge"},
     "fonction": {"fr": "Étale les pixels comme un doigt dans de la peinture fraîche.", "en": "Smears pixels like a finger in wet paint."}
+  },
+  "dz-outil-photo-echantillonneur": {
+    "nom": {"fr": "Échantillonneur de couleur", "en": "Color Sampler"},
+    "fonction": {"fr": "Pose des points de mesure dont les couleurs s'affichent dans Infos.", "en": "Places sample points whose colors show in the Info panel."}
   },
   "dz-outil-photo-eponge": {
     "nom": {"fr": "Éponge", "en": "Sponge"},
@@ -38,6 +46,14 @@
   "dz-outil-photo-flou": {
     "nom": {"fr": "Flou", "en": "Blur"},
     "fonction": {"fr": "Adoucit localement les pixels sur lesquels on passe le pinceau.", "en": "Softens the pixels you brush over."}
+  },
+  "dz-outil-photo-masque-texte": {
+    "nom": {"fr": "Masque de texte horizontal", "en": "Horizontal Type Mask"},
+    "fonction": {"fr": "Le texte tapé devient une sélection en forme de lettres.", "en": "The typed text becomes a letter-shaped selection."}
+  },
+  "dz-outil-photo-masque-texte-vertical": {
+    "nom": {"fr": "Masque de texte vertical", "en": "Vertical Type Mask"},
+    "fonction": {"fr": "Comme le masque de texte, mais en colonne de haut en bas.", "en": "Like the type mask, but in a top-to-bottom column."}
   },
   "dz-outil-photo-nettete": {
     "nom": {"fr": "Netteté", "en": "Sharpen"},
@@ -54,6 +70,14 @@
   "dz-outil-photo-recadrer": {
     "nom": {"fr": "Recadrage", "en": "Crop"},
     "fonction": {"fr": "Rogne l'image au cadre que l'on trace en glissant.", "en": "Trims the image to the frame you drag out."}
+  },
+  "dz-outil-photo-recadrer-perspective": {
+    "nom": {"fr": "Recadrage de perspective", "en": "Perspective Crop"},
+    "fonction": {"fr": "Recadre selon quatre coins et redresse la zone en rectangle.", "en": "Crops along four corners and straightens the area into a rectangle."}
+  },
+  "dz-outil-photo-rotation-vue": {
+    "nom": {"fr": "Rotation de la vue", "en": "Rotate View"},
+    "fonction": {"fr": "Tourne l'affichage pour travailler plus à l'aise, sans modifier l'image.", "en": "Turns the view for comfortable work, without changing the image."}
   },
   "dz-outil-photo-selection-ajouter": {
     "nom": {"fr": "Ajouter", "en": "Add"},
@@ -83,9 +107,21 @@
     "nom": {"fr": "Sélection de tranche", "en": "Slice Select"},
     "fonction": {"fr": "Choisit une tranche de l'image pour la régler ou l'exporter.", "en": "Picks a slice of the image to adjust or export it."}
   },
+  "dz-outil-photo-supprimer": {
+    "nom": {"fr": "Supprimer un objet", "en": "Remove"},
+    "fonction": {"fr": "Peindre sur un objet l'efface et reconstruit le fond à sa place.", "en": "Painting over an object erases it and rebuilds the background."}
+  },
   "dz-outil-photo-tampon": {
     "nom": {"fr": "Tampon de duplication", "en": "Clone Stamp"},
     "fonction": {"fr": "Recopie une zone source, choisie par Alt+clic, là où l'on peint.", "en": "Copies a source area, picked with Alt+click, wherever you paint."}
+  },
+  "dz-outil-photo-tampon-motif": {
+    "nom": {"fr": "Tampon de motif", "en": "Pattern Stamp"},
+    "fonction": {"fr": "Peint avec le motif courant au lieu d'une zone copiée.", "en": "Paints with the current pattern instead of a copied area."}
+  },
+  "dz-outil-photo-yeux-rouges": {
+    "nom": {"fr": "Œil rouge", "en": "Red Eye"},
+    "fonction": {"fr": "Un clic sur une pupille rouge l'assombrit.", "en": "Clicking a red pupil darkens it."}
   },
   "dz-outil-px-baguette": {
     "nom": {"fr": "Baguette magique", "en": "Magic Wand"},
@@ -115,6 +151,10 @@
     "nom": {"fr": "Lasso", "en": "Lasso"},
     "fonction": {"fr": "Sélectionne une zone en traçant son contour à main levée.", "en": "Selects an area by drawing its outline freehand."}
   },
+  "dz-outil-px-lasso-magnetique": {
+    "nom": {"fr": "Lasso magnétique", "en": "Magnetic Lasso"},
+    "fonction": {"fr": "Trace une sélection qui s'accroche toute seule aux bords de l'image.", "en": "Draws a selection that snaps to the edges in the image."}
+  },
   "dz-outil-px-lasso-polygonal": {
     "nom": {"fr": "Lasso polygonal", "en": "Polygonal Lasso"},
     "fonction": {"fr": "Sélectionne une zone en traçant son contour segment par segment.", "en": "Selects an area by drawing its outline in straight segments."}
@@ -143,9 +183,17 @@
     "nom": {"fr": "Sélection rectangulaire", "en": "Rectangular Marquee"},
     "fonction": {"fr": "Sélectionne une zone rectangulaire de pixels en glissant.", "en": "Selects a rectangular area of pixels as you drag."}
   },
+  "dz-outil-px-selection-colonne": {
+    "nom": {"fr": "Sélection d'une colonne", "en": "Single Column Marquee"},
+    "fonction": {"fr": "Sélectionne une colonne d'un pixel sur toute la hauteur.", "en": "Selects a one-pixel column across the full height."}
+  },
   "dz-outil-px-selection-ellipse": {
     "nom": {"fr": "Sélection elliptique", "en": "Elliptical Marquee"},
     "fonction": {"fr": "Sélectionne une zone ovale ou ronde de pixels en glissant.", "en": "Selects an oval or round area of pixels as you drag."}
+  },
+  "dz-outil-px-selection-rangee": {
+    "nom": {"fr": "Sélection d'une rangée", "en": "Single Row Marquee"},
+    "fonction": {"fr": "Sélectionne une ligne d'un pixel sur toute la largeur.", "en": "Selects a one-pixel row across the full width."}
   },
   "dz-outil-px-selection-rapide": {
     "nom": {"fr": "Sélection rapide", "en": "Quick Selection"},
@@ -154,6 +202,14 @@
   "dz-outil-px-symetrie": {
     "nom": {"fr": "Miroir iso", "en": "Iso Mirror"},
     "fonction": {"fr": "Reproduit la peinture en miroir le long d'un bord du losange.", "en": "Mirrors your painting along one edge of the iso diamond."}
+  },
+  "dz-outil-vec-ancre-ajouter": {
+    "nom": {"fr": "Ajout de point d'ancrage", "en": "Add Anchor Point"},
+    "fonction": {"fr": "Un clic sur un segment de tracé y ajoute un point.", "en": "Clicking a path segment adds a point there."}
+  },
+  "dz-outil-vec-ancre-supprimer": {
+    "nom": {"fr": "Suppression de point d'ancrage", "en": "Delete Anchor Point"},
+    "fonction": {"fr": "Un clic sur un point du tracé le retire.", "en": "Clicking a path point removes it."}
   },
   "dz-outil-vec-apparence": {
     "nom": {"fr": "Apparence", "en": "Appearance"},
@@ -287,6 +343,18 @@
     "nom": {"fr": "Plume", "en": "Pen"},
     "fonction": {"fr": "Trace des courbes précises ancre par ancre, en tirant des poignées.", "en": "Draws precise curves anchor by anchor, pulling out handles."}
   },
+  "dz-outil-vec-plume-courbure": {
+    "nom": {"fr": "Plume de courbure", "en": "Curvature Pen"},
+    "fonction": {"fr": "Pose des points lisses ; la courbe passe par chacun d'eux.", "en": "Places smooth points; the curve runs through each of them."}
+  },
+  "dz-outil-vec-plume-libre": {
+    "nom": {"fr": "Plume libre", "en": "Freeform Pen"},
+    "fonction": {"fr": "Trace un tracé à main levée, lissé ensuite en courbes.", "en": "Draws a freehand path, then smooths it into curves."}
+  },
+  "dz-outil-vec-point-convertir": {
+    "nom": {"fr": "Conversion de point", "en": "Convert Point"},
+    "fonction": {"fr": "Change un point d'angle en point lisse, ou l'inverse.", "en": "Turns a corner point into a smooth point, or back."}
+  },
   "dz-outil-vec-polygone": {
     "nom": {"fr": "Polygone", "en": "Polygon"},
     "fonction": {"fr": "Trace une forme à plusieurs côtés égaux en glissant.", "en": "Draws a shape with several equal sides as you drag."}
@@ -330,6 +398,10 @@
   "dz-outil-vec-texte-sur-chemin": {
     "nom": {"fr": "Texte sur chemin", "en": "Text on Path"},
     "fonction": {"fr": "Pose le texte sélectionné le long d'un chemin, qu'il suit ensuite.", "en": "Places the selected text along a path, which it then follows."}
+  },
+  "dz-outil-vec-texte-vertical": {
+    "nom": {"fr": "Texte vertical", "en": "Vertical Type"},
+    "fonction": {"fr": "Écrit le texte en colonne, de haut en bas.", "en": "Sets text in a column, from top to bottom."}
   },
   "dz-outil-vec-tranche": {
     "nom": {"fr": "Tranche", "en": "Slice"},

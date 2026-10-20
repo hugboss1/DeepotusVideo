@@ -4,6 +4,7 @@
 // une nuance passe par tools.setColors (clic = premier plan, Alt+clic = arrière-plan, comme la référence) ; clic droit =
 // marquer la nuance (Supprimer). Fonctions PURES exportées (qa/panneaux3.test.mjs).
 import { demanderNom } from "./mod-nommer.js";
+import { ouvrirDialogue } from "./mod-fichier.js";
 
 // Les 40 nuances de l'amont (4 rangées de 10), en quatre groupes fournis.
 export const DEFAUT_GROUPES = [
@@ -85,6 +86,38 @@ export function filtrer(etat, texte) {
 // Clic sur une nuance : premier plan, ou arrière-plan avec Alt (référence).
 export const cibleClic = (ev) => (ev && ev.altKey ? "background" : "foreground");
 
+/* t256 (M7 PR 2) : échanger avec un fichier .aco / .ase — le moteur lit et écrit le format (routes
+   /nuancier/importer et /nuancier/exporter, octets en base64) ; notre nuancier reste la référence. */
+export const FORMATS_ECHANGE = ["aco", "ase"];
+export const MAX_OCTETS_FICHIER = 2000000;            // MAX_OCTETS_FICHIER du pont (photolab_nuancier)
+export function formatFichier(nom) {
+  const m = /\.([a-z0-9]+)$/i.exec(String(nom || ""));
+  const f = m ? m[1].toLowerCase() : "";
+  return FORMATS_ECHANGE.includes(f) ? f : null;
+}
+// Les groupes tels que l'écran les nomme (un groupe fourni prend son nom traduit), sans les groupes vides.
+export function groupesExport(etat, t) {
+  return ((etat && etat.groupes) || []).filter((g) => g.couleurs && g.couleurs.length)
+    .map((g) => ({ nom: nomGroupe(g, t), couleurs: g.couleurs.map((c) => ({ hex: c.hex, nom: c.nom || "" })) }));
+}
+export function versBase64(octets) {
+  let s = "";
+  for (let i = 0; i < octets.length; i += 0x8000) s += String.fromCharCode.apply(null, octets.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+export function depuisBase64(b64) {
+  const s = atob(b64);
+  const o = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) o[i] = s.charCodeAt(i);
+  return o;
+}
+// La réponse de l'import, sans son compte : l'état du nuancier.
+export function etatImporte(r) {
+  if (!r || !Array.isArray(r.groupes)) return null;
+  const { importees, ...e } = r;
+  return e;
+}
+
 export function initNuancier(PL) {
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
   const corps = PL.$("#corpsNuancier");
@@ -115,7 +148,13 @@ export function initNuancier(PL) {
     changer();
   });
   const bSuppr = bouton("dz-action-supprimer", "photolab.nuancier.supprimer", () => { etat = supprimer(etat, sel); sel = null; changer(); });
-  corps.append(recherche, recentes, liste, pied);
+  // t256 : Importer / Exporter un fichier de nuances (.aco, .ase)
+  const fichier = document.createElement("input");
+  fichier.type = "file"; fichier.accept = ".aco,.ase"; fichier.hidden = true;
+  bouton("dz-action-importer", "photolab.nuancier.importer", () => { fichier.value = ""; fichier.click(); });
+  bouton("dz-action-exporter", "photolab.nuancier.exporter", () => exporter());
+  fichier.addEventListener("change", () => { if (fichier.files && fichier.files[0]) importer(fichier.files[0]); });
+  corps.append(recherche, recentes, liste, pied, fichier);
   if (PL.hydraterIcones) PL.hydraterIcones(pied);
   recherche.addEventListener("input", dessiner);
 
@@ -167,9 +206,56 @@ export function initNuancier(PL) {
     dessiner();
     clearTimeout(minut);
     minut = setTimeout(async () => {
+      minut = null;
       try { etat = await PL.api("PUT", "/nuancier", etat); } catch (e) { /* signalé par mod-api */ }
     }, 300);
   }
+  // Ce que l'écran a changé et pas encore écrit part d'abord : l'import relit le nuancier enregistré.
+  async function ecrireMaintenant() {
+    if (!minut) return;
+    clearTimeout(minut); minut = null;
+    try { etat = await PL.api("PUT", "/nuancier", etat); } catch (e) { /* signalé par mod-api */ }
+  }
+  async function choix(titre, question, boutons) {
+    return ouvrirDialogue(PL, {
+      titre,
+      construire({ corps: c }) { const p = document.createElement("p"); p.textContent = question; c.appendChild(p); },
+      boutons: [{ role: "annuler", libelle: T("commun.action.annuler") }, ...boutons],
+    });
+  }
+  async function importer(f) {
+    const fmt = formatFichier(f.name);
+    if (!fmt) { PL.signaler(T("photolab.nuancier.format_inconnu"), true); return; }
+    if (f.size > MAX_OCTETS_FICHIER) { PL.signaler(T("photolab.nuancier.trop_gros"), true); return; }
+    const mode = await choix(T("photolab.nuancier.importer").replace(/…$/, ""), T("photolab.nuancier.importer_question"),
+      [{ role: "replace", libelle: T("photolab.nuancier.remplacer") }, { role: "append", libelle: T("photolab.nuancier.ajouter"), principal: true }]);
+    if (mode !== "append" && mode !== "replace") return;
+    await ecrireMaintenant();
+    let r;
+    try {
+      r = await PL.post("/nuancier/importer", { data: versBase64(new Uint8Array(await f.arrayBuffer())), format: fmt, mode });
+    } catch (e) { return; }                                                       // signalé par mod-api
+    const e = etatImporte(r);
+    if (!e) return;
+    etat = e; sel = null; dessiner();
+    PL.signaler(T("photolab.nuancier.importees", { n: r.importees }));
+  }
+  async function exporter() {
+    const groupes = groupesExport(etat, T);
+    if (!groupes.length) { PL.signaler(T("photolab.nuancier.rien_a_exporter"), true); return; }
+    const fmt = await choix(T("photolab.nuancier.exporter").replace(/…$/, ""), T("photolab.nuancier.exporter_question"),
+      [{ role: "aco", libelle: ".aco" }, { role: "ase", libelle: ".ase", principal: true }]);
+    if (!FORMATS_ECHANGE.includes(fmt)) return;
+    let r;
+    try { r = await PL.post("/nuancier/exporter", { format: fmt, groupes }); } catch (e) { return; }
+    if (!r || typeof r.data !== "string") return;
+    const url = URL.createObjectURL(new Blob([depuisBase64(r.data)], { type: "application/octet-stream" }));
+    const a = document.createElement("a"); a.href = url; a.download = "nuancier." + fmt;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    PL.signaler(T("photolab.nuancier.exportees", { n: r.count }));
+  }
+
   PL.surCouleurs = PL.surCouleurs || [];
   PL.surCouleurs.push((c) => { if (c && c.fg) fg = c.fg; });
   PL.nuancier = { etat: () => etat, sel: () => sel };

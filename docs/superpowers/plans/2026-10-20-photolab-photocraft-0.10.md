@@ -143,6 +143,32 @@ travail voisin, `layerStyle.*` neufs, `layerMask.edit` ; objets dynamiques (`con
 instantanés d'historique ; import/export .aco/.ase vers NOTRE nuancier ; Ctrl+T › Déformation
 (`edit.transform.warpGrid`).
 
+**t256 livrée en trois PR successives** (calques, puis historique + nuancier, puis Déformation).
+PR 1 — calques (20/10) : 17 commandes ouvertes (neuves 86 -> 69) ; menus Calque / Filtre complétés par
+`INSERTIONS_M7` (mod-menus : Retirer l'arrière-plan (local), Dupliquer vers un document, Couleur du calque, Fusionner
+le groupe, Nouveau › Arrière-plan d'après un calque / Plan de travail voisin / Cadre, Objets dynamiques › Convertir en
+calques, Rastériser › Style de calque, Rendu › Rééclairer, Autre › Couleur en alpha) ; panneau Calques : Alt-clic sur
+l'œil (`showOnly`), couleur d'étiquette, « / » (`toggleLockTransparency`), double-clic sur le masque (`layerMask.edit`),
+badge fx glissé (`transferEffects`, Alt : copie) ; Style de calque : Définir / Rétablir les valeurs par défaut
+(`makeDefault` / `defaultFor`). Restent fermées : `layerStyle.replace` (le dialogue applique déjà effet par effet) et
+les 5 commandes d'objets dynamiques à chemin (`relinkToFile`, `replaceContents`, `exportContents`, `convertToLinked`,
+`updateChanged`) : **le moteur 0.10 les désactive en automation** (« uses ambient filesystem paths ») — Bloqué moteur.
+Le moteur rend actif le document DESTINATAIRE de `copyToDocument` ; l'écran le suit (`PL.suivreDocumentActif`).
+PR 2 — historique et nuancier (20/10) : 5 commandes ouvertes (neuves 69 -> 64) : instantanés dans le panneau
+Historique (nouvel instantané, choisir = un état à son nom, renommer, supprimer ; `doc.inspect.snapshots`), Nouveau
+document à partir de l'état actuel (le nouveau document devient actif, l'écran le suit). `history.undo/redo/selectState/
+deleteState` restent fermées : le panneau annule déjà par /historique. Nuancier : Importer / Exporter .aco / .ase par
+les routes `/nuancier/importer` et `/nuancier/exporter` (base64 : `swatches.export {path}` est désactivée en
+automation) ; la bibliothèque du moteur n'est qu'un passage (vidée, remplie, exportée, remise aux défauts d'usine dans
+UNE séquence) ; `swatches.*` restent fermées à /executer.
+PR 3 — Déformer (20/10) : `edit.transform.warpGrid` ouverte (neuves 64 -> 63, taille Par défaut / 3 / 4 / 5) par la
+route `/deformer/grille` (séquence hors enregistrement d'action : c'est de la géométrie, aucun état). Ctrl+T : bouton
+« Déformer » de la barre (icône dz-edit-deformer-maillage, 547 icônes) -> maillage du moteur, ancres (qui emmènent leurs
+poignées) et poignées à glisser, aperçu moteur (`edit.transform.warp` admis en aperçu), Ctrl+Z dans la session ; une
+transformation libre déjà posée est reportée sur le maillage ; validation `edit.transform.warp {layer, warp,
+interpolation}` = un état « Warp » (« Déformer »). Le menu Édition › Transformation › Déformer (styles prédéfinis,
+dialogue générique) n'est pas touché.
+
 ## M8 — t257 · Formats et exports
 Ouvrir depuis la Bibliothèque : ORA, Krita, Affinity, Paint.NET, EXR (parties), DPX, DDS, raws (HEIC selon
 Q3) ; enregistrer : TIFF à calques, WebP, ORA, PDF d'une page ; Calques en fichiers et jeux de données par

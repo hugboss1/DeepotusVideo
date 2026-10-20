@@ -12,6 +12,8 @@ const champsVisibles = (champs) => (Array.isArray(champs) ? champs : []).filter(
 
 const DELAI_CLIC = 220;                         // ms : laisse passer un double-clic avant de sélectionner
 const TYPE_GLISSER = "application/x-photolab-calque";
+const TYPE_EFFETS = "application/x-photolab-effets";      // t256 : badge fx glissé sur une autre ligne
+const DEPOT_COPIE = "copy", DEPOT_DEPLACE = "move";         // dropEffect (Alt : copier les effets)
 
 // Arbre doc.inspect (haut -> bas) -> liste à plat avec profondeur. Un groupe replié (par l'écran, ou fermé dans le
 // moteur : expanded === false) cache ses enfants — sauf `toutDeplier` (filtre par nom : un calque qui correspond doit se
@@ -166,6 +168,49 @@ export function estFond(calque, racines) {
   return !!calque && l.length > 0 && l[l.length - 1] === calque && calque.name === "Background" && !Array.isArray(calque.children);
 }
 
+/* t256 (M7, photocraft 0.10) : œil, étiquette de couleur, verrou de transparence, effets, cadre, copie */
+
+// Clic sur l'œil : montrer / masquer ; Alt-clic : ce calque SEUL (de nouveau : les autres reviennent) — layer.showOnly.
+export function commandeOeil(c, alt) {
+  if (alt) return { command: "layer.showOnly", params: { layer: c.id } };
+  return { command: "layer.setProps", params: { layer: c.id, visible: c.visible === false } };
+}
+
+// Les couleurs d'étiquette du moteur (layer.setLabelColor), « none » à part ; doc.inspect les relit (labelColor).
+export const COULEURS_ETIQUETTE = ["red", "orange", "yellow", "green", "seafoam", "blue", "indigo", "magenta", "fuchsia", "violet", "gray"];
+export const couleurEtiquette = (c) => (c && COULEURS_ETIQUETTE.includes(c.labelColor) ? c.labelColor : null);
+
+// « / » seul (hors saisie) : verrouiller / déverrouiller les pixels transparents du calque actif.
+export function toucheVerrouTransparence(ev) {
+  if (!ev || ev.key !== "/" || ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat) return false;
+  const t = ev.target;
+  return !(t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || "") || t.isContentEditable));
+}
+// Réponse {locked} de la bascule -> verrous tenus par l'écran (le moteur ne les relit pas dans doc.inspect).
+export function verrousApresBascule(etat, locked) {
+  const e = {};
+  for (const v of VERROUS) e[v.cle] = !!(etat && etat[v.cle]);
+  e.transparency = !!locked;
+  return e;
+}
+
+// Badge fx glissé sur une autre ligne : layer.layerStyle.transferEffects (Alt : copier) ; même calque -> rien.
+export function transfertEffets(de, vers, alt) {
+  if (!Number.isInteger(de) || !Number.isInteger(vers) || de === vers) return null;
+  return { from: de, to: vers, copy: !!alt };
+}
+
+// Cadre : la sélection s'il y en a une ([x, y, l, h] de doc.inspect), sinon toute la toile.
+export function rectCadre(doc) {
+  const s = doc && doc.hasSelection && Array.isArray(doc.selectionBounds) ? doc.selectionBounds : null;
+  if (s && s[2] >= 1 && s[3] >= 1) return { x: Math.round(s[0]), y: Math.round(s[1]), width: Math.round(s[2]), height: Math.round(s[3]) };
+  return { x: 0, y: 0, width: Math.max(1, (doc && doc.width) || 1), height: Math.max(1, (doc && doc.height) || 1) };
+}
+
+// Masque de fusion : densité et contour progressif que l'écran a posés (le moteur ne les relit pas), 100 / 0 sinon.
+export const masqueDefaut = (em) => ({ density: em && Number.isFinite(em.densite) ? em.densite : 100,
+  feather: em && Number.isFinite(em.contour) ? em.contour : 0 });
+
 /* ───────────── côté DOM ───────────── */
 
 export function initCalques(PL) {
@@ -309,8 +354,13 @@ export function initCalques(PL) {
     l.classList.toggle("choisi", !!choisi);
     l.classList.toggle("cache", c.visible === false);
     l.draggable = true;
-    const oeil = bouton("cq-oeil", c.visible === false ? "dz-etat-cache" : "dz-etat-visible", T(c.visible === false ? "photolab.calques.montrer" : "photolab.calques.masquer"));
-    oeil.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("layer.setProps", { layer: c.id, visible: c.visible === false }); });
+    const oeil = bouton("cq-oeil", c.visible === false ? "dz-etat-cache" : "dz-etat-visible",
+      T(c.visible === false ? "photolab.calques.montrer" : "photolab.calques.masquer") + " — " + T("photolab.calques.oeil_alt"));
+    // t256 : Alt-clic = ce calque seul (layer.showOnly), de nouveau = les autres reviennent
+    oeil.addEventListener("click", (ev) => { ev.stopPropagation(); const k = commandeOeil(c, ev.altKey); PL.executer(k.command, k.params); });
+    // t256 : couleur d'étiquette (layer.setLabelColor, relue dans doc.inspect) : fond de la case de l'œil
+    const etiquette = couleurEtiquette(c);
+    if (etiquette) l.dataset.etiquette = etiquette;
     const retrait = el("span", "cq-retrait"); retrait.style.width = c.profondeur * 14 + "px";
     const chevron = el("span", "cq-chevron");
     if (c.groupe) {
@@ -359,7 +409,9 @@ export function initCalques(PL) {
     const notreGlisser = (ev) => ev.dataTransfer && Array.from(ev.dataTransfer.types || []).includes(TYPE_GLISSER);
     l.addEventListener("dragstart", (ev) => { ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData(TYPE_GLISSER, String(c.id)); });
     l.addEventListener("dragend", effacer);
+    const desEffets = (ev) => ev.dataTransfer && Array.from(ev.dataTransfer.types || []).includes(TYPE_EFFETS);
     l.addEventListener("dragover", (ev) => {
+      if (desEffets(ev)) { ev.preventDefault(); ev.dataTransfer.dropEffect = ev.altKey ? DEPOT_COPIE : DEPOT_DEPLACE; l.classList.add("depot-effets"); return; }
       if (!notreGlisser(ev)) return;
       ev.preventDefault();
       const r = l.getBoundingClientRect();
@@ -367,8 +419,15 @@ export function initCalques(PL) {
       l.classList.remove("depot-above", "depot-below", "depot-into");
       l.classList.add("depot-" + pos);
     });
-    l.addEventListener("dragleave", () => l.classList.remove("depot-above", "depot-below", "depot-into"));
+    l.addEventListener("dragleave", () => l.classList.remove("depot-above", "depot-below", "depot-into", "depot-effets"));
     l.addEventListener("drop", (ev) => {
+      if (desEffets(ev)) {
+        ev.preventDefault();
+        l.classList.remove("depot-effets");
+        const p = transfertEffets(Number(ev.dataTransfer.getData(TYPE_EFFETS)), c.id, ev.altKey);
+        if (p) PL.executer("layer.layerStyle.transferEffects", p);
+        return;
+      }
       if (!notreGlisser(ev)) return;
       ev.preventDefault();
       effacer();
@@ -385,7 +444,14 @@ export function initCalques(PL) {
   // sélectionné et relu (le dialogue lit le calque actif de PL.etat.doc), puis le dialogue s'ouvre.
   function badgeFx(c) {
     const b = el("span", "cq-fx"); b.innerHTML = PL.icone("dz-edit-effet");
-    b.title = T("photolab.calques.style");
+    b.title = T("photolab.calques.style") + " — " + T("photolab.calques.fx_glisser");
+    // t256 : glisser le badge sur une autre ligne = déplacer les effets (Alt : les copier), layer.layerStyle.transferEffects
+    b.draggable = true;
+    b.addEventListener("dragstart", (ev) => {
+      ev.stopPropagation();
+      ev.dataTransfer.effectAllowed = "copyMove";
+      ev.dataTransfer.setData(TYPE_EFFETS, String(c.id));
+    });
     b.addEventListener("dblclick", async (ev) => {
       ev.stopPropagation();
       clearTimeout(minutClic); minutClic = null;           // le clic simple différé ne doit pas passer après
@@ -462,8 +528,11 @@ export function initCalques(PL) {
     box.dataset.masque = String(c.id);
     const url = PL.etat.vignettesMasques && PL.etat.vignettesMasques[String(c.id)];
     if (url) { const im = el("img"); im.alt = ""; im.src = url; box.appendChild(im); }
+    // t256 : double-clic -> densité et contour progressif du masque (layer.layerMask.edit)
+    box.addEventListener("dblclick", (ev) => { ev.stopPropagation(); clearTimeout(minutClic); minutClic = null; editerMasque(c); });
     box.addEventListener("click", (ev) => {
       ev.stopPropagation();
+      if (ev.detail > 1) return;
       clearTimeout(minutClic); minutClic = null;
       const g = gesteMasque(ev);
       if (g.action === "selection") PL.executer("select.loadSelection", { channel: "mask", layer: c.id, operation: g.operation });
@@ -496,6 +565,19 @@ export function initCalques(PL) {
     } catch (e) { vueMasque = null; dessiner(PL.etat.doc); }
   }
   function quitterVueMasque() { vueMasque = null; PL.cycle(); }
+  function editerMasque(c) {
+    const e = entreeDe("layer.layerMask.edit");
+    if (!e || !PL.ouvrirReglage) return;
+    PL.ouvrirReglage({ ...e, libelle: T("photolab.histo.modifier_masque") }, {
+      initiales: masqueDefaut(etatMasque(c.id)),
+      versCommande: (p) => ({ command: "layer.layerMask.edit", params: { layer: c.id, density: p.density, feather: p.feather } }),
+      valider: async (k) => {
+        const r = await PL.executer(k.command, k.params);
+        if (r && r.ok && r.r) { const em = etatMasque(c.id); em.densite = r.r.density; em.contour = r.r.feather; }
+        return r;
+      },
+    });
+  }
   PL.surDoc.push((doc) => { if (vueMasque != null && !(doc && trouverCalque(doc.layers, vueMasque))) vueMasque = null; });
   if (PL.surRendu) PL.surRendu.push(() => { if (vueMasque != null) { vueMasque = null; dessiner(PL.etat.doc); } });
 
@@ -589,6 +671,34 @@ export function initCalques(PL) {
         versCommande: (p) => ({ command: "layer.smartFilter.blendingOptions", params: { layer: c.id, index: f.index, blend: p.blend || "normal",
           opacity: Math.round(p.opacity == null ? 100 : p.opacity) / 100 } }) });
   }
+
+  /* t256 : « / », Calque › Nouveau › Cadre…, Calque › Dupliquer vers un document… */
+  document.addEventListener("keydown", async (ev) => {
+    if (!toucheVerrouTransparence(ev) || !PL.etat.doc || document.querySelector(".menu-panneau, .flyout")) return;
+    const a = actif();
+    if (a == null) return;
+    ev.preventDefault();
+    const r = await PL.executer("layer.toggleLockTransparency", { layer: a });
+    if (r && r.ok && r.r && typeof r.r.locked === "boolean") { PL.etat.verrous[a] = verrousApresBascule(PL.etat.verrous[a], r.r.locked); dessiner(PL.etat.doc); }
+  });
+  PL.actions = PL.actions || {};
+  PL.actions["pl.calque.cadre"] = () => {
+    const e = entreeDe("layer.new.frame");
+    if (!e || !PL.ouvrirReglage || !PL.etat.doc) return;
+    PL.ouvrirReglage({ ...e, libelle: T("photolab.histo.nouveau_cadre") }, { initiales: { ...rectCadre(PL.etat.doc), shape: "rectangle" } });
+  };
+  // Le moteur rend le document DESTINATAIRE actif (la copie y est) : l'écran le suit, comme un clic sur son onglet.
+  PL.actions["pl.calque.copier_document"] = () => {
+    const e = entreeDe("layer.copyToDocument");
+    if (!e || !PL.ouvrirReglage) return;
+    PL.ouvrirReglage({ ...e, libelle: T("photolab.menu.copier_document").replace(/…$/, "") }, {
+      valider: async (k) => {
+        const r = await PL.executer(k.command, k.params, { cycle: false });
+        if (r && r.ok) { if (PL.suivreDocumentActif) await PL.suivreDocumentActif(); else await PL.documentOuvert(); }
+        return r;
+      },
+    });
+  };
 
   PL.surDoc.push(dessiner);
   PL.surVignettes.push((carte) => {
