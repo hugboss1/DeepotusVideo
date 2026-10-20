@@ -8,6 +8,10 @@ M7 calques/historique/nuancier, M8 formats) — ouvrir = retirer l'id d'ici, ave
 
 Liste = ids de tests/photocraft_commandes_0.10.0.json absents de tests/photocraft_commandes_0.3.0.json (le banc
 test_photolab_registre le recalcule et compare).
+
+Ouvertes depuis (retirées d'ici, avec leurs bancs) :
+  t252 (M3, 20/10) : paint.patch, paint.contentAwareMove, paint.patternStamp, paint.redEye, paint.remove,
+                     paint.setSymmetry, paint.symmetryFromPath, paint.symmetryDisable
 """
 
 COMMANDES_NEUVES_FERMEES = frozenset({
@@ -31,9 +35,7 @@ COMMANDES_NEUVES_FERMEES = frozenset({
     "layer.mergeGroup", "layer.new.backgroundFromLayer", "layer.new.frame", "layer.rasterize.layerStyle",
     "layer.removeBackground", "layer.selectInRect", "layer.setEffectsVisible", "layer.setLabelColor",
     "layer.showOnly", "layer.smartFilter.transfer", "layer.smartObjects.convertToLayers", "layer.smartObjects.updateChanged",
-    "layer.toggleLockTransparency", "layer.toggleMaskOverlay", "paint.contentAwareMove", "paint.patch",
-    "paint.patternStamp", "paint.redEye", "paint.remove", "paint.setSymmetry",
-    "paint.symmetryDisable", "paint.symmetryFromPath", "path.addAnchor", "path.bendSegment",
+    "layer.toggleLockTransparency", "layer.toggleMaskOverlay", "path.addAnchor", "path.bendSegment",
     "path.clippingPath.clear", "path.clippingPath.set", "path.convertPoint", "path.deleteAnchor",
     "path.moveAnchors", "path.moveHandle", "path.style.copyFill", "path.style.copyStroke",
     "path.style.pasteFill", "path.style.pasteStroke", "path.transform", "select.drop",

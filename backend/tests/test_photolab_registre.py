@@ -55,7 +55,8 @@ STRUCT = PR.structurer(COMMANDES)
 # 142 neuves ; le pont les traite en opaques bornés, comme avant). Compte par version épinglée.
 # 0.10.0 : 203 au parseur seul, 201 après les corrections explicites (layer.select, contour d'ombre ; tools.setColors
 # reste non ok : backgroundCmyk « same »).
-NB_NON_OK = {"0.3.0": 123, "0.10.0": 201}[_PV.VERSION]
+# t252 : 197 — les corrections des outils de retouche ouverts (setSymmetry, symmetryFromPath, patternStamp, remove).
+NB_NON_OK = {"0.3.0": 123, "0.10.0": 197}[_PV.VERSION]
 
 print("\n[1] les dix exemples bruts")
 r = PR.parser(EX["filter.blur.gaussianBlur"]["params"])
@@ -589,7 +590,11 @@ t251 = sorted((i, c) for i, c, _ in changes if c != "exposure")
 check("7e corrections t251 : seules layer.select.layer, tools.setColors.fore/background, dropShadow.contour (0.10) ; "
       "aucune sur 0.3.0", t251 == ([] if _PV.VERSION == "0.3.0" else sorted([
           ("layer.select", "layer"), ("tools.setColors", "foreground"), ("tools.setColors", "background"),
-          ("layer.layerStyle.dropShadow", "contour")])), t251)
+          ("layer.layerStyle.dropShadow", "contour"),
+          # t252 : outils de retouche ouverts
+          ("paint.patternStamp", "size"), ("paint.patternStamp", "spacing"), ("paint.patternStamp", "scale"),
+          ("paint.remove", "size"), ("paint.remove", "spacing"), ("paint.setSymmetry", "rotation"),
+          ("paint.symmetryFromPath", "name")])), t251)
 autres = [(i, c["cle"]) for i, v in STRUCT.items() for c in v["champs"]
           if c.get("cle") == "exposure" and i not in ("image.adjustments.exposure", "layer.newAdjustmentLayer.exposure")]
 check("7c les autres `exposure` du registre ne sont pas touchés", all(
@@ -642,9 +647,12 @@ ids03 = {c["id"] for c in json.loads((BACKEND / "tests" / "photocraft_commandes_
 ids10 = {c["id"] for c in json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8"))}
 check("9a la liste des fermées = exactement les ids de 0.10.0 absents de 0.3.0 (moins celles qu'un lot a ouvertes)",
       NEUVES <= ids10 - ids03 and not (NEUVES & ids03), (len(NEUVES), len(ids10 - ids03)))
-check("9b au 20/10 (M2) aucune n'est encore ouverte : 142 fermées", len(NEUVES) == 142, len(NEUVES))
+OUVERTES = {"paint.patch", "paint.contentAwareMove", "paint.patternStamp", "paint.redEye", "paint.remove",   # t252
+            "paint.setSymmetry", "paint.symmetryFromPath", "paint.symmetryDisable"}
+check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8) -> 134",
+      len(NEUVES) == 134 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
 REG10 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8")))
-for cid, p in (("layer.removeBackground", {}), ("paint.patch", {}), ("actions.list", {}), ("history.undo", {})):
+for cid, p in (("layer.removeBackground", {}), ("select.magneticLasso", {}), ("actions.list", {}), ("history.undo", {})):
     try:
         PR.verifier(REG10, cid, p); m = None
     except ValueError as e:

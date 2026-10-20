@@ -19,7 +19,7 @@ check("1.3 identifiants uniques", new Set(tous.map((o) => o.id)).size === tous.l
 check("1.4 chaque icône est une clé de la suite Deepotus Glyph", tous.every((o) => existeIcone(o.icone)),
   tous.filter((o) => !existeIcone(o.icone)).map((o) => o.icone));
 check("1.4b Doigt = dz-outil-photo-doigt (pointeur Lucide gardé)", outilDe("smudge").icone === "dz-outil-photo-doigt");
-check("1.5 44 outils actifs (P2 : 11 ; t155 peinture et retouche : +18 ; t156 texte, formes, plume : +9 ; t157 sélection d'objet : +1 ; t160 Règle, Note, Comptage, Tranche, Sélection de tranche : +5)", tous.filter((o) => o.p2).length === 44, tous.filter((o) => o.p2).map((o) => o.id).join());
+check("1.5 49 outils actifs (P2 : 11 ; t155 peinture et retouche : +18 ; t156 texte, formes, plume : +9 ; t157 sélection d'objet : +1 ; t160 Règle, Note, Comptage, Tranche, Sélection de tranche : +5 ; t252 Supprimer, Pièce, Déplacement basé sur le contenu, Œil rouge, Tampon de motif : +5)", tous.filter((o) => o.p2).length === 49, tous.filter((o) => o.p2).map((o) => o.id).join());
 check("1.6 emplacementDe", emplacementDe("move") === 0 && emplacementDe("ellipseMarquee") === 1 && emplacementDe("zoom") === 19 && emplacementDe("nimporte") === -1);
 check("1.7 outilDe", outilDe("crop").lettre === "C" && outilDe("x") === null);
 check("1.8 cleNom", cleNom("rectMarquee") === "photolab.outil.rect_marquee" && cleNom("move") === "photolab.outil.move");
@@ -37,7 +37,10 @@ check("2.8 prefMaj sans Maj garde l'outil courant du groupe", outilParLettre("M"
 check("2.9 prefMaj avec Maj cycle", outilParLettre("M", "rectMarquee", true, true) === "ellipseMarquee");
 check("2.10 prefMaj, autre groupe : premier outil", outilParLettre("M", "move", false, true) === "rectMarquee");
 check("2.11 B -> Pinceau ; B depuis Pinceau -> Crayon (t155)", outilParLettre("B", "move", false) === "brush" && outilParLettre("B", "brush", false) === "pencil");
-check("2.11b J saute la Pièce (absente du moteur) : healing -> spotHealing", outilParLettre("J", "healing", false) === "spotHealing");
+// t252 : le groupe J a six outils, tous actifs : le cyclage passe de l'un à l'autre et revient au premier
+check("2.11b J : healing -> remove -> patch -> contentAwareMove -> redEye -> spotHealing", outilParLettre("J", "healing", false) === "remove"
+  && outilParLettre("J", "remove", false) === "patch" && outilParLettre("J", "patch", false) === "contentAwareMove"
+  && outilParLettre("J", "contentAwareMove", false) === "redEye" && outilParLettre("J", "redEye", false) === "spotHealing");
 check("2.11c t156 : P choisit la Plume ; une lettre sans outil (K) -> null", outilParLettre("P", "move", false) === "pen" && outilParLettre("K", "move", false) === null);
 check("2.12 lettre inconnue -> null", outilParLettre("K", "move", false) === null && outilParLettre("", "move", false) === null);
 check("2.13 V depuis move -> move (un seul)", outilParLettre("V", "move", false) === "move");
@@ -51,7 +54,9 @@ check("2.17 outil sans lettre (blur) ignoré", groupeDeLettre("").length === 0);
 // 3. infobulles
 const t = (c) => ({ "photolab.outil.move": "Déplacement", "photolab.outil.bientot": "bientôt" }[c] || c);
 check("3.1 infobulle avec lettre", infobulle(outilDe("move"), t) === "Déplacement (V)");
-check("3.2 infobulle outil à venir (la Pièce)", infobulle(outilDe("patch"), t).endsWith(" — bientôt") && !infobulle(outilDe("brush"), t).includes("bientôt"));
+// t252 : plus aucun outil « bientôt » dans la barre (la Pièce est active) : la règle est éprouvée sur un outil fictif
+check("3.2 infobulle outil à venir", infobulle({ id: "zorg", lettre: "", p2: false }, t).endsWith(" — bientôt") && !infobulle(outilDe("brush"), t).includes("bientôt")
+  && !infobulle(outilDe("patch"), t).includes("bientôt"));
 check("3.3 infobulle sans lettre", !infobulle(outilDe("blur"), t).includes("("));
 
 // 4. barre d'options

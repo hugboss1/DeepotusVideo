@@ -30,6 +30,13 @@ export const OUTILS_PEINTURE = {
   dodge: { commande: "paint.dodge", sorte: "trait" },
   burn: { commande: "paint.burn", sorte: "trait" },
   sponge: { commande: "paint.sponge", sorte: "trait" },
+  // t252 (M3, photocraft 0.10) : Supprimer, Tampon de motif, Œil rouge ; Pièce et Déplacement basé sur le contenu
+  // agissent sur la SÉLECTION glissée (sorte « piece » : glisser dans la sélection -> offset ; ailleurs -> lasso).
+  remove: { commande: "paint.remove", sorte: "trait" },
+  patternStamp: { commande: "paint.patternStamp", sorte: "trait" },
+  redEye: { commande: "paint.redEye", sorte: "clic" },
+  patch: { commande: "paint.patch", sorte: "piece" },
+  contentAwareMove: { commande: "paint.contentAwareMove", sorte: "piece" },
 };
 
 const snake = (s) => s.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
@@ -48,27 +55,39 @@ const TOUS = CASE("tousCalques");
 const ECHANTILLON = opt("liste", "echantillon", { valeurs: ["current", "currentAndBelow", "all"] });
 const RETOUCHE = [TAILLE, DURETE, pct("intensite", 1), TOUS];
 const DENSITE = [TAILLE, DURETE, opt("liste", "gamme", { valeurs: ["shadows", "midtones", "highlights"] }), pct("exposition", 1), CASE("protegerTons")];
+// t252 : la symétrie de peinture est un état du DOCUMENT dans le moteur (doc.inspect.symmetry), pas un réglage d'outil :
+// `doc: true` -> la barre lit et écrit par PL.valeurDoc / PL.changerDoc. Amont : Pinceau, Crayon et Gomme seulement.
+export const MODES_SYMETRIE = ["aucune", "vertical", "horizontal", "dual", "diagonal", "trace"];
+const SYMETRIE = opt("liste", "symetrie", { valeurs: MODES_SYMETRIE, doc: true });
+export const SYMETRIQUES = ["brush", "pencil", "eraser"];
+const STRUCTURE = opt("nombre", "structure", { min: 1, max: 7, pas: 1 }), COULEUR_CA = opt("nombre", "couleurCa", { min: 0, max: 10, pas: 1 });
 
 export const OPTIONS_PEINTURE = {
-  brush: [TAILLE, DURETE, FUSION, OPAC0, FLUX, LISSAGE],
-  pencil: [TAILLE, FUSION, OPAC0, CASE("effacementAuto")],
+  brush: [TAILLE, DURETE, FUSION, OPAC0, FLUX, LISSAGE, SYMETRIE],
+  pencil: [TAILLE, FUSION, OPAC0, CASE("effacementAuto"), SYMETRIE],
   mixerBrush: [TAILLE, pct("humidite"), pct("charge"), pct("melange"), FLUX, TOUS],
-  eraser: [opt("choix", "modeGomme", { valeurs: ["pinceau", "crayon"] }), TAILLE, DURETE, OPAC0, FLUX, LISSAGE, CASE("historique")],
+  eraser: [opt("choix", "modeGomme", { valeurs: ["pinceau", "crayon"] }), TAILLE, DURETE, OPAC0, FLUX, LISSAGE, CASE("historique"), SYMETRIE],
   backgroundEraser: [TAILLE, DURETE, opt("choix", "echantillonnage", { valeurs: ["continuous", "once", "backgroundSwatch"] }),
     opt("liste", "limites", { valeurs: ["discontiguous", "contiguous", "findEdges"] }), pct("tolerance"), CASE("protegerPremierPlan")],
   magicEraser: [opt("nombre", "tolerance", { min: 0, max: 255, pas: 1 }), CASE("lissage"), CASE("contigu"), TOUS, OPAC1],
   cloneStamp: [TAILLE, DURETE, FUSION, OPAC1, FLUX, CASE("aligne"), ECHANTILLON],
   historyBrush: [TAILLE, DURETE, OPAC1, FLUX],
-  spotHealing: [TAILLE, DURETE, opt("choix", "type", { valeurs: ["contentAware", "createTexture", "proximityMatch"] })],
+  spotHealing: [TAILLE, DURETE, opt("choix", "type", { valeurs: ["contentAware", "createTexture", "proximityMatch"] }), TOUS],
   healing: [TAILLE, DURETE, FUSION, CASE("aligne"), ECHANTILLON],
   gradient: [opt("choix", "style", { valeurs: ["linear", "radial", "angle", "reflected", "diamond"] }), FUSION, OPAC1, CASE("inverser"), CASE("tramage")],
-  paintBucket: [opt("nombre", "tolerance", { min: 0, max: 255, pas: 1 }), OPAC1, CASE("lissage"), CASE("contigu")],
+  paintBucket: [opt("nombre", "tolerance", { min: 0, max: 255, pas: 1 }), OPAC1, CASE("lissage"), CASE("contigu"), TOUS],
   blur: RETOUCHE,
   sharpen: [...RETOUCHE, CASE("protegerDetails")],
   smudge: [...RETOUCHE, CASE("peintureDoigt")],
   dodge: DENSITE,
   burn: DENSITE,
   sponge: [TAILLE, DURETE, opt("liste", "modeEponge", { valeurs: ["desaturate", "saturate"] }), FLUX, CASE("vibrance")],
+  // t252 : barres de la référence, dans les bornes du moteur 0.10
+  remove: [TAILLE, TOUS, CASE("boucles"), CASE("nouveauCalque")],
+  patternStamp: [TAILLE, DURETE, FUSION, OPAC1, FLUX, CASE("aligne"), CASE("impressionniste")],
+  redEye: [pct("pupille", 1), pct("assombrir")],
+  patch: [opt("choix", "modePiece", { valeurs: ["source", "destination"] }), CASE("contenu"), STRUCTURE, COULEUR_CA, TOUS],
+  contentAwareMove: [opt("choix", "modeDeplacement", { valeurs: ["move", "extend"] }), STRUCTURE, COULEUR_CA, TOUS],
 };
 
 // Défauts : ceux de l'application de référence quand elle en montre (tailles 13 / 19 / 21 / 65, tolérance 32 ou 50 %,
@@ -82,16 +101,21 @@ const DEFAUTS = {
   magicEraser: { tolerance: 32, lissage: true, contigu: true, tousCalques: false, opacite: 100 },
   cloneStamp: { taille: 21, durete: 0, fusion: "normal", opacite: 100, flux: 100, aligne: true, echantillon: "current" },
   historyBrush: { taille: 21, durete: 0, opacite: 100, flux: 100 },
-  spotHealing: { taille: 19, durete: 100, type: "contentAware" },
+  spotHealing: { taille: 19, durete: 100, type: "contentAware", tousCalques: false },
   healing: { taille: 19, durete: 100, fusion: "normal", aligne: true, echantillon: "current" },
   gradient: { style: "linear", fusion: "normal", opacite: 100, inverser: false, tramage: true },
-  paintBucket: { tolerance: 32, opacite: 100, lissage: true, contigu: true },
+  paintBucket: { tolerance: 32, opacite: 100, lissage: true, contigu: true, tousCalques: false },
   blur: { taille: 13, durete: 0, intensite: 50, tousCalques: false },
   sharpen: { taille: 13, durete: 0, intensite: 50, tousCalques: false, protegerDetails: true },
   smudge: { taille: 13, durete: 0, intensite: 50, tousCalques: false, peintureDoigt: false },
   dodge: { taille: 65, durete: 0, gamme: "midtones", exposition: 50, protegerTons: true },
   burn: { taille: 65, durete: 0, gamme: "midtones", exposition: 50, protegerTons: true },
   sponge: { taille: 65, durete: 0, modeEponge: "desaturate", flux: 50, vibrance: true },
+  remove: { taille: 65, tousCalques: false, boucles: true, nouveauCalque: false },
+  patternStamp: { taille: 21, durete: 0, fusion: "normal", opacite: 100, flux: 100, aligne: true, impressionniste: false },
+  redEye: { pupille: 50, assombrir: 50 },
+  patch: { modePiece: "source", contenu: false, structure: 4, couleurCa: 0, tousCalques: false },
+  contentAwareMove: { modeDeplacement: "move", structure: 4, couleurCa: 0, tousCalques: false },
 };
 
 export const optionsPeinture = (id) => OPTIONS_PEINTURE[id] || [];
@@ -132,7 +156,13 @@ export function commandeTrait(outil, points, o, couleurs) {
     case "healing":
       return { command: def.commande, params: retouche({ aligned: !!o.aligne, sampleLayer: o.echantillon, mode: o.fusion }) };
     case "spotHealing":
-      return { command: def.commande, params: retouche({ type: o.type }) };
+      return { command: def.commande, params: retouche({ type: o.type, sampleAllLayers: !!o.tousCalques }) };
+    case "remove":
+      // t252 : ni dureté ni opacité (barre de la référence) ; le moteur les garde à leurs défauts
+      return { command: def.commande, params: { points, size, sampleAllLayers: !!o.tousCalques, closeLoops: !!o.boucles, newLayer: !!o.nouveauCalque } };
+    case "patternStamp":
+      return { command: def.commande, params: retouche({ opacity: cent(o.opacite), flow: cent(o.flux), mode: o.fusion,
+        aligned: !!o.aligne, impressionist: !!o.impressionniste }) };
     case "historyBrush":
       return { command: def.commande, params: retouche({ opacity: cent(o.opacite), flow: cent(o.flux) }) };
     case "blur":
@@ -159,10 +189,59 @@ export function commandeClic(outil, x, y, o, couleurs, doc) {
   if (!(px >= 0 && py >= 0 && px < doc.width && py < doc.height)) return null;
   if (outil === "paintBucket") {
     return { command: def.commande, params: { x: px, y: py, tolerance: Math.round(o.tolerance), contiguous: !!o.contigu, antiAlias: !!o.lissage,
-      contents: "foreground", opacity: cent(o.opacite), color: couleurs && couleurs.fg } };
+      contents: "foreground", opacity: cent(o.opacite), color: couleurs && couleurs.fg, sampleAllLayers: !!o.tousCalques } };
   }
+  if (outil === "redEye") return { command: def.commande, params: { x: px, y: py, pupilSize: Math.max(1, cent(o.pupille)), darken: cent(o.assombrir) } };
   return { command: def.commande, params: { x: px, y: py, tolerance: Math.round(o.tolerance), antiAlias: !!o.lissage, contiguous: !!o.contigu,
     sampleAllLayers: !!o.tousCalques, opacity: cent(o.opacite) } };
+}
+
+// t252 : Pièce / Déplacement basé sur le contenu — la sélection glissée de `offset` [dx, dy] (px document, arrondis) ;
+// null sous un pixel (un clic ne déplace rien) ou pour un autre outil.
+export function commandePiece(outil, offset, o) {
+  const def = OUTILS_PEINTURE[outil];
+  if (!def || def.sorte !== "piece" || !Array.isArray(offset)) return null;
+  const d = [Math.round(Number(offset[0]) || 0), Math.round(Number(offset[1]) || 0)];
+  if (!d[0] && !d[1]) return null;
+  const commun = { structure: Math.round(o.structure), color: Math.round(o.couleurCa), sampleAllLayers: !!o.tousCalques };
+  if (outil === "patch") return { command: def.commande, params: { offset: d, mode: o.modePiece, contentAware: !!o.contenu, ...commun } };
+  return { command: def.commande, params: { offset: d, mode: o.modeDeplacement, ...commun } };
+}
+// Le point (x, y) est-il dans les bornes [x, y, l, h] de la sélection ? (le moteur ne rend que ces bornes)
+export const dansBornes = (b, x, y) => Array.isArray(b) && b.length === 4 && x >= b[0] && y >= b[1] && x <= b[0] + b[2] && y <= b[1] + b[3];
+
+// t252 : symétrie de peinture. Valeur affichée d'après doc.inspect.symmetry ; commande pour une valeur choisie.
+export function valeurSymetrie(doc) {
+  const s = doc && doc.symmetry;
+  if (!s || !s.mode) return "aucune";
+  return s.mode === "path" ? "trace" : MODES_SYMETRIE.includes(s.mode) ? s.mode : "aucune";
+}
+export function commandeSymetrie(v) {
+  if (v === "aucune") return { command: "paint.symmetryDisable", params: {} };
+  if (v === "trace") return { command: "paint.symmetryFromPath", params: { name: "work" } };
+  return ["vertical", "horizontal", "dual", "diagonal"].includes(v) ? { command: "paint.setSymmetry", params: { mode: v } } : null;
+}
+// Axes de la symétrie, coupés au document : [[x1, y1, x2, y2], …]. Angles de l'amont (paint/src/symmetry.rs) :
+// horizontal 0°, diagonale 45°, sinon 90° (vertical), + rotation ; double = cet axe et sa perpendiculaire.
+export function axesSymetrie(s, w, h) {
+  if (!s || !Array.isArray(s.center) || !["vertical", "horizontal", "dual", "diagonal"].includes(s.mode)) return [];
+  const base = s.mode === "horizontal" ? 0 : s.mode === "diagonal" ? 45 : 90;
+  const a = ((base + (Number(s.rotation) || 0)) * Math.PI) / 180;
+  const p = [Math.cos(a), Math.sin(a)];
+  const net = (v) => (Math.abs(v) < 1e-9 ? 0 : v);
+  const dirs = (s.mode === "dual" ? [p, [-p[1], p[0]]] : [p]).map((v) => v.map(net));
+  const segs = [];
+  for (const d of dirs) {
+    let lo = -Infinity, hi = Infinity, dehors = false;
+    for (const [o0, dd, ext] of [[s.center[0], d[0], w], [s.center[1], d[1], h]]) {
+      if (Math.abs(dd) < 1e-12) { if (o0 < 0 || o0 > ext) dehors = true; continue; }
+      const t1 = (0 - o0) / dd, t2 = (ext - o0) / dd;
+      lo = Math.max(lo, Math.min(t1, t2)); hi = Math.min(hi, Math.max(t1, t2));
+    }
+    if (dehors || !(hi > lo)) continue;
+    segs.push([s.center[0] + d[0] * lo, s.center[1] + d[1] * lo, s.center[0] + d[0] * hi, s.center[1] + d[1] * hi].map((v) => Math.round(v * 1e6) / 1e6));
+  }
+  return segs;
 }
 
 // Les huit directions à 45° en vecteurs EXACTS (pas de cos/sin : 90° donnerait 6e-17 au lieu de 0).
@@ -339,9 +418,66 @@ export function initPeinture(PL) {
     };
   }
 
-  for (const [id, def] of Object.entries(OUTILS_PEINTURE)) {
-    PL.gestes[id] = def.sorte === "trait" ? outilTrait(id) : def.sorte === "clic" ? outilClic(id) : outilDegrade();
+  // t252 : Pièce / Déplacement basé sur le contenu. Appui DANS la sélection : on glisse la sélection (cadre fantôme), le
+  // relâchement envoie l'offset ; appui ailleurs ou sans sélection : le geste trace la sélection au lasso (référence).
+  function outilPiece(id) {
+    let g = null, lasso = false;
+    const ls = () => PL.gestes.lasso;
+    return {
+      appui(p, ev) {
+        const d = PL.etat.doc;
+        const b = d && d.hasSelection && Array.isArray(d.selectionBounds) ? d.selectionBounds : null;
+        if (b && dansBornes(b, p.x, p.y) && !ev.shiftKey && !ev.altKey) { g = { x0: p.x, y0: p.y, b }; return; }
+        lasso = !!ls();
+        if (lasso) ls().appui(p, ev);
+      },
+      bouger(p, ev) {
+        if (lasso) { ls().bouger(p, ev); return; }
+        if (!g) return;
+        PL.apercu = { type: "rect", x: g.b[0] + p.x - g.x0, y: g.b[1] + p.y - g.y0, width: g.b[2], height: g.b[3] };
+        PL.dessinerFourmis();
+      },
+      relacher(p, ev) {
+        if (lasso) { lasso = false; ls().relacher(p, ev); return; }
+        if (!g) return;
+        const c = commandePiece(id, [p.x - g.x0, p.y - g.y0], opts(id));
+        g = null; PL.apercu = null; PL.dessinerFourmis();
+        if (c) PL.executer(c.command, c.params);
+      },
+      annuler() { if (lasso && ls().annuler) ls().annuler(); lasso = false; g = null; PL.apercu = null; PL.dessinerFourmis(); },
+      touche(ev) {
+        if (lasso) return ls().touche ? ls().touche(ev) : false;
+        if (ev.key !== "Escape" || !g) return false;
+        g = null; PL.apercu = null; PL.dessinerFourmis(); return true;
+      },
+      quitter() { if (lasso && ls().quitter) ls().quitter(); lasso = false; g = null; },
+    };
   }
+
+  for (const [id, def] of Object.entries(OUTILS_PEINTURE)) {
+    PL.gestes[id] = def.sorte === "trait" ? outilTrait(id) : def.sorte === "clic" ? outilClic(id)
+      : def.sorte === "piece" ? outilPiece(id) : outilDegrade();
+  }
+
+  // t252 : symétrie de peinture — option de la barre liée au DOCUMENT (doc.inspect.symmetry), axes dessinés sur la toile
+  // tant qu'un outil qui la suit (Pinceau, Crayon, Gomme) est choisi.
+  PL.valeurDoc = (cle) => (cle === "symetrie" ? valeurSymetrie(PL.etat.doc) : undefined);
+  PL.changerDoc = async (cle, v) => {
+    if (cle !== "symetrie") return;
+    const c = commandeSymetrie(v);
+    if (!c) return;
+    const r = await PL.executer(c.command, c.params);
+    if (!r.ok && PL.reconstruireOptions) PL.reconstruireOptions();       // refus (pas de tracé de travail) : la liste revient
+  };
+  PL.dessinsSup = PL.dessinsSup || [];
+  PL.dessinsSup.push((svg, el, ecran) => {
+    const d = PL.etat.doc;
+    if (!d || !SYMETRIQUES.includes(PL.etat.outil)) return;
+    for (const [x1, y1, x2, y2] of axesSymetrie(d.symmetry, d.width, d.height)) {
+      const a = ecran(x1, y1), b = ecran(x2, y2);
+      svg.appendChild(el("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y }, "axe-symetrie"));
+    }
+  });
   // Quitter le canevas : plus de cercle de pointe.
   PL.$("#toile").addEventListener("pointerleave", () => { if (PL.apercu && PL.apercu.type === "pointe") { PL.apercu = null; PL.dessinerFourmis(); } });
 

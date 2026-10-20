@@ -349,6 +349,31 @@ I["dz-outil-photo-piece"] = () => [
   pl(union(pill(5.4, 10.4, 5.4, 5.4, 2.4), pill(5.4, 5.4, 8, 5.4, 2.4), G.poly([[7.4, 2.4], [11.4, 5.4], [7.4, 8.4]]))),
   pa(tiretsPoly(carre(3.2, 12.4, 8.4), { a: 1.9, c: 1.6, g: 1.7 }))];
 
+// t252 (Photolab M3, 20/10/2026) : outils de retouche de photocraft 0.10, dessinés dans la grammaire de leurs voisins.
+// Tampon de motif = le tampon de duplication, mais sa trace est un MOTIF (trois carreaux) au lieu d'un aplat.
+// Silhouette distincte du tampon (IoU < 0,85) : semelle évidée de trois carreaux (épaisseur 2, jours ≥ 1,6).
+I["dz-outil-photo-tampon-motif"] = () => [pl(moins(union(G.circle(12, 5, 3.2), G.rect(10.6, 6.4, 2.8, 6, 0.4), rectR(3.6, 11.6, 16.8, 6.4, [2.4, 2.4, 1, 1])),
+  G.rect(5.6, 13.6, 3.2, 2.4, 0.4), G.rect(10.4, 13.6, 3.2, 2.4, 0.4), G.rect(15.2, 13.6, 3.2, 2.4, 0.4))),
+  pa(union(G.rect(3.6, 19.8, 4.4, 2.2, 0.8), G.rect(9.8, 19.8, 4.4, 2.2, 0.8), G.rect(16, 19.8, 4.4, 2.2, 0.8)))];
+// Supprimer = le pinceau (geste de peindre) qui efface un OBJET : sa silhouette en tirets, au ton pâle.
+I["dz-outil-photo-supprimer"] = () => { const b = brosse(); return [pl(tout(b)), pa(tiretsCourbe(fEllipse(6.6, 16.6, 4.6, 4.6, 0), 6))]; };
+// Déplacement basé sur le contenu = la croix de déplacement sortant d'une sélection en tirets (la source).
+I["dz-outil-photo-deplacer-contenu"] = () => {
+  const c = [14.6, 9.4], R = 7.2;
+  const croix = union(G.rect(c[0] - 1.2, c[1] - R + 3.6, 2.4, 2 * R - 7.2), G.rect(c[0] - R + 3.6, c[1] - 1.2, 2 * R - 7.2, 2.4),
+    ...[[0, -1], [0, 1], [-1, 0], [1, 0]].map(([u, v]) => G.arrow(c[0] + u * 1.6, c[1] + v * 1.6, c[0] + u * R, c[1] + v * R, 2.4, 6, 3.6)));
+  return [pl(croix), pa(tiretsPoly(carre(2.6, 12.6, 8.8), { a: 1.9, c: 1.6, g: 1.7 }))];
+};
+// Œil rouge = l'œil (motif commun) visé par un réticule : quatre traits autour de la pupille, sans l'iris évidé de
+// « visible », pour que les silhouettes ne se confondent pas.
+I["dz-outil-photo-yeux-rouges"] = () => {
+  const cx = 12, cy = 12, w = 21, h = 13, R0 = ((w / 2) ** 2 + (h / 2) ** 2) / h;
+  const amande = moins(`M${cx - w / 2} ${cy}A${R0} ${R0} 0 0 1 ${cx + w / 2} ${cy}A${R0} ${R0} 0 0 1 ${cx - w / 2} ${cy}Z`, G.circle(cx, cy, 6.6));
+  const reticule = union(G.circle(cx, cy, 2.6), G.rect(cx - 1, cy - 6.4, 2, 2.4, 0.6), G.rect(cx - 1, cy + 4, 2, 2.4, 0.6),
+    G.rect(cx - 6.4, cy - 1, 2.4, 2, 0.6), G.rect(cx + 4, cy - 1, 2.4, 2, 0.6));
+  return [pl(reticule), pa(amande)];
+};
+
 // ═══════════════════════════════════════ retouche locale ══════════════════════════════════════════════
 I["dz-outil-photo-flou"] = () => [pl(M.goutte())];
 I["dz-outil-photo-nettete"] = () => [pl(polyR([[12, 2], [12, 21.6], [5.6, 21.6]], 0.6)), pa(polyR([[12, 2], [18.4, 21.6], [12, 21.6]], 0.6))];

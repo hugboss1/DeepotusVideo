@@ -243,6 +243,17 @@ CORRECTIONS_CHAMPS = {
     # t251 : contour d'ombre portée (0.10) écrit en liste de noms entre guillemets OU courbe : même union opaque que le
     # `contour` des autres styles (innerShadow, outerGlow, satin), que le parseur lit déjà ainsi.
     ("layer.layerStyle.dropShadow", "contour"): {"type": "union", "variantes": ["name", "curve"]},
+    # t252 (M3) : champs des outils de retouche ouverts, écrits « 1..5000 px=tool size », « 1..1000 (% of size)=… »,
+    # « 1..1000 %=100 », « degrees=0 », « "work"|"layer"|savedPathName » — le parseur en fait des « ? » vérifiés en taille
+    # seulement. Bornes et types du registre, rendus explicites. Le nom du tracé de symétrie : le tracé de travail ou
+    # celui du calque (l'écran n'offre que ces deux-là ; un nom de tracé enregistré reste refusé).
+    ("paint.patternStamp", "size"): {"type": "number", "min": 1, "max": 5000, "unite": "px", "optionnel": True},
+    ("paint.patternStamp", "spacing"): {"type": "number", "min": 1, "max": 1000, "unite": "%", "optionnel": True},
+    ("paint.patternStamp", "scale"): {"type": "number", "min": 1, "max": 1000, "unite": "%", "optionnel": True},
+    ("paint.remove", "size"): {"type": "number", "min": 1, "max": 5000, "unite": "px", "optionnel": True},
+    ("paint.remove", "spacing"): {"type": "number", "min": 1, "max": 1000, "unite": "%", "optionnel": True},
+    ("paint.setSymmetry", "rotation"): {"type": "number", "unite": "deg", "optionnel": True},
+    ("paint.symmetryFromPath", "name"): {"type": "enum", "valeurs": ["work", "layer"], "optionnel": True},
 }
 
 
@@ -496,6 +507,13 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         # valeur hors bornes au défaut du filtre (99 -> 4) : chaque effet est vérifié contre filter.gallery.<clé>.
         _galerie(registre, cid, params)
         return params
+    if cid in CHAMPS_M3:
+        # t252 : l'Œil rouge s'écrit `{"x","y"} | {"points"},"pupilSize":…,"darken":…` — le parseur perd ce qui suit
+        # l'alternative ; bornes du registre.
+        for c in CHAMPS_M3[cid]:
+            champs.setdefault(c["cle"], c)
+    if cid in DECALAGES and "offset" in params:
+        _decalage(cid, params["offset"])
     ctx = {"colorize": _colorise(params, etat)}
     for k, v in params.items():
         champ = champs.get(k)
@@ -509,6 +527,20 @@ def verifier(registre: dict, cid, params, kind=None, etat=None) -> dict:
         if schema is not None:
             schema(cid, k, v, champs, ctx)
     return params
+
+
+# ── t252 : outils de retouche de photocraft 0.10 (Pièce, Déplacement basé sur le contenu, Œil rouge) ────────────────
+CHAMPS_M3 = {"paint.redEye": ({"cle": "pupilSize", "type": "number", "min": 1, "max": 100, "optionnel": True},
+                              {"cle": "darken", "type": "number", "min": 0, "max": 100, "optionnel": True})}
+# `offset` = [dx, dy] du glisser de la sélection : un « struct » au registre, vérifié ici (deux nombres finis, bornés
+# à la taille maximale d'un document : 300 000 px, registre de file.new 0.10).
+DECALAGES = {"paint.patch", "paint.contentAwareMove"}
+MAX_DECALAGE = 300_000
+
+
+def _decalage(cid, v):
+    if not (isinstance(v, list) and len(v) == 2 and all(_nombre_fini(x) and abs(x) <= MAX_DECALAGE for x in v)):
+        raise ValueError(f"{cid} : offset : [dx, dy] attendu (deux nombres, ±{MAX_DECALAGE} px au plus), reçu {v!r}")
 
 
 # ── t157 : Sélectionner et masquer, la pile de la Galerie de filtres ────────────────────────────────────────────────
