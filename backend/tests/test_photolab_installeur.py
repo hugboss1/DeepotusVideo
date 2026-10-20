@@ -142,11 +142,16 @@ if pwsh and etape and DOSSIER.is_dir():
         shutil.copytree(DOSSIER, vrai, ignore=shutil.ignore_patterns("PhotoCraftData"))
         (vrai / f"photocraft-{_v}-windows-x64-portable" / "PhotoCraftData").mkdir()
         (vrai / f"photocraft-{_v}-windows-x64-portable" / "PhotoCraftData" / "preferences.json").write_text("{}")
+        vieux = T / "vrai" / "vendor" / "photocraft-0.3.0"           # t259 : un moteur d'avant laissé sur le poste de build
+        (vieux / "photocraft-0.3.0-windows-x64-portable").mkdir(parents=True)
+        (vieux / "photocraft-0.3.0-windows-x64-portable" / "photocraft-cli.exe").write_bytes(b"MZ ancien")
         out = jouer(T / "vrai")
         check("4h exécutée : le vrai moteur passe ; NOTICE, manifeste et licences posés ; préférences du poste retirées",
               "ETAPE:OK" in out and (T / "vrai" / "vendor" / "NOTICE-photocraft.txt").is_file()
               and (T / "vrai" / "vendor" / "photocraft.json").is_file() and (T / "vrai" / "vendor" / "licences-photocraft" / "NOTICE").is_file()
               and not (vrai / f"photocraft-{_v}-windows-x64-portable" / "PhotoCraftData").exists(), out[-400:])
+        check("4i exécutée (t259) : un moteur d'une AUTRE version laissé sur le poste de build ne part pas chez l'acheteur",
+              not vieux.exists() and vrai.is_dir() and (T / "vrai" / "vendor" / "photocraft.json").is_file(), out[-400:])
     finally:
         shutil.rmtree(T, ignore_errors=True)
 else:
@@ -175,6 +180,36 @@ check("5h l'étape 4c pose aussi licences-photocraft/ dans l'arbre préparé", "
 src = (RACINE / "scripts" / "vendor_photocraft.py").read_text("utf-8")
 check("5d vendor_photocraft.py revérifie l'extraction contre le manifeste fichier par fichier",
       "comparer(" in src and "fichiers" in src)
+
+print("\n[6] t259 : attributions de photocraft 0.10.0 (ATTRIBUTION amont et licences des matériaux du moteur)")
+# Empreintes git (blob) des fichiers du tag v0.10.0 (API GitHub, 21/10/2026) ; COPYING de xorg/app/rgb (GitLab freedesktop,
+# blob 7c566482, commit fb06ee0b). Reproduits TELS QUELS : le texte livré doit être celui de l'amont (fins de ligne LF).
+AMONT = {"ATTRIBUTION.md": ("1ae19efa6621ced81f8db17e8b0834ddcb5d6b66", "Every non-code asset"),
+         "LICENSE-translations.txt": ("93a609f9463c9c718814fc942c3ec56ead5ec2e3", "MIT OR Apache-2.0"),
+         "LICENSE-solarized.txt": ("1124be212d80160156bd321f76fd459f03a47b1c", "Ethan Schoonover"),
+         "LICENSE-noun-magnetic-lasso.txt": ("7fcb546dd27dcd08a1a7a89be87fbafe66ca1324", "CC BY 3.0"),
+         "LICENSE-symmetry-axes.txt": ("2232ec82fb8ee9c917f8cb4a00ac7c5fc0591394", "@shorbank"),
+         "COPYING-xorg-rgb.txt": ("7c5664827a8dfdbc54da51ef9f620348105b87e1", "The Open Group")}
+
+
+def blob(f):
+    b = f.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha1(b"blob %d\0" % len(b) + b).hexdigest()
+
+
+for n, (empreinte, marque) in AMONT.items():
+    f = LIC / n
+    check(f"6a licences-photocraft/{n} livré tel que publié (blob {empreinte[:8]})",
+          f.is_file() and blob(f) == empreinte and marque in f.read_text("utf-8"), blob(f) if f.is_file() else "absent")
+    check(f"6b notre NOTICE cite licences-photocraft/{n}", f"licences-photocraft/{n}" in nt)
+check("6c NOTICE : traductions (fr.tsv), rgb.txt X11, palette Solarized, icône Noun Project (CC BY 3.0) nommées",
+      all(m in nt for m in ("fr.tsv", "rgb.txt", "Solarized", "Noun Project", "CC BY 3.0", "Lil' Seal")), nt[-600:])
+entete = lambda f: (RACINE / "scripts" / f).read_text("utf-8").split("\n", 1)[0]
+check("6d les en-têtes des scripts de fourniture ne nomment plus une version périmée du moteur",
+      "0.3.0" not in entete("vendor_photocraft.py") and "0.3.0" not in entete("verifier_vendor.py"),
+      (entete("vendor_photocraft.py"), entete("verifier_vendor.py")))
+check("6e l'étape 4c retire du dossier préparé tout photocraft-* d'une autre version que l'épinglée",
+      "photocraft-*" in etape and "$pcVersion" in etape)
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

@@ -24,11 +24,26 @@ Matériel tiers intégré au moteur, sous ses propres licences :
   Icônes Lucide — ISC (icônes dérivées de Feather : MIT aussi) : licences-photocraft/LICENSE-lucide.txt
   Poids et réseau de détection de visages libfacedetection (depuis 0.10) — BSD-3-Clause, Copyright (c) 2015-2019,
     Shiqi Yu : licences-photocraft/LICENSE-libfacedetection.txt
+  Table des noms de couleurs X11 rgb.txt (X.Org app/rgb, lecture des fichiers XPM) — licence X.Org (MIT) :
+    licences-photocraft/COPYING-xorg-rgb.txt
+  Palette Solarized (thème Solarized Dark de l'app native), Ethan Schoonover — MIT :
+    licences-photocraft/LICENSE-solarized.txt
+  Icône de l'outil Lasso magnétique de l'app native, adaptée de « Magnetic Lasso Tool » de Lil' Seal (Noun Project) —
+    CC BY 3.0 : licences-photocraft/LICENSE-noun-magnetic-lasso.txt
+  Icônes des axes de symétrie de peinture de l'app native, @shorbank — MIT ou Apache 2.0 :
+    licences-photocraft/LICENSE-symmetry-axes.txt
+  Traductions de l'interface de l'app native (crates/ui-egui/src/i18n/*.tsv, dont fr.tsv) — MIT ou Apache 2.0 :
+    licences-photocraft/LICENSE-translations.txt
+  Liste complète des matériaux du moteur, auteur par auteur, telle que l'amont la publie : licences-photocraft/ATTRIBUTION.md
 
 Repris par l'écran du Photolab (frontend/photolab/, voir ATTRIBUTION.md) : les icônes Lucide (même licence ISC,
 frontend/photolab/icones/LICENSE-lucide.txt), le catalogue des menus et les libellés français des commandes de
-photocraft (MIT ou Apache 2.0).
+photocraft (MIT ou Apache 2.0) ; depuis 0.10 (t258), la traduction française de l'amont (fr.tsv du tag v0.10.0) en
+repli pour les commandes que notre catalogue ne nomme pas.
 
 Les noms, logos et marques ArtCraft ne sont pas couverts par ces licences et ne sont pas utilisés par Deepotus.
-Les textes des licences de licences-photocraft/ viennent des sources du tag v0.10.0 (commit 8407d9ccb) ; seule
-LICENSE-libfacedetection.txt est nouvelle, les quatre autres sont identiques à celles du tag v0.3.0.
+Les textes des licences de licences-photocraft/ viennent des sources du tag v0.10.0 (commit 8407d9ccb), reproduits
+tels quels ; NOTICE, OFL-Inter, OFL-JetBrainsMono, LICENSE-SCOWL et LICENSE-lucide sont identiques à ceux du tag v0.3.0,
+les autres sont nouveaux en 0.10 (t251 : libfacedetection ; t259 : ATTRIBUTION.md, traductions, Solarized, Noun Project,
+axes de symétrie). COPYING-xorg-rgb.txt est le COPYING de xorg/app/rgb (GitLab freedesktop, commit fb06ee0b), auquel
+renvoie l'en-tête de la table de couleurs de l'amont.

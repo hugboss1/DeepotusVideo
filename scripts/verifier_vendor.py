@@ -6,7 +6,7 @@ fichier altéré, manquant ou EN TROP (une DLL glissée à côté du moteur) est
 
 Le build de l'installeur l'appelle sur l'arbre PRÉPARÉ (scripts/build-installer.ps1, étape 4c) ; vendor_photocraft.py
 l'utilise après chaque extraction. Il refuse aussi un moteur qui importerait le runtime C de Visual C++ (vcruntime,
-msvcp, UCRT) : la 0.3.0 n'en dépend pas, l'installeur ne pose donc aucun redistribuable — une version qui en
+msvcp, UCRT) : ni la 0.3.0 ni la 0.10.0 n'en dépendent, l'installeur ne pose donc aucun redistribuable — une version qui en
 dépendrait doit d'abord le faire poser.
 
 Usage : python scripts/verifier_vendor.py [<dossier du moteur>] [--ecrire] [--manifeste <vendor/photocraft-X.json>]

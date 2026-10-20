@@ -230,7 +230,7 @@ if ($gpZip -and (Test-Path $gpZip)) {
 # Epingle dans vendor\photocraft.json (version, archive officielle, sha256, et chaque fichier extrait). Absent du poste
 # de build : vendor_photocraft.py le telecharge depuis la release officielle et verifie l'archive. Puis l'arbre
 # PREPARE est verifie fichier par fichier (rien d'altere, de manquant ni d'ajoute) et le moteur ne doit dependre
-# d'aucun runtime Visual C++ (la 0.3.0 n'en a pas besoin : aucun redistribuable n'est pose). Ecart = build arrete.
+# d'aucun runtime Visual C++ (0.3.0 et 0.10.0 n'en ont pas besoin : aucun redistribuable n'est pose). Ecart = build arrete.
 # t250 : la version vient du manifeste (une montee de moteur ne change que vendor\photocraft.json).
 $pcVersion = (Get-Content (Join-Path $AppDir "vendor\photocraft.json") -Raw -Encoding UTF8 | ConvertFrom-Json).version
 if (-not $pcVersion) { throw "vendor\photocraft.json : version absente" }
@@ -245,6 +245,13 @@ if (-not (Test-Path $pcStage)) {
     robocopy $pcSrc $pcStage /E /NFL /NDL /NJH /NJS | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "robocopy photocraft failed ($LASTEXITCODE)" }
 }
+# t259 : un moteur d'une autre version laisse sur le poste de build (vendor\photocraft-0.3.0 apres la montee, 127 Mo) a ete
+# copie par l'etape 1 ; il ne sert plus a rien et ne part pas chez l'acheteur. Seule la version epinglee reste.
+Get-ChildItem (Join-Path $stageApp "vendor") -Directory -Filter "photocraft-*" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne "photocraft-$pcVersion" } | ForEach-Object {
+        Write-Host "  photocraft : $($_.Name) retire de l'arbre prepare (version epinglee : $pcVersion)" -ForegroundColor Yellow
+        Remove-Item $_.FullName -Recurse -Force
+    }
 # Les preferences de l'app native du poste de build (mode portable) ne partent pas chez l'acheteur.
 Get-ChildItem $pcStage -Recurse -Directory -Filter "PhotoCraftData" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 foreach ($n in @("photocraft.json", "NOTICE-photocraft.txt")) {
