@@ -116,6 +116,69 @@ export function prix(usd, lang) {
   return lang === "en" ? t : t.replace(".", ",");
 }
 
+// C4 (spec 2026-10-19-agent-catalogue-design.md § 4) : les éléments visibles de l'écran ouvert, envoyés avec la
+// question ; LIBELLÉS seulement, jamais le contenu de l'utilisateur, bornés :
+// - un champ (input, textarea, select, contenteditable) ne donne jamais son texte : son infobulle, aria-label ou
+//   placeholder seulement ;
+// - seul un contrôle (button, a[href], role tab / menuitem / button) donne un texte : la première ligne non vide de
+//   innerText (« Quick » et non « QuickGénérateurs en un clic »), écartée au-delà de 40 caractères (c'est alors du
+//   contenu, l'aperçu d'un bloc par ex.) ;
+// - toute zone marquée data-dz-agent-ignorer (grille de fichiers…) est exclue. Les nav sont GARDÉS ici (menus et
+//   outils des labs) : la SPA exclut son rail par le prédicat exclure (/shared/dz-agent.js).
+export const MAX_VISIBLES = 120;
+const MAX_TEXTE = 80;
+const MAX_LIBELLE = 40;
+const SEL_VISIBLES = 'button, [role="tab"], [role="menuitem"], [role="button"], a[href], [title], [aria-label]';
+const ROLES_CONTROLE = new Set(["tab", "menuitem", "button"]);
+const court = (s) => String(s || "").replace(/\s+/g, " ").trim().slice(0, MAX_TEXTE);
+const tag = (x) => String(x.tagName || "").toUpperCase();
+function estChamp(x) {
+  const g = tag(x), ce = x.getAttribute("contenteditable");
+  return g === "INPUT" || g === "TEXTAREA" || g === "SELECT" || x.isContentEditable === true
+    || (ce != null && ce !== "false");
+}
+function estControle(x) {
+  const g = tag(x);
+  return g === "BUTTON" || (g === "A" && x.getAttribute("href") != null) || ROLES_CONTROLE.has(x.getAttribute("role"));
+}
+function libelle(x) {
+  if (estChamp(x) || !estControle(x)) return "";
+  const brut = typeof x.innerText === "string" ? x.innerText : String(x.textContent || "");
+  const ligne = brut.split("\n").map((l) => l.replace(/\s+/g, " ").trim()).find((l) => l) || "";
+  return ligne.length > MAX_LIBELLE ? "" : ligne;
+}
+
+export function releverVisibles(doc, exclure = () => false, max = MAX_VISIBLES) {
+  let noeuds = [];
+  try { noeuds = Array.from(doc.querySelectorAll(SEL_VISIBLES)); } catch (e) { return []; }
+  // la fenêtre : lue sur doc.defaultView s'il existe (un faux document sans vue n'est pas filtré)
+  const vue = doc && doc.defaultView ? doc.defaultView : null;
+  const largeur = vue && vue.innerWidth > 0 ? vue.innerWidth : Infinity;
+  const hauteur = vue && vue.innerHeight > 0 ? vue.innerHeight : Infinity;
+  const styleDe = vue && typeof vue.getComputedStyle === "function" ? (x) => vue.getComputedStyle(x) : null;
+  const out = [], vus = new Set();
+  for (const x of noeuds) {
+    if (out.length >= max) break;
+    try {
+      if (exclure(x)) continue;
+      // une zone marquée data-dz-agent-ignorer (grille de fichiers…) n'est jamais relevée
+      if (typeof x.closest === "function" && x.closest("[data-dz-agent-ignorer]")) continue;
+      const r = x.getBoundingClientRect();
+      if (!(r.width > 0 && r.height > 0)) continue;
+      if (!(r.bottom > 0 && r.top < hauteur && r.right > 0 && r.left < largeur)) continue;   // hors fenêtre
+      if (styleDe && styleDe(x).visibility === "hidden") continue;
+      const t = libelle(x);
+      const i = court(x.getAttribute("title") || x.getAttribute("aria-label") || x.getAttribute("placeholder") || "");
+      if (!t && !i) continue;
+      const k = t + "\u0001" + i;
+      if (vus.has(k)) continue;
+      vus.add(k);
+      out.push({ t, i });
+    } catch (e) { /* un nœud illisible est sauté, le relevé continue */ }
+  }
+  return out;
+}
+
 // t260 : la place de la bulle « Demander ». « barre » (défaut) = ancrée dans la barre du haut de la coque ;
 // « flottant » = déplaçable, position {x, y} (coin haut-gauche, px) gardée dans localStorage.
 export const PLACES = ["barre", "flottant"];

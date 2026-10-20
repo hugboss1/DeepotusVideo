@@ -77,7 +77,7 @@ def test_demander_avec_capture(monkeypatch):
     r = asyncio.run(A.demander(dict(corps, image=IMAGE, max_usd=usd)))
     assert vu["images"] == [{"mime": "image/jpeg", "b64": JPG}] and vu["categorie"] == "aide"
     assert "1280×720" in vu["prompt"] and "[POINT:x,y:libellé]" in vu["prompt"]
-    assert vu["systeme"] == A.systeme("", "fr", "")            # le préfixe système ne change pas (cache)
+    assert vu["systeme"].startswith(A.systeme("", "fr", ""))            # le préfixe système ne change pas (cache)
     assert r["actions"][0]["type"] == "point_xy" and r["actions"][0]["libelle"] == "Exporter"
 
 

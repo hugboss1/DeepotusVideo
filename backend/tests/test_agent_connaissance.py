@@ -127,5 +127,10 @@ def test_agent_md_explique_voir():
     assert "[POINT:x,y" not in t, "les coordonnées ne s'écrivent qu'après une capture : la consigne les demande"
 
 
+def test_agent_md_regles_catalogue():
+    t = (RACINE / "docs" / "agent" / "AGENT.md").read_text(encoding="utf-8")
+    assert "Éléments pertinents" in t and "non documenté" in t and "[pointable]" in t
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

@@ -188,6 +188,31 @@ def test_fermer_ou_recommencer_annule_l_accord_et_la_vision_occupee_repond():
     assert I18N["agent.vision.occupe"]["en"] == "Wait for the current answer to finish."
 
 
+def test_releve_envoye():
+    src = (SHARED / "dz-agent.js").read_text(encoding="utf-8")
+    assert src.count("visibles: await releve()") == 2, "question texte ET question avec capture"
+    assert "releverVisibles(document" in src and 'dzAgent: "releve"' in src
+    cadre = (SHARED / "dz-agent-cadre.js").read_text(encoding="utf-8")
+    assert 'd.dzAgent === "releve"' in cadre and 'dzAgent: "visibles"' in cadre
+    assert cadre.count("ev.origin !== location.origin") == 1   # une seule garde, en tête, pour les deux messages
+    # seuls les labs qui chargent le répondeur sont interrogés (sinon 400 ms d'attente à chaque question)
+    m = re.search(r"const LABS_CADRES = /\^\\/\(([a-z0-9|]+)\)\\//;", src)
+    assert m, "ligne LABS_CADRES introuvable"
+    repondeurs = sorted(h.parent.name for h in (RACINE / "frontend").glob("*/index.html")
+                        if "/shared/dz-agent-cadre.js" in h.read_text(encoding="utf-8"))
+    assert sorted(m.group(1).split("|")) == repondeurs
+    # M5 : une erreur du relevé dans le lab donne [] et la réponse part quand même (pas d'attente de 400 ms)
+    r = cadre[cadre.index('d.dzAgent === "releve"'):cadre.index('d.dzAgent !== "trouve"')]
+    assert "try { items = releverVisibles(document); } catch (e) { items = []; }" in r
+    assert r.index("catch (e) { items = []; }") < r.index('dzAgent: "visibles"')
+    # le rail (nav) est exclu dans la SPA seulement : les menus et outils des labs sont des nav, gardés
+    appel = src[src.index("releverVisibles(document,"):]
+    appel = appel[:appel.index(";")]
+    assert 'closest("nav")' in appel, "le prédicat du document principal exclut le rail"
+    assert 'closest("nav")' not in (SHARED / "dz-agent-logique.js").read_text(encoding="utf-8")
+    assert "releverVisibles(document)" in cadre, "le répondeur des labs n'exclut rien"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
 

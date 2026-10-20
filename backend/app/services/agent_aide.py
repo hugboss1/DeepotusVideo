@@ -8,11 +8,13 @@ transforme les balises de la réponse en actions pour l'écran. Il n'exécute RI
 from __future__ import annotations
 
 import asyncio
+import bisect
 import hashlib
 import json
 import math
 import re
 import unicodedata
+from collections import Counter
 from functools import lru_cache
 from pathlib import Path
 
@@ -80,9 +82,25 @@ def _ligne(v, n: int = 60) -> str:
     return " ".join(str(v or "").split())[:n]
 
 
-def systeme(ecran: str, lang: str, espace: str = "") -> str:
-    """AGENT.md + chapitres + « Je veux… » + ancres + vues, puis le contexte EN DERNIER : tout ce qui précède
-    « ## Contexte » est identique d'une question à l'autre (cache du préfixe chez le fournisseur)."""
+NON_REDIGE = {"fr": "— pas encore rédigé : décris seulement ce qui est visible",
+              "en": "— not written yet: describe only what is visible"}
+NON_DOCUMENTE = {"fr": "non documenté", "en": "not documented"}
+
+
+def _fiche_ligne(x: dict, cle: str, avec_role: bool = True) -> str:
+    lib = (x.get("libelle") or {}).get(cle) or (x.get("infobulle") or {}).get(cle) or x["id"]
+    lib = _ligne(GABARIT.sub("…", str(lib)), 80)        # le modèle ne voit jamais « lame · {k} »
+    pt = " [pointable]" if x.get("localisateur") else ""
+    ou = "partout" if x.get("ecran") in (None, "", "commun") else x["ecran"]
+    if not avec_role:
+        return f"- {x['id']} « {lib} »{pt}"
+    role = _ligne((x.get("role") or {}).get(cle), 400)
+    return f"- {x['id']} ({ou}) « {lib} »{pt} : {role or NON_REDIGE[cle]}"
+
+
+def systeme(ecran: str, lang: str, espace: str = "", pertinents=(), visibles=None) -> str:
+    """AGENT.md + chapitres + « Je veux… » + ancres + vues, puis « ## Contexte » ; les sections qui changent à chaque
+    question (éléments pertinents, écran relevé) viennent APRÈS, pour garder le préfixe identique (cache)."""
     ecran, espace = _ligne(ecran, 30), _ligne(espace)
     k = connaissance()
     en = lang == "en"
@@ -90,10 +108,214 @@ def systeme(ecran: str, lang: str, espace: str = "") -> str:
     chap = "\n".join(f"- {c['id']} : {c[cle]}" for c in k["chapitres"].values())
     jv = "\n".join(f"- {e[cle]} → {e['cible']}" for e in k["jeveux"])
     anc = "\n".join(f"- {a['id']} ({'partout' if a.get('partout') or not a.get('ecran') else a['ecran']}) : {a[cle]}" for a in k["ancres"].values())
-    return (f"{k['agent']}\n\n## Chapitres (id : titre)\n{chap}\n\n## Je veux…\n{jv}\n\n"
-            f"## Ancres (id (écran) : libellé)\n{anc}\n\n## Vues\n{', '.join(VUES)}\n\n"
-            f"## Contexte\n- écran ouvert : {ecran or 'inconnu'}\n- espace de marque actif : {espace or 'inconnu'}\n"
-            f"- langue : {'English' if en else 'français'}\n")
+    s = (f"{k['agent']}\n\n## Chapitres (id : titre)\n{chap}\n\n## Je veux…\n{jv}\n\n"
+         f"## Ancres (id (écran) : libellé)\n{anc}\n\n## Vues\n{', '.join(VUES)}\n\n"
+         f"## Contexte\n- écran ouvert : {ecran or 'inconnu'}\n- espace de marque actif : {espace or 'inconnu'}\n"
+         f"- langue : {'English' if en else 'français'}\n")
+    if pertinents:
+        s += "\n## Éléments pertinents (id (écran) « libellé » : rôle)\n" + "\n".join(
+            _fiche_ligne(x, cle) for x in pertinents) + "\n"
+    if visibles and (visibles.get("reconnus") or visibles.get("inconnus")):
+        lignes = [_fiche_ligne(x, cle, avec_role=False) for x in visibles.get("reconnus", [])]
+        for v in visibles.get("inconnus", []):
+            t, i = _ligne(v.get("t"), 80), _ligne(v.get("i"), 80)
+            lignes.append(f"- « {t or i} »" + (f" ({i})" if t and i else "") + f" — {NON_DOCUMENTE[cle]}")
+        s += "\n## À l'écran maintenant\n" + "\n".join(lignes) + "\n"
+    return s
+
+
+CATALOGUE = DOSSIER / "catalogue"
+MAX_PERTINENTS = 15
+# bonus mesurés le 19/10 sur le catalogue non rédigé ; à revoir après C2
+BONUS_ECRAN = 2.0       # multiplicateur pour l'écran ouvert
+BONUS_VISIBLE = 6.0     # ajout pour un élément visible maintenant
+POIDS = (("libelle", 3.0), ("synonymes", 3.0), ("infobulle", 2.0), ("role", 1.0))
+MOTS_VIDES = {"le", "la", "les", "un", "une", "des", "de", "du", "et", "ou", "en", "au", "aux", "je", "tu", "il",
+              "ce", "ca", "est", "pour", "par", "sur", "dans", "avec", "comment", "quoi", "que", "qui", "mon",
+              "ma", "mes", "the", "an", "of", "to", "in", "on", "is", "how", "do", "i", "my", "what", "where"}
+
+
+@lru_cache(maxsize=1)
+def catalogue() -> dict:
+    """Les fiches non retirées de docs/agent/catalogue/*.json (lues une fois par processus)."""
+    fiches = {}
+    if CATALOGUE.is_dir():
+        for f in sorted(CATALOGUE.glob("*.json")):
+            if f.name.startswith("_"):
+                continue
+            for x in json.loads(f.read_text(encoding="utf-8"))["fiches"]:
+                if x.get("etat") != "retire":
+                    fiches[x["id"]] = x
+    return fiches
+
+
+def _mots(t) -> list:
+    t = re.sub(r"\{[^{}]*\}", " ", str(t or ""))                 # les gabarits {k}, {piste}… ne sont pas des mots
+    t = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode().lower()
+    return [m for m in re.findall(r"[a-z0-9]+", t) if len(m) >= 2 and m not in MOTS_VIDES]
+
+
+def _racine(m: str) -> str:
+    return m[:5] if len(m) > 5 else m           # « coupe », « couper », « coupez » se rejoignent
+
+
+@lru_cache(maxsize=1)
+def _index() -> tuple:
+    docs, df = {}, Counter()
+    for i, x in catalogue().items():
+        poids = {}
+        for champ, w in POIDS:
+            v = x.get(champ) or {}
+            for lang in ("fr", "en"):
+                t = v.get(lang) if isinstance(v, dict) else None
+                t = " ".join(t) if isinstance(t, list) else (t or "")
+                for m in _mots(t):
+                    r = _racine(m)
+                    poids[r] = max(poids.get(r, 0.0), w)
+        docs[i] = poids
+        df.update(poids.keys())
+    n = max(1, len(docs))
+    return docs, {r: math.log(1 + n / c) for r, c in df.items()}
+
+
+def chercher(question, ecran: str = "", visibles=(), n: int = MAX_PERTINENTS) -> list:
+    """Les fiches les plus proches de la question : mots communs pondérés par champ et par rareté, ×BONUS_ECRAN
+    sur l'écran ouvert, +BONUS_VISIBLE pour un élément visible maintenant. [] si la question n'a aucun mot utile."""
+    q = {_racine(m) for m in _mots(question)}
+    if not q:
+        return []
+    docs, idf = _index()
+    fiches, vis, res = catalogue(), set(visibles or ()), []
+    for i, poids in docs.items():
+        s = sum(poids[r] * idf.get(r, 0.0) for r in q if r in poids)
+        if not s:
+            continue
+        if ecran and fiches[i].get("ecran") == ecran:
+            s *= BONUS_ECRAN
+        if i in vis:
+            s += BONUS_VISIBLE
+        res.append((-s, i))
+    return [fiches[i] for _, i in sorted(res)[:n]]
+
+
+MAX_VISIBLES = 120
+MAX_TEXTE_VISIBLE = 80
+MAX_RECONNUS = 40
+MAX_INCONNUS = 20
+
+
+FICHIER = re.compile(r"(?i)\.(png|jpe?g|webp|gif|svg|mp4|mov|webm|mkv|wav|mp3|ogg|flac|psd|tiff?|bmp|pdf|json|glb|gltf"
+                    r"|fbx|obj|stl|blend|zip)\b|[\\/][A-Za-z]")
+
+
+def _visibles(v) -> list:
+    """Le relevé de l'écran envoyé par le tiroir, borné et nettoyé ; une entrée illisible est ignorée (pas d'erreur :
+    le relevé n'est qu'un contexte)."""
+    if not isinstance(v, list):
+        return []
+    out = []
+    for x in v:
+        if len(out) >= MAX_VISIBLES:
+            break
+        if not isinstance(x, dict):
+            continue
+        t = x.get("t") if isinstance(x.get("t"), str) else ""
+        i = x.get("i") if isinstance(x.get("i"), str) else ""
+        t, i = _ligne(_sans_controle(t), MAX_TEXTE_VISIBLE), _ligne(_sans_controle(i), MAX_TEXTE_VISIBLE)
+        if FICHIER.search(t) or FICHIER.search(i):      # nom de fichier ou chemin : jamais envoyé (vie privée)
+            continue
+        # aucune balise [XXX] ne passe : le modèle pourrait la recopier dans sa réponse
+        t, i = t.replace("[", "(").replace("]", ")"), i.replace("[", "(").replace("]", ")")
+        if t or i:
+            out.append({"t": t, "i": i})
+    return out
+
+
+def _cle_texte(t) -> str:
+    t = unicodedata.normalize("NFKD", str(t or "")).encode("ascii", "ignore").decode().lower()
+    return " ".join(t.split())
+
+
+GABARIT = re.compile(r"\{[^{}]*\}")
+MIN_PREFIXE = 60    # sous cette longueur, un début de texte est trop ambigu
+MIN_FIXE = 3        # un gabarit sans au moins ce nombre de caractères fixes reconnaîtrait n'importe quoi
+
+
+def _motif(c: str):
+    """Un texte à gabarit (« indexer ({n}) ») → motif ancré, ou None s'il n'a pas assez de texte fixe."""
+    morceaux = GABARIT.split(c)
+    if len(morceaux) < 2 or not any(len(m.strip()) >= MIN_FIXE for m in morceaux):
+        return None
+    return re.compile("^" + ".+?".join(re.escape(m) for m in morceaux) + "$")
+
+
+@lru_cache(maxsize=1)
+def _par_texte() -> tuple:
+    """(exact, motifs, longs) : exact = texte normalisé (libellé ou infobulle, FR et EN) → id de fiche (le premier par ordre
+    d'id) ; motifs = [(motif, id)] pour les textes à gabarit {…}, triés par id ; longs = [(texte, id)] triée, pour les
+    textes d'au moins MIN_PREFIXE caractères (le relevé tronque à 80 : on les retrouve par leur début)."""
+    out, motifs, vus, longs = {}, [], set(), []
+    for i in sorted(catalogue()):
+        x = catalogue()[i]
+        for champ in ("libelle", "infobulle"):
+            for lang in ("fr", "en"):
+                c = _cle_texte((x.get(champ) or {}).get(lang))
+                if not c:
+                    continue
+                if "{" in c:
+                    m = _motif(c)
+                    if m and (m.pattern, i) not in vus:
+                        vus.add((m.pattern, i))
+                        motifs.append((m, i))
+                else:
+                    out.setdefault(c, []).append(i)
+                    if len(c) >= MIN_PREFIXE:
+                        longs.append((c, i))
+    return out, motifs, sorted(longs)
+
+
+def _par_prefixe(c: str, longs: list, ok=lambda i: True):
+    """La première fiche (par id) dont un texte long COMMENCE par c (c vient d'un relevé tronqué)."""
+    if len(c) < MIN_PREFIXE:
+        return None
+    k, trouves = bisect.bisect_left(longs, (c, "")), []
+    while k < len(longs) and longs[k][0].startswith(c):
+        if ok(longs[k][1]):
+            trouves.append(longs[k][1])
+        k += 1
+    return min(trouves) if trouves else None
+
+
+def rapprocher(visibles: list, ecran: str = "") -> dict:
+    """{reconnus: [fiches], inconnus: [{t, i}]} — un élément visible est reconnu par son texte, sinon son infobulle ;
+    l'égalité exacte passe avant les textes à gabarit, puis le début des textes longs. Un texte partagé entre écrans
+    va à la fiche de l'écran ouvert, puis à `commun`, puis à la première ; les motifs et le préfixe ne visent que
+    l'écran ouvert et `commun` (écran vide : tous)."""
+    (exact, motifs, longs), fiches, rec, inc, vus = _par_texte(), catalogue(), [], [], set()
+
+    def ici(i):
+        return not ecran or fiches[i].get("ecran") in (ecran, "commun", None, "")
+
+    def choisir(ids):
+        if not ecran:
+            return ids[0]
+        ids = [i for i in ids if ici(i)]            # jamais une fiche d'un autre écran
+        return (next((i for i in ids if fiches[i].get("ecran") == ecran), None) or (ids[0] if ids else None))
+
+    for v in visibles:
+        cles = [c for c in (_cle_texte(v["t"]), _cle_texte(v["i"])) if c]
+        i = next((j for c in cles if c in exact for j in [choisir(exact[c])] if j), None)
+        if not i:
+            i = next((j for c in cles for m, j in motifs if ici(j) and m.match(c)), None)
+        if not i:
+            i = next((j for c in cles for j in [_par_prefixe(c, longs, ici)] if j), None)
+        if i and i not in vus:
+            vus.add(i)
+            if len(rec) < MAX_RECONNUS:
+                rec.append(fiches[i])
+        elif not i and len(inc) < MAX_INCONNUS:
+            inc.append(v)
+    return {"reconnus": rec, "inconnus": inc}
 
 
 # toute balise MAJUSCULE entre crochets, avec ou sans cible : les connues deviennent des actions, les autres sont
@@ -119,6 +341,16 @@ def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
                 "texte": a.get("texte"), "cadre": a.get("cadre"), "reglages": a.get("reglages"),
                 "partout": bool(a.get("partout")), "libelle": a.get("libelle"),
                 "fr": a["fr"], "en": a["en"]}
+    if typ == "POINT" and cible in catalogue() and catalogue()[cible].get("localisateur"):
+        x = catalogue()[cible]
+        loc = x["localisateur"]
+        lib = x.get("libelle") or {}
+        tip = x.get("infobulle") or {}
+        return {"type": "point", "cible": cible, "ecran": None if x.get("ecran") == "commun" else x.get("ecran"),
+                "selecteur": loc.get("selecteur"), "texte": loc.get("texte"), "cadre": x.get("cadre") or loc.get("cadre"),
+                "reglages": loc.get("reglages"), "partout": bool(loc.get("partout") or x.get("ecran") == "commun"),
+                "libelle": loc.get("libelle"), "fr": _ligne(lib.get("fr") or tip.get("fr") or cible, 60),
+                "en": _ligne(lib.get("en") or tip.get("en") or cible, 60)}
     if typ == "POINT" and image:
         m = XY.match(cible)
         if m:
@@ -224,7 +456,7 @@ def _preparer(corps, lang: str) -> dict:
     base = _historique(corps.get("historique")) + q
     vue = "\n\n" + CONSIGNE_VUE[lang]
     return {"q": q, "lang": lang, "ecran": ecran, "moteur": choisir_moteur(demande), "image": image,
-            "images": images,
+            "images": images, "visibles": _visibles(corps.get("visibles")),
             "prompt": base + (vue.format(l=image["largeur"], h=image["hauteur"]) if image else ""),
             "devis": base + vue.format(l=VUE_NOMINALE[0], h=VUE_NOMINALE[1])}
 
@@ -237,6 +469,13 @@ def _cout(p: dict, sys_txt: str) -> float:
     return round(float(PR.estimate(op).get("total_usd") or 0.0), 4)
 
 
+def _systeme_question(p: dict) -> str:
+    """Le message système d'une question : un seul point pour le devis et l'envoi, qui restent le même texte."""
+    vis = rapprocher(p.get("visibles") or [], p["ecran"]) if p.get("visibles") else None
+    ids = [x["id"] for x in (vis or {}).get("reconnus", [])]
+    return systeme(p["ecran"], p["lang"], _espace(), pertinents=chercher(p["q"], p["ecran"], ids), visibles=vis)
+
+
 def estimer_vue(corps, lang: str = "fr") -> dict:
     """Le devis GRATUIT d'un appel avec capture : {moteur, nom, usd, cout, vision}. Aucune image n'est lue ici."""
     from app.services import moteurs_texte as MT
@@ -246,7 +485,7 @@ def estimer_vue(corps, lang: str = "fr") -> dict:
     if not p["moteur"]:
         return {"moteur": "", "nom": "", "usd": 0.0, "cout": "", "vision": False}
     return {"moteur": p["moteur"], "nom": MT.nom(p["moteur"]), "cout": MT.nature_cout(p["moteur"]),
-            "vision": MT.vision(p["moteur"]), "usd": _cout(p, systeme(p["ecran"], p["lang"], _espace()))}
+            "vision": MT.vision(p["moteur"]), "usd": _cout(p, _systeme_question(p))}
 
 
 async def demander(corps, lang: str = "fr") -> dict:
@@ -259,7 +498,7 @@ async def demander(corps, lang: str = "fr") -> dict:
     if not moteur:
         _, actions, _ = analyser("[POINT:reglages.cles] [GUIDE:cles]")
         return {"texte": SANS_CLE[lang], "actions": actions, "moteur": "", "nom": "", "rejets": 0, "sans_cle": True}
-    sys_txt = systeme(p["ecran"], lang, _espace())
+    sys_txt = _systeme_question(p)
     if p["images"]:
         if not await asyncio.to_thread(MT.vision, moteur):
             raise ValueError("Ce moteur ne lit pas les images : choisis-en un qui voit l'écran.")
