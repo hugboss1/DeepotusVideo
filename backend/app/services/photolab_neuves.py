@@ -19,14 +19,13 @@ Ouvertes depuis (retirées d'ici, avec leurs bancs) :
                      pasteFill / pasteStroke, type.createSelection, type.attachToPath, type.detachFromPath,
                      type.increaseSize / decreaseSize / increaseSizeMore / decreaseSizeMore
                      (type.hitTest, caret, navigate restent fermées : la saisie se fait dans l'éditeur de l'écran)
+  t255 (M6, 20/10) : les 18 actions.* (panneau Actions) — assignSet, conditional, delete, dialog, get, insert, list,
+                     load, move, photoshopStep, play, record, rename, save, setColor, stop, stopMessage, toggle
+                     (formes vérifiées par photolab_registre._v_actions / verifier_etape)
 """
 
 COMMANDES_NEUVES_FERMEES = frozenset({
-    "actions.assignSet", "actions.conditional", "actions.delete", "actions.dialog",
-    "actions.get", "actions.insert", "actions.list", "actions.load",
-    "actions.move", "actions.photoshopStep", "actions.play", "actions.record",
-    "actions.rename", "actions.save", "actions.setColor", "actions.stop",
-    "actions.stopMessage", "actions.toggle", "brush.presets.importImage", "brush.presets.setCurrent",
+    "brush.presets.importImage", "brush.presets.setCurrent",
     "brush.presets.update", "channel.target.layerMask", "document.move", "document.presets.delete",
     "document.presets.get", "document.presets.list", "document.presets.save", "document.recent.add",
     "document.recent.list", "document.sampleColor", "edit.deleteAndFillSelection", "edit.fillHistory",

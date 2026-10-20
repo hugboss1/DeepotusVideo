@@ -11797,6 +11797,37 @@
   "kit": []
  },
  {
+  "cle": "dz-etat-dialogue",
+  "famille": "etat",
+  "sens": "Bascule de dialogue d'une étape d'action : à la lecture, le dialogue de la commande s'ouvre avec ses valeurs enregistrées.",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 2,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Afficher ou masquer le dialogue de l'étape à la lecture"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-action-reglages",
+    "Réglages ouvre des options tout de suite ; la bascule de dialogue dit qu'une étape s'arrêtera sur son dialogue. Silhouette : petite fenêtre à barre de titre pleine et bouton ≠ engrenage."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "une fenêtre de dialogue",
+   "sujet": "barre de titre et bouton",
+   "support": "cadre de fenêtre",
+   "badge": "",
+   "serie": "etats",
+   "silhouette": "barre de titre pleine, cadre pâle, petit bouton plein en bas à droite"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-etat-enregistre",
   "famille": "etat",
   "sens": "Document ou réglages enregistrés (rien à sauver).",
@@ -19937,6 +19968,41 @@
    "badge": "",
    "serie": "rail",
    "silhouette": "deux arcs concentriques et un point, sans cadre"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
+  "cle": "dz-nav-panneau-actions",
+  "famille": "nav",
+  "sens": "Panneau Actions du Photolab (enregistrer, rejouer, éditer des actions).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Actions"
+  ],
+  "anciens": [],
+  "ncf": [
+   [
+    "dz-media-lecture",
+    "Lecture joue un média ; le panneau Actions liste des actions à rejouer. Silhouette : triangle plein à gauche, trois traits pâles à droite ≠ triangle seul."
+   ],
+   [
+    "dz-nav-panneau-historique",
+    "Historique liste les états d'annulation ; Actions liste les actions enregistrées. Silhouette : triangle plein et traits pâles ≠ flèche courbe au-dessus de lignes."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "une liste d'étapes que l'on joue",
+   "sujet": "triangle de lecture",
+   "support": "trois traits",
+   "badge": "",
+   "serie": "panneaux",
+   "silhouette": "triangle plein à gauche, trois traits pâles à droite"
   },
   "source_logo": "",
   "kit": []

@@ -928,3 +928,56 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 .in-echantillons { display: grid; gap: 2px; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .in-echantillons:empty { display: none; }
 .in-echantillon { margin: 0; font-size: 11px; white-space: nowrap; }
+
+/* t255 : panneau Actions (mod-actions) — lignes jeu / action / étape, case allumée, bascule de dialogue, mode Bouton */
+#corpsActions { display: flex; flex-direction: column; min-height: 0; }
+#corpsActions[hidden] { display: none; }
+.ac-liste { flex: 1; min-height: 80px; overflow-y: auto; }
+.ac-ligne { display: flex; align-items: center; gap: 2px; height: 22px; padding: 0 4px 0 calc(2px + var(--ac-retrait, 0px)); border-radius: 3px; color: var(--ink-soft); cursor: default; }
+.ac-ligne:hover { background: var(--bg-panel-2); color: var(--ink-strong); }
+.ac-ligne.choisie { background: var(--accent-soft); color: var(--ink-strong); box-shadow: inset 2px 0 0 var(--accent); }
+.ac-ligne.depot { box-shadow: inset 0 -2px 0 var(--accent); }
+.ac-jeu { color: var(--ink); }
+.ac-etape { font-size: 11px; }
+.ac-etape.eteinte .ac-nom { color: var(--ink-muted); text-decoration: line-through; }
+.ac-etape.sans-equivalent .ac-nom { color: var(--amber); }
+.ac-case, .ac-dlg { flex: none; width: 16px; height: 16px; padding: 1px; display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--stroke); border-radius: 2px; color: var(--ink-strong); }
+.ac-case.partiel { color: var(--red); }
+.ac-dlg.partiel { color: var(--ink-muted); }
+.ac-dlg.sans { visibility: hidden; }
+.ac-case svg, .ac-dlg svg { width: 12px; height: 12px; }
+.ac-fleche { flex: none; }
+.ac-dossier { flex: none; display: inline-flex; color: var(--ink-muted); }
+.ac-dossier svg { width: 14px; height: 14px; }
+.ac-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-details { flex: 0 1 auto; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-muted); font-size: 10px; }
+.ac-pastille { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ac); }
+.ac-rec-marque { flex: none; display: inline-flex; color: var(--red); }
+.ac-rec-marque svg { width: 12px; height: 12px; }
+.ac-vide { margin: 8px 4px; color: var(--ink-muted); font-size: 11px; line-height: 1.4; }
+.ac-pied .pr-btn.ac-rec.actif, #corpsActions.enregistre .ac-rec { color: var(--red); }
+.ac-liste.mode-bouton { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 4px; align-content: start; padding: 2px; }
+.ac-bouton { height: 26px; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--bg-panel-2);
+  border: 1px solid var(--stroke); border-left: 4px solid var(--ac, var(--stroke-strong)); border-radius: 3px; color: var(--ink); text-align: left; }
+.ac-bouton:hover:not(:disabled) { border-color: var(--accent); }
+.ac-c-red { --ac: var(--red); } .ac-c-orange { --ac: var(--amber); } .ac-c-yellow { --ac: color-mix(in srgb, var(--amber) 55%, var(--ink-strong) 45%); }
+.ac-c-green { --ac: var(--green); } .ac-c-blue { --ac: var(--blue); } .ac-c-violet { --ac: var(--violet); } .ac-c-gray { --ac: var(--ink-muted); }
+.ac-dialogue .ac-champ, .ac-lot-tete .ac-champ, .ac-dlg-lot .ac-champ { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; color: var(--ink-soft); }
+.ac-champ input[type=text], .ac-champ textarea, .ac-champ select { width: 100%; }
+.ac-case-champ { display: flex; align-items: center; gap: 6px; color: var(--ink); }
+.ac-aide { margin: 0 0 8px; color: var(--ink-soft); font-size: 11px; line-height: 1.4; }
+.ac-message { white-space: pre-wrap; color: var(--ink-strong); }
+.ac-erreur { min-height: 1em; margin: 6px 0 0; color: var(--red); }
+.ac-cmd-liste { display: flex; flex-direction: column; max-height: 52vh; overflow-y: auto; margin-top: 6px; }
+.ac-cmd { height: 24px; padding: 0 8px; text-align: left; background: transparent; border: 0; border-radius: 3px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-cmd:hover { background: var(--accent-soft); color: var(--ink-strong); }
+.ac-lot-tete { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0 12px; }
+.ac-lot-barre { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.ac-lot-barre .lib-recherche { flex: 1; }
+.ac-lot-compte { color: var(--ink-soft); white-space: nowrap; }
+.ac-lot-grille { max-height: 40vh; overflow-y: auto; }
+.ac-lot-carte.choisie { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.ac-lot-avance { color: var(--ink-strong); }
+.ac-menu .menu-ligne { justify-content: flex-start; gap: 0; }
+.ac-champ[hidden] { display: none; }

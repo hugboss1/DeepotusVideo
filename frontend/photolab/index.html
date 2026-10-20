@@ -48,6 +48,7 @@
       <button type="button" data-panneau="couleur" title="Couleur" aria-label="Couleur"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-couleur"></use></svg></button>
       <button type="button" data-panneau="calques" title="Calques" aria-label="Calques"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-calques"></use></svg></button>
       <button type="button" data-panneau="historique" title="Historique" aria-label="Historique"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-historique"></use></svg></button>
+      <button type="button" data-panneau="actions" title="Actions" aria-label="Actions"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-actions"></use></svg></button>
       <button type="button" data-panneau="pinceaux" title="Pinceaux" aria-label="Pinceaux"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-pinceaux"></use></svg></button>
       <button type="button" data-panneau="infos" title="Histogramme et infos" aria-label="Histogramme et infos"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-infos"></use></svg></button>
       <button type="button" data-panneau="texte" title="Texte" aria-label="Texte"><svg class="dzi dzi--18" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-panneau-texte"></use></svg></button>
@@ -102,12 +103,15 @@
           <button type="button" class="onglet" role="tab" data-onglet="couches">Couches</button>
           <button type="button" class="onglet" role="tab" data-onglet="traces">Tracés</button>
           <button type="button" class="onglet" role="tab" data-onglet="historique">Historique</button>
+          <!-- t255 : Actions (référence : à côté de l'Historique) — mod-actions -->
+          <button type="button" class="onglet" role="tab" data-onglet="actions">Actions</button>
           <button type="button" class="onglet" role="tab" data-onglet="navigateur">Navigateur</button>
         </header>
         <div class="groupe-corps" id="corpsCalques" data-vue="calques"></div>
         <div class="groupe-corps" id="corpsCouches" data-vue="couches" hidden></div>
         <div class="groupe-corps" id="corpsTraces" data-vue="traces" hidden></div>
         <div class="groupe-corps" id="corpsHistorique" data-vue="historique" hidden></div>
+        <div class="groupe-corps" id="corpsActions" data-vue="actions" hidden></div>
         <div class="groupe-corps" id="corpsNavigateur" data-vue="navigateur" hidden></div>
       </section>
       <!-- t153 : Histogramme | Infos (référence « Photographie », amont : carte Navigateur) ; replié tant qu'on ne l'ouvre pas. -->

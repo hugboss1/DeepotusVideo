@@ -25,6 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.services import photolab_moteur as PM
+from app.services import photolab_actions as PA
 from app.services import photolab_espaces as ESP
 from app.services import photolab_preferences as PREF
 from app.services import photolab_nuancier as NUA
@@ -225,6 +226,10 @@ async def executer(body: dict):
     if not isinstance(cid, str) or not PM._ID_COMMANDE.fullmatch(cid):
         raise HTTPException(400, f"commande illisible : {cid!r}")
     reg = await _pool(lambda s: functools.partial(PM.registre, s))
+    if cid.startswith("actions."):
+        # t255 : panneau Actions — liste blanche, lecture vérifiée en profondeur, étapes refusées éteintes, réserve
+        # rejouée / réécrite, d'un seul tenant (photolab_actions.executer)
+        return _json(*await _pool(lambda s: functools.partial(PA.executer, s, reg), cid, params))
     kind = etat = None
     if cid == "layer.setAdjustment" and isinstance(params, dict):
         # Les clés admises dépendent du kind du calque VISÉ : lu dans le document, jamais déclaré par l'écran (sinon
@@ -493,9 +498,9 @@ def _destination(corps, fmt):
     return d
 
 
-async def _livrer(fichier, fmt, base, destination, gen):
+async def _livrer(fichier, fmt, base, destination, gen, parent=None):
     """Un fichier de exports/ : rendu à télécharger, ou DÉPLACÉ dans la Bibliothèque sous photolab_<horodatage>_<base>
-    (lignée vers l'image d'où vient le document actif, si elle existe)."""
+    (lignée vers l'image d'où vient le document actif, si elle existe ; t255 : ou vers `parent`, l'image d'un lot)."""
     if destination == "telecharger":
         return _json({"fichier": fichier, "url": f"/api/photolab/exports/{fichier}"}, gen)
     from app.config import settings
@@ -514,8 +519,11 @@ async def _livrer(fichier, fmt, base, destination, gen):
         src.unlink()
     except OSError:
         pass
-    origine = _ORIGINES.get(await _chemin_actif())
-    parent = origine if _image_biblio(origine) is not None else None
+    if parent is None:
+        origine = _ORIGINES.get(await _chemin_actif())
+        parent = origine if _image_biblio(origine) is not None else None
+    elif _image_biblio(parent) is None:
+        parent = None
     await LI.noter([nom], "photolab", parent=parent, relation="retouche" if parent else None)
     return _json({"filename": nom}, gen)
 
@@ -552,6 +560,58 @@ async def calque_exporter(body: dict):
     async with _VERROU_EXPORT:
         fichier, gen = await _pool(lambda s: functools.partial(PM.exporter_calque, s), layer, fmt, base, echelle, q)
     return await _livrer(fichier, fmt, base, dest, gen)
+
+
+# ── t255 (M6) : panneau Actions et Fichier › Automatisation › Traitement par lots ─────────────────────────────────
+@router.get("/actions")
+async def actions_liste():
+    """Le contenu complet du panneau : {"actions": [{name, set, color, steps, disabled, dialogs}…], "recording"}. Un
+    moteur neuf reçoit d'abord la réserve (<données>/photolab/actions.json)."""
+    return _json(*await _pool(lambda s: functools.partial(PA.lister, s)))
+
+
+@router.post("/actions/dupliquer")
+async def actions_dupliquer(body: dict):
+    """Panneau Actions › Dupliquer : {"action": nom|rang, "name": nom de la copie} -> l'action copiée (étapes, options,
+    couleur, jeu), comme actions.get."""
+    corps = body if isinstance(body, dict) else {}
+    inconnues = set(corps) - {"action", "name"}
+    if inconnues:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
+    reg = await _pool(lambda s: functools.partial(PM.registre, s))
+    return _json(*await _pool(lambda s: functools.partial(PA.dupliquer, s, reg), corps.get("action"), corps.get("name")))
+
+
+@router.post("/actions/lot")
+async def actions_lot(body: dict):
+    """Traitement par lots, UNE image par appel (l'écran enchaîne et montre l'avancée) : {"action": nom|rang,
+    "filename": image de la Bibliothèque, "format": png|jpg, "quality"?: 1..100, "suffixe"?} -> l'image traitée
+    déposée dans la Bibliothèque (photolab_<horodatage>_<nom>-<suffixe>), lignée vers l'image d'origine. Le document
+    actif de l'utilisateur n'est pas touché ; aucun chemin ne vient de l'écran. -> {"filename"}."""
+    corps = body if isinstance(body, dict) else {}
+    inconnues = set(corps) - {"action", "filename", "format", "quality", "suffixe"}
+    if inconnues:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
+    nom = corps.get("filename")
+    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+        raise HTTPException(400, f"nom d'image refusé : {nom!r}")
+    fmt = corps.get("format", "png")
+    if fmt not in ("png", "jpg"):
+        raise HTTPException(400, f"la Bibliothèque reçoit du png ou du jpg, pas {fmt!r}")
+    q = _qualite(corps)
+    src = _image_biblio(nom)
+    if src is None:
+        raise HTTPException(404, f"image introuvable dans la Bibliothèque : {nom}")
+    souche, ext = os.path.splitext(nom)
+    base = _base_sure(f"{souche}-{corps.get('suffixe') or 'lot'}", "lot")
+    h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
+    chemin = _relatif(f"entrees/{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}{re.sub(r'[^A-Za-z0-9.]', '-', ext)}")
+    reg = await _pool(lambda s: functools.partial(PM.registre, s))
+    await asyncio.to_thread(shutil.copyfile, src, PM.dossier_travail() / chemin)
+    async with _VERROU_EXPORT:
+        fichier, gen = await _pool(lambda s: functools.partial(PA.lot_une, s, reg), corps.get("action"), chemin, base,
+                                   fmt, q)
+    return await _livrer(fichier, fmt, base, "bibliotheque", gen, parent=nom)
 
 
 @router.post("/revenir")

@@ -108,6 +108,33 @@ Enregistrer, rejouer, lister, éditer, couleur, conditions ; import/export `.atn
 (jamais `path`) ; Fichier › Automatisation › Traitement par lots vers la Bibliothèque. Scripts et droplets
 restent écartés.
 
+### M6 — mesuré et fait (20/10)
+- 18 commandes `actions.*` ouvertes (neuves 86). `photolab_registre._v_actions` / `verifier_etape` : formes clé par clé
+  (nom 1..128, rang ≥ 0, couleur, condition parmi 33, `data` base64 ≤ 2 Mo, jamais `path`) ; Arrêt et étape .atn ne
+  s'exécutent jamais seuls ; la Condition oui (lecture pas à pas). Deux clés du PONT : `until` (actions.play, segment)
+  et `replace` (actions.insert, Modifier l'étape). `file.new` admis comme ÉTAPE seulement (PERMIS_ETAPES).
+- Faits moteur : synchrones ; actions.record/stop/list/get = aucun état d'historique ; la lecture laisse UN état par
+  étape jouée ; `failed` en cas d'échec (la commande répond ok) ; l'enregistrement capte tout `engine.execute`, les
+  `batch` (Annuler = `edit.undo` enregistré) et `doc.new` (→ `file.new`), PAS doc.open / save / close / select ni les
+  requêtes (list, info) ; **le moteur ne vérifie RIEN de ce qu'on insère** (`file.saveAs`, params faux) → la lecture
+  est vérifiée EN PROFONDEUR par le pont (actions appelées, Conditions) avant tout pas ; `actions.load/save` avec
+  `path` et `file.automate.batch` sont refusés en automation (« ambient filesystem paths ») ; `actions.load` remplace
+  par défaut un jeu du même nom (`replace: true`) — l'écran charge en `replace: false` ; un nom en conflit devient
+  « X 2 » ; l'export .atn laisse hors les étapes sans équivalent (`skipUnsupported`), `layer.select` compris.
+- Les séquences internes du pont (vignettes, histogramme, repères, analyse) passent par `engine.execute` sur des COPIES
+  et s'enregistraient : `SessionMoteur.sequence` suspend l'enregistrement (stop puis record {action}) — sauf
+  `historique` (Annuler reste un geste enregistré, comme le moteur).
+- Réserve `<données>/photolab/actions.json` (forme actions.get) réécrite après chaque édition, rejouée dans un moteur
+  neuf (record + stop d'une action vide, insert, toggle, dialog, setColor, assignSet). Étapes refusées éteintes à
+  l'arrêt et à l'import ; on ne peut pas les rallumer.
+- Lecture pas à pas : une étape au dialogue allumé (commande à formulaire) ou un Arrêt coupe la lecture en segments ;
+  l'écran ouvre le dialogue de la commande avec ses valeurs enregistrées (sans aperçu forcé) ou montre le message.
+- Traitement par lots : une image par appel (`/actions/lot`), document copié sous entrees/, action jouée, enregistré
+  sous exports/, refermé, déposé dans la Bibliothèque avec la lignée ; le document de l'utilisateur n'est pas touché.
+- Hors lot : touches de fonction des actions (le moteur les lit dans les .atn mais ne les expose pas), options de
+  lecture (accélérée / pas à pas / pause), dialogues des actions APPELÉES (le moteur les joue sans interface),
+  scripts et droplets (D9), Nouveau jeu vide gardé par l'écran seulement (le moteur n'a pas de jeu sans action).
+
 ## M7 — t256 · Calques, historique, nuancier, Déformation
 `removeBackground` local en option à côté du détourage IA (le nôtre reste) ; Relight, Couleur en alpha ;
 `showOnly`, verrou de transparence, couleur d'étiquette, `mergeGroup`, `copyToDocument`, cadre, plan de
