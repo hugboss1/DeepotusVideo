@@ -9894,5 +9894,45 @@
  "{cid} : {k} : entre 1 et {MAX_CADRE} px attendu, reçu {v}": {
   "fr": "{cid} : {k} : entre 1 et {MAX_CADRE} px attendu, reçu {v}",
   "en": "{cid}: {k}: between 1 and {MAX_CADRE} px expected, got {v}"
+ },
+ "nuancier : fichier attendu en base64 ({MAX_OCTETS_FICHIER} octets au plus)": {
+  "fr": "nuancier : fichier attendu en base64 ({MAX_OCTETS_FICHIER} octets au plus)",
+  "en": "swatches: file expected in base64 (at most {MAX_OCTETS_FICHIER} bytes)"
+ },
+ "nuancier : clés admises : data, format, mode": {
+  "fr": "nuancier : clés admises : data, format, mode",
+  "en": "swatches: allowed keys: data, format, mode"
+ },
+ "nuancier : format aco ou ase attendu": {
+  "fr": "nuancier : format aco ou ase attendu",
+  "en": "swatches: aco or ase format expected"
+ },
+ "nuancier : mode append ou replace attendu": {
+  "fr": "nuancier : mode append ou replace attendu",
+  "en": "swatches: append or replace mode expected"
+ },
+ "nuancier : le fichier ne contient aucune couleur lisible": {
+  "fr": "nuancier : le fichier ne contient aucune couleur lisible",
+  "en": "swatches: the file contains no readable color"
+ },
+ "nuancier : clés admises : format, groupes": {
+  "fr": "nuancier : clés admises : format, groupes",
+  "en": "swatches: allowed keys: format, groupes"
+ },
+ "nuancier : 1 à {MAX_GROUPES} groupes attendus": {
+  "fr": "nuancier : 1 à {MAX_GROUPES} groupes attendus",
+  "en": "swatches: 1 to {MAX_GROUPES} groups expected"
+ },
+ "nuancier : aucune couleur à exporter": {
+  "fr": "nuancier : aucune couleur à exporter",
+  "en": "swatches: no color to export"
+ },
+ "nuancier : le moteur n'a rendu aucun fichier": {
+  "fr": "nuancier : le moteur n'a rendu aucun fichier",
+  "en": "swatches: the engine returned no file"
+ },
+ "{cid} : name : 1 à {MAX_NOM_INSTANTANE} caractères, sur une ligne": {
+  "fr": "{cid} : name : 1 à {MAX_NOM_INSTANTANE} caractères, sur une ligne",
+  "en": "{cid}: name: 1 to {MAX_NOM_INSTANTANE} characters, on one line"
  }
 }

@@ -2087,5 +2087,21 @@
   "photolab.calques.fx_glisser": {"fr": "Glisser sur un autre calque pour y déplacer les effets (Alt : les copier)", "en": "Drag onto another layer to move the effects there (Alt: copy them)"},
   "photolab.calques.oeil_alt": {"fr": "Alt-clic : afficher seulement ce calque", "en": "Alt-click: show only this layer"},
   "photolab.param.samplealllayers": {"fr": "Échantillonner tous les calques", "en": "Sample All Layers"},
-  "photolab.calques.aucune_destination": {"fr": "Ouvrez d'abord un autre document : il recevra la copie.", "en": "Open another document first: it will receive the copy."}
+  "photolab.calques.aucune_destination": {"fr": "Ouvrez d'abord un autre document : il recevra la copie.", "en": "Open another document first: it will receive the copy."},
+  "photolab.historique.nouvel_instantane": {"fr": "Nouvel instantané", "en": "New snapshot"},
+  "photolab.historique.nouveau_document": {"fr": "Nouveau document à partir de l'état actuel", "en": "New document from current state"},
+  "photolab.historique.instantanes": {"fr": "Instantanés", "en": "Snapshots"},
+  "photolab.historique.choisir_instantane": {"fr": "Clic : revenir à cet instantané — double-clic sur le nom : renommer", "en": "Click: return to this snapshot — double-click the name: rename"},
+  "photolab.historique.supprimer_instantane": {"fr": "Supprimer l'instantané", "en": "Delete snapshot"},
+  "photolab.nuancier.importer": {"fr": "Importer des nuances (.aco, .ase)…", "en": "Import swatches (.aco, .ase)…"},
+  "photolab.nuancier.exporter": {"fr": "Exporter les nuances (.aco, .ase)…", "en": "Export swatches (.aco, .ase)…"},
+  "photolab.nuancier.format_inconnu": {"fr": "Fichier de nuances .aco ou .ase attendu.", "en": "An .aco or .ase swatch file is expected."},
+  "photolab.nuancier.trop_gros": {"fr": "Fichier de nuances trop volumineux (2 Mo au plus).", "en": "Swatch file too large (2 MB at most)."},
+  "photolab.nuancier.importer_question": {"fr": "Ajouter les groupes du fichier à la suite des vôtres, ou remplacer tous les groupes ?", "en": "Add the file's groups after yours, or replace all groups?"},
+  "photolab.nuancier.remplacer": {"fr": "Remplacer", "en": "Replace"},
+  "photolab.nuancier.ajouter": {"fr": "Ajouter", "en": "Add"},
+  "photolab.nuancier.importees": {"fr": "{n} nuance(s) importée(s).", "en": "{n} swatch(es) imported."},
+  "photolab.nuancier.rien_a_exporter": {"fr": "Aucune nuance à exporter.", "en": "No swatch to export."},
+  "photolab.nuancier.exporter_question": {"fr": "Format du fichier : .ase garde les groupes, .aco n'en a qu'une liste.", "en": "File format: .ase keeps the groups, .aco holds a single list."},
+  "photolab.nuancier.exportees": {"fr": "{n} nuance(s) exportée(s).", "en": "{n} swatch(es) exported."}
 }

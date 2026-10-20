@@ -8,6 +8,14 @@
 [2] VRAI moteur : chaque commande agit et nomme EXACTEMENT son état d'historique (ou n'en fait aucun).
 [3] chaque nom d'état de [2] est traduit par ETATS_MOTEUR (mod-historique.js) en fr ET en en.
 [4] enregistrées dans une action, ces commandes restent des étapes rejouables (photolab_registre.verifier_etape).
+PR 2 (historique, nuancier) :
+[5] instantanés et document d'après un état : liste blanche (history.newSnapshot / deleteSnapshot / renameSnapshot /
+    selectSnapshot / newDocument ; nom vide, trop long, sur deux lignes, id négatif refusés ; undo / redo / selectState /
+    deleteState et swatches.* restent fermées à /executer) puis VRAI moteur (aucun état, sauf « choisir » = un état
+    au nom de l'instantané ; le nouveau document devient actif).
+[6] nuancier .aco / .ase : conversion pure (groupes_depuis_moteur, fusionner), refus du pont, puis VRAI moteur : export
+    de NOS groupes, réimport (append, replace), fichier illisible -> erreur, et la bibliothèque du moteur remise aux
+    défauts d'usine après chaque échange.
 Section VRAI moteur rouge si le binaire manque — jamais de saut silencieux.
 Run : & $PY -X utf8 tests/test_photolab_m7.py   (depuis backend/)"""
 import json, os, pathlib, re, shutil, sys, tempfile
@@ -310,11 +318,140 @@ def etapes(reg):
             check(f"4b {cid} mal formée refusée à la lecture", True)
 
 
+OUVERTES_HISTO = ("history.newSnapshot", "history.deleteSnapshot", "history.renameSnapshot", "history.selectSnapshot",
+                  "history.newDocument")
+FERMEES_HISTO = ("history.undo", "history.redo", "history.selectState", "history.deleteState", "swatches.import",
+                 "swatches.export", "swatches.list", "swatches.reset", "swatches.add")
+
+
+def instantanes(reg):
+    print("\n[5] instantanés : liste blanche puis VRAI moteur")
+    check("5.0 les 5 commandes d'instantané ouvertes ; undo/redo/selectState/deleteState et swatches.* fermées",
+          not (set(OUVERTES_HISTO) & PN.COMMANDES_NEUVES_FERMEES) and set(FERMEES_HISTO) <= PN.COMMANDES_NEUVES_FERMEES)
+    for cid, p in (("history.newSnapshot", {}), ("history.newSnapshot", {"name": "Avant retouche", "from": "mergedLayers"}),
+                   ("history.newSnapshot", {"from": "currentLayer"}), ("history.renameSnapshot", {"snapshot": 2, "name": "Après"}),
+                   ("history.selectSnapshot", {"snapshot": 1}), ("history.deleteSnapshot", {"snapshot": 1}),
+                   ("history.newDocument", {}), ("history.newDocument", {"state": 3, "name": "Copie"})):
+        a, m = admise(reg, cid, p)
+        check(f"5a {cid} {sorted(p)} admis", a, m)
+    for cid, p in (("history.newSnapshot", {"name": ""}), ("history.newSnapshot", {"name": "x" * 65}),
+                   ("history.newSnapshot", {"name": "a\nb"}), ("history.newSnapshot", {"from": "tout"}),
+                   ("history.renameSnapshot", {"snapshot": 1}), ("history.renameSnapshot", {"name": "x"}),
+                   ("history.selectSnapshot", {}), ("history.selectSnapshot", {"snapshot": -1}),
+                   ("history.deleteSnapshot", {"snapshot": "1"}), ("history.newDocument", {"state": -1}),
+                   ("history.undo", {}), ("history.selectState", {"state": 0}), ("swatches.list", {})):
+        a, _ = admise(reg, cid, p)
+        check(f"5b {cid} {json.dumps(p, ensure_ascii=False)[:60]} refusé", not a)
+    for cid, p in (("history.newSnapshot", {"name": "Avant"}), ("history.selectSnapshot", {"snapshot": 1})):
+        try:
+            PR.verifier_etape(reg, cid, p); check(f"5c {cid} rejouable dans une action", True)
+        except ValueError as e:
+            check(f"5c {cid} rejouable dans une action", False, e)
+    try:
+        PM.chemin_cli()
+    except PM.MoteurAbsent as e:
+        check("5d le binaire du moteur est présent", False, e)
+        return
+    s = PM.session()
+    ex = lambda c, p=None: s.appeler("engine.execute", {"command": c, "params": p or {}})
+    ins = lambda: s.appeler("doc.inspect")
+    s.appeler("doc.new", {"width": 100, "height": 80, "background": "white"})
+    ex("layer.new.layer", {})
+    h0 = historique(s)
+    r1 = ex("history.newSnapshot", {"name": "Avant"}); r2 = ex("history.newSnapshot", {})
+    check("5d deux instantanés, aucun état d'historique, relus par doc.inspect.snapshots",
+          historique(s) == h0 and ins().get("snapshots") == [{"id": r1["snapshot"], "name": "Avant"}, {"id": r2["snapshot"], "name": r2["name"]}],
+          ins().get("snapshots"))
+    ex("history.renameSnapshot", {"snapshot": r2["snapshot"], "name": "Fond"})
+    check("5e renommer : le nouveau nom, aucun état", ins()["snapshots"][1]["name"] == "Fond" and historique(s) == h0)
+    ex("select.all"); ex("edit.fill", {"color": "#ff0000"})
+    h1 = historique(s); ex("history.selectSnapshot", {"snapshot": r1["snapshot"]})
+    check("5f choisir l'instantané : UN état nommé comme lui (le document y revient)", historique(s) == h1 + ["Avant"], historique(s)[-2:])
+    ex("history.deleteSnapshot", {"snapshot": r1["snapshot"]})
+    check("5g supprimer : il reste « Fond », le document ne change pas", [x["name"] for x in ins()["snapshots"]] == ["Fond"]
+          and historique(s)[-1] == "Avant")
+    try:
+        ex("history.selectSnapshot", {"snapshot": 99}); m = None
+    except PM.MoteurErreur as e:
+        m = str(e)
+    check("5h instantané inconnu : erreur du moteur (no snapshot)", m is not None and "no snapshot" in m, m)
+    avant = s.appeler("session.list")["active"]
+    r = ex("history.newDocument", {"state": 0, "name": "Origine"})
+    sl = s.appeler("session.list")
+    check("5i Nouveau document d'après l'état : un document de plus, ACTIF, qui ne porte qu'« Open »",
+          sl["active"] == r["document"] != avant and ins()["name"] == "Origine" and historique(s) == ["Open"], (sl["active"], r, historique(s)))
+
+
+def nuancier(reg):
+    print("\n[6] nuancier .aco / .ase")
+    from app.services import photolab_nuancier as NUA
+    liste = {"groups": [{"name": "  Mes   couleurs ", "swatches": [{"hex": "#FF0000", "name": "Rouge"}, {"hex": "rouge"},
+                                                                  {"hex": "#00ff00", "name": "x" * 90}]},
+                        {"name": "Vide", "swatches": []}, {"name": "", "swatches": [{"hex": "#0000ff"}]}]}
+    g = NUA.groupes_depuis_moteur(liste, ["g-1"])
+    check("6a conversion : hex en minuscules, nuance illisible écartée, nom tronqué à 64, groupe vide écarté, ids libres",
+          g == [{"id": "g-2", "nom": "Mes couleurs", "couleurs": [{"hex": "#ff0000", "nom": "Rouge"}, {"hex": "#00ff00", "nom": "x" * 64}]},
+                {"id": "g-3", "nom": "g-3", "couleurs": [{"hex": "#0000ff", "nom": ""}]}], g)
+    e0 = NUA.etat_defaut()
+    check("6b fusionner : append à la suite, replace remplace (récentes gardées)",
+          len(NUA.fusionner(e0, g, "append")["groupes"]) == 6 and NUA.fusionner({**e0, "recentes": ["#123456"]}, g, "replace")
+          == {**e0, "recentes": ["#123456"], "groupes": g})
+    for corps in ({}, {"data": "!!!"}, {"data": "QUFB", "mode": "tout"}, {"data": "QUFB", "format": "gpl"},
+                  {"data": "QUFB", "chemin": "x.aco"}, {"data": "A" * 3_000_000}):
+        try:
+            NUA.importer(None, corps); m = None
+        except ValueError as e:
+            m = str(e)
+        check(f"6c import refusé AVANT le moteur : {json.dumps(corps)[:50]}", m is not None, m)
+    for corps in ({"format": "gpl", "groupes": [{"nom": "a", "couleurs": [{"hex": "#000000", "nom": ""}]}]},
+                  {"format": "ase", "groupes": []}, {"format": "ase", "groupes": [{"nom": "", "couleurs": []}]},
+                  {"format": "ase", "groupes": [{"nom": "a", "couleurs": [{"hex": "#GG0000", "nom": ""}]}]},
+                  {"format": "ase", "groupes": [{"nom": "a", "couleurs": []}]}):
+        try:
+            NUA.exporter(None, corps); m = None
+        except ValueError as e:
+            m = str(e)
+        check(f"6d export refusé AVANT le moteur : {json.dumps(corps)[:60]}", m is not None, m)
+    try:
+        PM.chemin_cli()
+    except PM.MoteurAbsent as e:
+        check("6e le binaire du moteur est présent", False, e)
+        return
+    s = PM.session()
+    usine = s.appeler("engine.execute", {"command": "swatches.list", "params": {}})
+    nos = [{"nom": "Marque", "couleurs": [{"hex": "#e35d4a", "nom": "Corail"}, {"hex": "#5ec8a0", "nom": ""}]},
+           {"nom": "Gris", "couleurs": [{"hex": "#808080", "nom": "Moyen"}]}]
+    fichiers = {}
+    for fmt in ("ase", "aco"):
+        r = NUA.exporter(s, {"format": fmt, "groupes": nos})
+        fichiers[fmt] = r["data"]
+        check(f"6e export {fmt} : 3 couleurs, la bibliothèque du moteur revient aux défauts d'usine",
+              r["count"] == 3 and r["format"] == fmt and s.appeler("engine.execute", {"command": "swatches.list", "params": {}}) == usine, r["count"])
+    NUA.ecrire(NUA.etat_defaut())
+    r = NUA.importer(s, {"data": fichiers["ase"], "mode": "append"})
+    noms = [x["nom"] for x in r["groupes"]]
+    check("6f import .ase en append : les 4 groupes fournis + Marque et Gris, couleurs et noms gardés",
+          r["importees"] == 3 and noms[-2:] == ["Marque", "Gris"] and len(noms) == 6
+          and r["groupes"][4]["couleurs"][0] == {"hex": "#e35d4a", "nom": "Corail"} and NUA.lire()["groupes"] == r["groupes"], noms)
+    r = NUA.importer(s, {"data": fichiers["aco"], "mode": "replace"})
+    check("6g import .aco en replace : un seul groupe (.aco n'a pas de groupes), les 3 couleurs",
+          len(r["groupes"]) == 1 and [c["hex"] for c in r["groupes"][0]["couleurs"]] == ["#e35d4a", "#5ec8a0", "#808080"], r["groupes"])
+    try:
+        NUA.importer(s, {"data": "QUFBQUFBQUE=", "format": "aco"}); m = None
+    except (ValueError, PM.MoteurErreur) as e:
+        m = str(e)
+    check("6h fichier illisible : erreur du moteur, le nuancier et la bibliothèque inchangés",
+          m is not None and NUA.lire() == {k: v for k, v in r.items() if k != "importees"}
+          and s.appeler("engine.execute", {"command": "swatches.list", "params": {}}) == usine, m)
+
+
 reg = PR.structurer(_PV.commandes())
 try:
     liste_blanche(reg)
     etapes(reg)
     traductions(moteur())
+    instantanes(reg)
+    nuancier(reg)
 finally:
     PM.fermer()
     shutil.rmtree(_tmp, ignore_errors=True)

@@ -280,6 +280,10 @@ CORRECTIONS_CHAMPS = {
     ("layer.layerStyle.defaultFor", "kind"): {"type": "enum", "valeurs": ["stroke", "dropShadow", "innerShadow", "outerGlow",
                                               "innerGlow", "colorOverlay", "gradientOverlay", "patternOverlay", "satin",
                                               "bevelEmboss"]},
+    # t256 (M7 PR 2) : `"from":"fullDocument"|"mergedLayers"|"currentLayer"="fullDocument"` est un « ? » au parseur ;
+    # l'id d'un instantané est écrit `id` (lu comme un calque) : un entier ≥ 0.
+    ("history.newSnapshot", "from"): {"type": "enum", "valeurs": ["fullDocument", "mergedLayers", "currentLayer"], "optionnel": True},
+    **{(c, "snapshot"): {"type": "index"} for c in ("history.deleteSnapshot", "history.renameSnapshot", "history.selectSnapshot")},
 }
 
 
@@ -667,8 +671,13 @@ def _formes_m5(cid, params):
 # Requis que le registre n'écrit pas comme tels (« "color":"none|red|…" » sans défaut, x/y/width/height du cadre).
 REQUIS_M7 = {"layer.setLabelColor": ("color",), "layer.copyToDocument": ("document",),
              "layer.new.frame": ("x", "y", "width", "height"), "layer.layerStyle.transferEffects": ("from", "to"),
-             "layer.layerStyle.makeDefault": ("kind", "params"), "layer.layerStyle.defaultFor": ("kind",)}
-FORMES_M7 = set(REQUIS_M7) | {"layer.layerMask.edit"}
+             "layer.layerStyle.makeDefault": ("kind", "params"), "layer.layerStyle.defaultFor": ("kind",),
+             # PR 2 : instantanés
+             "history.deleteSnapshot": ("snapshot",), "history.selectSnapshot": ("snapshot",),
+             "history.renameSnapshot": ("snapshot", "name")}
+NOMS_M7 = ("history.newSnapshot", "history.renameSnapshot", "history.newDocument")
+FORMES_M7 = set(REQUIS_M7) | {"layer.layerMask.edit"} | set(NOMS_M7)
+MAX_NOM_INSTANTANE = 64
 MAX_CADRE = 300_000                  # « `width` and `height` must be 1..=300000 » (moteur 0.10)
 MAX_CALQUES_COPIE = 1000
 
@@ -692,6 +701,11 @@ def _formes_m7(registre, cid, params):
             v = params.get(k)
             if v is not None and not (isinstance(v, list) and len(v) == 2 and all(_nombre_fini(x) and abs(x) <= MAX_DECALAGE for x in v)):
                 raise ValueError(f"{cid} : {k} : un point [x, y] attendu (deux nombres, ±{MAX_DECALAGE} px au plus), reçu {v!r}")
+    if cid in NOMS_M7 and "name" in params:
+        # le moteur refuse un nom vide et garde 300 caractères sans broncher : un nom d'une ligne, 64 au plus
+        v = params["name"]
+        if not isinstance(v, str) or not 0 < len(v.strip()) <= MAX_NOM_INSTANTANE or any(ord(c) < 32 for c in v):
+            raise ValueError(f"{cid} : name : 1 à {MAX_NOM_INSTANTANE} caractères, sur une ligne")
     if cid == "layer.layerMask.edit" and "density" not in params and "feather" not in params:
         raise ValueError(f"{cid} : density ou feather requis")
     if cid == "layer.layerStyle.makeDefault":

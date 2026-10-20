@@ -154,6 +154,13 @@ badge fx glissé (`transferEffects`, Alt : copie) ; Style de calque : Définir /
 les 5 commandes d'objets dynamiques à chemin (`relinkToFile`, `replaceContents`, `exportContents`, `convertToLinked`,
 `updateChanged`) : **le moteur 0.10 les désactive en automation** (« uses ambient filesystem paths ») — Bloqué moteur.
 Le moteur rend actif le document DESTINATAIRE de `copyToDocument` ; l'écran le suit (`PL.suivreDocumentActif`).
+PR 2 — historique et nuancier (20/10) : 5 commandes ouvertes (neuves 69 -> 64) : instantanés dans le panneau
+Historique (nouvel instantané, choisir = un état à son nom, renommer, supprimer ; `doc.inspect.snapshots`), Nouveau
+document à partir de l'état actuel (le nouveau document devient actif, l'écran le suit). `history.undo/redo/selectState/
+deleteState` restent fermées : le panneau annule déjà par /historique. Nuancier : Importer / Exporter .aco / .ase par
+les routes `/nuancier/importer` et `/nuancier/exporter` (base64 : `swatches.export {path}` est désactivée en
+automation) ; la bibliothèque du moteur n'est qu'un passage (vidée, remplie, exportée, remise aux défauts d'usine dans
+UNE séquence) ; `swatches.*` restent fermées à /executer.
 
 ## M8 — t257 · Formats et exports
 Ouvrir depuis la Bibliothèque : ORA, Krita, Affinity, Paint.NET, EXR (parties), DPX, DDS, raws (HEIC selon

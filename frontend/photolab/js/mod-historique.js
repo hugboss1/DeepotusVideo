@@ -143,6 +143,16 @@ export const ETATS_MOTEUR = {
   "Background From Layer": "photolab.menu.arriere_plan_depuis_calque",
 };
 
+// t256 (M7 PR 2) : instantanés (doc.inspect.snapshots [{id, name}], de la session : ils ne sont pas enregistrés avec le
+// document). Les noms sont des données de l'utilisateur. Choisir un instantané fait UN état portant son nom.
+export function instantanesDe(doc) {
+  const s = doc && Array.isArray(doc.snapshots) ? doc.snapshots : [];
+  return s.filter((x) => x && Number.isInteger(x.id) && typeof x.name === "string").map((x) => ({ id: x.id, nom: x.name }));
+}
+// Un état dont le nom n'a pas de traduction (le nom d'un instantané choisi, un nom inconnu) est montré tel quel : la
+// surcouche de traduction ne doit pas y toucher.
+export const etatBrut = (nom, affiche) => affiche === nom;
+
 // Ordre : carte ci-dessus (fr et en, par le dictionnaire) -> libellé du catalogue des menus (fr) -> nom du moteur.
 export function traduireEtat(nom, table, t = null) {
   const cle = ETATS_MOTEUR[nom];
@@ -164,26 +174,67 @@ export function initHistorique(PL) {
   };
   const bAnnuler = bouton("dz-action-annuler", "photolab.historique.annuler");
   const bRetablir = bouton("dz-action-retablir", "photolab.historique.retablir");
-  barre.append(bAnnuler, bRetablir);
+  // t256 : Nouvel instantané (history.newSnapshot) ; Nouveau document à partir de l'état actuel (history.newDocument)
+  const bInstantane = bouton("dz-action-capturer", "photolab.historique.nouvel_instantane");
+  const bDocument = bouton("dz-action-nouveau", "photolab.historique.nouveau_document");
+  barre.append(bAnnuler, bRetablir, bInstantane, bDocument);
+  const instantanes = document.createElement("ul"); instantanes.className = "hi-instantanes";
+  instantanes.setAttribute("aria-label", T("photolab.historique.instantanes"));
   const liste = document.createElement("ol"); liste.className = "hi-liste";
-  corps.append(barre, liste);
+  corps.append(barre, instantanes, liste);
   let table = null;
   if (lang() === "fr") fetch("donnees/menus.json").then((r) => r.json()).then((c) => { table = tableEtats(c); dessiner(PL.etat.doc); }).catch(() => {});
 
   // Même chemin que Ctrl+Z / Ctrl+Maj+Z (mod-cycle : cumul, file FIFO, tranches de 100).
   bAnnuler.addEventListener("click", () => PL.historique(-1));
   bRetablir.addEventListener("click", () => PL.historique(1));
+  bInstantane.addEventListener("click", () => PL.executer("history.newSnapshot", {}));
+  // Le moteur rend le NOUVEAU document actif : l'écran le suit, comme un clic sur son onglet.
+  bDocument.addEventListener("click", async () => {
+    const r = await PL.executer("history.newDocument", {}, { cycle: false });
+    if (r && r.ok) { if (PL.suivreDocumentActif) await PL.suivreDocumentActif(); else await PL.documentOuvert(); }
+  });
+
+  function dessinerInstantanes(doc) {
+    instantanes.textContent = "";
+    const l = instantanesDe(doc);
+    instantanes.hidden = !l.length;
+    for (const s of l) {
+      const li = document.createElement("li"); li.className = "hi-instantane";
+      const ic = document.createElement("span"); ic.className = "hi-instantane-icone"; ic.innerHTML = PL.icone("dz-action-capturer", 14);
+      const nom = document.createElement("span"); nom.className = "hi-instantane-nom"; nom.textContent = s.nom;
+      nom.setAttribute("data-dz-brut", "");
+      li.title = T("photolab.historique.choisir_instantane");
+      const sup = document.createElement("button"); sup.type = "button"; sup.className = "hi-bouton";
+      sup.title = T("photolab.historique.supprimer_instantane"); sup.setAttribute("aria-label", sup.title);
+      sup.innerHTML = PL.icone("dz-action-supprimer", 13);
+      sup.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("history.deleteSnapshot", { snapshot: s.id }); });
+      li.addEventListener("click", () => PL.executer("history.selectSnapshot", { snapshot: s.id }));
+      nom.addEventListener("dblclick", async (ev) => {
+        ev.stopPropagation();
+        // import à la demande : mod-nommer -> mod-fichier -> mod-cycle importe ce module (pas de cycle au chargement)
+        const { demanderNom } = await import("./mod-nommer.js");
+        const n = await demanderNom(PL, T("commun.action.renommer"), s.nom);
+        if (n && n !== s.nom) PL.executer("history.renameSnapshot", { snapshot: s.id, name: n });
+      });
+      li.append(ic, nom, sup);
+      instantanes.appendChild(li);
+    }
+  }
 
   function dessiner(doc) {
     liste.textContent = "";
     bAnnuler.disabled = !(doc && doc.canUndo);
     bRetablir.disabled = !(doc && doc.canRedo);
+    bInstantane.disabled = bDocument.disabled = !doc;
+    dessinerInstantanes(doc);
     if (!doc) return;
     const h = doc.history || [];
     for (const e of etatsHistorique(h, doc.canRedo)) {
       const li = document.createElement("li");
       li.className = "hi-etat" + (e.courant ? " courant" : "");
       li.textContent = traduireEtat(e.nom, table, T);
+      if (etatBrut(e.nom, li.textContent)) li.setAttribute("data-dz-brut", "");
       li.title = e.nom;
       li.addEventListener("click", () => {
         const n = annulationsPour(e.index, h);
