@@ -12,6 +12,7 @@ import { ouvrirDialogue } from "./mod-fichier.js";
 import { demanderNom, nomValide } from "./mod-nommer.js";
 import { champsVisibles } from "./mod-champs.js";
 import { REFUSES, TRAITES_PAR_ECRAN } from "./mod-menus.js";
+import { libelleCommande, indexRepli } from "./mod-libelles.js";
 
 export const COULEURS = ["", "red", "orange", "yellow", "green", "blue", "violet", "gray"];
 export const cleCouleur = (c) => "photolab.actions.couleur." + (c || "aucune");
@@ -53,21 +54,21 @@ export const actionsDe = (arbre) => arbre.flatMap((n) => (n.type === "jeu" ? n.a
 export const jeuxDe = (arbre) => arbre.filter((n) => n.type === "jeu").map((n) => n.nom);
 
 // Libellé d'une étape : les quatre étapes propres aux actions par le dictionnaire ; sinon le libellé du catalogue des
-// menus dans la langue (sans « … ») ; sinon l'id du moteur tel quel (brut : jamais traduit).
+// menus dans la langue (sans « … »), puis nos clés des commandes neuves et le repli de l'amont (t258, mod-libelles) ;
+// sinon l'id du moteur tel quel (brut : jamais traduit).
 export function libelleEtape(etape, catalogue, lang = "fr", t = (c) => c) {
   const p = etape.params || {};
   if (etape.id === JOUER) return { texte: t("photolab.actions.etape_jouer", { nom: String(p.action) }) };
   if (etape.id === ARRET) return { texte: t("photolab.actions.etape_arret") };
   if (etape.id === CONDITION) return { texte: t("photolab.actions.etape_condition", { si: t(cleCondition(String(p.if))) }) };
   if (etape.id === ETAPE_PS) return { texte: String(p.name || p.event || "?"), brut: true, sansEquivalent: true };
-  const e = catalogue && catalogue.get ? catalogue.get(etape.id) : null;
-  if (e) return { texte: String((lang === "en" ? e.libelle_en : e.libelle_fr) || e.libelle_fr || etape.id).replace(/…$/, "").trim() };
-  return { texte: etape.id, brut: true };
+  return libelleCommande(etape.id, catalogue, lang, t);
 }
-// Index id -> entrée du catalogue (donnees/menus.json).
+// Index id -> entrée du catalogue (donnees/menus.json) ; t258 : le repli de l'amont (`repli`) à part, en `.repli`.
 export function indexCatalogue(c) {
   const m = new Map();
   for (const e of (c && c.entrees) || []) if (e.id && !m.has(e.id)) m.set(e.id, e);
+  m.repli = indexRepli(c);
   return m;
 }
 // Détail d'une étape dépliée : « clé : valeur » (objets en JSON compact, coupés à 80 caractères ; valeurs nulles tues).
@@ -643,8 +644,7 @@ export function initActions(PL) {
   // Dialogue d'une commande du registre, sans aperçu : sa validation INSÈRE (ou remplace) l'étape au lieu de l'appliquer.
   function dialogueCommande(id, initiales, remplacer = null) {
     const r = entreeRegistre(id);
-    const e = catalogue && catalogue.get(id);
-    const lib = e ? String((lang() === "en" ? e.libelle_en : e.libelle_fr) || id).replace(/…$/, "") : id;
+    const lib = libelleCommande(id, catalogue, lang(), T).texte;
     if (!r || !champsVisibles(r.champs || []).length) return inserer(id, initiales || {}, remplacer);
     return new Promise((res) => PL.ouvrirReglage({ id, libelle: lib, champs: r.champs }, {
       initiales: initiales || undefined, apercu: false,
@@ -734,8 +734,7 @@ export function initActions(PL) {
   function dialogueLecture(action, step) {
     const e = action.etapes[step];
     const r = entreeRegistre(e.id);
-    const cat = catalogue && catalogue.get(e.id);
-    const lib = cat ? String((lang() === "en" ? cat.libelle_en : cat.libelle_fr) || e.id).replace(/…$/, "") : e.id;
+    const lib = libelleCommande(e.id, catalogue, lang(), T).texte;
     return new Promise((res) => PL.ouvrirReglage({ id: e.id, libelle: lib, champs: r.champs }, { initiales: e.params, apres: (role, x) => res(role === "ok" && !!(x && x.ok)) }));
   }
   async function jouer(nom, depuis = 0) {
