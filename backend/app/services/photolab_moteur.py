@@ -22,8 +22,20 @@ from pathlib import Path
 
 from app.services import photolab_registre as PR
 
-VERSION = "0.3.0"
 RACINE_APP = Path(__file__).resolve().parents[3]          # le dépôt, ou %LOCALAPPDATA%\DeepotusVideoGen installé
+
+
+def _version_epinglee(racine: Path) -> str:
+    """t250 : la version ÉPINGLÉE vient du manifeste vendor/photocraft.json (livré avec l'installation, étape 4c) —
+    une montée de moteur ne change que lui. Manifeste illisible : la dernière version épinglée connue, pour que le
+    backend démarre quand même (le moteur sera alors dit absent, jamais un autre pris à sa place)."""
+    try:
+        return str(json.loads((racine / "vendor" / "photocraft.json").read_text("utf-8"))["version"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return "0.3.0"
+
+
+VERSION = _version_epinglee(RACINE_APP)
 SOUS_DOSSIERS = ("entrees", "rendus", "exports")
 _REL = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*")
 # Noms de périphériques Windows : « CON.png » désigne le périphérique, pas un fichier, même avec une extension.

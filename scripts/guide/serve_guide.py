@@ -17,7 +17,8 @@ for k in ("FAL_KEY", "ELEVENLABS_API_KEY", "HEYGEN_API_KEY", "OPENAI_API_KEY", "
     os.environ[k] = ""
 (d / "images").mkdir(parents=True, exist_ok=True)
 # t176 : le moteur du Photolab n'est pas dans un worktree (vendor/ ignoré) → celui de l'installation, s'il y est
-_pc = pathlib.Path(os.environ.get("LOCALAPPDATA", "")) / "DeepotusVideoGen" / "vendor" / "photocraft-0.3.0"
+_pcv = __import__("json").loads((WT.parent / "vendor" / "photocraft.json").read_text("utf-8"))["version"]  # t250 : version épinglée
+_pc = pathlib.Path(os.environ.get("LOCALAPPDATA", "")) / "DeepotusVideoGen" / "vendor" / f"photocraft-{_pcv}"
 for _cli in sorted(_pc.rglob("photocraft-cli.exe")) if _pc.is_dir() else []:
     os.environ.setdefault("PHOTOCRAFT_CLI", str(_cli))
     break

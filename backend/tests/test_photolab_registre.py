@@ -35,7 +35,9 @@ def champ(texte, cle):
 
 
 # Le registre réel, par id : lu une seule fois, sert aux sections 1 (textes bruts) et 2.
-COMMANDES = json.loads((BACKEND / "tests" / "photocraft_commandes_0.3.0.json").read_text(encoding="utf-8"))
+sys.path.insert(0, str(BACKEND / "tests"))  # t250 : registre de la version épinglée (vendor/photocraft.json)
+import photocraft_version as _PV  # noqa: E402
+COMMANDES = json.loads(_PV.fichier_commandes().read_text(encoding="utf-8"))
 PAR_ID = {c["id"]: c for c in COMMANDES}
 STRUCT = PR.structurer(COMMANDES)
 

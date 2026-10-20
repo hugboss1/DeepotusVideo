@@ -201,7 +201,9 @@ def traductions(noms):
               and bool((dico.get(cle) or {}).get("en")), cle)
 
 
-reg = PR.structurer(json.loads((BACKEND / "tests/photocraft_commandes_0.3.0.json").read_text(encoding="utf-8")))
+sys.path.insert(0, str(BACKEND / "tests"))  # t250 : registre de la version épinglée (vendor/photocraft.json)
+import photocraft_version as _PV  # noqa: E402
+reg = PR.structurer(json.loads(_PV.fichier_commandes().read_text(encoding="utf-8")))
 try:
     liste_blanche(reg)
     noms = moteur(reg)

@@ -34,7 +34,9 @@ def check(label, cond, detail=""):
         fail += 1; print(f"  FAIL  {label} {str(detail)[:1500]}")
 
 
-COMMANDES = json.loads((BACKEND / "tests" / "photocraft_commandes_0.3.0.json").read_text(encoding="utf-8"))
+sys.path.insert(0, str(BACKEND / "tests"))  # t250 : registre de la version épinglée (vendor/photocraft.json)
+import photocraft_version as _PV  # noqa: E402
+COMMANDES = json.loads(_PV.fichier_commandes().read_text(encoding="utf-8"))
 REG = PR.structurer(COMMANDES)
 DIC = json.loads(DICO.read_text(encoding="utf-8"))
 

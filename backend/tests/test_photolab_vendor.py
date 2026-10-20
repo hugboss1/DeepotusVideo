@@ -125,5 +125,83 @@ V.MANIFESTE = RACINE / "vendor" / "photocraft.json"
 gi = (RACINE / ".gitignore").read_text("utf-8")
 check("7 les binaires ne sont jamais versionnés (.gitignore vendor/photocraft-*/)", "vendor/photocraft-*/" in gi)
 
+# ── t250 (Photolab M1) : la version CANDIDATE 0.10.0 cohabite avec l'épinglée ; une seule source de version ──
+C = json.loads((RACINE / "vendor" / "photocraft-0.10.0.json").read_text("utf-8"))
+cb = C.get("binaire", {})
+check("8 manifeste candidat : 0.10.0, tag v0.10.0, archive officielle (taille, sha256 recoupés le 20/10)",
+      C.get("version") == "0.10.0" and C.get("tag") == "v0.10.0" and C.get("licence") == "MIT OR Apache-2.0"
+      and cb.get("archive") == "photocraft-0.10.0-windows-x64-portable.zip" and cb.get("taille") == 84828713
+      and cb.get("sha256") == "66b7e47d66589eb6947c8d7417c80fa44621cf83823ffdc47f42024eb03bd5d2"
+      and cb.get("url") == "https://github.com/storytold/photocraft/releases/download/v0.10.0/" + cb.get("archive", "")
+      and cb.get("dossier") == "vendor/photocraft-0.10.0", cb)
+cf = C.get("fichiers") or {}
+check("9 manifeste candidat : les 9 fichiers de l'archive, chacun avec taille et sha256",
+      len(cf) == 9 and all(k.startswith("photocraft-0.10.0-windows-x64-portable/") for k in cf)
+      and all(len(v.get("sha256", "")) == 64 and v.get("taille", 0) > 0 for v in cf.values())
+      and {"photocraft-cli.exe", "photocraft.exe", "portable.txt"} <= {k.rsplit("/", 1)[1] for k in cf}, sorted(cf))
+check("10 --manifeste choisit le manifeste candidat, sans option c'est l'épinglé",
+      V.manifeste(["--manifeste", "x.json"]) == pathlib.Path("x.json") and V.manifeste([]) == V.MANIFESTE)
+
+sys.path.insert(0, str(RACINE / "backend"))
+from app.services import photolab_moteur as PM                 # noqa: E402
+check("11 le pont lit SA version dans vendor/photocraft.json (une seule source)", PM.VERSION == M.get("version"),
+      (PM.VERSION, M.get("version")))
+with tempfile.TemporaryDirectory() as t:
+    t = pathlib.Path(t)
+    (t / "vendor").mkdir()
+    (t / "vendor" / "photocraft.json").write_text(json.dumps({"version": "9.9.9"}), "utf-8")
+    lue = PM._version_epinglee(t)
+    (t / "vendor" / "photocraft.json").write_text("{pas du json", "utf-8")
+    illisible = PM._version_epinglee(t)
+check("12 version lue du manifeste ; manifeste illisible : la dernière épinglée connue (le backend démarre)",
+      lue == "9.9.9" and illisible == "0.3.0", (lue, illisible))
+
+# verifier_vendor --manifeste --ecrire réécrit le manifeste CANDIDAT, jamais l'épinglé (défaut vu en t250).
+import verifier_vendor as VV                                    # noqa: E402
+epingle_avant = (RACINE / "vendor" / "photocraft.json").read_bytes()
+with tempfile.TemporaryDirectory() as t:
+    t = pathlib.Path(t)
+    (t / "moteur" / "pc").mkdir(parents=True)
+    (t / "moteur" / "pc" / "portable.txt").write_bytes(b"x")
+    mf = t / "cand.json"
+    mf.write_text(json.dumps({"version": "9.9.9", "binaire": {"dossier": str(t / "moteur"), "cli": "c.exe", "app": "a.exe"}}), "utf-8")
+    VV.main([str(t / "moteur"), "--manifeste", str(mf), "--ecrire"])
+    ecrit = json.loads(mf.read_text("utf-8")).get("fichiers") or {}
+check("10b --manifeste --ecrire : le candidat reçoit ses fichiers, vendor/photocraft.json reste à l'octet",
+      list(ecrit) == ["pc/portable.txt"] and (RACINE / "vendor" / "photocraft.json").read_bytes() == epingle_avant, ecrit)
+
+R10 = json.loads((RACINE / "backend" / "tests" / "photocraft_commandes_0.10.0.json").read_text("utf-8"))
+R03 = json.loads((RACINE / "backend" / "tests" / "photocraft_commandes_0.3.0.json").read_text("utf-8"))
+ids10 = [c["id"] for c in R10]
+check("13 registre 0.10.0 capturé du vrai binaire : 918 commandes, ids uniques, toutes celles de 0.3.0 présentes",
+      len(R10) == 918 and len(set(ids10)) == 918 and {c["id"] for c in R03} <= set(ids10), len(R10))
+# keywords n'est servi que là où l'amont en déclare (1 commande sur 918 au 20/10) : il est gardé, pas exigé.
+check("14 registre 0.10.0 : champs nouveaux du moteur gardés tels quels (disabledReason, needsDocument partout)",
+      all({"id", "label", "menu", "params", "shortcut", "enabled", "needsDocument", "disabledReason"} <= set(c) for c in R10)
+      and any("keywords" in c for c in R10))
+
+# Le script de capture s'éprouve sur le VRAI moteur 0.3.0 : il doit redonner à l'octet (fins de ligne mises à part) le
+# registre capturé à la main en t138. Binaire : PHOTOCRAFT_CLI, sinon vendor/, sinon l'installation.
+import os, glob                                                 # noqa: E402
+import photocraft_commandes as PCAP                             # noqa: E402
+cands = [os.environ.get("PHOTOCRAFT_CLI", "")] + sorted(glob.glob(str(RACINE / "vendor" / "photocraft-0.3.0" / "*" / "photocraft-cli.exe"))) \
+    + sorted(glob.glob(os.path.join(os.environ.get("LOCALAPPDATA", ""), "DeepotusVideoGen", "vendor", "photocraft-0.3.0", "*", "photocraft-cli.exe")))
+cli03 = next((pathlib.Path(c) for c in cands if c and pathlib.Path(c).is_file() and "0.3.0" in PCAP.version_cli(pathlib.Path(c)).split()), None)
+if cli03 is None:
+    check("15 photocraft-cli 0.3.0 trouvé pour éprouver la capture (sinon cette section est rouge)", False)
+else:
+    with tempfile.TemporaryDirectory() as t:
+        sortie = pathlib.Path(t) / "c.json"
+        code = PCAP.main(["--cli", str(cli03), "--sortie", str(sortie)])
+        attendu = (RACINE / "backend" / "tests" / "photocraft_commandes_0.3.0.json").read_bytes().replace(b"\r\n", b"\n")
+        check("15 la capture rejouée sur le vrai 0.3.0 redonne le registre de t138 à l'octet",
+              code == 0 and sortie.read_bytes() == attendu)
+    with tempfile.TemporaryDirectory() as t:
+        mf = pathlib.Path(t) / "m.json"
+        mf.write_text(json.dumps({"version": "0.10.0", "binaire": {"dossier": "x", "cli": "photocraft-cli.exe"}}), "utf-8")
+        refus = PCAP.main(["--manifeste", str(mf), "--cli", str(cli03), "--sortie", str(pathlib.Path(t) / "c.json")])
+        check("16 un binaire d'une autre version que le manifeste : rien n'est écrit",
+              refus == 1 and not (pathlib.Path(t) / "c.json").exists())
+
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
