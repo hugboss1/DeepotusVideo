@@ -181,5 +181,43 @@ check("V4 le module passe toujours par ces clés (source du Vectorlab inchangée
       and 'T("vectorlab.calques.masque_lum_titre")' in (_VLJS / "mod-layers.js").read_text(encoding="utf-8")
       and 'T("vectorlab.typo.epaissir_titre")' in (_VLJS / "mod-typo.js").read_text(encoding="utf-8"))
 
+# ---------------------------------------------------------------- [Q] vocabulaire des catégories (t265)
+print("[Q] vocabulaire des catégories de dépense")
+_MOTIFS_CAT = [r'\bcategorie\s*(?::\s*str\s*)?=\s*"([a-z0-9_]+)"',               # mot-clé ou défaut (tirer_garde, Depense)
+               r'\b_plafond\(.*,\s*"([a-z0-9_]+)"\s*(?:,\s*[^")]*)?\)',          # _plafond(op, "x"[, ref])
+               r'\bverifier\(\s*op\w*\s*,\s*"([a-z0-9_]+)"']                     # plafonds.verifier(op, "x")
+
+
+def _categories_ecrites():
+    vus = {}
+    for f in (RACINE / "backend" / "app").rglob("*.py"):
+        for i, ligne in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            for m in _MOTIFS_CAT:
+                for c in re.findall(m, ligne):
+                    vus.setdefault(c, []).append(f"{f.name}:{i}")
+    return vus
+
+
+def _q1():
+    from app.services import plafonds as PL
+    vus = _categories_ecrites()
+    assert {"motion", "aide", "chapitres", "studio"} <= set(vus), sorted(vus)     # le relevé voit bien le code
+    hors = {c: v[:2] for c, v in vus.items() if c not in PL.CATEGORIES}
+    assert not hors, hors
+    return True
+
+
+check("Q1 toute catégorie écrite par le code (motion, aide, mobile…) est au vocabulaire plafonds.CATEGORIES", _q1)
+
+
+def _q2():
+    from app.api import routes as R
+    assert R._categorie_image({"source": "motion"}) == "motion"
+    assert R._categorie_image({"source": "generation"}) == "bibliotheque"
+    return True
+
+
+check("Q2 _categorie_image garde « motion », écarte toujours une source inconnue", _q2)
+
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)
