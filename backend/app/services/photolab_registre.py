@@ -1379,6 +1379,92 @@ VERIFS_T158 = {"image.mode.duotone": _v_bichromie, "image.mode.colorTable": _v_t
                "measurementLog.delete": _v_journal_supprimer}
 
 
+# ── t257 (M8) : Image › Variables (le registre les écrit sans guillemets : « {defs:[{name, layer:id, …}]} ») ──────────
+# Le moteur ne vérifie presque rien (relevé 20/10) : nom vide, variable inconnue, texte sur un calque de pixels, jeux de
+# même nom passent. `pixelReplacement` / `kind: pixels` ont pour valeur un CHEMIN d'image : refusés (aucun chemin ne
+# vient de l'écran). Définir et Jeux de données ne font aucun état d'historique ; Appliquer en fait un.
+TYPES_VARIABLE = ("visibility", "textReplacement")
+SORTES_VALEUR = {"visibility": bool, "text": str}
+MAX_VARIABLES = 200
+MAX_JEUX = 500
+MAX_NOM_VARIABLE = 64
+MAX_NOM_JEU = 255
+MAX_TEXTE_JEU = 4000
+
+
+def _nom_ligne(cid, cle, v, n):
+    if not isinstance(v, str) or not 0 < len(v.strip()) <= n or any(ord(c) < 32 for c in v):
+        raise ValueError(f"{cid} : {cle} : 1 à {n} caractères, sur une ligne")
+
+
+def _v_variables(cid, params):
+    _cles(cid, params, ("defs",))
+    defs = params.get("defs")
+    if not isinstance(defs, list) or len(defs) > MAX_VARIABLES:
+        raise ValueError(f"{cid} : defs : liste de {MAX_VARIABLES} variables au plus attendue")
+    vus = set()
+    for k, d in enumerate(defs):
+        if not isinstance(d, dict):
+            raise ValueError(f"{cid} : defs[{k}] : objet attendu")
+        _cles(cid, d, ("name", "layer", "type"))
+        _nom_ligne(cid, f"defs[{k}].name", d.get("name"), MAX_NOM_VARIABLE)
+        if d["name"] in vus:
+            raise ValueError(f"{cid} : variable en double : {d['name']}")
+        vus.add(d["name"])
+        if not (_entier(d.get("layer")) and d["layer"] >= 0):
+            raise ValueError(f"{cid} : defs[{k}].layer : id de calque attendu")
+        if d.get("type") not in TYPES_VARIABLE:
+            raise ValueError(f"{cid} : defs[{k}].type : visibility ou textReplacement attendu")
+
+
+def _v_jeux(cid, params):
+    _cles(cid, params, ("dataSets", "append"))
+    if "append" in params and not isinstance(params["append"], bool):
+        raise ValueError(f"{cid} : append : booléen attendu")
+    jeux = params.get("dataSets")
+    if not isinstance(jeux, list) or len(jeux) > MAX_JEUX:
+        raise ValueError(f"{cid} : dataSets : liste de {MAX_JEUX} jeux au plus attendue")
+    vus = set()
+    for k, j in enumerate(jeux):
+        if not isinstance(j, dict):
+            raise ValueError(f"{cid} : dataSets[{k}] : objet attendu")
+        _cles(cid, j, ("name", "values"))
+        _nom_ligne(cid, f"dataSets[{k}].name", j.get("name"), MAX_NOM_JEU)
+        if j["name"] in vus:
+            raise ValueError(f"{cid} : jeu de données en double : {j['name']}")
+        vus.add(j["name"])
+        valeurs = j.get("values", [])
+        if not isinstance(valeurs, list) or len(valeurs) > MAX_VARIABLES:
+            raise ValueError(f"{cid} : dataSets[{k}].values : liste de {MAX_VARIABLES} valeurs au plus attendue")
+        for v in valeurs:
+            if not isinstance(v, dict):
+                raise ValueError(f"{cid} : dataSets[{k}].values : objets attendus")
+            _cles(cid, v, ("variable", "kind", "value"))
+            _nom_ligne(cid, f"dataSets[{k}].values.variable", v.get("variable"), MAX_NOM_VARIABLE)
+            sorte = SORTES_VALEUR.get(v.get("kind"))
+            if sorte is None:
+                raise ValueError(f"{cid} : dataSets[{k}].values.kind : visibility ou text attendu")
+            val = v.get("value")
+            if sorte is bool and not isinstance(val, bool):
+                raise ValueError(f"{cid} : dataSets[{k}].values.value : booléen attendu (visibilité)")
+            if sorte is str and (not isinstance(val, str) or len(val) > MAX_TEXTE_JEU):
+                raise ValueError(f"{cid} : dataSets[{k}].values.value : texte de {MAX_TEXTE_JEU} caractères au plus attendu")
+
+
+def _v_appliquer_jeu(cid, params):
+    _cles(cid, params, ("name", "index"))
+    if ("name" in params) == ("index" in params):
+        raise ValueError(f"{cid} : name ou index (un seul) requis")
+    if "name" in params:
+        _nom_ligne(cid, "name", params["name"], MAX_NOM_JEU)
+    elif not (_entier(params["index"]) and 0 <= params["index"] < MAX_JEUX):
+        raise ValueError(f"{cid} : index : entier de 0 à {MAX_JEUX - 1} attendu")
+
+
+VERIFS_T158.update({"image.variables.define": _v_variables, "image.variables.dataSets": _v_jeux,
+                    "image.applyDataSet": _v_appliquer_jeu})
+
+
 # ── t255 (M6) : le panneau Actions (actions.* de photocraft 0.10) ────────────────────────────────────────────────────
 # Le registre résume ces commandes en prose (« name|index », « … → {…} ») : chacune est décrite ici clé par clé. Deux
 # familles : les commandes que l'écran LANCE (ACTIONS_DIRECTES, dont la Condition, jouée par la lecture pas à pas) et

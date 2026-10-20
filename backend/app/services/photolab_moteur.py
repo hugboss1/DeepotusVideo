@@ -36,7 +36,7 @@ def _version_epinglee(racine: Path) -> str:
 
 
 VERSION = _version_epinglee(RACINE_APP)
-SOUS_DOSSIERS = ("entrees", "rendus", "exports")
+SOUS_DOSSIERS = ("entrees", "rendus", "exports", "sorties")      # t257 : sorties/ = calques et jeux en fichiers
 _REL = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*")
 # Noms de périphériques Windows : « CON.png » désigne le périphérique, pas un fichier, même avec une extension.
 _PERIPH = re.compile(r"(con|prn|aux|nul|com[0-9]|lpt[0-9])", re.IGNORECASE)
@@ -111,7 +111,10 @@ PERMIS_REFUSES = frozenset({"file.close", "file.closeAll", "file.closeOthers", "
                             "edit.presets.presetManager", "edit.presets.exportImportPresets"})
 _EXT_FICHIER = (".png", ".jpg", ".jpeg", ".psd", ".psb", ".pcraft", ".tif", ".tiff", ".webp", ".gif", ".bmp", ".tga",
                 ".exr", ".hdr", ".cube", ".3dl", ".look", ".icc", ".icm", ".abr", ".grd", ".pat", ".json", ".exe",
-                ".dll", ".wasm", ".txt", ".csv", ".pdf", ".ai")
+                ".dll", ".wasm", ".txt", ".csv", ".pdf", ".ai",
+                # t257 : les formats que 0.10 lit ou écrit en plus
+                ".ora", ".kra", ".pdn", ".af", ".afphoto", ".afdesign", ".afpub", ".dpx", ".dds", ".heic", ".heif",
+                ".dng", ".cr2", ".cr3", ".nef", ".arw", ".raf", ".rw2", ".orf")
 _LECTEUR = re.compile(r"^[A-Za-z]:")
 
 
@@ -1315,16 +1318,18 @@ def nom_libre(dossier: Path, base: str, ext: str) -> str:
     return fichier
 
 
-def copie_document(s: SessionMoteur, fmt: str, base: str, quality=None):
+def copie_document(s: SessionMoteur, fmt: str, base: str, quality=None, calques: bool = False):
     """Enregistrer une copie -> (nom sous exports/, génération). Le document actif est DUPLIQUÉ, la copie enregistrée
     puis refermée : l'original garde son fichier, son état « modifié », sa sélection et son historique (un doc.save de
-    l'original le rattacherait au nouveau fichier)."""
+    l'original le rattacherait au nouveau fichier). t257 : `calques` = TIFF à calques (tiffLayers)."""
     def fn(appel, gen):
         actif, n_avant, insp = _ouvrir_original(appel)
         fichier = nom_libre(dossier_travail() / "exports", base, fmt)
         p = {"path": relatif(f"exports/{fichier}"), "format": fmt}
         if quality is not None:
             p["quality"] = quality
+        if calques and fmt == "tif":
+            p["tiffLayers"] = True
         _sur_copie(appel, insp, actif, n_avant, "dz-copie", lambda cible: appel("doc.save", p))
         return fichier
     return s.sequence(fn)
@@ -1552,4 +1557,84 @@ def importer_notes(s: SessionMoteur, source: int):
                author=str(note.get("author") or "")[:128], color=couleur, open=False)
             n += 1
         return {"imported": n}
+    return s.sequence(fn)
+
+
+# ── t257 (M8) : formats neufs et exports en lot (méthodes `serve` bornées à la racine d'écriture) ─────────────────────
+# Ouverture depuis l'ordinateur (/importer) : extensions que le moteur 0.10 sait lire. HEIC/HEIF reste HORS liste
+# (question Q3 : décodeur HEVC soumis à brevets, non tranchée) ; AVIF et PDF ne s'ouvrent pas (moteur).
+FORMATS_OUVERTURE = ("ora", "kra", "pdn", "af", "afphoto", "afdesign", "afpub", "exr", "dpx", "dds",
+                     "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "raf", "rw2", "orf", "pef", "srw", "3fr",
+                     "iiq", "erf", "mrw", "x3f",
+                     "psd", "psb", "pcraft", "tif", "tiff", "tga", "png", "jpg", "jpeg", "webp", "gif", "bmp")
+_COMPTEUR_SORTIES = itertools.count(1)
+
+
+def qualite_douze(q):
+    """Échelle 1..100 de l'écran -> 0..12 de doc.exportLayers / exportDataSets (au-delà de 12 le moteur borne : 50
+    vaudrait 100). Toujours un ENTIER : une qualité flottante est ignorée en silence par le moteur (#7023)."""
+    if not isinstance(q, int) or isinstance(q, bool) or not 1 <= q <= 100:
+        raise ValueError("quality : entier de 1 à 100 attendu")
+    return round(q * 12 / 100)
+
+
+def exporter_en_fichiers(s: SessionMoteur, methode: str, params: dict, avec_jeux: bool = False):
+    """Calques en fichiers / Jeux de données en fichiers -> ({"dossier", "fichiers": [chemins relatifs], "jeux"}, gen).
+    Le moteur écrit sous un dossier NEUF de sorties/ (il refuse d'écraser) ; l'appelant déplace puis efface. Jamais
+    d'`index` : le document visé est l'actif ; garde #7025 — si le document actif a changé quand même, il est remis."""
+    if methode not in ("doc.exportLayers", "doc.exportDataSets"):
+        raise ValueError(f"méthode refusée : {methode!r}")
+    if "index" in params or "dir" in params:
+        raise ValueError("index et dir sont posés par le pont")
+    q = params.get("quality")
+    if q is not None and (not isinstance(q, int) or isinstance(q, bool)):
+        raise ValueError("quality : entier attendu (#7023)")
+
+    def fn(appel, gen):
+        sl = appel("session.list") or {}
+        actif = sl.get("active")
+        if not isinstance(actif, int) or isinstance(actif, bool):
+            raise MoteurErreur("aucun document ouvert")
+        jeux = []
+        if avec_jeux:
+            v = appel("engine.execute", {"command": "variables.list", "params": {}}) or {}
+            jeux = [str(j.get("name") or "") for j in v.get("dataSets") or [] if isinstance(j, dict)]
+            if not jeux:
+                raise ValueError("aucun jeu de données dans le document (Image › Variables)")
+        dossier = relatif(f"sorties/{time.strftime('%Y%m%d-%H%M%S')}-{next(_COMPTEUR_SORTIES)}")
+        try:
+            r = appel(methode, {**params, "dir": dossier}) or {}
+        finally:
+            apres = (appel("session.list") or {}).get("active")
+            if apres != actif:                            # #7025 : le moteur laisse parfois un autre document actif
+                appel("doc.select", {"index": actif})
+        racine = (dossier_travail() / dossier).resolve()
+        fichiers = []
+        for f in r.get("files") or []:
+            # Le nom vient d'un calque (espaces, accents) : pas de relatif() ici ; la garde est d'être DANS le dossier du lot.
+            p = (dossier_travail() / f).resolve() if isinstance(f, str) else None
+            if p is not None and p.parent == racine and p.is_file():
+                fichiers.append(p.relative_to(dossier_travail().resolve()).as_posix())
+        return {"dossier": dossier, "fichiers": fichiers, "jeux": jeux}
+    return s.sequence(fn)
+
+
+def importer_jeux(s: SessionMoteur, chemin: str, separateur=None):
+    """Fichier › Importer › Jeux de données variables : un CSV (copié sous entrees/ par le pont) -> doc.importDataSets
+    sur le document actif (jamais d'`index`, garde #7025). -> ({"imported": n, "dataSets": [...]}, gen)."""
+    p = {"path": relatif(chemin)}
+    if separateur is not None:
+        p["delimiter"] = separateur
+
+    def fn(appel, gen):
+        actif = (appel("session.list") or {}).get("active")
+        if not isinstance(actif, int) or isinstance(actif, bool):
+            raise MoteurErreur("aucun document ouvert")
+        try:
+            r = appel("doc.importDataSets", p) or {}
+        finally:
+            if (appel("session.list") or {}).get("active") != actif:
+                appel("doc.select", {"index": actif})
+        v = appel("engine.execute", {"command": "variables.list", "params": {}}) or {}
+        return {"imported": r.get("imported", 0), "dataSets": [j.get("name") for j in v.get("dataSets") or []]}
     return s.sequence(fn)
