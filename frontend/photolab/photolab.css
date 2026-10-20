@@ -981,3 +981,21 @@ body.pl-grands-onglets .onglet-doc { height: 34px; font-size: 13px; }
 .ac-lot-avance { color: var(--ink-strong); }
 .ac-menu .menu-ligne { justify-content: flex-start; gap: 0; }
 .ac-champ[hidden] { display: none; }
+/* t256 (M7) : couleur d'étiquette d'un calque (layer.setLabelColor) en fond de la case de l'œil, jetons partagés ; dépôt
+   du badge fx sur une autre ligne (layer.layerStyle.transferEffects). */
+.cq-ligne[data-etiquette] .cq-oeil { background: color-mix(in srgb, var(--pl-etiquette) 45%, transparent); }
+.cq-ligne[data-etiquette="red"] { --pl-etiquette: var(--red); }
+.cq-ligne[data-etiquette="orange"] { --pl-etiquette: var(--amber); }
+.cq-ligne[data-etiquette="yellow"] { --pl-etiquette: color-mix(in srgb, var(--amber), var(--ink-strong) 35%); }
+.cq-ligne[data-etiquette="green"] { --pl-etiquette: var(--green); }
+.cq-ligne[data-etiquette="seafoam"] { --pl-etiquette: color-mix(in srgb, var(--green), var(--blue) 40%); }
+.cq-ligne[data-etiquette="blue"] { --pl-etiquette: var(--blue); }
+.cq-ligne[data-etiquette="indigo"] { --pl-etiquette: color-mix(in srgb, var(--blue), var(--violet) 50%); }
+.cq-ligne[data-etiquette="magenta"] { --pl-etiquette: color-mix(in srgb, var(--red), var(--violet) 55%); }
+.cq-ligne[data-etiquette="fuchsia"] { --pl-etiquette: color-mix(in srgb, var(--red), var(--violet) 30%); }
+.cq-ligne[data-etiquette="violet"] { --pl-etiquette: var(--violet); }
+.cq-ligne[data-etiquette="gray"] { --pl-etiquette: var(--slate); }
+.cq-fx[draggable="true"] { cursor: grab; }
+.cq-ligne.depot-effets { box-shadow: inset 0 0 0 2px var(--accent); }
+.st-defauts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.st-defauts[hidden] { display: none; }

@@ -16,6 +16,9 @@ const G = await import(pathToFileURL(join(js, "mod-galerie.js")));        // t15
 const reg = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const menus = readFileSync(process.argv[3], "utf8");
 const FILTRES_MENU = new Set([...menus.matchAll(/"(filter\.[A-Za-z.]+)"/g)].map((m) => m[1]));
+// t256 : entrées de photocraft 0.10 insérées par l'écran (mod-menus INSERTIONS_M7) et commandes dont une entrée de
+// l'écran ouvre le dialogue générique (DIALOGUES_ECRAN_M7) — leurs champs visibles sont à traduire aussi.
+const INSEREES = new Set([...M.INSERTIONS_M7.map((x) => x.id).filter((i) => !i.startsWith("pl.")), ...Object.values(M.DIALOGUES_ECRAN_M7)]);
 const STYLES_B6 = ["bevelEmboss", "colorOverlay", "dropShadow", "gradientOverlay", "innerGlow", "innerShadow", "outerGlow", "patternOverlay", "satin", "stroke", "blendingOptions", "globalLight"];
 
 const ids = [];
@@ -23,6 +26,7 @@ for (const id of Object.keys(reg).sort()) {
   let dedans = false;
   // t157 : les filtres de la galerie (filter.gallery.*, hors menu) s'éditent dans la Galerie de filtres (mod-galerie).
   if (id.startsWith("filter.gallery.")) dedans = true;
+  else if (INSEREES.has(id)) dedans = true;
   else if (id.startsWith("filter.")) dedans = FILTRES_MENU.has(id);
   else if (id.startsWith("image.adjustments.")) dedans = true;
   else if (id.startsWith("layer.newAdjustmentLayer.")) dedans = true;

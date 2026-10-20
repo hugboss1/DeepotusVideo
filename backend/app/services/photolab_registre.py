@@ -276,6 +276,10 @@ CORRECTIONS_CHAMPS = {
     ("path.transform", "angle"): {"type": "number", "min": -360, "max": 360, "unite": "deg", "optionnel": True},
     ("path.clippingPath.set", "name"): {"type": "str"},
     ("type.attachToPath", "shape"): {"type": "layerId", "optionnel": True},
+    # t256 (M7) : `"kind":str` sans liste au registre de defaultFor — les dix effets de makeDefault.
+    ("layer.layerStyle.defaultFor", "kind"): {"type": "enum", "valeurs": ["stroke", "dropShadow", "innerShadow", "outerGlow",
+                                              "innerGlow", "colorOverlay", "gradientOverlay", "patternOverlay", "satin",
+                                              "bevelEmboss"]},
 }
 
 
@@ -569,6 +573,8 @@ def verifier(registre: dict, cid, params, kind=None, etat=None, etape=False) -> 
             raise ValueError(f"{cid} : paramètre(s) requis : {', '.join(manque)}")
     if cid in FORMES_M5:
         _formes_m5(cid, params)
+    if cid in FORMES_M7:
+        _formes_m7(registre, cid, params)
     ctx = {"colorize": _colorise(params, etat)}
     for k, v in params.items():
         champ = champs.get(k)
@@ -655,6 +661,49 @@ def _formes_m5(cid, params):
             raise ValueError(f"{cid} : range : [début, fin] (entiers ≥ 0, début ≤ fin) attendu, reçu {v!r}")
     if "coalesce" in params and not (isinstance(params["coalesce"], str) and _CLE_COALESCE.fullmatch(params["coalesce"])):
         raise ValueError(f"{cid} : coalesce : clé de 1 à 40 lettres, chiffres, - ou _ attendue")
+
+
+# ── t256 : calques de photocraft 0.10 (couleur d'étiquette, cadre, copie vers un document, masque, styles) ──────────
+# Requis que le registre n'écrit pas comme tels (« "color":"none|red|…" » sans défaut, x/y/width/height du cadre).
+REQUIS_M7 = {"layer.setLabelColor": ("color",), "layer.copyToDocument": ("document",),
+             "layer.new.frame": ("x", "y", "width", "height"), "layer.layerStyle.transferEffects": ("from", "to"),
+             "layer.layerStyle.makeDefault": ("kind", "params"), "layer.layerStyle.defaultFor": ("kind",)}
+FORMES_M7 = set(REQUIS_M7) | {"layer.layerMask.edit"}
+MAX_CADRE = 300_000                  # « `width` and `height` must be 1..=300000 » (moteur 0.10)
+MAX_CALQUES_COPIE = 1000
+
+
+def _formes_m7(registre, cid, params):
+    manque = [k for k in REQUIS_M7.get(cid, ()) if k not in params]
+    if manque:
+        raise ValueError(f"{cid} : paramètre(s) requis : {', '.join(manque)}")
+    if cid == "layer.new.frame":
+        for k in ("x", "y"):
+            if _entier(params[k]) and abs(params[k]) > MAX_CADRE:
+                raise ValueError(f"{cid} : {k} : entre -{MAX_CADRE} et {MAX_CADRE} attendu, reçu {params[k]!r}")
+        for k in ("width", "height"):
+            if _entier(params[k]) and not 1 <= params[k] <= MAX_CADRE:
+                raise ValueError(f"{cid} : {k} : entre 1 et {MAX_CADRE} px attendu, reçu {params[k]!r}")
+    if cid == "layer.copyToDocument":
+        v = params.get("layers")
+        if v is not None and not (isinstance(v, list) and 0 < len(v) <= MAX_CALQUES_COPIE and all(_entier(x) and x >= 0 for x in v)):
+            raise ValueError(f"{cid} : layers : une liste d'ids de calques (entiers ≥ 0, {MAX_CALQUES_COPIE} au plus) attendue")
+        for k in ("at", "offset"):
+            v = params.get(k)
+            if v is not None and not (isinstance(v, list) and len(v) == 2 and all(_nombre_fini(x) and abs(x) <= MAX_DECALAGE for x in v)):
+                raise ValueError(f"{cid} : {k} : un point [x, y] attendu (deux nombres, ±{MAX_DECALAGE} px au plus), reçu {v!r}")
+    if cid == "layer.layerMask.edit" and "density" not in params and "feather" not in params:
+        raise ValueError(f"{cid} : density ou feather requis")
+    if cid == "layer.layerStyle.makeDefault":
+        # `params` est un « {…param set…} » opaque : le moteur range n'importe quoi en silence (relevé t256 : « taille »,
+        # size:"x"). Ce sont les paramètres de layer.layerStyle.<kind>, vérifiés comme tels — sans `layer` ni `enabled`.
+        kind, v = params.get("kind"), params.get("params")
+        if not isinstance(v, dict):
+            raise ValueError(f"{cid} : params : un objet de paramètres de l'effet attendu")
+        if "layer" in v or "enabled" in v:
+            raise ValueError(f"{cid} : params : un défaut d'effet ne vise aucun calque (layer, enabled refusés)")
+        if isinstance(kind, str) and f"layer.layerStyle.{kind}" in registre:
+            verifier(registre, f"layer.layerStyle.{kind}", v)
 
 
 # ── t157 : Sélectionner et masquer, la pile de la Galerie de filtres ────────────────────────────────────────────────

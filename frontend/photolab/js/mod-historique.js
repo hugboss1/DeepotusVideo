@@ -131,6 +131,16 @@ export const ETATS_MOTEUR = {
   "Paste Complete Stroke": "photolab.histo.paste_stroke", "Type Mask": "photolab.histo.type_mask",
   "Change Type Size": "photolab.histo.change_type_size", "Release Type from Path": "photolab.histo.release_type",
   "Type on a Path": "photolab.histo.type_on_path", "Save Path": "photolab.histo.save_path", "Delete Path": "photolab.traces.supprimer",
+  // t256 (M7, photocraft 0.10) : calques (noms relevés sur le vrai moteur, banc test_photolab_m7 [2])
+  "Remove Background": "photolab.histo.retirer_arriere_plan", "Relight": "photolab.histo.reeclairer",
+  "Color to Alpha": "photolab.histo.couleur_alpha", "Lock Transparent Pixels": "photolab.verrou.transparence",
+  "Unlock Transparent Pixels": "photolab.histo.deverrouiller_transparence", "Layer Color": "photolab.histo.couleur_calque",
+  "Show Only This Layer": "photolab.histo.afficher_seul", "Edit Layer Mask": "photolab.histo.modifier_masque",
+  "Copy Layer Effects": "photolab.histo.copier_effets", "Move Layer Effects": "photolab.histo.deplacer_effets",
+  "Rasterize Layer Style": "photolab.histo.pixelliser_style", "Merge Group": "photolab.menu.fusionner_groupe",
+  "New Frame": "photolab.histo.nouveau_cadre", "Convert to Layers": "photolab.menu.convertir_calques",
+  "New Artboard": "photolab.histo.nouveau_plan", "Duplicate Artboard": "photolab.histo.dupliquer_plan",
+  "Background From Layer": "photolab.menu.arriere_plan_depuis_calque",
 };
 
 // Ordre : carte ci-dessus (fr et en, par le dictionnaire) -> libellé du catalogue des menus (fr) -> nom du moteur.

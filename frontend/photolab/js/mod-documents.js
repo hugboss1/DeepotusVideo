@@ -211,9 +211,14 @@ export function initDocuments(PL) {
     if (!PL.etat.doc) return;
     const r = await PL.executer("document.activate", { document: index }, { cycle: false });
     if (!r.ok) return;
+    await suivre();
+  }
+  // t256 : une commande a rendu un AUTRE document actif (Dupliquer vers un document) : l'écran le suit comme un onglet.
+  async function suivre() {
     await reperes();
     await PL.documentOuvert();
   }
+  PL.suivreDocumentActif = suivre;
 
   async function confirmer(question, titre, ok) {
     const d = window.__dzDialogue;
@@ -454,6 +459,13 @@ export function initDocuments(PL) {
     const valeurs = choixDocuments(s, true, T);
     if (!valeurs.length) return null;
     return [{ cle: "mapDocument", libelle: T("photolab.choix.carte"), valeurs, defaut: valeurs.length > 1 ? valeurs[1].valeur : valeurs[0].valeur }];
+  };
+  // t256 : Calque › Dupliquer vers un document… — un AUTRE document ouvert (le moteur refuse la source elle-même)
+  PL.choixDialogue["layer.copyToDocument"] = async () => {
+    const s = await sessionFraiche();
+    const valeurs = choixDocuments(s, false, T);
+    if (!valeurs.length) { PL.signaler(T("photolab.calques.aucune_destination"), true); return null; }
+    return [{ cle: "document", libelle: T("photolab.calques.choix_destination"), valeurs }];
   };
   PL.choixDialogue["filter.render.flame"] = async () => {
     let l = null;

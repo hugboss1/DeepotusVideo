@@ -9870,5 +9870,29 @@
  "{cid} : replace : at requis (l'étape remplacée)": {
   "fr": "{cid} : replace : at requis (l'étape remplacée)",
   "en": "{cid}: replace: at required (the replaced step)"
+ },
+ "{cid} : density ou feather requis": {
+  "fr": "{cid} : density ou feather requis",
+  "en": "{cid}: density or feather required"
+ },
+ "{cid} : layers : une liste d'ids de calques (entiers ≥ 0, {MAX_CALQUES_COPIE} au plus) attendue": {
+  "fr": "{cid} : layers : une liste d'ids de calques (entiers ≥ 0, {MAX_CALQUES_COPIE} au plus) attendue",
+  "en": "{cid}: layers: a list of layer ids (integers ≥ 0, at most {MAX_CALQUES_COPIE}) expected"
+ },
+ "{cid} : params : un objet de paramètres de l'effet attendu": {
+  "fr": "{cid} : params : un objet de paramètres de l'effet attendu",
+  "en": "{cid}: params: an object of effect parameters expected"
+ },
+ "{cid} : params : un défaut d'effet ne vise aucun calque (layer, enabled refusés)": {
+  "fr": "{cid} : params : un défaut d'effet ne vise aucun calque (layer, enabled refusés)",
+  "en": "{cid}: params: an effect default targets no layer (layer, enabled refused)"
+ },
+ "{cid} : {k} : entre -{MAX_CADRE} et {MAX_CADRE2} attendu, reçu {v}": {
+  "fr": "{cid} : {k} : entre -{MAX_CADRE} et {MAX_CADRE2} attendu, reçu {v}",
+  "en": "{cid}: {k}: between -{MAX_CADRE} and {MAX_CADRE2} expected, got {v}"
+ },
+ "{cid} : {k} : entre 1 et {MAX_CADRE} px attendu, reçu {v}": {
+  "fr": "{cid} : {k} : entre 1 et {MAX_CADRE} px attendu, reçu {v}",
+  "en": "{cid}: {k}: between 1 and {MAX_CADRE} px expected, got {v}"
  }
 }
