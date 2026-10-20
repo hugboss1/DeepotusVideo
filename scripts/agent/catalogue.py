@@ -25,12 +25,14 @@ RACINE = ICI.parents[1]
 DOSSIER = RACINE / "docs" / "agent" / "catalogue"
 ETATS = ("extrait", "redige", "perime", "retire")
 GARDES = ("role", "synonymes", "localisateur", "guide", "notes")
-ORDRE = ("id", "ecran", "ecran_fixe", "cadre", "type", "libelle", "infobulle", "icone", "reglages", "fiche", "role",
-         "synonymes", "guide", "localisateur", "notes", "sources", "empreinte", "etat")
+ORDRE = ("id", "ecran", "ecran_fixe", "cadre", "type", "libelle", "infobulle", "icone", "chemin", "raccourci",
+         "reglages", "fiche", "role", "synonymes", "guide", "localisateur", "notes", "sources", "empreinte", "etat")
 
 
 def empreinte(e: dict) -> str:
     vu = {k: e.get(k) for k in ("type", "libelle", "infobulle", "icone")}
+    # chemin et raccourci (entrées des menus du Photolab) n'entrent que s'ils existent : les autres empreintes restent
+    vu.update({k: e[k] for k in ("chemin", "raccourci") if e.get(k)})
     return hashlib.sha1(json.dumps(vu, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]
 
 
