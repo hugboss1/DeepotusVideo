@@ -289,10 +289,7 @@ ENTREES += [
       {"vectorlab.style.hauteur_titre": ("Hauteur ({suf})", "Height ({suf})")}),
     S(ST, 117, '<span>Fond</span>', '<span>' + tr("vectorlab.style.fond") + '</span>',
       {"vectorlab.style.fond": ("Fond", "Fill")}),
-    S(ST, 119, '"\r\n                title="Couleur de fond — ouvre le nuancier (RGB, CMJN, hex, palettes)">',
-      '"\r\n                title="' + tr("vectorlab.style.fond_titre") + '">',
-      {"vectorlab.style.fond_titre": ("Couleur de fond — ouvre le nuancier (RGB, CMJN, hex, palettes)",
-                                      "Fill color — opens the color picker (RGB, CMYK, hex, palettes)")}),
+    # (ligne 119 : le titre de la pastille de fond passe au groupe t264, qui réécrit la pastille)
     S(ST, 121, '"\r\n                title="Sans fond" aria-label="Sans fond">',
       '"\r\n                title="' + tr("vectorlab.style.sans_fond") + '" aria-label="' + tr("vectorlab.style.sans_fond") + '">',
       {"vectorlab.style.sans_fond": ("Sans fond", "No fill", "contexte")}),
@@ -307,9 +304,7 @@ ENTREES += [
        "vectorlab.style.grad_r": ("Dégradé radial", "Radial gradient")}),
     S(ST, 126, '<span>Contour</span>', '<span>' + tr("vectorlab.style.contour") + '</span>',
       {"vectorlab.style.contour": ("Contour", "Stroke")}),
-    S(ST, 129, '"\r\n                title="Couleur de contour — ouvre le nuancier">',
-      '"\r\n                title="' + tr("vectorlab.style.contour_titre") + '">',
-      {"vectorlab.style.contour_titre": ("Couleur de contour — ouvre le nuancier", "Stroke color — opens the color picker")}),
+    # (ligne 129 : le titre de la pastille de contour passe au groupe t264, qui réécrit la pastille)
     S(ST, 132, '"\r\n                title="Sans contour" aria-label="Sans contour">',
       '"\r\n                title="' + tr("vectorlab.style.sans_contour") + '" aria-label="' + tr("vectorlab.style.sans_contour") + '">',
       {"vectorlab.style.sans_contour": ("Sans contour", "No stroke")}),
