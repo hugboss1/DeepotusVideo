@@ -231,6 +231,16 @@ I["dz-edit-annotation"] = () => { const corps = polyR([[2, 2], [22, 2], [22, 14.
 I["dz-edit-paragraphes"] = () => [pl(union(G.circle(8.8, 8, 5.4), R(8.8, 2.6, 10, 2.6), R(11.2, 2.6, 2.6, 18.8, 0.6), R(16.2, 2.6, 2.6, 18.8, 0.6), R(8.8, 2.6, 4, 10.8)))];
 I["dz-edit-effet"] = () => [pl(union(R(5.4, 6.4, 2.8, 15.2, 0.6), arc(10, 6.8, 3.2, 2.8, 180, 300), R(2.6, 10, 8, 2.6, 1.3)) + union(pill(13.4, 11.4, 20.6, 20.6, 2.8), pill(20.6, 11.4, 13.4, 20.6, 2.8)))];
 
+// t256 (Photolab M7) : Ctrl+T › Déformer — un maillage 2 × 2 aux lignes ondulées (pâle), ancres pleines aux coins et au
+// centre : jamais confondu avec la grille droite (dz-edit-grille) ni le treillis 3D (dz-lab3d-maillage).
+I["dz-edit-deformer-maillage"] = () => {
+  const h = (y, a) => trait(lisse([[2.6, y], [7.2, y - a], [12, y], [16.8, y + a], [21.4, y]], 10), 2.4);
+  const v = (x, a) => trait(lisse([[x, 2.6], [x + a, 7.2], [x, 12], [x - a, 16.8], [x, 21.4]], 10), 2.4);
+  const ancre = (x, y) => R(x - 1.9, y - 1.9, 3.8, 3.8, 0.7);
+  const ancres = [[3.2, 3.2], [20.8, 3.2], [3.2, 20.8], [20.8, 20.8], [12, 12]].map(([x, y]) => ancre(x, y));
+  return [pl(union(...ancres)), pa(union(h(3.2, 1.6), h(12, 2.6), h(20.8, 1.6), v(3.2, 1.6), v(12, 2.6), v(20.8, 1.6)))];
+};
+
 // ═══════════════════════════ écriture ═════════════════════════════════════════════════════════════════
 const filtre = process.argv[2] || "";
 let n = 0;

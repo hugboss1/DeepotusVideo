@@ -2103,5 +2103,12 @@
   "photolab.nuancier.importees": {"fr": "{n} nuance(s) importée(s).", "en": "{n} swatch(es) imported."},
   "photolab.nuancier.rien_a_exporter": {"fr": "Aucune nuance à exporter.", "en": "No swatch to export."},
   "photolab.nuancier.exporter_question": {"fr": "Format du fichier : .ase garde les groupes, .aco n'en a qu'une liste.", "en": "File format: .ase keeps the groups, .aco holds a single list."},
-  "photolab.nuancier.exportees": {"fr": "{n} nuance(s) exportée(s).", "en": "{n} swatch(es) exported."}
+  "photolab.nuancier.exportees": {"fr": "{n} nuance(s) exportée(s).", "en": "{n} swatch(es) exported."},
+  "photolab.transformation.deformer": {"fr": "Basculer entre transformation et déformation par maillage", "en": "Switch between transform and mesh warp"},
+  "photolab.transformation.mode_deformer": {"fr": "Déformer", "en": "Warp"},
+  "photolab.transformation.grille": {"fr": "Grille", "en": "Grid"},
+  "photolab.transformation.grille_defaut": {"fr": "Par défaut", "en": "Default"},
+  "photolab.transformation.grille_3": {"fr": "3 × 3", "en": "3 × 3"},
+  "photolab.transformation.grille_4": {"fr": "4 × 4", "en": "4 × 4"},
+  "photolab.transformation.grille_5": {"fr": "5 × 5", "en": "5 × 5"}
 }

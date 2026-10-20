@@ -603,6 +603,7 @@ STYLES_APERCU = frozenset(f"layer.layerStyle.{k}" for k in (
     "dropShadow", "innerShadow", "outerGlow", "innerGlow", "stroke", "colorOverlay", "gradientOverlay",
     "patternOverlay", "bevelEmboss", "satin", "blendingOptions", "clear"))
 COMMANDES_APERCU = frozenset({"layer.setAdjustment", "layer.setProps", "edit.transform",      # t154 : transformation manuelle
+                              "edit.transform.warp",                     # t256 : Ctrl+T › Déformer (maillage)
                               # t157 : réédition d'un filtre dynamique et ses options (aperçu exact, sans empiler un filtre)
                               "layer.smartFilter.setParams", "layer.smartFilter.setVisible",
                               "layer.smartFilter.blendingOptions", "layer.smartFilter.disableSmartFilters"})

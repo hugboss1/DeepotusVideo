@@ -233,6 +233,7 @@
   "erreur.186156373b": {"fr": "Redirection refusée pour {nom} : le skill doit être servi directement par raw.githubusercontent.com.", "en": "Redirect refused for {nom}: the skill must be served directly by raw.githubusercontent.com.", "src": "fr"},
   "erreur.186fdd9bdf": {"fr": "kit inconnu : {kit_id}", "en": "unknown kit: {kit_id}", "src": "fr"},
   "erreur.187bc58f9f": {"fr": "{cid} : copyrightUrl : adresse http(s) attendue, reçu {u}", "en": "{cid}: copyrightUrl: http(s) address expected, got {u}", "src": "fr"},
+  "erreur.189fb14e91": {"fr": "{cid} : warp, ou style et rect, requis", "en": "{cid}: warp, or style and rect, required", "src": "fr"},
   "erreur.18a8e857d7": {"fr": "aucun plan de plaque pour cette version", "en": "no plate layout for this version", "src": "fr"},
   "erreur.18b73f137f": {"fr": "Ce moteur ne lit pas les images : choisis-en un qui voit l'écran.", "en": "This engine cannot read images: choose one that can see the screen.", "src": "fr"},
   "erreur.18e7ef6f94": {"fr": "seul model.opt.glb existe — il est compressé meshopt (pour les moteurs de jeu) ; il faut model.glb, la source non compressée", "en": "only model.opt.glb exists — it is meshopt-compressed (for game engines); model.glb, the uncompressed source, is required", "src": "fr"},
