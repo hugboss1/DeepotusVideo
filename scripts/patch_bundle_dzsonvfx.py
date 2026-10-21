@@ -26,7 +26,10 @@ des pistes séparées (muet, solo, volume), les télécharger, aller au Montage.
 mode « Importer et séparer » : son état n'est pas perdu. Mode gardé dans `window.__dzSvMus` ; l'événement
 `deepotus:sonvfx-subtab` accepte aussi {id:"music",mode:"pistes"}.
 La page vit dans sa SOURCE frontend/patches/sonvfx-pistes.js, posée aplatie par `aplatir()` dans H0.
-Textes : clés dzT `sonvfx.hub.*` et `sonvfx.pistes.*`, LITTÉRALES dans le livré, dans frontend/shared/i18n/sonvfx_hub.json.
+t271 (21/10) — troisième mode « Atelier » (`DzSvAtelier`, source frontend/patches/sonvfx-atelier.js) : canevas de
+nœuds au-dessus du moteur /api/audio/graph (t270), frise de plages, aperçu A/B, rendu dans la Bibliothèque.
+« Ouvrir dans l'Atelier » de la page Importer et séparer pose `window.__dzSvAtelierAjout = {fichier}` puis ouvre le mode.
+Textes : clés dzT `sonvfx.hub.*`, `sonvfx.pistes.*` et `sonvfx.atelier.*`, LITTÉRALES dans le livré, dans frontend/shared/i18n/sonvfx_hub.json.
 
 Maillon de QUEUE, APRÈS dzconstats (dont il sonde le marqueur) ; il garde un .js.bak_dzsonvfx le temps de l'écriture
 puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzsonvfx` dans
@@ -46,6 +49,7 @@ MARKER = "function DzSonVfxHub("
 MARKER_ATTENDU = 1
 # lue à l'IMPORT (PAIRES) : les bancs importent ce maillon depuis backend/, d'où un chemin pris depuis ce script
 PISTES = pathlib.Path(__file__).resolve().parent.parent / "frontend" / "patches" / "sonvfx-pistes.js"
+ATELIER = PISTES.with_name("sonvfx-atelier.js")
 
 
 def aplatir(src: str) -> str:
@@ -160,7 +164,7 @@ CSS_PISTES = (
     ".dzsvp-btn[data-arme]{box-shadow:0 0 0 2px color-mix(in srgb,var(--cat) 45%,transparent)}"
     ".dzsvp-btn:disabled{opacity:.5;cursor:default}"
     ".dzsvp-stems{display:flex;flex-direction:column;gap:6px}"
-    ".dzsvp-stem{display:grid;grid-template-columns:120px auto auto 1fr auto;align-items:center;gap:8px;"
+    ".dzsvp-stem{display:grid;grid-template-columns:120px auto auto 1fr auto auto;align-items:center;gap:8px;"
     "padding:6px 10px;background:var(--bg-panel-2)}"
     ".dzsvp-stem audio{display:none}"
     ".dzsvp-stemn{font-size:12px;font-weight:600}"
@@ -173,19 +177,100 @@ CSS_PISTES = (
     "background:var(--bg-panel-2)}"
 )
 
+# t271 : l'Atelier sonore (DzSvAtelier, source frontend/patches/sonvfx-atelier.js) — angles vifs (règle du hub)
+CSS_ATELIER = (
+    ".dzsva{position:absolute;inset:0;display:grid;grid-template-columns:220px minmax(0,1fr) 270px;min-height:0;"
+    "background:var(--bg-base,#0a0a0c);color:var(--ink);font-size:12px}"
+    ".dzsva-attente{margin:auto;grid-column:1/-1;color:var(--ink-soft)}"
+    ".dzsva-palette,.dzsva-inspecteur{display:flex;flex-direction:column;gap:10px;padding:12px;min-height:0;overflow:auto;"
+    "background:var(--bg-panel)}"
+    ".dzsva-palette{border-right:1px solid var(--stroke)}"
+    ".dzsva-inspecteur{border-left:1px solid var(--stroke)}"
+    ".dzsva-titre{font-family:var(--f-mono,monospace);font-size:10px;letter-spacing:.14em;text-transform:uppercase;"
+    "color:var(--cat)}"
+    ".dzsva-cat .dzsva-titre{color:var(--sva-c)}"
+    ".dzsva-pres,.dzsva-items{display:flex;flex-wrap:wrap;gap:4px}"
+    ".dzsva-item{font:inherit;font-size:11px;padding:4px 8px;border:1px solid var(--stroke);"
+    "border-left:3px solid var(--sva-c);background:var(--bg-panel-2);color:var(--ink);cursor:pointer}"
+    ".dzsva-item:hover{background:var(--bg-base)}"
+    ".dzsva-centre{display:grid;grid-template-rows:minmax(0,1fr) auto auto auto;min-width:0;min-height:0}"
+    ".dzsva-toile{position:relative;overflow:hidden;min-height:0;cursor:grab;outline:none;touch-action:none;"
+    "background-color:var(--bg-base,#0a0a0c);"
+    "background-image:radial-gradient(color-mix(in srgb,var(--ink-soft) 22%,transparent) 1px,transparent 1px);"
+    "background-size:22px 22px}"
+    ".dzsva-toile:focus-visible{box-shadow:inset 0 0 0 1px var(--cat)}"
+    ".dzsva-monde{position:absolute;left:0;top:0;transform-origin:0 0}"
+    ".dzsva-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}"
+    ".dzsva-lien{fill:none;stroke:var(--cat);stroke-width:2;pointer-events:stroke;cursor:pointer}"
+    ".dzsva-lien:hover{stroke-width:3.5}"
+    ".dzsva-temp{stroke-dasharray:5 4;pointer-events:none}"
+    ".dzsva-noeud{position:absolute;box-sizing:border-box;border:1px solid var(--stroke);border-top:3px solid var(--sva-c);"
+    "background:var(--bg-panel);cursor:move;user-select:none}"
+    ".dzsva-noeud[data-sel]{border-color:var(--sva-c);box-shadow:0 0 0 1px var(--sva-c)}"
+    ".dzsva-noeud[data-ignore]{opacity:.55}"
+    ".dzsva-ntete{height:23px;line-height:23px;padding:0 10px;font-weight:600;color:var(--ink-strong,#f2efe9);"
+    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+    ".dzsva-nsous{padding:0 10px 0 14px;font-size:10px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;"
+    "text-overflow:ellipsis}"
+    ".dzsva-in,.dzsva-out{position:absolute;width:12px;height:12px;border:2px solid var(--sva-c);"
+    "background:var(--bg-base,#0a0a0c);cursor:crosshair}"
+    ".dzsva-in{left:-7px}"
+    ".dzsva-out{right:-7px}"
+    ".dzsva-in:hover,.dzsva-out:hover{background:var(--sva-c)}"
+    ".dzsva-outils{position:absolute;right:10px;top:10px;display:flex;align-items:center;gap:4px;padding:4px;"
+    "border:1px solid var(--stroke);background:var(--bg-panel)}"
+    ".dzsva-mini{display:inline-flex;align-items:center;justify-content:center;width:26px;height:24px;"
+    "border:1px solid var(--stroke);background:var(--bg-base);color:var(--ink);cursor:pointer}"
+    ".dzsva-mini:disabled{opacity:.4;cursor:default}"
+    ".dzsva-z{min-width:44px;text-align:center;font-family:var(--f-mono,monospace);font-size:10px;color:var(--ink-soft)}"
+    ".dzsva-frise{display:flex;flex-direction:column;gap:4px;padding:8px 12px;border-top:1px solid var(--stroke);"
+    "background:var(--bg-panel)}"
+    ".dzsva-ftete{font-size:11px;color:var(--ink)}"
+    ".dzsva-onde{position:relative;height:72px;border:1px solid var(--stroke);background:var(--bg-base,#0a0a0c);"
+    "cursor:text;touch-action:none}"
+    ".dzsva-onde svg{position:absolute;inset:0;width:100%;height:100%;fill:var(--cat);opacity:.8}"
+    ".dzsva-region{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--cat) 18%,transparent);"
+    "border-left:1px solid var(--cat);border-right:1px solid var(--cat);pointer-events:none}"
+    ".dzsva-region[data-sel]{background:color-mix(in srgb,var(--cat) 34%,transparent)}"
+    ".dzsva-trace{border-style:dashed}"
+    ".dzsva-curseur{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--accent);"
+    "pointer-events:none}"
+    ".dzsva-barre{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 12px;"
+    "border-top:1px solid var(--stroke);background:var(--bg-panel)}"
+    ".dzsva-etat{flex:1;min-width:160px;font-size:11px;color:var(--accent)}"
+    ".dzsva-etat[data-ok]{color:var(--cat)}"
+    ".dzsva-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;padding:6px 12px;"
+    "border:1px solid var(--stroke);background:var(--bg-panel-2);color:var(--ink);cursor:pointer}"
+    ".dzsva-btn.prim{background:var(--cat);border-color:var(--cat);color:var(--cat-ink,#14181d);font-weight:600}"
+    ".dzsva-btn[aria-pressed=true]{border-color:var(--cat);color:var(--cat)}"
+    ".dzsva-btn:disabled{opacity:.45;cursor:default}"
+    ".dzsva-lecteur{height:30px;width:220px;accent-color:var(--cat)}"
+    ".dzsva-nom{font:inherit;font-size:12px;width:150px;padding:6px 8px;border:1px solid var(--stroke);"
+    "background:var(--bg-base);color:var(--ink)}"
+    ".dzsva-note{padding:6px 12px;font-size:11px;color:var(--ink);border-top:1px solid var(--stroke);"
+    "background:var(--bg-panel-2)}"
+    ".dzsva-aide{font-size:11px;color:var(--ink-soft);line-height:1.45}"
+    ".dzsva-param{display:grid;grid-template-columns:96px minmax(0,1fr) 64px;align-items:center;gap:6px}"
+    ".dzsva-param select{grid-column:2/4;font:inherit;font-size:11px;padding:4px;border:1px solid var(--stroke);"
+    "background:var(--bg-base);color:var(--ink)}"
+    ".dzsva-param input[type=range]{width:100%;accent-color:var(--cat)}"
+    ".dzsva-plib{font-size:11px;color:var(--ink-soft)}"
+    ".dzsva-pval{font-family:var(--f-mono,monospace);font-size:10px;text-align:right;color:var(--ink)}"
+)
+
 HUB = (
     'var __dzSvHue={music:"var(--sv-musique)",sfx:"var(--sv-sfx)",voiceover:"var(--sv-voix)",'
     'vfx:"var(--sv-particules)",vfxia:"var(--sv-vfxia)",post:"var(--sv-post)"},'
     '__dzSvIco={music:"dz-cat-audio",sfx:"dz-edit-ripple",voiceover:"dz-media-isoler-voix",vfx:"dz-edit-energie",'
     'vfxia:"dz-etat-ia",post:"dz-edit-effet"};'
     'function __dzSvHubCss(){try{if(document.getElementById("__dzSvHub"))return;'
-    'var st=document.createElement("style");st.id="__dzSvHub";st.textContent="' + CSS + CSS_PISTES + '";'
+    'var st=document.createElement("style");st.id="__dzSvHub";st.textContent="' + CSS + CSS_PISTES + CSS_ATELIER + '";'
     'document.head.appendChild(st)}catch(e){}}'
     'function DzSonVfxHub(p){var US=x.useState,UE=x.useEffect,UR=x.useRef;__dzSvHubCss();'
     'var G=typeof SVM_GENS!=="undefined"?SVM_GENS:[],ids=G.map(function(g){return g.id});'
     'var s=US(function(){var w=window.__dzSvSub;return ids.indexOf(w)>=0?w:ids[0]||"music"}),sub=s[0],setSub=s[1];'
-    'var mo=US(function(){return window.__dzSvMus==="pistes"?"pistes":"generer"}),mode=mo[0],setMode=mo[1];'
-    'function choisirMode(v){v=v==="pistes"?"pistes":"generer";try{window.__dzSvMus=v}catch(e){}setMode(v)}'
+    'var mo=US(function(){var w=window.__dzSvMus;return w==="pistes"||w==="atelier"?w:"generer"}),mode=mo[0],setMode=mo[1];'
+    'function choisirMode(v){v=v==="pistes"||v==="atelier"?v:"generer";try{window.__dzSvMus=v}catch(e){}setMode(v)}'
     'var box=UR(null);'
     'function aller(id){if(ids.indexOf(id)<0)return;try{window.__dzSvSub=id}catch(e){}setSub(id)}'
     # le hub mène : le bouton (masqué) du générateur choisi est cliqué s'il n'est pas déjà sélectionné
@@ -202,7 +287,7 @@ HUB = (
     'if(d&&typeof d==="object"&&d.mode)choisirMode(d.mode)}'
     'window.addEventListener("deepotus:sonvfx-subtab",ev);'
     'return function(){mo&&mo.disconnect();window.removeEventListener("deepotus:sonvfx-subtab",ev)}},[]);'
-    'var g=G[ids.indexOf(sub)]||{},pistes=sub==="music"&&mode==="pistes";'
+    'var g=G[ids.indexOf(sub)]||{},pistes=sub==="music"&&mode==="pistes",atelier=sub==="music"&&mode==="atelier";'
     'function bm(v,lbl){return r.jsx("button",{type:"button",className:"dzsvh-mode",'
     '"aria-pressed":mode===v?"true":"false","data-sv-mode":v,onClick:function(){choisirMode(v)},children:lbl},v)}'
     'function tb(q){var on=q.id===sub;return r.jsxs("button",{type:"button",className:"dzCatTab"+(on?" on":""),'
@@ -221,19 +306,19 @@ HUB = (
     'r.jsxs("div",{className:"dzsvh-txt",children:[r.jsx("div",{className:"dzsvh-nom",children:g.name}),'
     'r.jsx("div",{className:"dzsvh-desc",children:g.desc})]}),'
     'sub==="music"?r.jsxs("div",{className:"dzsvh-modes",role:"group","aria-label":dzT("sonvfx.hub.modes"),'
-    'children:[bm("generer",dzT("sonvfx.hub.mode_generer")),bm("pistes",dzT("sonvfx.hub.mode_pistes"))]},"modes"):null,'
+    'children:[bm("generer",dzT("sonvfx.hub.mode_generer")),bm("pistes",dzT("sonvfx.hub.mode_pistes")),bm("atelier",dzT("sonvfx.hub.mode_atelier"))]},"modes"):null,'
     'r.jsx("span",{className:"dzsvh-prix",children:g.price})]},"tete"),'
     # l'écran d'origine reste monté (masqué) en mode « Importer et séparer » : son état n'est pas perdu
     'r.jsxs("div",{className:"dzsvh-corps",ref:box,children:['
-    'r.jsx("div",{className:"dzsvh-ancien",style:pistes?{display:"none"}:void 0,'
+    'r.jsx("div",{className:"dzsvh-ancien",style:pistes||atelier?{display:"none"}:void 0,'
     'children:r.jsx(DzSonVfx,{variant:p.variant,go:p.go})},"ancien"),'
-    'pistes?r.jsx(DzSvPistes,{go:p.go},"pistes"):null]},"corps")]})}'
+    'pistes?r.jsx(DzSvPistes,{go:p.go},"pistes"):null,atelier?r.jsx(DzSvAtelier,{go:p.go},"atelier"):null]},"corps")]})}'
     '/*__dzsonvfx*/'
 )
 
 PAIRES = [
     ('const Te="/api";',                                                                                         # H0
-     HUB + page(PISTES) + '/*__dzsvpistes*/const Te="/api";'),
+     HUB + page(PISTES) + '/*__dzsvpistes*/' + page(ATELIER) + '/*__dzsvatelier*/const Te="/api";'),
     ('s==="sonvfx"&&r.jsx(DzSonVfx,{variant:e,go:a})',                                                           # H1
      's==="sonvfx"&&r.jsx(DzSonVfxHub,{variant:e,go:a})'),
 ]

@@ -76,8 +76,16 @@ def G(noeuds, liens):
 print("[N] catalogue des nœuds")
 CAT = AG.catalogue()
 TYPES = {t["type"]: t for t in CAT["noeuds"]}
-check("N1 onze types de nœuds", sorted(TYPES) == sorted(["source", "effet", "gain", "pan", "tempo", "hauteur", "plage",
-                                                          "decalage", "mix", "duck", "sortie"]), sorted(TYPES))
+check("N1 quatorze types de nœuds (t271 : limiteur, chorus, flanger)",
+      sorted(TYPES) == sorted(["source", "effet", "gain", "pan", "tempo", "hauteur", "plage", "decalage", "mix", "duck",
+                               "sortie", "limiteur", "chorus", "flanger"]), sorted(TYPES))
+check("N5 bornes t271 : limiteur −24/0 dB, attaque 0,1-80 ms, relâche 1-8000 ms ; flanger = bornes de ffmpeg",
+      TYPES["limiteur"]["params"] == {"plafond_db": [-24, 0, -1], "attaque_ms": [0.1, 80, 5], "relache_ms": [1, 8000, 50]}
+      and TYPES["flanger"]["params"] == {"retard_ms": [0, 30, 0], "profondeur_ms": [0, 10, 2], "retour": [-95, 95, 0],
+                                         "melange": [0, 100, 71], "vitesse_hz": [0.1, 10, 0.5]}
+      and TYPES["chorus"]["params"] == {"retard_ms": [20, 100, 40], "vitesse_hz": [0.1, 5, 0.5],
+                                        "profondeur_ms": [0.5, 10, 2], "melange": [0, 100, 50]}
+      and all(TYPES[t]["entrees"] == 1 for t in ("limiteur", "chorus", "flanger")), [TYPES.get(t) for t in ("limiteur", "chorus", "flanger")])
 check("N2 entrées : source 0, sortie 1, mix 2 à 8 (réglable), ducking 2 (principal, déclencheur)",
       TYPES["source"]["entrees"] == 0 and TYPES["sortie"]["entrees"] == 1 and TYPES["duck"]["entrees"] == 2
       and TYPES["mix"]["entrees"] == 2 and TYPES["mix"]["params"]["entrees"] == [2, 8, 2], TYPES.get("mix"))
@@ -172,6 +180,19 @@ f7 = comp(G([SRC, ("g", "gain", {"db": 0}), ("t", "tempo", {}), ("h", "hauteur",
 check("C7 nœuds neutres : anull (jamais un fragment vide dans la chaîne)",
       f7[0] == f"[0:a]{FMT}[n0];" + "".join(f"[n{i}]anull[n{i + 1}];" for i in range(5)) + "[n5]anull[sortie]", f7)
 
+f8 = comp(G([SRC, ("l", "limiteur", {"plafond_db": -6, "attaque_ms": 2, "relache_ms": 100}),
+             ("c", "chorus", {"retard_ms": 55, "vitesse_hz": 0.25, "profondeur_ms": 2, "melange": 40}),
+             ("f", "flanger", {"retard_ms": 3, "profondeur_ms": 4, "retour": -20, "melange": 60, "vitesse_hz": 1}), OUT],
+            [("s", "l", 0), ("l", "c", 0), ("c", "f", 0), ("f", "o", 0)]))
+check("C8 limiteur (plafond linéaire, niveau automatique coupé) → chorus → flanger",
+      f8[0] == f"[0:a]{FMT}[n0];[n0]alimiter=limit={SX._g(10 ** (-6 / 20))}:attack=2:release=100:level=0[n1];"
+               "[n1]chorus=0.7:0.9:55:0.4:0.25:2[n2];"
+               "[n2]flanger=delay=3:depth=4:regen=-20:width=60:speed=1[n3];[n3]anull[sortie]", f8)
+f9 = comp(G([SRC, ("c", "chorus", {"melange": 0}), ("f", "flanger", {"melange": 0}), OUT],
+            [("s", "c", 0), ("c", "f", 0), ("f", "o", 0)]))
+check("C9 chorus et flanger sans mélange : neutres (anull) ; le limiteur ne l'est jamais",
+      f9[0] == f"[0:a]{FMT}[n0];[n0]anull[n1];[n1]anull[n2];[n2]anull[sortie]", f9)
+
 # ── [R] rendu réel ────────────────────────────────────────────────────────────────────────────────────────────────
 print("[R] rendu réel (ffmpeg)")
 dur = SX._probe_duration
@@ -192,6 +213,20 @@ AP = AG.apercu(G([("s", "source", {"fichier": "long.mp3"}), OUT], [("s", "o", 0)
 check("R4 aperçu : 10 s au plus depuis la position demandée, fichier temporaire hors Bibliothèque",
       abs(dur(AP) - 10.0) < 0.2 and AP.parent != AUDIO and AP.name not in SX.load_meta(), AP)
 AP.unlink(missing_ok=True)
+
+
+def crete(p):
+    """Crête (dB) mesurée par volumedetect."""
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(p), "-af", "volumedetect", "-f", "null", "-"],
+                       capture_output=True, text=True)
+    return float(r.stderr.split("max_volume:")[1].split("dB")[0])
+
+
+R6 = AG.rendre(G([SRC, ("g", "gain", {"db": 6}), ("c", "chorus", {}), ("f", "flanger", {}), ("l", "limiteur", {"plafond_db": -6}), OUT],
+                 [("s", "g", 0), ("g", "c", 0), ("c", "f", 0), ("f", "l", 0), ("l", "o", 0)]), nom="modulation")
+check("R6 gain +6 → chorus → flanger → limiteur −6 dB : rendu réel, durée gardée (3 s), crête sous le plafond",
+      abs(dur(AUDIO / R6["filename"]) - 3.0) < 0.15
+      and crete(AUDIO / R6["filename"]) <= -5.0, (R6, crete(AUDIO / R6["filename"])))
 R5 = AG.rendre(GT, nom="essai tempo")
 check("R5 deux rendus du même nom : jamais d'écrasement", R5["filename"] != R1["filename"]
       and (AUDIO / R1["filename"]).is_file(), (R1, R5))
