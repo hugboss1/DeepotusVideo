@@ -96,6 +96,7 @@ const r={jsx:(t,p)=>({t,p}),jsxs:(t,p)=>({t,p}),Fragment:"F"};
 function dzT(k){return "⟦"+k+"⟧"}
 function __dzGl(n,s){return {t:"glyph",p:{name:n,size:s}}}
 function DzSonVfx(p){return {t:"DzSonVfx",p}}
+function DzSvPistes(p){return {t:"DzSvPistes",p}}
 var SVM_GENS=["music","sfx","voiceover","vfx","vfxia","post"].map(id=>({id,name:"N:"+id,desc:"D:"+id,price:"P:"+id}));
 const BOUTONS=SVM_GENS.map((g,q)=>({hasAttribute:a=>a==="data-sel"&&SEL===q,click(){CLICS.push(g.id);SEL=q}}));
 const EL={querySelectorAll:s=>s===".svm-genlist .svm-gen"?BOUTONS:[]};
@@ -119,7 +120,10 @@ function etat(){const tabs=tout(ARBRE,n=>n.t==="button"&&/dzCatTab/.test(n.p.cla
   barre:barre&&barre.p["aria-label"],
   tete:["dzsvh-nom","dzsvh-desc","dzsvh-prix"].map(c=>texte(tout(ARBRE,n=>n.p&&n.p.className===c,[])[0])),
   ecran:(tout(ARBRE,n=>n.t===DzSonVfx,[])[0]||{p:{}}).p,clics:CLICS.slice(),styles:STYLES.length,
-  ecoute:!!LIST["deepotus:sonvfx-subtab"],mo:!!(MO&&MO.obs&&MO.obs.attributeFilter[0]==="data-sel"),w:window.__dzSvSub}}
+  ecoute:!!LIST["deepotus:sonvfx-subtab"],mo:!!(MO&&MO.obs&&MO.obs.attributeFilter[0]==="data-sel"),w:window.__dzSvSub,
+  modes:tout(ARBRE,n=>n.p&&n.p["data-sv-mode"],[]).map(b=>[b.p["data-sv-mode"],b.p["aria-pressed"],texte(b)]),
+  pistes:(tout(ARBRE,n=>n.t===DzSvPistes,[])[0]||{p:null}).p,
+  ancien:(tout(ARBRE,n=>n.p&&n.p.className==="dzsvh-ancien",[])[0]||{p:{}}).p.style||null,mus:window.__dzSvMus}}
 const R={};
 rendre();rendre();R.montage=etat();
 const post=etat().tabs.find(t=>t.id==="post");
@@ -130,6 +134,12 @@ LIST["deepotus:sonvfx-subtab"]({detail:"voiceover"});rendre();R.ev_texte=etat();
 LIST["deepotus:sonvfx-subtab"]({detail:"inconnu"});rendre();R.ev_inconnu=etat();
 H=[];CLICS=[];window.__dzSvSub="vfx";SEL=3;rendre();R.retour=etat();
 H=[];CLICS=[];window.__dzSvSub="nimporte";rendre();R.retour_inconnu=etat();
+H=[];CLICS=[];window.__dzSvSub="music";SEL=0;rendre();
+tout(ARBRE,n=>n.p&&n.p["data-sv-mode"]==="pistes",[])[0].p.onClick();rendre();R.mode_pistes=etat();
+tout(ARBRE,n=>n.t==="button"&&n.p["data-sv-sub"]==="sfx",[])[0].p.onClick();rendre();R.pistes_sfx=etat();
+LIST["deepotus:sonvfx-subtab"]({detail:{id:"music",mode:"generer"}});rendre();R.ev_generer=etat();
+LIST["deepotus:sonvfx-subtab"]({detail:{id:"music",mode:"pistes"}});rendre();R.ev_pistes=etat();
+H=[];CLICS=[];rendre();R.retour_pistes=etat();
 process.stdout.write(JSON.stringify(R));
 """
 
@@ -179,6 +189,23 @@ check("E15 retour sur l'écran : le sous-onglet gardé (__dzSvSub) rouvre, sans 
       c.get("sub") == "vfx" and c.get("clics") == [], c)
 check("E16 __dzSvSub inconnu : Musique par défaut", R.get("retour_inconnu", {}).get("sub") == "music",
       R.get("retour_inconnu"))
+# t269 : les deux modes de Musique
+check("E17 Musique : deux modes traduits, « Générer » choisi d'abord ; aucun mode hors Musique",
+      m.get("modes") == [["generer", "true", "⟦sonvfx.hub.mode_generer⟧"], ["pistes", "false", "⟦sonvfx.hub.mode_pistes⟧"]]
+      and R.get("clic_post", {}).get("modes") == [] and m.get("pistes") is None and m.get("ancien") is None, m)
+c = R.get("mode_pistes", {})
+check("E18 « Importer et séparer » : la page reçoit go, l'écran d'origine reste monté mais masqué, mode gardé",
+      c.get("pistes") == {"go": "g"} and c.get("ancien") == {"display": "none"}
+      and c.get("ecran") == {"variant": "v", "go": "g"} and c.get("mus") == "pistes"
+      and [b[1] for b in c.get("modes", [])] == ["false", "true"], c)
+c = R.get("pistes_sfx", {})
+check("E19 un autre sous-onglet rend l'écran d'origine visible, sans la page", c.get("sub") == "sfx"
+      and c.get("pistes") is None and c.get("ancien") is None, c)
+check("E20 événement {id:music, mode} : choisit le mode",
+      R.get("ev_generer", {}).get("pistes") is None and R.get("ev_generer", {}).get("sub") == "music"
+      and R.get("ev_pistes", {}).get("pistes") == {"go": "g"}, [R.get("ev_generer"), R.get("ev_pistes")])
+check("E21 retour sur l'écran : le mode gardé (__dzSvMus) rouvre", R.get("retour_pistes", {}).get("pistes") == {"go": "g"},
+      R.get("retour_pistes"))
 
 # ── [D] chaîne ────────────────────────────────────────────────────────────────────────────────────────────────────
 print("[D] chaîne dzsonvfx")
@@ -226,12 +253,17 @@ check("D11 node --check du livré", rn.returncode == 0, rn.stderr[:300])
 # ── [K] textes ────────────────────────────────────────────────────────────────────────────────────────────────────
 print("[K] textes FR / EN")
 DICO = json.loads((RACINE / "frontend" / "shared" / "i18n" / "sonvfx_hub.json").read_text(encoding="utf-8"))
-CLES = ["sonvfx.hub.barre"]
-check("K0 le fichier ne porte que ces clés, à trois segments", sorted(DICO) == sorted(CLES), sorted(DICO))
-for k in CLES:
-    v = DICO.get(k) or {}
-    check(f"K1 {k} : FR et EN distincts, littérale dans le livré",
-          v.get("fr") and v.get("en") and v["fr"] != v["en"] and f'"{k}"' in BUNDLE, v)
+# t269 : les clés du hub ET de la page « Importer et séparer » (posée par H0 jusqu'à /*__dzsvpistes*/)
+_i, _j = BUNDLE.find("var __dzSvHue="), BUNDLE.find("/*__dzsvpistes*/")
+CLES = sorted(set(re.findall(r'dzT\("(sonvfx\.[a-z0-9_.]+)"', BUNDLE[_i:_j]))) if 0 <= _i < _j else []
+check("K0 le fichier porte exactement les clés appelées par le maillon, à trois segments",
+      CLES and sorted(DICO) == CLES and all(len(k.split(".")) == 3 for k in CLES),
+      sorted(set(DICO) ^ set(CLES)))
+_var = lambda t: set(re.findall(r"\{(\w+)\}", t))           # noqa: E731
+check("K1 chaque clé : FR et EN présents, mêmes variables, littérale dans le livré",
+      all((DICO.get(k) or {}).get("fr") and (DICO.get(k) or {}).get("en")
+          and _var(DICO[k]["fr"]) == _var(DICO[k]["en"]) and f'"{k}"' in BUNDLE for k in CLES),
+      [k for k in CLES if not ((DICO.get(k) or {}).get("fr") and (DICO.get(k) or {}).get("en"))])
 src_dico = (RACINE / "frontend" / "shared" / "dz-i18n-dico.js").read_bytes()
 check("K2 dictionnaire assemblé (source = copie de dist)",
       all(k.encode() in src_dico for k in CLES)
