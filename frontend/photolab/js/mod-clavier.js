@@ -321,6 +321,46 @@ export function initClavier(PL) {
     });
   }
 
+  /* #415 : Édition › Barre d'outils… — les outils que la barre montre (préférences de l'écran ; le moteur n'est pas
+     appelé : edit.toolbar rangerait ses propres préférences, que la barre de l'écran ne lit pas) */
+  async function barreOutils() {
+    let masques = new Set(PL.prefs.etat.outils ? PL.prefs.etat.outils.masques : []);
+    await ouvrirDialogue(PL, {
+      titre: T("photolab.barre_outils.titre"), classe: "large pl-barre-outils",
+      boutons: [
+        { role: "defaut", libelle: T("photolab.clavier.tout_defaut") },
+        { role: "annuler", libelle: T("commun.action.annuler") },
+        { role: "ok", libelle: T("commun.action.valider"), principal: true },
+      ],
+      construire({ corps }) {
+        const intro = el("p", "pl-note", T("photolab.barre_outils.intro"));
+        const table = el("div", "cl-liste");
+        const erreur = el("p", "pl-erreur"); erreur.setAttribute("role", "alert");
+        corps.append(intro, table, erreur);
+        function dessiner() {
+          table.replaceChildren();
+          for (const o of EMPLACEMENTS.flat()) {
+            const ligne = el("label", "cl-ligne"); ligne.dataset.outil = o.id;
+            const vis = el("input"); vis.type = "checkbox"; vis.checked = !masques.has(o.id); vis.title = T("photolab.barre_outils.montrer");
+            vis.addEventListener("change", () => { if (vis.checked) masques.delete(o.id); else masques.add(o.id); });
+            const ico = el("span", "cl-ico"); ico.innerHTML = PL.icone(o.icone, 16);
+            ligne.append(vis, ico, el("span", "cl-nom", T(cleNom(o.id))));
+            table.appendChild(ligne);
+          }
+        }
+        dessiner();
+        return async (role) => {
+          if (role === "defaut") { masques = new Set(); dessiner(); return false; }
+          if (masques.size >= EMPLACEMENTS.flat().length) { erreur.textContent = T("photolab.barre_outils.au_moins_un"); return false; }
+          try { await PL.prefs.modifier("outils", { masques: [...masques] }); } catch (e) { return false; }
+          if (PL.rafraichirOutils) PL.rafraichirOutils();
+          return true;
+        };
+      },
+    });
+  }
+
+  PL.actions["edit.toolbar"] = barreOutils;
   PL.actions["edit.keyboardShortcuts"] = raccourcis;
   PL.actions["edit.menus"] = menus;
   PL.clavier = { raccourcis, menus };

@@ -107,7 +107,8 @@ _HEX = re.compile(r"#[0-9a-f]{6}")
 # une touche : lettre, chiffre, F1-F12, ou l'un des signes que le catalogue emploie.
 _COMBO = re.compile(r"(ctrl\+)?(alt\+)?(shift\+)?([a-z0-9]|f([1-9]|1[0-2])|[\[\]\-=;',./`]|delete|backspace|tab|enter|"
                     r"escape|space|arrowup|arrowdown|arrowleft|arrowright|home|end|pageup|pagedown)")
-_CLES = {"version", "prefs", "raccourcis", "menus", "affichage", "texte"}
+_CLES = {"version", "prefs", "raccourcis", "menus", "affichage", "texte", "outils"}
+MAX_OUTILS_MASQUES = 100                   # #415 : Édition › Barre d'outils… (la barre en compte une soixantaine)
 
 
 def etat_defaut() -> dict:
@@ -118,6 +119,7 @@ def etat_defaut() -> dict:
         "menus": {"masques": [], "couleurs": {}},
         "affichage": None,                  # None = jamais repris : l'écran garde ses défauts (ou le navigateur)
         "texte": {"langue": LANGUES_TEXTE[0], "composeur": False},
+        "outils": {"masques": []},          # #415 : outils retirés de la barre (Édition › Barre d'outils…)
     }
 
 
@@ -244,6 +246,17 @@ def _texte(t) -> dict:
     return d
 
 
+def _outils(o) -> dict:
+    _objet(o, "outils", {"masques"})
+    m = o.get("masques", [])
+    if not isinstance(m, list) or len(m) > MAX_OUTILS_MASQUES:
+        raise ValueError(f"outils.masques : liste de {MAX_OUTILS_MASQUES} outils au plus")
+    for k in m:
+        if not isinstance(k, str) or not _ID_OUTIL.fullmatch(k):
+            raise ValueError(f"outils.masques : outil mal formé : {k!r}")
+    return {"masques": list(dict.fromkeys(m))}
+
+
 def valider(obj) -> dict:
     """L'état complet (défauts pour ce qui manque) s'il est admis ; sinon ValueError (message français)."""
     _objet(obj, "état", _CLES)
@@ -256,6 +269,7 @@ def valider(obj) -> dict:
         "menus": _menus(obj.get("menus", {})),
         "affichage": _affichage(obj.get("affichage")),
         "texte": _texte(obj.get("texte", {})),
+        "outils": _outils(obj.get("outils", {})),
     }
 
 

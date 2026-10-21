@@ -26,6 +26,19 @@ import photocraft_version as V                                  # noqa: E402
 REFERENCE = BACKEND / "tests" / "photolab_etats_reference.json"
 NODE = shutil.which("node")
 ok = fail = 0
+# Retraits VOLONTAIRES, nommés un à un (relevé des défauts des menus, #415, 20/10/2026 —
+# docs/superpowers/specs/2026-10-20-photolab-defauts-menus-releve.md) : entrées actives que l'écran ne pouvait pas rendre
+# utiles, grisées « bientôt » (mod-menus : BIENTOT_ECRAN). Toute autre entrée qui repasse « bientôt » reste une régression.
+GRISES_VOLONTAIRES = frozenset({
+    "layer.videoLayers.newBlankVideoLayer", "layer.videoLayers.newVideoLayerFromFile", "layer.videoLayers.insertBlankFrame",
+    "layer.videoLayers.duplicateFrame", "layer.videoLayers.deleteFrame", "layer.videoLayers.replaceFootage",
+    "layer.videoLayers.interpretFootage", "layer.videoLayers.showAlteredVideo", "layer.videoLayers.restoreFrame",
+    "layer.videoLayers.restoreAllFrames", "layer.videoLayers.reloadFrame", "layer.videoLayers.rasterize", "layer.rasterize.video",
+    "edit.purge.videoCache", "edit.colorSettings", "layer.smartObjects.revealInFinder", "edit.perspectiveWarp",
+    "layer.smartObjects.perspectiveWarp", "type.languageOptions.middleEasternAndSouthAsianComposer",
+})
+# … dont le composeur, que l'écran servait lui-même (une coche jamais relue) : il sort de TRAITES_PAR_ECRAN.
+ECRAN_RETIRES = frozenset({"type.languageOptions.middleEasternAndSouthAsianComposer"})
 
 
 def check(label, cond, detail=""):
@@ -54,13 +67,13 @@ def releve(chemin_commandes: pathlib.Path) -> dict:
 
 def comparer(ref: dict, cur: dict) -> dict:
     """Écarts bloquants entre la référence et le relevé courant ; [] partout = aucune régression."""
-    perdues = sorted(i for i, e in ref["entrees"].items()
-                     if e["etat"] != "bientot" and cur["entrees"].get(i, {}).get("etat", "absent") in ("bientot", "absent"))
+    perdues = sorted(i for i, e in ref["entrees"].items() if i not in GRISES_VOLONTAIRES
+                     and e["etat"] != "bientot" and cur["entrees"].get(i, {}).get("etat", "absent") in ("bientot", "absent"))
     return {
         "entrees_perdues": perdues,
         "outils_perdus": sorted(o for o, a in ref["outils"].items() if a and not cur["outils"].get(o)),
         "panneaux_perdus": sorted(p for p, a in ref["panneaux"].items() if a and not cur["panneaux"].get(p)),
-        "ecran_perdus": sorted(set(ref["traites_par_ecran"]) - set(cur["traites_par_ecran"])),
+        "ecran_perdus": sorted(set(ref["traites_par_ecran"]) - set(cur["traites_par_ecran"]) - ECRAN_RETIRES),
     }
 
 
@@ -84,8 +97,11 @@ def main(args) -> int:
     e = comparer(ref, cur)
     check("1 aucune entrée qui marchait ne repasse « bientôt » ni ne disparaît", not e["entrees_perdues"],
           e["entrees_perdues"][:20])
-    check("2 le nombre de « bientôt » ne monte pas",
-          cur["compte"].get("bientot", 0) <= ref["compte"].get("bientot", 0), (ref["compte"], cur["compte"]))
+    grises = sorted(i for i in GRISES_VOLONTAIRES if cur["entrees"].get(i, {}).get("etat") == "bientot")
+    check("1b les 19 retraits volontaires (#415) sont bien grisés, et ce sont des entrées du catalogue",
+          len(GRISES_VOLONTAIRES) == 19 and len(grises) == 19, sorted(GRISES_VOLONTAIRES - set(grises)))
+    check("2 le nombre de « bientôt » ne monte pas (hors retraits volontaires)",
+          cur["compte"].get("bientot", 0) - len(grises) <= ref["compte"].get("bientot", 0), (ref["compte"], cur["compte"], len(grises)))
     check("3a aucun outil actif ne repasse « bientôt »", not e["outils_perdus"], e["outils_perdus"])
     check("3b aucun onglet de panneau ne disparaît", not e["panneaux_perdus"], e["panneaux_perdus"])
     check("4 TRAITES_PAR_ECRAN garde tous ses ids", not e["ecran_perdus"], e["ecran_perdus"][:20])

@@ -59,6 +59,35 @@ export function choixTraces(liste, T = (k) => k) {
   for (const p of (liste && Array.isArray(liste.paths)) ? liste.paths : []) if (p && p.name) out.push({ valeur: p.name, libelle: p.name });
   return out;
 }
+// #415 : Sélection › Charger la sélection… — la couche à charger : la transparence du calque actif, son masque de fusion
+// ou vectoriel s'il en a un, les couches alpha du document (valeur = leur index dans doc.inspect.channels.alpha, que le
+// moteur accepte ; le nom, donné par l'utilisateur, reste brut).
+export function choixCouches(doc, T = (k) => k) {
+  const trouver = (ls, id) => { for (const c of ls || []) { if (c.id === id) return c; const r = trouver(c.children, id); if (r) return r; } return null; };
+  const c = doc ? trouver(doc.layers, doc.activeLayer) : null;
+  const valeurs = [{ valeur: "transparency", libelle: T("photolab.valeur.transparency") }];
+  if (c && c.hasMask) valeurs.push({ valeur: "mask", libelle: T("photolab.valeur.layermask") });
+  if (c && c.hasVectorMask) valeurs.push({ valeur: "vectorMask", libelle: T("photolab.choix.masque_vectoriel") });
+  for (const a of (doc && doc.channels && Array.isArray(doc.channels.alpha)) ? doc.channels.alpha : []) {
+    if (a && Number.isInteger(a.index)) valeurs.push({ valeur: a.index, libelle: String(a.name || "") });
+  }
+  return [{ cle: "channel", libelle: T("photolab.histogramme.canal"), valeurs, defaut: "transparency" }];
+}
+// #415 : Calque › Dupliquer le calque… — destination : ce document (rien d'envoyé), un nouveau document, un autre document.
+export function choixDuplication(session, T = (k) => k) {
+  const tous = choixDocuments(session, true, T);
+  const actif = session && Array.isArray(session.documents) ? session.documents.find((d) => d.index === session.active) : null;
+  const ici = tous.length && actif ? [{ ...tous[0], valeur: "" }] : [];
+  return [{ cle: "document", libelle: T("photolab.calques.choix_destination"),
+    valeurs: [...ici, { valeur: "new", libelle: T("photolab.nouveau.titre") }, ...tous.slice(ici.length)] }];
+}
+// #415 : Calque › Nouveau calque de remplissage › Motif… — un motif de la bibliothèque (pattern.list) ; null s'il n'y en a aucun.
+export function choixMotifs(liste, T = (k) => k) {
+  const valeurs = (Array.isArray(liste) ? liste : []).filter((m) => m && typeof m.id === "string" && m.id)
+    .map((m) => ({ valeur: m.id, libelle: String(m.name || m.id) }));
+  return valeurs.length ? [{ cle: "pattern", libelle: T("photolab.presets.motif"), valeurs, defaut: valeurs[0].valeur }] : null;
+}
+
 // Défaut : le tracé de travail, sinon le premier enregistré, sinon aucun.
 export function traceParDefaut(choix) {
   return (choix.find((c) => c.valeur === "work") || choix.find((c) => c.valeur !== "") || { valeur: "" }).valeur;
@@ -468,6 +497,16 @@ export function initDocuments(PL) {
     const valeurs = choixDocuments(s, false, T);
     if (!valeurs.length) { PL.signaler(T("photolab.calques.aucune_destination"), true); return null; }
     return [{ cle: "document", libelle: T("photolab.calques.choix_destination"), valeurs }];
+  };
+  // #415 : Charger la sélection…, Dupliquer le calque…, Remplissage › Motif…
+  PL.choixDialogue["select.loadSelection"] = async () => choixCouches(PL.etat.doc, T);
+  PL.choixDialogue["layer.duplicate"] = async () => choixDuplication(await sessionFraiche(), T);
+  PL.choixDialogue["layer.newFillLayer.pattern"] = async () => {
+    let l = null;
+    try { l = await PL.post("/executer", { command: "pattern.list", params: {} }); } catch (e) { return null; }
+    const c = choixMotifs(l, T);
+    if (!c) PL.signaler(T("photolab.choix.aucun_motif"), true);
+    return c;
   };
   PL.choixDialogue["filter.render.flame"] = async () => {
     let l = null;

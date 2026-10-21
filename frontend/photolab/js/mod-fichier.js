@@ -70,6 +70,19 @@ export function corpsExport(id, nom, quality = 90) {
   return corps;
 }
 
+// #415 : Fichier › Enregistrer sous… — un NOUVEAU fichier de la Bibliothèque sous le nom saisi (route /bibliotheque :
+// PNG ou JPG) ; « Exporter sous… » reste le téléchargement.
+export const FORMATS_BIBLIO = FORMATS_EXPORT.filter((f) => f.id === "png" || f.id === "jpg");
+export function corpsBibliotheque(id, nom, quality = 90) {
+  const f = FORMATS_BIBLIO.find((x) => x.id === id);
+  if (!f) throw erreurSaisie("photolab.export.erreur.format");
+  const n = String(nom == null ? "" : nom).trim();
+  if (!n) throw erreurSaisie("photolab.enregistrer_sous.erreur.nom");
+  const corps = { format: f.format, nom: n };
+  if (f.qualite) corps.quality = Math.max(1, Math.min(100, Math.round(Number(quality) || 90)));
+  return corps;
+}
+
 // t257 : ce que le moteur dit avoir perdu (`warnings` de doc.save, en anglais) -> clés de message, sans doublon.
 const AVERTISSEMENTS = [[/flattened/i, "photolab.export.avert.aplati"], [/lossy/i, "photolab.export.avert.pertes"],
   [/resolution|dpi/i, "photolab.export.avert.dpi"]];
@@ -432,6 +445,43 @@ export function initFichier(PL) {
     return r;
   }
 
+  /* ── #415 : Enregistrer sous… : nom, format (PNG / JPG), qualité -> /bibliotheque, un nouveau fichier ── */
+  async function enregistrerSous() {
+    const doc = PL.etat.doc;
+    if (!doc) return;
+    let r = null;
+    await ouvrirDialogue(PL, {
+      titre: T("photolab.enregistrer_sous.titre"),
+      boutons: [
+        { role: "annuler", libelle: T("commun.action.annuler") },
+        { role: "ok", libelle: T("commun.action.enregistrer"), principal: true },
+      ],
+      construire({ corps }) {
+        const format = document.createElement("select");
+        for (const f of FORMATS_BIBLIO) { const o = document.createElement("option"); o.value = f.id; o.textContent = libelleFormat(f, T); format.appendChild(o); }
+        const qualite = entree("range", "90", { min: "1", max: "100", step: "1" });
+        const vq = document.createElement("span"); vq.className = "pl-unite"; vq.textContent = "90";
+        qualite.addEventListener("input", () => { vq.textContent = qualite.value; });
+        const lQualite = champ(T("photolab.export.qualite"), qualite); lQualite.appendChild(vq);
+        const majQualite = () => { lQualite.hidden = !(FORMATS_BIBLIO.find((f) => f.id === format.value) || {}).qualite; };
+        format.addEventListener("change", majQualite); majQualite();
+        const nom = brut(entree("text", nomDocument(doc.name), { maxlength: "80" }));
+        const aide = document.createElement("p"); aide.className = "pl-note"; aide.textContent = T("photolab.enregistrer_sous.aide");
+        const erreur = document.createElement("p"); erreur.className = "pl-erreur"; erreur.setAttribute("role", "alert");
+        corps.append(champ(T("photolab.nouveau.nom"), nom), champ(T("photolab.export.format"), format), lQualite, aide, erreur);
+        return async () => {
+          try { r = await PL.post("/bibliotheque", corpsBibliotheque(format.value, nom.value, qualite.value)); }
+          catch (e) { erreur.textContent = e.cle ? T(e.cle) : e.message; return false; }
+          return true;
+        };
+      },
+    });
+    if (!r) return;
+    PL.etat.revEnregistree = doc.revision;
+    if (PL.majOnglets) PL.majOnglets();
+    PL.signaler(T(r.travail ? "photolab.fichier.enregistre" : "photolab.envoi.sans_calques", { nom: r.filename }));
+  }
+
   /* ── Envoyer vers… : enregistrer (nouveau fichier) puis le menu « Envoyer vers » de l'application, mêmes cibles que
      la Bibliothèque (Studio, Quick, Montage, Vectorlab, Sprite Lab, Tile Lab, Cardforge…) ── */
   async function envoyer() {
@@ -545,7 +595,7 @@ export function initFichier(PL) {
   PL.actions["file.new"] = nouveau;
   PL.actions["file.open"] = ouvrir;
   PL.actions["file.save"] = enregistrer;
-  PL.actions["file.saveAs"] = exporter;
+  PL.actions["file.saveAs"] = enregistrerSous;
   PL.actions["file.export.exportAs"] = exporter;
   PL.actions["pl.importer"] = importer;
   PL.actions["pl.envoyer"] = envoyer;

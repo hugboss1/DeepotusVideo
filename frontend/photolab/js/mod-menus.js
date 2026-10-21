@@ -5,6 +5,7 @@
 // à celle de photocraft sans promettre ce qui n'est pas là. Toute la construction est PURE (qa/menus.test.mjs).
 
 import { champsVisibles, sansEcran, D9, SANS_EDITEUR, OPAQUES, CLES_CACHEES } from "./mod-champs.js";
+import { RACCOURCIS_ECRAN } from "./mod-raccourcis.js";
 
 // Copie, en minuscules, de PREFIXES_REFUSES (backend/app/services/photolab_moteur.py) : le pont refuse ces commandes
 // (fichiers, scripts, préférences…), l'écran les traite lui-même ou les marque « bientôt ». Un banc relit le source
@@ -71,6 +72,31 @@ export const IDS_EXPORTS_M8 = ["file.export.layersToFiles", "file.export.dataSet
 // Entrées « pl.* » de M7 (mod-calques : PL.actions) et les commandes moteur dont elles ouvrent le dialogue générique.
 export const IDS_CALQUES_M7 = ["pl.calque.cadre", "pl.calque.copier_document"];
 export const DIALOGUES_ECRAN_M7 = { "pl.calque.cadre": "layer.new.frame", "pl.calque.copier_document": "layer.copyToDocument" };
+// Défauts relevés par le catalogue de l'assistant (#415, relevé du 20/10/2026) : entrées actives que l'écran ne peut pas
+// rendre utiles, grisées « bientôt » une à une (avant même TRAITES_PAR_ECRAN et le registre).
+// - les calques vidéo : le moteur crée un calque et une timeline, mais l'écran n'a pas de panneau Timeline ; trois
+//   (à partir d'un fichier, remplacer, recharger) et Afficher dans le Finder, Paramètres de couleur sont TOUJOURS refusés
+//   par le moteur en automation (« ambient filesystem paths ») ; le cache vidéo suit les calques vidéo ;
+// - les deux Déformation de la perspective : les plans se tracent à la souris (comme la Déformation de la marionnette) ;
+// - le composeur Moyen-Orient et Asie du Sud : le moteur n'a aucun réglage de composeur.
+export const BIENTOT_ECRAN = new Set(["layer.videoLayers.newBlankVideoLayer", "layer.videoLayers.newVideoLayerFromFile",
+  "layer.videoLayers.insertBlankFrame", "layer.videoLayers.duplicateFrame", "layer.videoLayers.deleteFrame", "layer.videoLayers.replaceFootage",
+  "layer.videoLayers.interpretFootage", "layer.videoLayers.showAlteredVideo", "layer.videoLayers.restoreFrame", "layer.videoLayers.restoreAllFrames",
+  "layer.videoLayers.reloadFrame", "layer.videoLayers.rasterize", "layer.rasterize.video", "edit.purge.videoCache", "edit.colorSettings",
+  "layer.smartObjects.revealInFinder", "edit.perspectiveWarp", "layer.smartObjects.perspectiveWarp",
+  "type.languageOptions.middleEasternAndSouthAsianComposer"]);
+// Image › Analyse › Outil Règle / Outil Compteur : choisissent l'outil de l'écran (mod-mesure), sans document.
+export const OUTILS_ANALYSE = { "image.analysis.rulerTool": "ruler", "image.analysis.countTool": "count" };
+// Calque › Masque de calque › Activer / Lier : bascules de l'écran (mod-calques : même état que le panneau Calques).
+const IDS_MASQUE_ECRAN = ["layer.layerMask.enabled", "layer.layerMask.linked"];
+// Calque › Dupliquer le calque… (la copie peut aller dans un nouveau document : l'écran suit le document actif) et
+// Calque › Options de contenu du calque… (l'éditeur que le moteur désigne) : de l'écran (mod-calques).
+export const IDS_DIALOGUES_ECRAN = ["layer.duplicate", "layer.layerContentOptions"];
+// Dialogues sur mesure : Résoudre les polices manquantes…, Vérifier l'orthographe… (mod-verifier-texte, document requis)
+// et Barre d'outils… (mod-clavier : outils masqués, préférences de l'écran — le moteur n'est pas appelé).
+const IDS_VERIF_TEXTE = ["type.resolveMissingFonts", "edit.checkSpelling"];
+// Entrées qui s'exécutent sans dialogue alors que le catalogue écrit « … » : l'écran retire les points de suspension.
+export const SANS_POINTS = new Set(["layer.new.artboardFromGroup"]);
 export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs",
   "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre",
   // t191 : Calque › Nouveau calque IA… / Retirer le fond du calque (mod-iacalque : routes /calque/ia, /calque/detourer)
@@ -101,7 +127,7 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   "type.panels.character", "type.panels.paragraph", "type.panels.glyphs", "type.panels.characterStyles", "type.panels.paragraphStyles",
   "type.fontPreviewSize.small", "type.fontPreviewSize.medium", "type.fontPreviewSize.large", "type.fontPreviewSize.extraLarge",
   "type.fontPreviewSize.huge", "type.languageOptions.defaultFeatures", "type.languageOptions.eastAsianFeatures",
-  "type.languageOptions.middleEasternFeatures", "type.languageOptions.middleEasternAndSouthAsianComposer", "edit.search",
+  "type.languageOptions.middleEasternFeatures", "edit.search",
   // t152 : menu Affichage (mod-affichage : IDS_AFFICHAGE — banc affichage 7.4) ; les commandes moteur des repères
   // (Nouveau repère…, Effacer les repères…) restent au moteur
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent",
@@ -118,14 +144,18 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // modification (mod-modificateurs), préréglages (mod-gestionnaire : dialogues sur les commandes rouvertes par PERMIS)
   ...IDS_PREFERENCES_ECRAN,
   // t160 : mesure, comptage, notes, tranches (mod-mesure ; Affichage par mod-affichage, panneaux par mod-espaces)
-  ...IDS_MESURE]);
+  ...IDS_MESURE,
+  // #415 : outils d'Image › Analyse, bascules du masque de calque
+  ...Object.keys(OUTILS_ANALYSE), ...IDS_MASQUE_ECRAN, ...IDS_DIALOGUES_ECRAN, ...IDS_VERIF_TEXTE, "edit.toolbar"]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
 export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_IA, ...IDS_CALQUES_M7, ...IDS_EXPORTS_M8, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
   // t154 : la transformation manuelle vise le calque actif
   "edit.freeTransform", "edit.transform.scale", "edit.transform.rotate", "edit.transform.skew", "edit.transform.distort",
-  "edit.transform.perspective"]);
+  "edit.transform.perspective",
+  // #415 : le masque et le contenu du calque actif
+  ...IDS_MASQUE_ECRAN, ...IDS_DIALOGUES_ECRAN, ...IDS_VERIF_TEXTE]);
 
 // Le registre arrive en tableau ; on tolère {commands:[…]}.
 export function indexRegistre(registre) {
@@ -188,6 +218,7 @@ export function raccourciAffiche(s, lang = "fr") {
 }
 
 function etatDe(id, idx, refuses) {
+  if (BIENTOT_ECRAN.has(id)) return "bientot";
   if (TRAITES_PAR_ECRAN.has(id)) return "actif";
   const bas = String(id).toLowerCase();
   if (refuses.some((p) => bas.startsWith(p)) && !PERMIS.includes(id)) return "bientot";
@@ -200,6 +231,15 @@ function etatDe(id, idx, refuses) {
   // ces commandes sont nommées une à une, aucune exemption ne doit les rouvrir.
   if (D9.has(id) || SANS_EDITEUR.has(id) || (aiguillage(id) === "generique" && sansEcran(id, champsDe(r)))) return "bientot";
   return r.enabled === false ? "inactif" : "actif";
+}
+
+// #415 : raccourcis que l'écran ajoute (mod-raccourcis, « ctrl+shift+z », « delete »), affichés comme ceux du catalogue.
+const RACCOURCI_PAR_ID = Object.fromEntries(Object.entries(RACCOURCIS_ECRAN).map(([combo, id]) => [id, combo]));
+function raccourciEcranAffiche(id, lang, t) {
+  const combo = RACCOURCI_PAR_ID[id];
+  if (!combo) return "";
+  const nom = (p) => (p === "ctrl" ? "Cmd" : p === "shift" ? "Shift" : p === "alt" ? "Alt" : p === "delete" ? t("photolab.touche.delete") : p.toUpperCase());
+  return raccourciAffiche(combo.split("+").map(nom).join("+"), lang);
 }
 
 // Supprime, récursivement, les sous-menus vides, puis les séparateurs en tête, en queue ou doublés.
@@ -220,7 +260,8 @@ function nettoyer(entrees) {
 // (photolab.styles.options_fusion pour blendingOptions) quand le dictionnaire l'a, et garde la ponctuation du
 // catalogue (« … » : l'entrée ouvre un dialogue). Sans clé : le catalogue tel quel. menus.json n'est jamais touché.
 function libelleCatalogue(e, lang, t) {
-  const lib = (lang === "fr" ? e.libelle_fr || e.libelle_en : e.libelle_en || e.libelle_fr) || e.id;
+  const lib0 = (lang === "fr" ? e.libelle_fr || e.libelle_en : e.libelle_en || e.libelle_fr) || e.id;
+  const lib = SANS_POINTS.has(e.id) ? lib0.replace(/…$/, "") : lib0;
   if (typeof e.id !== "string" || !e.id.startsWith(PREFIXE_STYLE) || typeof t !== "function") return lib;
   const k = e.id.slice(PREFIXE_STYLE.length);
   const cle = k === "blendingOptions" ? "photolab.styles.options_fusion" : "photolab.styles." + k.toLowerCase();
@@ -252,7 +293,7 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
     liste.push({
       type: "commande", id: e.id,
       libelle: libelleCatalogue(e, lang, t),
-      raccourci: raccourciAffiche(e.raccourci, lang),
+      raccourci: raccourciAffiche(e.raccourci, lang) || raccourciEcranAffiche(e.id, lang, t),
       etat: etatDe(e.id, idx, refuses),
       champs: champsDe(r),               // null : commande absente du registre, ou pont sans `champs`
     });

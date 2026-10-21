@@ -60,7 +60,9 @@ STRUCT = PR.structurer(COMMANDES)
 # t254 : 185 — les champs des tracés et du texte ouverts (name, subpath, knot, t, échelle, angle, shape) compris.
 # t256 : 184 — `from` de history.newSnapshot compris (énumération).
 # t256 PR 3 : 183 — `size` de edit.transform.warpGrid compris (énumération).
-NB_NON_OK = {"0.3.0": 123, "0.10.0": 183}[_PV.VERSION]
+# #415 : 181 — view.newGuide (position) corrigé (la couleur reste « ? ») ; image.trap et edit.checkSpelling réécrits
+# (photolab_registre.CHAMPS_REECRITS).
+NB_NON_OK = {"0.3.0": 123, "0.10.0": 181}[_PV.VERSION]
 
 print("\n[1] les dix exemples bruts")
 r = PR.parser(EX["filter.blur.gaussianBlur"]["params"])
@@ -616,7 +618,9 @@ check("7e corrections t251 : seules layer.select.layer, tools.setColors.fore/bac
           ("layer.layerStyle.defaultFor", "kind"), ("history.newSnapshot", "from"), ("history.deleteSnapshot", "snapshot"),
           ("history.renameSnapshot", "snapshot"), ("history.selectSnapshot", "snapshot"),
           # PR 3 : la grille de Ctrl+T › Déformer
-          ("edit.transform.warpGrid", "size")])), t251)
+          ("edit.transform.warpGrid", "size"),
+          # #415 : Affichage › Nouveau repère…
+          ("view.newGuide", "position")])), t251)
 autres = [(i, c["cle"]) for i, v in STRUCT.items() for c in v["champs"]
           if c.get("cle") == "exposure" and i not in ("image.adjustments.exposure", "layer.newAdjustmentLayer.exposure")]
 check("7c les autres `exposure` du registre ne sont pas touchés", all(

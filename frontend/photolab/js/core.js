@@ -35,6 +35,7 @@ import { initTransformer } from "./mod-transformer.js";
 import { initFormes } from "./mod-formes.js";
 import { initTrace } from "./mod-trace.js";
 import { initTexte } from "./mod-texte.js";
+import { initVerifierTexte } from "./mod-verifier-texte.js";
 import { initRecherche } from "./mod-recherche.js";
 import { initGalerie } from "./mod-galerie.js";
 import { initMasquer } from "./mod-masquer.js";
@@ -157,6 +158,7 @@ initPresets(PL, "styles");
 initFormes(PL);          // t156 : outils de forme, plume / tracés, texte, Rechercher — après les gestes et les outils
 initTrace(PL);
 initTexte(PL);
+initVerifierTexte(PL);   // #415 : Résoudre les polices manquantes…, Vérifier l'orthographe…
 initRecherche(PL);
 initMesure(PL);          // t160 : Règle, Comptage, Note, Tranches ; panneaux Mesures et Notes — après les gestes et l'affichage
 initModificateurs(PL);   // t159 : Fenêtre › Touches de modification (capture des événements, coche de Fenêtre)
