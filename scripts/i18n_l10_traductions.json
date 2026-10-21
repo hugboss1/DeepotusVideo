@@ -6599,6 +6599,14 @@
   "fr": "os {nom} : parent {parent} inconnu ou déclaré après lui",
   "en": "bone {nom}: parent {parent} unknown or declared after it"
  },
+ "outils.masques : liste de {MAX_OUTILS_MASQUES} outils au plus": {
+  "fr": "outils.masques : liste de {MAX_OUTILS_MASQUES} outils au plus",
+  "en": "outils.masques: list of at most {MAX_OUTILS_MASQUES} tools"
+ },
+ "outils.masques : outil mal formé : {k}": {
+  "fr": "outils.masques : outil mal formé : {k}",
+  "en": "outils.masques: malformed tool: {k}"
+ },
  "pack must be a list": {
   "fr": "pack doit être une liste",
   "en": "pack must be a list"
