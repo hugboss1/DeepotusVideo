@@ -32,6 +32,7 @@ PAYANTES = {
     ("routes", "POST", "/espaces/{espace_id}/onboarding/synthese"),    # t205 : synthèse du persona par LLM (sur demande)
     ("routes", "POST", "/espaces/{espace_id}/contenus/generer"),       # t207 : contenus de départ par LLM (sur demande)
     ("agent", "POST", "/lire"),   # A6 (19/10/2026) : la réponse de l'assistant lue à voix haute (garde « aide »)
+    ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
     ("photolab", "POST", "/calque/detourer"),    # t191 : « Retirer le fond du calque » (détourage, non destructif)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer
@@ -135,6 +136,9 @@ anciens["photolab"] = _pl.replace("_plafond(", "_sans_garde(") if "_plafond(" in
 # A6 : la route de lecture de l'assistant n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
 _ag = (RP.MODULES["agent"]).read_text(encoding="utf-8")
 anciens["agent"] = _ag.replace("_PLAF.verifier(", "_sans_garde(") if "_PLAF.verifier(" in _ag else None
+# t272 : les nœuds IA de l'Atelier sonore n'existaient pas en bfec23e — même témoin : le source actuel privé de sa garde
+_agr = (RP.MODULES["audio_graph"]).read_text(encoding="utf-8")
+anciens["audio_graph"] = _agr.replace("_plafond(", "_sans_garde(") if "_plafond(" in _agr else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

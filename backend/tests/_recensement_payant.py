@@ -22,6 +22,7 @@ MODULES = {
     "avatar_live": RACINE / "api" / "avatar_live_routes.py",   # t161 : le Direct (Decart Lucy 2.5)
     "photolab": RACINE / "api" / "photolab_routes.py",   # t191 : calque IA et détourage du Photolab (fal, OpenAI)
     "agent": RACINE / "api" / "agent_routes.py",   # A6 : la lecture de l'assistant (ElevenLabs, ou Voicebox gratuit)
+    "audio_graph": RACINE / "api" / "audio_graph_routes.py",   # t272 : les nœuds IA de l'Atelier sonore (fal)
 }
 
 PUITS = {
@@ -44,6 +45,7 @@ PUITS = {
     "reconstruire",   # t189 : le storyboard 3D (SAM 3 objets / corps, fal) — POST /shots/{shot_id}/objets3d
     "detourer",   # T103 : le matte vidéo BiRefNet (fal)
     "detourer_image",   # t186 : le registre unique du détourage (fal, ou local gratuit ; la vidéo passe par MT.detourer)
+    "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
     "transcribe",
     # vidéo / HeyGen (`pipeline.run` en nom pointé : `run` seul attraperait subprocess.run)

@@ -76,9 +76,10 @@ def G(noeuds, liens):
 print("[N] catalogue des nœuds")
 CAT = AG.catalogue()
 TYPES = {t["type"]: t for t in CAT["noeuds"]}
-check("N1 quatorze types de nœuds (t271 : limiteur, chorus, flanger)",
+check("N1 dix-huit types de nœuds (t271 : limiteur, chorus, flanger ; t272 : quatre nœuds IA)",
       sorted(TYPES) == sorted(["source", "effet", "gain", "pan", "tempo", "hauteur", "plage", "decalage", "mix", "duck",
-                               "sortie", "limiteur", "chorus", "flanger"]), sorted(TYPES))
+                               "sortie", "limiteur", "chorus", "flanger", "ia_prolonger", "ia_regenerer",
+                               "ia_variation", "ia_sfx"]), sorted(TYPES))
 check("N5 bornes t271 : limiteur −24/0 dB, attaque 0,1-80 ms, relâche 1-8000 ms ; flanger = bornes de ffmpeg",
       TYPES["limiteur"]["params"] == {"plafond_db": [-24, 0, -1], "attaque_ms": [0.1, 80, 5], "relache_ms": [1, 8000, 50]}
       and TYPES["flanger"]["params"] == {"retard_ms": [0, 30, 0], "profondeur_ms": [0, 10, 2], "retour": [-95, 95, 0],
