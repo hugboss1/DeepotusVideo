@@ -6,6 +6,7 @@ filter_complex ffmpeg, local et gratuit :
   - source    0 entrée   un fichier du dossier audio, mis au format commun (44,1 kHz, stéréo, flottant) ;
   - effet     1 entrée   un module du vocabulaire FX partagé avec le Montage (sfx_service._FX_PARAMS / _FX_BUILD) ;
   - gain, pan, tempo, hauteur, decalage   1 entrée ;
+  - limiteur, chorus, flanger             1 entrée (t271) ;
   - plage     1 entrée   couper (début, fin), boucler, fondus d'entrée et de sortie ;
   - mix       2 à 8 entrées (amix, durée la plus longue, sans normalisation) ;
   - duck      2 entrées  principal, déclencheur (la chaîne de ducking partagée, sfx_service.ducking_filter) ;
@@ -54,6 +55,12 @@ _TYPES: dict[str, tuple[int, dict[str, tuple[float, float, float]]]] = {
     "duck": (2, {"ratio": (2.0, 20.0, 6.0), "attack_ms": (5.0, 500.0, 50.0), "release_ms": (50.0, 2000.0, 400.0),
                  "threshold": (0.01, 0.3, 0.05)}),
     "sortie": (1, {}),
+    # t271 (écarts de t270 repris) : limiteur, chorus, flanger — bornes de ffmpeg (alimiter, chorus, flanger)
+    "limiteur": (1, {"plafond_db": (-24.0, 0.0, -1.0), "attaque_ms": (0.1, 80.0, 5.0), "relache_ms": (1.0, 8000.0, 50.0)}),
+    "chorus": (1, {"retard_ms": (20.0, 100.0, 40.0), "vitesse_hz": (0.1, 5.0, 0.5), "profondeur_ms": (0.5, 10.0, 2.0),
+                   "melange": (0.0, 100.0, 50.0)}),
+    "flanger": (1, {"retard_ms": (0.0, 30.0, 0.0), "profondeur_ms": (0.0, 10.0, 2.0), "retour": (-95.0, 95.0, 0.0),
+                    "melange": (0.0, 100.0, 71.0), "vitesse_hz": (0.1, 10.0, 0.5)}),
 }
 _ENTIERS = {("mix", "entrees"), ("plage", "boucles")}
 
@@ -225,6 +232,20 @@ def _frag(typ: str, p: dict) -> str:
             fo = min(p["fondu_sortie"], total)
             parts.append(f"afade=t=out:st={g(max(0.0, total - fo))}:d={g(fo)}")
         return ",".join(parts)
+    if typ == "limiteur":
+        # niveau automatique coupé (level=0) : sinon alimiter remonte le signal au plafond
+        return (f"alimiter=limit={g(max(0.0625, 10 ** (p['plafond_db'] / 20.0)))}:attack={g(p['attaque_ms'])}"
+                f":release={g(p['relache_ms'])}:level=0")
+    if typ == "chorus":
+        if p["melange"] < 0.5:
+            return ""
+        return (f"chorus=0.7:0.9:{g(p['retard_ms'])}:{g(p['melange'] / 100.0)}:{g(p['vitesse_hz'])}"
+                f":{g(p['profondeur_ms'])}")
+    if typ == "flanger":
+        if p["melange"] < 0.5:
+            return ""
+        return (f"flanger=delay={g(p['retard_ms'])}:depth={g(p['profondeur_ms'])}:regen={g(p['retour'])}"
+                f":width={g(p['melange'])}:speed={g(p['vitesse_hz'])}")
     if typ == "mix":
         return f"amix=inputs={p['entrees']}:duration=longest:normalize=0"
     if typ == "duck":

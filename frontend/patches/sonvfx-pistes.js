@@ -26,6 +26,12 @@ if(!res.ok){var m=d&&d.detail;throw new Error((m&&m.message)||(typeof m==="strin
 return d;
 });
 }
+/* t271 : ouvre une piste dans l'Atelier sonore (mode « Atelier » de Musique), qui la pose comme source */
+function dzSvpVersAtelier(fichier){
+try{window.__dzSvAtelierAjout={fichier:fichier};}catch(e){}
+window.dispatchEvent(new CustomEvent("deepotus:sonvfx-subtab",{detail:{id:"music",mode:"atelier"}}));
+window.dispatchEvent(new CustomEvent("deepotus:sva-ajout"));
+}
 function DzSvPistes(p){
 var US=x.useState,UE=x.useEffect,UR=x.useRef;
 var s1=US(null),liste=s1[0],setListe=s1[1];
@@ -174,6 +180,7 @@ r.jsx("audio",{ref:function(el){if(el)lecteurs.current[t.name]=el;else delete le
 r.jsx("button",{type:"button",className:"dzsvp-mini","aria-pressed":c0.m?"true":"false",title:dzT("sonvfx.pistes.muet"),"aria-label":dzT("sonvfx.pistes.muet")+" : "+nom,onClick:function(){regle(t.name,"m",!c0.m);},children:__dzGl("dz-media-muet",15)}),
 r.jsx("button",{type:"button",className:"dzsvp-mini","aria-pressed":c0.s?"true":"false",title:dzT("sonvfx.pistes.solo"),"aria-label":dzT("sonvfx.pistes.solo")+" : "+nom,onClick:function(){regle(t.name,"s",!c0.s);},children:__dzGl("dz-media-solo",15)}),
 r.jsx("input",{className:"dzsvp-vol",type:"range",min:0,max:1,step:0.05,value:c0.v==null?1:c0.v,"aria-label":dzT("sonvfx.pistes.volume",{nom:nom}),onChange:function(e){regle(t.name,"v",Number(e.target.value));}}),
+r.jsx("button",{type:"button",className:"dzsvp-mini","data-sv-pistes":"atelier-stem",title:dzT("sonvfx.pistes.vers_atelier_nom",{nom:nom}),"aria-label":dzT("sonvfx.pistes.vers_atelier_nom",{nom:nom}),onClick:function(){arreter();dzSvpVersAtelier(t.name);},children:__dzGl("dz-action-envoyer-vers",15)}),
 r.jsx("a",{className:"dzsvp-mini",href:t.url,download:t.name,title:dzT("sonvfx.pistes.telecharger",{nom:nom}),"aria-label":dzT("sonvfx.pistes.telecharger",{nom:nom}),children:__dzGl("dz-action-telecharger",15)})]},t.name);
 }
 var carteStems=stems.length?r.jsxs("div",{className:"dzsvp-carte",children:[
@@ -189,7 +196,8 @@ var principal=cur?r.jsxs(r.Fragment,{children:[
 r.jsxs("div",{className:"dzsvp-carte",children:[
 r.jsxs("div",{className:"dzsvp-tete",children:[
 r.jsx("span",{className:"dzsvp-curn",children:cur.name}),
-dur?r.jsx("span",{className:"dzsvp-genre",children:dzT("sonvfx.pistes.duree",{d:dzSvpDuree(dur)})}):null]}),
+dur?r.jsx("span",{className:"dzsvp-genre",children:dzT("sonvfx.pistes.duree",{d:dzSvpDuree(dur)})}):null,
+r.jsx("button",{type:"button",className:"dzsvp-btn","data-sv-pistes":"atelier",onClick:function(){arreter();dzSvpVersAtelier(cur.name);},children:dzT("sonvfx.pistes.vers_atelier")})]}),
 r.jsx("audio",{className:"dzsvp-lecteur",controls:!0,src:cur.url,preload:"metadata",onLoadedMetadata:function(e){setDur(e.target.duration||0);}})]}),
 carteSep,carteStems]}):r.jsx("div",{className:"dzsvp-vide",children:dzT("sonvfx.pistes.choisir")});
 return r.jsxs("div",{className:"dzsvp",children:[

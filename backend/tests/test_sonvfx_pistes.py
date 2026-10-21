@@ -78,6 +78,8 @@ const x={useState(v){const k=HI++;if(!(k in H))H[k]=typeof v==="function"?v():v;
 const r={jsx:(t,p)=>({t,p}),jsxs:(t,p)=>({t,p}),Fragment:"F"};
 function dzT(k,v){return "⟦"+k+"⟧"+(v?JSON.stringify(v):"")}
 function __dzGl(n){return {t:"glyph",p:{name:n}}}
+let EMIS=[];const window={dispatchEvent:e=>{EMIS.push([e.type,e.detail===undefined?null:e.detail,window.__dzSvAtelierAjout||null])}};
+class CustomEvent{constructor(t,o){this.type=t;this.detail=o&&o.detail}}
 class FormData{constructor(){this.e=[]}append(k,v){this.e.push([k,v&&v.name])}}
 let APPELS=[],AUDIO=[],META={},MODS={},REP={};
 function json(d,st){return Promise.resolve({ok:(st||200)<400,status:st||200,json:()=>Promise.resolve(d)})}
@@ -158,6 +160,8 @@ function stemBtn(stem,k){const L=un(n=>n.p&&n.p.className==="dzsvp-stem"&&n.p["d
  R.survol_apres=un(n=>n.p&&n.p.className==="dzsvp-depot").p["data-survol"]===void 0;
  tout(A,n=>n.p&&n.p.className==="dzsvp-ligne",[]).find(n=>texte(n.p.children[0])==="musique_a.mp3").p.onClick();await calme();
  REP.stems={st:400,d:{detail:"fal.ai: aucune clé configurée"}};btn("separer").p.onClick();await calme();btn("separer").p.onClick();await calme();R.erreur=etat();
+ EMIS=[];btn("atelier").p.onClick();R.vers_atelier=EMIS.slice();
+ EMIS=[];btn("atelier-stem").p.onClick();R.vers_atelier_stem=EMIS.slice();
  AUDIO=[];META={};H=[];rendre();await calme();R.vide=etat();
  process.stdout.write(JSON.stringify(R));})().catch(e=>process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)})));
 """
@@ -240,6 +244,12 @@ c = R.get("vide", {})
 check("P25 Bibliothèque vide : l'invitation, aucune carte de séparation",
       c.get("aides") == ["⟦sonvfx.pistes.vide⟧"] and c.get("vide") == "⟦sonvfx.pistes.choisir⟧"
       and c.get("separer") is None, c)
+
+check("P26 « Ouvrir dans l'Atelier » (piste choisie) : la piste en attente, puis le mode Atelier, puis l'ajout",
+      R.get("vers_atelier") == [["deepotus:sonvfx-subtab", {"id": "music", "mode": "atelier"}, {"fichier": "musique_a.mp3"}],
+                                ["deepotus:sva-ajout", None, {"fichier": "musique_a.mp3"}]], R.get("vers_atelier"))
+check("P27 « Ouvrir dans l'Atelier » d'une piste séparée : c'est elle qui part",
+      (R.get("vers_atelier_stem") or [[None, None, {}]])[0][2] == {"fichier": "stem_musique_a_vocals.mp3"}, R.get("vers_atelier_stem"))
 
 print(f"\n{ok} PASS / {fail} FAIL")
 
