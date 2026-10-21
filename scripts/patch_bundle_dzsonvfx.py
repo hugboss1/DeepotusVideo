@@ -33,7 +33,11 @@ t273 (21/10) — la Voix off est une page à elle (`DzSvVoix`, source frontend/p
 `/*__dzsvatelier*/` et `/*__dzsvvoix*/`) : bibliothèque de voix, script, réglages, résultat et retouches. Le hub la
 rend sur le sous-onglet « voiceover » et MASQUE la vue d'origine (montée, comme sous Pistes et Atelier) : l'encart de
 post-traitement de cette vue ne s'affiche plus. Le bloc SONVFX (couche L4) n'est toujours pas touché.
-Textes : clés dzT `sonvfx.hub.*`, `sonvfx.pistes.*`, `sonvfx.atelier.*` et `sonvfx.voix.*`, LITTÉRALES dans le livré, dans frontend/shared/i18n/sonvfx_hub.json.
+t274 (21/10) — les Particules sont une page à elle (`DzSvParticules`, source frontend/patches/sonvfx-particules.js, entre
+`/*__dzsvvoix*/` et `/*__dzsvparticules*/`) : viewport en direct, inspecteur repliable, frise et clés de cadence,
+vignettes animées ; son moteur est le PORT JS fidèle de particle_service (même graine, mêmes pixels). Le hub la rend sur
+le sous-onglet « vfx » et masque la vue d'origine, comme pour la Voix.
+Textes : clés dzT `sonvfx.hub.*`, `sonvfx.pistes.*`, `sonvfx.atelier.*`, `sonvfx.voix.*` et `sonvfx.particules.*`, LITTÉRALES dans le livré, dans frontend/shared/i18n/sonvfx_hub.json.
 
 Maillon de QUEUE, APRÈS dzconstats (dont il sonde le marqueur) ; il garde un .js.bak_dzsonvfx le temps de l'écriture
 puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzsonvfx` dans
@@ -55,6 +59,7 @@ MARKER_ATTENDU = 1
 PISTES = pathlib.Path(__file__).resolve().parent.parent / "frontend" / "patches" / "sonvfx-pistes.js"
 ATELIER = PISTES.with_name("sonvfx-atelier.js")
 VOIX = PISTES.with_name("sonvfx-voix.js")
+PARTICULES = PISTES.with_name("sonvfx-particules.js")
 
 
 def aplatir(src: str) -> str:
@@ -369,13 +374,117 @@ CSS_VOIX = (
     "background:var(--bg-panel-2)}"
 )
 
+# t274 : la page Particules (DzSvParticules, source frontend/patches/sonvfx-particules.js) — bandeau de presets,
+# viewport, frise, inspecteur à droite ; angles vifs (règle du hub)
+CSS_PARTICULES = (
+    ".dzsvx{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr) 300px;"
+    "grid-template-rows:auto minmax(0,1fr) auto;min-height:0;background:var(--bg-base,#0a0a0c);color:var(--ink);"
+    "font-size:12px}"
+    ".dzsvx-attente{margin:auto;grid-column:1/-1;grid-row:1/-1;color:var(--ink-soft);font-size:13px}"
+    ".dzsvx-bandeau{grid-column:1;grid-row:1;display:flex;flex-direction:column;gap:6px;padding:10px 14px 8px;"
+    "border-bottom:1px solid var(--stroke);background:var(--bg-panel);min-width:0}"
+    ".dzsvx-onglets{display:flex;gap:2px}"
+    ".dzsvx-onglet{font:inherit;font-size:11px;padding:4px 10px;border:1px solid var(--stroke);background:var(--bg-base);"
+    "color:var(--ink-soft);cursor:pointer}"
+    ".dzsvx-onglet[aria-pressed=true]{background:var(--cat);border-color:var(--cat);color:var(--cat-ink,#14181d);"
+    "font-weight:600}"
+    ".dzsvx-presets{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}"
+    ".dzsvx-preset{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:92px;padding:4px;"
+    "font:inherit;text-align:left;border:1px solid var(--stroke);background:var(--bg-panel-2);color:var(--ink);cursor:pointer}"
+    ".dzsvx-preset[aria-pressed=true]{border-color:var(--cat);box-shadow:inset 0 0 0 1px var(--cat)}"
+    ".dzsvx-vignette{display:block;width:82px;height:82px;object-fit:cover;background-color:#16181c;"
+    "background-image:repeating-conic-gradient(#24272d 0 25%,#16181c 0 50%);background-size:12px 12px}"
+    ".dzsvx-pnom{font-size:11px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
+    ".dzsvx-ptype{font-family:var(--f-mono,monospace);font-size:9.5px;color:var(--ink-soft);white-space:nowrap}"
+    ".dzsvx-vue{grid-column:1;grid-row:2;position:relative;display:flex;align-items:center;justify-content:center;"
+    "min-height:0;overflow:hidden;outline:none;background:var(--bg-base,#0a0a0c)}"
+    ".dzsvx-vue:focus-visible{box-shadow:inset 0 0 0 1px var(--cat)}"
+    ".dzsvx-scene{position:relative;height:calc(100% - 64px);max-width:calc(100% - 28px);aspect-ratio:1;"
+    "border:1px solid var(--stroke);background-color:#2a2d33;"
+    "background-image:repeating-conic-gradient(#3a3e46 0 25%,#2a2d33 0 50%);background-size:24px 24px}"
+    ".dzsvx-vue[data-fond=noir] .dzsvx-scene,.dzsvx-vue[data-fond=source] .dzsvx-scene{background:#000}"
+    ".dzsvx-source,.dzsvx-toile{position:absolute;inset:0;width:100%;height:100%}"
+    ".dzsvx-source{object-fit:cover}"
+    ".dzsvx-outils{position:absolute;left:14px;right:14px;bottom:10px;display:flex;flex-wrap:wrap;align-items:center;"
+    "gap:6px;padding:5px 6px;border:1px solid var(--stroke);background:var(--bg-panel)}"
+    ".dzsvx-outils .dzsvx-segs{width:auto}"
+    ".dzsvx-graine{display:flex;align-items:center;gap:6px;margin-left:auto}"
+    ".dzsvx-graine input{width:104px;font:inherit;font-family:var(--f-mono,monospace);font-size:11px;padding:4px 6px;"
+    "border:1px solid var(--stroke);background:var(--bg-base);color:var(--ink)}"
+    ".dzsvx-frise{grid-column:1;grid-row:3;display:flex;flex-direction:column;gap:6px;padding:8px 14px 10px;"
+    "border-top:1px solid var(--stroke);background:var(--bg-panel)}"
+    ".dzsvx-ftete{display:flex;align-items:center;flex-wrap:wrap;gap:8px}"
+    ".dzsvx-temps{font-family:var(--f-mono,monospace);font-size:11px;color:var(--ink)}"
+    ".dzsvx-calcul{margin-left:auto;font-family:var(--f-mono,monospace);font-size:10.5px;color:var(--accent)}"
+    ".dzsvx-calcul[data-ok]{color:var(--cat)}"
+    ".dzsvx-regle-temps{position:relative;height:22px;border:1px solid var(--stroke);background:var(--bg-base,#0a0a0c);"
+    "cursor:ew-resize;touch-action:none}"
+    ".dzsvx-graduations{position:absolute;inset:0;background-image:linear-gradient(90deg,"
+    "color-mix(in srgb,var(--ink-soft) 30%,transparent) 1px,transparent 1px)}"
+    ".dzsvx-tete{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:var(--cat);pointer-events:none}"
+    ".dzsvx-cadence{display:grid;grid-template-columns:96px minmax(0,1fr) auto;align-items:center;gap:8px}"
+    ".dzsvx-cles{width:100%;height:44px;border:1px solid var(--stroke);background:var(--bg-base,#0a0a0c);cursor:crosshair;"
+    "touch-action:none}"
+    ".dzsvx-courbe{fill:none;stroke:var(--cat);stroke-width:2;vector-effect:non-scaling-stroke}"
+    ".dzsvx-cle{fill:var(--cat);stroke:var(--bg-base,#0a0a0c);stroke-width:1;vector-effect:non-scaling-stroke;cursor:move}"
+    ".dzsvx-inspecteur{grid-column:2;grid-row:1/4;display:flex;flex-direction:column;gap:8px;padding:12px;min-height:0;"
+    "overflow:auto;border-left:1px solid var(--stroke);background:var(--bg-panel)}"
+    ".dzsvx-itete{display:flex;align-items:baseline;gap:8px}"
+    ".dzsvx-titre{font-family:var(--f-mono,monospace);font-size:10px;letter-spacing:.14em;text-transform:uppercase;"
+    "color:var(--cat)}"
+    ".dzsvx-courant{flex:1;min-width:0;text-align:right;font-size:12px;font-weight:600;color:var(--ink-strong,#f2efe9);"
+    "overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
+    ".dzsvx-section{flex:none;border:1px solid var(--stroke);background:var(--bg-panel-2)}"
+    ".dzsvx-stete{display:flex;align-items:center;gap:6px;width:100%;font:inherit;font-size:12px;font-weight:600;"
+    "text-align:left;padding:7px 10px;border:0;border-left:3px solid var(--cat);background:transparent;"
+    "color:var(--ink-strong,#f2efe9);cursor:pointer}"
+    ".dzsvx-chevron{display:flex;color:var(--cat);transition:transform .15s}"
+    ".dzsvx-stete[aria-expanded=false] .dzsvx-chevron{transform:rotate(-90deg)}"
+    ".dzsvx-scorps{display:flex;flex-direction:column;gap:7px;padding:4px 10px 10px}"
+    ".dzsvx-regle,.dzsvx-couleur{display:grid;grid-template-columns:96px minmax(0,1fr) 46px;align-items:center;gap:6px}"
+    ".dzsvx-regle input[type=range]{width:100%;accent-color:var(--cat)}"
+    ".dzsvx-couleur input[type=color]{width:100%;height:24px;padding:0 2px;border:1px solid var(--stroke);"
+    "background:var(--bg-base)}"
+    ".dzsvx-rnom{font-size:11px;color:var(--ink-soft)}"
+    ".dzsvx-rval{font-family:var(--f-mono,monospace);font-size:10.5px;text-align:right;color:var(--ink)}"
+    ".dzsvx-segs{display:grid;gap:2px;width:100%}"
+    ".dzsvx-seg{font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--stroke);background:var(--bg-base);"
+    "color:var(--ink-soft);cursor:pointer;white-space:nowrap}"
+    ".dzsvx-seg[aria-pressed=true]{background:var(--cat);border-color:var(--cat);color:var(--cat-ink,#14181d);font-weight:600}"
+    ".dzsvx-textete{display:flex;align-items:center;justify-content:space-between;gap:8px}"
+    ".dzsvx-sel{font:inherit;font-size:11px;padding:3px 6px;border:1px solid var(--stroke);background:var(--bg-base);"
+    "color:var(--ink)}"
+    ".dzsvx-textures{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:3px;max-height:132px;overflow:auto}"
+    ".dzsvx-texture{padding:0;aspect-ratio:1;border:1px solid var(--stroke);background:#16181c;cursor:pointer}"
+    ".dzsvx-texture[aria-pressed=true]{border-color:var(--cat);box-shadow:inset 0 0 0 1px var(--cat)}"
+    ".dzsvx-texture img{display:block;width:100%;height:100%;object-fit:contain}"
+    ".dzsvx-export{flex:none;display:flex;flex-direction:column;gap:8px;margin-top:auto;padding:10px;"
+    "border:1px solid var(--stroke);border-top:2px solid var(--cat);background:var(--bg-panel-2)}"
+    ".dzsvx-actions{display:flex;flex-wrap:wrap;gap:6px}"
+    ".dzsvx-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-size:12px;"
+    "padding:5px 10px;border:1px solid var(--stroke);background:var(--bg-panel-2);color:var(--ink);cursor:pointer;"
+    "text-decoration:none}"
+    ".dzsvx-btn[aria-pressed=true]{border-color:var(--cat);color:var(--cat)}"
+    ".dzsvx-btn.prim{background:var(--cat);border-color:var(--cat);color:var(--cat-ink,#14181d);font-weight:600}"
+    ".dzsvx-btn:disabled{opacity:.45;cursor:default}"
+    ".dzsvx-mini{display:inline-flex;align-items:center;justify-content:center;width:28px;height:26px;"
+    "border:1px solid var(--stroke);background:var(--bg-base);color:var(--ink);cursor:pointer}"
+    ".dzsvx-mini[aria-pressed=true]{border-color:var(--cat);color:var(--cat)}"
+    ".dzsvx-sortie{display:flex;flex-wrap:wrap;align-items:center;gap:6px}"
+    ".dzsvx-resultat{width:64px;height:64px;object-fit:contain;background:#16181c;border:1px solid var(--stroke)}"
+    ".dzsvx-aide{font-size:11px;color:var(--ink-soft);line-height:1.45}"
+    ".dzsvx-note{font-size:11.5px;color:var(--ink);padding:6px 10px;border:1px solid var(--stroke);"
+    "background:var(--bg-base)}"
+    ".dzsvx-erreur{color:var(--red,#e5484d);border-color:var(--red,#e5484d)}"
+)
+
 HUB = (
     'var __dzSvHue={music:"var(--sv-musique)",sfx:"var(--sv-sfx)",voiceover:"var(--sv-voix)",'
     'vfx:"var(--sv-particules)",vfxia:"var(--sv-vfxia)",post:"var(--sv-post)"},'
     '__dzSvIco={music:"dz-cat-audio",sfx:"dz-edit-ripple",voiceover:"dz-media-isoler-voix",vfx:"dz-edit-energie",'
     'vfxia:"dz-etat-ia",post:"dz-edit-effet"};'
     'function __dzSvHubCss(){try{if(document.getElementById("__dzSvHub"))return;'
-    'var st=document.createElement("style");st.id="__dzSvHub";st.textContent="' + CSS + CSS_PISTES + CSS_ATELIER + CSS_VOIX + '";'
+    'var st=document.createElement("style");st.id="__dzSvHub";st.textContent="' + CSS + CSS_PISTES + CSS_ATELIER + CSS_VOIX + CSS_PARTICULES + '";'
     'document.head.appendChild(st)}catch(e){}}'
     'function DzSonVfxHub(p){var US=x.useState,UE=x.useEffect,UR=x.useRef;__dzSvHubCss();'
     'var G=typeof SVM_GENS!=="undefined"?SVM_GENS:[],ids=G.map(function(g){return g.id});'
@@ -400,7 +509,9 @@ HUB = (
     'return function(){mo&&mo.disconnect();window.removeEventListener("deepotus:sonvfx-subtab",ev)}},[]);'
     'var g=G[ids.indexOf(sub)]||{},pistes=sub==="music"&&mode==="pistes",atelier=sub==="music"&&mode==="atelier",'
     # t273 : la Voix off est la page DzSvVoix ; la vue d'origine (et son encart de post-traitement) reste masquée
-    'voix=sub==="voiceover";'
+    'voix=sub==="voiceover",'
+    # t274 : les Particules sont la page DzSvParticules ; la vue d'origine reste montée et masquée
+    'parti=sub==="vfx";'
     'function bm(v,lbl){return r.jsx("button",{type:"button",className:"dzsvh-mode",'
     '"aria-pressed":mode===v?"true":"false","data-sv-mode":v,onClick:function(){choisirMode(v)},children:lbl},v)}'
     'function tb(q){var on=q.id===sub;return r.jsxs("button",{type:"button",className:"dzCatTab"+(on?" on":""),'
@@ -423,16 +534,17 @@ HUB = (
     'r.jsx("span",{className:"dzsvh-prix",children:g.price})]},"tete"),'
     # l'écran d'origine reste monté (masqué) en mode « Importer et séparer » : son état n'est pas perdu
     'r.jsxs("div",{className:"dzsvh-corps",ref:box,children:['
-    'r.jsx("div",{className:"dzsvh-ancien",style:pistes||atelier||voix?{display:"none"}:void 0,'
+    'r.jsx("div",{className:"dzsvh-ancien",style:pistes||atelier||voix||parti?{display:"none"}:void 0,'
     'children:r.jsx(DzSonVfx,{variant:p.variant,go:p.go})},"ancien"),'
     'pistes?r.jsx(DzSvPistes,{go:p.go},"pistes"):null,atelier?r.jsx(DzSvAtelier,{go:p.go},"atelier"):null,'
-    'voix?r.jsx(DzSvVoix,{go:p.go},"voix"):null]},"corps")]})}'
+    'voix?r.jsx(DzSvVoix,{go:p.go},"voix"):null,parti?r.jsx(DzSvParticules,{go:p.go},"particules"):null]},"corps")]})}'
     '/*__dzsonvfx*/'
 )
 
 PAIRES = [
     ('const Te="/api";',                                                                                         # H0
      HUB + page(PISTES) + '/*__dzsvpistes*/' + page(ATELIER) + '/*__dzsvatelier*/' + page(VOIX) + '/*__dzsvvoix*/'
+     + page(PARTICULES) + '/*__dzsvparticules*/'
      'const Te="/api";'),
     ('s==="sonvfx"&&r.jsx(DzSonVfx,{variant:e,go:a})',                                                           # H1
      's==="sonvfx"&&r.jsx(DzSonVfxHub,{variant:e,go:a})'),
