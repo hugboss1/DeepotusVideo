@@ -61,11 +61,13 @@ def test_resolve_source_connait_images_et_le_dit():
         asyncio.run(S.resolve_source({"kind": "gif"}))
 
 
-def test_la_feuille_vient_des_images_sans_ffmpeg():
+def test_la_feuille_vient_des_images_sans_ffmpeg(monkeypatch):
     from app.config import settings
     from app.services import sprite_service as S
-    S._extract_frames = None               # ffmpeg INTERDIT : un appel planterait
-    S._ffprobe_duration = None
+    # ffmpeg INTERDIT : un appel planterait. monkeypatch et non une affectation : sinon les deux restaient à None
+    # pour les bancs suivants de la même session pytest (test_sprite_service : 7 TypeError)
+    monkeypatch.setattr(S, "_extract_frames", None)
+    monkeypatch.setattr(S, "_ffprobe_duration", None)
     noms = [_carre(f"f{i}.png", (40 * i + 40, 30, 30, 255)) for i in range(4)]
     r = _run({"source": {"kind": "images", "filenames": noms}, "remove_bg": "none", "cell": {"size": 128}}, "j-img")
     d = settings.outputs_path / "sprites" / "j-img"
