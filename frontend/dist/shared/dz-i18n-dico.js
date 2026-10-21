@@ -11907,6 +11907,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "son.voix.apercu_indispo": {"fr": "Aperçu de voix indisponible.", "en": "Voice preview unavailable."},
   "son.voix.chargement": {"fr": "chargement des voix…", "en": "loading voices…"},
   "son.voix.ecouter": {"fr": "Écouter la voix", "en": "Preview voice"},
+  "sonvfx.hub.barre": {"fr": "Rubriques de Son & VFX", "en": "Sound & VFX sections"},
   "sprites.sp1_anim.choisis_image": {"fr": "Choisis d'abord une image de la Library.", "en": "Pick an image from the Library first."},
   "sprites.sp1_anim.decris": {"fr": "Décris l'action à animer (ex : walks in place).", "en": "Describe the action to animate (e.g. walks in place)."},
   "sprites.sp1_anim.echoue": {"fr": "Animer a échoué : {err}", "en": "Animate failed: {err}"},
