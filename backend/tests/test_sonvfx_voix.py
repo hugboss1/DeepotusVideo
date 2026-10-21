@@ -83,8 +83,9 @@ check("S11 le script est un champ IA posé à la main (data-dz-ia) et borné par
 
 # ── [H] le hub ────────────────────────────────────────────────────────────────────────────────────────────────────
 print("[H] le hub")
+# t274 : les Particules s'ajoutent au même style (voix||parti)
 check("H1 la Voix off rend DzSvVoix (go transmis), la vue d'origine masquée par le même style que Pistes/Atelier",
-      'voix=sub==="voiceover"' in HUB and 'style:pistes||atelier||voix?{display:"none"}:void 0' in HUB
+      'voix=sub==="voiceover"' in HUB and re.search(r'style:pistes\|\|atelier\|\|voix(\|\|\w+)*\?\{display:"none"\}:void 0', HUB)
       and 'voix?r.jsx(DzSvVoix,{go:p.go},"voix"):null' in HUB)
 check("H2 la feuille de la page est injectée avec celle du hub", ".dzsvv{" in HUB and ".dzsvv-onde{" in HUB)
 

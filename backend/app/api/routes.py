@@ -2969,11 +2969,60 @@ async def particles_presets(request: Request = None):
                       if thumbs.get(p["texture"]) else None),
             "frames": p["emitter"]["frames"], "fps": p["emitter"]["fps"],
             "blend": p["emitter"]["blend"],
+            # t274 : l'émetteur complet, que le canevas Particules de Son & VFX rejoue en direct (port JS fidèle)
+            "emitter": dict(PS._DEFAULT_EMITTER, **p["emitter"]),
         } for p in PS.PRESETS],
+        "bornes": {k: list(v) for k, v in PS._RANGES.items()},
         "anims": [{"id": a["id"], "name": a["name"], "frames": a["frames"],
                    "thumb": f"/starter/{a['thumb']}"}
                   for a in cat.get("anims", [])],
     }, langue_requete(request) if request is not None else "fr")
+
+
+@router.get("/particles/texture/{tid}")
+async def particles_texture(tid: str):
+    """t274 — une texture du catalogue en RGBA BRUT (largeur × hauteur × 4 octets), décodée par PIL comme le rendu
+    serveur : l'aperçu JS du canevas Particules part ainsi des mêmes octets (un PNG décodé par le navigateur passe
+    par un canevas prémultiplié et perd des valeurs aux faibles alphas). Local, gratuit."""
+    from app.services import particle_service as PS
+    from app.services import starter_catalog as SC
+    try:
+        tex = PS._texture(SC.asset_path("particle", tid))
+    except SC.StarterError as e:
+        raise HTTPException(e.status, e.message)
+    return Response(content=tex.tobytes(), media_type="application/octet-stream",
+                    headers={"X-Dz-Largeur": str(tex.width), "X-Dz-Hauteur": str(tex.height),
+                             "Cache-Control": "max-age=3600"})
+
+
+@router.post("/particles/image")
+async def particles_image(body: dict):
+    """t274 — la frame `frame` de l'émetteur, rendue par le serveur avec la même graine que l'aperçu : export PNG du
+    canevas Particules, ou octets RGBA bruts (`format: "rgba"`) pour la vérification « aperçu = serveur ». Local,
+    gratuit. Body : celui de /assets/particles + frame (0 à frames-1)."""
+    import io
+    from app.services import particle_service as PS
+    from app.services import starter_catalog as SC
+    corps = body or {}
+    try:
+        opts = PS.normalize_opts(corps)
+        tex = SC.asset_path("particle", opts["texture"])
+        try:
+            f = int(corps.get("frame") or 0)
+        except (TypeError, ValueError):
+            raise ValueError("frame doit être un entier")
+        im = await asyncio.get_running_loop().run_in_executor(None, lambda: PS.rendre_image(tex, opts, f))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except SC.StarterError as e:
+        raise HTTPException(e.status, e.message)
+    entetes = {"X-Dz-Graine": str(opts["seed"]), "Cache-Control": "no-store"}
+    if corps.get("format") == "rgba":
+        return Response(content=im.tobytes(), media_type="application/octet-stream", headers=entetes)
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    entetes["Content-Disposition"] = f'attachment; filename="particules_{opts["seed"]}_{f:03d}.png"'
+    return Response(content=buf.getvalue(), media_type="image/png", headers=entetes)
 
 
 def _sprite_job(title: str, step: str):

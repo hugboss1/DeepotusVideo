@@ -171,6 +171,10 @@ _DEFAULT_EMITTER = {
     "life_var": 0.3, "scale0": 0.2, "scale1": 0.5, "rot_speed": 0.0,
     "color0": "FFFFFF", "color1": "FFFFFF", "alpha0": 1.0, "alpha1": 0.0,
     "blend": "add", "orient": "random", "spawn_x": 0.0, "spawn_y": 0.0,
+    # t274 (21/10/2026) — réglages du canevas Particules de Son & VFX, NEUTRES par défaut : un preset rend à
+    # l'octet ce qu'il rendait avant. L'aperçu de l'écran (frontend/patches/sonvfx-particules.js) en est le port JS.
+    "pos_x": 0.5, "pos_y": 0.5, "shape": "rect", "wind": 0.0, "turbulence": 0.0,
+    "rate_keys": None,
 }
 
 _RANGES = {
@@ -181,7 +185,18 @@ _RANGES = {
     "life_var": (0.0, 1.0), "scale0": (0.01, 2.0), "scale1": (0.01, 2.0),
     "rot_speed": (-720.0, 720.0), "alpha0": (0.0, 1.0), "alpha1": (0.0, 1.0),
     "spawn_x": (0.0, 2.0), "spawn_y": (0.0, 2.0),
+    "pos_x": (0.0, 1.0), "pos_y": (0.0, 1.0), "wind": (-2000.0, 2000.0),
+    "turbulence": (0.0, 400.0),
 }
+
+# t274 — zone de naissance : « rect » (le rectangle spawn_x × spawn_y d'origine) ou « disque » (l'ellipse inscrite,
+# tirée avec LES MÊMES deux nombres : la suite du générateur ne bouge pas). Clés de cadence : au plus 8 couples
+# [t, v] (t et v dans [0, 1], t croissant) ; une particule naît si sa part fixe (i × φ mod 1) est sous la cadence
+# interpolée à sa naissance. Aucun tirage de plus : l'aperçu JS et le serveur restent synchrones.
+_SHAPES = ("rect", "disque")
+_CLES_MAX = 8
+_PHI = 0.6180339887498949
+_PHASE = 2.399963229728653
 
 # Orientation de la texture. Le pack CC0 mélange des textures RONDES (disques,
 # étoiles, fumée : l'orientation n'a aucun sens) et des textures DIRIGÉES
@@ -213,6 +228,37 @@ def _hex_rgb(v: str) -> tuple[int, int, int]:
         return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
     except ValueError:
         raise ValueError(f"couleur invalide : {v!r} (RRGGBB attendu)")
+
+
+def _cles_cadence(v) -> list[list[float]] | None:
+    """t274 — clés de cadence de la frise : None (cadence pleine) ou 1 à 8 couples [t, v] bornés à [0, 1], triés."""
+    if v in (None, "", []):
+        return None
+    if not isinstance(v, (list, tuple)) or len(v) > _CLES_MAX:
+        raise ValueError(f"rate_keys doit être une liste de 1 à {_CLES_MAX} couples [t, v]")
+    out = []
+    for c in v:
+        try:
+            t, val = float(c[0]), float(c[1])
+        except (TypeError, ValueError, IndexError, KeyError):
+            raise ValueError(f"rate_keys doit être une liste de 1 à {_CLES_MAX} couples [t, v]")
+        if not (0.0 <= t <= 1.0 and 0.0 <= val <= 1.0):
+            raise ValueError("rate_keys : t et v doivent être entre 0 et 1")
+        out.append([t, val])
+    return sorted(out, key=lambda c: c[0])
+
+
+def _cadence(cles, u: float) -> float:
+    """Cadence (0-1) à l'instant relatif u, interpolée entre les clés ; 1 sans clé."""
+    if not cles:
+        return 1.0
+    if u <= cles[0][0]:
+        return cles[0][1]
+    for a, b in zip(cles, cles[1:]):
+        if u <= b[0]:
+            d = b[0] - a[0]
+            return b[1] if d <= 0 else _lerp(a[1], b[1], (u - a[0]) / d)
+    return cles[-1][1]
 
 
 def normalize_opts(body: dict) -> dict:
@@ -251,6 +297,9 @@ def normalize_opts(body: dict) -> dict:
         raise ValueError("birth doit valoir 'burst' ou 'stream'")
     if em["orient"] not in _ORIENTS:
         raise ValueError(f"orient doit valoir {' | '.join(_ORIENTS)}")
+    if em["shape"] not in _SHAPES:
+        raise ValueError(f"shape doit valoir {' | '.join(_SHAPES)}")
+    em["rate_keys"] = _cles_cadence(em["rate_keys"])
     size = int(em["size"])
     if size not in _CANVAS:
         raise ValueError(f"size doit valoir {', '.join(map(str, _CANVAS))}")
@@ -320,17 +369,25 @@ def _spawn(em: dict, rng: random.Random) -> list[dict]:
             rot0 = -deg
         else:
             rot0 = 0.0
+        # ordre des tirages inchangé : signe de rotation, gigue, zone de naissance
+        rs = em["rot_speed"] * rng.choice((-1, 1))
+        jx, jy = rng.uniform(-.02, .02), rng.uniform(-.02, .02)
+        ox, oy = rng.uniform(-.5, .5), rng.uniform(-.5, .5)
+        if em["shape"] == "disque":
+            # t274 : les deux mêmes nombres, passés en polaire (rayon en racine : densité uniforme sur le disque)
+            ray, th = .5 * math.sqrt(ox + .5), (oy + .5) * 2 * math.pi
+            ox, oy = ray * math.cos(th), ray * math.sin(th)
         out.append({
             "tb": tb, "life": life,
             # angle 0 = vers le haut de l'image (y décroissant)
             "vx": math.sin(a) * sp, "vy": -math.cos(a) * sp,
             "rot0": rot0,
-            "rot_speed": em["rot_speed"] * rng.choice((-1, 1)),
-            "jx": rng.uniform(-.02, .02), "jy": rng.uniform(-.02, .02),
+            "rot_speed": rs,
+            "jx": jx, "jy": jy,
             # naissance étalée sur une zone : un effet d'ambiance (neige,
             # braises) doit couvrir le cadre, pas jaillir d'un point unique
-            "ox": rng.uniform(-.5, .5) * em["spawn_x"],
-            "oy": rng.uniform(-.5, .5) * em["spawn_y"],
+            "ox": ox * em["spawn_x"],
+            "oy": oy * em["spawn_y"],
         })
     return out
 
@@ -346,84 +403,130 @@ def _sprite_cache_key(size_px: int, u: float) -> tuple[int, int]:
     return (max(2, (size_px // 4) * 4), min(23, int(u * 24)))
 
 
-def render_frames(texture: Path, opts: dict, out_dir: Path) -> list[Path]:
-    """Simule l'émetteur et écrit une PNG RGBA par frame. Synchrone : appelé
-    dans un thread de travail par l'orchestrateur."""
-    from PIL import Image, ImageChops
-
-    em = opts["emitter"]
+def etat_frame(em: dict, parts: list[dict], f: int) -> list[dict]:
+    """t274 — l'état DESSINÉ de la frame f, sans un pixel : une entrée par particule visible, dans l'ordre de dessin.
+    Champs : i (rang), x, y (centre), px (côté du bitmap), cle (taille quantifiée, âge quantifié au 1/24e), rot
+    (degrés), col (RVB de la teinte), a (opacité). C'est ce que le port JS de l'écran recalcule (banc t274)."""
     size = em["size"]
-    rng = random.Random(opts["seed"])
-    parts = _spawn(em, rng)
+    cx, cy = em["pos_x"] * size, em["pos_y"] * size
+    total = em["frames"] / em["fps"]
+    cyclic = em["birth"] == "stream"
+    cles = em.get("rate_keys")
+    turb, vent = em["turbulence"], em["wind"]
+    t = f / em["fps"]
+    out = []
+    for i, p in enumerate(parts):
+        if cles and (i * _PHI) % 1.0 >= _cadence(cles, p["tb"] / total):
+            continue
+        # temps cyclique en mode « stream » : la frame 0 hérite du régime
+        # établi et la boucle raccorde à l'image près
+        age = (t - p["tb"]) % total if cyclic else t - p["tb"]
+        if age < 0 or age > p["life"]:
+            continue
+        u = age / p["life"]
+        # amortissement exponentiel : la particule perd sa vitesse au lieu
+        # de filer en ligne droite, ce qui donne la retombée attendue
+        k = (1 - math.exp(-em["drag"] * age)) / em["drag"]
+        x = cx + p["ox"] * size + p["vx"] * k + p["jx"] * size * age
+        y = cy + p["oy"] * size + p["vy"] * k \
+            + .5 * em["gravity"] * age * age + p["jy"] * size * age
+        if vent:
+            x += .5 * vent * age * age
+        if turb:
+            # t274 : turbulence déterministe (aucun tirage) — deux sinusoïdes déphasées par le rang
+            ph = i * _PHASE
+            x += turb * (math.sin(age * 2.3 + ph) - math.sin(ph))
+            y += turb * (math.cos(age * 1.9 + ph * 1.3) - math.cos(ph * 1.3))
+        px = max(2, int(round(_lerp(em["scale0"], em["scale1"], u) * size)))
+        cle = _sprite_cache_key(px, u)
+        uq = cle[1] / 24.0
+        col = tuple(int(round(_lerp(em["color0"][c], em["color1"][c], uq)))
+                    for c in range(3))
+        out.append({"i": i, "x": x, "y": y, "px": px, "cle": cle,
+                    "rot": p["rot0"] + p["rot_speed"] * age, "col": col,
+                    "a": _lerp(em["alpha0"], em["alpha1"], uq)})
+    return out
 
-    with Image.open(texture) as raw:
-        tex = raw.convert("RGBA")
+
+def _sprites(tex, em: dict):
+    """Bitmaps teintés partagés, indexés sur la clé de cache (voir _sprite_cache_key)."""
+    from PIL import Image, ImageChops
 
     cache: dict[tuple[int, int], "Image.Image"] = {}
 
-    def sprite(size_px: int, u: float):
-        key = _sprite_cache_key(size_px, u)
-        hit = cache.get(key)
+    def sprite(cle, col, a):
+        hit = cache.get(cle)
         if hit is not None:
             return hit
-        px, uq = key[0], key[1] / 24.0
+        px = cle[0]
         im = tex.resize((px, px), Image.LANCZOS)
-        col = tuple(int(round(_lerp(em["color0"][i], em["color1"][i], uq)))
-                    for i in range(3))
         rgb = ImageChops.multiply(im.convert("RGB"),
                                   Image.new("RGB", im.size, col))
-        a = _lerp(em["alpha0"], em["alpha1"], uq)
         lut = bytes(min(255, int(v * a)) for v in range(256))
         im2 = Image.merge("RGBA", (*rgb.split(), im.getchannel("A").point(lut)))
-        cache[key] = im2
+        cache[cle] = im2
         return im2
+    return sprite
 
-    out_dir.mkdir(parents=True, exist_ok=True)
-    cx = cy = size / 2.0
-    files: list[Path] = []
+
+def composer_frame(em: dict, parts: list[dict], f: int, sprite):
+    """Une frame RGBA : les particules de etat_frame, dans l'ordre, sur un plan transparent."""
+    from PIL import Image, ImageChops
+
+    size = em["size"]
     add = em["blend"] == "add"
-    total = em["frames"] / em["fps"]
-    cyclic = em["birth"] == "stream"
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    for d in etat_frame(em, parts, f):
+        spr = sprite(d["cle"], d["col"], d["a"])
+        rot = d["rot"]
+        if rot % 360:
+            spr = spr.rotate(rot, resample=Image.BILINEAR, expand=False)
+        w = spr.size[0]
+        ox, oy = int(round(d["x"] - w / 2)), int(round(d["y"] - w / 2))
+        if ox >= size or oy >= size or ox + w <= 0 or oy + w <= 0:
+            continue
+        box = (max(0, ox), max(0, oy), min(size, ox + w), min(size, oy + w))
+        crop = spr.crop((box[0] - ox, box[1] - oy,
+                         box[2] - ox, box[3] - oy))
+        region = canvas.crop(box)
+        # « add » additionne aussi l'alpha : c'est le rendu émissif attendu
+        # (les recouvrements montent en intensité) et il reste correct une
+        # fois composité sur un plan sombre, qui est l'usage d'un VFX.
+        merged = ImageChops.add(region, crop) if add \
+            else Image.alpha_composite(region, crop)
+        canvas.paste(merged, box)
+    return canvas
 
+
+def _texture(texture: Path):
+    from PIL import Image
+
+    with Image.open(texture) as raw:
+        return raw.convert("RGBA")
+
+
+def render_frames(texture: Path, opts: dict, out_dir: Path) -> list[Path]:
+    """Simule l'émetteur et écrit une PNG RGBA par frame. Synchrone : appelé
+    dans un thread de travail par l'orchestrateur."""
+    em = opts["emitter"]
+    parts = _spawn(em, random.Random(opts["seed"]))
+    sprite = _sprites(_texture(texture), em)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    files: list[Path] = []
     for f in range(em["frames"]):
-        t = f / em["fps"]
-        canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        for p in parts:
-            # temps cyclique en mode « stream » : la frame 0 hérite du régime
-            # établi et la boucle raccorde à l'image près
-            age = (t - p["tb"]) % total if cyclic else t - p["tb"]
-            if age < 0 or age > p["life"]:
-                continue
-            u = age / p["life"]
-            # amortissement exponentiel : la particule perd sa vitesse au lieu
-            # de filer en ligne droite, ce qui donne la retombée attendue
-            k = (1 - math.exp(-em["drag"] * age)) / em["drag"]
-            x = cx + p["ox"] * size + p["vx"] * k + p["jx"] * size * age
-            y = cy + p["oy"] * size + p["vy"] * k \
-                + .5 * em["gravity"] * age * age + p["jy"] * size * age
-            px = max(2, int(round(_lerp(em["scale0"], em["scale1"], u) * size)))
-            spr = sprite(px, u)
-            rot = p["rot0"] + p["rot_speed"] * age
-            if rot % 360:
-                spr = spr.rotate(rot, resample=Image.BILINEAR, expand=False)
-            w = spr.size[0]
-            ox, oy = int(round(x - w / 2)), int(round(y - w / 2))
-            if ox >= size or oy >= size or ox + w <= 0 or oy + w <= 0:
-                continue
-            box = (max(0, ox), max(0, oy), min(size, ox + w), min(size, oy + w))
-            crop = spr.crop((box[0] - ox, box[1] - oy,
-                             box[2] - ox, box[3] - oy))
-            region = canvas.crop(box)
-            # « add » additionne aussi l'alpha : c'est le rendu émissif attendu
-            # (les recouvrements montent en intensité) et il reste correct une
-            # fois composité sur un plan sombre, qui est l'usage d'un VFX.
-            merged = ImageChops.add(region, crop) if add \
-                else Image.alpha_composite(region, crop)
-            canvas.paste(merged, box)
         dest = out_dir / f"p{f:04d}.png"
-        canvas.save(dest, format="PNG")
+        composer_frame(em, parts, f, sprite).save(dest, format="PNG")
         files.append(dest)
     return files
+
+
+def rendre_image(texture: Path, opts: dict, f: int):
+    """t274 — la frame f seule (export PNG de l'écran Particules) : même graine, même image que render_frames."""
+    em = opts["emitter"]
+    if not 0 <= int(f) < em["frames"]:
+        raise ValueError(f"frame doit être entre 0 et {em['frames'] - 1}")
+    parts = _spawn(em, random.Random(opts["seed"]))
+    return composer_frame(em, parts, int(f), _sprites(_texture(texture), em))
 
 
 # ── export WebM alpha (overlay direct dans le Montage) ──────────────────────
@@ -483,7 +586,10 @@ async def generate_particles(payload: dict, job_id: str, on_step=None) -> dict:
         "seed": opts["seed"], "blend": em["blend"], "count": em["count"],
         "fps_sample": em["fps"],
     }
-    sheet_opts = {"cell_size": em["size"], "align": "center",
+    # t274 : cellule NATIVE (0) — les frames font déjà em["size"] de côté, `_place_into_cell` les pose à l'octet.
+    # `_fit_into_cell` les collait avec elles-mêmes pour masque (alpha appliqué deux fois) : l'export WebM / planche
+    # n'était pas l'image simulée, ni l'aperçu du canevas Particules qui en est le port
+    sheet_opts = {"cell_size": 0, "align": "center",
                   "trim": "animation", "columns": "auto", "fps": em["fps"],
                   "pixel": None}
     summary = await asyncio.to_thread(

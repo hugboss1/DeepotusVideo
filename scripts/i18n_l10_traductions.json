@@ -10246,5 +10246,25 @@
  "Clonage : fichiers attendus en liste de prises du dossier audio.": {
   "fr": "Clonage : fichiers attendus en liste de prises du dossier audio.",
   "en": "Cloning: files expected as a list of takes from the audio folder."
+ },
+ "frame doit être un entier": {
+  "fr": "frame doit être un entier",
+  "en": "frame must be an integer"
+ },
+ "rate_keys doit être une liste de 1 à {CLES_MAX} couples [t, v]": {
+  "fr": "rate_keys doit être une liste de 1 à {CLES_MAX} couples [t, v]",
+  "en": "rate_keys must be a list of 1 to {CLES_MAX} [t, v] pairs"
+ },
+ "shape doit valoir {v}": {
+  "fr": "shape doit valoir {v}",
+  "en": "shape must be {v}"
+ },
+ "frame doit être entre 0 et {v}": {
+  "fr": "frame doit être entre 0 et {v}",
+  "en": "frame must be between 0 and {v}"
+ },
+ "rate_keys : t et v doivent être entre 0 et 1": {
+  "fr": "rate_keys : t et v doivent être entre 0 et 1",
+  "en": "rate_keys: t and v must be between 0 and 1"
  }
 }
