@@ -493,6 +493,9 @@ app.include_router(motion_biblio_router, prefix="/api/motion")
 # Assistant « Demander à Deepotus » (19/10/2026) : /api/agent/etat, /api/agent/demander — aide à l'usage de l'app
 from app.api.agent_routes import router as agent_router
 app.include_router(agent_router, prefix="/api/agent")
+# Atelier sonore (t270, 21/10/2026) : /api/audio/graph/noeuds|valider|apercu|rendre — graphe audio compilé en ffmpeg
+from app.api.audio_graph_routes import router as audio_graph_router
+app.include_router(audio_graph_router, prefix="/api/audio/graph")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

@@ -10110,5 +10110,85 @@
  "{cid} : dataSets[{k}].values.value : texte de {MAX_TEXTE_JEU} caractères au plus attendu": {
   "fr": "{cid} : dataSets[{k}].values.value : texte de {MAX_TEXTE_JEU} caractères au plus attendu",
   "en": "{cid}: dataSets[{k}].values.value: text of at most {MAX_TEXTE_JEU} characters expected"
+ },
+ "graphe : objet attendu ({noeuds, liens})": {
+  "fr": "graphe : objet attendu ({noeuds, liens})",
+  "en": "graph: object expected ({noeuds, liens})"
+ },
+ "graphe : {MAX_NOEUDS} nœuds au plus": {
+  "fr": "graphe : {MAX_NOEUDS} nœuds au plus",
+  "en": "graph: {MAX_NOEUDS} nodes at most"
+ },
+ "graphe : {MAX_LIENS} liens au plus": {
+  "fr": "graphe : {MAX_LIENS} liens au plus",
+  "en": "graph: {MAX_LIENS} links at most"
+ },
+ "graphe : une sortie et une seule": {
+  "fr": "graphe : une sortie et une seule",
+  "en": "graph: exactly one output"
+ },
+ "graphe : cycle (un nœud dépend de lui-même)": {
+  "fr": "graphe : cycle (un nœud dépend de lui-même)",
+  "en": "graph: cycle (a node depends on itself)"
+ },
+ "graphe : {MAX_SOURCES} sources au plus": {
+  "fr": "graphe : {MAX_SOURCES} sources au plus",
+  "en": "graph: {MAX_SOURCES} sources at most"
+ },
+ "rendu de l'atelier impossible : {v}": {
+  "fr": "rendu de l'atelier impossible : {v}",
+  "en": "sound workshop render failed: {v}"
+ },
+ "rendu de l'atelier impossible : {e}": {
+  "fr": "rendu de l'atelier impossible : {e}",
+  "en": "sound workshop render failed: {e}"
+ },
+ "source introuvable : {v} (nœud {nid})": {
+  "fr": "source introuvable : {v} (nœud {nid})",
+  "en": "source not found: {v} (node {nid})"
+ },
+ "effet inconnu : {v} (nœud {nid})": {
+  "fr": "effet inconnu : {v} (nœud {nid})",
+  "en": "unknown effect: {v} (node {nid})"
+ },
+ "plage : la fin doit suivre le début (nœud {nid})": {
+  "fr": "plage : la fin doit suivre le début (nœud {nid})",
+  "en": "range: the end must come after the start (node {nid})"
+ },
+ "plage : une fin est requise pour boucler ou fondre en sortie (nœud {nid})": {
+  "fr": "plage : une fin est requise pour boucler ou fondre en sortie (nœud {nid})",
+  "en": "range: an end is required to loop or fade out (node {nid})"
+ },
+ "nœud : id manquant, mal formé ou en double ({v})": {
+  "fr": "nœud : id manquant, mal formé ou en double ({v})",
+  "en": "node: id missing, malformed or duplicated ({v})"
+ },
+ "nœud {nid} : type inconnu ({v})": {
+  "fr": "nœud {nid} : type inconnu ({v})",
+  "en": "node {nid}: unknown type ({v})"
+ },
+ "lien mal formé": {
+  "fr": "lien mal formé",
+  "en": "malformed link"
+ },
+ "lien vers un nœud inconnu ({v} → {v2})": {
+  "fr": "lien vers un nœud inconnu ({v} → {v2})",
+  "en": "link to an unknown node ({v} → {v2})"
+ },
+ "nœud {de} : la sortie n'a pas de sortie": {
+  "fr": "nœud {de} : la sortie n'a pas de sortie",
+  "en": "node {de}: the output has no output"
+ },
+ "nœud {vers} : entrée {e} déjà reliée": {
+  "fr": "nœud {vers} : entrée {e} déjà reliée",
+  "en": "node {vers}: input {e} already connected"
+ },
+ "nœud {i} : entrée {e} hors bornes (0 à {v})": {
+  "fr": "nœud {i} : entrée {e} hors bornes (0 à {v})",
+  "en": "node {i}: input {e} out of range (0 to {v})"
+ },
+ "nœud {i} : entrée {e} libre": {
+  "fr": "nœud {i} : entrée {e} libre",
+  "en": "node {i}: input {e} not connected"
  }
 }
