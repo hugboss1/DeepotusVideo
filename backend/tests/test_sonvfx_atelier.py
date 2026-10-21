@@ -113,6 +113,7 @@ function fetch(u,o){o=o||{};APPELS.push([u,o.method||"GET",o.body?JSON.parse(o.b
  if(u==="/api/audio/meta")return rep({meta:{"musique_a.mp3":{kind:"musique"}}});
  if(u==="/api/audio/graph/valider")return REP.valider||rep({ok:true,ignores:[],sources:["musique_a.mp3"]});
  if(u==="/api/audio/graph/apercu")return rep({});
+ if(u==="/api/audio/graph/devis")return REP.devis||rep({ok:true,usd:0.0442,deja:[],a_generer:[{id:"ia_regenerer1",op:"regenerer",modele:"sa3-regenerer",label:"Stable Audio 3 Medium",usd:0.0442}]});
  if(u==="/api/audio/graph/rendre")return rep({ok:true,filename:"atelier_essai.mp3",dur:2,parent:"musique_a.mp3",relation:"atelier",usd:0});
  if(u.startsWith("/api/audio/"))return rep({});
  return rep({},404)}
@@ -199,11 +200,35 @@ module.exports.lancer=async function(){
  const sortie=G().noeuds.find(n=>n.type==="sortie");H[3]=sortie.id;rendre();sva("supprimer").p.onClick();rendre();await minuteries();R.invalide=etat();
  global.__ajout=true;
  return R};
+module.exports.lancerIa=async function(){
+ const R={};
+ rendre();await calme();await minuteries();R.base=etat();
+ un(n=>n.p&&n.p["data-sva-ajout"]==="ia_regenerer").p.onClick();rendre();R.ajout=etat();
+ R.noeud=G().noeuds.find(n=>n.type==="ia_regenerer");
+ R.options=tout(A,n=>n.t==="option"&&n.p.value&&String(n.p.value).indexOf("-regenerer")>0,[]).map(n=>[n.p.value,texte(n.p.children)]);
+ const ta=un(n=>n.t==="textarea");R.placeholder=ta&&ta.p.placeholder;ta.p.onFocus();ta.p.onChange({target:{value:"warm piano"}});rendre();
+ R.prompt=G().noeuds.find(n=>n.type==="ia_regenerer").params.prompt;
+ APPELS=[];await minuteries();R.devis=etat();R.prix=texte(sva("ia-prix"));R.prixNoeud=texte(un(n=>n.p&&n.p["data-sva"]==="ia-noeud"));
+ APPELS=[];sva("rendre").p.onClick();rendre();R.arme=etat();R.armeLbl=texte(sva("rendre").p.children);R.armeAttr=sva("rendre").p["data-arme"];R.armeEtat=H[18];
+ sva("rendre").p.onClick();await calme();R.envoi=etat();R.apres=H[18];
+ sva("ecouter").p.onClick();rendre();R.armeE={arme:H[18],lbl:texte(sva("ecouter").p.children),appels:APPELS.filter(a=>a[0]==="/api/audio/graph/apercu").length};
+ sva("desarmer").p.onClick();rendre();R.desarme={arme:H[18],bouton:!!sva("desarmer")};
+ sva("ecouter").p.onClick();rendre();
+ const id=G().noeuds.find(n=>n.type==="ia_regenerer").id;
+ H[2]=dzSvaRelier(G(),"source1",id,0).g;rendre();await calme();R.armeApresChangement=H[18];
+ H[3]=id;rendre();await calme();
+ const onde=un(n=>n.p&&n.p["data-sva"]==="frise");
+ onde.p.onPointerDown({button:0,clientX:60,currentTarget:{getBoundingClientRect:()=>({left:0,width:300})}});bouger(150,0);relacher(150,0);rendre();
+ R.frise=G().noeuds.find(n=>n.id===id).params;R.regionIa=tout(A,n=>n.p&&n.p.className==="dzsva-region"&&n.p["data-ia"]==="",[]).length;
+ REP.devis=rep({ok:true,usd:0,deja:[id],a_generer:[]});APPELS=[];await minuteries();
+ R.deja=texte(sva("ia-prix"));sva("ecouter").p.onClick();await calme();
+ R.ecouteDeja=APPELS.filter(a=>a[0]==="/api/audio/graph/apercu").map(a=>a[2].generer);
+ return R};
 """
 
 LANCEUR = r"""
 const M=require(process.argv[5]);
-M.lancer().then(R=>process.stdout.write(JSON.stringify(R))).catch(e=>process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)})));
+(process.argv[4]==="ia"?M.lancerIa():M.lancer()).then(R=>process.stdout.write(JSON.stringify(R))).catch(e=>process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)})));
 """
 
 AJOUT = r"""
@@ -242,10 +267,10 @@ def _node(code, *extra):
             l = pathlib.Path(dd) / "l.js"
             l.write_text(LANCEUR, encoding="utf-8")
             args = ["node", str(l), str(BUN_P), str(c), "composant", str(h)]
-        elif extra and extra[0] == "pur":
+        elif extra and extra[0] in ("pur", "ia"):
             l = pathlib.Path(dd) / "l.js"
             l.write_text(LANCEUR, encoding="utf-8")
-            args = ["node", str(l), str(BUN_P), str(c), "pur", str(h)]
+            args = ["node", str(l), str(BUN_P), str(c), extra[0], str(h)]
         p = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         return json.loads(p.stdout)
@@ -305,7 +330,8 @@ check("P1 chargement : attente, puis source (la musique) → sortie relié, grap
       P.get("chargement", {}).get("attente") == "⟦sonvfx.atelier.chargement⟧"
       and c.get("g", {}).get("noeuds") == [["source1", "source", {"fichier": "musique_a.mp3"}], ["sortie1", "sortie", {}]]
       and c.get("g", {}).get("liens") == [["source1", "sortie1", 0]], c)
-check("P2 palette : les 25 entrées (types + vocabulaire FX)", len(c.get("palette", [])) == 25, c.get("palette"))
+check("P2 palette : les 29 entrées (types + vocabulaire FX + 4 nœuds IA, t272)", len(c.get("palette", [])) == 29,
+      c.get("palette"))
 v = P.get("valide", {})
 check("P3 validation par le serveur après le délai : « Graphe valide », écoute permise",
       v.get("etat") == "⟦sonvfx.atelier.valide⟧" and v.get("ecouter") is False
@@ -367,6 +393,56 @@ A = _node(AJOUT)
 check("P17 « Ouvrir dans l'Atelier » : la piste envoyée devient une source du graphe gardé, consommée une fois, choisie",
       ["source2", "source", "voix_b.mp3"] in A.get("noeuds", []) and A.get("consomme") is True and A.get("sel") == "source2"
       and A.get("note") == '⟦sonvfx.atelier.source_ajoutee⟧{"nom":"voix_b.mp3"}', A)
+
+# ── [Q] t272 : nœuds IA ───────────────────────────────────────────────────────────────────────────────────────────
+print("[Q] t272 : nœuds IA (palette, inspecteur, devis avant, armer puis envoyer)")
+Q = _node(HARNAIS, "ia")
+check("Q0 harnais exécuté", "ajout" in Q, Q)
+check("Q1 sans nœud IA : aucun devis demandé",
+      not any(a[0] == "/api/audio/graph/devis" for a in Q.get("base", {}).get("appels", [])), Q.get("base", {}).get("appels"))
+check("Q2 palette « IA » : prolonger, régénérer, variation, SFX",
+      all(t in Q.get("base", {}).get("palette", []) for t in ("ia_prolonger", "ia_regenerer", "ia_variation", "ia_sfx")))
+nq = Q.get("noeud") or {}
+check("Q3 nœud IA ajouté : défauts du catalogue, modèle par défaut de l'opération, description vide",
+      nq.get("params") == {"debut": 0, "fin": 5, "prise": 1, "modele": CAT["ia"]["regenerer"]["defaut"], "prompt": ""}, nq)
+check("Q4 inspecteur : modèles de l'opération avec leur prix ; sans clé, dit « clé à ajouter » mais choisissable",
+      [o[0] for o in Q.get("options", [])] == [m["id"] for m in CAT["ia"]["regenerer"]["modeles"]]
+      and all("~$" in o[1] and "⟦sonvfx.atelier.sans_cle⟧" in o[1] for o in Q.get("options", []))
+      and Q.get("placeholder") == "⟦sonvfx.atelier.ia_prompt_aide⟧" and Q.get("prompt") == "warm piano", Q.get("options"))
+dvq = [a for a in Q.get("devis", {}).get("appels", []) if a[0] == "/api/audio/graph/devis"]
+check("Q5 devis demandé après la validation ; prix affiché AVANT (barre et inspecteur)",
+      dvq and dvq[-1][2]["graphe"]["noeuds"][-1]["params"]["prompt"] == "warm piano"
+      and Q.get("prix") == '⟦sonvfx.atelier.ia_payant⟧{"n":1,"prix":"~$0.0442"}'
+      and Q.get("prixNoeud") == '⟦sonvfx.atelier.ia_prix⟧{"prix":"~$0.0442"}', (dvq, Q.get("prix"), Q.get("prixNoeud")))
+check("Q6 premier clic sur Rendre : armé (prix dit), RIEN d'envoyé",
+      Q.get("armeEtat") == "rendre" and Q.get("armeAttr") == ""
+      and Q.get("armeLbl") == '⟦sonvfx.atelier.confirmer_ia⟧{"prix":"~$0.0442"}'
+      and not any(a[0] == "/api/audio/graph/rendre" for a in Q.get("arme", {}).get("appels", []))
+      and Q.get("arme", {}).get("note") == '⟦sonvfx.atelier.ia_confirmer_aide⟧{"prix":"~$0.0442"}', Q.get("arme"))
+rq = [a for a in Q.get("envoi", {}).get("appels", []) if a[0] == "/api/audio/graph/rendre"]
+check("Q7 second clic : le rendu part avec generer:true, l'armement retombe",
+      len(rq) == 1 and rq[0][2].get("generer") is True and Q.get("apres") == "", (rq, Q.get("apres")))
+check("Q8 Écouter s'arme aussi (aucun aperçu au premier clic) ; « Annuler » désarme",
+      Q.get("armeE", {}).get("arme") == "ecouter" and Q.get("armeE", {}).get("appels") == 0
+      and Q.get("desarme") == {"arme": "", "bouton": False}, (Q.get("armeE"), Q.get("desarme")))
+check("Q9 un changement du graphe désarme", Q.get("armeApresChangement") == "", Q.get("armeApresChangement"))
+check("Q10 frise : avec un nœud IA choisi, glisser règle SA plage (2 s → 5 s) ; région IA dessinée",
+      Q.get("frise", {}).get("debut") == 2 and Q.get("frise", {}).get("fin") == 5 and Q.get("regionIa") == 1, Q.get("frise"))
+check("Q11 segment déjà généré : « gratuit », Écouter part au premier clic, generer:false",
+      Q.get("deja") == "⟦sonvfx.atelier.ia_deja⟧" and Q.get("ecouteDeja") == [False], (Q.get("deja"), Q.get("ecouteDeja")))
+
+
+def _defauts_acceptes(t):
+    prm = {k: v[2] for k, v in next(x for x in CAT["noeuds"] if x["type"] == t)["params"].items()}
+    prm.update(modele=CAT["ia"][t[3:]]["defaut"], prompt="warm piano")
+    gg = {"noeuds": [{"id": "s", "type": "source", "params": {"fichier": "musique_a.mp3"}}, {"id": "i", "type": t, "params": prm},
+                     {"id": "o", "type": "sortie", "params": {}}],
+          "liens": [{"de": "s", "vers": "i", "entree": 0}, {"de": "i", "vers": "o", "entree": 0}]}
+    return AG.valider(gg)["ok"]
+
+
+for _t in ("ia_prolonger", "ia_regenerer", "ia_variation", "ia_sfx"):
+    check(f"QX {_t} : les défauts du canevas (+ une description) sont acceptés par le serveur", lambda: _defauts_acceptes(_t))
 
 print(f"\n{ok} PASS / {fail} FAIL")
 

@@ -256,6 +256,16 @@ CSS_ATELIER = (
     ".dzsva-param input[type=range]{width:100%;accent-color:var(--cat)}"
     ".dzsva-plib{font-size:11px;color:var(--ink-soft)}"
     ".dzsva-pval{font-family:var(--f-mono,monospace);font-size:10px;text-align:right;color:var(--ink)}"
+    # t272 : nœuds IA — description, prix affiché avant, bouton armé (second clic = envoi), plage IA sur la frise
+    ".dzsva-param.dzsva-texte{grid-template-columns:96px minmax(0,1fr);align-items:start}"
+    ".dzsva-param textarea{font:inherit;font-size:11px;padding:5px 6px;border:1px solid var(--stroke);"
+    "background:var(--bg-base);color:var(--ink);resize:vertical;min-height:52px}"
+    ".dzsva-ia{font-size:11px;color:var(--ink);padding:4px 8px;border:1px solid var(--stroke);"
+    "border-left:3px solid oklch(.78 .14 60);background:var(--bg-panel-2)}"
+    ".dzsva-ia[data-payant]{color:oklch(.86 .12 60)}"
+    ".dzsva-btn[data-arme]{border-color:oklch(.78 .14 60);background:oklch(.78 .14 60);color:#14181d;font-weight:600}"
+    ".dzsva-region[data-ia]{border-left-style:dashed;border-right-style:dashed;"
+    "background:color-mix(in srgb,oklch(.78 .14 60) 22%,transparent)}"
 )
 
 HUB = (

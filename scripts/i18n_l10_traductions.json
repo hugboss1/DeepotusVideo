@@ -10190,5 +10190,49 @@
  "nœud {i} : entrée {e} libre": {
   "fr": "nœud {i} : entrée {e} libre",
   "en": "node {i}: input {e} not connected"
+ },
+ "génération payante à confirmer : {n} nœud(s) IA, {usd} $": {
+  "fr": "génération payante à confirmer : {n} nœud(s) IA, {usd} $",
+  "en": "paid generation to confirm: {n} AI node(s), {usd} $"
+ },
+ "modèle inconnu pour « {op} » : {m} (connus : {v})": {
+  "fr": "modèle inconnu pour « {op} » : {m} (connus : {v})",
+  "en": "unknown model for “{op}”: {m} (known: {v})"
+ },
+ "nœud {nid} : décrivez ce que le modèle doit produire": {
+  "fr": "nœud {nid} : décrivez ce que le modèle doit produire",
+  "en": "node {nid}: describe what the model should produce"
+ },
+ "nœud {nid} : plage vide (la fin doit suivre le début)": {
+  "fr": "nœud {nid} : plage vide (la fin doit suivre le début)",
+  "en": "node {nid}: empty range (the end must follow the start)"
+ },
+ "nœud {nid} : une plage d'au moins 1 s": {
+  "fr": "nœud {nid} : une plage d'au moins 1 s",
+  "en": "node {nid}: a range of at least 1 s"
+ },
+ "nœud {nid} : {lib} accepte une plage de {mx} s au plus": {
+  "fr": "nœud {nid} : {lib} accepte une plage de {mx} s au plus",
+  "en": "node {nid}: {lib} accepts a range of {mx} s at most"
+ },
+ "nœud {i} : la plage commence après la fin de l'entrée ({dd} s)": {
+  "fr": "nœud {i} : la plage commence après la fin de l'entrée ({dd} s)",
+  "en": "node {i}: the range starts after the end of the input ({dd} s)"
+ },
+ "nœud {nid} : {lib} prolonge de {mx} s au plus": {
+  "fr": "nœud {nid} : {lib} prolonge de {mx} s au plus",
+  "en": "node {nid}: {lib} extends by {mx} s at most"
+ },
+ "fal.ai : génération impossible ({v})": {
+  "fr": "fal.ai : génération impossible ({v})",
+  "en": "fal.ai: generation failed ({v})"
+ },
+ "nœud {i} : génération IA à lancer ({lib})": {
+  "fr": "nœud {i} : génération IA à lancer ({lib})",
+  "en": "node {i}: AI generation not run yet ({lib})"
+ },
+ "fal.ai : envoi impossible ({v})": {
+  "fr": "fal.ai : envoi impossible ({v})",
+  "en": "fal.ai: upload failed ({v})"
  }
 }
