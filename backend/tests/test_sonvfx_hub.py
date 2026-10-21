@@ -80,6 +80,11 @@ check("A8 la feuille masque titre, onglets texte et liste des générateurs (pas
       all(t in HUB for t in (".dzsvh .svm-genlist", ".dzsvh .svm-tabs", ".dzsvh .svm-title",
                              ".dzsvh .svm-rail>.svm-label:first-child"))
       and ".dzsvh .svm-rail{display:none" not in HUB)
+_css = re.search(r'st\.textContent="([^"]*)"', HUB)
+_css = _css.group(1) if _css else ""
+check("A10 aucun arrondi dans Son & VFX : une règle « angles vifs » sur tout le hub, aucun autre border-radius",
+      ".dzsvh,.dzsvh *,.dzsvh *::before,.dzsvh *::after{border-radius:0!important}" in _css
+      and _css.count("border-radius") == 1, re.findall(r"[^{}]*border-radius[^{}]*", _css))
 check("A9 la barre porte ses colonnes (la feuille __dzCatBar compte celles de Game Assets)",
       'style:{gridTemplateColumns:"repeat("+(G.length||1)+",1fr)"}' in HUB)
 
