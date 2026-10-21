@@ -5434,6 +5434,35 @@ async def list_voice_models():
 _VOIX_FOURNISSEURS = ("elevenlabs", "voicebox")
 
 
+@router.post("/voices/clone")
+async def clone_voice_libre(request: Request):
+    """t273 (21/10/2026) — « Cloner une voix » de la page Voix off (Son & VFX) : clone instantané ElevenLabs SANS
+    entité de la bible. Body {nom, fichiers: [noms du dossier audio], description?, droit: true} → {voice_id,
+    voice_name, requires_verification}. Aucune dépense au caractère (un clone occupe un emplacement de voix du
+    compte) : pas de plafond, comme le clonage d'une entité. Refus avant tout envoi : nom, droit attesté, puis ceux
+    de voice_clone (clé 503, prises 400/404)."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    payload = payload if isinstance(payload, dict) else {}
+    from app.services import voice_clone as VCL
+    nom = str(payload.get("nom") or "").strip()[:100]
+    if not nom:
+        raise HTTPException(400, "Clonage : donne un nom à la voix.")
+    if payload.get("droit") is not True:
+        raise HTTPException(400, "Clonage : confirme que tu as le droit d'utiliser cette voix.")
+    fichiers = payload.get("fichiers")
+    if not isinstance(fichiers, list):
+        raise HTTPException(400, "Clonage : fichiers attendus en liste de prises du dossier audio.")
+    desc = str(payload.get("description") or "")
+    try:
+        return await asyncio.get_running_loop().run_in_executor(
+            None, lambda: VCL.cloner(nom, fichiers, desc, {"deepotus_source": "sonvfx"}))
+    except VCL.SfxError as ex:
+        raise HTTPException(ex.status, ex.message)
+
+
 @router.get("/voices")
 async def list_voices(provider: str | None = None):
     """Voice picker (Episodes / VO) — catalogue du provider de voix actif

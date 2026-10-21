@@ -103,6 +103,7 @@ function __dzGl(n,s){return {t:"glyph",p:{name:n,size:s}}}
 function DzSonVfx(p){return {t:"DzSonVfx",p}}
 function DzSvPistes(p){return {t:"DzSvPistes",p}}
 function DzSvAtelier(p){return {t:"DzSvAtelier",p}}
+function DzSvVoix(p){return {t:"DzSvVoix",p}}
 var SVM_GENS=["music","sfx","voiceover","vfx","vfxia","post"].map(id=>({id,name:"N:"+id,desc:"D:"+id,price:"P:"+id}));
 const BOUTONS=SVM_GENS.map((g,q)=>({hasAttribute:a=>a==="data-sel"&&SEL===q,click(){CLICS.push(g.id);SEL=q}}));
 const EL={querySelectorAll:s=>s===".svm-genlist .svm-gen"?BOUTONS:[]};
@@ -130,6 +131,7 @@ function etat(){const tabs=tout(ARBRE,n=>n.t==="button"&&/dzCatTab/.test(n.p.cla
   modes:tout(ARBRE,n=>n.p&&n.p["data-sv-mode"],[]).map(b=>[b.p["data-sv-mode"],b.p["aria-pressed"],texte(b)]),
   pistes:(tout(ARBRE,n=>n.t===DzSvPistes,[])[0]||{p:null}).p,
   atelier:(tout(ARBRE,n=>n.t===DzSvAtelier,[])[0]||{p:null}).p,
+  voix:(tout(ARBRE,n=>n.t===DzSvVoix,[])[0]||{p:null}).p,
   ancien:(tout(ARBRE,n=>n.p&&n.p.className==="dzsvh-ancien",[])[0]||{p:{}}).p.style||null,mus:window.__dzSvMus}}
 const R={};
 rendre();rendre();R.montage=etat();
@@ -227,6 +229,13 @@ check("E23 retour : l'Atelier gardé rouvre ; mode inconnu → Générer",
       and R.get("ev_mode_inconnu", {}).get("atelier") is None and R.get("ev_mode_inconnu", {}).get("ancien") is None,
       [R.get("retour_atelier"), R.get("ev_mode_inconnu")])
 
+# t273 : la Voix off est la page DzSvVoix, la vue d'origine (et son encart de post-traitement) masquée
+c = R.get("ev_texte", {})
+check("E24 Voix off : la page DzSvVoix reçoit go, la vue d'origine reste montée mais masquée ; nulle part ailleurs",
+      c.get("voix") == {"go": "g"} and c.get("ancien") == {"display": "none"} and c.get("ecran") == {"variant": "v", "go": "g"}
+      and m.get("voix") is None and R.get("clic_post", {}).get("voix") is None and R.get("ev_objet", {}).get("voix") is None
+      and R.get("clic_post", {}).get("ancien") is None, [c.get("voix"), c.get("ancien"), m.get("voix")])
+
 # ── [D] chaîne ────────────────────────────────────────────────────────────────────────────────────────────────────
 print("[D] chaîne dzsonvfx")
 try:
@@ -274,7 +283,7 @@ check("D11 node --check du livré", rn.returncode == 0, rn.stderr[:300])
 print("[K] textes FR / EN")
 DICO = json.loads((RACINE / "frontend" / "shared" / "i18n" / "sonvfx_hub.json").read_text(encoding="utf-8"))
 # t269 : les clés du hub ET de la page « Importer et séparer » (posée par H0 jusqu'à /*__dzsvpistes*/)
-_i, _j = BUNDLE.find("var __dzSvHue="), BUNDLE.find("/*__dzsvatelier*/")      # t271 : hub + Pistes + Atelier
+_i, _j = BUNDLE.find("var __dzSvHue="), BUNDLE.find("/*__dzsvvoix*/")      # t271 : hub + Pistes + Atelier ; t273 : + Voix
 CLES = sorted(set(re.findall(r'dzT\("(sonvfx\.[a-z0-9_.]+)"', BUNDLE[_i:_j]))) if 0 <= _i < _j else []
 check("K0 le fichier porte exactement les clés appelées par le maillon, à trois segments",
       CLES and sorted(DICO) == CLES and all(len(k.split(".")) == 3 for k in CLES),

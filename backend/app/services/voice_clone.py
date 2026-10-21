@@ -54,6 +54,12 @@ def clone_for_entity(entity_id: str, entity_name: str, filenames: list,
     """Bloquant (httpx synchrone) — à appeler via run_in_executor. Les prises
     sont des NOMS du dossier audio de la Bibliothèque : un chemin (« ../ »,
     antislash) est refusé avant toute lecture, rien ne part."""
+    return cloner(entity_name, filenames, description, {"deepotus_entity": entity_id})
+
+
+def cloner(nom: str, filenames: list, description: str = "", labels: dict | None = None) -> dict:
+    """Le clonage commun : une entité de la bible (clone_for_entity) ou, t273 (21/10/2026), une voix LIBRE clonée
+    depuis la page Voix off de Son & VFX (labels {"deepotus_source": "sonvfx"}). Mêmes refus, même seam."""
     key = (settings.ELEVENLABS_API_KEY or "").strip()
     if not key:
         # 503 : décision du 28/09 pour toute clé ou configuration de fournisseur absente
@@ -80,8 +86,7 @@ def clone_for_entity(entity_id: str, entity_name: str, filenames: list,
         if total > MAX_TOTAL_BYTES:
             raise SfxError(400, "Clonage : plus de 100 Mo de prises — refusé avant l'envoi.")
         files.append((n, b))
-    d = _post_voice_add(key, str(entity_name)[:100], files, description,
-                        {"deepotus_entity": entity_id}, True)
-    logger.info(f"clone voix « {entity_name} » → {d['voice_id']} ({len(files)} prises, {total // 1024} Ko)")
-    return {"voice_id": d["voice_id"], "voice_name": entity_name,
+    d = _post_voice_add(key, str(nom)[:100], files, description, dict(labels or {}), True)
+    logger.info(f"clone voix « {nom} » → {d['voice_id']} ({len(files)} prises, {total // 1024} Ko)")
+    return {"voice_id": d["voice_id"], "voice_name": nom,
             "requires_verification": bool(d.get("requires_verification"))}

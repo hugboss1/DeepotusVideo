@@ -10234,5 +10234,17 @@
  "fal.ai : envoi impossible ({v})": {
   "fr": "fal.ai : envoi impossible ({v})",
   "en": "fal.ai: upload failed ({v})"
+ },
+ "Clonage : donne un nom à la voix.": {
+  "fr": "Clonage : donne un nom à la voix.",
+  "en": "Cloning: give the voice a name."
+ },
+ "Clonage : confirme que tu as le droit d'utiliser cette voix.": {
+  "fr": "Clonage : confirme que tu as le droit d'utiliser cette voix.",
+  "en": "Cloning: confirm that you have the right to use this voice."
+ },
+ "Clonage : fichiers attendus en liste de prises du dossier audio.": {
+  "fr": "Clonage : fichiers attendus en liste de prises du dossier audio.",
+  "en": "Cloning: files expected as a list of takes from the audio folder."
  }
 }
