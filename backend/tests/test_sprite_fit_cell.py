@@ -11,6 +11,7 @@
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
 
+import pytest
 from PIL import Image
 
 from app.services import sprite_service as S
@@ -47,3 +48,8 @@ def test_le_vide_autour_reste_transparent_et_la_frame_garde_son_alpha():
     assert centre.getpixel((5, 7)) == (200, 40, 10, 128)
     pieds = S._fit_into_cell(im, 16, "feet", Image.NEAREST)
     assert pieds.getpixel((5, 7)) == (0, 0, 0, 0) and pieds.getpixel((5, 15)) == (200, 40, 10, 128)
+
+
+if __name__ == "__main__":
+    _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    _sys.exit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
