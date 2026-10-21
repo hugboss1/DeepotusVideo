@@ -315,7 +315,9 @@ def _fit_into_cell(img, size: int, align: str, resample=None):
     cell = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     x = (size - nw) // 2
     y = (size - nh) if align == "feet" else (size - nh) // 2
-    cell.paste(im2, (x, y), im2)
+    # SANS masque, comme _place_into_cell : la cellule est vide et la frame y tient. Avec `im2` en masque, l'alpha
+    # était appliqué DEUX fois (un bord à 128 retombait à 64) — test_sprite_fit_cell
+    cell.paste(im2, (x, y))
     return cell
 
 
