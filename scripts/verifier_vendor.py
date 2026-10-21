@@ -26,15 +26,15 @@ def _ignore(rel: pathlib.PurePosixPath) -> bool:
     return any(p in IGNORES for p in rel.parts[:-1])
 
 
-def empreintes(dossier) -> dict:
-    """{chemin relatif en / : {taille, sha256}} de chaque fichier du dossier (hors IGNORES)."""
+def empreintes(dossier, ignorer=None) -> dict:
+    """{chemin relatif en / : {taille, sha256}} de chaque fichier du dossier (hors IGNORES et hors `ignorer(rel)`)."""
     dossier = pathlib.Path(dossier)
     out = {}
     for f in sorted(dossier.rglob("*")):
         if not f.is_file():
             continue
         rel = pathlib.PurePosixPath(f.relative_to(dossier).as_posix())
-        if _ignore(rel):
+        if _ignore(rel) or (ignorer and ignorer(rel)):
             continue
         h = hashlib.sha256()
         with open(f, "rb") as fh:
@@ -44,9 +44,9 @@ def empreintes(dossier) -> dict:
     return out
 
 
-def comparer(attendus: dict, dossier) -> list:
+def comparer(attendus: dict, dossier, ignorer=None) -> list:
     """Écarts entre le manifeste et le dossier, une phrase par fichier ; [] = conforme."""
-    vus = empreintes(dossier)
+    vus = empreintes(dossier, ignorer)
     ecarts = []
     for rel, a in sorted(attendus.items()):
         v = vus.get(rel)

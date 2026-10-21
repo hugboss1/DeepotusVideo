@@ -13,7 +13,7 @@ PC ne sert plus qu'en SECOURS (décision de l'utilisateur, 19/10). Relevé : doc
   [E] (si le moteur est fourni sur ce poste) l'arbre est conforme au manifeste, et un VRAI rendu passe par lui sans
       aucune variable d'environnement : MP4 conforme, aucun processus du bac à sable vivant, aucun profil restant.
 Run (depuis backend/) : & $PY tests/test_motion_code_moteur.py"""
-import hashlib, json, os, pathlib, re, subprocess, sys, tempfile, zipfile
+import hashlib, json, os, pathlib, re, shutil, subprocess, sys, tempfile, zipfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzmcmot_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
@@ -272,6 +272,23 @@ if VC:
         ec = ["TRACE " + repr(e)]
     check("V14 exe illisible (pas un PE) → un écart nommé, jamais une trace",
           any("pas un exécutable Windows lisible" in e for e in ec) and not any(e.startswith("TRACE") for e in ec), ec[-2:])
+    # 21/10 : Chrome écrit chrome_debug.log à l'exécution (relevé dans l'app installée) ; ce n'est pas un écart,
+    # à toute profondeur, mais un autre fichier .log reste « en trop »
+    jt = _tmp / "journaux"
+    (jt / "chrome-headless-shell-win64" / "sous").mkdir(parents=True)
+    (jt / "chrome-headless-shell-win64" / "a.txt").write_bytes(b"a")
+    mj = {"fichiers": {"chrome-headless-shell-win64/a.txt": {"taille": 1, "sha256": hashlib.sha256(b"a").hexdigest()}},
+          "binaire": {"exe": "chrome-headless-shell-win64/absent.exe"}}
+    for d in (jt, jt / "chrome-headless-shell-win64", jt / "chrome-headless-shell-win64" / "sous"):
+        (d / "chrome_debug.log").write_text("[1021/120000.000:ERROR] journal d'exécution")
+    ec = VC.controler(mj, jt)
+    check("V15 chrome_debug.log (journal d'exécution, à toute profondeur) n'est pas un écart", ec == [], ec)
+    check("V16 --ecrire n'épingle jamais un journal d'exécution",
+          list(VC.empreintes_moteur(jt)) == ["chrome-headless-shell-win64/a.txt"], list(VC.empreintes_moteur(jt)))
+    (jt / "chrome-headless-shell-win64" / "intrus.log").write_text("x")
+    ec = VC.controler(mj, jt)
+    check("V17 un autre .log reste « en trop » (seuls les journaux de Chrome sont ignorés)",
+          ec == ["chrome-headless-shell-win64/intrus.log : en trop (absent de l'archive officielle)"], ec)
 gi = (RACINE / ".gitignore").read_text("utf-8")
 check("V9 .gitignore : vendor/chrome-headless-shell-*/ jamais versionné", "vendor/chrome-headless-shell-*/" in gi)
 notice = RACINE / "vendor" / "NOTICE-chrome-headless-shell.txt"
@@ -321,6 +338,37 @@ else:
     check("E4 aucun processus du bac à sable vivant, aucun profil restant",
           vivants == "0" and sorted(pathlib.Path(tempfile.gettempdir()).glob("dz_motion_code_*")) == p0,
           (vivants, p0))
+
+# ── [I] l'étape 4d du build EXÉCUTÉE sur un arbre préparé jetable où Chrome a laissé ses journaux (21/10) ─────────────
+print("[I] étape 4d du build")
+i4d, i5 = ps.find("# ---- 4d. chrome-headless-shell"), ps.find("# ---- 5. Compile with Inno Setup")
+bloc4d = ps[i4d:i5] if 0 < i4d < i5 else ""
+check("I1 l'étape 4d retire chrome_debug.log de l'arbre préparé", "chrome_debug.log" in bloc4d and "Remove-Item" in bloc4d)
+pwsh = shutil.which("powershell") or shutil.which("pwsh")
+if pwsh and bloc4d and attendu.is_file():
+    T = pathlib.Path(tempfile.mkdtemp(prefix="dzmc4d_"))
+    try:
+        (T / "essai.ps1").write_text(
+            'param([string]$AppDir, [string]$stageApp, [string]$buildPy, [string]$Bloc)\n$ErrorActionPreference = "Stop"\n'
+            'try { Invoke-Expression ([IO.File]::ReadAllText($Bloc)); "ETAPE:OK" } catch { "ETAPE:ARRET " + $_.Exception.Message }\n',
+            encoding="utf-8-sig")
+        (T / "bloc.ps1").write_text(bloc4d, encoding="utf-8-sig")
+        stage = T / "app" / "vendor" / f"chrome-headless-shell-{VERSION}"
+        shutil.copytree(attendu.parents[1], stage, ignore=shutil.ignore_patterns("chrome_debug.log"))
+        journaux = [stage / "chrome_debug.log", stage / "chrome-headless-shell-win64" / "chrome_debug.log"]
+        for j in journaux:
+            j.write_text("journal d'exécution du poste de build")
+        p = subprocess.run([pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(T / "essai.ps1"), "-AppDir",
+                            str(RACINE), "-stageApp", str(T / "app"), "-buildPy", sys.executable, "-Bloc", str(T / "bloc.ps1")],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+        out = p.stdout + p.stderr
+        check("I2 exécutée : l'arbre préparé avec des journaux de Chrome passe, et aucun journal ne part chez l'acheteur",
+              "ETAPE:OK" in out and not any(j.exists() for j in journaux) and not list(stage.rglob("chrome_debug.log"))
+              and (stage / "chrome-headless-shell-win64" / "chrome-headless-shell.exe").is_file(), out[-500:])
+    finally:
+        shutil.rmtree(T, ignore_errors=True)
+else:
+    check("I2 l'étape 4d est exécutable ici (PowerShell, moteur présent)", False, (pwsh, bool(bloc4d), attendu))
 
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)

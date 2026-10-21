@@ -18,9 +18,20 @@ import hashlib, json, pathlib, re, shutil, struct, sys, tempfile, zipfile
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 MANIFESTE = RACINE / "vendor" / "chrome-headless-shell.json"
+# Chrome écrit ses journaux d'exécution à côté de l'exe (relevé dans l'app installée, 21/10) : ni un écart ni épinglés,
+# et l'étape 4d du build les retire de l'arbre préparé (ils ne partent jamais chez l'acheteur)
+JOURNAUX = ("chrome_debug.log",)
 CFT_JSON = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
 sys.path.insert(0, str(RACINE / "scripts"))
 from verifier_vendor import comparer, crt, empreintes, imports_pe   # noqa: E402
+
+
+def journal(rel: pathlib.PurePosixPath) -> bool:
+    return rel.name in JOURNAUX
+
+
+def empreintes_moteur(dossier) -> dict:
+    return empreintes(dossier, journal)
 
 
 class EmpreinteFausse(RuntimeError):
@@ -81,7 +92,7 @@ def telecharger(url: str, dest: pathlib.Path) -> pathlib.Path:
 
 def controler(m: dict, dossier: pathlib.Path) -> list:
     """Écarts de l'arbre `dossier` au manifeste (fichier altéré, manquant, en trop) + dépendance au runtime Visual C++."""
-    ecarts = comparer(m.get("fichiers") or {}, dossier)
+    ecarts = comparer(m.get("fichiers") or {}, dossier, journal)
     if not m.get("fichiers"):
         ecarts.insert(0, "manifeste sans `fichiers` : rien à comparer")
     for f in dossier.rglob(m["binaire"]["exe"].split("/")[-1]):
@@ -112,7 +123,7 @@ def main(args) -> int:
             print(f"moteur absent : {dossier}", file=sys.stderr)
             return 1
         if "--ecrire" in args:
-            m["fichiers"] = empreintes(dossier)
+            m["fichiers"] = empreintes_moteur(dossier)
             MANIFESTE.write_text(json.dumps(m, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(f"manifeste réécrit : {len(m['fichiers'])} fichiers")
             return 0
