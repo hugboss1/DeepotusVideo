@@ -454,7 +454,7 @@ CSS_PARTICULES = (
     ".dzsvx-textete{display:flex;align-items:center;justify-content:space-between;gap:8px}"
     ".dzsvx-sel{font:inherit;font-size:11px;padding:3px 6px;border:1px solid var(--stroke);background:var(--bg-base);"
     "color:var(--ink)}"
-    ".dzsvx-textures{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;max-height:132px;overflow:auto}"
+    ".dzsvx-textures{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:3px;max-height:132px;overflow:auto}"
     ".dzsvx-texture{padding:0;aspect-ratio:1;border:1px solid var(--stroke);background:#16181c;cursor:pointer}"
     ".dzsvx-texture[aria-pressed=true]{border-color:var(--cat);box-shadow:inset 0 0 0 1px var(--cat)}"
     ".dzsvx-texture img{display:block;width:100%;height:100%;object-fit:contain}"
