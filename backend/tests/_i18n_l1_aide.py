@@ -334,9 +334,19 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzsonvfx(bundle: str) -> str:
+    """Le bundle d'avant les sous-menus de Son & VFX (maillon de queue patch_bundle_dzsonvfx, t268, 21/10, posé APRÈS
+    dzconstats) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzsonvfx as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzconstats(bundle: str) -> str:
     """Le bundle d'avant les constats du catalogue t248 (maillon de queue patch_bundle_dzconstats, 20/10, posé APRÈS
     dzschedconf) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    bundle = avant_dzsonvfx(bundle)              # 21/10 : le maillon posé APRÈS dzconstats, défait d'abord
     import patch_bundle_dzconstats as _m
     if _m.MARKER not in bundle:
         return bundle
