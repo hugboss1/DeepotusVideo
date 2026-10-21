@@ -281,6 +281,8 @@ if (-not (Test-Path $chsStage)) {
     robocopy $chsSrc $chsStage /E /NFL /NDL /NJH /NJS | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "robocopy chrome-headless-shell failed ($LASTEXITCODE)" }
 }
+# 21/10 : les journaux que Chrome ecrit a l'execution sur le poste de build ne partent pas chez l'acheteur.
+Get-ChildItem $chsStage -Recurse -File -Filter "chrome_debug.log" -ErrorAction SilentlyContinue | Remove-Item -Force
 foreach ($n in @("chrome-headless-shell.json", "NOTICE-chrome-headless-shell.txt")) {
     Copy-Item (Join-Path $AppDir "vendor\$n") (Join-Path $stageApp "vendor\$n") -Force
 }
