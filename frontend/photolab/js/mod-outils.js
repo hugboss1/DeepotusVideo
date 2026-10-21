@@ -48,6 +48,8 @@ export const EMPLACEMENTS = [
 ];
 // t140 : l'id DOM d'un emplacement, d'après son outil PRINCIPAL (le premier) : stable quand le flyout change l'outil montré.
 export function idEmplacement(i) { return "pl-outil-" + EMPLACEMENTS[i][0].id; }
+// t259 : l'id DOM d'une ligne de flyout, d'après SON outil (fiches didactiques des outils groupés).
+export function idFlyout(outil) { return "pl-flyout-" + outil; }
 export const SECTIONS = [6, 8, 4, 2];          // nombre d'emplacements par section (somme 20)
 
 const TOUS = EMPLACEMENTS.flat();
@@ -263,6 +265,7 @@ export function initOutils(PL) {
     emplacementsVisibles(masques())[i].forEach((o) => {
       const l = document.createElement("button");
       l.type = "button"; l.className = "flyout-ligne" + (o.p2 ? "" : " bientot");
+      l.id = idFlyout(o.id);
       l.setAttribute("role", "menuitem");
       l.innerHTML = '<span class="puce"></span><span class="ico"></span><span class="nom"></span><span class="lettre"></span>';
       l.querySelector(".puce").textContent = o.id === PL.etat.outil ? "●" : "";

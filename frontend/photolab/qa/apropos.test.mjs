@@ -30,6 +30,13 @@ const attendus = {
   "licences-photocraft/LICENSE-SCOWL.txt": "Liste de mots SCOWL — licence SCOWL",
   "licences-photocraft/LICENSE-lucide.txt": "Icônes Lucide — licence ISC",
   "licences-photocraft/LICENSE-libfacedetection.txt": "Détection de visages libfacedetection — licence BSD-3-Clause",   // t251
+  // t259 : attributions de photocraft 0.10.0
+  "licences-photocraft/ATTRIBUTION.md": "Matériaux du moteur, auteur par auteur",
+  "licences-photocraft/LICENSE-translations.txt": "Traductions de photocraft — MIT OU Apache-2.0",
+  "licences-photocraft/LICENSE-solarized.txt": "Palette Solarized — licence MIT",
+  "licences-photocraft/LICENSE-noun-magnetic-lasso.txt": "Icône Lasso magnétique (Noun Project) — CC BY 3.0",
+  "licences-photocraft/LICENSE-symmetry-axes.txt": "Icônes des axes de symétrie — MIT OU Apache-2.0",
+  "licences-photocraft/COPYING-xorg-rgb.txt": "Noms de couleurs X11 (rgb.txt) — licence X.Org",
 };
 for (const [nom, lib] of Object.entries(attendus)) check("1.1 " + nom, libelleLicence(nom, fr) === lib, libelleLicence(nom, fr));
 check("1.2 en anglais aussi", libelleLicence("LICENSE-MIT", en) === "photocraft — MIT license" && libelleLicence("OFL-Inter.txt", en) === "Inter font — SIL OFL 1.1",
@@ -44,6 +51,9 @@ check("2.2 le moteur : version, licence, dépôt", c.lignes[0].includes("0.3.0")
 check("2.3 le lien du dépôt", c.depot === "https://github.com/storytold/photocraft", c.depot);
 check("2.4 crédits : icônes, polices, liste de mots, catalogue des menus", c.lignes.join(" ").includes("Lucide")
   && c.lignes.join(" ").includes("polices") && c.lignes.join(" ").includes("SCOWL") && c.lignes.join(" ").includes("menus"), c.lignes);
+check("2.4b t259 : crédit des libellés français de repli (traduction de photocraft) et renvoi aux attributions",
+  c.lignes.some((l) => l.includes("traduction") && l.includes("photocraft") && l.includes("ATTRIBUTION")), c.lignes);
+check("2.4c t259 : en anglais aussi", contenuApropos(INFO, en).lignes.some((l) => l.includes("translation") && l.includes("ATTRIBUTION")));
 check("2.5 les licences : toutes, notre NOTICE d'abord, puis les mentions amont", c.licences.length === 11
   && c.licences[0].nom === "NOTICE-photocraft.txt" && c.licences[1].nom === "licences-photocraft/NOTICE", c.licences.map((l) => l.nom));
 check("2.6 chaque licence porte son adresse de lecture", c.licences.every((l) => l.url === "/api/photolab/licences/" + l.nom.split("/").map(encodeURIComponent).join("/")));

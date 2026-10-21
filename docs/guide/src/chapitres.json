@@ -399,6 +399,19 @@
       "etat": "v3"
     },
     {
+      "id": "photolab-auto",
+      "famille": "images",
+      "lot": "t259",
+      "icone": "dz-nav-panneau-actions",
+      "fr": "Automatiser et exporter (Photolab)",
+      "en": "Automate and export (Photolab)",
+      "anciens": [],
+      "ecrans": [
+        "Photolab — Actions, lots et exports"
+      ],
+      "etat": "v3"
+    },
+    {
       "id": "vectorlab",
       "famille": "images",
       "lot": "t177",

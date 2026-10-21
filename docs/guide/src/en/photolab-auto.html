@@ -1,0 +1,30 @@
+<p class="chapeau-chap">You will be able to record a series of Photolab gestures to replay it in one click, apply it to a whole batch of images, and output a document as more than a single image: one file per layer, one file per data set. Free, computed on your PC.</p>
+
+<h3>Record an action</h3>
+<figure class="scene" data-scene="photolab/actions"></figure>
+<ol class="etapes">
+<li>Open the <b class="ui">Actions</b> tab, in the Layers group, or Window › Actions.</li>
+<li>Click <b class="ui">New action</b> at the bottom of the panel: give it a name, an action set and a colour if you like, then <b class="ui">Begin recording</b>.</li>
+<li>Work as usual: every adjustment, filter or command applied to the document becomes a step under the action.</li>
+<li><b class="ui">Stop</b> ends the recording. To replay, pick the action then <b class="ui">Play selection</b>: it applies to the open document, one history step per gesture.</li>
+</ol>
+<p>A tick switches a step off without erasing it; the box next to it opens its dialog during playback, to change a value on the way. The panel menu inserts a stop with a message, a conditional (“if the document is landscape, play this action”) or a menu command, and <b class="ui">Edit Step…</b> redoes a step with new values.</p>
+
+<h3>Process a batch of images</h3>
+<ol class="etapes">
+<li>File › Automate › <b class="ui">Batch…</b>, or the same item in the Actions panel menu.</li>
+<li>Pick the action, then the Library images to process (500 at most), and <b class="ui">Run</b>.</li>
+<li>Each image is opened on its own, processed, then dropped into the Library, linked to its original image. Your open document is left alone.</li>
+</ol>
+
+<h3>Export differently</h3>
+<div class="cartes">
+<article><i data-dz="dz-calque-nouveau"></i><h4>Layers to files</h4><p>File › Export › <b class="ui">Layers to Files…</b> outputs each layer, or only the visible ones, as PNG or JPG into the Library.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>Export as</h4><p>The export dialog keeps your settings as named presets and warns when a format loses something: flattened layers, lossy compression, resolution dropped.</p></article>
+<article><i data-dz="dz-nav-panneau-actions"></i><h4>Variables and data sets</h4><p>Image › Variables › <b class="ui">Define…</b> makes a layer variable (shown or not, text replaced). A data set gives each variable a value; Image › <b class="ui">Apply Data Set…</b> shows it.</p></article>
+<article><i data-dz="dz-action-enregistrer"></i><h4>One file per set</h4><p>File › Import › Variable Data Sets… reads a CSV table; File › Export › <b class="ui">Data Sets as Files…</b> outputs one image per set, for example one card per name.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Your actions stay from one session to the next. <b class="ui">Save Actions…</b> and <b class="ui">Load Actions…</b>, in the panel menu, exchange .atn action files through the Library: a step with no equivalent arrives switched off.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Scripts and droplets are not supported. An action only plays commands Photolab can do: before each playback its steps are checked, and a refused step stops it with a message.</p></aside>

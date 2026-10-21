@@ -16,6 +16,9 @@ export function libelleLicence(nom, T) {
   if (base === "LICENSE-SCOWL.txt") return T("photolab.apropos.lic.scowl");
   if (base === "LICENSE-lucide.txt") return T("photolab.apropos.lic.lucide");
   if (base === "LICENSE-libfacedetection.txt") return T("photolab.apropos.lic.visages");   // t251 : photocraft 0.10
+  const t259 = { "ATTRIBUTION.md": "attribution", "LICENSE-translations.txt": "traductions", "LICENSE-solarized.txt": "solarized",
+    "LICENSE-noun-magnetic-lasso.txt": "lasso", "LICENSE-symmetry-axes.txt": "symetrie", "COPYING-xorg-rgb.txt": "rgb" }[base];
+  if (t259) return T("photolab.apropos.lic." + t259);                                     // t259 : attributions de 0.10
   const m = /^OFL-(.+)\.txt$/.exec(base);
   if (m && FAMILLES[m[1]]) return T("photolab.apropos.lic.police", { famille: FAMILLES[m[1]] });
   return base;
@@ -33,6 +36,7 @@ export function contenuApropos(info, T) {
     T("photolab.apropos.icones"),
     T("photolab.apropos.polices"),
     T("photolab.apropos.mots"),
+    T("photolab.apropos.traductions"),
   ];
   const licences = (Array.isArray(i.fichiers) ? i.fichiers : []).slice()
     .sort((a, b) => RANG(a) - RANG(b))

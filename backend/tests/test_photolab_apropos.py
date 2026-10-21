@@ -28,7 +28,11 @@ ATTENDUS = {"NOTICE-photocraft.txt", "licences-photocraft/NOTICE", "licences-pho
             "licences-photocraft/OFL-JetBrainsMono.txt", "licences-photocraft/LICENSE-SCOWL.txt",
             "licences-photocraft/LICENSE-lucide.txt", "LICENSE-MIT", "LICENSE-APACHE", "OFL-biz-ud-mincho.txt",
             "OFL-biz-ud-pgothic.txt", "OFL-shippori-mincho.txt",
-            "licences-photocraft/LICENSE-libfacedetection.txt"}     # t251 : exigée par la NOTICE amont 0.10.0
+            "licences-photocraft/LICENSE-libfacedetection.txt",     # t251 : exigée par la NOTICE amont 0.10.0
+            # t259 : ATTRIBUTION amont 0.10.0 et licences des matériaux intégrés au moteur
+            "licences-photocraft/ATTRIBUTION.md", "licences-photocraft/LICENSE-translations.txt",
+            "licences-photocraft/LICENSE-solarized.txt", "licences-photocraft/LICENSE-noun-magnetic-lasso.txt",
+            "licences-photocraft/LICENSE-symmetry-axes.txt", "licences-photocraft/COPYING-xorg-rgb.txt"}
 
 
 async def scenario():

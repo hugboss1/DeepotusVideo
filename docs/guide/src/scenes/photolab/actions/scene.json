@@ -1,0 +1,116 @@
+{
+  "titre": {
+    "fr": "Enregistrer une action",
+    "en": "Record an action"
+  },
+  "legende": {
+    "fr": "Panneau Actions : Nouvelle action, puis chaque geste fait sur l'image devient une étape, rejouable sur d'autres images.",
+    "en": "Actions panel: New action, then every gesture you make on the image becomes a step you can replay on other images."
+  },
+  "captures": [
+    {
+      "fr": "panneau.fr.webp",
+      "en": "panneau.en.webp"
+    },
+    {
+      "fr": "dialogue.fr.webp",
+      "en": "dialogue.en.webp"
+    },
+    {
+      "fr": "etape.fr.webp",
+      "en": "etape.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1394,
+        857
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Une action neuve",
+        "en": "A new action"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "curseur": [
+        817,
+        566
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Nommez-la, puis enregistrez",
+        "en": "Name it, then record"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1231,
+        504,
+        203,
+        27
+      ],
+      "bulle": {
+        "fr": "Chaque geste devient une étape",
+        "en": "Every gesture becomes a step"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1394,
+        857
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Une action neuve",
+        "en": "A new action"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "curseur": [
+        854,
+        566
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Nommez-la, puis enregistrez",
+        "en": "Name it, then record"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        1231,
+        504,
+        203,
+        27
+      ],
+      "bulle": {
+        "fr": "Chaque geste devient une étape",
+        "en": "Every gesture becomes a step"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

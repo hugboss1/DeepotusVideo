@@ -1,7 +1,7 @@
-"""Fournit le moteur du Photolab : photocraft-cli 0.3.0, ÉPINGLÉ (t136, Photolab P1, 07/10/2026).
+"""Fournit le moteur du Photolab : photocraft-cli, version ÉPINGLÉE dans vendor/photocraft.json (t136 ; 0.10.0 depuis t251).
 
 Lit vendor/photocraft.json, télécharge l'archive Windows de la release officielle (gh si présent, sinon urllib),
-vérifie taille et sha256 AVANT d'extraire, extrait dans vendor/photocraft-0.3.0/ (jamais versionné). Une empreinte
+vérifie taille et sha256 AVANT d'extraire, extrait dans vendor/photocraft-<version>/ (jamais versionné). Une empreinte
 fausse arrête tout : rien n'est extrait. Une entrée d'archive qui sortirait du dossier (../, chemin absolu) est refusée.
 
 Usage : python scripts/vendor_photocraft.py [--archive <zip déjà téléchargé>] [--manifeste <vendor/photocraft-X.json>]
