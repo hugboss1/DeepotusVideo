@@ -10342,5 +10342,69 @@
  "aperçu impossible : {v}": {
   "fr": "aperçu impossible : {v}",
   "en": "preview failed: {v}"
+ },
+ "décrivez le look voulu en une phrase": {
+  "fr": "décrivez le look voulu en une phrase",
+  "en": "describe the look you want in one sentence"
+ },
+ "phrase trop longue : {phrase} caractères (au plus {PHRASE_MAX})": {
+  "fr": "phrase trop longue : {phrase} caractères (au plus {PHRASE_MAX})",
+  "en": "sentence too long: {phrase} characters (at most {PHRASE_MAX})"
+ },
+ "moteur de texte inconnu : {v}": {
+  "fr": "moteur de texte inconnu : {v}",
+  "en": "unknown text engine: {v}"
+ },
+ "moteur de texte : {v}": {
+  "fr": "moteur de texte : {v}",
+  "en": "text engine: {v}"
+ },
+ "générateur IA inconnu : {v}": {
+  "fr": "générateur IA inconnu : {v}",
+  "en": "unknown AI generator: {v}"
+ },
+ "habillage sonore impossible : {v}": {
+  "fr": "habillage sonore impossible : {v}",
+  "en": "sound design failed: {v}"
+ },
+ "{label} : aucun son rendu": {
+  "fr": "{label} : aucun son rendu",
+  "en": "{label}: no sound returned"
+ },
+ "réponse du moteur illisible : aucune pile": {
+  "fr": "réponse du moteur illisible : aucune pile",
+  "en": "unreadable engine reply: no stack"
+ },
+ "réponse du moteur illisible : aucun preset connu": {
+  "fr": "réponse du moteur illisible : aucun preset connu",
+  "en": "unreadable engine reply: no known preset"
+ },
+ "consigne trop longue : {p} caractères (au plus {PROMPT_MAX})": {
+  "fr": "consigne trop longue : {p} caractères (au plus {PROMPT_MAX})",
+  "en": "instruction too long: {p} characters (at most {PROMPT_MAX})"
+ },
+ "option inconnue pour {label} : {v}": {
+  "fr": "option inconnue pour {label} : {v}",
+  "en": "unknown option for {label}: {v}"
+ },
+ "option {k} hors bornes ({lo}-{hi})": {
+  "fr": "option {k} hors bornes ({lo}-{hi})",
+  "en": "option {k} out of range ({lo}-{hi})"
+ },
+ "option {k} : un nombre est attendu": {
+  "fr": "option {k} : un nombre est attendu",
+  "en": "option {k}: a number is expected"
+ },
+ "{label} : décrivez le style voulu": {
+  "fr": "{label} : décrivez le style voulu",
+  "en": "{label}: describe the style you want"
+ },
+ "{label} : décrivez le son voulu": {
+  "fr": "{label} : décrivez le son voulu",
+  "en": "{label}: describe the sound you want"
+ },
+ "{label} : consigne trop longue (au plus {prompt_max} caractères)": {
+  "fr": "{label} : consigne trop longue (au plus {prompt_max} caractères)",
+  "en": "{label}: instruction too long (at most {prompt_max} characters)"
  }
 }

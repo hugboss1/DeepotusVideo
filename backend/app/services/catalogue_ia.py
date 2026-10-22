@@ -251,6 +251,17 @@ def _vfx() -> list[dict]:
     return out
 
 
+@source("video_post")
+def _video_post() -> list[dict]:
+    """t277 (22/10/2026) : les modèles vidéo -> vidéo du Post-traitement qu'aucun autre registre ne porte
+    (app.services.post_ia.MODELES) — l'interpolation FILM (prix au temps de calcul : « a_mesurer ») et le restyle
+    Decart Lucy, tous deux servis par fal."""
+    from app.services import post_ia as PI
+    return [{"id": mid, "label": m["label"], "voie": "fal", "usd": float(m["usd"]), "unite": m["unite"],
+             "jumeau": None, "note": "" if m["usd"] else NOTE_A_MESURER, "prompt": m["prompt"]}
+            for mid, m in PI.MODELES.items()]
+
+
 @source("objets3d")
 def _objets3d() -> list[dict]:
     """t189 (G7) : le storyboard 3D — SAM 3 de fal (app.services.storyboard3d.MODELES), objets (défaut) ou corps
