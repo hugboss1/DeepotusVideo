@@ -1,0 +1,61 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="dz-geste" content="eau">
+<meta name="dz-skill" content="style-particles">
+<meta name="dz-format" content="480x270">
+<meta name="dz-affiche" content="2.4">
+<style>html,body{margin:0;background:#0a0a0c}canvas{display:block}</style>
+</head><body><canvas id="c" width="480" height="270"></canvas>
+<script>
+/* t275 · Simulation d'eau. Fiche maison style-particles : beaucoup de petits éléments (gouttes) sur trois plans de
+   profondeur, les plus proches plus grands et plus rapides ; une teinte dominante (bleu), fond sombre. Avant : le plan
+   sec. Après : la pluie tombe, l'eau monte et ondule, puis se retire pour boucler. */
+var c=document.getElementById("c"),g=c.getContext("2d");
+function cl(v){return v<0?0:v>1?1:v}
+function io(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function seg(t,a,b){return cl((t-a)/(b-a))}
+var GOUTTES=[],s=275;
+function alea(){s=(s*16807)%2147483647;return s/2147483647}
+for(var i=0;i<140;i++){var p=i%3;GOUTTES.push({x:alea()*520-20,y:alea()*270,p:p,v:180+p*150,l:6+p*6})}
+function decor(nuit){
+  g.fillStyle="#151519";g.fillRect(0,0,480,270);
+  g.fillStyle="#1c1c21";g.beginPath();g.moveTo(0,200);g.lineTo(130,150);g.lineTo(250,190);g.lineTo(380,140);g.lineTo(480,180);
+  g.lineTo(480,270);g.lineTo(0,270);g.fill();
+  g.fillStyle="#2a2a31";g.fillRect(150,150,90,70);
+  g.fillStyle="#f0b429";g.beginPath();g.moveTo(140,152);g.lineTo(195,112);g.lineTo(250,152);g.fill();
+  g.fillStyle="#0a0a0c";g.fillRect(185,185,22,35);
+  g.fillStyle="#f2efe9";g.fillRect(160,165,16,14);g.fillRect(214,165,16,14);
+  g.fillStyle="#2a2a31";g.fillRect(320,160,8,60);
+  g.fillStyle="#6fa0f0";g.globalAlpha=.25+.0*nuit;g.beginPath();g.arc(324,150,26,0,7);g.fill();g.globalAlpha=1;
+  g.fillStyle="#0f0f12";g.fillRect(0,220,480,50)}
+function pluie(t,force){
+  for(var i=0;i<GOUTTES.length;i++){var d=GOUTTES[i],y=(d.y+t*d.v)%300-20,x=d.x-(y*.18);
+    g.strokeStyle="#6fa0f0";g.globalAlpha=force*(.25+d.p*.25);g.lineWidth=1+d.p*.6;
+    g.beginPath();g.moveTo(x,y);g.lineTo(x-d.l*.18,y+d.l);g.stroke()}
+  g.globalAlpha=1}
+function eau(t,niveau){
+  if(niveau<=0)return;
+  var base=270-niveau;
+  for(var k=0;k<3;k++){
+    g.fillStyle=k===0?"#6fa0f0":k===1?"#3c6bb3":"#22426f";g.globalAlpha=k===0?.5:.9;
+    g.beginPath();g.moveTo(0,270);
+    for(var x=0;x<=480;x+=8){g.lineTo(x,base+k*7+Math.sin(x/38+t*(2.2+k)+k)*(3+k*1.5))}
+    g.lineTo(480,270);g.fill()}
+  g.globalAlpha=1;
+  g.strokeStyle="#f2efe9";g.globalAlpha=.35;g.lineWidth=1.5;g.beginPath();
+  for(var x2=0;x2<=480;x2+=8){var yy=base+Math.sin(x2/38+t*2.2)*3;x2?g.lineTo(x2,yy):g.moveTo(x2,yy)}
+  g.stroke();g.globalAlpha=1}
+window.dzFrame=function(sec){
+  var t=sec%4;
+  var force=io(seg(t,.3,1))*(1-io(seg(t,3.2,3.9)));
+  var niveau=io(seg(t,.8,2.4))*95*(1-io(seg(t,3,3.9)));
+  decor(0);
+  g.fillStyle="#0a0a0c";g.globalAlpha=.35*force;g.fillRect(0,0,480,270);g.globalAlpha=1;
+  pluie(t,force);
+  eau(t,niveau);
+  for(var i=0;i<6;i++){var ph=(t*1.6+i/6)%1,x=60+i*72,yb=270-niveau+4;
+    if(niveau>8){g.strokeStyle="#f2efe9";g.globalAlpha=(1-ph)*.5*force;g.lineWidth=1;
+      g.beginPath();g.ellipse(x,yb,4+ph*18,1.5+ph*4,0,0,7);g.stroke();g.globalAlpha=1}}
+  g.fillStyle="#f0b429";g.fillRect(0,266,480*(t/4),4)};
+window.dzFrame(0);
+</script></body></html>

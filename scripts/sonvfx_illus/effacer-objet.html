@@ -1,0 +1,48 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="dz-geste" content="effacer-objet">
+<meta name="dz-skill" content="style-shapes">
+<meta name="dz-format" content="480x270">
+<meta name="dz-affiche" content="1.5">
+<style>html,body{margin:0;background:#0a0a0c}canvas{display:block}</style>
+</head><body><canvas id="c" width="480" height="270"></canvas>
+<script>
+/* t275 · Effacer un objet nommé. Fiche maison style-shapes : en chaîne, le cadre de sélection se pose sur l'objet (avec
+   un léger dépassement), l'objet prend son élan puis disparaît, et le fond décrit le remplace par bandes. */
+var c=document.getElementById("c"),g=c.getContext("2d");
+function cl(v){return v<0?0:v>1?1:v}
+function io(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function ob(t){var s=1.70158;t-=1;return 1+(s+1)*t*t*t+s*t*t}
+function seg(t,a,b){return cl((t-a)/(b-a))}
+function mur(){
+  g.fillStyle="#151519";g.fillRect(0,0,480,180);
+  g.fillStyle="#1c1c21";for(var i=0;i<8;i++)g.fillRect(i*64+10,0,2,180);
+  g.fillStyle="#2a2a31";g.fillRect(40,40,90,70);g.fillStyle="#6fa0f0";g.fillRect(48,48,74,54);
+  g.fillStyle="#2b4f86";g.beginPath();g.moveTo(48,102);g.lineTo(80,70);g.lineTo(122,102);g.fill();
+  g.fillStyle="#2a2a31";g.fillRect(0,180,480,90);
+  g.fillStyle="#3a3a42";g.fillRect(150,170,250,12);g.fillRect(170,182,10,70);g.fillRect(370,182,10,70)}
+function objet(cx,base,sc){
+  g.save();g.translate(cx,base);g.scale(sc,sc);
+  g.fillStyle="#f0b429";g.beginPath();g.moveTo(-26,0);g.lineTo(-34,-50);g.lineTo(-16,-78);g.lineTo(16,-78);
+  g.lineTo(34,-50);g.lineTo(26,0);g.fill();
+  g.fillStyle="#c8901a";g.fillRect(-18,-86,36,10);g.restore()}
+window.dzFrame=function(sec){
+  var t=sec%4;
+  mur();
+  var cadre=ob(seg(t,.3,.8)),part=seg(t,1,1.6),retour=io(seg(t,3.3,3.9));
+  var sc=part<=0?1:part<.3?1+.12*io(part/.3):Math.max(0,1.12*(1-io((part-.3)/.7)));
+  if(retour>0)sc=retour;
+  if(sc>0)objet(275,170,sc);
+  var rempl=seg(t,1.5,2.3);
+  if(rempl>0&&retour<=0){
+    for(var b=0;b<6;b++){var k=io(cl(rempl*1.6-b*.12));if(k<=0)continue;
+      g.save();g.beginPath();g.rect(230,74+b*16,90*k,16);g.clip();mur();g.restore();
+      if(k<1){g.fillStyle="#f0b429";g.fillRect(230+90*k-2,74+b*16,2,16)}}}
+  if(cadre>0&&t<2.6){var a=t<2.2?1:1-seg(t,2.2,2.6),m=44*cadre;
+    g.globalAlpha=a;g.strokeStyle="#f2efe9";g.lineWidth=2;g.setLineDash([7,5]);g.lineDashOffset=-t*30;
+    g.strokeRect(275-m,124-m*1.1,m*2,m*2.2);g.setLineDash([]);
+    g.fillStyle="#f2efe9";[[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(q){g.fillRect(275+q[0]*m-4,124+q[1]*m*1.1-4,8,8)});
+    g.globalAlpha=1}
+  g.fillStyle="#f0b429";g.fillRect(0,266,480*(t/4),4)};
+window.dzFrame(0);
+</script></body></html>

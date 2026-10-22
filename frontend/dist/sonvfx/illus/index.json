@@ -1,0 +1,94 @@
+{
+ "note": "t275 : illustrations des gestes VFX IA, rendues par scripts/sonvfx_illustrations.py (statiques)",
+ "W": 480,
+ "H": 270,
+ "fps": 30,
+ "duree_s": 4,
+ "navigateur": "155.0.8059.84",
+ "gestes": {
+  "relight-h3": {
+   "source": "05c97f95fc6c3032b8b8952e195bec77385a3b79",
+   "webm": "relight-h3.webm",
+   "affiche": "relight-h3.webp",
+   "octets": 32618,
+   "skill": "style-shapes"
+  },
+  "inserer-h3": {
+   "source": "3e50336ccc0068bcd6c776d76da7bd0944729ccf",
+   "webm": "inserer-h3.webm",
+   "affiche": "inserer-h3.webp",
+   "octets": 29419,
+   "skill": "style-shapes"
+  },
+  "effacer-perso": {
+   "source": "8aa02f69d921fad9067bae00ec8e2f7bedd12db5",
+   "webm": "effacer-perso.webm",
+   "affiche": "effacer-perso.webp",
+   "octets": 26614,
+   "skill": "style-particles"
+  },
+  "effacer-objet": {
+   "source": "295fcb6045e2aacad6bacfa0fd310860fe1d8766",
+   "webm": "effacer-objet.webm",
+   "affiche": "effacer-objet.webp",
+   "octets": 23768,
+   "skill": "style-shapes"
+  },
+  "jour-nuit": {
+   "source": "af6ba6a0181a21244c747d58e8bd279144c984b4",
+   "webm": "jour-nuit.webm",
+   "affiche": "jour-nuit.webp",
+   "octets": 34559,
+   "skill": "style-shapes"
+  },
+  "eau": {
+   "source": "366213ccc1bf932fea1b7c252608dd5f9cdcb63c",
+   "webm": "eau.webm",
+   "affiche": "eau.webp",
+   "octets": 100085,
+   "skill": "style-particles"
+  },
+  "coloriser": {
+   "source": "56f2bf35a0405b15dd749a67f4923b200e956a36",
+   "webm": "coloriser.webm",
+   "affiche": "coloriser.webp",
+   "octets": 30941,
+   "skill": "style-photos"
+  },
+  "retoucher-kling": {
+   "source": "b5ab5f427972b5a2d2c2873450686d80763e6195",
+   "webm": "retoucher-kling.webm",
+   "affiche": "retoucher-kling.webp",
+   "octets": 29008,
+   "skill": "style-shapes"
+  },
+  "retoucher-flux3": {
+   "source": "05fee96c3418aa0b33d4983a689ab7f4debdb658",
+   "webm": "retoucher-flux3.webm",
+   "affiche": "retoucher-flux3.webp",
+   "octets": 31504,
+   "skill": "style-shapes"
+  },
+  "recadrer": {
+   "source": "a99d36fd87db2ef241a0b5dd670355ffc96369c8",
+   "webm": "recadrer.webm",
+   "affiche": "recadrer.webp",
+   "octets": 27582,
+   "skill": "style-photos"
+  },
+  "agrandir": {
+   "source": "4c893393e8ee13579be4c70dd1c1f3251f48eb2d",
+   "webm": "agrandir.webm",
+   "affiche": "agrandir.webp",
+   "octets": 23544,
+   "skill": "style-photos"
+  },
+  "effets-pixverse": {
+   "source": "71f2f69d0d1d446ba7f8dfc3af8792308061cec2",
+   "webm": "effets-pixverse.webm",
+   "affiche": "effets-pixverse.webp",
+   "octets": 73341,
+   "skill": "style-particles"
+  }
+ }
+}

@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="dz-geste" content="coloriser">
+<meta name="dz-skill" content="style-photos">
+<meta name="dz-format" content="480x270">
+<meta name="dz-affiche" content="1.4">
+<style>html,body{margin:0;background:#0a0a0c}canvas{display:block}</style>
+</head><body><canvas id="c" width="480" height="270"></canvas>
+<script>
+/* t275 · Coloriser. Fiche maison style-photos : l'image respire sans être trahie (une lente avancée), l'enchaînement
+   est un glissement : le noir et blanc d'origine laisse place aux couleurs derrière la ligne de balayage, puis revient
+   en fondu pour boucler. */
+var c=document.getElementById("c"),g=c.getContext("2d");
+function cl(v){return v<0?0:v>1?1:v}
+function io(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function seg(t,a,b){return cl((t-a)/(b-a))}
+function gris(h){var m=/^#(..)(..)(..)$/.exec(h),r=parseInt(m[1],16),v=parseInt(m[2],16),b=parseInt(m[3],16);
+  var y=Math.round(.3*r+.59*v+.11*b);return "rgb("+y+","+y+","+y+")"}
+function scene(t,nb){
+  function C(h){return nb?gris(h):h}
+  var z=1+t*.015;g.save();g.translate(240,135);g.scale(z,z);g.translate(-240,-135);
+  g.fillStyle=C("#7fb4ee");g.fillRect(0,0,480,270);
+  g.fillStyle=C("#ffd36b");g.beginPath();g.arc(390,64,28,0,7);g.fill();
+  g.fillStyle=C("#4f9a5a");g.beginPath();g.moveTo(0,180);g.lineTo(150,140);g.lineTo(320,175);g.lineTo(480,150);
+  g.lineTo(480,270);g.lineTo(0,270);g.fill();
+  g.fillStyle=C("#3c7a46");g.fillRect(0,210,480,60);
+  var F=[["#e8505b",60],["#f6a33b",110],["#c46bd6",160],["#e8505b",300],["#f6a33b",350],["#c46bd6",410]];
+  for(var i=0;i<F.length;i++){var x=F[i][1],y=222+Math.sin(i*2)*6;
+    g.fillStyle=C("#2f6b39");g.fillRect(x-1,y,3,26);
+    g.fillStyle=C(F[i][0]);for(var k=0;k<5;k++){var a=k/5*Math.PI*2+t*.4;g.beginPath();g.arc(x+Math.cos(a)*7,y+Math.sin(a)*7,6,0,7);g.fill()}
+    g.fillStyle=C("#ffd36b");g.beginPath();g.arc(x,y,4,0,7);g.fill()}
+  g.fillStyle=C("#b5533c");g.fillRect(205,120,70,62);
+  g.fillStyle=C("#7a2f22");g.beginPath();g.moveTo(197,122);g.lineTo(240,92);g.lineTo(283,122);g.fill();
+  g.fillStyle=C("#4a3020");g.fillRect(232,150,16,32);
+  g.fillStyle=C("#ffe9a8");g.fillRect(213,132,14,12);g.fillRect(253,132,14,12);
+  g.restore()}
+window.dzFrame=function(sec){
+  var t=sec%4,b=io(seg(t,.4,1.7)),x=b*480,retour=io(seg(t,3.2,3.9));
+  scene(t,!0);
+  if(b>0){g.save();g.globalAlpha=1-retour;g.beginPath();g.rect(0,0,x,270);g.clip();scene(t,!1);g.restore()}
+  if(b>0&&b<1){g.fillStyle="#f0b429";g.fillRect(x-1,0,3,270)}
+  g.fillStyle="#f0b429";g.fillRect(0,266,480*(t/4),4)};
+window.dzFrame(0);
+</script></body></html>

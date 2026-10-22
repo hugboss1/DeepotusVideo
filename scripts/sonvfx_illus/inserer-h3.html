@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="dz-geste" content="inserer-h3">
+<meta name="dz-skill" content="style-shapes">
+<meta name="dz-format" content="480x270">
+<meta name="dz-affiche" content="1.9">
+<style>html,body{margin:0;background:#0a0a0c}canvas{display:block}</style>
+</head><body><canvas id="c" width="480" height="270"></canvas>
+<script>
+/* t275 · Insérer une scène (MiniMax H3). Fiche maison style-shapes : les formes se répondent en chaîne. La bande du
+   plan s'ouvre, la scène neuve (or) s'y glisse avec un léger dépassement, la tête de lecture la traverse, puis le plan
+   d'origine (bleu) reprend ; l'écran au-dessus montre ce que lit la tête. */
+var c=document.getElementById("c"),g=c.getContext("2d");
+function cl(v){return v<0?0:v>1?1:v}
+function io(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function ob(t){var s=1.70158;t-=1;return 1+(s+1)*t*t*t+s*t*t}
+function seg(t,a,b){return cl((t-a)/(b-a))}
+function planA(x,y,w,h,t){
+  g.fillStyle="#1c2a44";g.fillRect(x,y,w,h);
+  g.fillStyle="#2b4f86";g.beginPath();g.moveTo(x,y+h*.7);g.lineTo(x+w*.35,y+h*.45);g.lineTo(x+w*.7,y+h*.65);
+  g.lineTo(x+w,y+h*.5);g.lineTo(x+w,y+h);g.lineTo(x,y+h);g.fill();
+  g.fillStyle="#6fa0f0";g.beginPath();g.arc(x+w*(.2+.05*Math.sin(t*2)),y+h*.28,h*.1,0,7);g.fill()}
+function scene(x,y,w,h,t){
+  g.fillStyle="#2a2010";g.fillRect(x,y,w,h);
+  g.save();g.translate(x+w/2,y+h/2);g.rotate(t*1.4);g.fillStyle="#f0b429";
+  for(var i=0;i<8;i++){g.rotate(Math.PI/4);g.fillRect(-3,-h*.42,6,h*.18)}
+  g.restore();g.fillStyle="#f0b429";g.beginPath();g.arc(x+w/2,y+h/2,h*.16,0,7);g.fill()}
+window.dzFrame=function(sec){
+  var t=sec%4;
+  g.fillStyle="#0a0a0c";g.fillRect(0,0,480,270);
+  var ouv=ob(seg(t,.35,1))*(1-io(seg(t,3.4,3.95)));
+  var tete=40+seg(t,0,3.3)*400;
+  var trou=110*ouv,cx=240;
+  var ins=tete>cx-trou/2&&tete<cx+trou/2&&ouv>.5;
+  g.fillStyle="#151519";g.fillRect(110,22,260,146);
+  if(ins)scene(118,30,244,130,t);else planA(118,30,244,130,t);
+  g.strokeStyle=ins?"#f0b429":"#6fa0f0";g.lineWidth=2;g.strokeRect(117,29,246,132);
+  var y=196,hh=34;
+  for(var i=0;i<12;i++){var x0=40+i*34,dx=x0<cx?-trou/2:trou/2;
+    var xa=x0+(x0+17<cx?-trou/2:trou/2);if(x0+34<=40||x0>=440)continue;
+    g.fillStyle="#2b4f86";g.fillRect(xa,y,30,hh);g.fillStyle="#1c2a44";g.fillRect(xa+4,y+6,22,hh-12)}
+  if(ouv>0){var k=ob(seg(t,.7,1.3));g.save();g.globalAlpha=cl(k);
+    g.translate(0,(1-k)*-40);g.fillStyle="#f0b429";g.fillRect(cx-trou/2+4,y,trou-8,hh);
+    g.fillStyle="#2a2010";for(var j=0;j<3;j++)g.fillRect(cx-trou/2+10+j*(trou-20)/3,y+6,(trou-20)/3-6,hh-12);
+    g.restore()}
+  g.fillStyle="#f2efe9";g.fillRect(tete-1,y-10,2,hh+20);
+  g.beginPath();g.moveTo(tete-6,y-14);g.lineTo(tete+6,y-14);g.lineTo(tete,y-6);g.fill();
+  g.fillStyle="#f0b429";g.fillRect(0,266,480*(t/4),4)};
+window.dzFrame(0);
+</script></body></html>

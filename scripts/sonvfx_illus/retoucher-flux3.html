@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="dz-geste" content="retoucher-flux3">
+<meta name="dz-skill" content="style-shapes">
+<meta name="dz-format" content="480x270">
+<meta name="dz-affiche" content="1.6">
+<style>html,body{margin:0;background:#0a0a0c}canvas{display:block}</style>
+</head><body><canvas id="c" width="480" height="270"></canvas>
+<script>
+/* t275 · Modifier par une phrase, en rapide. Fiche maison style-shapes : la phrase (barres) part comme un trait, un
+   éclair, et tout le plan change d'un coup (la voiture passe du gris à l'or, la route défile) ; c'est la vitesse qui
+   distingue ce geste. */
+var c=document.getElementById("c"),g=c.getContext("2d");
+function cl(v){return v<0?0:v>1?1:v}
+function io(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function ob(t){var s=1.70158;t-=1;return 1+(s+1)*t*t*t+s*t*t}
+function seg(t,a,b){return cl((t-a)/(b-a))}
+function voiture(x,y,cl1,cl2){
+  g.fillStyle=cl1;g.fillRect(x-70,y-30,140,30);g.beginPath();g.moveTo(x-40,y-30);g.lineTo(x-24,y-56);g.lineTo(x+30,y-56);
+  g.lineTo(x+48,y-30);g.fill();g.fillStyle="#0a0a0c";g.fillRect(x-30,y-50,26,18);g.fillRect(x+2,y-50,30,18);
+  g.fillStyle=cl2;g.beginPath();g.arc(x-40,y,14,0,7);g.arc(x+40,y,14,0,7);g.fill();
+  g.fillStyle="#8a857d";g.beginPath();g.arc(x-40,y,5,0,7);g.arc(x+40,y,5,0,7);g.fill()}
+window.dzFrame=function(sec){
+  var t=sec%4,ch=t>1.1&&t<3.5?1:0,fl=seg(t,1.05,1.35);
+  g.fillStyle=ch?"#2a2010":"#151519";g.fillRect(0,0,480,270);
+  g.fillStyle="#1c1c21";g.fillRect(0,196,480,74);
+  for(var i=0;i<10;i++){var x=((i*60-t*(ch?520:120))%600+600)%600-60;g.fillStyle=ch?"#f0b429":"#3a3a42";g.fillRect(x,228,34,4)}
+  if(ch){g.strokeStyle="#f0b429";g.globalAlpha=.5;g.lineWidth=2;for(var k=0;k<6;k++){var yy=110+k*14,xx=((k*97-t*900)%480+480)%480;
+    g.beginPath();g.moveTo(xx,yy);g.lineTo(xx+60,yy);g.stroke()}g.globalAlpha=1}
+  var by=Math.sin(t*20)*(ch?1.5:.6);
+  voiture(240,196+by,ch?"#f0b429":"#3a3a42",ch?"#f2efe9":"#2a2a31");
+  var ph=seg(t,.15,.7)*(1-seg(t,1,1.15));
+  if(ph>0){g.fillStyle="#1c1c21";g.fillRect(40,34,170,40);g.strokeStyle="#f0b429";g.strokeRect(40.5,34.5,169,39);
+    g.fillStyle="#8a857d";g.fillRect(54,47,140*ph,5);g.fillStyle="#f0b429";g.fillRect(54,58,90*ph,5)}
+  if(fl>0&&fl<1){g.fillStyle="#f2efe9";g.globalAlpha=(1-fl)*.8;g.fillRect(0,0,480,270);g.globalAlpha=1;
+    g.fillStyle="#f0b429";g.beginPath();g.moveTo(250,10);g.lineTo(212,120);g.lineTo(240,120);g.lineTo(220,200);
+    g.lineTo(276,88);g.lineTo(248,88);g.lineTo(270,10);g.fill()}
+  g.fillStyle="#f0b429";g.fillRect(0,266,480*(t/4),4)};
+window.dzFrame(0);
+</script></body></html>

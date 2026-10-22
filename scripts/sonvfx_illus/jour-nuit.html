@@ -1,0 +1,41 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="dz-geste" content="jour-nuit">
+<meta name="dz-skill" content="style-shapes">
+<meta name="dz-format" content="480x270">
+<meta name="dz-affiche" content="2.3">
+<style>html,body{margin:0;background:#0a0a0c}canvas{display:block}</style>
+</head><body><canvas id="c" width="480" height="270"></canvas>
+<script>
+/* t275 · Jour → nuit. Fiche maison style-shapes : le même plan, aplats, le soleil plonge, la lune monte avec un léger
+   dépassement, puis les fenêtres s'allument en chaîne, l'une après l'autre. */
+var c=document.getElementById("c"),g=c.getContext("2d");
+function cl(v){return v<0?0:v>1?1:v}
+function io(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function ob(t){var s=1.70158;t-=1;return 1+(s+1)*t*t*t+s*t*t}
+function seg(t,a,b){return cl((t-a)/(b-a))}
+function mix(a,b,k){var r=[0,1,2].map(function(i){return Math.round(a[i]+(b[i]-a[i])*k)});return "rgb("+r.join(",")+")"}
+var ETOILES=[],s=7;function alea(){s=(s*16807)%2147483647;return s/2147483647}
+for(var i=0;i<40;i++)ETOILES.push([alea()*480,alea()*130,alea()]);
+var FEN=[[70,150],[96,150],[70,178],[200,128],[226,128],[200,156],[226,156],[340,160],[366,160],[392,160],[340,188]];
+window.dzFrame=function(sec){
+  var t=sec%4,n=io(seg(t,.4,1.8))*(1-io(seg(t,3.3,3.95)));
+  var ciel=g.createLinearGradient(0,0,0,220);
+  ciel.addColorStop(0,mix([111,160,240],[8,12,28],n));ciel.addColorStop(1,mix([198,214,240],[28,38,70],n));
+  g.fillStyle=ciel;g.fillRect(0,0,480,270);
+  for(var i=0;i<ETOILES.length;i++){var e=ETOILES[i];g.fillStyle="#f2efe9";g.globalAlpha=n*(.4+.6*Math.abs(Math.sin(t*3+e[2]*9)));
+    g.fillRect(e[0],e[1],1.5,1.5)}g.globalAlpha=1;
+  var sy=60+n*190;g.fillStyle="#f0b429";g.beginPath();g.arc(110,sy,24,0,7);g.fill();
+  var lk=ob(seg(t,1,1.8))*(1-io(seg(t,3.3,3.95))),ly=260-lk*200;
+  g.fillStyle="#f2efe9";g.beginPath();g.arc(380,ly,20,0,7);g.fill();
+  g.fillStyle=mix([111,160,240],[8,12,28],n);g.beginPath();g.arc(390,ly-6,17,0,7);g.fill();
+  g.fillStyle=mix([60,64,80],[18,18,24],n);g.beginPath();g.moveTo(0,200);g.lineTo(140,150);g.lineTo(300,190);g.lineTo(480,140);
+  g.lineTo(480,270);g.lineTo(0,270);g.fill();
+  g.fillStyle=mix([90,90,104],[28,28,34],n);g.fillRect(56,136,70,84);g.fillRect(186,112,70,108);g.fillRect(326,146,96,74);
+  g.fillStyle=mix([40,40,48],[10,10,12],n);g.fillRect(0,220,480,50);
+  for(var f=0;f<FEN.length;f++){var on=ob(seg(t,1.7+f*.09,1.9+f*.09))*(1-io(seg(t,3.3,3.9)));
+    g.fillStyle=mix([150,160,180],[240,180,41],cl(on));g.fillRect(FEN[f][0],FEN[f][1],16,16);
+    if(on>0){g.fillStyle="rgba(240,180,41,"+(.18*cl(on))+")";g.fillRect(FEN[f][0]-6,FEN[f][1]-6,28,28)}}
+  g.fillStyle="#f0b429";g.fillRect(0,266,480*(t/4),4)};
+window.dzFrame(0);
+</script></body></html>

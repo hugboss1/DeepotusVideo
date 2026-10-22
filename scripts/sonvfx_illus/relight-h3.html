@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="dz-geste" content="relight-h3">
+<meta name="dz-skill" content="style-shapes">
+<meta name="dz-format" content="480x270">
+<meta name="dz-affiche" content="0.9">
+<style>html,body{margin:0;background:#0a0a0c}canvas{display:block}</style>
+</head><body><canvas id="c" width="480" height="270"></canvas>
+<script>
+/* t275 · Rééclairer (MiniMax H3). Fiche maison style-shapes : aplats, trois couleurs (gris, or, encre), symétrie
+   franche, beaucoup de vide. La sphère de référence (à droite) dit la lumière voulue ; le buste au centre prend la même
+   lumière, qui fait le tour en 4 s. */
+var c=document.getElementById("c"),g=c.getContext("2d");
+function cl(v){return v<0?0:v>1?1:v}
+function io(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function eclaire(x,y,r,ang,fort){
+  var lx=x+Math.cos(ang)*r*.75,ly=y+Math.sin(ang)*r*.75;
+  var d=g.createRadialGradient(lx,ly,r*.05,x,y,r*1.25);
+  d.addColorStop(0,"rgba(255,226,150,"+(.95*fort)+")");d.addColorStop(.45,"rgba(240,180,41,"+(.45*fort)+")");
+  d.addColorStop(1,"rgba(10,10,12,.85)");return d}
+function buste(x,y,ang,fort){
+  g.fillStyle="#3a3a42";
+  g.beginPath();g.moveTo(x-70,y+95);g.bezierCurveTo(x-66,y+40,x-30,y+30,x,y+30);
+  g.bezierCurveTo(x+30,y+30,x+66,y+40,x+70,y+95);g.closePath();g.fill();
+  g.fillStyle=eclaire(x,y+62,80,ang,fort);g.fill();
+  g.fillStyle="#3a3a42";g.fillRect(x-14,y+8,28,30);
+  g.fillStyle=eclaire(x,y+20,30,ang,fort);g.fillRect(x-14,y+8,28,30);
+  g.beginPath();g.ellipse(x,y-18,34,42,0,0,7);g.fillStyle="#3a3a42";g.fill();
+  g.fillStyle=eclaire(x,y-18,48,ang,fort);g.fill()}
+window.dzFrame=function(sec){
+  var t=sec%4,ang=-Math.PI/2+t/4*Math.PI*2,fort=.35+.65*io(cl(t/.5));
+  if(t>3.5)fort=.35+.65*io(cl((4-t)/.5));
+  g.fillStyle="#0a0a0c";g.fillRect(0,0,480,270);
+  g.fillStyle="#151519";g.fillRect(0,214,480,56);
+  var lx=210+Math.cos(ang)*130,ly=118+Math.sin(ang)*92;
+  g.strokeStyle="#2a2a31";g.lineWidth=1;g.setLineDash([3,5]);g.beginPath();g.ellipse(210,118,130,92,0,0,7);g.stroke();
+  g.setLineDash([]);
+  var h=g.createRadialGradient(lx,ly,2,lx,ly,60);h.addColorStop(0,"rgba(240,180,41,.55)");h.addColorStop(1,"rgba(240,180,41,0)");
+  g.fillStyle=h;g.fillRect(lx-60,ly-60,120,120);
+  buste(210,130,ang,fort);
+  g.fillStyle="#f0b429";g.beginPath();g.arc(lx,ly,7,0,7);g.fill();
+  g.fillStyle="#151519";g.fillRect(352,64,104,104);
+  g.strokeStyle="#f0b429";g.lineWidth=1;g.strokeRect(352.5,64.5,103,103);
+  g.beginPath();g.arc(404,116,36,0,7);g.fillStyle="#3a3a42";g.fill();
+  g.fillStyle=eclaire(404,116,40,ang,1);g.fill();
+  g.fillStyle="#f0b429";g.beginPath();g.moveTo(404,176);g.lineTo(398,186);g.lineTo(410,186);g.fill();
+  g.fillRect(0,266,480*(t/4),4)};
+window.dzFrame(0);
+</script></body></html>
