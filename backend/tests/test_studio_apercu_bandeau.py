@@ -180,7 +180,15 @@ import patch_bundle_dzstudio as M                                    # noqa: E40
 import _i18n_l1_aide as AIDE                                         # noqa: E402
 
 
+# t280 : la couche sonvfx a été retouchée après ces bases (consignée L4 + G1, réinjectée par refresh_layer) — le bloc
+# SONVFX attendu est celui du livré ; ce banc vérifie ses maillons HORS de ce bloc
 def git_bundle(rev):
+    b_ = _git_bundle_brut(rev)
+    return None if b_ is None else __import__("_i18n_l1_aide").base_avec_sonvfx_livre(
+        b_, (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes())
+
+
+def _git_bundle_brut(rev):
     r_ = subprocess.run(["git", "show", f"{rev}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True, cwd=str(RACINE))
     if r_.returncode != 0:
         return None

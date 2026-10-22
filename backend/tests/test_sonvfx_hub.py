@@ -266,12 +266,21 @@ except Exception as e:  # noqa: BLE001
 def _base_bytes():
     r_ = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True,
                         cwd=str(RACINE))
-    return r_.stdout.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")     # le dépôt garde le bundle en LF
+    b_ = r_.stdout.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")     # le dépôt garde le bundle en LF
+    # t280 : la couche sonvfx retouchée après BASE (L4 + G1) — le bloc attendu est celui du livré ; D6 vérifie
+    # qu'il est sa couche source, à l'octet
+    return __import__("_i18n_l1_aide").base_avec_sonvfx_livre(b_, RAW)
 
 
 def _bloc(s):
     a, b = s.find("/*__DZ_SONVFX_BEGIN__*/"), s.find("/*__DZ_SONVFX_END__*/")
     return s[a:b]
+
+
+def _bloc_est_sa_couche():
+    src = (RACINE / "frontend" / "patches" / "son-vfx-montage.js").read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    bloc = _bloc(BUNDLE)[len("/*__DZ_SONVFX_BEGIN__*/"):].encode("utf-8")
+    return bloc.strip(b"\r\n") == src.strip(b"\r\n")
 
 
 check("D1 maillon présent", PS is not None)
@@ -283,7 +292,7 @@ check("D4 aller-retour exact", lambda: PS.appliquer(PS.defaire(BUNDLE)) == BUNDL
 check("D5 comptes figés : x.useState( 731, DzTracks 181, v2.8.0 ×4, confirmer ×30",
       BUNDLE.count("x.useState(") == 731 and BUNDLE.count("DzTracks") == 181 and BUNDLE.count("v2.8.0") == 4
       and BUNDLE.count(CONF) == 30)
-check("D6 bloc SONVFX intact, à l'octet", lambda: _bloc(BUNDLE) == _bloc(_base_bytes().decode("utf-8")))
+check("D6 bloc SONVFX intact : sa couche source frontend/patches/son-vfx-montage.js, à l'octet", _bloc_est_sa_couche)
 check("D7 octets : CRLF partout, aucune paire sur deux lignes",
       RAW.count(b"\r\n") > 15000 and RAW.count(b"\n") == RAW.count(b"\r\n")
       and all("\n" not in a + b for a, b in PS.PAIRES))

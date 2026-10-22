@@ -322,6 +322,8 @@ def crlf(b_):
 import patch_bundle_dzmotion as M                                    # noqa: E402
 import _i18n_l1_aide as AIDE                                         # noqa: E402
 base = git(BASE, "frontend/dist/assets/index-BEOJX8L5.js")
+# t280 : la couche sonvfx retouchée après BASE (L4 + G1) — le bloc SONVFX attendu est celui du livré
+base = __import__("_i18n_l1_aide").base_avec_sonvfx_livre(base, (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes()) if base else base
 src_b = git(BASE, "scripts/patch_bundle_dzmotion.py")
 MB = None
 if src_b:

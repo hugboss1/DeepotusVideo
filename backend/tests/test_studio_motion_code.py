@@ -259,7 +259,15 @@ import _i18n_l1_aide as AIDE                                         # noqa: E40
 CODE = getattr(M, "CODE", "")                                       # la famille C (absente sur la base)
 
 
+# t280 : la couche sonvfx a été retouchée après ces bases (consignée L4 + G1, réinjectée par refresh_layer) — le bloc
+# SONVFX attendu est celui du livré ; ce banc vérifie ses maillons HORS de ce bloc
 def git_bundle(rev):
+    b_ = _git_bundle_brut(rev)
+    return None if b_ is None else __import__("_i18n_l1_aide").base_avec_sonvfx_livre(
+        b_, (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes())
+
+
+def _git_bundle_brut(rev):
     r_ = subprocess.run(["git", "show", f"{rev}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True, cwd=str(RACINE))
     return r_.stdout.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n") if r_.returncode == 0 else None
 
