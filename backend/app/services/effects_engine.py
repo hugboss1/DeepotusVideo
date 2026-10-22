@@ -1048,6 +1048,44 @@ def _chromakey(eff, i, o, u, ctx):
                       f"blend={bl:.3f}{tail}")
 
 
+def _grain16(eff, i, o, u, ctx):
+    """t276 (22/10/2026) — grain 16 mm : grain gros sur la luminance, plus fin sur la chroma, léger flou de
+    l'émulsion, pompage de lumière de la pellicule (eq évalué à chaque image) et bords assombris."""
+    t = _inten(eff, 55)
+    return _one(i, o,
+                f"noise=c0s={int(10 + 34 * t)}:c0f=t+u:c1s={int(3 + 8 * t)}:c1f=t:c2s={int(3 + 8 * t)}:c2f=t,"
+                f"gblur=sigma={0.4 + 0.5 * t:.2f},"
+                f"eq=brightness='{0.012 + 0.02 * t:.3f}*sin(2*PI*t*7.3)':eval=frame,"
+                f"vignette=angle={0.85 - 0.25 * t:.3f}")
+
+
+def _silverbw(eff, i, o, u, ctx):
+    """t276 — noir et blanc argentique : désaturation, courbe en S qui creuse les noirs, grain d'argent."""
+    t = _inten(eff, 60)
+    return _one(i, o,
+                f"hue=s=0,curves=m='0/0 0.25/{0.22 - 0.08 * t:.3f} 0.75/{0.78 + 0.1 * t:.3f} 1/1',"
+                f"noise=c0s={int(4 + 16 * t)}:c0f=t+u,eq=contrast={1 + 0.18 * t:.3f}")
+
+
+def _rgb_int(v, default):
+    h = _c(v, default)[2:]
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def _duotone(eff, i, o, u, ctx):
+    """t276 — duotone : la luminance projetée entre deux couleurs (ombres = c0, lumières = c1), mélangée à
+    l'image selon l'intensité. Les composantes sont des ENTIERS calculés ici : rien du client n'entre dans
+    l'expression de `lutrgb`."""
+    t = _inten(eff, 100)
+    a = _rgb_int(eff.get("c0"), "1b1f4a")
+    b = _rgb_int(eff.get("c1"), "ffb36b")
+    lut = ":".join(f"{k}='{a[n]}+({b[n] - a[n]})*val/255'" for n, k in enumerate("rgb"))
+    return [f"[{i}]split=2[{u}a][{u}b]",
+            f"[{u}b]format=gray,format=rgb24,lutrgb={lut},{_RGB}[{u}w]",
+            f"[{u}a]{_RGB}[{u}a2]",
+            f"[{u}w][{u}a2]blend=all_mode=normal:all_opacity={t:.2f}[{o}]"]
+
+
 def _tmix(eff, i, o, u, ctx):
     """D-33 — fondu d'images successives (traînée / lissage temporel)."""
     return _one(i, o, f"tmix=frames={_choice(eff, 'frames', ('3', '5', '7'), '3')}")
@@ -1073,6 +1111,8 @@ EFFECTS = {
     "radial": _radial, "filmburn": _filmburn, "rain": _rain, "snow": _snow,
     "embers": _embers, "posterize": _posterize, "dither": _dither,
     "glowedge": _glowedge, "paper": _paper,
+    # t276 (22/10/2026) : post-traitement de Son & VFX
+    "grain16": _grain16, "silverbw": _silverbw, "duotone": _duotone,
 }
 
 
@@ -1469,6 +1509,12 @@ _CATALOG = {
                    {"intensity": {"default": 65}}),
     "dither":     ("retro", "Tramage", ["intensity"],
                    "Trame ordonnée Bayer : dégradés en points, façon impression.", {}),
+    # t276 (22/10/2026) : effets neufs du post-traitement de Son & VFX (aussi au rack du Montage)
+    "grain16":    ("retro", "Grain 16 mm", ["intensity"],
+                   "Grain gros et vivant, émulsion douce et pompage de la pellicule 16 mm.",
+                   {"intensity": {"default": 55}}),
+    "silverbw":   ("retro", "Noir et blanc argentique", ["intensity"],
+                   "Noir et blanc contrasté au grain d'argent.", {}),
     # --- Lumière ---
     "bloom":      ("lumiere", "Bloom / Halo", ["intensity"],
                    "Les hautes lumières débordent.", {}),
@@ -1546,6 +1592,9 @@ _CATALOG = {
                    "Les contours s'illuminent, style néon.", {}),
     "paper":      ("stylisation", "Texture papier", ["intensity"],
                    "Grain de feuille, teinte crème, coins assombris.", {}),
+    "duotone":    ("stylisation", "Duotone", ["c0", "c1", "intensity"],
+                   "Ombres et lumières dans deux couleurs au choix.",
+                   {"c0": {"default": "#1b1f4a"}, "c1": {"default": "#ffb36b"}, "intensity": {"default": 100}}),
 }
 
 #: Alias historique : « lut » et « grade » sont le même effet.
@@ -1610,4 +1659,51 @@ def catalog():
     for alias, target in _ALIASES.items():
         if target in out:
             out[alias] = dict(out[target], label=out[target]["label"])
+    return out
+
+
+# =============================================================================
+# t276 (22/10/2026) — le catalogue du POST-TRAITEMENT de Son & VFX.
+#
+# Une pile ordonnée de presets appliquée à un rendu choisi (services/post_pile.py). Chaque preset est un effet de ce
+# moteur avec ses réglages de départ : le rendu passe donc par `build_chain`, la même chaîne que le rack du Montage.
+# L'ordre de ce dict est celui du catalogue de l'écran. `params` = ce que l'écran laisse régler (hors intensité :
+# l'intensité 0-100 % de la pile passe à `intensity` quand l'effet en a une, à un mélange dry/wet sinon).
+# =============================================================================
+POST_PILE = {
+    "grain16":        {"type": "grain16", "defaults": {}, "params": []},
+    "bloom":          {"type": "bloom", "defaults": {}, "params": []},
+    "glitch_rgb":     {"type": "glitch", "defaults": {}, "params": []},
+    "aberration":     {"type": "chroma", "defaults": {}, "params": []},
+    "vignette":       {"type": "vignette", "defaults": {}, "params": []},
+    "halation":       {"type": "halation", "defaults": {}, "params": []},
+    "lut":            {"type": "grade", "defaults": {"preset": "teal_orange"}, "params": ["preset", "file"]},
+    "vhs":            {"type": "vhs", "defaults": {}, "params": ["speed"]},
+    "flou_mouvement": {"type": "dirblur", "defaults": {"angle": 0}, "params": ["angle"]},
+    "nettete":        {"type": "sharpen", "defaults": {"mode": "cas"}, "params": ["mode"]},
+    "bandes":         {"type": "letterbox", "defaults": {"ratio": "2.39"}, "params": ["ratio"]},
+    "tremblement":    {"type": "shakezoom", "defaults": {}, "params": ["speed"]},
+    "fuite":          {"type": "lightleak", "defaults": {}, "params": ["angle", "c0"]},
+    "nb_argentique":  {"type": "silverbw", "defaults": {}, "params": []},
+    "duotone":        {"type": "duotone", "defaults": {}, "params": ["c0", "c1"]},
+}
+
+
+def post_catalogue():
+    """Les presets du post-traitement, dans l'ordre : id, effet, catégorie du rack, `intensite` (l'effet a-t-il sa
+    propre intensité ?), paramètres réglables et leurs bornes (défauts du preset appliqués)."""
+    cat = catalog()
+    out = []
+    for pid, d in POST_PILE.items():
+        spec = cat[d["type"]]
+        bounds = {}
+        for p in d["params"]:
+            b = dict(spec["bounds"][p])
+            if p in d["defaults"]:
+                b["default"] = d["defaults"][p]
+            bounds[p] = b
+        out.append({"id": pid, "type": d["type"], "cat": spec["cat"],
+                    "intensite": "intensity" in spec["params"],
+                    "defaut": int(spec["bounds"].get("intensity", {}).get("default", 100)),
+                    "params": list(d["params"]), "bounds": bounds})
     return out
