@@ -1,63 +1,86 @@
-<p class="chapeau-chap">Vous saurez générer une musique, des bruitages et une voix off que vous dirigez, ranger et retrouver vos sons, et poser des effets visuels gratuits. Le prix de chaque générateur est affiché ; les effets visuels et le post-traitement sont gratuits.</p>
+<p class="chapeau-chap">Vous saurez générer et retravailler une musique, séparer une piste en instruments, dire une voix off, créer des bruitages et des particules, transformer une vidéo par l'IA et empiler des post-traitements. Le prix de chaque générateur est affiché avant de lancer ; les particules, l'Atelier et les post-traitements locaux sont gratuits.</p>
 
 <h3>L'écran Son &amp; VFX</h3>
-<figure class="scene" data-scene="son-vfx/audio"></figure>
-<p>Ouvrez <b class="ui">Son &amp; VFX</b> dans le rail. En haut, les <strong>générateurs</strong> et leur prix : musique, bruitages (606 sons livrés, plus la génération sur description), voix off, particules et post-traitement. Dessous, trois onglets : <b class="ui">Audio</b>, <b class="ui">VFX particules</b> et <b class="ui">Post-traitement</b>.</p>
+<figure class="scene" data-scene="son-vfx/hub"></figure>
+<p>Ouvrez <b class="ui">Son &amp; VFX</b> dans le rail. Une barre de six rubriques, chacune avec sa couleur, mène à une page : <b class="ui">Musique</b>, <b class="ui">SFX</b>, <b class="ui">Voix off</b>, <b class="ui">VFX particules</b>, <b class="ui">VFX IA</b> et <b class="ui">Post-traitement</b>. La page Musique a trois modes : <b class="ui">Générer</b>, <b class="ui">Importer et séparer</b> et <b class="ui">Atelier</b>.</p>
 
-<h3>Diriger une voix off</h3>
+<h3>Séparer une piste en instruments</h3>
+<figure class="scene" data-scene="son-vfx/pistes"></figure>
 <ol class="etapes">
-<li>Dans <strong>Voix off dirigée</strong>, écrivez le texte.</li>
-<li>Cliquez des balises d'émotion ou de jeu (quatre au plus) : elles se posent en tête et le modèle Eleven v3 les joue. L'écran montre exactement ce qui part au modèle.</li>
-<li><b class="ui">Générer la voix</b>. Rognez, ajoutez un fondu, baissez la musique sous la voix ou normalisez, puis <b class="ui">Envoyer au montage</b>.</li>
+<li>Dans Musique, mode <b class="ui">Importer et séparer</b>, glissez un fichier audio ou cliquez <b class="ui">Importer une piste</b>. Vos sons déjà importés sont listés dessous.</li>
+<li>Choisissez la piste : elle s'écoute. Choisissez 4 ou 6 pistes (chant, batterie, basse, autres, guitare, piano).</li>
+<li><b class="ui">Séparer les instruments</b> : le premier clic donne le prix, le second lance (payant, par fal). Chaque piste rejoint la Bibliothèque et le tiroir Sons du Montage.</li>
 </ol>
-<p>Hors du modèle v3, ou avec Voicebox, les balises sont retirées et c'est dit.</p>
 
-<h3>Musique et bruitages</h3>
-<div class="cartes">
-<article><i data-dz="dz-media-piste-audio"></i><h4>Musique</h4><p>Instrumentale ou chantée : décrivez le style, écrivez les paroles section par section (un squelette est proposé selon le persona). Facturée à la seconde, sous vos plafonds.</p></article>
-<article><i data-dz="dz-media-audio"></i><h4>Bruitages</h4><p>Décrivez le son et sa durée : deux variantes à écouter, qui rejoignent la Bibliothèque et le tiroir Sons du Montage.</p></article>
-<article><i data-dz="dz-media-generer-voix"></i><h4>Mix voix et musique</h4><p>Mixe une voix et une musique en baissant la musique sous la voix ; le mix entre dans la Bibliothèque.</p></article>
-<article><i data-dz="dz-media-cloner-voix"></i><h4>La voix d'un personnage</h4><p>Dans l'Atelier, un personnage reçoit une voix clonée (payante) et un tempérament, joués à chacune de ses répliques.</p></article>
-</div>
+<h3>Retravailler un son dans l'Atelier</h3>
+<figure class="scene" data-scene="son-vfx/atelier"></figure>
+<ol class="etapes">
+<li>Mode <b class="ui">Atelier</b>, ou <b class="ui">Ouvrir dans l'Atelier</b> depuis une piste ou une voix : le son devient la source du graphe.</li>
+<li>Partez d'un préréglage (<b class="ui">Voix radio</b>, <b class="ui">Lo-fi</b>, <b class="ui">Grand hall</b>, <b class="ui">Voix sur musique</b>) ou ajoutez des nœuds depuis la palette : égaliseur, compresseur, écho, réverbe, ducking, tempo, hauteur…</li>
+<li>Reliez la sortie d'un nœud à l'entrée du suivant, réglez-le dans l'inspecteur. Sous le canevas, la frise montre l'onde : glissez pour choisir une plage.</li>
+<li>Écoutez dix secondes, puis <b class="ui">Rendre dans la Bibliothèque</b>.</li>
+</ol>
+<p>Les nœuds <b class="ui">IA (payant)</b> prolongent la piste, régénèrent ou varient une plage, ou y posent un bruitage. Leur prix est affiché ; une plage générée est gardée et ne se repaie pas tant que rien ne change avant elle.</p>
+
+<h3>Dire une voix off</h3>
+<figure class="scene" data-scene="son-vfx/voix"></figure>
+<ol class="etapes">
+<li>À gauche, la bibliothèque de voix : cherchez, filtrez, écoutez, gardez vos favorites, ou <b class="ui">Cloner une voix…</b> à partir de vos prises.</li>
+<li>Au centre, écrivez le script. Avec le modèle Eleven v3, des balises d'émotion ou de jeu s'insèrent au curseur. À droite, le modèle et ses réglages.</li>
+<li><b class="ui">Générer la voix</b>. Chaque retouche crée une version : <b class="ui">Couper la prise</b>, <b class="ui">Fondu d'entrée et de sortie</b>, <b class="ui">Normaliser</b>, <b class="ui">De-ess</b>, <b class="ui">Ducking sous une musique</b>, <b class="ui">Améliorer la prise</b> ou <b class="ui">Isoler la voix</b>. Puis <b class="ui">Envoyer au Montage</b>.</li>
+</ol>
 
 <h3>Bruitages : choisir un modèle</h3>
 <figure class="scene" data-scene="son-vfx/sfx-modeles"></figure>
-<p>La carte <b class="ui">Générer des SFX</b> du rail SFX, comme l'onglet <b class="ui">Générer</b> du tiroir Sons du Montage, a une liste <b class="ui">Modèle</b> : ElevenLabs en direct ou via fal, Sonilo, Mirelo, Stable Audio, chacun avec son prix à la seconde et sa durée maximale. Décrivez le son, réglez la durée (0 laisse le modèle choisir), puis <b class="ui">Générer</b> : deux variantes rejoignent la Bibliothèque. Un modèle via fal se lance en deux clics, le premier affiche le prix.</p>
+<p>La rubrique <b class="ui">SFX</b> garde le catalogue livré et la carte <b class="ui">Générer des SFX</b>. Sa liste <b class="ui">Modèle</b> propose ElevenLabs en direct ou via fal, Sonilo, Mirelo et Stable Audio, chacun avec son prix et sa durée maximale. Décrivez le son, réglez la durée (0 laisse le modèle choisir), puis <b class="ui">Générer</b> : deux variantes rejoignent la Bibliothèque. Un modèle via fal se lance en deux clics, le premier affiche le prix.</p>
 
 <h3>Sonoriser une vidéo</h3>
 <figure class="scene" data-scene="son-vfx/sfx-video"></figure>
 <ol class="etapes">
 <li>Dans le Montage, sélectionnez un clip vidéo de la timeline, puis ouvrez le tiroir Sons et son onglet <b class="ui">Générer</b>.</li>
-<li>Le bloc <strong>Depuis la vidéo</strong> nomme le clip. Choisissez le modèle : Sonilo (avec « Garder la voix »), Mirelo, Kling, Hunyuan Foley ou ThinkSound ; certains demandent une description du son.</li>
+<li>Le bloc <strong>Depuis la vidéo</strong> nomme le clip. Choisissez le modèle : Sonilo, Mirelo, Kling, Hunyuan Foley ou ThinkSound ; certains demandent une description du son.</li>
 <li>Un premier clic donne le devis, le second lance. Le bruitage entre dans la Bibliothèque ; si le modèle rend la vidéo sonorisée, elle y entre aussi, dans Rendus.</li>
+</ol>
+
+<h3>Des particules en direct</h3>
+<figure class="scene" data-scene="son-vfx/particules"></figure>
+<ol class="etapes">
+<li>Rubrique <b class="ui">VFX particules</b> : choisissez un preset (explosion, fumée, étincelles, magie…) ou une séquence prête.</li>
+<li>L'aperçu joue tout de suite, calculé sur votre PC. Réglez l'émetteur, le mouvement et l'apparence dans l'inspecteur : chaque réglage change l'aperçu. La même graine rend toujours la même animation.</li>
+<li>Exportez une <b class="ui">Image PNG</b> ou <b class="ui">Exporter en WebM</b> avec transparence : le rendu entre dans la Bibliothèque.</li>
 </ol>
 
 <h3>VFX IA : rééclairer, effacer, recadrer…</h3>
 <figure class="scene" data-scene="son-vfx/vfx-ia"></figure>
 <ol class="etapes">
-<li>Dans le rail <b class="ui">VFX IA</b>, choisissez la vidéo source parmi vos rendus terminés.</li>
-<li>Choisissez un geste : rééclairer, insérer une scène, effacer un personnage ou un objet, jour vers nuit, eau, coloriser, modifier par une phrase, changer le format, agrandir, ou un effet prêt à l'emploi à partir d'une image. Chaque geste dit son prix et ce qu'il attend.</li>
-<li><b class="ui">Estimer puis lancer</b> : le premier clic affiche le devis du serveur, le second, <b class="ui">Lancer pour de bon</b>, lance. La vidéo rendue entre dans la Bibliothèque et se pose dans le Montage.</li>
+<li>Rubrique <b class="ui">VFX IA</b> : choisissez la vidéo source parmi vos rendus terminés.</li>
+<li>Choisissez un geste. Chaque carte montre en animation ce qu'il produit (survolez-la), son prix et ce qu'il attend.</li>
+<li><b class="ui">Estimer puis lancer</b> : le premier clic affiche le devis du serveur, le second, <b class="ui">Lancer pour de bon</b>, lance. La vidéo rendue entre dans la Bibliothèque.</li>
 </ol>
-<p>Les mêmes gestes, sauf l'effet à partir d'une image, sont dans le rack d'effets du Montage, section IA.</p>
+
+<h3>Empiler des post-traitements</h3>
+<figure class="scene" data-scene="son-vfx/post"></figure>
+<ol class="etapes">
+<li>Rubrique <b class="ui">Post-traitement</b> : choisissez un rendu, un résultat de VFX IA ou des particules.</li>
+<li>Cliquez des presets du catalogue (grain 16 mm, bloom, glitch, LUT, VHS, bandes cinéma, duotone…) : ils s'empilent dans l'ordre.</li>
+<li>Dans la pile, glissez un maillon pour le déplacer, masquez-le, réglez son intensité. L'avant/après montre l'effet à l'instant choisi.</li>
+<li><b class="ui">Rendre la vidéo</b> : le rendu se fait sur votre PC, gratuitement, et entre dans la Bibliothèque. <b class="ui">Enregistrer la pile</b> la garde pour une autre vidéo.</li>
+</ol>
+
+<h3>Générer avec l'IA, décrire le look</h3>
+<figure class="scene" data-scene="son-vfx/post-ia"></figure>
+<p>La section <b class="ui">Générer avec l'IA</b> range les générateurs par fournisseur (fal, Decart, ElevenLabs) : style, agrandissement, interpolation d'images, bruitages. Chacun devient un maillon payant de la pile, avec son prix ; sans sa clé il reste choisissable et c'est dit. Le rendu d'une pile payante demande un second clic, après le devis.</p>
+<p>Dans <b class="ui">Décrire le look</b>, écrivez une phrase (« pellicule 70s chaude, un peu abîmée ») puis <b class="ui">Proposer une pile</b>. La pile proposée n'est jamais appliquée seule : <b class="ui">Remplacer la pile</b> ou <b class="ui">Ajouter à la pile</b>.</p>
 
 <h3>Le tiroir Sons</h3>
 <figure class="scene" data-scene="son-vfx/tiroir"></figure>
-<p>Tous vos sons vivent dans le tiroir Sons : dans la Bibliothèque (onglet Audio) et dans le Montage (touche <kbd>B</kbd>). Filtrez par sorte (bruitages, voix, musique, importés), entre vos sons et le catalogue fourni, cherchez par nom ou par tag.</p>
+<p>Tous vos sons vivent dans le tiroir Sons : dans la Bibliothèque (onglet Audio) et dans le Montage (touche <kbd>B</kbd>). Filtrez par sorte, entre vos sons et le catalogue fourni, cherchez par nom ou par tag.</p>
 <div class="cartes">
 <article><i data-dz="dz-media-ameliorer"></i><h4>Améliorer</h4><p>Égaliseur, débruitage, compresseur et volume normalisé en un clic, sur votre PC, sans fournisseur.</p></article>
-<article><i data-dz="dz-media-stems"></i><h4>Séparer en pistes</h4><p>Découpe une musique en voix, batterie, basse… (payant, devis au premier clic) ; chaque piste reste rattachée à sa mère.</p></article>
-<article><i data-dz="dz-media-isoler-voix"></i><h4>Isoler la voix</h4><p>Retire le fond sonore d'une prise de voix (payant, devis au premier clic).</p></article>
-<article><i data-dz="dz-action-recherche-semantique"></i><h4>Chercher par description</h4><p>Décrivez ce que vous voulez entendre ; les sons voisins d'un son se listent aussi. Demande le service local de recherche, sinon le bouton dit pourquoi il est grisé.</p></article>
+<article><i data-dz="dz-action-recherche-semantique"></i><h4>Chercher par description</h4><p>Décrivez ce que vous voulez entendre. Demande le service local de recherche, sinon le bouton dit pourquoi il est grisé.</p></article>
 <article><i data-dz="dz-media-preecoute"></i><h4>Pré-écoute</h4><p>Survolez un son pour l'entendre (option à activer) ; <kbd>Espace</kbd> écoute la ligne choisie.</p></article>
 </div>
 
-<h3>Effets visuels gratuits</h3>
-<ol class="etapes">
-<li><b class="ui">VFX particules</b> : explosions, fumée, étincelles, magie… simulées sur votre PC, à poser sur un plan.</li>
-<li><b class="ui">Post-traitement</b> : grain 16 mm, halo lumineux, glitch, aberration ; appliqués au rendu par le nœud Rendu du Studio.</li>
-<li>Dans le rack d'effets du Montage, un effet peut passer <strong>derrière</strong> le sujet détouré du plan, ou devant lui. Le détourage du sujet est payant ; un premier clic donne le devis.</li>
-</ol>
-
 <h3>Bon à savoir</h3>
-<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Séparer, isoler, détourer : un premier clic arme l'action et affiche le prix, un second la lance, <kbd>Échap</kbd> désarme. Rien ne part sans ce second clic.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Séparer, nœuds IA, VFX IA, maillons IA : un premier clic arme l'action et affiche le prix, un second la lance. Rien ne part sans ce second clic, et tout passe sous vos plafonds de dépense.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-ia"></i><p>Les vignettes animées des gestes et des presets jouent au survol. Si votre système demande de réduire les animations, elles restent fixes.</p></aside>

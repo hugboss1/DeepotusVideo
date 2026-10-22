@@ -55,6 +55,10 @@
     {"id": "vectorlab.raccourcis", "ecran": "vectorlab", "cadre": "/vectorlab/", "selecteur": "button.pb-icone", "texte": {"fr": "Raccourcis clavier (F1)", "en": "Keyboard shortcuts (F1)"}, "fr": "Vectorlab › Raccourcis clavier", "en": "Vectorlab › Keyboard shortcuts"},
     {"id": "photolab.menu_filtre", "ecran": "photolab", "cadre": "/photolab/", "selecteur": "button.menu-bouton", "texte": {"fr": "Filtre", "en": "Filter"}, "fr": "Photolab › menu Filtre", "en": "Photolab › Filter menu"},
     {"id": "photolab.recadrage", "ecran": "photolab", "cadre": "/photolab/", "selecteur": "button", "texte": {"fr": "Recadrage", "en": "Crop"}, "fr": "Photolab › outil Recadrage", "en": "Photolab › Crop tool"},
-    {"id": "photolab.pinceau", "ecran": "photolab", "cadre": "/photolab/", "selecteur": "button", "texte": {"fr": "Pinceau", "en": "Brush"}, "fr": "Photolab › outil Pinceau", "en": "Photolab › Brush tool"}
+    {"id": "photolab.pinceau", "ecran": "photolab", "cadre": "/photolab/", "selecteur": "button", "texte": {"fr": "Pinceau", "en": "Brush"}, "fr": "Photolab › outil Pinceau", "en": "Photolab › Brush tool"},
+    {"id": "sonvfx.voix", "ecran": "sonvfx", "selecteur": "button.dzCatTab", "libelle": ".dzCatLbl", "texte": {"fr": "Voix off", "en": "Voiceover"}, "fr": "Son & VFX › rubrique Voix off", "en": "Sound & VFX › Voiceover section"},
+    {"id": "sonvfx.post", "ecran": "sonvfx", "selecteur": "button.dzCatTab", "libelle": ".dzCatLbl", "texte": {"fr": "Post-traitement", "en": "Post-processing"}, "fr": "Son & VFX › rubrique Post-traitement", "en": "Sound & VFX › Post-processing section"},
+    {"id": "sonvfx.pistes", "ecran": "sonvfx", "selecteur": "button.dzsvh-mode", "texte": {"fr": "Importer et séparer", "en": "Import & split"}, "fr": "Son & VFX › Musique › mode Importer et séparer", "en": "Sound & VFX › Music › Import & split mode"},
+    {"id": "sonvfx.atelier", "ecran": "sonvfx", "selecteur": "button.dzsvh-mode", "texte": {"fr": "Atelier", "en": "Workshop"}, "fr": "Son & VFX › Musique › mode Atelier", "en": "Sound & VFX › Music › Workshop mode"}
   ]
 }

@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Six rubriques, une barre",
+    "en": "Six sections, one bar"
+  },
+  "legende": {
+    "fr": "La barre de Son & VFX : Musique, SFX, Voix off, VFX particules, VFX IA et Post-traitement, chacune avec sa couleur.",
+    "en": "The Sound & VFX bar: Music, SFX, Voiceover, Particle VFX, AI VFX and Post-processing, each with its color."
+  },
+  "captures": [
+    {
+      "fr": "musique.fr.webp",
+      "en": "musique.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        250,
+        64,
+        1172,
+        60
+      ],
+      "bulle": {
+        "fr": "Une rubrique par sorte de son ou d'effet",
+        "en": "One section per kind of sound or effect"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        915,
+        142,
+        81,
+        39
+      ],
+      "bulle": {
+        "fr": "Musique : générer, importer et séparer, ou l'Atelier",
+        "en": "Music: generate, import and split, or the Workshop"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1193,
+        143,
+        212,
+        38
+      ],
+      "bulle": {
+        "fr": "Le prix est dit avant de lancer",
+        "en": "The price is shown before you run"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        250,
+        64,
+        1172,
+        60
+      ],
+      "bulle": {
+        "fr": "Une rubrique par sorte de son ou d'effet",
+        "en": "One section per kind of sound or effect"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        882,
+        142,
+        87,
+        39
+      ],
+      "bulle": {
+        "fr": "Musique : générer, importer et séparer, ou l'Atelier",
+        "en": "Music: generate, import and split, or the Workshop"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1153,
+        143,
+        252,
+        38
+      ],
+      "bulle": {
+        "fr": "Le prix est dit avant de lancer",
+        "en": "The price is shown before you run"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

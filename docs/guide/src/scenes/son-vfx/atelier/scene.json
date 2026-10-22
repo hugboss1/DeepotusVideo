@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "L'Atelier sonore à nœuds",
+    "en": "The node-based sound Workshop"
+  },
+  "legende": {
+    "fr": "Musique › Atelier : un préréglage pose une chaîne de nœuds ; chaque nœud se règle dans l'inspecteur.",
+    "en": "Music › Workshop: a preset lays out a chain of nodes; each node is set in the inspector."
+  },
+  "captures": [
+    {
+      "fr": "vide.fr.webp",
+      "en": "vide.en.webp"
+    },
+    {
+      "fr": "chaine.fr.webp",
+      "en": "chaine.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        310,
+        294
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Un préréglage pour démarrer",
+        "en": "A preset to start from"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        501,
+        404,
+        113,
+        44
+      ],
+      "bulle": {
+        "fr": "Source, effets, sortie : reliés de gauche à droite",
+        "en": "Source, effects, output: linked left to right"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        263,
+        831,
+        207,
+        27
+      ],
+      "bulle": {
+        "fr": "Des nœuds IA retravaillent une plage",
+        "en": "AI nodes rework a range"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        308,
+        294
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Un préréglage pour démarrer",
+        "en": "A preset to start from"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        501,
+        404,
+        113,
+        44
+      ],
+      "bulle": {
+        "fr": "Source, effets, sortie : reliés de gauche à droite",
+        "en": "Source, effects, output: linked left to right"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        263,
+        831,
+        207,
+        27
+      ],
+      "bulle": {
+        "fr": "Des nœuds IA retravaillent une plage",
+        "en": "AI nodes rework a range"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

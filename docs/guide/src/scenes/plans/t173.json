@@ -186,58 +186,6 @@
    ]
   },
   {
-   "scene": "son-vfx/audio",
-   "clip": "css:main",
-   "titre": {
-    "fr": "L'écran Son & VFX",
-    "en": "The Sound & VFX screen"
-   },
-   "legende": {
-    "fr": "Les générateurs en haut ; voix off dirigée, effets sonores et post-traitement dessous.",
-    "en": "The generators at the top; directed voiceover, sound effects and post-processing below."
-   },
-   "avant": [
-    {
-     "clic": {
-      "fr": "texte:Son & VFX",
-      "en": "texte:Sound & VFX"
-     },
-     "apres": 2500
-    }
-   ],
-   "captures": [
-    {
-     "nom": "audio"
-    }
-   ],
-   "temps": [
-    {
-     "capture": 0,
-     "duree": 2.8,
-     "surligne": {
-      "fr": "contient:GÉNÉRATEURS",
-      "en": "contient:GENERATORS"
-     },
-     "bulle": {
-      "fr": "Musique, bruitages, voix, particules, post : le prix est dit",
-      "en": "Music, effects, voice, particles, post: the price is shown"
-     }
-    },
-    {
-     "capture": 0,
-     "duree": 2.8,
-     "surligne": {
-      "fr": "contient:VOIX OFF DIRIGÉE",
-      "en": "contient:DIRECTED VOICE-OVER"
-     },
-     "bulle": {
-      "fr": "Diriger le jeu de la voix",
-      "en": "Direct the voice's acting"
-     }
-    }
-   ]
-  },
-  {
    "scene": "son-vfx/tiroir",
    "titre": {
     "fr": "Le tiroir Sons",

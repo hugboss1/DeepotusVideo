@@ -413,6 +413,51 @@ def test_infobulle_variable_locale_non_suivie(tmp_path):
     assert "a.b.stems_aide" not in e
 
 
+# t279 : pages de Son & VFX (sonvfx-post.js) dont les textes passent par une TABLE — function txt(){return {go:dzT(…)}},
+# var T=txt(), puis children:T.go — la clé n'est pas dans l'élément : l'extracteur suit la table dans sa portée
+TABLE = 'function txt(){return {go:dzT("a.b.tgo"),aide:dzT("a.b.taide"),cache:dzT("a.b.tcache")}}'
+CLES_A.update({k: {"fr": k.rsplit(".", 1)[-1], "en": k.rsplit(".", 1)[-1].upper()}
+               for k in ("a.b.tgo", "a.b.taide", "a.b.tcache")})
+
+
+def test_table_de_textes_suivie(tmp_path):
+    b = TABLE + ('function Page(){var T=txt();function ligne(){return r.jsxs("div",{children:['
+                 'r.jsx("button",{onClick:f,children:T.go}),r.jsx("button",{onClick:g,title:T.aide,children:"x"})]})}'
+                 'return ligne()}')
+    e = S.extraire(_depot(tmp_path, b))
+    assert e["a.b.tgo"]["libelle"] == {"fr": "tgo", "en": "TGO"} and e["a.b.tgo"]["sources"] == ["i18n:a.b.tgo"]
+    assert e["a.b.taide"]["infobulle"] == {"fr": "taide", "en": "TAIDE"} and e["a.b.taide"]["type"] == "bouton"
+
+
+def test_table_hors_portee_ou_sans_affectation_non_suivie(tmp_path):
+    b = TABLE + ('function A(){var T=txt();return 1}function B(){return r.jsx("button",{onClick:f,children:T.go})}'
+                 'function C(){var T=autre();return r.jsx("button",{onClick:f,title:T.aide})}')
+    e = S.extraire(_depot(tmp_path, b))
+    assert "a.b.tgo" not in e and "a.b.taide" not in e
+
+
+def test_table_dans_une_fabrique_branche_au_repos(tmp_path):
+    b = TABLE + ('function Page(){var T=txt();function mini(k,tt){return r.jsx("button",{onClick:f,title:tt})}'
+                 'return r.jsx("div",{children:[mini("m",x?T.aide:T.cache),mini("g",T.go)]})}')
+    e = S.extraire(_depot(tmp_path, b))
+    assert "a.b.tcache" in e and "a.b.taide" not in e and e["a.b.tgo"]["infobulle"]["fr"] == "tgo"
+
+
+def test_table_et_cle_dans_l_ordre_du_texte(tmp_path):
+    # !armé ? T.go : dzT(confirmer) — la branche au repos vient en premier, qu'elle soit une clé ou une table
+    b = TABLE + 'function Page(){var T=txt();return r.jsx("button",{onClick:f,"aria-label":!a?T.go:dzT("a.b.taide")})}'
+    e = S.extraire(_depot(tmp_path, b))
+    assert "a.b.tgo" in e and "a.b.taide" not in e
+
+
+def test_bouton_object_assign(tmp_path):
+    # function mini(k,tt,props){return r.jsx("button",Object.assign({title:tt,…},props))} : l'objet littéral se lit
+    b = TABLE + ('function Page(){var T=txt();function mini(k,tt,p){return r.jsx("button",Object.assign({type:"button",'
+                 'title:tt,children:k},p),k)}return r.jsx("div",{children:[mini("m",T.cache,{onClick:f})]})}')
+    e = S.extraire(_depot(tmp_path, b))
+    assert e["a.b.tcache"]["infobulle"]["fr"] == "tcache"
+
+
 def test_parametre_champ_et_libelle_non_suivis(tmp_path):
     b = ('function rng(k,label){return r.jsx("input",{type:"range","aria-label":label})}rng(1,dzT("a.b.stems_aide"));'
          'function row(label,kids){return r.jsx("button",{onClick:f,children:label})}row(dzT("a.b.iso_aide"),[])')
