@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="dz-geste" content="nb_argentique">
+<meta name="dz-skill" content="style-photos">
+<meta name="dz-format" content="480x270">
+<meta name="dz-affiche" content="1.2">
+<style>html,body{margin:0;background:#0a0a0c}canvas{display:block}</style>
+</head><body><canvas id="c" width="480" height="270"></canvas>
+<script>
+/* t278 · Noir et blanc argentique. Fiche maison style-photos : la photo reste la matière, elle respire par un lent zoom doux ; une
+   seule teinte d'accent (ambre), fond sombre. Un volet balaie l'image comme le comparateur de la page
+   Post-traitement : avant à gauche du trait, apres à droite, puis l'effet tient seul avant de revenir.
+   Apres : le noir et blanc d'un tirage argentique, contrasté, légèrement froid dans les ombres, avec son grain fin. */
+var c=document.getElementById("c"),g=c.getContext("2d");
+function toile(){var e=document.createElement("canvas");e.width=480;e.height=270;return e}
+var s=toile(),h=s.getContext("2d",{willReadFrequently:true}),a=toile(),q=a.getContext("2d",{willReadFrequently:true});
+var bl=toile(),b=bl.getContext("2d"),AV=null;
+function cl(v){return v<0?0:v>1?1:v}
+function io(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function seg(t,x0,x1){return cl((t-x0)/(x1-x0))}
+function cx(x){return x<0?0:x>479?479:x}
+function hsh(n){n=(n^61)^(n>>>16);n=(n+(n<<3))|0;n=n^(n>>>4);n=Math.imul(n,668265261);n=n^(n>>>15);return (n>>>0)/4294967296}
+function scene(t){
+  var z=1.03+.02*Math.sin(t*Math.PI/2),i;
+  h.setTransform(z,0,0,z,240-240*z,135-135*z);
+  var ciel=h.createLinearGradient(0,0,0,200);ciel.addColorStop(0,"#16213a");ciel.addColorStop(.6,"#3c6bb3");ciel.addColorStop(1,"#f0b429");
+  h.fillStyle=ciel;h.fillRect(-20,-20,520,240);
+  h.fillStyle="#f2efe9";h.beginPath();h.arc(330,128,22,0,7);h.fill();
+  h.fillStyle="#2a2a31";h.beginPath();h.moveTo(-20,190);h.lineTo(60,140);h.lineTo(120,170);h.lineTo(200,118);h.lineTo(290,172);
+  h.lineTo(400,136);h.lineTo(500,182);h.lineTo(500,212);h.lineTo(-20,212);h.fill();
+  h.fillStyle="#151519";h.fillRect(-20,200,520,90);
+  h.fillStyle="#1c1c21";h.fillRect(70,150,90,60);
+  h.fillStyle="#0f0f12";h.beginPath();h.moveTo(60,152);h.lineTo(115,118);h.lineTo(170,152);h.fill();
+  h.fillStyle="#f0b429";h.fillRect(84,165,18,14);h.fillRect(128,165,18,14);
+  h.fillStyle="#1c1c21";h.fillRect(92,165,1,14);h.fillRect(84,171,18,1);h.fillRect(136,165,1,14);h.fillRect(128,171,18,1);
+  h.fillStyle="#0f0f12";for(i=0;i<3;i++){h.beginPath();h.moveTo(380+i*26,206);h.lineTo(392+i*26,160-i*6);h.lineTo(404+i*26,206);h.fill()}
+  for(i=0;i<2;i++){var lx=230+i*200;h.fillStyle="#2a2a31";h.fillRect(lx,170,3,58);h.fillStyle="#f2efe9";h.beginPath();h.arc(lx+1.5,168,4,0,7);h.fill()}
+  h.fillStyle="#0f0f12";h.fillRect(-20,228,520,24);
+  h.fillStyle="#f2efe9";h.globalAlpha=.45;for(i=0;i<13;i++)h.fillRect(i*40,239,20,2);h.globalAlpha=1;
+  var vx=(t/4)*620-70;
+  h.fillStyle="#6fa0f0";h.fillRect(vx,214,54,14);h.fillRect(vx+10,205,30,10);
+  h.fillStyle="#16213a";h.fillRect(vx+14,207,10,7);h.fillRect(vx+27,207,10,7);
+  h.fillStyle="#f2efe9";h.fillRect(vx+52,217,4,5);
+  h.fillStyle="#0a0a0c";h.beginPath();h.arc(vx+12,229,5,0,7);h.arc(vx+42,229,5,0,7);h.fill();
+  h.setTransform(1,0,0,1,0,0)}
+function volet(t){return 480*(1-io(seg(t,.5,1.9))*(1-io(seg(t,3,3.8))))}
+function apres(t){
+  var f=Math.floor(t*24),r=(f*104729+7)|0,d=h.getImageData(0,0,480,270),p=d.data;
+  for(var i=0;i<p.length;i+=4){r^=r<<13;r^=r>>>17;r^=r<<5;
+    var l=(p[i]*.3+p[i+1]*.59+p[i+2]*.11)/255;l=l*l*(3-2*l);l=l*l*(3-2*l)*.35+l*.65;
+    var n=(((r>>>0)&255)/255-.5)*28,v=l*255+n;
+    p[i]=v*.97;p[i+1]=v*.99;p[i+2]=v*1.03+3}
+  q.putImageData(d,0,0)}
+window.dzFrame=function(sec){
+  var t=sec%4,x=volet(t);
+  scene(t);apres(t);
+  g.drawImage(AV||s,0,0);
+  g.save();g.beginPath();g.rect(x,0,480-x,270);g.clip();g.drawImage(a,0,0);g.restore();
+  if(x>0&&x<480){g.fillStyle="#f2efe9";g.fillRect(x-1,0,2,270);g.fillRect(x-5,129,10,12)}
+  g.fillStyle="#f0b429";g.fillRect(0,266,480*(t/4),4)};
+window.dzFrame(0);
+</script></body></html>
