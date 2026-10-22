@@ -714,6 +714,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
       {"kind":"vfx_ia","modele":"retoucher-flux3","secondes":5}   (t188 : options, largeur, hauteur)
       {"kind":"objets3d","modele":"sam-3-3d-objects","n":1}   (t189 : storyboard 3D SAM 3, par requête)
       {"kind":"atelier_ia","modele":"sa3-regenerer","secondes":34}   (t272 : nœud IA de l'Atelier sonore)
+      {"kind":"post_ia","modele":"restyle-decart","secondes":5}   (t277 : générateur IA du Post-traitement)
     Returns {breakdown:[line...], total_usd, credits:{provider:n}}.
     """
     p = p or load()
@@ -1077,6 +1078,9 @@ def estimate(op: dict, p: dict | None = None) -> dict:
     elif kind == "atelier_ia":
         from app.services import atelier_ia as _ai   # t272 : un nœud IA de l'Atelier sonore (registre atelier_ia)
         lines.append(_ai.ligne(op))
+    elif kind == "post_ia":
+        from app.services import post_ia as _pi   # t277 : un générateur vidéo -> vidéo du Post-traitement (FILM, Decart)
+        lines.append(_pi.ligne(op))
     elif kind == "vfx_ia":
         lines.append(_ligne_vfx(op, p))   # t188 (G6) : un geste VFX IA (registre vfx_ia)
     elif kind == "objets3d":

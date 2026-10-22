@@ -424,7 +424,8 @@ check("S6 routes : catalogue, sources, presets, aperçu, rendu, LUT, suivi du jo
       [u for u in _ROUTES if u not in PAGE])
 _pr = (RACINE / "backend" / "app" / "api" / "post_routes.py").read_text(encoding="utf-8")
 check("S7 chaque route /api/post appelée existe côté serveur",
-      all(f'@router.{m}("{u}")' in _pr for m, u in (("get", "/catalogue"), ("get", "/sources"), ("get", "/presets"),
+      # t277 : /rendre porte la garde des dépenses en dépendance du décorateur (@router.post("/rendre", dependencies=…))
+      all(re.search(rf'@router\.{m}\("{re.escape(u)}"[,)]', _pr) for m, u in (("get", "/catalogue"), ("get", "/sources"), ("get", "/presets"),
                                                     ("post", "/apercu"), ("post", "/rendre"), ("post", "/lut"),
                                                     ("post", "/presets"), ("delete", "/presets/{pid}"))))
 check("S8 hooks par alias dans la fonction (x.useState( absent de la page)",

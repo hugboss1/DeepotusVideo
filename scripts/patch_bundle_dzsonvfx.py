@@ -562,6 +562,28 @@ CSS_POST = (
     ".dzsvo-btn:disabled{opacity:.45;cursor:default}"
     ".dzsvo-note{font-size:11.5px;color:var(--ink);padding:6px 10px;border:1px solid var(--stroke);background:var(--bg-base)}"
     ".dzsvo-erreur{color:var(--red,#e5484d);border-color:var(--red,#e5484d)}"
+    # t277 : générateurs IA (par fournisseur, prix, pastille de clé), maillons payants, « Décrire le look »
+    ".dzsvo-section[data-sv-post=generer]{max-height:340px;overflow:auto}"
+    ".dzsvo-fourn{display:flex;flex-direction:column;gap:3px}"
+    ".dzsvo-fnom{font-family:var(--f-mono,monospace);font-size:10px;letter-spacing:.1em;text-transform:uppercase;"
+    "color:var(--ink-soft);padding-top:5px;border-top:1px dashed var(--stroke)}"
+    ".dzsvo-gen{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;column-gap:6px;row-gap:2px;"
+    "font:inherit;font-size:11px;text-align:left;padding:5px 7px;border:1px solid var(--stroke);background:var(--bg-base);"
+    "color:var(--ink);cursor:pointer}"
+    ".dzsvo-gen:hover:not(:disabled){border-color:var(--cat)}"
+    ".dzsvo-gen:disabled{opacity:.45;cursor:default}"
+    ".dzsvo-gnom{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
+    ".dzsvo-gprix{font-family:var(--f-mono,monospace);font-size:10px;color:var(--ink-soft);white-space:nowrap}"
+    ".dzsvo-gcle{grid-column:2/-1;font-size:10.5px;color:var(--amber,#f0b429)}"
+    ".dzsvo-mia{border-left-color:var(--amber,#f0b429)}"
+    ".dzsvo-payant{align-self:flex-start;font-family:var(--f-mono,monospace);font-size:9.5px;font-weight:400;padding:1px 5px;"
+    "border:1px solid var(--amber,#f0b429);color:var(--amber,#f0b429)}"
+    ".dzsvo-consigne{resize:vertical;min-height:40px;font-family:inherit}"
+    ".dzsvo-proposition{display:flex;flex-direction:column;gap:4px;padding:8px;border:1px dashed var(--cat);"
+    "background:var(--bg-base)}"
+    ".dzsvo-pitem{font-size:11.5px;color:var(--ink)}"
+    ".dzsvo-btn[data-arme]{background:var(--amber,#f0b429);border-color:var(--amber,#f0b429);color:var(--cat-ink,#14181d);"
+    "box-shadow:0 0 0 2px color-mix(in srgb,var(--amber,#f0b429) 45%,transparent)}"
 )
 
 HUB = (

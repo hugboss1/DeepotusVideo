@@ -10,26 +10,45 @@
   GET    /presets          les piles enregistrées
   POST   /presets          body {nom, pile} → la pile enregistrée
   DELETE /presets/{id}     supprime une pile enregistrée (404 si absente)
+t277 (22/10/2026) — générateurs IA selon les clés (services/post_ia.py) :
+  GET    /generateurs      {generateurs, moteurs_texte} : les générateurs vidéo → vidéo du catalogue_ia par fournisseur
+                           (fal, decart, elevenlabs), listés SANS clé aussi (dispo False, clé nommée), et les moteurs de
+                           texte de « Décrire le look »
+  POST   /devis            body {source, pile} → {usd, lignes, cles, ia} : le devis des maillons IA actifs (gratuit)
+  POST   /decrire          body {phrase, moteur?, modele?} → {propose: true, moteur, pile} : une pile de presets LOCAUX
+                           PROPOSÉE par le moteur de texte (tirer_garde, catégorie « son ») ; rien n'est appliqué
+  /rendre accepte des maillons IA {ia, prompt, options, masque} : PAYANT. Ordre des refus : pile 400 → clé absente 503
+  (avant toute garde) → consigne / options 400 → source refusée par un générateur 400 → `confirme_cout` absent 409 (avec
+  le devis) → garde des plafonds 402 → job (provider « post »). /apercu ignore les maillons IA (rendu seulement).
 Refus : id de source hostile 400, job inconnu 404, job pas fini 409, job sans vidéo (planche sprite) 404, pile refusée
-400. Gratuit : aucun plafond. Les écritures hors de la boucle locale sont refusées par la garde de main.py.
+400. Une pile de presets locaux est gratuite : aucun plafond. Les écritures hors de la boucle locale sont refusées par la garde de main.py.
 """
 import asyncio
 import json
 import re
+import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from loguru import logger
 
 from app.config import settings
 from app.services import effects_engine as FX
 from app.services import library_index as LI
+from app.services import plafonds as _PLAF
+from app.services import post_ia as PI
 from app.services import post_pile as PP
 
 router = APIRouter()
+
+
+def _require_local_depense(request: Request) -> None:
+    """t277 : la garde des routes qui dépensent (celle de routes.py), posée sur /rendre."""
+    from app.api.routes import _require_local_depense as _rl
+    _rl(request)
 
 #: Extensions d'une vidéo de rendu acceptée comme source.
 _VIDEO_EXTS = (".mp4", ".mov", ".m4v", ".mkv", ".webm")
@@ -139,7 +158,8 @@ async def apercu(request: Request):
     d = await _corps(request)
     p, _ = await _source(d.get("source"))
     try:
-        img = await asyncio.to_thread(PP.apercu, p, d.get("pile") or [], d.get("t", 0), d.get("largeur") or None)
+        loc = PI.locaux(d.get("pile") or [])   # t277 : les maillons IA ne s'appliquent qu'au rendu
+        img = await asyncio.to_thread(PP.apercu, p, loc, d.get("t", 0), d.get("largeur") or None)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except RuntimeError as e:
@@ -147,13 +167,12 @@ async def apercu(request: Request):
     return FileResponse(img, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
-async def _rendre_job(job_id: str, src: Path, pile: list, dest: Path, source_id: str):
+async def _rendre_job(job_id: str, src: Path, pile: list, dest: Path, source_id: str, usd: float = 0.0):
     from app.services.storage import JobRecord, async_session_factory
     loop = asyncio.get_running_loop()
     etat = {"pct": 5}
-
-    def _avance(f):
-        etat["pct"] = 5 + int(90 * f)
+    etps = PI.etapes(pile)
+    travail = settings.outputs_path / "post_tmp" / job_id
 
     async def _suivre():
         while True:
@@ -166,7 +185,25 @@ async def _rendre_job(job_id: str, src: Path, pile: list, dest: Path, source_id:
 
     suivi = asyncio.create_task(_suivre())
     try:
-        await loop.run_in_executor(None, lambda: PP.rendre(src, pile, dest, _avance))
+        if len(etps) == 1 and etps[0][0] == "local":
+            await loop.run_in_executor(None, lambda: PP.rendre(src, etps[0][1], dest,
+                                                               lambda f: etat.update(pct=5 + int(90 * f))))
+        else:
+            # t277 : la pile mixte, étape par étape — presets locaux par ffmpeg, maillons IA par leur fournisseur
+            travail.mkdir(parents=True, exist_ok=True)
+            cur = src
+            for k, (genre, x) in enumerate(etps):
+                base = 5 + int(90 * k / len(etps))
+                if genre == "local":
+                    nxt = travail / f"etape{k}.mp4"
+                    await loop.run_in_executor(None, lambda c=cur, g=x, n=nxt, b=base: PP.rendre(
+                        c, g, n, lambda f: etat.update(pct=b + int(90 * f / len(etps)))))
+                else:
+                    etat["pct"] = base
+                    secs = (await asyncio.to_thread(PP.infos, cur))["dur"]
+                    nxt = await PI.appliquer_maillon(x, cur, secs, travail)
+                cur = nxt
+            await asyncio.to_thread(PI.finaliser, cur, dest)
         dur = (await asyncio.to_thread(PP.infos, dest))["dur"]
         suivi.cancel()
         async with async_session_factory() as s:
@@ -176,10 +213,11 @@ async def _rendre_job(job_id: str, src: Path, pile: list, dest: Path, source_id:
             jr.image_filename = dest.name
             jr.duration_s = int(round(dur)) if dur else None
             jr.completed_at = datetime.utcnow()
-            jr.cost_meta = json.dumps({"usd": 0.0, "kind": "post", "source": source_id})
+            jr.cost_meta = json.dumps({"usd": usd, "kind": "post", "source": source_id,
+                                       "ia": [m["ia"] for m in PI.actifs_ia(pile)]})
             await s.commit()
         await LI.noter([dest.name], "sonvfx", kind="video", job_id=job_id, parent=src.name, relation="post",
-                       recette={"pile": pile, "source": source_id})
+                       recette={"pile": pile, "source": source_id, "usd": usd})
     except Exception as e:  # noqa: BLE001 — l'échec reste lisible dans le job
         suivi.cancel()
         logger.warning(f"post {job_id} : {e}")
@@ -188,20 +226,84 @@ async def _rendre_job(job_id: str, src: Path, pile: list, dest: Path, source_id:
             if jr is not None:
                 jr.status, jr.error, jr.current_step = "failed", str(e)[:500], "Failed"
                 await s.commit()
+    finally:
+        shutil.rmtree(travail, ignore_errors=True)
 
 
-@router.post("/rendre")
+def _refus_cle(cle: str, nom: str, request: Request) -> HTTPException:
+    from app.api.routes import _refus_cle as _rc
+    return _rc(cle, nom, request)
+
+
+def _txt(x, request: Request) -> str:
+    from app.api.routes import _txt_g
+    return _txt_g(x, request)
+
+
+async def _devis(pile: list, src: Path, request: Request) -> dict:
+    """Le devis des maillons IA actifs (même op pour /devis et la garde de /rendre) et les infos de la source."""
+    from app.services import pricing as _pricing
+    i = await asyncio.to_thread(PP.infos, src)
+    op = PI.op_devis(pile, i["dur"], i["w"], i["h"])
+    est = _pricing.estimate(op)
+    return {"op": op, "usd": round(est["total_usd"], 6), "infos": i,
+            "lignes": [{"label": _txt(ln["label"], request), "usd": ln["usd"], "provider": ln["provider"]}
+                       for ln in est["breakdown"]]}
+
+
+@router.get("/generateurs")
+async def generateurs():
+    from app.services import catalogue_ia as CI
+    return {"generateurs": PI.generateurs(),
+            "moteurs_texte": [{"id": m["id"], "label": m["label"], "dispo": m["dispo"], "cle": m["cle"],
+                               "voie": m["voie"]} for m in CI.lister("texte")]}
+
+
+@router.post("/devis")
+async def devis(request: Request):
+    d = await _corps(request)
+    src, _ = await _source(d.get("source"))
+    try:
+        pile = PI.valider(d.get("pile") or [])
+    except ValueError as e:
+        raise HTTPException(400, _txt(e, request))
+    dv = await _devis(pile, src, request)
+    return {"usd": dv["usd"], "lignes": dv["lignes"], "cles": PI.cles_manquantes(pile), "ia": len(PI.actifs_ia(pile))}
+
+
+@router.post("/rendre", dependencies=[Depends(_require_local_depense)])
 async def rendre(request: Request):
     from app.models.schemas import JobStatus
     from app.services.storage import JobRecord, async_session_factory
     d = await _corps(request)
     src, jr0 = await _source(d.get("source"))
     try:
-        pile = PP.normaliser(d.get("pile") or [])
-        if not PP.effets(pile):
+        pile = PI.normaliser(d.get("pile") or [])
+        ia = PI.actifs_ia(pile)
+        if not ia and not PP.effets(PI.locaux(pile)):
             raise ValueError("la pile ne rend rien : chaque maillon est masqué ou à 0 %")
     except ValueError as e:
         raise HTTPException(400, str(e))
+    usd = 0.0
+    if ia:
+        # t277 : maillons PAYANTS — la clé (503, avant toute garde), la validation, le devis confirmé, la garde
+        manque = PI.sans_cle(pile)
+        if manque:
+            raise _refus_cle(manque[0], manque[1], request)
+        try:
+            pile = PI.valider(pile)
+        except ValueError as e:
+            raise HTTPException(400, _txt(e, request))
+        dv = await _devis(pile, src, request)
+        i = dv["infos"]
+        refus = PI.refus_source(pile, src, i["dur"], (i["w"], i["h"]), src.stat().st_size)
+        if refus:
+            raise HTTPException(400, _txt(refus, request))
+        if d.get("confirme_cout") is not True:
+            raise HTTPException(409, {"message": "la pile contient des maillons payants : confirmez le devis",
+                                      "usd": dv["usd"], "lignes": dv["lignes"]})
+        await _PLAF.verifier(dv["op"], "son", src.name)
+        usd = dv["usd"]
     job_id = str(uuid.uuid4())
     final = settings.outputs_path / "final"
     final.mkdir(parents=True, exist_ok=True)
@@ -212,10 +314,47 @@ async def rendre(request: Request):
         s.add(JobRecord(id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5, title=titre,
                         image_filename=dest.name, provider="post", current_step="Post-traitement"))
         await s.commit()
-    t = asyncio.create_task(_rendre_job(job_id, src, pile, dest, jr0.id))
+    t = asyncio.create_task(_rendre_job(job_id, src, pile, dest, jr0.id, usd))
     _TACHES.add(t)
     t.add_done_callback(_TACHES.discard)
-    return {"job_id": job_id, "status": "queued", "usd": 0}
+    return {"job_id": job_id, "status": "queued", "usd": usd}
+
+
+#: Ordre de préférence du moteur de « Décrire le look » quand l'écran n'en nomme aucun.
+_MOTEURS_LOOK = ("openai", "gemini", "anthropic", "ollama")
+
+
+@router.post("/decrire")
+async def decrire(request: Request):
+    from app.services import moteurs_texte as MT
+    d = await _corps(request)
+    phrase = " ".join(str(d.get("phrase") or "").split())
+    if not phrase:
+        raise HTTPException(400, "décrivez le look voulu en une phrase")
+    if len(phrase) > PI.PHRASE_MAX:
+        raise HTTPException(400, f"phrase trop longue : {len(phrase)} caractères (au plus {PI.PHRASE_MAX})")
+    moteur = str(d.get("moteur") or "").strip()
+    if moteur:
+        if not MT.connu(moteur):
+            raise HTTPException(400, f"moteur de texte inconnu : {moteur[:40]!r}")
+        if not MT.configure(moteur):
+            raise _refus_cle(MT.CLE_ACCES.get(moteur) or moteur, MT.nom(moteur), request)
+    else:
+        moteur = next((m for m in _MOTEURS_LOOK if MT.configure(m)), "")
+        if not moteur:
+            raise _refus_cle("OPENAI_API_KEY", MT.nom("openai"), request)
+    try:
+        texte = await MT.tirer_garde(moteur, str(d.get("modele") or ""), phrase, PI.systeme_decrire(), 1200, True,
+                                     categorie="son")
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001 — réseau, quota : lisible, rien n'est appliqué
+        raise HTTPException(502, f"moteur de texte : {str(e)[:300]}")
+    try:
+        pile = PI.pile_proposee(texte)
+    except ValueError as e:
+        raise HTTPException(502, str(e))
+    return {"propose": True, "moteur": moteur, "pile": pile}
 
 
 #: Taille maximale d'une LUT importée.

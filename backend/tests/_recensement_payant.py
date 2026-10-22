@@ -23,6 +23,7 @@ MODULES = {
     "photolab": RACINE / "api" / "photolab_routes.py",   # t191 : calque IA et détourage du Photolab (fal, OpenAI)
     "agent": RACINE / "api" / "agent_routes.py",   # A6 : la lecture de l'assistant (ElevenLabs, ou Voicebox gratuit)
     "audio_graph": RACINE / "api" / "audio_graph_routes.py",   # t272 : les nœuds IA de l'Atelier sonore (fal)
+    "post": RACINE / "api" / "post_routes.py",   # t277 : les générateurs IA de la pile de post-traitement
 }
 
 PUITS = {
@@ -45,6 +46,7 @@ PUITS = {
     "reconstruire",   # t189 : le storyboard 3D (SAM 3 objets / corps, fal) — POST /shots/{shot_id}/objets3d
     "detourer",   # T103 : le matte vidéo BiRefNet (fal)
     "detourer_image",   # t186 : le registre unique du détourage (fal, ou local gratuit ; la vidéo passe par MT.detourer)
+    "appliquer_maillon",   # t277 : un maillon IA de la pile de post-traitement (fal, Decart par fal, ElevenLabs)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
     "transcribe",
