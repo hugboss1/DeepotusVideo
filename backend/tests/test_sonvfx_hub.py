@@ -105,6 +105,7 @@ function DzSvPistes(p){return {t:"DzSvPistes",p}}
 function DzSvAtelier(p){return {t:"DzSvAtelier",p}}
 function DzSvVoix(p){return {t:"DzSvVoix",p}}
 function DzSvParticules(p){return {t:"DzSvParticules",p}}
+function DzSvPost(p){return {t:"DzSvPost",p}}
 var SVM_GENS=["music","sfx","voiceover","vfx","vfxia","post"].map(id=>({id,name:"N:"+id,desc:"D:"+id,price:"P:"+id}));
 const BOUTONS=SVM_GENS.map((g,q)=>({hasAttribute:a=>a==="data-sel"&&SEL===q,click(){CLICS.push(g.id);SEL=q}}));
 const EL={querySelectorAll:s=>s===".svm-genlist .svm-gen"?BOUTONS:[]};
@@ -134,6 +135,7 @@ function etat(){const tabs=tout(ARBRE,n=>n.t==="button"&&/dzCatTab/.test(n.p.cla
   atelier:(tout(ARBRE,n=>n.t===DzSvAtelier,[])[0]||{p:null}).p,
   voix:(tout(ARBRE,n=>n.t===DzSvVoix,[])[0]||{p:null}).p,
   parti:(tout(ARBRE,n=>n.t===DzSvParticules,[])[0]||{p:null}).p,
+  post:(tout(ARBRE,n=>n.t===DzSvPost,[])[0]||{p:null}).p,
   ancien:(tout(ARBRE,n=>n.p&&n.p.className==="dzsvh-ancien",[])[0]||{p:{}}).p.style||null,mus:window.__dzSvMus}}
 const R={};
 rendre();rendre();R.montage=etat();
@@ -236,7 +238,7 @@ c = R.get("ev_texte", {})
 check("E24 Voix off : la page DzSvVoix reçoit go, la vue d'origine reste montée mais masquée ; nulle part ailleurs",
       c.get("voix") == {"go": "g"} and c.get("ancien") == {"display": "none"} and c.get("ecran") == {"variant": "v", "go": "g"}
       and m.get("voix") is None and R.get("clic_post", {}).get("voix") is None and R.get("ev_objet", {}).get("voix") is None
-      and R.get("clic_post", {}).get("ancien") is None, [c.get("voix"), c.get("ancien"), m.get("voix")])
+      and m.get("ancien") is None, [c.get("voix"), c.get("ancien"), m.get("voix")])
 
 # t274 : les Particules sont la page DzSvParticules, la vue d'origine masquée
 c = R.get("retour", {})
@@ -244,6 +246,13 @@ check("E25 Particules : la page DzSvParticules reçoit go, la vue d'origine rest
       c.get("parti") == {"go": "g"} and c.get("ancien") == {"display": "none"} and c.get("ecran") == {"variant": "v", "go": "g"}
       and R.get("ev_texte", {}).get("parti") is None and R.get("clic_post", {}).get("parti") is None
       and R.get("ev_objet", {}).get("parti") is None, [c.get("parti"), c.get("ancien")])
+
+# t276 : le Post-traitement est la page DzSvPost, la vue d'origine masquée
+c = R.get("clic_post", {})
+check("E26 Post-traitement : la page DzSvPost reçoit go, la vue d'origine reste montée mais masquée ; nulle part ailleurs",
+      c.get("post") == {"go": "g"} and c.get("ancien") == {"display": "none"} and c.get("ecran") == {"variant": "v", "go": "g"}
+      and m.get("post") is None and R.get("ev_texte", {}).get("post") is None and R.get("retour", {}).get("post") is None
+      and R.get("ev_objet", {}).get("post") is None, [c.get("post"), c.get("ancien")])
 
 # ── [D] chaîne ────────────────────────────────────────────────────────────────────────────────────────────────────
 print("[D] chaîne dzsonvfx")
@@ -292,7 +301,7 @@ check("D11 node --check du livré", rn.returncode == 0, rn.stderr[:300])
 print("[K] textes FR / EN")
 DICO = json.loads((RACINE / "frontend" / "shared" / "i18n" / "sonvfx_hub.json").read_text(encoding="utf-8"))
 # t269 : les clés du hub ET de la page « Importer et séparer » (posée par H0 jusqu'à /*__dzsvpistes*/)
-_i, _j = BUNDLE.find("var __dzSvHue="), BUNDLE.find("/*__dzsvparticules*/")  # t271 : hub + Pistes + Atelier ; t273 : + Voix ; t274 : + Particules
+_i, _j = BUNDLE.find("var __dzSvHue="), BUNDLE.find("/*__dzsvpost*/")  # t271 : hub + Pistes + Atelier ; t273 : + Voix ; t274 : + Particules ; t276 : + Post
 CLES = sorted(set(re.findall(r'dzT\("(sonvfx\.[a-z0-9_.]+)"', BUNDLE[_i:_j]))) if 0 <= _i < _j else []
 check("K0 le fichier porte exactement les clés appelées par le maillon, à trois segments",
       CLES and sorted(DICO) == CLES and all(len(k.split(".")) == 3 for k in CLES),

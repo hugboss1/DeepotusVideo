@@ -37,7 +37,11 @@ t274 (21/10) — les Particules sont une page à elle (`DzSvParticules`, source 
 `/*__dzsvvoix*/` et `/*__dzsvparticules*/`) : viewport en direct, inspecteur repliable, frise et clés de cadence,
 vignettes animées ; son moteur est le PORT JS fidèle de particle_service (même graine, mêmes pixels). Le hub la rend sur
 le sous-onglet « vfx » et masque la vue d'origine, comme pour la Voix.
-Textes : clés dzT `sonvfx.hub.*`, `sonvfx.pistes.*`, `sonvfx.atelier.*`, `sonvfx.voix.*` et `sonvfx.particules.*`, LITTÉRALES dans le livré, dans frontend/shared/i18n/sonvfx_hub.json.
+t276 (22/10) — le Post-traitement est une page à elle (`DzSvPost`, source frontend/patches/sonvfx-post.js, entre
+`/*__dzsvparticules*/` et `/*__dzsvpost*/`) : source (Rendus, VFX IA, particules), aperçu avant/après à curseur, pile
+ordonnée de presets effects_engine (services/post_pile.py, routes /api/post) et rendu ffmpeg local en job. Le hub la rend
+sur le sous-onglet « post » et masque la vue d'origine.
+Textes : clés dzT `sonvfx.hub.*`, `sonvfx.pistes.*`, `sonvfx.atelier.*`, `sonvfx.voix.*`, `sonvfx.particules.*` et `sonvfx.post.*`, LITTÉRALES dans le livré, dans frontend/shared/i18n/sonvfx_hub.json.
 
 Maillon de QUEUE, APRÈS dzconstats (dont il sonde le marqueur) ; il garde un .js.bak_dzsonvfx le temps de l'écriture
 puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzsonvfx` dans
@@ -60,6 +64,7 @@ PISTES = pathlib.Path(__file__).resolve().parent.parent / "frontend" / "patches"
 ATELIER = PISTES.with_name("sonvfx-atelier.js")
 VOIX = PISTES.with_name("sonvfx-voix.js")
 PARTICULES = PISTES.with_name("sonvfx-particules.js")
+POST = PISTES.with_name("sonvfx-post.js")
 
 
 def aplatir(src: str) -> str:
@@ -478,13 +483,94 @@ CSS_PARTICULES = (
     ".dzsvx-erreur{color:var(--red,#e5484d);border-color:var(--red,#e5484d)}"
 )
 
+# t276 : la page Post-traitement (DzSvPost, source frontend/patches/sonvfx-post.js) — sources à gauche, comparateur
+# avant/après au centre, catalogue + pile + rendu à droite ; angles vifs (règle du hub)
+CSS_POST = (
+    ".dzsvo{position:absolute;inset:0;display:grid;grid-template-columns:250px minmax(0,1fr) 330px;min-height:0;"
+    "background:var(--bg-base,#0a0a0c);color:var(--ink);font-size:12px}"
+    ".dzsvo-attente{margin:auto;color:var(--ink-soft);font-size:13px;text-align:center;padding:20px}"
+    ".dzsvo-titre{font-family:var(--f-mono,monospace);font-size:10px;letter-spacing:.14em;text-transform:uppercase;"
+    "color:var(--cat)}"
+    ".dzsvo-aide{font-size:11px;color:var(--ink-soft);line-height:1.45}"
+    ".dzsvo-sources{display:flex;flex-direction:column;gap:8px;padding:12px;min-height:0;border-right:1px solid var(--stroke);"
+    "background:var(--bg-panel)}"
+    ".dzsvo-familles{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}"
+    ".dzsvo-famille{font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--stroke);background:var(--bg-base);"
+    "color:var(--ink-soft);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+    ".dzsvo-famille[aria-pressed=true]{background:var(--cat);border-color:var(--cat);color:var(--cat-ink,#14181d);font-weight:600}"
+    ".dzsvo-liste{display:flex;flex-direction:column;gap:3px;min-height:0;overflow:auto}"
+    ".dzsvo-src{display:flex;flex-direction:column;align-items:flex-start;gap:2px;font:inherit;text-align:left;padding:6px 8px;"
+    "border:1px solid var(--stroke);border-left:3px solid transparent;background:var(--bg-panel-2);color:var(--ink);cursor:pointer}"
+    ".dzsvo-src[aria-pressed=true]{border-left-color:var(--cat);box-shadow:inset 0 0 0 1px var(--cat)}"
+    ".dzsvo-snom{font-size:12px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
+    ".dzsvo-smeta{font-family:var(--f-mono,monospace);font-size:10px;color:var(--ink-soft)}"
+    ".dzsvo-vue{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-width:0;min-height:0;"
+    "padding:14px;overflow:hidden}"
+    ".dzsvo-comparer{position:relative;max-width:100%;max-height:calc(100% - 70px);height:100%;border:1px solid var(--stroke);"
+    "background-color:#16181c;background-image:repeating-conic-gradient(#24272d 0 25%,#16181c 0 50%);background-size:16px 16px;"
+    "overflow:hidden}"
+    ".dzsvo-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}"
+    ".dzsvo-ligne{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--cat);pointer-events:none}"
+    ".dzsvo-etiq{position:absolute;top:8px;font-family:var(--f-mono,monospace);font-size:10px;letter-spacing:.12em;"
+    "text-transform:uppercase;padding:2px 6px;background:rgba(10,10,12,.72);color:var(--ink);pointer-events:none}"
+    ".dzsvo-etiq.g{left:8px}.dzsvo-etiq.d{right:8px;color:var(--cat)}"
+    ".dzsvo-curseur{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize}"
+    ".dzsvo-calc{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-family:var(--f-mono,monospace);"
+    "font-size:10.5px;padding:3px 8px;background:rgba(10,10,12,.8);color:var(--accent);pointer-events:none}"
+    ".dzsvo-temps{display:flex;align-items:center;gap:10px;width:100%;max-width:720px}"
+    ".dzsvo-temps input{flex:1;accent-color:var(--cat)}"
+    ".dzsvo-t{font-family:var(--f-mono,monospace);font-size:11px;color:var(--ink);white-space:nowrap}"
+    ".dzsvo-pile{display:flex;flex-direction:column;gap:8px;padding:12px;min-height:0;overflow:auto;"
+    "border-left:1px solid var(--stroke);background:var(--bg-panel)}"
+    ".dzsvo-catalogue{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}"
+    ".dzsvo-ajout{display:flex;align-items:center;gap:5px;font:inherit;font-size:11px;text-align:left;padding:5px 7px;"
+    "border:1px solid var(--stroke);background:var(--bg-panel-2);color:var(--ink);cursor:pointer;min-width:0}"
+    ".dzsvo-ajout span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
+    ".dzsvo-ajout:hover:not(:disabled){border-color:var(--cat)}"
+    ".dzsvo-ajout:disabled{opacity:.45;cursor:default}"
+    ".dzsvo-ptete{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}"
+    ".dzsvo-lien{font:inherit;font-size:11px;border:0;background:none;color:var(--ink-soft);cursor:pointer;text-decoration:underline}"
+    ".dzsvo-lien:disabled{opacity:.4;cursor:default}"
+    ".dzsvo-maillons{display:flex;flex-direction:column;gap:4px}"
+    ".dzsvo-maillon{display:flex;flex-direction:column;gap:5px;padding:6px 8px;border:1px solid var(--stroke);"
+    "border-left:3px solid var(--cat);background:var(--bg-panel-2)}"
+    ".dzsvo-maillon[data-masque=true]{border-left-color:var(--stroke);opacity:.55}"
+    ".dzsvo-mtete{display:flex;align-items:center;gap:3px}"
+    ".dzsvo-poignee{display:flex;color:var(--ink-soft);cursor:grab}"
+    ".dzsvo-mnom{flex:1;min-width:0;font:inherit;font-size:12px;font-weight:600;text-align:left;padding:2px 4px;border:0;"
+    "background:none;color:var(--ink-strong,#f2efe9);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
+    ".dzsvo-mini{position:relative;display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;"
+    "border:1px solid var(--stroke);background:var(--bg-base);color:var(--ink);cursor:pointer}"
+    ".dzsvo-mini[aria-pressed=true],.dzsvo-mini[data-arme]{border-color:var(--cat);color:var(--cat)}"
+    ".dzsvo-mini:disabled{opacity:.4;cursor:default}"
+    ".dzsvo-fichier input{position:absolute;inset:0;opacity:0;cursor:pointer}"
+    ".dzsvo-regle{display:grid;grid-template-columns:80px minmax(0,1fr) auto;align-items:center;gap:6px}"
+    ".dzsvo-regle input[type=range]{width:100%;accent-color:var(--cat)}"
+    ".dzsvo-regle input[type=color]{width:100%;height:22px;padding:0 2px;border:1px solid var(--stroke);background:var(--bg-base)}"
+    ".dzsvo-rnom{font-size:11px;color:var(--ink-soft)}"
+    ".dzsvo-rval{font-family:var(--f-mono,monospace);font-size:10.5px;text-align:right;color:var(--ink);min-width:38px}"
+    ".dzsvo-reglages{display:flex;flex-direction:column;gap:5px;padding-top:4px;border-top:1px dashed var(--stroke)}"
+    ".dzsvo-section,.dzsvo-export{flex:none;display:flex;flex-direction:column;gap:6px;padding:10px;"
+    "border:1px solid var(--stroke);background:var(--bg-panel-2)}"
+    ".dzsvo-export{margin-top:auto;border-top:2px solid var(--cat)}"
+    ".dzsvo-ctl{display:flex;gap:4px}"
+    ".dzsvo-sel,.dzsvo-champ{flex:1;min-width:0;font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--stroke);"
+    "background:var(--bg-base);color:var(--ink)}"
+    ".dzsvo-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-size:12px;"
+    "padding:5px 10px;border:1px solid var(--stroke);background:var(--bg-panel-2);color:var(--ink);cursor:pointer}"
+    ".dzsvo-btn.prim{background:var(--cat);border-color:var(--cat);color:var(--cat-ink,#14181d);font-weight:600}"
+    ".dzsvo-btn:disabled{opacity:.45;cursor:default}"
+    ".dzsvo-note{font-size:11.5px;color:var(--ink);padding:6px 10px;border:1px solid var(--stroke);background:var(--bg-base)}"
+    ".dzsvo-erreur{color:var(--red,#e5484d);border-color:var(--red,#e5484d)}"
+)
+
 HUB = (
     'var __dzSvHue={music:"var(--sv-musique)",sfx:"var(--sv-sfx)",voiceover:"var(--sv-voix)",'
     'vfx:"var(--sv-particules)",vfxia:"var(--sv-vfxia)",post:"var(--sv-post)"},'
     '__dzSvIco={music:"dz-cat-audio",sfx:"dz-edit-ripple",voiceover:"dz-media-isoler-voix",vfx:"dz-edit-energie",'
     'vfxia:"dz-etat-ia",post:"dz-edit-effet"};'
     'function __dzSvHubCss(){try{if(document.getElementById("__dzSvHub"))return;'
-    'var st=document.createElement("style");st.id="__dzSvHub";st.textContent="' + CSS + CSS_PISTES + CSS_ATELIER + CSS_VOIX + CSS_PARTICULES + '";'
+    'var st=document.createElement("style");st.id="__dzSvHub";st.textContent="' + CSS + CSS_PISTES + CSS_ATELIER + CSS_VOIX + CSS_PARTICULES + CSS_POST + '";'
     'document.head.appendChild(st)}catch(e){}}'
     'function DzSonVfxHub(p){var US=x.useState,UE=x.useEffect,UR=x.useRef;__dzSvHubCss();'
     'var G=typeof SVM_GENS!=="undefined"?SVM_GENS:[],ids=G.map(function(g){return g.id});'
@@ -511,7 +597,9 @@ HUB = (
     # t273 : la Voix off est la page DzSvVoix ; la vue d'origine (et son encart de post-traitement) reste masquée
     'voix=sub==="voiceover",'
     # t274 : les Particules sont la page DzSvParticules ; la vue d'origine reste montée et masquée
-    'parti=sub==="vfx";'
+    'parti=sub==="vfx",'
+    # t276 : le Post-traitement est la page DzSvPost ; la vue d'origine (ses presets décoratifs) reste masquée
+    'post=sub==="post";'
     'function bm(v,lbl){return r.jsx("button",{type:"button",className:"dzsvh-mode",'
     '"aria-pressed":mode===v?"true":"false","data-sv-mode":v,onClick:function(){choisirMode(v)},children:lbl},v)}'
     'function tb(q){var on=q.id===sub;return r.jsxs("button",{type:"button",className:"dzCatTab"+(on?" on":""),'
@@ -534,17 +622,18 @@ HUB = (
     'r.jsx("span",{className:"dzsvh-prix",children:g.price})]},"tete"),'
     # l'écran d'origine reste monté (masqué) en mode « Importer et séparer » : son état n'est pas perdu
     'r.jsxs("div",{className:"dzsvh-corps",ref:box,children:['
-    'r.jsx("div",{className:"dzsvh-ancien",style:pistes||atelier||voix||parti?{display:"none"}:void 0,'
+    'r.jsx("div",{className:"dzsvh-ancien",style:pistes||atelier||voix||parti||post?{display:"none"}:void 0,'
     'children:r.jsx(DzSonVfx,{variant:p.variant,go:p.go})},"ancien"),'
     'pistes?r.jsx(DzSvPistes,{go:p.go},"pistes"):null,atelier?r.jsx(DzSvAtelier,{go:p.go},"atelier"):null,'
-    'voix?r.jsx(DzSvVoix,{go:p.go},"voix"):null,parti?r.jsx(DzSvParticules,{go:p.go},"particules"):null]},"corps")]})}'
+    'voix?r.jsx(DzSvVoix,{go:p.go},"voix"):null,parti?r.jsx(DzSvParticules,{go:p.go},"particules"):null,'
+    'post?r.jsx(DzSvPost,{go:p.go},"post"):null]},"corps")]})}'
     '/*__dzsonvfx*/'
 )
 
 PAIRES = [
     ('const Te="/api";',                                                                                         # H0
      HUB + page(PISTES) + '/*__dzsvpistes*/' + page(ATELIER) + '/*__dzsvatelier*/' + page(VOIX) + '/*__dzsvvoix*/'
-     + page(PARTICULES) + '/*__dzsvparticules*/'
+     + page(PARTICULES) + '/*__dzsvparticules*/' + page(POST) + '/*__dzsvpost*/'
      'const Te="/api";'),
     ('s==="sonvfx"&&r.jsx(DzSonVfx,{variant:e,go:a})',                                                           # H1
      's==="sonvfx"&&r.jsx(DzSonVfxHub,{variant:e,go:a})'),
