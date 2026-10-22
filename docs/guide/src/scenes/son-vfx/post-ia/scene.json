@@ -1,0 +1,68 @@
+{
+  "titre": {
+    "fr": "Générer avec l'IA, décrire le look",
+    "en": "Generate with AI, describe the look"
+  },
+  "legende": {
+    "fr": "Post-traitement : les générateurs IA par fournisseur, avec leur prix et la clé demandée ; « Décrire le look » propose une pile.",
+    "en": "Post-processing: the AI generators by provider, with their price and the key they need; “Describe the look” suggests a stack."
+  },
+  "captures": [
+    {
+      "fr": "generer.fr.webp",
+      "en": "generer.en.webp"
+    },
+    {
+      "fr": "look.fr.webp",
+      "en": "look.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1103,
+        347,
+        295,
+        553
+      ],
+      "bulle": {
+        "fr": "Par fournisseur, avec leur prix",
+        "en": "By provider, with their price"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1129,
+        394,
+        261,
+        27
+      ],
+      "bulle": {
+        "fr": "Sans clé : choisissable, refusé au lancement",
+        "en": "No key: selectable, refused at launch"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1092,
+        369,
+        317,
+        171
+      ],
+      "bulle": {
+        "fr": "Une phrase : une pile proposée, jamais appliquée seule",
+        "en": "One sentence: a suggested stack, never applied on its own"
+      }
+    }
+  ]
+}

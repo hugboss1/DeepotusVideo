@@ -15,7 +15,8 @@ from catalogue_commun import CHAMPS, VIDE, _base, _sha8, _texte, ecran, message
 
 # un élément React minifié : r.jsx(X,{…}) / r.jsxs(X,{…}) ; X = balise ("button") ou composant (identifiant nu,
 # renommé à chaque build : jamais codé en dur)
-RE_ELEMENT = re.compile(r'\.jsxs?\(\s*("[a-zA-Z][a-zA-Z0-9-]*"|[A-Za-z_$][\w$.]*)\s*,\s*\{')
+# (t279 : ou r.jsx(X,Object.assign({…},props)) — l'objet littéral se lit de même)
+RE_ELEMENT = re.compile(r'\.jsxs?\(\s*("[a-zA-Z][a-zA-Z0-9-]*"|[A-Za-z_$][\w$.]*)\s*,\s*(?:Object\.assign\(\s*)?\{')
 RE_CLE = re.compile(r'dzT\("([a-z0-9_.]+)"\s*[,)]')              # dzT("cle") ou dzT("cle",{params})
 RE_ICONE_LIT = re.compile(r'"(dz-[a-z0-9-]+)"')
 RE_LETTRE = re.compile(r"[A-Za-zÀ-ÿ]")
@@ -159,6 +160,56 @@ def _appels(b: str, nom: str, a: int, z: int, memo: dict):
             yield [(x + 1, y) for x, y in zip(bornes, bornes[1:])]
 
 
+# t279 : table de textes d'une page (sonvfx-post.js) — function txt(){return {go:dzT("a.b"),…}}, var T=txt(), puis
+# children:T.go. La clé n'est pas dans l'élément : on la retrouve par la table, dans la portée de l'affectation.
+RE_TABLE_FN = re.compile(r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\(\s*\)\s*\{\s*return\s*\{")
+RE_VAR_TABLE = re.compile(r"\bvar\s+([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)\(\s*\)")
+RE_PROP = re.compile(r"(?<![\w$.])([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)(?![\w$(\[.])")
+
+
+class _Tables:
+    """Les tables de textes du bundle et leurs affectations ; cle(a, z, pos) rend la 1re clé d'une référence T.prop
+    lue dans b[a:z], résolue par l'affectation « var T=table() » la plus proche AVANT pos dont la fonction englobante
+    contient pos (un nom minifié « T » est réutilisé d'une fonction à l'autre)."""
+
+    def __init__(self, b: str, dico: dict, fonctions: list, debuts_f: list, memo: dict):
+        self.b, self.dico, self.fonctions, self.debuts_f, self.memo = b, dico, fonctions, debuts_f, memo
+        self.tables = {}
+        for m in RE_TABLE_FN.finditer(b):
+            i = m.end() - 1
+            r = _objet(b, i, memo)
+            if not r:
+                continue
+            props = {}
+            for nom, (a, z) in _attributs(b, i, r[0], r[1]).items():
+                c = RE_CLE.match(b[a:z].strip())
+                if c and c.group(1) in dico:
+                    props[nom] = c.group(1)
+            if props:
+                self.tables[m.group(1)] = props
+        self.affectations = {}                           # nom de variable → [(position, table)]
+        for m in RE_VAR_TABLE.finditer(b):
+            if m.group(2) in self.tables:
+                self.affectations.setdefault(m.group(1), []).append((m.start(), m.group(2)))
+
+    def _table_de(self, var: str, pos: int):
+        for a, table in reversed([x for x in self.affectations.get(var, ()) if x[0] < pos]):
+            f = _fonction_englobante(self.b, self.fonctions, self.debuts_f, a, self.memo)
+            if f and f[1] > pos:
+                return self.tables[table]
+        return None
+
+    def refs(self, a: int, z: int, pos: int):
+        """(début, clé) de chaque référence de table de b[a:z], dans l'ordre du texte."""
+        if not self.affectations:
+            return
+        seg = _RE_CHAINES.sub(lambda m: " " * len(m.group()), self.b[a:z])
+        for m in RE_PROP.finditer(seg):
+            t = self._table_de(m.group(1), pos) if m.group(1) in self.affectations else None
+            if t and m.group(2) in t:
+                yield a + m.start(), t[m.group(2)]
+
+
 def _etat_de_ternaire(avant: str, texte: dict) -> bool:
     """1re branche d'un ternaire (« cond ? dzT(A) : … ») dont le texte FR finit par « … » : un état passager."""
     fr = (texte.get("fr") or "").rstrip() if isinstance(texte, dict) else ""
@@ -183,11 +234,14 @@ def depuis_bundle(racine: pathlib.Path, dico: dict, inv: dict) -> dict:
     aria-label (placeholder pour un champ). Même clé sur deux éléments : la 1re fiche gagne, la source s'ajoute."""
     b, out = _bundle(racine), {}
     elements = _elements(b)
+    fonctions = list(RE_FONCTION.finditer(b))
+    debuts_f = [m.start() for m in fonctions]
+    tables = _Tables(b, dico, fonctions, debuts_f, {})
     debuts = [e[0] for e in elements]
     cles_pos = [(m.start(), m.group(1)) for m in RE_CLE.finditer(b) if m.group(1) in dico]
     pos_cles = [p for p, _ in cles_pos]
 
-    def premiere_cle(attrs, noms, coupe):
+    def premiere_cle(attrs, noms, coupe, pos):
         for n in noms:
             if n not in attrs:
                 continue
@@ -196,11 +250,12 @@ def depuis_bundle(racine: pathlib.Path, dico: dict, inv: dict) -> dict:
                 k = bisect.bisect_left(debuts, a)
                 if k < len(debuts) and debuts[k] < z:
                     z = debuts[k]
-            for m in RE_CLE.finditer(b, a, z):
-                k = m.group(1)
+            # t279 : clés dzT et références de table (children:T.go), dans l'ordre du texte
+            refs = [(m.start(), m.group(1)) for m in RE_CLE.finditer(b, a, z)] + list(tables.refs(a, z, pos))
+            for p, k in sorted(refs):
                 if k not in dico or message(k):
                     continue
-                if coupe and _etat_de_ternaire(b[a:m.start()], dico[k]):
+                if coupe and _etat_de_ternaire(b[a:p], dico[k]):
                     continue                             # busy?dzT("…envoi…"):dzT("envoyer") → la branche au repos
                 return k
         return None
@@ -235,9 +290,9 @@ def depuis_bundle(racine: pathlib.Path, dico: dict, inv: dict) -> dict:
         typ = _retenu(balise, attrs)
         if not typ:
             continue
-        lib = premiere_cle(attrs, ("children", "label"), True)
+        lib = premiere_cle(attrs, ("children", "label"), True, debut)
         tips = ("title", "aria-label", "placeholder") if typ == "champ" else ("title", "aria-label")
-        tip = premiere_cle(attrs, tips, False)
+        tip = premiere_cle(attrs, tips, False, debut)
         sources = [f"i18n:{k}" for k in (lib, tip) if k]
         if lib or tip:
             i = lib or tip
@@ -266,19 +321,18 @@ def depuis_bundle(racine: pathlib.Path, dico: dict, inv: dict) -> dict:
             continue
         out[i] = {"id": i, "ecran": ec, "cadre": None, "type": typ, "libelle": dict(VIDE),
                   "infobulle": {"fr": fr, "en": inv.get(fr, "")}, "icone": icone(attrs), "sources": ["bundle:title"]}
-    _par_parametre(b, elements, out, dico)
+    _par_parametre(b, elements, out, dico, fonctions, debuts_f, tables)
     return out
 
 
-def _par_parametre(b: str, elements: list, out: dict, dico: dict) -> None:
+def _par_parametre(b: str, elements: list, out: dict, dico: dict, fonctions: list, debuts_f: list,
+                   tables: "_Tables") -> None:
     """Un <button> natif fabriqué par une fonction nommée dont l'infobulle (title) est un PARAMÈTRE —
     function actBtn(it,act,lbl,tt){… title:armed?…:tt …} — n'a pas sa clé dans l'élément : elle est à chaque appel,
     actBtn(it,"stems",__dzGl("dz-media-stems"),dzT("sfx.action.stems_aide")). Une fiche par clé d'appel, avec l'icône
     littérale de l'appel. Ni le libellé en paramètre (row(dzT("…titre"),…)) ni l'aria-label d'un champ ne sont
     suivis : ces fabriques-là posent surtout des en-têtes et des étiquettes. Une action commune (commun.action.fermer)
     passée à une fabrique n'en fait pas une fiche : sa clé sert déjà ailleurs, avec son propre écran."""
-    fonctions = list(RE_FONCTION.finditer(b))
-    debuts_f = [m.start() for m in fonctions]
     memo, vues = {}, set()
     for debut, balise, attrs in elements:
         if balise != '"button"' or "title" not in attrs:
@@ -305,10 +359,10 @@ def _par_parametre(b: str, elements: list, out: dict, dico: dict) -> None:
                     if prop not in attrs_o:
                         continue
                     a, z = attrs_o[prop]
-                for m in RE_CLE.finditer(b, a, z):
-                    k = m.group(1)
+                refs = [(m.start(), m.group(1)) for m in RE_CLE.finditer(b, a, z)] + list(tables.refs(a, z, a))
+                for p, k in sorted(refs):                # t279 : mini("m",x?T.aide:T.cache) par la table
                     if (k in dico and not message(k) and not k.startswith("commun.")
-                            and not b[a:m.start()].rstrip().endswith("?")):
+                            and not b[a:p].rstrip().endswith("?")):
                         tip = k                          # « enCours ? dzT(A) : dzT(B) » → B, l'infobulle au repos
                         break
                 if tip:

@@ -27,7 +27,16 @@
     "vectorlab.couleur.origine",
     "vectorlab.image.picker_titre",
     "vectorlab.pile.histogramme",
-    "photolab.regle.redresser_aide"
+    "photolab.regle.redresser_aide",
+    "son.vo.confirmer",
+    "son.vo.texte",
+    "son.vo.balise_speciale",
+    "son.voix.ecouter",
+    "son.vfx.cellule",
+    "son.vfx.generer",
+    "son.vfx.ouvrir_biblio",
+    "son.vfx.sequence_aide",
+    "son.vfx.texture_aide"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

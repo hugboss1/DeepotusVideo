@@ -1,63 +1,86 @@
-<p class="chapeau-chap">You will generate music, sound effects and a voiceover you direct, store and find your sounds, and add free visual effects. Each generator's price is shown; visual effects and post-processing are free.</p>
+<p class="chapeau-chap">You will generate and rework music, split a track into instruments, record a voiceover, create sound effects and particles, transform a video with AI and stack post-processing effects. Each generator's price is shown before you run it; particles, the Workshop and local post-processing are free.</p>
 
 <h3>The Sound &amp; VFX screen</h3>
-<figure class="scene" data-scene="son-vfx/audio"></figure>
-<p>Open <b class="ui">Sound &amp; VFX</b> in the rail. At the top, the <strong>generators</strong> and their price: music, sound effects (606 bundled sounds, plus generation from a description), voiceover, particles and post-processing. Below, three tabs: <b class="ui">Audio</b>, <b class="ui">Particle VFX</b> and <b class="ui">Post-processing</b>.</p>
+<figure class="scene" data-scene="son-vfx/hub"></figure>
+<p>Open <b class="ui">Sound &amp; VFX</b> in the rail. A bar of six sections, each with its own color, leads to a page: <b class="ui">Music</b>, <b class="ui">SFX</b>, <b class="ui">Voiceover</b>, <b class="ui">Particle VFX</b>, <b class="ui">AI VFX</b> and <b class="ui">Post-processing</b>. The Music page has three modes: <b class="ui">Generate</b>, <b class="ui">Import &amp; split</b> and <b class="ui">Workshop</b>.</p>
 
-<h3>Direct a voiceover</h3>
+<h3>Split a track into instruments</h3>
+<figure class="scene" data-scene="son-vfx/pistes"></figure>
 <ol class="etapes">
-<li>In <strong>Directed voice-over</strong>, write the text.</li>
-<li>Click emotion or acting tags (four at most): they go at the start and the Eleven v3 model performs them. The screen shows exactly what is sent to the model.</li>
-<li><b class="ui">Generate voice</b>. Trim, add a fade, dip the music under the voice or normalise, then <b class="ui">Send to Montage</b>.</li>
+<li>In Music, <b class="ui">Import &amp; split</b> mode, drop an audio file or click <b class="ui">Import a track</b>. The sounds you already imported are listed below.</li>
+<li>Pick the track: it plays. Choose 4 or 6 stems (vocals, drums, bass, other, guitar, piano).</li>
+<li><b class="ui">Split the instruments</b>: the first click gives the price, the second runs it (paid, via fal). Each stem joins the Library and the editor's Sounds drawer.</li>
 </ol>
-<p>Outside the v3 model, or with Voicebox, the tags are removed and you are told.</p>
 
-<h3>Music and sound effects</h3>
-<div class="cartes">
-<article><i data-dz="dz-media-piste-audio"></i><h4>Music</h4><p>Instrumental or sung: describe the style, write the lyrics section by section (a skeleton is suggested from the persona). Billed per second, under your caps.</p></article>
-<article><i data-dz="dz-media-audio"></i><h4>Sound effects</h4><p>Describe the sound and its length: two variations to listen to, which join the Library and the editor's Sounds drawer.</p></article>
-<article><i data-dz="dz-media-generer-voix"></i><h4>Voice and music mix</h4><p>Mixes a voice and a piece of music, dipping the music under the voice; the mix lands in the Library.</p></article>
-<article><i data-dz="dz-media-cloner-voix"></i><h4>A character's voice</h4><p>In the Workshop, a character gets a cloned voice (paid) and a temperament, performed on each of its lines.</p></article>
-</div>
+<h3>Rework a sound in the Workshop</h3>
+<figure class="scene" data-scene="son-vfx/atelier"></figure>
+<ol class="etapes">
+<li><b class="ui">Workshop</b> mode, or <b class="ui">Open in the Workshop</b> from a track or a voice: the sound becomes the graph's source.</li>
+<li>Start from a preset (<b class="ui">Radio voice</b>, <b class="ui">Lo-fi</b>, <b class="ui">Great hall</b>, <b class="ui">Voice over music</b>) or add nodes from the palette: equalizer, compressor, echo, reverb, ducking, tempo, pitch…</li>
+<li>Link a node's output to the next one's input, and set it in the inspector. Under the canvas, the strip shows the waveform: drag to pick a range.</li>
+<li>Listen to ten seconds, then <b class="ui">Render to the Library</b>.</li>
+</ol>
+<p>The <b class="ui">AI (paid)</b> nodes extend the track, regenerate or vary a range, or add a sound effect to it. Their price is shown; a generated range is kept and is not paid again as long as nothing changes before it.</p>
+
+<h3>Record a voiceover</h3>
+<figure class="scene" data-scene="son-vfx/voix"></figure>
+<ol class="etapes">
+<li>On the left, the voice library: search, filter, listen, keep your favorites, or <b class="ui">Clone a voice…</b> from your own takes.</li>
+<li>In the middle, write the script. With the Eleven v3 model, emotion or acting tags are inserted at the cursor. On the right, the model and its settings.</li>
+<li><b class="ui">Generate voice</b>. Each edit creates a version: <b class="ui">Trim the take</b>, <b class="ui">Fade in and out</b>, <b class="ui">Normalize</b>, <b class="ui">De-ess</b>, <b class="ui">Ducking under music</b>, <b class="ui">Enhance the take</b> or <b class="ui">Isolate the voice</b>. Then <b class="ui">Send to the Editor</b>.</li>
+</ol>
 
 <h3>Sound effects: pick a model</h3>
 <figure class="scene" data-scene="son-vfx/sfx-modeles"></figure>
-<p>The <b class="ui">Generate SFX</b> card of the SFX rail, like the <b class="ui">Generate</b> tab of the Montage's Sounds drawer, has a <b class="ui">Model</b> list: ElevenLabs direct or via fal, Sonilo, Mirelo, Stable Audio, each with its price per second and its maximum length. Describe the sound, set the length (0 lets the model choose), then <b class="ui">Generate</b>: two variants go to the Library. A model via fal runs in two clicks, the first shows the price.</p>
+<p>The <b class="ui">SFX</b> section keeps the bundled catalog and the <b class="ui">Generate SFX</b> card. Its <b class="ui">Model</b> list offers ElevenLabs direct or via fal, Sonilo, Mirelo and Stable Audio, each with its price and maximum length. Describe the sound, set the length (0 lets the model choose), then <b class="ui">Generate</b>: two variants go to the Library. A model via fal runs in two clicks, the first shows the price.</p>
 
 <h3>Add sound to a video</h3>
 <figure class="scene" data-scene="son-vfx/sfx-video"></figure>
 <ol class="etapes">
 <li>In the Montage, select a video clip on the timeline, then open the Sounds drawer and its <b class="ui">Generate</b> tab.</li>
-<li>The <strong>From the video</strong> block names the clip. Pick the model: Sonilo (with "Keep the voice"), Mirelo, Kling, Hunyuan Foley or ThinkSound; some ask for a description of the sound.</li>
+<li>The <strong>From the video</strong> block names the clip. Pick the model: Sonilo, Mirelo, Kling, Hunyuan Foley or ThinkSound; some ask for a description of the sound.</li>
 <li>A first click gives the estimate, the second runs it. The sound effect goes to the Library; if the model returns the video with sound, it goes there too, under Renders.</li>
+</ol>
+
+<h3>Live particles</h3>
+<figure class="scene" data-scene="son-vfx/particules"></figure>
+<ol class="etapes">
+<li><b class="ui">Particle VFX</b> section: pick a preset (explosion, smoke, sparks, magic…) or a ready-made sequence.</li>
+<li>The preview plays right away, computed on your PC. Set the emitter, the motion and the look in the inspector: every setting changes the preview. The same seed always gives the same animation.</li>
+<li>Export a <b class="ui">PNG image</b> or <b class="ui">Export as WebM</b> with transparency: the render goes to the Library.</li>
 </ol>
 
 <h3>AI VFX: relight, remove, reframe…</h3>
 <figure class="scene" data-scene="son-vfx/vfx-ia"></figure>
 <ol class="etapes">
-<li>In the <b class="ui">AI VFX</b> rail, pick the source video among your finished renders.</li>
-<li>Pick an action: relight, insert a scene, remove a person or an object, day to night, water, colorize, edit with a sentence, change the format, upscale, or a ready-made effect from an image. Each action states its price and what it needs.</li>
-<li><b class="ui">Estimate, then run</b>: the first click shows the server estimate, the second, <b class="ui">Run for real</b>, runs it. The rendered video goes to the Library and can be placed in the Montage.</li>
+<li><b class="ui">AI VFX</b> section: pick the source video among your finished renders.</li>
+<li>Pick an action. Each card shows in motion what it produces (hover it), its price and what it needs.</li>
+<li><b class="ui">Estimate, then run</b>: the first click shows the server estimate, the second, <b class="ui">Run for real</b>, runs it. The rendered video goes to the Library.</li>
 </ol>
-<p>The same actions, except the effect from an image, are in the Montage's effects rack, AI section.</p>
+
+<h3>Stack post-processing effects</h3>
+<figure class="scene" data-scene="son-vfx/post"></figure>
+<ol class="etapes">
+<li><b class="ui">Post-processing</b> section: pick a render, an AI VFX result or particles.</li>
+<li>Click presets in the catalog (16 mm grain, bloom, glitch, LUT, VHS, cinema bars, duotone…): they stack up in order.</li>
+<li>In the stack, drag a link to move it, hide it, set its strength. The before/after shows the effect at the chosen moment.</li>
+<li><b class="ui">Render the video</b>: the render runs on your PC, for free, and goes to the Library. <b class="ui">Save the stack</b> keeps it for another video.</li>
+</ol>
+
+<h3>Generate with AI, describe the look</h3>
+<figure class="scene" data-scene="son-vfx/post-ia"></figure>
+<p>The <b class="ui">Generate with AI</b> section sorts the generators by provider (fal, Decart, ElevenLabs): style, upscaling, frame interpolation, sound effects. Each becomes a paid link of the stack, with its price; without its key it stays selectable and you are told. Rendering a paid stack takes a second click, after the estimate.</p>
+<p>In <b class="ui">Describe the look</b>, write a sentence ("warm 70s film, a little worn") then <b class="ui">Suggest a stack</b>. The suggested stack is never applied on its own: <b class="ui">Replace the stack</b> or <b class="ui">Add to the stack</b>.</p>
 
 <h3>The Sounds drawer</h3>
 <figure class="scene" data-scene="son-vfx/tiroir"></figure>
-<p>All your sounds live in the Sounds drawer: in the Library (Audio tab) and in the editor (<kbd>B</kbd> key). Filter by kind (effects, voices, music, imported), between your sounds and the bundled catalog, search by name or tag.</p>
+<p>All your sounds live in the Sounds drawer: in the Library (Audio tab) and in the editor (<kbd>B</kbd> key). Filter by kind, between your sounds and the bundled catalog, search by name or tag.</p>
 <div class="cartes">
-<article><i data-dz="dz-media-ameliorer"></i><h4>Enhance</h4><p>Equaliser, noise reduction, compressor and normalised loudness in one click, on your PC, no provider.</p></article>
-<article><i data-dz="dz-media-stems"></i><h4>Split into stems</h4><p>Splits music into vocals, drums, bass… (paid, quote on first click); each stem stays linked to its parent.</p></article>
-<article><i data-dz="dz-media-isoler-voix"></i><h4>Isolate the voice</h4><p>Removes the background from a voice take (paid, quote on first click).</p></article>
-<article><i data-dz="dz-action-recherche-semantique"></i><h4>Search by description</h4><p>Describe what you want to hear; sounds similar to a sound can be listed too. Needs the local search service, otherwise the button says why it is greyed out.</p></article>
+<article><i data-dz="dz-media-ameliorer"></i><h4>Enhance</h4><p>Equalizer, noise reduction, compressor and normalized loudness in one click, on your PC, no provider.</p></article>
+<article><i data-dz="dz-action-recherche-semantique"></i><h4>Search by description</h4><p>Describe what you want to hear. Needs the local search service, otherwise the button says why it is greyed out.</p></article>
 <article><i data-dz="dz-media-preecoute"></i><h4>Preview</h4><p>Hover a sound to hear it (option to turn on); <kbd>Space</kbd> plays the selected row.</p></article>
 </div>
 
-<h3>Free visual effects</h3>
-<ol class="etapes">
-<li><b class="ui">Particle VFX</b>: explosions, smoke, sparks, magic… simulated on your PC, to place on a shot.</li>
-<li><b class="ui">Post-processing</b>: 16 mm grain, glow, glitch, aberration; applied at render time by the Studio's Render node.</li>
-<li>In the editor's effects rack, an effect can go <strong>behind</strong> the shot's cut-out subject, or in front of it. Cutting out the subject is paid; a first click gives the quote.</li>
-</ol>
-
 <h3>Good to know</h3>
-<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Split, isolate, cut out: a first click arms the action and shows the price, a second one starts it, <kbd>Esc</kbd> disarms. Nothing goes out without that second click.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Split, AI nodes, AI VFX, AI links: a first click arms the action and shows the price, a second one starts it. Nothing goes out without that second click, and everything stays under your spending caps.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-ia"></i><p>The animated thumbnails of the actions and presets play on hover. If your system asks to reduce motion, they stay still.</p></aside>

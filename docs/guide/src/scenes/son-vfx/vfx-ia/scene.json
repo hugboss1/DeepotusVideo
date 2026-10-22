@@ -4,8 +4,8 @@
     "en": "AI VFX: one action on a video"
   },
   "legende": {
-    "fr": "Rail VFX IA : la vidéo source, douze gestes avec leur prix ; Estimer puis lancer donne d'abord le devis.",
-    "en": "AI VFX rail: the source video, twelve actions with their price; Estimate, then run gives the estimate first."
+    "fr": "VFX IA : la vidéo source, des gestes illustrés avec leur prix ; Estimer puis lancer donne d'abord le devis.",
+    "en": "AI VFX: the source video, illustrated actions with their price; Estimate, then run gives the estimate first."
   },
   "captures": [
     {
@@ -26,10 +26,10 @@
       "capture": 0,
       "duree": 2.4,
       "surligne": [
-        514,
-        116,
-        914,
-        101
+        539,
+        254,
+        864,
+        102
       ],
       "bulle": {
         "fr": "La vidéo source",
@@ -41,7 +41,7 @@
       "duree": 2.4,
       "curseur": [
         971,
-        374
+        753
       ],
       "clic": true,
       "bulle": {
@@ -53,8 +53,8 @@
       "capture": 1,
       "duree": 3.2,
       "surligne": [
-        1279,
-        723,
+        1254,
+        729,
         132,
         34
       ],
@@ -69,10 +69,10 @@
       "capture": 0,
       "duree": 2.4,
       "surligne": [
-        514,
-        116,
-        914,
-        101
+        539,
+        254,
+        864,
+        102
       ],
       "bulle": {
         "fr": "La vidéo source",
@@ -84,7 +84,7 @@
       "duree": 2.4,
       "curseur": [
         971,
-        374
+        753
       ],
       "clic": true,
       "bulle": {
@@ -96,8 +96,8 @@
       "capture": 1,
       "duree": 3.2,
       "surligne": [
-        1317,
-        723,
+        1292,
+        729,
         94,
         34
       ],

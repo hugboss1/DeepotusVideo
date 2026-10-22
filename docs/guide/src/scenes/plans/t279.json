@@ -1,0 +1,696 @@
+{
+ "base": "http://127.0.0.1:8809",
+ "preparation": "Backend de preuve t279 (scripts/guide/serve_guide.py du worktree, données jetables, aucune clé) ; semer_videos.py (trois rendus plan-01..03) puis semer_sons.py (nappe-phare.wav, carillon.wav).",
+ "scenes": [
+  {
+   "scene": "son-vfx/hub",
+   "titre": {
+    "fr": "Six rubriques, une barre",
+    "en": "Six sections, one bar"
+   },
+   "legende": {
+    "fr": "La barre de Son & VFX : Musique, SFX, Voix off, VFX particules, VFX IA et Post-traitement, chacune avec sa couleur.",
+    "en": "The Sound & VFX bar: Music, SFX, Voiceover, Particle VFX, AI VFX and Post-processing, each with its color."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "css:button.dzCatTab[data-sv-sub=\"music\"]",
+     "apres": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "musique"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:.dzsvh-barre",
+     "bulle": {
+      "fr": "Une rubrique par sorte de son ou d'effet",
+      "en": "One section per kind of sound or effect"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-sv-mode=\"generer\"]",
+     "bulle": {
+      "fr": "Musique : générer, importer et séparer, ou l'Atelier",
+      "en": "Music: generate, import and split, or the Workshop"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:prix selon le modèle",
+      "en": "contient:price depends on"
+     },
+     "bulle": {
+      "fr": "Le prix est dit avant de lancer",
+      "en": "The price is shown before you run"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/pistes",
+   "titre": {
+    "fr": "Importer et séparer une piste",
+    "en": "Import and split a track"
+   },
+   "legende": {
+    "fr": "Musique › Importer et séparer : la piste choisie, puis la séparation en 4 ou 6 instruments (payante, par fal).",
+    "en": "Music › Import and split: the chosen track, then the split into 4 or 6 instruments (paid, via fal)."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "css:button.dzCatTab[data-sv-sub=\"music\"]",
+     "apres": 2500
+    },
+    {
+     "clic": "css:[data-sv-mode=\"pistes\"]",
+     "apres": 1800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "piste",
+     "etapes": [
+      {
+       "clic": "texte:nappe-phare.wav",
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": "css:[data-sv-pistes=\"importer\"]",
+     "bulle": {
+      "fr": "Glisser ou importer une piste",
+      "en": "Drop or import a track"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "curseur": "texte:nappe-phare.wav",
+     "clic": true,
+     "bulle": {
+      "fr": "La piste choisie s'écoute",
+      "en": "The chosen track plays"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:[data-sv-pistes=\"separer\"]",
+     "bulle": {
+      "fr": "Premier clic : le prix ; second clic : la séparation",
+      "en": "First click: the price; second click: the split"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/atelier",
+   "titre": {
+    "fr": "L'Atelier sonore à nœuds",
+    "en": "The node-based sound Workshop"
+   },
+   "legende": {
+    "fr": "Musique › Atelier : un préréglage pose une chaîne de nœuds ; chaque nœud se règle dans l'inspecteur.",
+    "en": "Music › Workshop: a preset lays out a chain of nodes; each node is set in the inspector."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "css:button.dzCatTab[data-sv-sub=\"music\"]",
+     "apres": 2500
+    },
+    {
+     "clic": "css:[data-sv-mode=\"atelier\"]",
+     "apres": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "vide"
+    },
+    {
+     "nom": "chaine",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Grand hall",
+        "en": "texte:Great hall"
+       },
+       "apres": 1500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": {
+      "fr": "texte:Grand hall",
+      "en": "texte:Great hall"
+     },
+     "clic": true,
+     "bulle": {
+      "fr": "Un préréglage pour démarrer",
+      "en": "A preset to start from"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:.dzsva-noeud",
+     "bulle": {
+      "fr": "Source, effets, sortie : reliés de gauche à droite",
+      "en": "Source, effects, output: linked left to right"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:IA (payant)",
+      "en": "texte:AI (paid)"
+     },
+     "bulle": {
+      "fr": "Des nœuds IA retravaillent une plage",
+      "en": "AI nodes rework a range"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/voix",
+   "titre": {
+    "fr": "La Voix off en trois zones",
+    "en": "Voiceover in three areas"
+   },
+   "legende": {
+    "fr": "Voix off : la bibliothèque de voix à gauche, le script au centre, les réglages du modèle à droite.",
+    "en": "Voiceover: the voice library on the left, the script in the middle, the model settings on the right."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "css:button.dzCatTab[data-sv-sub=\"voiceover\"]",
+     "apres": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "script",
+     "etapes": [
+      {
+       "saisir": [
+        "css:textarea.dzsvv-texte",
+        {
+         "fr": "Le phare s'allume quand la mer se lève.",
+         "en": "The lighthouse lights up when the sea rises."
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Bibliothèque de voix",
+      "en": "contient:Voice library"
+     },
+     "bulle": {
+      "fr": "Chercher, écouter, cloner une voix",
+      "en": "Search, listen to, clone a voice"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-sv-voix=\"compteur\"]",
+     "bulle": {
+      "fr": "Le script et son compte de caractères",
+      "en": "The script and its character count"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:[data-sv-voix=\"generer\"]",
+     "bulle": {
+      "fr": "Générer : les versions s'empilent dessous",
+      "en": "Generate: versions stack up below"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/sfx-modeles",
+   "url": "/",
+   "titre": {
+    "fr": "Choisir le modèle des bruitages",
+    "en": "Pick the sound effects model"
+   },
+   "legende": {
+    "fr": "SFX, Générer des SFX : le modèle et son prix ; un modèle via fal se lance en deux clics, le premier donne le devis.",
+    "en": "SFX, Generate SFX: the model and its price; a model via fal runs in two clicks, the first gives the estimate."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "css:button.dzCatTab[data-sv-sub=\"sfx\"]",
+     "apres": 2500
+    },
+    {
+     "defiler": "css:input.svm-sfxprompt"
+    }
+   ],
+   "captures": [
+    {
+     "nom": "modele"
+    },
+    {
+     "nom": "arme",
+     "etapes": [
+      {
+       "js": "const s = document.querySelector('select.svx-sfxmsel'); s.value = 'sonilo-1.1'; s.dispatchEvent(new Event('change', {bubbles: true}))",
+       "attente": 1200
+      },
+      {
+       "saisir": [
+        "css:input.svm-sfxprompt",
+        {
+         "fr": "vague qui claque sur un rocher",
+         "en": "wave crashing on a rock"
+        }
+       ]
+      },
+      {
+       "js": "document.querySelector('input.svm-sfxprompt').closest('.svm-card, section, div').parentElement.querySelectorAll('button.svm-nbgold').forEach(b => { if (/^(Générer|Generate)$/.test(b.textContent.trim())) b.click() })",
+       "attente": 3000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:select.svx-sfxmsel",
+     "bulle": {
+      "fr": "Le modèle, groupé par voie, avec son prix",
+      "en": "The model, grouped by route, with its price"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:.svx-sfxmprix",
+     "bulle": {
+      "fr": "Premier clic : le prix ; le second lance",
+      "en": "First click: the price; the second runs it"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/particules",
+   "titre": {
+    "fr": "Des particules en direct",
+    "en": "Live particles"
+   },
+   "legende": {
+    "fr": "VFX particules : un preset, l'aperçu qui joue tout de suite, et l'inspecteur pour régler l'émetteur.",
+    "en": "Particle VFX: a preset, the preview that plays right away, and the inspector to tune the emitter."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "css:button.dzCatTab[data-sv-sub=\"vfx\"]",
+     "apres": 4000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "apercu"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": "css:[data-sv-part=\"onglet-presets\"]",
+     "bulle": {
+      "fr": "Presets et séquences prêtes",
+      "en": "Presets and ready-made sequences"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:canvas.dzsvx-toile",
+     "bulle": {
+      "fr": "L'aperçu calculé sur votre PC",
+      "en": "The preview, computed on your PC"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "contient:Émetteur",
+      "en": "contient:Emitter"
+     },
+     "bulle": {
+      "fr": "Chaque réglage change l'aperçu",
+      "en": "Every setting changes the preview"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/vfx-ia",
+   "url": "/",
+   "titre": {
+    "fr": "VFX IA : un geste sur une vidéo",
+    "en": "AI VFX: one action on a video"
+   },
+   "legende": {
+    "fr": "VFX IA : la vidéo source, des gestes illustrés avec leur prix ; Estimer puis lancer donne d'abord le devis.",
+    "en": "AI VFX: the source video, illustrated actions with their price; Estimate, then run gives the estimate first."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "css:button.dzCatTab[data-sv-sub=\"vfxia\"]",
+     "apres": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "gestes"
+    },
+    {
+     "nom": "devis",
+     "etapes": [
+      {
+       "clic": "css:button[data-dzvfxia=\"jour-nuit\"]",
+       "apres": 1000
+      },
+      {
+       "js": "[...document.querySelectorAll('button.svm-nbgold')].filter(b=>b.offsetParent).forEach(b=>b.scrollIntoView({block:'center'}))",
+       "attente": 600
+      },
+      {
+       "clic": "css:button.svm-nbgold",
+       "apres": 6000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "surligne": "css:[data-dzvfxia=\"rail\"]",
+     "bulle": {
+      "fr": "La vidéo source",
+      "en": "The source video"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "css:button[data-dzvfxia=\"jour-nuit\"]",
+     "clic": true,
+     "bulle": {
+      "fr": "Un geste et son prix",
+      "en": "An action and its price"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "surligne": "css:button.svm-nbgold",
+     "bulle": {
+      "fr": "Le devis d'abord ; le second clic lance",
+      "en": "The estimate first; the second click runs it"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/post",
+   "titre": {
+    "fr": "Empiler des post-traitements",
+    "en": "Stack post-processing effects"
+   },
+   "legende": {
+    "fr": "Post-traitement : un rendu, des presets empilés dans l'ordre, l'avant/après, puis le rendu gratuit.",
+    "en": "Post-processing: a render, presets stacked in order, the before/after, then the free render."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "css:button.dzCatTab[data-sv-sub=\"post\"]",
+     "apres": 3000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "source",
+     "etapes": [
+      {
+       "clic": "texte:plan-02-phare",
+       "apres": 1200
+      },
+      {
+       "clic": "css:[data-sv-post=\"ajout-grain16\"]",
+       "apres": 600
+      },
+      {
+       "clic": "css:[data-sv-post=\"ajout-halation\"]",
+       "apres": 600
+      },
+      {
+       "clic": "css:[data-sv-post=\"ajout-vignette\"]",
+       "apres": 3500
+      }
+     ]
+    },
+    {
+     "nom": "pile",
+     "etapes": [
+      {
+       "defiler": "css:[data-sv-post=\"vider\"]"
+      },
+      {
+       "attente": 800
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "texte:plan-02-phare",
+     "clic": true,
+     "bulle": {
+      "fr": "Le rendu à retoucher",
+      "en": "The render to retouch"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.4,
+     "curseur": "css:[data-sv-post=\"ajout-grain16\"]",
+     "clic": true,
+     "bulle": {
+      "fr": "Un preset rejoint la pile",
+      "en": "A preset joins the stack"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-sv-post=\"curseur\"]",
+     "bulle": {
+      "fr": "Avant / après à l'instant choisi",
+      "en": "Before / after at the chosen moment"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.8,
+     "surligne": "css:[data-sv-post=\"maillon\"]",
+     "bulle": {
+      "fr": "Glisser, masquer, régler l'intensité",
+      "en": "Drag, hide, set the strength"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 2.6,
+     "surligne": "css:[data-sv-post=\"rendre\"]",
+     "bulle": {
+      "fr": "Rendu sur votre PC, gratuit",
+      "en": "Rendered on your PC, free"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "son-vfx/post-ia",
+   "titre": {
+    "fr": "Générer avec l'IA, décrire le look",
+    "en": "Generate with AI, describe the look"
+   },
+   "legende": {
+    "fr": "Post-traitement : les générateurs IA par fournisseur, avec leur prix et la clé demandée ; « Décrire le look » propose une pile.",
+    "en": "Post-processing: the AI generators by provider, with their price and the key they need; “Describe the look” suggests a stack."
+   },
+   "avant": [
+    {
+     "clic": {
+      "fr": "texte:Son & VFX",
+      "en": "texte:Sound & VFX"
+     },
+     "apres": 3000
+    },
+    {
+     "clic": "css:button.dzCatTab[data-sv-sub=\"post\"]",
+     "apres": 3000
+    },
+    {
+     "clic": "texte:plan-02-phare",
+     "apres": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "generer",
+     "etapes": [
+      {
+       "defiler": "css:[data-sv-post=\"generer\"]"
+      },
+      {
+       "attente": 800
+      }
+     ]
+    },
+    {
+     "nom": "look",
+     "etapes": [
+      {
+       "defiler": "css:[data-sv-post=\"look\"]"
+      },
+      {
+       "saisir": [
+        "css:[data-sv-post=\"look-phrase\"]",
+        {
+         "fr": "pellicule 70s chaude, un peu abîmée",
+         "en": "warm 70s film, a little worn"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:[data-sv-post=\"fourn-fal\"]",
+     "bulle": {
+      "fr": "Par fournisseur, avec leur prix",
+      "en": "By provider, with their price"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:[data-sv-cle]",
+     "bulle": {
+      "fr": "Sans clé : choisissable, refusé au lancement",
+      "en": "No key: selectable, refused at launch"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:[data-sv-post=\"look\"]",
+     "bulle": {
+      "fr": "Une phrase : une pile proposée, jamais appliquée seule",
+      "en": "One sentence: a suggested stack, never applied on its own"
+     }
+    }
+   ]
+  }
+ ]
+}

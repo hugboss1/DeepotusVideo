@@ -4,8 +4,8 @@
     "en": "Pick the sound effects model"
   },
   "legende": {
-    "fr": "Rail SFX, Générer des SFX : le modèle et son prix ; un modèle via fal se lance en deux clics, le premier donne le devis.",
-    "en": "SFX rail, Generate SFX: the model and its price; a model via fal runs in two clicks, the first gives the estimate."
+    "fr": "SFX, Générer des SFX : le modèle et son prix ; un modèle via fal se lance en deux clics, le premier donne le devis.",
+    "en": "SFX, Generate SFX: the model and its price; a model via fal runs in two clicks, the first gives the estimate."
   },
   "captures": [
     {
@@ -26,9 +26,9 @@
       "capture": 0,
       "duree": 2.8,
       "surligne": [
-        652,
-        556,
-        478,
+        677,
+        654,
+        479,
         41
       ],
       "bulle": {
@@ -40,8 +40,8 @@
       "capture": 1,
       "duree": 3,
       "surligne": [
-        1118,
-        589,
+        1144,
+        663,
         228,
         25
       ],
@@ -56,9 +56,9 @@
       "capture": 0,
       "duree": 2.8,
       "surligne": [
-        630,
-        556,
-        454,
+        655,
+        654,
+        490,
         41
       ],
       "bulle": {
@@ -70,8 +70,8 @@
       "capture": 1,
       "duree": 3,
       "surligne": [
-        1072,
-        589,
+        1133,
+        663,
         180,
         25
       ],

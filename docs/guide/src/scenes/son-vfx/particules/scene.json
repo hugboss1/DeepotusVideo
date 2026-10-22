@@ -1,0 +1,64 @@
+{
+  "titre": {
+    "fr": "Des particules en direct",
+    "en": "Live particles"
+  },
+  "legende": {
+    "fr": "VFX particules : un preset, l'aperçu qui joue tout de suite, et l'inspecteur pour régler l'émetteur.",
+    "en": "Particle VFX: a preset, the preview that plays right away, and the inspector to tune the emitter."
+  },
+  "captures": [
+    {
+      "fr": "apercu.fr.webp",
+      "en": "apercu.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        265,
+        210,
+        73,
+        38
+      ],
+      "bulle": {
+        "fr": "Presets et séquences prêtes",
+        "en": "Presets and ready-made sequences"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        538,
+        412,
+        296,
+        296
+      ],
+      "bulle": {
+        "fr": "L'aperçu calculé sur votre PC",
+        "en": "The preview, computed on your PC"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1133,
+        274,
+        265,
+        28
+      ],
+      "bulle": {
+        "fr": "Chaque réglage change l'aperçu",
+        "en": "Every setting changes the preview"
+      }
+    }
+  ]
+}

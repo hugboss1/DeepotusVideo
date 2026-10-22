@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "La Voix off en trois zones",
+    "en": "Voiceover in three areas"
+  },
+  "legende": {
+    "fr": "Voix off : la bibliothèque de voix à gauche, le script au centre, les réglages du modèle à droite.",
+    "en": "Voiceover: the voice library on the left, the script in the middle, the model settings on the right."
+  },
+  "captures": [
+    {
+      "fr": "script.fr.webp",
+      "en": "script.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        265,
+        214,
+        263,
+        27
+      ],
+      "bulle": {
+        "fr": "Chercher, écouter, cloner une voix",
+        "en": "Search, listen to, clone a voice"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        564,
+        409,
+        151,
+        28
+      ],
+      "bulle": {
+        "fr": "Le script et son compte de caractères",
+        "en": "The script and its character count"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        564,
+        588,
+        142,
+        43
+      ],
+      "bulle": {
+        "fr": "Générer : les versions s'empilent dessous",
+        "en": "Generate: versions stack up below"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        265,
+        214,
+        263,
+        27
+      ],
+      "bulle": {
+        "fr": "Chercher, écouter, cloner une voix",
+        "en": "Search, listen to, clone a voice"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        564,
+        409,
+        151,
+        28
+      ],
+      "bulle": {
+        "fr": "Le script et son compte de caractères",
+        "en": "The script and its character count"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        564,
+        588,
+        141,
+        43
+      ],
+      "bulle": {
+        "fr": "Générer : les versions s'empilent dessous",
+        "en": "Generate: versions stack up below"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

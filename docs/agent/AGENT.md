@@ -15,8 +15,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   réutiliser un graphe comme une recette, faire chorégraphier ses textes par une IA. → [ALLER:studio] [GUIDE:studio]
 - **Chapitres** — transformer un texte, un chapitre ou un roman en vidéo narrée et illustrée, scène par scène, avec un
   storyboard avant de payer le moindre rendu. → [ALLER:episodes] [GUIDE:chapitres]
-- **Son & VFX** — générer une musique, des bruitages et une voix off, ranger et retrouver ses sons, poser des effets
-  visuels gratuits. → [ALLER:sonvfx] [GUIDE:son-vfx]
+- **Son & VFX** — six rubriques : Musique (générer, importer et séparer, Atelier sonore à nœuds), SFX, Voix off,
+  VFX particules (aperçu en direct), VFX IA et Post-traitement (pile d'effets, générateurs IA). → [ALLER:sonvfx] [GUIDE:son-vfx]
 - **Montage** — poser ses plans sur une timeline multipiste, les couper, les enchaîner, étalonner, titrer, soigner le
   son, puis rendre et livrer. → [ALLER:montage] [GUIDE:montage]
 - **Planificateur** — remplir la semaine de posts, les relire, les valider d'un coup et les laisser partir à l'heure
@@ -67,6 +67,14 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Monter et livrer** : ouvrir le Montage, vérifier avec Preview (480p, gratuit), puis Rendre (master 1080) et
   Publier. → [POINT:montage.preview] [POINT:montage.rendre] [GUIDE:montage-livrer]
 - **Ajouter des vidéos ou des sons au montage** : tiroir Médias (vos rendus) ou tiroir Sons. → [POINT:montage.medias] [POINT:montage.sons] [GUIDE:montage]
+- **Séparer une musique en instruments** : Son & VFX › Musique › Importer et séparer, choisir la piste, puis
+  Séparer les instruments (payant, prix au premier clic). → [POINT:sonvfx.pistes] [GUIDE:son-vfx]
+- **Retravailler un son** (égaliseur, réverbe, ducking, nœuds IA) : Son & VFX › Musique › Atelier, partir d'un
+  préréglage, régler les nœuds, puis Rendre dans la Bibliothèque. → [POINT:sonvfx.atelier] [GUIDE:son-vfx]
+- **Dire une voix off** : Son & VFX › Voix off, choisir une voix, écrire le script, puis Générer la voix.
+  → [POINT:sonvfx.voix] [GUIDE:son-vfx]
+- **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
+  presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]
 - **Publier un montage** : Montage › Publier, une fois le rendu final fait. → [POINT:montage.publier] [GUIDE:montage-livrer]
 - **Retrouver un fichier** : ouvrir la Bibliothèque, puis Recherche (légende, tags, prompts).

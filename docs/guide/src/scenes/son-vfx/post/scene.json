@@ -1,0 +1,94 @@
+{
+  "titre": {
+    "fr": "Empiler des post-traitements",
+    "en": "Stack post-processing effects"
+  },
+  "legende": {
+    "fr": "Post-traitement : un rendu, des presets empilés dans l'ordre, l'avant/après, puis le rendu gratuit.",
+    "en": "Post-processing: a render, presets stacked in order, the before/after, then the free render."
+  },
+  "captures": [
+    {
+      "fr": "source.fr.webp",
+      "en": "source.en.webp"
+    },
+    {
+      "fr": "pile.fr.webp",
+      "en": "pile.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        320,
+        341
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Le rendu à retoucher",
+        "en": "The render to retouch"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1174,
+        260
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Un preset rejoint la pile",
+        "en": "A preset joins the stack"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        628,
+        237,
+        336,
+        589
+      ],
+      "bulle": {
+        "fr": "Avant / après à l'instant choisi",
+        "en": "Before / after at the chosen moment"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.8,
+      "surligne": [
+        1092,
+        463,
+        317,
+        70
+      ],
+      "bulle": {
+        "fr": "Glisser, masquer, régler l'intensité",
+        "en": "Drag, hide, set the strength"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1103,
+        826,
+        295,
+        41
+      ],
+      "bulle": {
+        "fr": "Rendu sur votre PC, gratuit",
+        "en": "Rendered on your PC, free"
+      }
+    }
+  ]
+}

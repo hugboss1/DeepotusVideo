@@ -1,0 +1,110 @@
+{
+  "titre": {
+    "fr": "Importer et séparer une piste",
+    "en": "Import and split a track"
+  },
+  "legende": {
+    "fr": "Musique › Importer et séparer : la piste choisie, puis la séparation en 4 ou 6 instruments (payante, par fal).",
+    "en": "Music › Import and split: the chosen track, then the split into 4 or 6 instruments (paid, via fal)."
+  },
+  "captures": [
+    {
+      "fr": "piste.fr.webp",
+      "en": "piste.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        335,
+        315,
+        142,
+        43
+      ],
+      "bulle": {
+        "fr": "Glisser ou importer une piste",
+        "en": "Drop or import a track"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        378,
+        520
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "La piste choisie s'écoute",
+        "en": "The chosen track plays"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        586,
+        545,
+        171,
+        43
+      ],
+      "bulle": {
+        "fr": "Premier clic : le prix ; second clic : la séparation",
+        "en": "First click: the price; second click: the split"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        348,
+        315,
+        118,
+        43
+      ],
+      "bulle": {
+        "fr": "Glisser ou importer une piste",
+        "en": "Drop or import a track"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        372,
+        520
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "La piste choisie s'écoute",
+        "en": "The chosen track plays"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        586,
+        513,
+        155,
+        43
+      ],
+      "bulle": {
+        "fr": "Premier clic : le prix ; second clic : la séparation",
+        "en": "First click: the price; second click: the split"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
