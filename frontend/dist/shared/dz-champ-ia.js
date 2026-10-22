@@ -1298,9 +1298,10 @@
      `available:false` → micro grisé en voie 2, title = la raison du serveur.
      Une seule dictée à la fois ; un champ retiré l'abandonne (rien n'est
      envoyé tant que l'accord n'est pas donné). */
-  var TITRE_V1 = "Dicter — reconnaissance vocale du navigateur (l'audio part au service du navigateur)";
-  var TITRE_V2 = "Dicter — enregistrement au micro, puis transcription par le serveur : durée et coût affichés, rien n'est envoyé sans votre accord";
-  var TITRE_STOP = "Arrêter la dictée";
+  /* les titres du micro dans la langue de l'interface (clés ia.dictee.* de commun.json), lus au moment d'afficher */
+  function TITRE_V1() { return TP("ia.dictee.v1", "Dicter — reconnaissance vocale du navigateur (l'audio part au service du navigateur)"); }
+  function TITRE_V2() { return TP("ia.dictee.v2", "Dicter — enregistrement au micro, puis transcription par le serveur : durée et coût affichés, rien n'est envoyé sans votre accord"); }
+  function TITRE_STOP() { return TP("ia.dictee.arreter", "Arrêter la dictée"); }
   var MIMES = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm", "audio/mp4"];
   var PRISE_MAX_S = 590;                         // le serveur refuse au-delà de 10 min
   var dic = { voie1Ko: "", indispo: "", indispoT: 0, active: null };
@@ -1373,7 +1374,7 @@
     b.setAttribute("type", "button");
     b.className = "dzia-micro";
     b.setAttribute("data-dzia-micro", "1");
-    b.setAttribute("title", TITRE_V1);
+    b.setAttribute("title", TITRE_V1());
     var i = D.createElement("span");
     i.className = "dzia-mico";
     i.appendChild(glyphe("dz-media-dicter", 15));
@@ -1400,18 +1401,18 @@
     if (!b) return;
     var a = dic.active && dic.active.el === el ? dic.active : null;
     var e = a ? a.etat : "repos", v = voieDictee(), titre, txt = "", cle = "dz-media-dicter", cls = "dzia-mico", dis = false, occupe = false;
-    if (e === "ecoute" || e === "prise") { cle = "dz-media-arret"; cls = "dzia-mstop"; titre = TITRE_STOP; }
+    if (e === "ecoute" || e === "prise") { cle = "dz-media-arret"; cls = "dzia-mstop"; titre = TITRE_STOP(); }
     else if (e !== "repos") {
       txt = "…"; cle = ""; cls = "dzia-mbusy"; occupe = true;
-      titre = e === "micro" ? "Accès au micro en cours — autorisez-le dans le navigateur"
-        : e === "estime" ? "Estimation de la durée et du coût de la transcription…"
-        : e === "accord" ? "En attente de votre accord pour transcrire"
-        : e === "envoi" ? "Transcription en cours…" : "Fin de la dictée…";
+      titre = e === "micro" ? TP("ia.dictee.micro", "Accès au micro en cours — autorisez-le dans le navigateur")
+        : e === "estime" ? TP("ia.dictee.estime", "Estimation de la durée et du coût de la transcription…")
+        : e === "accord" ? TP("ia.dictee.accord", "En attente de votre accord pour transcrire")
+        : e === "envoi" ? TP("ia.dictee.envoi", "Transcription en cours…") : TP("ia.dictee.fin", "Fin de la dictée…");
     }
-    else if (v === 1) titre = TITRE_V1;
-    else if (v === 2 && indispo()) { dis = true; titre = "Dictée indisponible — " + dic.indispo; }
-    else if (v === 2) titre = TITRE_V2 + (dic.voie1Ko ? " (reconnaissance du navigateur indisponible : " + dic.voie1Ko + ")" : "");
-    else { dis = true; titre = "Dictée indisponible : ce navigateur n'a ni reconnaissance vocale ni enregistreur audio ici (page non sûre ?)"; }
+    else if (v === 1) titre = TITRE_V1();
+    else if (v === 2 && indispo()) { dis = true; titre = TP("ia.dictee.indispo", "Dictée indisponible — {raison}", { raison: dic.indispo }); }
+    else if (v === 2) titre = TITRE_V2() + (dic.voie1Ko ? " (" + TP("ia.dictee.v1_ko", "reconnaissance du navigateur indisponible : {raison}", { raison: dic.voie1Ko }) + ")" : "");
+    else { dis = true; titre = TP("ia.dictee.aucune", "Dictée indisponible : ce navigateur n'a ni reconnaissance vocale ni enregistreur audio ici (page non sûre ?)"); }
     var s = b.firstElementChild;
     if (s) {
       if (s.className !== cls) s.className = cls;

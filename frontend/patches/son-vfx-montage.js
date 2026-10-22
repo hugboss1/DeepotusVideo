@@ -170,7 +170,7 @@ function svmStarterFilter(items,q){
   var t=svmNorm(q).trim();if(!t)return items;
   var terms=t.split(/\s+/);
   return items.filter(function(it){
-    var hay=svmNorm([it.name,it.stem,it.id,it.family].join(" "));
+    var hay=svmNorm([svH(it),it.stem,it.id,it.family].join(" "));
     return terms.every(function(w){return hay.indexOf(w)>=0})})}
 
 /* sondage d'un job sprite2d (particules / séquence) — même contrat que le
@@ -196,14 +196,14 @@ function SvmRailFamilies(props){
     props.families.length?props.families.map(function(f){
       return r.jsxs("div",{className:"svm-voice",role:"button",tabIndex:0,
         "data-sel":props.sel===f.id?"":void 0,
-        title:f.desc||"",
+        title:svD(f)||"",
         onClick:function(){props.onPick(f.id)},
         onKeyDown:function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();props.onPick(f.id)}},
         children:[
         r.jsx("span",{className:"svm-sq7",style:{background:"var("+(props.color||"--c-audio")+")"}}),
         r.jsxs("div",{className:"svm-vbody",children:[
-          r.jsx("div",{className:"svm-vname",children:f.name}),
-          r.jsx("div",{className:"svm-vmeta",children:f.desc||""})]}),
+          r.jsx("div",{className:"svm-vname",children:svF(f)}),
+          r.jsx("div",{className:"svm-vmeta",children:svD(f)||""})]}),
         r.jsx("span",{className:"svm-dur",children:f.count})]},f.id)})
     :r.jsx("div",{className:"svm-note",children:dzT("son.rail.catalogue_indisponible")})})}
 
@@ -226,7 +226,7 @@ function SvmSfxBrowser(props){
       .then(function(r2){if(!r2.ok)throw new Error(dzT("son.sfx.import_refuse"));return r2.json()})
       .then(function(d){setBusy("");
         setAdded(function(o){var n=Object.assign({},o);n[it.id]=d.items&&d.items[0];return n});
-        props.onNote(dzT("son.sfx.importe",{nom:it.name}))})
+        props.onNote(dzT("son.sfx.importe",{nom:svN(it)}))})
       .catch(function(e){setBusy("");props.onNote(dzT("son.sfx.import_impossible",{e:e.message}))})}
   return r.jsxs("div",{className:"svm-card",children:[
     r.jsxs("div",{className:"svm-cardhead",children:[
@@ -243,16 +243,16 @@ function SvmSfxBrowser(props){
       var url="/starter/"+it.file,on=props.playId===url;
       return r.jsxs("div",{className:"svm-sfx",children:[
         r.jsx("button",{className:"svm-playbtn","data-on":on?"":void 0,
-          title:on?"Pause":dzT("son.commun.ecouter"),"aria-label":dzT("son.sfx.ecouter_nom",{nom:it.name}),
+          title:on?"Pause":dzT("son.commun.ecouter"),"aria-label":dzT("son.sfx.ecouter_nom",{nom:svN(it)}),
           onClick:function(){props.play(url)},children:on?__dzGl("dz-media-pause"):__dzGl("dz-media-lecture")}),
-        r.jsx("span",{className:"svm-sfxname",children:it.name}),
+        r.jsx("span",{className:"svm-sfxname",children:svN(it)}),
         r.jsx("span",{className:"svm-dur",style:{marginLeft:"auto"},
           children:it.dur>0?svmShort(it.dur):"—"}),
         added[it.id]
           ?r.jsx("span",{className:"svm-savedchip",title:dzT("son.sfx.deja_aide"),children:dzT("son.sfx.ajoute")})
           :r.jsx("button",{className:"svm-minibtn",
             title:dzT("son.sfx.copier_aide"),
-            "aria-label":dzT("son.sfx.ajouter_nom",{nom:it.name}),
+            "aria-label":dzT("son.sfx.ajouter_nom",{nom:svN(it)}),
             onClick:function(){add(it)},
             children:busy===it.id?"…":__dzGlT("dz-action-ajouter-bibliotheque",dzT("son.sfx.ajouter"),"+")})]},it.id)})}),
     r.jsx("div",{className:"svm-note",children:
@@ -6880,3 +6880,20 @@ function SvmVfxIa(props){
         r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},children:dzT("vfx.ia.dans_biblio",{nom:res.filename})}),
         r.jsx("button",{className:"svm-primarybtn",onClick:function(){props.go&&props.go("montage")},
           children:dzT("vfx.ia.ouvrir_montage")})]})]}):null]})}
+
+/* ═══════════ t280 : le catalogue de démarrage dans la langue de l'interface ═══════════
+   Noms et familles du catalogue livré (backend/app/assets/starter/catalog.json) restent en français : la recherche
+   et l'import en Bibliothèque s'en servent. L'écran les traduit par motif : une clé par radical Kenney
+   (catalogue.sfx.son.<radical>, même calcul que backend/tests/test_i18n_dictee_catalogue.py), suivie du numéro du
+   fichier ; deux clés par famille (catalogue.sfx.famille.<id>.nom|desc). Clé absente : le texte du catalogue.
+   Noms de trois lettres : ils remplacent it.name, f.name, f.desc À LONGUEUR ÉGALE (tables L4 et G1 par position) ;
+   svH donne à la recherche le nom du catalogue ET le nom affiché. */
+function svCle(stem){
+  return "catalogue.sfx.son."+String(stem||"").replace(/([a-z0-9])([A-Z])/g,"$1_$2")
+    .toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")}
+function svN(it){
+  var n=String((it&&it.name)||""),k=it&&it.stem?svCle(it.stem):"",e=k&&window.DZ_I18N?window.DZ_I18N[k]:null;
+  return e&&e.fr&&n.indexOf(e.fr)===0?dzT(k)+n.slice(e.fr.length):n}
+function svH(it){return ((it&&it.name)||"")+" "+svN(it)}
+function svF(f){var k="catalogue.sfx.famille."+f.id+".nom";return window.DZ_I18N&&window.DZ_I18N[k]?dzT(k):f.name}
+function svD(f){var k="catalogue.sfx.famille."+f.id+".desc";return window.DZ_I18N&&window.DZ_I18N[k]?dzT(k):f.desc}

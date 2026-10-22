@@ -808,3 +808,18 @@ def source_avant_i18n_l9(texte: str, fichier: str) -> str:
     r = "".join(morceaux)
     r = r if crlf else r.replace("\r\n", "\n")
     return ("\ufeff" + r) if bom else r
+
+
+def base_avec_sonvfx_livre(base: bytes, livre: bytes) -> bytes:
+    """t280 : un bundle de BASE (git show d'un commit figé par un banc de maillon de queue) dont le bloc SONVFX est
+    remplacé par celui du LIVRÉ, aux fins de ligne de la base. La couche sonvfx peut être retouchée après la base
+    (retouche consignée dans la saisie L4 et RETOUCHES de G1, réinjectée par refresh_layer) : ces bancs vérifient leur
+    maillon HORS de ce bloc ; que le bloc soit, à l'octet, sa couche source est vérifié par test_sonvfx_hub (D6) et
+    test_i18n_dictee_catalogue (2.13)."""
+    a, z = b"/*__DZ_SONVFX_BEGIN__*/", b"/*__DZ_SONVFX_END__*/"
+    if base.count(a) != 1 or livre.count(a) != 1:
+        return base
+    bloc = livre[livre.find(a):livre.find(z)].replace(b"\r\n", b"\n")
+    if b"\r\n" in base:
+        bloc = bloc.replace(b"\n", b"\r\n")
+    return base[:base.find(a)] + bloc + base[base.find(z):]

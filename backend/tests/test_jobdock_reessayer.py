@@ -217,10 +217,15 @@ except Exception as e:  # noqa: BLE001
     print(f"  (maillon introuvable : {e})")
 
 
+BUN_OCTETS_T280 = (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes()
+
+
 def _base_bytes():
     r_ = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True,
                         cwd=str(RACINE))
-    return r_.stdout.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")     # le dépôt garde le bundle en LF
+    b_ = r_.stdout.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")     # le dépôt garde le bundle en LF
+    # t280 : la couche sonvfx retouchée après BASE (L4 + G1) — le bloc SONVFX attendu est celui du livré
+    return __import__("_i18n_l1_aide").base_avec_sonvfx_livre(b_, BUN_OCTETS_T280)
 
 
 check("D1 maillon présent", PD is not None)

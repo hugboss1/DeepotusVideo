@@ -84,7 +84,7 @@ ENTREES = [
     # SvmSfxBrowser : bruitages livrés (catalogue CC0)
     L(14497, 'son.sfx.import_refuse', 'import refusé', 'import refused'),
     S(14690, '"« "+it.name+" » est dans la Bibliothèque (sons) — le tiroir Sons du Montage le liste."',
-      'dzT("son.sfx.importe",{nom:it.name})',
+      'dzT("son.sfx.importe",{nom:svN(it)})',
       {'son.sfx.importe': ('« {nom} » est dans la Bibliothèque (sons) — le tiroir Sons du Montage le liste.',
                            '“{nom}” is in the Library (sounds) — the Montage Sounds drawer lists it.')}),
     S(14832, '"Import impossible : "+e.message',
@@ -103,14 +103,14 @@ ENTREES = [
     X(15917, 'identique dans les deux langues'),
     L(15925, 'son.commun.ecouter', 'Écouter', 'Play'),
     S(15948, '"Écouter "+it.name',
-      'dzT("son.sfx.ecouter_nom",{nom:it.name})',
+      'dzT("son.sfx.ecouter_nom",{nom:svN(it)})',
       {'son.sfx.ecouter_nom': ('Écouter {nom}', 'Play {nom}')}),
     L(16309, 'son.sfx.deja_aide', 'déjà dans la Bibliothèque', 'already in the Library'),
     L(16346, 'son.sfx.ajoute', 'ajouté', 'added'),
     L(16429, 'son.sfx.copier_aide', 'Copier dans la Bibliothèque (sons) — utilisable dans le Montage',
       'Copy to the Library (sounds) — usable in Montage'),
     S(16522, '"Ajouter "+it.name+" à la Bibliothèque"',
-      'dzT("son.sfx.ajouter_nom",{nom:it.name})',
+      'dzT("son.sfx.ajouter_nom",{nom:svN(it)})',
       {'son.sfx.ajouter_nom': ('Ajouter {nom} à la Bibliothèque', 'Add {nom} to the Library')}),
     L(16644, 'son.sfx.ajouter', '+ Bibliothèque', '+ Library'),
     S(16733, '"Kenney · CC0 — usage commercial libre, aucune attribution exigée. "\r\n      +(items?items.length:0)+" sons dans cette famille."',
@@ -295,4 +295,13 @@ ENTREES = [
     S(32425, 'children:svmMusicPrice(v,v.duration?Math.min(v.duration[1],Math.max(v.duration[0],dur)):dur)})]}),',
       'children:svmMusicPrice(v,v.duration?Math.min(v.duration[1],Math.max(v.duration[0],dur)):dur,model===v.id&&showLyr?lyrics:"")})]}),',
       {}),
+    # t280 (22/10/2026) — changement FONCTIONNEL posé APRÈS L4 : les noms et familles du catalogue de démarrage
+    # (bruitages livrés) passent par svN / svF / svD / svH, définies en fin de couche (entrée t188 de
+    # montage_d.py) ; chaque remplacement garde la LONGUEUR (tables L4 et G1 par position). Mêmes retouches
+    # dans RETOUCHES de scripts/icones/g1_generer.py. Les trois {nom:it.name} des dzT ci-dessus aussi.
+    S(11554, 'it.name,it.stem', 'svH(it),it.stem', {}),
+    S(12979, 'title:f.desc||""', 'title:svD(f)||""', {}),
+    S(13376, 'children:f.name}', 'children:svF(f)}', {}),
+    S(13441, 'children:f.desc||""}', 'children:svD(f)||""}', {}),
+    S(16062, 'className:"svm-sfxname",children:it.name}', 'className:"svm-sfxname",children:svN(it)}', {}),
 ]
