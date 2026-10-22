@@ -55,7 +55,9 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 - Suite complète : `.\scripts\run-tests.ps1`.
 - Bancs des labs et de `/shared` : `node frontend/<lab>/qa/<banc>.test.mjs`.
 - Illustrations animées des gestes VFX IA (t275) : `& $PY scripts/sonvfx_illustrations.py [id…]` rend les pages
-  `scripts/sonvfx_illus/<id>.html` dans `frontend/dist/sonvfx/illus/` ; `--check` vérifie qu'elles sont à jour.
+  `scripts/sonvfx_illus/<id>.html` dans `frontend/dist/sonvfx/illus/` ; `--jeu post` rend celles des presets de
+  post-traitement (t278, `scripts/sonvfx_illus_post/` → `frontend/dist/sonvfx/illus-post/`) ; `--check` vérifie que
+  les deux jeux sont à jour.
 - Preuve à l'écran : `& $PY scripts/guide/serve_guide.py` (port 8809). Ne jamais toucher au 8765 de l'utilisateur.
 - Installation : comparer les empreintes avec `git hash-object`, jamais sha256.
 

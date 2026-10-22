@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Illustrations animées des gestes VFX IA (t275, lot « Menus : Son & VFX », 22/10/2026).
+"""Illustrations animées des gestes VFX IA (t275) et des presets de post-traitement (t278), lot « Menus : Son & VFX »,
+22/10/2026.
 
 Une page HTML / SVG / Canvas par geste de `vfx_ia.REGISTRE` (scripts/sonvfx_illus/<id>.html), écrite par nous selon une
 fiche de style MAISON (backend/app/motion/styles, déclarée par `<meta name="dz-skill" content="style-<thème>">`) : elle
@@ -16,9 +17,15 @@ Chaîne, pour chaque page :
   4. manifeste frontend/dist/sonvfx/illus/index.json : l'EMPREINTE de chaque page rendue (une page modifiée sans
      nouveau rendu est vue par `--check`), les tailles, la version du moteur.
 
-  python scripts/sonvfx_illustrations.py            # rend tout
+Deux JEUX passent par la même chaîne (mêmes metas, même format, même manifeste à empreintes) :
+  vfx  : les gestes de `vfx_ia.REGISTRE`, pages scripts/sonvfx_illus/, rendus frontend/dist/sonvfx/illus/ (t275) ;
+  post : les presets de `effects_engine.POST_PILE`, pages scripts/sonvfx_illus_post/, rendus
+         frontend/dist/sonvfx/illus-post/ (t278 ; `dz-geste` y nomme le preset).
+
+  python scripts/sonvfx_illustrations.py            # rend tout le jeu vfx
   python scripts/sonvfx_illustrations.py eau jour-nuit
-  python scripts/sonvfx_illustrations.py --check    # pages et rendus à jour (code de sortie 1 sinon)
+  python scripts/sonvfx_illustrations.py --jeu post [bloom vhs…]
+  python scripts/sonvfx_illustrations.py --check    # pages et rendus des DEUX jeux à jour (code de sortie 1 sinon)
 
 Le moteur : DEEPOTUS_NAVIGATEUR, puis vendor/ du dépôt, puis celui de l'application installée
 (%LOCALAPPDATA%\\DeepotusVideoGen\\vendor) ; jamais Edge, pour que les rendus ne dépendent pas du PC.
@@ -36,6 +43,7 @@ RACINE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RACINE / "backend"))
 
 from app.services import motion_code as MC  # noqa: E402
+from app.services import effects_engine as EE  # noqa: E402
 from app.services import vfx_ia as VI  # noqa: E402
 
 PAGES = RACINE / "scripts" / "sonvfx_illus"
@@ -44,6 +52,16 @@ STYLES = RACINE / "backend" / "app" / "motion" / "styles"
 W, H, FPS, DUREE = 480, 270, 30, 4
 MAX_WEBM = 250_000
 DEBITS = ("360k", "300k", "240k", "180k", "140k")      # VP9 contraint : le premier qui tient sous MAX_WEBM
+
+# t278 : un jeu = un registre (lu à l'appel), son dossier de pages, sa sortie et la clé de son manifeste.
+JEUX = {
+    "vfx": {"registre": lambda: VI.REGISTRE, "pages": PAGES, "sortie": SORTIE, "cle": "gestes",
+            "note": "t275 : illustrations des gestes VFX IA, rendues par scripts/sonvfx_illustrations.py (statiques)"},
+    "post": {"registre": lambda: EE.POST_PILE, "pages": RACINE / "scripts" / "sonvfx_illus_post",
+             "sortie": RACINE / "frontend" / "dist" / "sonvfx" / "illus-post", "cle": "presets",
+             "note": "t278 : illustrations des presets de post-traitement, rendues par "
+                     "scripts/sonvfx_illustrations.py --jeu post (statiques)"},
+}
 
 
 def meta(html: str, nom: str):
@@ -61,10 +79,12 @@ def _lire(p: Path) -> str:
     return p.read_bytes().decode("utf-8") if p.is_file() else ""
 
 
-def verifier(registre=None, pages: Path = PAGES) -> list:
+def verifier(registre=None, pages: Path = None, jeu: str = "vfx") -> list:
     """Les écarts des pages (liste vide = tout va) : une page par geste, aucune orpheline, contrôle motion_code, fiche
     de style maison, geste nommé, format, instant de l'affiche."""
-    registre = VI.REGISTRE if registre is None else registre
+    J = JEUX[jeu]
+    registre = J["registre"]() if registre is None else registre
+    pages = J["pages"] if pages is None else pages
     themes = {p.stem for p in STYLES.glob("*.json")}
     out = []
     for gid in registre:
@@ -91,14 +111,17 @@ def verifier(registre=None, pages: Path = PAGES) -> list:
     return out
 
 
-def verifier_rendus(registre=None, pages: Path = PAGES, sortie: Path = SORTIE) -> list:
+def verifier_rendus(registre=None, pages: Path = None, sortie: Path = None, jeu: str = "vfx") -> list:
     """Les écarts des rendus : manifeste, empreinte de la page rendue = page actuelle, fichiers présents et bornés."""
-    registre = VI.REGISTRE if registre is None else registre
+    J = JEUX[jeu]
+    registre = J["registre"]() if registre is None else registre
+    pages = J["pages"] if pages is None else pages
+    sortie = J["sortie"] if sortie is None else sortie
     man = sortie / "index.json"
     if not man.is_file():
         return ["manifeste absent (index.json)"]
     d = json.loads(_lire(man))
-    g = d.get("gestes") or {}
+    g = d.get(J["cle"]) or {}
     out = []
     if (d.get("W"), d.get("H"), d.get("fps"), d.get("duree_s")) != (W, H, FPS, DUREE):
         out.append("manifeste : format ou cadence différents")
@@ -108,7 +131,8 @@ def verifier_rendus(registre=None, pages: Path = PAGES, sortie: Path = SORTIE) -
             out.append(f"{gid} : aucun rendu au manifeste")
             continue
         if e.get("source") != empreinte(_lire(pages / f"{gid}.html")):
-            out.append(f"{gid} : page modifiée depuis le rendu (relancer sonvfx_illustrations.py {gid})")
+            out.append(f"{gid} : page modifiée depuis le rendu (relancer sonvfx_illustrations.py"
+                       f"{'' if jeu == 'vfx' else ' --jeu ' + jeu} {gid})")
         w, a = sortie / f"{gid}.webm", sortie / f"{gid}.webp"
         if not w.is_file():
             out.append(f"{gid} : vidéo absente")
@@ -138,8 +162,10 @@ def _ffmpeg(*args) -> None:
                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 
-def rendre(gid: str, navigateur: str, sortie: Path = SORTIE) -> dict:
-    html = _lire(PAGES / f"{gid}.html")
+def rendre(gid: str, navigateur: str, sortie: Path = None, jeu: str = "vfx") -> dict:
+    J = JEUX[jeu]
+    sortie = J["sortie"] if sortie is None else sortie
+    html = _lire(J["pages"] / f"{gid}.html")
     sortie.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="dz_illus_") as td:
         mp4 = Path(td) / "r.mp4"
@@ -164,25 +190,40 @@ def rendre(gid: str, navigateur: str, sortie: Path = SORTIE) -> dict:
             "octets": webm.stat().st_size, "skill": meta(html, "dz-skill")}
 
 
-def ecrire_manifeste(gestes: dict, sortie: Path = SORTIE) -> None:
-    d = {"note": "t275 : illustrations des gestes VFX IA, rendues par scripts/sonvfx_illustrations.py (statiques)",
-         "W": W, "H": H, "fps": FPS, "duree_s": DUREE, "navigateur": MC.NAVIGATEUR_VERSION,
-         "gestes": {g: gestes[g] for g in VI.REGISTRE if g in gestes}}
+def ecrire_manifeste(gestes: dict, sortie: Path = None, jeu: str = "vfx") -> None:
+    J = JEUX[jeu]
+    sortie = J["sortie"] if sortie is None else sortie
+    d = {"note": J["note"], "W": W, "H": H, "fps": FPS, "duree_s": DUREE, "navigateur": MC.NAVIGATEUR_VERSION,
+         J["cle"]: {g: gestes[g] for g in J["registre"]() if g in gestes}}
     (sortie / "index.json").write_bytes((json.dumps(d, ensure_ascii=False, indent=1) + "\n").encode("utf-8"))
 
 
 def main(argv) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if "--check" in argv:
-        e = verifier() + verifier_rendus()
-        print("\n".join(e) if e else f"illustrations à jour ({len(VI.REGISTRE)} gestes)")
+        e, bilan = [], []
+        for nom, J in JEUX.items():
+            e += [f"[{nom}] {m}" for m in verifier(jeu=nom) + verifier_rendus(jeu=nom)]
+            bilan.append(f"{len(J['registre']())} {J['cle']}")
+        print("\n".join(e) if e else f"illustrations à jour ({', '.join(bilan)})")
         return 1 if e else 0
-    ids = [a for a in argv if not a.startswith("-")] or list(VI.REGISTRE)
-    inconnus = [a for a in ids if a not in VI.REGISTRE]
-    if inconnus:
-        print("gestes inconnus : " + ", ".join(inconnus))
+    argv = list(argv)
+    jeu = "vfx"
+    if "--jeu" in argv:
+        k = argv.index("--jeu")
+        jeu = argv[k + 1] if k + 1 < len(argv) else ""
+        del argv[k:k + 2]
+    if jeu not in JEUX:
+        print(f"jeu inconnu : {jeu!r} ({', '.join(JEUX)})")
         return 1
-    e = verifier(registre={g: VI.REGISTRE[g] for g in ids})
+    J = JEUX[jeu]
+    registre = J["registre"]()
+    ids = [a for a in argv if not a.startswith("-")] or list(registre)
+    inconnus = [a for a in ids if a not in registre]
+    if inconnus:
+        print(f"{J['cle']} inconnus : " + ", ".join(inconnus))
+        return 1
+    e = verifier(registre={g: registre[g] for g in ids}, jeu=jeu)
     if e:
         print("pages refusées :\n  " + "\n  ".join(e))
         return 1
@@ -190,12 +231,12 @@ def main(argv) -> int:
     if not nav:
         print("chrome-headless-shell introuvable (scripts/vendor_chrome_headless_shell.py, ou DEEPOTUS_NAVIGATEUR)")
         return 1
-    man = SORTIE / "index.json"
-    gestes = (json.loads(_lire(man)).get("gestes") or {}) if man.is_file() else {}
+    man = J["sortie"] / "index.json"
+    gestes = (json.loads(_lire(man)).get(J["cle"]) or {}) if man.is_file() else {}
     for gid in ids:
-        gestes[gid] = rendre(gid, nav)
+        gestes[gid] = rendre(gid, nav, jeu=jeu)
         print(f"  {gid:16s} {gestes[gid]['octets']:>7d} o")
-        ecrire_manifeste(gestes)
+        ecrire_manifeste(gestes, jeu=jeu)
     return 0
 
 

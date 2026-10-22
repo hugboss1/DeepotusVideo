@@ -1,0 +1,115 @@
+{
+ "note": "t278 : illustrations des presets de post-traitement, rendues par scripts/sonvfx_illustrations.py --jeu post (statiques)",
+ "W": 480,
+ "H": 270,
+ "fps": 30,
+ "duree_s": 4,
+ "navigateur": "155.0.8059.84",
+ "presets": {
+  "grain16": {
+   "source": "fb24bc278421c0f4a97ef59c5fdd263f5ca507fd",
+   "webm": "grain16.webm",
+   "affiche": "grain16.webp",
+   "octets": 196884,
+   "skill": "style-photos"
+  },
+  "bloom": {
+   "source": "d8a28f969ebd110dd23b0114be8d360a791a92e1",
+   "webm": "bloom.webm",
+   "affiche": "bloom.webp",
+   "octets": 47304,
+   "skill": "style-photos"
+  },
+  "glitch_rgb": {
+   "source": "2771a5621e38ec902cc32938c42b9850e8b68ba2",
+   "webm": "glitch_rgb.webm",
+   "affiche": "glitch_rgb.webp",
+   "octets": 74558,
+   "skill": "style-photos"
+  },
+  "aberration": {
+   "source": "ad05428395cb1165c0f5d54236d26109131bc125",
+   "webm": "aberration.webm",
+   "affiche": "aberration.webp",
+   "octets": 49771,
+   "skill": "style-photos"
+  },
+  "vignette": {
+   "source": "04b5d8738bd0b1d7860df9a92afeb2835d49f38e",
+   "webm": "vignette.webm",
+   "affiche": "vignette.webp",
+   "octets": 41721,
+   "skill": "style-photos"
+  },
+  "halation": {
+   "source": "7dc8609494cc7ccb666dad0d85066a5155b043e8",
+   "webm": "halation.webm",
+   "affiche": "halation.webp",
+   "octets": 39682,
+   "skill": "style-photos"
+  },
+  "lut": {
+   "source": "0a365a0f86251b031a0a83bbcf05332126715275",
+   "webm": "lut.webm",
+   "affiche": "lut.webp",
+   "octets": 42526,
+   "skill": "style-photos"
+  },
+  "vhs": {
+   "source": "d97e50c99e8992baad2883f1ce6cbe38de1c9ecf",
+   "webm": "vhs.webm",
+   "affiche": "vhs.webp",
+   "octets": 109122,
+   "skill": "style-photos"
+  },
+  "flou_mouvement": {
+   "source": "73b1604e2cf98929b3d6824f2f96274ca9e89af3",
+   "webm": "flou_mouvement.webm",
+   "affiche": "flou_mouvement.webp",
+   "octets": 40729,
+   "skill": "style-photos"
+  },
+  "nettete": {
+   "source": "5ee7641f9dc4b6eb1e3078c6ffd91bcbdda65e6d",
+   "webm": "nettete.webm",
+   "affiche": "nettete.webp",
+   "octets": 52017,
+   "skill": "style-photos"
+  },
+  "bandes": {
+   "source": "ddc39b23ce8f7b2cf146fbb3e802575f96edc87e",
+   "webm": "bandes.webm",
+   "affiche": "bandes.webp",
+   "octets": 35474,
+   "skill": "style-photos"
+  },
+  "tremblement": {
+   "source": "0a2dde8b141ea5f1d818a17b575b3e4f76a67ee3",
+   "webm": "tremblement.webm",
+   "affiche": "tremblement.webp",
+   "octets": 40896,
+   "skill": "style-photos"
+  },
+  "fuite": {
+   "source": "1284352994912cdfc351e9d5e30455bf4cca71dc",
+   "webm": "fuite.webm",
+   "affiche": "fuite.webp",
+   "octets": 63373,
+   "skill": "style-photos"
+  },
+  "nb_argentique": {
+   "source": "234f5a8a9e8c34fab1d5c6f5fc89505bccb3a397",
+   "webm": "nb_argentique.webm",
+   "affiche": "nb_argentique.webp",
+   "octets": 134472,
+   "skill": "style-photos"
+  },
+  "duotone": {
+   "source": "2c837e7f9451191ca2f5e194f4277a14fc1c981f",
+   "webm": "duotone.webm",
+   "affiche": "duotone.webp",
+   "octets": 36689,
+   "skill": "style-photos"
+  }
+ }
+}
