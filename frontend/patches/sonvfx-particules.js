@@ -253,6 +253,16 @@ var DZSVX_CLES_MAX=8;
 var DZSVX_MARGE=8;
 var DZSVX_MINI=128;
 var DZSVX_TEX={};
+/* t281 (22/10/2026) : le catalogue de démarrage (/api/starter/catalog) reste en français — recherche, import,
+   rendu serveur. L'écran traduit ce que le serveur ne traduit pas, par clé de frontend/shared/i18n/catalogue.json :
+   catalogue.particules.famille.<id>.nom|desc, et une texture = le nom de sa famille traduit + son numéro. Clé absente :
+   le texte servi. Presets et séquences (/api/particles/presets) arrivent DÉJÀ traduits par le serveur (lot L9,
+   messages.json particules.*) : leurs boutons et le nom de l'inspecteur portent data-dz-brut, sinon la surcouche
+   retraduisait l'« Explosion » servie en « Burst » (clé du Photolab). Banc : backend/tests/test_i18n_particules.py. */
+function dzSvxCat(k,repli){return window.DZ_I18N&&window.DZ_I18N[k]?dzT(k):repli;}
+function dzSvxFam(F){return dzSvxCat("catalogue.particules.famille."+F.id+".nom",F.name||F.id);}
+function dzSvxFamD(F){return dzSvxCat("catalogue.particules.famille."+F.id+".desc",F.desc||"");}
+function dzSvxTex(t){var n=String(t.name||t.id||""),k="catalogue.particules.famille."+t.family+".nom",e=window.DZ_I18N?window.DZ_I18N[k]:null;return e&&e.fr&&n.indexOf(e.fr)===0?dzT(k)+n.slice(e.fr.length):n;}
 function dzSvxTextes(){
 return {sec:{emetteur:dzT("sonvfx.particules.sec_emetteur"),mouvement:dzT("sonvfx.particules.sec_mouvement"),apparence:dzT("sonvfx.particules.sec_apparence"),duree:dzT("sonvfx.particules.sec_duree")},
 r:{count:dzT("sonvfx.particules.r_count"),birth_spread:dzT("sonvfx.particules.r_birth_spread"),pos_x:dzT("sonvfx.particules.r_pos_x"),pos_y:dzT("sonvfx.particules.r_pos_y"),
@@ -511,9 +521,9 @@ section("apparence",[
 r.jsxs("div",{className:"dzsvx-textete",children:[
 r.jsx("span",{className:"dzsvx-rnom",children:dzT("sonvfx.particules.texture")}),
 r.jsxs("select",{className:"dzsvx-sel",value:famille,"aria-label":dzT("sonvfx.particules.famille"),"data-sv-part":"famille",onChange:function(e){setFamille(e.target.value);},children:[
-r.jsx("option",{value:"",children:dzT("sonvfx.particules.toutes_familles")},""),(textures?textures.familles:[]).map(function(F){return r.jsx("option",{value:F.id,children:F.name||F.id},F.id);})]})]},"tt"),
+r.jsx("option",{value:"",children:dzT("sonvfx.particules.toutes_familles")},""),(textures?textures.familles:[]).map(function(F){return r.jsx("option",{value:F.id,title:dzSvxFamD(F),children:dzSvxFam(F)},F.id);})]})]},"tt"),
 r.jsx("div",{className:"dzsvx-textures",children:liste.map(function(t){
-return r.jsx("button",{type:"button",className:"dzsvx-texture","aria-pressed":t.id===texture?"true":"false","data-texture":t.id,title:t.name,"aria-label":t.name,onClick:function(){setTexture(t.id);setSortie(null);},
+return r.jsx("button",{type:"button",className:"dzsvx-texture","aria-pressed":t.id===texture?"true":"false","data-texture":t.id,title:dzSvxTex(t),"aria-label":dzSvxTex(t),onClick:function(){setTexture(t.id);setSortie(null);},
 children:r.jsx("img",{src:"/starter/"+t.thumb,alt:"",loading:"lazy"})},t.id);})},"tg"),
 curseur("scale0"),curseur("scale1"),couleur("color0",dzT("sonvfx.particules.couleur_depart")),couleur("color1",dzT("sonvfx.particules.couleur_fin")),curseur("alpha0"),curseur("alpha1"),
 r.jsx("div",{className:"dzsvx-rnom",children:dzT("sonvfx.particules.fusion")},"tb"),
@@ -642,12 +652,12 @@ r.jsxs("div",{className:"dzsvx-onglets",role:"group","aria-label":dzT("sonvfx.pa
 r.jsx("button",{type:"button",className:"dzsvx-onglet","aria-pressed":onglet==="presets"?"true":"false","data-sv-part":"onglet-presets",onClick:function(){setOnglet("presets");},children:dzT("sonvfx.particules.onglet_presets")}),
 r.jsx("button",{type:"button",className:"dzsvx-onglet","aria-pressed":onglet==="sequences"?"true":"false","data-sv-part":"onglet-sequences",onClick:function(){setOnglet("sequences");},children:dzT("sonvfx.particules.onglet_sequences")})]}),
 onglet==="presets"?r.jsx("div",{className:"dzsvx-presets",children:presets.map(function(P){
-return r.jsxs("button",{type:"button",className:"dzsvx-preset","aria-pressed":P.id===preset?"true":"false","data-preset":P.id,title:P.desc,onClick:function(){choisirPreset(P);},children:[
+return r.jsxs("button",{type:"button",className:"dzsvx-preset","aria-pressed":P.id===preset?"true":"false","data-preset":P.id,title:P.desc,"data-dz-brut":"1",onClick:function(){choisirPreset(P);},children:[
 r.jsx("canvas",{className:"dzsvx-vignette",width:DZSVX_MINI,height:DZSVX_MINI,"aria-hidden":"true",ref:function(el){R.current.toiles[P.id]=el;}}),
 r.jsx("span",{className:"dzsvx-pnom",children:P.name}),
 r.jsx("span",{className:"dzsvx-ptype",children:P.type})]},P.id);})},"pr"):
 r.jsx("div",{className:"dzsvx-presets",children:anims.map(function(A){
-return r.jsxs("button",{type:"button",className:"dzsvx-preset","data-anim":A.id,title:dzT("sonvfx.particules.sequence_aide",{n:A.frames}),onClick:function(){lancerJob("/api/assets/starter-anim",{anim:A.id,cell:512},"anim:"+A.id);},children:[
+return r.jsxs("button",{type:"button",className:"dzsvx-preset","data-anim":A.id,"data-dz-brut":"1",title:dzT("sonvfx.particules.sequence_aide",{n:A.frames}),onClick:function(){lancerJob("/api/assets/starter-anim",{anim:A.id,cell:512},"anim:"+A.id);},children:[
 r.jsx("img",{className:"dzsvx-vignette",src:A.thumb,alt:"",loading:"lazy"}),
 r.jsx("span",{className:"dzsvx-pnom",children:A.name}),
 r.jsx("span",{className:"dzsvx-ptype",children:occupe==="anim:"+A.id?dzT("sonvfx.particules.en_cours"):dzT("sonvfx.particules.sequence_images",{n:A.frames})})]},A.id);})},"sq")]}),
@@ -671,7 +681,7 @@ r.jsx("button",{type:"button",className:"dzsvx-btn","data-sv-part":"verifier",ti
 frise(),
 r.jsxs("div",{className:"dzsvx-inspecteur",children:[
 r.jsxs("div",{className:"dzsvx-itete",children:[r.jsx("span",{className:"dzsvx-titre",children:dzT("sonvfx.particules.inspecteur")}),
-r.jsx("span",{className:"dzsvx-courant",children:curP?curP.name:texture})]}),
+r.jsx("span",{className:"dzsvx-courant","data-dz-brut":"1",children:curP?curP.name:texture})]}),
 inspecteur(),
 r.jsxs("div",{className:"dzsvx-export",children:[
 r.jsx("div",{className:"dzsvx-titre",children:dzT("sonvfx.particules.export")}),
