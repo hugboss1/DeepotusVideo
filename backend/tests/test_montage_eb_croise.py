@@ -148,6 +148,7 @@ MESURE = {"seedance", "heygen", "composition", "template", "news", "episode", "u
           "extend",   # 01/10/2026 (tache #51) : l'extension Quick, rangee dans « Studio »
           "animatique",   # 02/10/2026 (tache #66) : l'instantane d'animatique envoye au Montage — affiche « tel quel »
           "sfx_video",   # 12/10/2026 (t187) : la vidéo sonorisée par /audio/sfx-video — rangée dans « Studio »
+          "post",   # 22/10/2026 (t276) : le rendu de la pile de post-traitement (POST /api/post/rendre) — « tel quel »
           "vfx_ia",   # 12/10/2026 (t188) : la vidéo d'un VFX IA (POST /vfx-ia) — rangée dans « Studio »
           "recast"}   # 10/10/2026 (t162, Avatar live G1) : Recast et voix -> voix — « tel quel » (le groupe ira avec G7 : la
                       # couche Montage du bundle est en cours de traduction dans une autre session)
@@ -158,7 +159,8 @@ check("x1_chaque_cle_de_la_table_est_un_provider_connu_du_backend",
 TEL_QUEL = BACK - set(TABLE)
 check("x1_les_providers_sans_groupe_tombent_tel_quel_et_sont_ceux_ci",
       len(TABLE) >= 5 and len(BACK) >= 10
-      and TEL_QUEL == {"asset3d", "sprite2d", "card3d", "montage_proxy", "montage_stab", "animatique", "recast"},
+      and TEL_QUEL == {"asset3d", "sprite2d", "card3d", "montage_proxy", "montage_stab", "animatique", "recast",
+                       "post"},   # t276
       sorted(TEL_QUEL))
 # les deux precalculs « tel quel » ne sont jamais servis : list_jobs les ecarte
 mEx, nEx = un(r'\.notin_\(\(_PROXY_PROVIDER, _STAB_PROVIDER\)\)', PIPE)

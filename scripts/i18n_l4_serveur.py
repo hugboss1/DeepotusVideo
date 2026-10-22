@@ -57,6 +57,13 @@ EN = {
     "effets.oldfilm.aide": "Faded grade, dust, vignette.",
     "effets.grain.nom": "Film grain",
     "effets.grain.aide": "Animated silver-halide grain.",
+    # t276 (22/10/2026) : effets neufs du post-traitement
+    "effets.grain16.nom": "16 mm grain",
+    "effets.grain16.aide": "Coarse, lively grain, soft emulsion and the flicker of 16 mm film.",
+    "effets.silverbw.nom": "Silver black and white",
+    "effets.silverbw.aide": "High-contrast black and white with silver grain.",
+    "effets.duotone.nom": "Duotone",
+    "effets.duotone.aide": "Shadows and highlights in two colors of your choice.",
     "effets.filmburn.nom": "Film burn",
     "effets.filmburn.aide": "A hot spot eating the film.",
     "effets.dither.nom": "Dither",

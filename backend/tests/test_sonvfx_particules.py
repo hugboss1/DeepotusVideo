@@ -319,7 +319,7 @@ check("S11 aucune variable globale de navigateur pour garder l'état hors de win
 # ── [H] le hub ─────────────────────────────────────────────────────────────────────────────────────────────────────
 print("[H] le hub")
 check("H1 « vfx » rend DzSvParticules (go transmis), la vue d'origine masquée par le même style que la Voix",
-      'parti=sub==="vfx"' in HUB and 'style:pistes||atelier||voix||parti?{display:"none"}:void 0' in HUB
+      'parti=sub==="vfx"' in HUB and re.search(r'style:pistes\|\|atelier\|\|voix\|\|parti(\|\|\w+)*\?\{display:"none"\}:void 0', HUB)  # t276 : + post
       and 'parti?r.jsx(DzSvParticules,{go:p.go},"particules"):null' in HUB)
 check("H2 la feuille de la page est injectée avec celle du hub", ".dzsvx{" in HUB and ".dzsvx-cles{" in HUB)
 check("H3 la vue d'origine (SvmParticles) n'est pas réécrite : la couche L4 est intacte",

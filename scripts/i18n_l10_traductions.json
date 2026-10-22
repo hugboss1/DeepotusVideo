@@ -10266,5 +10266,81 @@
  "rate_keys : t et v doivent être entre 0 et 1": {
   "fr": "rate_keys : t et v doivent être entre 0 et 1",
   "en": "rate_keys: t and v must be between 0 and 1"
+ },
+ "source refusée : donnez le job_id d'un rendu": {
+  "fr": "source refusée : donnez le job_id d'un rendu",
+  "en": "source refused: give the job_id of a render"
+ },
+ "ce rendu n'est pas terminé": {
+  "fr": "ce rendu n'est pas terminé",
+  "en": "this render is not finished"
+ },
+ "ce rendu n'a pas de vidéo à post-traiter": {
+  "fr": "ce rendu n'a pas de vidéo à post-traiter",
+  "en": "this render has no video to post-process"
+ },
+ "la pile ne rend rien : chaque maillon est masqué ou à 0 %": {
+  "fr": "la pile ne rend rien : chaque maillon est masqué ou à 0 %",
+  "en": "the stack renders nothing: every step is hidden or at 0%"
+ },
+ "LUT refusée : un fichier .cube est attendu": {
+  "fr": "LUT refusée : un fichier .cube est attendu",
+  "en": "LUT refused: a .cube file is expected"
+ },
+ "LUT refusée : 20 Mo au plus": {
+  "fr": "LUT refusée : 20 Mo au plus",
+  "en": "LUT refused: 20 MB at most"
+ },
+ "LUT refusée : LUT_3D_SIZE absent (seules les LUT 3D sont lues)": {
+  "fr": "LUT refusée : LUT_3D_SIZE absent (seules les LUT 3D sont lues)",
+  "en": "LUT refused: LUT_3D_SIZE missing (only 3D LUTs are read)"
+ },
+ "preset de pile introuvable": {
+  "fr": "preset de pile introuvable",
+  "en": "saved stack not found"
+ },
+ "Post-traitement": {
+  "fr": "Post-traitement",
+  "en": "Post-processing"
+ },
+ "LUT refusée : ce n'est pas un fichier texte .cube": {
+  "fr": "LUT refusée : ce n'est pas un fichier texte .cube",
+  "en": "LUT refused: this is not a .cube text file"
+ },
+ "la pile doit être une liste de maillons": {
+  "fr": "la pile doit être une liste de maillons",
+  "en": "the stack must be a list of steps"
+ },
+ "pile trop longue : {pile} maillons (au plus {PILE_MAX})": {
+  "fr": "pile trop longue : {pile} maillons (au plus {PILE_MAX})",
+  "en": "stack too long: {pile} steps (at most {PILE_MAX})"
+ },
+ "aucune image vidéo dans cette source": {
+  "fr": "aucune image vidéo dans cette source",
+  "en": "no video frames in this source"
+ },
+ "donnez un nom au preset de pile": {
+  "fr": "donnez un nom au preset de pile",
+  "en": "give the saved stack a name"
+ },
+ "la pile est vide": {
+  "fr": "la pile est vide",
+  "en": "the stack is empty"
+ },
+ "un maillon de pile doit être un objet": {
+  "fr": "un maillon de pile doit être un objet",
+  "en": "a stack step must be an object"
+ },
+ "preset de post-traitement inconnu : {v}": {
+  "fr": "preset de post-traitement inconnu : {v}",
+  "en": "unknown post-processing preset: {v}"
+ },
+ "rendu impossible : {v}": {
+  "fr": "rendu impossible : {v}",
+  "en": "render failed: {v}"
+ },
+ "aperçu impossible : {v}": {
+  "fr": "aperçu impossible : {v}",
+  "en": "preview failed: {v}"
  }
 }
