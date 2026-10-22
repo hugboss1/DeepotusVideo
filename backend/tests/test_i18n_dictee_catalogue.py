@@ -100,7 +100,8 @@ for f in BSC.SFX_FAMILIES:
 check(f"2.2 les {len(BSC.SFX_FAMILIES)} familles ont nom et description (fr = SFX_FAMILIES)", not ko, ko)
 attendues = {cle_radical(s) for s in BSC.STEM_FR} | {f"catalogue.sfx.famille.{f['id']}.{c}" for f in BSC.SFX_FAMILIES
                                                       for c in ("nom", "desc")}
-check("2.3 catalogue.json ne porte que ces clés (aucune orpheline)", set(CAT) == attendues, sorted(set(CAT) ^ attendues)[:5])
+SFX = {k: v for k, v in CAT.items() if k.startswith("catalogue.sfx.")}       # t281 : catalogue.particules.* à part
+check("2.3 catalogue.json ne porte que ces clés catalogue.sfx.* (aucune orpheline)", set(SFX) == attendues, sorted(set(SFX) ^ attendues)[:5])
 cat = json.loads((BACK / "app" / "assets" / "starter" / "catalog.json").read_text("utf-8"))
 ko = [it["id"] for it in cat["sfx"] if not it["name"].startswith(CAT.get(cle_radical(it["stem"]), {}).get("fr", "\0"))]
 check(f"2.4 les {len(cat['sfx'])} sons du catalogue livré commencent par le français de leur radical", not ko and cat["sfx"], ko[:10])
@@ -114,7 +115,7 @@ autres = {}
 for k, v in TOUT.items():
     if not k.startswith("catalogue.") and isinstance(v, dict):
         autres.setdefault(v.get("fr"), set()).add(v.get("en"))
-ko = [(k, v["fr"], v["en"], autres[v["fr"]]) for k, v in CAT.items()
+ko = [(k, v["fr"], v["en"], autres[v["fr"]]) for k, v in SFX.items()
       if v["fr"] in autres and v["en"] not in autres[v["fr"]] and v["fr"] not in HOMONYMES]
 check("2.6 un français déjà traduit ailleurs garde la même traduction (homonymes motivés à part)", not ko, ko)
 
@@ -162,7 +163,7 @@ else:
         "\nvar out={cles:S.map(function(s){return svCle(s.stem)}),sans:S.map(svN),famSans:F.map(svF),hay:svH(S[0])};"
         "window.DZ_I18N=D;out.en=S.map(svN);out.famEn=F.map(function(f){return [svF(f),svD(f)]});out.hayEn=svH(S[0]);"
         "console.log(JSON.stringify(out))")
-    p = subprocess.run([NODE, "-e", prog, json.dumps(CAT, ensure_ascii=False), json.dumps(sondes, ensure_ascii=False),
+    p = subprocess.run([NODE, "-e", prog, json.dumps(SFX, ensure_ascii=False), json.dumps(sondes, ensure_ascii=False),
                         json.dumps(fams, ensure_ascii=False)], capture_output=True, text=True, encoding="utf-8")
     R = json.loads(p.stdout) if p.returncode == 0 and p.stdout.strip() else {}
     check("3.1 les fonctions de la couche se chargent sous node", bool(R), p.stderr[-400:])
