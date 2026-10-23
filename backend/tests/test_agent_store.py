@@ -115,6 +115,37 @@ async def main():
         r = True
     check("porte : état inconnu -> ValueError", r)
 
+    # fichier illisible : jamais écrasé
+    ci = await st.creer("campagnes", "esp1", "Corrompue")
+    await st.ajouter(ci["id"], [msg("avant")], 0)
+    f = DATA_ROOT / "campagnes" / "_conversations" / ci["id"] / "conversation.json"
+    f.write_text("{pas du json", encoding="utf-8")
+    check("lire : illisible signalé", (await st.lire(ci["id"])).get("illisible") is True)
+    for nom, coro in (("ajouter", lambda: st.ajouter(ci["id"], [msg("n")], 1.0)),
+                      ("importer", lambda: st.importer({"id": ci["id"], "role": "campagnes", "messages": [msg("n", cout=0.3)]})),
+                      ("regler_dossier", lambda: st.regler_dossier(ci["id"], str(st.dossier_campagne("esp1", "corr"))))):
+        try:
+            await coro(); r = False
+        except st.ConversationIllisible:
+            r = True
+        check(f"{nom} : refuse sur fichier illisible", r)
+    check("original intact", f.read_text(encoding="utf-8") == "{pas du json")
+    check("copie .corrompu-* présente", len(list(f.parent.glob("conversation.json.corrompu-*"))) >= 1)
+    check("coût inchangé", abs((await st.lire(ci["id"]))["cout_usd"] - 0.0) < 1e-9)
+    f.write_text("[]", encoding="utf-8")
+    f.write_text('{"a": 1}', encoding="utf-8")
+    try:
+        await st.ajouter(ci["id"], [msg("n")]); r = False
+    except st.ConversationIllisible:
+        r = True
+    check("JSON non liste = illisible", r)
+    # regler_dossier hors racine
+    try:
+        await st.regler_dossier(c["id"], TMP + "/ailleurs"); r = False
+    except ValueError:
+        r = True
+    check("regler_dossier : hors racine refusé", r)
+
 asyncio.run(main())
 print(f"\n{ok} OK, {fail} KO")
 sys.exit(1 if fail else 0)

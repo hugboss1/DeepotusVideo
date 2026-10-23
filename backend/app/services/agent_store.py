@@ -12,6 +12,7 @@ import asyncio
 import json
 import os
 import re
+import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -47,14 +48,34 @@ def _fichier(ligne: dict) -> Path:
     return _racine() / "_conversations" / ligne["id"] / "conversation.json"
 
 
-def _lire_messages(f: Path) -> list[dict]:
+class ConversationIllisible(ValueError):
+    """conversation.json existe mais n'est pas lisible (JSON invalide ou pas une liste) : on n'écrit rien dessus."""
+
+
+def _lire_messages_strict(f: Path) -> list[dict]:
+    """Fichier absent = liste vide. Fichier présent mais illisible : copie `.corrompu-<horodatage>` puis
+    ConversationIllisible ; l'original n'est ni supprimé ni écrasé."""
     if not f.is_file():
         return []
     try:
         v = json.loads(f.read_text(encoding="utf-8"))
+        if isinstance(v, list):
+            return v
     except (OSError, ValueError):
+        pass
+    try:
+        shutil.copy2(f, f.with_name(f.name + ".corrompu-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f")))
+    except OSError:
+        pass
+    raise ConversationIllisible(f"conversation illisible : {f}")
+
+
+def _lire_messages(f: Path) -> list[dict]:
+    """Tolérant, pour l'affichage seulement : [] si illisible (voir `lire`, champ `illisible`)."""
+    try:
+        return _lire_messages_strict(f)
+    except ConversationIllisible:
         return []
-    return v if isinstance(v, list) else []
 
 
 def _ecrire_messages(f: Path, messages: list[dict]) -> None:
@@ -68,6 +89,18 @@ def _ecrire_messages(f: Path, messages: list[dict]) -> None:
 async def _ligne_de(cid: str) -> AgentConversation | None:
     async with async_session_factory() as s:
         return (await s.execute(select(AgentConversation).where(AgentConversation.id == cid))).scalar_one_or_none()
+
+
+async def _lire_sain(cid: str, absent_ok: bool = False) -> dict | None:
+    """Comme `lire`, mais refuse (ConversationIllisible) si le fichier est corrompu : pour les chemins qui écrivent."""
+    r = await _ligne_de(cid)
+    if r is None:
+        if absent_ok:
+            return None
+        raise KeyError(cid)
+    ligne = _ligne(r)
+    ligne["messages"] = _lire_messages_strict(_fichier(ligne))
+    return ligne
 
 
 async def creer(role: str, espace_id: str | None, titre: str, *, origine: str = "pc", id: str | None = None) -> dict:
@@ -89,7 +122,11 @@ async def lire(cid: str) -> dict | None:
     if r is None:
         return None
     ligne = _ligne(r)
-    ligne["messages"] = _lire_messages(_fichier(ligne))
+    try:
+        ligne["messages"] = _lire_messages_strict(_fichier(ligne))
+    except ConversationIllisible:
+        ligne["messages"] = []
+        ligne["illisible"] = True
     return ligne
 
 
@@ -115,9 +152,7 @@ async def ajouter(cid: str, messages: list[dict], cout_usd: float = 0.0) -> None
     if cout_usd < 0:
         raise ValueError("cout_usd négatif")
     async with _VERROU:
-        l = await lire(cid)
-        if l is None:
-            raise KeyError(cid)
+        l = await _lire_sain(cid)
         _ecrire_messages(_fichier(l), l["messages"] + list(messages))
         await _modifier(cid, cout=cout_usd)
 
@@ -130,11 +165,11 @@ async def importer(conv: dict) -> dict:
     if not isinstance(conv, dict) or not isinstance(conv.get("id"), str) or not conv["id"]:
         raise ValueError("conversation : id requis")
     async with _VERROU:
-        l = await lire(conv["id"])
+        l = await _lire_sain(conv["id"], absent_ok=True)
         if l is None:
             await creer(conv.get("role") or "campagnes", conv.get("espace_id"), conv.get("titre") or "",
                         origine=conv.get("origine") or "telephone", id=conv["id"])
-            l = await lire(conv["id"])
+            l = await _lire_sain(conv["id"])
         connus = {m.get("id"): fmt.empreinte(m) for m in l["messages"]}
         neufs: list[dict] = []
         cout = 0.0
@@ -181,14 +216,15 @@ def dossier_campagne(espace_id: str, slug: str) -> Path:
 
 async def regler_dossier(cid: str, chemin: str | Path) -> None:
     """Fixe le dossier de campagne et y déplace conversation.json s'il existait ailleurs."""
+    cible = Path(chemin).resolve()
+    if not cible.is_relative_to(_racine().resolve()):
+        raise ValueError("dossier hors du dossier des campagnes")
     async with _VERROU:
-        l = await lire(cid)
-        if l is None:
-            raise KeyError(cid)
-        nouveau = Path(chemin) / "conversation.json"
+        l = await _lire_sain(cid)
+        nouveau = cible / "conversation.json"
         ancien = _fichier(l)
         _ecrire_messages(nouveau, l["messages"])
-        await _modifier(cid, dossier=str(chemin))
+        await _modifier(cid, dossier=str(cible))
         try:
             if ancien.is_file() and ancien.resolve() != nouveau.resolve():
                 ancien.unlink()
