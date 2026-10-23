@@ -5373,6 +5373,16 @@ async def create_voiceover(request: Request):
         payload = await request.json()
     except Exception:
         payload = {}
+    eid = _espace_du_corps(payload.get("espace_id"))   # t285a : espace nommé du tir (absent = comme avant)
+    with _sous_espace_tir(eid):
+        out = await _voiceover(payload)
+        if eid:   # t285a : la voix est rangée dans SON espace (sans lui, l'index la rattrape au démarrage)
+            from app.services import library_index as _LI
+            await _LI.noter([out["filename"]], "generation", kind="audio")
+        return out
+
+
+async def _voiceover(payload) -> dict:
     script = (payload.get("script") or "").strip()
     if not script:
         raise HTTPException(400, "Empty script")
@@ -6052,7 +6062,50 @@ async def _plafond(op, categorie: str, ref: str | None = None) -> dict:
     from app.services import plafonds as _PLAF
     if isinstance(op, list):
         op = {"kind": "campaign", "ops": [o for o in op if o]}
+    eid = _ESPACE_TIR.get()
+    if eid:   # t285a : un tir rangé dans l'espace NOMMÉ par son corps (une campagne de B pendant que A est actif)
+        return await _PLAF.verifier(op, categorie, ref, espace_id=eid)
     return await _PLAF.verifier(op, categorie, ref)
+
+
+# t285a (spec agent interne §5) : l'espace d'un tir, nommé par le corps (`espace_id` facultatif) des trois routes
+# que vise le devis de l'agent Campagnes (/images/generate, /generate, /audio/voiceover). Présent et valide : le tir
+# est gardé (plafonds.verifier(espace_id=…)) et RANGÉ (JobRecord, index de la Bibliothèque) dans cet espace, jamais
+# dans l'actif ; absent : rien ne change.
+_ESPACE_TIR: contextvars.ContextVar = contextvars.ContextVar("dz_espace_tir", default=None)
+
+
+def _espace_du_corps(valeur) -> str | None:
+    """None si le corps n'en nomme pas ; sinon l'id d'un espace existant et non archivé, ou 400 (jamais de repli
+    silencieux sur l'espace actif)."""
+    if valeur is None or valeur == "":
+        return None
+    from app.services import espaces as _es
+    e = _es.lire()["espaces"].get(valeur) if isinstance(valeur, str) and _es.id_valide(valeur) else None
+    if not e or e.get("archive"):
+        raise HTTPException(400, f"Espace inconnu ou archivé : {str(valeur)[:40]}")
+    return valeur
+
+
+class _sous_espace_tir:
+    """Le contexte d'un tir dans l'espace `eid` (rien si None) : l'espace courant de la requête (défauts des lignes
+    JobRecord, LibraryAsset…) et l'espace passé à la garde par `_plafond`."""
+
+    def __init__(self, eid: str | None):
+        self.eid, self._jetons = eid, None
+
+    def __enter__(self):
+        if self.eid:
+            from app.services import espaces as _es
+            self._jetons = (_ESPACE_TIR.set(self.eid), _es.figer(self.eid))
+        return self
+
+    def __exit__(self, *exc):
+        if self._jetons:
+            from app.services import espaces as _es
+            _es.liberer(self._jetons[1])
+            _ESPACE_TIR.reset(self._jetons[0])
+        return False
 
 
 def _categorie_image(body: dict) -> str:
@@ -6301,6 +6354,12 @@ def _fin_video_ou_400(video_model, image_fin, http=None) -> None:
 
 @router.post("/generate", response_model=GenerateResponse, dependencies=[Depends(_require_local_depense)])
 async def generate(request: GenerateRequest, background_tasks: BackgroundTasks, http: Request = None):
+    eid = _espace_du_corps(request.espace_id)   # t285a : 400 AVANT toute garde ; absent = comme avant
+    with _sous_espace_tir(eid):
+        return await _generate(request, background_tasks, http, eid)
+
+
+async def _generate(request: GenerateRequest, background_tasks: BackgroundTasks, http, eid: str | None):
     # W-a — the required key depends on the selected model's provider (t183 : 503 avant la dépense)
     _cle_video_ou_503(request.video_model, http)
     _fin_video_ou_400(request.video_model, request.image_filename_end, http)   # t184 : avant la dépense
@@ -6322,6 +6381,8 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks, 
     await _plafond([_devis_video(request)] + _op_voix_off(request)
                    + _op_soustitres(request.subtitles, request.duration_s) + _ops_lip,
                    "quick")   # tâche #16 ; #50 sous-titres ; #52 lip-sync
+    if eid:
+        return await _generate_dans_espace(request, background_tasks, eid)
 
     async def _run():
         try:
@@ -6336,6 +6397,26 @@ async def generate(request: GenerateRequest, background_tasks: BackgroundTasks, 
         status=JobStatus.QUEUED,
         message="Job queued. Poll GET /jobs to see latest status.",
     )
+
+
+async def _generate_dans_espace(request: GenerateRequest, background_tasks: BackgroundTasks, eid: str):
+    """t285a : le rendu d'un tir NOMMANT son espace — le job QUEUED est créé d'avance dans cet espace (l'écran de
+    l'agent reçoit son VRAI job_id, au lieu de « pending ») et la tâche de fond tourne sous ce même espace (le
+    contexte de la requête est rendu avant elle)."""
+    job_id = str(uuid4())
+    await Pipeline.creer_job(request, job_id)
+
+    async def _run():
+        with _sous_espace_tir(eid):
+            try:
+                await pipeline.run(request, job_id=job_id)   # REPREND le job créé ci-dessus
+            except Exception as e:  # noqa: BLE001
+                logger.error(f"Background pipeline error ({job_id}) : {e}")
+                await Pipeline.echouer_si_en_attente(job_id, str(e))   # jamais de job fantôme en QUEUED
+
+    background_tasks.add_task(_run)
+    return GenerateResponse(job_id=job_id, status=JobStatus.QUEUED,
+                            message="Job queued. Poll GET /jobs to see latest status.")
 
 
 # v1.3: Batch generate — N variations with offset seeds
@@ -9773,7 +9854,14 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks, request:
     """Provenance (28/08) : l'enveloppe indexe les images rendues par les
     trois chemins modèles d'un coup — source = hint `source` du body si
     slug connu (appelants ciblés : épisodes, planificateur…), sinon
-    `generation`."""
+    `generation`. t285a : `espace_id` facultatif — le tir est gardé et
+    rangé dans cet espace (400 s'il est inconnu ou archivé)."""
+    eid = _espace_du_corps(body.get("espace_id"))
+    with _sous_espace_tir(eid):
+        return await _generate_image_route(body, background_tasks, request)
+
+
+async def _generate_image_route(body: dict, background_tasks: BackgroundTasks, request: Request = None):
     _jeton = _HTTP_G.set(request)          # t192 : la langue des refus du cœur (sa signature reste à 2 arguments)
     try:
         out = await _generate_image_core(body, background_tasks)

@@ -24,6 +24,7 @@ MODULES = {
     "agent": RACINE / "api" / "agent_routes.py",   # A6 : la lecture de l'assistant (ElevenLabs, ou Voicebox gratuit)
     "audio_graph": RACINE / "api" / "audio_graph_routes.py",   # t272 : les nœuds IA de l'Atelier sonore (fal)
     "post": RACINE / "api" / "post_routes.py",   # t277 : les générateurs IA de la pile de post-traitement
+    "agent_campagnes": RACINE / "api" / "agent_campagnes_routes.py",   # t285a : le message de l'agent Campagnes (Anthropic)
 }
 
 PUITS = {
@@ -47,6 +48,7 @@ PUITS = {
     "detourer",   # T103 : le matte vidéo BiRefNet (fal)
     "detourer_image",   # t186 : le registre unique du détourage (fal, ou local gratuit ; la vidéo passe par MT.detourer)
     "appliquer_maillon",   # t277 : un maillon IA de la pile de post-traitement (fal, Decart par fal, ElevenLabs)
+    "AC.tour",   # t285a : la boucle de l'agent Campagnes (agent_campagnes.tour -> moteurs_texte.converser, Anthropic)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
     "transcribe",
@@ -69,7 +71,9 @@ PUITS = {
       # t163 : voix -> voix (ElevenLabs Voice Changer)
       # t162 : le Recast différé (Wan Animate, Kling Motion Control, Lucy Edit — fal)
 }
-GARDES = {"_plafond", "_PLAF.verifier"}   # `verifier` nu est ambigu (cards/face : `sw.verifier` de la fiche de style)
+GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face : `sw.verifier` de la fiche de style)
+          "AC.tour"}   # t285a : la garde vit DANS la boucle, avant CHAQUE appel du modèle (un tour = une garde) ;
+                       # test_plafonds_garde A2d vérifie dans le source que plafonds.verifier y précède MT.converser
 
 
 def _nom_appel(n: ast.Call) -> str:

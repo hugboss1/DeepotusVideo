@@ -33,6 +33,7 @@ PAYANTES = {
     ("routes", "POST", "/espaces/{espace_id}/contenus/generer"),       # t207 : contenus de départ par LLM (sur demande)
     ("agent", "POST", "/lire"),   # A6 (19/10/2026) : la réponse de l'assistant lue à voix haute (garde « aide »)
     ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
+    ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
     ("post", "POST", "/rendre"),   # t277 : maillons IA de la pile de post-traitement (garde « son », avant le job)
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
     ("photolab", "POST", "/calque/detourer"),    # t191 : « Retirer le fond du calque » (détourage, non destructif)
@@ -121,6 +122,11 @@ _al = (RP.RACINE / "services" / "avatar_live.py").read_text(encoding="utf-8")
 _rf = _al[_al.find("async def relayer_fal("):]
 check("A2c le relais vérifie le jeton de la réservation AVANT d'ouvrir fal",
       0 < _rf.find("session_relais(jeton)") < _rf.find("_ouvrir_fal()"), "")
+# t285a : la route message délègue sa garde à agent_campagnes.tour — elle doit y précéder l'appel du modèle
+_ac = (RP.RACINE / "services" / "agent_campagnes.py").read_text(encoding="utf-8")
+_tr = _ac[_ac.find("async def _tour("):]
+check("A2d la boucle de l'agent appelle plafonds.verifier AVANT MT.converser",
+      0 < _tr.find("plafonds.verifier(") < _tr.find("MT.converser"), "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
@@ -143,6 +149,9 @@ anciens["audio_graph"] = _agr.replace("_plafond(", "_sans_garde(") if "_plafond(
 # t277 : les maillons IA de la pile n'existaient pas en bfec23e — même témoin : le source actuel privé de sa garde
 _pst = (RP.MODULES["post"]).read_text(encoding="utf-8")
 anciens["post"] = _pst.replace("_PLAF.verifier(", "_sans_garde(") if "_PLAF.verifier(" in _pst else None
+# t285a : les routes de l'agent Campagnes n'existaient pas en bfec23e — même témoin : le source actuel privé de sa garde
+_acr = (RP.MODULES["agent_campagnes"]).read_text(encoding="utf-8")
+anciens["agent_campagnes"] = _acr.replace("AC.tour(", "_sans_garde(") if "AC.tour(" in _acr else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

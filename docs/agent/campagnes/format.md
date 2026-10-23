@@ -37,6 +37,16 @@ Défini une seule fois, ici et dans `format.schema.json`. Le code de référence
 - `etat` d'une carte : `proposee`, `acceptee`, `refusee`, `terminee`.
 - `resultat_outil` porte un résumé, **jamais** un secret (clé, jeton, mot de passe).
 
+## Décider une carte (t285a)
+
+- Les cartes d'une conversation sont numérotées `n` = 0, 1, 2… dans l'ordre des blocs `carte` des messages
+  `agent`. C'est le `n` de `POST …/{id}/carte/{n}`.
+- Une décision ne modifie **jamais** le message d'origine : elle s'écrit comme un message `fait` neuf, dont le bloc
+  `carte` reprend le genre, le libellé et l'action, avec `etat` `acceptee` ou `refusee` et `arguments.carte = n`
+  (plus `job_id` pour un devis, `espace_id` pour le choix d'espace). Une carte déjà décidée ne se redécide pas.
+- Quand le job d'un devis accepté finit (réussi ou en échec), un message `fait` de plus porte la carte en `etat`
+  `terminee`, `action` `continuer`, `arguments` `{carte, job_id, statut}`. Un seul par job.
+
 ## Idempotence de l'import
 
 `empreinte(message)` est le sha1 de `id`, `role` et `blocs`, en JSON trié (`quand`, `origine`, `appareil` et
