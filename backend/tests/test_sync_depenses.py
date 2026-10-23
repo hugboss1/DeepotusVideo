@@ -87,7 +87,8 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
 
     print("\n[F] fusion dans la table Depense")
     vieux = (NOW - timedelta(days=62)).replace(day=15, hour=12)
-    r = lan.post("/api/sync/depenses", headers=H, json={"tirs": [
+    # le corps ose nommer un AUTRE appareil : seul le JETON dit qui tire (mutations_appairage n°10)
+    r = lan.post("/api/sync/depenses", headers=H, json={"appareil": "usurpe-00000000", "device_id": "usurpe-00000000", "tirs": [
         tir("t1", 0.3), tir("t2", 0.55, reel_usd=0.5, op="retouche", categorie="IGNOREE"),
         {"id": "t3", "moteur": "elevenlabs", "op": "voix", "estime_usd": 0.12, "quand": iso(vieux)}]})
     j = js(r)
