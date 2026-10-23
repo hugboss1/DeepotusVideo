@@ -33,9 +33,10 @@ DEFAUTS = {"global_usd": 0.0, "par_moteur": {}, "alerte_pct": 80}
 # Les écrans qui peuvent dépenser — le vocabulaire des catégories. t265 (20/10/2026) : « motion » (Chorégraphier et
 # Réécrire la page du Studio, défaut de moteurs_texte.tirer_garde) et « mobile » (dépenses rapportées par le téléphone,
 # sync_depenses) étaient écrites en base sans être au vocabulaire ; test_constats_catalogue [Q] les tient ensemble.
+# t285a (23/10/2026) : « campagnes » (l'agent interne : un tour de boucle, un rendu de campagne).
 CATEGORIES = ("quick", "studio", "chapitres", "son", "montage", "news", "scheduler", "bibliotheque", "sprites",
               "tuiles", "matieres", "cartes", "moteurs3d", "marketing", "atelier", "vectorlab", "reglages",
-              "dictee", "direct", "photolab", "aide", "motion", "mobile")
+              "dictee", "direct", "photolab", "aide", "motion", "mobile", "campagnes")
 
 CONFIRME: ContextVar[bool] = ContextVar("dz_plafond_confirme", default=False)
 
@@ -341,10 +342,14 @@ def _refus(motif, moteur, deja, devis, plafond, categorie, espace: str = "") -> 
         "devis_usd": round(devis, 4), "plafond_usd": round(plafond, 4), "message": msg}})
 
 
-async def verifier(op: dict, categorie: str = "", ref: str | None = None, confirme: bool | None = None) -> dict:
+async def verifier(op: dict, categorie: str = "", ref: str | None = None, confirme: bool | None = None,
+                   espace_id: str | None = None) -> dict:
     """LA garde, à appeler juste AVANT la dépense. Rend {devis, lignes (ids écrits), etat}. Lève 402 (detail
     `dz_plafond`) quand le devis ferait passer le mois au-dessus d'un plafond et que l'utilisateur n'a pas confirmé.
-    Un refus n'écrit rien ; un devis nul (local, gratuit) n'encombre pas le registre."""
+    Un refus n'écrit rien ; un devis nul (local, gratuit) n'encombre pas le registre.
+    t285a : `espace_id` explicite = l'espace à qui la dépense appartient (une campagne de B lancée pendant que A est
+    actif) : son plafond propre est lu pour LUI et la ligne du registre porte son id. Absent = l'espace courant, comme
+    avant (la colonne prend alors son défaut)."""
     from app.services import pricing as _pricing
     from app.services.storage import Depense
 
@@ -369,7 +374,7 @@ async def verifier(op: dict, categorie: str = "", ref: str | None = None, confir
     if not ok and devis["total_usd"] > 0:
         # t209 (Espaces de marque E9) : le plafond OPTIONNEL de l'espace du tir, en plus du global et des moteurs
         from app.services import espaces as _es
-        eid = _es.espace_courant()
+        eid = espace_id or _es.espace_courant()
         e = _es.lire()["espaces"].get(eid) or {}
         pe = _es.plafond_valide(e.get("plafond_usd"))
         if pe > 0:
@@ -386,6 +391,8 @@ async def verifier(op: dict, categorie: str = "", ref: str | None = None, confir
             d = Depense(quand=datetime.utcnow(), mois=mois, moteur=str(ligne["provider"])[:24],
                         categorie=str(categorie or "")[:24], op=kind, estime_usd=float(ligne["usd"]),
                         ref=(ref[:64] if ref else None))
+            if espace_id:
+                d.espace_id = str(espace_id)[:40]
             s.add(d)
             neuves.append(d)
         await s.commit()
