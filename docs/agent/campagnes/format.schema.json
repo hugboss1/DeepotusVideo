@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Message de conversation de l'agent Campagnes, format v1",
+  "type": "object",
+  "required": ["v", "id", "role", "quand", "origine", "blocs", "cout_paye"],
+  "properties": {
+    "v": {"const": 1},
+    "id": {"type": "string"},
+    "role": {"enum": ["utilisateur", "agent", "outil", "fait"]},
+    "quand": {"type": "string"},
+    "origine": {"enum": ["pc", "telephone"]},
+    "appareil": {"type": ["string", "null"]},
+    "blocs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/bloc"}},
+    "cout_paye": {"type": "number", "minimum": 0}
+  },
+  "$defs": {
+    "bloc": {"oneOf": [
+      {"$ref": "#/$defs/texte"},
+      {"$ref": "#/$defs/carte"},
+      {"$ref": "#/$defs/resultat_outil"},
+      {"$ref": "#/$defs/porte"}
+    ]},
+    "texte": {
+      "type": "object",
+      "required": ["type", "texte"],
+      "properties": {"type": {"const": "texte"}, "texte": {"type": "string"}}
+    },
+    "carte": {
+      "type": "object",
+      "required": ["type", "genre", "libelle", "etat"],
+      "properties": {
+        "type": {"const": "carte"},
+        "genre": {"enum": ["porte", "devis", "continuer", "espace", "brouillons", "ouvrir"]},
+        "libelle": {"type": "string"},
+        "etat": {"enum": ["proposee", "acceptee", "refusee", "terminee"]},
+        "devis": {"type": ["number", "null"], "minimum": 0},
+        "action": {"type": ["string", "null"]},
+        "arguments": {"type": ["object", "null"]}
+      }
+    },
+    "resultat_outil": {
+      "type": "object",
+      "required": ["type", "outil", "resume"],
+      "properties": {"type": {"const": "resultat_outil"}, "outil": {"type": "string"}, "resume": {"type": "string"}}
+    },
+    "porte": {
+      "type": "object",
+      "required": ["type", "numero", "etat"],
+      "properties": {
+        "type": {"const": "porte"},
+        "numero": {"enum": [1, 2]},
+        "etat": {"enum": ["proposee", "validee", "refusee"]}
+      }
+    }
+  }
+}
