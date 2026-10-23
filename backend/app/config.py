@@ -156,6 +156,8 @@ class Settings(BaseSettings):
     # the deepotus 'prophet' tone is applied. Empty -> deterministic path.
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-haiku-4-5-20251001"
+    # t285a : le modèle de l'agent Campagnes (Réglages › Modèles par défaut) ; vide = ANTHROPIC_MODEL
+    AGENT_MODEL: str = ""
 
     # v1.15: OpenAI (alternative summariser / planner)
     OPENAI_API_KEY: str = ""

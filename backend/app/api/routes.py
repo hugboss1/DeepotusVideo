@@ -7329,7 +7329,7 @@ async def health():
 _ALLOWED_ENV_KEYS = {
     "FAL_KEY", "HEYGEN_API_KEY", "MESHY_API_KEY", "ELEVENLABS_API_KEY",
     "ELEVENLABS_VOICE_ID_EN", "ELEVENLABS_VOICE_ID_FR",
-    "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL",
+    "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL", "AGENT_MODEL",
     "OPENAI_API_KEY", "OPENAI_MODEL",
     "GEMINI_API_KEY", "GEMINI_MODEL",
     "SUMMARIZER_PROVIDER", "PLANNER_PROVIDER",
@@ -7537,7 +7537,8 @@ async def get_provider_defaults(request: Request):
             },
         },
         # t220 : une ligne par moteur de texte (configuré ou non, modèle sain, alerte si le réglage contient une clé)
-        "moteurs": _MT.etat(),
+        # t285a : + la ligne du modèle de l'agent Campagnes (AGENT_MODEL), rendue par le même composant
+        "moteurs": _MT.etat() + [_MT.ligne_agent()],
     }
 
 
@@ -7546,6 +7547,8 @@ async def get_provider_models(moteur: str, request: Request):
     """t220 : la VRAIE liste des modèles de texte d'un moteur (`modeles_de`, en cache de session ; jamais une clé)."""
     _require_localhost(request)
     from app.services import moteurs_texte as _MT, vector_illustration as _VI
+    if moteur == _MT.MOTEUR_AGENT:              # t285a : l'agent Campagnes lit la liste d'Anthropic
+        moteur = "anthropic"
     if not _MT.connu(moteur):                   # t222 : les fournisseurs libres `fl:<id>` aussi
         raise HTTPException(400, f"Moteur inconnu : {moteur}")
     if not _MT.configure(moteur):
@@ -7570,10 +7573,13 @@ async def test_provider_model(body: dict, request: Request):
     from app.services import moteurs_texte as _MT, vector_illustration as _VI
     moteur = str((body or {}).get("moteur") or "").strip()
     modele = str((body or {}).get("modele") or "").strip()
+    cle_reglage = "AGENT_MODEL" if moteur == _MT.MOTEUR_AGENT else None         # t285a
+    if cle_reglage:
+        moteur = "anthropic"
     if not _MT.connu(moteur):
         raise HTTPException(400, f"Moteur inconnu : {moteur}")
     try:
-        _MT.verifier_modele(_MT.CLE_MODELE.get(moteur, "FL_MODEL"), modele)
+        _MT.verifier_modele(cle_reglage or _MT.CLE_MODELE.get(moteur, "FL_MODEL"), modele)
     except ValueError as err:
         raise HTTPException(400, str(err))
     # la liste PUBLIÉE (sans le modèle des Réglages que `modeles_de` remet en tête) : relue à chaque clic, un GET gratuit
@@ -7607,6 +7613,13 @@ async def set_provider_defaults(body: dict, request: Request):
     libres: dict[str, str] = {}
     locaux: dict[str, str] = {}
     for moteur, nom in (modeles or {}).items():
+        if moteur == _MT.MOTEUR_AGENT:          # t285a : la ligne « agent » écrit AGENT_MODEL
+            try:
+                _MT.verifier_modele("AGENT_MODEL", str(nom or ""))
+            except ValueError as err:
+                raise HTTPException(400, str(err))
+            changes["AGENT_MODEL"] = str(nom or "").strip()
+            continue
         if not _MT.connu(moteur):
             raise HTTPException(400, f"Moteur inconnu : {moteur}")
         cle = _MT.CLE_MODELE.get(moteur, "FL_MODEL")

@@ -82,7 +82,8 @@ check("1.2 FIGMA_TOKEN dans _ALLOWED_ENV_KEYS", "FIGMA_TOKEN" in R._ALLOWED_ENV_
 _TIKTOK = {"TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED"}
 check("1.3 rien d'autre n'entre ni ne sort de la liste blanche",
       # t161 (10/10/2026) : + DECART_API_KEY, la cle du Direct (Avatar live)
-      OLD is not None and R._ALLOWED_ENV_KEYS - OLD == {"FIGMA_TOKEN", "DECART_API_KEY"} | _TIKTOK and not (OLD - R._ALLOWED_ENV_KEYS),
+      OLD is not None and R._ALLOWED_ENV_KEYS - OLD == {"FIGMA_TOKEN", "DECART_API_KEY", "AGENT_MODEL"} | _TIKTOK and   # t285a : + AGENT_MODEL
+      not (OLD - R._ALLOWED_ENV_KEYS),
       _d(sorted((R._ALLOWED_ENV_KEYS ^ OLD) if OLD else [])))
 
 

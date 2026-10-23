@@ -1686,6 +1686,7 @@
   "erreur.a1b5caceaf": {"fr": "Ollama HTTP {status_code} — {v}", "en": "Ollama HTTP {status_code} — {v}", "src": "fr"},
   "erreur.a1cc9878dd": {"fr": "nom de fichier refusé", "en": "file name rejected", "src": "fr"},
   "erreur.a1e89a6b65": {"fr": "En file (rendu de gabarit)", "en": "Queued (template render)", "src": "en"},
+  "erreur.a1ec710cc9": {"fr": "sans_cle", "en": "sans_cle", "src": "fr"},
   "erreur.a202d3fec0": {"fr": "Générateur inconnu: {provider}", "en": "Unknown generator: {provider}", "src": "fr"},
   "erreur.a20b1a16ce": {"fr": "kind inconnu : {v} (attendus : {v2})", "en": "unknown kind: {v} (expected: {v2})", "src": "fr"},
   "erreur.a2218cb8b7": {"fr": "Ce gabarit est déjà en {fmt}.", "en": "This template is already in {fmt}.", "src": "fr"},

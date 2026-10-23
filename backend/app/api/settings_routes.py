@@ -415,7 +415,7 @@ RUBRIQUE_DE_CLE = {
     "DECART_API_KEY": "keys",                                           # t221 : ligne « Decart » de Clés d'API
     "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys",  # t221 : voix par défaut, champs texte
     "ANTHROPIC_MODEL": "defaults", "OPENAI_MODEL": "defaults", "GEMINI_MODEL": "defaults", "OLLAMA_MODEL": "defaults",
-    "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults",
+    "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults", "AGENT_MODEL": "defaults",   # t285a
     "ARTICLE_READER_FALLBACK": "news",                                  # t221 : bascule de Réglages › News
 }
 
@@ -427,6 +427,8 @@ def rubrique_de(cle: str) -> str:
     for m, km in MT.CLE_MODELE.items():
         if km == cle and not (MT.configure(m) or MT.modele_fautif(m)):
             return "keys"
+    if cle == "AGENT_MODEL" and not MT.ligne_agent()["configure"]:      # t285a : l'agent parle à Anthropic
+        return "keys"
     return RUBRIQUE_DE_CLE.get(cle, "")
 
 
