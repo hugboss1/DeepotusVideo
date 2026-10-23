@@ -10522,5 +10522,25 @@
  "La conversation a déjà son espace : il ne change pas.": {
   "fr": "La conversation a déjà son espace : il ne change pas.",
   "en": "The conversation already has its space: it does not change."
+ },
+ "Espace requis.": {
+  "fr": "Espace requis.",
+  "en": "Space required."
+ },
+ "fichier : un nom de rendu simple est requis.": {
+  "fr": "fichier : un nom de rendu simple est requis.",
+  "en": "fichier: a plain render file name is required."
+ },
+ "fichier : rendu introuvable.": {
+  "fr": "fichier : rendu introuvable.",
+  "en": "fichier: render not found."
+ },
+ "Cette porte n'est plus la porte en cours : rien n'est validé.": {
+  "fr": "Cette porte n'est plus la porte en cours : rien n'est validé.",
+  "en": "This gate is no longer the current gate: nothing was validated."
+ },
+ "Le lot ne prend pas encore d'espace de campagne : lance les variations une à une.": {
+  "fr": "Le lot ne prend pas encore d'espace de campagne : lance les variations une à une.",
+  "en": "Batches do not support a campaign space yet: launch the variations one by one."
  }
 }

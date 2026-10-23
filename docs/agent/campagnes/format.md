@@ -44,8 +44,10 @@ Défini une seule fois, ici et dans `format.schema.json`. Le code de référence
 - Une décision ne modifie **jamais** le message d'origine : elle s'écrit comme un message `fait` neuf, dont le bloc
   `carte` reprend le genre, le libellé et l'action, avec `etat` `acceptee` ou `refusee` et `arguments.carte = n`
   (plus `job_id` pour un devis, `espace_id` pour le choix d'espace). Une carte déjà décidée ne se redécide pas.
-- Quand le job d'un devis accepté finit (réussi ou en échec), un message `fait` de plus porte la carte en `etat`
-  `terminee`, `action` `continuer`, `arguments` `{carte, job_id, statut}`. Un seul par job.
+- Quand le job d'un devis vidéo accepté finit (réussi ou en échec), un message `fait` de plus porte la carte en
+  `etat` `terminee`, `action` `continuer`, `arguments` `{carte, job_id, statut}`. Un seul par job.
+- Un devis image ou voix (rendu immédiat) s'accepte avec le `fichier` rendu : le message `fait` `terminee`
+  (`arguments` `{carte, fichier, statut: done}`) s'écrit aussitôt, avec la décision.
 
 ## Idempotence de l'import
 

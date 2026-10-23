@@ -5377,8 +5377,11 @@ async def create_voiceover(request: Request):
     with _sous_espace_tir(eid):
         out = await _voiceover(payload)
         if eid:   # t285a : la voix est rangée dans SON espace (sans lui, l'index la rattrape au démarrage)
-            from app.services import library_index as _LI
-            await _LI.noter([out["filename"]], "generation", kind="audio")
+            try:
+                from app.services import library_index as _LI
+                await _LI.noter([out["filename"]], "generation", kind="audio")
+            except Exception as e:  # noqa: BLE001 — l'index ne casse jamais une voix payée
+                logger.warning(f"index voix ignoré: {e}")
         return out
 
 
@@ -6429,6 +6432,8 @@ async def generate_batch(request: GenerateBatchRequest, background_tasks: Backgr
     - If request.seed is None, a random base seed is generated and used.
     - All N jobs share a batch_id (returned) so the UI can group them.
     """
+    if request.espace_id is not None:   # t285a : jamais de repli silencieux sur l'espace actif
+        raise HTTPException(400, "Le lot ne prend pas encore d'espace de campagne : lance les variations une à une.")
     # t183 : la clé du modèle CHOISI (Veo -> GEMINI_API_KEY), plus seulement FAL_KEY
     _cle_video_ou_503(request.video_model, http)
     _fin_video_ou_400(request.video_model, request.image_filename_end, http)   # t184 : avant la dépense

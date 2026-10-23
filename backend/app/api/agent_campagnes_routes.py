@@ -12,12 +12,15 @@ Boucle locale SEULEMENT ici (garde partagée `routes._require_localhost`) ; t286
   `X-DZ-Plafond: confirme`) et « occupée » un 409 ; plus loin dans la boucle, un 402 reste un évènement `erreur`
   (les octets sont partis). `tour()` est mené sous `contextlib.aclosing` et la réponse ferme le flux même si le client
   coupe : le verrou de la conversation est toujours rendu ;
-- `POST /{cid}/carte/{n}` {decision, job_id?, espace_id?} : `n` = rang (0, 1, …) de la carte parmi les cartes des
-  messages `agent`. La décision s'écrit comme un message NEUF (`fait`, bloc carte, `arguments.carte = n`) : l'original
-  n'est jamais modifié ; une carte déjà décidée = 409 ;
-- `POST /{cid}/depot` : multipart `fichier` (texte extrait par marketing.extract_document_text) ou JSON {texte} →
-  gardé pour `lire_document` ; JSON {url} → rendu comme texte pour le message de l'utilisateur, rien de téléchargé
-  (la lecture reste à `lire_document`, sous ses gardes) ;
+- `POST /{cid}/carte/{n}` {decision, job_id?, espace_id?, fichier?} : `n` = rang (0, 1, …) de la carte parmi les
+  cartes des messages `agent`. La décision s'écrit D'ABORD comme un message NEUF (`fait`, bloc carte,
+  `arguments.carte = n`), l'état (espace, porte) ensuite ; l'original n'est jamais modifié ; une carte déjà décidée =
+  409 (sauf reprise d'un état non appliqué). Porte : seulement la DERNIÈRE porte, état `porte1_proposee`. Devis image
+  ou voix (rendu immédiat) : `fichier` requis (nom simple, présent au magasin), le fait `terminee` s'écrit aussitôt ;
+  devis vidéo : `job_id`, le fait vient au GET ;
+- `POST /{cid}/depot` : multipart `fichier` (texte extrait par marketing.extract_document_text), JSON {texte} ou JSON
+  {url} → gardé pour `lire_document` (l'URL est gardée comme TEXTE, rien n'est téléchargé ici : la lecture reste à
+  `lire_document`, sous ses gardes) ;
 - `POST /importer` {conversation} : `agent_store.importer` (idempotent).
 """
 from __future__ import annotations
@@ -40,6 +43,7 @@ MAX_CORPS = 8_000_000                  # JSON (une conversation importée tient 
 MAX_DEPOT_OCTETS = 15 * 1024 * 1024    # comme l'import d'un document de stratégie (/marketing/plan/import)
 DECISIONS = ("acceptee", "refusee")
 _JOB = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_FICHIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$")
 _VERROU = asyncio.Lock()               # décisions de cartes et blocs `fait` : relire puis écrire, un seul à la fois
 
 
@@ -107,11 +111,13 @@ async def _conversation(cid: str, *, saine: bool = True) -> dict:
 
 
 def _espace_valide(eid) -> str:
-    """Un espace NOMMÉ : existant et non archivé (vigilance 5) ; sinon 400, jamais de repli sur l'actif."""
-    e = espaces.lire()["espaces"].get(eid) if isinstance(eid, str) and espaces.id_valide(eid) else None
-    if not e or e.get("archive"):
-        raise HTTPException(400, f"Espace inconnu ou archivé : {str(eid)[:40]}")
-    return eid
+    """Un espace NOMMÉ : existant et non archivé (vigilance 5) ; sinon 400, jamais de repli sur l'actif. Le même
+    validateur que les routes de génération (`routes._espace_du_corps`) ; ici, l'espace est obligatoire."""
+    from app.api.routes import _espace_du_corps
+    v = _espace_du_corps(eid)
+    if v is None:
+        raise HTTPException(400, "Espace requis.")
+    return v
 
 
 def _lang(request: Request) -> str:
@@ -135,7 +141,9 @@ def _etats(messages: list) -> dict[int, dict]:
         if m.get("role") != "fait":
             continue
         for b in m.get("blocs") or []:
-            n = ((b.get("arguments") or {}) if isinstance(b, dict) else {}).get("carte")
+            if not isinstance(b, dict):
+                continue
+            n = (b.get("arguments") or {}).get("carte") if isinstance(b.get("arguments"), dict) else None
             if b.get("type") == "carte" and isinstance(n, int) and not isinstance(n, bool):
                 out[n] = b
     return out
@@ -247,8 +255,8 @@ def _plafond_usd(v) -> float:
 async def creer(request: Request):
     _local(request)
     corps = await _json(request)
-    eid = corps.get("espace_id")
-    eid = _espace_valide(eid) if eid not in (None, "") else None
+    from app.api.routes import _espace_du_corps
+    eid = _espace_du_corps(corps.get("espace_id"))
     titre = corps.get("titre")
     with _traduire():
         l = await ST.creer(str(corps.get("role") or ""), eid, str(titre)[:200] if isinstance(titre, str) else "")
@@ -316,8 +324,27 @@ async def message(cid: str, request: Request):
     return _ReponseSSE(_flux(agen, premier), agen)
 
 
+def _fichier_rendu(genre: str, fichier) -> str:
+    """Le rendu IMMÉDIAT d'un devis image ou voix accepté : un nom simple (aucun séparateur, aucun « .. »), présent
+    dans le magasin de ce genre (images ou audio) ; sinon 400."""
+    from app.config import settings
+    if not isinstance(fichier, str) or not _FICHIER.match(fichier) or ".." in fichier:
+        raise HTTPException(400, "fichier : un nom de rendu simple est requis.")
+    dossier = settings.images_path if genre == "image" else settings.images_path.parent / "audio"
+    if not (dossier / fichier).is_file():
+        raise HTTPException(400, "fichier : rendu introuvable.")
+    return fichier
+
+
+def _derniere_porte(cartes: list) -> int:
+    return max((i for i, b in enumerate(cartes) if b.get("genre") == "porte"), default=-1)
+
+
 @router.post("/{cid}/carte/{n}")
 async def carte(cid: str, n: int, request: Request):
+    """La décision s'écrit D'ABORD (message `fait` neuf), puis l'état (espace, porte) est appliqué. Si ce second pas
+    échoue, la même décision rejouée ne rend pas 409 : elle réapplique l'état seulement (reprise), sans second
+    message. Une fois l'état appliqué, toute nouvelle réponse à la carte rend 409."""
     _local(request)
     corps = await _json(request)
     decision = corps.get("decision")
@@ -331,22 +358,47 @@ async def carte(cid: str, n: int, request: Request):
         cartes = _cartes(l["messages"])
         if n < 0 or n >= len(cartes):
             raise HTTPException(404, "Carte introuvable.")
-        orig = cartes[n]
-        etat = (_etats(l["messages"]).get(n) or orig).get("etat")
+        orig, derniere = cartes[n], _etats(l["messages"]).get(n)
+        genre, acceptee = orig.get("genre"), decision == "acceptee"
+        etat = (derniere or orig).get("etat")
         if etat != "proposee":
-            raise HTTPException(409, "Carte déjà décidée.")
-        genre, extra = orig.get("genre"), {}
-        with _traduire():
-            if genre == "espace" and decision == "acceptee":
-                eid = _espace_valide(corps.get("espace_id"))
-                if not await ST.regler_espace(cid, eid):
-                    raise HTTPException(409, "La conversation a déjà son espace : il ne change pas.")
-                extra["espace_id"] = eid
-            elif genre == "devis" and decision == "acceptee" and job_id:
+            # reprise : la décision est écrite mais l'état n'a pas suivi (panne entre les deux pas)
+            d_args = (derniere or {}).get("arguments") or {}
+            reprise = acceptee and etat == "acceptee" and (
+                (genre == "espace" and l.get("espace_id") is None and corps.get("espace_id") in (None, d_args.get("espace_id")))
+                or (genre == "porte" and l.get("etat_porte") == "porte1_proposee"))
+            if not reprise:
+                raise HTTPException(409, "Carte déjà décidée.")
+            with _traduire():
+                if genre == "espace":
+                    await ST.regler_espace(cid, _espace_valide(d_args.get("espace_id")))
+                else:
+                    await ST.regler_porte(cid, "porte1_validee")
+            return await ST.lire(cid)
+        extra, faits = {}, []
+        if acceptee and genre == "espace":
+            eid = _espace_valide(corps.get("espace_id"))
+            if l.get("espace_id") is not None:
+                raise HTTPException(409, "La conversation a déjà son espace : il ne change pas.")
+            extra["espace_id"] = eid
+        elif acceptee and genre == "porte":
+            if l.get("etat_porte") != "porte1_proposee" or n != _derniere_porte(cartes):
+                raise HTTPException(409, "Cette porte n'est plus la porte en cours : rien n'est validé.")
+        elif acceptee and genre == "devis":
+            g = (orig.get("arguments") or {}).get("genre")
+            if g in ("image", "voix"):                   # rendu immédiat : le fait s'écrit tout de suite
+                extra["fichier"] = _fichier_rendu(g, corps.get("fichier"))
+                faits.append(fmt.nouveau_message("fait", [_bloc_etat(orig, n, "terminee", {
+                    "fichier": extra["fichier"], "statut": "done"}, action="continuer")]))
+            elif job_id:                                  # vidéo : le fait viendra au GET, job fini
                 extra["job_id"] = job_id
-            if genre == "porte" and decision == "acceptee":
+        with _traduire():
+            await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n, decision, extra)])] + faits)
+            if acceptee and genre == "espace":
+                if not await ST.regler_espace(cid, extra["espace_id"]):
+                    raise HTTPException(409, "La conversation a déjà son espace : il ne change pas.")
+            elif acceptee and genre == "porte":
                 await ST.regler_porte(cid, "porte1_validee")
-            await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n, decision, extra)])])
     return await ST.lire(cid)
 
 
@@ -383,7 +435,9 @@ async def depot(cid: str, request: Request):
             u = AO._url_normale(corps["url"])
             if not u:
                 raise HTTPException(400, "URL http(s) attendue.")
-            return {"url": u, "texte": corps["url"].strip()}
+            with _traduire():                            # gardée comme TEXTE : rien n'est téléchargé ici
+                garde = await AO.enregistrer_depot(cid, "url", u)
+            return {"depot": garde, "url": u, "texte": corps["url"].strip(), "caracteres": len(u)}
         if not isinstance(corps.get("texte"), str) or not corps["texte"].strip():
             raise HTTPException(400, "Donne un fichier, un texte ou une URL.")
         nom, texte = str(corps.get("nom") or "texte"), corps["texte"]

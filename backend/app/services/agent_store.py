@@ -234,13 +234,14 @@ async def regler_dossier(cid: str, chemin: str | Path) -> None:
 
 async def regler_espace(cid: str, espace_id: str) -> bool:
     """t285a (T7) : l'espace d'une conversation qui n'en a pas encore (carte « espace » acceptée). Rend False, sans
-    rien changer, si un espace est déjà réglé : l'espace d'une campagne ne change jamais. L'appelant le valide."""
+    rien changer, si un AUTRE espace est déjà réglé : l'espace d'une campagne ne change jamais. Le même espace
+    réappliqué rend True (une reprise après panne). L'appelant le valide."""
     async with async_session_factory() as s:
         r = (await s.execute(select(AgentConversation).where(AgentConversation.id == cid))).scalar_one_or_none()
         if r is None:
             raise KeyError(cid)
         if r.espace_id:
-            return False
+            return r.espace_id == str(espace_id)[:40]
         r.espace_id = str(espace_id)[:40]
         r.maj = datetime.utcnow()
         await s.commit()

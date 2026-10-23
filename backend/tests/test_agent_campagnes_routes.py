@@ -372,12 +372,17 @@ run(_forcer_carte_espace(cid3))
 check("6h une carte espace sur une conversation qui a déjà un espace : 409, l'espace ne change pas",
       c.post(f"{BASE}/{cid3}/carte/0", json={"decision": "acceptee", "espace_id": B}).status_code == 409
       and lire(cid3)["espace_id"] == A)
+check("6i regler_espace : un AUTRE espace est refusé (False), l'espace ne change pas",
+      run(st.regler_espace(cid3, B)) is False and lire(cid3)["espace_id"] == A)
+check("6j regler_espace : le MÊME espace réappliqué est idempotent (True, reprise après panne)",
+      run(st.regler_espace(cid3, A)) is True and lire(cid3)["espace_id"] == A)
 
 # ---- test_devis_accepte_puis_fait_au_job_fini ------------------------------------------------------------------------
 print("\n[7] devis accepté → fait au job fini")
+VIDEO = {"genre": "video", "params": {"image_filename": "a.png", "prompt": "un phare"}}
 cid = creer(B, titre="Devis")
-MT._POSTER = Script([outil("deviser_generation", {"genre": "image", "params": {"prompt": "un phare"}})])
-r = c.post(f"{BASE}/{cid}/message", json={"texte": "Une image", "plafond_usd": 1.0})
+MT._POSTER = Script([outil("deviser_generation", VIDEO)])
+r = c.post(f"{BASE}/{cid}/message", json={"texte": "Une vidéo", "plafond_usd": 1.0})
 ev = evenements(r)
 carte = next((e["carte"] for e in ev if e.get("type") == "carte"), {})
 check("7a carte devis, avec l'espace de la campagne dans le corps", carte.get("genre") == "devis"
@@ -400,35 +405,153 @@ check("7e job DONE : un fait au GET (job_id, statut done, carte terminée)", len
 l2 = lire(cid)
 check("7f un seul fait après deux GET (idempotent)", len(l2["messages"]) == len(l1["messages"]))
 cid4 = creer(B, titre="Devis raté")
-MT._POSTER = Script([outil("deviser_generation", {"genre": "image", "params": {"prompt": "un phare"}})])
-c.post(f"{BASE}/{cid4}/message", json={"texte": "Une image", "plafond_usd": 1.0})
+MT._POSTER = Script([outil("deviser_generation", VIDEO)])
+c.post(f"{BASE}/{cid4}/message", json={"texte": "Une vidéo", "plafond_usd": 1.0})
 run(_job("job-banc-2", "failed", B))
 c.post(f"{BASE}/{cid4}/carte/0", json={"decision": "acceptee", "job_id": "job-banc-2"})
-l = lire(cid4)
 lire(cid4)
 check("7g job FAILED : un fait aussi (statut failed), une seule fois",
       [m["blocs"][0]["arguments"].get("statut") for m in lire(cid4)["messages"] if m["role"] == "fait"
        and m["blocs"][0].get("etat") == "terminee"] == ["failed"])
-cid5 = creer(B, titre="Devis sans job")
+
+print("\n[7h] devis image / voix : rendu immédiat, `fichier` requis, fait tout de suite")
+(settings.images_path / "gen_rendu_banc.png").write_bytes(b"\x89PNG\r\n\x1a\nstub")
+_audio = settings.images_path.parent / "audio"
+_audio.mkdir(parents=True, exist_ok=True)
+(_audio / "narration-banc.mp3").write_bytes(b"ID3banc")
+(settings.images_path.parent / "secret.png").write_bytes(b"x")
+
+
+async def _carte_devis(cid_, genre_):
+    from app.services import agent_format as fmt
+    await st.ajouter(cid_, [fmt.nouveau_message("agent", [{"type": "carte", "genre": "devis", "libelle": "Devis",
+                                                            "etat": "proposee", "devis": 0.01, "action": "generer",
+                                                            "arguments": {"genre": genre_, "route": "/x", "corps": {}}}])])
+
+
+def termines(cid_):
+    return [m["blocs"][0] for m in lire(cid_)["messages"] if m["role"] == "fait" and m["blocs"][0].get("etat") == "terminee"]
+
+cid5 = creer(B, titre="Devis image")
 MT._POSTER = Script([outil("deviser_generation", {"genre": "image", "params": {"prompt": "un phare"}})])
 c.post(f"{BASE}/{cid5}/message", json={"texte": "Une image", "plafond_usd": 1.0})
-r = c.post(f"{BASE}/{cid5}/carte/0", json={"decision": "acceptee"})
-lire(cid5)
-check("7h acceptee sans job_id (image : rendu immédiat) : 200, jamais de fait", r.status_code == 200
-      and not [m for m in lire(cid5)["messages"] if m["blocs"][0].get("etat") == "terminee"])
+check("7h image acceptée SANS fichier : 400", c.post(f"{BASE}/{cid5}/carte/0", json={"decision": "acceptee"}
+                                                     ).status_code == 400)
+for mauvais in ("../secret.png", "..\\secret.png", "a/b.png", "absent.png", "", 12):
+    r = c.post(f"{BASE}/{cid5}/carte/0", json={"decision": "acceptee", "fichier": mauvais})
+    check(f"7i fichier {mauvais!r} (chemin, absent, illisible) : 400", r.status_code == 400, f"{r.status_code}")
+check("7j ces refus n'ont rien écrit", not [m for m in lire(cid5)["messages"] if m["role"] == "fait"])
+r = c.post(f"{BASE}/{cid5}/carte/0", json={"decision": "acceptee", "fichier": "gen_rendu_banc.png"})
+t = termines(cid5)
+check("7k image acceptée avec son fichier : 200 et le fait terminé tout de suite {carte, fichier, statut done}",
+      r.status_code == 200 and len(t) == 1 and t[0]["arguments"] == {"carte": 0, "fichier": "gen_rendu_banc.png",
+                                                                     "statut": "done"}
+      and t[0]["action"] == "continuer", r.text[:300])
+check("7l une seconde réponse à la carte : 409, aucun fait de plus",
+      c.post(f"{BASE}/{cid5}/carte/0", json={"decision": "acceptee", "fichier": "gen_rendu_banc.png"}).status_code == 409
+      and len(termines(cid5)) == 1)
+cid7 = creer(B, titre="Devis voix")
+run(_carte_devis(cid7, "voix"))
+check("7m voix : un nom d'image (absent du magasin audio) : 400",
+      c.post(f"{BASE}/{cid7}/carte/0", json={"decision": "acceptee", "fichier": "gen_rendu_banc.png"}).status_code == 400)
+r = c.post(f"{BASE}/{cid7}/carte/0", json={"decision": "acceptee", "fichier": "narration-banc.mp3"})
+t = termines(cid7)
+check("7n voix acceptée avec son fichier : fait terminé tout de suite", r.status_code == 200 and len(t) == 1
+      and t[0]["arguments"].get("fichier") == "narration-banc.mp3" and t[0]["arguments"].get("statut") == "done", r.text[:300])
+check("7n2 voix : une seconde réponse : 409", c.post(f"{BASE}/{cid7}/carte/0", json={
+    "decision": "acceptee", "fichier": "narration-banc.mp3"}).status_code == 409 and len(termines(cid7)) == 1)
+cid8 = creer(B, titre="Devis refusé")
+run(_carte_devis(cid8, "image"))
+r = c.post(f"{BASE}/{cid8}/carte/0", json={"decision": "refusee"})
+check("7o devis refusé : 200 sans fichier, aucun fait terminé", r.status_code == 200 and not termines(cid8))
 
 cid6 = creer(B, titre="Deux devis, un job")
-MT._POSTER = Script([outil("deviser_generation", {"genre": "image", "params": {"prompt": "a"}})])
-c.post(f"{BASE}/{cid6}/message", json={"texte": "Une image", "plafond_usd": 1.0})
-MT._POSTER = Script([outil("deviser_generation", {"genre": "image", "params": {"prompt": "b"}})])
+MT._POSTER = Script([outil("deviser_generation", VIDEO)])
+c.post(f"{BASE}/{cid6}/message", json={"texte": "Une vidéo", "plafond_usd": 1.0})
+MT._POSTER = Script([outil("deviser_generation", VIDEO)])
 c.post(f"{BASE}/{cid6}/message", json={"texte": "Une autre", "plafond_usd": 1.0})
 run(_job("job-banc-3", "generating_video", B))
 c.post(f"{BASE}/{cid6}/carte/0", json={"decision": "acceptee", "job_id": "job-banc-3"})
 c.post(f"{BASE}/{cid6}/carte/1", json={"decision": "acceptee", "job_id": "job-banc-3"})
 run(_job("job-banc-3", "done"))
 lire(cid6)
-check("7i deux cartes acceptées sur le MÊME job : un seul fait (un fait par job_id)",
-      len([m for m in lire(cid6)["messages"] if m["role"] == "fait" and m["blocs"][0].get("etat") == "terminee"]) == 1)
+check("7p deux cartes acceptées sur le MÊME job : un seul fait (un fait par job_id)", len(termines(cid6)) == 1)
+
+print("\n[7q] porte périmée")
+
+
+async def _carte_porte(cid_):
+    from app.services import agent_format as fmt
+    await st.ajouter(cid_, [fmt.nouveau_message("agent", [{"type": "carte", "genre": "porte", "libelle": "Porte 1",
+                                                            "etat": "proposee", "action": "valider_porte",
+                                                            "arguments": {"numero": 1}}])])
+    await st.regler_porte(cid_, "porte1_proposee")
+
+cid9 = creer(B, titre="Deux portes")
+run(_carte_porte(cid9))
+run(_carte_porte(cid9))
+r = c.post(f"{BASE}/{cid9}/carte/0", json={"decision": "acceptee"})
+check("7q une ancienne porte, après une plus récente : 409, porte non validée", r.status_code == 409
+      and lire(cid9)["etat_porte"] == "porte1_proposee", f"{r.status_code}")
+r = c.post(f"{BASE}/{cid9}/carte/1", json={"decision": "acceptee"})
+check("7r la dernière porte : 200, validée", r.status_code == 200 and lire(cid9)["etat_porte"] == "porte1_validee")
+cid10 = creer(B, titre="Porte après brouillons")
+run(_carte_porte(cid10))
+run(st.regler_porte(cid10, "brouillons_crees"))
+r = c.post(f"{BASE}/{cid10}/carte/0", json={"decision": "acceptee"})
+check("7s une porte après brouillons_crees : 409, l'état ne recule pas", r.status_code == 409
+      and lire(cid10)["etat_porte"] == "brouillons_crees", f"{r.status_code}")
+
+print("\n[7t] décision d'abord, état ensuite : une panne entre les deux se reprend")
+
+
+def _panne_une_fois(nom):
+    vrai = getattr(st, nom)
+    etat = {"n": 0}
+
+    async def f(*a, **k):
+        etat["n"] += 1
+        if etat["n"] == 1:
+            raise RuntimeError("panne de banc")
+        return await vrai(*a, **k)
+    setattr(st, nom, f)
+    return vrai
+
+
+def _poster(url, corps):
+    try:
+        return c.post(url, json=corps).status_code
+    except RuntimeError:
+        return "exception"
+
+cid11 = creer(None, titre="Espace en panne")
+run(_forcer_carte_espace(cid11))
+vrai = _panne_une_fois("regler_espace")
+try:
+    r1 = _poster(f"{BASE}/{cid11}/carte/0", {"decision": "acceptee", "espace_id": B})
+    l = lire(cid11)
+    check("7t la panne de l'état laisse la décision écrite (message fait), l'espace pas encore réglé", r1 != 200
+          and l["espace_id"] is None and l["messages"][-1]["role"] == "fait", str(r1))
+    r2 = _poster(f"{BASE}/{cid11}/carte/0", {"decision": "acceptee", "espace_id": B})
+    l = lire(cid11)
+    check("7u la reprise : 200, espace réglé, aucun second message", r2 == 200 and l["espace_id"] == B
+          and len([m for m in l["messages"] if m["role"] == "fait"]) == 1, str(r2))
+    check("7v ensuite : une nouvelle réponse rend 409", _poster(f"{BASE}/{cid11}/carte/0",
+                                                                {"decision": "acceptee", "espace_id": B}) == 409)
+finally:
+    st.regler_espace = vrai
+cid12 = creer(B, titre="Porte en panne")
+run(_carte_porte(cid12))
+vrai = _panne_une_fois("regler_porte")
+try:
+    r1 = _poster(f"{BASE}/{cid12}/carte/0", {"decision": "acceptee"})
+    check("7w porte : la panne laisse la décision écrite, la porte pas encore validée", r1 != 200
+          and lire(cid12)["etat_porte"] == "porte1_proposee" and lire(cid12)["messages"][-1]["role"] == "fait", str(r1))
+    r2 = _poster(f"{BASE}/{cid12}/carte/0", {"decision": "acceptee"})
+    check("7x la reprise valide la porte, sans second message", r2 == 200 and lire(cid12)["etat_porte"] == "porte1_validee"
+          and len([m for m in lire(cid12)["messages"] if m["role"] == "fait"]) == 1, str(r2))
+finally:
+    st.regler_porte = vrai
 
 # ---- test_importer_idempotent ----------------------------------------------------------------------------------------
 print("\n[8] importer")
@@ -466,9 +589,29 @@ check("9d multipart sans champ fichier : 400", r.status_code == 400, f"{r.status
 r = c.post(f"{BASE}/{cid}/depot", json={"texte": "Notes de réunion"})
 check("9e JSON {texte} : 200, gardé", r.status_code == 200 and r.json().get("depot", "").endswith(".txt"), r.text[:200])
 n_av = len(lire(cid)["messages"])
-r = c.post(f"{BASE}/{cid}/depot", json={"url": "https://exemple.org/page"})
-check("9f JSON {url} : 200, rendu comme texte pour le message, sans téléchargement ni écriture",
-      r.status_code == 200 and "https://exemple.org/page" in (r.json().get("texte") or "") and not r.json().get("depot")
+_reseau = []
+_tele0, _http0 = ao._telecharger, ao.httpx.AsyncClient
+
+
+async def _pas_de_reseau(*a, **k):
+    _reseau.append(a)
+    raise AssertionError("aucun téléchargement au dépôt")
+
+
+def _pas_de_client(*a, **k):
+    _reseau.append(a)
+    raise AssertionError("aucun client réseau au dépôt")
+
+ao._telecharger, ao.httpx.AsyncClient = _pas_de_reseau, _pas_de_client
+try:
+    r = c.post(f"{BASE}/{cid}/depot", json={"url": "https://exemple.org/page"})
+finally:
+    ao._telecharger, ao.httpx.AsyncClient = _tele0, _http0
+dep = r.json() if r.status_code == 200 else {}
+_f = pathlib.Path(TMP) / "campagnes" / "_conversations" / cid / "depots" / str(dep.get("depot") or "?")
+check("9f JSON {url} : 200, GARDÉE comme texte (dépôt nommé), sans aucun appel réseau",
+      r.status_code == 200 and dep.get("depot", "").endswith(".txt") and _f.is_file()
+      and _f.read_text(encoding="utf-8") == "https://exemple.org/page" and not _reseau
       and len(lire(cid)["messages"]) == n_av, r.text[:200])
 check("9g URL non http(s) : 400", c.post(f"{BASE}/{cid}/depot", json={"url": "file:///c:/x"}).status_code == 400)
 check("9h ni texte ni url : 400", c.post(f"{BASE}/{cid}/depot", json={}).status_code == 400)
@@ -610,6 +753,21 @@ try:
     n_v = len(voix)
     r = c.post("/api/audio/voiceover", json={"script": "Bonjour", "espace_id": Z})
     check("14e espace archivé : 400, aucune voix", r.status_code == 400 and len(voix) == n_v, f"{r.status_code}")
+    from app.services import library_index as _LIX
+    _noter0 = _LIX.noter
+
+    async def _index_en_panne(*a, **k):
+        raise RuntimeError("index en panne")
+    _LIX.noter = _index_en_panne
+    try:
+        try:
+            r = c.post("/api/audio/voiceover", json={"script": "Bonjour", "language": "fr", "espace_id": B})
+            code = r.status_code
+        except RuntimeError:
+            code = "exception"
+    finally:
+        _LIX.noter = _noter0
+    check("14f une panne de l'index ne fait jamais échouer une voix payée : 200", code == 200, str(code))
 finally:
     ES.VoiceoverService.is_enabled, ES.VoiceoverService.generate_long, VP.resolve_provider = _sauve
 
@@ -639,6 +797,11 @@ try:
     check("15e sans espace_id : comme avant (job_id pending, rendu dans l'espace actif, sans job_id imposé)",
           r.status_code == 200 and r.json().get("job_id") == "pending" and rendus[-1] == (A, None), f"{r.text[:200]} {rendus}")
     n_r = len(rendus)
+    _ndep = len(run(_lignes(Depense)))
+    r = c.post("/api/generate/batch", json={"image_filename": "a.png", "custom_prompt": "x", "espace_id": B,
+                                            "variations_count": 2})
+    check("15g /generate/batch avec espace_id : 400 (pas encore pris en charge), aucun rendu, aucune dépense",
+          r.status_code == 400 and len(rendus) == n_r and len(run(_lignes(Depense))) == _ndep, f"{r.status_code} {r.text[:200]}")
     r = c.post("/api/generate", json={"image_filename": "a.png", "custom_prompt": "x", "espace_id": "nulle-part"})
     check("15f espace inconnu : 400, aucun rendu, aucune dépense", r.status_code == 400 and len(rendus) == n_r
           and len(run(_lignes(Depense, Depense.categorie == "quick"))) == 2, f"{r.status_code}")
