@@ -2852,7 +2852,7 @@ function DzMontage(props){
     if(!it){
       var el;
       if(src.job_id){el=document.createElement("video");
-        el.src="/api/jobs/"+src.job_id+"/video";el.preload="auto";
+        el.src=svU(src,role);/* t282 : calque */el.preload="auto";
         el.muted=!0;el.playsInline=!0}
       else{el=document.createElement("img");
         el.src="/api/images/"+encodeURIComponent(src.image);el.alt="";el.draggable=!1}
@@ -6967,8 +6967,8 @@ function DzMontage(props){
                            est s fois plus longue — la waveform reste honnête */
                         len:(c.end-c.start)*(typeof c.speed==="number"&&c.speed>0?c.speed:1),
                         color:tr.c,theme:theme,zoom:zoomPct,dur:dur});
-                    else if(tr.id==="v1"&&c.src.job_id)
-                      media=r.jsx(SvmFilmstrip,{src:c.src,k:svmSrcKey(c.src),
+                    else if(svV(tr.id,c)&&c.src.job_id)
+                      media=r.jsx(SvFilmstripO,{src:c.src,k:svK(c.src,tr.id),
                         /* vitesse ×s (C) : la fenêtre source AFFICHÉE suit
                            ce que le rendu consomme — durée × vitesse */
                         srcIn:c.srcIn||0,len:(c.end-c.start)*svmSpeedOf(c)});
@@ -7252,6 +7252,76 @@ function svN(it){
 function svH(it){return ((it&&it.name)||"")+" "+svN(it)}
 function svF(f){var k="catalogue.sfx.famille."+f.id+".nom";return window.DZ_I18N&&window.DZ_I18N[k]?dzT(k):f.name}
 function svD(f){var k="catalogue.sfx.famille."+f.id+".desc";return window.DZ_I18N&&window.DZ_I18N[k]?dzT(k):f.desc}
+
+/* ═══════════ t282 : les overlays vidéo transparents se voient (lecteur vivant, bandes des pistes hautes) ═══════════
+   Chromium ne décode ni le QuickTime Animation (qtrle), ni le ProRes 4444, ni le png du QuickTime : un <video> du
+   fichier brut restait vide et l'overlay invisible (campagne pilote du 22-23/10, mix 60 s en couches). Un overlay
+   (rôle « o » du lecteur vivant) est lu sur son APERÇU DE CALQUE (GET /api/montage/calque : la source si le
+   navigateur la lit, sinon un WebM VP9 + alpha fabriqué par le serveur) ; les pistes hautes ont leur bande, vignettes
+   posées sur un damier. Noms de trois lettres : svU, svV, svK remplacent à LONGUEUR ÉGALE (tables L4 et G1 par
+   position) ; SvFilmstripO rend SvmFilmstrip tel quel pour V1 (clé sans préfixe), la bande de calque sinon. */
+function svmCalqueUrl(s){return "/api/montage/calque?src="+encodeURIComponent(JSON.stringify({job_id:s.job_id}))}
+function svU(src,role){return role==="o"?svmCalqueUrl(src):"/api/jobs/"+src.job_id+"/video"}
+function svV(t,c){return /^v\d+$/.test(String(t||""))&&!!(c&&c.src)}
+function svK(s,t){return (t==="v1"?"":"c")+svmSrcKey(s)}
+function svmDamier(g,w,h){var c=8;for(var y=0;y<h;y+=c)for(var x0=0;x0<w;x0+=c){
+  g.fillStyle=((x0+y)/c)%2?"#3a3a3a":"#262626";g.fillRect(x0,y,c,c)}}
+/* la vignette d'un calque : même file et même extracteur que svmThumb, clé préfixée « c », image sur damier */
+function svmThumbCalque(src,sec,cb){
+  var key="c"+svmSrcKey(src)+"@"+sec,hit=SVM_THUMBS.get(key);
+  if(hit)return hit==="err"?null:hit;
+  if(SVM_THUMB_SUBS.has(key)){if(cb)SVM_THUMB_SUBS.get(key).push(cb);return null}
+  SVM_THUMB_SUBS.set(key,cb?[cb]:[]);
+  svmMqPush(function(done){
+    var fin=function(val){SVM_THUMBS.set(key,val||"err");
+      var s=SVM_THUMB_SUBS.get(key)||[];SVM_THUMB_SUBS.delete(key);
+      s.forEach(function(f){try{f()}catch(_e){}});done()};
+    var v=SVM_XTR;
+    if(!v){v=document.createElement("video");v.muted=!0;v.playsInline=!0;
+      v.preload="auto";SVM_XTR=v}
+    var url=svmCalqueUrl(src);
+    /* le premier appel FABRIQUE l'aperçu (quelques secondes) : délai plus long que celui de svmThumb */
+    var to=setTimeout(function(){clean();fin(null)},30000);
+    function clean(){v.onloadeddata=null;v.onseeked=null;v.onerror=null;clearTimeout(to)}
+    function grab(){
+      try{var c=document.createElement("canvas");
+        c.width=SVM_THUMB_W;c.height=SVM_THUMB_H;
+        var g=c.getContext("2d"),vw=v.videoWidth||1,vh=v.videoHeight||1,
+            sc=Math.max(SVM_THUMB_W/vw,SVM_THUMB_H/vh),dw=vw*sc,dh=vh*sc;
+        svmDamier(g,SVM_THUMB_W,SVM_THUMB_H);
+        g.drawImage(v,(SVM_THUMB_W-dw)/2,(SVM_THUMB_H-dh)/2,dw,dh);
+        clean();fin(c.toDataURL("image/jpeg",.6))}
+      catch(_e){clean();fin(null)}}
+    function ready(){
+      var t=Math.min(Math.max(0,sec),Math.max(0,(v.duration||1)-.05));
+      if(v.readyState>=2&&Math.abs(v.currentTime-t)<.02){grab();return}
+      v.onseeked=grab;
+      try{v.currentTime=t}catch(_e){clean();fin(null)}}
+    v.onerror=function(){clean();fin(null)};
+    if(v._svmUrl===url&&v.readyState>=2)ready();
+    else{v._svmUrl=url;v.onloadeddata=ready;v.src=url;try{v.load()}catch(_e){}}})}
+/* la bande d'un calque — même découpe que SvmFilmstrip (une vignette ≈ toutes les 2,5 s, cap 12) */
+function SvmFilmstripCalque(props){
+  var US=x.useState,st=US(0),setFt=st[1]; /* alias : le compte figé des bancs ne bouge pas */
+  var len=Math.max(.1,props.len),
+      n=Math.max(1,Math.min(12,Math.ceil(len/2.5))),
+      secs=[],i;
+  for(i=0;i<n;i++)secs.push(Math.max(0,Math.round((props.srcIn||0)+(i+.5)*len/n)));
+  var sig=secs.join(",");
+  x.useEffect(function(){
+    var alive=!0;
+    var t=setTimeout(function(){if(!alive)return;
+      secs.forEach(function(s2){
+        svmThumbCalque(props.src,s2,function(){if(alive)setFt(function(t2){return t2+1})})})},200);
+    return function(){alive=!1;clearTimeout(t)}},[props.k,sig]);
+  return r.jsx("div",{className:"svm-strip","aria-hidden":!0,children:
+    secs.map(function(s2,i2){
+      var d=SVM_THUMBS.get("c"+svmSrcKey(props.src)+"@"+s2);
+      return d&&d!=="err"?r.jsx("img",{className:"svm-stripimg",src:d,alt:"",draggable:!1},i2)
+        :r.jsx("span",{className:"svm-stripimg"},i2)})})}
+/* aiguillage : deux types de composant distincts (jamais de hooks conditionnels) */
+function SvFilmstripO(props){
+  return String(props.k||"").charAt(0)==="c"?r.jsx(SvmFilmstripCalque,props):r.jsx(SvmFilmstrip,props)}
 
 /*__DZ_SONVFX_END__*/
 /*__DZ_SFXSTUDIO_BEGIN__*/

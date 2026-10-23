@@ -4228,6 +4228,7 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     # historique — tous les overlays retombent à 0 et le tri est celui
     # d'avant, argument pour argument.
     seq_plan = _sequences_hautes(v2, fps, cut, _tau_for, total) if v2 else {}   # t117
+    from app.services.matte_service import decodeur_entree as _dec_matte          # t282 : décodeur des overlays .webm
     seq_lbl = {}                        # (piste, k) → label de la toile prémultipliée du segment k
     for j, o in enumerate(sorted(v2, key=lambda k2: (int(k2.get("layer") or 0),
                                                      k2["start"]))):
@@ -4243,7 +4244,9 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             d = round(min(want, avail), 3)
             if o["src_in"] > 0:
                 inputs.extend(["-ss", str(o["src_in"])])
-            inputs.extend(["-t", str(d), "-i", str(o["path"])])
+            # t282 : un overlay .webm (VP9 + alpha) se lit par libvpx-vp9, comme un matte (t186) — le décodeur vp9
+            # natif ignore l'alpha et posait un cadre NOIR opaque sur tout le plan ; .mov/.mp4 : rien ne change
+            inputs.extend(["-t", str(d), *_dec_matte(o["path"]), "-i", str(o["path"])])
         elif o["is_image"]:
             # t117 : une image tient toute sa toile (poignées comprises) — rien à figer
             d = round(sq["pre"] + sq["d"] + sq["post"], 3)
@@ -4266,7 +4269,8 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             ss = math.floor(max(0.0, o["src_in"] - pre_real * k_spd) * 1000) / 1000   # -ss au ms INFÉRIEUR (V1)
             if ss > 0:
                 inputs.extend(["-ss", str(ss)])
-            inputs.extend(["-t", str(math.ceil(round(d * k_spd * 1000, 6)) / 1000), "-i", str(o["path"])])
+            inputs.extend(["-t", str(math.ceil(round(d * k_spd * 1000, 6)) / 1000), *_dec_matte(o["path"]),
+                           "-i", str(o["path"])])                                        # t282
         st = round(max(0.0, o["start"]), 3) if sq is None else 0.0
         st_mp = st if sq is None else frz_pre   # t117 : décalage des points x/y sur la TOILE (horloge du segment)
         en = round(st + d, 3)
@@ -6921,3 +6925,21 @@ async def montage_proxy_get(request: Request, src: str = ""):
             404, "Aperçu 480p pas encore fabriqué — POST /api/montage/proxy "
                  "le met en file.")
     return FileResponse(out, media_type="video/mp4")
+
+
+# t282 (23/10/2026) — L'APERÇU DE CALQUE d'un overlay : ce que le lecteur vivant et les vignettes des pistes hautes
+# chargent à la place du fichier brut (`montage_media.calque`). La source elle-même quand le navigateur sait la lire
+# (h264, vp8, vp9 + alpha, av1) ; sinon un WebM VP9 + alpha fabriqué À LA DEMANDE, comme la planche de `/strip` —
+# quelques secondes une fois (8,7 s mesurées pour 60 s de qtrle 1080²), puis servi depuis le cache. Même garde que
+# les autres précalculs (`_media_source` : 403 hors boucle locale, 404 introuvable, 415 non-vidéo).
+@router.get("/calque")
+async def montage_calque(request: Request, src: str = ""):
+    from app.services import montage_media as MM
+    p = await _media_source(request, src, video=True)
+    try:
+        out = await asyncio.to_thread(MM.calque, p)
+    except Exception as e:
+        raise _media_http(e)
+    typ = {".webm": "video/webm", ".mov": "video/quicktime", ".mkv": "video/x-matroska"}.get(
+        out.suffix.lower(), "video/mp4")
+    return FileResponse(out, media_type=typ)
