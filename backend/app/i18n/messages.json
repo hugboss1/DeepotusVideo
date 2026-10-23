@@ -184,6 +184,7 @@
   "musique.ambiance.corporate": {"fr": "Corporate clair", "en": "Bright corporate"},
   "musique.ambiance.tension": {"fr": "Tension", "en": "Tension"},
   "musique.ambiance.chill": {"fr": "Ambiance calme", "en": "Calm ambience"},
+  "agent.nom.campagnes": {"fr": "Agent Campagnes", "en": "Campaigns agent"},
   "particules.anim.black-smoke.nom": {"fr": "Fumée noire", "en": "Black smoke"},
   "particules.anim.explosion.nom": {"fr": "Explosion", "en": "Explosion"},
   "particules.anim.flash.nom": {"fr": "Flash", "en": "Flash"},

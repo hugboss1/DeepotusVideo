@@ -607,3 +607,74 @@ async def tirer_garde(moteur: str, modele: str, prompt: str, systeme: str, max_t
     return await loop.run_in_executor(
         None, lambda: tirer(moteur, modele, prompt, systeme, max_tokens, json, timeout=timeout, effort=effort,
                             images=ims))
+
+
+# ── un tour AVEC OUTILS (t285a, agent Campagnes, 23/10/2026) ──────────────────────────────────────────────────────
+# Spec docs/superpowers/specs/2026-10-23-agent-interne-design.md § 4.1. `tirer` rend du texte ; l'agent a besoin des
+# blocs `tool_use`. UN tour = UN POST sur l'API Messages (httpx, pas de SDK) ; la boucle (T6) l'enchaîne. La couture
+# `_POSTER` est remplacée par les bancs : jamais d'appel payant dans un banc.
+_POSTER = httpx.post
+_MODELE_AGENT_SECOURS = "claude-haiku-4-5-20251001"          # le défaut de ANTHROPIC_MODEL dans config.py
+
+
+def modele_agent() -> str:
+    """Le modèle de l'agent : AGENT_MODEL (Réglages › Modèles par défaut), sinon le modèle Anthropic des Réglages. Un
+    réglage qui ressemble à une clé n'est jamais rendu (même garde que `modele_sain`)."""
+    v = str(getattr(settings, "AGENT_MODEL", "") or "").strip()
+    if v and not ressemble_a_une_cle(v):
+        return v
+    return modele_sain("anthropic") or _MODELE_AGENT_SECOURS
+
+
+from app.i18n import msg as _msg                              # noqa: E402  (le nom de la ligne suit la langue)
+
+MOTEUR_AGENT = "agent"                       # l'identifiant de la ligne de Réglages › Modèles par défaut (jamais un moteur)
+
+
+def ligne_agent(lang: str | None = None) -> dict:
+    """La ligne « modèle de l'agent Campagnes » de Réglages › Modèles par défaut, au format de `etat()` : l'écran la
+    rend par le même composant que les moteurs. Elle ne vit pas dans `etat()` : l'agent n'est pas un moteur de texte."""
+    brut = str(getattr(settings, "AGENT_MODEL", "") or "").strip()
+    fautif = ressemble_a_une_cle(brut)
+    return {"moteur": MOTEUR_AGENT, "nom": _msg("agent.nom.campagnes", lang), "configure": configure("anthropic"),
+            "cle_modele": "AGENT_MODEL", "modele": "" if fautif else brut, "fautif": fautif,
+            "alerte": ALERTE_CLE if fautif else ""}
+
+
+MODELE_AGENT_DEFAUT = modele_agent()          # lu à l'import ; `modele_agent()` relit à chaud
+
+
+def op_tour(modele: str, in_tok: int, out_tok: int) -> dict:
+    """L'op d'estimation d'UN tour : `pricing.estimate` la chiffre au tarif du MODÈLE Claude (`pricing.taux_claude`,
+    id inconnu = tarif le plus haut), au tarif Anthropic du fournisseur si `modele` n'est pas un id Claude."""
+    return {"kind": "llm", "provider": "anthropic", "modele": str(modele or ""),
+            "in_tok": int(max(0, in_tok)), "out_tok": int(max(0, out_tok))}
+
+
+def converser(modele: str, systeme: str, messages: list[dict], outils: list[dict], max_tokens: int,
+              timeout: float = 120.0) -> dict:
+    """Un tour de l'API Messages d'Anthropic avec outils → {"blocs": [...], "arret": stop_reason, "in_tok", "out_tok"}.
+    Sans clé : RuntimeError("sans_cle"), rien n'est envoyé. Statut ≠ 200 : RuntimeError au corps rogné, la clé en est
+    ôtée (jamais dans un message, un journal ou un retour)."""
+    cle = str(getattr(settings, "ANTHROPIC_API_KEY", "") or "").strip()
+    if not cle:
+        raise RuntimeError("sans_cle")
+    body: dict = {"model": modele, "max_tokens": max_tokens, "messages": messages}
+    if systeme:
+        body["system"] = systeme
+    if outils:
+        body["tools"] = outils
+    r = _POSTER("https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": cle, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                json=body, timeout=timeout, verify=SSL_VERIFY)
+    if r.status_code != 200:
+        texte = str(r.text or "").replace(cle, "***")
+        raise RuntimeError(f"Anthropic HTTP {r.status_code} — {texte[:200]}")
+    try:
+        d = r.json() or {}
+    except Exception:  # noqa: BLE001 - corps 200 non JSON (proxy, page d'erreur)
+        texte = str(getattr(r, "text", "") or "").replace(cle, "***")
+        raise RuntimeError(f"Anthropic réponse illisible — {texte[:200]}")
+    u = d.get("usage") or {}
+    return {"blocs": list(d.get("content") or []), "arret": d.get("stop_reason") or "",
+            "in_tok": int(u.get("input_tokens") or 0), "out_tok": int(u.get("output_tokens") or 0)}

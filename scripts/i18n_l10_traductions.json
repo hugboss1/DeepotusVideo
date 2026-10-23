@@ -10410,5 +10410,137 @@
  "Rendu introuvable": {
   "fr": "Rendu introuvable",
   "en": "Render not found"
+ },
+ "sans_cle": {
+  "fr": "sans_cle",
+  "en": "sans_cle"
+ },
+ "rôle inconnu : {role}": {
+  "fr": "rôle inconnu : {role}",
+  "en": "unknown role: {role}"
+ },
+ "origine inconnue : {origine}": {
+  "fr": "origine inconnue : {origine}",
+  "en": "unknown origin: {origine}"
+ },
+ "cout_usd négatif": {
+  "fr": "cout_usd négatif",
+  "en": "negative cout_usd"
+ },
+ "conversation : id requis": {
+  "fr": "conversation : id requis",
+  "en": "conversation: id required"
+ },
+ "espace_id invalide : {espace_id}": {
+  "fr": "espace_id invalide : {espace_id}",
+  "en": "invalid espace_id: {espace_id}"
+ },
+ "dossier hors de l'espace": {
+  "fr": "dossier hors de l'espace",
+  "en": "folder outside the space"
+ },
+ "dossier hors du dossier des campagnes": {
+  "fr": "dossier hors du dossier des campagnes",
+  "en": "folder outside the campaigns folder"
+ },
+ "état de porte inconnu : {etat}": {
+  "fr": "état de porte inconnu : {etat}",
+  "en": "unknown gate state: {etat}"
+ },
+ "Anthropic réponse illisible — {v}": {
+  "fr": "Anthropic réponse illisible — {v}",
+  "en": "Anthropic response unreadable — {v}"
+ },
+ "Conversation introuvable.": {
+  "fr": "Conversation introuvable.",
+  "en": "Conversation not found."
+ },
+ "Conversation illisible : son fichier est mis de côté, rien n'a été écrit.": {
+  "fr": "Conversation illisible : son fichier est mis de côté, rien n'a été écrit.",
+  "en": "Unreadable conversation: its file was set aside, nothing was written."
+ },
+ "Espace inconnu ou archivé : {v}": {
+  "fr": "Espace inconnu ou archivé : {v}",
+  "en": "Unknown or archived space: {v}"
+ },
+ "plafond_usd : un nombre positif est requis.": {
+  "fr": "plafond_usd : un nombre positif est requis.",
+  "en": "plafond_usd: a positive number is required."
+ },
+ "conversation : objet attendu.": {
+  "fr": "conversation : objet attendu.",
+  "en": "conversation: object expected."
+ },
+ "Texte requis.": {
+  "fr": "Texte requis.",
+  "en": "Text required."
+ },
+ "Conversation occupée : une réponse est déjà en cours.": {
+  "fr": "Conversation occupée : une réponse est déjà en cours.",
+  "en": "Conversation busy: a reply is already in progress."
+ },
+ "decision : acceptee ou refusee.": {
+  "fr": "decision : acceptee ou refusee.",
+  "en": "decision: acceptee or refusee."
+ },
+ "job_id illisible.": {
+  "fr": "job_id illisible.",
+  "en": "Unreadable job_id."
+ },
+ "L'agent Campagnes n'est accessible que depuis ce PC.": {
+  "fr": "L'agent Campagnes n'est accessible que depuis ce PC.",
+  "en": "The Campaigns agent is only available from this PC."
+ },
+ "Carte introuvable.": {
+  "fr": "Carte introuvable.",
+  "en": "Card not found."
+ },
+ "Carte déjà décidée.": {
+  "fr": "Carte déjà décidée.",
+  "en": "Card already decided."
+ },
+ "Document trop lourd (15 Mo au plus).": {
+  "fr": "Document trop lourd (15 Mo au plus).",
+  "en": "Document too large (15 MB at most)."
+ },
+ "Fichier requis (champ « fichier »).": {
+  "fr": "Fichier requis (champ « fichier »).",
+  "en": "File required (\"fichier\" field)."
+ },
+ "Donne un fichier, un texte ou une URL.": {
+  "fr": "Donne un fichier, un texte ou une URL.",
+  "en": "Provide a file, a text or a URL."
+ },
+ "Document illisible.": {
+  "fr": "Document illisible.",
+  "en": "Unreadable document."
+ },
+ "URL http(s) attendue.": {
+  "fr": "URL http(s) attendue.",
+  "en": "http(s) URL expected."
+ },
+ "La conversation a déjà son espace : il ne change pas.": {
+  "fr": "La conversation a déjà son espace : il ne change pas.",
+  "en": "The conversation already has its space: it does not change."
+ },
+ "Espace requis.": {
+  "fr": "Espace requis.",
+  "en": "Space required."
+ },
+ "fichier : un nom de rendu simple est requis.": {
+  "fr": "fichier : un nom de rendu simple est requis.",
+  "en": "fichier: a plain render file name is required."
+ },
+ "fichier : rendu introuvable.": {
+  "fr": "fichier : rendu introuvable.",
+  "en": "fichier: render not found."
+ },
+ "Cette porte n'est plus la porte en cours : rien n'est validé.": {
+  "fr": "Cette porte n'est plus la porte en cours : rien n'est validé.",
+  "en": "This gate is no longer the current gate: nothing was validated."
+ },
+ "Le lot ne prend pas encore d'espace de campagne : lance les variations une à une.": {
+  "fr": "Le lot ne prend pas encore d'espace de campagne : lance les variations une à une.",
+  "en": "Batches do not support a campaign space yet: launch the variations one by one."
  }
 }

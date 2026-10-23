@@ -245,6 +245,21 @@ DEFAULTS = {
         "openai":    {"in": 0.15, "out": 0.60},
         "gemini":    {"in": 0.075, "out": 0.30},
     },
+    # t285a : Claude PAR MODÈLE ($ / 1M jetons), clé = préfixe de l'id (le plus long gagne). Tarifs publics relevés le
+    # 23/10/2026 : Haiku 4.5 1/5, Sonnet 3/15, Opus 4.5+ 5/25, Opus 4.1 et avant 15/75. Un id Claude inconnu prend le
+    # tarif LE PLUS HAUT de la table (devis prudent, jamais celui de Haiku). Sans « modele » dans l'op : le tarif du
+    # fournisseur ci-dessus, inchangé.
+    "llm_claude_usd_per_mtok": {
+        "claude-haiku":    {"in": 1.00,  "out": 5.00},
+        "claude-sonnet":   {"in": 3.00,  "out": 15.00},
+        "claude-opus":     {"in": 5.00,  "out": 25.00},
+        "claude-opus-4-1": {"in": 15.00, "out": 75.00},
+        "claude-opus-4-0": {"in": 15.00, "out": 75.00},
+        # t285a (revue finale) : l'id DATÉ d'Opus 4 (claude-opus-4-20250514) — sans cette ligne il tombait sous
+        # « claude-opus » (5/25), trois fois trop bas pour le devis et les plafonds
+        "claude-opus-4-2025": {"in": 15.00, "out": 75.00},
+        "claude-3":        {"in": 15.00, "out": 75.00},
+    },
     "monthly_budget_usd": 0.0,        # 0 = no cap
 }
 
@@ -293,6 +308,30 @@ def image_model_spec(model: str) -> tuple:
     return (_IMAGE_MODELS.get(model)
             or _IMAGE_MODELS_VECTEUR.get(model)
             or _IMAGE_MODELS["flux"])
+
+
+def _taux_valide(x) -> bool:
+    """t285a : un tarif utilisable = un nombre (pas un booléen) fini et positif ou nul."""
+    return (isinstance(x, (int, float)) and not isinstance(x, bool)
+            and x == x and x not in (float("inf"), float("-inf")) and x >= 0)
+
+
+def taux_claude(modele: str, p: dict | None = None) -> dict:
+    """t285a : {"in", "out"} $ / 1M jetons d'un modèle Claude. Table de la grille (surcharge de l'utilisateur FUSIONNÉE
+    sur les défauts) ; préfixe le plus long ; id inconnu -> le tarif le plus haut connu."""
+    table = {k: dict(v) for k, v in DEFAULTS["llm_claude_usd_per_mtok"].items()}
+    user = (p or {}).get("llm_claude_usd_per_mtok")
+    if isinstance(user, dict):
+        for k, v in user.items():
+            # t285a (revue finale) : une ligne dont in/out ne sont pas des nombres finis >= 0 est IGNORÉE (jamais
+            # d'exception : le devis et les plafonds passent par ici)
+            if isinstance(k, str) and isinstance(v, dict) and _taux_valide(v.get("in")) and _taux_valide(v.get("out")):
+                table[k] = {"in": float(v["in"]), "out": float(v["out"])}
+    m = str(modele or "").strip().lower()
+    for pref in sorted(table, key=len, reverse=True):
+        if m.startswith(pref.lower()):
+            return table[pref]
+    return max(table.values(), key=lambda v: (float(v["out"]), float(v["in"])))
 
 
 def load() -> dict:
@@ -902,6 +941,8 @@ def estimate(op: dict, p: dict | None = None) -> dict:
             lines.append(dict(_line(prov, "LLM tokens", it + ot, "tok", usd), a_mesurer=True))
         else:
             rates = p["llm_usd_per_mtok"].get(prov, p["llm_usd_per_mtok"]["openai"])
+            if prov == "anthropic" and str(op.get("modele") or "").strip().lower().startswith("claude"):
+                rates = taux_claude(op["modele"], p)            # t285a : le prix du MODÈLE, pas celui de Haiku
             usd = it / 1e6 * rates["in"] + ot / 1e6 * rates["out"]
             lines.append(_line(prov, "LLM tokens", it + ot, "tok", usd))
     elif kind in ("composition", "campaign"):

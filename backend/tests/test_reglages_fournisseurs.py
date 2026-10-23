@@ -170,10 +170,10 @@ with TestClient(app) as c:
           and CLE_G[:8] not in r.text, r.text[:300])
     check("L4 jamais effacée du .env", f"GEMINI_MODEL={CLE_G}" in env())
     check("L5 chaque moteur a sa ligne (configuré ou non) et le réglage de son modèle",
-          [m["moteur"] for m in j["moteurs"]] == ["anthropic", "openai", "gemini", "ollama"]
+          [m["moteur"] for m in j["moteurs"]] == ["anthropic", "openai", "gemini", "ollama", "agent"]   # t285a : + ligne agent
           and {m["moteur"]: m["cle_modele"] for m in j["moteurs"]}["openai"] == "OPENAI_MODEL"
           and {m["moteur"]: m["configure"] for m in j["moteurs"]} == {"anthropic": False, "openai": True,
-                                                                      "gemini": True, "ollama": False})
+                                                                      "gemini": True, "ollama": False, "agent": False})
 
     print("[D] Diagnostic")
     r = c.get("/api/reglages/diagnostic")

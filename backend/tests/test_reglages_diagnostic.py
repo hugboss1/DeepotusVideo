@@ -150,7 +150,7 @@ keys_ecran |= set(re.findall(r'name:"([A-Z_]+)"', wm))
 tm = BUNDLE[BUNDLE.find("function Tm("):BUNDLE.find("function Tm(") + 9000]
 comptes = set(re.findall(r'k:"([A-Z][A-Z_]+)"', tm))
 zm = tranche("function zm(", "function Cm(") + tranche("function DzNewsLecteur(", "function DzDiag(")
-fourn = set(MT.CLE_MODELE.values()) | {"SUMMARIZER_PROVIDER", "PLANNER_PROVIDER"}
+fourn = set(MT.CLE_MODELE.values()) | {"SUMMARIZER_PROVIDER", "PLANNER_PROVIDER", "AGENT_MODEL"}   # t285a : AGENT_MODEL = ligne_agent()
 vide = []
 for k, ru in T.items():
     if ru == "keys" and k not in keys_ecran:

@@ -157,6 +157,8 @@ class GenerateRequest(BaseModel):
     # l'estimation serveur -> 402, rien n'est généré. Sans lui, seul le
     # plafond `video_max_usd_per_request` de pricing.json s'applique.
     max_usd: Optional[float] = None  # validé par la route (_garde_cout)
+    # t285a (agent interne §5) : l'espace NOMMÉ du tir (une campagne) ; validé par la route (400), absent = l'actif
+    espace_id: Optional[str] = None
 
     style: StylePreset = StylePreset.HYBRID
     camera: Optional[CameraMove] = None
