@@ -77,7 +77,7 @@ class MediaError(RuntimeError):
 # leur extension (peaks → .json, proxy → .mp4, strip → .jpg, vérifié sur sept
 # valeurs), mais une seule des trois par le chemin prévu. On lit donc la
 # famille explicitement, et un genre inconnu LÈVE au lieu de devenir un .jpg.
-_EXT = {"peaks": ".json", "strip": ".jpg", "proxy": ".mp4", "stab": ".trf"}
+_EXT = {"peaks": ".json", "strip": ".jpg", "proxy": ".mp4", "stab": ".trf", "calque": ".webm"}
 _RE_FAMILLE = re.compile(r"^[a-z]+")
 
 # 2 000 échantillons par seconde : 300 cases pour 10 minutes de musique font
@@ -430,3 +430,63 @@ def stab_detect(src) -> Path:
 
 _STAB_LOCKS: dict = {}            # chemin de cache → Lock (voir stab_detect)
 _STAB_GUARD = threading.Lock()
+
+
+# t282 (23/10/2026) — L'APERÇU DE CALQUE. Le lecteur vivant du Montage pose un <video> par overlay ; Chromium ne
+# décode ni le QuickTime Animation (qtrle, argb), ni le ProRes 4444, ni le codec png du QuickTime : l'élément restait
+# vide et l'overlay invisible (campagne pilote du 22-23/10, mix 60 s en couches). Une source que le navigateur sait
+# lire (h264, vp8, vp9 — alpha WebM compris —, av1) est rendue TELLE QUELLE ; toute autre devient un WebM VP9 +
+# alpha (`alpha_mode=1`), 480 px de haut au plus, en cache comme le proxy. MESURÉ sur le mix (60 s, 1080², qtrle) :
+# 8,7 s d'encodage en `-deadline realtime -cpu-used 8`, 2,6 Mo. Une source opaque d'un autre codec (hevc .mov…)
+# reçoit un alpha plein : rien ne se perd.
+_CODECS_NAVIGATEUR = frozenset({"h264", "vp8", "vp9", "av1"})
+_CALQUE_LOCKS: dict = {}          # chemin de cache → Lock (même parade que stab_detect)
+_CALQUE_GUARD = threading.Lock()
+
+
+def _codec_video(src) -> str:
+    """Le codec du premier flux vidéo de `src` (ffprobe), "" s'il est illisible."""
+    r = _run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name",
+              "-of", "json", str(src)], timeout=60, quoi="la sonde du calque")
+    try:
+        ss = json.loads((r.stdout or b"{}").decode("utf-8", errors="replace")).get("streams") or []
+    except ValueError:
+        ss = []
+    return str((ss[0] if ss else {}).get("codec_name") or "")
+
+
+def calque_necessaire(src) -> bool:
+    """Vrai si le navigateur ne sait pas lire `src` tel quel (codec hors de `_CODECS_NAVIGATEUR`)."""
+    return _codec_video(src) not in _CODECS_NAVIGATEUR
+
+
+def calque_path(src) -> Path:
+    """Le chemin de cache de l'aperçu de calque, SANS le construire."""
+    return _cache_path(src, "calque")
+
+
+def calque(src) -> Path:
+    """La vidéo d'overlay que le lecteur vivant peut afficher : `src` lui-même s'il est lisible par le navigateur,
+    sinon un WebM VP9 + alpha ≤ 480 px de haut, fabriqué une fois (verrou par cible, écriture atomique)."""
+    if not calque_necessaire(src):
+        return Path(src)
+    out = calque_path(src)
+    with _CALQUE_GUARD:
+        lk = _CALQUE_LOCKS.setdefault(str(out), threading.Lock())
+    with lk:
+        if out.exists():
+            return out
+        tmp = _tmp_de(out)
+        try:
+            r = _run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-an", "-vf",
+                      "scale=-2:'min(480,trunc(ih/2)*2)',format=yuva420p",
+                      "-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8", "-row-mt", "1",
+                      "-crf", "36", "-b:v", "0", str(tmp)],
+                     timeout=max(600, int((_dur(src) or 0) * 2) + 60), quoi="l'aperçu de calque")
+            if r.returncode != 0 or not tmp.exists() or tmp.stat().st_size == 0:
+                raise MediaError("aperçu de calque impossible pour « %s » — %s"
+                                 % (Path(src).name, _lignes_utiles(r.stderr)))
+            return _ecrire(tmp, out)
+        finally:
+            if not out.exists():
+                tmp.unlink(missing_ok=True)

@@ -515,4 +515,7 @@ ENTREES = [
     S(174255, 'var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\r\n      if(lv.style.transform!==dzT)lv.style.transform=dzT;',
       'var dzZ=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\r\n      if(lv.style.transform!==dzZ)lv.style.transform=dzZ;',
       {}),
+    # t282 (23/10/2026) — changement FONCTIONNEL posé APRÈS L4 : le lecteur vivant lit un overlay (rôle « o ») sur
+    # son aperçu de calque (svU, fin de couche : entrée t188 de montage_d.py), à LONGUEUR ÉGALE (tables L4 et G1).
+    S(167555, 'el.src="/api/jobs/"+src.job_id+"/video";', 'el.src=svU(src,role);/* t282 : calque */', {}),
 ]
