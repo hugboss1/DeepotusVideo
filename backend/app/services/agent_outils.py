@@ -17,11 +17,12 @@ import ipaddress
 import json
 import os
 import re
+import socket
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import httpx
 from sqlalchemy import select
@@ -248,11 +249,35 @@ def _hote_local(hote: str) -> bool:
 
 
 def _url_sure(url: str) -> None:
+    """Contrôle de forme seulement (schéma, hôte littéral) ; la résolution est vérifiée par `_resoudre_sur`."""
     u = urlsplit(url)
     if u.scheme not in ("http", "https") or not u.hostname:
         raise _Refus("URL refusée : http ou https seulement")
     if _hote_local(u.hostname):
         raise _Refus("URL refusée : adresse locale ou privée")
+
+
+_GETADDRINFO = socket.getaddrinfo      # couture du banc (aucun DNS réel)
+
+
+async def _resoudre_sur(hote: str, port: int) -> str:
+    """Résout l'hôte et rend une adresse à épingler ; refus si UNE SEULE des adresses est locale ou privée
+    (localtest.me, 127.0.0.1.nip.io…)."""
+    try:
+        infos = await asyncio.to_thread(_GETADDRINFO, hote, port, 0, socket.SOCK_STREAM)
+    except (OSError, UnicodeError):
+        raise _Refus("URL : hôte introuvable")
+    ips = []
+    for info in infos or []:
+        try:
+            ips.append(ipaddress.ip_address(str(info[4][0]).split("%")[0]))
+        except (ValueError, IndexError, TypeError):
+            raise _Refus("URL : adresse illisible")
+    if not ips:
+        raise _Refus("URL : hôte introuvable")
+    if any(_hote_local(str(ip)) for ip in ips):
+        raise _Refus("URL refusée : l'hôte pointe vers une adresse locale ou privée")
+    return str(ips[0])
 
 
 def _texte_html(brut: str) -> str:
@@ -262,30 +287,84 @@ def _texte_html(brut: str) -> str:
     return "\n".join(x for x in lignes if x)
 
 
+def _charset(entete: str) -> str:
+    m = re.search(r"charset=([\w.-]+)", entete or "", re.I)
+    return m.group(1) if m else "utf-8"
+
+
 async def _telecharger(url: str) -> str:
-    """Le texte d'une page : redirections suivies À LA MAIN (chaque étape revérifiée), 20 s, 5 Mo au plus."""
+    """Le texte d'une page. À chaque étape (redirections suivies À LA MAIN, 3 au plus) : forme de l'URL vérifiée,
+    hôte RÉSOLU et toutes ses adresses vérifiées, connexion ÉPINGLÉE sur l'adresse vérifiée (URL en IP, en-tête Host,
+    SNI = nom d'hôte pour TLS) : un rebinding DNS entre le contrôle et la connexion ne change pas la cible.
+    20 s, lecture arrêtée à 5 Mo."""
     async with httpx.AsyncClient(timeout=DELAI_URL, follow_redirects=False, verify=config.SSL_VERIFY) as client:
         for _ in range(MAX_REDIRECTIONS + 1):
             _url_sure(url)
-            r = await client.get(url, headers={"User-Agent": "DeepotusVideoGen-agent/1"})
-            if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("location"):
-                url = urljoin(url, r.headers["location"])
-                continue
-            break
+            u = urlsplit(url)
+            port = u.port or (443 if u.scheme == "https" else 80)
+            ip = await _resoudre_sur(u.hostname, port)
+            hote_ip = f"[{ip}]" if ":" in ip else ip
+            cible = urlunsplit((u.scheme, f"{hote_ip}:{port}", u.path or "/", u.query, ""))
+            hote = u.hostname if u.port is None else f"{u.hostname}:{u.port}"
+            ext = {"sni_hostname": u.hostname} if u.scheme == "https" else {}
+            async with client.stream("GET", cible, headers={"Host": hote, "User-Agent": "DeepotusVideoGen-agent/1"},
+                                     extensions=ext) as r:
+                if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("location"):
+                    url = urljoin(url, r.headers["location"])
+                    continue
+                if r.status_code >= 400:
+                    raise _Refus(f"URL : réponse {r.status_code}")
+                morceaux, n = [], 0
+                async for bloc in r.aiter_bytes():
+                    morceaux.append(bloc)
+                    n += len(bloc)
+                    if n >= MAX_TELECHARGE:
+                        break
+                data = b"".join(morceaux)[:MAX_TELECHARGE]
+                entete = r.headers.get("content-type") or ""
+                break
         else:
             raise _Refus("URL : trop de redirections")
-    if r.status_code >= 400:
-        raise _Refus(f"URL : réponse {r.status_code}")
-    data = r.content[:MAX_TELECHARGE]
-    genre = (r.headers.get("content-type") or "").split(";")[0].strip().lower()
+    genre = entete.split(";")[0].strip().lower()
     if genre in ("text/html", "application/xhtml+xml"):
-        return _texte_html(data.decode(r.encoding or "utf-8", errors="replace"))
+        return _texte_html(data.decode(_charset(entete), errors="replace"))
     if genre.startswith("text/") or genre in ("application/json", "application/xml"):
-        return data.decode(r.encoding or "utf-8", errors="replace")
+        return data.decode(_charset(entete), errors="replace")
     if genre == "application/pdf":
         from app.services.marketing import extract_document_text
         return await asyncio.to_thread(extract_document_text, "page.pdf", data)
     raise _Refus(f"URL : type de contenu non lisible ({genre or 'inconnu'})")
+
+
+_URL_TEXTE = re.compile(r"https?://[^\s<>\"'`]+", re.I)
+
+
+def _url_normale(url: str) -> str | None:
+    try:
+        u = urlsplit(str(url).strip().rstrip(".,;:!?)]}»"))
+        if u.scheme.lower() not in ("http", "https") or not u.hostname:
+            return None
+        defaut = 443 if u.scheme.lower() == "https" else 80
+        port = u.port if u.port not in (None, defaut) else None
+    except ValueError:
+        return None
+    hote = u.hostname.lower() + (f":{port}" if port else "")
+    return urlunsplit((u.scheme.lower(), hote, u.path or "/", u.query, ""))
+
+
+def _urls_collees(messages: list) -> set:
+    """Les URL ENTIÈRES (normalisées) que l'utilisateur a écrites dans la conversation."""
+    out = set()
+    for m in messages:
+        if m.get("role") != "utilisateur":
+            continue
+        for b in m.get("blocs") or []:
+            if b.get("type") == "texte":
+                for brut in _URL_TEXTE.findall(b.get("texte") or ""):
+                    n = _url_normale(brut)
+                    if n:
+                        out.add(n)
+    return out
 
 
 async def lire_document(ctx: Ctx, depot: str | None = None, url: str | None = None) -> dict:
@@ -306,9 +385,8 @@ async def lire_document(ctx: Ctx, depot: str | None = None, url: str | None = No
                              "tronque": len(texte) > MAX_DOC})
         raise _Refus("dépôt inconnu")
     u = str(url).strip()
-    colles = [b.get("texte") or "" for m in l["messages"] if m.get("role") == "utilisateur"
-              for b in m.get("blocs") or [] if b.get("type") == "texte"]
-    if not u or not any(u in t for t in colles):
+    n = _url_normale(u)
+    if not n or n not in _urls_collees(l["messages"]):
         raise _Refus("URL refusée : seule une URL collée par l'utilisateur dans cette conversation se lit")
     _url_sure(u)
     texte = await _telecharger(u)
@@ -323,7 +401,8 @@ def _chemin_confine(base: Path, chemin: str) -> Path:
     if not c or len(c) > 200 or c.startswith("/") or ":" in c or c.endswith("/"):
         raise _Refus("chemin refusé : relatif au dossier de la campagne")
     morceaux = c.split("/")
-    if len(morceaux) > 4 or any(m in ("", ".", "..") for m in morceaux):
+    if len(morceaux) > 4 or any(m in ("", ".", "..") or m.endswith((".", " ")) or m != m.strip()
+                                for m in morceaux):
         raise _Refus("chemin refusé : relatif au dossier de la campagne")
     if morceaux[0].lower() == "depots" or morceaux[-1].lower() == "conversation.json":
         raise _Refus("chemin réservé à l'application")
@@ -333,6 +412,8 @@ def _chemin_confine(base: Path, chemin: str) -> Path:
     p = (racine / c).resolve()
     if not p.is_relative_to(racine) or p == racine:
         raise _Refus("chemin refusé : hors du dossier de la campagne")
+    if p.relative_to(racine).parts[0].lower() == "depots" or p.name.lower() == "conversation.json":
+        raise _Refus("chemin réservé à l'application")
     return p
 
 
