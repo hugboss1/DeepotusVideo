@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 from typing import AsyncIterator
 
 from fastapi import HTTPException
@@ -36,6 +37,11 @@ DOCS = agent_aide.DOSSIER / "campagnes"
 IDS_JETON = ("deepotus", "deepotus-jeton")      # l'espace du jeton $DEEPOTUS (migration t200 : « deepotus »)
 _MARQUES_JETON = ("$deepotus", "memecoin")      # persona dont le nom ou les mots d'ambiance disent le jeton
 MAX_PERSONA = 6000                    # caractères de persona dans le système
+CARS_PAR_JETON = 3                    # prudent : le français est plus près de 3 que de 4 caractères par jeton
+SURCOUT_OUTILS = 1000                 # jetons que l'API ajoute d'elle-même (préambule d'outils, gabarit du système)
+APPEL_TRONQUE = ("appel tronqué : la réponse a été coupée à la limite de sortie avant la fin de cet appel, il n'a "
+                 "pas été exécuté ; recommence avec un appel plus court")
+_VERROUS: dict[str, asyncio.Lock] = {}  # un seul `tour` à la fois par conversation (double envoi)
 TEXTE_CONTINUER = {"fr": "Continue là où tu t'es arrêté.", "en": "Continue where you left off."}
 
 ROLES = {
@@ -155,9 +161,10 @@ def _historique(messages: list, texte: str | None = None) -> list[dict]:
 
 
 def _jetons(systeme_: str, messages: list, outils: list) -> int:
-    """~4 caractères par jeton, comme `moteurs_texte.estimer`."""
+    """Jetons d'entrée d'un appel, estimés PAR EXCÈS (le plafond ne doit jamais être dépassé) : CARS_PAR_JETON
+    caractères par jeton sur le système, les messages et le JSON des définitions d'outils, plus SURCOUT_OUTILS."""
     n = len(systeme_) + len(json.dumps(messages, ensure_ascii=False)) + len(json.dumps(outils, ensure_ascii=False))
-    return -(-n // 4)
+    return -(-n // CARS_PAR_JETON) + SURCOUT_OUTILS
 
 
 def _usd(op: dict) -> float:
@@ -205,9 +212,28 @@ async def tour(cid: str, texte: str, plafond_usd: float, lang: str = "fr") -> As
     lang = "en" if lang == "en" else "fr"
     if not cle_presente():                                # avant toute écriture : T7 rend 503
         raise RuntimeError("sans_cle")
+    verrou = _VERROUS.setdefault(cid, asyncio.Lock())
+    if verrou.locked():                                   # pris sans aucun await avant : aucun second tour en parallèle
+        yield {"type": "erreur", "code": "occupee", "message": "conversation occupée"}
+        return
+    async with verrou:
+        try:
+            async for e in _tour(cid, texte, plafond_usd, lang):
+                yield e
+        finally:
+            if _VERROUS.get(cid) is verrou:
+                _VERROUS.pop(cid, None)
+
+
+async def _tour(cid: str, texte: str, plafond_usd: float, lang: str) -> AsyncIterator[dict]:
     conv = await _conv(cid)
     texte = str(texte or "")
-    plafond = float(plafond_usd or 0.0)
+    try:
+        plafond = float(plafond_usd or 0.0)
+    except (TypeError, ValueError):
+        plafond = 0.0
+    if not math.isfinite(plafond) or plafond < 0:         # NaN ou infini désarmeraient la comparaison
+        plafond = 0.0
     modele = MT.modele_agent()
     outils = ao.definitions()
     sys_ = systeme(conv, lang)
@@ -228,7 +254,7 @@ async def tour(cid: str, texte: str, plafond_usd: float, lang: str = "fr") -> As
             yield {"type": "fin", "motif": "plafond", "cout_usd": depense}
             return
         try:
-            await plafonds.verifier(op, CATEGORIE, ref=cid, espace_id=conv.get("espace_id"))
+            garde = await plafonds.verifier(op, CATEGORIE, ref=cid, espace_id=conv.get("espace_id"))
         except HTTPException as e:
             if e.status_code != 402:
                 raise
@@ -240,10 +266,13 @@ async def tour(cid: str, texte: str, plafond_usd: float, lang: str = "fr") -> As
         try:
             r = await asyncio.to_thread(MT.converser, modele, sys_, msgs, outils, SORTIE_MAX)
         except Exception as e:  # noqa: BLE001 — HTTP, délai, réseau : un évènement, jamais une trace (clé ôtée par converser)
+            await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], 0.0)   # rien n'a été facturé
             yield {"type": "erreur", "code": "sans_cle" if str(e) == "sans_cle" else "moteur", "message": str(e)[:300]}
             return
         cout = _usd(MT.op_tour(modele, r["in_tok"], r["out_tok"]))
         depense += cout
+        await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], cout)   # les lignes de CE tour seulement
+        tronque = r.get("arret") == "max_tokens"
         blocs_api = list(r.get("blocs") or [])
         msgs.append({"role": "assistant", "content": blocs_api})
         blocs: list[dict] = []
@@ -259,6 +288,13 @@ async def tour(cid: str, texte: str, plafond_usd: float, lang: str = "fr") -> As
             if carte_vue:                                  # une carte attend l'utilisateur : rien d'autre ne s'exécute
                 break
             nom = b.get("name")
+            if tronque:                                    # entrée peut-être coupée : jamais exécutée
+                blocs.append({"type": "resultat_outil", "outil": str(nom)[:60], "resume": APPEL_TRONQUE[:500]})
+                evts.append({"type": "outil", "nom": nom, "ok": False, "resume": APPEL_TRONQUE})
+                resultats.append({"type": "tool_result", "tool_use_id": b.get("id"), "is_error": True,
+                                  "content": json.dumps({"ok": False, "resume": APPEL_TRONQUE, "donnees": None},
+                                                        ensure_ascii=False)})
+                continue
             args = dict(b.get("input") or {}) if isinstance(b.get("input"), dict) else {}
             ligne = await _conv(cid)                       # l'espace DE LA CONVERSATION, la porte à jour
             if ligne.get("role") == "bilan" and nom == "lire_planificateur":

@@ -273,58 +273,60 @@ async def main():
 
     # ---- test_verifier_appele_par_tour_avec_espace ---------------------------------------------------------------
     vrai = plafonds.verifier
-    vus = []
-    async def espion(op, categorie="", ref=None, confirme=None, espace_id=None):
-        vus.append((op, categorie, ref, espace_id))
-        return {"devis": pricing.estimate(op), "lignes": [], "etat": {}}
-    plafonds.verifier = espion
-    conv6 = await st.creer("campagnes", B, "Garde")
-    c6 = conv6["id"]
-    s = Script([outil("lire_espace", {}), texte("Fini.")]); MT._POSTER = s
-    await derouler(c6, "Lis l'espace.", 1.0)
-    check("test_verifier_appele_par_tour_avec_espace : une garde par tour", len(vus) == 2, str(len(vus)))
-    check("verifier : catégorie campagnes, ref = conversation, espace B (A est actif)",
-          all(v[1] == "campagnes" and v[2] == c6 and v[3] == B for v in vus) and espaces.lire()["actif"] == A,
-          str([v[1:] for v in vus]))
-    check("verifier : op du tour (op_tour du modèle de l'agent, sortie SORTIE_MAX)",
-          all(v[0].get("kind") == "llm" and v[0].get("provider") == "anthropic" and v[0].get("modele") == MODELE
-              and v[0].get("out_tok") == AC.SORTIE_MAX and v[0].get("in_tok") > 0 for v in vus), str(vus[0][0]))
-    check("verifier : l'outil a lu l'espace DE LA CAMPAGNE",
-          json.loads(s.corps[1]["messages"][-1]["content"][0]["content"])["donnees"]["espace"]["id"] == B)
+    try:
+        vus = []
+        async def espion(op, categorie="", ref=None, confirme=None, espace_id=None):
+            vus.append((op, categorie, ref, espace_id))
+            return {"devis": pricing.estimate(op), "lignes": [], "etat": {}}
+        plafonds.verifier = espion
+        conv6 = await st.creer("campagnes", B, "Garde")
+        c6 = conv6["id"]
+        s = Script([outil("lire_espace", {}), texte("Fini.")]); MT._POSTER = s
+        await derouler(c6, "Lis l'espace.", 1.0)
+        check("test_verifier_appele_par_tour_avec_espace : une garde par tour", len(vus) == 2, str(len(vus)))
+        check("verifier : catégorie campagnes, ref = conversation, espace B (A est actif)",
+              all(v[1] == "campagnes" and v[2] == c6 and v[3] == B for v in vus) and espaces.lire()["actif"] == A,
+              str([v[1:] for v in vus]))
+        check("verifier : op du tour (op_tour du modèle de l'agent, sortie SORTIE_MAX)",
+              all(v[0].get("kind") == "llm" and v[0].get("provider") == "anthropic" and v[0].get("modele") == MODELE
+                  and v[0].get("out_tok") == AC.SORTIE_MAX and v[0].get("in_tok") > 0 for v in vus), str(vus[0][0]))
+        check("verifier : l'outil a lu l'espace DE LA CAMPAGNE",
+              json.loads(s.corps[1]["messages"][-1]["content"][0]["content"])["donnees"]["espace"]["id"] == B)
 
-    # refus 402 au premier tour : erreur, aucun appel, AUCUN message orphelin
-    async def refus(op, categorie="", ref=None, confirme=None, espace_id=None):
-        vus.append((op, categorie, ref, espace_id))
-        raise HTTPException(402, {"dz_plafond": {"motif": "global", "message": "plafond atteint"}})
-    plafonds.verifier = refus
-    conv7 = await st.creer("campagnes", B, "Refus")
-    c7 = conv7["id"]
-    s = Script([texte("jamais")]); MT._POSTER = s
-    ev = await derouler(c7, "Bonjour.", 1.0)
-    l = await st.lire(c7)
-    check("refus 402 : évènement erreur dz_plafond", ev and ev[-1]["type"] == "erreur"
-          and ev[-1].get("code") == "dz_plafond" and ev[-1].get("statut") == 402
-          and "dz_plafond" in (ev[-1].get("detail") or {}), str(ev))
-    check("refus 402 : aucun appel, aucun message écrit", s.corps == [] and l["messages"] == [] and l["cout_usd"] == 0)
+        # refus 402 au premier tour : erreur, aucun appel, AUCUN message orphelin
+        async def refus(op, categorie="", ref=None, confirme=None, espace_id=None):
+            vus.append((op, categorie, ref, espace_id))
+            raise HTTPException(402, {"dz_plafond": {"motif": "global", "message": "plafond atteint"}})
+        plafonds.verifier = refus
+        conv7 = await st.creer("campagnes", B, "Refus")
+        c7 = conv7["id"]
+        s = Script([texte("jamais")]); MT._POSTER = s
+        ev = await derouler(c7, "Bonjour.", 1.0)
+        l = await st.lire(c7)
+        check("refus 402 : évènement erreur dz_plafond", ev and ev[-1]["type"] == "erreur"
+              and ev[-1].get("code") == "dz_plafond" and ev[-1].get("statut") == 402
+              and "dz_plafond" in (ev[-1].get("detail") or {}), str(ev))
+        check("refus 402 : aucun appel, aucun message écrit", s.corps == [] and l["messages"] == [] and l["cout_usd"] == 0)
 
-    # refus au SECOND tour : le premier reste payé et écrit, la boucle s'arrête
-    n = {"i": 0}
-    async def refus_second(op, categorie="", ref=None, confirme=None, espace_id=None):
-        n["i"] += 1
-        if n["i"] == 2:
-            raise HTTPException(402, {"dz_plafond": {"motif": "espace"}})
-        return {"devis": pricing.estimate(op), "lignes": [], "etat": {}}
-    plafonds.verifier = refus_second
-    conv8 = await st.creer("campagnes", B, "Refus 2")
-    c8 = conv8["id"]
-    s = Script([outil("chercher_app", {"question": "x"}, 1000, 100), texte("jamais")]); MT._POSTER = s
-    ev = await derouler(c8, "Cherche.", 1.0)
-    l = await st.lire(c8)
-    check("refus au second tour : un seul appel, erreur à la fin", len(s.corps) == 1 and ev[-1]["type"] == "erreur")
-    check("refus au second tour : utilisateur + premier tour écrits et payés",
-          [m["role"] for m in l["messages"]] == ["utilisateur", "agent"]
-          and abs(l["cout_usd"] - cout(1000, 100)) < 1e-12, str(l)[:200])
-    plafonds.verifier = vrai
+        # refus au SECOND tour : le premier reste payé et écrit, la boucle s'arrête
+        n = {"i": 0}
+        async def refus_second(op, categorie="", ref=None, confirme=None, espace_id=None):
+            n["i"] += 1
+            if n["i"] == 2:
+                raise HTTPException(402, {"dz_plafond": {"motif": "espace"}})
+            return {"devis": pricing.estimate(op), "lignes": [], "etat": {}}
+        plafonds.verifier = refus_second
+        conv8 = await st.creer("campagnes", B, "Refus 2")
+        c8 = conv8["id"]
+        s = Script([outil("chercher_app", {"question": "x"}, 1000, 100), texte("jamais")]); MT._POSTER = s
+        ev = await derouler(c8, "Cherche.", 1.0)
+        l = await st.lire(c8)
+        check("refus au second tour : un seul appel, erreur à la fin", len(s.corps) == 1 and ev[-1]["type"] == "erreur")
+        check("refus au second tour : utilisateur + premier tour écrits et payés",
+              [m["role"] for m in l["messages"]] == ["utilisateur", "agent"]
+              and abs(l["cout_usd"] - cout(1000, 100)) < 1e-12, str(l)[:200])
+    finally:                                   # jamais une garde factice laissée en place
+        plafonds.verifier = vrai
 
     # ---- test_systeme_crypto_seulement_espace_jeton --------------------------------------------------------------
     MARQUE = "Grille de conformité"
@@ -372,6 +374,97 @@ async def main():
     check("bilan : bilan.md et apprentissages.md écrits dans le dossier",
           l["dossier"] and (dossier / "bilan.md").is_file() and (dossier / "apprentissages.md").is_file(), str(l["dossier"]))
     check("bilan : fin", ev[-1]["type"] == "fin" and ev[-1].get("motif") == "reponse", str(ev[-1]))
+
+    # ==== reprise 1 de la revue (plafond inviolable, registre réconcilié, envoi unique) ============================
+
+    # ---- I1 : l'estimation d'entrée est PAR EXCÈS ----------------------------------------------------------------
+    def n_caracteres(conv_, t):
+        return (len(AC.systeme(conv_, "fr")) + len(json.dumps(AC._historique(conv_["messages"], t), ensure_ascii=False))
+                + len(json.dumps(ao.definitions(), ensure_ascii=False)))
+    ce = await st.creer("campagnes", B, "Estimation")
+    cev = await st.lire(ce["id"])
+    n0 = n_caracteres(cev, "Lance.")
+    ancien = -(-n0 // 4)                                     # l'ancienne estimation (4 caractères par jeton)
+    plaf_ancien = cout(ancien, AC.SORTIE_MAX)                # le plafond qui laissait passer l'ancien premier tour
+    reel_in = -(-n0 // 3)                                    # le vrai tour coûte plus que l'ancienne estimation
+    check("I1 préparation : le réel dépasse l'ancienne estimation", cout(reel_in, AC.SORTIE_MAX) > plaf_ancien)
+    s = Script([], boucle=outil("chercher_app", {"question": "x"}, reel_in, AC.SORTIE_MAX)); MT._POSTER = s
+    ev = await derouler(ce["id"], "Lance.", plaf_ancien)
+    l = await st.lire(ce["id"])
+    check("I1 estimation prudente : aucun dépassement, carte continuer plutôt qu'un appel",
+          l["cout_usd"] <= plaf_ancien + 1e-12 and s.corps == []
+          and any(e["type"] == "carte" and e["carte"]["genre"] == "continuer" for e in ev), str((l["cout_usd"], ev))[:300])
+    ce2 = await st.creer("campagnes", B, "Estimation 2")
+    s = Script([], boucle=outil("chercher_app", {"question": "x"}, reel_in + 900, AC.SORTIE_MAX)); MT._POSTER = s
+    ev = await derouler(ce2["id"], "Lance.", 0.02)
+    l = await st.lire(ce2["id"])
+    check("I1 boucle : au moins un tour, cumul ≤ plafond, arrêt par continuer",
+          len(s.corps) >= 1 and l["cout_usd"] <= 0.02 + 1e-12 and ev[-1].get("motif") == "plafond",
+          str((len(s.corps), l["cout_usd"], ev[-1])))
+
+    # ---- I2 : NaN et infini ne désarment pas le plafond ----------------------------------------------------------
+    for v in (float("nan"), float("inf"), -1.0):
+        cn = await st.creer("campagnes", B, f"Plafond {v}")
+        s = Script([texte("jamais")]); MT._POSTER = s
+        ev = await derouler(cn["id"], "Bonjour.", v)
+        l = await st.lire(cn["id"])
+        check(f"I2 plafond {v} : aucun appel, rien d'écrit, carte continuer",
+              s.corps == [] and l["messages"] == [] and l["cout_usd"] == 0
+              and any(e["type"] == "carte" and e["carte"]["genre"] == "continuer" for e in ev), str(ev)[:200])
+
+    # ---- F3 : le registre reçoit le RÉEL sur les lignes du tour, et seulement elles ------------------------------
+    lignes = await depenses(c3)
+    check("F3 la ligne du tour porte le réel = coût ajouté à la conversation",
+          len(lignes) == 1 and lignes[0].reel_usd is not None and abs(lignes[0].reel_usd - UN) < 1e-12,
+          str([(x.estime_usd, x.reel_usd) for x in lignes]))
+    cr = await st.creer("campagnes", B, "Registre")
+    s = Script([outil("chercher_app", {"question": "x"}, 1000, 100), texte("Fin.", 1200, 50)]); MT._POSTER = s
+    await derouler(cr["id"], "Cherche.", 1.0)
+    lignes = sorted(await depenses(cr["id"]), key=lambda x: x.id)
+    check("F3 une ligne par tour, chacune à SON réel",
+          [round(x.reel_usd, 12) for x in lignes] == [round(cout(1000, 100), 12), round(cout(1200, 50), 12)]
+          and abs(sum(x.reel_usd for x in lignes) - (await st.lire(cr["id"]))["cout_usd"]) < 1e-12,
+          str([(x.estime_usd, x.reel_usd) for x in lignes]))
+
+    class Panne:
+        corps = []
+        def __call__(self, url, **kw):
+            raise RuntimeError("Anthropic HTTP 500 — panne")
+    s = Script([texte("Avant.", 900, 40)]); MT._POSTER = s
+    await derouler(cr["id"], "Encore.", 1.0)                 # un tour réussi de plus (ligne 3)
+    MT._POSTER = Panne()
+    ev = await derouler(cr["id"], "Et là ?", 1.0)
+    lignes = sorted(await depenses(cr["id"]), key=lambda x: x.id)
+    check("F3 panne après la garde : erreur moteur, la ligne du tour à 0 réel, les autres intactes",
+          ev[-1]["type"] == "erreur" and ev[-1].get("code") == "moteur" and len(lignes) == 4
+          and lignes[-1].reel_usd == 0.0 and abs(lignes[2].reel_usd - cout(900, 40)) < 1e-12
+          and abs(lignes[0].reel_usd - cout(1000, 100)) < 1e-12, str([(x.estime_usd, x.reel_usd) for x in lignes]))
+
+    # ---- F4 : deux envois simultanés sur la même conversation ----------------------------------------------------
+    cc = await st.creer("campagnes", B, "Double envoi")
+    s = Script([texte("Une fois.")]); MT._POSTER = s
+    r1, r2 = await asyncio.gather(derouler(cc["id"], "Bonjour.", 1.0), derouler(cc["id"], "Bonjour.", 1.0))
+    occupes = [r for r in (r1, r2) if r and r[-1]["type"] == "erreur" and r[-1].get("code") == "occupee"]
+    l = await st.lire(cc["id"])
+    check("F4 un seul tour : l'autre reçoit « conversation occupée » sans appel",
+          len(occupes) == 1 and len(s.corps) == 1 and [m["role"] for m in l["messages"]] == ["utilisateur", "agent"]
+          and "occupée" in occupes[0][-1].get("message", ""), str((r1, r2))[:300])
+    s = Script([texte("Ensuite.")]); MT._POSTER = s
+    ev = await derouler(cc["id"], "Encore.", 1.0)
+    check("F4 le verrou est rendu après le tour", ev[-1]["type"] == "fin" and not AC._VERROUS, str(ev[-1]))
+
+    # ---- F5 : un tool_use tronqué (arret max_tokens) n'est jamais exécuté ----------------------------------------
+    ct = await st.creer("campagnes", B, "Tronqué")
+    tronque = outil("ecrire_dossier", {"chemin": "strategie.md", "contenu": "début cou"})
+    tronque["stop_reason"] = "max_tokens"
+    s = Script([tronque, texte("Je recommence plus court.")]); MT._POSTER = s
+    ev = await derouler(ct["id"], "Écris la stratégie.", 1.0)
+    l = await st.lire(ct["id"])
+    tr = s.corps[1]["messages"][-1]["content"][0] if len(s.corps) > 1 else {}
+    check("F5 tronqué : tool_result en erreur « appel tronqué », la boucle continue",
+          tr.get("is_error") is True and "appel tronqué" in tr.get("content", "") and ev[-1].get("motif") == "reponse",
+          str(tr)[:300])
+    check("F5 tronqué : rien n'est écrit sur le disque", l["dossier"] is None, str(l["dossier"]))
 
     print(f"\n{ok} PASS, {fail} FAIL")
     return fail

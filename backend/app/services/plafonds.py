@@ -438,6 +438,26 @@ async def noter_reel(ref: str, usd: float | None, unites: float | None) -> int:
     return n
 
 
+
+async def noter_reel_lignes(ids: list[int], usd: float) -> int:
+    """t285a : le réel d'UNE réservation, posé sur les seules lignes qu'un `verifier()` vient d'écrire (ses `lignes`),
+    jamais sur les autres lignes de la même référence (une conversation de l'agent en a une par tour). Plusieurs
+    lignes : le montant est réparti à parts égales. Rend le nombre de lignes touchées."""
+    from app.services.storage import Depense
+    ids = [int(i) for i in ids or []]
+    if not ids:
+        return 0
+    part = max(0.0, float(usd or 0.0)) / len(ids)
+    n = 0
+    async with _registre() as s:
+        for i in ids:
+            d = await s.get(Depense, i)
+            if d is not None:
+                d.reel_usd = part
+                n += 1
+        await s.commit()
+    return n
+
 _HEYGEN_EN_VOL = 0
 _HEYGEN_DEBUTS = 0   # compteur de départs : un rendu démarré ET fini pendant le nôtre se voit ici
 
