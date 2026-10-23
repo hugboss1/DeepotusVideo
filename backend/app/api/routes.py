@@ -602,6 +602,20 @@ async def get_job_recipe(job_id: str):
     return d
 
 
+@router.get("/jobs/{job_id}/recette")
+async def get_job_recette(job_id: str):
+    """t283 (23/10/2026) — la recette UNIFIÉE d'un rendu, pour « Envoyer vers Quick / Studio » et la fiche de la
+    Bibliothèque : recette Quick, sinon colonnes du job (prompt exact envoyé), sinon recette d'import. Sans coût :
+    l'écran réestime (services/recette_rendu.py). 404 : job inconnu."""
+    from app.services import recette_rendu
+    from app.services.storage import JobRecord, async_session_factory
+    async with async_session_factory() as session:
+        job = await session.get(JobRecord, Path(job_id).name)
+    if job is None:
+        raise HTTPException(404, "Rendu introuvable")
+    return await asyncio.to_thread(recette_rendu.recette, job)
+
+
 @router.get("/jobs/{job_id}/graph")
 async def get_job_graph(job_id: str):
     """The Studio node graph that produced this render (saved at render time),
@@ -5906,7 +5920,7 @@ async def narrate_episode(ep_id: str):
 
 
 @router.post("/videos/upload")
-async def upload_video(file: UploadFile = File(...)):
+async def upload_video(file: UploadFile = File(...), recette: str | None = Form(None)):
     """Upload a user-shot video (UGC — e.g. a phone selfie clip).
 
     Stored under outputs/uploads and registered as a FINISHED job, so it:
@@ -5920,7 +5934,13 @@ async def upload_video(file: UploadFile = File(...)):
     """
     from datetime import datetime as _dtu
     from app.services.storage import JobRecord, async_session_factory
+    from app.services import recette_rendu as _RR
 
+    # t283 : une recette jointe FACULTATIVE (source, composition, prompts des clips…) — jugée AVANT d'écrire la vidéo
+    try:
+        rec_import = _RR.lire_import_brut(recette)
+    except _RR.RecetteInvalide as e:
+        raise HTTPException(400, str(e))
     base = file.filename or "ugc.mp4"
     safe = "".join(c for c in base if c.isalnum() or c in "._- ").strip() or "ugc.mp4"
     if not safe.lower().endswith((".mp4", ".mov", ".webm", ".m4v", ".avi")):
@@ -5966,6 +5986,8 @@ async def upload_video(file: UploadFile = File(...)):
             completed_at=_dtu.utcnow(),
         ))
         await session.commit()
+    if rec_import:
+        _RR.enregistrer_import(job_id, rec_import)
     return {
         "ok": True, "job_id": job_id, "filename": dest.name,
         "duration_s": round(dur, 2), "final_video_path": str(dest),

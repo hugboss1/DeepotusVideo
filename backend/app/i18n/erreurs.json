@@ -2313,6 +2313,7 @@
   "erreur.df191a13cc": {"fr": "hitbox : rectangle vide ({w}x{h})", "en": "hitbox: empty rectangle ({w}x{h})", "src": "fr"},
   "erreur.df261b2bf0": {"fr": "{what} doit être un objet JSON", "en": "{what} must be a JSON object", "src": "fr"},
   "erreur.df32cacff6": {"fr": "Colonne de dos inconnue : {bc}", "en": "Unknown back column: {bc}", "src": "fr"},
+  "erreur.df3b643b59": {"fr": "Rendu introuvable", "en": "Render not found", "src": "fr"},
   "erreur.df75a78f2d": {"fr": "option inconnue pour {label} : {v}", "en": "unknown option for {label}: {v}", "src": "fr"},
   "erreur.dfa6a90867": {"fr": "FAL_KEY non configurée. Ajoutez-la dans backend/.env", "en": "FAL_KEY not configured. Add it to backend/.env", "src": "en"},
   "erreur.dfda0f2ed7": {"fr": "Trop de lignes (limite {MAX_ROWS})", "en": "Too many rows (limit {MAX_ROWS})", "src": "fr"},
