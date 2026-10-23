@@ -571,6 +571,17 @@ check("8c aucun doublon, coût payé compté une fois", len(l["messages"]) == 2 
       str(l)[:200])
 check("8d corps sans conversation : 400", c.post(BASE + "/importer", json={"x": 1}).status_code == 400)
 check("8e conversation sans id : 400", c.post(BASE + "/importer", json={"conversation": {"messages": []}}).status_code == 400)
+# t285a (revue finale) : l'espace d'une conversation importée passe par le même validateur que les routes
+for _i, (_n, _eid) in enumerate((("8f espace inconnu", "esp-inconnu-zz"), ("8g espace archivé", Z),
+                                 ("8h espace illisible", 42))):
+    _cv = dict(conv, id=f"22222222-3333-4444-5555-66666666660{_i}", espace_id=_eid, messages=[m1])
+    _r = c.post(BASE + "/importer", json={"conversation": _cv})
+    check(f"{_n} : 400, rien d'écrit", _r.status_code == 400 and c.get(f"{BASE}/{_cv['id']}").status_code == 404,
+          f"{_r.status_code} {_r.text[:160]}")
+_cv = dict(conv, id="33333333-4444-5555-6666-777777777777", espace_id=None, messages=[m1])
+_r = c.post(BASE + "/importer", json={"conversation": _cv})
+check("8i espace absent (None) : importé, l'espace reste None (l'agent demandera)", _r.status_code == 200
+      and lire(_cv["id"])["espace_id"] is None, _r.text[:160])
 
 # ---- dépôts ----------------------------------------------------------------------------------------------------------
 print("\n[9] dépôts")

@@ -270,6 +270,10 @@ async def importer(request: Request):
     conv = corps.get("conversation")
     if not isinstance(conv, dict):
         raise HTTPException(400, "conversation : objet attendu.")
+    # t285a (revue finale) : l'espace importé passe par le validateur des routes (inconnu ou archivé → 400, rien
+    # d'écrit) ; absent → None, l'agent le demandera par une carte espace
+    from app.api.routes import _espace_du_corps
+    conv = dict(conv, espace_id=_espace_du_corps(conv.get("espace_id")))
     with _traduire():
         return await ST.importer(conv)
 

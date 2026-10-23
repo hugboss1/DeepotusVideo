@@ -244,8 +244,10 @@ def _hote_local(hote: str) -> bool:
         ip = ipaddress.ip_address(h)
     except ValueError:
         return False
+    # t285a (revue finale) : toute adresse NON GLOBALE est refusée (100.64.0.0/10 CGNAT/Tailscale, 192.0.0.0/24…),
+    # en plus des contrôles explicites gardés
     return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_unspecified \
-        or ip.is_multicast
+        or ip.is_multicast or not ip.is_global
 
 
 def _url_sure(url: str) -> None:
@@ -367,6 +369,27 @@ def _urls_collees(messages: list) -> set:
     return out
 
 
+_DEPOT_URL = re.compile(r"^url(-\d+)?\.txt$")
+
+
+def _urls_deposees(l: dict, cid: str) -> set:
+    """t285a (revue finale) : les URL déposées par `POST /depot {url}`, gardées normalisées sous depots/url*.txt de
+    CETTE conversation. Elles passent ensuite par les mêmes gardes que les URL collées (`_url_sure`, `_telecharger`)."""
+    out = set()
+    for base in (_dossier_conversation(l), config.DATA_ROOT / "campagnes" / "_conversations" / cid):
+        d = base / "depots"
+        if not d.is_dir():
+            continue
+        for f in d.iterdir():
+            if not _DEPOT_URL.match(f.name.lower()) or not f.is_file() or f.stat().st_size > 4096:
+                continue
+            brut = f.read_text(encoding="utf-8", errors="replace").strip()
+            n = _url_normale(brut) if brut and not any(c.isspace() for c in brut) else None
+            if n:
+                out.add(n)
+    return out
+
+
 async def lire_document(ctx: Ctx, depot: str | None = None, url: str | None = None) -> dict:
     if bool(depot) == bool(url):
         raise _Refus("donne soit `depot`, soit `url`")
@@ -386,7 +409,7 @@ async def lire_document(ctx: Ctx, depot: str | None = None, url: str | None = No
         raise _Refus("dépôt inconnu")
     u = str(url).strip()
     n = _url_normale(u)
-    if not n or n not in _urls_collees(l["messages"]):
+    if not n or (n not in _urls_collees(l["messages"]) and n not in _urls_deposees(l, ctx.cid)):
         raise _Refus("URL refusée : seule une URL collée par l'utilisateur dans cette conversation se lit")
     _url_sure(u)
     texte = await _telecharger(u)
@@ -418,8 +441,10 @@ def _chemin_confine(base: Path, chemin: str) -> Path:
 
 
 async def ecrire_dossier(ctx: Ctx, chemin: str, contenu: str) -> dict:
-    eid = _espace(ctx)
     l = await _conversation(ctx.cid)
+    if l.get("role") in ("orienteur", "demonstrateur"):          # t285a (revue finale) : spec §4.4
+        raise _Refus("l'orienteur et le démonstrateur n'ouvrent aucun dossier de campagne")
+    eid = _espace(ctx)
     contenu = str(contenu if contenu is not None else "")
     if len(contenu) > MAX_FICHIER:
         raise _Refus(f"contenu trop long ({MAX_FICHIER} caractères au plus)")

@@ -144,6 +144,24 @@ pu = dict(PR.load()); pu["llm_claude_usd_per_mtok"] = {"claude-sonnet": {"in": 3
 es = PR.estimate(MT.op_tour("claude-sonnet-5-5", 1000000, 0), pu)
 check("P10 la surcharge de l'utilisateur gagne, le reste des défauts demeure",
       abs(es.get("total_usd", es.get("total")) - 30.0) < 1e-9 and PR.taux_claude("claude-haiku-4-5", pu)["in"] == 1.0)
+# t285a (revue finale) : l'id DATÉ d'Opus 4 (claude-opus-4-20250514, 15/75) tombait sous « claude-opus » (5/25)
+t4 = PR.taux_claude("claude-opus-4-20250514")
+check("P11 Opus 4 daté (claude-opus-4-20250514) = 15/75, pas 5/25", t4["in"] == 15.0 and t4["out"] == 75.0, str(t4))
+check("P11b Opus 4 daté chiffré 15/75 dans estimate",
+      abs(_usd("claude-opus-4-20250514") - (0.1 * 15 + 0.05 * 75)) < 1e-9, str(_usd("claude-opus-4-20250514")))
+check("P11c Opus 4.5 daté reste 5/25", PR.taux_claude("claude-opus-4-5-20251101")["in"] == 5.0)
+check("P12 « Claude-Sonnet… » en capitales chiffré comme Sonnet (3/15)",
+      abs(_usd("Claude-Sonnet-5-5") - (0.1 * 3 + 0.05 * 15)) < 1e-9, str(_usd("Claude-Sonnet-5-5")))
+pz = dict(PR.load()); pz["llm_claude_usd_per_mtok"] = {"claude-sonnet": {"in": "cher", "out": None},
+                                                         "claude-zz": {"in": [1], "out": {}}}
+try:
+    tz = PR.taux_claude("claude-sonnet-5-5", pz); tinc = PR.taux_claude("claude-inconnu", pz)
+    ez = PR.estimate(MT.op_tour("claude-sonnet-5-5", 1000000, 0), pz); lev = None
+except Exception as e:
+    lev = type(e).__name__ + " " + str(e)
+check("P13 une surcharge non numérique est ignorée, sans exception (Sonnet reste 3/15)",
+      lev is None and tz["in"] == 3.0 and tz["out"] == 15.0 and tinc["out"] == 75.0
+      and abs(ez.get("total_usd", ez.get("total")) - 3.0) < 1e-9, str(lev))
 check("P3 jetons négatifs ramenés à 0", MT.op_tour("m", -5, -1)["in_tok"] == 0 and MT.op_tour("m", -5, -1)["out_tok"] == 0)
 
 print("[M] modèle de l'agent")
