@@ -601,6 +601,24 @@ class AtelierSetting(Base):
     value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+class AgentConversation(Base):
+    """t285a (23/10/2026) : l'index des conversations de l'agent interne. Le détail (messages) vit dans
+    conversation.json, dans le dossier de campagne ou sous campagnes/_conversations/<id>/. Table neuve :
+    create_all suffit, aucune migration."""
+    __tablename__ = "agent_conversations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True)
+    role: Mapped[str] = mapped_column(String(16), index=True)       # orienteur|campagnes|demonstrateur|bilan
+    titre: Mapped[str] = mapped_column(String(200), default="")
+    etat_porte: Mapped[str] = mapped_column(String(24), default="aucune")
+    cout_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    dossier: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    origine: Mapped[str] = mapped_column(String(12), default="pc")
+    cree: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    maj: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class Depense(Base):
     """Une dépense prévue par la garde des plafonds (plan Settings T4, tâche #16 du suivi, 29/09/2026).
 
