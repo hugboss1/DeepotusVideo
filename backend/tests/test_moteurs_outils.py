@@ -124,9 +124,26 @@ check("P1 op llm anthropic", op["kind"] == "llm" and op["provider"] == "anthropi
       and op["out_tok"] == 500, str(op))
 est = PR.estimate(op)
 usd = est.get("total_usd", est.get("total"))
-attendu = 1000 / 1e6 * 0.80 + 500 / 1e6 * 4.00
-check("P2 pricing.estimate chiffre l'op au tarif Anthropic de la grille", usd is not None and abs(usd - attendu) < 1e-9,
+attendu = 1000 / 1e6 * 1.00 + 500 / 1e6 * 5.00
+check("P2 pricing.estimate chiffre Haiku 4.5 à 1/5 $ par Mjetons", usd is not None and abs(usd - attendu) < 1e-9,
       str(est)[:200])
+def _usd(m):
+    e = PR.estimate(MT.op_tour(m, 100000, 50000)); return e.get("total_usd", e.get("total"))
+h, s, o = _usd("claude-haiku-4-5-20251001"), _usd("claude-sonnet-5-5"), _usd("claude-opus-5-5")
+check("P4 Sonnet plus cher que Haiku, Opus plus cher que Sonnet", h < s < o, f"{h} {s} {o}")
+check("P5 Sonnet = 3/15", abs(s - (0.1 * 3 + 0.05 * 15)) < 1e-9, str(s))
+top = _usd("claude-opus-4-1")
+inc = _usd("claude-zzz-9")
+check("P6 id Claude inconnu : le tarif le plus haut (jamais Haiku)", abs(inc - top) < 1e-9 and inc > o, f"{inc} {top}")
+vieux = PR.estimate({"kind": "llm", "provider": "anthropic", "in_tok": 100000, "out_tok": 50000})
+vu = vieux.get("total_usd", vieux.get("total"))
+check("P7 sans modèle : l'ancien prix du fournisseur (0,80/4,00), à l'octet", abs(vu - (0.1 * 0.80 + 0.05 * 4.00)) < 1e-12, str(vu))
+check("P8 modèle non Claude : l'ancien prix aussi", abs(_usd("m") - vu) < 1e-12)
+check("P9 la table est dans la grille enregistrable", "llm_claude_usd_per_mtok" in PR.DEFAULTS)
+pu = dict(PR.load()); pu["llm_claude_usd_per_mtok"] = {"claude-sonnet": {"in": 30.0, "out": 150.0}}
+es = PR.estimate(MT.op_tour("claude-sonnet-5-5", 1000000, 0), pu)
+check("P10 la surcharge de l'utilisateur gagne, le reste des défauts demeure",
+      abs(es.get("total_usd", es.get("total")) - 30.0) < 1e-9 and PR.taux_claude("claude-haiku-4-5", pu)["in"] == 1.0)
 check("P3 jetons négatifs ramenés à 0", MT.op_tour("m", -5, -1)["in_tok"] == 0 and MT.op_tour("m", -5, -1)["out_tok"] == 0)
 
 print("[M] modèle de l'agent")
@@ -141,6 +158,18 @@ settings.AGENT_MODEL = ""
 check("M4 MODELE_AGENT_DEFAUT est un nom de modèle claude", MT.MODELE_AGENT_DEFAUT.startswith("claude-"), MT.MODELE_AGENT_DEFAUT)
 check("M5 AGENT_MODEL dans la liste blanche des clés", "AGENT_MODEL" in R._ALLOWED_ENV_KEYS)
 check("M6 AGENT_MODEL se règle dans « defaults »", SR.RUBRIQUE_DE_CLE.get("AGENT_MODEL") == "defaults")
+class _R:
+    status_code = 200; text = "pas du json " + CLE
+    def json(self): raise ValueError("boom")
+MT._POSTER = lambda *a, **k: _R()
+settings.ANTHROPIC_API_KEY = CLE
+try:
+    MT.converser("m", "s", MSGS, [], 8); lev = None
+except RuntimeError as e:
+    lev = str(e)
+except Exception as e:
+    lev = "AUTRE " + type(e).__name__
+check("B4 200 non JSON : RuntimeError, clé masquée", lev is not None and not lev.startswith("AUTRE") and CLE not in lev, str(lev))
 check("M7 AGENT_MODEL est un réglage (défaut vide)", "AGENT_MODEL" in type(settings).model_fields
       and type(settings).model_fields["AGENT_MODEL"].default == "")
 
@@ -170,6 +199,11 @@ r = c.post("/api/settings/provider-defaults/tester", json={"moteur": "agent", "m
 check("R5 tester une clé comme modèle d'agent → 400", r.status_code == 400 and CLE not in r.text, r.text[:160])
 r = c.get("/api/settings/provider-defaults/modeles", params={"moteur": "agent"})
 check("R6 GET modeles?moteur=agent répond (liste d'Anthropic)", r.status_code == 200, r.text[:160])
+ge = c.get("/api/settings/provider-defaults", headers={"Accept-Language": "en"}).json()
+gf = c.get("/api/settings/provider-defaults", headers={"Accept-Language": "fr"}).json()
+nom = lambda j: next(m["nom"] for m in j["moteurs"] if m["moteur"] == "agent")
+check("R8 le nom de la ligne suit la langue : EN « Campaigns agent », FR « Agent Campagnes »",
+      nom(ge) == "Campaigns agent" and nom(gf) == "Agent Campagnes", f"{nom(ge)} / {nom(gf)}")
 c.post("/api/settings/provider-defaults", json={"modeles": {"agent": ""}})
 settings.AGENT_MODEL = ""
 check("R7 vide = retour au modèle Anthropic des Réglages", MT.modele_agent() == settings.ANTHROPIC_MODEL)

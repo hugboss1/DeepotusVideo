@@ -10414,5 +10414,41 @@
  "sans_cle": {
   "fr": "sans_cle",
   "en": "sans_cle"
+ },
+ "rôle inconnu : {role}": {
+  "fr": "rôle inconnu : {role}",
+  "en": "unknown role: {role}"
+ },
+ "origine inconnue : {origine}": {
+  "fr": "origine inconnue : {origine}",
+  "en": "unknown origin: {origine}"
+ },
+ "cout_usd négatif": {
+  "fr": "cout_usd négatif",
+  "en": "negative cout_usd"
+ },
+ "conversation : id requis": {
+  "fr": "conversation : id requis",
+  "en": "conversation: id required"
+ },
+ "espace_id invalide : {espace_id}": {
+  "fr": "espace_id invalide : {espace_id}",
+  "en": "invalid espace_id: {espace_id}"
+ },
+ "dossier hors de l'espace": {
+  "fr": "dossier hors de l'espace",
+  "en": "folder outside the space"
+ },
+ "dossier hors du dossier des campagnes": {
+  "fr": "dossier hors du dossier des campagnes",
+  "en": "folder outside the campaigns folder"
+ },
+ "état de porte inconnu : {etat}": {
+  "fr": "état de porte inconnu : {etat}",
+  "en": "unknown gate state: {etat}"
+ },
+ "Anthropic réponse illisible — {v}": {
+  "fr": "Anthropic réponse illisible — {v}",
+  "en": "Anthropic response unreadable — {v}"
  }
 }

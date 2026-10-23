@@ -500,5 +500,6 @@
   "transitions.wipetl": {"fr": "volet ↖", "en": "wipe ↖"},
   "transitions.wipetr": {"fr": "volet ↗", "en": "wipe ↗"},
   "transitions.wipeup": {"fr": "volet haut", "en": "wipe up"},
-  "transitions.zoomin": {"fr": "zoom avant", "en": "zoom in"}
+  "transitions.zoomin": {"fr": "zoom avant", "en": "zoom in"},
+  "agent.nom.campagnes": {"fr": "Agent Campagnes", "en": "Campaigns agent"}
 }

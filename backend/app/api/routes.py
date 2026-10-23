@@ -7523,6 +7523,7 @@ async def get_provider_defaults(request: Request):
     pref_plan = settings.PLANNER_PROVIDER.strip().lower()
     active_plan = pref_plan if (pref_plan and pref_plan in plan_avail) else (plan_avail[0] if plan_avail else "")
     from app.services import moteurs_texte as _MT
+    from app.i18n import langue_requete
     return {
         "roles": {
             "summarizer": {
@@ -7538,7 +7539,7 @@ async def get_provider_defaults(request: Request):
         },
         # t220 : une ligne par moteur de texte (configuré ou non, modèle sain, alerte si le réglage contient une clé)
         # t285a : + la ligne du modèle de l'agent Campagnes (AGENT_MODEL), rendue par le même composant
-        "moteurs": _MT.etat() + [_MT.ligne_agent()],
+        "moteurs": _MT.etat() + [_MT.ligne_agent(langue_requete(request))],
     }
 
 
