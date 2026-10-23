@@ -10406,5 +10406,9 @@
  "{label} : consigne trop longue (au plus {prompt_max} caractères)": {
   "fr": "{label} : consigne trop longue (au plus {prompt_max} caractères)",
   "en": "{label}: instruction too long (at most {prompt_max} characters)"
+ },
+ "Rendu introuvable": {
+  "fr": "Rendu introuvable",
+  "en": "Render not found"
  }
 }

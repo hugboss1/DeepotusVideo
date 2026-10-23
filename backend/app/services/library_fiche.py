@@ -86,6 +86,12 @@ def _recette(nom: str, brut) -> dict | None:
         r = _json(mob.read_text(encoding="utf-8", errors="replace"))
         if r:
             return {"origine": "mobile", **r}
+    # t283 : un son généré dans Son & VFX garde son prompt dans le sidecar audio/_sfx_meta.json (record_meta) ; la
+    # fiche le montre. Seulement s'il y a un prompt : un stem, un mix ou une prise n'ont pas de recette.
+    from app.services import sfx_service as _SFX
+    m = _SFX.load_meta().get(nom)
+    if isinstance(m, dict) and str(m.get("prompt") or "").strip():
+        return {"origine": "son-vfx", **{k: m[k] for k in ("prompt", "model", "kind", "provider", "dur") if m.get(k)}}
     return None
 
 
