@@ -1,0 +1,122 @@
+{
+  "titre": {
+    "fr": "Le plafond s'affiche avant l'envoi",
+    "en": "The cap shows before you send"
+  },
+  "legende": {
+    "fr": "Sous le champ, le plafond de la réponse ; l'envoi vaut accord. L'agent revient avec la porte 1.",
+    "en": "Under the input, the cap for the reply; sending means you agree. The agent comes back with gate 1."
+  },
+  "captures": [
+    {
+      "fr": "devis.fr.webp",
+      "en": "devis.en.webp"
+    },
+    {
+      "fr": "porte.fr.webp",
+      "en": "porte.en.webp"
+    }
+  ],
+  "taille": [
+    1100,
+    660
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        707,
+        552,
+        387,
+        45
+      ],
+      "bulle": {
+        "fr": "Plafond de cette réponse",
+        "en": "Cap for this reply"
+      },
+      "ancre": [
+        901,
+        591
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 1.6,
+      "curseur": [
+        1053,
+        624
+      ],
+      "clic": true
+    },
+    {
+      "capture": 1,
+      "duree": 3.4,
+      "surligne": [
+        707,
+        309,
+        387,
+        237
+      ],
+      "bulle": {
+        "fr": "Porte 1 : stratégie et calendrier",
+        "en": "Gate 1: strategy and schedule"
+      },
+      "ancre": [
+        901,
+        346
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        707,
+        552,
+        387,
+        45
+      ],
+      "bulle": {
+        "fr": "Plafond de cette réponse",
+        "en": "Cap for this reply"
+      },
+      "ancre": [
+        901,
+        591
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 1.6,
+      "curseur": [
+        1062,
+        624
+      ],
+      "clic": true
+    },
+    {
+      "capture": 1,
+      "duree": 3.4,
+      "surligne": [
+        707,
+        289,
+        387,
+        237
+      ],
+      "bulle": {
+        "fr": "Porte 1 : stratégie et calendrier",
+        "en": "Gate 1: strategy and schedule"
+      },
+      "ancre": [
+        901,
+        325
+      ]
+    }
+  ],
+  "taille_en": [
+    1100,
+    660
+  ]
+}

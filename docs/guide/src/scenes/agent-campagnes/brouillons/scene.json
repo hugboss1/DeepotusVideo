@@ -1,0 +1,114 @@
+{
+  "titre": {
+    "fr": "Valider la porte 1 → brouillons",
+    "en": "Approve gate 1 → drafts"
+  },
+  "legende": {
+    "fr": "Après « Valider », un message de plus (avec son plafond) : les posts arrivent en brouillons, dans l'espace de la campagne.",
+    "en": "After Approve, one more message (with its cap): the posts land as drafts, in the campaign space."
+  },
+  "captures": [
+    {
+      "fr": "valider.fr.webp",
+      "en": "valider.en.webp"
+    },
+    {
+      "fr": "brouillons.fr.webp",
+      "en": "brouillons.en.webp"
+    }
+  ],
+  "taille": [
+    1100,
+    660
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        756,
+        513
+      ],
+      "clic": true,
+      "surligne": [
+        718,
+        491,
+        77,
+        44
+      ],
+      "bulle": {
+        "fr": "Valider, ou Modifier",
+        "en": "Approve, or Edit"
+      },
+      "ancre": [
+        756,
+        529
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 3.6,
+      "surligne": [
+        707,
+        441,
+        387,
+        118
+      ],
+      "bulle": {
+        "fr": "Brouillons dans l'espace de la campagne",
+        "en": "Drafts in the campaign space"
+      },
+      "ancre": [
+        901,
+        477
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        760,
+        492
+      ],
+      "clic": true,
+      "surligne": [
+        718,
+        471,
+        85,
+        44
+      ],
+      "bulle": {
+        "fr": "Valider, ou Modifier",
+        "en": "Approve, or Edit"
+      },
+      "ancre": [
+        760,
+        508
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 3.6,
+      "surligne": [
+        707,
+        421,
+        387,
+        137
+      ],
+      "bulle": {
+        "fr": "Brouillons dans l'espace de la campagne",
+        "en": "Drafts in the campaign space"
+      },
+      "ancre": [
+        901,
+        458
+      ]
+    }
+  ],
+  "taille_en": [
+    1100,
+    660
+  ]
+}

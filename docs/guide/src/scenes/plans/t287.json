@@ -1,0 +1,76 @@
+{
+ "base": "http://127.0.0.1:8799",
+ "preparation": "Backend de preuve t287 (port 8799) : code du worktree, données jetables, clé Anthropic FACTICE, moteur SIMULÉ (moteurs_texte._POSTER remplacé : brief → porte 1 → brouillons), espace « Marque Démo » créé au départ. Aucun appel payant. Chapitre « Mener une campagne avec l'agent ».",
+ "scenes": [
+  {"scene": "agent-campagnes/ouvrir", "taille": [1440, 900],
+   "titre": {"fr": "F1 → Campagnes → espace de la campagne", "en": "F1 → Campaigns → campaign space"},
+   "legende": {"fr": "L'onglet Campagnes du tiroir F1 ; l'espace choisi en haut est écrit en clair et ne change plus.", "en": "The Campaigns tab of the F1 drawer; the space chosen at the top is shown in full and no longer changes."},
+   "avant": [{"attente": 1500}, {"touche": "F1"}, {"attente": 800}],
+   "captures": [
+    {"nom": "onglet", "etapes": [{"clic": "css:[data-dz-agent=onglet-campagnes]"}, {"attente": 1200}]},
+    {"nom": "espace", "etapes": [
+      {"js": "const s=document.querySelector('[data-dz-agent=espace]');const o=[...s.options].find(x=>x.text.trim()==='Marque Démo');s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}))"},
+      {"attente": 1500}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 2.2, "curseur": "css:[data-dz-agent=onglet-campagnes]", "clic": true, "surligne": "css:[data-dz-agent=onglet-campagnes]", "bulle": {"fr": "Onglet Campagnes", "en": "Campaigns tab"}, "ancre": "css:[data-dz-agent=onglet-campagnes]"},
+    {"capture": 1, "duree": 2.4, "curseur": "css:[data-dz-agent=espace]", "surligne": "css:[data-dz-agent=espace]", "bulle": {"fr": "L'espace de la campagne", "en": "The campaign space"}, "ancre": "css:[data-dz-agent=espace]"},
+    {"capture": 1, "duree": 2.6, "surligne": "css:[data-dz-camp=tete]", "bulle": {"fr": "Écrit en clair, avec le coût cumulé", "en": "Shown in full, with the running cost"}, "ancre": "css:[data-dz-camp=tete]"}
+   ]},
+  {"scene": "agent-campagnes/devis", "taille": [1100, 660],
+   "titre": {"fr": "Le plafond s'affiche avant l'envoi", "en": "The cap shows before you send"},
+   "legende": {"fr": "Sous le champ, le plafond de la réponse ; l'envoi vaut accord. L'agent revient avec la porte 1.", "en": "Under the input, the cap for the reply; sending means you agree. The agent comes back with gate 1."},
+   "avant": [{"attente": 1500}, {"touche": "F1"}, {"attente": 800},
+             {"clic": "css:[data-dz-agent=onglet-campagnes]"}, {"attente": 1000},
+             {"js": "const s=document.querySelector('[data-dz-agent=espace]');const o=[...s.options].find(x=>x.text.trim()==='Marque Démo');s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}))"},
+             {"attente": 1500}],
+   "captures": [
+    {"nom": "devis", "etapes": [
+      {"saisir": ["css:[data-dz-camp=champ]", {"fr": "Lance la collection d'automne sur X, Instagram et TikTok, en trois jours.", "en": "Launch the autumn collection on X, Instagram and TikTok, over three days."}]},
+      {"attente": 2500}]},
+    {"nom": "porte", "etapes": [{"clic": "css:[data-dz-camp=envoyer]"}, {"attente": 4500}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 3.0, "surligne": "css:[data-dz-camp=devis]", "bulle": {"fr": "Plafond de cette réponse", "en": "Cap for this reply"}, "ancre": "css:[data-dz-camp=devis]"},
+    {"capture": 0, "duree": 1.6, "curseur": "css:[data-dz-camp=envoyer]", "clic": true},
+    {"capture": 1, "duree": 3.4, "surligne": "css:.dzCampCarte[data-genre=porte]", "bulle": {"fr": "Porte 1 : stratégie et calendrier", "en": "Gate 1: strategy and schedule"}, "ancre": "css:.dzCampCarte[data-genre=porte] .dzCampCarteT"}
+   ]},
+  {"scene": "agent-campagnes/brouillons", "taille": [1100, 660],
+   "titre": {"fr": "Valider la porte 1 → brouillons", "en": "Approve gate 1 → drafts"},
+   "legende": {"fr": "Après « Valider », un message de plus (avec son plafond) : les posts arrivent en brouillons, dans l'espace de la campagne.", "en": "After Approve, one more message (with its cap): the posts land as drafts, in the campaign space."},
+   "avant": [{"attente": 1500}, {"touche": "F1"}, {"attente": 800},
+             {"clic": "css:[data-dz-agent=onglet-campagnes]"}, {"attente": 1000},
+             {"js": "const s=document.querySelector('[data-dz-agent=espace]');const o=[...s.options].find(x=>x.text.trim()==='Marque Démo');s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}))"},
+             {"attente": 1500},
+             {"saisir": ["css:[data-dz-camp=champ]", {"fr": "Lance la collection d'automne sur X, Instagram et TikTok, en trois jours.", "en": "Launch the autumn collection on X, Instagram and TikTok, over three days."}]},
+             {"attente": 2500}, {"clic": "css:[data-dz-camp=envoyer]"}, {"attente": 4500}],
+   "captures": [
+    {"nom": "valider", "etapes": []},
+    {"nom": "brouillons", "etapes": [
+      {"clic": {"fr": "texte:Valider", "en": "texte:Approve"}}, {"attente": 1500},
+      {"saisir": ["css:[data-dz-camp=champ]", {"fr": "Vas-y, prépare les brouillons.", "en": "Go ahead, prepare the drafts."}]},
+      {"attente": 2500}, {"clic": "css:[data-dz-camp=envoyer]"}, {"attente": 5000},
+      {"js": "const f=document.querySelector('[data-dz-camp=fil]');if(f)f.scrollTop=f.scrollHeight"}, {"attente": 500}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 2.4, "curseur": {"fr": "texte:Valider", "en": "texte:Approve"}, "clic": true, "surligne": {"fr": "texte:Valider", "en": "texte:Approve"}, "bulle": {"fr": "Valider, ou Modifier", "en": "Approve, or Edit"}, "ancre": {"fr": "texte:Valider", "en": "texte:Approve"}},
+    {"capture": 1, "duree": 3.6, "surligne": "css:.dzCampCarte[data-genre=brouillons]", "bulle": {"fr": "Brouillons dans l'espace de la campagne", "en": "Drafts in the campaign space"}, "ancre": "css:.dzCampCarte[data-genre=brouillons] .dzCampCarteT"}
+   ]},
+  {"scene": "agent-campagnes/planificateur", "taille": [1440, 900],
+   "titre": {"fr": "Générer un plan → Agent Campagnes", "en": "Generate plan → Campaigns agent"},
+   "legende": {"fr": "Le dialogue du plan garde le mode Rapide et gagne le mode Agent Campagnes : espace, brief, période, document.", "en": "The plan dialog keeps Quick mode and gains Campaigns agent mode: space, brief, period, document."},
+   "avant": [{"clic": {"fr": "texte:Planificateur", "en": "texte:Scheduler"}, "apres": 3500},
+             {"js": "[...document.querySelectorAll('button')].find(b=>(b.innerText||'').trim()===dzT('scheduler.calendrier.generer_plan')).click()"}, {"attente": 1500}],
+   "captures": [
+    {"nom": "rapide", "etapes": []},
+    {"nom": "agent", "etapes": [{"clic": "css:[data-dzagentplan-mode=agent]"}, {"attente": 1500},
+      {"saisir": ["css:[data-dzagentplan-brief]", {"fr": "Lancer la collection d'automne.", "en": "Launch the autumn collection."}]}]},
+    {"nom": "conversation", "etapes": [{"clic": "css:[data-dzagentplan-demarrer]"}, {"attente": 3000}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 2.4, "curseur": "css:[data-dzagentplan-mode=agent]", "clic": true, "surligne": "css:[data-dzagentplan=bascule]", "bulle": {"fr": "Rapide ou Agent Campagnes", "en": "Quick or Campaigns agent"}, "ancre": "css:[data-dzagentplan=bascule]"},
+    {"capture": 1, "duree": 2.6, "curseur": "css:[data-dzagentplan-demarrer]", "clic": true, "surligne": "css:[data-dzagentplan-demarrer]", "bulle": {"fr": "Ouvrir la conversation", "en": "Open the conversation"}, "ancre": "css:[data-dzagentplan-demarrer]"},
+    {"capture": 2, "duree": 3.0, "surligne": "css:[data-dz-camp=champ]", "bulle": {"fr": "Le brief attend votre envoi", "en": "The brief waits for you to send it"}, "ancre": "css:[data-dz-camp=champ]"}
+   ]}
+ ]
+}

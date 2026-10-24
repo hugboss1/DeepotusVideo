@@ -1,0 +1,58 @@
+<p class="chapeau-chap">Vous saurez confier une campagne à l'agent Campagnes : il transforme un brief en stratégie et en calendrier, produit les textes, puis range les posts en brouillons au Planificateur. Vous validez à deux portes et rien ne part sans vous. Dix minutes ; <span class="prix">payant ≈ $</span>, chaque message affiche son plafond avant l'envoi.</p>
+
+<h3>Avant de commencer</h3>
+<p>L'agent Campagnes fonctionne avec Claude seulement : il faut une <strong>clé Anthropic</strong> dans le coffre (voir <a href="#cles">Brancher ses clés et ses moteurs d'IA</a>). Sans clé, il le dit au premier envoi ; rien n'est grisé. Ses dépenses sont comptées sous le plafond « campagnes » : réglez-le d'abord dans <a href="#budget">Maîtriser ses dépenses</a>.</p>
+<p>Une campagne appartient à <strong>un espace de marque</strong> (voir <a href="#marques">Travailler pour plusieurs marques</a>) : sa persona, ses mots interdits, ses rendus. Ce n'est pas forcément l'espace actif à l'écran.</p>
+
+<h3>Le circuit en bref</h3>
+<p>Le brief devient un dossier, puis une stratégie. <strong>Porte 1</strong> : vous validez la stratégie et le calendrier. Viennent ensuite les textes, les visuels ou vidéos sur devis, puis les brouillons au Planificateur. <strong>Porte 2</strong> : vous relisez et programmez chaque brouillon vous-même. Le circuit de l'agent s'arrête aux brouillons.</p>
+
+<h3>Ouvrir l'agent</h3>
+<figure class="scene" data-scene="agent-campagnes/ouvrir"></figure>
+<ol class="etapes">
+<li>Appuyez sur <kbd>F1</kbd> : le tiroir s'ouvre. Il a deux onglets, <b class="ui">Demander</b> (l'aide rapide, voir <a href="#demander">Demander à Deepotus</a>) et <b class="ui">Campagnes</b>. Cliquez <b class="ui">Campagnes</b>.</li>
+<li>Choisissez l'espace de la campagne dans la liste du haut. Laissé sur <b class="ui">Aucun espace</b>, l'agent oriente seulement, et vous demandera l'espace par une carte s'il ouvre une campagne.</li>
+<li>L'en-tête écrit l'espace en clair et le <strong>coût cumulé</strong> de la conversation. Une fois la campagne lancée, son espace ne change plus.</li>
+</ol>
+
+<h3>Envoyer le brief : le devis par message</h3>
+<figure class="scene" data-scene="agent-campagnes/devis"></figure>
+<ol class="etapes">
+<li>Décrivez la campagne en quelques lignes : le produit, l'objectif, les canaux, la période.</li>
+<li>Sous le champ s'affiche le <strong>plafond de cette réponse</strong>, par exemple « ≤ 0,13 $ ». C'est le maximum que l'agent peut dépenser pour répondre, tous ses tours compris.</li>
+<li>Cliquez <b class="ui">Envoyer</b> : l'envoi vaut accord. Si vous cliquez avant que le plafond soit affiché, le clic ne fait que l'afficher ; cliquez encore pour l'accepter.</li>
+<li>L'agent lit l'espace, cherche ce qui existe déjà, écrit le dossier, puis revient avec la carte « Porte 1 » : la stratégie en quelques lignes et le calendrier jour par jour.</li>
+</ol>
+
+<h3>Passer la porte 1, recevoir les brouillons</h3>
+<figure class="scene" data-scene="agent-campagnes/brouillons"></figure>
+<ol class="etapes">
+<li>Relisez la stratégie. <b class="ui">Valider</b> l'accepte ; <b class="ui">Modifier</b> la refuse et vous laisse écrire votre correction dans le champ.</li>
+<li>Après la validation, envoyez un message (« vas-y ») : il a son plafond, comme tout message. L'agent écrit les textes.</li>
+<li>Pour une image, une vidéo ou une voix, l'agent pose une carte de devis avec son prix : rien n'est généré avant votre clic sur <b class="ui">Générer</b>. <b class="ui">Refuser</b> l'écarte.</li>
+<li>Les posts arrivent en brouillons au Planificateur, dans l'espace de la campagne. La carte <b class="ui">Ouvrir le calendrier du Planificateur</b> y mène ; si cet espace n'est pas l'actif, elle propose d'abord de l'activer, sur votre clic.</li>
+</ol>
+
+<h3>Depuis le Planificateur</h3>
+<figure class="scene" data-scene="agent-campagnes/planificateur"></figure>
+<ol class="etapes">
+<li>Dans le <b class="ui">Planificateur</b>, cliquez <b class="ui">Générer un plan</b>. En haut du dialogue, passez de <b class="ui">Rapide</b> (le plan en un tir, voir <a href="#planificateur">Planifier et publier sa semaine</a>) à <b class="ui">Agent Campagnes</b>.</li>
+<li>Choisissez l'espace, écrivez le brief, la date de début et le nombre de jours. <b class="ui">Joindre un document</b> ajoute un .md, .txt, .docx ou .pdf que l'agent lira.</li>
+<li><b class="ui">Ouvrir la conversation</b> : le brief est posé dans le champ, avec son plafond. Vous l'envoyez ; la porte 1 se passe dans le dialogue, et les brouillons apparaissent au calendrier.</li>
+<li>La <strong>porte 2</strong>, c'est le Planificateur lui-même : relisez chaque brouillon, corrigez-le, puis programmez-le ou validez la semaine vous-même.</li>
+</ol>
+
+<h3>Aller plus loin</h3>
+<div class="cartes">
+<article><i data-dz="dz-action-continuer"></i><h4>Continuer après un arrêt</h4><p>Quand l'agent atteint le plafond ou son nombre de tours, il s'arrête net et pose une carte « Continuer » avec un nouveau plafond. Rien ne repart sans votre clic.</p></article>
+<article><i data-dz="dz-action-valider"></i><h4>Après un rendu</h4><p>À la fin d'une vidéo ou d'une image, la carte passe à <b class="ui">Rendu terminé</b>. L'agent ne reprend jamais seul : <b class="ui">Continuer la campagne</b> envoie un message, avec son plafond.</p></article>
+<article><i data-dz="dz-action-aide"></i><h4>Depuis « Demander »</h4><p>Demandez une campagne dans l'onglet <b class="ui">Demander</b> : la réponse porte <b class="ui">Ouvrir l'agent Campagnes</b>, qui reprend votre question dans l'onglet voisin.</p></article>
+<article><i data-dz="dz-nav-scheduler"></i><h4>Reprendre plus tard</h4><p>Le tiroir garde la conversation en cours. Dans le dialogue du plan, <b class="ui">Reprendre la conversation</b> rouvre la dernière campagne de l'espace choisi.</p></article>
+<article><i data-dz="dz-etat-mobile"></i><h4>Depuis le téléphone</h4><p>Le <a href="#mobile">téléphone appairé</a> mène les mêmes conversations sur le Wi-Fi. Le travail se fait sur le PC, avec ses clés et son plafond.</p></article>
+<article><i data-dz="dz-media-persona"></i><h4>Le dossier de campagne</h4><p>Dossier, stratégie, textes et contrôle sont rangés dans les données de l'app, sous l'espace de la campagne, avec ce que chaque campagne a appris.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Chaque message affiche son plafond avant l'envoi ; l'agent s'arrête net s'il l'atteint. Ces tours sont comptés sous le plafond « campagnes » de <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Tarifs et budget</b></span>. Les images, vidéos et voix ont leur propre devis, payé seulement à votre clic.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>L'agent ne publie jamais et ne programme jamais un post : tout arrive en brouillon. Il ne change pas l'espace actif, ne touche ni aux clés, ni aux Réglages, ni aux comptes, et ne supprime rien. Demandez-le-lui : il vous montre où le faire vous-même.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Une campagne compte ses dépenses et range ses rendus dans <strong>son</strong> espace, même si un autre espace est actif à l'écran.</p></aside>
