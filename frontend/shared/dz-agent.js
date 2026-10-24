@@ -87,7 +87,7 @@ if (!window.__dzAgent) {
 .dzAgentPied button[aria-busy="true"]{opacity:.6}
 .dzAgentPied button[aria-pressed="true"]{border-color:#ef4444;background:#b91c1c;color:#fff}
 .dzAgentPied textarea{flex:1;resize:none;min-height:38px;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:8px;padding:6px}
-.dzAgentTete select{max-width:140px;min-width:0;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
+.dzAgentTete select{max-width:104px;min-width:0;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
 .dzAgentTete button:disabled,.dzAgentPied button:disabled{opacity:.5;cursor:default}
 .dzAgentAccord select{margin:6px 0;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
 .dzAgentAccord p{margin:0}

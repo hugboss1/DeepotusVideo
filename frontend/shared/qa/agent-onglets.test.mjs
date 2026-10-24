@@ -443,7 +443,7 @@ for (const f of ["dz-agent.js", "dz-agent-logique.js"]) {
     ok("7.2 clé t285b employée et traduite : " + k, cles.includes(k) && !!(json[k] && json[k].fr && json[k].en), k);
   }
   ok("7.3 le titre de l'en-tête tient sur une ligne", /\.dzAgentTete h2\{[^}]*min-width:0[^}]*white-space:nowrap[^}]*text-overflow:ellipsis/.test(src));
-  ok("7.4 le choix du moteur est borné en largeur", /\.dzAgentTete select\{[^}]*max-width:140px/.test(src));
+  ok("7.4 le choix du moteur est borné en largeur", /\.dzAgentTete select\{[^}]*max-width:104px/.test(src));
 }
 
 if (echecs.length) {
