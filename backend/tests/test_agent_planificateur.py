@@ -135,6 +135,11 @@ check("5.13 l'activation de la coque exposée à la carte des brouillons (window
       'try{if(typeof dzEspActiver==="function")window.__dzEspActiver=dzEspActiver;}catch(e){}' in B and B.count("function dzEspActiver(") == 1)
 check("5.14 P3 : l'hôte a une hauteur fixe (le composant remplit, champ en bas)", 'flex:"0 0 auto",minHeight:360,height:"min(62vh,560px)"' in B)
 check("5.15 M4 : le premier message ne nomme aucun outil interne", lambda: "lire_document" not in DICO_C["campagnes.plan.document_message"]["fr"] + DICO_C["campagnes.plan.document_message"]["en"])
+check("5.16 P5 : en mode Agent, un clic sur le fond ne ferme pas le dialogue (la croix reste)",
+      UM.count('r.jsx("div",{onClick:__dzAP[0]==="agent"?void 0:e,style:{position:"fixed",inset:0,zIndex:80,') == 1
+      and 'r.jsx("div",{onClick:e,style:{position:"fixed",inset:0,zIndex:80,' not in UM and 'r.jsx(se,{name:"dz-action-fermer",onClick:e})' in UM)
+check("5.17 la reprise : bouton « Reprendre la conversation » et cid gardé par espace en sessionStorage",
+      'dzT("campagnes.plan.reprendre")' in B and 'window.sessionStorage.setItem(__dzAgentPlanCle(e),String(cid))' in B)
 check("5.11 aucun bouton publier ni /fire dans le maillon", lambda: PM and "/fire" not in PM.AIDES
       and "scheduled" not in PM.AIDES and "publier" not in PM.AIDES)
 
@@ -189,13 +194,37 @@ async function scenario(espaceBrouillons) {
   window.evts = [];
   out.actif = await scenario("e1");
   out.inactif = await scenario("e2");
-  out.evts2 = window.evts;
+  out.evts2 = window.evts.slice();
   /* la ligne « pas l'espace actif » sous le sélecteur : un rendu avec choix e2, actif e1 */
   let i = 0; const vals = [[{ id: "e1", nom: "A" }, { id: "e2", nom: "Marque B" }], "e2", null, null, "", false, "e1"];
   x.useState = (v) => [vals[i++], () => {}]; x.useEffect = () => {};
   out.ligne_inactif = texte(DzAgentPlan({ brief: "", setBrief() {}, jours: 7, setJours() {}, debut: "", setDebut() {}, fermer() {} }));
   i = 0; vals[1] = "e1";
   out.ligne_actif = texte(DzAgentPlan({ brief: "", setBrief() {}, jours: 7, setJours() {}, debut: "", setDebut() {}, fermer() {} }));
+  /* relecture de branche : le cid gardé par espace, le bouton « Reprendre », l'espace de repli des brouillons */
+  const ss = new Map(); window.sessionStorage = { getItem: (k) => (ss.has(k) ? ss.get(k) : null), setItem: (k, v) => ss.set(k, String(v)), removeItem: (k) => ss.delete(k) };
+  const P = { brief: "", setBrief() {}, jours: 7, setJours() {}, debut: "", setDebut() {}, fermer() {} };
+  i = 0; vals[1] = "e1"; out.sans_reprise = texte(DzAgentPlan(P));
+  __dzAgentPlanGarder("e1", "c7");
+  i = 0; out.avec_reprise = texte(DzAgentPlan(P));
+  i = 0; vals[1] = "e2"; out.autre_espace = texte(DzAgentPlan(P));
+  out.cle = [...ss.keys()];
+  /* le montage d'une conversation garde son cid sous son espace ; la reprise monte DzCampagnes sur ce cid */
+  let vu = null; window.DzCampagnes = { monter(h, o) { vu = o; return { demonter() {} }; } };
+  const vals2 = [[{ id: "e1", nom: "A" }, { id: "e3", nom: "C" }], "e3", null, { cid: "c9", espace: "e3", brief: "" }, "", false, "e1"];
+  let j = 0; x.useState = (v) => [vals2[j++], () => {}]; x.useRef = (v) => ({ current: v === null ? {} : v });
+  x.useEffect = (f, d) => { if (d && d.length === 1) f(); };
+  DzAgentPlan(P);
+  out.monte_reprise = vu; out.garde_c9 = window.sessionStorage.getItem("dzAgentPlan.cid:e3");
+  /* brouillons sans espace dans l'évènement : l'espace de la conversation montée (e3, pas l'actif e1) */
+  const ecoute = {}; let ferme = 0, etats = [];
+  window.addEventListener = (t, f) => { ecoute[t] = f; };
+  j = 0; x.useState = (v) => [vals2[j++], (w) => etats.push(w)]; x.useEffect = (f, d) => { if (d && d.length === 0) f(); };
+  DzAgentPlan(Object.assign({}, P, { fermer() { ferme++; } }));
+  await new Promise((r) => setTimeout(r, 20));
+  ecoute["dz-campagnes-brouillons"]({ detail: { espace_id: null } });
+  await new Promise((r) => setTimeout(r, 20));
+  out.repli = { ferme, inactif: etats.includes("campagnes.plan.brouillons_inactif") };
   console.log(JSON.stringify(out));
 })();
 """
@@ -233,6 +262,14 @@ async function scenario(espaceBrouillons) {
     check("6.12 les deux cas rechargent le calendrier", (o.get("evts2") or []).count("deepotus:schedule-reload") == 2, str(o.get("evts2")))
     check("6.13 espace choisi non actif : la ligne sous le sélecteur (avec son nom)",
           'campagnes.plan.espace_inactif{"nom":"Marque B"}' in o.get("ligne_inactif", ""), o.get("ligne_inactif", "")[:300])
+    check("6.15 sans conversation gardée : pas de bouton « Reprendre »", "campagnes.plan.reprendre" not in o.get("sans_reprise", "x"))
+    check("6.16 un cid gardé pour l'espace choisi : le bouton « Reprendre la conversation »", "campagnes.plan.reprendre" in o.get("avec_reprise", ""))
+    check("6.17 …seulement pour CET espace (clé dzAgentPlan.cid:<espace>)", "campagnes.plan.reprendre" not in o.get("autre_espace", "x")
+          and o.get("cle") == ["dzAgentPlan.cid:e1"], str(o.get("cle")))
+    check("6.18 la reprise remonte DzCampagnes sur le cid gardé, et le montage garde ce cid sous son espace",
+          (o.get("monte_reprise") or {}).get("cid") == "c9" and o.get("garde_c9") == "c9", json.dumps(o.get("monte_reprise")))
+    check("6.19 M5 : évènement sans espace -> l'espace de la conversation (non actif) : le dialogue reste ouvert",
+          o.get("repli") == {"ferme": 0, "inactif": True}, json.dumps(o.get("repli")))
     check("6.14 espace choisi actif : pas de ligne", "campagnes.plan.espace_inactif" not in o.get("ligne_actif", "x"), o.get("ligne_actif", "")[:200])
 
 print("\n[7] textes")

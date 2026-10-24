@@ -73,11 +73,17 @@ function flux(evts, taille = 17) {
   return reponse(200, undefined, { body: { getReader: () => ({ read: async () => (i >= octets.length ? { done: true } : (() => { const v = octets.slice(i, i + taille); i += taille; return { done: false, value: v }; })()) }) } });
 }
 
-function monde({ lang = "fr", routes = {} } = {}) {
+// un sessionStorage simulé (relecture de branche : rendus payés en attente de /carte)
+function stockage(init = {}) {
+  const m = new Map(Object.entries(init));
+  return { get length() { return m.size; }, key: (i) => [...m.keys()][i] ?? null, getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => { m.set(k, String(v)); }, removeItem: (k) => { m.delete(k); }, _m: m };
+}
+function monde({ lang = "fr", routes = {}, session = stockage() } = {}) {
   const appels = [];
   const events = [];
   const win = {
-    dzT: dzTde(lang), dzLang: () => lang,
+    dzT: dzTde(lang), dzLang: () => lang, sessionStorage: session,
     dispatchEvent: (e) => { events.push({ type: e.type, detail: e.detail }); return true; },
     fetch: async (url, init = {}) => {
       const corps = init.body ? JSON.parse(init.body) : undefined;
@@ -113,8 +119,8 @@ const BROUILLONS = carte("brouillons", { action: "ouvrir_planificateur", argumen
 const ESPACES = { "GET /api/espaces*": async () => reponse(200, { espaces: [{ id: "e1", nom: "Marque A" }, { id: "e2", nom: "Marque B" }], actif: "e1" }) };
 const avec = (lire, extra = {}) => ({ "GET /api/agent/campagnes/c1": async () => reponse(200, typeof lire === "function" ? lire() : lire), ...ESPACES, ...extra });
 
-async function monterAvec(routes, opts = {}, lang = "fr") {
-  const m = monde({ lang, routes });
+async function monterAvec(routes, opts = {}, lang = "fr", session = stockage()) {
+  const m = monde({ lang, routes, session });
   const hote = new Noeud("div");
   const c = m.DzCampagnes.monter(hote, { cid: "c1", role: "campagnes", contexte: "planificateur", ...opts });
   await attendre(() => m.appels.some((a) => a.methode === "GET" && a.url === "/api/agent/campagnes/c1"));
@@ -565,22 +571,102 @@ ok("6.27 les dix outils d'agent_outils.OUTILS ont un libellé FR et EN", ["cherc
   let cartes = 0;
   const routes = avec(() => conv([msg("agent", [DEVIS_VIDEO])]), {
     "POST /api/generate": async () => reponse(200, { job_id: "J-7", status: "queued", message: "ok" }),
-    "POST /api/agent/campagnes/c1/carte/0": async () => (++cartes === 1 ? reponse(500, { detail: "disque plein" }) : reponse(200, conv([msg("agent", [DEVIS_VIDEO])])))
+    "POST /api/agent/campagnes/c1/carte/0": async () => (++cartes <= 2 ? reponse(500, { detail: "disque plein" }) : reponse(200, conv([msg("agent", [DEVIS_VIDEO])])))
   });
-  const w = await monterAvec(routes);
+  const session = stockage();
+  const w = await monterAvec(routes, {}, "fr", session);
   parTexte(w.racine, /Générer/)[0].click();
-  await attendre(() => cartes === 1);
+  await attendre(() => cartes === 2);   // relecture de branche : deux tentatives avant de dire l'erreur
   await tick(); await tick();
+  ok("10.1b le rendu payé reste gardé (sessionStorage) tant que /carte ne l'a pas noté",
+    JSON.parse(session.getItem("dzCampagnes.rendu:c1/0") || "{}").job_id === "J-7", JSON.stringify([...session._m]));
   ok("10.1 /carte en échec : l'erreur est dite", /disque plein/.test(texte(marque(w.racine, "statut"))), texte(marque(w.racine, "statut")));
   ok("10.2 …et la conversation est relue", w.appels.filter((a) => a.methode === "GET" && a.url === "/api/agent/campagnes/c1").length >= 2);
   const [b] = parTexte(w.racine, /Rendu payé/);
   ok("10.3 le bouton devient « enregistrer la décision » (plus « Générer »)", !!b && !parTexte(w.racine, /Générer/).length, boutons(w.racine).map((x) => x.textContent).join("|"));
   b.click();
-  await attendre(() => cartes === 2);
+  await attendre(() => cartes === 3);
   ok("10.4 la route payante n'a été appelée QU'UNE fois", w.appels.filter((a) => a.url === "/api/generate").length === 1);
-  ok("10.5 le second /carte porte le même job_id", w.appels.filter((a) => a.url.endsWith("/carte/0"))[1].corps.job_id === "J-7");
+  ok("10.5 le /carte suivant porte le même job_id", w.appels.filter((a) => a.url.endsWith("/carte/0"))[2].corps.job_id === "J-7");
   w.c.demonter();
 }
+{ // relecture de branche, IMPORTANT 2 : démontage PENDANT la génération -> /carte posté quand même, sans signal
+  let fini = null;
+  const session = stockage();
+  const routes = avec(() => conv([msg("agent", [DEVIS_VIDEO])]), {
+    "POST /api/generate": () => new Promise((ok2) => { fini = () => ok2(reponse(200, { job_id: "J-8", status: "queued" })); }),
+    "POST /api/agent/campagnes/c1/carte/0": async () => reponse(200, conv([msg("agent", [DEVIS_VIDEO])]))
+  });
+  const w = await monterAvec(routes, {}, "fr", session);
+  parTexte(w.racine, /Générer/)[0].click();
+  await attendre(() => !!fini);
+  w.c.demonter();
+  fini();
+  await attendre(() => w.appels.some((a) => a.url.endsWith("/carte/0")));
+  const c0 = w.appels.find((a) => a.url.endsWith("/carte/0"));
+  ok("10.20 démonté pendant la génération : /carte posté quand même, avec le job_id", !!c0 && c0.corps.job_id === "J-8" && c0.corps.decision === "acceptee", JSON.stringify(w.appels.map((a) => a.url)));
+  ok("10.21 …sans le signal d'annulation du composant", !!c0 && !c0.signal);
+  await tick();
+  ok("10.22 …et le rendu en attente est effacé après le succès", session._m.size === 0, JSON.stringify([...session._m]));
+}
+{ // rechargement avec un rendu en attente : rejoué au montage, la route payante n'est JAMAIS rappelée
+  const session = stockage({ "dzCampagnes.rendu:c1/0": JSON.stringify({ job_id: "J-9" }) });
+  let cartes = 0, gen = 0;
+  const routes = avec(() => conv([msg("agent", [DEVIS_VIDEO])].concat(cartes ? [msg("fait", [{ ...DEVIS_VIDEO, etat: "acceptee", arguments: { carte: 0, job_id: "J-9" } }])] : [])), {
+    "POST /api/generate": async () => { gen++; return reponse(200, { job_id: "X" }); },
+    "POST /api/agent/campagnes/c1/carte/0": async (c) => { cartes++; return reponse(200, conv([msg("agent", [DEVIS_VIDEO]), msg("fait", [{ ...DEVIS_VIDEO, etat: "acceptee", arguments: { carte: 0, ...c } }])])); }
+  });
+  const w = await monterAvec(routes, {}, "fr", session);
+  await tick();
+  const c0 = w.appels.find((a) => a.url.endsWith("/carte/0"));
+  ok("10.23 rechargement : le rendu en attente est rejoué (/carte, même job_id) AVANT la lecture", !!c0 && c0.corps.job_id === "J-9"
+    && w.appels.indexOf(c0) < w.appels.findIndex((a) => a.url === "/api/agent/campagnes/c1"), JSON.stringify(w.appels.map((a) => a.url)));
+  ok("10.24 …la route payante n'est jamais rappelée, aucun bouton « Générer »", gen === 0 && !parTexte(w.racine, /Générer/).length, boutons(w.racine).map((x) => x.textContent).join("|"));
+  ok("10.25 …et l'attente est effacée", session._m.size === 0);
+  w.c.demonter();
+}
+{ // rejeu en échec : le bouton reste « enregistrer », jamais « Générer »
+  const session = stockage({ "dzCampagnes.rendu:c1/0": JSON.stringify({ job_id: "J-10" }) });
+  const routes = avec(() => conv([msg("agent", [DEVIS_VIDEO])]), {
+    "POST /api/agent/campagnes/c1/carte/0": async () => reponse(500, { detail: "toujours plein" })
+  });
+  const w = await monterAvec(routes, {}, "fr", session);
+  await tick();
+  ok("10.26 rejeu raté : « enregistrer la décision », pas « Générer », l'attente reste gardée", parTexte(w.racine, /Rendu payé/).length === 1
+    && !parTexte(w.racine, /Générer/).length && session._m.size === 1, boutons(w.racine).map((x) => x.textContent).join("|"));
+  w.c.demonter();
+}
+{ // decider : une 409 « déjà décidée » ne reste pas affichée quand la carte n'est plus proposée
+  let relu = 0;
+  const routes = avec(() => conv(relu ? [msg("agent", [PORTE]), msg("fait", [{ ...PORTE, etat: "acceptee", arguments: { carte: 0 } }])] : [msg("agent", [PORTE])]), {
+    "POST /api/agent/campagnes/c1/carte/0": async () => { relu = 1; return reponse(409, { detail: "Carte déjà décidée." }); }
+  });
+  const w = await monterAvec(routes);
+  parTexte(w.racine, /Valider/)[0].click();
+  await attendre(() => relu && w.appels.filter((a) => a.url === "/api/agent/campagnes/c1").length >= 2);
+  await tick();
+  ok("10.27 409 sur une carte décidée ailleurs : aucune erreur affichée", texte(marque(w.racine, "statut")) === "", texte(marque(w.racine, "statut")));
+  w.c.demonter();
+}
+{ // M6 : une lecture des espaces ratée ne se relance pas à chaque dessin
+  let lus = 0;
+  const routes = { "GET /api/agent/campagnes/c1": async () => reponse(200, conv([msg("agent", [BROUILLONS])], { espace_id: "e9" })),
+    "GET /api/espaces*": async () => { lus++; return reponse(500, { detail: "x" }); } };
+  const w = await monterAvec(routes);
+  for (let i = 0; i < 4; i++) { w.c.recharger(); await tick(); }
+  ok("10.28 M6 : lecture ratée des espaces : pas de relance à chaque dessin", lus <= 2, String(lus));
+  w.c.demonter();
+}
+{ // M5 : une carte brouillons sans espace_id annonce l'espace de la conversation
+  const B0 = carte("brouillons", { action: "ouvrir_planificateur", arguments: { ids: ["p1"] } });
+  const w = await monterAvec(avec(() => conv([msg("agent", [B0])])));
+  await attendre(() => !!marque(w.racine, "ouvrir-planificateur"));
+  marque(w.racine, "ouvrir-planificateur").click();
+  const ev = w.events.find((x) => x.type === "dz-campagnes-brouillons");
+  ok("10.29 M5 : dz-campagnes-brouillons porte l'espace de la conversation en repli", !!ev && ev.detail.espace_id === "e1", JSON.stringify(ev));
+  w.c.demonter();
+}
+ok("10.30 M9 : l'en-tête dit que le script classique s'exécute AVANT le module", /s'exécute donc AVANT le module/.test(SRC));
 { // M1 : le réseau tombe avant le départ -> le texte revient dans le champ
   const routes = avec(() => conv([]), { "POST /api/agent/campagnes/c1/devis": async () => reponse(200, { plafond_usd: 1, in_tok: 1, out_tok: 1, modele: "m" }) });
   const w = await monterAvec(routes);

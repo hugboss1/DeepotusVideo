@@ -1,7 +1,8 @@
 /* dz-campagnes.js — le composant PARTAGÉ de conversation de l'agent Campagnes (t285, T8, 24/10/2026, spec
    docs/superpowers/specs/2026-10-23-agent-interne-design.md §6). SOURCE : frontend/shared/dz-campagnes.js ; copie OCTET
-   POUR OCTET : frontend/dist/shared/dz-campagnes.js, chargée par frontend/dist/index.html (balise classique, après
-   dz-agent.js). Le banc backend/tests/test_campagnes_shared.py refuse toute dérive, le banc node
+   POUR OCTET : frontend/dist/shared/dz-campagnes.js, chargée par frontend/dist/index.html : balise classique placée
+   après dz-agent.js dans la page ; script classique, il s'exécute donc AVANT le module (différé) de la SPA, et
+   window.DzCampagnes existe quand les écrans montent. Le banc backend/tests/test_campagnes_shared.py refuse toute dérive, le banc node
    frontend/shared/qa/campagnes.test.mjs joue le composant sur un DOM simulé.
 
    window.DzCampagnes.monter(el, { cid?, role, espace_id?, brief?, contexte: "planificateur" | "f1", surCid? })
@@ -417,11 +418,17 @@
     async function nomsEspaces() {
       try {
         var r = await window.fetch("/api/espaces?archives=true");
-        if (!r.ok) return;
+        if (!r.ok) { lectureEspacesRatee(); return; }
         var j = await r.json();
         (j.espaces || []).forEach(function (x) { if (x && x.id) S.noms[x.id] = x.nom || x.id; });
         S.actif = typeof j.actif === "string" ? j.actif : null;
-      } catch (e) { /* le nom retombe sur l'identifiant */ }
+      } catch (e) { lectureEspacesRatee(); }   // le nom retombe sur l'identifiant
+    }
+    // relecture de branche (M6) : une lecture ratée ne se relance pas à chaque dessin
+    function lectureEspacesRatee() {
+      if (S.actif === undefined) S.actif = null;
+      var id = S.conv && S.conv.espace_id;
+      if (id && !S.noms[id]) S.noms[id] = String(id);
     }
 
     async function charger() {
@@ -578,10 +585,15 @@
         S.erreur = "";
       } catch (e) {
         if (S.ferme) return;
-        S.erreur = T("campagnes.erreur.carte", { msg: String((e && e.message) || e) });
+        var msgE = T("campagnes.erreur.carte", { msg: String((e && e.message) || e) });
         delete S.occ[n];
+        S.erreur = "";
         await charger();   // l'état réel (409 : déjà décidée)
-        if (!S.erreur) S.erreur = T("campagnes.erreur.carte", { msg: String((e && e.message) || e) });
+        if (S.ferme) return;
+        // la carte n'est plus « proposee » (déjà décidée ailleurs) : l'erreur n'a plus lieu d'être affichée
+        var infoE = analyser(S.conv), xE = infoE.etats[n];
+        var etatE = xE ? (xE.etat || "proposee") : ((infoE.cartes[n] && infoE.cartes[n].etat) || "proposee");
+        if (etatE === "proposee" && !S.erreur) S.erreur = msgE;
       } finally {
         delete S.occ[n];
         dessiner();
@@ -592,7 +604,7 @@
     async function genererDevis(n, b) {
       var a = b.arguments || {};
       if (n === null || S.occ[n] || S.ferme) return;
-      if (S.rendus[n]) { await decider(n, "acceptee", S.rendus[n]); return; }   // déjà payé : on ne refait que /carte
+      if (S.rendus[n]) { await enregistrerRendu(S.cid, n, S.rendus[n]); return; }   // déjà payé : on ne refait que /carte
       if (!ROUTES[a.genre] || a.route !== ROUTES[a.genre]) { S.erreur = T("campagnes.erreur.generation", { msg: String(a.route || "") }); dessiner(); return; }
       S.occ[n] = true; S.erreur = ""; dessiner();
       var extra = null;
@@ -610,9 +622,71 @@
         dessiner();
         return;
       }
-      delete S.occ[n];
       S.rendus[n] = extra;
-      await decider(n, "acceptee", extra);
+      garderRendu(S.cid, n, extra);         // payé : gardé jusqu'à ce que /carte l'ait noté (démontage, rechargement)
+      delete S.occ[n];
+      await enregistrerRendu(S.cid, n, extra);
+    }
+
+    // relecture de branche (IMPORTANT 2) : un rendu PAYÉ s'annonce à /carte même si le composant est démonté
+    // pendant ou juste après la génération : window.fetch direct (sans le signal d'annulation), malgré S.ferme, deux
+    // tentatives ; {cid, n, extra} reste en sessionStorage jusqu'au succès et se rejoue au montage d'un cid connu.
+    var CLE_RENDU = "dzCampagnes.rendu:";
+    function cleRendu(cid, n) { return CLE_RENDU + cid + "/" + n; }
+    function garderRendu(cid, n, extra) {
+      try { window.sessionStorage.setItem(cleRendu(cid, n), JSON.stringify(extra)); } catch (e) { /* stockage absent */ }
+    }
+    function oublierRendu(cid, n) {
+      try { window.sessionStorage.removeItem(cleRendu(cid, n)); } catch (e) { /* stockage absent */ }
+    }
+    function rendusEnAttente(cid) {
+      var out = {}, pre = CLE_RENDU + cid + "/";
+      try {
+        var ss = window.sessionStorage;
+        for (var i = 0; i < ss.length; i++) {
+          var k = ss.key(i);
+          if (!k || k.indexOf(pre) !== 0) continue;
+          var n = Number(k.slice(pre.length)), v = JSON.parse(ss.getItem(k));
+          if (isFinite(n) && v && typeof v === "object") out[n] = v;
+        }
+      } catch (e) { /* stockage absent ou illisible */ }
+      return out;
+    }
+    async function posterRendu(cid, n, extra) {
+      var corps = { decision: "acceptee" };
+      for (var k in (extra || {})) corps[k] = extra[k];
+      var msgR = "";
+      for (var essai = 0; essai < 2; essai++) {
+        try {
+          var r = await window.fetch(BASE + "/" + cid + "/carte/" + n, { method: "POST", headers: JSON_H, body: JSON.stringify(corps) });
+          if (r.ok) { oublierRendu(cid, n); var cv = null; try { cv = await r.json(); } catch (e) { cv = null; } return { ok: true, conv: cv }; }
+          if (r.status === 409) { oublierRendu(cid, n); return { ok: true, conv: null }; }   // déjà notée
+          msgR = await detailDe(r);
+        } catch (e) { msgR = String((e && e.message) || e); }
+      }
+      return { ok: false, msg: msgR };
+    }
+    async function enregistrerRendu(cid, n, extra) {
+      if (!cid || n === null) return;
+      S.occ[n] = true;
+      if (!S.ferme) dessiner();
+      var res = await posterRendu(cid, n, extra);
+      delete S.occ[n];
+      if (S.ferme) return;
+      if (res.ok) {
+        S.erreur = "";
+        if (res.conv && res.conv.messages) S.conv = res.conv; else await charger();
+      } else {
+        await charger();                           // l'état réel ; l'erreur reste dite, le rendu reste gardé
+        if (S.ferme) return;
+        S.erreur = T("campagnes.erreur.carte", { msg: res.msg });
+      }
+      dessiner();
+    }
+    async function rejouerRendus() {
+      var att = rendusEnAttente(S.cid);
+      for (var k in att) S.rendus[k] = att[k];     // avant tout dessin de la carte : jamais de bouton « Générer »
+      for (var k2 in att) await posterRendu(S.cid, Number(k2), att[k2]);
     }
 
     function continuer(n, b) {
@@ -657,7 +731,7 @@
     function ouvrirPlanificateur(a) {
       try {
         window.dispatchEvent(new CustomEvent("deepotus:navigate", { detail: { view: "scheduler" } }));
-        window.dispatchEvent(new CustomEvent("dz-campagnes-brouillons", { detail: { ids: a.ids || [], espace_id: a.espace_id || null, cid: S.cid } }));
+        window.dispatchEvent(new CustomEvent("dz-campagnes-brouillons", { detail: { ids: a.ids || [], espace_id: a.espace_id || (S.conv && S.conv.espace_id) || null, cid: S.cid } }));
       } catch (e) { /* pas de navigation possible hors de la SPA */ }
     }
 
@@ -684,7 +758,7 @@
     hote.appendChild(racine);
     dessiner();
     if (opts.brief) { champ.value = String(opts.brief); surSaisie(); }
-    if (S.cid) charger();
+    if (S.cid) rejouerRendus().then(charger);
     else if (opts.espace_id) nomsEspaces().then(function () { dessiner(); });
 
     return {

@@ -3,7 +3,7 @@
 """Maillon de queue : le mode « Agent Campagnes » du dialogue « Generate a marketing plan » du Planificateur
 (t285 T9, 24/10/2026, spec docs/superpowers/specs/2026-10-23-agent-interne-design.md §6).
 
-Quatre paires, toutes dans le dialogue Um (clé scheduler.plan.titre_generer), HORS des blocs de couche, et qui
+Cinq paires, toutes dans le dialogue Um (clé scheduler.plan.titre_generer), HORS des blocs de couche, et qui
 n'AJOUTENT que du texte (P2, P4 : l'ancre d'origine reste entière dans son remplacement ; P1 glisse le crochet entre
 l'en-tête de la fonction et son premier `const` ; P3 glisse le choix du composant et ses propriétés après `"div"`) :
   P1 les aides de frontend/patches/agent-plan.js, APLATIES en une ligne, devant `function Um({…`, et le crochet du
@@ -15,7 +15,9 @@ l'en-tête de la fonction et son premier `const` ; P3 glisse le choix du composa
      en mode Rapide, le corps d'origine, inchangé. L'ancre commence APRÈS `r.jsxs("` : le remplacement G1 de dzglyph
      (`…onClick:e})]}),r.jsxs("`, scripts/dzglyph_paires.json) reste entier ; le type devient
      `"div"&&__dzAP[0]==="agent"?DzAgentPlan:"div"` et les propriétés du panneau n'arrivent qu'en mode Agent ;
-  P4 le pied (Générer, Ajouter au calendrier) : masqué en mode Agent.
+  P4 le pied (Générer, Ajouter au calendrier) : masqué en mode Agent ;
+  P5 le fond du dialogue (relecture de branche) : en mode Agent, un clic hors de la boîte NE ferme PAS le dialogue
+     (il démonterait DzCampagnes et couperait un tour payé) ; on ferme par la croix. En Rapide, inchangé.
 Les brouillons au calendrier : l'évènement que le Planificateur écoute déjà est « deepotus:schedule-reload » (il
 appelle reloadPosts) ; le panneau l'émet à « dz-campagnes-brouillons » et au démontage d'une conversation ouverte.
 AUCUN `x.useState(` ajouté (hooks par alias : 731 inchangé) ; v2.8.0 ×4, DzTracks 181, confirmations ×30 intouchés.
@@ -81,6 +83,7 @@ _CORPS = ('className:"scroll",style:{flex:1,overflowY:"auto",padding:18,display:
 _PIED = ('r.jsxs("div",{style:{padding:"12px 18px",borderTop:"1px solid var(--stroke)",display:"flex",alignItems:"center",'
          'gap:10},children:[r.jsxs("span",{style:{fontSize:10.5,color:"var(--ink-muted)",flex:1},children:[k==="auto"?'
          'dzT("scheduler.plan.arrivent_auto")')
+_FOND = 'r.jsx("div",{onClick:e,style:{position:"fixed",inset:0,zIndex:80,'
 PAIRES = [
     # P1 : les aides, et le crochet du mode en tête du dialogue
     (_UM + "const o=bt(),", AIDES + _UM + "var __dzAP=__dzAgentPlanMode();const o=bt(),"),
@@ -92,6 +95,8 @@ PAIRES = [
                        'setJours:u,debut:p,setDebut:h,fermer:e}:{}),' + _CORPS),
     # P4 : le pied d'origine, masqué en mode Agent
     (_PIED, '__dzAP[0]==="agent"?null:' + _PIED),
+    # P5 : le fond ne ferme plus le dialogue en mode Agent
+    (_FOND, _FOND.replace("onClick:e,", 'onClick:__dzAP[0]==="agent"?void 0:e,')),
 ]
 
 

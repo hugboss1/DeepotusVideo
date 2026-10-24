@@ -1419,6 +1419,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "campagnes.plan.mode": {"fr": "Mode du plan", "en": "Plan mode"},
   "campagnes.plan.periode_message": {"fr": "Période : à partir du {debut}, sur {n} jours.", "en": "Period: from {debut}, over {n} days."},
   "campagnes.plan.rapide": {"fr": "Rapide", "en": "Quick"},
+  "campagnes.plan.reprendre": {"fr": "Reprendre la conversation", "en": "Resume the conversation"},
   "cartes.capture.adopter": {"fr": ". La pièce Illustration peut l'adopter.", "en": ". The Illustration piece can adopt it."},
   "cartes.capture.alt": {"fr": "capture {cote}", "en": "{cote} capture"},
   "cartes.capture.analyse_bord": {"fr": "bordure {mm} mm ({conf})", "en": "border {mm} mm ({conf})"},

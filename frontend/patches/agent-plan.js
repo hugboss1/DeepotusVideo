@@ -21,10 +21,17 @@
    désactivé tant que la liste des espaces n'est pas là ; window.__dzEspActiver = l'activation de la coque
    (dzEspActiver : POST /activate, cache des espaces relu, « deepotus:espace-refresh ») pour la carte « brouillons »
    de dz-campagnes.js, qui active l'espace sur un clic de l'utilisateur.
+   Relecture de branche (24/10) : le dernier cid de chaque espace est gardé en sessionStorage
+   (« dzAgentPlan.cid:<espace> ») ; le bouton « Reprendre la conversation » remonte DzCampagnes dessus. Le fond du
+   dialogue ne le ferme plus en mode Agent (paire P5 du maillon). Les brouillons : l'espace comparé est celui de
+   l'évènement, sinon celui de la conversation montée.
    Hooks par alias (compte figé des bancs). Textes : clés dzT campagnes.plan.* (frontend/shared/i18n/campagnes.json). */
 function __dzAgentPlanMode(){/*__dzagentplan*/var US=x.useState;return US("rapide");}
 try{if(typeof dzEspActiver==="function")window.__dzEspActiver=dzEspActiver;}catch(e){}
 function __dzAgentPlanActif(){return fetch("/api/espaces").then(function(R){return R.ok?R.json():null;}).then(function(d){return d&&d.actif||null;}).catch(function(){return null;});}
+function __dzAgentPlanCle(e){return "dzAgentPlan.cid:"+(e||"-");}
+function __dzAgentPlanGarder(e,cid){try{if(cid)window.sessionStorage.setItem(__dzAgentPlanCle(e),String(cid));}catch(x){}}
+function __dzAgentPlanRepris(e){try{return window.sessionStorage.getItem(__dzAgentPlanCle(e))||null;}catch(x){return null;}}
 function __dzAgentPlanRecharger(){try{window.dispatchEvent(new CustomEvent("deepotus:schedule-reload"));}catch(e){}}
 function __dzAgentPlanBrief(brief,debut,jours,depot){
   var t=String(brief||"").trim(),plus=[];
@@ -65,8 +72,9 @@ function DzAgentPlan(p){
   var s5=US(""),err=s5[0],setErr=s5[1];
   var s6=US(!1),occ=s6[0],setOcc=s6[1];
   var s7=US(null),actif=s7[0],setActif=s7[1];
-  var hote=UR(null),cidRef=UR(null),fileRef=UR(null),fermer=UR(p.fermer);
+  var hote=UR(null),cidRef=UR(null),fileRef=UR(null),fermer=UR(p.fermer),convRef=UR(null);
   fermer.current=p.fermer;
+  convRef.current=conv;
   UE(function(){var on=!0;
     fetch("/api/espaces").then(function(R){return R.ok?R.json():null;}).then(function(d){
       if(!on)return;
@@ -77,7 +85,8 @@ function DzAgentPlan(p){
       setChoix(l.some(function(z){return z.id===a;})?a:(l[0]?l[0].id:""));}).catch(function(){if(on)setEsp([]);});
     function surBrouillons(ev){
       __dzAgentPlanRecharger();
-      var e=ev&&ev.detail&&ev.detail.espace_id||null;
+      var cv=convRef.current;
+      var e=ev&&ev.detail&&ev.detail.espace_id||cv&&cv.espace||null;
       __dzAgentPlanActif().then(function(a){
         if(!on)return;
         if(a)setActif(a);
@@ -88,10 +97,17 @@ function DzAgentPlan(p){
   UE(function(){
     if(!conv)return;
     cidRef.current=conv.cid||null;
-    var h=__dzAgentPlanMonter(hote.current,{cid:conv.cid,espace_id:conv.espace,brief:conv.brief,surCid:function(c){cidRef.current=c;}});
+    __dzAgentPlanGarder(conv.espace,conv.cid);
+    var h=__dzAgentPlanMonter(hote.current,{cid:conv.cid,espace_id:conv.espace,brief:conv.brief,surCid:function(c){cidRef.current=c;__dzAgentPlanGarder(conv.espace,c);}});
     if(!h){setErr(dzT("campagnes.plan.absent"));return;}
     return function(){try{h.demonter();}catch(e){}if(cidRef.current)__dzAgentPlanRecharger();};},[conv]);
   var dispo=__dzAgentPlanDispo();
+  var repris=esp===null?null:__dzAgentPlanRepris(choix);
+  function reprendre(){
+    if(occ||!repris)return;
+    if(!__dzAgentPlanDispo()){setErr(dzT("campagnes.plan.absent"));return;}
+    setErr("");
+    setConv({cid:repris,espace:choix,brief:""});}
   function demarrer(){
     if(occ||esp===null)return;
     if(!__dzAgentPlanDispo()){setErr(dzT("campagnes.plan.absent"));return;}
@@ -123,4 +139,4 @@ function DzAgentPlan(p){
       r.jsx("div",{style:Object.assign({width:"100%"},mut),children:dzT("campagnes.plan.document_aide")})]})}),
     alerte,
     dispo?null:r.jsx("div",{style:mut,children:dzT("campagnes.plan.absent")}),
-    r.jsx("div",{style:{display:"flex",justifyContent:"flex-end"},children:r.jsx(K,{variant:"primary",size:"md",icon:"dz-action-generer",glow:!0,"data-dzagentplan-demarrer":"",onClick:demarrer,disabled:occ||!dispo||esp===null,children:occ?dzT("campagnes.plan.depot_en_cours"):dzT("campagnes.plan.demarrer")})})]});}
+    r.jsxs("div",{style:{display:"flex",justifyContent:"flex-end",gap:8},children:[repris?r.jsx(K,{variant:"outline",size:"md",icon:"dz-action-rouvrir-quick","data-dzagentplan-reprendre":"",onClick:reprendre,disabled:occ||!dispo,children:dzT("campagnes.plan.reprendre")},"rep"):null,r.jsx(K,{variant:"primary",size:"md",icon:"dz-action-generer",glow:!0,"data-dzagentplan-demarrer":"",onClick:demarrer,disabled:occ||!dispo||esp===null,children:occ?dzT("campagnes.plan.depot_en_cours"):dzT("campagnes.plan.demarrer")},"dem")]})]});}

@@ -80,5 +80,6 @@
   "campagnes.outil.proposer_porte": {"fr":"Proposition d'une porte de validation","en":"Proposing an approval gate"},
   "campagnes.outil.deviser_generation": {"fr":"Devis d'une génération","en":"Quoting a generation"},
   "campagnes.outil.creer_brouillons": {"fr":"Création des brouillons","en":"Creating the drafts"},
-  "campagnes.outil.pointer": {"fr":"Désignation d'un élément de l'écran","en":"Pointing at an on-screen element"}
+  "campagnes.outil.pointer": {"fr":"Désignation d'un élément de l'écran","en":"Pointing at an on-screen element"},
+  "campagnes.plan.reprendre": {"fr":"Reprendre la conversation","en":"Resume the conversation"}
 }
