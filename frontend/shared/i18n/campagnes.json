@@ -47,5 +47,21 @@
   "campagnes.erreur.http": {"fr":"erreur HTTP {code}","en":"HTTP error {code}"},
   "campagnes.erreur.plafond_detail": {"fr":"Le plafond de dépense a refusé cette réponse. {msg}","en":"The spending cap refused this reply. {msg}"},
   "campagnes.erreur.sans_resultat": {"fr":"la réponse ne contient pas le rendu attendu","en":"the response does not contain the expected render"},
-  "campagnes.action.enregistrer": {"fr":"Rendu payé : enregistrer la décision","en":"Already paid: save the decision"}
+  "campagnes.action.enregistrer": {"fr":"Rendu payé : enregistrer la décision","en":"Already paid: save the decision"},
+  "campagnes.plan.mode": {"fr":"Mode du plan","en":"Plan mode"},
+  "campagnes.plan.rapide": {"fr":"Rapide","en":"Quick"},
+  "campagnes.plan.agent": {"fr":"Agent Campagnes","en":"Campaigns agent"},
+  "campagnes.plan.intro": {"fr":"L'agent Campagnes bâtit la stratégie et le calendrier avec toi : tu valides chaque étape, et les posts arrivent en brouillons au calendrier.","en":"The Campaigns agent builds the strategy and the schedule with you: you approve each step, and the posts land as drafts in the calendar."},
+  "campagnes.plan.espace": {"fr":"Espace de la campagne","en":"Campaign space"},
+  "campagnes.plan.espace_fige": {"fr":"Choisi ici, avant de commencer : il ne change plus pendant la conversation.","en":"Chosen here, before you start: it no longer changes during the conversation."},
+  "campagnes.plan.document": {"fr":"Document (facultatif)","en":"Document (optional)"},
+  "campagnes.plan.joindre": {"fr":"Joindre un document","en":"Attach a document"},
+  "campagnes.plan.document_aide": {"fr":"Un .md, .txt, .docx ou .pdf : l'agent le lit et s'en sert pour la stratégie.","en":"A .md, .txt, .docx or .pdf file: the agent reads it and uses it for the strategy."},
+  "campagnes.plan.absent": {"fr":"La conversation de l'agent n'est pas chargée (dz-campagnes.js) : recharge la page.","en":"The agent conversation is not loaded (dz-campagnes.js): reload the page."},
+  "campagnes.plan.echec_depot": {"fr":"Le document n'a pas pu être déposé : {msg}","en":"The document could not be uploaded: {msg}"},
+  "campagnes.plan.depot_en_cours": {"fr":"Dépôt du document…","en":"Uploading the document…"},
+  "campagnes.plan.demarrer": {"fr":"Ouvrir la conversation","en":"Open the conversation"},
+  "campagnes.plan.periode_message": {"fr":"Période : à partir du {debut}, sur {n} jours.","en":"Period: from {debut}, over {n} days."},
+  "campagnes.plan.debut_message": {"fr":"Début de la campagne : {debut}.","en":"Campaign start: {debut}."},
+  "campagnes.plan.document_message": {"fr":"Document joint (dépôt « {nom} ») : lis-le avec lire_document.","en":"Attached document (upload “{nom}”): read it with lire_document."}
 }

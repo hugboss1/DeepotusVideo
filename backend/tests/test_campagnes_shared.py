@@ -36,6 +36,9 @@ def test_cles_fr_en():
         assert sorted(re.findall(r"\{(\w+)\}", v["fr"])) == sorted(re.findall(r"\{(\w+)\}", v["en"])), k
     employees = set(re.findall(r'"(campagnes\.[a-z_]+\.[a-z_]+)"', SRC))
     employees |= {f"campagnes.genre.{g}" for g in GENRES}
+    # t285 T9 : les libellés du mode Agent Campagnes du Planificateur (maillon dzagentplan, source aplatie)
+    PLAN = (RACINE / "frontend" / "patches" / "agent-plan.js").read_text(encoding="utf-8")
+    employees |= set(re.findall(r'"(campagnes\.[a-z_]+\.[a-z_]+)"', PLAN))
     assert employees, "le composant passe par T(…)"
     assert employees <= set(I18N), "clés employées sans traduction : " + str(sorted(employees - set(I18N)))
     assert set(I18N) <= employees, "clés orphelines : " + str(sorted(set(I18N) - employees))
