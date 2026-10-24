@@ -197,3 +197,29 @@ export function borner(pos, taille, fenetre, marge = MARGE_BULLE) {
 }
 // un appui qui bouge de plus de 4 px est un déplacement, pas un clic
 export function glisse(a, b, seuil = 4) { return Math.hypot(b.x - a.x, b.y - a.y) > seuil; }
+
+// t285b (24/10/2026, plan 2026-10-23-agent-interne, T10b) : l'onglet « Campagnes » du tiroir monte le composant partagé
+// /shared/dz-campagnes.js. Sans espace : rôle « orienteur » ; un espace choisi : rôle « campagnes » et son espace_id
+// (jamais l'espace actif d'office). `surCid` est ajouté par l'écran, pas ici.
+export const ONGLETS = ["demander", "campagnes"];
+export function ongletLu(v) { return ONGLETS.includes(v) ? v : "demander"; }
+export function optionsCampagnes({ espace, brief, cid } = {}) {
+  const o = { contexte: "f1", role: espace ? "campagnes" : "orienteur" };
+  if (espace) o.espace_id = String(espace);
+  if (typeof brief === "string" && brief.trim()) o.brief = brief;
+  if (cid) o.cid = String(cid);
+  return o;
+}
+// la conversation gardée dans sessionStorage (dz_agent_camp) : {cid, role, espace} validé, sinon null
+const ID_SUR = /^[A-Za-z0-9_-]{1,80}$/;
+export function campagneLue(json) {
+  try {
+    const c = JSON.parse(json);
+    if (!c || typeof c !== "object" || Array.isArray(c)) return null;
+    if (typeof c.cid !== "string" || !ID_SUR.test(c.cid)) return null;
+    if (c.role !== "orienteur" && c.role !== "campagnes") return null;
+    const espace = c.espace == null ? "" : c.espace;
+    if (typeof espace !== "string" || (espace && !ID_SUR.test(espace))) return null;
+    return { cid: c.cid, role: c.role, espace };
+  } catch (e) { return null; }
+}
