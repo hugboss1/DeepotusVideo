@@ -317,6 +317,40 @@ const { tiroir: T1, bouton: B1 } = await charger(S1, "");
   ok("4.6 Entrée hors de la saisie de Demander ne lui envoie rien", appels.filter((a) => a.url === "/api/agent/demander").length === avant + 1);
 }
 
+// ---- 4b. surcid_perime_ignore (revue T10b) : le surCid d'un composant DÉMONTÉ (POST / encore en vol) ne touche à rien -
+{
+  const e = etat(T1);
+  e.ongC.click(); await tick();
+  const nouvelle = T1.querySelector(`button[aria-label="${dzT("agent.tiroir.nouvelle")}"]`);
+  const photo = () => ({ camp: S1.getItem("dz_agent_camp"), verrou: e.sel.hasAttribute("disabled"), espace: e.sel.value });
+  // a) changement d'espace : l'ancienne conversation orienteur répond après coup
+  nouvelle.click(); await tick();
+  const a = dernier();
+  e.sel.value = "e2"; e.sel.fire("change"); await tick();
+  let avant = photo();
+  a.surCid("vieux-a");
+  ok("4b.1 changement d'espace : le surCid de l'ancien montage est ignoré", egal(photo(), avant) && S1.getItem("dz_agent_camp") === null, JSON.stringify(photo()));
+  // b) ↺ : l'ancienne campagne (avec espace) répond après coup → ni verrou ni cid gardé
+  nouvelle.click(); await tick();
+  e.sel.value = "e1"; e.sel.fire("change"); await tick();
+  const b = dernier();
+  nouvelle.click(); await tick();
+  avant = photo();
+  b.surCid("vieux-b");
+  ok("4b.2 ↺ : le surCid de l'ancien montage est ignoré (pas de verrou, rien de gardé)", egal(photo(), avant) && !e.sel.hasAttribute("disabled") && S1.getItem("dz_agent_camp") === null, JSON.stringify(photo()));
+  // c) la carte de passage de main : idem
+  e.sel.value = "e1"; e.sel.fire("change"); await tick();
+  const c = dernier();
+  const carte = marque(T1, "ouvrir-campagnes");
+  if (carte) carte.click(); await tick();
+  avant = photo();
+  c.surCid("vieux-c");
+  ok("4b.3 carte : le surCid de l'ancien montage est ignoré", !!carte && c.demonte && egal(photo(), avant) && !e.sel.hasAttribute("disabled") && S1.getItem("dz_agent_camp") === null, JSON.stringify(photo()));
+  // le montage courant, lui, est toujours écouté
+  dernier().surCid("c-courant");
+  ok("4b.4 le surCid du montage courant compte toujours", egal(JSON.parse(S1.getItem("dz_agent_camp") || "null"), { cid: "c-courant", role: "orienteur", espace: "" }), S1.getItem("dz_agent_camp"));
+}
+
 // ---- 5. DzCampagnes absent, puis rechargement de la page : la même conversation est remontée ----------------------------
 {
   const S2 = stockage({ dz_agent_onglet: "campagnes", dz_agent_camp: JSON.stringify({ cid: "c42", role: "campagnes", espace: "e1" }) });

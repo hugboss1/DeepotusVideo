@@ -169,6 +169,7 @@ if (!window.__dzAgent) {
   let camp = null;                      // le composant monté {demonter, cid, recharger}, null avant la 1re ouverture
   let campEtat = campagneLue(lire(window.sessionStorage, "dz_agent_camp"));     // {cid, role, espace} | null
   let espacesLus = false;
+  let genCamp = 0;                      // revue T10b : génération du montage ; un surCid d'un composant démonté est ignoré
   const afficherSi = (n, oui) => { if (oui) n.removeAttribute("hidden"); else n.setAttribute("hidden", ""); };
   function choisirOnglet(nom, focus) {
     onglet = ongletLu(nom);
@@ -196,6 +197,7 @@ if (!window.__dzAgent) {
   function demonterCampagne() {
     if (camp) { try { camp.demonter(); } catch (e) { /* déjà démonté */ } }
     camp = null;
+    genCamp++;                          // tout surCid encore en vol (POST / du composant démonté) devient périmé
     hoteCampagnes.replaceChildren();
   }
   // o : {espace?, brief?, cid?} → DzCampagnes.monter(hôte, optionsCampagnes(o) + surCid)
@@ -208,7 +210,8 @@ if (!window.__dzAgent) {
     }
     const opts = optionsCampagnes(o);
     const role = opts.role, espace = opts.espace_id || "";
-    opts.surCid = (cid) => { if (typeof cid === "string" && cid) garderCampagne({ cid, role, espace }); };
+    const g = ++genCamp;
+    opts.surCid = (cid) => { if (g === genCamp && typeof cid === "string" && cid) garderCampagne({ cid, role, espace }); };
     try { camp = D.monter(hoteCampagnes, opts); }
     catch (e) {
       camp = null;
