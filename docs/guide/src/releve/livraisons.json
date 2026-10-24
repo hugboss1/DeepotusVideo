@@ -9171,6 +9171,60 @@
      "payant": false
     }
    ]
+  },
+  {
+   "ecran": "Agent Campagnes (tiroir F1, Planificateur, compagnon)",
+   "acces": "Tiroir F1 → onglet « Campagnes » ; Planificateur → « Générer un plan » → « Agent Campagnes » ; téléphone appairé",
+   "fonctions": [
+    {
+     "nom": "Onglet Campagnes du tiroir F1",
+     "quoi": "Une conversation avec l'agent Campagnes, à côté de « Demander » : espace de la campagne choisi en haut puis figé, coût cumulé affiché ; « Ouvrir l'agent Campagnes » y mène depuis « Demander ».",
+     "comment": "F1 → Campagnes → espace → brief → Envoyer",
+     "depuis": "2026-10-24",
+     "ref": "PR #444 · t285b",
+     "payant": true
+    },
+    {
+     "nom": "Devis par message",
+     "quoi": "Avant chaque envoi, le plafond en dollars de toute la réponse s'affiche sous le champ ; l'envoi vaut accord, l'agent s'arrête net au plafond et propose « Continuer » avec un nouveau plafond (dépense comptée sous la catégorie « campagnes » ; plafond global, par moteur et de l'espace).",
+     "comment": "Ligne « ≤ X $ » sous le champ, puis Envoyer",
+     "depuis": "2026-10-24",
+     "ref": "PR #442 · t285a",
+     "payant": true
+    },
+    {
+     "nom": "Les deux portes",
+     "quoi": "Porte 1 : stratégie et calendrier à valider (Valider / Modifier) avant toute production ; porte 2 : les brouillons relus et programmés par l'utilisateur dans le Planificateur.",
+     "comment": "Carte « Porte 1 » ; calendrier du Planificateur",
+     "depuis": "2026-10-24",
+     "ref": "PR #443 · t285",
+     "payant": false
+    },
+    {
+     "nom": "Générations sur devis et brouillons",
+     "quoi": "Images, vidéos et voix proposées en carte de devis, générées seulement au clic ; les posts arrivent en brouillons dans l'espace de la campagne, jamais publiés ni programmés par l'agent.",
+     "comment": "Carte de devis → Générer ; carte des brouillons → Ouvrir le calendrier du Planificateur",
+     "depuis": "2026-10-24",
+     "ref": "PR #443 · t285",
+     "payant": true
+    },
+    {
+     "nom": "Mode Agent Campagnes du Planificateur",
+     "quoi": "Le dialogue « Générer un plan » garde le mode Rapide et gagne le mode Agent Campagnes : espace, brief, période, document joint, puis la conversation dans le dialogue.",
+     "comment": "Planificateur → Générer un plan → Agent Campagnes → Ouvrir la conversation",
+     "depuis": "2026-10-24",
+     "ref": "PR #443 · t285",
+     "payant": true
+    },
+    {
+     "nom": "Campagnes depuis le téléphone",
+     "quoi": "Le compagnon appairé mène les mêmes conversations sur le Wi-Fi ; le travail se fait sur le PC, avec ses clés et son plafond.",
+     "comment": "Compagnon mobile, sur le Wi-Fi",
+     "depuis": "2026-10-24",
+     "ref": "PR #445 · t286",
+     "payant": true
+    }
+   ]
   }
  ]
 }

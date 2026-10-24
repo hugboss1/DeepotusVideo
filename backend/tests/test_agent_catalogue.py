@@ -638,6 +638,116 @@ def test_page_de_lab_element_deja_connu(depot):
     assert "vectorlab.page.grille" not in e and "vectorlab.core.grille_titre" in e
 
 
+# t287 (24/10/2026) : les scripts PARTAGÉS en DOM nu (el("tag", {…}) de frontend/shared) — le composant de l'agent
+# Campagnes en entier, et du tiroir F1 les seuls éléments de t285b (onglets, espace, passage de main)
+CAMPAGNES_JS = "\n".join([
+    'function el(tag, attrs, enfants) { var n = document.createElement(tag); n.textContent = attrs.texte; return n; }',
+    'var champ = el("textarea", { rows: "2", "data-dz-camp": "champ" });',
+    'var envoyer = el("button", { type: "button", "data-dz-camp": "envoyer" });',
+    'var statut = el("div", { class: "s", role: "status" });',
+    'function etat(texte, ton) { return el("div", { class: "dzCampEtat", texte: texte }); }',
+    'function bouton(texte, surClic, primaire) {',
+    '  var b = el("button", { type: "button", texte: texte });',
+    '  b.addEventListener("click", surClic);',
+    '  return b;',
+    '}',
+    'function carte() {',
+    '  actions.appendChild(bouton(T("campagnes.action.valider"), function () { decider(n, "acceptee"); }, true));',
+    '  actions.appendChild(bouton(S.rendus[n] ? T("campagnes.action.enregistrer") : T("campagnes.action.generer", { usd: usd(a.usd) }),',
+    '    function () { genererDevis(n, b); }, true));',
+    '  c.appendChild(etat(T("campagnes.etat.validee"), "ok"));',
+    '  c.appendChild(el("div", { class: "dzCampCarteT", texte: T("campagnes.carte.porte", { n: 1 }) }));',
+    '  var lien = el("a", { class: "dzCampLien", href: "#", texte: T("campagnes.action.ouvrir") });',
+    '  statut.textContent = T("campagnes.erreur.reseau", { msg: "x" });',
+    '}',
+    'function dessinerPied() {',
+    '  champ.setAttribute("placeholder", T(S.correction !== null ? "campagnes.champ.correction" : "campagnes.champ.placeholder"));',
+    '  envoyer.textContent = T("campagnes.champ.envoyer");',
+    '}',
+])
+AGENT_JS = "\n".join([
+    'const btnEnvoyer = el("button", { texte: T("agent.tiroir.envoyer"), on: { click: () => envoyer() } });',
+    'const ongletBouton = (nom, cle) => el("button", { type: "button", role: "tab", id: "dzAgentOnglet-" + nom,',
+    '  "aria-selected": "false", texte: T(cle), on: { click: () => choisirOnglet(nom) } });',
+    'const ongDemander = ongletBouton("demander", "agent.onglet.demander"), ongCampagnes = ongletBouton("campagnes", "agent.onglet.campagnes");',
+    'const liste = el("div", { role: "tablist", "aria-label": T("agent.onglets.libelle") }, [ongDemander, ongCampagnes]);',
+    'const selEspace = el("select", { "aria-label": T("agent.campagnes.espace"), title: T("agent.campagnes.espace"),',
+    '  "data-dz-agent": "espace" }, [el("option", { value: "", texte: T("agent.campagnes.sans_espace") })]);',
+    'hote.appendChild(el("p", { class: "v", texte: T("agent.campagnes.indisponible") }));',
+    'return el("button", { type: "button", "data-dz-agent": "ouvrir-campagnes", texte: T("agent.action.campagnes"),',
+    '  on: { click: () => passerLaMain(q) } });',
+])
+CLES_PARTAGES = {k: {"fr": k.rsplit(".", 1)[-1], "en": k.rsplit(".", 1)[-1].upper()} for k in (
+    "campagnes.action.valider", "campagnes.action.enregistrer", "campagnes.action.generer", "campagnes.etat.validee",
+    "campagnes.carte.porte", "campagnes.action.ouvrir", "campagnes.erreur.reseau", "campagnes.champ.correction",
+    "campagnes.champ.placeholder", "campagnes.champ.envoyer", "agent.tiroir.envoyer", "agent.onglet.demander",
+    "agent.onglet.campagnes", "agent.onglets.libelle", "agent.campagnes.espace", "agent.campagnes.sans_espace",
+    "agent.campagnes.indisponible", "agent.action.campagnes")}
+
+
+def _partages(tmp_path):
+    racine = _depot(tmp_path, BUNDLE)
+    _ecrire(racine / "frontend" / "shared" / "i18n" / "partages.json", json.dumps(CLES_PARTAGES))
+    _ecrire(racine / "frontend" / "shared" / "dz-campagnes.js", CAMPAGNES_JS)
+    _ecrire(racine / "frontend" / "shared" / "dz-agent.js", AGENT_JS)
+    return S.extraire(racine)
+
+
+def test_partage_fabrique_de_bouton(tmp_path):
+    e = _partages(tmp_path)
+    x = e["campagnes.action.valider"]                          # bouton(T("…"), …) : la fabrique pose texte: texte
+    assert x["type"] == "bouton" and x["ecran"] == "commun" and x["cadre"] is None
+    assert x["libelle"] == {"fr": "valider", "en": "VALIDER"} and x["infobulle"] is None
+    assert x["sources"] == ["frontend/shared/dz-campagnes.js"]
+    # le ternaire : les deux états du même bouton ont chacun leur fiche
+    assert e["campagnes.action.enregistrer"]["type"] == e["campagnes.action.generer"]["type"] == "bouton"
+
+
+def test_partage_lien_et_affectations(tmp_path):
+    e = _partages(tmp_path)
+    assert e["campagnes.action.ouvrir"]["type"] == "bouton"     # el("a", { texte: T(…) }) : un lien qui agit
+    assert e["campagnes.champ.envoyer"]["type"] == "bouton"     # envoyer = el("button") ; envoyer.textContent = T(…)
+    assert e["campagnes.champ.envoyer"]["libelle"]["fr"] == "envoyer"
+    for k in ("campagnes.champ.placeholder", "campagnes.champ.correction"):   # setAttribute("placeholder", T(a ? … : …))
+        assert e[k]["type"] == "champ" and e[k]["infobulle"]["fr"] == k.rsplit(".", 1)[-1] and e[k]["libelle"]["fr"] == ""
+
+
+def test_partage_non_elements_ecartes(tmp_path):
+    e = _partages(tmp_path)
+    for k in ("campagnes.etat.validee", "campagnes.carte.porte", "campagnes.erreur.reseau",   # div, statut : des messages
+              "agent.onglets.libelle", "agent.campagnes.sans_espace", "agent.campagnes.indisponible"):
+        assert k not in e, k
+
+
+def test_partage_tiroir_onglets_seuls(tmp_path):
+    e = _partages(tmp_path)
+    for k in ("agent.onglet.demander", "agent.onglet.campagnes"):     # la fabrique d'onglets (role: "tab")
+        assert e[k]["type"] == "onglet" and e[k]["libelle"]["fr"] == k.rsplit(".", 1)[-1]
+        assert e[k]["sources"] == ["frontend/shared/dz-agent.js"]
+    x = e["agent.campagnes.espace"]                                    # aria-label et title : une seule clé
+    assert x["type"] == "champ" and x["infobulle"]["fr"] == "espace" and x["libelle"]["fr"] == ""
+    assert e["agent.action.campagnes"]["type"] == "bouton"
+    assert "agent.tiroir.envoyer" not in e                             # tiroir d'avant t285b : hors du périmètre
+
+
+def test_partages_absents(depot):
+    assert not any(k.startswith(("campagnes.", "agent.")) for k in S.extraire(depot))
+
+
+def test_vrai_catalogue_agent_campagnes():
+    """t287 : le vrai composant de l'agent Campagnes et les onglets du tiroir F1 sont au catalogue, sur « commun »."""
+    e = S.extraire(RACINE)
+    for k in ("campagnes.champ.envoyer", "campagnes.action.valider", "campagnes.action.modifier",
+              "campagnes.action.generer", "campagnes.action.refuser", "campagnes.action.continuer",
+              "campagnes.action.reprendre", "campagnes.action.ouvrir", "campagnes.action.enregistrer",
+              "campagnes.action.activer_ouvrir", "agent.onglet.campagnes", "agent.onglet.demander",
+              "agent.campagnes.espace", "agent.action.campagnes"):
+        assert k in e and e[k]["ecran"] == "commun", k
+    assert e["agent.onglet.campagnes"]["type"] == "onglet"
+    assert not [k for k in e if k.startswith(("campagnes.etat.", "campagnes.erreur.", "campagnes.carte.",
+                                              "campagnes.fil.", "campagnes.outil.", "agent.tiroir."))]
+
+
 def test_deterministe(tmp_path):
     racine = _depot(tmp_path, ";".join(CAS.values()) + ";" + BUNDLE)
     a, b = S.extraire(racine), S.extraire(racine)

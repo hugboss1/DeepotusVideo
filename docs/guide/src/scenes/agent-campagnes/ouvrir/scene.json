@@ -1,0 +1,158 @@
+{
+  "titre": {
+    "fr": "F1 → Campagnes → espace de la campagne",
+    "en": "F1 → Campaigns → campaign space"
+  },
+  "legende": {
+    "fr": "L'onglet Campagnes du tiroir F1 ; l'espace choisi en haut est écrit en clair et ne change plus.",
+    "en": "The Campaigns tab of the F1 drawer; the space chosen at the top is shown in full and no longer changes."
+  },
+  "captures": [
+    {
+      "fr": "onglet.fr.webp",
+      "en": "onglet.en.webp"
+    },
+    {
+      "fr": "espace.fr.webp",
+      "en": "espace.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1193,
+        76
+      ],
+      "clic": true,
+      "surligne": [
+        1140,
+        55,
+        107,
+        43
+      ],
+      "bulle": {
+        "fr": "Onglet Campagnes",
+        "en": "Campaigns tab"
+      },
+      "ancre": [
+        1193,
+        91
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2.4,
+      "curseur": [
+        1241,
+        114
+      ],
+      "surligne": [
+        1049,
+        94,
+        383,
+        39
+      ],
+      "bulle": {
+        "fr": "L'espace de la campagne",
+        "en": "The campaign space"
+      },
+      "ancre": [
+        1241,
+        127
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1035,
+        130,
+        405,
+        66
+      ],
+      "bulle": {
+        "fr": "Écrit en clair, avec le coût cumulé",
+        "en": "Shown in full, with the running cost"
+      },
+      "ancre": [
+        1241,
+        190
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1152,
+        76
+      ],
+      "clic": true,
+      "surligne": [
+        1101,
+        55,
+        103,
+        43
+      ],
+      "bulle": {
+        "fr": "Onglet Campagnes",
+        "en": "Campaigns tab"
+      },
+      "ancre": [
+        1152,
+        91
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2.4,
+      "curseur": [
+        1241,
+        114
+      ],
+      "surligne": [
+        1049,
+        94,
+        383,
+        39
+      ],
+      "bulle": {
+        "fr": "L'espace de la campagne",
+        "en": "The campaign space"
+      },
+      "ancre": [
+        1241,
+        127
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1035,
+        130,
+        405,
+        46
+      ],
+      "bulle": {
+        "fr": "Écrit en clair, avec le coût cumulé",
+        "en": "Shown in full, with the running cost"
+      },
+      "ancre": [
+        1241,
+        170
+      ]
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

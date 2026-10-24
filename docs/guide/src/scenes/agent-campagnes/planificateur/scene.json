@@ -1,0 +1,164 @@
+{
+  "titre": {
+    "fr": "Générer un plan → Agent Campagnes",
+    "en": "Generate plan → Campaigns agent"
+  },
+  "legende": {
+    "fr": "Le dialogue du plan garde le mode Rapide et gagne le mode Agent Campagnes : espace, brief, période, document.",
+    "en": "The plan dialog keeps Quick mode and gains Campaigns agent mode: space, brief, period, document."
+  },
+  "captures": [
+    {
+      "fr": "rapide.fr.webp",
+      "en": "rapide.en.webp"
+    },
+    {
+      "fr": "agent.fr.webp",
+      "en": "agent.en.webp"
+    },
+    {
+      "fr": "conversation.fr.webp",
+      "en": "conversation.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        853,
+        293
+      ],
+      "clic": true,
+      "surligne": [
+        721,
+        270,
+        202,
+        46
+      ],
+      "bulle": {
+        "fr": "Rapide ou Agent Campagnes",
+        "en": "Quick or Campaigns agent"
+      },
+      "ancre": [
+        822,
+        310
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "curseur": [
+        1063,
+        688
+      ],
+      "clic": true,
+      "surligne": [
+        970,
+        666,
+        187,
+        44
+      ],
+      "bulle": {
+        "fr": "Ouvrir la conversation",
+        "en": "Open the conversation"
+      },
+      "ancre": [
+        1063,
+        704
+      ]
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        290,
+        692,
+        784,
+        65
+      ],
+      "bulle": {
+        "fr": "Le brief attend votre envoi",
+        "en": "The brief waits for you to send it"
+      },
+      "ancre": [
+        682,
+        751
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        876,
+        293
+      ],
+      "clic": true,
+      "surligne": [
+        753,
+        270,
+        191,
+        46
+      ],
+      "bulle": {
+        "fr": "Rapide ou Agent Campagnes",
+        "en": "Quick or Campaigns agent"
+      },
+      "ancre": [
+        848,
+        310
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "curseur": [
+        1062,
+        688
+      ],
+      "clic": true,
+      "surligne": [
+        967,
+        666,
+        190,
+        44
+      ],
+      "bulle": {
+        "fr": "Ouvrir la conversation",
+        "en": "Open the conversation"
+      },
+      "ancre": [
+        1062,
+        704
+      ]
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "surligne": [
+        290,
+        692,
+        801,
+        65
+      ],
+      "bulle": {
+        "fr": "Le brief attend votre envoi",
+        "en": "The brief waits for you to send it"
+      },
+      "ancre": [
+        691,
+        751
+      ]
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

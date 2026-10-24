@@ -23,6 +23,7 @@ from catalogue_commun import (CADRE_DE_ZONE, CHAMPS, ECRAN_DE_PREFIXE, ECRAN_DE_
                               VIDE, _base, _sha8, _texte, ecran, message, zone)
 from catalogue_bundle import _bundle, depuis_bundle                                                # noqa: F401
 from catalogue_fabriques import fabriques
+from catalogue_partages import depuis_partages
 
 # labs servis en cadre intégré : dossier de frontend/ → (écran, cadre). Une seule table pour les deux lectures :
 # le code des labs de LABS_LUS est lu en clair (infobulles T(…)), les fiches didactiques de tous (aide/index.json).
@@ -347,4 +348,5 @@ def extraire(racine) -> dict:
     _ajouter(out, depuis_reglages(racine, inv))
     _ajouter(out, depuis_fiches(racine))
     _ajouter(out, depuis_menus_photolab(racine, dico))
+    _ajouter(out, depuis_partages(racine, dico))           # t287 : composants partagés (agent Campagnes)
     return {k: v for k, v in out.items() if k not in ids and not (prefixes and k.startswith(prefixes))}

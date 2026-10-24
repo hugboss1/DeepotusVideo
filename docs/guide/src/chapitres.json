@@ -327,6 +327,19 @@
       "etat": "v3"
     },
     {
+      "id": "agent-campagnes",
+      "famille": "publier",
+      "lot": "t287",
+      "icone": "dz-nav-campagne",
+      "fr": "Mener une campagne avec l'agent",
+      "en": "Run a campaign with the agent",
+      "anciens": [],
+      "ecrans": [
+        "Agent Campagnes (tiroir F1, Planificateur, compagnon)"
+      ],
+      "etat": "v3"
+    },
+    {
       "id": "comptes",
       "famille": "publier",
       "lot": "t175",

@@ -2,9 +2,9 @@
 
 Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
-- 1111 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 45 sont payantes.
+- 1117 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 50 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 42 chapitres dans le sommaire v3, en 6 familles.
+- 43 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -536,6 +536,17 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Valider la semaine (validation par lot)** : Valide d'un coup les posts des 7 prochains jours (ou d'un plan) pour qu'ils partent ; un post sans média est ignoré et nommé ; modifier réellement un post le dévalide. — *Scheduler → « Valider la semaine »* (PR #70 · PR #71 · commits 627351aa, 6bdd634a · tâches #30, #31)
 - [x] **Post confié au téléphone / Reprendre sur le PC** : L'inspecteur indique qu'un post est confié au téléphone (le PC ne le publiera pas) et permet de le reprendre. — *Inspecteur → « Confié au téléphone · Reprendre sur le PC »* (commit 7978a3c3 · tâche #57)
 - [x] **L'écran ne déborde plus** : En-tête et panneau de droite restent visibles dans la fenêtre (1280 à 1600 px), en vues Semaine et Mois ; la barre d'outils passe à la ligne. (PR #288 · commit 2abf446c)
+
+### Mener une campagne avec l'agent (`agent-campagnes`, lot t287, reprend : nouveau) — 6 manques
+
+**Agent Campagnes (tiroir F1, Planificateur, compagnon)** — accès : Tiroir F1 → onglet « Campagnes » ; Planificateur → « Générer un plan » → « Agent Campagnes » ; téléphone appairé
+
+- [x] **Onglet Campagnes du tiroir F1** **payant** : Une conversation avec l'agent Campagnes, à côté de « Demander » : espace de la campagne choisi en haut puis figé, coût cumulé affiché ; « Ouvrir l'agent Campagnes » y mène depuis « Demander ». — *F1 → Campagnes → espace → brief → Envoyer* (PR #444 · t285b)
+- [x] **Devis par message** **payant** : Avant chaque envoi, le plafond en dollars de toute la réponse s'affiche sous le champ ; l'envoi vaut accord, l'agent s'arrête net au plafond et propose « Continuer » avec un nouveau plafond (dépense comptée sous la catégorie « campagnes » ; plafond global, par moteur et de l'espace). — *Ligne « ≤ X $ » sous le champ, puis Envoyer* (PR #442 · t285a)
+- [x] **Les deux portes** : Porte 1 : stratégie et calendrier à valider (Valider / Modifier) avant toute production ; porte 2 : les brouillons relus et programmés par l'utilisateur dans le Planificateur. — *Carte « Porte 1 » ; calendrier du Planificateur* (PR #443 · t285)
+- [x] **Générations sur devis et brouillons** **payant** : Images, vidéos et voix proposées en carte de devis, générées seulement au clic ; les posts arrivent en brouillons dans l'espace de la campagne, jamais publiés ni programmés par l'agent. — *Carte de devis → Générer ; carte des brouillons → Ouvrir le calendrier du Planificateur* (PR #443 · t285)
+- [x] **Mode Agent Campagnes du Planificateur** **payant** : Le dialogue « Générer un plan » garde le mode Rapide et gagne le mode Agent Campagnes : espace, brief, période, document joint, puis la conversation dans le dialogue. — *Planificateur → Générer un plan → Agent Campagnes → Ouvrir la conversation* (PR #443 · t285)
+- [x] **Campagnes depuis le téléphone** **payant** : Le compagnon appairé mène les mêmes conversations sur le Wi-Fi ; le travail se fait sur le PC, avec ses clés et son plafond. — *Compagnon mobile, sur le Wi-Fi* (PR #445 · t286)
 
 ### Connecter ses comptes (`comptes`, lot t175, reprend : c12) — 0 manques
 
@@ -1501,3 +1512,4 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t193 | 0 | 0 |
 | t211 | 0 | 0 |
 | t259 | 6 | 6 |
+| t287 | 6 | 6 |
