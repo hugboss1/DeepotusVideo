@@ -573,6 +573,7 @@ async def deviser_generation(ctx: Ctx, genre: str, params: dict | None = None) -
     params = params if isinstance(params, dict) else {}
     route, corps, ops = await _DEVIS[genre](params)
     corps["espace_id"] = eid
+    corps["source"] = "campagnes"   # t289 : la dépense est comptée à la campagne, pas à la catégorie de la route
     usd = float(pricing.estimate({"kind": "campaign", "ops": ops})["total_usd"]) if ops else 0.0
     carte = {"type": "carte", "genre": "devis", "libelle": f"Devis {genre} : {usd:.2f} $", "etat": "proposee",
              "devis": usd, "action": "generer",

@@ -361,6 +361,12 @@ async def main():
     check("devis voix : op elevenlabs de /audio/voiceover", r["ok"] and a["route"] == "/api/audio/voiceover"
           and abs(a["usd"] - pricing.estimate({"kind": "elevenlabs", "chars": len("Bonjour à tous")})["total_usd"]) < 1e-9,
           str(r))
+    for g, prm in (("image", {"prompt": "x"}), ("video", {"image_filename": "b.png", "prompt": "t"}),
+                   ("voix", {"script": "Bonjour"})):
+        r = await ao.executer("deviser_generation", {"genre": g, "params": prm}, ctxB)
+        a = (r.get("carte") or {}).get("arguments") or {}
+        check(f"t289 devis {g} : le corps porte source « campagnes » (catégorie de la dépense)",
+              r["ok"] and (a.get("corps") or {}).get("source") == "campagnes", str(a.get("corps")))
     r = await ao.executer("deviser_generation", {"genre": "musique", "params": {}}, ctxB)
     check("devis : genre inconnu -> ok=False", r["ok"] is False and r["carte"] is None)
     r = await ao.executer("deviser_generation", {"genre": "image", "params": {"prompt": "x"}},
