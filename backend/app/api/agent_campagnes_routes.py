@@ -6,10 +6,13 @@ sont ouvertes au réseau local une par une (`main._ECRITURES_OUVERTES`, en gabar
 conversation créée a l'origine « telephone », et le message `utilisateur` (comme le `fait` d'une décision de carte)
 porte l'origine « telephone » et l'id de l'appareil du JETON (jamais un champ du corps). Le tour s'exécute sur le PC,
 avec ses clés et son plafond.
-- `POST /` {role, espace_id?, titre?} : crée la conversation (espace nommé : existant et non archivé, sinon 400) ;
+- `POST /api/agent/campagnes/` (AVEC la barre finale) {role, espace_id?, titre?} : crée la conversation (espace
+  nommé : existant et non archivé, sinon 400). Sans la barre, un appareil reçoit 403 de la garde des écritures avant
+  la redirection de FastAPI (seul le gabarit exact est ouvert) ;
 - `GET /paquet?espace_id=` : le paquet agent du compagnon, {version, fichiers} — docs/agent/campagnes/* (texte) et,
   avec un espace nommé (sinon 400), `persona.json` sans `templates` ni `voice_ids` ; jamais l'espace actif d'office.
-  `version` = 16 hex du sha256 des fichiers (noms triés) : elle change dès qu'un fichier change ;
+  `version` = 16 hex du sha256 des fichiers (noms triés, fichiers cachés exclus) : elle change dès qu'un fichier
+  change ;
 - `GET /{cid}` : la conversation ; ajoute d'abord un message `fait` par carte `devis` acceptée dont le job est fini
   (DONE ou FAILED) — un seul par job, quel que soit le nombre de GET ;
 - `POST /{cid}/devis` {texte} : le plafond en dollars du prochain message (rendu même sans clé) ;
@@ -28,7 +31,8 @@ avec ses clés et son plafond.
 - `POST /{cid}/depot` : multipart `fichier` (texte extrait par marketing.extract_document_text), JSON {texte} ou JSON
   {url} → gardé pour `lire_document` (l'URL est gardée comme TEXTE, rien n'est téléchargé ici : la lecture reste à
   `lire_document`, sous ses gardes) ;
-- `POST /importer` {conversation} : `agent_store.importer` (idempotent). Depuis un appareil : la conversation est
+- `POST /importer` {conversation} : `agent_store.importer` (idempotent ; l'id est un UUID canonique en minuscules,
+  sinon 400 — il devient un dossier). Depuis un appareil : la conversation est
   « telephone » (ou sans origine) et chaque message porte l'origine « telephone » et l'appareil du JETON, sinon 400.
 """
 from __future__ import annotations
@@ -313,9 +317,11 @@ async def importer(request: Request):
 
 def _paquet(espace_id: str | None) -> dict:
     """Les fichiers de AC.DOCS (le dossier que lit déjà le système de l'agent), fins de ligne normalisées, plus la
-    persona filtrée de l'espace NOMMÉ ; la version suit leur sérialisation déterministe."""
+    persona filtrée de l'espace NOMMÉ ; la version suit leur sérialisation déterministe. Les fichiers cachés (« . » :
+    brouillons d'éditeur, .DS_Store) ne sont ni servis ni comptés."""
     fichiers = {f.name: f.read_text(encoding="utf-8").replace("\r\n", "\n")
-                for f in sorted(AC.DOCS.iterdir(), key=lambda f: f.name) if f.is_file()}
+                for f in sorted(AC.DOCS.iterdir(), key=lambda f: f.name)
+                if f.is_file() and not f.name.startswith(".")}
     if espace_id:
         fichiers["persona.json"] = json.dumps(AC.persona_modele(_espace_valide(espace_id)), ensure_ascii=False,
                                               indent=2, sort_keys=True)
@@ -459,6 +465,24 @@ async def carte(cid: str, n: int, request: Request):
     return await ST.lire(cid)
 
 
+async def _formulaire_borne(request: Request):
+    """Le multipart lu en FLUX et borné comme `_json` : 413 dès que le corps dépasse MAX_DEPOT_OCTETS + 64 Kio, même
+    sans Content-Length (chunked) — rien n'est mis de côté au-delà. Un multipart illisible : 400, jamais 500."""
+    from starlette.formparsers import MultiPartException, MultiPartParser
+
+    async def borne():
+        total = 0
+        async for morceau in request.stream():
+            total += len(morceau)
+            if total > MAX_DEPOT_OCTETS + 64 * 1024:
+                raise HTTPException(413, "Document trop lourd (15 Mo au plus).")
+            yield morceau
+    try:
+        return await MultiPartParser(request.headers, borne()).parse()
+    except (MultiPartException, ValueError):        # ValueError : MultipartParseError de python-multipart
+        raise HTTPException(400, "Document illisible.") from None
+
+
 @router.post("/{cid}/depot")
 async def depot(cid: str, request: Request):
     await _local_ou_appareil(request)
@@ -470,11 +494,14 @@ async def depot(cid: str, request: Request):
         if taille > MAX_DEPOT_OCTETS + 64 * 1024:
             raise HTTPException(413, "Document trop lourd (15 Mo au plus).")
         await _conversation(cid)
-        form = await request.form()
-        f = form.get("fichier")
-        if f is None or not hasattr(f, "read"):
-            raise HTTPException(400, "Fichier requis (champ « fichier »).")
-        data = await f.read()
+        form = await _formulaire_borne(request)
+        try:
+            f = form.get("fichier")
+            if f is None or not hasattr(f, "read"):
+                raise HTTPException(400, "Fichier requis (champ « fichier »).")
+            data = await f.read()
+        finally:
+            await form.close()
         if len(data) > MAX_DEPOT_OCTETS:
             raise HTTPException(413, "Document trop lourd (15 Mo au plus).")
         from app.services import marketing

@@ -243,7 +243,7 @@ def test_paquet_versionne():
     check("4a GET /paquet (appareil) : 200, CAMPAGNES.md et format.md, en texte", r.status_code == 200
           and isinstance(f.get("CAMPAGNES.md"), str) and isinstance(f.get("format.md"), str)
           and "Campagnes" in f.get("CAMPAGNES.md", ""), f"{r.status_code} {r.text[:200]}")
-    attendus = sorted(x.name for x in AC.DOCS.iterdir() if x.is_file())
+    attendus = sorted(x.name for x in AC.DOCS.iterdir() if x.is_file() and not x.name.startswith("."))
     check("4b tous les fichiers de docs/agent/campagnes, noms simples, triés", list(f) == attendus,
           f"{list(f)} != {attendus}")
     check("4c sans espace_id : pas de persona (aucun repli sur l'espace actif)", "persona.json" not in f)
@@ -291,6 +291,12 @@ def test_paquet_versionne():
         vn = lan.get(f"{BASE}/paquet", headers=H).json()
         check("4o un fichier ajouté : il est servi, la version change encore", vn["fichiers"].get("nouveau.md") == "x"
               and vn.get("version") not in (v0, vm.get("version")))
+        (copie / ".format.md.swp").write_text("brouillon d'éditeur", encoding="utf-8")
+        (copie / ".DS_Store").write_bytes(b"\x00\x01")
+        vh = lan.get(f"{BASE}/paquet", headers=H).json()
+        check("4q les fichiers cachés (« . ») ne sont pas servis et ne changent pas la version",
+              not any(k.startswith(".") for k in vh.get("fichiers", {})) and vh.get("version") == vn.get("version"),
+              str(sorted(vh.get("fichiers", {}))))
     finally:
         AC.DOCS = docs0
     pers = dict(espaces.persona(c["B"]))
@@ -393,11 +399,94 @@ def test_import_depuis_appareil_trace_l_appareil():
     assert fail == avant
 
 
+# ---- test_import_id_hostile_400 --------------------------------------------------------------------------------------
+def test_import_id_hostile_400():
+    """Relecture finale t286 : l'id d'une conversation importée devient un DOSSIER (_conversations/<id>/). Seul un UUID
+    canonique en minuscules passe ; « ../x », un chemin absolu, « paquet » (masqué par GET /paquet) → 400, rien
+    d'écrit."""
+    import uuid
+    from app import config
+    from app.services import agent_format as fmt
+    avant = fail
+    c = _contexte()
+    lan, H, moi, loc = c["lan"], c["H"], c["appareil"], c["loc"]
+    print("\n[7] import : l'id de conversation est un UUID canonique, jamais un chemin")
+    dehors = pathlib.Path(TMP).parent / ("dzt286_evasion_" + uuid.uuid4().hex[:8])
+    absolu = str(dehors / "abs")
+    ids = {"../x": "../x", "../../../x": "../../../" + dehors.name, "absolu": absolu, "paquet": "paquet",
+           "majuscules": str(uuid.uuid4()).upper(), "sans tirets": uuid.uuid4().hex,
+           "accolades": "{" + str(uuid.uuid4()) + "}", "vide": "", "nombre": 42}
+    n0 = asyncio.run(_nb_conversations())
+    racine = config.DATA_ROOT / "campagnes" / "_conversations"
+    avant_dossiers = sorted(p.name for p in racine.iterdir()) if racine.is_dir() else []
+    m = fmt.nouveau_message("utilisateur", [{"type": "texte", "texte": "x"}], origine="telephone", appareil=moi)
+    rep = {}
+    for nom, cid in ids.items():
+        cv = {"id": cid, "role": "campagnes", "messages": [m]}
+        rep[nom] = (lan.post(f"{BASE}/importer", json={"conversation": cv}, headers=H).status_code,
+                    loc.post(f"{BASE}/importer", json={"conversation": cv}).status_code)
+    check("7a appareil ET PC : 400 pour chaque id hostile ou non canonique", all(v == (400, 400) for v in rep.values()),
+          str(rep))
+    apres_dossiers = sorted(p.name for p in racine.iterdir()) if racine.is_dir() else []
+    check("7b rien d'écrit : aucune ligne en base, aucun dossier sous _conversations, rien hors de DATA_ROOT",
+          asyncio.run(_nb_conversations()) == n0 and apres_dossiers == avant_dossiers and not dehors.exists()
+          and not (pathlib.Path(TMP).parent / "x").exists() and not (config.DATA_ROOT / "campagnes" / "x").exists(),
+          f"{apres_dossiers} {dehors.exists()}")
+    bon = str(uuid.uuid4())
+    r = lan.post(f"{BASE}/importer", json={"conversation": {"id": bon, "role": "campagnes", "messages": [m]}},
+                 headers=H)
+    check("7c témoin : un UUID canonique passe", r.status_code == 200 and r.json().get("ajoutes") == 1
+          and (racine / bon / "conversation.json").is_file(), f"{r.status_code} {r.text[:200]}")
+    assert fail == avant
+
+
+# ---- test_depot_multipart_sans_longueur_413 --------------------------------------------------------------------------
+def test_depot_multipart_sans_longueur_413():
+    """Relecture finale t286 : un multipart SANS Content-Length (chunked) est borné en LISANT le flux : 413 dès la
+    limite franchie, quelle que soit la part (même une part qui n'est pas « fichier »)."""
+    avant = fail
+    c = _contexte()
+    lan, H = c["lan"], c["H"]
+    print("\n[8] dépôt multipart en flux (chunked) : borné à la lecture")
+    cid = _creer_pc()
+    b = "dzborne286"
+
+    def corps(champ, taille, nom="gros.txt"):
+        yield (f"--{b}\r\nContent-Disposition: form-data; name=\"{champ}\"; filename=\"{nom}\"\r\n"
+               f"Content-Type: text/plain\r\n\r\n").encode()
+        reste = taille
+        while reste > 0:
+            n = min(reste, 16 * 1024)
+            yield b"a" * n
+            reste -= n
+        yield f"\r\n--{b}--\r\n".encode()
+
+    entetes = dict(H, **{"Content-Type": f"multipart/form-data; boundary={b}"})
+    max0 = ACR.MAX_DEPOT_OCTETS
+    try:
+        ACR.MAX_DEPOT_OCTETS = 4 * 1024                  # la limite réelle est 15 Mo : on la réduit pour le banc
+        r = lan.post(f"{BASE}/{cid}/depot", content=corps("autre", 200 * 1024), headers=entetes)
+        check("8a part hors « fichier », trop lourde, sans Content-Length : 413 (pas lue jusqu'au bout)",
+              r.status_code == 413 and "15 Mo" in r.text, f"{r.status_code} {r.text[:200]}")
+        r = lan.post(f"{BASE}/{cid}/depot", content=corps("fichier", 200 * 1024), headers=entetes)
+        check("8b fichier trop lourd sans Content-Length : 413", r.status_code == 413,
+              f"{r.status_code} {r.text[:200]}")
+        r = lan.post(f"{BASE}/{cid}/depot", content=corps("fichier", 1000), headers=entetes)
+        check("8c témoin : un petit fichier en flux passe (200)", r.status_code == 200
+              and r.json().get("caracteres") == 1000, f"{r.status_code} {r.text[:200]}")
+        r = lan.post(f"{BASE}/{cid}/depot", content=iter([b"--pas-un-multipart"]), headers=entetes)
+        check("8d multipart illisible : 400, jamais 500", r.status_code == 400, f"{r.status_code} {r.text[:200]}")
+    finally:
+        ACR.MAX_DEPOT_OCTETS = max0
+    assert fail == avant
+
+
 def _lanceur() -> int:
     global fail
     tests = [test_sans_jeton_hors_local_401, test_avec_jeton_ok, test_ecritures_listees_dans_mutations_appairage,
              test_paquet_versionne, test_message_depuis_appareil_trace_l_appareil,
-             test_import_depuis_appareil_trace_l_appareil]
+             test_import_depuis_appareil_trace_l_appareil, test_import_id_hostile_400,
+             test_depot_multipart_sans_longueur_413]
     for t in tests:
         try:
             t()

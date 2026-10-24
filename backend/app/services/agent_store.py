@@ -157,12 +157,25 @@ async def ajouter(cid: str, messages: list[dict], cout_usd: float = 0.0) -> None
         await _modifier(cid, cout=cout_usd)
 
 
+def _uuid_canonique(v) -> bool:
+    """Vrai pour un UUID écrit sous sa forme canonique en minuscules (36 caractères, tirets) ; rien d'autre."""
+    if not isinstance(v, str):
+        return False
+    try:
+        return str(uuid.UUID(v)) == v
+    except ValueError:
+        return False
+
+
 async def importer(conv: dict) -> dict:
     """Importe une conversation menée ailleurs. Idempotent : même id et même empreinte = ignoré ; même id et autre
     empreinte = conflit (rien d'écrasé) ; id inconnu = ajouté s'il est valide. Le `cout_paye` des seuls messages
     ajoutés rejoint le cumul. La clé `invalides` n'apparaît que s'il y en a."""
     res = {"ajoutes": 0, "ignores": 0, "conflits": []}
-    if not isinstance(conv, dict) or not isinstance(conv.get("id"), str) or not conv["id"]:
+    # t286 (relecture finale) : l'id devient un DOSSIER (_conversations/<id>/) et la route est ouverte aux appareils.
+    # Seul un UUID CANONIQUE passe, AVANT toute écriture : minuscules à tirets, la forme de uuid4() et de
+    # crypto.randomUUID() (« ../x », un chemin absolu, « paquet », des majuscules ou des accolades → ValueError, 400).
+    if not isinstance(conv, dict) or not _uuid_canonique(conv.get("id")):
         raise ValueError("conversation : id requis")
     async with _VERROU:
         l = await _lire_sain(conv["id"], absent_ok=True)
