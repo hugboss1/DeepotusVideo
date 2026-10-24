@@ -4255,6 +4255,10 @@
   "fr": "aucune vidéo pour ce rendu",
   "en": "no video for this render"
  },
+ "aucune image pour ce post": {
+  "fr": "aucune image pour ce post",
+  "en": "no image for this post"
+ },
  "aucune vue conservée sur le disque : impossible de rejouer le moteur à l'identique.": {
   "fr": "aucune vue conservée sur le disque : impossible de rejouer le moteur à l'identique.",
   "en": "no view kept on disk: the engine can't be replayed identically."

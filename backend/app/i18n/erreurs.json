@@ -1073,6 +1073,7 @@
   "erreur.6699c7b1a3": {"fr": "axe haut « {axe_haut} » — X, Y ou Z", "en": "up axis “{axe_haut}” — X, Y or Z", "src": "fr"},
   "erreur.66a20f7ffc": {"fr": "google: {e}", "en": "google: {e}", "src": "fr"},
   "erreur.66ca5fa9f9": {"fr": "sujet type inconnu : {sujet} (attendu : {v})", "en": "unknown reference subject: {sujet} (expected: {v})", "src": "fr"},
+  "erreur.66d266a989": {"fr": "aucune image pour ce post", "en": "no image for this post", "src": "fr"},
   "erreur.66d49c965c": {"fr": "la pile doit être une liste de maillons", "en": "the stack must be a list of steps", "src": "fr"},
   "erreur.675045d83a": {"fr": "Scène {v}/{n} — {model}", "en": "Scene {v}/{n} — {model}", "src": "fr"},
   "erreur.6767a6f5ba": {"fr": "modèle en double : {tid}", "en": "duplicate template: {tid}", "src": "fr"},
