@@ -9,7 +9,8 @@ l'en-tête de la fonction et son premier `const` ; P3 glisse le choix du composa
   P1 les aides de frontend/patches/agent-plan.js, APLATIES en une ligne, devant `function Um({…`, et le crochet du
      mode (`var __dzAP=__dzAgentPlanMode();`, « rapide » par défaut) en tête du corps du dialogue ;
   P2 l'en-tête : le sélecteur Rapide / Agent Campagnes (DzAgentPlanBascule) devant les onglets Générer / Importer,
-     masqués en mode Agent (passer en Agent remet l'onglet « generate » : le titre reste titre_generer) ;
+     masqués en mode Agent (passer en Agent remet l'onglet « generate » : le titre reste titre_generer ;
+     un plan Rapide généré et non ajouté n'est PAS effacé : on le retrouve en revenant en Rapide) ;
   P3 le corps : en mode Agent, le panneau DzAgentPlan (espace, brief, période, document, puis DzCampagnes.monter) ;
      en mode Rapide, le corps d'origine, inchangé. L'ancre commence APRÈS `r.jsxs("` : le remplacement G1 de dzglyph
      (`…onClick:e})]}),r.jsxs("`, scripts/dzglyph_paires.json) reste entier ; le type devient
@@ -84,7 +85,7 @@ PAIRES = [
     # P1 : les aides, et le crochet du mode en tête du dialogue
     (_UM + "const o=bt(),", AIDES + _UM + "var __dzAP=__dzAgentPlanMode();const o=bt(),"),
     # P2 : le sélecteur dans l'en-tête ; les onglets Générer / Importer masqués en mode Agent
-    (_ONGLETS, 'r.jsx(DzAgentPlanBascule,{mode:__dzAP[0],choisir:function(v){v==="agent"&&(s("generate"),N(null),H(""));'
+    (_ONGLETS, 'r.jsx(DzAgentPlanBascule,{mode:__dzAP[0],choisir:function(v){v==="agent"&&s("generate");'
                '__dzAP[1](v)}}),__dzAP[0]==="agent"?null:' + _ONGLETS),
     # P3 : le corps : le panneau de l'agent, ou le corps d'origine
     (_CORPS0 + _CORPS, 'div"&&__dzAP[0]==="agent"?DzAgentPlan:"div",{...(__dzAP[0]==="agent"?{brief:a,setBrief:l,jours:d,'

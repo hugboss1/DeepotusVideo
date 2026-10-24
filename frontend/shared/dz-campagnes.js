@@ -65,7 +65,7 @@
   function vider(n) { while (n.firstChild) n.removeChild(n.firstChild); }
 
   var CSS = ""
-    + ".dzCamp{display:flex;flex-direction:column;min-height:0;height:100%;background:var(--bg-panel,#151519);color:var(--ink,#c4bfb6);"
+    + ".dzCamp{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;height:100%;background:var(--bg-panel,#151519);color:var(--ink,#c4bfb6);"
     + "font-family:var(--f-ui,system-ui,sans-serif);font-size:13px;line-height:1.5}"
     + ".dzCampTete{display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--stroke,#2a2930);"
     + "font-family:var(--f-mono,monospace);font-size:11px;color:var(--ink-soft,#8a857d)}"
@@ -179,6 +179,22 @@
     return { cartes: cartes, etats: etats, dernierePorte: porte };
   }
 
+  // t285 T9 (relecture) : la ligne d'un outil = son libellé traduit (campagnes.outil.<nom>) + son état ; le résumé du
+  // serveur (en français) n'est plus affiché. Un nom inconnu : un libellé générique.
+  var OUTILS = ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document", "ecrire_dossier",
+    "proposer_porte", "deviser_generation", "creer_brouillons", "pointer"];
+  function ligneOutil(nom, ok) {
+    var lib = OUTILS.indexOf(String(nom)) >= 0 ? T("campagnes.outil." + nom) : T("campagnes.outil.inconnu");
+    if (ok === true) return T("campagnes.fil.outil_ok", { outil: lib });
+    if (ok === false) return T("campagnes.fil.outil_echec", { outil: lib });
+    return lib;
+  }
+  function noeudOutil(nom, ok) {
+    var a = { class: "dzCampOutil", texte: ligneOutil(nom, ok) };
+    if (ok === true || ok === false) a["data-ok"] = ok ? "oui" : "non";
+    return el("div", a);
+  }
+
   function montantContinuer(b) {
     var d = b.arguments && b.arguments.devis;
     if (d && typeof d.plafond_usd === "number") return d.plafond_usd;
@@ -240,7 +256,11 @@
       tete.appendChild(el("span", { "data-dz-camp": "cout", texte: T("campagnes.entete.cout", { usd: usd(S.conv ? S.conv.cout_usd : 0) }) }));
     }
 
-    function etat(texte, ton) { return el("div", { class: "dzCampEtat", "data-ton": ton || "", texte: texte }); }
+    function etat(texte, ton, marqueur) {
+      var a = { class: "dzCampEtat", "data-ton": ton || "", texte: texte };
+      if (marqueur) a["data-dz-camp"] = marqueur;
+      return el("div", a);
+    }
 
     function bouton(texte, surClic, primaire, occupe) {
       var b = el("button", { type: "button", texte: texte });
@@ -305,9 +325,17 @@
           function () { continuer(n, b); }, true, occupe));
         else c.appendChild(etat(T(e === "refusee" ? "campagnes.etat.refusee" : "campagnes.etat.acceptee")));
       } else if (b.genre === "brouillons") {
-        var lien = el("a", { class: "dzCampLien", href: "#", "data-dz-camp": "ouvrir-planificateur", texte: T("campagnes.action.ouvrir") });
-        lien.addEventListener("click", function (ev) { if (ev && ev.preventDefault) ev.preventDefault(); ouvrirPlanificateur(a); });
-        actions.appendChild(lien);
+        var ide = a.espace_id || (S.conv && S.conv.espace_id) || null;
+        if (ide) c.appendChild(etat(T("campagnes.carte.brouillons_espace", { nom: nomEspace(ide) }), "", "brouillons-espace"));
+        if (ide && typeof S.actif === "string" && S.actif !== ide) {
+          var act = bouton(T("campagnes.action.activer_ouvrir", { nom: nomEspace(ide) }), function () { activerEtOuvrir(ide, a, act); }, true, false);
+          act.setAttribute("data-dz-camp", "activer-espace");
+          actions.appendChild(act);
+        } else {
+          var lien = el("a", { class: "dzCampLien", href: "#", "data-dz-camp": "ouvrir-planificateur", texte: T("campagnes.action.ouvrir") });
+          lien.addEventListener("click", function (ev) { if (ev && ev.preventDefault) ev.preventDefault(); ouvrirPlanificateur(a); });
+          actions.appendChild(lien);
+        }
       }
       if (actions.firstChild) c.appendChild(actions);
       return c;
@@ -327,7 +355,7 @@
           (m.blocs || []).forEach(function (b) {
             if (!b || typeof b !== "object") return;
             if (b.type === "texte" && b.texte) msg.appendChild(el("div", { class: "dzCampTexte", texte: b.texte }));
-            else if (b.type === "resultat_outil") msg.appendChild(el("div", { class: "dzCampOutil", texte: T("campagnes.fil.outil", { nom: b.outil, resume: b.resume }) }));
+            else if (b.type === "resultat_outil") msg.appendChild(noeudOutil(b.outil, typeof b.ok === "boolean" ? b.ok : null));
             else if (b.type === "carte") msg.appendChild(carteNode(b, n++, info));
           });
           if (msg.firstChild) { vu = true; fil.appendChild(msg); }
@@ -337,7 +365,7 @@
         vu = true;
         if (x.type === "utilisateur") fil.appendChild(el("div", { class: "dzCampMsg", "data-role": "utilisateur" }, [el("div", { class: "dzCampTexte", texte: x.texte })]));
         else if (x.type === "texte") fil.appendChild(el("div", { class: "dzCampMsg", "data-role": "agent" }, [el("div", { class: "dzCampTexte", texte: x.texte })]));
-        else if (x.type === "outil") fil.appendChild(el("div", { class: "dzCampOutil", "data-ok": x.ok ? "oui" : "non", texte: T("campagnes.fil.outil", { nom: x.nom, resume: x.resume }) }));
+        else if (x.type === "outil") fil.appendChild(noeudOutil(x.nom, !!x.ok));
         else if (x.type === "carte") fil.appendChild(el("div", { class: "dzCampCarte", "data-etat": "live" }, [el("div", { class: "dzCampCarteT", texte: libelle(x.carte) })]));
       });
       if (S.occupe) fil.appendChild(el("div", { class: "dzCampEtat", "data-dz-camp": "travail", texte: T("campagnes.fil.reflechit") }));
@@ -368,7 +396,8 @@
         if (c.genre === "espace") ((c.arguments || {}).espaces || []).forEach(function (x) { if (x && x.id && x.nom) S.noms[x.id] = x.nom; });
       });
       var id = S.conv && S.conv.espace_id;
-      if (id && !S.noms[id] && !S.nomsEnCours) {
+      var brouillons = analyser(S.conv).cartes.some(function (c) { return c.genre === "brouillons"; });
+      if (((id && !S.noms[id]) || (brouillons && S.actif === undefined)) && !S.nomsEnCours) {
         S.nomsEnCours = true;
         nomsEspaces().then(function () { S.nomsEnCours = false; dessinerTete(); });
       }
@@ -391,6 +420,7 @@
         if (!r.ok) return;
         var j = await r.json();
         (j.espaces || []).forEach(function (x) { if (x && x.id) S.noms[x.id] = x.nom || x.id; });
+        S.actif = typeof j.actif === "string" ? j.actif : null;
       } catch (e) { /* le nom retombe sur l'identifiant */ }
     }
 
@@ -596,6 +626,32 @@
       champ.value = T("campagnes.message.continuer");
       surSaisie();
       try { champ.focus(); } catch (e) { /* rien */ }
+    }
+
+    // l'espace des brouillons n'est pas l'actif (GET /api/schedule ne rend que l'actif) : sur le CLIC de l'utilisateur,
+    // l'activer — par l'activation de la coque quand elle est exposée (window.__dzEspActiver : POST, cache relu,
+    // « deepotus:espace-refresh »), sinon POST /api/espaces/{id}/activate puis « deepotus:espace-refresh » —, puis
+    // recharger le calendrier et l'ouvrir. Jamais automatique.
+    async function activerEtOuvrir(id, a, btn) {
+      if (S.ferme || (btn && btn.getAttribute("aria-busy") === "true")) return;
+      if (btn) btn.setAttribute("aria-busy", "true");
+      try {
+        if (typeof window.__dzEspActiver === "function") await window.__dzEspActiver(id);
+        else {
+          var r = await window.fetch("/api/espaces/" + encodeURIComponent(id) + "/activate", { method: "POST", headers: JSON_H, body: "{}" });
+          if (!r.ok) throw new Error(await detailDe(r));
+          window.dispatchEvent(new Event("deepotus:espace-refresh"));
+        }
+        S.actif = id;
+        window.dispatchEvent(new CustomEvent("deepotus:schedule-reload"));
+        S.erreur = "";
+        ouvrirPlanificateur(a);
+      } catch (e) {
+        S.erreur = T("campagnes.erreur.activation", { msg: String((e && e.message) || e) });
+      } finally {
+        if (btn) btn.removeAttribute("aria-busy");
+        dessiner();
+      }
     }
 
     function ouvrirPlanificateur(a) {

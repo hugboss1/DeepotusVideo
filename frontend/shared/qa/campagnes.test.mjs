@@ -91,7 +91,7 @@ function monde({ lang = "fr", routes = {} } = {}) {
     }
   };
   const doc = { createElement: (t) => new Noeud(t), head: new Noeud("head"), documentElement: new Noeud("html") };
-  const ctx = { window: win, document: doc, setTimeout, clearTimeout, TextDecoder, CustomEvent, AbortController, console };
+  const ctx = { window: win, document: doc, setTimeout, clearTimeout, TextDecoder, CustomEvent, Event, AbortController, console };
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
   return { win, doc, appels, events, DzCampagnes: win.DzCampagnes };
@@ -429,6 +429,80 @@ for (const lang of ["fr", "en"]) {
   ok("6.10 aucun appel réseau pour ouvrir le calendrier", !w.appels.some((a) => a.methode === "POST"));
   w.c.demonter();
 }
+
+// ===== 6 bis. t285 T9 (relecture) : les brouillons d'un espace qui n'est pas l'actif ==========================================
+{ // espace ACTIF : l'espace en clair, le lien d'avant, aucun bouton d'activation
+  const w = await monterAvec(avec(() => conv([msg("agent", [BROUILLONS])])));
+  await attendre(() => /Dans l'espace Marque A/.test(texte(w.racine)));
+  ok("6.11 brouillons, espace actif : « Dans l'espace Marque A »", /Dans l'espace Marque A/.test(texte(w.racine)), texte(w.racine));
+  ok("6.12 …le lien d'origine, pas de bouton d'activation", !!marque(w.racine, "ouvrir-planificateur") && !marque(w.racine, "activer-espace"));
+  w.c.demonter();
+}
+const BROUILLONS_B = carte("brouillons", { action: "ouvrir_planificateur", arguments: { ids: ["p1", "p2", "p3"], espace_id: "e2" } });
+{ // espace NON actif : un bouton, rien d'automatique ; au clic : activation, puis rechargement, puis navigation
+  let actives = [];
+  const w = await monterAvec(avec(() => conv([msg("agent", [BROUILLONS_B])], { espace_id: "e2" }), {
+    "POST /api/espaces/e2/activate": async () => { actives.push("e2"); return reponse(200, { actif: "e2" }); }
+  }));
+  await attendre(() => !!marque(w.racine, "activer-espace"));
+  const b = marque(w.racine, "activer-espace");
+  ok("6.13 brouillons hors espace actif : « Dans l'espace Marque B » et le bouton « Activer l'espace Marque B et ouvrir le calendrier »",
+    /Dans l'espace Marque B/.test(texte(w.racine)) && !!b && b.textContent === "Activer l'espace Marque B et ouvrir le calendrier", texte(w.racine));
+  ok("6.14 …pas de lien qui ouvrirait un calendrier vide", !marque(w.racine, "ouvrir-planificateur"));
+  ok("6.15 …rien d'automatique : aucune activation avant le clic", actives.length === 0 && !w.appels.some((a) => a.url.includes("/activate")));
+  b.click();
+  await attendre(() => w.events.some((x) => x.type === "dz-campagnes-brouillons"));
+  const types = w.events.map((x) => x.type);
+  ok("6.16 au clic : POST /api/espaces/e2/activate", actives.length === 1 && w.appels.some((a) => a.methode === "POST" && a.url === "/api/espaces/e2/activate"));
+  const iR = types.indexOf("deepotus:espace-refresh"), iS = types.indexOf("deepotus:schedule-reload"), iN = types.indexOf("deepotus:navigate");
+  ok("6.17 …puis deepotus:espace-refresh, deepotus:schedule-reload, la navigation scheduler et l'annonce des brouillons",
+    iR >= 0 && iS > iR && iN > iS && w.events.some((x) => x.type === "deepotus:navigate" && x.detail.view === "scheduler"), JSON.stringify(types));
+  await tick();
+  ok("6.18 …ensuite l'espace est l'actif : le lien d'origine revient", !!marque(w.racine, "ouvrir-planificateur") && !marque(w.racine, "activer-espace"));
+  w.c.demonter();
+}
+{ // l'activation de la coque, quand elle est exposée, passe d'abord (cache des espaces relu par l'application)
+  const w = await monterAvec(avec(() => conv([msg("agent", [BROUILLONS_B])], { espace_id: "e2" })));
+  const vus = [];
+  w.win.__dzEspActiver = async (id) => { vus.push(id); };
+  await attendre(() => !!marque(w.racine, "activer-espace"));
+  marque(w.racine, "activer-espace").click();
+  await attendre(() => w.events.some((x) => x.type === "dz-campagnes-brouillons"));
+  ok("6.19 window.__dzEspActiver(id) est appelée, pas de POST direct", vus.join() === "e2" && !w.appels.some((a) => a.url.includes("/activate")));
+  ok("6.20 …puis le rechargement et la navigation", w.events.some((x) => x.type === "deepotus:schedule-reload") && w.events.some((x) => x.type === "deepotus:navigate"));
+  w.c.demonter();
+}
+{ // activation refusée : un message, aucune navigation
+  const w = await monterAvec(avec(() => conv([msg("agent", [BROUILLONS_B])], { espace_id: "e2" }), {
+    "POST /api/espaces/e2/activate": async () => reponse(404, { detail: "Espace inconnu." })
+  }));
+  await attendre(() => !!marque(w.racine, "activer-espace"));
+  marque(w.racine, "activer-espace").click();
+  await attendre(() => /n'a pas pu être activé/.test(texte(w.racine)));
+  ok("6.21 activation refusée : « L'espace n'a pas pu être activé : Espace inconnu. », aucune navigation",
+    /L'espace n'a pas pu être activé : Espace inconnu\./.test(texte(w.racine)) && !w.events.some((x) => x.type === "deepotus:navigate"), texte(w.racine));
+  w.c.demonter();
+}
+{ // P1 : les lignes d'outil traduites (anglais), état ok/échec, plus le résumé français du serveur
+  const routes = avec(() => conv([msg("agent", [{ type: "resultat_outil", outil: "proposer_porte", resume: "porte 1 proposée : en attente", ok: true },
+    { type: "resultat_outil", outil: "lire_document", resume: "document illisible", ok: false },
+    { type: "resultat_outil", outil: "lire_espace", resume: "3 espaces" },
+    { type: "resultat_outil", outil: "outil_futur", resume: "x", ok: true }])]));
+  const w = await monterAvec(routes, {}, "en");
+  const lignes = tousLes(w.racine, (x) => x.attrs.class === "dzCampOutil").map((x) => x.textContent);
+  ok("6.22 EN : « Proposing an approval gate: done », « Reading the document: failed »",
+    lignes[0] === "Proposing an approval gate: done" && lignes[1] === "Reading the document: failed", JSON.stringify(lignes));
+  ok("6.23 EN : un ancien résultat sans état n'affiche que le libellé ; un outil inconnu, « Agent tool: done »",
+    lignes[2] === "Reading the brand space" && lignes[3] === "Agent tool: done", JSON.stringify(lignes));
+  ok("6.24 le résumé du serveur n'est plus affiché", !/porte 1 proposée|illisible|3 espaces|proposer_porte/.test(texte(w.racine)), texte(w.racine));
+  const etats = tousLes(w.racine, (x) => x.attrs.class === "dzCampOutil").map((x) => x.attrs["data-ok"] || "");
+  ok("6.25 data-ok porte l'état (oui / non / absent)", etats.join() === "oui,non,,oui", etats.join());
+  w.c.demonter();
+}
+ok("6.26 P3 : la racine remplit son hôte (fil au-dessus, champ en bas avant le premier message)",
+  /\.dzCamp\{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;height:100%;/.test(SRC));
+ok("6.27 les dix outils d'agent_outils.OUTILS ont un libellé FR et EN", ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur",
+  "lire_document", "ecrire_dossier", "proposer_porte", "deviser_generation", "creer_brouillons", "pointer"].every((o) => D["campagnes.outil." + o] && D["campagnes.outil." + o].fr && D["campagnes.outil." + o].en));
 
 // ===== 7. erreurs HTTP et du flux ========================================================================================================
 {

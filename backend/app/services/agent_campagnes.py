@@ -289,7 +289,7 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str) -> AsyncIte
                 break
             nom = b.get("name")
             if tronque:                                    # entrée peut-être coupée : jamais exécutée
-                blocs.append({"type": "resultat_outil", "outil": str(nom)[:60], "resume": APPEL_TRONQUE[:500]})
+                blocs.append({"type": "resultat_outil", "outil": str(nom)[:60], "resume": APPEL_TRONQUE[:500], "ok": False})
                 evts.append({"type": "outil", "nom": nom, "ok": False, "resume": APPEL_TRONQUE})
                 resultats.append({"type": "tool_result", "tool_use_id": b.get("id"), "is_error": True,
                                   "content": json.dumps({"ok": False, "resume": APPEL_TRONQUE, "donnees": None},
@@ -303,7 +303,8 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str) -> AsyncIte
                          etat_porte=ligne.get("etat_porte") or "aucune")
             res = await ao.executer(nom, args, ctx)
             resume = str(res.get("resume") or "")
-            blocs.append({"type": "resultat_outil", "outil": str(nom)[:60], "resume": resume[:500]})
+            blocs.append({"type": "resultat_outil", "outil": str(nom)[:60], "resume": resume[:500],
+                          "ok": bool(res.get("ok"))})  # t285 T9 : l'écran montre l'état, plus le résumé
             evts.append({"type": "outil", "nom": nom, "ok": bool(res.get("ok")), "resume": resume})
             tr = {"type": "tool_result", "tool_use_id": b.get("id"), "content": ao.pour_modele(res)}
             if not res.get("ok"):

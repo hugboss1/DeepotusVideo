@@ -36,6 +36,9 @@ def test_cles_fr_en():
         assert sorted(re.findall(r"\{(\w+)\}", v["fr"])) == sorted(re.findall(r"\{(\w+)\}", v["en"])), k
     employees = set(re.findall(r'"(campagnes\.[a-z_]+\.[a-z_]+)"', SRC))
     employees |= {f"campagnes.genre.{g}" for g in GENRES}
+    # t285 T9 : campagnes.outil.<nom>, clé construite sur la liste OUTILS du composant
+    i = SRC.index("var OUTILS = [")
+    employees |= {f"campagnes.outil.{o}" for o in re.findall(r'"([a-z_]+)"', SRC[i:SRC.index("];", i)])}
     # t285 T9 : les libellés du mode Agent Campagnes du Planificateur (maillon dzagentplan, source aplatie)
     PLAN = (RACINE / "frontend" / "patches" / "agent-plan.js").read_text(encoding="utf-8")
     employees |= set(re.findall(r'"(campagnes\.[a-z_]+\.[a-z_]+)"', PLAN))
@@ -83,3 +86,15 @@ def test_banc_node():
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+def test_libelles_des_outils_suivent_le_registre():
+    """t285 T9 (relecture) : une ligne d'outil = un libellé traduit par nom ; la liste du composant suit
+    agent_outils.OUTILS (aucun outil sans libellé, aucun libellé orphelin)."""
+    reg = (RACINE / "backend" / "app" / "services" / "agent_outils.py").read_text(encoding="utf-8")
+    bloc = reg[reg.index("OUTILS: dict[str, dict] = {"):]
+    outils = set(re.findall(r'^    "([a-z_]+)": \{"nature"', bloc, re.M))
+    liste = set(re.findall(r'"([a-z_]+)"', SRC[SRC.index("var OUTILS = ["):SRC.index("];", SRC.index("var OUTILS = ["))]))
+    assert outils and liste == outils, (sorted(outils ^ liste))
+    assert all(f"campagnes.outil.{o}" in I18N for o in outils) and "campagnes.outil.inconnu" in I18N
+    assert "campagnes.fil.outil" not in I18N and '"campagnes.fil.outil"' not in SRC, "plus de résumé serveur affiché"

@@ -46,6 +46,7 @@ except ImportError as e:
     check("0 le maillon patch_bundle_dzagentplan existe", False, repr(e))
 
 MARKER = "/*__dzagentplan*/"
+DICO_C = json.loads((REPO / "frontend" / "shared" / "i18n" / "campagnes.json").read_text(encoding="utf-8"))
 
 print("\n[1] marqueur_x1")
 check("1.1 marqueur ×1", B.count(MARKER) == 1, str(B.count(MARKER)))
@@ -128,6 +129,12 @@ check("5.9 les brouillons : à dz-campagnes-brouillons, deepotus:schedule-reload
 check("5.10 le document : la conversation naît, puis POST /depot (multipart fichier)",
       'fetch("/api/agent/campagnes/",{method:"POST"' in B and '"/depot",{method:"POST",body:fd}' in B
       and 'fd.append("fichier",fichier' in B)
+check("5.12 M3 : passer en Agent ne vide plus le plan Rapide (s(\"generate\") seul)",
+      'choisir:function(v){v==="agent"&&s("generate");__dzAP[1](v)}' in UM and "N(null),H(\"\"));__dzAP" not in UM)
+check("5.13 l'activation de la coque exposée à la carte des brouillons (window.__dzEspActiver = dzEspActiver)",
+      'try{if(typeof dzEspActiver==="function")window.__dzEspActiver=dzEspActiver;}catch(e){}' in B and B.count("function dzEspActiver(") == 1)
+check("5.14 P3 : l'hôte a une hauteur fixe (le composant remplit, champ en bas)", 'flex:"0 0 auto",minHeight:360,height:"min(62vh,560px)"' in B)
+check("5.15 M4 : le premier message ne nomme aucun outil interne", lambda: "lire_document" not in DICO_C["campagnes.plan.document_message"]["fr"] + DICO_C["campagnes.plan.document_message"]["en"])
 check("5.11 aucun bouton publier ni /fire dans le maillon", lambda: PM and "/fire" not in PM.AIDES
       and "scheduled" not in PM.AIDES and "publier" not in PM.AIDES)
 
@@ -164,7 +171,33 @@ out.panneau_texte = texte(pan);
 const bas = DzAgentPlanBascule({ mode: "rapide", choisir() {} });
 out.bascule = bas.p.children.map((c) => c.p["data-dzagentplan-mode"] + ":" + c.p["aria-pressed"]);
 out.mode = __dzAgentPlanMode();
-console.log(JSON.stringify(out));
+const bouton = (n) => { const a = []; const v = (m) => { if (!m || typeof m !== "object") return; if (Array.isArray(m)) return m.forEach(v); if (m.p && m.p["data-dzagentplan-demarrer"] === "") a.push(m.p); if (m.p) { v(m.p.children); } }; v(n); return a[0]; };
+out.demarrer_desactive_en_chargement = bouton(pan).disabled === true;
+/* les brouillons : un effet joué pour de bon, la liste des espaces lue, l'évènement de la carte rejoué */
+async function scenario(espaceBrouillons) {
+  const ecoute = {}, etats = [], ferme = { n: 0 };
+  window.addEventListener = (t, f) => { ecoute[t] = f; }; window.removeEventListener = () => {};
+  globalThis.fetch = async (u) => ({ ok: true, json: async () => ({ espaces: [{ id: "e1", nom: "A" }, { id: "e2", nom: "B" }], actif: "e1" }) });
+  x.useState = (v) => [v, (w) => etats.push(w)]; x.useEffect = (f, deps) => { if (deps && deps.length === 0) f(); };
+  DzAgentPlan({ brief: "", setBrief() {}, jours: 7, setJours() {}, debut: "", setDebut() {}, fermer() { ferme.n++; } });
+  await new Promise((r) => setTimeout(r, 20));
+  ecoute["dz-campagnes-brouillons"]({ detail: { espace_id: espaceBrouillons } });
+  await new Promise((r) => setTimeout(r, 20));
+  return { ferme: ferme.n, etats: etats.filter((e) => typeof e === "string") };
+}
+(async () => {
+  window.evts = [];
+  out.actif = await scenario("e1");
+  out.inactif = await scenario("e2");
+  out.evts2 = window.evts;
+  /* la ligne « pas l'espace actif » sous le sélecteur : un rendu avec choix e2, actif e1 */
+  let i = 0; const vals = [[{ id: "e1", nom: "A" }, { id: "e2", nom: "Marque B" }], "e2", null, null, "", false, "e1"];
+  x.useState = (v) => [vals[i++], () => {}]; x.useEffect = () => {};
+  out.ligne_inactif = texte(DzAgentPlan({ brief: "", setBrief() {}, jours: 7, setJours() {}, debut: "", setDebut() {}, fermer() {} }));
+  i = 0; vals[1] = "e1";
+  out.ligne_actif = texte(DzAgentPlan({ brief: "", setBrief() {}, jours: 7, setJours() {}, debut: "", setDebut() {}, fermer() {} }));
+  console.log(JSON.stringify(out));
+})();
 """
     d = pathlib.Path(tempfile.mkdtemp(prefix="dzt285t9_"))
     (d / "t.js").write_text(js, encoding="utf-8")
@@ -190,6 +223,17 @@ console.log(JSON.stringify(out));
           o.get("panneau_texte", "")[:300])
     check("6.8 la bascule : Rapide pressé par défaut, Agent à côté ; le crochet rend « rapide »",
           o.get("bascule") == ["rapide:true", "agent:false"] and (o.get("mode") or [None])[0] == "rapide", str(o.get("bascule")))
+    check("6.9 M2 : « Ouvrir la conversation » désactivé tant que la liste des espaces n'est pas là",
+          o.get("demarrer_desactive_en_chargement") is True)
+    check("6.10 brouillons dans l'espace ACTIF : calendrier rechargé, dialogue fermé", (o.get("actif") or {}).get("ferme") == 1
+          and "campagnes.plan.brouillons_inactif" not in (o.get("actif") or {}).get("etats", []), json.dumps(o.get("actif")))
+    check("6.11 brouillons HORS espace actif : le dialogue reste ouvert et le dit (pas de fermeture silencieuse)",
+          (o.get("inactif") or {}).get("ferme") == 0 and "campagnes.plan.brouillons_inactif" in (o.get("inactif") or {}).get("etats", []),
+          json.dumps(o.get("inactif")))
+    check("6.12 les deux cas rechargent le calendrier", (o.get("evts2") or []).count("deepotus:schedule-reload") == 2, str(o.get("evts2")))
+    check("6.13 espace choisi non actif : la ligne sous le sélecteur (avec son nom)",
+          'campagnes.plan.espace_inactif{"nom":"Marque B"}' in o.get("ligne_inactif", ""), o.get("ligne_inactif", "")[:300])
+    check("6.14 espace choisi actif : pas de ligne", "campagnes.plan.espace_inactif" not in o.get("ligne_actif", "x"), o.get("ligne_actif", "")[:200])
 
 print("\n[7] textes")
 I18N = REPO / "frontend" / "shared" / "i18n"
