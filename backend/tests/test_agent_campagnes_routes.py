@@ -661,9 +661,11 @@ check("10g ConversationIllisible levée par le registre : 409, attrapée AVANT l
       and _code_traduit(KeyError("x")) == 404)
 
 # ---- boucle locale seulement -----------------------------------------------------------------------------------------
-print("\n[11] boucle locale seulement (t286 ouvrira aux appareils)")
+print("\n[11] réseau local : un appareil appairé atteint les routes (t286), sans jeton 401")
 import _jeton_appareil as _JA                                        # noqa: E402
-with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) as c2:
+MT._POSTER = Script([texte("ok")])
+with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) as c2, \
+        TestClient(app, client=("192.168.1.21", 50000)) as c3:
     cid = creer(B, titre="Local")
     for meth, url, corps in (("post", BASE + "/", {"role": "campagnes"}), ("get", f"{BASE}/{cid}", None),
                              ("post", f"{BASE}/{cid}/devis", {"texte": "x"}),
@@ -672,8 +674,11 @@ with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) a
                              ("post", f"{BASE}/{cid}/depot", {"texte": "x"}),
                              ("post", BASE + "/importer", {"conversation": conv})):
         r = getattr(c2, meth)(url, json=corps) if corps is not None else getattr(c2, meth)(url)
-        check(f"11 {meth.upper()} {url.replace(cid, '{cid}')} depuis le réseau local (appairé) : 403", r.status_code == 403,
-              f"{r.status_code}")
+        check(f"11 {meth.upper()} {url.replace(cid, '{cid}')} depuis le réseau local (appairé) : la route répond",
+              r.status_code != 403 and r.status_code < 500, f"{r.status_code}")
+        r = getattr(c3, meth)(url, json=corps) if corps is not None else getattr(c3, meth)(url)
+        check(f"11 {meth.upper()} {url.replace(cid, '{cid}')} depuis le réseau local SANS jeton : 401",
+              r.status_code == 401, f"{r.status_code}")
 
 # ---- test_route_message_gardee_par_plafond ---------------------------------------------------------------------------
 print("\n[12] recensement des routes payantes")

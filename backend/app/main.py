@@ -372,9 +372,10 @@ async def _csrf_origin_guard(request, call_next):
 # non-GET appelaient un fournisseur payant (3D, Meshy, voix, musique, SFX, LLM, images, transcription, Cardforge…)
 # sans aucune garde d'hôte ; un inventaire route par route en oubliait (appels indirects). Décision de l'utilisateur :
 # une garde GLOBALE — POST / PUT / PATCH / DELETE vers /api depuis un autre hôte que la boucle locale -> 403, avant
-# tout routage. Les GET restent ouverts. Un futur compagnon mobile passera par _ECRITURES_OUVERTES (méthode, chemin
-# exact), VIDE aujourd'hui. Même liste d'hôtes que les Réglages (routes._HOTES_LOCAUX). Pas une faille tant que l'app
-# écoute la boucle locale : c'est la condition d'une ouverture au réseau local.
+# tout routage. Les GET restent ouverts. Le compagnon mobile passe par _ECRITURES_OUVERTES (méthode, chemin exact ou,
+# depuis t286, GABARIT à segments `{...}` lu par _ecriture_ouverte). Même liste d'hôtes que les Réglages
+# (routes._HOTES_LOCAUX). Pas une faille tant que l'app écoute la boucle locale : c'est la condition d'une ouverture
+# au réseau local.
 from app.api.routes import _HOTES_LOCAUX
 # Plan mobile T4 (tâche #56, 01/10/2026) : la SEULE écriture ouverte au réseau local est l'échange du secret
 # d'appairage contre un jeton — le secret à usage unique de 5 minutes y tient lieu de garde.
@@ -383,6 +384,8 @@ from app.api.routes import _HOTES_LOCAUX
 #   taille bornée) et attribué à l'appareil du JETON
 # + plan mobile T18 (tâche #58, même décision) : les dépenses du téléphone, versées dans la table Depense (plafond #16)
 # + plan mobile T14/T21 (tâche #59, décision du 02/10) : prendre / rendre un chapitre écrit hors ligne (l'id dans le corps)
+# + t286 (24/10, spec agent interne §7 : « écriture par écriture ») : les six écritures de l'agent Campagnes, en
+#   gabarits — un `{...}` vaut UN segment non vide, ni « . » ni « .. » ; l'appareil est celui du JETON
 _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST", "/api/sync/lot/etat"),
                                             ("POST", "/api/sync/depot"), ("POST", "/api/sync/depenses"),
                                             ("POST", "/api/sync/chapitre/prendre"), ("POST", "/api/sync/chapitre/rendre"),
@@ -396,14 +399,39 @@ _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST"
                                             # sa prise et lance Recast, voix -> voix, décor ; il range l'enregistrement de
                                             # SON direct. Mêmes contrôles et MÊME garde du plafond que sur le PC.
                                             # t168c : il finalise SON brouillon (même recette, même garde).
-                                            ("POST", "/api/avatar-live/recast/source"), ("POST", "/api/avatar-live/recast"), ("POST", "/api/avatar-live/voix"), ("POST", "/api/avatar-live/decor"), ("POST", "/api/avatar-live/direct/enregistrer"), ("POST", "/api/avatar-live/recast/finaliser")})
+                                            ("POST", "/api/avatar-live/recast/source"), ("POST", "/api/avatar-live/recast"), ("POST", "/api/avatar-live/voix"), ("POST", "/api/avatar-live/decor"), ("POST", "/api/avatar-live/direct/enregistrer"), ("POST", "/api/avatar-live/recast/finaliser"),
+                                            # t286 : l'agent Campagnes depuis le téléphone (tour exécuté sur le PC, ses
+                                            # clés et SON plafond ; l'origine et l'appareil du JETON sont tracés)
+                                            ("POST", "/api/agent/campagnes/"),
+                                            ("POST", "/api/agent/campagnes/importer"),
+                                            ("POST", "/api/agent/campagnes/{cid}/devis"),
+                                            ("POST", "/api/agent/campagnes/{cid}/message"),
+                                            ("POST", "/api/agent/campagnes/{cid}/carte/{n}"),
+                                            ("POST", "/api/agent/campagnes/{cid}/depot")})
+
+
+def _ecriture_ouverte(methode: str, chemin: str) -> bool:
+    """t286 : (méthode, chemin) est-il ouvert au réseau local ? Exact, ou un gabarit de même méthode au même nombre de
+    segments, chacun égal ou `{...}` face à un segment non vide autre que « . » / « .. ». Jamais un préfixe."""
+    if (methode, chemin) in _ECRITURES_OUVERTES:
+        return True
+    segs = chemin.split("/")
+    for m, gabarit in _ECRITURES_OUVERTES:
+        if m != methode or "{" not in gabarit:
+            continue
+        g = gabarit.split("/")
+        if len(g) == len(segs) and all(
+                a == b or (a.startswith("{") and a.endswith("}") and b not in ("", ".", ".."))
+                for a, b in zip(g, segs)):
+            return True
+    return False
 
 
 @app.middleware("http")
 async def _garde_ecritures_locales(request, call_next):
     if request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path.startswith("/api"):
         host = (request.client.host if request.client else "") or ""
-        if host not in _HOTES_LOCAUX and (request.method, request.url.path) not in _ECRITURES_OUVERTES:
+        if host not in _HOTES_LOCAUX and not _ecriture_ouverte(request.method, request.url.path):
             return _JSONResponse(
                 {"detail": "Écriture réservée à la machine locale (boucle locale) — rien n'a été fait."},
                 status_code=403)

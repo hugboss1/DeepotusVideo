@@ -22,6 +22,8 @@ def check(label, cond, detail=""):
 from app.services import agent_store as st, agent_format as fmt   # noqa: E402
 from app.services.storage import init_db                          # noqa: E402
 from app.config import DATA_ROOT                                  # noqa: E402
+# t286 : l'import n'accepte qu'un UUID canonique (l'id devient un dossier)
+TEL1, TEL2 = "7e1a0c3e-5b1d-4c2a-9f00-000000000001", "7e1a0c3e-5b1d-4c2a-9f00-000000000002"
 
 
 def msg(texte="salut", role="utilisateur", cout=0.0, origine="pc"):
@@ -64,14 +66,14 @@ async def main():
     check("ajouter : message invalide refusé", r)
 
     # import idempotent
-    conv = {"id": "tel-1", "role": "campagnes", "espace_id": "esp1", "titre": "Du téléphone", "origine": "telephone",
+    conv = {"id": TEL1, "role": "campagnes", "espace_id": "esp1", "titre": "Du téléphone", "origine": "telephone",
             "messages": [msg("x", origine="telephone", cout=0.4), msg("y", "agent", cout=0.1, origine="telephone")]}
     r1 = await st.importer(conv)
     check("import 1 : ajoutes", r1 == {"ajoutes": 2, "ignores": 0, "conflits": []}, str(r1))
-    a = await st.lire("tel-1")
+    a = await st.lire(TEL1)
     check("import 1 : coût payé compté", abs(a["cout_usd"] - 0.5) < 1e-9 and a["origine"] == "telephone", str(a["cout_usd"]))
     r2 = await st.importer(conv)
-    b = await st.lire("tel-1")
+    b = await st.lire(TEL1)
     check("import 2 : 0 ajouté, 2 ignorés", r2 == {"ajoutes": 0, "ignores": 2, "conflits": []}, str(r2))
     check("import 2 : coût inchangé, pas de doublon", abs(b["cout_usd"] - 0.5) < 1e-9 and len(b["messages"]) == 2)
 
@@ -81,14 +83,14 @@ async def main():
     nouveau = msg("z", cout=0.2, origine="telephone")
     autre["messages"].append(nouveau)
     r3 = await st.importer(autre)
-    d = await st.lire("tel-1")
+    d = await st.lire(TEL1)
     check("conflit : signalé, rien écrasé", len(r3["conflits"]) == 1 and r3["ajoutes"] == 1 and r3["ignores"] == 1, str(r3))
     check("conflit : texte d'origine gardé", d["messages"][0]["blocs"][0]["texte"] == "x")
     check("conflit : id inconnu ajouté, coût +0.2", len(d["messages"]) == 3 and abs(d["cout_usd"] - 0.7) < 1e-9, str(d["cout_usd"]))
-    inval = {"id": "tel-2", "role": "campagnes", "messages": [{"v": 1, "id": "m"}]}
+    inval = {"id": TEL2, "role": "campagnes", "messages": [{"v": 1, "id": "m"}]}
     r4 = await st.importer(inval)
     check("import : message invalide signalé, non ajouté",
-          r4["ajoutes"] == 0 and len(r4.get("invalides", [])) == 1 and (await st.lire("tel-2"))["messages"] == [], str(r4))
+          r4["ajoutes"] == 0 and len(r4.get("invalides", [])) == 1 and (await st.lire(TEL2))["messages"] == [], str(r4))
 
     # dossier confiné
     base = (DATA_ROOT / "campagnes" / "esp1").resolve()

@@ -10487,10 +10487,6 @@
   "fr": "job_id illisible.",
   "en": "Unreadable job_id."
  },
- "L'agent Campagnes n'est accessible que depuis ce PC.": {
-  "fr": "L'agent Campagnes n'est accessible que depuis ce PC.",
-  "en": "The Campaigns agent is only available from this PC."
- },
  "Carte introuvable.": {
   "fr": "Carte introuvable.",
   "en": "Card not found."
@@ -10542,5 +10538,13 @@
  "Le lot ne prend pas encore d'espace de campagne : lance les variations une à une.": {
   "fr": "Le lot ne prend pas encore d'espace de campagne : lance les variations une à une.",
   "en": "Batches do not support a campaign space yet: launch the variations one by one."
+ },
+ "Import depuis un appareil : la conversation doit avoir l'origine « telephone ».": {
+  "fr": "Import depuis un appareil : la conversation doit avoir l'origine « telephone ».",
+  "en": "Import from a device: the conversation must have the origin \"telephone\"."
+ },
+ "Import depuis un appareil : chaque message doit porter l'origine « telephone » et l'appareil de ce jeton.": {
+  "fr": "Import depuis un appareil : chaque message doit porter l'origine « telephone » et l'appareil de ce jeton.",
+  "en": "Import from a device: every message must carry the origin \"telephone\" and this token's device."
  }
 }
