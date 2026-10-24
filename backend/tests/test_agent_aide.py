@@ -224,5 +224,35 @@ def test_route_erreurs(monkeypatch):
     assert r.status_code == 502 and "panne" in r.json()["detail"]
 
 
+# ── t285b : la balise [CAMPAGNES] (24/10/2026) ──
+def test_balise_campagnes_devient_action():
+    q = "Fais-moi une campagne pour Noël"
+    texte, actions, rejets = A.analyser("Je peux préparer ça. [CAMPAGNES]", question=q)
+    assert texte == "Je peux préparer ça." and rejets == 0
+    assert actions == [{"type": "campagnes", "cible": "agent", "question": q}]
+    _, actions, rejets = A.analyser("[CAMPAGNES] [CAMPAGNES]", question=q)
+    assert len(actions) == 1 and rejets == 0
+    _, actions, rejets = A.analyser("[CAMPAGNES:x]", question=q)
+    assert actions == [] and rejets == 1
+    sale = "  Noël‮\x00  \n\t  vite " + "z" * (A.MAX_QUESTION + 50)
+    a = A.analyser("[CAMPAGNES]", question=sale)[1][0]
+    assert a["question"].startswith("Noël vite z") and len(a["question"]) == A.MAX_QUESTION
+    assert "‮" not in a["question"] and "\x00" not in a["question"]
+    assert A.analyser("[CAMPAGNES]")[1] == [{"type": "campagnes", "cible": "agent", "question": ""}]
+    assert A.texte_a_lire("Un texte [CAMPAGNES] fini") == "Un texte fini"
+
+
+def test_demander_inchange_sans_balise(monkeypatch):
+    sortie = "Ouvre les Réglages.\n[POINT:reglages.cles]\n[GUIDE:cles]\n[FOO:x]"
+    assert A.analyser(sortie) == A.analyser(sortie, question="Une question")
+    _repondre(monkeypatch, sortie)
+    r = asyncio.run(A.demander({"question": "où est ma clé ?", "lang": "fr"}))
+    assert [a["type"] for a in r["actions"]] == ["point", "guide"] and r["rejets"] == 1
+    _repondre(monkeypatch, "Je prépare ça.\n[CAMPAGNES]")
+    r = asyncio.run(A.demander({"question": "  Fais-moi une campagne pour Noël ", "lang": "fr"}))
+    assert r["actions"] == [{"type": "campagnes", "cible": "agent", "question": "Fais-moi une campagne pour Noël"}]
+    assert r["texte"] == "Je prépare ça."
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
