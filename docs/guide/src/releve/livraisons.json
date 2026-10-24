@@ -9186,7 +9186,7 @@
     },
     {
      "nom": "Devis par message",
-     "quoi": "Avant chaque envoi, le plafond en dollars de toute la réponse s'affiche sous le champ ; l'envoi vaut accord, l'agent s'arrête net au plafond et propose « Continuer » avec un nouveau plafond (plafond « campagnes »).",
+     "quoi": "Avant chaque envoi, le plafond en dollars de toute la réponse s'affiche sous le champ ; l'envoi vaut accord, l'agent s'arrête net au plafond et propose « Continuer » avec un nouveau plafond (dépense comptée sous la catégorie « campagnes » ; plafond global, par moteur et de l'espace).",
      "comment": "Ligne « ≤ X $ » sous le champ, puis Envoyer",
      "depuis": "2026-10-24",
      "ref": "PR #442 · t285a",

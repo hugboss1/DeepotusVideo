@@ -1,7 +1,7 @@
 <p class="chapeau-chap">You will be able to hand a campaign to the Campaigns agent: it turns a brief into a strategy and a schedule, writes the copy, then puts the posts as drafts in the Scheduler. You approve at two gates and nothing goes out without you. Ten minutes; <span class="prix">paid ≈ $</span>, each message shows its cap before you send it.</p>
 
 <h3>Before you start</h3>
-<p>The Campaigns agent works with Claude only: you need an <strong>Anthropic key</strong> in the vault (see <a href="#cles">Connect your keys and AI engines</a>). Without a key, it says so on the first send; nothing is greyed out. Its spending is counted under the "campaigns" cap: set it first in <a href="#budget">Keep spending under control</a>.</p>
+<p>The Campaigns agent works with Claude only: you need an <strong>Anthropic key</strong> in the vault (see <a href="#cles">Connect your keys and AI engines</a>). Without a key, it says so on the first send; nothing is greyed out. Its spending is counted under the "campagnes" category; the global cap, the per-engine caps and the space cap apply: see <a href="#budget">Keep spending under control</a>.</p>
 <p>A campaign belongs to <strong>one brand space</strong> (see <a href="#marques">Work for several brands</a>): its persona, its forbidden words, its renders. It is not necessarily the space active on screen.</p>
 
 <h3>The circuit in short</h3>
@@ -11,7 +11,7 @@
 <figure class="scene" data-scene="agent-campagnes/ouvrir"></figure>
 <ol class="etapes">
 <li>Press <kbd>F1</kbd>: the drawer opens. It has two tabs, <b class="ui">Ask</b> (the quick help, see <a href="#demander">Ask Deepotus</a>) and <b class="ui">Campaigns</b>. Click <b class="ui">Campaigns</b>.</li>
-<li>Pick the campaign space in the list at the top. Left on <b class="ui">No space</b>, the agent only gives directions, and asks you for the space with a card if it opens a campaign.</li>
+<li>Pick the campaign space in the list at the top. Left on <b class="ui">No space</b>, the agent only gives directions, and asks you for the space with a card if a step needs a space.</li>
 <li>The header shows the space in full and the conversation's <strong>total cost</strong>. Once the campaign has started, its space no longer changes.</li>
 </ol>
 
@@ -45,14 +45,14 @@
 <h3>Go further</h3>
 <div class="cartes">
 <article><i data-dz="dz-action-continuer"></i><h4>Continue after a stop</h4><p>When the agent reaches the cap or its number of turns, it stops dead and posts a "Continue" card with a new cap. Nothing restarts without your click.</p></article>
-<article><i data-dz="dz-action-valider"></i><h4>After a render</h4><p>When a video or an image is done, the card switches to <b class="ui">Render finished</b>. The agent never resumes on its own: <b class="ui">Continue the campaign</b> sends a message, with its cap.</p></article>
+<article><i data-dz="dz-action-valider"></i><h4>After a render</h4><p>When a video or an image is done, the card switches to <b class="ui">Render finished</b>. The agent never resumes on its own: <b class="ui">Continue the campaign</b> puts the follow-up in the input with its cap; nothing goes out before <b class="ui">Send</b>.</p></article>
 <article><i data-dz="dz-action-aide"></i><h4>From "Ask"</h4><p>Ask for a campaign in the <b class="ui">Ask</b> tab: the answer carries <b class="ui">Open the Campaigns agent</b>, which takes your question to the next tab.</p></article>
-<article><i data-dz="dz-nav-scheduler"></i><h4>Resume later</h4><p>The drawer keeps the current conversation. In the plan dialog, <b class="ui">Resume the conversation</b> reopens the latest campaign of the chosen space.</p></article>
+<article><i data-dz="dz-nav-scheduler"></i><h4>Resume later</h4><p>During the session, the drawer keeps the current conversation. In the plan dialog, <b class="ui">Resume the conversation</b> reopens the latest campaign of the chosen space, during the session too.</p></article>
 <article><i data-dz="dz-etat-mobile"></i><h4>From the phone</h4><p>The <a href="#mobile">paired phone</a> runs the same conversations over Wi-Fi. The work happens on the PC, with its keys and its cap.</p></article>
 <article><i data-dz="dz-media-persona"></i><h4>The campaign folder</h4><p>Folder, strategy, copy and review are stored in the app's data, under the campaign space, with what each campaign has learned.</p></article>
 </div>
 
 <h3>Good to know</h3>
-<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Each message shows its cap before you send it; the agent stops dead if it reaches it. These turns are counted under the "campaigns" cap of <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Pricing &amp; budget</b></span>. Images, videos and voices have their own quote, paid only when you click.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Each message shows its cap before you send it; the agent stops dead if it reaches it. These turns are counted under the "campagnes" category (statement in <span class="chemin"><b class="ui">Settings</b> › <b class="ui">Pricing &amp; budget</b></span>); the global cap, the per-engine caps and the space cap apply. Images, videos and voices have their own quote, paid only when you click.</p></aside>
 <aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>The agent never publishes or schedules a post: everything lands as a draft. It does not change the active space, touch the keys, the Settings or the accounts, and deletes nothing. Ask it to: it shows you where to do it yourself.</p></aside>
 <aside class="astuce"><i data-dz="dz-etat-information"></i><p>A campaign counts its spending and stores its renders in <strong>its own</strong> space, even if another space is active on screen.</p></aside>

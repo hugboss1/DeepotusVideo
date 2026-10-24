@@ -1,7 +1,7 @@
 <p class="chapeau-chap">Vous saurez confier une campagne à l'agent Campagnes : il transforme un brief en stratégie et en calendrier, produit les textes, puis range les posts en brouillons au Planificateur. Vous validez à deux portes et rien ne part sans vous. Dix minutes ; <span class="prix">payant ≈ $</span>, chaque message affiche son plafond avant l'envoi.</p>
 
 <h3>Avant de commencer</h3>
-<p>L'agent Campagnes fonctionne avec Claude seulement : il faut une <strong>clé Anthropic</strong> dans le coffre (voir <a href="#cles">Brancher ses clés et ses moteurs d'IA</a>). Sans clé, il le dit au premier envoi ; rien n'est grisé. Ses dépenses sont comptées sous le plafond « campagnes » : réglez-le d'abord dans <a href="#budget">Maîtriser ses dépenses</a>.</p>
+<p>L'agent Campagnes fonctionne avec Claude seulement : il faut une <strong>clé Anthropic</strong> dans le coffre (voir <a href="#cles">Brancher ses clés et ses moteurs d'IA</a>). Sans clé, il le dit au premier envoi ; rien n'est grisé. Ses dépenses sont comptées sous la catégorie « campagnes » ; le plafond global, ceux par moteur et celui de l'espace s'appliquent : voir <a href="#budget">Maîtriser ses dépenses</a>.</p>
 <p>Une campagne appartient à <strong>un espace de marque</strong> (voir <a href="#marques">Travailler pour plusieurs marques</a>) : sa persona, ses mots interdits, ses rendus. Ce n'est pas forcément l'espace actif à l'écran.</p>
 
 <h3>Le circuit en bref</h3>
@@ -11,7 +11,7 @@
 <figure class="scene" data-scene="agent-campagnes/ouvrir"></figure>
 <ol class="etapes">
 <li>Appuyez sur <kbd>F1</kbd> : le tiroir s'ouvre. Il a deux onglets, <b class="ui">Demander</b> (l'aide rapide, voir <a href="#demander">Demander à Deepotus</a>) et <b class="ui">Campagnes</b>. Cliquez <b class="ui">Campagnes</b>.</li>
-<li>Choisissez l'espace de la campagne dans la liste du haut. Laissé sur <b class="ui">Aucun espace</b>, l'agent oriente seulement, et vous demandera l'espace par une carte s'il ouvre une campagne.</li>
+<li>Choisissez l'espace de la campagne dans la liste du haut. Laissé sur <b class="ui">Aucun espace</b>, l'agent oriente seulement, et vous demandera l'espace par une carte si une étape a besoin d'un espace.</li>
 <li>L'en-tête écrit l'espace en clair et le <strong>coût cumulé</strong> de la conversation. Une fois la campagne lancée, son espace ne change plus.</li>
 </ol>
 
@@ -45,14 +45,14 @@
 <h3>Aller plus loin</h3>
 <div class="cartes">
 <article><i data-dz="dz-action-continuer"></i><h4>Continuer après un arrêt</h4><p>Quand l'agent atteint le plafond ou son nombre de tours, il s'arrête net et pose une carte « Continuer » avec un nouveau plafond. Rien ne repart sans votre clic.</p></article>
-<article><i data-dz="dz-action-valider"></i><h4>Après un rendu</h4><p>À la fin d'une vidéo ou d'une image, la carte passe à <b class="ui">Rendu terminé</b>. L'agent ne reprend jamais seul : <b class="ui">Continuer la campagne</b> envoie un message, avec son plafond.</p></article>
+<article><i data-dz="dz-action-valider"></i><h4>Après un rendu</h4><p>À la fin d'une vidéo ou d'une image, la carte passe à <b class="ui">Rendu terminé</b>. L'agent ne reprend jamais seul : <b class="ui">Continuer la campagne</b> pose la suite dans le champ avec son plafond ; rien ne part avant <b class="ui">Envoyer</b>.</p></article>
 <article><i data-dz="dz-action-aide"></i><h4>Depuis « Demander »</h4><p>Demandez une campagne dans l'onglet <b class="ui">Demander</b> : la réponse porte <b class="ui">Ouvrir l'agent Campagnes</b>, qui reprend votre question dans l'onglet voisin.</p></article>
-<article><i data-dz="dz-nav-scheduler"></i><h4>Reprendre plus tard</h4><p>Le tiroir garde la conversation en cours. Dans le dialogue du plan, <b class="ui">Reprendre la conversation</b> rouvre la dernière campagne de l'espace choisi.</p></article>
+<article><i data-dz="dz-nav-scheduler"></i><h4>Reprendre plus tard</h4><p>Pendant la session, le tiroir garde la conversation en cours. Dans le dialogue du plan, <b class="ui">Reprendre la conversation</b> rouvre la dernière campagne de l'espace choisi, pendant la session aussi.</p></article>
 <article><i data-dz="dz-etat-mobile"></i><h4>Depuis le téléphone</h4><p>Le <a href="#mobile">téléphone appairé</a> mène les mêmes conversations sur le Wi-Fi. Le travail se fait sur le PC, avec ses clés et son plafond.</p></article>
 <article><i data-dz="dz-media-persona"></i><h4>Le dossier de campagne</h4><p>Dossier, stratégie, textes et contrôle sont rangés dans les données de l'app, sous l'espace de la campagne, avec ce que chaque campagne a appris.</p></article>
 </div>
 
 <h3>Bon à savoir</h3>
-<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Chaque message affiche son plafond avant l'envoi ; l'agent s'arrête net s'il l'atteint. Ces tours sont comptés sous le plafond « campagnes » de <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Tarifs et budget</b></span>. Les images, vidéos et voix ont leur propre devis, payé seulement à votre clic.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Chaque message affiche son plafond avant l'envoi ; l'agent s'arrête net s'il l'atteint. Ces tours sont comptés sous la catégorie « campagnes » (relevé de <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Tarifs et budget</b></span>) ; le plafond global, ceux par moteur et celui de l'espace s'appliquent. Les images, vidéos et voix ont leur propre devis, payé seulement à votre clic.</p></aside>
 <aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>L'agent ne publie jamais et ne programme jamais un post : tout arrive en brouillon. Il ne change pas l'espace actif, ne touche ni aux clés, ni aux Réglages, ni aux comptes, et ne supprime rien. Demandez-le-lui : il vous montre où le faire vous-même.</p></aside>
 <aside class="astuce"><i data-dz="dz-etat-information"></i><p>Une campagne compte ses dépenses et range ses rendus dans <strong>son</strong> espace, même si un autre espace est actif à l'écran.</p></aside>
