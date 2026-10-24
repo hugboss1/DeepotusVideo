@@ -28,7 +28,8 @@ avec ses clés et son plafond.
 - `POST /{cid}/depot` : multipart `fichier` (texte extrait par marketing.extract_document_text), JSON {texte} ou JSON
   {url} → gardé pour `lire_document` (l'URL est gardée comme TEXTE, rien n'est téléchargé ici : la lecture reste à
   `lire_document`, sous ses gardes) ;
-- `POST /importer` {conversation} : `agent_store.importer` (idempotent).
+- `POST /importer` {conversation} : `agent_store.importer` (idempotent). Depuis un appareil : la conversation est
+  « telephone » (ou sans origine) et chaque message porte l'origine « telephone » et l'appareil du JETON, sinon 400.
 """
 from __future__ import annotations
 
@@ -279,13 +280,29 @@ async def creer(request: Request):
     return await ST.lire(l["id"])
 
 
+def _import_de_l_appareil(conv: dict, appareil: dict) -> None:
+    """t286 (relecture) : un import venu d'un appareil ne choisit ni l'origine ni l'appareil. La conversation est
+    « telephone » (ou sans origine) et CHAQUE message porte `origine == "telephone"` et l'id de l'appareil du JETON ;
+    sinon 400, rien d'écrit. On refuse, on ne réécrit jamais : les empreintes restent celles du téléphone."""
+    if conv.get("origine") not in (None, "telephone"):
+        raise HTTPException(400, "Import depuis un appareil : la conversation doit avoir l'origine « telephone ».")
+    messages = conv.get("messages") or []
+    if not isinstance(messages, list) or any(
+            not isinstance(m, dict) or m.get("origine") != "telephone" or m.get("appareil") != appareil["id"]
+            for m in messages):
+        raise HTTPException(400, "Import depuis un appareil : chaque message doit porter l'origine « telephone » et "
+                                 "l'appareil de ce jeton.")
+
+
 @router.post("/importer")
 async def importer(request: Request):
-    await _local_ou_appareil(request)
+    appareil = await _local_ou_appareil(request)
     corps = await _json(request)
     conv = corps.get("conversation")
     if not isinstance(conv, dict):
         raise HTTPException(400, "conversation : objet attendu.")
+    if appareil:
+        _import_de_l_appareil(conv, appareil)
     # t285a (revue finale) : l'espace importé passe par le validateur des routes (inconnu ou archivé → 400, rien
     # d'écrit) ; absent → None, l'agent le demandera par une carte espace
     from app.api.routes import _espace_du_corps

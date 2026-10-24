@@ -341,10 +341,63 @@ def test_message_depuis_appareil_trace_l_appareil():
     assert fail == avant
 
 
+# ---- test_import_depuis_appareil_trace_l_appareil --------------------------------------------------------------------
+def test_import_depuis_appareil_trace_l_appareil():
+    """Relecture t286 : un import venu d'un appareil ne choisit ni l'origine ni l'appareil. Toute entorse → 400, RIEN
+    d'écrit (refus, jamais de réécriture : les empreintes restent idempotentes)."""
+    import uuid
+    from app.services import agent_format as fmt
+    avant = fail
+    c = _contexte()
+    lan, H, moi, loc = c["lan"], c["H"], c["appareil"], c["loc"]
+    print("\n[6] import depuis l'appareil : origine et appareil du JETON seulement")
+
+    def msg(origine="telephone", appareil=None, t="Écrit dans le métro"):
+        return fmt.nouveau_message("utilisateur", [{"type": "texte", "texte": t}], origine=origine,
+                                   appareil=moi if appareil is None else appareil)
+
+    def conv(messages, **k):
+        return {"id": str(uuid.uuid4()), "role": "campagnes", "titre": "Hors ligne", "messages": messages, **k}
+
+    cpc = _creer_pc()
+    n0 = asyncio.run(_nb_conversations())
+    cas = {
+        "conversation origine pc": conv([msg()], origine="pc"),
+        "message d'un autre appareil": conv([msg(appareil="autre-appareil")]),
+        "message origine pc": conv([msg(origine="pc", appareil="")]),
+        "message pc sans appareil": dict(conv([msg(), msg(origine="pc", appareil="")]), id=cpc),
+    }
+    for nom, cv in cas.items():
+        r = lan.post(f"{BASE}/importer", json={"conversation": cv}, headers=H)
+        check(f"6a {nom} : 400", r.status_code == 400, f"{r.status_code} {r.text[:200]}")
+    check("6b rien d'écrit : aucune conversation créée, la conversation du PC intacte",
+          asyncio.run(_nb_conversations()) == n0 and loc.get(f"{BASE}/{cpc}").json()["messages"] == [])
+    bon = conv([msg(), msg(t="Deuxième")])
+    r = lan.post(f"{BASE}/importer", json={"conversation": bon}, headers=H)
+    l = loc.get(f"{BASE}/{bon['id']}").json()
+    check("6c import valide (sans origine de conversation) : 2 ajoutés, conversation telephone",
+          r.status_code == 200 and r.json().get("ajoutes") == 2 and l.get("origine") == "telephone"
+          and [m.get("appareil") for m in l.get("messages", [])] == [moi, moi], f"{r.status_code} {r.text[:200]}")
+    r = lan.post(f"{BASE}/importer", json={"conversation": bon}, headers=H)
+    check("6d ré-import : idempotent (0 ajouté, 2 ignorés)", r.status_code == 200 and r.json().get("ajoutes") == 0
+          and r.json().get("ignores") == 2 and len(loc.get(f"{BASE}/{bon['id']}").json()["messages"]) == 2,
+          r.text[:200])
+    r = lan.post(f"{BASE}/importer", json={"conversation": dict(conv([msg()], origine="telephone"), id=cpc)},
+                 headers=H)
+    check("6e des messages valides du téléphone rejoignent une conversation créée sur le PC",
+          r.status_code == 200 and r.json().get("ajoutes") == 1
+          and len(loc.get(f"{BASE}/{cpc}").json()["messages"]) == 1, f"{r.status_code} {r.text[:200]}")
+    r = loc.post(f"{BASE}/importer", json={"conversation": conv([msg(origine="pc", appareil="")], origine="pc")})
+    check("6f témoin PC : l'import du PC reste libre (origine pc acceptée)", r.status_code == 200
+          and r.json().get("ajoutes") == 1, f"{r.status_code} {r.text[:200]}")
+    assert fail == avant
+
+
 def _lanceur() -> int:
     global fail
     tests = [test_sans_jeton_hors_local_401, test_avec_jeton_ok, test_ecritures_listees_dans_mutations_appairage,
-             test_paquet_versionne, test_message_depuis_appareil_trace_l_appareil]
+             test_paquet_versionne, test_message_depuis_appareil_trace_l_appareil,
+             test_import_depuis_appareil_trace_l_appareil]
     for t in tests:
         try:
             t()
