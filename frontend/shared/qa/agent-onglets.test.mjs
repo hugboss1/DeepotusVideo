@@ -128,6 +128,7 @@ function stockage(init = {}) {
 }
 const reponse = (status, json) => ({ ok: status >= 200 && status < 300, status, json: async () => JSON.parse(JSON.stringify(json)) });
 const appels = [];
+const convEspaces = {};          // cid -> espace_id réglé côté serveur
 let reponseDemander = { texte: "Voilà.", actions: [] };
 const ESPACES = { espaces: [{ id: "e1", nom: "Marque A", archive: false }, { id: "e2", nom: "Marque B", archive: false }, { id: "e3", nom: "Vieille", archive: true }], actif: "e1" };
 async function faux(url, init = {}) {
@@ -136,6 +137,11 @@ async function faux(url, init = {}) {
   if (m === "GET" && u === "/api/agent/etat") return reponse(200, { moteurs: [{ moteur: "m1", nom: "Moteur 1", cout: "gratuit" }], voix: null });
   if (m === "GET" && u.startsWith("/api/espaces")) return reponse(200, ESPACES);
   if (m === "POST" && u === "/api/agent/demander") return reponse(200, reponseDemander);
+  // relecture d'une conversation par le tiroir (son espace a pu être réglé par la porte / la carte « espace »)
+  if (m === "GET" && u.startsWith("/api/agent/campagnes/")) {
+    const cid = decodeURIComponent(u.slice("/api/agent/campagnes/".length));
+    return reponse(200, { id: cid, role: "orienteur", espace_id: convEspaces[cid] || null, messages: [] });
+  }
   return reponse(404, { detail: "route absente du banc : " + u });
 }
 const camp = { appels: [] };
@@ -281,7 +287,8 @@ const { tiroir: T1, bouton: B1 } = await charger(S1, "");
     && egal(dernier().opts, { contexte: "f1", role: "orienteur", brief: "Lance une campagne pour la rentrée" }), JSON.stringify(dernier().opts));
   ok("3.6 le brief est prérempli dans le champ du composant", dernier().champ.value === "Lance une campagne pour la rentrée");
   ok("3.7 espace remis à vide, sélecteur déverrouillé, dz_agent_camp oublié", e.sel.value === "" && !e.sel.hasAttribute("disabled") && S1.getItem("dz_agent_camp") === null);
-  ok("3.8 rien n'est envoyé tout seul (aucun appel à l'agent Campagnes)", !appels.some((a) => a.url.startsWith("/api/agent/campagnes")));
+  ok("3.8 rien n'est envoyé tout seul (aucun POST à l'agent Campagnes)", !appels.some((a) => a.methode !== "GET" && a.url.startsWith("/api/agent/campagnes")));
+  ok("3.8b le focus va au champ du composant", DOC.activeElement === dernier().champ);
   ok("3.9 la question a bien été posée à Demander", appels.filter((a) => a.url === "/api/agent/demander").length === 1);
   // l'espace choisi ensuite : le brief suit
   dernier().champ.value = "Lance une campagne pour la rentrée";
@@ -351,6 +358,34 @@ const { tiroir: T1, bouton: B1 } = await charger(S1, "");
   ok("4b.4 le surCid du montage courant compte toujours", egal(JSON.parse(S1.getItem("dz_agent_camp") || "null"), { cid: "c-courant", role: "orienteur", espace: "" }), S1.getItem("dz_agent_camp"));
 }
 
+// ---- 4c. espace_regle_par_la_porte (relecture de branche) : une conversation orienteur dont l'espace a été réglé côté
+// serveur (porte / carte « espace ») montre cet espace et verrouille le sélecteur ; un changement ne remonte rien.
+{
+  const e = etat(T1);
+  const nouvelle = T1.querySelector(`button[aria-label="${dzT("agent.tiroir.nouvelle")}"]`);
+  nouvelle.click(); await tick();
+  dernier().surCid("c50");
+  ok("4c.0 (préparation) orienteur sans espace : libre", !e.sel.hasAttribute("disabled") && e.sel.value === "");
+  convEspaces.c50 = "e1";                       // la porte a réglé l'espace dans le composant
+  const nb = montages().length;
+  e.sel.value = "e2"; e.sel.fire("change");
+  await attendre(() => e.sel.hasAttribute("disabled"), 500);
+  await tick();
+  ok("4c.1 changement tenté : relu sur le serveur, AUCUN remontage", montages().length === nb && !dernier().demonte);
+  ok("4c.2 le sélecteur revient à l'espace de la conversation et se verrouille", e.sel.value === "e1" && e.sel.hasAttribute("disabled"), e.sel.value);
+  ok("4c.3 l'espace est gardé avec la conversation", egal(JSON.parse(S1.getItem("dz_agent_camp") || "null"), { cid: "c50", role: "orienteur", espace: "e1" }), S1.getItem("dz_agent_camp"));
+  // rafraîchi aussi dès qu'on approche le sélecteur (pointerdown / focus), avant tout choix
+  nouvelle.click(); await tick();
+  dernier().surCid("c51");
+  convEspaces.c51 = "e2";
+  e.sel.fire("pointerdown");
+  await attendre(() => e.sel.hasAttribute("disabled"), 500);
+  ok("4c.4 pointerdown sur le sélecteur : l'espace réglé est appris et verrouillé", e.sel.value === "e2" && e.sel.hasAttribute("disabled"), e.sel.value);
+  // ↺ libère toujours
+  nouvelle.click(); await tick();
+  ok("4c.5 ↺ : conversation neuve, sélecteur libre", !e.sel.hasAttribute("disabled") && e.sel.value === "" && S1.getItem("dz_agent_camp") === null);
+}
+
 // ---- 5. DzCampagnes absent, puis rechargement de la page : la même conversation est remontée ----------------------------
 {
   const S2 = stockage({ dz_agent_onglet: "campagnes", dz_agent_camp: JSON.stringify({ cid: "c42", role: "campagnes", espace: "e1" }) });
@@ -376,6 +411,20 @@ const { tiroir: T1, bouton: B1 } = await charger(S1, "");
 }
 win.DzCampagnes = fauxDzCampagnes;
 
+// ---- 5b. rechargement d'une conversation orienteur dont l'espace a été réglé par la porte ------------------------------
+{
+  convEspaces.c77 = "e2";
+  const S3 = stockage({ dz_agent_onglet: "campagnes", dz_agent_camp: JSON.stringify({ cid: "c77", role: "orienteur", espace: "" }) });
+  const { tiroir: T3, bouton: B3 } = await charger(S3, "recharge2");
+  const e = etat(T3);
+  B3.click();
+  await attendre(() => e.sel.hasAttribute("disabled") && e.sel.children.length >= 3, 500);
+  await tick();
+  ok("5b.1 remontée par son cid", egal(dernier().opts, { contexte: "f1", role: "orienteur", cid: "c77" }), JSON.stringify(dernier().opts));
+  ok("5b.2 l'espace réglé côté serveur est lu, affiché et verrouillé", e.sel.value === "e2" && e.sel.hasAttribute("disabled"), e.sel.value);
+  ok("5b.3 …et gardé", egal(JSON.parse(S3.getItem("dz_agent_camp") || "null"), { cid: "c77", role: "orienteur", espace: "e2" }), S3.getItem("dz_agent_camp"));
+}
+
 // ---- 6. copies_dist_identiques ------------------------------------------------------------------------------------------
 for (const f of ["dz-agent.js", "dz-agent-logique.js"]) {
   const a = readFileSync(new URL(f, ICI)), b = readFileSync(new URL("../dist/shared/" + f, ICI));
@@ -393,6 +442,8 @@ for (const f of ["dz-agent.js", "dz-agent-logique.js"]) {
     "agent.campagnes.sans_espace", "agent.campagnes.indisponible", "agent.action.campagnes"]) {
     ok("7.2 clé t285b employée et traduite : " + k, cles.includes(k) && !!(json[k] && json[k].fr && json[k].en), k);
   }
+  ok("7.3 le titre de l'en-tête tient sur une ligne", /\.dzAgentTete h2\{[^}]*min-width:0[^}]*white-space:nowrap[^}]*text-overflow:ellipsis/.test(src));
+  ok("7.4 le choix du moteur est borné en largeur", /\.dzAgentTete select\{[^}]*max-width:140px/.test(src));
 }
 
 if (echecs.length) {

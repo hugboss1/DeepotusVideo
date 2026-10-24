@@ -76,7 +76,7 @@ if (!window.__dzAgent) {
  background:var(--bg-panel,#151519);color:var(--ink,#c9d4e8);border-left:1px solid var(--stroke,#2a2930);font-family:inherit;font-size:13px;line-height:1.5}
 .dzAgentTiroir[data-ouvert="1"]{display:flex}
 .dzAgentTete{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--stroke,#2a2930)}
-.dzAgentTete h2{flex:1;margin:0;font-size:14px;color:var(--ink-strong,#eaf2ff)}
+.dzAgentTete h2{flex:1;min-width:0;margin:0;font-size:14px;color:var(--ink-strong,#eaf2ff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dzAgentFil{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 .dzAgentMsg{white-space:pre-wrap;border-radius:10px;padding:8px 10px;background:var(--bg-panel-2,#1c1c21)}
 .dzAgentMsg[data-role="user"]{align-self:flex-end;background:var(--cyan-soft,rgba(62,230,208,.12))}
@@ -87,7 +87,7 @@ if (!window.__dzAgent) {
 .dzAgentPied button[aria-busy="true"]{opacity:.6}
 .dzAgentPied button[aria-pressed="true"]{border-color:#ef4444;background:#b91c1c;color:#fff}
 .dzAgentPied textarea{flex:1;resize:none;min-height:38px;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:8px;padding:6px}
-.dzAgentTete select{background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
+.dzAgentTete select{max-width:140px;min-width:0;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
 .dzAgentTete button:disabled,.dzAgentPied button:disabled{opacity:.5;cursor:default}
 .dzAgentAccord select{margin:6px 0;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
 .dzAgentAccord p{margin:0}
@@ -183,9 +183,10 @@ if (!window.__dzAgent) {
     if (onglet === "campagnes" && tiroir.dataset.ouvert === "1") ouvrirCampagnes();
     if (focus) (onglet === "campagnes" ? ongCampagnes : ongDemander).focus();
   }
-  // le sélecteur est verrouillé dès qu'une campagne AVEC un espace existe : son espace ne se change pas d'ici
+  // le sélecteur est verrouillé dès qu'une conversation AVEC un espace existe, quel que soit son rôle (relecture de
+  // branche t285b : la porte / la carte « espace » de l'orienteur le règle côté serveur) : il ne se change pas d'ici
   function verrouiller() {
-    if (campEtat && campEtat.role === "campagnes" && campEtat.espace) selEspace.setAttribute("disabled", "");
+    if (campEtat && campEtat.cid && campEtat.espace) selEspace.setAttribute("disabled", "");
     else selEspace.removeAttribute("disabled");
   }
   function garderCampagne(e) {
@@ -234,6 +235,25 @@ if (!window.__dzAgent) {
     const voulu = campEtat ? campEtat.espace : "";
     if (voulu) { ajouterEspace(voulu, voulu); selEspace.value = voulu; }
   }
+  // relecture de branche t285b : l'espace de la conversation en cours, appris du serveur (GET /api/agent/campagnes/{cid},
+  // lecture gratuite). L'orienteur peut l'avoir réglé (porte, carte « espace ») sans que le tiroir le sache : on le
+  // relit à l'ouverture de l'onglet, quand on approche le sélecteur (pointerdown / focus) et AVANT d'agir sur un
+  // changement. Rend true si la conversation a (désormais) un espace ; le sélecteur l'affiche alors, verrouillé.
+  async function apprendreEspace() {
+    const e = campEtat;
+    if (!e || !e.cid) return false;
+    if (e.espace) return true;
+    let id = "";
+    try {
+      const r = await fetch("/api/agent/campagnes/" + encodeURIComponent(e.cid));
+      if (r.ok) { const j = await r.json(); id = j && typeof j.espace_id === "string" ? j.espace_id : ""; }
+    } catch (x) { id = ""; }                    // illisible : on ne sait rien de plus, rien ne change
+    if (!id || campEtat !== e) return !!(campEtat && campEtat.espace);     // une autre conversation a pris la place
+    ajouterEspace(id, id);
+    garderCampagne({ ...e, espace: id });
+    selEspace.value = id;
+    return true;
+  }
   function ouvrirCampagnes() {
     if (!espacesLus) { espacesLus = true; chargerEspaces(); }
     if (!camp) {
@@ -241,17 +261,24 @@ if (!window.__dzAgent) {
       monterCampagne(campEtat ? { cid: campEtat.cid, espace: campEtat.espace } : {});
     }
     verrouiller();
+    apprendreEspace();
   }
   function nouvelleCampagne(brief) {
     garderCampagne(null);
     selEspace.value = "";
     monterCampagne({ brief });
   }
-  selEspace.addEventListener("change", () => {
+  selEspace.addEventListener("pointerdown", () => { apprendreEspace(); });
+  selEspace.addEventListener("focus", () => { apprendreEspace(); });
+  selEspace.addEventListener("change", async () => {
     if (selEspace.hasAttribute("disabled")) return;
     const champ = hoteCampagnes.querySelector('[data-dz-camp="champ"]');
     const brief = champ ? String(champ.value || "") : "";
     const espace = selEspace.value;
+    const g = genCamp;
+    // la conversation a-t-elle reçu un espace côté serveur ? Alors on la garde : sélecteur remis, verrouillé
+    if (await apprendreEspace()) { selEspace.value = campEtat.espace; verrouiller(); return; }
+    if (g !== genCamp) return;                                  // ↺, carte… pendant la relecture : rien de plus
     garderCampagne(null);
     monterCampagne({ espace, brief });                          // conversation NEUVE : pas de cid
   });
@@ -260,6 +287,8 @@ if (!window.__dzAgent) {
     nouvelleCampagne(typeof question === "string" ? question : "");
     if (tiroir.dataset.ouvert !== "1") basculer(true);
     choisirOnglet("campagnes");
+    const champ = hoteCampagnes.querySelector('[data-dz-camp="champ"]');      // le focus suit, dans le champ prérempli
+    (champ || ongCampagnes).focus();
   }
   const bouton = el("button", { class: "dzAgentBtn", texte: "? " + T("agent.tiroir.bouton"),
     title: T("agent.tiroir.bouton_titre") + " — " + T("agent.place.astuce"),

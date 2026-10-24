@@ -318,8 +318,8 @@ def rapprocher(visibles: list, ecran: str = "") -> dict:
     return {"reconnus": rec, "inconnus": inc}
 
 
-# toute balise MAJUSCULE entre crochets, avec ou sans cible : les connues deviennent des actions, les autres sont
-# retirées (comptées) — l'écran ne voit jamais une balise
+# toute balise MAJUSCULE entre crochets, de 2 à 9 lettres (t285b : 9 pour [CAMPAGNES]), avec ou sans cible : les
+# connues deviennent des actions, les autres sont retirées (comptées) — l'écran ne voit jamais une balise
 BALISE = re.compile(r"\[([A-Z]{2,9})(?::([^\[\]\n]{1,80}))?\]")
 MAX_ACTIONS = 6
 # A5 : coordonnées rendues par un moteur qui a VU une capture (pixels de la capture), libellé facultatif
