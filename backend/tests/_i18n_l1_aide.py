@@ -334,10 +334,21 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzagentplan(bundle: str) -> str:
+    """Le bundle d'avant le mode Agent Campagnes du dialogue « Generate a marketing plan » (maillon de queue
+    patch_bundle_dzagentplan, t285 T9, 24/10, posé APRÈS dzrecette) : ses paires défaites, lues dans le maillon lui-même.
+    Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzagentplan as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzrecette(bundle: str) -> str:
     """Le bundle d'avant la recette qui suit le rendu (maillon de queue patch_bundle_dzrecette, t283, 23/10, posé APRÈS
     dzsonvfx) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzrecette as _m
+    bundle = avant_dzagentplan(bundle)           # 24/10 : le maillon posé APRÈS dzrecette, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

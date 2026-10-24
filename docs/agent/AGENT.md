@@ -20,7 +20,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Montage** — poser ses plans sur une timeline multipiste, les couper, les enchaîner, étalonner, titrer, soigner le
   son, puis rendre et livrer. → [ALLER:montage] [GUIDE:montage]
 - **Planificateur** — remplir la semaine de posts, les relire, les valider d'un coup et les laisser partir à l'heure
-  sur Telegram, X, YouTube, Instagram et TikTok. → [ALLER:scheduler] [GUIDE:planificateur]
+  sur Telegram, X, YouTube, Instagram et TikTok. « Générer un plan marketing » propose deux modes : Rapide, ou
+  Agent Campagnes (conversation qui chiffre un devis avant l'envoi, demande une validation à chaque étape et dépose
+  les posts en brouillons au calendrier de l'espace choisi). → [ALLER:scheduler] [GUIDE:planificateur]
 - **Modèles** — partir d'une mise en page toute prête, la retoucher (cases, masques, textes, animations), la décliner
   dans un autre format et l'habiller de sa marque. → [ALLER:templates] [GUIDE:modeles]
 - **News** — suivre ses flux d'actualité, trier les articles du jour et passer de l'article au post programmé.

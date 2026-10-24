@@ -170,6 +170,9 @@ async def main():
     check("lecture : utilisateur, puis un message agent par tour", roles == ["utilisateur", "agent", "agent"], str(roles))
     check("lecture : résultat d'outil noté (résumé seulement)",
           any(b.get("type") == "resultat_outil" and b.get("outil") == "chercher_app" for b in l["messages"][1]["blocs"]))
+    check("lecture : le résultat d'outil gardé porte son état ok (t285 T9, l'écran le traduit)",
+          any(b.get("type") == "resultat_outil" and b.get("outil") == "chercher_app" and b.get("ok") is True
+              for b in l["messages"][1]["blocs"]))
     reel = cout(1000, 200) + cout(1500, 300)
     check("lecture : coût cumulé = coût RÉEL des deux tours", abs(l["cout_usd"] - reel) < 1e-9, f"{l['cout_usd']} {reel}")
     check("lecture : cout_paye par message", abs(l["messages"][1]["cout_paye"] - cout(1000, 200)) < 1e-9
