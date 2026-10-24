@@ -10487,10 +10487,6 @@
   "fr": "job_id illisible.",
   "en": "Unreadable job_id."
  },
- "L'agent Campagnes n'est accessible que depuis ce PC.": {
-  "fr": "L'agent Campagnes n'est accessible que depuis ce PC.",
-  "en": "The Campaigns agent is only available from this PC."
- },
  "Carte introuvable.": {
   "fr": "Carte introuvable.",
   "en": "Card not found."

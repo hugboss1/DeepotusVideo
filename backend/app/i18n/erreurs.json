@@ -1181,7 +1181,6 @@
   "erreur.70d2a5382a": {"fr": "« cap_px » doit être un entier", "en": "\"cap_px\" must be an integer", "src": "fr"},
   "erreur.70d538d081": {"fr": "{cid} : effet {i} : params : objet attendu", "en": "{cid}: effect {i}: params: object expected", "src": "fr"},
   "erreur.70e82865c8": {"fr": "sans : id de calque entier attendu : {sans}", "en": "sans: integer layer id expected: {sans}", "src": "fr"},
-  "erreur.7114f9b1a6": {"fr": "L'agent Campagnes n'est accessible que depuis ce PC.", "en": "The Campaigns agent is only available from this PC.", "src": "fr"},
   "erreur.7117d6bfb7": {"fr": "GLB externe : image {i} sans bufferView (seules les images EMBARQUÉES sont fusionnables)", "en": "External GLB: image {i} has no bufferView (only EMBEDDED images can be merged)", "src": "fr"},
   "erreur.7167ea96a9": {"fr": "GLB de scène pas encore composé.", "en": "scene GLB not composed yet.", "src": "fr"},
   "erreur.7175e5515f": {"fr": "nœud {vers} : entrée {e} déjà reliée", "en": "node {vers}: input {e} already connected", "src": "fr"},

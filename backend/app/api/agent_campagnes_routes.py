@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
-"""Les routes LOCALES de l'agent Campagnes (t285a, T7, 23/10/2026, spec §5, §6, §7) — /api/agent/campagnes.
+"""Les routes de l'agent Campagnes (t285a, T7, 23/10/2026, spec §5, §6, §7) — /api/agent/campagnes.
 
-Boucle locale SEULEMENT ici (garde partagée `routes._require_localhost`) ; t286 les ouvrira aux appareils appairés.
+Boucle locale OU appareil appairé (t286, 24/10 : `_local_ou_appareil`, jeton d'appareil sinon 401) ; les écritures
+sont ouvertes au réseau local une par une (`main._ECRITURES_OUVERTES`, en gabarits). Depuis un appareil, une
+conversation créée a l'origine « telephone », et le message `utilisateur` (comme le `fait` d'une décision de carte)
+porte l'origine « telephone » et l'id de l'appareil du JETON (jamais un champ du corps). Le tour s'exécute sur le PC,
+avec ses clés et son plafond.
 - `POST /` {role, espace_id?, titre?} : crée la conversation (espace nommé : existant et non archivé, sinon 400) ;
+- `GET /paquet?espace_id=` : le paquet agent du compagnon, {version, fichiers} — docs/agent/campagnes/* (texte) et,
+  avec un espace nommé (sinon 400), `persona.json` sans `templates` ni `voice_ids` ; jamais l'espace actif d'office.
+  `version` = 16 hex du sha256 des fichiers (noms triés) : elle change dès qu'un fichier change ;
 - `GET /{cid}` : la conversation ; ajoute d'abord un message `fait` par carte `devis` acceptée dont le job est fini
   (DONE ou FAILED) — un seul par job, quel que soit le nombre de GET ;
 - `POST /{cid}/devis` {texte} : le plafond en dollars du prochain message (rendu même sans clé) ;
@@ -27,6 +34,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import math
 import re
@@ -58,12 +66,19 @@ def _illisible() -> HTTPException:
     return HTTPException(409, "Conversation illisible : son fichier est mis de côté, rien n'a été écrit.")
 
 
-def _local(request: Request) -> None:
-    from app.api.routes import _require_localhost
+async def _local_ou_appareil(request: Request) -> dict | None:
+    """t286 : la boucle locale → None ; sinon l'appareil du jeton (`routes._appareil_requis`, 401 sans jeton valide)."""
+    from app.api import routes
     try:
-        _require_localhost(request)
+        routes._require_localhost(request)
+        return None
     except HTTPException:
-        raise HTTPException(403, "L'agent Campagnes n'est accessible que depuis ce PC.") from None
+        return await routes._appareil_requis(request)
+
+
+def _trace(appareil: dict | None) -> dict:
+    """Origine et appareil d'un message écrit à la demande de la requête : ceux du JETON, rien depuis le PC."""
+    return {"origine": "telephone", "appareil": appareil["id"]} if appareil else {}
 
 
 async def _json(request: Request) -> dict:
@@ -253,19 +268,20 @@ def _plafond_usd(v) -> float:
 
 @router.post("/")
 async def creer(request: Request):
-    _local(request)
+    appareil = await _local_ou_appareil(request)
     corps = await _json(request)
     from app.api.routes import _espace_du_corps
     eid = _espace_du_corps(corps.get("espace_id"))
     titre = corps.get("titre")
     with _traduire():
-        l = await ST.creer(str(corps.get("role") or ""), eid, str(titre)[:200] if isinstance(titre, str) else "")
+        l = await ST.creer(str(corps.get("role") or ""), eid, str(titre)[:200] if isinstance(titre, str) else "",
+                           origine="telephone" if appareil else "pc")
     return await ST.lire(l["id"])
 
 
 @router.post("/importer")
 async def importer(request: Request):
-    _local(request)
+    await _local_ou_appareil(request)
     corps = await _json(request)
     conv = corps.get("conversation")
     if not isinstance(conv, dict):
@@ -278,9 +294,28 @@ async def importer(request: Request):
         return await ST.importer(conv)
 
 
+def _paquet(espace_id: str | None) -> dict:
+    """Les fichiers de AC.DOCS (le dossier que lit déjà le système de l'agent), fins de ligne normalisées, plus la
+    persona filtrée de l'espace NOMMÉ ; la version suit leur sérialisation déterministe."""
+    fichiers = {f.name: f.read_text(encoding="utf-8").replace("\r\n", "\n")
+                for f in sorted(AC.DOCS.iterdir(), key=lambda f: f.name) if f.is_file()}
+    if espace_id:
+        fichiers["persona.json"] = json.dumps(AC.persona_modele(_espace_valide(espace_id)), ensure_ascii=False,
+                                              indent=2, sort_keys=True)
+    fichiers = dict(sorted(fichiers.items()))
+    brut = json.dumps(fichiers, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {"version": hashlib.sha256(brut).hexdigest()[:16], "fichiers": fichiers}
+
+
+@router.get("/paquet")
+async def paquet(request: Request, espace_id: str | None = None):
+    await _local_ou_appareil(request)
+    return await asyncio.to_thread(_paquet, espace_id)
+
+
 @router.get("/{cid}")
 async def lire(cid: str, request: Request):
-    _local(request)
+    await _local_ou_appareil(request)
     await _conversation(cid, saine=False)
     await _noter_faits(cid)
     return await ST.lire(cid)
@@ -288,7 +323,7 @@ async def lire(cid: str, request: Request):
 
 @router.post("/{cid}/devis")
 async def devis(cid: str, request: Request):
-    _local(request)
+    await _local_ou_appareil(request)
     corps = await _json(request)
     conv = await _conversation(cid)
     return await asyncio.to_thread(AC.devis_message, conv, str(corps.get("texte") or ""), _lang(request))
@@ -296,7 +331,7 @@ async def devis(cid: str, request: Request):
 
 @router.post("/{cid}/message")
 async def message(cid: str, request: Request):
-    _local(request)
+    appareil = await _local_ou_appareil(request)
     corps = await _json(request)
     texte = corps.get("texte")
     if not isinstance(texte, str) or not texte.strip():
@@ -306,7 +341,7 @@ async def message(cid: str, request: Request):
     lang = _lang(request)
     if not AC.cle_presente():                            # vigilance 2 : AVANT le flux et toute écriture
         raise _sans_cle(lang)
-    agen = AC.tour(cid, texte, plafond, lang)
+    agen = AC.tour(cid, texte, plafond, lang, **_trace(appareil))
     try:
         with _traduire():
             premier = await agen.__anext__()             # le premier tour : garde, puis modèle
@@ -349,7 +384,7 @@ async def carte(cid: str, n: int, request: Request):
     """La décision s'écrit D'ABORD (message `fait` neuf), puis l'état (espace, porte) est appliqué. Si ce second pas
     échoue, la même décision rejouée ne rend pas 409 : elle réapplique l'état seulement (reprise), sans second
     message. Une fois l'état appliqué, toute nouvelle réponse à la carte rend 409."""
-    _local(request)
+    appareil = await _local_ou_appareil(request)
     corps = await _json(request)
     decision = corps.get("decision")
     if decision not in DECISIONS:
@@ -393,11 +428,12 @@ async def carte(cid: str, n: int, request: Request):
             if g in ("image", "voix"):                   # rendu immédiat : le fait s'écrit tout de suite
                 extra["fichier"] = _fichier_rendu(g, corps.get("fichier"))
                 faits.append(fmt.nouveau_message("fait", [_bloc_etat(orig, n, "terminee", {
-                    "fichier": extra["fichier"], "statut": "done"}, action="continuer")]))
+                    "fichier": extra["fichier"], "statut": "done"}, action="continuer")], **_trace(appareil)))
             elif job_id:                                  # vidéo : le fait viendra au GET, job fini
                 extra["job_id"] = job_id
         with _traduire():
-            await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n, decision, extra)])] + faits)
+            await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n, decision, extra)],
+                                                       **_trace(appareil))] + faits)
             if acceptee and genre == "espace":
                 if not await ST.regler_espace(cid, extra["espace_id"]):
                     raise HTTPException(409, "La conversation a déjà son espace : il ne change pas.")
@@ -408,7 +444,7 @@ async def carte(cid: str, n: int, request: Request):
 
 @router.post("/{cid}/depot")
 async def depot(cid: str, request: Request):
-    _local(request)
+    await _local_ou_appareil(request)
     if (request.headers.get("content-type") or "").lower().startswith("multipart/form-data"):
         try:
             taille = int(request.headers.get("content-length") or 0)

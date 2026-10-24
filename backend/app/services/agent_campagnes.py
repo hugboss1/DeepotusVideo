@@ -82,6 +82,12 @@ def espace_jeton(eid) -> bool:
     return any(m in x.lower() for x in mots for m in _MARQUES_JETON)
 
 
+def persona_modele(eid) -> dict:
+    """La persona de l'espace telle que le modèle la voit : sans `templates` ni `voice_ids` (t286 : le paquet du
+    compagnon applique le MÊME filtre)."""
+    return {k: v for k, v in espaces.persona(eid).items() if k not in ("templates", "voice_ids")}
+
+
 def _partie_espace(eid) -> str:
     if not eid:
         return ("## Espace de marque\nAucun espace désigné pour cette conversation. Ne prends JAMAIS l'espace actif "
@@ -91,8 +97,7 @@ def _partie_espace(eid) -> str:
         return (f"## Espace de marque\nL'espace `{str(eid)[:40]}` est inconnu ou archivé : refuse le travail qui en "
                 "dépend et dis pourquoi, sans repli sur un autre espace.")
     from app.services import contenus_espace
-    p = {k: v for k, v in espaces.persona(eid).items() if k not in ("templates", "voice_ids")}
-    persona = json.dumps(p, ensure_ascii=False)
+    persona = json.dumps(persona_modele(eid), ensure_ascii=False)
     if len(persona) > MAX_PERSONA:
         persona = persona[:MAX_PERSONA] + " …(tronqué ; `lire_espace` la rend en entier)"
     mots = contenus_espace._interdits(eid)
@@ -207,8 +212,10 @@ async def _conv(cid: str) -> dict:
     return l
 
 
-async def tour(cid: str, texte: str, plafond_usd: float, lang: str = "fr") -> AsyncIterator[dict]:
-    """Un message de l'utilisateur et la réponse de l'agent, au plus `plafond_usd` dollars (le devis accepté)."""
+async def tour(cid: str, texte: str, plafond_usd: float, lang: str = "fr", *, origine: str = "pc",
+               appareil: str | None = None) -> AsyncIterator[dict]:
+    """Un message de l'utilisateur et la réponse de l'agent, au plus `plafond_usd` dollars (le devis accepté).
+    `origine`/`appareil` (t286) : ceux du message de l'utilisateur — l'appareil du JETON quand il vient du téléphone."""
     lang = "en" if lang == "en" else "fr"
     if not cle_presente():                                # avant toute écriture : T7 rend 503
         raise RuntimeError("sans_cle")
@@ -218,14 +225,15 @@ async def tour(cid: str, texte: str, plafond_usd: float, lang: str = "fr") -> As
         return
     async with verrou:
         try:
-            async for e in _tour(cid, texte, plafond_usd, lang):
+            async for e in _tour(cid, texte, plafond_usd, lang, origine, appareil):
                 yield e
         finally:
             if _VERROUS.get(cid) is verrou:
                 _VERROUS.pop(cid, None)
 
 
-async def _tour(cid: str, texte: str, plafond_usd: float, lang: str) -> AsyncIterator[dict]:
+async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: str = "pc",
+                appareil: str | None = None) -> AsyncIterator[dict]:
     conv = await _conv(cid)
     texte = str(texte or "")
     try:
@@ -261,7 +269,8 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str) -> AsyncIte
             yield {"type": "erreur", "code": "dz_plafond", "statut": 402, "detail": e.detail}
             return
         if not message_ecrit:
-            await agent_store.ajouter(cid, [fmt.nouveau_message("utilisateur", [{"type": "texte", "texte": texte}])])
+            await agent_store.ajouter(cid, [fmt.nouveau_message("utilisateur", [{"type": "texte", "texte": texte}],
+                                                                origine=origine, appareil=appareil)])
             message_ecrit = True
         try:
             r = await asyncio.to_thread(MT.converser, modele, sys_, msgs, outils, SORTIE_MAX)
