@@ -318,9 +318,9 @@ def rapprocher(visibles: list, ecran: str = "") -> dict:
     return {"reconnus": rec, "inconnus": inc}
 
 
-# toute balise MAJUSCULE entre crochets, avec ou sans cible : les connues deviennent des actions, les autres sont
-# retirées (comptées) — l'écran ne voit jamais une balise
-BALISE = re.compile(r"\[([A-Z]{2,8})(?::([^\[\]\n]{1,80}))?\]")
+# toute balise MAJUSCULE entre crochets, de 2 à 9 lettres (t285b : 9 pour [CAMPAGNES]), avec ou sans cible : les
+# connues deviennent des actions, les autres sont retirées (comptées) — l'écran ne voit jamais une balise
+BALISE = re.compile(r"\[([A-Z]{2,9})(?::([^\[\]\n]{1,80}))?\]")
 MAX_ACTIONS = 6
 # A5 : coordonnées rendues par un moteur qui a VU une capture (pixels de la capture), libellé facultatif
 XY = re.compile(r"^(\d{1,5})\s*,\s*(\d{1,5})\s*(?::(.*))?$")
@@ -331,9 +331,9 @@ def _sans_controle(t: str) -> str:
     return "".join(" " if c.isspace() else c for c in t if c.isspace() or not unicodedata.category(c).startswith("C"))
 
 
-def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
+def _action(typ: str, cible: str, image: dict | None = None, question: str = "") -> dict | None:
     """image : {largeur, hauteur} de la capture jointe à l'appel (A5) — seule une réponse à une capture peut rendre des
-    coordonnées, et jamais une nouvelle demande de capture."""
+    coordonnées, et jamais une nouvelle demande de capture. question : la question posée (t285b), reprise par [CAMPAGNES]."""
     k = connaissance()
     if typ == "POINT" and cible in k["ancres"]:
         a = k["ancres"][cible]
@@ -359,6 +359,9 @@ def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
                 return {"type": "point_xy", "cible": f"{x},{y}", "x": x, "y": y, "largeur": image["largeur"],
                         "hauteur": image["hauteur"], "libelle": _ligne(_sans_controle(m.group(3) or ""), 60)}
         return None
+    if typ == "CAMPAGNES" and not cible:       # t285b : passe la main à l'agent Campagnes, avec la question
+        return {"type": "campagnes", "cible": "agent",
+                "question": " ".join(_sans_controle(question or "").split())[:MAX_QUESTION]}
     if typ == "VOIR" and not cible and not image:
         return {"type": "voir", "cible": "ecran"}
     if typ == "ALLER" and cible in VUES:
@@ -369,14 +372,14 @@ def _action(typ: str, cible: str, image: dict | None = None) -> dict | None:
     return None
 
 
-def analyser(texte, image: dict | None = None) -> tuple[str, list, int]:
+def analyser(texte, image: dict | None = None, question: str = "") -> tuple[str, list, int]:
     """(texte sans balises ni indentation, actions dédoublonnées ≤ MAX_ACTIONS, nombre de balises rejetées).
-    image : {largeur, hauteur} quand la réponse vient d'un appel avec capture (A5)."""
+    image : {largeur, hauteur} quand la réponse vient d'un appel avec capture (A5). question : la question posée (t285b)."""
     actions, vus, rejets = [], set(), 0
 
     def remplacer(m):
         nonlocal rejets
-        a = _action(m.group(1), (m.group(2) or "").strip(), image)
+        a = _action(m.group(1), (m.group(2) or "").strip(), image, question)
         if a is None:
             rejets += 1
         elif (a["type"], a["cible"]) not in vus and len(actions) < MAX_ACTIONS:
@@ -515,7 +518,7 @@ async def demander(corps, lang: str = "fr") -> dict:
             raise CoutChange()
     sortie = await MT.tirer_garde(moteur, "", p["prompt"], sys_txt, MAX_TOKENS, categorie="aide", effort="low",
                                   images=p["images"])
-    texte, actions, rejets = analyser(sortie, p["image"])
+    texte, actions, rejets = analyser(sortie, p["image"], question=p["q"])
     if not texte:
         if actions:
             texte = REPONSE_VIDE[lang]

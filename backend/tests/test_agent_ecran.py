@@ -56,6 +56,17 @@ def test_banc_node_logique():
     assert r.returncode == 0 and "OK" in r.stdout, r.stderr[-800:]
 
 
+def test_banc_node_onglets():
+    """t285b (24/10/2026) : le vrai tiroir sur un DOM simulé — onglets Demander / Campagnes, montage de
+    DzCampagnes, carte « Ouvrir l'agent Campagnes » (frontend/shared/qa/agent-onglets.test.mjs)."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent")
+    r = subprocess.run([node, str(SHARED / "qa" / "agent-onglets.test.mjs")], capture_output=True, text=True,
+                       encoding="utf-8")
+    assert r.returncode == 0 and "OK" in r.stdout, (r.stdout + r.stderr)[-1500:]
+
+
 def test_pointeur_present():
     src = (SHARED / "dz-agent-pointeur.js").read_text(encoding="utf-8")
     assert 'import { creerPointeur } from "./dz-agent-pointeur.js";' in (SHARED / "dz-agent.js").read_text(encoding="utf-8")
