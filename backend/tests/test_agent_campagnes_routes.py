@@ -824,6 +824,72 @@ try:
 finally:
     R.pipeline.run = _run0
 
+print("\n[16] t289 : un rendu né d'une carte de devis est compté sous « campagnes »")
+from sqlalchemy import delete as _del   # noqa: E402
+
+
+async def _vider():
+    async with plafonds._registre() as s:
+        await s.execute(_del(Depense))
+        await s.commit()
+
+
+def _cats():
+    return [d.categorie for d in run(_lignes(Depense))]
+
+gardes16 = []
+
+
+async def _verifier_cat(*a, **k):
+    gardes16.append(a[1] if len(a) > 1 else k.get("categorie"))
+    return await _verifier0(*a, **k)
+
+_sauve_v = (ES.VoiceoverService.is_enabled, ES.VoiceoverService.generate_long, VP.resolve_provider)
+try:
+    plafonds.verifier = _verifier_cat
+    R.pipeline.run = _faux_run
+    ES.VoiceoverService.is_enabled = staticmethod(lambda: True)
+    ES.VoiceoverService.generate_long = _faux_long
+    VP.resolve_provider = lambda *a, **k: "elevenlabs"
+    run(_vider())
+    r = c.post("/api/images/generate", json={"prompt": "un phare", "model": "flux", "espace_id": B, "source": "campagnes"})
+    check("16a image source campagnes : 200, dépense « campagnes » sous B", r.status_code == 200 and _cats() == ["campagnes"]
+          and run(_lignes(Depense))[0].espace_id == B, f"{r.status_code} {_cats()}")
+    run(_vider())
+    r = c.post("/api/generate", json={"image_filename": "a.png", "custom_prompt": "un phare", "voiceover_enabled": False,
+                                      "espace_id": B, "source": "campagnes"})
+    check("16b vidéo source campagnes : 200, dépense « campagnes » sous B", r.status_code == 200 and _cats() == ["campagnes"]
+          and run(_lignes(Depense))[0].espace_id == B, f"{r.status_code} {r.text[:200]} {_cats()}")
+    run(_vider())
+    r = c.post("/api/audio/voiceover", json={"script": "Bonjour à tous", "language": "fr", "espace_id": B,
+                                             "source": "campagnes"})
+    check("16c voix source campagnes : 200, dépense « campagnes » sous B", r.status_code == 200 and _cats() == ["campagnes"]
+          and run(_lignes(Depense))[0].espace_id == B, f"{r.status_code} {r.text[:200]} {_cats()}")
+    for route, corps, attendu in (
+            ("/api/generate", {"image_filename": "a.png", "custom_prompt": "x", "voiceover_enabled": False}, "quick"),
+            ("/api/audio/voiceover", {"script": "Bonjour", "language": "fr"}, "son")):
+        for src in ("fantome", "../x", None):
+            run(_vider())
+            r = c.post(route, json=dict(corps, source=src))
+            check(f"16d {route} source {src!r} : catégorie de la route, comme avant",
+                  r.status_code == 200 and _cats() == [attendu], f"{r.status_code} {r.text[:200]} {_cats()}")
+    check("16e la garde est TOUJOURS appelée (la source ne change que l'étiquette)",
+          len(gardes16) == 3 + 6 and gardes16[:3] == ["campagnes"] * 3, str(gardes16))
+    run(_vider())
+    _plaf0 = plafonds.charger
+    plafonds.charger = lambda: dict(_plaf0(), global_usd=1e-9)
+    try:
+        r = c.post("/api/generate", json={"image_filename": "a.png", "custom_prompt": "x", "voiceover_enabled": False,
+                                          "source": "campagnes"})
+    finally:
+        plafonds.charger = _plaf0
+    check("16f plafond global atteint + source campagnes : 402, rien d'écrit (aucun contournement)",
+          r.status_code == 402 and _cats() == [], f"{r.status_code} {r.text[:200]}")
+finally:
+    plafonds.verifier = _verifier0
+    R.pipeline.run = _run0
+    ES.VoiceoverService.is_enabled, ES.VoiceoverService.generate_long, VP.resolve_provider = _sauve_v
+
 c.__exit__(None, None, None)
 print(f"\n{ok} ok, {fail} fail")
 sys.exit(1 if fail else 0)

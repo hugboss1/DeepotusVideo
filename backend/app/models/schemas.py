@@ -159,6 +159,8 @@ class GenerateRequest(BaseModel):
     max_usd: Optional[float] = None  # validé par la route (_garde_cout)
     # t285a (agent interne §5) : l'espace NOMMÉ du tir (une campagne) ; validé par la route (400), absent = l'actif
     espace_id: Optional[str] = None
+    # t289 : la catégorie de la dépense (« campagnes » depuis une carte de devis) ; inconnue ou absente = « quick »
+    source: Optional[str] = None
 
     style: StylePreset = StylePreset.HYBRID
     camera: Optional[CameraMove] = None

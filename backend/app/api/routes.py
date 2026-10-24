@@ -5440,7 +5440,8 @@ async def _voiceover(payload) -> dict:
             "Voicebox ne les interprète pas" if prov == "voicebox"
             else f"seul Eleven v3 les interprète (modèle : {eff or 'défaut'})"))
     # la garde chiffre CE QUI PART (balises comprises : ElevenLabs les facture)
-    await _plafond(_op_tts(text, model, prov), "son")   # tâche #16 (Voicebox : rien)
+    await _plafond(_op_tts(text, model, prov),
+                   _categorie_source(payload.get("source"), "son"))   # tâche #16 (Voicebox : rien) ; t289 campagnes
     base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(payload.get("name") or "narration")).strip("_")[:40]
     fn = f"{base or 'narration'}-{random.randint(100000, 999999)}.mp3"
     dest = _audio_dir() / fn
@@ -6111,13 +6112,20 @@ class _sous_espace_tir:
         return False
 
 
+def _categorie_source(source, defaut: str) -> str:
+    """La catégorie de plafond d'un tir : la `source` du corps si c'est une catégorie connue, sinon `defaut` (celle de
+    la route). Une étiquette du registre, jamais une garde : `plafonds.verifier` est appelé de même quelle qu'elle soit.
+    t289 : la carte de devis de l'agent Campagnes envoie `source: "campagnes"` sur ses trois routes."""
+    from app.services import plafonds as _PLAF
+    src = str(source or "").strip().lower()
+    return src if src in _PLAF.CATEGORIES else defaut
+
+
 def _categorie_image(body: dict) -> str:
     """La catégorie de plafond d'une route d'images : la `source` du corps si c'est une catégorie connue (« studio »,
     « chapitres », « scheduler »…), sinon « bibliotheque ». Relevé du catalogue t248 (20/10/2026) : Rejouer la recette
     envoie `source: "generation"`, qui devenait une catégorie fantôme absente de plafonds.CATEGORIES."""
-    from app.services import plafonds as _PLAF
-    src = str(body.get("source") or "").strip().lower()
-    return src if src in _PLAF.CATEGORIES else "bibliotheque"
+    return _categorie_source(body.get("source"), "bibliotheque")
 
 
 def _op_tts(texte, model=None, provider=None) -> list:
@@ -6383,7 +6391,7 @@ async def _generate(request: GenerateRequest, background_tasks: BackgroundTasks,
     _ops_lip = _op_lipsync(request)   # #52 : pré-vérifié AVANT le rendu payé (400 lisible)
     await _plafond([_devis_video(request)] + _op_voix_off(request)
                    + _op_soustitres(request.subtitles, request.duration_s) + _ops_lip,
-                   "quick")   # tâche #16 ; #50 sous-titres ; #52 lip-sync
+                   _categorie_source(request.source, "quick"))   # tâche #16 ; #50 sous-titres ; #52 lip-sync ; t289
     if eid:
         return await _generate_dans_espace(request, background_tasks, eid)
 
