@@ -81,7 +81,8 @@ function monde({ lang = "fr", routes = {} } = {}) {
     dispatchEvent: (e) => { events.push({ type: e.type, detail: e.detail }); return true; },
     fetch: async (url, init = {}) => {
       const corps = init.body ? JSON.parse(init.body) : undefined;
-      appels.push({ url: String(url), methode: init.method || "GET", corps });
+      appels.push({ url: String(url), methode: init.method || "GET", corps, signal: init.signal });
+      if (win.coupe) throw new Error("réseau coupé");
       for (const [motif, f] of Object.entries(routes)) {
         const [m, u] = motif.split(" ");
         if (m === (init.method || "GET") && (u === String(url) || (u.endsWith("*") && String(url).startsWith(u.slice(0, -1))))) return await f(corps, String(url));
@@ -90,7 +91,7 @@ function monde({ lang = "fr", routes = {} } = {}) {
     }
   };
   const doc = { createElement: (t) => new Noeud(t), head: new Noeud("head"), documentElement: new Noeud("html") };
-  const ctx = { window: win, document: doc, setTimeout, clearTimeout, TextDecoder, CustomEvent, console };
+  const ctx = { window: win, document: doc, setTimeout, clearTimeout, TextDecoder, CustomEvent, AbortController, console };
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
   return { win, doc, appels, events, DzCampagnes: win.DzCampagnes };
@@ -483,6 +484,80 @@ for (const lang of ["fr", "en"]) {
   ok("9.2 démonté : la racine est retirée", hote.children.length === 0);
   ok("9.3 démonté : la minuterie du devis est coupée (aucun appel)", w.appels.length === avant);
   ok("9.4 un second montage ne duplique pas le style", w.doc.head.children.length === 1);
+}
+
+// ===== 10. correctifs de relecture =====================================================================================================
+{ // IMPORTANT 1 : rendu payé, /carte en 500 : un nouveau clic ne repaie JAMAIS
+  let cartes = 0;
+  const routes = avec(() => conv([msg("agent", [DEVIS_VIDEO])]), {
+    "POST /api/generate": async () => reponse(200, { job_id: "J-7", status: "queued", message: "ok" }),
+    "POST /api/agent/campagnes/c1/carte/0": async () => (++cartes === 1 ? reponse(500, { detail: "disque plein" }) : reponse(200, conv([msg("agent", [DEVIS_VIDEO])])))
+  });
+  const w = await monterAvec(routes);
+  parTexte(w.racine, /Générer/)[0].click();
+  await attendre(() => cartes === 1);
+  await tick(); await tick();
+  ok("10.1 /carte en échec : l'erreur est dite", /disque plein/.test(texte(marque(w.racine, "statut"))), texte(marque(w.racine, "statut")));
+  ok("10.2 …et la conversation est relue", w.appels.filter((a) => a.methode === "GET" && a.url === "/api/agent/campagnes/c1").length >= 2);
+  const [b] = parTexte(w.racine, /Rendu payé/);
+  ok("10.3 le bouton devient « enregistrer la décision » (plus « Générer »)", !!b && !parTexte(w.racine, /Générer/).length, boutons(w.racine).map((x) => x.textContent).join("|"));
+  b.click();
+  await attendre(() => cartes === 2);
+  ok("10.4 la route payante n'a été appelée QU'UNE fois", w.appels.filter((a) => a.url === "/api/generate").length === 1);
+  ok("10.5 le second /carte porte le même job_id", w.appels.filter((a) => a.url.endsWith("/carte/0"))[1].corps.job_id === "J-7");
+  w.c.demonter();
+}
+{ // M1 : le réseau tombe avant le départ -> le texte revient dans le champ
+  const routes = avec(() => conv([]), { "POST /api/agent/campagnes/c1/devis": async () => reponse(200, { plafond_usd: 1, in_tok: 1, out_tok: 1, modele: "m" }) });
+  const w = await monterAvec(routes);
+  saisir(w.racine, "Texte perdu ?");
+  await attendre(() => /≤/.test(texte(marque(w.racine, "devis"))));
+  w.win.coupe = true;
+  bEnvoyer(w.racine).click();
+  await attendre(() => /réseau coupé/.test(texte(marque(w.racine, "statut"))));
+  await tick();
+  ok("10.6 M1 : fetch lève -> le texte revient dans le champ", marque(w.racine, "champ").value === "Texte perdu ?");
+  w.win.coupe = false;
+  w.c.demonter();
+}
+{ // M2 : un 409 « illisible » montre son détail ; l'occupation reste « occupée »
+  for (const [detail, motif] of [["Conversation illisible : son fichier est mis de côté, rien n'a été écrit.", /illisible : son fichier/], ["Conversation occupée : une réponse est déjà en cours.", /déjà en cours pour cette conversation/]]) {
+    const routes = avec(() => conv([]), {
+      "POST /api/agent/campagnes/c1/devis": async () => reponse(200, { plafond_usd: 1, in_tok: 1, out_tok: 1, modele: "m" }),
+      "POST /api/agent/campagnes/c1/message": async () => reponse(409, { detail })
+    });
+    const w = await monterAvec(routes);
+    saisir(w.racine, "x");
+    await attendre(() => /≤/.test(texte(marque(w.racine, "devis"))));
+    bEnvoyer(w.racine).click();
+    await attendre(() => marque(w.racine, "statut").textContent.length);
+    ok("10.7 M2 : 409 « " + detail.slice(0, 22) + "… »", motif.test(texte(marque(w.racine, "statut"))), texte(marque(w.racine, "statut")));
+    w.c.demonter();
+  }
+}
+{ // M3 : démonter coupe le flux en cours et plus aucun POST ne part
+  let signal = null, lib = null;
+  const routes = avec(() => conv([msg("agent", [CONTINUER])]), {
+    "POST /api/agent/campagnes/c1/message": async () => { lib = null; return reponse(200, undefined, { body: { getReader: () => ({ read: () => new Promise((_, rej) => { signal.addEventListener("abort", () => rej(new Error("abort"))); }) }) } }); },
+    "POST /api/agent/campagnes/c1/carte/0": async () => reponse(200, conv([]))
+  });
+  const w = await monterAvec(routes);
+  const brut = w.win.fetch; w.win.fetch = (u, i) => { if (String(u).endsWith("/message")) signal = i.signal; return brut(u, i); };
+  // l'écouteur du faux signal : AbortSignal natif
+  parTexte(w.racine, /Continuer/)[0].click();
+  await attendre(() => signal);
+  ok("10.8 M3 : le /message porte un signal d'annulation", !!signal && signal.aborted === false);
+  w.c.demonter();
+  await new Promise((r) => setTimeout(r, 60));
+  ok("10.9 M3 : démonter l'annule", signal.aborted === true);
+  ok("10.10 M3 : aucun POST /carte après le démontage", !w.appels.some((a) => a.url.endsWith("/carte/0")), JSON.stringify(w.appels.map((a) => a.url)));
+}
+{ // M4/M6 : plus de ponctuation collée hors dzT, plus de chaîne nue
+  const w = await monterAvec(avec(() => conv([])), {}, "en");
+  ok("10.11 M4 : l'en-tête EN est « Campaign space: Marque A » (ponctuation du gabarit)", /Campaign space: Marque A/.test(texte(marque(w.racine, "espace"))), texte(marque(w.racine, "espace")));
+  w.c.demonter();
+  const src = SRC.replace(/\/\*[\s\S]*?\*\//g, "");
+  ok("10.12 M4/M6 : aucun « : » / « — » / « HTTP » / « ? » collé hors dzT", !/\)\s*\+\s*"[ :—]|"[ :—]+"\s*\+|"HTTP |Error\("\?"\)/.test(src));
 }
 
 if (echecs.length) {

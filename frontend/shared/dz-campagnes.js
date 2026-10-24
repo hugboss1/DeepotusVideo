@@ -152,7 +152,7 @@
       var m = d.message || (d.dz_plafond && d.dz_plafond.message);
       if (typeof m === "string" && m) return m;
     }
-    return "HTTP " + res.status;
+    return T("campagnes.erreur.http", { code: res.status });
   }
 
   function nomImage(j) {
@@ -204,7 +204,7 @@
     opts = opts || {};
     var S = {
       cid: opts.cid || null, conv: null, noms: {}, devis: null, calcul: false, occupe: false, live: [], erreur: "",
-      transitoire: null, occ: {}, correction: null, sonde: null, minuteur: null, seq: 0, creation: null, ferme: false,
+      transitoire: null, occ: {}, rendus: {}, stop: (typeof AbortController === "function" ? new AbortController() : null), correction: null, sonde: null, minuteur: null, seq: 0, creation: null, ferme: false,
       indice: ""
     };
     injecterStyle();
@@ -223,6 +223,7 @@
     var saisie = function () { return String(champ.value || "").trim(); };
     var appel = function (methode, chemin, corps) {
       var init = { method: methode, headers: JSON_H };
+      if (S.stop) init.signal = S.stop.signal;
       if (corps !== undefined) init.body = JSON.stringify(corps);
       return window.fetch(BASE + chemin, init);    // window.fetch lu ICI : dz-plafonds.js l'enveloppe (le 402)
     };
@@ -235,8 +236,7 @@
       var id = (S.conv && S.conv.espace_id) || (!S.conv && opts.espace_id) || null;
       var espace = id ? nomEspace(id) : T("campagnes.entete.aucun_espace");
       tete.appendChild(el("span", { "data-dz-camp": "espace" }, [
-        el("span", { texte: T("campagnes.entete.espace") + " : " }),
-        el("strong", { texte: espace })]));
+        el("span", { texte: T("campagnes.entete.espace", { nom: espace }) })]));
       tete.appendChild(el("span", { "data-dz-camp": "cout", texte: T("campagnes.entete.cout", { usd: usd(S.conv ? S.conv.cout_usd : 0) }) }));
     }
 
@@ -280,7 +280,7 @@
         else if (e === "refusee") c.appendChild(etat(T("campagnes.etat.corriger")));
       } else if (b.genre === "devis") {
         if (propose) {
-          actions.appendChild(bouton(T("campagnes.action.generer", { usd: usd(a.usd != null ? a.usd : b.devis) }),
+          actions.appendChild(bouton(S.rendus[n] ? T("campagnes.action.enregistrer") : T("campagnes.action.generer", { usd: usd(a.usd != null ? a.usd : b.devis) }),
             function () { genererDevis(n, b); }, true, occupe));
           actions.appendChild(bouton(T("campagnes.action.refuser"), function () { decider(n, "refusee"); }, false, occupe));
         } else if (e === "refusee") c.appendChild(etat(T("campagnes.etat.refusee")));
@@ -356,7 +356,7 @@
       if (S.occupe) envoyer.setAttribute("aria-busy", "true"); else envoyer.removeAttribute("aria-busy");
       var d = S.devis && S.devis.texte === saisie() ? S.devis.data : null;
       var t = "";
-      if (d) t = T("campagnes.devis.plafond", { usd: usd(d.plafond_usd, true) }) + " — " + T(S.indice ? "campagnes.devis.relire" : "campagnes.devis.explication");
+      if (d) t = T(S.indice ? "campagnes.devis.relire" : "campagnes.devis.explication", { plafond: T("campagnes.devis.plafond", { usd: usd(d.plafond_usd, true) }) });
       else if (S.calcul) t = T("campagnes.devis.calcul");
       devisLigne.textContent = t;
       devisLigne.setAttribute("data-etat", d ? "pret" : (S.calcul ? "calcul" : "vide"));
@@ -473,9 +473,9 @@
     function messageHttp(res) {
       return (async function () {
         if (res.status === 503) return T("campagnes.erreur.sans_cle");
-        if (res.status === 409) return T("campagnes.erreur.occupee");
         var d = await detailDe(res);
-        if (res.status === 402) return T("campagnes.erreur.plafond") + " " + d;
+        if (res.status === 409) return /illisible|unreadable/i.test(d) ? T("campagnes.erreur.reseau", { msg: d }) : T("campagnes.erreur.occupee");
+        if (res.status === 402) return T("campagnes.erreur.plafond_detail", { msg: d });
         return T("campagnes.erreur.reseau", { msg: d });
       })();
     }
@@ -518,7 +518,9 @@
           await lireFlux(r, evenement);
         }
       } catch (e) {
+        if (S.ferme) return;
         S.erreur = T("campagnes.erreur.reseau", { msg: String((e && e.message) || e) });
+        if (!parti && !saisie()) champ.value = texte;   // rien n'est parti : le texte revient dans le champ
       } finally {
         S.occupe = false;
       }
@@ -545,7 +547,11 @@
         S.conv = await r.json();
         S.erreur = "";
       } catch (e) {
+        if (S.ferme) return;
         S.erreur = T("campagnes.erreur.carte", { msg: String((e && e.message) || e) });
+        delete S.occ[n];
+        await charger();   // l'état réel (409 : déjà décidée)
+        if (!S.erreur) S.erreur = T("campagnes.erreur.carte", { msg: String((e && e.message) || e) });
       } finally {
         delete S.occ[n];
         dessiner();
@@ -556,6 +562,7 @@
     async function genererDevis(n, b) {
       var a = b.arguments || {};
       if (n === null || S.occ[n] || S.ferme) return;
+      if (S.rendus[n]) { await decider(n, "acceptee", S.rendus[n]); return; }   // déjà payé : on ne refait que /carte
       if (!ROUTES[a.genre] || a.route !== ROUTES[a.genre]) { S.erreur = T("campagnes.erreur.generation", { msg: String(a.route || "") }); dessiner(); return; }
       S.occ[n] = true; S.erreur = ""; dessiner();
       var extra = null;
@@ -566,7 +573,7 @@
         if (a.genre === "video") { if (j && j.job_id) extra = { job_id: String(j.job_id) }; }
         else if (a.genre === "image") { var f = nomImage(j); if (f) extra = { fichier: f }; }
         else if (j && typeof j.filename === "string" && j.filename) extra = { fichier: j.filename };
-        if (!extra) throw new Error("?");
+        if (!extra) throw new Error(T("campagnes.erreur.sans_resultat"));
       } catch (e) {
         delete S.occ[n];
         S.erreur = T("campagnes.erreur.generation", { msg: String((e && e.message) || e) });
@@ -574,6 +581,7 @@
         return;
       }
       delete S.occ[n];
+      S.rendus[n] = extra;
       await decider(n, "acceptee", extra);
     }
 
@@ -631,6 +639,7 @@
         if (S.minuteur) clearTimeout(S.minuteur);
         if (S.sonde) clearTimeout(S.sonde);
         S.minuteur = S.sonde = null;
+        if (S.stop) { try { S.stop.abort(); } catch (e) { /* rien */ } }
         if (racine.parentNode) racine.parentNode.removeChild(racine);
       }
     };
