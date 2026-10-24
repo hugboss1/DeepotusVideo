@@ -12,7 +12,11 @@ SIMULÉ (`moteurs_texte._POSTER`), la clé est factice : aucun appel payant, auc
 Run : & $PY tests/test_agent_campagnes_appareil.py   (depuis backend/, PYTHONUTF8=1)."""
 import asyncio, json, os, re, shutil, sys, tempfile, pathlib
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-TMP = tempfile.mkdtemp(prefix="dzt286_appareil_")
+# Parent PRIVÉ : le contrôle 7b regarde aussi au-dessus de DATA_ROOT (« ../x »), jamais dans le %TEMP% partagé où
+# d'autres outils laissent leurs propres fichiers (un « x » y rendait le banc rouge sans aucune écriture de la route).
+PARENT = tempfile.mkdtemp(prefix="dzt286_appareil_")
+TMP = os.path.join(PARENT, "data")
+os.makedirs(TMP)
 os.environ["DEEPOTUS_DATA_DIR"] = TMP
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///" + (TMP + "/t.db").replace("\\", "/")
 for _k in ("ANTHROPIC_MODEL", "AGENT_MODEL", "ANTHROPIC_API_KEY"):
@@ -497,7 +501,7 @@ def _lanceur() -> int:
             print(f"  FAIL  {t.__name__} a levé {e!r}")
     if _CTX:
         _CTX["loc"].__exit__(None, None, None)
-    shutil.rmtree(TMP, ignore_errors=True)
+    shutil.rmtree(PARENT, ignore_errors=True)
     print(f"\n{ok} ok, {fail} fail")
     return 1 if fail else 0
 
