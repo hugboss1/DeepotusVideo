@@ -98,8 +98,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Appliquer un filtre** : Photolab › menu Filtre. → [POINT:photolab.menu_filtre] [GUIDE:photolab-avance]
 - **Changer de PC** : Réglages › Transfert entre machines (pas d'ancre pour cette section). → [GUIDE:transfert]
 - **Se faire aider** : F1 ou le bouton « Demander » ouvre ce tiroir ; la réponse peut montrer le bouton, ouvrir l'écran
-  ou le guide ; si aucun bouton connu ne convient, proposer de regarder l'écran (accord et coût d'abord).
-  → [GUIDE:demander]
+  ou le guide ; si aucun bouton connu ne convient, proposer de regarder l'écran (accord et coût d'abord). Le tiroir a
+  deux onglets : « Demander » (toi) et « Campagnes » (l'agent Campagnes, avec son choix d'espace de marque, jamais
+  l'espace actif d'office ; sans espace, il oriente seulement). → [GUIDE:demander]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 
