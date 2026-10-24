@@ -111,7 +111,7 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
     pd = next((p for p in lot.get("posts", []) if p["id"] == "p-demain"), {})
     check("L4 un post porte son media (nom, taille, sha256, url), ses canaux, sa legende, son heure en UTC Z",
           pd.get("media") == {"nom": "clip.mp4", "taille": 4096, "sha256": hashlib.sha256(VIDEO.read_bytes()).hexdigest(),
-                              "url": "/api/sync/media/job-1"}
+                              "url": "/api/sync/media/job-1", "genre": "video"}
           and pd.get("canaux") == ["x", "telegram"] and pd.get("legende") == "Une legende" and str(pd.get("run_at")).endswith("Z")
           and pd.get("confie") is False, str(pd)[:300])
     m = lan.get("/api/sync/media/job-1", headers=H)
@@ -122,6 +122,28 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
           and lan.get("/api/sync/media/job-1").status_code == 401)
     check("L7 la route media est reservee a un APPAREIL, meme depuis le PC (sans jeton : 401)",
           loc.get("/api/sync/media/job-1").status_code == 401 and loc.get("/api/sync/lot").status_code == 401)
+
+    print("\n[I] image seule et texte seul (recette R7 du telephone, 24/10/2026)")
+    IMG = _tmp / "images" / "affiche.png"
+    IMG.write_bytes(b"\x89PNG\r\n\x1a\n" + bytes(range(200)))
+    cx = sqlite3.connect(str(_DB))
+    for pid, src in (("p-image", "affiche.png"), ("p-texte", None)):
+        cx.execute("INSERT INTO scheduled_posts (id, title, caption, channels, run_at, status, mode, job_id, source_image, created_at) "
+                   "VALUES (?,?,?,?,?,?,?,?,?,?)", (pid, pid, "Texte", "telegram", datetime.utcnow() + timedelta(hours=2),
+                                                    "scheduled", "assisted", None, src, datetime.utcnow()))
+    cx.commit(); cx.close()
+    lot2 = {p["id"]: p for p in lan.get("/api/sync/lot?jours=7", headers=H).json().get("posts", [])}
+    check("I1 un post a image seule annonce son IMAGE (nom, taille, sha256, url, genre image) : le PC la publierait",
+          lot2.get("p-image", {}).get("media") == {"nom": "affiche.png", "taille": IMG.stat().st_size,
+                                                   "sha256": hashlib.sha256(IMG.read_bytes()).hexdigest(),
+                                                   "url": "/api/sync/image/p-image", "genre": "image"}, str(lot2.get("p-image"))[:300])
+    check("I2 un post texte seul n'annonce aucun media (le telephone publie le texte)",
+          "p-texte" in lot2 and lot2["p-texte"].get("media") is None, str(lot2.get("p-texte"))[:200])
+    im = lan.get("/api/sync/image/p-image", headers=H)
+    check("I3 l'image : octets exacts avec jeton ; sans jeton 401 ; post sans image 404",
+          im.status_code == 200 and im.content == IMG.read_bytes() and lan.get("/api/sync/image/p-image").status_code == 401
+          and lan.get("/api/sync/image/p-texte", headers=H).status_code == 404, f"{im.status_code}")
+    cx = sqlite3.connect(str(_DB)); cx.execute("DELETE FROM scheduled_posts WHERE id IN ('p-image', 'p-texte')"); cx.commit(); cx.close()
 
     print("\n[E] emporter (delegation explicite)")
     e = lan.post("/api/sync/lot/etat", headers=H, json={"rapports": [{"id": "p-du", "statut": "emporte"}, {"id": "p-demain", "statut": "emporte"},

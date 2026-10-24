@@ -46,6 +46,13 @@ def _iso(d: datetime | None) -> str | None:
     return d.replace(microsecond=0).isoformat() + "Z" if d else None
 
 
+async def image_du_post(post) -> Path | None:
+    """L'image fixe d'un post sans vidéo, résolue comme au moment de publier (marketing._resolve_post_image)."""
+    from app.services import marketing
+    chemin = await marketing._resolve_post_image(post)
+    return Path(chemin) if chemin else None
+
+
 async def lot(appareil_id: str, jours: int = 7) -> dict:
     """Les posts actionnables des `jours` prochains (et en retard), LIBRES ou déjà confiés à CET appareil."""
     from app.services.storage import JobRecord, ScheduledPost, async_session_factory
@@ -66,7 +73,14 @@ async def lot(appareil_id: str, jours: int = 7) -> dict:
                 chemin = Path(job.final_video_path) if job and job.final_video_path else None
                 if chemin and chemin.is_file():
                     media = {"nom": chemin.name, "taille": chemin.stat().st_size, "sha256": _sha256(chemin),
-                             "url": f"/api/sync/media/{p.job_id}"}
+                             "url": f"/api/sync/media/{p.job_id}", "genre": "video"}
+            if media is None:
+                # Recette R7 (24/10/2026) : sans vidéo, l'image que le PC publierait (même ordre que publish_telegram :
+                # vidéo > photo > texte). Sans image non plus, aucun média : le téléphone publie le texte.
+                image = await image_du_post(p)
+                if image:
+                    media = {"nom": image.name, "taille": image.stat().st_size, "sha256": _sha256(image),
+                             "url": f"/api/sync/image/{p.id}", "genre": "image"}
             posts.append({"id": p.id, "titre": p.title, "legende": p.caption or "",
                           "canaux": [c for c in (p.channels or "").split(",") if c], "run_at": _iso(p.run_at),
                           "mode": p.mode, "statut": p.status, "confie": p.delegue_a == appareil_id, "media": media})

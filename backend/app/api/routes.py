@@ -18322,6 +18322,20 @@ async def sync_media(job_id: str, request: Request):
     return FileResponse(str(p), media_type="video/mp4", filename=p.name)
 
 
+@router.get("/sync/image/{post_id}")
+async def sync_image(post_id: str, request: Request):
+    """Recette R7 (24/10/2026) : l'image fixe d'un post sans vidéo, celle que le PC publierait (sendPhoto)."""
+    await _appareil_requis(request)
+    from app.services import sync_lot as _sl
+    from app.services.storage import ScheduledPost, async_session_factory
+    async with async_session_factory() as session:
+        post = await session.get(ScheduledPost, post_id)
+    chemin = await _sl.image_du_post(post) if post else None
+    if not chemin:
+        raise HTTPException(404, "aucune image pour ce post")
+    return FileResponse(str(chemin), filename=chemin.name)
+
+
 @router.post("/schedule/{post_id}/reprendre")
 async def schedule_reprendre(post_id: str, request: Request):
     """Le PC reprend un post confié à un téléphone : son Scheduler pourra de nouveau le publier."""
