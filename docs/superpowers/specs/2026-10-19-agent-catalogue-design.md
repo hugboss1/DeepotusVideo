@@ -72,6 +72,7 @@ Lit le **code** du dépôt, rien d'autre, et met à jour les fichiers du catalog
 | `frontend/<lab>/index.html`, `js/mod-*.js`, `mod-i18n` | outils, menus, infobulles des labs |
 | `frontend/shared/icons/dz-icons.js` + lexique du guide | nom et sens des icônes |
 | `frontend/<lab>/aide/index.json` | fiche didactique liée |
+| `frontend/shared/dz-campagnes.js`, `dz-agent.js` (table `PARTAGES` de `catalogue_partages.py`, t287) | boutons, champs et onglets bâtis en DOM nu (`el("button", {…})`, `x.textContent = T(…)`, fabriques), écran `commun` |
 | `settings_routes._INDEX_FIXE` / `GET /api/reglages/index` | réglages et leur section |
 | `docs/guide/src/chapitres.json` (`ecrans`) | chapitre lié |
 
