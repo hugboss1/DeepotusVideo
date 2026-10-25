@@ -10550,5 +10550,25 @@
  "Import depuis un appareil : chaque message doit porter l'origine « telephone » et l'appareil de ce jeton.": {
   "fr": "Import depuis un appareil : chaque message doit porter l'origine « telephone » et l'appareil de ce jeton.",
   "en": "Import from a device: every message must carry the origin \"telephone\" and this token's device."
+ },
+ "type d'espace inconnu : {v} (marque, produit ou client)": {
+  "fr": "type d'espace inconnu : {v} (marque, produit ou client)",
+  "en": "unknown space type: {v} (brand, product or client)"
+ },
+ "seul un produit peut avoir un parent": {
+  "fr": "seul un produit peut avoir un parent",
+  "en": "only a product can have a parent"
+ },
+ "parent inconnu : {parent}": {
+  "fr": "parent inconnu : {parent}",
+  "en": "unknown parent: {parent}"
+ },
+ "le parent d'un produit est une marque ou un client": {
+  "fr": "le parent d'un produit est une marque ou un client",
+  "en": "a product's parent is a brand or a client"
+ },
+ "des produits dépendent de cet espace : il ne peut pas devenir un produit": {
+  "fr": "des produits dépendent de cet espace : il ne peut pas devenir un produit",
+  "en": "products depend on this space: it cannot become a product"
  }
 }

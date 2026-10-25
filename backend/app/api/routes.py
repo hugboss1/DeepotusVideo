@@ -7975,11 +7975,15 @@ async def get_espace_actif():
 
 @router.post("/espaces")
 async def create_espace(body: dict, request: Request):
-    """Un espace neuf (nom, couleur ?, kit_id ?) : persona squelette, contenus vides, son propre kit sauf kit_id."""
+    """Un espace neuf (nom, couleur ?, kit_id ?, type ?, parent ?) : persona squelette, contenus vides, son propre kit
+    sauf kit_id. t306 (25/10/2026) : `type` = marque (défaut), produit ou client ; `parent` (marque ou client existant)
+    seulement pour un produit. 400 = entrée fautive, 409 = type de client à retirer alors que des consentements courent."""
     _require_localhost(request)
     from app.services import espaces as _es
     try:
         e = _es.creer(body if isinstance(body, dict) else {})
+    except _es.ConflitClient as e2:
+        raise HTTPException(409, str(e2))
     except ValueError as e2:
         raise HTTPException(400, str(e2))
     return {"espace": e, "espaces": _es.lister()}
@@ -8015,12 +8019,17 @@ async def export_espace(espace_id: str, request: Request):
 
 @router.post("/espaces/{espace_id}")
 async def update_espace(espace_id: str, body: dict, request: Request):
+    """Modifie nom, couleur, kit_id, plafond_usd et, t306 (25/10/2026), `type` et `parent` (mêmes règles qu'à la
+    création). 404 = espace inconnu, 409 = passer de client à un autre type alors que des consentements courent,
+    400 = entrée fautive."""
     _require_localhost(request)
     from app.services import espaces as _es
     try:
         e = _es.modifier(espace_id, body if isinstance(body, dict) else {})
     except KeyError:
         raise HTTPException(404, f"espace inconnu : {espace_id}")
+    except _es.ConflitClient as e2:
+        raise HTTPException(409, str(e2))
     except ValueError as e2:
         raise HTTPException(400, str(e2))
     return {"espace": e, "espaces": _es.lister()}
