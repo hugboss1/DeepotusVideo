@@ -1,13 +1,13 @@
 {
   "projets.canaux.bouton": {"fr": "Canaux", "en": "Channels"},
-  "projets.canaux.aide": {"fr": "Choisir les comptes vers lesquels partiront les posts de ce projet", "en": "Choose the accounts this project's posts will go to"},
+  "projets.canaux.aide": {"fr": "Choisir les comptes par défaut de ce projet", "en": "Choose this project's default accounts"},
   "projets.canaux.titre": {"fr": "Canaux du projet {nom}", "en": "Channels of project {nom}"},
-  "projets.canaux.explication": {"fr": "Les nouveaux posts et brouillons de ce projet partiront vers les comptes cochés.", "en": "New posts and drafts of this project will go to the ticked accounts."},
+  "projets.canaux.explication": {"fr": "Quand ce projet est actif, les brouillons de l'assistant et les posts créés sans canal partent vers les comptes cochés. « Envoyer vers » et le Planificateur gardent les canaux choisis là.", "en": "When this project is active, the assistant's drafts and posts created without a channel go to the ticked accounts. “Send to” and the Scheduler keep the channels chosen there."},
   "projets.canaux.chargement": {"fr": "Chargement des comptes de l'espace…", "en": "Loading the space's accounts…"},
   "projets.canaux.aucun_compte": {"fr": "Aucun compte de diffusion dans cet espace.", "en": "No publishing account in this space yet."},
   "projets.canaux.enregistrer": {"fr": "Enregistrer", "en": "Save"},
   "projets.canaux.survol": {"fr": "Canaux : {noms}", "en": "Channels: {noms}"},
   "projets.canaux.erreur_espace": {"fr": "Un de ces comptes appartient à un autre espace : il ne peut pas être un canal de ce projet.", "en": "One of these accounts belongs to another space: it cannot be a channel of this project."},
-  "projets.canaux.erreur_inconnu": {"fr": "Ce projet ou l'un de ces comptes n'existe plus : ferme et rouvre la liste.", "en": "This project or one of these accounts no longer exists: close and reopen the list."},
+  "projets.canaux.erreur_inconnu": {"fr": "Ce projet ou l'un de ces comptes n'existe plus : fermez puis rouvrez la liste.", "en": "This project or one of these accounts no longer exists: close and reopen the list."},
   "projets.canaux.erreur": {"fr": "Les canaux n'ont pas été enregistrés : {detail}", "en": "The channels were not saved: {detail}"}
 }
