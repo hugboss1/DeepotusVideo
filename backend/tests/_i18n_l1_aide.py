@@ -334,11 +334,22 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzcanaux(bundle: str) -> str:
+    """t307 (25/10/2026) : le bundle d'avant les canaux d'un projet dans la barre « Projet » de la Bibliothèque (maillon
+    de queue patch_bundle_dzcanaux, posé APRÈS dzagentplan) : ses paires défaites, lues dans le maillon lui-même. Sans
+    son marqueur : rendu tel quel."""
+    import patch_bundle_dzcanaux as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzagentplan(bundle: str) -> str:
     """Le bundle d'avant le mode Agent Campagnes du dialogue « Generate a marketing plan » (maillon de queue
     patch_bundle_dzagentplan, t285 T9, 24/10, posé APRÈS dzrecette) : ses paires défaites, lues dans le maillon lui-même.
     Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzagentplan as _m
+    bundle = avant_dzcanaux(bundle)              # t307 (25/10/2026) : le maillon posé APRÈS dzagentplan, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)
