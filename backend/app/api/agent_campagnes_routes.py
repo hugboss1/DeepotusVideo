@@ -364,6 +364,7 @@ def _paquet_telephone(espace_id: str | None, langue: str) -> dict:
         modele=moteurs_texte.modele_agent(),
         constantes={"MAX_TOURS": AC.MAX_TOURS, "SORTIE_MAX": AC.SORTIE_MAX, "CARS_PAR_JETON": AC.CARS_PAR_JETON,
                     "SURCOUT_OUTILS": AC.SURCOUT_OUTILS})
+    p["espace_id"] = espace_id or None
     p.pop("version")
     brut = json.dumps(p, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return {"version": hashlib.sha256(brut).hexdigest()[:16], **p,
@@ -381,6 +382,9 @@ async def paquet(request: Request, espace_id: str | None = None, avec: str | Non
     if avec != "telephone":
         return await asyncio.to_thread(_paquet, espace_id)
     lg = langue if langue in ("fr", "en") else _lang(request)
+    if not espace_id:   # le téléphone ne connaît pas l'espace actif : le paquet porte celui du PC (spec §6.1)
+        a = espaces.actif()
+        espace_id = None if a.get("archive") else a.get("id")
     p = await asyncio.to_thread(_paquet_telephone, espace_id, lg)
     if p["version"] in _etags(request.headers.get("if-none-match")):
         return Response(status_code=304, headers={"ETag": p["version"]})

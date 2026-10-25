@@ -35,6 +35,8 @@ M = [
      ["p3b", "p3c"], "le systeme du paquet ignore l'espace"),
     (ROUTES, "    p.pop(\"version\")", "    p.pop(\"version\")\n    p.pop(\"systeme\")",
      ["p3a"], "le systeme sort de la version (et du paquet)"),
+    (ROUTES, "    if not espace_id:   # le téléphone ne connaît pas l'espace actif : le paquet porte celui du PC (spec §6.1)",
+     "    if False:", ["p8a", "p8b", "p8c"], "sans espace_id, le paquet n'a pas l'espace actif"),
 ]
 
 _FIN = re.compile(r"^\s*\d+ ok, \d+ fail\s*$", re.M)

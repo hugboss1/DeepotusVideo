@@ -251,10 +251,33 @@ def test_p7_persona():
     assert fail == avant
 
 
+# ---- p8 --------------------------------------------------------------------------------------------------------------
+def test_p8_espace_actif():
+    avant = fail
+    c = _contexte()
+    print("\n[p8] sans espace_id : l'espace ACTIF du PC")
+    r = c["loc"].get(BASE + "/paquet", params={"avec": "telephone", "langue": "fr"})
+    p = r.json()
+    check("p8a 200 et espace_id = l'espace actif", r.status_code == 200 and p.get("espace_id") == c["A"] == espaces.actif()["id"],
+          str(p.get("espace_id")))
+    ref = _tel(c, espace_id=c["A"]).json()
+    pj = json.loads(p["fichiers"]["persona.json"])
+    check("p8b persona.json = celle de l'espace actif, filtrée",
+          p["fichiers"]["persona.json"] == ref["fichiers"]["persona.json"] and "templates" not in pj and "voice_ids" not in pj)
+    check("p8c systeme = celui de l'espace actif", p["systeme"]["campagnes"] == AC.systeme_pour("campagnes", c["A"], "fr")
+          and p["systeme"] == ref["systeme"])
+    check("p8d espace_id explicite : renvoyé tel quel", ref.get("espace_id") == c["A"] and _tel(c).json().get("espace_id") == c["B"])
+    check("p8e le bouton du LAN avec jeton aussi", c["lan"].get(BASE + "/paquet", params={"avec": "telephone"},
+          headers=c["H"]).json().get("espace_id") == c["A"])
+    sans = c["loc"].get(BASE + "/paquet").json()
+    check("p8f sans « avec » : toujours pas de persona d'office", "persona.json" not in sans["fichiers"] and "espace_id" not in sans)
+    assert fail == avant
+
+
 def _lanceur() -> int:
     global fail
     tests = [test_p1_sans_avec_inchange, test_p2_catalogue, test_p3_systeme, test_p4_outils, test_p5_etag_304,
-             test_p6_jeton, test_p7_persona]
+             test_p6_jeton, test_p7_persona, test_p8_espace_actif]
     for t in tests:
         try:
             t()
