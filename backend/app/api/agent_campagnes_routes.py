@@ -325,6 +325,10 @@ def _paquet(espace_id: str | None) -> dict:
     if espace_id:
         fichiers["persona.json"] = json.dumps(AC.persona_modele(_espace_valide(espace_id)), ensure_ascii=False,
                                               indent=2, sort_keys=True)
+    # t305 : les boîtes à outils (par fonctionnalité) voyagent avec le paquet, pour que le compagnon sache quels
+    # outils lui sont ouverts ; ajoutées avant le tri pour que la version reste déterministe
+    from app.services import agent_boites
+    fichiers["boites.json"] = json.dumps(agent_boites.paquet_mobile(), ensure_ascii=False, indent=2, sort_keys=True)
     fichiers = dict(sorted(fichiers.items()))
     brut = json.dumps(fichiers, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return {"version": hashlib.sha256(brut).hexdigest()[:16], "fichiers": fichiers}

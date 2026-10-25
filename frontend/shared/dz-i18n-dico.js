@@ -7,6 +7,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "agent.action.guide": {"fr": "Guide : {titre}", "en": "Guide: {titre}"},
   "agent.action.introuvable": {"fr": "Je ne trouve pas ce bouton sur cet écran. Le chapitre du guide t'aidera.", "en": "I can't find this button on this screen. The guide chapter will help."},
   "agent.action.montrer": {"fr": "Montre-moi : {libelle}", "en": "Show me: {libelle}"},
+  "agent.boites.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.campagnes.espace": {"fr": "Espace de marque de la campagne", "en": "Campaign brand space"},
   "agent.campagnes.indisponible": {"fr": "L'agent Campagnes n'est pas chargé sur cette page.", "en": "The Campaigns agent is not loaded on this page."},
   "agent.campagnes.sans_espace": {"fr": "Aucun espace", "en": "No space"},

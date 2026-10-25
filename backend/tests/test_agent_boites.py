@@ -59,5 +59,12 @@ check("3a outil hors de la boite refuse", r["ok"] is False and "boîte" in r["re
 r = asyncio.run(ao.executer("chercher_app", {"question": "vectorlab"}, ao.Ctx(cid="c1")))
 check("3b Campagnes garde ses outils", r["ok"] is True, r)
 
+print("\n[4] le paquet du compagnon transporte les boites")
+from app.api import agent_campagnes_routes as R                     # noqa: E402
+
+p = R._paquet(None)
+check("4a boites.json servi", "boites.json" in p["fichiers"])
+check("4b contenu = paquet_mobile", json.loads(p["fichiers"].get("boites.json", "null")) == B.paquet_mobile())
+
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)
