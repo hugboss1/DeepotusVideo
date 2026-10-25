@@ -107,6 +107,11 @@ check("2d le défaut de Deepotus lit son propre projet actif", run(LP.canaux_par
 run(LP.poser_canaux(p["id"], ["historique-x"]))
 check("2e ... et ses canaux", run(LP.canaux_par_defaut("deepotus")) == ["historique-x"])
 check("2f B reste indépendant", run(LP.canaux_par_defaut(B)) == [cx_B])
+_cs = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "À supprimer"})["id"]
+run(LP.poser_canaux(p["id"], ["historique-x", _cs]))
+comptes.supprimer(_cs)
+check("2g compte supprimé depuis -> sauté par le défaut, sans erreur", run(LP.canaux_par_defaut("deepotus")) == ["historique-x"])
+run(LP.poser_canaux(p["id"], ["historique-x"]))
 
 print("[3] route PUT /api/library/projets/{pid}/canaux")
 from fastapi.testclient import TestClient                           # noqa: E402
@@ -155,6 +160,21 @@ with TestClient(app, client=("127.0.0.1", 50000)) as client:
     check("4i défaut périmé (compte d'un autre espace) -> 200, comptes vides, channels d'avant",
           r.status_code == 200 and r.json()["comptes"] == [] and r.json()["channels"] == ["x"], r.text[:200])
     _c.execute("UPDATE library_projects SET canaux=? WHERE id=?", (json.dumps([cx]), pid)); _c.commit(); _c.close()
+    # t307 (25/10/2026) : la LECTURE du défaut elle-même lève (base, fichier...) -> la création passe quand même
+    _vrai_defaut = LP.canaux_par_defaut
+    async def _defaut_qui_leve(eid):
+        raise RuntimeError("base illisible")
+    LP.canaux_par_defaut = _defaut_qui_leve
+    try:
+        r = post({"caption": "q"})
+    except Exception as e:  # noqa: BLE001 — l'erreur serveur remonte par le TestClient : c'est le FAIL attendu avant correctif
+        r = None; _err = repr(e)
+    finally:
+        LP.canaux_par_defaut = _vrai_defaut
+    check("4k lecture du défaut qui lève -> 200, comptes vides, channels d'avant",
+          r is not None and r.status_code == 200 and r.json()["comptes"] == [] and r.json()["channels"] == ["x"],
+          r.text[:200] if r is not None else _err)
+    check("4l comptes explicites invalides -> refus comme avant", post({"caption": "r", "comptes": [cx_B]}).status_code in (403, 404, 409))
 
 print("[4bis] agent : creer_brouillons")
 from app.services import agent_outils as AO, agent_store as AST       # noqa: E402
@@ -174,6 +194,24 @@ check("4f brouillon avec canaux -> gardés", l[1][1] == "telegram" and l[1][2] i
 check("4g le résumé le dit", "canaux du projet" in r["resume"], str(r)[:200])
 r, l = run(_brouillons(B, [dict(Q, titre="p1", caption="un")]))
 check("4h brouillon de l'espace B -> défaut de B", l[0][2] == f'["{cx_B}"]', str(l))
+# t307 (25/10/2026) 4j : un défaut périmé (compte d'un autre espace dans le JSON brut) ou une lecture qui lève ne bloque
+# jamais le brouillon de l'agent : il naît avec channels ["x"] et sans comptes
+_c = sqlite3.connect(BASE_DB)
+_c.execute("UPDATE library_projects SET canaux=? WHERE id=?", (json.dumps([cx_B]), pid)); _c.commit()
+r, l = run(_brouillons("deepotus", [dict(Q, titre="p1", caption="un")]))
+check("4j défaut périmé côté agent -> brouillon créé, ['x'], sans comptes",
+      r.get("ok") and len(l) == 1 and l[0][1] == "x" and l[0][2] is None, str((r, l))[:300])
+_c.execute("UPDATE library_projects SET canaux=? WHERE id=?", (json.dumps([cx]), pid)); _c.commit(); _c.close()
+_vrai_defaut = LP.canaux_par_defaut
+async def _defaut_qui_leve(eid):
+    raise RuntimeError("base illisible")
+LP.canaux_par_defaut = _defaut_qui_leve
+try:
+    r, l = run(_brouillons("deepotus", [dict(Q, titre="p1", caption="un")]))
+finally:
+    LP.canaux_par_defaut = _vrai_defaut
+check("4j' lecture du défaut qui lève côté agent -> brouillon créé, ['x'], sans comptes",
+      r.get("ok") and len(l) == 1 and l[0][1] == "x" and l[0][2] is None, str((r, l))[:300])
 
 _loop.close()
 print(f"\n{ok} passed, {fail} failed")

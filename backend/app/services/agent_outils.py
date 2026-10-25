@@ -608,13 +608,13 @@ async def creer_brouillons(ctx: Ctx, posts: list) -> dict:
     from app.services.marketing import apply_forbidden
     from app.services.storage import JobRecord, ScheduledPost, async_session_factory
     propres = []
-    # t307 : un post sans clé `canaux` prend les canaux du projet actif de l'espace de la campagne (une seule lecture)
+    # t307 (25/10/2026) : un post sans clé `canaux` prend les canaux du projet actif de l'espace de la campagne (une seule lecture)
     defaut_ids, defaut_plats = [], []
     if any(isinstance(p, dict) and "canaux" not in p for p in posts):
         from app.services import comptes as _cpt, library_projects as _lp
         try:
             vues = _cpt.verifier_cibles(eid, await _lp.canaux_par_defaut(eid))
-        except (KeyError, PermissionError, ValueError) as e:
+        except Exception as e:  # noqa: BLE001 — t307 (25/10/2026) : défaut périmé ou illisible, jamais bloquant
             from loguru import logger
             logger.warning(f"canaux du projet ignorés pour les brouillons de {eid} : {e}")
             vues = []

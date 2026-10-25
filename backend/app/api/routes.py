@@ -4359,15 +4359,13 @@ async def library_poser_canaux_projet(pid: str, request: Request):
         raise HTTPException(404, f"Projet inconnu : {pid}")
     ids = body.get("canaux")
     if not isinstance(ids, list) or not all(isinstance(i, str) and i.strip() for i in ids):
-        raise HTTPException(400, "comptes doit être une liste d'identifiants")
+        raise HTTPException(400, "canaux doit être une liste d'identifiants")
     try:
         return await LP.poser_canaux(pid, ids)
     except KeyError as e:
         raise HTTPException(404, f"compte inconnu : {e.args[0] if e.args else ''}")
     except PermissionError as e:
         raise HTTPException(409, str(e))
-    except ValueError as e:
-        raise HTTPException(400, str(e))
 
 
 @router.delete("/library/projets/{pid}")
@@ -8779,15 +8777,15 @@ async def create_scheduled_post(body: dict):
     if body.get("comptes"):
         _poser_comptes(p, body["comptes"])
     elif not body.get("channels"):
-        # t307 : ni comptes ni canaux donnés -> les canaux du projet actif de l'espace DU POST (une lecture)
+        # t307 (25/10/2026) : ni comptes ni canaux donnés -> les canaux du projet actif de l'espace DU POST (une lecture)
         from app.services import library_projects as _lp
-        ces = await _lp.canaux_par_defaut(p.espace_id)
-        if ces:
-            try:
+        try:
+            ces = await _lp.canaux_par_defaut(p.espace_id)
+            if ces:
                 _poser_comptes(p, ces)
-            except HTTPException as e:   # défaut périmé (compte changé d'espace...) : jamais bloquant, comme avant
-                logger.warning(f"canaux du projet ignorés pour un post de {p.espace_id} : {e.detail}")
-                p.comptes = None
+        except Exception as e:  # noqa: BLE001 — t307 (25/10/2026) : défaut périmé ou illisible, jamais bloquant
+            logger.warning(f"canaux du projet ignorés pour un post de {p.espace_id} : {getattr(e, 'detail', e)}")
+            p.comptes = None
     async with async_session_factory() as session:
         session.add(p)
         await session.commit()
