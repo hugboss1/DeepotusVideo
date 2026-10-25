@@ -18,6 +18,7 @@ ECRAN_DE_ZONE = {
     "cartes": "assets3d", "matiere": "assets3d", "studio3d": "assets3d", "etabli": "assets3d",
     "plateau": "assets3d", "avatar": "avatarlive", "vectorlab": "vectorlab", "photolab": "photolab",
     "reglages": "settings", "espaces": "settings", "transfert": "settings",
+    "projets": "library",                # t307 (25/10/2026) : les canaux d'un projet de la Bibliothèque
 }
 # préfixe « zone.objet » rattaché à un autre écran que sa zone (consulté AVANT ECRAN_DE_ZONE)
 ECRAN_DE_PREFIXE = {"avatar.noeud": "studio"}            # titres des nœuds avatar du graphe du Studio

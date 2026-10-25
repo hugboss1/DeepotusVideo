@@ -748,6 +748,22 @@ def test_vrai_catalogue_agent_campagnes():
                                               "campagnes.fil.", "campagnes.outil.", "agent.tiroir."))]
 
 
+def test_vrai_catalogue_canaux_projet():
+    """t307 (25/10/2026) : le bouton « Canaux » de la barre « Projet » (maillon dzcanaux, dans le bundle) et le bouton
+    « Enregistrer » de la boîte des canaux (frontend/shared/dz-projet-canaux.js) sont au catalogue, sur la Bibliothèque
+    (zone « projets ») ; ni les messages de la boîte, ni son « Annuler » commun."""
+    e = S.extraire(RACINE)
+    b = e.get("projets.canaux.bouton")
+    assert b and b["type"] == "bouton" and b["ecran"] == "library" and b["icone"] == "dz-action-publier"
+    assert b["infobulle"] and b["infobulle"]["fr"].startswith("Choisir les comptes")
+    s = e.get("projets.canaux.enregistrer")
+    assert s and s["type"] == "bouton" and s["ecran"] == "library"
+    assert s["sources"] == ["frontend/shared/dz-projet-canaux.js"]
+    assert not [k for k in e if k.startswith("projets.canaux.") and k not in ("projets.canaux.bouton",
+                                                                               "projets.canaux.enregistrer")]
+    assert "frontend/shared/dz-projet-canaux.js" not in (e.get("commun.action.annuler") or {}).get("sources", [])
+
+
 def test_deterministe(tmp_path):
     racine = _depot(tmp_path, ";".join(CAS.values()) + ";" + BUNDLE)
     a, b = S.extraire(racine), S.extraire(racine)
