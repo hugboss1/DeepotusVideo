@@ -10646,5 +10646,21 @@
  "mode de publication inconnu (valide_par_client ou publie_en_son_nom)": {
   "fr": "mode de publication inconnu (valide_par_client ou publie_en_son_nom)",
   "en": "unknown publication mode (valide_par_client or publie_en_son_nom)"
+ },
+ "pas d'appareil": {
+  "fr": "pas d'appareil",
+  "en": "no device"
+ },
+ "Anthropic flux coupé avant la fin": {
+  "fr": "Anthropic flux coupé avant la fin",
+  "en": "Anthropic stream cut before the end"
+ },
+ "Anthropic entrée d'outil illisible": {
+  "fr": "Anthropic entrée d'outil illisible",
+  "en": "Anthropic tool input unreadable"
+ },
+ "Anthropic flux — {v}": {
+  "fr": "Anthropic flux — {v}",
+  "en": "Anthropic stream — {v}"
  }
 }

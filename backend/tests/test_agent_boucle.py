@@ -149,7 +149,7 @@ async def main():
     check("lecture : évènement outil nommé et réussi",
           ev[0].get("nom") == "chercher_app" and ev[0].get("ok") is True and isinstance(ev[0].get("resume"), str),
           str(ev[0]))
-    check("lecture : texte final", ev[1].get("texte") == "Voilà ce que l'app sait faire.")
+    check("lecture : texte final", next(e for e in ev if e["type"] == "texte").get("texte") == "Voilà ce que l'app sait faire.")
     check("lecture : deux appels du modèle", len(s.corps) == 2)
     c0, c1 = s.corps
     check("lecture : corps (modèle, outils, sortie bornée, système)",
