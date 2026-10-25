@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "societe": "Boulangerie Lune SARL",
+  "contact": {
+    "nom": "Camille Martin",
+    "email": "camille@boulangerie-lune.example",
+    "whatsapp": "+33600000000"
+  },
+  "pays": "FR",
+  "langue": "fr",
+  "notes": "Publie le mardi et le vendredi.",
+  "mode_publication": "publie_en_son_nom",
+  "consentements": [
+    {
+      "canal_id": "instagram:17841400000",
+      "permis": [
+        "publier"
+      ],
+      "date": "2026-10-20T09:30:00",
+      "moyen": "doigt",
+      "revoque_le": null
+    },
+    {
+      "canal_id": "x:123",
+      "permis": [
+        "publier"
+      ],
+      "date": "2026-10-01T14:00:00",
+      "moyen": "ecrit",
+      "revoque_le": "2026-10-22T18:45:00"
+    }
+  ],
+  "journal": [
+    {
+      "quand": "2026-10-01T14:00:00",
+      "quoi": "consentement",
+      "canal_id": "x:123",
+      "qui": "utilisateur"
+    },
+    {
+      "quand": "2026-10-20T09:30:00",
+      "quoi": "consentement",
+      "canal_id": "instagram:17841400000",
+      "qui": "telephone"
+    },
+    {
+      "quand": "2026-10-22T18:45:00",
+      "quoi": "revocation",
+      "canal_id": "x:123",
+      "qui": "client"
+    }
+  ]
+}

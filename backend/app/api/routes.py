@@ -7975,11 +7975,15 @@ async def get_espace_actif():
 
 @router.post("/espaces")
 async def create_espace(body: dict, request: Request):
-    """Un espace neuf (nom, couleur ?, kit_id ?) : persona squelette, contenus vides, son propre kit sauf kit_id."""
+    """Un espace neuf (nom, couleur ?, kit_id ?, type ?, parent ?) : persona squelette, contenus vides, son propre kit
+    sauf kit_id. t306 (25/10/2026) : `type` = marque (défaut), produit ou client ; `parent` (marque ou client existant)
+    seulement pour un produit. 400 = entrée fautive, 409 = type de client à retirer alors que des consentements courent."""
     _require_localhost(request)
     from app.services import espaces as _es
     try:
         e = _es.creer(body if isinstance(body, dict) else {})
+    except _es.ConflitClient as e2:
+        raise HTTPException(409, str(e2))
     except ValueError as e2:
         raise HTTPException(400, str(e2))
     return {"espace": e, "espaces": _es.lister()}
@@ -8015,12 +8019,17 @@ async def export_espace(espace_id: str, request: Request):
 
 @router.post("/espaces/{espace_id}")
 async def update_espace(espace_id: str, body: dict, request: Request):
+    """Modifie nom, couleur, kit_id, plafond_usd et, t306 (25/10/2026), `type` et `parent` (mêmes règles qu'à la
+    création). 404 = espace inconnu, 409 = passer de client à un autre type alors que des consentements courent,
+    400 = entrée fautive."""
     _require_localhost(request)
     from app.services import espaces as _es
     try:
         e = _es.modifier(espace_id, body if isinstance(body, dict) else {})
     except KeyError:
         raise HTTPException(404, f"espace inconnu : {espace_id}")
+    except _es.ConflitClient as e2:
+        raise HTTPException(409, str(e2))
     except ValueError as e2:
         raise HTTPException(400, str(e2))
     return {"espace": e, "espaces": _es.lister()}
@@ -8086,6 +8095,44 @@ async def put_espace_persona(espace_id: str, body: dict, request: Request):
         raise HTTPException(404, f"espace inconnu : {espace_id}")
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+# ---- t306 (25/10/2026) : la FICHE CLIENT d'un espace de type client (contact, mode de publication, consentements
+# datés, journal). Lecture libre ; les écritures sont réservées au PC. Inconnu 404 ; pas un client ou entrée fautive 400.
+def _fiche_client(espace_id, appel):
+    from app.services import espaces as _es, fiche_client as _fc
+    if not _es.id_valide(espace_id) or espace_id not in _es.lire()["espaces"]:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    try:
+        return appel(_fc)
+    except KeyError:
+        raise HTTPException(404, "aucun consentement en cours pour ce canal")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/espaces/{espace_id}/client")
+async def get_espace_client(espace_id: str):
+    return _fiche_client(espace_id, lambda fc: fc.lire(espace_id))
+
+
+@router.put("/espaces/{espace_id}/client")
+async def put_espace_client(espace_id: str, body: dict, request: Request):
+    _require_localhost(request)
+    return _fiche_client(espace_id, lambda fc: fc.ecrire(espace_id, body))
+
+
+@router.post("/espaces/{espace_id}/client/consentements")
+async def post_espace_client_consentement(espace_id: str, body: dict, request: Request):
+    _require_localhost(request)
+    return _fiche_client(espace_id, lambda fc: fc.ajouter_consentement(
+        espace_id, body.get("canal_id"), body.get("permis"), body.get("moyen")))
+
+
+@router.post("/espaces/{espace_id}/client/consentements/revoquer")
+async def post_espace_client_revoquer(espace_id: str, body: dict, request: Request):
+    _require_localhost(request)
+    return _fiche_client(espace_id, lambda fc: fc.revoquer(espace_id, body.get("canal_id")))
 
 
 # ---- t205 (Espaces de marque E5) : l'ONBOARDING d'un persona (8 étapes, brouillon par espace). Lecture libre ;

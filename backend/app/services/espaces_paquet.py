@@ -25,7 +25,7 @@ import unicodedata
 import zipfile
 from datetime import datetime
 
-from app.services import brand_kits, comptes, contenus_espace, espaces, identite, onboarding_persona
+from app.services import brand_kits, comptes, contenus_espace, espaces, fiche_client, identite, onboarding_persona
 
 FORMAT = "deepotus-espace"
 VERSION = 1
@@ -33,7 +33,7 @@ MAX_ZIP = 40 * 1024 * 1024
 MAX_DECOMPRESSE = 120 * 1024 * 1024
 MAX_ENTREES = 60
 _JSONS = ("espace.json", "persona.json", "contenus.json", "onboarding.json", "comptes.json",
-          "identite/identite.json", "kit/kit.json")
+          "identite/identite.json", "kit/kit.json", "client.json")
 _IMAGE = re.compile(r"^identite/((?:logo|mascotte|produits)-[0-9a-f]{8}\.png)$")
 
 
@@ -69,7 +69,10 @@ def exporter(eid: str) -> tuple:
     e = doc["espaces"][eid]
     tete = {"format": FORMAT, "version": VERSION, "exporte_le": datetime.now().isoformat(timespec="seconds"),
             "source": eid, "espace": {"nom": e.get("nom") or eid, "couleur": e.get("couleur") or "#ef4444",
-                                      "plafond_usd": espaces.plafond_valide(e.get("plafond_usd"))}}
+                                      "plafond_usd": espaces.plafond_valide(e.get("plafond_usd")),
+                                      # t306 (25/10/2026) : le type et le parent voyagent (le parent n'est repris que s'il existe)
+                                      "type": e.get("type") if e.get("type") in espaces.TYPES else "marque",
+                                      "parent": e.get("parent") or None}}
     b = io.BytesIO()
     with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("espace.json", _json(tete))
@@ -95,6 +98,8 @@ def exporter(eid: str) -> tuple:
             if logo:
                 z.write(logo, "kit/logo.png")
         z.writestr("comptes.json", _json(_comptes_publics(eid)))
+        if tete["espace"]["type"] == "client":   # t306 : la fiche validée (contact, mode, consentements datés, journal)
+            z.writestr("client.json", _json(fiche_client.valider(fiche_client.lire(eid))))
     return b.getvalue(), f"espace-{_slug(tete['espace']['nom'])}-{datetime.now():%Y%m%d}.zip"
 
 
@@ -149,7 +154,44 @@ def _nom_libre(nom: str) -> str:
     return f"{nom} ({n})"[:espaces.MAX]
 
 
-def _preparer(pris: dict) -> dict:
+def _ecarts_fiche(brut, ignores: list) -> None:
+    """t306 : dit, une ligne française par cas, ce que `fiche_client.valider` écarte ou réécrit dans la fiche du paquet."""
+    d = brut if isinstance(brut, dict) else {}
+    mode = d.get("mode_publication")
+    if mode is not None and mode not in fiche_client.MODES:
+        ignores.append(f"client.json : mode de publication inconnu ({str(mode)[:40]}), remplacé par valide_par_client")
+    for i, x in enumerate(d.get("consentements") if isinstance(d.get("consentements"), list) else [], 1):
+        v = fiche_client.valider({"consentements": [x]})["consentements"]
+        if not v:
+            ignores.append(f"client.json : consentement n°{i} écarté (canal, permissions ou date invalides)")
+        elif x.get("moyen") not in fiche_client.MOYENS:
+            ignores.append(f"client.json : consentement n°{i} : moyen inconnu, remplacé par « ecrit »")
+    # t306 : plusieurs consentements en cours sur un même canal : le plus récent est gardé, les autres sont clos (dit).
+    actifs = {}
+    for i, x in enumerate(d.get("consentements") if isinstance(d.get("consentements"), list) else [], 1):
+        v = fiche_client.valider({"consentements": [x]})["consentements"]
+        if v and v[0]["revoque_le"] is None:
+            actifs.setdefault(v[0]["canal_id"], []).append((v[0]["date"], i))
+    for canal, lst in actifs.items():
+        gardee = max(lst)[1]
+        for _date, i in lst:
+            if i != gardee:
+                ignores.append(f"client.json : consentement n°{i} : un autre, plus récent (n°{gardee}), court déjà pour le canal "
+                               f"{canal}, celui-ci est clos")
+    for i, x in enumerate(d.get("journal") if isinstance(d.get("journal"), list) else [], 1):
+        v = fiche_client.valider({"journal": [x]})["journal"]
+        if not v:
+            ignores.append(f"client.json : ligne de journal n°{i} écartée (événement ou date invalides)")
+            continue
+        if x.get("canal_id") not in (None, "") and x.get("canal_id") != v[0]["canal_id"]:
+            ignores.append(f"client.json : ligne de journal n°{i} : canal invalide, retiré")
+        if x.get("qui") not in fiche_client.QUI:
+            ignores.append(f"client.json : ligne de journal n°{i} : auteur inconnu, remplacé par « utilisateur »")
+    if len(d.get("journal") if isinstance(d.get("journal"), list) else []) > fiche_client.MAX_JOURNAL:
+        ignores.append(f"client.json : journal tronqué aux {fiche_client.MAX_JOURNAL} lignes les plus récentes")
+
+
+def _preparer(pris: dict, ignores: list) -> dict:
     """Valide TOUT le paquet sans rien écrire. Rend ce qu'il faut écrire."""
     tete = _charger(pris, "espace.json")
     if not isinstance(tete, dict) or tete.get("format") != FORMAT:
@@ -160,6 +202,26 @@ def _preparer(pris: dict) -> dict:
     nom = espaces._nom(e.get("nom"))
     couleur = espaces._couleur(e.get("couleur"), "#ef4444")
     plan = {"nom": nom, "couleur": couleur, "plafond_usd": espaces.plafond_valide(e.get("plafond_usd"))}
+    # t306 : type et parent. Type inconnu = marque ; parent absent de CETTE instance (ou refusé par les règles) = retiré, dit.
+    type_ = e.get("type") if e.get("type") in espaces.TYPES else "marque"
+    if e.get("type") is not None and e.get("type") not in espaces.TYPES:
+        ignores.append(f"type d'espace inconnu ({str(e.get('type'))[:30]}) : repris comme marque")
+    parent = None
+    if e.get("parent"):
+        try:
+            parent = espaces._parent_valide(espaces.lire(), type_, e.get("parent"))
+        except ValueError:
+            ignores.append(f"parent {str(e.get('parent'))[:40]} absent de cette installation ou refusé : retiré")
+    plan["type"], plan["parent"] = type_, parent
+    fiche = _charger(pris, "client.json")
+    plan["fiche"] = None
+    if type_ == "client":
+        if fiche is not None and not isinstance(fiche, dict):
+            raise ValueError("paquet d'espace : client.json illisible")
+        _ecarts_fiche(fiche, ignores)
+        plan["fiche"] = fiche_client.valider(fiche)
+    elif fiche is not None:
+        ignores.append("client.json : ignoré (l'espace n'est pas un client)")
     persona = _charger(pris, "persona.json")
     if persona is None:
         raise ValueError("paquet d'espace : persona.json manquant")
@@ -235,10 +297,11 @@ def _retirer_espace(eid: str) -> None:
 def importer(data: bytes) -> dict:
     """Crée un espace NEUF depuis un paquet. ValueError = paquet refusé, rien d'écrit (ou tout défait)."""
     pris, ignores = _lire_zip(data)
-    plan = _preparer(pris)
+    plan = _preparer(pris, ignores)
     if len(espaces.lire()["espaces"]) >= espaces.MAX_ESPACES:
         raise ValueError(f"{espaces.MAX_ESPACES} espaces au plus : archivez-en ou supprimez-en un d'abord")
-    vue = espaces.creer({"nom": _nom_libre(plan["nom"]), "couleur": plan["couleur"]})
+    vue = espaces.creer({"nom": _nom_libre(plan["nom"]), "couleur": plan["couleur"], "type": plan["type"],
+                         "parent": plan["parent"]})
     eid, crees, kid = vue["id"], [], None
     try:
         if plan["plafond_usd"]:
@@ -259,6 +322,9 @@ def importer(data: bytes) -> dict:
                 (brand_kits.dossier() / "logos").mkdir(parents=True, exist_ok=True)
                 (brand_kits.dossier() / "logos" / f"{kid}.png").write_bytes(k["logo"])
             espaces.modifier(eid, {"kit_id": kid})
+        if plan["fiche"] is not None:    # t306 : la fiche, puis une ligne `import` au journal
+            fiche_client._poser(eid, plan["fiche"])
+            fiche_client.noter(eid, "import", "", "utilisateur")
         ressaisir = []
         for c in plan["comptes"]:
             v = comptes.creer({"espace_id": eid, "plateforme": c["plateforme"], "libelle": c["libelle"],

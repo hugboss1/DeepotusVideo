@@ -29,13 +29,20 @@ from app.services import brand_kits
 
 MAX = 60
 MAX_ESPACES = 50
-FICHIERS = ("persona.json", "contenus.json")
+FICHIERS = ("persona.json", "contenus.json", "client.json")   # t306 : client.json = la fiche d'un espace client
 _ICI = Path(__file__).resolve().parent.parent
 PERSONA_LIVRE = _ICI / "personas" / "deepotus.json"
 GRAINE_DEEPOTUS = _ICI / "espaces" / "deepotus_contenus.json"
 CONTENUS_VIDES = {"version": 1, "prompt_templates": [], "prompt_cats": [], "ingredients": {}, "vibes": []}
 _COULEUR = re.compile(r"^#[0-9a-fA-F]{6}$")
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
+# t306 (25/10/2026) : le TYPE d'un espace. Absent du JSON = « marque » (jamais réécrit). Un produit peut avoir un parent
+# (une marque ou un client) ; `client_responsable` dit quel client gouverne un espace.
+TYPES = ("marque", "produit", "client")
+
+
+class ConflitClient(ValueError):
+    """t306 : passer de « client » à un autre type est refusé tant que des consentements courent (la route dit 409)."""
 
 
 def dossier() -> Path:
@@ -122,6 +129,7 @@ def lire() -> dict:
 
 def _vue(eid: str, e: dict, actif: str) -> dict:
     return {"id": eid, "nom": e.get("nom") or eid, "couleur": e.get("couleur") or "#ef4444",
+            "type": e.get("type") if e.get("type") in TYPES else "marque", "parent": e.get("parent") or None,
             "kit_id": e.get("kit_id"), "archive": bool(e.get("archive")), "created_at": e.get("created_at"),
             "actif": eid == actif, "plafond_usd": plafond_valide(e.get("plafond_usd"))}
 
@@ -180,6 +188,39 @@ def _couleur(v, defaut: str) -> str:
     return v.strip()
 
 
+def _type_valide(v) -> str:
+    """t306 : le type demandé, ou ValueError s'il n'est pas dans TYPES."""
+    if v not in TYPES:
+        raise ValueError(f"type d'espace inconnu : {v} (marque, produit ou client)")
+    return v
+
+
+def _parent_valide(doc: dict, type_: str, parent, eid: str | None = None) -> str | None:
+    """t306 : le parent d'un espace de type `type_`. Seul un produit en a un ; il doit exister (archivé ou non) et être
+    une marque ou un client. None / vide = pas de parent. ValueError sinon."""
+    if parent in (None, ""):
+        return None
+    if type_ != "produit":
+        raise ValueError("seul un produit peut avoir un parent")
+    if eid is not None and parent == eid:
+        raise ValueError("un espace ne peut pas être son propre parent")
+    if not isinstance(parent, str) or parent not in doc["espaces"]:
+        raise ValueError(f"parent inconnu : {parent}")
+    if _vue(parent, doc["espaces"][parent], doc["actif"])["type"] not in ("marque", "client"):
+        raise ValueError("le parent d'un produit est une marque ou un client")
+    return parent
+
+
+def _consentements_en_cours(eid: str) -> list:
+    """t306 : les consentements qui courent pour le client `eid` (lus dans sa fiche) ; vide pour un espace qui n'est pas
+    un client ou dont la fiche manque."""
+    from app.services import fiche_client      # import local : fiche_client importe espaces
+    try:
+        return fiche_client.consentements_en_cours(eid)
+    except (KeyError, ValueError):
+        return []
+
+
 def creer(champs: dict) -> dict:
     """Un espace neuf, NON actif : persona squelette a son nom, contenus vides, et son propre kit (sauf kit_id
     existant donne). ValueError = entree fautive, dite."""
@@ -193,12 +234,15 @@ def creer(champs: dict) -> dict:
     kit = champs.get("kit_id") or None
     if kit is not None and kit not in brand_kits.lire()["kits"]:
         raise ValueError(f"kit inconnu : {kit}")
+    type_ = _type_valide(champs["type"]) if champs.get("type") is not None else "marque"      # t306
+    parent = _parent_valide(doc, type_, champs.get("parent"))
     eid = "esp_" + uuid.uuid4().hex[:8]
     _ecrire_json(dossier() / eid / "persona.json", {
         "persona_id": eid, "display_name": nom, "version": 2, "vibe_keywords": [], "default_negative_prompt": "",
         "default_hashtags_pool": [], "templates": []})
     _ecrire_json(dossier() / eid / "contenus.json", CONTENUS_VIDES)
-    doc["espaces"][eid] = {"nom": nom, "couleur": couleur, "kit_id": kit, "archive": False, "created_at": _maintenant()}
+    doc["espaces"][eid] = {"nom": nom, "couleur": couleur, "kit_id": kit, "archive": False, "created_at": _maintenant(),
+                           "type": type_, "parent": parent}
     _ecrire(doc)
     return _vue(eid, doc["espaces"][eid], doc["actif"])
 
@@ -218,8 +262,37 @@ def modifier(eid: str, champs: dict) -> dict:
         e["kit_id"] = champs["kit_id"] or None
     if "plafond_usd" in champs:                # t209 : 0 = aucun plafond propre à l'espace
         e["plafond_usd"] = plafond_valide(champs.get("plafond_usd"))
+    if "type" in champs or "parent" in champs:  # t306 (25/10/2026) : type et parent, mêmes règles qu'à la création
+        avant = _vue(eid, e, doc["actif"])
+        type_ = _type_valide(champs["type"]) if champs.get("type") is not None else avant["type"]
+        if type_ != avant["type"]:
+            if avant["type"] == "client" and _consentements_en_cours(eid):
+                raise ConflitClient("des consentements courent pour ce client : révoquez-les avant de changer son type")
+            if type_ == "produit" and any(_vue(k, v, doc["actif"])["parent"] == eid for k, v in doc["espaces"].items()):
+                raise ValueError("des produits dépendent de cet espace : il ne peut pas devenir un produit")
+        parent = champs["parent"] if "parent" in champs else (avant["parent"] if type_ == "produit" else None)
+        e["type"] = type_
+        e["parent"] = _parent_valide(doc, type_, parent, eid)
     _ecrire(doc)
     return _vue(eid, e, doc["actif"])
+
+
+def client_responsable(eid: str | None = None) -> str | None:
+    """t306 : le client qui gouverne l'espace `eid` (courant par défaut) : lui-même s'il est de type client, sinon son
+    parent s'il est de type client (même archivé), sinon None. Aucune écriture."""
+    doc = lire()
+    eid = eid if eid is not None else espace_courant()
+    e = doc["espaces"].get(eid) if isinstance(eid, str) else None
+    if e is None:
+        return None
+    v = _vue(eid, e, doc["actif"])
+    if v["type"] == "client":
+        return eid
+    # t306 (25/10/2026) : le parent ne compte que pour un PRODUIT (un `parent` posé à la main sur une marque est ignoré).
+    p = doc["espaces"].get(v["parent"]) if v["type"] == "produit" and v["parent"] else None
+    if p is not None and _vue(v["parent"], p, doc["actif"])["type"] == "client":
+        return v["parent"]
+    return None
 
 
 def activer(eid: str) -> dict:
