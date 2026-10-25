@@ -161,6 +161,11 @@ with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
     check("E5 le lot de l'autre appareil ne montre PAS les posts confies au premier", {p["id"] for p in l2.get("posts", [])} == {"p-du-libre", "p-auto-du"},
           str([p["id"] for p in l2.get("posts", [])]))
     check("E6 sans jeton, l'ecriture d'etat est refusee (401)", lan.post("/api/sync/lot/etat", json={"rapports": []}).status_code == 401)
+    e7 = lan.post("/api/sync/lot/etat", headers=H, json={"rapports": [{"id": "p-du-libre", "statut": s} for s in ("posted", "failed", "rendu")]})
+    check("E7 un appareil ne rapporte (posted, failed, rendu) que SES posts : un post libre, jamais emporte, est refuse en le disant (mutations_appairage n°20)",
+          e7.status_code == 200 and e7.json().get("appliques") == [] and len(e7.json().get("conflits", [])) == 3
+          and all("emportez" in c.get("raison", "") for c in e7.json().get("conflits", []))
+          and ligne("p-du-libre")[0] == "scheduled" and ligne("p-du-libre")[1] is None, e7.text[:300])
 
     print("\n[S] le Scheduler du PC ne publie PAS un post confie")
     from app.services import marketing
