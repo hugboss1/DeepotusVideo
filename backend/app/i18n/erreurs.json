@@ -2211,7 +2211,6 @@
   "erreur.cdc11f9c05": {"fr": "Region {rid} : text_curve.dir est haut ou bas.", "en": "Region {rid}: text_curve.dir is haut or bas.", "src": "fr"},
   "erreur.cdc407ba48": {"fr": "Le nombre d'images par seconde doit etre un entier", "en": "The frame rate must be an integer", "src": "fr"},
   "erreur.cdcfb5197c": {"fr": "Les .exr ne sont pas lus : le format admet une dizaine de compressions différentes et aucune bibliothèque n'est embarquée. Réexportez en .hdr (Radiance).", "en": ".exr files are not read: the format allows a dozen different compressions and no library is bundled. Re-export as .hdr (Radiance).", "src": "fr"},
-  "erreur.cdddcf594c": {"fr": "Anthropic réponse illisible — {v}", "en": "Anthropic response unreadable — {v}", "src": "fr"},
   "erreur.cded07c982": {"fr": "Rendu introuvable.", "en": "Render not found.", "src": "fr"},
   "erreur.cdf7f2b6fb": {"fr": "{quoi}: la matiere {mid} n'a pas de couleur de base (basecolor)", "en": "{quoi}: material {mid} has no base color (basecolor)", "src": "fr"},
   "erreur.ce03331e2b": {"fr": "{cid} : {cle}.{k} : clé inconnue (inBlack, gamma, inWhite, outBlack, outWhite)", "en": "{cid}: {cle}.{k}: unknown key (inBlack, gamma, inWhite, outBlack, outWhite)", "src": "fr"},

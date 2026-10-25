@@ -10459,10 +10459,6 @@
   "fr": "état de porte inconnu : {etat}",
   "en": "unknown gate state: {etat}"
  },
- "Anthropic réponse illisible — {v}": {
-  "fr": "Anthropic réponse illisible — {v}",
-  "en": "Anthropic response unreadable — {v}"
- },
  "Conversation introuvable.": {
   "fr": "Conversation introuvable.",
   "en": "Conversation not found."

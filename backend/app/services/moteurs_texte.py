@@ -613,7 +613,39 @@ async def tirer_garde(moteur: str, modele: str, prompt: str, systeme: str, max_t
 # Spec docs/superpowers/specs/2026-10-23-agent-interne-design.md § 4.1. `tirer` rend du texte ; l'agent a besoin des
 # blocs `tool_use`. UN tour = UN POST sur l'API Messages (httpx, pas de SDK) ; la boucle (T6) l'enchaîne. La couture
 # `_POSTER` est remplacée par les bancs : jamais d'appel payant dans un banc.
-_POSTER = httpx.post
+# L4.1 T3 : le POST est LU EN FLUX (`stream: true`, SSE d'Anthropic) pour que le texte parte à mesure ; la couture
+# rend donc une réponse à `status_code`, `text` et `iter_lines()` (les bancs : tests/_faux_sse.py).
+class _ReponseFlux:
+    """La réponse httpx en flux, avec son client : `close()` rend les deux. Un statut ≠ 200 est lu en entier."""
+    def __init__(self, client, rep):
+        self._client, self._rep = client, rep
+        self.status_code = rep.status_code
+        if rep.status_code != 200:
+            rep.read()
+        self.text = rep.text if rep.status_code != 200 else ""
+
+    def iter_lines(self):
+        return self._rep.iter_lines()
+
+    def close(self):
+        try:
+            self._rep.close()
+        finally:
+            self._client.close()
+
+
+def _poster_flux(url: str, headers: dict | None = None, json: dict | None = None, timeout: float = 120.0,
+                 verify=True) -> _ReponseFlux:
+    client = httpx.Client(timeout=timeout, verify=verify)
+    try:
+        req = client.build_request("POST", url, headers=headers, json=json)
+        return _ReponseFlux(client, client.send(req, stream=True))
+    except BaseException:
+        client.close()
+        raise
+
+
+_POSTER = _poster_flux
 _MODELE_AGENT_SECOURS = "claude-haiku-4-5-20251001"          # le défaut de ANTHROPIC_MODEL dans config.py
 
 
@@ -651,15 +683,103 @@ def op_tour(modele: str, in_tok: int, out_tok: int) -> dict:
             "in_tok": int(max(0, in_tok)), "out_tok": int(max(0, out_tok))}
 
 
+class FluxCoupe(RuntimeError):
+    """Le flux s'est arrêté avant `message_stop` (ou Anthropic a envoyé un évènement `error`) : aucun bloc n'est rendu.
+    `in_tok` / `out_tok` : l'usage déjà annoncé par le flux, pour que la boucle note ce qui a pu être facturé."""
+    def __init__(self, msg: str, in_tok: int = 0, out_tok: int = 0):
+        super().__init__(msg)
+        self.in_tok, self.out_tok = in_tok, out_tok
+
+
+def _lire_flux(lignes, sur_delta=None, cle: str = "") -> dict:
+    """Lit les évènements SSE d'un message Anthropic → {"blocs", "arret", "in_tok", "out_tok"}. `message_start` donne
+    l'entrée, `content_block_*` les blocs (`text_delta` → `sur_delta(texte)` à mesure ; `input_json_delta` recollé par
+    bloc `tool_use`), `message_delta` l'arrêt et la sortie, `message_stop` clôt. `ping` est ignoré. Un flux qui finit
+    avant `message_stop`, ou un évènement `error` : FluxCoupe."""
+    blocs: dict[int, dict] = {}
+    morceaux: dict[int, list[str]] = {}
+    arret, in_tok, out_tok, fini = "", 0, 0, False
+    for ligne in lignes:
+        ligne = (ligne.decode("utf-8", "replace") if isinstance(ligne, bytes) else str(ligne or "")).strip()
+        if not ligne.startswith("data:"):
+            continue
+        try:
+            e = _json.loads(ligne[5:].strip())
+        except ValueError:
+            continue
+        if not isinstance(e, dict):
+            continue
+        t = e.get("type")
+        if t == "message_start":
+            u = (e.get("message") or {}).get("usage") or {}
+            in_tok, out_tok = int(u.get("input_tokens") or 0), int(u.get("output_tokens") or 0)
+        elif t == "content_block_start":
+            b = dict(e.get("content_block") or {})
+            i = int(e.get("index") or 0)
+            if b.get("type") == "text":
+                b["text"] = str(b.get("text") or "")
+                if b["text"] and sur_delta:
+                    sur_delta(b["text"])
+            blocs[i], morceaux[i] = b, []
+        elif t == "content_block_delta":
+            i = int(e.get("index") or 0)
+            d = e.get("delta") or {}
+            b = blocs.get(i)
+            if b is None:
+                continue
+            if d.get("type") == "text_delta":
+                s = str(d.get("text") or "")
+                b["text"] = str(b.get("text") or "") + s
+                if s and sur_delta:
+                    sur_delta(s)
+            elif d.get("type") == "input_json_delta":
+                morceaux[i].append(str(d.get("partial_json") or ""))
+            elif d.get("type") == "thinking_delta":
+                b["thinking"] = str(b.get("thinking") or "") + str(d.get("thinking") or "")
+            elif d.get("type") == "signature_delta":
+                b["signature"] = str(b.get("signature") or "") + str(d.get("signature") or "")
+        elif t == "message_delta":
+            arret = str((e.get("delta") or {}).get("stop_reason") or arret)
+            u = e.get("usage") or {}
+            if u.get("output_tokens") is not None:
+                out_tok = int(u.get("output_tokens") or 0)
+            if u.get("input_tokens"):
+                in_tok = int(u.get("input_tokens") or 0)
+        elif t == "message_stop":
+            fini = True
+            break
+        elif t == "error":
+            m = str((e.get("error") or {}).get("message") or e.get("error") or "erreur du flux")
+            if cle:
+                m = m.replace(cle, "***")
+            raise FluxCoupe(f"Anthropic flux — {m[:200]}", in_tok, out_tok)
+    if not fini:
+        raise FluxCoupe("Anthropic flux coupé avant la fin", in_tok, out_tok)
+    out = []
+    for i in sorted(blocs):
+        b = blocs[i]
+        if b.get("type") == "tool_use":
+            brut = "".join(morceaux[i]).strip()
+            try:
+                b["input"] = _json.loads(brut) if brut else {}
+            except ValueError:
+                if arret != "max_tokens":                      # entrée coupée : tolérée seulement si le tour est tronqué
+                    raise FluxCoupe("Anthropic entrée d'outil illisible", in_tok, out_tok)
+                b["input"] = {}
+        out.append(b)
+    return {"blocs": out, "arret": arret, "in_tok": in_tok, "out_tok": out_tok}
+
+
 def converser(modele: str, systeme: str, messages: list[dict], outils: list[dict], max_tokens: int,
-              timeout: float = 120.0) -> dict:
-    """Un tour de l'API Messages d'Anthropic avec outils → {"blocs": [...], "arret": stop_reason, "in_tok", "out_tok"}.
-    Sans clé : RuntimeError("sans_cle"), rien n'est envoyé. Statut ≠ 200 : RuntimeError au corps rogné, la clé en est
-    ôtée (jamais dans un message, un journal ou un retour)."""
+              timeout: float = 120.0, sur_delta=None) -> dict:
+    """Un tour de l'API Messages d'Anthropic avec outils, LU EN FLUX → {"blocs": [...], "arret": stop_reason, "in_tok",
+    "out_tok"}. `sur_delta(texte)` reçoit chaque morceau de texte à mesure (appelé dans le fil de l'appel). Sans clé :
+    RuntimeError("sans_cle"), rien n'est envoyé. Statut ≠ 200 ou flux coupé : RuntimeError au corps rogné, la clé en
+    est ôtée (jamais dans un message, un journal ou un retour)."""
     cle = str(getattr(settings, "ANTHROPIC_API_KEY", "") or "").strip()
     if not cle:
         raise RuntimeError("sans_cle")
-    body: dict = {"model": modele, "max_tokens": max_tokens, "messages": messages}
+    body: dict = {"model": modele, "max_tokens": max_tokens, "messages": messages, "stream": True}
     if systeme:
         body["system"] = systeme
     if outils:
@@ -667,14 +787,12 @@ def converser(modele: str, systeme: str, messages: list[dict], outils: list[dict
     r = _POSTER("https://api.anthropic.com/v1/messages",
                 headers={"x-api-key": cle, "anthropic-version": "2023-06-01", "content-type": "application/json"},
                 json=body, timeout=timeout, verify=SSL_VERIFY)
-    if r.status_code != 200:
-        texte = str(r.text or "").replace(cle, "***")
-        raise RuntimeError(f"Anthropic HTTP {r.status_code} — {texte[:200]}")
     try:
-        d = r.json() or {}
-    except Exception:  # noqa: BLE001 - corps 200 non JSON (proxy, page d'erreur)
-        texte = str(getattr(r, "text", "") or "").replace(cle, "***")
-        raise RuntimeError(f"Anthropic réponse illisible — {texte[:200]}")
-    u = d.get("usage") or {}
-    return {"blocs": list(d.get("content") or []), "arret": d.get("stop_reason") or "",
-            "in_tok": int(u.get("input_tokens") or 0), "out_tok": int(u.get("output_tokens") or 0)}
+        if r.status_code != 200:
+            texte = str(r.text or "").replace(cle, "***")
+            raise RuntimeError(f"Anthropic HTTP {r.status_code} — {texte[:200]}")
+        return _lire_flux(r.iter_lines(), sur_delta, cle)
+    finally:
+        fermer = getattr(r, "close", None)
+        if callable(fermer):
+            fermer()
