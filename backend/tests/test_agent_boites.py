@@ -3,10 +3,12 @@
 Ce que ce banc garde, par sections numérotées :
   1. Compatibilité : l'agent Campagnes voit exactement les dix outils figés à e0d6e51e
      (fixture agent_definitions_campagnes.json, écrite par _agent_definitions_capture.py).
-Les sections 2 à 4 arrivent avec les tâches 2 à 3 du lot A0.
+  2. Invariants des boîtes (registre sain, une boîte par outil, natures connues, Campagnes inchangé, paquet mobile).
+  3. Le refus hors boîte : un outil hors de la boîte de l'agent du tour est refusé par executer.
+La section 4 arrive avec la tâche 3 du lot A0.
 Données isolées (DEEPOTUS_DATA_DIR temporaire), clés vidées, rien de payé.
 Run (depuis backend/) : & $PY tests/test_agent_boites.py"""
-import json, os, pathlib, sys, tempfile
+import asyncio, json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzboites_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
@@ -38,6 +40,24 @@ print("[1] compatibilite : Campagnes voit les memes outils qu'a e0d6e51e")
 fige = json.loads((_ICI / "agent_definitions_campagnes.json").read_text(encoding="utf-8"))
 check("1a definitions() inchangees a l'octet", ao.definitions() == fige)
 check("1b dix outils", len(fige) == 10)
+
+from app.services import agent_boites as B                          # noqa: E402
+
+print("\n[2] invariants des boites")
+check("2a registre sain", B.verifier() == [], B.verifier())
+check("2b chaque outil a exactement une boite",
+      all(sum(o in b["outils"] for b in B.BOITES.values()) == 1 for o in ao.OUTILS))
+check("2c natures connues", all(ao.OUTILS[o]["nature"] in B.NATURES for b in B.BOITES.values() for o in b["outils"]))
+check("2d Campagnes inchange via les boites", B.definitions_pour("campagnes") == fige)
+check("2e agent inconnu = aucun outil", B.definitions_pour("personne") == [])
+check("2f paquet mobile", [b["id"] for b in B.paquet_mobile()] == ["campagnes"]
+      and B.paquet_mobile()[0]["outils"] == fige)
+
+print("\n[3] le refus hors boite")
+r = asyncio.run(ao.executer("lire_espace", {}, ao.Ctx(cid="c1", agent="whatsapp")))
+check("3a outil hors de la boite refuse", r["ok"] is False and "boîte" in r["resume"], r)
+r = asyncio.run(ao.executer("chercher_app", {"question": "vectorlab"}, ao.Ctx(cid="c1")))
+check("3b Campagnes garde ses outils", r["ok"] is True, r)
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)
