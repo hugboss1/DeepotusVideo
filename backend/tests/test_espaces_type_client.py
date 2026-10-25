@@ -165,5 +165,13 @@ w = [lan.put(ENT % cl["id"], json={"societe": "Pirate"}, headers=jeton),
 check("4k reseau local avec jeton : ecritures 403", [x.status_code for x in w] == [403, 403, 403], str([x.status_code for x in w]))
 check("4l rien n'a ete ecrit", F.lire(cl["id"])["societe"] == "Soleil SA" and len(F.lire(cl["id"])["consentements"]) == 1)
 
+check("4m canal_id de la plateforme x accepte, ':123' refuse", bool(F.CANAL_ID.match("x:123")) and not F.CANAL_ID.match(":123")
+      and not F.CANAL_ID.match("x 123"))
+F.ajouter_consentement(cl["id"], "x:123", ["publier"], "ecrit")
+check("4n consentement x:123 ajoute (le precedent etait revoque)", F.consentement_en_cours(cl["id"], "x:123"))
+check("4o second consentement en cours sur le meme canal refuse", _leve(ValueError, F.ajouter_consentement, cl["id"], "x:123", ["publier"], "doigt"))
+check("4p permis : vide, trop long, mot invalide refuses", all(_leve(ValueError, F.ajouter_consentement, cl["id"], "tiktok:1", p, "ecrit")
+      for p in ([], ["a"] * 11, ["Publier!"], "publier")))
+
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

@@ -14,7 +14,7 @@ import threading
 
 from app.services import espaces as _es
 
-CANAL_ID = re.compile(r"^[a-z_]{2,20}:[A-Za-z0-9_.@-]{1,120}$")
+CANAL_ID = re.compile(r"^[a-z_]{1,20}:[A-Za-z0-9_.@-]{1,120}$")
 MODES = ("valide_par_client", "publie_en_son_nom")
 MODE_DEFAUT = "valide_par_client"
 MOYENS = ("ecrit", "whatsapp", "doigt")

@@ -21,7 +21,7 @@
       "revoque_le": null
     },
     {
-      "canal_id": "facebook:123",
+      "canal_id": "x:123",
       "permis": [
         "publier"
       ],
@@ -34,7 +34,7 @@
     {
       "quand": "2026-10-01T14:00:00",
       "quoi": "consentement",
-      "canal_id": "facebook:123",
+      "canal_id": "x:123",
       "qui": "utilisateur"
     },
     {
@@ -46,7 +46,7 @@
     {
       "quand": "2026-10-22T18:45:00",
       "quoi": "revocation",
-      "canal_id": "facebook:123",
+      "canal_id": "x:123",
       "qui": "client"
     }
   ]
