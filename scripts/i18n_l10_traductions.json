@@ -10578,5 +10578,69 @@
  "des consentements courent pour ce client : retirez-les avant de changer son type": {
   "fr": "des consentements courent pour ce client : retirez-les avant de changer son type",
   "en": "consents are in progress for this client: remove them before changing its type"
+ },
+ "aucun consentement en cours pour ce canal": {
+  "fr": "aucun consentement en cours pour ce canal",
+  "en": "no consent is currently active for this channel"
+ },
+ "cet espace n'est pas un client": {
+  "fr": "cet espace n'est pas un client",
+  "en": "this space is not a client"
+ },
+ "événement de journal inconnu": {
+  "fr": "événement de journal inconnu",
+  "en": "unknown journal event"
+ },
+ "auteur de journal inconnu": {
+  "fr": "auteur de journal inconnu",
+  "en": "unknown journal author"
+ },
+ "un objet est attendu": {
+  "fr": "un objet est attendu",
+  "en": "an object is expected"
+ },
+ "consentements et journal ne se modifient pas ici : ils ont leurs propres gestes": {
+  "fr": "consentements et journal ne se modifient pas ici : ils ont leurs propres gestes",
+  "en": "consents and journal cannot be edited here: they have their own actions"
+ },
+ "identifiant de canal invalide (forme attendue : plateforme:identifiant)": {
+  "fr": "identifiant de canal invalide (forme attendue : plateforme:identifiant)",
+  "en": "invalid channel identifier (expected form: platform:identifier)"
+ },
+ "permissions invalides : une liste de mots (publier…) est attendue": {
+  "fr": "permissions invalides : une liste de mots (publier…) est attendue",
+  "en": "invalid permissions: a list of words (publier…) is expected"
+ },
+ "moyen de consentement inconnu (ecrit, whatsapp ou doigt)": {
+  "fr": "moyen de consentement inconnu (ecrit, whatsapp ou doigt)",
+  "en": "unknown consent method (ecrit, whatsapp or doigt)"
+ },
+ "un consentement court déjà pour ce canal": {
+  "fr": "un consentement court déjà pour ce canal",
+  "en": "a consent is already active for this channel"
+ },
+ "valeur invalide : un texte est attendu": {
+  "fr": "valeur invalide : un texte est attendu",
+  "en": "invalid value: text is expected"
+ },
+ "contact : un objet est attendu": {
+  "fr": "contact : un objet est attendu",
+  "en": "contact: an object is expected"
+ },
+ "pays invalide : un code à deux lettres (ISO 3166) est attendu": {
+  "fr": "pays invalide : un code à deux lettres (ISO 3166) est attendu",
+  "en": "invalid country: a two-letter code (ISO 3166) is expected"
+ },
+ "langue inconnue (fr ou en)": {
+  "fr": "langue inconnue (fr ou en)",
+  "en": "unknown language (fr or en)"
+ },
+ "notes : 4000 caractères au plus": {
+  "fr": "notes : 4000 caractères au plus",
+  "en": "notes: 4000 characters at most"
+ },
+ "mode de publication inconnu (valide_par_client ou publie_en_son_nom)": {
+  "fr": "mode de publication inconnu (valide_par_client ou publie_en_son_nom)",
+  "en": "unknown publication mode (valide_par_client or publie_en_son_nom)"
  }
 }

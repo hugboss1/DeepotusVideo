@@ -29,7 +29,7 @@ from app.services import brand_kits
 
 MAX = 60
 MAX_ESPACES = 50
-FICHIERS = ("persona.json", "contenus.json")
+FICHIERS = ("persona.json", "contenus.json", "client.json")   # t306 : client.json = la fiche d'un espace client
 _ICI = Path(__file__).resolve().parent.parent
 PERSONA_LIVRE = _ICI / "personas" / "deepotus.json"
 GRAINE_DEEPOTUS = _ICI / "espaces" / "deepotus_contenus.json"
@@ -212,9 +212,13 @@ def _parent_valide(doc: dict, type_: str, parent, eid: str | None = None) -> str
 
 
 def _consentements_en_cours(eid: str) -> list:
-    """t306 : les consentements qui courent pour le client `eid`. Vide pour l'instant (branché sur fiche_client en t306
-    tâche 5)."""
-    return []
+    """t306 : les consentements qui courent pour le client `eid` (lus dans sa fiche) ; vide pour un espace qui n'est pas
+    un client ou dont la fiche manque."""
+    from app.services import fiche_client      # import local : fiche_client importe espaces
+    try:
+        return fiche_client.consentements_en_cours(eid)
+    except (KeyError, ValueError):
+        return []
 
 
 def creer(champs: dict) -> dict:

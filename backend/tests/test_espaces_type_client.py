@@ -3,7 +3,7 @@
 CLIENT RESPONSABLE. Ce que ce banc garde : l'absence de `type` dans espaces.json vaut « marque » sans reecriture ;
 un parent n'existe que pour un produit, et c'est une marque ou un client existant ; le client responsable d'un
 espace est lui-meme (client) ou son parent client, MEME ARCHIVE, sinon rien. Data-dir isole, rien de paye.
-Sections : 1 type et parent, 2 client responsable (3-5 : fiche client, consentements, routes — taches 5 et 6).
+Sections : 1 type et parent, 2 client responsable, 3 fiche client et consentements, 4 routes.
 Run (depuis backend/) : & $PY tests/test_espaces_type_client.py"""
 import json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -95,6 +95,75 @@ check("2b produit -> son client", E.client_responsable(p["id"]) == c["id"])
 check("2c marque -> aucun", E.client_responsable("deepotus") is None)
 E.archiver(c["id"])
 check("2d client archive reste responsable", E.client_responsable(p["id"]) == c["id"])
+
+print("[3] fiche client et consentements (c est archive depuis 2d : sa fiche reste lisible et ecrivible)")
+from app.services import fiche_client as F                          # noqa: E402
+f = F.lire(c["id"])
+check("3a defauts prudents", f["mode_publication"] == "valide_par_client" and f["consentements"] == [])
+check("3b marque sans fiche", _leve(ValueError, F.lire, "deepotus"))
+check("3b' espace inconnu : KeyError", _leve(KeyError, F.lire, "esp_inconnu"))
+F.ecrire(c["id"], {"societe": "Lune SARL", "mode_publication": "publie_en_son_nom", "jeton_x": "sk-123"})
+brut = E.chemin(c["id"], "client.json").read_text(encoding="utf-8")
+check("3c cle inconnue jamais ecrite", "jeton_x" not in brut and "sk-123" not in brut)
+check("3d changement de mode au journal", F.lire(c["id"])["journal"][-1]["quoi"] == "mode")
+check("3e canal_id fautif refuse", _leve(ValueError, F.ajouter_consentement, c["id"], "x 123", ["publier"], "ecrit"))
+F.ajouter_consentement(c["id"], "instagram:17841400000", ["publier"], "doigt")
+check("3f consentement en cours", F.consentement_en_cours(c["id"], "instagram:17841400000"))
+check("3g ecrire ne touche pas aux consentements", _leve(ValueError, F.ecrire, c["id"], {"consentements": []})
+      and _leve(ValueError, F.ecrire, c["id"], {"journal": []}))
+check("2e retrait du type client refuse", _leve(E.ConflitClient, E.modifier, c["id"], {"type": "marque"})
+      and E.client_responsable(c["id"]) == c["id"])
+F.revoquer(c["id"], "instagram:17841400000")
+check("3h revoque", not F.consentement_en_cours(c["id"], "instagram:17841400000")
+      and F.lire(c["id"])["journal"][-1]["quoi"] == "revocation")
+check("3i rien a revoquer : KeyError", _leve(KeyError, F.revoquer, c["id"], "instagram:17841400000"))
+check("3j pays, langue, notes, mode refuses", all(_leve(ValueError, F.ecrire, c["id"], x) for x in (
+    {"pays": "FRA"}, {"langue": "de"}, {"notes": "x" * 4001}, {"mode_publication": "auto"})))
+check("3k pays en majuscules, mode inchange sans ligne de journal", F.ecrire(c["id"], {"pays": "fr", "mode_publication": "publie_en_son_nom"})["pays"] == "FR"
+      and [j["quoi"] for j in F.lire(c["id"])["journal"]] == ["mode", "consentement", "revocation"])
+F.noter(c["id"], "publication", "instagram:17841400000", "telephone")
+check("3l noter ajoute une ligne", F.lire(c["id"])["journal"][-1]["qui"] == "telephone")
+doc_long = {"journal": [{"quand": f"2026-10-25T10:00:{i % 60:02d}", "quoi": "import", "canal_id": "", "qui": "client"}
+                        for i in range(F.MAX_JOURNAL + 50)]}
+check("3m journal borne a 2000 lignes", len(F.valider(doc_long)["journal"]) == F.MAX_JOURNAL)
+check("3n valider(n'importe quoi) rend la fiche complete", F.valider(None) == F.valider({}) and F.valider([1])["version"] == 1
+      and F.valider({"consentements": "x", "contact": 3})["contact"]["nom"] == "")
+fx = json.loads((_ICI / "fixtures_client_v1.json").read_text(encoding="utf-8"))
+check("3o la fixture v1 est un point fixe de valider", F.valider(fx) == fx and len(fx["consentements"]) == 2
+      and len(fx["journal"]) == 3 and any(x["revoque_le"] for x in fx["consentements"]))
+check("3p retrait du type client possible une fois revoque", E.modifier(c["id"], {"type": "marque"})["type"] == "marque")
+
+print("[4] routes")
+ENT = "/api/espaces/%s/client"
+cl = E.creer({"nom": "Client Routes", "type": "client"})
+with TestClient(app) as tc:
+    g = tc.get(ENT % cl["id"])
+    check("4a GET 200, mode prudent", g.status_code == 200 and g.json()["mode_publication"] == "valide_par_client", g.text[:120])
+    pu = tc.put(ENT % cl["id"], json={"societe": "Soleil SA", "contact": {"nom": "Ana"}, "langue": "en"})
+    check("4b PUT 200", pu.status_code == 200 and pu.json()["societe"] == "Soleil SA" and pu.json()["contact"]["nom"] == "Ana", pu.text[:120])
+    po = tc.post(ENT % cl["id"] + "/consentements", json={"canal_id": "facebook:123", "permis": ["publier"], "moyen": "ecrit"})
+    check("4c POST consentement 200", po.status_code == 200 and po.json()["consentements"][0]["canal_id"] == "facebook:123", po.text[:120])
+    check("4d consentement fautif 400", tc.post(ENT % cl["id"] + "/consentements", json={"canal_id": "x 1", "permis": ["publier"], "moyen": "ecrit"}).status_code == 400)
+    check("4e PUT champ interdit 400", tc.put(ENT % cl["id"], json={"journal": []}).status_code == 400)
+    check("4f retrait du type par la route : 409 tant que le consentement court",
+          tc.post(f"/api/espaces/{cl['id']}", json={"type": "marque"}).status_code == 409)
+    r1 = tc.post(ENT % cl["id"] + "/consentements/revoquer", json={"canal_id": "facebook:123"})
+    r2 = tc.post(ENT % cl["id"] + "/consentements/revoquer", json={"canal_id": "facebook:123"})
+    check("4g revoquer 200 puis 404", r1.status_code == 200 and r1.json()["consentements"][0]["revoque_le"] and r2.status_code == 404, f"{r1.status_code} {r2.status_code}")
+    check("4h espace inconnu 404 partout", all(x.status_code == 404 for x in (
+        tc.get(ENT % "esp_nope"), tc.put(ENT % "esp_nope", json={}),
+        tc.post(ENT % "esp_nope" + "/consentements", json={}), tc.post(ENT % "esp_nope" + "/consentements/revoquer", json={}))))
+    check("4i marque sans fiche : 400", tc.get(ENT % "deepotus").status_code == 400 and tc.put(ENT % "deepotus", json={}).status_code == 400)
+sys.path.insert(0, str(_ICI))
+from _jeton_appareil import entetes                                 # noqa: E402
+jeton = entetes(app)
+lan = TestClient(app, client=("192.168.1.20", 50000))
+check("4j reseau local avec jeton : lecture 200", lan.get(ENT % cl["id"], headers=jeton).status_code == 200)
+w = [lan.put(ENT % cl["id"], json={"societe": "Pirate"}, headers=jeton),
+     lan.post(ENT % cl["id"] + "/consentements", json={"canal_id": "facebook:9", "permis": ["publier"], "moyen": "ecrit"}, headers=jeton),
+     lan.post(ENT % cl["id"] + "/consentements/revoquer", json={"canal_id": "facebook:123"}, headers=jeton)]
+check("4k reseau local avec jeton : ecritures 403", [x.status_code for x in w] == [403, 403, 403], str([x.status_code for x in w]))
+check("4l rien n'a ete ecrit", F.lire(cl["id"])["societe"] == "Soleil SA" and len(F.lire(cl["id"])["consentements"]) == 1)
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

@@ -8097,6 +8097,44 @@ async def put_espace_persona(espace_id: str, body: dict, request: Request):
         raise HTTPException(400, str(e))
 
 
+# ---- t306 (25/10/2026) : la FICHE CLIENT d'un espace de type client (contact, mode de publication, consentements
+# datés, journal). Lecture libre ; les écritures sont réservées au PC. Inconnu 404 ; pas un client ou entrée fautive 400.
+def _fiche_client(espace_id, appel):
+    from app.services import espaces as _es, fiche_client as _fc
+    if not _es.id_valide(espace_id) or espace_id not in _es.lire()["espaces"]:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
+    try:
+        return appel(_fc)
+    except KeyError:
+        raise HTTPException(404, "aucun consentement en cours pour ce canal")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/espaces/{espace_id}/client")
+async def get_espace_client(espace_id: str):
+    return _fiche_client(espace_id, lambda fc: fc.lire(espace_id))
+
+
+@router.put("/espaces/{espace_id}/client")
+async def put_espace_client(espace_id: str, body: dict, request: Request):
+    _require_localhost(request)
+    return _fiche_client(espace_id, lambda fc: fc.ecrire(espace_id, body))
+
+
+@router.post("/espaces/{espace_id}/client/consentements")
+async def post_espace_client_consentement(espace_id: str, body: dict, request: Request):
+    _require_localhost(request)
+    return _fiche_client(espace_id, lambda fc: fc.ajouter_consentement(
+        espace_id, body.get("canal_id"), body.get("permis"), body.get("moyen")))
+
+
+@router.post("/espaces/{espace_id}/client/consentements/revoquer")
+async def post_espace_client_revoquer(espace_id: str, body: dict, request: Request):
+    _require_localhost(request)
+    return _fiche_client(espace_id, lambda fc: fc.revoquer(espace_id, body.get("canal_id")))
+
+
 # ---- t205 (Espaces de marque E5) : l'ONBOARDING d'un persona (8 étapes, brouillon par espace). Lecture libre ;
 # écritures locales ; vignettes et synthèse par LLM payantes (clé vérifiée AVANT la garde, puis plafond).
 
