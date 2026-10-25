@@ -61,9 +61,28 @@ def cle_actif(eid: str | None = None) -> str:
     return CLE_ACTIF if eid == "deepotus" else f"{CLE_ACTIF}:{eid}"[:60]
 
 
+def _canaux_lus(p) -> list[str]:
+    """t307 : les canaux du projet = les identifiants de comptes lus dans `p.canaux` (JSON). Ne garde que ceux dont
+    le compte existe encore (un compte supprimé depuis disparaît) ; ne lève jamais."""
+    try:
+        from app.services import comptes
+        ids = json.loads(p.canaux) if p.canaux else []
+        out = []
+        for cid in ids if isinstance(ids, list) else []:
+            try:
+                if isinstance(cid, str) and cid not in out:
+                    comptes.obtenir(cid)
+                    out.append(cid)
+            except Exception:  # noqa: BLE001 — compte disparu : ignoré
+                pass
+        return out
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _vue(p, n: int | None = None) -> dict:
     d = {"id": p.id, "nom": p.nom, "couleur": p.couleur, "epingle": bool(p.epingle),
-         "espace_id": p.espace_id or "deepotus"}
+         "espace_id": p.espace_id or "deepotus", "canaux": _canaux_lus(p)}
     if n is not None:
         d["n"] = n
     return d
@@ -177,6 +196,34 @@ async def modifier(pid: str, champs: dict) -> dict:
         await s.commit()
         await s.refresh(p)
         return _vue(p)
+
+
+async def poser_canaux(pid: str, ids) -> dict:
+    """t307 : fixe les canaux du projet (comptes de SON espace, ceux de Deepotus pour un projet d'avant les espaces).
+    KeyError si le projet est inconnu ; les erreurs de `comptes.verifier_cibles` (KeyError compte inconnu,
+    PermissionError autre espace, ValueError forme) remontent telles quelles, sans rien écrire. Vue RELUE."""
+    from app.services import comptes
+    _A, P, _I, S = _t()
+    async with S() as s:
+        p = await s.get(P, pid)
+        if p is None:
+            raise KeyError(pid)
+        vues = comptes.verifier_cibles(p.espace_id or "deepotus", ids)
+        p.canaux = json.dumps([v["id"] for v in vues]) if vues else None
+        await s.commit()
+        await s.refresh(p)
+        return _vue(p)
+
+
+async def canaux_par_defaut(eid: str) -> list[str]:
+    """t307 : les canaux du projet ACTIF de l'espace `eid` (clé `cle_actif(eid)`, pas l'espace courant) ; aucun projet
+    actif, ou projet disparu -> []."""
+    A, P, _I, S = _t()
+    async with S() as s:
+        row = await s.get(A, cle_actif(eid))
+        pid = (row.value or "") if row is not None else ""
+        p = await s.get(P, pid) if pid else None
+        return _canaux_lus(p) if p is not None else []
 
 
 async def supprimer(pid: str) -> None:

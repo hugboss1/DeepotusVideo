@@ -410,6 +410,8 @@ class LibraryProject(Base):
                                                  default=datetime.utcnow)
     # t209 (Espaces de marque E9) : l'espace de création, figé par la requête ; vide = d'avant les espaces = Deepotus
     espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True, default=lambda: _espace_par_defaut())
+    # t307 : les CANAUX du projet = liste JSON d'identifiants de comptes (services/comptes.py) de SON espace ; vide = aucun
+    canaux: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class LibraryProjectItem(Base):
@@ -801,7 +803,7 @@ LIBRARY_ASSETS_COLUMNS = [
 # t209 (Espaces de marque E9, 14/10/2026) — projets de la Bibliothèque et dépenses rattachés à un espace. Une ligne
 # d'avant (espace vide) est de Deepotus. `depenses` est aussi créée à la volée par plafonds._registre, qui pose la
 # colonne de la même façon sur une base ouverte sans init_db.
-LIBRARY_PROJECTS_COLUMNS = [("espace_id", "VARCHAR(40)")]
+LIBRARY_PROJECTS_COLUMNS = [("espace_id", "VARCHAR(40)"), ("canaux", "TEXT")]
 DEPENSES_COLUMNS = [("espace_id", "VARCHAR(40)")]
 
 

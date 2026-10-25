@@ -1,0 +1,113 @@
+# -*- coding: utf-8 -*-
+"""t307 (Boîte à outils, 25/10/2026) — les CANAUX d'un projet de la Bibliothèque : des identifiants de comptes
+(services/comptes.py) de SON espace de marque ; les nouveaux posts les prendront par défaut (tâches suivantes).
+Ce que ce banc garde (sections 1 et 2) :
+  - migration : la colonne `canaux` est ajoutée à une table library_projects d'avant (auto-migration) ;
+  - poser / lire : un compte de l'espace du projet, l'historique pour Deepotus ; un compte d'un autre espace refusé
+    (PermissionError), inconnu (KeyError), mauvaise forme (ValueError), projet inconnu (KeyError) ; liste vide = aucun ;
+    un compte supprimé depuis disparaît à la lecture, sans erreur ;
+  - défaut : les canaux du projet ACTIF de l'espace demandé (jamais de l'espace courant) ; Deepotus ne reçoit
+    jamais le défaut d'un autre espace.
+Aucun réseau, rien de payé, data-dir isolé.
+Run (depuis backend/) : & $PY tests/test_projets_canaux.py"""
+import asyncio, os, pathlib, sqlite3, sys, tempfile
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+_tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzpcan_"))
+os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
+BASE_DB = _tmp / "t.db"
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{BASE_DB.as_posix()}"
+for d in ("images", "outputs"):
+    (_tmp / d).mkdir(exist_ok=True)
+os.environ["IMAGES_FOLDER"] = str(_tmp / "images")
+os.environ["OUTPUTS_FOLDER"] = str(_tmp / "outputs")
+for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OLLAMA_URL", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "ELEVENLABS_API_KEY",
+          "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+          "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN", "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",
+          "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN"):
+    os.environ[k] = ""
+os.environ["FAL_KEY"] = "cle-de-banc"
+os.environ["HEYGEN_API_KEY"] = "cle-de-banc"
+_ICI = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(_ICI.parent))
+from loguru import logger                                           # noqa: E402
+logger.remove()
+
+ok = fail = 0
+def check(label, cond, detail=""):
+    global ok, fail
+    if cond: ok += 1; print(f"  PASS  {label}")
+    else: fail += 1; print(f"  FAIL  {label} {detail}")
+
+# une base d'AVANT la colonne `canaux` (et avant `espace_id`) : l'auto-migration doit les ajouter
+_con = sqlite3.connect(BASE_DB)
+_con.execute("CREATE TABLE library_projects (id VARCHAR(36) PRIMARY KEY, nom VARCHAR(120) NOT NULL, couleur VARCHAR(7), "
+             "note TEXT, epingle INTEGER, created_at DATETIME)")
+_con.commit(); _con.close()
+
+from app.config import settings                                     # noqa: E402
+from app.services import comptes, espaces, storage                  # noqa: E402
+from app.services import library_projects as LP                     # noqa: E402
+
+_loop = asyncio.new_event_loop()
+def run(coro):
+    return _loop.run_until_complete(coro)
+def _leve_async(exc, fn, *a):
+    try:
+        run(fn(*a))
+    except exc:
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+    return False
+
+run(storage.init_db())
+print("[M] migration")
+cols = {r[1] for r in sqlite3.connect(BASE_DB).execute("PRAGMA table_info(library_projects)")}
+check("M1 la colonne canaux est ajoutée à une table d'avant", "canaux" in cols, str(sorted(cols)))
+check("M2 espace_id l'est aussi (témoin de la même passe)", "espace_id" in cols)
+
+espaces.lire()
+B = espaces.creer({"nom": "Client B"})["id"]
+cx_deepotus = comptes.creer({"espace_id": "deepotus", "plateforme": "x", "libelle": "Deepotus X"})["id"]
+cx_B = comptes.creer({"espace_id": B, "plateforme": "x", "libelle": "B X"})["id"]
+settings.X_API_KEY = "plat-k"          # un compte historique « historique-x » existe alors pour Deepotus
+
+print("[1] poser et lire")
+p = run(LP.creer("Lancement")); check("1a vue neuve : aucun canal", p["canaux"] == [])
+v = run(LP.poser_canaux(p["id"], [cx_deepotus]))
+check("1b canal posé", v["canaux"] == [cx_deepotus], str(v))
+check("1c historique admis pour Deepotus", run(LP.poser_canaux(p["id"], ["historique-x"]))["canaux"] == ["historique-x"])
+check("1d compte d'un autre espace refusé", _leve_async(PermissionError, LP.poser_canaux, p["id"], [cx_B]))
+check("1e compte inconnu refusé", _leve_async(KeyError, LP.poser_canaux, p["id"], ["c_inconnu"]))
+check("1f forme refusée", _leve_async(ValueError, LP.poser_canaux, p["id"], "cx"))
+check("1g projet inconnu", _leve_async(KeyError, LP.poser_canaux, "proj_00000000", []))
+check("1h liste vide = aucun canal", run(LP.poser_canaux(p["id"], []))["canaux"] == [])
+check("1j les refus n'ont rien écrit", run(LP.lister(espace="deepotus"))[0]["canaux"] == [])
+run(LP.poser_canaux(p["id"], [cx_deepotus, cx_deepotus]))
+check("1k doublon écarté", run(LP.lister(espace="deepotus"))[0]["canaux"] == [cx_deepotus])
+comptes.supprimer(cx_deepotus)
+check("1i compte supprimé ignoré", run(LP.lister(espace="deepotus"))[0]["canaux"] == [])
+check("1l contenu() porte la clé", run(LP.contenu(p["id"]))["canaux"] == [])
+
+print("[2] canaux par défaut")
+check("2a aucun projet actif", run(LP.canaux_par_defaut("deepotus")) == [])
+with espaces.sous_espace(B):
+    pb = run(LP.creer("Projet de B"))
+    run(LP.poser_actif(pb["id"]))
+check("2x le projet de B est bien de l'espace B", pb["espace_id"] == B, str(pb))
+try:
+    run(LP.poser_canaux(pb["id"], [cx_B]))
+    check("2y un projet de B accepte un compte de B", True)
+except Exception as e:  # noqa: BLE001
+    check("2y un projet de B accepte un compte de B", False, repr(e))
+check("2b défaut de B = canaux du projet actif de B", run(LP.canaux_par_defaut(B)) == [cx_B])
+check("2c Deepotus ne reçoit jamais le défaut de B", run(LP.canaux_par_defaut("deepotus")) == [])
+run(LP.poser_actif(p["id"]))        # l'espace courant (Deepotus) a maintenant un projet actif
+check("2d le défaut de Deepotus lit son propre projet actif", run(LP.canaux_par_defaut("deepotus")) == [])
+run(LP.poser_canaux(p["id"], ["historique-x"]))
+check("2e ... et ses canaux", run(LP.canaux_par_defaut("deepotus")) == ["historique-x"])
+check("2f B reste indépendant", run(LP.canaux_par_defaut(B)) == [cx_B])
+
+_loop.close()
+print(f"\n{ok} passed, {fail} failed")
+sys.exit(1 if fail else 0)
