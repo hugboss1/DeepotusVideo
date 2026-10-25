@@ -55,6 +55,40 @@ check("1e parent sur une marque refuse", _leve(ValueError, E.creer, {"nom": "x",
 check("1f produit d'un produit refuse", _leve(ValueError, E.creer, {"nom": "x", "type": "produit", "parent": p["id"]}))
 check("1g parent inconnu refuse", _leve(ValueError, E.creer, {"nom": "x", "type": "produit", "parent": "esp_00000000"}))
 
+# 1h-1m : modifier(type / parent) — mêmes règles qu'à la création
+m = E.creer({"nom": "Marque Soleil", "type": "marque"})
+q = E.creer({"nom": "Produit libre", "type": "produit"})
+check("1h produit sans parent recoit un parent par modifier",
+      E.modifier(q["id"], {"parent": m["id"]})["parent"] == m["id"])
+check("1i un espace utilise comme parent ne devient pas produit",
+      _leve(ValueError, E.modifier, m["id"], {"type": "produit"}) and E.lister()[0]["type"] in E.TYPES
+      and next(v for v in E.lister() if v["id"] == m["id"])["type"] == "marque")
+r = E.modifier(q["id"], {"type": "marque"})
+check("1j produit -> marque efface le parent", r["type"] == "marque" and r["parent"] is None)
+q2 = E.creer({"nom": "Produit deux", "type": "produit", "parent": m["id"]})
+r = E.modifier(q2["id"], {"type": "client"})
+check("1k produit -> client efface le parent", r["type"] == "client" and r["parent"] is None)
+q3 = E.creer({"nom": "Produit trois", "type": "produit"})
+try:
+    E.modifier(q3["id"], {"parent": q3["id"]}); msg = ""
+except ValueError as ex:
+    msg = str(ex)
+check("1l parent = soi-meme refuse, message dit « propre parent »", "propre parent" in msg, msg)
+cx = E.creer({"nom": "Client Consent", "type": "client"})
+_orig = E._consentements_en_cours
+E._consentements_en_cours = lambda eid: [{"canal_id": "x:1"}]
+check("1m client -> marque avec consentements : ConflitClient", _leve(E.ConflitClient, E.modifier, cx["id"], {"type": "marque"})
+      and next(v for v in E.lister() if v["id"] == cx["id"])["type"] == "client")
+from fastapi.testclient import TestClient                           # noqa: E402
+from app.main import app                                            # noqa: E402
+with TestClient(app) as tc:
+    rr = tc.post(f"/api/espaces/{cx['id']}", json={"type": "marque"})
+    rv = tc.post(f"/api/espaces/{cx['id']}", json={"type": "agence"})
+check("1n la route repond 409 (consentements en cours)", rr.status_code == 409, f"{rr.status_code} {rr.text[:120]}")
+check("1o la route repond 400 pour un type inconnu", rv.status_code == 400, f"{rv.status_code} {rv.text[:120]}")
+E._consentements_en_cours = _orig
+check("1p sans consentement, client -> marque passe", E.modifier(cx["id"], {"type": "marque"})["type"] == "marque")
+
 print("[2] client responsable")
 check("2a client lui-meme", E.client_responsable(c["id"]) == c["id"])
 check("2b produit -> son client", E.client_responsable(p["id"]) == c["id"])

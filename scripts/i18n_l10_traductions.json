@@ -10570,5 +10570,13 @@
  "des produits dépendent de cet espace : il ne peut pas devenir un produit": {
   "fr": "des produits dépendent de cet espace : il ne peut pas devenir un produit",
   "en": "products depend on this space: it cannot become a product"
+ },
+ "un espace ne peut pas être son propre parent": {
+  "fr": "un espace ne peut pas être son propre parent",
+  "en": "a space cannot be its own parent"
+ },
+ "des consentements courent pour ce client : retirez-les avant de changer son type": {
+  "fr": "des consentements courent pour ce client : retirez-les avant de changer son type",
+  "en": "consents are in progress for this client: remove them before changing its type"
  }
 }

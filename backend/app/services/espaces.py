@@ -202,7 +202,9 @@ def _parent_valide(doc: dict, type_: str, parent, eid: str | None = None) -> str
         return None
     if type_ != "produit":
         raise ValueError("seul un produit peut avoir un parent")
-    if parent == eid or not isinstance(parent, str) or parent not in doc["espaces"]:
+    if eid is not None and parent == eid:
+        raise ValueError("un espace ne peut pas être son propre parent")
+    if not isinstance(parent, str) or parent not in doc["espaces"]:
         raise ValueError(f"parent inconnu : {parent}")
     if _vue(parent, doc["espaces"][parent], doc["actif"])["type"] not in ("marque", "client"):
         raise ValueError("le parent d'un produit est une marque ou un client")
