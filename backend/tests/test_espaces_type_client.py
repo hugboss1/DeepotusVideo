@@ -3,7 +3,8 @@
 CLIENT RESPONSABLE. Ce que ce banc garde : l'absence de `type` dans espaces.json vaut « marque » sans reecriture ;
 un parent n'existe que pour un produit, et c'est une marque ou un client existant ; le client responsable d'un
 espace est lui-meme (client) ou son parent client, MEME ARCHIVE, sinon rien. Data-dir isole, rien de paye.
-Sections : 1 type et parent, 2 client responsable, 3 fiche client et consentements, 4 routes.
+Sections : 1 type et parent, 2 client responsable, 3 fiche client et consentements, 4 routes,
+5 la fiche dans le paquet d'espace, 6 client.json illisible mis de cote (t306, Task 6).
 Run (depuis backend/) : & $PY tests/test_espaces_type_client.py"""
 import json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -172,6 +173,109 @@ check("4n consentement x:123 ajoute (le precedent etait revoque)", F.consentemen
 check("4o second consentement en cours sur le meme canal refuse", _leve(ValueError, F.ajouter_consentement, cl["id"], "x:123", ["publier"], "doigt"))
 check("4p permis : vide, trop long, mot invalide refuses", all(_leve(ValueError, F.ajouter_consentement, cl["id"], "tiktok:1", p, "ecrit")
       for p in ([], ["a"] * 11, ["Publier!"], "publier")))
+
+print("[5] la fiche dans le paquet d'espace")
+import io, zipfile                                                  # noqa: E402
+from app.services import espaces_paquet as PQ                       # noqa: E402
+
+
+def _zip(entrees):
+    b = io.BytesIO()
+    with zipfile.ZipFile(b, "w") as z:
+        for n, v in entrees.items():
+            z.writestr(n, v if isinstance(v, (bytes, str)) else json.dumps(v))
+    return b.getvalue()
+
+
+def _sans_journal(x):
+    return {k: v for k, v in x.items() if k != "journal"}
+
+
+pc = E.creer({"nom": "Epicerie Paquet", "type": "client"})
+F.ecrire(pc["id"], {"societe": "Epicerie SARL", "pays": "fr", "mode_publication": "publie_en_son_nom",
+                    "contact": {"nom": "Jo", "email": "jo@example.org"}})
+F.ajouter_consentement(pc["id"], "instagram:555", ["publier"], "whatsapp")
+F.ajouter_consentement(pc["id"], "facebook:42", ["publier"], "ecrit")
+F.revoquer(pc["id"], "facebook:42")
+src = F.lire(pc["id"])
+data, _nom = PQ.exporter(pc["id"])
+zf = zipfile.ZipFile(io.BytesIO(data))
+tout = b"".join(zf.read(n) for n in zf.namelist()).decode("utf-8", "replace").lower()
+check("5a l'export d'un client contient client.json, sans sk- ni jeton", "client.json" in zf.namelist()
+      and "sk-" not in tout and "jeton" not in tout)
+check("5b client.json = la fiche validee", json.loads(zf.read("client.json")) == F.valider(src))
+ent = json.loads(zf.read("espace.json"))["espace"]
+check("5c espace.json porte type et parent", ent["type"] == "client" and ent["parent"] is None)
+r = PQ.importer(data)
+nv = F.lire(r["espace"]["id"])
+check("5d import : espace neuf de type client", r["espace"]["type"] == "client" and r["espace"]["id"] != pc["id"])
+check("5e fiche identique hors journal", _sans_journal(nv) == _sans_journal(src))
+check("5f une ligne import ajoutee au journal", nv["journal"][:-1] == src["journal"] and nv["journal"][-1]["quoi"] == "import")
+check("5g rien a signaler pour un paquet propre", r["ignores"] == [])
+
+paq = json.loads(zf.read("client.json")); del paq["mode_publication"]
+r2 = PQ.importer(_zip({"espace.json": zf.read("espace.json"), "persona.json": zf.read("persona.json"), "client.json": paq}))
+check("5h fiche sans mode_publication : valide_par_client", F.lire(r2["espace"]["id"])["mode_publication"] == "valide_par_client")
+
+prod = E.creer({"nom": "Confiture", "type": "produit", "parent": pc["id"]})
+d_prod, _ = PQ.exporter(prod["id"])
+check("5i un produit n'emporte pas de client.json", "client.json" not in zipfile.ZipFile(io.BytesIO(d_prod)).namelist())
+r3 = PQ.importer(d_prod)
+check("5j parent present : garde", r3["espace"]["type"] == "produit" and r3["espace"]["parent"] == pc["id"])
+tete = json.loads(zf.read("espace.json")); tete["espace"].update(type="produit", parent="esp_zzzzzzzz")
+r4 = PQ.importer(_zip({"espace.json": tete, "persona.json": zf.read("persona.json")}))
+check("5k parent absent : None et motif dans ignores", r4["espace"]["parent"] is None and r4["espace"]["type"] == "produit"
+      and any("parent" in x for x in r4["ignores"]), str(r4["ignores"]))
+
+mauvaise = dict(paq, consentements=paq["consentements"] + [{"canal_id": "pas un canal", "permis": ["publier"],
+                                                              "date": "2026-10-25T10:00:00"}])
+avant = len(E.lire()["espaces"])
+r5 = PQ.importer(_zip({"espace.json": zf.read("espace.json"), "persona.json": zf.read("persona.json"), "client.json": mauvaise}))
+check("5l ligne de consentement fautive : ecartee ET dite", len(F.lire(r5["espace"]["id"])["consentements"]) == len(paq["consentements"])
+      and any("consentement n°3" in x for x in r5["ignores"]), str(r5["ignores"]))
+moyen = dict(paq, consentements=[dict(paq["consentements"][0], moyen="telepathie")], journal=[
+    {"quand": "2026-10-25T10:00:00", "quoi": "consentement", "canal_id": "xx yy", "qui": "robot"},
+    {"quand": "", "quoi": "import", "canal_id": "", "qui": "client"}])
+r6 = PQ.importer(_zip({"espace.json": zf.read("espace.json"), "persona.json": zf.read("persona.json"), "client.json": moyen}))
+mots = " | ".join(r6["ignores"])
+check("5m moyen reecrit, canal et auteur de journal reecrits, ligne sans date ecartee : tout dit",
+      "moyen inconnu" in mots and "canal invalide" in mots and "auteur inconnu" in mots and "journal n°2 écartée" in mots, mots)
+avant = len(E.lire()["espaces"])
+check("5n client.json qui n'est pas un objet : paquet refuse, rien d'ecrit", _leve(ValueError, PQ.importer, _zip(
+    {"espace.json": zf.read("espace.json"), "persona.json": zf.read("persona.json"), "client.json": "[1,2]"}))
+      and len(E.lire()["espaces"]) == avant)
+check("5o client.json non JSON : paquet refuse, rien d'ecrit", _leve(ValueError, PQ.importer, _zip(
+    {"espace.json": zf.read("espace.json"), "persona.json": zf.read("persona.json"), "client.json": "{pas du json"}))
+      and len(E.lire()["espaces"]) == avant)
+_vrai = F._poser
+def _casse(eid, fiche):
+    raise OSError("disque plein")
+F._poser = _casse
+try:
+    leve = _leve(OSError, PQ.importer, data)
+finally:
+    F._poser = _vrai
+check("5p retour arriere si l'ecriture de la fiche echoue", leve and len(E.lire()["espaces"]) == avant)
+
+print("[6] client.json illisible : mis de cote, jamais perdu")
+fch = E.chemin(pc["id"], "client.json")
+garbage = bytes([0xFF, 0xFE]) + b"{pas du json ###"
+fch.write_bytes(garbage)
+lu = F.lire(pc["id"])
+cotes = sorted(fch.parent.glob("client.json.illisible-*"))
+check("6a fiche illisible : lue aux defauts", lu == F.valider({}))
+check("6b copie .illisible- avec les octets d'origine, original retire", len(cotes) == 1 and cotes[0].read_bytes() == garbage
+      and not fch.exists())
+F.ecrire(pc["id"], {"societe": "Epicerie bis"})
+check("6c un ecrire ulterieur ne detruit pas la copie", cotes[0].is_file() and cotes[0].read_bytes() == garbage
+      and F.lire(pc["id"])["societe"] == "Epicerie bis")
+fch.write_text("{illisible encore", encoding="utf-8")
+F.lire(pc["id"])
+check("6d un second fichier illisible ne remplace pas le premier", len(sorted(fch.parent.glob("client.json.illisible-*"))) == 2
+      and cotes[0].read_bytes() == garbage)
+fch.unlink(missing_ok=True)
+check("6e fichier absent : defauts, rien de mis de cote", F.lire(pc["id"]) == F.valider({})
+      and len(sorted(fch.parent.glob("client.json.illisible-*"))) == 2)
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

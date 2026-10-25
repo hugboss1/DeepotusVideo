@@ -9279,6 +9279,10 @@
   "fr": "paquet d'espace : onboarding.json illisible",
   "en": "space package: onboarding.json unreadable"
  },
+ "paquet d'espace : client.json illisible": {
+  "fr": "paquet d'espace : client.json illisible",
+  "en": "space package: client.json unreadable"
+ },
  "paquet d'espace : kit/kit.json illisible": {
   "fr": "paquet d'espace : kit/kit.json illisible",
   "en": "space package: kit/kit.json unreadable"

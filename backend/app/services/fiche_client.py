@@ -6,11 +6,15 @@ des gestes (2000 lignes au plus, les plus anciennes sortent).
 
 Règles gardées ici : `valider` est une normalisation PURE (clés inconnues ignorées, absences remplacées par les défauts,
 lignes fautives écartées) partagée par `lire` et par l'import ; `ecrire` ignore les clés inconnues mais refuse
-`consentements` et `journal` (ils ont leurs propres gestes) ; rien n'est jamais écrit par une lecture.
+`consentements` et `journal` (ils ont leurs propres gestes) ; rien n'est jamais écrit par une lecture (seule exception : un client.json
+illisible est mis de côté, jamais perdu).
 `lire` appelle `espaces.lire()` qui migre et écrit : ne jamais l'appeler depuis une boucle de fond."""
 import json
 import re
 import threading
+from datetime import datetime
+
+from loguru import logger
 
 from app.services import espaces as _es
 
@@ -76,10 +80,33 @@ def _client(eid) -> None:
         raise ValueError("cet espace n'est pas un client")
 
 
-def _charger(eid) -> dict:
+def _mettre_de_cote(f) -> None:
+    """t306 (25/10/2026) : un client.json qu'on ne sait pas lire n'est JAMAIS écrasé en silence (même règle que
+    espaces.json) : il devient `client.json.illisible-<horodatage>` et la fiche se relit aux défauts."""
+    base = f"client.json.illisible-{datetime.now():%Y%m%d-%H%M%S}"
+    cote, n = f.with_name(base), 2
+    while cote.exists():
+        cote, n = f.with_name(f"{base}-{n}"), n + 1
     try:
-        return valider(json.loads(_es.chemin(eid, "client.json").read_text(encoding="utf-8")))
-    except (OSError, ValueError):
+        f.replace(cote)
+        logger.warning(f"client.json illisible : mis de côté ({cote.name}), fiche reprise aux défauts")
+    except OSError as e:
+        logger.warning(f"client.json illisible et impossible à mettre de côté ({e})")
+
+
+def _charger(eid) -> dict:
+    f = _es.chemin(eid, "client.json")
+    try:
+        brut = f.read_text(encoding="utf-8")
+    except UnicodeDecodeError:      # des octets qui ne sont pas de l'UTF-8 : illisible
+        _mettre_de_cote(f)
+        return valider({})
+    except OSError:                 # absent (cas normal) ou verrouillé : les défauts, sans toucher au fichier
+        return valider({})
+    try:
+        return valider(json.loads(brut))
+    except ValueError:
+        _mettre_de_cote(f)
         return valider({})
 
 

@@ -1021,6 +1021,7 @@
   "erreur.605bded1c7": {"fr": "STL binaire attendu (compte de triangles et taille du fichier en désaccord — ASCII ou tronqué)", "en": "binary STL expected (triangle count and file size disagree — ASCII or truncated)", "src": "fr"},
   "erreur.60693079e0": {"fr": "redressement : quatre coins sont attendus (reçu {pts})", "en": "straighten: four corners expected (got {pts})", "src": "fr"},
   "erreur.6069680795": {"fr": "{pieces} pièces — au-delà de {MAX_PIECES} le rangement dépasse son budget de temps mesuré ; range par lots", "en": "{pieces} parts — beyond {MAX_PIECES} arranging exceeds its measured time budget; arrange in batches", "src": "fr"},
+  "erreur.60724a4900": {"fr": "paquet d'espace : client.json illisible", "en": "space package: client.json unreadable", "src": "fr"},
   "erreur.6072ae3205": {"fr": "{cid} : colors : 1 à 256 couleurs attendues", "en": "{cid}: colors: 1 to 256 colors expected", "src": "fr"},
   "erreur.60778c8416": {"fr": "habillage sonore impossible : {v}", "en": "sound design failed: {v}", "src": "fr"},
   "erreur.6078486b69": {"fr": "Profil trop lourd : {data} octets, le maximum est {ICC_MAX_BYTES}", "en": "Profile too large: {data} bytes, the maximum is {ICC_MAX_BYTES}", "src": "fr"},
