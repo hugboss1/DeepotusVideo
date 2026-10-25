@@ -106,20 +106,26 @@ def _partie_espace(eid) -> str:
             f"{', '.join(mots) if mots else 'aucun'}.\nPersona :\n{persona}")
 
 
-def systeme(conv: dict, lang: str) -> str:
-    """CAMPAGNES.md + le rôle + l'espace DE LA CONVERSATION (persona, mots interdits) + conformite-crypto.md pour
-    l'espace du jeton SEULEMENT + la langue de réponse."""
-    role = conv.get("role") if conv.get("role") in ROLES else "campagnes"
+def systeme_pour(role, espace_id, langue: str) -> str:
+    """CAMPAGNES.md + le rôle + l'espace (persona, mots interdits) + conformite-crypto.md pour l'espace du jeton
+    SEULEMENT + la langue de réponse. Pure : la boucle (`systeme`) et le paquet du téléphone (L4.1) l'appellent, le
+    texte est donc le même des deux côtés."""
+    role = role if role in ROLES else "campagnes"
     parts = [_doc("CAMPAGNES.md"), "## Ton rôle pour cette conversation\n" + ROLES[role]]
     if role == "campagnes":
         modele = _doc("dossier-modele.md")
         if modele:
             parts.append("## dossier-modele.md\n" + modele)
-    parts.append(_partie_espace(conv.get("espace_id")))
-    if espace_jeton(conv.get("espace_id")):
+    parts.append(_partie_espace(espace_id))
+    if espace_jeton(espace_id):
         parts.append(_doc("conformite-crypto.md"))
-    parts.append("## Langue\n" + ("Answer in English." if lang == "en" else "Réponds en français."))
+    parts.append("## Langue\n" + ("Answer in English." if langue == "en" else "Réponds en français."))
     return "\n\n".join(x for x in parts if x)
+
+
+def systeme(conv: dict, lang: str) -> str:
+    """Le système de la boucle : celui du rôle et de l'espace DE LA CONVERSATION (`systeme_pour`)."""
+    return systeme_pour(conv.get("role"), conv.get("espace_id"), lang)
 
 
 # ---- l'historique au format de l'API ---------------------------------------------------------------------------------

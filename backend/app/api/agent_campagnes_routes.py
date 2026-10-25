@@ -9,6 +9,9 @@ avec ses clés et son plafond.
 - `POST /api/agent/campagnes/` (AVEC la barre finale) {role, espace_id?, titre?} : crée la conversation (espace
   nommé : existant et non archivé, sinon 400). Sans la barre, un appareil reçoit 403 de la garde des écritures avant
   la redirection de FastAPI (seul le gabarit exact est ouvert) ;
+- `GET /paquet?espace_id=&avec=telephone&langue=fr|en` (L4.1) : en plus, le catalogue allégé, les poids, le système par
+  rôle, les cinq outils du téléphone, le modèle et les constantes ; `ETag` = `version` (tout le contenu), `If-None-Match`
+  égal → 304 sans corps. Sans `avec`, la réponse reste celle ci-dessous ;
 - `GET /paquet?espace_id=` : le paquet agent du compagnon, {version, fichiers} — docs/agent/campagnes/* (texte) et,
   avec un espace nommé (sinon 400), `persona.json` sans `templates` ni `voice_ids` ; `boites.json` (les boîtes à outils marquées mobile, t305, 25/10/2026) ; jamais l'espace actif d'office.
   `version` = 16 hex du sha256 des fichiers (noms triés, fichiers cachés exclus) : elle change dès qu'un fichier
@@ -46,7 +49,7 @@ import re
 
 import anyio
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.services import agent_campagnes as AC, agent_format as fmt, agent_outils as AO, agent_store as ST, espaces
 
@@ -334,10 +337,54 @@ def _paquet(espace_id: str | None) -> dict:
     return {"version": hashlib.sha256(brut).hexdigest()[:16], "fichiers": fichiers}
 
 
+# L4.1 T1 (25/10/2026) : les cinq outils que le téléphone sait exécuter (ses schémas viennent de la table d'agent_outils)
+OUTILS_TELEPHONE = ("chercher_app", "lire_espace", "lire_document", "proposer_porte", "deviser_generation")
+ROLES_TELEPHONE = ("orienteur", "campagnes", "demonstrateur")
+_CHAMPS_FICHE = ("ecran", "type", "libelle", "infobulle", "role", "synonymes", "guide")
+
+
+def _fiche_telephone(x: dict) -> dict:
+    """Une fiche du catalogue sans ce qui ne sert qu'au PC (localisateur, sources, cadre, icône, empreinte, état)."""
+    return {"id": x["id"], **{k: x.get(k) for k in _CHAMPS_FICHE}}
+
+
+def _paquet_telephone(espace_id: str | None, langue: str) -> dict:
+    """Le paquet de base plus tout ce qu'il faut au téléphone pour mener la même boucle hors ligne. `version` couvre
+    TOUT le contenu rendu (sauf `genere_a`, qui change à chaque appel) : elle sert d'ETag."""
+    from datetime import datetime, timezone
+    from app.services import agent_aide, moteurs_texte
+    p = _paquet(espace_id)
+    ref = {d["name"]: d for d in AO.definitions()}
+    p.update(
+        catalogue=[_fiche_telephone(x) for x in agent_aide.catalogue().values()],
+        mots_vides=sorted(agent_aide.MOTS_VIDES),
+        poids={k: w for k, w in agent_aide.POIDS},
+        systeme={r: AC.systeme_pour(r, espace_id, langue) for r in ROLES_TELEPHONE},
+        outils=[ref[n] for n in OUTILS_TELEPHONE],
+        modele=moteurs_texte.modele_agent(),
+        constantes={"MAX_TOURS": AC.MAX_TOURS, "SORTIE_MAX": AC.SORTIE_MAX, "CARS_PAR_JETON": AC.CARS_PAR_JETON,
+                    "SURCOUT_OUTILS": AC.SURCOUT_OUTILS})
+    p.pop("version")
+    brut = json.dumps(p, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {"version": hashlib.sha256(brut).hexdigest()[:16], **p,
+            "genere_a": datetime.now(timezone.utc).isoformat()}
+
+
+def _etags(entete: str | None) -> set:
+    """Les versions d'un If-None-Match : entre guillemets ou non, faible (`W/`) ou non, liste séparée par des virgules."""
+    return {re.sub(r'^W/', "", x.strip()).strip('"') for x in (entete or "").split(",") if x.strip()}
+
+
 @router.get("/paquet")
-async def paquet(request: Request, espace_id: str | None = None):
+async def paquet(request: Request, espace_id: str | None = None, avec: str | None = None, langue: str | None = None):
     await _local_ou_appareil(request)
-    return await asyncio.to_thread(_paquet, espace_id)
+    if avec != "telephone":
+        return await asyncio.to_thread(_paquet, espace_id)
+    lg = langue if langue in ("fr", "en") else _lang(request)
+    p = await asyncio.to_thread(_paquet_telephone, espace_id, lg)
+    if p["version"] in _etags(request.headers.get("if-none-match")):
+        return Response(status_code=304, headers={"ETag": p["version"]})
+    return JSONResponse(p, headers={"ETag": p["version"]})
 
 
 @router.get("/{cid}")
