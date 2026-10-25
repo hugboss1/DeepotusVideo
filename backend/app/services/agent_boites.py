@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""t305 (lot A0) — les BOÎTES À OUTILS de l'agent : les outils sont groupés par fonctionnalité ; chaque agent ne voit
+"""t305 (25/10/2026) (lot A0) — les BOÎTES À OUTILS de l'agent : les outils sont groupés par fonctionnalité ; chaque agent ne voit
 que les boîtes qui le déclarent, et `agent_outils.executer` refuse un outil hors de la boîte de l'agent du tour.
 A0 ne déclare que « campagnes » (les dix outils existants) ; les autres boîtes arrivent avec leur lot."""
 from __future__ import annotations

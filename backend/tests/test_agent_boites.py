@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""t305 (lot A0, boîtes à outils de l'agent) — banc des boîtes à outils de l'agent.
+"""t305 (25/10/2026) (lot A0, boîtes à outils de l'agent) — banc des boîtes à outils de l'agent.
 Ce que ce banc garde, par sections numérotées :
   1. Compatibilité : l'agent Campagnes voit exactement les dix outils figés à e0d6e51e
      (fixture agent_definitions_campagnes.json, écrite par _agent_definitions_capture.py).

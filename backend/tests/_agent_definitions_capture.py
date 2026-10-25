@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""t305 (lot A0, boîtes à outils de l'agent) — capteur de la fixture des définitions de Campagnes.
+"""t305 (25/10/2026) (lot A0, boîtes à outils de l'agent) — capteur de la fixture des définitions de Campagnes.
 Écrit `agent_definitions_campagnes.json` à côté de lui : `agent_outils.definitions()` tel qu'il est
 au commit e0d6e51e (dix outils). Le banc `test_agent_boites.py` relit ce fichier pour garder Campagnes
 à l'octet près pendant les tâches suivantes. Données isolées, rien de payé, aucune clé.

@@ -309,7 +309,7 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: st
             if ligne.get("role") == "bilan" and nom == "lire_planificateur":
                 args["campagne"] = True                    # le bilan lit les posts de CETTE campagne
             ctx = ao.Ctx(cid=cid, espace_id=ligne.get("espace_id"), lang=lang,
-                         etat_porte=ligne.get("etat_porte") or "aucune")
+                         etat_porte=ligne.get("etat_porte") or "aucune", agent=CATEGORIE)
             res = await ao.executer(nom, args, ctx)
             resume = str(res.get("resume") or "")
             blocs.append({"type": "resultat_outil", "outil": str(nom)[:60], "resume": resume[:500],
