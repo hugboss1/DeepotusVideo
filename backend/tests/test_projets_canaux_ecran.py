@@ -80,8 +80,10 @@ check("1.4 le bloc MONTAGE du bundle EST la source montage.js (rafraîchi par re
       lambda: n_(BLOC) == n_(COUCHE))
 check("1.5 saisie L3 à jour (i18n_l3_generer --check)", lambda: outil("scripts/i18n_l3_generer.py", "--check")[0] == 0)
 check("1.6 table G1 à jour (g1_generer --check)", lambda: outil("scripts/icones/g1_generer.py", "--check")[0] == 0)
-check("1.7 la barre appelle les aides à longueur égale (blancs de bourrage), l'en-tête du bloc #78 compensé",
-      "dzPcEc(h,1);" + " " * 28 in COUCHE and "(bourrage G1)" in COUCHE)
+check("1.7 la barre appelle les aides à longueur égale (commentaires datés, ch.push indenté), l'en-tête du bloc #78 compensé",
+      "dzPcEc(h,1);/*t307 (25/10/2026) G1*/" in COUCHE and "dzPcEc(h,0)/* t307 (25/10/2026), G1" in COUCHE
+      and chr(10) + "    ch.push(bouton(ici?" in COUCHE.replace(chr(13), "") and "Un seul projet épinglé" in COUCHE
+      and not any(l != l.rstrip(" ") for l in COUCHE.replace(chr(13), "").split(chr(10)) if "dzPc" in l))
 
 print("\n[2] réversible")
 check("2.1 la couche d'avant L3 n'a plus aucune retouche t307",
@@ -89,7 +91,7 @@ check("2.1 la couche d'avant L3 n'a plus aucune retouche t307",
 TABLE = json.loads((REPO / "scripts" / "i18n_l3_paires.json").read_bytes().decode("utf-8"))
 check("2.2 la table L3 porte les six retouches (groupe montage_i)",
       sum(1 for e in TABLE["couches"]["montage"] if e["groupe"] == "montage_i" and ("dzPc" in e["apres"]
-          or "canaux:d.canaux" in e["apres"] or "(bourrage G1)" in e["apres"])) == 6)
+          or "canaux:d.canaux" in e["apres"] or "Un seul projet épinglé" in e["apres"])) == 6)
 
 print("\n[3] comptes figés")
 COMPTES = {"x.useState(": 731, "v2.8.0": 4, "DzTracks": 181, "await window.__dzDialogue.confirmer(": 30,

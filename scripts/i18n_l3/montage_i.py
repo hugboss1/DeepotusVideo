@@ -273,15 +273,15 @@ ENTREES = [
     # barre appelle les aides à longueur égale (blancs de bourrage). Miroirs : scripts/icones/g1_generer.py
     # RETOUCHES["MONTAGE"].
     S(744834, "/* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.\r\n   Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :\r\n   - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;\r\n     pour le projet regardé : le rendre ACTIF (tout ce qui est produit y est rangé), l'épingler sur le téléphone\r\n     (décision de l'utilisateur : un seul projet), le renommer, le supprimer ; et en créer un. L'actif est rappelé\r\n     même quand on en regarde un autre ;\r\n   - « Envoyer vers → Projet de la Bibliothèque… » : le menu existant (__dzSendMenu) liste les projets, coche ceux\r\n     qui contiennent déjà l'asset (un clic le retire), et propose d'en créer un — par le dialogue maison, jamais\r\n     la boîte native du navigateur.\r\n   Toute écriture prévient l'écran par l'événement « dz-projets » : la barre recharge la liste et le projet regardé. */",
-      "/* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.\r\n   Barre « Projet » : regarder, actif, épingle, renommer, supprimer, créer ;\r\n   « Envoyer vers → Projet ». Écritures : « dz-projets ».\r\n   t307 (25/10/2026) : canaux (dzPcB, dzPcEc ; frontend/shared/dz-projet-canaux.js).\r\n\r\n\r\n\r\n\r\n\r\n(bourrage G1)                                                           */", {}),
+      "/* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.\r\n   Barre « Projet » : regarder, actif, épingle, renommer, supprimer, créer ;\r\n   « Envoyer vers → Projet ». Écritures : « dz-projets ».\r\n   t307 (25/10/2026) : canaux (dzPcB, dzPcEc ; frontend/shared/dz-projet-canaux.js).\r\n   Un seul projet épinglé (choix utilisateur) ; dialogue maison, jamais natif.    */", {}),
     S(745798, 'var DZ_PJ_JSON={"Content-Type":"application/json"};',
       'var DZ_PJ_JSON={"Content-Type":"application/json"};function dzPcEc(h,on){["dz-projets","dz-projet-canaux"].forEach(function(t){window[on?"addEventListener":"removeEventListener"](t,h)})}function dzPcB(ch,f){var P=window.__dzProjetCanaux;if(!f||!f.id)return!1;ch.push(r.jsx("span",{"data-dz-projet-canaux":f.id,"data-canaux":String(f.canaux||""),"data-espace":f.espace_id||""},"dzc"),P&&r.jsx("button",{type:"button",className:"dzpc-btn",title:dzT("projets.canaux.aide"),onClick:function(){P.ouvrir(f)},children:[__dzGl(P.glyphe())," ",dzT("projets.canaux.bouton")]},"dzcb"));return!0}', {}),
     S(746832, 'epingle:!!d.epingle,refs:refs',
       'epingle:!!d.epingle,espace_id:d.espace_id,canaux:d.canaux,refs:refs', {}),
     S(749354, 'window.addEventListener("dz-projets",h);',
-      'dzPcEc(h,1);                            ', {}),
+      'dzPcEc(h,1);/*t307 (25/10/2026) G1*/', {}),
     S(749418, 'window.removeEventListener("dz-projets",h)',
-      'dzPcEc(h,0)                               ', {}),
+      'dzPcEc(h,0)/* t307 (25/10/2026), G1     */', {}),
     S(751302, 'if(f&&f.id){\r\n    ch.push(bouton(ici?',
-      'if(dzPcB(ch,f)){\r\nch.push(bouton(ici?', {}),
+      'if(dzPcB(ch,f)){\r\n    ch.push(bouton(ici?', {}),
 ]

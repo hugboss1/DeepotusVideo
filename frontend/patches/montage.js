@@ -10638,12 +10638,7 @@ function DzSemblables({m,liste,ouvrir}){var ls=x.useState(null),L=ls[0],setL=ls[
    Barre « Projet » : regarder, actif, épingle, renommer, supprimer, créer ;
    « Envoyer vers → Projet ». Écritures : « dz-projets ».
    t307 (25/10/2026) : canaux (dzPcB, dzPcEc ; frontend/shared/dz-projet-canaux.js).
-
-
-
-
-
-(bourrage G1)                                                           */
+   Un seul projet épinglé (choix utilisateur) ; dialogue maison, jamais natif.    */
 var DZ_PJ_JSON={"Content-Type":"application/json"};function dzPcEc(h,on){["dz-projets","dz-projet-canaux"].forEach(function(t){window[on?"addEventListener":"removeEventListener"](t,h)})}function dzPcB(ch,f){var P=window.__dzProjetCanaux;if(!f||!f.id)return!1;ch.push(r.jsx("span",{"data-dz-projet-canaux":f.id,"data-canaux":String(f.canaux||""),"data-espace":f.espace_id||""},"dzc"),P&&r.jsx("button",{type:"button",className:"dzpc-btn",title:dzT("projets.canaux.aide"),onClick:function(){P.ouvrir(f)},children:[__dzGl(P.glyphe())," ",dzT("projets.canaux.bouton")]},"dzcb"));return!0}
 function dzProjCle(z){return z?String(z.jobId||z.name||""):""}
 function dzProjKind(m){if(!m)return"image";if(m.audioFile||m.kind==="audio")return"audio";
@@ -10679,8 +10674,8 @@ function DzProjetsBar({f,setF}){
   function recharger(){dzProjApi("/api/library/projets").then(function(d){setListe(d.projets||[])}).catch(function(){});
     dzProjApi("/api/library/projets/actif").then(function(d){setActif(d||{id:""})}).catch(function(){});
     if(f&&f.id)dzProjCharger(f.id).then(setF).catch(function(){setF(null)})}
-  x.useEffect(function(){recharger();var h=function(){recharger()};dzPcEc(h,1);                            
-    return function(){dzPcEc(h,0)                               }},[f&&f.id]);
+  x.useEffect(function(){recharger();var h=function(){recharger()};dzPcEc(h,1);/*t307 (25/10/2026) G1*/
+    return function(){dzPcEc(h,0)/* t307 (25/10/2026), G1     */}},[f&&f.id]);
   function agir(p){setMsg("");return p.then(function(){dzProjSignal()}).catch(function(e){setMsg(dzProjMsg(e))})}
   function choisir(id){setMsg("");if(!id){setF(null);return}dzProjCharger(id).then(setF).catch(function(e){setMsg(dzProjMsg(e))})}
   function creer(){window.__dzDialogue.saisir(dzT("biblio.projets.nom_nouveau"),{titre:dzT("biblio.projets.nouveau_titre"),ok:dzT("biblio.projets.creer")}).then(function(v){
@@ -10698,7 +10693,7 @@ function DzProjetsBar({f,setF}){
       style:{height:26,minWidth:180,maxWidth:280,padding:"0 6px",fontSize:12,background:"var(--bg-base)",color:"var(--ink-strong)",
         border:"1px solid var(--stroke)",borderRadius:6},children:options})];
   if(dzPcB(ch,f)){
-ch.push(bouton(ici?__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_ici"),"●"):__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_activer"),"○"),
+    ch.push(bouton(ici?__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_ici"),"●"):__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_activer"),"○"),
       ici?dzT("biblio.projets.auto_ici_aide"):dzT("biblio.projets.auto_activer_aide"),
       function(){agir(dzProjApi("/api/library/projets/actif",{method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:ici?"":f.id})}))},ici));
     ch.push(bouton(f.epingle?__dzGlT("dz-action-epingler-mobile",dzT("biblio.projets.epingle"),"📱"):__dzGlT("dz-action-epingler-mobile",dzT("biblio.projets.epingler"),"📱"),

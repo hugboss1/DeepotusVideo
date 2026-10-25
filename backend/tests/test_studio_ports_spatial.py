@@ -214,7 +214,7 @@ import _i18n_l1_aide as AIDE                                         # noqa: E40
 # SONVFX attendu est celui du livré ; ce banc vérifie ses maillons HORS de ce bloc
 def git_bundle(rev):
     b_ = _git_bundle_brut(rev)
-    return None if b_ is None else __import__("_i18n_l1_aide").base_avec_sonvfx_livre(
+    return None if b_ is None else __import__("_i18n_l1_aide").base_avec_couches_livrees(
         b_, (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js").read_bytes())
 
 
