@@ -37,6 +37,7 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 | `backend/app/api/settings_routes.py` | Réglages, index de recherche des Réglages |
 | `backend/app/services/moteurs_texte.py` | Registre des moteurs de texte, `tirer`, `tirer_garde` |
 | `backend/app/services/plafonds.py` | Plafonds de dépense mensuels |
+| `backend/app/services/agent_boites.py` | Boîtes à outils de l'agent par fonctionnalité (`BOITES`, `outils_pour`, `paquet_mobile`) ; hors boîte = refus ; servies au compagnon dans `boites.json` du paquet |
 | `backend/app/services/coffre.py` | Coffre à clés chiffré |
 | `backend/app/services/espaces.py` | Espaces de marque |
 | `frontend/dist/index.html` | Page de la SPA, scripts partagés |

@@ -57,6 +57,7 @@ class Ctx:
     espace_id: str | None = None
     lang: str = "fr"
     etat_porte: str = "aucune"
+    agent: str = "campagnes"  # t305 (25/10/2026) : l'agent du tour ; sa boîte à outils borne ce qu'il peut appeler
 
 
 class _Refus(Exception):
@@ -736,6 +737,9 @@ async def executer(nom: str, args: dict, ctx: Ctx) -> dict:
         o = OUTILS.get(nom) if isinstance(nom, str) else None
         if o is None:
             return _res(False, f"outil inconnu : {str(nom)[:60]}")
+        from app.services import agent_boites  # t305 (25/10/2026) : import local (pas de cycle au chargement)
+        if nom not in agent_boites.outils_pour(ctx.agent):
+            return _res(False, f"{nom} : hors de la boîte de l'agent {ctx.agent}")
         args = args if isinstance(args, dict) else {}
         props, requis = o["schema"]["properties"], o["schema"]["required"]
         en_trop = sorted(set(args) - set(props))

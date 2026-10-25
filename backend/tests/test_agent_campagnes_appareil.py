@@ -247,8 +247,9 @@ def test_paquet_versionne():
     check("4a GET /paquet (appareil) : 200, CAMPAGNES.md et format.md, en texte", r.status_code == 200
           and isinstance(f.get("CAMPAGNES.md"), str) and isinstance(f.get("format.md"), str)
           and "Campagnes" in f.get("CAMPAGNES.md", ""), f"{r.status_code} {r.text[:200]}")
-    attendus = sorted(x.name for x in AC.DOCS.iterdir() if x.is_file() and not x.name.startswith("."))
-    check("4b tous les fichiers de docs/agent/campagnes, noms simples, triés", list(f) == attendus,
+    attendus = sorted([x.name for x in AC.DOCS.iterdir() if x.is_file() and not x.name.startswith(".")]
+                      + ["boites.json"])
+    check("4b tous les fichiers de docs/agent/campagnes + boites.json (t305), noms simples, triés", list(f) == attendus,
           f"{list(f)} != {attendus}")
     check("4c sans espace_id : pas de persona (aucun repli sur l'espace actif)", "persona.json" not in f)
     check("4d version : 16 hex", isinstance(p.get("version"), str)

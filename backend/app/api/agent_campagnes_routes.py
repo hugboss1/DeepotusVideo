@@ -10,7 +10,7 @@ avec ses clés et son plafond.
   nommé : existant et non archivé, sinon 400). Sans la barre, un appareil reçoit 403 de la garde des écritures avant
   la redirection de FastAPI (seul le gabarit exact est ouvert) ;
 - `GET /paquet?espace_id=` : le paquet agent du compagnon, {version, fichiers} — docs/agent/campagnes/* (texte) et,
-  avec un espace nommé (sinon 400), `persona.json` sans `templates` ni `voice_ids` ; jamais l'espace actif d'office.
+  avec un espace nommé (sinon 400), `persona.json` sans `templates` ni `voice_ids` ; `boites.json` (les boîtes à outils marquées mobile, t305, 25/10/2026) ; jamais l'espace actif d'office.
   `version` = 16 hex du sha256 des fichiers (noms triés, fichiers cachés exclus) : elle change dès qu'un fichier
   change ;
 - `GET /{cid}` : la conversation ; ajoute d'abord un message `fait` par carte `devis` acceptée dont le job est fini
@@ -325,6 +325,10 @@ def _paquet(espace_id: str | None) -> dict:
     if espace_id:
         fichiers["persona.json"] = json.dumps(AC.persona_modele(_espace_valide(espace_id)), ensure_ascii=False,
                                               indent=2, sort_keys=True)
+    # t305 (25/10/2026) : les boîtes à outils (par fonctionnalité) voyagent avec le paquet, pour que le compagnon sache quels
+    # outils lui sont ouverts ; ajoutées avant le tri pour que la version reste déterministe
+    from app.services import agent_boites
+    fichiers["boites.json"] = json.dumps(agent_boites.paquet_mobile(), ensure_ascii=False, indent=2, sort_keys=True)
     fichiers = dict(sorted(fichiers.items()))
     brut = json.dumps(fichiers, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return {"version": hashlib.sha256(brut).hexdigest()[:16], "fichiers": fichiers}

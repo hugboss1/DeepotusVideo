@@ -27,7 +27,7 @@ from typing import AsyncIterator
 
 from fastapi import HTTPException
 
-from app.services import (agent_aide, agent_format as fmt, agent_outils as ao, agent_store, espaces,
+from app.services import (agent_aide, agent_boites, agent_format as fmt, agent_outils as ao, agent_store, espaces,
                           moteurs_texte as MT, plafonds, pricing)
 
 MAX_TOURS = 8
@@ -186,7 +186,7 @@ def devis_message(conv: dict, texte: str, lang: str = "fr") -> dict:
     """Le plafond en dollars de TOUTE la réponse : MAX_TOURS × (contexte + SORTIE_MAX) au tarif du modèle de l'agent.
     Rendu même sans clé (l'écran l'affiche ; c'est l'envoi qui est refusé)."""
     modele = MT.modele_agent()
-    ctx = _jetons(systeme(conv, lang), _historique(conv.get("messages") or [], str(texte or "")), ao.definitions())
+    ctx = _jetons(systeme(conv, lang), _historique(conv.get("messages") or [], str(texte or "")), agent_boites.definitions_pour("campagnes"))
     in_tok, out_tok = MAX_TOURS * ctx, MAX_TOURS * SORTIE_MAX
     return {"plafond_usd": _usd(MT.op_tour(modele, in_tok, out_tok)), "in_tok": in_tok, "out_tok": out_tok,
             "modele": modele}
@@ -243,7 +243,7 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: st
     if not math.isfinite(plafond) or plafond < 0:         # NaN ou infini désarmeraient la comparaison
         plafond = 0.0
     modele = MT.modele_agent()
-    outils = ao.definitions()
+    outils = agent_boites.definitions_pour("campagnes")
     sys_ = systeme(conv, lang)
     msgs = _historique(conv["messages"], texte)
     message_ecrit = False
@@ -309,7 +309,7 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: st
             if ligne.get("role") == "bilan" and nom == "lire_planificateur":
                 args["campagne"] = True                    # le bilan lit les posts de CETTE campagne
             ctx = ao.Ctx(cid=cid, espace_id=ligne.get("espace_id"), lang=lang,
-                         etat_porte=ligne.get("etat_porte") or "aucune")
+                         etat_porte=ligne.get("etat_porte") or "aucune", agent=CATEGORIE)
             res = await ao.executer(nom, args, ctx)
             resume = str(res.get("resume") or "")
             blocs.append({"type": "resultat_outil", "outil": str(nom)[:60], "resume": resume[:500],
