@@ -113,6 +113,7 @@ def faux_x_me():
     return "x-id-5", "xuser"
 
 
+_X_ME_REEL = V._x_me
 V._get = faux_get
 V._x_me = faux_x_me
 YP.access_token = faux_yt_token
@@ -218,6 +219,93 @@ V._get = _old
 # plateforme inconnue : ne remonte pas
 r = verifier("mastodon")
 check("plateforme inconnue : orange, sans exception", r["etat"] == "orange", str(r))
+
+# --- Correctifs, tour 1 (26/10/2026) ---------------------------------------------------------------------------------
+def avec_get(code, corps, p, **kw):
+    anc = V._get
+    async def g(url, headers=None, params=None, *a, **k):
+        return code, corps
+    V._get = g
+    try:
+        return verifier(p, **kw)
+    finally:
+        V._get = anc
+
+# 1. Instagram : jeton Graph invalide = HTTP 400 + OAuthException (code 190, 102, 10, 200) -> rouge
+for c in (190, 102, 10, 200):
+    r = avec_get(400, {"error": {"message": "Error validating access token SECRET-IG-456", "type": "OAuthException", "code": c}}, "instagram")
+    check(f"IG 400 OAuthException code {c} : rouge, sans secret", r["etat"] == "rouge" and not sans_secret(r), str(r))
+r = avec_get(400, {"error": {"message": "Unsupported get request", "type": "GraphMethodException", "code": 100}}, "instagram")
+check("IG 400 ordinaire (sans OAuthException) : reste orange", r["etat"] == "orange", str(r))
+r = avec_get(400, "Bad request", "instagram")
+check("IG 400 corps texte : reste orange", r["etat"] == "orange", str(r))
+
+# 2. exceptions : classification étroite
+def avec_tok(modul, exc, p):
+    anc = modul.access_token
+    async def t():
+        raise exc
+    modul.access_token = t
+    try:
+        return verifier(p)
+    finally:
+        modul.access_token = anc
+r = avec_tok(YP, RuntimeError("youtube token 503: upstream 401 request id 401"), "youtube")
+check("YouTube token 503 dont le corps contient 401 : orange", r["etat"] == "orange", str(r))
+r = avec_tok(YP, RuntimeError("youtube token 400: invalid_grant"), "youtube")
+check("YouTube token 400 invalid_grant : rouge", r["etat"] == "rouge", str(r))
+r = avec_tok(YP, RuntimeError("youtube token 403: nope"), "youtube")
+check("YouTube token 403 en tête : rouge", r["etat"] == "rouge", str(r))
+r = avec_tok(TP, RuntimeError("tiktok token 500: boom 403"), "tiktok")
+check("TikTok token 500 dont le corps contient 403 : orange", r["etat"] == "orange", str(r))
+r = avec_tok(TP, RuntimeError("tiktok token 401: x"), "tiktok")
+check("TikTok token 401 en tête : rouge", r["etat"] == "rouge", str(r))
+r = avec_tok(TP, RuntimeError("erreur interne invalid_client"), "tiktok")
+check("TikTok invalid_client : rouge", r["etat"] == "rouge", str(r))
+r = avec_tok(YP, RuntimeError("le serveur dit forbidden 401 quelque part"), "youtube")
+check("texte libre avec forbidden/401 hors motif : orange", r["etat"] == "orange", str(r))
+def _x_texte():
+    raise RuntimeError("503 gateway, ref 401 unauthorized")
+V._x_me = _x_texte
+r = verifier("x")
+check("X : RuntimeError dont le texte contient 401/unauthorized : orange (par type, pas par texte)", r["etat"] == "orange", str(r))
+def _x_forbidden():
+    class Forbidden(Exception): pass
+    raise Forbidden("403 Forbidden")
+V._x_me = _x_forbidden
+r = verifier("x")
+check("4. X Forbidden : rouge, palier d'API évoqué", r["etat"] == "rouge" and "palier d'API X insuffisant" in r["raison"], str(r))
+V._x_me = faux_x_me
+
+# 3. YouTube 403 de quota : orange, dit quota
+for rs in ("quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"):
+    r = avec_get(403, {"error": {"code": 403, "message": "q", "errors": [{"reason": rs}]}}, "youtube")
+    check(f"YouTube 403 {rs} : orange, raison = quota", r["etat"] == "orange" and "quota" in r["raison"].lower(), str(r))
+r = avec_get(403, {"error": {"code": 403, "message": "q", "errors": [{"reason": "forbidden"}]}}, "youtube")
+check("YouTube 403 forbidden : reste rouge", r["etat"] == "rouge", str(r))
+
+# 6. chemin réel asyncio.to_thread : le compte courant est visible dans le fil de _x_me
+from app.services import comptes, marketing                         # noqa: E402
+VU: list = []
+class _FauxClient:
+    def get_me(self):
+        VU.append(comptes.courant())
+        class D: id = 9; username = "reel"
+        class M: data = D
+        return M
+_xc = marketing._x_client
+marketing._x_client = lambda: _FauxClient()
+V._x_me = _X_ME_REEL
+_man = V._manquants
+V._manquants = lambda p: []
+cid = comptes.creer({"plateforme": "x", "libelle": "banc"})["id"]
+with comptes.sous_compte(cid):
+    r = asyncio.run(V.verifier_plateforme("x"))
+check("to_thread réel : _x_me voit le compte posé par sous_compte", VU == [cid], f"{VU} vs {cid}")
+check("to_thread réel : identité lue", r["etat"] == "vert" and r["id_distant"] == "9" and r["nom_distant"] == "@reel", str(r))
+marketing._x_client = _xc
+V._manquants = _man
+V._x_me = faux_x_me
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

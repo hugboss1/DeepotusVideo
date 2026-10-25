@@ -15,10 +15,13 @@ import re
 from urllib.parse import quote, urlencode
 
 from app.services import comptes
-from app.services.diagnostic import _get as _http_get, _msg, _res, _sans
+from app.services.diagnostic import _get as _http_get, _msg, _sans
 
-_REFUS = re.compile(r"\b(401|403)\b|invalid_grant|invalid_client|unauthori[sz]ed|forbidden", re.I)
-_REFUS_X = {"Unauthorized", "Forbidden"}
+# Refus d'un échange de jeton OAuth : « youtube token 401: … » EN TÊTE du message, ou invalid_grant / invalid_client.
+_REFUS = re.compile(r"^(youtube|tiktok) token (400|401|403)\b|invalid_grant|invalid_client", re.I)
+_REFUS_X = {"Unauthorized", "Forbidden"}      # tweepy : par TYPE d'exception, jamais par le texte
+_QUOTA_YT = {"quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"}
+_GRAPH_REFUS = {190, 102, 10, 200}            # Graph : jeton expiré/invalide, session, permission
 
 
 async def _get(url: str, headers: dict | None = None, params: dict | None = None):
@@ -68,6 +71,20 @@ def _etat_exception(e: Exception) -> str:
     return "orange"
 
 
+def _raison_yt(corps) -> str:
+    """Raison de la première erreur d'un corps d'erreur Google ('' si absente)."""
+    try:
+        return str(corps["error"]["errors"][0]["reason"])
+    except (KeyError, IndexError, TypeError):
+        return ""
+
+
+def _graph_refus(corps) -> bool:
+    """Jeton Graph invalide : HTTP 400 + OAuthException (ou code 190/102/10/200), pas un 401."""
+    e = corps.get("error") if isinstance(corps, dict) else None
+    return isinstance(e, dict) and (e.get("type") == "OAuthException" or e.get("code") in _GRAPH_REFUS)
+
+
 def _manquants(plateforme: str) -> list[str]:
     return [c for c in comptes.PLATEFORMES[plateforme][2] if not str(comptes.cle(c) or "").strip()]
 
@@ -101,6 +118,8 @@ async def _youtube() -> dict:
     sec = _secrets("youtube", tok)
     code, corps = await _get("https://www.googleapis.com/youtube/v3/channels",
                              headers={"Authorization": f"Bearer {tok}"}, params={"part": "snippet", "mine": "true"})
+    if code == 403 and _raison_yt(corps) in _QUOTA_YT:
+        return _r("orange", f"quota YouTube épuisé ({_raison_yt(corps)}) : réessayer plus tard", secrets_=sec)
     if code != 200:
         return _r(_etat_http(code), f"youtube {code} : {_msg(corps)}", secrets_=sec)
     items = (corps.get("items") if isinstance(corps, dict) else None) or []
@@ -117,7 +136,8 @@ async def _instagram() -> dict:
     code, corps = await _get(f"{instagram_publisher._graph()}/{ig}",
                              params={"fields": "username", "access_token": tok})
     if code != 200 or not isinstance(corps, dict) or not corps.get("username"):
-        return _r(_etat_http(code) if code != 200 else "orange",
+        etat = "rouge" if code in (401, 403) or (code == 400 and _graph_refus(corps)) else "orange"
+        return _r(etat,
                   f"instagram {code} : {_msg(corps)}" if code != 200 else "instagram : aucun nom de compte rendu", secrets_=sec)
     return _r("vert", "compte Instagram joint", corps.get("id") or ig, f"@{corps['username']}", sec)
 
@@ -154,4 +174,7 @@ async def verifier_plateforme(plateforme: str) -> dict:
             sec = _secrets(plateforme)
         except Exception:  # noqa: BLE001
             sec = []
-        return _r(_etat_exception(e), f"{plateforme} : {type(e).__name__} : {e}", secrets_=sec)
+        raison = f"{plateforme} : {type(e).__name__} : {e}"
+        if plateforme == "x" and type(e).__name__ == "Forbidden":
+            raison = f"x : accès refusé (palier d'API X insuffisant ?) : {e}"
+        return _r(_etat_exception(e), raison, secrets_=sec)
