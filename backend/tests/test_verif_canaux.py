@@ -3,6 +3,8 @@
 TikTok). ZÉRO réseau : `verif_canaux._get`, `verif_canaux._x_me` et les jetons OAuth sont remplacés.
 Couvre : vert / rouge (401) / orange (500, puis exception réseau) par plateforme ; Review Focus 1 (aucun secret dans
 une sortie) ; Review Focus 3 (Telegram n'appelle jamais /send*) ; champs manquants ; TikTok non audité.
+Tâche 2 (section « enregistrée ») : noter_verification, canal_id, effacement par poser/supprimer (Review Focus 2), historique,
+compte porté par le téléphone sans réseau ni secret (Review Focus 5), route POST /api/comptes/{id}/verifier (200, 404, 403).
 Run (depuis backend/) : & $PY tests/test_verif_canaux.py"""
 import asyncio, json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -306,6 +308,215 @@ check("to_thread réel : identité lue", r["etat"] == "vert" and r["id_distant"]
 marketing._x_client = _xc
 V._manquants = _man
 V._x_me = faux_x_me
+
+# ============ Tâche 2 : la vérification ENREGISTRÉE, le canal porté par le téléphone, la route ============
+print("[enregistrée] noter_verification / canal_id / effacement / porté par le téléphone / route")
+from app.services import fiche_client as FC, coffre                 # noqa: E402
+import json as _json                                                # noqa: E402
+
+def _brut():
+    return _json.loads((_tmp / "espaces" / "comptes.json").read_text(encoding="utf-8"))
+
+VERT = {"etat": "vert", "raison": "compte joint", "id_distant": "1784000", "nom_distant": "@insta_nom"}
+ci = comptes.creer({"espace_id": "deepotus", "plateforme": "instagram", "libelle": "IG banc",
+                    "valeurs": {"IG_ACCESS_TOKEN": "SECRET-IG-456", "IG_BUSINESS_ID": "1784000"}})["id"]
+check("E0 un compte neuf : verification None, canal_id None",
+      comptes.obtenir(ci)["verification"] is None and comptes.obtenir(ci)["canal_id"] is None, str(comptes.obtenir(ci)))
+rg = comptes.noter_verification(ci, VERT)
+check("E1 noter_verification rend la vérification rangée (5 clés, date ISO secondes)",
+      set(rg) == {"etat", "raison", "date", "id_distant", "nom_distant"} and rg["etat"] == "vert"
+      and len(rg["date"]) == 19 and rg["date"][10] == "T", str(rg))
+v = comptes.obtenir(ci)
+check("E2 aller-retour : la vue porte verification et canal_id", v["verification"] == rg and v["canal_id"] == "instagram:1784000", str(v))
+check("E3 rangée dans doc[verifications][cid] (clé de premier niveau)", _brut()["verifications"][ci] == rg)
+check("E4 lister porte aussi les deux clés", [x for x in comptes.lister("deepotus") if x["id"] == ci][0]["canal_id"] == "instagram:1784000")
+check("E5 canal_id rejette un id_distant hors CANAL_ID",
+      comptes.canal_id({"plateforme": "instagram", "verification": {"id_distant": "a b/c"}}) is None
+      and comptes.canal_id({"plateforme": "instagram", "verification": {"id_distant": ""}}) is None
+      and comptes.canal_id({"plateforme": "instagram", "verification": {"id_distant": None}}) is None
+      and comptes.canal_id({"plateforme": "instagram", "verification": None}) is None
+      and comptes.canal_id({"plateforme": "instagram"}) is None)
+check("E5b ... et accepte un id de chat Telegram négatif",
+      comptes.canal_id({"plateforme": "telegram", "verification": {"id_distant": "-100777"}}) == "telegram:-100777")
+rg2 = comptes.noter_verification(ci, {"etat": "rouge", "raison": "refusé", "id_distant": "x y", "nom_distant": None})
+check("E5c id_distant invalide : rangé tel quel mais canal_id None", comptes.obtenir(ci)["canal_id"] is None and rg2["etat"] == "rouge")
+comptes.noter_verification(ci, VERT)
+try:
+    comptes.noter_verification("c00000000", VERT); check("E6 compte inconnu : KeyError", False)
+except KeyError:
+    check("E6 compte inconnu : KeyError", True)
+try:
+    comptes.noter_verification("pas-un-compte", VERT); check("E6b id mal formé : KeyError", False)
+except KeyError:
+    check("E6b id mal formé : KeyError", True)
+# Review Focus 2 : réécrire un champ (secret ou public) efface la vérification
+comptes.poser(ci, {"IG_BUSINESS_ID": "1784001"})
+check("E7 poser un champ public efface la vérification (vue « non vérifiée »)",
+      comptes.obtenir(ci)["verification"] is None and comptes.obtenir(ci)["canal_id"] is None and ci not in _brut().get("verifications", {}))
+comptes.noter_verification(ci, VERT)
+comptes.poser(ci, {"IG_ACCESS_TOKEN": "SECRET-IG-NEUF"})
+check("E8 poser un secret efface la vérification", comptes.obtenir(ci)["verification"] is None)
+comptes.noter_verification(ci, VERT)
+comptes.poser(ci, {})
+check("E8b poser sans champ n'efface rien", comptes.obtenir(ci)["verification"] is not None)
+comptes.modifier(ci, {"libelle": "Renommé"})
+check("E8c renommer (libellé) n'efface pas la vérification", comptes.obtenir(ci)["verification"] is not None)
+autre = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram"})["id"]
+comptes.noter_verification(autre, {"etat": "orange", "raison": "r", "id_distant": None, "nom_distant": None})
+comptes.poser(ci, {"IG_BUSINESS_ID": "9"})
+check("E8d l'effacement est par compte : l'autre garde la sienne", comptes.obtenir(autre)["verification"]["etat"] == "orange")
+comptes.noter_verification(ci, VERT)
+comptes.supprimer(ci)
+check("E9 supprimer retire la vérification du fichier", ci not in _brut().get("verifications", {}) and autre in _brut()["verifications"])
+comptes.supprimer(autre)
+_d = comptes._lire(); _d.pop("verifications", None); comptes._ecrire(_d)
+check("E9b _lire tolère l'absence de la clé verifications", comptes._lire().get("comptes") is not None
+      and comptes.lister("deepotus") is not None)
+# historique : rangée et relue
+poser(**S)
+vh = comptes.noter_verification("historique-x", VERT)
+check("E10 historique : la vérification est rangée et relue",
+      [x for x in comptes.lister("deepotus") if x["id"] == "historique-x"][0]["verification"] == vh
+      and comptes.obtenir("historique-x")["canal_id"] == "x:1784000" and _brut()["verifications"]["historique-x"] == vh)
+check("E10b historique : un autre compte sans vérification porte verification None",
+      comptes.obtenir("historique-telegram")["verification"] is None)
+try:
+    comptes.noter_verification("historique-inconnu", VERT); check("E10c historique d'une plateforme inconnue : KeyError", False)
+except KeyError:
+    check("E10c historique d'une plateforme inconnue : KeyError", True)
+# porter_par_telephone : service seulement
+cp = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Porté",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-PHONE", "TELEGRAM_CHAT_ID": "-100555"}})["id"]
+check("E11 un compte non porté : pas de porte_par dans la vue", "porte_par" not in comptes.obtenir(cp))
+DECL = {"appareil_id": "tel-1", "appareil_nom": "Pixel d'Oli", "verifie_le": "2026-10-20T09:30:00", "etat": "vert",
+        "id_distant": "-100555"}
+comptes.noter_verification(cp, {"etat": "rouge", "raison": "ancienne", "id_distant": None, "nom_distant": None})
+vp = comptes.porter_par_telephone(cp, DECL)
+check("E12 porter_par_telephone rend la vue avec porte_par", vp["id"] == cp and vp["porte_par"] == DECL, str(vp.get("porte_par")))
+check("E12b la déclaration efface la vérification d'avant", vp["verification"] is None)
+check("E12c la vue ne contient aucune valeur secrète", "SECRET-TG-PHONE" not in _json.dumps(comptes.obtenir(cp)))
+for quoi, mauvais in (("appareil_id manquant", {**DECL, "appareil_id": ""}), ("appareil_nom non texte", {**DECL, "appareil_nom": 3}),
+                      ("etat inconnu", {**DECL, "etat": "bleu"}), ("date illisible", {**DECL, "verifie_le": "hier"}),
+                      ("champ étranger", {**DECL, "jeton": "x"}), ("pas un dict", ["x"]),
+                      ("id_distant hors CANAL_ID", {**DECL, "id_distant": "a b"})):
+    try:
+        comptes.porter_par_telephone(cp, mauvais); check(f"E13 refus : {quoi}", False)
+    except ValueError:
+        check(f"E13 refus : {quoi}", True)
+check("E13b ces refus n'ont rien changé", comptes.obtenir(cp)["porte_par"] == DECL)
+try:
+    comptes.porter_par_telephone("historique-telegram", DECL); check("E14 historique : CompteHistorique", False)
+except comptes.CompteHistorique:
+    check("E14 historique : CompteHistorique", True)
+try:
+    comptes.porter_par_telephone("c00000000", DECL); check("E14b compte inconnu : KeyError", False)
+except KeyError:
+    check("E14b compte inconnu : KeyError", True)
+vn = comptes.porter_par_telephone(cp, {**DECL, "verifie_le": None, "etat": None, "id_distant": None})
+check("E15 une déclaration « jamais vérifié » est acceptée", vn["porte_par"]["verifie_le"] is None and vn["porte_par"]["etat"] is None)
+comptes.porter_par_telephone(cp, DECL)
+
+# Review Focus 5 : un compte porté par le téléphone ne lit AUCUN secret et ne fait AUCUN appel réseau
+def _x_interdit():
+    raise AssertionError("APPEL RÉSEAU INTERDIT (compte porté par le téléphone)")
+async def _get_interdit(*a, **k):
+    raise AssertionError("APPEL RÉSEAU INTERDIT (compte porté par le téléphone)")
+def _secret_interdit(nom):
+    raise AssertionError(f"LECTURE DE SECRET INTERDITE : {nom}")
+async def _vp_interdit(p):
+    raise AssertionError("verifier_plateforme appelé pour un compte porté par le téléphone")
+_g, _vs, _xm, _vp = V._get, comptes._valeur_secrete, V._x_me, V.verifier_plateforme
+
+def verifier_sans_rien(cid_):
+    V._get, V._x_me, V.verifier_plateforme = _get_interdit, _x_interdit, _vp_interdit
+    comptes._valeur_secrete = _secret_interdit
+    try:
+        return asyncio.run(V.verifier(cid_)), ""
+    except AssertionError as e:
+        return None, str(e)
+    finally:
+        V._get, V._x_me, V.verifier_plateforme = _g, _xm, _vp
+        comptes._valeur_secrete = _vs
+
+vv, err = verifier_sans_rien(cp)
+check("E16 porté par le téléphone : ni appel réseau ni lecture de secret", vv is not None, err)
+vf = vv["verification"] if vv else {}
+check("E16b la raison porte la date de la déclaration", "porté par le téléphone, vérifié le" in vf.get("raison", "")
+      and "2026-10-20" in vf.get("raison", ""), str(vf))
+check("E16c l'état est celui de la déclaration, l'id distant aussi, le canal_id suit",
+      vf.get("etat") == "vert" and vf.get("id_distant") == "-100555" and vv["canal_id"] == "telegram:-100555", str(vv))
+check("E16d la vérification est rangée (relue par obtenir)", comptes.obtenir(cp)["verification"] == vf)
+comptes.porter_par_telephone(cp, {**DECL, "verifie_le": None, "etat": None, "id_distant": None})
+vj, err = verifier_sans_rien(cp)
+check("E17 jamais vérifié : orange, raison dite, aucun appel", vj is not None and vj["verification"]["etat"] == "orange"
+      and vj["verification"]["raison"] == "porté par le téléphone, jamais vérifié" and vj["canal_id"] is None, f"{vj} {err}")
+comptes.porter_par_telephone(cp, {**DECL, "etat": "rouge"})
+vr, err = verifier_sans_rien(cp)
+check("E17b déclaration rouge : l'état rouge est repris", vr is not None and vr["verification"]["etat"] == "rouge", f"{vr} {err}")
+comptes.porter_par_telephone(cp, {**DECL, "etat": None})
+vr, err = verifier_sans_rien(cp)
+check("E17c vérifié mais sans état : orange (jamais vert par défaut)", vr is not None and vr["verification"]["etat"] == "orange", f"{vr} {err}")
+
+# un compte ordinaire : verifier = sous_compte + verifier_plateforme, puis rangé
+cn = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Ordinaire",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-123", "TELEGRAM_CHAT_ID": "-100777"}})["id"]
+for k in S:
+    setattr(settings, k, "")                 # les clés plates vidées : seul le compte parle
+ROUTE["mode"] = "vert"; APPELS.clear()
+V._get = faux_get
+vo = asyncio.run(V.verifier(cn))
+check("E18 compte ordinaire : vert, identité du compte, rangée, canal_id", vo["verification"]["etat"] == "vert"
+      and vo["canal_id"] == "telegram:-100777" and comptes.obtenir(cn)["verification"] == vo["verification"], str(vo))
+check("E18b aucun appel d'envoi", not any("/send" in u for u, _p, _h in APPELS))
+ROUTE["mode"] = "401"
+vo = asyncio.run(V.verifier(cn))
+check("E19 refus : rouge rangé, aucun secret dans la vue ni dans la raison",
+      vo["verification"]["etat"] == "rouge" and not any(s in _json.dumps(vo) for s in TOUS_SECRETS), str(vo)[:300])
+ROUTE["mode"] = "vert"
+try:
+    asyncio.run(V.verifier("c00000000")); check("E20 compte inconnu : KeyError", False)
+except KeyError:
+    check("E20 compte inconnu : KeyError", True)
+poser(**S)
+vh = asyncio.run(V.verifier("historique-telegram"))
+check("E21 historique : lit les clés plates, rangée sous historique-telegram",
+      vh["verification"]["etat"] == "vert" and _brut()["verifications"]["historique-telegram"]["etat"] == "vert", str(vh)[:300])
+
+print("[enregistrée] route POST /api/comptes/{id}/verifier")
+from fastapi.testclient import TestClient                           # noqa: E402
+from app.main import app                                            # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _jeton_appareil as JA                                        # noqa: E402
+for k in S:
+    setattr(settings, k, "")
+ROUTE["mode"] = "vert"
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    r = client.post(f"/api/comptes/{cn}/verifier")
+    j = r.json() if r.status_code == 200 else {}
+    check("R1 200 avec la vue du compte", r.status_code == 200 and j.get("compte", {}).get("id") == cn
+          and j["compte"]["verification"]["etat"] == "vert" and j["compte"]["canal_id"] == "telegram:-100777", r.text[:300])
+    check("R2 jamais de secret dans la réponse", not any(s in r.text for s in TOUS_SECRETS + ["SECRET-TG-PHONE"]))
+    check("R3 compte inconnu : 404", client.post("/api/comptes/c00000000/verifier").status_code == 404)
+    check("R3b id mal formé : 404", client.post("/api/comptes/nimporte/verifier").status_code == 404)
+    ROUTE["mode"] = "401"
+    r = client.post(f"/api/comptes/{cn}/verifier")
+    check("R4 un refus distant reste un 200 (rouge dans la vue)", r.status_code == 200 and r.json()["compte"]["verification"]["etat"] == "rouge"
+          and not any(s in r.text for s in TOUS_SECRETS), r.text[:200])
+    ROUTE["mode"] = "vert"
+    comptes.porter_par_telephone(cp, {**DECL, "verifie_le": None, "etat": None, "id_distant": None})
+    r = client.post(f"/api/comptes/{cp}/verifier")
+    check("R5 compte porté par le téléphone : 200, aucun appel", r.status_code == 200
+          and r.json()["compte"]["verification"]["raison"] == "porté par le téléphone, jamais vérifié", r.text[:200])
+    avant = comptes.obtenir(cn)["verification"]
+    H = JA.entetes(app)
+    lan = TestClient(app, client=("192.168.1.20", 50000))
+    r = lan.post(f"/api/comptes/{cn}/verifier", headers=H)
+    check("R6 appareil appairé : 403", r.status_code == 403, str(r.status_code))
+    check("R6b ... et rien n'a changé", comptes.obtenir(cn)["verification"] == avant)
+    check("R6c aucune route d'écriture « porté par » n'est exposée (service seulement)",
+          client.post(f"/api/comptes/{cp}/porte_par", json=DECL).status_code in (404, 405)
+          and client.post(f"/api/comptes/{cp}/porter", json=DECL).status_code in (404, 405))
+V._get = _g
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

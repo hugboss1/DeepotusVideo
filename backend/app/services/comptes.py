@@ -13,6 +13,12 @@ peut casser) et se règle toujours dans Réglages › Connected accounts.
 
 Lecture : `cred.X_ACCESS_TOKEN` / `cred.has_x` remplacent `settings.…` dans les adaptateurs ; sous `sous_compte(id)`
 ils lisent le compte, sinon les clés plates (comportement d'avant, à l'octet).
+
+t308 (26/10/2026) — la VÉRIFICATION d'un compte (services/verif_canaux.py) est rangée à part, datée, dans la clé de premier
+niveau `verifications` de comptes.json (`{compte: {etat, raison, date, id_distant, nom_distant}}`) : jamais de secret. Réécrire
+un champ du compte (`poser`) ou le supprimer l'efface : la vue redevient « non vérifié ». Le `canal_id` (`<plateforme>:<id
+distant>`, expression de t306) vient de là. Un compte peut aussi être PORTÉ PAR LE TÉLÉPHONE (`porte_par`) : la vérification
+ne lit alors ni secret ni réseau, elle reprend la déclaration de l'appareil.
 """
 from __future__ import annotations
 
@@ -69,6 +75,8 @@ def _lire() -> dict:
         try:
             doc = json.loads(f.read_text(encoding="utf-8"))
             if isinstance(doc, dict) and isinstance(doc.get("comptes"), dict) and all(_ID.match(k) for k in doc["comptes"]):
+                if "verifications" in doc and not isinstance(doc["verifications"], dict):
+                    doc.pop("verifications")          # t308 : tolérée absente ou abîmée (« non vérifié »)
                 return doc
         except (OSError, ValueError):
             pass
@@ -157,28 +165,56 @@ cred = _Cred()
 
 # ---- la liste --------------------------------------------------------------------------------------------------------
 
-def _historiques() -> list:
+def _historiques(verifs: dict | None = None) -> list:
+    verifs = (_lire().get("verifications") or {}) if verifs is None else verifs
     out = []
     for p, (lib, champs, _req, oauth) in PLATEFORMES.items():
         if not any(str(getattr(settings, c) or "").strip() for c, _s in champs if c != "TIKTOK_AUDITED"):
             continue
         out.append({"id": HISTO + p, "espace_id": "deepotus", "plateforme": p, "libelle": f"{lib} (historique)",
                     "handle": "", "historique": True, "oauth": oauth, "disponible": bool(getattr(settings, f"has_{p}")),
+                    **_verif_vue(p, verifs.get(HISTO + p)),
                     "champs": [{"nom": c, "secret": s, "pose": bool(str(getattr(settings, c) or "").strip()),
                                 **({} if s else {"valeur": getattr(settings, c)})} for c, s in champs]})
     return out
 
 
-def _vue(cid: str, e: dict) -> dict:
+def _verif_vue(p: str, verif) -> dict:
+    """Les clés de vue d'une vérification : `verification` (dict ou None) et `canal_id` (str ou None)."""
+    verif = verif if isinstance(verif, dict) else None
+    return {"verification": verif, "canal_id": canal_id({"plateforme": p, "verification": verif})}
+
+
+def canal_id(vue: dict):
+    """t308 : `<plateforme>:<id distant>` si la vérification du compte porte un id distant qui passe l'expression de t306
+    (`fiche_client.CANAL_ID`), sinon None (canal jamais vérifié : le consentement du client est alors « manquant »)."""
+    from app.services import fiche_client
+    vue = vue or {}
+    verif = vue.get("verification")
+    idd = verif.get("id_distant") if isinstance(verif, dict) else None
+    if not isinstance(idd, str) or not idd or not isinstance(vue.get("plateforme"), str):
+        return None
+    c = f"{vue['plateforme']}:{idd}"
+    return c if fiche_client.CANAL_ID.match(c) else None
+
+
+def _vue(cid: str, e: dict, verifs: dict | None = None) -> dict:
+    verifs = (_lire().get("verifications") or {}) if verifs is None else verifs
     p = e.get("plateforme")
     lib, champs, _req, oauth = PLATEFORMES[p]
     pub = e.get("publics") or {}
-    with sous_compte(cid):
-        dispo = disponible(p)
-        poses = {c: bool(str(cle(c) or "").strip()) for c, s in champs if s}
+    if isinstance(e.get("porte_par"), dict):
+        # t308 : canal PORTÉ PAR LE TÉLÉPHONE — le PC ne lit jamais ses secrets (même s'il en existe au même nom)
+        dispo, poses = False, {c: False for c, s in champs if s}
+    else:
+        with sous_compte(cid):
+            dispo = disponible(p)
+            poses = {c: bool(str(cle(c) or "").strip()) for c, s in champs if s}
     return {"id": cid, "espace_id": e.get("espace_id"), "plateforme": p, "libelle": e.get("libelle") or lib,
             "handle": e.get("handle") or "", "historique": False, "oauth": oauth, "disponible": dispo,
             "created_at": e.get("created_at"),
+            **_verif_vue(p, verifs.get(cid)),
+            **({"porte_par": _porte_par_vue(e["porte_par"])} if isinstance(e.get("porte_par"), dict) else {}),
             "champs": [{"nom": c, "secret": s, "pose": poses[c] if s else bool(pub.get(c)),
                         **({} if s else {"valeur": pub.get(c, False if c == "TIKTOK_AUDITED" else "")})}
                        for c, s in champs]}
@@ -187,17 +223,24 @@ def _vue(cid: str, e: dict) -> dict:
 def lister(espace_id: str | None = None) -> list:
     """Les comptes d'un espace (tous sinon), historiques compris (espace Deepotus). Jamais de valeur secrète."""
     doc = _lire()
-    out = [_vue(k, v) for k, v in doc["comptes"].items() if espace_id in (None, v.get("espace_id"))]
+    verifs = doc.get("verifications") or {}
+    out = [_vue(k, v, verifs) for k, v in doc["comptes"].items() if espace_id in (None, v.get("espace_id"))]
     if espace_id in (None, "deepotus"):
-        out = _historiques() + out
+        out = _historiques(verifs) + out
     return sorted(out, key=lambda v: (not v["historique"], v["plateforme"], v["libelle"].lower()))
 
 
 def obtenir(cid: str) -> dict:
-    for v in lister():
-        if v["id"] == cid:
-            return v
-    raise KeyError(cid)
+    """La vue d'UN compte (sans calculer celle des autres : une vérification ne lit que les secrets du compte visé)."""
+    if (cid or "").startswith(HISTO):
+        for v in _historiques():
+            if v["id"] == cid:
+                return v
+        raise KeyError(cid)
+    doc = _lire()
+    if cid not in doc["comptes"]:
+        raise KeyError(cid)
+    return _vue(cid, doc["comptes"][cid], doc.get("verifications") or {})
 
 
 def _texte(v, n=MAX) -> str:
@@ -259,6 +302,8 @@ def poser(cid: str, valeurs: dict) -> list:
             raise ValueError(f"{c} n'est pas un champ d'un compte {PLATEFORMES[e['plateforme']][0]}")
     if any(autorises[c] for c in valeurs) and coffre.verrouille():
         raise coffre.CoffreVerrouille("le coffre est fermé : ouvrez-le avant d'enregistrer un secret")
+    if valeurs and (doc.get("verifications") or {}).pop(cid, None) is not None:
+        _ecrire(doc)          # t308 : le compte change -> « non vérifié » (écrit AVANT les secrets : un échec n'en laisse pas)
     for c, v in valeurs.items():
         if autorises[c]:
             _secret_ecrire(nom_secret(cid, c), str(v or "").strip())
@@ -303,7 +348,83 @@ def supprimer(cid: str) -> None:
     for c in secrets_:
         _secret_ecrire(nom_secret(cid, c), "")
     doc["comptes"].pop(cid)
+    (doc.get("verifications") or {}).pop(cid, None)
     _ecrire(doc)
+
+
+# ---- t308 : la vérification enregistrée et le canal porté par le téléphone -----------------------------------------------
+# Un compte HISTORIQUE reste lié aux clés plates (Réglages › Connected accounts) : sa vérification n'est PAS effacée quand
+# ces clés sont réécrites ailleurs (elle garde sa date, l'écran la montre datée) : non demandé en t308.
+
+ETATS = ("vert", "orange", "rouge")
+_PORTE_CLES = ("appareil_id", "appareil_nom", "verifie_le", "etat", "id_distant")
+
+
+def noter_verification(cid: str, res: dict) -> dict:
+    """Range la vérification d'un compte (aussi `historique-<p>`) : {etat, raison, date, id_distant, nom_distant}. Rend la
+    vérification rangée. KeyError = compte inconnu. Aucun secret : `res` vient de verif_canaux (déjà nettoyé)."""
+    doc = _lire()
+    if (cid or "").startswith(HISTO):
+        if cid[len(HISTO):] not in PLATEFORMES:
+            raise KeyError(cid)
+    elif cid not in doc["comptes"]:
+        raise KeyError(cid)
+    res = res if isinstance(res, dict) else {}
+
+    def _t(v, n):
+        return None if v is None else str(v)[:n]
+    verif = {"etat": res.get("etat") if res.get("etat") in ETATS else "orange", "raison": _t(res.get("raison"), 200) or "",
+             "date": datetime.now().isoformat(timespec="seconds"), "id_distant": _t(res.get("id_distant"), 200),
+             "nom_distant": _t(res.get("nom_distant"), 200)}
+    doc.setdefault("verifications", {})[cid] = verif
+    _ecrire(doc)
+    return verif
+
+
+def _porte_par_vue(pp: dict) -> dict:
+    return {k: pp.get(k) for k in _PORTE_CLES}
+
+
+def porter_par_telephone(cid: str, declaration: dict) -> dict:
+    """Marque le canal d'un compte comme PORTÉ PAR LE TÉLÉPHONE (service seulement : l'écriture du téléphone viendra en
+    L4.2, aucune route). `declaration` = {appareil_id, appareil_nom, verifie_le (ISO|None), etat (vert|orange|rouge|None),
+    id_distant (str|None)}. Efface la vérification d'avant (la déclaration la remplace). Rend la vue. ValueError = forme
+    refusée, CompteHistorique = compte d'avant les espaces, KeyError = compte inconnu."""
+    from app.services import fiche_client
+    doc = _propre(cid)
+    if not isinstance(declaration, dict):
+        raise ValueError("déclaration du téléphone : un objet est attendu")
+    for k in declaration:
+        if k not in _PORTE_CLES:
+            raise ValueError("déclaration du téléphone : champ inconnu")
+    out = {}
+    for k in ("appareil_id", "appareil_nom"):
+        v = declaration.get(k)
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("déclaration du téléphone : identifiant et nom de l'appareil requis")
+        out[k] = v.strip()[:80]
+    vl = declaration.get("verifie_le")
+    if vl is not None:
+        try:
+            if not isinstance(vl, str):
+                raise ValueError(vl)
+            datetime.fromisoformat(vl)
+        except ValueError:
+            raise ValueError("déclaration du téléphone : date de vérification illisible (ISO attendu)") from None
+    out["verifie_le"] = vl
+    et = declaration.get("etat")
+    if et is not None and et not in ETATS:
+        raise ValueError("déclaration du téléphone : état inconnu (vert, orange ou rouge)")
+    out["etat"] = et
+    idd = declaration.get("id_distant") or None
+    if idd is not None and (not isinstance(idd, str)
+                            or not fiche_client.CANAL_ID.match(f"{doc['comptes'][cid]['plateforme']}:{idd}")):
+        raise ValueError("déclaration du téléphone : identifiant distant invalide")
+    out["id_distant"] = idd
+    doc["comptes"][cid]["porte_par"] = out
+    (doc.get("verifications") or {}).pop(cid, None)
+    _ecrire(doc)
+    return obtenir(cid)
 
 
 def de_l_espace(cid: str, espace_id: str) -> bool:

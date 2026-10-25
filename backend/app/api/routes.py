@@ -8512,6 +8512,18 @@ async def delete_compte(compte_id: str, request: Request):
     return {"deleted": compte_id}
 
 
+@router.post("/comptes/{compte_id}/verifier")
+async def verifier_compte(compte_id: str, request: Request):
+    """t308 (26/10/2026) : vérifie le compte SANS rien publier (lecture seule chez la plateforme), range le résultat daté
+    et rend la vue. Lit des secrets : localhost seulement (un appareil appairé reçoit 403)."""
+    _require_localhost(request)
+    from app.services import verif_canaux as _vc
+    try:
+        return {"compte": await _vc.verifier(compte_id)}
+    except Exception as e:  # noqa: BLE001 — traduit en 404 (inconnu) / 400 par _compte_erreur
+        raise _compte_erreur(e)
+
+
 # ============ v1.14: editable caption pack (Telegram Premium tags) ============
 # The Scheduler caption editor offers one-tap branded tags. The default set is
 # deepotus-flavoured; this endpoint lets the user (or a white-label reseller)

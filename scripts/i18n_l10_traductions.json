@@ -10650,5 +10650,29 @@
  "mode de publication inconnu (valide_par_client ou publie_en_son_nom)": {
   "fr": "mode de publication inconnu (valide_par_client ou publie_en_son_nom)",
   "en": "unknown publication mode (valide_par_client or publie_en_son_nom)"
+ },
+ "déclaration du téléphone : un objet est attendu": {
+  "fr": "déclaration du téléphone : un objet est attendu",
+  "en": "phone declaration: an object is expected"
+ },
+ "déclaration du téléphone : champ inconnu": {
+  "fr": "déclaration du téléphone : champ inconnu",
+  "en": "phone declaration: unknown field"
+ },
+ "déclaration du téléphone : identifiant et nom de l'appareil requis": {
+  "fr": "déclaration du téléphone : identifiant et nom de l'appareil requis",
+  "en": "phone declaration: device id and name are required"
+ },
+ "déclaration du téléphone : date de vérification illisible (ISO attendu)": {
+  "fr": "déclaration du téléphone : date de vérification illisible (ISO attendu)",
+  "en": "phone declaration: unreadable verification date (ISO expected)"
+ },
+ "déclaration du téléphone : état inconnu (vert, orange ou rouge)": {
+  "fr": "déclaration du téléphone : état inconnu (vert, orange ou rouge)",
+  "en": "phone declaration: unknown state (green, orange or red)"
+ },
+ "déclaration du téléphone : identifiant distant invalide": {
+  "fr": "déclaration du téléphone : identifiant distant invalide",
+  "en": "phone declaration: invalid remote identifier"
  }
 }

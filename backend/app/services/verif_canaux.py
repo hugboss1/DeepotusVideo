@@ -178,3 +178,27 @@ async def verifier_plateforme(plateforme: str) -> dict:
         if plateforme == "x" and type(e).__name__ == "Forbidden":
             raison = f"x : accès refusé (palier d'API X insuffisant ?) : {e}"
         return _r(_etat_exception(e), raison, secrets_=sec)
+
+
+# ---- t308 : la vérification ENREGISTRÉE ------------------------------------------------------------------------------
+
+def _portee(pp: dict) -> dict:
+    """Le résultat d'un compte PORTÉ PAR LE TÉLÉPHONE : la déclaration de l'appareil, sans réseau ni secret."""
+    date = pp.get("verifie_le")
+    if not date:
+        return _r("orange", "porté par le téléphone, jamais vérifié", pp.get("id_distant"))
+    etat = pp.get("etat") if pp.get("etat") in comptes.ETATS else "orange"
+    return _r(etat, f"porté par le téléphone, vérifié le {date}", pp.get("id_distant"))
+
+
+async def verifier(cid: str) -> dict:
+    """Vérifie le compte `cid` (ou `historique-<p>`), RANGE le résultat daté (`comptes.noter_verification`) et rend la vue
+    relue. Un compte porté par le téléphone ne lit aucun secret et n'appelle aucun réseau. KeyError = compte inconnu."""
+    vue = comptes.obtenir(cid)
+    if isinstance(vue.get("porte_par"), dict):
+        res = _portee(vue["porte_par"])
+    else:
+        with comptes.sous_compte(cid):
+            res = await verifier_plateforme(vue["plateforme"])
+    comptes.noter_verification(cid, res)
+    return comptes.obtenir(cid)
