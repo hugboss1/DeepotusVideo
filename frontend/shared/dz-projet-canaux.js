@@ -16,8 +16,12 @@
    - comptes(espace) -> Promise<liste> (mise en cache par espace ; `rafraichir` vide le cache) ;
    - connus(espace) -> la liste en cache ou null (lecture synchrone pour les glyphes de la barre des projets) ;
    - glyphe(plateforme) -> la clé Deepotus Glyph de la plateforme (dz-reseau-*, jamais d'emoji).
-   Le maillon de queue dzcanaux (scripts/patch_bundle_dzcanaux.py) ajoute à la barre « Projet » les glyphes des canaux
-   et le bouton « Canaux » qui appelle ouvrir(). CHARTE : celle de dialogue.js (aucun arrondi de châssis, en-tête
+   - remplir(hote) : les glyphes des canaux dans l'HÔTE que pose la barre « Projet » (span data-dz-projet-canaux,
+     data-canaux = ids séparés par des virgules, data-espace), titre au survol = les comptes ; aucun canal : vide.
+     Un observateur de mutations remplit chaque hôte à sa naissance et à chaque changement de data-canaux.
+   La barre vit dans la couche frontend/patches/montage.js (bloc #78, aides dzPcB / dzPcEc, saisie
+   scripts/i18n_l3/montage_i.py) : elle pose l'hôte et le bouton « Canaux » (classe dzpc-btn, stylée ici) qui appelle
+   ouvrir(f), et relit le projet à « dz-projet-canaux ». CHARTE : celle de dialogue.js (aucun arrondi de châssis, en-tête
    IBM Plex Mono en capitales, jetons --srf-* / --brd-* / --txt-* avec replis). Textes : clés projets.canaux.*
    (frontend/shared/i18n/projets.json). Vanilla DOM, aucune dépendance au runtime React. */
 (function () {
@@ -36,6 +40,7 @@
     ligne: "display:flex;align-items:center;gap:8px;padding:5px 6px;border:1px solid var(--brd-soft,var(--stroke,#222830));border-radius:0;cursor:pointer;font-size:12.5px",
     glyphe: "display:inline-flex;width:16px;height:16px;color:var(--txt-hi,var(--ink-strong,#e6e9ee))",
     handle: "font-family:var(--f-mono,'IBM Plex Mono',monospace);font-size:11px;color:var(--txt-mid,var(--ink-muted,#9aa4ae))",
+    hote: "display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 6px;border:1px solid var(--stroke);color:var(--ink-strong)",
     alerte: "font-size:11px;color:var(--amber,#f0b429)",
     erreur: "font-size:12px;color:var(--red,#e5484d);padding:0 14px 8px",
     pied: "display:flex;gap:8px;justify-content:flex-end;padding:10px 14px;border-top:1px solid var(--brd-soft,var(--stroke,#222830))",
@@ -200,5 +205,52 @@
     });
   }
 
-  window.__dzProjetCanaux = { ouvrir: ouvrir, comptes: comptes, connus: connus, glyphe: glyphe };
+  // ── l'hôte des glyphes dans la barre « Projet » (couche montage, dzPcB) ──
+  function remplir(hote) {
+    if (!hote || !hote.getAttribute) return;
+    var ids = String(hote.getAttribute("data-canaux") || "").split(",").filter(Boolean);
+    var esp = hote.getAttribute("data-espace") || "deepotus";
+    function dessiner() {
+      var liste = connus(esp) || [];
+      var vus = ids.map(function (i) {
+        return liste.filter(function (c) { return c.id === i; })[0] || { id: i, plateforme: "", libelle: i, handle: "" };
+      });
+      hote.innerHTML = vus.map(function (c) {
+        return '<span data-dz-canal="' + String(c.id).replace(/"/g, "") + '" style="display:inline-flex">' +
+          icone(glyphe(c.plateforme)) + "</span>";
+      }).join("");
+      hote.setAttribute("style", ids.length ? S.hote : "display:none");
+      if (ids.length) hote.setAttribute("title", T("projets.canaux.survol", { noms: vus.map(function (c) {
+        return c.libelle + (c.handle ? " " + c.handle : ""); }).join(", ") }));
+      else hote.removeAttribute("title");
+    }
+    dessiner();
+    if (ids.length && !connus(esp)) comptes(esp).then(dessiner, function () { /* les identifiants restent */ });
+  }
+  function balayer(racine) {
+    if (!racine || !racine.querySelectorAll) return;
+    if (racine.getAttribute && racine.getAttribute("data-dz-projet-canaux") !== null) remplir(racine);
+    Array.prototype.forEach.call(racine.querySelectorAll("[data-dz-projet-canaux]"), remplir);
+  }
+  function observer() {
+    try {
+      var st = document.createElement("style");
+      st.textContent = ".dzpc-btn{height:24px;padding:0 9px;font-size:11px;border-radius:12px;cursor:pointer;" +
+        "border:1px solid var(--stroke);background:transparent;color:var(--ink-soft);display:inline-flex;" +
+        "align-items:center;gap:4px}.dzpc-btn:hover{color:var(--ink-strong)}";
+      document.head.appendChild(st);
+      new MutationObserver(function (ms) {
+        ms.forEach(function (m) {
+          if (m.type === "attributes") remplir(m.target);
+          else Array.prototype.forEach.call(m.addedNodes || [], function (n) { if (n.nodeType === 1) balayer(n); });
+        });
+      }).observe(document.body, { childList: true, subtree: true, attributes: true,
+                                   attributeFilter: ["data-canaux", "data-espace"] });
+      balayer(document.body);
+    } catch (e) { /* page sans DOM complet */ }
+  }
+  if (typeof MutationObserver === "function" && document.body) observer();
+  else if (typeof MutationObserver === "function") document.addEventListener("DOMContentLoaded", observer);
+
+  window.__dzProjetCanaux = { ouvrir: ouvrir, comptes: comptes, connus: connus, glyphe: glyphe, remplir: remplir };
 })();

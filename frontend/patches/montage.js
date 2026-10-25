@@ -10635,16 +10635,16 @@ function DzSemblables({m,liste,ouvrir}){var ls=x.useState(null),L=ls[0],setL=ls[
         children:r.jsx("img",{src:"/api/images/"+encodeURIComponent(z.filename),alt:"",style:{width:56,height:56,objectFit:"cover",display:"block"}})},z.filename)})}):null]})}
 /* ── fin Bibliothèque #82 D */
 /* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.
-   Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :
-   - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;
-     pour le projet regardé : le rendre ACTIF (tout ce qui est produit y est rangé), l'épingler sur le téléphone
-     (décision de l'utilisateur : un seul projet), le renommer, le supprimer ; et en créer un. L'actif est rappelé
-     même quand on en regarde un autre ;
-   - « Envoyer vers → Projet de la Bibliothèque… » : le menu existant (__dzSendMenu) liste les projets, coche ceux
-     qui contiennent déjà l'asset (un clic le retire), et propose d'en créer un — par le dialogue maison, jamais
-     la boîte native du navigateur.
-   Toute écriture prévient l'écran par l'événement « dz-projets » : la barre recharge la liste et le projet regardé. */
-var DZ_PJ_JSON={"Content-Type":"application/json"};
+   Barre « Projet » : regarder, actif, épingle, renommer, supprimer, créer ;
+   « Envoyer vers → Projet ». Écritures : « dz-projets ».
+   t307 (25/10/2026) : canaux (dzPcB, dzPcEc ; frontend/shared/dz-projet-canaux.js).
+
+
+
+
+
+(bourrage G1)                                                           */
+var DZ_PJ_JSON={"Content-Type":"application/json"};function dzPcEc(h,on){["dz-projets","dz-projet-canaux"].forEach(function(t){window[on?"addEventListener":"removeEventListener"](t,h)})}function dzPcB(ch,f){var P=window.__dzProjetCanaux;if(!f||!f.id)return!1;ch.push(r.jsx("span",{"data-dz-projet-canaux":f.id,"data-canaux":String(f.canaux||""),"data-espace":f.espace_id||""},"dzc"),P&&r.jsx("button",{type:"button",className:"dzpc-btn",title:dzT("projets.canaux.aide"),onClick:function(){P.ouvrir(f)},children:[__dzGl(P.glyphe())," ",dzT("projets.canaux.bouton")]},"dzcb"));return!0}
 function dzProjCle(z){return z?String(z.jobId||z.name||""):""}
 function dzProjKind(m){if(!m)return"image";if(m.audioFile||m.kind==="audio")return"audio";
   if(m.kind==="asset3d"||m.kind==="sprite2d")return m.kind;return m.jobId?"render":"image"}
@@ -10656,7 +10656,7 @@ function dzProjSignal(){try{window.dispatchEvent(new CustomEvent("dz-projets"))}
 function dzProjMsg(e){return String(e&&e.message||e)}
 function dzProjCharger(id){if(!id)return Promise.resolve(null);
   return dzProjApi("/api/library/projets/"+encodeURIComponent(id)).then(function(d){var refs={};
-    (d.items||[]).forEach(function(i){refs[i.ref]=1});return{id:d.id,nom:d.nom,epingle:!!d.epingle,refs:refs,n:(d.items||[]).length}})}
+    (d.items||[]).forEach(function(i){refs[i.ref]=1});return{id:d.id,nom:d.nom,epingle:!!d.epingle,espace_id:d.espace_id,canaux:d.canaux,refs:refs,n:(d.items||[]).length}})}
 function dzProjItems(pid,ref,kind,methode){return dzProjApi("/api/library/projets/"+encodeURIComponent(pid)+"/items",
   {method:methode,headers:DZ_PJ_JSON,body:JSON.stringify(methode==="DELETE"?{refs:[ref]}:{items:[{ref:ref,kind:kind}]})})}
 function dzProjMenu(m){var ref=dzProjCle(m),kind=dzProjKind(m),nom=(m&&m.name)||ref;if(!ref)return Promise.resolve();
@@ -10679,8 +10679,8 @@ function DzProjetsBar({f,setF}){
   function recharger(){dzProjApi("/api/library/projets").then(function(d){setListe(d.projets||[])}).catch(function(){});
     dzProjApi("/api/library/projets/actif").then(function(d){setActif(d||{id:""})}).catch(function(){});
     if(f&&f.id)dzProjCharger(f.id).then(setF).catch(function(){setF(null)})}
-  x.useEffect(function(){recharger();var h=function(){recharger()};window.addEventListener("dz-projets",h);
-    return function(){window.removeEventListener("dz-projets",h)}},[f&&f.id]);
+  x.useEffect(function(){recharger();var h=function(){recharger()};dzPcEc(h,1);                            
+    return function(){dzPcEc(h,0)                               }},[f&&f.id]);
   function agir(p){setMsg("");return p.then(function(){dzProjSignal()}).catch(function(e){setMsg(dzProjMsg(e))})}
   function choisir(id){setMsg("");if(!id){setF(null);return}dzProjCharger(id).then(setF).catch(function(e){setMsg(dzProjMsg(e))})}
   function creer(){window.__dzDialogue.saisir(dzT("biblio.projets.nom_nouveau"),{titre:dzT("biblio.projets.nouveau_titre"),ok:dzT("biblio.projets.creer")}).then(function(v){
@@ -10697,8 +10697,8 @@ function DzProjetsBar({f,setF}){
     r.jsx("select",{value:(f&&f.id)||"",onChange:function(e){choisir(e.target.value)},title:dzT("biblio.projets.choisir_aide"),
       style:{height:26,minWidth:180,maxWidth:280,padding:"0 6px",fontSize:12,background:"var(--bg-base)",color:"var(--ink-strong)",
         border:"1px solid var(--stroke)",borderRadius:6},children:options})];
-  if(f&&f.id){
-    ch.push(bouton(ici?__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_ici"),"●"):__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_activer"),"○"),
+  if(dzPcB(ch,f)){
+ch.push(bouton(ici?__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_ici"),"●"):__dzGlT("dz-action-rangement-auto",dzT("biblio.projets.auto_activer"),"○"),
       ici?dzT("biblio.projets.auto_ici_aide"):dzT("biblio.projets.auto_activer_aide"),
       function(){agir(dzProjApi("/api/library/projets/actif",{method:"PUT",headers:DZ_PJ_JSON,body:JSON.stringify({id:ici?"":f.id})}))},ici));
     ch.push(bouton(f.epingle?__dzGlT("dz-action-epingler-mobile",dzT("biblio.projets.epingle"),"📱"):__dzGlT("dz-action-epingler-mobile",dzT("biblio.projets.epingler"),"📱"),

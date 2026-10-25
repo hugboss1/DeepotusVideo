@@ -334,22 +334,11 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
-def avant_dzcanaux(bundle: str) -> str:
-    """t307 (25/10/2026) : le bundle d'avant les canaux d'un projet dans la barre « Projet » de la Bibliothèque (maillon
-    de queue patch_bundle_dzcanaux, posé APRÈS dzagentplan) : ses paires défaites, lues dans le maillon lui-même. Sans
-    son marqueur : rendu tel quel."""
-    import patch_bundle_dzcanaux as _m
-    if _m.MARKER not in bundle:
-        return bundle
-    return _m.defaire(bundle)
-
-
 def avant_dzagentplan(bundle: str) -> str:
     """Le bundle d'avant le mode Agent Campagnes du dialogue « Generate a marketing plan » (maillon de queue
     patch_bundle_dzagentplan, t285 T9, 24/10, posé APRÈS dzrecette) : ses paires défaites, lues dans le maillon lui-même.
     Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzagentplan as _m
-    bundle = avant_dzcanaux(bundle)              # t307 (25/10/2026) : le maillon posé APRÈS dzagentplan, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)
@@ -847,11 +836,16 @@ def base_avec_sonvfx_livre(base: bytes, livre: bytes) -> bytes:
     remplacé par celui du LIVRÉ, aux fins de ligne de la base. La couche sonvfx peut être retouchée après la base
     (retouche consignée dans la saisie L4 et RETOUCHES de G1, réinjectée par refresh_layer) : ces bancs vérifient leur
     maillon HORS de ce bloc ; que le bloc soit, à l'octet, sa couche source est vérifié par test_sonvfx_hub (D6) et
-    test_i18n_dictee_catalogue (2.13)."""
-    a, z = b"/*__DZ_SONVFX_BEGIN__*/", b"/*__DZ_SONVFX_END__*/"
-    if base.count(a) != 1 or livre.count(a) != 1:
-        return base
-    bloc = livre[livre.find(a):livre.find(z)].replace(b"\r\n", b"\n")
-    if b"\r\n" in base:
-        bloc = bloc.replace(b"\n", b"\r\n")
-    return base[:base.find(a)] + bloc + base[base.find(z):]
+    test_i18n_dictee_catalogue (2.13).
+    t307 (25/10/2026) : de même pour le bloc MONTAGE (barre « Projet » retouchée par la saisie L3 montage_i et RETOUCHES
+    de G1, réinjectée par refresh_layer) ; que ce bloc soit sa couche montage.js est vérifié par test_i18n_l3 (2c),
+    test_son_vfx_socle et test_icones_g1 (3.7)."""
+    for a, z in ((b"/*__DZ_SONVFX_BEGIN__*/", b"/*__DZ_SONVFX_END__*/"),
+                 (b"/*__DZ_MONTAGE_BEGIN__*/", b"/*__DZ_MONTAGE_END__*/")):
+        if base.count(a) != 1 or livre.count(a) != 1:
+            continue
+        bloc = livre[livre.find(a):livre.find(z)].replace(b"\r\n", b"\n")
+        if b"\r\n" in base:
+            bloc = bloc.replace(b"\n", b"\r\n")
+        base = base[:base.find(a)] + bloc + base[base.find(z):]
+    return base

@@ -749,12 +749,12 @@ def test_vrai_catalogue_agent_campagnes():
 
 
 def test_vrai_catalogue_canaux_projet():
-    """t307 (25/10/2026) : le bouton « Canaux » de la barre « Projet » (maillon dzcanaux, dans le bundle) et le bouton
+    """t307 (25/10/2026) : le bouton « Canaux » de la barre « Projet » (couche montage.js, aide dzPcB) et le bouton
     « Enregistrer » de la boîte des canaux (frontend/shared/dz-projet-canaux.js) sont au catalogue, sur la Bibliothèque
     (zone « projets ») ; ni les messages de la boîte, ni son « Annuler » commun."""
     e = S.extraire(RACINE)
     b = e.get("projets.canaux.bouton")
-    assert b and b["type"] == "bouton" and b["ecran"] == "library" and b["icone"] == "dz-action-publier"
+    assert b and b["type"] == "bouton" and b["ecran"] == "library"   # glyphe donné par le script partagé (P.glyphe())
     assert b["infobulle"] and b["infobulle"]["fr"].startswith("Choisir les comptes")
     s = e.get("projets.canaux.enregistrer")
     assert s and s["type"] == "bouton" and s["ecran"] == "library"

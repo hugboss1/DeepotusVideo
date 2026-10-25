@@ -1,20 +1,23 @@
 # -*- coding: utf-8 -*-
-"""t307 tâche 4 (25/10/2026) — l'ÉCRAN des canaux d'un projet de la Bibliothèque.
+"""t307 tâche 4 (25/10/2026) — l'ÉCRAN des canaux d'un projet de la Bibliothèque, par la COUCHE montage.
 
-Maillon de queue scripts/patch_bundle_dzcanaux.py (source frontend/patches/projet-canaux.js, aplatie), posé APRÈS
-dzagentplan ; son inverse `avant_dzcanaux` (backend/tests/_i18n_l1_aide.py) est appelé EN TÊTE de `avant_dzagentplan`.
-Script partagé frontend/shared/dz-projet-canaux.js (window.__dzProjetCanaux.ouvrir), copie dist identique.
-[1] le maillon        marqueur ×1, --check propre, chaque remplacement ×1 et chaque ancre ×1 une fois défait ;
-[2] aller-retour      appliquer(avant_dzcanaux(B)) == B, avant_dzagentplan défait dzcanaux d'abord ;
-[3] comptes figés     x.useState( 731, v2.8.0 ×4, DzTracks 181, confirmations ×30, CRLF en octets, pas de read_text( ;
+La barre « Projet » vit dans frontend/patches/montage.js (bloc #78) : le bloc MONTAGE du bundle EST cette source
+(scripts/refresh_layer.py). Les retouches t307 passent par la saisie L3 (scripts/i18n_l3/montage_i.py ->
+i18n_l3_generer.py -> refresh_layer) avec leur miroir G1 (scripts/icones/g1_generer.py RETOUCHES) : aides dzPcEc et
+dzPcB, dzProjCharger qui garde espace_id et canaux, appels de la barre à longueur égale. AUCUN maillon de queue.
+Le reste est dans frontend/shared/dz-projet-canaux.js (window.__dzProjetCanaux : boîte, hôte des glyphes).
+[1] la couche     pas de patch_bundle_dzcanaux.py ; les retouches dans montage.js ET dans le bloc du bundle, une fois ;
+                  le bloc = la source (refresh_layer --check) ; L3 et G1 --check à jour ;
+[2] réversible    la couche d'avant L3 n'a plus les retouches (couche_avant_i18n_l3), la table L3 les porte (montage_i) ;
+[3] comptes figés x.useState( 731, v2.8.0 ×4, DzTracks 181, confirmations ×30, CRLF en octets ;
 [4] le script partagé copie dist identique, balise dans la SPA après dz-plafonds.js et dz-campagnes.js ;
 [5] la boîte sous node (faux DOM, faux fetch) : seuls les comptes de l'espace du projet, le PUT porte la bonne liste,
-    l'évènement dz-projet-canaux porte la vue relue ; 409 et 404 traduits DANS la boîte, qui reste ouverte ;
-[6] la barre sous node : glyphes + titre au survol, bouton « Canaux » qui appelle ouvrir(f), écoute de l'évènement ;
+    l'évènement dz-projet-canaux porte la vue relue ; 409 et 404 traduits DANS la boîte ; l'hôte rempli de glyphes ;
+[6] la barre sous node : hôte + bouton « Canaux » qui appelle ouvrir(f), écoute de « dz-projet-canaux » ;
 [7] textes : clés projets.canaux.* FR et EN, toutes employées, aucune orpheline.
 Run : & $PY tests/test_projets_canaux_ecran.py   (depuis backend/)
 """
-import json, pathlib, re, shutil, subprocess, sys, tempfile
+import json, os, pathlib, re, shutil, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8")
 BACKEND = pathlib.Path(__file__).resolve().parent.parent
 REPO = BACKEND.parent
@@ -44,43 +47,49 @@ RAW = (ASSETS / "index-BEOJX8L5.js").read_bytes()
 B = RAW.decode("utf-8")
 SHARED = REPO / "frontend" / "shared" / "dz-projet-canaux.js"
 DIST = REPO / "frontend" / "dist" / "shared" / "dz-projet-canaux.js"
-SOURCE = REPO / "frontend" / "patches" / "projet-canaux.js"
-PATCHER = REPO / "scripts" / "patch_bundle_dzcanaux.py"
+COUCHE_P = REPO / "frontend" / "patches" / "montage.js"
+COUCHE = COUCHE_P.read_bytes().decode("utf-8")
 DICO_P = REPO / "frontend" / "shared" / "i18n" / "projets.json"
-MARKER = "/*__dzcanaux*/"
-try:
-    import patch_bundle_dzcanaux as PM
-except Exception as e:                                      # noqa: BLE001
-    PM = None
-    check("0 le maillon patch_bundle_dzcanaux existe", False, repr(e))
+ENV = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
+DEB, FIN_M = "/*__DZ_MONTAGE_BEGIN__*/", "/*__DZ_MONTAGE_END__*/"
+BLOC = B.split(DEB, 1)[1].split(FIN_M, 1)[0] if B.count(DEB) == 1 else ""
+RETOUCHES = ["function dzPcEc(h,on){", "function dzPcB(ch,f){", "espace_id:d.espace_id,canaux:d.canaux,",
+             "dzPcEc(h,1);", "dzPcEc(h,0)", "if(dzPcB(ch,f)){", 'dzT("projets.canaux.bouton")', 'className:"dzpc-btn"',
+             '"data-dz-projet-canaux":f.id']
 
-print("\n[1] le maillon")
-check("1.1 marqueur ×1 dans le bundle", B.count(MARKER) == 1, str(B.count(MARKER)))
-check("1.2 aucun .bak_dzcanaux laissé", not list(ASSETS.glob("*.bak_dzcanaux")))
-check("1.3 maillon de QUEUE après dzagentplan : sa sonde compte le marqueur de dzagentplan",
-      lambda: PM and ("dzagentplan", "/*__dzagentplan*/", 1) in PM.SONDE_AMONT)
-if PM:
-    check("1.4 --check : déjà appliqué (propre)", lambda: "déjà appliqué" in subprocess.run(
-        [sys.executable, str(PATCHER), "--check"], capture_output=True, text=True, encoding="utf-8",
-        env={**__import__("os").environ, "PYTHONIOENCODING": "utf-8"}).stdout)
-    check("1.5 chaque remplacement présent UNE fois dans le bundle",
-          lambda: all(B.count(rem) == 1 for _a, rem in PM.PAIRES), str([B.count(r_) for _a, r_ in PM.PAIRES]))
-    check("1.6 chaque ancre présente UNE fois dans le bundle d'avant",
-          lambda: all(PM.defaire(B).count(a) == 1 for a, _r in PM.PAIRES))
-    check("1.7 aucune paire ne contient de fin de ligne", lambda: not any("\n" in a or "\n" in r_ for a, r_ in PM.PAIRES))
 
-print("\n[2] aller-retour")
-if PM:
-    check("2.1 avant_dzcanaux existe et rend defaire(B)", lambda: AIDE.avant_dzcanaux(B) == PM.defaire(B))
-    check("2.2 appliquer(avant_dzcanaux(B)) == B, octet pour octet",
-          lambda: PM.appliquer(AIDE.avant_dzcanaux(B)).encode("utf-8") == RAW)
-    check("2.3 le bundle d'avant n'a ni le marqueur, ni les glyphes, ni le bouton",
-          lambda: MARKER not in PM.defaire(B) and "DzProjetCanauxIcones" not in PM.defaire(B)
-          and "projets.canaux" not in PM.defaire(B))
-    check("2.4 avant_dzagentplan défait dzcanaux d'abord",
-          lambda: MARKER not in AIDE.avant_dzagentplan(B) and "/*__dzagentplan*/" not in AIDE.avant_dzagentplan(B))
-    check("2.5 avant_dzcanaux sans marqueur : rendu tel quel",
-          lambda: AIDE.avant_dzcanaux(PM.defaire(B)) == PM.defaire(B))
+def n_(t):
+    return t.replace(chr(13) + chr(10), chr(10)).lstrip(chr(0xfeff)).strip(chr(10))
+
+
+def outil(*args):
+    p = subprocess.run([sys.executable, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       env=ENV, cwd=str(REPO))
+    return p.returncode, (p.stdout + p.stderr)
+
+
+print("\n[1] la couche")
+check("1.1 aucun maillon de queue : ni patch_bundle_dzcanaux.py, ni frontend/patches/projet-canaux.js, ni marqueur",
+      not (REPO / "scripts" / "patch_bundle_dzcanaux.py").exists()
+      and not (REPO / "frontend" / "patches" / "projet-canaux.js").exists() and "/*__dzcanaux*/" not in B)
+check("1.2 chaque retouche une fois dans montage.js", all(COUCHE.count(t) == 1 for t in RETOUCHES),
+      str([(t, COUCHE.count(t)) for t in RETOUCHES if COUCHE.count(t) != 1]))
+check("1.3 chaque retouche une fois dans le bloc MONTAGE du bundle, et nulle part ailleurs",
+      all(BLOC.count(t) == 1 and B.count(t) == 1 for t in RETOUCHES))
+check("1.4 le bloc MONTAGE du bundle EST la source montage.js (rafraîchi par refresh_layer --layer montage)",
+      lambda: n_(BLOC) == n_(COUCHE))
+check("1.5 saisie L3 à jour (i18n_l3_generer --check)", lambda: outil("scripts/i18n_l3_generer.py", "--check")[0] == 0)
+check("1.6 table G1 à jour (g1_generer --check)", lambda: outil("scripts/icones/g1_generer.py", "--check")[0] == 0)
+check("1.7 la barre appelle les aides à longueur égale (blancs de bourrage), l'en-tête du bloc #78 compensé",
+      "dzPcEc(h,1);" + " " * 28 in COUCHE and "(bourrage G1)" in COUCHE)
+
+print("\n[2] réversible")
+check("2.1 la couche d'avant L3 n'a plus aucune retouche t307",
+      lambda: not any(t in AIDE.couche_avant_i18n_l3(COUCHE) for t in RETOUCHES[:6]))
+TABLE = json.loads((REPO / "scripts" / "i18n_l3_paires.json").read_bytes().decode("utf-8"))
+check("2.2 la table L3 porte les six retouches (groupe montage_i)",
+      sum(1 for e in TABLE["couches"]["montage"] if e["groupe"] == "montage_i" and ("dzPc" in e["apres"]
+          or "canaux:d.canaux" in e["apres"] or "(bourrage G1)" in e["apres"])) == 6)
 
 print("\n[3] comptes figés")
 COMPTES = {"x.useState(": 731, "v2.8.0": 4, "DzTracks": 181, "await window.__dzDialogue.confirmer(": 30,
@@ -89,9 +98,6 @@ COMPTES = {"x.useState(": 731, "v2.8.0": 4, "DzTracks": 181, "await window.__dzD
 for jeton, n in COMPTES.items():
     check(f"3 compte {jeton!r} = {n}", B.count(jeton) == n, str(B.count(jeton)))
 check("3.x CRLF partout (en octets)", RAW.count(b"\r\n") > 15000 and RAW.count(b"\n") == RAW.count(b"\r\n"))
-check("3.y le patcher lit en octets (aucun read_text()", lambda: "read_text(" not in PATCHER.read_bytes().decode("utf-8"))
-check("3.z la source n'écrit jamais x.useState( (pas même en commentaire)",
-      lambda: "x.useState(" not in SOURCE.read_bytes().decode("utf-8"))
 if NODE:
     t = pathlib.Path(tempfile.mkdtemp()) / "b.mjs"
     t.write_bytes(RAW)
@@ -121,6 +127,7 @@ Noeud.prototype.appendChild=function(e){e.parent=this;this.enfants.push(e);retur
 Noeud.prototype.addEventListener=function(t,f){(this.ecoutes[t]=this.ecoutes[t]||[]).push(f)};
 Noeud.prototype.remove=function(){if(this.parent){var p=this.parent;p.enfants=p.enfants.filter(function(x){return x!==this},this);this.parent=null}};
 Noeud.prototype.focus=function(){};
+Noeud.prototype.removeAttribute=function(k){delete this.attrs[k]};
 Noeud.prototype.declencher=function(t,ev){ev=ev||{};ev.target=ev.target||this;ev.preventDefault=function(){};(this.ecoutes[t]||[]).forEach(function(f){f(ev)})};
 function tous(n,pred,out){out=out||[];if(pred(n))out.push(n);n.enfants.forEach(function(e){tous(e,pred,out)});return out}
 var body=new Noeud("body"),docEcoutes={};
@@ -178,6 +185,8 @@ var R={};
  COMPTES={espace:"esp_z",comptes:[]};await attendre();
  R.vide=boite()?boite().textContent:"";
  tous(boite(),function(n){return n.tagName==="BUTTON"})[0].declencher("click");R.annule=await p2;R.annule_fermee=!boite();
+ var hote=new Noeud("span");hote.setAttribute("data-dz-projet-canaux","proj_a");hote.setAttribute("data-canaux","cpt_a,cpt_q");hote.setAttribute("data-espace","esp_a");P.remplir(hote);await attendre();R.hote=[hote.innerHTML,hote.getAttribute("title")];
+ var vide=new Noeud("span");vide.setAttribute("data-canaux","");vide.setAttribute("data-espace","esp_a");P.remplir(vide);R.hote_vide=[vide.innerHTML,vide.getAttribute("title"),vide.getAttribute("style")];
  process.stdout.write(JSON.stringify(R));
 })().catch(function(e){process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)}))});
 """
@@ -217,6 +226,10 @@ if R and "erreur" not in R:
           R["erreur404"] == AIDE.fr("projets.canaux.erreur_inconnu") and R["ouverte404"], str(R["erreur404"]))
     check("5.10 succès : la boîte se ferme, « dz-projet-canaux » porte la vue relue, la promesse la rend",
           R["fermee"] and R["evts"] == [["dz-projet-canaux", ["cpt_a"]]] and (R["resolu"] or {}).get("canaux") == ["cpt_a"], str(R["evts"]))
+    check("5.12 l'hôte de la barre : un glyphe par canal (Deepotus Glyph), titre qui nomme les comptes ; compte inconnu = son identifiant ; aucun canal = hôte vide et masqué",
+          "dz-reseau-x" in R["hote"][0] and R["hote"][0].count("data-dz-canal") == 2
+          and R["hote"][1] == "Canaux : Compte A @a, cpt_q" and R["hote_vide"][0] == "" and R["hote_vide"][1] is None
+          and "display:none" in R["hote_vide"][2], str(R.get("hote")))
     check("5.11 un espace sans compte : le message traduit ; Annuler rend null et ferme",
           AIDE.fr("projets.canaux.aucun_compte") in R["vide"] and R["annule"] is None and R["annule_fermee"], R["vide"][:200])
 
@@ -225,37 +238,36 @@ DEBUT, FIN = "/* ── Bibliothèque #78 PR B", "/* ── fin Bibliothèque #7
 i0, i1 = B.find(DEBUT), B.find(FIN)
 j0, j1 = B.find("/* ── Bibliothèque #77 PR B"), B.find("/* ── fin Bibliothèque #77 */")
 couche = (B[j0:j1] + "\n" + B[i0:i1]).replace("\r\n", "\n") if min(i0, i1, j0, j1) >= 0 else ""
-check("6.0 le composant des glyphes est DANS le bloc #78 (le banc de la barre l'exécute)",
-      lambda: "function DzProjetCanauxIcones(" in couche)
+check("6.0 les aides dzPcB / dzPcEc sont DANS le bloc #78 (le banc de la barre l'exécute)",
+      lambda: "function dzPcB(" in couche and "function dzPcEc(" in couche)
 HARNAIS_BARRE = r"""
-var ouverts=[],ecoutes=[];
-globalThis.window=globalThis;window.addEventListener=function(t){ecoutes.push(t)};window.removeEventListener=function(){};
+var ouverts=[],ecoutes=[],retraits=[];
+globalThis.window=globalThis;window.addEventListener=function(t){ecoutes.push(t)};window.removeEventListener=function(t){retraits.push(t)};
 window.dispatchEvent=function(){};globalThis.CustomEvent=function(t){this.type=t};
-globalThis.fetch=function(u){var d=u==="/api/library/projets/proj_a"?{id:"proj_a",nom:"Abysses",epingle:false,espace_id:"esp_a",canaux:["cpt_a"],items:[]}:{};
+globalThis.fetch=function(u){var d=u==="/api/library/projets/proj_a"?{id:"proj_a",nom:"Abysses",epingle:false,espace_id:"esp_a",canaux:["cpt_a","cpt_b"],items:[]}:{};
   return Promise.resolve({ok:true,status:200,json:function(){return Promise.resolve(d)}})};
 window.__dzDialogue={saisir:function(){return Promise.resolve(null)},confirmer:function(){return Promise.resolve(false)}};
 globalThis.__dzToast=function(){};globalThis.__dzSendMenu=function(){};
-window.__dzProjetCanaux={ouvrir:function(p){ouverts.push(p.id)},comptes:function(){return Promise.resolve([])},
-  connus:function(e){return e==="esp_a"?[{id:"cpt_a",plateforme:"x",libelle:"Compte A",handle:"@a"}]:null},
-  glyphe:function(p){return p==="x"?"dz-reseau-x":"dz-action-publier"}};
+window.__dzProjetCanaux={ouvrir:function(p){ouverts.push(p.id)},glyphe:function(p){return p?"dz-reseau-"+p:"dz-action-publier"}};
 var r={jsx:function(t,p,k){return{t:typeof t==="function"?t.name:t,p:p}},jsxs:function(t,p){return{t:typeof t==="function"?t.name:t,p:p}}};
-var x={useState:function(v){return[v,function(){}]},useEffect:function(f){f()},useRef:function(v){return{current:v}}};
+var effets=[];var x={useState:function(v){return[v,function(){}]},useEffect:function(f){effets.push(f())},useRef:function(v){return{current:v}}};
 var X="X";
 __COUCHE__
 function cherche(n,pred,out){out=out||[];if(n&&typeof n==="object"){if(pred(n))out.push(n);Object.keys(n).forEach(function(k){cherche(n[k],pred,out)})}return out}
 var R={};
 (async function(){
- var f={id:"proj_a",nom:"Abysses",epingle:false,espace_id:"esp_a",canaux:["cpt_a"],refs:{},n:0};
+ var f={id:"proj_a",nom:"Abysses",epingle:false,espace_id:"esp_a",canaux:["cpt_a","cpt_b"],refs:{},n:0};
  var b=DzProjetsBar({f:f,setF:function(){}});
- R.ecoutes=ecoutes.slice();
- var ic=cherche(b,function(n){return n.t==="DzProjetCanauxIcones"});R.icones=ic.length;R.icones_projet=ic[0]&&ic[0].p.projet.id;
+ R.ecoutes=ecoutes.slice();effets.forEach(function(d){if(typeof d==="function")d()});R.retraits=retraits.slice();
+ var h=cherche(b,function(n){return n.t==="span"&&n.p&&n.p["data-dz-projet-canaux"]!==undefined});
+ R.hote=h.length;R.hote_p=h[0]&&[h[0].p["data-dz-projet-canaux"],h[0].p["data-canaux"],h[0].p["data-espace"]];
  var bt=cherche(b,function(n){return n.t==="button"&&n.p&&n.p.title===dzT("projets.canaux.aide")});R.bouton=bt.length;
- R.bouton_txt=JSON.stringify(bt[0]&&bt[0].p.children);
+ R.bouton_txt=JSON.stringify(bt[0]&&bt[0].p.children);R.classe=bt[0]&&bt[0].p.className;
  if(bt[0])bt[0].p.onClick();R.ouverts=ouverts;
- var v=DzProjetCanauxIcones({projet:f});R.vue=JSON.stringify(v);
- R.vide=DzProjetCanauxIcones({projet:{id:"p",espace_id:"esp_a",canaux:[]}});
- R.inconnu=JSON.stringify(DzProjetCanauxIcones({projet:{id:"p",espace_id:"esp_q",canaux:["cpt_q"]}}));
- var b0=DzProjetsBar({f:null,setF:function(){}});R.sans=cherche(b0,function(n){return n.t==="DzProjetCanauxIcones"}).length;
+ R.n11=JSON.stringify(b).indexOf("Renommer")>=0;
+ var b0=DzProjetsBar({f:null,setF:function(){}});
+ R.sans=cherche(b0,function(n){return n.t==="span"&&n.p&&n.p["data-dz-projet-canaux"]!==undefined}).length+
+        cherche(b0,function(n){return n.t==="button"&&n.p&&n.p.title===dzT("projets.canaux.aide")}).length;
  var ch=await dzProjCharger("proj_a");R.charge=[ch.espace_id,ch.canaux];
  process.stdout.write(JSON.stringify(R));
 })().catch(function(e){process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)}))});
@@ -265,18 +277,17 @@ if NODE and couche:
     R2 = node(AIDE.PRELUDE_DZT + "\n" + HARNAIS_BARRE.replace("__COUCHE__", couche))
 check("6.1 la barre s'exécute sous node", bool(R2) and "erreur" not in R2, str(R2.get("erreur", ""))[:800])
 if R2 and "erreur" not in R2:
-    check("6.2 la barre écoute « dz-projet-canaux » (relit les projets), en plus de « dz-projets »",
-          "dz-projet-canaux" in R2["ecoutes"] and "dz-projets" in R2["ecoutes"], str(R2["ecoutes"]))
-    check("6.3 les glyphes des canaux du projet regardé, une fois", R2["icones"] == 1 and R2["icones_projet"] == "proj_a", str(R2))
-    check("6.4 le bouton « Canaux » : glyphe + libellé traduit ; il appelle __dzProjetCanaux.ouvrir(f)",
+    check("6.2 la barre écoute « dz-projets » ET « dz-projet-canaux », et retire les deux au démontage",
+          sorted(R2["ecoutes"]) == ["dz-projet-canaux", "dz-projets"]
+          and sorted(R2["retraits"]) == ["dz-projet-canaux", "dz-projets"], str(R2["ecoutes"]) + str(R2["retraits"]))
+    check("6.3 l'hôte des glyphes, une fois : id du projet, ses canaux, son espace",
+          R2["hote"] == 1 and R2["hote_p"] == ["proj_a", "cpt_a,cpt_b", "esp_a"], str(R2.get("hote_p")))
+    check("6.4 le bouton « Canaux » : glyphe + libellé traduit, classe dzpc-btn ; il appelle __dzProjetCanaux.ouvrir(f)",
           R2["bouton"] == 1 and "Canaux" in R2["bouton_txt"] and "dz-action-publier" in R2["bouton_txt"]
-          and R2["ouverts"] == ["proj_a"], str(R2.get("bouton_txt")))
-    check("6.5 les glyphes : Deepotus Glyph de la plateforme, titre au survol qui nomme les comptes",
-          "dz-reseau-x" in R2["vue"] and "Canaux : Compte A @a" in R2["vue"] and "data-dz-projet-canaux" in R2["vue"], R2["vue"][:400])
-    check("6.6 aucun canal : rien ; compte pas encore lu : l'identifiant tient lieu de nom",
-          R2["vide"] is None and "Canaux : cpt_q" in R2["inconnu"], R2["inconnu"][:300])
-    check("6.7 toute la Bibliothèque (aucun projet regardé) : ni glyphes ni bouton", R2["sans"] == 0)
-    check("6.8 le projet chargé garde son espace et ses canaux", R2["charge"] == ["esp_a", ["cpt_a"]], str(R2["charge"]))
+          and R2["classe"] == "dzpc-btn" and R2["ouverts"] == ["proj_a"], str(R2.get("bouton_txt")))
+    check("6.5 les autres boutons du projet sont toujours là", R2["n11"])
+    check("6.7 toute la Bibliothèque (aucun projet regardé) : ni hôte ni bouton", R2["sans"] == 0)
+    check("6.8 le projet chargé garde son espace et ses canaux", R2["charge"] == ["esp_a", ["cpt_a", "cpt_b"]], str(R2["charge"]))
 
 print("\n[7] textes")
 DICO = json.loads(DICO_P.read_text("utf-8")) if DICO_P.is_file() else {}
@@ -290,7 +301,7 @@ check("7.2 bouton, titre, enregistrer : les textes du brief", all(DICO.get(k, {}
                                                               for k, (fr, en) in ATTENDUES.items()))
 check("7.3 aucun_compte, erreur_espace existent", "projets.canaux.aucun_compte" in DICO and "projets.canaux.erreur_espace" in DICO)
 emp = set()
-for f_ in (SHARED, SOURCE, PATCHER):
+for f_ in (SHARED, COUCHE_P):
     if f_.is_file():
         emp |= set(re.findall(r'"(projets\.canaux\.[a-z_]+)"', f_.read_text("utf-8")))
 emp |= set(re.findall(r'dzT\(\\?"(projets\.canaux\.[a-z_]+)', B))
