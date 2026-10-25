@@ -269,7 +269,7 @@ def _base_bytes():
     b_ = r_.stdout.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")     # le dépôt garde le bundle en LF
     # t280 : la couche sonvfx retouchée après BASE (L4 + G1) — le bloc attendu est celui du livré ; D6 vérifie
     # qu'il est sa couche source, à l'octet
-    return __import__("_i18n_l1_aide").base_avec_sonvfx_livre(b_, RAW)
+    return __import__("_i18n_l1_aide").base_avec_couches_livrees(b_, RAW)
 
 
 def _bloc(s):

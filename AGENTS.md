@@ -48,6 +48,7 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 | `frontend/dist/index.html` | Page de la SPA, scripts partagés |
 | `frontend/shared/dz-i18n.js` | Runtime `dzT` |
 | `frontend/shared/dz-plafonds.js` | Dialogue du 402 `dz_plafond` |
+| `frontend/shared/dz-projet-canaux.js` | t307 (25/10/2026) : boîte des CANAUX d'un projet de la Bibliothèque (`window.__dzProjetCanaux.ouvrir(projet)`, comptes de l'espace du projet, `PUT /api/library/projets/{id}/canaux`, évènement `dz-projet-canaux`) et glyphes des canaux dans l'hôte `data-dz-projet-canaux` de la barre « Projet » ; copie identique dans `frontend/dist/shared/`. La barre vit dans la couche `frontend/patches/montage.js` (aides `dzPcB`/`dzPcEc`, saisie `scripts/i18n_l3/montage_i.py` + miroir G1 `scripts/icones/g1_generer.py`, puis `refresh_layer --layer montage`) — aucun maillon de queue ; banc `test_projets_canaux_ecran` |
 | `frontend/SOURCE.md` | Pourquoi le bundle ne se reconstruit pas |
 | `scripts/repatch_all.py` | Rejoue la chaîne des patchers |
 | `scripts/i18n_assembler.py` | Assemble le dictionnaire FR/EN |

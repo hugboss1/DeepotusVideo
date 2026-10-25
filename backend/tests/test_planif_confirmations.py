@@ -148,7 +148,7 @@ def _base_bytes():
                         cwd=str(RACINE))
     b_ = r_.stdout.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")     # le dépôt garde le bundle en LF
     # t280 : la couche sonvfx retouchée après BASE (L4 + G1) — le bloc SONVFX attendu est celui du livré
-    return __import__("_i18n_l1_aide").base_avec_sonvfx_livre(b_, BUN_OCTETS_T280)
+    return __import__("_i18n_l1_aide").base_avec_couches_livrees(b_, BUN_OCTETS_T280)
 
 
 check("D1 maillon présent", PS is not None)

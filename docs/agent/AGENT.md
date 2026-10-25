@@ -84,6 +84,10 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Importer ses propres fichiers** : Bibliothèque › Importer une vidéo, ou Importer une image.
   → [POINT:bibliotheque.importer_video] [POINT:bibliotheque.importer_image] [GUIDE:bibliotheque]
 - **Ranger par projet** : Bibliothèque › Nouveau projet. → [POINT:bibliotheque.nouveau_projet] [GUIDE:bibliotheque]
+- **Choisir vers quels comptes partent les posts d'un projet** : Bibliothèque › choisir le projet dans la barre
+  « Projet », puis Canaux ; cocher les comptes de son espace et Enregistrer. Quand ce projet est actif, les brouillons
+  de l'assistant et les posts créés sans canal prennent ces canaux ; « Envoyer vers » et Planificateur › Nouveau post
+  gardent les canaux choisis là. Leurs icônes s'affichent à côté du projet. → [POINT:bibliotheque.canaux_projet] [GUIDE:bibliotheque]
 - **Récupérer un fichier jeté** : Bibliothèque › Corbeille. → [POINT:bibliotheque.corbeille] [GUIDE:bibliotheque]
 - **Créer une image** : Bibliothèque › Créer l'image. → [POINT:bibliotheque.creer_image] [GUIDE:bibliotheque]
 - **Passer l'interface en anglais ou en français** : Réglages › Fournisseurs par défaut, rangée « Langue de

@@ -4093,6 +4093,42 @@
     "avant": "\"Lancer une recette\"",
     "apres": "dzT(\"montage.recette.lancer_titre\")",
     "groupe": "montage_i"
+   },
+   {
+    "pos": 744834,
+    "avant": "/* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.\r\n   Un projet contient des assets de toutes catégories (serveur : library_projects, PR A #144). Ici :\r\n   - la barre « Projet » en tête du contenu : REGARDER un projet filtre TOUS les onglets (dzPF, appliqué dans Lfs) ;\r\n     pour le projet regardé : le rendre ACTIF (tout ce qui est produit y est rangé), l'épingler sur le téléphone\r\n     (décision de l'utilisateur : un seul projet), le renommer, le supprimer ; et en créer un. L'actif est rappelé\r\n     même quand on en regarde un autre ;\r\n   - « Envoyer vers → Projet de la Bibliothèque… » : le menu existant (__dzSendMenu) liste les projets, coche ceux\r\n     qui contiennent déjà l'asset (un clic le retire), et propose d'en créer un — par le dialogue maison, jamais\r\n     la boîte native du navigateur.\r\n   Toute écriture prévient l'écran par l'événement « dz-projets » : la barre recharge la liste et le projet regardé. */",
+    "apres": "/* ── Bibliothèque #78 PR B (plan-library T4, 03/10/2026) — les PROJETS à l'écran.\r\n   Barre « Projet » : regarder, actif, épingle, renommer, supprimer, créer ;\r\n   « Envoyer vers → Projet ». Écritures : « dz-projets ».\r\n   t307 (25/10/2026) : canaux (dzPcB, dzPcEc ; frontend/shared/dz-projet-canaux.js).\r\n   Un seul projet épinglé (choix utilisateur) ; dialogue maison, jamais natif.    */",
+    "groupe": "montage_i"
+   },
+   {
+    "pos": 745798,
+    "avant": "var DZ_PJ_JSON={\"Content-Type\":\"application/json\"};",
+    "apres": "var DZ_PJ_JSON={\"Content-Type\":\"application/json\"};function dzPcEc(h,on){[\"dz-projets\",\"dz-projet-canaux\"].forEach(function(t){window[on?\"addEventListener\":\"removeEventListener\"](t,h)})}function dzPcB(ch,f){var P=window.__dzProjetCanaux;if(!f||!f.id)return!1;ch.push(r.jsx(\"span\",{\"data-dz-projet-canaux\":f.id,\"data-canaux\":String(f.canaux||\"\"),\"data-espace\":f.espace_id||\"\"},\"dzc\"),P&&r.jsx(\"button\",{type:\"button\",className:\"dzpc-btn\",title:dzT(\"projets.canaux.aide\"),onClick:function(){P.ouvrir(f)},children:[__dzGl(P.glyphe()),\" \",dzT(\"projets.canaux.bouton\")]},\"dzcb\"));return!0}",
+    "groupe": "montage_i"
+   },
+   {
+    "pos": 746832,
+    "avant": "epingle:!!d.epingle,refs:refs",
+    "apres": "epingle:!!d.epingle,espace_id:d.espace_id,canaux:d.canaux,refs:refs",
+    "groupe": "montage_i"
+   },
+   {
+    "pos": 749354,
+    "avant": "window.addEventListener(\"dz-projets\",h);",
+    "apres": "dzPcEc(h,1);/*t307 (25/10/2026) G1*/",
+    "groupe": "montage_i"
+   },
+   {
+    "pos": 749418,
+    "avant": "window.removeEventListener(\"dz-projets\",h)",
+    "apres": "dzPcEc(h,0)/* t307 (25/10/2026), G1     */",
+    "groupe": "montage_i"
+   },
+   {
+    "pos": 751302,
+    "avant": "if(f&&f.id){\r\n    ch.push(bouton(ici?",
+    "apres": "if(dzPcB(ch,f)){\r\n    ch.push(bouton(ici?",
+    "groupe": "montage_i"
    }
   ]
  },

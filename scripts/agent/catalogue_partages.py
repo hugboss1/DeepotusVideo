@@ -25,6 +25,8 @@ from catalogue_commun import VIDE, _base, _texte, message
 PARTAGES = {
     "frontend/shared/dz-campagnes.js": None,
     "frontend/shared/dz-agent.js": ("agent.onglet.", "agent.campagnes.", "agent.action.campagnes"),
+    # t307 (25/10/2026) : la boîte des canaux d'un projet ; son « Annuler » (commun.action.annuler) n'est pas à elle
+    "frontend/shared/dz-projet-canaux.js": ("projets.canaux.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")

@@ -608,17 +608,33 @@ async def creer_brouillons(ctx: Ctx, posts: list) -> dict:
     from app.services.marketing import apply_forbidden
     from app.services.storage import JobRecord, ScheduledPost, async_session_factory
     propres = []
+    # t307 (25/10/2026) : un post sans clé `canaux` prend les canaux du projet actif de l'espace de la campagne (une seule lecture)
+    defaut_ids, defaut_plats = [], []
+    if any(isinstance(p, dict) and "canaux" not in p for p in posts):
+        from app.services import comptes as _cpt, library_projects as _lp
+        try:
+            vues = _cpt.verifier_cibles(eid, await _lp.canaux_par_defaut(eid))
+        except Exception as e:  # noqa: BLE001 — t307 (25/10/2026) : défaut périmé ou illisible, jamais bloquant
+            from loguru import logger
+            logger.warning(f"canaux du projet ignorés pour les brouillons de {eid} : {e}")
+            vues = []
+        defaut_ids = [v["id"] for v in vues]
+        defaut_plats = list(dict.fromkeys(v["plateforme"] for v in vues))
+    du_projet = 0
     for i, p in enumerate(posts, 1):
         if not isinstance(p, dict):
             raise _Refus(f"post {i} : objet attendu")
-        canaux = p.get("canaux") or ["x"]
+        herite = "canaux" not in p and bool(defaut_ids)
+        du_projet += 1 if herite else 0
+        canaux = defaut_plats if herite else (p.get("canaux") or ["x"])
         canaux = [str(c).strip().lower() for c in (canaux if isinstance(canaux, list) else str(canaux).split(","))]
         if not canaux or not all(_CANAL.match(c) for c in canaux) or len(canaux) > 6:
             raise _Refus(f"post {i} : canaux illisibles")
         propres.append({"title": str(p.get("titre") or "")[:200], "caption": str(p.get("caption") or "")[:5000],
                         "hook": str(p.get("hook") or "")[:1000] or None, "format": str(p.get("format") or "")[:20] or None,
                         "channels": ",".join(dict.fromkeys(canaux))[:120], "run_at": _quand(p.get("quand")),
-                        "job_id": str(p.get("job_id")).strip()[:36] if p.get("job_id") else None})
+                        "job_id": str(p.get("job_id")).strip()[:36] if p.get("job_id") else None,
+                        "comptes": json.dumps(defaut_ids) if herite else None})
     mots_p, mots_b = await _mots_interdits(eid)
     interdits = mots_p + mots_b
     fautifs: set = set()
@@ -639,13 +655,14 @@ async def creer_brouillons(ctx: Ctx, posts: list) -> dict:
             pid = str(uuid.uuid4())
             s.add(ScheduledPost(id=pid, title=p["title"], caption=p["caption"], hook=p["hook"], format=p["format"],
                                 channels=p["channels"], run_at=p["run_at"], status="draft", mode="assisted",
-                                job_id=p["job_id"], plan_id=ctx.cid, espace_id=eid))
+                                job_id=p["job_id"], plan_id=ctx.cid, espace_id=eid, comptes=p["comptes"]))
             ids.append(pid)
         await s.commit()
     await agent_store.regler_porte(ctx.cid, "brouillons_crees")
     carte = {"type": "carte", "genre": "brouillons", "libelle": f"{len(ids)} brouillon(s) au Planificateur",
              "etat": "proposee", "action": "ouvrir_planificateur", "arguments": {"ids": ids, "espace_id": eid}}
-    return _res(True, f"{len(ids)} brouillon(s) écrit(s) au Planificateur ; la porte 2 s'y joue", {"ids": ids}, carte)
+    cp = f" (canaux du projet pour {du_projet})" if du_projet else ""
+    return _res(True, f"{len(ids)} brouillon(s) écrit(s) au Planificateur{cp} ; la porte 2 s'y joue", {"ids": ids}, carte)
 
 
 async def pointer(ctx: Ctx, cible: str, type: str = "POINT") -> dict:   # noqa: A002 — le nom vient de « Demander »

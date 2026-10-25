@@ -4345,6 +4345,29 @@ async def library_modifier_projet(pid: str, request: Request):
         raise HTTPException(404, f"Projet inconnu : {pid}")
 
 
+@router.put("/library/projets/{pid}/canaux")
+async def library_poser_canaux_projet(pid: str, request: Request):
+    """t307 (25/10/2026) : pose les CANAUX du projet (ids de comptes de son espace de marque ; les nouveaux posts les
+    prendront par défaut). Body : {canaux: [ids]}, liste vide = aucun canal. Projet inconnu 404 (regardé d'abord, par
+    `LP.contenu`, pour ne pas le confondre avec un compte inconnu), compte inconnu 404, compte d'un autre espace 409,
+    forme 400. Écriture : la garde locale de main.py refuse déjà un appareil appairé (403), rien à ouvrir."""
+    from app.services import library_projects as LP
+    body = await _corps_objet(request)
+    try:
+        await LP.contenu(pid)
+    except KeyError:
+        raise HTTPException(404, f"Projet inconnu : {pid}")
+    ids = body.get("canaux")
+    if not isinstance(ids, list) or not all(isinstance(i, str) and i.strip() for i in ids):
+        raise HTTPException(400, "canaux doit être une liste d'identifiants")
+    try:
+        return await LP.poser_canaux(pid, ids)
+    except KeyError as e:
+        raise HTTPException(404, f"compte inconnu : {e.args[0] if e.args else ''}")
+    except PermissionError as e:
+        raise HTTPException(409, str(e))
+
+
 @router.delete("/library/projets/{pid}")
 async def library_supprimer_projet(pid: str):
     """Le projet et ses appartenances ; JAMAIS les fichiers."""
@@ -8753,6 +8776,16 @@ async def create_scheduled_post(body: dict):
         p.espace_id = _es.espace_courant()
     if body.get("comptes"):
         _poser_comptes(p, body["comptes"])
+    elif not body.get("channels"):
+        # t307 (25/10/2026) : ni comptes ni canaux donnés -> les canaux du projet actif de l'espace DU POST (une lecture)
+        from app.services import library_projects as _lp
+        try:
+            ces = await _lp.canaux_par_defaut(p.espace_id)
+            if ces:
+                _poser_comptes(p, ces)
+        except Exception as e:  # noqa: BLE001 — t307 (25/10/2026) : défaut périmé ou illisible, jamais bloquant
+            logger.warning(f"canaux du projet ignorés pour un post de {p.espace_id} : {getattr(e, 'detail', e)}")
+            p.comptes = None
     async with async_session_factory() as session:
         session.add(p)
         await session.commit()

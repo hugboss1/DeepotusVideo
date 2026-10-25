@@ -9163,6 +9163,10 @@
   "fr": "comptes doit être une liste d'identifiants",
   "en": "accounts must be a list of identifiers"
  },
+ "canaux doit être une liste d'identifiants": {
+  "fr": "canaux doit être une liste d'identifiants",
+  "en": "canaux must be a list of identifiers"
+ },
  "{c} n'est pas un champ d'un compte {v}": {
   "fr": "{c} n'est pas un champ d'un compte {v}",
   "en": "{c} is not a field of a {v} account"

@@ -472,6 +472,7 @@
   "erreur.2d0f49d781": {"fr": "Enregistrement illisible : {v}", "en": "Unreadable recording: {v}", "src": "fr"},
   "erreur.2d20f716ca": {"fr": "Vignette trop lourde (max 8 MB)", "en": "Thumbnail too large (max 8 MB)", "src": "fr"},
   "erreur.2d319a0e8a": {"fr": "état.perso : {MAX_PERSO} espaces personnels au plus", "en": "état.perso: at most {MAX_PERSO} custom workspaces", "src": "fr"},
+  "erreur.2d3b43cd9d": {"fr": "canaux doit être une liste d'identifiants", "en": "canaux must be a list of identifiers", "src": "fr"},
   "erreur.2d50b4803d": {"fr": "image: un PNG est attendu", "en": "image: a PNG is expected", "src": "fr"},
   "erreur.2d67840ff2": {"fr": "{o}.couleurs : liste de {MAX_NUANCES} nuances au plus", "en": "{o}.couleurs: list of at most {MAX_NUANCES} swatches", "src": "fr"},
   "erreur.2d67a2efef": {"fr": "Page motion code inconnue.", "en": "Unknown motion code page.", "src": "fr"},

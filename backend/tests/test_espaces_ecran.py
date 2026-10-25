@@ -43,7 +43,7 @@ base = subprocess.run(["git", "show", f"{BASE}:frontend/dist/assets/index-BEOJX8
 _T212 = b"var dzT=DzTracks.dzCss(c.dz,(t-c.start)/Math.max(.04,c.end-c.start));\n      if(lv.style.transform!==dzT)lv.style.transform=dzT;"
 base = base.replace(_T212, _T212.replace(b"dzT", b"dzZ")) if base.count(_T212) == 1 else b""
 # t280 : la couche sonvfx retouchée depuis (consignée L4 + G1) — le bloc SONVFX attendu est celui du livré
-base = AIDE.base_avec_sonvfx_livre(base, octets) if base else b""
+base = AIDE.base_avec_couches_livrees(base, octets) if base else b""
 
 print("[0] témoin et réversibilité")
 check("0.1 TÉMOIN : la base n'a ni le sélecteur ni l'onglet", base and b"function DzEspaceSel(" not in base and b'"/api/espaces' not in base)

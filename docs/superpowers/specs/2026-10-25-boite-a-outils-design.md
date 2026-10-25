@@ -179,6 +179,7 @@ Pour un client, chaque canal demande un **consentement daté** avant d'être uti
 - Un **sélecteur de projet** montre, à côté de chaque projet, son espace (pastille de couleur) et ses canaux
   (icônes Glyph).
 - Le Planificateur filtre par espace, puis par projet.
+- *Livré en t307 (25/10/2026)* : la colonne, la route `PUT /api/library/projets/{id}/canaux`, la boîte « Canaux » de la barre des projets et l'héritage côté serveur, pour les brouillons de l'agent et les posts créés sans canaux, depuis le projet **actif**. Les écrans Bibliothèque › Envoyer vers › Planificateur et Planificateur › Nouveau post envoient encore leurs propres canaux : le préremplissage visible des canaux du projet actif dans ces écrans est une tâche de suivi. Le filtre du Planificateur et la pastille d'espace du sélecteur restent à faire.
 
 ### 5.5 Sécurités
 - **Bandeau « pour qui »** : sur les écrans qui produisent ou publient (Quick, Studio, Planificateur, Bibliothèque,

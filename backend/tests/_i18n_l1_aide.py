@@ -831,16 +831,22 @@ def source_avant_i18n_l9(texte: str, fichier: str) -> str:
     return ("\ufeff" + r) if bom else r
 
 
-def base_avec_sonvfx_livre(base: bytes, livre: bytes) -> bytes:
-    """t280 : un bundle de BASE (git show d'un commit figé par un banc de maillon de queue) dont le bloc SONVFX est
-    remplacé par celui du LIVRÉ, aux fins de ligne de la base. La couche sonvfx peut être retouchée après la base
+def base_avec_couches_livrees(base: bytes, livre: bytes) -> bytes:
+    """Échange les blocs SON-VFX et MONTAGE d'un bundle de BASE (git show d'un commit figé par un banc de maillon de
+    queue) contre ceux du LIVRÉ, aux fins de ligne de la base (t307 (25/10/2026) : ex-base_avec_sonvfx_livre).
+    t280 : le bloc SONVFX. La couche sonvfx peut être retouchée après la base
     (retouche consignée dans la saisie L4 et RETOUCHES de G1, réinjectée par refresh_layer) : ces bancs vérifient leur
     maillon HORS de ce bloc ; que le bloc soit, à l'octet, sa couche source est vérifié par test_sonvfx_hub (D6) et
-    test_i18n_dictee_catalogue (2.13)."""
-    a, z = b"/*__DZ_SONVFX_BEGIN__*/", b"/*__DZ_SONVFX_END__*/"
-    if base.count(a) != 1 or livre.count(a) != 1:
-        return base
-    bloc = livre[livre.find(a):livre.find(z)].replace(b"\r\n", b"\n")
-    if b"\r\n" in base:
-        bloc = bloc.replace(b"\n", b"\r\n")
-    return base[:base.find(a)] + bloc + base[base.find(z):]
+    test_i18n_dictee_catalogue (2.13).
+    t307 (25/10/2026) : de même pour le bloc MONTAGE (barre « Projet » retouchée par la saisie L3 montage_i et RETOUCHES
+    de G1, réinjectée par refresh_layer) ; que ce bloc soit sa couche montage.js est vérifié par test_i18n_l3 (2c),
+    test_son_vfx_socle et test_icones_g1 (3.7)."""
+    for a, z in ((b"/*__DZ_SONVFX_BEGIN__*/", b"/*__DZ_SONVFX_END__*/"),
+                 (b"/*__DZ_MONTAGE_BEGIN__*/", b"/*__DZ_MONTAGE_END__*/")):
+        if base.count(a) != 1 or livre.count(a) != 1:
+            continue
+        bloc = livre[livre.find(a):livre.find(z)].replace(b"\r\n", b"\n")
+        if b"\r\n" in base:
+            bloc = bloc.replace(b"\n", b"\r\n")
+        base = base[:base.find(a)] + bloc + base[base.find(z):]
+    return base
