@@ -9,7 +9,7 @@
 - d5 `ping` ignoré, évènement `error` du flux, statut HTTP, sortie tronquée ; d6 l'écran du PC ignore `delta`.
 Le serveur Anthropic est un FAUX (flux SSE écrit à la main) : clé factice, aucun réseau, aucune dépense.
 Run : & $PY tests/test_agent_flux_delta.py   (depuis la racine du dépôt ou backend/, PYTHONUTF8=1)."""
-import asyncio, json, os, sys, tempfile, pathlib
+import asyncio, json, os, re, sys, tempfile, pathlib
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 TMP = tempfile.mkdtemp(prefix="dzl41_flux_")
 os.environ["DEEPOTUS_DATA_DIR"] = TMP
@@ -185,10 +185,36 @@ async def main():
           str([m["role"] for m in l["messages"]]))
     check("d4 le verrou est rendu", not AC._VERROUS)
     lignes = await depenses(cid)
-    check("d4b l'usage déjà annoncé par le flux coupé est noté (message_start), pas 0",
-          len(lignes) == 1 and abs(lignes[0].reel_usd - cout(900, 1)) < 1e-12 and lignes[0].reel_usd > 0,
+    check("d4b flux coupé : la réservation reste telle quelle (jamais un réel sous l'entrée facturée)",
+          len(lignes) == 1 and lignes[0].reel_usd is None and lignes[0].estime_usd >= cout(900, 1) > 0,
           str([(x.estime_usd, x.reel_usd) for x in lignes]))
     check("d4c le flux coupé est fermé aussi", all(x.ferme for x in f.reps))
+
+    print("[d4d] erreur réseau pendant la lecture du flux (après le 200)")
+    import httpx
+
+    class FluxQuiMeurt(FluxRep):
+        def __init__(self, lignes, exc):
+            super().__init__(lignes); self.exc = exc
+        def iter_lines(self):
+            yield from self._lignes
+            raise self.exc
+
+    for exc in (httpx.ReadError("connexion perdue sk-ant-FACTICE-flux"), httpx.RemoteProtocolError("coupé"),
+                httpx.ReadTimeout("délai")):
+        APPELS.clear()
+        nom = type(exc).__name__
+        cid = (await st.creer("campagnes", B, "Reseau " + nom))["id"]
+        f = Faux([FluxQuiMeurt(debut(900) + bloc_texte(0, ["Je cherche."]), exc)]); MT._POSTER = f
+        ev = await derouler(cid, "Coupe réseau.")
+        check(f"d4d {nom} : erreur{{code:moteur}}, rien d'exécuté, clé ôtée",
+              ev[-1]["type"] == "erreur" and ev[-1].get("code") == "moteur" and APPELS == []
+              and "sk-ant-FACTICE" not in str(ev[-1]), str(ev[-1]))
+        lignes = await depenses(cid)
+        eff = [(x.reel_usd if x.reel_usd is not None else x.estime_usd) for x in lignes]
+        check(f"d4d {nom} : le coût compté n'est jamais sous l'entrée facturée (pas 0)",
+              len(lignes) == 1 and eff[0] >= cout(900, 1) > 0, str([(x.estime_usd, x.reel_usd) for x in lignes]))
+        check(f"d4d {nom} : flux fermé, verrou rendu", all(x.ferme for x in f.reps) and not AC._VERROUS)
 
     print("[d5] lecture du flux")
     cid = (await st.creer("campagnes", B, "Lecture"))["id"]
@@ -240,8 +266,10 @@ async def main():
     src = (_ICI.parent.parent / "frontend" / "shared" / "dz-campagnes.js").read_text(encoding="utf-8")
     i = src.index("function evenement(e)")
     corps = src[i:src.index("function compter", i)]
-    check("d6 evenement() ne traite que texte/outil/carte/erreur : aucun 'delta', aucun else final",
-          '"delta"' not in corps and "} else {" not in corps, corps[:200])
+    check("d6 evenement() rend la main sur `delta` AVANT tout dessin (le fil n'est pas rebâti à chaque morceau)",
+          bool(re.match(r'function evenement\(e\) \{\s*(//[^\n]*\n\s*)?if \(e\.type === "delta"\) return;', corps)), corps[:120])
+    dist = (_ICI.parent.parent / "frontend" / "dist" / "shared" / "dz-campagnes.js").read_text(encoding="utf-8")
+    check("d6 le dist porte la même garde (copie octet pour octet de la source)", dist == src)
 
     ao.executer = _exec0
     MT._POSTER = _poster0

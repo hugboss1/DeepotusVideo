@@ -11,9 +11,10 @@ avec ses clés et son plafond.
   la redirection de FastAPI (seul le gabarit exact est ouvert) ;
 - `GET /paquet?espace_id=&avec=telephone&langue=fr|en` (L4.1) : en plus, le catalogue allégé, les poids, le système par
   rôle, les cinq outils du téléphone, le modèle et les constantes ; `ETag` = `version` (tout le contenu), `If-None-Match`
-  égal → 304 sans corps. Sans `avec`, la réponse reste celle ci-dessous ;
+  égal → 304 sans corps. Avec `avec=telephone` et sans `espace_id`, c'est l'espace ACTIF du PC (non archivé) qui est servi (le téléphone
+  ne le connaît pas, spec §6.1). Sans `avec`, la réponse reste celle ci-dessous ;
 - `GET /paquet?espace_id=` : le paquet agent du compagnon, {version, fichiers} — docs/agent/campagnes/* (texte) et,
-  avec un espace nommé (sinon 400), `persona.json` sans `templates` ni `voice_ids` ; `boites.json` (les boîtes à outils marquées mobile, t305, 25/10/2026) ; jamais l'espace actif d'office.
+  avec un espace nommé (sinon 400), `persona.json` sans `templates` ni `voice_ids` ; `boites.json` (les boîtes à outils marquées mobile, t305, 25/10/2026) ; sans `avec`, jamais l'espace actif d'office.
   `version` = 16 hex du sha256 des fichiers (noms triés, fichiers cachés exclus) : elle change dès qu'un fichier
   change ;
 - `GET /{cid}` : la conversation ; ajoute d'abord un message `fait` par carte `devis` acceptée dont le job est fini
@@ -376,16 +377,22 @@ def _etags(entete: str | None) -> set:
     return {re.sub(r'^W/', "", x.strip()).strip('"') for x in (entete or "").split(",") if x.strip()}
 
 
+def _paquet_telephone_pc(espace_id: str | None, lg: str) -> dict:
+    """Le paquet du téléphone, lu HORS de la boucle d'évènements : sans `espace_id`, l'espace actif du PC (non archivé),
+    dont la lecture est un fichier (spec §6.1)."""
+    if not espace_id:
+        a = espaces.actif()
+        espace_id = None if a.get("archive") else a.get("id")
+    return _paquet_telephone(espace_id, lg)
+
+
 @router.get("/paquet")
 async def paquet(request: Request, espace_id: str | None = None, avec: str | None = None, langue: str | None = None):
     await _local_ou_appareil(request)
     if avec != "telephone":
         return await asyncio.to_thread(_paquet, espace_id)
     lg = langue if langue in ("fr", "en") else _lang(request)
-    if not espace_id:   # le téléphone ne connaît pas l'espace actif : le paquet porte celui du PC (spec §6.1)
-        a = espaces.actif()
-        espace_id = None if a.get("archive") else a.get("id")
-    p = await asyncio.to_thread(_paquet_telephone, espace_id, lg)
+    p = await asyncio.to_thread(_paquet_telephone_pc, espace_id, lg)
     if p["version"] in _etags(request.headers.get("if-none-match")):
         return Response(status_code=304, headers={"ETag": p["version"]})
     return JSONResponse(p, headers={"ETag": p["version"]})

@@ -695,64 +695,73 @@ def _lire_flux(lignes, sur_delta=None, cle: str = "") -> dict:
     """Lit les évènements SSE d'un message Anthropic → {"blocs", "arret", "in_tok", "out_tok"}. `message_start` donne
     l'entrée, `content_block_*` les blocs (`text_delta` → `sur_delta(texte)` à mesure ; `input_json_delta` recollé par
     bloc `tool_use`), `message_delta` l'arrêt et la sortie, `message_stop` clôt. `ping` est ignoré. Un flux qui finit
-    avant `message_stop`, ou un évènement `error` : FluxCoupe."""
+    avant `message_stop`, un évènement `error`, ou toute panne de lecture du flux (httpx.ReadError, délai, protocole) :
+    FluxCoupe, qui porte l'usage déjà annoncé."""
     blocs: dict[int, dict] = {}
     morceaux: dict[int, list[str]] = {}
     arret, in_tok, out_tok, fini = "", 0, 0, False
-    for ligne in lignes:
-        ligne = (ligne.decode("utf-8", "replace") if isinstance(ligne, bytes) else str(ligne or "")).strip()
-        if not ligne.startswith("data:"):
-            continue
-        try:
-            e = _json.loads(ligne[5:].strip())
-        except ValueError:
-            continue
-        if not isinstance(e, dict):
-            continue
-        t = e.get("type")
-        if t == "message_start":
-            u = (e.get("message") or {}).get("usage") or {}
-            in_tok, out_tok = int(u.get("input_tokens") or 0), int(u.get("output_tokens") or 0)
-        elif t == "content_block_start":
-            b = dict(e.get("content_block") or {})
-            i = int(e.get("index") or 0)
-            if b.get("type") == "text":
-                b["text"] = str(b.get("text") or "")
-                if b["text"] and sur_delta:
-                    sur_delta(b["text"])
-            blocs[i], morceaux[i] = b, []
-        elif t == "content_block_delta":
-            i = int(e.get("index") or 0)
-            d = e.get("delta") or {}
-            b = blocs.get(i)
-            if b is None:
+    try:
+        for ligne in lignes:
+            ligne = (ligne.decode("utf-8", "replace") if isinstance(ligne, bytes) else str(ligne or "")).strip()
+            if not ligne.startswith("data:"):
                 continue
-            if d.get("type") == "text_delta":
-                s = str(d.get("text") or "")
-                b["text"] = str(b.get("text") or "") + s
-                if s and sur_delta:
-                    sur_delta(s)
-            elif d.get("type") == "input_json_delta":
-                morceaux[i].append(str(d.get("partial_json") or ""))
-            elif d.get("type") == "thinking_delta":
-                b["thinking"] = str(b.get("thinking") or "") + str(d.get("thinking") or "")
-            elif d.get("type") == "signature_delta":
-                b["signature"] = str(b.get("signature") or "") + str(d.get("signature") or "")
-        elif t == "message_delta":
-            arret = str((e.get("delta") or {}).get("stop_reason") or arret)
-            u = e.get("usage") or {}
-            if u.get("output_tokens") is not None:
-                out_tok = int(u.get("output_tokens") or 0)
-            if u.get("input_tokens"):
-                in_tok = int(u.get("input_tokens") or 0)
-        elif t == "message_stop":
-            fini = True
-            break
-        elif t == "error":
-            m = str((e.get("error") or {}).get("message") or e.get("error") or "erreur du flux")
-            if cle:
-                m = m.replace(cle, "***")
-            raise FluxCoupe(f"Anthropic flux — {m[:200]}", in_tok, out_tok)
+            try:
+                e = _json.loads(ligne[5:].strip())
+            except ValueError:
+                continue
+            if not isinstance(e, dict):
+                continue
+            t = e.get("type")
+            if t == "message_start":
+                u = (e.get("message") or {}).get("usage") or {}
+                in_tok, out_tok = int(u.get("input_tokens") or 0), int(u.get("output_tokens") or 0)
+            elif t == "content_block_start":
+                b = dict(e.get("content_block") or {})
+                i = int(e.get("index") or 0)
+                if b.get("type") == "text":
+                    b["text"] = str(b.get("text") or "")
+                    if b["text"] and sur_delta:
+                        sur_delta(b["text"])
+                blocs[i], morceaux[i] = b, []
+            elif t == "content_block_delta":
+                i = int(e.get("index") or 0)
+                d = e.get("delta") or {}
+                b = blocs.get(i)
+                if b is None:
+                    continue
+                if d.get("type") == "text_delta":
+                    s = str(d.get("text") or "")
+                    b["text"] = str(b.get("text") or "") + s
+                    if s and sur_delta:
+                        sur_delta(s)
+                elif d.get("type") == "input_json_delta":
+                    morceaux[i].append(str(d.get("partial_json") or ""))
+                elif d.get("type") == "thinking_delta":
+                    b["thinking"] = str(b.get("thinking") or "") + str(d.get("thinking") or "")
+                elif d.get("type") == "signature_delta":
+                    b["signature"] = str(b.get("signature") or "") + str(d.get("signature") or "")
+            elif t == "message_delta":
+                arret = str((e.get("delta") or {}).get("stop_reason") or arret)
+                u = e.get("usage") or {}
+                if u.get("output_tokens") is not None:
+                    out_tok = int(u.get("output_tokens") or 0)
+                if u.get("input_tokens"):
+                    in_tok = int(u.get("input_tokens") or 0)
+            elif t == "message_stop":
+                fini = True
+                break
+            elif t == "error":
+                m = str((e.get("error") or {}).get("message") or e.get("error") or "erreur du flux")
+                if cle:
+                    m = m.replace(cle, "***")
+                raise FluxCoupe(f"Anthropic flux — {m[:200]}", in_tok, out_tok)
+    except FluxCoupe:
+        raise
+    except Exception as e:  # noqa: BLE001 — après le 200, TOUTE panne de lecture (réseau, délai, protocole) coupe le flux
+        m = f"{type(e).__name__} — {e}"
+        if cle:
+            m = m.replace(cle, "***")
+        raise FluxCoupe(f"Anthropic flux — {m[:200]}", in_tok, out_tok) from None
     if not fini:
         raise FluxCoupe("Anthropic flux coupé avant la fin", in_tok, out_tok)
     out = []

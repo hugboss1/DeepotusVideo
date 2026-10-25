@@ -297,11 +297,12 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: st
                 yield {"type": "delta", "texte": file_delta.get_nowait()}
             r = await appel
         except Exception as e:  # noqa: BLE001 — HTTP, délai, réseau : un évènement, jamais une trace (clé ôtée par converser)
-            # rien n'a été facturé, sauf l'usage déjà annoncé par un flux qui s'est coupé en route (FluxCoupe).
-            # Ce réel noté est un MINIMUM (Anthropic peut facturer toute la sortie) et n'est pas ajouté au cout_usd
-            # de la conversation.
-            perdu = _usd(MT.op_tour(modele, getattr(e, "in_tok", 0), getattr(e, "out_tok", 0)))
-            await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], perdu)
+            # Connexion refusée, statut ≠ 200, sans clé : rien n'a été facturé, le réel noté est 0. Un FluxCoupe (panne
+            # APRÈS le 200 : flux coupé, évènement error, ReadError, délai) a pu être facturé : Anthropic compte l'entrée
+            # dès message_start et peut compter toute la sortie. On ne note donc PAS de réel : la réservation de
+            # `plafonds.verifier` (estimation haute du tour) reste la dépense retenue, jamais un réel inférieur.
+            if not isinstance(e, MT.FluxCoupe):
+                await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], 0.0)
             yield {"type": "erreur", "code": "sans_cle" if str(e) == "sans_cle" else "moteur", "message": str(e)[:300]}
             return
         finally:
