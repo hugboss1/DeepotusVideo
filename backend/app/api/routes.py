@@ -8778,6 +8778,12 @@ async def create_scheduled_post(body: dict):
         p.espace_id = _es.espace_courant()
     if body.get("comptes"):
         _poser_comptes(p, body["comptes"])
+    elif not body.get("channels"):
+        # t307 : ni comptes ni canaux donnés -> les canaux du projet actif de l'espace DU POST (une lecture)
+        from app.services import library_projects as _lp
+        ces = await _lp.canaux_par_defaut(p.espace_id)
+        if ces:
+            _poser_comptes(p, ces)
     async with async_session_factory() as session:
         session.add(p)
         await session.commit()

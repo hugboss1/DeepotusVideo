@@ -137,6 +137,37 @@ with TestClient(app, client=("127.0.0.1", 50000)) as client:
     check("3g appareil appairé : 403", r.status_code == 403, str(r.status_code))
     check("3j ... et rien n'a changé", client.get(f"/api/library/projets/{pid}").json()["canaux"] == [cx])
 
+    print("[4] POST /api/schedule : les canaux du projet actif quand aucune cible n'est donnée")
+    def post(corps):
+        return client.post("/api/schedule", json=dict({"run_at": "2026-12-01T10:00:00"}, **corps))
+    def comptes_de(r):
+        return r.json().get("comptes") if r.status_code == 200 else f"HTTP {r.status_code}"
+    r = post({"caption": "a"})
+    check("4a post sans cible -> comptes du projet actif", comptes_de(r) == [cx] and r.json()["channels"] == ["x"], r.text[:200])
+    check("4b channels donnés -> rien d'hérité", comptes_de(post({"caption": "b", "channels": ["telegram"]})) == [])
+    check("4c comptes donnés -> gardés", comptes_de(post({"caption": "c", "comptes": ["historique-x"]})) == ["historique-x"])
+    check("4d post de l'espace B -> défaut de B, jamais celui de Deepotus",
+          comptes_de(post({"caption": "d", "espace_id": B})) == [cx_B])
+
+print("[4bis] agent : creer_brouillons")
+from app.services import agent_outils as AO, agent_store as AST       # noqa: E402
+from app.services.storage import ScheduledPost, async_session_factory   # noqa: E402
+from sqlalchemy import select                                           # noqa: E402
+async def _brouillons(eid, posts):
+    conv = await AST.creer("campagnes", eid, "Campagne t307")
+    await AST.regler_porte(conv["id"], "porte1_validee")
+    r = await AO.executer("creer_brouillons", {"posts": posts}, AO.Ctx(cid=conv["id"], espace_id=eid, etat_porte="porte1_validee"))
+    async with async_session_factory() as s:
+        lignes = (await s.execute(select(ScheduledPost).where(ScheduledPost.plan_id == conv["id"]).order_by(ScheduledPost.title))).scalars().all()
+    return r, [(l.title, l.channels, l.comptes) for l in lignes]
+Q = {"quand": "2026-12-01T10:00:00"}
+r, l = run(_brouillons("deepotus", [dict(Q, titre="p1", caption="un"), dict(Q, titre="p2", caption="deux", canaux=["telegram"])]))
+check("4e brouillon sans canaux -> comptes du projet", r["ok"] and l[0][2] == f'["{cx}"]' and l[0][1] == "x", str((r, l)))
+check("4f brouillon avec canaux -> gardés", l[1][1] == "telegram" and l[1][2] is None, str(l))
+check("4g le résumé le dit", "canaux du projet" in r["resume"], str(r)[:200])
+r, l = run(_brouillons(B, [dict(Q, titre="p1", caption="un")]))
+check("4h brouillon de l'espace B -> défaut de B", l[0][2] == f'["{cx_B}"]', str(l))
+
 _loop.close()
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)
