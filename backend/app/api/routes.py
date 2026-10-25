@@ -4357,8 +4357,11 @@ async def library_poser_canaux_projet(pid: str, request: Request):
         await LP.contenu(pid)
     except KeyError:
         raise HTTPException(404, f"Projet inconnu : {pid}")
+    ids = body.get("canaux")
+    if not isinstance(ids, list) or not all(isinstance(i, str) and i.strip() for i in ids):
+        raise HTTPException(400, "comptes doit être une liste d'identifiants")
     try:
-        return await LP.poser_canaux(pid, body.get("canaux"))
+        return await LP.poser_canaux(pid, ids)
     except KeyError as e:
         raise HTTPException(404, f"compte inconnu : {e.args[0] if e.args else ''}")
     except PermissionError as e:
