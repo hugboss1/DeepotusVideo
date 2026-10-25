@@ -27,8 +27,9 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 - **Dépenses** : toute route payante appelle `plafonds.verifier`, sinon le banc `test_plafonds_garde` échoue.
 - **Clés** : le coffre est dans `services/coffre.py`, en localhost seulement.
 - **Espaces** : un espace a un type (`marque`, `produit` ou `client`, dans `services/espaces.py`). Un produit peut avoir
-  un parent (une marque ou un client) ; `espaces.client_responsable` donne le client qui le gouverne, et un produit
-  rattaché à un client suit les règles de ce client (mode de publication, consentements).
+  un parent (une marque ou un client) ; `espaces.client_responsable` remonte au parent pour trouver le client
+  responsable. Les règles de publication s'y brancheront en t309 (validation client et sécurités) ; rien ne les
+  applique encore.
 - **Traduction** : `dzT(clé)` côté écran (`frontend/shared/i18n/*.json`, assemblés par
   `scripts/i18n_assembler.py`) ; côté serveur, `app.i18n`.
 
@@ -43,7 +44,7 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 | `backend/app/services/agent_boites.py` | Boîtes à outils de l'agent par fonctionnalité (`BOITES`, `outils_pour`, `paquet_mobile`) ; hors boîte = refus ; servies au compagnon dans `boites.json` du paquet |
 | `backend/app/services/coffre.py` | Coffre à clés chiffré |
 | `backend/app/services/espaces.py` | Espaces de marque |
-| `backend/app/services/fiche_client.py` | Fiche d'un client (`client.json` par espace) : contact, mode de publication, consentements datés par canal, révocation, journal |
+| `backend/app/services/fiche_client.py` | Fiche d'un client (`client.json` par espace) : contact, mode de publication, consentements datés par canal, révocation, journal. Routes locales seulement, écritures locales : `GET/PUT /api/espaces/{id}/client`, `POST …/client/consentements`, `POST …/client/consentements/revoquer` |
 | `frontend/dist/index.html` | Page de la SPA, scripts partagés |
 | `frontend/shared/dz-i18n.js` | Runtime `dzT` |
 | `frontend/shared/dz-plafonds.js` | Dialogue du 402 `dz_plafond` |
