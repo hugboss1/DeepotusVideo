@@ -614,7 +614,9 @@ async def creer_brouillons(ctx: Ctx, posts: list) -> dict:
         from app.services import comptes as _cpt, library_projects as _lp
         try:
             vues = _cpt.verifier_cibles(eid, await _lp.canaux_par_defaut(eid))
-        except (KeyError, PermissionError, ValueError):
+        except (KeyError, PermissionError, ValueError) as e:
+            from loguru import logger
+            logger.warning(f"canaux du projet ignorés pour les brouillons de {eid} : {e}")
             vues = []
         defaut_ids = [v["id"] for v in vues]
         defaut_plats = list(dict.fromkeys(v["plateforme"] for v in vues))
@@ -623,7 +625,7 @@ async def creer_brouillons(ctx: Ctx, posts: list) -> dict:
         if not isinstance(p, dict):
             raise _Refus(f"post {i} : objet attendu")
         herite = "canaux" not in p and bool(defaut_ids)
-        du_projet += herite
+        du_projet += 1 if herite else 0
         canaux = defaut_plats if herite else (p.get("canaux") or ["x"])
         canaux = [str(c).strip().lower() for c in (canaux if isinstance(canaux, list) else str(canaux).split(","))]
         if not canaux or not all(_CANAL.match(c) for c in canaux) or len(canaux) > 6:

@@ -10,7 +10,7 @@ Ce que ce banc garde (sections 1 et 2) :
     jamais le défaut d'un autre espace.
 Aucun réseau, rien de payé, data-dir isolé.
 Run (depuis backend/) : & $PY tests/test_projets_canaux.py"""
-import asyncio, os, pathlib, sqlite3, sys, tempfile
+import asyncio, json, os, pathlib, sqlite3, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzpcan_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
@@ -148,6 +148,13 @@ with TestClient(app, client=("127.0.0.1", 50000)) as client:
     check("4c comptes donnés -> gardés", comptes_de(post({"caption": "c", "comptes": ["historique-x"]})) == ["historique-x"])
     check("4d post de l'espace B -> défaut de B, jamais celui de Deepotus",
           comptes_de(post({"caption": "d", "espace_id": B})) == [cx_B])
+    # défaut périmé : le projet actif de Deepotus pointe (JSON brut) un compte de B -> la création ne casse jamais
+    _c = sqlite3.connect(BASE_DB)
+    _c.execute("UPDATE library_projects SET canaux=? WHERE id=?", (json.dumps([cx_B]), pid)); _c.commit()
+    r = post({"caption": "p"})
+    check("4i défaut périmé (compte d'un autre espace) -> 200, comptes vides, channels d'avant",
+          r.status_code == 200 and r.json()["comptes"] == [] and r.json()["channels"] == ["x"], r.text[:200])
+    _c.execute("UPDATE library_projects SET canaux=? WHERE id=?", (json.dumps([cx]), pid)); _c.commit(); _c.close()
 
 print("[4bis] agent : creer_brouillons")
 from app.services import agent_outils as AO, agent_store as AST       # noqa: E402

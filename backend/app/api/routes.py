@@ -8783,7 +8783,11 @@ async def create_scheduled_post(body: dict):
         from app.services import library_projects as _lp
         ces = await _lp.canaux_par_defaut(p.espace_id)
         if ces:
-            _poser_comptes(p, ces)
+            try:
+                _poser_comptes(p, ces)
+            except HTTPException as e:   # défaut périmé (compte changé d'espace...) : jamais bloquant, comme avant
+                logger.warning(f"canaux du projet ignorés pour un post de {p.espace_id} : {e.detail}")
+                p.comptes = None
     async with async_session_factory() as session:
         session.add(p)
         await session.commit()
