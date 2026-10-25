@@ -108,6 +108,31 @@ run(LP.poser_canaux(p["id"], ["historique-x"]))
 check("2e ... et ses canaux", run(LP.canaux_par_defaut("deepotus")) == ["historique-x"])
 check("2f B reste indépendant", run(LP.canaux_par_defaut(B)) == [cx_B])
 
+print("[3] route PUT /api/library/projets/{pid}/canaux")
+from fastapi.testclient import TestClient                           # noqa: E402
+from app.main import app                                            # noqa: E402
+sys.path.insert(0, str(_ICI))
+import _jeton_appareil as JA                                        # noqa: E402
+cx = comptes.creer({"espace_id": "deepotus", "plateforme": "x", "libelle": "Deepotus X2"})["id"]
+pid = p["id"]
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    def put(i, ids):
+        return client.put(f"/api/library/projets/{i}/canaux", json={"canaux": ids})
+    r = put(pid, [cx])
+    check("3a PUT 200 et vue relue", r.status_code == 200 and r.json()["canaux"] == [cx], r.text[:200])
+    check("3b autre espace 409", put(pid, [cx_B]).status_code == 409)
+    check("3c compte inconnu 404", put(pid, ["c_inconnu"]).status_code == 404)
+    check("3d projet inconnu 404", put("proj_00000000", []).status_code == 404)
+    check("3e forme 400", client.put(f"/api/library/projets/{pid}/canaux", json={"canaux": "x"}).status_code == 400)
+    check("3f GET /library/projets porte canaux", "canaux" in client.get("/api/library/projets").json()["projets"][0])
+    check("3h les refus n'ont rien écrit", client.get(f"/api/library/projets/{pid}").json()["canaux"] == [cx])
+    check("3i corps non objet 400", client.put(f"/api/library/projets/{pid}/canaux", json=[cx]).status_code == 400)
+    H = JA.entetes(app)
+    lan = TestClient(app, client=("192.168.1.20", 50000))
+    r = lan.put(f"/api/library/projets/{pid}/canaux", json={"canaux": []}, headers=H)
+    check("3g appareil appairé : 403", r.status_code == 403, str(r.status_code))
+    check("3j ... et rien n'a changé", client.get(f"/api/library/projets/{pid}").json()["canaux"] == [cx])
+
 _loop.close()
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

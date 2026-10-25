@@ -4345,6 +4345,28 @@ async def library_modifier_projet(pid: str, request: Request):
         raise HTTPException(404, f"Projet inconnu : {pid}")
 
 
+@router.put("/library/projets/{pid}/canaux")
+async def library_poser_canaux_projet(pid: str, request: Request):
+    """t307 (25/10/2026) : pose les CANAUX du projet (ids de comptes de son espace de marque ; les nouveaux posts les
+    prendront par défaut). Body : {canaux: [ids]}, liste vide = aucun canal. Projet inconnu 404 (regardé d'abord, par
+    `LP.contenu`, pour ne pas le confondre avec un compte inconnu), compte inconnu 404, compte d'un autre espace 409,
+    forme 400. Écriture : la garde locale de main.py refuse déjà un appareil appairé (403), rien à ouvrir."""
+    from app.services import library_projects as LP
+    body = await _corps_objet(request)
+    try:
+        await LP.contenu(pid)
+    except KeyError:
+        raise HTTPException(404, f"Projet inconnu : {pid}")
+    try:
+        return await LP.poser_canaux(pid, body.get("canaux"))
+    except KeyError as e:
+        raise HTTPException(404, f"compte inconnu : {e.args[0] if e.args else ''}")
+    except PermissionError as e:
+        raise HTTPException(409, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.delete("/library/projets/{pid}")
 async def library_supprimer_projet(pid: str):
     """Le projet et ses appartenances ; JAMAIS les fichiers."""
