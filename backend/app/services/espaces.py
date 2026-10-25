@@ -267,7 +267,7 @@ def modifier(eid: str, champs: dict) -> dict:
         type_ = _type_valide(champs["type"]) if champs.get("type") is not None else avant["type"]
         if type_ != avant["type"]:
             if avant["type"] == "client" and _consentements_en_cours(eid):
-                raise ConflitClient("des consentements courent pour ce client : retirez-les avant de changer son type")
+                raise ConflitClient("des consentements courent pour ce client : révoquez-les avant de changer son type")
             if type_ == "produit" and any(_vue(k, v, doc["actif"])["parent"] == eid for k, v in doc["espaces"].items()):
                 raise ValueError("des produits dépendent de cet espace : il ne peut pas devenir un produit")
         parent = champs["parent"] if "parent" in champs else (avant["parent"] if type_ == "produit" else None)
@@ -288,7 +288,8 @@ def client_responsable(eid: str | None = None) -> str | None:
     v = _vue(eid, e, doc["actif"])
     if v["type"] == "client":
         return eid
-    p = doc["espaces"].get(v["parent"]) if v["parent"] else None
+    # t306 (25/10/2026) : le parent ne compte que pour un PRODUIT (un `parent` posé à la main sur une marque est ignoré).
+    p = doc["espaces"].get(v["parent"]) if v["type"] == "produit" and v["parent"] else None
     if p is not None and _vue(v["parent"], p, doc["actif"])["type"] == "client":
         return v["parent"]
     return None

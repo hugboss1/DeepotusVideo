@@ -96,6 +96,10 @@ check("2b produit -> son client", E.client_responsable(p["id"]) == c["id"])
 check("2c marque -> aucun", E.client_responsable("deepotus") is None)
 E.archiver(c["id"])
 check("2d client archive reste responsable", E.client_responsable(p["id"]) == c["id"])
+# t306 (25/10/2026) : le parent ne compte que pour un produit ; une marque retouchee a la main avec un parent client : aucun
+_doc_h = E.lire(); _mq = E.creer({"nom": "Marque a la main", "type": "marque"})
+_doc_h = E.lire(); _doc_h["espaces"][_mq["id"]]["parent"] = c["id"]; E._ecrire(_doc_h)
+check("2f marque avec un parent pose a la main : client_responsable = None", E.client_responsable(_mq["id"]) is None)
 
 print("[3] fiche client et consentements (c est archive depuis 2d : sa fiche reste lisible et ecrivible)")
 from app.services import fiche_client as F                          # noqa: E402
@@ -256,6 +260,37 @@ try:
 finally:
     F._poser = _vrai
 check("5p retour arriere si l'ecriture de la fiche echoue", leve and len(E.lire()["espaces"]) == avant)
+
+# t306 (25/10/2026) : un seul consentement actif par canal
+print("[5b] deux consentements actifs sur un meme canal")
+dbl = E.creer({"nom": "Double SA", "type": "client"})
+ligne = lambda d, m: {"canal_id": "instagram:9", "permis": ["publier"], "date": d, "moyen": m, "revoque_le": None}
+brut_dbl = dict(F.valider({}), consentements=[ligne("2026-10-01T10:00:00", "ecrit"), ligne("2026-10-02T10:00:00", "doigt")])
+fd = E.chemin(dbl["id"], "client.json")
+_vraie_valider = F.valider
+F.valider = lambda d: d          # contourne la normalisation : la carte contient bien DEUX lignes actives sur le disque
+try:
+    fd.write_text(json.dumps(brut_dbl), encoding="utf-8")
+    F.revoquer(dbl["id"], "instagram:9")
+    apres = json.loads(fd.read_text(encoding="utf-8"))
+finally:
+    F.valider = _vraie_valider
+check("5q revoquer ferme TOUTES les lignes actives du canal", all(x["revoque_le"] for x in apres["consentements"])
+      and len(apres["consentements"]) == 2 and not F.consentement_en_cours(dbl["id"], "instagram:9")
+      and sum(1 for x in apres["journal"] if x["quoi"] == "revocation") == 1)
+fd.write_text(json.dumps(brut_dbl), encoding="utf-8")
+lu_dbl = F.lire(dbl["id"])["consentements"]
+check("5r valider/lire : une seule ligne active, la plus recente ; l'autre est close, pas supprimee",
+      len(lu_dbl) == 2 and [x["revoque_le"] is None for x in lu_dbl] == [False, True] and lu_dbl[1]["moyen"] == "doigt"
+      and lu_dbl[0]["revoque_le"] == "2026-10-02T10:00:00")
+F.revoquer(dbl["id"], "instagram:9")
+check("5s apres lecture normalisee puis revoquer : le canal est ferme", not F.consentement_en_cours(dbl["id"], "instagram:9"))
+dpq = dict(paq, consentements=[ligne("2026-10-01T10:00:00", "ecrit"), ligne("2026-10-02T10:00:00", "doigt")])
+r7 = PQ.importer(_zip({"espace.json": zf.read("espace.json"), "persona.json": zf.read("persona.json"), "client.json": dpq}))
+cs7 = F.lire(r7["espace"]["id"])["consentements"]
+check("5t import de deux actifs sur un canal : un seul reste actif, et ignores le dit",
+      sum(1 for x in cs7 if x["revoque_le"] is None) == 1 and any("consentement n°1" in x and "plus récent" in x for x in r7["ignores"]),
+      str(r7["ignores"]))
 
 print("[6] client.json illisible : mis de cote, jamais perdu")
 fch = E.chemin(pc["id"], "client.json")

@@ -166,6 +166,18 @@ def _ecarts_fiche(brut, ignores: list) -> None:
             ignores.append(f"client.json : consentement n°{i} écarté (canal, permissions ou date invalides)")
         elif x.get("moyen") not in fiche_client.MOYENS:
             ignores.append(f"client.json : consentement n°{i} : moyen inconnu, remplacé par « ecrit »")
+    # t306 : plusieurs consentements en cours sur un même canal : le plus récent est gardé, les autres sont clos (dit).
+    actifs = {}
+    for i, x in enumerate(d.get("consentements") if isinstance(d.get("consentements"), list) else [], 1):
+        v = fiche_client.valider({"consentements": [x]})["consentements"]
+        if v and v[0]["revoque_le"] is None:
+            actifs.setdefault(v[0]["canal_id"], []).append((v[0]["date"], i))
+    for canal, lst in actifs.items():
+        gardee = max(lst)[1]
+        for _date, i in lst:
+            if i != gardee:
+                ignores.append(f"client.json : consentement n°{i} : un autre, plus récent (n°{gardee}), court déjà pour le canal "
+                               f"{canal}, celui-ci est clos")
     for i, x in enumerate(d.get("journal") if isinstance(d.get("journal"), list) else [], 1):
         v = fiche_client.valider({"journal": [x]})["journal"]
         if not v:

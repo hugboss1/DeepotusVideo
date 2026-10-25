@@ -44,7 +44,7 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 | `backend/app/services/agent_boites.py` | Boîtes à outils de l'agent par fonctionnalité (`BOITES`, `outils_pour`, `paquet_mobile`) ; hors boîte = refus ; servies au compagnon dans `boites.json` du paquet |
 | `backend/app/services/coffre.py` | Coffre à clés chiffré |
 | `backend/app/services/espaces.py` | Espaces de marque |
-| `backend/app/services/fiche_client.py` | Fiche d'un client (`client.json` par espace) : contact, mode de publication, consentements datés par canal, révocation, journal. Routes locales seulement, écritures locales : `GET/PUT /api/espaces/{id}/client`, `POST …/client/consentements`, `POST …/client/consentements/revoquer` |
+| `backend/app/services/fiche_client.py` | Fiche d'un client (`client.json` par espace) : contact, mode de publication, consentements datés par canal, révocation, journal. Écritures locales seulement (t306 (25/10/2026)), lecture `GET` aussi ouverte aux appareils appairés : `GET/PUT /api/espaces/{id}/client`, `POST …/client/consentements`, `POST …/client/consentements/revoquer` |
 | `frontend/dist/index.html` | Page de la SPA, scripts partagés |
 | `frontend/shared/dz-i18n.js` | Runtime `dzT` |
 | `frontend/shared/dz-plafonds.js` | Dialogue du 402 `dz_plafond` |

@@ -53,6 +53,16 @@ def valider(doc) -> dict:
         consents.append({"canal_id": x["canal_id"], "permis": permis, "date": date,
                          "moyen": x.get("moyen") if x.get("moyen") in MOYENS else "ecrit",
                          "revoque_le": _txt(x.get("revoque_le"), 40) or None})
+    # t306 (25/10/2026) : un seul consentement ACTIF par canal. Si plusieurs courent, le plus récent (date, puis position)
+    # est gardé ; les autres sont CLOS à la date du gardé (remplacés par lui), jamais supprimés : la preuve reste.
+    gagnant = {}
+    for i, x in enumerate(consents):
+        if x["revoque_le"] is None and (x["canal_id"] not in gagnant
+                                        or (x["date"], i) >= (consents[gagnant[x["canal_id"]]]["date"], gagnant[x["canal_id"]])):
+            gagnant[x["canal_id"]] = i
+    for i, x in enumerate(consents):
+        if x["revoque_le"] is None and gagnant[x["canal_id"]] != i:
+            x["revoque_le"] = consents[gagnant[x["canal_id"]]]["date"]
     journal = []
     for x in d.get("journal") if isinstance(d.get("journal"), list) else []:
         if not isinstance(x, dict) or x.get("quoi") not in QUOI or not _txt(x.get("quand"), 40):
@@ -204,12 +214,15 @@ def revoquer(eid, canal_id) -> dict:
     _client(eid)
     with _verrou:
         f = _charger(eid)
-        for x in f["consentements"]:
-            if x["canal_id"] == canal_id and x["revoque_le"] is None:
-                x["revoque_le"] = _es._maintenant()
-                _ligne(f, "revocation", canal_id, "utilisateur")
-                return _poser(eid, f)
-    raise KeyError(canal_id)
+        # t306 : TOUTES les lignes en cours du canal sont closes (une seule ligne de journal par geste de révocation).
+        en_cours = [x for x in f["consentements"] if x["canal_id"] == canal_id and x["revoque_le"] is None]
+        if not en_cours:
+            raise KeyError(canal_id)
+        quand = _es._maintenant()
+        for x in en_cours:
+            x["revoque_le"] = quand
+        _ligne(f, "revocation", canal_id, "utilisateur")
+        return _poser(eid, f)
 
 
 def noter(eid, quoi, canal_id, qui) -> None:
