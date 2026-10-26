@@ -7565,6 +7565,10 @@ async def set_key(body: dict, request: Request):
     au_coffre: list = []
     if secrets_ and _C.verrouille():
         raise HTTPException(409, "Coffre verrouillé : ouvrez-le (Réglages → Coffre) pour enregistrer une clé secrète.")
+    # t326 (26/10/2026) : une clé plate change le compte « historique » de sa plateforme : sa vérification est périmée
+    # AVANT toute écriture (coffre ou .env), une seule fois, après les refus 400 et 409 (un refus ne périme rien).
+    from app.services import comptes as _cpt_k
+    _cpt_k.perimer_historiques([(e.get("name") or "").strip() for e in entries])
     if secrets_ and _C.ouvert():
         for n, v in secrets_.items():
             _C.ecrire_cle(n, v)
@@ -9903,14 +9907,24 @@ async def _oauth_callback(canal: str, request: Request, code: str, state: str, e
                 return _oauth_page(f"{nom} : aucun refresh token reçu",
                                    f"Révoquez l'accès de l'application dans votre compte {nom}, puis recommencez « Connecter ».", 502)
             ou = _cpt.garder_secret(rt_nom, rt)
-        # t308 relecture finale (26/10/2026) : reconnecter peut changer de chaîne ou de compte : l'identité vérifiée est
-        # oubliée et la révision change (une vérification en vol ne range rien). Jamais dans garder_secret (rotation TikTok).
+    except KeyError:
+        return _oauth_page(f"{nom} : compte supprimé", "Le compte de diffusion a été supprimé pendant la connexion.", 404)
+    # t308 relecture finale (26/10/2026) : reconnecter peut changer de chaîne ou de compte : l'identité vérifiée est
+    # oubliée et la révision change (une vérification en vol ne range rien). Jamais dans garder_secret (rotation TikTok).
+    # t326 (26/10/2026) : l'oubli de la vérification a SON try : le jeton est déjà rangé, une panne d'écriture ne doit pas
+    # devenir une 500 (le type de l'erreur seul est journalisé, jamais son message).
+    oubli_ko = False
+    try:
         _cpt.oublier_verification(compte or f"{_cpt.HISTO}{canal}")
     except KeyError:
         return _oauth_page(f"{nom} : compte supprimé", "Le compte de diffusion a été supprimé pendant la connexion.", 404)
+    except Exception as e:
+        logger.warning("t326 oubli de vérification après OAuth : {}", type(e).__name__)
+        oubli_ko = True
     garde = {"coffre": "gardé dans le coffre", "env": "gardé dans les réglages",
              "memoire": "coffre fermé : gardé pour cette session seulement"}[ou]
-    return _oauth_page(f"{nom} connecté", f"Jeton {garde}. Vous pouvez fermer cet onglet.")
+    suite = " Vérification d'avant non effacée : revérifiez ce compte." if oubli_ko else ""
+    return _oauth_page(f"{nom} connecté", f"Jeton {garde}. Vous pouvez fermer cet onglet.{suite}")
 
 
 @router.get("/oauth/youtube/start")

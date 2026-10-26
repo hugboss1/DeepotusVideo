@@ -10730,5 +10730,37 @@
  "Anthropic flux — {v}": {
   "fr": "Anthropic flux — {v}",
   "en": "Anthropic stream — {v}"
+ },
+ "le coffre est fermé": {
+  "fr": "le coffre est fermé",
+  "en": "the vault is closed"
+ },
+ "le coffre est fermé : ouvrez-le pour que l'archive porte ses clés": {
+  "fr": "le coffre est fermé : ouvrez-le pour que l'archive porte ses clés",
+  "en": "the vault is closed: open it so the archive can carry its keys"
+ },
+ "le coffre est fermé : ouvrez-le avant d'importer une archive qui porte des clés": {
+  "fr": "le coffre est fermé : ouvrez-le avant d'importer une archive qui porte des clés",
+  "en": "the vault is closed: open it before importing an archive that carries keys"
+ },
+ "le coffre est fermé : ouvrez-le avant d'enregistrer un secret": {
+  "fr": "le coffre est fermé : ouvrez-le avant d'enregistrer un secret",
+  "en": "the vault is closed: open it before saving a secret"
+ },
+ "le coffre est fermé : ouvrez-le pour effacer les secrets de ce compte": {
+  "fr": "le coffre est fermé : ouvrez-le pour effacer les secrets de ce compte",
+  "en": "the vault is closed: open it to erase this account's secrets"
+ },
+ "le coffre est fermé : ouvrez-le avant d'enregistrer une clé": {
+  "fr": "le coffre est fermé : ouvrez-le avant d'enregistrer une clé",
+  "en": "the vault is closed: open it before saving a key"
+ },
+ "le coffre est fermé : ouvrez-le pour effacer la clé de ce fournisseur": {
+  "fr": "le coffre est fermé : ouvrez-le pour effacer la clé de ce fournisseur",
+  "en": "the vault is closed: open it to erase this provider's key"
+ },
+ "le coffre est fermé : ouvrez-le pour effacer la clé de ce serveur": {
+  "fr": "le coffre est fermé : ouvrez-le pour effacer la clé de ce serveur",
+  "en": "the vault is closed: open it to erase this server's key"
  }
 }

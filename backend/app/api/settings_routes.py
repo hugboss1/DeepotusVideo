@@ -276,7 +276,12 @@ async def coffre_archive_importer(request: Request, fichier: UploadFile = File(.
     if len(blob) > 4_000_000:
         raise HTTPException(413, "archive trop lourde (4 Mo au plus)")
     try:
-        return C.restaurer(blob, mot_de_passe)
+        rendu = C.restaurer(blob, mot_de_passe)
+        # t326 revue finale (26/10/2026) : l'archive a réécrit des clés (plates et DZC_<ID>_*) -> les vérifications des comptes
+        # touchés sont périmées, pas d'identité (canal_id) d'avant. Après une restauration RÉUSSIE seulement, sans `await`.
+        from app.services import comptes
+        comptes.perimer_apres_restauration(list(rendu.get("au_coffre") or []) + list(rendu.get("au_env") or []))
+        return rendu
     except C.MotDePasseInvalide as e:
         raise HTTPException(401, str(e))
     except C.CoffreVerrouille as e:

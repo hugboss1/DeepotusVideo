@@ -69,6 +69,7 @@
     pastilleGlyphe: "display:inline-flex;width:12px;height:12px",
     detail: "font-size:11px;color:var(--txt-mid,var(--ink-muted,#9aa4ae))",
     alerte: "font-size:11.5px;color:var(--amber,#f0b429)",
+    panneau: "display:flex;flex-direction:column;gap:8px;margin:0 14px 8px;padding:8px 10px;font-size:12px;border:1px solid var(--amber,#f0b429);color:var(--txt-hi,var(--ink-strong,#e6e9ee))",
     erreur: "font-size:12px;color:var(--red,#e5484d);padding:0 14px 8px",
     pied: "display:flex;gap:8px;justify-content:flex-end;padding:10px 14px;border-top:1px solid var(--brd-soft,var(--stroke,#222830))",
     btn: "min-width:88px;height:28px;padding:0 12px;border-radius:0;background:var(--srf-raised,var(--bg-panel-3,#1b2028));border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138));color:var(--txt-hi,var(--ink-strong,#e6e9ee));cursor:pointer;font:inherit",
@@ -106,6 +107,8 @@
   function etatDe(vue) {
     var v = vue && vue.verification;
     if (v && ETATS[v.etat]) return { etat: v.etat, code: v.code || "", raison: v.raison || "", date: v.date || "" };
+    // t326 (26/10/2026) : le résultat d'une vérification a été ÉCARTÉ (le compte a changé pendant l'appel) et il n'y en a pas d'autre
+    if (vue && vue.ecartee) return { etat: "non_verifie", code: "ecartee", raison: "", date: "" };
     if (vue && ETATS[vue.etat] && vue.etat !== "non_verifie") return { etat: vue.etat, code: vue.code || "", raison: "", date: vue.verifie_le || "" };
     return { etat: "non_verifie", code: "", raison: "", date: "" };
   }
@@ -123,6 +126,7 @@
   // t308 relecture finale (26/10/2026) : le survol dit la traduction du CODE ; la raison BRUTE (française, du serveur) ne
   // la suit, entre parenthèses, qu'en français. Un canal porté par le téléphone jamais vérifié ne dit pas « vérifié le … ».
   function survol(v) {
+    if (v.code === "ecartee") return T("espaces.assistant.ecartee");
     if (v.etat === "non_verifie") return T("espaces.assistant.etat_non_verifie");
     var code = v.code ? T("espaces.assistant.code_" + v.code) : "";
     if (v.code === "telephone_jamais") return code;
@@ -132,6 +136,7 @@
   }
   function detail(vue) {
     var v = etatDe(vue);
+    if (v.code === "ecartee") return T("espaces.assistant.ecartee");
     if (v.etat === "non_verifie" || !v.code) return "";
     if (v.code === "telephone_jamais") return T("espaces.assistant.code_telephone_jamais");
     return T("espaces.assistant.detail", { code: T("espaces.assistant.code_" + v.code), date: quand(v.date) });
@@ -219,12 +224,52 @@
         voile.remove();
         resoudre(valeur || null);
       }
+      // t326 (26/10/2026) : piège du focus — Tab et Maj+Tab bouclent sur les éléments focalisables VISIBLES de la boîte
+      function pieger(ev, boite) {
+        var l = Array.prototype.slice.call(boite.querySelectorAll("button, input, select, textarea, a[href], [tabindex]")).filter(function (n) {
+          return !n.disabled && n.getAttribute("tabindex") !== "-1" && n.offsetParent !== null;   // offsetParent absent = gardé
+        });
+        ev.preventDefault();
+        if (!l.length) return;
+        var i = l.indexOf(document.activeElement), n = l.length;
+        var j = i < 0 ? (ev.shiftKey ? n - 1 : 0) : (i + (ev.shiftKey ? -1 : 1) + n) % n;
+        l[j].focus();
+      }
       function surTouche(ev) {
-        if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); fin(st.id); }
+        if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); demanderFin(); }
+        else if (ev.key === "Tab") pieger(ev, boite);
       }
       function fermer() { fin(st.id); }
+      // t326 : Annuler et Échap — sans espace créé la boîte se ferme ; avec un espace créé elle le dit (panneau DANS la boîte)
+      var panneau = null;
+      function demanderFin() {
+        // t326 revue finale : le POST de création de l'étape 1 est en vol -> l'espace va exister ; fermer maintenant sans le
+        // dire serait le défaut même d'Annuler. On ignore donc Annuler/Échap jusqu'à la réponse.
+        if (!st.id && occupe) return;
+        if (!st.id) { fin(null); return; }
+        if (!panneau) {
+          panneau = el("div", S.panneau);
+          panneau.setAttribute("role", "alert");
+          panneau.setAttribute("data-dz-assistant-annuler-cree", "1");
+          panneau.appendChild(el("div", "", T("espaces.assistant.annuler_cree", { nom: st.nom.trim() })));
+          var bts = el("div", S.ligne);
+          var fermerB = el("button", S.btn, T("espaces.assistant.annuler_fermer"));
+          fermerB.type = "button";
+          fermerB.addEventListener("click", function () { fin(st.id); });
+          var continuerB = el("button", S.btn + S.ok, T("espaces.assistant.annuler_continuer"));
+          continuerB.type = "button";
+          // t326 revue finale : le focus revient sur « Annuler » (sinon il tombe sur body)
+          continuerB.addEventListener("click", function () { panneau.remove(); panneau = null; annuler.focus(); });
+          panneau.continuer = continuerB;
+          bts.appendChild(fermerB);
+          bts.appendChild(continuerB);
+          panneau.appendChild(bts);
+          boite.insertBefore(panneau, pied);
+        }
+        panneau.continuer.focus();
+      }
       courant = fermer;
-      annuler.addEventListener("click", function () { fin(st.id); });
+      annuler.addEventListener("click", demanderFin);
       document.addEventListener("keydown", surTouche, true);
 
       function dire(texte) { erreur.textContent = texte || ""; }
@@ -407,7 +452,8 @@
           return envoyer("/api/comptes/" + encodeURIComponent(c.id) + "/verifier", "POST");
         }).then(function (j) {
           st.comptes[p] = j.compte;
-          st.msgs[p] = "";
+          // t326 : résultat écarté par le serveur (le compte a changé pendant l'appel) : on l'explique, sans faux « vérifié »
+          st.msgs[p] = j.compte && j.compte.ecartee ? T("espaces.assistant.ecartee") : "";
         }, function (e) {
           st.msgs[p] = echec(e);
         }).then(function () { delete st.occupes[p]; if (!fini) rendre(); });
@@ -514,7 +560,7 @@
             de.setAttribute("data-dz-assistant-detail", p);
             actions.appendChild(de);
             bloc.appendChild(actions);
-            if (st.msgs[p]) {
+            if (st.msgs[p] && st.msgs[p] !== detail(c)) {    // t326 : « écartée » est déjà dit par le détail
               var m = el("div", S.detail, st.msgs[p]);
               m.setAttribute("role", "status");
               bloc.appendChild(m);
@@ -604,6 +650,8 @@
         boutons();
       }
       function aller(n) {
+        // t326 revue finale : le panneau « déjà créé » ne survit pas à un changement d'étape (son nom pourrait être périmé)
+        if (panneau) { panneau.remove(); panneau = null; }
         st.etape = n;
         dire("");
         if (n === 3 && !st.plats) chargerCanaux();

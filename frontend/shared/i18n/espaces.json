@@ -249,6 +249,22 @@
     "en": "Product",
     "contexte": true
   },
+  "espaces.assistant.ecartee": {
+    "fr": "Le compte a changé pendant la vérification : revérifiez.",
+    "en": "The account changed during the check: check it again."
+  },
+  "espaces.assistant.annuler_cree": {
+    "fr": "L'espace « {nom} » est déjà créé. Il reste dans la liste des espaces ; archivez-le si vous n'en voulez pas.",
+    "en": "The space “{nom}” has already been created. It stays in the list of spaces; archive it if you don't want it."
+  },
+  "espaces.assistant.annuler_fermer": {
+    "fr": "Fermer",
+    "en": "Close"
+  },
+  "espaces.assistant.annuler_continuer": {
+    "fr": "Continuer",
+    "en": "Continue"
+  },
   "espaces.assistant.verif_en_cours": {
     "fr": "Vérification…",
     "en": "Checking…"

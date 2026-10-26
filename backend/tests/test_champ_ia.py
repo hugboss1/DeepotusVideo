@@ -859,6 +859,21 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
     D10.entree = { ouvert: !!d2, focus: fo && fo.getAttribute ? fo.getAttribute("data-role") : null };
     document.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Enter" })); await pause(40);
     D10.entree.appels = dicts().slice(nE).map(a => a[1]); D10.entree.ferme = !body.querySelector(".dzia-dlg"); D10.entree.val = ta.value; }
+  // t326 A6 : Tab piégé dans le dialogue maison (boutons Non puis Oui)
+  { const nE = dicts().length;
+    micro().click(); await pause(20); micro().click(); await pause(60);
+    const d3 = body.querySelector(".dzia-dlg"), bs = d3 ? d3.querySelectorAll("button") : [];
+    const role = () => { const f = document.activeElement; return f && f.getAttribute ? f.getAttribute("data-role") : null; };
+    const tab = (shift) => { const ev = Object.assign(new Event("keydown", { bubbles: true }), { key: "Tab", shiftKey: !!shift }); document.dispatchEvent(ev); return ev.defaultPrevented; };
+    const T6 = D10.tab = { ouvert: !!d3, n: bs.length, depart: role() };
+    T6.bas = [tab(false) && role(), role()];                       // Non → Oui
+    T6.boucle = [tab(false) && role(), role()];                    // Oui (dernier) → Non (premier)
+    T6.haut = tab(true) && role();                                 // Maj+Tab sur Non (premier) → Oui (dernier)
+    ta.focus(); T6.dehors = tab(false) && role();                  // focus hors boîte → premier
+    bs[1].setAttribute("disabled", ""); bs[0].focus(); T6.desactive = tab(false) && role(); bs[1].removeAttribute("disabled");
+    bs[1]._cache = true; bs[0].focus(); T6.cache = tab(false) && role(); bs[1]._cache = false;
+    document.dispatchEvent(Object.assign(new Event("keydown", { bubbles: true }), { key: "Escape" })); await pause(40);
+    T6.ferme = !body.querySelector(".dzia-dlg"); T6.appels = dicts().slice(nE).map(a => a[1]); }
   // revue T10 : champ retiré pendant l'accord (dialogue maison ouvert) → dialogue fermé, rien envoyé
   { const nA2 = dicts().length;
     micro().click(); await pause(20); micro().click(); await pause(60);
@@ -1536,6 +1551,12 @@ def main():
     check("dialogue maison : focus sur Non à l'ouverture", en.get("ouvert") is True and en.get("focus") == "non", str(en))
     check("NÉGATIF : Entrée dans le dialogue maison = Non → aucun POST /api/dictation, dialogue fermé, champ intact",
           en.get("appels") == ["/api/dictation/estimate"] and en.get("ferme") is True and en.get("val") == "Avant", str(en))
+    tb = dd("tab")
+    check("A6 dialogue maison : Tab piégé (Non → Oui → Non, Maj+Tab Non → Oui, hors boîte → Non), ni désactivé ni caché choisi ; Échap ferme sans rien envoyer",
+          tb.get("ouvert") is True and tb.get("n") == 2 and tb.get("depart") == "non"
+          and tb.get("bas") == ["oui", "oui"] and tb.get("boucle") == ["non", "non"] and tb.get("haut") == "oui"
+          and tb.get("dehors") == "non" and tb.get("desactive") == "non" and tb.get("cache") == "non"
+          and tb.get("ferme") is True and tb.get("appels") == ["/api/dictation/estimate"], str(tb))
     ra2 = dd("retireAccord")
     check("champ retiré pendant l'accord : le dialogue maison se ferme (TÉMOIN : il était ouvert), rien n'est envoyé",
           ra2.get("avant") is True and ra2.get("apres") is False and ra2.get("appels") == ["/api/dictation/estimate"], str(ra2))

@@ -533,8 +533,8 @@ for k in S:
     setattr(settings, k, "")
 ROUTE["mode"] = "vert"
 rev0 = comptes.revision(cr)
-check("C1 revision : un compte ordinaire a une révision (str), l'historique n'en a pas",
-      isinstance(rev0, str) and comptes.revision("historique-telegram") is None, repr(rev0))
+check("C1 revision : un compte ordinaire a une révision (str), l'historique une chaîne vide avant toute péremption (t326)",
+      isinstance(rev0, str) and comptes.revision("historique-telegram") == "", repr(rev0))
 async def _get_qui_pose(url, headers=None, params=None, *a, **k):
     if "getMe" in url:
         comptes.poser(cr, {"TELEGRAM_CHAT_ID": "-100999"})      # l'utilisateur corrige le chat PENDANT la vérification
@@ -1007,6 +1007,199 @@ cpub = comptes.creer({"espace_id": "deepotus", "plateforme": "instagram", "libel
 vo =asyncio.run(V.verifier(cpub))
 check("V7 coffre ouvert, champ public manquant : orange « incomplet » (le vrai manque)",
       vo["verification"]["code"] == "incomplet" and "IG_BUSINESS_ID" in vo["verification"]["raison"], str(vo["verification"]))
+
+# ============ t326 (26/10/2026) : révision des historiques, vérification écartée signalée, date du téléphone ============
+print("[t326] T1 révision de l'historique, ecartee, date du téléphone")
+from datetime import datetime as _dt                                # noqa: E402
+poser(**S)
+ROUTE["mode"] = "vert"
+V._get = faux_get
+r_av = comptes.revision("historique-telegram")
+comptes.perimer_historiques(["TELEGRAM_BOT_TOKEN"])
+r_ap = comptes.revision("historique-telegram")
+check("T1a révision de l'historique : \"\" avant, une chaîne différente après perimer_historiques",
+      r_av == "" and isinstance(r_ap, str) and r_ap != "" and r_ap != r_av, f"{r_av!r} {r_ap!r}")
+try:
+    comptes.revision("historique-inconnue"); check("T1a2 historique d'une plateforme inconnue : KeyError", False)
+except KeyError:
+    check("T1a2 historique d'une plateforme inconnue : KeyError", True)
+
+asyncio.run(V.verifier("historique-telegram"))
+vb0 = comptes.obtenir("historique-telegram")
+check("T1b0 avant : historique vérifié vert avec identité", vb0["verification"]["etat"] == "vert" and vb0["canal_id"], str(vb0.get("canal_id")))
+check("T1b perimer_historiques([CHAT_ID]) périme l'historique : vérification et canal_id retirés",
+      comptes.perimer_historiques(["TELEGRAM_CHAT_ID"]) == ["historique-telegram"]
+      and comptes.obtenir("historique-telegram")["verification"] is None and comptes.obtenir("historique-telegram")["canal_id"] is None)
+
+_fc = comptes._fichier()
+avant_txt = _fc.read_bytes()
+_mt = _fc.stat().st_mtime_ns
+check("T1c nom inconnu ou d'un autre service : rien de périmé, fichier non réécrit",
+      comptes.perimer_historiques(["OPENAI_API_KEY", "INCONNU"]) == []
+      and _fc.read_bytes() == avant_txt and _fc.stat().st_mtime_ns == _mt)
+
+rev_h = comptes.revision("historique-telegram")
+async def _get_qui_perime(url, headers=None, params=None, *a, **k):
+    if "getMe" in url:
+        comptes.perimer_historiques(["TELEGRAM_CHAT_ID"])     # les clés plates changent PENDANT la vérification
+    return await faux_get(url, headers, params)
+V._get = _get_qui_perime
+vd = asyncio.run(V.verifier("historique-telegram"))
+V._get = faux_get
+check("T1d historique périmé en vol : rien n'est rangé, vue « non vérifié », ecartee",
+      vd["verification"] is None and "historique-telegram" not in _brut().get("verifications", {}) and vd.get("ecartee") is True
+      and comptes.revision("historique-telegram") != rev_h, str(vd.get("verification")))
+
+ce = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Écartée",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-123", "TELEGRAM_CHAT_ID": "-100777"}})["id"]
+async def _get_qui_pose2(url, headers=None, params=None, *a, **k):
+    if "getMe" in url:
+        comptes.poser(ce, {"TELEGRAM_CHAT_ID": "-100999"})
+    return await faux_get(url, headers, params)
+V._get = _get_qui_pose2
+ve = asyncio.run(V.verifier(ce))
+V._get = faux_get
+check("T1e compte d'espace modifié en vol : ecartee True, rien rangé", ve.get("ecartee") is True and ve["verification"] is None)
+ve2 = asyncio.run(V.verifier(ce))
+check("T1e2 vérification normale : pas de clé ecartee", ve2["verification"] is not None and "ecartee" not in ve2)
+
+ct = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Tel date"})["id"]
+comptes.porter_par_telephone(ct, {**DECL, "verifie_le": "2026-10-20T08:15:00", "etat": "vert", "id_distant": "123"})
+vt = asyncio.run(V.verifier(ct))
+check("T1f compte porté par le téléphone : la date rangée est celle de l'appareil",
+      vt["verification"]["date"] == "2026-10-20T08:15:00", str(vt["verification"]))
+
+cg = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Date illisible"})["id"]
+comptes.noter_verification(cg, {"etat": "vert", "date": "pas une date"})
+dg = comptes.obtenir(cg)["verification"]["date"]
+check("T1g date illisible : maintenant", dg.startswith(_dt.now().date().isoformat()), dg)
+comptes.noter_verification(cg, {"etat": "vert", "date": "2026-01-02T03:04:05"})
+check("T1g2 date ISO lisible : gardée", comptes.obtenir(cg)["verification"]["date"] == "2026-01-02T03:04:05")
+
+# ============ t326 (26/10/2026) T2 : set_key périme l'historique, rappel OAuth sans 500, CoffreVerrouille traduit ============
+print("[t326] T2 routes et L10")
+import subprocess as _sp2                                           # noqa: E402
+poser()
+V._get = faux_get
+asyncio.run(V.verifier("historique-telegram"))
+check("T2a0 avant : historique telegram vérifié", comptes.obtenir("historique-telegram")["verification"] is not None)
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    r2a = client.post("/api/settings/keys", json={"name": "TELEGRAM_CHAT_ID", "value": "-1001"})
+check("T2a POST /settings/keys TELEGRAM_CHAT_ID : 200 et l'historique telegram n'est plus vérifié",
+      r2a.status_code == 200 and comptes.obtenir("historique-telegram")["verification"] is None
+      and "historique-telegram" not in _brut().get("verifications", {}), f"{r2a.status_code} {r2a.text[:150]}")
+
+poser()
+asyncio.run(V.verifier("historique-telegram"))
+v_avant = comptes.obtenir("historique-telegram")["verification"]
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    r2b = client.post("/api/settings/keys", json={"name": "PAS_AUTORISEE", "value": "x"})
+    r2b_mix = client.post("/api/settings/keys", json={"entries": [{"name": "TELEGRAM_CHAT_ID", "value": "-5"},
+                                                                    {"name": "PAS_AUTORISEE", "value": "x"}]})
+check("T2b clé refusée (400) : la vérification est gardée",
+      r2b.status_code == 400 and r2b_mix.status_code == 400 and comptes.obtenir("historique-telegram")["verification"] == v_avant,
+      f"{r2b.status_code} {r2b_mix.status_code}")
+coffre.fermer()
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    r2b2 = client.post("/api/settings/keys", json={"entries": [{"name": "TELEGRAM_CHAT_ID", "value": "-6"},
+                                                                 {"name": "TELEGRAM_BOT_TOKEN", "value": "SECRET-TG-NEUF"}]})
+check("T2b2 coffre posé fermé + secret (409) : la vérification est gardée",
+      r2b2.status_code == 409 and comptes.obtenir("historique-telegram")["verification"] == v_avant, f"{r2b2.status_code} {r2b2.text[:150]}")
+coffre.ouvrir(MDP)
+
+# T2c : le rappel OAuth ne renvoie jamais 500 si l'oubli de la vérification échoue
+cy3 = comptes.creer({"espace_id": "deepotus", "plateforme": "youtube", "libelle": "YT oubli KO",
+                     "valeurs": {"YOUTUBE_CLIENT_ID": "SECRET-YT-ID", "YOUTUBE_CLIENT_SECRET": "SECRET-YT-CS",
+                                 "YOUTUBE_REFRESH_TOKEN": "SECRET-YT-RT"}})["id"]
+_ech3, _oubli3 = _YP2.exchange_code, comptes.oublier_verification
+_YP2.exchange_code = _faux_echange
+def _oubli_en_panne(cid):
+    raise OSError("disque plein SECRET-MSG")
+comptes.oublier_verification = _oubli_en_panne
+_journal = []
+_idj = logger.add(lambda m: _journal.append(str(m)), level="WARNING")
+try:
+    with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False) as client:
+        d3 = client.get(f"/api/oauth/youtube/start?compte={cy3}", follow_redirects=False)
+        st3 = _pq(_up(d3.headers.get("location", "")).query).get("state", [""])[0]
+        r2c = client.get(f"/api/oauth/youtube/callback?code=abc&state={st3}")
+finally:
+    _YP2.exchange_code = _ech3
+    comptes.oublier_verification = _oubli3
+    logger.remove(_idj)
+with comptes.sous_compte(cy3):
+    jeton3 = comptes.cle("YOUTUBE_REFRESH_TOKEN")
+check("T2c oubli en panne : 200 (pas de 500), page « revérifiez », jeton rangé",
+      r2c.status_code == 200 and "revérifiez" in r2c.text and jeton3 == "SECRET-YT-RT-NEUF", f"{r2c.status_code} {r2c.text[:300]}")
+check("T2c2 journal : le type de l'exception seulement, jamais son message ni un secret",
+      any("OSError" in j for j in _journal) and not any("disque plein" in j or "SECRET" in j for j in _journal)
+      and "SECRET" not in r2c.text and "disque plein" not in r2c.text, str(_journal)[:200])
+
+# T2c3 : compte supprimé pendant la connexion : toujours la page 404
+cy4 = comptes.creer({"espace_id": "deepotus", "plateforme": "youtube", "libelle": "YT supprimé",
+                     "valeurs": {"YOUTUBE_CLIENT_ID": "SECRET-YT-ID", "YOUTUBE_CLIENT_SECRET": "SECRET-YT-CS"}})["id"]
+_YP2.exchange_code = _faux_echange
+try:
+    with TestClient(app, client=("127.0.0.1", 50000)) as client:
+        d4 = client.get(f"/api/oauth/youtube/start?compte={cy4}", follow_redirects=False)
+        st4 = _pq(_up(d4.headers.get("location", "")).query).get("state", [""])[0]
+        comptes.supprimer(cy4)
+        r2c3 = client.get(f"/api/oauth/youtube/callback?code=abc&state={st4}")
+finally:
+    _YP2.exchange_code = _ech3
+check("T2c3 compte supprimé : la page 404 existante", r2c3.status_code == 404, f"{r2c3.status_code} {r2c3.text[:150]}")
+
+# T2d : L10, « Coffre verrouillé : le coffre est fermé » traduit
+_rc = _sp2.run([sys.executable, str(pathlib.Path(__file__).resolve().parents[2] / "scripts" / "i18n_l10_erreurs.py"), "--check"],
+               capture_output=True, text=True, encoding="utf-8", errors="replace", env={**os.environ, "PYTHONUTF8": "1"})
+check("T2d i18n_l10_erreurs.py --check : code 0", _rc.returncode == 0, (_rc.stdout + _rc.stderr)[-300:])
+check("T2d2 « Coffre verrouillé : le coffre est fermé » -> EN",
+      ERR.texte("Coffre verrouillé : le coffre est fermé", "en") == "Vault locked: the vault is closed",
+      ERR.texte("Coffre verrouillé : le coffre est fermé", "en"))
+
+# ============ t326 (26/10/2026) revue finale : la restauration d'une archive périme les vérifications ============
+print("[t326] revue finale : archive du coffre")
+def _archive_t326(cles, mdp="archive-t326-phrase"):
+    return coffre.chiffrer({"format": 1, "genre": "archive", "cree_le": "2026-10-26T00:00:00", "app_version": "banc",
+                            "machine": "autre-poste", "cles": cles, "plafonds": {}, "pricing": {}}, mdp)
+
+def _importer_t326(blob, mdp):
+    with TestClient(app, client=("127.0.0.1", 50000)) as client:
+        return client.post("/api/reglages/coffre/archive/importer",
+                           files={"fichier": ("a.dzk", blob, "application/octet-stream")}, data={"mot_de_passe": mdp})
+
+poser()
+V._get = faux_get
+cs = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "TG archive",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-ESPACE", "TELEGRAM_CHAT_ID": "-100555"}})["id"]
+ca = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "TG intact",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-INTACT", "TELEGRAM_CHAT_ID": "-100556"}})["id"]
+for _c in ("historique-telegram", cs, ca):
+    asyncio.run(V.verifier(_c))
+check("R0 avant : historique et deux comptes d'espace vérifiés avec identité",
+      all(comptes.obtenir(_c)["verification"] is not None and comptes.obtenir(_c)["canal_id"] for _c in ("historique-telegram", cs, ca)))
+_blob_r = _archive_t326({"TELEGRAM_CHAT_ID": "-100999", comptes.nom_secret(cs, "TELEGRAM_CHAT_ID"): "-100888",
+                         "DZC_CFFFFFFFF_TELEGRAM_CHAT_ID": "-1"})
+# refus : mauvais mot de passe (401), puis coffre fermé avec une archive qui porte un secret (409) -> rien de périmé
+_blob_sec = _archive_t326({"TELEGRAM_BOT_TOKEN": "SECRET-TG-ARCHIVE"})
+r_mdp = _importer_t326(_blob_r, "mauvais-mot-de-passe")
+coffre.fermer()
+r_ferme = _importer_t326(_blob_sec, "archive-t326-phrase")
+coffre.ouvrir(MDP)
+check("R1 restauration refusée (401 mot de passe, 409 coffre fermé) : vérifications gardées",
+      r_mdp.status_code == 401 and r_ferme.status_code == 409
+      and all(comptes.obtenir(_c)["verification"] is not None and comptes.obtenir(_c)["canal_id"] for _c in ("historique-telegram", cs, ca)),
+      f"{r_mdp.status_code} {r_ferme.status_code}")
+r_ok = _importer_t326(_blob_r, "archive-t326-phrase")
+check("R2 restauration réussie : 200, historique et compte d'espace écrits ne sont plus vérifiés (canal_id None)",
+      r_ok.status_code == 200 and comptes.obtenir("historique-telegram")["verification"] is None
+      and comptes.obtenir("historique-telegram")["canal_id"] is None
+      and comptes.obtenir(cs)["verification"] is None and comptes.obtenir(cs)["canal_id"] is None
+      and "historique-telegram" not in _brut().get("verifications", {}) and cs not in _brut().get("verifications", {}),
+      f"{r_ok.status_code} {r_ok.text[:150]}")
+check("R3 un compte d'espace dont aucune clé n'est dans l'archive garde sa vérification ; id inconnu ignoré",
+      comptes.obtenir(ca)["verification"] is not None and comptes.obtenir(ca)["canal_id"])
+
 coffre.fermer()
 coffre.FICHIER.unlink()
 

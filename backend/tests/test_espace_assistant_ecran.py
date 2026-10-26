@@ -139,12 +139,18 @@ Noeud.prototype.getAttribute=function(k){return k in this.attrs?this.attrs[k]:nu
 Noeud.prototype.removeAttribute=function(k){delete this.attrs[k]};
 Noeud.prototype.appendChild=function(e){e.parent=this;this.enfants.push(e);return e};
 Noeud.prototype.addEventListener=function(t,f){(this.ecoutes[t]=this.ecoutes[t]||[]).push(f)};
+Noeud.prototype.insertBefore=function(e,ref){e.parent=this;var i=this.enfants.indexOf(ref);if(i<0)this.enfants.push(e);else this.enfants.splice(i,0,e);return e};
 Noeud.prototype.remove=function(){if(this.parent){var p=this.parent;p.enfants=p.enfants.filter(function(x){return x!==this},this);this.parent=null}};
-Noeud.prototype.focus=function(){};
+Noeud.prototype.focus=function(){document.activeElement=this};
+/* t326 : de quoi piéger Tab — querySelectorAll (tag, tag[attr], [attr], séparés par des virgules) et offsetParent (null si caché) */
+Object.defineProperty(Noeud.prototype,"offsetParent",{get:function(){return /display:\s*none/.test(this.attrs.style||"")||this._cache?null:(this.parent||body)}});
+Noeud.prototype.querySelectorAll=function(sel){var me=this,ps=sel.split(",").map(function(s){return s.trim()});
+  return tous(this,function(n){return n!==me&&ps.some(function(p){var m=/^([a-z]*)(?:\[(\w+)\])?$/.exec(p);
+    return !!m&&(m[1]||m[2])&&(!m[1]||n.tagName.toLowerCase()===m[1])&&(!m[2]||n.getAttribute(m[2])!==null)})})};
 Noeud.prototype.declencher=function(t,ev){ev=ev||{};ev.target=ev.target||this;ev.preventDefault=function(){};(this.ecoutes[t]||[]).forEach(function(f){f(ev)})};
 function tous(n,pred,out){out=out||[];if(pred(n))out.push(n);n.enfants.forEach(function(e){tous(e,pred,out)});return out}
 var body=new Noeud("body"),docEcoutes={};
-globalThis.document={body:body,createElement:function(t){return new Noeud(t)},
+globalThis.document={body:body,activeElement:null,createElement:function(t){return new Noeud(t)},
   addEventListener:function(t,f){(docEcoutes[t]=docEcoutes[t]||[]).push(f)},
   removeEventListener:function(t,f){docEcoutes[t]=(docEcoutes[t]||[]).filter(function(g){return g!==f})}};
 var evenements=[];window.dzT=dzT;
@@ -161,7 +167,7 @@ var PLATS={telegram:{libelle:"Telegram",champs:[{nom:"TELEGRAM_BOT_TOKEN",secret
 /* une réponse FAUTIVE : le compte existant porte une « valeur » sur son champ secret — l'écran ne doit jamais la reprendre */
 var CPT_TG={id:"c0000aaaa",espace_id:"esp_new",plateforme:"telegram",libelle:"Telegram",handle:"",oauth:false,disponible:true,verification:null,canal_id:null,
   champs:[{nom:"TELEGRAM_BOT_TOKEN",secret:true,pose:true,valeur:"FUITE-SECRET-1"},{nom:"TELEGRAM_CHAT_ID",secret:false,pose:true,valeur:"-100123"}]};
-var COMPTES=[];
+var COMPTES=[],ECARTEE=false;
 function rep(st,d){return Promise.resolve({ok:st<300,status:st,json:function(){return Promise.resolve(d)}})}
 globalThis.fetch=function(u,o){var m=(o&&o.method)||"GET",b=o&&o.body?JSON.parse(o.body):null;appels.push({u:u,m:m,b:b});
   if(u==="/api/espaces"&&m==="GET")return rep(200,{espaces:[{id:"esp_m",nom:"Marque M",type:"marque"},{id:"esp_c",nom:"Client C",type:"client"},{id:"esp_p",nom:"Produit P",type:"produit"}],actif:"deepotus"});
@@ -173,6 +179,7 @@ globalThis.fetch=function(u,o){var m=(o&&o.method)||"GET",b=o&&o.body?JSON.parse
   if(u==="/api/comptes"&&m==="POST"){var c={id:"c1111bbbb",espace_id:ESP_ID,plateforme:b.plateforme,libelle:"YouTube",champs:[{nom:"YOUTUBE_CLIENT_ID",secret:true,pose:true,valeur:"FUITE-SECRET-2"},{nom:"YOUTUBE_CHANNEL_ID",secret:false,pose:false,valeur:""}],verification:null};return rep(200,{compte:c})}
   if(u==="/api/comptes/c0000aaaa"&&m==="POST")return rep(200,{compte:Object.assign({},CPT_TG,{champs:[{nom:"TELEGRAM_BOT_TOKEN",secret:true,pose:true,valeur:"FUITE-SECRET-3"},{nom:"TELEGRAM_CHAT_ID",secret:false,pose:true,valeur:"-100123"}]})});
   if(u==="/api/comptes/c1111bbbb/verifier")return new Promise(function(ok){setTimeout(function(){appels.push({u:"fin-verif-yt",m:"-"});ok(rep(200,{compte:{id:"c1111bbbb",espace_id:ESP_ID,plateforme:"youtube",libelle:"YouTube",champs:[],verification:{etat:"orange",code:"incomplet",raison:"identifiants incomplets : YOUTUBE_CLIENT_ID",date:"2026-10-26T10:06:00"},canal_id:null}}))},10)});
+  if(u==="/api/comptes/c0000aaaa/verifier"&&ECARTEE)return rep(200,{compte:Object.assign({},CPT_TG,{verification:null,ecartee:true})});
   if(u==="/api/comptes/c0000aaaa/verifier")return rep(200,{compte:Object.assign({},CPT_TG,{verification:{etat:"rouge",code:"refuse",raison:"jeton refusé (401) : Unauthorized",date:"2026-10-26T10:05:09",id_distant:null,nom_distant:null},canal_id:null})});
   if(u==="/api/espaces/"+ESP_ID+"/recapitulatif")return rep(200,{espace_id:ESP_ID,type:"client",client_responsable:ESP_ID,mode_publication:"valide_par_client",
      canaux:[{compte:"c0000aaaa",plateforme:"telegram",libelle:"Telegram",etat:"non_verifie",verifie_le:null,canal_id:null,consentement:"manquant"}],manques:{non_verifies:1,consentements:1}});
@@ -190,6 +197,11 @@ var R={};
 (async function(){
  var A=window.__dzEspaceAssistant;R.api=typeof (A&&A.ouvrir);
  /* A : une MARQUE — l'étape 2 sautée ; deux clics sur « Suivant » = un seul POST ; au retour il modifie */
+ /* t326 A1 : rien de créé, Annuler (puis Échap) ferme et rend null, sans écrire */
+ var pA1=A.ouvrir();await attendre();un("data-dz-assistant-annuler").declencher("click");R.a1_resolu=await pA1;R.a1_ferme=!voile();
+ R.a1_posts=appels.filter(function(a){return a.m!=="GET"}).length;
+ var pA1b=A.ouvrir();await attendre();(docEcoutes.keydown||[]).forEach(function(f){f({key:"Escape",preventDefault:function(){},stopPropagation:function(){}})});
+ R.a1b_resolu=await pA1b;R.a1b_ferme=!voile();
  var pA=A.ouvrir();await attendre();
  R.a_etape0=etape();R.a_fil=par("data-dz-assistant-fil").map(function(n){return n.textContent});
  R.a_parent_cache=!un("data-dz-assistant-champ","parent");
@@ -200,7 +212,32 @@ var R={};
  un("data-dz-assistant-precedent").declencher("click");await attendre();R.a_retour=etape();
  saisir("nom","Marque A2");un("data-dz-assistant-suivant").declencher("click");await attendre();
  R.a_posts2=compte("POST","/api/espaces");R.a_modif=compte("POST","/api/espaces/esp_new");R.a_etape2=etape();
- un("data-dz-assistant-annuler").declencher("click");R.a_resolu=await pA;R.a_ferme=!voile();R.a_evts=evenements.length;
+ /* t326 A2 : l'espace existe — Annuler montre un panneau DANS la boîte, « Continuer » le retire, « Fermer » rend l'id */
+ var etapeAvant=etape();un("data-dz-assistant-annuler").declencher("click");
+ var pan=un("data-dz-assistant-annuler-cree");
+ R.a2_voiles=tous(body,function(n){return n.getAttribute("data-dz-assistant")!==null}).length;
+ R.a2_ouverte=!!voile();R.a2_texte=pan?pan.textContent:null;R.a2_dans_boite=!!(pan&&voile()&&tous(voile(),function(n){return n===pan}).length);
+ var bts=pan?tous(pan,function(n){return n.tagName==="BUTTON"}):[];R.a2_boutons=bts.map(function(b){return b.textContent});
+ R.a2_focus=pan&&document.activeElement===bts[1];
+ bts[1].declencher("click");R.a2_retire=!un("data-dz-assistant-annuler-cree");R.a2_etape=[etapeAvant,etape()];
+ (docEcoutes.keydown||[]).forEach(function(f){f({key:"Escape",preventDefault:function(){},stopPropagation:function(){}})});
+ R.a2_echap_panneau=!!un("data-dz-assistant-annuler-cree")&&!!voile();
+ tous(un("data-dz-assistant-annuler-cree"),function(n){return n.tagName==="BUTTON"})[0].declencher("click");R.a_resolu=await pA;R.a_ferme=!voile();R.a_evts=evenements.length;
+ /* t326 revue finale (26/10/2026) m1 : Annuler/Échap PENDANT le POST de création (étape 1) sont ignorés ; m2 : le panneau
+    ne survit pas à un changement d'étape ; m3 : « Continuer » rend le focus au bouton Annuler */
+ var pM=A.ouvrir();await attendre();saisir("nom","Marque M1");saisir("type","marque");
+ un("data-dz-assistant-suivant").declencher("click");un("data-dz-assistant-annuler").declencher("click");
+ (docEcoutes.keydown||[]).forEach(function(f){f({key:"Escape",preventDefault:function(){},stopPropagation:function(){}})});
+ R.m1_ouverte=!!voile();R.m1_panneau=!!un("data-dz-assistant-annuler-cree");
+ await attendre();R.m1_etape=etape();
+ un("data-dz-assistant-annuler").declencher("click");R.m2_avant=!!un("data-dz-assistant-annuler-cree");
+ un("data-dz-assistant-precedent").declencher("click");R.m2_etape=etape();R.m2_apres=!!un("data-dz-assistant-annuler-cree");
+ un("data-dz-assistant-annuler").declencher("click");
+ tous(un("data-dz-assistant-annuler-cree"),function(n){return n.tagName==="BUTTON"})[1].declencher("click");
+ R.m3_focus=document.activeElement===un("data-dz-assistant-annuler");R.m3_retire=!un("data-dz-assistant-annuler-cree");
+ un("data-dz-assistant-annuler").declencher("click");
+ tous(un("data-dz-assistant-annuler-cree"),function(n){return n.tagName==="BUTTON"})[0].declencher("click");
+ R.m_resolu=await pM;R.m_ferme=!voile();
  /* B : un CLIENT — fiche, canaux, vérification, récapitulatif, Terminer */
  appels=[];COMPTES=[CPT_TG];
  var pB=A.ouvrir();await attendre();
@@ -254,6 +291,30 @@ var R={};
  R.b_activate=compte("POST","/api/espaces/esp_new/activate");
  R.b_evts=evenements.map(function(e){return [e.type,e.detail===undefined?null:e.detail]});
  R.b_ferme=!voile();R.b_resolu=await pB;
+ /* t326 A3 : /verifier rend {compte:{verification:null, ecartee:true}} — la plateforme dit le texte « ecartee » */
+ appels=[];COMPTES=[CPT_TG];ECARTEE=true;
+ var pC=A.ouvrir();await attendre();saisir("nom","Marque C");saisir("type","marque");
+ un("data-dz-assistant-suivant").declencher("click");await attendre();
+ un("data-dz-assistant-verifier","telegram").declencher("click");await attendre();
+ var vtxt=voile().textContent;R.c_occ=vtxt.split(dzT("espaces.assistant.ecartee")).length-1;
+ R.c_detail=(un("data-dz-assistant-detail","telegram")||{}).textContent;
+ var pc=un("data-dz-assistant-pastille","telegram");R.c_pastille=pc&&[pc.getAttribute("data-etat"),pc.getAttribute("title")];
+ var vE={id:"cx",verification:null,ecartee:true};R.c_survol=A.pastille(vE).getAttribute("title");R.c_detail_api=A.detail(vE);
+ R.c_sans=[A.detail({id:"cy",verification:null}),A.pastille({id:"cy",verification:null}).getAttribute("title")];
+ /* t326 A4 : Tab piégé dans la boîte (étape 1 : nom, couleur, kit, type, Annuler, Suivant ; Précédent et Terminer cachés) */
+ appels=[];ECARTEE=false;
+ var pD=A.ouvrir();await attendre();
+ function touche(shift){var ev={key:"Tab",shiftKey:!!shift,defaultPrevented:false,preventDefault:function(){ev.defaultPrevented=true},stopPropagation:function(){}};
+   (docEcoutes.keydown||[]).forEach(function(f){f(ev)});return ev}
+ function foc(){var f=document.activeElement;return f?(f.getAttribute("data-dz-assistant-champ")||f.getAttribute("data-dz-assistant-annuler")&&"annuler"||f.getAttribute("data-dz-assistant-suivant")&&"suivant"||f.getAttribute("data-dz-assistant-precedent")&&"precedent"||f.getAttribute("data-dz-assistant-terminer")&&"terminer"||"?"):null}
+ var sv=un("data-dz-assistant-suivant"),nomC=un("data-dz-assistant-champ","nom");
+ sv.focus();var e1=touche(false);R.d_bas=[foc(),e1.defaultPrevented];
+ nomC.focus();var e2=touche(true);R.d_haut=[foc(),e2.defaultPrevented];
+ nomC.focus();touche(false);R.d_milieu=foc();
+ document.activeElement=body;touche(false);R.d_dehors=foc();
+ sv.disabled=true;nomC.focus();touche(true);R.d_desactive=foc();sv.disabled=false;
+ nomC.focus();for(var k=0;k<6;k++)touche(false);R.d_boucle=foc();
+ un("data-dz-assistant-annuler").declencher("click");await pD;
  R.secret_nulle_part=JSON.stringify(R).indexOf("FUITE-SECRET")<0;
  process.stdout.write(JSON.stringify(R));
 })().catch(function(e){process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)}))});
@@ -333,6 +394,41 @@ if R and "erreur" not in R:
           R["b_terminer_avant"] == 0 and R["b_activate"] == 1 and ["dz-espace-cree", "esp_new"] in R["b_evts"]
           and ["deepotus:espace-refresh", None] in R["b_evts"] and R["b_ferme"] and R["b_resolu"] == "esp_new", str(R["b_evts"]))
     check("5.20 aucune valeur secrète d'une réponse ne paraît nulle part à l'écran", R["secret_nulle_part"])
+    # t326 T3 (26/10/2026) — Annuler signale l'espace créé, vérification écartée expliquée, Tab piégé
+    check("A1 rien créé : Annuler et Échap ferment, rendent null, n'écrivent rien",
+          R.get("a1_ferme") is True and R.get("a1_resolu") is None and R.get("a1_posts") == 0
+          and R.get("a1b_ferme") is True and R.get("a1b_resolu") is None, str([R.get("a1_ferme"), R.get("a1_resolu"), R.get("a1_posts"), R.get("a1b_resolu")]))
+    check("A2 espace déjà créé : Annuler garde la boîte (UN seul voile), un panneau dans la boîte dit « déjà créé » avec le nom ; focus sur Continuer",
+          R.get("a2_ouverte") is True and R.get("a2_voiles") == 1 and R.get("a2_dans_boite") is True
+          and R.get("a2_texte", "").startswith(F("espaces.assistant.annuler_cree", nom="Marque A2"))
+          and R.get("a2_boutons") == [F("espaces.assistant.annuler_fermer"), F("espaces.assistant.annuler_continuer")]
+          and R.get("a2_focus") is True, str([R.get("a2_texte"), R.get("a2_boutons"), R.get("a2_focus"), R.get("a2_voiles")]))
+    check("A2b « Continuer » retire le panneau, l'étape est inchangée ; Échap suit le chemin d'Annuler (le panneau, pas la fermeture) ; « Fermer » rend l'id",
+          R.get("a2_retire") is True and R["a2_etape"][0] == R["a2_etape"][1] and R.get("a2_echap_panneau") is True
+          and R["a_ferme"] and R["a_resolu"] == "esp_new" and R["a_evts"] == 0, str([R.get("a2_retire"), R.get("a2_etape"), R.get("a2_echap_panneau")]))
+    check("A1c Annuler et Échap pendant le POST de création : ignorés (boîte ouverte, pas de panneau), l'espace créé est ensuite connu",
+          R.get("m1_ouverte") is True and R.get("m1_panneau") is False and R.get("m1_etape") == "3", str([R.get("m1_ouverte"), R.get("m1_panneau"), R.get("m1_etape")]))
+    check("A2c le panneau Annuler est retiré quand l'étape change (Précédent) ; la boîte reste ouverte",
+          R.get("m2_avant") is True and R.get("m2_etape") == "1" and R.get("m2_apres") is False, str([R.get("m2_avant"), R.get("m2_etape"), R.get("m2_apres")]))
+    check("A2d « Continuer » : panneau retiré et focus sur le bouton Annuler ; « Fermer » rend l'id",
+          R.get("m3_retire") is True and R.get("m3_focus") is True and R.get("m_ferme") is True and R.get("m_resolu") == "esp_new",
+          str([R.get("m3_retire"), R.get("m3_focus"), R.get("m_resolu")]))
+    check("A3 vérification écartée : la plateforme dit le texte « écartée » (une fois), pastille non vérifié au survol idem ; detail() et survol idem",
+          R.get("c_occ") == 1 and R.get("c_detail") == F("espaces.assistant.ecartee")
+          and R.get("c_pastille") == ["non_verifie", F("espaces.assistant.ecartee")]
+          and R.get("c_survol") == F("espaces.assistant.ecartee") and R.get("c_detail_api") == F("espaces.assistant.ecartee")
+          and R.get("c_sans") == ["", F("espaces.assistant.etat_non_verifie")], str([R.get(k) for k in ("c_occ", "c_detail", "c_pastille", "c_survol", "c_sans")]))
+    check("A4 Tab piégé : dernier -> premier, Maj+Tab premier -> dernier, boucle, focus hors boîte -> premier ; ni caché ni désactivé choisi ; preventDefault",
+          R.get("d_bas") == ["nom", True] and R.get("d_haut") == ["suivant", True] and R.get("d_milieu") == "couleur"
+          and R.get("d_dehors") == "nom" and R.get("d_desactive") == "annuler" and R.get("d_boucle") == "nom",
+          str([R.get(k) for k in ("d_bas", "d_haut", "d_milieu", "d_dehors", "d_desactive", "d_boucle")]))
+    check("A4b textes verbatim FR/EN des quatre clés",
+          AIDE.DICO.get("espaces.assistant.ecartee", {}).get("fr") == "Le compte a changé pendant la vérification : revérifiez."
+          and AIDE.DICO.get("espaces.assistant.ecartee", {}).get("en") == "The account changed during the check: check it again."
+          and AIDE.DICO.get("espaces.assistant.annuler_cree", {}).get("fr") == "L'espace « {nom} » est déjà créé. Il reste dans la liste des espaces ; archivez-le si vous n'en voulez pas."
+          and AIDE.DICO.get("espaces.assistant.annuler_cree", {}).get("en") == "The space “{nom}” has already been created. It stays in the list of spaces; archive it if you don't want it."
+          and AIDE.DICO.get("espaces.assistant.annuler_fermer", {}).get("fr") == "Fermer" and AIDE.DICO.get("espaces.assistant.annuler_fermer", {}).get("en") == "Close"
+          and AIDE.DICO.get("espaces.assistant.annuler_continuer", {}).get("fr") == "Continuer" and AIDE.DICO.get("espaces.assistant.annuler_continuer", {}).get("en") == "Continue")
 
 print("\n[6] textes")
 DICO = json.loads(DICO_P.read_text("utf-8"))

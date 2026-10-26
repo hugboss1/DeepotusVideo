@@ -216,7 +216,9 @@ def _portee(pp: dict) -> dict:
     if not date:
         return _r("orange", "porté par le téléphone, jamais vérifié", pp.get("id_distant"), code="telephone_jamais")
     etat = pp.get("etat") if pp.get("etat") in comptes.ETATS else "orange"
-    return _r(etat, f"porté par le téléphone, vérifié le {date}", pp.get("id_distant"), code="telephone_verifie")
+    res = _r(etat, f"porté par le téléphone, vérifié le {date}", pp.get("id_distant"), code="telephone_verifie")
+    res["date"] = date          # t326 (26/10/2026) : la date de l'appareil, pas celle du rangement
+    return res
 
 
 async def verifier(cid: str) -> dict:
@@ -235,5 +237,8 @@ async def verifier(cid: str) -> dict:
                 from app.services import coffre
                 raise coffre.CoffreVerrouille("le coffre est fermé")
             res = await verifier_plateforme(vue["plateforme"])
-    comptes.noter_verification(cid, res, rev=rev)
-    return comptes.obtenir(cid)
+    rangee = comptes.noter_verification(cid, res, rev=rev)
+    out = comptes.obtenir(cid)
+    if rangee is None:
+        out["ecartee"] = True       # t326 (26/10/2026) : le compte a changé pendant l'appel, le résultat n'a pas été rangé
+    return out
