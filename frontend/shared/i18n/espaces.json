@@ -1223,6 +1223,14 @@
     "fr": "Aucun post à valider.",
     "en": "No post awaiting approval."
   },
+  "espaces.pourqui.en_pause_a_valider": {
+    "fr": "En pause : à valider",
+    "en": "Paused: awaiting approval"
+  },
+  "espaces.pourqui.bandeau": {
+    "fr": "Espace actif",
+    "en": "Active space"
+  },
   "espaces.pourqui.reponse_par": {
     "fr": "Réponse reçue",
     "en": "Reply received"

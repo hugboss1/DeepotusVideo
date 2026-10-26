@@ -66,7 +66,23 @@
 
   function T(cle, vars) { return typeof window.dzT === "function" ? window.dzT(cle, vars) : cle; }
   function icone(cle) { return typeof window.dzIcone === "function" ? window.dzIcone(cle, { taille: 14 }) : ""; }
-  function quand(iso) { return iso ? String(iso).replace("T", " ").replace("Z", "").slice(0, 16) : ""; }
+  // t309 revue finale D3 (26/10/2026) : une heure UTC (« Z » ou décalage : run_at du post) s'affiche en heure LOCALE, comme
+  // le calendrier ; une heure sans fuseau (dates de la fiche, déjà locales) telle quelle.
+  function deux(n) { return (n < 10 ? "0" : "") + n; }
+  function quand(iso) {
+    if (!iso) return "";
+    var s = String(iso);
+    if (/(Z|[+-]\d\d:?\d\d)$/.test(s)) {
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        return d.getFullYear() + "-" + deux(d.getMonth() + 1) + "-" + deux(d.getDate()) + " " + deux(d.getHours()) + ":" +
+          deux(d.getMinutes());
+      }
+    }
+    return s.replace("T", " ").slice(0, 16);
+  }
+  // t309 revue finale M2 : un post programmé ou prêt sans date de validation du client (la boucle le saute en valide_par_client)
+  function enPause(p) { return !!p && (p.status === "scheduled" || p.status === "ready") && !p.valide_client_le; }
   function couleur(c) { return /^#[0-9a-fA-F]{3,8}$/.test(c || "") ? c : "#888888"; }
 
   function el(tag, style, texte) {
@@ -169,11 +185,14 @@
     if (!b) {
       b = el("div", "");
       b.setAttribute("data-dz-pour-qui", "1");
-      b.setAttribute("role", "status");
+      b.setAttribute("role", "region");
     }
     signature = sig;
     b.textContent = "";
-    b.setAttribute("data-espace", esp.id);
+    // t309 revue finale (26/10/2026) : une région nommée (role=status était annoncé à chaque redessin) ; et l'attribut
+    // de l'espace est à NOUS (data-dz-pq-espace) : data-espace est observé par dz-projet-canaux.js, qui vidait le bandeau.
+    b.setAttribute("aria-label", T("espaces.pourqui.bandeau"));
+    b.setAttribute("data-dz-pq-espace", esp.id);
     b.setAttribute("style", S.bandeau + (c ? ";border-left:3px solid " + couleur(esp.couleur) : ""));
     var pa = el("span", S.pastille + ";background:" + couleur(esp.couleur));
     pa.setAttribute("data-dz-pq-pastille", "1");
@@ -380,13 +399,16 @@
       // ── les posts à valider ──
       function posts() {
         var s = section("espaces.pourqui.posts");
-        if (!st.posts.length) s.appendChild(el("div", S.note, T("espaces.pourqui.aucun_post")));
-        st.posts.forEach(function (p) {
+        var aValider = ((st.fiche || {}).mode_publication || "valide_par_client") === "valide_par_client";
+        var liste = st.posts.filter(function (p) { return p.status === "a_valider" || (aValider && enPause(p)); });
+        if (!liste.length) s.appendChild(el("div", S.note, T("espaces.pourqui.aucun_post")));
+        liste.forEach(function (p) {
           var li = el("div", S.ligne);
           li.setAttribute("data-dz-pq-post", p.id);
           li.appendChild(brut("strong", "", p.title || p.id));
           var g = window.__dzGardeClient;
-          var lib = g && typeof g.etiquette === "function" ? g.etiquette(p.status) : null;
+          var lib = enPause(p) ? T("espaces.pourqui.en_pause_a_valider")
+            : g && typeof g.etiquette === "function" ? g.etiquette(p.status) : null;
           li.appendChild(el("span", S.note, lib || p.status));
           if (p.run_at) li.appendChild(el("span", S.cle, quand(p.run_at)));
           var sm = selectMoyen(st.moyens[p.id] || MOYENS[0], function (v) { st.moyens[p.id] = v; });
@@ -458,7 +480,9 @@
       function chargerPosts() {
         return envoyer("/api/schedule?espace=*").then(function (l) {
           st.posts = (Array.isArray(l) ? l : []).filter(function (p) {
-            return p && p.status === "a_valider" && ids.indexOf(p.espace_id) >= 0;
+            // t309 revue finale M2 : aussi les programmés/prêts SANS validation (d'avant t309, ou fiche passée en
+            // valide_par_client) ; la boucle les laisse en pause. `posts()` ne les montre qu'en valide_par_client.
+            return p && ids.indexOf(p.espace_id) >= 0 && (p.status === "a_valider" || enPause(p));
           });
         }, echec);
       }
