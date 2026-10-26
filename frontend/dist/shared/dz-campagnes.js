@@ -518,6 +518,8 @@
     }
 
     function evenement(e) {
+      // un morceau de texte n'est pas un changement d'état : l'évènement `texte` du bloc redessine, une fois (L4.1 T3)
+      if (e.type === "delta") return;
       if (e.type === "texte") S.live.push({ type: "texte", texte: String(e.texte || "") });
       else if (e.type === "outil") S.live.push({ type: "outil", nom: String(e.nom || ""), ok: !!e.ok, resume: String(e.resume || "") });
       else if (e.type === "carte" && e.carte) {

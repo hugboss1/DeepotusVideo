@@ -21,6 +21,7 @@ os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_tmp / 't.db').as_posix()}"
 for _k in ("ANTHROPIC_MODEL", "AGENT_MODEL", "ANTHROPIC_API_KEY"):
     os.environ.pop(_k, None)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from loguru import logger                                           # noqa: E402
 logger.remove()
 from app.config import settings                                     # noqa: E402
@@ -28,6 +29,7 @@ from app.services import moteurs_texte as MT                        # noqa: E402
 from app.services import pricing as PR                              # noqa: E402
 from app.api import routes as R                                     # noqa: E402
 from app.api import settings_routes as SR                           # noqa: E402
+from _faux_sse import FluxRep, lignes_depuis_message                 # noqa: E402
 
 ok = fail = 0
 def check(label, cond, detail=""):
@@ -40,9 +42,11 @@ OUTILS = [{"name": "lire_dossier", "description": "x", "input_schema": {"type": 
 MSGS = [{"role": "user", "content": "Bonjour"}]
 
 
-class Rep:
+class Rep(FluxRep):
+    """La réponse simulée : le message scripté `data` est rendu en flux SSE (L4.1 T3, `converser` lit `stream: true`)."""
     def __init__(self, code=200, data=None, text=""):
-        self.status_code, self._d, self.text = code, data, text
+        super().__init__(lignes_depuis_message(data) if data is not None else [], code, text)
+        self._d = data
     def json(self):
         return self._d
 
@@ -176,9 +180,9 @@ settings.AGENT_MODEL = ""
 check("M4 MODELE_AGENT_DEFAUT est un nom de modèle claude", MT.MODELE_AGENT_DEFAUT.startswith("claude-"), MT.MODELE_AGENT_DEFAUT)
 check("M5 AGENT_MODEL dans la liste blanche des clés", "AGENT_MODEL" in R._ALLOWED_ENV_KEYS)
 check("M6 AGENT_MODEL se règle dans « defaults »", SR.RUBRIQUE_DE_CLE.get("AGENT_MODEL") == "defaults")
-class _R:
-    status_code = 200; text = "pas du json " + CLE
-    def json(self): raise ValueError("boom")
+class _R(FluxRep):
+    """200 dont le corps n'est pas un flux SSE (proxy, page d'erreur) : aucune ligne `data:`, jamais de `message_stop`."""
+    def __init__(self): super().__init__(["pas du json " + CLE], 200, "pas du json " + CLE)
 MT._POSTER = lambda *a, **k: _R()
 settings.ANTHROPIC_API_KEY = CLE
 try:
@@ -187,7 +191,7 @@ except RuntimeError as e:
     lev = str(e)
 except Exception as e:
     lev = "AUTRE " + type(e).__name__
-check("B4 200 non JSON : RuntimeError, clé masquée", lev is not None and not lev.startswith("AUTRE") and CLE not in lev, str(lev))
+check("B4 200 sans flux SSE : RuntimeError, clé masquée", lev is not None and not lev.startswith("AUTRE") and CLE not in lev, str(lev))
 check("M7 AGENT_MODEL est un réglage (défaut vide)", "AGENT_MODEL" in type(settings).model_fields
       and type(settings).model_fields["AGENT_MODEL"].default == "")
 
@@ -228,6 +232,6 @@ check("R7 vide = retour au modèle Anthropic des Réglages", MT.modele_agent() =
 settings.ANTHROPIC_API_KEY = ""
 
 MT._POSTER = _poster0
-check("Z1 la couture d'origine est httpx.post", _poster0 is __import__("httpx").post)
+check("Z1 la couture d'origine est le POST en flux", _poster0 is MT._poster_flux)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

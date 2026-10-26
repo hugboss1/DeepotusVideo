@@ -106,20 +106,26 @@ def _partie_espace(eid) -> str:
             f"{', '.join(mots) if mots else 'aucun'}.\nPersona :\n{persona}")
 
 
-def systeme(conv: dict, lang: str) -> str:
-    """CAMPAGNES.md + le rôle + l'espace DE LA CONVERSATION (persona, mots interdits) + conformite-crypto.md pour
-    l'espace du jeton SEULEMENT + la langue de réponse."""
-    role = conv.get("role") if conv.get("role") in ROLES else "campagnes"
+def systeme_pour(role, espace_id, langue: str) -> str:
+    """CAMPAGNES.md + le rôle + l'espace (persona, mots interdits) + conformite-crypto.md pour l'espace du jeton
+    SEULEMENT + la langue de réponse. Pure : la boucle (`systeme`) et le paquet du téléphone (L4.1) l'appellent, le
+    texte est donc le même des deux côtés."""
+    role = role if role in ROLES else "campagnes"
     parts = [_doc("CAMPAGNES.md"), "## Ton rôle pour cette conversation\n" + ROLES[role]]
     if role == "campagnes":
         modele = _doc("dossier-modele.md")
         if modele:
             parts.append("## dossier-modele.md\n" + modele)
-    parts.append(_partie_espace(conv.get("espace_id")))
-    if espace_jeton(conv.get("espace_id")):
+    parts.append(_partie_espace(espace_id))
+    if espace_jeton(espace_id):
         parts.append(_doc("conformite-crypto.md"))
-    parts.append("## Langue\n" + ("Answer in English." if lang == "en" else "Réponds en français."))
+    parts.append("## Langue\n" + ("Answer in English." if langue == "en" else "Réponds en français."))
     return "\n\n".join(x for x in parts if x)
+
+
+def systeme(conv: dict, lang: str) -> str:
+    """Le système de la boucle : celui du rôle et de l'espace DE LA CONVERSATION (`systeme_pour`)."""
+    return systeme_pour(conv.get("role"), conv.get("espace_id"), lang)
 
 
 # ---- l'historique au format de l'API ---------------------------------------------------------------------------------
@@ -272,12 +278,36 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: st
             await agent_store.ajouter(cid, [fmt.nouveau_message("utilisateur", [{"type": "texte", "texte": texte}],
                                                                 origine=origine, appareil=appareil)])
             message_ecrit = True
+        # L4.1 T3 : la réponse est lue en flux ; chaque morceau de texte devient un évènement `delta` dès qu'il arrive
+        # (le fil du modèle les dépose, la boucle les émet). L'évènement `texte` du bloc reste émis en entier plus bas.
+        file_delta: asyncio.Queue = asyncio.Queue()
+        boucle = asyncio.get_running_loop()
+        appel = asyncio.ensure_future(asyncio.to_thread(
+            MT.converser, modele, sys_, msgs, outils, SORTIE_MAX,
+            sur_delta=lambda s: boucle.call_soon_threadsafe(file_delta.put_nowait, s)))
         try:
-            r = await asyncio.to_thread(MT.converser, modele, sys_, msgs, outils, SORTIE_MAX)
+            while True:
+                prochain = asyncio.ensure_future(file_delta.get())
+                await asyncio.wait({prochain, appel}, return_when=asyncio.FIRST_COMPLETED)
+                if not prochain.done():
+                    prochain.cancel()
+                    break
+                yield {"type": "delta", "texte": prochain.result()}
+            while not file_delta.empty():                  # ce que le fil a déposé juste avant de finir
+                yield {"type": "delta", "texte": file_delta.get_nowait()}
+            r = await appel
         except Exception as e:  # noqa: BLE001 — HTTP, délai, réseau : un évènement, jamais une trace (clé ôtée par converser)
-            await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], 0.0)   # rien n'a été facturé
+            # Connexion refusée, statut ≠ 200, sans clé : rien n'a été facturé, le réel noté est 0. Un FluxCoupe (panne
+            # APRÈS le 200 : flux coupé, évènement error, ReadError, délai) a pu être facturé : Anthropic compte l'entrée
+            # dès message_start et peut compter toute la sortie. On ne note donc PAS de réel : la réservation de
+            # `plafonds.verifier` (estimation haute du tour) reste la dépense retenue, jamais un réel inférieur.
+            if not isinstance(e, MT.FluxCoupe):
+                await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], 0.0)
             yield {"type": "erreur", "code": "sans_cle" if str(e) == "sans_cle" else "moteur", "message": str(e)[:300]}
             return
+        finally:
+            if not appel.done():                           # le client est parti : l'appel finit seul, sans bruit
+                appel.add_done_callback(lambda t: t.cancelled() or t.exception())
         cout = _usd(MT.op_tour(modele, r["in_tok"], r["out_tok"]))
         depense += cout
         await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], cout)   # les lignes de CE tour seulement
