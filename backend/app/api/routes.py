@@ -8892,8 +8892,10 @@ async def update_scheduled_post(post_id: str, body: dict):
         # plan scheduler T10 (tâche #30) : l'empreinte du CONTENU avant modification — seule une valeur qui change
         # vraiment dévalide (un formulaire renvoyé tel quel, ou un statut seul, ne casse pas la validation)
         avant = (p.title, p.caption, p.channels, p.run_at, p.job_id, p.source_image, p.brief, p.comptes)
-        # t309 (26/10/2026) : le contenu vu par le client, ses comptes et son état d'avant (règles d'un client, plus bas)
-        contenu_avant, comptes_avant, statut_avant = (p.title, p.caption, p.source_image, p.job_id), p.comptes, p.status
+        # t309 (26/10/2026) : le contenu vu par le client (le brief porte la légende Telegram, tg_caption), ses comptes et
+        # son état d'avant (règles d'un client, plus bas)
+        contenu_avant = (p.title, p.caption, p.source_image, p.job_id, p.brief)
+        comptes_avant, statut_avant = p.comptes, p.status
         if "title" in body:
             p.title = (body["title"] or "")[:200]
         if "caption" in body:
@@ -8934,7 +8936,7 @@ async def update_scheduled_post(post_id: str, body: dict):
 def _regles_client_patch(p: ScheduledPost, body: dict, contenu_avant, comptes_avant, statut_avant) -> None:
     """t309 (26/10/2026) : les règles du client sur un PATCH, après les champs et avant le commit (un refus = 409, rien
     d'écrit). Ordre : le CONTENU changé (title, caption, source_image, job_id) efface validation et confirmation, et un post
-    programmé d'un client « validé par le client » repasse a_valider ; les COMPTES changés effacent la confirmation ; un
+    programmé d'un client « validé par le client » repasse a_valider (t309 revue : le brief compte, il porte tg_caption) ; les COMPTES changés effacent la confirmation ; un
     brouillon non validé de ce mode reste a_valider (jamais un draft qui contourne) ; enfin un post programmé dont l'état,
     les comptes ou le contenu viennent de changer passe `controler`. Un run_at (ou un mode) seul ne recontrôle pas."""
     from app.services import regles_client as _rc
@@ -8942,7 +8944,7 @@ def _regles_client_patch(p: ScheduledPost, body: dict, contenu_avant, comptes_av
     if ex is None:
         return
     a_valider = ex["mode"] == "valide_par_client"
-    contenu = contenu_avant != (p.title, p.caption, p.source_image, p.job_id)
+    contenu = contenu_avant != (p.title, p.caption, p.source_image, p.job_id, p.brief)
     comptes = comptes_avant != p.comptes
     if contenu:
         p.valide_client_le, p.confirme_client = None, None
@@ -9247,9 +9249,15 @@ async def add_thread_post(post_id: str, body: dict):
             status="scheduled", mode=parent.mode, format=parent.format,
             plan_id=parent.plan_id, thread_of=racine, thread_index=idx,
             espace_id=tete.espace_id, comptes=_comptes_x(tete),     # t204 : le MÊME compte X que la tête
-            # t309 (26/10/2026) : la suite hérite de la validation et de la confirmation du parent, puis passe les règles
-            valide_client_le=parent.valide_client_le, confirme_client=parent.confirme_client)
-        _controler_client(p, body.get("confirme_client"))
+            # t309 (26/10/2026, revue) : la suite hérite de la CONFIRMATION du parent (décision 4), JAMAIS de sa validation
+            # (son texte est neuf) : chez un client « validé par le client » elle naît a_valider (l'étape n'est pas
+            # perdue) ; sinon elle passe les règles avant d'être écrite
+            confirme_client=parent.confirme_client)
+        from app.services import regles_client as _rc
+        p.status = _rc.statut_initial(p.espace_id, "draft")
+        if p.status == "draft":
+            p.status = "scheduled"
+            _controler_client(p, body.get("confirme_client"))
         session.add(p)
         await session.commit()
         return _post_to_dict(p)
@@ -9334,11 +9342,12 @@ async def post_scheduled_post_validation_client(post_id: str, body: dict, reques
             p.valide_client_le = None
             if p.status in ("draft", "scheduled", "ready"):
                 p.status = "a_valider"
+        await session.commit()
+        await session.refresh(p)
+        # t309 (revue) : le journal APRÈS l'écriture réussie du post (jamais une validation notée qui n'a pas eu lieu)
         canaux = list(dict.fromkeys(x["canal_id"] or "" for x in ex["canaux"])) or [""]
         for canal in canaux:
             _fc.noter(ex["client"], "validation", canal, "client")
-        await session.commit()
-        await session.refresh(p)
         return {"post": _post_to_dict(p)}
 
 

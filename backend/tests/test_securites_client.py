@@ -208,6 +208,32 @@ with TestClient(app, client=("127.0.0.1", 50000)) as client:
     check("S3b caption -> valide_client_le None, a_valider",
           r.status_code == 200 and r.json()["valide_client_le"] is None and r.json()["status"] == "a_valider", r.text[:300])
 
+    def programme_valide(**corps):
+        q = creer(C1, comptes=[c1x], **corps).json()
+        valider(q["id"])
+        return patch(q["id"], status="scheduled").json()
+    q = programme_valide()
+    r = patch(q["id"], brief={"tg_caption": "Légende Telegram neuve"})
+    check("S3c brief (tg_caption) -> contenu : valide_client_le None, a_valider",
+          r.status_code == 200 and r.json()["valide_client_le"] is None and r.json()["status"] == "a_valider", r.text[:300])
+    q = programme_valide()
+    r = patch(q["id"], caption="Autre texte", status="scheduled")
+    check("S3d contenu + status scheduled -> 200 et a_valider (rien ne part)",
+          r.status_code == 200 and r.json()["status"] == "a_valider" and r.json()["valide_client_le"] is None, r.text[:300])
+    q = creer(C1, comptes=[c1x]).json()
+    r = patch(q["id"], status="ready")
+    check("S3e PATCH ready sans validation -> 409 a_valider", refus(r, "a_valider"), r.text[:300])
+    valider(q["id"])
+    r = patch(q["id"], status="ready")
+    check("S3f PATCH ready après validation -> 200 ready", r.status_code == 200 and r.json()["status"] == "ready",
+          r.text[:300])
+    r = patch(q["id"], caption="encore")
+    check("S3g contenu d'un post ready -> a_valider", r.status_code == 200 and r.json()["status"] == "a_valider",
+          r.text[:300])
+    r = patch(creer(C2, comptes=[c2x]).json()["id"], status="ready")
+    check("S3h publie_en_son_nom : PATCH ready sans confirmation -> 409 confirmation", refus(r, "confirmation"),
+          r.text[:300])
+
     # ---------------------------------------------------------------------------------------------------------------
     print("\n[S4] publie_en_son_nom : confirmation nominative")
     r = creer(C2, comptes=[c2x])
@@ -279,12 +305,19 @@ with TestClient(app, client=("127.0.0.1", 50000)) as client:
     par1 = creer(C1, comptes=[c1x]).json()
     n_avant = len(tous())
     r = client.post(f"/api/schedule/{par1['id']}/thread", json={"caption": "la suite"})
-    check("S7b parent non validé (valide_par_client) -> 409 a_valider, rien créé",
-          refus(r, "a_valider") and len(tous()) == n_avant, r.text[:300])
+    check("S7b parent non validé (valide_par_client) -> 200, l'enfant naît a_valider (l'étape n'est pas perdue)",
+          r.status_code == 200 and r.json().get("status") == "a_valider" and r.json().get("valide_client_le") is None
+          and len(tous()) == n_avant + 1, r.text[:300])
     valider(par1["id"])
     r = client.post(f"/api/schedule/{par1['id']}/thread", json={"caption": "la suite"})
-    check("S7c parent validé -> l'enfant hérite de la validation et passe",
-          r.status_code == 200 and r.json().get("valide_client_le") and r.json().get("status") == "scheduled", r.text[:300])
+    check("S7c parent validé -> l'enfant n'hérite JAMAIS de la validation (texte neuf) : a_valider",
+          r.status_code == 200 and r.json().get("valide_client_le") is None and r.json().get("status") == "a_valider",
+          r.text[:300])
+    enf = r.json()
+    check("S7d ... et PATCH scheduled de l'enfant -> 409 a_valider", refus(patch(enf["id"], status="scheduled"), "a_valider"))
+    par2 = creer(C2, comptes=[c2x]).json()
+    r = client.post(f"/api/schedule/{par2['id']}/thread", json={"caption": "la suite"})
+    check("S7e publie_en_son_nom, parent non confirmé -> 409 confirmation", refus(r, "confirmation"), r.text[:300])
 
     # ---------------------------------------------------------------------------------------------------------------
     print("\n[S8] liste et exigences")
