@@ -36,7 +36,7 @@
   var MAX_JOURNAL = 50;
   var RECHARGER = "deepotus:schedule-recharger";
   var S = {
-    bandeau: "display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:5px 14px;min-height:30px;box-sizing:border-box;border-bottom:1px solid var(--brd-soft,var(--stroke,#222830));background:var(--srf-panel,var(--bg-panel-2,#13171c));color:var(--txt-base,var(--ink,#cfd6e2));font:12px/1.4 system-ui,sans-serif",
+    bandeau: "flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:5px 14px;min-height:30px;box-sizing:border-box;border-bottom:1px solid var(--brd-soft,var(--stroke,#222830));background:var(--srf-panel,var(--bg-panel-2,#13171c));color:var(--txt-base,var(--ink,#cfd6e2));font:12px/1.4 system-ui,sans-serif",
     pastille: "display:inline-block;width:10px;height:10px;flex:none;border-radius:0;border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138))",
     nom: "font-weight:600;color:var(--txt-hi,var(--ink-strong,#e6e9ee))",
     meta: "font-size:11.5px;color:var(--txt-mid,var(--ink-muted,#9aa4ae))",
