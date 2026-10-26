@@ -97,6 +97,11 @@ DYN |= {"espaces.idv.adn." + c[0] for c in (json.loads(_ADN.group(1)) if _ADN el
 DYN |= {"espaces.idv.genre." + g for g in ("logo", "mascotte", "produits")}
 DYN |= {"espaces.idv.planche_etat." + e for e in ("absente", "a_valider", "validee", "perimee")}
 DYN |= {"espaces.idv.kit_etat." + e for e in ("identite", "branding", "autre")}
+# t308 (26/10/2026) : l'assistant de création (frontend/shared/dz-espace-assistant.js, hors du bundle) lit ses clés
+# espaces.assistant.* en clair ou composées (code_, etat_, type_, mode_) ; test_espace_assistant_ecran 6.3 refuse les orphelines
+_ASS = (RACINE / "frontend/shared/dz-espace-assistant.js").read_text(encoding="utf-8")
+DYN |= {k for k in re.findall(r'"(espaces\.assistant\.[a-z_]+)"', _ASS) if not k.endswith("_")}
+DYN |= {k for k in ZONE for p in re.findall(r'"(espaces\.assistant\.[a-z]+_)"', _ASS) if k.startswith(p)}
 check("1.2c DzIdentite : 6 champs d'ADN, aucun useState", _ADN is not None and len(json.loads(_ADN.group(1))) == 6
       and "x.useState(" not in M.AIDES_IDV)
 check("1.2b chaque clé COMPOSÉE par l'assistant existe en français et en anglais",

@@ -60,10 +60,13 @@ if PM:
     check("2.2 defaire(B) n'a plus le marqueur ni le panneau", lambda: MARKER not in PM.defaire(B)
           and "DzAgentPlan" not in PM.defaire(B))
     import _i18n_l1_aide as AIDE
-    check("2.3 avant_dzagentplan existe et rend defaire(B)", lambda: AIDE.avant_dzagentplan(B) == PM.defaire(B))
+    # t308 (26/10/2026) : le maillon dzassistant est posé APRÈS celui-ci : le livré se lit vu d'avant dzassistant (B0)
+    B0 = AIDE.avant_dzassistant(B)
+    check("2.3 avant_dzagentplan existe et rend defaire(B), vu d'avant dzassistant",
+          lambda: AIDE.avant_dzagentplan(B) == PM.defaire(B0))
     check("2.4 avant_dzrecette défait dzagentplan d'abord", lambda: MARKER not in AIDE.avant_dzrecette(B)
           and "/*__dzrecette*/" not in AIDE.avant_dzrecette(B))
-    check("2.5 avant_dzagentplan sans marqueur : rendu tel quel", lambda: AIDE.avant_dzagentplan(PM.defaire(B)) == PM.defaire(B))
+    check("2.5 avant_dzagentplan sans marqueur : rendu tel quel", lambda: AIDE.avant_dzagentplan(PM.defaire(B0)) == PM.defaire(B0))
     check("2.6 --check du maillon : déjà appliqué", lambda: "déjà appliqué" in subprocess.run(
         [sys.executable, str(REPO / "scripts" / "patch_bundle_dzagentplan.py"), "--check"], capture_output=True,
         text=True, encoding="utf-8").stdout)
