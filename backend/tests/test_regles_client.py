@@ -249,6 +249,25 @@ avant = instantane()
 check("R7i comptes.json illisible : client en pause, marque libre, rien ecrit",
       R.en_pause(post(c2, [cc], confirme=c2)) is True and R.en_pause(post(m, [cm])) is False and instantane() == avant)
 
+# t309 revue (26/10/2026) : espaces.json corrompu -> Deepotus part (espace vide OU « deepotus », valeur posee depuis t204),
+# un post de client reste en pause, rien n'est ecrit.
+fes = E.dossier() / "espaces.json"
+octets_es = fes.read_bytes()
+fes.write_text("{espaces casses", encoding="utf-8")
+avant = instantane()
+try:
+    r7j = (R.en_pause(post("", [])), R.en_pause(post(None, [])), R.en_pause(post("deepotus", [])),
+           R.exigences("deepotus", [cm], brut=True), R.controler(post("deepotus", []), brut=True), R.en_pause(post(c, [ca], valide=MAINTENANT)))
+    err = None
+except Exception as x:  # noqa: BLE001
+    r7j, err = None, x
+check("R7j espaces.json corrompu : Deepotus (vide, None, « deepotus ») pas en pause, client en pause",
+      err is None and r7j == (False, False, False, None, None, True), repr((r7j, err)))
+check("R7k espaces.json corrompu : rien ecrit, rien mis de cote", instantane() == avant)
+fes.write_bytes(octets_es)
+check("R7l « deepotus » sans regle aussi en lecture normale", R.exigences("deepotus", []) is None
+      and R.controler(post("deepotus", [])) is None and R.statut_initial("deepotus", "draft") == "draft")
+
 print("[R8] colonnes valide_client_le / confirme_client")
 from app.services import storage as S                              # noqa: E402
 nom_cols = [n for n, _t in S.SCHEDULED_POSTS_COLUMNS]

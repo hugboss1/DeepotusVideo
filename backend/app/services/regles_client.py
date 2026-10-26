@@ -170,7 +170,7 @@ def _exigences_brutes(espace_id, ids):
     try:
         espaces = _brut_espaces()
     except (OSError, ValueError, _Illisible) as e:
-        # on ne sait pas qui gouverne l'espace : rien de prouvé (un post de Deepotus, espace vide, n'arrive pas ici)
+        # on ne sait pas qui gouverne l'espace : rien de prouvé (un post de Deepotus, vide ou « deepotus », n'arrive pas ici)
         logger.warning(f"règles client : espaces illisibles ({type(e).__name__})")
         return _vue("?", "?", _fc.MODE_DEFAUT, _brut_canaux(ids)[0], set(), illisible=True)
     client = _brut_responsable(espaces, espace_id)
@@ -189,9 +189,11 @@ def _exigences_brutes(espace_id, ids):
 def exigences(espace_id, comptes_ids, brut=False):
     """None si l'espace n'est gouverné par aucun client ; sinon {client, nom, mode, canaux:[{compte, libelle, canal_id,
     couvert}], non_couverts:[libellés]} (et `illisible: True` en lecture brute quand un fichier ne se lit pas).
-    Un espace vide (post d'avant les espaces) est de Deepotus : aucune règle, rien n'est lu."""
+    Deepotus n'est jamais gouverné : un espace vide (post d'avant les espaces) ou « deepotus » (posts créés depuis t204,
+    storage._espace_par_defaut) rend None avant toute lecture (t309 revue, 26/10/2026 : même avec espaces.json illisible,
+    Deepotus part ; controler et en_pause passent par ici)."""
     ids = _ids(comptes_ids)
-    if not espace_id:
+    if (espace_id or "deepotus") == "deepotus":
         return None
     if brut:
         return _exigences_brutes(espace_id, ids)
