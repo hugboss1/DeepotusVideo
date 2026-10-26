@@ -38,7 +38,8 @@
     "son.vfx.sequence_aide",
     "son.vfx.texture_aide",
     "espaces.assistant.terminer_aide",
-    "espaces.assistant.verifier_aide"
+    "espaces.assistant.verifier_aide",
+    "espaces.pourqui.fiche_aide"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

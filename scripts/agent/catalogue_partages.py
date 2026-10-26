@@ -8,6 +8,9 @@ el("balise", { attributs }, [enfants]). Trois formes, lues en clair :
 - nom = el("balise", …) puis nom.textContent = T(…) ou nom.setAttribute("placeholder" | "title" | "aria-label", T(…)) ;
 - une fabrique de boutons (function bouton(texte, …) { … el("button", { texte: texte }) … } ou
   const onglet = (nom, cle) => el("button", { role: "tab", texte: T(cle) })) suivie à chacun de ses appels.
+t309 (26/10/2026) : la forme POSITIONNELLE el(tag, style, texte) de dz-pour-qui.js — une fabrique dont le paramètre
+(ou T(paramètre)) est le 3e argument d'un el(…) le pose en libellé ; nom = fabrique(…) (fabrique dont le premier
+el("balise") est un bouton ou un champ) reçoit ensuite ses attributs comme nom = el("balise", …).
 Un T(a ? "k1" : "k2") donne les deux clés : ce sont les deux états d'un même élément (Générer / Enregistrer).
 Les div, p, span, option (états, erreurs, titres de carte, pastilles) ne sont pas des éléments : jamais lus.
 Écran : celui de la clé (« campagnes », « agent » → « commun » : le tiroir F1 est partout), cadre : aucun.
@@ -30,6 +33,8 @@ PARTAGES = {
     # t308 (26/10/2026) : l'assistant de création d'espace ; ses champs et boutons repris (Annuler, Précédent, Suivant,
     # nom, couleur, kit, Connecter) ont déjà leur fiche ailleurs
     "frontend/shared/dz-espace-assistant.js": ("espaces.assistant.",),
+    # t309 (26/10/2026) : le bandeau « pour qui » et la boîte de la fiche client ; son « Fermer » est commun
+    "frontend/shared/dz-pour-qui.js": ("espaces.pourqui.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")
@@ -44,6 +49,10 @@ RE_PROP = re.compile(r'\s*("[^"]+"|' + _ID + r")\s*:\s*")
 RE_DEF = re.compile(r"\bfunction\s+(" + _ID + r")\s*\(([^()]*)\)\s*\{"
                     r"|\b(?:const|let|var)\s+(" + _ID + r")\s*=\s*\(([^()]*)\)\s*=>\s*")
 RE_TAB = re.compile(r'\brole\s*:\s*"tab"')
+# t309 (26/10/2026) : nom = fabrique(…), le 1er el("balise") d'un corps, et el("balise", style, <3e argument>)
+RE_DECL_FAB = re.compile(r"\b(?:var|const|let)\s+(" + _ID + r")\s*=\s*(" + _ID + r")\(")
+RE_EL_LIT = re.compile(r'(?<![\w$.])el\(\s*"([a-z]+)"')
+RE_EL_POS = r'(?<![\w$.])el\(\s*"[a-z]+"\s*,[^,()]*,\s*'
 
 
 def _cles_T(s: str, a: int, z: int, memo: dict) -> list:
@@ -98,8 +107,23 @@ def _directs(s: str, rel: str, memo: dict, out: list) -> None:
         _element(out, typ, lib, tip, rel)
 
 
+def _balises_de_fabriques(s: str, memo: dict) -> dict:
+    """t309 : nom d'une fabrique → balise de son premier el("balise") quand c'est un bouton ou un champ."""
+    out = {}
+    for m in RE_DEF.finditer(s):
+        bornes = _corps(s, m, memo)
+        b = RE_EL_LIT.search(s, bornes[0], bornes[1]) if bornes else None
+        if b and b.group(1) in TYPE_DE_BALISE:
+            out[m.group(1) or m.group(3)] = b.group(1)
+    return out
+
+
 def _affectations(s: str, rel: str, memo: dict, out: list) -> None:
     balises = {n: b for n, b in RE_DECL.findall(s)}
+    fab = _balises_de_fabriques(s, memo)                  # t309 : nom = fabrique(…) ; nom.setAttribute(…)
+    for n, f in RE_DECL_FAB.findall(s):
+        if f in fab and n not in balises:
+            balises[n] = fab[f]
     for m in RE_AFFECT.finditer(s):
         typ = TYPE_DE_BALISE.get(balises.get(m.group(1), ""))
         t = RE_T.match(s, m.end())
@@ -144,6 +168,11 @@ def _fabriques(s: str, rel: str, memo: dict, out: list) -> None:
                     sortes[rang] = ("cle", attr)
                 elif re.search(a + e + r"(?![\w$])", corps):
                     sortes[rang] = ("texte", attr)
+            if rang not in sortes:                        # t309 : el(tag, style, T(param) | param)
+                if re.search(RE_EL_POS + r"(?:T|dzT)\(\s*" + e + r"\s*[,)]", corps):
+                    sortes[rang] = ("cle", LIBELLE)
+                elif re.search(RE_EL_POS + e + r"\s*\)", corps):
+                    sortes[rang] = ("texte", LIBELLE)
         for c in re.finditer(r"(?<![\w$.])" + re.escape(nom) + r"\(", s):
             if bornes[0] <= c.start() < bornes[1]:
                 continue

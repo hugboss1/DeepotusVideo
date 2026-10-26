@@ -68,7 +68,14 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   consentements manquants ; « Terminer » active l'espace. → [POINT:reglages.espaces] [POINT:reglages.nouvel_espace] [GUIDE:marques]
 - **Revérifier un canal plus tard** : Réglages › Espaces de marque, sous la liste, chaque compte porte sa pastille
   (vérifié, indéterminé, refusé, non vérifié) et « Vérifier », sans rien publier. Dans l'éditeur de post du
-  Planificateur, un compte coché qui n'est pas vérifié le dit ; la programmation n'est pas bloquée. → [POINT:reglages.espaces] [GUIDE:comptes]
+  Planificateur, un compte coché qui n'est pas vérifié le dit ; la programmation n'est pas bloquée (sauf pour un
+  client, voir ci-dessous). → [POINT:reglages.espaces] [GUIDE:comptes]
+- **Publier pour un client** : le bandeau sous l'en-tête (Quick, Studio, Planificateur, Bibliothèque) dit pour qui l'on
+  travaille ; dans un espace client, « Fiche client » ouvre consentements, posts à valider et journal. Chaque canal
+  (compte vérifié) demande un consentement en cours (« Ajouter ») ; « Révoquer » met en pause les posts programmés qui
+  le visent. En mode « validé par le client », un post naît « À valider » et ne se programme qu'après « Validé par le
+  client » ; changer son texte ou son média annule la validation. En mode « publié en son nom », programmer ou
+  « Envoyer maintenant » demande une confirmation qui nomme le client. Un refus du serveur dit lequel manque. → [ALLER:scheduler] [GUIDE:planificateur]
 - **Kits de marque** (nom, logo, couleurs de l'application) : Réglages › Identité visuelle.
   → [POINT:reglages.marque] [GUIDE:reglages]
 - **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés, puis programmer dans le
