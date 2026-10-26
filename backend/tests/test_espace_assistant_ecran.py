@@ -99,9 +99,10 @@ for jeton, n in {"x.useState(": 731, "v2.8.0": 4, "DzTracks": 181, CONFIRMER: 30
     check(f"3 compte {jeton!r} = {n}", B.count(jeton) == n, str(B.count(jeton)))
 check("3.x CRLF partout (en octets)", RAW.count(b"\r\n") > 15000 and RAW.count(b"\n") == RAW.count(b"\r\n"))
 if NODE:
-    t = pathlib.Path(tempfile.mkdtemp()) / "b.mjs"
-    t.write_bytes(RAW)
-    rc = subprocess.run([NODE, "--check", str(t)], capture_output=True, text=True)
+    with tempfile.TemporaryDirectory() as _d:                     # fix 1 (Minor 5) : copie du bundle supprimée
+        t = pathlib.Path(_d) / "b.mjs"
+        t.write_bytes(RAW)
+        rc = subprocess.run([NODE, "--check", str(t)], capture_output=True, text=True)
     check("3.n node --check : le bundle PARSE", rc.returncode == 0, rc.stderr[-300:])
 
 print("\n[4] le script partagé")
@@ -243,9 +244,10 @@ var R={};
 
 
 def node(code):
-    f = pathlib.Path(tempfile.mkdtemp()) / "h.js"
-    f.write_text(code, "utf-8")
-    p = subprocess.run([NODE, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    with tempfile.TemporaryDirectory() as _d:
+        f = pathlib.Path(_d) / "h.js"
+        f.write_text(code, "utf-8")
+        p = subprocess.run([NODE, str(f)], capture_output=True, text=True, encoding="utf-8", timeout=60)
     try:
         return json.loads(p.stdout or "{}")
     except ValueError:

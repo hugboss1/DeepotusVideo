@@ -183,7 +183,7 @@
       boite.appendChild(pied);
       voile.appendChild(boite);
 
-      var fini = false, occupe = false;
+      var fini = false, occupe = false, champNom = null;
       function fin(valeur) {
         if (fini) return;
         fini = true;
@@ -193,7 +193,7 @@
         resoudre(valeur || null);
       }
       function surTouche(ev) {
-        if (ev.key === "Escape") { ev.preventDefault(); fin(st.id); }
+        if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); fin(st.id); }
       }
       function fermer() { fin(st.id); }
       courant = fermer;
@@ -234,6 +234,7 @@
         nom.maxLength = 60;
         nom.value = st.nom;
         nom.addEventListener("input", function () { st.nom = nom.value; dire(""); });
+        champNom = nom;
         var couleur = el("input", S.couleur);
         couleur.type = "color";
         couleur.setAttribute("aria-label", T("espaces.nouveau.couleur"));
@@ -282,7 +283,8 @@
         var url = st.id ? "/api/espaces/" + encodeURIComponent(st.id) : "/api/espaces";
         return envoyer(url, "POST", c).then(function (j) {
           st.id = (j && j.espace && j.espace.id) || st.id;
-          return !!st.id;
+          if (!st.id) throw new Error("POST /api/espaces : id ?");   // jamais un bouton qui se réactive en silence
+          return true;
         });
       }
 
@@ -607,6 +609,7 @@
 
       rendre();
       document.body.appendChild(voile);
+      try { if (champNom) champNom.focus(); } catch (e) { /* rien */ }
     });
   }
 

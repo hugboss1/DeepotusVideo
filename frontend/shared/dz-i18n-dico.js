@@ -5497,7 +5497,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "espaces.assistant.langue": {"fr": "Langue du client", "en": "Client language"},
   "espaces.assistant.langue_en": {"fr": "Anglais", "en": "English"},
   "espaces.assistant.langue_fr": {"fr": "Français", "en": "French"},
-  "espaces.assistant.manques": {"fr": "{non_verifies} canal(aux) non vérifié(s), {consentements} consentement(s) manquant(s)", "en": "{non_verifies} unverified channel(s), {consentements} missing consent(s)"},
+  "espaces.assistant.manques": {"fr": "Canaux non vérifiés : {non_verifies} · consentements manquants : {consentements}", "en": "Unverified channels: {non_verifies} · missing consents: {consentements}"},
   "espaces.assistant.mode": {"fr": "Mode de publication", "en": "Publishing mode"},
   "espaces.assistant.mode_publie_en_son_nom": {"fr": "Publié en son nom", "en": "Published on their behalf"},
   "espaces.assistant.mode_valide_par_client": {"fr": "Validé par le client", "en": "Approved by the client"},
