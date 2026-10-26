@@ -284,5 +284,27 @@ with TestClient(app, client=("127.0.0.1", 50000)) as client:
     check("1.6h (témoin) un corps AVEC channels:[\"x\"] n'hérite de rien : c'est ce que P2 retire",
           r.status_code == 200 and not r.json().get("comptes"), r.text[:300])
 
+# ── [6] tâche 2 : la boîte « Canaux » dit que les écrans de création suivent le projet actif ──────────────
+print("\n[6] tâche 2 : textes de la boîte Canaux (projets.canaux.explication) et AGENT.md")
+SRC_I18N = json.loads((REPO / "frontend" / "shared" / "i18n" / "projets.json").read_text("utf-8"))
+EXPL = SRC_I18N.get("projets.canaux.explication", {})
+FR, EN = EXPL.get("fr", ""), EXPL.get("en", "")
+check("2.1a FR : ne dit plus « gardent les canaux » (Envoyer vers et le Planificateur suivent le projet maintenant)",
+      bool(FR) and "gardent" not in FR, FR)
+check("2.1b FR : nomme le Planificateur, Nouveau post, Envoyer vers, l'éditeur du post et X comme repli",
+      all(m in FR for m in ("Planificateur", "Nouveau post", "Envoyer vers", "éditeur", "X reste")), FR)
+check("2.1c EN : existe, nomme Scheduler, New post, Send to, the post editor, X as fallback ; plus « keep the channels »",
+      bool(EN) and all(m in EN for m in ("Scheduler", "New post", "Send to", "editor", "X stays"))
+      and "keep the channels" not in EN, EN)
+FRANCAIS = re.compile(r"[àâçéèêëîïôûùœ«»]|\b(les|des|du|vous|quand|ce|cochés|compte|comptes|projet|tout|reste)\b", re.I)
+check("2.1d EN : aucun mot ni accent français", bool(EN) and not FRANCAIS.search(EN), str(FRANCAIS.search(EN)))
+DICO = (REPO / "frontend" / "shared" / "dz-i18n-dico.js").read_bytes()
+check("2.1e l'assemblé porte le texte neuf FR et EN, et shared == dist/shared à l'octet",
+      json.dumps(FR, ensure_ascii=False).encode("utf-8") in DICO and json.dumps(EN, ensure_ascii=False).encode("utf-8") in DICO
+      and DICO == (REPO / "frontend" / "dist" / "shared" / "dz-i18n-dico.js").read_bytes())
+AGENT_MD = (REPO / "docs" / "agent" / "AGENT.md").read_text("utf-8")
+check("2.2 AGENT.md : la marche « Canaux » ne dit plus que Envoyer vers / Nouveau post gardent leurs canaux",
+      "gardent les canaux choisis là" not in AGENT_MD and "Planificateur › Nouveau post" in AGENT_MD)
+
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)

@@ -2,7 +2,7 @@
   "projets.canaux.bouton": {"fr": "Canaux", "en": "Channels"},
   "projets.canaux.aide": {"fr": "Choisir les comptes par défaut de ce projet", "en": "Choose this project's default accounts"},
   "projets.canaux.titre": {"fr": "Canaux du projet {nom}", "en": "Channels of project {nom}"},
-  "projets.canaux.explication": {"fr": "Quand ce projet est actif, les brouillons de l'assistant et les posts créés sans canal partent vers les comptes cochés. « Envoyer vers » et le Planificateur gardent les canaux choisis là.", "en": "When this project is active, the assistant's drafts and posts created without a channel go to the ticked accounts. “Send to” and the Scheduler keep the channels chosen there."},
+  "projets.canaux.explication": {"fr": "Quand ce projet est actif, les comptes cochés deviennent la cible par défaut de tout ce qui se crée : brouillons de l'assistant, Nouveau post du Planificateur et Envoyer vers › Planificateur. Vous pouvez les décocher dans l'éditeur du post. Sans canal coché, X reste la cible.", "en": "When this project is active, the ticked accounts become the default target of everything you create: the assistant's drafts, the Scheduler's New post and Send to › Scheduler. You can untick them in the post editor. With no channel ticked, X stays the target."},
   "projets.canaux.chargement": {"fr": "Chargement des comptes de l'espace…", "en": "Loading the space's accounts…"},
   "projets.canaux.aucun_compte": {"fr": "Aucun compte de diffusion dans cet espace.", "en": "No publishing account in this space yet."},
   "projets.canaux.enregistrer": {"fr": "Enregistrer", "en": "Save"},
