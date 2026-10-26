@@ -933,6 +933,45 @@ def auto_channels() -> set[str]:
     return publishers.available_channels()
 
 
+async def _controler_client(session, post):
+    """t309 (26/10/2026) : les règles du client au moment de publier. None = aucun client (Deepotus, marque) ; les
+    exigences (dict) = tout va ; {"refus": résultat} = refusé, le post est déjà sorti de `posting` et enregistré."""
+    from app.services import regles_client as _rc
+    try:
+        return _rc.controler(post, brut=True)
+    except _rc.RefusClient as e:
+        if e.code == "confirmation":
+            post.status = "draft"
+        elif e.code == "a_valider":
+            post.status = "a_valider"
+        else:                                         # consentement : l'état d'attente dépend du mode du client
+            try:
+                ex = _rc.exigences(post.espace_id, post.comptes, brut=True)
+            except Exception:  # noqa: BLE001 — mode inconnu : l'état le plus sûr (rien ne repart sans le client)
+                ex = None
+            post.status = "draft" if ex and ex.get("mode") == "publie_en_son_nom" else "a_valider"
+        post.error = e.message[:500]
+    except Exception as e:  # noqa: BLE001 — rien de prouvé = ne part pas ; jamais un claim laissé `posting`
+        post.status = "ready"
+        post.error = f"règles du client illisibles ({type(e).__name__}) : publication refusée"
+    else:
+        return None
+    await session.commit()
+    logger.warning(f"fire_post {post.id} refusé par les règles du client -> {post.status}")
+    return {"refus": {"ok": False, "error": post.error, "status": post.status}}
+
+
+def _journaliser_publication(regles: dict, compte) -> None:
+    """t309 (26/10/2026) : une ligne `publication` (qui=utilisateur) dans le journal du client, pour un canal publié.
+    Jamais bloquant : une erreur d'écriture est journalisée par son TYPE seulement (aucun chemin, aucun contenu)."""
+    canal = next((x.get("canal_id") for x in regles.get("canaux") or [] if x.get("compte") == compte), None)
+    try:
+        from app.services import fiche_client as _fc
+        _fc.noter(regles["client"], "publication", canal or "", "utilisateur")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"journal du client non écrit ({type(e).__name__})")
+
+
 async def fire_post(post_id: str) -> dict:
     """Publish a post NOW on its auto-capable channels. Returns a result
     dict; flips status to posted/ready/failed accordingly."""
@@ -965,6 +1004,12 @@ async def fire_post(post_id: str) -> dict:
         if not post:
             return {"ok": False, "error": "post not found"}
         channels = [c for c in (post.channels or "").split(",") if c]
+        # t309 (26/10/2026) : DERNIÈRE LIGNE DE DÉFENSE des règles du client (la boucle et /fire contrôlent avant) : lecture
+        # brute, confirmation prise dans `post.confirme_client`. Refus = aucune publication ; le post quitte `posting`
+        # pour `a_valider` (valide_par_client) ou `draft` (publie_en_son_nom), `error` = le message du refus.
+        regles = await _controler_client(session, post)
+        if isinstance(regles, dict) and regles.get("refus"):
+            return regles["refus"]
         sent, errors = [], []
         # t204 (Espaces de marque E4) : les CIBLES = (clé de remote_ids, canal, compte). Un post qui nomme ses comptes
         # publie compte par compte (chacun ses identifiants, son quota, sa clé « canal:id ») ; sans comptes, un post de
@@ -977,6 +1022,7 @@ async def fire_post(post_id: str) -> dict:
         except (ValueError, TypeError):
             ids_comptes = []
         cibles: list = []
+        compte_de_cle: dict = {}                     # t309 : clé distante -> id du compte (canal_id du journal)
         if ids_comptes:
             for cid in ids_comptes:
                 try:
@@ -985,6 +1031,7 @@ async def fire_post(post_id: str) -> dict:
                     errors.append(f"compte {cid} : {e if not isinstance(e, KeyError) else 'inconnu (supprimé ?)'}")
                     continue
                 cibles.append((_cpt.cle_distante(v), v["plateforme"], None if v["historique"] else v["id"]))
+                compte_de_cle[cibles[-1][0]] = cid
         elif espace_post != "deepotus":
             post.status = "ready"
             post.error = (f"aucun compte de diffusion choisi : un post de l'espace « {espace_post} » ne part jamais "
@@ -1051,6 +1098,8 @@ async def fire_post(post_id: str) -> dict:
                 res = await publishers.publish(ch, cap, video, image, meta, compte=cid)
                 if res.ok:
                     sent.append(res.detail)
+                    if isinstance(regles, dict):          # t309 : post de client -> une ligne de journal par canal
+                        _journaliser_publication(regles, compte_de_cle.get(cle))
                     if res.remote_id:
                         remote[cle] = res.remote_id
                         if ch == "x" and not post.x_post_id:
@@ -1137,6 +1186,11 @@ async def tick(marker: list[str | None] | None = None) -> None:
     archives = _espaces_archives()
     if archives:                     # t210 : un espace ARCHIVÉ ne publie plus ; ses posts attendent son désarchivage
         due = [p for p in due if (p.espace_id or "deepotus") not in archives]
+    # t309 (26/10/2026) : un post de CLIENT dont un canal n'est plus couvert (révocation) ou, en valide_par_client, non
+    # validé est EN PAUSE comme un espace archivé : sauté, laissé `scheduled` (aucune écriture), il repart seul au tick
+    # qui suit un consentement neuf. Lecture brute ; fiche illisible = en pause (refus par défaut), la boucle continue.
+    from app.services import regles_client as _rc
+    due = [p for p in due if not _rc.en_pause(p)]
     for post in due:
         try:
             if post.mode == "auto":

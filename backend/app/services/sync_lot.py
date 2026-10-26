@@ -55,6 +55,7 @@ async def image_du_post(post) -> Path | None:
 
 async def lot(appareil_id: str, jours: int = 7) -> dict:
     """Les posts actionnables des `jours` prochains (et en retard), LIBRES ou déjà confiés à CET appareil."""
+    from app.services import regles_client as _rc
     from app.services.storage import JobRecord, ScheduledPost, async_session_factory
     jours = max(1, min(int(jours or 7), 31))
     limite = datetime.utcnow() + timedelta(days=jours)
@@ -67,6 +68,10 @@ async def lot(appareil_id: str, jours: int = 7) -> dict:
             .where(_or(ScheduledPost.delegue_a.is_(None), ScheduledPost.delegue_a == appareil_id))
             .order_by(ScheduledPost.run_at.asc()))
         for p in res.scalars().all():
+            if _rc.en_pause(p):
+                # t309 (26/10/2026) : un post de client en pause (canal révoqué, ou non validé en valide_par_client)
+                # ne part pas au téléphone, comme il ne part pas du PC (lecture brute, refus par défaut).
+                continue
             media = None
             if p.job_id:
                 job = await session.get(JobRecord, p.job_id)

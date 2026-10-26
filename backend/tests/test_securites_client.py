@@ -388,5 +388,150 @@ with E.sous_espace(M):
 st = run(statuts(ids))
 check("S11c marque : scheduled comme avant", len(st) == 2 and all(v[0] == "scheduled" for v in st.values()), repr(st))
 
+# ---- section B (tâche 3, t309 26/10/2026) : la boucle, fire_post, le journal, le lot du téléphone ----------------------
+# Publishers remplacés par un faux qui COMPTE et réussit (aucun réseau) ; posts posés directement en base (comme un post
+# programmé « avant t309 ») ; `asyncio.run(marketing.tick([jour]))` comme test_espaces_client.py [A].
+import uuid                                                         # noqa: E402
+from datetime import datetime, timedelta                           # noqa: E402
+from app.services import sync_lot                                   # noqa: E402
+from app.services.publishers import PublishResult                   # noqa: E402
+
+PUB = []
+
+
+async def _faux_publish_ok(ch, cap, video, image, meta, compte=None):
+    PUB.append((ch, compte))
+    return PublishResult(True, f"{ch}: faux {len(PUB)}", f"r{len(PUB)}")
+
+marketing.publishers.publish = _faux_publish_ok
+JOUR = datetime.utcnow().strftime("%Y-%m-%d")                       # marqueur du jour : pas de passe de métriques
+
+
+def poser(eid, comptes, status="scheduled", mode="auto", valide=None, confirme=None, channels="x", dans=-5):
+    pid = str(uuid.uuid4())
+
+    async def _p():
+        async with storage.async_session_factory() as s:
+            s.add(storage.ScheduledPost(
+                id=pid, title=f"B {pid[:6]}", caption="texte", channels=channels, status=status, mode=mode,
+                run_at=datetime.utcnow() + timedelta(minutes=dans), espace_id=eid or None,
+                comptes=json.dumps(comptes) if comptes else None, valide_client_le=valide, confirme_client=confirme))
+            await s.commit()
+    asyncio.run(_p())
+    return pid
+
+
+def lire_post(pid):
+    async def _l():
+        async with storage.async_session_factory() as s:
+            return await s.get(storage.ScheduledPost, pid)
+    return asyncio.run(_l())
+
+
+def tick():
+    asyncio.run(marketing.tick([JOUR]))
+
+
+def journal(eid, quoi="publication"):
+    return [(x["canal_id"], x["qui"]) for x in F.lire(eid)["journal"] if x["quoi"] == quoi]
+
+print("\n[B1] révocation : la boucle met en pause, un consentement neuf la relance")
+VAL = datetime.utcnow() - timedelta(days=1)
+b1 = poser(C1, [c1t], valide=VAL)
+F.revoquer(C1, "telegram:222")
+PUB.clear()
+tick()
+check("B1a canal révoqué : aucune publication (faux publish : 0 appel)", PUB == [], repr(PUB))
+check("B1b ... le post reste scheduled, sans erreur", lire_post(b1).status == "scheduled" and not lire_post(b1).error,
+      f"{lire_post(b1).status} {lire_post(b1).error}")
+F.ajouter_consentement(C1, "telegram:222", ["publier"], "ecrit")
+tick()
+check("B1c consentement neuf : le tick suivant le publie", PUB == [("telegram", c1t)] and lire_post(b1).status == "posted",
+      f"{PUB} {lire_post(b1).status}")
+
+print("\n[B2] post de client programmé AVANT t309 (aucune validation)")
+b2 = poser(C1, [c1x])
+PUB.clear()
+tick()
+check("B2a sauté par la boucle : 0 publication, toujours scheduled, aucune erreur",
+      PUB == [] and lire_post(b2).status == "scheduled" and not lire_post(b2).error, f"{PUB} {lire_post(b2).status}")
+
+print("\n[B3] fire_post, dernière ligne de défense")
+PUB.clear()
+b3a = poser(C1, [c1x])                                              # non validé
+r3a = asyncio.run(marketing.fire_post(b3a))
+check("B3a valide_par_client non validé : refus, a_valider, error = message",
+      r3a.get("ok") is False and lire_post(b3a).status == "a_valider" and "Lune SARL" in (lire_post(b3a).error or "")
+      and r3a.get("status") == "a_valider" and r3a.get("error") == lire_post(b3a).error, f"{r3a} {lire_post(b3a).status}")
+b3b = poser(C2, [c2x])                                              # publie_en_son_nom sans confirmation
+r3b = asyncio.run(marketing.fire_post(b3b))
+check("B3b publie_en_son_nom non confirmé : refus, draft, error = message",
+      r3b.get("ok") is False and lire_post(b3b).status == "draft" and "Soleil SAS" in (lire_post(b3b).error or ""),
+      f"{r3b} {lire_post(b3b).status}")
+b3c = poser(C1, [c1n], valide=VAL)                                  # validé mais canal jamais couvert
+r3c = asyncio.run(marketing.fire_post(b3c))
+check("B3c canal non couvert (valide_par_client) : refus consentement, a_valider",
+      r3c.get("ok") is False and lire_post(b3c).status == "a_valider" and "consentement" in (lire_post(b3c).error or ""),
+      f"{r3c} {lire_post(b3c).status}")
+b3d = poser(C2, [c2n], confirme=C2)                                 # confirmé mais canal non couvert
+r3d = asyncio.run(marketing.fire_post(b3d))
+check("B3d canal non couvert (publie_en_son_nom) : refus, draft", lire_post(b3d).status == "draft", f"{r3d}")
+check("B3e aucune publication, aucun post laissé posting",
+      PUB == [] and all(lire_post(x).status != "posting" for x in (b3a, b3b, b3c, b3d)), repr(PUB))
+
+print("\n[B4] journal des publications")
+j1, j2 = len(journal(C1)), len(journal(C2))
+PUB.clear()
+b4 = poser(C2, [c2x, c2t], confirme=C2)
+b4m = poser(M, [mx])
+b4d = poser(None, None)
+tick()
+check("B4a le post confirmé du client part sur ses deux canaux", lire_post(b4).status == "posted"
+      and sorted(c for _ch, c in PUB if c in (c2x, c2t)) == sorted([c2x, c2t]), f"{PUB} {lire_post(b4).status}")
+check("B4b une ligne publication qui=utilisateur par canal publié",
+      sorted(journal(C2)[j2:]) == [("telegram:334", "utilisateur"), ("x:333", "utilisateur")], repr(journal(C2)[j2:]))
+check("B4c la marque et Deepotus partent, aucune ligne de journal pour eux",
+      lire_post(b4m).status == "posted" and lire_post(b4d).status == "posted" and len(journal(C1)) == j1
+      and len(journal(C2)) == j2 + 2, f"{lire_post(b4m).status} {lire_post(b4d).status}")
+b4r = poser(C2, [c2x], confirme=C2)
+_noter = F.noter
+
+
+def _noter_casse(*a, **k):
+    raise OSError("disque plein")
+F.noter = _noter_casse
+try:
+    tick()
+finally:
+    F.noter = _noter
+check("B4d une erreur d'écriture du journal ne fait jamais échouer la publication", lire_post(b4r).status == "posted",
+      f"{lire_post(b4r).status} {lire_post(b4r).error}")
+
+print("\n[B5] client.json illisible pendant le tick")
+b5 = poser(C1, [c1x], valide=VAL)
+b5m = poser(M, [mx])
+fiche = E.dossier() / C1 / "client.json"
+sauve = fiche.read_bytes()
+fiche.write_text("{ pas du json", encoding="utf-8")
+PUB.clear()
+try:
+    tick()
+    check("B5a la boucle continue : la marque part", lire_post(b5m).status == "posted", lire_post(b5m).status)
+    check("B5b le post du client ne part pas (refus par défaut), toujours scheduled",
+          lire_post(b5).status == "scheduled" and all(c != c1x for _ch, c in PUB), f"{PUB} {lire_post(b5).status}")
+    check("B5c la fiche illisible n'est ni réécrite ni mise de côté par la boucle",
+          fiche.read_text(encoding="utf-8") == "{ pas du json"
+          and not list(fiche.parent.glob("client.json.illisible-*")))
+finally:
+    fiche.write_bytes(sauve)
+
+print("\n[B6] sync_lot : un post en pause ne part pas au téléphone")
+b6p = poser(C1, [c1x], dans=60)                                     # non validé : en pause
+b6m = poser(M, [mx], dans=60)
+lot6 = asyncio.run(sync_lot.lot("tel-b6"))
+ids6 = {x["id"] for x in lot6["posts"]}
+check("B6a le post de marque est dans le lot", b6m in ids6, repr(ids6))
+check("B6b les posts en pause n'y sont pas", b6p not in ids6 and b2 not in ids6, repr(ids6))
+
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)
