@@ -327,7 +327,7 @@ async def materialize_plan(posts: list[dict], *, start_date: str,
     from app.services import regles_client as _rc
     from app.services.storage import _espace_par_defaut
     espace = _espace_par_defaut()               # le même défaut qu'un post neuf (aucun espace lisible -> vide = Deepotus)
-    statut ="scheduled" if _rc.exigences(espace, []) is None else _rc.statut_initial(espace, "draft")
+    statut = "scheduled" if _rc.exigences(espace, []) is None else _rc.statut_initial(espace, "draft")
     async with async_session_factory() as session:
         for p in posts:
             hh, mm = (p.get("time") or "12:00").split(":")[:2]

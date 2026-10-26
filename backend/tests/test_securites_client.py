@@ -243,7 +243,8 @@ with TestClient(app, client=("127.0.0.1", 50000)) as client:
     d = detail(r)
     check("S4b PATCH scheduled sans confirme_client -> 409 confirmation", refus(r, "confirmation"), r.text[:300])
     check("S4c le refus nomme le client et les canaux", isinstance(d, dict) and d.get("client") == C2
-          and "Soleil SAS" in d.get("message", "") and "x:333" in d.get("canaux", []), repr(d))
+          and "Soleil SAS" in d.get("message", "") and "X Soleil (x:333)" in d.get("canaux", [])
+          and "X Soleil (x:333)" in d.get("message", ""), repr(d))
     r = patch(p4["id"], status="scheduled", confirme_client="un-autre")
     check("S4d mauvaise valeur -> 409 confirmation", refus(r, "confirmation"), r.text[:300])
     r = patch(p4["id"], status="scheduled", confirme_client=C2)
@@ -532,6 +533,29 @@ lot6 = asyncio.run(sync_lot.lot("tel-b6"))
 ids6 = {x["id"] for x in lot6["posts"]}
 check("B6a le post de marque est dans le lot", b6m in ids6, repr(ids6))
 check("B6b les posts en pause n'y sont pas", b6p not in ids6 and b2 not in ids6, repr(ids6))
+
+print("\n[B7] sync_lot : un post publie_en_son_nom jamais confirmé ne part pas au téléphone (revue finale I2)")
+# t309 (26/10/2026) : même règle que fire_post (controler brut, tout RefusClient) ; en_pause ignore la confirmation.
+b7r = poser(C2, [c2x], status="ready", dans=60)                    # ready (tick assisté) sans confirme_client
+b7s = poser(C2, [c2x], dans=60)                                    # scheduled sans confirme_client (mode basculé)
+b7c = poser(C2, [c2x], status="ready", confirme=C2, dans=60)       # confirmé
+lot7 = asyncio.run(sync_lot.lot("tel-b7"))
+ids7 = {x["id"] for x in lot7["posts"]}
+check("B7a les posts jamais confirmés ne sont pas dans le lot", b7r not in ids7 and b7s not in ids7, repr(ids7))
+check("B7b le post confirmé est dans le lot", b7c in ids7, repr(ids7))
+r7 = asyncio.run(sync_lot.appliquer_etat({"id": "tel-b7", "nom": "Tel B7"},
+                                         [{"id": b7r, "statut": "emporte"}, {"id": b7s, "statut": "emporte"},
+                                          {"id": b7c, "statut": "emporte"}]))
+conf7 = {x["id"]: x for x in r7["conflits"]}
+check("B7c emporte d'un post non confirmé : conflit « règles du client », non confié",
+      b7r in conf7 and b7s in conf7 and "client" in conf7[b7r]["raison"] and conf7[b7r].get("code") == "confirmation"
+      and lire_post(b7r).delegue_a is None and lire_post(b7s).delegue_a is None, repr(r7))
+check("B7d emporte du post confirmé : appliqué, confié", r7["appliques"] == [b7c]
+      and lire_post(b7c).delegue_a == "tel-b7", repr(r7))
+b7v = poser(C1, [c1x], status="ready", dans=60)                    # valide_par_client non validé : refus aussi à l'emport
+r7v = asyncio.run(sync_lot.appliquer_etat({"id": "tel-b7", "nom": "Tel B7"}, [{"id": b7v, "statut": "emporte"}]))
+check("B7e emporte d'un post non validé : conflit a_valider", [x.get("code") for x in r7v["conflits"]] == ["a_valider"]
+      and lire_post(b7v).delegue_a is None, repr(r7v))
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

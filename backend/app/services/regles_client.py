@@ -27,7 +27,7 @@ from app.services import fiche_client as _fc
 
 class RefusClient(PermissionError):
     """t309 : un post de client qui ne peut pas être programmé ni partir. `code` ∈ {consentement, a_valider, confirmation},
-    `client` (id du client responsable), `nom` (société de la fiche, sinon nom de l'espace), `canaux` (libellés ou canal_id)."""
+    `client` (id du client responsable), `nom` (société de la fiche, sinon nom de l'espace), `canaux` (« libellé (canal_id) », ou le libellé seul d'un compte jamais vérifié ; libellés pour a_valider)."""
 
     def __init__(self, message, code, client, nom, canaux):
         super().__init__(message)
@@ -210,6 +210,15 @@ def _champ(post, k):
     return post.get(k) if isinstance(post, dict) else getattr(post, k, None)
 
 
+def _nomme(x) -> str:
+    """Le nom d'un canal pour l'utilisateur (t309 revue finale M1, 26/10/2026) : « libellé (canal_id) » quand les deux
+    existent, sinon celui qui existe (un compte jamais vérifié n'a que son libellé)."""
+    lib, canal = x.get("libelle") or "", x.get("canal_id") or ""
+    if lib and canal and lib != canal:
+        return f"{lib} ({canal})"
+    return canal or lib
+
+
 def controler(post, confirme=None, brut=False):
     """Les exigences du post si tout va (None sans client) ; sinon RefusClient, dans cet ordre : `consentement` (un canal
     non couvert, ou aucun compte visé), `a_valider` (valide_par_client sans `valide_client_le`), `confirmation`
@@ -219,8 +228,12 @@ def controler(post, confirme=None, brut=False):
         return None
     client, nom = ex["client"], ex["nom"]
     if ex.get("illisible") or ex["non_couverts"] or not ex["canaux"]:
-        liste = ex["non_couverts"]
-        canaux = ", ".join(liste) or "—"
+        liste = [_nomme(x) for x in ex["canaux"] if not x["couvert"]]
+        if not liste:
+            # t309 revue finale M1 (26/10/2026) : un texte au lieu de « — » quand le post ne vise aucun compte
+            raise RefusClient(f"aucun consentement en cours du client « {nom} » : aucun compte ciblé",
+                              "consentement", client, nom, liste)
+        canaux = ", ".join(liste)
         raise RefusClient(f"aucun consentement en cours du client « {nom} » pour : {canaux}",
                           "consentement", client, nom, liste)
     if ex["mode"] == "valide_par_client" and _champ(post, "valide_client_le") is None:
@@ -228,7 +241,7 @@ def controler(post, confirme=None, brut=False):
         raise RefusClient(f"post à valider par le client « {nom} » avant d'être programmé",
                           "a_valider", client, nom, liste)
     if ex["mode"] == "publie_en_son_nom" and (confirme or _champ(post, "confirme_client")) != client:
-        liste = [x["canal_id"] or x["libelle"] for x in ex["canaux"]]
+        liste = [_nomme(x) for x in ex["canaux"]]
         canaux = ", ".join(liste)
         raise RefusClient(f"confirmez la publication au nom du client « {nom} » sur : {canaux}",
                           "confirmation", client, nom, liste)

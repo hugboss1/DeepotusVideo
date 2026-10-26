@@ -127,6 +127,9 @@ check("R3d verdict consentement (aussi avant validation : consentement d'abord)"
       verdict(p3)[0] == "consentement" and verdict(post(c, [ca, cb]))[0] == "consentement")
 e3b = refus(post(c, [], valide=MAINTENANT))
 check("R3e aucun compte cible : consentement", e3b is not None and e3b.code == "consentement" and verdict(post(c, [], valide=MAINTENANT))[0] == "consentement")
+check("R3g aucun compte cible : message « aucun compte ciblé » (revue finale M1)", e3b is not None
+      and str(e3b) == "aucun consentement en cours du client « Lune SARL » : aucun compte ciblé" and e3b.canaux == [],
+      str(e3b))
 check("R3f compte inconnu : consentement", verdict(post(c, ["c00000000"], valide=MAINTENANT))[0] == "consentement")
 
 print("[R4] client publie_en_son_nom : confirmation nominative")
@@ -137,10 +140,10 @@ C.noter_verification(cc, {"etat": "vert", "id_distant": "222"})
 F.ajouter_consentement(c2, "x:222", ["publier"], "doigt")
 p4 = post(c2, [cc])
 e4 = refus(p4)
-check("R4a sans confirmation : code confirmation, nom = nom de l'espace (pas de societe), canaux = canal_id",
-      e4 is not None and e4.code == "confirmation" and e4.nom == "Studio Nord" and e4.canaux == ["x:222"] and e4.client == c2,
+check("R4a sans confirmation : code confirmation, nom = nom de l'espace (pas de societe), canaux = « libellé (canal_id) » (revue finale M1)",
+      e4 is not None and e4.code == "confirmation" and e4.nom == "Studio Nord" and e4.canaux == ["X Nord (x:222)"] and e4.client == c2,
       repr(e4 and vars(e4)))
-check("R4b message FR", e4 is not None and str(e4) == "confirmez la publication au nom du client « Studio Nord » sur : x:222", str(e4))
+check("R4b message FR", e4 is not None and str(e4) == "confirmez la publication au nom du client « Studio Nord » sur : X Nord (x:222)", str(e4))
 check("R4c confirme=<id client> : passe", R.controler(p4, confirme=c2)["client"] == c2 and verdict(p4, c2) == ("ok", c2))
 check("R4d confirme=autre : confirmation", refus(p4, confirme="autre").code == "confirmation" and verdict(p4, "autre")[0] == "confirmation")
 check("R4e verdict sans confirmation", verdict(p4)[0] == "confirmation")
@@ -312,8 +315,10 @@ check("R9b consentement FR -> EN", L10.texte(str(e3), "en") == "no current conse
       L10.texte(str(e3), "en"))
 check("R9c a_valider FR -> EN", L10.texte(str(e), "en") == "post awaiting approval by client “Lune SARL” before it can be scheduled",
       L10.texte(str(e), "en"))
-check("R9d confirmation FR -> EN", L10.texte(str(e4), "en") == "confirm publishing on behalf of client “Studio Nord” on: x:222",
+check("R9d confirmation FR -> EN", L10.texte(str(e4), "en") == "confirm publishing on behalf of client “Studio Nord” on: X Nord (x:222)",
       L10.texte(str(e4), "en"))
+check("R9f aucun compte ciblé FR -> EN (revue finale M1)",
+      L10.texte(str(e3b), "en") == "no current consent from client “Lune SARL”: no targeted account", L10.texte(str(e3b), "en"))
 check("R9e FR rendu tel quel", L10.texte(str(e3), "fr") == str(e3))
 
 print(f"\n{ok} passed, {fail} failed")

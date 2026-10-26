@@ -376,6 +376,7 @@
   "erreur.230535c4c0": {"fr": "aucune app native ouverte : rien à reprendre", "en": "no native app open: nothing to bring back", "src": "fr"},
   "erreur.230e31f8dd": {"fr": "fal.ai ({label}) : aucune vidéo dans la réponse (clés : {cles})", "en": "fal.ai ({label}): no video in the response (keys: {cles})", "src": "fr"},
   "erreur.23286e4f28": {"fr": "le modèle demandé pour « {moteur} » ressemble à une clé d'API, pas à un nom de modèle", "en": "the model requested for “{moteur}” looks like an API key, not a model name", "src": "fr"},
+  "erreur.233a1476ab": {"fr": "aucun consentement en cours du client « {nom} » : aucun compte ciblé", "en": "no current consent from client “{nom}”: no targeted account", "src": "fr"},
   "erreur.2358f444e2": {"fr": "habillage : chaque lot est un objet {cible, index, mid}", "en": "dressing: each lot is an object {cible, index, mid}", "src": "fr"},
   "erreur.239531adf1": {"fr": "déclaration du téléphone : identifiant et nom de l'appareil requis", "en": "phone declaration: device id and name are required", "src": "fr"},
   "erreur.239bb08707": {"fr": "Aucun LLM configuré (Réglages → clés API).", "en": "No LLM configured (Settings → API keys).", "src": "fr"},

@@ -10767,6 +10767,10 @@
   "fr": "aucun consentement en cours du client « {nom} » pour : {canaux}",
   "en": "no current consent from client “{nom}” for: {canaux}"
  },
+ "aucun consentement en cours du client « {nom} » : aucun compte ciblé": {
+  "fr": "aucun consentement en cours du client « {nom} » : aucun compte ciblé",
+  "en": "no current consent from client “{nom}”: no targeted account"
+ },
  "post à valider par le client « {nom} » avant d'être programmé": {
   "fr": "post à valider par le client « {nom} » avant d'être programmé",
   "en": "post awaiting approval by client “{nom}” before it can be scheduled"
