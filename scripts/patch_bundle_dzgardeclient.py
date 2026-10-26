@@ -6,8 +6,9 @@ docs/superpowers/plans/2026-10-26-t309-securites-client.md, spec docs/superpower
 client sans consentement en cours, sans validation du client, ou sans confirmation nominative ; or
 `D.updateScheduledPost` AVALAIT tout refus (`n.ok?…:null`) et l'écran gardait « programmé ». La logique vit dans le script
 externe frontend/shared/dz-garde-client.js (window.__dzGardeClient, ses dialogues par window.__dzDialogue) ; ce maillon
-ne fait que le brancher. Trois groupes de paires, toutes HORS de tout bloc de couche __DZ_*_BEGIN__ (mesuré le
-26/10/2026 sur le bundle de t309 T3 : G1 à l'offset 336 537, G2 à 1 017 655, G3 à 1 015 591 et 1 034 408 (offsets de la base),
+ne fait que le brancher. Ses paires (G1 à G6), toutes HORS de tout bloc de couche __DZ_*_BEGIN__ (mesuré le
+26/10/2026 sur le bundle de t309 T3 : G1 à l'offset 336 537, G2 à 1 017 655, G3 à 1 015 591, 1 034 408 et 1 029 783, G4 à 336 868,
+G5 à 1 033 360, G6 à 1 044 572 (offsets de la base),
 avant SONVFX qui commence à 1 226 492 ; chaque ancre est unique) :
   G1 `D.updateScheduledPost` : si window.__dzGardeClient existe, `return window.__dzGardeClient.patch(e,t,envoyer)` où
      envoyer(corps) est le PATCH d'origine (même URL, méthode, en-tête) ; sinon le code d'origine, ENTIER et inchangé.
@@ -16,8 +17,13 @@ avant SONVFX qui commence à 1 226 492 ; chaque ancre est unique) :
      si window.__dzGardeClient existe, « deepotus:schedule-recharger » appelle reloadPosts (o) ; retiré au démontage ;
   G3 l'état « a_valider » : couleur (Rm) ambre comme « ready » ; pastille de l'inspecteur ambre avec le libellé
      dzT("scheduler.etat.a_valider") (l'objet de props d'origine, sortie d'i18nfix, reste intact derrière la condition).
-     Ces deux paires ne sont pas derrière window.__dzGardeClient : elles ne font que nommer une
+     Badge des cartes du calendrier « À valider » à côté du « READY » d'origine (G3c, revue du 26/10/2026).
+     Ces paires G3 ne sont pas derrière window.__dzGardeClient : elles ne font que nommer une
      valeur que seul le serveur de t309 produit (sans elles, l'écran affichait « a_valider » brut, en cyan).
+  G4 « Envoyer maintenant » (fix de revue, 26/10/2026) : D.fireScheduledPost délègue à window.__dzGardeClient.fire(id,
+     envoyer) quand le script est là (envoyer(corps) = le POST brut sur /schedule/{id}/fire), D.postJson d'origine sinon ;
+     G5/G6 : un envoi refusé par la garde (`dzRefus`) affiche le message du serveur dans la vue Routage et l'inspecteur au
+     lieu de « Marqué prêt » / « Pas d'envoi automatique ».
 Épingles intouchées : x.useState( 731, v2.8.0 x4, DzTracks 181, `await window.__dzDialogue.confirmer(` x30 (la
 confirmation nominative est appelée depuis le script externe, pas depuis le bundle).
 
@@ -65,6 +71,25 @@ PAIRES = [
      'x.useEffect(()=>{if(!window.__dzGardeClient)return;function __dzGcR(){o&&o()}'
      'return window.addEventListener("deepotus:schedule-recharger",__dzGcR),'
      '()=>window.removeEventListener("deepotus:schedule-recharger",__dzGcR)},[o]),'),
+    # G4 : « Envoyer maintenant » (POST /schedule/{id}/fire) délègue à window.__dzGardeClient.fire(id, envoyer) quand le
+    # script est là (envoyer(corps) = le POST brut, la garde rend le même contrat que D.postJson), l'origine sinon
+    ('fireScheduledPost:e=>D.postJson(`/schedule/${e}/fire`,{}),',
+     'fireScheduledPost:e=>window.__dzGardeClient?window.__dzGardeClient.fire(e,c=>fetch(`${Te}/schedule/${e}/fire`,'
+     '{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(c)})):'
+     'D.postJson(`/schedule/${e}/fire`,{}),'),
+    # G5 / G6 : un envoi REFUSÉ par la garde (dzRefus) dit le message du serveur au lieu de « Marqué prêt » (vue Routage,
+    # H) ou « Pas d'envoi automatique » (inspecteur, N) ; inerte sans la garde (dzRefus n'existe que par elle)
+    ('l(!1),I!=null&&I.ok?u(dzT("scheduler.routage.envoye"',
+     'l(!1),I!=null&&I.dzRefus?u(I.error):I!=null&&I.ok?u(dzT("scheduler.routage.envoye"'),
+    ('y(!1),j!=null&&j.ok?v(dzT("scheduler.post.envoye_sur"',
+     'y(!1),j!=null&&j.dzRefus?v(j.error):j!=null&&j.ok?v(dzT("scheduler.post.envoye_sur"'),
+    # G3 (couleur, pastilles) n'est pas derrière window.__dzGardeClient : il ne fait que nommer une valeur que seul le
+    # serveur t309 produit (ruling de revue, 26/10/2026)
+    # G3c : badge des cartes du calendrier, « À valider » à côté du « READY » d'origine (inchangé)
+    ('e.status==="ready"&&r.jsx("span",{style:{fontSize:8.5,color:"var(--amber)",fontWeight:600},children:"READY"}),',
+     'e.status==="ready"&&r.jsx("span",{style:{fontSize:8.5,color:"var(--amber)",fontWeight:600},children:"READY"}),'
+     'e.status==="a_valider"&&r.jsx("span",{style:{fontSize:8.5,color:"var(--amber)",fontWeight:600},'
+     'children:dzT("scheduler.etat.a_valider")}),'),
     # G3a : couleur (Rm) ambre comme ready
     ('ready:"var(--amber)",scheduled:"var(--cyan)"',
      'ready:"var(--amber)",a_valider:"var(--amber)",scheduled:"var(--cyan)"'),

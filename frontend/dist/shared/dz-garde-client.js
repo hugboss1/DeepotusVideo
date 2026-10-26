@@ -20,6 +20,14 @@
      - autre 409 du client (consentement, a_valider) : __dzDialogue.informer(message du serveur) + rechargement, null ;
      - toute autre réponse ou erreur réseau : null, comme le code d'origine.
      Sans couche de dialogue, rien n'est jamais confirmé par défaut (rechargement, null).
+   window.__dzGardeClient.fire(id, envoyer, corps?) -> Promise<{ok, …}> (fix de revue, 26/10/2026) : « Envoyer maintenant »
+     (POST /schedule/{id}/fire). envoyer(corps) -> Promise<Response> : le POST brut. Rend le MÊME contrat que D.postJson
+     (jamais d'exception : {ok:true, …json} ou {ok:false, status?, error}) :
+     - 409 « confirmation » (corps sans confirme_client) : même dialogue nominatif ; oui -> renvoie {confirme_client} ;
+       non -> rechargement et {ok:false, status:409, error:message, dzRefus:true, sent:[], pending:[]} ;
+     - autre 409 du client : informer(message) + rechargement, même objet refusé (dzRefus) ;
+     - le reste : la traduction de D.postJson (detail chaîne, sinon premier msg, sinon « HTTP <code> : <texte> »).
+     Le maillon (G5/G6) affiche `error` d'un envoi dzRefus au lieu de « Marqué prêt » / « Pas d'envoi automatique ».
    window.__dzGardeClient.etiquette(statut) -> texte | null : le libellé traduit de « a_valider » (null pour un autre).
    Textes : clés scheduler.etat.a_valider et scheduler.client.* (frontend/shared/i18n/planif_client.json). */
 (function () {
@@ -93,9 +101,65 @@
     }, function () { return null; });
   }
 
+  function confirmerNominatif(refus) {
+    var d = dialogue();
+    if (!d || typeof d.confirmer !== "function") return Promise.resolve(false);
+    return Promise.resolve(d.confirmer(T("scheduler.client.confirmer", { nom: refus.nom || refus.client || "",
+                                                                     canaux: canauxTexte(refus.canaux) }),
+      { titre: T("scheduler.client.confirmer_titre"), ok: T("scheduler.client.confirmer_ok") }))
+      .then(function (oui) { return !!oui; }, function () { return false; });
+  }
+
+  function refuse(refus) {
+    return { ok: false, status: 409, error: String(refus.message || ""), dzRefus: true, sent: [], pending: [] };
+  }
+
+  /* la traduction d'une réponse en échec par D.postJson (bundle), reprise telle quelle */
+  function commePostJson(st, texte) {
+    var d = "", nj = false;
+    try {
+      var j = JSON.parse(texte), v = j && j.detail;
+      d = typeof v == "string" ? v : Array.isArray(v) && v[0] && typeof v[0].msg == "string" ? v[0].msg : "";
+    } catch (x) { nj = true; }
+    var br = nj ? String(texte).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160) : "";
+    return { ok: false, status: st, error: d || (br ? "HTTP " + st + " : " + br : "HTTP " + st) };
+  }
+
+  function fire(id, envoyer, corps) {
+    corps = corps || {};
+    var envoi;
+    try { envoi = Promise.resolve(envoyer(corps)); }
+    catch (e) { return Promise.resolve({ ok: false, error: String((e && e.message) || e) }); }
+    return envoi.then(function (r) {
+      if (r.ok) {
+        return Promise.resolve(r.json()).then(null, function () { return {}; }).then(function (j) {
+          var o = { ok: true };
+          if (j && typeof j === "object") for (var k in j) if (Object.prototype.hasOwnProperty.call(j, k)) o[k] = j[k];
+          o.ok = true;
+          return o;
+        });
+      }
+      return Promise.resolve(r.text()).then(null, function () { return ""; }).then(function (texte) {
+        var j = null;
+        try { j = JSON.parse(texte); } catch (x) { j = null; }
+        var refus = r.status === 409 ? refusClient(j) : null;
+        if (!refus) return commePostJson(r.status, texte);
+        if (refus.code === "confirmation" && !corps.confirme_client) {
+          return confirmerNominatif(refus).then(function (oui) {
+            if (!oui) { recharger(); return refuse(refus); }
+            return fire(id, envoyer, { confirme_client: refus.client });
+          });
+        }
+        informer(refus.message);
+        recharger();
+        return refuse(refus);
+      });
+    }, function (e) { return { ok: false, error: String((e && e.message) || e) }; });
+  }
+
   function etiquette(statut) {
     return statut === "a_valider" ? T("scheduler.etat.a_valider") : null;
   }
 
-  window.__dzGardeClient = { patch: patch, etiquette: etiquette };
+  window.__dzGardeClient = { patch: patch, fire: fire, etiquette: etiquette };
 })();

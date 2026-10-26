@@ -180,6 +180,21 @@ async function jouer(nom,suite,corps){
   R.jette=await jouer("j",["jette"]);
   R.non_json=await jouer("nj",[[200,undefined]]);
   R.etiq={a:window.__dzGardeClient.etiquette("a_valider"),s:window.__dzGardeClient.etiquette("scheduled")};
+  /* fix de revue (26/10/2026) : « Envoyer maintenant » par window.__dzGardeClient.fire, contrat de D.postJson */
+  function repT(st,txt){return Promise.resolve({ok:st>=200&&st<300,status:st,json:function(){return Promise.resolve(JSON.parse(txt))},text:function(){return Promise.resolve(txt)}})}
+  async function tirer(suite){var envois=[];evts=[];dial=[];infos=[];
+    function envoyer(c){envois.push(JSON.parse(JSON.stringify(c)));var r=suite[Math.min(envois.length-1,suite.length-1)];
+      if(r==="jette")return Promise.reject(new Error("réseau"));return repT(r[0],r[1])}
+    var res=await window.__dzGardeClient.fire("p1",envoyer);return {res:res,envois:envois,evts:evts.slice(),dial:dial.slice(),infos:infos.slice()}}
+  R.api_fire=typeof window.__dzGardeClient.fire==="function";
+  R.f_ok=await tirer([[200,JSON.stringify({sent:["x"],pending:[]})]]);
+  REPONSE=true;R.f_oui=await tirer([[409,JSON.stringify(REFUS.confirmation)],[200,JSON.stringify({sent:["telegram"]})]]);
+  REPONSE=false;R.f_non=await tirer([[409,JSON.stringify(REFUS.confirmation)]]);REPONSE=true;
+  R.f_cons=await tirer([[409,JSON.stringify(REFUS.consentement)]]);
+  R.f_409=await tirer([[409,JSON.stringify({detail:"déjà publié"})]]);
+  R.f_500=await tirer([[500,"<html><b>boum</b>  interne</html>"]]);
+  R.f_422=await tirer([[422,JSON.stringify({detail:[{msg:"champ requis"}]})]]);
+  R.f_jette=await tirer(["jette"]);
   AVEC_DIALOGUE=false;var d=window.__dzDialogue;delete window.__dzDialogue;
   R.sans_dialogue=await jouer("sd",[[409,REFUS.confirmation]]);window.__dzDialogue=d;
   process.stdout.write(JSON.stringify(R));
@@ -227,6 +242,32 @@ for k, lib in (("autre_409", "un 409 qui n'est pas du client"), ("e500", "un 500
     o = RF.get(k, {})
     check(f"F14 {lib} : comportement d'origine (null), ni dialogue ni rechargement",
           o.get("res") is None and not o.get("dial") and not o.get("infos") and not o.get("evts"), str(o))
+o = RF.get("f_ok", {})
+check("F17 fire 200 : {ok:true, …json} comme D.postJson, corps {} envoyé une fois, ni dialogue ni rechargement",
+      RF.get("api_fire") is True and o.get("res") == {"ok": True, "sent": ["x"], "pending": []} and o.get("envois") == [{}]
+      and not o.get("dial") and not o.get("evts"), str(o))
+o = RF.get("f_oui", {})
+check("F18 fire 409 confirmation, oui : dialogue nominatif puis second /fire avec {confirme_client}, succès rendu",
+      len(o.get("dial") or []) == 1 and (o.get("dial") or [[""]])[0][0].startswith("scheduler.client.confirmer{")
+      and "Société C" in (o.get("dial") or [[""]])[0][0]
+      and o.get("envois") == [{}, {"confirme_client": "esp_c"}] and o.get("res") == {"ok": True, "sent": ["telegram"]}
+      and not o.get("evts"), str(o))
+o = RF.get("f_non", {})
+check("F19 fire 409 confirmation, non : rien renvoyé, rechargement, {ok:false, dzRefus, error:message} (jamais « envoyé »)",
+      len(o.get("envois") or []) == 1 and o.get("evts") == ["deepotus:schedule-recharger"]
+      and (o.get("res") or {}).get("ok") is False and (o.get("res") or {}).get("dzRefus") is True
+      and (o.get("res") or {}).get("error") == "Confirmez la publication au nom de Société C.", str(o))
+o = RF.get("f_cons", {})
+check("F20 fire autre 409 du client : informer(message) + rechargement, refus dzRefus, aucun dialogue de confirmation",
+      o.get("infos") == ["Consentement manquant pour Telegram C."] and o.get("evts") == ["deepotus:schedule-recharger"]
+      and not o.get("dial") and (o.get("res") or {}).get("dzRefus") is True and (o.get("res") or {}).get("ok") is False, str(o))
+check("F21 fire, le reste = D.postJson : 409 ordinaire (detail chaîne), 500 HTML, 422 (premier msg), réseau qui jette",
+      RF.get("f_409", {}).get("res") == {"ok": False, "status": 409, "error": "déjà publié"}
+      and RF.get("f_500", {}).get("res") == {"ok": False, "status": 500, "error": "HTTP 500 : boum interne"}
+      and RF.get("f_422", {}).get("res") == {"ok": False, "status": 422, "error": "champ requis"}
+      and RF.get("f_jette", {}).get("res") == {"ok": False, "error": "réseau"}
+      and not any(RF.get(k, {}).get("evts") or RF.get(k, {}).get("infos") for k in ("f_409", "f_500", "f_422", "f_jette")),
+      str({k: RF.get(k) for k in ("f_409", "f_500", "f_422", "f_jette")}))
 check("F15 etiquette(a_valider) = dzT(scheduler.etat.a_valider), null pour un autre état",
       RF.get("etiq") == {"a": "scheduler.etat.a_valider", "s": None}, str(RF.get("etiq")))
 o = RF.get("sans_dialogue", {})
@@ -341,6 +382,42 @@ check("G3.2 pastille de l'inspecteur sous node : a_valider ambre « À valider �
       and RG3.get("inconnu", {}).get("children") == "inconnu", str(RG3)[:600])
 check("G3.3 couleur Rm ambre comme ready",
       'const Rm={posted:"var(--green)",failed:"var(--red)",ready:"var(--amber)",a_valider:"var(--amber)",scheduled:"var(--cyan)"' in B)
+
+# ── [G4] « Envoyer maintenant » (fix de revue, 26/10/2026) ─────────────────────────────────────────────────────────────
+G4 = ""
+try:
+    G4 = tranche("fireScheduledPost:", ",marketingPlan:")
+except ValueError:
+    pass
+check("G4.0 G4 dans le livré : délégation à window.__dzGardeClient.fire, D.postJson d'origine en repli",
+      "window.__dzGardeClient.fire(e," in G4 and G4.endswith(":D.postJson(`/schedule/${e}/fire`,{})"), G4)
+HARNAIS_G4 = r"""
+var Te="/api",window=globalThis,appels=[],pj=[],deleg=[];
+globalThis.fetch=function(u,o){appels.push({u:u,m:o&&o.method,h:o&&o.headers,b:o&&o.body});return Promise.resolve({ok:true,status:200})};
+var D={postJson:function(u,b){pj.push([u,b]);return Promise.resolve({ok:true,via:"postJson"})},__G4__};
+(async function(){
+  var R={};delete window.__dzGardeClient;
+  R.sans={r:await D.fireScheduledPost("p1"),pj:pj.slice(),a:appels.slice()};pj=[];
+  window.__dzGardeClient={fire:function(id,envoyer){deleg.push([id,typeof envoyer]);return envoyer({confirme_client:"esp_c"}).then(function(){return {ok:true,via:"garde"}})}};
+  R.avec={r:await D.fireScheduledPost("p2"),pj:pj.slice(),a:appels.slice(),d:deleg.slice()};
+  process.stdout.write(JSON.stringify(R));
+})().catch(function(e){process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)}))});
+"""
+RG4 = node(HARNAIS_G4.replace("__G4__", G4)) if NODE and G4 else {}
+check("G4.1 sans __dzGardeClient : D.postJson(`/schedule/p1/fire`, {}) d'origine, aucun fetch direct",
+      RG4.get("sans") == {"r": {"ok": True, "via": "postJson"}, "pj": [["/schedule/p1/fire", {}]], "a": []}, str(RG4)[:600])
+check("G4.2 avec __dzGardeClient : fire(id, envoyer) une fois ; envoyer(corps) = POST brut sur /api/schedule/p2/fire ; pas de postJson",
+      (RG4.get("avec") or {}).get("d") == [["p2", "function"]] and (RG4.get("avec") or {}).get("pj") == []
+      and (RG4.get("avec") or {}).get("a") == [{"u": "/api/schedule/p2/fire", "m": "POST", "h": {"Content-Type": "application/json"},
+                                               "b": '{"confirme_client":"esp_c"}'}]
+      and (RG4.get("avec") or {}).get("r") == {"ok": True, "via": "garde"}, str(RG4)[:600])
+check("G5 vue Routage (H) : un envoi dzRefus affiche le message du serveur, pas « Marqué prêt »",
+      'l(!1),I!=null&&I.dzRefus?u(I.error):I!=null&&I.ok?u(dzT("scheduler.routage.envoye"' in B)
+check("G6 inspecteur (N) : un envoi dzRefus affiche le message du serveur, pas « Pas d'envoi automatique »",
+      'y(!1),j!=null&&j.dzRefus?v(j.error):j!=null&&j.ok?v(dzT("scheduler.post.envoye_sur"' in B)
+check("G3c carte du calendrier : badge « À valider » (dzT) à côté du « READY » d'origine",
+      'children:"READY"}),e.status==="a_valider"&&r.jsx("span",{style:{fontSize:8.5,color:"var(--amber)",fontWeight:600},'
+      'children:dzT("scheduler.etat.a_valider")}),' in B)
 
 # ── [K] textes ──────────────────────────────────────────────────────────────────────────────────────────────────────
 print("\n[K] textes")

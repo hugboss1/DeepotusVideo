@@ -139,7 +139,11 @@ def main():
     var = lambda t: sorted(set(re.findall(r"\{(\w+)\}", t)))      # noqa: E731
     diff = [c for c in cles if c in DICO and var(DICO[c]["fr"]) != var(DICO[c]["en"])]
     check("3d mêmes variables {x} en fr et en", not diff, [(c, DICO[c]) for c in diff[:5]])
-    inutiles = [c for c in DICO if c.split(".")[0] in ZONES and c not in cles]
+    # t309 (26/10/2026) : les dialogues du client au Planificateur (scheduler.client.*) sont appelés depuis le script
+    # externe frontend/shared/dz-garde-client.js (T("…")), pas depuis le bundle (épingle des confirmations ×30)
+    garde = set(re.findall(r'T\("((?:' + "|".join(ZONES) + r')\.[a-z0-9_.]+)"',
+                           (RACINE / "frontend/shared/dz-garde-client.js").read_text("utf-8")))
+    inutiles = [c for c in DICO if c.split(".")[0] in ZONES and c not in cles and c not in garde]
     check("3e aucune clé du lot au dictionnaire sans usage", not inutiles, inutiles[:10])
     p = subprocess.run([sys.executable, str(RACINE / "scripts/i18n_assembler.py"), "--check"], capture_output=True,
                        text=True, encoding="utf-8", errors="replace", cwd=str(RACINE))
