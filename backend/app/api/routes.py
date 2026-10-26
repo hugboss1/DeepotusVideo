@@ -7455,6 +7455,8 @@ _ALLOWED_ENV_KEYS = {
     # Connected accounts (Scheduler — UI-only for now, but the keys live here)
     "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET",
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+    # t310 (27/10/2026) : WhatsApp par Kapso — la clé plate partagée par tous les espaces
+    "KAPSO_API_KEY",
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
     "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CHANNEL_ID",
     "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",

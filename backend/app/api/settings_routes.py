@@ -418,6 +418,9 @@ RUBRIQUE_DE_CLE = {
     **{k: "keys" for k in _CLES_ECRAN["keys"]},
     **{k: "accounts" for k in _CLES_ECRAN["accounts"]},
     "DECART_API_KEY": "keys",                                           # t221 : ligne « Decart » de Clés d'API
+    # t310 (27/10/2026) : la clé Kapso (WhatsApp) est une clé de fournisseur PARTAGÉE, pas un compte : elle se règle dans
+    # Clés d'API (ligne posée par le maillon dzwhatsapp, comme Decart), là où l'assistant d'espace renvoie.
+    "KAPSO_API_KEY": "keys",
     "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys",  # t221 : voix par défaut, champs texte
     "ANTHROPIC_MODEL": "defaults", "OPENAI_MODEL": "defaults", "GEMINI_MODEL": "defaults", "OLLAMA_MODEL": "defaults",
     "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults", "AGENT_MODEL": "defaults",   # t285a

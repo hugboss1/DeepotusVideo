@@ -118,7 +118,7 @@ print("\n[C] consoles a rappeler apres une revocation")
 noms = {c["cle"] for c in AP.CONSOLES}
 manque = {"FAL_KEY", "HEYGEN_API_KEY", "MESHY_API_KEY", "ELEVENLABS_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
           "GEMINI_API_KEY", "FIGMA_TOKEN", "X_API_KEY", "TELEGRAM_BOT_TOKEN", "YOUTUBE_CLIENT_SECRET", "IG_ACCESS_TOKEN",
-          "TIKTOK_CLIENT_SECRET"} - noms
+          "TIKTOK_CLIENT_SECRET", "KAPSO_API_KEY"} - noms     # t310 (27/10/2026) : Kapso (WhatsApp)
 check("C1 chaque fournisseur qui depense ou publie a sa console (Scheduler compris)", not manque, str(manque))
 src = (_ICI.parent / "app" / "api" / "routes.py").read_text("utf-8")
 i_k = src.find("_ALLOWED_ENV_KEYS = {"); bloc = src[i_k:src.find("}", i_k)]

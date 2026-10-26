@@ -116,7 +116,8 @@ check("2.1 chaque clé affichée a UNE entrée, dans la section qui l'affiche", 
       f"écart : {[(k, par_cle.get(k), attendu.get(k)) for k in set(par_cle) | set(attendu) if par_cle.get(k) != attendu.get(k)]}")
 cachees = _ALLOWED_ENV_KEYS - set(attendu)
 check("2.2 une clé autorisée mais affichée NULLE PART n'est pas indexée (la recherche mènerait dans le vide)",
-      cachees and not (cachees & set(par_cle)), f"cachées {sorted(cachees)}")
+      cachees and not (cachees & set(par_cle)) and "KAPSO_API_KEY" in cachees,   # t310 : Kapso, ligne neuve comme Decart
+      f"cachées {sorted(cachees)}")
 check("2.3 aucune clé hors de la liste autorisée", set(par_cle) <= _ALLOWED_ENV_KEYS)
 fal = [x for x in e if x.get("cle") == "FAL_KEY"]
 gf = G.guide("FAL_KEY")

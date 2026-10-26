@@ -199,7 +199,7 @@ print("\n[R] les routes")
 g = c.get(f"/api/comptes?espace={rip}")
 check("R1 GET /api/comptes : les comptes de l'espace, AUCUNE valeur secrète, les plateformes décrites",
       g.status_code == 200 and not fuite(g.text) and len(g.json()["comptes"]) >= 5
-      and set(g.json()["plateformes"]) == {"x", "telegram", "youtube", "instagram", "tiktok"}, g.text[:200])
+      and set(g.json()["plateformes"]) == {"x", "telegram", "youtube", "instagram", "tiktok", "whatsapp"}, g.text[:200])   # t310 : whatsapp
 check("R2 GET sans espace = l'espace actif (Deepotus) : les historiques (TikTok depuis la clé plate posée en K)",
       {x["id"] for x in c.get("/api/comptes").json()["comptes"]} == {"historique-x", "historique-telegram", "historique-tiktok"})
 p = c.post("/api/comptes", json={"espace_id": rip, "plateforme": "instagram", "libelle": "IG Rippled"})

@@ -59,6 +59,7 @@ CONSOLES: list[dict] = [
     {"cle": "FIGMA_TOKEN", "nom": "Figma", "url": "https://www.figma.com/settings"},
     {"cle": "X_API_KEY", "nom": "X (developer portal)", "url": "https://developer.x.com/en/portal/dashboard"},
     {"cle": "TELEGRAM_BOT_TOKEN", "nom": "Telegram BotFather", "url": "https://t.me/BotFather"},
+    {"cle": "KAPSO_API_KEY", "nom": "Kapso (WhatsApp)", "url": "https://docs.kapso.ai/api/introduction"},   # t310, 27/10/2026
     {"cle": "YOUTUBE_CLIENT_SECRET", "nom": "Google Cloud (YouTube)", "url": "https://console.cloud.google.com/apis/credentials"},
     {"cle": "IG_ACCESS_TOKEN", "nom": "Meta for Developers (Instagram)", "url": "https://developers.facebook.com/apps/"},
     {"cle": "TIKTOK_CLIENT_SECRET", "nom": "TikTok for Developers", "url": "https://developers.tiktok.com/apps/"},

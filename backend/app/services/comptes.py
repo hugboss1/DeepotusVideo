@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """t203 (Espaces de marque E3, 13/10/2026) — PLUSIEURS comptes de diffusion par plateforme, rattachés à un espace.
 
-Un compte = une plateforme (x, telegram, youtube, instagram, tiktok), un libellé, un handle, et ses identifiants :
+Un compte = une plateforme (x, telegram, youtube, instagram, tiktok ; whatsapp depuis t310), un libellé, un handle, et ses identifiants :
   - les champs SECRETS (jetons, clés) vivent là où vivent déjà les clés — coffre ouvert, sinon .env — par
     `coffre.enregistrer_cle`, sous un nom propre au compte : `DZC_<ID>_<CHAMP>` (ex. DZC_C1A2B3C4D_X_ACCESS_TOKEN) ;
     un coffre posé mais FERMÉ refuse (CoffreVerrouille) : le secret ne serait gardé qu'en mémoire ;
@@ -19,6 +19,11 @@ niveau `verifications` de comptes.json (`{compte: {etat, raison, date, id_distan
 un champ du compte (`poser`) ou le supprimer l'efface : la vue redevient « non vérifié ». Le `canal_id` (`<plateforme>:<id
 distant>`, expression de t306) vient de là. Un compte peut aussi être PORTÉ PAR LE TÉLÉPHONE (`porte_par`) : la vérification
 ne lit alors ni secret ni réseau, elle reprend la déclaration de l'appareil.
+
+t310 (27/10/2026) — WhatsApp par Kapso (spec §6.1). La plateforme `whatsapp` garde la forme à 4 positions, mais elle n'a
+AUCUN secret par compte : la clé Kapso est PLATE et partagée par tous les espaces (`CLE_PLATE`, lue par `cle_kapso`), et
+ses champs publics (client Kapso, numéro…) sont posés par la liaison (`poser_publics_serveur`), jamais saisis. Elle n'a
+pas de compte historique (`SANS_HISTORIQUE`) et n'est jamais une cible de publication (`NON_PUBLIABLES`).
 """
 from __future__ import annotations
 
@@ -49,7 +54,16 @@ PLATEFORMES: dict = {
     "tiktok": ("TikTok", [("TIKTOK_CLIENT_KEY", False), ("TIKTOK_CLIENT_SECRET", True),
                           ("TIKTOK_REFRESH_TOKEN", True), ("TIKTOK_AUDITED", False)],
                ("TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN"), True),
+    # t310 (27/10/2026) : aucun champ secret — la clé Kapso est plate (CLE_PLATE) ; tous ces champs sont posés par la liaison
+    "whatsapp": ("WhatsApp", [("KAPSO_CUSTOMER_ID", False), ("WHATSAPP_PHONE_ID", False), ("WHATSAPP_NUMERO", False),
+                              ("WHATSAPP_WABA_ID", False), ("WHATSAPP_FACTURATION_META", False)],
+                 ("WHATSAPP_PHONE_ID",), False),
 }
+# t310 (27/10/2026) : les particularités d'une plateforme vivent à part (PLATEFORMES garde 4 positions, décompressées partout)
+CLE_PLATE = {"whatsapp": "KAPSO_API_KEY"}         # plateforme -> clé plate partagée par tous les espaces (jamais par compte)
+SANS_HISTORIQUE = frozenset({"whatsapp"})         # pas de compte virtuel `historique-<p>` (la clé plate n'est pas un compte)
+NON_PUBLIABLES = frozenset({"whatsapp"})          # jamais la cible d'un post du Planificateur
+_LIES_PAR_SERVEUR = frozenset({"whatsapp"})       # champs publics posés par la liaison, jamais saisis
 _CHAMP_PLAT = {c: p for p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, _s in champs}
 _SECRET = {c: s for _p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, s in champs}
 _ID = re.compile(r"^c[0-9a-f]{8}$")
@@ -106,6 +120,34 @@ def _valeur_secrete(nom: str) -> str:
     return (os.environ.get(nom) or coffre.valeur(nom) or "").strip()
 
 
+def _cle_plate(plateforme: str) -> str:
+    """t310 (27/10/2026) : la clé PLATE partagée d'une plateforme (`CLE_PLATE`) : `settings`, puis le coffre (.env ou coffre
+    ouvert), "" si absente. Ne lève jamais, même coffre posé et fermé."""
+    nom = CLE_PLATE.get(plateforme)
+    if not nom:
+        return ""
+    try:
+        v = str(getattr(settings, nom, "") or "").strip()
+        if v:
+            return v
+        from app.services import coffre
+        return str(coffre.valeur(nom) or "").strip()
+    except Exception:  # noqa: BLE001 — une lecture de clé ne casse jamais la liste des comptes
+        return ""
+
+
+def cle_kapso() -> str:
+    """t310 (27/10/2026) : la clé Kapso plate (KAPSO_API_KEY), partagée par tous les espaces ; "" si absente. Ne lève jamais."""
+    return _cle_plate("whatsapp")
+
+
+def champs_poses_par_serveur(plateforme: str) -> tuple:
+    """t310 (27/10/2026) : les champs d'une plateforme posés par la liaison (service), jamais saisis par l'utilisateur."""
+    if plateforme not in _LIES_PAR_SERVEUR:
+        return ()
+    return tuple(c for c, s in PLATEFORMES[plateforme][1] if not s)
+
+
 # ---- le compte courant ------------------------------------------------------------------------------------------------
 
 def courant():
@@ -130,6 +172,8 @@ def cle(champ: str):
     """La valeur d'un champ pour le compte courant (clé plate sans compte courant)."""
     cid = courant()
     if not cid:
+        if _CHAMP_PLAT.get(champ) in SANS_HISTORIQUE:      # t310 : aucun champ plat (pas de compte historique)
+            return ""
         return getattr(settings, champ)
     e = _lire()["comptes"].get(cid) or {}
     if _SECRET.get(champ):
@@ -143,9 +187,13 @@ def cle(champ: str):
 def disponible(plateforme: str) -> bool:
     cid = courant()
     if not cid:
+        if plateforme in SANS_HISTORIQUE:                 # t310 : rien ne se publie « sans compte » sur whatsapp
+            return False
         return bool(getattr(settings, f"has_{plateforme}"))
     e = _lire()["comptes"].get(cid) or {}
     if e.get("plateforme") != plateforme:
+        return False
+    if plateforme in CLE_PLATE and not _cle_plate(plateforme):     # t310 : la clé Kapso plate ET les requis du compte
         return False
     return all(str(cle(c) or "").strip() for c in PLATEFORMES[plateforme][2])
 
@@ -170,6 +218,8 @@ def _historiques(verifs: dict | None = None) -> list:
     verifs = (_lire().get("verifications") or {}) if verifs is None else verifs
     out = []
     for p, (lib, champs, _req, oauth) in PLATEFORMES.items():
+        if p in SANS_HISTORIQUE:      # t310 : une clé plate partagée (Kapso) n'est pas un compte, ses champs pas dans Settings
+            continue
         if not any(str(getattr(settings, c) or "").strip() for c, _s in champs if c != "TIKTOK_AUDITED"):
             continue
         out.append({"id": HISTO + p, "espace_id": "deepotus", "plateforme": p, "libelle": f"{lib} (historique)",
@@ -216,6 +266,8 @@ def _vue(cid: str, e: dict, verifs: dict | None = None) -> dict:
             "created_at": e.get("created_at"),
             **_verif_vue(p, verifs.get(cid)),
             **({"porte_par": _porte_par_vue(e["porte_par"])} if isinstance(e.get("porte_par"), dict) else {}),
+            # t310 : la clé plate partagée (Kapso) — son NOM et si elle est posée, jamais sa valeur
+            **({"cle_plate": {"nom": CLE_PLATE[p], "posee": bool(_cle_plate(p))}} if p in CLE_PLATE else {}),
             "champs": [{"nom": c, "secret": s, "pose": poses[c] if s else bool(pub.get(c)),
                         **({} if s else {"valeur": pub.get(c, False if c == "TIKTOK_AUDITED" else "")})}
                        for c, s in champs]}
@@ -256,6 +308,8 @@ def creer(champs: dict) -> dict:
     p = champs.get("plateforme")
     if p not in PLATEFORMES:
         raise ValueError(f"plateforme inconnue : {p} — connues : {', '.join(PLATEFORMES)}")
+    if isinstance(champs.get("valeurs"), dict):
+        _verifier_valeurs(p, champs["valeurs"])          # t310 : refus AVANT de créer le compte (rien d'écrit)
     doc = _lire()
     if len(doc["comptes"]) >= MAX_COMPTES:
         raise ValueError(f"{MAX_COMPTES} comptes au plus")
@@ -278,9 +332,23 @@ def _propre(cid: str) -> dict:
     return doc
 
 
+def _verifier_valeurs(p: str, valeurs: dict) -> None:
+    """Les champs saisis : chacun doit être un champ de la plateforme, et aucun ne doit être posé par la liaison (t310 :
+    les champs whatsapp ; la clé Kapso plate n'est le champ d'aucun compte). ValueError sinon, avant toute écriture."""
+    autorises = dict(PLATEFORMES[p][1])
+    poses = champs_poses_par_serveur(p)
+    for c in valeurs:
+        if c not in autorises:
+            raise ValueError(f"{c} n'est pas un champ d'un compte {PLATEFORMES[p][0]}")
+        if c in poses:
+            raise ValueError(f"{c} est posé par la liaison du compte, jamais saisi")
+
+
 def modifier(cid: str, champs: dict) -> dict:
     doc = _propre(cid)
     e = doc["comptes"][cid]
+    if isinstance(champs.get("valeurs"), dict):
+        _verifier_valeurs(e["plateforme"], champs["valeurs"])    # t310 : refus AVANT d'écrire libellé et handle
     if "libelle" in champs:
         e["libelle"] = _texte(champs.get("libelle")) or PLATEFORMES[e["plateforme"]][0]
     if "handle" in champs:
@@ -298,9 +366,7 @@ def poser(cid: str, valeurs: dict) -> list:
     doc = _propre(cid)
     e = doc["comptes"][cid]
     autorises = dict(PLATEFORMES[e["plateforme"]][1])
-    for c in valeurs:
-        if c not in autorises:
-            raise ValueError(f"{c} n'est pas un champ d'un compte {PLATEFORMES[e['plateforme']][0]}")
+    _verifier_valeurs(e["plateforme"], valeurs)
     if any(autorises[c] for c in valeurs) and coffre.verrouille():
         raise coffre.CoffreVerrouille("le coffre est fermé : ouvrez-le avant d'enregistrer un secret")
     if valeurs:
@@ -315,6 +381,25 @@ def poser(cid: str, valeurs: dict) -> list:
             e.setdefault("publics", {})[c] = bool(v) and str(v).strip().lower() not in ("0", "false", "non", "no")
         else:
             e.setdefault("publics", {})[c] = _texte(v, 200)
+    _ecrire(doc)
+    return list(valeurs)
+
+
+def poser_publics_serveur(cid: str, valeurs: dict) -> list:
+    """t310 (27/10/2026) : le SERVICE de liaison (whatsapp) écrit les champs publics qu'il a relevés chez le fournisseur
+    (`champs_poses_par_serveur`). Comme `poser` : la révision change et la vérification est retirée. Rend les champs
+    écrits. ValueError = champ hors de ceux posés par la liaison (jamais un secret, jamais la clé plate)."""
+    doc = _propre(cid)
+    e = doc["comptes"][cid]
+    permis = champs_poses_par_serveur(e["plateforme"])
+    for c in valeurs:
+        if c not in permis:
+            raise ValueError(f"{c} n'est pas un champ d'un compte {PLATEFORMES[e['plateforme']][0]}")
+    if not valeurs:
+        return []
+    _perimer(doc, cid)
+    for c, v in valeurs.items():
+        e.setdefault("publics", {})[c] = _texte("" if v is None else str(v), 200)
     _ecrire(doc)
     return list(valeurs)
 
@@ -553,6 +638,8 @@ def verifier_cibles(espace_id, ids) -> list:
         if not isinstance(cid, str) or cid in vus:
             continue
         v = obtenir(cid)
+        if v["plateforme"] in NON_PUBLIABLES:      # t310 (27/10/2026) : WhatsApp est un canal de messages, pas de posts
+            raise ValueError("un compte WhatsApp n'est pas une cible de publication")
         if not de_l_espace(cid, eid):
             raise PermissionError(f"le compte {v['libelle']} ({cid}) n'appartient pas à l'espace de ce post")
         out.append(v)

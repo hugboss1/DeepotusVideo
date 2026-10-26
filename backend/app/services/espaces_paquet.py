@@ -50,6 +50,8 @@ def _comptes_publics(eid: str) -> list:
     """Les comptes de l'espace, champs publics seulement ; les secrets NOMMÉS, jamais lus."""
     out = []
     for v in comptes.lister(eid):
+        if comptes.champs_poses_par_serveur(v["plateforme"]):
+            continue    # t310 (27/10/2026) : un compte relié par le serveur (whatsapp) ne voyage pas : il se relie dans chaque espace
         publics, secrets_ = {}, []
         for ch in v["champs"]:
             if ch["secret"]:
@@ -279,6 +281,11 @@ def _preparer(pris: dict, ignores: list) -> dict:
         if not isinstance(c, dict) or c.get("plateforme") not in comptes.PLATEFORMES:
             raise ValueError(f"paquet d'espace : compte n°{i + 1} illisible")
         p = c["plateforme"]
+        if comptes.champs_poses_par_serveur(p):
+            # t310 (27/10/2026) : jamais deux espaces sur un même numéro WhatsApp — le compte se relie, il ne s'importe pas
+            ignores.append(_ignore("comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, "
+                                   "il ne s'importe pas", i=i + 1, plateforme=comptes.PLATEFORMES[p][0]))
+            continue
         champs_p = dict(comptes.PLATEFORMES[p][1])
         pub = c.get("publics") if isinstance(c.get("publics"), dict) else {}
         # un champ SECRET glissé dans le paquet n'est jamais écrit : on le fait ressaisir, comme les autres
