@@ -102,6 +102,11 @@ DYN |= {"espaces.idv.kit_etat." + e for e in ("identite", "branding", "autre")}
 _ASS = (RACINE / "frontend/shared/dz-espace-assistant.js").read_text(encoding="utf-8")
 DYN |= {k for k in re.findall(r'"(espaces\.assistant\.[a-z_]+)"', _ASS) if not k.endswith("_")}
 DYN |= {k for k in ZONE for p in re.findall(r'"(espaces\.assistant\.[a-z]+_)"', _ASS) if k.startswith(p)}
+# t309 (26/10/2026) : le bandeau « pour qui » et la fiche client (frontend/shared/dz-pour-qui.js, hors du bundle) lisent
+# leurs clés espaces.pourqui.* en clair ou composées (moyen_, quoi_, qui_) ; test_pour_qui_ecran P8.6 refuse les orphelines
+_PQ = (RACINE / "frontend/shared/dz-pour-qui.js").read_text(encoding="utf-8")
+DYN |= {k for k in re.findall(r'"(espaces\.pourqui\.[a-z_]+)"', _PQ) if not k.endswith("_")}
+DYN |= {k for k in ZONE for p in re.findall(r'"(espaces\.pourqui\.[a-z]+_)"', _PQ) if k.startswith(p)}
 check("1.2c DzIdentite : 6 champs d'ADN, aucun useState", _ADN is not None and len(json.loads(_ADN.group(1))) == 6
       and "x.useState(" not in M.AIDES_IDV)
 check("1.2b chaque clé COMPOSÉE par l'assistant existe en français et en anglais",

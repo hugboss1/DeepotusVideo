@@ -734,6 +734,48 @@ def test_partages_absents(depot):
     assert not any(k.startswith(("campagnes.", "agent.")) for k in S.extraire(depot))
 
 
+# t309 (26/10/2026) : la forme POSITIONNELLE de el(tag, style, texte) (dz-pour-qui.js) — la fabrique pose son texte en
+# 3e argument d'un el(…) ; une variable rendue par une fabrique de bouton ou de champ reçoit ses attributs ensuite
+POUR_QUI_JS = "\n".join([
+    'function el(tag, style, texte) { var n = document.createElement(tag); if (texte != null) n.textContent = texte; return n; }',
+    'function bouton(texte, style, glyphe) {',
+    '  var b = el("button", style);',
+    '  b.appendChild(el("span", "", texte));',
+    '  return b;',
+    '}',
+    'function onglet(cle) { return el("button", S.btn, T(cle)); }',
+    'function selectMoyen(valeur, surChange) { var s = el("select", S.champ); s.value = valeur; return s; }',
+    'var bt = bouton(T("espaces.pourqui.fiche"), S.petit, "dz-nav-documents");',
+    'bt.setAttribute("title", T("espaces.pourqui.fiche_aide"));',
+    'var r = bouton(T("espaces.pourqui.revoquer"), S.petit + S.danger, "dz-action-annuler");',
+    'var o = onglet("espaces.pourqui.journal");',
+    'var sc = el("select", S.champ);',
+    'sc.setAttribute("aria-label", T("espaces.pourqui.canal"));',
+    'var sm = selectMoyen("ecrit", function () {});',
+    'sm.setAttribute("aria-label", T("espaces.pourqui.moyen"));',
+    's.appendChild(el("div", S.note, T("espaces.pourqui.aucun_post")));',
+    'li.appendChild(el("span", S.note, T("espaces.pourqui.donne_le", { date: 1 })));',
+])
+CLES_POUR_QUI = {k: {"fr": k.rsplit(".", 1)[-1], "en": k.rsplit(".", 1)[-1].upper()} for k in (
+    "espaces.pourqui.fiche", "espaces.pourqui.fiche_aide", "espaces.pourqui.revoquer", "espaces.pourqui.journal",
+    "espaces.pourqui.canal", "espaces.pourqui.moyen", "espaces.pourqui.aucun_post", "espaces.pourqui.donne_le")}
+
+
+def test_partage_forme_positionnelle(tmp_path):
+    racine = _depot(tmp_path, BUNDLE)
+    _ecrire(racine / "frontend" / "shared" / "i18n" / "pourqui.json", json.dumps(CLES_POUR_QUI))
+    _ecrire(racine / "frontend" / "shared" / "dz-pour-qui.js", POUR_QUI_JS)
+    e = S.extraire(racine)
+    for k in ("espaces.pourqui.fiche", "espaces.pourqui.revoquer", "espaces.pourqui.journal"):
+        assert e[k]["type"] == "bouton" and e[k]["libelle"]["fr"] == k.rsplit(".", 1)[-1], k   # el(…, …, texte|T(cle))
+        assert e[k]["sources"] == ["frontend/shared/dz-pour-qui.js"], k
+    for k in ("espaces.pourqui.canal", "espaces.pourqui.moyen"):         # el("select") direct, ou par sa fabrique
+        assert e[k]["type"] == "champ" and e[k]["infobulle"]["fr"] == k.rsplit(".", 1)[-1], k
+    assert e["espaces.pourqui.fiche_aide"]["type"] == "bouton"         # bt = bouton(…) ; bt.setAttribute("title", T(…))
+    for k in ("espaces.pourqui.aucun_post", "espaces.pourqui.donne_le"):  # div, span : des messages
+        assert k not in e, k
+
+
 def test_vrai_catalogue_agent_campagnes():
     """t287 : le vrai composant de l'agent Campagnes et les onglets du tiroir F1 sont au catalogue, sur « commun »."""
     e = S.extraire(RACINE)
@@ -787,6 +829,32 @@ def test_vrai_catalogue_assistant_espace():
     assert c["etat"] == "redige" and "assistant" in c["role"]["fr"] and "wizard" in c["role"]["en"]
     assert c["localisateur"] == {"selecteur": "button", "texte": {"fr": "Créer l'espace", "en": "Create space"}}
     assert all(vrai[k]["etat"] == "redige" for k in vrai if k.startswith("espaces.assistant."))
+
+
+def test_vrai_catalogue_pour_qui():
+    """t309 (26/10/2026) : le bandeau « pour qui » et la fiche client (frontend/shared/dz-pour-qui.js) sont au catalogue,
+    sur « commun » (le bandeau vit sous l'en-tête de Quick, Studio, Planificateur et Bibliothèque) : « Fiche client »,
+    Révoquer, Ajouter, « Validé par le client », « À corriger » et les trois listes ; ni ses messages, ni son « Fermer »
+    commun, ni l'infobulle de « Fiche client » (exclue : même élément). Rôles rédigés."""
+    e = S.extraire(RACINE)
+    attendus = {"espaces.pourqui.fiche": "bouton", "espaces.pourqui.revoquer": "bouton",
+                "espaces.pourqui.ajouter": "bouton", "espaces.pourqui.valide": "bouton",
+                "espaces.pourqui.corriger": "bouton", "espaces.pourqui.canal": "champ",
+                "espaces.pourqui.moyen": "champ", "espaces.pourqui.reponse_par": "champ"}
+    assert {k: v["type"] for k, v in e.items() if k.startswith("espaces.pourqui.")} == attendus
+    assert all(e[k]["sources"] == ["frontend/shared/dz-pour-qui.js"] for k in attendus)
+    assert "frontend/shared/dz-pour-qui.js" not in (e.get("commun.action.fermer") or {}).get("sources", [])
+    vrai = {x["id"]: x for x in json.loads((RACINE / "docs" / "agent" / "catalogue" / "commun.json")
+                                           .read_text("utf-8"))["fiches"]}
+    for k in attendus:
+        assert vrai[k]["etat"] == "redige" and vrai[k]["ecran"] == "commun" and vrai[k].get("ecran_fixe"), k
+    assert "confirmation" in vrai["espaces.pourqui.revoquer"]["role"]["fr"]
+    assert "pause" in vrai["espaces.pourqui.revoquer"]["role"]["fr"]
+    assert "Planificateur" in vrai["espaces.pourqui.valide"]["role"]["fr"]
+    assert "Scheduler" in vrai["espaces.pourqui.valide"]["role"]["en"]
+    # relevé sur le backend de preuve (FR et EN, Quick, Studio, Planificateur, Bibliothèque) : un seul bouton visible
+    assert vrai["espaces.pourqui.fiche"]["localisateur"] == {"selecteur": "button",
+                                                             "texte": {"fr": "Fiche client", "en": "Client sheet"}}
 
 
 def test_deterministe(tmp_path):

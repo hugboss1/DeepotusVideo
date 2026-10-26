@@ -10762,5 +10762,33 @@
  "le coffre est fermé : ouvrez-le pour effacer la clé de ce serveur": {
   "fr": "le coffre est fermé : ouvrez-le pour effacer la clé de ce serveur",
   "en": "the vault is closed: open it to erase this server's key"
+ },
+ "aucun consentement en cours du client « {nom} » pour : {canaux}": {
+  "fr": "aucun consentement en cours du client « {nom} » pour : {canaux}",
+  "en": "no current consent from client “{nom}” for: {canaux}"
+ },
+ "aucun consentement en cours du client « {nom} » : aucun compte ciblé": {
+  "fr": "aucun consentement en cours du client « {nom} » : aucun compte ciblé",
+  "en": "no current consent from client “{nom}”: no targeted account"
+ },
+ "post à valider par le client « {nom} » avant d'être programmé": {
+  "fr": "post à valider par le client « {nom} » avant d'être programmé",
+  "en": "post awaiting approval by client “{nom}” before it can be scheduled"
+ },
+ "confirmez la publication au nom du client « {nom} » sur : {canaux}": {
+  "fr": "confirmez la publication au nom du client « {nom} » sur : {canaux}",
+  "en": "confirm publishing on behalf of client “{nom}” on: {canaux}"
+ },
+ "réponse du client inconnue (valide ou corriger)": {
+  "fr": "réponse du client inconnue (valide ou corriger)",
+  "en": "unknown client answer (valide or corriger)"
+ },
+ "moyen de réponse inconnu (ecrit, whatsapp ou doigt)": {
+  "fr": "moyen de réponse inconnu (ecrit, whatsapp ou doigt)",
+  "en": "unknown answer channel (ecrit, whatsapp or doigt)"
+ },
+ "ce post n'est gouverné par aucun client": {
+  "fr": "ce post n'est gouverné par aucun client",
+  "en": "this post is not governed by any client"
  }
 }

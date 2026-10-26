@@ -1,0 +1,561 @@
+# -*- coding: utf-8 -*-
+"""t309 tâche 2 (26/10/2026) — Boîte à outils, lot A4 : le Planificateur et la fiche client appliquent les RÈGLES d'un
+client (services/regles_client.py, tâche 1). Plan docs/superpowers/plans/2026-10-26-t309-securites-client.md.
+Ce que ce banc garde (routes réelles, TestClient, data-dir et sqlite temporaires, aucun réseau : vérifications posées par
+comptes.noter_verification, publishers.publish remplacé par un faux qui compte ses appels) :
+  S1  POST dans un client `valide_par_client` : sans statut -> a_valider ; status scheduled -> 409 a_valider, rien en base.
+  S2  PATCH scheduled d'un post a_valider -> 409 ; « Réponse du client » valide -> date, draft, journal par canal ; puis 200.
+  S3  contenu changé d'un post validé et programmé -> a_valider, date effacée ; run_at seul -> inchangé.
+  S4  `publie_en_son_nom` : confirmation nominative exigée, gardée, effacée par un changement de comptes.
+  S5  canal sans consentement -> 409 consentement dans les deux modes ; /fire -> 409 sans publier.
+  S6  POST /schedule/validate : le post de client non conforme est dans `skipped` avec la raison ; les autres passent.
+  S7  fil : l'enfant hérite de la confirmation du parent ; parent non validé -> 409.
+  S8  GET /schedule liste un post a_valider hors fenêtre ; GET /schedule/{id}/client rend les exigences sans secret.
+  S9  révocation : `en_pause` = posts programmés du client (et de ses produits) sur ce canal.
+  S10 Deepotus et une marque : rien ne change.
+  S11 materialize_plan dans un client : aucun post `scheduled`.
+Run (depuis backend/) : & $PY tests/test_securites_client.py"""
+import asyncio, json, os, pathlib, sys, tempfile
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+_tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzsecc_"))
+os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_tmp / 't.db').as_posix()}"
+for d in ("images", "outputs"):
+    (_tmp / d).mkdir(exist_ok=True)
+os.environ["IMAGES_FOLDER"] = str(_tmp / "images")
+os.environ["OUTPUTS_FOLDER"] = str(_tmp / "outputs")
+for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OLLAMA_URL", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "ELEVENLABS_API_KEY",
+          "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+          "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN", "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",
+          "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN"):
+    os.environ[k] = ""
+os.environ["FAL_KEY"] = "cle-de-banc"
+os.environ["HEYGEN_API_KEY"] = "cle-de-banc"
+BACKEND = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BACKEND))
+from loguru import logger                                           # noqa: E402
+logger.remove()
+
+ok = fail = 0
+
+
+def check(label, cond, detail=""):
+    global ok, fail
+    try:
+        cond = cond() if callable(cond) else cond
+    except Exception as e:                                  # noqa: BLE001
+        cond, detail = False, f"{detail} {e!r}"
+    if cond:
+        ok += 1; print(f"  PASS  {label}")
+    else:
+        fail += 1; print(f"  FAIL  {label} {detail}")
+
+
+from app.services import comptes as C, espaces as E, fiche_client as F, storage, marketing   # noqa: E402
+
+_loop = asyncio.new_event_loop()
+
+
+def run(coro):
+    return _loop.run_until_complete(coro)
+
+
+run(storage.init_db())
+E.lire()
+
+
+def compte(eid, plateforme, libelle, id_distant=None):
+    cid = C.creer({"espace_id": eid, "plateforme": plateforme, "libelle": libelle})["id"]
+    if id_distant:
+        C.noter_verification(cid, {"etat": "vert", "id_distant": id_distant})
+    return cid
+
+
+# ---- les espaces : un client « à valider », un client « en son nom », un client à produit (S9), une marque ---------------
+C1 = E.creer({"nom": "Boulangerie Lune", "type": "client"})["id"]
+F.ecrire(C1, {"societe": "Lune SARL"})
+c1x = compte(C1, "x", "X Lune", "111")
+c1t = compte(C1, "telegram", "TG Lune", "222")
+c1n = compte(C1, "x", "X Lune bis")                                     # jamais vérifié : jamais couvert
+F.ajouter_consentement(C1, "x:111", ["publier"], "ecrit")
+F.ajouter_consentement(C1, "telegram:222", ["publier"], "ecrit")
+
+C2 = E.creer({"nom": "Garage Soleil", "type": "client"})["id"]
+F.ecrire(C2, {"societe": "Soleil SAS", "mode_publication": "publie_en_son_nom"})
+c2x = compte(C2, "x", "X Soleil", "333")
+c2t = compte(C2, "telegram", "TG Soleil", "334")
+c2n = compte(C2, "telegram", "TG Soleil bis")                           # jamais vérifié
+F.ajouter_consentement(C2, "x:333", ["publier"], "ecrit")
+F.ajouter_consentement(C2, "telegram:334", ["publier"], "ecrit")
+
+C3 = E.creer({"nom": "Fleuriste Rose", "type": "client"})["id"]
+P3 = E.creer({"nom": "Bouquets", "type": "produit", "parent": C3})["id"]
+c3x = compte(C3, "x", "X Rose", "444")
+c3t = compte(C3, "telegram", "TG Rose", "555")
+p3t = compte(P3, "telegram", "TG Bouquets", "555")                      # même canal distant que c3t
+F.ajouter_consentement(C3, "x:444", ["publier"], "ecrit")
+F.ajouter_consentement(C3, "telegram:555", ["publier"], "ecrit")
+
+M = E.creer({"nom": "Marque Ciel", "type": "marque"})["id"]
+mx = compte(M, "x", "X Ciel", "900")
+
+APPELS = []
+
+
+async def _faux_publish(ch, cap, video, image, meta, compte=None):
+    APPELS.append((ch, compte))
+    raise AssertionError("aucune publication ne doit partir dans ce banc")
+
+marketing.publishers.publish = _faux_publish
+
+RUN = "2026-12-01T12:00:00Z"
+
+from fastapi.testclient import TestClient                           # noqa: E402
+from app.main import app                                            # noqa: E402
+
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    def H(eid):
+        return {"X-Dz-Espace": eid} if eid else {}
+
+    def creer(eid, **corps):
+        c = {"title": "Post", "caption": "Texte", "run_at": RUN}
+        c.update(corps)
+        return client.post("/api/schedule", json=c, headers=H(eid))
+
+    def patch(pid, eid=None, **corps):
+        return client.patch(f"/api/schedule/{pid}", json=corps, headers=H(eid))
+
+    def tous():
+        return client.get("/api/schedule", params={"espace": "*"}).json()
+
+    def detail(r):
+        try:
+            return r.json().get("detail")
+        except ValueError:
+            return None
+
+    def refus(r, code):
+        d = detail(r)
+        return r.status_code == 409 and isinstance(d, dict) and d.get("code") == code
+
+    def valider(pid, eid=None, reponse="valide", moyen="ecrit"):
+        return client.post(f"/api/schedule/{pid}/validation-client", json={"reponse": reponse, "moyen": moyen},
+                           headers=H(eid))
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S1] POST dans un client valide_par_client")
+    r = creer(C1, comptes=[c1x])
+    check("S1a sans statut -> a_valider", r.status_code == 200 and r.json().get("status") == "a_valider", r.text[:300])
+    check("S1b _post_to_dict rend valide_client_le et confirme_client (None)",
+          r.status_code == 200 and "valide_client_le" in r.json() and r.json()["valide_client_le"] is None
+          and "confirme_client" in r.json() and r.json()["confirme_client"] is None, r.text[:300])
+    n_avant = len(tous())
+    r = creer(C1, comptes=[c1x], status="scheduled")
+    d = detail(r)
+    check("S1c status scheduled -> 409 code a_valider", refus(r, "a_valider"), r.text[:300])
+    check("S1d le refus nomme le client (message, client, nom, canaux)",
+          isinstance(d, dict) and "Lune SARL" in (d.get("message") or "") and d.get("client") == C1
+          and d.get("nom") == "Lune SARL" and isinstance(d.get("canaux"), list), repr(d))
+    check("S1e rien en base", len(tous()) == n_avant, f"{n_avant} -> {len(tous())}")
+    r = creer(C1, comptes=[c1x], status="draft")
+    check("S1f status draft demandé -> a_valider quand même", r.json().get("status") == "a_valider", r.text[:200])
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S2] validation par le client")
+    p2 = creer(C1, comptes=[c1x, c1t], caption="Pain du jour").json()
+    r = patch(p2["id"], status="scheduled")
+    check("S2a PATCH scheduled d'un post a_valider -> 409 a_valider", refus(r, "a_valider"), r.text[:300])
+    check("S2b ... rien d'écrit (toujours a_valider)",
+          next(x for x in tous() if x["id"] == p2["id"])["status"] == "a_valider")
+    j_avant = len(F.lire(C1)["journal"])
+    r = valider(p2["id"])
+    pv = r.json().get("post") if r.status_code == 200 else {}
+    check("S2c validation-client valide/ecrit -> 200, valide_client_le posé, status draft",
+          r.status_code == 200 and pv.get("valide_client_le") and pv.get("status") == "draft", r.text[:300])
+    nouv = F.lire(C1)["journal"][j_avant:]
+    check("S2d journal : une ligne validation qui=client par canal",
+          sorted(x["canal_id"] for x in nouv if x["quoi"] == "validation" and x["qui"] == "client")
+          == ["telegram:222", "x:111"] and len(nouv) == 2, repr(nouv))
+    r = patch(p2["id"], status="scheduled")
+    check("S2e puis PATCH scheduled -> 200 scheduled", r.status_code == 200 and r.json().get("status") == "scheduled",
+          r.text[:300])
+    check("S2f PATCH draft d'un post NON validé -> a_valider (jamais un draft qui contourne)",
+          lambda: patch(creer(C1, comptes=[c1x]).json()["id"], status="draft").json().get("status") == "a_valider")
+    # erreurs de la route
+    check("S2g réponse inconnue -> 400", valider(p2["id"], reponse="peut-etre").status_code == 400)
+    check("S2h moyen inconnu -> 400", valider(p2["id"], moyen="pigeon").status_code == 400)
+    check("S2i post inconnu -> 404", valider("nexistepas").status_code == 404)
+    pdeep = creer(None, channels=["x"]).json()
+    check("S2j post sans client (Deepotus) -> 409", valider(pdeep["id"]).status_code == 409)
+    pc = creer(C1, comptes=[c1x]).json()
+    valider(pc["id"])
+    j_avant = len(F.lire(C1)["journal"])
+    r = valider(pc["id"], reponse="corriger", moyen="whatsapp")
+    check("S2k corriger -> valide_client_le None, a_valider",
+          r.status_code == 200 and r.json()["post"]["valide_client_le"] is None
+          and r.json()["post"]["status"] == "a_valider", r.text[:300])
+    check("S2l corriger -> une ligne de journal validation qui=client",
+          [(x["quoi"], x["canal_id"], x["qui"]) for x in F.lire(C1)["journal"][j_avant:]]
+          == [("validation", "x:111", "client")], repr(F.lire(C1)["journal"][j_avant:]))
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S3] contenu changé d'un post validé et programmé")
+    date_v = next(x for x in tous() if x["id"] == p2["id"])["valide_client_le"]
+    r = patch(p2["id"], run_at="2026-12-02T12:00:00Z")
+    check("S3a run_at seul -> toujours scheduled, date gardée",
+          r.status_code == 200 and r.json()["status"] == "scheduled" and r.json()["valide_client_le"] == date_v, r.text[:300])
+    r = patch(p2["id"], caption="Pain du soir")
+    check("S3b caption -> valide_client_le None, a_valider",
+          r.status_code == 200 and r.json()["valide_client_le"] is None and r.json()["status"] == "a_valider", r.text[:300])
+
+    def programme_valide(**corps):
+        q = creer(C1, comptes=[c1x], **corps).json()
+        valider(q["id"])
+        return patch(q["id"], status="scheduled").json()
+    q = programme_valide()
+    r = patch(q["id"], brief={"tg_caption": "Légende Telegram neuve"})
+    check("S3c brief (tg_caption) -> contenu : valide_client_le None, a_valider",
+          r.status_code == 200 and r.json()["valide_client_le"] is None and r.json()["status"] == "a_valider", r.text[:300])
+    q = programme_valide()
+    r = patch(q["id"], caption="Autre texte", status="scheduled")
+    check("S3d contenu + status scheduled -> 200 et a_valider (rien ne part)",
+          r.status_code == 200 and r.json()["status"] == "a_valider" and r.json()["valide_client_le"] is None, r.text[:300])
+    q = creer(C1, comptes=[c1x]).json()
+    r = patch(q["id"], status="ready")
+    check("S3e PATCH ready sans validation -> 409 a_valider", refus(r, "a_valider"), r.text[:300])
+    valider(q["id"])
+    r = patch(q["id"], status="ready")
+    check("S3f PATCH ready après validation -> 200 ready", r.status_code == 200 and r.json()["status"] == "ready",
+          r.text[:300])
+    r = patch(q["id"], caption="encore")
+    check("S3g contenu d'un post ready -> a_valider", r.status_code == 200 and r.json()["status"] == "a_valider",
+          r.text[:300])
+    r = patch(creer(C2, comptes=[c2x]).json()["id"], status="ready")
+    check("S3h publie_en_son_nom : PATCH ready sans confirmation -> 409 confirmation", refus(r, "confirmation"),
+          r.text[:300])
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S4] publie_en_son_nom : confirmation nominative")
+    r = creer(C2, comptes=[c2x])
+    p4 = r.json()
+    check("S4a POST sans statut -> draft (pas de validation dans ce mode)", p4.get("status") == "draft", r.text[:200])
+    r = patch(p4["id"], status="scheduled")
+    d = detail(r)
+    check("S4b PATCH scheduled sans confirme_client -> 409 confirmation", refus(r, "confirmation"), r.text[:300])
+    check("S4c le refus nomme le client et les canaux", isinstance(d, dict) and d.get("client") == C2
+          and "Soleil SAS" in d.get("message", "") and "X Soleil (x:333)" in d.get("canaux", [])
+          and "X Soleil (x:333)" in d.get("message", ""), repr(d))
+    r = patch(p4["id"], status="scheduled", confirme_client="un-autre")
+    check("S4d mauvaise valeur -> 409 confirmation", refus(r, "confirmation"), r.text[:300])
+    r = patch(p4["id"], status="scheduled", confirme_client=C2)
+    check("S4e bonne valeur -> 200 scheduled, confirme_client gardé",
+          r.status_code == 200 and r.json()["status"] == "scheduled" and r.json()["confirme_client"] == C2, r.text[:300])
+    r = patch(p4["id"], comptes=[c2x, c2t])
+    check("S4f comptes changés d'un post programmé, sans confirmation -> 409, rien d'écrit",
+          refus(r, "confirmation") and next(x for x in tous() if x["id"] == p4["id"])["comptes"] == [c2x], r.text[:300])
+    patch(p4["id"], status="draft")
+    r = patch(p4["id"], comptes=[c2x, c2t])
+    check("S4g changement de comptes -> confirme_client None",
+          r.status_code == 200 and r.json()["confirme_client"] is None, r.text[:300])
+    r = creer(C2, comptes=[c2x], status="scheduled", confirme_client=C2)
+    check("S4h POST scheduled avec la confirmation -> 200, gardée",
+          r.status_code == 200 and r.json()["status"] == "scheduled" and r.json()["confirme_client"] == C2, r.text[:300])
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S5] canal sans consentement")
+    p5 = creer(C1, comptes=[c1n]).json()
+    valider(p5["id"])
+    r = patch(p5["id"], status="scheduled")
+    check("S5a valide_par_client : 409 consentement", refus(r, "consentement"), r.text[:300])
+    check("S5b ... canaux = le compte non couvert", "X Lune bis" in (detail(r) or {}).get("canaux", []), r.text[:300])
+    p5b = creer(C2, comptes=[c2n]).json()
+    r = patch(p5b["id"], status="scheduled", confirme_client=C2)
+    check("S5c publie_en_son_nom : 409 consentement", refus(r, "consentement"), r.text[:300])
+    r = client.post(f"/api/schedule/{p5['id']}/fire", json={})
+    check("S5d /fire -> 409 consentement", refus(r, "consentement"), r.text[:300])
+    r = client.post(f"/api/schedule/{p5b['id']}/fire")
+    check("S5e /fire sans corps -> 409 consentement", refus(r, "consentement"), r.text[:300])
+    check("S5f aucune publication (faux publish : 0 appel)", APPELS == [], repr(APPELS))
+    check("S5g le post n'est pas réclamé (pas posting)",
+          next(x for x in tous() if x["id"] == p5["id"])["status"] in ("draft", "a_valider"))
+    r = client.post(f"/api/schedule/{p2['id']}/fire")
+    check("S5h /fire d'un post a_valider -> 409 a_valider", refus(r, "a_valider"), r.text[:300])
+    r = client.post("/api/schedule/nexistepas/fire")
+    check("S5i /fire d'un post inconnu -> 404", r.status_code == 404, r.text[:200])
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S6] validation par lot")
+    LOT = "2027-03-01T12:00:00Z"
+    pd6 = creer(None, channels=["x"], run_at=LOT, source_image="a.png").json()
+    pc6 = creer(C1, comptes=[c1x], run_at=LOT, source_image="b.png").json()
+    r = client.post("/api/schedule/validate", json={"from": "2027-03-01T00:00:00Z", "to": "2027-03-02T00:00:00Z"})
+    js = r.json() if r.status_code == 200 else {}
+    sk = {x["id"]: x for x in js.get("skipped", [])}
+    check("S6a le post de Deepotus est validé", pd6["id"] in js.get("validated", []), r.text[:300])
+    check("S6b le post de client non validé est dans skipped avec la raison",
+          pc6["id"] in sk and "Lune SARL" in sk[pc6["id"]].get("reason", ""), r.text[:400])
+    check("S6c ... et reste a_valider", next(x for x in tous() if x["id"] == pc6["id"])["status"] == "a_valider")
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S7] fil")
+    par = creer(C2, comptes=[c2x], status="scheduled", confirme_client=C2).json()
+    r = client.post(f"/api/schedule/{par['id']}/thread", json={"caption": "la suite"})
+    check("S7a parent confirmé : l'enfant hérite de confirme_client et passe",
+          r.status_code == 200 and r.json().get("confirme_client") == C2 and r.json().get("status") == "scheduled",
+          r.text[:300])
+    par1 = creer(C1, comptes=[c1x]).json()
+    n_avant = len(tous())
+    r = client.post(f"/api/schedule/{par1['id']}/thread", json={"caption": "la suite"})
+    check("S7b parent non validé (valide_par_client) -> 200, l'enfant naît a_valider (l'étape n'est pas perdue)",
+          r.status_code == 200 and r.json().get("status") == "a_valider" and r.json().get("valide_client_le") is None
+          and len(tous()) == n_avant + 1, r.text[:300])
+    valider(par1["id"])
+    r = client.post(f"/api/schedule/{par1['id']}/thread", json={"caption": "la suite"})
+    check("S7c parent validé -> l'enfant n'hérite JAMAIS de la validation (texte neuf) : a_valider",
+          r.status_code == 200 and r.json().get("valide_client_le") is None and r.json().get("status") == "a_valider",
+          r.text[:300])
+    enf = r.json()
+    check("S7d ... et PATCH scheduled de l'enfant -> 409 a_valider", refus(patch(enf["id"], status="scheduled"), "a_valider"))
+    par2 = creer(C2, comptes=[c2x]).json()
+    r = client.post(f"/api/schedule/{par2['id']}/thread", json={"caption": "la suite"})
+    check("S7e publie_en_son_nom, parent non confirmé -> 409 confirmation", refus(r, "confirmation"), r.text[:300])
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S8] liste et exigences")
+    loin = creer(C1, comptes=[c1x], run_at="2031-01-01T12:00:00Z").json()
+    r = client.get("/api/schedule", params={"espace": "*", "days_back": 1, "days_forward": 1})
+    check("S8a un post a_valider hors fenêtre est listé", any(x["id"] == loin["id"] for x in r.json()), r.text[:200])
+    r = client.get(f"/api/schedule/{loin['id']}/client")
+    ex = (r.json() or {}).get("exigences") if r.status_code == 200 else None
+    check("S8b GET /schedule/{id}/client -> exigences du client",
+          isinstance(ex, dict) and ex.get("client") == C1 and ex.get("mode") == "valide_par_client"
+          and ex.get("canaux", [{}])[0].get("canal_id") == "x:111", r.text[:300])
+    check("S8c aucune clé secret/token", "secret" not in r.text.lower() and "token" not in r.text.lower(), r.text[:300])
+    r = client.get(f"/api/schedule/{pdeep['id']}/client")
+    check("S8d post de Deepotus -> exigences None", r.status_code == 200 and r.json() == {"exigences": None}, r.text[:200])
+    check("S8e post inconnu -> 404", client.get("/api/schedule/nexistepas/client").status_code == 404)
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S9] révocation")
+    ids9 = []
+    for eid, cpt in ((C3, c3t), (P3, p3t), (C3, c3x)):
+        p = creer(eid, comptes=[cpt]).json()
+        valider(p["id"], eid)
+        r = patch(p["id"], eid, status="scheduled")
+        ids9.append(r.status_code)
+    check("S9a trois posts programmés (deux sur telegram:555, un sur x:444)", ids9 == [200, 200, 200], repr(ids9))
+    r = client.post(f"/api/espaces/{C3}/client/consentements/revoquer", json={"canal_id": "telegram:555"})
+    check("S9b en_pause == 2", r.status_code == 200 and r.json().get("en_pause") == 2, r.text[:300])
+    check("S9c la fiche est toujours rendue", r.status_code == 200 and "consentements" in r.json(), r.text[:200])
+
+    # ---------------------------------------------------------------------------------------------------------------
+    print("\n[S10] Deepotus et une marque : rien ne change")
+    r = creer(M, comptes=[mx])
+    check("S10a marque : POST -> draft", r.json().get("status") == "draft", r.text[:200])
+    r = patch(r.json()["id"], status="scheduled")
+    check("S10b marque : PATCH scheduled -> 200", r.status_code == 200 and r.json()["status"] == "scheduled", r.text[:200])
+    r = creer(None, channels=["x"])
+    check("S10c Deepotus : POST -> draft", r.json().get("status") == "draft", r.text[:200])
+    r = patch(r.json()["id"], status="scheduled")
+    check("S10d Deepotus : PATCH scheduled -> 200", r.status_code == 200 and r.json()["status"] == "scheduled",
+          r.text[:200])
+    r = creer(M, comptes=[mx], status="scheduled")
+    check("S10e marque : POST scheduled -> 200", r.status_code == 200 and r.json()["status"] == "scheduled", r.text[:200])
+
+# ---------------------------------------------------------------------------------------------------------------
+print("\n[S11] materialize_plan")
+PLAN = [{"title": "J1", "caption": "a", "day_offset": 0, "time": "10:00", "channels": ["x"]},
+        {"title": "J2", "caption": "b", "day_offset": 1, "time": "10:00", "channels": ["x"]}]
+from sqlalchemy import select                                       # noqa: E402
+
+
+async def statuts(ids):
+    async with storage.async_session_factory() as s:
+        res = await s.execute(select(storage.ScheduledPost).where(storage.ScheduledPost.id.in_(ids)))
+        return {p.id: (p.status, p.espace_id) for p in res.scalars().all()}
+
+with E.sous_espace(C1):
+    ids = run(marketing.materialize_plan(PLAN, start_date="2027-05-01"))
+st = run(statuts(ids))
+check("S11a client : aucun post scheduled (a_valider), dans l'espace du client",
+      len(st) == 2 and all(v == ("a_valider", C1) for v in st.values()), repr(st))
+with E.sous_espace(C2):
+    ids = run(marketing.materialize_plan(PLAN, start_date="2027-05-01"))
+st = run(statuts(ids))
+check("S11b client en son nom : aucun post scheduled (draft)", len(st) == 2 and all(v[0] == "draft" for v in st.values()),
+      repr(st))
+with E.sous_espace(M):
+    ids = run(marketing.materialize_plan(PLAN, start_date="2027-05-01"))
+st = run(statuts(ids))
+check("S11c marque : scheduled comme avant", len(st) == 2 and all(v[0] == "scheduled" for v in st.values()), repr(st))
+
+# ---- section B (tâche 3, t309 26/10/2026) : la boucle, fire_post, le journal, le lot du téléphone ----------------------
+# Publishers remplacés par un faux qui COMPTE et réussit (aucun réseau) ; posts posés directement en base (comme un post
+# programmé « avant t309 ») ; `asyncio.run(marketing.tick([jour]))` comme test_espaces_client.py [A].
+import uuid                                                         # noqa: E402
+from datetime import datetime, timedelta                           # noqa: E402
+from app.services import sync_lot                                   # noqa: E402
+from app.services.publishers import PublishResult                   # noqa: E402
+
+PUB = []
+
+
+async def _faux_publish_ok(ch, cap, video, image, meta, compte=None):
+    PUB.append((ch, compte))
+    return PublishResult(True, f"{ch}: faux {len(PUB)}", f"r{len(PUB)}")
+
+marketing.publishers.publish = _faux_publish_ok
+JOUR = datetime.utcnow().strftime("%Y-%m-%d")                       # marqueur du jour : pas de passe de métriques
+
+
+def poser(eid, comptes, status="scheduled", mode="auto", valide=None, confirme=None, channels="x", dans=-5):
+    pid = str(uuid.uuid4())
+
+    async def _p():
+        async with storage.async_session_factory() as s:
+            s.add(storage.ScheduledPost(
+                id=pid, title=f"B {pid[:6]}", caption="texte", channels=channels, status=status, mode=mode,
+                run_at=datetime.utcnow() + timedelta(minutes=dans), espace_id=eid or None,
+                comptes=json.dumps(comptes) if comptes else None, valide_client_le=valide, confirme_client=confirme))
+            await s.commit()
+    asyncio.run(_p())
+    return pid
+
+
+def lire_post(pid):
+    async def _l():
+        async with storage.async_session_factory() as s:
+            return await s.get(storage.ScheduledPost, pid)
+    return asyncio.run(_l())
+
+
+def tick():
+    asyncio.run(marketing.tick([JOUR]))
+
+
+def journal(eid, quoi="publication"):
+    return [(x["canal_id"], x["qui"]) for x in F.lire(eid)["journal"] if x["quoi"] == quoi]
+
+print("\n[B1] révocation : la boucle met en pause, un consentement neuf la relance")
+VAL = datetime.utcnow() - timedelta(days=1)
+b1 = poser(C1, [c1t], valide=VAL)
+F.revoquer(C1, "telegram:222")
+PUB.clear()
+tick()
+check("B1a canal révoqué : aucune publication (faux publish : 0 appel)", PUB == [], repr(PUB))
+check("B1b ... le post reste scheduled, sans erreur", lire_post(b1).status == "scheduled" and not lire_post(b1).error,
+      f"{lire_post(b1).status} {lire_post(b1).error}")
+F.ajouter_consentement(C1, "telegram:222", ["publier"], "ecrit")
+tick()
+check("B1c consentement neuf : le tick suivant le publie", PUB == [("telegram", c1t)] and lire_post(b1).status == "posted",
+      f"{PUB} {lire_post(b1).status}")
+
+print("\n[B2] post de client programmé AVANT t309 (aucune validation)")
+b2 = poser(C1, [c1x])
+PUB.clear()
+tick()
+check("B2a sauté par la boucle : 0 publication, toujours scheduled, aucune erreur",
+      PUB == [] and lire_post(b2).status == "scheduled" and not lire_post(b2).error, f"{PUB} {lire_post(b2).status}")
+
+print("\n[B3] fire_post, dernière ligne de défense")
+PUB.clear()
+b3a = poser(C1, [c1x])                                              # non validé
+r3a = asyncio.run(marketing.fire_post(b3a))
+check("B3a valide_par_client non validé : refus, a_valider, error = message",
+      r3a.get("ok") is False and lire_post(b3a).status == "a_valider" and "Lune SARL" in (lire_post(b3a).error or "")
+      and r3a.get("status") == "a_valider" and r3a.get("error") == lire_post(b3a).error, f"{r3a} {lire_post(b3a).status}")
+b3b = poser(C2, [c2x])                                              # publie_en_son_nom sans confirmation
+r3b = asyncio.run(marketing.fire_post(b3b))
+check("B3b publie_en_son_nom non confirmé : refus, draft, error = message",
+      r3b.get("ok") is False and lire_post(b3b).status == "draft" and "Soleil SAS" in (lire_post(b3b).error or ""),
+      f"{r3b} {lire_post(b3b).status}")
+b3c = poser(C1, [c1n], valide=VAL)                                  # validé mais canal jamais couvert
+r3c = asyncio.run(marketing.fire_post(b3c))
+check("B3c canal non couvert (valide_par_client) : refus consentement, a_valider",
+      r3c.get("ok") is False and lire_post(b3c).status == "a_valider" and "consentement" in (lire_post(b3c).error or ""),
+      f"{r3c} {lire_post(b3c).status}")
+b3d = poser(C2, [c2n], confirme=C2)                                 # confirmé mais canal non couvert
+r3d = asyncio.run(marketing.fire_post(b3d))
+check("B3d canal non couvert (publie_en_son_nom) : refus, draft", lire_post(b3d).status == "draft", f"{r3d}")
+check("B3e aucune publication, aucun post laissé posting",
+      PUB == [] and all(lire_post(x).status != "posting" for x in (b3a, b3b, b3c, b3d)), repr(PUB))
+
+print("\n[B4] journal des publications")
+j1, j2 = len(journal(C1)), len(journal(C2))
+PUB.clear()
+b4 = poser(C2, [c2x, c2t], confirme=C2)
+b4m = poser(M, [mx])
+b4d = poser(None, None)
+tick()
+check("B4a le post confirmé du client part sur ses deux canaux", lire_post(b4).status == "posted"
+      and sorted(c for _ch, c in PUB if c in (c2x, c2t)) == sorted([c2x, c2t]), f"{PUB} {lire_post(b4).status}")
+check("B4b une ligne publication qui=utilisateur par canal publié",
+      sorted(journal(C2)[j2:]) == [("telegram:334", "utilisateur"), ("x:333", "utilisateur")], repr(journal(C2)[j2:]))
+check("B4c la marque et Deepotus partent, aucune ligne de journal pour eux",
+      lire_post(b4m).status == "posted" and lire_post(b4d).status == "posted" and len(journal(C1)) == j1
+      and len(journal(C2)) == j2 + 2, f"{lire_post(b4m).status} {lire_post(b4d).status}")
+b4r = poser(C2, [c2x], confirme=C2)
+_noter = F.noter
+
+
+def _noter_casse(*a, **k):
+    raise OSError("disque plein")
+F.noter = _noter_casse
+try:
+    tick()
+finally:
+    F.noter = _noter
+check("B4d une erreur d'écriture du journal ne fait jamais échouer la publication", lire_post(b4r).status == "posted",
+      f"{lire_post(b4r).status} {lire_post(b4r).error}")
+
+print("\n[B5] client.json illisible pendant le tick")
+b5 = poser(C1, [c1x], valide=VAL)
+b5m = poser(M, [mx])
+fiche = E.dossier() / C1 / "client.json"
+sauve = fiche.read_bytes()
+fiche.write_text("{ pas du json", encoding="utf-8")
+PUB.clear()
+try:
+    tick()
+    check("B5a la boucle continue : la marque part", lire_post(b5m).status == "posted", lire_post(b5m).status)
+    check("B5b le post du client ne part pas (refus par défaut), toujours scheduled",
+          lire_post(b5).status == "scheduled" and all(c != c1x for _ch, c in PUB), f"{PUB} {lire_post(b5).status}")
+    check("B5c la fiche illisible n'est ni réécrite ni mise de côté par la boucle",
+          fiche.read_text(encoding="utf-8") == "{ pas du json"
+          and not list(fiche.parent.glob("client.json.illisible-*")))
+finally:
+    fiche.write_bytes(sauve)
+
+print("\n[B6] sync_lot : un post en pause ne part pas au téléphone")
+b6p = poser(C1, [c1x], dans=60)                                     # non validé : en pause
+b6m = poser(M, [mx], dans=60)
+lot6 = asyncio.run(sync_lot.lot("tel-b6"))
+ids6 = {x["id"] for x in lot6["posts"]}
+check("B6a le post de marque est dans le lot", b6m in ids6, repr(ids6))
+check("B6b les posts en pause n'y sont pas", b6p not in ids6 and b2 not in ids6, repr(ids6))
+
+print("\n[B7] sync_lot : un post publie_en_son_nom jamais confirmé ne part pas au téléphone (revue finale I2)")
+# t309 (26/10/2026) : même règle que fire_post (controler brut, tout RefusClient) ; en_pause ignore la confirmation.
+b7r = poser(C2, [c2x], status="ready", dans=60)                    # ready (tick assisté) sans confirme_client
+b7s = poser(C2, [c2x], dans=60)                                    # scheduled sans confirme_client (mode basculé)
+b7c = poser(C2, [c2x], status="ready", confirme=C2, dans=60)       # confirmé
+lot7 = asyncio.run(sync_lot.lot("tel-b7"))
+ids7 = {x["id"] for x in lot7["posts"]}
+check("B7a les posts jamais confirmés ne sont pas dans le lot", b7r not in ids7 and b7s not in ids7, repr(ids7))
+check("B7b le post confirmé est dans le lot", b7c in ids7, repr(ids7))
+r7 = asyncio.run(sync_lot.appliquer_etat({"id": "tel-b7", "nom": "Tel B7"},
+                                         [{"id": b7r, "statut": "emporte"}, {"id": b7s, "statut": "emporte"},
+                                          {"id": b7c, "statut": "emporte"}]))
+conf7 = {x["id"]: x for x in r7["conflits"]}
+check("B7c emporte d'un post non confirmé : conflit « règles du client », non confié",
+      b7r in conf7 and b7s in conf7 and "client" in conf7[b7r]["raison"] and conf7[b7r].get("code") == "confirmation"
+      and lire_post(b7r).delegue_a is None and lire_post(b7s).delegue_a is None, repr(r7))
+check("B7d emporte du post confirmé : appliqué, confié", r7["appliques"] == [b7c]
+      and lire_post(b7c).delegue_a == "tel-b7", repr(r7))
+b7v = poser(C1, [c1x], status="ready", dans=60)                    # valide_par_client non validé : refus aussi à l'emport
+r7v = asyncio.run(sync_lot.appliquer_etat({"id": "tel-b7", "nom": "Tel B7"}, [{"id": b7v, "statut": "emporte"}]))
+check("B7e emporte d'un post non validé : conflit a_valider", [x.get("code") for x in r7v["conflits"]] == ["a_valider"]
+      and lire_post(b7v).delegue_a is None, repr(r7v))
+
+print(f"\n{ok} passed, {fail} failed")
+sys.exit(1 if fail else 0)

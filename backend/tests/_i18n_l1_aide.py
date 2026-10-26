@@ -334,12 +334,24 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzgardeclient(bundle: str) -> str:
+    """Le bundle d'avant la garde des règles du client au Planificateur (maillon de queue patch_bundle_dzgardeclient,
+    t309 tâche 4, 26/10/2026, posé APRÈS dzcanauxpre : D.updateScheduledPost délègue à window.__dzGardeClient, Lm écoute
+    deepotus:schedule-recharger, l'état a_valider a son libellé et sa couleur) : ses paires défaites, lues dans le maillon
+    lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzgardeclient as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzcanauxpre(bundle: str) -> str:
     """Le bundle d'avant les brouillons préremplis avec les canaux du projet actif (maillon de queue
     patch_bundle_dzcanauxpre, t325 tâche 1, 26/10, posé APRÈS dzassistant : __dzSendSched et Planificateur › Nouveau post
     n'envoient plus le canal X par défaut) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur :
     rendu tel quel."""
     import patch_bundle_dzcanauxpre as _m
+    bundle = avant_dzgardeclient(bundle)         # 26/10 (t309) : le maillon posé APRÈS dzcanauxpre, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

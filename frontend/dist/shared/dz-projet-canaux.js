@@ -253,7 +253,12 @@
       document.head.appendChild(st);
       new MutationObserver(function (ms) {
         ms.forEach(function (m) {
-          if (m.type === "attributes") remplir(m.target);
+          // t309 revue finale I1 (26/10/2026) : une mutation d'attribut ne remplit que NOS hôtes ; un autre élément qui
+          // porte data-espace (le bandeau « pour qui » d'avant) n'est plus vidé ni masqué. Le garde n'est pas dans
+          // remplir, que l'API appelle aussi sur un nœud nu.
+          if (m.type === "attributes") {
+            if (m.target && m.target.getAttribute && m.target.getAttribute("data-dz-projet-canaux") !== null) remplir(m.target);
+          }
           else Array.prototype.forEach.call(m.addedNodes || [], function (n) { if (n.nodeType === 1) balayer(n); });
         });
       }).observe(document.body, { childList: true, subtree: true, attributes: true,

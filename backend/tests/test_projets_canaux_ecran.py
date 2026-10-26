@@ -258,6 +258,42 @@ if R and "erreur" not in R:
     check("5.11 un espace sans compte : le message traduit ; Annuler rend null et ferme",
           AIDE.fr("projets.canaux.aucun_compte") in R["vide"] and R["annule"] is None and R["annule_fermee"], R["vide"][:200])
 
+# ── [5b] revue finale t309 (26/10/2026, I1/D1) : l'observateur ne touche QUE ses hôtes [data-dz-projet-canaux] ──
+HARNAIS_OBS = r"""
+var obs=[];globalThis.MutationObserver=function(cb){this.cb=cb;obs.push(this)};
+MutationObserver.prototype.observe=function(c,o){this.cible=c;this.opts=o};
+document.head=new Noeud("head");
+globalThis.fetch=function(){return Promise.resolve({ok:true,status:200,json:function(){return Promise.resolve({espace:"esp_a",comptes:[]})}})};
+__SCRIPT__
+var R={};
+(async function(){
+ var o=obs[0];R.opts=o?o.opts:null;
+ var bandeau=new Noeud("div");bandeau.setAttribute("data-dz-pour-qui","1");bandeau.setAttribute("data-espace","esp_a");
+ bandeau.setAttribute("style","display:flex");var nom=new Noeud("span");nom.textContent="Acme";bandeau.appendChild(nom);bandeau.innerHTML="<span>Acme</span>";
+ body.appendChild(bandeau);
+ o.cb([{type:"attributes",target:bandeau,attributeName:"data-espace"}]);
+ await new Promise(function(ok){setTimeout(ok,15)});
+ R.bandeau=[bandeau.innerHTML,bandeau.getAttribute("style"),bandeau.getAttribute("title")];
+ var hote=new Noeud("span");hote.setAttribute("data-dz-projet-canaux","proj_a");hote.setAttribute("data-espace","esp_a");
+ hote.setAttribute("data-canaux","cpt_a");body.appendChild(hote);
+ o.cb([{type:"attributes",target:hote,attributeName:"data-canaux"}]);
+ await new Promise(function(ok){setTimeout(ok,15)});
+ R.hote=[hote.innerHTML.indexOf("data-dz-canal=\"cpt_a\"")>=0,hote.getAttribute("style")||""];
+ process.stdout.write(JSON.stringify(R));
+})().catch(function(e){process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)}))});
+"""
+print("\n[5b] l'observateur ne remplit que ses hôtes (revue finale t309, I1)")
+RO = {}
+if NODE and SHARED.is_file():
+    RO = node(AIDE.PRELUDE_DZT + "\n" + FAUX_DOM + HARNAIS_OBS.replace("__SCRIPT__", SHARED.read_text("utf-8")))
+check("5b.0 le script s'exécute sous node avec un MutationObserver", bool(RO) and "erreur" not in RO, str(RO.get("erreur", ""))[:800])
+check("5b.1 une mutation de data-espace sur un élément qui n'est pas un hôte (le bandeau « pour qui ») : rien n'est touché",
+      RO.get("bandeau") == ["<span>Acme</span>", "display:flex", None], str(RO.get("bandeau")))
+check("5b.2 une mutation sur un hôte [data-dz-projet-canaux] : il est rempli (glyphe) et visible",
+      (RO.get("hote") or [False])[0] is True and "display:none" not in (RO.get("hote") or [0, "display:none"])[1],
+      str(RO.get("hote")))
+check("5b.3 l'observateur garde son filtre d'attributs (data-canaux, data-espace)",
+      (RO.get("opts") or {}).get("attributeFilter") == ["data-canaux", "data-espace"], str(RO.get("opts")))
 print("\n[6] la barre des projets, sous node (le bloc #78 du bundle livré)")
 DEBUT, FIN = "/* ── Bibliothèque #78 PR B", "/* ── fin Bibliothèque #78 */"
 i0, i1 = B.find(DEBUT), B.find(FIN)

@@ -8173,7 +8173,37 @@ async def post_espace_client_consentement(espace_id: str, body: dict, request: R
 @router.post("/espaces/{espace_id}/client/consentements/revoquer")
 async def post_espace_client_revoquer(espace_id: str, body: dict, request: Request):
     _require_localhost(request)
-    return _fiche_client(espace_id, lambda fc: fc.revoquer(espace_id, body.get("canal_id")))
+    fiche = _fiche_client(espace_id, lambda fc: fc.revoquer(espace_id, body.get("canal_id")))
+    # t309 (26/10/2026) : la boucle saute désormais les posts qui visent ce canal (regles_client.en_pause) ; on dit combien
+    return {**fiche, "en_pause": await _posts_du_canal(espace_id, body.get("canal_id"))}
+
+
+async def _posts_du_canal(client: str, canal: str) -> int:
+    """t309 : les posts programmés ou prêts des espaces que gouverne ce client (lui-même et ses produits) dont un compte
+    a ce canal_id. Un compte d'information : jamais une révocation refusée pour ça."""
+    from app.services import comptes as _cpt, espaces as _es
+    try:
+        gouvernes = [eid for eid in _es.lire()["espaces"] if _es.client_responsable(eid) == client]
+        async with async_session_factory() as session:
+            res = await session.execute(_select(ScheduledPost).where(ScheduledPost.status.in_(("scheduled", "ready")))
+                                        .where(ScheduledPost.espace_id.in_(gouvernes)))
+            posts = res.scalars().all()
+        canaux = {}
+        n = 0
+        for p in posts:
+            for cid in _comptes_du_post(p):
+                if cid not in canaux:
+                    try:
+                        canaux[cid] = _cpt.obtenir(cid).get("canal_id")
+                    except KeyError:
+                        canaux[cid] = None
+                if canaux[cid] == canal:
+                    n += 1
+                    break
+        return n
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"posts en pause après révocation ({client}) : {e}")
+        return 0
 
 
 # ---- t205 (Espaces de marque E5) : l'ONBOARDING d'un persona (8 étapes, brouillon par espace). Lecture libre ;
@@ -8704,7 +8734,29 @@ def _post_to_dict(p: ScheduledPost) -> dict:
         # t204 (Espaces de marque E4) : l'espace du post (vide = d'avant les espaces = Deepotus) et ses comptes cibles
         "espace_id": getattr(p, "espace_id", None) or "deepotus",
         "comptes": _comptes_du_post(p),
+        # t309 (26/10/2026) : règles d'un client — date de validation par le client, id du client confirmé nominativement
+        "valide_client_le": (p.valide_client_le.isoformat() + "Z") if getattr(p, "valide_client_le", None) else None,
+        "confirme_client": getattr(p, "confirme_client", None),
     }
+
+
+def _refus_client(e) -> HTTPException:
+    """t309 (26/10/2026) : un refus des règles d'un client (regles_client.RefusClient) en 409 STRUCTURÉ ; `message` passe
+    par L10 (le gestionnaire traduit les champs texte d'un detail dict)."""
+    return HTTPException(409, {"message": str(e), "code": e.code, "client": e.client, "nom": e.nom, "canaux": e.canaux})
+
+
+def _controler_client(p: ScheduledPost, confirme=None):
+    """t309 (26/10/2026) : les règles du client qui gouverne le post (aucune sans client) AVANT tout commit ; un refus =
+    409 structuré, rien n'est écrit. Une confirmation nominative donnée et juste est gardée sur le post."""
+    from app.services import regles_client as _rc
+    try:
+        ex = _rc.controler(p, confirme=confirme)
+    except _rc.RefusClient as e:
+        raise _refus_client(e)
+    if ex is not None and confirme and confirme == ex["client"]:
+        p.confirme_client = confirme
+    return ex
 
 
 def _comptes_du_post(p: ScheduledPost) -> list:
@@ -8754,7 +8806,7 @@ async def list_schedule(days_back: int = 365, days_forward: int = 365, espace: s
     hi = _dt.utcnow() + _td(days=days_forward)
     q = (_select(ScheduledPost)
          .where(_or(
-             ScheduledPost.status.in_(("draft", "scheduled", "ready")),
+             ScheduledPost.status.in_(("draft", "a_valider", "scheduled", "ready")),   # t309 : a_valider aussi
              _and(ScheduledPost.run_at >= lo, ScheduledPost.run_at <= hi))))
     # t204 : les posts de l'espace COURANT (« * » = tous) ; un post d'avant les espaces (vide) est de Deepotus
     if espace != "*":
@@ -8816,6 +8868,12 @@ async def create_scheduled_post(body: dict):
         except Exception as e:  # noqa: BLE001 — t307 (25/10/2026) : défaut périmé ou illisible, jamais bloquant
             logger.warning(f"canaux du projet ignorés pour un post de {p.espace_id} : {getattr(e, 'detail', e)}")
             p.comptes = None
+    # t309 (26/10/2026) : un post d'un client « validé par le client » naît a_valider ; programmé d'emblée, il passe les
+    # règles du client (consentement, validation, confirmation nominative) AVANT d'être écrit
+    from app.services import regles_client as _rc
+    p.status = _rc.statut_initial(p.espace_id, p.status)
+    if p.status in ("scheduled", "ready"):
+        _controler_client(p, body.get("confirme_client"))
     async with async_session_factory() as session:
         session.add(p)
         await session.commit()
@@ -8834,6 +8892,10 @@ async def update_scheduled_post(post_id: str, body: dict):
         # plan scheduler T10 (tâche #30) : l'empreinte du CONTENU avant modification — seule une valeur qui change
         # vraiment dévalide (un formulaire renvoyé tel quel, ou un statut seul, ne casse pas la validation)
         avant = (p.title, p.caption, p.channels, p.run_at, p.job_id, p.source_image, p.brief, p.comptes)
+        # t309 (26/10/2026) : le contenu vu par le client (le brief porte la légende Telegram, tg_caption), ses comptes et
+        # son état d'avant (règles d'un client, plus bas)
+        contenu_avant = (p.title, p.caption, p.source_image, p.job_id, p.brief)
+        comptes_avant, statut_avant = p.comptes, p.status
         if "title" in body:
             p.title = (body["title"] or "")[:200]
         if "caption" in body:
@@ -8865,9 +8927,36 @@ async def update_scheduled_post(post_id: str, body: dict):
                        else None)
         if p.validated_at and avant != (p.title, p.caption, p.channels, p.run_at, p.job_id, p.source_image, p.brief, p.comptes):
             p.validated_at, p.mode, p.status = None, "assisted", "draft"
+        _regles_client_patch(p, body, contenu_avant, comptes_avant, statut_avant)
         await session.commit()
         await session.refresh(p)
         return _post_to_dict(p)
+
+
+def _regles_client_patch(p: ScheduledPost, body: dict, contenu_avant, comptes_avant, statut_avant) -> None:
+    """t309 (26/10/2026) : les règles du client sur un PATCH, après les champs et avant le commit (un refus = 409, rien
+    d'écrit). Ordre : le CONTENU changé (title, caption, source_image, job_id) efface validation et confirmation, et un post
+    programmé d'un client « validé par le client » repasse a_valider (t309 revue : le brief compte, il porte tg_caption) ; les COMPTES changés effacent la confirmation ; un
+    brouillon non validé de ce mode reste a_valider (jamais un draft qui contourne) ; enfin un post programmé dont l'état,
+    les comptes ou le contenu viennent de changer passe `controler`. Un run_at (ou un mode) seul ne recontrôle pas."""
+    from app.services import regles_client as _rc
+    ex = _rc.exigences(p.espace_id, [])
+    if ex is None:
+        return
+    a_valider = ex["mode"] == "valide_par_client"
+    contenu = contenu_avant != (p.title, p.caption, p.source_image, p.job_id, p.brief)
+    comptes = comptes_avant != p.comptes
+    if contenu:
+        p.valide_client_le, p.confirme_client = None, None
+        if a_valider and p.status in ("scheduled", "ready"):
+            p.status = "a_valider"
+    if comptes:
+        p.confirme_client = None
+    if a_valider and p.valide_client_le is None and p.status == "draft":
+        p.status = "a_valider"
+    programme = ("scheduled", "ready")
+    if p.status in programme and (statut_avant not in programme or comptes or contenu):
+        _controler_client(p, body.get("confirme_client"))
 
 
 @router.post("/schedule/validate")
@@ -8884,12 +8973,19 @@ async def validate_lot(body: dict):
     plan_id = body.get("plan_id")
     validated, skipped = [], []
     async with async_session_factory() as session:
-        q = _select(ScheduledPost).where(ScheduledPost.status.in_(("draft", "scheduled")))
+        # t309 (26/10/2026) : un post a_valider est lu aussi, pour être NOMMÉ dans skipped (jamais validé en douce)
+        q = _select(ScheduledPost).where(ScheduledPost.status.in_(("draft", "a_valider", "scheduled")))
         q = (q.where(ScheduledPost.plan_id == plan_id) if plan_id
              else q.where(ScheduledPost.run_at >= lo).where(ScheduledPost.run_at <= hi))
+        from app.services import regles_client as _rc
         for p in (await session.execute(q.order_by(ScheduledPost.run_at))).scalars().all():
             if not (p.job_id or p.source_image):
                 skipped.append({"id": p.id, "title": p.title, "reason": "sans média"})
+                continue
+            try:                                    # t309 : les règles du client qui gouverne le post
+                _rc.controler(p)
+            except _rc.RefusClient as e:
+                skipped.append({"id": p.id, "title": p.title, "reason": str(e), "code": e.code})
                 continue
             p.status, p.mode, p.validated_at = "scheduled", "auto", _dt.utcnow()
             validated.append(p.id)
@@ -9152,7 +9248,16 @@ async def add_thread_post(post_id: str, body: dict):
             caption=caption[:4000], channels="x", run_at=tete.run_at + _td(minutes=2 * idx),
             status="scheduled", mode=parent.mode, format=parent.format,
             plan_id=parent.plan_id, thread_of=racine, thread_index=idx,
-            espace_id=tete.espace_id, comptes=_comptes_x(tete))     # t204 : le MÊME compte X que la tête
+            espace_id=tete.espace_id, comptes=_comptes_x(tete),     # t204 : le MÊME compte X que la tête
+            # t309 (26/10/2026, revue) : la suite hérite de la CONFIRMATION du parent (décision 4), JAMAIS de sa validation
+            # (son texte est neuf) : chez un client « validé par le client » elle naît a_valider (l'étape n'est pas
+            # perdue) ; sinon elle passe les règles avant d'être écrite
+            confirme_client=parent.confirme_client)
+        from app.services import regles_client as _rc
+        p.status = _rc.statut_initial(p.espace_id, "draft")
+        if p.status == "draft":
+            p.status = "scheduled"
+            _controler_client(p, body.get("confirme_client"))
         session.add(p)
         await session.commit()
         return _post_to_dict(p)
@@ -9172,14 +9277,78 @@ def _comptes_x(tete: ScheduledPost):
 
 
 @router.post("/schedule/{post_id}/fire")
-async def fire_scheduled_post(post_id: str):
+async def fire_scheduled_post(post_id: str, request: Request):
     """Publish NOW on auto-capable channels (Telegram). Channels without an
     auto adapter stay listed in `pending` — the post flips to `ready` so the
-    user can publish manually with the caption + downloaded render."""
+    user can publish manually with the caption + downloaded render.
+    t309 (26/10/2026) : corps facultatif {confirme_client} ; les règles du client passent AVANT toute publication (409
+    structuré, rien ne part, le post n'est pas réclamé)."""
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001 — corps absent ou illisible : aucune confirmation donnée
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:
+        p = (await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))).scalar_one_or_none()
+        if p is None:
+            raise HTTPException(404, "Post not found")
+        confirme_avant = p.confirme_client
+        _controler_client(p, body.get("confirme_client"))
+        if p.confirme_client != confirme_avant:
+            await session.commit()
     result = await marketing.fire_post(post_id)
     if not result.get("ok") and result.get("error") == "post not found":
         raise HTTPException(404, "Post not found")
     return result
+
+
+# t309 (26/10/2026) : la validation CLIENT d'un post (spec boîte à outils §5.5). Lecture libre des exigences (aucun
+# secret : libellés et canal_id) ; la réponse du client se saisit au PC (localhost).
+@router.get("/schedule/{post_id}/client")
+async def get_scheduled_post_client(post_id: str):
+    from app.services import regles_client as _rc
+    async with async_session_factory() as session:
+        p = (await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))).scalar_one_or_none()
+    if p is None:
+        raise HTTPException(404, "post inconnu")
+    return {"exigences": _rc.exigences(p.espace_id, p.comptes)}
+
+
+@router.post("/schedule/{post_id}/validation-client")
+async def post_scheduled_post_validation_client(post_id: str, body: dict, request: Request):
+    """{reponse: valide|corriger, moyen: ecrit|whatsapp|doigt}. « valide » date la validation (un post a_valider devient
+    brouillon, à programmer) ; « corriger » l'efface et le post repasse a_valider. Une ligne `validation` (qui = client)
+    par canal visé au journal de la fiche du client responsable. 400 réponse/moyen inconnus, 404 post, 409 sans client."""
+    _require_localhost(request)
+    from app.services import fiche_client as _fc, regles_client as _rc
+    body = body or {}
+    reponse, moyen = body.get("reponse"), body.get("moyen")
+    if reponse not in ("valide", "corriger"):
+        raise HTTPException(400, "réponse du client inconnue (valide ou corriger)")
+    if moyen not in _fc.MOYENS:
+        raise HTTPException(400, "moyen de réponse inconnu (ecrit, whatsapp ou doigt)")
+    async with async_session_factory() as session:
+        p = (await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))).scalar_one_or_none()
+        if p is None:
+            raise HTTPException(404, "post inconnu")
+        ex = _rc.exigences(p.espace_id, p.comptes)
+        if ex is None:
+            raise HTTPException(409, "ce post n'est gouverné par aucun client")
+        if reponse == "valide":
+            p.valide_client_le = _dt.utcnow()
+            if p.status == "a_valider":
+                p.status = "draft"
+        else:
+            p.valide_client_le = None
+            if p.status in ("draft", "scheduled", "ready"):
+                p.status = "a_valider"
+        await session.commit()
+        await session.refresh(p)
+        # t309 (revue) : le journal APRÈS l'écriture réussie du post (jamais une validation notée qui n'a pas eu lieu)
+        canaux = list(dict.fromkeys(x["canal_id"] or "" for x in ex["canaux"])) or [""]
+        for canal in canaux:
+            _fc.noter(ex["client"], "validation", canal, "client")
+        return {"post": _post_to_dict(p)}
 
 
 def _render_poster_frame(jobrec) -> str | None:

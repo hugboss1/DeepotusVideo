@@ -157,6 +157,11 @@ class ScheduledPost(Base):
     # la liste JSON des comptes de diffusion CIBLES (services/comptes.py) ; vide = les canaux d'avant (clés plates).
     espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True, default=lambda: _espace_par_defaut())
     comptes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # t309 (26/10/2026) : règles d'un client (services/regles_client.py). `valide_client_le` = la date de validation par le
+    # client (mode valide_par_client) ; `confirme_client` = l'id du client confirmé nominativement (mode publie_en_son_nom).
+    # Tout changement de contenu ou de comptes les efface (routes du Planificateur).
+    valide_client_le: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    confirme_client: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
 
 
 class PostMetric(Base):
@@ -737,6 +742,8 @@ SCHEDULED_POSTS_COLUMNS = [
     ("delegue_a", "VARCHAR(36)"), ("delegue_le", "DATETIME"),
     # t204 (Espaces de marque E4) : l'espace du post et ses comptes cibles
     ("espace_id", "VARCHAR(40)"), ("comptes", "TEXT"),
+    # t309 (26/10/2026) : validation et confirmation nominative d'un client
+    ("valide_client_le", "DATETIME"), ("confirme_client", "VARCHAR(40)"),
 ]
 
 

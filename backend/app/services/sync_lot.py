@@ -53,6 +53,21 @@ async def image_du_post(post) -> Path | None:
     return Path(chemin) if chemin else None
 
 
+def _refus_client(post):
+    """t309 revue finale I2 (26/10/2026) : la règle de fire_post pour le téléphone. None si le post peut lui être confié ;
+    sinon le RefusClient de `regles_client.controler` (lecture brute, TOUS les codes, confirmation comprise : `en_pause`
+    l'ignore exprès pour la boucle) ou l'erreur imprévue (refus par défaut)."""
+    from app.services import regles_client as _rc
+    try:
+        _rc.controler(post, brut=True)
+    except _rc.RefusClient as e:
+        return e
+    except Exception as e:  # noqa: BLE001 — rien de prouvé = ne part pas
+        logger.warning(f"sync_lot: contrôle des règles du client impossible ({type(e).__name__})")
+        return e
+    return None
+
+
 async def lot(appareil_id: str, jours: int = 7) -> dict:
     """Les posts actionnables des `jours` prochains (et en retard), LIBRES ou déjà confiés à CET appareil."""
     from app.services.storage import JobRecord, ScheduledPost, async_session_factory
@@ -67,6 +82,11 @@ async def lot(appareil_id: str, jours: int = 7) -> dict:
             .where(_or(ScheduledPost.delegue_a.is_(None), ScheduledPost.delegue_a == appareil_id))
             .order_by(ScheduledPost.run_at.asc()))
         for p in res.scalars().all():
+            if _refus_client(p) is not None:
+                # t309 (26/10/2026) : un post de client qui ne passe pas ses règles (canal révoqué, non validé en
+                # valide_par_client, ou JAMAIS confirmé en publie_en_son_nom — revue finale I2) ne part pas au téléphone,
+                # comme fire_post refuse de le publier du PC (lecture brute, refus par défaut).
+                continue
             media = None
             if p.job_id:
                 job = await session.get(JobRecord, p.job_id)
@@ -113,6 +133,11 @@ async def appliquer_etat(appareil: dict, rapports: list) -> dict:
             if statut == "emporte":
                 if p.status not in ("scheduled", "ready"):
                     conflits.append({"id": ident, "raison": f"pas actionnable (statut {p.status})"})
+                    continue
+                refus = _refus_client(p)
+                if refus is not None:
+                    # t309 revue finale I2 : jamais confié sans consentement, validation ET confirmation nominative
+                    conflits.append({"id": ident, "raison": "règles du client", "code": getattr(refus, "code", "erreur")})
                     continue
                 p.delegue_a, p.delegue_le = moi, datetime.utcnow()
             elif p.delegue_a != moi:
