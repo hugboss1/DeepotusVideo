@@ -161,7 +161,8 @@ L'écran « Nouvel espace » devient un assistant en quatre temps :
    - YouTube : `channels?mine=true` ;
    - Instagram : `/{ig-id}?fields=username` ;
    - TikTok : `user/info` ;
-   - WhatsApp : lecture du numéro (§6).
+   - WhatsApp : liaison par lien d'installation Kapso puis lecture du numéro (statut, nom vérifié, qualité ;
+     §6.1).
 
    Le résultat (vert, orange avec la raison, rouge) est enregistré avec sa date. Un canal non vérifié reste
    enregistrable, mais il est marqué « non vérifié », et le Planificateur le signale.
@@ -202,30 +203,78 @@ Pour un client, chaque canal demande un **consentement daté** avant d'être uti
 ## 6. Chantier B — WhatsApp, canal et agent
 
 ### 6.1 Fournisseur
+*Mis à jour le 27/10 (t327) d'après la décision de l'utilisateur du 26/10 et le relevé de la doc Kapso
+(`docs/superpowers/specs/2026-10-27-kapso-releve.md`, lu le 27/10, à recouper avec l'OpenAPI brute en B1).*
+
 - **Kapso** (choix de Claude, d'après le post de l'utilisateur) :
   - c'est une surcouche de l'**API officielle WhatsApp Cloud** de Meta ;
-  - l'offre gratuite donne 2 000 messages par mois et un numéro ; l'offre Pro coûte 25 $ par mois pour
-    100 000 messages ;
-  - les frais des **modèles de message** sont facturés **à part par Meta**, sur le compte Meta Business de
-    l'espace.
+  - Kapso résout ce que le PC ne peut pas faire seul : **recevoir** les messages. L'API de Meta pousse vers un
+    webhook public, or le PC reste fermé au réseau (`HOST=127.0.0.1`). Kapso garde donc le webhook et
+    **l'historique** : le PC (ou le téléphone) **lit** les messages chez Kapso par curseur, sans tunnel ni webhook,
+    puis envoie par Kapso.
+- **Adaptateur** `services/whatsapp.py`, avec un pilote `kapso` : un client REST `httpx` (pas de SDK Python),
+  calqué sur les noms du SDK TypeScript `@kapso/whatsapp-cloud-api` (MIT). Deux bases, une seule clé en en-tête
+  `X-API-Key` :
+  - **Platform** `https://api.kapso.ai/platform/v1` : clients, liens d'installation, numéros, contacts, préférences
+    marketing ;
+  - **proxy WhatsApp** `https://api.kapso.ai/meta/whatsapp/v24.0` : envoi, lecture des messages et conversations,
+    modèles, médias.
 
-  Kapso résout ce que le PC ne peut pas faire seul : **recevoir** les messages. L'API de Meta pousse vers un
-  webhook public, or le PC reste fermé au réseau (`HOST=127.0.0.1`). Kapso garde donc le webhook, et le PC (ou le
-  téléphone) **lit** les messages entrants par l'API de Kapso, puis envoie par elle.
-- **Adaptateur** `services/whatsapp.py`, avec un pilote `kapso`. Un pilote `meta_direct` est prévu dans
-  l'interface mais pas écrit : il demanderait un tunnel, renvoyé à plus tard comme le tunnel du lot 4.
+  Un pilote `meta_direct` est prévu dans l'interface mais pas écrit : il demanderait un tunnel, renvoyé à plus tard
+  comme le tunnel du lot 4.
+- **Une seule clé Kapso, des liens d'installation (utilisateur, 26/10 ; remplace la décision du 25/10 « un compte
+  Kapso par client »)** :
+  - `KAPSO_API_KEY` est **une clé plate unique** au coffre : celle de l'utilisateur. Il n'y a plus de
+    `DZC_<ID>_KAPSO_API_KEY`.
+  - Chaque client devient un **customer** Kapso (`POST /platform/v1/customers`, `external_customer_id` = l'id de
+    l'espace). Il relie **son** compte Meta Business et **son** numéro par un **lien d'installation**
+    (`POST /platform/v1/customers/{id}/setup_links`) : une page hébergée par Kapso, avec connexion Facebook,
+    environ 5 minutes, **sans compte Kapso à lui**.
+  - Vos marques et produits utilisent votre propre compte Meta Business, relié de la même façon (un customer
+    « vous »).
+  - Chaque espace garde **son** `phone_number_id` ; un numéro = un espace.
 - **Plateforme `whatsapp` dans `comptes.py`** :
-  - secrets : `KAPSO_API_KEY` ;
-  - publics : `WHATSAPP_NUMERO`, `WHATSAPP_PHONE_ID` ;
-  - le rattachement à un espace est obligatoire ; un numéro = un espace.
-- **Comptes Kapso et Meta par client (utilisateur, 25/10)** : chaque client fournit **son** compte Kapso et
-  **son** compte Meta Business. Il a son numéro et paie ses modèles de message. Vos marques et produits utilisent
-  vos comptes. `KAPSO_API_KEY` est donc rangée **par compte** (`DZC_<ID>_KAPSO_API_KEY`), jamais en clé plate
-  unique. Les 2 000 messages gratuits ne sont pas partagés, et le plafond se compte par espace. L'arrivée d'un
-  numéro client fait partie de l'assistant de création (§5.3) : le client crée son compte Kapso, relie son numéro
-  et confie sa clé, avec un consentement daté.
-- **Coûts** : chaque envoi passe par un devis et `plafonds.verifier`. Les modèles sont chiffrés d'après la grille
-  de Meta saisie dans `pricing` (catégorie et pays), jamais en dur. Un prix inconnu est refusé.
+  - secret : `KAPSO_API_KEY` (clé plate, partagée par tous les espaces) ;
+  - publics, par compte d'espace : `KAPSO_CUSTOMER_ID`, `WHATSAPP_PHONE_ID`, `WHATSAPP_NUMERO`,
+    `WHATSAPP_WABA_ID` (compte WhatsApp Business, pour lire les modèles), `WHATSAPP_FACTURATION_META` ;
+  - le rattachement à un espace est obligatoire.
+- **Liaison d'un numéro dans l'assistant (§5.3)** :
+  1. **Consentement daté** du client à la liaison (moyen et date, §5.2), avant tout lien.
+  2. **Facturation Meta**, choisie **avant** de créer le lien, car `meta_billing_mode` ne se change plus ensuite
+     (il faudrait un nouveau lien, et le choix vaut pour tout le compte WhatsApp Business) :
+     - `customer_managed` (par défaut, choix de Claude) : le client paie Meta sur **sa** carte, dans son compte
+       Meta ;
+     - `partner_managed` : Kapso paie Meta sur les **crédits Kapso** de l'utilisateur, qui refacture le client
+       hors de l'application (+5 % de frais chez Kapso). Proposé seulement si l'utilisateur l'a activé chez Kapso.
+  3. **Création du lien** : l'URL s'affiche pour être copiée et envoyée au client par le moyen de l'utilisateur
+     (e-mail, message). L'application n'envoie rien elle-même. Langue du lien : `en`, ou celle du navigateur du
+     client (Kapso ne propose pas le français). Le lien expire après 30 jours.
+  4. **Détection sans webhook** (choix de Claude : pas d'URL de retour, le PC n'en a pas de publique) :
+     l'assistant relit `GET /platform/v1/customers/{id}/setup_links` jusqu'à `whatsapp_setup_status` =
+     `completed` (ou `failed`, avec `whatsapp_setup_error` affiché), puis lit
+     `GET /platform/v1/whatsapp/phone_numbers?customer_id=…` et range `phone_number_id`, le numéro affiché, le
+     compte WhatsApp Business et le nom vérifié. La relecture se fait à l'ouverture de l'écran et sur
+     « Vérifier », jamais en boucle serrée.
+- **Forfait Kapso partagé** :
+  - tous les espaces vivent sur **le forfait Kapso de l'utilisateur** : Free (2 000 messages par mois, 1 numéro),
+    Pro (25 $, 100 000 messages, 3 numéros), Platform (299 $, 1 000 000 messages, 50 numéros) ;
+  - les messages se comptent **globalement**, **entrants compris** (réactions comprises, accusés non) ;
+    DeepotusVideo tient donc **un plafond par espace** pour qu'un client ne mange pas le quota des autres ;
+  - limite d'API par clé : 100 requêtes par minute en Free, 1 000 en Pro, 2 000 en Platform ; un 429 se respecte
+    (`Retry-After`), avec une attente croissante et 5 essais au plus.
+- **Coûts Meta** :
+  - Meta facture par message livré, selon la **catégorie** et le **pays** du destinataire : modèles marketing,
+    utility, authentication, et, **depuis le 01/10/2026, les messages de service** (texte libre dans la fenêtre de
+    24 h) au-delà de **1 000 gratuits par numéro et par mois** ;
+  - la grille vient de Meta (« rate cards », mise à jour au début de chaque trimestre). Elle est saisie dans
+    `pricing` par marché, avec les quatre colonnes marketing, utility, authentication et service, jamais en dur ;
+  - chaque envoi passe par un devis et `plafonds.verifier`. Un prix inconnu est refusé. Les refus de facturation
+    de Kapso (402 : `insufficient_credits`, `service_credits_exhausted`, codes `service_…`) sont montrés tels quels,
+    sans réessai.
+- **Identité des contacts** : par **BSUID** d'abord (identifiant WhatsApp propre à l'entreprise), le numéro et le
+  `wa_id` étant facultatifs. On répond par `to` quand le message entrant porte un numéro (`from`), sinon par
+  `recipient` = `from_user_id`. Un modèle d'authentification ne part jamais vers un BSUID. L'accord, le STOP et le
+  journal se rangent sur l'**identité** du contact, pas sur son numéro.
 
 ### 6.2 Agent WhatsApp par espace
 - Un agent par numéro, avec :
@@ -245,11 +294,23 @@ Pour un client, chaque canal demande un **consentement daté** avant d'être uti
   comme option future, car les données sortiraient alors de chez l'utilisateur (§12).
 
 ### 6.3 Règles WhatsApp (dures, côté serveur)
-- **Accord du contact** : on n'envoie pas de premier message à un numéro sans accord enregistré (date, source).
+- **Accord du contact** : on n'envoie pas de premier message à un contact sans accord enregistré (date, source).
   Une demande entrante vaut accord pour la conversation.
 - **Fenêtre de 24 h** : au-delà de 24 h depuis le dernier message du contact, seuls des **modèles approuvés**
-  partent, et le serveur refuse le texte libre.
-- **Arrêt** : « STOP » (et ses équivalents FR et EN) coupe les envois au contact et le note.
+  partent, et le serveur refuse le texte libre. L'heure du dernier entrant se relit chez Kapso
+  (`kapso.last_inbound_at` de la conversation) ; un refus `131047` de Meta fait foi et n'est pas renvoyé en texte
+  libre.
+- **Arrêt** : « STOP » (et ses équivalents FR et EN) coupe **tous** les envois au contact et le note.
+- **Désinscription marketing de Meta** : avant un modèle **marketing**, on lit
+  `GET /platform/v1/whatsapp/contacts/{contact}/marketing_preferences` (`marketing_allowed`). Un refus
+  `marketing_preference_stopped` (422) ou `131050` est noté, n'est jamais réessayé et ne coupe que le marketing.
+  Notre STOP reste plus strict.
+- **Sans réessai automatique** : `131047`, `131050`, `131026`, `131049` (avant 24 h), `133010`, les `132xxx`
+  (modèle ou paramètres faux), `marketing_preference_stopped`, et les 409 de propriété du fil (`thread_not_owner`,
+  `thread_ownership_unknown`, `meta_business_agent_control`), qui ne concernent qu'un numéro partagé avec une autre
+  application. B1 les montre ; la reprise du fil (Prendre / Rendre) est en B2.
+- **Médias reçus** : lus par l'id du média, téléchargés aussitôt (le lien de Kapso ne vit que 4 minutes), en
+  HTTPS seulement, sans suivre de redirection, puis rangés localement. La clé n'est envoyée qu'à `api.kapso.ai`.
 - **Limites du mode `auto`** :
   - un plafond de messages par jour et par contact ;
   - le passage à l'humain sur un mot-clé, un sentiment négatif ou une demande d'argent ;
@@ -257,9 +318,11 @@ Pour un client, chaque canal demande un **consentement daté** avant d'être uti
 - Chaque message est **journalisé** par espace.
 
 ### 6.4 Validation client par WhatsApp
-- Pour un espace `valide_par_client`, « Envoyer pour validation » envoie au contact WhatsApp de la fiche un
-  **modèle** qui contient l'aperçu (image, ou vidéo courte avec un lien vers le fichier joint) et deux boutons,
-  **Valider** et **Corriger**.
+- Pour un espace `valide_par_client`, « Envoyer pour validation » envoie au contact WhatsApp de la fiche l'aperçu
+  (image, ou vidéo courte avec un lien vers le fichier joint) et deux boutons, **Valider** et **Corriger** :
+  - fenêtre de 24 h **ouverte** : un message **interactif à boutons**, sans modèle à faire approuver (compté comme
+    message de service, §6.1) ;
+  - fenêtre **fermée** : un **modèle UTILITY** à réponses rapides.
 - La réponse change l'état du post, avec la date et le numéro. « Corriger » ouvre une note qui revient à l'agent
   Campagnes.
 
@@ -489,6 +552,8 @@ suivent leurs prérequis PC. Une session et une PR par lot. On demande l'accord 
   - Les secrets vivent **là où le canal a été connecté** : au coffre du PC (`comptes.py`, `DZC_<ID>`), ou au coffre
     du téléphone. Le canal est publié par celui qui détient les secrets. Le PC route un post vers le téléphone par
     la délégation D6 (`delegue_a`) quand le canal est « porté par le téléphone ».
+  - Exception WhatsApp (27/10, §6.1) : le seul secret est la clé Kapso unique de l'utilisateur, présente aux deux
+    coffres par l'archive DZKV1 ; le canal est `whatsapp:<phone_number_id>` et se lit ou s'envoie des deux côtés.
   - Sur un tel canal, « Vérifier » affiche « porté par le téléphone, vérifié le … » d'après la dernière déclaration
     du téléphone (point 11 du §9 du lot 4). Le PC ne demande jamais les jetons.
 - **Format de `client.json`** (choix de Claude) : c'est le PC qui le fixe en A1, et L4.2 le reprend. Les sous-lots
@@ -526,7 +591,8 @@ suivent leurs prérequis PC. Une session et une PR par lot. On demande l'accord 
 12. Live depuis le téléphone dans un sous-lot tardif.
 
 ## 13. Laissé au constructeur
-- Les endpoints exacts de Kapso et sa pagination : on lit la doc Kapso au moment de construire, jamais de mémoire.
+- Les endpoints exacts de Kapso et sa pagination : relevé du 27/10 (`2026-10-27-kapso-releve.md`), à recouper avec
+  l'OpenAPI brute de Kapso au moment de construire, jamais de mémoire.
 - La grille de prix des modèles WhatsApp de Meta, saisie dans `pricing`.
 - La disponibilité d'Element Capture et de l'encodage H.264 de MediaRecorder sur le navigateur réellement lancé.
 - Le choix des icônes Glyph (`dz-etat-direct`, `dz-canal-whatsapp`, `dz-canal-twitch`, etc.) selon DESIGN.md §15.
