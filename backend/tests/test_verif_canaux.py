@@ -677,7 +677,7 @@ check("S1 marque : pas de client, mode None, consentement sans_objet",
       rm["client_responsable"] is None and rm["mode_publication"] is None and rm["type"] == "marque"
       and [c["consentement"] for c in rm["canaux"]] == ["sans_objet"] and rm["manques"]["consentements"] == 0, str(rm))
 check("S1b forme du canal (compte, plateforme, libellé, état, date, canal_id)",
-      set(rm["canaux"][0]) == {"compte", "plateforme", "libelle", "etat", "verifie_le", "canal_id", "consentement"}
+      set(rm["canaux"][0]) == {"compte", "plateforme", "libelle", "etat", "code", "verifie_le", "canal_id", "consentement"}
       and rm["canaux"][0]["etat"] == "vert" and rm["canaux"][0]["canal_id"] == "telegram:-100111"
       and rm["canaux"][0]["libelle"] == "TG marque" and rm["canaux"][0]["verifie_le"], str(rm["canaux"]))
 
@@ -776,10 +776,19 @@ with TestClient(app, client=("127.0.0.1", 50000)) as client:
           r_en.status_code == 200 and len(ig_en) == len(ig_fr) and not any(
               ("remplacé" in x or "écart" in x or "invalide" in x or "retiré" in x or "tronqué" in x or "court déjà" in x)
               for x in ig_en), str(ig_en))
-    check("S11c les valeurs interpolées survivent à la traduction (n°, canal, mode, parent)",
-          any("consent no. 2" in x and "telegram" not in x or "moyen" in x for x in ig_en)
-          and any("instagram:5" in x and "no. 4" in x or "no. 3" in x and "instagram:5" in x for x in ig_en)
-          and any("telepathie" in x for x in ig_en) and any("esp_zzzzzzzz" in x for x in ig_en), str(ig_en))
+    # t308 relecture finale (26/10/2026) : S11c teste les chaînes anglaises EXACTES (plus de `and`/`or` sans parenthèses,
+    # dont une branche ne pouvait jamais être vraie) ; S11c-mut prouve qu'il refuse une valeur interpolée perdue.
+    def _s11c(lst):
+        return ("client.json: consent no. 2: unknown means, replaced by “ecrit”" in lst
+                and any(x.startswith("client.json: consent no. 3: ") and "(no. 4)" in x and "channel instagram:5," in x
+                        for x in lst)
+                and "client.json: unknown publication mode (telepathie), replaced by valide_par_client" in lst
+                and any(x.startswith("parent esp_zzzzzzzz ") for x in lst))
+    check("S11c les valeurs interpolées survivent à la traduction (n°, canal, mode, parent)", _s11c(ig_en), str(ig_en))
+    check("S11c-mut ... et une valeur interpolée perdue le fait échouer (n°4 devenu n°3, canal perdu)",
+          not _s11c([x.replace("(no. 4)", "(no. 3)") for x in ig_en])
+          and not _s11c([x.replace("instagram:5", "{canal}") for x in ig_en])
+          and not _s11c([x.replace("no. 2", "no. {i}") for x in ig_en]))
     check("S11d chaque raison traduite a son vis-à-vis français (même ordre, même valeurs)",
           all(any(t in e for t in ("telepathie", "esp_zzzzzzzz", "instagram:5", str(FC.MAX_JOURNAL)))
               == any(t in f for t in ("telepathie", "esp_zzzzzzzz", "instagram:5", str(FC.MAX_JOURNAL)))
@@ -803,6 +812,203 @@ _py = sys.executable
 _rc = _sp.run([_py, str(pathlib.Path(__file__).resolve().parent.parent.parent / "scripts" / "i18n_l10_erreurs.py"), "--check"],
               capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONUTF8": "1"})
 check("S15 i18n_l10_erreurs.py --check propre (chaque raison d'import a sa traduction)", _rc.returncode == 0, _rc.stdout[-300:])
+
+
+# ============ Relecture finale t308 (26/10/2026) : identité du canal préservée, reconnexion OAuth, coffre fermé ============
+print("[relecture finale] I-1 reconnexion OAuth, I-2 identité gardée et coffre fermé, consentement par fiche_client")
+from app.services import youtube_publisher as _YP2                  # noqa: E402
+from urllib.parse import urlparse as _up, parse_qs as _pq           # noqa: E402
+for k in S:
+    setattr(settings, k, "")
+ROUTE["mode"] = "vert"
+V._get = faux_get
+
+# I-1 : oublier_verification existe, retire la vérification ET change la révision
+cf = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Oubli",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-123", "TELEGRAM_CHAT_ID": "-100777"}})["id"]
+asyncio.run(V.verifier(cf))
+rev_f = comptes.revision(cf)
+check("F1 avant : vérifié vert, canal_id posé", comptes.obtenir(cf)["canal_id"] == "telegram:-100777")
+_oubli = getattr(comptes, "oublier_verification", None)
+if _oubli:
+    _oubli(cf)
+check("F2 oublier_verification : vérification None, canal_id None, révision changée",
+      _oubli is not None and comptes.obtenir(cf)["verification"] is None and comptes.obtenir(cf)["canal_id"] is None
+      and comptes.revision(cf) != rev_f and cf not in _brut().get("verifications", {}), str(comptes.obtenir(cf).get("verification")))
+check("F2b noter_verification(rev d'avant l'oubli) ne range rien",
+      comptes.noter_verification(cf, VERT, rev=rev_f) is None and comptes.obtenir(cf)["verification"] is None)
+try:
+    comptes.oublier_verification("c00000000"); check("F2c compte inconnu : KeyError", False)
+except KeyError:
+    check("F2c compte inconnu : KeyError", True)
+except AttributeError:
+    check("F2c compte inconnu : KeyError", False, "oublier_verification absente")
+
+# I-1 : le rappel OAuth (« Connecter » de nouveau, autre chaîne) périme la vérification ; une vérification en vol est refusée
+cy2 = comptes.creer({"espace_id": "deepotus", "plateforme": "youtube", "libelle": "YT reconnecté",
+                     "valeurs": {"YOUTUBE_CLIENT_ID": "SECRET-YT-ID", "YOUTUBE_CLIENT_SECRET": "SECRET-YT-CS",
+                                 "YOUTUBE_REFRESH_TOKEN": "SECRET-YT-RT"}})["id"]
+vy = asyncio.run(V.verifier(cy2))
+check("F3 avant le rappel : vert sur la chaîne A (youtube:UC123)", vy["canal_id"] == "youtube:UC123", str(vy.get("verification")))
+async def _faux_echange(code, state):
+    _YP2._VERIFS.pop(state, None)
+    return "SECRET-YT-RT-NEUF"
+_ech = _YP2.exchange_code
+_YP2.exchange_code = _faux_echange
+_rappel = {}
+try:
+    with TestClient(app, client=("127.0.0.1", 50000)) as client:
+        d = client.get(f"/api/oauth/youtube/start?compte={cy2}", follow_redirects=False)
+        etat_oauth = _pq(_up(d.headers.get("location", "")).query).get("state", [""])[0]
+        # la vérification relève sa révision, PUIS le rappel OAuth arrive pendant l'appel réseau
+        async def _get_rappel(url, headers=None, params=None, *a, **k):
+            if not _rappel:
+                _rappel["r"] = client.get(f"/api/oauth/youtube/callback?code=abc&state={etat_oauth}")
+            return await faux_get(url, headers, params)
+        V._get = _get_rappel
+        vy2 = asyncio.run(V.verifier(cy2))
+        V._get = faux_get
+finally:
+    _YP2.exchange_code = _ech
+    V._get = faux_get
+r_cb = _rappel.get("r")
+check("F4 le rappel OAuth réussit (jeton gardé)", r_cb is not None and r_cb.status_code == 200
+      and "SECRET" not in r_cb.text, str(r_cb.status_code if r_cb is not None else None))
+with comptes.sous_compte(cy2):
+    check("F4b le refresh token neuf est dans le compte", comptes.cle("YOUTUBE_REFRESH_TOKEN") == "SECRET-YT-RT-NEUF")
+check("F5 la vérification en vol pendant le rappel est refusée par la garde de révision (rien de rangé)",
+      vy2["verification"] is None, str(vy2.get("verification")))
+check("F6 après le rappel : aucune vérification, canal_id None (l'ancienne chaîne est oubliée)",
+      comptes.obtenir(cy2)["verification"] is None and comptes.obtenir(cy2)["canal_id"] is None, str(comptes.obtenir(cy2)))
+# garder_secret seul (rotation TikTok PENDANT une vérification) ne périme rien
+ct = comptes.creer({"espace_id": "deepotus", "plateforme": "tiktok", "libelle": "TT rotation",
+                    "valeurs": {"TIKTOK_CLIENT_KEY": "ck-pub", "TIKTOK_CLIENT_SECRET": "SECRET-TT-CS",
+                                "TIKTOK_REFRESH_TOKEN": "SECRET-TT-RT", "TIKTOK_AUDITED": "1"}})["id"]
+async def _tt_qui_tourne():
+    comptes.garder_secret("TIKTOK_REFRESH_TOKEN", "SECRET-TT-RT-TOURNE")
+    return "SECRET-ACCESS-TT"
+_ttk = TP.access_token
+TP.access_token = _tt_qui_tourne
+try:
+    vt = asyncio.run(V.verifier(ct))
+finally:
+    TP.access_token = _ttk
+check("F7 la rotation du refresh token TikTok pendant la vérification ne la périme pas (vert rangé)",
+      (vt.get("verification") or {}).get("etat") == "vert" and vt["canal_id"] == "tiktok:oid-9", str(vt.get("verification")))
+
+# I-2 (b) : un résultat SANS id_distant garde l'identité connue (même révision) ; un refus aussi
+ck = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Identité gardée",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-123", "TELEGRAM_CHAT_ID": "-100777"}})["id"]
+v0 = asyncio.run(V.verifier(ck))
+check("G0 vert : canal_id et nom distant posés", v0["canal_id"] == "telegram:-100777"
+      and v0["verification"]["nom_distant"] == "Le Canal", str(v0["verification"]))
+for mode, etat_att, code_att in (("reseau", "orange", "reseau"), ("500", "orange", "indetermine"), ("401", "rouge", "refuse")):
+    ROUTE["mode"] = mode
+    vg = asyncio.run(V.verifier(ck))
+    ver = vg["verification"] or {}
+    check(f"G1 {mode} : état {etat_att}, code {code_att}, raison neuve ; id et nom distants GARDÉS, canal_id inchangé",
+          ver.get("etat") == etat_att and ver.get("code") == code_att and ver.get("raison") != v0["verification"]["raison"]
+          and ver.get("id_distant") == "-100777" and ver.get("nom_distant") == "Le Canal" and vg["canal_id"] == "telegram:-100777",
+          str(ver))
+ROUTE["mode"] = "vert"
+for label, corps_get in (("quota", _get_quota), ("429", None)):
+    async def _g429(url, headers=None, params=None, *a, **k):
+        return 429, {"error": "trop de requêtes"}
+    V._get = corps_get or _g429
+    vq2 = asyncio.run(V.verifier(cy2 if label == "quota" else ck))
+    V._get = faux_get
+    if label == "quota":
+        check("G2 quota YouTube sans identité connue : orange quota, canal_id reste None (rien à garder)",
+              vq2["verification"]["code"] == "quota" and vq2["canal_id"] is None, str(vq2["verification"]))
+    else:
+        check("G2b 429 : orange, canal_id gardé", vq2["verification"]["etat"] == "orange" and vq2["canal_id"] == "telegram:-100777",
+              str(vq2["verification"]))
+asyncio.run(V.verifier(cy2))
+V._get = _get_quota
+vq3 = asyncio.run(V.verifier(cy2))
+V._get = faux_get
+check("G2c quota YouTube après un vert : orange quota, la chaîne connue reste", vq3["verification"]["code"] == "quota"
+      and vq3["canal_id"] == "youtube:UC123" and vq3["verification"]["nom_distant"] == "Ma Chaine", str(vq3["verification"]))
+# un résultat AVEC une identité la remplace ; poser / porter / oublier / supprimer l'effacent
+gv = comptes.noter_verification(ck, {"etat": "vert", "raison": "autre chat", "id_distant": "-100888", "nom_distant": "Autre"})
+check("G3 un vert avec une autre identité la remplace", gv["id_distant"] == "-100888" and comptes.obtenir(ck)["canal_id"] == "telegram:-100888")
+comptes.poser(ck, {"TELEGRAM_CHAT_ID": "-100777"})
+ROUTE["mode"] = "reseau"
+vp = asyncio.run(V.verifier(ck))
+ROUTE["mode"] = "vert"
+check("G4 après poser, un orange sans identité ne ressuscite pas l'ancienne", vp["canal_id"] is None
+      and vp["verification"]["id_distant"] is None, str(vp["verification"]))
+asyncio.run(V.verifier(ck))
+comptes.oublier_verification(ck)
+check("G5 oublier_verification efface l'identité gardée", comptes.obtenir(ck)["canal_id"] is None)
+
+# canal porté par le téléphone jamais vérifié : le récapitulatif porte le CODE (l'écran dit « jamais vérifié », pas « vérifié le »)
+ctj = comptes.creer({"espace_id": marque["id"], "plateforme": "telegram", "libelle": "TG porté"})["id"]
+comptes.porter_par_telephone(ctj, DECL | {"verifie_le": None, "etat": None, "id_distant": None})
+asyncio.run(V.verifier(ctj))
+ctj_r = {c["compte"]: c for c in RE.recapitulatif(marque["id"])["canaux"]}[ctj]
+check("H0 récapitulatif : un canal porté jamais vérifié porte code telephone_jamais",
+      ctj_r.get("code") == "telephone_jamais" and ctj_r["etat"] == "orange", str(ctj_r))
+check("H0b un canal jamais vérifié du tout : code None",
+      {c["compte"]: c for c in RE.recapitulatif(cl["id"])["canaux"]}[c_nv].get("code", "absent") is None)
+
+# consentement : UNE lecture de fiche_client.consentements_en_cours (source unique de « en cours »)
+_cec, _n_cec = FC.consentements_en_cours, []
+def _cec_compte(eid):
+    _n_cec.append(eid)
+    return _cec(eid)
+FC.consentements_en_cours = _cec_compte
+try:
+    rcc = RE.recapitulatif(cl["id"])
+    check("H1 le récapitulatif lit fiche_client.consentements_en_cours UNE fois (3 canaux)",
+          _n_cec == [cl["id"]] and len(rcc["canaux"]) == 3, str(_n_cec))
+    FC.consentements_en_cours = lambda eid: []         # une règle future (échéance…) qui ne garde aucun consentement
+    rcv = RE.recapitulatif(cl["id"])
+    check("H2 ... et suit ce qu'elle rend (aucun en cours -> tous manquants)",
+          all(c["consentement"] == "manquant" for c in rcv["canaux"]), str([c["consentement"] for c in rcv["canaux"]]))
+finally:
+    FC.consentements_en_cours = _cec
+
+# I-2 (a) : coffre FERMÉ -> 409, rien n'est rangé, jamais « identifiants incomplets » (en dernier : le coffre reste posé)
+MDP = "banc-coffre-t308"
+coffre.poser(MDP, {})
+coffre.ouvrir(MDP)
+cv = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Coffre",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-123", "TELEGRAM_CHAT_ID": "-100777"}})["id"]
+vv = asyncio.run(V.verifier(cv))
+check("V0 coffre ouvert : vert", (vv["verification"] or {}).get("etat") == "vert", str(vv.get("verification")))
+avant_v = comptes.obtenir(cv)["verification"]
+coffre.fermer()
+check("V0b coffre fermé : verrouillé, le secret ne se lit plus", coffre.verrouille() and not comptes.obtenir(cv)["champs"][0]["pose"],
+      str(comptes.obtenir(cv)["champs"]))
+APPELS.clear()
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    r = client.post(f"/api/comptes/{cv}/verifier")
+    r_en = client.post(f"/api/comptes/{cv}/verifier", headers={"Accept-Language": "en"})
+check("V1 POST /verifier coffre fermé : 409, message du coffre verrouillé existant", r.status_code == 409
+      and r.json().get("detail", "").startswith("Coffre verrouillé : "), f"{r.status_code} {r.text[:200]}")
+check("V1b ... en anglais aussi (409, « Vault locked »)", r_en.status_code == 409 and r_en.json().get("detail", "").startswith("Vault locked"),
+      r_en.text[:200])
+check("V2 rien n'est rangé : la vérification d'avant reste (même date, même état, même identité)",
+      comptes.obtenir(cv)["verification"] == avant_v and comptes.obtenir(cv)["canal_id"] == "telegram:-100777")
+check("V3 aucun appel réseau ni « identifiants incomplets »", not APPELS and "incomplet" not in r.text, r.text[:200])
+try:
+    asyncio.run(V.verifier(cv)); check("V4 le service lève CoffreVerrouille", False)
+except coffre.CoffreVerrouille:
+    check("V4 le service lève CoffreVerrouille", True)
+# un champ PUBLIC vide reste « incomplet » même coffre fermé (le coffre n'y est pour rien)
+cw = comptes.creer({"espace_id": "deepotus", "plateforme": "instagram", "libelle": "Public vide"})["id"]
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    rw = client.post(f"/api/comptes/{cw}/verifier")
+check("V5 coffre fermé, aucun secret posé non plus : 409 (le secret requis peut être au coffre)", rw.status_code == 409, rw.text[:200])
+coffre.ouvrir(MDP)
+cpub = comptes.creer({"espace_id": "deepotus", "plateforme": "instagram", "libelle": "IG sans id",
+                      "valeurs": {"IG_ACCESS_TOKEN": "SECRET-IG-456"}})["id"]
+vo =asyncio.run(V.verifier(cpub))
+check("V7 coffre ouvert, champ public manquant : orange « incomplet » (le vrai manque)",
+      vo["verification"]["code"] == "incomplet" and "IG_BUSINESS_ID" in vo["verification"]["raison"], str(vo["verification"]))
+coffre.fermer()
+coffre.FICHIER.unlink()
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

@@ -79,6 +79,7 @@
   var courant = null;
 
   function T(cle, vars) { return typeof window.dzT === "function" ? window.dzT(cle, vars) : cle; }
+  function langue() { var l = typeof window.dzLang === "function" ? window.dzLang() : window.dzLang; return l === "en" ? "en" : "fr"; }
   function icone(cle, taille) { return typeof window.dzIcone === "function" ? window.dzIcone(cle, { taille: taille || 16 }) : ""; }
   function glyphe(plateforme) { return GLYPHES[plateforme] || "dz-action-publier"; }
   function quand(iso) { return iso ? String(iso).replace("T", " ").slice(0, 16) : ""; }
@@ -105,7 +106,7 @@
   function etatDe(vue) {
     var v = vue && vue.verification;
     if (v && ETATS[v.etat]) return { etat: v.etat, code: v.code || "", raison: v.raison || "", date: v.date || "" };
-    if (vue && ETATS[vue.etat] && vue.etat !== "non_verifie") return { etat: vue.etat, code: "", raison: "", date: vue.verifie_le || "" };
+    if (vue && ETATS[vue.etat] && vue.etat !== "non_verifie") return { etat: vue.etat, code: vue.code || "", raison: "", date: vue.verifie_le || "" };
     return { etat: "non_verifie", code: "", raison: "", date: "" };
   }
   function pastille(vue) {
@@ -116,14 +117,23 @@
     g.innerHTML = icone(e[0], 12);
     n.appendChild(g);
     n.appendChild(el("span", "", T("espaces.assistant.etat_" + v.etat)));
-    // la raison BRUTE (française, du serveur) n'est qu'au survol ; l'écran montre la traduction du code
-    n.setAttribute("title", v.etat === "non_verifie" ? T("espaces.assistant.etat_non_verifie")
-      : T("espaces.assistant.survol", { date: quand(v.date), raison: v.raison || T("espaces.assistant.etat_" + v.etat) }));
+    n.setAttribute("title", survol(v));
     return n;
+  }
+  // t308 relecture finale (26/10/2026) : le survol dit la traduction du CODE ; la raison BRUTE (française, du serveur) ne
+  // la suit, entre parenthèses, qu'en français. Un canal porté par le téléphone jamais vérifié ne dit pas « vérifié le … ».
+  function survol(v) {
+    if (v.etat === "non_verifie") return T("espaces.assistant.etat_non_verifie");
+    var code = v.code ? T("espaces.assistant.code_" + v.code) : "";
+    if (v.code === "telephone_jamais") return code;
+    var raison = code ? code + (v.raison && langue() === "fr" ? " (" + v.raison + ")" : "")
+      : v.raison || T("espaces.assistant.etat_" + v.etat);
+    return T("espaces.assistant.survol", { date: quand(v.date), raison: raison });
   }
   function detail(vue) {
     var v = etatDe(vue);
     if (v.etat === "non_verifie" || !v.code) return "";
+    if (v.code === "telephone_jamais") return T("espaces.assistant.code_telephone_jamais");
     return T("espaces.assistant.detail", { code: T("espaces.assistant.code_" + v.code), date: quand(v.date) });
   }
 
@@ -224,7 +234,11 @@
         suivant.setAttribute("style", S.btn + S.ok + (st.etape < 4 ? "" : S.cache));
         terminer.setAttribute("style", S.btn + S.ok + (st.etape === 4 ? "" : S.cache));
         precedent.disabled = suivant.disabled = terminer.disabled = occupe;
+        // t308 relecture finale : à l'étape 3, « Suivant » attend la fin d'une vérification ou d'une connexion en vol
+        // (st.occupes) : le récapitulatif lit alors le résultat rangé
+        if (verifEnVol()) suivant.disabled = true;
       }
+      function verifEnVol() { return st.etape === 3 && Object.keys(st.occupes).length > 0; }
       function etiquette(texte, controle) {
         var l = el("label", S.etiquette, texte);
         return [l, controle];
@@ -597,7 +611,7 @@
         rendre();
       }
       suivant.addEventListener("click", function () {
-        if (occupe || fini) return;
+        if (occupe || fini || verifEnVol()) return;
         occupe = true;
         boutons();
         dire("");
@@ -630,5 +644,5 @@
     });
   }
 
-  window.__dzEspaceAssistant = { ouvrir: ouvrir, pastille: pastille, verifier: verifierCompte, enCours: enCours };
+  window.__dzEspaceAssistant = { ouvrir: ouvrir, pastille: pastille, detail: detail, verifier: verifierCompte, enCours: enCours };
 })();

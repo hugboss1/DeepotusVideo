@@ -170,7 +170,7 @@ globalThis.fetch=function(u,o){var m=(o&&o.method)||"GET",b=o&&o.body?JSON.parse
   if(u.indexOf("/api/comptes?espace=")===0)return rep(200,{espace:ESP_ID,comptes:COMPTES,plateformes:PLATS});
   if(u==="/api/comptes"&&m==="POST"){var c={id:"c1111bbbb",espace_id:ESP_ID,plateforme:b.plateforme,libelle:"YouTube",champs:[{nom:"YOUTUBE_CLIENT_ID",secret:true,pose:true,valeur:"FUITE-SECRET-2"},{nom:"YOUTUBE_CHANNEL_ID",secret:false,pose:false,valeur:""}],verification:null};return rep(200,{compte:c})}
   if(u==="/api/comptes/c0000aaaa"&&m==="POST")return rep(200,{compte:Object.assign({},CPT_TG,{champs:[{nom:"TELEGRAM_BOT_TOKEN",secret:true,pose:true,valeur:"FUITE-SECRET-3"},{nom:"TELEGRAM_CHAT_ID",secret:false,pose:true,valeur:"-100123"}]})});
-  if(u==="/api/comptes/c1111bbbb/verifier")return rep(200,{compte:{id:"c1111bbbb",espace_id:ESP_ID,plateforme:"youtube",libelle:"YouTube",champs:[],verification:{etat:"orange",code:"incomplet",raison:"identifiants incomplets : YOUTUBE_CLIENT_ID",date:"2026-10-26T10:06:00"},canal_id:null}});
+  if(u==="/api/comptes/c1111bbbb/verifier")return new Promise(function(ok){setTimeout(function(){appels.push({u:"fin-verif-yt",m:"-"});ok(rep(200,{compte:{id:"c1111bbbb",espace_id:ESP_ID,plateforme:"youtube",libelle:"YouTube",champs:[],verification:{etat:"orange",code:"incomplet",raison:"identifiants incomplets : YOUTUBE_CLIENT_ID",date:"2026-10-26T10:06:00"},canal_id:null}}))},10)});
   if(u==="/api/comptes/c0000aaaa/verifier")return rep(200,{compte:Object.assign({},CPT_TG,{verification:{etat:"rouge",code:"refuse",raison:"jeton refusé (401) : Unauthorized",date:"2026-10-26T10:05:09",id_distant:null,nom_distant:null},canal_id:null})});
   if(u==="/api/espaces/"+ESP_ID+"/recapitulatif")return rep(200,{espace_id:ESP_ID,type:"client",client_responsable:ESP_ID,mode_publication:"valide_par_client",
      canaux:[{compte:"c0000aaaa",plateforme:"telegram",libelle:"Telegram",etat:"non_verifie",verifie_le:null,canal_id:null,consentement:"manquant"}],manques:{non_verifies:1,consentements:1}});
@@ -230,8 +230,15 @@ var R={};
  R.b_connecter_yt=!!un("data-dz-assistant-connecter","youtube")&&!un("data-dz-assistant-connecter","telegram");
  /* t308 fix 1 : clics CONCURRENTS sur une plateforme sans compte (Vérifier ×2, Connecter, Suivant, sans attendre) : un seul POST /api/comptes, un seul /verifier, boutons grisés pendant l'envoi */
  un("data-dz-assistant-verifier","youtube").declencher("click");R.b_ve_grise=!!(un("data-dz-assistant-verifier","youtube")||{}).disabled&&!!(un("data-dz-assistant-connecter","youtube")||{}).disabled;
+ R.b_suivant_grise=!!(un("data-dz-assistant-suivant")||{}).disabled;
  un("data-dz-assistant-verifier","youtube").declencher("click");un("data-dz-assistant-connecter","youtube").declencher("click");
  un("data-dz-assistant-suivant").declencher("click");await attendre();await attendre();
+ /* t308 relecture finale : « Suivant » cliqué pendant la vérification n'a rien fait ; libre ensuite, il passe au récapitulatif,
+    lu APRÈS que la vérification est revenue (rangée) */
+ R.b_etape_pendant=etape();R.b_suivant_libre=!(un("data-dz-assistant-suivant")||{}).disabled;
+ un("data-dz-assistant-suivant").declencher("click");await attendre();await attendre();
+ var iFin=-1,iRecap=-1;appels.forEach(function(a,i){if(a.u==="fin-verif-yt")iFin=i;if(a.u==="/api/espaces/"+ESP_ID+"/recapitulatif"&&iRecap<0)iRecap=i});
+ R.b_ordre_recap=[iFin,iRecap];
  R.b_posts_comptes=compte("POST","/api/comptes");R.b_verif_yt=compte("POST","/api/comptes/c1111bbbb/verifier");
  R.b_cree_yt=(appels.filter(function(a){return a.m==="POST"&&a.u==="/api/comptes"})[0]||{}).b;
  R.b_etape_recap=etape();
@@ -307,6 +314,11 @@ if R and "erreur" not in R:
           R["b_secret_apres"] == "" and R["b_yt_secret"] == "", str([R["b_secret_apres"], R["b_yt_secret"]]))
     check("5.21 clics concurrents (Vérifier ×2, Connecter, Suivant) : UN seul POST /api/comptes, UN seul /verifier ; Vérifier et Connecter grisés pendant l'envoi",
           R["b_posts_comptes"] == 1 and R["b_verif_yt"] == 1 and R["b_ve_grise"], str([R["b_posts_comptes"], R["b_verif_yt"], R["b_ve_grise"]]))
+    check("5.21b « Suivant » grisé pendant une vérification de l'étape 3 ; un clic alors ne fait rien ; libre après",
+          R.get("b_suivant_grise") is True and R.get("b_etape_pendant") == "3" and R.get("b_suivant_libre") is True,
+          str([R.get("b_suivant_grise"), R.get("b_etape_pendant"), R.get("b_suivant_libre")]))
+    check("5.21c le récapitulatif est lu APRÈS le retour de la vérification (il lit le résultat rangé)",
+          R.get("b_ordre_recap") and 0 <= R["b_ordre_recap"][0] < R["b_ordre_recap"][1], str(R.get("b_ordre_recap")))
     check("5.16 une plateforme cochée sans vérification : « Suivant » crée son compte dans l'espace (marqué non vérifié)",
           R["b_cree_yt"] == {"espace_id": "esp_new", "plateforme": "youtube"} and R["b_etape_recap"] == "4", str(R["b_cree_yt"]))
     check("5.17 le récapitulatif : le canal, « non vérifié », le consentement MANQUANT dit en clair",
@@ -373,6 +385,20 @@ function lire(n){var g=n.enfants[0];return {tag:n.tagName,etat:n.getAttribute("d
  R.rouge=lire(A.pastille({verification:{etat:"rouge",code:"refuse",raison:"jeton refusé (401)",date:"2026-10-26T10:02:00"}}));
  R.aucun=lire(A.pastille({id:"c9",verification:null}));
  R.recap=lire(A.pastille({etat:"vert",verifie_le:"2026-10-26T10:03:00"}));
+ /* t308 relecture finale : canal porté par le téléphone jamais vérifié ; survol traduit en anglais */
+ var TJ={verification:{etat:"orange",code:"telephone_jamais",raison:"porté par le téléphone, jamais vérifié",date:"2026-10-26T10:05:00"}};
+ R.tel_jamais=lire(A.pastille(TJ));
+ R.a_detail=typeof A.detail;
+ R.tel_jamais_detail=R.a_detail==="function"?A.detail(TJ):null;
+ R.tel_verifie_detail=R.a_detail==="function"?A.detail({verification:{etat:"vert",code:"telephone_verifie",raison:"porté par le téléphone, vérifié le 2026-10-20T09:30:00",date:"2026-10-26T10:06:00"}}):null;
+ R.recap_tel=lire(A.pastille({etat:"orange",code:"telephone_jamais",verifie_le:"2026-10-26T10:07:00"}));
+ var dzFr=window.dzT,langFr=window.dzLang;
+ window.dzT=function(k,v){var e=(window.DZ_I18N||{})[k];var s=e?(e.en||e.fr):k;if(v)s=s.replace(/\{(\w+)\}/g,function(m,n){return v[n]!=null?String(v[n]):m});return s};
+ window.dzLang=function(){return "en"};
+ R.en_rouge=lire(A.pastille({verification:{etat:"rouge",code:"refuse",raison:"jeton refusé (401)",date:"2026-10-26T10:02:00"}}));
+ R.en_vert=lire(A.pastille({verification:{etat:"vert",code:"ok",raison:"identité lue : @oracle",date:"2026-10-26T10:00:00"}}));
+ R.en_tel=lire(A.pastille(TJ));
+ window.dzT=dzFr;window.dzLang=langFr;
  /* verifier : deux appels pour le même compte pendant le vol = UN fetch ; libéré à la réponse ; libéré aussi sur échec */
  REPONSES["/api/comptes/c1/verifier"]=[200,{compte:{id:"c1",verification:{etat:"vert",code:"ok",raison:"ok",date:"2026-10-26T10:04:00"}}}];
  REPONSES["/api/comptes/c2/verifier"]=[500,{detail:"panne du faux serveur"}];
@@ -394,12 +420,14 @@ if P8 and "erreur" not in P8:
     check("8.1 l'API expose pastille, verifier et enCours", P8["api"] == ["function"] * 3, str(P8["api"]))
     DATES = {"vert": "2026-10-26 10:00", "orange": "2026-10-26 10:01", "rouge": "2026-10-26 10:02"}
     RAISONS = {"vert": "identité lue : @oracle", "orange": "identifiants incomplets", "rouge": "jeton refusé (401)"}
+    CODES8 = {"vert": "ok", "orange": "incomplet", "rouge": "refuse"}
     for et, glyphe, cle in (("vert", "dz-etat-succes", "etat_vert"), ("orange", "dz-etat-avertissement", "etat_orange"),
                             ("rouge", "dz-etat-erreur", "etat_rouge")):
         v = P8[et]
         check(f"8.2 {et} : un élément, glyphe {glyphe}, texte traduit, survol « vérifié le … : raison »",
               v["tag"] == "SPAN" and v["etat"] == et and glyphe in (v["glyphe"] or "") and v["texte"] == F(f"espaces.assistant.{cle}")
-              and v["titre"] == F("espaces.assistant.survol", date=DATES[et], raison=RAISONS[et]), str(v))
+              and v["titre"] == F("espaces.assistant.survol", date=DATES[et],
+                                  raison=F(f"espaces.assistant.code_{CODES8[et]}") + f" ({RAISONS[et]})"), str(v))
     check("8.3 couleurs distinctes pour les quatre états (vert, ambre, rouge, atténué)",
           len({re.search(r"color:([^;]+)$", P8[k]["style"]).group(1) for k in ("vert", "orange", "rouge", "aucun")}) == 4)
     check("8.4 sans vérification : « non vérifié », glyphe dz-etat-inconnu, survol « non vérifié »",
@@ -412,6 +440,27 @@ if P8 and "erreur" not in P8:
           str([P8["en_vol"], P8["un_appel"], P8["libre_apres"]]))
     check("8.7 verifier : un échec rejette (détail du serveur) ET libère le compte ; un appel suivant repart",
           P8["echec"] == "panne du faux serveur" and P8["libre_echec"] and P8["rejouable"] == 2, str([P8["echec"], P8["rejouable"]]))
+    def EN(cle, **v):
+        s = AIDE.DICO[cle]["en"]
+        for k, x in v.items():
+            s = s.replace("{" + k + "}", str(x))
+        return s
+    check("8.9 en anglais : le survol dit la traduction du CODE, jamais la raison brute française",
+          P8["en_rouge"]["titre"] == EN("espaces.assistant.survol", date="2026-10-26 10:02", raison=EN("espaces.assistant.code_refuse"))
+          and "jeton" not in P8["en_rouge"]["titre"]
+          and P8["en_vert"]["titre"] == EN("espaces.assistant.survol", date="2026-10-26 10:00", raison=EN("espaces.assistant.code_ok"))
+          and "identité" not in P8["en_vert"]["titre"], str([P8["en_rouge"]["titre"], P8["en_vert"]["titre"]]))
+    check("8.10 canal porté par le téléphone jamais vérifié : ni survol ni détail ne disent « vérifié le … »",
+          P8["tel_jamais"]["titre"] == F("espaces.assistant.code_telephone_jamais")
+          and P8["tel_jamais_detail"] == F("espaces.assistant.code_telephone_jamais")
+          and P8["recap_tel"]["titre"] == F("espaces.assistant.code_telephone_jamais")
+          and P8["en_tel"]["titre"] == EN("espaces.assistant.code_telephone_jamais")
+          and not any("érifié le" in (x or "") or "hecked on" in (x or "")
+                      for x in (P8["tel_jamais"]["titre"], P8["tel_jamais_detail"], P8["recap_tel"]["titre"], P8["en_tel"]["titre"])),
+          str([P8["tel_jamais"]["titre"], P8["tel_jamais_detail"], P8["recap_tel"]["titre"], P8["en_tel"]["titre"]]))
+    check("8.11 ... alors qu'un canal porté VÉRIFIÉ garde sa date dans le détail",
+          P8["tel_verifie_detail"] == F("espaces.assistant.detail", code=F("espaces.assistant.code_telephone_verifie"),
+                                         date="2026-10-26 10:06"), str(P8["tel_verifie_detail"]))
 check("8.8 l'assistant réemploie la MÊME aide (une seule fonction de pastille dans le script, exportée telle quelle)",
       TXT.count("function pastille(") == 1 and re.search(r"pastille:\s*pastille", TXT) is not None)
 

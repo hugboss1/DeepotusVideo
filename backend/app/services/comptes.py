@@ -305,8 +305,7 @@ def poser(cid: str, valeurs: dict) -> list:
     if valeurs:
         # t308 (26/10/2026) : le compte change -> « non vérifié », et sa révision change (une vérification en vol qui finit
         # après ce poser ne range rien). Écrit AVANT les secrets : un échec n'en laisse pas de périmée.
-        (doc.get("verifications") or {}).pop(cid, None)
-        e["rev"] = uuid.uuid4().hex[:8]
+        _perimer(doc, cid)
         _ecrire(doc)
     for c, v in valeurs.items():
         if autorises[c]:
@@ -375,6 +374,29 @@ def revision(cid: str):
     return str(e.get("rev") or "")
 
 
+def _perimer(doc: dict, cid: str) -> None:
+    """Le compte a changé : sa vérification est retirée et, pour un compte non historique, sa révision change (une
+    vérification en vol relevée avant ne range rien). N'écrit pas : l'appelant écrit `doc`."""
+    (doc.get("verifications") or {}).pop(cid, None)
+    if cid in doc["comptes"]:
+        doc["comptes"][cid]["rev"] = uuid.uuid4().hex[:8]
+
+
+def oublier_verification(cid: str) -> None:
+    """t308 relecture finale (26/10/2026) : l'identité distante du compte a pu changer sans qu'un champ soit réécrit par
+    `poser` (reconnexion OAuth : autre chaîne, autre compte TikTok). Retire sa vérification et change sa révision, comme
+    `poser`. Pas appelée par `garder_secret` : TikTok y fait tourner son refresh token PENDANT une vérification.
+    KeyError = compte inconnu."""
+    doc = _lire()
+    if (cid or "").startswith(HISTO):
+        if cid[len(HISTO):] not in PLATEFORMES:
+            raise KeyError(cid)
+    elif cid not in doc["comptes"]:
+        raise KeyError(cid)
+    _perimer(doc, cid)
+    _ecrire(doc)
+
+
 def noter_verification(cid: str, res: dict, rev=None):
     """Range la vérification d'un compte (aussi `historique-<p>`) : {etat, raison, code, date, id_distant, nom_distant}. Rend
     la vérification rangée. KeyError = compte inconnu. Aucun secret : `res` vient de verif_canaux (déjà nettoyé).
@@ -394,6 +416,12 @@ def noter_verification(cid: str, res: dict, rev=None):
     verif = {"etat": res.get("etat") if res.get("etat") in ETATS else "orange", "raison": _t(res.get("raison"), 200) or "",
              "code": _t(res.get("code"), 40), "date": datetime.now().isoformat(timespec="seconds"), "id_distant": _t(res.get("id_distant"), 200),
              "nom_distant": _t(res.get("nom_distant"), 200)}
+    # t308 relecture finale (26/10/2026) : un résultat SANS identité (réseau, 5xx, 429, quota, refus) ne l'efface pas. La
+    # vérification d'avant existe encore, donc le compte n'a pas été réécrit depuis (poser, porter_par_telephone,
+    # oublier_verification et supprimer la retirent) : son identité ne peut pas avoir changé. État, raison et code sont neufs.
+    avant = (doc.get("verifications") or {}).get(cid)
+    if verif["id_distant"] is None and isinstance(avant, dict) and avant.get("id_distant"):
+        verif["id_distant"], verif["nom_distant"] = avant.get("id_distant"), avant.get("nom_distant")
     doc.setdefault("verifications", {})[cid] = verif
     _ecrire(doc)
     return verif
@@ -440,8 +468,7 @@ def porter_par_telephone(cid: str, declaration: dict) -> dict:
         raise ValueError("déclaration du téléphone : identifiant distant invalide")
     out["id_distant"] = idd
     doc["comptes"][cid]["porte_par"] = out
-    doc["comptes"][cid]["rev"] = uuid.uuid4().hex[:8]
-    (doc.get("verifications") or {}).pop(cid, None)
+    _perimer(doc, cid)
     _ecrire(doc)
     return obtenir(cid)
 

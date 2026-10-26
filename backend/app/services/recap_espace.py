@@ -6,7 +6,8 @@ espaces.py créerait un import circulaire, `fiche_client` important déjà `espa
 
 Règles :
   - `etat` vaut vert / orange / rouge (la dernière vérification du compte) ou « non_verifie » (aucune, ou effacée par une
-    réécriture du compte) ;
+    réécriture du compte) ; `code` est celui de la vérification (None sans vérification) : l'écran le traduit et ne dit
+    pas « vérifié le … » d'un canal porté par le téléphone jamais vérifié (`telephone_jamais`) ;
   - `consentement` : « sans_objet » si aucun client ne gouverne l'espace ; sinon « en_cours » si un consentement court
     pour le `canal_id` du compte, « manquant » dans tous les autres cas, y compris `canal_id` inconnu (canal jamais
     vérifié : on ne le croit jamais couvert) ;
@@ -26,7 +27,8 @@ def recapitulatif(eid: str) -> dict:
     type_ = e.get("type") if e.get("type") in espaces.TYPES else "marque"
     client = espaces.client_responsable(eid)
     fiche = fiche_client.lire(client) if client else None
-    en_cours = {x["canal_id"] for x in fiche["consentements"] if x["revoque_le"] is None} if fiche else set()
+    # t308 relecture finale (26/10/2026) : « en cours » a UNE source (§5.5), lue une fois pour tous les canaux
+    en_cours = {x["canal_id"] for x in fiche_client.consentements_en_cours(client)} if client else set()
     canaux = []
     for v in comptes.lister(eid):
         ver = v.get("verification")
@@ -37,6 +39,7 @@ def recapitulatif(eid: str) -> dict:
         else:
             cons = "en_cours" if cid and cid in en_cours else "manquant"
         canaux.append({"compte": v["id"], "plateforme": v["plateforme"], "libelle": v["libelle"], "etat": etat,
+                       "code": ver.get("code") if isinstance(ver, dict) else None,
                        "verifie_le": ver.get("date") if isinstance(ver, dict) else None, "canal_id": cid,
                        "consentement": cons})
     return {"espace_id": eid, "type": type_, "client_responsable": client,

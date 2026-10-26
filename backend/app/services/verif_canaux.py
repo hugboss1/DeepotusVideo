@@ -99,6 +99,15 @@ def _manquants(plateforme: str) -> list[str]:
     return [c for c in comptes.PLATEFORMES[plateforme][2] if not str(comptes.cle(c) or "").strip()]
 
 
+def _coffre_en_cause(plateforme: str) -> bool:
+    """Coffre posé mais fermé ET un champ SECRET requis vide : le manque vient (peut-être) du coffre, pas du compte."""
+    from app.services import coffre
+    if not coffre.verrouille():
+        return False
+    secrets_ = {c for c, s in comptes.PLATEFORMES[plateforme][1] if s}
+    return any(c in secrets_ for c in _manquants(plateforme))
+
+
 async def _x() -> dict:
     ident, nom = await asyncio.to_thread(_x_me)      # to_thread garde le compte courant (ContextVar)
     return _r("vert", "compte X joint", ident, f"@{nom}", code="ok")
@@ -212,13 +221,19 @@ def _portee(pp: dict) -> dict:
 
 async def verifier(cid: str) -> dict:
     """Vérifie le compte `cid` (ou `historique-<p>`), RANGE le résultat daté (`comptes.noter_verification`) et rend la vue
-    relue. Un compte porté par le téléphone ne lit aucun secret et n'appelle aucun réseau. KeyError = compte inconnu."""
+    relue. Un compte porté par le téléphone ne lit aucun secret et n'appelle aucun réseau. KeyError = compte inconnu ;
+    coffre.CoffreVerrouille = coffre fermé alors qu'un secret requis manque (rien n'est rangé)."""
     vue = comptes.obtenir(cid)
     rev = comptes.revision(cid)          # relevée AVANT le réseau : si le compte change pendant l'appel, rien n'est rangé
     if isinstance(vue.get("porte_par"), dict):
         res = _portee(vue["porte_par"])
     else:
         with comptes.sous_compte(cid):
+            if _coffre_en_cause(vue["plateforme"]):
+                # t308 relecture finale (26/10/2026) : le secret requis est peut-être au coffre fermé : rien n'est rangé
+                # (jamais « identifiants incomplets ») ; la route rend le 409 du coffre verrouillé (_compte_erreur).
+                from app.services import coffre
+                raise coffre.CoffreVerrouille("le coffre est fermé")
             res = await verifier_plateforme(vue["plateforme"])
     comptes.noter_verification(cid, res, rev=rev)
     return comptes.obtenir(cid)

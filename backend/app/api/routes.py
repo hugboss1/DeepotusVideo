@@ -8534,7 +8534,7 @@ async def verifier_compte(compte_id: str, request: Request):
     from app.services import verif_canaux as _vc
     try:
         return {"compte": await _vc.verifier(compte_id)}
-    except Exception as e:  # noqa: BLE001 — traduit en 404 (inconnu) / 400 par _compte_erreur
+    except Exception as e:  # noqa: BLE001 — traduit en 404 (inconnu) / 409 (coffre fermé) / 400 par _compte_erreur
         raise _compte_erreur(e)
 
 
@@ -9903,6 +9903,9 @@ async def _oauth_callback(canal: str, request: Request, code: str, state: str, e
                 return _oauth_page(f"{nom} : aucun refresh token reçu",
                                    f"Révoquez l'accès de l'application dans votre compte {nom}, puis recommencez « Connecter ».", 502)
             ou = _cpt.garder_secret(rt_nom, rt)
+        # t308 relecture finale (26/10/2026) : reconnecter peut changer de chaîne ou de compte : l'identité vérifiée est
+        # oubliée et la révision change (une vérification en vol ne range rien). Jamais dans garder_secret (rotation TikTok).
+        _cpt.oublier_verification(compte or f"{_cpt.HISTO}{canal}")
     except KeyError:
         return _oauth_page(f"{nom} : compte supprimé", "Le compte de diffusion a été supprimé pendant la connexion.", 404)
     garde = {"coffre": "gardé dans le coffre", "env": "gardé dans les réglages",
