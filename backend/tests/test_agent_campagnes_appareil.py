@@ -34,6 +34,7 @@ import app.main as MAIN                                              # noqa: E40
 from app.main import app                                             # noqa: E402
 from app.api import agent_campagnes_routes as ACR                    # noqa: E402
 from app.services import agent_campagnes as AC, espaces, moteurs_texte as MT, pricing   # noqa: E402
+from _faux_sse import FluxRep, lignes_depuis_message                 # noqa: E402
 from app.services.storage import AgentConversation, async_session_factory, init_db       # noqa: E402
 import _jeton_appareil as JA                                         # noqa: E402
 
@@ -60,8 +61,9 @@ BASE = "/api/agent/campagnes"
 LAN = ("192.168.1.50", 5000)
 
 
-class Rep:
-    def __init__(self, d): self.status_code, self._d, self.text = 200, d, ""
+class Rep(FluxRep):
+    """La réponse du faux modèle : le message scripté est rendu en flux SSE (L4.1 T3, `converser` lit `stream: true`)."""
+    def __init__(self, d): super().__init__(lignes_depuis_message(d)); self._d = d
     def json(self): return self._d
 
 
@@ -172,7 +174,7 @@ def test_avec_jeton_ok():
     MT._POSTER = Script([texte("Voici le plan.")])
     m = lan.post(f"{BASE}/{cid}/message", json={"texte": "Que faire ?", "plafond_usd": 1.0}, headers=H)
     check("2d POST /{cid}/message : 200 SSE jusqu'à fin (le tour tourne sur le PC)", m.status_code == 200
-          and [e.get("type") for e in evenements(m)] == ["texte", "fin"], f"{m.status_code} {m.text[:200]}")
+          and [e.get("type") for e in evenements(m)] == ["delta", "texte", "fin"], f"{m.status_code} {m.text[:200]}")
     p = lan.post(f"{BASE}/{cid}/depot", json={"texte": "Notes du téléphone", "nom": "notes"}, headers=H)
     check("2e POST /{cid}/depot : 200", p.status_code == 200 and p.json().get("caracteres") == 18,
           f"{p.status_code} {p.text[:200]}")

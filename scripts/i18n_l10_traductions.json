@@ -10459,10 +10459,6 @@
   "fr": "état de porte inconnu : {etat}",
   "en": "unknown gate state: {etat}"
  },
- "Anthropic réponse illisible — {v}": {
-  "fr": "Anthropic réponse illisible — {v}",
-  "en": "Anthropic response unreadable — {v}"
- },
  "Conversation introuvable.": {
   "fr": "Conversation introuvable.",
   "en": "Conversation not found."
@@ -10718,5 +10714,21 @@
  "parent {parent} absent de cette installation ou refusé : retiré": {
   "fr": "parent {parent} absent de cette installation ou refusé : retiré",
   "en": "parent {parent} missing from this installation or refused: removed"
+ },
+ "pas d'appareil": {
+  "fr": "pas d'appareil",
+  "en": "no device"
+ },
+ "Anthropic flux coupé avant la fin": {
+  "fr": "Anthropic flux coupé avant la fin",
+  "en": "Anthropic stream cut before the end"
+ },
+ "Anthropic entrée d'outil illisible": {
+  "fr": "Anthropic entrée d'outil illisible",
+  "en": "Anthropic tool input unreadable"
+ },
+ "Anthropic flux — {v}": {
+  "fr": "Anthropic flux — {v}",
+  "en": "Anthropic stream — {v}"
  }
 }
