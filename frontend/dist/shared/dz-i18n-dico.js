@@ -5543,6 +5543,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "espaces.comptes.test_en_cours": {"fr": "Test en cours…", "en": "Testing…"},
   "espaces.comptes.tester": {"fr": "Tester", "en": "Test"},
   "espaces.comptes.titre": {"fr": "Comptes de diffusion — {nom}", "en": "Publishing accounts — {nom}"},
+  "espaces.comptes.verifier": {"fr": "Vérifier", "en": "Verify", "contexte": true},
   "espaces.ct.aide": {"fr": "Une proposition n'écrit rien : cochez les modèles à garder, puis ajoutez-les ou remplacez. Sans IA, elle est tirée du persona et de son identité ; par IA, elle est devisée et passe sous le plafond.", "en": "A suggestion writes nothing: tick the templates to keep, then add them or replace. Without AI it comes from the persona and its identity; with AI it is quoted and goes through the spending cap."},
   "espaces.ct.ajouter": {"fr": "Ajouter les modèles cochés", "en": "Add the ticked templates"},
   "espaces.ct.applique": {"fr": "{n} modèle(s) enregistré(s) dans l'espace.", "en": "{n} template(s) saved to the space."},

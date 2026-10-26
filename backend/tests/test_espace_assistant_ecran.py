@@ -17,6 +17,14 @@ maillon dzespace, HORS de tout bloc de couche) ouvre l'assistant. Son inverse `a
                     dz-espace-cree et ferme ;
 [6] textes          clés espaces.assistant.* FR et EN, toutes employées, aucune orpheline, assemblées ;
 [7] la paire        le formulaire de DzEspaces (data-dz-espace-nouveau, lu par la scène du guide t211) ouvre l'assistant.
+t308 tâche 5 (26/10/2026) — l'état de vérification dans Réglages › Espaces et au Planificateur :
+[8] la pastille     window.__dzEspaceAssistant.pastille(vue) pour les quatre états (glyphe, couleur, texte traduit, survol
+                    « vérifié le … : raison » ou « non vérifié ») ; verifier(id) n'envoie qu'UN appel à la fois par compte
+                    (enCours), libéré aussi sur échec ;
+[9] les écrans      sous node (faux React, faux fetch), les fonctions LIVRÉES du bundle : DzComptesEspace montre la pastille
+                    et « Vérifier » (route appelée une fois malgré le double clic, bouton grisé, libéré sur échec, liste
+                    relue) ; DzPostComptes dit « non vérifié » (ou l'état) d'un compte COCHÉ pas vert, rien pour un vert, et
+                    ne bloque rien (signal seulement : les règles client sont t309) ; cibles hors couche.
 Run : & $PY tests/test_espace_assistant_ecran.py   (depuis backend/)
 """
 import json, os, pathlib, re, shutil, subprocess, sys, tempfile
@@ -345,6 +353,178 @@ check("7.2 sa soumission ouvre window.__dzEspaceAssistant.ouvrir (nom et couleur
       and B.count(MARKER + "window.__dzEspaceAssistant") == 1)
 check("7.3 sans le script partagé, l'ancien formulaire rapide reste le repli (POST /api/espaces)",
       B.count('agir(dzEspEnvoyer("/api/espaces","POST",{nom:st.nom.trim(),couleur:st.couleur}))') == 1)
+
+# ── t308 tâche 5 (26/10/2026) : l'état de vérification dans Réglages › Espaces et au Planificateur ─────────────────────
+print("\n[8] la pastille partagée et la vérification à un seul appel")
+SONDE_PASTILLE = r"""
+var appels=[],REPONSES={};
+function rep(st,d){return Promise.resolve({ok:st<300,status:st,json:function(){return Promise.resolve(d)}})}
+globalThis.fetch=function(u,o){var m=(o&&o.method)||"GET";appels.push({u:u,m:m});
+  var r=REPONSES[u];if(!r)return rep(404,{detail:"inconnu"});
+  return new Promise(function(ok){setTimeout(function(){ok({ok:r[0]<300,status:r[0],json:function(){return Promise.resolve(r[1])}})},10)})};
+__SCRIPT__
+var R={},A=window.__dzEspaceAssistant;
+function lire(n){var g=n.enfants[0];return {tag:n.tagName,etat:n.getAttribute("data-etat"),texte:n.textContent,titre:n.getAttribute("title"),
+  glyphe:g&&g.innerHTML,style:n.getAttribute("style")}}
+(async function(){
+ R.api=[typeof A.pastille,typeof A.verifier,typeof A.enCours];
+ R.vert=lire(A.pastille({verification:{etat:"vert",code:"ok",raison:"identité lue : @oracle",date:"2026-10-26T10:00:00"}}));
+ R.orange=lire(A.pastille({verification:{etat:"orange",code:"incomplet",raison:"identifiants incomplets",date:"2026-10-26T10:01:00"}}));
+ R.rouge=lire(A.pastille({verification:{etat:"rouge",code:"refuse",raison:"jeton refusé (401)",date:"2026-10-26T10:02:00"}}));
+ R.aucun=lire(A.pastille({id:"c9",verification:null}));
+ R.recap=lire(A.pastille({etat:"vert",verifie_le:"2026-10-26T10:03:00"}));
+ /* verifier : deux appels pour le même compte pendant le vol = UN fetch ; libéré à la réponse ; libéré aussi sur échec */
+ REPONSES["/api/comptes/c1/verifier"]=[200,{compte:{id:"c1",verification:{etat:"vert",code:"ok",raison:"ok",date:"2026-10-26T10:04:00"}}}];
+ REPONSES["/api/comptes/c2/verifier"]=[500,{detail:"panne du faux serveur"}];
+ var p1=A.verifier("c1"),p2=A.verifier("c1");R.en_vol=A.enCours("c1");R.autre_libre=!A.enCours("c2");
+ var v1=await p1;await p2;R.un_appel=appels.filter(function(a){return a.u==="/api/comptes/c1/verifier"&&a.m==="POST"}).length;
+ R.libre_apres=!A.enCours("c1");R.rendu=v1&&v1.compte&&v1.compte.verification&&v1.compte.verification.etat;
+ var e2=null;try{await A.verifier("c2")}catch(e){e2=String(e&&e.message||e)}
+ R.echec=e2;R.libre_echec=!A.enCours("c2");
+ A.verifier("c1");await new Promise(function(ok){setTimeout(ok,30)});
+ R.rejouable=appels.filter(function(a){return a.u==="/api/comptes/c1/verifier"}).length;
+ process.stdout.write(JSON.stringify(R));
+})().catch(function(e){process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)}))});
+"""
+P8 = {}
+if NODE and SHARED.is_file():
+    P8 = node(AIDE.PRELUDE_DZT + "\n" + FAUX_DOM + SONDE_PASTILLE.replace("__SCRIPT__", SHARED.read_text("utf-8")))
+check("8.0 la sonde s'exécute sous node", bool(P8) and "erreur" not in P8, str(P8.get("erreur", ""))[:800])
+if P8 and "erreur" not in P8:
+    check("8.1 l'API expose pastille, verifier et enCours", P8["api"] == ["function"] * 3, str(P8["api"]))
+    DATES = {"vert": "2026-10-26 10:00", "orange": "2026-10-26 10:01", "rouge": "2026-10-26 10:02"}
+    RAISONS = {"vert": "identité lue : @oracle", "orange": "identifiants incomplets", "rouge": "jeton refusé (401)"}
+    for et, glyphe, cle in (("vert", "dz-etat-succes", "etat_vert"), ("orange", "dz-etat-avertissement", "etat_orange"),
+                            ("rouge", "dz-etat-erreur", "etat_rouge")):
+        v = P8[et]
+        check(f"8.2 {et} : un élément, glyphe {glyphe}, texte traduit, survol « vérifié le … : raison »",
+              v["tag"] == "SPAN" and v["etat"] == et and glyphe in (v["glyphe"] or "") and v["texte"] == F(f"espaces.assistant.{cle}")
+              and v["titre"] == F("espaces.assistant.survol", date=DATES[et], raison=RAISONS[et]), str(v))
+    check("8.3 couleurs distinctes pour les quatre états (vert, ambre, rouge, atténué)",
+          len({re.search(r"color:([^;]+)$", P8[k]["style"]).group(1) for k in ("vert", "orange", "rouge", "aucun")}) == 4)
+    check("8.4 sans vérification : « non vérifié », glyphe dz-etat-inconnu, survol « non vérifié »",
+          P8["aucun"]["etat"] == "non_verifie" and P8["aucun"]["texte"] == F("espaces.assistant.etat_non_verifie")
+          and P8["aucun"]["titre"] == F("espaces.assistant.etat_non_verifie") and "dz-etat-inconnu" in P8["aucun"]["glyphe"], str(P8["aucun"]))
+    check("8.5 la même aide lit un canal du récapitulatif (etat, verifie_le)", P8["recap"]["etat"] == "vert"
+          and "2026-10-26 10:03" in P8["recap"]["titre"], str(P8["recap"]))
+    check("8.6 verifier : deux appels pendant le vol = UN POST /api/comptes/{id}/verifier, enCours vrai pendant, faux après",
+          P8["en_vol"] and P8["autre_libre"] and P8["un_appel"] == 1 and P8["libre_apres"] and P8["rendu"] == "vert",
+          str([P8["en_vol"], P8["un_appel"], P8["libre_apres"]]))
+    check("8.7 verifier : un échec rejette (détail du serveur) ET libère le compte ; un appel suivant repart",
+          P8["echec"] == "panne du faux serveur" and P8["libre_echec"] and P8["rejouable"] == 2, str([P8["echec"], P8["rejouable"]]))
+check("8.8 l'assistant réemploie la MÊME aide (une seule fonction de pastille dans le script, exportée telle quelle)",
+      TXT.count("function pastille(") == 1 and re.search(r"pastille:\s*pastille", TXT) is not None)
+
+print("\n[9] les écrans : Réglages › Espaces et l'éditeur de post du Planificateur (fonctions LIVRÉES du bundle)")
+
+
+def _tranche(debut, fin):
+    i = B.find(debut)
+    j = B.find(fin, i)
+    return B[i:j] if 0 <= i < j else ""
+
+
+ECRANS = _tranche("function dzEspEnvoyer(", "function dzEspSignal(") + "\n" + _tranche("function DzComptesEspace(", "var DZ_ONB_ETAPES=")
+FAUX_REACT = r"""
+var hooks=[],hi=0,arbre=null,effets=[],COMP=null,PROPS=null,plan=false;
+var x={useReducer:function(red,init){var i=hi++;if(!(i in hooks))hooks[i]=init;return[hooks[i],function(a){hooks[i]=red(hooks[i],a);planifier()}]},
+  useEffect:function(f,deps){var i=hi++,old=hooks[i];if(!old||!deps||deps.some(function(d,k){return d!==old[k]})){hooks[i]=deps||[];effets.push(f)}}};
+var r={jsx:function(t,p){return{t:t,p:p||{}}},jsxs:function(t,p){return{t:t,p:p||{}}}};
+function aplat(c,out){out=out||[];if(c==null||c===false||c===true||c==="")return out;if(Array.isArray(c)){c.forEach(function(e){aplat(e,out)});return out}out.push(c);return out}
+function kids(n){return n&&typeof n==="object"&&n.p?aplat(n.p.children):[]}
+function refs(n){if(!n||typeof n!=="object")return;if(typeof n.p.ref==="function"){var d=document.createElement(n.t);n.p.ref(d);n.dom=d}kids(n).forEach(refs)}
+function monter(C,p){COMP=C;PROPS=p;hooks=[];rendre()}
+function rendre(){hi=0;effets=[];arbre=COMP(PROPS);refs(arbre);var e=effets;e.forEach(function(f){f()})}
+function planifier(){if(plan)return;plan=true;Promise.resolve().then(function(){plan=false;rendre()})}
+function chercher(pred,n,out){out=out||[];n=n===undefined?arbre:n;if(!n||typeof n!=="object")return out;if(pred(n))out.push(n);kids(n).forEach(function(e){chercher(pred,e,out)});return out}
+function avec(attr,val){return chercher(function(n){return n.p&&n.p[attr]!==undefined&&(val===undefined||n.p[attr]===val)})}
+function texte(n){if(n==null||n===false)return"";if(typeof n!=="object")return String(n);if(n.dom)return n.dom.textContent;return kids(n).map(texte).join("")}
+function pastilleDe(n){var d=n&&n.dom;var s=d&&d.enfants[0];return s?[s.getAttribute("data-etat"),s.textContent,s.getAttribute("title")]:null}
+function attendre(ms){return new Promise(function(ok){setTimeout(ok,ms||30)})}
+"""
+SONDE_ECRANS = r"""
+var appels=[],VERIFS={c_a:null,c_b:{etat:"vert",code:"ok",raison:"identité lue",date:"2026-10-26T09:00:00"},
+  c_r:{etat:"rouge",code:"refuse",raison:"jeton refusé (401)",date:"2026-10-26T09:01:00"},c_o:{etat:"orange",code:"incomplet",raison:"incomplet",date:"2026-10-26T09:02:00"}};
+function cpt(id,p){return{id:id,espace_id:"esp_c",plateforme:p,libelle:"Compte "+id,handle:"",historique:false,oauth:false,disponible:true,
+  verification:VERIFS[id],canal_id:null,champs:[]}}
+function liste(){return[cpt("c_a","telegram"),cpt("c_b","youtube"),cpt("c_r","x"),cpt("c_o","tiktok")]}
+function rep(st,d,ms){return new Promise(function(ok){setTimeout(function(){ok({ok:st<300,status:st,json:function(){return Promise.resolve(d)}})},ms||0)})}
+globalThis.fetch=function(u,o){var m=(o&&o.method)||"GET";appels.push({u:u,m:m});
+  if(u.indexOf("/api/comptes?espace=")===0)return rep(200,{espace:"esp_c",comptes:liste(),plateformes:{telegram:{libelle:"Telegram"},youtube:{libelle:"YouTube"},x:{libelle:"X"},tiktok:{libelle:"TikTok"}}});
+  if(u==="/api/comptes/c_a/verifier"&&m==="POST"){VERIFS.c_a={etat:"orange",code:"incomplet",raison:"identifiants incomplets : TELEGRAM_CHAT_ID",date:"2026-10-26T11:00:00"};return rep(200,{compte:cpt("c_a","telegram")},40)}
+  if(u==="/api/comptes/c_r/verifier"&&m==="POST")return rep(500,{detail:"panne du faux serveur"},20);
+  return rep(404,{detail:"route inconnue du faux serveur : "+m+" "+u})};
+__SCRIPT__
+__ECRANS__
+function compte(m,u){return appels.filter(function(a){return a.m===m&&a.u===u}).length}
+var R={};
+(async function(){
+ /* Réglages › Espaces */
+ monter(DzComptesEspace,{espace:"esp_c",nom:"Client C"});await attendre();
+ R.pastilles={};avec("data-dz-compte-etat").forEach(function(n){R.pastilles[n.p["data-dz-compte-etat"]]=pastilleDe(n)});
+ var bt=function(id){return avec("data-dz-compte-verifier",id)[0]||null};
+ R.boutons=avec("data-dz-compte-verifier").map(function(n){return [n.p["data-dz-compte-verifier"],texte(n),!!n.p.disabled,n.t]});
+ var gets0=compte("GET","/api/comptes?espace=esp_c");
+ bt("c_a").p.onClick();bt("c_a").p.onClick();await attendre(5);
+ R.grise_pendant=!!(bt("c_a")&&bt("c_a").p.disabled);R.autre_libre=!(bt("c_b")&&bt("c_b").p.disabled);
+ bt("c_a").p.onClick();
+ await attendre(120);
+ R.verifs_a=compte("POST","/api/comptes/c_a/verifier");R.relue=compte("GET","/api/comptes?espace=esp_c")-gets0;
+ R.libre_apres=!(bt("c_a")&&bt("c_a").p.disabled);R.pastille_a_apres=pastilleDe(avec("data-dz-compte-etat","c_a")[0]);
+ var gets1=compte("GET","/api/comptes?espace=esp_c");
+ bt("c_r").p.onClick();await attendre(5);R.grise_r=!!bt("c_r").p.disabled;await attendre(100);
+ R.libre_echec=!bt("c_r").p.disabled;R.relue_echec=compte("GET","/api/comptes?espace=esp_c")-gets1;
+ R.msg_echec=texte(avec("data-dz-compte-msg","c_r")[0]||null);
+ R.rouge_garde=pastilleDe(avec("data-dz-compte-etat","c_r")[0]);
+ /* le Planificateur : c_a (orange maintenant), c_b (vert), c_r (rouge) cochés ; c_o (orange) PAS coché ; un 5e compte jamais vérifié coché */
+ VERIFS.c_a=null;
+ var changes=[];
+ monter(DzPostComptes,{post:{id:"p1",espaceId:"esp_c",comptes:["c_a","c_b","c_r"]},onChange:function(v){changes.push(v)}});await attendre();
+ R.post_etats={};avec("data-dz-post-compte-etat").forEach(function(n){R.post_etats[n.p["data-dz-post-compte-etat"]]=pastilleDe(n)});
+ var lab=avec("data-dz-post-compte","c_o")[0];var caseO=chercher(function(n){return n.t==="input"},lab)[0];caseO.p.onChange();
+ R.change=changes[0]||null;
+ process.stdout.write(JSON.stringify(R));
+})().catch(function(e){process.stdout.write(JSON.stringify({erreur:String(e&&e.stack||e)}))});
+"""
+P9 = {}
+if NODE and SHARED.is_file() and ECRANS.strip():
+    P9 = node(AIDE.PRELUDE_DZT + "\n" + FAUX_DOM + FAUX_REACT
+              + SONDE_ECRANS.replace("__SCRIPT__", SHARED.read_text("utf-8")).replace("__ECRANS__", ECRANS))
+check("9.0 les fonctions livrées s'exécutent sous node", bool(P9) and "erreur" not in P9, str(P9.get("erreur", ""))[:800])
+if P9 and "erreur" not in P9:
+    pa = P9["pastilles"]
+    check("9.1 Réglages : une pastille par compte, l'état de SA vérification (rouge, vert, orange, non vérifié)",
+          set(pa) == {"c_a", "c_b", "c_r", "c_o"} and (pa["c_b"] or [None])[0] == "vert" and (pa["c_r"] or [None])[0] == "rouge"
+          and (pa["c_o"] or [None])[0] == "orange" and (pa["c_a"] or [None])[0] == "non_verifie", str(pa))
+    check("9.2 Réglages : un bouton « Vérifier » par compte, libellé traduit", len(P9["boutons"]) == 4
+          and all(b[1] == F("espaces.comptes.verifier") and b[3] == "button" and not b[2] for b in P9["boutons"]), str(P9["boutons"]))
+    check("9.3 « Vérifier » : double clic = UN seul appel à la route ; bouton grisé pendant l'appel (les autres comptes libres)",
+          P9["verifs_a"] == 1 and P9["grise_pendant"] and P9["autre_libre"], str([P9["verifs_a"], P9["grise_pendant"]]))
+    check("9.4 après la réponse : la liste est relue UNE fois (un clic de plus pendant le vol ne relance rien), le bouton libéré, la pastille dit le nouvel état",
+          P9["relue"] == 1 and P9["libre_apres"] and (P9["pastille_a_apres"] or [None])[0] == "orange"
+          and "2026-10-26 11:00" in (P9["pastille_a_apres"] or ["", "", ""])[2], str([P9["relue"], P9["pastille_a_apres"]]))
+    check("9.5 sur ÉCHEC : grisé pendant, libéré après, liste relue, l'erreur dite dans la ligne",
+          P9["grise_r"] and P9["libre_echec"] and P9["relue_echec"] == 1 and "panne du faux serveur" in P9["msg_echec"],
+          str([P9["grise_r"], P9["libre_echec"], P9["relue_echec"], P9["msg_echec"]]))
+    pe = P9["post_etats"]
+    check("9.6 Planificateur : un compte coché SANS vérification dit « non vérifié »",
+          (pe.get("c_a") or [None, None])[:2] == ["non_verifie", F("espaces.assistant.etat_non_verifie")], str(pe))
+    check("9.7 Planificateur : rien pour un compte coché VERT ni pour un compte non coché ; l'état d'un coché rouge est dit",
+          "c_b" not in pe and "c_o" not in pe and (pe.get("c_r") or [None])[0] == "rouge", str(pe))
+    check("9.8 Planificateur : SIGNALE sans bloquer — cocher un compte non vérifié passe (comptes et canaux posés)",
+          P9["change"] == {"comptes": ["c_a", "c_b", "c_r", "c_o"], "channels": ["telegram", "youtube", "x", "tiktok"]}, str(P9["change"]))
+if PM:
+    _cibles = [z for _a, z in PM.PAIRES[2:]]
+    _couches = [(m.start(), B.index("/*__DZ_%s_END__*/" % m.group(1))) for m in re.finditer(r"/\*__DZ_([A-Z0-9_]+?)_BEGIN__\*/", B)]
+    check("9.9 les paires de la tâche 5 visent DzComptesEspace et DzPostComptes, HORS de tout bloc de couche",
+          lambda: len(_cibles) >= 3 and all(B.count(z) == 1 and not any(s0 <= B.index(z) <= e0 for s0, e0 in _couches)
+                                            and B.index("function DzComptesEspace(") < B.index(z) < B.index("var DZ_ONB_ETAPES=")
+                                            for z in _cibles))
+check("9.10 une seule aide de pastille : le bundle l'appelle par window.__dzEspaceAssistant.pastille (Réglages et Planificateur)",
+      B.count("window.__dzEspaceAssistant.pastille(c)") == 2 and B.count("var A=window.__dzEspaceAssistant;if(!A||A.enCours(c.id))return;var pv=A.verifier(c.id);") == 1)
+check("9.11 la clé du bouton existe en FR et EN (« Vérifier » / « Verify », contexte : même texte FR ailleurs)",
+      DICO.get("espaces.comptes.verifier", {}).get("fr") == "Vérifier" and DICO["espaces.comptes.verifier"].get("en") == "Verify"
+      and DICO["espaces.comptes.verifier"].get("contexte") is True and 'dzT("espaces.comptes.verifier")' in B)
 
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)

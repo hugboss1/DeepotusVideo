@@ -13,6 +13,19 @@ __DZ_*_BEGIN__ : mesuré le 26/10 à l'offset 1 138 023, avant SONVFX qui commen
      entière derrière le crochet). Le formulaire reste : la scène du guide t211 surligne `[data-dz-espace-nouveau]` ;
   P2 le bouton « Créer l'espace » n'est plus grisé quand le nom est vide (l'assistant le demande à l'étape 1) — il
      l'est encore sans le script partagé — et porte `data-dz-espace-assistant-ouvrir` (localisateur de l'assistant F1).
+t308 tâche 5 (26/10/2026) : l'ÉTAT DE VÉRIFICATION des canaux, par l'aide partagée window.__dzEspaceAssistant.pastille
+(la même que l'assistant), dans deux autres sorties du maillon dzespace, elles aussi HORS de tout bloc de couche (mesuré
+le 26/10 : DzComptesEspace à l'offset 1 146 032, DzPostComptes à 1 153 439, SONVFX commence à 1 225 489) :
+  P3 DzComptesEspace (Réglages › Espaces) gagne `verifier(c)` : window.__dzEspaceAssistant.verifier(id) (UN appel à la
+     fois par compte), l'erreur dite dans la ligne, puis la liste relue (et le cache de l'éditeur de post vidé pour cet
+     espace, qu'il relise l'état) ;
+  P4 à côté de chaque compte, la pastille (`data-dz-compte-etat`) ;
+  P5 un bouton « Vérifier » (`data-dz-compte-verifier`, style de ses voisins), grisé tant que l'appel est en vol
+     (enCours), libéré aussi sur échec ;
+  P6 DzPostComptes (éditeur de post du Planificateur) : un compte COCHÉ qui n'est pas `vert` porte la pastille
+     (`data-dz-post-compte-etat` : « non vérifié » ou l'état) ; rien pour un vert. Le Planificateur SIGNALE sans bloquer
+     (la programmation n'est jamais refusée en t308 : les règles client sont t309).
+Sans le script partagé, rien de tout cela ne s'affiche (crochets `window.__dzEspaceAssistant&&`).
 Le reste de DzEspaces ne change pas. AUCUN `x.useState(` ajouté (731) ; v2.8.0 ×4, DzTracks 181, confirmations ×30
 intouchés. Textes : clés espaces.assistant.* dans frontend/shared/i18n/espaces.json (FR/EN), lues par le script partagé.
 
@@ -48,6 +61,16 @@ SONDE_AMONT = [
 _SOUMETTRE = 'onSubmit:function(ev){ev.preventDefault();'
 _RAPIDE = 'if(!st.nom.trim())return;'
 _BOUTON = 'disabled:st.busy||!st.nom.trim(),style:bt,children:dzT("espaces.nouveau.creer")'
+# t308 tâche 5 : ancres de DzComptesEspace et DzPostComptes (sortie de dzespace, hors couche)
+_DIRE = 'function dire(id,t){var m=Object.assign({},st.msg);m[id]=t;maj({msg:m})}async function tester(c){'
+_DISPO = ('r.jsx("span",{style:{fontSize:10.5,color:c.disponible?"var(--green)":"var(--amber)"},'
+          'children:dzT(c.disponible?"espaces.comptes.disponible":"espaces.comptes.incomplet")})')
+_TESTER = 'r.jsx("button",{type:"button",style:bt,onClick:function(){tester(c)},children:dzT("espaces.comptes.tester")})'
+_POST_FIN = ']},c.id)})'
+_POST_INCOMPLET = ('!c.disponible&&r.jsx("span",{style:{fontSize:10.5,color:"var(--amber)"},'
+                   'children:dzT("espaces.comptes.incomplet")})' + _POST_FIN)
+# la pastille est un élément du DOM rendu par l'aide partagée : monté dans un span vide par sa ref (React n'y touche pas)
+_MONTER = ('ref:function(n){n&&(n.textContent="",n.appendChild(window.__dzEspaceAssistant.pastille(c)))}')
 PAIRES = [
     # P1 : la soumission ouvre l'assistant (nom et couleur saisis) ; l'ancien formulaire rapide reste le repli
     (_SOUMETTRE + _RAPIDE,
@@ -58,6 +81,25 @@ PAIRES = [
     (_BOUTON,
      'disabled:st.busy||!window.__dzEspaceAssistant&&!st.nom.trim(),"data-dz-espace-assistant-ouvrir":"1",style:bt,'
      'children:dzT("espaces.nouveau.creer")'),
+    # P3 (t308 tâche 5) : DzComptesEspace vérifie un compte — un appel à la fois, erreur dite, liste relue
+    (_DIRE,
+     _DIRE[:_DIRE.index("async function tester(c){")]
+     + 'function verifier(c){var A=window.__dzEspaceAssistant;if(!A||A.enCours(c.id))return;var pv=A.verifier(c.id);'
+     'maj({vt:{}});pv.then(function(){dire(c.id,"")},function(e){dire(c.id,"✗ "+(e&&e.message||e))}).then(function(){'
+     'typeof dzPcCache!=="undefined"&&delete dzPcCache[esp];return charger()}).then(function(){maj({vt:{}})})}'
+     'async function tester(c){'),
+    # P4 : la pastille d'état à côté de chaque compte (l'aide partagée, montée par ref)
+    (_DISPO, _DISPO + ',window.__dzEspaceAssistant&&r.jsx("span",{"data-dz-compte-etat":c.id,' + _MONTER + '})'),
+    # P5 : « Vérifier », grisé pendant l'appel, avant « Tester »
+    (_TESTER,
+     'window.__dzEspaceAssistant&&r.jsx("button",{type:"button","data-dz-compte-verifier":c.id,style:bt,'
+     'disabled:window.__dzEspaceAssistant.enCours(c.id),title:dzT("espaces.assistant.verifier_aide"),'
+     'onClick:function(){verifier(c)},children:dzT("espaces.comptes.verifier")}),' + _TESTER),
+    # P6 : l'éditeur de post signale un compte coché pas vert (« non vérifié » ou l'état) — sans rien bloquer
+    (_POST_INCOMPLET,
+     _POST_INCOMPLET[:-len(_POST_FIN)]
+     + ',on&&window.__dzEspaceAssistant&&!(c.verification&&c.verification.etat==="vert")&&r.jsx("span",'
+     '{"data-dz-post-compte-etat":c.id,' + _MONTER + '})' + _POST_FIN),
 ]
 
 

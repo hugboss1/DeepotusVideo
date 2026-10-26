@@ -23,10 +23,15 @@
         « deepotus:brand-refresh » puis « dz-espace-cree » (detail = id), ferme et rend l'id.
      Annuler ou Échap : la boîte se ferme ; la promesse rend l'id si l'espace a déjà été créé (la liste se relit), sinon
      null. Un clic sur le voile ne ferme PAS (il perdrait la saisie).
-   pastille(vue) : la pastille d'état d'un compte (vue.verification) ou d'un canal du récapitulatif (vue.etat,
-     vue.verifie_le) ; fonction interne ici, à exposer telle quelle (tâche 5). Glyphes Deepotus (dz-etat-*), jamais
-     d'emoji ; données utilisateur par textContent. Textes : clés espaces.assistant.* (frontend/shared/i18n/espaces.json).
-   Le maillon de queue scripts/patch_bundle_dzassistant.py branche « Créer l'espace » de Réglages › Espaces ici. */
+   window.__dzEspaceAssistant.pastille(vue) -> HTMLElement : la pastille d'état d'un compte (vue.verification) ou d'un
+     canal du récapitulatif (vue.etat, vue.verifie_le) — glyphe Deepotus (dz-etat-*, jamais d'emoji), couleur, état
+     traduit, survol « Vérifié le … : raison » (la raison brute du serveur) ou « non vérifié ». UNE seule aide pour trois
+     écrans : l'assistant, Réglages › Espaces et l'éditeur de post du Planificateur (t308 tâche 5, 26/10/2026).
+   window.__dzEspaceAssistant.verifier(id) -> Promise<{compte}> : POST /api/comptes/{id}/verifier, UN appel à la fois par
+     compte (un second appel pendant le vol reçoit la même promesse) ; enCours(id) -> bool, faux dès la réponse, même en
+     échec. Données utilisateur par textContent. Textes : clés espaces.assistant.* (frontend/shared/i18n/espaces.json).
+   Le maillon de queue scripts/patch_bundle_dzassistant.py branche ici « Créer l'espace », la pastille et « Vérifier » de
+   Réglages › Espaces, et la pastille d'un compte coché pas vert de l'éditeur de post. */
 (function () {
   "use strict";
   if (window.__dzEspaceAssistant) return;
@@ -121,6 +126,18 @@
     if (v.etat === "non_verifie" || !v.code) return "";
     return T("espaces.assistant.detail", { code: T("espaces.assistant.code_" + v.code), date: quand(v.date) });
   }
+
+  // ── t308 tâche 5 : « Vérifier » d'un compte hors de l'assistant (Réglages › Espaces) — UN appel à la fois par compte ──
+  var enVol = {};
+  function verifierCompte(id) {
+    if (enVol[id]) return enVol[id];          // un second clic pendant le vol reçoit la MÊME promesse : aucun appel concurrent
+    var p = envoyer("/api/comptes/" + encodeURIComponent(id) + "/verifier", "POST").then(
+      function (j) { delete enVol[id]; return j; },
+      function (e) { delete enVol[id]; throw e; });   // libéré aussi sur échec
+    enVol[id] = p;
+    return p;
+  }
+  function enCours(id) { return !!enVol[id]; }
 
   function ouvrir(opts) {
     opts = opts || {};
@@ -613,5 +630,5 @@
     });
   }
 
-  window.__dzEspaceAssistant = { ouvrir: ouvrir };
+  window.__dzEspaceAssistant = { ouvrir: ouvrir, pastille: pastille, verifier: verifierCompte, enCours: enCours };
 })();

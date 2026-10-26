@@ -336,8 +336,9 @@ def _bloc_tag(s, tag, f):
 
 def avant_dzassistant(bundle: str) -> str:
     """Le bundle d'avant l'assistant de création d'espace (maillon de queue patch_bundle_dzassistant, t308 tâche 4, 26/10,
-    posé APRÈS dzagentplan : « Créer l'espace » de Réglages › Espaces ouvre window.__dzEspaceAssistant) : ses paires
-    défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    posé APRÈS dzagentplan : « Créer l'espace » de Réglages › Espaces ouvre window.__dzEspaceAssistant ; tâche 5 : la
+    pastille et « Vérifier » de Réglages › Espaces, la pastille d'un compte coché pas vert de l'éditeur de post) : ses
+    paires défaites (toutes, tâches 4 et 5), lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzassistant as _m
     if _m.MARKER not in bundle:
         return bundle

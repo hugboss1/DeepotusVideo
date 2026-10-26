@@ -358,6 +358,11 @@
     "fr": "Comptes de diffusion — {nom}",
     "en": "Publishing accounts — {nom}"
   },
+  "espaces.comptes.verifier": {
+    "fr": "Vérifier",
+    "en": "Verify",
+    "contexte": true
+  },
   "espaces.ct.aide": {
     "fr": "Une proposition n'écrit rien : cochez les modèles à garder, puis ajoutez-les ou remplacez. Sans IA, elle est tirée du persona et de son identité ; par IA, elle est devisée et passe sous le plafond.",
     "en": "A suggestion writes nothing: tick the templates to keep, then add them or replace. Without AI it comes from the persona and its identity; with AI it is quoted and goes through the spending cap."
