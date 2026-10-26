@@ -130,7 +130,8 @@
         etape: 1, id: null, nom: String(opts.nom || ""), couleur: /^#[0-9a-fA-F]{6}$/.test(opts.couleur || "") ? opts.couleur : "#3b82f6",
         kit: "", type: "marque", parent: "", espaces: [], kits: [],
         fiche: { societe: "", contact_nom: "", contact_email: "", contact_whatsapp: "", pays: "", langue: "fr", mode: MODES[0] },
-        plats: null, comptes: {}, coches: {}, saisies: {}, msgs: {}, recap: null
+        plats: null, comptes: {}, coches: {}, saisies: {}, msgs: {}, recap: null,
+        envol: {}, occupes: {}
       };
       var voile = el("div", S.voile);
       voile.setAttribute("role", "dialog");
@@ -338,20 +339,35 @@
           if (!fini && st.etape === 3) rendre();
         }, function (e) { dire(echec(e)); });
       }
+      // t308 (fix 1) : UNE écriture en vol par plateforme. Un second appel (Vérifier ×2, Vérifier puis Suivant,
+      // Connecter puis Vérifier) attend la première puis repart : le compte existe alors, jamais un second POST
+      // /api/comptes (le serveur ne dédoublonne pas : comptes.creer).
       function ecrireCompte(p) {
+        if (st.envol[p]) {
+          var apres = function () { return ecrireCompte(p); };
+          return st.envol[p].then(apres, apres);
+        }
         var v = {}, s = st.saisies[p] || {};
         Object.keys(s).forEach(function (k) { if (s[k] !== "" && s[k] != null) v[k] = s[k]; });
         var a = Object.keys(v).length > 0, c = st.comptes[p];
         var envoi = !c ? envoyer("/api/comptes", "POST", a ? { espace_id: st.id, plateforme: p, valeurs: v } : { espace_id: st.id, plateforme: p })
           : a ? envoyer("/api/comptes/" + encodeURIComponent(c.id), "POST", { valeurs: v }) : null;
         if (!envoi) return Promise.resolve(c);
-        return envoi.then(function (j) {
+        var prom = envoi.then(function (j) {
           st.comptes[p] = j.compte;
-          st.saisies[p] = {};          // un secret écrit n'est jamais relu : le champ revient vide
+          // un secret écrit n'est jamais relu : le champ revient vide (ce qui a été retapé entre-temps reste)
+          var s2 = st.saisies[p] || {};
+          Object.keys(v).forEach(function (k) { if (s2[k] === v[k]) delete s2[k]; });
           return j.compte;
         });
+        st.envol[p] = prom;
+        var libre = function () { if (st.envol[p] === prom) delete st.envol[p]; };
+        prom.then(libre, libre);
+        return prom;
       }
       function verifier(p) {
+        if (st.occupes[p] || fini) return;          // Vérifier et Connecter grisés tant que l'un des deux tourne
+        st.occupes[p] = true;
         st.msgs[p] = T("espaces.assistant.verif_en_cours");
         rendre();
         ecrireCompte(p).then(function (c) {
@@ -361,9 +377,12 @@
           st.msgs[p] = "";
         }, function (e) {
           st.msgs[p] = echec(e);
-        }).then(function () { if (!fini) rendre(); });
+        }).then(function () { delete st.occupes[p]; if (!fini) rendre(); });
       }
       function connecter(p) {
+        if (st.occupes[p] || fini) return;
+        st.occupes[p] = true;
+        rendre();
         var w = null;
         try { w = window.open("", "_blank"); } catch (e) { /* bloqueur */ }
         ecrireCompte(p).then(function (c) {
@@ -379,7 +398,8 @@
               st.msgs[p] = echec(j && j.detail || "HTTP " + R.status);
             });
           });
-        }).catch(function (e) { if (w) w.close(); st.msgs[p] = echec(e); }).then(function () { if (!fini) rendre(); });
+        }).catch(function (e) { if (w) w.close(); st.msgs[p] = echec(e); })
+          .then(function () { delete st.occupes[p]; if (!fini) rendre(); });
       }
       function champsDe(p) {
         var plat = st.plats[p], c = st.comptes[p], s = st.saisies[p] = st.saisies[p] || {};
@@ -441,6 +461,7 @@
               var co = el("button", S.petit);
               co.textContent = T("espaces.comptes.connecter");
               co.type = "button";
+              co.disabled = !!st.occupes[p];
               co.setAttribute("data-dz-assistant-connecter", p);
               co.addEventListener("click", function () { connecter(p); });
               actions.appendChild(co);
@@ -449,6 +470,7 @@
             ve.textContent = T("espaces.assistant.verifier");
             ve.setAttribute("title", T("espaces.assistant.verifier_aide"));
             ve.type = "button";
+            ve.disabled = !!st.occupes[p];
             ve.setAttribute("data-dz-assistant-verifier", p);
             ve.addEventListener("click", function () { verifier(p); });
             actions.appendChild(ve);

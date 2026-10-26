@@ -161,6 +161,7 @@ globalThis.fetch=function(u,o){var m=(o&&o.method)||"GET",b=o&&o.body?JSON.parse
   if(u.indexOf("/api/comptes?espace=")===0)return rep(200,{espace:ESP_ID,comptes:COMPTES,plateformes:PLATS});
   if(u==="/api/comptes"&&m==="POST"){var c={id:"c1111bbbb",espace_id:ESP_ID,plateforme:b.plateforme,libelle:"YouTube",champs:[{nom:"YOUTUBE_CLIENT_ID",secret:true,pose:true,valeur:"FUITE-SECRET-2"},{nom:"YOUTUBE_CHANNEL_ID",secret:false,pose:false,valeur:""}],verification:null};return rep(200,{compte:c})}
   if(u==="/api/comptes/c0000aaaa"&&m==="POST")return rep(200,{compte:Object.assign({},CPT_TG,{champs:[{nom:"TELEGRAM_BOT_TOKEN",secret:true,pose:true,valeur:"FUITE-SECRET-3"},{nom:"TELEGRAM_CHAT_ID",secret:false,pose:true,valeur:"-100123"}]})});
+  if(u==="/api/comptes/c1111bbbb/verifier")return rep(200,{compte:{id:"c1111bbbb",espace_id:ESP_ID,plateforme:"youtube",libelle:"YouTube",champs:[],verification:{etat:"orange",code:"incomplet",raison:"identifiants incomplets : YOUTUBE_CLIENT_ID",date:"2026-10-26T10:06:00"},canal_id:null}});
   if(u==="/api/comptes/c0000aaaa/verifier")return rep(200,{compte:Object.assign({},CPT_TG,{verification:{etat:"rouge",code:"refuse",raison:"jeton refusé (401) : Unauthorized",date:"2026-10-26T10:05:09",id_distant:null,nom_distant:null},canal_id:null})});
   if(u==="/api/espaces/"+ESP_ID+"/recapitulatif")return rep(200,{espace_id:ESP_ID,type:"client",client_responsable:ESP_ID,mode_publication:"valide_par_client",
      canaux:[{compte:"c0000aaaa",plateforme:"telegram",libelle:"Telegram",etat:"non_verifie",verifie_le:null,canal_id:null,consentement:"manquant"}],manques:{non_verifies:1,consentements:1}});
@@ -218,7 +219,11 @@ var R={};
  var cYt=un("data-dz-assistant-case","youtube");cYt.checked=true;cYt.declencher("change");await attendre();
  var secYt=un("data-dz-assistant-cle","YOUTUBE_CLIENT_ID");R.b_yt_secret=secYt&&secYt.value;
  R.b_connecter_yt=!!un("data-dz-assistant-connecter","youtube")&&!un("data-dz-assistant-connecter","telegram");
- un("data-dz-assistant-suivant").declencher("click");await attendre();
+ /* t308 fix 1 : clics CONCURRENTS sur une plateforme sans compte (Vérifier ×2, Connecter, Suivant, sans attendre) : un seul POST /api/comptes, un seul /verifier, boutons grisés pendant l'envoi */
+ un("data-dz-assistant-verifier","youtube").declencher("click");R.b_ve_grise=!!(un("data-dz-assistant-verifier","youtube")||{}).disabled&&!!(un("data-dz-assistant-connecter","youtube")||{}).disabled;
+ un("data-dz-assistant-verifier","youtube").declencher("click");un("data-dz-assistant-connecter","youtube").declencher("click");
+ un("data-dz-assistant-suivant").declencher("click");await attendre();await attendre();
+ R.b_posts_comptes=compte("POST","/api/comptes");R.b_verif_yt=compte("POST","/api/comptes/c1111bbbb/verifier");
  R.b_cree_yt=(appels.filter(function(a){return a.m==="POST"&&a.u==="/api/comptes"})[0]||{}).b;
  R.b_etape_recap=etape();
  R.b_recap=par("data-dz-assistant-recap-canal").map(function(n){return n.getAttribute("data-dz-assistant-recap-canal")});
@@ -290,6 +295,8 @@ if R and "erreur" not in R:
           and "2026-10-26 10:05" in R["b_detail"], str(R["b_detail"]))
     check("5.15 après écriture, le secret n'est pas relu (champ vide) ; idem pour un compte créé par l'assistant",
           R["b_secret_apres"] == "" and R["b_yt_secret"] == "", str([R["b_secret_apres"], R["b_yt_secret"]]))
+    check("5.21 clics concurrents (Vérifier ×2, Connecter, Suivant) : UN seul POST /api/comptes, UN seul /verifier ; Vérifier et Connecter grisés pendant l'envoi",
+          R["b_posts_comptes"] == 1 and R["b_verif_yt"] == 1 and R["b_ve_grise"], str([R["b_posts_comptes"], R["b_verif_yt"], R["b_ve_grise"]]))
     check("5.16 une plateforme cochée sans vérification : « Suivant » crée son compte dans l'espace (marqué non vérifié)",
           R["b_cree_yt"] == {"espace_id": "esp_new", "plateforme": "youtube"} and R["b_etape_recap"] == "4", str(R["b_cree_yt"]))
     check("5.17 le récapitulatif : le canal, « non vérifié », le consentement MANQUANT dit en clair",
