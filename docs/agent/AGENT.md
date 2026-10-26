@@ -62,6 +62,13 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   → [POINT:reglages.budget] [GUIDE:budget]
 - **Lire une liste de modèles** (quelle clé sert, quel prix). → [GUIDE:modeles-et-cles]
 - **Changer d'espace de marque** : Réglages › Espaces de marque. → [POINT:reglages.espaces] [GUIDE:marques]
+- **Créer un espace (marque, produit ou client) avec ses canaux** : Réglages › Espaces de marque › Créer l'espace
+  ouvre l'assistant en quatre temps (type et identité, fiche client pour un client, canaux, récapitulatif). « Vérifier »
+  teste chaque canal sans rien publier ; un canal non vérifié reste enregistré. Pour un client, le récapitulatif dit les
+  consentements manquants ; « Terminer » active l'espace. → [POINT:reglages.espaces] [POINT:reglages.nouvel_espace] [GUIDE:marques]
+- **Revérifier un canal plus tard** : Réglages › Espaces de marque, sous la liste, chaque compte porte sa pastille
+  (vérifié, indéterminé, refusé, non vérifié) et « Vérifier », sans rien publier. Dans l'éditeur de post du
+  Planificateur, un compte coché qui n'est pas vérifié le dit ; la programmation n'est pas bloquée. → [POINT:reglages.espaces] [GUIDE:comptes]
 - **Kits de marque** (nom, logo, couleurs de l'application) : Réglages › Identité visuelle.
   → [POINT:reglages.marque] [GUIDE:reglages]
 - **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés, puis programmer dans le

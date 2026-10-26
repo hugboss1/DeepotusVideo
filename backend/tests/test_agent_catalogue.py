@@ -764,6 +764,31 @@ def test_vrai_catalogue_canaux_projet():
     assert "frontend/shared/dz-projet-canaux.js" not in (e.get("commun.action.annuler") or {}).get("sources", [])
 
 
+def test_vrai_catalogue_assistant_espace():
+    """t308 (26/10/2026) : l'assistant de création d'espace (frontend/shared/dz-espace-assistant.js) est au catalogue, sur
+    les Réglages (zone « espaces ») : « Vérifier », « Terminer » et ses champs propres (type, parent, langue, mode) ; ni
+    ses messages, ni ses boutons communs (Annuler, Précédent, Suivant), ni les infobulles de ses deux boutons (exclues :
+    même élément). « Créer l'espace » (bundle, maillon dzassistant) dit qu'il ouvre l'assistant, et se pointe."""
+    e = S.extraire(RACINE)
+    for k, typ in (("espaces.assistant.verifier", "bouton"), ("espaces.assistant.terminer", "bouton"),
+                   ("espaces.assistant.type", "champ"), ("espaces.assistant.parent", "champ"),
+                   ("espaces.assistant.langue", "champ"), ("espaces.assistant.mode", "champ")):
+        f = e.get(k)
+        assert f and f["type"] == typ and f["ecran"] == "settings", k
+        assert f["sources"] == ["frontend/shared/dz-espace-assistant.js"], k
+    assert sorted(k for k in e if k.startswith("espaces.assistant.")) == sorted(
+        ["espaces.assistant.verifier", "espaces.assistant.terminer", "espaces.assistant.type", "espaces.assistant.parent",
+         "espaces.assistant.langue", "espaces.assistant.mode"])
+    for k in ("commun.action.annuler", "commun.action.suivant", "commun.action.precedent"):
+        assert "frontend/shared/dz-espace-assistant.js" not in (e.get(k) or {}).get("sources", []), k
+    vrai = {k: v for f in (RACINE / "docs" / "agent" / "catalogue").glob("settings.json")
+            for k, v in ((x["id"], x) for x in json.loads(f.read_text("utf-8"))["fiches"])}
+    c = vrai["espaces.nouveau.creer"]
+    assert c["etat"] == "redige" and "assistant" in c["role"]["fr"] and "wizard" in c["role"]["en"]
+    assert c["localisateur"] == {"selecteur": "button", "texte": {"fr": "Créer l'espace", "en": "Create space"}}
+    assert all(vrai[k]["etat"] == "redige" for k in vrai if k.startswith("espaces.assistant."))
+
+
 def test_deterministe(tmp_path):
     racine = _depot(tmp_path, ";".join(CAS.values()) + ";" + BUNDLE)
     a, b = S.extraire(racine), S.extraire(racine)

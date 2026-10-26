@@ -114,6 +114,8 @@ def extraire(app=APP) -> dict:
             elif isinstance(n, ast.Raise) and isinstance(n.exc, ast.Call) and n.exc.args and \
                     getattr(n.exc.func, "id", getattr(n.exc.func, "attr", "")) in ERREURS:
                 d = n.exc.args[0]
+            elif isinstance(n, ast.Call) and getattr(n.func, "id", getattr(n.func, "attr", "")) == "_ignore" and n.args:
+                d = n.args[0]   # t308 : une raison d'import (espaces_paquet._ignore) : gabarit `{variable}` déjà écrit
             if d is None:
                 for d in etapes(n):
                     g = gabarit(d)

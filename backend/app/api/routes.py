@@ -8023,7 +8023,10 @@ async def import_espace(request: Request, file: UploadFile = File(...)):
         r = _ep.importer(data)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return {**r, "espaces": _es.lister()}
+    # t308 : les raisons d'`ignores` sont des gabarits L10 (espaces_paquet._ignore) : traduites à la sortie, comme les erreurs
+    from app.i18n import erreurs as _ERR
+    lang = _ERR.langue(request)
+    return {**r, "ignores": [_ERR.texte(x, lang) for x in r.get("ignores", [])], "espaces": _es.lister()}
 
 
 @router.get("/espaces/{espace_id}/export")
@@ -8038,6 +8041,17 @@ async def export_espace(espace_id: str, request: Request):
         raise HTTPException(404, f"espace inconnu : {espace_id}")
     return _Rep(content=data, media_type="application/zip",
                 headers={"Content-Disposition": f'attachment; filename="{nom}"', "Cache-Control": "no-store"})
+
+
+@router.get("/espaces/{espace_id}/recapitulatif")
+async def recapitulatif_espace(espace_id: str):
+    """t308 : l'état de chaque canal de l'espace (vérifié ou non) et, s'il est gouverné par un client, le consentement
+    qui le couvre. Lecture seule, aucun secret."""
+    from app.services import recap_espace as _re
+    try:
+        return _re.recapitulatif(espace_id)
+    except KeyError:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
 
 
 @router.post("/espaces/{espace_id}")
@@ -8510,6 +8524,18 @@ async def delete_compte(compte_id: str, request: Request):
     except Exception as e:  # noqa: BLE001
         raise _compte_erreur(e)
     return {"deleted": compte_id}
+
+
+@router.post("/comptes/{compte_id}/verifier")
+async def verifier_compte(compte_id: str, request: Request):
+    """t308 (26/10/2026) : vérifie le compte SANS rien publier (lecture seule chez la plateforme), range le résultat daté
+    et rend la vue. Lit des secrets : localhost seulement (un appareil appairé reçoit 403)."""
+    _require_localhost(request)
+    from app.services import verif_canaux as _vc
+    try:
+        return {"compte": await _vc.verifier(compte_id)}
+    except Exception as e:  # noqa: BLE001 — traduit en 404 (inconnu) / 409 (coffre fermé) / 400 par _compte_erreur
+        raise _compte_erreur(e)
 
 
 # ============ v1.14: editable caption pack (Telegram Premium tags) ============
@@ -9877,6 +9903,9 @@ async def _oauth_callback(canal: str, request: Request, code: str, state: str, e
                 return _oauth_page(f"{nom} : aucun refresh token reçu",
                                    f"Révoquez l'accès de l'application dans votre compte {nom}, puis recommencez « Connecter ».", 502)
             ou = _cpt.garder_secret(rt_nom, rt)
+        # t308 relecture finale (26/10/2026) : reconnecter peut changer de chaîne ou de compte : l'identité vérifiée est
+        # oubliée et la révision change (une vérification en vol ne range rien). Jamais dans garder_secret (rotation TikTok).
+        _cpt.oublier_verification(compte or f"{_cpt.HISTO}{canal}")
     except KeyError:
         return _oauth_page(f"{nom} : compte supprimé", "Le compte de diffusion a été supprimé pendant la connexion.", 404)
     garde = {"coffre": "gardé dans le coffre", "env": "gardé dans les réglages",

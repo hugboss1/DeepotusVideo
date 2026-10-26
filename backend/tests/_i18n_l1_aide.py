@@ -334,11 +334,23 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzassistant(bundle: str) -> str:
+    """Le bundle d'avant l'assistant de création d'espace (maillon de queue patch_bundle_dzassistant, t308 tâche 4, 26/10,
+    posé APRÈS dzagentplan : « Créer l'espace » de Réglages › Espaces ouvre window.__dzEspaceAssistant ; tâche 5 : la
+    pastille et « Vérifier » de Réglages › Espaces, la pastille d'un compte coché pas vert de l'éditeur de post) : ses
+    paires défaites (toutes, tâches 4 et 5), lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzassistant as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzagentplan(bundle: str) -> str:
     """Le bundle d'avant le mode Agent Campagnes du dialogue « Generate a marketing plan » (maillon de queue
     patch_bundle_dzagentplan, t285 T9, 24/10, posé APRÈS dzrecette) : ses paires défaites, lues dans le maillon lui-même.
     Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzagentplan as _m
+    bundle = avant_dzassistant(bundle)           # 26/10 (t308) : le maillon posé APRÈS dzagentplan, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)
