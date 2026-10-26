@@ -2106,7 +2106,10 @@ def test_les_negations_de_cette_section_n_utilisent_PAS__code():
     motivé `_code` : un bundle minifié n'a aucune prose française où un
     marqueur pourrait se satisfaire tout seul.
     """
-    entier, ampute = _lire(_BUNDLE_REL), _code(_BUNDLE_REL)
+    # t325 (26/10/2026) : le maillon dzcanauxpre, posé APRÈS, porte un commentaire `/*dzcanauxpre*/` COMPLET qui fermerait
+    # plus tôt le `/*` sans `*/` de la région mesurée : on lit donc le bundle vu d'avant ce maillon (même mesure, même texte)
+    entier = AIDE.avant_dzcanauxpre((FRONT / _BUNDLE_REL).read_bytes().decode("utf-8")).replace(chr(13) + chr(10), chr(10))
+    ampute = re.sub(r"/\*.*?\*/", "", entier, flags=re.S)
     assert len(entier) - len(ampute) > 400_000
     # et c'est bien la région patchée qui tombe
     assert "Object.keys(vo)" in entier

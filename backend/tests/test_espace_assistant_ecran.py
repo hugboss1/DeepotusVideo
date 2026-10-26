@@ -91,11 +91,13 @@ if PM:
 print("\n[2] réversible")
 if PM and MARKER in B:
     check("2.1 appliquer(defaire(B)) == B", lambda: PM.appliquer(PM.defaire(B)) == B)
-    check("2.2 avant_dzassistant existe et rend defaire(B)", lambda: AIDE.avant_dzassistant(B) == PM.defaire(B))
+    # t325 (26/10/2026) : le maillon dzcanauxpre est posé APRÈS celui-ci : le livré se lit vu d'avant dzcanauxpre (B0)
+    B0 = AIDE.avant_dzcanauxpre(B)
+    check("2.2 avant_dzassistant existe et rend defaire(B), vu d'avant dzcanauxpre", lambda: AIDE.avant_dzassistant(B) == PM.defaire(B0))
     check("2.3 avant_dzagentplan défait dzassistant d'abord",
           lambda: MARKER not in AIDE.avant_dzagentplan(B) and "/*__dzagentplan*/" not in AIDE.avant_dzagentplan(B))
     check("2.4 avant_dzassistant sans marqueur : rendu tel quel",
-          lambda: AIDE.avant_dzassistant(PM.defaire(B)) == PM.defaire(B))
+          lambda: AIDE.avant_dzassistant(PM.defaire(B0)) == PM.defaire(B0))
     check("2.5 la chaîne d'inverses reste complète (avant_dzespace retire l'écran des espaces)",
           lambda: "function DzEspaceSel(" not in AIDE.avant_dzespace(B))
     check("2.6 CRLF préservé par l'aller-retour (en octets)",
