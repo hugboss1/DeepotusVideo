@@ -128,12 +128,17 @@ Noeud.prototype.getAttribute=function(k){return k in this.attrs?this.attrs[k]:nu
 Noeud.prototype.appendChild=function(e){e.parent=this;this.enfants.push(e);return e};
 Noeud.prototype.addEventListener=function(t,f){(this.ecoutes[t]=this.ecoutes[t]||[]).push(f)};
 Noeud.prototype.remove=function(){if(this.parent){var p=this.parent;p.enfants=p.enfants.filter(function(x){return x!==this},this);this.parent=null}};
-Noeud.prototype.focus=function(){};
+Noeud.prototype.focus=function(){document.activeElement=this};
+/* t326 : de quoi piéger Tab — querySelectorAll (tag, tag[attr], [attr], séparés par des virgules) et offsetParent (null si caché) */
+Object.defineProperty(Noeud.prototype,"offsetParent",{get:function(){return /display:\s*none/.test(this.attrs.style||"")||this._cache?null:(this.parent||body)}});
+Noeud.prototype.querySelectorAll=function(sel){var me=this,ps=sel.split(",").map(function(s){return s.trim()});
+  return tous(this,function(n){return n!==me&&ps.some(function(p){var m=/^([a-z]*)(?:\[(\w+)\])?$/.exec(p);
+    return !!m&&(m[1]||m[2])&&(!m[1]||n.tagName.toLowerCase()===m[1])&&(!m[2]||n.getAttribute(m[2])!==null)})})};
 Noeud.prototype.removeAttribute=function(k){delete this.attrs[k]};
 Noeud.prototype.declencher=function(t,ev){ev=ev||{};ev.target=ev.target||this;ev.preventDefault=function(){};(this.ecoutes[t]||[]).forEach(function(f){f(ev)})};
 function tous(n,pred,out){out=out||[];if(pred(n))out.push(n);n.enfants.forEach(function(e){tous(e,pred,out)});return out}
 var body=new Noeud("body"),docEcoutes={};
-globalThis.document={body:body,createElement:function(t){return new Noeud(t)},
+globalThis.document={body:body,activeElement:null,createElement:function(t){return new Noeud(t)},
   addEventListener:function(t,f){(docEcoutes[t]=docEcoutes[t]||[]).push(f)},
   removeEventListener:function(t,f){docEcoutes[t]=(docEcoutes[t]||[]).filter(function(g){return g!==f})}};
 var evenements=[];window.dzT=dzT;   /* le prélude pose « var window » et dzT : le script lit window.dzT */
@@ -183,6 +188,20 @@ var R={};
  R.put=appels.filter(function(a){return a.m==="PUT"}).map(function(a){return [a.u,JSON.stringify(a.b)]});
  R.fermee=!boite();R.evts=evenements.map(function(e){return [e.type,e.detail&&e.detail.canaux]});
  R.resolu=await prom;
+ /* t326 A5 : Tab piégé dans la boîte (case A, case A2, Annuler, Enregistrer) */
+ var pT=P.ouvrir({id:"proj_a",nom:"Abysses",espace_id:"esp_a",canaux:[]});await attendre();
+ var cA=caseDe("cpt_a"),cA2=caseDe("cpt_a2"),bts=tous(boite(),function(n){return n.tagName==="BUTTON"}),bAnn=bts[0],bOk=bouton();
+ var ordre=[cA,cA2,bAnn,bOk];
+ function foc(){return ordre.indexOf(document.activeElement)}
+ function touche(shift){var ev={key:"Tab",shiftKey:!!shift,defaultPrevented:false,preventDefault:function(){ev.defaultPrevented=true},stopPropagation:function(){}};
+   (docEcoutes.keydown||[]).forEach(function(f){f(ev)});return ev}
+ bOk.focus();var t1=touche(false);R.t_bas=[foc(),t1.defaultPrevented];
+ cA.focus();var t2=touche(true);R.t_haut=[foc(),t2.defaultPrevented];
+ cA.focus();touche(false);R.t_milieu=foc();
+ document.activeElement=body;touche(false);R.t_dehors=foc();
+ bOk.disabled=true;cA.focus();touche(true);R.t_desactive=foc();bOk.disabled=false;
+ cA2._cache=true;cA.focus();touche(false);R.t_cache=foc();cA2._cache=false;
+ bAnn.declencher("click");await pT;
  var p2=P.ouvrir({id:"proj_v",nom:"Vide",espace_id:"esp_z",canaux:[]});
  COMPTES={espace:"esp_z",comptes:[]};await attendre();
  R.vide=boite()?boite().textContent:"";
@@ -232,6 +251,10 @@ if R and "erreur" not in R:
           "dz-reseau-x" in R["hote"][0] and R["hote"][0].count("data-dz-canal") == 2
           and R["hote"][1] == "Canaux : Compte A @a, cpt_q" and R["hote_vide"][0] == "" and R["hote_vide"][1] is None
           and "display:none" in R["hote_vide"][2], str(R.get("hote")))
+    check("A5 Tab piégé dans la boîte des canaux : dernier -> premier, Maj+Tab premier -> dernier, focus hors boîte -> premier ; ni désactivé ni caché choisi",
+          R.get("t_bas") == [0, True] and R.get("t_haut") == [3, True] and R.get("t_milieu") == 1 and R.get("t_dehors") == 0
+          and R.get("t_desactive") == 2 and R.get("t_cache") == 2,
+          str([R.get(k) for k in ("t_bas", "t_haut", "t_milieu", "t_dehors", "t_desactive", "t_cache")]))
     check("5.11 un espace sans compte : le message traduit ; Annuler rend null et ferme",
           AIDE.fr("projets.canaux.aucun_compte") in R["vide"] and R["annule"] is None and R["annule_fermee"], R["vide"][:200])
 

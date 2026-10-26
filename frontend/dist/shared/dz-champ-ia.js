@@ -1633,8 +1633,20 @@
         if (v.parentNode) v.parentNode.removeChild(v);
         resoudre(oui);
       }
+      // t326 (26/10/2026) : piège du focus — Tab et Maj+Tab bouclent sur les éléments focalisables VISIBLES de la boîte
+      function pieger(ev, boite) {
+        var l = Array.prototype.slice.call(boite.querySelectorAll("button, input, select, textarea, a[href], [tabindex]")).filter(function (n) {
+          return !n.disabled && n.getAttribute("tabindex") !== "-1" && n.offsetParent !== null;   // offsetParent absent = gardé
+        });
+        ev.preventDefault();
+        if (!l.length) return;
+        var i = l.indexOf(D.activeElement), n = l.length;
+        var j = i < 0 ? (ev.shiftKey ? n - 1 : 0) : (i + (ev.shiftKey ? -1 : 1) + n) % n;
+        l[j].focus();
+      }
       clavier = function (ev) {
         if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); fin(false); }
+        else if (ev.key === "Tab") { ev.stopPropagation(); pieger(ev, bt); }
         else if (ev.key === "Enter") {       // Entrée = le bouton qui a le focus ; par défaut « Non »
           ev.preventDefault(); ev.stopPropagation();
           var f = D.activeElement;
