@@ -356,18 +356,21 @@ def supprimer(cid: str) -> None:
 
 
 # ---- t308 (26/10/2026) : la vérification enregistrée et le canal porté par le téléphone -----------------------------------------------
-# Un compte HISTORIQUE reste lié aux clés plates (Réglages › Connected accounts) : sa vérification n'est PAS effacée quand
-# ces clés sont réécrites ailleurs (elle garde sa date, l'écran la montre datée) : non demandé en t308.
+# Un compte HISTORIQUE reste lié aux clés plates (Réglages › Connected accounts) : t326 (26/10/2026) : sa vérification est
+# désormais retirée (et sa révision change, dans `rev_historiques`) quand ces clés sont réécrites : `perimer_historiques`.
 
 ETATS = ("vert", "orange", "rouge")
 _PORTE_CLES = ("appareil_id", "appareil_nom", "verifie_le", "etat", "id_distant")
 
 
 def revision(cid: str):
-    """La révision du compte (changée par `poser` et `porter_par_telephone` ; "" avant la première). None pour un compte
-    historique (clés plates : pas de révision, pas de garde). KeyError = compte inconnu."""
+    """La révision du compte (changée par `poser` et `porter_par_telephone` ; "" avant la première). t326 (26/10/2026) : un
+    compte historique a aussi sa révision (`rev_historiques`, changée par `perimer_historiques`). KeyError = compte inconnu."""
     if (cid or "").startswith(HISTO):
-        return None
+        p = cid[len(HISTO):]
+        if p not in PLATEFORMES:
+            raise KeyError(cid)
+        return str((_lire().get("rev_historiques") or {}).get(p) or "")
     e = _lire()["comptes"].get(cid)
     if e is None:
         raise KeyError(cid)
@@ -380,6 +383,23 @@ def _perimer(doc: dict, cid: str) -> None:
     (doc.get("verifications") or {}).pop(cid, None)
     if cid in doc["comptes"]:
         doc["comptes"][cid]["rev"] = uuid.uuid4().hex[:8]
+    elif cid.startswith(HISTO) and cid[len(HISTO):] in PLATEFORMES:
+        doc.setdefault("rev_historiques", {})[cid[len(HISTO):]] = uuid.uuid4().hex[:8]     # t326 (26/10/2026)
+
+
+def perimer_historiques(noms: list) -> list:
+    """t326 (26/10/2026) : des clés plates ont été réécrites (Réglages › Connected accounts). Pour chaque plateforme dont un
+    des `noms` est un champ, la vérification de `historique-<p>` est retirée et sa révision change. Une seule écriture, et
+    aucune s'il n'y a rien à périmer. Rend les ids périmés (triés). Ne lève pas pour un nom inconnu."""
+    plats = sorted({_CHAMP_PLAT[n] for n in (noms or []) if n in _CHAMP_PLAT})
+    if not plats:
+        return []
+    doc = _lire()
+    ids = [HISTO + p for p in plats]
+    for cid in ids:
+        _perimer(doc, cid)
+    _ecrire(doc)
+    return sorted(ids)
 
 
 def oublier_verification(cid: str) -> None:
@@ -397,6 +417,17 @@ def oublier_verification(cid: str) -> None:
     _ecrire(doc)
 
 
+def _date_res(d) -> str:
+    """t326 (26/10/2026) : la date d'un résultat si c'est une chaîne ISO lisible (date de l'appareil pour un canal porté par le
+    téléphone), sinon maintenant."""
+    if isinstance(d, str):
+        try:
+            return datetime.fromisoformat(d).isoformat(timespec="seconds")
+        except ValueError:
+            pass
+    return datetime.now().isoformat(timespec="seconds")
+
+
 def noter_verification(cid: str, res: dict, rev=None):
     """Range la vérification d'un compte (aussi `historique-<p>`) : {etat, raison, code, date, id_distant, nom_distant}. Rend
     la vérification rangée. KeyError = compte inconnu. Aucun secret : `res` vient de verif_canaux (déjà nettoyé).
@@ -407,14 +438,17 @@ def noter_verification(cid: str, res: dict, rev=None):
             raise KeyError(cid)
     elif cid not in doc["comptes"]:
         raise KeyError(cid)
-    elif rev is not None and str(doc["comptes"][cid].get("rev") or "") != rev:
-        return None
+    if rev is not None:
+        actuelle = ((doc.get("rev_historiques") or {}).get(cid[len(HISTO):]) if cid.startswith(HISTO)
+                    else doc["comptes"][cid].get("rev"))
+        if str(actuelle or "") != rev:
+            return None
     res = res if isinstance(res, dict) else {}
 
     def _t(v, n):
         return None if v is None else str(v)[:n]
     verif = {"etat": res.get("etat") if res.get("etat") in ETATS else "orange", "raison": _t(res.get("raison"), 200) or "",
-             "code": _t(res.get("code"), 40), "date": datetime.now().isoformat(timespec="seconds"), "id_distant": _t(res.get("id_distant"), 200),
+             "code": _t(res.get("code"), 40), "date": _date_res(res.get("date")), "id_distant": _t(res.get("id_distant"), 200),
              "nom_distant": _t(res.get("nom_distant"), 200)}
     # t308 relecture finale (26/10/2026) : un résultat SANS identité (réseau, 5xx, 429, quota, refus) ne l'efface pas. La
     # vérification d'avant existe encore, donc le compte n'a pas été réécrit depuis (poser, porter_par_telephone,

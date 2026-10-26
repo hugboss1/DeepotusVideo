@@ -533,8 +533,8 @@ for k in S:
     setattr(settings, k, "")
 ROUTE["mode"] = "vert"
 rev0 = comptes.revision(cr)
-check("C1 revision : un compte ordinaire a une révision (str), l'historique n'en a pas",
-      isinstance(rev0, str) and comptes.revision("historique-telegram") is None, repr(rev0))
+check("C1 revision : un compte ordinaire a une révision (str), l'historique une chaîne vide avant toute péremption (t326)",
+      isinstance(rev0, str) and comptes.revision("historique-telegram") == "", repr(rev0))
 async def _get_qui_pose(url, headers=None, params=None, *a, **k):
     if "getMe" in url:
         comptes.poser(cr, {"TELEGRAM_CHAT_ID": "-100999"})      # l'utilisateur corrige le chat PENDANT la vérification
@@ -1007,6 +1007,75 @@ cpub = comptes.creer({"espace_id": "deepotus", "plateforme": "instagram", "libel
 vo =asyncio.run(V.verifier(cpub))
 check("V7 coffre ouvert, champ public manquant : orange « incomplet » (le vrai manque)",
       vo["verification"]["code"] == "incomplet" and "IG_BUSINESS_ID" in vo["verification"]["raison"], str(vo["verification"]))
+
+# ============ t326 (26/10/2026) : révision des historiques, vérification écartée signalée, date du téléphone ============
+print("[t326] T1 révision de l'historique, ecartee, date du téléphone")
+from datetime import datetime as _dt                                # noqa: E402
+poser(**S)
+ROUTE["mode"] = "vert"
+V._get = faux_get
+r_av = comptes.revision("historique-telegram")
+comptes.perimer_historiques(["TELEGRAM_BOT_TOKEN"])
+r_ap = comptes.revision("historique-telegram")
+check("T1a révision de l'historique : \"\" avant, une chaîne différente après perimer_historiques",
+      r_av == "" and isinstance(r_ap, str) and r_ap != "" and r_ap != r_av, f"{r_av!r} {r_ap!r}")
+try:
+    comptes.revision("historique-inconnue"); check("T1a2 historique d'une plateforme inconnue : KeyError", False)
+except KeyError:
+    check("T1a2 historique d'une plateforme inconnue : KeyError", True)
+
+asyncio.run(V.verifier("historique-telegram"))
+vb0 = comptes.obtenir("historique-telegram")
+check("T1b0 avant : historique vérifié vert avec identité", vb0["verification"]["etat"] == "vert" and vb0["canal_id"], str(vb0.get("canal_id")))
+check("T1b perimer_historiques([CHAT_ID]) périme l'historique : vérification et canal_id retirés",
+      comptes.perimer_historiques(["TELEGRAM_CHAT_ID"]) == ["historique-telegram"]
+      and comptes.obtenir("historique-telegram")["verification"] is None and comptes.obtenir("historique-telegram")["canal_id"] is None)
+
+_fc = comptes._fichier()
+avant_txt = _fc.read_bytes()
+_mt = _fc.stat().st_mtime_ns
+check("T1c nom inconnu ou d'un autre service : rien de périmé, fichier non réécrit",
+      comptes.perimer_historiques(["OPENAI_API_KEY", "INCONNU"]) == []
+      and _fc.read_bytes() == avant_txt and _fc.stat().st_mtime_ns == _mt)
+
+rev_h = comptes.revision("historique-telegram")
+async def _get_qui_perime(url, headers=None, params=None, *a, **k):
+    if "getMe" in url:
+        comptes.perimer_historiques(["TELEGRAM_CHAT_ID"])     # les clés plates changent PENDANT la vérification
+    return await faux_get(url, headers, params)
+V._get = _get_qui_perime
+vd = asyncio.run(V.verifier("historique-telegram"))
+V._get = faux_get
+check("T1d historique périmé en vol : rien n'est rangé, vue « non vérifié », ecartee",
+      vd["verification"] is None and "historique-telegram" not in _brut().get("verifications", {}) and vd.get("ecartee") is True
+      and comptes.revision("historique-telegram") != rev_h, str(vd.get("verification")))
+
+ce = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Écartée",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-123", "TELEGRAM_CHAT_ID": "-100777"}})["id"]
+async def _get_qui_pose2(url, headers=None, params=None, *a, **k):
+    if "getMe" in url:
+        comptes.poser(ce, {"TELEGRAM_CHAT_ID": "-100999"})
+    return await faux_get(url, headers, params)
+V._get = _get_qui_pose2
+ve = asyncio.run(V.verifier(ce))
+V._get = faux_get
+check("T1e compte d'espace modifié en vol : ecartee True, rien rangé", ve.get("ecartee") is True and ve["verification"] is None)
+ve2 = asyncio.run(V.verifier(ce))
+check("T1e2 vérification normale : pas de clé ecartee", ve2["verification"] is not None and "ecartee" not in ve2)
+
+ct = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Tel date"})["id"]
+comptes.porter_par_telephone(ct, {**DECL, "verifie_le": "2026-10-20T08:15:00", "etat": "vert", "id_distant": "123"})
+vt = asyncio.run(V.verifier(ct))
+check("T1f compte porté par le téléphone : la date rangée est celle de l'appareil",
+      vt["verification"]["date"] == "2026-10-20T08:15:00", str(vt["verification"]))
+
+cg = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Date illisible"})["id"]
+comptes.noter_verification(cg, {"etat": "vert", "date": "pas une date"})
+dg = comptes.obtenir(cg)["verification"]["date"]
+check("T1g date illisible : maintenant", dg.startswith(_dt.now().date().isoformat()), dg)
+comptes.noter_verification(cg, {"etat": "vert", "date": "2026-01-02T03:04:05"})
+check("T1g2 date ISO lisible : gardée", comptes.obtenir(cg)["verification"]["date"] == "2026-01-02T03:04:05")
+
 coffre.fermer()
 coffre.FICHIER.unlink()
 
