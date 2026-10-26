@@ -18365,6 +18365,17 @@ async def pair_claim(body: dict | None = None):
     return {"jeton": jeton, "appareil": appareil, "protocole": 1, "version": APP_VERSION}
 
 
+@router.get("/pair/moi")
+async def pair_moi(request: Request):
+    """L4.1 T2 — « qui suis-je ? » : l'appareil (id, nom) du JETON présenté. LECTURE SEULE (jamais dans
+    `_ECRITURES_OUVERTES`). Hors boucle locale, la garde de jeton de main.py a déjà refusé (401) un jeton invalide ;
+    ici, sans jeton (le PC lui-même) : 404 ; avec un jeton invalide ou révoqué : 401."""
+    entete = request.headers.get("authorization", "")
+    if not entete.strip():
+        raise HTTPException(404, "pas d'appareil")
+    return {"appareil": await _appareil_requis(request)}
+
+
 @router.get("/devices")
 async def devices_list(request: Request):
     _require_localhost(request)

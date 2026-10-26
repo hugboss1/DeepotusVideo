@@ -36,6 +36,7 @@ from app.api import routes as R                                      # noqa: E40
 from app.services import (agent_outils as ao, agent_store as st, espaces, moteurs_texte as MT,   # noqa: E402
                           plafonds, pricing)
 from app.services import agent_campagnes as AC                       # noqa: E402
+from _faux_sse import FluxRep, lignes_depuis_message                 # noqa: E402
 from app.services.storage import (init_db, async_session_factory, ScheduledPost, Depense, JobRecord,  # noqa: E402
                                   LibraryAsset)
 import _recensement_payant as RP                                     # noqa: E402
@@ -56,8 +57,9 @@ settings.AGENT_MODEL = MODELE
 BASE = "/api/agent/campagnes"
 
 
-class Rep:
-    def __init__(self, d): self.status_code, self._d, self.text = 200, d, ""
+class Rep(FluxRep):
+    """La réponse du faux modèle : le message scripté est rendu en flux SSE (L4.1 T3, `converser` lit `stream: true`)."""
+    def __init__(self, d): super().__init__(lignes_depuis_message(d)); self._d = d
     def json(self): return self._d
 
 
@@ -198,7 +200,7 @@ r = c.post(f"{BASE}/{cid}/message", json={"texte": "Que faire ?", "plafond_usd":
 ev = evenements(r)
 check("4a 200 text/event-stream", r.status_code == 200 and r.headers.get("content-type", "").startswith(
     "text/event-stream"), f"{r.status_code} {r.headers.get('content-type')} {r.text[:200]}")
-check("4b les évènements arrivent dans l'ordre : outil, texte, fin", [e.get("type") for e in ev] == ["outil", "texte", "fin"],
+check("4b les évènements arrivent dans l'ordre : outil, delta, texte, fin", [e.get("type") for e in ev] == ["outil", "delta", "texte", "fin"],
       str(ev)[:300])
 check("4c fin : motif réponse, coût > 0", ev and ev[-1].get("motif") == "reponse" and ev[-1].get("cout_usd", 0) > 0,
       str(ev[-1:]))
@@ -228,7 +230,7 @@ check("4k 402, detail dz_plafond (passe tel quel)", r.status_code == 402 and isi
 check("4l rien n'est parti, rien d'écrit", s.corps == [] and len(lire(cid)["messages"]) == n_av)
 r = c.post(f"{BASE}/{cid}/message", json={"texte": "Encore", "plafond_usd": 1.0}, headers={"X-DZ-Plafond": "confirme"})
 check("4m rejoué avec X-DZ-Plafond: confirme : passe", r.status_code == 200 and [e["type"] for e in evenements(r)] ==
-      ["texte", "fin"], f"{r.status_code} {r.text[:200]}")
+      ["delta", "texte", "fin"], f"{r.status_code} {r.text[:200]}")
 plafonds.enregistrer({"global_usd": 0, "par_moteur": {}})
 n_av = len(lire(cid)["messages"])
 

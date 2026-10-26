@@ -13,6 +13,7 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///" + (TMP + "/t.db").replace("\
 for _k in ("ANTHROPIC_MODEL", "AGENT_MODEL", "ANTHROPIC_API_KEY"):
     os.environ.pop(_k, None)
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from loguru import logger                                           # noqa: E402
 logger.remove()
 
@@ -34,6 +35,7 @@ from app.services import (agent_outils as ao, agent_store as st, espaces, moteur
                           plafonds, pricing)
 from app.services.storage import init_db, async_session_factory, ScheduledPost, Depense         # noqa: E402
 from app.services import agent_campagnes as AC                       # noqa: E402
+from _faux_sse import FluxRep, lignes_depuis_message                 # noqa: E402
 
 MODELE = "claude-banc"
 pricing._PRICING_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -47,8 +49,9 @@ def cout(i, o):
     return pricing.estimate(MT.op_tour(MODELE, i, o))["total_usd"]
 
 
-class Rep:
-    def __init__(self, d): self.status_code, self._d, self.text = 200, d, ""
+class Rep(FluxRep):
+    """La réponse du faux modèle : le message scripté est rendu en flux SSE (L4.1 T3, `converser` lit `stream: true`)."""
+    def __init__(self, d): super().__init__(lignes_depuis_message(d)); self._d = d
     def json(self): return self._d
 
 
@@ -142,11 +145,11 @@ async def main():
     MT._POSTER = s
     ev = await derouler(cid, "Que sait faire le Planificateur ?", 1.0)
     types = [e["type"] for e in ev]
-    check("test_lecture_puis_reponse : outil, texte, fin", types == ["outil", "texte", "fin"], str(types))
+    check("test_lecture_puis_reponse : outil, delta, texte, fin (le delta précède le texte entier)", types == ["outil", "delta", "texte", "fin"], str(types))
     check("lecture : évènement outil nommé et réussi",
           ev[0].get("nom") == "chercher_app" and ev[0].get("ok") is True and isinstance(ev[0].get("resume"), str),
           str(ev[0]))
-    check("lecture : texte final", ev[1].get("texte") == "Voilà ce que l'app sait faire.")
+    check("lecture : texte final", next(e for e in ev if e["type"] == "texte").get("texte") == "Voilà ce que l'app sait faire.")
     check("lecture : deux appels du modèle", len(s.corps) == 2)
     c0, c1 = s.corps
     check("lecture : corps (modèle, outils, sortie bornée, système)",
