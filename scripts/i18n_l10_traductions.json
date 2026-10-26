@@ -10774,5 +10774,17 @@
  "confirmez la publication au nom du client « {nom} » sur : {canaux}": {
   "fr": "confirmez la publication au nom du client « {nom} » sur : {canaux}",
   "en": "confirm publishing on behalf of client “{nom}” on: {canaux}"
+ },
+ "réponse du client inconnue (valide ou corriger)": {
+  "fr": "réponse du client inconnue (valide ou corriger)",
+  "en": "unknown client answer (valide or corriger)"
+ },
+ "moyen de réponse inconnu (ecrit, whatsapp ou doigt)": {
+  "fr": "moyen de réponse inconnu (ecrit, whatsapp ou doigt)",
+  "en": "unknown answer channel (ecrit, whatsapp or doigt)"
+ },
+ "ce post n'est gouverné par aucun client": {
+  "fr": "ce post n'est gouverné par aucun client",
+  "en": "this post is not governed by any client"
  }
 }

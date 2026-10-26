@@ -322,6 +322,12 @@ async def materialize_plan(posts: list[dict], *, start_date: str,
     base = datetime.fromisoformat(start_date)
     plan_id = str(uuid4())
     ids: list[str] = []
+    # t309 (26/10/2026) : un plan matérialisé dans un espace gouverné par un client n'y crée JAMAIS un post programmé : il
+    # naît brouillon (a_valider en mode « validé par le client ») et passera les règles du client pour être programmé.
+    from app.services import regles_client as _rc
+    from app.services.storage import _espace_par_defaut
+    espace = _espace_par_defaut()               # le même défaut qu'un post neuf (aucun espace lisible -> vide = Deepotus)
+    statut ="scheduled" if _rc.exigences(espace, []) is None else _rc.statut_initial(espace, "draft")
     async with async_session_factory() as session:
         for p in posts:
             hh, mm = (p.get("time") or "12:00").split(":")[:2]
@@ -339,7 +345,8 @@ async def materialize_plan(posts: list[dict], *, start_date: str,
                 caption=p.get("caption", ""),
                 channels=",".join(p.get("channels") or ["x"]),
                 run_at=run_at,
-                status="scheduled",
+                status=statut,
+                espace_id=espace,
                 mode=mode if mode in ("auto", "assisted") else "assisted",
                 format=p.get("format"),
                 hook=p.get("hook"),
