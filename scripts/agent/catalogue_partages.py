@@ -27,6 +27,9 @@ PARTAGES = {
     "frontend/shared/dz-agent.js": ("agent.onglet.", "agent.campagnes.", "agent.action.campagnes"),
     # t307 (25/10/2026) : la boîte des canaux d'un projet ; son « Annuler » (commun.action.annuler) n'est pas à elle
     "frontend/shared/dz-projet-canaux.js": ("projets.canaux.",),
+    # t308 (26/10/2026) : l'assistant de création d'espace ; ses champs et boutons repris (Annuler, Précédent, Suivant,
+    # nom, couleur, kit, Connecter) ont déjà leur fiche ailleurs
+    "frontend/shared/dz-espace-assistant.js": ("espaces.assistant.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")
