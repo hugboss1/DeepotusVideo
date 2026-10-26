@@ -8023,7 +8023,10 @@ async def import_espace(request: Request, file: UploadFile = File(...)):
         r = _ep.importer(data)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return {**r, "espaces": _es.lister()}
+    # t308 : les raisons d'`ignores` sont des gabarits L10 (espaces_paquet._ignore) : traduites à la sortie, comme les erreurs
+    from app.i18n import erreurs as _ERR
+    lang = _ERR.langue(request)
+    return {**r, "ignores": [_ERR.texte(x, lang) for x in r.get("ignores", [])], "espaces": _es.lister()}
 
 
 @router.get("/espaces/{espace_id}/export")
@@ -8038,6 +8041,17 @@ async def export_espace(espace_id: str, request: Request):
         raise HTTPException(404, f"espace inconnu : {espace_id}")
     return _Rep(content=data, media_type="application/zip",
                 headers={"Content-Disposition": f'attachment; filename="{nom}"', "Cache-Control": "no-store"})
+
+
+@router.get("/espaces/{espace_id}/recapitulatif")
+async def recapitulatif_espace(espace_id: str):
+    """t308 : l'état de chaque canal de l'espace (vérifié ou non) et, s'il est gouverné par un client, le consentement
+    qui le couvre. Lecture seule, aucun secret."""
+    from app.services import recap_espace as _re
+    try:
+        return _re.recapitulatif(espace_id)
+    except KeyError:
+        raise HTTPException(404, f"espace inconnu : {espace_id}")
 
 
 @router.post("/espaces/{espace_id}")

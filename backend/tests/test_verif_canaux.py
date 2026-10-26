@@ -3,6 +3,8 @@
 TikTok). ZÉRO réseau : `verif_canaux._get`, `verif_canaux._x_me` et les jetons OAuth sont remplacés.
 Couvre : vert / rouge (401) / orange (500, puis exception réseau) par plateforme ; Review Focus 1 (aucun secret dans
 une sortie) ; Review Focus 3 (Telegram n'appelle jamais /send*) ; champs manquants ; TikTok non audité.
+Tâche 3 (section « récapitulatif ») : recap_espace.recapitulatif, route GET /api/espaces/{id}/recapitulatif, raisons d'`ignores`
+de l'import traduites par L10.
 Tâche 2 (section « enregistrée ») : noter_verification, canal_id, effacement par poser/supprimer (Review Focus 2), historique,
 compte porté par le téléphone sans réseau ni secret (Review Focus 5), route POST /api/comptes/{id}/verifier (200, 404, 403).
 Run (depuis backend/) : & $PY tests/test_verif_canaux.py"""
@@ -651,6 +653,156 @@ comptes.porter_par_telephone(cq, DECL | {"verifie_le": None, "etat": "vert", "id
 vm = asyncio.run(V.verifier(cq))["verification"]
 check("M2 etat sans verifie_le : « jamais vérifié », orange", vm["etat"] == "orange" and vm["code"] == "telephone_jamais"
       and vm["raison"] == "porté par le téléphone, jamais vérifié", str(vm))
+
+# ============ Tâche 3 : récapitulatif d'un espace (canaux, consentements) et raisons d'import en deux langues ============
+print("[récapitulatif] canaux vérifiés, consentements, produit qui suit son client, route, ignores L10")
+import io as _io, subprocess as _sp, zipfile as _zf                  # noqa: E402
+from app.services import espaces as ESP, fiche_client as FC, espaces_paquet as PQ  # noqa: E402
+from app.i18n import erreurs as ERR                                  # noqa: E402
+try:
+    from app.services import recap_espace as RE                      # noqa: E402
+except ImportError as e:
+    check("T3-0 module recap_espace présent", False, str(e))
+    print(f"\n{ok} PASS / {fail} FAIL")
+    sys.exit(1)
+
+def _ok(cid, plat, id_distant, etat="vert"):
+    comptes.noter_verification(cid, {"etat": etat, "raison": "banc", "id_distant": id_distant, "nom_distant": "n"})
+
+marque = ESP.creer({"nom": "Marque Recap"})
+cm = comptes.creer({"espace_id": marque["id"], "plateforme": "telegram", "libelle": "TG marque"})["id"]
+_ok(cm, "telegram", "-100111")
+rm = RE.recapitulatif(marque["id"])
+check("S1 marque : pas de client, mode None, consentement sans_objet",
+      rm["client_responsable"] is None and rm["mode_publication"] is None and rm["type"] == "marque"
+      and [c["consentement"] for c in rm["canaux"]] == ["sans_objet"] and rm["manques"]["consentements"] == 0, str(rm))
+check("S1b forme du canal (compte, plateforme, libellé, état, date, canal_id)",
+      set(rm["canaux"][0]) == {"compte", "plateforme", "libelle", "etat", "verifie_le", "canal_id", "consentement"}
+      and rm["canaux"][0]["etat"] == "vert" and rm["canaux"][0]["canal_id"] == "telegram:-100111"
+      and rm["canaux"][0]["libelle"] == "TG marque" and rm["canaux"][0]["verifie_le"], str(rm["canaux"]))
+
+cl = ESP.creer({"nom": "Client Recap", "type": "client"})
+FC.ecrire(cl["id"], {"societe": "Recap SARL", "mode_publication": "publie_en_son_nom"})
+c_ok = comptes.creer({"espace_id": cl["id"], "plateforme": "telegram", "libelle": "TG couvert"})["id"]
+c_sans = comptes.creer({"espace_id": cl["id"], "plateforme": "instagram", "libelle": "IG sans consentement"})["id"]
+c_nv = comptes.creer({"espace_id": cl["id"], "plateforme": "youtube", "libelle": "YT jamais vérifié"})["id"]
+_ok(c_ok, "telegram", "-100222")
+_ok(c_sans, "instagram", "1784777", "orange")
+FC.ajouter_consentement(cl["id"], "telegram:-100222", ["publier"], "ecrit")
+rc = RE.recapitulatif(cl["id"])
+par = {c["compte"]: c for c in rc["canaux"]}
+check("S2 client : mode de la fiche, client_responsable = lui-même",
+      rc["client_responsable"] == cl["id"] and rc["mode_publication"] == "publie_en_son_nom" and rc["type"] == "client", str(rc)[:300])
+check("S3 canal vérifié avec consentement en cours : en_cours", par[c_ok]["consentement"] == "en_cours", str(par[c_ok]))
+check("S4 canal vérifié sans consentement : manquant (orange reste orange)",
+      par[c_sans]["consentement"] == "manquant" and par[c_sans]["etat"] == "orange", str(par[c_sans]))
+check("S5 canal jamais vérifié : non_verifie ET consentement manquant (Review Focus 4)",
+      par[c_nv]["etat"] == "non_verifie" and par[c_nv]["canal_id"] is None and par[c_nv]["consentement"] == "manquant"
+      and par[c_nv]["verifie_le"] is None, str(par[c_nv]))
+check("S5b manques : 1 non vérifié, 2 consentements", rc["manques"] == {"non_verifies": 1, "consentements": 2}, str(rc["manques"]))
+FC.revoquer(cl["id"], "telegram:-100222")
+rc2 = RE.recapitulatif(cl["id"])
+check("S5c consentement révoqué : le canal repasse à manquant",
+      {c["compte"]: c for c in rc2["canaux"]}[c_ok]["consentement"] == "manquant" and rc2["manques"]["consentements"] == 3)
+FC.ajouter_consentement(cl["id"], "telegram:-100222", ["publier"], "ecrit")
+
+# un compte dont la vérification est écrasée par poser() redevient non vérifié (Review Focus 2 vu du récapitulatif)
+comptes.poser(c_ok, {"TELEGRAM_CHAT_ID": "-100999"})
+rc3 = RE.recapitulatif(cl["id"])
+check("S5d compte réécrit : non_verifie et manquant dans le récapitulatif",
+      {c["compte"]: c for c in rc3["canaux"]}[c_ok]["etat"] == "non_verifie"
+      and {c["compte"]: c for c in rc3["canaux"]}[c_ok]["consentement"] == "manquant")
+_ok(c_ok, "telegram", "-100222")
+
+pr = ESP.creer({"nom": "Produit Recap", "type": "produit", "parent": cl["id"]})
+cpr = comptes.creer({"espace_id": pr["id"], "plateforme": "telegram", "libelle": "TG produit"})["id"]
+cpr2 = comptes.creer({"espace_id": pr["id"], "plateforme": "instagram", "libelle": "IG produit"})["id"]
+_ok(cpr, "telegram", "-100222")
+_ok(cpr2, "instagram", "1784888")
+rp = RE.recapitulatif(pr["id"])
+pp = {c["compte"]: c for c in rp["canaux"]}
+check("S6 produit : suit son client (mode, client_responsable, consentements du client)",
+      rp["type"] == "produit" and rp["client_responsable"] == cl["id"] and rp["mode_publication"] == "publie_en_son_nom"
+      and pp[cpr]["consentement"] == "en_cours" and pp[cpr2]["consentement"] == "manquant", str(rp)[:400])
+pr_libre = ESP.creer({"nom": "Produit sous marque", "type": "produit", "parent": marque["id"]})
+rpl = RE.recapitulatif(pr_libre["id"])
+check("S6b produit d'une marque : sans client, sans_objet", rpl["client_responsable"] is None and rpl["mode_publication"] is None)
+try:
+    RE.recapitulatif("esp_inconnu00"); check("S7 espace inconnu : KeyError", False)
+except KeyError:
+    check("S7 espace inconnu : KeyError", True)
+check("S7b espace Deepotus (historique) : lisible, sans client", RE.recapitulatif("deepotus")["client_responsable"] is None)
+av = ESP.lire()["actif"]
+RE.recapitulatif(cl["id"])
+check("S8 lecture seule : l'espace actif n'a pas bougé", ESP.lire()["actif"] == av)
+
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    r = client.get(f"/api/espaces/{cl['id']}/recapitulatif")
+    check("S9 route 200 : le récapitulatif", r.status_code == 200 and r.json()["espace_id"] == cl["id"]
+          and r.json()["manques"] == rc["manques"], r.text[:200])
+    check("S9b aucun secret dans la réponse", not any(s in r.text for s in TOUS_SECRETS))
+    check("S10 route 404 pour un espace inconnu", client.get("/api/espaces/esp_inconnu00/recapitulatif").status_code == 404)
+
+    # ---- les raisons d'import, traduites à la sortie (même dictionnaire que les erreurs, L10) ----
+    data, _n = PQ.exporter(cl["id"])
+    zf = _zf.ZipFile(_io.BytesIO(data))
+    paq = json.loads(zf.read("client.json"))
+    paq.update(mode_publication="telepathie", consentements=[
+        {"canal_id": "pas un canal", "permis": ["publier"], "date": "2026-10-25T10:00:00"},
+        {"canal_id": "telegram:-100222", "permis": ["publier"], "date": "2026-10-25T10:00:00", "moyen": "telepathie"},
+        {"canal_id": "instagram:5", "permis": ["publier"], "date": "2026-10-25T10:00:00", "moyen": "ecrit"},
+        {"canal_id": "instagram:5", "permis": ["publier"], "date": "2026-10-26T10:00:00", "moyen": "ecrit"}],
+        journal=[{"quand": "2026-10-25T10:00:00", "quoi": "consentement", "canal_id": "xx yy", "qui": "robot"},
+                 {"quand": "", "quoi": "import", "canal_id": "", "qui": "client"}] + [
+                 {"quand": "2026-10-25T10:00:00", "quoi": "import", "canal_id": "", "qui": "client"}] * (FC.MAX_JOURNAL + 1))
+    tete = json.loads(zf.read("espace.json"))
+    tete["espace"].update(type="client", parent="esp_zzzzzzzz")
+    def _paquet(tete_, client_json):
+        b = _io.BytesIO()
+        with _zf.ZipFile(b, "w") as z:
+            z.writestr("espace.json", json.dumps(tete_)); z.writestr("persona.json", zf.read("persona.json"))
+            if client_json is not None: z.writestr("client.json", json.dumps(client_json))
+        return b.getvalue()
+    def _importer(octets, lang=None):
+        h = {"Accept-Language": lang} if lang else {}
+        return client.post("/api/espaces/importer", files={"file": ("p.zip", octets, "application/zip")}, headers=h)
+    r_fr = _importer(_paquet(tete, paq))
+    ig_fr = r_fr.json().get("ignores", [])
+    r_en = _importer(_paquet(tete, paq), "en")
+    ig_en = r_en.json().get("ignores", [])
+    check("S11 import sans langue : raisons françaises inchangées", r_fr.status_code == 200 and len(ig_fr) >= 8
+          and all(x.startswith(("client.json :", "parent ")) for x in ig_fr), str(ig_fr))
+    check("S11b import en anglais : même nombre de raisons, aucune ne reste en français",
+          r_en.status_code == 200 and len(ig_en) == len(ig_fr) and not any(
+              ("remplacé" in x or "écart" in x or "invalide" in x or "retiré" in x or "tronqué" in x or "court déjà" in x)
+              for x in ig_en), str(ig_en))
+    check("S11c les valeurs interpolées survivent à la traduction (n°, canal, mode, parent)",
+          any("consent no. 2" in x and "telegram" not in x or "moyen" in x for x in ig_en)
+          and any("instagram:5" in x and "no. 4" in x or "no. 3" in x and "instagram:5" in x for x in ig_en)
+          and any("telepathie" in x for x in ig_en) and any("esp_zzzzzzzz" in x for x in ig_en), str(ig_en))
+    check("S11d chaque raison traduite a son vis-à-vis français (même ordre, même valeurs)",
+          all(any(t in e for t in ("telepathie", "esp_zzzzzzzz", "instagram:5", str(FC.MAX_JOURNAL)))
+              == any(t in f for t in ("telepathie", "esp_zzzzzzzz", "instagram:5", str(FC.MAX_JOURNAL)))
+              for e, f in zip(ig_en, ig_fr)), str(list(zip(ig_en, ig_fr))[:3]))
+    tete2 = dict(tete); tete2["espace"] = dict(tete["espace"], type="marque", parent=None)
+    r_m = _importer(_paquet(tete2, paq), "en")
+    check("S12 fiche d'un paquet de marque : raison traduite", any("the space is not a client" in x for x in r_m.json()["ignores"]),
+          str(r_m.json()["ignores"]))
+    tete3 = dict(tete); tete3["espace"] = dict(tete["espace"], type="inconnu", parent=None)
+    r_t = _importer(_paquet(tete3, None), "en")
+    check("S12b type inconnu : raison traduite", any("unknown space type (inconnu)" in x for x in r_t.json()["ignores"]),
+          str(r_t.json()["ignores"]))
+    check("S13 une raison d'entrée ignorée (nom de fichier) passe telle quelle",
+          ERR.texte("notes.txt", "en") == "notes.txt")
+# le service lui-même garde le français (c'est la route qui traduit à la sortie)
+check("S14 le service rend du français : traduire par ERR.texte donne l'anglais",
+      all(ERR.texte(x, "en") != x for x in ig_fr), str([x for x in ig_fr if ERR.texte(x, "en") == x]))
+
+# L10 : le générateur voit chaque raison (gabarit) et --check est propre
+_py = sys.executable
+_rc = _sp.run([_py, str(pathlib.Path(__file__).resolve().parent.parent.parent / "scripts" / "i18n_l10_erreurs.py"), "--check"],
+              capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONUTF8": "1"})
+check("S15 i18n_l10_erreurs.py --check propre (chaque raison d'import a sa traduction)", _rc.returncode == 0, _rc.stdout[-300:])
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

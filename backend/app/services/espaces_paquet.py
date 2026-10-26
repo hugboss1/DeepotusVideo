@@ -154,18 +154,25 @@ def _nom_libre(nom: str) -> str:
     return f"{nom} ({n})"[:espaces.MAX]
 
 
+def _ignore(gabarit: str, **valeurs) -> str:
+    """t308 (26/10/2026) : une raison d'`ignores`, écrite comme un GABARIT `{variable}` que le générateur L10
+    (scripts/i18n_l10_erreurs.py) relève par AST, au même titre qu'un `raise ValueError(...)`. Rend le texte français
+    rempli ; la route d'import le traduit selon la langue de la requête, par app.i18n.erreurs (un seul dictionnaire)."""
+    return gabarit.format(**valeurs)
+
+
 def _ecarts_fiche(brut, ignores: list) -> None:
     """t306 : dit, une ligne française par cas, ce que `fiche_client.valider` écarte ou réécrit dans la fiche du paquet."""
     d = brut if isinstance(brut, dict) else {}
     mode = d.get("mode_publication")
     if mode is not None and mode not in fiche_client.MODES:
-        ignores.append(f"client.json : mode de publication inconnu ({str(mode)[:40]}), remplacé par valide_par_client")
+        ignores.append(_ignore("client.json : mode de publication inconnu ({mode}), remplacé par valide_par_client", mode=str(mode)[:40]))
     for i, x in enumerate(d.get("consentements") if isinstance(d.get("consentements"), list) else [], 1):
         v = fiche_client.valider({"consentements": [x]})["consentements"]
         if not v:
-            ignores.append(f"client.json : consentement n°{i} écarté (canal, permissions ou date invalides)")
+            ignores.append(_ignore("client.json : consentement n°{i} écarté (canal, permissions ou date invalides)", i=i))
         elif x.get("moyen") not in fiche_client.MOYENS:
-            ignores.append(f"client.json : consentement n°{i} : moyen inconnu, remplacé par « ecrit »")
+            ignores.append(_ignore("client.json : consentement n°{i} : moyen inconnu, remplacé par « ecrit »", i=i))
     # t306 : plusieurs consentements en cours sur un même canal : le plus récent est gardé, les autres sont clos (dit).
     actifs = {}
     for i, x in enumerate(d.get("consentements") if isinstance(d.get("consentements"), list) else [], 1):
@@ -176,19 +183,19 @@ def _ecarts_fiche(brut, ignores: list) -> None:
         gardee = max(lst)[1]
         for _date, i in lst:
             if i != gardee:
-                ignores.append(f"client.json : consentement n°{i} : un autre, plus récent (n°{gardee}), court déjà pour le canal "
-                               f"{canal}, celui-ci est clos")
+                ignores.append(_ignore("client.json : consentement n°{i} : un autre, plus récent (n°{gardee}), court déjà pour le "
+                                       "canal {canal}, celui-ci est clos", i=i, gardee=gardee, canal=canal))
     for i, x in enumerate(d.get("journal") if isinstance(d.get("journal"), list) else [], 1):
         v = fiche_client.valider({"journal": [x]})["journal"]
         if not v:
-            ignores.append(f"client.json : ligne de journal n°{i} écartée (événement ou date invalides)")
+            ignores.append(_ignore("client.json : ligne de journal n°{i} écartée (événement ou date invalides)", i=i))
             continue
         if x.get("canal_id") not in (None, "") and x.get("canal_id") != v[0]["canal_id"]:
-            ignores.append(f"client.json : ligne de journal n°{i} : canal invalide, retiré")
+            ignores.append(_ignore("client.json : ligne de journal n°{i} : canal invalide, retiré", i=i))
         if x.get("qui") not in fiche_client.QUI:
-            ignores.append(f"client.json : ligne de journal n°{i} : auteur inconnu, remplacé par « utilisateur »")
+            ignores.append(_ignore("client.json : ligne de journal n°{i} : auteur inconnu, remplacé par « utilisateur »", i=i))
     if len(d.get("journal") if isinstance(d.get("journal"), list) else []) > fiche_client.MAX_JOURNAL:
-        ignores.append(f"client.json : journal tronqué aux {fiche_client.MAX_JOURNAL} lignes les plus récentes")
+        ignores.append(_ignore("client.json : journal tronqué aux {max} lignes les plus récentes", max=fiche_client.MAX_JOURNAL))
 
 
 def _preparer(pris: dict, ignores: list) -> dict:
@@ -205,13 +212,13 @@ def _preparer(pris: dict, ignores: list) -> dict:
     # t306 : type et parent. Type inconnu = marque ; parent absent de CETTE instance (ou refusé par les règles) = retiré, dit.
     type_ = e.get("type") if e.get("type") in espaces.TYPES else "marque"
     if e.get("type") is not None and e.get("type") not in espaces.TYPES:
-        ignores.append(f"type d'espace inconnu ({str(e.get('type'))[:30]}) : repris comme marque")
+        ignores.append(_ignore("type d'espace inconnu ({type}) : repris comme marque", type=str(e.get("type"))[:30]))
     parent = None
     if e.get("parent"):
         try:
             parent = espaces._parent_valide(espaces.lire(), type_, e.get("parent"))
         except ValueError:
-            ignores.append(f"parent {str(e.get('parent'))[:40]} absent de cette installation ou refusé : retiré")
+            ignores.append(_ignore("parent {parent} absent de cette installation ou refusé : retiré", parent=str(e.get("parent"))[:40]))
     plan["type"], plan["parent"] = type_, parent
     fiche = _charger(pris, "client.json")
     plan["fiche"] = None
@@ -221,7 +228,7 @@ def _preparer(pris: dict, ignores: list) -> dict:
         _ecarts_fiche(fiche, ignores)
         plan["fiche"] = fiche_client.valider(fiche)
     elif fiche is not None:
-        ignores.append("client.json : ignoré (l'espace n'est pas un client)")
+        ignores.append(_ignore("client.json : ignoré (l'espace n'est pas un client)"))
     persona = _charger(pris, "persona.json")
     if persona is None:
         raise ValueError("paquet d'espace : persona.json manquant")

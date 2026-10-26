@@ -10674,5 +10674,49 @@
  "déclaration du téléphone : identifiant distant invalide": {
   "fr": "déclaration du téléphone : identifiant distant invalide",
   "en": "phone declaration: invalid remote identifier"
+ },
+ "client.json : mode de publication inconnu ({mode}), remplacé par valide_par_client": {
+  "fr": "client.json : mode de publication inconnu ({mode}), remplacé par valide_par_client",
+  "en": "client.json: unknown publication mode ({mode}), replaced by valide_par_client"
+ },
+ "client.json : journal tronqué aux {max} lignes les plus récentes": {
+  "fr": "client.json : journal tronqué aux {max} lignes les plus récentes",
+  "en": "client.json: log truncated to the {max} most recent lines"
+ },
+ "type d'espace inconnu ({type}) : repris comme marque": {
+  "fr": "type d'espace inconnu ({type}) : repris comme marque",
+  "en": "unknown space type ({type}): taken as a brand"
+ },
+ "client.json : consentement n°{i} écarté (canal, permissions ou date invalides)": {
+  "fr": "client.json : consentement n°{i} écarté (canal, permissions ou date invalides)",
+  "en": "client.json: consent no. {i} dropped (invalid channel, permissions or date)"
+ },
+ "client.json : ligne de journal n°{i} écartée (événement ou date invalides)": {
+  "fr": "client.json : ligne de journal n°{i} écartée (événement ou date invalides)",
+  "en": "client.json: log line no. {i} dropped (invalid event or date)"
+ },
+ "client.json : ligne de journal n°{i} : canal invalide, retiré": {
+  "fr": "client.json : ligne de journal n°{i} : canal invalide, retiré",
+  "en": "client.json: log line no. {i}: invalid channel, removed"
+ },
+ "client.json : ligne de journal n°{i} : auteur inconnu, remplacé par « utilisateur »": {
+  "fr": "client.json : ligne de journal n°{i} : auteur inconnu, remplacé par « utilisateur »",
+  "en": "client.json: log line no. {i}: unknown author, replaced by “utilisateur”"
+ },
+ "client.json : ignoré (l'espace n'est pas un client)": {
+  "fr": "client.json : ignoré (l'espace n'est pas un client)",
+  "en": "client.json: ignored (the space is not a client)"
+ },
+ "client.json : consentement n°{i} : moyen inconnu, remplacé par « ecrit »": {
+  "fr": "client.json : consentement n°{i} : moyen inconnu, remplacé par « ecrit »",
+  "en": "client.json: consent no. {i}: unknown means, replaced by “ecrit”"
+ },
+ "client.json : consentement n°{i} : un autre, plus récent (n°{gardee}), court déjà pour le canal {canal}, celui-ci est clos": {
+  "fr": "client.json : consentement n°{i} : un autre, plus récent (n°{gardee}), court déjà pour le canal {canal}, celui-ci est clos",
+  "en": "client.json: consent no. {i}: another, more recent one (no. {gardee}) already runs for channel {canal}, this one is closed"
+ },
+ "parent {parent} absent de cette installation ou refusé : retiré": {
+  "fr": "parent {parent} absent de cette installation ou refusé : retiré",
+  "en": "parent {parent} missing from this installation or refused: removed"
  }
 }
