@@ -55,8 +55,18 @@ def _propre(texte, secrets_: list[str]) -> str:
     return t[:200]
 
 
-def _r(etat: str, raison: str, id_distant=None, nom_distant=None, secrets_: list[str] | None = None) -> dict:
-    return {"etat": etat, "raison": _propre(raison, secrets_ or []),
+# t308 (26/10/2026) : le CODE d'un résultat (jeu fermé) : l'écran le traduit (dzT), `raison` reste le détail français brut.
+CODES = ("ok", "incomplet", "refuse", "refuse_palier", "quota", "reseau", "indetermine", "non_audite", "chat_introuvable",
+         "telephone_verifie", "telephone_jamais", "plateforme_inconnue")
+
+
+def _code_http(etat: str) -> str:
+    return "refuse" if etat == "rouge" else "indetermine"
+
+
+def _r(etat: str, raison: str, id_distant=None, nom_distant=None, secrets_: list[str] | None = None, *, code: str) -> dict:
+    assert code in CODES, code
+    return {"etat": etat, "code": code, "raison": _propre(raison, secrets_ or []),
             "id_distant": None if id_distant is None else str(id_distant), "nom_distant": nom_distant}
 
 
@@ -91,7 +101,7 @@ def _manquants(plateforme: str) -> list[str]:
 
 async def _x() -> dict:
     ident, nom = await asyncio.to_thread(_x_me)      # to_thread garde le compte courant (ContextVar)
-    return _r("vert", "compte X joint", ident, f"@{nom}")
+    return _r("vert", "compte X joint", ident, f"@{nom}", code="ok")
 
 
 async def _telegram() -> dict:
@@ -102,14 +112,15 @@ async def _telegram() -> dict:
     code, corps = await _get(f"{base}/getMe")
     if not (code == 200 and isinstance(corps, dict) and corps.get("ok")):
         etat = "rouge" if code in (401, 403, 404) else "orange"
-        return _r(etat, f"jeton {'refusé' if etat == 'rouge' else 'indéterminé'} ({code}) : {_msg(corps)}", secrets_=sec)
+        return _r(etat, f"jeton {'refusé' if etat == 'rouge' else 'indéterminé'} ({code}) : {_msg(corps)}", secrets_=sec, code=_code_http(etat))
     code, corps = await _get(f"{base}/getChat", params={"chat_id": chat})
     if code == 200 and isinstance(corps, dict) and corps.get("ok"):
         c = corps.get("result") or {}
         nom = c.get("title") or (f"@{c['username']}" if c.get("username") else None) or c.get("first_name")
-        return _r("vert", "bot et chat joints", c.get("id", chat), nom, sec)
+        return _r("vert", "bot et chat joints", c.get("id", chat), nom, sec, code="ok")
     etat = "rouge" if code in (400, 401, 403, 404) else "orange"
-    return _r(etat, f"chat {'introuvable' if etat == 'rouge' else 'indéterminé'} ({code}) : {_msg(corps)}", secrets_=sec)
+    return _r(etat, f"chat {'introuvable' if etat == 'rouge' else 'indéterminé'} ({code}) : {_msg(corps)}", secrets_=sec,
+              code="chat_introuvable" if etat == "rouge" else "indetermine")
 
 
 async def _youtube() -> dict:
@@ -119,13 +130,15 @@ async def _youtube() -> dict:
     code, corps = await _get("https://www.googleapis.com/youtube/v3/channels",
                              headers={"Authorization": f"Bearer {tok}"}, params={"part": "snippet", "mine": "true"})
     if code == 403 and _raison_yt(corps) in _QUOTA_YT:
-        return _r("orange", f"quota YouTube épuisé ({_raison_yt(corps)}) : réessayer plus tard", secrets_=sec)
+        return _r("orange", f"quota YouTube épuisé ({_raison_yt(corps)}) : réessayer plus tard", secrets_=sec, code="quota")
     if code != 200:
-        return _r(_etat_http(code), f"youtube {code} : {_msg(corps)}", secrets_=sec)
+        return _r(_etat_http(code), f"youtube {code} : {_msg(corps)}", secrets_=sec,
+                  code=_code_http(_etat_http(code)))
     items = (corps.get("items") if isinstance(corps, dict) else None) or []
     if not items:
-        return _r("orange", "youtube : aucune chaîne sur ce compte", secrets_=sec)
-    return _r("vert", "chaîne YouTube jointe", items[0].get("id"), (items[0].get("snippet") or {}).get("title"), sec)
+        return _r("orange", "youtube : aucune chaîne sur ce compte", secrets_=sec, code="indetermine")
+    return _r("vert", "chaîne YouTube jointe", items[0].get("id"), (items[0].get("snippet") or {}).get("title"), sec,
+              code="ok")
 
 
 async def _instagram() -> dict:
@@ -138,8 +151,9 @@ async def _instagram() -> dict:
     if code != 200 or not isinstance(corps, dict) or not corps.get("username"):
         etat = "rouge" if code in (401, 403) or (code == 400 and _graph_refus(corps)) else "orange"
         return _r(etat,
-                  f"instagram {code} : {_msg(corps)}" if code != 200 else "instagram : aucun nom de compte rendu", secrets_=sec)
-    return _r("vert", "compte Instagram joint", corps.get("id") or ig, f"@{corps['username']}", sec)
+                  f"instagram {code} : {_msg(corps)}" if code != 200 else "instagram : aucun nom de compte rendu", secrets_=sec,
+                  code=_code_http(etat))
+    return _r("vert", "compte Instagram joint", corps.get("id") or ig, f"@{corps['username']}", sec, code="ok")
 
 
 async def _tiktok() -> dict:
@@ -151,10 +165,12 @@ async def _tiktok() -> dict:
     user = ((corps.get("data") or {}).get("user") if isinstance(corps, dict) else None) or {}
     if code != 200 or not user.get("open_id"):
         return _r(_etat_http(code) if code != 200 else "orange",
-                  f"tiktok {code} : {_msg(corps)}" if code != 200 else "tiktok : aucune identité rendue", secrets_=sec)
+                  f"tiktok {code} : {_msg(corps)}" if code != 200 else "tiktok : aucune identité rendue", secrets_=sec,
+                  code=_code_http(_etat_http(code)) if code != 200 else "indetermine")
     if not comptes.cle("TIKTOK_AUDITED"):
-        return _r("orange", "compte non audité : publication privée seulement", user["open_id"], user.get("display_name"), sec)
-    return _r("vert", "compte TikTok joint", user["open_id"], user.get("display_name"), sec)
+        return _r("orange", "compte non audité : publication privée seulement", user["open_id"], user.get("display_name"), sec,
+                  code="non_audite")
+    return _r("vert", "compte TikTok joint", user["open_id"], user.get("display_name"), sec, code="ok")
 
 
 _PAR_PLATEFORME = {"x": _x, "telegram": _telegram, "youtube": _youtube, "instagram": _instagram, "tiktok": _tiktok}
@@ -163,11 +179,11 @@ _PAR_PLATEFORME = {"x": _x, "telegram": _telegram, "youtube": _youtube, "instagr
 async def verifier_plateforme(plateforme: str) -> dict:
     """État et identité distante du compte COURANT de `plateforme`. Ne lève jamais, ne publie jamais."""
     if plateforme not in _PAR_PLATEFORME:
-        return _r("orange", f"plateforme inconnue : {plateforme}"[:80])
+        return _r("orange", f"plateforme inconnue : {plateforme}"[:80], code="plateforme_inconnue")
     try:
         manque = _manquants(plateforme)
         if manque:
-            return _r("orange", "identifiants incomplets : " + ", ".join(manque))
+            return _r("orange", "identifiants incomplets : " + ", ".join(manque), code="incomplet")
         return await _PAR_PLATEFORME[plateforme]()
     except Exception as e:  # noqa: BLE001 — une vérification ne casse jamais l'écran
         try:
@@ -175,30 +191,34 @@ async def verifier_plateforme(plateforme: str) -> dict:
         except Exception:  # noqa: BLE001
             sec = []
         raison = f"{plateforme} : {type(e).__name__} : {e}"
+        etat = _etat_exception(e)
+        code = "refuse" if etat == "rouge" else "reseau"
         if plateforme == "x" and type(e).__name__ == "Forbidden":
             raison = f"x : accès refusé (palier d'API X insuffisant ?) : {e}"
-        return _r(_etat_exception(e), raison, secrets_=sec)
+            code = "refuse_palier"
+        return _r(etat, raison, secrets_=sec, code=code)
 
 
-# ---- t308 : la vérification ENREGISTRÉE ------------------------------------------------------------------------------
+# ---- t308 (26/10/2026) : la vérification ENREGISTRÉE ------------------------------------------------------------------------------
 
 def _portee(pp: dict) -> dict:
     """Le résultat d'un compte PORTÉ PAR LE TÉLÉPHONE : la déclaration de l'appareil, sans réseau ni secret."""
     date = pp.get("verifie_le")
     if not date:
-        return _r("orange", "porté par le téléphone, jamais vérifié", pp.get("id_distant"))
+        return _r("orange", "porté par le téléphone, jamais vérifié", pp.get("id_distant"), code="telephone_jamais")
     etat = pp.get("etat") if pp.get("etat") in comptes.ETATS else "orange"
-    return _r(etat, f"porté par le téléphone, vérifié le {date}", pp.get("id_distant"))
+    return _r(etat, f"porté par le téléphone, vérifié le {date}", pp.get("id_distant"), code="telephone_verifie")
 
 
 async def verifier(cid: str) -> dict:
     """Vérifie le compte `cid` (ou `historique-<p>`), RANGE le résultat daté (`comptes.noter_verification`) et rend la vue
     relue. Un compte porté par le téléphone ne lit aucun secret et n'appelle aucun réseau. KeyError = compte inconnu."""
     vue = comptes.obtenir(cid)
+    rev = comptes.revision(cid)          # relevée AVANT le réseau : si le compte change pendant l'appel, rien n'est rangé
     if isinstance(vue.get("porte_par"), dict):
         res = _portee(vue["porte_par"])
     else:
         with comptes.sous_compte(cid):
             res = await verifier_plateforme(vue["plateforme"])
-    comptes.noter_verification(cid, res)
+    comptes.noter_verification(cid, res, rev=rev)
     return comptes.obtenir(cid)

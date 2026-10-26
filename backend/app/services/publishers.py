@@ -48,6 +48,10 @@ async def publish(channel: str, caption: str, video_path: Optional[str],
             return PublishResult(False, f"{channel}: compte inconnu ({compte})")
         if v["plateforme"] != channel:
             return PublishResult(False, f"{channel}: le compte {compte} est un compte {v['plateforme']}")
+        if v.get("porte_par"):
+            # t308 (26/10/2026), §11 bis : le canal est publié par qui détient les secrets — jamais le PC pour un canal porté
+            # par le téléphone (ni sous_compte, ni lecture de secret, ni adaptateur).
+            return PublishResult(False, f"{channel}: canal porté par le téléphone : il publie depuis le téléphone")
         with comptes.sous_compte(compte):
             return await _publier(channel, caption, video_path, image_path, meta)
     return await _publier(channel, caption, video_path, image_path, meta)

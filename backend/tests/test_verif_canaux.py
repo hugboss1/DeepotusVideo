@@ -142,7 +142,7 @@ ATTENDU = {"x": ("x-id-5", "@xuser"), "telegram": ("-100777", "Le Canal"), "yout
 for p, (idd, nom) in ATTENDU.items():
     r = verifier(p)
     check(f"{p} vert : état, id et nom distants", r["etat"] == "vert" and r["id_distant"] == idd and r["nom_distant"] == nom, str(r))
-    check(f"{p} vert : clés exactes du résultat", set(r) == {"etat", "raison", "id_distant", "nom_distant"} and isinstance(r["raison"], str), str(r))
+    check(f"{p} vert : clés exactes du résultat", set(r) == {"etat", "raison", "id_distant", "nom_distant", "code"} and isinstance(r["raison"], str), str(r))
     r = verifier(p, "401")
     check(f"{p} 401 : rouge, sans identité", r["etat"] == "rouge" and r["id_distant"] is None and r["nom_distant"] is None, str(r))
     check(f"{p} 401 : aucun secret dans la sortie (Review Focus 1)", not sans_secret(r), str(sans_secret(r)) + str(r))
@@ -323,8 +323,8 @@ ci = comptes.creer({"espace_id": "deepotus", "plateforme": "instagram", "libelle
 check("E0 un compte neuf : verification None, canal_id None",
       comptes.obtenir(ci)["verification"] is None and comptes.obtenir(ci)["canal_id"] is None, str(comptes.obtenir(ci)))
 rg = comptes.noter_verification(ci, VERT)
-check("E1 noter_verification rend la vérification rangée (5 clés, date ISO secondes)",
-      set(rg) == {"etat", "raison", "date", "id_distant", "nom_distant"} and rg["etat"] == "vert"
+check("E1 noter_verification rend la vérification rangée (6 clés, date ISO secondes)",
+      set(rg) == {"etat", "raison", "code", "date", "id_distant", "nom_distant"} and rg["etat"] == "vert"
       and len(rg["date"]) == 19 and rg["date"][10] == "T", str(rg))
 v = comptes.obtenir(ci)
 check("E2 aller-retour : la vue porte verification et canal_id", v["verification"] == rg and v["canal_id"] == "instagram:1784000", str(v))
@@ -517,6 +517,140 @@ with TestClient(app, client=("127.0.0.1", 50000)) as client:
           client.post(f"/api/comptes/{cp}/porte_par", json=DECL).status_code in (404, 405)
           and client.post(f"/api/comptes/{cp}/porter", json=DECL).status_code in (404, 405))
 V._get = _g
+
+
+# ============ Correctifs, tour 1 : révision du compte, code de vérification, canal porté jamais publié par le PC ============
+print("[correctifs] rev (vérification périmée), code, publish d'un canal porté, normalisation")
+from app.services import publishers as PUB                          # noqa: E402
+
+# 1. une vérification en vol qui finit APRÈS un poser ne range rien
+poser(**S)
+cr = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Course",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-123", "TELEGRAM_CHAT_ID": "-100777"}})["id"]
+for k in S:
+    setattr(settings, k, "")
+ROUTE["mode"] = "vert"
+rev0 = comptes.revision(cr)
+check("C1 revision : un compte ordinaire a une révision (str), l'historique n'en a pas",
+      isinstance(rev0, str) and comptes.revision("historique-telegram") is None, repr(rev0))
+async def _get_qui_pose(url, headers=None, params=None, *a, **k):
+    if "getMe" in url:
+        comptes.poser(cr, {"TELEGRAM_CHAT_ID": "-100999"})      # l'utilisateur corrige le chat PENDANT la vérification
+    return await faux_get(url, headers, params)
+V._get = _get_qui_pose
+vc = asyncio.run(V.verifier(cr))
+V._get = faux_get
+check("C2 poser pendant l'appel : rien n'est rangé, la vue reste « non vérifié »",
+      vc["verification"] is None and vc["canal_id"] is None and cr not in _brut().get("verifications", {}), str(vc.get("verification")))
+check("C2b poser a changé la révision", comptes.revision(cr) != rev0)
+vc = asyncio.run(V.verifier(cr))
+check("C3 une vérification normale range toujours", vc["verification"] is not None and vc["verification"]["etat"] == "vert")
+rev1 = comptes.revision(cr)
+comptes.poser(cr, {})
+check("C3b poser sans champ ne change pas la révision", comptes.revision(cr) == rev1)
+comptes.modifier(cr, {"libelle": "Renommé"})
+check("C3c renommer ne change pas la révision", comptes.revision(cr) == rev1)
+check("C4 noter_verification(rev périmée) rend None et ne range rien",
+      comptes.noter_verification(cr, VERT, rev="ancienne") is None and comptes.obtenir(cr)["verification"]["etat"] == "vert"
+      and comptes.obtenir(cr)["verification"]["raison"] != VERT["raison"])
+check("C4b noter_verification(rev courante) range", comptes.noter_verification(cr, VERT, rev=rev1)["raison"] == VERT["raison"])
+cq = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Course tel"})["id"]
+async def _get_qui_declare(url, headers=None, params=None, *a, **k):
+    comptes.porter_par_telephone(cq, DECL | {"id_distant": "-100555"})
+    return await faux_get(url, headers, params)
+comptes.poser(cq, {"TELEGRAM_BOT_TOKEN": "SECRET-TG-123", "TELEGRAM_CHAT_ID": "-100777"})
+V._get = _get_qui_declare
+vq = asyncio.run(V.verifier(cq))
+V._get = faux_get
+check("C5 porter_par_telephone pendant l'appel : rien n'est rangé non plus", vq["verification"] is None and "porte_par" in vq, str(vq.get("verification")))
+check("C6 historique : pas de garde de révision, la vérification est rangée",
+      (poser(**S), asyncio.run(V.verifier("historique-telegram")))[1]["verification"] is not None)
+for k in S:
+    setattr(settings, k, "")
+
+# 2. un canal porté par le téléphone n'est JAMAIS publié par le PC (§11 bis), même avec un secret au même nom
+from app.services import tiktok_publisher as _TP                    # noqa: E402
+APPELS_PUB: list = []
+async def _adaptateur_interdit(*a, **k):
+    APPELS_PUB.append(a)
+    raise AssertionError("adaptateur de publication appelé pour un canal porté par le téléphone")
+_vsec, _reg = comptes._valeur_secrete, dict(PUB._REGISTRY)
+PUB._REGISTRY["telegram"] = (lambda: True, _adaptateur_interdit)
+comptes.porter_par_telephone(cq, DECL | {"id_distant": "-100555"})
+comptes._valeur_secrete = _secret_interdit
+try:
+    rp = asyncio.run(PUB.publish("telegram", "bonjour", None, None, {}, compte=cq)); errp = ""
+except AssertionError as e:
+    rp, errp = None, str(e)
+finally:
+    comptes._valeur_secrete = _vsec
+check("P1 publish(compte porté) : échec propre, ni secret lu ni adaptateur appelé",
+      rp is not None and rp.ok is False and not APPELS_PUB, errp)
+check("P1b la raison est dite", rp is not None and "canal porté par le téléphone : il publie depuis le téléphone" in rp.detail, str(rp))
+comptes.poser(cq, {"TELEGRAM_CHAT_ID": "-100777"})
+async def _adaptateur_ok(caption, video, image, meta):
+    return PUB.PublishResult(True, "telegram: ok", "r1")
+PUB._REGISTRY["telegram"] = (lambda: True, _adaptateur_ok)
+cz = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "Ordinaire pub"})["id"]
+check("P2 un compte NON porté publie toujours (non-régression)", asyncio.run(PUB.publish("telegram", "bonjour", None, None, {}, compte=cz)).ok is True)
+PUB._REGISTRY.clear(); PUB._REGISTRY.update(_reg)
+
+# 3. code : jeu fermé, chaque branche
+VUS: set = set()
+def code_de(r, attendu, label):
+    VUS.add(r.get("code"))
+    check(f"K {label} -> {attendu}", r.get("code") == attendu and r.get("code") in V.CODES, f"{r.get('code')} {r.get('raison')}")
+check("K0 CODES est un tuple sans doublon", isinstance(V.CODES, tuple) and len(set(V.CODES)) == len(V.CODES))
+for p in ATTENDU:
+    code_de(verifier(p), "ok", f"{p} vert")
+    code_de(verifier(p, "401"), "refuse", f"{p} 401")
+    code_de(verifier(p, "reseau"), "reseau", f"{p} réseau")
+for p in ("telegram", "instagram"):
+    code_de(verifier(p, "500"), "indetermine", f"{p} 500 (HTTP)")
+code_de(verifier("youtube", "500"), "reseau", "youtube 500 (échange de jeton)")
+code_de(verifier("x", "500"), "reseau", "x 500 (exception)")
+code_de(verifier("tiktok", "500"), "reseau", "tiktok 500 (échange de jeton)")
+code_de(verifier("telegram", "chat404"), "chat_introuvable", "telegram chat introuvable")
+code_de(verifier("tiktok", TIKTOK_AUDITED=""), "non_audite", "tiktok non audité")
+code_de(verifier("x", X_ACCESS_SECRET=""), "incomplet", "x incomplet")
+code_de(verifier("nimporte"), "plateforme_inconnue", "plateforme inconnue")
+_xf = V._x_me
+V._x_me = _x_forbidden
+code_de(verifier("x"), "refuse_palier", "x Forbidden")
+V._x_me = _xf
+_ft = _get_yt = None
+async def _get_quota(url, headers=None, params=None, *a, **k):
+    return 403, {"error": {"code": 403, "message": "q", "errors": [{"reason": "quotaExceeded"}]}}
+V._get = _get_quota
+code_de(verifier("youtube"), "quota", "youtube quota")
+async def _get_http500(url, headers=None, params=None, *a, **k):
+    return 500, {"error": "boom"}
+V._get = _get_http500
+code_de(verifier("youtube"), "indetermine", "youtube HTTP 500")
+code_de(verifier("tiktok"), "indetermine", "tiktok HTTP 500")
+async def _get_vide(url, headers=None, params=None, *a, **k):
+    return 200, {"items": [], "data": {"user": {}}}
+V._get = _get_vide
+code_de(verifier("youtube"), "indetermine", "youtube sans chaîne")
+V._get = faux_get
+ROUTE["mode"] = "vert"
+comptes.porter_par_telephone(cq, DECL | {"id_distant": "-100555"})
+code_de(asyncio.run(V.verifier(cq))["verification"], "telephone_verifie", "téléphone vérifié")
+comptes.porter_par_telephone(cq, DECL | {"verifie_le": None, "etat": None, "id_distant": None})
+code_de(asyncio.run(V.verifier(cq))["verification"], "telephone_jamais", "téléphone jamais vérifié")
+check("K1 noter_verification range le code (relu par la vue)", comptes.obtenir(cq)["verification"]["code"] == "telephone_jamais")
+check("K2 chaque code du jeu est produit par un chemin testé", VUS == set(V.CODES), str(set(V.CODES) ^ VUS))
+check("K3 la raison reste le détail français (non vide)", all(verifier("telegram", "401")["raison"] for _ in (0,)))
+
+# 4. mineurs
+vn = comptes.porter_par_telephone(cq, DECL | {"verifie_le": "2026-10-20T09:30:00.123456"})
+check("M1 verifie_le est normalisé à la seconde", vn["porte_par"]["verifie_le"] == "2026-10-20T09:30:00", str(vn["porte_par"]))
+vn = comptes.porter_par_telephone(cq, DECL | {"verifie_le": "2026-10-20"})
+check("M1b une date seule devient ISO secondes", vn["porte_par"]["verifie_le"] == "2026-10-20T00:00:00", str(vn["porte_par"]))
+comptes.porter_par_telephone(cq, DECL | {"verifie_le": None, "etat": "vert", "id_distant": "-100555"})
+vm = asyncio.run(V.verifier(cq))["verification"]
+check("M2 etat sans verifie_le : « jamais vérifié », orange", vm["etat"] == "orange" and vm["code"] == "telephone_jamais"
+      and vm["raison"] == "porté par le téléphone, jamais vérifié", str(vm))
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

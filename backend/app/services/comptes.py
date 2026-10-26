@@ -302,8 +302,12 @@ def poser(cid: str, valeurs: dict) -> list:
             raise ValueError(f"{c} n'est pas un champ d'un compte {PLATEFORMES[e['plateforme']][0]}")
     if any(autorises[c] for c in valeurs) and coffre.verrouille():
         raise coffre.CoffreVerrouille("le coffre est fermé : ouvrez-le avant d'enregistrer un secret")
-    if valeurs and (doc.get("verifications") or {}).pop(cid, None) is not None:
-        _ecrire(doc)          # t308 : le compte change -> « non vérifié » (écrit AVANT les secrets : un échec n'en laisse pas)
+    if valeurs:
+        # t308 (26/10/2026) : le compte change -> « non vérifié », et sa révision change (une vérification en vol qui finit
+        # après ce poser ne range rien). Écrit AVANT les secrets : un échec n'en laisse pas de périmée.
+        (doc.get("verifications") or {}).pop(cid, None)
+        e["rev"] = uuid.uuid4().hex[:8]
+        _ecrire(doc)
     for c, v in valeurs.items():
         if autorises[c]:
             _secret_ecrire(nom_secret(cid, c), str(v or "").strip())
@@ -352,7 +356,7 @@ def supprimer(cid: str) -> None:
     _ecrire(doc)
 
 
-# ---- t308 : la vérification enregistrée et le canal porté par le téléphone -----------------------------------------------
+# ---- t308 (26/10/2026) : la vérification enregistrée et le canal porté par le téléphone -----------------------------------------------
 # Un compte HISTORIQUE reste lié aux clés plates (Réglages › Connected accounts) : sa vérification n'est PAS effacée quand
 # ces clés sont réécrites ailleurs (elle garde sa date, l'écran la montre datée) : non demandé en t308.
 
@@ -360,21 +364,35 @@ ETATS = ("vert", "orange", "rouge")
 _PORTE_CLES = ("appareil_id", "appareil_nom", "verifie_le", "etat", "id_distant")
 
 
-def noter_verification(cid: str, res: dict) -> dict:
-    """Range la vérification d'un compte (aussi `historique-<p>`) : {etat, raison, date, id_distant, nom_distant}. Rend la
-    vérification rangée. KeyError = compte inconnu. Aucun secret : `res` vient de verif_canaux (déjà nettoyé)."""
+def revision(cid: str):
+    """La révision du compte (changée par `poser` et `porter_par_telephone` ; "" avant la première). None pour un compte
+    historique (clés plates : pas de révision, pas de garde). KeyError = compte inconnu."""
+    if (cid or "").startswith(HISTO):
+        return None
+    e = _lire()["comptes"].get(cid)
+    if e is None:
+        raise KeyError(cid)
+    return str(e.get("rev") or "")
+
+
+def noter_verification(cid: str, res: dict, rev=None):
+    """Range la vérification d'un compte (aussi `historique-<p>`) : {etat, raison, code, date, id_distant, nom_distant}. Rend
+    la vérification rangée. KeyError = compte inconnu. Aucun secret : `res` vient de verif_canaux (déjà nettoyé).
+    `rev` (relevée AVANT l'appel réseau) : si le compte a changé depuis, rien n'est rangé et la fonction rend None."""
     doc = _lire()
     if (cid or "").startswith(HISTO):
         if cid[len(HISTO):] not in PLATEFORMES:
             raise KeyError(cid)
     elif cid not in doc["comptes"]:
         raise KeyError(cid)
+    elif rev is not None and str(doc["comptes"][cid].get("rev") or "") != rev:
+        return None
     res = res if isinstance(res, dict) else {}
 
     def _t(v, n):
         return None if v is None else str(v)[:n]
     verif = {"etat": res.get("etat") if res.get("etat") in ETATS else "orange", "raison": _t(res.get("raison"), 200) or "",
-             "date": datetime.now().isoformat(timespec="seconds"), "id_distant": _t(res.get("id_distant"), 200),
+             "code": _t(res.get("code"), 40), "date": datetime.now().isoformat(timespec="seconds"), "id_distant": _t(res.get("id_distant"), 200),
              "nom_distant": _t(res.get("nom_distant"), 200)}
     doc.setdefault("verifications", {})[cid] = verif
     _ecrire(doc)
@@ -408,7 +426,7 @@ def porter_par_telephone(cid: str, declaration: dict) -> dict:
         try:
             if not isinstance(vl, str):
                 raise ValueError(vl)
-            datetime.fromisoformat(vl)
+            vl = datetime.fromisoformat(vl).isoformat(timespec="seconds")
         except ValueError:
             raise ValueError("déclaration du téléphone : date de vérification illisible (ISO attendu)") from None
     out["verifie_le"] = vl
@@ -422,6 +440,7 @@ def porter_par_telephone(cid: str, declaration: dict) -> dict:
         raise ValueError("déclaration du téléphone : identifiant distant invalide")
     out["id_distant"] = idd
     doc["comptes"][cid]["porte_par"] = out
+    doc["comptes"][cid]["rev"] = uuid.uuid4().hex[:8]
     (doc.get("verifications") or {}).pop(cid, None)
     _ecrire(doc)
     return obtenir(cid)
