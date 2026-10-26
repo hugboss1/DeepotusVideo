@@ -1126,5 +1126,173 @@
   "espaces.sel.titre": {
     "fr": "Espace actif",
     "en": "Active space"
+  },
+  "espaces.pourqui.projet": {
+    "fr": "Projet : {nom}",
+    "en": "Project: {nom}"
+  },
+  "espaces.pourqui.client": {
+    "fr": "Client : {nom}",
+    "en": "Client: {nom}"
+  },
+  "espaces.pourqui.fiche": {
+    "fr": "Fiche client",
+    "en": "Client sheet"
+  },
+  "espaces.pourqui.fiche_aide": {
+    "fr": "Consentements, posts à valider et journal du client",
+    "en": "Consents, posts awaiting approval and the client's log"
+  },
+  "espaces.pourqui.titre": {
+    "fr": "Fiche client — {nom}",
+    "en": "Client sheet — {nom}"
+  },
+  "espaces.pourqui.consentements": {
+    "fr": "Consentements",
+    "en": "Consents"
+  },
+  "espaces.pourqui.aucun_consentement": {
+    "fr": "Aucun consentement enregistré.",
+    "en": "No consent recorded."
+  },
+  "espaces.pourqui.donne_le": {
+    "fr": "Donné le {date} · {moyen}",
+    "en": "Given on {date} · {moyen}"
+  },
+  "espaces.pourqui.revoque_le": {
+    "fr": "Révoqué le {date}",
+    "en": "Revoked on {date}"
+  },
+  "espaces.pourqui.revoquer": {
+    "fr": "Révoquer",
+    "en": "Revoke"
+  },
+  "espaces.pourqui.revoquer_titre": {
+    "fr": "Révoquer un consentement",
+    "en": "Revoke a consent"
+  },
+  "espaces.pourqui.revoquer_confirmer": {
+    "fr": "Révoquer le consentement du canal {canal} ? Les posts programmés qui le visent seront mis en pause.",
+    "en": "Revoke the consent for channel {canal}? Scheduled posts that target it will be paused."
+  },
+  "espaces.pourqui.en_pause": {
+    "fr": "Consentement révoqué : {n} post(s) mis en pause.",
+    "en": "Consent revoked: {n} post(s) paused."
+  },
+  "espaces.pourqui.ajouter_titre": {
+    "fr": "Ajouter un consentement",
+    "en": "Add a consent"
+  },
+  "espaces.pourqui.aucun_canal": {
+    "fr": "Aucun canal vérifié à couvrir : vérifiez d'abord un compte de l'espace.",
+    "en": "No verified channel to cover: verify an account of the space first."
+  },
+  "espaces.pourqui.canal": {
+    "fr": "Canal",
+    "en": "Channel"
+  },
+  "espaces.pourqui.moyen": {
+    "fr": "Moyen du consentement",
+    "en": "Consent given by"
+  },
+  "espaces.pourqui.ajouter": {
+    "fr": "Ajouter",
+    "en": "Add"
+  },
+  "espaces.pourqui.ajoute": {
+    "fr": "Consentement ajouté.",
+    "en": "Consent added."
+  },
+  "espaces.pourqui.moyen_ecrit": {
+    "fr": "Par écrit",
+    "en": "In writing"
+  },
+  "espaces.pourqui.moyen_whatsapp": {
+    "fr": "Par WhatsApp",
+    "en": "By WhatsApp"
+  },
+  "espaces.pourqui.moyen_doigt": {
+    "fr": "Signature au doigt",
+    "en": "Finger signature"
+  },
+  "espaces.pourqui.posts": {
+    "fr": "Posts à valider",
+    "en": "Posts awaiting approval"
+  },
+  "espaces.pourqui.aucun_post": {
+    "fr": "Aucun post à valider.",
+    "en": "No post awaiting approval."
+  },
+  "espaces.pourqui.reponse_par": {
+    "fr": "Réponse reçue",
+    "en": "Reply received"
+  },
+  "espaces.pourqui.valide": {
+    "fr": "Validé par le client",
+    "en": "Approved by the client"
+  },
+  "espaces.pourqui.corriger": {
+    "fr": "À corriger",
+    "en": "Needs changes"
+  },
+  "espaces.pourqui.reponse_notee": {
+    "fr": "Réponse du client enregistrée.",
+    "en": "Client's reply recorded."
+  },
+  "espaces.pourqui.journal": {
+    "fr": "Journal",
+    "en": "Log"
+  },
+  "espaces.pourqui.journal_vide": {
+    "fr": "Journal vide.",
+    "en": "Empty log."
+  },
+  "espaces.pourqui.journal_aide": {
+    "fr": "Les {n} entrées les plus récentes.",
+    "en": "The {n} most recent entries."
+  },
+  "espaces.pourqui.quoi_mode": {
+    "fr": "Mode de publication",
+    "en": "Publishing mode"
+  },
+  "espaces.pourqui.quoi_consentement": {
+    "fr": "Consentement",
+    "en": "Consent"
+  },
+  "espaces.pourqui.quoi_revocation": {
+    "fr": "Révocation",
+    "en": "Revocation"
+  },
+  "espaces.pourqui.quoi_publication": {
+    "fr": "Publication",
+    "en": "Publication"
+  },
+  "espaces.pourqui.quoi_validation": {
+    "fr": "Validation",
+    "en": "Approval"
+  },
+  "espaces.pourqui.quoi_import": {
+    "fr": "Import",
+    "en": "Import"
+  },
+  "espaces.pourqui.qui_utilisateur": {
+    "fr": "vous",
+    "en": "you"
+  },
+  "espaces.pourqui.qui_client": {
+    "fr": "le client",
+    "en": "the client"
+  },
+  "espaces.pourqui.qui_telephone": {
+    "fr": "le téléphone",
+    "en": "the phone"
+  },
+  "espaces.pourqui.chargement": {
+    "fr": "Chargement…",
+    "en": "Loading…"
+  },
+  "espaces.pourqui.erreur": {
+    "fr": "Échec : {detail}",
+    "en": "Failed: {detail}"
   }
 }
