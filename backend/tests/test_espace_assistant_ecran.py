@@ -223,6 +223,21 @@ var R={};
  (docEcoutes.keydown||[]).forEach(function(f){f({key:"Escape",preventDefault:function(){},stopPropagation:function(){}})});
  R.a2_echap_panneau=!!un("data-dz-assistant-annuler-cree")&&!!voile();
  tous(un("data-dz-assistant-annuler-cree"),function(n){return n.tagName==="BUTTON"})[0].declencher("click");R.a_resolu=await pA;R.a_ferme=!voile();R.a_evts=evenements.length;
+ /* t326 revue finale (26/10/2026) m1 : Annuler/Échap PENDANT le POST de création (étape 1) sont ignorés ; m2 : le panneau
+    ne survit pas à un changement d'étape ; m3 : « Continuer » rend le focus au bouton Annuler */
+ var pM=A.ouvrir();await attendre();saisir("nom","Marque M1");saisir("type","marque");
+ un("data-dz-assistant-suivant").declencher("click");un("data-dz-assistant-annuler").declencher("click");
+ (docEcoutes.keydown||[]).forEach(function(f){f({key:"Escape",preventDefault:function(){},stopPropagation:function(){}})});
+ R.m1_ouverte=!!voile();R.m1_panneau=!!un("data-dz-assistant-annuler-cree");
+ await attendre();R.m1_etape=etape();
+ un("data-dz-assistant-annuler").declencher("click");R.m2_avant=!!un("data-dz-assistant-annuler-cree");
+ un("data-dz-assistant-precedent").declencher("click");R.m2_etape=etape();R.m2_apres=!!un("data-dz-assistant-annuler-cree");
+ un("data-dz-assistant-annuler").declencher("click");
+ tous(un("data-dz-assistant-annuler-cree"),function(n){return n.tagName==="BUTTON"})[1].declencher("click");
+ R.m3_focus=document.activeElement===un("data-dz-assistant-annuler");R.m3_retire=!un("data-dz-assistant-annuler-cree");
+ un("data-dz-assistant-annuler").declencher("click");
+ tous(un("data-dz-assistant-annuler-cree"),function(n){return n.tagName==="BUTTON"})[0].declencher("click");
+ R.m_resolu=await pM;R.m_ferme=!voile();
  /* B : un CLIENT — fiche, canaux, vérification, récapitulatif, Terminer */
  appels=[];COMPTES=[CPT_TG];
  var pB=A.ouvrir();await attendre();
@@ -391,6 +406,13 @@ if R and "erreur" not in R:
     check("A2b « Continuer » retire le panneau, l'étape est inchangée ; Échap suit le chemin d'Annuler (le panneau, pas la fermeture) ; « Fermer » rend l'id",
           R.get("a2_retire") is True and R["a2_etape"][0] == R["a2_etape"][1] and R.get("a2_echap_panneau") is True
           and R["a_ferme"] and R["a_resolu"] == "esp_new" and R["a_evts"] == 0, str([R.get("a2_retire"), R.get("a2_etape"), R.get("a2_echap_panneau")]))
+    check("A1c Annuler et Échap pendant le POST de création : ignorés (boîte ouverte, pas de panneau), l'espace créé est ensuite connu",
+          R.get("m1_ouverte") is True and R.get("m1_panneau") is False and R.get("m1_etape") == "3", str([R.get("m1_ouverte"), R.get("m1_panneau"), R.get("m1_etape")]))
+    check("A2c le panneau Annuler est retiré quand l'étape change (Précédent) ; la boîte reste ouverte",
+          R.get("m2_avant") is True and R.get("m2_etape") == "1" and R.get("m2_apres") is False, str([R.get("m2_avant"), R.get("m2_etape"), R.get("m2_apres")]))
+    check("A2d « Continuer » : panneau retiré et focus sur le bouton Annuler ; « Fermer » rend l'id",
+          R.get("m3_retire") is True and R.get("m3_focus") is True and R.get("m_ferme") is True and R.get("m_resolu") == "esp_new",
+          str([R.get("m3_retire"), R.get("m3_focus"), R.get("m_resolu")]))
     check("A3 vérification écartée : la plateforme dit le texte « écartée » (une fois), pastille non vérifié au survol idem ; detail() et survol idem",
           R.get("c_occ") == 1 and R.get("c_detail") == F("espaces.assistant.ecartee")
           and R.get("c_pastille") == ["non_verifie", F("espaces.assistant.ecartee")]

@@ -1157,6 +1157,49 @@ check("T2d2 « Coffre verrouillé : le coffre est fermé » -> EN",
       ERR.texte("Coffre verrouillé : le coffre est fermé", "en") == "Vault locked: the vault is closed",
       ERR.texte("Coffre verrouillé : le coffre est fermé", "en"))
 
+# ============ t326 (26/10/2026) revue finale : la restauration d'une archive périme les vérifications ============
+print("[t326] revue finale : archive du coffre")
+def _archive_t326(cles, mdp="archive-t326-phrase"):
+    return coffre.chiffrer({"format": 1, "genre": "archive", "cree_le": "2026-10-26T00:00:00", "app_version": "banc",
+                            "machine": "autre-poste", "cles": cles, "plafonds": {}, "pricing": {}}, mdp)
+
+def _importer_t326(blob, mdp):
+    with TestClient(app, client=("127.0.0.1", 50000)) as client:
+        return client.post("/api/reglages/coffre/archive/importer",
+                           files={"fichier": ("a.dzk", blob, "application/octet-stream")}, data={"mot_de_passe": mdp})
+
+poser()
+V._get = faux_get
+cs = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "TG archive",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-ESPACE", "TELEGRAM_CHAT_ID": "-100555"}})["id"]
+ca = comptes.creer({"espace_id": "deepotus", "plateforme": "telegram", "libelle": "TG intact",
+                    "valeurs": {"TELEGRAM_BOT_TOKEN": "SECRET-TG-INTACT", "TELEGRAM_CHAT_ID": "-100556"}})["id"]
+for _c in ("historique-telegram", cs, ca):
+    asyncio.run(V.verifier(_c))
+check("R0 avant : historique et deux comptes d'espace vérifiés avec identité",
+      all(comptes.obtenir(_c)["verification"] is not None and comptes.obtenir(_c)["canal_id"] for _c in ("historique-telegram", cs, ca)))
+_blob_r = _archive_t326({"TELEGRAM_CHAT_ID": "-100999", comptes.nom_secret(cs, "TELEGRAM_CHAT_ID"): "-100888",
+                         "DZC_CFFFFFFFF_TELEGRAM_CHAT_ID": "-1"})
+# refus : mauvais mot de passe (401), puis coffre fermé avec une archive qui porte un secret (409) -> rien de périmé
+_blob_sec = _archive_t326({"TELEGRAM_BOT_TOKEN": "SECRET-TG-ARCHIVE"})
+r_mdp = _importer_t326(_blob_r, "mauvais-mot-de-passe")
+coffre.fermer()
+r_ferme = _importer_t326(_blob_sec, "archive-t326-phrase")
+coffre.ouvrir(MDP)
+check("R1 restauration refusée (401 mot de passe, 409 coffre fermé) : vérifications gardées",
+      r_mdp.status_code == 401 and r_ferme.status_code == 409
+      and all(comptes.obtenir(_c)["verification"] is not None and comptes.obtenir(_c)["canal_id"] for _c in ("historique-telegram", cs, ca)),
+      f"{r_mdp.status_code} {r_ferme.status_code}")
+r_ok = _importer_t326(_blob_r, "archive-t326-phrase")
+check("R2 restauration réussie : 200, historique et compte d'espace écrits ne sont plus vérifiés (canal_id None)",
+      r_ok.status_code == 200 and comptes.obtenir("historique-telegram")["verification"] is None
+      and comptes.obtenir("historique-telegram")["canal_id"] is None
+      and comptes.obtenir(cs)["verification"] is None and comptes.obtenir(cs)["canal_id"] is None
+      and "historique-telegram" not in _brut().get("verifications", {}) and cs not in _brut().get("verifications", {}),
+      f"{r_ok.status_code} {r_ok.text[:150]}")
+check("R3 un compte d'espace dont aucune clé n'est dans l'archive garde sa vérification ; id inconnu ignoré",
+      comptes.obtenir(ca)["verification"] is not None and comptes.obtenir(ca)["canal_id"])
+
 coffre.fermer()
 coffre.FICHIER.unlink()
 

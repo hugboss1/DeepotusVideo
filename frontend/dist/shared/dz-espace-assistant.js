@@ -243,6 +243,9 @@
       // t326 : Annuler et Échap — sans espace créé la boîte se ferme ; avec un espace créé elle le dit (panneau DANS la boîte)
       var panneau = null;
       function demanderFin() {
+        // t326 revue finale : le POST de création de l'étape 1 est en vol -> l'espace va exister ; fermer maintenant sans le
+        // dire serait le défaut même d'Annuler. On ignore donc Annuler/Échap jusqu'à la réponse.
+        if (!st.id && occupe) return;
         if (!st.id) { fin(null); return; }
         if (!panneau) {
           panneau = el("div", S.panneau);
@@ -255,7 +258,8 @@
           fermerB.addEventListener("click", function () { fin(st.id); });
           var continuerB = el("button", S.btn + S.ok, T("espaces.assistant.annuler_continuer"));
           continuerB.type = "button";
-          continuerB.addEventListener("click", function () { panneau.remove(); panneau = null; });
+          // t326 revue finale : le focus revient sur « Annuler » (sinon il tombe sur body)
+          continuerB.addEventListener("click", function () { panneau.remove(); panneau = null; annuler.focus(); });
           panneau.continuer = continuerB;
           bts.appendChild(fermerB);
           bts.appendChild(continuerB);
@@ -646,6 +650,8 @@
         boutons();
       }
       function aller(n) {
+        // t326 revue finale : le panneau « déjà créé » ne survit pas à un changement d'étape (son nom pourrait être périmé)
+        if (panneau) { panneau.remove(); panneau = null; }
         st.etape = n;
         dire("");
         if (n === 3 && !st.plats) chargerCanaux();

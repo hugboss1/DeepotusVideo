@@ -53,6 +53,7 @@ PLATEFORMES: dict = {
 _CHAMP_PLAT = {c: p for p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, _s in champs}
 _SECRET = {c: s for _p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, s in champs}
 _ID = re.compile(r"^c[0-9a-f]{8}$")
+_NOM_COMPTE = re.compile(r"^DZC_(C[0-9A-F]{8})_")      # t326 revue finale : DZC_<ID>_<CHAMP> (voir nom_secret)
 HISTO = "historique-"
 MAX_COMPTES = 200
 MAX = 80
@@ -399,6 +400,25 @@ def perimer_historiques(noms: list) -> list:
     for cid in ids:
         _perimer(doc, cid)
     _ecrire(doc)
+    return sorted(ids)
+
+
+def perimer_apres_restauration(noms: list) -> list:
+    """t326 revue finale (26/10/2026) : une archive du coffre vient de réécrire des clés (plates et `DZC_<ID>_<CHAMP>`).
+    Les historiques dont une clé plate est dans `noms` sont périmés (`perimer_historiques`) ; chaque compte d'espace dont
+    une clé `DZC_<ID>_*` est dans `noms` perd sa vérification (`oublier_verification`). Un id inconnu est ignoré.
+    Rend les ids périmés (triés). À appeler après une restauration réussie seulement."""
+    ids = set(perimer_historiques(noms))
+    for n in noms or []:
+        m = _NOM_COMPTE.match(str(n))
+        if not m:
+            continue
+        cid = m.group(1).lower()
+        try:
+            oublier_verification(cid)
+            ids.add(cid)
+        except KeyError:
+            pass
     return sorted(ids)
 
 
