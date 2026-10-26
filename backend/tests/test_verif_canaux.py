@@ -1076,6 +1076,87 @@ check("T1g date illisible : maintenant", dg.startswith(_dt.now().date().isoforma
 comptes.noter_verification(cg, {"etat": "vert", "date": "2026-01-02T03:04:05"})
 check("T1g2 date ISO lisible : gardée", comptes.obtenir(cg)["verification"]["date"] == "2026-01-02T03:04:05")
 
+# ============ t326 (26/10/2026) T2 : set_key périme l'historique, rappel OAuth sans 500, CoffreVerrouille traduit ============
+print("[t326] T2 routes et L10")
+import subprocess as _sp2                                           # noqa: E402
+poser()
+V._get = faux_get
+asyncio.run(V.verifier("historique-telegram"))
+check("T2a0 avant : historique telegram vérifié", comptes.obtenir("historique-telegram")["verification"] is not None)
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    r2a = client.post("/api/settings/keys", json={"name": "TELEGRAM_CHAT_ID", "value": "-1001"})
+check("T2a POST /settings/keys TELEGRAM_CHAT_ID : 200 et l'historique telegram n'est plus vérifié",
+      r2a.status_code == 200 and comptes.obtenir("historique-telegram")["verification"] is None
+      and "historique-telegram" not in _brut().get("verifications", {}), f"{r2a.status_code} {r2a.text[:150]}")
+
+poser()
+asyncio.run(V.verifier("historique-telegram"))
+v_avant = comptes.obtenir("historique-telegram")["verification"]
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    r2b = client.post("/api/settings/keys", json={"name": "PAS_AUTORISEE", "value": "x"})
+    r2b_mix = client.post("/api/settings/keys", json={"entries": [{"name": "TELEGRAM_CHAT_ID", "value": "-5"},
+                                                                    {"name": "PAS_AUTORISEE", "value": "x"}]})
+check("T2b clé refusée (400) : la vérification est gardée",
+      r2b.status_code == 400 and r2b_mix.status_code == 400 and comptes.obtenir("historique-telegram")["verification"] == v_avant,
+      f"{r2b.status_code} {r2b_mix.status_code}")
+coffre.fermer()
+with TestClient(app, client=("127.0.0.1", 50000)) as client:
+    r2b2 = client.post("/api/settings/keys", json={"entries": [{"name": "TELEGRAM_CHAT_ID", "value": "-6"},
+                                                                 {"name": "TELEGRAM_BOT_TOKEN", "value": "SECRET-TG-NEUF"}]})
+check("T2b2 coffre posé fermé + secret (409) : la vérification est gardée",
+      r2b2.status_code == 409 and comptes.obtenir("historique-telegram")["verification"] == v_avant, f"{r2b2.status_code} {r2b2.text[:150]}")
+coffre.ouvrir(MDP)
+
+# T2c : le rappel OAuth ne renvoie jamais 500 si l'oubli de la vérification échoue
+cy3 = comptes.creer({"espace_id": "deepotus", "plateforme": "youtube", "libelle": "YT oubli KO",
+                     "valeurs": {"YOUTUBE_CLIENT_ID": "SECRET-YT-ID", "YOUTUBE_CLIENT_SECRET": "SECRET-YT-CS",
+                                 "YOUTUBE_REFRESH_TOKEN": "SECRET-YT-RT"}})["id"]
+_ech3, _oubli3 = _YP2.exchange_code, comptes.oublier_verification
+_YP2.exchange_code = _faux_echange
+def _oubli_en_panne(cid):
+    raise OSError("disque plein SECRET-MSG")
+comptes.oublier_verification = _oubli_en_panne
+_journal = []
+_idj = logger.add(lambda m: _journal.append(str(m)), level="WARNING")
+try:
+    with TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False) as client:
+        d3 = client.get(f"/api/oauth/youtube/start?compte={cy3}", follow_redirects=False)
+        st3 = _pq(_up(d3.headers.get("location", "")).query).get("state", [""])[0]
+        r2c = client.get(f"/api/oauth/youtube/callback?code=abc&state={st3}")
+finally:
+    _YP2.exchange_code = _ech3
+    comptes.oublier_verification = _oubli3
+    logger.remove(_idj)
+with comptes.sous_compte(cy3):
+    jeton3 = comptes.cle("YOUTUBE_REFRESH_TOKEN")
+check("T2c oubli en panne : 200 (pas de 500), page « revérifiez », jeton rangé",
+      r2c.status_code == 200 and "revérifiez" in r2c.text and jeton3 == "SECRET-YT-RT-NEUF", f"{r2c.status_code} {r2c.text[:300]}")
+check("T2c2 journal : le type de l'exception seulement, jamais son message ni un secret",
+      any("OSError" in j for j in _journal) and not any("disque plein" in j or "SECRET" in j for j in _journal)
+      and "SECRET" not in r2c.text and "disque plein" not in r2c.text, str(_journal)[:200])
+
+# T2c3 : compte supprimé pendant la connexion : toujours la page 404
+cy4 = comptes.creer({"espace_id": "deepotus", "plateforme": "youtube", "libelle": "YT supprimé",
+                     "valeurs": {"YOUTUBE_CLIENT_ID": "SECRET-YT-ID", "YOUTUBE_CLIENT_SECRET": "SECRET-YT-CS"}})["id"]
+_YP2.exchange_code = _faux_echange
+try:
+    with TestClient(app, client=("127.0.0.1", 50000)) as client:
+        d4 = client.get(f"/api/oauth/youtube/start?compte={cy4}", follow_redirects=False)
+        st4 = _pq(_up(d4.headers.get("location", "")).query).get("state", [""])[0]
+        comptes.supprimer(cy4)
+        r2c3 = client.get(f"/api/oauth/youtube/callback?code=abc&state={st4}")
+finally:
+    _YP2.exchange_code = _ech3
+check("T2c3 compte supprimé : la page 404 existante", r2c3.status_code == 404, f"{r2c3.status_code} {r2c3.text[:150]}")
+
+# T2d : L10, « Coffre verrouillé : le coffre est fermé » traduit
+_rc = _sp2.run([sys.executable, str(pathlib.Path(__file__).resolve().parents[2] / "scripts" / "i18n_l10_erreurs.py"), "--check"],
+               capture_output=True, text=True, encoding="utf-8", errors="replace", env={**os.environ, "PYTHONUTF8": "1"})
+check("T2d i18n_l10_erreurs.py --check : code 0", _rc.returncode == 0, (_rc.stdout + _rc.stderr)[-300:])
+check("T2d2 « Coffre verrouillé : le coffre est fermé » -> EN",
+      ERR.texte("Coffre verrouillé : le coffre est fermé", "en") == "Vault locked: the vault is closed",
+      ERR.texte("Coffre verrouillé : le coffre est fermé", "en"))
+
 coffre.fermer()
 coffre.FICHIER.unlink()
 

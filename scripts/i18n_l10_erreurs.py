@@ -34,7 +34,7 @@ APP = RACINE / "backend" / "app"
 SORTIE = APP / "i18n" / "erreurs.json"
 TRADUCTIONS = RACINE / "scripts" / "i18n_l10_traductions.json"
 ERREURS = {"ValueError", "RuntimeError", "FileNotFoundError", "PermissionError", "LookupError", "TimeoutError",
-           "ConflitClient", "FluxCoupe"}   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
+           "ConflitClient", "FluxCoupe", "CoffreVerrouille"}   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
                                        # L4.1 T3 : FluxCoupe = RuntimeError (flux Anthropic coupé)
 EXEMPTS = {
     "Chapter not found",        # frontend/atelier/atelier.js : /Chapter not found/i.test(e.message) -> recrée le chapitre
