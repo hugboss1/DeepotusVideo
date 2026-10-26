@@ -211,10 +211,13 @@ check("1.3e contrôle textuel exact de la sortie : « channels » n'apparaît pl
 # ── [4] l'inverse ──────────────────────────────────────────────────────────────────────────────────────
 print("\n[4] l'inverse avant_dzcanauxpre")
 if PM and MARKER in B:
-    check("1.5a avant_dzcanauxpre existe et rend defaire(B)", lambda: AIDE.avant_dzcanauxpre(B) == PM.defaire(B))
+    # t309 (26/10/2026) : le maillon dzgardeclient est posé APRÈS celui-ci : le livré se lit vu d'avant dzgardeclient (B0)
+    B0 = AIDE.avant_dzgardeclient(B)
+    check("1.5a avant_dzcanauxpre existe et rend defaire(B), vu d'avant dzgardeclient",
+          lambda: AIDE.avant_dzcanauxpre(B) == PM.defaire(B0))
     check("1.5b la base est rendue À L'OCTET (empreinte du bundle d'avant le maillon)",
           lambda: hashlib.sha256(AIDE.avant_dzcanauxpre(B).encode("utf-8")).hexdigest() == BASE_SHA256)
-    check("1.5c sans marqueur : rendu tel quel", lambda: AIDE.avant_dzcanauxpre(PM.defaire(B)) == PM.defaire(B))
+    check("1.5c sans marqueur : rendu tel quel", lambda: AIDE.avant_dzcanauxpre(PM.defaire(B0)) == PM.defaire(B0))
     check("1.5d avant_dzassistant défait dzcanauxpre d'abord, puis dzassistant (chaîne cohérente)",
           lambda: MARKER not in AIDE.avant_dzassistant(B) and "/*__dzassistant*/" not in AIDE.avant_dzassistant(B)
           and AIDE.avant_dzassistant(B) == AIDE.avant_dzassistant(AIDE.avant_dzcanauxpre(B)))

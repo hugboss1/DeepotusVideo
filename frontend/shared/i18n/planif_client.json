@@ -1,0 +1,6 @@
+{
+  "scheduler.client.confirmer": {"fr": "Publier au nom de {nom} sur {canaux} ? Le consentement du client est en cours pour ces canaux.", "en": "Publish on behalf of {nom} on {canaux}? The client's consent is current for these channels."},
+  "scheduler.client.confirmer_ok": {"fr": "Publier en son nom", "en": "Publish on their behalf"},
+  "scheduler.client.confirmer_titre": {"fr": "Publication au nom du client", "en": "Publishing on behalf of the client"},
+  "scheduler.etat.a_valider": {"fr": "À valider", "en": "Awaiting approval"}
+}
