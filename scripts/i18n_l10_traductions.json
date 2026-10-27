@@ -10874,5 +10874,21 @@
  "aucun consentement en cours du client sur ce numéro WhatsApp": {
   "fr": "aucun consentement en cours du client sur ce numéro WhatsApp",
   "en": "no current client consent on this WhatsApp number"
+ },
+ "grille WhatsApp invalide : attendu {marché : {catégorie : tarif}}": {
+  "fr": "grille WhatsApp invalide : attendu {marché : {catégorie : tarif}}",
+  "en": "WhatsApp price grid is invalid: expected {market: {category: rate}}"
+ },
+ "prix WhatsApp inconnu pour {marche} / {cat} : saisissez la grille de Meta": {
+  "fr": "prix WhatsApp inconnu pour {marche} / {cat} : saisissez la grille de Meta",
+  "en": "Unknown WhatsApp price for {marche} / {cat}: enter Meta's rate card"
+ },
+ "catégorie WhatsApp inconnue dans la grille : {cat}": {
+  "fr": "catégorie WhatsApp inconnue dans la grille : {cat}",
+  "en": "Unknown WhatsApp category in the grid: {cat}"
+ },
+ "tarif WhatsApp illisible pour {m} / {cat} : un nombre positif ou nul est attendu": {
+  "fr": "tarif WhatsApp illisible pour {m} / {cat} : un nombre positif ou nul est attendu",
+  "en": "Unreadable WhatsApp rate for {m} / {cat}: a number of zero or more is expected"
  }
 }

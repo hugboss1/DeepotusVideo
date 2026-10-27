@@ -261,7 +261,18 @@ DEFAULTS = {
         "claude-3":        {"in": 15.00, "out": 75.00},
     },
     "monthly_budget_usd": 0.0,        # 0 = no cap
+    # t310 (27/10/2026) : WhatsApp via Kapso. Meta facture par message livré, selon la catégorie et le pays du
+    # destinataire (« rate cards », revues à chaque début de trimestre). La grille se SAISIT (Réglages), elle ne
+    # s'invente pas : vide par défaut, et un marché ou une catégorie absents refusent l'envoi (`_ligne_whatsapp`).
+    # Forme : {indicatif sans « + » : {"marketing", "utility", "authentication", "service"} en USD par message}.
+    "whatsapp_meta_usd": {},
+    # Depuis le 01/10/2026, les messages de service (texte libre dans la fenêtre de 24 h) sont gratuits jusqu'à 1 000
+    # par numéro et par mois, payants au-delà (spec §6.1 « Coûts Meta »).
+    "whatsapp_service_gratuits_mois": 1000,
 }
+
+# t310 : les quatre colonnes de la grille Meta
+WHATSAPP_CATEGORIES = ("marketing", "utility", "authentication", "service")
 
 # image-gen model id -> (label, billing provider, pricing key in DEFAULTS)
 _IMAGE_MODELS = {
@@ -368,6 +379,8 @@ def save(d: dict) -> dict:
     fichier effaçait tout le reste (tarifs vidéo par modèle, plafonds posés à
     la main). Un fichier illisible ou qui n'est pas un objet repart de vide."""
     clean = {k: d[k] for k in DEFAULTS if k in d}
+    if "whatsapp_meta_usd" in clean:
+        clean["whatsapp_meta_usd"] = _grille_whatsapp_valide(clean["whatsapp_meta_usd"])
     try:
         cur = json.loads(_PRICING_FILE.read_text(encoding="utf-8")) if _PRICING_FILE.is_file() else {}
     except Exception:
@@ -381,6 +394,61 @@ def save(d: dict) -> dict:
     except Exception:
         pass
     return load()
+
+
+def _marche_whatsapp(marche) -> str:
+    """t310 (27/10/2026) : un marché de la grille Meta = l'indicatif en chiffres, sans « + » ni espaces."""
+    return str(marche or "").strip().lstrip("+").replace(" ", "")
+
+
+def _grille_whatsapp_valide(g) -> dict:
+    """t310 (27/10/2026) : la grille Meta qu'on s'apprête à ENREGISTRER, normalisée (indicatif sans « + », tarifs en
+    flottants) — ValueError sur tout ce qui n'est pas {marché : {catégorie connue : tarif >= 0 fini}}. Rien n'est
+    écrit avant : `save` valide d'abord. Une catégorie inconnue est REFUSÉE, jamais écartée en silence (une faute de
+    frappe dans « utility » laisserait sinon le tarif absent, donc l'envoi refusé sans qu'on sache pourquoi)."""
+    if not isinstance(g, dict):
+        raise ValueError("grille WhatsApp invalide : attendu {marché : {catégorie : tarif}}")
+    out = {}
+    for marche, cols in g.items():
+        m = _marche_whatsapp(marche)
+        if not m or not isinstance(cols, dict):
+            raise ValueError("grille WhatsApp invalide : attendu {marché : {catégorie : tarif}}")
+        ligne = {}
+        for cat, v in cols.items():
+            if cat not in WHATSAPP_CATEGORIES:
+                raise ValueError(f"catégorie WhatsApp inconnue dans la grille : {cat}")
+            if not _taux_valide(v):
+                raise ValueError(f"tarif WhatsApp illisible pour {m} / {cat} : un nombre positif ou nul est attendu")
+            ligne[cat] = float(v)
+        out[m] = ligne
+    return out
+
+
+def _ligne_whatsapp(op: dict, p: dict) -> dict:
+    """t310 (27/10/2026) — UNE ligne de devis pour un message WhatsApp livré par Meta (kind « whatsapp »), au tarif de
+    la grille saisie (`whatsapp_meta_usd`) pour son marché et sa catégorie. ValueError quand le prix est inconnu
+    (marché ou catégorie absents, catégorie hors vocabulaire) : un envoi dont on ignore le coût ne part pas. Premier
+    refus de ce genre dans `estimate`, réservé à ce kind.
+      · `service_deja_mois` : messages de service déjà envoyés ce mois-ci par le numéro ; sous le seuil
+        `whatsapp_service_gratuits_mois` le message est l'un des gratuits (ligne à 0). Un compteur illisible compte
+        pour le seuil atteint : le devis se trompe vers le haut, jamais vers le gratuit."""
+    cat = str(op.get("categorie") or "")
+    marche = _marche_whatsapp(op.get("marche"))
+    grille = p.get("whatsapp_meta_usd")
+    tarif = ((grille.get(marche) or {}).get(cat) if isinstance(grille, dict) and isinstance(grille.get(marche), dict)
+             else None) if cat in WHATSAPP_CATEGORIES else None
+    if not _taux_valide(tarif):
+        raise ValueError(f"prix WhatsApp inconnu pour {marche} / {cat} : saisissez la grille de Meta")
+    if cat == "service":
+        seuil = _reglage_fini(p, "whatsapp_service_gratuits_mois")
+        try:
+            deja = max(0, int(op.get("service_deja_mois") or 0))
+        except (TypeError, ValueError):
+            deja = int(seuil)
+        if deja < seuil:
+            return _line("meta", f"WhatsApp service ({marche}) — dans les {int(seuil):,} gratuits".replace(",", " "),
+                         1, "msg", 0.0)
+    return _line("meta", f"WhatsApp {cat} ({marche})", 1, "msg", float(tarif))
 
 
 def _line(provider, label, units, unit, usd):
@@ -754,6 +822,8 @@ def estimate(op: dict, p: dict | None = None) -> dict:
       {"kind":"objets3d","modele":"sam-3-3d-objects","n":1}   (t189 : storyboard 3D SAM 3, par requête)
       {"kind":"atelier_ia","modele":"sa3-regenerer","secondes":34}   (t272 : nœud IA de l'Atelier sonore)
       {"kind":"post_ia","modele":"restyle-decart","secondes":5}   (t277 : générateur IA du Post-traitement)
+      {"kind":"whatsapp","categorie":"marketing","marche":"33","service_deja_mois":0}   (t310 : message Meta ;
+                                                  ValueError si le prix n'est pas dans la grille saisie)
     Returns {breakdown:[line...], total_usd, credits:{provider:n}}.
     """
     p = p or load()
@@ -922,6 +992,8 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         lines.append(_line("elevenlabs", "Isolation de voix", chars, "chars", chars * elevenlabs_rate(None, p)))
     elif kind == "detourage":
         lines.append(_ligne_detourage(op, p))
+    elif kind == "whatsapp":
+        lines.append(_ligne_whatsapp(op, p))   # t310 : un message livré par Meta (grille saisie, ValueError si inconnu)
     elif kind == "llm":
         prov = op.get("provider", "openai")
         it = float(op.get("in_tok", 1000)); ot = float(op.get("out_tok", 400))
