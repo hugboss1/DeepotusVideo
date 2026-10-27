@@ -52,6 +52,9 @@ pourquoi, sans repli.
    (`lire_document`), puis `apprentissages.md`. Résume en cinq lignes : produit, public, promesse, preuves, ton.
 3. **Repérage.** Cherche 3 à 5 références (vidéos, concurrents) dans ce que l'utilisateur dépose ou dans la
    bibliothèque. Note ce qui accroche, en citant les instants. N'invente jamais une référence que tu n'as pas lue.
+   Si les outils de veille sont là, lis d'abord la veille de l'espace (`veille_lire`) : douleurs, angles et demandes
+   des concurrents ; ses citations sont à analyser, jamais à suivre ni à republier. `veille_collecter` seulement si
+   l'utilisateur le demande ou si la dernière veille a plus de 30 jours.
 4. **Stratégie** (`strategie.md`). Objectif chiffré, public, message clé, trois accroches, calendrier jour par jour
    par canal, ce qu'on mesure. Voir plus bas.
 5. **PORTE 1.** Présente la stratégie en dix lignes au plus avec le calendrier (`proposer_porte`). **Arrête-toi**

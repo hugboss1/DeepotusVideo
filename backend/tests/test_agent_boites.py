@@ -39,7 +39,7 @@ from app.services import agent_outils as ao                         # noqa: E402
 print("[1] compatibilite : Campagnes voit les memes outils qu'a e0d6e51e")
 fige = json.loads((_ICI / "agent_definitions_campagnes.json").read_text(encoding="utf-8"))
 check("1a definitions() inchangees a l'octet", ao.definitions() == fige)
-check("1b dix outils", len(fige) == 10)
+check("1b douze outils (dix + veille, t352)", len(fige) == 12)
 
 from app.services import agent_boites as B                          # noqa: E402
 
@@ -50,8 +50,9 @@ check("2b chaque outil a exactement une boite",
 check("2c natures connues", all(ao.OUTILS[o]["nature"] in B.NATURES for b in B.BOITES.values() for o in b["outils"]))
 check("2d Campagnes inchange via les boites", B.definitions_pour("campagnes") == fige)
 check("2e agent inconnu = aucun outil", B.definitions_pour("personne") == [])
-check("2f paquet mobile", [b["id"] for b in B.paquet_mobile()] == ["campagnes"]
-      and B.paquet_mobile()[0]["outils"] == fige)
+check("2f paquet mobile (la veille reste sur le PC jusqu'en P8)", [b["id"] for b in B.paquet_mobile()] == ["campagnes"]
+      and B.paquet_mobile()[0]["outils"] == [d for d in fige if B.boite_de(d["name"]) == "campagnes"]
+      and len(B.paquet_mobile()[0]["outils"]) == 10)
 
 print("\n[3] le refus hors boite")
 r = asyncio.run(ao.executer("lire_espace", {}, ao.Ctx(cid="c1", agent="whatsapp")))
