@@ -30,7 +30,7 @@ espace inconnu), `kapso.KapsoErreur` (message déjà nettoyé), HTTPException 40
 """
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from loguru import logger
@@ -52,6 +52,7 @@ MAX_LEGENDE = 1024                # légende d'une image (Meta)
 MAX_PAYLOAD = 128                 # payload d'un bouton de modèle (Meta)
 MAX_BOUTONS_MODELE = 10
 MAX_MEDIA_RANGE = 16 * 1024 * 1024
+DELAI_REESSAI_MEDIA = timedelta(hours=6)   # un média non rangé (erreur Kapso) n'est redemandé qu'après ce délai
 MAX_RANGES_PAR_LECTURE = 20       # médias entrants rangés au plus par appel de `lire`
 EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif",
               "audio/ogg": ".ogg", "audio/mpeg": ".mp3", "audio/mp4": ".m4a", "audio/amr": ".amr", "audio/aac": ".aac",
@@ -64,6 +65,11 @@ _NOM_MODELE = re.compile(r"^[A-Za-z0-9_]{1,512}$")
 _LANGUE_MODELE = re.compile(r"^[a-z]{2,3}(?:_[A-Za-z]{2,4})?$")
 _NOM_PARAMETRE = re.compile(r"^[a-z0-9_]{1,64}$")
 _JALON = re.compile(r"\{\{\s*([^{}\s]+)\s*\}\}")
+
+
+def _horloge() -> datetime:
+    """HOOK DE BANC : l'heure (UTC)."""
+    return datetime.now(timezone.utc)
 
 
 # ---- aides -------------------------------------------------------------------------------------------------------------
@@ -184,12 +190,44 @@ async def _ranger_entrants(cid: str, eid: str, liste: list) -> None:
         if p["sens"] != "entrant" or not mid or not _MEDIA_ID.match(mid):
             continue
         try:
-            if _chemin_range(cid, eid, mid) is not None:
+            if _chemin_range(cid, eid, mid) is not None or not _refus_expire(cid, eid, mid):
                 continue
             n += 1
-            await ranger_media(cid, eid, mid)
+            if await ranger_media(cid, eid, mid) is None:        # trop gros : marqué pour toujours par ranger_media
+                continue
         except Exception as e:  # noqa: BLE001 — jamais un texte d'exception (une URL de média y porte un jeton)
             logger.warning(f"whatsapp média entrant non rangé ({type(e).__name__})")
+            try:
+                _noter_refus(cid, eid, mid, f"erreur:{type(e).__name__}")
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def _fichier_refus(cid: str, eid: str, media_id: str) -> Path:
+    return _dossier_medias(cid, eid) / f"{_nom_fichier(media_id)}.refus"
+
+
+def _noter_refus(cid: str, eid: str, media_id: str, raison: str) -> None:
+    """Marqueur `<id>.refus` : horodatage ISO puis raison courte (jamais un texte de message ni d'exception)."""
+    f = _fichier_refus(cid, eid, media_id)
+    if not f.resolve().is_relative_to((_es.dossier() / eid).resolve()):
+        raise ValueError("chemin de média refusé")
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(f"{_horloge().isoformat(timespec='seconds')}\n{raison}\n", encoding="utf-8")
+
+
+def _refus_expire(cid: str, eid: str, media_id: str) -> bool:
+    """Vrai si on peut (re)tenter ce média : aucun marqueur, ou marqueur d'erreur vieux de 6 h au moins. `trop_gros` : jamais."""
+    f = _fichier_refus(cid, eid, media_id)
+    if not f.is_file():
+        return True
+    try:
+        quand, _, raison = f.read_text(encoding="utf-8").partition("\n")
+        if raison.strip() == "trop_gros":
+            return False
+        return _horloge() - _date_iso(quand.strip()) >= DELAI_REESSAI_MEDIA
+    except (OSError, TypeError, ValueError):
+        return True                                              # marqueur illisible : on retente
 
 
 def _deja_journalises(cid: str) -> set:
@@ -289,7 +327,8 @@ def _composants(m: dict) -> dict:
             boutons.append({"index": i, "type": "quick_reply", "parametre": False})
         elif genre == "URL":
             boutons.append({"index": i, "type": "url", "parametre": "{{" in str(b.get("url") or "")})
-    return {"entete": fmt if fmt in ("text",) + _ENTETES_MEDIA else None, "boutons": boutons}
+    return {"entete": fmt if fmt in ("text",) + _ENTETES_MEDIA else None, "boutons": boutons,
+            "entete_variable": fmt == "text" and "{{" in str((ent or {}).get("text") or "")}
 
 
 def _modele_plat(m: dict) -> dict:
@@ -371,8 +410,13 @@ async def ranger_media(cid: str, eid: str, media_id: str) -> Path | None:
         return deja
     _vue, _pub, pid = _compte_relie(cid)
     octets, mime = await kapso.media_et_type(media_id, pid)
+    mime = str(mime or "").split(";")[0].strip().lower()
     if len(octets) > MAX_MEDIA_RANGE:
         logger.warning("whatsapp média trop gros : non rangé")
+        try:
+            _noter_refus(cid, eid, media_id, "trop_gros")
+        except OSError:
+            pass
         return None
     base = _dossier_medias(cid, eid)
     cible = base / f"{nom}{EXTENSIONS.get(mime or '', '.bin')}"
@@ -382,6 +426,10 @@ async def ranger_media(cid: str, eid: str, media_id: str) -> Path | None:
     tmp = cible.with_name(cible.name + ".part")
     tmp.write_bytes(octets)
     os.replace(tmp, cible)
+    try:
+        _fichier_refus(cid, eid, media_id).unlink(missing_ok=True)
+    except OSError:
+        pass
     return cible
 
 
@@ -405,7 +453,7 @@ def _valider_envoi(envoi) -> dict:
         raise ValueError("envoi invalide : un objet {type, …} est attendu")
     t = envoi.get("type")
     if t not in WA.TYPES_ENVOI:
-        raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
+        raise ValueError("type d'envoi inconnu (texte, boutons, modele ou image)")
     if t == "image":
         mid, leg = envoi.get("media_id"), envoi.get("legende")
         if not isinstance(mid, str) or not _MEDIA_ID.match(mid):
@@ -508,6 +556,10 @@ def _verifier_composants(e_: dict, modele: dict) -> None:
     ent = e_.get("entete")
     if ent is not None and ent["type"] != comp["entete"]:
         raise ValueError("en-tête : le modèle n'a pas d'en-tête de ce genre")
+    if ent is not None and ent["type"] == "text" and not comp.get("entete_variable"):
+        raise ValueError("en-tête : un en-tête texte sans variable ne reçoit aucun texte")
+    if ent is None and comp["entete"] in _ENTETES_MEDIA:
+        raise ValueError("en-tête : ce modèle exige un en-tête média")
     permis = {b["index"] for b in comp["boutons"] if b["type"] == "quick_reply"}
     for b in e_.get("boutons") or []:
         if b["index"] not in permis:

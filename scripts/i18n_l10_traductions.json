@@ -10843,9 +10843,9 @@
   "fr": "marché par défaut : un indicatif pays en chiffres est attendu",
   "en": "default market: a country dialling code in digits is expected"
  },
- "type d'envoi inconnu (texte, boutons ou modele)": {
-  "fr": "type d'envoi inconnu (texte, boutons ou modele)",
-  "en": "unknown send type (texte, boutons or modele)"
+ "type d'envoi inconnu (texte, boutons, modele ou image)": {
+  "fr": "type d'envoi inconnu (texte, boutons, modele ou image)",
+  "en": "unknown send type (text, buttons, template or image)"
  },
  "ce contact a écrit STOP : aucun envoi": {
   "fr": "ce contact a écrit STOP : aucun envoi",
@@ -11114,5 +11114,13 @@
  "boutons : identifiant de média d'en-tête invalide": {
   "fr": "boutons : identifiant de média d'en-tête invalide",
   "en": "buttons: invalid header media identifier"
+ },
+ "en-tête : un en-tête texte sans variable ne reçoit aucun texte": {
+  "fr": "en-tête : un en-tête texte sans variable ne reçoit aucun texte",
+  "en": "header: a text header without a variable takes no text"
+ },
+ "en-tête : ce modèle exige un en-tête média": {
+  "fr": "en-tête : ce modèle exige un en-tête média",
+  "en": "header: this template requires a media header"
  }
 }

@@ -838,7 +838,7 @@ def noter_envoi(cid: str, identite_: str, *, type: str, categorie: str | None, s
     dans la fenêtre de 24 h). Jamais le texte du message."""
     _identite_valide(identite_)
     if type not in TYPES_ENVOI:
-        raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
+        raise ValueError("type d'envoi inconnu (texte, boutons, modele ou image)")
     mois = _mois(maintenant)
 
     def geste(e):
@@ -858,7 +858,7 @@ def controler(cid: str, identite_: str, *, type: str, categorie: str | None, der
     écriture, aucun réseau. ValueError : compte relié à aucun numéro."""
     _identite_valide(identite_)
     if type not in TYPES_ENVOI:
-        raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
+        raise ValueError("type d'envoi inconnu (texte, boutons, modele ou image)")
     eid, pid = _cle_etat(cid)
     client = _es.client_responsable(eid)
     if client:

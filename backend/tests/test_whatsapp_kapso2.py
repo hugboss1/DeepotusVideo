@@ -88,6 +88,7 @@ class Faux:
         self.msgs = {}
         self.media = {}               # id -> (octets, mime)
         self.televerse = []
+        self.sans_next = False        # modèles : curseur sans `paging.next`
 
 
 F = Faux()
@@ -115,11 +116,13 @@ async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
         i = int((params or {}).get("after") or 0)
         if F.infini:
             return 200, {"data": [{"name": f"m{i}", "language": "fr", "status": "APPROVED"}],
-                         "paging": {"cursors": {"after": str(i + 1)}}}, {}
+                         "paging": {"cursors": {"after": str(i + 1)}, "next": "https://x/n"}}, {}
         pages = F.pages_modeles.get(parts[0], [[]])
         page = pages[i] if i < len(pages) else []
         apres = str(i + 1) if i + 1 < len(pages) else None
-        return 200, {"data": page, "paging": {"cursors": {"after": apres} if apres else {}}}, {}
+        if F.sans_next:
+            return 200, {"data": page, "paging": {"cursors": {"after": str(i + 1)}}}, {}
+        return 200, {"data": page, "paging": ({"cursors": {"after": apres}, "next": "https://x/n"} if apres else {})}, {}
     if methode == "GET" and len(parts) == 2 and parts[1] == "conversations":
         return 200, {"data": [dict(x) for x in F.convs.get(parts[0], [])], "paging": {"cursors": {}}}, {}
     if methode == "GET" and len(parts) == 2 and parts[1] == "messages":
@@ -193,6 +196,20 @@ F.appels.clear()
 res = run(KA.modeles("WABA-1"))
 check("K1.4 curseur sans fin : cinq pages au plus", len(F.appels) == 5 and len(res) == 5, (len(F.appels), len(res)))
 F.infini = False
+F.pages_modeles["WABA-1"] = [[{"name": "a", "language": "fr"}], [{"name": "a", "language": "fr"}, {"name": "a", "language": "en"}],
+                             [{"name": "z", "language": "fr"}]]
+F.sans_next = True
+F.appels.clear()
+res = run(KA.modeles("WABA-1"))
+check("K1.5 `paging.next` absent : une seule page lue", len(F.appels) == 1 and [x["name"] for x in res] == ["a"], (F.appels, res))
+F.sans_next = False
+res = run(KA.modeles("WABA-1"))
+check("K1.6 dédoublonnage par (nom, langue)", [(x["name"], x["language"]) for x in res] == [
+    ("a", "fr"), ("a", "en"), ("z", "fr")], res)
+F.pages_modeles["WABA-1"] = [[{"name": "a", "status": "APPROVED"}], [], [{"name": "jamais", "status": "APPROVED"}]]
+F.appels.clear()
+res = run(KA.modeles("WABA-1"))
+check("K1.7 page vide : arrêt", len(F.appels) == 2 and [x["name"] for x in res] == ["a"], (F.appels, res))
 
 print("\n[K2] kapso.marquer_lu : typing_indicator")
 F.appels.clear()
@@ -281,6 +298,8 @@ MODELES = [
                                         {"type": "URL", "text": "Site", "url": "https://x.fr/"}]}]},
     {"name": "rappel", "language": "fr", "status": "APPROVED", "category": "UTILITY", "components": [
         {"type": "HEADER", "format": "TEXT", "text": "Rappel {{1}}"}, {"type": "BODY", "text": "RDV"}]},
+    {"name": "fixe", "language": "fr", "status": "APPROVED", "category": "UTILITY", "components": [
+        {"type": "HEADER", "format": "TEXT", "text": "Titre fixe"}, {"type": "BODY", "text": "ok"}]},
     {"name": "simple", "language": "fr", "status": "APPROVED", "category": "UTILITY", "components": [
         {"type": "BODY", "text": "ok"}]},
     {"name": "attente", "language": "fr", "status": "PENDING", "category": "MARKETING", "components": [
@@ -288,18 +307,19 @@ MODELES = [
 ]
 F.pages_modeles["WABA-1"] = [MODELES]
 res = run(WE.modeles(cid))
-check("K6.1 approuvés seulement par défaut", [m["nom"] for m in res] == ["promo_img", "rappel", "simple"], res)
+check("K6.1 approuvés seulement par défaut", [m["nom"] for m in res] == ["promo_img", "rappel", "fixe", "simple"], res)
 pi = res[0]
 check("K6.2 statut rendu", pi.get("statut") == "approved", pi.get("statut"))
 check("K6.3 entête image, boutons quick_reply index 0 et url index 2 (avec paramètre), url fixe sans paramètre",
-      pi.get("composants") == {"entete": "image", "boutons": [
+      pi.get("composants") == {"entete": "image", "entete_variable": False, "boutons": [
           {"index": 0, "type": "quick_reply", "parametre": False}, {"index": 2, "type": "url", "parametre": True},
           {"index": 3, "type": "url", "parametre": False}]}, pi.get("composants"))
-check("K6.4 entête texte ; sans composants : entête None, boutons vides", res[1]["composants"] == {"entete": "text", "boutons": []}
-      and res[2]["composants"] == {"entete": None, "boutons": []}, (res[1], res[2]))
+check("K6.4 entête texte ; sans composants : entête None, boutons vides", res[1]["composants"] == {"entete": "text", "boutons": [], "entete_variable": True}
+      and res[2]["composants"] == {"entete": "text", "boutons": [], "entete_variable": False}
+      and res[3]["composants"] == {"entete": None, "boutons": [], "entete_variable": False}, (res[1], res[2], res[3]))
 res = run(WE.modeles(cid, tous=True))
 check("K6.5 tous=True : le modèle en attente aussi, statut pending", [m["nom"] for m in res][-1] == "attente"
-      and res[-1]["statut"] == "pending" and len(res) == 4, res)
+      and res[-1]["statut"] == "pending" and len(res) == 5, res)
 check("K6.6 les champs t310 restent", set(res[0]) >= {"nom", "langue", "categorie", "parametres", "n_parametres"}, res[0])
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -331,14 +351,20 @@ def refus400(label, envoi):
     check(f"K7 {label} : 400, aucun envoi", r_.status_code == 400 and len(F.envois) == n, (r_.status_code, r_.text))
 
 
-refus400("payload > 128", {**base, "boutons": [{"index": 0, "payload": "x" * 129}]})
-refus400("payload vide", {**base, "boutons": [{"index": 0, "payload": ""}]})
-refus400("index inconnu du modèle", {**base, "boutons": [{"index": 1, "payload": "p"}]})
-refus400("index en double", {**base, "boutons": [{"index": 0, "payload": "p"}, {"index": 0, "payload": "q"}]})
+ent9 = {"entete": {"type": "image", "media_id": "MEDIA-9"}}
+refus400("payload > 128", {**base, **ent9, "boutons": [{"index": 0, "payload": "x" * 129}]})
+refus400("payload vide", {**base, **ent9, "boutons": [{"index": 0, "payload": ""}]})
+refus400("index inconnu du modèle", {**base, **ent9, "boutons": [{"index": 1, "payload": "p"}]})
+refus400("index en double", {**base, **ent9, "boutons": [{"index": 0, "payload": "p"}, {"index": 0, "payload": "q"}]})
 refus400("entête média sans media_id", {**base, "entete": {"type": "image"}})
 refus400("entête sur un modèle sans entête", {"type": "modele", "nom": "simple", "langue": "fr", "parametres": [],
                                                "entete": {"type": "image", "media_id": "M"}})
 refus400("entête d'un autre type que le modèle", {**base, "entete": {"type": "video", "media_id": "M"}})
+refus400("entête média manquant (modèle à en-tête image)", {**base})
+refus400("entête texte pour un en-tête texte SANS variable", {"type": "modele", "nom": "fixe", "langue": "fr",
+                                                             "parametres": [], "entete": {"type": "text", "texte": "x"}})
+r = envoyer(TEL, {"type": "modele", "nom": "fixe", "langue": "fr", "parametres": []})
+check("K7.4 en-tête texte sans variable : envoi sans `entete` accepté", r.status_code == 200, r.text)
 refus400("entête texte vide", {"type": "modele", "nom": "rappel", "langue": "fr", "parametres": [],
                                "entete": {"type": "text", "texte": ""}})
 
@@ -390,6 +416,7 @@ OCT = b"\x89PNG-OCTETS-RANGES-\x00\x01"
 F.media["MED-A"] = (OCT, "image/png")
 F.media["MED-GROS"] = (b"g" * (16 * 1024 * 1024 + 1), "image/jpeg")
 F.media["MED-BIN"] = (b"zz", "application/x-truc")
+F.media["MED-MAJ"] = (b"maj", "Image/PNG; charset=binary")
 T_IN = int(maintenant().timestamp()) - 60
 
 
@@ -406,7 +433,7 @@ rac = _tmp / "espaces" / boite / "whatsapp_medias" / "PN-1"
 check("K10.1 le média neuf est rangé sous espaces/<id>/whatsapp_medias/<pid>/<id>.png", (rac / "MED-A.png").read_bytes() == OCT
       if (rac / "MED-A.png").exists() else False, sorted(str(p) for p in _tmp.rglob("whatsapp_medias/**/*")))
 check("K10.2 > 16 Mo : rien rangé ; téléchargement en échec : rien rangé ; les messages restent tous rendus",
-      not list(rac.glob("MED-GROS*")) and not list(rac.glob("MED-ABSENT*")) and len(res["messages"]) == 4,
+      not [x for x in rac.glob("MED-GROS*") if x.suffix != ".refus"] and not [x for x in rac.glob("MED-ABSENT*") if x.suffix != ".refus"] and len(res["messages"]) == 4,
       (sorted(p.name for p in rac.glob("*")), len(res["messages"])))
 check("K10.3 MIME inconnu : extension .bin", (rac / "MED-BIN.bin").exists(), sorted(p.name for p in rac.glob("*")))
 F.appels.clear()
@@ -423,8 +450,39 @@ p = run(WE.ranger_media(cid, boite, "MED-A"))
 check("K10.6 ranger_media rend le chemin du fichier existant", p is not None and pathlib.Path(p) == rac / "MED-A.png", p)
 check("K10.7 ranger_media > 16 Mo rend None", run(WE.ranger_media(cid, boite, "MED-GROS")) is None, "")
 tout = {x.name for x in rac.glob("*")}
+run(WE.ranger_media(cid, boite, "MED-MAJ"))
+check("K10.7b MIME normalisé (casse, paramètres) : extension .png", (rac / "MED-MAJ.png").exists(), sorted(x.name for x in rac.glob("*")))
+tout = {x.name for x in rac.glob("*")}
 check("K10.8 rien hors du dossier de l'espace (confinement)", all(x.resolve().is_relative_to((_tmp / "espaces" / boite).resolve())
                                                               for x in rac.glob("*")) and ".." not in "".join(tout), tout)
+
+print("\n[K10b] média non rangé : marqueur .refus")
+F.appels.clear()
+run(WE.lire(cid))
+run(WE.lire(cid))
+check("K10.13 > 16 Mo : marqueur trop_gros, jamais redemandé à Kapso (deux lectures de plus)",
+      (rac / "MED-GROS.refus").read_text(encoding="utf-8").splitlines()[1:] == ["trop_gros"]
+      and not any(a[1] == "/MED-GROS" for a in F.appels), [a for a in F.appels if "GROS" in a[1]])
+ref = (rac / "MED-ABSENT.refus").read_text(encoding="utf-8").splitlines() if (rac / "MED-ABSENT.refus").exists() else []
+check("K10.14 erreur Kapso : marqueur horodaté + raison courte (sans texte)", len(ref) == 2 and ref[1].startswith("erreur:")
+      and "chemin inconnu" not in "".join(ref) and WE._date_iso(ref[0]) is not None, ref)
+check("K10.15 … pas redemandée avant 6 h", not any(a[1] == "/MED-ABSENT" for a in F.appels), F.appels)
+vraie = WE._horloge
+WE._horloge = lambda: vraie() + timedelta(hours=5, minutes=59)
+F.appels.clear()
+run(WE.lire(cid))
+check("K10.16 5 h 59 plus tard : toujours pas", not any(a[1] == "/MED-ABSENT" for a in F.appels), F.appels)
+WE._horloge = lambda: vraie() + timedelta(hours=6, minutes=1)
+F.appels.clear()
+run(WE.lire(cid))
+check("K10.17 6 h 01 plus tard : redemandé (une fois)", sum(1 for a in F.appels if a[1] == "/MED-ABSENT") == 1, F.appels)
+check("K10.18 … le > 16 Mo, jamais", not any(a[1] == "/MED-GROS" for a in F.appels), F.appels)
+F.media["MED-ABSENT"] = (b"ok", "image/jpeg")
+WE._horloge = lambda: vraie() + timedelta(hours=13)
+run(WE.lire(cid))
+check("K10.19 réussi : rangé et marqueur retiré", (rac / "MED-ABSENT.jpg").exists() and not (rac / "MED-ABSENT.refus").exists(),
+      sorted(x.name for x in rac.glob("*")))
+WE._horloge = vraie
 F.appels.clear()
 r = c.get(f"/api/whatsapp/{cid}/medias/MED-A")
 check("K10.9 la route sert le fichier local, type image/png, sans appel Kapso", r.status_code == 200 and r.content == OCT
@@ -466,9 +524,9 @@ F.refus = [(502, {"error": {"message": "panne", "code": 7}})]
 r = c.post(f"/api/whatsapp/{cid}/fil", json={"identite": TEL, "action": "prendre"})
 check("K11.8 refus Kapso -> 502 {message, code}", r.status_code == 502 and r.json()["detail"]["code"] == "7", r.text)
 r = c.get(f"/api/whatsapp/{cid}/modeles")
-check("K11.9 GET modeles : approuvés", r.status_code == 200 and len(r.json()) == 3, r.text[:200])
+check("K11.9 GET modeles : approuvés", r.status_code == 200 and len(r.json()) == 4, r.text[:200])
 r = c.get(f"/api/whatsapp/{cid}/modeles?tous=1")
-check("K11.10 GET modeles?tous=1 : tous, avec statut et composants", r.status_code == 200 and len(r.json()) == 4
+check("K11.10 GET modeles?tous=1 : tous, avec statut et composants", r.status_code == 200 and len(r.json()) == 5
       and "composants" in r.json()[0] and r.json()[-1]["statut"] == "pending", r.text[:200])
 F.appels.clear()
 run(WE.marquer_lu(cid, "wamid.Z"))

@@ -333,7 +333,8 @@ PAGES_MODELES = 5
 
 async def modeles(waba_id: str, *, statut: str | None = "APPROVED") -> list[dict]:
     """GET /{WABA}/message_templates?status= : les modèles (le chemin porte l'ID du compte WhatsApp Business, pas du numéro).
-    Pages de 100 suivies par `paging.cursors.after` (paramètre `after`), CINQ pages au plus. `statut=None` : tous les statuts."""
+    Pages de 100 suivies par `paging.cursors.after` (paramètre `after`), CINQ pages au plus, jusqu'à une page vide
+    ou sans `paging.next` ; dédoublonnées par (nom, langue). `statut=None` : tous les statuts."""
     out, cur = [], None
     for _ in range(PAGES_MODELES):
         params: dict = {"limit": 100}
@@ -344,9 +345,18 @@ async def modeles(waba_id: str, *, statut: str | None = "APPROVED") -> list[dict
         _s, corps, _e = await _appel("GET", f"{PROXY}/{quote(str(waba_id), safe='')}/message_templates", params=params)
         liste, cur = _page(corps, 100)
         out.extend(liste)
-        if not cur:
+        paging = corps.get("paging") if isinstance(corps, dict) else None
+        if not cur or (isinstance(paging, dict) and not paging.get("next")):    # `next` absent : dernière page
             break
-    return out
+    vus, uniques = set(), []
+    for m in out:                                         # un même modèle (nom, langue) n'est rendu qu'une fois
+        cle = (m.get("name"), m.get("language")) if isinstance(m, dict) else None
+        if cle is not None:
+            if cle in vus:
+                continue
+            vus.add(cle)
+        uniques.append(m)
+    return uniques
 
 
 def _url_media_sure(url) -> bool:
