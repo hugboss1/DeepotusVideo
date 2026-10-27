@@ -29,8 +29,9 @@ from catalogue_partages import depuis_partages
 # le code des labs de LABS_LUS est lu en clair (infobulles T(…)), les fiches didactiques de tous (aide/index.json).
 LABS = {"vectorlab": ("vectorlab", "/vectorlab/"), "photolab": ("photolab", "/photolab/"),
         "avatar": ("avatarlive", "/avatar/"), "spritelab": ("assets3d", "/spritelab/"),
-        "tilelab": ("assets3d", "/tilelab/")}
-LABS_LUS = ("vectorlab", "photolab", "avatar")
+        "tilelab": ("assets3d", "/tilelab/"),
+        "whatsapp": ("whatsapp", "/whatsapp/")}         # t311 (27/10/2026) : la page WhatsApp d'un espace
+LABS_LUS = ("vectorlab", "photolab", "avatar", "whatsapp")
 
 # infobulle d'un lab : title: T("k"), b.title = T("k"), et la forme gabarit title="${T("k")}" ; T, dzT, t ou vlT
 RE_T_LAB = re.compile(r'(title|titre|"aria-label"|aria-label|tip)\s*[:=]\s*(?:"\$\{\s*)?(?:T|dzT|t|vlT)\("([a-z0-9_.]+)"\)')

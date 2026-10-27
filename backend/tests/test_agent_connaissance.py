@@ -59,7 +59,7 @@ def test_le_rail_complet():
 
 def test_rail_partout_et_libelle():
     rail = [a for a in ANCRES if a["id"].startswith("rail.")]
-    assert len(rail) == 14
+    assert len(rail) == 15                      # t311 tâche 8 : WhatsApp
     for a in rail:
         assert a.get("partout") is True, a["id"]
     for a in ANCRES:

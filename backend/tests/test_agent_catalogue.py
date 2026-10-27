@@ -874,6 +874,36 @@ def test_vrai_catalogue_pour_qui():
                                                              "texte": {"fr": "Fiche client", "en": "Client sheet"}}
 
 
+def test_fabrique_bouton_libelle_enfant():
+    """t311 tâche 8 : bouton(texte, p, glyphe) de la page WhatsApp — el("button", …) dont un enfant porte
+    el("span", { texte: texte }) : T("k") passé en 1er argument est le LIBELLÉ du bouton ; une fabrique sans bouton, non."""
+    import catalogue_fabriques as FB
+    js = "\n".join([
+        'function bouton(texte, p, cle) {',
+        '  var b = el("button", { cls: "wa-btn", type: "button" });',
+        '  if (texte) b.appendChild(el("span", { texte: texte }));',
+        '  return b;',
+        '}',
+        'function note(texte) { return el("p", { texte: texte }); }',
+        'zone.appendChild(bouton(T("whatsapp.prix.ajouter"), { on: {} }, "dz-action-ajouter"));',
+        'zone.appendChild(note(T("whatsapp.prix.aide")));'])
+    assert FB.fabriques(js) == [("whatsapp.prix.ajouter", "bouton", "libelle", "dz-action-ajouter")]
+
+
+def test_vrai_catalogue_whatsapp():
+    """t311 tâche 8 : la page WhatsApp (écran « whatsapp », cadre /whatsapp/) et le panneau « Agent WhatsApp » de
+    Réglages › Espaces (frontend/shared/dz-whatsapp-espace.js, rangé sur les Réglages, sans cadre) sont au catalogue."""
+    e = S.extraire(RACINE)
+    assert e["whatsapp.vide.ouvrir_reglages"]["ecran"] == "whatsapp" and e["whatsapp.vide.ouvrir_reglages"]["cadre"] == "/whatsapp/"
+    assert e["whatsapp.vide.ouvrir_reglages"]["libelle"]["fr"] == "Ouvrir les Réglages"
+    assert "whatsapp.onglets.aria" not in e                         # nom de la barre d'onglets : exclu
+    p = {k: v for k, v in e.items() if k.startswith("whatsapp.espace.")}
+    assert p["whatsapp.espace.ouvrir"]["ecran"] == "settings" and p["whatsapp.espace.ouvrir"]["cadre"] is None
+    assert p["whatsapp.espace.enregistrer"]["type"] == "bouton" and p["whatsapp.espace.mode"]["type"] == "champ"
+    assert all(v["ecran"] == "settings" and v["cadre"] is None for v in p.values())
+    assert all(v["sources"] == ["frontend/shared/dz-whatsapp-espace.js"] for k, v in p.items() if k != "whatsapp.espace.ouvrir")
+
+
 def test_deterministe(tmp_path):
     racine = _depot(tmp_path, ";".join(CAS.values()) + ";" + BUNDLE)
     a, b = S.extraire(racine), S.extraire(racine)
@@ -1065,7 +1095,7 @@ def test_menus_photolab_empreinte_suit_le_chemin():
 import catalogue_commun as CC                                              # noqa: E402
 
 VUES = ("quick", "studio", "episodes", "sonvfx", "montage", "scheduler", "templates", "news", "library", "assets3d",
-        "vectorlab", "photolab", "avatarlive", "settings", "commun")
+        "vectorlab", "photolab", "avatarlive", "whatsapp", "settings", "commun")
 CADRES = {None, *CC.CADRE_DE_ZONE.values(), *(c for _, c in S.LABS.values())}
 TYPES = {"bouton", "champ", "outil", "reglage", "onglet", "menu", "icone", "raccourci", "panneau"}
 

@@ -4,7 +4,7 @@
 // Servi à l'identique depuis frontend/dist/shared/ (/shared/…).
 
 export const VUES = ["quick", "studio", "episodes", "sonvfx", "montage", "scheduler", "templates", "news", "library",
-  "assets3d", "vectorlab", "photolab", "avatarlive", "settings"];
+  "assets3d", "vectorlab", "photolab", "avatarlive", "whatsapp", "settings"];
 export const MAX_HISTORIQUE = 10;
 
 const norm = (s) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase();

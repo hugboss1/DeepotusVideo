@@ -5,8 +5,8 @@ Pour aider l'UTILISATEUR de l'application, l'assistant intégré lit `docs/agent
 
 ## Vue d'ensemble
 DeepotusVideo est un studio local Windows, clavier d'abord, pour fabriquer des vidéos 9:16 virales et leurs
-ressources. Il compte 14 écrans : Quick, Studio, Chapitres, Son & VFX, Montage, Planificateur, Modèles, News,
-Bibliothèque, Game Assets, Vectorlab, Photolab, Avatar live et Réglages. Un seul utilisateur. Le français est la langue
+ressources. Il compte 15 écrans : Quick, Studio, Chapitres, Son & VFX, Montage, Planificateur, Modèles, News,
+Bibliothèque, Game Assets, Vectorlab, Photolab, Avatar live, WhatsApp et Réglages. Un seul utilisateur. Le français est la langue
 de référence, l'anglais en est la traduction. Le produit est décrit dans `PRODUCT.md`, la direction visuelle dans
 `DESIGN.md`.
 
