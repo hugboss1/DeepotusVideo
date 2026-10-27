@@ -806,6 +806,15 @@ def test_vrai_catalogue_canaux_projet():
     assert "frontend/shared/dz-projet-canaux.js" not in (e.get("commun.action.annuler") or {}).get("sources", [])
 
 
+# t310 (27/10/2026) : le panneau de liaison WhatsApp de l'étape Canaux — « Créer le lien », le lien en lecture seule et
+# « Copier », le consentement (moyen, date) et les deux facturations Meta. « Création du lien… » (état occupé du même
+# bouton) est exclu (_exclus.json), et l'URL, les états et les messages ne sont pas des éléments.
+WHATSAPP_ASSISTANT = ["espaces.assistant.whatsapp_creer", "espaces.assistant.whatsapp_lien",
+                      "espaces.assistant.whatsapp_copier", "espaces.assistant.whatsapp_moyen",
+                      "espaces.assistant.whatsapp_date", "espaces.assistant.whatsapp_facturation_client",
+                      "espaces.assistant.whatsapp_facturation_kapso"]
+
+
 def test_vrai_catalogue_assistant_espace():
     """t308 (26/10/2026) : l'assistant de création d'espace (frontend/shared/dz-espace-assistant.js) est au catalogue, sur
     les Réglages (zone « espaces ») : « Vérifier », « Terminer » et ses champs propres (type, parent, langue, mode) ; ni
@@ -820,9 +829,15 @@ def test_vrai_catalogue_assistant_espace():
         assert f["sources"] == ["frontend/shared/dz-espace-assistant.js"], k
     assert sorted(k for k in e if k.startswith("espaces.assistant.")) == sorted(
         ["espaces.assistant.verifier", "espaces.assistant.terminer", "espaces.assistant.type", "espaces.assistant.parent",
-         "espaces.assistant.langue", "espaces.assistant.mode"])
+         "espaces.assistant.langue", "espaces.assistant.mode"] + WHATSAPP_ASSISTANT)
     for k in ("commun.action.annuler", "commun.action.suivant", "commun.action.precedent"):
         assert "frontend/shared/dz-espace-assistant.js" not in (e.get(k) or {}).get("sources", []), k
+    for k in WHATSAPP_ASSISTANT:                     # t310 : boutons et champs du panneau, rangés sur les Réglages
+        f = e.get(k)
+        assert f and f["ecran"] == "settings" and f["sources"] == ["frontend/shared/dz-espace-assistant.js"], k
+        assert f["type"] == ("bouton" if k.endswith(("_creer", "_copier")) else "champ"), k
+    assert e["espaces.assistant.whatsapp_creer"]["libelle"] == {"fr": "Créer le lien", "en": "Create the link"}
+    assert "espaces.assistant.whatsapp_creation" not in e
     vrai = {k: v for f in (RACINE / "docs" / "agent" / "catalogue").glob("settings.json")
             for k, v in ((x["id"], x) for x in json.loads(f.read_text("utf-8"))["fiches"])}
     c = vrai["espaces.nouveau.creer"]
