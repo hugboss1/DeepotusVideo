@@ -89,11 +89,12 @@ if __name__ == "__main__":
 
 
 def test_libelles_des_outils_suivent_le_registre():
-    """t285 T9 (relecture) : une ligne d'outil = un libellé traduit par nom ; la liste du composant suit
-    agent_outils.OUTILS (aucun outil sans libellé, aucun libellé orphelin)."""
-    reg = (RACINE / "backend" / "app" / "services" / "agent_outils.py").read_text(encoding="utf-8")
-    bloc = reg[reg.index("OUTILS: dict[str, dict] = {"):]
-    outils = set(re.findall(r'^    "([a-z_]+)": \{"nature"', bloc, re.M))
+    """t285 T9 (relecture) : une ligne d'outil = un libellé traduit par nom ; la liste du composant suit les outils
+    de l'agent Campagnes (aucun outil sans libellé, aucun libellé orphelin). t311 : les outils de l'agent WhatsApp
+    (boîte « whatsapp ») ne passent jamais par ce fil, ils n'y ont pas de libellé."""
+    sys.path.insert(0, str(RACINE / "backend"))
+    from app.services.agent_boites import outils_pour
+    outils = set(outils_pour("campagnes"))
     liste = set(re.findall(r'"([a-z_]+)"', SRC[SRC.index("var OUTILS = ["):SRC.index("];", SRC.index("var OUTILS = ["))]))
     assert outils and liste == outils, (sorted(outils ^ liste))
     assert all(f"campagnes.outil.{o}" in I18N for o in outils) and "campagnes.outil.inconnu" in I18N
