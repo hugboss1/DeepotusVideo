@@ -192,6 +192,7 @@ async def _tiktok() -> dict:
 
 # t310 : (cid, résultat ou exception) de la relecture de liaison faite par `verifier` avant la révision ; lu par `_whatsapp`.
 _LIAISON_RELUE: ContextVar = ContextVar("dz_liaison_whatsapp_relue", default=None)
+STATUTS_WHATSAPP_ROUGES = ("DISCONNECTED", "FLAGGED", "RESTRICTED", "BANNED")
 
 
 async def _whatsapp() -> dict:
@@ -230,8 +231,12 @@ async def _whatsapp() -> dict:
     nom = n.get("verified_name") or n.get("display_name")
     qualite = str(n.get("quality_rating") or "").upper()
     statut = str(n.get("status") or "").upper()
-    if statut and statut != "CONNECTED":
+    # relecture finale t310 (Minor 2) : les valeurs de `status` chez Kapso ne sont pas documentées. Rouge pour un statut
+    # MAUVAIS connu, vert pour CONNECTED (casse indifférente), orange `indetermine` pour une valeur inconnue (comme la qualité)
+    if statut in STATUTS_WHATSAPP_ROUGES:
         return _r("rouge", f"numéro WhatsApp déconnecté ({statut[:30]})", pid, nom, sec, code="refuse")
+    if statut and statut != "CONNECTED":
+        return _r("orange", f"statut du numéro inconnu ({statut[:30]})", pid, nom, sec, code="indetermine")
     if qualite == "RED":
         return _r("rouge", "qualité du numéro RED : envois bridés par Meta", pid, nom, sec, code="qualite_basse")
     if qualite == "YELLOW":

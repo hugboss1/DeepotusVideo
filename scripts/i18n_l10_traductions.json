@@ -10950,5 +10950,13 @@
  "modèle inconnu ou non approuvé pour cette langue": {
   "fr": "modèle inconnu ou non approuvé pour cette langue",
   "en": "unknown or unapproved template for this language"
+ },
+ "client.json : consentement {canal} écarté : un numéro WhatsApp se relie dans chaque espace, il ne s'importe pas": {
+  "fr": "client.json : consentement {canal} écarté : un numéro WhatsApp se relie dans chaque espace, il ne s'importe pas",
+  "en": "client.json: consent {canal} dropped: a WhatsApp number is linked in each space, it is not imported"
+ },
+ "un modèle marketing exige un accord saisi du contact : un message reçu ne vaut accord que pour lui répondre": {
+  "fr": "un modèle marketing exige un accord saisi du contact : un message reçu ne vaut accord que pour lui répondre",
+  "en": "a marketing template requires a recorded opt-in from the contact: an incoming message only counts as consent to reply to it"
  }
 }

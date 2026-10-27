@@ -216,6 +216,23 @@ phones = [ch.get("valeur") for v in CP.lister(None) for ch in v["champs"] if ch[
           and ch.get("valeur")]
 check("W8.3 deux espaces ne partagent jamais un WHATSAPP_PHONE_ID", len(phones) == len(set(phones)), repr(phones))
 check("W8.4 l'import le dit dans `ignores`", any("WhatsApp" in x for x in res.get("ignores") or []), repr(res.get("ignores")))
+# relecture finale (Minor 8) : un espace CLIENT exporté avec un consentement `whatsapp:<numéro>` : à l'import, ce
+# consentement est écarté (le compte ne voyage pas), les autres consentements restent, et `ignores` le dit
+from app.services import fiche_client as FC                          # noqa: E402
+cli = E.creer({"nom": "Client paquet", "type": "client"})["id"]
+FC.ajouter_consentement(cli, "whatsapp:PN-PAQUET", ["messages"], "ecrit")
+FC.ajouter_consentement(cli, "telegram:chat-1", ["posts"], "ecrit")
+data_c, _n = EP.exporter(cli)
+zc = zipfile.ZipFile(io.BytesIO(data_c))
+check("W8.5 l'export porte encore les deux consentements (la fiche voyage telle quelle)",
+      sorted(x["canal_id"] for x in json.loads(zc.read("client.json"))["consentements"])
+      == ["telegram:chat-1", "whatsapp:PN-PAQUET"])
+res_c = EP.importer(data_c)
+neuf_c = res_c["espace"]["id"]
+canaux = [x["canal_id"] for x in FC.lire(neuf_c)["consentements"]]
+check("W8.6 import : le consentement whatsapp:* est écarté, telegram gardé", canaux == ["telegram:chat-1"], repr(canaux))
+check("W8.7 … et `ignores` le dit (consentement whatsapp:PN-PAQUET)",
+      any("whatsapp:PN-PAQUET" in x and "WhatsApp" in x for x in res_c.get("ignores") or []), repr(res_c.get("ignores")))
 
 print("\n[i] la clé connue partout")
 from app.api.settings_routes import RUBRIQUE_DE_CLE                 # noqa: E402

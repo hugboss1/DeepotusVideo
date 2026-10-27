@@ -229,6 +229,16 @@ def _preparer(pris: dict, ignores: list) -> dict:
             raise ValueError("paquet d'espace : client.json illisible")
         _ecarts_fiche(fiche, ignores)
         plan["fiche"] = fiche_client.valider(fiche)
+        # relecture finale t310 (Minor 8) : le compte whatsapp ne voyage pas, son consentement `whatsapp:<numéro>` non plus
+        # (il porterait sur un canal que l'espace neuf n'a pas) ; dit dans `ignores`, comme pour le compte
+        garder = []
+        for x in plan["fiche"]["consentements"]:
+            if str(x.get("canal_id") or "").startswith("whatsapp:"):
+                ignores.append(_ignore("client.json : consentement {canal} écarté : un numéro WhatsApp se relie dans chaque "
+                                       "espace, il ne s'importe pas", canal=str(x["canal_id"])[:60]))
+            else:
+                garder.append(x)
+        plan["fiche"]["consentements"] = garder
     elif fiche is not None:
         ignores.append(_ignore("client.json : ignoré (l'espace n'est pas un client)"))
     persona = _charger(pris, "persona.json")

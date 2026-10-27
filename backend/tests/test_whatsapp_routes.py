@@ -28,6 +28,12 @@ Ce que ce banc garde :
       locale refusé.
   W14 RF 2 : POST /api/schedule avec un compte whatsapp en cible -> 400.
   W15 deux envois simultanés sous un plafond mensuel de 1 : un seul part (verrou du compte).
+  W19 relecture finale I1 : STOP reçu, compte supprimé, nouveau compte du même espace relié au même numéro -> 409 stop,
+      compteurs du mois gardés.
+  W20 relecture finale I2 : modèle MARKETING vers un contact dont l'accord vient d'un entrant -> 409 accord (message
+      distinct), aucun POST ; avec un accord saisi -> 200 ; un modèle utility passe avec l'accord d'entrant.
+  W21 relecture finale Minor 7 : espace archivé -> envoi 400 et création de lien 400, aucun appel Kapso ; les lectures
+      (messages) restent permises.
 Run (depuis backend/) : & $PY tests/test_whatsapp_routes.py"""
 import asyncio, json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -711,6 +717,78 @@ F.msgs["PN-Z"] = [[{"id": "wamid.Z2", "type": "text", "from": "33600000092", "te
 r = envoyer(cz, "tel:33600000092", {"type": "texte", "texte": "bonjour"})
 check("W18.3 un STOP sans horodatage est quand même noté et bloque", code409(r)[0] == "stop" and not envois_kapso()
       and "tel:33600000092" in WA.etat(cz)["stops"], r.text)
+
+print("\n[W19] I1 : supprimer le compte n'efface pas le STOP du numéro")
+e19 = E.creer({"nom": "Suppression puis reliaison"})["id"]
+c19 = compte(e19, "PN-19")
+T19 = str(int((maintenant() - timedelta(minutes=3)).timestamp()))
+WA.noter_accord(c19, "tel:33600000191", "papier")
+WA.noter_accord(c19, TEL, "papier")
+conv("PN-19", tel="33600000191", il_y_a=timedelta(minutes=3))
+conv("PN-19", tel="33612345678", il_y_a=timedelta(minutes=3))
+F.msgs["PN-19"] = [[{"id": "wamid.S19", "timestamp": T19, "type": "text", "from": "33600000191", "text": {"body": "STOP"},
+                     "kapso": {"direction": "inbound"}}]]
+r = envoyer(c19, TEL, {"type": "texte", "texte": "avant"})
+check("W19.0 un envoi part (et relit le STOP de l'autre contact)", r.status_code == 200, r.text)
+cpt19 = WA.etat(c19)["compteur"]
+check("W19.1 le STOP est rangé, compteurs : 1 sortant, 1 entrant", "tel:33600000191" in WA.etat(c19)["stops"]
+      and cpt19.get(mois, {}).get("sortants") == 1 and cpt19.get(mois, {}).get("entrants") == 1, cpt19)
+r = c.delete(f"/api/comptes/{c19}")
+check("W19.2 le compte est supprimé", r.status_code in (200, 204) and not any(v["id"] == c19 for v in CP.lister(e19)), r.text)
+F.msgs["PN-19"] = [[]]                                  # le STOP n'est plus relu chez Kapso
+n19 = compte(e19, "PN-19")
+F.appels.clear()
+r = envoyer(n19, "tel:33600000191", {"type": "texte", "texte": "après"})
+check("W19.3 nouveau compte relié au même numéro : 409 stop, aucun POST", code409(r)[0] == "stop" and not envois_kapso(),
+      r.text)
+check("W19.4 compteurs du mois gardés", WA.etat(n19)["compteur"] == cpt19, WA.etat(n19)["compteur"])
+
+print("\n[W20] I2 : un modèle MARKETING exige un accord saisi")
+e20 = E.creer({"nom": "Accord marketing"})["id"]
+c20 = compte(e20, "PN-20")
+T20 = str(int((maintenant() - timedelta(minutes=2)).timestamp()))
+F.msgs["PN-20"] = [[{"id": "wamid.I20", "timestamp": T20, "type": "text", "from": "33600000201", "text": {"body": "Bonjour"},
+                     "kapso": {"direction": "inbound"}}]]
+conv("PN-20", tel="33600000201", il_y_a=timedelta(minutes=2))
+c.get(f"/api/whatsapp/{c20}/messages")
+check("W20.0 accord d'entrant noté par la lecture", WA.etat(c20)["accords"].get("tel:33600000201", {}).get("source") == "entrant",
+      WA.etat(c20)["accords"])
+F.appels.clear()
+r = envoyer(c20, "tel:33600000201", {"type": "modele", "nom": "promo_automne", "langue": "fr", "parametres": ["A", "1"]})
+code_, det = code409(r)
+check("W20.1 modèle MARKETING, accord d'entrant : 409 accord, message distinct, aucun POST",
+      code_ == "accord" and "marketing" in str(det.get("message", "")).lower() and not envois_kapso(), r.text)
+r = envoyer(c20, "tel:33600000201", {"type": "modele", "nom": "rappel_rdv", "langue": "fr",
+                                      "parametres": {"prenom": "A", "date": "B"}})
+check("W20.2 modèle UTILITY avec l'accord d'entrant : 200", r.status_code == 200, r.text)
+r = c.post(f"/api/whatsapp/{c20}/accords", json={"identite": "tel:33600000201", "source": "formulaire"})
+check("W20.3 accord saisi par la route", r.status_code == 200, r.text)
+F.appels.clear()
+r = envoyer(c20, "tel:33600000201", {"type": "modele", "nom": "promo_automne", "langue": "fr", "parametres": ["A", "1"]})
+check("W20.4 avec l'accord saisi : le modèle MARKETING part", r.status_code == 200 and len(envois_kapso()) == 1, r.text)
+r = c.get(f"/api/whatsapp/{c20}/messages", headers={"Accept-Language": "en"})
+check("W20.5 relu après coup : l'accord saisi n'est pas rétrogradé",
+      WA.etat(c20)["accords"]["tel:33600000201"]["source"] == "formulaire", WA.etat(c20)["accords"])
+
+print("\n[W21] Minor 7 : un espace archivé n'envoie plus et ne crée plus de lien")
+e21 = E.creer({"nom": "Archivé"})["id"]
+c21 = compte(e21, "PN-21")
+WA.noter_accord(c21, TEL, "papier")
+conv("PN-21", tel="33612345678")
+F.msgs["PN-21"] = [[]]
+c21b = CP.creer({"espace_id": e21, "plateforme": "whatsapp"})["id"]
+check("W21.0 archivage", E.archiver(e21) == "ok")
+F.appels.clear()
+r = envoyer(c21, TEL, {"type": "texte", "texte": "x"})
+check("W21.1 envoi : 400 « archivé », aucun appel Kapso", r.status_code == 400 and "archiv" in r.text and F.appels == [],
+      (r.status_code, r.text, F.appels))
+r = c.post(f"/api/comptes/{c21b}/whatsapp/lien", json={"facturation": "customer_managed"})
+check("W21.2 création de lien : 400 « archivé », aucun appel Kapso", r.status_code == 400 and "archiv" in r.text
+      and F.appels == [], (r.status_code, r.text, F.appels))
+r = envoyer(c21, TEL, {"type": "texte", "texte": "x"}, headers={"Accept-Language": "en"})
+check("W21.3 le refus est traduit (L10, EN)", r.status_code == 400 and "archived" in r.text.lower(), r.text)
+check("W21.4 les lectures restent permises (messages : 200)", c.get(f"/api/whatsapp/{c21}/messages").status_code == 200)
+E.archiver(e21, False)
 
 print("\n[W16] garde des plafonds : la route d'envoi est recensée et gardée")
 sys.path.insert(0, str(BACKEND / "tests"))

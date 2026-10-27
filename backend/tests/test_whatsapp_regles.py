@@ -12,7 +12,15 @@ Ce que ce banc garde :
   R7  journal : 2 001 envois -> 2 000 lignes, aucune ne contient le texte envoyé.
   R8  le compteur passe au mois suivant ; plafond réglable.
   R9  espace client : consentement `whatsapp:<phone_id>` de la fiche du client responsable (produit compris).
-  R10 `etat` par compte, les autres clés de whatsapp.json (liaison) sont gardées ; WhatsappRefus : PermissionError.
+  R10 `etat` par NUMÉRO (clé WHATSAPP_PHONE_ID), les autres clés de whatsapp.json (liaison) sont gardées ; WhatsappRefus :
+      PermissionError.
+  R14 relecture finale I1 : STOP noté, compte supprimé, nouveau compte du même espace relié au même numéro : refus stop,
+      compteurs du mois gardés ; un compte sans numéro n'a pas d'état (ValueError) ; un autre espace part d'un état vide.
+  R15 relecture finale I2 (ruling 15) : un modèle MARKETING exige un accord saisi ; un accord né d'un entrant permet texte,
+      boutons, utility et authentication ; groupe d'alias compris ; un entrant ne rétrograde jamais un accord saisi.
+  R16 relecture finale Minor 1 (ruling 16) : plafond PAR ESPACE (`reglages` de whatsapp.json), sortants + entrants du mois
+      sur tous les numéros de l'espace ; `service` reste par numéro.
+  R17 relecture finale Minor 3 : mots d'arrêt élargis, un mot de politesse au plus.
 Run (depuis backend/) : & $PY tests/test_whatsapp_regles.py"""
 import json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -220,7 +228,8 @@ WA._ranger_liaison(ec, c1, {"lien_id": "L1"})
 WA.noter_accord(c1, TEL, "papier", T0)
 check("R10.1 l'accord d'un compte n'est pas celui de l'autre", TEL in WA.etat(c1)["accords"] and TEL not in WA.etat(c2)["accords"])
 doc = json.loads((_tmp / "espaces" / ec / "whatsapp.json").read_text(encoding="utf-8"))
-check("R10.2 la liaison est gardée à côté de `etat`", doc["liaison"][c1] == {"lien_id": "L1"} and set(doc["etat"]) == {c1})
+check("R10.2 la liaison est gardée à côté de `etat`, rangé par numéro (pas par compte)",
+      doc["liaison"][c1] == {"lien_id": "L1"} and set(doc["etat"]) == {"PN-D1"})
 check("R10.3 WhatsappRefus est une PermissionError avec code et message",
       issubclass(WA.WhatsappRefus, PermissionError) and WA.WhatsappRefus("m", "stop").code == "stop")
 try:
@@ -292,6 +301,111 @@ ligne = WA.etat(cm)["journal"][-1]
 check("R13.5 champs externes du journal bornés à 80", all(len(ligne[k]) == 80 for k in ("categorie", "statut", "id")), ligne)
 check("R13.6 numero_normalise : (0) de tronc", WA.numero_normalise("+33 (0)6 12 34 56 78") == "33612345678"
       and WA.numero_normalise("0033 (0)6 12 34 56 78") == "33612345678")
+
+print("\n[R14] I1 : l'état suit le NUMÉRO, pas le compte")
+ei = E.creer({"nom": "Suppression"})["id"]
+c_old = compte(ei, "PN-I1")
+WA.noter_entrant(c_old, {"id": "s1", "from": "33600000141", "type": "text", "text": {"body": "STOP"}}, T0)
+WA.noter_accord(c_old, TEL, "papier", T0)
+WA.noter_envoi(c_old, TEL, type="texte", categorie="service", statut="envoye", id="e1", maintenant=T0)
+WA.noter_desinscription(c_old, TEL, T0)
+avant_cpt = WA.etat(c_old)["compteur"]
+CP.supprimer(c_old)
+c_new = compte(ei, "PN-I1")
+check("R14.1 nouveau compte, même numéro : le STOP tient (refus stop)", refus(c_new, "tel:33600000141") == "stop")
+check("R14.2 compteurs du mois gardés (sortants, service, entrants)",
+      WA.etat(c_new)["compteur"] == avant_cpt == {"2026-10": {"entrants": 1, "sortants": 1, "service": 1}},
+      WA.etat(c_new)["compteur"])
+check("R14.3 désinscription et accord gardés", TEL in WA.etat(c_new)["desinscrits_marketing"]
+      and WA.etat(c_new)["accords"][TEL]["source"] == "papier")
+c_nu = CP.creer({"espace_id": ei, "plateforme": "whatsapp"})["id"]
+for nom_, f_ in (("etat", lambda: WA.etat(c_nu)), ("noter_stop", lambda: WA.noter_stop(c_nu, TEL, T0)),
+                 ("controler", lambda: WA.controler(c_nu, TEL, type="texte", categorie=None, dernier_entrant=T0,
+                                                    maintenant=T0))):
+    try:
+        f_()
+        sans = False
+    except ValueError as x:
+        sans = "relié à aucun numéro" in str(x)
+    check(f"R14.4 compte sans numéro : {nom_} -> ValueError", sans)
+e_autre = E.creer({"nom": "Autre espace"})["id"]
+CP.supprimer(c_new)
+c_ail = compte(e_autre, "PN-I1")
+WA.noter_accord(c_ail, "tel:33600000141", "papier", T0)
+check("R14.5 le même numéro relié dans un AUTRE espace y part d'un état vide (rien ne suit en silence)",
+      refus(c_ail, "tel:33600000141") is None and "tel:33600000141" not in WA.etat(c_ail)["stops"])
+check("R14.6 … et l'état d'origine reste dans le fichier de l'espace d'origine",
+      "tel:33600000141" in json.loads((_tmp / "espaces" / ei / "whatsapp.json").read_text(encoding="utf-8"))
+      ["etat"]["PN-I1"]["stops"])
+
+print("\n[R15] I2 : un modèle MARKETING exige un accord saisi")
+cm2 = compte(E.creer({"nom": "Marketing"})["id"], "PN-MK")
+IN = "tel:33600000151"
+WA.noter_entrant(cm2, {"id": "k1", "from": "33600000151", "type": "text", "text": {"body": "bonjour"}}, T0)
+check("R15.1 accord d'entrant : modèle MARKETING refusé (accord)",
+      refus(cm2, IN, type="modele", categorie="MARKETING") == "accord")
+try:
+    WA.controler(cm2, IN, type="modele", categorie="marketing", dernier_entrant=None, maintenant=T0)
+    msg_ = ""
+except WA.WhatsappRefus as x:
+    msg_ = x.message
+check("R15.2 message distinct de « aucun accord »", "marketing" in msg_ and msg_ != "aucun accord de ce contact : aucun envoi",
+      msg_)
+check("R15.3 accord d'entrant : texte, boutons, UTILITY, AUTHENTICATION passent",
+      refus(cm2, IN) is None and refus(cm2, IN, type="boutons") is None
+      and refus(cm2, IN, type="modele", categorie="UTILITY", dernier_entrant=None) is None
+      and refus(cm2, IN, type="modele", categorie="AUTHENTICATION", dernier_entrant=None) is None)
+WA.noter_accord(cm2, IN, "formulaire", T0)
+check("R15.4 accord saisi : modèle MARKETING passe", refus(cm2, IN, type="modele", categorie="MARKETING") is None)
+WA.noter_entrant(cm2, {"id": "k2", "from": "33600000151", "type": "text", "text": {"body": "merci"}}, T0)
+check("R15.5 un entrant ultérieur ne rétrograde pas l'accord saisi", WA.etat(cm2)["accords"][IN]["source"] == "formulaire"
+      and refus(cm2, IN, type="modele", categorie="MARKETING") is None)
+ALT, ALB = "tel:33600000152", "bsuid:FR.mk2"
+WA.noter_entrant(cm2, {"id": "k3", "from": "33600000152", "from_user_id": "FR.mk2", "type": "text",
+                       "text": {"body": "hey"}}, T0)
+check("R15.6 groupe d'alias, accords d'entrant seulement : MARKETING refusé des deux côtés",
+      refus(cm2, ALT, type="modele", categorie="MARKETING") == "accord"
+      and refus(cm2, ALB, type="modele", categorie="MARKETING") == "accord")
+WA.noter_accord(cm2, ALB, "papier", T0)
+check("R15.7 accord saisi sur le BSUID : vaut pour le numéro lié (MARKETING passe des deux côtés)",
+      refus(cm2, ALT, type="modele", categorie="MARKETING") is None
+      and refus(cm2, ALB, type="modele", categorie="MARKETING") is None)
+
+print("\n[R16] plafond par espace, entrants compris")
+ep2 = E.creer({"nom": "Deux numéros"})["id"]
+n1, n2 = compte(ep2, "PN-P1"), compte(ep2, "PN-P2")
+for c_ in (n1, n2):
+    WA.noter_accord(c_, TEL, "papier", T0)
+WA.regler(n1, plafond_mois=3)
+doc2 = json.loads((_tmp / "espaces" / ep2 / "whatsapp.json").read_text(encoding="utf-8"))
+check("R16.1 le réglage est celui de l'espace (whatsapp.json `reglages`), lu par les deux numéros",
+      WA.reglages(ep2) == {"plafond_mois": 3, "marche_defaut": "33"} and WA.etat(n2)["plafond_mois"] == 3
+      and doc2["reglages"]["plafond_mois"] == 3 and "plafond_mois" not in doc2["etat"]["PN-P1"], doc2)
+WA.noter_envoi(n1, TEL, type="modele", categorie="UTILITY", statut="envoye", id="p1", maintenant=T0)
+WA.noter_envoi(n2, TEL, type="texte", categorie="service", statut="envoye", id="p2", maintenant=T0)
+check("R16.2 2 sortants sur deux numéros, plafond 3 : passe", refus(n1, TEL) is None and refus(n2, TEL) is None)
+WA.noter_entrant(n2, {"id": "pin", "from": "33600000161", "type": "text", "text": {"body": "salut"}}, T0)
+check("R16.3 un entrant compte : 2 sortants + 1 entrant = 3, les DEUX numéros refusés (plafond)",
+      refus(n1, TEL) == "plafond" and refus(n2, TEL) == "plafond")
+check("R16.4 compteurs par numéro, `service` par numéro",
+      WA.etat(n1)["compteur"]["2026-10"] == {"sortants": 1, "service": 0}
+      and WA.etat(n2)["compteur"]["2026-10"] == {"sortants": 1, "service": 1, "entrants": 1},
+      [WA.etat(n1)["compteur"], WA.etat(n2)["compteur"]])
+check("R16.5 un autre espace n'est pas touché", refus(cid, TEL) is None)
+check("R16.6 le mois suivant : de nouveau permis",
+      refus(n1, TEL, maintenant=datetime(2026, 11, 2, tzinfo=timezone.utc), dernier_entrant=datetime(2026, 11, 1, 23,
+            tzinfo=timezone.utc)) is None)
+
+print("\n[R17] mots d'arrêt élargis")
+check("R17.1 arrêtez, arretez, arrête, arrete, désinscrire, desinscrire, cancel, quit, end, opt out, optout, opt-out",
+      all(est_stop(t) for t in ("Arrêtez", "arretez", "Arrête !", "arrete", "Désinscrire", "desinscrire", "CANCEL", "quit",
+                                "End.", "opt out", "Opt  Out", "optout", "opt-out", "unsubscribe")))
+check("R17.2 un mot de politesse au plus : STOP svp, stop stp, Stop, merci, opt out please, unsubscribe thanks",
+      all(est_stop(t) for t in ("STOP svp", "stop stp", "Stop, merci", "opt out please", "unsubscribe thanks",
+                                "arrêtez SVP !")))
+check("R17.3 pas STOP : « stop ou encore ? », « stop the music please », « stop svp merci », « merci stop »",
+      not any(est_stop(t) for t in ("stop ou encore ?", "stop the music please", "stop svp merci", "merci stop", "endless",
+                                    "please", "svp")))
 
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)

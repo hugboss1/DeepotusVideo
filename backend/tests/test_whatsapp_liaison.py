@@ -387,7 +387,13 @@ check("L10.4 aucune fiche client écrite", not (_tmp / "espaces" / "deepotus" / 
 
 print("\n[L11] qualité du numéro")
 for q, st, etat, code in (("YELLOW", "CONNECTED", "orange", "qualite_basse"), ("RED", "CONNECTED", "rouge", "qualite_basse"),
-                          ("GREEN", "DISCONNECTED", "rouge", "refuse"), (None, "CONNECTED", "vert", "ok")):
+                          ("GREEN", "DISCONNECTED", "rouge", "refuse"), (None, "CONNECTED", "vert", "ok"),
+                          # relecture finale (Minor 2) : casse indifférente ; rouge pour un mauvais statut CONNU,
+                          # orange `indetermine` pour une valeur inconnue
+                          ("GREEN", "connected", "vert", "ok"), ("GREEN", "flagged", "rouge", "refuse"),
+                          ("GREEN", "Restricted", "rouge", "refuse"), ("GREEN", "BANNED", "rouge", "refuse"),
+                          ("GREEN", "disconnected", "rouge", "refuse"), ("GREEN", "active", "orange", "indetermine"),
+                          ("GREEN", "PENDING_REVIEW", "orange", "indetermine")):
     F.details["PN2"] = numero_brut("PN2", q=q, st=st)
     v = (verifier(cid).json().get("compte") or {}).get("verification") or {}
     check(f"L11 {q}/{st} : {etat} {code}", v.get("etat") == etat and v.get("code") == code, v)

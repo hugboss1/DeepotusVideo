@@ -1,7 +1,7 @@
 """Le canal WhatsApp d'un espace, par Kapso (t310 tâche 6, 27/10/2026) — partie LECTURE ET ENVOI.
 
 Spec §6.1 (« Coûts Meta », « Identité des contacts ») et §6.3 (règles dures). S'appuie sur `whatsapp.py` (liaison, règles,
-état par compte dans `espaces/<id>/whatsapp.json`) et sur `kapso.py` (le seul client réseau). Module à part : `whatsapp.py`
+état par NUMÉRO et réglages par espace dans `espaces/<id>/whatsapp.json`) et sur `kapso.py` (le seul client réseau). Module à part : `whatsapp.py`
 porte déjà la liaison et les règles (décision 13 du contrôleur).
   · `lire` : les messages chez Kapso, à plat ; chaque ENTRANT passe une fois par `whatsapp.noter_entrant` (accord, STOP,
     journal sans texte). Le texte vient de Kapso, à la lecture seulement : il n'est jamais rangé.
@@ -338,6 +338,7 @@ async def envoyer(cid: str, identite: str, envoi: dict) -> dict:
     dest = WA.destinataire(identite)                     # ValueError : identité invalide
     e_ = _valider_envoi(envoi)
     vue, pub, pid = _compte_relie(cid)
+    WA.espace_actif(vue["espace_id"])                   # un espace archivé n'envoie plus (400) ; ses lectures restent
     t0 = datetime.now(timezone.utc)
     # pré-contrôle SANS réseau : consentement, STOP, accord, plafond de messages (la fenêtre et la catégorie viennent après)
     WA.controler(cid, identite, type=e_["type"], categorie=None, dernier_entrant=t0, maintenant=t0)

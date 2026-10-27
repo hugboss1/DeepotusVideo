@@ -24,7 +24,7 @@ Les deux gestes d'un même compte sont sérialisés (`_verrou_compte`, un asynci
 `creer_lien` simultanés ne créent jamais deux customers.
 
 `whatsapp.json` : un seul écrivain atomique (`_modifier`, par `espaces._ecrire_json`) qui garde les autres clés de premier
-niveau (`etat` appartient à la tâche 4, par `_poser_cle`). Absent : {}. Illisible (JSON) : mis de côté, jamais écrasé ;
+niveau (`etat` et `reglages` appartiennent aux règles d'envoi, tâche 4). Absent : {}. Illisible (JSON) : mis de côté, jamais écrasé ;
 une autre erreur de lecture remonte (on ne réécrit jamais un fichier qu'on n'a pas pu lire). Aucune clé, aucun jeton.
 """
 import asyncio
@@ -121,6 +121,13 @@ def _compte(cid: str) -> tuple[dict, dict]:
     return vue, pub
 
 
+def espace_actif(eid: str) -> None:
+    """Relecture finale t310 (Minor 7) : un espace ARCHIVÉ ne crée plus de lien et n'envoie plus (ValueError -> 400). Les
+    lectures (messages, conversations, modèles, état) restent permises."""
+    if (_es.lire()["espaces"].get(eid) or {}).get("archive"):
+        raise ValueError("cet espace est archivé : désarchivez-le d'abord")
+
+
 def _consentement(c) -> dict:
     """Le consentement daté du client à la liaison : {moyen ∈ fiche_client.MOYENS, date AAAA-MM-JJ réelle}. ValueError sinon."""
     from app.services import fiche_client
@@ -200,6 +207,7 @@ async def creer_lien(cid: str, facturation: str, consentement: dict | None, lang
 async def _creer_lien(cid: str, facturation: str, consentement, langue) -> dict:
     vue, pub = _compte(cid)
     eid = vue["espace_id"]
+    espace_actif(eid)
     if pub.get("WHATSAPP_PHONE_ID"):
         raise ValueError("ce compte WhatsApp est déjà relié à un numéro")
     cons = _consentement(consentement) if _es.client_responsable(eid) else None
@@ -282,11 +290,25 @@ async def _relire(cid: str, ranger: bool) -> dict:
 
 # ---- règles d'envoi et état par espace (t310 tâche 4) ------------------------------------------------------------------
 # Spec §6.1 « Identité des contacts » et §6.3. L'accord, le STOP, la désinscription marketing et le journal se rangent sur
-# l'IDENTITÉ du contact (`bsuid:<id>` d'abord, sinon `tel:<chiffres>`), jamais sur son numéro seul. État dans `whatsapp.json`,
-# clé `etat`, PAR COMPTE (`etat[cid]`) : un espace n'a qu'un numéro par compte, l'état est celui du numéro. Aucun réseau.
+# l'IDENTITÉ du contact (`bsuid:<id>` d'abord, sinon `tel:<chiffres>`), jamais sur son numéro seul. Aucun réseau.
 # Le journal ne contient jamais le texte d'un message (il reste chez Kapso).
+# `whatsapp.json` de l'espace :
+#   · `etat[<WHATSAPP_PHONE_ID>]` : l'état durable PAR NUMÉRO (relecture finale I1), jamais par id de compte : supprimer
+#     un compte puis relier à nouveau le même numéro dans le même espace retrouve ses STOP, ses désinscriptions, ses
+#     accords, ses alias et ses compteurs du mois. Un compte sans numéro n'a pas d'état (il ne lit ni n'envoie) :
+#     `_cle_etat` refuse (ValueError). Tout lecteur et tout écrivain de l'état passe par `_cle_etat`.
+#     Limite assumée : l'état reste dans le fichier de l'espace où le numéro a vécu. Un numéro relié ensuite dans un
+#     AUTRE espace y part d'un état vide : rien ne le suit en silence (aucune copie entre espaces, aucun registre
+#     global) ; relié de nouveau dans l'espace d'origine, il y retrouve son état.
+#   · `reglages` : {plafond_mois, marche_defaut}, PAR ESPACE (ruling 16) : le plafond porte sur la somme, sur TOUS les
+#     numéros de l'espace (`etat` entier, numéros d'anciens comptes compris), des sortants et des entrants du mois UTC
+#     (Kapso compte les messages globalement, entrants compris). Le compteur `service` reste par numéro (les 1 000
+#     messages de service gratuits de Meta se comptent par numéro).
 
-MOTS_STOP = ("stop", "arret", "arrêt", "arreter", "arrêter", "unsubscribe", "desabonner", "désabonner", "stopper")
+MOTS_STOP = ("stop", "arret", "arrêt", "arreter", "arrêter", "arrêtez", "arretez", "arrête", "arrete", "unsubscribe",
+             "desabonner", "désabonner", "désinscrire", "desinscrire", "stopper", "cancel", "quit", "end", "opt out",
+             "optout", "opt-out")
+POLITESSE = ("svp", "stp", "please", "merci", "thanks")
 CODES_REFUS = ("accord", "stop", "fenetre", "marketing", "plafond", "consentement", "prix", "bsuid_authentification")
 TYPES_ENVOI = ("texte", "boutons", "modele")
 PLAFOND_DEFAUT = 1000
@@ -343,19 +365,27 @@ def numero_normalise(texte: str, marche: str = MARCHE_DEFAUT) -> str:
     return ch
 
 
-def _est_stop(texte) -> bool:
-    """Le texte ENTIER est un mot d'arrêt (NFC, minuscules, sans espaces, ponctuation, guillemets ni symboles — emoji — aux
-    deux bouts) : « stop ou encore ? » n'en est pas un."""
-    if not isinstance(texte, str):
-        return False
-    t = unicodedata.normalize("NFC", texte).lower()
+def _bornes(t: str) -> str:
+    """Sans espaces, ponctuation, guillemets ni symboles (emoji) aux deux bouts."""
     nu = lambda c: unicodedata.category(c)[0] in "PSZC"            # noqa: E731
     i, j = 0, len(t)
     while i < j and nu(t[i]):
         i += 1
     while j > i and nu(t[j - 1]):
         j -= 1
-    return t[i:j] in MOTS_STOP
+    return t[i:j]
+
+
+def _est_stop(texte) -> bool:
+    """Le texte ENTIER est un mot d'arrêt (NFC, minuscules, espaces intérieurs réduits, `_bornes`), suivi au plus d'UN mot
+    de politesse (« STOP svp », « opt out please ») : « stop ou encore ? » et « stop the music please » n'en sont pas."""
+    if not isinstance(texte, str):
+        return False
+    t = " ".join(_bornes(unicodedata.normalize("NFC", texte).lower()).split())
+    if t in MOTS_STOP:
+        return True
+    tete, _, dernier = t.rpartition(" ")
+    return bool(tete) and _bornes(dernier) in POLITESSE and " ".join(_bornes(tete).split()) in MOTS_STOP
 
 
 def _texte_entrant(msg: dict):
@@ -392,34 +422,72 @@ def _groupe(e: dict, ident: str) -> list:
     return [ident, autre] if autre and autre != ident else [ident]
 
 
-def _etat_doc(doc: dict, cid: str) -> dict:
-    """L'état du compte `cid` DANS le document (créé et complété s'il manque ; l'appelant écrit)."""
+def _cle_etat(cid: str) -> tuple[str, str]:
+    """(espace_id, WHATSAPP_PHONE_ID) du compte : la clé de son état durable (relecture finale I1). KeyError = compte ou
+    espace inconnu ; ValueError = autre plateforme, ou compte relié à aucun numéro (il n'a pas d'état)."""
+    vue, pub = _compte(cid)
+    pid = str(pub.get("WHATSAPP_PHONE_ID") or "").strip()
+    if not pid:
+        raise ValueError("ce compte WhatsApp n'est relié à aucun numéro")
+    return vue["espace_id"], pid
+
+
+def _etat_doc(doc: dict, pid: str) -> dict:
+    """L'état du numéro `pid` DANS le document (créé et complété s'il manque ; l'appelant écrit)."""
     tous = doc.get("etat") if isinstance(doc.get("etat"), dict) else {}
-    e = tous.get(cid) if isinstance(tous.get(cid), dict) else {}
+    e = tous.get(pid) if isinstance(tous.get(pid), dict) else {}
     for k in ("accords", "stops", "desinscrits_marketing", "compteur", "alias"):
         if not isinstance(e.get(k), dict):
             e[k] = {}
     if not isinstance(e.get("journal"), list):
         e["journal"] = []
-    p = e.get("plafond_mois")
-    if not isinstance(p, int) or isinstance(p, bool) or p < 0:
-        e["plafond_mois"] = PLAFOND_DEFAUT
-    if not isinstance(e.get("marche_defaut"), str) or not e["marche_defaut"].isdigit():
-        e["marche_defaut"] = MARCHE_DEFAUT
-    tous[cid] = e
+    tous[pid] = e
     doc["etat"] = tous
     return e
 
 
+def _reglages_doc(doc: dict) -> dict:
+    """Les réglages de l'ESPACE dans le document : {plafond_mois, marche_defaut} (complétés s'ils manquent)."""
+    r = doc.get("reglages") if isinstance(doc.get("reglages"), dict) else {}
+    p = r.get("plafond_mois")
+    if not isinstance(p, int) or isinstance(p, bool) or p < 0:
+        r["plafond_mois"] = PLAFOND_DEFAUT
+    if not isinstance(r.get("marche_defaut"), str) or not r["marche_defaut"].isdigit():
+        r["marche_defaut"] = MARCHE_DEFAUT
+    doc["reglages"] = r
+    return r
+
+
+def _total_mois(doc: dict, mois: str) -> int:
+    """Sortants + entrants du mois, sur TOUS les numéros de l'espace (le plafond est par espace)."""
+    n = 0
+    for e in (doc.get("etat") if isinstance(doc.get("etat"), dict) else {}).values():
+        cpt = e.get("compteur") if isinstance(e, dict) and isinstance(e.get("compteur"), dict) else {}
+        m = cpt.get(mois) if isinstance(cpt.get(mois), dict) else {}
+        for k in ("sortants", "entrants"):
+            v = m.get(k)
+            n += v if isinstance(v, int) and not isinstance(v, bool) and v > 0 else 0
+    return n
+
+
 def etat(cid: str) -> dict:
-    """L'état du compte whatsapp `cid` (copie ; rien n'est écrit). KeyError = compte ou espace inconnu."""
-    vue, _ = _compte(cid)
-    return json.loads(json.dumps(_etat_doc(_lire_doc(vue["espace_id"]), cid)))
+    """L'état du numéro du compte whatsapp `cid` (copie ; rien n'est écrit), avec, en lecture seule, les réglages de son
+    espace (`plafond_mois`, `marche_defaut`). KeyError = compte ou espace inconnu ; ValueError = compte sans numéro."""
+    eid, pid = _cle_etat(cid)
+    doc = _lire_doc(eid)
+    e = json.loads(json.dumps(_etat_doc(doc, pid)))
+    e.update(_reglages_doc(doc))
+    return e
+
+
+def reglages(eid: str) -> dict:
+    """Les réglages WhatsApp de l'espace {plafond_mois, marche_defaut} (copie). KeyError = espace inconnu."""
+    return dict(_reglages_doc(_lire_doc(eid)))
 
 
 def _noter(cid: str, geste) -> None:
-    vue, _ = _compte(cid)
-    _modifier(vue["espace_id"], lambda doc: geste(_etat_doc(doc, cid)))
+    eid, pid = _cle_etat(cid)
+    _modifier(eid, lambda doc: geste(_etat_doc(doc, pid)))
 
 
 def _journaliser(e: dict, quand: str, sens: str, identite_: str, type_, categorie, statut, id_) -> None:
@@ -451,23 +519,28 @@ def noter_desinscription(cid: str, identite_: str, maintenant: datetime | None =
 
 
 def regler(cid: str, *, plafond_mois: int | None = None, marche_defaut: str | None = None) -> None:
-    """Règle le plafond mensuel d'envois et le marché par défaut (indicatif pays, chiffres)."""
+    """Règle, pour l'ESPACE du compte `cid` (`reglages` de whatsapp.json, ruling 16), le plafond mensuel de messages
+    (sortants et entrants de tous ses numéros) et le marché par défaut (indicatif pays, chiffres)."""
     if plafond_mois is not None and (not isinstance(plafond_mois, int) or isinstance(plafond_mois, bool) or plafond_mois < 0):
         raise ValueError("plafond mensuel : un entier positif ou nul est attendu")
     if marche_defaut is not None and (not isinstance(marche_defaut, str) or not re.match(r"^\d{1,4}$", marche_defaut)):
         raise ValueError("marché par défaut : un indicatif pays en chiffres est attendu")
 
-    def geste(e):
+    def geste(doc):
+        r = _reglages_doc(doc)
         if plafond_mois is not None:
-            e["plafond_mois"] = plafond_mois
+            r["plafond_mois"] = plafond_mois
         if marche_defaut is not None:
-            e["marche_defaut"] = marche_defaut
-    _noter(cid, geste)
+            r["marche_defaut"] = marche_defaut
+    vue, _ = _compte(cid)
+    _modifier(vue["espace_id"], geste)
 
 
 def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None, heure_sure: bool = True) -> str:
-    """Range un message ENTRANT : il vaut accord pour la conversation (`source: "entrant"`) ; un texte STOP note le stop
-    (et non l'accord). Une ligne de journal sans texte. Rend l'identité. Un entrant ordinaire ne lève jamais un stop.
+    """Range un message ENTRANT : il vaut accord pour la conversation (`source: "entrant"`, qui ne remplace jamais un
+    accord saisi) ; un texte STOP note le stop (et non l'accord). Une ligne de journal sans texte, et `entrants` + 1 au
+    compteur du mois du message (le plafond de l'espace compte les entrants). Rend l'identité. Un entrant ordinaire ne
+    lève jamais un stop.
     Un message qui porte À LA FOIS `from_user_id` et `from` lie `bsuid:Y` et `tel:X` (`etat.alias`, dans les deux sens) :
     un stop ou une désinscription de l'un vaut pour l'autre, et un accord noté sur l'un ne lève jamais le stop de l'autre.
     Limite : un contact vu seulement par numéro puis seulement par BSUID ne peut pas être relié (Kapso ne donne alors
@@ -496,8 +569,13 @@ def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None, heure
                 e["stops"].setdefault(i, q)
         else:
             for i in groupe:
-                if i not in e["stops"]:                              # un accord ne lève jamais un stop
+                avant = e["accords"].get(i)
+                saisi = isinstance(avant, dict) and avant.get("source") != "entrant"
+                # un accord ne lève jamais un stop ; un accord saisi (qui permet le marketing) n'est jamais rétrogradé
+                if i not in e["stops"] and not saisi:
                     e["accords"][i] = {"date": q, "source": "entrant"}
+        m = e["compteur"].setdefault(_mois(maintenant or datetime.now(timezone.utc)), {})
+        m["entrants"] = int(m.get("entrants") or 0) + 1
         _journaliser(e, q, "entrant", ident, str(msg.get("type") or "text"), None, "stop" if stop else "recu", msg.get("id"))
         if not heure_sure:
             e["journal"][-1]["heure_sure"] = False
@@ -524,32 +602,37 @@ def noter_envoi(cid: str, identite_: str, *, type: str, categorie: str | None, s
 
 def controler(cid: str, identite_: str, *, type: str, categorie: str | None, dernier_entrant: datetime | None,
               maintenant: datetime) -> None:
-    """Lève `WhatsappRefus` si l'envoi n'est pas permis. Ordre : consentement, stop, accord, fenetre, marketing,
-    bsuid_authentification, plafond. `dernier_entrant` : `last_inbound_at` de Kapso (None = jamais), `maintenant` :
-    l'horloge. Aucune écriture, aucun réseau."""
+    """Lève `WhatsappRefus` si l'envoi n'est pas permis. Ordre : consentement, stop, accord, fenetre, marketing
+    (désinscrit), accord marketing (code `accord`, ruling 15 : un modèle MARKETING exige un accord SAISI ; un accord né
+    d'un entrant ne vaut que pour répondre — texte, boutons, modèles utility ou authentication), bsuid_authentification,
+    plafond (de l'espace : sortants et entrants du mois sur tous ses numéros). `dernier_entrant` : `last_inbound_at` de Kapso (None = jamais), `maintenant` : l'horloge. Aucune
+    écriture, aucun réseau. ValueError : compte relié à aucun numéro."""
     _identite_valide(identite_)
     if type not in TYPES_ENVOI:
         raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
-    vue, pub = _compte(cid)
-    eid = vue["espace_id"]
+    eid, pid = _cle_etat(cid)
     client = _es.client_responsable(eid)
     if client:
         from app.services import fiche_client
-        if not fiche_client.consentement_en_cours(client, f"whatsapp:{pub.get('WHATSAPP_PHONE_ID', '')}"):
+        if not fiche_client.consentement_en_cours(client, f"whatsapp:{pid}"):
             raise WhatsappRefus("aucun consentement en cours du client sur ce numéro WhatsApp", "consentement")
-    e = _etat_doc(_lire_doc(eid), cid)
+    doc = _lire_doc(eid)
+    e = _etat_doc(doc, pid)
     groupe = _groupe(e, identite_)
     if any(i in e["stops"] for i in groupe):
         raise WhatsappRefus("ce contact a écrit STOP : aucun envoi", "stop")
     if not any(i in e["accords"] for i in groupe):
         raise WhatsappRefus("aucun accord de ce contact : aucun envoi", "accord")
+    cat = str(categorie or "").upper()
     if type != "modele" and (dernier_entrant is None or _utc(maintenant) - _utc(dernier_entrant) >= FENETRE):
         raise WhatsappRefus("hors de la fenêtre de 24 h : seul un modèle peut partir", "fenetre")
-    cat = str(categorie or "").upper()
     if type == "modele" and cat == "MARKETING" and any(i in e["desinscrits_marketing"] for i in groupe):
         raise WhatsappRefus("ce contact est désinscrit des messages marketing", "marketing")
+    if type == "modele" and cat == "MARKETING" and not any(
+            isinstance(e["accords"].get(i), dict) and e["accords"][i].get("source") != "entrant" for i in groupe):
+        raise WhatsappRefus("un modèle marketing exige un accord saisi du contact : un message reçu ne vaut accord que "
+                            "pour lui répondre", "accord")
     if type == "modele" and cat == "AUTHENTICATION" and identite_.startswith("bsuid:"):
         raise WhatsappRefus("un modèle d'authentification ne part pas vers un identifiant BSUID", "bsuid_authentification")
-    mois = e["compteur"].get(_mois(maintenant)) or {}
-    if int(mois.get("sortants") or 0) >= e["plafond_mois"]:
+    if _total_mois(doc, _mois(maintenant)) >= _reglages_doc(doc)["plafond_mois"]:
         raise WhatsappRefus("plafond mensuel d'envois atteint", "plafond")
