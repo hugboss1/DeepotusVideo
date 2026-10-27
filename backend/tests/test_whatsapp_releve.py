@@ -325,6 +325,32 @@ tick(M)
 check("R4.2 état humain : aucun appel du modèle, aucun accusé, brouillon intact", s.appels == [] and len(FK.lus) == lus0
       and AW.brouillons(A, "PN-A")["tel:" + TEL_H]["etat"] == "humain")
 
+print("\n[R4b] décision humaine postérieure à un entrant neuf")
+TEL_DH = "33600000017"
+ajouter("PN-A", entrant("Bonjour, vous coupez les enfants ?", TEL_DH))
+s = poser(Script([outil("rediger_reponse", {"texte": "Oui, dès 3 ans."})]))
+tick(M)
+b = AW.brouillons(A, "PN-A").get("tel:" + TEL_DH) or {}
+check("R4b.1 premier entrant : brouillon en attente, trace posée", b.get("etat") == "attente" and b.get("traite_jusqu_a"), b)
+m2 = entrant("Et le samedi ?", TEL_DH)                              # entrant neuf à T+10 (pendant que le brouillon attend)
+ajouter("PN-A", m2)
+q2 = datetime.fromtimestamp(int(m2["timestamp"]), timezone.utc)
+
+
+def decision_humaine(b_):                                            # décision humaine à T+20, avant le tour suivant
+    b_["etat"] = "rejete"
+    b_["decide_le"] = (q2 + timedelta(seconds=10)).isoformat()
+    return b_
+
+
+AW._modifier(A, "PN-A", "tel:" + TEL_DH, decision_humaine)
+s = poser(Script([outil("rediger_reponse", {"texte": "Oui, le samedi aussi."})]))
+tick(M)
+b = AW.brouillons(A, "PN-A").get("tel:" + TEL_DH) or {}
+check("R4b.2 tour suivant : l'entrant neuf est traité malgré decide_le >= quand (rediger appelé, brouillon neuf)",
+      len(s.appels) == 1 and b.get("etat") == "attente" and b["carte"]["arguments"]["texte"] == "Oui, le samedi aussi."
+      and datetime.fromisoformat(b["traite_jusqu_a"]) == q2, (s.appels, b))
+
 # ---------------------------------------------------------------------------------------------------------------------
 print("\n[R5] mode auto")
 WA.regler_espace(A, {"agent": {"mode": "auto", "plafond_jour_contact": 1}})

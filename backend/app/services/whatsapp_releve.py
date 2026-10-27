@@ -21,6 +21,10 @@ Un tour, pour chaque compte whatsapp RELIÉ (`WHATSAPP_PHONE_ID` posé, lu brut 
         brut) ; sinon le brouillon reste.
   Un envoi automatique passe TOUJOURS par `agent_whatsapp.envoyer_brouillon` (réservation `envoi_en_cours`, puis
   `whatsapp_echanges.envoyer` : règles, devis, plafonds) ; `auto_jour` n'augmente qu'après un envoi réussi.
+Jamais deux réponses au même entrant : avant tout geste, `agent_whatsapp.noter_traite` pose `traite_jusqu_a` (= `quand` du
+dernier entrant du contact) dans l'entrée du contact de `whatsapp_brouillons.json` ; un entrant dont `quand` <=
+`traite_jusqu_a` n'est plus traité, même marqueur perdu (redémarrage). Une entrée peut donc exister SANS `etat` ni carte
+(trace seule) : elle signifie « aucun brouillon ». Repli pour une entrée sans `traite_jusqu_a` : `cree_le`/`decide_le`.
 Compte supprimé (ou espace disparu) pendant ou entre deux tours : sauté sans rien écrire. Toute autre exception d'un compte
 est journalisée par `type(e).__name__` seulement, et le tour continue. Aucun texte de message, aucune clé au journal.
 """
@@ -46,7 +50,7 @@ _MONTANT = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:[€$£]|eur\b|euros?\b|dollars?\
 _NOMBRE = re.compile(r"\d+(?:[.,]\d+)?")
 _MOT = re.compile(r"\S+")
 VOISINAGE = 3                         # un nombre à 3 mots au plus d'un mot d'argent est un montant
-LIBELLE_CARTE ="Réponse WhatsApp à envoyer"
+LIBELLE_CARTE = "Réponse WhatsApp à envoyer"
 
 
 def _horloge() -> datetime:
@@ -115,12 +119,16 @@ def _sous_plafond(b, agent: dict, jour: str) -> bool:
 
 
 def _deja_traite(b, quand) -> bool:
-    """Le brouillon du contact dit-il que l'entrant daté `quand` est déjà traité ? `traite_jusqu_a`, `cree_le` ou
-    `decide_le` postérieurs ou égaux à `quand`."""
+    """Le brouillon du contact dit-il que l'entrant daté `quand` est déjà traité ? `traite_jusqu_a` >= `quand` (posé par
+    le relevé avant tout geste) ; `cree_le`/`decide_le` ne servent de repli que pour une entrée SANS `traite_jusqu_a`
+    (sinon une décision humaine prise après un entrant neuf ferait ignorer cet entrant pour toujours)."""
     q = _date(quand)
     if q is None or not isinstance(b, dict):
         return False
-    return any(d is not None and d >= q for d in (_date(b.get(k)) for k in ("traite_jusqu_a", "cree_le", "decide_le")))
+    t = _date(b.get("traite_jusqu_a"))
+    if t is not None:
+        return t >= q
+    return any(d is not None and d >= q for d in (_date(b.get(k)) for k in ("cree_le", "decide_le")))
 
 
 def _carte(texte: str) -> dict:
