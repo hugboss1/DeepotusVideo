@@ -11,7 +11,10 @@
      (GET …/modeles, approuvés), puis remplir les paramètres nommés (noms_parametres) ou positionnels, l'en-tête (texte
      variable ou identifiant de média) et les payloads des boutons de réponse rapide.
    · Brouillon de l'agent : texte modifiable, « Envoyer » (decider envoyer + texte), « Rejeter », « Faire rédiger »
-     (…/brouillons/rediger, motif traduit). « Prendre le fil » / « Rendre le fil » (…/fil).
+     (…/brouillons/rediger, motif traduit). « Prendre le fil » / « Rendre le fil » (…/fil) : un seul des deux selon le
+     drapeau `pris` de l'entrée du contact (relecture finale I2), pastille « repris » dans la liste et l'en-tête du fil.
+   · Brouillon `incertain` (panne de Kapso au premier envoi) : avertissement ; « Envoyer » rendu 409 `incertain` demande
+     une confirmation (W.confirmer) puis renvoie avec confirme_incertain.
    La saisie et la carte du brouillon ne sont reconstruites que si le contact, la fenêtre, le STOP ou le brouillon
    changent : un rafraîchissement de 30 s n'efface jamais ce que l'utilisateur tape. */
 (function () {
@@ -27,6 +30,12 @@
   var C = {};
 
   function courant() { return (S.convs || []).filter(function (c) { return c.identite === S.sel; })[0] || null; }
+  // un drapeau (pris, incertain) de l'entrée du contact, sous l'identité OU son alias, même sans etat (pris seul)
+  function drapeau(identite, cle) {
+    var B = S.brouillons || {}, g = W.groupe(identite);
+    for (var i = 0; i < g.length; i++) { var b = B[g[i]]; if (b && typeof b === "object" && b[cle] === true) return true; }
+    return false;
+  }
   function typeLisible(t) { return TYPES.indexOf(t) >= 0 ? T("whatsapp.type." + t) : String(t || ""); }
 
   // ── squelette ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -36,6 +45,8 @@
       C = { sigSaisie: null, sigBrouillon: null, titres: [], occupe: false };
       C.liste = el("div", { cls: "wa-liste", a: { "data-dz-wa-convs": true, role: "list" } });
       C.nom = el("h2", { cls: "wa-contact" });
+      C.repris = pastille("repris", "dz-action-reprendre-reglages");
+      C.repris.hidden = true;
       C.btnsFil = [
         W.bouton(T("whatsapp.fil.prendre"), { a: { "data-dz-wa-fil-action": "prendre" }, titre: T("whatsapp.fil.prendre_aide"), on: { click: function () { fil("prendre"); } } }, "dz-action-reprendre-reglages"),
         W.bouton(T("whatsapp.fil.rendre"), { a: { "data-dz-wa-fil-action": "rendre" }, titre: T("whatsapp.fil.rendre_aide"), on: { click: function () { fil("rendre"); } } }, "dz-etat-ia")
@@ -47,7 +58,7 @@
       C.brouillon = el("div", { cls: "wa-zone-brouillon" });
       C.saisie = el("div", { cls: "wa-saisie", a: { "data-dz-wa-saisie": true } });
       C.modele = el("div", { cls: "wa-modele" });
-      C.vue = el("section", { cls: "wa-conv" }, [el("div", { cls: "wa-conv-tete" }, [C.nom, C.actions]), C.plus, C.fil, C.brouillon, C.modele, C.saisie]);
+      C.vue = el("section", { cls: "wa-conv" }, [el("div", { cls: "wa-conv-tete" }, [C.nom, C.repris, C.actions]), C.plus, C.fil, C.brouillon, C.modele, C.saisie]);
       C.choisir = el("p", { cls: "wa-aide wa-choisir", texte: T("whatsapp.conv.choisir") });
       p.appendChild(el("div", { cls: "wa-conversations" }, [C.liste, el("div", { cls: "wa-droite" }, [C.choisir, C.vue])]));
       p.setAttribute("data-dz-wa-pret", "");
@@ -83,6 +94,7 @@
       var pastilles = el("span", { cls: "wa-pastilles" }, [
         c.fenetre_ouverte ? pastille("ouverte", "dz-etat-actif") : pastille("fermee", "dz-etat-verrouille"),
         c.stop ? pastille("stop", "dz-etat-exclu") : null,
+        drapeau(c.identite, "pris") ? pastille("repris", "dz-action-reprendre-reglages") : null,
         b && b.etat === "humain" ? pastille("humain", "dz-etat-avertissement") : null,
         b && b.etat === "attente" ? pastille("brouillon", "dz-etat-note") : null
       ]);
@@ -165,8 +177,9 @@
     C.vue.hidden = !S.sel;
     if (!S.sel) return;
     C.nom.textContent = c ? (c.nom || c.identite) : S.sel;
+    majFil();
     var b = W.brouillonDe(S.sel);
-    var sigB = b ? b.etat + "|" + (b.cree_le || "") : "";
+    var sigB = signature(b);
     if (force || sigB !== C.sigBrouillon) { C.sigBrouillon = sigB; afficherBrouillon(b, c); }
     var sigS = c ? S.sel + "|" + (c.fenetre_ouverte ? "o" : "f") + (c.stop ? "s" : "") : S.sel + "|?";
     if (force || sigS !== C.sigSaisie) {
@@ -181,6 +194,14 @@
   }
 
   // ── le brouillon ────────────────────────────────────────────────────────────────────────────────────────────────────
+  // « repris » : un seul bouton (prendre OU rendre) et la pastille de l'en-tête
+  function majFil() {
+    var pris = !!S.sel && drapeau(S.sel, "pris");
+    C.repris.hidden = !pris;
+    C.btnsFil[0].hidden = pris;
+    C.btnsFil[1].hidden = !pris;
+  }
+  function signature(b) { return b ? b.etat + "|" + (b.cree_le || "") + "|" + (b.incertain === true ? "i" : "") : ""; }
   function afficherBrouillon(b, c) {
     C.brouillon.textContent = "";
     C.zBrouillon = null;
@@ -193,6 +214,7 @@
     var boite = el("div", { cls: "wa-brouillon wa-brouillon--" + b.etat, a: { "data-dz-wa-brouillon": b.etat } });
     boite.appendChild(el("div", { cls: "wa-brouillon-tete" }, [W.icone(b.etat === "humain" ? "dz-etat-avertissement" : "dz-etat-ia"),
       el("b", { texte: T(b.etat === "humain" ? "whatsapp.brouillon.titre_humain" : "whatsapp.brouillon.titre_attente") })]));
+    if (b.incertain === true) boite.appendChild(el("p", { cls: "wa-aide wa-avertissement", a: { "data-dz-wa-incertain": true } }, [W.icone("dz-etat-avertissement", 12), el("span", { texte: T("whatsapp.brouillon.incertain") })]));
     var raison = b.raison || (carte && carte.genre === "humain" ? args.raison : null);
     if (raison) boite.appendChild(el("p", { cls: "wa-aide", texte: T("whatsapp.brouillon.raison", { raison: RAISONS.indexOf(raison) >= 0 ? T("whatsapp.raison." + raison) : String(raison) }) }));
     var decide = el("div", { cls: "wa-ligne" });
@@ -223,8 +245,9 @@
       S.brouillons = r.data.brouillons && typeof r.data.brouillons === "object" && !Array.isArray(r.data.brouillons) ? r.data.brouillons : r.data;
     }
     afficherListe();
+    majFil();
     var b = W.brouillonDe(S.sel);
-    C.sigBrouillon = b ? b.etat + "|" + (b.cree_le || "") : "";
+    C.sigBrouillon = signature(b);
     afficherBrouillon(b, courant());
   }
   // tout ce que l'utilisateur peut toucher pendant un appel de la conversation (envoi, modèle, décision, rédaction)
@@ -242,7 +265,16 @@
       W.effacer();
       var r = await W.api("POST", W.waUrl("/brouillons/decider"), corps);
       if (W.perime(g) || sel !== S.sel) return;
-      if (!r.ok) { W.erreur(W.messageErreur(r)); return; }
+      var d = r.data && r.data.detail;
+      if (!r.ok && r.status === 409 && d && typeof d === "object" && d.code === "incertain") {
+        // le premier envoi a peut-être abouti : l'utilisateur confirme avant tout renvoi
+        if (!(await W.confirmer(T("whatsapp.brouillon.incertain_confirmer")))) { W.info(T("whatsapp.brouillon.incertain_garde")); return; }
+        if (W.perime(g) || sel !== S.sel) return;
+        corps.confirme_incertain = true;
+        r = await W.api("POST", W.waUrl("/brouillons/decider"), corps);
+        if (W.perime(g) || sel !== S.sel) return;
+      }
+      if (!r.ok) { W.erreur(W.messageErreur(r)); await relireBrouillons(); return; }
       W.info(T(decision === "envoyer" ? "whatsapp.brouillon.envoye" : "whatsapp.brouillon.rejete"));
       await relireBrouillons();
       if (decision === "envoyer" && !W.perime(g)) await relireFil(false);
@@ -272,8 +304,10 @@
       W.effacer();
       var r = await W.api("POST", W.waUrl("/fil"), { identite: sel, action: action });
       if (W.perime(g) || sel !== S.sel) return;
-      if (!r.ok) { W.erreur(W.messageErreur(r)); return; }
+      // le drapeau local `pris` est posé (ou retiré) même si Kapso refuse : on relit les brouillons dans les deux cas
+      if (!r.ok) { W.erreur(W.messageErreur(r)); await relireBrouillons(); return; }
       W.info(T(action === "prendre" ? "whatsapp.fil.pris" : "whatsapp.fil.rendu"));
+      await relireBrouillons();
     });
   }
 

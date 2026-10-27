@@ -197,7 +197,7 @@ REGLAGES = {"plafond_mois": 1000, "marche_defaut": "33",
             "agent": {"actif": False, "mode": "brouillon", "roles": ["faq"],
                       "horaires": {"jours": [0, 1, 2, 3, 4], "debut": "09:00", "fin": "18:00", "fuseau": "Europe/Paris"},
                       "message_hors_horaires": "", "plafond_jour_contact": 5, "mots_humain": ["humain"],
-                      "modele_validation": None}}
+                      "modele_validation": None, "plafond_redactions_jour": 20}}
 SONDE_MOD = r"""
 var REGLAGES=__REGLAGES__, SCEN=__SCEN__;
 var appels=[], confirmations=[];
@@ -252,7 +252,7 @@ function un(a){return att(a)[0]||null}
   att("data-dz-wa-espace-role").forEach(function(n){n.checked=["faq","validation","commande"].indexOf(n.getAttribute("data-dz-wa-espace-role"))>=0});
   att("data-dz-wa-espace-jour").forEach(function(n){n.checked=["6","0","2"].indexOf(n.getAttribute("data-dz-wa-espace-jour"))>=0});
   un("data-dz-wa-espace-debut").value="22:00";un("data-dz-wa-espace-fin").value="06:00";un("data-dz-wa-espace-fuseau").value=" Europe/Brussels ";
-  un("data-dz-wa-espace-hors-horaires").value="Nous revenons demain.";un("data-dz-wa-espace-plafond-jour").value=" 7 ";
+  un("data-dz-wa-espace-hors-horaires").value="Nous revenons demain.";un("data-dz-wa-espace-plafond-jour").value=" 7 ";un("data-dz-wa-espace-plafond-redactions").value="12";
   un("data-dz-wa-espace-mots").value=" conseiller, ,humain\nurgent ";un("data-dz-wa-espace-plafond-mois").value="250";
   un("data-dz-wa-espace-marche").value=" 32 ";
   if(SCEN.modele!==undefined)sel.value=SCEN.modele;
@@ -303,7 +303,7 @@ ATTENDU = {"plafond_mois": 250, "marche_defaut": "32",
            "agent": {"actif": True, "mode": "brouillon", "roles": ["faq", "commande", "validation"],
                      "horaires": {"jours": [0, 2, 6], "debut": "22:00", "fin": "06:00", "fuseau": "Europe/Brussels"},
                      "message_hors_horaires": "Nous revenons demain.", "plafond_jour_contact": 7,
-                     "mots_humain": ["conseiller", "humain", "urgent"],
+                     "plafond_redactions_jour": 12, "mots_humain": ["conseiller", "humain", "urgent"],
                      "modele_validation": {"nom": "rappel", "langue": "en_US"}}}
 check("4.7 PUT au format EXACT (entiers, rôles dans l'ordre du serveur, jours triés, mots coupés et rognés, modèle {nom, langue})",
       S1.get("put") == [ATTENDU], json.dumps(S1.get("put"), ensure_ascii=False)[:600])

@@ -494,7 +494,8 @@ def reglages(eid: str) -> dict:
 # ---- t311 : réglages de l'agent d'un espace ----------------------------------------------------------------------------
 AGENT_DEFAUT = {"actif": False, "mode": "brouillon", "roles": [],
                 "horaires": {"jours": [0, 1, 2, 3, 4], "debut": "09:00", "fin": "18:00", "fuseau": "Europe/Paris"},
-                "message_hors_horaires": "", "plafond_jour_contact": 5, "mots_humain": [], "modele_validation": None}
+                "message_hors_horaires": "", "plafond_jour_contact": 5, "mots_humain": [], "modele_validation": None,
+                "plafond_redactions_jour": 20}
 ROLES_AGENT = ("faq", "rendez_vous", "commande", "validation")
 MODES = ("brouillon", "auto")
 _HEURE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
@@ -549,6 +550,8 @@ def _champ_agent_valide(cle: str, v) -> bool:
         return isinstance(v, str) and len(v) <= 1024
     if cle == "plafond_jour_contact":
         return _entier(v, 0, 50)
+    if cle == "plafond_redactions_jour":
+        return _entier(v, 0, 200)
     if cle == "mots_humain":
         return _mots_ok(v)
     if cle == "modele_validation":
@@ -616,6 +619,8 @@ def _refuser_champ(cle: str):
         raise ValueError("agent : message hors horaires : un texte de 1024 caractères au plus est attendu")
     if cle == "plafond_jour_contact":
         raise ValueError("agent : plafond par contact et par jour : un entier de 0 à 50 est attendu")
+    if cle == "plafond_redactions_jour":
+        raise ValueError("agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu")
     if cle == "mots_humain":
         raise ValueError("agent : mots d'appel humain : 30 mots de 40 caractères au plus sont attendus")
     raise ValueError("agent : modèle de validation : {nom, langue} ou rien est attendu")

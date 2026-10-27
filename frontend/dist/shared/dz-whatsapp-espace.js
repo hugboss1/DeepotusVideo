@@ -9,7 +9,7 @@
    angles vifs, en-tête IBM Plex Mono en capitales ; Tab piégé, Échap ou « Fermer » ferment) qui lit
    GET /api/espaces/{id}/whatsapp/reglages et écrit PUT …/reglages avec, au format EXACT du serveur (tâche 1) :
      {plafond_mois, marche_defaut, agent: {actif, mode, roles, horaires: {jours, debut, fin, fuseau},
-      message_hors_horaires, plafond_jour_contact, mots_humain[, modele_validation]}}
+      message_hors_horaires, plafond_jour_contact, plafond_redactions_jour, mots_humain[, modele_validation]}}
    - les entiers partent en nombres quand la saisie en est un, sinon tels quels : le serveur refuse (400, message L10)
      et la boîte montre SON message ; rien n'est vérifié en double ici ;
    - mots_humain : la saisie coupée aux virgules (et fins de ligne), rognée, sans vide ;
@@ -318,6 +318,12 @@
         plafondJour.setAttribute("data-dz-wa-espace-plafond-jour", "1");
         plafondJour.value = String(a.plafond_jour_contact == null ? "" : a.plafond_jour_contact);
         ligne(sL, "whatsapp.espace.plafond_jour", plafondJour);
+        var plafondRed = el("input", S.champ);
+        plafondRed.type = "number";
+        plafondRed.setAttribute("aria-label", T("whatsapp.espace.plafond_redactions"));
+        plafondRed.setAttribute("data-dz-wa-espace-plafond-redactions", "1");
+        plafondRed.value = String(a.plafond_redactions_jour == null ? "" : a.plafond_redactions_jour);
+        ligne(sL, "whatsapp.espace.plafond_redactions", plafondRed, "whatsapp.espace.plafond_redactions_aide");
         var motsH = el("input", S.champ);
         motsH.type = "text";
         motsH.setAttribute("aria-label", T("whatsapp.espace.mots_humain"));
@@ -363,7 +369,7 @@
         marche.value = r.marche_defaut || "";
         ligne(sE, "whatsapp.espace.marche", marche, "whatsapp.espace.marche_aide");
         F.actif = actif; F.mode = mode; F.avert = avert; F.debut = debut; F.fin = finH; F.fuseau = fuseau; F.hors = hors;
-        F.plafondJour = plafondJour; F.mots = motsH; F.modele = modele; F.plafondMois = plafondMois; F.marche = marche;
+        F.plafondJour = plafondJour; F.plafondRed = plafondRed; F.mots = motsH; F.modele = modele; F.plafondMois = plafondMois; F.marche = marche;
         montrerAvertissement();
       }
       function montrerAvertissement() {
@@ -407,6 +413,7 @@
           },
           message_hors_horaires: String(F.hors.value || ""),
           plafond_jour_contact: entier(F.plafondJour.value),
+          plafond_redactions_jour: entier(F.plafondRed.value),
           mots_humain: mots(F.mots.value)
         };
         if (st.modeles) {

@@ -104,7 +104,8 @@ autre = E.creer({"nom": "Atelier Lune"})["id"]
 cid = compte(boite, "PN-1")
 DEFAUT = {"actif": False, "mode": "brouillon", "roles": [],
           "horaires": {"jours": [0, 1, 2, 3, 4], "debut": "09:00", "fin": "18:00", "fuseau": "Europe/Paris"},
-          "message_hors_horaires": "", "plafond_jour_contact": 5, "mots_humain": [], "modele_validation": None}
+          "message_hors_horaires": "", "plafond_jour_contact": 5, "mots_humain": [], "modele_validation": None,
+          "plafond_redactions_jour": 20}      # relecture finale : borne des rédactions du relevé par contact et par jour
 
 print("\n[G1] défauts d'un espace neuf")
 check("G1.1 constantes", WA.AGENT_DEFAUT == DEFAUT and WA.ROLES_AGENT == ("faq", "rendez_vous", "commande", "validation")
@@ -122,6 +123,14 @@ def leve(exc, f):
     except exc:
         return True
     return False
+
+
+def _message(f):
+    try:
+        f()
+    except ValueError as e:
+        return str(e)
+    return None
 
 
 check("G1.5 id invalide -> KeyError", leve(KeyError, lambda: WA.reglages("../x")))
@@ -148,6 +157,9 @@ for lib, ch in [
     ("hors horaires non texte", {"agent": {"message_hors_horaires": 5}}),
     ("plafond contact 51", {"agent": {"plafond_jour_contact": 51}}), ("plafond contact -1", {"agent": {"plafond_jour_contact": -1}}),
     ("plafond contact booléen", {"agent": {"plafond_jour_contact": True}}),
+    ("rédactions 201", {"agent": {"plafond_redactions_jour": 201}}), ("rédactions -1", {"agent": {"plafond_redactions_jour": -1}}),
+    ("rédactions booléen", {"agent": {"plafond_redactions_jour": False}}),
+    ("rédactions texte", {"agent": {"plafond_redactions_jour": "20"}}),
     ("31 mots humain", {"agent": {"mots_humain": [f"m{i}" for i in range(31)]}}),
     ("mot humain 41 car.", {"agent": {"mots_humain": ["x" * 41]}}), ("mot humain vide", {"agent": {"mots_humain": [""]}}),
     ("mot humain non texte", {"agent": {"mots_humain": [3]}}),
@@ -164,6 +176,12 @@ check("G2.z bornes acceptées : 1, 1_000_000, 50, 30 mots de 40 car., 1024 car."
                                  "message_hors_horaires": "y" * 1024}})["plafond_mois"] == 1
       and WA.regler_espace(autre, {"plafond_mois": 1_000_000, "marche_defaut": "1234",
                                    "agent": {"plafond_jour_contact": 0}})["plafond_mois"] == 1_000_000)
+check("G2.r rédactions par contact : 0 et 200 acceptées ; 201 refusé avec le message L10",
+      lambda: WA.regler_espace(autre, {"agent": {"plafond_redactions_jour": 0}})["agent"]["plafond_redactions_jour"] == 0
+      and WA.regler_espace(autre, {"agent": {"plafond_redactions_jour": 200}})["agent"]["plafond_redactions_jour"] == 200
+      and leve(ValueError, lambda: WA.regler_espace(autre, {"agent": {"plafond_redactions_jour": 201}}))
+      and _message(lambda: WA.regler_espace(autre, {"agent": {"plafond_redactions_jour": 201}}))
+      == "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu")
 WA.regler_espace(autre, {"plafond_mois": 1000, "marche_defaut": "33", "agent": DEFAUT})
 
 print("\n[G3] fusion champ par champ")

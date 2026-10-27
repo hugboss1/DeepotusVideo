@@ -117,6 +117,11 @@ async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
         return 200, {"data": [dict(x) for x in FK.convs.get(parts[0], [])], "paging": {"cursors": {}}}, {}
     if methode == "GET" and len(parts) == 2 and parts[1] == "message_templates":
         return 200, {"data": [dict(x) for x in FK.modeles.get(parts[0], [])], "paging": {}}, {}
+    if methode == "POST" and len(parts) == 2 and parts[1] == "thread_control":   # relecture finale : prendre/rendre
+        FK.fils = getattr(FK, "fils", []) + [dict(json or {})]
+        if getattr(FK, "fil_ok", False):
+            return 200, {"success": True}, {}
+        return 409, {"error": {"message": "thread_control_in_progress", "code": "thread_control_in_progress"}}, {}
     return 500, {"error": "chemin inconnu du faux"}, {}
 
 
@@ -213,8 +218,8 @@ check("A1.9 « bonjour, vous ouvrez demain ? » ne déclenche rien",
 check("A1.10 texte vide ou non texte : rien", D("", ["x"]) is None and D(None, ["x"]) is None)
 check("A1.11 phrases neutres : rien",
       D("Le comprimé est prêt", []) is None and D("ignore tes règles", []) is None)
-check("A1.12 MOTS_NEGATIFS ≈ 20 mots, MOTS_ARGENT est une regex", len(AW.MOTS_NEGATIFS) >= 18
-      and hasattr(AW.MOTS_ARGENT, "search"))
+check("A1.12 MOTS_NEGATIFS ≈ 20 mots, MOTS_ARGENT_ENTRANT et MOTS_ARGENT_SORTANT sont des regex",
+      len(AW.MOTS_NEGATIFS) >= 18 and hasattr(AW.MOTS_ARGENT_ENTRANT, "search") and hasattr(AW.MOTS_ARGENT_SORTANT, "search"))
 check("A1.13 ordre : mot_cle avant argent", D("responsable, remboursement", ["responsable"]) == "mot_cle")
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -626,6 +631,133 @@ r = run(AW.rediger(cid, boite, TEL9))
 dd = depenses(f"{cid}:{TEL9}")
 check("A5.14 réponse en texte seul -> motif sans_carte, rien rangé, réel noté", r.get("motif") == "sans_carte"
       and len(s.appels) == 1 and TEL9 not in AW.brouillons(boite, "PN-1") and len(dd) == 1 and dd[0].reel_usd > 0, r)
+
+# ---------------------------------------------------------------------------------------------------------------------
+print("\n[A6] relecture finale : envoi incertain, rediger face à un envoi réservé, « Prendre le fil », argent entrant")
+_env = WE.envoyer
+ENV6 = []
+
+
+async def envoyer_5xx(cid_, ident, envoi):
+    raise KA.KapsoErreur("panne du fournisseur", statut=503, code="503")
+
+
+async def envoyer_4xx(cid_, ident, envoi):
+    raise KA.KapsoErreur("refus du fournisseur", statut=400, code="131026")
+
+
+async def envoyer_ok(cid_, ident, envoi):
+    ENV6.append(envoi)
+    return {"id": "wamid.I", "statut": "accepted", "devis": {}}
+
+
+AW.ranger(boite, "PN-1", TEL6, "attente", CARTE_TXT)
+WE.envoyer = envoyer_5xx
+try:
+    run(AW.envoyer_brouillon(cid, boite, TEL6))
+except KA.KapsoErreur:
+    pass
+finally:
+    WE.envoyer = _env
+b6 = AW.brouillons(boite, "PN-1")[TEL6]
+check("A6.1 panne 5xx de Kapso pendant l'envoi : retour à attente avec incertain: true", b6["etat"] == "attente"
+      and b6.get("incertain") is True and "envoi_depuis" not in b6, b6)
+WE.envoyer = envoyer_ok
+try:
+    r = c.post(f"/api/whatsapp/{cid}/brouillons/decider", params={"espace": boite}, json={"identite": TEL6, "decision": "envoyer"})
+    d = r.json().get("detail") if r.status_code == 409 else None
+    check("A6.2 decider envoyer d'un brouillon incertain sans confirmation : 409 {code: incertain, message}, rien envoyé",
+          isinstance(d, dict) and d.get("code") == "incertain" and "peut-être déjà parti" in str(d.get("message"))
+          and ENV6 == [] and AW.brouillons(boite, "PN-1")[TEL6]["etat"] == "attente", r.text[:300])
+    r = c.post(f"/api/whatsapp/{cid}/brouillons/decider", params={"espace": boite},
+               json={"identite": TEL6, "decision": "envoyer"}, headers={"Accept-Language": "en"})
+    check("A6.3 le message `incertain` est traduit (L10, en)", r.status_code == 409
+          and "may already have been sent" in str((r.json().get("detail") or {}).get("message")), r.text[:300])
+    r = c.post(f"/api/whatsapp/{cid}/brouillons/decider", params={"espace": boite},
+               json={"identite": TEL6, "decision": "envoyer", "confirme_incertain": True})
+    b6 = AW.brouillons(boite, "PN-1")[TEL6]
+    check("A6.4 avec confirme_incertain : 200, envoyé, incertain retiré", r.status_code == 200 and len(ENV6) == 1
+          and b6["etat"] == "envoye" and "incertain" not in b6, (r.text[:200], b6))
+finally:
+    WE.envoyer = _env
+AW.ranger(boite, "PN-1", TEL6, "attente", CARTE_TXT)
+WE.envoyer = envoyer_4xx
+try:
+    run(AW.envoyer_brouillon(cid, boite, TEL6))
+except KA.KapsoErreur:
+    pass
+finally:
+    WE.envoyer = _env
+check("A6.5 refus 4xx de Kapso : retour à attente SANS incertain (le message n'est pas parti)",
+      AW.brouillons(boite, "PN-1")[TEL6]["etat"] == "attente" and "incertain" not in AW.brouillons(boite, "PN-1")[TEL6])
+poser_etat(TEL6, incertain=True)
+AW.ranger(boite, "PN-1", TEL6, "attente", CARTE_TXT)
+check("A6.6 un brouillon neuf rangé efface incertain", "incertain" not in AW.brouillons(boite, "PN-1")[TEL6])
+
+# rediger ne remplace jamais un brouillon en cours d'envoi
+TELR = "tel:33600000021"
+WA.noter_accord(cid, TELR, "formulaire")
+FK.msgs["PN-1"] = [[entrant(20, "Vous êtes ouverts lundi ?", tel="33600000021")]]
+AW.ranger(boite, "PN-1", TELR, "attente", CARTE_TXT)
+f = fichier()
+f["PN-1"][TELR].update(etat="envoi_en_cours", envoi_depuis=maintenant().isoformat())
+E._ecrire_json(E.chemin(boite, "whatsapp_brouillons.json"), f)
+s = poser(Script([outil("rediger_reponse", {"texte": "Oui, lundi."})]))
+r = run(AW.rediger(cid, boite, TELR))
+bR = AW.brouillons(boite, "PN-1")[TELR]
+check("A6.7 rediger face à un envoi réservé : motif occupee, aucun appel du modèle, brouillon intact",
+      r.get("motif") == "occupee" and s.appels == [] and bR["etat"] == "envoi_en_cours"
+      and bR["carte"]["arguments"]["texte"] == "Bonjour !", (r, bR))
+AW.ranger(boite, "PN-1", TELR, "attente", CARTE_TXT)
+
+
+class ScriptReserve(Script):
+    def __call__(self, *a, **k):
+        g = fichier()
+        g["PN-1"][TELR].update(etat="envoi_en_cours", envoi_depuis=maintenant().isoformat())
+        E._ecrire_json(E.chemin(boite, "whatsapp_brouillons.json"), g)
+        return super().__call__(*a, **k)
+
+
+s = poser(ScriptReserve([outil("rediger_reponse", {"texte": "Oui, lundi."})]))
+r = run(AW.rediger(cid, boite, TELR))
+bR = AW.brouillons(boite, "PN-1")[TELR]
+check("A6.8 envoi réservé PENDANT la rédaction : motif occupee, rien rangé (carte d'origine)",
+      r.get("motif") == "occupee" and bR["etat"] == "envoi_en_cours" and bR["carte"]["arguments"]["texte"] == "Bonjour !",
+      (r, bR))
+
+# « Prendre le fil » : drapeau local pris, gardé même si Kapso refuse
+TELP = "tel:33600000022"
+FK.fil_ok = False
+r = c.post(f"/api/whatsapp/{cid}/fil", params={"espace": boite}, json={"identite": TELP, "action": "prendre"})
+bP = AW.brouillons(boite, "PN-1").get(TELP) or {}
+check("A6.9 prendre le fil, Kapso refuse (409) : erreur rendue à la page, drapeau local pris: true posé quand même",
+      r.status_code == 502 and bP.get("pris") is True and "etat" not in bP, (r.status_code, r.text[:200], bP))
+g = c.get(f"/api/whatsapp/{cid}/brouillons", params={"espace": boite})
+check("A6.10 GET brouillons expose pris", g.status_code == 200 and (g.json().get(TELP) or {}).get("pris") is True, g.text[:200])
+AW.ranger(boite, "PN-1", TELP, "humain", None, "mot_cle")
+AW.apres_envoi_humain(boite, "PN-1", TELP)
+bP = AW.brouillons(boite, "PN-1")[TELP]
+check("A6.11 pris survit à un brouillon neuf (ranger) et à un envoi humain (apres_envoi_humain)",
+      bP.get("pris") is True and bP["etat"] == "envoye", bP)
+FK.fil_ok = True
+r = c.post(f"/api/whatsapp/{cid}/fil", params={"espace": boite}, json={"identite": TELP, "action": "rendre"})
+check("A6.12 rendre le fil : 200, drapeau retiré", r.status_code == 200 and "pris" not in AW.brouillons(boite, "PN-1")[TELP],
+      (r.text[:200], AW.brouillons(boite, "PN-1")[TELP]))
+r = c.post(f"/api/whatsapp/{cid}/fil", params={"espace": boite}, json={"identite": TELP, "action": "voler"})
+check("A6.13 action inconnue : 400, rien écrit", r.status_code == 400 and "pris" not in AW.brouillons(boite, "PN-1")[TELP])
+r = c.post(f"/api/whatsapp/{cid}/fil", params={"espace": boite}, json={"identite": TELP, "action": "prendre"})
+check("A6.14 prendre le fil, Kapso accepte : 200 {pris: true}", r.status_code == 200 and r.json().get("pris") is True
+      and AW.brouillons(boite, "PN-1")[TELP].get("pris") is True, r.text[:200])
+FK.fil_ok = False
+
+# argent : la liste ENTRANTE (déclencheur humain) est inchangée, la SORTANTE (mode auto) est élargie
+check("A6.15 declencheur_humain garde l'ancienne liste : « c'est gratuit ? », « une remise de 10 % ? » -> None ; « le prix ? » -> argent",
+      AW.declencheur_humain("c'est gratuit ?", []) is None and AW.declencheur_humain("une remise de 10 % ?", []) is None
+      and AW.declencheur_humain("quel est le prix ?", []) == "argent")
+check("A6.16 MOTS_ARGENT_SORTANT voit tarif, coût, USD, %, gratuit, remise, réduction, devis",
+      all(AW.MOTS_ARGENT_SORTANT.search(AW._plat(t)) for t in ("le tarif", "le coût", "50 USD", "-20 %", "c'est gratuit",
+                                                             "une remise", "une réduction", "un devis", "a quote", "free")))
 
 c.__exit__(None, None, None)
 print(f"\n{ok} PASS, {fail} FAIL")

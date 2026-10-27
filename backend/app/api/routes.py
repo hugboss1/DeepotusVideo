@@ -8675,16 +8675,25 @@ async def whatsapp_relire(cid: str, request: Request, espace: str = "", body: An
 
 @router.post("/whatsapp/{cid}/fil")
 async def whatsapp_fil(cid: str, request: Request, espace: str = "", body: Any = Body(default=None)):
-    """t311 : un humain prend ou rend la conversation chez Kapso, corps {identite, action: prendre|rendre}."""
+    """t311 : un humain prend ou rend la conversation chez Kapso, corps {identite, action: prendre|rendre}. Relecture
+    finale I2 : le drapeau LOCAL `pris` du contact (whatsapp_brouillons.json) est posé (ou retiré) D'ABORD et gardé même
+    si Kapso refuse (l'intention de l'utilisateur est le silence de l'agent) ; l'erreur de Kapso remonte comme avant."""
     _require_localhost(request)
     _wa_compte_demande(cid, espace)
-    from app.services import whatsapp_echanges as WE
+    from app.services import agent_whatsapp as AW, whatsapp_echanges as WE
     b = body if isinstance(body, dict) else {}
+    # « qui », pas « identite » : le recensement payant (test_plafonds_garde) lit un nom passé en argument comme une
+    # fonction appelée, et `identite` y est le nom d'un puits LLM
+    qui, action = b.get("identite"), b.get("action")
+    if action not in ("prendre", "rendre"):
+        raise HTTPException(400, "action inconnue (prendre ou rendre)")
+    eid, _pid = _wa_brouillon_compte(cid)
     try:
-        await WE.fil(cid, b.get("identite"), b.get("action"))
+        AW.poser_pris(cid, eid, qui, action == "prendre")
+        await WE.fil(cid, qui, action)
     except Exception as e:  # noqa: BLE001
         raise _wa_erreur(e)
-    return {"ok": True}
+    return {"ok": True, "pris": action == "prendre"}
 
 
 @router.get("/whatsapp/{cid}/modeles")
@@ -8770,7 +8779,8 @@ async def whatsapp_brouillons_decider(cid: str, request: Request, espace: str = 
     """t311 : décide du brouillon du contact, corps {identite, decision: envoyer|rejeter, texte?}. `envoyer` passe par
     `whatsapp_echanges.envoyer` (texte éventuellement modifié ; modèle -> envoi `modele`), puis état `envoye` ; un refus
     des règles (409 {message, code}) ou du plafond (402) garde le brouillon. Un brouillon `humain` ne s'envoie pas (400) ;
-    un texte avec un modèle : 400 ; une décision pendant un envoi en cours : 409 `occupee`. L'envoi passe par
+    un texte avec un modèle : 400 ; une décision pendant un envoi en cours : 409 `occupee` ; un brouillon `incertain`
+    (panne de Kapso au premier envoi) exige `confirme_incertain: true`, sinon 409 `incertain`. L'envoi passe par
     `agent_whatsapp.envoyer_brouillon`, qui appelle `whatsapp_echanges.envoyer` (garde « whatsapp » : test_plafonds_garde
     A2e)."""
     _require_localhost(request)
@@ -8784,7 +8794,8 @@ async def whatsapp_brouillons_decider(cid: str, request: Request, espace: str = 
     try:
         if decision == "rejeter":
             return {"brouillon": AW.rejeter_brouillon(cid, eid, identite)}
-        return await AW.envoyer_brouillon(cid, eid, identite, b.get("texte"))
+        return await AW.envoyer_brouillon(cid, eid, identite, b.get("texte"),
+                                          confirme_incertain=b.get("confirme_incertain") is True)
     except AW.BrouillonAbsent:
         raise HTTPException(404, "aucun brouillon en attente pour ce contact")
     except Exception as e:  # noqa: BLE001 — 409 des règles et 402 du plafond : le brouillon reste en attente

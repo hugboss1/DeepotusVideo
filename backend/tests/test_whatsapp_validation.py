@@ -358,21 +358,24 @@ i0 = len(ignorees(cW))
 m2 = bouton_inter(TEL, f"val:{P1}:corr", "Corriger")
 r2 = run(WV.traiter_reponse(cW, C1, plat(m2)))
 p = lire_post(P1)
-check("V5.4 deuxième réponse après décision : ignorée (False), post inchangé", r2 is False and p.status == "draft"
+check("V5.4 deuxième réponse après décision : ignorée mais CONSOMMÉE (True), post inchangé", r2 is True and p.status == "draft"
       and p.valide_client_le is not None and (AW.validations(C1).get(P1) or {}).get("etat") == "valide", (r2, p.status))
 ig = ignorees(cW)[i0:]
 check("V5.5 notée au journal de whatsapp.json : validation_ignoree, sans texte",
       len(ig) == 1 and ig[0]["id"] == m2["id"] and ig[0]["identite"] == IDENT and "texte" not in ig[0], ig)
 r3 = run(WV.traiter_reponse(cW, C1, plat(bouton_inter("33600000099", f"val:{PS}:ok"))))
-check("V5.6 réponse d'un autre contact : ignorée, post et validation inchangés",
-      r3 is False and lire_post(PS).status == "a_valider" and (AW.validations(C1).get(PS) or {}).get("etat") == "envoye"
+check("V5.6 réponse d'un autre contact : ignorée mais consommée (True), post et validation inchangés",
+      r3 is True and lire_post(PS).status == "a_valider" and (AW.validations(C1).get(PS) or {}).get("etat") == "envoye"
       and len(ignorees(cW)) == i0 + 2, (r3, lire_post(PS).status))
 supprimer_post(PG)
 r4 = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{PG}:ok"))))
-check("V5.7 post supprimé : ignorée (False), validation périmée, notée", r4 is False
+check("V5.7 post supprimé : ignorée mais consommée (True), validation périmée, notée", r4 is True
       and (AW.validations(C1).get(PG) or {}).get("etat") == "perimee" and len(ignorees(cW)) == i0 + 3, r4)
 r5 = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, "b1", "Oui"))))
-check("V5.8 un bouton qui n'est pas une validation : False, rien noté", r5 is False and len(ignorees(cW)) == i0 + 3)
+check("V5.8 un bouton qui n'est pas une validation : False (passe à l'agent), rien noté", r5 is False and len(ignorees(cW)) == i0 + 3)
+r5b = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{P1}:ok", "Valider"))))
+check("V5.9 second toucher sur « Valider » d'un post déjà validé : consommé (True), noté ignoré, post inchangé",
+      r5b is True and len(ignorees(cW)) == i0 + 4 and lire_post(P1).status == "draft", r5b)
 
 # ---------------------------------------------------------------------------------------------------------------------
 print("\n[V6] « Corriger » puis la note")
@@ -461,8 +464,8 @@ check("V9.0 envoi : empreinte du contenu rangée", envoyer(PE).status_code == 20
 changer_titre(PE, "Teaser modifié")
 r = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{PE}:ok"))))
 p = lire_post(PE)
-check("V9.1 contenu modifié après l'envoi, puis « Valider » : rien ne change (False), validation périmée",
-      r is False and p.status == "a_valider" and p.valide_client_le is None
+check("V9.1 contenu modifié après l'envoi, puis « Valider » : rien ne change (consommé, True), validation périmée",
+      r is True and p.status == "a_valider" and p.valide_client_le is None
       and (AW.validations(C1).get(PE) or {}).get("etat") == "perimee", (r, p.status))
 PD = poser(C1)
 envoyer(PD)
@@ -495,10 +498,10 @@ PX = poser(C3)
 AW.modifier_validations(C1, lambda v: {**v, PX: {"identite": IDENT, "cid": cW, "etat": "envoye", "envoye_le": neuf_,
                                                  "empreinte": WV.empreinte(lire_post(PX))}})
 r = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{PX}:ok"))))
-check("V9.7 bouton forgé pour le post d'un AUTRE client, depuis le bon contact : rien (False), post inchangé",
-      r is False and lire_post(PX).status == "a_valider" and lire_post(PX).valide_client_le is None, r)
+check("V9.7 bouton forgé pour le post d'un AUTRE client, depuis le bon contact : rien (consommé, True), post inchangé",
+      r is True and lire_post(PX).status == "a_valider" and lire_post(PX).valide_client_le is None, r)
 r = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{poser(C3)}:ok"))))
-check("V9.8 bouton forgé sans validation rangée : rien (False)", r is False)
+check("V9.8 bouton forgé sans validation rangée : rien, consommé (True)", r is True)
 WA._noter(cW, lambda e: e["alias"].update({"bsuid:BS-LUNE": IDENT, IDENT: "bsuid:BS-LUNE"}))
 PL = poser(C1)
 envoyer(PL)
@@ -510,6 +513,37 @@ pb = plat(m_bs)
 r = run(WV.traiter_reponse(cW, C1, pb))
 check("V9.9 réponse venue de l'alias (BSUID du même contact) : acceptée, post validé",
       pb["identite"] == "bsuid:BS-LUNE" and r is True and lire_post(PL).status == "draft", (pb.get("identite"), r))
+
+# ---------------------------------------------------------------------------------------------------------------------
+print("\n[V10] relecture finale : modèle à paramètre NOMMÉ, modèle sans boutons de réponse rapide")
+C7 = client("Salon Soleil", contact="06 11 22 33 44")                # contact neuf : fenêtre de 24 h fermée
+cW7 = compte_wa(C7, "PN-S")
+F.ajouter_consentement(C7, "whatsapp:PN-S", ["messages"], "ecrit")
+WA.noter_accord(cW7, "tel:33611223344", "formulaire")
+FK.modeles.append({"name": "validation_nommee", "language": "fr", "category": "UTILITY", "status": "APPROVED", "components": [
+    {"type": "HEADER", "format": "IMAGE"}, {"type": "BODY", "text": "Publication à valider : {{titre}}",
+                                            "example": {"body_text_named_params": [{"param_name": "titre", "example": "x"}]}},
+    {"type": "BUTTONS", "buttons": [{"type": "QUICK_REPLY", "text": "Valider"}, {"type": "QUICK_REPLY", "text": "Corriger"}]}]})
+FK.modeles.append({"name": "validation_sans_rapides", "language": "fr", "category": "UTILITY", "status": "APPROVED",
+                   "components": [{"type": "HEADER", "format": "IMAGE"}, {"type": "BODY", "text": "À valider : {{1}}"},
+                                  {"type": "BUTTONS", "buttons": [{"type": "URL", "text": "Voir", "url": "https://x.test"},
+                                                                  {"type": "QUICK_REPLY", "text": "Valider"}]}]})
+WA.regler_espace(C7, {"agent": {"modele_validation": {"nom": "validation_nommee", "langue": "fr"}}})
+PN = poser(C7)
+r = envoyer(PN)
+corps_b = next((c for c in (((FK.envois[-1][1] or {}).get("template") or {}).get("components") or [])
+                if c.get("type") == "body"), {}) if FK.envois else {}
+check("V10.1 modèle à UN paramètre nommé : 200, corps {parameter_name: titre, text: titre du post}",
+      r.status_code == 200 and corps_b.get("parameters") == [{"type": "text", "parameter_name": "titre", "text": "Teaser"}],
+      (r.status_code, r.text[:200], corps_b))
+WA.regler_espace(C7, {"agent": {"modele_validation": {"nom": "validation_sans_rapides", "langue": "fr"}}})
+n0, m0 = len(FK.envois), len(FK.medias)
+r = envoyer(poser(C7))
+check("V10.2 modèle sans boutons de réponse rapide aux places 0 et 1 : 400 (message L10), AVANT tout téléversement",
+      r.status_code == 400 and "réponse rapide" in str(detail(r)) and len(FK.envois) == n0 and len(FK.medias) == m0,
+      (r.status_code, r.text[:200], len(FK.medias) - m0))
+r = client_http.post(f"/api/schedule/{poser(C7)}/validation-whatsapp", headers={"Accept-Language": "en"})
+check("V10.3 le refus est traduit (L10, en)", r.status_code == 400 and "quick" in str(detail(r)).lower(), r.text[:200])
 
 # ---------------------------------------------------------------------------------------------------------------------
 print("\n[V8] journal")

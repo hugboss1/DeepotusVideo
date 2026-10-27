@@ -9,7 +9,9 @@ l'espace client -> `tel:…`) et un compte whatsapp RELIÉ dans son espace. Les 
 sur la page WhatsApp, jamais ici). Aperçu : la `source_image` du post (bibliothèque) téléversée chez Kapso si JPEG ou PNG
 de 5 Mo au plus, sinon texte seul. Fenêtre de 24 h ouverte -> message à boutons (ids `val:<post>:ok` / `val:<post>:corr`,
 titres de BOUTONS selon `fiche.langue`) ; fermée -> le modèle `agent.modele_validation` des réglages de l'espace client
-(sinon ValueError), en-tête image si le modèle en a un, boutons de réponse rapide 0 et 1 aux mêmes payloads. L'envoi passe
+(sinon ValueError), en-tête image si le modèle en a un, boutons de réponse rapide 0 et 1 aux mêmes payloads (un modèle
+sans boutons de réponse rapide aux places 0 ET 1 : ValueError avant tout téléversement) ; un paramètre unique NOMMÉ part
+en `{nom: titre}` (`noms_parametres`), un positionnel en `[titre]`. L'envoi passe
 TOUJOURS par `whatsapp_echanges.envoyer` (règles, devis, `plafonds.verifier`). Puis
 `validations[post] = {identite, cid, envoye_le, etat: "envoye", id, empreinte}` dans `whatsapp_brouillons.json` de l'espace client
 (sous le verrou de `agent_whatsapp`).
@@ -20,11 +22,12 @@ TOUJOURS par `whatsapp_echanges.envoyer` (règles, devis, `plafonds.verifier`). 
     a la même empreinte qu'à l'envoi (`empreinte` : title, caption, source_image, job_id, brief) ; appelle
     `validation_client.valider_post(post, "valide"|"corriger", "whatsapp")`
     (même logique que la route t309 : date, statut, journal de la fiche) ; état `valide` ou `a_corriger`. Sinon (post
-    supprimé, déjà décidé, autre contact) : rien ne change, une ligne `validation_ignoree` SANS texte au journal de
-    `whatsapp.json`, rend False ;
+    supprimé, déjà décidé, second toucher, autre contact, contenu changé) : rien ne change, une ligne `validation_ignoree`
+    SANS texte au journal de `whatsapp.json` — et le message est QUAND MÊME consommé (True) : un bouton de validation
+    n'est jamais donné à l'agent (relecture finale I1) ;
   · texte d'un contact dont une validation est `a_corriger` depuis moins de 24 h : rangé en `note` (≤ MAX_NOTE), état
     `corrige` ; la note se lit dans la fiche client (GET /api/schedule/{id}/client), elle n'est envoyée à aucun agent.
-Rend True quand le message est consommé (le relevé ne le donne alors pas à l'agent). Aucun texte au journal (`logger`).
+Rend True quand le message est consommé (le relevé ne le donne alors pas à l'agent et note `traite_jusqu_a`). Aucun texte au journal (`logger`).
 """
 from __future__ import annotations
 
@@ -245,6 +248,11 @@ async def envoyer_validation(post_id: str) -> dict:
                        if m.get("nom") == choix.get("nom") and m.get("langue") == choix.get("langue")), None)
         if modele is None:
             raise ValueError("modèle de validation inconnu ou non approuvé pour cette langue")
+        rapides = {b.get("index") for b in (modele.get("composants") or {}).get("boutons") or []
+                   if isinstance(b, dict) and b.get("type") == "quick_reply"}
+        if not {0, 1} <= rapides:                 # avant tout téléversement : les payloads val:… partent aux places 0 et 1
+            raise ValueError("le modèle de validation doit avoir deux boutons de réponse rapide (Valider, Corriger) aux "
+                             "deux premières places")
     apercu = _apercu(post.source_image)
     entete_image = modele is None or (modele.get("composants") or {}).get("entete") == "image"
     if modele is not None and (modele.get("composants") or {}).get("entete") == "image" and apercu is None:
@@ -259,8 +267,14 @@ async def envoyer_validation(post_id: str) -> dict:
             envoi["entete_media_id"] = media_id
     else:
         n = modele.get("n_parametres") or 0
-        envoi = {"type": "modele", "nom": modele["nom"], "langue": modele["langue"],
-                 "parametres": [_parametre(post, langue)] if n == 1 and modele.get("parametres") != "nommes" else [],
+        noms = modele.get("noms_parametres") if isinstance(modele.get("noms_parametres"), list) else []
+        if n == 1 and modele.get("parametres") == "nommes" and len(noms) == 1:
+            parametres = {str(noms[0]): _parametre(post, langue)}      # paramètre NOMMÉ : {nom: titre}
+        elif n == 1 and modele.get("parametres") != "nommes":
+            parametres = [_parametre(post, langue)]
+        else:
+            parametres = []
+        envoi = {"type": "modele", "nom": modele["nom"], "langue": modele["langue"], "parametres": parametres,
                  "boutons": [{"index": 0, "payload": ok}, {"index": 1, "payload": corr}]}
         if media_id:
             envoi["entete"] = {"type": "image", "media_id": media_id}
@@ -319,7 +333,7 @@ async def _bouton(cid, eid, msg, identite, post_id, choix) -> bool:
     v = AW.validations(eid).get(post_id)
     if not isinstance(v, dict) or v.get("etat") != "envoye" or not _meme_contact(cid, v.get("identite"), identite):
         _ignorer(cid, identite, msg.get("id"), msg.get("quand"))
-        return False
+        return True                                            # consommé : jamais donné à l'agent
     from app.services import espaces
     post = await _post(post_id)
     if (post is None or post.status != "a_valider"              # supprimé, ou décidé au PC entre-temps
@@ -327,14 +341,14 @@ async def _bouton(cid, eid, msg, identite, post_id, choix) -> bool:
             or not post.espace_id or espaces.client_responsable(post.espace_id) != eid):   # pas un post de ce client
         _ignorer(cid, identite, msg.get("id"), msg.get("quand"))
         _poser(eid, post_id, "envoye", {"etat": "perimee", "decide_le": _iso(_horloge())})
-        return False
+        return True
     from app.services.validation_client import RefusValidation, valider_post
     try:
         await valider_post(post_id, "valide" if choix == "ok" else "corriger", "whatsapp")
     except RefusValidation:                                    # 404 (supprimé à l'instant) ou 409 (plus de client)
         _ignorer(cid, identite, msg.get("id"), msg.get("quand"))
         _poser(eid, post_id, "envoye", {"etat": "perimee", "decide_le": _iso(_horloge())})
-        return False
+        return True
     _poser(eid, post_id, "envoye", {"etat": "valide" if choix == "ok" else "a_corriger", "decide_le": _iso(_horloge())})
     return True
 

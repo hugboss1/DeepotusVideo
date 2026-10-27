@@ -11174,5 +11174,17 @@
  "modèle de validation inconnu ou non approuvé pour cette langue": {
   "fr": "modèle de validation inconnu ou non approuvé pour cette langue",
   "en": "approval template unknown or not approved for this language"
+ },
+ "le modèle de validation doit avoir deux boutons de réponse rapide (Valider, Corriger) aux deux premières places": {
+  "fr": "le modèle de validation doit avoir deux boutons de réponse rapide (Valider, Corriger) aux deux premières places",
+  "en": "the validation template must have two quick-reply buttons (Approve, Request changes) in the first two places"
+ },
+ "ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la conversation, puis confirmez pour le renvoyer": {
+  "fr": "ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la conversation, puis confirmez pour le renvoyer",
+  "en": "this message may already have been sent (Kapso failed during sending): check the conversation, then confirm to send it again"
+ },
+ "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu": {
+  "fr": "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu",
+  "en": "agent: drafts per contact and per day: an integer from 0 to 200 is expected"
  }
 }

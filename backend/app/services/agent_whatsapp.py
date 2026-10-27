@@ -58,9 +58,15 @@ ROLES = {
 }
 JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 
-# Montants et argent (FR-EN), sur le texte sans accents et en minuscules.
-MOTS_ARGENT = re.compile(r"[€$£]|\b(?:eur|euros?|dollars?|prix|price|prices|rembours\w*|refund\w*|paiement|payment|"
-                         r"virement)\b")
+# Montants et argent (FR-EN), sur le texte sans accents et en minuscules. ENTRANT : un message du contact qui en parle
+# passe à une personne (`declencheur_humain`, liste d'origine inchangée). SORTANT : un texte de l'agent en mode auto qui
+# en cite un absent de la fiche reste en brouillon (`whatsapp_releve.montant_hors_fiche`, liste élargie à la relecture
+# finale : tarif, coût, devises, %, gratuit, remise, réduction, devis).
+MOTS_ARGENT_ENTRANT = re.compile(r"[€$£]|\b(?:eur|euros?|dollars?|prix|price|prices|rembours\w*|refund\w*|paiement|"
+                                 r"payment|virement)\b")
+MOTS_ARGENT_SORTANT = re.compile(r"[€$£%]|\b(?:eur|euros?|dollars?|prix|price|prices|rembours\w*|refund\w*|paiement|"
+                                 r"payment|virement|tarif\w*|couts?|cost\w*|usd|chf|gbp|gratuit\w*|free|remises?|"
+                                 r"reductions?|discount\w*|devis|quotes?)\b")
 # Ton négatif ou conflictuel (FR-EN, sans accents) : mots entiers.
 MOTS_NEGATIFS = ("arnaque", "arnaques", "arnaqueur", "escroc", "escroquerie", "scam", "scammer", "fraude", "fraud",
                  "plainte", "complaint", "avocat", "lawyer", "tribunal", "furieux", "furieuse", "furious", "angry",
@@ -92,7 +98,7 @@ def declencheur_humain(texte, mots_humain) -> str | None:
         m = _plat(m).strip() if isinstance(m, str) else ""
         if m and re.search(r"(?<![a-z0-9])" + re.escape(m) + r"(?![a-z0-9])", t):
             return "mot_cle"
-    if MOTS_ARGENT.search(t):
+    if MOTS_ARGENT_ENTRANT.search(t):
         return "argent"
     if _NEGATIFS & set(re.findall(r"[a-z0-9]+", t)):
         return "negatif"
@@ -240,10 +246,15 @@ def modifier_validations(eid: str, geste) -> dict:
         return json.loads(json.dumps(apres))
 
 
+class EnvoiEnCours(RuntimeError):
+    """`ranger(..., garder_envoi=True)` : le brouillon du contact est en cours d'envoi (pas encore décidable)."""
+
+
 def ranger(eid: str, pid: str, identite: str, etat: str, carte: dict | None, raison: str | None = None,
-           alias=()) -> dict:
-    """Range un brouillon neuf pour le contact (remplace le précédent ; `auto_jour`, `hors_jour` et `traite_jusqu_a` sont
-    gardés). `identite` : la clé canonique (`canonique`)."""
+           alias=(), garder_envoi: bool = False) -> dict:
+    """Range un brouillon neuf pour le contact (remplace le précédent ; `auto_jour`, `hors_jour`, `traite_jusqu_a`,
+    `redactions_jour` et `pris` sont gardés ; `incertain` tombe). `identite` : la clé canonique (`canonique`).
+    `garder_envoi` : un brouillon `envoi_en_cours` encore réservé n'est jamais écrasé (EnvoiEnCours, rien n'est écrit)."""
     if etat not in ETATS:
         raise ValueError(f"état de brouillon inconnu : {str(etat)[:20]}")
 
@@ -255,6 +266,12 @@ def ranger(eid: str, pid: str, identite: str, etat: str, carte: dict | None, rai
         for k in ("hors_jour", "traite_jusqu_a"):           # t311 tâche 5 : traces du relevé de fond
             if isinstance((b or {}).get(k), str):
                 neuf[k] = b[k]
+        if isinstance((b or {}).get("redactions_jour"), dict):   # relecture finale : borne de rédactions par contact
+            neuf["redactions_jour"] = b["redactions_jour"]
+        if (b or {}).get("pris") is True:                     # « Prendre le fil » survit à un brouillon neuf
+            neuf["pris"] = True
+        if garder_envoi and b and b.get("etat") == "envoi_en_cours" and not _decidable(b, datetime.now(timezone.utc)):
+            raise EnvoiEnCours("un envoi de ce brouillon est en cours")
         return neuf
     return _modifier(eid, pid, identite, geste, alias)
 
@@ -300,6 +317,30 @@ def apres_envoi_humain(eid: str, pid: str, identite: str, alias=()) -> dict:
     return _modifier(eid, pid, identite, geste, alias)
 
 
+def poser_pris(cid: str, eid: str, identite: str, pris: bool) -> dict:
+    """Relecture finale I2 : « Prendre le fil » (`pris=True`) pose `pris: true` sur l'entrée du contact (clé canonique,
+    sous le verrou du fichier ; entrée créée SANS `etat` s'il n'y en a pas) : le relevé de fond ne fait plus rien pour ce
+    contact. « Rendre le fil » (`pris=False`) retire le drapeau. `rediger` demandé par l'utilisateur marche toujours.
+    ValueError : identité invalide, compte d'un autre espace."""
+    from app.services import whatsapp as WA
+    WA.destinataire(identite)
+    pid = _compte_de(cid, eid)
+    cle, groupe = canonique(cid, identite)
+
+    def geste(b):
+        if pris:
+            if b is not None and b.get("pris") is True:
+                return None
+            b = b if b is not None else {"carte": None, "auto_jour": {}}
+            b["pris"] = True
+            return b
+        if b is None or "pris" not in b:
+            return None
+        b.pop("pris", None)
+        return b
+    return _modifier(eid, pid, cle, geste, groupe)
+
+
 def envoi_de(brouillon: dict, texte=None) -> dict:
     """L'envoi `whatsapp_echanges.envoyer` d'un brouillon en attente : texte (éventuellement modifié) ou modèle.
     ValueError : brouillon sans carte envoyable (état `humain`, carte « humain »), texte fourni pour un modèle."""
@@ -334,9 +375,10 @@ def _decidable(b, maintenant: datetime) -> bool:
     return False
 
 
-def _reserver(eid, pid, cle, groupe, texte) -> tuple[dict, str]:
+def _reserver(eid, pid, cle, groupe, texte, confirme_incertain=False) -> tuple[dict, str]:
     """Sous le verrou du fichier : vérifie le brouillon, calcule l'envoi, le passe à `envoi_en_cours` ; rend (envoi,
-    cree_le). Refus : BrouillonAbsent, WhatsappRefus `occupee` (envoi déjà en cours), ValueError (humain, texte+modèle)."""
+    cree_le). Refus : BrouillonAbsent, WhatsappRefus `occupee` (envoi déjà en cours), WhatsappRefus `incertain` (un
+    envoi précédent a peut-être abouti : `confirme_incertain` exigé), ValueError (humain, texte+modèle)."""
     from app.services import whatsapp as WA
     pris: dict = {}
 
@@ -346,6 +388,9 @@ def _reserver(eid, pid, cle, groupe, texte) -> tuple[dict, str]:
             raise WA.WhatsappRefus("ce brouillon est déjà en cours d'envoi", "occupee")
         if not _decidable(b, maintenant):
             raise BrouillonAbsent("aucun brouillon en attente pour ce contact")
+        if b.get("incertain") is True and confirme_incertain is not True:
+            raise WA.WhatsappRefus("ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la "
+                                   "conversation, puis confirmez pour le renvoyer", "incertain")
         pris["envoi"] = envoi_de(b, texte)
         pris["cree_le"] = b.get("cree_le")
         b["etat"] = "envoi_en_cours"
@@ -355,9 +400,10 @@ def _reserver(eid, pid, cle, groupe, texte) -> tuple[dict, str]:
     return pris["envoi"], pris["cree_le"]
 
 
-def _conclure(eid, pid, cle, groupe, cree_le, etat) -> dict:
+def _conclure(eid, pid, cle, groupe, cree_le, etat, incertain=False) -> dict:
     """Après l'envoi : `etat` (envoye, ou attente sur un refus) seulement si le brouillon est TOUJOURS celui réservé
-    (même `cree_le`, encore `envoi_en_cours`) ; un brouillon neuf rangé entre-temps reste tel quel."""
+    (même `cree_le`, encore `envoi_en_cours`) ; un brouillon neuf rangé entre-temps reste tel quel. `incertain` (panne
+    5xx/réseau de Kapso : le message a pu partir) pose `incertain: true` ; un envoi réussi le retire."""
     def geste(b):
         if not b or b.get("cree_le") != cree_le or b.get("etat") != "envoi_en_cours":
             return None
@@ -365,6 +411,9 @@ def _conclure(eid, pid, cle, groupe, cree_le, etat) -> dict:
         b.pop("envoi_depuis", None)
         if etat == "envoye":
             b["decide_le"] = _maintenant()
+            b.pop("incertain", None)
+        if incertain:
+            b["incertain"] = True
         return b
     return _modifier(eid, pid, cle, geste, groupe)
 
@@ -377,19 +426,26 @@ def _compte_de(cid: str, eid: str) -> str:
     return pid
 
 
-async def envoyer_brouillon(cid: str, eid: str, identite: str, texte=None) -> dict:
+async def envoyer_brouillon(cid: str, eid: str, identite: str, texte=None, confirme_incertain: bool = False) -> dict:
     """Envoie le brouillon du contact par `whatsapp_echanges.envoyer` (texte éventuellement modifié, ou modèle) :
     {"envoi", "brouillon"}. Réservé d'abord (`envoi_en_cours`, sous le verrou du fichier) : une seconde décision
     simultanée reçoit WhatsappRefus `occupee`. Succès -> `envoye` ; refus ou panne -> retour à `attente`, l'erreur
     remonte telle quelle (409 des règles, 402 du plafond, 502 de Kapso). Le message part vers `identite` telle que
-    donnée ; le brouillon est rangé sous la clé canonique. Appelé par la route `decider` et par le mode auto."""
+    donnée ; le brouillon est rangé sous la clé canonique. Appelé par la route `decider` et par le mode auto.
+    Une panne de Kapso qui n'est pas un refus 4xx (5xx, réseau, statut 0) rend le brouillon `attente` + `incertain` :
+    le renvoyer exige ensuite `confirme_incertain` (sinon WhatsappRefus `incertain`, 409) ; le mode auto ne le passe
+    jamais."""
     from app.services import whatsapp as WA, whatsapp_echanges as WE
+    from app.services.kapso import KapsoErreur
     WA.destinataire(identite)
     pid = _compte_de(cid, eid)
     cle, groupe = canonique(cid, identite)
-    envoi, cree_le = _reserver(eid, pid, cle, groupe, texte)
+    envoi, cree_le = _reserver(eid, pid, cle, groupe, texte, confirme_incertain)
     try:
         r = await WE.envoyer(cid, identite, envoi)
+    except KapsoErreur as x:
+        _conclure(eid, pid, cle, groupe, cree_le, "attente", incertain=not 400 <= x.statut < 500)
+        raise
     except BaseException:
         _conclure(eid, pid, cle, groupe, cree_le, "attente")
         raise
@@ -458,6 +514,12 @@ async def _fil(cid: str, identite: str) -> tuple[str | None, bool]:
     return (t if isinstance(t, str) else ""), stop
 
 
+def _envoi_reserve(eid: str, pid: str, cle: str) -> bool:
+    """Le brouillon du contact est-il `envoi_en_cours` et pas encore décidable (un envoi est réservé) ?"""
+    b = brouillons(eid, pid).get(cle)
+    return bool(b) and b.get("etat") == "envoi_en_cours" and not _decidable(b, datetime.now(timezone.utc))
+
+
 def _res(etat, carte, motif) -> dict:
     return {"etat": etat, "carte": carte, "motif": motif}
 
@@ -491,10 +553,15 @@ async def _rediger(cid: str, eid: str, pid: str, identite: str, langue: str) -> 
         return _res(None, None, "stop")
     if texte is None:
         return _res(None, None, "sans_entrant")
+    if _envoi_reserve(eid, pid, cle):
+        return _res(None, None, "occupee")                  # un envoi réservé de ce contact n'est jamais écrasé
     agent = WA.reglages(eid)["agent"]
     raison = declencheur_humain(texte, agent.get("mots_humain"))
     if raison:
-        ranger(eid, pid, cle, "humain", None, raison, groupe)
+        try:
+            ranger(eid, pid, cle, "humain", None, raison, groupe, garder_envoi=True)
+        except EnvoiEnCours:
+            return _res(None, None, "occupee")
         return _res("humain", None, "declencheur")
     if not cle_presente():
         return _res(None, None, "sans_cle")
@@ -545,11 +612,14 @@ async def _boucle(cid: str, eid: str, pid: str, identite: str, langue: str, agen
             carte = res.get("carte")
             if res.get("ok") and isinstance(carte, dict) and carte.get("genre") in ("reponse_whatsapp", "modele_whatsapp",
                                                                                      "humain"):
-                if carte["genre"] == "humain":
-                    raison = (carte.get("arguments") or {}).get("raison")
-                    ranger(eid, pid, cle, "humain", carte, raison, groupe)
-                    return _res("humain", carte, "carte")
-                ranger(eid, pid, cle, "attente", carte, None, groupe)
+                try:
+                    if carte["genre"] == "humain":
+                        raison = (carte.get("arguments") or {}).get("raison")
+                        ranger(eid, pid, cle, "humain", carte, raison, groupe, garder_envoi=True)
+                        return _res("humain", carte, "carte")
+                    ranger(eid, pid, cle, "attente", carte, None, groupe, garder_envoi=True)
+                except EnvoiEnCours:                        # réservé pendant la rédaction : rien n'est rangé
+                    return _res(None, None, "occupee")
                 return _res("attente", carte, "carte")
             tr = {"type": "tool_result", "tool_use_id": b.get("id"), "content": ao.pour_modele(res)}
             if not res.get("ok"):

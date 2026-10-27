@@ -605,6 +605,49 @@ check("11.2 rejouée et acceptée : aucun message d'erreur, saisie vidée", text
   check("13.21 Prix : rendu après la réponse", be.disabled === false);
 }
 
+// ── [14] relecture finale : « repris » (Prendre le fil) et brouillon incertain ────────────────────────────────────────
+{
+  const BR = JSON.parse(JSON.stringify(BROUILLONS));
+  BR["tel:33600000002"] = Object.assign({}, BR["tel:33600000002"], { pris: true });
+  BR["tel:33600000001"] = Object.assign({}, BR["tel:33600000001"], { incertain: true });
+  window.__dzDialogue = { confirmer: async () => true };
+  r = await monter({ routes: { ["GET " + B + "/brouillons"]: [200, BR] } });
+  check("14.1 pastille « repris » dans la liste (entrée sans etat, pris seul)", pastille("tel:33600000002", "repris") && !pastille("tel:33600000001", "repris"));
+  const tete = (k) => un(r, "data-dz-wa-fil-action", k);
+  const reprisVisibles = () => attr(r, "data-dz-wa-pastille", "repris").filter(visible).length;
+  await ouvrirConv(r, "tel:33600000002");
+  check("14.2 contact repris : seul « Rendre le fil » visible, pastille « repris » aussi dans l'en-tête",
+    visible(tete("rendre")) && !visible(tete("prendre")) && reprisVisibles() === 2, reprisVisibles());
+  await ouvrirConv(r, "tel:33600000001");
+  check("14.3 contact non repris : seul « Prendre le fil » visible, pas de pastille d'en-tête",
+    visible(tete("prendre")) && !visible(tete("rendre")) && reprisVisibles() === 1, reprisVisibles());
+  check("14.4 brouillon incertain : avertissement visible", !!un(r, "data-dz-wa-incertain") && un(r, "data-dz-wa-incertain").textContent.includes(T("whatsapp.brouillon.incertain")));
+  const BR2 = JSON.parse(JSON.stringify(BR)); BR2["tel:33600000001"].pris = true;
+  routes["POST " + B + "/fil"] = [502, { detail: { message: "thread_control_in_progress", code: "thread_control_in_progress" } }];
+  routes["GET " + B + "/brouillons"] = [200, BR2];
+  tete("prendre").declencher("click"); await attendre();
+  check("14.5 Kapso refuse « prendre » : erreur affichée, brouillons relus, le bouton devient « Rendre le fil »",
+    texteErreur(r) !== "" && visible(tete("rendre")) && !visible(tete("prendre")), texteErreur(r));
+  let conf = 0;
+  window.__dzDialogue = { confirmer: async () => { conf++; return true; } };
+  routes["POST " + B + "/brouillons/decider"] = (c) => (c && c.confirme_incertain === true
+    ? [200, { envoi: { id: "wamid.3" }, brouillon: { etat: "envoye" } }] : [409, { detail: { message: "peut-être parti", code: "incertain" } }]);
+  appels = [];
+  un(r, "data-dz-wa-decider", "envoyer").declencher("click"); await attendre(30);
+  const ds = posts(B + "/brouillons/decider");
+  check("14.6 409 incertain : confirmation (dialogue maison) puis renvoi avec confirme_incertain",
+    conf === 1 && ds.length === 2 && ds[0].corps.confirme_incertain === undefined && ds[1].corps.confirme_incertain === true, ds.map((d) => d.corps));
+  window.__dzDialogue = { confirmer: async () => false };
+  routes["POST " + B + "/brouillons/decider"] = [409, { detail: { message: "peut-être parti", code: "incertain" } }];
+  appels = [];
+  un(r, "data-dz-wa-decider", "envoyer").declencher("click"); await attendre(30);
+  check("14.7 confirmation refusée : un seul appel, rien renvoyé, brouillon gardé (message)",
+    posts(B + "/brouillons/decider").length === 1 && un(r, "data-dz-wa-info").textContent === T("whatsapp.brouillon.incertain_garde"));
+  check("14.8 catégorie utility libellée « utilitaire »", T("whatsapp.categorie.utility") === "utilitaire" && T("whatsapp.prix.col_utility") === "Utilitaire"
+    && T("whatsapp.prix.col_service") === "Conversation de service");
+  window.__dzDialogue = { confirmer: async () => true };
+}
+
 // ── [12] hygiène ─────────────────────────────────────────────────────────────────────────────────────────────────────
 check("12.1 toutes les clés dzT employées existent", absentes.size === 0, [...absentes]);
 const MOTS = ["Bonjour", "Avec plaisir", "Payant", "Simple", "Encore", "Votre rendez-vous", "Léa, nous"];

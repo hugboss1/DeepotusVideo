@@ -27,6 +27,11 @@ Jamais deux réponses au même entrant : avant tout geste, `agent_whatsapp.noter
 dernier entrant du contact) dans l'entrée du contact de `whatsapp_brouillons.json` ; un entrant dont `quand` <=
 `traite_jusqu_a` n'est plus traité, même marqueur perdu (redémarrage). Une entrée peut donc exister SANS `etat` ni carte
 (trace seule) : elle signifie « aucun brouillon ». Repli pour une entrée sans `traite_jusqu_a` : `cree_le`/`decide_le`.
+Relecture finale (27/10) : un entrant CONSOMMÉ par le crochet de validation est noté traité (`noter_traite`) après le tour
+de l'agent ; un contact `pris` (« Prendre le fil ») est noté traité puis laissé à la personne (ni accusé ni rédaction) ;
+`agent.plafond_redactions_jour` borne les `rediger` du relevé par contact et par jour local (`redactions_jour`) ; en
+`auto`, tout nombre absent de la fiche et les mots de `MOTS_ARGENT_SORTANT` gardent le brouillon ; un brouillon
+`incertain` n'est jamais envoyé automatiquement (refus `incertain` de `envoyer_brouillon`).
 Compte supprimé (ou espace disparu) pendant ou entre deux tours : sauté sans rien écrire. Toute autre exception d'un compte
 est journalisée par `type(e).__name__` seulement, et le tour continue. Aucun texte de message, aucune clé au journal.
 """
@@ -87,10 +92,10 @@ def _jour_local(agent: dict, maintenant: datetime) -> str:
 
 def _montants(texte_plat: str) -> set:
     """Les montants d'un texte (minuscules, sans accents) : nombres accolés à une devise, et nombres à VOISINAGE mots au
-    plus d'un mot de `agent_whatsapp.MOTS_ARGENT` (« le prix est de 30 »). Virgule décimale ramenée au point."""
+    plus d'un mot de `agent_whatsapp.MOTS_ARGENT_SORTANT` (« le prix est de 30 »). Virgule décimale ramenée au point."""
     out = {(m.group(1) or m.group(2)).replace(",", ".") for m in _MONTANT.finditer(texte_plat)}
     mots = list(_MOT.finditer(texte_plat))
-    for m in AW.MOTS_ARGENT.finditer(texte_plat):
+    for m in AW.MOTS_ARGENT_SORTANT.finditer(texte_plat):
         i = next((k for k, w in enumerate(mots) if w.start() <= m.start() < w.end()), None)
         if i is None:
             continue
@@ -100,12 +105,16 @@ def _montants(texte_plat: str) -> set:
 
 
 def montant_hors_fiche(texte: str, eid: str) -> bool:
-    """Le texte cite-t-il un mot d'argent (`agent_whatsapp.MOTS_ARGENT`) absent de la fiche, ou un montant (`_montants` :
-    nombre + devise, ou nombre voisin d'un mot d'argent) que la fiche ne porte pas ? Fiche = persona brut de l'espace sérialisé ; comparaison en minuscules, sans accents."""
+    """Le texte cite-t-il un mot d'argent (`agent_whatsapp.MOTS_ARGENT_SORTANT` : devises, %, prix, tarif, coût, gratuit,
+    remise, devis…) absent de la fiche, un montant (`_montants` : nombre + devise, ou nombre voisin d'un mot d'argent)
+    que la fiche ne porte pas, ou N'IMPORTE QUEL nombre (entier, décimal, pourcentage) qui n'est pas tel quel dans la
+    fiche ? Fiche = persona brut de l'espace sérialisé ; comparaison en minuscules, sans accents."""
     fiche = AW._plat(json.dumps(espaces_brut.persona(eid), ensure_ascii=False))
     t = AW._plat(texte)
-    if any(m.group(0) not in fiche for m in AW.MOTS_ARGENT.finditer(t)):
+    if any(m.group(0) not in fiche for m in AW.MOTS_ARGENT_SORTANT.finditer(t)):
         return True
+    if set(_NOMBRE.findall(t)) - set(_NOMBRE.findall(fiche)):
+        return True                              # relecture finale : tout nombre absent de la fiche garde le brouillon
     return bool(_montants(t) - _montants(fiche))
 
 
@@ -219,13 +228,14 @@ async def _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, wv, seule
     `seulement_validation` (agent inactif, validation client en attente) : le crochet seul, rien d'autre."""
     neufs = await _lire_neufs(cid, marqueur, now)
     rapport["neufs"] += len(neufs)
-    restants = []
+    restants, consommes = [], []
     for m in neufs:                              # le crochet de validation passe AVANT tout le reste
         try:                                     # contrat asynchrone (un résultat attendable est attendu)
             res = wv.traiter_reponse(cid, eid, m) if wv is not None else False
             if inspect.isawaitable(res):
                 res = await res
             if res is True:
+                consommes.append(m)
                 continue
         except asyncio.CancelledError:
             raise
@@ -233,8 +243,26 @@ async def _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, wv, seule
             logger.warning(f"relevé WhatsApp : réponse de validation non traitée sur le compte {cid} "
                            f"({type(e).__name__})")
         restants.append(m)
-    if seulement_validation:
-        return
+    if not seulement_validation:
+        await _agent_compte(cid, eid, pid, agent, restants, now, rapport)
+    _noter_consommes(cid, eid, pid, consommes)   # pas après un KeyError (compte supprimé) : rien n'est écrit
+
+
+def _noter_consommes(cid, eid, pid, consommes) -> None:
+    """Relecture finale I1 : un message consommé par le crochet de validation est noté traité (`traite_jusqu_a`) pour
+    son contact, APRÈS le tour de l'agent (un texte du même contact, plus ancien que le bouton, reste traité ce tour) :
+    un redémarrage ne le rejoue pas. Une panne ici est journalisée par son type, sans faire sauter le compte."""
+    for m in consommes:
+        try:
+            cle, groupe = AW.canonique(cid, m["identite"])
+            AW.noter_traite(eid, pid, cle, m["quand"], groupe)
+        except KeyError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"relevé WhatsApp : réponse de validation non notée sur le compte {cid} ({type(e).__name__})")
+
+
+async def _agent_compte(cid, eid, pid, agent, restants, now, rapport) -> None:
     groupes: dict = {}
     for m in restants:
         cle, groupe = AW.canonique(cid, m["identite"])
@@ -264,6 +292,8 @@ async def _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now) -> bool:
     if _deja_traite(b, dernier.get("quand")):
         return False                             # marqueur perdu (redémarrage) ou relu : jamais deux réponses
     AW.noter_traite(eid, pid, cle, dernier["quand"], groupe)   # avant tout geste : une panne n'entraîne pas de redite
+    if (b or {}).get("pris") is True:
+        return False                             # « Prendre le fil » : une personne répond, l'agent se tait (I2)
     try:
         await WE.marquer_lu(cid, str(dernier["id"]), ecrit=True)
     except KeyError:
@@ -282,6 +312,8 @@ async def _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now) -> bool:
         if not auto or not _sous_plafond(b, agent, jour):
             return False
         return await _envoyer_auto(cid, eid, pid, identite, cle, groupe, jour, hors=True)
+    if not _compter_redaction(eid, pid, cle, groupe, agent, jour):
+        return False                             # borne de rédactions du contact atteinte : rien (déjà noté traité)
     r = await AW.rediger(cid, eid, identite)
     carte = r.get("carte") if isinstance(r.get("carte"), dict) else {}
     if not auto or r.get("etat") != "attente" or carte.get("genre") != "reponse_whatsapp":
@@ -290,6 +322,30 @@ async def _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now) -> bool:
     if not _sous_plafond(AW.brouillons(eid, pid).get(cle), agent, jour) or montant_hors_fiche(texte, eid):
         return False
     return await _envoyer_auto(cid, eid, pid, identite, cle, groupe, jour, hors=False)
+
+
+def _compter_redaction(eid, pid, cle, groupe, agent, jour) -> bool:
+    """Borne du coût du modèle par contact (`plafond_redactions_jour`) : sous le verrou du fichier, si
+    `redactions_jour[jour]` < la borne, l'incrémente (AVANT l'appel : un appel en panne a pu coûter) et rend True ;
+    sinon rend False sans rien écrire. Seuls les `rediger` du relevé comptent (pas les gestes de l'utilisateur)."""
+    p = (agent or {}).get("plafond_redactions_jour")
+    p = p if isinstance(p, int) and not isinstance(p, bool) else 0
+    pris = []
+
+    def geste(b):
+        b = b if b is not None else {"carte": None, "auto_jour": {}}
+        rj = {k: v for k, v in (b.get("redactions_jour") or {}).items()
+              if isinstance(k, str) and isinstance(v, int) and not isinstance(v, bool)} \
+            if isinstance(b.get("redactions_jour"), dict) else {}
+        n = rj.get(jour, 0) if rj.get(jour, 0) > 0 else 0
+        if n >= p:
+            return None
+        rj[jour] = n + 1
+        b["redactions_jour"] = dict(sorted(rj.items())[-JOURS_GARDES:])
+        pris.append(1)
+        return b
+    AW._modifier(eid, pid, cle, geste, groupe)
+    return bool(pris)
 
 
 async def _envoyer_auto(cid, eid, pid, identite, cle, groupe, jour, *, hors: bool) -> bool:

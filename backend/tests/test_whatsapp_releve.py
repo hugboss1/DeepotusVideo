@@ -252,6 +252,7 @@ A = espace("Salon Alpha", ACTIF)
 pa = E.persona(A)
 pa["display_name"] = "Salon Alpha"
 pa["tarifs"] = "Coupe femme : 25 € (prix public)"
+pa["horaires"] = "samedi de 9 h à 12 h"            # relecture finale : un nombre absent de la fiche garde le brouillon
 E.ecrire_persona(A, pa)
 cA = compte(A, "PN-A")
 B = espace("Salon Archivé", ACTIF, archive=True)
@@ -657,8 +658,11 @@ lus0 = len(FK.lus)
 tick(M, quand)
 check("R9.1 crochet appelé pour l'entrant neuf, avant tout accusé de lecture",
       [(c_, e_, i_) for c_, e_, i_, _l in VU] == [(cA, A, mv["id"])] and VU[0][3] == lus0, VU)
-check("R9.2 réponse consommée : aucun tour d'agent, aucun accusé, aucun brouillon", s.appels == [] and len(FK.lus) == lus0
-      and "tel:" + TEL_V not in AW.brouillons(A, "PN-A"))
+bV = AW.brouillons(A, "PN-A").get("tel:" + TEL_V) or {}
+check("R9.2 réponse consommée : aucun tour d'agent, aucun accusé, aucun brouillon (seule la trace traite_jusqu_a)",
+      s.appels == [] and len(FK.lus) == lus0 and "etat" not in bV and bV.get("carte") is None
+      and datetime.fromisoformat(bV.get("traite_jusqu_a") or "1970-01-01T00:00:00+00:00")
+      == datetime.fromtimestamp(int(mv["timestamp"]), timezone.utc), bV)
 VU.clear()
 mv2 = entrant("Merci, et vos horaires ?", TEL_V)
 ajouter("PN-A", mv2)
@@ -731,8 +735,11 @@ try:
     check("R12.2 validation en attente : messages lus, crochet appelé pour chaque entrant neuf",
           appels_pid("PN-I", n0) != [] and mI["id"] in [i_ for _c, _e, i_ in VU2] and all(c_ == cI and e_ == I for c_, e_, _i in VU2)
           and cI in M, (VU2, FK.appels[n0:]))
-    check("R12.3 agent inactif : rien d'autre (aucun appel du modèle, aucun accusé, aucun brouillon, rien envoyé)",
-          s.appels == [] and len(FK.lus) == lus0 and AW.brouillons(I, "PN-I") == {}
+    check("R12.3 agent inactif : rien d'autre (aucun appel du modèle, aucun accusé, aucun brouillon — la réponse "
+          "consommée est seulement notée traitée —, rien envoyé)",
+          s.appels == [] and len(FK.lus) == lus0
+          and all("etat" not in b_ and b_.get("carte") is None for b_ in AW.brouillons(I, "PN-I").values())
+          and (AW.brouillons(I, "PN-I").get("tel:" + TEL_I) or {}).get("traite_jusqu_a")
           and not [e for e in FK.envois if e[0] == "PN-I"], (s.appels, AW.brouillons(I, "PN-I")))
     AW.modifier_validations(I, lambda v: {k: {**x, "etat": "valide"} for k, x in v.items()})
     VU2.clear()
@@ -742,6 +749,118 @@ try:
           VU2 == [] and cI not in M, (VU2, M.get(cI)))
 finally:
     WV.traiter_reponse = _tr_vrai
+
+# ---------------------------------------------------------------------------------------------------------------------
+print("\n[R13] relecture finale : second toucher, « Prendre le fil », garde-fou argent, borne de rédactions, incertain")
+APPELS_R13 = []
+_rediger_r13 = AW.rediger
+
+
+async def rediger_espion(cid, eid, identite, langue="fr"):
+    APPELS_R13.append(identite)
+    return await _rediger_r13(cid, eid, identite, langue=langue)
+
+
+AW.rediger = rediger_espion
+try:
+    # (1) second toucher sur « Valider » d'un post déjà validé : consommé, jamais donné à l'agent, noté traité
+    TEL_2T = "33600000060"
+    AW.modifier_validations(A, lambda v: {**v, "p-deja": {"identite": "tel:" + TEL_2T, "cid": cA, "etat": "valide",
+                                                         "envoye_le": maintenant().isoformat(timespec="seconds")}})
+    N[0] += 1
+    q2t = BASE + timedelta(seconds=2 * N[0])
+    m2t = {"id": f"in{N[0]}", "type": "interactive", "from": TEL_2T, "timestamp": ts(q2t), "kapso": {"direction": "inbound"},
+           "interactive": {"type": "button_reply", "button_reply": {"id": "val:p-deja:ok", "title": "Valider"}}}
+    ajouter("PN-A", m2t)
+    WA.regler_espace(A, {"agent": {"mode": "auto"}})
+    s = poser(Script([outil("rediger_reponse", {"texte": "Merci !"})]))
+    e0 = len(FK.envois)
+    tick(M, quand)
+    b2t = AW.brouillons(A, "PN-A").get("tel:" + TEL_2T) or {}
+    check("R13.1 second toucher sur « Valider » (déjà validé) : aucun rediger, aucun appel du modèle, rien envoyé",
+          "tel:" + TEL_2T not in APPELS_R13 and s.appels == [] and FK.envois[e0:] == [], (APPELS_R13, FK.envois[e0:]))
+    check("R13.2 la réponse consommée est notée traitée (un redémarrage ne la rejoue pas) ; aucun brouillon",
+          "etat" not in b2t and datetime.fromisoformat(b2t.get("traite_jusqu_a") or "1970-01-01T00:00:00+00:00") == datetime.fromtimestamp(int(m2t["timestamp"]), timezone.utc), b2t)
+    M.clear()
+    tick(M, quand)
+    check("R13.3 marqueur vidé (redémarrage) puis tour : toujours aucun rediger ni envoi",
+          "tel:" + TEL_2T not in APPELS_R13 and FK.envois[e0:] == [], (APPELS_R13, FK.envois[e0:]))
+
+    # (2) « Prendre le fil » : le relevé ne fait rien pour ce contact ; rediger demandé par l'utilisateur marche
+    TEL_PF = "33600000061"
+    AW.poser_pris(cA, A, "tel:" + TEL_PF, True)
+    ajouter("PN-A", entrant("Vous êtes là ?", TEL_PF))
+    s = poser(Script([outil("rediger_reponse", {"texte": "Oui."})]))
+    lus0, e0 = len(FK.lus), len(FK.envois)
+    tick(M, quand)
+    bpf = AW.brouillons(A, "PN-A").get("tel:" + TEL_PF) or {}
+    check("R13.4 contact pris : aucun rediger, aucun accusé, rien envoyé ; pris gardé, entrant noté traité",
+          "tel:" + TEL_PF not in APPELS_R13 and s.appels == [] and len(FK.lus) == lus0 and FK.envois[e0:] == []
+          and bpf.get("pris") is True and bpf.get("traite_jusqu_a") and "etat" not in bpf, bpf)
+    r = run(AW.rediger(cA, A, "tel:" + TEL_PF))
+    bpf = AW.brouillons(A, "PN-A").get("tel:" + TEL_PF) or {}
+    check("R13.5 rediger demandé à la main sur un contact pris : brouillon attente, pris gardé",
+          r.get("etat") == "attente" and bpf.get("etat") == "attente" and bpf.get("pris") is True, (r, bpf))
+    AW.poser_pris(cA, A, "tel:" + TEL_PF, False)
+    ajouter("PN-A", entrant("Et maintenant ?", TEL_PF))
+    APPELS_R13.clear()
+    s = poser(Script([outil("rediger_reponse", {"texte": "Je vous écoute."})]))
+    tick(M, quand)
+    check("R13.6 fil rendu : le relevé reprend (rediger appelé)", APPELS_R13 == ["tel:" + TEL_PF], APPELS_R13)
+
+    # (3) garde-fou argent élargi en mode auto
+    for k_, (tel_, texte_) in enumerate((("33600000062", "Le tarif est de 80 la séance"), ("33600000063", "Comptez 50 USD"),
+                                         ("33600000064", "Profitez de −20 % ce mois-ci"), ("33600000065", "C'est gratuit !"))):
+        ajouter("PN-A", entrant("Une question", tel_))
+        s = poser(Script([outil("rediger_reponse", {"texte": texte_})]))
+        e0 = len(FK.envois)
+        tick(M, quand)
+        b_ = AW.brouillons(A, "PN-A").get("tel:" + tel_) or {}
+        check(f"R13.7.{k_ + 1} auto « {texte_} » : brouillon gardé, rien envoyé",
+              FK.envois[e0:] == [] and b_.get("etat") == "attente" and WR.montant_hors_fiche(texte_, A), b_)
+    check("R13.8 un nombre absent de la fiche, sans mot d'argent, garde aussi le brouillon ; un nombre de la fiche passe",
+          WR.montant_hors_fiche("Nous avons 3 places", A) and not WR.montant_hors_fiche("Ouvert samedi de 9 h à 12 h", A))
+
+    # (4) borne de rédactions par contact et par jour (le relevé seulement)
+    WA.regler_espace(A, {"agent": {"mode": "brouillon", "plafond_redactions_jour": 1}})
+    TEL_PL = "33600000066"
+    ajouter("PN-A", entrant("Première question", TEL_PL))
+    APPELS_R13.clear()
+    s = poser(Script([outil("rediger_reponse", {"texte": "Première réponse."})]))
+    tick(M, quand)
+    ajouter("PN-A", entrant("Deuxième question", TEL_PL))
+    s2 = poser(Script([]))
+    tick(M, quand)
+    bpl = AW.brouillons(A, "PN-A").get("tel:" + TEL_PL) or {}
+    check("R13.9 borne 1 : un seul rediger du relevé ce jour, le second entrant noté traité, brouillon d'avant intact",
+          APPELS_R13 == ["tel:" + TEL_PL] and s2.appels == [] and (bpl.get("redactions_jour") or {}).get(jour_local(quand)) == 1
+          and bpl.get("etat") == "attente" and bpl["carte"]["arguments"]["texte"] == "Première réponse."
+          and datetime.fromisoformat(bpl["traite_jusqu_a"]) == datetime.fromtimestamp(
+              int(FK.msgs["PN-A"][0]["timestamp"]), timezone.utc), (APPELS_R13, bpl))
+    s = poser(Script([outil("rediger_reponse", {"texte": "Réponse manuelle."})]))
+    r = run(AW.rediger(cA, A, "tel:" + TEL_PL))
+    check("R13.10 un rediger demandé par l'utilisateur ne compte pas et n'est pas borné",
+          r.get("etat") == "attente" and (AW.brouillons(A, "PN-A")["tel:" + TEL_PL].get("redactions_jour") or {}).get(
+              jour_local(quand)) == 1, r)
+    ajouter("PN-A", entrant("Troisième question", TEL_PL))
+    APPELS_R13.clear()
+    s = poser(Script([outil("rediger_reponse", {"texte": "Nouveau jour."})]))
+    tick(M, quand + timedelta(days=1))
+    check("R13.11 jour local suivant : de nouveau une rédaction", APPELS_R13 == ["tel:" + TEL_PL], APPELS_R13)
+    WA.regler_espace(A, {"agent": {"plafond_redactions_jour": 20}})
+
+    # (5) le relevé n'envoie jamais un brouillon `incertain`
+    TEL_IN = "33600000067"
+    cle_in, grp_in = AW.canonique(cA, "tel:" + TEL_IN)
+    AW.ranger(A, "PN-A", cle_in, "attente", WR._carte("Bonjour"), None, grp_in)
+    AW._modifier(A, "PN-A", cle_in, lambda b_: {**b_, "incertain": True}, grp_in)
+    e0 = len(FK.envois)
+    envoye = run(WR._envoyer_auto(cA, A, "PN-A", "tel:" + TEL_IN, cle_in, grp_in, jour_local(quand), hors=False))
+    bin_ = AW.brouillons(A, "PN-A")[cle_in]
+    check("R13.12 envoi automatique d'un brouillon incertain : refusé, rien envoyé, brouillon attente+incertain",
+          envoye is False and FK.envois[e0:] == [] and bin_["etat"] == "attente" and bin_.get("incertain") is True, bin_)
+finally:
+    AW.rediger = _rediger_r13
 
 # ---------------------------------------------------------------------------------------------------------------------
 print("\n[R10] releve_loop et lifespan")
