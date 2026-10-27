@@ -146,14 +146,15 @@ if DR:
     check("E2 octets seulement", "read_text(" not in src and "write_text(" not in src)
     check("E3 marqueur ×1", BUNDLE.count(DR.MARKER) == 1)
     try:
-        avant = DR.defaire(BUNDLE)
+        # t310 (27/10/2026) : le maillon dzwhatsapp, posé après, touche dzFuNeuves : le livré se lit vu d'avant dzwhatsapp
+        avant = DR.defaire(AIDE.avant_dzwhatsapp(BUNDLE))
     except AssertionError as e:
         avant = str(e)
     try:
         rejoue = DR.appliquer(avant)
     except SystemExit as e:
         rejoue = str(e)
-    check("E4 inverse exact : aller-retour à l'octet", DR.MARKER not in avant and rejoue == BUNDLE)
+    check("E4 inverse exact : aller-retour à l'octet", DR.MARKER not in avant and rejoue == AIDE.avant_dzwhatsapp(BUNDLE))
     check("E5 l'avant a le défaut d'origine", avant.count('onClick:()=>i&&i("settings")') == 2
           and 'dz-reglages-section' not in avant)
     try:

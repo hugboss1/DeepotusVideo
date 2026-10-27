@@ -230,11 +230,12 @@ print("[F] maillon dzreglages")
 import patch_bundle_dzreglages as DR                                  # noqa: E402
 import _i18n_l1_aide as AIDE                                          # noqa: E402
 try:
-    avant = DR.defaire(BUNDLE)
+    # t310 (27/10/2026) : le maillon dzwhatsapp, posé après, touche dzFuNeuves : le livré se lit vu d'avant dzwhatsapp
+    avant = DR.defaire(AIDE.avant_dzwhatsapp(BUNDLE))
     rejoue = DR.appliquer(avant)
 except (AssertionError, SystemExit) as e:
     avant = rejoue = str(e)
-check("F1 aller-retour à l'octet", rejoue == BUNDLE and DR.MARKER not in avant)
+check("F1 aller-retour à l'octet", rejoue == AIDE.avant_dzwhatsapp(BUNDLE) and DR.MARKER not in avant)
 check("F2 l'avant a le défaut d'origine (rôles locaux, « Enregistré localement »)",
       "...s.map((a,l)=>{const d=a.options" in avant and 'dzT("reglages.defauts.aide_2")' in avant
       and "DzFournDefauts" not in avant)

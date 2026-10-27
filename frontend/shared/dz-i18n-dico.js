@@ -5546,7 +5546,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "espaces.assistant.whatsapp_liaison_terminee": {"fr": "Numéro relié : {numero}", "en": "Number linked: {numero}"},
   "espaces.assistant.whatsapp_lien": {"fr": "Lien d'installation", "en": "Setup link"},
   "espaces.assistant.whatsapp_lien_aide": {"fr": "Copiez ce lien et envoyez-le au client par votre moyen habituel : l'application n'envoie rien elle-même.", "en": "Copy this link and send it to the client your usual way: the app sends nothing itself."},
-  "espaces.assistant.whatsapp_moyen": {"fr": "Moyen du consentement", "en": "How consent was given"},
+  "espaces.assistant.whatsapp_moyen": {"fr": "Moyen du consentement", "en": "Consent given by"},
   "espaces.assistant.whatsapp_moyen_choisir": {"fr": "— choisir —", "en": "— choose —"},
   "espaces.bib.cet_espace": {"fr": "Cet espace : {nom}", "en": "This space: {nom}"},
   "espaces.bib.titre": {"fr": "Espace dont la Bibliothèque montre les fichiers et les rendus", "en": "Space whose files and renders the Library shows"},
