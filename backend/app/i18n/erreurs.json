@@ -1436,6 +1436,7 @@
   "erreur.821773974e": {"fr": "Projet inconnu", "en": "Unknown project", "src": "fr"},
   "erreur.822018d6f0": {"fr": "état de brouillon inconnu : {v}", "en": "unknown draft state: {v}", "src": "fr"},
   "erreur.8223867d31": {"fr": "scène active {isc} hors du document ({scenes} scènes)", "en": "active scene {isc} outside the document ({scenes} scenes)", "src": "fr"},
+  "erreur.8225ae0f10": {"fr": "le modèle de validation doit avoir au plus un paramètre (le titre du post)", "en": "the validation template must have at most one parameter (the post title)", "src": "fr"},
   "erreur.82385e89e0": {"fr": "Corps JSON attendu : un objet", "en": "JSON body expected: an object", "src": "fr"},
   "erreur.824e81016c": {"fr": "menus.masques : liste de {MAX_MASQUES} commandes au plus", "en": "menus.masques: list of at most {MAX_MASQUES} commands", "src": "fr"},
   "erreur.8259e1d108": {"fr": "FAL_KEY non configurée (Réglages).", "en": "FAL_KEY not configured (Settings).", "src": "fr"},

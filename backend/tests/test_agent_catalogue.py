@@ -890,6 +890,39 @@ def test_fabrique_bouton_libelle_enfant():
     assert FB.fabriques(js) == [("whatsapp.prix.ajouter", "bouton", "libelle", "dz-action-ajouter")]
 
 
+def test_fabrique_appelee_par_espace_de_noms():
+    """t311 (restes) : la fabrique bouton() est définie dans whatsapp.js et appelée W.bouton(…) dans onglets-*.js —
+    les définitions d'un fichier du lab servent aux appels préfixés « X.nom( » des autres ; jamais aux appels nus."""
+    import catalogue_fabriques as FB
+    socle = "\n".join([
+        'function bouton(texte, p, cle) {',
+        '  var b = el("button", { cls: "wa-btn", type: "button" });',
+        '  if (texte) b.appendChild(el("span", { texte: texte }));',
+        '  return b;',
+        '}'])
+    onglet = "\n".join([
+        'C.ok = W.bouton(T("whatsapp.brouillon.envoyer"), { on: {} }, "dz-action-publier");',
+        'bouton(T("whatsapp.autre.nu"), {});'])
+    partagees = FB.definitions(socle)
+    assert FB.fabriques(onglet) == []
+    assert FB.fabriques(onglet, partagees) == [("whatsapp.brouillon.envoyer", "bouton", "libelle", "dz-action-publier")]
+
+
+def test_fabrique_onglets_a_cle_composee():
+    """t311 (restes) : les onglets d'une page bâtis par T("prefixe." + o[0]) sur un role "tab" — une clé par
+    identifiant littéral du fichier, avec l'icône posée à côté dans le tableau ; sans role "tab", rien."""
+    import catalogue_fabriques as FB
+    js = "\n".join([
+        'var ONGLETS = [["conversations", "dz-nav-boite-reception"], ["sante", "dz-etat-ok"]];',
+        'ONGLETS.forEach(function (o) {',
+        '  var b = el("button", { a: { role: "tab" } }, [icone(o[1]), el("span", { texte: T("whatsapp.onglet." + o[0]) })]);',
+        '});'])
+    out = FB.fabriques(js)
+    assert ("whatsapp.onglet.conversations", "onglet", "libelle", "dz-nav-boite-reception") in out
+    assert ("whatsapp.onglet.sante", "onglet", "libelle", "dz-etat-ok") in out
+    assert FB.fabriques(js.replace('role: "tab"', 'role: "group"')) == []
+
+
 def test_vrai_catalogue_whatsapp():
     """t311 tâche 8 : la page WhatsApp (écran « whatsapp », cadre /whatsapp/) et le panneau « Agent WhatsApp » de
     Réglages › Espaces (frontend/shared/dz-whatsapp-espace.js, rangé sur les Réglages, sans cadre) sont au catalogue."""

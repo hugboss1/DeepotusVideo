@@ -22,7 +22,7 @@ import unicodedata
 from catalogue_commun import (CADRE_DE_ZONE, CHAMPS, ECRAN_DE_PREFIXE, ECRAN_DE_ZONE, ROLES_MESSAGES,  # noqa: F401
                               VIDE, _base, _sha8, _texte, ecran, message, zone)
 from catalogue_bundle import _bundle, depuis_bundle                                                # noqa: F401
-from catalogue_fabriques import fabriques
+from catalogue_fabriques import definitions, fabriques
 from catalogue_partages import depuis_partages
 
 # labs servis en cadre intégré : dossier de frontend/ → (écran, cadre). Une seule table pour les deux lectures :
@@ -113,6 +113,11 @@ def depuis_labs(racine: pathlib.Path, dico: dict, inv: dict = None) -> dict:
         ec, cadre = LABS[dossier_lab]
         dossier = racine / "frontend" / dossier_lab
         fichiers = [dossier / "index.html", *sorted(dossier.glob("*.js")), *sorted((dossier / "js").glob("*.js"))]
+        partagees = {}                                    # t311 (restes) : fabriques du lab appelées « W.nom( » ailleurs
+        for f in fichiers:
+            if f.exists() and f.suffix == ".js":
+                for nom, sortes in definitions(f.read_text(encoding="utf-8")).items():
+                    partagees.setdefault(nom, sortes)
         for f in fichiers:
             if not f.exists():
                 continue
@@ -130,7 +135,7 @@ def depuis_labs(racine: pathlib.Path, dico: dict, inv: dict = None) -> dict:
                         e["libelle"] = {"fr": lib[1], "en": inv.get(lib[1], "")}
                 e["sources"] = sorted(set(e["sources"]) | {rel})
                 out[k] = e
-            for k, typ, champ, icone in fabriques(texte):   # éléments bâtis par une fabrique du lab (t261)
+            for k, typ, champ, icone in fabriques(texte, partagees):   # éléments bâtis par une fabrique du lab (t261)
                 if k not in dico or message(k) or k.startswith("commun."):
                     continue
                 e = out.get(k)

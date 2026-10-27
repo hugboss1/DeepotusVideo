@@ -8753,7 +8753,7 @@ async def whatsapp_brouillons(cid: str, request: Request, espace: str = ""):
     from app.services import agent_whatsapp as AW
     eid, pid = _wa_brouillon_compte(cid)
     try:
-        return AW.brouillons(eid, pid)
+        return AW.pour_affichage(AW.brouillons(eid, pid))
     except Exception as e:  # noqa: BLE001
         raise _wa_erreur(e)
 

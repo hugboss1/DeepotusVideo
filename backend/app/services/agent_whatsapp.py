@@ -186,6 +186,18 @@ def brouillons(eid: str, pid: str) -> dict:
     return json.loads(json.dumps(d)) if isinstance(d, dict) else {}
 
 
+def pour_affichage(bs: dict) -> dict:
+    """t311 (restes) : la vue de la page. Un `envoi_en_cours` coincé depuis plus de ENVOI_COINCE (processus mort pendant
+    l'envoi) se montre `attente` + `incertain` : l'avertissement s'affiche et « Envoyer » demande confirmation."""
+    maintenant = datetime.now(timezone.utc)
+    out = {}
+    for k, b in (bs or {}).items():
+        if isinstance(b, dict) and b.get("etat") == "envoi_en_cours" and _decidable(b, maintenant):
+            b = {**{x: v for x, v in b.items() if x != "envoi_depuis"}, "etat": "attente", "incertain": True}
+        out[k] = b
+    return out
+
+
 def _maintenant() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="microseconds")   # `cree_le` distingue deux brouillons
 
@@ -391,7 +403,9 @@ def _reserver(eid, pid, cle, groupe, texte, confirme_incertain=False) -> tuple[d
             raise WA.WhatsappRefus("ce brouillon est déjà en cours d'envoi", "occupee")
         if not _decidable(b, maintenant):
             raise BrouillonAbsent("aucun brouillon en attente pour ce contact")
-        if b.get("incertain") is True and confirme_incertain is not True:
+        # t311 (restes) : un `envoi_en_cours` coincé (processus mort pendant l'envoi) a pu partir : comme `incertain`
+        coince = b.get("etat") == "envoi_en_cours"
+        if (b.get("incertain") is True or coince) and confirme_incertain is not True:
             raise WA.WhatsappRefus("ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la "
                                    "conversation, puis confirmez pour le renvoyer", "incertain")
         pris["envoi"] = envoi_de(b, texte)

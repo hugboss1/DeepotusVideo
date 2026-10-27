@@ -559,6 +559,29 @@ poser_etat(TEL6, envoi_depuis=(maintenant() - timedelta(minutes=11)).isoformat()
 r = c.post(f"/api/whatsapp/{cid}/brouillons/decider", params={"espace": boite}, json={"identite": TEL6, "decision": "rejeter"})
 check("A5.5 envoi en cours coincé depuis plus de 10 min : redevient décidable", r.status_code == 200
       and AW.brouillons(boite, "PN-1")[TEL6]["etat"] == "rejete", r.text[:200])
+# t311 (restes) : le processus est mort pendant l'envoi — le message a pu partir. Le brouillon redevenu décidable se
+# montre `attente` + `incertain` et ne repart qu'avec `confirme_incertain` (jamais par le mode auto)
+AW.ranger(boite, "PN-1", TEL6, "attente", CARTE_TXT)
+poser_etat(TEL6, etat="envoi_en_cours", envoi_depuis=(maintenant() - timedelta(minutes=11)).isoformat())
+vu = c.get(f"/api/whatsapp/{cid}/brouillons", params={"espace": boite}).json().get(TEL6) or {}
+check("A5.5b envoi coincé : montré `attente` + `incertain` (avertissement et bouton Envoyer sur la page)",
+      vu.get("etat") == "attente" and vu.get("incertain") is True, vu)
+n_envois = len(FK.envois)
+r = c.post(f"/api/whatsapp/{cid}/brouillons/decider", params={"espace": boite}, json={"identite": TEL6, "decision": "envoyer"})
+d = r.json().get("detail") if r.status_code == 409 else None
+check("A5.5c envoi coincé renvoyé sans confirmation : 409 {code: incertain}, rien n'est envoyé",
+      isinstance(d, dict) and d.get("code") == "incertain" and len(FK.envois) == n_envois, r.text[:200])
+try:
+    run(AW.envoyer_brouillon(cid, boite, TEL6))
+    refus_auto = None
+except WA.WhatsappRefus as x:
+    refus_auto = x.code
+check("A5.5d le mode auto (sans confirmation) ne renvoie jamais un envoi coincé", refus_auto == "incertain"
+      and len(FK.envois) == n_envois, refus_auto)
+r = c.post(f"/api/whatsapp/{cid}/brouillons/decider", params={"espace": boite},
+           json={"identite": TEL6, "decision": "rejeter"})
+check("A5.5e un envoi coincé se rejette sans confirmation", r.status_code == 200
+      and AW.brouillons(boite, "PN-1")[TEL6]["etat"] == "rejete", r.text[:200])
 b2 = AW.brouillons(boite, "PN-1")[TEL2]
 check("A5.6 refus des règles (A4.11) : retour à `attente` sans marque d'envoi (puis rejeté en A4.13)",
       "envoi_depuis" not in b2 and b2["etat"] == "rejete")
