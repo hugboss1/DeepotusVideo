@@ -75,12 +75,60 @@ def _aujourdhui() -> date:          # couture de banc
     return date.today()
 
 
-def _sans_geste_demo(eid, fiche, statut):
-    """La couture `_DEMO(eid, fiche, statut) -> note | None` : rien avant la tâche 3."""
+def _nom_affiche(fiche: dict) -> str:
+    return (fiche.get("entreprise") or fiche.get("nom") or fiche["id"])[:50]
+
+
+def _contact(fiche: dict) -> dict:
+    email = next((c["valeur"] for c in fiche.get("canaux") or [] if c["type"] == "email"), "")
+    wa = next((c["valeur"] for c in fiche.get("canaux") or [] if c["type"] == "whatsapp"), "")
+    return {"nom": fiche.get("nom") or "", "email": email, "whatsapp": wa}
+
+
+def _geste_demo(eid, fiche, statut):
+    """t353 tâche 3 (spec §9.2) : l'espace DÉMONSTRATION suit le statut. `rdv` : créé (ou désarchivé s'il existe) ;
+    `perdu` / `oppose` : archivé s'il est encore une démonstration (jamais un espace client) — note `demo_active` s'il est
+    l'espace actif ; `client` : converti en espace client, ou un espace client neuf (note `demo_absente`). Le plafond
+    d'espaces rend la note `plafond_espaces`. Rend la note, ou None. Écrit `fiche["espace_demo"]`."""
+    doc = _es.lire()
+    demo = fiche.get("espace_demo")
+    e = doc["espaces"].get(demo) if demo else None
+    if statut == "rdv":
+        if isinstance(e, dict) and e.get("type") == "demonstration":
+            if e.get("archive"):
+                _es.archiver(demo, False)
+            return None
+        origine = doc["espaces"].get(eid) or {}
+        try:
+            v = _es.creer_demonstration("Démo · " + _nom_affiche(fiche), origine.get("couleur") or "#ef4444",
+                                        {"espace": eid, "prospect": fiche["id"]})
+        except _es.PlafondEspaces:
+            return "plafond_espaces"
+        fiche["espace_demo"] = v["id"]
+        return None
+    if statut in ("perdu", "oppose"):
+        if isinstance(e, dict) and e.get("type") == "demonstration" and not e.get("archive"):
+            return "demo_active" if _es.archiver(demo, True) == "actif" else None
+        return None
+    if statut == "client":
+        if isinstance(e, dict) and e.get("type") == "demonstration":
+            _es.convertir_demonstration(demo, _nom_affiche(fiche), fiche.get("entreprise") or "", _contact(fiche))
+            return None
+        if isinstance(e, dict) and e.get("type") == "client":
+            return None
+        try:
+            v = _es.creer({"nom": _nom_affiche(fiche), "type": "client",
+                           "couleur": (doc["espaces"].get(eid) or {}).get("couleur")})
+        except _es.PlafondEspaces:
+            return "plafond_espaces"
+        from app.services import fiche_client
+        fiche_client.ecrire(v["id"], {"societe": fiche.get("entreprise") or "", "contact": _contact(fiche)})
+        fiche["espace_demo"] = v["id"]
+        return "demo_absente"
     return None
 
 
-_DEMO = _sans_geste_demo
+_DEMO = _geste_demo
 
 
 # ---- normalisation pure ---------------------------------------------------------------------------------------------

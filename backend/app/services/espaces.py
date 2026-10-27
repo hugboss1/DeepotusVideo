@@ -39,11 +39,18 @@ _COULEUR = re.compile(r"^#[0-9a-fA-F]{6}$")
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 # t306 (25/10/2026) : le TYPE d'un espace. Absent du JSON = « marque » (jamais réécrit). Un produit peut avoir un parent
 # (une marque ou un client) ; `client_responsable` dit quel client gouverne un espace.
-TYPES = ("marque", "produit", "client")
+# t353 (27/10/2026) : `demonstration` = l'espace d'un prospect au rendez-vous (spec veille-prospection §9.2). Il naît
+# seulement par `creer_demonstration` (prospects, statut rdv), ne publie JAMAIS (comptes, regles_client, whatsapp) et ne
+# devient que `client`, par `convertir_demonstration` à la signature.
+TYPES = ("marque", "produit", "client", "demonstration")
 
 
 class ConflitClient(ValueError):
     """t306 : passer de « client » à un autre type est refusé tant que des consentements courent (la route dit 409)."""
+
+
+class PlafondEspaces(ValueError):
+    """t353 : le nombre maximal d'espaces est atteint (un espace démonstration n'a pas pu naître)."""
 
 
 def dossier() -> Path:
@@ -193,6 +200,8 @@ def _type_valide(v) -> str:
     """t306 : le type demandé, ou ValueError s'il n'est pas dans TYPES."""
     if v not in TYPES:
         raise ValueError(f"type d'espace inconnu : {v} (marque, produit ou client)")
+    if v == "demonstration":
+        raise ValueError("un espace démonstration naît seulement au rendez-vous d'un prospect")
     return v
 
 
@@ -227,7 +236,7 @@ def creer(champs: dict) -> dict:
     existant donne). ValueError = entree fautive, dite."""
     doc = lire()
     if len(doc["espaces"]) >= MAX_ESPACES:
-        raise ValueError(f"{MAX_ESPACES} espaces au plus : archivez-en ou supprimez-en un d'abord")
+        raise PlafondEspaces(f"{MAX_ESPACES} espaces au plus : archivez-en ou supprimez-en un d'abord")
     nom = _nom(champs.get("nom"))
     couleur = _couleur(champs.get("couleur"), "#ef4444")
     # Décision de l'utilisateur (13/10/2026, après t205) : un espace neuf SUIT le kit défini dans Réglages › Branding
@@ -265,7 +274,10 @@ def modifier(eid: str, champs: dict) -> dict:
         e["plafond_usd"] = plafond_valide(champs.get("plafond_usd"))
     if "type" in champs or "parent" in champs:  # t306 (25/10/2026) : type et parent, mêmes règles qu'à la création
         avant = _vue(eid, e, doc["actif"])
-        type_ = _type_valide(champs["type"]) if champs.get("type") is not None else avant["type"]
+        if avant["type"] == "demonstration" and champs.get("type") not in (None, "demonstration"):
+            raise ValueError("un espace démonstration devient client seulement à la signature du prospect")
+        type_ = (_type_valide(champs["type"]) if champs.get("type") not in (None, avant["type"])
+                 else avant["type"])
         if type_ != avant["type"]:
             if avant["type"] == "client" and _consentements_en_cours(eid):
                 raise ConflitClient("des consentements courent pour ce client : révoquez-les avant de changer son type")
@@ -294,6 +306,63 @@ def client_responsable(eid: str | None = None) -> str | None:
     if p is not None and _vue(v["parent"], p, doc["actif"])["type"] == "client":
         return v["parent"]
     return None
+
+
+def creer_demonstration(nom: str, couleur: str, origine: dict) -> dict:
+    """t353 : l'espace DÉMONSTRATION d'un prospect au rendez-vous (persona squelette, contenus vides, NON actif), avec
+    `origine` = {espace, prospect}. PlafondEspaces si le plafond est atteint ; ValueError sur un nom ou une couleur fautifs."""
+    doc = lire()
+    if len(doc["espaces"]) >= MAX_ESPACES:
+        raise PlafondEspaces(f"{MAX_ESPACES} espaces au plus : archivez-en ou supprimez-en un d'abord")
+    nom = _nom(nom)
+    couleur = _couleur(couleur, "#ef4444")
+    eid = "esp_" + uuid.uuid4().hex[:8]
+    _ecrire_json(dossier() / eid / "persona.json", {
+        "persona_id": eid, "display_name": nom, "version": 2, "vibe_keywords": [], "default_negative_prompt": "",
+        "default_hashtags_pool": [], "templates": []})
+    _ecrire_json(dossier() / eid / "contenus.json", CONTENUS_VIDES)
+    doc["espaces"][eid] = {"nom": nom, "couleur": couleur, "kit_id": None, "archive": False, "created_at": _maintenant(),
+                           "type": "demonstration", "parent": None,
+                           "origine": {"espace": str(origine.get("espace") or ""), "prospect": str(origine.get("prospect") or "")}}
+    _ecrire(doc)
+    return _vue(eid, doc["espaces"][eid], doc["actif"])
+
+
+def convertir_demonstration(eid: str, nom: str, societe: str, contact: dict) -> dict:
+    """t353 : à la SIGNATURE, l'espace démonstration devient un espace client (ses posts, la campagne témoin, restent).
+    Sa fiche client s'ouvre avec la société et le contact, en mode `valide_par_client`, SANS aucun consentement (ceux de
+    publication se datent ensuite dans la fiche). KeyError = inconnu ; ValueError = pas une démonstration."""
+    from app.services import fiche_client      # import local : fiche_client importe espaces
+    doc = lire()
+    if eid not in doc["espaces"]:
+        raise KeyError(eid)
+    e = doc["espaces"][eid]
+    if e.get("type") != "demonstration":
+        raise ValueError("cet espace n'est pas un espace démonstration")
+    e["type"] = "client"
+    e["parent"] = None
+    e["archive"] = False
+    e["nom"] = _nom(nom)
+    _ecrire(doc)
+    fiche_client.ecrire(eid, {"societe": societe or "", "contact": {k: v for k, v in (contact or {}).items()
+                                                                     if k in ("nom", "email", "whatsapp") and isinstance(v, str)}})
+    return _vue(eid, e, doc["actif"])
+
+
+def est_demonstration(eid, brut: bool = False) -> bool:
+    """t353 : l'espace est-il un espace démonstration ? `brut` : espaces.json lu tel quel (boucle de fond : aucune
+    écriture) ; absent ou illisible = False."""
+    if not id_valide(eid):
+        return False
+    if brut:
+        try:
+            d = json.loads((DATA_ROOT / "espaces" / "espaces.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        e = (d.get("espaces") or {}).get(eid) if isinstance(d, dict) and isinstance(d.get("espaces"), dict) else None
+    else:
+        e = lire()["espaces"].get(eid)
+    return isinstance(e, dict) and e.get("type") == "demonstration"
 
 
 def activer(eid: str) -> dict:
