@@ -356,7 +356,7 @@ r = envoyer(cid, MK, {"type": "modele", "nom": "promo_automne", "langue": "fr", 
 code_, det = code409(r)
 check("W5.1 409 marketing", code_ == "marketing", (r.status_code, det))
 check("W5.2 préférence lue AVANT l'envoi (Platform), puis un seul POST",
-      [a[1] for a in F.appels if "marketing_preferences" in a[1] or a[1].endswith("/messages")]
+      [a[1] for a in F.appels if "marketing_preferences" in a[1] or (a[0] == "POST" and a[1].endswith("/messages"))]
       == ["/whatsapp/contacts/33677777777/marketing_preferences", "/PN-1/messages"], F.appels)
 check("W5.3 désinscription notée", MK in WA.etat(cid)["desinscrits_marketing"], WA.etat(cid)["desinscrits_marketing"])
 nd = depenses()
@@ -560,8 +560,11 @@ check("W11.1 envoi : 502 {message, code}", r.status_code == 502 and isinstance(d
       and d.get("message"), r.text)
 check("W11.2 ni la clé ni le jeton dans la réponse ni dans le journal",
       CLE not in r.text and JETON not in r.text and not any(CLE in x or JETON in x for x in JOURNAL), r.text)
-check("W11.3 refus HTTP : réservation remise à 0, compteur intact",
-      depenses()[-1].reel_usd == 0.0 and len(depenses()) == n_dep + 1 and json.dumps(WA.etat(cid)["compteur"]) == cpt, "")
+check("W11.3 5xx (issue incertaine) : réservation GARDÉE (réel vide), compteur intact",
+      depenses()[-1].reel_usd is None and len(depenses()) == n_dep + 1 and json.dumps(WA.etat(cid)["compteur"]) == cpt,
+      depenses()[-1].reel_usd)
+check("W11.3b … et une ligne au journal : chemin et type seulement",
+      any("issue incertaine" in x and "/PN-1/messages" in x and "KapsoErreur" in x for x in JOURNAL), JOURNAL[-3:])
 F.media["MEDIA-X"] = (b"x", "image/png")
 F.refus_media = (404, {"error": {"message": f"introuvable {CLE} download_url=https://api.kapso.ai/dl/y?token={JETON}",
                                  "code": 100}})
@@ -641,6 +644,53 @@ check("W15.1 un envoi part, l'autre est refusé « plafond »", len(oks) == 1 an
       res)
 check("W15.2 un seul POST Kapso, compteur à 1", len([a for a in envois_kapso() if a[1] == "/PN-S/messages"]) == 1
       and WA.etat(cs)["compteur"][mois]["sortants"] == 1, F.appels)
+
+print("\n[W17] fix 1 : un STOP jamais lu dans l'écran bloque l'envoi")
+ex = E.creer({"nom": "Stop non lu"})["id"]
+cx = compte(ex, "PN-X")
+T_X = str(int((maintenant() - timedelta(minutes=5)).timestamp()))
+WA.noter_accord(cx, "tel:33600000071", "papier")
+conv("PN-X", tel="33600000071", il_y_a=timedelta(minutes=5))
+F.msgs["PN-X"] = [[{"id": "wamid.X1", "timestamp": T_X, "type": "text", "from": "33600000071", "text": {"body": "Stop !"},
+                    "kapso": {"direction": "inbound", "status": "received", "whatsapp_conversation_id": "x1"}}]]
+F.appels.clear()
+r = envoyer(cx, "tel:33600000071", {"type": "texte", "texte": "bonjour"})
+check("W17.1 STOP seulement chez Kapso : 409 stop, aucun POST", code409(r)[0] == "stop" and not envois_kapso(), r.text)
+check("W17.2 … et le STOP est rangé", "tel:33600000071" in WA.etat(cx)["stops"], WA.etat(cx)["stops"])
+r = envoyer(cx, "tel:33600000071", {"type": "modele", "nom": "rappel_rdv", "langue": "fr",
+                                     "parametres": {"prenom": "A", "date": "B"}})
+check("W17.3 un modèle aussi est refusé", code409(r)[0] == "stop" and not envois_kapso(), r.text)
+# STOP sous le BSUID, envoi vers le numéro lié (le message porte from et from_user_id)
+WA.noter_accord(cx, "tel:33600000072", "papier")
+conv("PN-X", tel="33600000072", il_y_a=timedelta(minutes=5))
+F.msgs["PN-X"] = [[{"id": "wamid.X2", "timestamp": T_X, "type": "text", "from": "33600000072", "from_user_id": "FR.X72",
+                    "text": {"body": "STOP"},
+                    "kapso": {"direction": "inbound", "status": "received", "whatsapp_conversation_id": "x2"}},
+                   {"id": "wamid.X1", "timestamp": T_X, "type": "text", "from": "33600000071", "text": {"body": "Stop !"},
+                    "kapso": {"direction": "inbound", "status": "received", "whatsapp_conversation_id": "x1"}}]]
+F.appels.clear()
+r = envoyer(cx, "tel:33600000072", {"type": "texte", "texte": "bonjour"})
+check("W17.4 STOP sous le BSUID lié : 409 stop pour le numéro, aucun POST", code409(r)[0] == "stop" and not envois_kapso(),
+      r.text)
+check("W17.5 X1 déjà journalisé n'est pas rejournalisé",
+      len([x for x in WA.etat(cx)["journal"] if x.get("id") == "wamid.X1"]) == 1, WA.etat(cx)["journal"])
+# entrant sans id : ignoré (jamais journalisé, jamais doublé) ; dates d'accord dans l'ordre chronologique
+cy = compte(E.creer({"nom": "Sans id"})["id"], "PN-Y")
+t1 = int((maintenant() - timedelta(hours=3)).timestamp())
+F.msgs["PN-Y"] = [[{"id": "wamid.Y2", "timestamp": str(t1 + 60), "type": "text", "from": "33600000081", "text": {"body": "re"},
+                    "kapso": {"direction": "inbound"}},
+                   {"timestamp": str(t1 + 30), "type": "text", "from": "33600000082", "text": {"body": "STOP"},
+                    "kapso": {"direction": "inbound"}},
+                   {"id": "wamid.Y1", "timestamp": str(t1), "type": "text", "from": "33600000081", "text": {"body": "salut"},
+                    "kapso": {"direction": "inbound"}}]]
+c.get(f"/api/whatsapp/{cy}/messages")
+c.get(f"/api/whatsapp/{cy}/messages")
+ey = WA.etat(cy)
+check("W17.6 entrant sans id ignoré ; les deux autres journalisés une fois, du plus ancien au plus récent",
+      [x["id"] for x in ey["journal"]] == ["wamid.Y1", "wamid.Y2"] and "tel:33600000082" not in ey["stops"], ey["journal"])
+check("W17.7 la date d'accord est celle du plus récent (jamais reculée)",
+      ey["accords"]["tel:33600000081"]["date"] == datetime.fromtimestamp(t1 + 60, timezone.utc).isoformat(timespec="seconds"),
+      ey["accords"])
 
 print("\n[W16] garde des plafonds : la route d'envoi est recensée et gardée")
 sys.path.insert(0, str(BACKEND / "tests"))

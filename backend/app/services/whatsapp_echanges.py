@@ -12,8 +12,11 @@ porte déjà la liaison et les règles (décision 13 du contrôleur).
     `controler` complet, préférence marketing de Kapso (avant un modèle MARKETING), devis (`pricing.estimate`, prix
     inconnu = refus `prix`), `plafonds.verifier` (402 inchangé), `kapso.envoyer`, puis journal et compteurs
     (`noter_envoi`) et `plafonds.rattacher` au wamid — seulement si Kapso a accepté le message.
-    Un refus HTTP de Kapso après le devis remet la réservation à 0 (`plafonds.noter_reel_lignes(lignes, 0.0)`, précédent
-    de l'agent Campagnes : un statut d'erreur n'est pas facturé) ; une panne réseau la laisse (le message a pu partir).
+    Un refus 4xx de Kapso après le devis remet la réservation à 0 (`plafonds.noter_reel_lignes(lignes, 0.0)`, précédent
+    de l'agent Campagnes : un refus du fournisseur n'est pas facturé) ; un 5xx, une panne réseau ou une réponse illisible
+    après un 2xx la laissent (le message a pu partir) et le journal le dit (chemin et type seulement).
+    Avant le contrôle complet, les entrants récents chez Kapso passent par `noter_entrant` (`_relire_entrants`, même
+    dédoublonnage que `lire`) : un STOP jamais lu dans l'écran bloque quand même l'envoi (fix 1, revue de e0ae86d6).
     `marketing_preference_stopped` et `131050` notent la désinscription (refus `marketing`) ; `131047` est rendu comme
     refus `fenetre`, jamais renvoyé en texte libre. Aucun autre réessai que celui de `kapso` (429).
   · `media` : les octets d'un média reçu et son type, jamais écrits sur disque.
@@ -22,6 +25,8 @@ espace inconnu), `kapso.KapsoErreur` (message déjà nettoyé), HTTPException 40
 """
 import re
 from datetime import datetime, timezone
+
+from loguru import logger
 
 from app.services import kapso, plafonds, pricing
 from app.services import whatsapp as WA
@@ -144,17 +149,42 @@ async def lire(cid: str, *, depuis: str | None = None, apres: str | None = None)
     _vue, _pub, pid = _compte_relie(cid)
     liste, suivant = await kapso.messages(pid, depuis=depuis or None, apres=apres or None)
     liste = [m for m in liste if isinstance(m, dict)]
-    deja = {x.get("id") for x in WA.etat(cid)["journal"] if x.get("sens") == "entrant" and x.get("id")}
-    for msg in reversed(liste):
-        if not _entrant(msg) or WA._c(msg.get("id")) in deja:
+    _noter_entrants(cid, liste, _deja_journalises(cid))
+    return {"messages": [_plat(m) for m in liste], "suivant": suivant}
+
+
+def _deja_journalises(cid: str) -> set:
+    """Les ids (bornés comme au journal) des entrants déjà journalisés."""
+    return {x.get("id") for x in WA.etat(cid)["journal"] if x.get("sens") == "entrant" and x.get("id")}
+
+
+def _noter_entrants(cid: str, msgs: list, deja: set) -> None:
+    """Passe par `noter_entrant`, du plus ancien au plus récent (une date d'accord ne recule jamais), chaque entrant
+    pas encore journalisé. Un entrant SANS id est ignoré (il ne pourrait pas être dédoublonné) ; sans identité aussi."""
+    for msg in sorted((m for m in msgs if isinstance(m, dict) and _entrant(m) and m.get("id")),
+                      key=lambda m: _date_ts(m.get("timestamp")) or datetime.min.replace(tzinfo=timezone.utc)):
+        i = WA._c(msg.get("id"))
+        if i in deja:
             continue
         try:
             WA.noter_entrant(cid, msg, maintenant=_date_ts(msg.get("timestamp")))
         except ValueError:
             continue                                     # entrant sans identité de contact : rien à ranger
-        if msg.get("id"):
-            deja.add(WA._c(msg.get("id")))
-    return {"messages": [_plat(m) for m in liste], "suivant": suivant}
+        deja.add(i)
+
+
+async def _relire_entrants(cid: str, pid: str) -> None:
+    """Range les entrants récents chez Kapso (plus récents d'abord, PAGES_MAX pages au plus) : on s'arrête à la première
+    page qui contient un entrant déjà journalisé. Le STOP, l'accord et l'heure du dernier entrant sont alors à jour."""
+    deja = _deja_journalises(cid)
+    lus, cur = [], None
+    for _ in range(PAGES_MAX):
+        liste, cur = await kapso.messages(pid, apres=cur)
+        page = [m for m in liste if isinstance(m, dict) and _entrant(m) and m.get("id")]
+        lus.extend(page)
+        if not cur or any(WA._c(m.get("id")) in deja for m in page):
+            break
+    _noter_entrants(cid, lus, deja)
 
 
 async def conversations(cid: str) -> list:
@@ -181,31 +211,25 @@ async def conversations(cid: str) -> list:
     return out
 
 
-async def _dernier_entrant(pid: str, identite: str, e: dict) -> datetime | None:
-    """L'heure du dernier message du contact : `kapso.last_inbound_at` de sa conversation, sinon l'entrant le plus récent
-    parmi les messages lus (PAGES_MAX pages au plus chacun). None = jamais (la fenêtre est fermée)."""
+async def _dernier_entrant(cid: str, pid: str, identite: str) -> datetime | None:
+    """L'heure du dernier message du contact : la plus récente entre `kapso.last_inbound_at` de sa conversation
+    (PAGES_MAX pages au plus) et les entrants journalisés (datés de leur horodatage Kapso, à jour après
+    `_relire_entrants`). None = jamais (la fenêtre est fermée)."""
+    e = WA.etat(cid)
     cible = _groupe(e, [identite])
+    dates = [_date_iso(x.get("quand")) for x in e["journal"] if x.get("sens") == "entrant" and x.get("identite") in cible]
     cur = None
     for _ in range(PAGES_MAX):
         liste, cur = await kapso.conversations(pid, apres=cur, champs="kapso()")
         cv = next((x for x in liste if isinstance(x, dict) and cible & set(_identites_conv(x))), None)
         if cv is not None:
             k = cv.get("kapso") if isinstance(cv.get("kapso"), dict) else {}
-            d = _date_iso(k.get("last_inbound_at"))
-            if d is not None:
-                return d
+            dates.append(_date_iso(k.get("last_inbound_at")))
             break
         if not cur:
             break
-    cur = None
-    for _ in range(PAGES_MAX):
-        liste, cur = await kapso.messages(pid, apres=cur)
-        for m in liste:                                  # plus récents d'abord
-            if isinstance(m, dict) and _entrant(m) and cible & set(_identites_message(m, True)):
-                return _date_ts(m.get("timestamp"))
-        if not cur:
-            break
-    return None
+    dates = [d for d in dates if d is not None]
+    return max(dates) if dates else None
 
 
 def _modele_plat(m: dict) -> dict:
@@ -315,6 +339,8 @@ async def envoyer(cid: str, identite: str, envoi: dict) -> dict:
     t0 = datetime.now(timezone.utc)
     # pré-contrôle SANS réseau : consentement, STOP, accord, plafond de messages (la fenêtre et la catégorie viennent après)
     WA.controler(cid, identite, type=e_["type"], categorie=None, dernier_entrant=t0, maintenant=t0)
+    await _relire_entrants(cid, pid)                     # un STOP non lu chez Kapso compte aussi
+    WA.controler(cid, identite, type=e_["type"], categorie=None, dernier_entrant=t0, maintenant=t0)
     categorie, dernier = None, None
     if e_["type"] == "modele":
         modele = next((_modele_plat(m) for m in await _modeles_bruts(pub)
@@ -324,7 +350,7 @@ async def envoyer(cid: str, identite: str, envoi: dict) -> dict:
         _verifier_parametres(e_, modele)
         categorie = modele["categorie"]
     else:
-        dernier = await _dernier_entrant(pid, identite, WA.etat(cid))
+        dernier = await _dernier_entrant(cid, pid, identite)
     async with WA._verrou_compte(cid):
         return await _envoyer_sous_verrou(cid, vue["espace_id"], pid, identite, dest, e_, categorie, dernier)
 
@@ -349,14 +375,22 @@ async def _envoyer_sous_verrou(cid, eid, pid, identite, dest, e_, categorie, der
     try:
         res = await kapso.envoyer(pid, {**dest, **_corps(e_)})
     except kapso.KapsoErreur as x:
-        if x.statut:                                     # refus HTTP de Kapso ou de Meta : le message n'est pas parti
+        if 400 <= x.statut < 500:                        # refus du fournisseur : le message n'est pas parti
             await plafonds.noter_reel_lignes(garde["lignes"], 0.0)
+        else:                                            # 5xx, réseau, réponse illisible : il a pu partir sans être compté
+            logger.warning(f"whatsapp envoi /{pid}/messages : issue incertaine ({type(x).__name__} {x.code}), "
+                           "réservation gardée")
         if x.code in CODES_DESINSCRIPTION:
             WA.noter_desinscription(cid, identite)
             raise WhatsappRefus("ce contact est désinscrit des messages marketing", "marketing") from None
         if x.code == CODE_FENETRE:
             raise WhatsappRefus("hors de la fenêtre de 24 h : seul un modèle peut partir", "fenetre") from None
         raise
-    WA.noter_envoi(cid, identite, type=e_["type"], categorie=cat, statut=res["statut"], id=res["id"], maintenant=maintenant)
+    try:
+        WA.noter_envoi(cid, identite, type=e_["type"], categorie=cat, statut=res["statut"], id=res["id"],
+                       maintenant=maintenant)
+    except Exception as x:
+        logger.warning(f"whatsapp envoi /{pid}/messages : parti mais non compté ({type(x).__name__})")
+        raise
     await plafonds.rattacher(garde["lignes"], str(res["id"]))
     return {"id": res["id"], "statut": res["statut"], "devis": garde["devis"]}
