@@ -9818,7 +9818,9 @@ async def post_scheduled_post_diffusion_confirmer(post_id: str, request: Request
         r = await WD.lancer(post_id, confirme_incertain=True)
     except Exception as e:  # noqa: BLE001 — 402 du plafond rendu tel quel par _wa_erreur
         raise _diffusion_erreur(e)
-    if not r.get("incertain"):
+    # revue t328 tâche 4 (re-revue N1) : fire_post seulement si la diffusion RELUE est prise par Kapso ; un `failed` (même
+    # prouvé sans envoi) ou une issue encore incertaine rend le résultat de lancer, sans second lancer implicite
+    if WD.deja_prise(WD.lire(post_id, p.espace_id or "deepotus")):
         await marketing.fire_post(post_id)
     async with async_session_factory() as session:
         p = await _post_ou_404(session, post_id)

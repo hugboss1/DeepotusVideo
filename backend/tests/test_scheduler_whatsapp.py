@@ -126,7 +126,7 @@ async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
     if len(parts) == 4 and parts[3] == "send":
         rep = F.send.pop(0) if F.send else (202, {"data": {"id": bid, "status": "sending"}})
         if rep[0] == 202:
-            b["status"] = "sending"
+            b["status"] = ((rep[1] or {}).get("data") or {}).get("status") or "sending"
         return rep[0], rep[1], {}
     if len(parts) == 3 and methode == "GET":
         r = b["recipients"]
@@ -381,6 +381,29 @@ async def main():
         check("F3.4 confirmer au-dessus du plafond : HTTP 402 dz_plafond, aucun send", r.status_code == 402
               and "dz_plafond" in r.json()["detail"] and len(sends()) == n_send, r.text[:300])
         PF.enregistrer({"global_usd": 0})
+
+        print("\n[N1] confirmer qui aboutit à failed (rien envoyé, prouvé) : aucun fire_post")
+        p15 = (await poster(boite, [wid])).json()["id"]
+        await c.put(f"/api/schedule/{p15}/diffusion", json=MOD)
+        F.send = [(500, {"error": "boom"})]
+        await c.post(f"/api/schedule/{p15}/fire")
+        FIRES = []
+        vrai_fire = marketing.fire_post
+
+        async def espion_fire(pid):
+            FIRES.append(pid)
+            return await vrai_fire(pid)
+        marketing.fire_post = espion_fire
+        F.send = [(202, {"data": {"status": "failed"}})]
+        n_send = len(sends())
+        r = await c.post(f"/api/schedule/{p15}/diffusion/confirmer", json={"confirme_incertain": True})
+        marketing.fire_post = vrai_fire
+        rec15 = WD.lire(p15, boite)
+        p = await lire_post(p15)
+        check("N1.1 confirmé -> failed prouvé sans envoi : 200, un seul send, aucun fire_post, post toujours ready",
+              r.status_code == 200 and r.json()["diffusion"]["statut"] == "failed" and len(sends()) == n_send + 1
+              and FIRES == [] and p.status == "ready" and rec15["rien_envoye"] is True,
+              (r.text[:300], len(sends()) - n_send, FIRES, p.status))
 
         print("\n[F4] PUT efface validated_at")
         p13 = (await poster(boite, [wid], status="scheduled", mode="auto")).json()["id"]
