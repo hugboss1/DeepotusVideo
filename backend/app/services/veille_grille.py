@@ -51,8 +51,9 @@ LEXIQUE: dict[str, re.Pattern] = {
     "flux_travail": _rx(r"workflow", r"flux de travail", r"export", r"import", r"integrat", r"intégrat", r"premiere",
                         r"davinci", r"after effects", r"blender", r"plugin", r"collaborat", r"pipeline", r"timeline",
                         r"editing", r"montage"),
-    "game_assets": _rx(r"sprite", r"tiles?\b", r"tileset", r"tuiles?", r"3d model", r"modèle 3d", r"\brig", r"unity",
-                       r"unreal", r"godot", r"game assets?", r"assets? de jeu", r"texture", r"pixel art", r"gamedev"),
+    # bornes de fin sur les mots courts : « rig » n'est pas « right », « unreal » n'est pas « unrealistic »
+    "game_assets": _rx(r"sprite", r"tiles?\b", r"tileset", r"tuiles?\b", r"3d model", r"modèle 3d",
+                       r"rig(?:s|ged|ging)?\b", r"unity\b", r"unreal(?: engine)?\b", r"godot\b", r"game assets?", r"assets? de jeu", r"texture", r"pixel art", r"gamedev"),
     "social_publication": _rx(r"tiktok", r"reels?\b", r"shorts\b", r"caption", r"sous-titre", r"subtitle",
                               r"schedul", r"planifi", r"post\b", r"publish", r"publier", r"clips?\b", r"viral"),
     "support_fiabilite": _rx(r"support", r"customer service", r"service client", r"crash", r"plant", r"bug",
