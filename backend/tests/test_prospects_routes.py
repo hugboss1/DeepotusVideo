@@ -133,7 +133,7 @@ import asyncio                                                       # noqa: E40
 P._aujourdhui = lambda: date(2026, 10, 27)
 compte = []
 _purger = P.purger
-P.purger = lambda j: compte.append(j) or {}
+P.purger = lambda j, *a: compte.append(j) or {}
 
 
 async def _une_boucle():

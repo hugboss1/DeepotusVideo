@@ -45,8 +45,9 @@ OFFRES = ("licence", "prestation", "a_definir")
 CANAUX = ("email", "whatsapp", "telephone", "x", "instagram", "linkedin", "site", "autre")
 MOYENS = ("ecrit", "formulaire", "inscription", "whatsapp", "oral")
 QUI = ("utilisateur", "agent", "systeme")
-CODES = ("source", "base_legale", "email_perso", "opposition", "doublon", "transition", "plafond", "inconnu", "champ")
-_HTTP = {"source": 422, "base_legale": 422, "champ": 422, "inconnu": 404}
+CODES = ("source", "base_legale", "email_perso", "opposition", "doublon", "transition", "plafond", "inconnu", "champ",
+         "indisponible")
+_HTTP = {"source": 422, "base_legale": 422, "champ": 422, "inconnu": 404, "indisponible": 503}
 WEBMAILS = re.compile(r"^(gmail\.com|googlemail\.com|hotmail\.[a-z.]+|outlook\.[a-z.]+|live\.[a-z.]+|yahoo\.[a-z.]+|"
                       r"icloud\.com|me\.com|aol\.[a-z.]+|gmx\.[a-z.]+|proton\.me|protonmail\.com|orange\.fr|wanadoo\.fr|"
                       r"free\.fr|sfr\.fr|laposte\.net|bbox\.fr)$")
@@ -79,6 +80,23 @@ def _nom_affiche(fiche: dict) -> str:
     return (fiche.get("entreprise") or fiche.get("nom") or fiche["id"])[:50]
 
 
+def _nom_demo(fiche: dict) -> str:
+    """t353 (relecture I1) : « Démo · <entreprise> », sinon « Démo · <id> » : jamais le nom d'une personne."""
+    return "Démo · " + ((fiche.get("entreprise") or "")[:50] or fiche["id"])
+
+
+def neutraliser_demo(fiche: dict) -> None:
+    """t353 (relecture I1) : opposition, effacement ou purge : l'espace démonstration de la fiche (s'il l'est encore)
+    perd le nom de l'entreprise et s'archive. Un échec est journalisé, jamais remonté (la fiche est déjà traitée)."""
+    demo = fiche.get("espace_demo")
+    if not demo:
+        return
+    try:
+        _es.neutraliser_demonstration(demo, "Démo · " + fiche["id"])
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"prospects : espace démonstration {demo} non neutralisé ({type(e).__name__})")
+
+
 def _contact(fiche: dict) -> dict:
     email = next((c["valeur"] for c in fiche.get("canaux") or [] if c["type"] == "email"), "")
     wa = next((c["valeur"] for c in fiche.get("canaux") or [] if c["type"] == "whatsapp"), "")
@@ -100,13 +118,17 @@ def _geste_demo(eid, fiche, statut):
             return None
         origine = doc["espaces"].get(eid) or {}
         try:
-            v = _es.creer_demonstration("Démo · " + _nom_affiche(fiche), origine.get("couleur") or "#ef4444",
+            v = _es.creer_demonstration(_nom_demo(fiche), origine.get("couleur") or "#ef4444",
                                         {"espace": eid, "prospect": fiche["id"]})
         except _es.PlafondEspaces:
             return "plafond_espaces"
         fiche["espace_demo"] = v["id"]
         return None
-    if statut in ("perdu", "oppose"):
+    if statut == "oppose":
+        if isinstance(e, dict) and e.get("type") == "demonstration":
+            return "demo_active" if _es.neutraliser_demonstration(demo, "Démo · " + fiche["id"]) == "actif" else None
+        return None
+    if statut == "perdu":
         if isinstance(e, dict) and e.get("type") == "demonstration" and not e.get("archive"):
             return "demo_active" if _es.archiver(demo, True) == "actif" else None
         return None
@@ -286,8 +308,10 @@ def _lire_fichier(f, mettre_de_cote: bool = True) -> list | None:
     """Les fiches du fichier ; [] s'il est absent ; None s'il est illisible (mis de côté si demandé)."""
     try:
         brut = f.read_bytes()
-    except OSError:
+    except FileNotFoundError:
         return []
+    except OSError:          # t353 (relecture I2) : verrouillé : refus, jamais une liste vide qu'on réécrirait
+        raise RefusProspect("fiche Prospects momentanément illisible : réessayez dans un instant", "indisponible") from None
     try:
         doc = json.loads(brut.decode("utf-8"))
         if not isinstance(doc, dict) or not isinstance(doc.get("prospects"), list):
@@ -299,17 +323,39 @@ def _lire_fichier(f, mettre_de_cote: bool = True) -> list | None:
     return [x for x in (valider(p) for p in doc["prospects"]) if x is not None]
 
 
-def _espace(eid) -> None:
-    """RefusProspect(inconnu) si l'espace n'existe pas, est archivé ou est un espace démonstration."""
+def _espace(eid, archive_ok: bool = False) -> None:
+    """RefusProspect(inconnu) si l'espace n'existe pas, est archivé ou est un espace démonstration. t353 (relecture M3) :
+    `archive_ok` pour les droits RGPD (lire, exporter, s'opposer, effacer) d'une fiche d'un espace archivé."""
     e = _es.lire()["espaces"].get(eid) if _es.id_valide(eid) else None
-    if not isinstance(e, dict) or e.get("archive"):
+    if not isinstance(e, dict) or (e.get("archive") and not archive_ok):
         raise RefusProspect("espace inconnu ou archivé", "inconnu")
     if e.get("type") == "demonstration":
         raise RefusProspect("un espace démonstration n'a pas de prospects", "inconnu")
 
 
+def _reg(fn, *a):
+    """Un appel au registre ; t353 (relecture I2) : registre verrouillé = refus 503, jamais « pas opposé »."""
+    try:
+        return fn(*a)
+    except _op.RegistreIndisponible as e:
+        raise RefusProspect(str(e), "indisponible") from None
+
+
 def _charger(eid) -> list:
-    return _lire_fichier(_es.chemin(eid, FICHIER)) or []
+    """Les fiches de l'espace. t353 (relecture I3) : une fiche dont un identifiant est entré au registre depuis (STOP,
+    opposition dans un autre espace, saisie) est anonymisée ICI, à la lecture, et le fichier réécrit."""
+    fiches = _lire_fichier(_es.chemin(eid, FICHIER)) or []
+    vivantes = [i for i, x in enumerate(fiches) if x["statut"] != "oppose" and identifiants(x)]
+    if not vivantes:
+        return fiches
+    marques = _reg(_op.opposes, [identifiants(fiches[i]) for i in vivantes])
+    touchees = [i for i, m in zip(vivantes, marques) if m]
+    for i in touchees:
+        neutraliser_demo(fiches[i])
+        fiches[i] = _anonymiser(fiches[i])
+    if touchees:
+        _poser(eid, fiches)
+    return fiches
 
 
 def _poser(eid, fiches: list) -> None:
@@ -347,7 +393,7 @@ def lister(eid, statut=None) -> list:
 
 
 def lire(eid, pid) -> dict:
-    _espace(eid)
+    _espace(eid, archive_ok=True)
     with _verrou:
         return _trouver(_charger(eid), pid)
 
@@ -372,7 +418,7 @@ def creer(eid, champs, qui: str = "utilisateur") -> dict:
                      "canaux": canaux, "base_legale": base, "statut": "propose",
                      "prochaine_action": champs.get("prochaine_action")})
     fiche["purge_le"] = purge_le(fiche)
-    if _op.oppose(identifiants(fiche)):
+    if _reg(_op.oppose, identifiants(fiche)):
         raise RefusProspect("cette personne s'est opposée à la prospection : elle ne peut pas être ajoutée", "opposition")
     with _verrou:
         fiches = _charger(eid)
@@ -418,7 +464,7 @@ def modifier(eid, pid, champs, qui: str = "utilisateur") -> dict:
         if not neuf["nom"] and not neuf["entreprise"]:
             raise RefusProspect("un nom ou une entreprise est exigé", "champ")
         _verifier_b2b(neuf["base_legale"], neuf["canaux"])
-        if _op.oppose(identifiants(neuf)):
+        if _reg(_op.oppose, identifiants(neuf)):
             raise RefusProspect("cette personne s'est opposée à la prospection : elle ne peut pas être ajoutée",
                                 "opposition")
         _doublon(fiches, neuf, sauf=pid)
@@ -444,7 +490,7 @@ def opposer(eid, pid, qui: str = "utilisateur") -> dict:
 
 def changer_statut(eid, pid, statut, detail: str = "", qui: str = "utilisateur") -> dict:
     """{prospect, note} ; note ∈ {None, demo_active, plafond_espaces, demo_absente, demo_erreur} (tâche 3)."""
-    _espace(eid)
+    _espace(eid, archive_ok=(statut == "oppose"))
     with _verrou:
         fiches = _charger(eid)
         f = _trouver(fiches, pid)
@@ -457,7 +503,7 @@ def changer_statut(eid, pid, statut, detail: str = "", qui: str = "utilisateur")
             logger.warning(f"prospects : geste sur l'espace démonstration en échec ({type(e).__name__}: {e})")
             note = "demo_erreur"
         if statut == "oppose":
-            _op.inscrire(identifiants(f), "prospect")
+            _reg(_op.inscrire, identifiants(f), "prospect")
             f = _anonymiser(f)
         else:
             f["statut"] = statut
@@ -530,20 +576,21 @@ def revoquer_consentement(eid, pid, canal) -> dict:
 def exporter(eid, pid) -> dict:
     """La fiche entière (droit d'accès), avec la date d'export, l'espace et l'état au registre."""
     f = lire(eid, pid)
-    return dict(f, exporte_le=_es._maintenant(), espace=eid, oppose=_op.oppose(identifiants(f)))
+    return dict(f, exporte_le=_es._maintenant(), espace=eid, oppose=_reg(_op.oppose, identifiants(f)))
 
 
 def effacer(eid, pid, inscrire_opposition: bool = True) -> None:
-    _espace(eid)
+    _espace(eid, archive_ok=True)
     with _verrou:
         fiches = _charger(eid)
         f = _trouver(fiches, pid)
         if inscrire_opposition:
-            _op.inscrire(identifiants(f), "effacement")
+            _reg(_op.inscrire, identifiants(f), "effacement")
         _poser(eid, [x for x in fiches if x["id"] != pid])
+    neutraliser_demo(f)
 
 
-def purger(maintenant: date) -> dict:
+def purger(maintenant: date, demos: list | None = None) -> dict:
     """Retire les fiches dont `purge_le` est atteinte, dans chaque espace. Lecture BRUTE : ni `espaces.lire()` ni mkdir ;
     un fichier illisible est sauté (il sera mis de côté à la prochaine lecture de l'écran). Rend {espace: nombre}."""
     racine = DATA_ROOT / "espaces"
@@ -558,10 +605,15 @@ def purger(maintenant: date) -> dict:
         if not f.is_file():
             continue
         with _verrou:
-            fiches = _lire_fichier(f, mettre_de_cote=False)
+            try:
+                fiches = _lire_fichier(f, mettre_de_cote=False)
+            except RefusProspect:         # verrouillé : la purge de demain le reprendra
+                continue
             if fiches is None:
                 continue
             gardees = [x for x in fiches if x["purge_le"] > jour]
+            if demos is not None:
+                demos.extend(x for x in fiches if x["purge_le"] <= jour and x.get("espace_demo"))
             if len(gardees) != len(fiches):
                 _es._ecrire_json(f, {"version": 1, "prospects": gardees})
                 out[d.name] = len(fiches) - len(gardees)
@@ -570,14 +622,24 @@ def purger(maintenant: date) -> dict:
     return out
 
 
+async def purger_tout(maintenant: date) -> dict:
+    """La purge, puis la neutralisation des espaces démonstration des fiches purgées (relecture I1). Sur la boucle :
+    t353 (relecture I4) : espaces.json n'a qu'un écrivain, la boucle (routes async comprises), jamais un thread."""
+    demos: list = []
+    out = purger(maintenant, demos)
+    for fiche in demos:
+        neutraliser_demo(fiche)
+    return out
+
+
 async def purge_loop(premier: float = 120, intervalle: float = 86400) -> None:
-    """t353 : la purge à 3 ans, `premier` secondes après le démarrage puis toutes les `intervalle` secondes, hors de la
-    boucle (asyncio.to_thread). Une erreur est journalisée, jamais remontée (la boucle continue)."""
+    """t353 : la purge à 3 ans, `premier` secondes après le démarrage puis toutes les `intervalle` secondes, SUR la
+    boucle (relecture I4 : quelques fichiers JSON, rien de long). Une erreur est journalisée, jamais remontée."""
     import asyncio
     await asyncio.sleep(premier)
     while True:
         try:
-            await asyncio.to_thread(purger, _aujourdhui())
+            await purger_tout(_aujourdhui())
         except Exception as e:  # noqa: BLE001
             logger.warning(f"prospects : purge en échec ({type(e).__name__}: {e})")
         await asyncio.sleep(intervalle)

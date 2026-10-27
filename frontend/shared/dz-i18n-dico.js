@@ -10827,6 +10827,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "prospects.opposition.identifiant": {"fr": "E-mail, numéro ou profil", "en": "Email, number or profile"},
   "prospects.opposition.inscrite": {"fr": "Opposition inscrite.", "en": "Objection recorded."},
   "prospects.registre.compte": {"fr": "Registre des oppositions (tous les espaces) : {n}", "en": "Objection register (all spaces): {n}"},
+  "prospects.registre.illisible": {"fr": "Attention : {n} registre(s) des oppositions illisible(s) mis de côté dans le dossier des espaces ; leurs oppositions ne sont plus appliquées. Restaurez le fichier ou ressaisissez-les.", "en": "Warning: {n} unreadable objection register(s) set aside in the spaces folder; their objections are no longer applied. Restore the file or enter them again."},
   "prospects.source.autre": {"fr": "Autre", "en": "Other"},
   "prospects.source.formulaire": {"fr": "Formulaire du site", "en": "Website form"},
   "prospects.source.liste_attente": {"fr": "Liste d'attente", "en": "Waiting list"},

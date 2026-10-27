@@ -231,11 +231,18 @@ def _consentements_en_cours(eid: str) -> list:
         return []
 
 
+def _au_plafond(doc: dict) -> bool:
+    """Le plafond d'espaces est-il atteint ? t353 (relecture I1) : un espace démonstration ARCHIVÉ ne compte plus (chaque
+    rendez-vous en crée un ; sans cela le plafond se remplirait de démos mortes)."""
+    vivants = [e for e in doc["espaces"].values() if not (e.get("archive") and e.get("type") == "demonstration")]
+    return len(vivants) >= MAX_ESPACES
+
+
 def creer(champs: dict) -> dict:
     """Un espace neuf, NON actif : persona squelette a son nom, contenus vides, et son propre kit (sauf kit_id
     existant donne). ValueError = entree fautive, dite."""
     doc = lire()
-    if len(doc["espaces"]) >= MAX_ESPACES:
+    if _au_plafond(doc):
         raise PlafondEspaces(f"{MAX_ESPACES} espaces au plus : archivez-en ou supprimez-en un d'abord")
     nom = _nom(champs.get("nom"))
     couleur = _couleur(champs.get("couleur"), "#ef4444")
@@ -312,7 +319,7 @@ def creer_demonstration(nom: str, couleur: str, origine: dict) -> dict:
     """t353 : l'espace DÉMONSTRATION d'un prospect au rendez-vous (persona squelette, contenus vides, NON actif), avec
     `origine` = {espace, prospect}. PlafondEspaces si le plafond est atteint ; ValueError sur un nom ou une couleur fautifs."""
     doc = lire()
-    if len(doc["espaces"]) >= MAX_ESPACES:
+    if _au_plafond(doc):
         raise PlafondEspaces(f"{MAX_ESPACES} espaces au plus : archivez-en ou supprimez-en un d'abord")
     nom = _nom(nom)
     couleur = _couleur(couleur, "#ef4444")
@@ -347,6 +354,30 @@ def convertir_demonstration(eid: str, nom: str, societe: str, contact: dict) -> 
     fiche_client.ecrire(eid, {"societe": societe or "", "contact": {k: v for k, v in (contact or {}).items()
                                                                      if k in ("nom", "email", "whatsapp") and isinstance(v, str)}})
     return _vue(eid, e, doc["actif"])
+
+
+def neutraliser_demonstration(eid: str, nom: str) -> str:
+    """t353 (relecture I1) : un prospect qui s'oppose, est effacé ou purgé ne laisse pas son nom dans son espace
+    démonstration : l'espace est renommé `nom` (espaces.json ET persona.json) et archivé, sauf s'il est l'espace actif.
+    Rend "ok", "actif" (renommé, pas archivé) ou "absent" (inconnu, ou plus une démonstration : rien n'est touché)."""
+    doc = lire()
+    e = doc["espaces"].get(eid) if id_valide(eid) else None
+    if not isinstance(e, dict) or e.get("type") != "demonstration":
+        return "absent"
+    e["nom"] = _nom(nom)
+    actif_ = doc["actif"] == eid
+    if not actif_:
+        e["archive"] = True
+    _ecrire(doc)
+    f = chemin(eid, "persona.json")
+    try:
+        p = json.loads(f.read_text(encoding="utf-8"))
+        if isinstance(p, dict):
+            p["display_name"] = e["nom"]
+            _ecrire_json(f, p)
+    except (OSError, ValueError):
+        pass
+    return "actif" if actif_ else "ok"
 
 
 def est_demonstration(eid, brut: bool = False) -> bool:

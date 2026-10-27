@@ -24,6 +24,7 @@
   "prospects.bouton.confirmer": {"fr": "Confirmer", "en": "Confirm"},
   "prospects.bouton.inscrire": {"fr": "Inscrire", "en": "Record"},
   "prospects.registre.compte": {"fr": "Registre des oppositions (tous les espaces) : {n}", "en": "Objection register (all spaces): {n}"},
+  "prospects.registre.illisible": {"fr": "Attention : {n} registre(s) des oppositions illisible(s) mis de côté dans le dossier des espaces ; leurs oppositions ne sont plus appliquées. Restaurez le fichier ou ressaisissez-les.", "en": "Warning: {n} unreadable objection register(s) set aside in the spaces folder; their objections are no longer applied. Restore the file or enter them again."},
   "prospects.vide.sans_espace": {"fr": "Choisissez un espace de marque : les prospects sont rangés par espace.", "en": "Choose a brand space: prospects are stored per space."},
   "prospects.vide.aucun": {"fr": "Aucun prospect ici. Ajoutez-en un : sa source et sa base légale sont exigées.", "en": "No prospect here. Add one: its source and legal basis are required."},
   "prospects.vide.consentements": {"fr": "Aucun consentement noté.", "en": "No consent recorded."},

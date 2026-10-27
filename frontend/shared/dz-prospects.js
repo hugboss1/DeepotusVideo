@@ -137,6 +137,7 @@
       etat.prospects = Array.isArray(r.j.prospects) ? r.j.prospects : [];
       etat.compte = r.j.compte_par_statut || {};
       etat.oppositions = r.j.oppositions || 0;
+      etat.misDeCote = r.j.registre_mis_de_cote || 0;     // relecture I2 : un registre illisible mis de côté
       if (etat.fiche) etat.fiche = etat.prospects.filter(function (p) { return p.id === etat.fiche.id; })[0] || null;
       dessiner();
     }
@@ -164,6 +165,8 @@
       vider(corps);
       vider(pied);
       pied.appendChild(el("span", { texte: T("prospects.registre.compte", { n: etat.oppositions }) }));
+      if (etat.misDeCote) pied.appendChild(el("p", { class: "dzProspectsErreur", "data-dz-prospects": "registre-illisible",
+        texte: T("prospects.registre.illisible", { n: etat.misDeCote }) }));
       if (etat.fiche) { corps.appendChild(fiche(etat.fiche)); return; }
       var liste = etat.prospects.filter(function (p) { return !etat.filtre || p.statut === etat.filtre; });
       if (!liste.length) {

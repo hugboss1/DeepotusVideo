@@ -103,6 +103,14 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
   ok("2.7 retour à tous", marques(m.hote, "ligne").length === 2);
 }
 
+// ---- registre_illisible (relecture I2) ------------------------------------------------------------------------------
+{
+  const m = monde({ routes: { "GET /api/prospects/e1": () => reponse(200, { ...LISTE, registre_mis_de_cote: 1 }) } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  ok("2.8 registre mis de côté : averti", marque(m.hote, "registre-illisible")?.textContent === FR("prospects.registre.illisible", { n: 1 }));
+}
+
 // ---- vide -----------------------------------------------------------------------------------------------------------
 {
   const m = monde({ routes: { "GET /api/prospects/e1": () => reponse(200, { prospects: [], compte_par_statut: {}, oppositions: 0 }) } });

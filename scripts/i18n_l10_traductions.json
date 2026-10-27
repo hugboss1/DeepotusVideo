@@ -11370,5 +11370,13 @@
  "identifiant illisible : une adresse e-mail, un numéro ou un profil est attendu": {
   "fr": "identifiant illisible : une adresse e-mail, un numéro ou un profil est attendu",
   "en": "unreadable identifier: an email address, a number or a profile is expected"
+ },
+ "registre des oppositions momentanément illisible : réessayez dans un instant": {
+  "fr": "registre des oppositions momentanément illisible : réessayez dans un instant",
+  "en": "objection register temporarily unreadable: try again in a moment"
+ },
+ "fiche Prospects momentanément illisible : réessayez dans un instant": {
+  "fr": "fiche Prospects momentanément illisible : réessayez dans un instant",
+  "en": "Prospects record temporarily unreadable: try again in a moment"
  }
 }

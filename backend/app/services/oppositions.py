@@ -69,12 +69,27 @@ def _mettre_de_cote(f) -> None:
         logger.warning(f"registre des oppositions illisible et impossible à mettre de côté ({e})")
 
 
+class RegistreIndisponible(RuntimeError):
+    """t353 (relecture I2) : le registre existe mais ne se lit pas maintenant (verrou d'un antivirus, d'une synchro…).
+    Refus par défaut : on ne crée rien, on n'écrase rien, on ne dit jamais « pas opposé » sans l'avoir lu."""
+
+
+def mis_de_cote() -> int:
+    """Le nombre de registres illisibles mis de côté (l'écran le signale : leurs oppositions ne sont plus appliquées)."""
+    try:
+        return sum(1 for _ in _es.dossier().glob(FICHIER + ".illisible-*"))
+    except OSError:
+        return 0
+
+
 def _charger() -> dict:
     f = _fichier()
     try:
         brut = f.read_bytes()
-    except OSError:
+    except FileNotFoundError:
         return {"version": 1, "sel": secrets.token_hex(16), "empreintes": {}}
+    except OSError:
+        raise RegistreIndisponible("registre des oppositions momentanément illisible : réessayez dans un instant") from None
     try:
         doc = json.loads(brut.decode("utf-8"))
         if (not isinstance(doc, dict) or not isinstance(doc.get("sel"), str) or len(doc["sel"]) < 16
@@ -129,6 +144,16 @@ def oppose(identifiants) -> bool:
     with _verrou:
         doc = _charger()
     return any(_empreinte(doc["sel"], f) in doc["empreintes"] for f in formes)
+
+
+def opposes(groupes) -> list:
+    """t353 (relecture I3) : pour chaque groupe d'identifiants, est-il au registre ? Une seule lecture du registre."""
+    formes = [_formes(g) for g in groupes]
+    if not any(formes):
+        return [False] * len(formes)
+    with _verrou:
+        doc = _charger()
+    return [any(_empreinte(doc["sel"], f) in doc["empreintes"] for f in fs) for fs in formes]
 
 
 def compte() -> int:
