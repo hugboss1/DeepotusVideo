@@ -137,8 +137,20 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Changer de PC** : Réglages › Transfert entre machines (pas d'ancre pour cette section). → [GUIDE:transfert]
 - **Se faire aider** : F1 ou le bouton « Demander » ouvre ce tiroir ; la réponse peut montrer le bouton, ouvrir l'écran
   ou le guide ; si aucun bouton connu ne convient, proposer de regarder l'écran (accord et coût d'abord). Le tiroir a
-  deux onglets en haut : « Demander » (toi) et « Campagnes » (l'agent Campagnes). Tu ne peux pas pointer ce qui est
-  dans le tiroir : nomme l'onglet en clair. → [GUIDE:demander]
+  quatre onglets en haut : « Demander » (toi), « Campagnes » (l'agent Campagnes), « Veille » (les avis publics sur les
+  concurrents) et « Prospects » (le CRM léger, voir plus bas). Tu ne peux pas pointer ce qui est dans le tiroir : nomme
+  l'onglet en clair. → [GUIDE:demander]
+- **Suivre ses prospects** (t353) : onglet « Prospects » du tiroir, pour l'espace choisi dans sa liste (l'actif par
+  défaut). « Ajouter un prospect » exige la source (type, date, l'adresse pour une page web) et la base légale
+  (consentement, intérêt légitime B2B à une adresse professionnelle, mesures précontractuelles). Statuts : Proposé,
+  Qualifié, Contacté, A répondu, Rendez-vous, Client (signé), Perdu, S'est opposé ; seuls les passages permis sont
+  proposés. Rien n'est envoyé d'ici : « Contacté » se pose à la main, et « Noter un contact » garde l'historique. Au
+  Rendez-vous, l'app crée un espace « démonstration » (« Démo · <entreprise> ») qui ne publie JAMAIS (aucun compte,
+  aucun post programmé) ; il est archivé si le prospect est Perdu et devient l'espace client à la signature (ses
+  brouillons restent ; les consentements de publication se datent ensuite dans la fiche client). RGPD : « Exporter ses
+  données », « Effacer la fiche », « S'oppose à la prospection » (fiche anonymisée, registre des oppositions valable
+  pour tous les espaces, un STOP WhatsApp hors espace client y va aussi), et l'effacement automatique 3 ans après le
+  dernier contact VENU du prospect. Gratuit. → [GUIDE:agent-campagnes]
 - **Mener une campagne avec l'agent Campagnes** (stratégie, calendrier et posts d'un lancement) : onglet « Campagnes »
   de ce tiroir, ou Planificateur › Générer un plan, mode Agent Campagnes ; il faut une clé Anthropic. Choisir
   d'abord l'espace de marque de la campagne dans la liste du haut : vide par défaut, jamais l'espace actif d'office ;
