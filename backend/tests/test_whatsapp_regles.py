@@ -379,7 +379,8 @@ for c_ in (n1, n2):
 WA.regler(n1, plafond_mois=3)
 doc2 = json.loads((_tmp / "espaces" / ep2 / "whatsapp.json").read_text(encoding="utf-8"))
 check("R16.1 le réglage est celui de l'espace (whatsapp.json `reglages`), lu par les deux numéros",
-      WA.reglages(ep2) == {"plafond_mois": 3, "marche_defaut": "33"} and WA.etat(n2)["plafond_mois"] == 3
+      {k: WA.reglages(ep2)[k] for k in ("plafond_mois", "marche_defaut")} == {"plafond_mois": 3, "marche_defaut": "33"}  # t311 : reglages porte aussi `agent`
+      and WA.etat(n2)["plafond_mois"] == 3
       and doc2["reglages"]["plafond_mois"] == 3 and "plafond_mois" not in doc2["etat"]["PN-P1"], doc2)
 WA.noter_envoi(n1, TEL, type="modele", categorie="UTILITY", statut="envoye", id="p1", maintenant=T0)
 WA.noter_envoi(n2, TEL, type="texte", categorie="service", statut="envoye", id="p2", maintenant=T0)

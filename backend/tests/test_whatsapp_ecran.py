@@ -50,6 +50,8 @@ ASSETS = REPO / "frontend" / "dist" / "assets"
 BUNDLE = ASSETS / "index-BEOJX8L5.js"
 RAW = BUNDLE.read_bytes()
 B = RAW.decode("utf-8")
+# t311 tâche 8 : le maillon whatsapppage est posé APRÈS dzwhatsapp ; ce banc juge dzwhatsapp sur la vue d'avant lui
+B = AIDE.avant_whatsapppage(B) if hasattr(AIDE, "avant_whatsapppage") else B
 SH = REPO / "frontend" / "shared"
 DI = REPO / "frontend" / "dist" / "shared"
 ASSISTANT = SH / "dz-espace-assistant.js"

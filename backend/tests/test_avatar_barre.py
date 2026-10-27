@@ -5,7 +5,7 @@ Glyph, description traduite), la vue iframe /avatar/ qui reçoit caméra et micr
 webcam dans l'application), la navigation ?view=avatarlive ; l'inverse `avant_avatar` défait le maillon à l'octet ; une
 double application est refusée ; le serveur sert la page /avatar/.
 Run (depuis backend/) : & $PY tests/test_avatar_barre.py"""
-import os, pathlib, subprocess, sys, tempfile
+import os, pathlib, re, subprocess, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzavbarre_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
@@ -34,7 +34,8 @@ check("B2 l'entrée de rail : après le Photolab, icône Glyph dz-media-avatar, 
 check("B3 la vue : une iframe /avatar/ qui reçoit caméra ET micro (allow), clé pavlive",
       's==="avatarlive"&&r.jsx("iframe",{src:"/avatar/",title:"Avatar live",allow:"camera; microphone; autoplay",' in B
       and '"pavlive"' in B)
-check("B4 ?view=avatarlive ouvre l'écran (liste blanche des vues navigables)", '"photolab","avatarlive"],sg=Yu.includes(' in B)
+check("B4 ?view=avatarlive ouvre l'écran (liste blanche des vues navigables ; t311 : whatsapp posé après)",
+      re.search(r'"photolab","avatarlive"(?:,"[a-z]+")*\],sg=Yu\.includes\(', B) is not None)
 check("B5 aucun .bak_avatar laissé (il deviendrait un faux maillon de la chaîne)",
       not (RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js.bak_avatar").exists())
 r = subprocess.run(["node", "--check", str(RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js")], capture_output=True)

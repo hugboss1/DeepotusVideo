@@ -15,7 +15,8 @@ from datetime import datetime, timezone
 VERSION = 1
 ROLES_MESSAGE = ("utilisateur", "agent", "outil", "fait")
 TYPES_BLOC = ("texte", "carte", "resultat_outil", "porte")
-GENRES_CARTE = ("porte", "devis", "continuer", "espace", "brouillons", "ouvrir")
+GENRES_CARTE = ("porte", "devis", "continuer", "espace", "brouillons", "ouvrir",
+                "reponse_whatsapp", "modele_whatsapp", "humain")
 ETATS_CARTE = ("proposee", "acceptee", "refusee", "terminee")
 ORIGINES = ("pc", "telephone")
 ETATS_PORTE = ("proposee", "validee", "refusee")

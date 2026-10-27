@@ -38,6 +38,9 @@ PAYANTES = {
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
     ("photolab", "POST", "/calque/detourer"),    # t191 : « Retirer le fond du calque » (détourage, non destructif)
     ("routes", "POST", "/whatsapp/{cid}/envoyer"),   # t310 : un message WhatsApp (Meta, par Kapso ; garde « whatsapp »)
+    ("routes", "POST", "/whatsapp/{cid}/brouillons/rediger"),   # t311 : l'agent WhatsApp (garde « whatsapp_agent » à chaque appel)
+    ("routes", "POST", "/whatsapp/{cid}/brouillons/decider"),   # t311 : l'envoi d'un brouillon (AW.envoyer_brouillon -> WE.envoyer, garde « whatsapp »)
+    ("routes", "POST", "/schedule/{post_id}/validation-whatsapp"),   # t311 : la demande de validation au client (WV.envoyer_validation -> WE.envoyer, garde « whatsapp »)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer
     ("routes", "POST", "/chapters/{chapter_id}/reecrire"),     # tâche #66 : la réécriture dans le ton de la bible (LLM)
     ("routes", "POST", "/chapters/{chapter_id}/animatique"),   # tâche #63 : la voix témoin de l'animatique (sur demande)
@@ -133,6 +136,22 @@ _we = (RP.RACINE / "services" / "whatsapp_echanges.py").read_text(encoding="utf-
 _ws = _we[_we.find("async def _envoyer_sous_verrou("):]
 check("A2e l'envoi WhatsApp appelle plafonds.verifier AVANT kapso.envoyer",
       0 < _ws.find("plafonds.verifier(") < _ws.find("kapso.envoyer("), "")
+# t311 : la route rediger délègue sa garde à agent_whatsapp.rediger — elle doit y précéder chaque appel du modèle
+_aw = (RP.RACINE / "services" / "agent_whatsapp.py").read_text(encoding="utf-8")
+_bw = _aw[_aw.find("async def _boucle("):]
+check("A2f la boucle de l'agent WhatsApp appelle plafonds.verifier AVANT MT.converser (dans la même itération)",
+      0 < _bw.find("for _n in range(MAX_TOURS)") < _bw.find("plafonds.verifier(") < _bw.find("MT.converser"), "")
+# t311 : la route decider délègue l'envoi à agent_whatsapp.envoyer_brouillon, qui passe par WE.envoyer (garde A2e)
+_eb = _aw[_aw.find("async def envoyer_brouillon("):]
+_eb = _eb[:_eb.find("def rejeter_brouillon(")]
+check("A2g l'envoi d'un brouillon passe par WE.envoyer (gardé), après la réservation, et par aucun autre envoi",
+      0 < _eb.find("_reserver(") < _eb.find("WE.envoyer(") and "kapso." not in _eb, "")
+# t311 tâche 6 : la route validation-whatsapp délègue l'envoi à whatsapp_validation.envoyer_validation -> WE.envoyer
+_wv = (RP.RACINE / "services" / "whatsapp_validation.py").read_text(encoding="utf-8")
+_ev = _wv[_wv.find("async def envoyer_validation("):]
+_ev = _ev[:_ev.find("# ---- les réponses")]
+check("A2h la demande de validation au client passe par WE.envoyer (gardé), et par aucun autre envoi",
+      0 < _ev.find("WE.envoyer(") and "kapso.envoyer(" not in _ev, "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes

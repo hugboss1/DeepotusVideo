@@ -22,7 +22,10 @@
        envoie {canal_id, permis: ["publier"], moyen} ;
      - les posts « à valider » des espaces gouvernés (libellé de window.__dzGardeClient.etiquette) : « Validé par le
        client » / « À corriger » avec le moyen de la réponse -> POST /api/schedule/{id}/validation-client, puis
-       « deepotus:schedule-recharger » (le Planificateur relit ses posts) ;
+       « deepotus:schedule-recharger » (le Planificateur relit ses posts) ; t311 tâche 6 : pour un post « a_valider » et
+       une fiche qui a un contact WhatsApp, « Envoyer au client par WhatsApp » [data-dz-pour-qui-wa-valider] ->
+       POST /api/schedule/{id}/validation-whatsapp ; l'état et la note de correction (GET /api/schedule/{id}/client,
+       `validation_whatsapp`) s'affichent sous le post ;
      - le journal, plus récent d'abord, 50 lignes au plus.
    Données utilisateur par textContent (marquées data-dz-brut). Textes : clés espaces.pourqui.*
    (frontend/shared/i18n/espaces.json). Glyphes Deepotus (dzIcone), jamais d'emoji. */
@@ -236,7 +239,7 @@
 
   function boite(client) {
     return new Promise(function (resoudre) {
-      var st = { fiche: etat.fiches[client.id] || null, canaux: [], libelles: {}, posts: [], moyens: {},
+      var st = { fiche: etat.fiches[client.id] || null, canaux: [], libelles: {}, posts: [], moyens: {}, validations: {},
                  ajoutCanal: "", ajoutMoyen: MOYENS[0], occupe: false, attente: false };
       var voile = el("div", S.voile);
       voile.setAttribute("role", "dialog");
@@ -425,8 +428,42 @@
           c.addEventListener("click", function () { repondre(p.id, "corriger"); });
           li.appendChild(v);
           li.appendChild(c);
+          if (p.status === "a_valider" && contactWa()) {
+            var w = bouton(T("espaces.pourqui.wa_valider"), S.petit, "dz-action-envoyer-vers");
+            w.setAttribute("data-dz-pour-qui-wa-valider", p.id);
+            w.disabled = st.occupe;
+            w.addEventListener("click", function () { envoyerWa(p.id); });
+            li.appendChild(w);
+          }
+          var vw = st.validations[p.id];
+          if (vw && vw.etat === "envoye") {
+            var at = el("span", S.note, T("espaces.pourqui.wa_attente"));
+            at.setAttribute("data-dz-pq-wa-etat", p.id);
+            li.appendChild(at);
+          }
+          if (vw && vw.note) {
+            var no = el("div", S.note + ";flex-basis:100%;white-space:pre-wrap");
+            no.setAttribute("data-dz-pq-wa-note", p.id);
+            no.appendChild(el("span", "", T("espaces.pourqui.wa_note") + " "));
+            no.appendChild(brut("span", "", String(vw.note)));
+            li.appendChild(no);
+          }
           s.appendChild(li);
         });
+      }
+      function contactWa() {
+        var c = (st.fiche && st.fiche.contact) || {};
+        return !!String(c.whatsapp || "").trim();
+      }
+      function envoyerWa(id) {
+        if (st.occupe || fini) return;
+        st.occupe = true;
+        erreur.textContent = "";
+        rendre();
+        envoyer("/api/schedule/" + encodeURIComponent(id) + "/validation-whatsapp", "POST").then(function () {
+          dire(T("espaces.pourqui.wa_envoye"));
+          return chargerPosts();
+        }, echec).then(function () { st.occupe = false; if (!fini) rendre(); });
       }
       function repondre(id, reponse) {
         if (st.occupe || fini) return;
@@ -484,6 +521,12 @@
             // valide_par_client) ; la boucle les laisse en pause. `posts()` ne les montre qu'en valide_par_client.
             return p && ids.indexOf(p.espace_id) >= 0 && (p.status === "a_valider" || enPause(p));
           });
+          // t311 tâche 6 : la validation WhatsApp de chaque post listé (état, note) ; un échec n'affiche rien
+          return Promise.all(st.posts.map(function (p) {
+            return envoyer("/api/schedule/" + encodeURIComponent(p.id) + "/client").then(function (j) {
+              st.validations[p.id] = (j && j.validation_whatsapp) || null;
+            }, function () { st.validations[p.id] = null; });
+          }));
         }, echec);
       }
       function chargerCanaux() {

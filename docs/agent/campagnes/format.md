@@ -33,7 +33,7 @@ Défini une seule fois, ici et dans `format.schema.json`. Le code de référence
 | `resultat_outil` | `outil`, `resume` | |
 | `porte` | `numero` (1 ou 2), `etat` (`proposee`, `validee`, `refusee`) | |
 
-- `genre` d'une carte : `porte`, `devis`, `continuer`, `espace`, `brouillons`, `ouvrir`.
+- `genre` d'une carte : `porte`, `devis`, `continuer`, `espace`, `brouillons`, `ouvrir`, `reponse_whatsapp`, `modele_whatsapp`, `humain` (les trois derniers : agent WhatsApp d'un espace).
 - `etat` d'une carte : `proposee`, `acceptee`, `refusee`, `terminee`.
 - `resultat_outil` porte un résumé, **jamais** un secret (clé, jeton, mot de passe).
 

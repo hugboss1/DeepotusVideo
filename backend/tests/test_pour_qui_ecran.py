@@ -19,6 +19,9 @@ maillon, aucun octet du bundle touché.
                  de dz-projet-canaux.js (chargé AVANT, faux MutationObserver qui livre les attributs) ne le vide plus au
                  changement d'espace, ses hôtes restent remplis ; role=region + aria-label ; D3 heures UTC en heure locale
                  (TZ Asia/Tokyo) ; M2 les posts programmés non validés (en pause) listés en valide_par_client ;
+[P10] t311 tâche 6 : « Envoyer au client par WhatsApp » (data-dz-pour-qui-wa-valider) pour un post a_valider quand la
+                 fiche a un contact WhatsApp -> POST /api/schedule/{id}/validation-whatsapp, message ; note de correction
+                 et état « envoyé » lus dans GET /api/schedule/{id}/client (validation_whatsapp) ;
 [P8] livraison   shared == dist, index.html charge le script une fois après dz-garde-client.js ; textes espaces.pourqui.*
                  FR/EN, mêmes variables, tous employés, assemblés ; ni emoji, ni alert/confirm/prompt, ni arrondi de châssis.
 Aucun réseau (faux fetch). Run (depuis backend/) : & $PY tests/test_pour_qui_ecran.py"""
@@ -132,14 +135,14 @@ var MAIN=poserMain();
 """
 
 HARNAIS = r"""
-var MODE="valide_par_client",appels=[],dial=[],REPONSE=false,ACTIF="cli_a",PROJET={id:"proj_1",nom:"Spring launch"},SOCIETE="Acme Corp";
+var CONTACT="",VALW={},MODE="valide_par_client",appels=[],dial=[],REPONSE=false,ACTIF="cli_a",PROJET={id:"proj_1",nom:"Spring launch"},SOCIETE="Acme Corp";
 var ESPACES=[{id:"deepotus",nom:"Deepotus",couleur:"#ef4444",type:"marque",parent:null},
   {id:"cli_a",nom:"Acme space",couleur:"#aa3311",type:"client",parent:null},
   {id:"prod_b",nom:"Acme widget",couleur:"#22aa55",type:"produit",parent:"cli_a"},
   {id:"marque_c",nom:"Brand C",couleur:"#3355ff",type:"marque",parent:null},
   {id:"prod_d",nom:"Brand C gadget",couleur:"#777777",type:"produit",parent:"marque_c"}];
 var JOURNAL=[];for(var i=0;i<60;i++){var j=(i*37)%60;JOURNAL.push({quand:"2026-10-"+(10+Math.floor(j/10))+"T0"+(j%10)+":00:00",quoi:["consentement","validation","publication","revocation","mode","import"][i%6],canal_id:i%2?"x:111":"",qui:["utilisateur","client","telephone"][i%3]})}
-function fiche(revoque){return {version:1,societe:SOCIETE,mode_publication:MODE,
+function fiche(revoque){return {version:1,societe:SOCIETE,mode_publication:MODE,contact:{nom:"",email:"",whatsapp:CONTACT},
   consentements:[{canal_id:"x:111",permis:["publier"],date:"2026-10-20T10:00:00",moyen:"ecrit",revoque_le:revoque?"2026-10-26T08:00:00":null},
                  {canal_id:"telegram:acme",permis:["publier"],date:"2026-10-18T10:00:00",moyen:"whatsapp",revoque_le:"2026-10-21T09:00:00"}],
   journal:JOURNAL}}
@@ -158,6 +161,8 @@ globalThis.fetch=function(u,o){var m=(o&&o.method)||"GET";appels.push({u:u,m:m,b
   if(/^\/api\/espaces(\?|$)/.test(u))d={espaces:ESPACES,actif:ACTIF};
   else if(u==="/api/library/projets/actif")d=PROJET;
   else if(/^\/api\/espaces\/cli_a\/client$/.test(u))d=fiche(false);
+  else if(/^\/api\/schedule\/[^/]+\/client$/.test(u))d={exigences:null,validation_whatsapp:VALW[u.split("/")[3]]||null};
+  else if(/\/validation-whatsapp$/.test(u))d={envoi:"boutons",id:"wamid.X"};
   else if(/\/client$/.test(u)){st=400;d={detail:"pas un client"}}
   else if(/\/client\/consentements\/revoquer$/.test(u)){d=fiche(true);d.en_pause=2}
   else if(/\/client\/consentements$/.test(u))d=fiche(false);
@@ -254,6 +259,20 @@ var R={};
  MODE="publie_en_son_nom";var pm2=P.ouvrirFiche("cli_a");await attendre();
  R.p9_mode=dans(voile(),"data-dz-pq-post").map(function(n){return n.getAttribute("data-dz-pq-post")});
  dans(voile(),"data-dz-pq-fermer")[0].declencher("click");await pm2;MODE="valide_par_client";
+ /* P10 t311 tâche 6 : « Envoyer au client par WhatsApp », état et note de correction */
+ CONTACT="06 12 34 56 78";VALW={p3:{etat:"corrige",note:"Logo plus grand"},p1:{etat:"envoye"}};
+ var pw=P.ouvrirFiche("cli_a");await attendre();v=voile();
+ R.p10_btn=dans(v,"data-dz-pour-qui-wa-valider").map(function(n){return n.getAttribute("data-dz-pour-qui-wa-valider")});
+ R.p10_note=(dans(v,"data-dz-pq-wa-note","p3")[0]||{textContent:""}).textContent;
+ R.p10_etat=dans(v,"data-dz-pq-wa-etat").map(function(n){return [n.getAttribute("data-dz-pq-wa-etat"),n.textContent]});
+ R.p10_get=appels.filter(function(a){return a.m==="GET"&&/^\/api\/schedule\/[^/]+\/client$/.test(a.u)}).map(function(a){return a.u}).sort();
+ appels=[];dans(v,"data-dz-pour-qui-wa-valider","p1")[0].declencher("click");await attendre();
+ R.p10_post=appels.filter(function(a){return a.m==="POST"}).map(function(a){return a.u});
+ R.p10_msg=(dans(voile(),"data-dz-pq-msg")[0]||{textContent:""}).textContent;
+ dans(voile(),"data-dz-pq-fermer")[0].declencher("click");await pw;
+ CONTACT="";var pw2=P.ouvrirFiche("cli_a");await attendre();
+ R.p10_sans=dans(voile(),"data-dz-pour-qui-wa-valider").length;
+ dans(voile(),"data-dz-pq-fermer")[0].declencher("click");await pw2;CONTACT="06 12 34 56 78";
  /* P7 : en anglais */
  window.dzT=function(k,v){var e=(window.DZ_I18N||{})[k];var s=e?(e.en||e.fr):k;if(v)s=s.replace(/\{(\w+)\}/g,function(m,n){return v[n]!=null?String(v[n]):m});return s};
  window.dzLang=function(){return "en"};
@@ -383,6 +402,19 @@ check("P6.2 une ligne dit quoi et qui, traduits", F("espaces.pourqui.qui_utilisa
 print("\n[T] clavier")
 check("T.1 Tab piégé (dernier -> premier, Maj+Tab premier -> dernier), Échap ferme",
       (G("tab") or [None])[:3] == [0, True, True] and G("tab_haut") and G("echap"), str([G("tab"), G("tab_haut"), G("echap")]))
+
+print("\n[P10] t311 tâche 6 : validation par WhatsApp")
+check("P10.1 « Envoyer au client par WhatsApp » seulement pour les posts a_valider (pas les programmés en pause)",
+      G("p10_btn") == ["p1", "p3"], str(G("p10_btn")))
+check("P10.2 fiche sans contact WhatsApp : aucun bouton", G("p10_sans") == 0, str(G("p10_sans")))
+check("P10.3 clic : POST /api/schedule/p1/validation-whatsapp, puis le message de résultat",
+      G("p10_post") == ["/api/schedule/p1/validation-whatsapp"] and G("p10_msg") == F("espaces.pourqui.wa_envoye"),
+      str([G("p10_post"), G("p10_msg")]))
+check("P10.4 note de correction affichée (validation_whatsapp.note de GET /api/schedule/{id}/client) ; état envoyé dit",
+      F("espaces.pourqui.wa_note") in (G("p10_note") or "") and "Logo plus grand" in (G("p10_note") or "")
+      and G("p10_etat") == [["p1", F("espaces.pourqui.wa_attente")]]
+      and "/api/schedule/p1/client" in (G("p10_get") or []) and "/api/schedule/p3/client" in (G("p10_get") or []),
+      str([G("p10_note"), G("p10_etat"), G("p10_get")]))
 
 print("\n[P7] en anglais")
 ACCENTS = re.compile("[éèêëàâçùûôîïœÉÈÀÇ«»]")

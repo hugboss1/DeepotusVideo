@@ -10843,9 +10843,9 @@
   "fr": "marché par défaut : un indicatif pays en chiffres est attendu",
   "en": "default market: a country dialling code in digits is expected"
  },
- "type d'envoi inconnu (texte, boutons ou modele)": {
-  "fr": "type d'envoi inconnu (texte, boutons ou modele)",
-  "en": "unknown send type (texte, boutons or modele)"
+ "type d'envoi inconnu (texte, boutons, modele ou image)": {
+  "fr": "type d'envoi inconnu (texte, boutons, modele ou image)",
+  "en": "unknown send type (text, buttons, template or image)"
  },
  "ce contact a écrit STOP : aucun envoi": {
   "fr": "ce contact a écrit STOP : aucun envoi",
@@ -11002,5 +11002,233 @@
  "périmètre : {quoi} invalide : {v}": {
   "fr": "périmètre : {quoi} invalide : {v}",
   "en": "scope: invalid {quoi}: {v}"
+ },
+ "agent : un objet est attendu": {
+  "fr": "agent : un objet est attendu",
+  "en": "agent: an object is expected"
+ },
+ "agent : horaires : un objet est attendu": {
+  "fr": "agent : horaires : un objet est attendu",
+  "en": "agent: hours: an object is expected"
+ },
+ "agent : horaires : réglage inconnu": {
+  "fr": "agent : horaires : réglage inconnu",
+  "en": "agent: hours: unknown setting"
+ },
+ "agent : jours d'activité invalides (entiers de 0 à 6)": {
+  "fr": "agent : jours d'activité invalides (entiers de 0 à 6)",
+  "en": "agent: invalid active days (integers from 0 to 6)"
+ },
+ "agent : heure de début invalide (HH:MM)": {
+  "fr": "agent : heure de début invalide (HH:MM)",
+  "en": "agent: invalid start time (HH:MM)"
+ },
+ "agent : heure de fin invalide (HH:MM)": {
+  "fr": "agent : heure de fin invalide (HH:MM)",
+  "en": "agent: invalid end time (HH:MM)"
+ },
+ "agent : fuseau horaire inconnu": {
+  "fr": "agent : fuseau horaire inconnu",
+  "en": "agent: unknown time zone"
+ },
+ "agent : « actif » doit être vrai ou faux": {
+  "fr": "agent : « actif » doit être vrai ou faux",
+  "en": "agent: \"actif\" must be true or false"
+ },
+ "agent : mode inconnu (brouillon ou auto)": {
+  "fr": "agent : mode inconnu (brouillon ou auto)",
+  "en": "agent: unknown mode (brouillon or auto)"
+ },
+ "agent : rôles inconnus (faq, rendez_vous, commande ou validation)": {
+  "fr": "agent : rôles inconnus (faq, rendez_vous, commande ou validation)",
+  "en": "agent: unknown roles (faq, rendez_vous, commande or validation)"
+ },
+ "agent : message hors horaires : un texte de 1024 caractères au plus est attendu": {
+  "fr": "agent : message hors horaires : un texte de 1024 caractères au plus est attendu",
+  "en": "agent: out-of-hours message: a text of at most 1024 characters is expected"
+ },
+ "agent : plafond par contact et par jour : un entier de 0 à 50 est attendu": {
+  "fr": "agent : plafond par contact et par jour : un entier de 0 à 50 est attendu",
+  "en": "agent: cap per contact per day: an integer from 0 to 50 is expected"
+ },
+ "agent : mots d'appel humain : 30 mots de 40 caractères au plus sont attendus": {
+  "fr": "agent : mots d'appel humain : 30 mots de 40 caractères au plus sont attendus",
+  "en": "agent: human-call words: at most 30 words of at most 40 characters are expected"
+ },
+ "agent : modèle de validation : {nom, langue} ou rien est attendu": {
+  "fr": "agent : modèle de validation : {nom, langue} ou rien est attendu",
+  "en": "agent: validation template: {nom, langue} or nothing is expected"
+ },
+ "agent : réglage inconnu": {
+  "fr": "agent : réglage inconnu",
+  "en": "agent: unknown setting"
+ },
+ "réglages WhatsApp : un objet est attendu": {
+  "fr": "réglages WhatsApp : un objet est attendu",
+  "en": "WhatsApp settings: an object is expected"
+ },
+ "plafond mensuel : un entier de 1 à 1 000 000 est attendu": {
+  "fr": "plafond mensuel : un entier de 1 à 1 000 000 est attendu",
+  "en": "monthly cap: an integer from 1 to 1,000,000 is expected"
+ },
+ "réglage WhatsApp inconnu": {
+  "fr": "réglage WhatsApp inconnu",
+  "en": "unknown WhatsApp setting"
+ },
+ "source du réabonnement exigée": {
+  "fr": "source du réabonnement exigée",
+  "en": "source of the re-subscription required"
+ },
+ "agent : l'heure de début et l'heure de fin doivent différer": {
+  "fr": "agent : l'heure de début et l'heure de fin doivent différer",
+  "en": "agent: the start time and the end time must differ"
+ },
+ "média : image JPEG ou PNG seulement": {
+  "fr": "média : image JPEG ou PNG seulement",
+  "en": "media: JPEG or PNG image only"
+ },
+ "média : de 1 octet à 5 Mo": {
+  "fr": "média : de 1 octet à 5 Mo",
+  "en": "media: from 1 byte to 5 MB"
+ },
+ "identifiant de message invalide": {
+  "fr": "identifiant de message invalide",
+  "en": "invalid message identifier"
+ },
+ "action inconnue (prendre ou rendre)": {
+  "fr": "action inconnue (prendre ou rendre)",
+  "en": "unknown action (take or release)"
+ },
+ "espace invalide": {
+  "fr": "espace invalide",
+  "en": "invalid workspace"
+ },
+ "numéro WhatsApp invalide": {
+  "fr": "numéro WhatsApp invalide",
+  "en": "invalid WhatsApp number"
+ },
+ "chemin de média refusé": {
+  "fr": "chemin de média refusé",
+  "en": "media path refused"
+ },
+ "en-tête du modèle : un objet {type, …} est attendu": {
+  "fr": "en-tête du modèle : un objet {type, …} est attendu",
+  "en": "template header: an object {type, …} is expected"
+ },
+ "en-tête du modèle : image, video ou document avec un identifiant de média, ou un texte": {
+  "fr": "en-tête du modèle : image, video ou document avec un identifiant de média, ou un texte",
+  "en": "template header: image, video or document with a media identifier, or a text"
+ },
+ "boutons du modèle : une liste de {index, payload}": {
+  "fr": "boutons du modèle : une liste de {index, payload}",
+  "en": "template buttons: a list of {index, payload}"
+ },
+ "boutons du modèle : deux fois le même index": {
+  "fr": "boutons du modèle : deux fois le même index",
+  "en": "template buttons: the same index twice"
+ },
+ "en-tête : le modèle n'a pas d'en-tête de ce genre": {
+  "fr": "en-tête : le modèle n'a pas d'en-tête de ce genre",
+  "en": "header: the template has no header of this kind"
+ },
+ "image : identifiant de média invalide": {
+  "fr": "image : identifiant de média invalide",
+  "en": "image: invalid media identifier"
+ },
+ "légende trop longue ({MAX_LEGENDE} caractères au plus)": {
+  "fr": "légende trop longue ({MAX_LEGENDE} caractères au plus)",
+  "en": "caption too long ({MAX_LEGENDE} characters at most)"
+ },
+ "en-tête du modèle : texte de 1 à 1024 caractères": {
+  "fr": "en-tête du modèle : texte de 1 à 1024 caractères",
+  "en": "template header: text of 1 to 1024 characters"
+ },
+ "boutons du modèle : index entier et payload de 1 à {MAX_PAYLOAD} caractères": {
+  "fr": "boutons du modèle : index entier et payload de 1 à {MAX_PAYLOAD} caractères",
+  "en": "template buttons: integer index and payload of 1 to {MAX_PAYLOAD} characters"
+ },
+ "bouton {index} : le modèle n'a pas de bouton de réponse rapide à cette place": {
+  "fr": "bouton {index} : le modèle n'a pas de bouton de réponse rapide à cette place",
+  "en": "button {index}: the template has no quick-reply button at this position"
+ },
+ "boutons : un identifiant par bouton (lettres, chiffres, _ : . - ; 256 au plus, tous différents)": {
+  "fr": "boutons : un identifiant par bouton (lettres, chiffres, _ : . - ; 256 au plus, tous différents)",
+  "en": "buttons: one identifier per button (letters, digits, _ : . - ; 256 at most, all different)"
+ },
+ "boutons : identifiant de média d'en-tête invalide": {
+  "fr": "boutons : identifiant de média d'en-tête invalide",
+  "en": "buttons: invalid header media identifier"
+ },
+ "en-tête : un en-tête texte sans variable ne reçoit aucun texte": {
+  "fr": "en-tête : un en-tête texte sans variable ne reçoit aucun texte",
+  "en": "header: a text header without a variable takes no text"
+ },
+ "en-tête : ce modèle exige un en-tête média": {
+  "fr": "en-tête : ce modèle exige un en-tête média",
+  "en": "header: this template requires a media header"
+ },
+ "décision inconnue (envoyer ou rejeter)": {
+  "fr": "décision inconnue (envoyer ou rejeter)",
+  "en": "unknown decision (send or reject)"
+ },
+ "aucun brouillon en attente pour ce contact": {
+  "fr": "aucun brouillon en attente pour ce contact",
+  "en": "no pending draft for this contact"
+ },
+ "ce brouillon ne s'envoie pas : il attend une personne": {
+  "fr": "ce brouillon ne s'envoie pas : il attend une personne",
+  "en": "this draft cannot be sent: it is waiting for a person"
+ },
+ "état de brouillon inconnu : {v}": {
+  "fr": "état de brouillon inconnu : {v}",
+  "en": "unknown draft state: {v}"
+ },
+ "ce compte WhatsApp n'appartient pas à cet espace": {
+  "fr": "ce compte WhatsApp n'appartient pas à cet espace",
+  "en": "this WhatsApp account does not belong to this space"
+ },
+ "un modèle WhatsApp ne prend pas de texte modifié": {
+  "fr": "un modèle WhatsApp ne prend pas de texte modifié",
+  "en": "a WhatsApp template takes no edited text"
+ },
+ "ce brouillon est déjà en cours d'envoi": {
+  "fr": "ce brouillon est déjà en cours d'envoi",
+  "en": "this draft is already being sent"
+ },
+ "ce post n'est pas à valider : rien à envoyer au client": {
+  "fr": "ce post n'est pas à valider : rien à envoyer au client",
+  "en": "this post is not awaiting approval: nothing to send to the client"
+ },
+ "aucun numéro WhatsApp relié pour ce client": {
+  "fr": "aucun numéro WhatsApp relié pour ce client",
+  "en": "no linked WhatsApp number for this client"
+ },
+ "la fiche du client n'a pas de numéro WhatsApp valide": {
+  "fr": "la fiche du client n'a pas de numéro WhatsApp valide",
+  "en": "the client sheet has no valid WhatsApp number"
+ },
+ "le modèle de validation exige une image : ce post n'a pas d'image JPEG ou PNG": {
+  "fr": "le modèle de validation exige une image : ce post n'a pas d'image JPEG ou PNG",
+  "en": "the approval template requires an image: this post has no JPEG or PNG image"
+ },
+ "fenêtre de 24 h fermée : choisissez un modèle de validation dans les réglages WhatsApp de l'espace": {
+  "fr": "fenêtre de 24 h fermée : choisissez un modèle de validation dans les réglages WhatsApp de l'espace",
+  "en": "24-hour window closed: choose an approval template in the space's WhatsApp settings"
+ },
+ "modèle de validation inconnu ou non approuvé pour cette langue": {
+  "fr": "modèle de validation inconnu ou non approuvé pour cette langue",
+  "en": "approval template unknown or not approved for this language"
+ },
+ "le modèle de validation doit avoir deux boutons de réponse rapide (Valider, Corriger) aux deux premières places": {
+  "fr": "le modèle de validation doit avoir deux boutons de réponse rapide (Valider, Corriger) aux deux premières places",
+  "en": "the validation template must have two quick-reply buttons (Approve, Request changes) in the first two places"
+ },
+ "ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la conversation, puis confirmez pour le renvoyer": {
+  "fr": "ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la conversation, puis confirmez pour le renvoyer",
+  "en": "this message may already have been sent (Kapso failed during sending): check the conversation, then confirm to send it again"
+ },
+ "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu": {
+  "fr": "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu",
+  "en": "agent: drafts per contact and per day: an integer from 0 to 200 is expected"
  }
 }

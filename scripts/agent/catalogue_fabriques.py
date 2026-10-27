@@ -72,6 +72,10 @@ def _sorte(p: str, corps: str, menu_affiche: set, objet: bool):
     if '"button"' in corps and re.search(r'setAttribute\(\s*"aria-label"\s*,\s*' + e + r"\s*\)"
                                           r"|\.title\s*=\s*" + e + r"\s*[;,)]|\btitle\s*:\s*" + e + r"\s*[,}]", corps):
         return "texte", "bouton", "infobulle"
+    # t311 (27/10/2026) : bouton(texte, p, glyphe) de la page WhatsApp — el("button", …) dont un enfant porte
+    # el("span", { texte: texte }) : l'argument T("k") est le LIBELLÉ du bouton
+    if '"button"' in corps and re.search(r"\btexte\s*:\s*" + e + r"\s*[,}]", corps):
+        return "texte", "bouton", "libelle"
     return None
 
 

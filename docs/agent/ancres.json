@@ -15,6 +15,7 @@
     {"id": "rail.vectorlab", "ecran": "vectorlab", "selecteur": "button.dzNavItem", "libelle": ".dzNavLbl", "partout": true, "texte": {"fr": "Vectorlab", "en": "Vectorlab"}, "fr": "Vectorlab dans la barre de gauche", "en": "Vectorlab in the left bar"},
     {"id": "rail.photolab", "ecran": "photolab", "selecteur": "button.dzNavItem", "libelle": ".dzNavLbl", "partout": true, "texte": {"fr": "Photolab", "en": "Photolab"}, "fr": "Photolab dans la barre de gauche", "en": "Photolab in the left bar"},
     {"id": "rail.avatarlive", "ecran": "avatarlive", "selecteur": "button.dzNavItem", "libelle": ".dzNavLbl", "partout": true, "texte": {"fr": "Avatar live", "en": "Avatar live"}, "fr": "Avatar live dans la barre de gauche", "en": "Avatar live in the left bar"},
+    {"id": "rail.whatsapp", "ecran": "whatsapp", "selecteur": "button.dzNavItem", "libelle": ".dzNavLbl", "partout": true, "texte": {"fr": "WhatsApp", "en": "WhatsApp"}, "fr": "WhatsApp dans la barre de gauche", "en": "WhatsApp in the left bar"},
     {"id": "rail.reglages", "ecran": "settings", "selecteur": "button.dzNavItem", "libelle": ".dzNavLbl", "partout": true, "texte": {"fr": "Réglages", "en": "Settings"}, "fr": "Réglages dans la barre de gauche", "en": "Settings in the left bar"},
     {"id": "reglages.cles", "ecran": "settings", "reglages": "keys", "fr": "Réglages › Clés d'API", "en": "Settings › API keys"},
     {"id": "reglages.coffre", "ecran": "settings", "reglages": "coffre", "fr": "Réglages › Coffre", "en": "Settings › Vault"},

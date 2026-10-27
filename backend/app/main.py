@@ -93,6 +93,7 @@ from app.services import library_projects as _LP_boot
 _LP_boot.installer()
 from app.services.news_service import news_daily_loop
 from app.services.marketing import schedule_loop
+from app.services.whatsapp_releve import releve_loop   # t311 : relevé de fond WhatsApp (30 s après le démarrage)
 
 
 def _setup_file_logging() -> Path | None:
@@ -181,6 +182,7 @@ async def lifespan(app: FastAPI):
         logger.warning(f"coffre au démarrage ignoré : {e}")
     news_task = asyncio.create_task(news_daily_loop())
     sched_task = asyncio.create_task(schedule_loop())
+    releve_task = asyncio.create_task(releve_loop())
 
     async def _maj_au_demarrage():
         """Tâche #18 : une fois par lancement, 20 s après le boot, et au plus une fois par jour (cache disque).
@@ -231,7 +233,7 @@ async def lifespan(app: FastAPI):
         if warm_task:
             from app.services.heygen_service import annuler_en_vol
             annuler_en_vol()
-        await _arreter_taches([t for t in (news_task, sched_task, maj_task, warm_task) if t])
+        await _arreter_taches([t for t in (news_task, sched_task, releve_task, maj_task, warm_task) if t])
         # t136 : le moteur du Photolab s'arrête avec le backend (fin de stdin = fin propre de photocraft-cli serve)
         try:
             from app.services import photolab_moteur
@@ -849,6 +851,29 @@ if _PLATEAU_DIR.is_dir():
         return RedirectResponse(url="/plateau/", status_code=307)
 
     logger.info(f"Serving etabli from {_etabli}")
+
+# ── /whatsapp : la page WhatsApp d'un espace (t311 tâche 7, 27/10/2026) — conversations, modèles, contacts, santé, prix ──
+# Même patron standalone que /plateau, HORS du bundle ; avant le montage de la SPA « / ». Le montage se crée au boot.
+_WHATSAPP_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "whatsapp"
+if _WHATSAPP_DIR.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFWa
+
+    class _WhatsappStatic(_SFWa):
+        """no-cache comme /plateau : whatsapp.js et ses onglets gardent un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/whatsapp", _WhatsappStatic(directory=str(_WHATSAPP_DIR), html=True), name="whatsapp")
+
+    @app.get("/whatsapp", include_in_schema=False)
+    async def _whatsapp_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/whatsapp/", status_code=307)
 
 # ── /lib3d : le canevas 3D PARTAGÉ (Établi aujourd'hui, Plateau le jour où) ──
 _lib3d = Path(__file__).resolve().parent.parent.parent / "frontend" / "lib3d"

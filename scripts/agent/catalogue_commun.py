@@ -19,9 +19,11 @@ ECRAN_DE_ZONE = {
     "plateau": "assets3d", "avatar": "avatarlive", "vectorlab": "vectorlab", "photolab": "photolab",
     "reglages": "settings", "espaces": "settings", "transfert": "settings",
     "projets": "library",                # t307 (25/10/2026) : les canaux d'un projet de la Bibliothèque
+    "whatsapp": "whatsapp",              # t311 (27/10/2026) : la page WhatsApp (cadre /whatsapp/, voir catalogue_sources.LABS)
 }
 # préfixe « zone.objet » rattaché à un autre écran que sa zone (consulté AVANT ECRAN_DE_ZONE)
-ECRAN_DE_PREFIXE = {"avatar.noeud": "studio"}            # titres des nœuds avatar du graphe du Studio
+ECRAN_DE_PREFIXE = {"avatar.noeud": "studio",           # titres des nœuds avatar du graphe du Studio
+                    "whatsapp.espace": "settings"}      # t311 : le panneau « Agent WhatsApp » de Réglages › Espaces
 # zone → lab affiché dans un cadre intégré (les iframes que monte la SPA)
 CADRE_DE_ZONE = {"vectorlab": "/vectorlab/", "photolab": "/photolab/", "sprites": "/spritelab/",
                  "tuiles": "/tilelab/", "cartes": "/cardforge/", "matiere": "/materialforge/",
