@@ -9643,47 +9643,18 @@ async def get_scheduled_post_client(post_id: str):
     return {"exigences": ex, "validation_whatsapp": _wv.validation_de(ex["client"], p.id)}
 
 
-async def valider_post(post_id: str, reponse, moyen) -> dict:
-    """t309, extrait en t311 tâche 6 (la route ci-dessous et la réponse WhatsApp du client l'appellent) : « valide » date
-    la validation (un post a_valider devient brouillon, à programmer) ; « corriger » l'efface et le post repasse a_valider.
-    Une ligne `validation` (qui = client) par canal visé au journal de la fiche du client responsable. HTTPException :
-    400 réponse/moyen inconnus, 404 post, 409 sans client. Rend {"post": …}."""
-    from app.services import fiche_client as _fc, regles_client as _rc
-    if reponse not in ("valide", "corriger"):
-        raise HTTPException(400, "réponse du client inconnue (valide ou corriger)")
-    if moyen not in _fc.MOYENS:
-        raise HTTPException(400, "moyen de réponse inconnu (ecrit, whatsapp ou doigt)")
-    async with async_session_factory() as session:
-        p = (await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))).scalar_one_or_none()
-        if p is None:
-            raise HTTPException(404, "post inconnu")
-        ex = _rc.exigences(p.espace_id, p.comptes)
-        if ex is None:
-            raise HTTPException(409, "ce post n'est gouverné par aucun client")
-        if reponse == "valide":
-            p.valide_client_le = _dt.utcnow()
-            if p.status == "a_valider":
-                p.status = "draft"
-        else:
-            p.valide_client_le = None
-            if p.status in ("draft", "scheduled", "ready"):
-                p.status = "a_valider"
-        await session.commit()
-        await session.refresh(p)
-        # t309 (revue) : le journal APRÈS l'écriture réussie du post (jamais une validation notée qui n'a pas eu lieu)
-        canaux = list(dict.fromkeys(x["canal_id"] or "" for x in ex["canaux"])) or [""]
-        for canal in canaux:
-            _fc.noter(ex["client"], "validation", canal, "client")
-        return {"post": _post_to_dict(p)}
-
-
 @router.post("/schedule/{post_id}/validation-client")
 async def post_scheduled_post_validation_client(post_id: str, body: dict, request: Request):
-    """{reponse: valide|corriger, moyen: ecrit|whatsapp|doigt} : voir `valider_post`. 400 réponse/moyen inconnus, 404 post,
-    409 sans client."""
+    """{reponse: valide|corriger, moyen: ecrit|whatsapp|doigt} : voir `services/validation_client.valider_post` (t311 :
+    logique extraite, partagée avec la réponse WhatsApp du client). 400 réponse/moyen inconnus, 404 post, 409 sans client."""
     _require_localhost(request)
+    from app.services import validation_client as _vc
     body = body or {}
-    return await valider_post(post_id, body.get("reponse"), body.get("moyen"))
+    try:
+        p = await _vc.valider_post(post_id, body.get("reponse"), body.get("moyen"))
+    except _vc.RefusValidation as e:
+        raise HTTPException(e.statut, e.message)
+    return {"post": _post_to_dict(p)}
 
 
 @router.post("/schedule/{post_id}/validation-whatsapp")

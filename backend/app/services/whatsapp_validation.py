@@ -11,12 +11,14 @@ de 5 Mo au plus, sinon texte seul. Fenêtre de 24 h ouverte -> message à bouton
 titres de BOUTONS selon `fiche.langue`) ; fermée -> le modèle `agent.modele_validation` des réglages de l'espace client
 (sinon ValueError), en-tête image si le modèle en a un, boutons de réponse rapide 0 et 1 aux mêmes payloads. L'envoi passe
 TOUJOURS par `whatsapp_echanges.envoyer` (règles, devis, `plafonds.verifier`). Puis
-`validations[post] = {identite, cid, envoye_le, etat: "envoye", id}` dans `whatsapp_brouillons.json` de l'espace client
+`validations[post] = {identite, cid, envoye_le, etat: "envoye", id, empreinte}` dans `whatsapp_brouillons.json` de l'espace client
 (sous le verrou de `agent_whatsapp`).
 
 `traiter_reponse(cid, eid, msg_plat)` (appelé par le relevé de fond pour CHAQUE entrant neuf, avant tout le reste) :
   · bouton (`msg_plat["bouton"]`, id ou payload) `val:<post>:ok|corr` : exige une validation `envoye` du même contact
-    (identité ou alias) et un post encore `a_valider` ; appelle `valider_post(post, "valide"|"corriger", "whatsapp")`
+    (identité ou alias), un post encore `a_valider` dont le client responsable est l'espace récepteur et dont le contenu
+    a la même empreinte qu'à l'envoi (`empreinte` : title, caption, source_image, job_id, brief) ; appelle
+    `validation_client.valider_post(post, "valide"|"corriger", "whatsapp")`
     (même logique que la route t309 : date, statut, journal de la fiche) ; état `valide` ou `a_corriger`. Sinon (post
     supprimé, déjà décidé, autre contact) : rien ne change, une ligne `validation_ignoree` SANS texte au journal de
     `whatsapp.json`, rend False ;
@@ -26,6 +28,7 @@ Rend True quand le message est consommé (le relevé ne le donne alors pas à l'
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from datetime import datetime, timedelta, timezone
@@ -38,6 +41,7 @@ MAX_NOTE = 2000
 DELAI_NOTE = timedelta(hours=24)        # la note de « Corriger » : le premier texte du contact dans les 24 h
 ETATS = ("envoye", "valide", "a_corriger", "corrige", "perimee")
 EN_ATTENTE = ("envoye", "a_corriger")   # le relevé lit le compte même si l'agent est inactif
+AGE_MAX_ENVOYE = timedelta(days=30)     # une demande sans réponse plus vieille ne fait plus lire le compte
 EXTENSIONS_APERCU = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
 SIGNATURES = {"image/jpeg": b"\xff\xd8\xff", "image/png": b"\x89PNG\r\n\x1a\n"}
 _ID = re.compile(r"^val:([A-Za-z0-9-]{1,64}):(ok|corr)$")
@@ -75,6 +79,13 @@ def titres(langue: str) -> tuple[str, str]:
 
 def ids(post_id: str) -> tuple[str, str]:
     return f"val:{post_id}:ok", f"val:{post_id}:corr"
+
+
+def empreinte(post) -> str:
+    """Empreinte (sha256, 16 caractères) du CONTENU du post : le tuple `contenu_avant` des routes du Planificateur
+    (title, caption, source_image, job_id, brief). Un contenu changé après l'envoi rend les boutons caducs."""
+    t = [getattr(post, k, None) for k in ("title", "caption", "source_image", "job_id", "brief")]
+    return hashlib.sha256(json.dumps(t, ensure_ascii=False, default=str).encode("utf-8")).hexdigest()[:16]
 
 
 # ---- lectures --------------------------------------------------------------------------------------------------------
@@ -127,19 +138,54 @@ def validation_de(eid: str, post_id: str) -> dict | None:
     return {k: v[k] for k in ("etat", "envoye_le", "decide_le", "note", "note_le") if k in v}
 
 
-def en_attente(eid: str, maintenant: datetime | None = None) -> bool:
-    """L'espace a-t-il une validation qui attend une réponse (`envoye`) ou une note (`a_corriger` de moins de 24 h) ?
-    KeyError : espace sans dossier."""
+async def _statuts(post_ids: list) -> dict:
+    """{post_id: status} lus dans la base (lecture seule, jamais `espaces.lire()`) ; un post absent n'y est pas."""
+    from sqlalchemy import select
+    from app.services.storage import ScheduledPost, async_session_factory
+    async with async_session_factory() as s:
+        rows = (await s.execute(select(ScheduledPost.id, ScheduledPost.status)
+                                .where(ScheduledPost.id.in_(list(post_ids))))).all()
+    return {str(i): st for i, st in rows}
+
+
+async def en_attente(eid: str, maintenant: datetime | None = None) -> bool:
+    """L'espace a-t-il une validation qui attend une réponse (`envoye` de moins de AGE_MAX_ENVOYE dont le post est encore
+    `a_valider`) ou une note (`a_corriger` de moins de 24 h) ? KeyError : espace sans dossier. Base illisible : l'âge
+    seul décide."""
     now = maintenant or _horloge()
-    for v in AW.validations(eid).values():
+    envoyes = []
+    for post_id, v in AW.validations(eid).items():
         if not isinstance(v, dict):
             continue
-        if v.get("etat") == "envoye":
-            return True
         d = _date(v.get("decide_le"))
         if v.get("etat") == "a_corriger" and d is not None and now - d < DELAI_NOTE:
             return True
-    return False
+        e = _date(v.get("envoye_le"))
+        if v.get("etat") == "envoye" and e is not None and now - e < AGE_MAX_ENVOYE:
+            envoyes.append(str(post_id))
+    if not envoyes:
+        return False
+    try:
+        statuts = await _statuts(envoyes)
+    except Exception as e:  # noqa: BLE001 — base indisponible : on garde l'âge seul
+        logger.warning(f"validation WhatsApp : statuts des posts non lus ({type(e).__name__})")
+        return True
+    return any(statuts.get(i) == "a_valider" for i in envoyes)
+
+
+def perimer(eid: str, post_id: str) -> bool:
+    """Une décision prise ailleurs (au PC) : la demande WhatsApp `envoye`/`a_corriger` du post devient `perimee`."""
+    fait = []
+
+    def geste(vals):
+        v = vals.get(str(post_id))
+        if not isinstance(v, dict) or v.get("etat") not in EN_ATTENTE:
+            return None
+        v.update({"etat": "perimee", "decide_le": _iso(_horloge())})
+        fait.append(1)
+        return vals
+    AW.modifier_validations(eid, geste)
+    return bool(fait)
 
 
 # ---- l'envoi ---------------------------------------------------------------------------------------------------------
@@ -218,8 +264,10 @@ async def envoyer_validation(post_id: str) -> dict:
                  "boutons": [{"index": 0, "payload": ok}, {"index": 1, "payload": corr}]}
         if media_id:
             envoi["entete"] = {"type": "image", "media_id": media_id}
+    AW.validations(client)                     # échoue tôt (KeyError : dossier de l'espace absent) AVANT tout envoi
     res = await WE.envoyer(cid, identite, envoi)
-    neuf = {"identite": identite, "cid": cid, "envoye_le": _iso(_horloge()), "etat": "envoye", "id": str(res["id"])}
+    neuf = {"identite": identite, "cid": cid, "envoye_le": _iso(_horloge()), "etat": "envoye", "id": str(res["id"]),
+            "empreinte": empreinte(post)}
 
     def geste(vals):
         vals[str(post.id)] = neuf
@@ -272,16 +320,18 @@ async def _bouton(cid, eid, msg, identite, post_id, choix) -> bool:
     if not isinstance(v, dict) or v.get("etat") != "envoye" or not _meme_contact(cid, v.get("identite"), identite):
         _ignorer(cid, identite, msg.get("id"), msg.get("quand"))
         return False
+    from app.services import espaces
     post = await _post(post_id)
-    if post is None or post.status != "a_valider":           # supprimé, ou décidé au PC entre-temps
+    if (post is None or post.status != "a_valider"              # supprimé, ou décidé au PC entre-temps
+            or v.get("empreinte") != empreinte(post)            # contenu changé après l'envoi : les boutons sont caducs
+            or not post.espace_id or espaces.client_responsable(post.espace_id) != eid):   # pas un post de ce client
         _ignorer(cid, identite, msg.get("id"), msg.get("quand"))
         _poser(eid, post_id, "envoye", {"etat": "perimee", "decide_le": _iso(_horloge())})
         return False
-    from fastapi import HTTPException
-    from app.api.routes import valider_post
+    from app.services.validation_client import RefusValidation, valider_post
     try:
         await valider_post(post_id, "valide" if choix == "ok" else "corriger", "whatsapp")
-    except HTTPException:                                      # 404 (supprimé à l'instant) ou 409 (plus de client)
+    except RefusValidation:                                    # 404 (supprimé à l'instant) ou 409 (plus de client)
         _ignorer(cid, identite, msg.get("id"), msg.get("quand"))
         _poser(eid, post_id, "envoye", {"etat": "perimee", "decide_le": _iso(_horloge())})
         return False

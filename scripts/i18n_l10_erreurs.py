@@ -34,7 +34,8 @@ APP = RACINE / "backend" / "app"
 SORTIE = APP / "i18n" / "erreurs.json"
 TRADUCTIONS = RACINE / "scripts" / "i18n_l10_traductions.json"
 ERREURS = {"ValueError", "RuntimeError", "FileNotFoundError", "PermissionError", "LookupError", "TimeoutError",
-           "ConflitClient", "FluxCoupe", "CoffreVerrouille", "RefusClient", "WhatsappRefus"}   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
+           "ConflitClient", "FluxCoupe", "CoffreVerrouille", "RefusClient", "WhatsappRefus",
+           "RefusValidation"}   # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
                                        # L4.1 T3 : FluxCoupe = RuntimeError (flux Anthropic coupé)
                                        # t309 : RefusClient = PermissionError (409 structuré des règles d'un client)
                                        # t310 : WhatsappRefus = PermissionError (envoi WhatsApp refusé par les règles)

@@ -636,7 +636,13 @@ async def traiter_reponse(cid, eid, msg):                            # contrat A
 
 
 faux_wv.traiter_reponse = traiter_reponse
-faux_wv.en_attente = lambda eid, maintenant=None: False             # tâche 6 : aucune validation client en attente
+
+
+async def _sans_attente(eid, maintenant=None):                       # tâche 6 : aucune validation client en attente
+    return False
+
+
+faux_wv.en_attente = _sans_attente
 import app.services as _pkg                                          # noqa: E402
 _mod_vrai = sys.modules.get("app.services.whatsapp_validation")      # tâche 6 : le vrai module, déjà importé
 _avait = hasattr(_pkg, "whatsapp_validation")
@@ -703,6 +709,20 @@ try:
     tick(M, quand)
     check("R12.1 agent inactif sans validation en attente : aucun appel Kapso pour son numéro, crochet non appelé",
           appels_pid("PN-I", n0) == [] and VU2 == [] and cI not in M, FK.appels[n0:])
+    from app.services import storage as ST                       # noqa: E402
+
+    async def _poser_post(pid_, statut):
+        async with ST.async_session_factory() as s_:
+            s_.add(ST.ScheduledPost(id=pid_, title="Teaser", caption="", channels="x", status=statut, mode="assisted",
+                                    run_at=datetime.utcnow() + timedelta(days=2), espace_id=I))
+            await s_.commit()
+    run(_poser_post("p-brouillon", "draft"))
+    AW.modifier_validations(I, lambda v: {**v, "p-brouillon": {"identite": "tel:" + TEL_I, "cid": cI, "etat": "envoye",
+                                                              "envoye_le": maintenant().isoformat(timespec="seconds")}})
+    tick(M, quand)
+    check("R12.1b validation « envoye » d'un post qui n'est plus a_valider : le compte n'est pas lu",
+          appels_pid("PN-I", n0) == [] and VU2 == [], FK.appels[n0:])
+    run(_poser_post("p-attente", "a_valider"))
     AW.modifier_validations(I, lambda v: {**v, "p-attente": {"identite": "tel:" + TEL_I, "cid": cI, "etat": "envoye",
                                                             "envoye_le": maintenant().isoformat(timespec="seconds")}})
     mI = entrant("Valider", TEL_I)

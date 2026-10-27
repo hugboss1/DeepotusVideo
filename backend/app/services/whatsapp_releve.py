@@ -169,7 +169,7 @@ async def releve_tick(marqueur: dict, maintenant: datetime | None = None) -> dic
                 continue
             agent = WA.reglages(eid)["agent"]
             actif = bool(agent.get("actif"))
-            if not actif and not _WV.en_attente(eid, now):
+            if not actif and not await _WV.en_attente(eid, now):
                 continue                         # agent inactif et aucune validation client en attente : rien à lire
             suivis.add(cid)
             rapport["comptes"] += 1

@@ -16,7 +16,11 @@ corps envoyés : aucun réseau, aucune clé réelle) :
   V6  « Corriger » (bouton de modèle) -> `a_corriger`, puis le texte suivant du contact -> `note` (≤ 2000), `corrige` ;
       GET /api/schedule/{id}/client rend `validation_whatsapp.note` ; un texte sans correction en attente -> False ;
       au-delà de 24 h -> rien.
-  V7  la route t309 `validation-client` répond comme avant (400 réponse inconnue, 200 valide).
+  V7  la route t309 `validation-client` répond comme avant (400 réponse inconnue, 200 valide) ; la logique vit dans
+      `services/validation_client.valider_post` (RefusValidation traduite à l'identique).
+  V9  relecture : contenu modifié après l'envoi -> « Valider » sans effet (empreinte) ; décision au PC (moyen ≠ whatsapp)
+      -> demande `perimee` ; `en_attente` ignore une demande de plus de 30 jours ou d'un post qui n'est plus a_valider ;
+      bouton forgé pour le post d'un autre client -> rien ; réponse venue de l'alias BSUID -> acceptée.
   V8  journal (logger) : aucun texte de message ni clé.
 Run (depuis backend/) : & $PY tests/test_whatsapp_validation.py"""
 import asyncio, json, os, pathlib, sys, tempfile, uuid
@@ -377,7 +381,7 @@ p = lire_post(P2)
 v = AW.validations(C1).get(P2) or {}
 check("V6.1 bouton de modèle « Corriger » : True, post a_valider sans date, état a_corriger",
       r6 is True and p.status == "a_valider" and p.valide_client_le is None and v.get("etat") == "a_corriger", (r6, v))
-check("V6.2 en attente : l'espace a une correction ouverte", WV.en_attente(C1) is True)
+check("V6.2 en attente : l'espace a une correction ouverte", run(WV.en_attente(C1)) is True)
 NOTE = "Changez la photo, mettez le logo en haut " + "x" * 2100
 r7 = run(WV.traiter_reponse(cW, C1, plat(texte_in(TEL, NOTE))))
 v = AW.validations(C1).get(P2) or {}
@@ -425,7 +429,87 @@ check("V7.3 post sans client -> 409", r.status_code == 409 and detail(r) == "ce 
 src = (_ICI.parent / "app" / "api" / "routes.py").read_text(encoding="utf-8")
 corps_route = src[src.find('@router.post("/schedule/{post_id}/validation-client")'):]
 corps_route = corps_route[:corps_route.find("\n\n\n")]
-check("V7.4 la route appelle valider_post (logique extraite et réutilisée)", "await valider_post(" in corps_route, corps_route[:400])
+check("V7.4 la route appelle validation_client.valider_post (logique extraite dans un service, réutilisée)",
+      "await _vc.valider_post(" in corps_route and "RefusValidation" in corps_route, corps_route[:400])
+from app.services import validation_client as VC                   # noqa: E402
+try:
+    run(VC.valider_post("nexistepas", "valide", "ecrit"))
+    _r = None
+except VC.RefusValidation as e:
+    _r = (e.statut, e.message)
+check("V7.5 le service lève RefusValidation(404, « post inconnu ») ; la route le traduit à l'identique",
+      _r == (404, "post inconnu") and client_http.post("/api/schedule/nexistepas/validation-client",
+                                                       json={"reponse": "valide", "moyen": "ecrit"}).status_code == 404, _r)
+
+# ---------------------------------------------------------------------------------------------------------------------
+print("\n[V9] relecture : empreinte, décision au PC, en_attente, post d'un autre client, alias")
+FK.ouvertes.add(("PN-V", TEL))
+
+
+def changer_titre(pid, titre):
+    async def _c():
+        async with storage.async_session_factory() as s_:
+            q = await s_.get(storage.ScheduledPost, pid)
+            q.title = titre
+            await s_.commit()
+    run(_c())
+
+
+PE = poser(C1)
+check("V9.0 envoi : empreinte du contenu rangée", envoyer(PE).status_code == 200
+      and len((AW.validations(C1).get(PE) or {}).get("empreinte") or "") == 16, AW.validations(C1).get(PE))
+changer_titre(PE, "Teaser modifié")
+r = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{PE}:ok"))))
+p = lire_post(PE)
+check("V9.1 contenu modifié après l'envoi, puis « Valider » : rien ne change (False), validation périmée",
+      r is False and p.status == "a_valider" and p.valide_client_le is None
+      and (AW.validations(C1).get(PE) or {}).get("etat") == "perimee", (r, p.status))
+PD = poser(C1)
+envoyer(PD)
+rr = client_http.post(f"/api/schedule/{PD}/validation-client", json={"reponse": "valide", "moyen": "ecrit"})
+check("V9.2 décision au PC (moyen écrit) : la demande WhatsApp envoyée devient périmée",
+      rr.status_code == 200 and (AW.validations(C1).get(PD) or {}).get("etat") == "perimee", AW.validations(C1).get(PD))
+PD2 = poser(C1)
+envoyer(PD2)
+run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{PD2}:corr", "Corriger"))))
+etat_av = (AW.validations(C1).get(PD2) or {}).get("etat")
+client_http.post(f"/api/schedule/{PD2}/validation-client", json={"reponse": "valide", "moyen": "doigt"})
+check("V9.3 a_corriger puis décision au PC : périmée (le texte suivant ne devient plus une note)",
+      etat_av == "a_corriger" and (AW.validations(C1).get(PD2) or {}).get("etat") == "perimee"
+      and run(WV.traiter_reponse(cW, C1, plat(texte_in(TEL, "une remarque tardive")))) is False, AW.validations(C1).get(PD2))
+PW = poser(C1)
+envoyer(PW)
+client_http.post(f"/api/schedule/{PW}/validation-client", json={"reponse": "corriger", "moyen": "whatsapp"})
+check("V9.4 décision saisie avec moyen whatsapp : la demande reste envoyée", (AW.validations(C1).get(PW) or {}).get("etat") == "envoye")
+C6 = client("Espace Attente")
+PA6, PB6 = poser(C6), poser(C6, status="draft")
+vieux = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat(timespec="seconds")
+neuf_ = datetime.now(timezone.utc).isoformat(timespec="seconds")
+AW.modifier_validations(C6, lambda v: {PA6: {"identite": IDENT, "etat": "envoye", "envoye_le": vieux},
+                                       PB6: {"identite": IDENT, "etat": "envoye", "envoye_le": neuf_}})
+check("V9.5 en_attente : demande de plus de 30 jours, ou post qui n'est plus a_valider -> False",
+      run(WV.en_attente(C6)) is False)
+AW.modifier_validations(C6, lambda v: {**v, PA6: {**v[PA6], "envoye_le": neuf_}})
+check("V9.6 en_attente : demande récente d'un post a_valider -> True", run(WV.en_attente(C6)) is True)
+PX = poser(C3)
+AW.modifier_validations(C1, lambda v: {**v, PX: {"identite": IDENT, "cid": cW, "etat": "envoye", "envoye_le": neuf_,
+                                                 "empreinte": WV.empreinte(lire_post(PX))}})
+r = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{PX}:ok"))))
+check("V9.7 bouton forgé pour le post d'un AUTRE client, depuis le bon contact : rien (False), post inchangé",
+      r is False and lire_post(PX).status == "a_valider" and lire_post(PX).valide_client_le is None, r)
+r = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{poser(C3)}:ok"))))
+check("V9.8 bouton forgé sans validation rangée : rien (False)", r is False)
+WA._noter(cW, lambda e: e["alias"].update({"bsuid:BS-LUNE": IDENT, IDENT: "bsuid:BS-LUNE"}))
+PL = poser(C1)
+envoyer(PL)
+N[0] += 1
+m_bs = {"id": f"wamid.IN{N[0]}", "type": "interactive", "from_user_id": "BS-LUNE",
+        "interactive": {"type": "button_reply", "button_reply": {"id": f"val:{PL}:ok", "title": "Valider"}},
+        "timestamp": str(int(datetime.now(timezone.utc).timestamp())), "kapso": {"direction": "inbound"}}
+pb = plat(m_bs)
+r = run(WV.traiter_reponse(cW, C1, pb))
+check("V9.9 réponse venue de l'alias (BSUID du même contact) : acceptée, post validé",
+      pb["identite"] == "bsuid:BS-LUNE" and r is True and lire_post(PL).status == "draft", (pb.get("identite"), r))
 
 # ---------------------------------------------------------------------------------------------------------------------
 print("\n[V8] journal")
