@@ -10958,5 +10958,49 @@
  "un modèle marketing exige un accord saisi du contact : un message reçu ne vaut accord que pour lui répondre": {
   "fr": "un modèle marketing exige un accord saisi du contact : un message reçu ne vaut accord que pour lui répondre",
   "en": "a marketing template requires a recorded opt-in from the contact: an incoming message only counts as consent to reply to it"
+ },
+ "constante JSON refusée : {c}": {
+  "fr": "constante JSON refusée : {c}",
+  "en": "JSON constant refused: {c}"
+ },
+ "espace inconnu ou archivé : {v}": {
+  "fr": "espace inconnu ou archivé : {v}",
+  "en": "unknown or archived space: {v}"
+ },
+ "id d'espace invalide : {v}": {
+  "fr": "id d'espace invalide : {v}",
+  "en": "invalid space id: {v}"
+ },
+ "date invalide : {v}": {
+  "fr": "date invalide : {v}",
+  "en": "invalid date: {v}"
+ },
+ "dossier sans verbatims.jsonl": {
+  "fr": "dossier sans verbatims.jsonl",
+  "en": "folder without verbatims.jsonl"
+ },
+ "date invalide : {date}": {
+  "fr": "date invalide : {date}",
+  "en": "invalid date: {date}"
+ },
+ "import illisible : {name} : {v}": {
+  "fr": "import illisible : {name} : {v}",
+  "en": "unreadable import: {name}: {v}"
+ },
+ "périmètre : liste « concurrents » attendue": {
+  "fr": "périmètre : liste « concurrents » attendue",
+  "en": "scope: a \"concurrents\" list is expected"
+ },
+ "réponse inattendue ({name})": {
+  "fr": "réponse inattendue ({name})",
+  "en": "unexpected response ({name})"
+ },
+ "périmètre : id de concurrent invalide : {v}": {
+  "fr": "périmètre : id de concurrent invalide : {v}",
+  "en": "scope: invalid competitor id: {v}"
+ },
+ "périmètre : {quoi} invalide : {v}": {
+  "fr": "périmètre : {quoi} invalide : {v}",
+  "en": "scope: invalid {quoi}: {v}"
  }
 }
