@@ -64,6 +64,7 @@ _ID_BOUTON = re.compile(r"^[A-Za-z0-9_:.-]{1,256}$")
 _NOM_MODELE = re.compile(r"^[A-Za-z0-9_]{1,512}$")
 _LANGUE_MODELE = re.compile(r"^[a-z]{2,3}(?:_[A-Za-z]{2,4})?$")
 _NOM_PARAMETRE = re.compile(r"^[a-z0-9_]{1,64}$")
+NOM_PARAMETRE_MAX = 60           # t311 tâche 7 : au-delà, le modèle est écarté de `modeles` (et de la page)
 _JALON = re.compile(r"\{\{\s*([^{}\s]+)\s*\}\}")
 
 
@@ -356,8 +357,9 @@ def _modele_plat(m: dict) -> dict:
     nommes = bool(ex.get("body_text_named_params")) or any(not j.isdigit() for j in jalons)
     return {"nom": m.get("name"), "langue": m.get("language"), "categorie": str(m.get("category") or "").lower(),
             "parametres": "nommes" if nommes else "positionnels", "n_parametres": len(jalons),
-            # t311 tâche 7 : les noms des jalons du corps, dans l'ordre (les champs nommés de la page WhatsApp)
-            "noms_parametres": [str(j)[:60] for j in jalons],
+            # t311 tâche 7 : les noms des jalons du corps, dans l'ordre, ENTIERS (les champs nommés de la page WhatsApp ;
+            # un modèle à nom trop long est écarté de la liste par `modeles`, jamais tronqué)
+            "noms_parametres": [str(j) for j in jalons],
             "statut": str(m.get("status") or "").lower(), "composants": _composants(m)}
 
 
@@ -374,7 +376,9 @@ async def modeles(cid: str, *, tous: bool = False) -> list:
     """Les modèles APPROUVÉS (`tous=True` : tous les statuts) : {nom, langue, categorie, parametres: nommes|positionnels,
     n_parametres (composant BODY), statut, composants: {entete, boutons}}."""
     _vue, pub, _pid = _compte_relie(cid)
-    return [_modele_plat(m) for m in await _modeles_bruts(pub, tous)]
+    plats = [_modele_plat(m) for m in await _modeles_bruts(pub, tous)]
+    # t311 tâche 7 : même règle que la page (NOM_PARAMETRE_MAX de whatsapp.js) — un nom de paramètre plus long est écarté
+    return [m for m in plats if all(len(n) <= NOM_PARAMETRE_MAX for n in m["noms_parametres"])]
 
 
 async def marquer_lu(cid: str, message_id: str, ecrit: bool = False) -> None:

@@ -111,6 +111,8 @@
   "whatsapp.saisie.envoye": {"fr": "Message envoyé.", "en": "Message sent.", "contexte": true},
   "whatsapp.saisie.fenetre_fermee": {"fr": "Fenêtre de 24 h fermée : modèles approuvés seulement.", "en": "24-hour window closed: approved templates only.", "contexte": true},
   "whatsapp.saisie.stop": {"fr": "Ce contact a demandé STOP : aucun envoi possible. Levez le STOP dans l'onglet Contacts s'il se réabonne.", "en": "This contact asked to STOP: nothing can be sent. Lift the STOP in the Contacts tab if they opt back in.", "contexte": true},
+  "whatsapp.saisie.fenetre_vient_de_fermer": {"fr": "La fenêtre de 24 h vient de se fermer : la saisie libre est retirée, seuls les modèles peuvent partir.", "en": "The 24-hour window has just closed: free text is removed, only templates can be sent.", "contexte": true},
+  "whatsapp.saisie.devenu_stop": {"fr": "Ce contact vient de demander STOP : la saisie est retirée.", "en": "This contact has just asked to STOP: the message box is removed.", "contexte": true},
   "whatsapp.saisie.texte_vide": {"fr": "Le message est vide.", "en": "The message is empty.", "contexte": true},
   "whatsapp.saisie.texte_long": {"fr": "Message trop long ({max} caractères au plus).", "en": "Message too long ({max} characters at most).", "contexte": true},
   "whatsapp.saisie.trop_de_boutons": {"fr": "Trois boutons au plus.", "en": "Three buttons at most.", "contexte": true},

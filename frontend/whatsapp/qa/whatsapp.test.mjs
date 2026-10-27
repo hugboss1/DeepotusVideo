@@ -69,12 +69,15 @@ globalThis.CustomEvent = function (t, o) { this.type = t; this.detail = o && o.d
 const icones = new Set();
 window.dzIcone = (cle) => { icones.add(cle); return '<svg data-cle="' + cle + '"></svg>'; };
 
-// minuteries : setInterval relevé (jamais lancé tout seul) ; setTimeout de dz-plafonds avalé
-const intervalles = new Map(); let nInt = 0; const effaces = [];
-globalThis.setInterval = (f, ms) => { nInt++; intervalles.set(nInt, { f, ms }); return nInt; };
-globalThis.clearInterval = (id) => { effaces.push(id); intervalles.delete(id); };
-globalThis.setTimeout = (f, ms) => 0;
-globalThis.clearTimeout = () => {};
+// minuteries : setTimeout relevé, jamais lancé tout seul (la minuterie de 30 s, les délais d'abandon des appels, ceux
+// de dz-plafonds) ; le banc déclenche lui-même ce qu'il veut
+const minuteries = new Map(); let nMin = 0;
+globalThis.setTimeout = (f, ms) => { nMin++; minuteries.set(nMin, { f, ms }); return nMin; };
+globalThis.clearTimeout = (id) => { minuteries.delete(id); };
+globalThis.setInterval = () => { throw new Error("setInterval interdit : minuterie par setTimeout"); };
+globalThis.clearInterval = () => {};
+function declencher(ms) { for (const [id, m] of [...minuteries]) if (m.ms === ms) { minuteries.delete(id); m.f(); } }
+function differe() { let resoudre; const promesse = new Promise((r) => { resoudre = r; }); return { promesse, resoudre }; }
 
 // console : aucune trace de texte de message
 const traces = [];
@@ -105,7 +108,14 @@ globalThis.fetch = window.fetch = async (url, o = {}) => {
   appels.push({ url: u, m, corps, plafond: h.get("X-DZ-Plafond") });
   const chemin = u.split("?")[0];
   for (const cle of [m + " " + u, m + " " + chemin]) {
-    if (cle in routes) { const r = routes[cle]; const v = typeof r === "function" ? r(corps, h, u) : r; return rep(v[0], v[1]); }
+    if (cle in routes) {
+      const r = routes[cle]; const p = typeof r === "function" ? r(corps, h, u, o.signal) : r;
+      const v = await (p && typeof p.then === "function" ? new Promise((res, rej) => {
+        if (o.signal) o.signal.addEventListener("abort", () => rej(new DOMException("abandon", "AbortError")));
+        p.then(res, rej);
+      }) : p);
+      return rep(v[0], v[1]);
+    }
   }
   return rep(404, { detail: "inconnu " + m + " " + chemin });
 };
@@ -116,6 +126,7 @@ for (const f of ["whatsapp.js", "onglets-conversations.js", "onglets-gestion.js"
   vm.runInThisContext(readFileSync(join(PAGE, f), "utf8"), { filename: f });
 }
 const W = window.__dzWhatsapp;
+W.DELAI_MS = 29999; W.DELAI_REDIGER_MS = 119999;      // délais d'abandon reconnaissables (la minuterie fait 30000)
 check("0.1 window.__dzWhatsapp exposé", W && typeof W.demarrer === "function");
 
 // ── données ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -158,7 +169,9 @@ const MODELES = [
   { nom: "promo", langue: "fr", categorie: "marketing", parametres: "positionnels", n_parametres: 1, noms_parametres: ["1"],
     statut: "approved", composants: { entete: "image", entete_variable: false, boutons: [] } },
 ];
-const MODELES_TOUS = MODELES.concat([{ nom: "vieux", langue: "fr", categorie: "marketing", parametres: "positionnels", n_parametres: 0, noms_parametres: [], statut: "rejected", composants: { entete: null, entete_variable: false, boutons: [] } },
+MODELES.push({ nom: "trop_long", langue: "fr", categorie: "utility", parametres: "nommes", n_parametres: 1, noms_parametres: ["x".repeat(61)],
+  statut: "approved", composants: { entete: null, entete_variable: false, boutons: [] } });
+const MODELES_TOUS = MODELES.filter((m) => m.nom !== "trop_long").concat([{ nom: "vieux", langue: "fr", categorie: "marketing", parametres: "positionnels", n_parametres: 0, noms_parametres: [], statut: "rejected", composants: { entete: null, entete_variable: false, boutons: [] } },
   { nom: "attente", langue: "en", categorie: "utility", parametres: "positionnels", n_parametres: 0, noms_parametres: [], statut: "pending", composants: { entete: null, entete_variable: false, boutons: [] } }]);
 const B = "/api/whatsapp/" + CID;
 function routesBase(o = {}) {
@@ -352,9 +365,11 @@ await ouvrirConv(r, "bsuid:ABC");
 check("7.12 brouillon humain : carte « à reprendre », pas d'envoi direct", un(r, "data-dz-wa-brouillon", "humain") && !un(r, "data-dz-wa-decider", "envoyer") && un(r, "data-dz-wa-decider", "rejeter"));
 
 // ── [8] rafraîchissement : 30 s, seulement onglet visible ────────────────────────────────────────────────────────────
-const actifs = () => [...intervalles.values()].filter((i) => i.ms === 30000);
-check("8.1 une minuterie de 30 s", actifs().length === 1, [...intervalles.values()].map((i) => i.ms));
-appels = []; await actifs()[0].f(); await attendre();
+const actifs = () => [...minuteries.values()].filter((i) => i.ms === 30000);
+// tirer : la minuterie de 30 s part (elle quitte la file comme un vrai setTimeout échu)
+function tirer() { for (const [id, m] of minuteries) if (m.ms === 30000) { minuteries.delete(id); return m.f; } return async () => {}; }
+check("8.1 une minuterie de 30 s", actifs().length === 1, [...minuteries.values()].map((i) => i.ms));
+appels = []; await tirer()(); await attendre();
 check("8.2 le tic relit conversations, brouillons et le fil", appels.some((a) => a.url.startsWith(B + "/conversations")) && appels.some((a) => a.url.startsWith(B + "/brouillons")) && posts(B + "/relire").length === 1);
 const tic = actifs()[0].f;
 document.visibilityState = "hidden"; docEvenement("visibilitychange"); await attendre();
@@ -363,6 +378,32 @@ appels = []; await tic(); await attendre();
 check("8.4 caché : un tic attardé ne lit rien", appels.length === 0, appels.map((a) => a.url));
 document.visibilityState = "visible"; docEvenement("visibilitychange"); await attendre();
 check("8.5 visible : relu tout de suite et minuterie reposée", actifs().length === 1 && appels.some((a) => a.url.startsWith(B + "/conversations")));
+{ // tic lent : jamais deux tics en parallèle, minuterie reprogrammée APRÈS la fin du tic
+  const d = differe(); routes["GET " + B + "/conversations"] = () => d.promesse;
+  const tour = tirer(); appels = [];
+  const p1 = tour(); await attendre();
+  check("8.6 pendant un tic lent : aucune minuterie en attente", actifs().length === 0);
+  const p2 = tour(); await attendre();
+  check("8.7 un second tic pendant le premier ne relit rien", appels.filter((a) => a.url.startsWith(B + "/conversations")).length === 1, appels.map((a) => a.url));
+  d.resoudre([200, CONVS]); await p1; await p2; await attendre();
+  check("8.8 tic fini : une seule minuterie reprogrammée", actifs().length === 1);
+  routes["GET " + B + "/conversations"] = [200, CONVS];
+}
+{ // la fenêtre se ferme puis un STOP arrive pendant qu'on regarde le contact : la saisie change, la page dit pourquoi
+  await ouvrirConv(r, "tel:33600000001");
+  check("8.9 fenêtre ouverte au départ", !!un(r, "data-dz-wa-texte"));
+  routes["GET " + B + "/conversations"] = [200, CONVS.map((c) => c.identite === "tel:33600000001" ? Object.assign({}, c, { fenetre_ouverte: false }) : c)];
+  await tirer()(); await attendre();
+  check("8.10 fenêtre fermée en cours de route : saisie retirée et message", !un(r, "data-dz-wa-texte") && un(r, "data-dz-wa-info").textContent === T("whatsapp.saisie.fenetre_vient_de_fermer"), un(r, "data-dz-wa-info").textContent);
+  routes["GET " + B + "/conversations"] = [200, CONVS.map((c) => c.identite === "tel:33600000001" ? Object.assign({}, c, { fenetre_ouverte: false, stop: true }) : c)];
+  await tirer()(); await attendre();
+  check("8.11 STOP arrivé : bandeau et message", un(r, "data-dz-wa-bandeau", "stop") && un(r, "data-dz-wa-info").textContent === T("whatsapp.saisie.devenu_stop"));
+  routes["GET " + B + "/conversations"] = [200, CONVS];
+  await tirer()(); await attendre();
+  W.effacer();
+  appels = []; await tirer()(); await attendre();
+  check("8.12 un tic sans changement ne dit rien", un(r, "data-dz-wa-info").textContent === "");
+}
 
 // ── [9] Modèles, Contacts, Santé ─────────────────────────────────────────────────────────────────────────────────────
 un(r, "data-dz-wa-onglet", "modeles").declencher("click"); await attendre();
@@ -433,6 +474,95 @@ const pl = posts(B + "/envoyer");
 check("11.1 402 : le dialogue de dz-plafonds est ouvert puis la requête rejouée avec X-DZ-Plafond", confirmations === 1 && pl.length === 2 && pl[1].plafond === "confirme", pl);
 check("11.2 rejouée et acceptée : aucun message d'erreur, saisie vidée", texteErreur(r) === "" && un(r, "data-dz-wa-texte").value === "", texteErreur(r));
 
+// ── [13] réponses périmées, délai d'abandon, double clic ─────────────────────────────────────────────────────────────
+{
+  const CID2 = "c2", B2 = "/api/whatsapp/" + CID2;
+  const deux = comptes(); deux.comptes.push({ id: CID2, espace_id: EID, plateforme: "whatsapp", libelle: "WhatsApp 2", champs: [
+    { nom: "WHATSAPP_PHONE_ID", secret: false, valeur: "pid2" }, { nom: "WHATSAPP_NUMERO", secret: false, valeur: "+33 9 99 99 99 99" }] });
+  const CONVS2 = [{ id: "z1", identite: "tel:33700000009", nom: "Numéro B", dernier_entrant: null, fenetre_ouverte: false, stop: false }];
+  const ETAT2 = Object.assign({}, ETAT, { plafond_mois: 222, alias: {} });
+  const dc = differe();
+  r = await monter({ routes: { "GET /api/comptes": [200, deux],
+    ["GET " + B2 + "/conversations"]: [200, CONVS2], ["GET " + B2 + "/brouillons"]: [200, {}], ["GET " + B2 + "/etat"]: [200, ETAT2] } });
+  // A : un tic dont les conversations reviennent APRÈS le choix du numéro B
+  routes["GET " + B + "/conversations"] = () => dc.promesse;
+  const tourA = tirer(); const pA = tourA(); await attendre();
+  const sel = un(r, "data-dz-wa-numero"); sel.value = CID2; sel.declencher("change"); await attendre();
+  dc.resoudre([200, CONVS.concat([{ id: "kz", identite: "tel:33611111111", nom: "Fantôme A", fenetre_ouverte: true, stop: false }])]);
+  await pA; await attendre();
+  check("13.1 réponse de A arrivée après le choix de B : rien de A dans le DOM", !r.textContent.includes("Fantôme A") && !un(r, "data-dz-wa-conv", "tel:33600000001")
+    && !!un(r, "data-dz-wa-conv", "tel:33700000009"), attr(r, "data-dz-wa-conv").map((n) => n.getAttribute("data-dz-wa-conv")));
+  check("13.2 … ni dans S", W.S.cid === CID2 && W.S.convs.length === 1 && W.S.convs[0].identite === "tel:33700000009");
+  check("13.3 une seule minuterie après le chassé-croisé", actifs().length === 1, actifs().length);
+  // A : l'état revient après le choix de B
+  const de = differe();
+  routes["GET " + B + "/etat"] = () => de.promesse; routes["GET " + B + "/conversations"] = [200, CONVS];
+  sel.value = CID; sel.declencher("change"); await attendre(4);
+  sel.value = CID2; sel.declencher("change"); await attendre();
+  de.resoudre([200, Object.assign({}, ETAT, { plafond_mois: 999 })]); await attendre();
+  check("13.4 état de A arrivé après B : S.etat reste celui de B", W.S.etat && W.S.etat.plafond_mois === 222 && W.S.cid === CID2, W.S.etat && W.S.etat.plafond_mois);
+  check("13.5 … et les conversations de A ne sont jamais relues ni montrées", !un(r, "data-dz-wa-conv", "tel:33600000001"));
+  // Santé de A lente, puis B
+  sel.value = CID; sel.declencher("change"); await attendre();
+  routes["GET " + B + "/etat"] = [200, ETAT];
+  const ds = differe(); routes["GET " + B + "/modeles"] = () => ds.promesse;
+  un(r, "data-dz-wa-onglet", "sante").declencher("click"); await attendre(4);
+  sel.value = CID2; sel.declencher("change"); await attendre();
+  ds.resoudre([200, MODELES_TOUS]); await attendre();
+  check("13.6 Santé de A arrivée après B : le panneau montre B", (un(r, "data-dz-wa-sante", "total") || { textContent: "" }).textContent.includes("222")
+    && !(un(r, "data-dz-wa-refuses") || { textContent: "" }).textContent.includes("vieux"), (un(r, "data-dz-wa-sante", "total") || {}).textContent);
+}
+{ // un appel qui ne répond jamais : message réseau, boutons rendus
+  r = await monter({ routes: { ["POST " + B + "/envoyer"]: () => new Promise(() => {}) } });
+  await ouvrirConv(r, "tel:33600000001");
+  W.DELAI_MS = 777;
+  un(r, "data-dz-wa-texte").value = "Silence"; appels = [];
+  un(r, "data-dz-wa-envoyer").declencher("click"); await attendre();
+  check("13.7 pendant l'appel : Envoyer et la zone grisés", un(r, "data-dz-wa-envoyer").disabled === true && un(r, "data-dz-wa-texte").disabled === true);
+  un(r, "data-dz-wa-envoyer").declencher("click"); await attendre();
+  check("13.8 double clic : un seul POST", posts(B + "/envoyer").length === 1);
+  declencher(777); await attendre();
+  check("13.9 délai écoulé : message réseau", texteErreur(r) === T("whatsapp.erreur.reseau"), texteErreur(r));
+  check("13.10 boutons rendus, saisie gardée", un(r, "data-dz-wa-envoyer").disabled === false && un(r, "data-dz-wa-texte").disabled === false && un(r, "data-dz-wa-texte").value === "Silence");
+  routes["POST " + B + "/envoyer"] = [200, { id: "w", statut: "accepted" }];
+  un(r, "data-dz-wa-envoyer").declencher("click"); await attendre();
+  check("13.11 C.occupe relâché : un nouvel envoi part", posts(B + "/envoyer").length === 2);
+  W.DELAI_MS = 29999;
+  check("13.12 rediger : délai d'abandon de 120 s", (() => { appels = []; un(r, "data-dz-wa-rediger").declencher("click");
+    return [...minuteries.values()].some((m) => m.ms === 119999); })());
+  await attendre();
+  // fil : grisé et protégé du double clic
+  const df = differe(); routes["POST " + B + "/fil"] = () => df.promesse; appels = [];
+  un(r, "data-dz-wa-fil-action", "prendre").declencher("click"); await attendre();
+  check("13.13 fil : boutons grisés pendant l'appel", un(r, "data-dz-wa-fil-action", "prendre").disabled && un(r, "data-dz-wa-fil-action", "rendre").disabled);
+  un(r, "data-dz-wa-fil-action", "rendre").declencher("click"); await attendre();
+  check("13.14 fil : un seul appel à la fois", posts(B + "/fil").length === 1);
+  df.resoudre([200, { ok: true }]); await attendre();
+  check("13.15 fil : boutons rendus", !un(r, "data-dz-wa-fil-action", "prendre").disabled);
+  // modèle au nom de paramètre trop long : écarté, comme côté serveur
+  r = await monter(); await ouvrirConv(r, "tel:33600000002");
+  un(r, "data-dz-wa-modele-ouvrir").declencher("click"); await attendre();
+  check("13.16 un nom de paramètre > 60 car. écarte le modèle", un(r, "data-dz-wa-modele-choix").enfants.length === 2
+    && !un(r, "data-dz-wa-modele-choix").textContent.includes("trop_long"));
+  // Contacts et Prix : grisés, un seul appel
+  un(r, "data-dz-wa-onglet", "contacts").declencher("click"); await attendre();
+  const da = differe(); routes["POST " + B + "/accords"] = () => da.promesse; appels = [];
+  un(r, "data-dz-wa-accord-identite").value = "tel:33600000005"; un(r, "data-dz-wa-accord-source").value = "papier";
+  const ba = un(r, "data-dz-wa-accord-ajouter"); ba.declencher("click"); await attendre();
+  check("13.17 Contacts : bouton grisé pendant l'appel", ba.disabled === true);
+  ba.declencher("click"); await attendre();
+  check("13.18 Contacts : un seul POST", posts(B + "/accords").length === 1);
+  da.resoudre([200, { ok: true }]); await attendre();
+  un(r, "data-dz-wa-onglet", "prix").declencher("click"); await attendre();
+  const dp = differe(); routes["POST /api/cost/pricing"] = () => dp.promesse; appels = [];
+  const be = un(r, "data-dz-wa-prix-enregistrer"); be.declencher("click"); await attendre();
+  check("13.19 Prix : Enregistrer grisé pendant l'appel", be.disabled === true && un(r, "data-dz-wa-prix-ajouter").disabled === true);
+  be.declencher("click"); await attendre();
+  check("13.20 Prix : un seul POST", posts("/api/cost/pricing").length === 1);
+  dp.resoudre([200, { whatsapp_meta_usd: {} }]); await attendre();
+  check("13.21 Prix : rendu après la réponse", be.disabled === false);
+}
+
 // ── [12] hygiène ─────────────────────────────────────────────────────────────────────────────────────────────────────
 check("12.1 toutes les clés dzT employées existent", absentes.size === 0, [...absentes]);
 const MOTS = ["Bonjour", "Avec plaisir", "Payant", "Simple", "Encore", "Votre rendez-vous", "Léa, nous"];
@@ -442,6 +572,9 @@ const sansCommentaires = SRC.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'\
 const litteraux = [...sansCommentaires.matchAll(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'/g)].map((m) => m[1] ?? m[2]);
 const francais = litteraux.filter((s) => /[àâçéèêëîïôûùüÿœ]/i.test(s) || /\b(le|la|les|des|une|aucun|envoyer|modèle|contact|fenêtre)\b/i.test(s) && /\s/.test(s));
 check("12.3 aucun texte français en dur hors dico", francais.length === 0, francais.slice(0, 8));
+const BLANCHE = new Set(["Accept", "Accept-Language", "Content-Type"]);
+const majuscules = litteraux.filter((x) => /^[A-Z][a-z]/.test(x) && !BLANCHE.has(x));
+check("12.3b aucun littéral à majuscule initiale hors liste blanche (en-têtes HTTP)", majuscules.length === 0, majuscules.slice(0, 8));
 check("12.4 aucune console.log dans la page", !/console\.(log|info|debug)\(/.test(sansCommentaires));
 check("12.5 icônes de la suite seulement (relevées)", [...icones].every((k) => /^dz-[a-z0-9-]+$/.test(k)) && icones.size > 0, [...icones]);
 

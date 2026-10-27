@@ -143,6 +143,9 @@ def litteraux(src):
 fr = [x for x in litteraux(tout_js) if not re.fullmatch(r"(?:wa-[\w-]*\s*)+", x)    # classes CSS « wa-… »
       and (re.search(r"[àâçéèêëîïôûùüÿœ]", x, re.I) or (" " in x.strip() and MOTS_FR.search(x)))]
 check("3.8 aucun littéral français dans les scripts", not fr, fr[:8])
+BLANCHE = {"Accept", "Accept-Language", "Content-Type"}       # en-têtes HTTP : seules majuscules initiales permises
+maj = [x for x in litteraux(tout_js) if re.match(r"[A-Z][a-z]", x) and x not in BLANCHE]
+check("3.8b aucun littéral à majuscule initiale hors liste blanche", not maj, maj[:8])
 corps_html = re.sub(r"<!--.*?-->", "", HTML, flags=re.S)
 corps_html = re.sub(r"<(script|style|title)[^>]*>.*?</\1>", "", corps_html, flags=re.S)
 textes = [t.strip() for t in re.findall(r">([^<>]+)<", corps_html) if t.strip()]
@@ -175,6 +178,26 @@ check("6.1 noms_parametres : les noms des paramètres nommés, sans doublon, dan
 m = WE._modele_plat({"name": "p", "language": "fr", "category": "MARKETING", "status": "APPROVED", "components": [
     {"type": "BODY", "text": "Promo {{1}} et {{2}}"}]})
 check("6.2 positionnels : 1..n", m.get("noms_parametres") == ["1", "2"] and m["parametres"] == "positionnels", m)
+long_ = "p" * 61
+m = WE._modele_plat({"name": "l", "language": "fr", "category": "UTILITY", "status": "APPROVED", "components": [
+    {"type": "BODY", "text": "Bonjour {{" + long_ + "}}"}]})
+check("6.2b un nom de paramètre n'est jamais tronqué", m.get("noms_parametres") == [long_], m.get("noms_parametres"))
+import asyncio                                               # noqa: E402
+
+
+async def _faux_bruts(pub, tous=False):
+    return [{"name": "court", "language": "fr", "category": "UTILITY", "status": "APPROVED", "components": [{"type": "BODY", "text": "{{prenom}}"}]},
+            {"name": "long", "language": "fr", "category": "UTILITY", "status": "APPROVED", "components": [{"type": "BODY", "text": "{{" + long_ + "}}"}]},
+            {"name": "limite", "language": "fr", "category": "UTILITY", "status": "APPROVED", "components": [{"type": "BODY", "text": "{{" + "q" * 60 + "}}"}]}]
+_av = (WE._compte_relie, WE._modeles_bruts)
+WE._compte_relie = lambda cid: ({}, {}, "pid")
+WE._modeles_bruts = _faux_bruts
+try:
+    noms = [x["nom"] for x in asyncio.run(WE.modeles("c1", tous=True))]
+finally:
+    WE._compte_relie, WE._modeles_bruts = _av
+check("6.2c modeles écarte un modèle à nom de paramètre > 60 (60 passe) ; même borne que la page",
+      noms == ["court", "limite"] and WE.NOM_PARAMETRE_MAX == 60 and "NOM_PARAMETRE_MAX: 60" in JS["whatsapp.js"], noms)
 check("6.3 la page ne lit ni n'affiche aucune clé ni jeton", not re.search(r"KAPSO_API_KEY|token|download_url|Authorization", tout_js + HTML, re.I))
 check("6.4 aucune trace console dans la page", not re.search(r"console\.(log|info|debug|warn)\(", tout_js))
 

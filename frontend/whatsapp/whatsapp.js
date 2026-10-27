@@ -13,8 +13,11 @@
    Erreurs : 409 {message, code} -> whatsapp.refus.<code> ; 402 : dz-plafonds.js enveloppe fetch et ouvre sa boîte ;
    annulé, il rend un 402 dont le détail est une chaîne (montrée telle quelle) ; sans dz-plafonds, le message du
    dz_plafond ; 502 -> le message du fournisseur (déjà nettoyé par le serveur).
-   Minuterie : 30 s, onglet Conversations seulement, arrêtée dès que document.visibilityState n'est plus « visible »,
-   reposée (avec une relecture immédiate) au retour. Jamais de texte de message ni de clé dans la console.
+   Minuterie : 30 s (setTimeout reprogrammé après la fin du tic, jamais deux tics à la fois), onglet Conversations
+   seulement, arrêtée dès que document.visibilityState n'est plus « visible », reposée (avec une relecture immédiate) au
+   retour. Réponses périmées : S.gen change à chaque choix d'espace ou de numéro ; toute fonction asynchrone le capture
+   avant son await et ne touche ni S ni le DOM s'il a changé. Délai d'abandon des appels : 30 s (120 s pour rediger),
+   rendu comme une panne réseau. Jamais de texte de message ni de clé dans la console.
    Textes : dzT("whatsapp.…") (frontend/shared/i18n/whatsapp.json). Données utilisateur par textContent. */
 (function () {
   "use strict";
@@ -97,14 +100,35 @@
     return url + (url.indexOf("?") < 0 ? "?" : "&") + "espace=" + encodeURIComponent(S.eid || "");
   }
   function mediaUrl(mid) { return avecEspace(waUrl("/medias/" + encodeURIComponent(mid))); }
-  async function api(methode, url, corps) {
+  // délai d'abandon : un appel qui ne répond pas rend status 0 (message « réseau ») au lieu de bloquer la page
+  async function api(methode, url, corps, delai) {
     var o = { method: methode, headers: { "Accept": "application/json", "Accept-Language": langue() } };
     if (corps !== undefined) { o.headers["Content-Type"] = "application/json"; o.body = JSON.stringify(corps); }
-    var R;
-    try { R = await window.fetch(avecEspace(url), o); } catch (e) { return { ok: false, status: 0, data: null }; }
-    var d = null;
-    try { d = await R.json(); } catch (e) { d = null; }
-    return { ok: !!R.ok, status: R.status, data: d };
+    var ctl = typeof AbortController === "function" ? new AbortController() : null;
+    var minu = null;
+    if (ctl) { o.signal = ctl.signal; minu = setTimeout(function () { ctl.abort(); }, delai || W.DELAI_MS); }
+    try {
+      var R = await window.fetch(avecEspace(url), o);
+      var d = null;
+      try { d = await R.json(); } catch (e) { d = null; }
+      if (ctl && ctl.signal.aborted) return { ok: false, status: 0, data: null };
+      return { ok: !!R.ok, status: R.status, data: d };
+    } catch (e) {
+      return { ok: false, status: 0, data: null };
+    } finally {
+      if (minu) clearTimeout(minu);
+    }
+  }
+  // un appel à la fois par garde ; les éléments sont grisés pendant l'appel, puis rendus à leur état d'avant
+  async function occuper(garde, elts, fn) {
+    if (garde.occupe) return undefined;
+    garde.occupe = true;
+    var avant = (elts || []).filter(Boolean).map(function (e) { return [e, !!e.disabled]; });
+    avant.forEach(function (p) { p[0].disabled = true; });
+    try { return await fn(); } finally {
+      garde.occupe = false;
+      avant.forEach(function (p) { p[0].disabled = p[1]; });
+    }
   }
   async function confirmer(msg) {
     var D = window.__dzDialogue;
@@ -168,16 +192,25 @@
   }
 
   // ── minuterie ───────────────────────────────────────────────────────────────────────────────────────────────────────
-  function arreterMinuterie() { if (S.minuterie) { clearInterval(S.minuterie); S.minuterie = null; } }
+  // un setTimeout reprogrammé APRÈS la fin du tic (jamais deux tics en parallèle, même si une lecture est lente)
+  function arreterMinuterie() { if (S.minuterie) { clearTimeout(S.minuterie); S.minuterie = null; } }
   function demarrerMinuterie() {
     arreterMinuterie();
     if (document.visibilityState !== "visible" || S.onglet !== "conversations" || !S.cid) return;
-    S.minuterie = setInterval(tic, PERIODE_MS);
+    S.minuterie = setTimeout(tour, PERIODE_MS);
+  }
+  async function tour() {
+    S.minuterie = null;
+    if (S.ticEnCours) return;
+    await tic();
+    demarrerMinuterie();
   }
   async function tic() {
-    if (document.visibilityState !== "visible" || S.onglet !== "conversations" || !S.cid) return;
+    if (document.visibilityState !== "visible" || S.onglet !== "conversations" || !S.cid || S.ticEnCours) return;
     var o = W.onglets.conversations;
-    if (o && typeof o.rafraichir === "function") await o.rafraichir();
+    if (!o || typeof o.rafraichir !== "function") return;
+    S.ticEnCours = true;
+    try { await o.rafraichir(); } finally { S.ticEnCours = false; }
   }
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible") {
@@ -214,8 +247,12 @@
     sel.disabled = items.length < 2;
   }
 
+  // S.gen : changé à chaque choix d'espace ou de numéro ; une réponse arrivée après un autre choix est jetée
+  function perime(g) { return g !== S.gen; }
   async function chargerEspaces() {
+    var g = S.gen;
     var r = await api("GET", "/api/espaces");
+    if (perime(g)) return;
     if (!r.ok || !r.data) { erreur(messageErreur(r)); montrerVide("espace"); return; }
     S.espaces = (r.data.espaces || []).filter(function (e) { return !e.archive; });
     var ids = S.espaces.map(function (e) { return e.id; });
@@ -226,9 +263,11 @@
   }
   async function choisirEspace(eid) {
     arreterMinuterie();
+    var g = ++S.gen;
     S.eid = eid; S.cid = null; S.etat = null; S.sel = null;
     effacer();
     var r = await api("GET", "/api/comptes?espace=" + encodeURIComponent(eid));
+    if (perime(g)) return;
     if (!r.ok || !r.data) { erreur(messageErreur(r)); remplir(Z.selNumero, [], ""); montrerVide("numero"); return; }
     var cp = r.data.plateformes && r.data.plateformes.whatsapp && r.data.plateformes.whatsapp.cle_plate;
     S.clePosee = !!(cp && cp.posee);
@@ -240,15 +279,19 @@
   }
   async function choisirNumero(cid) {
     arreterMinuterie();
+    var g = ++S.gen;
     S.cid = cid; S.sel = null; S.convs = []; S.brouillons = {}; S.etat = null; S.modeles = null; S.modelesTous = null;
     effacer();
     montrerVide(null);
     await chargerEtat();
+    if (perime(g)) return;
     Object.keys(Z.panneaux).forEach(function (k) { Z.panneaux[k].textContent = ""; Z.panneaux[k].removeAttribute("data-dz-wa-pret"); });
     await activerOnglet(S.onglet || "conversations");
   }
   async function chargerEtat() {
+    var g = S.gen;
     var r = await api("GET", waUrl("/etat"));
+    if (perime(g)) return { ok: false, status: -1, data: null, perime: true };
     if (r.ok && r.data) S.etat = r.data;
     return r;
   }
@@ -262,14 +305,17 @@
     });
     arreterMinuterie();
     var o = W.onglets[nom];
+    var g = S.gen;
     if (o && S.cid) await o.afficher(Z.panneaux[nom]);
-    if (nom === "conversations") demarrerMinuterie();
+    if (!perime(g) && S.onglet === nom && nom === "conversations") demarrerMinuterie();
   }
 
   // ── démarrage ───────────────────────────────────────────────────────────────────────────────────────────────────────
   async function demarrer(racine) {
     arreterMinuterie();
+    var g = (S.gen || 0) + 1;
     Object.keys(S).forEach(function (k) { delete S[k]; });
+    S.gen = g;
     S.onglet = "conversations";
     racine.textContent = "";
     Z.racine = racine;
@@ -315,6 +361,7 @@
     messageErreur: messageErreur, erreur: erreur, info: info, effacer: effacer, confirmer: confirmer,
     normaliserIdentite: normaliserIdentite, identiteValide: identiteValide, groupe: groupe, brouillonDe: brouillonDe,
     validerBoutons: validerBoutons, heure: heure, date: date, chargerEtat: chargerEtat, demarrer: demarrer,
+    occuper: occuper, perime: perime, DELAI_MS: 30000, DELAI_REDIGER_MS: 120000, NOM_PARAMETRE_MAX: 60,
     MAX_BOUTONS: MAX_BOUTONS, MAX_TITRE: MAX_TITRE
   });
 

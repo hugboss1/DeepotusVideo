@@ -24,7 +24,9 @@
   function titre(texte, cle) { return el("h3", { cls: "wa-titre" }, [W.icone(cle), el("span", { texte: texte })]); }
   function section(cls, enfants) { return el("section", { cls: "wa-bloc " + (cls || "") }, enfants); }
   async function modelesTous() {
+    var g = S.gen;
     var r = await W.api("GET", W.waUrl("/modeles?tous=1"));
+    if (W.perime(g)) return { ok: false, status: -1, data: null, perime: true };
     if (r.ok && Array.isArray(r.data)) S.modelesTous = r.data;
     return r;
   }
@@ -33,7 +35,9 @@
   async function afficherModeles(p) {
     p.textContent = "";
     p.appendChild(el("p", { cls: "wa-aide", texte: T("whatsapp.modeles.aide") }));
+    var g = S.gen;
     var r = await modelesTous();
+    if (W.perime(g)) return;
     if (!r.ok) { W.erreur(W.messageErreur(r)); return; }
     var liste = el("div", { cls: "wa-table wa-table--modeles", a: { role: "table" } });
     liste.appendChild(el("div", { cls: "wa-rangee wa-rangee--tete", a: { role: "row" } },
@@ -56,16 +60,23 @@
     if (!W.identiteValide(id)) { W.erreur(T("whatsapp.contacts.identite_invalide")); return null; }
     return id;
   }
-  async function poster(suffixe, corps, cleOk, p) {
-    var r = await W.api("POST", W.waUrl(suffixe), corps);
-    if (!r.ok) { W.erreur(W.messageErreur(r)); return false; }
-    W.info(T(cleOk));
-    await afficherContacts(p, true);
-    return true;
+  var GC = {};
+  async function poster(suffixe, corps, cleOk, p, bouton) {
+    var g = S.gen;
+    return W.occuper(GC, [bouton], async function () {
+      var r = await W.api("POST", W.waUrl(suffixe), corps);
+      if (W.perime(g)) return false;
+      if (!r.ok) { W.erreur(W.messageErreur(r)); return false; }
+      W.info(T(cleOk));
+      await afficherContacts(p, true);
+      return true;
+    });
   }
   async function afficherContacts(p, garderMessages) {
     if (!garderMessages) W.effacer();
+    var g = S.gen;
     var r = await W.chargerEtat();
+    if (W.perime(g)) return;
     p.textContent = "";
     if (!r.ok || !S.etat) { W.erreur(W.messageErreur(r)); return; }
     var e = S.etat;
@@ -85,7 +96,7 @@
       var id = identiteSaisie(aId); if (!id) return;
       var src = aSrc.value.trim();
       if (!src) { W.erreur(T("whatsapp.contacts.source_exigee")); return; }
-      await poster("/accords", { identite: id, source: src }, "whatsapp.contacts.accord_note", p);
+      await poster("/accords", { identite: id, source: src }, "whatsapp.contacts.accord_note", p, aBtn);
     } } }, "dz-action-ajouter");
     p.appendChild(section("wa-bloc--accords", [titre(T("whatsapp.contacts.accords"), "dz-etat-succes"), el("p", { cls: "wa-aide", texte: T("whatsapp.contacts.accord_aide") }),
       accords, el("div", { cls: "wa-ligne" }, [aId, aSrc, aBtn])]));
@@ -100,7 +111,7 @@
         W.effacer();
         var s = src.value.trim();
         if (!s) { W.erreur(T("whatsapp.contacts.source_exigee")); return; }
-        await poster("/stop/lever", { identite: id, source: s }, "whatsapp.contacts.stop_leve", p);
+        await poster("/stop/lever", { identite: id, source: s }, "whatsapp.contacts.stop_leve", p, lever);
       } } }, "dz-action-restaurer");
       src.addEventListener("input", function () { lever.disabled = !src.value.trim(); });
       stops.appendChild(el("div", { cls: "wa-rangee", a: { "data-dz-wa-stop-ligne": id } }, [el("span", { cls: "wa-mono", texte: id }), el("span", { cls: "wa-sous", texte: W.date(e.stops[id]) }), src, lever]));
@@ -109,8 +120,8 @@
     var sBtn = W.bouton(T("whatsapp.contacts.poser_stop"), { a: { "data-dz-wa-stop-poser": true }, on: { click: async function () {
       W.effacer();
       var id = identiteSaisie(sId); if (!id) return;
-      if (!(await W.confirmer(T("whatsapp.contacts.stop_confirmer", { identite: id })))) return;
-      await poster("/stop", { identite: id }, "whatsapp.contacts.stop_pose", p);
+      if (GC.occupe || !(await W.confirmer(T("whatsapp.contacts.stop_confirmer", { identite: id })))) return;
+      await poster("/stop", { identite: id }, "whatsapp.contacts.stop_pose", p, sBtn);
     } } }, "dz-etat-exclu");
     p.appendChild(section("wa-bloc--stops", [titre(T("whatsapp.contacts.stops"), "dz-etat-exclu"), el("p", { cls: "wa-aide", texte: T("whatsapp.contacts.stop_aide") }),
       stops, el("div", { cls: "wa-ligne" }, [sId, sBtn])]));
@@ -127,7 +138,9 @@
   function nombre(v) { return typeof v === "number" && isFinite(v) && v > 0 ? v : 0; }
   async function afficherSante(p) {
     p.textContent = "";
+    var g = S.gen;
     var rs = await Promise.all([W.chargerEtat(), modelesTous()]);
+    if (W.perime(g)) return;
     if (!rs[0].ok || !S.etat) { W.erreur(W.messageErreur(rs[0])); return; }
     var e = S.etat;
     var mois = new Date().toISOString().slice(0, 7);
@@ -217,25 +230,32 @@
       ["marche"].concat(COLONNES).map(function (k) { return el("span", { a: { role: "columnheader" }, texte: T("whatsapp.prix.col_" + k) }); }).concat([el("span")])));
     p.appendChild(P.corps);
     p.appendChild(el("div", { cls: "wa-ligne" }, [
-      W.bouton(T("whatsapp.prix.ajouter"), { a: { "data-dz-wa-prix-ajouter": true }, on: { click: function () { ligneDePrix("", null); } } }, "dz-action-ajouter"),
+      P.btnAjouter = W.bouton(T("whatsapp.prix.ajouter"), { a: { "data-dz-wa-prix-ajouter": true }, on: { click: function () { ligneDePrix("", null); } } }, "dz-action-ajouter"),
       el("span", { cls: "wa-espace" }),
-      W.bouton(T("whatsapp.prix.enregistrer"), { cls: "wa-btn--primaire", a: { "data-dz-wa-prix-enregistrer": true }, on: { click: enregistrerPrix } }, "dz-action-enregistrer")
+      P.btnEnregistrer = W.bouton(T("whatsapp.prix.enregistrer"), { cls: "wa-btn--primaire", a: { "data-dz-wa-prix-enregistrer": true }, on: { click: enregistrerPrix } }, "dz-action-enregistrer")
     ]));
+    var g = S.gen;
     var r = await W.api("GET", "/api/cost/pricing");
+    if (W.perime(g)) return;
     if (!r.ok || !r.data) { W.erreur(W.messageErreur(r)); return; }
     var g = r.data.whatsapp_meta_usd;
     dessinerGrille(g && typeof g === "object" ? g : {});
   }
   async function enregistrerPrix() {
+    if (P.occupe) return;
     W.effacer();
     var lu = lireGrille();
     if (lu.erreur) { W.erreur(lu.erreur); return; }
     if (!Object.keys(lu.grille).length && !(await W.confirmer(T("whatsapp.prix.vide_confirmer")))) return;
-    var r = await W.api("POST", "/api/cost/pricing", { whatsapp_meta_usd: lu.grille });
-    if (!r.ok) { W.erreur(W.messageErreur(r)); return; }
-    W.info(T("whatsapp.prix.enregistre"));
-    var g = r.data && r.data.whatsapp_meta_usd;
-    dessinerGrille(g && typeof g === "object" ? g : lu.grille);
+    var g = S.gen;
+    await W.occuper(P, [P.btnEnregistrer, P.btnAjouter], async function () {
+      var r = await W.api("POST", "/api/cost/pricing", { whatsapp_meta_usd: lu.grille });
+      if (W.perime(g)) return;
+      if (!r.ok) { W.erreur(W.messageErreur(r)); return; }
+      W.info(T("whatsapp.prix.enregistre"));
+      var gr = r.data && r.data.whatsapp_meta_usd;
+      dessinerGrille(gr && typeof gr === "object" ? gr : lu.grille);
+    });
   }
 
   W.onglets.modeles = { afficher: afficherModeles };
