@@ -484,8 +484,9 @@ def etat(cid: str) -> dict:
 
 def reglages(eid: str) -> dict:
     """Les réglages WhatsApp de l'espace {plafond_mois, marche_defaut, agent} (copie ; l'agent est complété par
-    `AGENT_DEFAUT`, champ par champ, quoi qu'il y ait sur disque). Rien n'est écrit. KeyError = espace inconnu."""
-    _espace_connu(eid)
+    `AGENT_DEFAUT`, champ par champ, quoi qu'il y ait sur disque). Rien n'est écrit et `espaces.lire()` n'est JAMAIS appelé
+    (le relevé de fond lit ici) : KeyError seulement sur un id invalide, un espace sans fichier rend les défauts. Les
+    routes vérifient l'existence de l'espace avec `_espace_connu`."""
     r = _reglages_doc(_lire_doc(eid))
     return {"plafond_mois": r["plafond_mois"], "marche_defaut": r["marche_defaut"], "agent": _agent_complet(r.get("agent"))}
 
@@ -502,7 +503,8 @@ PLAFOND_MOIS_MAX = 1_000_000
 
 
 def _espace_connu(eid: str) -> None:
-    """KeyError si l'espace n'existe pas (un dossier d'espace ne se crée jamais par un réglage)."""
+    """KeyError si l'espace n'existe pas (un dossier d'espace ne se crée jamais par un réglage). Lit `espaces.lire()` :
+    pour les écritures et les routes, jamais pour `reglages()`."""
     if not isinstance(eid, str) or eid not in _es.lire()["espaces"]:
         raise KeyError(eid)
 
@@ -672,9 +674,21 @@ def regler_espace(eid: str, champs: dict) -> dict:
     return reglages(eid)
 
 
+def _instantane(doc: dict) -> str:
+    """Les réglages EFFECTIFS du document (défauts complétés, clés inconnues comprises), pour savoir si un geste change
+    quelque chose. Travaille sur une copie."""
+    d = json.loads(json.dumps(doc))
+    r = _reglages_doc(d)
+    r["agent"] = _agent_complet(r.get("agent"))      # l'agent EFFECTIF : seul un changement de valeur compte, pas la mise en forme
+    return json.dumps(r, sort_keys=True)
+
+
 def _ranger_reglages(eid: str, plafond, marche, agent) -> None:
-    """Écrit des réglages DÉJÀ validés (sous le verrou de `_modifier`, lecture-fusion-écriture)."""
-    def geste(doc):
+    """Écrit des réglages DÉJÀ validés (sous le verrou, lecture-fusion-écriture). N'écrit rien si le résultat est celui
+    d'avant. ValueError si la fusion donne un début égal à la fin."""
+    with _verrou:
+        doc = _lire_doc(eid)
+        avant = _instantane(doc)
         r = _reglages_doc(doc)
         if plafond is not None:
             r["plafond_mois"] = plafond
@@ -688,17 +702,20 @@ def _ranger_reglages(eid: str, plafond, marche, agent) -> None:
                     fusion["horaires"].update(v)
                 else:
                     fusion[cle] = v
+            if fusion["horaires"]["debut"] == fusion["horaires"]["fin"]:
+                raise ValueError("agent : l'heure de début et l'heure de fin doivent différer")
             r["agent"] = {**{k: x for k, x in brut.items() if k not in fusion}, **fusion}   # les clés inconnues survivent
-    _modifier(eid, geste)
+        if _instantane(doc) != avant:
+            _es._ecrire_json(_es.chemin(eid, FICHIER), doc)
 
 
 def dans_horaires(agent: dict, maintenant: datetime) -> bool:
-    """`maintenant` tombe-t-il dans les horaires de l'agent ? Pure : l'instant est lu dans le fuseau des horaires (une date
+    """`maintenant` tombe-t-il dans les horaires de l'agent ? `agent` = `reglages(eid)["agent"]` (complété) ; un agent brut
+    ou abîmé est toléré : chaque champ d'horaires invalide retombe sur `AGENT_DEFAUT["horaires"]`. Pure : l'instant est lu dans le fuseau des horaires (une date
     naïve vaut UTC), le jour doit être dans `jours` (0 = lundi), début INCLUS, fin EXCLUE (18:00 pile est hors horaires).
     Une fin avant le début (nuit) vaut « à partir du début, ou avant la fin », le jour testé étant celui de l'instant."""
-    h = {**AGENT_DEFAUT["horaires"], **((agent or {}).get("horaires") or {})}
-    nom = h["fuseau"] if _fuseau_ok(h["fuseau"]) else AGENT_DEFAUT["horaires"]["fuseau"]
-    local = _utc(maintenant).astimezone(ZoneInfo(nom))
+    h = _agent_complet(agent)["horaires"]
+    local = _utc(maintenant).astimezone(ZoneInfo(h["fuseau"]))
     if local.weekday() not in h["jours"]:
         return False
     t = local.strftime("%H:%M")
@@ -733,7 +750,8 @@ def noter_stop(cid: str, identite_: str, maintenant: datetime | None = None) -> 
 
 def lever_stop(cid: str, identite_: str, source: str, maintenant: datetime | None = None) -> None:
     """t311 : le contact se réabonne (il l'a demandé, par écrit ou de vive voix). Retire l'identité ET son alias de `stops`
-    et pose un accord SAISI `reabonnement:<source>` (un modèle marketing n'est plus refusé pour « accord »). `source`
+    et pose un accord SAISI `reabonnement:<source>` (un modèle marketing n'est plus refusé pour « accord »). Ne lève PAS la
+    désinscription marketing (`desinscrits_marketing`, ni celle de Meta) : seul le contact la lève, chez Meta. `source`
     vide : ValueError. Sans STOP en place, l'accord est posé quand même."""
     _identite_valide(identite_)
     if not isinstance(source, str) or not source.strip():

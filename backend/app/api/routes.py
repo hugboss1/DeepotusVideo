@@ -11,7 +11,8 @@ from uuid import uuid4
 
 import httpx
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Request, Response
+from typing import Any
+from fastapi import Body, APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image as PILImage
 from loguru import logger
@@ -8749,13 +8750,14 @@ async def whatsapp_reglages_lire(espace_id: str, request: Request):
     _require_localhost(request)
     from app.services import whatsapp as _wa
     try:
+        _wa._espace_connu(espace_id)
         return _wa.reglages(espace_id)
     except Exception as e:  # noqa: BLE001
         raise _wa_erreur(e)
 
 
 @router.put("/espaces/{espace_id}/whatsapp/reglages")
-async def whatsapp_reglages_ecrire(espace_id: str, body: dict, request: Request):
+async def whatsapp_reglages_ecrire(espace_id: str, request: Request, body: Any = Body(...)):
     """t311 : range des champs PARTIELS ({plafond_mois?, marche_defaut?, agent?{…}}), fusionnés champ par champ ; rend les
     réglages complets. Hors bornes : 400 (rien n'est écrit) ; espace inconnu : 404."""
     _require_localhost(request)

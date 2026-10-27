@@ -659,6 +659,7 @@
   "erreur.3c34fc2781": {"fr": "prix WhatsApp inconnu pour {marche} / {cat} : saisissez la grille de Meta", "en": "Unknown WhatsApp price for {marche} / {cat}: enter Meta's rate card", "src": "fr"},
   "erreur.3c5e0e8f31": {"fr": "Lecture impossible : {e}", "en": "Cannot read aloud: {e}", "src": "fr"},
   "erreur.3c5e702a0f": {"fr": "pdf : dimensions pixel requises", "en": "pdf: pixel dimensions required", "src": "fr"},
+  "erreur.3c818aa013": {"fr": "agent : l'heure de début et l'heure de fin doivent différer", "en": "agent: the start time and the end time must differ", "src": "fr"},
   "erreur.3c818c322f": {"fr": "csv : texte attendu", "en": "csv: text expected", "src": "fr"},
   "erreur.3c8727559e": {"fr": "le corps d'un épisode est un objet JSON", "en": "an episode body must be a JSON object", "src": "fr"},
   "erreur.3c8a90392a": {"fr": "Fond illisible : une couleur #rrggbb, une image de la Bibliothèque ou une vidéo déposée.", "en": "Unreadable background: a #rrggbb color, a Library image or an uploaded video.", "src": "fr"},

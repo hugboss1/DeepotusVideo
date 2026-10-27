@@ -124,7 +124,7 @@ def leve(exc, f):
     return False
 
 
-check("G1.5 espace inconnu -> KeyError", leve(KeyError, lambda: WA.reglages("nope")))
+check("G1.5 id invalide -> KeyError", leve(KeyError, lambda: WA.reglages("../x")))
 
 print("\n[G2] bornes : chaque valeur hors bornes est refusée, rien n'est écrit")
 for lib, ch in [
@@ -277,9 +277,11 @@ check("G7.7 PUT d'un champ d'espace garde l'agent", rp2.status_code == 200 and r
       and rp2.json()["agent"]["actif"] is True, rp2.text[:200])
 b400 = c.put(f"/api/espaces/{boite}/whatsapp/reglages", json={"agent": {"mode": "libre"}})
 check("G7.8 PUT hors bornes -> 400, rien n'a bougé", b400.status_code == 400 and WA.reglages(boite) == rp2.json(), b400.text[:200])
-check("G7.9 PUT espace inconnu -> 404",
-      c.put("/api/espaces/nope/whatsapp/reglages", json={"plafond_mois": 5}).status_code == 404
-      and True)
+check("G7.9 PUT espace inconnu -> 404 ; corps non objet -> 400, rien d'écrit",
+      c.put(f"/api/espaces/{boite}/whatsapp/reglages", json=[1]).status_code == 400
+      and c.put(f"/api/espaces/{boite}/whatsapp/reglages", json="x").status_code == 400
+      and WA.reglages(boite)["plafond_mois"] == 500 and
+      c.put("/api/espaces/nope/whatsapp/reglages", json={"plafond_mois": 5}).status_code == 404)
 c.put(f"/api/espaces/{boite}/whatsapp/reglages", json={"plafond_mois": 1000, "agent": {"actif": False, "roles": []}})
 WA.noter_stop(cid, TEL)
 rl = c.post(f"/api/whatsapp/{cid}/stop/lever?espace={boite}", json={"identite": TEL, "source": "message client"})
@@ -314,6 +316,61 @@ check("G8.2 une clé inconnue déjà en place (agent ou espace) survit à un ré
 (_tmp / "espaces" / boite / "whatsapp.json").write_text(json.dumps({"reglages": {"agent": {"mode": "nimporte", "roles": "x",
                                                                                           "plafond_jour_contact": 999}}}), encoding="utf-8")
 check("G8.3 un agent abîmé sur disque est relu complété par les défauts", WA.reglages(boite)["agent"] == DEFAUT, WA.reglages(boite))
+
+print("\n[G9] relecture : reglages() ne touche jamais espaces.lire() ; écriture sans effet ; débuts et fins ; nuit")
+vrai_lire = E.lire
+
+
+def lire_interdit(*a, **k):
+    raise AssertionError("espaces.lire() appelé")
+
+
+E.lire = lire_interdit
+try:
+    check("G9.1 reglages(eid) sans espaces.lire() (espace connu, et id valide sans fichier)",
+          WA.reglages(boite)["agent"] == WA.reglages(boite)["agent"] and WA.reglages("zz-sans-fichier")["agent"] == DEFAUT)
+    check("G9.2 id invalide -> KeyError, toujours sans lire()", leve(KeyError, lambda: WA.reglages("../x")))
+finally:
+    E.lire = vrai_lire
+check("G9.3 reglages(eid) d'un espace inconnu : GET route 404 (la route vérifie)", c.get("/api/espaces/nope/whatsapp/reglages").status_code == 404)
+f = _tmp / "espaces" / boite / "whatsapp.json"
+WA.regler_espace(boite, {"plafond_mois": 321})
+m1, o1 = f.stat().st_mtime_ns, f.read_bytes()
+import time; time.sleep(0.05)
+WA.regler_espace(boite, {"plafond_mois": 321, "agent": {"mode": WA.reglages(boite)["agent"]["mode"]}})
+check("G9.4 réglage sans changement effectif : fichier non réécrit", f.stat().st_mtime_ns == m1 and f.read_bytes() == o1)
+WA.regler_espace(boite, {"plafond_mois": 322})
+check("G9.5 un vrai changement réécrit", f.stat().st_mtime_ns != m1 and WA.reglages(boite)["plafond_mois"] == 322)
+vide = E.creer({"nom": "Atelier Vide"})["id"]
+WA.regler_espace(vide, {"agent": {"mode": "brouillon", "horaires": {"debut": "09:00"}}})
+check("G9.6 sur un espace sans fichier, un réglage égal aux défauts n'en crée pas",
+      not (_tmp / "espaces" / vide / "whatsapp.json").exists())
+check("G9.7 début == fin refusé (dont par fusion), rien d'écrit",
+      refuse(boite, {"agent": {"horaires": {"debut": "10:00", "fin": "10:00"}}})
+      and refuse(boite, {"agent": {"horaires": {"fin": "09:00"}}}))
+WA.regler_espace(boite, {"agent": {"horaires": {"debut": "22:00", "fin": "06:00", "jours": [0, 1, 2, 3, 4]}}})
+nuit = WA.reglages(boite)["agent"]
+check("G9.8 plage de nuit 22:00-06:00 lun-ven : accepté ; mardi 23:00 Paris vrai, mardi 07:00 faux",
+      WA.dans_horaires(nuit, datetime(2026, 10, 27, 22, 0, tzinfo=UTC)) is True
+      and WA.dans_horaires(nuit, datetime(2026, 10, 27, 6, 0, tzinfo=UTC)) is False
+      and WA.dans_horaires(nuit, datetime(2026, 10, 27, 4, 0, tzinfo=UTC)) is True and True)
+check("G9.9 dans_horaires tolère un agent brut abîmé : champ par champ sur les défauts",
+      WA.dans_horaires({}, mar) is True and WA.dans_horaires(None, mar) is True
+      and WA.dans_horaires({"horaires": {"fuseau": "Nope/Zone", "debut": "zz", "jours": "x", "fin": 5}}, mar) is True
+      and WA.dans_horaires({"horaires": {"jours": [1], "debut": "bad"}}, datetime(2026, 10, 28, 9, 0, tzinfo=UTC)) is False
+      and WA.dans_horaires("pas un dict", mar) is True)
+WA.regler_espace(boite, {"agent": {"horaires": {"debut": "09:00", "fin": "18:00"}}})
+
+print("\n[G10] /etat : le message de l'espace figure sous agent ; aucun texte de contact")
+WA.regler_espace(boite, {"agent": {"message_hors_horaires": "Nous sommes fermés, à demain."}})
+WA.noter_entrant(cid, {"id": "m9", "from": "33677777777", "type": "text", "text": {"body": "TEXTE-PRIVE-DU-CONTACT"}}, T1)
+re_ = c.get(f"/api/whatsapp/{cid}/etat")
+je = re_.json()
+check("G10.1 message_hors_horaires de l'espace présent sous agent", je["agent"]["message_hors_horaires"] == "Nous sommes fermés, à demain.")
+check("G10.2 aucune clé texte/text, et le texte du contact n'apparaît nulle part",
+      "texte" not in set(cles(je)) and "text" not in set(cles(je)) and "TEXTE-PRIVE-DU-CONTACT" not in re_.text)
+check("G10.3 le journal a des entrées et aucune n'a de clé texte", len(je["journal"]) > 0
+      and all("texte" not in ent and "text" not in ent for ent in je["journal"]), je["journal"][-1:])
 
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)

@@ -11034,5 +11034,9 @@
  "source du réabonnement exigée": {
   "fr": "source du réabonnement exigée",
   "en": "source of the re-subscription required"
+ },
+ "agent : l'heure de début et l'heure de fin doivent différer": {
+  "fr": "agent : l'heure de début et l'heure de fin doivent différer",
+  "en": "agent: the start time and the end time must differ"
  }
 }
