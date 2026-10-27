@@ -664,7 +664,8 @@
           }
           return pan;
         }
-        var gouv = gouverneParClient(), creer = el("button", S.petit + S.ok);
+        var gouv = gouverneParClient();
+        var creer = el("button", S.petit + S.ok);           // t310 : une déclaration à part, lue par le catalogue de l'agent
         function majCreer() { creer.disabled = w.envoi || !!st.occupes.whatsapp || (gouv && !consentementPret()); }
         if (gouv) {
           pan.appendChild(el("div", S.note, T("espaces.assistant.whatsapp_consentement")));
@@ -712,7 +713,7 @@
         var aide = el("div", S.detail, T("espaces.assistant.whatsapp_facturation_aide"));
         aide.setAttribute("data-dz-assistant-whatsapp-facturation-aide", "1");
         pan.appendChild(aide);
-        creer.textContent = w.envoi ? T("espaces.assistant.whatsapp_creation") : T("espaces.assistant.whatsapp_creer");
+        creer.textContent = T(w.envoi ? "espaces.assistant.whatsapp_creation" : "espaces.assistant.whatsapp_creer");
         creer.type = "button";
         creer.setAttribute("data-dz-assistant-whatsapp-creer", "1");
         creer.addEventListener("click", creerLien);
