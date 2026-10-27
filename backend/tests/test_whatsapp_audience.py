@@ -103,6 +103,16 @@ a = WA.audience_diffusion(cid, categorie="marketing")
 check("A3.3 un BSUID relié à un numéro n'est ni compté ni doublé", a["retenus"] == [SAISI, MIXTE] and a["ecartes"]["bsuid"] == 1, a)
 
 print("\n[A4] refus")
+WA.noter_accord(cid, "bsuid:FR.SEUL", "formulaire")
+WA._noter(cid, lambda e: (e["alias"].__setitem__("bsuid:FR.SEUL", "tel:33600000009"),
+                          e["alias"].__setitem__("tel:33600000009", "bsuid:FR.SEUL")))
+a = WA.audience_diffusion(cid, categorie="marketing", identites=["bsuid:FR.SEUL", "tel:33600000009", "bsuid:FR.SEUL"])
+check("A3.4 accord sur le seul BSUID relié : retenu une fois, sous son numéro", a["retenus"] == ["tel:33600000009"]
+      and a["ecartes"]["bsuid"] == 0, a)
+a = WA.audience_diffusion(cid, categorie="marketing", identites=["bsuid:FR.SEUL"])
+check("A3.5 BSUID relié seul en liste : substitué par le numéro", a["retenus"] == ["tel:33600000009"], a)
+check("A3.6 BSUID non relié : reste écarté et compté", WA.audience_diffusion(cid, categorie="marketing",
+      identites=[SAISI, "bsuid:FR.ABC123"])["ecartes"]["bsuid"] == 1)
 check("A4.1 aucune identité à accord -> accord", refus(WA.audience_diffusion, cid, categorie="utility", identites=[STOPPE]) == "accord")
 check("A4.2 marketing : que des entrants -> accord", refus(WA.audience_diffusion, cid, categorie="marketing", identites=[ENTRANT]) == "accord")
 lune = E.creer({"nom": "Boulangerie Lune", "type": "client"})["id"]
@@ -131,6 +141,8 @@ mois = WA._mois(datetime.now(timezone.utc))
 WA._noter(cid, lambda e: e["compteur"].__setitem__(mois, {"sortants": 700, "entrants": 290}))
 check("P1.1 990 déjà + 20 > 1000 -> plafond", refus(WA.verifier_plafond_mois, cid, 20) == "plafond")
 check("P1.2 990 + 10 = 1000 passe", refus(WA.verifier_plafond_mois, cid, 10) is None)
+check("P1.2b horloge injectable : mois suivant, compteur vide", refus(WA.verifier_plafond_mois, cid, 20,
+      maintenant=datetime(2099, 1, 15, tzinfo=timezone.utc)) is None)
 check("P1.3 n invalide -> ValueError", all(leve(WA.verifier_plafond_mois, ValueError, cid, n) for n in (0, -1, True, 2.5, "3")))
 
 print("\n[Q1] devis par quantité")
@@ -155,6 +167,8 @@ print("\n[Q2] service : gratuits par message")
 p5 = {**p, "whatsapp_service_gratuits_mois": 5}
 op = {"kind": "whatsapp", "categorie": "service", "marche": "33"}
 check("Q2.1 n=4, déjà 3 : 2 gratuits, 2 facturés", PR._ligne_whatsapp({**op, "n": 4, "service_deja_mois": 3}, p5)["usd"] == 0.02)
+check("Q2.1b libellé : × 4 dont 2 gratuits", PR._ligne_whatsapp({**op, "n": 4, "service_deja_mois": 3}, p5)["label"]
+      == "WhatsApp service (33) × 4 dont 2 gratuits")
 check("Q2.2 n=2, déjà 3 : tout gratuit", PR._ligne_whatsapp({**op, "n": 2, "service_deja_mois": 3}, p5)["usd"] == 0.0)
 check("Q2.3 déjà 5 : tout facturé", PR._ligne_whatsapp({**op, "n": 3, "service_deja_mois": 5}, p5)["usd"] == 0.03)
 check("Q2.4 n=1 déjà 4 : gratuit, libellé d'origine", PR._ligne_whatsapp({**op, "service_deja_mois": 4}, p5)

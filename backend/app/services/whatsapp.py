@@ -922,9 +922,11 @@ def audience_diffusion(cid: str, *, categorie: str, identites: list[str] | None 
     for ident in candidats:
         groupe = _groupe(e, ident)
         if ident.startswith("bsuid:"):
-            if not any(i.startswith("tel:") for i in groupe):         # un BSUID relié à un numéro passe par le numéro
+            tel = next((i for i in groupe if i.startswith("tel:")), None)
+            if tel is None:                                           # BSUID sans numéro relié : écarté et compté
                 ecartes["bsuid"] += 1
-            continue
+                continue
+            ident = tel                                               # relié : le contact est jugé par son numéro
         if any(i in vus for i in groupe):
             continue
         vus.update(groupe)
@@ -944,12 +946,12 @@ def audience_diffusion(cid: str, *, categorie: str, identites: list[str] | None 
     return {"retenus": retenus, "ecartes": ecartes}
 
 
-def verifier_plafond_mois(cid: str, n: int) -> None:
+def verifier_plafond_mois(cid: str, n: int, maintenant: datetime | None = None) -> None:
     """t328 : `n` messages de plus tiennent-ils dans le plafond mensuel de l'espace (mêmes `_total_mois` et `plafond_mois`
-    que `controler`) ? Sinon `WhatsappRefus` « plafond ». ValueError : `n` n'est pas un entier >= 1. Aucune écriture."""
+    que `controler`) ? À appeler JUSTE AVANT de créer la diffusion chez Kapso. `maintenant` : l'horloge (défaut : l'heure UTC). Sinon `WhatsappRefus` « plafond ». ValueError : `n` n'est pas un entier >= 1. Aucune écriture."""
     if isinstance(n, bool) or not isinstance(n, int) or n < 1:
         raise ValueError("quantité de messages invalide : un entier >= 1 est attendu")
     eid, _pid = _cle_etat(cid)
     doc = _lire_doc(eid)
-    if _total_mois(doc, _mois(datetime.now(timezone.utc))) + n > _reglages_doc(doc)["plafond_mois"]:
+    if _total_mois(doc, _mois(maintenant or datetime.now(timezone.utc))) + n > _reglages_doc(doc)["plafond_mois"]:
         raise WhatsappRefus("plafond mensuel d'envois atteint", "plafond")

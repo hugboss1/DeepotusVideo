@@ -454,7 +454,10 @@ def _ligne_whatsapp(op: dict, p: dict) -> dict:
         if facturables == 0:
             return _line("meta", f"WhatsApp service ({marche}) — dans les {int(seuil):,} gratuits".replace(",", " ")
                          + (f" × {n}" if n > 1 else ""), n, "msg", 0.0)
-    return _line("meta", f"WhatsApp {cat} ({marche})" + (f" × {n}" if n > 1 else ""), n, "msg", facturables * float(tarif))
+    etiquette = f"WhatsApp {cat} ({marche})" + (f" × {n}" if n > 1 else "")
+    if cat == "service" and facturables < n:
+        etiquette += f" dont {n - facturables} gratuits"                # le libellé dit la part gratuite : il colle à `usd`
+    return _line("meta", etiquette, n, "msg", facturables * float(tarif))
 
 
 def _line(provider, label, units, unit, usd):
