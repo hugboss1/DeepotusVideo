@@ -32,7 +32,7 @@ import json
 import re
 import threading
 import weakref
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from loguru import logger
 
@@ -277,3 +277,228 @@ async def _relire(cid: str, ranger: bool) -> dict:
                                         "WHATSAPP_WABA_ID": libre.get("business_account_id") or ""})
     _ranger_liaison(eid, cid, {**lia, "termine_le": _es._maintenant(), "phone_number_id": pid})
     return _res("terminee", numero=numero)
+
+
+# ---- règles d'envoi et état par espace (t310 tâche 4) ------------------------------------------------------------------
+# Spec §6.1 « Identité des contacts » et §6.3. L'accord, le STOP, la désinscription marketing et le journal se rangent sur
+# l'IDENTITÉ du contact (`bsuid:<id>` d'abord, sinon `tel:<chiffres>`), jamais sur son numéro seul. État dans `whatsapp.json`,
+# clé `etat`, PAR COMPTE (`etat[cid]`) : un espace n'a qu'un numéro par compte, l'état est celui du numéro. Aucun réseau.
+# Le journal ne contient jamais le texte d'un message (il reste chez Kapso).
+
+MOTS_STOP = ("stop", "arret", "arrêt", "arreter", "arrêter", "unsubscribe", "desabonner", "désabonner", "stopper")
+CODES_REFUS = ("accord", "stop", "fenetre", "marketing", "plafond", "consentement", "prix", "bsuid_authentification")
+TYPES_ENVOI = ("texte", "boutons", "modele")
+PLAFOND_DEFAUT = 1000
+MARCHE_DEFAUT = "33"
+JOURNAL_MAX = 2000
+FENETRE = timedelta(hours=24)
+_IDENTITE = re.compile(r"^(?:tel:\d{5,20}|bsuid:\S{1,128})$")
+_PONCTUATION_FINALE = " \t\r\n.!?,;:…"
+
+
+class WhatsappRefus(PermissionError):
+    """Un envoi refusé par les règles. `code` ∈ CODES_REFUS ; `message` : le texte (traduit à la sortie par L10)."""
+
+    def __init__(self, message, code):
+        super().__init__(message)
+        self.message = message
+        self.code = code
+
+
+def identite(msg: dict) -> str:
+    """L'identité du contact d'un message Kapso : `bsuid:<from_user_id>` s'il existe, sinon `tel:<from>` (chiffres seuls).
+    ValueError si le message n'en porte aucune."""
+    msg = msg if isinstance(msg, dict) else {}
+    bsuid = str(msg.get("from_user_id") or "").strip()
+    if bsuid:
+        return f"bsuid:{bsuid}"
+    chiffres = re.sub(r"\D", "", str(msg.get("from") or ""))
+    if chiffres:
+        return f"tel:{chiffres}"
+    raise ValueError("message sans identité de contact (ni from_user_id ni from)")
+
+
+def _identite_valide(identite_) -> str:
+    if not isinstance(identite_, str) or not _IDENTITE.match(identite_):
+        raise ValueError("identité de contact invalide (tel:<chiffres> ou bsuid:<identifiant>)")
+    return identite_
+
+
+def destinataire(identite_: str) -> dict:
+    """Le champ d'envoi Kapso de l'identité : {"to": numéro} pour un numéro, {"recipient": BSUID} sinon
+    (jamais un BSUID dans `to`)."""
+    genre, _, valeur = _identite_valide(identite_).partition(":")
+    return {"to": valeur} if genre == "tel" else {"recipient": valeur}
+
+
+def numero_normalise(texte: str, marche: str = MARCHE_DEFAUT) -> str:
+    """Un numéro saisi, en chiffres seuls et avec indicatif : « 00… » devient « … », un « 0 » initial est remplacé par le
+    marché par défaut (« 06 12 34 56 78 » -> « 33612345678 »)."""
+    ch = re.sub(r"\D", "", str(texte or ""))
+    if ch.startswith("00"):
+        return ch[2:]
+    if ch.startswith("0"):
+        return re.sub(r"\D", "", str(marche or MARCHE_DEFAUT)) + ch[1:]
+    return ch
+
+
+def _est_stop(texte) -> bool:
+    """Le texte ENTIER (minuscules, sans ponctuation finale) est un mot d'arrêt : « stop ou encore ? » n'en est pas un."""
+    return isinstance(texte, str) and texte.strip().lower().rstrip(_PONCTUATION_FINALE) in MOTS_STOP
+
+
+def _texte_entrant(msg: dict):
+    if (msg.get("type") or "text") != "text":
+        return None
+    corps = msg.get("text")
+    if isinstance(corps, dict) and isinstance(corps.get("body"), str):
+        return corps["body"]
+    k = msg.get("kapso")
+    return k.get("content") if isinstance(k, dict) and isinstance(k.get("content"), str) else None
+
+
+def _utc(d: datetime) -> datetime:
+    return d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d.astimezone(timezone.utc)
+
+
+def _quand(maintenant) -> str:
+    return (maintenant or datetime.now()).isoformat(timespec="seconds")
+
+
+def _etat_doc(doc: dict, cid: str) -> dict:
+    """L'état du compte `cid` DANS le document (créé et complété s'il manque ; l'appelant écrit)."""
+    tous = doc.get("etat") if isinstance(doc.get("etat"), dict) else {}
+    e = tous.get(cid) if isinstance(tous.get(cid), dict) else {}
+    for k in ("accords", "stops", "desinscrits_marketing", "compteur"):
+        if not isinstance(e.get(k), dict):
+            e[k] = {}
+    if not isinstance(e.get("journal"), list):
+        e["journal"] = []
+    p = e.get("plafond_mois")
+    if not isinstance(p, int) or isinstance(p, bool) or p < 0:
+        e["plafond_mois"] = PLAFOND_DEFAUT
+    if not isinstance(e.get("marche_defaut"), str) or not e["marche_defaut"].isdigit():
+        e["marche_defaut"] = MARCHE_DEFAUT
+    tous[cid] = e
+    doc["etat"] = tous
+    return e
+
+
+def etat(cid: str) -> dict:
+    """L'état du compte whatsapp `cid` (copie ; rien n'est écrit). KeyError = compte ou espace inconnu."""
+    vue, _ = _compte(cid)
+    return json.loads(json.dumps(_etat_doc(_lire_doc(vue["espace_id"]), cid)))
+
+
+def _noter(cid: str, geste) -> None:
+    vue, _ = _compte(cid)
+    _modifier(vue["espace_id"], lambda doc: geste(_etat_doc(doc, cid)))
+
+
+def _journaliser(e: dict, quand: str, sens: str, identite_: str, type_, categorie, statut, id_) -> None:
+    e["journal"].append({"quand": quand, "sens": sens, "identite": identite_, "type": type_, "categorie": categorie,
+                         "statut": statut, "id": id_})
+    del e["journal"][:-JOURNAL_MAX]
+
+
+def noter_accord(cid: str, identite_: str, source: str, maintenant: datetime | None = None) -> None:
+    """Un accord du contact, avec sa source (« entrant », saisie : « formulaire », « papier »…)."""
+    _identite_valide(identite_)
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError("source de l'accord exigée")
+    q = _quand(maintenant)
+    _noter(cid, lambda e: e["accords"].__setitem__(identite_, {"date": q, "source": source.strip()[:60]}))
+
+
+def noter_stop(cid: str, identite_: str, maintenant: datetime | None = None) -> None:
+    _identite_valide(identite_)
+    q = _quand(maintenant)
+    _noter(cid, lambda e: e["stops"].__setitem__(identite_, q))
+
+
+def noter_desinscription(cid: str, identite_: str, maintenant: datetime | None = None) -> None:
+    """Le contact ne reçoit plus de modèle MARKETING (le service reste permis)."""
+    _identite_valide(identite_)
+    q = _quand(maintenant)
+    _noter(cid, lambda e: e["desinscrits_marketing"].__setitem__(identite_, q))
+
+
+def regler(cid: str, *, plafond_mois: int | None = None, marche_defaut: str | None = None) -> None:
+    """Règle le plafond mensuel d'envois et le marché par défaut (indicatif pays, chiffres)."""
+    if plafond_mois is not None and (not isinstance(plafond_mois, int) or isinstance(plafond_mois, bool) or plafond_mois < 0):
+        raise ValueError("plafond mensuel : un entier positif ou nul est attendu")
+    if marche_defaut is not None and (not isinstance(marche_defaut, str) or not re.match(r"^\d{1,4}$", marche_defaut)):
+        raise ValueError("marché par défaut : un indicatif pays en chiffres est attendu")
+
+    def geste(e):
+        if plafond_mois is not None:
+            e["plafond_mois"] = plafond_mois
+        if marche_defaut is not None:
+            e["marche_defaut"] = marche_defaut
+    _noter(cid, geste)
+
+
+def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None) -> str:
+    """Range un message ENTRANT : il vaut accord pour la conversation (`source: "entrant"`) ; un texte STOP note le stop
+    (et non l'accord). Une ligne de journal sans texte. Rend l'identité. Un entrant ordinaire ne lève jamais un stop."""
+    ident = identite(msg)
+    q = _quand(maintenant)
+    stop = _est_stop(_texte_entrant(msg))
+
+    def geste(e):
+        if stop:
+            e["stops"][ident] = q
+        else:
+            e["accords"][ident] = {"date": q, "source": "entrant"}
+        _journaliser(e, q, "entrant", ident, str(msg.get("type") or "text"), None, "stop" if stop else "recu", msg.get("id"))
+    _noter(cid, geste)
+    return ident
+
+
+def noter_envoi(cid: str, identite_: str, *, type: str, categorie: str | None, statut: str, id: str | None,
+                maintenant: datetime) -> None:
+    """Journalise un envoi et le compte dans le mois de `maintenant` : `sortants` (tous) et `service` (texte et boutons,
+    dans la fenêtre de 24 h). Jamais le texte du message."""
+    _identite_valide(identite_)
+    if type not in TYPES_ENVOI:
+        raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
+    mois = maintenant.strftime("%Y-%m")
+
+    def geste(e):
+        m = e["compteur"].setdefault(mois, {})
+        m["sortants"] = int(m.get("sortants") or 0) + 1
+        m["service"] = int(m.get("service") or 0) + (0 if type == "modele" else 1)
+        _journaliser(e, _quand(maintenant), "sortant", identite_, type, categorie, statut, id)
+    _noter(cid, geste)
+
+
+def controler(cid: str, identite_: str, *, type: str, categorie: str | None, dernier_entrant: datetime | None,
+              maintenant: datetime) -> None:
+    """Lève `WhatsappRefus` si l'envoi n'est pas permis. Ordre : consentement, stop, accord, fenetre, marketing,
+    bsuid_authentification, plafond. `dernier_entrant` : `last_inbound_at` de Kapso (None = jamais), `maintenant` :
+    l'horloge. Aucune écriture, aucun réseau."""
+    _identite_valide(identite_)
+    if type not in TYPES_ENVOI:
+        raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
+    vue, pub = _compte(cid)
+    eid = vue["espace_id"]
+    client = _es.client_responsable(eid)
+    if client:
+        from app.services import fiche_client
+        if not fiche_client.consentement_en_cours(client, f"whatsapp:{pub.get('WHATSAPP_PHONE_ID', '')}"):
+            raise WhatsappRefus("aucun consentement en cours du client sur ce numéro WhatsApp", "consentement")
+    e = _etat_doc(_lire_doc(eid), cid)
+    if identite_ in e["stops"]:
+        raise WhatsappRefus("ce contact a écrit STOP : aucun envoi", "stop")
+    if identite_ not in e["accords"]:
+        raise WhatsappRefus("aucun accord de ce contact : aucun envoi", "accord")
+    if type != "modele" and (dernier_entrant is None or _utc(maintenant) - _utc(dernier_entrant) > FENETRE):
+        raise WhatsappRefus("hors de la fenêtre de 24 h : seul un modèle peut partir", "fenetre")
+    cat = str(categorie or "").upper()
+    if type == "modele" and cat == "MARKETING" and identite_ in e["desinscrits_marketing"]:
+        raise WhatsappRefus("ce contact est désinscrit des messages marketing", "marketing")
+    if type == "modele" and cat == "AUTHENTICATION" and identite_.startswith("bsuid:"):
+        raise WhatsappRefus("un modèle d'authentification ne part pas vers un identifiant BSUID", "bsuid_authentification")
+    mois = e["compteur"].get(maintenant.strftime("%Y-%m")) or {}
+    if int(mois.get("sortants") or 0) >= e["plafond_mois"]:
+        raise WhatsappRefus("plafond mensuel d'envois atteint", "plafond")

@@ -10822,5 +10822,57 @@
  "la facturation Meta ne se change plus : créez un nouveau compte WhatsApp": {
   "fr": "la facturation Meta ne se change plus : créez un nouveau compte WhatsApp",
   "en": "Meta billing can no longer be changed: create a new WhatsApp account"
+ },
+ "message sans identité de contact (ni from_user_id ni from)": {
+  "fr": "message sans identité de contact (ni from_user_id ni from)",
+  "en": "message without a contact identity (neither from_user_id nor from)"
+ },
+ "identité de contact invalide (tel:<chiffres> ou bsuid:<identifiant>)": {
+  "fr": "identité de contact invalide (tel:<chiffres> ou bsuid:<identifiant>)",
+  "en": "invalid contact identity (tel:<digits> or bsuid:<identifier>)"
+ },
+ "source de l'accord exigée": {
+  "fr": "source de l'accord exigée",
+  "en": "source of the consent required"
+ },
+ "plafond mensuel : un entier positif ou nul est attendu": {
+  "fr": "plafond mensuel : un entier positif ou nul est attendu",
+  "en": "monthly cap: a positive or zero integer is expected"
+ },
+ "marché par défaut : un indicatif pays en chiffres est attendu": {
+  "fr": "marché par défaut : un indicatif pays en chiffres est attendu",
+  "en": "default market: a country dialling code in digits is expected"
+ },
+ "type d'envoi inconnu (texte, boutons ou modele)": {
+  "fr": "type d'envoi inconnu (texte, boutons ou modele)",
+  "en": "unknown send type (texte, boutons or modele)"
+ },
+ "ce contact a écrit STOP : aucun envoi": {
+  "fr": "ce contact a écrit STOP : aucun envoi",
+  "en": "this contact wrote STOP: nothing is sent"
+ },
+ "aucun accord de ce contact : aucun envoi": {
+  "fr": "aucun accord de ce contact : aucun envoi",
+  "en": "no consent from this contact: nothing is sent"
+ },
+ "hors de la fenêtre de 24 h : seul un modèle peut partir": {
+  "fr": "hors de la fenêtre de 24 h : seul un modèle peut partir",
+  "en": "outside the 24-hour window: only a template can be sent"
+ },
+ "ce contact est désinscrit des messages marketing": {
+  "fr": "ce contact est désinscrit des messages marketing",
+  "en": "this contact has unsubscribed from marketing messages"
+ },
+ "un modèle d'authentification ne part pas vers un identifiant BSUID": {
+  "fr": "un modèle d'authentification ne part pas vers un identifiant BSUID",
+  "en": "an authentication template is never sent to a BSUID"
+ },
+ "plafond mensuel d'envois atteint": {
+  "fr": "plafond mensuel d'envois atteint",
+  "en": "monthly sending cap reached"
+ },
+ "aucun consentement en cours du client sur ce numéro WhatsApp": {
+  "fr": "aucun consentement en cours du client sur ce numéro WhatsApp",
+  "en": "no current client consent on this WhatsApp number"
  }
 }
