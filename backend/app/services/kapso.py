@@ -57,14 +57,16 @@ async def _dormir(secondes: float) -> None:
     await asyncio.sleep(secondes)
 
 
-async def _requete(methode: str, url: str, *, json=None, params=None) -> tuple[int, object, dict]:
+async def _requete(methode: str, url: str, *, json=None, params=None, fichiers=None) -> tuple[int, object, dict]:
     """HOOK DE BANC : (statut, corps, en-têtes). Corps = JSON décodé si le type le dit, sinon octets bruts.
-    La clé part en en-tête `X-API-Key` seulement, vers HTTPS `api.kapso.ai` seulement, sans suivre de redirection."""
+    La clé part en en-tête `X-API-Key` seulement, vers HTTPS `api.kapso.ai` seulement, sans suivre de redirection.
+    `fichiers` (t311) : formulaire multipart au format `files=` de httpx (`{champ: (None, valeur)}` pour un champ texte,
+    `{champ: (nom, octets, mime)}` pour un fichier) ; alors AUCUN corps JSON n'est envoyé."""
     u = urlparse(url)
     if u.scheme != "https" or u.hostname != HOTE or u.username or u.password:
         raise KapsoErreur("Adresse Kapso refusée (HTTPS api.kapso.ai seulement)", code="hote_refuse")
     async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=30, follow_redirects=False) as c:
-        r = await c.request(methode, url, json=json, params=params,
+        r = await c.request(methode, url, json=None if fichiers else json, params=params, files=fichiers or None,
                             headers={"X-API-Key": comptes.cle_kapso(), "Accept": "application/json, */*"})
     entetes = dict(r.headers)
     corps: object = r.content
@@ -120,17 +122,19 @@ def _attente(entetes: dict, essai: int) -> float:
     return float(2 ** essai)
 
 
-async def _appel(methode: str, url: str, *, json=None, params=None, reessai_ok: bool = True) -> tuple[int, object, dict]:
+async def _appel(methode: str, url: str, *, json=None, params=None, reessai_ok: bool = True,
+                 fichiers=None) -> tuple[int, object, dict]:
     """Un appel avec clé vérifiée, réessai 429/409 `message_in_flight`, erreurs normalisées ; rend (statut, corps, en-têtes) en 2xx.
     `reessai_ok=False` : un seul essai (un 429 reste marqué réessayable : c'est à l'appelant de décider)."""
     cle = comptes.cle_kapso()
     if not cle:
         raise KapsoErreur("Clé Kapso absente", code="cle_absente")
     chemin = _chemin(url)
+    sup = {} if fichiers is None else {"fichiers": fichiers}     # le faux `_requete` des bancs t310 n'a pas ce mot-clé
     for essai in range(MAX_ESSAIS):
         panne = None
         try:
-            statut, corps, entetes = await _requete(methode, url, json=json, params=params)
+            statut, corps, entetes = await _requete(methode, url, json=json, params=params, **sup)
         except KapsoErreur:
             raise
         except Exception as e:  # noqa: BLE001 — le texte d'une exception réseau peut porter une URL : jamais recopié
@@ -209,8 +213,9 @@ async def numero(phone_number_id: str) -> dict:
 async def preferences_marketing(contact: str, *, phone_number_id: str | None = None) -> bool | None:
     """Le contact accepte-t-il les modèles MARKETING ? Vrai si `marketing_allowed` (ou aucune préférence : tableau vide, ou 404
     « Marketing preference not found » = abonné) ; faux si un arrêt est enregistré (sur ce numéro émetteur si
-    `phone_number_id` est donné, sinon sur n'importe lequel) ; None si le contact est inconnu (autre 404). `contact` : numéro
-    ou UUID du contact. Les autres erreurs sont levées."""
+    `phone_number_id` est donné, sinon sur n'importe lequel) ; None si le contact est inconnu (autre 404). `contact` : numéro,
+    UUID du contact ou BSUID (t311 : la doc Kapso dit « identifier = UUID, numéro ou BSUID »). Les autres erreurs sont levées."""
+    # à vérifier au premier test réel : un BSUID est transmis tel quel, sans conversion, à ce point d'accès
     try:
         _s, corps, _e = await _appel(
             "GET", f"{PLATFORM}/whatsapp/contacts/{quote(str(contact), safe='')}/marketing_preferences")
@@ -240,10 +245,50 @@ async def envoyer(phone_number_id: str, corps: dict) -> dict:
     return {"id": msgs[0]["id"], "statut": msgs[0].get("message_status") or "accepted"}
 
 
-async def marquer_lu(phone_number_id: str, message_id: str) -> None:
-    """POST /{numéro}/messages {status: read} : accusé de lecture d'un message reçu."""
-    await _appel("POST", f"{PROXY}/{quote(str(phone_number_id), safe='')}/messages",
-                 json={"messaging_product": "whatsapp", "status": "read", "message_id": message_id})
+async def marquer_lu(phone_number_id: str, message_id: str, *, ecrit: bool = False) -> None:
+    """POST /{numéro}/messages {status: read} : accusé de lecture d'un message reçu. `ecrit` (t311) ajoute
+    `typing_indicator: {"type": "text"}` : « en train d'écrire » chez le contact (jusqu'à ce qu'on réponde, 25 s au plus)."""
+    corps = {"messaging_product": "whatsapp", "status": "read", "message_id": message_id}
+    if ecrit:
+        corps["typing_indicator"] = {"type": "text"}
+    await _appel("POST", f"{PROXY}/{quote(str(phone_number_id), safe='')}/messages", json=corps)
+
+
+async def _fil(phone_number_id: str, action: str, destinataire: dict) -> None:
+    corps = {"messaging_product": "whatsapp", "action": action, **destinataire}
+    # 502 et 409 `thread_control_in_progress` : jamais réessayés (un seul essai) ; l'appelant décide
+    await _appel("POST", f"{PROXY}/{quote(str(phone_number_id), safe='')}/thread_control", json=corps, reessai_ok=False)
+
+
+async def prendre_fil(phone_number_id: str, destinataire: dict) -> None:
+    """POST /{numéro}/thread_control `take` : un humain prend la conversation (`destinataire` = {"to"} | {"recipient"})."""
+    await _fil(phone_number_id, "take", destinataire)
+
+
+async def rendre_fil(phone_number_id: str, destinataire: dict) -> None:
+    """POST /{numéro}/thread_control `release` : l'humain rend la conversation à l'agent."""
+    await _fil(phone_number_id, "release", destinataire)
+
+
+MIME_TELEVERSES = ("image/jpeg", "image/png")
+MAX_TELEVERSE = 5 * 1024 * 1024               # image : 5 Mo (Meta)
+
+
+async def televerser_media(phone_number_id: str, octets: bytes, mime: str, nom: str) -> str:
+    """POST /{numéro}/media (multipart `messaging_product`, `type`, `file`) : l'id du média, utilisable dans un envoi.
+    JPEG et PNG seulement, 5 Mo au plus, sinon ValueError AVANT tout appel."""
+    mime = str(mime or "").strip().lower()
+    if mime not in MIME_TELEVERSES:
+        raise ValueError("média : image JPEG ou PNG seulement")
+    if not isinstance(octets, (bytes, bytearray)) or not 0 < len(octets) <= MAX_TELEVERSE:
+        raise ValueError("média : de 1 octet à 5 Mo")
+    nom = re.sub(r"[^A-Za-z0-9_.-]", "_", str(nom or "image"))[:80] or "image"
+    _s, rep, _e = await _appel("POST", f"{PROXY}/{quote(str(phone_number_id), safe='')}/media", fichiers={
+        "messaging_product": (None, "whatsapp"), "type": (None, mime), "file": (nom, bytes(octets), mime)})
+    mid = rep.get("id") if isinstance(rep, dict) else None
+    if not mid:
+        raise KapsoErreur("Réponse Kapso invalide", code="reponse_invalide")
+    return str(mid)
 
 
 def _page(corps, limite: int) -> tuple[list, str | None]:
@@ -283,12 +328,35 @@ async def conversations(phone_number_id: str, *, apres: str | None = None, limit
     return _page(corps, limite)
 
 
-async def modeles(waba_id: str, *, statut: str = "APPROVED") -> list[dict]:
+PAGES_MODELES = 5
+
+
+async def modeles(waba_id: str, *, statut: str | None = "APPROVED") -> list[dict]:
     """GET /{WABA}/message_templates?status= : les modèles (le chemin porte l'ID du compte WhatsApp Business, pas du numéro).
-    Première page de 100 (aucun curseur d'entrée documenté)."""
-    _s, corps, _e = await _appel("GET", f"{PROXY}/{quote(str(waba_id), safe='')}/message_templates",
-                                 params={"status": statut, "limit": 100})
-    return _data(corps, list)
+    Pages de 100 suivies par `paging.cursors.after` (paramètre `after`), CINQ pages au plus, jusqu'à une page vide
+    ou sans `paging.next` ; dédoublonnées par (nom, langue). `statut=None` : tous les statuts."""
+    out, cur = [], None
+    for _ in range(PAGES_MODELES):
+        params: dict = {"limit": 100}
+        if statut:
+            params["status"] = statut
+        if cur:
+            params["after"] = cur
+        _s, corps, _e = await _appel("GET", f"{PROXY}/{quote(str(waba_id), safe='')}/message_templates", params=params)
+        liste, cur = _page(corps, 100)
+        out.extend(liste)
+        paging = corps.get("paging") if isinstance(corps, dict) else None
+        if not cur or (isinstance(paging, dict) and not paging.get("next")):    # `next` absent : dernière page
+            break
+    vus, uniques = set(), []
+    for m in out:                                         # un même modèle (nom, langue) n'est rendu qu'une fois
+        cle = (m.get("name"), m.get("language")) if isinstance(m, dict) else None
+        if cle is not None:
+            if cle in vus:
+                continue
+            vus.add(cle)
+        uniques.append(m)
+    return uniques
 
 
 def _url_media_sure(url) -> bool:

@@ -35,6 +35,8 @@ PARTAGES = {
     "frontend/shared/dz-espace-assistant.js": ("espaces.assistant.",),
     # t309 (26/10/2026) : le bandeau « pour qui » et la boîte de la fiche client ; son « Fermer » est commun
     "frontend/shared/dz-pour-qui.js": ("espaces.pourqui.",),
+    # t311 (27/10/2026) : le panneau « Agent WhatsApp » de Réglages › Espaces ; son « Fermer » est commun
+    "frontend/shared/dz-whatsapp-espace.js": ("whatsapp.espace.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")

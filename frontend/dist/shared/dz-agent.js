@@ -630,7 +630,7 @@ if (!window.__dzAgent) {
   // C4 : le relevé de l'écran ouvert — la page (hors tiroir et bouton) + le lab visible, s'il charge le répondeur
   // /shared/dz-agent-cadre.js (liste vérifiée par test_agent_ecran.py ; un autre cadre ferait attendre 400 ms pour
   // rien). Il ne bloque jamais l'envoi : le lab a 400 ms pour répondre, toute erreur donne [] (la question part sans relevé).
-  const LABS_CADRES = /^\/(vectorlab|photolab|spritelab|tilelab)\//;
+  const LABS_CADRES = /^\/(vectorlab|photolab|spritelab|tilelab|whatsapp)\//;
   function cadreVisible() {
     return Array.from(document.querySelectorAll("iframe")).find((f) => {
       const r = f.getBoundingClientRect();

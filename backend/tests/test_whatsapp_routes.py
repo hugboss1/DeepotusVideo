@@ -484,8 +484,8 @@ mods = r.json() if r.status_code == 200 else []
 check("W8.4 approuvés seulement", r.status_code == 200 and [m["nom"] for m in mods]
       == ["promo_automne", "rappel_rdv", "code_connexion"], mods)
 check("W8.5 forme {nom, langue, categorie, parametres, n_parametres}",
-      mods and mods[0] == {"nom": "promo_automne", "langue": "fr", "categorie": "marketing", "parametres": "positionnels",
-                           "n_parametres": 2}
+      mods and {k: v for k, v in mods[0].items() if k not in ("statut", "composants", "noms_parametres")} == {   # t311 : + statut, composants, noms_parametres
+          "nom": "promo_automne", "langue": "fr", "categorie": "marketing", "parametres": "positionnels", "n_parametres": 2}
       and mods[1]["parametres"] == "nommes" and mods[1]["n_parametres"] == 2 and mods[1]["categorie"] == "utility", mods)
 
 print("\n[W9] boutons et modèles : forme exacte ; envoi invalide -> 400")

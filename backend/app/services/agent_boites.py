@@ -16,6 +16,14 @@ BOITES: dict[str, dict] = {
         "agents": ["campagnes"],
         "mobile": True,
     },
+    # t311 : l'agent WhatsApp d'un espace ; jamais sur le téléphone (mobile False : boites.json inchangé)
+    "whatsapp": {
+        "libelle": "agent.boites.whatsapp",
+        "outils": ["lire_conversation", "rediger_reponse", "choisir_modele", "proposer_creneaux",
+                   "remettre_a_l_humain"],
+        "agents": ["whatsapp"],
+        "mobile": False,
+    },
 }
 
 

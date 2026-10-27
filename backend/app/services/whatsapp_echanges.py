@@ -19,16 +19,23 @@ porte déjà la liaison et les règles (décision 13 du contrôleur).
     dédoublonnage que `lire`) : un STOP jamais lu dans l'écran bloque quand même l'envoi (fix 1, revue de e0ae86d6).
     `marketing_preference_stopped` et `131050` notent la désinscription (refus `marketing`) ; `131047` est rendu comme
     refus `fenetre`, jamais renvoyé en texte libre. Aucun autre réessai que celui de `kapso` (429).
-  · `media` : les octets d'un média reçu et son type, jamais écrits sur disque.
+  · `media` : les octets d'un média reçu et son type : le fichier rangé par `ranger_media` s'il existe, sinon Kapso (rien
+    n'est écrit à ce moment-là).
+  t311 tâche 2 (27/10/2026) : `lire` RANGE chaque média entrant neuf (`ranger_media`, `espaces/<id>/whatsapp_medias/<numéro>/
+    <id>.<ext>`, 16 Mo au plus, 20 par lecture, un échec ne retire rien au message) ; `marquer_lu` (avec « en train d'écrire »),
+    `fil` (un humain prend ou rend la conversation), `modeles(tous=)` avec `statut` et `composants` (entête, boutons), envoi
+    de modèle avec `entete` et `boutons` (payloads), envoi `image`, envoi `boutons` avec `entete_media_id` et `ids` fournis.
 Erreurs : `whatsapp.WhatsappRefus` (règles), ValueError (envoi ou compte invalide, compte non relié), KeyError (compte ou
 espace inconnu), `kapso.KapsoErreur` (message déjà nettoyé), HTTPException 402 de `plafonds`. Aucune clé, aucun jeton.
 """
+import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from loguru import logger
 
-from app.services import kapso, plafonds, pricing
+from app.services import espaces as _es, kapso, plafonds, pricing
 from app.services import whatsapp as WA
 from app.services.whatsapp import WhatsappRefus
 
@@ -41,11 +48,29 @@ PAGES_MAX = 5                     # pages lues au plus pour retrouver une conver
 TYPES_MEDIA = ("image", "video", "audio", "document", "sticker")
 CODES_DESINSCRIPTION = ("marketing_preference_stopped", "131050")
 CODE_FENETRE = "131047"
+MAX_LEGENDE = 1024                # légende d'une image (Meta)
+MAX_PAYLOAD = 128                 # payload d'un bouton de modèle (Meta)
+MAX_BOUTONS_MODELE = 10
+MAX_MEDIA_RANGE = 16 * 1024 * 1024
+DELAI_REESSAI_MEDIA = timedelta(hours=6)   # un média non rangé (erreur Kapso) n'est redemandé qu'après ce délai
+MAX_RANGES_PAR_LECTURE = 20       # médias entrants rangés au plus par appel de `lire`
+EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif",
+              "audio/ogg": ".ogg", "audio/mpeg": ".mp3", "audio/mp4": ".m4a", "audio/amr": ".amr", "audio/aac": ".aac",
+              "video/mp4": ".mp4", "video/3gpp": ".3gp", "application/pdf": ".pdf", "text/plain": ".txt"}
+_MIME_DE = {v: k for k, v in EXTENSIONS.items()}
+_ENTETES_MEDIA = ("image", "video", "document")
 _MEDIA_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+_ID_BOUTON = re.compile(r"^[A-Za-z0-9_:.-]{1,256}$")
 _NOM_MODELE = re.compile(r"^[A-Za-z0-9_]{1,512}$")
 _LANGUE_MODELE = re.compile(r"^[a-z]{2,3}(?:_[A-Za-z]{2,4})?$")
 _NOM_PARAMETRE = re.compile(r"^[a-z0-9_]{1,64}$")
+NOM_PARAMETRE_MAX = 60           # t311 tâche 7 : au-delà, le modèle est écarté de `modeles` (et de la page)
 _JALON = re.compile(r"\{\{\s*([^{}\s]+)\s*\}\}")
+
+
+def _horloge() -> datetime:
+    """HOOK DE BANC : l'heure (UTC)."""
+    return datetime.now(timezone.utc)
 
 
 # ---- aides -------------------------------------------------------------------------------------------------------------
@@ -113,7 +138,7 @@ def _texte(msg: dict):
 
 
 def _plat(msg: dict) -> dict:
-    """Un message Kapso à plat : {id, identite, sens, type, texte, quand, statut, media_id?}."""
+    """Un message Kapso à plat : {id, identite, sens, type, texte, quand, statut, media_id?, bouton?}."""
     entrant = _entrant(msg)
     idents = _identites_message(msg, entrant)
     k = msg.get("kapso") if isinstance(msg.get("kapso"), dict) else {}
@@ -124,7 +149,25 @@ def _plat(msg: dict) -> dict:
     media = msg.get(msg.get("type")) if msg.get("type") in TYPES_MEDIA else None
     if isinstance(media, dict) and media.get("id"):
         out["media_id"] = str(media["id"])
+    bouton = _bouton(msg)
+    if bouton:
+        out["bouton"] = bouton
     return out
+
+
+def _bouton(msg: dict) -> dict | None:
+    """t311 tâche 6 : le bouton touché par le contact. Réponse à un message à boutons (`interactive.button_reply`) ->
+    {"id", "titre"} ; bouton de réponse rapide d'un modèle (`button`) -> {"payload", "titre"}. Bornés (256 / 128 / 60)."""
+    if msg.get("type") == "interactive":
+        it = msg.get("interactive") if isinstance(msg.get("interactive"), dict) else {}
+        br = it.get("button_reply") if isinstance(it.get("button_reply"), dict) else {}
+        if br.get("id"):
+            return {"id": str(br["id"])[:256], "titre": str(br.get("title") or "")[:60]}
+    if msg.get("type") == "button":
+        bt = msg.get("button") if isinstance(msg.get("button"), dict) else {}
+        if bt.get("payload"):
+            return {"payload": str(bt["payload"])[:MAX_PAYLOAD], "titre": str(bt.get("text") or "")[:60]}
+    return None
 
 
 def _marche(identite: str, defaut: str) -> str:
@@ -146,11 +189,64 @@ async def lire(cid: str, *, depuis: str | None = None, apres: str | None = None)
     `noter_entrant`, dans l'ordre chronologique, daté de son horodatage."""
     if depuis and _date_iso(depuis) is None:
         raise ValueError("depuis : une date ISO 8601 est attendue")
-    _vue, _pub, pid = _compte_relie(cid)
+    vue, _pub, pid = _compte_relie(cid)
     liste, suivant = await kapso.messages(pid, depuis=depuis or None, apres=apres or None)
     liste = [m for m in liste if isinstance(m, dict)]
     _noter_entrants(cid, liste, _deja_journalises(cid))
+    await _ranger_entrants(cid, vue["espace_id"], liste)
     return {"messages": [_plat(m) for m in liste], "suivant": suivant}
+
+
+async def _ranger_entrants(cid: str, eid: str, liste: list) -> None:
+    """Range les médias des messages ENTRANTS pas encore rangés (`MAX_RANGES_PAR_LECTURE` au plus par appel). Un échec
+    (réseau, Kapso, disque, trop gros) ne retire rien au message : il est journalisé par `type(e).__name__` seulement."""
+    n = 0
+    for msg in liste:
+        if n >= MAX_RANGES_PAR_LECTURE:
+            break
+        p = _plat(msg)
+        mid = p.get("media_id")
+        if p["sens"] != "entrant" or not mid or not _MEDIA_ID.match(mid):
+            continue
+        try:
+            if _chemin_range(cid, eid, mid) is not None or not _refus_expire(cid, eid, mid):
+                continue
+            n += 1
+            if await ranger_media(cid, eid, mid) is None:        # trop gros : marqué pour toujours par ranger_media
+                continue
+        except Exception as e:  # noqa: BLE001 — jamais un texte d'exception (une URL de média y porte un jeton)
+            logger.warning(f"whatsapp média entrant non rangé ({type(e).__name__})")
+            try:
+                _noter_refus(cid, eid, mid, f"erreur:{type(e).__name__}")
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def _fichier_refus(cid: str, eid: str, media_id: str) -> Path:
+    return _dossier_medias(cid, eid) / f"{_nom_fichier(media_id)}.refus"
+
+
+def _noter_refus(cid: str, eid: str, media_id: str, raison: str) -> None:
+    """Marqueur `<id>.refus` : horodatage ISO puis raison courte (jamais un texte de message ni d'exception)."""
+    f = _fichier_refus(cid, eid, media_id)
+    if not f.resolve().is_relative_to((_es.dossier() / eid).resolve()):
+        raise ValueError("chemin de média refusé")
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(f"{_horloge().isoformat(timespec='seconds')}\n{raison}\n", encoding="utf-8")
+
+
+def _refus_expire(cid: str, eid: str, media_id: str) -> bool:
+    """Vrai si on peut (re)tenter ce média : aucun marqueur, ou marqueur d'erreur vieux de 6 h au moins. `trop_gros` : jamais."""
+    f = _fichier_refus(cid, eid, media_id)
+    if not f.is_file():
+        return True
+    try:
+        quand, _, raison = f.read_text(encoding="utf-8").partition("\n")
+        if raison.strip() == "trop_gros":
+            return False
+        return _horloge() - _date_iso(quand.strip()) >= DELAI_REESSAI_MEDIA
+    except (OSError, TypeError, ValueError):
+        return True                                              # marqueur illisible : on retente
 
 
 def _deja_journalises(cid: str) -> set:
@@ -234,34 +330,142 @@ async def _dernier_entrant(cid: str, pid: str, identite: str) -> datetime | None
     return max(dates) if dates else None
 
 
+def _composants(m: dict) -> dict:
+    """{"entete": None|text|image|video|document, "boutons": [{"index", "type": quick_reply|url, "parametre": bool}]} :
+    l'index est la place du bouton dans le composant BUTTONS (les autres genres de bouton comptent mais ne sont pas rendus)."""
+    comps = [c for c in m.get("components") or [] if isinstance(c, dict)]
+    ent = next((c for c in comps if str(c.get("type")).upper() == "HEADER"), None)
+    fmt = str((ent or {}).get("format") or "").lower()
+    boutons = []
+    brut = next((c for c in comps if str(c.get("type")).upper() == "BUTTONS"), None)
+    for i, b in enumerate((brut or {}).get("buttons") or []):
+        if not isinstance(b, dict):
+            continue
+        genre = str(b.get("type") or "").upper()
+        if genre == "QUICK_REPLY":
+            boutons.append({"index": i, "type": "quick_reply", "parametre": False})
+        elif genre == "URL":
+            boutons.append({"index": i, "type": "url", "parametre": "{{" in str(b.get("url") or "")})
+    return {"entete": fmt if fmt in ("text",) + _ENTETES_MEDIA else None, "boutons": boutons,
+            "entete_variable": fmt == "text" and "{{" in str((ent or {}).get("text") or "")}
+
+
 def _modele_plat(m: dict) -> dict:
     corps = next((c for c in m.get("components") or [] if isinstance(c, dict) and str(c.get("type")).upper() == "BODY"), {})
     jalons = list(dict.fromkeys(_JALON.findall(str(corps.get("text") or ""))))
     ex = corps.get("example") if isinstance(corps.get("example"), dict) else {}
     nommes = bool(ex.get("body_text_named_params")) or any(not j.isdigit() for j in jalons)
     return {"nom": m.get("name"), "langue": m.get("language"), "categorie": str(m.get("category") or "").lower(),
-            "parametres": "nommes" if nommes else "positionnels", "n_parametres": len(jalons)}
+            "parametres": "nommes" if nommes else "positionnels", "n_parametres": len(jalons),
+            # t311 tâche 7 : les noms des jalons du corps, dans l'ordre, ENTIERS (les champs nommés de la page WhatsApp ;
+            # un modèle à nom trop long est écarté de la liste par `modeles`, jamais tronqué)
+            "noms_parametres": [str(j) for j in jalons],
+            "statut": str(m.get("status") or "").lower(), "composants": _composants(m)}
 
 
-async def _modeles_bruts(pub: dict) -> list:
+async def _modeles_bruts(pub: dict, tous: bool = False) -> list:
     waba = str(pub.get("WHATSAPP_WABA_ID") or "").strip()
     if not waba:
         raise ValueError("ce compte WhatsApp n'a pas de compte WhatsApp Business relié")
-    return [m for m in await kapso.modeles(waba)
-            if isinstance(m, dict) and str(m.get("status") or "").upper() == "APPROVED" and m.get("name")]
+    brut = await kapso.modeles(waba, statut=None if tous else "APPROVED")
+    return [m for m in brut if isinstance(m, dict) and m.get("name")
+            and (tous or str(m.get("status") or "").upper() == "APPROVED")]
 
 
-async def modeles(cid: str) -> list:
-    """Les modèles APPROUVÉS : {nom, langue, categorie, parametres: nommes|positionnels, n_parametres} (composant BODY)."""
+async def modeles(cid: str, *, tous: bool = False) -> list:
+    """Les modèles APPROUVÉS (`tous=True` : tous les statuts) : {nom, langue, categorie, parametres: nommes|positionnels,
+    n_parametres (composant BODY), statut, composants: {entete, boutons}}."""
     _vue, pub, _pid = _compte_relie(cid)
-    return [_modele_plat(m) for m in await _modeles_bruts(pub)]
+    plats = [_modele_plat(m) for m in await _modeles_bruts(pub, tous)]
+    # t311 tâche 7 : même règle que la page (NOM_PARAMETRE_MAX de whatsapp.js) — un nom de paramètre plus long est écarté
+    return [m for m in plats if all(len(n) <= NOM_PARAMETRE_MAX for n in m["noms_parametres"])]
+
+
+async def marquer_lu(cid: str, message_id: str, ecrit: bool = False) -> None:
+    """Accusé de lecture d'un message reçu ; `ecrit=True` : « en train d'écrire » chez le contact."""
+    if not isinstance(message_id, str) or not message_id.strip():
+        raise ValueError("identifiant de message invalide")
+    _vue, _pub, pid = _compte_relie(cid)
+    await kapso.marquer_lu(pid, message_id, ecrit=bool(ecrit))
+
+
+async def fil(cid: str, identite: str, action: str) -> None:
+    """Un humain prend (`prendre`) ou rend (`rendre`) la conversation avec `identite` chez Kapso (thread_control)."""
+    dest = WA.destinataire(identite)                     # ValueError : identité invalide
+    if action not in ("prendre", "rendre"):
+        raise ValueError("action inconnue (prendre ou rendre)")
+    _vue, _pub, pid = _compte_relie(cid)
+    await (kapso.prendre_fil if action == "prendre" else kapso.rendre_fil)(pid, dest)
+
+
+def _nom_fichier(media_id: str) -> str:
+    """Un nom de fichier sûr : `_MEDIA_ID` vérifié, `:` (flux alternatif sous Windows) remplacé."""
+    if not isinstance(media_id, str) or not _MEDIA_ID.match(media_id):
+        raise ValueError("identifiant de média invalide")
+    return media_id.replace(":", "_")
+
+
+def _dossier_medias(cid: str, eid: str) -> Path:
+    if not _es.id_valide(eid):
+        raise ValueError("espace invalide")
+    _vue, _pub, pid = _compte_relie(cid)
+    if not re.match(r"^[A-Za-z0-9_.-]{1,64}$", pid) or pid in (".", ".."):
+        raise ValueError("numéro WhatsApp invalide")
+    return _es.dossier() / eid / "whatsapp_medias" / pid
+
+
+def _chemin_range(cid: str, eid: str, media_id: str) -> Path | None:
+    """Le fichier déjà rangé d'un média (n'importe quelle extension connue), sinon None."""
+    base, nom = _dossier_medias(cid, eid), _nom_fichier(media_id)
+    for ext in (*EXTENSIONS.values(), ".bin"):
+        f = base / f"{nom}{ext}"
+        if f.is_file():
+            return f
+    return None
+
+
+async def ranger_media(cid: str, eid: str, media_id: str) -> Path | None:
+    """Télécharge un média chez Kapso et le range sous `espaces/<eid>/whatsapp_medias/<numéro>/<id>.<ext>` (extension par
+    MIME connu, sinon `.bin`). Déjà rangé : rend le fichier sans réseau. Plus de 16 Mo : rien n'est écrit, rend None.
+    ValueError (identifiant, espace), `KapsoErreur` ou OSError sont levées à l'appelant."""
+    nom = _nom_fichier(media_id)
+    deja = _chemin_range(cid, eid, media_id)
+    if deja is not None:
+        return deja
+    _vue, _pub, pid = _compte_relie(cid)
+    octets, mime = await kapso.media_et_type(media_id, pid)
+    mime = str(mime or "").split(";")[0].strip().lower()
+    if len(octets) > MAX_MEDIA_RANGE:
+        logger.warning("whatsapp média trop gros : non rangé")
+        try:
+            _noter_refus(cid, eid, media_id, "trop_gros")
+        except OSError:
+            pass
+        return None
+    base = _dossier_medias(cid, eid)
+    cible = base / f"{nom}{EXTENSIONS.get(mime or '', '.bin')}"
+    if not cible.resolve().is_relative_to((_es.dossier() / eid).resolve()):      # confinement
+        raise ValueError("chemin de média refusé")
+    base.mkdir(parents=True, exist_ok=True)
+    tmp = cible.with_name(cible.name + ".part")
+    tmp.write_bytes(octets)
+    os.replace(tmp, cible)
+    try:
+        _fichier_refus(cid, eid, media_id).unlink(missing_ok=True)
+    except OSError:
+        pass
+    return cible
 
 
 async def media(cid: str, media_id: str) -> tuple[bytes, str | None]:
-    """Les octets d'un média reçu et son type MIME (None s'il est inconnu). Rien n'est écrit sur disque."""
+    """Les octets d'un média et son type MIME (None s'il est inconnu) : le fichier rangé (`ranger_media`) s'il existe,
+    sinon Kapso (rien n'est écrit à ce moment-là)."""
     if not isinstance(media_id, str) or not _MEDIA_ID.match(media_id):
         raise ValueError("identifiant de média invalide")
-    _vue, _pub, pid = _compte_relie(cid)
+    vue, _pub, pid = _compte_relie(cid)
+    local = _chemin_range(cid, vue["espace_id"], media_id)
+    if local is not None:
+        return local.read_bytes(), _MIME_DE.get(local.suffix)
     return await kapso.media_et_type(media_id, pid)
 
 
@@ -273,7 +477,14 @@ def _valider_envoi(envoi) -> dict:
         raise ValueError("envoi invalide : un objet {type, …} est attendu")
     t = envoi.get("type")
     if t not in WA.TYPES_ENVOI:
-        raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
+        raise ValueError("type d'envoi inconnu (texte, boutons, modele ou image)")
+    if t == "image":
+        mid, leg = envoi.get("media_id"), envoi.get("legende")
+        if not isinstance(mid, str) or not _MEDIA_ID.match(mid):
+            raise ValueError("image : identifiant de média invalide")
+        if leg is not None and (not isinstance(leg, str) or len(leg) > MAX_LEGENDE):
+            raise ValueError(f"légende trop longue ({MAX_LEGENDE} caractères au plus)")
+        return {"type": t, "media_id": mid, **({"legende": leg} if leg else {})}
     if t in ("texte", "boutons"):
         texte = envoi.get("texte")
         if not isinstance(texte, str) or not texte.strip():
@@ -290,7 +501,19 @@ def _valider_envoi(envoi) -> dict:
         titres = [x.strip() for x in b]
         if len(set(titres)) != len(titres):
             raise ValueError("boutons : deux titres identiques")
-        return {"type": t, "texte": texte, "boutons": titres}
+        out = {"type": t, "texte": texte, "boutons": titres}
+        ids = envoi.get("ids")
+        if ids is not None:
+            if (not isinstance(ids, list) or len(ids) != len(titres) or len(set(map(str, ids))) != len(ids)
+                    or not all(isinstance(i, str) and _ID_BOUTON.match(i) for i in ids)):
+                raise ValueError("boutons : un identifiant par bouton (lettres, chiffres, _ : . - ; 256 au plus, tous différents)")
+            out["ids"] = list(ids)
+        em = envoi.get("entete_media_id")
+        if em is not None:
+            if not isinstance(em, str) or not _MEDIA_ID.match(em):
+                raise ValueError("boutons : identifiant de média d'en-tête invalide")
+            out["entete_media_id"] = em
+        return out
     nom, langue = envoi.get("nom"), envoi.get("langue")
     if not isinstance(nom, str) or not _NOM_MODELE.match(nom) or not isinstance(langue, str) \
             or not _LANGUE_MODELE.match(langue):
@@ -303,7 +526,43 @@ def _valider_envoi(envoi) -> dict:
         isinstance(p, dict) and all(isinstance(k, str) and _NOM_PARAMETRE.match(k) and valeur(v) for k, v in p.items()))
     if not ok:
         raise ValueError("paramètres du modèle : une liste ou un objet de textes")
-    return {"type": t, "nom": nom, "langue": langue, "parametres": p}
+    out = {"type": t, "nom": nom, "langue": langue, "parametres": p}
+    ent = envoi.get("entete")
+    if ent is not None:
+        out["entete"] = _valider_entete(ent)
+    bt = envoi.get("boutons")
+    if bt is not None:
+        out["boutons"] = _valider_boutons_modele(bt)
+    return out
+
+
+def _valider_entete(ent) -> dict:
+    if not isinstance(ent, dict):
+        raise ValueError("en-tête du modèle : un objet {type, …} est attendu")
+    if ent.get("type") == "text":
+        texte = ent.get("texte")
+        if not isinstance(texte, str) or not texte.strip() or len(texte) > MAX_PARAMETRE:
+            raise ValueError("en-tête du modèle : texte de 1 à 1024 caractères")
+        return {"type": "text", "texte": texte}
+    mid = ent.get("media_id")
+    if ent.get("type") not in _ENTETES_MEDIA or not isinstance(mid, str) or not _MEDIA_ID.match(mid):
+        raise ValueError("en-tête du modèle : image, video ou document avec un identifiant de média, ou un texte")
+    return {"type": ent["type"], "media_id": mid}
+
+
+def _valider_boutons_modele(bt) -> list:
+    if not isinstance(bt, list) or len(bt) > MAX_BOUTONS_MODELE:
+        raise ValueError("boutons du modèle : une liste de {index, payload}")
+    out = []
+    for b in bt:
+        i, pl = (b.get("index"), b.get("payload")) if isinstance(b, dict) else (None, None)
+        if (not isinstance(i, int) or isinstance(i, bool) or not 0 <= i < MAX_BOUTONS_MODELE
+                or not isinstance(pl, str) or not 1 <= len(pl) <= MAX_PAYLOAD):
+            raise ValueError(f"boutons du modèle : index entier et payload de 1 à {MAX_PAYLOAD} caractères")
+        out.append({"index": i, "payload": pl})
+    if len({b["index"] for b in out}) != len(out):
+        raise ValueError("boutons du modèle : deux fois le même index")
+    return out
 
 
 def _verifier_parametres(e_: dict, modele: dict) -> None:
@@ -315,20 +574,56 @@ def _verifier_parametres(e_: dict, modele: dict) -> None:
         raise ValueError(f"le modèle attend {n} paramètre(s)")
 
 
+def _verifier_composants(e_: dict, modele: dict) -> None:
+    """L'en-tête et les boutons demandés existent dans le modèle (même genre d'en-tête ; boutons quick_reply)."""
+    comp = modele["composants"]
+    ent = e_.get("entete")
+    if ent is not None and ent["type"] != comp["entete"]:
+        raise ValueError("en-tête : le modèle n'a pas d'en-tête de ce genre")
+    if ent is not None and ent["type"] == "text" and not comp.get("entete_variable"):
+        raise ValueError("en-tête : un en-tête texte sans variable ne reçoit aucun texte")
+    if ent is None and comp["entete"] in _ENTETES_MEDIA:
+        raise ValueError("en-tête : ce modèle exige un en-tête média")
+    permis = {b["index"] for b in comp["boutons"] if b["type"] == "quick_reply"}
+    for b in e_.get("boutons") or []:
+        if b["index"] not in permis:
+            raise ValueError(f"bouton {b['index']} : le modèle n'a pas de bouton de réponse rapide à cette place")
+
+
 def _corps(e_: dict) -> dict:
-    """Le contenu Meta de l'envoi (sans destinataire). Modèle : le composant BODY seulement (en-tête et boutons de modèle
-    à paramètres ne sont pas pris en charge en B1)."""
+    """Le contenu Meta de l'envoi (sans destinataire). Modèle : en-tête, corps, boutons de réponse rapide (payloads)."""
     if e_["type"] == "texte":
         return {"type": "text", "text": {"body": e_["texte"]}}
+    if e_["type"] == "image":
+        img = {"id": e_["media_id"]}
+        if e_.get("legende"):
+            img["caption"] = e_["legende"]
+        return {"type": "image", "image": img}
     if e_["type"] == "boutons":
-        return {"type": "interactive", "interactive": {"type": "button", "body": {"text": e_["texte"]}, "action": {
-            "buttons": [{"type": "reply", "reply": {"id": f"b{i}", "title": t}} for i, t in enumerate(e_["boutons"], 1)]}}}
+        ids = e_.get("ids") or [f"b{i}" for i in range(1, len(e_["boutons"]) + 1)]
+        inter = {"type": "button", "body": {"text": e_["texte"]}, "action": {
+            "buttons": [{"type": "reply", "reply": {"id": i, "title": t}} for i, t in zip(ids, e_["boutons"])]}}
+        if e_.get("entete_media_id"):
+            inter = {"type": "button", "header": {"type": "image", "image": {"id": e_["entete_media_id"]}}, **{
+                k: v for k, v in inter.items() if k != "type"}}
+        return {"type": "interactive", "interactive": inter}
     p = e_["parametres"]
     params = ([{"type": "text", "parameter_name": k, "text": str(v)} for k, v in p.items()] if isinstance(p, dict)
               else [{"type": "text", "text": str(v)} for v in p])
     modele = {"name": e_["nom"], "language": {"code": e_["langue"]}}
+    comps = []
+    ent = e_.get("entete")
+    if ent is not None:
+        val = {"type": "text", "text": ent["texte"]} if ent["type"] == "text" else {
+            "type": ent["type"], ent["type"]: {"id": ent["media_id"]}}
+        comps.append({"type": "header", "parameters": [val]})
     if params:
-        modele["components"] = [{"type": "body", "parameters": params}]
+        comps.append({"type": "body", "parameters": params})
+    for b in e_.get("boutons") or []:
+        comps.append({"type": "button", "sub_type": "quick_reply", "index": str(b["index"]),
+                      "parameters": [{"type": "payload", "payload": b["payload"]}]})
+    if comps:
+        modele["components"] = comps
     return {"type": "template", "template": modele}
 
 
@@ -351,6 +646,7 @@ async def envoyer(cid: str, identite: str, envoi: dict) -> dict:
         if modele is None:
             raise ValueError("modèle inconnu ou non approuvé pour cette langue")
         _verifier_parametres(e_, modele)
+        _verifier_composants(e_, modele)
         categorie = modele["categorie"]
     else:
         dernier = await _dernier_entrant(cid, pid, identite)

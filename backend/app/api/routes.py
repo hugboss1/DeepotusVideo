@@ -11,7 +11,8 @@ from uuid import uuid4
 
 import httpx
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Request, Response
+from typing import Any
+from fastapi import Body, APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image as PILImage
 from loguru import logger
@@ -8659,14 +8660,51 @@ async def whatsapp_messages(cid: str, request: Request, espace: str = "", depuis
         raise _wa_erreur(e)
 
 
+@router.post("/whatsapp/{cid}/relire")
+async def whatsapp_relire(cid: str, request: Request, espace: str = "", body: Any = Body(default=None)):
+    """t311 : même réponse que GET messages, corps {depuis?, apres?} (la page n'utilise que ce POST)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp_echanges as WE
+    b = body if isinstance(body, dict) else {}
+    try:
+        return await WE.lire(cid, depuis=b.get("depuis") or None, apres=b.get("apres") or None)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
+@router.post("/whatsapp/{cid}/fil")
+async def whatsapp_fil(cid: str, request: Request, espace: str = "", body: Any = Body(default=None)):
+    """t311 : un humain prend ou rend la conversation chez Kapso, corps {identite, action: prendre|rendre}. Relecture
+    finale I2 : le drapeau LOCAL `pris` du contact (whatsapp_brouillons.json) est posé (ou retiré) D'ABORD et gardé même
+    si Kapso refuse (l'intention de l'utilisateur est le silence de l'agent) ; l'erreur de Kapso remonte comme avant."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import agent_whatsapp as AW, whatsapp_echanges as WE
+    b = body if isinstance(body, dict) else {}
+    # « qui », pas « identite » : le recensement payant (test_plafonds_garde) lit un nom passé en argument comme une
+    # fonction appelée, et `identite` y est le nom d'un puits LLM
+    qui, action = b.get("identite"), b.get("action")
+    if action not in ("prendre", "rendre"):
+        raise HTTPException(400, "action inconnue (prendre ou rendre)")
+    eid, _pid = _wa_brouillon_compte(cid)
+    try:
+        AW.poser_pris(cid, eid, qui, action == "prendre")
+        await WE.fil(cid, qui, action)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+    return {"ok": True, "pris": action == "prendre"}
+
+
 @router.get("/whatsapp/{cid}/modeles")
-async def whatsapp_modeles(cid: str, request: Request, espace: str = ""):
-    """t310 : les modèles approuvés {nom, langue, categorie, parametres, n_parametres}."""
+async def whatsapp_modeles(cid: str, request: Request, espace: str = "", tous: str = ""):
+    """t310 : les modèles approuvés {nom, langue, categorie, parametres, n_parametres, statut, composants} ; `tous=1` :
+    tous les statuts (t311)."""
     _require_localhost(request)
     _wa_compte_demande(cid, espace)
     from app.services import whatsapp_echanges as WE
     try:
-        return await WE.modeles(cid)
+        return await WE.modeles(cid, tous=tous.strip().lower() in ("1", "true", "oui"))
     except Exception as e:  # noqa: BLE001
         raise _wa_erreur(e)
 
@@ -8680,8 +8718,87 @@ async def whatsapp_envoyer(cid: str, body: dict, request: Request, espace: str =
     from app.services import whatsapp_echanges as WE
     b = body if isinstance(body, dict) else {}
     try:
-        return await WE.envoyer(cid, b.get("identite"), b.get("envoi"))
+        r = await WE.envoyer(cid, b.get("identite"), b.get("envoi"))
     except Exception as e:  # noqa: BLE001 — 402 de plafond rendu tel quel par _wa_erreur
+        raise _wa_erreur(e)
+    _wa_envoi_humain(cid, b.get("identite"))
+    return r
+
+
+def _wa_envoi_humain(cid: str, identite) -> None:
+    """t311 : un envoi fait par une personne a réussi : le brouillon `humain` (ou `attente`) du contact passe à `envoye`.
+    Jamais d'échec de la route pour autant (le message est parti) : l'erreur se journalise par son type seulement."""
+    from app.services import agent_whatsapp as AW, whatsapp as _wa
+    try:
+        eid, pid = _wa._cle_etat(cid)
+        cle, groupe = AW.canonique(cid, identite)
+        AW.apres_envoi_humain(eid, pid, cle, groupe)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"whatsapp: brouillon non mis à jour après un envoi ({type(e).__name__})")
+
+
+def _wa_brouillon_compte(cid: str) -> tuple:
+    from app.services import whatsapp as _wa
+    try:
+        return _wa._cle_etat(cid)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
+@router.get("/whatsapp/{cid}/brouillons")
+async def whatsapp_brouillons(cid: str, request: Request, espace: str = ""):
+    """t311 : les brouillons de l'agent pour le numéro du compte {identite: {etat, carte, cree_le, raison?, auto_jour}}."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import agent_whatsapp as AW
+    eid, pid = _wa_brouillon_compte(cid)
+    try:
+        return AW.brouillons(eid, pid)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
+@router.post("/whatsapp/{cid}/brouillons/rediger")
+async def whatsapp_brouillons_rediger(cid: str, request: Request, espace: str = "", body: Any = Body(default=None)):
+    """t311 : l'utilisateur demande à l'agent une réponse au dernier message du contact, corps {identite, langue?} ; rend
+    {etat, carte, motif}. La garde des plafonds (catégorie whatsapp_agent) vit dans `agent_whatsapp.rediger`, avant
+    CHAQUE appel du modèle (test_plafonds_garde A2f)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import agent_whatsapp as AW
+    b = body if isinstance(body, dict) else {}
+    eid, _pid = _wa_brouillon_compte(cid)
+    try:
+        return await AW.rediger(cid, eid, b.get("identite"), langue=str(b.get("langue") or "fr"))
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
+@router.post("/whatsapp/{cid}/brouillons/decider")
+async def whatsapp_brouillons_decider(cid: str, request: Request, espace: str = "", body: Any = Body(default=None)):
+    """t311 : décide du brouillon du contact, corps {identite, decision: envoyer|rejeter, texte?}. `envoyer` passe par
+    `whatsapp_echanges.envoyer` (texte éventuellement modifié ; modèle -> envoi `modele`), puis état `envoye` ; un refus
+    des règles (409 {message, code}) ou du plafond (402) garde le brouillon. Un brouillon `humain` ne s'envoie pas (400) ;
+    un texte avec un modèle : 400 ; une décision pendant un envoi en cours : 409 `occupee` ; un brouillon `incertain`
+    (panne de Kapso au premier envoi) exige `confirme_incertain: true`, sinon 409 `incertain`. L'envoi passe par
+    `agent_whatsapp.envoyer_brouillon`, qui appelle `whatsapp_echanges.envoyer` (garde « whatsapp » : test_plafonds_garde
+    A2e)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import agent_whatsapp as AW
+    b = body if isinstance(body, dict) else {}
+    identite, decision = b.get("identite"), b.get("decision")
+    if decision not in ("envoyer", "rejeter"):
+        raise HTTPException(400, "décision inconnue (envoyer ou rejeter)")
+    eid, _pid = _wa_brouillon_compte(cid)
+    try:
+        if decision == "rejeter":
+            return {"brouillon": AW.rejeter_brouillon(cid, eid, identite)}
+        return await AW.envoyer_brouillon(cid, eid, identite, b.get("texte"),
+                                          confirme_incertain=b.get("confirme_incertain") is True)
+    except AW.BrouillonAbsent:
+        raise HTTPException(404, "aucun brouillon en attente pour ce contact")
+    except Exception as e:  # noqa: BLE001 — 409 des règles et 402 du plafond : le brouillon reste en attente
         raise _wa_erreur(e)
 
 
@@ -8713,12 +8830,67 @@ async def whatsapp_stop(cid: str, body: dict, request: Request, espace: str = ""
     return {"ok": True}
 
 
+@router.post("/whatsapp/{cid}/stop/lever")
+async def whatsapp_stop_lever(cid: str, body: dict, request: Request, espace: str = ""):
+    """t311 : le contact se réabonne {identite, source} : son STOP (et celui de son alias) est levé, un accord saisi
+    `reabonnement:<source>` est posé. Source vide ou identité invalide : 400."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp as _wa
+    b = body if isinstance(body, dict) else {}
+    try:
+        _wa.lever_stop(cid, b.get("identite"), b.get("source"))
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+    return {"ok": True}
+
+
+@router.get("/whatsapp/{cid}/etat")
+async def whatsapp_etat(cid: str, request: Request, espace: str = ""):
+    """t311 : l'état du numéro du compte (accords, stops, désinscrits, compteurs, journal : jamais de texte de message) et,
+    en plus, les réglages d'agent de son espace (`agent`)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import comptes as _cpt, whatsapp as _wa
+    try:
+        e = _wa.etat(cid)
+        e["agent"] = _wa.reglages(_cpt.obtenir(cid)["espace_id"])["agent"]
+    except Exception as ex:  # noqa: BLE001
+        raise _wa_erreur(ex)
+    return e
+
+
+@router.get("/espaces/{espace_id}/whatsapp/reglages")
+async def whatsapp_reglages_lire(espace_id: str, request: Request):
+    """t311 : les réglages WhatsApp de l'espace {plafond_mois, marche_defaut, agent} (défauts complétés)."""
+    _require_localhost(request)
+    from app.services import whatsapp as _wa
+    try:
+        _wa._espace_connu(espace_id)
+        return _wa.reglages(espace_id)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
+@router.put("/espaces/{espace_id}/whatsapp/reglages")
+async def whatsapp_reglages_ecrire(espace_id: str, request: Request, body: Any = Body(...)):
+    """t311 : range des champs PARTIELS ({plafond_mois?, marche_defaut?, agent?{…}}), fusionnés champ par champ ; rend les
+    réglages complets. Hors bornes : 400 (rien n'est écrit) ; espace inconnu : 404."""
+    _require_localhost(request)
+    from app.services import whatsapp as _wa
+    try:
+        return _wa.regler_espace(espace_id, body)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
 _WA_TYPES_EN_LIGNE = ("image/", "audio/", "video/")
 
 
 @router.get("/whatsapp/{cid}/medias/{media_id}")
 async def whatsapp_media(cid: str, media_id: str, request: Request, espace: str = ""):
-    """t310 : les octets d'un média reçu, avec le type du fournisseur ; jamais gardés sur disque. Hors image, son et vidéo
+    """t310 : les octets d'un média reçu, avec le type du fournisseur : le fichier rangé par `lire` (t311) s'il existe, sinon
+    Kapso (rien n'est alors écrit). Hors image, son et vidéo
     (et toujours pour le SVG), servi en pièce jointe `application/octet-stream` : rien ne s'exécute dans la page."""
     _require_localhost(request)
     _wa_compte_demande(cid, espace)
@@ -9473,44 +9645,45 @@ async def get_scheduled_post_client(post_id: str):
         p = (await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))).scalar_one_or_none()
     if p is None:
         raise HTTPException(404, "post inconnu")
-    return {"exigences": _rc.exigences(p.espace_id, p.comptes)}
+    ex = _rc.exigences(p.espace_id, p.comptes)
+    if ex is None:
+        return {"exigences": None}
+    # t311 tâche 6 : pour un post gouverné par un client, sa validation WhatsApp (état, dates, note de correction ; ni
+    # identité ni compte), ou null
+    from app.services import whatsapp_validation as _wv
+    return {"exigences": ex, "validation_whatsapp": _wv.validation_de(ex["client"], p.id)}
 
 
 @router.post("/schedule/{post_id}/validation-client")
 async def post_scheduled_post_validation_client(post_id: str, body: dict, request: Request):
-    """{reponse: valide|corriger, moyen: ecrit|whatsapp|doigt}. « valide » date la validation (un post a_valider devient
-    brouillon, à programmer) ; « corriger » l'efface et le post repasse a_valider. Une ligne `validation` (qui = client)
-    par canal visé au journal de la fiche du client responsable. 400 réponse/moyen inconnus, 404 post, 409 sans client."""
+    """{reponse: valide|corriger, moyen: ecrit|whatsapp|doigt} : voir `services/validation_client.valider_post` (t311 :
+    logique extraite, partagée avec la réponse WhatsApp du client). 400 réponse/moyen inconnus, 404 post, 409 sans client."""
     _require_localhost(request)
-    from app.services import fiche_client as _fc, regles_client as _rc
+    from app.services import validation_client as _vc
     body = body or {}
-    reponse, moyen = body.get("reponse"), body.get("moyen")
-    if reponse not in ("valide", "corriger"):
-        raise HTTPException(400, "réponse du client inconnue (valide ou corriger)")
-    if moyen not in _fc.MOYENS:
-        raise HTTPException(400, "moyen de réponse inconnu (ecrit, whatsapp ou doigt)")
-    async with async_session_factory() as session:
-        p = (await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))).scalar_one_or_none()
-        if p is None:
-            raise HTTPException(404, "post inconnu")
-        ex = _rc.exigences(p.espace_id, p.comptes)
-        if ex is None:
-            raise HTTPException(409, "ce post n'est gouverné par aucun client")
-        if reponse == "valide":
-            p.valide_client_le = _dt.utcnow()
-            if p.status == "a_valider":
-                p.status = "draft"
-        else:
-            p.valide_client_le = None
-            if p.status in ("draft", "scheduled", "ready"):
-                p.status = "a_valider"
-        await session.commit()
-        await session.refresh(p)
-        # t309 (revue) : le journal APRÈS l'écriture réussie du post (jamais une validation notée qui n'a pas eu lieu)
-        canaux = list(dict.fromkeys(x["canal_id"] or "" for x in ex["canaux"])) or [""]
-        for canal in canaux:
-            _fc.noter(ex["client"], "validation", canal, "client")
-        return {"post": _post_to_dict(p)}
+    try:
+        p = await _vc.valider_post(post_id, body.get("reponse"), body.get("moyen"))
+    except _vc.RefusValidation as e:
+        raise HTTPException(e.statut, e.message)
+    return {"post": _post_to_dict(p)}
+
+
+@router.post("/schedule/{post_id}/validation-whatsapp")
+async def post_scheduled_post_validation_whatsapp(post_id: str, request: Request):
+    """t311 tâche 6 : envoie au client responsable, par WhatsApp, la demande de validation du post `a_valider` (boutons
+    dans la fenêtre de 24 h, sinon le modèle de validation de l'espace). Rend {envoi: boutons|modele, id}. La garde des
+    plafonds vit dans whatsapp_echanges.envoyer (test_plafonds_garde A2e, A2h). 400 fiche/compte/modèle, 404 post,
+    409 post pas à valider ou sans client, refus des règles WhatsApp {message, code} ; 402 plafond ; 502 Kapso."""
+    _require_localhost(request)
+    from app.services import whatsapp as _wa, whatsapp_validation as WV
+    try:
+        return await WV.envoyer_validation(post_id)
+    except WV.PostInconnu:
+        raise HTTPException(404, "post inconnu")
+    except Exception as e:  # noqa: BLE001 — 402 de plafond rendu tel quel par _wa_erreur
+        if isinstance(e, PermissionError) and not isinstance(e, _wa.WhatsappRefus):
+            raise HTTPException(409, str(e))
+        raise _wa_erreur(e)
 
 
 def _render_poster_frame(jobrec) -> str | None:

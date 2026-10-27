@@ -34,6 +34,7 @@ import threading
 import unicodedata
 import weakref
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from loguru import logger
 
@@ -310,7 +311,7 @@ MOTS_STOP = ("stop", "arret", "arrêt", "arreter", "arrêter", "arrêtez", "arre
              "optout", "opt-out")
 POLITESSE = ("svp", "stp", "please", "merci", "thanks")
 CODES_REFUS = ("accord", "stop", "fenetre", "marketing", "plafond", "consentement", "prix", "bsuid_authentification")
-TYPES_ENVOI = ("texte", "boutons", "modele")
+TYPES_ENVOI = ("texte", "boutons", "modele", "image")        # t311 : `image` (fenêtre de 24 h comme le texte)
 PLAFOND_DEFAUT = 1000
 MARCHE_DEFAUT = "33"
 JOURNAL_MAX = 2000
@@ -476,13 +477,254 @@ def etat(cid: str) -> dict:
     eid, pid = _cle_etat(cid)
     doc = _lire_doc(eid)
     e = json.loads(json.dumps(_etat_doc(doc, pid)))
-    e.update(_reglages_doc(doc))
+    r = _reglages_doc(doc)
+    e["plafond_mois"], e["marche_defaut"] = r["plafond_mois"], r["marche_defaut"]
     return e
 
 
 def reglages(eid: str) -> dict:
-    """Les réglages WhatsApp de l'espace {plafond_mois, marche_defaut} (copie). KeyError = espace inconnu."""
-    return dict(_reglages_doc(_lire_doc(eid)))
+    """Les réglages WhatsApp de l'espace {plafond_mois, marche_defaut, agent} (copie ; l'agent est complété par
+    `AGENT_DEFAUT`, champ par champ, quoi qu'il y ait sur disque). Rien n'est écrit et `espaces.lire()` n'est JAMAIS appelé
+    (le relevé de fond lit ici) : KeyError seulement sur un id invalide, un espace sans fichier rend les défauts. Les
+    routes vérifient l'existence de l'espace avec `_espace_connu`."""
+    r = _reglages_doc(_lire_doc(eid))
+    return {"plafond_mois": r["plafond_mois"], "marche_defaut": r["marche_defaut"], "agent": _agent_complet(r.get("agent"))}
+
+
+# ---- t311 : réglages de l'agent d'un espace ----------------------------------------------------------------------------
+AGENT_DEFAUT = {"actif": False, "mode": "brouillon", "roles": [],
+                "horaires": {"jours": [0, 1, 2, 3, 4], "debut": "09:00", "fin": "18:00", "fuseau": "Europe/Paris"},
+                "message_hors_horaires": "", "plafond_jour_contact": 5, "mots_humain": [], "modele_validation": None,
+                "plafond_redactions_jour": 20}
+ROLES_AGENT = ("faq", "rendez_vous", "commande", "validation")
+MODES = ("brouillon", "auto")
+_HEURE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+_CLES_HORAIRES = ("jours", "debut", "fin", "fuseau")
+PLAFOND_MOIS_MAX = 1_000_000
+
+
+def _espace_connu(eid: str) -> None:
+    """KeyError si l'espace n'existe pas (un dossier d'espace ne se crée jamais par un réglage). Lit `espaces.lire()` :
+    pour les écritures et les routes, jamais pour `reglages()`."""
+    if not isinstance(eid, str) or eid not in _es.lire()["espaces"]:
+        raise KeyError(eid)
+
+
+def _entier(v, bas: int, haut: int) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool) and bas <= v <= haut
+
+
+def _fuseau_ok(nom) -> bool:
+    if not isinstance(nom, str) or not nom or len(nom) > 64:
+        return False
+    try:
+        ZoneInfo(nom)
+    except Exception:  # noqa: BLE001  (ZoneInfoNotFoundError, ValueError sur un chemin, OSError)
+        return False
+    return True
+
+
+def _jours_ok(v) -> bool:
+    return isinstance(v, list) and all(_entier(j, 0, 6) for j in v)
+
+
+def _mots_ok(v) -> bool:
+    return (isinstance(v, list) and len(v) <= 30
+            and all(isinstance(m, str) and 1 <= len(m.strip()) <= 40 for m in v))
+
+
+def _modele_ok(v) -> bool:
+    return v is None or (isinstance(v, dict) and set(v) == {"nom", "langue"} and isinstance(v["nom"], str)
+                         and 1 <= len(v["nom"].strip()) <= 512 and isinstance(v["langue"], str) and bool(_LANGUE.match(v["langue"])))
+
+
+def _champ_agent_valide(cle: str, v) -> bool:
+    """Un champ d'agent (hors horaires) est-il dans ses bornes ?"""
+    if cle == "actif":
+        return isinstance(v, bool)
+    if cle == "mode":
+        return v in MODES
+    if cle == "roles":
+        return isinstance(v, list) and all(isinstance(r, str) and r in ROLES_AGENT for r in v)
+    if cle == "message_hors_horaires":
+        return isinstance(v, str) and len(v) <= 1024
+    if cle == "plafond_jour_contact":
+        return _entier(v, 0, 50)
+    if cle == "plafond_redactions_jour":
+        return _entier(v, 0, 200)
+    if cle == "mots_humain":
+        return _mots_ok(v)
+    if cle == "modele_validation":
+        return _modele_ok(v)
+    return False
+
+
+def _champ_horaire_valide(cle: str, v) -> bool:
+    if cle == "jours":
+        return _jours_ok(v)
+    if cle in ("debut", "fin"):
+        return isinstance(v, str) and bool(_HEURE.match(v))
+    return _fuseau_ok(v)
+
+
+def _forme(cle: str, v):
+    """La valeur rangée d'un champ déjà validé (jours dédoublonnés et triés, rôles dédoublonnés, mots rognés)."""
+    if cle == "jours":
+        return sorted(set(v))
+    if cle == "roles":
+        return [r for i, r in enumerate(v) if r not in v[:i]]
+    if cle == "mots_humain":
+        return [m.strip() for m in v]
+    if cle == "modele_validation" and v is not None:
+        return {"nom": v["nom"].strip(), "langue": v["langue"]}
+    return v
+
+
+def _agent_complet(brut) -> dict:
+    """L'agent lu sur disque, complété par les défauts champ par champ : un champ absent ou hors bornes retombe sur son
+    défaut, sans toucher aux autres. Copie ; les clés inconnues ne sont pas rendues (elles restent sur disque)."""
+    brut = brut if isinstance(brut, dict) else {}
+    out = json.loads(json.dumps(AGENT_DEFAUT))
+    for cle in out:
+        if cle != "horaires" and cle in brut and _champ_agent_valide(cle, brut[cle]):
+            out[cle] = _forme(cle, brut[cle])
+    h = brut.get("horaires") if isinstance(brut.get("horaires"), dict) else {}
+    for cle in _CLES_HORAIRES:
+        if cle in h and _champ_horaire_valide(cle, h[cle]):
+            out["horaires"][cle] = _forme(cle, h[cle])
+    return out
+
+
+def _refuser_horaire(cle: str):
+    """Le refus (ValueError, message L10) d'un champ d'horaires hors bornes. Un `raise` littéral par message : le
+    générateur L10 ne lit que les littéraux."""
+    if cle == "jours":
+        raise ValueError("agent : jours d'activité invalides (entiers de 0 à 6)")
+    if cle == "debut":
+        raise ValueError("agent : heure de début invalide (HH:MM)")
+    if cle == "fin":
+        raise ValueError("agent : heure de fin invalide (HH:MM)")
+    raise ValueError("agent : fuseau horaire inconnu")
+
+
+def _refuser_champ(cle: str):
+    """Le refus (ValueError, message L10) d'un champ d'agent hors bornes."""
+    if cle == "actif":
+        raise ValueError("agent : « actif » doit être vrai ou faux")
+    if cle == "mode":
+        raise ValueError("agent : mode inconnu (brouillon ou auto)")
+    if cle == "roles":
+        raise ValueError("agent : rôles inconnus (faq, rendez_vous, commande ou validation)")
+    if cle == "message_hors_horaires":
+        raise ValueError("agent : message hors horaires : un texte de 1024 caractères au plus est attendu")
+    if cle == "plafond_jour_contact":
+        raise ValueError("agent : plafond par contact et par jour : un entier de 0 à 50 est attendu")
+    if cle == "plafond_redactions_jour":
+        raise ValueError("agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu")
+    if cle == "mots_humain":
+        raise ValueError("agent : mots d'appel humain : 30 mots de 40 caractères au plus sont attendus")
+    raise ValueError("agent : modèle de validation : {nom, langue} ou rien est attendu")
+
+
+def _agent_patch(champs) -> dict:
+    """Valide les champs d'agent d'une demande PARTIELLE et rend ce qu'il faut ranger ({champ: valeur, "horaires": {...}}).
+    ValueError (message L10) au premier champ hors bornes ; rien n'est écrit ici."""
+    if not isinstance(champs, dict):
+        raise ValueError("agent : un objet est attendu")
+    patch: dict = {}
+    for cle, v in champs.items():
+        if cle == "horaires":
+            if not isinstance(v, dict):
+                raise ValueError("agent : horaires : un objet est attendu")
+            ph = {}
+            for k, x in v.items():
+                if k not in _CLES_HORAIRES:
+                    raise ValueError("agent : horaires : réglage inconnu")
+                if not _champ_horaire_valide(k, x):
+                    _refuser_horaire(k)
+                ph[k] = _forme(k, x)
+            patch["horaires"] = ph
+        elif cle in AGENT_DEFAUT:
+            if not _champ_agent_valide(cle, v):
+                _refuser_champ(cle)
+            patch[cle] = _forme(cle, v)
+        else:
+            raise ValueError("agent : réglage inconnu")
+    return patch
+
+
+def regler_espace(eid: str, champs: dict) -> dict:
+    """Valide puis range des réglages PARTIELS de l'espace : `plafond_mois` (entier 1..1 000 000), `marche_defaut` (1 à 4
+    chiffres) et `agent` (fusion champ par champ avec ce qui est déjà rangé ; voir `AGENT_DEFAUT`). Tout est validé AVANT
+    la moindre écriture : un champ hors bornes refuse la demande entière (ValueError, message L10), rien n'est écrit.
+    Les clés inconnues déjà sur disque survivent. KeyError = espace inconnu. Rend `reglages(eid)`."""
+    if not isinstance(champs, dict):
+        raise ValueError("réglages WhatsApp : un objet est attendu")
+    plafond = marche = agent = None
+    for cle, v in champs.items():
+        if cle == "plafond_mois":
+            if not _entier(v, 1, PLAFOND_MOIS_MAX):
+                raise ValueError("plafond mensuel : un entier de 1 à 1 000 000 est attendu")
+            plafond = v
+        elif cle == "marche_defaut":
+            if not isinstance(v, str) or not re.match(r"^\d{1,4}$", v):
+                raise ValueError("marché par défaut : un indicatif pays en chiffres est attendu")
+            marche = v
+        elif cle == "agent":
+            agent = _agent_patch(v)
+        else:
+            raise ValueError("réglage WhatsApp inconnu")
+    _espace_connu(eid)
+    _ranger_reglages(eid, plafond, marche, agent)
+    return reglages(eid)
+
+
+def _instantane(doc: dict) -> str:
+    """Les réglages EFFECTIFS du document (défauts complétés, clés inconnues comprises), pour savoir si un geste change
+    quelque chose. Travaille sur une copie."""
+    d = json.loads(json.dumps(doc))
+    r = _reglages_doc(d)
+    r["agent"] = _agent_complet(r.get("agent"))      # l'agent EFFECTIF : seul un changement de valeur compte, pas la mise en forme
+    return json.dumps(r, sort_keys=True)
+
+
+def _ranger_reglages(eid: str, plafond, marche, agent) -> None:
+    """Écrit des réglages DÉJÀ validés (sous le verrou, lecture-fusion-écriture). N'écrit rien si le résultat est celui
+    d'avant. ValueError si la fusion donne un début égal à la fin."""
+    with _verrou:
+        doc = _lire_doc(eid)
+        avant = _instantane(doc)
+        r = _reglages_doc(doc)
+        if plafond is not None:
+            r["plafond_mois"] = plafond
+        if marche is not None:
+            r["marche_defaut"] = marche
+        if agent is not None:
+            brut = r.get("agent") if isinstance(r.get("agent"), dict) else {}
+            fusion = _agent_complet(brut)
+            for cle, v in agent.items():
+                if cle == "horaires":
+                    fusion["horaires"].update(v)
+                else:
+                    fusion[cle] = v
+            if fusion["horaires"]["debut"] == fusion["horaires"]["fin"]:
+                raise ValueError("agent : l'heure de début et l'heure de fin doivent différer")
+            r["agent"] = {**{k: x for k, x in brut.items() if k not in fusion}, **fusion}   # les clés inconnues survivent
+        if _instantane(doc) != avant:
+            _es._ecrire_json(_es.chemin(eid, FICHIER), doc)
+
+
+def dans_horaires(agent: dict, maintenant: datetime) -> bool:
+    """`maintenant` tombe-t-il dans les horaires de l'agent ? `agent` = `reglages(eid)["agent"]` (complété) ; un agent brut
+    ou abîmé est toléré : chaque champ d'horaires invalide retombe sur `AGENT_DEFAUT["horaires"]`. Pure : l'instant est lu dans le fuseau des horaires (une date
+    naïve vaut UTC), le jour doit être dans `jours` (0 = lundi), début INCLUS, fin EXCLUE (18:00 pile est hors horaires).
+    Une fin avant le début (nuit) vaut « à partir du début, ou avant la fin », le jour testé étant celui de l'instant."""
+    h = _agent_complet(agent)["horaires"]
+    local = _utc(maintenant).astimezone(ZoneInfo(h["fuseau"]))
+    if local.weekday() not in h["jours"]:
+        return False
+    t = local.strftime("%H:%M")
+    return h["debut"] <= t < h["fin"] if h["debut"] < h["fin"] else (t >= h["debut"] or t < h["fin"])
 
 
 def _noter(cid: str, geste) -> None:
@@ -511,6 +753,24 @@ def noter_stop(cid: str, identite_: str, maintenant: datetime | None = None) -> 
     _noter(cid, lambda e: e["stops"].__setitem__(identite_, q))
 
 
+def lever_stop(cid: str, identite_: str, source: str, maintenant: datetime | None = None) -> None:
+    """t311 : le contact se réabonne (il l'a demandé, par écrit ou de vive voix). Retire l'identité ET son alias de `stops`
+    et pose un accord SAISI `reabonnement:<source>` (un modèle marketing n'est plus refusé pour « accord »). Ne lève PAS la
+    désinscription marketing (`desinscrits_marketing`, ni celle de Meta) : seul le contact la lève, chez Meta. `source`
+    vide : ValueError. Sans STOP en place, l'accord est posé quand même."""
+    _identite_valide(identite_)
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError("source du réabonnement exigée")
+    q = _quand(maintenant)
+    src = "reabonnement:" + source.strip()[:50]
+
+    def geste(e):
+        for i in _groupe(e, identite_):
+            e["stops"].pop(i, None)
+        e["accords"][identite_] = {"date": q, "source": src}
+    _noter(cid, geste)
+
+
 def noter_desinscription(cid: str, identite_: str, maintenant: datetime | None = None) -> None:
     """Le contact ne reçoit plus de modèle MARKETING (le service reste permis)."""
     _identite_valide(identite_)
@@ -526,14 +786,8 @@ def regler(cid: str, *, plafond_mois: int | None = None, marche_defaut: str | No
     if marche_defaut is not None and (not isinstance(marche_defaut, str) or not re.match(r"^\d{1,4}$", marche_defaut)):
         raise ValueError("marché par défaut : un indicatif pays en chiffres est attendu")
 
-    def geste(doc):
-        r = _reglages_doc(doc)
-        if plafond_mois is not None:
-            r["plafond_mois"] = plafond_mois
-        if marche_defaut is not None:
-            r["marche_defaut"] = marche_defaut
     vue, _ = _compte(cid)
-    _modifier(vue["espace_id"], geste)
+    _ranger_reglages(vue["espace_id"], plafond_mois, marche_defaut, None)   # t311 : même écriture que `regler_espace`
 
 
 def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None, heure_sure: bool = True) -> str:
@@ -589,7 +843,7 @@ def noter_envoi(cid: str, identite_: str, *, type: str, categorie: str | None, s
     dans la fenêtre de 24 h). Jamais le texte du message."""
     _identite_valide(identite_)
     if type not in TYPES_ENVOI:
-        raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
+        raise ValueError("type d'envoi inconnu (texte, boutons, modele ou image)")
     mois = _mois(maintenant)
 
     def geste(e):
@@ -609,7 +863,7 @@ def controler(cid: str, identite_: str, *, type: str, categorie: str | None, der
     écriture, aucun réseau. ValueError : compte relié à aucun numéro."""
     _identite_valide(identite_)
     if type not in TYPES_ENVOI:
-        raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
+        raise ValueError("type d'envoi inconnu (texte, boutons, modele ou image)")
     eid, pid = _cle_etat(cid)
     client = _es.client_responsable(eid)
     if client:

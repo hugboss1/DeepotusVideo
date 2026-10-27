@@ -37,6 +37,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   vers la Bibliothèque ou un autre écran. → [ALLER:photolab] [GUIDE:photolab]
 - **Avatar live** — créer un Personnage à partir de quelques photos, lui faire rejouer une vidéo dans un autre décor,
   ou se filmer à la webcam transformé en direct avec sa voix. Payant à la seconde. → [ALLER:avatarlive] [GUIDE:avatar-live]
+- **WhatsApp** — les conversations WhatsApp de l'espace actif (numéro relié par Kapso) : lire, répondre, relire et
+  envoyer les brouillons de l'agent WhatsApp, prendre ou rendre la main, modèles, contacts (accords, STOP), santé du
+  numéro et grille Prix Meta. → [ALLER:whatsapp] [GUIDE:marques]
 - **Réglages** — clés des fournisseurs, comptes connectés, personas, espaces de marque, kits de marque, modèles et langue
   par défaut, tarifs et budget, diagnostic, appareils. → [ALLER:settings] [GUIDE:reglages]
 
@@ -78,6 +81,14 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   L'application n'envoie rien : copier le lien et l'envoyer au client ; « Vérifier » relit la liaison, et le numéro
   relié s'affiche. La clé Kapso, une seule pour tous les espaces, se pose dans Réglages › Clés d'API.
   → [POINT:reglages.nouvel_espace] [POINT:reglages.cles] [GUIDE:marques]
+- **Répondre sur WhatsApp avec l'agent** (t311) : l'agent WhatsApp d'un espace se règle dans Réglages › Espaces de
+  marque, bouton « Agent WhatsApp » sous les comptes de l'espace actif : Agent actif, mode, rôles (questions courantes,
+  rendez-vous, commandes, validation des posts), horaires et message hors horaires, réponses automatiques par contact et
+  par jour, mots qui appellent un humain, modèle de validation, plafond mensuel. En mode Brouillons (par défaut), il
+  rédige et l'utilisateur envoie depuis la page WhatsApp ; « Rédiger » en demande un à la main. Le mode Automatique se
+  confirme : l'agent répond seul dans les horaires et plafonds, mais une réponse qui parle d'argent ou une demande
+  d'humain reste un brouillon. Ses rédactions sont payantes, comptées sous la catégorie « whatsapp_agent » ; les
+  messages Meta sous « whatsapp ». « Prendre la main » le fait taire sur une conversation. → [POINT:rail.whatsapp] [POINT:reglages.espaces] [GUIDE:marques]
 - **Publier pour un client** : le bandeau sous l'en-tête (Quick, Studio, Planificateur, Bibliothèque) dit pour qui l'on
   travaille ; dans un espace client, « Fiche client » ouvre consentements, posts à valider et journal. Chaque canal
   (compte vérifié) demande un consentement en cours (« Ajouter ») ; « Révoquer » met en pause les posts programmés qui
@@ -156,6 +167,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **WhatsApp absent d'un post ou des réseaux d'un compte** : c'est voulu, WhatsApp n'est jamais une cible de post.
   Il se relie par un lien d'installation Kapso dans l'assistant d'espace (étape Canaux). « Clé Kapso à saisir » :
   la poser dans Réglages › Clés d'API, ligne Kapso (WhatsApp). → [POINT:reglages.cles] [GUIDE:marques]
+- **L'agent WhatsApp ne répond pas** : il doit être allumé (« Agent actif » dans Agent WhatsApp), le message doit
+  arriver dans ses horaires, la clé Anthropic posée et le plafond non atteint ; un contact en STOP ou repris en main
+  n'a pas de réponse. En mode Brouillons, la réponse attend dans la page WhatsApp. → [POINT:reglages.espaces] [ALLER:whatsapp]
 - **Mauvaise marque** : les contenus suivent l'espace de marque actif (Réglages › Espaces de marque).
   → [POINT:reglages.espaces]
 - **Interface dans la mauvaise langue** : Réglages › Fournisseurs par défaut. → [POINT:reglages.defauts]
