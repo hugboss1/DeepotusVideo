@@ -43,6 +43,11 @@ réservation soldée (`reel_note`) ; sinon `failed` reste définitif. Un send 2x
     Incertaine et Kapso dit `draft` : `attente_confirmation` (plus de relecture de fond jusqu'à la décision).
   · `a_relire` : diffusions lancées non terminées (hors attente de confirmation), ou avec des `anciennes`, dont `maj` a
     plus de 60 s.
+
+t328 tâche 4 : l'adaptateur `publishers.register("whatsapp", …)` (enregistré à l'import, importé par `marketing` avec
+les autres) lance la diffusion du post `meta["post_id"]` sur le compte courant, s'il est celui de la config ;
+`reporter_post` reporte une diffusion prise par Kapso sur son post (remote_ids, `posted`) ; `apercu` recalcule audience
+et devis sans réseau (GET de la route).
 """
 from __future__ import annotations
 
@@ -538,3 +543,125 @@ def a_relire(maintenant: datetime) -> list:
             if quand is None or maintenant - quand >= DELAI_RELECTURE:
                 out.append((post_id, eid))
     return out
+
+
+# ---- t328 tâche 4 : le Planificateur (aperçu, report sur le post, adaptateur « whatsapp ») -----------------------------
+
+def apercu(rec: dict | None, espace_id: str) -> dict:
+    """{audience: {n, ecartes}, devis: {usd, lignes}} de la config rangée, recalculés SANS réseau ni écriture (l'état des
+    accords a pu changer depuis `configurer`). Un refus des règles (consentement, prix…) : {audience: None, devis: None,
+    refus: code}."""
+    if not rec or not rec.get("compte") or not rec.get("modele"):
+        return {"audience": None, "devis": None}
+    cat = rec["modele"].get("categorie")
+    try:
+        try:
+            aud = WA.audience_diffusion(rec["compte"], categorie=cat, identites=rec.get("identites"))
+        except WhatsappRefus as x:
+            if x.code != "accord":
+                raise
+            aud = {"retenus": [], "ecartes": x.ecartes}
+        marches = _par_marche(aud["retenus"], WA.reglages(espace_id)["marche_defaut"])
+        devis = _devis(_op(cat, marches)) if marches else {"total_usd": 0.0, "breakdown": []}
+    except WhatsappRefus as x:
+        return {"audience": None, "devis": None, "refus": x.code}
+    return {"audience": {"n": len(aud["retenus"]), "ecartes": aud["ecartes"]},
+            "devis": {"usd": devis["total_usd"], "lignes": devis["breakdown"]}}
+
+
+def _cles_cibles(ids: list) -> list:
+    from app.services import comptes as _cpt
+    out = []
+    for c in ids:
+        try:
+            out.append(_cpt.cle_distante(_cpt.obtenir(c)))
+        except KeyError:
+            out.append(None)
+    return out
+
+
+async def reporter_post(post_id, espace_id: str, rec: dict | None) -> bool:
+    """Décision 7 : une diffusion que Kapso a PRISE (`sending`/`completed`, plus incertaine) est reportée sur son post :
+    remote_ids["whatsapp:<compte>"] = broadcast, et le post passe `posted` si toutes ses cibles sont parties. Seulement
+    pour un post `ready`/`failed`/`posted` de l'espace qui vise encore ce compte (jamais un post en cours de publication).
+    Rend True si le post a changé."""
+    if (not rec or rec.get("incertain") is True or rec.get("statut") not in ("sending", "completed")
+            or not rec.get("broadcast_id") or not rec.get("compte")):
+        return False
+    from sqlalchemy import select
+    from app.services.storage import ScheduledPost, async_session_factory
+    async with async_session_factory() as s:
+        p = (await s.execute(select(ScheduledPost).where(ScheduledPost.id == str(post_id)))).scalar_one_or_none()
+        if p is None or p.status not in ("ready", "failed", "posted") or (p.espace_id or "deepotus") != espace_id:
+            return False
+        try:
+            ids = json.loads(p.comptes) if p.comptes else []
+            remote = json.loads(p.remote_ids) if p.remote_ids else {}
+        except (TypeError, ValueError):
+            return False
+        if not isinstance(ids, list) or rec["compte"] not in ids or not isinstance(remote, dict):
+            return False
+        cle = f"whatsapp:{rec['compte']}"
+        if remote.get(cle) == rec["broadcast_id"]:
+            return False
+        remote[cle] = rec["broadcast_id"]
+        p.remote_ids = json.dumps(remote)
+        if p.status != "posted" and all(k is not None and k in remote for k in _cles_cibles(ids)):
+            p.status, p.posted_at, p.error = "posted", datetime.utcnow(), None
+        await s.commit()
+    logger.info(f"diffusion post {post_id} broadcast {rec['broadcast_id']} : reportée sur le post")
+    return True
+
+
+def _disponible() -> bool:
+    from app.services import comptes as _cpt
+    return _cpt.disponible("whatsapp")
+
+
+async def _publier(caption, video_path, image_path, meta) -> "PublishResult":
+    """L'adaptateur du Planificateur (Décision 6) : lance la diffusion configurée du post (`meta["post_id"]`) sur le
+    compte COURANT (publishers.publish l'a posé par `comptes.sous_compte`). ok = send accepté (remote_id = broadcast) ;
+    sinon un détail NEUTRE : jamais de numéro, de texte de modèle ni de paramètre (refus : son code)."""
+    from app.services import comptes as _cpt
+    from app.services.publishers import PublishResult
+    post_id = str((meta or {}).get("post_id") or "")
+    cid = _cpt.courant()
+    if not post_id or not cid:
+        return PublishResult(False, "whatsapp: diffusion impossible sans post ni compte WhatsApp")
+    try:
+        eid, _pid = WA._cle_etat(cid)
+        rec = lire(post_id, eid)
+    except (KeyError, ValueError):
+        return PublishResult(False, "whatsapp: compte WhatsApp relié à aucun numéro")
+    if not rec or not rec.get("compte"):
+        return PublishResult(False, "whatsapp: aucune diffusion configurée pour ce post (modèle et paramètres à choisir)")
+    if rec["compte"] != cid:
+        return PublishResult(False, "whatsapp: la diffusion de ce post est configurée sur un autre compte WhatsApp")
+    try:
+        r = await lancer(post_id)
+    except WhatsappRefus as x:
+        return PublishResult(False, f"whatsapp: diffusion refusée ({x.code}) : {x.message}")
+    except kapso.KapsoErreur as x:
+        return PublishResult(False, f"whatsapp: Kapso a refusé la diffusion ({x.statut} {x.code})")
+    except PostInconnu:
+        return PublishResult(False, "whatsapp: post inconnu")
+    except ValueError as x:                      # textes fixes du service (config, espace archivé, modèle…)
+        return PublishResult(False, f"whatsapp: {x}")
+    except Exception as x:  # noqa: BLE001 — 402 du plafond et le reste : le type seulement, jamais un contenu
+        if getattr(x, "status_code", None) == 402:
+            return PublishResult(False, "whatsapp: plafond de dépenses atteint, diffusion non lancée")
+        logger.warning(f"diffusion post {post_id} : échec ({type(x).__name__})")
+        return PublishResult(False, f"whatsapp: diffusion en échec ({type(x).__name__})")
+    if r.get("incertain"):
+        return PublishResult(False, "whatsapp: issue incertaine (panne de Kapso pendant l'envoi) : relisez la diffusion "
+                                    "avant de confirmer une relance")
+    return PublishResult(True, f"whatsapp: diffusion {r['broadcast_id']} ({r['n']} destinataires, {r['statut']})",
+                         r["broadcast_id"])
+
+
+def _enregistrer() -> None:
+    from app.services import publishers
+    publishers.register("whatsapp", _disponible, _publier)
+
+
+_enregistrer()

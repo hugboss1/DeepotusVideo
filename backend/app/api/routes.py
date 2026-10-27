@@ -8630,7 +8630,10 @@ def _wa_erreur(e: Exception) -> HTTPException:
     if isinstance(e, HTTPException):
         return e
     if isinstance(e, _wa.WhatsappRefus):
-        return HTTPException(409, {"message": e.message, "code": e.code})
+        d = {"message": e.message, "code": e.code}
+        if getattr(e, "ecartes", None) is not None:      # t328 : audience vide, les écartés COMPTÉS (aucune identité)
+            d["ecartes"] = e.ecartes
+        return HTTPException(409, d)
     if isinstance(e, _k.KapsoErreur):
         return HTTPException(502, {"message": e.message, "code": e.code})
     return _compte_erreur(e)
@@ -9684,6 +9687,132 @@ async def post_scheduled_post_validation_whatsapp(post_id: str, request: Request
         if isinstance(e, PermissionError) and not isinstance(e, _wa.WhatsappRefus):
             raise HTTPException(409, str(e))
         raise _wa_erreur(e)
+
+
+# ---- t328 tâche 4 (27/10/2026) : la DIFFUSION WhatsApp d'un post (services/whatsapp_diffusions.py) ------------------
+# Clé Kapso lue : boucle locale seulement, lecture comprise. Erreurs : refus des règles 409 {message, code, ecartes?},
+# Kapso 502, plafond 402 tel quel (_wa_erreur) ; post inconnu 404 ; fichier des diffusions illisible 409.
+
+def _diffusion_erreur(e: Exception) -> HTTPException:
+    from app.services import whatsapp_diffusions as WD
+    if isinstance(e, WD.PostInconnu):
+        return HTTPException(404, "post inconnu")
+    if isinstance(e, WD.FichierIllisible):
+        return HTTPException(409, {"message": str(e), "code": "illisible"})
+    return _wa_erreur(e)
+
+
+def _compte_diffusion(p: ScheduledPost) -> str:
+    """Le compte whatsapp que vise le post, gardé comme une cible (même espace) ; 409 sans compte whatsapp (ou avec deux)."""
+    from app.services import comptes as _cpt
+    ids = []
+    for cid in _comptes_du_post(p):
+        try:
+            if _cpt.obtenir(cid)["plateforme"] == "whatsapp":
+                ids.append(cid)
+        except KeyError:
+            continue
+    if len(ids) != 1:
+        raise HTTPException(409, "ce post doit viser un et un seul compte WhatsApp de son espace pour une diffusion")
+    try:
+        _cpt.verifier_cibles(p.espace_id, ids)
+    except PermissionError as e:
+        raise HTTPException(409, str(e))
+    except (KeyError, ValueError) as e:
+        raise HTTPException(409, f"compte WhatsApp refusé : {e}")
+    return ids[0]
+
+
+async def _post_ou_404(session, post_id: str) -> ScheduledPost:
+    p = (await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))).scalar_one_or_none()
+    if p is None:
+        raise HTTPException(404, "post inconnu")
+    return p
+
+
+def _etat_diffusion(rec: dict | None) -> dict | None:
+    if not rec:
+        return None
+    return {k: rec.get(k) for k in ("statut", "broadcast_id", "n", "incertain", "attente_confirmation", "compteurs",
+                                    "ecartes", "ajout", "reel_usd", "maj")}
+
+
+@router.get("/schedule/{post_id}/diffusion")
+async def get_scheduled_post_diffusion(post_id: str, request: Request, relire: int = 0):
+    """{config, audience, devis, etat} de la diffusion du post (config null s'il n'y en a pas). `?relire=1` : relue chez
+    Kapso d'abord (si lancée) et reportée sur le post. Audience et devis recalculés sans réseau."""
+    _require_localhost(request)
+    from app.services import whatsapp_diffusions as WD
+    async with async_session_factory() as session:
+        p = await _post_ou_404(session, post_id)
+    eid = p.espace_id or "deepotus"
+    rec = WD.lire(post_id, eid)
+    if relire and rec and rec.get("compte"):
+        try:
+            rec = await WD.relire(post_id, eid)
+            await WD.reporter_post(post_id, eid, rec)
+        except Exception as e:  # noqa: BLE001
+            raise _diffusion_erreur(e)
+        rec.pop("statut_kapso", None)
+    ap = WD.apercu(rec, eid)
+    return {"config": rec, "audience": ap.get("audience"), "devis": ap.get("devis"), "refus": ap.get("refus"),
+            "etat": _etat_diffusion(rec)}
+
+
+@router.put("/schedule/{post_id}/diffusion")
+async def put_scheduled_post_diffusion(post_id: str, request: Request, body: Any = Body(default=None)):
+    """Corps {modele: {nom, langue}, parametres, identites?, confirme_client?} -> `configurer` : {config, audience, devis,
+    post}. Le post doit viser un compte whatsapp de son espace. Comme une modification du CONTENU (t309), la validation
+    et la confirmation du client sont effacées (un post programmé d'un client « validé par le client » repasse
+    a_valider) ; les règles du client passent AVANT toute écriture. Aucune réservation, aucun envoi."""
+    _require_localhost(request)
+    from app.services import whatsapp_diffusions as WD
+    b = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:
+        p = await _post_ou_404(session, post_id)
+        cid = _compte_diffusion(p)
+        _regles_client_patch(p, b, None, p.comptes, p.status)     # contenu « changé » : refus = 409, rien d'écrit
+        try:
+            res = await WD.configurer(post_id, cid, modele=b.get("modele"), parametres=b.get("parametres"),
+                                      identites=b.get("identites"))
+        except Exception as e:  # noqa: BLE001
+            raise _diffusion_erreur(e)
+        await session.commit()
+        await session.refresh(p)
+        return {**res, "post": _post_to_dict(p)}
+
+
+@router.post("/schedule/{post_id}/diffusion/confirmer")
+async def post_scheduled_post_diffusion_confirmer(post_id: str, request: Request, body: Any = Body(default=None)):
+    """Corps {confirme_incertain: true, confirme_client?} : relance confirmée d'une diffusion à l'issue incertaine
+    (Décision 7), sous les mêmes contrôles que /fire (règles du client, 409 structuré, rien ne part) ; plafond 402.
+    Rend {diffusion: {broadcast_id, statut, n, incertain}, post}."""
+    _require_localhost(request)
+    from app.services import whatsapp_diffusions as WD
+    b = body if isinstance(body, dict) else {}
+    if b.get("confirme_incertain") is not True:
+        raise HTTPException(400, "confirmation attendue : confirme_incertain doit valoir true")
+    async with async_session_factory() as session:
+        p = await _post_ou_404(session, post_id)
+        if p.status == "posting" or p.delegue_a:
+            raise HTTPException(409, "ce post est en cours de publication ou confié à un appareil")
+        cid = _compte_diffusion(p)
+        confirme_avant = p.confirme_client
+        _controler_client(p, b.get("confirme_client"))
+        if p.confirme_client != confirme_avant:
+            await session.commit()
+    rec = WD.lire(post_id, p.espace_id or "deepotus")
+    if not rec or rec.get("compte") != cid:
+        raise HTTPException(409, "la diffusion de ce post n'est pas configurée sur son compte WhatsApp")
+    try:
+        r = await WD.lancer(post_id, confirme_incertain=True)
+    except Exception as e:  # noqa: BLE001
+        raise _diffusion_erreur(e)
+    eid = p.espace_id or "deepotus"
+    await WD.reporter_post(post_id, eid, WD.lire(post_id, eid))
+    async with async_session_factory() as session:
+        p = await _post_ou_404(session, post_id)
+    return {"diffusion": r, "post": _post_to_dict(p)}
 
 
 def _render_poster_frame(jobrec) -> str | None:

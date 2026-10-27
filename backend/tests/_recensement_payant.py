@@ -53,6 +53,7 @@ PUITS = {
     "AW.rediger",   # t311 : la boucle de l'agent WhatsApp (agent_whatsapp.rediger -> moteurs_texte.converser, Anthropic)
     "AW.envoyer_brouillon",   # t311 : l'envoi d'un brouillon de l'agent (agent_whatsapp.envoyer_brouillon -> WE.envoyer)
     "WV.envoyer_validation",   # t311 : la demande de validation au client (whatsapp_validation.envoyer_validation -> WE.envoyer)
+    "WD.lancer",   # t328 : le lancement d'une diffusion WhatsApp (whatsapp_diffusions.lancer -> kapso.envoyer_broadcast)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
     "transcribe",
@@ -83,7 +84,9 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
           "AW.rediger",   # t311 : la garde vit DANS la boucle de l'agent WhatsApp, avant CHAQUE appel du modèle ;
                           # test_plafonds_garde A2f vérifie dans le source que plafonds.verifier y précède MT.converser
           "AW.envoyer_brouillon",   # t311 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2g le vérifie
-          "WV.envoyer_validation"}   # t311 tâche 6 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2h le vérifie
+          "WV.envoyer_validation",   # t311 tâche 6 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2h le vérifie
+          "WD.lancer"}   # t328 : la garde vit DANS whatsapp_diffusions._lancer_sous_verrou (plafonds.verifier avant le send) ;
+                         # test_plafonds_garde A2i le vérifie, A2j que lancer y mène
 
 
 def _nom_appel(n: ast.Call) -> str:

@@ -11278,5 +11278,25 @@
  "le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute diffusion": {
   "fr": "le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute diffusion",
   "en": "this workspace's WhatsApp broadcasts file is unreadable: repair it before any broadcast"
+ },
+ "ce post doit viser un et un seul compte WhatsApp de son espace pour une diffusion": {
+  "fr": "ce post doit viser un et un seul compte WhatsApp de son espace pour une diffusion",
+  "en": "this post must target exactly one WhatsApp account of its workspace for a broadcast"
+ },
+ "confirmation attendue : confirme_incertain doit valoir true": {
+  "fr": "confirmation attendue : confirme_incertain doit valoir true",
+  "en": "confirmation expected: confirme_incertain must be true"
+ },
+ "la diffusion de ce post n'est pas configurée sur son compte WhatsApp": {
+  "fr": "la diffusion de ce post n'est pas configurée sur son compte WhatsApp",
+  "en": "this post's broadcast is not set up on its WhatsApp account"
+ },
+ "compte WhatsApp refusé : {e}": {
+  "fr": "compte WhatsApp refusé : {e}",
+  "en": "WhatsApp account refused: {e}"
+ },
+ "ce post est en cours de publication ou confié à un appareil": {
+  "fr": "ce post est en cours de publication ou confié à un appareil",
+  "en": "this post is being published or has been handed to a device"
  }
 }

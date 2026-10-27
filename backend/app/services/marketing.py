@@ -926,6 +926,7 @@ publishers.register("telegram", lambda: cred.has_telegram, _pub_telegram)
 publishers.register("x", lambda: cred.has_x, _pub_x)
 # les adaptateurs des autres canaux s'enregistrent à leur import (plan scheduler T3+)
 from app.services import youtube_publisher, instagram_publisher, tiktok_publisher  # noqa: E402,F401
+from app.services import whatsapp_diffusions  # noqa: E402,F401 — t328 : l'adaptateur « whatsapp » (diffusions Kapso)
 
 
 def auto_channels() -> set[str]:
@@ -1064,7 +1065,8 @@ async def fire_post(post_id: str) -> dict:
                     remote = json.loads(post.remote_ids) or {}
                 except (ValueError, TypeError):
                     remote = {}
-            meta = {"title": post.title, "brief": brief_d}
+            # t328 : `post_id` -> l'adaptateur « whatsapp » lance la diffusion configurée de CE post
+            meta = {"title": post.title, "brief": brief_d, "post_id": post.id}
             # plan scheduler T15 (tâche #32) : une suite de fil X RÉPOND au message précédent (index - 1, ou la tête) ;
             # tant qu'il n'est pas parti, la suite est REPORTÉE de deux minutes — jamais échouée — et c'est dit
             if post.thread_of:
@@ -1210,6 +1212,25 @@ async def tick(marker: list[str | None] | None = None) -> None:
                             f"(assisted)")
         except Exception as e:
             logger.error(f"schedule: post {post.id} failed: {e}")
+    await _relire_diffusions(now)
+
+
+async def _relire_diffusions(now: datetime) -> None:
+    """t328 tâche 4 (Décision 6) : les diffusions WhatsApp lancées non terminées sont relues chez Kapso (au plus une fois
+    par minute chacune, `a_relire`) et reportées sur leur post. Jamais bloquant : une panne est journalisée par son TYPE
+    seulement (ni numéro, ni texte), la boucle continue."""
+    try:
+        from app.services import whatsapp_diffusions as _wd
+        items = _wd.a_relire(now)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"schedule: diffusions WhatsApp illisibles ({type(e).__name__})")
+        return
+    for post_id, eid in items:
+        try:
+            rec = await _wd.relire(post_id, eid)
+            await _wd.reporter_post(post_id, eid, rec)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"schedule: relecture de la diffusion du post {post_id} impossible ({type(e).__name__})")
 
 
 async def schedule_loop() -> None:
