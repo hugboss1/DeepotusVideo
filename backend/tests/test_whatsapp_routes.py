@@ -692,6 +692,26 @@ check("W17.7 la date d'accord est celle du plus récent (jamais reculée)",
       ey["accords"]["tel:33600000081"]["date"] == datetime.fromtimestamp(t1 + 60, timezone.utc).isoformat(timespec="seconds"),
       ey["accords"])
 
+print("\n[W18] fail closed : un horodatage illisible n'ouvre jamais la fenêtre")
+cz = compte(E.creer({"nom": "Heure illisible"})["id"], "PN-Z")
+WA.noter_accord(cz, "tel:33600000091", "papier")
+conv("PN-Z", tel="33600000091", il_y_a=None)
+F.msgs["PN-Z"] = [[{"id": "wamid.Z1", "timestamp": "pas-une-heure", "type": "text", "from": "33600000091",
+                    "text": {"body": "salut"}, "kapso": {"direction": "inbound"}}]]
+F.appels.clear()
+r = envoyer(cz, "tel:33600000091", {"type": "texte", "texte": "bonjour"})
+check("W18.1 seul entrant à l'heure illisible : 409 fenetre, aucun POST", code409(r)[0] == "fenetre" and not envois_kapso(),
+      r.text)
+jz = [x for x in WA.etat(cz)["journal"] if x.get("id") == "wamid.Z1"]
+check("W18.2 … journalisé une fois, marqué heure_sure: false", len(jz) == 1 and jz[0].get("heure_sure") is False, jz)
+WA.noter_accord(cz, "tel:33600000092", "papier")
+conv("PN-Z", tel="33600000092", il_y_a=timedelta(minutes=5))
+F.msgs["PN-Z"] = [[{"id": "wamid.Z2", "type": "text", "from": "33600000092", "text": {"body": "STOP"},
+                    "kapso": {"direction": "inbound"}}]]
+r = envoyer(cz, "tel:33600000092", {"type": "texte", "texte": "bonjour"})
+check("W18.3 un STOP sans horodatage est quand même noté et bloque", code409(r)[0] == "stop" and not envois_kapso()
+      and "tel:33600000092" in WA.etat(cz)["stops"], r.text)
+
 print("\n[W16] garde des plafonds : la route d'envoi est recensée et gardée")
 sys.path.insert(0, str(BACKEND / "tests"))
 import _recensement_payant as RP                                    # noqa: E402

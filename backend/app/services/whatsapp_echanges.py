@@ -166,8 +166,9 @@ def _noter_entrants(cid: str, msgs: list, deja: set) -> None:
         i = WA._c(msg.get("id"))
         if i in deja:
             continue
-        try:
-            WA.noter_entrant(cid, msg, maintenant=_date_ts(msg.get("timestamp")))
+        quand = _date_ts(msg.get("timestamp"))
+        try:                                             # horodatage illisible : daté de l'horloge, hors fenêtre
+            WA.noter_entrant(cid, msg, maintenant=quand, heure_sure=quand is not None)
         except ValueError:
             continue                                     # entrant sans identité de contact : rien à ranger
         deja.add(i)
@@ -214,10 +215,11 @@ async def conversations(cid: str) -> list:
 async def _dernier_entrant(cid: str, pid: str, identite: str) -> datetime | None:
     """L'heure du dernier message du contact : la plus récente entre `kapso.last_inbound_at` de sa conversation
     (PAGES_MAX pages au plus) et les entrants journalisés (datés de leur horodatage Kapso, à jour après
-    `_relire_entrants`). None = jamais (la fenêtre est fermée)."""
+    `_relire_entrants`), hors entrants à l'horodatage illisible (`heure_sure: False`). None = jamais (fenêtre fermée)."""
     e = WA.etat(cid)
     cible = _groupe(e, [identite])
-    dates = [_date_iso(x.get("quand")) for x in e["journal"] if x.get("sens") == "entrant" and x.get("identite") in cible]
+    dates = [_date_iso(x.get("quand")) for x in e["journal"]       # fail closed : une heure non sûre n'ouvre rien
+             if x.get("sens") == "entrant" and x.get("identite") in cible and x.get("heure_sure") is not False]
     cur = None
     for _ in range(PAGES_MAX):
         liste, cur = await kapso.conversations(pid, apres=cur, champs="kapso()")

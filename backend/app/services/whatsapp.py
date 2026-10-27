@@ -465,13 +465,15 @@ def regler(cid: str, *, plafond_mois: int | None = None, marche_defaut: str | No
     _noter(cid, geste)
 
 
-def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None) -> str:
+def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None, heure_sure: bool = True) -> str:
     """Range un message ENTRANT : il vaut accord pour la conversation (`source: "entrant"`) ; un texte STOP note le stop
     (et non l'accord). Une ligne de journal sans texte. Rend l'identité. Un entrant ordinaire ne lève jamais un stop.
     Un message qui porte À LA FOIS `from_user_id` et `from` lie `bsuid:Y` et `tel:X` (`etat.alias`, dans les deux sens) :
     un stop ou une désinscription de l'un vaut pour l'autre, et un accord noté sur l'un ne lève jamais le stop de l'autre.
     Limite : un contact vu seulement par numéro puis seulement par BSUID ne peut pas être relié (Kapso ne donne alors
-    aucun lien entre les deux)."""
+    aucun lien entre les deux).
+    `heure_sure=False` (t310 tâche 6 : horodatage Kapso absent ou illisible, daté de l'horloge) : la ligne de journal porte
+    `"heure_sure": False` et ne compte jamais pour la fenêtre de 24 h (`whatsapp_echanges._dernier_entrant`)."""
     ident = identite(msg)
     chiffres = re.sub(r"\D", "", str(msg.get("from") or ""))
     bsuid = str(msg.get("from_user_id") or "").strip()
@@ -497,6 +499,8 @@ def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None) -> st
                 if i not in e["stops"]:                              # un accord ne lève jamais un stop
                     e["accords"][i] = {"date": q, "source": "entrant"}
         _journaliser(e, q, "entrant", ident, str(msg.get("type") or "text"), None, "stop" if stop else "recu", msg.get("id"))
+        if not heure_sure:
+            e["journal"][-1]["heure_sure"] = False
     _noter(cid, geste)
     return ident
 
