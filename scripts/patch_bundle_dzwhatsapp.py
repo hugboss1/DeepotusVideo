@@ -1,0 +1,150 @@
+# -*- coding: utf-8 -*-
+# scripts/patch_bundle_dzwhatsapp.py
+"""Maillon de queue : WhatsApp par Kapso dans le bundle (t310 tâche 7, 27/10/2026, plan
+docs/superpowers/plans/2026-10-27-t310-whatsapp-kapso.md, spec docs/superpowers/specs/2026-10-25-boite-a-outils-design.md
+§5.3 et §6.1). WhatsApp est un canal de CONVERSATION d'espace, jamais une cible de publication : rien ne s'ajoute à la
+table des canaux `_t` ni à `Bu` du Planificateur. Ce maillon porte deux paires, toutes deux HORS de tout bloc de couche
+__DZ_*_BEGIN__ (vérifié à l'écriture par `hors_couche`) :
+  P1 Réglages › Clés d'API : `dzFuNeuves()` (les lignes neuves de t221, précédent DECART_API_KEY) reçoit la ligne de la
+     clé plate partagée KAPSO_API_KEY, libellé dzT("reglages.cles.kapso"), aide dzT("reglages.cles.kapso_why") ; le
+     serveur la range déjà dans la rubrique « keys » (settings_routes.RUBRIQUE_DE_CLE). Le MARKER /*dzwhatsapp*/ ouvre
+     cette ligne ;
+  P2 Planificateur › éditeur de post : le sélecteur `DzPostComptes` écarte les comptes `plateforme==="whatsapp"` de la
+     liste qu'il range (dzPcCache) : un compte whatsapp n'est jamais proposé comme cible d'un post (le serveur le refuse
+     aussi : comptes.verifier_cibles).
+Clés dzT « reglages.cles.kapso » et « reglages.cles.kapso_why » : frontend/shared/i18n/menus.json (FR/EN, à côté de
+reglages.cles.decart ; reglages.json est réécrit par scripts/i18n_l1_generer.py), assemblées par scripts/i18n_assembler.py.
+Épingles intouchées : x.useState( 731, v2.8.0 x4, DzTracks 181, `await window.__dzDialogue.confirmer(` x30.
+
+Maillon de QUEUE, APRÈS dzgardeclient (t309, dont il sonde le marqueur) ; il garde un .js.bak_dzwhatsapp le temps de
+l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzwhatsapp` dans
+backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_dzgardeclient`. Lecture et écriture
+en OCTETS (le bundle est en CRLF) ; aucune paire ne contient de fin de ligne. DÉFAIRE le maillon AVANT de changer ses
+paires (`defaire` relit les paires d'ici).
+Banc : backend/tests/test_whatsapp_ecran.py.
+Run : python scripts/patch_bundle_dzwhatsapp.py [--check]
+"""
+import pathlib
+import re
+import shutil
+import sys
+
+RACINE = pathlib.Path(__file__).resolve().parent.parent
+BUNDLE = RACINE / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
+BAK = BUNDLE.parent / (BUNDLE.name + ".bak_dzwhatsapp")
+TAG = "dzwhatsapp"
+MARKER = "/*dzwhatsapp*/"
+MARKER_ATTENDU = 1
+CONFIRMER = "await window.__dzDialogue.confirmer("
+
+SONDE_AMONT = [
+    ("dzgardeclient", "/*dzgardeclient*/", 1),
+    ("version", "v2.8.0", 4),
+    ("montage", "DzTracks", 181),
+    ("useState", "x.useState(", 731),
+    ("dialogue", CONFIRMER, 30),
+]
+
+LIGNE_KAPSO = '{k:"KAPSO_API_KEY",label:dzT("reglages.cles.kapso"),why:dzT("reglages.cles.kapso_why")}'
+
+PAIRES = [
+    # P1 : la ligne de la clé Kapso, en fin des lignes neuves de Réglages › Clés d'API (dzFuNeuves, sortie de dzreglages)
+    ('health:"voiceover_enabled",texte:!0}]}function dzRgCle(',
+     'health:"voiceover_enabled",texte:!0},' + MARKER + LIGNE_KAPSO + ']}function dzRgCle('),
+    # P2 : DzPostComptes (sortie de dzespace) ne range jamais un compte whatsapp parmi les cibles proposées
+    ('dzPcCache[esp]={liste:j.comptes||[],pl:j.plateformes||{}}',
+     'dzPcCache[esp]={liste:(j.comptes||[]).filter(function(c){return c.plateforme!=="whatsapp"}),pl:j.plateformes||{}}'),
+]
+
+
+def lire(p):
+    b = p.read_bytes()
+    bom = b.startswith(b"\xef\xbb\xbf")
+    return b.decode("utf-8-sig" if bom else "utf-8"), bom
+
+
+def ecrire(p, texte, bom):
+    p.write_bytes((("﻿" if bom else "") + texte).encode("utf-8"))
+
+
+def appliquer(s: str) -> str:
+    for ancre, remplace in PAIRES:
+        n = s.count(ancre)
+        if n != 1:
+            raise SystemExit(f"[{TAG}] ancre x{n} (attendu 1) : {ancre[:80]!r}")
+        s = s.replace(ancre, remplace, 1)
+    return s
+
+
+def defaire(s: str) -> str:
+    """L'inverse exact (lu par avant_dzwhatsapp dans _i18n_l1_aide)."""
+    for ancre, remplace in reversed(PAIRES):
+        if s.count(remplace) != 1:
+            raise AssertionError(f"[{TAG}] remplacement x{s.count(remplace)} (attendu 1) : {remplace[:80]!r}")
+        s = s.replace(remplace, ancre, 1)
+    return s
+
+
+def partiel(s: str) -> bool:
+    if MARKER not in s:
+        return False
+    try:
+        defaire(s)
+    except AssertionError:
+        return True
+    return False
+
+
+def hors_couche(s: str, jeton: str) -> bool:
+    """Le jeton n'est dans aucun bloc /*__DZ_<NOM>_BEGIN__*/ … /*__DZ_<NOM>_END__*/."""
+    i = s.index(jeton)
+    for m in re.finditer(r"/\*__DZ_([A-Z0-9_]+?)_BEGIN__\*/", s):
+        if m.start() <= i <= s.index("/*__DZ_%s_END__*/" % m.group(1)):
+            return False
+    return True
+
+
+def main() -> None:
+    check = "--check" in sys.argv
+    s, bom = lire(BUNDLE)
+    if MARKER in s:
+        if s.count(MARKER) != MARKER_ATTENDU:
+            raise SystemExit(f"[{TAG}] marqueur x{s.count(MARKER)}")
+        if partiel(s):
+            raise SystemExit(f"[{TAG}] partiellement appliqué — repartir d'avant_dzwhatsapp")
+        print(f"[{TAG}] déjà appliqué")
+        return
+    for tag, jeton, attendu in SONDE_AMONT:
+        if s.count(jeton) != attendu:
+            raise SystemExit(f"[{TAG}] sonde {tag} : {jeton!r} x{s.count(jeton)} (attendu {attendu}) — rejouer la chaîne d'abord")
+    if any("\n" in a + z or "x.useState(" in z or CONFIRMER in z for a, z in PAIRES):
+        raise SystemExit(f"[{TAG}] paire fautive (fin de ligne, x.useState( ou confirmation directe)")
+    crlf = s.count("\r\n")
+    if crlf < 15000 or s.count("\n") != crlf:
+        raise SystemExit(f"[{TAG}] fins de ligne inattendues ({crlf} CRLF / {s.count(chr(10))} LF)")
+    if not all(hors_couche(s, a) for a, _z in PAIRES):
+        raise SystemExit(f"[{TAG}] une ancre est dans un bloc de couche __DZ_*_BEGIN__")
+    neuf = appliquer(s)
+    if not all(hors_couche(neuf, z) for _a, z in PAIRES):
+        raise SystemExit(f"[{TAG}] une paire tombe dans un bloc de couche __DZ_*_BEGIN__")
+    if neuf.count(MARKER) != MARKER_ATTENDU or defaire(neuf) != s:
+        raise SystemExit(f"[{TAG}] aller-retour imparfait")
+    if (neuf.count("x.useState(") != 731 or neuf.count("v2.8.0") != 4 or neuf.count("DzTracks") != 181
+            or neuf.count(CONFIRMER) != 30 or neuf.count("\r\n") != crlf):
+        raise SystemExit(f"[{TAG}] un compte figé a bougé")
+    if check:
+        print(f"[{TAG}] à appliquer ({len(PAIRES)} paires)")
+        return
+    shutil.copyfile(BUNDLE, BAK)
+    try:
+        ecrire(BUNDLE, neuf, bom)
+    except BaseException:
+        shutil.copyfile(BAK, BUNDLE)                    # jamais un bundle à moitié écrit
+        raise
+    finally:
+        BAK.unlink(missing_ok=True)
+    print(f"[{TAG}] appliqué")
+
+
+if __name__ == "__main__":
+    main()

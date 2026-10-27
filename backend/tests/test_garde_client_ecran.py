@@ -104,8 +104,9 @@ if PM:
           lambda: all(not (s0 <= B.index(z) <= e0) for _a, z in PM.PAIRES for s0, e0 in blocs(B)))
     check("M9 aller-retour exact : appliquer(defaire(B)) == B, defaire(B) sans marqueur",
           lambda: PM.appliquer(PM.defaire(B)) == B and MARKER not in PM.defaire(B))
-    check("M10 la base est rendue À L'OCTET (empreinte du bundle d'avant le maillon, CRLF compris)",
-          lambda: hashlib.sha256(PM.defaire(B).encode("utf-8")).hexdigest() == BASE_SHA256)
+    # t310 (27/10/2026) : le maillon dzwhatsapp est posé APRÈS celui-ci : la base se lit vue d'avant dzwhatsapp
+    check("M10 la base est rendue À L'OCTET (empreinte du bundle d'avant le maillon, CRLF compris), vu d'avant dzwhatsapp",
+          lambda: hashlib.sha256(PM.defaire(AIDE.avant_dzwhatsapp(B)).encode("utf-8")).hexdigest() == BASE_SHA256)
     check("M11 G1 garde le code d'origine ENTIER comme repli (derrière window.__dzGardeClient)",
           lambda: PM.PAIRES[0][0].split("=>{", 1)[1] in PM.PAIRES[0][1] and "window.__dzGardeClient" in PM.PAIRES[0][1])
 for jeton, n in {"x.useState(": 731, "v2.8.0": 4, "DzTracks": 181, CONFIRMER: 30, "/*dzcanauxpre*/": 1}.items():
@@ -119,10 +120,12 @@ if NODE:
     check("M14 node --check : le bundle PARSE", rc.returncode == 0, rc.stderr[-300:])
 
 print("\n[M] la chaîne inverse")
-check("M20 avant_dzgardeclient existe et rend defaire(B)",
-      lambda: PM is not None and AIDE.avant_dzgardeclient(B) == PM.defaire(B))
+# t310 (27/10/2026) : le maillon dzwhatsapp est posé APRÈS celui-ci : le livré se lit vu d'avant dzwhatsapp (BW)
+BW = AIDE.avant_dzwhatsapp(B) if hasattr(AIDE, "avant_dzwhatsapp") else B
+check("M20 avant_dzgardeclient existe et rend defaire(B), vu d'avant dzwhatsapp",
+      lambda: PM is not None and AIDE.avant_dzgardeclient(B) == PM.defaire(BW))
 check("M21 avant_dzgardeclient sans marqueur : rendu tel quel",
-      lambda: AIDE.avant_dzgardeclient(PM.defaire(B)) == PM.defaire(B))
+      lambda: AIDE.avant_dzgardeclient(PM.defaire(BW)) == PM.defaire(BW))
 check("M22 avant_dzcanauxpre défait dzgardeclient D'ABORD (appel en tête), puis dzcanauxpre",
       lambda: MARKER not in AIDE.avant_dzcanauxpre(B) and "/*dzcanauxpre*/" not in AIDE.avant_dzcanauxpre(B)
       and AIDE.avant_dzcanauxpre(B) == AIDE.avant_dzcanauxpre(AIDE.avant_dzgardeclient(B)))

@@ -64,8 +64,11 @@
       if (!R.ok) throw new Error("HTTP " + R.status);
       return R.json();
     }).then(function (j) {
-      // le serveur filtre déjà par espace ; on refiltre : la boîte ne propose JAMAIS le compte d'un autre espace
-      entree.liste = ((j && j.comptes) || []).filter(function (c) { return c && c.espace_id === esp; });
+      // le serveur filtre déjà par espace ; on refiltre : la boîte ne propose JAMAIS le compte d'un autre espace.
+      // t310 (27/10/2026) : ni un compte whatsapp (canal de conversation, jamais une cible de post : comptes.NON_PUBLIABLES)
+      entree.liste = ((j && j.comptes) || []).filter(function (c) {
+        return c && c.espace_id === esp && c.plateforme !== "whatsapp";
+      });
       return entree.liste;
     }, function (e) { delete cache[esp]; throw e; });
     cache[esp] = entree;
