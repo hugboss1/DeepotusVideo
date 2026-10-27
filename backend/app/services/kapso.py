@@ -404,6 +404,9 @@ async def media_et_type(media_id: str, phone_number_id: str) -> tuple[bytes, str
 MAX_DESTINATAIRES = 1000          # par appel d'ajout (relevé Broadcasts §2.2)
 
 
+_RE_CHIFFRES = re.compile(r"\d{6,}")      # un numéro de téléphone ne sort jamais d'une erreur
+
+
 def _id_bc(broadcast_id) -> str:
     return quote(str(broadcast_id), safe="")
 
@@ -437,7 +440,8 @@ async def ajouter_destinataires(broadcast_id: str, destinataires: list[dict]) ->
     d = _data(corps, dict)
     erreurs = d.get("errors")
     return {"ajoutes": _entier(d, "added"), "doublons": _entier(d, "duplicates"),
-            "erreurs": [_propre(x, comptes.cle_kapso() or "") for x in erreurs] if isinstance(erreurs, list) else []}
+            "erreurs": [_RE_CHIFFRES.sub("…", _propre(x, comptes.cle_kapso() or "")) for x in erreurs]
+            if isinstance(erreurs, list) else []}
 
 
 async def envoyer_broadcast(broadcast_id: str) -> dict:
@@ -445,7 +449,8 @@ async def envoyer_broadcast(broadcast_id: str) -> dict:
     rejeu à l'aveugle risque de doubler la diffusion. Après une panne, relire `broadcast()` avant tout nouvel essai.
     Rend {"statut"}."""
     _s, corps, _e = await _appel("POST", f"{PLATFORM}/whatsapp/broadcasts/{_id_bc(broadcast_id)}/send", reessai_ok=False)
-    return {"statut": str(_data(corps, dict).get("status") or "")}
+    d = corps.get("data") if isinstance(corps, dict) else None     # un 2xx = accepté, même sans corps lisible
+    return {"statut": str(d.get("status") or "") if isinstance(d, dict) else ""}
 
 
 async def broadcast(broadcast_id: str) -> dict:
@@ -469,8 +474,9 @@ def _numero_e164(v) -> str:
 async def destinataires_broadcast(broadcast_id: str, *, page: int = 1, par_page: int = 100) -> dict:
     """GET .../recipients?page&per_page : {"lignes": [{phone_number, statut, code_erreur, livre, lu}], "pages"}. Pas de statut
     `delivered`/`read` chez Kapso : `livre` et `lu` viennent de `delivered_at` et `read_at`. Aucun texte d'erreur n'est rendu."""
+    page, par_page = max(1, int(page)), min(100, max(1, int(par_page)))
     _s, corps, _e = await _appel("GET", f"{PLATFORM}/whatsapp/broadcasts/{_id_bc(broadcast_id)}/recipients",
-                                 params={"page": int(page), "per_page": int(par_page)})
+                                 params={"page": page, "per_page": par_page})
     lignes = []
     for x in _data(corps, list):
         if not isinstance(x, dict):
