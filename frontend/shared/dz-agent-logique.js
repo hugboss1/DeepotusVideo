@@ -202,7 +202,7 @@ export function glisse(a, b, seuil = 4) { return Math.hypot(b.x - a.x, b.y - a.y
 // /shared/dz-campagnes.js. Sans espace : rôle « orienteur » ; un espace choisi : rôle « campagnes » et son espace_id
 // (jamais l'espace actif d'office). `surCid` est ajouté par l'écran, pas ici.
 // t352 (27/10/2026) : 3e onglet « Veille » (/shared/dz-veille.js, lecture seule, un espace choisi)
-export const ONGLETS = ["demander", "campagnes", "veille"];
+export const ONGLETS = ["demander", "campagnes", "veille", "prospects"];     // t353 : 4e onglet « Prospects »
 export function ongletLu(v) { return ONGLETS.includes(v) ? v : "demander"; }
 export function optionsCampagnes({ espace, brief, cid } = {}) {
   const o = { contexte: "f1", role: espace ? "campagnes" : "orienteur" };

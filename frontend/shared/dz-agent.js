@@ -26,6 +26,10 @@
 // t352 (27/10/2026) : 3e onglet « Veille » : monte /shared/dz-veille.js (window.DzVeille) pour l'espace choisi dans
 // son propre sélecteur (l'espace actif par défaut : la veille ne fait que lire). Gardé dans sessionStorage
 // (dz_agent_veille). Les flèches gauche / droite parcourent les trois onglets en boucle.
+//
+// t353 (27/10/2026) : 4e onglet « Prospects » : monte /shared/dz-prospects.js (window.DzProspects) pour l'espace choisi
+// dans son propre sélecteur (l'espace actif par défaut ; jamais un espace démonstration, qui n'a pas de prospects).
+// Gardé dans sessionStorage (dz_agent_prospects). Les flèches parcourent désormais les quatre onglets en boucle.
 import { etapes, historiqueBorne, choisir, composer, candidats, versEcran, cliquable, prix, releverVisibles,
   MAX_VISIBLES, placeLue, positionLue, borner, glisse, ONGLETS, ongletLu, optionsCampagnes, campagneLue } from "./dz-agent-logique.js";
 import { creerPointeur } from "./dz-agent-pointeur.js";
@@ -137,6 +141,7 @@ if (!window.__dzAgent) {
     on: { click: () => {
       if (onglet === "campagnes") return nouvelleCampagne();     // t285b : ↺ sur Campagnes = conversation neuve
       if (onglet === "veille") return veille && veille.recharger();     // t352 : ↺ sur Veille = relire la veille
+      if (onglet === "prospects") return prospects && prospects.recharger();     // t353 : ↺ sur Prospects = relire la liste
       if (annulerAccord) annulerAccord(); else if (occupe || enVue) return;
       arreterLecture(); hist = []; garder(); dessiner(); } } });
   // t260 : l'épingle range la bulle dans la barre du haut, ou la rend flottante
@@ -148,12 +153,13 @@ if (!window.__dzAgent) {
     texte: T(cle), on: { click: () => choisirOnglet(nom) } });
   const ongDemander = ongletBouton("demander", "agent.onglet.demander"), ongCampagnes = ongletBouton("campagnes", "agent.onglet.campagnes");
   const ongVeille = ongletBouton("veille", "agent.onglet.veille");
+  const ongProspects = ongletBouton("prospects", "agent.onglet.prospects");     // t353
   const listeOnglets = el("div", { class: "dzAgentOnglets", role: "tablist", "aria-label": T("agent.onglets.libelle") },
-    [ongDemander, ongCampagnes, ongVeille]);
+    [ongDemander, ongCampagnes, ongVeille, ongProspects]);
   listeOnglets.addEventListener("keydown", (ev) => {
     if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
     ev.preventDefault();
-    const i = ONGLETS.indexOf(onglet), n = ONGLETS.length;     // t352 : trois onglets, en boucle
+    const i = ONGLETS.indexOf(onglet), n = ONGLETS.length;     // t352, t353 : quatre onglets, en boucle
     choisirOnglet(ONGLETS[(i + (ev.key === "ArrowRight" ? 1 : n - 1)) % n], true);
   });
   const panneau = (nom, enfants) => el("div", { class: "dzAgentPan", role: "tabpanel", id: "dzAgentPan-" + nom,
@@ -167,12 +173,16 @@ if (!window.__dzAgent) {
     "data-dz-agent": "espace-veille" }, [el("option", { value: "", texte: T("agent.campagnes.sans_espace") })]);
   const hoteVeille = el("div", { class: "dzAgentCampHote", "data-dz-agent": "hote-veille" });
   const panVeille = panneau("veille", [el("div", { class: "dzAgentCampEspace" }, [selVeille]), hoteVeille]);
+  const selProspects = el("select", { "aria-label": T("agent.prospects.espace"), title: T("agent.prospects.espace"),
+    "data-dz-agent": "espace-prospects" }, [el("option", { value: "", texte: T("agent.campagnes.sans_espace") })]);
+  const hoteProspects = el("div", { class: "dzAgentCampHote", "data-dz-agent": "hote-prospects" });
+  const panProspects = panneau("prospects", [el("div", { class: "dzAgentCampEspace" }, [selProspects]), hoteProspects]);
   const tiroir = el("aside", { id: "dzAgentTiroir", class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
     el("div", { class: "dzAgentTete" }, [
       el("h2", { texte: T("agent.tiroir.titre") }), choix, btnEpingle, btnNouvelle,
       el("button", { texte: "×", title: T("agent.tiroir.fermer"), "aria-label": T("agent.tiroir.fermer"), on: { click: () => basculer(false) } }),
     ]),
-    listeOnglets, panDemander, panCampagnes, panVeille,
+    listeOnglets, panDemander, panCampagnes, panVeille, panProspects,
   ]);
 
   // ── t285b : l'onglet Campagnes ──
@@ -186,7 +196,7 @@ if (!window.__dzAgent) {
     onglet = ongletLu(nom);
     ecrire(window.sessionStorage, "dz_agent_onglet", onglet);
     for (const [b, p, n] of [[ongDemander, panDemander, "demander"], [ongCampagnes, panCampagnes, "campagnes"],
-      [ongVeille, panVeille, "veille"]]) {
+      [ongVeille, panVeille, "veille"], [ongProspects, panProspects, "prospects"]]) {
       b.setAttribute("aria-selected", n === onglet ? "true" : "false");
       b.setAttribute("tabindex", n === onglet ? "0" : "-1");
       afficherSi(p, n === onglet);
@@ -194,7 +204,8 @@ if (!window.__dzAgent) {
     afficherSi(choix, onglet === "demander");     // l'agent Campagnes a son propre moteur
     if (onglet === "campagnes" && tiroir.dataset.ouvert === "1") ouvrirCampagnes();
     if (onglet === "veille" && tiroir.dataset.ouvert === "1") ouvrirVeille();
-    if (focus) ({ campagnes: ongCampagnes, veille: ongVeille }[onglet] || ongDemander).focus();
+    if (onglet === "prospects" && tiroir.dataset.ouvert === "1") ouvrirProspects();
+    if (focus) ({ campagnes: ongCampagnes, veille: ongVeille, prospects: ongProspects }[onglet] || ongDemander).focus();
   }
   // le sélecteur est verrouillé dès qu'une conversation AVEC un espace existe, quel que soit son rôle (relecture de
   // branche t285b : la porte / la carte « espace » de l'orienteur le règle côté serveur) : il ne se change pas d'ici
@@ -245,6 +256,11 @@ if (!window.__dzAgent) {
       if (j && typeof j.actif === "string") espaceActif = j.actif;
       for (const e of Array.isArray(j && j.espaces) ? j.espaces : []) {
         if (e && typeof e.id === "string" && !e.archive) ajouterEspace(e.id, typeof e.nom === "string" ? e.nom : e.id);
+        // t353 : un espace démonstration n'a pas de prospects
+        if (e && typeof e.id === "string" && !e.archive && e.type !== "demonstration"
+          && !Array.from(selProspects.children).some((o) => o.getAttribute("value") === e.id)) {
+          selProspects.appendChild(el("option", { value: e.id, texte: typeof e.nom === "string" ? e.nom : e.id }));
+        }
       }
     } catch (e) { espacesLus = false; }        // relu à la prochaine ouverture
     // jamais l'espace actif d'office : seule la conversation gardée impose le sien
@@ -302,6 +318,32 @@ if (!window.__dzAgent) {
   selVeille.addEventListener("change", () => {
     ecrire(window.sessionStorage, "dz_agent_veille", selVeille.value);
     monterVeille(selVeille.value);
+  });
+  // ── t353 : l'onglet Prospects ──
+  let prospects = null;                 // le composant monté {demonter, recharger}
+  let prospectsEspace = null;           // l'espace monté (null : rien encore)
+  function monterProspects(eid) {
+    if (prospects) { try { prospects.demonter(); } catch (e) { /* déjà démonté */ } }
+    prospects = null;
+    prospectsEspace = eid;
+    hoteProspects.replaceChildren();
+    const D = window.DzProspects;
+    const indisponible = () => el("p", { class: "dzAgentCampVide", "data-dz-agent": "prospects-indisponible", texte: T("agent.prospects.indisponible") });
+    if (!D || typeof D.monter !== "function") { hoteProspects.appendChild(indisponible()); return; }
+    try { prospects = D.monter(hoteProspects, { espace_id: eid }); }
+    catch (e) { prospects = null; hoteProspects.replaceChildren(indisponible()); }
+  }
+  async function ouvrirProspects() {
+    await lireEspaces();
+    if (prospects && prospectsEspace === selProspects.value) return;
+    const garde = lire(window.sessionStorage, "dz_agent_prospects");
+    const connus = Array.from(selProspects.children).map((o) => o.getAttribute("value"));
+    selProspects.value = connus.includes(garde) && garde ? garde : (connus.includes(espaceActif) ? espaceActif : "");
+    monterProspects(selProspects.value);
+  }
+  selProspects.addEventListener("change", () => {
+    ecrire(window.sessionStorage, "dz_agent_prospects", selProspects.value);
+    monterProspects(selProspects.value);
   });
   function ouvrirCampagnes() {
     lireEspaces();
@@ -471,6 +513,7 @@ if (!window.__dzAgent) {
       chargement = null; chargerMoteurs().then(() => { if (!occupe) dessiner(); });     // rechargé : une clé ajoutée à chaud compte ; la voix connue fait apparaître « Lire »
       if (onglet === "campagnes") { ouvrirCampagnes(); ongCampagnes.focus(); }     // t285b
       else if (onglet === "veille") { ouvrirVeille(); ongVeille.focus(); }         // t352
+      else if (onglet === "prospects") { ouvrirProspects(); ongProspects.focus(); }     // t353
       else saisie.focus();
     }
     else {
