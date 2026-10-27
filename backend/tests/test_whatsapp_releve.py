@@ -15,6 +15,8 @@ Ce que ce banc garde :
   R7  exception d'un compte -> journalisée par son nom de type, le compte suivant est traité.
   R8  compte supprimé entre deux tours (et pendant un tour) -> sauté sans écrire ni journaliser d'avertissement.
   R9  crochet de validation (tâche 6) : appelé pour chaque entrant neuf AVANT le reste ; True -> message consommé.
+  R12 agent inactif : son numéro n'est lu que si une validation client attend (`whatsapp_validation.en_attente`), et
+      seul le crochet de validation passe (ni modèle, ni accusé, ni brouillon).
   R10 `releve_loop` : attend DELAI_DEMARRAGE avant le premier tour (aucun `espaces.lire()` avant), puis INTERVALLE ;
       un tour en échec n'arrête pas la boucle ; lifespan : tâche créée et passée à `_arreter_taches`.
   R11 journal : aucun texte de message ni clé.
@@ -634,9 +636,12 @@ async def traiter_reponse(cid, eid, msg):                            # contrat A
 
 
 faux_wv.traiter_reponse = traiter_reponse
-sys.modules["app.services.whatsapp_validation"] = faux_wv
+faux_wv.en_attente = lambda eid, maintenant=None: False             # tâche 6 : aucune validation client en attente
 import app.services as _pkg                                          # noqa: E402
+_mod_vrai = sys.modules.get("app.services.whatsapp_validation")      # tâche 6 : le vrai module, déjà importé
 _avait = hasattr(_pkg, "whatsapp_validation")
+_attr_vrai = getattr(_pkg, "whatsapp_validation", None)
+sys.modules["app.services.whatsapp_validation"] = faux_wv
 setattr(_pkg, "whatsapp_validation", faux_wv)
 TEL_V = "33600000040"
 mv = entrant("Valider", TEL_V)
@@ -666,9 +671,57 @@ check("R9.4 crochet qui lève (même KeyError) : journalisé par nom de type, co
       and datetime.fromisoformat(M[cA]) == datetime.fromtimestamp(int(mb["timestamp"]), timezone.utc)
       and len(s.appels) == 1 and (AW.brouillons(A, "PN-A").get("tel:" + TEL_B) or {}).get("etat") == "attente",
       (JOURNAL[j0:], M.get(cA)))
-del sys.modules["app.services.whatsapp_validation"]
-if not _avait:
+if _mod_vrai is not None:
+    sys.modules["app.services.whatsapp_validation"] = _mod_vrai
+else:
+    del sys.modules["app.services.whatsapp_validation"]
+if _avait:
+    setattr(_pkg, "whatsapp_validation", _attr_vrai)
+else:
     delattr(_pkg, "whatsapp_validation")
+
+# ---------------------------------------------------------------------------------------------------------------------
+print("\n[R12] agent inactif : le crochet de validation seul, quand une validation client attend")
+from app.services import whatsapp_validation as WV                  # noqa: E402 — le vrai module
+VU2 = []
+
+
+async def espion_validation(cid, eid, msg):
+    VU2.append((cid, eid, msg.get("id")))
+    return msg.get("texte") == "Valider"
+
+
+_tr_vrai = WV.traiter_reponse
+WV.traiter_reponse = espion_validation
+try:
+    I = espace("Salon Validation", {**ACTIF, "actif": False})
+    cI = compte(I, "PN-I")
+    TEL_I = "33600000050"
+    ajouter("PN-I", entrant("bonjour", TEL_I))
+    n0, lus0 = len(FK.appels), len(FK.lus)
+    s = poser(Script([]))
+    tick(M, quand)
+    check("R12.1 agent inactif sans validation en attente : aucun appel Kapso pour son numéro, crochet non appelé",
+          appels_pid("PN-I", n0) == [] and VU2 == [] and cI not in M, FK.appels[n0:])
+    AW.modifier_validations(I, lambda v: {**v, "p-attente": {"identite": "tel:" + TEL_I, "cid": cI, "etat": "envoye",
+                                                            "envoye_le": maintenant().isoformat(timespec="seconds")}})
+    mI = entrant("Valider", TEL_I)
+    ajouter("PN-I", mI)
+    tick(M, quand)
+    check("R12.2 validation en attente : messages lus, crochet appelé pour chaque entrant neuf",
+          appels_pid("PN-I", n0) != [] and mI["id"] in [i_ for _c, _e, i_ in VU2] and all(c_ == cI and e_ == I for c_, e_, _i in VU2)
+          and cI in M, (VU2, FK.appels[n0:]))
+    check("R12.3 agent inactif : rien d'autre (aucun appel du modèle, aucun accusé, aucun brouillon, rien envoyé)",
+          s.appels == [] and len(FK.lus) == lus0 and AW.brouillons(I, "PN-I") == {}
+          and not [e for e in FK.envois if e[0] == "PN-I"], (s.appels, AW.brouillons(I, "PN-I")))
+    AW.modifier_validations(I, lambda v: {k: {**x, "etat": "valide"} for k, x in v.items()})
+    VU2.clear()
+    ajouter("PN-I", entrant("encore", TEL_I))
+    tick(M, quand)
+    check("R12.4 plus rien en attente : le compte n'est plus lu, son marqueur est retiré",
+          VU2 == [] and cI not in M, (VU2, M.get(cI)))
+finally:
+    WV.traiter_reponse = _tr_vrai
 
 # ---------------------------------------------------------------------------------------------------------------------
 print("\n[R10] releve_loop et lifespan")

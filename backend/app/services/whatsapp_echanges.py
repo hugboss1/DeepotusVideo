@@ -137,7 +137,7 @@ def _texte(msg: dict):
 
 
 def _plat(msg: dict) -> dict:
-    """Un message Kapso à plat : {id, identite, sens, type, texte, quand, statut, media_id?}."""
+    """Un message Kapso à plat : {id, identite, sens, type, texte, quand, statut, media_id?, bouton?}."""
     entrant = _entrant(msg)
     idents = _identites_message(msg, entrant)
     k = msg.get("kapso") if isinstance(msg.get("kapso"), dict) else {}
@@ -148,7 +148,25 @@ def _plat(msg: dict) -> dict:
     media = msg.get(msg.get("type")) if msg.get("type") in TYPES_MEDIA else None
     if isinstance(media, dict) and media.get("id"):
         out["media_id"] = str(media["id"])
+    bouton = _bouton(msg)
+    if bouton:
+        out["bouton"] = bouton
     return out
+
+
+def _bouton(msg: dict) -> dict | None:
+    """t311 tâche 6 : le bouton touché par le contact. Réponse à un message à boutons (`interactive.button_reply`) ->
+    {"id", "titre"} ; bouton de réponse rapide d'un modèle (`button`) -> {"payload", "titre"}. Bornés (256 / 128 / 60)."""
+    if msg.get("type") == "interactive":
+        it = msg.get("interactive") if isinstance(msg.get("interactive"), dict) else {}
+        br = it.get("button_reply") if isinstance(it.get("button_reply"), dict) else {}
+        if br.get("id"):
+            return {"id": str(br["id"])[:256], "titre": str(br.get("title") or "")[:60]}
+    if msg.get("type") == "button":
+        bt = msg.get("button") if isinstance(msg.get("button"), dict) else {}
+        if bt.get("payload"):
+            return {"payload": str(bt["payload"])[:MAX_PAYLOAD], "titre": str(bt.get("text") or "")[:60]}
+    return None
 
 
 def _marche(identite: str, defaut: str) -> str:

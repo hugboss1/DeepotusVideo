@@ -1410,5 +1410,21 @@
   "espaces.pourqui.erreur": {
     "fr": "Échec : {detail}",
     "en": "Failed: {detail}"
+  },
+  "espaces.pourqui.wa_valider": {
+    "fr": "Envoyer au client par WhatsApp",
+    "en": "Send to the client on WhatsApp"
+  },
+  "espaces.pourqui.wa_envoye": {
+    "fr": "Demande de validation envoyée au client par WhatsApp.",
+    "en": "Approval request sent to the client on WhatsApp."
+  },
+  "espaces.pourqui.wa_attente": {
+    "fr": "Envoyé par WhatsApp : en attente de la réponse du client",
+    "en": "Sent on WhatsApp: waiting for the client's answer"
+  },
+  "espaces.pourqui.wa_note": {
+    "fr": "Correction demandée par WhatsApp :",
+    "en": "Change requested on WhatsApp:"
   }
 }

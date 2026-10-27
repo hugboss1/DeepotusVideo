@@ -15,7 +15,7 @@ modèle QUE par `lire_conversation` (cadre PREUVE de `agent_outils._preuve`) : l
 
 Brouillons : `DATA_ROOT/espaces/<eid>/whatsapp_brouillons.json`
   {"<phone_id>": {"<identite>": {"etat", "carte"|None, "cree_le", "raison"?, "auto_jour": {"AAAA-MM-JJ": n}}},
-   "validations": {…}}   (`validations` : tâche 6, jamais touchée ici)
+   "validations": {…}}   (`validations` : tâche 6, lue et écrite par `validations` / `modifier_validations`)
 écrit sous un `threading.Lock` par `espaces._ecrire_json`, lu en JSON brut (jamais `espaces.lire()`, piège t210).
 Le système (`systeme`) est pur et ne lit que `espaces_brut`. Aucun texte de message, aucune clé au journal.
 """
@@ -215,6 +215,27 @@ def _modifier(eid: str, pid: str, identite: str, geste, alias=()) -> dict:
             num.pop(a, None)
         num[identite] = apres
         doc[pid] = num
+        espaces._ecrire_json(f, doc)
+        return json.loads(json.dumps(apres))
+
+
+def validations(eid: str) -> dict:
+    """t311 tâche 6 : {post_id: validation} de la clé `validations` du fichier (copie ; {} s'il n'y en a pas)."""
+    v = _lire(eid).get("validations")
+    return json.loads(json.dumps(v)) if isinstance(v, dict) else {}
+
+
+def modifier_validations(eid: str, geste) -> dict:
+    """t311 tâche 6 : `geste(validations) -> validations|None` sous LE verrou du fichier (le même que les brouillons) ;
+    None = rien à écrire. Rend les validations après coup (copie). Une exception de `geste` n'écrit rien."""
+    f = _chemin(eid)
+    with _VERROU_FICHIER:
+        doc = _lire(eid)
+        avant = doc.get("validations") if isinstance(doc.get("validations"), dict) else {}
+        apres = geste(json.loads(json.dumps(avant)))
+        if apres is None:
+            return json.loads(json.dumps(avant))
+        doc["validations"] = apres
         espaces._ecrire_json(f, doc)
         return json.loads(json.dumps(apres))
 

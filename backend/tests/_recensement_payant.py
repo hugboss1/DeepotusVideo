@@ -52,6 +52,7 @@ PUITS = {
     "WE.envoyer",   # t310 : l'envoi WhatsApp (Kapso -> Meta, facturé par message ; whatsapp_echanges.envoyer)
     "AW.rediger",   # t311 : la boucle de l'agent WhatsApp (agent_whatsapp.rediger -> moteurs_texte.converser, Anthropic)
     "AW.envoyer_brouillon",   # t311 : l'envoi d'un brouillon de l'agent (agent_whatsapp.envoyer_brouillon -> WE.envoyer)
+    "WV.envoyer_validation",   # t311 : la demande de validation au client (whatsapp_validation.envoyer_validation -> WE.envoyer)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
     "transcribe",
@@ -81,7 +82,8 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
                           # test_plafonds_garde A2e vérifie dans le source que plafonds.verifier y précède kapso.envoyer
           "AW.rediger",   # t311 : la garde vit DANS la boucle de l'agent WhatsApp, avant CHAQUE appel du modèle ;
                           # test_plafonds_garde A2f vérifie dans le source que plafonds.verifier y précède MT.converser
-          "AW.envoyer_brouillon"}   # t311 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2g le vérifie
+          "AW.envoyer_brouillon",   # t311 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2g le vérifie
+          "WV.envoyer_validation"}   # t311 tâche 6 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2h le vérifie
 
 
 def _nom_appel(n: ast.Call) -> str:

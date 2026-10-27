@@ -9634,18 +9634,21 @@ async def get_scheduled_post_client(post_id: str):
         p = (await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))).scalar_one_or_none()
     if p is None:
         raise HTTPException(404, "post inconnu")
-    return {"exigences": _rc.exigences(p.espace_id, p.comptes)}
+    ex = _rc.exigences(p.espace_id, p.comptes)
+    if ex is None:
+        return {"exigences": None}
+    # t311 tâche 6 : pour un post gouverné par un client, sa validation WhatsApp (état, dates, note de correction ; ni
+    # identité ni compte), ou null
+    from app.services import whatsapp_validation as _wv
+    return {"exigences": ex, "validation_whatsapp": _wv.validation_de(ex["client"], p.id)}
 
 
-@router.post("/schedule/{post_id}/validation-client")
-async def post_scheduled_post_validation_client(post_id: str, body: dict, request: Request):
-    """{reponse: valide|corriger, moyen: ecrit|whatsapp|doigt}. « valide » date la validation (un post a_valider devient
-    brouillon, à programmer) ; « corriger » l'efface et le post repasse a_valider. Une ligne `validation` (qui = client)
-    par canal visé au journal de la fiche du client responsable. 400 réponse/moyen inconnus, 404 post, 409 sans client."""
-    _require_localhost(request)
+async def valider_post(post_id: str, reponse, moyen) -> dict:
+    """t309, extrait en t311 tâche 6 (la route ci-dessous et la réponse WhatsApp du client l'appellent) : « valide » date
+    la validation (un post a_valider devient brouillon, à programmer) ; « corriger » l'efface et le post repasse a_valider.
+    Une ligne `validation` (qui = client) par canal visé au journal de la fiche du client responsable. HTTPException :
+    400 réponse/moyen inconnus, 404 post, 409 sans client. Rend {"post": …}."""
     from app.services import fiche_client as _fc, regles_client as _rc
-    body = body or {}
-    reponse, moyen = body.get("reponse"), body.get("moyen")
     if reponse not in ("valide", "corriger"):
         raise HTTPException(400, "réponse du client inconnue (valide ou corriger)")
     if moyen not in _fc.MOYENS:
@@ -9672,6 +9675,33 @@ async def post_scheduled_post_validation_client(post_id: str, body: dict, reques
         for canal in canaux:
             _fc.noter(ex["client"], "validation", canal, "client")
         return {"post": _post_to_dict(p)}
+
+
+@router.post("/schedule/{post_id}/validation-client")
+async def post_scheduled_post_validation_client(post_id: str, body: dict, request: Request):
+    """{reponse: valide|corriger, moyen: ecrit|whatsapp|doigt} : voir `valider_post`. 400 réponse/moyen inconnus, 404 post,
+    409 sans client."""
+    _require_localhost(request)
+    body = body or {}
+    return await valider_post(post_id, body.get("reponse"), body.get("moyen"))
+
+
+@router.post("/schedule/{post_id}/validation-whatsapp")
+async def post_scheduled_post_validation_whatsapp(post_id: str, request: Request):
+    """t311 tâche 6 : envoie au client responsable, par WhatsApp, la demande de validation du post `a_valider` (boutons
+    dans la fenêtre de 24 h, sinon le modèle de validation de l'espace). Rend {envoi: boutons|modele, id}. La garde des
+    plafonds vit dans whatsapp_echanges.envoyer (test_plafonds_garde A2e, A2h). 400 fiche/compte/modèle, 404 post,
+    409 post pas à valider ou sans client, refus des règles WhatsApp {message, code} ; 402 plafond ; 502 Kapso."""
+    _require_localhost(request)
+    from app.services import whatsapp as _wa, whatsapp_validation as WV
+    try:
+        return await WV.envoyer_validation(post_id)
+    except WV.PostInconnu:
+        raise HTTPException(404, "post inconnu")
+    except Exception as e:  # noqa: BLE001 — 402 de plafond rendu tel quel par _wa_erreur
+        if isinstance(e, PermissionError) and not isinstance(e, _wa.WhatsappRefus):
+            raise HTTPException(409, str(e))
+        raise _wa_erreur(e)
 
 
 def _render_poster_frame(jobrec) -> str | None:

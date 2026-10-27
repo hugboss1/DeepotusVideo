@@ -850,12 +850,14 @@ def test_vrai_catalogue_pour_qui():
     """t309 (26/10/2026) : le bandeau « pour qui » et la fiche client (frontend/shared/dz-pour-qui.js) sont au catalogue,
     sur « commun » (le bandeau vit sous l'en-tête de Quick, Studio, Planificateur et Bibliothèque) : « Fiche client »,
     Révoquer, Ajouter, « Validé par le client », « À corriger » et les trois listes ; ni ses messages, ni son « Fermer »
-    commun, ni l'infobulle de « Fiche client » (exclue : même élément). Rôles rédigés."""
+    commun, ni l'infobulle de « Fiche client » (exclue : même élément). Rôles rédigés. t311 tâche 6 : « Envoyer au client
+    par WhatsApp »."""
     e = S.extraire(RACINE)
     attendus = {"espaces.pourqui.fiche": "bouton", "espaces.pourqui.revoquer": "bouton",
                 "espaces.pourqui.ajouter": "bouton", "espaces.pourqui.valide": "bouton",
                 "espaces.pourqui.corriger": "bouton", "espaces.pourqui.canal": "champ",
-                "espaces.pourqui.moyen": "champ", "espaces.pourqui.reponse_par": "champ"}
+                "espaces.pourqui.moyen": "champ", "espaces.pourqui.reponse_par": "champ",
+                "espaces.pourqui.wa_valider": "bouton"}      # t311 tâche 6 : « Envoyer au client par WhatsApp »
     assert {k: v["type"] for k, v in e.items() if k.startswith("espaces.pourqui.")} == attendus
     assert all(e[k]["sources"] == ["frontend/shared/dz-pour-qui.js"] for k in attendus)
     assert "frontend/shared/dz-pour-qui.js" not in (e.get("commun.action.fermer") or {}).get("sources", [])

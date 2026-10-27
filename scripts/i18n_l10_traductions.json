@@ -11150,5 +11150,29 @@
  "ce brouillon est déjà en cours d'envoi": {
   "fr": "ce brouillon est déjà en cours d'envoi",
   "en": "this draft is already being sent"
+ },
+ "ce post n'est pas à valider : rien à envoyer au client": {
+  "fr": "ce post n'est pas à valider : rien à envoyer au client",
+  "en": "this post is not awaiting approval: nothing to send to the client"
+ },
+ "aucun numéro WhatsApp relié pour ce client": {
+  "fr": "aucun numéro WhatsApp relié pour ce client",
+  "en": "no linked WhatsApp number for this client"
+ },
+ "la fiche du client n'a pas de numéro WhatsApp valide": {
+  "fr": "la fiche du client n'a pas de numéro WhatsApp valide",
+  "en": "the client sheet has no valid WhatsApp number"
+ },
+ "le modèle de validation exige une image : ce post n'a pas d'image JPEG ou PNG": {
+  "fr": "le modèle de validation exige une image : ce post n'a pas d'image JPEG ou PNG",
+  "en": "the approval template requires an image: this post has no JPEG or PNG image"
+ },
+ "fenêtre de 24 h fermée : choisissez un modèle de validation dans les réglages WhatsApp de l'espace": {
+  "fr": "fenêtre de 24 h fermée : choisissez un modèle de validation dans les réglages WhatsApp de l'espace",
+  "en": "24-hour window closed: choose an approval template in the space's WhatsApp settings"
+ },
+ "modèle de validation inconnu ou non approuvé pour cette langue": {
+  "fr": "modèle de validation inconnu ou non approuvé pour cette langue",
+  "en": "approval template unknown or not approved for this language"
  }
 }

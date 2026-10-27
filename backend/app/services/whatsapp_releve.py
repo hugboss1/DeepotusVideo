@@ -6,7 +6,9 @@ les INTERVALLE secondes (motif `marketing.schedule_loop` : une panne n'arrête p
 respectée). Aucun `espaces.lire()` avant le premier tour (piège t210) ; sans clé Kapso, un tour ne fait RIEN.
 
 Un tour, pour chaque compte whatsapp RELIÉ (`WHATSAPP_PHONE_ID` posé, lu brut dans `comptes.json`) d'un espace non archivé
-(`espaces_brut.archive`) dont l'agent est actif (`whatsapp.reglages(eid)["agent"]`, lu sans `espaces.lire()`) :
+(`espaces_brut.archive`) dont l'agent est actif (`whatsapp.reglages(eid)["agent"]`, lu sans `espaces.lire()`) — ou,
+agent inactif, dont l'espace attend une réponse de validation client (`whatsapp_validation.en_attente` : le crochet de
+validation seul passe alors, rien d'autre) :
   · lit les messages chez Kapso depuis le marqueur du compte (`whatsapp_echanges.lire`, qui journalise chaque entrant une
     fois : STOP et accords à jour) ; au premier tour d'un compte, seuls les entrants des 10 dernières minutes sont neufs
     (jamais de réponse à l'historique au démarrage) ; `marqueur[cid]` = ISO du plus récent entrant vu (EN MÉMOIRE) ;
@@ -157,11 +159,7 @@ async def releve_tick(marqueur: dict, maintenant: datetime | None = None) -> dic
     rapport = {"comptes": 0, "neufs": 0, "envoyes": 0, "erreurs": 0}
     if not comptes.cle_kapso():
         return rapport
-    try:
-        from app.services import whatsapp_validation as _WV          # tâche 6 : le crochet de validation
-    except ImportError:
-        _WV = None
-    from app.services import whatsapp as WA
+    from app.services import whatsapp as WA, whatsapp_validation as _WV   # tâche 6 : le crochet de validation
     now = maintenant or _horloge()
     now = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
     suivis = set()
@@ -170,11 +168,12 @@ async def releve_tick(marqueur: dict, maintenant: datetime | None = None) -> dic
             if espaces_brut.archive(eid):
                 continue
             agent = WA.reglages(eid)["agent"]
-            if not agent.get("actif"):
-                continue
+            actif = bool(agent.get("actif"))
+            if not actif and not _WV.en_attente(eid, now):
+                continue                         # agent inactif et aucune validation client en attente : rien à lire
             suivis.add(cid)
             rapport["comptes"] += 1
-            await _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, _WV)
+            await _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, _WV, seulement_validation=not actif)
         except asyncio.CancelledError:
             raise
         except KeyError:
@@ -215,7 +214,9 @@ async def _lire_neufs(cid: str, marqueur: dict, now: datetime) -> list:
     return [m for _d, m in neufs]
 
 
-async def _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, wv) -> None:
+async def _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, wv, seulement_validation=False) -> None:
+    """Un compte : ses entrants neufs passent par le crochet de validation, puis (agent actif) par l'agent.
+    `seulement_validation` (agent inactif, validation client en attente) : le crochet seul, rien d'autre."""
     neufs = await _lire_neufs(cid, marqueur, now)
     rapport["neufs"] += len(neufs)
     restants = []
@@ -232,6 +233,8 @@ async def _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, wv) -> No
             logger.warning(f"relevé WhatsApp : réponse de validation non traitée sur le compte {cid} "
                            f"({type(e).__name__})")
         restants.append(m)
+    if seulement_validation:
+        return
     groupes: dict = {}
     for m in restants:
         cle, groupe = AW.canonique(cid, m["identite"])
