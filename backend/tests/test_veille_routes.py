@@ -160,6 +160,38 @@ with c:
 R = c.get(f"/api/veille/{EID}", params={"date": jour}).json()["rapport"]
 check("test_meme_jour : la collecte suivante garde l'import", R["volumes"]["gardes"] == avant["volumes"]["gardes"] + 5, R["volumes"])
 
+print("\n[7] relecture finale : import bancal, pseudos, BOM, périmètre de l'agent, exclusion import/collecte")
+src3 = TMP / "source3" / "2026-10-21"
+src3.mkdir(parents=True)
+bancales = [dict(VERB[0], concurrent=["a"], url="https://b/1"), dict(VERB[1], url="https://b/2", source="appstore-us", score=float("nan"),
+            polarite=None, theme=None), dict(VERB[2], url="https://b/3", auteur_hash="PseudoClairBis"), dict(VERB[3], url="https://b/4")]
+txt = "﻿" + "".join(json.dumps(v, ensure_ascii=False) + "\n" for v in bancales)   # BOM (Bloc-notes, PowerShell)
+(src3 / "verbatims.jsonl").write_text(txt, encoding="utf-8")
+r = c.post(f"/api/veille/{EID}/importer", json={"dossier": str(src3)})
+check("test_import_bancal : 200, rien ne casse", r.status_code == 200, r.text[:300])
+check("test_import_bom : la 1re ligne est lue", r.status_code == 200 and r.json()["lignes"] + r.json()["ignorees"] == 4
+      and r.json()["lignes"] >= 3, r.text[:200])
+dv3 = V.dossier(EID, "2026-10-21")
+check("test_import_pseudo : un auteur_hash qui n'est pas une empreinte n'est pas écrit",
+      all(b"PseudoClairBis" not in f.read_bytes() for f in dv3.glob("*.jsonl")))
+import math as _m
+lus = [json.loads(l) for l in (dv3 / "importe.jsonl").read_text(encoding="utf-8").splitlines() if l]
+check("test_import_types : chaînes et nombres finis seulement", all(isinstance(l.get("concurrent"), (str, type(None)))
+      and (l.get("score") is None or (isinstance(l["score"], (int, float)) and _m.isfinite(l["score"]))) for l in lus), lus)
+p0 = V.perimetre(EID)
+with c:
+    async def _lancer_sous():
+        return await V.lancer(EID, {"concurrents": [{"id": "pika"}]}, retenir=False)
+    import anyio as _anyio
+    c.portal.call(_lancer_sous)
+    attendre_fin(EID)
+check("test_sous_ensemble_agent_non_retenu", V.perimetre(EID) == p0, V.perimetre(EID)["concurrents"][:2])
+V._IMPORTS.add(EID)
+try:
+    check("test_collecte_pendant_import_409", c.post(f"/api/veille/{EID}/collectes", json={}).status_code == 409)
+finally:
+    V._IMPORTS.discard(EID)
+
 gros = TMP / "gros"
 gros.mkdir()
 with open(gros / "verbatims.jsonl", "wb") as fh:

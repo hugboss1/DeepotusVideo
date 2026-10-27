@@ -10,6 +10,8 @@ Espace inconnu ou archivé : 404. Lecture seule sur le web, aucune dépense.
 """
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -75,7 +77,7 @@ async def lire_verbatims(eid: str, date: str | None = None, theme: str | None = 
 async def importer(eid: str, corps: CorpsImport):
     _espace(eid)
     try:
-        return V.importer(eid, corps.dossier)
+        return await asyncio.to_thread(V.importer, eid, corps.dossier)     # 20 Mo à classer : hors de la boucle
     except V.ConflitCollecte as e:
         raise HTTPException(409, str(e)) from None
     except V.ImportTropGros as e:

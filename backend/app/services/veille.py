@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import json
+import math
 import re
 import time
 from pathlib import Path
@@ -26,9 +27,11 @@ from app.services import espaces, veille_collecte as VC, veille_grille as G
 MAX_IMPORT = 20 * 1024 * 1024          # octets d'un verbatims.jsonl importé
 MAX_JOURNAL = 50
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-CHAMPS = ("concurrent", "source", "url", "date", "auteur_hash", "texte", "score", "collecte_le", "requete",
-          "theme", "polarite", "intensite", "chez_nous", "resume")
 _TACHES: dict[str, asyncio.Task] = {}
+_IMPORTS: set[str] = set()             # espaces dont un import tourne (thread) : exclu d'une collecte, et inversement
+_EMPREINTE = re.compile(r"^[0-9a-f]{10}$")
+TEXTES = ("concurrent", "source", "url", "date", "auteur_hash", "texte", "collecte_le", "requete", "theme", "polarite",
+          "chez_nous", "resume")
 _COLLECTER = VC.collecter              # couture du banc
 
 
@@ -76,7 +79,14 @@ def _ecrire_json(f: Path, doc) -> None:
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_name(f.name + ".tmp")
     tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding="utf-8")
-    tmp.replace(f)
+    for essai in range(6):          # sous Windows, un lecteur qui tient le fichier refuse le remplacement un instant
+        try:
+            tmp.replace(f)
+            return
+        except PermissionError:
+            if essai == 5:
+                raise
+            time.sleep(0.05 * (essai + 1))
 
 
 def _lignes(f: Path) -> tuple[list[dict], int]:
@@ -84,11 +94,11 @@ def _lignes(f: Path) -> tuple[list[dict], int]:
     out, ko = [], 0
     if not f.exists():
         return out, ko
-    for brute in f.read_text(encoding="utf-8", errors="replace").splitlines():
+    for brute in f.read_text(encoding="utf-8-sig", errors="replace").splitlines():
         if not brute.strip():
             continue
         try:
-            l = json.loads(brute)
+            l = json.loads(brute, parse_constant=_sans_nan)
         except ValueError:
             ko += 1
             continue
@@ -97,6 +107,25 @@ def _lignes(f: Path) -> tuple[list[dict], int]:
         else:
             ko += 1
     return out, ko
+
+
+def _sans_nan(c: str):
+    raise ValueError(f"constante JSON refusée : {c}")
+
+
+def _propre(l: dict) -> dict | None:
+    """Une ligne importée réduite au schéma, aux bons types ; None si elle n'a pas de texte. Un auteur_hash qui n'est
+    pas une empreinte (un pseudo en clair) est vidé : aucun pseudo n'atteint le disque."""
+    if not isinstance(l.get("texte"), str) or not l["texte"].strip():
+        return None
+    out = {k: l[k] for k in TEXTES if isinstance(l.get(k), str)}
+    for k in ("score", "intensite"):
+        v = l.get(k)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+            out[k] = v
+    if not _EMPREINTE.match(out.get("auteur_hash", "")):
+        out["auteur_hash"] = ""
+    return out
 
 
 def _en_vie(eid: str) -> bool:
@@ -212,15 +241,16 @@ async def _executer(eid: str, date: str, p: dict, e: dict) -> None:
         _TACHES.pop(eid, None)
 
 
-async def lancer(eid, perim: dict | None = None) -> dict:
-    """Lance la collecte en tâche de fond. LookupError (espace), ValueError (périmètre), ConflitCollecte."""
+async def lancer(eid, perim: dict | None = None, retenir: bool = True) -> dict:
+    """Lance la collecte en tâche de fond. LookupError (espace), ValueError (périmètre), ConflitCollecte.
+    `retenir=False` (un sous-ensemble demandé par l'agent) : ce périmètre n'est pas gardé comme celui de l'espace."""
     _verifier(eid)
-    if _en_vie(eid):
-        raise ConflitCollecte("une collecte tourne déjà pour cet espace")
+    if _en_vie(eid) or eid in _IMPORTS:
+        raise ConflitCollecte("une collecte ou un import tourne déjà pour cet espace")
     p = VC.valider_perimetre(perim) if perim else perimetre(eid)
     date = dt.date.today().isoformat()
     d = dossier(eid, date)
-    _ecrire_json(d / "perimetre.json", p)
+    _ecrire_json(d / ("perimetre.json" if retenir else "perimetre_lance.json"), p)
     e = {"etat": "en_cours", "date": date, "debut": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
          "debut_ts": time.time(), "fin": None, "journal": [], "ajoutes": {}, "limites": [],
          "concurrents": [c["id"] for c in p["concurrents"]]}
@@ -233,8 +263,16 @@ def importer(eid, source: str) -> dict:
     """Importe le `verbatims.jsonl` d'une veille faite hors de l'app (skill veille-concurrents) : rien d'autre n'est lu.
     Champs hors schéma retirés (dont tout pseudo en clair) ; le classement manuel est gardé."""
     _verifier(eid)
-    if _en_vie(eid):
-        raise ConflitCollecte("une collecte tourne pour cet espace : importez quand elle est finie")
+    if _en_vie(eid) or eid in _IMPORTS:
+        raise ConflitCollecte("une collecte ou un import tourne pour cet espace : importez quand il est fini")
+    _IMPORTS.add(eid)
+    try:
+        return _importer(eid, source)
+    finally:
+        _IMPORTS.discard(eid)
+
+
+def _importer(eid, source: str) -> dict:
     s = Path(str(source or "").strip().strip('"'))
     f = s / "verbatims.jsonl" if s.is_dir() else s
     if f.name != "verbatims.jsonl" or not f.is_file():
@@ -244,18 +282,28 @@ def importer(eid, source: str) -> dict:
     lignes, ko = _lignes(f)
     propres = []
     for l in lignes:
-        if not isinstance(l.get("texte"), str) or not l["texte"].strip():
+        p = _propre(l)
+        if p is None:
             ko += 1
-            continue
-        propres.append({k: l[k] for k in CHAMPS if k in l})
+        else:
+            propres.append(p)
     date = f.parent.name if _DATE.match(f.parent.name) else dt.date.today().isoformat()
     d = dossier(eid, date)
     d.mkdir(parents=True, exist_ok=True)
+    avant = {n: (d / n).read_bytes() for n in ("importe.jsonl", "import.json") if (d / n).exists()}
     with (d / "importe.jsonl").open("w", encoding="utf-8", newline="\n") as fh:
         for l in propres:
             fh.write(json.dumps(l, ensure_ascii=False) + "\n")
     meta = {"source": str(f.parent), "lignes": len(propres), "ignorees": ko,
             "le": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}
     _ecrire_json(d / "import.json", meta)
-    rap = _consolider(eid, date, [])
+    try:
+        rap = _consolider(eid, date, [])
+    except Exception as e:  # un import qui ne se consolide pas ne doit jamais empoisonner la date : retour en arrière
+        for n in ("importe.jsonl", "import.json"):
+            if n in avant:
+                (d / n).write_bytes(avant[n])
+            else:
+                (d / n).unlink(missing_ok=True)
+        raise ValueError(f"import illisible : {type(e).__name__} : {str(e)[:200]}") from None
     return {"date": date, "lignes": len(propres), "ignorees": ko, "rapport": rap}

@@ -146,6 +146,32 @@ VC.MAX_BRUT, _mb = 150, VC.MAX_BRUT
 r, _ = collecte(perim(hn=["x1", "x2", "x3"]), TMP / "h" / "brut")
 check("test_max_brut : plafond global", sum(r["ajoutes"].values()) <= 150 and any("plafond" in l for l in r["limites"]), r)
 VC.MAX_BRUT = _mb
+
+print("\n[7] relecture finale : partiels jamais silencieux, réponse qui n'est pas un objet")
+def _appstore_page2_ko(page):
+    if page == 2:
+        raise OSError("429 Too Many Requests")
+    return avis(5)
+VC._GET_JSON = faux_web(appstore=_appstore_page2_ko)
+r, _ = collecte(perim(appstore=["1665024375"]), TMP / "i" / "brut")
+check("test_appstore_panne_page2_notee", any("429" in l for l in r["limites"]) and r["ajoutes"].get("appstore") == 5, r)
+async def _liste(url):
+    return ["pas", "un", "objet"]
+VC._GET_JSON = _liste
+r, _ = collecte(perim(hn=["a"], appstore=["1665024375"]), TMP / "j" / "brut")
+check("test_reponse_pas_un_objet : notée, la collecte continue", len([l for l in r["limites"] if "hn" in l or "appstore" in l]) == 2, r)
+t = {"n": 0}
+def _horloge_qui_avance():
+    t["n"] += 1
+    return 0.0 if t["n"] <= 3 else 1e9
+VC._GET_JSON = faux_web(pages_hn=5, n=10)
+vraie, VC._horloge = VC._horloge, _horloge_qui_avance
+try:
+    j = []
+    r = asyncio.run(VC.collecter(perim(hn=["dernier"]), TMP / "k" / "brut", 100.0, j.append))
+finally:
+    VC._horloge = vraie
+check("test_echeance_en_cours_de_requete_notee", any("durée maximale" in l for l in r["limites"]) and r["ajoutes"].get("hn"), r)
 check("test_lecture_seule : seulement des GET connus",
       all(u.startswith(("https://hn.algolia.com/api/v1/search?", "https://itunes.apple.com/")) for u in URLS))
 

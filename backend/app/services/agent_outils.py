@@ -694,7 +694,7 @@ async def veille_collecter(ctx: Ctx, concurrents: list | None = None) -> dict:
             raise _Refus(f"aucun concurrent connu du périmètre ; connus : {connus[:300]}")
         p = dict(p, concurrents=garde)
     try:
-        r = await V.lancer(eid, p)
+        r = await V.lancer(eid, p, retenir=not concurrents)     # un sous-ensemble ne devient pas le périmètre
     except V.ConflitCollecte as e:
         raise _Refus(str(e)) from None
     n = len(r.get("concurrents") or [])

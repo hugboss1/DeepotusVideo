@@ -447,7 +447,7 @@ async def main():
     r = await ao.executer("veille_lire", {}, ctxB)
     check("test_veille_lire : aucune veille", r["ok"] is True and r["donnees"]["rapport"] is None, str(r))
     LANCES = []
-    async def faux_lancer(eid, perim=None):
+    async def faux_lancer(eid, perim=None, retenir=True):
         LANCES.append((eid, [c["id"] for c in (perim or {}).get("concurrents", [])]))
         if len(LANCES) > 1:
             raise V.ConflitCollecte("une collecte tourne déjà pour cet espace")

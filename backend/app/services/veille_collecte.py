@@ -153,6 +153,13 @@ _ytdlp_commande = _ytdlp_commande_defaut
 _horloge = time.monotonic
 
 
+def _objet(v) -> dict:
+    """Une réponse JSON doit être un objet : une liste ou une chaîne est une panne de la source, pas de la collecte."""
+    if not isinstance(v, dict):
+        raise ValueError(f"réponse inattendue ({type(v).__name__})")
+    return v
+
+
 # ---- les sources -----------------------------------------------------------------------------------------------------
 
 async def _hn(cid: str, requete: str, depuis: int, echeance: float, limites: list) -> list[dict]:
@@ -161,16 +168,18 @@ async def _hn(cid: str, requete: str, depuis: int, echeance: float, limites: lis
         q = urllib.parse.urlencode({"query": requete, "tags": "comment", "hitsPerPage": 100, "page": page,
                                     "numericFilters": f"created_at_i>{depuis}"})
         try:
-            data = await _GET_JSON(f"https://hn.algolia.com/api/v1/search?{q}")
+            data = _objet(await _GET_JSON(f"https://hn.algolia.com/api/v1/search?{q}"))
+            hits = [h for h in data.get("hits") or [] if isinstance(h, dict)]
+            nb_pages = int(data.get("nbPages") or 0)
         except Exception as e:  # noqa: BLE001 — la panne arrête cette requête, l'acquis reste
             limites.append(f"hn « {requete[:40]} » page {page} : {type(e).__name__} : {str(e)[:120]}")
             break
-        for h in data.get("hits") or []:
+        for h in hits:
             out.append(_ligne(cid, "hn", f"https://news.ycombinator.com/item?id={h.get('objectID')}",
                               h.get("created_at"), h.get("author"), _sans_html(h.get("comment_text") or ""),
                               h.get("points"), requete))
         page += 1
-        if page >= int(data.get("nbPages") or 0):
+        if page >= nb_pages:
             break
         await asyncio.sleep(0.5 if _GET_JSON is _get_json_defaut else 0)
     return out[:MAX_PAR_REQUETE]
@@ -195,12 +204,13 @@ async def _appstore(cid: str, app_id: str, pays: str, echeance: float, limites: 
             break
         url = f"https://itunes.apple.com/{pays}/rss/customerreviews/page={page}/id={app_id}/sortby=mostrecent/json"
         try:
-            data = await _GET_JSON(url)
-        except Exception as e:  # noqa: BLE001
-            if page == 1:
-                limites.append(f"appstore {app_id} {pays} : {type(e).__name__} : {str(e)[:120]}")
+            data = _objet(await _GET_JSON(url))
+            entrees = _objet(data.get("feed") or {}).get("entry") or []
+        except Exception as e:  # noqa: BLE001 — toute panne est dite ; seule la page au-delà de la fin (400/404) est muette
+            statut = getattr(getattr(e, "response", None), "status_code", None)
+            if page == 1 or statut not in (400, 404):
+                limites.append(f"appstore {app_id} {pays} page {page} : {type(e).__name__} : {str(e)[:120]}")
             break
-        entrees = (data.get("feed") or {}).get("entry") or []
         if isinstance(entrees, dict):
             entrees = [entrees]
         avis = [e for e in entrees if isinstance(e, dict) and "im:rating" in e]
@@ -288,9 +298,10 @@ async def collecter(perimetre: dict, brut: Path, echeance: float, journal: Calla
                 for pays in c.get("pays") or ["us"]:
                     garde()
                     noter(f"appstore-{pays}", cid, await _appstore(cid, app_id, pays, echeance, limites))
-        garde_finale = sum(ajoutes.values()) >= MAX_BRUT
-        if garde_finale:
+        if sum(ajoutes.values()) >= MAX_BRUT:
             limites.append(f"plafond de {MAX_BRUT} textes atteint : collecte arrêtée")
+        elif _horloge() >= echeance:      # l'échéance tombée pendant la dernière cible : la dire aussi
+            limites.append(f"durée maximale atteinte ({int(DUREE_MAX)} s) : collecte arrêtée")
     except _Plafond as e:
         limites.append(str(e))
     return {"ajoutes": ajoutes, "limites": limites}

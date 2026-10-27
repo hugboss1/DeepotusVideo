@@ -12,6 +12,7 @@ citations courtes (une phrase, 200 caractères), sans auteur.
 """
 from __future__ import annotations
 
+import math
 import re
 from collections import Counter, defaultdict
 from typing import Iterable
@@ -138,7 +139,8 @@ CHEZ_NOUS: dict[str, dict] = {
 
 
 def _note(l: dict) -> int | None:
-    if str(l.get("source") or "").startswith("appstore") and isinstance(l.get("score"), (int, float)):
+    if (str(l.get("source") or "").startswith("appstore") and isinstance(l.get("score"), (int, float))
+            and math.isfinite(l["score"])):
         return int(l["score"])
     return None
 

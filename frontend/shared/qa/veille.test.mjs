@@ -190,6 +190,18 @@ const FR = dzTde("fr"), EN = dzTde("en");
   ok("5.7 démonté : plus rien dans l'hôte", m.hote.children.length === 0);
 }
 
+// ---- relecture finale : deux relectures qui se chevauchent ne doublent rien ----------------------------------------------
+{
+  const m = monde({ routes: { "GET /api/veille/e1": async () => { await tick(); return reponse(200, { etat: { etat: "en_cours", date: "2026-10-27", journal: [] }, rapport: RAPPORT, veilles: [] }); } } });
+  const inst = m.DzVeille.monter(m.hote, { espace_id: "e1" });
+  inst.recharger(); inst.recharger();
+  await tick(); await tick(); await tick(); await tick();
+  ok("7.1 relectures chevauchées : une seule section douleurs", tous(m.hote, (x) => x.attrs["data-dz-veille"] === "douleurs").length === 1,
+    tous(m.hote, (x) => x.attrs["data-dz-veille"] === "douleurs").length);
+  ok("7.2 une seule sonde vivante", m.minuteries.filter((t) => !t.annulee).length === 1, m.minuteries.filter((t) => !t.annulee).length);
+  inst.demonter();
+}
+
 // ---- les clés employées existent, sans mot « publier » ------------------------------------------------------------------
 {
   const cles = [...new Set((SRC.match(/"veille\.[a-z_]+\.[a-z_]+"/g) || []).map((s) => s.slice(1, -1)))];

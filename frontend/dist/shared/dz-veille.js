@@ -109,19 +109,22 @@
       dire(lignes.join("\n"), e.etat === "erreur");
     }
 
+    var generation = 0;                 // seule la DERNIÈRE relecture dessine (sonde en vol + ↺ ou import : pas de doublon)
     async function recharger() {
       arreterSonde();
-      vider(corps);
-      if (!eid) { corps.appendChild(el("p", { class: "dzVeilleVide", "data-dz-veille": "sans-espace", texte: T("veille.vide.sans_espace") })); btnLancer.setAttribute("disabled", ""); btnImporter.setAttribute("disabled", ""); return; }
+      var g = ++generation;
+      if (!eid) { vider(corps); corps.appendChild(el("p", { class: "dzVeilleVide", "data-dz-veille": "sans-espace", texte: T("veille.vide.sans_espace") })); btnLancer.setAttribute("disabled", ""); btnImporter.setAttribute("disabled", ""); return; }
       btnLancer.removeAttribute("disabled"); btnImporter.removeAttribute("disabled");
       var j;
       try {
         var r = await window.fetch(BASE + encodeURIComponent(eid));
-        if (!vivant) return;
+        if (!vivant || g !== generation) return;
         if (!r.ok) { dire(T("veille.erreur.lecture", { code: r.status }), true); return; }
         j = await lireJson(r);
-      } catch (e) { if (vivant) dire(T("veille.erreur.reseau"), true); return; }
-      if (!vivant) return;
+      } catch (e) { if (vivant && g === generation) dire(T("veille.erreur.reseau"), true); return; }
+      if (!vivant || g !== generation) return;
+      arreterSonde();
+      vider(corps);
       direEtat(j.etat);
       var enCours = j.etat && j.etat.etat === "en_cours";
       if (enCours) { btnLancer.setAttribute("disabled", ""); sonde = setTimeout(recharger, SONDE_MS); }
