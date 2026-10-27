@@ -73,6 +73,9 @@ MOTS_NEGATIFS = ("arnaque", "arnaques", "arnaqueur", "escroc", "escroquerie", "s
                  "colere", "inadmissible", "inacceptable", "unacceptable", "honteux", "scandale", "scandaleux",
                  "degoute", "disgusting")
 _NEGATIFS = frozenset(MOTS_NEGATIFS)
+# Réponse à une demande de validation de post (whatsapp_validation._ID) : consommée par le crochet, jamais un sujet de
+# rédaction (`_fil` l'ignore).
+_BOUTON_VALIDATION = re.compile(r"^val:[A-Za-z0-9-]{1,64}:(?:ok|corr)$")
 CONSIGNE = {"fr": "Le contact {identite} vient d'écrire. Lis la conversation avec `lire_conversation`, puis propose UNE "
                   "carte (réponse, modèle, ou passage à une personne).",
             "en": "Contact {identite} has just written. Read the conversation with `lire_conversation`, then propose ONE "
@@ -500,7 +503,8 @@ async def _fil(cid: str, identite: str) -> tuple[str | None, bool]:
     for _ in range(WE.PAGES_MAX):
         page = await WE.lire(cid, apres=cur)
         groupe = set(WA._groupe(WA.etat(cid), identite))
-        trouves += [m for m in page["messages"] if m.get("identite") in groupe and m.get("sens") == "entrant"]
+        trouves += [m for m in page["messages"] if m.get("identite") in groupe and m.get("sens") == "entrant"
+                    and not _validation(m)]
         cur = page.get("suivant")
         if trouves or not cur:
             break
@@ -518,6 +522,12 @@ def _envoi_reserve(eid: str, pid: str, cle: str) -> bool:
     """Le brouillon du contact est-il `envoi_en_cours` et pas encore décidable (un envoi est réservé) ?"""
     b = brouillons(eid, pid).get(cle)
     return bool(b) and b.get("etat") == "envoi_en_cours" and not _decidable(b, datetime.now(timezone.utc))
+
+
+def _validation(m: dict) -> bool:
+    """L'entrant est-il un bouton de validation (`val:<post>:ok|corr`, id ou payload) ?"""
+    b = m.get("bouton") if isinstance(m.get("bouton"), dict) else None
+    return bool(b) and bool(_BOUTON_VALIDATION.match(str(b.get("id") or b.get("payload") or "")))
 
 
 def _res(etat, carte, motif) -> dict:

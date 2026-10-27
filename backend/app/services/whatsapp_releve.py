@@ -244,7 +244,7 @@ async def _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, wv, seule
                            f"({type(e).__name__})")
         restants.append(m)
     if not seulement_validation:
-        await _agent_compte(cid, eid, pid, agent, restants, now, rapport)
+        await _agent_compte(cid, eid, pid, agent, restants, now, rapport, consommes)
     _noter_consommes(cid, eid, pid, consommes)   # pas après un KeyError (compte supprimé) : rien n'est écrit
 
 
@@ -262,14 +262,20 @@ def _noter_consommes(cid, eid, pid, consommes) -> None:
             logger.warning(f"relevé WhatsApp : réponse de validation non notée sur le compte {cid} ({type(e).__name__})")
 
 
-async def _agent_compte(cid, eid, pid, agent, restants, now, rapport) -> None:
+async def _agent_compte(cid, eid, pid, agent, restants, now, rapport, consommes=()) -> None:
     groupes: dict = {}
     for m in restants:
         cle, groupe = AW.canonique(cid, m["identite"])
         groupes.setdefault(cle, (groupe, []))[1].append(m)
+    haut_consomme: dict = {}                     # clé canonique -> date du plus récent message consommé du contact
+    for m in consommes:
+        cle, _g = AW.canonique(cid, m["identite"])
+        d = _date(m.get("quand"))
+        if d is not None and (cle not in haut_consomme or d > haut_consomme[cle]):
+            haut_consomme[cle] = d
     for cle, (groupe, ms) in groupes.items():
         try:
-            if await _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now):
+            if await _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now, haut_consomme.get(cle)):
                 rapport["envoyes"] += 1
         except (asyncio.CancelledError, KeyError):
             raise
@@ -278,13 +284,21 @@ async def _agent_compte(cid, eid, pid, agent, restants, now, rapport) -> None:
             logger.warning(f"relevé WhatsApp : contact ignoré ce tour sur le compte {cid} ({type(e).__name__})")
 
 
-async def _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now) -> bool:
-    """Un contact qui a écrit depuis le dernier tour. Rend True si un message est parti."""
+def _entree(eid, pid, cle, groupe):
+    """L'entrée du contact sous sa clé canonique, sinon sous un de ses alias (pas encore migrée), ou None."""
+    tous = AW.brouillons(eid, pid)
+    return next((tous[k] for k in [cle] + list(groupe) if isinstance(tous.get(k), dict)), None)
+
+
+async def _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now, haut_consomme=None) -> bool:
+    """Un contact qui a écrit depuis le dernier tour. Rend True si un message est parti. `haut_consomme` : date du plus
+    récent message du contact consommé par le crochet de validation ce tour ; plus récent que son dernier entrant
+    restant, il est la fin de la conversation : aucune rédaction (sinon `rediger` répondrait au bouton)."""
     from app.services import whatsapp as WA, whatsapp_echanges as WE
     stops = WA.etat(cid)["stops"]
     if any(i in stops for i in set(groupe) | {m["identite"] for m in ms}):
         return False
-    b = AW.brouillons(eid, pid).get(cle)
+    b = _entree(eid, pid, cle, groupe)
     if (b or {}).get("etat") == "humain":
         return False
     dernier = ms[-1]
@@ -292,7 +306,11 @@ async def _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now) -> bool:
     if _deja_traite(b, dernier.get("quand")):
         return False                             # marqueur perdu (redémarrage) ou relu : jamais deux réponses
     AW.noter_traite(eid, pid, cle, dernier["quand"], groupe)   # avant tout geste : une panne n'entraîne pas de redite
-    if (b or {}).get("pris") is True:
+    d_dernier = _date(dernier.get("quand"))
+    if haut_consomme is not None and d_dernier is not None and haut_consomme > d_dernier:
+        return False                             # « Super » puis « Valider » : le bouton clôt, l'agent ne répond pas
+    b = AW.brouillons(eid, pid).get(cle)         # relue : `noter_traite` a migré une entrée rangée sous un alias
+    if (b or {}).get("etat") == "humain" or (b or {}).get("pris") is True:
         return False                             # « Prendre le fil » : une personne répond, l'agent se tait (I2)
     try:
         await WE.marquer_lu(cid, str(dernier["id"]), ecrit=True)
@@ -308,7 +326,10 @@ async def _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now) -> bool:
             return False
         if (b or {}).get("etat") in ("attente", "envoi_en_cours"):
             return False                         # un brouillon attend le geste de l'utilisateur : jamais écrasé
-        AW.ranger(eid, pid, cle, "attente", _carte(texte), "hors_horaires", groupe)
+        try:
+            AW.ranger(eid, pid, cle, "attente", _carte(texte), "hors_horaires", groupe, garder_envoi=True)
+        except AW.EnvoiEnCours:
+            return False                         # un envoi réservé n'est jamais écrasé
         if not auto or not _sous_plafond(b, agent, jour):
             return False
         return await _envoyer_auto(cid, eid, pid, identite, cle, groupe, jour, hors=True)

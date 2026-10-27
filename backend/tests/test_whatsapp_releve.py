@@ -863,6 +863,69 @@ finally:
     AW.rediger = _rediger_r13
 
 # ---------------------------------------------------------------------------------------------------------------------
+print("\n[R14] correction 2 : texte puis bouton dans le même tour, bouton seul, alias pris, _fil")
+APPELS_R14 = []
+
+
+async def rediger_espion14(cid, eid, identite, langue="fr"):
+    APPELS_R14.append(identite)
+    return await _rediger_r13(cid, eid, identite, langue=langue)
+
+
+def bouton_val(tel, post, choix="ok"):
+    N[0] += 1
+    return {"id": f"in{N[0]}", "type": "interactive", "from": tel, "timestamp": ts(BASE + timedelta(seconds=2 * N[0])),
+            "kapso": {"direction": "inbound"},
+            "interactive": {"type": "button_reply", "button_reply": {"id": f"val:{post}:{choix}", "title": "Valider"}}}
+
+
+AW.rediger = rediger_espion14
+try:
+    WA.regler_espace(A, {"agent": {"mode": "auto"}})
+    TEL_TB = "33600000070"
+    AW.modifier_validations(A, lambda v: {**v, "p-tb": {"identite": "tel:" + TEL_TB, "cid": cA, "etat": "valide",
+                                                       "envoye_le": maintenant().isoformat(timespec="seconds")}})
+    m_txt = entrant("Super", TEL_TB)
+    m_btn = bouton_val(TEL_TB, "p-tb")
+    ajouter("PN-A", m_txt, m_btn)
+    s = poser(Script([outil("rediger_reponse", {"texte": "Avec plaisir !"})]))
+    e0 = len(FK.envois)
+    tick(M, quand)
+    btb = AW.brouillons(A, "PN-A").get("tel:" + TEL_TB) or {}
+    check("R14.1 « Super » puis « Valider » dans le même tour : aucun rediger, aucun envoi, noté traité jusqu'au bouton",
+          APPELS_R14 == [] and s.appels == [] and FK.envois[e0:] == [] and "etat" not in btb
+          and datetime.fromisoformat(btb.get("traite_jusqu_a") or "1970-01-01T00:00:00+00:00")
+          == datetime.fromtimestamp(int(m_btn["timestamp"]), timezone.utc), (APPELS_R14, FK.envois[e0:], btb))
+    texte_fil, _stop = run(AW._fil(cA, "tel:" + TEL_TB))
+    check("R14.2 _fil ignore le bouton de validation : le dernier entrant lu est « Super »", texte_fil == "Super", texte_fil)
+    TEL_BS = "33600000071"
+    WA.regler_espace(A, {"agent": {"mode": "brouillon"}})
+    ajouter("PN-A", entrant("Bonjour, une question", TEL_BS))
+    s = poser(Script([outil("rediger_reponse", {"texte": "Je vous écoute."})]))
+    tick(M, quand)
+    AW.modifier_validations(A, lambda v: {**v, "p-bs": {"identite": "tel:" + TEL_BS, "cid": cA, "etat": "envoye",
+                                                       "envoye_le": maintenant().isoformat(timespec="seconds")}})
+    APPELS_R14.clear()
+    ajouter("PN-A", bouton_val(TEL_BS, "p-bs"))
+    s = poser(Script([]))
+    e0 = len(FK.envois)
+    tick(M, quand)
+    check("R14.3 bouton seul après un texte déjà traité : aucun rediger, aucun envoi", APPELS_R14 == [] and s.appels == []
+          and FK.envois[e0:] == [], APPELS_R14)
+    # pris rangé sous l'identité tel: alors que la clé canonique du contact est son BSUID (alias appris après)
+    TEL_AL = "33600000072"
+    AW._modifier(A, "PN-A", "tel:" + TEL_AL, lambda b_: {"carte": None, "auto_jour": {}, "pris": True})
+    WA._noter(cA, lambda e: e["alias"].update({"bsuid:AL-72": "tel:" + TEL_AL, "tel:" + TEL_AL: "bsuid:AL-72"}))
+    APPELS_R14.clear()
+    ajouter("PN-A", entrant("Vous êtes là ?", TEL_AL))
+    s = poser(Script([outil("rediger_reponse", {"texte": "Oui."})]))
+    tick(M, quand)
+    check("R14.4 pris rangé sous l'alias (avant migration) : le relevé se tait", APPELS_R14 == [] and s.appels == [],
+          (APPELS_R14, AW.brouillons(A, "PN-A").get("bsuid:AL-72")))
+finally:
+    AW.rediger = _rediger_r13
+
+# ---------------------------------------------------------------------------------------------------------------------
 print("\n[R10] releve_loop et lifespan")
 SEQ = []
 _lire_vrai = E.lire
