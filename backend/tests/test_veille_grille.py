@@ -58,6 +58,8 @@ c = G.classer(deja)
 check("test_classement_importe_conserve", c["theme"] == "coherence" and c["polarite"] == "force"
       and c["classement"] == "importe" and c["resume"] == "r", c)
 check("test_classer : n'altère pas l'entrée", "classement" not in deja)
+autre = G.classer(dict(L("credits too expensive"), theme="autre", polarite="faiblesse", intensite=2))
+check("test_importe_theme_hors_grille : reste importé, hors rapport", autre["classement"] == "importe" and autre["theme"] is None, autre)
 check("test_chez_nous : regle porte une preuve", all(v["preuve"] for v in G.CHEZ_NOUS.values() if v["statut"] == "regle"))
 check("test_chez_nous : tous les thèmes", set(G.CHEZ_NOUS) == set(G.THEMES))
 

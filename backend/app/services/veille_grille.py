@@ -146,9 +146,12 @@ def _note(l: dict) -> int | None:
 def classer(l: dict) -> dict:
     """La ligne plus `theme`, `polarite`, `intensite`, `chez_nous`, `classement` ; une ligne déjà classée est gardée."""
     out = dict(l)
-    if out.get("theme") in THEMES and out.get("polarite") in POLARITES:
+    if out.get("polarite") in POLARITES and "theme" in out:
+        # classé à la main : gardé tel quel ; un thème hors de la grille (« autre ») sort du rapport, sans être reclassé
+        if out.get("theme") not in THEMES:
+            out["theme"] = None
         out["intensite"] = out.get("intensite") if out.get("intensite") in (1, 2, 3) else 1
-        out["chez_nous"] = out.get("chez_nous") or CHEZ_NOUS[out["theme"]]["statut"]
+        out["chez_nous"] = out.get("chez_nous") or (CHEZ_NOUS[out["theme"]]["statut"] if out["theme"] else "inconnu")
         out["classement"] = "importe"
         return out
     texte = str(out.get("texte") or "")
