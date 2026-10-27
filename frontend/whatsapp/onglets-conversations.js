@@ -113,12 +113,12 @@
   async function relireFil(plus) {
     if (!S.sel) return;
     var corps = plus && S.suivant ? { apres: S.suivant } : {};
-    var sel = S.sel, g = S.gen;
+    var sel = S.sel, gen = S.gen;
     var r = await W.api("POST", W.waUrl("/relire"), corps);
-    if (W.perime(g) || sel !== S.sel) return;
+    if (W.perime(gen) || sel !== S.sel) return;
     if (!r.ok || !r.data) { W.erreur(W.messageErreur(r)); return; }
-    var g = W.groupe(sel);
-    var neufs = (r.data.messages || []).filter(function (m) { return m && g.indexOf(m.identite) >= 0; });
+    var grp = W.groupe(sel);
+    var neufs = (r.data.messages || []).filter(function (m) { return m && grp.indexOf(m.identite) >= 0; });
     // fusion par id : une relecture met à jour les statuts sans perdre les pages plus anciennes déjà lues
     var parId = {};
     neufs.forEach(function (m) { parId[m.id] = 1; });
@@ -227,7 +227,12 @@
     C.sigBrouillon = b ? b.etat + "|" + (b.cree_le || "") : "";
     afficherBrouillon(b, courant());
   }
-  function gardes() { return [C.btnRediger].concat(C.btnsBrouillon || []); }
+  // tout ce que l'utilisateur peut toucher pendant un appel de la conversation (envoi, modèle, décision, rédaction)
+  function gardes() {
+    return [C.btnRediger, C.btnEnvoyer, C.btnModele, C.zTexte, C.ajouter, C.btnModeleEnvoyer]
+      .concat(C.btnsBrouillon || [], C.champsModele || [], (C.titres || []).map(function (l) { return l.champ; }));
+  }
+  function apresAppel() { if (C.ajouter) C.ajouter.disabled = (C.titres || []).length >= W.MAX_BOUTONS; }
   async function decider(decision) {
     if (!S.sel) return;
     var sel = S.sel, g = S.gen;
@@ -242,6 +247,7 @@
       await relireBrouillons();
       if (decision === "envoyer" && !W.perime(g)) await relireFil(false);
     });
+    apresAppel();
   }
   async function rediger() {
     if (!S.sel) return;
@@ -249,13 +255,14 @@
     await W.occuper(C, gardes(), async function () {
       W.effacer();
       W.info(T("whatsapp.brouillon.redaction"));
-      var r = await W.api("POST", W.waUrl("/brouillons/rediger"), { identite: sel, langue: W.langue() }, W.DELAI_REDIGER_MS);
+      var r = await W.api("POST", W.waUrl("/brouillons/rediger"), { identite: sel, langue: W.langue() });
       if (W.perime(g) || sel !== S.sel) return;
       if (!r.ok) { W.erreur(W.messageErreur(r)); return; }
       var motif = r.data && r.data.motif;
       W.info(MOTIFS.indexOf(motif) >= 0 ? T("whatsapp.motif." + motif) : T("whatsapp.motif.autre", { motif: String(motif || "") }));
       await relireBrouillons();
     });
+    apresAppel();
   }
   var GF = {};
   async function fil(action) {
@@ -273,7 +280,7 @@
   // ── la saisie ───────────────────────────────────────────────────────────────────────────────────────────────────────
   function afficherSaisie(c) {
     C.saisie.textContent = "";
-    C.zTexte = null; C.titres = [];
+    C.zTexte = null; C.titres = []; C.btnEnvoyer = null; C.btnModele = null; C.ajouter = null;
     if (!c) return;
     var boutonModele = function () {
       return W.bouton(T("whatsapp.saisie.envoyer_modele"), { a: { "data-dz-wa-modele-ouvrir": true }, on: { click: ouvrirModele } }, "dz-nav-templates");
@@ -284,7 +291,8 @@
     }
     if (!c.fenetre_ouverte) {
       C.saisie.appendChild(el("div", { cls: "wa-bandeau", a: { "data-dz-wa-bandeau": "modeles" } }, [W.icone("dz-etat-verrouille"), el("span", { texte: T("whatsapp.saisie.fenetre_fermee") })]));
-      C.saisie.appendChild(el("div", { cls: "wa-ligne" }, [boutonModele()]));
+      C.btnModele = boutonModele();
+      C.saisie.appendChild(el("div", { cls: "wa-ligne" }, [C.btnModele]));
       return;
     }
     C.zTexte = W.champ({ tag: "textarea", cls: "wa-champ--texte", label: T("whatsapp.saisie.texte"), placeholder: T("whatsapp.saisie.texte_ph"), a: { "data-dz-wa-texte": true, rows: "3" } });
@@ -327,16 +335,17 @@
     if (texte.length > max) { W.erreur(T("whatsapp.saisie.texte_long", { max: max })); return; }
     var envoi = titres.length ? { type: "boutons", texte: texte, boutons: titres } : { type: "texte", texte: texte };
     var sel = S.sel, g = S.gen, zone = C.zTexte;
-    await W.occuper(C, [C.btnEnvoyer, C.btnModele, zone], async function () {
+    await W.occuper(C, gardes(), async function () {
       var r = await W.api("POST", W.waUrl("/envoyer"), { identite: sel, envoi: envoi });
       if (W.perime(g) || sel !== S.sel || zone !== C.zTexte) return;
       if (!r.ok) { W.erreur(W.messageErreur(r)); return; }
       C.zTexte.value = "";
       C.titres.forEach(function (l) { l.noeud.remove(); });
-      C.titres = []; C.ajouter.disabled = false;
+      C.titres = [];
       W.info(T("whatsapp.saisie.envoye"));
       await relireFil(false);
     });
+    apresAppel();
   }
 
   // ── l'envoi d'un modèle, en deux temps ──────────────────────────────────────────────────────────────────────────────
@@ -378,7 +387,7 @@
     C.modele.appendChild(boite);
   }
   function categorie(c) { return ["marketing", "utility", "authentication"].indexOf(c) >= 0 ? T("whatsapp.categorie." + c) : String(c || ""); }
-  function fermerModele() { C.modele.textContent = ""; }
+  function fermerModele() { C.modele.textContent = ""; C.champsModele = []; C.btnModeleEnvoyer = null; }
   function remplirModele(m) {
     C.modele.textContent = "";
     var comp = m.composants || {};
@@ -408,6 +417,7 @@
       return [b.index, c];
     });
     if (payloads.length) boite.appendChild(el("p", { cls: "wa-sous", texte: T("whatsapp.modele.payload_aide") }));
+    C.champsModele = params.map(function (x) { return x[1]; }).concat(entete ? [entete[1]] : [], payloads.map(function (x) { return x[1]; }));
     boite.appendChild(el("div", { cls: "wa-ligne" }, [
       W.bouton(T("whatsapp.modele.retour"), { a: { "data-dz-wa-modele-retour": true }, on: { click: ouvrirModele } }, "dz-action-retour"),
       C.btnModeleEnvoyer = W.bouton(T("whatsapp.modele.envoyer"), { cls: "wa-btn--primaire", a: { "data-dz-wa-modele-envoyer": true }, on: { click: function () { envoyerModele(m, nommes, params, entete, payloads); } } }, "dz-action-publier")
@@ -433,7 +443,7 @@
     var bt = payloads.map(function (p) { return { index: p[0], payload: String(p[1].value || "").trim() }; }).filter(function (b) { return b.payload; });
     if (bt.length) envoi.boutons = bt;
     var sel = S.sel, g = S.gen;
-    await W.occuper(C, [C.btnModeleEnvoyer], async function () {
+    await W.occuper(C, gardes(), async function () {
       var r = await W.api("POST", W.waUrl("/envoyer"), { identite: sel, envoi: envoi });
       if (W.perime(g) || sel !== S.sel) return;
       if (!r.ok) { W.erreur(W.messageErreur(r)); return; }
@@ -441,6 +451,7 @@
       W.info(T("whatsapp.modele.envoye"));
       await relireFil(false);
     });
+    apresAppel();
   }
 
   W.onglets.conversations = { afficher: afficher, rafraichir: rafraichir };

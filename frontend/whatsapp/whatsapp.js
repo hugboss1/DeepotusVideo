@@ -16,8 +16,8 @@
    Minuterie : 30 s (setTimeout reprogrammé après la fin du tic, jamais deux tics à la fois), onglet Conversations
    seulement, arrêtée dès que document.visibilityState n'est plus « visible », reposée (avec une relecture immédiate) au
    retour. Réponses périmées : S.gen change à chaque choix d'espace ou de numéro ; toute fonction asynchrone le capture
-   avant son await et ne touche ni S ni le DOM s'il a changé. Délai d'abandon des appels : 30 s (120 s pour rediger),
-   rendu comme une panne réseau. Jamais de texte de message ni de clé dans la console.
+   avant son await et ne touche ni S ni le DOM s'il a changé. Délai d'abandon de 30 s pour les LECTURES seulement,
+   rendu comme une panne réseau ; un appel qui agit ou dépense n'est jamais abandonné (confirmation de plafond). Jamais de texte de message ni de clé dans la console.
    Textes : dzT("whatsapp.…") (frontend/shared/i18n/whatsapp.json). Données utilisateur par textContent. */
 (function () {
   "use strict";
@@ -100,13 +100,17 @@
     return url + (url.indexOf("?") < 0 ? "?" : "&") + "espace=" + encodeURIComponent(S.eid || "");
   }
   function mediaUrl(mid) { return avecEspace(waUrl("/medias/" + encodeURIComponent(mid))); }
-  // délai d'abandon : un appel qui ne répond pas rend status 0 (message « réseau ») au lieu de bloquer la page
-  async function api(methode, url, corps, delai) {
+  // délai d'abandon pour les LECTURES seulement (GET et POST …/relire) : une lecture muette rend status 0 (message
+  // « réseau »). Un appel qui agit ou dépense (envoyer, decider, rediger, fil, accords, stop, cost/pricing) n'a PAS de
+  // signal : dz-plafonds rejoue la même requête après sa boîte (même au-delà de 30 s), et un message parti ne doit jamais
+  // être annoncé comme une panne.
+  function lecture(methode, url) { return methode === "GET" || /\/relire(?:\?|$)/.test(url); }
+  async function api(methode, url, corps) {
     var o = { method: methode, headers: { "Accept": "application/json", "Accept-Language": langue() } };
     if (corps !== undefined) { o.headers["Content-Type"] = "application/json"; o.body = JSON.stringify(corps); }
-    var ctl = typeof AbortController === "function" ? new AbortController() : null;
+    var ctl = lecture(methode, url) && typeof AbortController === "function" ? new AbortController() : null;
     var minu = null;
-    if (ctl) { o.signal = ctl.signal; minu = setTimeout(function () { ctl.abort(); }, delai || W.DELAI_MS); }
+    if (ctl) { o.signal = ctl.signal; minu = setTimeout(function () { ctl.abort(); }, W.DELAI_MS); }
     try {
       var R = await window.fetch(avecEspace(url), o);
       var d = null;
@@ -201,9 +205,7 @@
   }
   async function tour() {
     S.minuterie = null;
-    if (S.ticEnCours) return;
-    await tic();
-    demarrerMinuterie();
+    try { if (!S.ticEnCours) await tic(); } catch (e) { /* une relecture ratée n'arrête pas la minuterie */ } finally { demarrerMinuterie(); }
   }
   async function tic() {
     if (document.visibilityState !== "visible" || S.onglet !== "conversations" || !S.cid || S.ticEnCours) return;
@@ -361,7 +363,7 @@
     messageErreur: messageErreur, erreur: erreur, info: info, effacer: effacer, confirmer: confirmer,
     normaliserIdentite: normaliserIdentite, identiteValide: identiteValide, groupe: groupe, brouillonDe: brouillonDe,
     validerBoutons: validerBoutons, heure: heure, date: date, chargerEtat: chargerEtat, demarrer: demarrer,
-    occuper: occuper, perime: perime, DELAI_MS: 30000, DELAI_REDIGER_MS: 120000, NOM_PARAMETRE_MAX: 60,
+    occuper: occuper, perime: perime, lecture: lecture, DELAI_MS: 30000, NOM_PARAMETRE_MAX: 60,
     MAX_BOUTONS: MAX_BOUTONS, MAX_TITRE: MAX_TITRE
   });
 

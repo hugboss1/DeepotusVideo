@@ -238,8 +238,8 @@
     var r = await W.api("GET", "/api/cost/pricing");
     if (W.perime(g)) return;
     if (!r.ok || !r.data) { W.erreur(W.messageErreur(r)); return; }
-    var g = r.data.whatsapp_meta_usd;
-    dessinerGrille(g && typeof g === "object" ? g : {});
+    var grille = r.data.whatsapp_meta_usd;
+    dessinerGrille(grille && typeof grille === "object" ? grille : {});
   }
   async function enregistrerPrix() {
     if (P.occupe) return;

@@ -126,7 +126,7 @@ for (const f of ["whatsapp.js", "onglets-conversations.js", "onglets-gestion.js"
   vm.runInThisContext(readFileSync(join(PAGE, f), "utf8"), { filename: f });
 }
 const W = window.__dzWhatsapp;
-W.DELAI_MS = 29999; W.DELAI_REDIGER_MS = 119999;      // délais d'abandon reconnaissables (la minuterie fait 30000)
+W.DELAI_MS = 29999;      // délai d'abandon des lectures, reconnaissable (la minuterie fait 30000)
 check("0.1 window.__dzWhatsapp exposé", W && typeof W.demarrer === "function");
 
 // ── données ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -473,6 +473,19 @@ un(r, "data-dz-wa-envoyer").declencher("click"); await attendre(30);
 const pl = posts(B + "/envoyer");
 check("11.1 402 : le dialogue de dz-plafonds est ouvert puis la requête rejouée avec X-DZ-Plafond", confirmations === 1 && pl.length === 2 && pl[1].plafond === "confirme", pl);
 check("11.2 rejouée et acceptée : aucun message d'erreur, saisie vidée", texteErreur(r) === "" && un(r, "data-dz-wa-texte").value === "", texteErreur(r));
+{ // la boîte du plafond reste ouverte plus de 30 s : l'envoi n'a pas de délai d'abandon, la requête rejouée aboutit
+  const dd = differe(); confirmations = 0;
+  window.__dzDialogue = { confirmer: () => { confirmations++; return dd.promesse; } };
+  un(r, "data-dz-wa-texte").value = "Payant lent"; appels = [];
+  un(r, "data-dz-wa-envoyer").declencher("click"); await attendre(30);
+  check("11.3 un envoi n'arme aucun délai d'abandon", ![...minuteries.values()].some((m) => m.ms === 29999), [...minuteries.values()].map((m) => m.ms));
+  declencher(29999); declencher(30000); await attendre();       // l'horloge factice dépasse 30 s, boîte toujours ouverte
+  dd.resoudre(true); await attendre(30);
+  const pl2 = posts(B + "/envoyer");
+  check("11.4 confirmé après 30 s : rejouée avec X-DZ-Plafond et acceptée", confirmations === 1 && pl2.length === 2 && pl2[1].plafond === "confirme"
+    && texteErreur(r) === "" && un(r, "data-dz-wa-texte").value === "", [pl2.length, texteErreur(r)]);
+  window.__dzDialogue = { confirmer: async () => true };
+}
 
 // ── [13] réponses périmées, délai d'abandon, double clic ─────────────────────────────────────────────────────────────
 {
@@ -512,25 +525,51 @@ check("11.2 rejouée et acceptée : aucun message d'erreur, saisie vidée", text
   check("13.6 Santé de A arrivée après B : le panneau montre B", (un(r, "data-dz-wa-sante", "total") || { textContent: "" }).textContent.includes("222")
     && !(un(r, "data-dz-wa-refuses") || { textContent: "" }).textContent.includes("vieux"), (un(r, "data-dz-wa-sante", "total") || {}).textContent);
 }
-{ // un appel qui ne répond jamais : message réseau, boutons rendus
-  r = await monter({ routes: { ["POST " + B + "/envoyer"]: () => new Promise(() => {}) } });
-  await ouvrirConv(r, "tel:33600000001");
+{ // une LECTURE qui ne répond jamais : message réseau ; un ENVOI muet n'est jamais abandonné (boutons grisés)
+  r = await monter({ routes: { ["POST " + B + "/relire"]: () => new Promise(() => {}) } });
   W.DELAI_MS = 777;
-  un(r, "data-dz-wa-texte").value = "Silence"; appels = [];
-  un(r, "data-dz-wa-envoyer").declencher("click"); await attendre();
-  check("13.7 pendant l'appel : Envoyer et la zone grisés", un(r, "data-dz-wa-envoyer").disabled === true && un(r, "data-dz-wa-texte").disabled === true);
-  un(r, "data-dz-wa-envoyer").declencher("click"); await attendre();
-  check("13.8 double clic : un seul POST", posts(B + "/envoyer").length === 1);
+  un(r, "data-dz-wa-conv", "tel:33600000001").declencher("click"); await attendre();
+  check("13.7 une lecture arme un délai d'abandon", [...minuteries.values()].some((m) => m.ms === 777));
   declencher(777); await attendre();
-  check("13.9 délai écoulé : message réseau", texteErreur(r) === T("whatsapp.erreur.reseau"), texteErreur(r));
-  check("13.10 boutons rendus, saisie gardée", un(r, "data-dz-wa-envoyer").disabled === false && un(r, "data-dz-wa-texte").disabled === false && un(r, "data-dz-wa-texte").value === "Silence");
-  routes["POST " + B + "/envoyer"] = [200, { id: "w", statut: "accepted" }];
+  check("13.8 lecture muette : message réseau", texteErreur(r) === T("whatsapp.erreur.reseau"), texteErreur(r));
+  routes["POST " + B + "/relire"] = [200, MESSAGES];
+  const de2 = differe(); routes["POST " + B + "/envoyer"] = () => de2.promesse;
+  un(r, "data-dz-wa-texte").value = "Silence"; un(r, "data-dz-wa-bouton-ajouter").declencher("click"); await attendre(2); appels = [];
   un(r, "data-dz-wa-envoyer").declencher("click"); await attendre();
-  check("13.11 C.occupe relâché : un nouvel envoi part", posts(B + "/envoyer").length === 2);
+  check("13.9 pendant l'envoi : Envoyer, modèle, zone, titres et « Ajouter un bouton » grisés", un(r, "data-dz-wa-envoyer").disabled && un(r, "data-dz-wa-modele-ouvrir").disabled
+    && un(r, "data-dz-wa-texte").disabled && un(r, "data-dz-wa-bouton-ajouter").disabled && un(r, "data-dz-wa-bouton-titre").disabled && un(r, "data-dz-wa-rediger").disabled);
+  check("13.10 un envoi n'arme aucun délai d'abandon", ![...minuteries.values()].some((m) => m.ms === 777));
+  un(r, "data-dz-wa-envoyer").declencher("click"); await attendre();
+  check("13.11 double clic : un seul POST", posts(B + "/envoyer").length === 1);
+  declencher(777); await attendre();
+  de2.resoudre([200, { id: "w", statut: "accepted" }]); await attendre();
+  check("13.12 parti après une longue attente : « envoyé », jamais « réseau », boutons rendus", texteErreur(r) === "" && un(r, "data-dz-wa-info").textContent === T("whatsapp.saisie.envoye")
+    && !un(r, "data-dz-wa-envoyer").disabled && !un(r, "data-dz-wa-bouton-ajouter").disabled && !un(r, "data-dz-wa-texte").disabled, [texteErreur(r), un(r, "data-dz-wa-info").textContent]);
   W.DELAI_MS = 29999;
-  check("13.12 rediger : délai d'abandon de 120 s", (() => { appels = []; un(r, "data-dz-wa-rediger").declencher("click");
-    return [...minuteries.values()].some((m) => m.ms === 119999); })());
-  await attendre();
+  appels = []; un(r, "data-dz-wa-rediger").declencher("click"); await attendre();
+  check("13.12b rediger, decider, fil, accords, stop, prix : aucun délai d'abandon",
+    ["POST", "PUT"].every((m) => ["/envoyer", "/brouillons/decider", "/brouillons/rediger", "/fil", "/accords", "/stop", "/stop/lever"].every((x) => !W.lecture(m, B + x + "?espace=e1")))
+    && !W.lecture("POST", "/api/cost/pricing") && W.lecture("POST", B + "/relire?espace=e1") && W.lecture("GET", "/api/espaces")
+    && ![...minuteries.values()].some((m) => m.ms === 29999));
+  // modèle : champs et bouton grisés pendant l'envoi
+  r = await monter(); await ouvrirConv(r, "tel:33600000002");
+  un(r, "data-dz-wa-modele-ouvrir").declencher("click"); await attendre();
+  un(r, "data-dz-wa-modele-choix").value = "rappel_rdv|fr"; un(r, "data-dz-wa-modele-suivant").declencher("click"); await attendre();
+  un(r, "data-dz-wa-param", "prenom").value = "A"; un(r, "data-dz-wa-param", "heure").value = "B"; un(r, "data-dz-wa-entete", "text").value = "C";
+  const dm = differe(); routes["POST " + B + "/envoyer"] = () => dm.promesse;
+  un(r, "data-dz-wa-modele-envoyer").declencher("click"); await attendre();
+  check("13.12c pendant l'envoi du modèle : paramètres, en-tête, payloads et bouton grisés", un(r, "data-dz-wa-param", "prenom").disabled && un(r, "data-dz-wa-entete", "text").disabled
+    && un(r, "data-dz-wa-payload", "0").disabled && un(r, "data-dz-wa-modele-envoyer").disabled && un(r, "data-dz-wa-modele-ouvrir").disabled);
+  dm.resoudre([200, { id: "w" }]); await attendre();
+  check("13.12d modèle parti : boîte fermée, « Envoyer un modèle » rendu", !un(r, "data-dz-wa-modele-envoyer") && !un(r, "data-dz-wa-modele-ouvrir").disabled);
+  // rafraichir qui lève : la minuterie continue
+  const vrai = W.onglets.conversations.rafraichir;
+  W.onglets.conversations.rafraichir = async () => { throw new Error("panne"); };
+  await tirer()(); await attendre();
+  check("13.12e rafraichir lève : la minuterie est reprogrammée", actifs().length === 1, actifs().length);
+  W.onglets.conversations.rafraichir = vrai;
+  routes["POST " + B + "/envoyer"] = [200, { id: "w" }];
+  await ouvrirConv(r, "tel:33600000001");
   // fil : grisé et protégé du double clic
   const df = differe(); routes["POST " + B + "/fil"] = () => df.promesse; appels = [];
   un(r, "data-dz-wa-fil-action", "prendre").declencher("click"); await attendre();
