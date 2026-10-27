@@ -116,8 +116,8 @@ if PM:
         avant = PM.defaire(B) if MARKER in B else ""
     except AssertionError:
         avant = ""
-    check("1.6 cinq paires (P1, P2, P3a-c) ; chaque ancre une fois dans le bundle d'avant, chaque remplacement une fois dans le livré",
-          lambda: len(PM.PAIRES) == 5 and bool(avant) and all(avant.count(a) == 1 and B.count(z) == 1 for a, z in PM.PAIRES))
+    check("1.6 six paires (P1, P2, P3a-d) ; chaque ancre une fois dans le bundle d'avant, chaque remplacement une fois dans le livré",
+          lambda: len(PM.PAIRES) == 6 and bool(avant) and all(avant.count(a) == 1 and B.count(z) == 1 for a, z in PM.PAIRES))
     check("1.7 les paires n'ont aucune fin de ligne, n'ajoutent ni x.useState( ni confirmation",
           all("\n" not in a + z and "x.useState(" not in z and CONFIRMER not in z for a, z in PM.PAIRES))
     check("1.8 chaque ancre (vue d'avant) et chaque remplacement (livré) HORS de tout bloc de couche __DZ_*_BEGIN__",
@@ -170,7 +170,7 @@ SONDE_POST = r"""
 function cpt(id,p){return{id:id,espace_id:"esp_c",plateforme:p,libelle:"Compte "+id,handle:"",historique:false,oauth:false,disponible:true,verification:null,canal_id:null,champs:[]}}
 globalThis.fetch=function(u){
   if(u.indexOf("/api/comptes?espace=")===0)return Promise.resolve({ok:true,status:200,json:function(){return Promise.resolve({espace:"esp_c",
-    comptes:[cpt("c_tg","telegram"),cpt("c_wa","whatsapp"),cpt("c_x","x")],plateformes:{telegram:{libelle:"Telegram"},whatsapp:{libelle:"WhatsApp"},x:{libelle:"X"}}})}});
+    comptes:[cpt("c_tg","telegram"),cpt("c_wa","whatsapp"),cpt("c_x","x"),Object.assign(cpt("w_off","whatsapp"),{disponible:false})],plateformes:{telegram:{libelle:"Telegram"},whatsapp:{libelle:"WhatsApp"},x:{libelle:"X"}}})}});
   return Promise.resolve({ok:false,status:404,json:function(){return Promise.resolve({})}})};
 __SCRIPT__
 __ECRANS__
@@ -183,6 +183,8 @@ var R={};
  function boutons(id){var b=avec("data-dz-compte",id)[0];return b?chercher(function(n){return n.t==="button"},b).map(texte):null}
  R.bt_wa=boutons("c_wa");R.bt_tg=boutons("c_tg");
  R.indice_wa=texte(avec("data-dz-compte-whatsapp","c_wa")[0]||null);R.indice_tg=avec("data-dz-compte-whatsapp","c_tg").length;
+ function spans(id){var b=avec("data-dz-compte",id)[0];return b?chercher(function(n){return n.t==="span"},b).map(texte):null}
+ R.spans_wa=spans("c_wa");R.spans_tg=spans("c_tg");R.spans_off=spans("w_off");
  R.inputs_wa=(function(){var b=avec("data-dz-compte","c_wa")[0];return b?chercher(function(n){return n.t==="input"},b).length:-1})();
  var changes=[];
  monter(DzPostComptes,{post:{id:"p1",espaceId:"esp_c",comptes:[]},onChange:function(v){changes.push(v)}});await attendre();
@@ -209,6 +211,14 @@ if P3 and "erreur" not in P3:
           str([P3["bt_wa"], P3["bt_tg"], P3["inputs_wa"]]))
     check("3.9 P3c : à la place, la ligne en lecture seule « relié par l'assistant d'espace » (whatsapp seulement)",
           P3["indice_wa"] == F("espaces.comptes.whatsapp_assistant") and P3["indice_tg"] == 0, str(P3["indice_wa"]))
+    check("3.9b P3d : le badge d'un compte whatsapp disponible dit « relié », jamais « prêt à publier » ; telegram le garde ; "
+          "un whatsapp non disponible garde le badge « incomplet »",
+          P3["spans_wa"] is not None and F("espaces.comptes.whatsapp_relie") in P3["spans_wa"]
+          and F("espaces.comptes.disponible") not in P3["spans_wa"]
+          and F("espaces.comptes.disponible") in (P3["spans_tg"] or [])
+          and F("espaces.comptes.incomplet") in (P3["spans_off"] or [])
+          and F("espaces.comptes.disponible") not in (P3["spans_off"] or []),
+          str([P3["spans_wa"], P3["spans_tg"], P3["spans_off"]]))
 
 # ── [4] le panneau de liaison ───────────────────────────────────────────────────────────────────────────────────────
 print("\n[4] le panneau de liaison, sous node")
@@ -275,6 +285,9 @@ var R={};
  R.b_champs=par("data-dz-assistant-cle").length;
  var fact=par("data-dz-assistant-whatsapp-facturation");R.b_fact=fact.map(function(n){return [n.getAttribute("data-dz-assistant-whatsapp-facturation"),n.type,!!n.checked,!!n.disabled]});
  R.b_fact_aide=(un("data-dz-assistant-whatsapp-facturation-aide")||{}).textContent;
+ R.b_lignes=par("data-dz-assistant-whatsapp-facturation-ligne").map(function(l){var k=l.enfants||[];
+   return [l.tagName,l.getAttribute("style")||"",k.length,k[0]&&k[0].tagName,k[0]&&k[0].getAttribute("data-dz-assistant-whatsapp-facturation"),
+           k[1]&&k[1].tagName,k[1]&&k[1].getAttribute("style")||"",k[1]&&k[1].textContent]});
  var cr=un("data-dz-assistant-whatsapp-creer");R.b_creer_grise=!!(cr&&cr.disabled);R.b_creer_txt=cr&&cr.textContent;
  cr.declencher("click");await attendre();R.b_lien_sans_cons=compte("POST","/api/comptes/cwa000001/whatsapp/lien");
  var mo=un("data-dz-assistant-whatsapp-moyen"),da=un("data-dz-assistant-whatsapp-date");
@@ -367,6 +380,12 @@ if R and "erreur" not in R:
     check("4.4 facturation Meta : deux radios, customer_managed cochée par défaut ; l'aide dit que le choix est définitif",
           R["b_fact"] == [["customer_managed", "radio", True, False], ["partner_managed", "radio", False, False]]
           and R["b_fact_aide"] == F("espaces.assistant.whatsapp_facturation_aide"), str([R["b_fact"], R["b_fact_aide"]]))
+    check("4.4b preuve P1 : chaque radio de facturation et son libellé dans UN label, la radio puis le texte, sur la même ligne "
+          "(pas de retour à la ligne entre eux ; un libellé long passe sous son propre texte)",
+          len(R["b_lignes"]) == 2 and all(x[0] == "LABEL" and x[2] == 2 and x[3] == "INPUT" and x[5] == "SPAN"
+                                           and "flex-wrap" not in x[1] and "display:flex" in x[1] and "flex:1 1 auto" in x[6]
+                                           and "min-width:0" in x[6] and x[7] for x in R["b_lignes"])
+          and [x[4] for x in R["b_lignes"]] == ["customer_managed", "partner_managed"], str(R["b_lignes"]))
     check("4.5 espace client sans consentement : « Créer le lien » grisé, un clic n'envoie rien",
           R["b_creer_grise"] and R["b_creer_txt"] == F("espaces.assistant.whatsapp_creer") and R["b_lien_sans_cons"] == 0,
           str([R["b_creer_grise"], R["b_lien_sans_cons"]]))
@@ -429,7 +448,8 @@ print("\n[6] textes et copies")
 TXT = ASSISTANT.read_text("utf-8")
 cles = set(re.findall(r'"((?:espaces|commun|reglages|projets)\.[a-z_]+\.[a-z_.]+)"', TXT))
 cles = {k for k in cles if not k.endswith((".", "_"))} | {"reglages.cles.kapso", "reglages.cles.kapso_why",
-                                                         "espaces.comptes.whatsapp_assistant"}
+                                                         "espaces.comptes.whatsapp_assistant",
+                                                         "espaces.comptes.whatsapp_relie"}
 NEUVES = ("espaces.assistant.whatsapp_cle_absente", "espaces.assistant.whatsapp_creer", "espaces.assistant.whatsapp_copier",
           "espaces.assistant.whatsapp_expire_le", "espaces.assistant.whatsapp_facturation_aide",
           "espaces.assistant.whatsapp_liaison_terminee", "espaces.assistant.liaison_numero_deja_relie",

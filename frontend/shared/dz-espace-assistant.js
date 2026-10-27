@@ -77,6 +77,11 @@
     couleur: "width:40px;height:28px;padding:0;border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138));border-radius:0;background:none",
     plat: "display:flex;flex-direction:column;gap:8px;padding:8px 10px;border:1px solid var(--brd-soft,var(--stroke,#222830));border-radius:0",
     ligne: "display:flex;align-items:center;gap:8px;flex-wrap:wrap",
+    // t310 (P1, preuve à l'écran) : une radio et son libellé sur la même ligne ; un libellé long passe à la ligne sous
+    // son propre texte, jamais sous la radio
+    radio: "display:flex;align-items:flex-start;gap:8px;cursor:pointer",
+    radioBouton: "flex:0 0 auto;margin:2px 0 0 0",
+    radioTexte: "flex:1 1 auto;min-width:0",
     glyphe: "display:inline-flex;width:16px;height:16px;color:var(--txt-hi,var(--ink-strong,#e6e9ee))",
     pastille: "display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 6px;border:1px solid currentColor;border-radius:0",
     pastilleGlyphe: "display:inline-flex;width:12px;height:12px",
@@ -693,8 +698,9 @@
         if (FACTURATIONS.indexOf(w.facturation) < 0) w.facturation = FACTURATIONS[0];
         pan.appendChild(el("div", S.note, T("espaces.assistant.whatsapp_facturation")));
         FACTURATIONS.forEach(function (f) {
-          var l = el("label", S.ligne);
-          var r = el("input");
+          var l = el("label", S.radio);
+          l.setAttribute("data-dz-assistant-whatsapp-facturation-ligne", f);
+          var r = el("input", S.radioBouton);
           r.type = "radio";
           r.name = "dz-assistant-whatsapp-facturation";
           r.setAttribute("name", "dz-assistant-whatsapp-facturation");
@@ -706,7 +712,7 @@
                                                                   : "espaces.assistant.whatsapp_facturation_kapso"));
           r.addEventListener("change", function () { if (r.checked) w.facturation = f; });
           l.appendChild(r);
-          l.appendChild(el("span", "", T(f === "customer_managed" ? "espaces.assistant.whatsapp_facturation_client"
+          l.appendChild(el("span", S.radioTexte, T(f === "customer_managed" ? "espaces.assistant.whatsapp_facturation_client"
                                                                    : "espaces.assistant.whatsapp_facturation_kapso")));
           pan.appendChild(l);
         });

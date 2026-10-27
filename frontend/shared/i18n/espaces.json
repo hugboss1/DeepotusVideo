@@ -483,6 +483,10 @@
     "fr": "Numéro WhatsApp relié par l'assistant d'espace (étape Canaux) : aucun champ à saisir ici.",
     "en": "WhatsApp number linked through the space assistant (Channels step): no field to enter here."
   },
+  "espaces.comptes.whatsapp_relie": {
+    "fr": "relié",
+    "en": "linked"
+  },
   "espaces.ct.aide": {
     "fr": "Une proposition n'écrit rien : cochez les modèles à garder, puis ajoutez-les ou remplacez. Sans IA, elle est tirée du persona et de son identité ; par IA, elle est devisée et passe sous le plafond.",
     "en": "A suggestion writes nothing: tick the templates to keep, then add them or replace. Without AI it comes from the persona and its identity; with AI it is quoted and goes through the spending cap."

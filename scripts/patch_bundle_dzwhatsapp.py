@@ -16,7 +16,8 @@ __DZ_*_BEGIN__ (vérifié à l'écriture par `hors_couche`) :
      whatsapp existant a sa propre rangée (« Vérifier », « Supprimer ») : ni « Identifiants » (aucun champ éditable) ni
      « Tester », la rangée d'origine restant entière derrière la condition (son « Tester » vit dans un remplacement de
      dzassistant, intouché) ; et une ligne en lecture seule dzT("espaces.comptes.whatsapp_assistant") : il se relie par
-     l'assistant d'espace.
+     l'assistant d'espace. P3d : son badge de disponibilité dit dzT("espaces.comptes.whatsapp_relie") (« relié »), jamais
+     « prêt à publier ».
 Clés dzT « reglages.cles.kapso » et « reglages.cles.kapso_why » : frontend/shared/i18n/menus.json (FR/EN, à côté de
 reglages.cles.decart ; reglages.json est réécrit par scripts/i18n_l1_generer.py), assemblées par scripts/i18n_assembler.py.
 Épingles intouchées : x.useState( 731, v2.8.0 x4, DzTracks 181, `await window.__dzDialogue.confirmer(` x30.
@@ -83,6 +84,14 @@ PAIRES = [
      'c.historique&&r.jsx("div",{style:{fontSize:11,color:"var(--ink-muted)"},children:dzT("espaces.comptes.historique")}),'
      'c.plateforme==="whatsapp"&&r.jsx("div",{"data-dz-compte-whatsapp":c.id,style:{fontSize:11,color:"var(--ink-muted)"},'
      'children:dzT("espaces.comptes.whatsapp_assistant")}),'),
+    # P3d (preuve à l'écran P2, 27/10/2026) : le badge de disponibilité d'un compte whatsapp ne dit jamais « prêt à
+    # publier » (ce n'est pas une cible de publication) : « relié » quand il est disponible, le badge « incomplet » sinon.
+    # Le badge d'origine (`_DISPO`, remplacement de dzassistant P4 que son banc défait tel quel) reste INTACT à l'octet : on
+    # pose devant lui la branche whatsapp d'un ternaire dont il est la branche « sinon ».
+    ('c.handle&&r.jsx("span",{"data-dz-brut":"1",style:{fontSize:11.5,color:"var(--ink-soft)"},children:c.handle}),',
+     'c.handle&&r.jsx("span",{"data-dz-brut":"1",style:{fontSize:11.5,color:"var(--ink-soft)"},children:c.handle}),'
+     'c.plateforme==="whatsapp"&&c.disponible?r.jsx("span",{"data-dz-compte-relie":c.id,style:{fontSize:10.5,'
+     'color:"var(--green)"},children:dzT("espaces.comptes.whatsapp_relie")}):'),
 ]
 
 

@@ -71,7 +71,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   Planificateur, un compte coché qui n'est pas vérifié le dit ; la programmation n'est pas bloquée (sauf pour un
   client, voir ci-dessous). → [POINT:reglages.espaces] [GUIDE:comptes]
 - **Relier le WhatsApp d'un espace** (t310) : WhatsApp est un canal de CONVERSATION de l'espace, jamais une cible de
-  post : il n'apparaît ni dans l'éditeur de post du Planificateur ni parmi les réseaux de Réglages › Espaces.
+  post : il n'apparaît pas dans l'éditeur de post du Planificateur, et on ne l'ajoute pas depuis Réglages › Espaces (il
+  y apparaît pour être vérifié ou supprimé).
   Il se relie dans l'assistant d'espace, étape Canaux : cocher WhatsApp, choisir la facturation Meta (définitive),
   puis « Créer le lien » crée chez Kapso un lien d'installation, gratuit. Pour un client, le consentement daté est demandé avant.
   L'application n'envoie rien : copier le lien et l'envoyer au client ; « Vérifier » relit la liaison, et le numéro
