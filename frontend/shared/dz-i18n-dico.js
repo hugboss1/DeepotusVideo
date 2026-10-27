@@ -5404,6 +5404,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "diffusion.refus.autre": {"fr": "refus ({code})", "en": "refused ({code})", "contexte": true},
   "diffusion.refus.consentement": {"fr": "le client n'a pas donné son consentement à l'usage de ce numéro", "en": "the client has not consented to the use of this number", "contexte": true},
   "diffusion.refus.prix": {"fr": "un prix Meta manque pour un marché de l'audience", "en": "a Meta price is missing for one of the audience's markets", "contexte": true},
+  "diffusion.routage.kapso": {"fr": "Diffusion WhatsApp par Kapso (automatique)", "en": "WhatsApp broadcast via Kapso (automatic)", "contexte": true},
   "diffusion.statut.completed": {"fr": "terminée", "en": "completed", "contexte": true},
   "diffusion.statut.configuree": {"fr": "configurée", "en": "set up", "contexte": true},
   "diffusion.statut.draft": {"fr": "brouillon chez Kapso (rien n'est parti)", "en": "draft at Kapso (nothing was sent)", "contexte": true},

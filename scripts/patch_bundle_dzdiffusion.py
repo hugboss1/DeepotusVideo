@@ -14,13 +14,16 @@ __DZ_*_BEGIN__, vérifié à l'écriture par `hors_couche`) :
   P2 DzPostComptes, sous la liste des comptes : quand UN compte whatsapp est coché, le point de montage
      `<div data-dz-diffusion={post.id}>` dont le ref appelle window.__dzDiffusionWhatsapp.monter(nœud, post.id,
      {compte, espace, delai: 700}) (frontend/shared/dz-diffusion-whatsapp.js, chargé par frontend/dist/index.html ; le
-     délai laisse partir le PATCH des comptes, différé de 500 ms). Sa clé suit les comptes cochés : un changement remonte
-     le panneau. Deux comptes whatsapp cochés : une ligne dzT("diffusion.panneau.un_seul_compte") à la place ;
+     délai laisse partir le PATCH des comptes, différé de 500 ms ; s'il arrive plus tard, le panneau relit seul sur le
+     409 « un seul compte »). Sa clé = post + compte whatsapp : cocher un autre compte ne le remonte pas. Deux comptes
+     whatsapp cochés : une ligne dzT("diffusion.panneau.un_seul_compte") à la place ;
   P3 la table des canaux `_t` reçoit `whatsapp` (libellé « WhatsApp », icône du rail WhatsApp `dz-nav-boite-reception`,
      aucune icône neuve) APRÈS le calcul de `Bu` (`__dzWaCanal=(_t.whatsapp={…})` dans la même déclaration) : la carte
      du calendrier, le routage et __dzSchedCanaux le disent ; les boutons de canaux de l'inspecteur et du filtre (Bu) ne
      le proposent pas : un canal whatsapp ne se pose que par son compte. L'entrée commence par `label:` (et non
      `{id:"whatsapp",`, compte épinglé x1 par le banc de whatsapppage pour l'entrée de rail).
+  P4/P5 (revue) la carte de routage du canal whatsapp : « automatique » (pastille verte) et le libellé
+     dzT("diffusion.routage.kapso") au lieu de « publication manuelle ».
 Aucune ancre ne mord sur le remplacement d'un maillon AMONT (dzwhatsapp P2, dzassistant, la table de montage) : chacun
 reste présent à l'octet, ce que le banc vérifie en rejouant leurs `--check`.
 Épingles intouchées : x.useState( 731, v2.8.0 x4, DzTracks 181, `await window.__dzDialogue.confirmer(` x30 (les
@@ -66,12 +69,14 @@ MONTER = "window.__dzDiffusionWhatsapp&&window.__dzDiffusionWhatsapp.monter(n,p.
 MONTAGE = ('(function(){var wa=choisis.filter(function(i){var v=liste.find(function(x2){return x2.id===i});'
            'return v&&v.plateforme==="whatsapp"});'
            'return wa.length===1?r.jsx("div",{"data-dz-diffusion":p.id,ref:function(n){n&&' + MONTER + '}},'
-           '"dzdiff:"+p.id+":"+choisis.join(",")):'
+           '"dzdiff:"+p.id+":"+wa[0]):'
            'wa.length>1?r.jsx("div",{"data-dz-diffusion-plusieurs":p.id,style:{fontSize:11.5,color:"var(--amber)"},'
            'children:dzT("diffusion.panneau.un_seul_compte")}):null})(),')
 _APRES_BU = 'Bu=Object.values(_t),Im=['
 CANAL_WA = '{label:"WhatsApp",id:"whatsapp",icon:"dz-nav-boite-reception",color:"#25d366",bg:"#0b2a19",limit:1024}'
 TABLE_WA = 'Bu=Object.values(_t),__dzWaCanal=(_t.whatsapp=' + CANAL_WA + '),Im=['
+_ROUTE_V = 'if(!A)return null;const V=I==="telegram"&&'
+_ROUTE_LIB = 'children:V?dzT("scheduler.routage.pub_bot"):dzT("scheduler.routage.pub_manuelle")'
 
 PAIRES = [
     # P1 : DzPostComptes range de nouveau les comptes whatsapp : la liste filtrée par dzwhatsapp (P2, gardé à l'octet)
@@ -81,6 +86,10 @@ PAIRES = [
     (_SOUS_LISTE, '}),' + MONTAGE + 'esp!=="deepotus"&&!choisis.length&&'),
     # P3 : la table des canaux connaît whatsapp, ajouté APRÈS le calcul de Bu (les boutons de canaux ne le proposent pas)
     (_APRES_BU, TABLE_WA),
+    # P4 (revue t328 tâche 5) : la carte de routage tient le canal whatsapp pour automatique (l'adaptateur de diffusion)
+    (_ROUTE_V, _ROUTE_V.replace('const V=I==="telegram"', 'const V=I==="whatsapp"||I==="telegram"')),
+    # P5 : et son libellé dit « diffusion WhatsApp par Kapso », jamais « publication manuelle »
+    (_ROUTE_LIB, 'children:I==="whatsapp"?dzT("diffusion.routage.kapso"):' + _ROUTE_LIB[len("children:"):]),
 ]
 
 

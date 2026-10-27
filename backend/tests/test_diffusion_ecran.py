@@ -84,8 +84,8 @@ except Exception as e:                                   # noqa: BLE001
     PM = None
     check("1.0 le maillon patch_bundle_dzdiffusion existe", False, repr(e))
 check("1.1 le marqueur une fois dans le bundle", B.count(MARKER) == 1, str(B.count(MARKER)))
-check("1.2 aucun .bak_* laissé (le maillon a supprimé le sien : `version` reste le dernier)", not list(ASSETS.glob("*.bak_*")),
-      str(list(ASSETS.glob("*.bak_*"))))
+check("1.2 aucun .bak_dzdiffusion laissé (le maillon a supprimé le sien : `version` reste le dernier)",
+      not list(ASSETS.glob("*.bak_dzdiffusion")), str(list(ASSETS.glob("*.bak_dzdiffusion"))))
 avant = ""
 if PM:
     src = (REPO / "scripts" / "patch_bundle_dzdiffusion.py").read_text("utf-8")
@@ -107,8 +107,8 @@ if PM:
         avant = PM.defaire(B) if MARKER in B else ""
     except AssertionError:
         avant = ""
-    check("1.7 trois paires ; chaque ancre une fois dans le bundle d'avant, chaque remplacement une fois dans le livré",
-          lambda: len(PM.PAIRES) == 3 and bool(avant) and all(avant.count(a) == 1 and B.count(z) == 1 for a, z in PM.PAIRES))
+    check("1.7 cinq paires ; chaque ancre une fois dans le bundle d'avant, chaque remplacement une fois dans le livré",
+          lambda: len(PM.PAIRES) == 5 and bool(avant) and all(avant.count(a) == 1 and B.count(z) == 1 for a, z in PM.PAIRES))
     check("1.8 les paires n'ont aucune fin de ligne, n'ajoutent ni x.useState( ni confirmation",
           all("\n" not in a + z and "x.useState(" not in z and CONFIRMER not in z for a, z in PM.PAIRES))
     check("1.9 chaque ancre (vue d'avant) et chaque remplacement (livré) HORS de tout bloc de couche __DZ_*_BEGIN__",
@@ -218,6 +218,13 @@ check("3.8 deux comptes whatsapp : la ligne « un seul compte », aucun montage"
       (P3.get("deux") or [None])[0] == 0 and (P3.get("deux") or [0, []])[1] == [F("diffusion.panneau.un_seul_compte")]
       and (P3.get("deux") or [0, 0, 1])[2] == 0, str(P3.get("deux")))
 check("3.9 aucun compte whatsapp coché : rien", P3.get("aucun") == [0, 0, 0], str(P3.get("aucun")))
+check("3.9b clé du montage = post + compte whatsapp seulement (cocher un autre compte ne remonte pas le panneau)",
+      PC.count('"dzdiff:"+p.id+":"+wa[0]') == 1 and "choisis.join(" not in PC)
+ROUTE = B[B.find('e.channels.map(I=>{const A=_t[I];if(!A)return null;'):]
+ROUTE = ROUTE[:ROUTE.find("},I)})")]
+check("3.12 P4/P5 : la carte de routage tient whatsapp pour automatique, libellé « diffusion par Kapso »",
+      bool(ROUTE) and 'const V=I==="whatsapp"||I==="telegram"&&' in ROUTE
+      and 'children:I==="whatsapp"?dzT("diffusion.routage.kapso"):V?dzT("scheduler.routage.pub_bot"):dzT("scheduler.routage.pub_manuelle")' in ROUTE)
 SONDE_T = r"""
 const S=require("fs").readFileSync(process.argv[2],"utf8");
 const i=S.indexOf("const _t={x:{id:\"x\""),j=S.indexOf(",Im=[",i);
@@ -257,7 +264,8 @@ dyn = {"diffusion.categorie." + c for c in ("marketing", "utility", "authenticat
     | {"diffusion.ecarte." + k for k in ("accord", "stop", "marketing", "bsuid")} | {"diffusion.refus.consentement", "diffusion.refus.prix"}
 manque = sorted(k for k in lues | dyn if k not in DICO or not DICO[k].get("fr") or not DICO[k].get("en"))
 check("4.3 chaque clé diffusion.* lue par le module existe en FR et en EN", len(lues) > 30 and not manque, str(manque))
-check("4.4 la clé de bouton du maillon existe", "diffusion.panneau.un_seul_compte" in DICO)
+check("4.4 les clés du maillon existent (FR et EN)", all(DICO.get(k, {}).get("fr") and DICO.get(k, {}).get("en")
+      for k in ("diffusion.panneau.un_seul_compte", "diffusion.routage.kapso")))
 ra = subprocess.run([sys.executable, str(REPO / "scripts" / "i18n_assembler.py"), "--check"], capture_output=True, text=True,
                     encoding="utf-8", errors="replace", cwd=str(REPO))
 check("4.5 dictionnaire assemblé à jour", ra.returncode == 0, ra.stdout + ra.stderr)

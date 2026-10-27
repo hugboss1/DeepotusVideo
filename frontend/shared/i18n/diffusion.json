@@ -2,6 +2,7 @@
   "diffusion.panneau.titre": {"fr": "Diffusion WhatsApp", "en": "WhatsApp broadcast", "contexte": true},
   "diffusion.panneau.intro": {"fr": "Ce post part en diffusion, avec un modèle approuvé, vers les contacts de l'espace dont l'accord a été saisi.", "en": "This post goes out as a broadcast, with an approved template, to the workspace contacts whose consent was recorded.", "contexte": true},
   "diffusion.panneau.un_seul_compte": {"fr": "Une diffusion vise un seul compte WhatsApp : décochez les autres.", "en": "A broadcast targets a single WhatsApp account: untick the others.", "contexte": true},
+  "diffusion.routage.kapso": {"fr": "Diffusion WhatsApp par Kapso (automatique)", "en": "WhatsApp broadcast via Kapso (automatic)", "contexte": true},
   "diffusion.etat.chargement": {"fr": "Lecture de la diffusion…", "en": "Reading the broadcast…", "contexte": true},
   "diffusion.etat.envoi": {"fr": "Envoi en cours…", "en": "Sending…", "contexte": true},
 

@@ -53,7 +53,7 @@ const rep = (status, json) => new Response(JSON.stringify(json === undefined ? {
 
 // un monde : window = global (dz-plafonds remplace window.fetch, le panneau appelle fetch)
 function monde({ lang = "fr", routes = {}, dialogue = [] , sansDialogue = false } = {}) {
-  const appels = [], dialogues = [], evenements = [], longs = [];
+  const appels = [], dialogues = [], evenements = [], longs = [], manuels = [], etat = { ouvert: false };
   const reponses = dialogue.slice();
   const ctx = {
     console, Response, Headers, Request, URL, AbortController, CustomEvent: class { constructor(t) { this.type = t; } },
@@ -67,7 +67,14 @@ function monde({ lang = "fr", routes = {}, dialogue = [] , sansDialogue = false 
   ctx.dzLang = () => lang;
   ctx.dispatchEvent = (e) => { evenements.push(e.type); };
   ctx.document = { createElement: (t) => new Noeud(t), body: new Noeud("body"), documentElement: new Noeud("html") };
-  if (!sansDialogue) ctx.__dzDialogue = { confirmer: (m, o) => { dialogues.push({ m, o }); return Promise.resolve(reponses.length ? reponses.shift() : false); } };
+  if (!sansDialogue) ctx.__dzDialogue = {
+    ouvert: () => etat.ouvert,
+    confirmer: (m, o) => {
+      dialogues.push({ m, o });
+      const r = reponses.length ? reponses.shift() : false;
+      return r === "manuel" ? new Promise((ok) => manuels.push(ok)) : Promise.resolve(r);
+    },
+  };
   ctx.fetch = async (url, init = {}) => {
     const m = init.method || "GET";
     const h = init.headers instanceof Headers ? init.headers : new Headers(init.headers || {});
@@ -78,7 +85,7 @@ function monde({ lang = "fr", routes = {}, dialogue = [] , sansDialogue = false 
   vm.createContext(ctx);
   vm.runInContext(PLAF, ctx);
   vm.runInContext(SRC, ctx);
-  return { ctx, appels, dialogues, evenements, longs, hote: new Noeud("div"), API: ctx.__dzDiffusionWhatsapp };
+  return { ctx, appels, dialogues, evenements, longs, manuels, etat, hote: new Noeud("div"), API: ctx.__dzDiffusionWhatsapp };
 }
 
 const MODELES = [
@@ -282,20 +289,25 @@ const PLAFOND = { detail: { dz_plafond: { motif: "global", message: "Ce tir dép
   ok("7.1 sans boîte de dialogue : rien ne part, la raison est dite", posts === 0 && un(m.hote, "data-dz-diffusion-erreur")?.textContent === FR("diffusion.confirmer.sans_dialogue"));
 }
 
-// ---- perime : une réponse périmée est ignorée ----------------------------------------------------------------------
+// ---- perime : une VRAIE seconde requête rend la première périmée ---------------------------------------------------
 {
-  let lacher = null, gets = 0;
-  const m = monde({ routes: {
-    [GET]: () => { gets++; return rep(200, { ...INCERTAIN, etat: { statut: "completed", n: 1, incertain: false, compteurs: { sent: 1 } } }); },
-    [RELIRE]: () => new Promise((ok) => { lacher = () => ok(rep(200, { ...INCERTAIN, etat: { statut: "failed", n: 1, incertain: false, compteurs: {} } })); }),
+  let lacher = null;
+  const ENVOI = { ...INCERTAIN, etat: { statut: "sending", n: 3, incertain: false, compteurs: { sent: 2 } } };
+  const m = monde({ dialogue: [true], routes: {
+    [GET]: () => rep(200, INCERTAIN), [RELIRE]: () => rep(200, ENVOI),
+    [CONF]: () => new Promise((ok) => { lacher = () => ok(rep(502, { detail: { message: "Kapso injoignable", code: "reseau" } })); }),
   } });
   await m.API.monter(m.hote, "p1", O); await tick();
-  un(m.hote, "data-dz-diffusion-relire").click(); await tick();          // relecture lente en vol
-  ok("8.0 pendant la relecture : l'état de chargement", !!un(m.hote, "data-dz-diffusion-note", "chargement"));
-  const m2 = m.hote.__dzDiffusion;
-  m2.jeton++;                                                              // une lecture plus récente a pris la main
+  un(m.hote, "data-dz-diffusion-confirmer").click(); await tick();
+  ok("8.0 confirmation en vol : « Relire » grisé avant le délai", un(m.hote, "data-dz-diffusion-relire").disabled === true);
+  m.longs[m.longs.length - 1](); await tick();
+  ok("8.1 au délai : « Relire » libre, « Confirmer » toujours grisé", un(m.hote, "data-dz-diffusion-relire").disabled === false
+    && un(m.hote, "data-dz-diffusion-confirmer").disabled === true);
+  un(m.hote, "data-dz-diffusion-relire").click(); await tick();
+  ok("8.2 la relecture (seconde requête réelle) est rendue : en cours d'envoi", !!un(m.hote, "data-dz-diffusion-statut", "sending"), m.hote.textContent);
   lacher(); await tick();
-  ok("8.1 la réponse périmée n'est pas rendue", !un(m.hote, "data-dz-diffusion-statut", "failed"));
+  ok("8.3 la réponse tardive de la confirmation (502) est périmée : ni erreur, ni retour en arrière", !un(m.hote, "data-dz-diffusion-erreur")
+    && !!un(m.hote, "data-dz-diffusion-statut", "sending"), m.hote.textContent);
 }
 
 // ---- delai : 30 s sans réponse -------------------------------------------------------------------------------------
@@ -366,6 +378,83 @@ const PLAFOND = { detail: { dz_plafond: { motif: "global", message: "Ce tir dép
   const m3 = monde({ routes: { [GET]: () => rep(409, { detail: "ce post doit viser un et un seul compte WhatsApp de son espace pour une diffusion" }) } });
   await m3.API.monter(m3.hote, "p1", O); await tick();
   ok("12.3 GET refusé (409 texte) : message et « Relire »", un(m3.hote, "data-dz-diffusion-erreur")?.textContent.startsWith("ce post doit viser") && !!un(m3.hote, "data-dz-diffusion-relire"));
+}
+
+// ---- PATCH tardif : le panneau se rétablit seul après le 409 « un seul compte » ------------------------------------
+{
+  let gets = 0;
+  const REFUS = { detail: "ce post doit viser un et un seul compte WhatsApp de son espace pour une diffusion" };
+  const m = monde({ routes: { [GET]: () => { gets++; return gets <= 2 ? rep(409, REFUS) : rep(200, VIDE); }, [MOD]: () => rep(200, MODELES) } });
+  await m.API.monter(m.hote, "p1", O); await tick();
+  ok("13.1 PATCH tardif : relu seul (3 GET), formulaire affiché sans erreur", gets === 3 && !!un(m.hote, "data-dz-diffusion-modele")
+    && !un(m.hote, "data-dz-diffusion-erreur"), gets + " " + m.hote.textContent);
+  let n2 = 0;
+  const m2 = monde({ routes: { [GET]: () => { n2++; return rep(409, REFUS); } } });
+  await m2.API.monter(m2.hote, "p1", O); await tick();
+  ok("13.2 refus durable : 1 + 3 reprises au plus, puis le message et « Relire »", n2 === 4
+    && (un(m2.hote, "data-dz-diffusion-erreur")?.textContent || "").startsWith("ce post doit viser") && !!un(m2.hote, "data-dz-diffusion-relire"), String(n2));
+  let n3 = 0;
+  const m3 = monde({ routes: { [GET]: () => { n3++; return rep(409, { detail: { message: "fichier illisible", code: "illisible" } }); } } });
+  await m3.API.monter(m3.hote, "p1", O); await tick();
+  ok("13.3 un 409 structuré (autre refus) n'est pas relu", n3 === 1 && un(m3.hote, "data-dz-diffusion-erreur")?.textContent === "fichier illisible");
+}
+
+// ---- même nœud remonté pour un AUTRE post : l'ancienne instance est invalidée -------------------------------------
+{
+  let lacher = null;
+  const m = monde({ routes: {
+    [GET]: () => new Promise((ok) => { lacher = () => ok(rep(200, INCERTAIN)); }),
+    ["GET /api/schedule/p2/diffusion"]: () => rep(200, { ...INCERTAIN, etat: { statut: "completed", n: 1, incertain: false, compteurs: {} } }),
+  } });
+  m.API.monter(m.hote, "p1", O); await tick();
+  await m.API.monter(m.hote, "p2", O); await tick();
+  lacher(); await tick();
+  ok("14.1 la réponse en vol du post p1 ne s'affiche pas dans le nœud remonté pour p2", !!un(m.hote, "data-dz-diffusion-panneau", "p2")
+    && !!un(m.hote, "data-dz-diffusion-statut", "completed") && !un(m.hote, "data-dz-diffusion-incertain"), m.hote.textContent);
+}
+
+// ---- double clic : un dialogue, un PUT ; une confirmation, un dialogue ----------------------------------------------
+{
+  let puts = 0, lacherPut = null;
+  const cfg = CFG({ nom: "promo_simple", langue: "fr", categorie: "utility" }, [], { n_identites: 2 });
+  const m = monde({ dialogue: ["manuel"], routes: {
+    [GET]: () => rep(200, { config: cfg, audience: { n: 2, ecartes: {} }, devis: { usd: 0.03, lignes: [] }, etat: { statut: "configuree" } }),
+    [MOD]: () => rep(200, MODELES),
+    [PUT]: () => { puts++; return new Promise((ok) => { lacherPut = () => ok(rep(200, { config: { ...cfg, n_identites: null }, audience: { n: 9, ecartes: {} }, devis: { usd: 0.1, lignes: [] } })); }); },
+  } });
+  await m.API.monter(m.hote, "p1", O); await tick();
+  const b = un(m.hote, "data-dz-diffusion-enregistrer");
+  b.click(); b.disabled = false; b.click(); await tick();
+  ok("15.1 double clic pendant le dialogue : UN seul dialogue", m.dialogues.length === 1, String(m.dialogues.length));
+  m.manuels[0](true); await tick();
+  const b2 = un(m.hote, "data-dz-diffusion-enregistrer");
+  b2.disabled = false; b2.click(); await tick();
+  ok("15.2 PUT en vol : un nouveau clic ne relance rien (un PUT, aucun 2e dialogue)", puts === 1 && m.dialogues.length === 1, puts + "/" + m.dialogues.length);
+  lacherPut(); await tick();
+  ok("15.3 la réponse rendue, le bouton libéré", un(m.hote, "data-dz-diffusion-msg")?.textContent === FR("diffusion.etat.enregistree")
+    && un(m.hote, "data-dz-diffusion-enregistrer").disabled === false);
+  const m2 = monde({ dialogue: ["manuel"], routes: { [GET]: () => rep(200, INCERTAIN), [CONF]: () => rep(200, {}) } });
+  await m2.API.monter(m2.hote, "p1", O); await tick();
+  const c = un(m2.hote, "data-dz-diffusion-confirmer");
+  c.click(); c.click(); await tick();
+  ok("15.4 « Confirmer » cliqué deux fois : un seul dialogue", m2.dialogues.length === 1);
+  m2.manuels[0](false); await tick();
+}
+
+// ---- le délai de 30 s attend l'utilisateur quand une boîte de dialogue est ouverte (plafond) --------------------------
+{
+  let lacher = null;
+  const m = monde({ dialogue: [true], routes: { [GET]: () => rep(200, INCERTAIN), [CONF]: () => new Promise((ok) => { lacher = () => ok(rep(200, {})); }) } });
+  await m.API.monter(m.hote, "p1", O); await tick();
+  un(m.hote, "data-dz-diffusion-confirmer").click(); await tick();
+  m.etat.ouvert = true;
+  const avant = m.longs.length;
+  m.longs[avant - 1](); await tick();
+  ok("16.1 dialogue ouvert au délai : aucun message d'attente, la minuterie est reposée", !un(m.hote, "data-dz-diffusion-erreur") && m.longs.length === avant + 1);
+  m.etat.ouvert = false;
+  m.longs[m.longs.length - 1](); await tick();
+  ok("16.2 dialogue fermé : au délai suivant, le message d'attente", un(m.hote, "data-dz-diffusion-erreur")?.textContent === FR("diffusion.erreur.attente"));
+  lacher(); await tick();
 }
 
 if (echecs.length) { console.log(`ÉCHEC ${echecs.length}/${n}\n  - ` + echecs.join("\n  - ")); process.exit(1); }

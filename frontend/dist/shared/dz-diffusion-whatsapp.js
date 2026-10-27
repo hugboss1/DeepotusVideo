@@ -32,6 +32,7 @@
   if (window.__dzDiffusionWhatsapp) return;
 
   var DELAI_MS = 30000;
+  var REPRISES = [500, 1000, 2000];         // relectures après un 409 « un seul compte » au montage
   var JSON_H = { "Content-Type": "application/json" };
   var RELANCABLES = ["configuree", "preparation", "echec"];
   var ECARTES = ["accord", "stop", "marketing", "bsuid"];
@@ -94,13 +95,17 @@
     if (ctrl) o.signal = ctrl.signal;
     return new Promise(function (ok, ko) {
       var fini = false;
-      var minuterie = setTimeout(function () {
+      var minuterie;
+      var echeance = function () {
         if (fini) return;
+        var D = window.__dzDialogue;
+        if (D && typeof D.ouvert === "function" && D.ouvert()) { minuterie = setTimeout(echeance, DELAI_MS); return; }   // on attend l'utilisateur, pas le serveur
         if (attente) { attente(); return; }            // jamais abandonnée : on le dit, on attend la réponse
         fini = true;
         try { if (ctrl) ctrl.abort(); } catch (e) { /* déjà close */ }
         ko({ delai: true, message: T("diffusion.erreur.delai") });
-      }, DELAI_MS);
+      };
+      minuterie = setTimeout(echeance, DELAI_MS);
       fetch(url, o).then(function (R) {
         return R.json().catch(function () { return {}; }).then(function (j) {
           if (fini) return;
@@ -165,30 +170,41 @@
     elt.__dzDiffusion = inst;
     var delai = Number(o.delai) || 0;
     inst.pret = new Promise(function (ok) { delai > 0 ? setTimeout(ok, delai) : ok(); }).then(function () {
-      return elt.__dzDiffusion === inst ? charger(inst, false) : null;
+      return elt.__dzDiffusion === inst ? charger(inst, false, 0) : null;
     });
     return inst.pret;
   }
+  // une réponse ne compte que pour la DERNIÈRE requête de l'instance, et l'instance encore montée sur son nœud (un même
+  // nœud remonté pour un autre post invalide l'ancienne)
+  function vivant(inst, j) { return j === inst.jeton && inst.el.__dzDiffusion === inst; }
   function base(inst) { return "/api/schedule/" + encodeURIComponent(inst.postId) + "/diffusion"; }
 
-  function charger(inst, relire) {
+  // essai (montage seulement) : le GET qui suit le montage peut devancer le PATCH des comptes du post (différé par le
+  // Planificateur) ; le serveur répond alors 409 au détail TEXTE (« un et un seul compte WhatsApp »). Le panneau relit
+  // seul, au plus REPRISES.length fois, avant de montrer l'erreur.
+  function charger(inst, relire, essai) {
     var j = ++inst.jeton;
     inst.occupe = true;
     etatSeul(inst, T("diffusion.etat.chargement"));
     return requete("GET", base(inst) + (relire ? "?relire=1" : "")).then(function (r) {
-      if (j !== inst.jeton) return null;
+      if (!vivant(inst, j)) return null;
+      if (!r.ok && r.status === 409 && typeof detail(r) === "string" && essai != null && essai < REPRISES.length) {
+        return new Promise(function (ok) { setTimeout(ok, REPRISES[essai]); }).then(function () {
+          return vivant(inst, j) ? charger(inst, false, essai + 1) : null;
+        });
+      }
       if (!r.ok) { inst.occupe = false; inst.err = message(r); rendreErreur(inst); return null; }
       inst.d = r.data || {};
       if (lancee(inst.d)) { inst.occupe = false; rendreSuivi(inst); return null; }
       var cid = (inst.d.config && inst.d.config.compte) || inst.compte;
       return chargerModeles(inst, cid).then(function () {
-        if (j !== inst.jeton) return null;
+        if (!vivant(inst, j)) return null;
         inst.occupe = false;
         rendreEdition(inst);
         return null;
       });
     }, function (e) {
-      if (j !== inst.jeton) return null;
+      if (!vivant(inst, j)) return null;
       inst.occupe = false; inst.err = e.message; rendreErreur(inst);
       return null;
     });
@@ -319,14 +335,18 @@
       l.appendChild(btn);
       p.appendChild(l);
     }
-    function etatBouton() { if (btn) griser(btn, inst.occupe || (vide && !inst.modifie)); }
+    function etatBouton() { if (btn) griser(btn, inst.occupe || inst.verrou || (vide && !inst.modifie)); }
     inst.etatBouton = etatBouton;
     etatBouton();
     pied(inst, p);
   }
 
   async function enregistrer(inst) {
-    if (inst.occupe || !inst.lireChamps) return;
+    if (inst.occupe || inst.verrou || !inst.lireChamps) return;
+    inst.verrou = true;                                    // un second clic (dialogue ouvert, PUT en vol) ne fait rien
+    try { return await enregistrerSuite(inst); } finally { inst.verrou = false; if (inst.etatBouton) inst.etatBouton(); }
+  }
+  async function enregistrerSuite(inst) {
     effacer(inst);
     var lu = inst.lireChamps();
     var valeurs = lu.nommes ? {} : [];
@@ -347,7 +367,7 @@
     if (inst.etatBouton) inst.etatBouton();
     var corps = { modele: { nom: lu.m.nom, langue: lu.m.langue }, parametres: valeurs };
     return requete("PUT", base(inst), corps).then(function (r) {
-      if (j !== inst.jeton) return;
+      if (!vivant(inst, j)) return;
       inst.occupe = false;
       if (!r.ok) {
         inst.err = message(r);
@@ -362,7 +382,7 @@
       signaler("deepotus:schedule-recharger");                // le PUT efface la validation : la liste relit le post
       rendreEdition(inst);
     }, function (e) {
-      if (j !== inst.jeton) return;
+      if (!vivant(inst, j)) return;
       inst.occupe = false; inst.err = e.message; rendreEdition(inst);
     });
   }
@@ -388,7 +408,7 @@
       boite.appendChild(el("div", "", T(e.attente_confirmation === true ? "diffusion.incertain.attente" : "diffusion.incertain.texte")));
       p.appendChild(boite);
       var bc = bouton(T("diffusion.action.confirmer"), "data-dz-diffusion-confirmer", function () { confirmer(inst); });
-      griser(bc, inst.occupe);
+      griser(bc, inst.occupe || !!inst.envoiEnVol);
       l.appendChild(bc);
     }
     var br = bouton(T("diffusion.action.relire"), "data-dz-diffusion-relire", function () { effacer(inst); charger(inst, true); });
@@ -399,23 +419,29 @@
   }
 
   async function confirmer(inst) {
-    if (inst.occupe) return;
+    if (inst.occupe || inst.verrou || inst.envoiEnVol) return;
+    inst.verrou = true;                                    // un second clic pendant le dialogue ne l'ouvre pas deux fois
+    try { return await confirmerSuite(inst); } finally { inst.verrou = false; }
+  }
+  async function confirmerSuite(inst) {
     effacer(inst);
     if (!window.__dzDialogue || typeof window.__dzDialogue.confirmer !== "function") {
       inst.err = T("diffusion.confirmer.sans_dialogue"); rendreSuivi(inst); return;
     }
     var oui = await window.__dzDialogue.confirmer(T("diffusion.confirmer.texte"),
       { titre: T("diffusion.confirmer.titre"), ok: T("diffusion.confirmer.ok"), annuler: T("diffusion.confirmer.annuler"), danger: true });
-    if (!oui || inst.occupe) return;
+    if (!oui || inst.occupe || inst.el.__dzDiffusion !== inst) return;
     var j = ++inst.jeton;
     inst.occupe = true;
+    inst.envoiEnVol = true;                                // « Confirmer » grisé jusqu'à la réponse, même relue entre-temps
     inst.msg = T("diffusion.etat.envoi");
     rendreSuivi(inst);
     return requete("POST", base(inst) + "/confirmer", { confirme_incertain: true }, function () {
-      if (j !== inst.jeton) return;
-      inst.msg = ""; inst.err = T("diffusion.erreur.attente"); rendreSuivi(inst);
+      if (!vivant(inst, j)) return;
+      inst.occupe = false; inst.msg = ""; inst.err = T("diffusion.erreur.attente"); rendreSuivi(inst);
     }).then(function (r) {
-      if (j !== inst.jeton) return;
+      inst.envoiEnVol = false;
+      if (!vivant(inst, j)) { if (inst.el.__dzDiffusion === inst && !inst.occupe) rerendre(inst); return; }   // relue entre-temps : « Confirmer » rendu
       inst.occupe = false;
       if (!r.ok) {
         inst.msg = ""; inst.err = message(r);
@@ -426,7 +452,8 @@
       signaler("deepotus:schedule-recharger");                // le post a pu partir (posted, remote_ids)
       return charger(inst, false).then(function () { inst.msg = T("diffusion.etat.confirmee"); rerendre(inst); });
     }, function (e) {
-      if (j !== inst.jeton) return;
+      inst.envoiEnVol = false;
+      if (!vivant(inst, j)) return;
       inst.occupe = false; inst.msg = ""; inst.err = e.message; rendreSuivi(inst);
     });
   }
