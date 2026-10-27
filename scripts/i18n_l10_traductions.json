@@ -11234,5 +11234,17 @@
  "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu": {
   "fr": "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu",
   "en": "agent: drafts per contact and per day: an integer from 0 to 200 is expected"
+ },
+ "quantité WhatsApp invalide : un entier >= 1 est attendu": {
+  "fr": "quantité WhatsApp invalide : un entier >= 1 est attendu",
+  "en": "invalid WhatsApp quantity: an integer >= 1 is expected"
+ },
+ "aucun destinataire n'a donné un accord permettant cette diffusion": {
+  "fr": "aucun destinataire n'a donné un accord permettant cette diffusion",
+  "en": "no recipient has given consent allowing this broadcast"
+ },
+ "quantité de messages invalide : un entier >= 1 est attendu": {
+  "fr": "quantité de messages invalide : un entier >= 1 est attendu",
+  "en": "invalid message quantity: an integer >= 1 is expected"
  }
 }
