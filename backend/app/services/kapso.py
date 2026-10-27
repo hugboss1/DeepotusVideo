@@ -120,25 +120,29 @@ def _attente(entetes: dict, essai: int) -> float:
     return float(2 ** essai)
 
 
-async def _appel(methode: str, url: str, *, json=None, params=None) -> tuple[int, object, dict]:
-    """Un appel avec clé vérifiée, réessai 429/409 `message_in_flight`, erreurs normalisées ; rend (statut, corps, en-têtes) en 2xx."""
+async def _appel(methode: str, url: str, *, json=None, params=None, reessai_ok: bool = True) -> tuple[int, object, dict]:
+    """Un appel avec clé vérifiée, réessai 429/409 `message_in_flight`, erreurs normalisées ; rend (statut, corps, en-têtes) en 2xx.
+    `reessai_ok=False` : un seul essai (un 429 reste marqué réessayable : c'est à l'appelant de décider)."""
     cle = comptes.cle_kapso()
     if not cle:
         raise KapsoErreur("Clé Kapso absente", code="cle_absente")
     chemin = _chemin(url)
     for essai in range(MAX_ESSAIS):
+        panne = None
         try:
             statut, corps, entetes = await _requete(methode, url, json=json, params=params)
         except KapsoErreur:
             raise
         except Exception as e:  # noqa: BLE001 — le texte d'une exception réseau peut porter une URL : jamais recopié
-            logger.warning(f"kapso {methode} {chemin} : réseau ({type(e).__name__})")
-            raise KapsoErreur("Kapso injoignable", code="reseau", reessayable=True) from None
+            panne = type(e).__name__          # on ne garde que le nom : l'exception (et sa requête, avec la clé) est lâchée
+        if panne is not None:                 # levée HORS du `except` : `__context__` reste vide
+            logger.warning(f"kapso {methode} {chemin} : réseau ({panne})")
+            raise KapsoErreur("Kapso injoignable", code="reseau", reessayable=True)
         if 200 <= statut < 300:
             return statut, corps, entetes
         code, message = _lire_erreur(statut, corps, cle)
         reessai = statut == 429 or (statut == 409 and code == "message_in_flight")
-        if reessai and essai < MAX_ESSAIS - 1:
+        if reessai and reessai_ok and essai < MAX_ESSAIS - 1:
             await _dormir(_attente(entetes, essai))
             continue
         if statut == 429:
@@ -217,7 +221,7 @@ async def preferences_marketing(contact: str, *, phone_number_id: str | None = N
     lignes = [x for x in _data(corps, list) if isinstance(x, dict)]
     if phone_number_id is not None:
         lignes = [x for x in lignes if str(x.get("phone_number_id")) == str(phone_number_id)]
-    return all(x.get("marketing_allowed", True) is not False for x in lignes)
+    return all(x.get("marketing_allowed") is not False and x.get("status") != "stopped" for x in lignes)   # fermé
 
 
 # ---- proxy WhatsApp ---------------------------------------------------------------------------------------------------
@@ -247,14 +251,14 @@ def _page(corps, limite: int) -> tuple[list, str | None]:
     paging = corps.get("paging") if isinstance(corps, dict) else None
     cursors = paging.get("cursors") if isinstance(paging, dict) else None
     apres = cursors.get("after") if isinstance(cursors, dict) else None
-    return liste, (str(apres) if apres else None)
+    return liste, (str(apres) if apres and liste else None)     # jamais de curseur pour une page vide : `while cur:` s'arrête
 
 
 async def messages(phone_number_id: str, *, depuis: str | None = None, apres: str | None = None,
                    limite: int = 100) -> tuple[list, str | None]:
     """GET /{numéro}/messages, plus récent d'abord. `depuis` = ISO 8601 (`since`, créés >=) ; `apres` = curseur de la page
-    plus ancienne. Rend (messages, curseur `after`) ; le curseur reste rendu même en bout de liste (le proxy ne dit pas
-    `next`) : l'appelant s'arrête à une page vide."""
+    plus ancienne. Rend (messages, curseur `after`) ; le curseur est None pour une page vide (le proxy ne dit pas `next`) :
+    une boucle `while cur:` s'arrête toujours."""
     limite = max(1, min(int(limite), 100))
     params: dict = {"limit": limite}
     if depuis:
@@ -268,7 +272,7 @@ async def messages(phone_number_id: str, *, depuis: str | None = None, apres: st
 async def conversations(phone_number_id: str, *, apres: str | None = None, limite: int = 100,
                         champs: str | None = None) -> tuple[list, str | None]:
     """GET /{numéro}/conversations. `champs` (optionnel) = `fields` du proxy, par ex. `kapso()` pour l'extension
-    (`last_inbound_at`, fenêtre 24 h). Rend (conversations, curseur `after`)."""
+    (`last_inbound_at`, fenêtre 24 h). Rend (conversations, curseur `after`) ; curseur None pour une page vide."""
     limite = max(1, min(int(limite), 100))
     params: dict = {"limit": limite}
     if apres:
@@ -308,7 +312,7 @@ async def media(media_id: str, phone_number_id: str) -> bytes:
     if not _url_media_sure(url):
         logger.warning("kapso media : adresse de téléchargement refusée (hôte ou schéma)")
         raise KapsoErreur("Adresse de téléchargement refusée", code="media_hote_refuse")
-    _s, octets, _e = await _appel("GET", str(url))
+    _s, octets, _e = await _appel("GET", str(url), reessai_ok=False)    # 4 min de vie : un seul essai, jamais d'attente
     if not isinstance(octets, (bytes, bytearray)):
         raise KapsoErreur("Réponse Kapso invalide", code="reponse_invalide")
     return bytes(octets)

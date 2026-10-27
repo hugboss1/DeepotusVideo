@@ -333,5 +333,24 @@ scene(rep({"id": "MID", "download_url": DL}), rep({"x": 1}))
 e = erreur(K.media("MID", "PN1"))
 check("I6 corps du téléchargement non binaire : KapsoErreur", isinstance(e, K.KapsoErreur) and e.code == "reponse_invalide", repr(e))
 
+print("\n[j] fixes de revue : curseur de fin, préférences fermées, téléchargement sans réessai, __context__")
+scene(rep({"data": [], "paging": {"cursors": {"after": "CURX"}}}))
+check("J1 page vide avec after non vide : curseur None (messages)", run(K.messages("PN1"))[1] is None)
+scene(rep({"data": [], "paging": {"cursors": {"after": "CURX"}}}))
+check("J1b idem (conversations)", run(K.conversations("PN1"))[1] is None)
+scene(rep({"data": [{"id": "m"}], "paging": {"cursors": {"after": "CURX"}}}))
+check("J2 page pleine : curseur gardé", run(K.messages("PN1"))[1] == "CURX")
+scene(rep({"data": [{"phone_number_id": "PN1", "status": "stopped"}]}))
+check("J3 ligne sans marketing_allowed mais status stopped : refusé", run(K.preferences_marketing("x")) is False)
+scene(rep({"id": "MID", "download_url": DL}), rep({"error": "slow"}, 429, {"Retry-After": "1"}))
+e = erreur(K.media("MID", "PN1"))
+check("J4 429 sur le téléchargement : un seul essai, aucune attente, réessayable",
+      isinstance(e, K.KapsoErreur) and e.code == "429" and e.reessayable is True and len(APPELS) == 2 and DORS == [],
+      (repr(e), len(APPELS), DORS))
+scene(RuntimeError("boom"))
+e = erreur(K.liens("c1"))
+check("J5 erreur réseau : __context__ et __cause__ vides", isinstance(e, K.KapsoErreur) and e.__context__ is None
+      and e.__cause__ is None, repr(e))
+
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)
