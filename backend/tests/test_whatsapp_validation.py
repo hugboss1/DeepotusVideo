@@ -544,6 +544,19 @@ check("V10.2 modèle sans boutons de réponse rapide aux places 0 et 1 : 400 (me
       (r.status_code, r.text[:200], len(FK.medias) - m0))
 r = client_http.post(f"/api/schedule/{poser(C7)}/validation-whatsapp", headers={"Accept-Language": "en"})
 check("V10.3 le refus est traduit (L10, en)", r.status_code == 400 and "quick" in str(detail(r)).lower(), r.text[:200])
+# t311 (restes) : un modèle à DEUX paramètres (ou plus) ne peut recevoir que le titre : refusé AVANT le téléversement de
+# l'aperçu (il partait chez Kapso, puis l'envoi échouait sur le nombre de paramètres)
+FK.modeles.append({"name": "validation_deux", "language": "fr", "category": "UTILITY", "status": "APPROVED", "components": [
+    {"type": "HEADER", "format": "IMAGE"}, {"type": "BODY", "text": "Publication {{1}} pour {{2}}"},
+    {"type": "BUTTONS", "buttons": [{"type": "QUICK_REPLY", "text": "Valider"}, {"type": "QUICK_REPLY", "text": "Corriger"}]}]})
+WA.regler_espace(C7, {"agent": {"modele_validation": {"nom": "validation_deux", "langue": "fr"}}})
+n0, m0 = len(FK.envois), len(FK.medias)
+r = envoyer(poser(C7))
+check("V10.4 modèle de validation à deux paramètres : 400 (message L10), AVANT tout téléversement, rien envoyé",
+      r.status_code == 400 and "paramètre" in str(detail(r)) and len(FK.envois) == n0 and len(FK.medias) == m0,
+      (r.status_code, r.text[:200], len(FK.medias) - m0))
+r = client_http.post(f"/api/schedule/{poser(C7)}/validation-whatsapp", headers={"Accept-Language": "en"})
+check("V10.5 ce refus est traduit (L10, en)", r.status_code == 400 and "parameter" in str(detail(r)).lower(), r.text[:200])
 
 # ---------------------------------------------------------------------------------------------------------------------
 print("\n[V8] journal")

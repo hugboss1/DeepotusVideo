@@ -11230,5 +11230,9 @@
  "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu": {
   "fr": "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu",
   "en": "agent: drafts per contact and per day: an integer from 0 to 200 is expected"
+ },
+ "le modèle de validation doit avoir au plus un paramètre (le titre du post)": {
+  "fr": "le modèle de validation doit avoir au plus un paramètre (le titre du post)",
+  "en": "the validation template must have at most one parameter (the post title)"
  }
 }

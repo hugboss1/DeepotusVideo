@@ -820,6 +820,14 @@ try:
               FK.envois[e0:] == [] and b_.get("etat") == "attente" and WR.montant_hors_fiche(texte_, A), b_)
     check("R13.8 un nombre absent de la fiche, sans mot d'argent, garde aussi le brouillon ; un nombre de la fiche passe",
           WR.montant_hors_fiche("Nous avons 3 places", A) and not WR.montant_hors_fiche("Ouvert samedi de 9 h à 12 h", A))
+    # t311 (restes) : un nombre ÉCRIT EN LETTRES (FR-EN) absent de la fiche garde aussi le brouillon ; « un », « une »,
+    # « one » (articles) ne comptent pas
+    check("R13.8b nombre en lettres absent de la fiche : brouillon gardé (« cinquante », « deux cents », « twenty »)",
+          WR.montant_hors_fiche("Ce sera cinquante la séance", A) and WR.montant_hors_fiche("Comptez deux cents", A)
+          and WR.montant_hors_fiche("It is twenty for the session", A) and WR.montant_hors_fiche("Soixante-dix, pas plus", A))
+    check("R13.8c articles et texte sans nombre : rien (« un rendez-vous », « une place », « one moment »)",
+          not WR.montant_hors_fiche("Je vous propose un rendez-vous, une place se libère dans un moment", A)
+          and not WR.montant_hors_fiche("One moment please", A))
 
     # (4) borne de rédactions par contact et par jour (le relevé seulement)
     WA.regler_espace(A, {"agent": {"mode": "brouillon", "plafond_redactions_jour": 1}})

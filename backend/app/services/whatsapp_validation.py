@@ -253,6 +253,17 @@ async def envoyer_validation(post_id: str) -> dict:
         if not {0, 1} <= rapides:                 # avant tout téléversement : les payloads val:… partent aux places 0 et 1
             raise ValueError("le modèle de validation doit avoir deux boutons de réponse rapide (Valider, Corriger) aux "
                              "deux premières places")
+        # t311 (restes) : le modèle ne reçoit que le titre du post — jugé AVANT le téléversement de l'aperçu
+        n = modele.get("n_parametres") or 0
+        noms = modele.get("noms_parametres") if isinstance(modele.get("noms_parametres"), list) else []
+        if n == 1 and modele.get("parametres") == "nommes" and len(noms) == 1:
+            parametres = {str(noms[0]): _parametre(post, langue)}      # paramètre NOMMÉ : {nom: titre}
+        elif n == 1 and modele.get("parametres") != "nommes":
+            parametres = [_parametre(post, langue)]
+        elif n == 0:
+            parametres = []
+        else:
+            raise ValueError("le modèle de validation doit avoir au plus un paramètre (le titre du post)")
     apercu = _apercu(post.source_image)
     entete_image = modele is None or (modele.get("composants") or {}).get("entete") == "image"
     if modele is not None and (modele.get("composants") or {}).get("entete") == "image" and apercu is None:
@@ -266,14 +277,6 @@ async def envoyer_validation(post_id: str) -> dict:
         if media_id:
             envoi["entete_media_id"] = media_id
     else:
-        n = modele.get("n_parametres") or 0
-        noms = modele.get("noms_parametres") if isinstance(modele.get("noms_parametres"), list) else []
-        if n == 1 and modele.get("parametres") == "nommes" and len(noms) == 1:
-            parametres = {str(noms[0]): _parametre(post, langue)}      # paramètre NOMMÉ : {nom: titre}
-        elif n == 1 and modele.get("parametres") != "nommes":
-            parametres = [_parametre(post, langue)]
-        else:
-            parametres = []
         envoi = {"type": "modele", "nom": modele["nom"], "langue": modele["langue"], "parametres": parametres,
                  "boutons": [{"index": 0, "payload": ok}, {"index": 1, "payload": corr}]}
         if media_id:

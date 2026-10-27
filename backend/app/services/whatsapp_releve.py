@@ -55,6 +55,13 @@ JOURS_GARDES = 7                      # `auto_jour` ne garde que les derniers jo
 _VUS = "_vus"                         # marqueur[_VUS][cid] : ids des entrants vus à la seconde du marqueur
 _MONTANT = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:[€$£]|eur\b|euros?\b|dollars?\b)|[€$£]\s*(\d+(?:[.,]\d+)?)")
 _NOMBRE = re.compile(r"\d+(?:[.,]\d+)?")
+# t311 (restes) : les nombres écrits en lettres (FR-EN, sans accents) ; « un », « une », « one » sont des articles
+_NOMBRE_LETTRES = re.compile(
+    r"(?<![a-z])(?:deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingts?|"
+    r"trente|quarante|cinquante|soixante|septante|octante|nonante|cents?|milles?|millions?|milliards?|"
+    r"two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|"
+    r"eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundreds?|thousands?|"
+    r"billions?)(?![a-z])")
 _MOT = re.compile(r"\S+")
 VOISINAGE = 3                         # un nombre à 3 mots au plus d'un mot d'argent est un montant
 LIBELLE_CARTE = "Réponse WhatsApp à envoyer"
@@ -107,14 +114,16 @@ def _montants(texte_plat: str) -> set:
 def montant_hors_fiche(texte: str, eid: str) -> bool:
     """Le texte cite-t-il un mot d'argent (`agent_whatsapp.MOTS_ARGENT_SORTANT` : devises, %, prix, tarif, coût, gratuit,
     remise, devis…) absent de la fiche, un montant (`_montants` : nombre + devise, ou nombre voisin d'un mot d'argent)
-    que la fiche ne porte pas, ou N'IMPORTE QUEL nombre (entier, décimal, pourcentage) qui n'est pas tel quel dans la
-    fiche ? Fiche = persona brut de l'espace sérialisé ; comparaison en minuscules, sans accents."""
+    que la fiche ne porte pas, ou N'IMPORTE QUEL nombre (entier, décimal, pourcentage, ou écrit en lettres) qui n'est
+    pas tel quel dans la fiche ? Fiche = persona brut de l'espace sérialisé ; comparaison en minuscules, sans accents."""
     fiche = AW._plat(json.dumps(espaces_brut.persona(eid), ensure_ascii=False))
     t = AW._plat(texte)
     if any(m.group(0) not in fiche for m in AW.MOTS_ARGENT_SORTANT.finditer(t)):
         return True
     if set(_NOMBRE.findall(t)) - set(_NOMBRE.findall(fiche)):
         return True                              # relecture finale : tout nombre absent de la fiche garde le brouillon
+    if set(_NOMBRE_LETTRES.findall(t)) - set(_NOMBRE_LETTRES.findall(fiche)):
+        return True                              # t311 (restes) : de même pour un nombre écrit en lettres
     return bool(_montants(t) - _montants(fiche))
 
 
