@@ -81,5 +81,7 @@
   "campagnes.outil.deviser_generation": {"fr":"Devis d'une génération","en":"Quoting a generation"},
   "campagnes.outil.creer_brouillons": {"fr":"Création des brouillons","en":"Creating the drafts"},
   "campagnes.outil.pointer": {"fr":"Désignation d'un élément de l'écran","en":"Pointing at an on-screen element"},
+  "campagnes.outil.veille_collecter": {"fr":"Lancement de la veille des concurrents","en":"Starting the competitor watch"},
+  "campagnes.outil.veille_lire": {"fr":"Lecture de la veille des concurrents","en":"Reading the competitor watch"},
   "campagnes.plan.reprendre": {"fr":"Reprendre la conversation","en":"Resume the conversation"}
 }

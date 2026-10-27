@@ -201,7 +201,8 @@ export function glisse(a, b, seuil = 4) { return Math.hypot(b.x - a.x, b.y - a.y
 // t285b (24/10/2026, plan 2026-10-23-agent-interne, T10b) : l'onglet « Campagnes » du tiroir monte le composant partagé
 // /shared/dz-campagnes.js. Sans espace : rôle « orienteur » ; un espace choisi : rôle « campagnes » et son espace_id
 // (jamais l'espace actif d'office). `surCid` est ajouté par l'écran, pas ici.
-export const ONGLETS = ["demander", "campagnes"];
+// t352 (27/10/2026) : 3e onglet « Veille » (/shared/dz-veille.js, lecture seule, un espace choisi)
+export const ONGLETS = ["demander", "campagnes", "veille"];
 export function ongletLu(v) { return ONGLETS.includes(v) ? v : "demander"; }
 export function optionsCampagnes({ espace, brief, cid } = {}) {
   const o = { contexte: "f1", role: espace ? "campagnes" : "orienteur" };

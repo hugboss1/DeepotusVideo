@@ -425,6 +425,61 @@ win.DzCampagnes = fauxDzCampagnes;
   ok("5b.3 …et gardé", egal(JSON.parse(S3.getItem("dz_agent_camp") || "null"), { cid: "c77", role: "orienteur", espace: "e2" }), S3.getItem("dz_agent_camp"));
 }
 
+// ---- 5c. t352 : l'onglet Veille monte dz-veille.js pour l'espace choisi ---------------------------------------------------
+{
+  const veilles = [];
+  win.DzVeille = { monter(hote, opts) {
+    const rec = { opts: { ...opts }, demonte: false, recharges: 0 };
+    const racine = new Noeud("div"); racine.setAttribute("data-dz-veille", "racine"); hote.appendChild(racine);
+    veilles.push(rec);
+    return { recharger() { rec.recharges++; }, demonter() { rec.demonte = true; racine.remove(); } };
+  } };
+  const S4 = stockage();
+  const nEsp0 = appels.filter((a) => a.url.startsWith("/api/espaces")).length;
+  const { tiroir: T4, bouton: B4 } = await charger(S4, "veille");
+  const ongV = marque(T4, "onglet-veille"), ongD4 = marque(T4, "onglet-demander"), ongC4 = marque(T4, "onglet-campagnes");
+  const liste = T4.querySelector('[role="tablist"]');
+  ok("5c.1 trois onglets, Veille traduit", !!ongV && liste.children.length === 3 && ongV.textContent === dzT("agent.onglet.veille")
+    && ongV.attrs.role === "tab", ongV && ongV.textContent);
+  const panV = DOC.getElementById(ongV.attrs["aria-controls"]);
+  ok("5c.2 le panneau Veille est caché au départ", !!panV && panV.hasAttribute("hidden"));
+  B4.click(); await tick();
+  ongV.click(); await tick(); await tick();
+  const selV = marque(T4, "espace-veille");
+  ok("5c.3 Veille ouvert, gardé en session", ongV.attrs["aria-selected"] === "true" && !panV.hasAttribute("hidden")
+    && S4.getItem("dz_agent_onglet") === "veille");
+  ok("5c.4 monté sur l'espace actif (la veille ne fait que lire)", veilles.length === 1 && veilles[0].opts.espace_id === "e1"
+    && selV.value === "e1", JSON.stringify(veilles.map((v) => v.opts)));
+  ok("5c.5 l'espace archivé n'est pas proposé", !Array.from(selV.children).some((o) => o.getAttribute("value") === "e3"));
+  selV.value = "e2"; selV.fire("change"); await tick();
+  ok("5c.6 changer d'espace démonte puis remonte", veilles[0].demonte && veilles.length === 2 && veilles[1].opts.espace_id === "e2"
+    && S4.getItem("dz_agent_veille") === "e2");
+  ongD4.click(); await tick(); ongV.click(); await tick(); await tick();
+  ok("5c.7 Demander puis Veille : pas de remontage", veilles.length === 2 && !veilles[1].demonte);
+  const nouvelle = T4.querySelector(`button[aria-label="${dzT("agent.tiroir.nouvelle")}"]`);
+  nouvelle.click(); await tick();
+  ok("5c.8 ↺ sur Veille relit la veille", veilles[1].recharges === 1 && veilles.length === 2);
+  ongV.fire("keydown", { key: "ArrowRight" });
+  ok("5c.9 flèche droite depuis Veille : retour à Demander (boucle)", ongD4.attrs["aria-selected"] === "true" && DOC.activeElement === ongD4);
+  ongD4.fire("keydown", { key: "ArrowLeft" }); await tick(); await tick();
+  ok("5c.10 flèche gauche depuis Demander : Veille", ongV.attrs["aria-selected"] === "true" && DOC.activeElement === ongV);
+  ongV.fire("keydown", { key: "ArrowLeft" });
+  ok("5c.11 flèche gauche depuis Veille : Campagnes", ongC4.attrs["aria-selected"] === "true");
+  ok("5c.12 les espaces ne sont lus qu'une fois pour les deux onglets",
+    appels.filter((a) => a.url.startsWith("/api/espaces")).length === nEsp0 + 1);
+  const S5 = stockage({ dz_agent_onglet: "veille", dz_agent_veille: "e2" });
+  const avant = veilles.length;
+  const { tiroir: T5, bouton: B5 } = await charger(S5, "veille2");
+  B5.click(); await tick(); await tick();
+  ok("5c.13 rechargé : Veille gardé, sur l'espace gardé", marque(T5, "onglet-veille").attrs["aria-selected"] === "true"
+    && veilles.length === avant + 1 && veilles[veilles.length - 1].opts.espace_id === "e2", JSON.stringify(veilles.slice(avant).map((v) => v.opts)));
+  delete win.DzVeille;
+  const { tiroir: T6, bouton: B6 } = await charger(stockage({ dz_agent_onglet: "veille" }), "veille3");
+  B6.click(); await tick(); await tick();
+  ok("5c.14 sans dz-veille.js : un message, pas d'erreur", !!marque(T6, "veille-indisponible")
+    && marque(T6, "veille-indisponible").textContent === dzT("agent.veille.indisponible"));
+}
+
 // ---- 6. copies_dist_identiques ------------------------------------------------------------------------------------------
 for (const f of ["dz-agent.js", "dz-agent-logique.js"]) {
   const a = readFileSync(new URL(f, ICI)), b = readFileSync(new URL("../dist/shared/" + f, ICI));
