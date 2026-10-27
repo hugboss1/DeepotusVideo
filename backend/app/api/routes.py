@@ -9739,8 +9739,9 @@ def _etat_diffusion(rec: dict | None) -> dict | None:
 
 @router.get("/schedule/{post_id}/diffusion")
 async def get_scheduled_post_diffusion(post_id: str, request: Request, relire: int = 0):
-    """{config, audience, devis, etat} de la diffusion du post (config null s'il n'y en a pas). `?relire=1` : relue chez
-    Kapso d'abord (si lancée) et reportée sur le post. Audience et devis recalculés sans réseau."""
+    """{config, audience, devis, etat} de la diffusion du post (config null s'il n'y en a pas ; identités COMPTÉES,
+    `n_identites`, jamais la liste). `?relire=1` : relue chez Kapso d'abord, pages de destinataires comprises (si lancée),
+    et reportée sur le post. Audience et devis recalculés sans réseau."""
     _require_localhost(request)
     from app.services import whatsapp_diffusions as WD
     async with async_session_factory() as session:
@@ -9749,13 +9750,13 @@ async def get_scheduled_post_diffusion(post_id: str, request: Request, relire: i
     rec = WD.lire(post_id, eid)
     if relire and rec and rec.get("compte"):
         try:
-            rec = await WD.relire(post_id, eid)
+            rec = await WD.relire(post_id, eid, complet=True)
             await WD.reporter_post(post_id, eid, rec)
         except Exception as e:  # noqa: BLE001
             raise _diffusion_erreur(e)
         rec.pop("statut_kapso", None)
     ap = WD.apercu(rec, eid)
-    return {"config": rec, "audience": ap.get("audience"), "devis": ap.get("devis"), "refus": ap.get("refus"),
+    return {"config": WD.vue_config(rec), "audience": ap.get("audience"), "devis": ap.get("devis"), "refus": ap.get("refus"),
             "etat": _etat_diffusion(rec)}
 
 
@@ -9764,14 +9765,19 @@ async def put_scheduled_post_diffusion(post_id: str, request: Request, body: Any
     """Corps {modele: {nom, langue}, parametres, identites?, confirme_client?} -> `configurer` : {config, audience, devis,
     post}. Le post doit viser un compte whatsapp de son espace. Comme une modification du CONTENU (t309), la validation
     et la confirmation du client sont effacées (un post programmé d'un client « validé par le client » repasse
-    a_valider) ; les règles du client passent AVANT toute écriture. Aucune réservation, aucun envoi."""
+    a_valider) ; revue t328 tâche 4 (point 4) : le modèle EST le contenu, une validation par lot (`validated_at`) tombe
+    aussi (assisted, draft), comme au PATCH. Les règles du client passent AVANT toute écriture. Aucune réservation, aucun
+    envoi."""
     _require_localhost(request)
     from app.services import whatsapp_diffusions as WD
     b = body if isinstance(body, dict) else {}
     async with async_session_factory() as session:
         p = await _post_ou_404(session, post_id)
         cid = _compte_diffusion(p)
-        _regles_client_patch(p, b, None, p.comptes, p.status)     # contenu « changé » : refus = 409, rien d'écrit
+        statut_avant = p.status
+        if p.validated_at:                                         # comme un PATCH du contenu (update_scheduled_post)
+            p.validated_at, p.mode, p.status = None, "assisted", "draft"
+        _regles_client_patch(p, b, None, p.comptes, statut_avant)  # contenu « changé » : refus = 409, rien d'écrit
         try:
             res = await WD.configurer(post_id, cid, modele=b.get("modele"), parametres=b.get("parametres"),
                                       identites=b.get("identites"))
@@ -9779,13 +9785,16 @@ async def put_scheduled_post_diffusion(post_id: str, request: Request, body: Any
             raise _diffusion_erreur(e)
         await session.commit()
         await session.refresh(p)
-        return {**res, "post": _post_to_dict(p)}
+        return {**res, "config": WD.vue_config(res.get("config")), "post": _post_to_dict(p)}
 
 
 @router.post("/schedule/{post_id}/diffusion/confirmer")
 async def post_scheduled_post_diffusion_confirmer(post_id: str, request: Request, body: Any = Body(default=None)):
     """Corps {confirme_incertain: true, confirme_client?} : relance confirmée d'une diffusion à l'issue incertaine
-    (Décision 7), sous les mêmes contrôles que /fire (règles du client, 409 structuré, rien ne part) ; plafond 402.
+    (Décision 7), sous les mêmes contrôles que /fire (règles du client, 409 structuré, rien ne part) ; plafond 402 rendu tel
+    quel (dz_plafond). 409 `pas_incertaine` pour une diffusion qui n'est ni incertaine ni en attente de confirmation (un
+    lancement normal passe par /fire). Envoi accepté : le post est publié par `fire_post` (l'adaptateur reprend la
+    diffusion déjà partie, remote_ids et `posted` comme un /fire ; les autres cibles déjà parties ne repartent pas).
     Rend {diffusion: {broadcast_id, statut, n, incertain}, post}."""
     _require_localhost(request)
     from app.services import whatsapp_diffusions as WD
@@ -9805,11 +9814,12 @@ async def post_scheduled_post_diffusion_confirmer(post_id: str, request: Request
     if not rec or rec.get("compte") != cid:
         raise HTTPException(409, "la diffusion de ce post n'est pas configurée sur son compte WhatsApp")
     try:
+        WD.exiger_incertaine(rec)
         r = await WD.lancer(post_id, confirme_incertain=True)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — 402 du plafond rendu tel quel par _wa_erreur
         raise _diffusion_erreur(e)
-    eid = p.espace_id or "deepotus"
-    await WD.reporter_post(post_id, eid, WD.lire(post_id, eid))
+    if not r.get("incertain"):
+        await marketing.fire_post(post_id)
     async with async_session_factory() as session:
         p = await _post_ou_404(session, post_id)
     return {"diffusion": r, "post": _post_to_dict(p)}

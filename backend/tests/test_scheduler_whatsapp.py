@@ -16,6 +16,16 @@ boucle de fond n'est pas démarrée). Ce que ce banc garde :
   S8  tick relit une diffusion `sending` ; une incertaine que Kapso tranche (`sending`) passe le post `posted` ; une
       relecture qui lève ne casse pas le tick (journal : le type seulement)
   S9  espace archivé : le tick ne lance rien
+  Revue t328 tâche 4, tour 1 :
+  F1  confirmer sur une diffusion non incertaine -> 409 pas_incertaine, aucun appel Kapso ; lancée hors /fire puis fire
+      -> post posted avec le remote id, aucun second send
+  F2  canaux par défaut d'un projet : jamais un compte whatsapp (poser_canaux l'écarte, canaux_par_defaut aussi)
+  F3  402 : confirmer rend HTTP 402 dz_plafond ; fire rend 200 {ok: false}, erreur « plafond », aucun send
+  F4  PUT efface aussi validated_at (assisted, draft)
+  F5  relecture de fond : résumé seul tant que non terminée, pages au terme ; budget de temps par tour
+  F7  GET/PUT : identités COMPTÉES (n_identites), jamais la liste
+  F8  post X + WhatsApp sans config : X part, post `posted`, l'erreur WhatsApp gardée ; après PUT + fire, WhatsApp part
+      seul (X pas republié) ; GET ?relire=1 lit les pages
   J1  journal sans numéro ni texte de modèle
 Run (depuis backend/) : & $PY tests/test_scheduler_whatsapp.py"""
 import asyncio, json, os, pathlib, sys, tempfile
@@ -213,7 +223,8 @@ async def main():
         except PermissionError as e:
             e1 = e
         check("S1.2 compte whatsapp d'un autre espace : PermissionError", e1 is not None, repr(e1))
-        check("S1.3 NON_PUBLIABLES ne contient plus whatsapp", "whatsapp" not in CP.NON_PUBLIABLES)
+        check("S1.3 NON_PUBLIABLES retiré (branche morte), whatsapp dans CIBLES_EXPLICITES",
+              not hasattr(CP, "NON_PUBLIABLES") and "whatsapp" in CP.CIBLES_EXPLICITES)
         r = await poster(boite, [wautre])
         check("S1.4 POST /api/schedule avec un compte whatsapp d'un autre espace : 409", r.status_code == 409, r.text[:200])
         r = await poster(boite, [wid])
@@ -234,6 +245,14 @@ async def main():
         check("S2.3 GET : 200 {config, audience, devis, etat}", r.status_code == 200
               and set(j) >= {"config", "audience", "devis", "etat"} and j["etat"]["statut"] == "configuree"
               and j["audience"]["n"] == 3, r.text[:300])
+        check("F7.1 GET : n_identites (None = toute l'audience), jamais la clé identites",
+              "identites" not in j["config"] and j["config"]["n_identites"] is None, r.text[:300])
+        pid7 = (await poster(boite, [wid])).json()["id"]
+        r = await c.put(f"/api/schedule/{pid7}/diffusion", json={**MOD, "identites": AUDIENCE[:2]})
+        g = await c.get(f"/api/schedule/{pid7}/diffusion")
+        check("F7.2 PUT/GET avec une liste : n_identites = 2, aucun numéro dans les réponses",
+              r.status_code == 200 and r.json()["config"]["n_identites"] == 2 and g.json()["config"]["n_identites"] == 2
+              and not any(i[4:] in r.text + g.text for i in AUDIENCE), r.text[:300])
         r = await c.get("/api/schedule/inconnu-0/diffusion")
         check("S2.4 GET post inconnu : 404", r.status_code == 404, r.text[:200])
         r = await c.put("/api/schedule/inconnu-0/diffusion", json=MOD)
@@ -267,6 +286,12 @@ async def main():
         check("S3.3 un seul send", len(sends()) == 1, F.appels)
         r = await c.post(f"/api/schedule/{p3}/fire")
         check("S3.4 second fire : déjà publié, aucun nouvel appel de diffusion", len(sends()) == 1, F.appels)
+        F.appels.clear()
+        r = await c.get(f"/api/schedule/{p3}/diffusion?relire=1")
+        check("F8.3 GET ?relire=1 : 200, broadcast ET pages de destinataires lus, statut sending",
+              r.status_code == 200 and ("GET", f"/whatsapp/broadcasts/{bid3}") in F.appels
+              and ("GET", f"/whatsapp/broadcasts/{bid3}/recipients") in F.appels and r.json()["etat"]["statut"] == "sending"
+              and sends() == [], (r.text[:200], F.appels))
 
         print("\n[S4] sans config")
         p4 = (await poster(boite, [wid])).json()["id"]
@@ -314,8 +339,104 @@ async def main():
         check("S6.6 … post posted, remote id = la nouvelle diffusion", p.status == "posted" and rid.get(f"whatsapp:{wid}") == nb,
               (p.status, rid))
         r = await c.post(f"/api/schedule/{p6}/diffusion/confirmer", json={"confirme_incertain": True})
-        check("S6.7 confirmer une diffusion déjà partie : 409 deja_lancee, aucun send", r.status_code == 409
-              and r.json()["detail"]["code"] == "deja_lancee" and len(sends()) == 2, r.text[:300])
+        check("S6.7 confirmer une diffusion déjà partie : 409 pas_incertaine, aucun send", r.status_code == 409
+              and r.json()["detail"]["code"] == "pas_incertaine" and len(sends()) == 2, r.text[:300])
+
+        print("\n[F1] confirmer réservé à l'incertain ; lancement hors /fire")
+        p10 = (await poster(boite, [wid])).json()["id"]
+        await c.put(f"/api/schedule/{p10}/diffusion", json=MOD)
+        F.appels.clear()
+        r = await c.post(f"/api/schedule/{p10}/diffusion/confirmer", json={"confirme_incertain": True})
+        check("F1.1 confirmer sur une diffusion configurée (pas incertaine) : 409 pas_incertaine", r.status_code == 409
+              and r.json()["detail"]["code"] == "pas_incertaine", r.text[:300])
+        check("F1.2 … aucun appel Kapso", F.appels == [], F.appels)
+        r10 = await WD.lancer(p10)                 # lancée par un autre chemin que /fire
+        n_send = len(sends())
+        r = await c.post(f"/api/schedule/{p10}/fire")
+        p = await lire_post(p10)
+        check("F1.3 fire après un lancement hors /fire : posted, remote id = la diffusion, aucun second send",
+              p.status == "posted" and json.loads(p.remote_ids or "{}").get(f"whatsapp:{wid}") == r10["broadcast_id"]
+              and len(sends()) == n_send, (p.status, p.remote_ids, p.error))
+
+        print("\n[F3] 402")
+        from app.services import plafonds as PF
+        p12 = (await poster(boite, [wid])).json()["id"]
+        await c.put(f"/api/schedule/{p12}/diffusion", json=MOD)
+        PF.enregistrer({"global_usd": 0.01})
+        F.appels.clear()
+        r = await c.post(f"/api/schedule/{p12}/fire")
+        p = await lire_post(p12)
+        check("F3.1 fire au-dessus du plafond : 200 {ok: false}, erreur « plafond », post ready",
+              r.status_code == 200 and r.json()["ok"] is False and "plafond" in (p.error or "") and p.status == "ready",
+              (r.text[:300], p.error))
+        check("F3.2 … aucun send, la diffusion revient à configuree", sends() == []
+              and WD.lire(p12, boite)["statut"] == "configuree", F.appels)
+        PF.enregistrer({"global_usd": 0})
+        F.send = [(500, {"error": "boom"})]
+        await c.post(f"/api/schedule/{p12}/fire")
+        check("F3.3 (préparation) send 500 : incertaine", WD.lire(p12, boite)["incertain"] is True)
+        PF.enregistrer({"global_usd": 0.01})
+        n_send = len(sends())
+        r = await c.post(f"/api/schedule/{p12}/diffusion/confirmer", json={"confirme_incertain": True})
+        check("F3.4 confirmer au-dessus du plafond : HTTP 402 dz_plafond, aucun send", r.status_code == 402
+              and "dz_plafond" in r.json()["detail"] and len(sends()) == n_send, r.text[:300])
+        PF.enregistrer({"global_usd": 0})
+
+        print("\n[F4] PUT efface validated_at")
+        p13 = (await poster(boite, [wid], status="scheduled", mode="auto")).json()["id"]
+        async with storage.async_session_factory() as s_:
+            pp = (await s_.execute(select(storage.ScheduledPost).where(storage.ScheduledPost.id == p13))).scalar_one()
+            pp.validated_at = datetime.utcnow()
+            await s_.commit()
+        r = await c.put(f"/api/schedule/{p13}/diffusion", json=MOD)
+        p = await lire_post(p13)
+        check("F4.1 PUT sur un post validé par lot : validated_at effacé, assisted, draft",
+              r.status_code == 200 and p.validated_at is None and p.mode == "assisted" and p.status == "draft",
+              (r.status_code, p.validated_at, p.mode, p.status))
+
+        print("\n[F2] canaux par défaut d'un projet")
+        from app.services import library_projects as LP
+        pr = await LP.creer("Projet Soleil")
+        A_, P_, _I, S_ = LP._t()
+        async with S_() as s_:
+            pj = await s_.get(P_, pr["id"])
+            pj.espace_id = boite
+            s_.add(A_(key=LP.cle_actif(boite), value=pr["id"]))
+            await s_.commit()
+        v = await LP.poser_canaux(pr["id"], [wid, xid])
+        check("F2.1 poser_canaux écarte le compte whatsapp", v["canaux"] == [xid], v)
+        async with S_() as s_:
+            pj = await s_.get(P_, pr["id"])
+            pj.canaux = json.dumps([wid, xid])        # rangé avant la règle
+            await s_.commit()
+        check("F2.2 canaux_par_defaut ne rend jamais un compte whatsapp", await LP.canaux_par_defaut(boite) == [xid])
+        r = await c.post("/api/schedule", json={"title": "Défaut", "run_at": "2026-10-27T09:00:00Z", "espace_id": boite})
+        check("F2.3 un post créé sans comptes prend les canaux du projet, sans whatsapp",
+              r.status_code == 200 and r.json()["comptes"] == [xid] and r.json()["channels"] == ["x"], r.text[:300])
+
+        print("\n[F8] post X + WhatsApp")
+        from app.services import publishers as PB
+        X_APPELS = []
+
+        async def faux_x(caption, video, image, meta):
+            from app.services.publishers import PublishResult
+            X_APPELS.append(meta.get("post_id"))
+            return PublishResult(True, "x: ok", f"tw-{len(X_APPELS)}")
+        PB._REGISTRY["x"] = (lambda: True, faux_x)
+        p14 = (await poster(boite, [xid, wid])).json()["id"]
+        F.appels.clear()
+        r = await c.post(f"/api/schedule/{p14}/fire")
+        p = await lire_post(p14)
+        rid = json.loads(p.remote_ids or "{}")
+        check("F8.1 sans config : X part, post posted, erreur WhatsApp gardée, aucune diffusion",
+              p.status == "posted" and rid.get(f"x:{xid}") == "tw-1" and f"whatsapp:{wid}" not in rid
+              and "aucune diffusion" in (p.error or "") and diffusions_kapso() == [], (p.status, rid, p.error))
+        await c.put(f"/api/schedule/{p14}/diffusion", json=MOD)
+        r = await c.post(f"/api/schedule/{p14}/fire")
+        p = await lire_post(p14)
+        rid = json.loads(p.remote_ids or "{}")
+        check("F8.2 après PUT + fire : la diffusion part, X n'est pas republié", rid.get(f"whatsapp:{wid}")
+              and len(X_APPELS) == 1 and p.status == "posted" and not p.error, (rid, X_APPELS, p.error))
 
         print("\n[S7] client valide_par_client")
         r = await poster(cli, [wcli], status="draft")
@@ -354,6 +475,15 @@ async def main():
         check("S8.1 tick relit la diffusion sending (GET du broadcast)", ("GET", f"/whatsapp/broadcasts/{bid3}") in F.appels,
               F.appels)
         check("S8.2 … sans aucun envoi", sends() == [], F.appels)
+        check("F5.1 non terminée : résumé seul, aucune page de destinataires",
+              not any(c_.endswith("/recipients") for _m, c_ in F.appels), F.appels)
+        F.bc[bid3]["status"] = "completed"
+        vieillir(boite, p3)
+        F.appels.clear()
+        await marketing.tick([datetime.utcnow().strftime("%Y-%m-%d")])
+        check("F5.2 terminée : pages de destinataires lues, coût réel posé",
+              ("GET", f"/whatsapp/broadcasts/{bid3}/recipients") in F.appels and WD.lire(p3, boite)["reel_note"] is True,
+              F.appels)
         p8 = (await poster(boite, [wid])).json()["id"]
         await c.put(f"/api/schedule/{p8}/diffusion", json=MOD)
         F.send = [(503, {"error": "indisponible"})]
@@ -363,6 +493,12 @@ async def main():
               and WD.lire(p8, boite)["incertain"] is True)
         F.bc[b8]["status"] = "sending"           # Kapso avait bien pris le send
         vieillir(boite, p8)
+        marketing.BUDGET_RELECTURE_S = 0.0
+        F.appels.clear()
+        await marketing.tick([datetime.utcnow().strftime("%Y-%m-%d")])
+        marketing.BUDGET_RELECTURE_S = 20.0
+        check("F5.3 budget épuisé : rien relu ce tour, la diffusion reste à relire",
+              F.appels == [] and (p8, boite) in WD.a_relire(datetime.now(timezone.utc)), F.appels)
         await marketing.tick([datetime.utcnow().strftime("%Y-%m-%d")])
         p = await lire_post(p8)
         check("S8.4 tick : Kapso tranche sending -> post posted, remote id = la diffusion",
@@ -373,7 +509,7 @@ async def main():
         async def leve(*_a, **_k):
             raise RuntimeError("panne +33610000001 SOLDES-SECRETES")
         WD.relire = leve
-        vieillir(boite, p3)
+        vieillir(boite, p8)                      # p3 est soldée (terminée) : p8, encore sending, est à relire
         try:
             await marketing.tick([datetime.utcnow().strftime("%Y-%m-%d")]); casse = None
         except Exception as e:                  # noqa: BLE001

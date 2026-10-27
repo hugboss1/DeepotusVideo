@@ -24,7 +24,8 @@ t310 (27/10/2026) — WhatsApp par Kapso (spec §6.1). La plateforme `whatsapp` 
 AUCUN secret par compte : la clé Kapso est PLATE et partagée par tous les espaces (`CLE_PLATE`, lue par `cle_kapso`), et
 ses champs publics (client Kapso, numéro…) sont posés par la liaison (`poser_publics_serveur`), jamais saisis. Elle n'a
 pas de compte historique (`SANS_HISTORIQUE`). t328 (27/10/2026) : elle EST une cible du Planificateur, publiée en
-DIFFUSION (`whatsapp_diffusions`, adaptateur « whatsapp ») ; `NON_PUBLIABLES` reste le mécanisme, désormais vide.
+DIFFUSION (`whatsapp_diffusions`, adaptateur « whatsapp »), mais seulement EXPLICITE, post par post : jamais un canal par
+défaut d'un projet (`CIBLES_EXPLICITES`).
 """
 from __future__ import annotations
 
@@ -63,7 +64,7 @@ PLATEFORMES: dict = {
 # t310 (27/10/2026) : les particularités d'une plateforme vivent à part (PLATEFORMES garde 4 positions, décompressées partout)
 CLE_PLATE = {"whatsapp": "KAPSO_API_KEY"}         # plateforme -> clé plate partagée par tous les espaces (jamais par compte)
 SANS_HISTORIQUE = frozenset({"whatsapp"})         # pas de compte virtuel `historique-<p>` (la clé plate n'est pas un compte)
-NON_PUBLIABLES: frozenset = frozenset()           # jamais cibles d'un post ; t328 : whatsapp levé (diffusions)
+CIBLES_EXPLICITES = frozenset({"whatsapp"})       # t328 : cible d'un post choisie post par post, jamais un canal par défaut
 _LIES_PAR_SERVEUR = frozenset({"whatsapp"})       # champs publics posés par la liaison, jamais saisis
 _CHAMP_PLAT = {c: p for p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, _s in champs}
 _SECRET = {c: s for _p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, s in champs}
@@ -639,8 +640,6 @@ def verifier_cibles(espace_id, ids) -> list:
         if not isinstance(cid, str) or cid in vus:
             continue
         v = obtenir(cid)
-        if v["plateforme"] in NON_PUBLIABLES:      # t310 ; t328 (27/10/2026) : ensemble vide, whatsapp part en diffusion
-            raise ValueError("un compte WhatsApp n'est pas une cible de publication")
         if not de_l_espace(cid, eid):
             raise PermissionError(f"le compte {v['libelle']} ({cid}) n'appartient pas à l'espace de ce post")
         out.append(v)

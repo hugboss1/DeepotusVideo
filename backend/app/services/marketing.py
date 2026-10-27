@@ -16,6 +16,7 @@ Three building blocks:
 import asyncio
 import json
 import re
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -1215,17 +1216,30 @@ async def tick(marker: list[str | None] | None = None) -> None:
     await _relire_diffusions(now)
 
 
+BUDGET_RELECTURE_S = 20.0           # t328 : temps maximal de relecture des diffusions WhatsApp par tour de boucle
+
+
+def _monotone() -> float:
+    """HOOK DE BANC : l'horloge monotone du budget de relecture."""
+    return time.monotonic()
+
+
 async def _relire_diffusions(now: datetime) -> None:
     """t328 tâche 4 (Décision 6) : les diffusions WhatsApp lancées non terminées sont relues chez Kapso (au plus une fois
     par minute chacune, `a_relire`) et reportées sur leur post. Jamais bloquant : une panne est journalisée par son TYPE
-    seulement (ni numéro, ni texte), la boucle continue."""
+    seulement (ni numéro, ni texte), la boucle continue. Revue t328 tâche 4 (point 5) : un BUDGET de temps par tour
+    (`BUDGET_RELECTURE_S`) ; le reste attend le tour suivant (a_relire les reprend, `maj` non touché)."""
     try:
         from app.services import whatsapp_diffusions as _wd
         items = _wd.a_relire(now)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"schedule: diffusions WhatsApp illisibles ({type(e).__name__})")
         return
-    for post_id, eid in items:
+    debut = _monotone()
+    for i, (post_id, eid) in enumerate(items):
+        if _monotone() - debut >= BUDGET_RELECTURE_S:
+            logger.info(f"schedule: budget de relecture des diffusions épuisé, {len(items) - i} au tour suivant")
+            break
         try:
             rec = await _wd.relire(post_id, eid)
             await _wd.reporter_post(post_id, eid, rec)

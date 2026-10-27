@@ -379,7 +379,13 @@ async def _espion(ids, usd):
     return await _nrl(ids, usd)
 PF.noter_reel_lignes = _espion
 F.appels.clear()
-v = run(WD.relire("post-1", boite))
+v0 = run(WD.relire("post-1", boite))
+# t328 tâche 4, revue point 5 : non terminée -> le résumé seul (GET du broadcast), aucune page ni désinscription
+check("L1.0 relecture de fond non terminée : résumé seul, compteurs à jour, aucune page",
+      not any(c.endswith("/recipients") for m, c in F.appels) and v0["compteurs"]["suppressed"] == 3
+      and appels_reel == [], F.appels)
+F.appels.clear()
+v = run(WD.relire("post-1", boite, complet=True))          # relecture explicite (route ?relire=1)
 pages = [c for m, c in F.appels if c.endswith("/recipients")]
 check("L1.1 toutes les pages lues", len(pages) == -(-len(rs) // 100), len(pages))
 check("L1.2 compteurs", v["compteurs"]["suppressed"] == 3 and v["compteurs"]["failed"] == 2, v.get("compteurs"))

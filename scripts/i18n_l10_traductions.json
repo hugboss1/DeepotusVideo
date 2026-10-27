@@ -10795,10 +10795,6 @@
   "fr": "{c} est posé par la liaison du compte, jamais saisi",
   "en": "{c} is set by the account link, never typed in"
  },
- "un compte WhatsApp n'est pas une cible de publication": {
-  "fr": "un compte WhatsApp n'est pas une cible de publication",
-  "en": "a WhatsApp account is not a publishing target"
- },
  "comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, il ne s'importe pas": {
   "fr": "comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, il ne s'importe pas",
   "en": "comptes.json: account no. {i} ({plateforme}) ignored: it is linked in each space, it is not imported"
@@ -11298,5 +11294,9 @@
  "ce post est en cours de publication ou confié à un appareil": {
   "fr": "ce post est en cours de publication ou confié à un appareil",
   "en": "this post is being published or has been handed to a device"
+ },
+ "aucune diffusion à l'issue incertaine à confirmer pour ce post : publiez-le normalement": {
+  "fr": "aucune diffusion à l'issue incertaine à confirmer pour ce post : publiez-le normalement",
+  "en": "no broadcast with an uncertain outcome to confirm for this post: publish it normally"
  }
 }

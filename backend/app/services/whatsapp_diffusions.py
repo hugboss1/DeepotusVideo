@@ -388,10 +388,12 @@ async def _lancer_sous_verrou(post_id, eid, cid, pid, confirme_incertain) -> dic
 
 # ---- relire --------------------------------------------------------------------------------------------------------
 
-async def relire(post_id, espace_id: str) -> dict:
+async def relire(post_id, espace_id: str, *, complet: bool = False) -> dict:
     """Relit la diffusion chez Kapso (voir l'en-tête) et rend l'entrée à jour (`statut_kapso` en plus). Une diffusion non
-    lancée et sans `anciennes` est rendue telle quelle, sans appel. ValueError : aucune diffusion configurée, fichier
-    illisible."""
+    lancée et sans `anciennes` est rendue telle quelle, sans appel. Revue t328 tâche 4 (point 5) : tant que la diffusion
+    n'est pas terminée, seul le RÉSUMÉ (GET du broadcast) est lu ; les pages de destinataires (désinscriptions, coût réel,
+    livrés/lus) le sont au terme, ou sur demande explicite (`complet`, route `?relire=1`). ValueError : aucune diffusion
+    configurée, fichier illisible."""
     post_id = str(post_id)
     rec = _rec(post_id, espace_id)
     if not rec or not rec.get("compte"):
@@ -399,12 +401,16 @@ async def relire(post_id, espace_id: str) -> dict:
     async with _verrou_post(post_id):
         cid = (_rec(post_id, espace_id) or rec)["compte"]
         async with WA._verrou_compte(cid):
-            return await _relire_sous_verrou(post_id, espace_id, cid)
+            return await _relire_sous_verrou(post_id, espace_id, cid, complet=complet)
 
 
-async def _lire_kapso(bid: str) -> tuple[dict, list, bool]:
-    """(broadcast, lignes de TOUS les destinataires, complet) : `complet` faux si la borne PAGES_MAX a coupé la lecture."""
+async def _lire_kapso(bid: str, complet: bool = False) -> tuple[dict, list | None, bool]:
+    """(broadcast, lignes de TOUS les destinataires, complet) : `complet` faux si la borne PAGES_MAX a coupé la lecture.
+    Les pages ne sont lues qu'au terme (ou `draft` : rien n'est parti, la lecture est courte) ou si `complet` est demandé ;
+    sinon lignes = None (le résumé seul)."""
     b = await kapso.broadcast(bid)
+    if not complet and b["statut"] not in TERMINAUX and b["statut"] != "draft":
+        return b, None, False
     lignes, page, pages = [], 1, 1
     while page <= pages and page <= PAGES_MAX:
         d = await kapso.destinataires_broadcast(bid, page=page, par_page=PAR_PAGE)
@@ -448,7 +454,7 @@ async def _solder(eid: str, lignes_kapso: list, lignes_res: list, categorie) -> 
     return total
 
 
-async def _relire_sous_verrou(post_id: str, eid: str, cid: str) -> dict:
+async def _relire_sous_verrou(post_id: str, eid: str, cid: str, complet: bool = False) -> dict:
     rec = _rec(post_id, eid) or {}
     cat = (rec.get("modele") or {}).get("categorie")
     neufs = 0
@@ -462,7 +468,7 @@ async def _relire_sous_verrou(post_id: str, eid: str, cid: str) -> dict:
             logger.warning(f"diffusion post {post_id} ancienne {a['broadcast_id']} : relecture impossible ({x.code})")
             restantes.append(a)
             continue
-        neufs += _desinscrire(cid, la)
+        neufs += _desinscrire(cid, la or [])
         if ba["statut"] in TERMINAUX or ba["statut"] == "draft":     # terminée, ou jamais partie (on ne l'enverra plus)
             await _solder(eid, la, a.get("lignes"), cat)
         else:
@@ -470,15 +476,19 @@ async def _relire_sous_verrou(post_id: str, eid: str, cid: str) -> dict:
     bid = rec.get("broadcast_id")
     sk, compteurs, reel, rien = None, None, None, False
     if bid and _lancee(rec):
-        b, lignes, complet = await _lire_kapso(bid)
+        b, lignes, complet = await _lire_kapso(bid, complet)
         sk = b["statut"]
-        neufs += _desinscrire(cid, lignes)
         compteurs = dict(b.get("compteurs") or {})
-        compteurs["livres"] = sum(1 for l in lignes if l.get("livre"))
-        compteurs["lus"] = sum(1 for l in lignes if l.get("lu"))
+        if lignes is None:                       # résumé seul : livrés/lus de la dernière lecture complète gardés
+            avant = rec.get("compteurs") or {}
+            compteurs.update({k: avant[k] for k in ("livres", "lus") if k in avant})
+        else:
+            neufs += _desinscrire(cid, lignes)
+            compteurs["livres"] = sum(1 for l in lignes if l.get("livre"))
+            compteurs["lus"] = sum(1 for l in lignes if l.get("lu"))
         # « rien n'est parti » se PROUVE : compteur Kapso à 0 (un compteur absent vaut 0 chez `kapso.broadcast`) ET
         # relecture complète des destinataires sans aucune ligne `sent`
-        rien = (sk == "failed" and complet and int(compteurs.get("sent") or 0) == 0
+        rien = (sk == "failed" and complet and lignes is not None and int(compteurs.get("sent") or 0) == 0
                 and not any(l["statut"] == "sent" for l in lignes))
         if sk in TERMINAUX and not rec.get("reel_note"):
             reel = await _solder(eid, lignes, rec.get("lignes"), cat)
@@ -581,12 +591,11 @@ def _cles_cibles(ids: list) -> list:
 
 
 async def reporter_post(post_id, espace_id: str, rec: dict | None) -> bool:
-    """Décision 7 : une diffusion que Kapso a PRISE (`sending`/`completed`, plus incertaine) est reportée sur son post :
+    """Décision 7 : une diffusion que Kapso a PRISE (`deja_prise` : sending/completed/stopped, plus incertaine) est reportée sur son post :
     remote_ids["whatsapp:<compte>"] = broadcast, et le post passe `posted` si toutes ses cibles sont parties. Seulement
     pour un post `ready`/`failed`/`posted` de l'espace qui vise encore ce compte (jamais un post en cours de publication).
     Rend True si le post a changé."""
-    if (not rec or rec.get("incertain") is True or rec.get("statut") not in ("sending", "completed")
-            or not rec.get("broadcast_id") or not rec.get("compte")):
+    if not deja_prise(rec) or not rec.get("compte"):
         return False
     from sqlalchemy import select
     from app.services.storage import ScheduledPost, async_session_factory
@@ -613,6 +622,32 @@ async def reporter_post(post_id, espace_id: str, rec: dict | None) -> bool:
     return True
 
 
+def deja_prise(rec: dict | None) -> bool:
+    """La diffusion est PARTIE et Kapso l'a prise : lancée, plus incertaine, broadcast connu, et pas un `failed` (un
+    échec de Kapso n'est pas une publication)."""
+    return bool(rec and rec.get("broadcast_id") and _lancee(rec) and rec.get("incertain") is not True
+                and rec.get("statut") not in ("failed", "envoi"))
+
+
+def exiger_incertaine(rec: dict | None) -> None:
+    """Revue t328 tâche 4 (point 1a) : une relance CONFIRMÉE ne vaut que pour une diffusion à l'issue incertaine (ou en
+    attente de confirmation) ; sinon `WhatsappRefus` « pas_incertaine » (409)."""
+    if not rec or not (rec.get("incertain") is True or rec.get("attente_confirmation") is True):
+        raise WhatsappRefus("aucune diffusion à l'issue incertaine à confirmer pour ce post : publiez-le normalement",
+                            "pas_incertaine")
+
+
+def vue_config(rec: dict | None) -> dict | None:
+    """L'entrée rendue par les routes : les identités explicites COMPTÉES (`n_identites`, None = toute l'audience),
+    jamais la liste des numéros."""
+    if not rec:
+        return rec
+    out = {k: v for k, v in rec.items() if k != "identites"}
+    ids = rec.get("identites")
+    out["n_identites"] = len(ids) if isinstance(ids, list) else None
+    return out
+
+
 def _disponible() -> bool:
     from app.services import comptes as _cpt
     return _cpt.disponible("whatsapp")
@@ -637,6 +672,10 @@ async def _publier(caption, video_path, image_path, meta) -> "PublishResult":
         return PublishResult(False, "whatsapp: aucune diffusion configurée pour ce post (modèle et paramètres à choisir)")
     if rec["compte"] != cid:
         return PublishResult(False, "whatsapp: la diffusion de ce post est configurée sur un autre compte WhatsApp")
+    if deja_prise(rec):
+        # revue t328 tâche 4 (point 1b) : déjà partie (relance confirmée, autre chemin) -> le post la reprend, sans lancer
+        return PublishResult(True, f"whatsapp: diffusion {rec['broadcast_id']} déjà lancée ({rec.get('statut')})",
+                             rec["broadcast_id"])
     try:
         r = await lancer(post_id)
     except WhatsappRefus as x:

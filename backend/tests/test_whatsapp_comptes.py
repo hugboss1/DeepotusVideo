@@ -2,7 +2,8 @@
 """t310 tâche 1 (27/10/2026) — B1 WhatsApp via Kapso : la plateforme d'espace `whatsapp` et la clé Kapso PLATE.
 Plan docs/superpowers/plans/2026-10-27-t310-whatsapp-kapso.md, spec §6.1 (une seule KAPSO_API_KEY partagée par tous les
 espaces ; des champs publics par espace, posés par la liaison). t328 (27/10/2026) : WhatsApp DEVIENT une cible du
-Planificateur (diffusions) : W5 garde la levée de NON_PUBLIABLES et le refus d'un compte d'un autre espace.
+Planificateur (diffusions) : W5 garde la cible permise, le refus d'un compte d'un autre espace,
+et CIBLES_EXPLICITES (jamais un canal par défaut).
 Ce que ce banc garde (routes réelles, TestClient, data-dir et sqlite temporaires, aucun réseau) :
   W1 (a) GET /api/comptes : 200, `whatsapp` décrit avec ses 5 champs publics, aucun champ KAPSO_API_KEY.
   W2 (b) clé plate posée, aucun compte : aucun compte `historique-whatsapp`.
@@ -101,9 +102,9 @@ check("W1.7 plateformes.whatsapp.cle_plate = {nom: KAPSO_API_KEY, posee: faux} s
       lambda: pw["cle_plate"] == {"nom": "KAPSO_API_KEY", "posee": False}
       and not any("cle_plate" in v for k, v in g.json()["plateformes"].items() if k != "whatsapp"), repr(pw))
 check("W1.4 PLATEFORMES garde 4 positions par entrée", all(len(v) == 4 for v in CP.PLATEFORMES.values()))
-check("W1.5 constantes : CLE_PLATE, SANS_HISTORIQUE, NON_PUBLIABLES",
+check("W1.5 constantes : CLE_PLATE, SANS_HISTORIQUE, CIBLES_EXPLICITES ; NON_PUBLIABLES retiré (t328)",
       lambda: CP.CLE_PLATE == {"whatsapp": "KAPSO_API_KEY"} and CP.SANS_HISTORIQUE == frozenset({"whatsapp"})
-      and CP.NON_PUBLIABLES == frozenset())   # t328 : whatsapp levé (diffusions)
+      and CP.CIBLES_EXPLICITES == frozenset({"whatsapp"}) and not hasattr(CP, "NON_PUBLIABLES"))
 check("W1.6 champs_poses_par_serveur(whatsapp) = tous ses champs publics",
       lambda: tuple(CP.champs_poses_par_serveur("whatsapp")) == tuple(WA_PUBLICS) and CP.champs_poses_par_serveur("x") == ())
 
