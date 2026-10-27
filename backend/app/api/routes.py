@@ -8574,6 +8574,36 @@ async def verifier_compte(compte_id: str, request: Request):
         raise _compte_erreur(e)
 
 
+@router.post("/comptes/{compte_id}/whatsapp/lien")
+async def whatsapp_lien(compte_id: str, body: dict, request: Request):
+    """t310 (27/10/2026) : crée le lien d'installation Kapso d'un compte whatsapp (corps {facturation, consentement?, langue?}) ;
+    rend {url, expire_le, facturation}. Utilise la clé Kapso : localhost seulement. Refus Kapso -> 502 {message, code}
+    (texte du fournisseur déjà nettoyé, non traduit)."""
+    _require_localhost(request)
+    from app.services import kapso as _k, whatsapp as _wa
+    b = body if isinstance(body, dict) else {}
+    try:
+        return await _wa.creer_lien(compte_id, b.get("facturation"), b.get("consentement"), b.get("langue"))
+    except _k.KapsoErreur as e:
+        raise HTTPException(502, {"message": e.message, "code": e.code})
+    except Exception as e:  # noqa: BLE001 — traduit en 400/404/409 par _compte_erreur
+        raise _compte_erreur(e)
+
+
+@router.get("/comptes/{compte_id}/whatsapp/liaison")
+async def whatsapp_liaison(compte_id: str, request: Request):
+    """t310 (27/10/2026) : relit la liaison d'un compte whatsapp chez Kapso (un appel `liens` et un `numeros` au plus ; jamais
+    en boucle) : {etat, erreur, numero}. Range le numéro si la liaison vient de se terminer. Clé Kapso : localhost seulement."""
+    _require_localhost(request)
+    from app.services import kapso as _k, whatsapp as _wa
+    try:
+        return await _wa.relire_liaison(compte_id)
+    except _k.KapsoErreur as e:
+        raise HTTPException(502, {"message": e.message, "code": e.code})
+    except Exception as e:  # noqa: BLE001
+        raise _compte_erreur(e)
+
+
 # ============ v1.14: editable caption pack (Telegram Premium tags) ============
 # The Scheduler caption editor offers one-tap branded tags. The default set is
 # deepotus-flavoured; this endpoint lets the user (or a white-label reseller)

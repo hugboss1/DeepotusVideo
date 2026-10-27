@@ -641,6 +641,29 @@ code_de(asyncio.run(V.verifier(cq))["verification"], "telephone_verifie", "tél�
 comptes.porter_par_telephone(cq, DECL | {"verifie_le": None, "etat": None, "id_distant": None})
 code_de(asyncio.run(V.verifier(cq))["verification"], "telephone_jamais", "téléphone jamais vérifié")
 check("K1 noter_verification range le code (relu par la vue)", comptes.obtenir(cq)["verification"]["code"] == "telephone_jamais")
+# t310 (27/10/2026) : les quatre codes WhatsApp (Kapso), sans réseau — banc détaillé : test_whatsapp_liaison.py
+from app.services import kapso as KA, whatsapp as WA                # noqa: E402
+async def _kapso_faux(methode, url, *, json=None, params=None):
+    if url.endswith("/setup_links"):
+        return 200, {"data": []}, {}
+    return 200, {"data": {"phone_number_id": "PNV", "verified_name": "V", "quality_rating": "YELLOW", "status": "CONNECTED"}}, {}
+_kreq, KA._requete = KA._requete, _kapso_faux
+def _wa(cid_):
+    with comptes.sous_compte(cid_):
+        return asyncio.run(V.verifier_plateforme("whatsapp"))
+cw = comptes.creer({"espace_id": "deepotus", "plateforme": "whatsapp"})["id"]
+os.environ["KAPSO_API_KEY"] = ""; settings.KAPSO_API_KEY = ""
+code_de(_wa(cw), "cle_kapso_absente", "whatsapp sans clé Kapso")
+os.environ["KAPSO_API_KEY"] = "cle-kapso-banc"; settings.KAPSO_API_KEY = "cle-kapso-banc"
+code_de(_wa(cw), "liaison_en_cours", "whatsapp sans lien créé")
+comptes.poser_publics_serveur(cw, {"KAPSO_CUSTOMER_ID": "cust-v"})
+WA._ranger_liaison("deepotus", cw, {"lien_id": "l1", "cree_le": "", "expire_le": "2020-01-01T00:00:00Z",
+                                    "facturation": "customer_managed", "consentement": None})
+code_de(_wa(cw), "liaison_echouee", "whatsapp lien expiré")
+comptes.poser_publics_serveur(cw, {"WHATSAPP_PHONE_ID": "PNV"})
+code_de(_wa(cw), "qualite_basse", "whatsapp qualité YELLOW")
+KA._requete = _kreq
+os.environ["KAPSO_API_KEY"] = ""; settings.KAPSO_API_KEY = ""
 check("K2 chaque code du jeu est produit par un chemin testé", VUS == set(V.CODES), str(set(V.CODES) ^ VUS))
 check("K3 la raison reste le détail français (non vide)", all(verifier("telegram", "401")["raison"] for _ in (0,)))
 

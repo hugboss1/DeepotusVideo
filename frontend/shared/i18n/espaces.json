@@ -51,6 +51,10 @@
     "fr": "Chat Telegram introuvable : vérifiez l'identifiant du chat",
     "en": "Telegram chat not found: check the chat ID"
   },
+  "espaces.assistant.code_cle_kapso_absente": {
+    "fr": "Clé Kapso absente : posez-la dans Réglages › Clés d'API",
+    "en": "Kapso key missing: set it in Settings › API keys"
+  },
   "espaces.assistant.code_incomplet": {
     "fr": "Identifiants incomplets",
     "en": "Credentials incomplete"
@@ -58,6 +62,14 @@
   "espaces.assistant.code_indetermine": {
     "fr": "Réponse indéterminée de la plateforme",
     "en": "Undetermined answer from the platform"
+  },
+  "espaces.assistant.code_liaison_echouee": {
+    "fr": "Liaison du numéro échouée ou lien expiré : créez un nouveau lien",
+    "en": "Number linking failed or link expired: create a new link"
+  },
+  "espaces.assistant.code_liaison_en_cours": {
+    "fr": "Numéro pas encore relié : envoyez le lien d'installation au client, puis vérifiez",
+    "en": "Number not linked yet: send the setup link to the client, then check"
   },
   "espaces.assistant.code_non_audite": {
     "fr": "Compte TikTok non audité : publication privée seulement",
@@ -70,6 +82,10 @@
   "espaces.assistant.code_plateforme_inconnue": {
     "fr": "Plateforme inconnue",
     "en": "Unknown platform"
+  },
+  "espaces.assistant.code_qualite_basse": {
+    "fr": "Qualité du numéro WhatsApp basse chez Meta : envois limités",
+    "en": "WhatsApp number quality low at Meta: sending limited"
   },
   "espaces.assistant.code_quota": {
     "fr": "Quota de la plateforme épuisé : réessayez plus tard",

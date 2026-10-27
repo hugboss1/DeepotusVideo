@@ -10802,5 +10802,25 @@
  "comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, il ne s'importe pas": {
   "fr": "comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, il ne s'importe pas",
   "en": "comptes.json: account no. {i} ({plateforme}) ignored: it is linked in each space, it is not imported"
+ },
+ "ce compte n'est pas un compte WhatsApp": {
+  "fr": "ce compte n'est pas un compte WhatsApp",
+  "en": "this account is not a WhatsApp account"
+ },
+ "consentement daté du client exigé avant la liaison": {
+  "fr": "consentement daté du client exigé avant la liaison",
+  "en": "the client's dated consent is required before linking"
+ },
+ "facturation Meta inconnue (customer_managed ou partner_managed)": {
+  "fr": "facturation Meta inconnue (customer_managed ou partner_managed)",
+  "en": "unknown Meta billing (customer_managed or partner_managed)"
+ },
+ "ce compte WhatsApp est déjà relié à un numéro": {
+  "fr": "ce compte WhatsApp est déjà relié à un numéro",
+  "en": "this WhatsApp account is already linked to a number"
+ },
+ "la facturation Meta ne se change plus : créez un nouveau compte WhatsApp": {
+  "fr": "la facturation Meta ne se change plus : créez un nouveau compte WhatsApp",
+  "en": "Meta billing can no longer be changed: create a new WhatsApp account"
  }
 }
