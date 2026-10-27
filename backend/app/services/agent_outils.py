@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Les dix outils de l'agent Campagnes (t285a, 23/10/2026, spec §5).
+"""Les outils de l'agent : dix pour Campagnes (t285a, 23/10/2026, spec §5) et cinq pour WhatsApp (t311, boîte « whatsapp »).
 
 La liste des outils EST la liste des droits : un outil absent est un geste impossible, quoi que dise le modèle. Aucun
 outil ne publie, ne passe un post en programmé, ne change l'espace actif, ne touche aux secrets, aux Réglages ou aux
@@ -215,12 +215,19 @@ def _nom_sur(nom: str, defaut: str = "document") -> str:
     return (_SUR.sub("-", tige.lower()).strip("-") or defaut)[:60]
 
 
+_DELIMITEURS = re.compile(r"<<<PREUVE|PREUVE>>>")
+
+
+def _neutraliser(texte: str) -> str:
+    """Le texte borné à MAX_DOC, ses délimiteurs `<<<PREUVE` et `PREUVE>>>` neutralisés en un passage (il ne peut pas
+    refermer un cadre)."""
+    return _DELIMITEURS.sub(lambda m: "<<< PREUVE" if m.group(0).startswith("<") else "PREUVE >>>",
+                            str(texte or "")[:MAX_DOC])
+
+
 def _preuve(source: str, texte: str) -> str:
-    """Le texte borné à MAX_DOC, ses éventuels délimiteurs neutralisés (il ne peut pas refermer le cadre)."""
-    def neutre(t: str) -> str:
-        return t.replace("<<<PREUVE", "<<< PREUVE").replace("PREUVE>>>", "PREUVE >>>")
-    t = neutre(str(texte or "")[:MAX_DOC])
-    return f"{PREFIXE_PREUVE}\n<<<PREUVE {neutre(source)[:300]}\n{t}\nPREUVE>>>"
+    """Le texte encadré, ses éventuels délimiteurs neutralisés (il ne peut pas refermer le cadre)."""
+    return f"{PREFIXE_PREUVE}\n<<<PREUVE {_neutraliser(source)[:300]}\n{_neutraliser(texte)}\nPREUVE>>>"
 
 
 async def enregistrer_depot(cid: str, nom: str, texte: str) -> str:
@@ -691,12 +698,12 @@ def _compte_contact(ctx: Ctx) -> tuple[str, str, str]:
     if not ctx.compte_id or not ctx.identite:
         raise _Refus("aucune conversation WhatsApp dans ce tour")
     from app.services import whatsapp as WA
-    eid = ctx.espace_id
-    if not eid:
-        try:
-            eid = WA._cle_etat(ctx.compte_id)[0]
-        except (KeyError, ValueError) as e:
-            raise _Refus(f"compte WhatsApp inutilisable : {str(e)[:120]}")
+    try:
+        eid = WA._cle_etat(ctx.compte_id)[0]
+    except (KeyError, ValueError) as e:
+        raise _Refus(f"compte WhatsApp inutilisable : {str(e)[:120]}")
+    if ctx.espace_id and ctx.espace_id != eid:
+        raise _Refus("le compte WhatsApp n'appartient pas à l'espace de ce tour")
     return ctx.compte_id, ctx.identite, eid
 
 
@@ -728,7 +735,7 @@ async def lire_conversation(ctx: Ctx) -> dict:
         t = m.get("texte")
         msgs.append({"id": m.get("id"), "sens": m.get("sens"), "type": m.get("type"), "quand": m.get("quand"),
                      "statut": m.get("statut"), "media": bool(m.get("media_id")),
-                     "texte": (_preuve(src, t) if m.get("sens") == "entrant" else t) if isinstance(t, str) else None})
+                     "texte": (_preuve(src, t) if m.get("sens") == "entrant" else _neutraliser(t)) if isinstance(t, str) else None})
     entrants = [WE._date_iso(m.get("quand")) for m in fil if m.get("sens") == "entrant"]
     entrants = [d for d in entrants if d is not None]
     ouverte = bool(entrants) and WE._horloge() - max(entrants) < WA.FENETRE
