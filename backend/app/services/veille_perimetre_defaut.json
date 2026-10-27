@@ -1,0 +1,242 @@
+{
+ "version": 1,
+ "source": "veille n°1 du 27/10/2026 (perimetre.md, skill veille-concurrents)",
+ "depuis_jours": 548,
+ "concurrents": [
+  {
+   "id": "scenario",
+   "famille": "assets",
+   "hn": [
+    "scenario.gg",
+    "scenario.com ai"
+   ],
+   "youtube": [
+    "ySnpi1mxyEc",
+    "BmG36o3S61c"
+   ],
+   "appstore": [],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "leonardo",
+   "famille": "assets",
+   "hn": [
+    "leonardo ai",
+    "leonardo.ai"
+   ],
+   "youtube": [
+    "LwLEZ044KBg",
+    "spYI9xjfSUw"
+   ],
+   "appstore": [
+    "1662773014"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "krea",
+   "famille": "assets",
+   "hn": [
+    "krea ai",
+    "krea.ai"
+   ],
+   "youtube": [
+    "lFzqLE_QXmM",
+    "hxHU2Tt8EM8"
+   ],
+   "appstore": [
+    "6742134132"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "freepik",
+   "famille": "assets",
+   "hn": [
+    "freepik ai",
+    "magnific ai"
+   ],
+   "youtube": [
+    "2kZ_mjtggiU",
+    "uBG93gh6eng"
+   ],
+   "appstore": [
+    "1664092086"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "higgsfield",
+   "famille": "video",
+   "hn": [
+    "higgsfield ai",
+    "higgsfield.ai"
+   ],
+   "youtube": [
+    "_HkhMka1DB4",
+    "h66Tvcw4Hck",
+    "iz4xHAl9xRc"
+   ],
+   "appstore": [],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "runway",
+   "famille": "video",
+   "hn": [
+    "runwayml",
+    "runway gen-4"
+   ],
+   "youtube": [
+    "DrGuh-eJXDw",
+    "6KjNWvg08Fs"
+   ],
+   "appstore": [
+    "1665024375"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "kling",
+   "famille": "video",
+   "hn": [
+    "kling ai"
+   ],
+   "youtube": [
+    "i6dEdWuczRE",
+    "o0Bgm1idYdo"
+   ],
+   "appstore": [
+    "6738049229"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "luma",
+   "famille": "video",
+   "hn": [
+    "luma dream machine",
+    "luma ray"
+   ],
+   "youtube": [
+    "wx8xb7tm5tc"
+   ],
+   "appstore": [
+    "6478852867"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "pika",
+   "famille": "video",
+   "hn": [
+    "pika labs",
+    "pika ai"
+   ],
+   "youtube": [],
+   "appstore": [
+    "6680155400"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "opusclip",
+   "famille": "social",
+   "hn": [
+    "opus clip",
+    "opusclip"
+   ],
+   "youtube": [
+    "rETSXr5JL1E",
+    "dsWjoFZhdBI",
+    "sQgNFGVuaH8"
+   ],
+   "appstore": [
+    "6743615403"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "capcut",
+   "famille": "social",
+   "hn": [
+    "capcut"
+   ],
+   "youtube": [
+    "KNlxxVZ7CRI",
+    "EYPU4_ySIQY"
+   ],
+   "appstore": [
+    "1500855883"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "invideo",
+   "famille": "social",
+   "hn": [
+    "invideo ai"
+   ],
+   "youtube": [
+    "WPMJopd5pqg",
+    "2FuCE0TNQW4"
+   ],
+   "appstore": [
+    "6471394316"
+   ],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  },
+  {
+   "id": "comfyui",
+   "famille": "nodal",
+   "hn": [
+    "comfyui"
+   ],
+   "youtube": [
+    "7yiuxdje-NI",
+    "l4CiwGS2ewY"
+   ],
+   "appstore": [],
+   "pays": [
+    "us",
+    "fr"
+   ]
+  }
+ ]
+}
