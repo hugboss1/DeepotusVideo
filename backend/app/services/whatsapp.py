@@ -310,7 +310,8 @@ MOTS_STOP = ("stop", "arret", "arrêt", "arreter", "arrêter", "arrêtez", "arre
              "desabonner", "désabonner", "désinscrire", "desinscrire", "stopper", "cancel", "quit", "end", "opt out",
              "optout", "opt-out")
 POLITESSE = ("svp", "stp", "please", "merci", "thanks")
-CODES_REFUS = ("accord", "stop", "fenetre", "marketing", "plafond", "consentement", "prix", "bsuid_authentification")
+CODES_REFUS = ("accord", "stop", "fenetre", "marketing", "plafond", "consentement", "prix", "bsuid_authentification",
+               "incertain", "deja_lancee")   # t328 : diffusion à l'issue incertaine / déjà lancée (whatsapp_diffusions)
 TYPES_ENVOI = ("texte", "boutons", "modele", "image")        # t311 : `image` (fenêtre de 24 h comme le texte)
 PLAFOND_DEFAUT = 1000
 MARCHE_DEFAUT = "33"

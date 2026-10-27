@@ -11246,5 +11246,33 @@
  "quantité de messages invalide : un entier >= 1 est attendu": {
   "fr": "quantité de messages invalide : un entier >= 1 est attendu",
   "en": "invalid message quantity: an integer >= 1 is expected"
+ },
+ "ce modèle n'a pas d'identifiant Meta : il ne peut pas partir en diffusion": {
+  "fr": "ce modèle n'a pas d'identifiant Meta : il ne peut pas partir en diffusion",
+  "en": "this template has no Meta ID: it cannot be used for a broadcast"
+ },
+ "identités : une liste est attendue": {
+  "fr": "identités : une liste est attendue",
+  "en": "identities: a list is expected"
+ },
+ "une diffusion de ce post est déjà lancée : elle ne se modifie plus": {
+  "fr": "une diffusion de ce post est déjà lancée : elle ne se modifie plus",
+  "en": "a broadcast of this post has already been launched: it can no longer be changed"
+ },
+ "aucune diffusion WhatsApp n'est configurée pour ce post": {
+  "fr": "aucune diffusion WhatsApp n'est configurée pour ce post",
+  "en": "no WhatsApp broadcast is set up for this post"
+ },
+ "le compte WhatsApp de cette diffusion n'appartient pas à l'espace du post": {
+  "fr": "le compte WhatsApp de cette diffusion n'appartient pas à l'espace du post",
+  "en": "the WhatsApp account of this broadcast does not belong to the post's workspace"
+ },
+ "Kapso n'a accepté aucun destinataire de cette diffusion": {
+  "fr": "Kapso n'a accepté aucun destinataire de cette diffusion",
+  "en": "Kapso accepted no recipient for this broadcast"
+ },
+ "cette diffusion est peut-être déjà partie (panne de Kapso pendant l'envoi) : vérifiez-la, puis confirmez pour la relancer": {
+  "fr": "cette diffusion est peut-être déjà partie (panne de Kapso pendant l'envoi) : vérifiez-la, puis confirmez pour la relancer",
+  "en": "this broadcast may already have gone out (Kapso failed during sending): check it, then confirm to launch it again"
  }
 }

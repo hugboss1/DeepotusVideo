@@ -152,6 +152,13 @@ _ev = _wv[_wv.find("async def envoyer_validation("):]
 _ev = _ev[:_ev.find("# ---- les réponses")]
 check("A2h la demande de validation au client passe par WE.envoyer (gardé), et par aucun autre envoi",
       0 < _ev.find("WE.envoyer(") and "kapso.envoyer(" not in _ev, "")
+# t328 tâche 3 : une diffusion WhatsApp réserve son devis (plafonds.verifier) AVANT le send Kapso, dans `lancer`
+_wd = (RP.RACINE / "services" / "whatsapp_diffusions.py").read_text(encoding="utf-8")
+_ld = _wd[_wd.find("async def _lancer_sous_verrou("):]
+_ld = _ld[:_ld.find("# ---- relire")]
+check("A2i la diffusion WhatsApp appelle plafonds.verifier AVANT kapso.envoyer_broadcast, et un seul send",
+      0 < _ld.find("plafonds.verifier(") < _ld.find("kapso.envoyer_broadcast(") and _ld.count("kapso.envoyer_broadcast(") == 1
+      and "kapso.envoyer(" not in _wd, "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes

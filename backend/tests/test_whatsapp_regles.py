@@ -143,7 +143,7 @@ check("R3.11 ordre : stop avant accord, accord avant fenêtre",
       refus(cid, "tel:33700000001", dernier_entrant=None) == "stop"
       and refus(cid, "tel:33699999999", dernier_entrant=None) == "accord")
 check("R3.12 codes du refus", set(WA.CODES_REFUS) == {"accord", "stop", "fenetre", "marketing", "plafond", "consentement",
-                                                      "prix", "bsuid_authentification"})
+                                                      "prix", "bsuid_authentification", "incertain", "deja_lancee"})
 
 print("\n[R4] chaque type passe")
 check("R4.1 texte, boutons, modèle (UTILITY et MARKETING non désinscrit)",
