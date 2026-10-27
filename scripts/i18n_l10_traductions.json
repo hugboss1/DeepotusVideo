@@ -11142,5 +11142,13 @@
  "ce compte WhatsApp n'appartient pas à cet espace": {
   "fr": "ce compte WhatsApp n'appartient pas à cet espace",
   "en": "this WhatsApp account does not belong to this space"
+ },
+ "un modèle WhatsApp ne prend pas de texte modifié": {
+  "fr": "un modèle WhatsApp ne prend pas de texte modifié",
+  "en": "a WhatsApp template takes no edited text"
+ },
+ "ce brouillon est déjà en cours d'envoi": {
+  "fr": "ce brouillon est déjà en cours d'envoi",
+  "en": "this draft is already being sent"
  }
 }

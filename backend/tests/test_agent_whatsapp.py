@@ -142,7 +142,10 @@ class Script:
         self.gardes_vues.append(GARDES["n"])
         if not self.reponses:
             raise AssertionError("appel du modèle en trop")
-        return self.reponses.pop(0)
+        r = self.reponses.pop(0)
+        if isinstance(r, BaseException):
+            raise r
+        return r
 
 
 GARDES = {"n": 0, "args": []}
@@ -499,6 +502,130 @@ except ValueError:
     leve = True
 check("A4.18 marquer : état inconnu refusé", leve)
 check("A4.19 aucun texte de message au journal", not any("passez quand vous voulez" in l or "personnellement" in l for l in JOURNAL))
+
+# ---------------------------------------------------------------------------------------------------------------------
+print("\n[A5] durcissements : double envoi, identité canonique, texte d'un modèle, pannes du modèle")
+CARTE_TXT = {"type": "carte", "genre": "reponse_whatsapp", "libelle": "Réponse", "etat": "proposee",
+             "action": "envoyer_whatsapp", "arguments": {"texte": "Bonjour !"}}
+CARTE_MOD = {"type": "carte", "genre": "modele_whatsapp", "libelle": "Modèle", "etat": "proposee",
+             "action": "envoyer_modele_whatsapp", "arguments": {"nom": "rappel_rdv", "langue": "fr", "parametres": {}}}
+TEL6 = "tel:33600000006"
+WA.noter_accord(cid, TEL6, "formulaire")
+FK.convs["PN-1"].append({"id": "conv-6", "phone_number": "+33600000006", "status": "active",
+                         "kapso": {"last_inbound_at": iso(maintenant() - timedelta(minutes=3))}})
+FK.msgs["PN-1"] = [[entrant(10, "Bonjour", tel="33600000006")]]
+
+AW.ranger(boite, "PN-1", TEL6, "attente", CARTE_MOD)
+r = c.post(f"/api/whatsapp/{cid}/brouillons/decider", params={"espace": boite},
+           json={"identite": TEL6, "decision": "envoyer", "texte": "autre chose"})
+check("A5.1 texte fourni avec une carte modèle -> 400, brouillon gardé en attente", r.status_code == 400
+      and AW.brouillons(boite, "PN-1")[TEL6]["etat"] == "attente", r.text[:200])
+
+# deux décisions simultanées : un seul envoi
+AW.ranger(boite, "PN-1", TEL6, "attente", CARTE_TXT)
+FK.envois.clear()
+
+
+async def _deux():
+    return await asyncio.gather(AW.envoyer_brouillon(cid, boite, TEL6), AW.envoyer_brouillon(cid, boite, TEL6),
+                                return_exceptions=True)
+res = run(_deux())
+refus = [x for x in res if isinstance(x, WA.WhatsappRefus)]
+check("A5.2 deux décisions en parallèle : un seul appel Kapso, la seconde refusée `occupee`",
+      len(FK.envois) == 1 and len(refus) == 1 and refus[0].code == "occupee"
+      and sum(isinstance(x, dict) for x in res) == 1, (res, FK.envois))
+check("A5.3 le brouillon envoyé est `envoye`, sans marque d'envoi en cours",
+      AW.brouillons(boite, "PN-1")[TEL6]["etat"] == "envoye" and "envoi_depuis" not in AW.brouillons(boite, "PN-1")[TEL6])
+
+
+def poser_etat(ident, **champs):
+    f = fichier()
+    f["PN-1"][ident].update(champs)
+    E._ecrire_json(E.chemin(boite, "whatsapp_brouillons.json"), f)
+
+
+AW.ranger(boite, "PN-1", TEL6, "attente", CARTE_TXT)
+poser_etat(TEL6, etat="envoi_en_cours", envoi_depuis=maintenant().isoformat())
+r = c.post(f"/api/whatsapp/{cid}/brouillons/decider", params={"espace": boite}, json={"identite": TEL6, "decision": "rejeter"})
+d = r.json().get("detail") if r.status_code == 409 else None
+check("A5.4 décision pendant un envoi en cours -> 409 {code: occupee, message}", isinstance(d, dict)
+      and d.get("code") == "occupee" and d.get("message"), r.text[:200])
+poser_etat(TEL6, envoi_depuis=(maintenant() - timedelta(minutes=11)).isoformat())
+r = c.post(f"/api/whatsapp/{cid}/brouillons/decider", params={"espace": boite}, json={"identite": TEL6, "decision": "rejeter"})
+check("A5.5 envoi en cours coincé depuis plus de 10 min : redevient décidable", r.status_code == 200
+      and AW.brouillons(boite, "PN-1")[TEL6]["etat"] == "rejete", r.text[:200])
+b2 = AW.brouillons(boite, "PN-1")[TEL2]
+check("A5.6 refus des règles (A4.11) : retour à `attente` sans marque d'envoi (puis rejeté en A4.13)",
+      "envoi_depuis" not in b2 and b2["etat"] == "rejete")
+
+# un brouillon neuf rangé pendant l'envoi n'est pas écrasé
+AW.ranger(boite, "PN-1", TEL6, "attente", CARTE_TXT)
+_env = WE.envoyer
+
+
+async def envoyer_et_ranger(cid_, ident, envoi):
+    AW.ranger(boite, "PN-1", TEL6, "attente", dict(CARTE_TXT, arguments={"texte": "Nouveau brouillon"}))
+    return {"id": "wamid.N", "statut": "accepted", "devis": {}}
+WE.envoyer = envoyer_et_ranger
+try:
+    run(AW.envoyer_brouillon(cid, boite, TEL6))
+finally:
+    WE.envoyer = _env
+b6 = AW.brouillons(boite, "PN-1")[TEL6]
+check("A5.7 brouillon neuf rangé pendant l'envoi : laissé tel quel (attente, nouveau texte)", b6["etat"] == "attente"
+      and b6["carte"]["arguments"]["texte"] == "Nouveau brouillon", b6)
+
+
+async def envoyer_panne(cid_, ident, envoi):
+    raise RuntimeError("panne réseau")
+WE.envoyer = envoyer_panne
+try:
+    run(AW.envoyer_brouillon(cid, boite, TEL6))
+except RuntimeError:
+    pass
+finally:
+    WE.envoyer = _env
+check("A5.8 panne pendant l'envoi : retour à attente", AW.brouillons(boite, "PN-1")[TEL6]["etat"] == "attente"
+      and "envoi_depuis" not in AW.brouillons(boite, "PN-1")[TEL6])
+
+# identité canonique : tel: puis bsuid: d'un même contact -> un seul brouillon
+TELA, BSA = "tel:33611111111", "bsuid:FR.ZZZ"
+AW.ranger(boite, "PN-1", TELA, "attente", CARTE_TXT)            # rangé avant que l'alias soit connu
+FK.msgs["PN-1"] = [[dict(entrant(11, "Bonjour, encore moi", tel="33611111111"), from_user_id="FR.ZZZ")]]
+s = poser(Script([outil("rediger_reponse", {"texte": "Bonjour !"}), outil("rediger_reponse", {"texte": "Re-bonjour !"})]))
+r1 = run(AW.rediger(cid, boite, TELA))
+r2 = run(AW.rediger(cid, boite, BSA))
+cles = [k for k in AW.brouillons(boite, "PN-1") if k in (TELA, BSA)]
+check("A5.9 un contact vu en tel: puis bsuid: (alias) : un seul brouillon, clé canonique, l'ancienne clé reprise",
+      r1.get("motif") == "carte" and r2.get("motif") == "carte" and cles == [min(TELA, BSA)]
+      and AW.brouillons(boite, "PN-1")[cles[0]]["carte"]["arguments"]["texte"] == "Re-bonjour !", (r1, r2, cles))
+check("A5.10 canonique() : même clé pour les deux formes", AW.canonique(cid, TELA)[0] == AW.canonique(cid, BSA)[0] == BSA)
+check("A5.11 la garde porte la ref canonique", GARDES["args"] and all(a[1] == f"{cid}:{BSA}" for a in GARDES["args"]),
+      GARDES["args"])
+
+# pannes du modèle et réponse sans carte
+TEL7 = "tel:33600000007"
+FK.msgs["PN-1"] = [[entrant(12, "Vous livrez à Lyon ?", tel="33600000007")]]
+s = poser(Script([RuntimeError("HTTP 500")]))
+r = run(AW.rediger(cid, boite, TEL7))
+dd = depenses(f"{cid}:{TEL7}")
+check("A5.12 converser lève RuntimeError -> motif moteur, réel 0 noté, rien rangé", r.get("motif") == "moteur"
+      and len(dd) == 1 and dd[0].reel_usd == 0.0 and TEL7 not in AW.brouillons(boite, "PN-1"),
+      (r, [(d.estime_usd, d.reel_usd) for d in dd]))
+TEL8 = "tel:33600000008"
+FK.msgs["PN-1"] = [[entrant(13, "Vous livrez à Lille ?", tel="33600000008")]]
+s = poser(Script([MT.FluxCoupe("flux coupé", 100, 10)]))
+r = run(AW.rediger(cid, boite, TEL8))
+dd = depenses(f"{cid}:{TEL8}")
+check("A5.13 converser lève FluxCoupe -> motif moteur, réservation gardée (aucun réel)", r.get("motif") == "moteur"
+      and len(dd) == 1 and dd[0].reel_usd is None and dd[0].estime_usd > 0, (r, [(d.estime_usd, d.reel_usd) for d in dd]))
+TEL9 = "tel:33600000009"
+FK.msgs["PN-1"] = [[entrant(14, "Vous livrez à Nantes ?", tel="33600000009")]]
+s = poser(Script([{"blocs": [{"type": "text", "text": "Oui."}], "arret": "end_turn", "in_tok": 900, "out_tok": 5}]))
+r = run(AW.rediger(cid, boite, TEL9))
+dd = depenses(f"{cid}:{TEL9}")
+check("A5.14 réponse en texte seul -> motif sans_carte, rien rangé, réel noté", r.get("motif") == "sans_carte"
+      and len(s.appels) == 1 and TEL9 not in AW.brouillons(boite, "PN-1") and len(dd) == 1 and dd[0].reel_usd > 0, r)
 
 c.__exit__(None, None, None)
 print(f"\n{ok} PASS, {fail} FAIL")

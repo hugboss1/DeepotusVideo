@@ -26,7 +26,7 @@ import json
 import re
 import threading
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 
@@ -41,7 +41,8 @@ MAX_PERSONA = 6000
 CARS_PAR_JETON = 3
 SURCOUT_OUTILS = 1000
 FICHIER = "whatsapp_brouillons.json"
-ETATS = ("attente", "humain", "envoye", "rejete")
+ETATS = ("attente", "humain", "envoi_en_cours", "envoye", "rejete")
+ENVOI_COINCE = timedelta(minutes=10)   # un `envoi_en_cours` plus vieux redevient décidable
 DOC = agent_aide.DOSSIER / "whatsapp" / "WHATSAPP.md"
 _VERROU_FICHIER = threading.Lock()
 _VERROUS: dict[tuple, asyncio.Lock] = {}   # un seul `rediger` à la fois par (compte, identité)
@@ -177,28 +178,51 @@ def brouillons(eid: str, pid: str) -> dict:
 
 
 def _maintenant() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds")   # `cree_le` distingue deux brouillons
 
 
-def _modifier(eid: str, pid: str, identite: str, geste) -> dict:
-    """Applique `geste(brouillon_ou_None) -> brouillon` sous le verrou du fichier et écrit ; rend le brouillon."""
+def _date(v) -> datetime | None:
+    try:
+        d = datetime.fromisoformat(str(v))
+    except (TypeError, ValueError):
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
+def canonique(cid: str, identite: str) -> tuple[str, list]:
+    """(clé canonique, groupe) d'un contact : le premier élément trié de son groupe d'alias (`WA._groupe`), la même
+    clé qu'on le voie par `tel:` ou par `bsuid:`. Clé du verrou et des brouillons."""
+    from app.services import whatsapp as WA
+    groupe = sorted(set(WA._groupe(WA.etat(cid), identite)))
+    return groupe[0], groupe
+
+
+def _modifier(eid: str, pid: str, identite: str, geste, alias=()) -> dict:
+    """Applique `geste(brouillon_ou_None) -> brouillon|None` sous le verrou du fichier et écrit ; rend le brouillon.
+    `alias` : les autres identités du groupe ; un brouillon rangé sous l'une d'elles (avant que l'alias soit connu) est
+    repris sous `identite` et sa vieille clé retirée. Une exception de `geste` n'écrit rien."""
     _pid_valide(pid)
     f = _chemin(eid)
     with _VERROU_FICHIER:
         doc = _lire(eid)
         num = doc.get(pid) if isinstance(doc.get(pid), dict) else {}
-        avant = num.get(identite) if isinstance(num.get(identite), dict) else None
+        vieux = [a for a in alias if a != identite and isinstance(num.get(a), dict)]
+        avant = num.get(identite) if isinstance(num.get(identite), dict) else (num[vieux[0]] if vieux else None)
         apres = geste(json.loads(json.dumps(avant)) if avant is not None else None)
         if apres is None:
-            return avant or {}
+            return json.loads(json.dumps(avant)) if avant else {}
+        for a in vieux:
+            num.pop(a, None)
         num[identite] = apres
         doc[pid] = num
         espaces._ecrire_json(f, doc)
         return json.loads(json.dumps(apres))
 
 
-def ranger(eid: str, pid: str, identite: str, etat: str, carte: dict | None, raison: str | None = None) -> dict:
-    """Range un brouillon neuf pour le contact (remplace le précédent ; `auto_jour` est gardé)."""
+def ranger(eid: str, pid: str, identite: str, etat: str, carte: dict | None, raison: str | None = None,
+           alias=()) -> dict:
+    """Range un brouillon neuf pour le contact (remplace le précédent ; `auto_jour` est gardé). `identite` : la clé
+    canonique (`canonique`)."""
     if etat not in ETATS:
         raise ValueError(f"état de brouillon inconnu : {str(etat)[:20]}")
 
@@ -208,10 +232,10 @@ def ranger(eid: str, pid: str, identite: str, etat: str, carte: dict | None, rai
         if raison:
             neuf["raison"] = str(raison)[:200]
         return neuf
-    return _modifier(eid, pid, identite, geste)
+    return _modifier(eid, pid, identite, geste, alias)
 
 
-def marquer(eid: str, pid: str, identite: str, etat: str) -> dict:
+def marquer(eid: str, pid: str, identite: str, etat: str, alias=()) -> dict:
     """Change l'état du brouillon du contact (créé sans carte s'il n'existe pas)."""
     if etat not in ETATS:
         raise ValueError(f"état de brouillon inconnu : {str(etat)[:20]}")
@@ -220,11 +244,12 @@ def marquer(eid: str, pid: str, identite: str, etat: str) -> dict:
         b = b or {"carte": None, "cree_le": _maintenant(), "auto_jour": {}}
         b["etat"] = etat
         b["decide_le"] = _maintenant()
+        b.pop("envoi_depuis", None)
         return b
-    return _modifier(eid, pid, identite, geste)
+    return _modifier(eid, pid, identite, geste, alias)
 
 
-def apres_envoi_humain(eid: str, pid: str, identite: str) -> dict:
+def apres_envoi_humain(eid: str, pid: str, identite: str, alias=()) -> dict:
     """Un envoi fait par une personne a réussi : un brouillon `humain` ou `attente` du contact passe à `envoye` (l'agent
     reprend au prochain entrant). Aucun brouillon, ou déjà décidé : rien."""
     def geste(b):
@@ -233,12 +258,12 @@ def apres_envoi_humain(eid: str, pid: str, identite: str) -> dict:
         b["etat"] = "envoye"
         b["decide_le"] = _maintenant()
         return b
-    return _modifier(eid, pid, identite, geste)
+    return _modifier(eid, pid, identite, geste, alias)
 
 
 def envoi_de(brouillon: dict, texte=None) -> dict:
     """L'envoi `whatsapp_echanges.envoyer` d'un brouillon en attente : texte (éventuellement modifié) ou modèle.
-    ValueError : brouillon sans carte envoyable (état `humain`, carte « humain »)."""
+    ValueError : brouillon sans carte envoyable (état `humain`, carte « humain »), texte fourni pour un modèle."""
     carte = (brouillon or {}).get("carte") if isinstance((brouillon or {}).get("carte"), dict) else None
     genre = carte.get("genre") if carte else None
     a = carte.get("arguments") if carte and isinstance(carte.get("arguments"), dict) else {}
@@ -246,9 +271,111 @@ def envoi_de(brouillon: dict, texte=None) -> dict:
         t = texte if isinstance(texte, str) and texte.strip() else a.get("texte")
         return {"type": "texte", "texte": str(t or "")}
     if genre == "modele_whatsapp":
+        if texte is not None:
+            raise ValueError("un modèle WhatsApp ne prend pas de texte modifié")
         return {"type": "modele", "nom": a.get("nom"), "langue": a.get("langue"),
                 "parametres": a.get("parametres") if a.get("parametres") is not None else {}}
     raise ValueError("ce brouillon ne s'envoie pas : il attend une personne")
+
+
+class BrouillonAbsent(KeyError):
+    """Aucun brouillon décidable pour ce contact (absent, déjà envoyé ou rejeté) : 404 à la route."""
+
+
+def _decidable(b, maintenant: datetime) -> bool:
+    """Le brouillon attend-il une décision ? `attente`/`humain`, ou `envoi_en_cours` resté coincé plus de
+    ENVOI_COINCE (le processus est mort pendant l'envoi)."""
+    if not b:
+        return False
+    if b.get("etat") in ("attente", "humain"):
+        return True
+    if b.get("etat") == "envoi_en_cours":
+        d = _date(b.get("envoi_depuis"))
+        return d is None or maintenant - d > ENVOI_COINCE
+    return False
+
+
+def _reserver(eid, pid, cle, groupe, texte) -> tuple[dict, str]:
+    """Sous le verrou du fichier : vérifie le brouillon, calcule l'envoi, le passe à `envoi_en_cours` ; rend (envoi,
+    cree_le). Refus : BrouillonAbsent, WhatsappRefus `occupee` (envoi déjà en cours), ValueError (humain, texte+modèle)."""
+    from app.services import whatsapp as WA
+    pris: dict = {}
+
+    def geste(b):
+        maintenant = datetime.now(timezone.utc)
+        if b and b.get("etat") == "envoi_en_cours" and not _decidable(b, maintenant):
+            raise WA.WhatsappRefus("ce brouillon est déjà en cours d'envoi", "occupee")
+        if not _decidable(b, maintenant):
+            raise BrouillonAbsent("aucun brouillon en attente pour ce contact")
+        pris["envoi"] = envoi_de(b, texte)
+        pris["cree_le"] = b.get("cree_le")
+        b["etat"] = "envoi_en_cours"
+        b["envoi_depuis"] = maintenant.isoformat(timespec="microseconds")
+        return b
+    _modifier(eid, pid, cle, geste, groupe)
+    return pris["envoi"], pris["cree_le"]
+
+
+def _conclure(eid, pid, cle, groupe, cree_le, etat) -> dict:
+    """Après l'envoi : `etat` (envoye, ou attente sur un refus) seulement si le brouillon est TOUJOURS celui réservé
+    (même `cree_le`, encore `envoi_en_cours`) ; un brouillon neuf rangé entre-temps reste tel quel."""
+    def geste(b):
+        if not b or b.get("cree_le") != cree_le or b.get("etat") != "envoi_en_cours":
+            return None
+        b["etat"] = etat
+        b.pop("envoi_depuis", None)
+        if etat == "envoye":
+            b["decide_le"] = _maintenant()
+        return b
+    return _modifier(eid, pid, cle, geste, groupe)
+
+
+def _compte_de(cid: str, eid: str) -> str:
+    from app.services import whatsapp as WA
+    eid_compte, pid = WA._cle_etat(cid)
+    if eid != eid_compte:
+        raise ValueError("ce compte WhatsApp n'appartient pas à cet espace")
+    return pid
+
+
+async def envoyer_brouillon(cid: str, eid: str, identite: str, texte=None) -> dict:
+    """Envoie le brouillon du contact par `whatsapp_echanges.envoyer` (texte éventuellement modifié, ou modèle) :
+    {"envoi", "brouillon"}. Réservé d'abord (`envoi_en_cours`, sous le verrou du fichier) : une seconde décision
+    simultanée reçoit WhatsappRefus `occupee`. Succès -> `envoye` ; refus ou panne -> retour à `attente`, l'erreur
+    remonte telle quelle (409 des règles, 402 du plafond, 502 de Kapso). Le message part vers `identite` telle que
+    donnée ; le brouillon est rangé sous la clé canonique. Appelé par la route `decider` et par le mode auto."""
+    from app.services import whatsapp as WA, whatsapp_echanges as WE
+    WA.destinataire(identite)
+    pid = _compte_de(cid, eid)
+    cle, groupe = canonique(cid, identite)
+    envoi, cree_le = _reserver(eid, pid, cle, groupe, texte)
+    try:
+        r = await WE.envoyer(cid, identite, envoi)
+    except BaseException:
+        _conclure(eid, pid, cle, groupe, cree_le, "attente")
+        raise
+    b = _conclure(eid, pid, cle, groupe, cree_le, "envoye")
+    return {"envoi": r, "brouillon": b}
+
+
+def rejeter_brouillon(cid: str, eid: str, identite: str) -> dict:
+    """Rejette le brouillon décidable du contact (`rejete`). BrouillonAbsent, WhatsappRefus `occupee` pendant un envoi."""
+    from app.services import whatsapp as WA
+    WA.destinataire(identite)
+    pid = _compte_de(cid, eid)
+    cle, groupe = canonique(cid, identite)
+
+    def geste(b):
+        maintenant = datetime.now(timezone.utc)
+        if b and b.get("etat") == "envoi_en_cours" and not _decidable(b, maintenant):
+            raise WA.WhatsappRefus("ce brouillon est déjà en cours d'envoi", "occupee")
+        if not _decidable(b, maintenant):
+            raise BrouillonAbsent("aucun brouillon en attente pour ce contact")
+        b["etat"] = "rejete"
+        b["decide_le"] = _maintenant()
+        b.pop("envoi_depuis", None)
+        return b
+    return _modifier(eid, pid, cle, geste, groupe)
 
 
 # ---- la boucle -------------------------------------------------------------------------------------------------------
@@ -304,23 +431,23 @@ async def rediger(cid: str, eid: str, identite: str, *, langue: str = "fr") -> d
     from app.services import whatsapp as WA
     langue = "en" if langue == "en" else "fr"
     WA.destinataire(identite)                               # ValueError : identité invalide
-    eid_compte, pid = WA._cle_etat(cid)
-    if eid != eid_compte:
-        raise ValueError("ce compte WhatsApp n'appartient pas à cet espace")
-    verrou = _verrou(cid, identite)
+    pid = _compte_de(cid, eid)
+    cle, _groupe = canonique(cid, identite)                  # tel: et bsuid: d'un même contact : un seul verrou
+    verrou = _verrou(cid, cle)
     if verrou.locked():
         return _res(None, None, "occupee")
     async with verrou:
         try:
             return await _rediger(cid, eid, pid, identite, langue)
         finally:
-            if _VERROUS.get((cid, identite)) is verrou:
-                _VERROUS.pop((cid, identite), None)
+            if _VERROUS.get((cid, cle)) is verrou:
+                _VERROUS.pop((cid, cle), None)
 
 
 async def _rediger(cid: str, eid: str, pid: str, identite: str, langue: str) -> dict:
     from app.services import whatsapp as WA
     texte, stop = await _fil(cid, identite)
+    cle, groupe = canonique(cid, identite)                  # relu : la lecture a pu lier un alias
     if stop:
         return _res(None, None, "stop")
     if texte is None:
@@ -328,20 +455,21 @@ async def _rediger(cid: str, eid: str, pid: str, identite: str, langue: str) -> 
     agent = WA.reglages(eid)["agent"]
     raison = declencheur_humain(texte, agent.get("mots_humain"))
     if raison:
-        ranger(eid, pid, identite, "humain", None, raison)
+        ranger(eid, pid, cle, "humain", None, raison, groupe)
         return _res("humain", None, "declencheur")
     if not cle_presente():
         return _res(None, None, "sans_cle")
-    return await _boucle(cid, eid, pid, identite, langue, agent)
+    return await _boucle(cid, eid, pid, identite, langue, agent, cle, groupe)
 
 
-async def _boucle(cid: str, eid: str, pid: str, identite: str, langue: str, agent: dict) -> dict:
+async def _boucle(cid: str, eid: str, pid: str, identite: str, langue: str, agent: dict, cle: str,
+                  groupe: list) -> dict:
     modele = MT.modele_agent()
     outils = agent_boites.definitions_pour(AGENT)
     sys_ = systeme(eid, agent, langue)
     msgs: list[dict] = [{"role": "user", "content": CONSIGNE[langue].format(identite=identite)}]
     ctx = ao.Ctx(cid=f"wa:{cid}:{identite}", espace_id=eid, lang=langue, agent=AGENT, compte_id=cid, identite=identite)
-    ref = f"{cid}:{identite}"
+    ref = f"{cid}:{cle}"
     for _n in range(MAX_TOURS):
         op = MT.op_tour(modele, _jetons(sys_, msgs, outils), SORTIE_MAX)
         try:
@@ -380,9 +508,9 @@ async def _boucle(cid: str, eid: str, pid: str, identite: str, langue: str, agen
                                                                                      "humain"):
                 if carte["genre"] == "humain":
                     raison = (carte.get("arguments") or {}).get("raison")
-                    ranger(eid, pid, identite, "humain", carte, raison)
+                    ranger(eid, pid, cle, "humain", carte, raison, groupe)
                     return _res("humain", carte, "carte")
-                ranger(eid, pid, identite, "attente", carte)
+                ranger(eid, pid, cle, "attente", carte, None, groupe)
                 return _res("attente", carte, "carte")
             tr = {"type": "tool_result", "tool_use_id": b.get("id"), "content": ao.pour_modele(res)}
             if not res.get("ok"):

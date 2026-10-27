@@ -8722,7 +8722,8 @@ def _wa_envoi_humain(cid: str, identite) -> None:
     from app.services import agent_whatsapp as AW, whatsapp as _wa
     try:
         eid, pid = _wa._cle_etat(cid)
-        AW.apres_envoi_humain(eid, pid, identite)
+        cle, groupe = AW.canonique(cid, identite)
+        AW.apres_envoi_humain(eid, pid, cle, groupe)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"whatsapp: brouillon non mis à jour après un envoi ({type(e).__name__})")
 
@@ -8768,26 +8769,26 @@ async def whatsapp_brouillons_rediger(cid: str, request: Request, espace: str = 
 async def whatsapp_brouillons_decider(cid: str, request: Request, espace: str = "", body: Any = Body(default=None)):
     """t311 : décide du brouillon du contact, corps {identite, decision: envoyer|rejeter, texte?}. `envoyer` passe par
     `whatsapp_echanges.envoyer` (texte éventuellement modifié ; modèle -> envoi `modele`), puis état `envoye` ; un refus
-    des règles (409 {message, code}) ou du plafond (402) garde le brouillon. Un brouillon `humain` ne s'envoie pas (400)."""
+    des règles (409 {message, code}) ou du plafond (402) garde le brouillon. Un brouillon `humain` ne s'envoie pas (400) ;
+    un texte avec un modèle : 400 ; une décision pendant un envoi en cours : 409 `occupee`. L'envoi passe par
+    `agent_whatsapp.envoyer_brouillon`, qui appelle `whatsapp_echanges.envoyer` (garde « whatsapp » : test_plafonds_garde
+    A2e)."""
     _require_localhost(request)
     _wa_compte_demande(cid, espace)
-    from app.services import agent_whatsapp as AW, whatsapp_echanges as WE
+    from app.services import agent_whatsapp as AW
     b = body if isinstance(body, dict) else {}
     identite, decision = b.get("identite"), b.get("decision")
     if decision not in ("envoyer", "rejeter"):
         raise HTTPException(400, "décision inconnue (envoyer ou rejeter)")
-    eid, pid = _wa_brouillon_compte(cid)
-    br = AW.brouillons(eid, pid).get(identite) if isinstance(identite, str) else None
-    if not br or br.get("etat") not in ("attente", "humain"):
-        raise HTTPException(404, "aucun brouillon en attente pour ce contact")
-    if decision == "rejeter":
-        return {"brouillon": AW.marquer(eid, pid, identite, "rejete")}
+    eid, _pid = _wa_brouillon_compte(cid)
     try:
-        envoi = AW.envoi_de(br, b.get("texte"))
-        r = await WE.envoyer(cid, identite, envoi)
-    except Exception as e:  # noqa: BLE001 — 409 des règles et 402 du plafond : le brouillon reste
+        if decision == "rejeter":
+            return {"brouillon": AW.rejeter_brouillon(cid, eid, identite)}
+        return await AW.envoyer_brouillon(cid, eid, identite, b.get("texte"))
+    except AW.BrouillonAbsent:
+        raise HTTPException(404, "aucun brouillon en attente pour ce contact")
+    except Exception as e:  # noqa: BLE001 — 409 des règles et 402 du plafond : le brouillon reste en attente
         raise _wa_erreur(e)
-    return {"envoi": r, "brouillon": AW.marquer(eid, pid, identite, "envoye")}
 
 
 @router.post("/whatsapp/{cid}/accords")
