@@ -31,6 +31,7 @@ import asyncio
 import json
 import re
 import threading
+import unicodedata
 import weakref
 from datetime import date, datetime, timedelta, timezone
 
@@ -293,7 +294,7 @@ MARCHE_DEFAUT = "33"
 JOURNAL_MAX = 2000
 FENETRE = timedelta(hours=24)
 _IDENTITE = re.compile(r"^(?:tel:\d{5,20}|bsuid:\S{1,128})$")
-_PONCTUATION_FINALE = " \t\r\n.!?,;:…"
+LIMITE_CHAMP = 80
 
 
 class WhatsappRefus(PermissionError):
@@ -334,7 +335,7 @@ def destinataire(identite_: str) -> dict:
 def numero_normalise(texte: str, marche: str = MARCHE_DEFAUT) -> str:
     """Un numéro saisi, en chiffres seuls et avec indicatif : « 00… » devient « … », un « 0 » initial est remplacé par le
     marché par défaut (« 06 12 34 56 78 » -> « 33612345678 »)."""
-    ch = re.sub(r"\D", "", str(texte or ""))
+    ch = re.sub(r"\D", "", str(texte or "").replace("(0)", ""))     # « +33 (0)6… » : le 0 de tronc tombe
     if ch.startswith("00"):
         return ch[2:]
     if ch.startswith("0"):
@@ -343,8 +344,18 @@ def numero_normalise(texte: str, marche: str = MARCHE_DEFAUT) -> str:
 
 
 def _est_stop(texte) -> bool:
-    """Le texte ENTIER (minuscules, sans ponctuation finale) est un mot d'arrêt : « stop ou encore ? » n'en est pas un."""
-    return isinstance(texte, str) and texte.strip().lower().rstrip(_PONCTUATION_FINALE) in MOTS_STOP
+    """Le texte ENTIER est un mot d'arrêt (NFC, minuscules, sans espaces, ponctuation, guillemets ni symboles — emoji — aux
+    deux bouts) : « stop ou encore ? » n'en est pas un."""
+    if not isinstance(texte, str):
+        return False
+    t = unicodedata.normalize("NFC", texte).lower()
+    nu = lambda c: unicodedata.category(c)[0] in "PSZC"            # noqa: E731
+    i, j = 0, len(t)
+    while i < j and nu(t[i]):
+        i += 1
+    while j > i and nu(t[j - 1]):
+        j -= 1
+    return t[i:j] in MOTS_STOP
 
 
 def _texte_entrant(msg: dict):
@@ -362,14 +373,30 @@ def _utc(d: datetime) -> datetime:
 
 
 def _quand(maintenant) -> str:
-    return (maintenant or datetime.now()).isoformat(timespec="seconds")
+    """Horodatage ISO en UTC (heure injectée, sinon l'horloge)."""
+    return _utc(maintenant or datetime.now(timezone.utc)).isoformat(timespec="seconds")
+
+
+def _mois(maintenant: datetime) -> str:
+    return _utc(maintenant).strftime("%Y-%m")
+
+
+def _c(v):
+    """Un champ externe rangé au journal : borné à LIMITE_CHAMP caractères."""
+    return None if v is None else str(v)[:LIMITE_CHAMP]
+
+
+def _groupe(e: dict, ident: str) -> list:
+    """L'identité et son alias (le même contact vu par BSUID et par numéro dans un même message)."""
+    autre = e["alias"].get(ident)
+    return [ident, autre] if autre and autre != ident else [ident]
 
 
 def _etat_doc(doc: dict, cid: str) -> dict:
     """L'état du compte `cid` DANS le document (créé et complété s'il manque ; l'appelant écrit)."""
     tous = doc.get("etat") if isinstance(doc.get("etat"), dict) else {}
     e = tous.get(cid) if isinstance(tous.get(cid), dict) else {}
-    for k in ("accords", "stops", "desinscrits_marketing", "compteur"):
+    for k in ("accords", "stops", "desinscrits_marketing", "compteur", "alias"):
         if not isinstance(e.get(k), dict):
             e[k] = {}
     if not isinstance(e.get("journal"), list):
@@ -396,8 +423,8 @@ def _noter(cid: str, geste) -> None:
 
 
 def _journaliser(e: dict, quand: str, sens: str, identite_: str, type_, categorie, statut, id_) -> None:
-    e["journal"].append({"quand": quand, "sens": sens, "identite": identite_, "type": type_, "categorie": categorie,
-                         "statut": statut, "id": id_})
+    e["journal"].append({"quand": quand, "sens": sens, "identite": identite_, "type": _c(type_), "categorie": _c(categorie),
+                         "statut": _c(statut), "id": _c(id_)})
     del e["journal"][:-JOURNAL_MAX]
 
 
@@ -440,16 +467,35 @@ def regler(cid: str, *, plafond_mois: int | None = None, marche_defaut: str | No
 
 def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None) -> str:
     """Range un message ENTRANT : il vaut accord pour la conversation (`source: "entrant"`) ; un texte STOP note le stop
-    (et non l'accord). Une ligne de journal sans texte. Rend l'identité. Un entrant ordinaire ne lève jamais un stop."""
+    (et non l'accord). Une ligne de journal sans texte. Rend l'identité. Un entrant ordinaire ne lève jamais un stop.
+    Un message qui porte À LA FOIS `from_user_id` et `from` lie `bsuid:Y` et `tel:X` (`etat.alias`, dans les deux sens) :
+    un stop ou une désinscription de l'un vaut pour l'autre, et un accord noté sur l'un ne lève jamais le stop de l'autre.
+    Limite : un contact vu seulement par numéro puis seulement par BSUID ne peut pas être relié (Kapso ne donne alors
+    aucun lien entre les deux)."""
     ident = identite(msg)
+    chiffres = re.sub(r"\D", "", str(msg.get("from") or ""))
+    bsuid = str(msg.get("from_user_id") or "").strip()
+    autre = f"tel:{chiffres}" if bsuid and chiffres else None
     q = _quand(maintenant)
     stop = _est_stop(_texte_entrant(msg))
 
     def geste(e):
+        if autre:
+            e["alias"][ident] = autre
+            e["alias"][autre] = ident
+        groupe = _groupe(e, ident)
+        for k in ("stops", "desinscrits_marketing"):                 # ce qui vaut pour l'un vaut pour l'autre
+            date_ = next((e[k][i] for i in groupe if i in e[k]), None)
+            for i in groupe:
+                if date_ and i not in e[k]:
+                    e[k][i] = date_
         if stop:
-            e["stops"][ident] = q
+            for i in groupe:
+                e["stops"].setdefault(i, q)
         else:
-            e["accords"][ident] = {"date": q, "source": "entrant"}
+            for i in groupe:
+                if i not in e["stops"]:                              # un accord ne lève jamais un stop
+                    e["accords"][i] = {"date": q, "source": "entrant"}
         _journaliser(e, q, "entrant", ident, str(msg.get("type") or "text"), None, "stop" if stop else "recu", msg.get("id"))
     _noter(cid, geste)
     return ident
@@ -462,7 +508,7 @@ def noter_envoi(cid: str, identite_: str, *, type: str, categorie: str | None, s
     _identite_valide(identite_)
     if type not in TYPES_ENVOI:
         raise ValueError("type d'envoi inconnu (texte, boutons ou modele)")
-    mois = maintenant.strftime("%Y-%m")
+    mois = _mois(maintenant)
 
     def geste(e):
         m = e["compteur"].setdefault(mois, {})
@@ -488,17 +534,18 @@ def controler(cid: str, identite_: str, *, type: str, categorie: str | None, der
         if not fiche_client.consentement_en_cours(client, f"whatsapp:{pub.get('WHATSAPP_PHONE_ID', '')}"):
             raise WhatsappRefus("aucun consentement en cours du client sur ce numéro WhatsApp", "consentement")
     e = _etat_doc(_lire_doc(eid), cid)
-    if identite_ in e["stops"]:
+    groupe = _groupe(e, identite_)
+    if any(i in e["stops"] for i in groupe):
         raise WhatsappRefus("ce contact a écrit STOP : aucun envoi", "stop")
-    if identite_ not in e["accords"]:
+    if not any(i in e["accords"] for i in groupe):
         raise WhatsappRefus("aucun accord de ce contact : aucun envoi", "accord")
-    if type != "modele" and (dernier_entrant is None or _utc(maintenant) - _utc(dernier_entrant) > FENETRE):
+    if type != "modele" and (dernier_entrant is None or _utc(maintenant) - _utc(dernier_entrant) >= FENETRE):
         raise WhatsappRefus("hors de la fenêtre de 24 h : seul un modèle peut partir", "fenetre")
     cat = str(categorie or "").upper()
-    if type == "modele" and cat == "MARKETING" and identite_ in e["desinscrits_marketing"]:
+    if type == "modele" and cat == "MARKETING" and any(i in e["desinscrits_marketing"] for i in groupe):
         raise WhatsappRefus("ce contact est désinscrit des messages marketing", "marketing")
     if type == "modele" and cat == "AUTHENTICATION" and identite_.startswith("bsuid:"):
         raise WhatsappRefus("un modèle d'authentification ne part pas vers un identifiant BSUID", "bsuid_authentification")
-    mois = e["compteur"].get(maintenant.strftime("%Y-%m")) or {}
+    mois = e["compteur"].get(_mois(maintenant)) or {}
     if int(mois.get("sortants") or 0) >= e["plafond_mois"]:
         raise WhatsappRefus("plafond mensuel d'envois atteint", "plafond")

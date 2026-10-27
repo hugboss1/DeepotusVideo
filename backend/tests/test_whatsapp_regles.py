@@ -230,5 +230,68 @@ except KeyError:
     inc = True
 check("R10.4 compte inconnu : KeyError", inc)
 
+print("\n[R11] identités liées (BSUID + numéro d'un même message)")
+ca = compte(E.creer({"nom": "Alias"})["id"], "PN-A")
+
+
+def entrant(cid_, texte, **ident):
+    return WA.noter_entrant(cid_, {"id": "w", "type": "text", "text": {"body": texte}, **ident}, T0)
+
+
+X, Y = "tel:33611110000", "bsuid:FR.alias1"
+entrant(ca, "STOP", **{"from": "33611110000"})
+entrant(ca, "bonjour", **{"from": "33611110000", "from_user_id": "FR.alias1"})
+check("R11.1 STOP par numéro, puis message avec les deux : le BSUID est refusé (stop)", refus(ca, Y) == "stop" and refus(ca, X) == "stop")
+check("R11.2 l'alias n'a pas levé le stop ni noté d'accord sur le BSUID", Y not in WA.etat(ca)["accords"])
+cb = compte(E.creer({"nom": "Alias B"})["id"], "PN-B")
+Z, W = "tel:33622220000", "bsuid:FR.alias2"
+entrant(cb, "stop", from_user_id="FR.alias2")
+entrant(cb, "oui", **{"from": "33622220000", "from_user_id": "FR.alias2"})
+check("R11.3 STOP sous BSUID, envoi au numéro : stop", refus(cb, Z) == "stop" and refus(cb, W) == "stop")
+cc = compte(E.creer({"nom": "Alias C"})["id"], "PN-C")
+V, U = "tel:33633330000", "bsuid:FR.alias3"
+entrant(cc, "salut", **{"from": "33633330000", "from_user_id": "FR.alias3"})
+check("R11.4 alias posé : accord sur les deux, envois permis", refus(cc, V) is None and refus(cc, U) is None
+      and WA.etat(cc)["alias"] == {U: V, V: U})
+entrant(cc, "STOP", from_user_id="FR.alias3")
+check("R11.5 alias puis STOP sur un seul : les deux refusés", refus(cc, V) == "stop" and refus(cc, U) == "stop")
+cd = compte(E.creer({"nom": "Alias D"})["id"], "PN-D")
+entrant(cd, "salut", **{"from": "33644440000", "from_user_id": "FR.alias4"})
+WA.noter_desinscription(cd, "tel:33644440000", T0)
+check("R11.6 désinscription marketing valable pour l'alias",
+      refus(cd, "bsuid:FR.alias4", type="modele", categorie="MARKETING") == "marketing")
+
+print("\n[R12] STOP robuste")
+cs = compte(E.creer({"nom": "Stop"})["id"], "PN-S")
+
+
+def est_stop(t):
+    return WA._est_stop(t)
+
+
+check("R12.1 variantes : stop, 'STOP', (stop), STOP 🛑, « arrêt » décomposé",
+      all(est_stop(t) for t in ("stop", "'STOP'", "(stop)", "STOP 🛑", "arrêt", "“Stop” !", "  stop\n")))
+check("R12.2 « stop ou encore ? », vide, ponctuation seule : pas STOP",
+      not any(est_stop(t) for t in ("stop ou encore ?", "", "...", "ne stop pas", None)))
+
+print("\n[R13] bornes et UTC")
+check("R13.1 exactement 24 h 00 : fermée", refus(cid, TEL, dernier_entrant=T0 - timedelta(hours=24)) == "fenetre")
+check("R13.2 23 h 59 min 59 s : ouverte", refus(cid, TEL, dernier_entrant=T0 - timedelta(hours=23, minutes=59, seconds=59)) is None)
+cm = compte(E.creer({"nom": "Mois"})["id"], "PN-M")
+WA.noter_accord(cm, TEL, "papier", T0)
+WA.regler(cm, plafond_mois=1)
+paris = timezone(timedelta(hours=2))
+minuit_paris = datetime(2026, 11, 1, 0, 30, tzinfo=paris)          # 31/10 22:30 UTC : encore octobre
+WA.noter_envoi(cm, TEL, type="modele", categorie="UTILITY", statut="envoye", id="x", maintenant=minuit_paris)
+check("R13.3 horloge locale juste après minuit le 1er : toujours le mois UTC (2026-10)",
+      list(WA.etat(cm)["compteur"]) == ["2026-10"]
+      and refus(cm, TEL, type="modele", categorie="UTILITY", maintenant=minuit_paris) == "plafond")
+check("R13.4 dates rangées en UTC", WA.etat(cm)["journal"][-1]["quand"].endswith("+00:00"))
+WA.noter_envoi(cm, TEL, type="texte", categorie="y" * 200, statut="z" * 200, id="w" * 200, maintenant=T0)
+ligne = WA.etat(cm)["journal"][-1]
+check("R13.5 champs externes du journal bornés à 80", all(len(ligne[k]) == 80 for k in ("categorie", "statut", "id")), ligne)
+check("R13.6 numero_normalise : (0) de tronc", WA.numero_normalise("+33 (0)6 12 34 56 78") == "33612345678"
+      and WA.numero_normalise("0033 (0)6 12 34 56 78") == "33612345678")
+
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)
