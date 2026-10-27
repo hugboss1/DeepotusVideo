@@ -39,6 +39,9 @@ PARTAGES = {
     "frontend/shared/dz-pour-qui.js": ("espaces.pourqui.",),
     # t311 (27/10/2026) : le panneau « Agent WhatsApp » de Réglages › Espaces ; son « Fermer » est commun
     "frontend/shared/dz-whatsapp-espace.js": ("whatsapp.espace.",),
+    # t328 (28/10/2026) : le panneau « Diffusion WhatsApp » de l'inspecteur d'un post du Planificateur ; sa boîte de
+    # confirmation (diffusion.confirmer.*, diffusion.liste.*) est une boîte, pas un élément du panneau
+    "frontend/shared/dz-diffusion-whatsapp.js": ("diffusion.action.", "diffusion.modele.choisir"),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")
