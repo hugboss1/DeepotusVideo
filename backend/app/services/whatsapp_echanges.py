@@ -356,6 +356,8 @@ def _modele_plat(m: dict) -> dict:
     nommes = bool(ex.get("body_text_named_params")) or any(not j.isdigit() for j in jalons)
     return {"nom": m.get("name"), "langue": m.get("language"), "categorie": str(m.get("category") or "").lower(),
             "parametres": "nommes" if nommes else "positionnels", "n_parametres": len(jalons),
+            # t311 tâche 7 : les noms des jalons du corps, dans l'ordre (les champs nommés de la page WhatsApp)
+            "noms_parametres": [str(j)[:60] for j in jalons],
             "statut": str(m.get("status") or "").lower(), "composants": _composants(m)}
 
 

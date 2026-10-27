@@ -849,6 +849,29 @@ if _PLATEAU_DIR.is_dir():
 
     logger.info(f"Serving etabli from {_etabli}")
 
+# ── /whatsapp : la page WhatsApp d'un espace (t311 tâche 7, 27/10/2026) — conversations, modèles, contacts, santé, prix ──
+# Même patron standalone que /plateau, HORS du bundle ; avant le montage de la SPA « / ». Le montage se crée au boot.
+_WHATSAPP_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "whatsapp"
+if _WHATSAPP_DIR.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFWa
+
+    class _WhatsappStatic(_SFWa):
+        """no-cache comme /plateau : whatsapp.js et ses onglets gardent un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/whatsapp", _WhatsappStatic(directory=str(_WHATSAPP_DIR), html=True), name="whatsapp")
+
+    @app.get("/whatsapp", include_in_schema=False)
+    async def _whatsapp_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/whatsapp/", status_code=307)
+
 # ── /lib3d : le canevas 3D PARTAGÉ (Établi aujourd'hui, Plateau le jour où) ──
 _lib3d = Path(__file__).resolve().parent.parent.parent / "frontend" / "lib3d"
 if _lib3d.is_dir():
