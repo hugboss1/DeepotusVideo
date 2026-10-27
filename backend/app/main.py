@@ -524,6 +524,9 @@ app.include_router(agent_router, prefix="/api/agent")
 # Agent Campagnes (t285a, 23/10/2026) : /api/agent/campagnes — conversations, message en SSE, cartes, dépôts, import
 from app.api.agent_campagnes_routes import router as agent_campagnes_router
 app.include_router(agent_campagnes_router, prefix="/api/agent/campagnes")
+# t352 (27/10/2026) : /api/veille — la veille concurrentielle d'un espace (collecte niveau 1, rapport, import)
+from app.api.veille_routes import router as veille_router
+app.include_router(veille_router, prefix="/api/veille")
 # Atelier sonore (t270, 21/10/2026) : /api/audio/graph/noeuds|valider|apercu|rendre — graphe audio compilé en ffmpeg
 from app.api.audio_graph_routes import router as audio_graph_router
 app.include_router(audio_graph_router, prefix="/api/audio/graph")
