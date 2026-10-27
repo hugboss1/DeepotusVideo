@@ -119,7 +119,7 @@ for mauvais in (("../x", None), ("esp_zz", "../../etc"), (EID, "2026-13-99"), (E
     check(f"test_dossier_confine : {mauvais}", _refuse)
 
 print("\n[5] import")
-src = TMP / "source" / "2026-10-27"
+src = TMP / "source" / "2026-10-20"   # pas aujourd'hui : le cas du même jour est la série [6]
 src.mkdir(parents=True)
 VERB = [{"concurrent": "capcut", "source": "hn", "url": f"https://news.ycombinator.com/item?id={i}", "date": "2026-06-08T22:55:01Z",
          "auteur_hash": f"h{i}", "auteur": "PseudoEnClair", "texte": f"Two paid features of CapCut I rebuilt myself {i}", "score": None,
@@ -130,16 +130,36 @@ VERB = [{"concurrent": "capcut", "source": "hn", "url": f"https://news.ycombinat
 r = c.post(f"/api/veille/{EID}/importer", json={"dossier": str(src)})
 j = r.json()
 check("test_import_veille_n1 : 200", r.status_code == 200 and j["lignes"] == 5 and j["ignorees"] == 1, r.text)
-check("test_import_veille_n1 : date du dossier source", j["date"] == "2026-10-27")
+check("test_import_veille_n1 : date du dossier source", j["date"] == "2026-10-20")
 R = c.get(f"/api/veille/{EID}").json()
-check("test_import_veille_n1 : classement importé", any(v["date"] == "2026-10-27" and v["classement"] == "importe" for v in R["veilles"]))
-dv = V.dossier(EID, "2026-10-27")
+check("test_import_veille_n1 : classement importé", any(v["date"] == "2026-10-20" and v["classement"] == "importe" for v in R["veilles"]))
+dv = V.dossier(EID, "2026-10-20")
 check("test_import_hostile : champ auteur retiré", b"PseudoEnClair" not in (dv / "verbatims.jsonl").read_bytes())
 check("test_import_hostile : seul verbatims.jsonl lu", not (dv / "rapport.md").exists())
 check("test_import : fichier direct", c.post(f"/api/veille/{EID}/importer", json={"dossier": str(src / "verbatims.jsonl")}).status_code == 200)
 check("test_import_hostile : autre fichier refusé", c.post(f"/api/veille/{EID}/importer",
                                                            json={"dossier": str(src / "rapport.md")}).status_code == 422)
 check("test_import_hostile : absent 422", c.post(f"/api/veille/{EID}/importer", json={"dossier": str(TMP / "rien")}).status_code == 422)
+print("\n[6] import et collecte le même jour : les deux restent")
+import datetime as _dt
+jour = _dt.date.today().isoformat()
+src2 = TMP / "source2" / jour
+src2.mkdir(parents=True)
+(src2 / "verbatims.jsonl").write_text("".join(json.dumps(dict(v, url=v["url"] + "#j")) + "\n" for v in VERB), encoding="utf-8")
+avant = c.get(f"/api/veille/{EID}").json()["rapport"]
+check("test_meme_jour : une collecte du jour existe", avant["date"] == jour and avant["volumes"]["gardes"] >= 4, avant["date"])
+r = c.post(f"/api/veille/{EID}/importer", json={"dossier": str(src2)})
+R = c.get(f"/api/veille/{EID}", params={"date": jour}).json()["rapport"]
+check("test_meme_jour : import + collecte comptés", r.status_code == 200 and R["volumes"]["gardes"] == avant["volumes"]["gardes"] + 5, R["volumes"])
+with c:
+    ATTENTE["duree"] = 0.3
+    c.post(f"/api/veille/{EID}/collectes", json={})
+    check("test_import_pendant_collecte_409", c.post(f"/api/veille/{EID}/importer", json={"dossier": str(src2)}).status_code == 409)
+    attendre_fin(EID)
+    ATTENTE["duree"] = 0.0
+R = c.get(f"/api/veille/{EID}", params={"date": jour}).json()["rapport"]
+check("test_meme_jour : la collecte suivante garde l'import", R["volumes"]["gardes"] == avant["volumes"]["gardes"] + 5, R["volumes"])
+
 gros = TMP / "gros"
 gros.mkdir()
 with open(gros / "verbatims.jsonl", "wb") as fh:

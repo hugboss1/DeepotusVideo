@@ -7,7 +7,7 @@ Où elle vit : `DATA_ROOT/espaces/<id>/veille/` —
   <AAAA-MM-JJ>/brut/*.jsonl    sortie de veille_collecte (auteurs hachés)
   <AAAA-MM-JJ>/verbatims.jsonl les verbatims classés (veille_grille)
   <AAAA-MM-JJ>/rapport.json    matrice, douleurs, angles, forces, demandes, limites
-  <AAAA-MM-JJ>/import.json     si la veille a été importée d'un dossier fait hors de l'app
+  <AAAA-MM-JJ>/importe.jsonl + import.json  une veille importée d'un dossier fait hors de l'app (gardée à côté du brut)
 
 Une collecte à la fois par espace, en tâche de fond (asyncio) ; un `en_cours` sans tâche vivante dans ce processus
 (backend redémarré) se lit « interrompu » et ne bloque rien. Lecture seule sur le web, aucune dépense.
@@ -169,20 +169,25 @@ def verbatims(eid, date: str | None = None, theme=None, concurrent=None, limite:
     return out
 
 
-def _consolider(eid: str, date: str, limites: list[str], meta_import: dict | None = None) -> dict:
-    """Classe les verbatims du dossier et écrit verbatims.jsonl + rapport.json."""
+def _consolider(eid: str, date: str, limites: list[str]) -> dict:
+    """Classe le brut collecté ET les verbatims importés du dossier (un même jour peut avoir les deux, aucun n'écrase
+    l'autre ; doublon = lien + texte), puis écrit verbatims.jsonl + rapport.json."""
     d = dossier(eid, date)
-    if meta_import is None:
-        brut = [l for f in sorted((d / "brut").glob("*.jsonl")) for l in _lignes(f)[0]]
-        classes = [G.classer(l) for l in brut]
-        with (d / "verbatims.jsonl").open("w", encoding="utf-8", newline="\n") as fh:
-            for l in classes:
-                fh.write(json.dumps(l, ensure_ascii=False) + "\n")
-        n_brut = len(brut)
-    else:
-        classes = [G.classer(l) for l in _lignes(d / "verbatims.jsonl")[0]]
-        n_brut = meta_import["lignes"]
-    rap = G.rapport(classes, {"date": date, "espace_id": eid, "brut": n_brut, "limites": limites})
+    brut = [l for f in sorted((d / "brut").glob("*.jsonl")) for l in _lignes(f)[0]]
+    importes = _lignes(d / "importe.jsonl")[0]
+    vus, classes = set(), []
+    for l in importes + brut:
+        k = VC.cle(l)
+        if k not in vus:
+            vus.add(k)
+            classes.append(G.classer(l))
+    with (d / "verbatims.jsonl").open("w", encoding="utf-8", newline="\n") as fh:
+        for l in classes:
+            fh.write(json.dumps(l, ensure_ascii=False) + "\n")
+    meta = _lire_json(d / "import.json")
+    if isinstance(meta, dict):
+        limites = list(limites) + [f"veille importée ({meta.get('lignes')} verbatims, {meta.get('ignorees')} lignes ignorées)"]
+    rap = G.rapport(classes, {"date": date, "espace_id": eid, "brut": len(brut) + len(importes), "limites": limites})
     _ecrire_json(d / "rapport.json", rap)
     return rap
 
@@ -228,6 +233,8 @@ def importer(eid, source: str) -> dict:
     """Importe le `verbatims.jsonl` d'une veille faite hors de l'app (skill veille-concurrents) : rien d'autre n'est lu.
     Champs hors schéma retirés (dont tout pseudo en clair) ; le classement manuel est gardé."""
     _verifier(eid)
+    if _en_vie(eid):
+        raise ConflitCollecte("une collecte tourne pour cet espace : importez quand elle est finie")
     s = Path(str(source or "").strip().strip('"'))
     f = s / "verbatims.jsonl" if s.is_dir() else s
     if f.name != "verbatims.jsonl" or not f.is_file():
@@ -244,11 +251,11 @@ def importer(eid, source: str) -> dict:
     date = f.parent.name if _DATE.match(f.parent.name) else dt.date.today().isoformat()
     d = dossier(eid, date)
     d.mkdir(parents=True, exist_ok=True)
-    with (d / "verbatims.jsonl").open("w", encoding="utf-8", newline="\n") as fh:
+    with (d / "importe.jsonl").open("w", encoding="utf-8", newline="\n") as fh:
         for l in propres:
             fh.write(json.dumps(l, ensure_ascii=False) + "\n")
     meta = {"source": str(f.parent), "lignes": len(propres), "ignorees": ko,
             "le": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}
     _ecrire_json(d / "import.json", meta)
-    rap = _consolider(eid, date, [f"veille importée ({len(propres)} verbatims, {ko} lignes ignorées)"], meta)
+    rap = _consolider(eid, date, [])
     return {"date": date, "lignes": len(propres), "ignorees": ko, "rapport": rap}

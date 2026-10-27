@@ -76,6 +76,8 @@ async def importer(eid: str, corps: CorpsImport):
     _espace(eid)
     try:
         return V.importer(eid, corps.dossier)
+    except V.ConflitCollecte as e:
+        raise HTTPException(409, str(e)) from None
     except V.ImportTropGros as e:
         raise HTTPException(413, str(e)) from None
     except (ValueError, OSError) as e:
