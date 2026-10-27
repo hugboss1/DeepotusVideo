@@ -427,8 +427,11 @@ src.value = "appel du 27/10"; src.declencher("input"); await attendre(2);
 check("9.7 avec une source : permis", lever.disabled === false);
 appels = []; lever.declencher("click"); await attendre();
 check("9.8 POST stop/lever {identite, source}", JSON.stringify(posts(B + "/stop/lever")[0]?.corps) === JSON.stringify({ identite: "tel:33600000003", source: "appel du 27/10" }));
+window.__dzDialogue = { confirmer: async () => true };     // le dialogue maison confirme (jamais de confirm natif)
 un(r, "data-dz-wa-stop-identite").value = "tel:33600000007"; appels = [];
 un(r, "data-dz-wa-stop-poser").declencher("click"); await attendre();
+check("9.9b sans dialogue maison, rien n'est confirmé", await W.confirmer.call(null, "x").then(() => true) && (delete window.__dzDialogue, (await W.confirmer("x")) === false));
+window.__dzDialogue = { confirmer: async () => true };
 check("9.9 poser un STOP", JSON.stringify(posts(B + "/stop")[0]?.corps) === JSON.stringify({ identite: "tel:33600000007" }));
 un(r, "data-dz-wa-onglet", "sante").declencher("click"); await attendre();
 const sante = (k) => (un(r, "data-dz-wa-sante", k) || { textContent: "" }).textContent;

@@ -137,7 +137,7 @@
   async function confirmer(msg) {
     var D = window.__dzDialogue;
     if (D && typeof D.confirmer === "function") { try { return !!(await D.confirmer(msg)); } catch (e) { return false; } }
-    return typeof window.confirm === "function" ? !!window.confirm(msg) : true;
+    return false;  // sans dialogue maison, on ne confirme rien (jamais de confirm natif)
   }
 
   // ── identités, brouillons, boutons (purs) ───────────────────────────────────────────────────────────────────────────
