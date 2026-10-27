@@ -93,6 +93,7 @@ from app.services import library_projects as _LP_boot
 _LP_boot.installer()
 from app.services.news_service import news_daily_loop
 from app.services.marketing import schedule_loop
+from app.services.whatsapp_releve import releve_loop   # t311 : relevé de fond WhatsApp (30 s après le démarrage)
 
 
 def _setup_file_logging() -> Path | None:
@@ -181,6 +182,7 @@ async def lifespan(app: FastAPI):
         logger.warning(f"coffre au démarrage ignoré : {e}")
     news_task = asyncio.create_task(news_daily_loop())
     sched_task = asyncio.create_task(schedule_loop())
+    releve_task = asyncio.create_task(releve_loop())
 
     async def _maj_au_demarrage():
         """Tâche #18 : une fois par lancement, 20 s après le boot, et au plus une fois par jour (cache disque).
@@ -231,7 +233,7 @@ async def lifespan(app: FastAPI):
         if warm_task:
             from app.services.heygen_service import annuler_en_vol
             annuler_en_vol()
-        await _arreter_taches([t for t in (news_task, sched_task, maj_task, warm_task) if t])
+        await _arreter_taches([t for t in (news_task, sched_task, releve_task, maj_task, warm_task) if t])
         # t136 : le moteur du Photolab s'arrête avec le backend (fin de stdin = fin propre de photocraft-cli serve)
         try:
             from app.services import photolab_moteur

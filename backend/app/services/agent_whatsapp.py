@@ -221,7 +221,7 @@ def _modifier(eid: str, pid: str, identite: str, geste, alias=()) -> dict:
 
 def ranger(eid: str, pid: str, identite: str, etat: str, carte: dict | None, raison: str | None = None,
            alias=()) -> dict:
-    """Range un brouillon neuf pour le contact (remplace le précédent ; `auto_jour` est gardé). `identite` : la clé
+    """Range un brouillon neuf pour le contact (remplace le précédent ; `auto_jour` et `hors_jour` sont gardés). `identite` : la clé
     canonique (`canonique`)."""
     if etat not in ETATS:
         raise ValueError(f"état de brouillon inconnu : {str(etat)[:20]}")
@@ -231,6 +231,8 @@ def ranger(eid: str, pid: str, identite: str, etat: str, carte: dict | None, rai
                 "auto_jour": (b or {}).get("auto_jour") if isinstance((b or {}).get("auto_jour"), dict) else {}}
         if raison:
             neuf["raison"] = str(raison)[:200]
+        if isinstance((b or {}).get("hors_jour"), str):      # t311 tâche 5 : message d'absence déjà parti ce jour-là
+            neuf["hors_jour"] = b["hors_jour"]
         return neuf
     return _modifier(eid, pid, identite, geste, alias)
 
