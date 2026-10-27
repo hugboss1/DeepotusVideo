@@ -1236,6 +1236,7 @@
   "erreur.6faa4d61b5": {"fr": "extraction élément par élément : `noeuds` doit être une liste non vide d'index de nœud, sans doublon", "en": "element-by-element extraction: `noeuds` must be a non-empty list of node indices, without duplicates", "src": "fr"},
   "erreur.6faf9001ce": {"fr": "Composition terminée", "en": "Composition complete", "src": "en"},
   "erreur.6fb134ae8b": {"fr": "valeur invalide : un texte est attendu", "en": "invalid value: text is expected", "src": "fr"},
+  "erreur.6fd8be2fcd": {"fr": "le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute diffusion", "en": "this workspace's WhatsApp broadcasts file is unreadable: repair it before any broadcast", "src": "fr"},
   "erreur.7001fd1fc8": {"fr": "langue inconnue (fr ou en)", "en": "unknown language (fr or en)", "src": "fr"},
   "erreur.7011c39326": {"fr": "HDR : ligne de résolution « {v} » — seule l'orientation standard « -Y h +X w » est lue (les sept autres orientations du format sont légales mais introuvables en pratique, et les deviner serait une image retournée sans un mot)", "en": "HDR: resolution line “{v}” — only the standard orientation “-Y h +X w” is read (the seven other orientations of the format are legal but never seen in practice, and guessing would silently produce a flipped image)", "src": "fr"},
   "erreur.7014aea809": {"fr": "Fichier inconnu dans le dossier de capture : ce dossier ne sert que {v}.", "en": "Unknown file in the capture folder: this folder only serves {v}.", "src": "fr"},

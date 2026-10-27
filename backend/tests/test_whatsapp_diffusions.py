@@ -79,6 +79,10 @@ class Faux:
         self.send = []              # réponses de send à servir : (statut, corps) ou "reseau"
         self.erreurs_lot = {}       # n° de lot (1..) -> (errors, duplicates)
         self.n_lots = 0
+        self.lot_panne = None       # n° de lot qui répond 422
+        self.get_panne = set()      # broadcasts dont le GET répond 500
+        self.pendant = None         # fabrique de coroutine lancée au premier lot de destinataires
+        self.tache = None
 
 
 F = Faux()
@@ -111,6 +115,11 @@ async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
         if len(lot) > 1000:
             return 422, {"error": "too many"}, {}
         F.n_lots += 1
+        if F.n_lots == F.lot_panne:
+            return 422, {"error": "Broadcast is importing"}, {}
+        if F.pendant is not None:                 # un geste concurrent lancé PENDANT le lancement (en vol)
+            F.tache, F.pendant = asyncio.ensure_future(F.pendant()), None
+            await asyncio.sleep(0.01)
         F.lots.append(len(lot))
         errs, dups = F.erreurs_lot.get(F.n_lots, ([], 0))
         for r in lot:
@@ -130,6 +139,8 @@ async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
         if rep[0] == 202:
             b["status"] = "sending"
         return rep[0], rep[1], {}
+    if methode == "GET" and bid in F.get_panne:
+        return 500, {"error": "boom"}, {}
     if len(parts) == 3 and methode == "GET":
         r = b["recipients"]
         cpt = lambda s: sum(1 for x in r if x["status"] == s)       # noqa: E731
@@ -201,7 +212,7 @@ WA._noter(cid, lambda e: (e["accords"].update({i: {"date": "2026-10-01", "source
                           e["stops"].__setitem__(STOPPE, "2026-10-02")))
 MOIS = WA._mois(datetime.now(timezone.utc))
 MOD = {"nom": "promo", "langue": "fr"}
-for p in ("post-1", "post-2", "post-3", "post-4", "post-5", "post-6", "post-7"):
+for p in [f"post-{i}" for i in range(1, 14)]:
     creer_post(p, boite)
 
 print("\n[C1] configurer")
@@ -224,6 +235,7 @@ check("C1.9 fichier d'espace whatsapp_diffusions.json", (_tmp / "espaces" / boit
       or E.chemin(boite, "whatsapp_diffusions.json").is_file())
 vide = run(WD.configurer("post-4", cid, modele=MOD, parametres={"prenom": PARAM}, identites=[STOPPE]))
 check("C1.10 audience vide -> n = 0, config rangée", vide["audience"]["n"] == 0 and WD.lire("post-4", boite) is not None, vide)
+check("C1.11 audience vide : les écartés restent comptés", (vide["audience"]["ecartes"] or {}).get("stop") == 1, vide["audience"])
 
 print("\n[N1] nominal 2 500")
 F.erreurs_lot = {2: (["Recipient 7: invalid phone number format"], 2)}
@@ -391,6 +403,135 @@ liste = WD.a_relire(maintenant + timedelta(seconds=120))
 check("A1.1 sending ancien (post-2, post-3, post-5) relu ; terminée et non lancée absentes",
       {p for p, _e in liste} == {"post-2", "post-3", "post-5"} and all(e == boite for _p, e in liste), liste)
 check("A1.2 maj récente (< 60 s) : rien", WD.a_relire(maintenant) == [], WD.a_relire(maintenant))
+
+print("\n[K1] deux lancer simultanés")
+from fastapi import HTTPException                                    # noqa: E402
+run(WD.configurer("post-8", cid, modele=MOD, parametres={"prenom": "a"}, identites=PETIT))
+F.appels.clear()
+async def _deux():
+    return await asyncio.gather(WD.lancer("post-8"), WD.lancer("post-8"), return_exceptions=True)
+res = run(_deux())
+check("K1.1 un seul send, une seule création", sum(1 for _m, c in F.appels if c.endswith("/send")) == 1
+      and sum(1 for m, c in F.appels if m == "POST" and c == "/whatsapp/broadcasts") == 1, F.appels)
+check("K1.2 l'un part, l'autre est refusé deja_lancee", sum(1 for x in res if isinstance(x, dict) and x["statut"] == "sending") == 1
+      and sum(1 for x in res if isinstance(x, WA.WhatsappRefus) and x.code == "deja_lancee") == 1, res)
+
+cid2 = CP.creer({"espace_id": boite, "plateforme": "whatsapp"})["id"]
+CP.poser_publics_serveur(cid2, {"WHATSAPP_PHONE_ID": "PN-2", "WHATSAPP_WABA_ID": "WABA-2"})
+creer_post("post-14", boite)
+run(WD.configurer("post-14", cid, modele=MOD, parametres={"prenom": "a"}, identites=PETIT))
+F.appels.clear()
+
+
+async def _croises():
+    F.pendant = lambda: WD.configurer("post-14", cid2, modele=MOD, parametres={"prenom": "z"}, identites=None)
+    r0 = await WD.lancer("post-14")
+    r1 = await asyncio.gather(F.tache, return_exceptions=True)
+    return [r0, r1[0]]
+res = run(_croises())
+rec14 = WD.lire("post-14", boite)
+check("K1.3 configurer par un AUTRE compte pendant le lancement : refusé, diffusion suivie",
+      isinstance(res[1], WA.WhatsappRefus) and res[1].code == "deja_lancee" and rec14["compte"] == cid
+      and rec14["broadcast_id"] == res[0]["broadcast_id"] and rec14["statut"] == "sending", (res, rec14))
+
+print("\n[K2] 402 du plafond")
+run(WD.configurer("post-9", cid, modele=MOD, parametres={"prenom": "a"}, identites=PETIT))
+_ver = PF.verifier
+
+
+async def _refus402(*a, **k):
+    raise HTTPException(402, {"dz_plafond": {"motif": "global"}})
+PF.verifier = _refus402
+F.appels.clear()
+nd = len(depenses())
+e = leve(WD.lancer("post-9"), HTTPException)
+PF.verifier = _ver
+rec9 = WD.lire("post-9", boite)
+check("K2.1 402 remonte, aucun send", e is not None and e.status_code == 402 and not any(c.endswith("/send") for _m, c in F.appels))
+check("K2.2 rien réservé", len(depenses()) == nd)
+check("K2.3 retour à configuree (relançable)", rec9["statut"] == "configuree" and rec9["incertain"] is False, rec9)
+check("K2.4 relancé : part", run(WD.lancer("post-9"))["statut"] == "sending")
+
+print("\n[K3] panne pendant l'ajout des destinataires")
+run(WD.configurer("post-10", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[100:1600]))
+F.lot_panne = F.n_lots + 2
+F.appels.clear()
+nd = len(depenses())
+e = leve(WD.lancer("post-10"), KA.KapsoErreur)
+F.lot_panne = None
+rec10 = WD.lire("post-10", boite)
+check("K3.1 KapsoErreur, aucun send, rien réservé", e is not None and not any(c.endswith("/send") for _m, c in F.appels)
+      and len(depenses()) == nd, F.appels)
+check("K3.2 état cohérent : configuree, lot partiel noté", rec10["statut"] == "configuree" and rec10["incertain"] is False
+      and rec10["ajout"]["ajoutes"] == 1000, rec10)
+check("K3.3 relancé : part", run(WD.lancer("post-10"))["statut"] == "sending")
+
+print("\n[K4] anciennes : relance confirmée sans relecture possible")
+VIEUX = FR[1700:1703]
+run(WD.configurer("post-11", cid, modele=MOD, parametres={"prenom": "a"}, identites=VIEUX))
+F.send = [(500, {"error": "boom"})]
+b_old = run(WD.lancer("post-11"))["broadcast_id"]
+F.get_panne = {b_old}
+r = run(WD.lancer("post-11", confirme_incertain=True))
+rec11 = WD.lire("post-11", boite)
+check("K4.1 nouvelle diffusion, l'ancienne parquée", r["broadcast_id"] != b_old and r["statut"] == "sending"
+      and [a["broadcast_id"] for a in rec11["anciennes"]] == [b_old], rec11.get("anciennes"))
+check("K4.2 ancienne réservation gardée (inconnue)", depenses(b_old)[0].reel_usd is None)
+check("K4.3 a_relire suit les anciennes",
+      "post-11" in {p for p, _e in WD.a_relire(datetime.now(timezone.utc) + timedelta(seconds=120))})
+F.get_panne = set()
+ro = F.bc[b_old]["recipients"]
+F.bc[b_old]["status"] = "completed"
+ro[0]["status"] = "sent"
+ro[1].update(status="suppressed", error_details={"code": "marketing_preference_stopped"})
+ro[2].update(status="failed", error_details={"code": "131050"})
+run(WD.relire("post-11", boite))
+e_ = WA.etat(cid)
+check("K4.4 ancienne soldée : 1 sent x 0,08", abs(depenses(b_old)[0].reel_usd - 0.08) < 1e-9, depenses(b_old)[0].reel_usd)
+check("K4.5 désinscriptions de l'ancienne captées", f"tel:{ro[1]['phone_number']}" in e_["desinscrits_marketing"]
+      and f"tel:{ro[2]['phone_number']}" in e_["desinscrits_marketing"])
+check("K4.6 retirée des anciennes", WD.lire("post-11", boite)["anciennes"] == [])
+
+print("\n[K5] incertain + draft : attente de confirmation")
+run(WD.configurer("post-12", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1800:1802]))
+F.send = [(500, {"error": "boom"})]
+run(WD.lancer("post-12"))
+check("K5.1 refus incertain", refus(WD.lancer("post-12")) == "incertain")
+check("K5.2 attente_confirmation posée", WD.lire("post-12", boite)["attente_confirmation"] is True)
+check("K5.3 a_relire ne la sonde plus",
+      "post-12" not in {p for p, _e in WD.a_relire(datetime.now(timezone.utc) + timedelta(seconds=120))})
+run(WD.lancer("post-12", confirme_incertain=True))
+check("K5.4 confirmée : attente levée", WD.lire("post-12", boite)["attente_confirmation"] is False)
+
+print("\n[K6] Kapso failed")
+run(WD.configurer("post-13", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1900:1902]))
+b13 = run(WD.lancer("post-13"))["broadcast_id"]
+F.bc[b13]["status"] = "failed"
+for x in F.bc[b13]["recipients"]:
+    x["status"] = "failed"
+run(WD.relire("post-13", boite))
+r = run(WD.lancer("post-13"))
+check("K6.1 failed sans aucun envoi : relançable", r["statut"] == "sending" and r["broadcast_id"] != b13, r)
+b13b = r["broadcast_id"]
+F.bc[b13b]["status"] = "failed"
+F.bc[b13b]["recipients"][0]["status"] = "sent"
+run(WD.relire("post-13", boite))
+check("K6.2 failed avec des envois : définitif", refus(WD.lancer("post-13")) == "deja_lancee")
+
+print("\n[K7] fichier illisible")
+fd = E.chemin(boite, "whatsapp_diffusions.json")
+sain = fd.read_bytes()
+fd.write_text("{oups", encoding="utf-8")
+F.appels.clear()
+check("K7.1 lancer refusé", isinstance(leve(WD.lancer("post-7"), ValueError), WD.FichierIllisible))
+check("K7.2 configurer refusé", isinstance(leve(WD.configurer("post-7", cid, modele=MOD, parametres={"prenom": "a"},
+                                                              identites=PETIT), ValueError), WD.FichierIllisible))
+check("K7.3 relire refusé", isinstance(leve(WD.relire("post-1", boite), ValueError), WD.FichierIllisible))
+check("K7.4 lecture d'affichage : vide, a_relire sans erreur", WD.lire("post-1", boite) is None
+      and WD.a_relire(datetime.now(timezone.utc)) == [])
+check("K7.5 fichier jamais remis à zéro ni déplacé, aucun appel Kapso", fd.read_text(encoding="utf-8") == "{oups"
+      and F.appels == [], F.appels)
+fd.write_bytes(sain)
 
 print("\n[J1] journal")
 logger.complete()

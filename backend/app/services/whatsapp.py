@@ -324,10 +324,11 @@ LIMITE_CHAMP = 80
 class WhatsappRefus(PermissionError):
     """Un envoi refusé par les règles. `code` ∈ CODES_REFUS ; `message` : le texte (traduit à la sortie par L10)."""
 
-    def __init__(self, message, code):
+    def __init__(self, message, code, ecartes=None):
         super().__init__(message)
         self.message = message
         self.code = code
+        self.ecartes = ecartes           # t328 : refus "accord" d'une audience de diffusion vide : les écartés comptés
 
 
 def identite(msg: dict) -> str:
@@ -943,7 +944,7 @@ def audience_diffusion(cid: str, *, categorie: str, identites: list[str] | None 
         else:
             retenus.append(ident)
     if not retenus:
-        raise WhatsappRefus("aucun destinataire n'a donné un accord permettant cette diffusion", "accord")
+        raise WhatsappRefus("aucun destinataire n'a donné un accord permettant cette diffusion", "accord", ecartes=ecartes)
     return {"retenus": retenus, "ecartes": ecartes}
 
 

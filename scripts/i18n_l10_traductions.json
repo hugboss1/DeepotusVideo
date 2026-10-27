@@ -11274,5 +11274,9 @@
  "cette diffusion est peut-être déjà partie (panne de Kapso pendant l'envoi) : vérifiez-la, puis confirmez pour la relancer": {
   "fr": "cette diffusion est peut-être déjà partie (panne de Kapso pendant l'envoi) : vérifiez-la, puis confirmez pour la relancer",
   "en": "this broadcast may already have gone out (Kapso failed during sending): check it, then confirm to launch it again"
+ },
+ "le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute diffusion": {
+  "fr": "le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute diffusion",
+  "en": "this workspace's WhatsApp broadcasts file is unreadable: repair it before any broadcast"
  }
 }
