@@ -568,3 +568,16 @@ def purger(maintenant: date) -> dict:
     if out:
         logger.info(f"prospects : purge à 3 ans, {sum(out.values())} fiche(s) retirée(s)")
     return out
+
+
+async def purge_loop(premier: float = 120, intervalle: float = 86400) -> None:
+    """t353 : la purge à 3 ans, `premier` secondes après le démarrage puis toutes les `intervalle` secondes, hors de la
+    boucle (asyncio.to_thread). Une erreur est journalisée, jamais remontée (la boucle continue)."""
+    import asyncio
+    await asyncio.sleep(premier)
+    while True:
+        try:
+            await asyncio.to_thread(purger, _aujourdhui())
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"prospects : purge en échec ({type(e).__name__}: {e})")
+        await asyncio.sleep(intervalle)

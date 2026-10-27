@@ -94,6 +94,7 @@ _LP_boot.installer()
 from app.services.news_service import news_daily_loop
 from app.services.marketing import schedule_loop
 from app.services.whatsapp_releve import releve_loop   # t311 : relevé de fond WhatsApp (30 s après le démarrage)
+from app.services.prospects import purge_loop as prospects_purge_loop   # t353 : purge des prospects à 3 ans
 
 
 def _setup_file_logging() -> Path | None:
@@ -183,6 +184,7 @@ async def lifespan(app: FastAPI):
     news_task = asyncio.create_task(news_daily_loop())
     sched_task = asyncio.create_task(schedule_loop())
     releve_task = asyncio.create_task(releve_loop())
+    purge_task = asyncio.create_task(prospects_purge_loop())   # t353 : purge des prospects à 3 ans (2 min, puis 24 h)
 
     async def _maj_au_demarrage():
         """Tâche #18 : une fois par lancement, 20 s après le boot, et au plus une fois par jour (cache disque).
@@ -233,7 +235,7 @@ async def lifespan(app: FastAPI):
         if warm_task:
             from app.services.heygen_service import annuler_en_vol
             annuler_en_vol()
-        await _arreter_taches([t for t in (news_task, sched_task, releve_task, maj_task, warm_task) if t])
+        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, maj_task, warm_task) if t])
         # t136 : le moteur du Photolab s'arrête avec le backend (fin de stdin = fin propre de photocraft-cli serve)
         try:
             from app.services import photolab_moteur
@@ -529,6 +531,9 @@ app.include_router(agent_campagnes_router, prefix="/api/agent/campagnes")
 # t352 (27/10/2026) : /api/veille — la veille concurrentielle d'un espace (collecte niveau 1, rapport, import)
 from app.api.veille_routes import router as veille_router
 app.include_router(veille_router, prefix="/api/veille")
+# t353 (27/10/2026) : /api/prospects — la fiche Prospects d'un espace (CRM léger, RGPD), local seulement
+from app.api.prospects_routes import router as prospects_router
+app.include_router(prospects_router, prefix="/api/prospects")
 # Atelier sonore (t270, 21/10/2026) : /api/audio/graph/noeuds|valider|apercu|rendre — graphe audio compilé en ffmpeg
 from app.api.audio_graph_routes import router as audio_graph_router
 app.include_router(audio_graph_router, prefix="/api/audio/graph")

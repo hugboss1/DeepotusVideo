@@ -11234,5 +11234,141 @@
  "le modèle de validation doit avoir au plus un paramètre (le titre du post)": {
   "fr": "le modèle de validation doit avoir au plus un paramètre (le titre du post)",
   "en": "the validation template must have at most one parameter (the post title)"
+ },
+ "un espace démonstration ne publie jamais : il n'a aucun compte de diffusion": {
+  "fr": "un espace démonstration ne publie jamais : il n'a aucun compte de diffusion",
+  "en": "a demo space never publishes: it has no publishing account"
+ },
+ "un espace démonstration naît seulement au rendez-vous d'un prospect": {
+  "fr": "un espace démonstration naît seulement au rendez-vous d'un prospect",
+  "en": "a demo space is only created when a prospect books a meeting"
+ },
+ "cet espace n'est pas un espace démonstration": {
+  "fr": "cet espace n'est pas un espace démonstration",
+  "en": "this space is not a demo space"
+ },
+ "un espace démonstration devient client seulement à la signature du prospect": {
+  "fr": "un espace démonstration devient client seulement à la signature du prospect",
+  "en": "a demo space only becomes a client when the prospect signs"
+ },
+ "origine d'opposition inconnue": {
+  "fr": "origine d'opposition inconnue",
+  "en": "unknown objection origin"
+ },
+ "forme inattendue": {
+  "fr": "forme inattendue",
+  "en": "unexpected format"
+ },
+ "prospect inconnu": {
+  "fr": "prospect inconnu",
+  "en": "unknown prospect"
+ },
+ "source du prospect exigée (type, date, et l'adresse pour une page web)": {
+  "fr": "source du prospect exigée (type, date, et l'adresse pour une page web)",
+  "en": "the prospect's source is required (type, date, and the address for a web page)"
+ },
+ "type de source inconnu": {
+  "fr": "type de source inconnu",
+  "en": "unknown source type"
+ },
+ "adresse de la source invalide (http ou https)": {
+  "fr": "adresse de la source invalide (http ou https)",
+  "en": "invalid source address (http or https)"
+ },
+ "l'adresse de la page est exigée pour une source web": {
+  "fr": "l'adresse de la page est exigée pour une source web",
+  "en": "the page address is required for a web source"
+ },
+ "date de la source exigée (AAAA-MM-JJ)": {
+  "fr": "date de la source exigée (AAAA-MM-JJ)",
+  "en": "source date required (YYYY-MM-DD)"
+ },
+ "la date de la source ne peut pas être dans le futur": {
+  "fr": "la date de la source ne peut pas être dans le futur",
+  "en": "the source date cannot be in the future"
+ },
+ "base légale exigée (consentement, intérêt légitime B2B ou mesures précontractuelles)": {
+  "fr": "base légale exigée (consentement, intérêt légitime B2B ou mesures précontractuelles)",
+  "en": "legal basis required (consent, B2B legitimate interest or pre-contractual steps)"
+ },
+ "canaux invalides : une liste de 10 canaux au plus est attendue": {
+  "fr": "canaux invalides : une liste de 10 canaux au plus est attendue",
+  "en": "invalid channels: a list of at most 10 channels is expected"
+ },
+ "score invalide : un entier de 0 à 100 est attendu": {
+  "fr": "score invalide : un entier de 0 à 100 est attendu",
+  "en": "invalid score: a whole number from 0 to 100 is expected"
+ },
+ "l'intérêt légitime B2B exige une adresse professionnelle : pour une messagerie grand public, il faut le consentement du prospect": {
+  "fr": "l'intérêt légitime B2B exige une adresse professionnelle : pour une messagerie grand public, il faut le consentement du prospect",
+  "en": "B2B legitimate interest requires a business address: for a consumer mailbox, the prospect's consent is needed"
+ },
+ "espace inconnu ou archivé": {
+  "fr": "espace inconnu ou archivé",
+  "en": "unknown or archived space"
+ },
+ "un espace démonstration n'a pas de prospects": {
+  "fr": "un espace démonstration n'a pas de prospects",
+  "en": "a demo space has no prospects"
+ },
+ "un nom ou une entreprise est exigé": {
+  "fr": "un nom ou une entreprise est exigé",
+  "en": "a name or a company is required"
+ },
+ "offre inconnue (licence, prestation ou à définir)": {
+  "fr": "offre inconnue (licence, prestation ou à définir)",
+  "en": "unknown offer (licence, done-for-you service or to be decided)"
+ },
+ "cette personne s'est opposée à la prospection : elle ne peut pas être ajoutée": {
+  "fr": "cette personne s'est opposée à la prospection : elle ne peut pas être ajoutée",
+  "en": "this person has objected to prospecting: they cannot be added"
+ },
+ "ce prospect s'est opposé : sa fiche est anonymisée et ne se modifie plus": {
+  "fr": "ce prospect s'est opposé : sa fiche est anonymisée et ne se modifie plus",
+  "en": "this prospect has objected: their record is anonymised and can no longer be edited"
+ },
+ "statut, consentements et historique ont leurs propres gestes": {
+  "fr": "statut, consentements et historique ont leurs propres gestes",
+  "en": "status, consents and history have their own actions"
+ },
+ "sens du contact inconnu (entrant ou sortant)": {
+  "fr": "sens du contact inconnu (entrant ou sortant)",
+  "en": "unknown contact direction (inbound or outbound)"
+ },
+ "canal inconnu": {
+  "fr": "canal inconnu",
+  "en": "unknown channel"
+ },
+ "moyen de consentement inconnu": {
+  "fr": "moyen de consentement inconnu",
+  "en": "unknown consent method"
+ },
+ "date du consentement invalide (AAAA-MM-JJ, pas dans le futur)": {
+  "fr": "date du consentement invalide (AAAA-MM-JJ, pas dans le futur)",
+  "en": "invalid consent date (YYYY-MM-DD, not in the future)"
+ },
+ "canal invalide (type connu et valeur exigés)": {
+  "fr": "canal invalide (type connu et valeur exigés)",
+  "en": "invalid channel (a known type and a value are required)"
+ },
+ "ce prospect existe déjà dans cet espace": {
+  "fr": "ce prospect existe déjà dans cet espace",
+  "en": "this prospect already exists in this space"
+ },
+ "{MAX_PROSPECTS} prospects au plus par espace": {
+  "fr": "{MAX_PROSPECTS} prospects au plus par espace",
+  "en": "{MAX_PROSPECTS} prospects at most per space"
+ },
+ "passage impossible de « {statut} » à « {statut2} »": {
+  "fr": "passage impossible de « {statut} » à « {statut2} »",
+  "en": "cannot move from \"{statut}\" to \"{statut2}\""
+ },
+ "un espace démonstration ne publie jamais : convertissez-le en espace client à la signature": {
+  "fr": "un espace démonstration ne publie jamais : convertissez-le en espace client à la signature",
+  "en": "a demo space never publishes: convert it into a client space when the prospect signs"
+ },
+ "identifiant illisible : une adresse e-mail, un numéro ou un profil est attendu": {
+  "fr": "identifiant illisible : une adresse e-mail, un numéro ou un profil est attendu",
+  "en": "unreadable identifier: an email address, a number or a profile is expected"
  }
 }
