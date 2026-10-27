@@ -11227,6 +11227,10 @@
   "fr": "ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la conversation, puis confirmez pour le renvoyer",
   "en": "this message may already have been sent (Kapso failed during sending): check the conversation, then confirm to send it again"
  },
+ "Une diffusion Kapso accepte au plus 1 000 destinataires par lot": {
+  "fr": "Une diffusion Kapso accepte au plus 1 000 destinataires par lot",
+  "en": "A Kapso broadcast accepts at most 1,000 recipients per batch"
+ },
  "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu": {
   "fr": "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu",
   "en": "agent: drafts per contact and per day: an integer from 0 to 200 is expected"

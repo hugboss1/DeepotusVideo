@@ -1129,6 +1129,7 @@
   "erreur.666ef8b1f5": {"fr": "réponse du fournisseur illisible (pas une liste de modèles OpenAI)", "en": "unreadable provider response (not an OpenAI model list)", "src": "fr"},
   "erreur.66722005d9": {"fr": "clé(s) de vue inconnue(s) : {v} (attendu : {v2})", "en": "unknown view key(s): {v} (expected: {v2})", "src": "fr"},
   "erreur.668254253c": {"fr": "{cid} : {cle} : la valeur {v} désigne un fichier — passe par les routes du Photolab", "en": "{cid}: {cle}: the value {v} refers to a file — use the Photolab routes", "src": "fr"},
+  "erreur.6698c816ff": {"fr": "Une diffusion Kapso accepte au plus 1 000 destinataires par lot", "en": "A Kapso broadcast accepts at most 1,000 recipients per batch", "src": "fr"},
   "erreur.6699c7b1a3": {"fr": "axe haut « {axe_haut} » — X, Y ou Z", "en": "up axis “{axe_haut}” — X, Y or Z", "src": "fr"},
   "erreur.66a20f7ffc": {"fr": "google: {e}", "en": "google: {e}", "src": "fr"},
   "erreur.66ca5fa9f9": {"fr": "sujet type inconnu : {sujet} (attendu : {v})", "en": "unknown reference subject: {sujet} (expected: {v})", "src": "fr"},
