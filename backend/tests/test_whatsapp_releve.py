@@ -186,10 +186,16 @@ def run(coro):
 N = [0]
 
 
-def entrant(texte, tel, il_y_a=timedelta(minutes=2)):
+BASE = maintenant() + timedelta(minutes=5)
+
+
+def entrant(texte, tel, il_y_a=None):
+    """Un entrant. Sans `il_y_a` : daté d'une horloge de banc strictement croissante (BASE + 2 s par message), toujours
+    postérieure aux brouillons déjà rangés (le garde « déjà traité » compare `cree_le`/`traite_jusqu_a` à `quand`)."""
     N[0] += 1
+    quand = BASE + timedelta(seconds=2 * N[0]) if il_y_a is None else maintenant() - il_y_a
     return {"id": f"in{N[0]}", "type": "text", "text": {"body": texte}, "from": tel,
-            "timestamp": ts(maintenant() - il_y_a), "kapso": {"direction": "inbound"}}
+            "timestamp": ts(quand), "kapso": {"direction": "inbound"}}
 
 
 def ajouter(pid, *msgs):
@@ -335,6 +341,16 @@ check("R5.1 auto : envoyé par WE.envoyer, le faux Kapso voit le corps texte",
 b = AW.brouillons(A, "PN-A").get("tel:" + TEL_AUTO) or {}
 check("R5.2 brouillon envoye, auto_jour du jour local = 1", b.get("etat") == "envoye"
       and (b.get("auto_jour") or {}).get(jour_local(quand)) == 1, b)
+check("R5.2b traite_jusqu_a = quand du dernier entrant traité", b.get("traite_jusqu_a") is not None
+      and datetime.fromisoformat(b["traite_jusqu_a"]) >= datetime.fromtimestamp(int(FK.msgs["PN-A"][0]["timestamp"]),
+                                                                                timezone.utc), b)
+# (a) marqueur perdu (redémarrage) : le même entrant n'obtient jamais une seconde réponse
+M.clear()
+s = poser(Script([]))
+e0 = len(FK.envois)
+tick(M, quand)
+check("R5.2c marqueur vidé puis nouveau tour : zéro envoi, zéro appel du modèle", FK.envois[e0:] == [] and s.appels == [],
+      (FK.envois[e0:], s.appels))
 ajouter("PN-A", entrant("Et dimanche ?", TEL_AUTO))
 s = poser(Script([outil("rediger_reponse", {"texte": "Fermé le dimanche."})]))
 e0 = len(FK.envois)
@@ -359,6 +375,71 @@ e0 = len(FK.envois)
 tick(M, quand)
 b = AW.brouillons(A, "PN-A").get("tel:" + TEL_PRIX2) or {}
 check("R5.5 montant présent dans la fiche : envoyé", len(FK.envois[e0:]) == 1 and b.get("etat") == "envoye", b)
+TEL_30 = "33600000013"
+ajouter("PN-A", entrant("C'est combien la mèche ?", TEL_30))
+s = poser(Script([outil("rediger_reponse", {"texte": "Le prix est de 30"})]))
+e0 = len(FK.envois)
+tick(M, quand)
+b = AW.brouillons(A, "PN-A").get("tel:" + TEL_30) or {}
+check("R5.5b « Le prix est de 30 » (30 absent de la fiche, sans devise) : brouillon, rien envoyé",
+      FK.envois[e0:] == [] and b.get("etat") == "attente", b)
+check("R5.5c montants voisins d'un mot d'argent : 30 relevé, 25 € de la fiche aussi",
+      WR._montants("le prix est de 30") == {"30"} and "25" in WR._montants("coupe femme : 25 € (prix public)"))
+
+# (b) sans clé Anthropic : `rediger` ne range rien, mais le même entrant n'est pas redonné à `rediger`
+APPELS_R = []
+_rediger_orig = AW.rediger
+
+
+async def rediger_compte(cid, eid, identite, langue="fr"):
+    APPELS_R.append(identite)
+    return await _rediger_orig(cid, eid, identite, langue=langue)
+
+
+TEL_SC = "33600000014"
+ajouter("PN-A", entrant("Vous avez des créneaux jeudi ?", TEL_SC))
+settings.ANTHROPIC_API_KEY = ""
+AW.rediger = rediger_compte
+s = poser(Script([]))
+try:
+    tick(M, quand)
+    tick(M, quand)
+    M.clear()
+    tick(M, quand)
+finally:
+    AW.rediger = _rediger_orig
+    settings.ANTHROPIC_API_KEY = CLE_ANT
+b = AW.brouillons(A, "PN-A").get("tel:" + TEL_SC) or {}
+check("R5.5d sans clé : rediger appelé UNE fois sur trois tours (marqueur gardé puis vidé), aucun brouillon à décider",
+      APPELS_R.count("tel:" + TEL_SC) == 1 and s.appels == [] and "etat" not in b and b.get("traite_jusqu_a"),
+      (APPELS_R, b))
+
+# (c) envoyer_brouillon lève : le tour suivant ne refait rien (marqueur gardé, puis vidé)
+TEL_ERR = "33600000015"
+ajouter("PN-A", entrant("Vous prenez la carte ?", TEL_ERR))
+_envoyer_orig = AW.envoyer_brouillon
+
+
+async def envoyer_en_panne(*a, **k):
+    raise RuntimeError("panne d'envoi")
+
+
+AW.envoyer_brouillon = envoyer_en_panne
+s = poser(Script([outil("rediger_reponse", {"texte": "Oui, la carte est acceptée."})]))
+e0 = len(FK.envois)
+try:
+    tick(M, quand)
+finally:
+    AW.envoyer_brouillon = _envoyer_orig
+s1 = len(s.appels)
+s = poser(Script([]))
+tick(M, quand)
+M.clear()
+tick(M, quand)
+b = AW.brouillons(A, "PN-A").get("tel:" + TEL_ERR) or {}
+check("R5.5e envoi en panne puis deux tours (marqueur gardé, puis vidé) : rien envoyé, aucun nouvel appel du modèle",
+      s1 == 1 and FK.envois[e0:] == [] and s.appels == [] and b.get("etat") == "attente", (s1, s.appels, b))
+
 TEL_MOD = "33600000007"
 ajouter("PN-A", entrant("Bonjour, des nouvelles ?", TEL_MOD))
 s = poser(Script([outil("choisir_modele", {"nom": "relance", "langue": "fr"})]))
@@ -425,6 +506,15 @@ demain = quand + timedelta(days=1)
 e0 = len(FK.envois)
 tick(M, demain)
 check("R6.4 jour local suivant : de nouveau un message d'absence", len(FK.envois[e0:]) == 1, FK.envois[e0:])
+TEL_ATT = "33600000016"
+CARTE_ATT = {"type": "carte", "genre": "reponse_whatsapp", "etat": "proposee", "arguments": {"texte": "Brouillon à garder"}}
+AW.ranger(A, "PN-A", "tel:" + TEL_ATT, "attente", CARTE_ATT)
+ajouter("PN-A", entrant("Bonsoir, vous avez vu ?", TEL_ATT))
+e0 = len(FK.envois)
+tick(M, quand)
+b = AW.brouillons(A, "PN-A").get("tel:" + TEL_ATT) or {}
+check("R6.4b auto hors horaires avec un brouillon en attente : rien envoyé, brouillon intact",
+      FK.envois[e0:] == [] and b.get("etat") == "attente" and b["carte"]["arguments"]["texte"] == "Brouillon à garder", b)
 WA.regler_espace(A, {"agent": {"mode": "brouillon"}})
 TEL_NUIT2 = "33600000011"
 ajouter("PN-A", entrant("Bonsoir", TEL_NUIT2))
@@ -438,8 +528,9 @@ WA.regler_espace(A, {"agent": {"message_hors_horaires": ""}})
 TEL_NUIT3 = "33600000012"
 ajouter("PN-A", entrant("Bonsoir", TEL_NUIT3))
 tick(M, quand)
-check("R6.6 message d'absence vide : rien rangé, aucun appel du modèle", "tel:" + TEL_NUIT3 not in AW.brouillons(A, "PN-A")
-      and s.appels == [])
+b = AW.brouillons(A, "PN-A").get("tel:" + TEL_NUIT3) or {}
+check("R6.6 message d'absence vide : aucun brouillon (seule la trace traite_jusqu_a), aucun appel du modèle",
+      "etat" not in b and b.get("carte") is None and b.get("traite_jusqu_a") and s.appels == [], b)
 WA.regler_espace(A, {"agent": {"horaires": horaires_ouverts()}})
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -484,14 +575,35 @@ check("R8.3 supprimé PENDANT le tour : sauté sans écrire, sans avertissement,
       empreinte(DATA_ROOT / "espaces" / Z2) == avant and s.appels == []
       and not any("WARNING" in l and cZ2 in l for l in JOURNAL[j0:]), JOURNAL[j0:])
 
+import shutil                                                        # noqa: E402
+FANTOME = "fantome-releve"
+try:
+    AW.ranger(FANTOME, "PN-F", "tel:33600000099", "attente", None)
+    leve = None
+except KeyError:
+    leve = "KeyError"
+check("R8.4 brouillon d'un espace sans dossier : KeyError, `espaces/<eid>/` jamais recréé",
+      E.id_valide(FANTOME) and leve == "KeyError" and not (E.dossier() / FANTOME).exists(), leve)
+Z3 = espace("Salon Effacé", ACTIF)
+cZ3 = compte(Z3, "PN-Z3")
+ajouter("PN-Z3", entrant("Bonjour", "33600000032"))
+shutil.rmtree(E.dossier() / Z3)
+j0 = len(JOURNAL)
+tick(M, quand)
+check("R8.5 dossier de l'espace effacé : sauté, dossier jamais recréé, aucun avertissement",
+      not (E.dossier() / Z3).exists() and not any("WARNING" in l and cZ3 in l for l in JOURNAL[j0:]), JOURNAL[j0:])
+
 # ---------------------------------------------------------------------------------------------------------------------
 print("\n[R9] crochet de validation")
 VU = []
 faux_wv = types.ModuleType("app.services.whatsapp_validation")
 
 
-def traiter_reponse(cid, eid, msg):
+async def traiter_reponse(cid, eid, msg):                            # contrat ASYNCHRONE (tâche 6)
     VU.append((cid, eid, msg.get("id"), len(FK.lus)))
+    await asyncio.sleep(0)
+    if msg.get("texte") == "Boum":
+        raise KeyError("validation inconnue")
     return msg.get("texte") == "Valider"
 
 
@@ -517,6 +629,17 @@ s = poser(Script([outil("rediger_reponse", {"texte": "De 9 h à 18 h."})]))
 tick(M, quand)
 check("R9.3 réponse non consommée : tour d'agent normal", [i_ for _c, _e, i_, _l in VU] == [mv2["id"]]
       and len(s.appels) == 1 and (AW.brouillons(A, "PN-A").get("tel:" + TEL_V) or {}).get("etat") == "attente")
+TEL_B = "33600000041"
+mb = entrant("Boum", TEL_B)
+ajouter("PN-A", mb)
+s = poser(Script([outil("rediger_reponse", {"texte": "Bien reçu."})]))
+j0 = len(JOURNAL)
+tick(M, quand)
+check("R9.4 crochet qui lève (même KeyError) : journalisé par nom de type, compte gardé (marqueur), message traité",
+      any("KeyError" in l and cA in l for l in JOURNAL[j0:]) and cA in M
+      and datetime.fromisoformat(M[cA]) == datetime.fromtimestamp(int(mb["timestamp"]), timezone.utc)
+      and len(s.appels) == 1 and (AW.brouillons(A, "PN-A").get("tel:" + TEL_B) or {}).get("etat") == "attente",
+      (JOURNAL[j0:], M.get(cA)))
 del sys.modules["app.services.whatsapp_validation"]
 if not _avait:
     delattr(_pkg, "whatsapp_validation")

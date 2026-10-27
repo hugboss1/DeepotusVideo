@@ -152,7 +152,7 @@ def systeme(eid: str, agent: dict, langue: str) -> str:
 
 def _chemin(eid: str):
     f = espaces.chemin(eid, FICHIER)
-    if f is None:
+    if f is None or not f.parent.is_dir():          # jamais recréer `espaces/<eid>/` d'un espace supprimé
         raise KeyError(f"espace inconnu : {str(eid)[:40]}")
     return f
 
@@ -221,8 +221,8 @@ def _modifier(eid: str, pid: str, identite: str, geste, alias=()) -> dict:
 
 def ranger(eid: str, pid: str, identite: str, etat: str, carte: dict | None, raison: str | None = None,
            alias=()) -> dict:
-    """Range un brouillon neuf pour le contact (remplace le précédent ; `auto_jour` et `hors_jour` sont gardés). `identite` : la clé
-    canonique (`canonique`)."""
+    """Range un brouillon neuf pour le contact (remplace le précédent ; `auto_jour`, `hors_jour` et `traite_jusqu_a` sont
+    gardés). `identite` : la clé canonique (`canonique`)."""
     if etat not in ETATS:
         raise ValueError(f"état de brouillon inconnu : {str(etat)[:20]}")
 
@@ -231,9 +231,25 @@ def ranger(eid: str, pid: str, identite: str, etat: str, carte: dict | None, rai
                 "auto_jour": (b or {}).get("auto_jour") if isinstance((b or {}).get("auto_jour"), dict) else {}}
         if raison:
             neuf["raison"] = str(raison)[:200]
-        if isinstance((b or {}).get("hors_jour"), str):      # t311 tâche 5 : message d'absence déjà parti ce jour-là
-            neuf["hors_jour"] = b["hors_jour"]
+        for k in ("hors_jour", "traite_jusqu_a"):           # t311 tâche 5 : traces du relevé de fond
+            if isinstance((b or {}).get(k), str):
+                neuf[k] = b[k]
         return neuf
+    return _modifier(eid, pid, identite, geste, alias)
+
+
+def noter_traite(eid: str, pid: str, identite: str, quand: str, alias=()) -> dict:
+    """t311 tâche 5 : le relevé de fond a traité les entrants du contact jusqu'à `quand` (ISO) : `traite_jusqu_a`, sans
+    changer l'état ni la carte. Sans brouillon, l'entrée est créée SANS `etat` (aucun brouillon à décider). Ne recule
+    jamais."""
+    def geste(b):
+        b = b if b is not None else {"carte": None, "auto_jour": {}}
+        vieux = _date(b.get("traite_jusqu_a"))
+        neuf = _date(quand)
+        if neuf is None or (vieux is not None and vieux >= neuf):
+            return None
+        b["traite_jusqu_a"] = neuf.isoformat(timespec="seconds")
+        return b
     return _modifier(eid, pid, identite, geste, alias)
 
 

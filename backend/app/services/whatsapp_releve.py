@@ -27,6 +27,7 @@ est journalisée par `type(e).__name__` seulement, et le tour continue. Aucun te
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import re
 from datetime import datetime, timedelta, timezone
@@ -42,7 +43,10 @@ PREMIER_TOUR = timedelta(minutes=10)  # au premier tour d'un compte, seuls les e
 JOURS_GARDES = 7                      # `auto_jour` ne garde que les derniers jours
 _VUS = "_vus"                         # marqueur[_VUS][cid] : ids des entrants vus à la seconde du marqueur
 _MONTANT = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:[€$£]|eur\b|euros?\b|dollars?\b)|[€$£]\s*(\d+(?:[.,]\d+)?)")
-LIBELLE_CARTE = "Réponse WhatsApp à envoyer"
+_NOMBRE = re.compile(r"\d+(?:[.,]\d+)?")
+_MOT = re.compile(r"\S+")
+VOISINAGE = 3                         # un nombre à 3 mots au plus d'un mot d'argent est un montant
+LIBELLE_CARTE ="Réponse WhatsApp à envoyer"
 
 
 def _horloge() -> datetime:
@@ -76,12 +80,22 @@ def _jour_local(agent: dict, maintenant: datetime) -> str:
 
 
 def _montants(texte_plat: str) -> set:
-    return {(m.group(1) or m.group(2)).replace(",", ".") for m in _MONTANT.finditer(texte_plat)}
+    """Les montants d'un texte (minuscules, sans accents) : nombres accolés à une devise, et nombres à VOISINAGE mots au
+    plus d'un mot de `agent_whatsapp.MOTS_ARGENT` (« le prix est de 30 »). Virgule décimale ramenée au point."""
+    out = {(m.group(1) or m.group(2)).replace(",", ".") for m in _MONTANT.finditer(texte_plat)}
+    mots = list(_MOT.finditer(texte_plat))
+    for m in AW.MOTS_ARGENT.finditer(texte_plat):
+        i = next((k for k, w in enumerate(mots) if w.start() <= m.start() < w.end()), None)
+        if i is None:
+            continue
+        for w in mots[max(0, i - VOISINAGE):i + VOISINAGE + 1]:
+            out.update(n.replace(",", ".") for n in _NOMBRE.findall(w.group(0)))
+    return out
 
 
 def montant_hors_fiche(texte: str, eid: str) -> bool:
-    """Le texte cite-t-il un mot d'argent (`agent_whatsapp.MOTS_ARGENT`) absent de la fiche, ou un montant (nombre + devise)
-    que la fiche ne porte pas ? Fiche = persona brut de l'espace sérialisé ; comparaison en minuscules, sans accents."""
+    """Le texte cite-t-il un mot d'argent (`agent_whatsapp.MOTS_ARGENT`) absent de la fiche, ou un montant (`_montants` :
+    nombre + devise, ou nombre voisin d'un mot d'argent) que la fiche ne porte pas ? Fiche = persona brut de l'espace sérialisé ; comparaison en minuscules, sans accents."""
     fiche = AW._plat(json.dumps(espaces_brut.persona(eid), ensure_ascii=False))
     t = AW._plat(texte)
     if any(m.group(0) not in fiche for m in AW.MOTS_ARGENT.finditer(t)):
@@ -98,6 +112,15 @@ def _compteur(b, jour: str) -> int:
 def _sous_plafond(b, agent: dict, jour: str) -> bool:
     p = (agent or {}).get("plafond_jour_contact")
     return isinstance(p, int) and _compteur(b, jour) < p
+
+
+def _deja_traite(b, quand) -> bool:
+    """Le brouillon du contact dit-il que l'entrant daté `quand` est déjà traité ? `traite_jusqu_a`, `cree_le` ou
+    `decide_le` postérieurs ou égaux à `quand`."""
+    q = _date(quand)
+    if q is None or not isinstance(b, dict):
+        return False
+    return any(d is not None and d >= q for d in (_date(b.get(k)) for k in ("traite_jusqu_a", "cree_le", "decide_le")))
 
 
 def _carte(texte: str) -> dict:
@@ -189,13 +212,17 @@ async def _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, wv) -> No
     rapport["neufs"] += len(neufs)
     restants = []
     for m in neufs:                              # le crochet de validation passe AVANT tout le reste
-        try:
-            if wv is not None and wv.traiter_reponse(cid, eid, m):
+        try:                                     # contrat asynchrone (un résultat attendable est attendu)
+            res = wv.traiter_reponse(cid, eid, m) if wv is not None else False
+            if inspect.isawaitable(res):
+                res = await res
+            if res is True:
                 continue
-        except KeyError:
+        except asyncio.CancelledError:
             raise
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"relevé WhatsApp : réponse de validation non traitée ({type(e).__name__})")
+        except Exception as e:  # noqa: BLE001 — même KeyError : le crochet ne fait jamais sauter le compte
+            logger.warning(f"relevé WhatsApp : réponse de validation non traitée sur le compte {cid} "
+                           f"({type(e).__name__})")
         restants.append(m)
     groupes: dict = {}
     for m in restants:
@@ -223,6 +250,9 @@ async def _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now) -> bool:
         return False
     dernier = ms[-1]
     identite = dernier["identite"]
+    if _deja_traite(b, dernier.get("quand")):
+        return False                             # marqueur perdu (redémarrage) ou relu : jamais deux réponses
+    AW.noter_traite(eid, pid, cle, dernier["quand"], groupe)   # avant tout geste : une panne n'entraîne pas de redite
     try:
         await WE.marquer_lu(cid, str(dernier["id"]), ecrit=True)
     except KeyError:
@@ -235,6 +265,8 @@ async def _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now) -> bool:
         texte = str(agent.get("message_hors_horaires") or "").strip()
         if not texte or (auto and (b or {}).get("hors_jour") == jour):
             return False
+        if (b or {}).get("etat") in ("attente", "envoi_en_cours"):
+            return False                         # un brouillon attend le geste de l'utilisateur : jamais écrasé
         AW.ranger(eid, pid, cle, "attente", _carte(texte), "hors_horaires", groupe)
         if not auto or not _sous_plafond(b, agent, jour):
             return False
