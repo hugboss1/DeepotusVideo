@@ -16,6 +16,13 @@ BOITES: dict[str, dict] = {
         "agents": ["campagnes"],
         "mobile": True,
     },
+    # t352 (27/10/2026) : la veille concurrentielle (niveau 1, lecture seule) ; le compagnon l'aura en P8
+    "veille": {
+        "libelle": "agent.boites.veille",
+        "outils": ["veille_collecter", "veille_lire"],
+        "agents": ["campagnes"],
+        "mobile": False,
+    },
     # t311 : l'agent WhatsApp d'un espace ; jamais sur le téléphone (mobile False : boites.json inchangé)
     "whatsapp": {
         "libelle": "agent.boites.whatsapp",

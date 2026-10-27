@@ -42,6 +42,7 @@
     "espaces.pourqui.fiche_aide",
     "espaces.pourqui.bandeau",
     "espaces.assistant.whatsapp_creation",
+    "veille.import.exemple",
     "whatsapp.onglets.aria"
   ],
   "prefixes": [
