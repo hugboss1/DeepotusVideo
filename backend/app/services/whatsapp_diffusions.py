@@ -20,8 +20,9 @@ Statuts : `configuree` (prête), `preparation` (diffusion créée chez Kapso, de
 un 402 à cette étape ramène à `configuree` ; un `preparation` vu sous le verrou du post est le reste d'un arrêt brutal :
 rien n'est parti), `envoi` (send en vol ou issue incertaine), puis le statut de Kapso (`sending`, `completed`, `stopped`,
 `failed`…), ou `echec` (send refusé 4xx, ou aucun destinataire accepté). Relançables : `configuree`, `preparation`,
-`echec`, et `failed` de Kapso quand AUCUN message n'est parti (`compteurs.sent == 0` : modèle en pause…) ; un `failed`
-avec des envois reste définitif. Tout autre statut (ou `incertain`) = diffusion LANCÉE : `configurer` et un nouveau
+`echec`, et `failed` de Kapso quand AUCUN message n'est parti, ce qui se PROUVE à la relecture (compteur `sent` à 0 —
+absent, il vaut 0 — ET relecture complète des destinataires sans aucune ligne `sent` : `rien_envoye`) et une fois la
+réservation soldée (`reel_note`) ; sinon `failed` reste définitif. Un send 2xx déjà `failed` est relu et soldé aussitôt. Tout autre statut (ou `incertain`) = diffusion LANCÉE : `configurer` et un nouveau
 `lancer` sont refusés (`deja_lancee`).
 
   · `configurer` : modèle APPROUVÉ (nom + langue, avec son id Meta), paramètres vérifiés comme un envoi unitaire
@@ -67,6 +68,7 @@ PAGES_MAX = 10_000                                                # 1 000 000 de
 DELAI_RELECTURE = timedelta(seconds=60)
 _verrou = threading.Lock()
 _VERROUS: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()     # boucle -> {post_id: asyncio.Lock}
+_SIGNALES: set = set()            # (espace, mtime) des fichiers illisibles déjà signalés au journal (une fois par version)
 
 
 class PostInconnu(KeyError):
@@ -106,7 +108,13 @@ def _lire_doc(eid: str, strict: bool = True) -> dict:
         doc = None
     if isinstance(doc, dict):
         return doc
-    logger.error(f"{FICHIER} illisible dans l'espace {eid} : diffusions bloquées jusqu'à réparation")
+    try:
+        cle = (eid, f.stat().st_mtime_ns)
+    except OSError:
+        cle = (eid, None)
+    if cle not in _SIGNALES:                     # une fois par version du fichier, pas à chaque tick
+        _SIGNALES.add(cle)
+        logger.error(f"{FICHIER} illisible dans l'espace {eid} : diffusions bloquées jusqu'à réparation")
     if strict:
         raise FichierIllisible("le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute "
                                "diffusion")
@@ -139,8 +147,8 @@ def _lancee(rec: dict | None) -> bool:
         return False
     if rec.get("incertain") is True:
         return True
-    if rec.get("statut") == "failed" and int((rec.get("compteurs") or {}).get("sent") or 0) == 0:
-        return False                             # Kapso a échoué sans rien envoyer : relançable
+    if rec.get("statut") == "failed" and rec.get("rien_envoye") is True and rec.get("reel_note") is True:
+        return False                             # Kapso a échoué sans rien envoyer (PROUVÉ par la relecture), soldée
     return rec.get("statut") not in RELANCABLES
 
 
@@ -363,6 +371,11 @@ async def _lancer_sous_verrou(post_id, eid, cid, pid, confirme_incertain) -> dic
     statut = res.get("statut") or "sending"
     rec = _modifier(eid, post_id, lambda r: {**r, "statut": statut, "incertain": False})
     _mois_plus(cid, n, maintenant)
+    if statut in TERMINAUX:                      # déjà terminée au send (ex. failed) : relue et soldée tout de suite
+        try:
+            rec = await _relire_sous_verrou(post_id, eid, cid)
+        except kapso.KapsoErreur as x:          # restera suivie par `a_relire` (reel_note faux)
+            logger.warning(f"diffusion post {post_id} broadcast {bid} : relecture impossible ({x.code})")
     logger.info(f"diffusion post {post_id} broadcast {bid} : {n} destinataires, {ajout['doublons']} doublons, "
                 f"{ajout['erreurs']} erreurs, statut {statut}")
     return _rendu(rec)
@@ -384,7 +397,8 @@ async def relire(post_id, espace_id: str) -> dict:
             return await _relire_sous_verrou(post_id, espace_id, cid)
 
 
-async def _lire_kapso(bid: str) -> tuple[dict, list]:
+async def _lire_kapso(bid: str) -> tuple[dict, list, bool]:
+    """(broadcast, lignes de TOUS les destinataires, complet) : `complet` faux si la borne PAGES_MAX a coupé la lecture."""
     b = await kapso.broadcast(bid)
     lignes, page, pages = [], 1, 1
     while page <= pages and page <= PAGES_MAX:
@@ -392,7 +406,7 @@ async def _lire_kapso(bid: str) -> tuple[dict, list]:
         lignes.extend(d["lignes"])
         pages = d["pages"]
         page += 1
-    return b, lignes
+    return b, lignes, page > pages
 
 
 def _desinscrire(cid: str, lignes: list) -> int:
@@ -438,7 +452,7 @@ async def _relire_sous_verrou(post_id: str, eid: str, cid: str) -> dict:
     restantes = []
     for a in anciennes:
         try:
-            ba, la = await _lire_kapso(a["broadcast_id"])
+            ba, la, _c = await _lire_kapso(a["broadcast_id"])
         except kapso.KapsoErreur as x:
             logger.warning(f"diffusion post {post_id} ancienne {a['broadcast_id']} : relecture impossible ({x.code})")
             restantes.append(a)
@@ -449,14 +463,18 @@ async def _relire_sous_verrou(post_id: str, eid: str, cid: str) -> dict:
         else:
             restantes.append(a)
     bid = rec.get("broadcast_id")
-    sk, compteurs, reel = None, None, None
+    sk, compteurs, reel, rien = None, None, None, False
     if bid and _lancee(rec):
-        b, lignes = await _lire_kapso(bid)
+        b, lignes, complet = await _lire_kapso(bid)
         sk = b["statut"]
         neufs += _desinscrire(cid, lignes)
         compteurs = dict(b.get("compteurs") or {})
         compteurs["livres"] = sum(1 for l in lignes if l.get("livre"))
         compteurs["lus"] = sum(1 for l in lignes if l.get("lu"))
+        # « rien n'est parti » se PROUVE : compteur Kapso à 0 (un compteur absent vaut 0 chez `kapso.broadcast`) ET
+        # relecture complète des destinataires sans aucune ligne `sent`
+        rien = (sk == "failed" and complet and int(compteurs.get("sent") or 0) == 0
+                and not any(l["statut"] == "sent" for l in lignes))
         if sk in TERMINAUX and not rec.get("reel_note"):
             reel = await _solder(eid, lignes, rec.get("lignes"), cat)
     elif not anciennes:
@@ -467,6 +485,7 @@ async def _relire_sous_verrou(post_id: str, eid: str, cid: str) -> dict:
             r["anciennes"] = restantes
         if sk is not None:
             r["compteurs"] = compteurs
+            r["rien_envoye"] = rien
             if sk in KAPSO_TRANCHE:
                 r["incertain"] = False
             r["attente_confirmation"] = r.get("incertain") is True and sk == "draft"
@@ -497,7 +516,9 @@ def _a_suivre(rec: dict) -> bool:
         return True
     if not rec.get("broadcast_id") or not _lancee(rec) or rec.get("attente_confirmation") is True:
         return False
-    return not (rec.get("statut") in TERMINAUX and rec.get("incertain") is not True)
+    if rec.get("statut") in TERMINAUX and rec.get("incertain") is not True:
+        return not rec.get("reel_note")          # terminée : suivie seulement tant qu'elle n'est pas soldée
+    return True
 
 
 def a_relire(maintenant: datetime) -> list:

@@ -81,6 +81,7 @@ class Faux:
         self.n_lots = 0
         self.lot_panne = None       # n° de lot qui répond 422
         self.get_panne = set()      # broadcasts dont le GET répond 500
+        self.sans_sent = set()      # broadcasts dont le GET omet `sent_count`
         self.pendant = None         # fabrique de coroutine lancée au premier lot de destinataires
         self.tache = None
 
@@ -137,16 +138,19 @@ async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
         if rep == "reseau":
             raise ConnectionError("panne https://api.kapso.ai/x?token=JETON")
         if rep[0] == 202:
-            b["status"] = "sending"
+            b["status"] = ((rep[1] or {}).get("data") or {}).get("status") or "sending"
         return rep[0], rep[1], {}
     if methode == "GET" and bid in F.get_panne:
         return 500, {"error": "boom"}, {}
     if len(parts) == 3 and methode == "GET":
         r = b["recipients"]
         cpt = lambda s: sum(1 for x in r if x["status"] == s)       # noqa: E731
-        return 200, {"data": {"id": bid, "status": b["status"], "total_recipients": len(r), "pending_count": cpt("pending"),
-                              "sent_count": cpt("sent"), "failed_count": cpt("failed"),
-                              "suppressed_count": cpt("suppressed"), "delivered_count": 0, "read_count": 0}}, {}
+        d = {"id": bid, "status": b["status"], "total_recipients": len(r), "pending_count": cpt("pending"),
+             "sent_count": cpt("sent"), "failed_count": cpt("failed"),
+             "suppressed_count": cpt("suppressed"), "delivered_count": 0, "read_count": 0}
+        if bid in F.sans_sent:                    # Kapso omet `sent_count`
+            d.pop("sent_count")
+        return 200, {"data": d}, {}
     return 500, {"error": "chemin inconnu du faux"}, {}
 
 
@@ -517,6 +521,41 @@ F.bc[b13b]["status"] = "failed"
 F.bc[b13b]["recipients"][0]["status"] = "sent"
 run(WD.relire("post-13", boite))
 check("K6.2 failed avec des envois : définitif", refus(WD.lancer("post-13")) == "deja_lancee")
+for p in ("post-15", "post-16", "post-17"):
+    creer_post(p, boite)
+# compteur `sent` ABSENT mais une ligne `sent` : aucune preuve que rien n'est parti -> définitif
+run(WD.configurer("post-15", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1910:1912]))
+b15 = run(WD.lancer("post-15"))["broadcast_id"]
+F.sans_sent.add(b15)
+F.bc[b15]["status"] = "failed"
+F.bc[b15]["recipients"][0]["status"] = "sent"
+F.bc[b15]["recipients"][1]["status"] = "failed"
+run(WD.relire("post-15", boite))
+check("K6.3 compteur absent, une ligne sent : définitif", refus(WD.lancer("post-15")) == "deja_lancee"
+      and WD.lire("post-15", boite)["rien_envoye"] is False)
+# compteur ABSENT, relecture complète sans aucune ligne `sent` : prouvé -> relançable
+run(WD.configurer("post-16", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1920:1922]))
+b16 = run(WD.lancer("post-16"))["broadcast_id"]
+F.sans_sent.add(b16)
+F.bc[b16]["status"] = "failed"
+for x in F.bc[b16]["recipients"]:
+    x["status"] = "failed"
+check("K6.4 failed non relu : définitif (aucune preuve)", refus(WD.lancer("post-16")) == "deja_lancee")
+run(WD.relire("post-16", boite))
+check("K6.5 compteur absent, relecture complète sans sent : relançable", run(WD.lancer("post-16"))["broadcast_id"] != b16)
+
+print("\n[K8] send 2xx déjà failed")
+run(WD.configurer("post-17", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1930:1932]))
+F.send = [(202, {"data": {"status": "failed"}})]
+r = run(WD.lancer("post-17"))
+b17 = r["broadcast_id"]
+rec17 = WD.lire("post-17", boite)
+check("K8.1 relu et soldé aussitôt : compteurs, reel_note, réservation à 0", r["statut"] == "failed"
+      and rec17["compteurs"].get("total") == 2 and rec17["reel_note"] is True and rec17["rien_envoye"] is True
+      and [d.reel_usd for d in depenses(b17)] == [0.0], (rec17, [d.reel_usd for d in depenses(b17)]))
+r2 = run(WD.lancer("post-17"))
+check("K8.2 puis relançable, l'ancienne réservation reste soldée", r2["broadcast_id"] != b17 and r2["statut"] == "sending"
+      and [d.reel_usd for d in depenses(b17)] == [0.0], r2)
 
 print("\n[K7] fichier illisible")
 fd = E.chemin(boite, "whatsapp_diffusions.json")
@@ -531,6 +570,9 @@ check("K7.4 lecture d'affichage : vide, a_relire sans erreur", WD.lire("post-1",
       and WD.a_relire(datetime.now(timezone.utc)) == [])
 check("K7.5 fichier jamais remis à zéro ni déplacé, aucun appel Kapso", fd.read_text(encoding="utf-8") == "{oups"
       and F.appels == [], F.appels)
+logger.complete()
+check("K7.6 fichier illisible signalé UNE fois au journal (pas à chaque lecture)",
+      JOURNAL.read_text(encoding="utf-8").count("illisible dans l'espace") == 1)
 fd.write_bytes(sain)
 
 print("\n[J1] journal")
