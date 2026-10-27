@@ -10958,5 +10958,81 @@
  "un modèle marketing exige un accord saisi du contact : un message reçu ne vaut accord que pour lui répondre": {
   "fr": "un modèle marketing exige un accord saisi du contact : un message reçu ne vaut accord que pour lui répondre",
   "en": "a marketing template requires a recorded opt-in from the contact: an incoming message only counts as consent to reply to it"
+ },
+ "agent : un objet est attendu": {
+  "fr": "agent : un objet est attendu",
+  "en": "agent: an object is expected"
+ },
+ "agent : horaires : un objet est attendu": {
+  "fr": "agent : horaires : un objet est attendu",
+  "en": "agent: hours: an object is expected"
+ },
+ "agent : horaires : réglage inconnu": {
+  "fr": "agent : horaires : réglage inconnu",
+  "en": "agent: hours: unknown setting"
+ },
+ "agent : jours d'activité invalides (entiers de 0 à 6)": {
+  "fr": "agent : jours d'activité invalides (entiers de 0 à 6)",
+  "en": "agent: invalid active days (integers from 0 to 6)"
+ },
+ "agent : heure de début invalide (HH:MM)": {
+  "fr": "agent : heure de début invalide (HH:MM)",
+  "en": "agent: invalid start time (HH:MM)"
+ },
+ "agent : heure de fin invalide (HH:MM)": {
+  "fr": "agent : heure de fin invalide (HH:MM)",
+  "en": "agent: invalid end time (HH:MM)"
+ },
+ "agent : fuseau horaire inconnu": {
+  "fr": "agent : fuseau horaire inconnu",
+  "en": "agent: unknown time zone"
+ },
+ "agent : « actif » doit être vrai ou faux": {
+  "fr": "agent : « actif » doit être vrai ou faux",
+  "en": "agent: \"actif\" must be true or false"
+ },
+ "agent : mode inconnu (brouillon ou auto)": {
+  "fr": "agent : mode inconnu (brouillon ou auto)",
+  "en": "agent: unknown mode (brouillon or auto)"
+ },
+ "agent : rôles inconnus (faq, rendez_vous, commande ou validation)": {
+  "fr": "agent : rôles inconnus (faq, rendez_vous, commande ou validation)",
+  "en": "agent: unknown roles (faq, rendez_vous, commande or validation)"
+ },
+ "agent : message hors horaires : un texte de 1024 caractères au plus est attendu": {
+  "fr": "agent : message hors horaires : un texte de 1024 caractères au plus est attendu",
+  "en": "agent: out-of-hours message: a text of at most 1024 characters is expected"
+ },
+ "agent : plafond par contact et par jour : un entier de 0 à 50 est attendu": {
+  "fr": "agent : plafond par contact et par jour : un entier de 0 à 50 est attendu",
+  "en": "agent: cap per contact per day: an integer from 0 to 50 is expected"
+ },
+ "agent : mots d'appel humain : 30 mots de 40 caractères au plus sont attendus": {
+  "fr": "agent : mots d'appel humain : 30 mots de 40 caractères au plus sont attendus",
+  "en": "agent: human-call words: at most 30 words of at most 40 characters are expected"
+ },
+ "agent : modèle de validation : {nom, langue} ou rien est attendu": {
+  "fr": "agent : modèle de validation : {nom, langue} ou rien est attendu",
+  "en": "agent: validation template: {nom, langue} or nothing is expected"
+ },
+ "agent : réglage inconnu": {
+  "fr": "agent : réglage inconnu",
+  "en": "agent: unknown setting"
+ },
+ "réglages WhatsApp : un objet est attendu": {
+  "fr": "réglages WhatsApp : un objet est attendu",
+  "en": "WhatsApp settings: an object is expected"
+ },
+ "plafond mensuel : un entier de 1 à 1 000 000 est attendu": {
+  "fr": "plafond mensuel : un entier de 1 à 1 000 000 est attendu",
+  "en": "monthly cap: an integer from 1 to 1,000,000 is expected"
+ },
+ "réglage WhatsApp inconnu": {
+  "fr": "réglage WhatsApp inconnu",
+  "en": "unknown WhatsApp setting"
+ },
+ "source du réabonnement exigée": {
+  "fr": "source du réabonnement exigée",
+  "en": "source of the re-subscription required"
  }
 }

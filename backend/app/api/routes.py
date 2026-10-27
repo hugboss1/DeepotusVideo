@@ -8713,6 +8713,59 @@ async def whatsapp_stop(cid: str, body: dict, request: Request, espace: str = ""
     return {"ok": True}
 
 
+@router.post("/whatsapp/{cid}/stop/lever")
+async def whatsapp_stop_lever(cid: str, body: dict, request: Request, espace: str = ""):
+    """t311 : le contact se réabonne {identite, source} : son STOP (et celui de son alias) est levé, un accord saisi
+    `reabonnement:<source>` est posé. Source vide ou identité invalide : 400."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp as _wa
+    b = body if isinstance(body, dict) else {}
+    try:
+        _wa.lever_stop(cid, b.get("identite"), b.get("source"))
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+    return {"ok": True}
+
+
+@router.get("/whatsapp/{cid}/etat")
+async def whatsapp_etat(cid: str, request: Request, espace: str = ""):
+    """t311 : l'état du numéro du compte (accords, stops, désinscrits, compteurs, journal : jamais de texte de message) et,
+    en plus, les réglages d'agent de son espace (`agent`)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import comptes as _cpt, whatsapp as _wa
+    try:
+        e = _wa.etat(cid)
+        e["agent"] = _wa.reglages(_cpt.obtenir(cid)["espace_id"])["agent"]
+    except Exception as ex:  # noqa: BLE001
+        raise _wa_erreur(ex)
+    return e
+
+
+@router.get("/espaces/{espace_id}/whatsapp/reglages")
+async def whatsapp_reglages_lire(espace_id: str, request: Request):
+    """t311 : les réglages WhatsApp de l'espace {plafond_mois, marche_defaut, agent} (défauts complétés)."""
+    _require_localhost(request)
+    from app.services import whatsapp as _wa
+    try:
+        return _wa.reglages(espace_id)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
+@router.put("/espaces/{espace_id}/whatsapp/reglages")
+async def whatsapp_reglages_ecrire(espace_id: str, body: dict, request: Request):
+    """t311 : range des champs PARTIELS ({plafond_mois?, marche_defaut?, agent?{…}}), fusionnés champ par champ ; rend les
+    réglages complets. Hors bornes : 400 (rien n'est écrit) ; espace inconnu : 404."""
+    _require_localhost(request)
+    from app.services import whatsapp as _wa
+    try:
+        return _wa.regler_espace(espace_id, body)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
 _WA_TYPES_EN_LIGNE = ("image/", "audio/", "video/")
 
 
