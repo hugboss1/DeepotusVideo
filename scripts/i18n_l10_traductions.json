@@ -10890,5 +10890,65 @@
  "tarif WhatsApp illisible pour {m} / {cat} : un nombre positif ou nul est attendu": {
   "fr": "tarif WhatsApp illisible pour {m} / {cat} : un nombre positif ou nul est attendu",
   "en": "Unreadable WhatsApp rate for {m} / {cat}: a number of zero or more is expected"
+ },
+ "compte WhatsApp inconnu : {cid}": {
+  "fr": "compte WhatsApp inconnu : {cid}",
+  "en": "unknown WhatsApp account: {cid}"
+ },
+ "ce compte WhatsApp n'est relié à aucun numéro": {
+  "fr": "ce compte WhatsApp n'est relié à aucun numéro",
+  "en": "this WhatsApp account is not linked to any number"
+ },
+ "depuis : une date ISO 8601 est attendue": {
+  "fr": "depuis : une date ISO 8601 est attendue",
+  "en": "since: an ISO 8601 date is expected"
+ },
+ "ce compte WhatsApp n'a pas de compte WhatsApp Business relié": {
+  "fr": "ce compte WhatsApp n'a pas de compte WhatsApp Business relié",
+  "en": "this WhatsApp account has no linked WhatsApp Business account"
+ },
+ "identifiant de média invalide": {
+  "fr": "identifiant de média invalide",
+  "en": "invalid media identifier"
+ },
+ "envoi invalide : un objet {type, …} est attendu": {
+  "fr": "envoi invalide : un objet {type, …} est attendu",
+  "en": "invalid message: an object {type, …} is expected"
+ },
+ "modèle : nom et langue exigés": {
+  "fr": "modèle : nom et langue exigés",
+  "en": "template: name and language are required"
+ },
+ "paramètres du modèle : une liste ou un objet de textes": {
+  "fr": "paramètres du modèle : une liste ou un objet de textes",
+  "en": "template parameters: a list or an object of texts"
+ },
+ "paramètres du modèle : nommés ou positionnels comme le modèle": {
+  "fr": "paramètres du modèle : nommés ou positionnels comme le modèle",
+  "en": "template parameters: named or positional, as in the template"
+ },
+ "le modèle attend {n} paramètre(s)": {
+  "fr": "le modèle attend {n} paramètre(s)",
+  "en": "the template expects {n} parameter(s)"
+ },
+ "le texte du message est vide": {
+  "fr": "le texte du message est vide",
+  "en": "the message text is empty"
+ },
+ "texte trop long ({limite} caractères au plus)": {
+  "fr": "texte trop long ({limite} caractères au plus)",
+  "en": "text too long ({limite} characters at most)"
+ },
+ "boutons : 1 à 3 titres de 20 caractères au plus": {
+  "fr": "boutons : 1 à 3 titres de 20 caractères au plus",
+  "en": "buttons: 1 to 3 titles of 20 characters at most"
+ },
+ "boutons : deux titres identiques": {
+  "fr": "boutons : deux titres identiques",
+  "en": "buttons: two identical titles"
+ },
+ "modèle inconnu ou non approuvé pour cette langue": {
+  "fr": "modèle inconnu ou non approuvé pour cette langue",
+  "en": "unknown or unapproved template for this language"
  }
 }

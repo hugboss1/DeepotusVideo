@@ -304,6 +304,18 @@ def _url_media_sure(url) -> bool:
 async def media(media_id: str, phone_number_id: str) -> bytes:
     """Les octets d'un média reçu : GET /{media_id}?phone_number_id= donne `download_url` (valide 4 minutes, jeton intégré),
     téléchargée AUSSITÔT. Refusée AVANT tout appel si elle n'est pas en HTTPS sur `api.kapso.ai` ; aucune redirection suivie."""
+    return (await media_et_type(media_id, phone_number_id))[0]
+
+
+def _type_mime(v) -> str | None:
+    """Un type MIME lisible (`image/jpeg`, paramètres ôtés), sinon None."""
+    t = str(v or "").split(";", 1)[0].strip().lower()
+    return t if re.match(r"^[a-z0-9.+-]+/[a-z0-9.+-]+$", t) else None
+
+
+async def media_et_type(media_id: str, phone_number_id: str) -> tuple[bytes, str | None]:
+    """t310 tâche 6 (27/10/2026) : comme `media`, avec le type MIME du fournisseur (`mime_type` de la fiche du média,
+    sinon le `Content-Type` du téléchargement ; None s'il est illisible)."""
     _s, corps, _e = await _appel("GET", f"{PROXY}/{quote(str(media_id), safe='')}",
                                  params={"phone_number_id": str(phone_number_id)})
     url = corps.get("download_url") if isinstance(corps, dict) else None
@@ -312,7 +324,8 @@ async def media(media_id: str, phone_number_id: str) -> bytes:
     if not _url_media_sure(url):
         logger.warning("kapso media : adresse de téléchargement refusée (hôte ou schéma)")
         raise KapsoErreur("Adresse de téléchargement refusée", code="media_hote_refuse")
-    _s, octets, _e = await _appel("GET", str(url), reessai_ok=False)    # 4 min de vie : un seul essai, jamais d'attente
+    _s, octets, entetes = await _appel("GET", str(url), reessai_ok=False)    # 4 min de vie : un seul essai, jamais d'attente
     if not isinstance(octets, (bytes, bytearray)):
         raise KapsoErreur("Réponse Kapso invalide", code="reponse_invalide")
-    return bytes(octets)
+    ct = next((v for k, v in (entetes or {}).items() if str(k).lower() == "content-type"), None)
+    return bytes(octets), _type_mime(corps.get("mime_type")) or _type_mime(ct)
