@@ -387,7 +387,7 @@
         }, function () { st.attente = false; return false; });
       }
       function choisirMode(v) {
-        if (v !== "auto") { st.modeChoisi = "brouillon"; montrerAvertissement(); return; }
+        if (v !== "auto") { st.modeChoisi = "brouillon"; st.autoConfirme = false; montrerAvertissement(); return; }
         erreur.textContent = "";
         confirmerAuto().then(function (oui) {
           if (fini) return;
