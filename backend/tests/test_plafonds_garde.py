@@ -38,6 +38,8 @@ PAYANTES = {
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
     ("photolab", "POST", "/calque/detourer"),    # t191 : « Retirer le fond du calque » (détourage, non destructif)
     ("routes", "POST", "/whatsapp/{cid}/envoyer"),   # t310 : un message WhatsApp (Meta, par Kapso ; garde « whatsapp »)
+    ("routes", "POST", "/whatsapp/{cid}/brouillons/rediger"),   # t311 : l'agent WhatsApp (garde « whatsapp_agent » à chaque appel)
+    ("routes", "POST", "/whatsapp/{cid}/brouillons/decider"),   # t311 : l'envoi d'un brouillon (WE.envoyer, garde « whatsapp »)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer
     ("routes", "POST", "/chapters/{chapter_id}/reecrire"),     # tâche #66 : la réécriture dans le ton de la bible (LLM)
     ("routes", "POST", "/chapters/{chapter_id}/animatique"),   # tâche #63 : la voix témoin de l'animatique (sur demande)
@@ -133,6 +135,11 @@ _we = (RP.RACINE / "services" / "whatsapp_echanges.py").read_text(encoding="utf-
 _ws = _we[_we.find("async def _envoyer_sous_verrou("):]
 check("A2e l'envoi WhatsApp appelle plafonds.verifier AVANT kapso.envoyer",
       0 < _ws.find("plafonds.verifier(") < _ws.find("kapso.envoyer("), "")
+# t311 : la route rediger délègue sa garde à agent_whatsapp.rediger — elle doit y précéder chaque appel du modèle
+_aw = (RP.RACINE / "services" / "agent_whatsapp.py").read_text(encoding="utf-8")
+_bw = _aw[_aw.find("async def _boucle("):]
+check("A2f la boucle de l'agent WhatsApp appelle plafonds.verifier AVANT MT.converser (dans la même itération)",
+      0 < _bw.find("for _n in range(MAX_TOURS)") < _bw.find("plafonds.verifier(") < _bw.find("MT.converser"), "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes

@@ -11122,5 +11122,25 @@
  "en-tête : ce modèle exige un en-tête média": {
   "fr": "en-tête : ce modèle exige un en-tête média",
   "en": "header: this template requires a media header"
+ },
+ "décision inconnue (envoyer ou rejeter)": {
+  "fr": "décision inconnue (envoyer ou rejeter)",
+  "en": "unknown decision (send or reject)"
+ },
+ "aucun brouillon en attente pour ce contact": {
+  "fr": "aucun brouillon en attente pour ce contact",
+  "en": "no pending draft for this contact"
+ },
+ "ce brouillon ne s'envoie pas : il attend une personne": {
+  "fr": "ce brouillon ne s'envoie pas : il attend une personne",
+  "en": "this draft cannot be sent: it is waiting for a person"
+ },
+ "état de brouillon inconnu : {v}": {
+  "fr": "état de brouillon inconnu : {v}",
+  "en": "unknown draft state: {v}"
+ },
+ "ce compte WhatsApp n'appartient pas à cet espace": {
+  "fr": "ce compte WhatsApp n'appartient pas à cet espace",
+  "en": "this WhatsApp account does not belong to this space"
  }
 }

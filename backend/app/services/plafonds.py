@@ -35,9 +35,11 @@ DEFAUTS = {"global_usd": 0.0, "par_moteur": {}, "alerte_pct": 80}
 # sync_depenses) étaient écrites en base sans être au vocabulaire ; test_constats_catalogue [Q] les tient ensemble.
 # t285a (23/10/2026) : « campagnes » (l'agent interne : un tour de boucle, un rendu de campagne).
 # t310 (27/10/2026) : « whatsapp » (les messages livrés par Meta via Kapso, moteur « meta » du registre).
+# t311 (27/10/2026) : « whatsapp_agent » (les appels du modèle de l'agent WhatsApp d'un espace, Anthropic).
 CATEGORIES = ("quick", "studio", "chapitres", "son", "montage", "news", "scheduler", "bibliotheque", "sprites",
               "tuiles", "matieres", "cartes", "moteurs3d", "marketing", "atelier", "vectorlab", "reglages",
-              "dictee", "direct", "photolab", "aide", "motion", "mobile", "campagnes", "whatsapp")
+              "dictee", "direct", "photolab", "aide", "motion", "mobile", "campagnes", "whatsapp",
+              "whatsapp_agent")
 
 CONFIRME: ContextVar[bool] = ContextVar("dz_plafond_confirme", default=False)
 

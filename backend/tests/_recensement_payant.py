@@ -50,6 +50,7 @@ PUITS = {
     "appliquer_maillon",   # t277 : un maillon IA de la pile de post-traitement (fal, Decart par fal, ElevenLabs)
     "AC.tour",   # t285a : la boucle de l'agent Campagnes (agent_campagnes.tour -> moteurs_texte.converser, Anthropic)
     "WE.envoyer",   # t310 : l'envoi WhatsApp (Kapso -> Meta, facturé par message ; whatsapp_echanges.envoyer)
+    "AW.rediger",   # t311 : la boucle de l'agent WhatsApp (agent_whatsapp.rediger -> moteurs_texte.converser, Anthropic)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
     "transcribe",
@@ -75,8 +76,10 @@ PUITS = {
 GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face : `sw.verifier` de la fiche de style)
           "AC.tour",   # t285a : la garde vit DANS la boucle, avant CHAQUE appel du modèle (un tour = une garde) ;
                        # test_plafonds_garde A2d vérifie dans le source que plafonds.verifier y précède MT.converser
-          "WE.envoyer"}   # t310 : la garde vit DANS whatsapp_echanges.envoyer, sous le verrou du compte ;
+          "WE.envoyer",   # t310 : la garde vit DANS whatsapp_echanges.envoyer, sous le verrou du compte ;
                           # test_plafonds_garde A2e vérifie dans le source que plafonds.verifier y précède kapso.envoyer
+          "AW.rediger"}   # t311 : la garde vit DANS la boucle de l'agent WhatsApp, avant CHAQUE appel du modèle ;
+                          # test_plafonds_garde A2f vérifie dans le source que plafonds.verifier y précède MT.converser
 
 
 def _nom_appel(n: ast.Call) -> str:
