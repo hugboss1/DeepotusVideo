@@ -20,8 +20,17 @@ Ce que ce banc garde :
   L12 erreurs : compte inconnu 404, compte non whatsapp 400, refus Kapso 502 {message, code} nettoyé, hors boucle locale
       refusé (401 sans jeton d'appareil, 403 sinon).
   L13 verif_canaux.CODES et les textes FR/EN des quatre codes neufs.
+  Reprise 1 (revue de 162aaae6) :
+  L14 deux liens, le client termine le PREMIER : terminee (le customer est propre au compte).
+  L15 deux creer_lien simultanés sur un compte sans customer : un seul POST /customers (verrou par compte).
+  L16 produit gouverné par un client (§11 bis) : consentement exigé ; ajouté sur la fiche DU CLIENT à la fin.
+  L17 le premier « Vérifier » après la fin de liaison : vert, jamais `ecartee` (vérification pure) ; panne Kapso : orange.
+  L18 convergence : consentement qui échoue une fois (OSError) -> rien de rangé, la relecture suivante l'ajoute ;
+      une révocation n'est jamais défaite ; une autre ValueError de la fiche remonte (400), rien de rangé.
+  L19 whatsapp.json : absent = {}, JSON illisible mis de côté, autre erreur de lecture levée (fichier jamais réécrit).
+  L20 codes d'erreur de liaison (numero_deja_relie + espace, fournisseur, expire).
 Run (depuis backend/) : & $PY tests/test_whatsapp_liaison.py"""
-import json, os, pathlib, sys, tempfile
+import asyncio, json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzwalia_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
@@ -61,6 +70,7 @@ from fastapi.testclient import TestClient                            # noqa: E40
 from app.config import settings                                      # noqa: E402
 from app.main import app                                             # noqa: E402
 from app.services import comptes as CP, espaces as E, fiche_client as FC, kapso as KA, verif_canaux as VC  # noqa: E402
+from app.services import whatsapp as WA                              # noqa: E402
 
 CLE = "CLE-KAPSO-SECRETE-42"
 JETON = "JETON-SECRET-DU-LIEN"
@@ -90,6 +100,7 @@ F = Faux()
 
 
 async def faux_requete(methode, url, *, json=None, params=None):
+    await asyncio.sleep(0)            # rend la main : deux gestes simultanés s'entrelacent vraiment
     chemin = url.replace(PL, "")
     F.appels.append((methode, chemin))
     if methode == "POST" and chemin == "/customers":
@@ -235,7 +246,7 @@ avant = comptes_json()
 F.appels.clear()
 r = liaison(cid)
 check("L4.1 200, etat en_cours, erreur et numero nuls", r.status_code == 200
-      and r.json() == {"etat": "en_cours", "erreur": None, "numero": None}, r.text)
+      and r.json() == {"etat": "en_cours", "erreur": None, "numero": None, "code": None}, r.text)
 check("L4.2 rien de rangé (comptes.json identique)", comptes_json() == avant)
 check("L4.3 un seul appel `liens`, aucun `numeros` (jamais de boucle)", F.appels == [("GET", "/customers/cust-1/setup_links")],
       F.appels)
@@ -255,7 +266,8 @@ F.lien("cust-1", whatsapp_setup_status="failed",
 avant = comptes_json()
 r = liaison(cid)
 j = r.json()
-check("L5.1 etat echouee, erreur du fournisseur", j.get("etat") == "echouee" and "facebook_auth_failed" in (j.get("erreur") or ""), j)
+check("L5.1 etat echouee, erreur du fournisseur, code fournisseur", j.get("etat") == "echouee"
+      and "facebook_auth_failed" in (j.get("erreur") or "") and j.get("code") == "fournisseur", j)
 check("L5.2 erreur nettoyée (ni jeton ni clé)", JETON not in r.text and CLE not in r.text, r.text)
 check("L5.3 rien de rangé", comptes_json() == avant)
 r = verifier(cid)
@@ -273,7 +285,8 @@ F.appels.clear()
 r = liaison(cid)
 j = r.json()
 check("L6.1 etat echouee, « déjà relié à l'espace Atelier Soleil »",
-      j.get("etat") == "echouee" and "ce numéro est déjà relié à l'espace Atelier Soleil" in (j.get("erreur") or ""), j)
+      j.get("etat") == "echouee" and "ce numéro est déjà relié à l'espace Atelier Soleil" in (j.get("erreur") or "")
+      and j.get("code") == "numero_deja_relie" and j.get("espace") == "Atelier Soleil", j)
 check("L6.2 rien de rangé : phone_id vide, comptes.json identique", comptes_json() == avant and not publics(cid)["WHATSAPP_PHONE_ID"])
 check("L6.3 aucun consentement ajouté", FC.consentements_en_cours(lune) == [])
 check("L6.4 un `liens` et un `numeros`, pas plus",
@@ -328,7 +341,8 @@ lien(c3, {"facturation": "partner_managed"})
 cust3 = publics(c3)["KAPSO_CUSTOMER_ID"]
 F.lien(cust3, status="expired")
 r = liaison(c3)
-check("L8.1 statut Kapso expired : expiree", r.json().get("etat") == "expiree", r.text)
+check("L8.1 statut Kapso expired : expiree, code expire", r.json().get("etat") == "expiree"
+      and r.json().get("code") == "expire", r.text)
 F.lien(cust3, status="active")
 fw = _tmp / "espaces" / autre / "whatsapp.json"
 dw = json.loads(fw.read_text("utf-8"))
@@ -339,7 +353,8 @@ check("L8.2 date d'expiration dépassée (Kapso encore « active ») : expiree",
 check("L8.3 rien de rangé", not publics(c3)["WHATSAPP_PHONE_ID"])
 c4 = nouveau_compte(autre)
 r = liaison(c4)
-check("L8.4 aucun lien créé : etat aucune, sans réseau", r.json() == {"etat": "aucune", "erreur": None, "numero": None}, r.text)
+check("L8.4 aucun lien créé : etat aucune, sans réseau",
+      r.json() == {"etat": "aucune", "erreur": None, "numero": None, "code": None}, r.text)
 
 print("\n[L9] clé Kapso absente (Review Focus 3)")
 poser_cle("")
@@ -412,6 +427,159 @@ check("L13.2 textes FR et EN des quatre codes", all((I18N.get(f"espaces.assistan
                                                     for x in NEUFS))
 check("L13.3 whatsapp.FACTURATIONS", __import__("app.services.whatsapp", fromlist=["x"]).FACTURATIONS
       == ("customer_managed", "partner_managed"))
+
+print("\n[L14] deux liens, le client termine le premier")
+c6 = nouveau_compte(autre)
+lien(c6, {"facturation": "customer_managed"})
+lien(c6, {"facturation": "customer_managed"})
+cust6 = publics(c6)["KAPSO_CUSTOMER_ID"]
+check("L14.1 deux liens chez Kapso, la liaison suit le dernier", len(F.liens[cust6]) == 2
+      and json.loads(wa_json(autre))["liaison"][c6]["lien_id"] == F.liens[cust6][0]["id"])
+F.liens[cust6][1].update(whatsapp_setup_status="completed", status="used")        # le PREMIER lien, pas le suivi
+F.numeros[cust6] = [numero_brut("PN-L14")]
+F.appels.clear()
+r = liaison(c6)
+check("L14.2 terminee, numéro rangé", r.json().get("etat") == "terminee" and publics(c6)["WHATSAPP_PHONE_ID"] == "PN-L14", r.text)
+check("L14.3 un `liens` et un `numeros`",
+      F.appels == [("GET", f"/customers/{cust6}/setup_links"), ("GET", "/whatsapp/phone_numbers")], F.appels)
+
+print("\n[L15] deux creer_lien simultanés")
+c7 = nouveau_compte(autre)
+F.appels.clear()
+
+
+async def _deux():
+    return await asyncio.gather(WA.creer_lien(c7, "customer_managed", None, None),
+                                WA.creer_lien(c7, "customer_managed", None, None), return_exceptions=True)
+
+
+res = asyncio.run(_deux())
+check("L15.1 les deux rendent une URL", all(isinstance(x, dict) and x.get("url") for x in res), res)
+check("L15.2 un seul POST /customers", F.appels.count(("POST", "/customers")) == 1, F.appels)
+check("L15.3 deux liens sur le même customer",
+      sum(1 for a in F.appels if a[0] == "POST" and a[1].endswith("/setup_links")) == 2, F.appels)
+
+print("\n[L16] produit gouverné par un client")
+pain = E.creer({"nom": "Pain Lune", "type": "produit", "parent": lune})["id"]
+check("L16.0 client_responsable(produit) = le client", E.client_responsable(pain) == lune)
+c8 = nouveau_compte(pain)
+F.appels.clear()
+r = lien(c8, {"facturation": "customer_managed"})
+check("L16.1 sans consentement : 400, aucun appel", r.status_code == 400 and "consentement daté" in r.text and F.appels == [],
+      r.text)
+r = lien(c8, {"facturation": "customer_managed", "consentement": {"moyen": "doigt", "date": "2026-10-22"}})
+check("L16.2 avec consentement : 200", r.status_code == 200, r.text)
+cust8 = publics(c8)["KAPSO_CUSTOMER_ID"]
+F.lien(cust8, whatsapp_setup_status="completed")
+F.numeros[cust8] = [numero_brut("PN-PAIN")]
+r = liaison(c8)
+cons = [x for x in FC.consentements_en_cours(lune) if x["canal_id"] == "whatsapp:PN-PAIN"]
+check("L16.3 terminee, consentement whatsapp:PN-PAIN sur la fiche du CLIENT (moyen doigt)",
+      r.json().get("etat") == "terminee" and len(cons) == 1 and cons[0]["moyen"] == "doigt", (r.text, cons))
+check("L16.4 aucune fiche pour le produit", not (_tmp / "espaces" / pain / "client.json").exists())
+
+print("\n[L17] le premier Vérifier après la fin de liaison est vert")
+c9 = nouveau_compte(lune2)
+lien(c9, {"facturation": "customer_managed", "consentement": CONS})
+cust9 = publics(c9)["KAPSO_CUSTOMER_ID"]
+F.lien(cust9, whatsapp_setup_status="completed")
+F.numeros[cust9] = [numero_brut("PN-L17")]
+F.details["PN-L17"] = numero_brut("PN-L17", nom="Fromagerie Lune")
+r = verifier(c9)
+vue = r.json().get("compte") or {}
+v = vue.get("verification") or {}
+check("L17.1 vert, id_distant PN-L17, pas d'ecartee", r.status_code == 200 and v.get("etat") == "vert"
+      and v.get("id_distant") == "PN-L17" and "ecartee" not in vue, r.text)
+check("L17.2 numéro rangé, consentement ajouté", publics(c9)["WHATSAPP_PHONE_ID"] == "PN-L17"
+      and FC.consentement_en_cours(lune2, "whatsapp:PN-L17"))
+c10 = nouveau_compte(autre)
+lien(c10, {"facturation": "customer_managed"})
+cust10 = publics(c10)["KAPSO_CUSTOMER_ID"]
+F.lien(cust10, whatsapp_setup_status="completed")
+F.numeros[cust10] = [numero_brut("PN-L17B")]
+avant = comptes_json()
+with CP.sous_compte(c10):
+    rr = asyncio.run(VC.verifier_plateforme("whatsapp"))
+check("L17.3 verifier_plateforme seul (sans `verifier`) ne range rien", comptes_json() == avant
+      and not publics(c10)["WHATSAPP_PHONE_ID"], rr)
+_liens_vrai = KA.liens
+
+
+async def _liens_ko(cust):
+    raise KA.KapsoErreur("Kapso injoignable", code="reseau", reessayable=True)
+
+
+KA.liens = _liens_ko
+c11 = nouveau_compte(autre)
+lien(c11, {"facturation": "customer_managed"})
+r = verifier(c11)
+v = (r.json().get("compte") or {}).get("verification") or {}
+check("L17.4 panne Kapso pendant la relecture : 200, orange reseau (jamais une 500)", r.status_code == 200
+      and v.get("etat") == "orange" and v.get("code") == "reseau", r.text)
+KA.liens = _liens_vrai
+
+print("\n[L18] convergence du consentement")
+lune3 = E.creer({"nom": "Crèmerie Lune", "type": "client"})["id"]
+c12 = nouveau_compte(lune3)
+lien(c12, {"facturation": "customer_managed", "consentement": CONS})
+cust12 = publics(c12)["KAPSO_CUSTOMER_ID"]
+F.lien(cust12, whatsapp_setup_status="completed")
+F.numeros[cust12] = [numero_brut("PN-L18")]
+_ajout = FC.ajouter_consentement
+_coups = []
+
+
+def _ajout_casse(*a, **k):
+    if not _coups:
+        _coups.append(1)
+        raise OSError("disque plein")
+    return _ajout(*a, **k)
+
+
+FC.ajouter_consentement = _ajout_casse
+r = liaison(c12)
+check("L18.1 écriture du consentement en échec : pas de 200, aucun numéro rangé", r.status_code != 200
+      and not publics(c12)["WHATSAPP_PHONE_ID"], r.text)
+r = liaison(c12)
+check("L18.2 relecture suivante : terminee, consentement ajouté", r.json().get("etat") == "terminee"
+      and FC.consentement_en_cours(lune3, "whatsapp:PN-L18"), r.text)
+FC.ajouter_consentement = _ajout
+FC.revoquer(lune3, "whatsapp:PN-L18")
+r = liaison(c12)
+check("L18.3 révocation jamais défaite par une relecture", r.json().get("etat") == "terminee"
+      and not FC.consentement_en_cours(lune3, "whatsapp:PN-L18"), r.text)
+c13 = nouveau_compte(lune3)
+lien(c13, {"facturation": "customer_managed", "consentement": CONS})
+cust13 = publics(c13)["KAPSO_CUSTOMER_ID"]
+fw = _tmp / "espaces" / lune3 / "whatsapp.json"
+dw = json.loads(fw.read_text("utf-8"))
+dw["liaison"][c13]["consentement"]["moyen"] = "pigeon"            # la fiche refusera ce moyen (ValueError)
+fw.write_text(json.dumps(dw), "utf-8")
+F.lien(cust13, whatsapp_setup_status="completed")
+F.numeros[cust13] = [numero_brut("PN-L18B")]
+r = liaison(c13)
+check("L18.4 autre ValueError de la fiche : 400, rien de rangé", r.status_code == 400
+      and "moyen de consentement inconnu" in r.text and not publics(c13)["WHATSAPP_PHONE_ID"], r.text)
+
+print("\n[L19] lecture de whatsapp.json")
+vide = E.creer({"nom": "Vide"})["id"]
+check("L19.1 absent : {}", WA._lire_doc(vide) == {})
+fv = _tmp / "espaces" / vide / "whatsapp.json"
+fv.parent.mkdir(parents=True, exist_ok=True)
+fv.write_text("{pas du json", "utf-8")
+check("L19.2 JSON illisible : {} et fichier mis de côté", WA._lire_doc(vide) == {} and not fv.exists()
+      and any(x.name.startswith("whatsapp.json.illisible-") for x in fv.parent.iterdir()))
+fv.mkdir()                                                         # une lecture qui échoue autrement (pas FileNotFound)
+leve = False
+try:
+    WA._lire_doc(vide)
+except OSError as e:
+    leve = not isinstance(e, FileNotFoundError)
+check("L19.3 autre erreur de lecture : levée, rien réécrit", leve and fv.is_dir())
+
+print("\n[L20] codes d'erreur")
+check("L20.1 CODES_ERREUR", WA.CODES_ERREUR == ("numero_deja_relie", "fournisseur", "expire"))
+check("L20.2 ETATS_LIAISON retiré", not hasattr(WA, "ETATS_LIAISON"))
 
 c.__exit__(None, None, None)
 print(f"\n{ok} PASS, {fail} FAIL")

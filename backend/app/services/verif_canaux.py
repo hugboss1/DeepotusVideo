@@ -3,10 +3,11 @@
 Un appel en LECTURE SEULE par plateforme, qui rend l'état du compte et l'identité distante :
   · X : `get_me` (tweepy) ; Telegram : `getMe` puis `getChat` (jamais `sendMessage`, contrairement à `_test_channel`) ;
   · YouTube : `channels?mine=true` ; Instagram : `GET /<id>?fields=username` ; TikTok : `/v2/user/info/` ;
-  · WhatsApp (t310, 27/10/2026) : Kapso, sans webhook. Sans numéro relié, relecture de la liaison (`whatsapp.relire_liaison`,
-    un `liens` et un `numeros` au plus, qui range le numéro si la liaison vient de se terminer) ; sinon le détail du
-    numéro (`kapso.numero`) : qualité GREEN/null et numéro connecté = vert, YELLOW = orange, RED ou déconnecté = rouge.
-    Clé Kapso absente : orange `cle_kapso_absente`, sans réseau.
+  · WhatsApp (t310, 27/10/2026) : Kapso, sans webhook. Sans numéro relié, `verifier` relit la liaison AVANT de relever la
+    révision (`whatsapp.relire_liaison`, qui range le numéro si la liaison vient de se terminer) : le « Vérifier » qui
+    découvre la fin de liaison rend donc vert, jamais `ecartee`. `_whatsapp` ne fait que LIRE (ce relevé, sinon
+    `relire_liaison(ranger=False)`, puis `kapso.numero`) : qualité GREEN/null et numéro connecté = vert, YELLOW = orange,
+    RED ou déconnecté = rouge. Clé Kapso absente : orange `cle_kapso_absente`, sans réseau.
 Ne publie rien, ne dépense rien, n'envoie aucun message. Aucune valeur secrète dans un résultat : les messages passent par
 `diagnostic._sans` (jeton Telegram dans l'URL `bot<jeton>`, jeton Instagram dans la query, jetons d'accès OAuth).
 À appeler SOUS `comptes.sous_compte(cid)`. Hooks remplaçables au banc : `_get` et `_x_me` (test_verif_canaux).
@@ -16,6 +17,7 @@ audité) · `rouge` (refusé : 401/403, jeton invalide, chat introuvable).
 """
 import asyncio
 import re
+from contextvars import ContextVar
 from urllib.parse import quote, urlencode
 
 from app.services import comptes
@@ -188,6 +190,10 @@ async def _tiktok() -> dict:
     return _r("vert", "compte TikTok joint", user["open_id"], user.get("display_name"), sec, code="ok")
 
 
+# t310 : (cid, résultat ou exception) de la relecture de liaison faite par `verifier` avant la révision ; lu par `_whatsapp`.
+_LIAISON_RELUE: ContextVar = ContextVar("dz_liaison_whatsapp_relue", default=None)
+
+
 async def _whatsapp() -> dict:
     """t310 (27/10/2026) : le compte whatsapp COURANT, par Kapso. La clé plate est passée en secret à nettoyer (elle n'est le
     champ d'aucun compte). Un refus Kapso 401/403 est rouge ; le reste (réseau, 404, 5xx, 429) orange."""
@@ -202,7 +208,13 @@ async def _whatsapp() -> dict:
     try:
         pid = str(comptes.cle("WHATSAPP_PHONE_ID") or "").strip()
         if not pid:
-            lia = await whatsapp.relire_liaison(cid)
+            deja = _LIAISON_RELUE.get()
+            if deja is not None and deja[0] == cid:
+                if isinstance(deja[1], BaseException):
+                    raise deja[1]
+                lia = deja[1]
+            else:
+                lia = await whatsapp.relire_liaison(cid, ranger=False)     # lecture pure : rien n'est rangé ici
             if lia["etat"] in ("echouee", "expiree"):
                 raison = "lien d'installation expiré" if lia["etat"] == "expiree" else f"liaison échouée : {lia['erreur']}"
                 return _r("rouge", raison, secrets_=sec, code="liaison_echouee")
@@ -270,22 +282,43 @@ def _portee(pp: dict) -> dict:
     return res
 
 
+def _liaison_a_relire(vue: dict) -> bool:
+    """t310 : un compte whatsapp non porté par le téléphone, clé Kapso posée, sans numéro relié."""
+    if vue.get("plateforme") != "whatsapp" or isinstance(vue.get("porte_par"), dict) or not comptes.cle_kapso():
+        return False
+    return not any(ch.get("nom") == "WHATSAPP_PHONE_ID" and str(ch.get("valeur") or "").strip()
+                   for ch in vue.get("champs") or [])
+
+
 async def verifier(cid: str) -> dict:
     """Vérifie le compte `cid` (ou `historique-<p>`), RANGE le résultat daté (`comptes.noter_verification`) et rend la vue
     relue. Un compte porté par le téléphone ne lit aucun secret et n'appelle aucun réseau. KeyError = compte inconnu ;
     coffre.CoffreVerrouille = coffre fermé alors qu'un secret requis manque (rien n'est rangé)."""
     vue = comptes.obtenir(cid)
-    rev = comptes.revision(cid)          # relevée AVANT le réseau : si le compte change pendant l'appel, rien n'est rangé
-    if isinstance(vue.get("porte_par"), dict):
-        res = _portee(vue["porte_par"])
-    else:
-        with comptes.sous_compte(cid):
-            if _coffre_en_cause(vue["plateforme"]):
-                # t308 relecture finale (26/10/2026) : le secret requis est peut-être au coffre fermé : rien n'est rangé
-                # (jamais « identifiants incomplets ») ; la route rend le 409 du coffre verrouillé (_compte_erreur).
-                from app.services import coffre
-                raise coffre.CoffreVerrouille("le coffre est fermé")
-            res = await verifier_plateforme(vue["plateforme"])
+    jeton = _LIAISON_RELUE.set(None)
+    try:
+        if _liaison_a_relire(vue):
+            # t310 (27/10/2026) : la liaison whatsapp se relit (et range un numéro neuf) AVANT la révision ; une erreur ici
+            # ne sort jamais : `_whatsapp` la rend par son chemin orange/rouge.
+            from app.services import whatsapp
+            try:
+                _LIAISON_RELUE.set((cid, await whatsapp.relire_liaison(cid)))
+            except Exception as e:  # noqa: BLE001
+                _LIAISON_RELUE.set((cid, e))
+            vue = comptes.obtenir(cid)
+        rev = comptes.revision(cid)      # relevée AVANT le réseau : si le compte change pendant l'appel, rien n'est rangé
+        if isinstance(vue.get("porte_par"), dict):
+            res = _portee(vue["porte_par"])
+        else:
+            with comptes.sous_compte(cid):
+                if _coffre_en_cause(vue["plateforme"]):
+                    # t308 relecture finale (26/10/2026) : le secret requis est peut-être au coffre fermé : rien n'est rangé
+                    # (jamais « identifiants incomplets ») ; la route rend le 409 du coffre verrouillé (_compte_erreur).
+                    from app.services import coffre
+                    raise coffre.CoffreVerrouille("le coffre est fermé")
+                res = await verifier_plateforme(vue["plateforme"])
+    finally:
+        _LIAISON_RELUE.reset(jeton)
     rangee = comptes.noter_verification(cid, res, rev=rev)
     out = comptes.obtenir(cid)
     if rangee is None:
