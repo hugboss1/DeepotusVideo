@@ -28,6 +28,7 @@ sys.path.insert(0, str(BACKEND))
 sys.path.insert(0, str(BACKEND / "tests"))
 sys.path.insert(0, str(REPO / "scripts"))
 import _i18n_l1_aide as AIDE  # noqa: E402
+F = AIDE.fr
 
 NODE = shutil.which("node")
 ok = fail = 0
@@ -115,8 +116,8 @@ if PM:
         avant = PM.defaire(B) if MARKER in B else ""
     except AssertionError:
         avant = ""
-    check("1.6 deux paires ; chaque ancre une fois dans le bundle d'avant, chaque remplacement une fois dans le livré",
-          lambda: len(PM.PAIRES) == 2 and bool(avant) and all(avant.count(a) == 1 and B.count(z) == 1 for a, z in PM.PAIRES))
+    check("1.6 cinq paires (P1, P2, P3a-c) ; chaque ancre une fois dans le bundle d'avant, chaque remplacement une fois dans le livré",
+          lambda: len(PM.PAIRES) == 5 and bool(avant) and all(avant.count(a) == 1 and B.count(z) == 1 for a, z in PM.PAIRES))
     check("1.7 les paires n'ont aucune fin de ligne, n'ajoutent ni x.useState( ni confirmation",
           all("\n" not in a + z and "x.useState(" not in z and CONFIRMER not in z for a, z in PM.PAIRES))
     check("1.8 chaque ancre (vue d'avant) et chaque remplacement (livré) HORS de tout bloc de couche __DZ_*_BEGIN__",
@@ -175,6 +176,14 @@ __SCRIPT__
 __ECRANS__
 var R={};
 (async function(){
+ /* P3 : Réglages › Espaces (DzComptesEspace livrée) */
+ monter(DzComptesEspace,{espace:"esp_c",nom:"Client C"});await attendre();
+ var sel=chercher(function(n){return n.t==="select"})[0];
+ R.options=sel?kids(sel).map(function(o){return o.p.value}):null;
+ function boutons(id){var b=avec("data-dz-compte",id)[0];return b?chercher(function(n){return n.t==="button"},b).map(texte):null}
+ R.bt_wa=boutons("c_wa");R.bt_tg=boutons("c_tg");
+ R.indice_wa=texte(avec("data-dz-compte-whatsapp","c_wa")[0]||null);R.indice_tg=avec("data-dz-compte-whatsapp","c_tg").length;
+ R.inputs_wa=(function(){var b=avec("data-dz-compte","c_wa")[0];return b?chercher(function(n){return n.t==="input"},b).length:-1})();
  var changes=[];
  monter(DzPostComptes,{post:{id:"p1",espaceId:"esp_c",comptes:[]},onChange:function(v){changes.push(v)}});await attendre();
  R.proposes=avec("data-dz-post-compte").map(function(n){return n.p["data-dz-post-compte"]});
@@ -190,6 +199,16 @@ check("3.5 la fonction livrée DzPostComptes s'exécute sous node", bool(P3) and
 if P3 and "erreur" not in P3:
     check("3.6 P2 : l'éditeur de post propose telegram et x, jamais le compte whatsapp",
           sorted(P3["proposes"]) == ["c_tg", "c_x"] and "c_wa" not in P3["texte"], str(P3["proposes"]))
+    check("3.7 P3a : Réglages › Espaces, « Ajouter un compte » ne propose pas whatsapp",
+          P3["options"] is not None and "whatsapp" not in P3["options"] and {"telegram", "x"} <= set(P3["options"]), str(P3["options"]))
+    check("3.8 P3b : un compte whatsapp n'a ni « Identifiants » ni « Tester », aucun champ, mais « Vérifier » et « Supprimer » ; telegram garde tout",
+          P3["bt_wa"] is not None and F("espaces.comptes.identifiants") not in P3["bt_wa"]
+          and F("espaces.comptes.tester") not in P3["bt_wa"] and P3["inputs_wa"] == 0
+          and F("espaces.comptes.verifier") in P3["bt_wa"] and F("espaces.comptes.supprimer") in P3["bt_wa"]
+          and F("espaces.comptes.identifiants") in P3["bt_tg"] and F("espaces.comptes.tester") in P3["bt_tg"],
+          str([P3["bt_wa"], P3["bt_tg"], P3["inputs_wa"]]))
+    check("3.9 P3c : à la place, la ligne en lecture seule « relié par l'assistant d'espace » (whatsapp seulement)",
+          P3["indice_wa"] == F("espaces.comptes.whatsapp_assistant") and P3["indice_tg"] == 0, str(P3["indice_wa"]))
 
 # ── [4] le panneau de liaison ───────────────────────────────────────────────────────────────────────────────────────
 print("\n[4] le panneau de liaison, sous node")
@@ -210,12 +229,13 @@ globalThis.fetch=function(u,o){var m=(o&&o.method)||"GET",b=o&&o.body?JSON.parse
   if(u==="/api/espaces"&&m==="POST")return rep(200,{espace:Object.assign({id:ESP_ID},b)});
   if(u==="/api/espaces/"+ESP_ID&&m==="POST")return rep(200,{espace:Object.assign({id:ESP_ID},b)});
   if(u==="/api/espaces/"+ESP_ID+"/client"&&m==="PUT")return rep(200,Object.assign({version:1},b));
-  if(u.indexOf("/api/comptes?espace=")===0)return rep(200,{espace:ESP_ID,comptes:COMPTES,plateformes:PLATS});
+  if(u.indexOf("/api/comptes?espace=")===0)return rep(200,{espace:ESP_ID,comptes:COMPTES,plateformes:platsAvecCle()});
   if(u==="/api/comptes"&&m==="POST")return rep(200,{compte:cptWa(POSEE,FACT)});
   if(u==="/api/comptes/cwa000001/whatsapp/lien"&&m==="POST")return LIEN_REP?rep(LIEN_REP[0],LIEN_REP[1]):rep(200,{url:"https://app.kapso.ai/setup/abc",expire_le:"2026-11-26T10:00:00Z",facturation:b.facturation});
   if(u==="/api/comptes/cwa000001/whatsapp/liaison"&&m==="GET")return rep(200,LIAISON);
   if(u==="/api/comptes/cwa000001/verifier"&&m==="POST"){if(VERIF_LIAISON)LIAISON=VERIF_LIAISON;return rep(200,{compte:Object.assign(cptWa(POSEE,FACT),{verification:{etat:"orange",code:"liaison_en_cours",raison:"en cours",date:"2026-10-27T10:00:00"}})})}
   return rep(404,{detail:"route inconnue du faux serveur : "+m+" "+u})};
+function platsAvecCle(){var p=JSON.parse(JSON.stringify(PLATS));p.whatsapp.cle_plate={nom:"KAPSO_API_KEY",posee:POSEE};return p}
 var COPIES=[];
 Object.defineProperty(globalThis,"navigator",{value:{clipboard:{writeText:function(t){COPIES.push(t);return Promise.resolve()}}},configurable:true});
 __SCRIPT__
@@ -244,12 +264,13 @@ var R={};
  R.a_creer=!!un("data-dz-assistant-whatsapp-creer");R.a_fact=par("data-dz-assistant-whatsapp-facturation").length;
  R.a_cons=!!un("data-dz-assistant-whatsapp-moyen");R.a_liaison=compte("GET","/api/comptes/cwa000001/whatsapp/liaison");
  R.a_champs=par("data-dz-assistant-cle").length;relever();fermer();await pA.p;
- /* B : un CLIENT, clé posée, AUCUN compte : la case crée le compte (sans valeur), le consentement est exigé */
+ /* B : un CLIENT, clé posée, AUCUN compte : cocher ne crée RIEN (la clé se lit sur plateformes), le consentement est exigé ;
+    « Créer le lien » crée alors le compte (une fois) puis le lien */
  appels=[];COMPTES=[];POSEE=true;FACT="";LIAISON={etat:"aucune",erreur:null,numero:null};
  var pB=await jusquaCanaux("client");R.b_etape=etape();
  R.b_avant=!!un("data-dz-assistant-whatsapp");
  var caseW=un("data-dz-assistant-case","whatsapp");caseW.checked=true;caseW.declencher("change");await attendre();await attendre();
- R.b_cree=(appels.filter(function(a){return a.m==="POST"&&a.u==="/api/comptes"})[0]||{}).b;R.b_posts=compte("POST","/api/comptes");
+ R.b_posts_coche=compte("POST","/api/comptes");R.b_case_libre=!(un("data-dz-assistant-case","whatsapp")||{}).disabled;
  R.b_liaison=compte("GET","/api/comptes/cwa000001/whatsapp/liaison");
  R.b_champs=par("data-dz-assistant-cle").length;
  var fact=par("data-dz-assistant-whatsapp-facturation");R.b_fact=fact.map(function(n){return [n.getAttribute("data-dz-assistant-whatsapp-facturation"),n.type,!!n.checked,!!n.disabled]});
@@ -266,6 +287,9 @@ var R={};
  var url=un("data-dz-assistant-whatsapp-url");R.b_url=url&&[url.tagName,url.value,!!url.readOnly];
  R.b_expire=(un("data-dz-assistant-whatsapp-expire")||{}).textContent;
  R.b_creer_apres=!!un("data-dz-assistant-whatsapp-creer");
+ R.b_cree=(appels.filter(function(a){return a.m==="POST"&&a.u==="/api/comptes"})[0]||{}).b;R.b_posts=compte("POST","/api/comptes");
+ var iC=-1,iLi=-1;appels.forEach(function(a,i){if(a.m==="POST"&&a.u==="/api/comptes"&&iC<0)iC=i;if(a.u==="/api/comptes/cwa000001/whatsapp/lien"&&iLi<0)iLi=i});R.b_ordre_cree=[iC,iLi];
+ R.b_case_apres=!!(un("data-dz-assistant-case","whatsapp")||{}).disabled;
  var cp=un("data-dz-assistant-whatsapp-copier");R.b_copier=cp&&cp.textContent;cp.declencher("click");await attendre();R.b_copies=COPIES.slice();
  relever();
  /* « Vérifier » : /verifier PUIS GET …/liaison ; la liaison terminée montre le numéro */
@@ -302,6 +326,15 @@ var R={};
  R.d_refus=(un("data-dz-assistant-whatsapp-msg")||{}).textContent;R.d_creer_rendu=!!un("data-dz-assistant-whatsapp-creer")&&!un("data-dz-assistant-whatsapp-creer").disabled;
  LIEN_REP=null;relever();fermer();await pD2.p;
  /* E : un PRODUIT dont le parent est un client est gouverné par lui : le consentement est demandé */
+ /* F : une marque, clé ABSENTE, aucun compte : le message seul (lu sur plateformes) ; cocher puis décocher avant toute
+    action ne laisse rien ; « Suivant » n'écrit aucun compte whatsapp */
+ appels=[];COMPTES=[];POSEE=false;
+ var pF=await jusquaCanaux("marque");var cF=un("data-dz-assistant-case","whatsapp");cF.checked=true;cF.declencher("change");await attendre();
+ R.f_msg=(un("data-dz-assistant-whatsapp-cle")||{}).textContent;R.f_creer=!!un("data-dz-assistant-whatsapp-creer");
+ cF=un("data-dz-assistant-case","whatsapp");cF.checked=false;cF.declencher("change");await attendre();
+ R.f_panneau=!!un("data-dz-assistant-whatsapp");
+ un("data-dz-assistant-suivant").declencher("click");await attendre();await attendre();
+ R.f_etape=etape();R.f_posts=compte("POST","/api/comptes");relever();fermer();await pF.p;POSEE=true;
  appels=[];COMPTES=[cptWa(true,"")];LIAISON={etat:"aucune",erreur:null,numero:null};
  var pE=await jusquaCanaux("produit","esp_c");await attendre();R.e_etape=etape();
  R.e_cons=!!un("data-dz-assistant-whatsapp-moyen")&&!!un("data-dz-assistant-whatsapp-date");
@@ -320,9 +353,16 @@ if R and "erreur" not in R:
           R["a_etape"] == "3" and R["a_msg"] == F("espaces.assistant.whatsapp_cle_absente") and not R["a_creer"]
           and R["a_fact"] == 0 and not R["a_cons"] and R["a_liaison"] == 0 and R["a_champs"] == 0,
           str([R["a_msg"], R["a_creer"], R["a_fact"], R["a_cons"], R["a_liaison"]]))
-    check("4.2 la case WhatsApp crée le compte de l'espace SANS valeur (une fois), puis relit la liaison une fois",
-          not R["b_avant"] and R["b_cree"] == {"espace_id": "esp_new", "plateforme": "whatsapp"} and R["b_posts"] == 1
-          and R["b_liaison"] == 1, str([R["b_cree"], R["b_posts"], R["b_liaison"]]))
+    check("4.2 cocher WhatsApp ne crée RIEN (aucun POST /api/comptes, aucune relecture), la case reste décochable",
+          not R["b_avant"] and R["b_posts_coche"] == 0 and R["b_liaison"] == 0 and R["b_case_libre"],
+          str([R["b_posts_coche"], R["b_liaison"], R["b_case_libre"]]))
+    check("4.2b « Créer le lien » crée le compte SANS valeur (une fois) PUIS le lien ; la case se fige ensuite",
+          R["b_cree"] == {"espace_id": "esp_new", "plateforme": "whatsapp"} and R["b_posts"] == 1
+          and 0 <= R["b_ordre_cree"][0] < R["b_ordre_cree"][1] and R["b_case_apres"],
+          str([R["b_cree"], R["b_posts"], R["b_ordre_cree"], R["b_case_apres"]]))
+    check("4.17 sans compte et sans clé (plateformes.whatsapp.cle_plate) : le message seul ; décocher avant toute action ne laisse rien",
+          R["f_msg"] == F("espaces.assistant.whatsapp_cle_absente") and not R["f_creer"] and not R["f_panneau"]
+          and R["f_etape"] == "4" and R["f_posts"] == 0, str([R["f_msg"], R["f_creer"], R["f_panneau"], R["f_etape"], R["f_posts"]]))
     check("4.3 aucun champ générique pour whatsapp (panneauWhatsapp remplace champsDe)", R["b_champs"] == 0, str(R["b_champs"]))
     check("4.4 facturation Meta : deux radios, customer_managed cochée par défaut ; l'aide dit que le choix est définitif",
           R["b_fact"] == [["customer_managed", "radio", True, False], ["partner_managed", "radio", False, False]]
@@ -388,7 +428,8 @@ if P5 and "erreur" not in P5:
 print("\n[6] textes et copies")
 TXT = ASSISTANT.read_text("utf-8")
 cles = set(re.findall(r'"((?:espaces|commun|reglages|projets)\.[a-z_]+\.[a-z_.]+)"', TXT))
-cles = {k for k in cles if not k.endswith((".", "_"))} | {"reglages.cles.kapso", "reglages.cles.kapso_why"}
+cles = {k for k in cles if not k.endswith((".", "_"))} | {"reglages.cles.kapso", "reglages.cles.kapso_why",
+                                                         "espaces.comptes.whatsapp_assistant"}
 NEUVES = ("espaces.assistant.whatsapp_cle_absente", "espaces.assistant.whatsapp_creer", "espaces.assistant.whatsapp_copier",
           "espaces.assistant.whatsapp_expire_le", "espaces.assistant.whatsapp_facturation_aide",
           "espaces.assistant.whatsapp_liaison_terminee", "espaces.assistant.liaison_numero_deja_relie",
@@ -407,6 +448,11 @@ check("6.2 les variables attendues : {espace} pour le numéro déjà relié, {da
       and vars_(AIDE.DICO.get("espaces.assistant.whatsapp_expire_le", {}).get("fr")) == ["date"]
       and vars_(AIDE.DICO.get("espaces.assistant.whatsapp_liaison_terminee", {}).get("fr")) == ["numero"])
 # reglages.json est réécrit par scripts/i18n_l1_generer.py : les lignes neuves de Réglages vivent dans menus.json (t221)
+check("6.2b le texte « fournisseur » sans deux-points pendant ; la facturation partenaire dit qu'elle s'active chez Kapso",
+      not AIDE.DICO.get("espaces.assistant.liaison_fournisseur", {}).get("fr", ":").rstrip().endswith(":")
+      and not AIDE.DICO.get("espaces.assistant.liaison_fournisseur", {}).get("en", ":").rstrip().endswith(":")
+      and "chez Kapso" in AIDE.DICO.get("espaces.assistant.whatsapp_facturation_kapso", {}).get("fr", "")
+      and "at Kapso" in AIDE.DICO.get("espaces.assistant.whatsapp_facturation_kapso", {}).get("en", ""))
 check("6.3 les clés de la ligne Kapso vivent dans menus.json, à côté de reglages.cles.decart (jamais dans reglages.json, généré)",
       lambda: {"reglages.cles.kapso", "reglages.cles.kapso_why", "reglages.cles.decart"}
       <= set(json.loads((SH / "i18n" / "menus.json").read_text("utf-8")))

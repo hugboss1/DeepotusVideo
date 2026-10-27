@@ -93,7 +93,12 @@ check("W1.1 GET /api/comptes : 200 et whatsapp listée", g.status_code == 200 an
 check("W1.2 ses 5 champs publics, dans l'ordre, aucun secret",
       lambda: [x["nom"] for x in pw["champs"]] == WA_PUBLICS and not any(x["secret"] for x in pw["champs"]), repr(pw))
 check("W1.3 aucun champ KAPSO_API_KEY ; requis = WHATSAPP_PHONE_ID ; pas d'OAuth",
-      lambda: "KAPSO_API_KEY" not in json.dumps(pw) and pw["requis"] == ["WHATSAPP_PHONE_ID"] and pw["oauth"] is False, repr(pw))
+      lambda: "KAPSO_API_KEY" not in [x["nom"] for x in pw["champs"]] and pw["requis"] == ["WHATSAPP_PHONE_ID"]
+      and pw["oauth"] is False, repr(pw))
+# t310 tâche 7, fix 1 (27/10/2026) : la plateforme dit le nom de sa clé plate et si elle est posée (cocher ne crée plus de compte)
+check("W1.7 plateformes.whatsapp.cle_plate = {nom: KAPSO_API_KEY, posee: faux} sans clé ; aucune autre plateforme n'en a",
+      lambda: pw["cle_plate"] == {"nom": "KAPSO_API_KEY", "posee": False}
+      and not any("cle_plate" in v for k, v in g.json()["plateformes"].items() if k != "whatsapp"), repr(pw))
 check("W1.4 PLATEFORMES garde 4 positions par entrée", all(len(v) == 4 for v in CP.PLATEFORMES.values()))
 check("W1.5 constantes : CLE_PLATE, SANS_HISTORIQUE, NON_PUBLIABLES",
       lambda: CP.CLE_PLATE == {"whatsapp": "KAPSO_API_KEY"} and CP.SANS_HISTORIQUE == frozenset({"whatsapp"})
@@ -107,6 +112,9 @@ gd = c.get("/api/comptes?espace=deepotus")
 check("W2.1 clé plate posée, aucun compte : 200, aucun historique-whatsapp",
       gd.status_code == 200 and not any(x["id"] == "historique-whatsapp" for x in gd.json()["comptes"]), gd.text[:200])
 check("W2.2 cle_kapso() lit la clé plate", lambda: CP.cle_kapso() == SECRET)
+check("W2.3 clé posée : plateformes.whatsapp.cle_plate.posee vrai, la valeur nulle part dans la réponse",
+      lambda: gd.json()["plateformes"]["whatsapp"]["cle_plate"] == {"nom": "KAPSO_API_KEY", "posee": True}
+      and SECRET not in gd.text, gd.text[:200])
 
 print("\n[c] disponible")
 cw = c.post("/api/comptes", json={"espace_id": rip, "plateforme": "whatsapp", "libelle": "WA Rippled"})

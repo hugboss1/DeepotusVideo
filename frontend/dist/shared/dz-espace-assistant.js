@@ -19,8 +19,8 @@
         publier, et montre la pastille et la date. À l'écran : la traduction du CODE de la vérification ; la raison
         brute (française) n'est qu'au survol. « Suivant » enregistre les plateformes cochées, vérifiées ou non.
         t310 (27/10/2026) — WhatsApp n'a AUCUN champ saisi (ses champs publics sont posés par la liaison, sa clé Kapso est
-        plate, dans Réglages › Clés d'API) : panneauWhatsapp(compte) remplace champsDe. Cochée sans compte, la case crée
-        le compte de l'espace sans valeur (pour lire vue.cle_plate). Clé absente : un message, rien d'autre. Sinon la
+        plate, dans Réglages › Clés d'API) : panneauWhatsapp(compte) remplace champsDe. Cocher ne crée rien : sans compte,
+        l'état de la clé vient de plateformes.whatsapp.cle_plate. Clé absente : un message, rien d'autre. Sinon la
         liaison est relue une fois (GET …/whatsapp/liaison), puis : consentement daté (moyen, date) si l'espace est
         gouverné par un client (client, ou produit d'un client), facturation Meta (customer_managed par défaut,
         définitive), « Créer le lien » (POST …/whatsapp/lien), l'URL en lecture seule, « Copier » et l'expiration.
@@ -182,7 +182,7 @@
         plats: null, comptes: {}, coches: {}, saisies: {}, msgs: {}, recap: null,
         envol: {}, occupes: {},
         // t310 : l'état du panneau Whatsapp (une plateforme, un compte par espace dans l'assistant)
-        wa: { prep: false, lu: false, lecture: false, liaison: null, lien: null, envoi: false, msg: "",
+        wa: { lu: false, lecture: false, liaison: null, lien: null, envoi: false, msg: "",
               facturation: "", moyen: "", date: "" }
       };
       var voile = el("div", S.voile);
@@ -571,6 +571,7 @@
         }).then(function (j) {
           w.lien = j;
           w.liaison = { etat: "en_cours", erreur: null, numero: null };
+          w.lu = true;                                // l'état est connu : aucune relecture tout de suite
         }, function (e) { w.msg = echec(e); }).then(function () {
           w.envoi = false;
           if (!fini) rendre();
@@ -615,23 +616,15 @@
       function panneauWhatsapp(c) {
         var w = st.wa, pan = el("div", S.colonne);
         pan.setAttribute("data-dz-assistant-whatsapp", c ? c.id : "");
-        if (!c) {
-          // cochée sans compte : le compte de l'espace est créé SANS valeur (une seule fois) pour lire l'état de la clé
-          if (!w.prep) {
-            w.prep = true;
-            ecrireCompte("whatsapp").then(function () { if (!fini && st.etape === 3) rendre(); },
-              function (e) { st.msgs.whatsapp = echec(e); if (!fini && st.etape === 3) rendre(); });
-          }
-          pan.appendChild(el("div", S.note, T("espaces.assistant.chargement")));
-          return pan;
-        }
-        if (!clePosee(c)) {
+        // cocher ne crée RIEN : sans compte, l'état de la clé vient de la plateforme (GET /api/comptes -> plateformes) ; le
+        // compte n'est créé que par une action explicite (« Créer le lien », « Vérifier », « Suivant »)
+        if (!clePosee(c || st.plats.whatsapp)) {
           var cle = el("div", S.alerte, T("espaces.assistant.whatsapp_cle_absente"));
           cle.setAttribute("data-dz-assistant-whatsapp-cle", "absente");
           pan.appendChild(cle);
           return pan;
         }
-        if (!w.lu) {
+        if (c && !w.lu) {                                              // sans compte, aucune liaison à relire
           if (!w.lecture) relireLiaison(c);
           pan.appendChild(el("div", S.note, T("espaces.assistant.chargement")));
           return pan;
@@ -740,7 +733,9 @@
           var caseP = el("input");
           caseP.type = "checkbox";
           caseP.checked = !!st.coches[p];
-          caseP.disabled = !!c;           // un compte déjà créé se supprime dans Réglages › Espaces (deux clics)
+          // un compte déjà créé se supprime dans Réglages › Espaces (deux clics). t310 : un compte whatsapp sans lien créé ni
+          // numéro relié reste décochable (rien n'est alors écrit par « Suivant »)
+          caseP.disabled = !!c && !(p === "whatsapp" && !st.wa.lien && !publicDe(c, "WHATSAPP_PHONE_ID"));
           caseP.setAttribute("data-dz-assistant-case", p);
           caseP.setAttribute("aria-label", plat.libelle || p);
           caseP.addEventListener("change", function () {

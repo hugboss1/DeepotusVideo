@@ -8525,9 +8525,14 @@ async def list_comptes(espace: str = ""):
     """Les comptes de diffusion d'un espace (l'actif par défaut ; « * » = tous), historiques compris pour Deepotus."""
     from app.services import comptes as _cpt, espaces as _es
     eid = None if espace == "*" else (espace or _es.lire()["actif"])
+    # t310 (27/10/2026) : une plateforme à clé PLATE (whatsapp) dit le NOM de sa clé et si elle est posée, jamais sa valeur :
+    # l'assistant d'espace le lit avant qu'un compte existe (cocher ne crée rien)
     return {"espace": eid, "comptes": _cpt.lister(eid),
             "plateformes": {p: {"libelle": v[0], "champs": [{"nom": c, "secret": sec} for c, sec in v[1]],
-                                "requis": list(v[2]), "oauth": v[3]} for p, v in _cpt.PLATEFORMES.items()}}
+                                "requis": list(v[2]), "oauth": v[3],
+                                **({"cle_plate": {"nom": _cpt.CLE_PLATE[p], "posee": bool(_cpt._cle_plate(p))}}
+                                   if p in _cpt.CLE_PLATE else {})}
+                            for p, v in _cpt.PLATEFORMES.items()}}
 
 
 @router.post("/comptes")
