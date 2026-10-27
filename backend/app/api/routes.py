@@ -8660,14 +8660,42 @@ async def whatsapp_messages(cid: str, request: Request, espace: str = "", depuis
         raise _wa_erreur(e)
 
 
+@router.post("/whatsapp/{cid}/relire")
+async def whatsapp_relire(cid: str, request: Request, espace: str = "", body: Any = Body(default=None)):
+    """t311 : même réponse que GET messages, corps {depuis?, apres?} (la page n'utilise que ce POST)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp_echanges as WE
+    b = body if isinstance(body, dict) else {}
+    try:
+        return await WE.lire(cid, depuis=b.get("depuis") or None, apres=b.get("apres") or None)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
+@router.post("/whatsapp/{cid}/fil")
+async def whatsapp_fil(cid: str, request: Request, espace: str = "", body: Any = Body(default=None)):
+    """t311 : un humain prend ou rend la conversation chez Kapso, corps {identite, action: prendre|rendre}."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp_echanges as WE
+    b = body if isinstance(body, dict) else {}
+    try:
+        await WE.fil(cid, b.get("identite"), b.get("action"))
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+    return {"ok": True}
+
+
 @router.get("/whatsapp/{cid}/modeles")
-async def whatsapp_modeles(cid: str, request: Request, espace: str = ""):
-    """t310 : les modèles approuvés {nom, langue, categorie, parametres, n_parametres}."""
+async def whatsapp_modeles(cid: str, request: Request, espace: str = "", tous: str = ""):
+    """t310 : les modèles approuvés {nom, langue, categorie, parametres, n_parametres, statut, composants} ; `tous=1` :
+    tous les statuts (t311)."""
     _require_localhost(request)
     _wa_compte_demande(cid, espace)
     from app.services import whatsapp_echanges as WE
     try:
-        return await WE.modeles(cid)
+        return await WE.modeles(cid, tous=tous.strip().lower() in ("1", "true", "oui"))
     except Exception as e:  # noqa: BLE001
         raise _wa_erreur(e)
 
@@ -8773,7 +8801,8 @@ _WA_TYPES_EN_LIGNE = ("image/", "audio/", "video/")
 
 @router.get("/whatsapp/{cid}/medias/{media_id}")
 async def whatsapp_media(cid: str, media_id: str, request: Request, espace: str = ""):
-    """t310 : les octets d'un média reçu, avec le type du fournisseur ; jamais gardés sur disque. Hors image, son et vidéo
+    """t310 : les octets d'un média reçu, avec le type du fournisseur : le fichier rangé par `lire` (t311) s'il existe, sinon
+    Kapso (rien n'est alors écrit). Hors image, son et vidéo
     (et toujours pour le SVG), servi en pièce jointe `application/octet-stream` : rien ne s'exécute dans la page."""
     _require_localhost(request)
     _wa_compte_demande(cid, espace)

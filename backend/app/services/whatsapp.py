@@ -311,7 +311,7 @@ MOTS_STOP = ("stop", "arret", "arrêt", "arreter", "arrêter", "arrêtez", "arre
              "optout", "opt-out")
 POLITESSE = ("svp", "stp", "please", "merci", "thanks")
 CODES_REFUS = ("accord", "stop", "fenetre", "marketing", "plafond", "consentement", "prix", "bsuid_authentification")
-TYPES_ENVOI = ("texte", "boutons", "modele")
+TYPES_ENVOI = ("texte", "boutons", "modele", "image")        # t311 : `image` (fenêtre de 24 h comme le texte)
 PLAFOND_DEFAUT = 1000
 MARCHE_DEFAUT = "33"
 JOURNAL_MAX = 2000

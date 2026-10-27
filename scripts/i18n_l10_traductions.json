@@ -11038,5 +11038,81 @@
  "agent : l'heure de début et l'heure de fin doivent différer": {
   "fr": "agent : l'heure de début et l'heure de fin doivent différer",
   "en": "agent: the start time and the end time must differ"
+ },
+ "média : image JPEG ou PNG seulement": {
+  "fr": "média : image JPEG ou PNG seulement",
+  "en": "media: JPEG or PNG image only"
+ },
+ "média : de 1 octet à 5 Mo": {
+  "fr": "média : de 1 octet à 5 Mo",
+  "en": "media: from 1 byte to 5 MB"
+ },
+ "identifiant de message invalide": {
+  "fr": "identifiant de message invalide",
+  "en": "invalid message identifier"
+ },
+ "action inconnue (prendre ou rendre)": {
+  "fr": "action inconnue (prendre ou rendre)",
+  "en": "unknown action (take or release)"
+ },
+ "espace invalide": {
+  "fr": "espace invalide",
+  "en": "invalid workspace"
+ },
+ "numéro WhatsApp invalide": {
+  "fr": "numéro WhatsApp invalide",
+  "en": "invalid WhatsApp number"
+ },
+ "chemin de média refusé": {
+  "fr": "chemin de média refusé",
+  "en": "media path refused"
+ },
+ "en-tête du modèle : un objet {type, …} est attendu": {
+  "fr": "en-tête du modèle : un objet {type, …} est attendu",
+  "en": "template header: an object {type, …} is expected"
+ },
+ "en-tête du modèle : image, video ou document avec un identifiant de média, ou un texte": {
+  "fr": "en-tête du modèle : image, video ou document avec un identifiant de média, ou un texte",
+  "en": "template header: image, video or document with a media identifier, or a text"
+ },
+ "boutons du modèle : une liste de {index, payload}": {
+  "fr": "boutons du modèle : une liste de {index, payload}",
+  "en": "template buttons: a list of {index, payload}"
+ },
+ "boutons du modèle : deux fois le même index": {
+  "fr": "boutons du modèle : deux fois le même index",
+  "en": "template buttons: the same index twice"
+ },
+ "en-tête : le modèle n'a pas d'en-tête de ce genre": {
+  "fr": "en-tête : le modèle n'a pas d'en-tête de ce genre",
+  "en": "header: the template has no header of this kind"
+ },
+ "image : identifiant de média invalide": {
+  "fr": "image : identifiant de média invalide",
+  "en": "image: invalid media identifier"
+ },
+ "légende trop longue ({MAX_LEGENDE} caractères au plus)": {
+  "fr": "légende trop longue ({MAX_LEGENDE} caractères au plus)",
+  "en": "caption too long ({MAX_LEGENDE} characters at most)"
+ },
+ "en-tête du modèle : texte de 1 à 1024 caractères": {
+  "fr": "en-tête du modèle : texte de 1 à 1024 caractères",
+  "en": "template header: text of 1 to 1024 characters"
+ },
+ "boutons du modèle : index entier et payload de 1 à {MAX_PAYLOAD} caractères": {
+  "fr": "boutons du modèle : index entier et payload de 1 à {MAX_PAYLOAD} caractères",
+  "en": "template buttons: integer index and payload of 1 to {MAX_PAYLOAD} characters"
+ },
+ "bouton {index} : le modèle n'a pas de bouton de réponse rapide à cette place": {
+  "fr": "bouton {index} : le modèle n'a pas de bouton de réponse rapide à cette place",
+  "en": "button {index}: the template has no quick-reply button at this position"
+ },
+ "boutons : un identifiant par bouton (lettres, chiffres, _ : . - ; 256 au plus, tous différents)": {
+  "fr": "boutons : un identifiant par bouton (lettres, chiffres, _ : . - ; 256 au plus, tous différents)",
+  "en": "buttons: one identifier per button (letters, digits, _ : . - ; 256 at most, all different)"
+ },
+ "boutons : identifiant de média d'en-tête invalide": {
+  "fr": "boutons : identifiant de média d'en-tête invalide",
+  "en": "buttons: invalid header media identifier"
  }
 }
