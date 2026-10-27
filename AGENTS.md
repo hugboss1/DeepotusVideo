@@ -42,6 +42,7 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 | `backend/app/services/moteurs_texte.py` | Registre des moteurs de texte, `tirer`, `tirer_garde` |
 | `backend/app/services/plafonds.py` | Plafonds de dépense mensuels |
 | `backend/app/services/agent_boites.py` | Boîtes à outils de l'agent par fonctionnalité (`BOITES`, `outils_pour`, `paquet_mobile`) ; hors boîte = refus ; servies au compagnon dans `boites.json` du paquet |
+| `backend/app/services/veille.py` (+ `backend/app/services/veille_collecte.py`, `backend/app/services/veille_grille.py`, `backend/app/api/veille_routes.py`) | Veille concurrentielle par espace (t352 (27/10/2026)) : collecte niveau 1 HN / YouTube (yt-dlp, non embarqué) / App Store en lecture seule, plafonnée, auteurs hachés ; classement par lexique (sans dépense) ou importé ; rapport rangé dans le dossier veille de l'espace, daté ; routes /api/veille ; outils `veille_collecter` / `veille_lire` (boîte « veille ») ; écran `frontend/shared/dz-veille.js`, 3e onglet du tiroir F1 |
 | `backend/app/services/coffre.py` | Coffre à clés chiffré |
 | `backend/app/services/espaces.py` | Espaces de marque |
 | `backend/app/services/fiche_client.py` | Fiche d'un client (`client.json` par espace) : contact, mode de publication, consentements datés par canal, révocation, journal. Écritures locales seulement (t306 (25/10/2026)), lecture `GET` aussi ouverte aux appareils appairés : `GET/PUT /api/espaces/{id}/client`, `POST …/client/consentements`, `POST …/client/consentements/revoquer` |

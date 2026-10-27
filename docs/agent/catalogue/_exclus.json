@@ -41,7 +41,8 @@
     "espaces.assistant.verifier_aide",
     "espaces.pourqui.fiche_aide",
     "espaces.pourqui.bandeau",
-    "espaces.assistant.whatsapp_creation"
+    "espaces.assistant.whatsapp_creation",
+    "veille.import.exemple"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"
