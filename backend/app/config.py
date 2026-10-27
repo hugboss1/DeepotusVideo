@@ -184,6 +184,9 @@ class Settings(BaseSettings):
     # Telegram is the reference auto-publish channel: free, no review process.
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_CHAT_ID: str = ""
+    # t310 (27/10/2026) : WhatsApp par Kapso — UNE clé plate partagée par tous les espaces (services/comptes.py, CLE_PLATE) ;
+    # les champs de chaque compte whatsapp (numéro, client Kapso…) sont posés par la liaison, jamais ici.
+    KAPSO_API_KEY: str = ""
 
     # v1.11: local LLM via Ollama (optional). When OLLAMA_MODEL is set, the
     # marketing plan generator uses your local model — plans never leave the

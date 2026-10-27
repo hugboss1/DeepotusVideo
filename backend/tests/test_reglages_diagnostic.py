@@ -78,7 +78,8 @@ print("[R] les rubriques attendues")
 attendu = {"PLANNER_PROVIDER": "defaults", "SUMMARIZER_PROVIDER": "defaults", "DECART_API_KEY": "keys",
            "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys", "ARTICLE_READER_FALLBACK": "news",
            "FAL_KEY": "keys", "FIGMA_TOKEN": "keys", "OLLAMA_URL": "keys", "X_API_KEY": "accounts",
-           "TIKTOK_AUDITED": "accounts", "TELEGRAM_CHAT_ID": "accounts"}
+           "TIKTOK_AUDITED": "accounts", "TELEGRAM_CHAT_ID": "accounts",
+           "KAPSO_API_KEY": "keys"}                     # t310 (27/10/2026) : clé de fournisseur partagée, Clés d'API
 check("R1 table : rôles → defaults, Decart/voix → keys, lecteur → news, réseaux → accounts",
       all(T.get(k) == v for k, v in attendu.items()), repr({k: T.get(k) for k, v in attendu.items() if T.get(k) != v}))
 check("R2 table : chaque *_MODEL d'un moteur → defaults", all(T.get(k) == "defaults" for k in MT.CLE_MODELE.values()),

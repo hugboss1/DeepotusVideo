@@ -40,7 +40,8 @@
     "espaces.assistant.terminer_aide",
     "espaces.assistant.verifier_aide",
     "espaces.pourqui.fiche_aide",
-    "espaces.pourqui.bandeau"
+    "espaces.pourqui.bandeau",
+    "espaces.assistant.whatsapp_creation"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

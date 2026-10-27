@@ -255,7 +255,8 @@ print("[G] sites")
 import patch_bundle_dzreglages as DR                                  # noqa: E402
 import _i18n_l1_aide as AIDE                                          # noqa: E402
 try:
-    avant = DR.defaire(BUNDLE)
+    # t310 (27/10/2026) : le maillon dzwhatsapp, posé après, touche dzFuNeuves : le livré se lit vu d'avant dzwhatsapp
+    avant = DR.defaire(AIDE.avant_dzwhatsapp(BUNDLE))
     rejoue = DR.appliquer(avant)
 except (AssertionError, SystemExit) as e:
     avant = rejoue = str(e)
@@ -303,7 +304,7 @@ check(f"H5 les {len(reemployees)} clés réemployées existent (URL du serveur, 
       reemployees and all(k in tout for k in reemployees), sorted(k for k in reemployees if k not in tout))
 
 print("[I] maillon dzreglages")
-check("I1 aller-retour à l'octet", rejoue == BUNDLE and DR.MARKER not in avant)
+check("I1 aller-retour à l'octet", rejoue == AIDE.avant_dzwhatsapp(BUNDLE) and DR.MARKER not in avant)
 check("I2 l'avant a le défaut d'origine (aucune liste de serveurs, wm seul)", "DzServeursLocaux" not in avant
       and "dzSlVide" not in avant and "r.jsx(wm,{serverKeys:g,onSaved:()=>{m(),No()}})" in avant)
 check("I3 avant_dzreglages = défaire", AIDE.avant_dzreglages(BUNDLE) == AIDE.avant_dzlogo(avant))  # dzlogo, posé après, défait d'abord

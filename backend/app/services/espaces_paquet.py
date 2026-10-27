@@ -50,6 +50,8 @@ def _comptes_publics(eid: str) -> list:
     """Les comptes de l'espace, champs publics seulement ; les secrets NOMMÉS, jamais lus."""
     out = []
     for v in comptes.lister(eid):
+        if comptes.champs_poses_par_serveur(v["plateforme"]):
+            continue    # t310 (27/10/2026) : un compte relié par le serveur (whatsapp) ne voyage pas : il se relie dans chaque espace
         publics, secrets_ = {}, []
         for ch in v["champs"]:
             if ch["secret"]:
@@ -227,6 +229,16 @@ def _preparer(pris: dict, ignores: list) -> dict:
             raise ValueError("paquet d'espace : client.json illisible")
         _ecarts_fiche(fiche, ignores)
         plan["fiche"] = fiche_client.valider(fiche)
+        # relecture finale t310 (Minor 8) : le compte whatsapp ne voyage pas, son consentement `whatsapp:<numéro>` non plus
+        # (il porterait sur un canal que l'espace neuf n'a pas) ; dit dans `ignores`, comme pour le compte
+        garder = []
+        for x in plan["fiche"]["consentements"]:
+            if str(x.get("canal_id") or "").startswith("whatsapp:"):
+                ignores.append(_ignore("client.json : consentement {canal} écarté : un numéro WhatsApp se relie dans chaque "
+                                       "espace, il ne s'importe pas", canal=str(x["canal_id"])[:60]))
+            else:
+                garder.append(x)
+        plan["fiche"]["consentements"] = garder
     elif fiche is not None:
         ignores.append(_ignore("client.json : ignoré (l'espace n'est pas un client)"))
     persona = _charger(pris, "persona.json")
@@ -279,6 +291,11 @@ def _preparer(pris: dict, ignores: list) -> dict:
         if not isinstance(c, dict) or c.get("plateforme") not in comptes.PLATEFORMES:
             raise ValueError(f"paquet d'espace : compte n°{i + 1} illisible")
         p = c["plateforme"]
+        if comptes.champs_poses_par_serveur(p):
+            # t310 (27/10/2026) : jamais deux espaces sur un même numéro WhatsApp — le compte se relie, il ne s'importe pas
+            ignores.append(_ignore("comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, "
+                                   "il ne s'importe pas", i=i + 1, plateforme=comptes.PLATEFORMES[p][0]))
+            continue
         champs_p = dict(comptes.PLATEFORMES[p][1])
         pub = c.get("publics") if isinstance(c.get("publics"), dict) else {}
         # un champ SECRET glissé dans le paquet n'est jamais écrit : on le fait ressaisir, comme les autres

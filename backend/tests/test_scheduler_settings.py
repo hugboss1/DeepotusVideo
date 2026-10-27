@@ -50,7 +50,8 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
           {"TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED"} <= cles
           and "TIKTOK_REDIRECT_URI" not in cles, str(sorted(k for k in cles if "TIKTOK" in k)))
     check("1.2 au coffre : le secret du client et le refresh token TikTok ; pas l'identifiant public ni le drapeau d'audit",
-          {"TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "YOUTUBE_REFRESH_TOKEN"} <= coffre.SECRETES
+          {"TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "YOUTUBE_REFRESH_TOKEN",
+           "KAPSO_API_KEY"} <= coffre.SECRETES                                    # t310 (27/10/2026) : la clé Kapso plate
           and not ({"TIKTOK_CLIENT_KEY", "TIKTOK_AUDITED"} & coffre.SECRETES))
     r = c.post("/api/settings/keys", json={"entries": [{"name": "TIKTOK_AUDITED", "value": "true"}]})
     check("1.3 TIKTOK_AUDITED=true s'applique à chaud (booléen lu par pydantic)", r.status_code == 200 and settings.TIKTOK_AUDITED is True, r.text[:200])

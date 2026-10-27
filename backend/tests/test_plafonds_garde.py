@@ -37,6 +37,7 @@ PAYANTES = {
     ("post", "POST", "/rendre"),   # t277 : maillons IA de la pile de post-traitement (garde « son », avant le job)
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
     ("photolab", "POST", "/calque/detourer"),    # t191 : « Retirer le fond du calque » (détourage, non destructif)
+    ("routes", "POST", "/whatsapp/{cid}/envoyer"),   # t310 : un message WhatsApp (Meta, par Kapso ; garde « whatsapp »)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer
     ("routes", "POST", "/chapters/{chapter_id}/reecrire"),     # tâche #66 : la réécriture dans le ton de la bible (LLM)
     ("routes", "POST", "/chapters/{chapter_id}/animatique"),   # tâche #63 : la voix témoin de l'animatique (sur demande)
@@ -127,6 +128,11 @@ _ac = (RP.RACINE / "services" / "agent_campagnes.py").read_text(encoding="utf-8"
 _tr = _ac[_ac.find("async def _tour("):]
 check("A2d la boucle de l'agent appelle plafonds.verifier AVANT MT.converser",
       0 < _tr.find("plafonds.verifier(") < _tr.find("MT.converser"), "")
+# t310 : la route d'envoi WhatsApp délègue sa garde à whatsapp_echanges.envoyer — elle doit y précéder kapso.envoyer
+_we = (RP.RACINE / "services" / "whatsapp_echanges.py").read_text(encoding="utf-8")
+_ws = _we[_we.find("async def _envoyer_sous_verrou("):]
+check("A2e l'envoi WhatsApp appelle plafonds.verifier AVANT kapso.envoyer",
+      0 < _ws.find("plafonds.verifier(") < _ws.find("kapso.envoyer("), "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes

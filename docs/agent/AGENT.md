@@ -70,6 +70,14 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   (vérifié, indéterminé, refusé, non vérifié) et « Vérifier », sans rien publier. Dans l'éditeur de post du
   Planificateur, un compte coché qui n'est pas vérifié le dit ; la programmation n'est pas bloquée (sauf pour un
   client, voir ci-dessous). → [POINT:reglages.espaces] [GUIDE:comptes]
+- **Relier le WhatsApp d'un espace** (t310) : WhatsApp est un canal de CONVERSATION de l'espace, jamais une cible de
+  post : il n'apparaît pas dans l'éditeur de post du Planificateur, et on ne l'ajoute pas depuis Réglages › Espaces (il
+  y apparaît pour être vérifié ou supprimé).
+  Il se relie dans l'assistant d'espace, étape Canaux : cocher WhatsApp, choisir la facturation Meta (définitive),
+  puis « Créer le lien » crée chez Kapso un lien d'installation, gratuit. Pour un client, le consentement daté est demandé avant.
+  L'application n'envoie rien : copier le lien et l'envoyer au client ; « Vérifier » relit la liaison, et le numéro
+  relié s'affiche. La clé Kapso, une seule pour tous les espaces, se pose dans Réglages › Clés d'API.
+  → [POINT:reglages.nouvel_espace] [POINT:reglages.cles] [GUIDE:marques]
 - **Publier pour un client** : le bandeau sous l'en-tête (Quick, Studio, Planificateur, Bibliothèque) dit pour qui l'on
   travaille ; dans un espace client, « Fiche client » ouvre consentements, posts à valider et journal. Chaque canal
   (compte vérifié) demande un consentement en cours (« Ajouter ») ; « Révoquer » met en pause les posts programmés qui
@@ -145,6 +153,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **« Compté sous la catégorie X »** (dans une fiche) : c'est l'étiquette de la dépense — l'écran d'où elle part,
   visible dans le tableau des dépenses et dans le message d'un refus. Ce n'est PAS un plafond qui se règle : seuls le
   plafond global, ceux par moteur et celui de chaque espace de marque se règlent. → [POINT:reglages.budget]
+- **WhatsApp absent d'un post ou des réseaux d'un compte** : c'est voulu, WhatsApp n'est jamais une cible de post.
+  Il se relie par un lien d'installation Kapso dans l'assistant d'espace (étape Canaux). « Clé Kapso à saisir » :
+  la poser dans Réglages › Clés d'API, ligne Kapso (WhatsApp). → [POINT:reglages.cles] [GUIDE:marques]
 - **Mauvaise marque** : les contenus suivent l'espace de marque actif (Réglages › Espaces de marque).
   → [POINT:reglages.espaces]
 - **Interface dans la mauvaise langue** : Réglages › Fournisseurs par défaut. → [POINT:reglages.defauts]

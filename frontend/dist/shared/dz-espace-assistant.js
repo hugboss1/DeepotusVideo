@@ -18,6 +18,13 @@
         écrit la saisie (POST /api/comptes ou /api/comptes/{id}) puis POST /api/comptes/{id}/verifier, sans rien
         publier, et montre la pastille et la date. À l'écran : la traduction du CODE de la vérification ; la raison
         brute (française) n'est qu'au survol. « Suivant » enregistre les plateformes cochées, vérifiées ou non.
+        t310 (27/10/2026) — WhatsApp n'a AUCUN champ saisi (ses champs publics sont posés par la liaison, sa clé Kapso est
+        plate, dans Réglages › Clés d'API) : panneauWhatsapp(compte) remplace champsDe. Cocher ne crée rien : sans compte,
+        l'état de la clé vient de plateformes.whatsapp.cle_plate. Clé absente : un message, rien d'autre. Sinon la
+        liaison est relue une fois (GET …/whatsapp/liaison), puis : consentement daté (moyen, date) si l'espace est
+        gouverné par un client (client, ou produit d'un client), facturation Meta (customer_managed par défaut,
+        définitive), « Créer le lien » (POST …/whatsapp/lien), l'URL en lecture seule, « Copier » et l'expiration.
+        « Vérifier » relit la liaison après /verifier. L'application n'envoie jamais le lien elle-même.
      4. Récapitulatif (GET /api/espaces/{id}/recapitulatif) : canaux et état, mode de publication, consentements
         manquants. « Terminer » active l'espace (POST …/activate), émet « deepotus:espace-refresh »,
         « deepotus:brand-refresh » puis « dz-espace-cree » (detail = id), ferme et rend l'id.
@@ -45,6 +52,12 @@
     rouge: ["dz-etat-erreur", "var(--red,#e5484d)"],
     non_verifie: ["dz-etat-inconnu", "var(--txt-mid,var(--ink-muted,#9aa4ae))"]
   };
+  // t310 (27/10/2026) : la liaison WhatsApp (spec §6.1) — facturations Meta (la première est le défaut), moyens du
+  // consentement (fiche_client.MOYENS), codes de liaison du serveur (whatsapp.relire_liaison) -> leurs textes
+  var FACTURATIONS = ["customer_managed", "partner_managed"];
+  var MOYENS = ["ecrit", "whatsapp", "doigt"];
+  var LIAISONS = { numero_deja_relie: "espaces.assistant.liaison_numero_deja_relie",
+                   fournisseur: "espaces.assistant.liaison_fournisseur", expire: "espaces.assistant.liaison_expire" };
   var TYPES = ["marque", "produit", "client"];
   var MODES = ["valide_par_client", "publie_en_son_nom"];
   var S = {
@@ -64,11 +77,17 @@
     couleur: "width:40px;height:28px;padding:0;border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138));border-radius:0;background:none",
     plat: "display:flex;flex-direction:column;gap:8px;padding:8px 10px;border:1px solid var(--brd-soft,var(--stroke,#222830));border-radius:0",
     ligne: "display:flex;align-items:center;gap:8px;flex-wrap:wrap",
+    // t310 (P1, preuve à l'écran) : une radio et son libellé sur la même ligne ; un libellé long passe à la ligne sous
+    // son propre texte, jamais sous la radio
+    radio: "display:flex;align-items:flex-start;gap:8px;cursor:pointer",
+    radioBouton: "flex:0 0 auto;margin:2px 0 0 0",
+    radioTexte: "flex:1 1 auto;min-width:0",
     glyphe: "display:inline-flex;width:16px;height:16px;color:var(--txt-hi,var(--ink-strong,#e6e9ee))",
     pastille: "display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 6px;border:1px solid currentColor;border-radius:0",
     pastilleGlyphe: "display:inline-flex;width:12px;height:12px",
     detail: "font-size:11px;color:var(--txt-mid,var(--ink-muted,#9aa4ae))",
     alerte: "font-size:11.5px;color:var(--amber,#f0b429)",
+    colonne: "display:flex;flex-direction:column;gap:6px",
     panneau: "display:flex;flex-direction:column;gap:8px;margin:0 14px 8px;padding:8px 10px;font-size:12px;border:1px solid var(--amber,#f0b429);color:var(--txt-hi,var(--ink-strong,#e6e9ee))",
     erreur: "font-size:12px;color:var(--red,#e5484d);padding:0 14px 8px",
     pied: "display:flex;gap:8px;justify-content:flex-end;padding:10px 14px;border-top:1px solid var(--brd-soft,var(--stroke,#222830))",
@@ -97,7 +116,10 @@
     if (corps !== undefined) { o.headers = JSON_H; o.body = JSON.stringify(corps); }
     return fetch(url, o).then(function (R) {
       return R.json().catch(function () { return {}; }).then(function (j) {
-        if (!R.ok) throw new Error(j && j.detail ? String(j.detail) : "HTTP " + R.status);
+        // t310 : un refus structuré ({detail: {message, code}}, ex. Kapso 502) se dit par son message
+        var d = j && j.detail;
+        if (d && typeof d === "object") d = d.message || d.code || "";
+        if (!R.ok) throw new Error(d ? String(d) : "HTTP " + R.status);
         return j;
       });
     });
@@ -163,7 +185,10 @@
         kit: "", type: "marque", parent: "", espaces: [], kits: [],
         fiche: { societe: "", contact_nom: "", contact_email: "", contact_whatsapp: "", pays: "", langue: "fr", mode: MODES[0] },
         plats: null, comptes: {}, coches: {}, saisies: {}, msgs: {}, recap: null,
-        envol: {}, occupes: {}
+        envol: {}, occupes: {},
+        // t310 : l'état du panneau Whatsapp (une plateforme, un compte par espace dans l'assistant)
+        wa: { lu: false, lecture: false, liaison: null, lien: null, envoi: false, msg: "",
+              facturation: "", moyen: "", date: "" }
       };
       var voile = el("div", S.voile);
       voile.setAttribute("role", "dialog");
@@ -454,6 +479,8 @@
           st.comptes[p] = j.compte;
           // t326 : résultat écarté par le serveur (le compte a changé pendant l'appel) : on l'explique, sans faux « vérifié »
           st.msgs[p] = j.compte && j.compte.ecartee ? T("espaces.assistant.ecartee") : "";
+          // t310 : /verifier relit déjà la liaison côté serveur ; le panneau relit ensuite son état (GET …/liaison)
+          if (p === "whatsapp" && clePosee(j.compte)) return relireLiaison(j.compte);
         }, function (e) {
           st.msgs[p] = echec(e);
         }).then(function () { delete st.occupes[p]; if (!fini) rendre(); });
@@ -507,6 +534,201 @@
         });
         return grille(lignes);
       }
+
+      // ── t310 (27/10/2026) : le panneau de liaison WhatsApp (spec §6.1 « Liaison d'un numéro dans l'assistant ») ──
+      function clePosee(c) { return !!(c && c.cle_plate && c.cle_plate.posee); }
+      function publicDe(c, nom) {
+        var f = ((c && c.champs) || []).filter(function (x) { return x.nom === nom; })[0];
+        return f && f.valeur ? String(f.valeur) : "";
+      }
+      // la même règle que espaces.client_responsable : un client, ou un produit dont le parent est un client. Le serveur
+      // refuse de toute façon (400) un lien sans consentement pour un espace gouverné par un client.
+      function gouverneParClient() {
+        if (st.type === "client") return true;
+        if (st.type !== "produit" || !st.parent) return false;
+        var par = st.espaces.filter(function (e) { return e.id === st.parent; })[0];
+        return !!(par && par.type === "client");
+      }
+      function consentementPret() { return !!st.wa.moyen && /^\d{4}-\d{2}-\d{2}$/.test(st.wa.date); }
+      // une relecture à l'ouverture du panneau et une après « Vérifier » : jamais en boucle
+      function relireLiaison(c) {
+        var w = st.wa;
+        w.lecture = true;
+        return envoyer("/api/comptes/" + encodeURIComponent(c.id) + "/whatsapp/liaison").then(function (j) {
+          w.liaison = j || null;
+          if (j && (j.etat === "expiree" || j.etat === "echouee")) w.lien = null;   // un nouveau lien redevient possible
+        }, function (e) { w.msg = echec(e); }).then(function () {
+          w.lecture = false;
+          w.lu = true;
+          if (!fini && st.etape === 3) rendre();
+        });
+      }
+      function creerLien() {
+        var w = st.wa, gouv = gouverneParClient();
+        if (w.envoi || fini || st.occupes.whatsapp || (gouv && !consentementPret())) return;
+        w.envoi = true;
+        w.msg = "";
+        rendre();
+        var corps = { facturation: w.facturation };
+        if (gouv) corps.consentement = { moyen: w.moyen, date: w.date };
+        ecrireCompte("whatsapp").then(function (c) {
+          return envoyer("/api/comptes/" + encodeURIComponent(c.id) + "/whatsapp/lien", "POST", corps);
+        }).then(function (j) {
+          w.lien = j;
+          w.liaison = { etat: "en_cours", erreur: null, numero: null };
+          w.lu = true;                                // l'état est connu : aucune relecture tout de suite
+        }, function (e) { w.msg = echec(e); }).then(function () {
+          w.envoi = false;
+          if (!fini) rendre();
+        });
+      }
+      function copierLien(champ, url) {
+        var w = st.wa, fait = function () { w.msg = T("espaces.assistant.whatsapp_copie"); if (!fini) rendre(); };
+        var nav = typeof navigator !== "undefined" ? navigator : null;
+        if (nav && nav.clipboard && typeof nav.clipboard.writeText === "function") {
+          nav.clipboard.writeText(url).then(fait, function () { if (typeof champ.select === "function") champ.select(); });
+          return;
+        }
+        if (typeof champ.select === "function") champ.select();     // sans presse-papiers : le lien sélectionné, Ctrl+C
+      }
+      function etatLiaison(lia) {
+        var n = el("div", S.detail);
+        n.setAttribute("data-dz-assistant-whatsapp-etat", lia.etat);
+        n.setAttribute("data-etat", lia.etat);
+        n.setAttribute("role", "status");
+        if (lia.etat === "terminee") {
+          var num = lia.numero || {};
+          n.textContent = T("espaces.assistant.whatsapp_liaison_terminee",
+                            { numero: String(num.display_phone_number || num.phone_number_id || "") });
+        } else if (lia.etat === "en_cours") {
+          n.textContent = T("espaces.assistant.whatsapp_liaison_en_cours");
+        } else if (lia.etat === "echouee" || lia.etat === "expiree") {
+          n.setAttribute("style", S.alerte);
+          n.textContent = T(LIAISONS[lia.code] || (lia.etat === "expiree" ? LIAISONS.expire : LIAISONS.fournisseur),
+                            { espace: String(lia.espace || "") });
+          if ((lia.code === "fournisseur" || !LIAISONS[lia.code]) && lia.erreur) {
+            n.appendChild(el("span", "", " "));
+            var brut = el("span", "", String(lia.erreur));             // texte du fournisseur, nettoyé par le serveur
+            brut.setAttribute("data-dz-brut", "1");
+            brut.setAttribute("data-dz-assistant-whatsapp-erreur", "1");
+            n.appendChild(brut);
+          }
+        } else {
+          return null;                                                  // « aucune » : rien à dire
+        }
+        return n;
+      }
+      function panneauWhatsapp(c) {
+        var w = st.wa, pan = el("div", S.colonne);
+        pan.setAttribute("data-dz-assistant-whatsapp", c ? c.id : "");
+        // cocher ne crée RIEN : sans compte, l'état de la clé vient de la plateforme (GET /api/comptes -> plateformes) ; le
+        // compte n'est créé que par une action explicite (« Créer le lien », « Vérifier », « Suivant »)
+        if (!clePosee(c || st.plats.whatsapp)) {
+          var cle = el("div", S.alerte, T("espaces.assistant.whatsapp_cle_absente"));
+          cle.setAttribute("data-dz-assistant-whatsapp-cle", "absente");
+          pan.appendChild(cle);
+          return pan;
+        }
+        if (c && !w.lu) {                                              // sans compte, aucune liaison à relire
+          if (!w.lecture) relireLiaison(c);
+          pan.appendChild(el("div", S.note, T("espaces.assistant.chargement")));
+          return pan;
+        }
+        var lia = w.liaison, etat = lia ? etatLiaison(lia) : null;
+        if (etat) pan.appendChild(etat);
+        if (w.msg) {
+          var msg = el("div", S.detail, w.msg);
+          msg.setAttribute("role", "status");
+          msg.setAttribute("data-dz-assistant-whatsapp-msg", "1");
+          pan.appendChild(msg);
+        }
+        if (lia && lia.etat === "terminee") return pan;                // numéro relié : plus aucun lien à créer
+        if (w.lien) {
+          // le lien créé : à copier et à envoyer au client par le moyen de l'utilisateur (l'application n'envoie rien)
+          pan.appendChild(el("div", S.note, T("espaces.assistant.whatsapp_lien_aide")));
+          var ligneL = el("div", S.ligne);
+          var url = el("input", S.champ + ";flex:1;min-width:220px");
+          url.type = "text";
+          url.readOnly = true;
+          url.setAttribute("readonly", "");
+          url.value = String(w.lien.url || "");
+          url.setAttribute("aria-label", T("espaces.assistant.whatsapp_lien"));
+          url.setAttribute("data-dz-assistant-whatsapp-url", "1");
+          ligneL.appendChild(url);
+          var cp = el("button", S.petit);
+          cp.textContent = T("espaces.assistant.whatsapp_copier");
+          cp.type = "button";
+          cp.setAttribute("data-dz-assistant-whatsapp-copier", "1");
+          cp.addEventListener("click", function () { copierLien(url, url.value); });
+          ligneL.appendChild(cp);
+          pan.appendChild(ligneL);
+          if (w.lien.expire_le) {
+            var ex = el("div", S.detail, T("espaces.assistant.whatsapp_expire_le", { date: quand(w.lien.expire_le) }));
+            ex.setAttribute("data-dz-assistant-whatsapp-expire", "1");
+            pan.appendChild(ex);
+          }
+          return pan;
+        }
+        var gouv = gouverneParClient();
+        var creer = el("button", S.petit + S.ok);           // t310 : une déclaration à part, lue par le catalogue de l'agent
+        function majCreer() { creer.disabled = w.envoi || !!st.occupes.whatsapp || (gouv && !consentementPret()); }
+        if (gouv) {
+          pan.appendChild(el("div", S.note, T("espaces.assistant.whatsapp_consentement")));
+          var moyen = el("select", S.champ);
+          moyen.setAttribute("aria-label", T("espaces.assistant.whatsapp_moyen"));
+          moyen.setAttribute("data-dz-assistant-whatsapp-moyen", "1");
+          option(moyen, "", T("espaces.assistant.whatsapp_moyen_choisir"));
+          MOYENS.forEach(function (m) { option(moyen, m, T("espaces.pourqui.moyen_" + m)); });
+          moyen.value = w.moyen;
+          moyen.addEventListener("change", function () { w.moyen = moyen.value; majCreer(); });
+          var date = el("input", S.champ);
+          date.type = "date";
+          date.value = w.date;
+          date.setAttribute("aria-label", T("espaces.assistant.whatsapp_date"));
+          date.setAttribute("data-dz-assistant-whatsapp-date", "1");
+          var surDate = function () { w.date = date.value; majCreer(); };
+          date.addEventListener("input", surDate);
+          date.addEventListener("change", surDate);
+          pan.appendChild(grille([etiquette(T("espaces.assistant.whatsapp_moyen"), moyen),
+                                  etiquette(T("espaces.assistant.whatsapp_date"), date)]));
+        }
+        // la facturation Meta : choisie AVANT le lien, définitive ; celle déjà posée sur le compte est imposée
+        var posee = publicDe(c, "WHATSAPP_FACTURATION_META");
+        if (FACTURATIONS.indexOf(posee) >= 0) w.facturation = posee;
+        if (FACTURATIONS.indexOf(w.facturation) < 0) w.facturation = FACTURATIONS[0];
+        pan.appendChild(el("div", S.note, T("espaces.assistant.whatsapp_facturation")));
+        FACTURATIONS.forEach(function (f) {
+          var l = el("label", S.radio);
+          l.setAttribute("data-dz-assistant-whatsapp-facturation-ligne", f);
+          var r = el("input", S.radioBouton);
+          r.type = "radio";
+          r.name = "dz-assistant-whatsapp-facturation";
+          r.setAttribute("name", "dz-assistant-whatsapp-facturation");
+          r.value = f;
+          r.checked = w.facturation === f;
+          r.disabled = !!posee && posee !== f;
+          r.setAttribute("data-dz-assistant-whatsapp-facturation", f);
+          r.setAttribute("aria-label", T(f === "customer_managed" ? "espaces.assistant.whatsapp_facturation_client"
+                                                                  : "espaces.assistant.whatsapp_facturation_kapso"));
+          r.addEventListener("change", function () { if (r.checked) w.facturation = f; });
+          l.appendChild(r);
+          l.appendChild(el("span", S.radioTexte, T(f === "customer_managed" ? "espaces.assistant.whatsapp_facturation_client"
+                                                                   : "espaces.assistant.whatsapp_facturation_kapso")));
+          pan.appendChild(l);
+        });
+        var aide = el("div", S.detail, T("espaces.assistant.whatsapp_facturation_aide"));
+        aide.setAttribute("data-dz-assistant-whatsapp-facturation-aide", "1");
+        pan.appendChild(aide);
+        creer.textContent = T(w.envoi ? "espaces.assistant.whatsapp_creation" : "espaces.assistant.whatsapp_creer");
+        creer.type = "button";
+        creer.setAttribute("data-dz-assistant-whatsapp-creer", "1");
+        creer.addEventListener("click", creerLien);
+        majCreer();
+        var ligneC = el("div", S.ligne);
+        ligneC.appendChild(creer);
+        pan.appendChild(ligneC);
+        return pan;
+      }
       function etape3() {
         corps.appendChild(el("div", S.note, T("espaces.assistant.aide_canaux")));
         if (!st.plats) { corps.appendChild(el("div", S.note, T("espaces.assistant.chargement"))); return; }
@@ -518,7 +740,9 @@
           var caseP = el("input");
           caseP.type = "checkbox";
           caseP.checked = !!st.coches[p];
-          caseP.disabled = !!c;           // un compte déjà créé se supprime dans Réglages › Espaces (deux clics)
+          // un compte déjà créé se supprime dans Réglages › Espaces (deux clics). t310 : un compte whatsapp sans lien créé ni
+          // numéro relié reste décochable (rien n'est alors écrit par « Suivant »)
+          caseP.disabled = !!c && !(p === "whatsapp" && !st.wa.lien && !publicDe(c, "WHATSAPP_PHONE_ID"));
           caseP.setAttribute("data-dz-assistant-case", p);
           caseP.setAttribute("aria-label", plat.libelle || p);
           caseP.addEventListener("change", function () {
@@ -534,7 +758,7 @@
           tete3.appendChild(el("strong", "", plat.libelle || p));
           bloc.appendChild(tete3);
           if (st.coches[p]) {
-            bloc.appendChild(champsDe(p));
+            bloc.appendChild(p === "whatsapp" ? panneauWhatsapp(c) : champsDe(p));
             var actions = el("div", S.ligne);
             if (plat.oauth) {
               var co = el("button", S.petit);

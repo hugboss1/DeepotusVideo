@@ -7455,6 +7455,8 @@ _ALLOWED_ENV_KEYS = {
     # Connected accounts (Scheduler — UI-only for now, but the keys live here)
     "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET",
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+    # t310 (27/10/2026) : WhatsApp par Kapso — la clé plate partagée par tous les espaces
+    "KAPSO_API_KEY",
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
     "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CHANNEL_ID",
     "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",
@@ -8523,9 +8525,14 @@ async def list_comptes(espace: str = ""):
     """Les comptes de diffusion d'un espace (l'actif par défaut ; « * » = tous), historiques compris pour Deepotus."""
     from app.services import comptes as _cpt, espaces as _es
     eid = None if espace == "*" else (espace or _es.lire()["actif"])
+    # t310 (27/10/2026) : une plateforme à clé PLATE (whatsapp) dit le NOM de sa clé et si elle est posée, jamais sa valeur :
+    # l'assistant d'espace le lit avant qu'un compte existe (cocher ne crée rien)
     return {"espace": eid, "comptes": _cpt.lister(eid),
             "plateformes": {p: {"libelle": v[0], "champs": [{"nom": c, "secret": sec} for c, sec in v[1]],
-                                "requis": list(v[2]), "oauth": v[3]} for p, v in _cpt.PLATEFORMES.items()}}
+                                "requis": list(v[2]), "oauth": v[3],
+                                **({"cle_plate": {"nom": _cpt.CLE_PLATE[p], "posee": bool(_cpt._cle_plate(p))}}
+                                   if p in _cpt.CLE_PLATE else {})}
+                            for p, v in _cpt.PLATEFORMES.items()}}
 
 
 @router.post("/comptes")
@@ -8570,6 +8577,161 @@ async def verifier_compte(compte_id: str, request: Request):
         return {"compte": await _vc.verifier(compte_id)}
     except Exception as e:  # noqa: BLE001 — traduit en 404 (inconnu) / 409 (coffre fermé) / 400 par _compte_erreur
         raise _compte_erreur(e)
+
+
+@router.post("/comptes/{compte_id}/whatsapp/lien")
+async def whatsapp_lien(compte_id: str, body: dict, request: Request):
+    """t310 (27/10/2026) : crée le lien d'installation Kapso d'un compte whatsapp (corps {facturation, consentement?, langue?}) ;
+    rend {url, expire_le, facturation}. Utilise la clé Kapso : localhost seulement. Refus Kapso -> 502 {message, code}
+    (texte du fournisseur déjà nettoyé, non traduit)."""
+    _require_localhost(request)
+    from app.services import kapso as _k, whatsapp as _wa
+    b = body if isinstance(body, dict) else {}
+    try:
+        return await _wa.creer_lien(compte_id, b.get("facturation"), b.get("consentement"), b.get("langue"))
+    except _k.KapsoErreur as e:
+        raise HTTPException(502, {"message": e.message, "code": e.code})
+    except Exception as e:  # noqa: BLE001 — traduit en 400/404/409 par _compte_erreur
+        raise _compte_erreur(e)
+
+
+@router.get("/comptes/{compte_id}/whatsapp/liaison")
+async def whatsapp_liaison(compte_id: str, request: Request):
+    """t310 (27/10/2026) : relit la liaison d'un compte whatsapp chez Kapso (un appel `liens` et un `numeros` au plus ; jamais
+    en boucle) : {etat, erreur, numero}. Range le numéro si la liaison vient de se terminer. Clé Kapso : localhost seulement."""
+    _require_localhost(request)
+    from app.services import kapso as _k, whatsapp as _wa
+    try:
+        return await _wa.relire_liaison(compte_id)
+    except _k.KapsoErreur as e:
+        raise HTTPException(502, {"message": e.message, "code": e.code})
+    except Exception as e:  # noqa: BLE001
+        raise _compte_erreur(e)
+
+# ---- t310 tâche 6 (27/10/2026) : lecture et envoi WhatsApp par Kapso, sous les règles (spec §6.1, §6.3) ----------------
+# Toutes ces routes lisent la clé Kapso : boucle locale seulement, lectures comprises. `?espace=` : un compte d'un autre
+# espace que celui demandé est inconnu (404), comme un compte qui n'est pas whatsapp. Refus des règles -> 409
+# {message, code} ; plafond en dollars -> 402 `dz_plafond` inchangé ; refus ou panne de Kapso -> 502 {message, code}
+# (texte du fournisseur déjà nettoyé : ni clé, ni jeton).
+
+def _wa_compte_demande(cid: str, espace: str = "") -> None:
+    from app.services import comptes as _cpt
+    try:
+        v = _cpt.obtenir(cid)
+    except KeyError:
+        v = None
+    if not v or v.get("plateforme") != "whatsapp" or (espace and v.get("espace_id") != espace):
+        raise HTTPException(404, f"compte WhatsApp inconnu : {cid}")
+
+
+def _wa_erreur(e: Exception) -> HTTPException:
+    from app.services import kapso as _k, whatsapp as _wa
+    if isinstance(e, HTTPException):
+        return e
+    if isinstance(e, _wa.WhatsappRefus):
+        return HTTPException(409, {"message": e.message, "code": e.code})
+    if isinstance(e, _k.KapsoErreur):
+        return HTTPException(502, {"message": e.message, "code": e.code})
+    return _compte_erreur(e)
+
+
+@router.get("/whatsapp/{cid}/conversations")
+async def whatsapp_conversations(cid: str, request: Request, espace: str = ""):
+    """t310 : les conversations du numéro {id, identite, nom, dernier_entrant, fenetre_ouverte, stop}."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp_echanges as WE
+    try:
+        return await WE.conversations(cid)
+    except Exception as e:  # noqa: BLE001 — traduit par _wa_erreur
+        raise _wa_erreur(e)
+
+
+@router.get("/whatsapp/{cid}/messages")
+async def whatsapp_messages(cid: str, request: Request, espace: str = "", depuis: str = "", apres: str = ""):
+    """t310 : une page de messages à plat {messages, suivant} ; les entrants passent par les règles (accord, STOP)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp_echanges as WE
+    try:
+        return await WE.lire(cid, depuis=depuis or None, apres=apres or None)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
+@router.get("/whatsapp/{cid}/modeles")
+async def whatsapp_modeles(cid: str, request: Request, espace: str = ""):
+    """t310 : les modèles approuvés {nom, langue, categorie, parametres, n_parametres}."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp_echanges as WE
+    try:
+        return await WE.modeles(cid)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+
+
+@router.post("/whatsapp/{cid}/envoyer")
+async def whatsapp_envoyer(cid: str, body: dict, request: Request, espace: str = ""):
+    """t310 : envoie {identite, envoi} ; rend {id, statut, devis}. La garde des plafonds (`plafonds.verifier`) vit dans
+    `whatsapp_echanges.envoyer`, sous le verrou du compte, juste avant `kapso.envoyer` (test_plafonds_garde A2e)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp_echanges as WE
+    b = body if isinstance(body, dict) else {}
+    try:
+        return await WE.envoyer(cid, b.get("identite"), b.get("envoi"))
+    except Exception as e:  # noqa: BLE001 — 402 de plafond rendu tel quel par _wa_erreur
+        raise _wa_erreur(e)
+
+
+@router.post("/whatsapp/{cid}/accords")
+async def whatsapp_accord(cid: str, body: dict, request: Request, espace: str = ""):
+    """t310 : note l'accord d'un contact {identite, source} (formulaire, papier…)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp as _wa
+    b = body if isinstance(body, dict) else {}
+    try:
+        _wa.noter_accord(cid, b.get("identite"), b.get("source"))
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+    return {"ok": True}
+
+
+@router.post("/whatsapp/{cid}/stop")
+async def whatsapp_stop(cid: str, body: dict, request: Request, espace: str = ""):
+    """t310 : note le STOP d'un contact {identite} (plus aucun envoi)."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp as _wa
+    b = body if isinstance(body, dict) else {}
+    try:
+        _wa.noter_stop(cid, b.get("identite"))
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+    return {"ok": True}
+
+
+_WA_TYPES_EN_LIGNE = ("image/", "audio/", "video/")
+
+
+@router.get("/whatsapp/{cid}/medias/{media_id}")
+async def whatsapp_media(cid: str, media_id: str, request: Request, espace: str = ""):
+    """t310 : les octets d'un média reçu, avec le type du fournisseur ; jamais gardés sur disque. Hors image, son et vidéo
+    (et toujours pour le SVG), servi en pièce jointe `application/octet-stream` : rien ne s'exécute dans la page."""
+    _require_localhost(request)
+    _wa_compte_demande(cid, espace)
+    from app.services import whatsapp_echanges as WE
+    try:
+        octets, mime = await WE.media(cid, media_id)
+    except Exception as e:  # noqa: BLE001
+        raise _wa_erreur(e)
+    entetes = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+    if not mime or not mime.startswith(_WA_TYPES_EN_LIGNE) or "svg" in mime:
+        mime = "application/octet-stream"
+        entetes["Content-Disposition"] = "attachment"
+    return Response(content=octets, media_type=mime, headers=entetes)
 
 
 # ============ v1.14: editable caption pack (Telegram Premium tags) ============

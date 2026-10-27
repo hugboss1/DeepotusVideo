@@ -11,6 +11,8 @@
   "quick.zoom.recadrer": {"fr": "Revenir à 100 % (double-clic ou touche 0)", "en": "Back to 100% (double-click or 0 key)"},
   "reglages.cles.decart": {"fr": "Decart (Avatar live · Direct)", "en": "Decart (Avatar live · Live)"},
   "reglages.cles.decart_pourquoi": {"fr": "Direct en temps réel · facturé à la seconde · platform.decart.ai", "en": "Real-time Live · billed per second · platform.decart.ai"},
+  "reglages.cles.kapso": {"fr": "Kapso (WhatsApp)", "en": "Kapso (WhatsApp)"},
+  "reglages.cles.kapso_why": {"fr": "WhatsApp des espaces · une clé partagée par tous les espaces · app.kapso.ai", "en": "Spaces' WhatsApp · one key shared by all spaces · app.kapso.ai"},
   "reglages.cles.voix_en": {"fr": "ElevenLabs — voix anglaise par défaut", "en": "ElevenLabs — default English voice"},
   "reglages.cles.voix_fr": {"fr": "ElevenLabs — voix française par défaut", "en": "ElevenLabs — default French voice"},
   "reglages.cles.voix_pourquoi": {"fr": "voix lue quand aucune n'est choisie · elevenlabs.io → Voices", "en": "voice used when none is picked · elevenlabs.io → Voices"},
