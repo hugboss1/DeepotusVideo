@@ -4,6 +4,26 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — à venir : clôture de la « boîte à outils » (t320)
+
+**Le guide, la traduction et l'assistant « Demander » rattrapent les lots t305 à t319 et t328.**
+
+### Guide (FR/EN)
+- Quatre chapitres neufs : **Travailler pour des clients** (espaces client, projets et canaux, sécurités),
+  **WhatsApp** (liaison Kapso, page, agent, diffusions), **Scanner** (page → texte, inspiration → contenu neuf,
+  schéma → calques → animation) et **Filmer, habiller, diffuser** (enregistreur, skins, montage des captures,
+  direct, tutoriels et parcours partagés), avec scènes tirées des vraies captures.
+
+### Traduction
+- En anglais, l'« espace » de marque se dit partout « space » (WhatsApp, diffusion) ; une phrase française n'a
+  plus qu'une traduction (« Relire », « Aucun espace », « refusé », « désactivé »…).
+
+### Assistant « Demander »
+- Il connaît les boîtes « Scanner une page » et « Depuis une inspiration » et les ~100 entrées de la barre de
+  menus du Vectorlab ; ses réponses renvoient aux chapitres neufs ; AGENT.md condensé sous 24 000 caractères.
+
+---
+
 # 🐙 Deepotus Video Gen — à venir : "Scanner un schéma" (t314)
 
 **Une photo de schéma ou d'illustration devient un document du Vectorlab aux
