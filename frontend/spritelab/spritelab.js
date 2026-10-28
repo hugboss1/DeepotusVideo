@@ -617,6 +617,7 @@ function hbInspecteur() {
     $("#" + id).value = r ? r[k] : ""; $("#" + id).disabled = !r;
   }
   $("#hbSelType").value = r ? r.type : "hit"; $("#hbSelType").disabled = !r; $("#hbDel").disabled = !r;
+  $("#hbVide").classList.toggle("hidden", !!r);              // t339 : l'état vide dit quoi faire
 }
 
 function hbPoint(ev) {
@@ -992,6 +993,7 @@ function renderEntities() {
 function majBible() {
   const e = selEnt();
   $("#bibleCut").disabled = !e || busyBible;
+  majDir();                                        // t339 : libellé 4 / 8 du bouton
   $("#bible3d").disabled = !e || !e.model3d_job || busyBible;
   $("#bible3d").title = e && !e.model3d_job
     ? __dzT9("sprites.sp2_bible.pas_3d", "Ce personnage n'a pas de modèle 3D — génère-le dans Assets 3D, ou découpe la planche (4 directions)")
@@ -1148,9 +1150,87 @@ async function generateFromPrompt() {
   busyPrompt = false; $("#pmGen").disabled = false;
 }
 
+/* ───────── t339 (lot Scenario, B3) : 4 ou 8 directions depuis la planche ─────────
+   « 4 » découpe la planche (gratuit, inchangé). « 8 » : 5 dessinées (S, E, N découpées ; SE, NE générées) + 3
+   miroirs cochés par défaut (décochés : SO, NO générés, O découpé). « Objet tenu asymétrique » : aucun miroir, et
+   l'est est généré (celui de la planche est le miroir du profil gauche). La rose et le coût viennent du DEVIS du
+   serveur (aucune dépense) ; le tir passe par le dialogue maison puis `confirme_cout` (409 sans lui). */
+let dirN = 4, dirDevis = null, dirSeq = 0;
+const dirMiroirsCoches = () => $$("#dirMiroirs input[type=checkbox]").filter((c) => c.checked).map((c) => c.value);
+const dirAsym = () => !!$("#dirAsym").checked;
+
+function majDir() {
+  const huit = dirN === 8, asym = dirAsym();
+  $$("#dirN .seg").forEach((b) => { const on = +b.dataset.n === dirN; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); });
+  $("#dirHuit").classList.toggle("hidden", !huit);
+  $$("#dirMiroirs input[type=checkbox]").forEach((c) => { if (asym) c.checked = false; c.disabled = asym; });
+  $("#dirMiroirs").classList.toggle("off", asym);
+  $("#dirAsymRappel").classList.toggle("hidden", !(huit && asym));
+  $("#bibleCut").innerHTML = dzIcone("dz-edit-directions", { taille: 16 }) + " "
+    + esc(huit ? __dzT9("sprites.t339_bt.huit", "8 directions (planche)") : __dzT9("sprites.t339_bt.quatre", "4 directions (planche)"));
+  $("#bibleCut").title = huit ? __dzT9("sprites.t339_bt.huit_t", "Assemble 8 directions : découpe la planche, génère les vues manquantes (devis affiché, confirmation demandée), tire les miroirs cochés") : __dzT9("sprites.t339_bt.quatre_t", "Découpe la planche en 4 directions et assemble la feuille (local, gratuit)");
+}
+
+/* le devis du serveur : la rose (d'où vient chaque direction) et le coût AVANT le clic */
+async function devisDir() {
+  await SLD_PRET;
+  const seq = ++dirSeq, el = $("#dirCout");
+  if (dirN !== 8) { dirDevis = null; el.innerHTML = esc(__dzT9("sprites.t339_cout.gratuit4", "gratuit — 4 vues découpées, aucune génération")); return; }
+  try {
+    const d = await api.send("POST", "/assets/sprite/from-board/devis", window.SLD.corpsDirections(8, dirMiroirsCoches(), dirAsym(), {}));
+    if (seq !== dirSeq) return;
+    dirDevis = d;
+    $("#dirRose").innerHTML = window.SLD.rose(d.plan).map((ligne) => ligne.map((p) => p
+      ? `<div class="dir-case ${escA(p.source)}" title="${escA(window.SLD.libelleSource(p))}"><b>${esc(window.SLD.abrev(p.direction))}</b><span>${esc(window.SLD.libelleSource(p))}</span></div>`
+      : `<div class="dir-case centre" aria-hidden="true">${dzIcone("dz-nav-bible", { taille: 16 })}</div>`).join("")).join("");
+    el.innerHTML = d.generations
+      ? `${dzIcone("dz-action-cout", { taille: 16 })} ${esc(__dzT9("sprites.t339_cout.payant", "{n} génération(s) · ≈ ${usd} ({modele})", { n: d.generations, usd: (+d.usd).toFixed(3), modele: d.provider }))}`
+      : esc(__dzT9("sprites.t339_cout.gratuit8", "gratuit — aucune vue à générer"));
+    if (d.cle_manquante) el.innerHTML += ` <span class="dir-cle">${dzIcone("dz-etat-avertissement", { taille: 16 })} ${esc(__dzT9("sprites.t339_cout.cle", "clé {cle} absente : ajoute-la dans Réglages", { cle: d.cle_manquante }))}</span>`;
+  } catch (e) {
+    if (seq === dirSeq) { dirDevis = null; el.textContent = __dzT9("sprites.t339_cout.indispo", "devis indisponible : {msg}", { msg: e.message }); }
+  }
+}
+
+async function lancerDirections() {
+  if (dirN !== 8) return cutFromBible();
+  const e = selEnt();
+  if (!e || busyBible) return;
+  const st = $("#bibleStatus");
+  await devisDir();                              // le devis À JOUR : c'est lui que le dialogue montre
+  const d = dirDevis;
+  if (!d) return setStatus(st, __dzT9("sprites.t339_cout.sans_devis", "Devis indisponible : rien n'est lancé."), true);
+  if (d.generations) {
+    const ok = window.__dzDialogue && await window.__dzDialogue.confirmer(
+      __dzT9("sprites.t339_conf.msg", "Générer {n} vue(s) de direction avec {modele} : ≈ ${usd}. Les autres directions sont découpées dans la planche ou tirées en miroir (gratuit).", { n: d.generations, usd: (+d.usd).toFixed(3), modele: d.provider }),
+      { ok: __dzT9("sprites.t339_conf.ok", "Générer") });
+    if (!ok) return;
+  }
+  busyBible = true; majBible();
+  try {
+    setStatus(st, d.generations ? __dzT9("sprites.t339_st.generation", "Génération de {n} vue(s) puis assemblage…", { n: d.generations }) : __dzT9("sprites.t339_st.decoupe", "Découpe de la planche et miroirs…"), false, 5);
+    const body = window.SLD.corpsDirections(8, dirMiroirsCoches(), dirAsym(), { entity_id: e.id, cell: cellOpts(),
+      trim: $("#trim").value, pixel: pixelOpts(), post: postOpts(), confirme: d.generations > 0 });
+    const r = await api.send("POST", "/assets/sprite/from-board", body);
+    await finirFeuille(r.job_id, st, [__dzT9("sprites.t339_st.faite", "8 directions depuis la planche"),
+      d.generations ? __dzT9("sprites.t339_st.faite_payant", " — {n} vue(s) générée(s), le reste découpé ou en miroir", { n: d.generations }) : __dzT9("sprites.t339_st.faite_gratuit", " — gratuit, local")]);
+  } catch (err) {
+    setStatus(st, __dzT9("sprites.t339_st.echec", "Échec : {msg}", { msg: err.message }), true);
+  }
+  busyBible = false; majBible();
+}
+
+function dirWire() {
+  $$("#dirN .seg").forEach((b) => b.onclick = () => { dirN = +b.dataset.n === 8 ? 8 : 4; majDir(); devisDir(); });
+  $$("#dirMiroirs input[type=checkbox]").forEach((c) => c.onchange = () => { majDir(); devisDir(); });
+  $("#dirAsym").onchange = () => { majDir(); devisDir(); };
+  majDir(); devisDir();
+}
+
 function bibleWire() {
   $("#entSearch").oninput = renderEntities;
-  $("#bibleCut").onclick = cutFromBible;
+  $("#bibleCut").onclick = lancerDirections;       // t339 : 4 = cutFromBible, 8 = devis puis tir
+  dirWire();
   $("#bible3d").onclick = captureOrbites;
   $("#pmGen").onclick = generateFromPrompt;
   $("#pmN").onchange = majDevisPrompt;

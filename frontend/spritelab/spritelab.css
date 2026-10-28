@@ -259,3 +259,45 @@ select option:disabled{color:var(--ink-muted)}
 .fNudge[data-dx="-1"] .dzi{transform:rotate(180deg)}
 .fNudge[data-dy="-1"] .dzi{transform:rotate(-90deg)}
 .fNudge[data-dy="1"] .dzi{transform:rotate(90deg)}
+/* t339 (lot Scenario, B3) : 4 ou 8 directions — sélecteur, rose 3 × 3 (d'où vient chaque vue), miroirs, rappel
+   « ne pas miroiter ». Couleurs de la rose : découpée = encre, générée = ambre (payant), miroir = vert (gratuit). */
+.dir-tete{display:flex;align-items:center;gap:10px}
+.dir-lbl{font-size:11.5px;color:var(--ink-soft)}
+.dir-seg{display:inline-flex;border:1px solid var(--stroke-strong);border-radius:8px;overflow:hidden}
+.dir-seg .seg{background:var(--bg-base);border:0;border-right:1px solid var(--stroke-strong);color:var(--ink);padding:5px 14px;font-family:var(--f-mono);font-size:12.5px;cursor:pointer}
+.dir-seg .seg:last-child{border-right:0}
+.dir-seg .seg.on{background:var(--cyan-soft);color:var(--cyan)}
+.dir-seg .seg:focus-visible{outline:1px solid var(--cyan);outline-offset:-2px}
+.dir-huit{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.dir-rose{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,44px);gap:3px;flex:none}
+.dir-case{border:1px solid var(--stroke-strong);border-radius:6px;background:var(--bg-base);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10px;color:var(--ink-soft);line-height:1.15;text-align:center;overflow:hidden}
+.dir-case b{font-family:var(--f-mono);font-size:12px;color:var(--ink-strong);font-weight:500}
+.dir-case.generee{border-color:var(--amber);color:var(--amber)}
+.dir-case.miroir{border-style:dashed;border-color:var(--green);color:var(--green)}
+.dir-case.centre{border-color:transparent;background:transparent;color:var(--ink-muted)}
+.dir-opts{display:flex;flex-direction:column;gap:7px;min-width:180px;flex:1}
+.dir-miroirs{display:flex;flex-direction:column;gap:4px}
+.dir-miroirs.off{opacity:.45}
+.dir-opts .chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);cursor:pointer}
+.dir-opts .chk input{margin:0}
+.dir-asym{color:var(--ink-strong)}
+.dir-rappel{border:1px solid var(--amber);border-radius:8px;background:var(--cyan-soft);color:var(--ink-strong);padding:6px 8px;font-size:11.5px;line-height:1.45}
+.dir-rappel .dzi{vertical-align:-3px;color:var(--amber)}
+.dir-cle{color:var(--red)}
+.dir-cle .dzi{vertical-align:-3px}
+/* t339 : disposition repensée — le CENTRE est un seul espace de travail sur les cadres (#travail : planche ouverte,
+   cadres extraits, puis l'éditeur d'ordre de la feuille générée, venu de la colonne de droite), qui défile d'un seul
+   tenant ; les réglages de génération restent dessous, titrés, le bouton collé en bas. À droite : la sortie. */
+.travail{flex:1;min-height:160px;overflow-y:auto;display:flex;flex-direction:column;background:var(--bg-base)}
+.travail .strip{flex:1 0 auto;overflow:visible}
+/* une feuille générée sans extraction (Bible, Prompt) : l'invite « Choisis une source » s'efface devant l'éditeur */
+.travail:has(#editor:not(.hidden)) .strip:has(> .empty-note:only-child){display:none}
+.travail:has(#editor:not(.hidden)) .strip{flex:none}
+.travail .editor{background:var(--bg-panel);flex:none}
+.travail .editor .editor-head b{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+.travail .editstrip{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;overflow:visible;padding:8px 0}
+.travail .editcell{width:auto;padding:6px}
+.travail .editcell img{width:100%;height:auto;aspect-ratio:1;max-width:128px}
+.travail .editcell .ops button{font-size:13px;padding:2px 4px}
+.settings-titre{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+#hbVide{max-width:170px}

@@ -70,6 +70,18 @@ def godot_tres(manifest: dict, sheet_name: str = "sheet.png") -> str:
     return "\n".join(lignes)
 
 
+def _directions(meta: dict, manifest: dict) -> None:
+    """t339 : une feuille de DIRECTIONS dit ses directions aux moteurs — `meta.directions` = [{name, frame, flip_h,
+    mirror_of?, source?}] dans l'ordre des images (sprite_directions.HUIT : sud, puis le sens anti-horaire vu du
+    dessus — sud-ouest, ouest, nord-ouest, nord, nord-est, est, sud-est). EXTENSION assumée comme `frameTags` :
+    `flip_h` signale une image tirée en MIROIR, qu'un moteur peut aussi rendre par retournement de sa source
+    (`mirror_of`). Rien n'est posé pour une feuille qui n'est pas une feuille de directions."""
+    from app.services.sprite_directions import directions_export
+    d = directions_export(manifest)
+    if d:
+        meta["directions"] = d
+
+
 # ── atlas JSON Hash (TexturePacker) ─────────────────────────────────────────
 def atlas_json_hash(manifest: dict, sheet_w: int, sheet_h: int, sheet_name: str = "sheet.png") -> dict:
     """Champs vérifiés (codeandweb.com, R10a) : `frame`, `rotated`, `trimmed`, `spriteSourceSize`, `sourceSize` ;
@@ -94,9 +106,10 @@ def atlas_json_hash(manifest: dict, sheet_w: int, sheet_h: int, sheet_name: str 
             out[frame_name(f["index"])]["hitboxes"] = f["hitboxes"]
     tags = [{"name": t["name"], "from": t["from"], "to": t["to"], "direction": t["direction"]}
             for t in ((manifest.get("anim") or {}).get("tags") or [])]
-    return {"frames": out,
-            "meta": {"app": _APP, "version": "1.0", "image": sheet_name, "format": "RGBA8888",
-                     "size": {"w": sheet_w, "h": sheet_h}, "scale": "1", "frameTags": tags}}
+    meta = {"app": _APP, "version": "1.0", "image": sheet_name, "format": "RGBA8888",
+            "size": {"w": sheet_w, "h": sheet_h}, "scale": "1", "frameTags": tags}
+    _directions(meta, manifest)
+    return {"frames": out, "meta": meta}
 
 
 # ── Aseprite .ase (spécification publique, relue le 06/10/2026) ─────────────
@@ -211,9 +224,10 @@ def paper2d_json(manifest: dict, sheet_w: int, sheet_h: int, sheet_name: str = "
                        "pivot": {"x": px, "y": py}})
         if f.get("hitboxes"):
             frames[-1]["hitboxes"] = f["hitboxes"]      # T112 : extension, seulement s'il y en a
-    return {"frames": frames,
-            "meta": {"app": _APP, "version": "1.0", "image": sheet_name, "format": "RGBA8888",
-                     "size": {"w": sheet_w, "h": sheet_h}, "scale": "1"}}
+    meta = {"app": _APP, "version": "1.0", "image": sheet_name, "format": "RGBA8888",
+            "size": {"w": sheet_w, "h": sheet_h}, "scale": "1"}
+    _directions(meta, manifest)
+    return {"frames": frames, "meta": meta}
 
 
 # ── écriture ────────────────────────────────────────────────────────────────
