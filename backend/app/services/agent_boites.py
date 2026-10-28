@@ -45,10 +45,11 @@ BOITES: dict[str, dict] = {
         "agents": [],
         "mobile": False,
     },
-    # t317 : lire la piste des clics d'une capture ; aucun agent ne la déclare encore (§11 bis : le Tutoriel est « Demander »)
+    # t317 : lire la piste des clics d'une capture ; aucun agent ne la déclare encore (§11 bis : le Tutoriel est « Demander ») ;
+    # t319 : + les cartes proposer_decoupe et proposer_chapitres_tuto (spec §4)
     "capture": {
         "libelle": "agent.boites.capture",
-        "outils": ["lire_piste_clics"],
+        "outils": ["lire_piste_clics", "proposer_decoupe", "proposer_chapitres_tuto"],
         "agents": [],
         "mobile": False,
     },

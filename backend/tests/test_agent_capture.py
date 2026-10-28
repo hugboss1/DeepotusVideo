@@ -58,11 +58,13 @@ def lancer(args, agent="capture_test"):
 print("[1] la boîte")
 check("1a verifier() sain", B.verifier() == [], B.verifier())
 check("1b boîte capture figée", B.BOITES.get("capture") == {"libelle": "agent.boites.capture",
-      "outils": ["lire_piste_clics"], "agents": [], "mobile": False}, B.BOITES.get("capture"))
+      "outils": ["lire_piste_clics", "proposer_decoupe", "proposer_chapitres_tuto"], "agents": [],
+      "mobile": False}, B.BOITES.get("capture"))
 check("1c nature lecture, capture requise", ao.OUTILS["lire_piste_clics"]["nature"] == "lecture"
       and ao.OUTILS["lire_piste_clics"]["schema"]["required"] == ["capture"])
 check("1d aucun agent existant ne la voit (Campagnes inchangé)",
-      all("lire_piste_clics" not in [x["name"] for x in B.definitions_pour(a)] for a in ("campagnes", "whatsapp")))
+      all(o not in [x["name"] for x in B.definitions_pour(a)] for a in ("campagnes", "whatsapp")
+          for o in B.BOITES["capture"]["outils"]))
 check("1e hors boîte pour Campagnes", lancer({"capture": CID}, agent="campagnes")["ok"] is False)
 
 print("[2] l'outil")
@@ -83,6 +85,30 @@ try:
     check("2f argument inconnu refusé", lancer({"capture": CID, "x": 1})["ok"] is False)
 finally:
     B.BOITES["capture"]["agents"].remove("capture_test")
+
+print("[4] les cartes (t319)")
+check("4a nature carte, capture requise", all(ao.OUTILS[o]["nature"] == "carte" and ao.OUTILS[o]["schema"]["required"] == ["capture"]
+                                              for o in ("proposer_decoupe", "proposer_chapitres_tuto")))
+B.BOITES["capture"]["agents"].append("capture_test")
+try:
+    avant = sorted(p.name for p in d.iterdir())
+    r = asyncio.run(ao.executer("proposer_decoupe", {"capture": CID}, ao.Ctx(cid="c1", agent="capture_test")))
+    k = r.get("carte") or {}
+    check("4b découpe : une carte proposée (zooms, temps morts, chapitres)", r["ok"] and k.get("genre") == "ouvrir" and k.get("ouvre") == "montage_capture"
+          and k.get("etat") == "proposee" and k.get("capture") == CID and k.get("chapitres") == 2 and k.get("zooms") == 1, r)
+    r = asyncio.run(ao.executer("proposer_chapitres_tuto", {"capture": CID}, ao.Ctx(cid="c1", agent="capture_test")))
+    k = r.get("carte") or {}
+    check("4c chapitres du tutoriel : une carte (2 écrans, 1 étape par geste, clic masqué écarté)", r["ok"]
+          and k.get("genre") == "ouvrir" and k.get("ouvre") == "tutoriel_capture" and [h["ecran"] for h in k["chapitres"]] == ["quick", "studio"]
+          and len(k["etapes"]) == 1 and k["etapes"][0]["t"] != 2000, r)
+    check("4d aucune écriture (ni montage ni brouillon)", sorted(p.name for p in d.iterdir()) == avant)
+    check("4e refus : id invalide, capture non terminée", asyncio.run(ao.executer("proposer_decoupe", {"capture": "../x"},
+          ao.Ctx(cid="c1", agent="capture_test")))["ok"] is False and asyncio.run(ao.executer("proposer_chapitres_tuto",
+          {"capture": EN_COURS}, ao.Ctx(cid="c1", agent="capture_test")))["ok"] is False)
+finally:
+    B.BOITES["capture"]["agents"].remove("capture_test")
+check("4f hors boîte pour Campagnes", asyncio.run(ao.executer("proposer_decoupe", {"capture": CID},
+      ao.Ctx(cid="c1", agent="campagnes")))["ok"] is False)
 
 print("[3] libellé")
 dico = json.loads((_ICI.parent.parent / "frontend" / "shared" / "i18n" / "agent.json").read_text("utf-8"))
