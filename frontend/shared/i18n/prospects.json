@@ -236,5 +236,10 @@
   "prospects.humain.stop": {"fr": "STOP", "en": "STOP"},
   "prospects.humain.autre": {"fr": "autre", "en": "other"},
   "prospects.histo.a_l_humain": {"fr": "À reprendre par vous", "en": "Handed back to you"},
-  "prospects.seqmotif.incertain": {"fr": "Arrêtée : l'envoi WhatsApp a peut-être eu lieu (réponse incertaine du fournisseur) ; vérifiez dans l'onglet WhatsApp avant de relancer.", "en": "Stopped: the WhatsApp message may have gone out (uncertain provider answer); check the WhatsApp tab before following up."}
+  "prospects.seqmotif.incertain": {"fr": "Arrêtée : l'envoi WhatsApp a peut-être eu lieu (réponse incertaine du fournisseur) ; vérifiez dans l'onglet WhatsApp avant de relancer.", "en": "Stopped: the WhatsApp message may have gone out (uncertain provider answer); check the WhatsApp tab before following up."},
+  "prospects.humain.refus": {"fr": "refus", "en": "declined"},
+  "prospects.humain.engagement": {"fr": "délai ou contrat", "en": "deadline or contract"},
+  "prospects.humain.illisible": {"fr": "réponse WhatsApp à lire", "en": "WhatsApp reply to read"},
+  "prospects.seqmotif.nouvelle_reponse": {"fr": "Arrêtée : le prospect a écrit à nouveau, la réponse préparée était périmée.", "en": "Stopped: the prospect wrote again; the prepared reply was out of date."},
+  "prospects.seqmotif.humain": {"fr": "Arrêtée : la fiche vous a été rendue.", "en": "Stopped: the record was handed back to you."}
 }

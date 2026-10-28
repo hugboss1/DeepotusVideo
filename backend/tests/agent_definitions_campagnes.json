@@ -508,6 +508,9 @@
       "devis",
       "plainte",
       "stop",
+      "refus",
+      "engagement",
+      "illisible",
       "autre"
      ],
      "type": "string"

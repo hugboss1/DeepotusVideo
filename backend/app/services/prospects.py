@@ -225,7 +225,7 @@ def valider(doc) -> dict | None:
     return out
 
 
-MOTIFS_HUMAIN = ("prix", "devis", "plainte", "stop", "autre")
+MOTIFS_HUMAIN = ("prix", "devis", "plainte", "stop", "refus", "engagement", "illisible", "autre")
 
 
 def _humain(h) -> dict | None:
@@ -622,7 +622,7 @@ def passer_a_l_humain(eid, pid, motif, raison: str = "", qui: str = "agent") -> 
     """t358 : la conversation revient à l'utilisateur (prix, devis, plainte, STOP, autre) : drapeau, prochaine action
     « Reprendre la main » datée du jour. Rien n'est envoyé ; le statut ne change pas."""
     if motif not in MOTIFS_HUMAIN:
-        raise RefusProspect("motif inconnu (prix, devis, plainte, stop ou autre)", "champ")
+        raise RefusProspect("motif inconnu (prix, devis, plainte, stop, refus, engagement, illisible ou autre)", "champ")
     _espace(eid)
     with _verrou:
         fiches = _charger(eid)
@@ -634,6 +634,11 @@ def passer_a_l_humain(eid, pid, motif, raison: str = "", qui: str = "agent") -> 
         f["prochaine_action"] = {"texte": _txt(f"Reprendre la main ({motif})" + (f" : {r}" if r else ""), 300), "le": jour}
         _noter(f, "a_l_humain", f"{motif}" + (f" · {r}" if r else ""), qui)
         _poser(eid, fiches)
+    try:                                       # relecture t358 (5) : plus rien ne part tant que l'utilisateur n'a pas repris
+        from app.services import prospects_sequences as _sq
+        _sq.arreter_fiche(eid, pid, "humain")
+    except Exception as e:  # noqa: BLE001 — le drapeau est posé ; l'envoi revérifie de toute façon
+        logger.warning(f"séquences de {pid} non arrêtées au passage à l'humain ({type(e).__name__})")
     return f
 
 
