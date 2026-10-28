@@ -255,7 +255,8 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
     "POST /api/prospects/e1/pr_00000001/qualifier": (c) => { appels.push(c); fiche = { ...fiche, score: 45, qualification: { ...Q, ajustement: 0, raison: "", qui: "utilisateur" } }; return reponse(200, fiche); },
     "GET /api/prospects/recherche": () => reponse(200, { fournisseur: "anthropic", fournisseurs: [
       { id: "anthropic", configure: true, prix_usd: 0.01 }, { id: "tavily", configure: false, prix_usd: 0.008 },
-      { id: "exa", configure: false, prix_usd: 0.007 }, { id: "serper", configure: false, prix_usd: 0.001 }] }),
+      { id: "exa", configure: false, prix_usd: 0.007 }, { id: "serper", configure: false, prix_usd: 0.001 }],
+      apify: { configure: false, plafonds_usd: { veille: 2, leads: 1 } } }),
     "POST /api/prospects/recherche/fournisseur": (c) => { appels.push(c); return reponse(200, { fournisseur: c.fournisseur, fournisseurs: [] }); },
     "POST /api/prospects/recherche/cle": (c) => { appels.push(c); return reponse(200, { fournisseur: "tavily", fournisseurs: [], ou: "coffre" }); },
   } });
@@ -282,6 +283,17 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
   marque(m.hote, "recherche-cle-enregistrer").click(); await tick();
   ok("10.8 poser la clé : envoyée, champ vidé, jamais affichée", appels.some((a) => a.valeur === "tvly-abc") && marque(m.hote, "recherche-cle").value === ""
     && !m.hote.textContent.includes("tvly-abc"));
+  // t364 : Apify n'a pas de champ ici (sa clé se pose dans Réglages › Clés d'API, comme les autres) : l'état et un lien
+  const ap = marque(m.hote, "recherche-apify");
+  ok("10.9 Apify : « clé à poser », aucun champ de clé", ap && ap.textContent.includes(FR("prospects.recherche.apify_sans_cle"))
+    && ![...ap.tous()].some((x) => x.tagName === "INPUT"), ap && ap.textContent);
+  const evts = [];
+  m.win.CustomEvent = class { constructor(type, o) { this.type = type; this.detail = o && o.detail; } };
+  m.win.dispatchEvent = (e) => { evts.push(e); return true; };
+  marque(m.hote, "recherche-apify-reglages").click();
+  await new Promise((r) => setTimeout(r, 400));
+  ok("10.10 le lien ouvre Réglages › Clés d'API", evts.some((e) => e.type === "deepotus:navigate" && e.detail.view === "settings")
+    && evts.some((e) => e.type === "dz-reglages-section" && e.detail.section === "keys"), JSON.stringify(evts));
 }
 
 // ---- t355 : séquences de la fiche (porte 2, planifier, copier et ouvrir, marquer envoyé, arrêt) --------------------------

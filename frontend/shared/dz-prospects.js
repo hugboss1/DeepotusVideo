@@ -519,8 +519,17 @@
       var sel = el("select", { "data-dz-prospects": "recherche-fournisseur", "aria-label": T("prospects.recherche.fournisseur") });
       var cle = el("input", { type: "password", autocomplete: "off", "data-dz-prospects": "recherche-cle", "aria-label": T("prospects.recherche.cle"), placeholder: T("prospects.recherche.cle") });
       var etatR = el("ul", { "data-dz-prospects": "recherche-etat" });
+      // t364 : Apify (collectes de la veille et des leads) — l'état seulement : sa clé se pose dans Réglages › Clés d'API
+      var etatA = el("span", {});
+      var apify = el("p", { class: "dzProspectsNote", "data-dz-prospects": "recherche-apify" }, [etatA,
+        el("button", { type: "button", "data-dz-prospects": "recherche-apify-reglages", texte: T("prospects.recherche.apify_reglages"), on: { click: function () {
+          if (typeof window.dispatchEvent !== "function" || typeof window.CustomEvent !== "function") return;
+          window.dispatchEvent(new window.CustomEvent("deepotus:navigate", { detail: { view: "settings" } }));
+          setTimeout(function () { window.dispatchEvent(new window.CustomEvent("dz-reglages-section", { detail: { section: "keys" } })); }, 300);
+        } } })]);
       function peindre(j) {
         vider(sel); vider(etatR);
+        if (j.apify) etatA.textContent = T(j.apify.configure ? "prospects.recherche.apify_pret" : "prospects.recherche.apify_sans_cle");
         var liste = j.fournisseurs && j.fournisseurs.length ? j.fournisseurs : FOURNISSEURS.map(function (f) { return { id: f }; });
         liste.forEach(function (f) {
           if (FOURNISSEURS.indexOf(f.id) < 0) return;
@@ -548,7 +557,7 @@
       return el("div", { "data-dz-prospects": "recherche-reglage" }, [
         el("h3", { texte: T("prospects.titre.recherche") }),
         el("p", { class: "dzProspectsNote", texte: T("prospects.recherche.aide") }),
-        el("div", { class: "dzProspectsActions" }, [sel, cle, enregistrer]), etatR, res, zone,
+        el("div", { class: "dzProspectsActions" }, [sel, cle, enregistrer]), etatR, apify, res, zone,
         el("button", { type: "button", "data-dz-prospects": "annuler", texte: T("prospects.bouton.retour"), on: { click: function () { dessiner(); } } })]);
     }
 

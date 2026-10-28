@@ -459,6 +459,37 @@ for (const lang of ["fr", "en"]) {
     && ![...w.racine.tous()].some((x) => x.tagName === "A" && /javascript/.test(x.attrs.href || "")) && /<b>x<\/b>/.test(texte(w.racine)), texte(w.racine));
   w.c.demonter();
 }
+// ===== 6 ter bis. t364 : la carte « collecte » (un run Apify payant, après accord) ======================================
+{
+  const COL = carte("collecte", { action: "collecter", arguments: { acteur: "google_maps", usage: "leads",
+    entree: { searchStringsArray: ["studio vidéo"], locationQuery: "Lyon" }, max: 20, devis_usd: 0.08 } });
+  const faits = [];
+  const fait = { type: "carte", genre: "collecte", libelle: "x", etat: "terminee", action: "collecter",
+    arguments: { carte: 0, resultats: 20, cout_usd: 0.021, partiel: true, statut: "done", depot: "apify-google-maps" } };
+  let apres = false;
+  const routes = avec(() => conv(apres ? [msg("agent", [COL]), msg("fait", [fait])] : [msg("agent", [COL])]), {
+    "POST /api/agent/campagnes/c1/carte/0": async (c) => { faits.push(c); apres = true; return reponse(200, conv([msg("agent", [COL]), msg("fait", [fait])])); }
+  });
+  const w = await monterAvec(routes);
+  ok("6.30 la carte dit la source, le nombre et le devis", /google_maps/.test(texte(w.racine)) && /20/.test(texte(w.racine)) && /0[.,]08/.test(texte(w.racine)), texte(w.racine));
+  const [b] = parTexte(w.racine, /Collecter/);
+  ok("6.31 bouton « Collecter » et « Refuser »", !!b && parTexte(w.racine, /Refuser/).length >= 1);
+  b.click();
+  await attendre(() => faits.length);
+  ok("6.32 accepter = la décision de la carte", faits[0].decision === "acceptee");
+  await attendre(() => /collecté/.test(texte(w.racine)));
+  ok("6.33 fait : nombre et coût réel, collecte partielle dite", /20 résultat/.test(texte(w.racine)) && /0[.,]02/.test(texte(w.racine))
+    && /partielle/.test(texte(w.racine)), texte(w.racine));
+  w.c.demonter();
+}
+{
+  const COL = carte("collecte", { action: "collecter", arguments: { acteur: "reddit", usage: "veille", entree: {}, max: 50, devis_usd: 0.2 } });
+  const fait = { type: "carte", genre: "collecte", libelle: "x", etat: "terminee", action: "collecter",
+    arguments: { carte: 0, statut: "failed", erreur: "le run Apify a échoué (<b>x</b>)" } };
+  const w = await monterAvec(avec(() => conv([msg("agent", [COL]), msg("fait", [fait])]), {}));
+  ok("6.34 échec dit, texte jamais interprété", /échec/.test(texte(w.racine)) && /<b>x<\/b>/.test(texte(w.racine)), texte(w.racine));
+  w.c.demonter();
+}
 // ===== 6 quater. t355 : la carte « sequence » (porte 2 d'une séquence de prospection) =====================================
 {
   const SEQ = carte("sequence", { action: "valider_sequence", arguments: { sid: "sq_00000001", pid: "pr_00000001", canal: "email",

@@ -52,7 +52,7 @@ ASSETS = REPO / "frontend" / "dist" / "assets"
 BUNDLE = ASSETS / "index-BEOJX8L5.js"
 RAW = BUNDLE.read_bytes()
 B = RAW.decode("utf-8")
-# t328 tâche 5 : le maillon dzdiffusion est posé APRÈS whatsapppage ; ce banc juge whatsapppage sur la vue d'avant lui
+# t328 tâche 5 : le maillon dzdiffusion est posé APRÈS whatsapppage ; dzapify (t364) vient après lui ; ce banc juge whatsapppage sur la vue d'avant lui
 B = AIDE.avant_dzdiffusion(B) if hasattr(AIDE, "avant_dzdiffusion") else B
 SH = REPO / "frontend" / "shared"
 DI = REPO / "frontend" / "dist" / "shared"

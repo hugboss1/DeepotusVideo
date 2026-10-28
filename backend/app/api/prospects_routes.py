@@ -82,8 +82,8 @@ async def post_retrait(request: Request, body: dict):
 async def get_recherche(request: Request):
     """t354 : le fournisseur de recherche web choisi, et pour chacun : configuré (clé posée) et prix. Jamais une clé."""
     _require_localhost(request)
-    from app.services import recherche_web as RW
-    return RW.etat()
+    from app.services import apify as AP, recherche_web as RW
+    return dict(RW.etat(), apify=AP.etat())     # t364 : Apify prêt ou non ; sa clé se pose dans Réglages › Clés d'API
 
 
 @router.post("/recherche/fournisseur")

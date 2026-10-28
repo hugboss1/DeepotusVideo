@@ -143,6 +143,21 @@ GUIDES = {
               "default). Free, and nothing leaves the PC. Set OLLAMA_MODEL too (qwen2.5:14b-instruct or better; "
               "8B is the floor).",
     },
+    # t364 (28/10/2026) : la page des jetons ouverte par l'utilisateur ce jour-là (Settings › API & Integrations)
+    "APIFY_TOKEN": {
+        "nom": "Apify",
+        "console": "https://console.apify.com/settings/integrations",
+        "tarifs": "https://apify.com/pricing",
+        "verifie_le": "2026-10-28",
+        "fr": "Compte Apify, Settings → API & Integrations, « Create a new token », puis copie-le. Facturation à "
+              "l'usage, prélevée sur le crédit du compte (5 $ offerts par mois sur l'offre gratuite) ; chaque "
+              "collecte est plafonnée chez Apify (2 $ pour la veille, 1 $ pour les leads) et annoncée par un devis. "
+              "Sert aux collectes de la veille concurrentielle et de la recherche de leads.",
+        "en": "Apify account, Settings → API & Integrations, « Create a new token », then copy it. Pay-as-you-go, "
+              "drawn from the account credit ($5 free each month on the free plan); every collection is capped at "
+              "Apify ($2 for competitor watch, $1 for leads) and announced by a quote. Powers the competitor-watch "
+              "and lead-search collections.",
+    },
 }
 # Les quatre clés X partagent le guide de X_API_KEY.
 for _k in ("X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET"):

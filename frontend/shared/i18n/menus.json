@@ -9,6 +9,8 @@
   "quick.persona.note": {"fr": "Espace actif global : Quick, le rail et la Bibliothèque le suivent ensemble.", "en": "Global active space: Quick, the rail and the Library all follow it."},
   "quick.persona.nouveau": {"fr": "+ Nouveau persona…", "en": "+ New persona…"},
   "quick.zoom.recadrer": {"fr": "Revenir à 100 % (double-clic ou touche 0)", "en": "Back to 100% (double-click or 0 key)"},
+  "reglages.cles.apify": {"fr": "Apify (veille et leads)", "en": "Apify (watch and leads)"},
+  "reglages.cles.apify_why": {"fr": "collectes de la veille et des leads · plafonnées chez Apify · console.apify.com", "en": "competitor-watch and lead collections · capped at Apify · console.apify.com"},
   "reglages.cles.decart": {"fr": "Decart (Avatar live · Direct)", "en": "Decart (Avatar live · Live)"},
   "reglages.cles.decart_pourquoi": {"fr": "Direct en temps réel · facturé à la seconde · platform.decart.ai", "en": "Real-time Live · billed per second · platform.decart.ai"},
   "reglages.cles.kapso": {"fr": "Kapso (WhatsApp)", "en": "Kapso (WhatsApp)"},

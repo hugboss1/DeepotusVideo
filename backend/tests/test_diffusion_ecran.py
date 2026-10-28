@@ -162,8 +162,10 @@ if NODE:
 
 # ── [2] réversible ──────────────────────────────────────────────────────────────────────────────────────────────────
 print("\n[2] la chaîne inverse")
-check("2.1 avant_dzdiffusion existe et rend defaire(B)", lambda: PM is not None and AIDE.avant_dzdiffusion(B) == PM.defaire(B))
-check("2.2 avant_dzdiffusion sans marqueur : rendu tel quel", lambda: AIDE.avant_dzdiffusion(PM.defaire(B)) == PM.defaire(B))
+# fusion #473 : dzapify (t364) est rejoué APRÈS dzdiffusion ; la vue de référence est celle d'avant lui
+B0 = AIDE.avant_dzapify(B) if hasattr(AIDE, "avant_dzapify") else B
+check("2.1 avant_dzdiffusion existe et rend defaire(B)", lambda: PM is not None and AIDE.avant_dzdiffusion(B) == PM.defaire(B0))
+check("2.2 avant_dzdiffusion sans marqueur : rendu tel quel", lambda: AIDE.avant_dzdiffusion(PM.defaire(B0)) == PM.defaire(B0))
 check("2.3 avant_whatsapppage défait dzdiffusion D'ABORD, puis whatsapppage",
       lambda: MARKER not in AIDE.avant_whatsapppage(B) and "/*whatsapppage*/" not in AIDE.avant_whatsapppage(B)
       and AIDE.avant_whatsapppage(B) == AIDE.avant_whatsapppage(AIDE.avant_dzdiffusion(B)))
