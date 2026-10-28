@@ -6,6 +6,7 @@
 - `POST /{eid}/collectes`    {perimetre?} : lance la collecte niveau 1 en fond (202) ; 409 si une tourne ; 422 périmètre
 - `GET  /{eid}/verbatims`    ?date&theme&concurrent&limite : verbatims classés, sans auteur
 - `POST /{eid}/importer`     {dossier} : importe le verbatims.jsonl d'une veille faite hors de l'app ; 413 au-delà de 20 Mo
+- `GET  /{eid}/concurrents`  t368 : pubs actives, pages prix changées, positions SERP (volet « Concurrents »)
 Espace inconnu ou archivé : 404. Lecture seule sur le web, aucune dépense.
 """
 from __future__ import annotations
@@ -71,6 +72,13 @@ async def lire_verbatims(eid: str, date: str | None = None, theme: str | None = 
         return {"verbatims": V.verbatims(eid, date, theme, concurrent, limite)}
     except ValueError as e:
         raise HTTPException(422, str(e)) from None
+
+
+@router.get("/{eid}/concurrents")
+async def lire_concurrents(eid: str):
+    from app.services import veille_concurrents as VK
+    _espace(eid)
+    return VK.lire(eid)
 
 
 @router.post("/{eid}/importer")

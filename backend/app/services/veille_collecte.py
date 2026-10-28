@@ -42,6 +42,19 @@ MAX_REQUETES = 4                       # requêtes HN par concurrent
 MAX_APPS = 2
 MAX_PAYS = 3
 MAX_BRUT = 3000                        # textes neufs par collecte
+# t366 (28/10/2026) : les sources de veille collectées par Apify (carte de devis) ; leurs valeurs au périmètre
+SOURCES_APIFY = ("reddit", "x", "instagram", "instagram_posts", "tiktok", "tiktok_commentaires", "avis_google_maps",
+                 "google_play", "trustpilot", "g2")
+MAX_VALEURS_APIFY = 5
+# t368 : ce que font les concurrents — pages prix/fonctions, page Facebook, domaine ; mots-clés de la SERP (global)
+MAX_PAGES = 3
+MAX_FACEBOOK = 2
+MAX_MOTS_CLES = 10
+_DOMAINE = re.compile(r"^[a-z0-9.-]{3,100}$")
+
+
+def _urls(v, n: int) -> list[str]:
+    return [u for u in _textes(v, 50, 300) if re.match(r"^https?://", u, re.I)][:n]
 DUREE_MAX = 900.0                      # secondes, toute la collecte
 DELAI_HTTP = 20.0
 DELAI_YTDLP = 180.0                    # secondes par vidéo
@@ -88,10 +101,17 @@ def valider_perimetre(p: dict) -> dict:
                 raise ValueError(f"périmètre : {quoi} invalide : {mauvais[0][:40]}")
         out.append({"id": c["id"], "famille": str(c.get("famille") or "")[:30], "hn": _textes(c.get("hn"), MAX_REQUETES),
                     "youtube": youtube[:MAX_VIDEOS_PAR_CONCURRENT], "appstore": apps[:MAX_APPS],
-                    "pays": pays[:MAX_PAYS] or ["us"]})
+                    "pays": pays[:MAX_PAYS] or ["us"],
+                    "apify": {s: v for s in SOURCES_APIFY                        # t366 : sources par Apify
+                              if (v := _textes((c.get("apify") or {}).get(s) if isinstance(c.get("apify"), dict) else None,
+                                               MAX_VALEURS_APIFY, 300))},
+                    "pages": _urls(c.get("pages"), MAX_PAGES), "facebook": _urls(c.get("facebook"), MAX_FACEBOOK),
+                    "domaine": d if (d := str(c.get("domaine") or "").strip().lower().removeprefix("www."))
+                    and _DOMAINE.match(d) else ""})
     jours = p.get("depuis_jours", DEPUIS_JOURS)
     jours = jours if isinstance(jours, int) and 1 <= jours <= 3650 else DEPUIS_JOURS
-    return {"version": 1, "depuis_jours": jours, "concurrents": out}
+    return {"version": 1, "depuis_jours": jours, "concurrents": out,
+            "mots_cles": _textes(p.get("mots_cles"), MAX_MOTS_CLES, 120)}
 
 
 # ---- les lignes ------------------------------------------------------------------------------------------------------

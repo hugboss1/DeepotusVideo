@@ -184,8 +184,9 @@
   // t285 T9 (relecture) : la ligne d'un outil = son libellé traduit (campagnes.outil.<nom>) + son état ; le résumé du
   // serveur (en français) n'est plus affiché. Un nom inconnu : un libellé générique.
   var OUTILS = ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document", "ecrire_dossier",
-    "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire",
-    "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher",
+    "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire", "veille_sources", "veille_apify",
+    "concurrents_pages", "concurrents_pubs", "concurrents_serp",
+    "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher", "entreprises_carte", "signaux_reddit",
     "sequence_proposer", "sequence_planifier", "whatsapp_modeles",
     "reponses_lire", "relance_proposer"];
   function ligneOutil(nom, ok) {
@@ -365,6 +366,24 @@
           else if (fc.statut === "done") {
             c.appendChild(etat(T("campagnes.collecte.faite", { n: Number(fc.resultats) || 0, usd: usd(fc.cout_usd || 0) }), "ok"));
             if (fc.partiel) c.appendChild(etat(T("campagnes.collecte.partielle")));
+            if (fc.suite_erreur) c.appendChild(etat(T("campagnes.collecte.suite_erreur", { erreur: String(fc.suite_erreur) })));   // relecture M5
+            if (typeof fc.pubs === "number") c.appendChild(etat(T("campagnes.collecte.pubs", { n: fc.pubs }), "ok"));   // t368
+            if (typeof fc.mots_cles === "number") c.appendChild(etat(T("campagnes.collecte.mots_cles", { n: fc.mots_cles }), "ok"));
+            if (typeof fc.signaux === "number") c.appendChild(etat(T("campagnes.collecte.signaux", { n: fc.signaux }), "ok"));   // t367
+            if (typeof fc.verbatims === "number") c.appendChild(etat(T("campagnes.collecte.verbatims", { n: fc.verbatims }), "ok"));   // t366
+            if (Array.isArray(fc.cibles)) {          // t365 : les entreprises trouvées sur Google Maps (aucune fiche)
+              var ulc = el("ul", { class: "dzCampLignes", "data-dz-camp": "cibles" });
+              fc.cibles.forEach(function (x) {
+                var li = el("li", {});
+                var s = x && typeof x.site === "string" ? x.site : "";
+                var nom = String((x && x.nom) || s);
+                if (/^https?:\/\//i.test(s)) li.appendChild(el("a", { class: "dzCampLien", href: s, target: "_blank", rel: "noopener noreferrer", texte: nom }));
+                else li.appendChild(el("span", { texte: nom }));
+                if (x && typeof x.note === "number") li.appendChild(el("span", { texte: " · " + T("campagnes.collecte.note", { note: x.note }) }));
+                ulc.appendChild(li);
+              });
+              c.appendChild(ulc);
+            }
           }
         }
       } else if (b.genre === "sequence") {       // t355 : la porte 2 d'une séquence de prospection ; rien ne part ici

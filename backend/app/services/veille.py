@@ -19,6 +19,7 @@ import datetime as dt
 import json
 import math
 import re
+import threading
 import time
 from pathlib import Path
 
@@ -33,6 +34,7 @@ _EMPREINTE = re.compile(r"^[0-9a-f]{10}$")
 TEXTES = ("concurrent", "source", "url", "date", "auteur_hash", "texte", "collecte_le", "requete", "theme", "polarite",
           "chez_nous", "resume")
 _COLLECTER = VC.collecter              # couture du banc
+_VERROUS: dict = {}                   # t366 (relecture I4) : un verrou par espace pour ajouter_brut
 
 
 class ConflitCollecte(Exception):
@@ -210,9 +212,11 @@ def _consolider(eid: str, date: str, limites: list[str]) -> dict:
         if k not in vus:
             vus.add(k)
             classes.append(G.classer(l))
-    with (d / "verbatims.jsonl").open("w", encoding="utf-8", newline="\n") as fh:
+    tmp = d / "verbatims.jsonl.tmp"                     # relecture I4 : jamais un fichier à moitié écrit
+    with tmp.open("w", encoding="utf-8", newline="\n") as fh:
         for l in classes:
             fh.write(json.dumps(l, ensure_ascii=False) + "\n")
+    tmp.replace(d / "verbatims.jsonl")
     meta = _lire_json(d / "import.json")
     if isinstance(meta, dict):
         limites = list(limites) + [f"veille importée ({meta.get('lignes')} verbatims, {meta.get('ignorees')} lignes ignorées)"]
@@ -307,3 +311,45 @@ def _importer(eid, source: str) -> dict:
                 (d / n).unlink(missing_ok=True)
         raise ValueError(f"import illisible : {type(e).__name__} : {str(e)[:200]}") from None
     return {"date": date, "lignes": len(propres), "ignorees": ko, "rapport": rap}
+
+
+# ---- t366 (28/10/2026) : la veille enrichie par Apify --------------------------------------------------------------
+
+def poser_perimetre(eid, p: dict) -> dict:
+    """Garde `p` (validé) comme périmètre de l'espace, dans le dossier de la date la plus récente (sinon du jour)."""
+    _verifier(eid)
+    propre = VC.valider_perimetre(p)
+    date = (_dates(eid) or [dt.date.today().isoformat()])[0]
+    _ecrire_json(dossier(eid, date) / "perimetre.json", propre)
+    return propre
+
+
+def ajouter_brut(eid, source: str, concurrent: str, lignes: list[dict]) -> dict:
+    """Ajoute des lignes collectées hors de la collecte niveau 1 (une collecte Apify acceptée) au brut de la DERNIÈRE
+    veille (jamais un rapport neuf et maigre qui cacherait la veille complète ; le jour même s'il n'y en a aucune),
+    dédoublonnées (lien + texte), puis reconsolide — sauf si une collecte tourne : elle consolidera à sa fin."""
+    _verifier(eid)
+    if source not in VC.SOURCES_APIFY or not VC._ID.match(str(concurrent or "")):
+        raise ValueError("source ou concurrent illisible")          # relecture M1 : rien d'illisible dans un nom de fichier
+    with _VERROUS.setdefault(eid, threading.Lock()):               # relecture I4 : un ajout à la fois par espace
+        date = (_dates(eid) or [dt.date.today().isoformat()])[0]
+        d = dossier(eid, date) / "brut"
+        d.mkdir(parents=True, exist_ok=True)
+        f = d / f"apify-{source}-{concurrent}.jsonl"
+        vus = {VC.cle(l) for l in _lignes(f)[0]} if f.exists() else set()
+        neuves = [l for l in lignes if VC.cle(l) not in vus and not vus.add(VC.cle(l))]
+        with f.open("a", encoding="utf-8", newline="\n") as fh:
+            for l in neuves:
+                fh.write(json.dumps(l, ensure_ascii=False) + "\n")
+        if _en_vie(eid) or eid in _IMPORTS:
+            return {"ajoutes": len(neuves), "consolide": False}
+        _IMPORTS.add(eid)                                          # un import ou une collecte attendent la fin
+        try:
+            avant = _lire_json(dossier(eid, date) / "rapport.json")
+            # relecture I3 : les limites de la collecte d'origine survivent (celles que la grille refait sont retirées)
+            gardees = [l for l in ((avant or {}).get("limites") or []) if isinstance(l, str)
+                       and not l.startswith(("classement automatique", "volume faible", "veille importée"))]
+            _consolider(eid, date, gardees)
+        finally:
+            _IMPORTS.discard(eid)
+        return {"ajoutes": len(neuves), "consolide": True}

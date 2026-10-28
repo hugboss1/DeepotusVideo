@@ -1,12 +1,14 @@
-<p class="chapeau-chap">You will learn to follow what your competitors' customers say (<b class="ui">Watch</b> tab), keep your list of prospects (<b class="ui">Prospects</b> tab) and let the Campaigns agent find them, write to them and follow their replies. Nothing goes out without your approval, and the app enforces the law. Fifteen minutes; the watch and the records are <span class="prix">free</span>, web search and WhatsApp template messages are <span class="prix">paid</span>.</p>
+<p class="chapeau-chap">You will learn to follow what your competitors' customers say (<b class="ui">Watch</b> tab), keep your list of prospects (<b class="ui">Prospects</b> tab) and let the Campaigns agent find them, write to them and follow their replies. Nothing goes out without your approval, and the app enforces the law. Fifteen minutes; the watch and the records are <span class="prix">free</span>, web search, Apify collections and WhatsApp template messages are <span class="prix">paid</span>.</p>
 
 <h3>Before you start</h3>
-<p>Everything happens in the <kbd>F1</kbd> drawer, <b class="ui">Watch</b> and <b class="ui">Prospects</b> tabs, for the workspace chosen in their list (see <a href="#marques">Work for several brands</a>). The agent that searches and writes is the Campaigns agent (see <a href="#agent-campagnes">Run a campaign with the agent</a>): it needs an Anthropic key. Emails go out from your mailbox or Brevo, WhatsApp messages from the workspace's number (WhatsApp screen).</p>
+<p>Everything happens in the <kbd>F1</kbd> drawer, <b class="ui">Watch</b> and <b class="ui">Prospects</b> tabs, for the workspace chosen in their list (see <a href="#marques">Work for several brands</a>). The agent that searches and writes is the Campaigns agent (see <a href="#agent-campagnes">Run a campaign with the agent</a>): it needs an Anthropic key. Emails go out from your mailbox or Brevo, WhatsApp messages from the workspace's number (WhatsApp screen). Apify collections need an Apify key, set in <span class="chemin"><b class="ui">Settings</b> › <b class="ui">API keys</b></span>.</p>
 
 <h3>Watching competitors</h3>
 <ol class="etapes">
 <li>Open the <b class="ui">Watch</b> tab. It shows the workspace's latest watch: the competitors × themes matrix, the most cited pains, message angles and requests to decide.</li>
 <li><b class="ui">Start a collection</b>, or ask the agent "run the watch": Hacker News, YouTube comments (yt-dlp must be installed on the PC) and App Store reviews, read-only, for free, 15 minutes at most.</li>
+<li>To go further, the agent collects through Apify: Reddit, X, TikTok, Instagram, Google Maps and Google Play reviews, Trustpilot, G2. Each collection is paid ($2 at most) and goes through a quote card. Paste the addresses to follow into the conversation; authors are anonymised and the reviews join the latest watch.</li>
+<li>The <b class="ui">What competitors are doing</b> section shows their active ads, the pricing pages that changed (free re-read) and their rank on the searches you follow. Ask "re-read their pricing pages" or "check their ads".</li>
 <li>Quotes are evidence to read, never instructions. A public post that states a need never opens a record: the agent suggests a useful public reply, which you post yourself, once.</li>
 </ol>
 
@@ -22,6 +24,7 @@
 <ol class="etapes">
 <li>Ask "find me prospects": the agent suggests records from inbound WhatsApp contacts who agreed, a CSV file you drop (waiting list, form: dated consent), or a company page you paste. The French company register (free) gives targets, without records: their website is needed next.</li>
 <li>A web search for companies is paid: the agent shows a quote card, nothing runs before your click. The provider and its keys are set in <span class="chemin"><b class="ui">Prospects</b> › <b class="ui">Web search</b></span>.</li>
+<li>For local businesses, ask for example "find video studios in Lyon on Google Maps": a quote card ($1 at most). Once accepted, the agent lists name, website and rating, without records, then reads each website and keeps only a published business email. On Reddit, it picks up posts looking for a solution ("alternative to…"): signals you answer publicly, never in private.</li>
 <li>Records suggested by the agent say "suggested by the agent". The score starts from a fixed scale, which the agent may adjust by ±20 with a reason. A record found on the web shows "To inform before …" (one month, GDPR art. 14).</li>
 </ol>
 
@@ -52,6 +55,6 @@
 <p>For a prospect at the meeting stage, the agent prepares a showcase campaign in their demo workspace: persona, drafts, visuals, to show what you would do. It never publishes. On the <a href="#mobile">paired phone</a>, the agent screen offers “Showcase campaign” for each demo workspace; on the PC, open a Campaigns conversation in that workspace.</p>
 
 <h3>Good to know</h3>
-<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>The watch, the records, the company register and emails are free; the agent's turns, web search and WhatsApp templates are paid, counted under the "campagnes" category (WhatsApp under its own), within your caps.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>The watch, the records, the company register and emails are free; the agent's turns, web search, Apify collections and WhatsApp templates are paid, counted under the "campagnes" category (WhatsApp under its own), within your caps.</p></aside>
 <aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>The agent never approves a sequence for you, never promises a price or a deadline, and never writes to someone who opted out. A public handle or comment is never reused in a message.</p></aside>
 <aside class="astuce"><i data-dz="dz-etat-information"></i><p>A sequence stops on its own when the prospect replies, books a meeting, signs, is lost, opts out or withdraws consent.</p></aside>

@@ -465,7 +465,9 @@ for (const lang of ["fr", "en"]) {
     entree: { searchStringsArray: ["studio vidéo"], locationQuery: "Lyon" }, max: 20, devis_usd: 0.08 } });
   const faits = [];
   const fait = { type: "carte", genre: "collecte", libelle: "x", etat: "terminee", action: "collecter",
-    arguments: { carte: 0, resultats: 20, cout_usd: 0.021, partiel: true, statut: "done", depot: "apify-google-maps" } };
+    arguments: { carte: 0, resultats: 20, cout_usd: 0.021, partiel: true, statut: "done", depot: "apify-google-maps",
+      cibles: [{ nom: "Studio Lune", site: "https://studio-lune.fr/", note: 4.7, categorie: "Studio", ville: "Lyon" },
+               { nom: "Sans site", site: "", note: null }, { nom: "JS", site: "javascript:alert(1)" }] } };
   let apres = false;
   const routes = avec(() => conv(apres ? [msg("agent", [COL]), msg("fait", [fait])] : [msg("agent", [COL])]), {
     "POST /api/agent/campagnes/c1/carte/0": async (c) => { faits.push(c); apres = true; return reponse(200, conv([msg("agent", [COL]), msg("fait", [fait])])); }
@@ -478,6 +480,10 @@ for (const lang of ["fr", "en"]) {
   await attendre(() => faits.length);
   ok("6.32 accepter = la décision de la carte", faits[0].decision === "acceptee");
   await attendre(() => /collecté/.test(texte(w.racine)));
+  ok("6.33b t365 : les cibles Google Maps listées, lien http(s) seulement",
+    [...w.racine.tous()].some((x) => x.tagName === "A" && x.attrs.href === "https://studio-lune.fr/")
+    && /note 4.7\/5/.test(texte(w.racine)) && /Sans site/.test(texte(w.racine))
+    && ![...w.racine.tous()].some((x) => x.tagName === "A" && /javascript/.test(x.attrs.href || "")), texte(w.racine));
   ok("6.33 fait : nombre et coût réel, collecte partielle dite", /20 résultat/.test(texte(w.racine)) && /0[.,]02/.test(texte(w.racine))
     && /partielle/.test(texte(w.racine)), texte(w.racine));
   w.c.demonter();
@@ -488,6 +494,14 @@ for (const lang of ["fr", "en"]) {
     arguments: { carte: 0, statut: "failed", erreur: "le run Apify a échoué (<b>x</b>)" } };
   const w = await monterAvec(avec(() => conv([msg("agent", [COL]), msg("fait", [fait])]), {}));
   ok("6.34 échec dit, texte jamais interprété", /échec/.test(texte(w.racine)) && /<b>x<\/b>/.test(texte(w.racine)), texte(w.racine));
+  w.c.demonter();
+}
+{
+  const COL = carte("collecte", { action: "collecter", arguments: { acteur: "reddit", usage: "veille", but: "veille", concurrent: "runway", entree: {}, max: 50, devis_usd: 0.2 } });
+  const fait = { type: "carte", genre: "collecte", libelle: "x", etat: "terminee", action: "collecter",
+    arguments: { carte: 0, statut: "done", resultats: 3, cout_usd: 0.05, partiel: false, verbatims: 2 } };
+  const w = await monterAvec(avec(() => conv([msg("agent", [COL]), msg("fait", [fait])]), {}));
+  ok("6.35 t366 : verbatims ajoutés à la veille, dits", /2 verbatim/.test(texte(w.racine)), texte(w.racine));
   w.c.demonter();
 }
 // ===== 6 quater. t355 : la carte « sequence » (porte 2 d'une séquence de prospection) =====================================
