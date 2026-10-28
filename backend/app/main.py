@@ -546,6 +546,9 @@ app.include_router(scan_router, prefix="/api/scan")
 # t315 (28/10/2026) : /api/capture — les sessions de capture de l'app (pistes brutes, piste des clics), local seulement
 from app.api.capture_routes import router as capture_router
 app.include_router(capture_router, prefix="/api/capture")
+# t316 (28/10/2026) : /api/skins — les skins qui habillent la scène de la capture (cadre, bandeau, intro, alertes…), local seulement
+from app.api.skins_routes import router as skins_router
+app.include_router(skins_router, prefix="/api/skins")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

@@ -39,6 +39,7 @@ ERREURS = {"ValueError", "RuntimeError", "FileNotFoundError", "PermissionError",
            "SansCle", "RechercheEchouee",   # t354 : recherche web de la prospection
            "ScanIndisponible", "ScanErreur", "CoutChange",   # t312 : refus du pont Windows.Media.Ocr (scan_ocr)
            "RefusCapture",   # t315 : refus des sessions de capture (400/404/409/413/415)
+           "RefusSkin",   # t316 : refus des skins de capture (400/404/409/413/415)
            "RefusPages", "AppelEchoue", "VisionEnCours"}   # revue finale t312 : AppelEchoue = premier appel Claude en échec réseau   # t312 tâche 4 : dépôt refusé par scan_pages.charger (400/413/415/422)
                                        # L4.1 T3 : FluxCoupe = RuntimeError (flux Anthropic coupé)
                                        # t309 : RefusClient = PermissionError (409 structuré des règles d'un client)

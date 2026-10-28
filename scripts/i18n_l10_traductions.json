@@ -11657,5 +11657,85 @@
  "Piste trop longue : 4 Go au plus.": {
   "fr": "Piste trop longue : 4 Go au plus.",
   "en": "Track too long: 4 GB at most."
+ },
+ "Identifiant de skin invalide.": {
+  "fr": "Identifiant de skin invalide.",
+  "en": "Invalid skin identifier."
+ },
+ "Skin illisible : un objet JSON est attendu.": {
+  "fr": "Skin illisible : un objet JSON est attendu.",
+  "en": "Unreadable skin: a JSON object is expected."
+ },
+ "Skin illisible.": {
+  "fr": "Skin illisible.",
+  "en": "Unreadable skin."
+ },
+ "Skin introuvable.": {
+  "fr": "Skin introuvable.",
+  "en": "Skin not found."
+ },
+ "Un skin livré ne se modifie pas : dupliquez-le d'abord.": {
+  "fr": "Un skin livré ne se modifie pas : dupliquez-le d'abord.",
+  "en": "A built-in skin cannot be changed: duplicate it first."
+ },
+ "Un skin livré ne se supprime pas.": {
+  "fr": "Un skin livré ne se supprime pas.",
+  "en": "A built-in skin cannot be deleted."
+ },
+ "Image trop lourde : 5 Mo au plus.": {
+  "fr": "Image trop lourde : 5 Mo au plus.",
+  "en": "Image too heavy: 5 MB at most."
+ },
+ "Image inconnue : logo ou fond.": {
+  "fr": "Image inconnue : logo ou fond.",
+  "en": "Unknown image: logo or background."
+ },
+ "Image introuvable.": {
+  "fr": "Image introuvable.",
+  "en": "Image not found."
+ },
+ "Paquet trop lourd : 12 Mo au plus.": {
+  "fr": "Paquet trop lourd : 12 Mo au plus.",
+  "en": "Package too heavy: 12 MB at most."
+ },
+ "Paquet refusé : trop d'entrées.": {
+  "fr": "Paquet refusé : trop d'entrées.",
+  "en": "Package refused: too many entries."
+ },
+ "Paquet refusé : skin.json manquant.": {
+  "fr": "Paquet refusé : skin.json manquant.",
+  "en": "Package refused: skin.json missing."
+ },
+ "Paquet refusé : ce n'est pas un skin DeepotusVideo de version 1.": {
+  "fr": "Paquet refusé : ce n'est pas un skin DeepotusVideo de version 1.",
+  "en": "Package refused: this is not a version 1 DeepotusVideo skin."
+ },
+ "Trop de skins : supprimez-en un d'abord.": {
+  "fr": "Trop de skins : supprimez-en un d'abord.",
+  "en": "Too many skins: delete one first."
+ },
+ "Ce fichier n'est pas une image lisible (PNG, JPEG ou WebP).": {
+  "fr": "Ce fichier n'est pas une image lisible (PNG, JPEG ou WebP).",
+  "en": "This file is not a readable image (PNG, JPEG or WebP)."
+ },
+ "Ce fichier n'est pas un paquet de skin (.zip) lisible.": {
+  "fr": "Ce fichier n'est pas un paquet de skin (.zip) lisible.",
+  "en": "This file is not a readable skin package (.zip)."
+ },
+ "Paquet refusé : contenu décompressé trop lourd.": {
+  "fr": "Paquet refusé : contenu décompressé trop lourd.",
+  "en": "Package refused: unpacked content too heavy."
+ },
+ "Paquet refusé : skin.json illisible.": {
+  "fr": "Paquet refusé : skin.json illisible.",
+  "en": "Package refused: unreadable skin.json."
+ },
+ "Ce skin appartient à un autre espace : dupliquez-le d'abord.": {
+  "fr": "Ce skin appartient à un autre espace : dupliquez-le d'abord.",
+  "en": "This skin belongs to another space: duplicate it first."
+ },
+ "Image trop grande.": {
+  "fr": "Image trop grande.",
+  "en": "Image too large."
  }
 }
