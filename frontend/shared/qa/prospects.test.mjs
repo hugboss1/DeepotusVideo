@@ -367,6 +367,21 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
   ok("12.6 essai : à l'expéditeur, dit", appels.some((a) => a[0] === "test") && marque(m.hote, "email-resultat").textContent === FR("prospects.email.essai_ok", { adresse: "lea@deepotus.fr" }));
 }
 
+// ---- t357 : étape WhatsApp à modèle, arrêt « fenetre » ------------------------------------------------------------------
+{
+  const SEQS = [{ id: "sq_00000009", pid: "pr_00000001", canal: "whatsapp", statut: "annulee", motif: "fenetre", ouvrir: null,
+    etapes: [{ rang: 0, objet: "", texte: "aperçu", delai_jours: 0, statut: "annulee", quand: null, due: false,
+      modele: { nom: "prospection_relance", langue: "fr", parametres: ["Léa"] } }] }];
+  const m = monde({ routes: {
+    "GET /api/prospects/e1": () => reponse(200, { prospects: [FICHE({ statut: "qualifie" })], compte_par_statut: { qualifie: 1 }, oppositions: 0 }),
+    "GET /api/prospects/e1/sequences?pid=pr_00000001": () => reponse(200, { sequences: SEQS }) } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  marques(m.hote, "ligne")[0].click(); await tick(); await tick();
+  ok("13.1 le modèle WhatsApp de l'étape est nommé", marque(m.hote, "etape-modele").textContent === FR("prospects.sequence.modele", { nom: "prospection_relance", langue: "fr" }));
+  ok("13.2 arrêt « fenêtre de 24 h » expliqué", marque(m.hote, "seq-motif").textContent === FR("prospects.seqmotif.fenetre"));
+}
+
 // ---- anglais, demontage -----------------------------------------------------------------------------------------------
 {
   const m = monde({ lang: "en", routes: { "GET /api/prospects/e1": () => reponse(200, LISTE) } });
