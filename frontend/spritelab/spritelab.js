@@ -617,6 +617,7 @@ function hbInspecteur() {
     $("#" + id).value = r ? r[k] : ""; $("#" + id).disabled = !r;
   }
   $("#hbSelType").value = r ? r.type : "hit"; $("#hbSelType").disabled = !r; $("#hbDel").disabled = !r;
+  $("#hbVide").classList.toggle("hidden", !!r);              // t339 : l'état vide dit quoi faire
 }
 
 function hbPoint(ev) {

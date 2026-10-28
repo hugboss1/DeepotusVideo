@@ -85,6 +85,20 @@ def main():
     check("C1 la rose a ses trois états (générée = ambre, miroir = vert pointillé)",
           ".dir-case.generee{" in CSS and ".dir-case.miroir{" in CSS and ".dir-rose{" in CSS)
 
+    # disposition repensée (demande de l'utilisateur, 28/10) : centre = travail sur les cadres, droite = sortie
+    def pos(motif):
+        return HTML.find(motif)
+    centre, droite = pos('id="stripPane"'), pos('id="outPane"')
+    check("L1 l'éditeur d'ordre vit dans l'espace de travail du CENTRE (#travail), après les cadres extraits",
+          centre < pos('id="travail"') < pos('id="strip"') < pos('id="editor"') < pos('<div class="settings">') < droite)
+    check("L2 à droite, la sortie : lecteur, exports, planche, puis hitboxes et squelette",
+          droite < pos('id="player"') < pos('id="exports"') < pos('id="sheetWrap"') < pos('id="hitboxes"')
+          < pos('id="squelette"'))
+    check("L3 les cadres de l'éditeur passent à la ligne (grille), plus de bande défilante",
+          ".travail .editstrip{display:grid;" in CSS and ".travail{flex:1;" in CSS)
+    check("L4 l'inspecteur des hitboxes a un état vide, montré sans rectangle choisi",
+          'id="hbVide"' in HTML and '$("#hbVide").classList.toggle("hidden", !!r);' in JS)
+
     print(f"\n=== {ok} passed, {fail} failed ===")
     return 1 if fail else 0
 

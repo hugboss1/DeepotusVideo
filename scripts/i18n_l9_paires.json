@@ -291,6 +291,12 @@
     "groupe": "sp1"
    },
    {
+    "pos": 26495,
+    "avant": "  $(\"#hbSelType\").value = r ? r.type : \"hit\"; $(\"#hbSelType\").disabled = !r; $(\"#hbDel\").disabled = !r;",
+    "apres": "  $(\"#hbSelType\").value = r ? r.type : \"hit\"; $(\"#hbSelType\").disabled = !r; $(\"#hbDel\").disabled = !r;\r\n  $(\"#hbVide\").classList.toggle(\"hidden\", !!r);              // t339 : l'état vide dit quoi faire",
+    "groupe": "t339"
+   },
+   {
     "pos": 27206,
     "avant": "`enregistré · ${r.rectangles} rectangle(s)`",
     "apres": "__dzT9(\"sprites.sp1_hb.enregistre\", \"enregistré · {n} rectangle(s)\", { n: r.rectangles })",

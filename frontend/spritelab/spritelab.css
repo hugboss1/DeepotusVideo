@@ -285,3 +285,19 @@ select option:disabled{color:var(--ink-muted)}
 .dir-rappel .dzi{vertical-align:-3px;color:var(--amber)}
 .dir-cle{color:var(--red)}
 .dir-cle .dzi{vertical-align:-3px}
+/* t339 : disposition repensée — le CENTRE est un seul espace de travail sur les cadres (#travail : planche ouverte,
+   cadres extraits, puis l'éditeur d'ordre de la feuille générée, venu de la colonne de droite), qui défile d'un seul
+   tenant ; les réglages de génération restent dessous, titrés, le bouton collé en bas. À droite : la sortie. */
+.travail{flex:1;min-height:160px;overflow-y:auto;display:flex;flex-direction:column;background:var(--bg-base)}
+.travail .strip{flex:1 0 auto;overflow:visible}
+/* une feuille générée sans extraction (Bible, Prompt) : l'invite « Choisis une source » s'efface devant l'éditeur */
+.travail:has(#editor:not(.hidden)) .strip:has(> .empty-note:only-child){display:none}
+.travail:has(#editor:not(.hidden)) .strip{flex:none}
+.travail .editor{background:var(--bg-panel);flex:none}
+.travail .editor .editor-head b{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+.travail .editstrip{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;overflow:visible;padding:8px 0}
+.travail .editcell{width:auto;padding:6px}
+.travail .editcell img{width:100%;height:auto;aspect-ratio:1;max-width:128px}
+.travail .editcell .ops button{font-size:13px;padding:2px 4px}
+.settings-titre{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+#hbVide{max-width:170px}

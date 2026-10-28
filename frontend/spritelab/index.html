@@ -175,6 +175,9 @@
       <button id="stripAll" class="btn ghost" title="Tout garder / tout enlever"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-tout-selectionner"></use></svg> Tout</button>
       <button id="extractBtn" class="btn" title="Ré-extraire les frames de la source avec les réglages fps / max ci-dessous (local, gratuit)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-recalculer"></use></svg> Ré-extraire</button>
     </div>
+    <!-- t339 : UN espace de travail sur les cadres — planche ouverte (Feuille), cadres extraits, puis l'éditeur
+         d'ordre de la feuille générée (venu de la colonne de droite) ; il défile d'un seul tenant -->
+    <div id="travail" class="travail">
     <div id="feuillePane" class="feuille hidden">
       <div class="feuille-bar">
         <button id="fDetect" class="btn" title="Détecter colonnes, lignes et cases occupées par les colonnes vides de la planche">Auto-détecter</button>
@@ -187,8 +190,22 @@
       <div id="fWrap" class="feuille-wrap"><canvas id="fCanvas"></canvas></div>
     </div>
     <div id="strip" class="strip"><div class="empty-note">Choisis une source à gauche — les frames extraites s'affichent ici.<br><br>Clic = garder/enlever une frame · Shift-clic = plage</div></div>
+    <div id="editor" class="editor hidden">
+      <div class="editor-head">
+        <b>Éditeur</b>
+        <span id="editInfo" class="counter">—</span>
+        <button id="editApply" class="btn primary" title="Réassemble la feuille avec cet ordre, ses tags et sa durée par image (local, gratuit — rien n'est re-détouré)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-valider"></use></svg> Appliquer</button>
+        <button id="editReset" class="btn ghost" title="Revenir à l'ordre de la feuille actuelle"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-abandonner"></use></svg> Annuler</button>
+      </div>
+      <div class="hint">Réordonne (<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-monter"></use></svg> <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-descendre"></use></svg>), duplique (<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-dupliquer"></use></svg>) ou supprime (<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retirer"></use></svg>) des images, puis Appliquer. Les tags du panneau
+        Animation suivent la nouvelle numérotation.</div>
+      <div id="editStrip" class="editstrip"></div>
+      <div id="editStatus" class="status hidden"></div>
+    </div>
+    </div>
 
     <div class="settings">
+      <div class="settings-titre">Réglages de la planche</div>
       <div class="grid2">
         <label class="fld">Échantillonnage <span class="unit">img/s</span>
           <input id="fps" type="number" min="1" max="24" value="8">
@@ -328,17 +345,9 @@
       <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec ce sheet comme nœud Image"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-studio"></use></svg> → Studio</button>
     </div>
 
-    <div id="editor" class="editor hidden">
-      <div class="editor-head">
-        <b>Éditeur</b>
-        <span id="editInfo" class="counter">—</span>
-        <button id="editApply" class="btn primary" title="Réassemble la feuille avec cet ordre, ses tags et sa durée par image (local, gratuit — rien n'est re-détouré)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-valider"></use></svg> Appliquer</button>
-        <button id="editReset" class="btn ghost" title="Revenir à l'ordre de la feuille actuelle"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-abandonner"></use></svg> Annuler</button>
-      </div>
-      <div class="hint">Réordonne (<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-monter"></use></svg> <svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-edit-descendre"></use></svg>), duplique (<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-dupliquer"></use></svg>) ou supprime (<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-retirer"></use></svg>) des images, puis Appliquer. Les tags du panneau
-        Animation suivent la nouvelle numérotation.</div>
-      <div id="editStrip" class="editstrip"></div>
-      <div id="editStatus" class="status hidden"></div>
+    <div id="sheetWrap" class="sheetwrap hidden">
+      <div class="sheet-title">Sheet</div>
+      <img id="sheetImg" alt="sprite sheet">
     </div>
 
     <!-- T112 (spec sorceress, lot « Combat ») : hitboxes par frame — hitbox.js (état pur) + spritelab.js (dessin) -->
@@ -361,6 +370,7 @@
         <canvas id="hbCanvas" class="hb-canvas bg-checker" width="128" height="128"></canvas>
         <div class="hb-insp">
           <div class="settings-sec">Rectangle choisi</div>
+          <div id="hbVide" class="hint">Aucun rectangle choisi : glisse sur la case pour en dessiner un, ou clique un rectangle.</div>
           <label class="fld inline">x <input id="hbX" type="number" min="0" step="1"></label>
           <label class="fld inline">y <input id="hbY" type="number" min="0" step="1"></label>
           <label class="fld inline">w <input id="hbW" type="number" min="1" step="1"></label>
@@ -407,10 +417,6 @@
       </div>
     </div>
 
-    <div id="sheetWrap" class="sheetwrap hidden">
-      <div class="sheet-title">Sheet</div>
-      <img id="sheetImg" alt="sprite sheet">
-    </div>
   </section>
 </main>
 

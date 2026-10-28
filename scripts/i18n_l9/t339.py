@@ -184,6 +184,13 @@ ENTREES = [
        "sprites.t339_st.echec": ("Échec : {msg}", "Failed: {msg}")}),
     S(SL, 1059, '  $("#bibleCut").onclick = cutFromBible;',
       '  $("#bibleCut").onclick = lancerDirections;       // t339 : 4 = cutFromBible, 8 = devis puis tir\r\n  dirWire();', {}),
+    # disposition repensée (demande de l'utilisateur, 28/10) : l'inspecteur des hitboxes a un état vide
+    S(SL, 544, '  $("#hbSelType").value = r ? r.type : "hit"; $("#hbSelType").disabled = !r; $("#hbDel").disabled = !r;',
+      '  $("#hbSelType").value = r ? r.type : "hit"; $("#hbSelType").disabled = !r; $("#hbDel").disabled = !r;\r\n'
+      '  $("#hbVide").classList.toggle("hidden", !!r);              // t339 : l\'état vide dit quoi faire', {}),
+    H("sprites.t339_h.reglages", "Réglages de la planche", "Sheet settings"),
+    H("sprites.t339_h.hb_vide", "Aucun rectangle choisi : glisse sur la case pour en dessiner un, ou clique un rectangle.",
+      "No rectangle selected: drag on the cell to draw one, or click a rectangle."),
     # ── index.html (surcouche) ──
     H("sprites.t339_h.directions", "Directions", "Directions"),
     H("sprites.t339_h.n_titre", "Nombre de directions de la feuille", "Number of directions in the sheet"),
