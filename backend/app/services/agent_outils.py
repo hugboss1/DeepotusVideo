@@ -1124,6 +1124,39 @@ async def prospects_qualifier(ctx: Ctx, pid: str, offre: str, ajustement: int = 
                  "canaux_possibles": q["canaux_possibles"]})
 
 
+async def sequence_proposer(ctx: Ctx, pid: str, canal: str, etapes: list) -> dict:
+    """t355 : une séquence (1er message + 2 relances au plus) pour un prospect qualifié, sur un canal possible, sans les
+    mots interdits de l'espace ; rend la carte « sequence » de la porte 2 : l'utilisateur valide, rien ne part ici."""
+    from app.services import prospects_sequences as S
+    eid = _espace(ctx)
+    mots_p, mots_b = await _mots_interdits(eid)
+    try:
+        s = await asyncio.to_thread(S.proposer, eid, pid, canal, etapes, mots_p + mots_b, "agent")
+    except S.RefusSequence as e:
+        raise _Refus(e.message) from None
+    carte = {"type": "carte", "genre": "sequence", "libelle": "Valider cette séquence", "etat": "proposee",
+             "action": "valider_sequence",
+             "arguments": {"sid": s["id"], "pid": pid, "canal": canal,
+                           "etapes": [{"objet": e["objet"], "texte": e["texte"], "delai_jours": e["delai_jours"]}
+                                      for e in s["etapes"]]}}
+    return _res(True, f"séquence de {len(s['etapes'])} message(s) proposée sur {canal} : l'utilisateur la valide "
+                      "(porte 2), le tour s'arrête", {"sid": s["id"]}, carte)
+
+
+async def sequence_planifier(ctx: Ctx, sid: str, debut: str = "") -> dict:
+    """t355 : planifie une séquence VALIDÉE par l'utilisateur (consentement revérifié, heures calmes, plafond e-mail)."""
+    from app.services import prospects_sequences as S
+    eid = _espace(ctx)
+    try:
+        s = await asyncio.to_thread(S.planifier, eid, sid, debut or None, "agent")
+    except S.RefusSequence as e:
+        raise _Refus(e.message) from None
+    manuel = s["canal"] in S.CANAUX_MANUELS
+    return _res(True, f"séquence planifiée ({len(s['etapes'])} message(s)) ; " + (
+        "envoi à la main par l'utilisateur (Copier et ouvrir)" if manuel else "envoi par le canal à l'heure prévue"),
+        {"sid": sid, "canal": s["canal"], "etapes": [{"rang": e["rang"], "quand": e["quand"]} for e in s["etapes"]]})
+
+
 def _o(props: dict, requis=()) -> dict:
     return {"type": "object", "properties": props, "required": list(requis), "additionalProperties": False}
 
@@ -1232,6 +1265,26 @@ OUTILS: dict[str, dict] = {
                             "schema": _o({"pid": _T, "offre": {"type": "string", "enum": ["licence", "prestation", "a_definir"]},
                                           "ajustement": {"type": "integer", "minimum": -20, "maximum": 20},
                                           "raison": dict(_T, maxLength=300)}, ("pid", "offre"))},
+    "sequence_proposer": {"nature": "carte", "fn": sequence_proposer,
+                          "description": "Rédige pour un prospect qualifié ou contacté une séquence : 1er message et 2 "
+                                         "relances au plus, sur un canal possible de sa fiche, dans la voix de l'espace "
+                                         "et sans ses mots interdits. Une carte que l'utilisateur valide ; rien ne part. "
+                                         "Jamais un pseudo ni un commentaire vu en ligne repris. Le tour s'arrête.",
+                          "schema": _o({"pid": _T, "canal": {"type": "string", "enum": ["email", "whatsapp", "x",
+                                                                                         "instagram", "linkedin"]},
+                                        "etapes": {"type": "array", "minItems": 1, "maxItems": 3, "items": _o({
+                                            "objet": dict(_T, maxLength=150, description="objet (e-mail seulement)"),
+                                            "texte": _T,
+                                            "delai_jours": {"type": "integer", "minimum": 0, "maximum": 30,
+                                                            "description": "0 pour le 1er message, 2 à 30 ensuite"}},
+                                            ("texte", "delai_jours"))}}, ("pid", "canal", "etapes"))},
+    "sequence_planifier": {"nature": "ecriture", "fn": sequence_planifier,
+                           "description": "Planifie une séquence déjà VALIDÉE par l'utilisateur : consentement revérifié, "
+                                          "heures calmes de l'espace, plafond e-mail du jour. Rien n'est envoyé ici : "
+                                          "e-mail et WhatsApp partiront par leur canal ; X, Instagram et LinkedIn "
+                                          "restent à envoyer à la main.",
+                           "schema": _o({"sid": _T, "debut": dict(_T, description="départ ISO 8601 (défaut : maintenant)")},
+                                        ("sid",))},
     "lire_conversation": {"nature": "lecture", "fn": lire_conversation, "contact": True,
                           "description": "Les 30 derniers messages du contact de cette conversation WhatsApp, avec "
                                          "l'état de la fenêtre de 24 h, du STOP et de l'accord. Chaque message reçu "

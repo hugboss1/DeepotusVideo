@@ -14,6 +14,8 @@
 - `POST   /oppositions/retirer`                  {identifiant} : saisie erronée retirée, journalisée -> {retire: bool} ;
                                                  409 pour une opposition de la personne (t353 suite, M6)
 - la liste porte aussi `espaces_demo` {id: nom} (t353 suite, M8)
+- `GET    /{eid}/sequences?pid=`                 t355 : {sequences} (étapes « due », lien « ouvrir » d'un canal manuel)
+- `POST   /{eid}/sequences/{sid}/valider|planifier|annuler` ({debut?} pour planifier) ; `…/etapes/{rang}/envoye` (manuel)
 Les messages passent par L10 (le gestionnaire traduit le champ `message` d'un detail dict). Relecture I4 : routes ASYNC,
 sur la boucle comme les autres écrivains d'espaces.json (le geste démonstration y écrit) : jamais depuis un thread.
 """
@@ -25,7 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from app.api.routes import _require_localhost
-from app.services import espaces as _es, oppositions as O, prospects as P
+from app.services import espaces as _es, oppositions as O, prospects as P, prospects_sequences as SQ
 
 router = APIRouter()
 
@@ -128,6 +130,40 @@ async def get_prospects(request: Request, eid: str, statut: str | None = None):
 @router.post("/{eid}", status_code=201)
 async def post_prospect(request: Request, eid: str, body: dict):
     return _faire(request, lambda: P.creer(eid, _corps(body)))
+
+
+def _seq(request: Request, geste):
+    """t355 : les gestes sur les séquences ; refus {code, message} comme les fiches."""
+    _require_localhost(request)
+    try:
+        return geste()
+    except SQ.RefusSequence as e:
+        raise HTTPException(e.statut, {"code": e.code, "message": e.message}) from None
+
+
+@router.get("/{eid}/sequences")
+async def get_sequences(request: Request, eid: str, pid: str | None = None):
+    return _seq(request, lambda: {"sequences": SQ.lister(eid, pid)})
+
+
+@router.post("/{eid}/sequences/{sid}/valider")
+async def post_sequence_valider(request: Request, eid: str, sid: str):
+    return _seq(request, lambda: SQ.valider(eid, sid, "utilisateur"))
+
+
+@router.post("/{eid}/sequences/{sid}/planifier")
+async def post_sequence_planifier(request: Request, eid: str, sid: str, body: dict | None = None):
+    return _seq(request, lambda: SQ.planifier(eid, sid, _corps(body).get("debut"), "utilisateur"))
+
+
+@router.post("/{eid}/sequences/{sid}/annuler")
+async def post_sequence_annuler(request: Request, eid: str, sid: str):
+    return _seq(request, lambda: SQ.annuler(eid, sid, "utilisateur"))
+
+
+@router.post("/{eid}/sequences/{sid}/etapes/{rang}/envoye")
+async def post_sequence_envoye(request: Request, eid: str, sid: str, rang: int):
+    return _seq(request, lambda: SQ.marquer_envoye(eid, sid, rang, "utilisateur"))
 
 
 @router.get("/{eid}/{pid}")
