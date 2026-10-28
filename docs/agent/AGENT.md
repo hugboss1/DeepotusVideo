@@ -110,7 +110,11 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   mouvement et la caméra) et 1 à 4 style frames (le look ; l'image de production par défaut). Seedance 2.5 le rend
   (« Garder le mouvement » ou « S'inspirer du clip ») ; sans clip, Veo 3.1 références (8 s). Payant : devis affiché
   (clip d'entrée + sortie facturés), confirmation, catégorie « chapitres ». La vidéo devient celle du plan et entre
-  dans la Bibliothèque avec sa recette. → [ALLER:episodes] [GUIDE:chapitres]
+  dans la Bibliothèque avec sa recette. Durée minimale (t336) : un clip plus court que ce que le modèle rend
+  (Seedance 4 s, MiniMax 5 s) est conformé avant l'envoi — « Étirer puis ré-accélérer » (automatique jusqu'à ×2)
+  ou « Compléter au noir puis couper » ; la boîte dit ce qui sera fait et la durée facturée (le clip conformé). Après
+  le rendu, la dérive en images est mesurée contre la previs et le rendu recalé à son nombre d'images exact ; la
+  boîte affiche « Dernier rendu de ce plan : dérive : +2 images, recalée ». → [ALLER:episodes] [GUIDE:chapitres]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
   payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
 - **Filmer l'app, l'habiller, la monter** (t315-t317) : barre du haut, « Filmer l'app » (CET onglet, secrets masqués,
