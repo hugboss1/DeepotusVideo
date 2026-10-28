@@ -150,6 +150,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Sprites en 8 directions** (t339) : Sprite Lab › Bible, personnage, Directions « 8 ». S, E, N découpés (gratuit),
   SE et NE générés (payant, « sprites », devis puis confirmation), SO, O, NO en miroir (décocher = vraie vue).
   → [ALLER:assets3d] [GUIDE:spritelab]
+- **Pixel Lock et boucle** (t340) : Sprite Lab, Pixel-art, « Approuver ce sprite » (gratuit) verrouille grille et
+  palette ; Image › « Boucle » : même pose aux deux bouts (payant, « sprites », devis puis confirmation).
+  → [ALLER:assets3d] [GUIDE:spritelab]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 

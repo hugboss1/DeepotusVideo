@@ -51,6 +51,25 @@
       <div class="search-wrap"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-chercher"></use></svg><input id="imgSearch" class="search" placeholder="Filtrer les images…"></div>
       <div id="imgGrid" class="img-grid"><div class="empty-note">Chargement de la Library…</div></div>
       <div class="animer-box">
+        <!-- t340 (lot Scenario, B2) : préréglage « Boucle » — la pose en 1re ET en dernière image, une image sur 2 ou 3 -->
+        <div class="dir-tete">
+          <span class="dir-lbl">Préréglage</span>
+          <div id="animMode" class="dir-seg" role="group" aria-label="Préréglage d'animation">
+            <button type="button" class="seg on" data-mode="libre" aria-pressed="true" title="Sans boucle : la vidéo part de l'image choisie et va où le mouvement la mène">Sans boucle</button>
+            <button type="button" class="seg" data-mode="boucle" aria-pressed="false" title="Boucle : la même pose en première et en dernière image, une image sur 2 ou 3 gardée, re-pixelisée sur la grille verrouillée">Boucle</button>
+          </div>
+        </div>
+        <div id="boucleOpts" class="boucle-opts hidden">
+          <div class="hint">La pose choisie est la <b>1re et la dernière</b> image de la vidéo. À l'extraction, la dernière (identique à la première) est retirée pour que la boucle ne bégaie pas, puis une image sur 2 ou 3 est gardée. Feuille + GIF.</div>
+          <div class="dir-tete">
+            <span class="dir-lbl">Garder une image sur</span>
+            <div id="uneSur" class="dir-seg" role="group" aria-label="Garder une image sur N">
+              <button type="button" class="seg on" data-n="2" aria-pressed="true" title="Une image sur deux (cycle plus fluide)">2</button>
+              <button type="button" class="seg" data-n="3" aria-pressed="false" title="Une image sur trois (moins d'images, feuille plus légère)">3</button>
+            </div>
+          </div>
+          <div id="boucleVerrou" class="hint boucle-verrou"></div>
+        </div>
         <label class="fld">Action à animer
           <textarea id="animPrompt" rows="2" placeholder="Ex : the octopus mascot walks in place, side view"></textarea>
         </label>
@@ -63,7 +82,10 @@
           </label>
         </div>
         <div class="hint">Preset sprite ajouté au prompt : <i>static camera, character animation loop, plain solid green background, full body visible</i></div>
-        <button id="animerBtn" class="btn primary" title="Lance une génération Seedance (coût selon les Réglages) puis enchaîne sur l'extraction des frames"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-generer-video"></use></svg> Animer (Seedance, fond uni)</button>
+        <div class="bible-row">
+          <button id="animerBtn" class="btn primary" title="Lance une génération Seedance (coût selon les Réglages) puis enchaîne sur l'extraction des frames"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-media-generer-video"></use></svg> Animer (Seedance, fond uni)</button>
+          <span id="animCout" class="cost" aria-live="polite"></span>
+        </div>
         <div id="animStatus" class="status hidden"></div>
       </div>
     </div>
@@ -260,6 +282,14 @@
             <select id="pixDither"><option value="none" selected>Aucun</option><option value="ordered">Ordered (Bayer)</option><option value="floyd">Floyd-Steinberg</option></select>
           </label>
         </div>
+        <!-- t340 (lot Scenario, B1) : l'état verrouillé d'un sprite approuvé — grille N px + palette X, champs figés -->
+        <div id="pixVerrou" class="pix-verrou hidden" role="status">
+          <div class="pix-verrou-tete"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-etat-verrouille"></use></svg> <b>Grille et palette verrouillées</b>
+            <button id="pixDeverrou" class="btn ghost" type="button" title="Lève le verrou : les champs Pixel-art redeviennent libres (le sprite reste approuvé, on peut le reprendre)">Déverrouiller</button></div>
+          <div id="pixVerrouTxt" class="pix-verrou-txt"></div>
+          <div id="pixVerrouPal" class="pix-verrou-pal" role="img" aria-label="Couleurs de la palette verrouillée"></div>
+          <div class="hint">Imposées par le serveur à chaque génération : les champs ci-dessus sont figés.</div>
+        </div>
       </fieldset>
 
       <fieldset class="animset">
@@ -343,6 +373,16 @@
       <a id="dlP2d" class="btn hidden" download title="Feuille Unreal Paper2D — l'importateur crée texture, sprites et flipbook"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-exporter"></use></svg> Paper2D</a>
       <button id="saveLib" class="btn primary" title="Copie le sheet dans la Library (réutilisable dans le Studio comme nœud Image)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-ajouter-bibliotheque"></use></svg> Save to Library</button>
       <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec ce sheet comme nœud Image"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-nav-studio"></use></svg> → Studio</button>
+    </div>
+
+    <!-- t340 (lot Scenario, B1) : Pixel Lock — la preuve de la grille (manifeste) et « Approuver ce sprite » -->
+    <div id="appro" class="appro hidden">
+      <div class="settings-sec">Pixel Lock</div>
+      <div id="approVerif" class="appro-verif"></div>
+      <div class="bible-row">
+        <button id="approBtn" class="btn primary" type="button" title="Fige la grille et la palette de ce sprite : les animations suivantes les reprennent, imposées par le serveur (local, gratuit)"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-action-valider"></use></svg> Approuver ce sprite</button>
+        <span id="approEtat" class="hint"></span>
+      </div>
     </div>
 
     <div id="sheetWrap" class="sheetwrap hidden">
