@@ -125,8 +125,9 @@ async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
             rep = rep(b) if callable(rep) else rep
             if rep is not None:
                 return rep[0], rep[1], {}
-        if b["status"] != "draft":
+        if b["status"] not in ("draft", "scheduled"):        # relevé §2 : vidage permis en brouillon et en planifié
             return 422, {"error": "Broadcast is not a draft"}, {}
+        b["status"] = "draft"
         b["recipients"] = []
         return 200, {"data": {"id": bid, "status": "draft", "total_recipients": 0}}, {}
     if len(parts) == 4 and parts[3] == "recipients" and methode == "POST":
@@ -594,47 +595,129 @@ check("K3.2 état cohérent : configuree, lot partiel noté", rec10["statut"] ==
       and rec10["ajout"]["ajoutes"] == 1000, rec10)
 check("K3.3 relancé : part", run(WD.lancer("post-10"))["statut"] == "sending")
 
-print("\n[K4] anciennes : relance confirmée sans relecture possible")
+print("\n[K4] re-revue O1 : relance confirmée SANS relecture possible -> l'ancienne est vidée d'abord, jamais parquée")
 VIEUX = FR[1700:1703]
 run(WD.configurer("post-11", cid, modele=MOD, parametres={"prenom": "a"}, identites=VIEUX))
 F.send = [(500, {"error": "boom"})]
 b_old = run(WD.lancer("post-11"))["broadcast_id"]
 F.get_panne = {b_old}
+F.appels.clear()
 r = run(WD.lancer("post-11", confirme_incertain=True))
 rec11 = WD.lire("post-11", boite)
-check("K4.1 nouvelle diffusion, l'ancienne parquée", r["broadcast_id"] != b_old and r["statut"] == "sending"
-      and [a["broadcast_id"] for a in rec11["anciennes"]] == [b_old], rec11.get("anciennes"))
-check("K4.2 ancienne réservation gardée (inconnue)", depenses(b_old)[0].reel_usd is None)
-check("K4.3 a_relire suit les anciennes",
-      "post-11" in {p for p, _e in WD.a_relire(datetime.now(timezone.utc) + timedelta(seconds=120))})
+_del = ("DELETE", f"/whatsapp/broadcasts/{b_old}/recipients")
+check("K4.1 relecture en panne : l'ancienne est VIDÉE avant la création de la relance, aucune ancienne parquée",
+      r["broadcast_id"] != b_old and r["statut"] == "sending" and F.bc[b_old]["recipients"] == []
+      and _del in F.appels and F.appels.index(_del) < F.appels.index(("POST", "/whatsapp/broadcasts"))
+      and rec11["anciennes"] == [], (F.appels, rec11.get("anciennes")))
+check("K4.2 ancienne réservation soldée à 0 (vidée : rien ne partira)", depenses(b_old)[0].reel_usd == 0.0)
 F.get_panne = set()
-ro = F.bc[b_old]["recipients"]
-F.bc[b_old]["status"] = "completed"
+for p_ in [f"post-{i}" for i in range(27, 33)]:
+    creer_post(p_, boite)
+# relecture en panne + vidage en panne -> refus, ni création ni send
+run(WD.configurer("post-27", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1710:1712]))
+F.send = [(500, {"error": "boom"})]
+b27 = run(WD.lancer("post-27"))["broadcast_id"]
+F.get_panne = {b27}
+F.vider = [(503, {"error": "indisponible"})]
+F.appels.clear()
+check("K4.3 relecture et vidage en panne : refus incertain", refus(WD.lancer("post-27", confirme_incertain=True)) == "incertain")
+check("K4.4 … ni création ni send, réservation gardée", ("POST", "/whatsapp/broadcasts") not in F.appels
+      and not any(c.endswith("/send") for _m, c in F.appels) and depenses(b27)[0].reel_usd is None, F.appels)
+F.get_panne, F.vider = set(), []
+# Kapso montre `scheduled` (ni tranché ni brouillon) : vidé (repasse draft) puis relance
+run(WD.configurer("post-28", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1720:1722]))
+F.send = [(500, {"error": "boom"})]
+b28 = run(WD.lancer("post-28"))["broadcast_id"]
+F.bc[b28]["status"] = "scheduled"
+F.appels.clear()
+r = run(WD.lancer("post-28", confirme_incertain=True))
+check("K4.5 statut scheduled : vidé d'abord (repassé brouillon), puis relance", r["broadcast_id"] != b28
+      and F.bc[b28]["recipients"] == [] and F.bc[b28]["status"] == "draft"
+      and ("DELETE", f"/whatsapp/broadcasts/{b28}/recipients") in F.appels and depenses(b28)[0].reel_usd == 0.0, F.appels)
+# relecture en panne et vidage 422 : aucune relance, suivie
+run(WD.configurer("post-29", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1730:1732]))
+F.send = [(500, {"error": "boom"})]
+b29 = run(WD.lancer("post-29"))["broadcast_id"]
+F.get_panne = {b29}
+F.vider = [(422, {"error": "Broadcast is not a draft"})]
+F.appels.clear()
+r = run(WD.lancer("post-29", confirme_incertain=True))
+F.get_panne = set()
+check("K4.6 relecture en panne, vidage 422 : AUCUNE relance, même broadcast, toujours suivie",
+      r["broadcast_id"] == b29 and ("POST", "/whatsapp/broadcasts") not in F.appels
+      and "post-29" in {p for p, _e in WD.a_relire(datetime.now(timezone.utc) + timedelta(seconds=120))}, (r, F.appels))
+
+print("\n[N1] re-revue : un 404 au vidage ne vaut « vidé » que si la diffusion est introuvable")
+run(WD.configurer("post-30", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1740:1742]))
+F.send = [(500, {"error": "boom"})]
+b30 = run(WD.lancer("post-30"))["broadcast_id"]
+F.vider = [(404, {"error": "Not found"})]
+F.appels.clear()
+check("N1.1 DELETE 404 mais GET lisible : refus incertain, aucune relance",
+      refus(WD.lancer("post-30", confirme_incertain=True)) == "incertain" and ("POST", "/whatsapp/broadcasts") not in F.appels
+      and depenses(b30)[0].reel_usd is None, F.appels)
+F.get_404.add(b30)
+r = run(WD.lancer("post-30", confirme_incertain=True))
+F.get_404.discard(b30)
+check("N1.2 DELETE 404 et GET 404 : diffusion disparue, soldée à 0, relance", r["broadcast_id"] != b30
+      and depenses(b30)[0].reel_usd == 0.0, r)
+
+print("\n[N2] re-revue : après un vidage refusé (422), jamais « en attente de confirmation »")
+run(WD.configurer("post-31", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1750:1752]))
+F.send = [(500, {"error": "boom"})]
+b31 = run(WD.lancer("post-31"))["broadcast_id"]
+refus(WD.lancer("post-31"))                       # relu draft -> attente
+F.vider = [(422, {"error": "Broadcast is not a draft"})]          # Kapso montre encore draft, mais a pris l'envoi
+r = run(WD.lancer("post-31", confirme_incertain=True))
+rec31 = WD.lire("post-31", boite)
+check("N2.1 vidage 422 : pas en attente, toujours incertaine, suivie, réservation gardée",
+      rec31["attente_confirmation"] is False and rec31["incertain"] is True and rec31["broadcast_id"] == b31
+      and "post-31" in {p for p, _e in WD.a_relire(datetime.now(timezone.utc) + timedelta(seconds=120))}
+      and depenses(b31)[0].reel_usd is None, rec31)
+run(WD.relire("post-31", boite))
+check("N2.2 relecture suivante (Kapso dit encore draft) : toujours pas « en attente »",
+      WD.lire("post-31", boite)["attente_confirmation"] is False)
+F.bc[b31]["status"] = "sending"
+run(WD.relire("post-31", boite))
+rec31 = WD.lire("post-31", boite)
+check("N2.3 Kapso tranche (sending) : plus incertaine, drapeau levé", rec31["incertain"] is False
+      and rec31["statut"] == "sending" and "vidage_refuse" not in rec31, rec31)
+
+print("\n[K4L] anciennes héritées (avant la re-revue) : relues jusqu'à leur terme, soldées")
+
+
+def parquer(post):
+    WD._modifier(boite, post, lambda r_: {**r_, "anciennes": [{"broadcast_id": r_["broadcast_id"], "lignes": r_["lignes"]}],
+                                          "broadcast_id": None, "statut": "configuree", "lignes": [], "incertain": False})
+
+
+run(WD.configurer("post-32", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1760:1763]))
+b_vieux = run(WD.lancer("post-32"))["broadcast_id"]
+parquer("post-32")
+check("K4L.1 a_relire suit les anciennes",
+      "post-32" in {p for p, _e in WD.a_relire(datetime.now(timezone.utc) + timedelta(seconds=120))})
+ro = F.bc[b_vieux]["recipients"]
+F.bc[b_vieux]["status"] = "completed"
 ro[0]["status"] = "sent"
 ro[1].update(status="suppressed", error_details={"code": "marketing_preference_stopped"})
 ro[2].update(status="failed", error_details={"code": "131050"})
-run(WD.relire("post-11", boite))
+run(WD.relire("post-32", boite))
 e_ = WA.etat(cid)
-check("K4.4 ancienne soldée : 1 sent x 0,08", abs(depenses(b_old)[0].reel_usd - 0.08) < 1e-9, depenses(b_old)[0].reel_usd)
-check("K4.5 désinscriptions de l'ancienne captées", f"tel:{ro[1]['phone_number']}" in e_["desinscrits_marketing"]
+check("K4L.2 ancienne soldée : 1 sent x 0,08", abs(depenses(b_vieux)[0].reel_usd - 0.08) < 1e-9, depenses(b_vieux)[0].reel_usd)
+check("K4L.3 désinscriptions de l'ancienne captées", f"tel:{ro[1]['phone_number']}" in e_["desinscrits_marketing"]
       and f"tel:{ro[2]['phone_number']}" in e_["desinscrits_marketing"])
-check("K4.6 retirée des anciennes", WD.lire("post-11", boite)["anciennes"] == [])
-
-print("\n[K4b] revue finale I1 : une ancienne encore draft n'est soldée qu'une fois VIDÉE")
-run(WD.configurer("post-24", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1650:1652]))
-F.send = [(500, {"error": "boom"})]
-b24 = run(WD.lancer("post-24"))["broadcast_id"]
-F.get_panne = {b24}
-run(WD.lancer("post-24", confirme_incertain=True))
-F.get_panne = set()
-F.vider = [_prise]                               # au premier vidage, Kapso l'a prise : elle reste suivie
-run(WD.relire("post-24", boite))
-check("K4b.1 vidage 422 : l'ancienne reste suivie, réservation gardée",
-      [a["broadcast_id"] for a in WD.lire("post-24", boite)["anciennes"]] == [b24] and depenses(b24)[0].reel_usd is None)
-F.bc[b24]["status"] = "draft"                    # (faux) redevenue brouillon : le vidage passe
-run(WD.relire("post-24", boite))
-check("K4b.2 vidée : soldée à 0 et retirée", WD.lire("post-24", boite)["anciennes"] == [] and depenses(b24)[0].reel_usd == 0.0
-      and F.bc[b24]["recipients"] == [], WD.lire("post-24", boite)["anciennes"])
+check("K4L.4 retirée des anciennes", WD.lire("post-32", boite)["anciennes"] == [])
+b24 = run(WD.lancer("post-32"))["broadcast_id"]       # une seconde, encore brouillon chez Kapso
+F.bc[b24]["status"] = "draft"
+parquer("post-32")
+F.vider = [_prise]
+run(WD.relire("post-32", boite))
+check("K4b.1 ancienne draft, vidage 422 : reste suivie, réservation gardée",
+      [a["broadcast_id"] for a in WD.lire("post-32", boite)["anciennes"]] == [b24] and depenses(b24)[0].reel_usd is None)
+F.bc[b24]["status"] = "draft"
+run(WD.relire("post-32", boite))
+check("K4b.2 vidée : soldée à 0 et retirée", WD.lire("post-32", boite)["anciennes"] == [] and depenses(b24)[0].reel_usd == 0.0
+      and F.bc[b24]["recipients"] == [], WD.lire("post-32", boite)["anciennes"])
 
 print("\n[M9] revue finale : diffusion supprimée chez Kapso (404 persistant)")
 run(WD.configurer("post-25", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1660:1662]))

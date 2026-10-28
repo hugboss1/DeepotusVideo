@@ -38,7 +38,11 @@ réservation soldée (`reel_note`) ; sinon `failed` reste définitif. Un send 2x
     Relance confirmée d'une diffusion incertaine (revue finale I1) : si Kapso disait `draft`, le brouillon est d'abord
     VIDÉ (`kapso.vider_destinataires`) — vidé : rien ne partira, l'ancienne réservation passe à 0 et la relance a lieu ;
     422 (plus un brouillon : Kapso a pris l'envoi) : AUCUNE relance, la diffusion est relue et suivie normalement ;
-    panne : refus `incertain`, rien ne change. Si la relecture a échoué, l'ancienne diffusion va dans `anciennes`.
+    panne : refus `incertain`, rien ne change. Re-revue O1 : ce vidage a lieu QUELLE QUE SOIT la relecture (`draft`,
+    `scheduled`, statut inconnu, relecture en échec) : jamais de send d'une relance sans preuve que l'ancienne ne peut
+    plus partir ; plus rien n'est « parqué » dans `anciennes` (les anciennes héritées restent relues). N1 : un 404 au
+    vidage ne vaut « vidé » que si le GET de la diffusion est aussi en 404. N2 : après un 422, `vidage_refuse` — la
+    diffusion reste suivie et n'est plus jamais « en attente de confirmation » jusqu'à ce que Kapso tranche.
   · `configurer` d'une diffusion en attente de confirmation (revue finale M3) : même vidage d'abord (vidé : solde à 0,
     retour à `configuree` ; 422 : relue, refus `deja_lancee` ; panne : refus `incertain`). Modèles refusés (M4) :
     catégorie `authentication`, en-tête texte variable (WhatsappRefus « modele »).
@@ -225,7 +229,14 @@ async def _neutraliser(post_id: str, bid) -> str:
         return "vide"
     except kapso.KapsoErreur as x:
         if x.statut == 404:
-            return "vide"
+            # re-revue N1 : un 404 au vidage ne vaut « vidé » que si la diffusion elle-même est introuvable (GET 404)
+            try:
+                await kapso.broadcast(bid)
+            except kapso.KapsoErreur as y:
+                if y.statut == 404:
+                    return "vide"
+            logger.warning(f"diffusion post {post_id} broadcast {bid} : vidage en 404 mais diffusion lisible, rien prouvé")
+            return "panne"
         if x.statut == 422:
             logger.warning(f"diffusion post {post_id} broadcast {bid} : plus un brouillon au vidage (422), suivie")
             return "partie"
@@ -248,7 +259,7 @@ async def _abandonner_attente(post_id: str, eid: str, rec: dict) -> None:
             raise WhatsappRefus("l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est relancé, "
                                 "réessayez dans un instant", "incertain")
         if issue == "partie":
-            _modifier(eid, post_id, lambda r: {**r, "attente_confirmation": False})
+            _modifier(eid, post_id, lambda r: {**r, "attente_confirmation": False, "vidage_refuse": True})
             try:
                 await _relire_sous_verrou(post_id, eid, cid)
             except kapso.KapsoErreur as x:
@@ -384,27 +395,24 @@ async def _lancer_sous_verrou(post_id, eid, cid, pid, confirme_incertain) -> dic
         if not confirme_incertain:
             raise WhatsappRefus("cette diffusion est peut-être déjà partie (panne de Kapso pendant l'envoi) : vérifiez-la, "
                                 "puis confirmez pour la relancer", "incertain")
-        if relu is not None and relu.get("statut_kapso") == "draft":
-            # revue finale I1 : `draft` à la relecture ne prouve rien (le send de Kapso est asynchrone) ; le brouillon est
-            # VIDÉ avant toute relance — vidé : rien ne partira, solde à 0 ; 422 : Kapso a pris l'envoi, aucune relance,
-            # la diffusion est suivie normalement ; panne : refus `incertain`, rien ne change
-            issue = await _neutraliser(post_id, rec.get("broadcast_id"))
-            if issue == "panne":
-                raise WhatsappRefus("l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est "
-                                    "relancé, réessayez dans un instant", "incertain")
-            if issue == "partie":
-                _modifier(eid, post_id, lambda r: {**r, "attente_confirmation": False})
-                try:
-                    await _relire_sous_verrou(post_id, eid, cid)
-                except kapso.KapsoErreur as x:
-                    logger.warning(f"diffusion post {post_id} : relecture impossible ({x.code})")
-                rec = _rec(post_id, eid)
-                if rec.get("attente_confirmation") is True:      # Kapso montre encore `draft` : suivie quand même
-                    rec = _modifier(eid, post_id, lambda r: {**r, "attente_confirmation": False})
-                return _rendu(rec)
-            await plafonds.noter_reel_lignes([l["id"] for l in rec.get("lignes") or []], 0.0)   # rien n'est parti
-        else:
-            anciennes = [{"broadcast_id": rec.get("broadcast_id"), "lignes": rec.get("lignes") or []}]
+        # revue finale I1 + re-revue O1 : JAMAIS de send d'une nouvelle diffusion tant que l'ancienne n'est pas PROUVÉE
+        # incapable de partir. Quelle que soit la relecture (`draft`, `scheduled`, statut inconnu, ou relecture en
+        # échec), l'ancien broadcast est VIDÉ d'abord (`DELETE …/recipients`, permis en brouillon et en planifié) —
+        # vidé : rien ne partira, solde à 0, relance ; 422 : ce n'est plus un brouillon, Kapso a pris l'envoi : aucune
+        # relance, la diffusion reste suivie (`vidage_refuse` : plus jamais « en attente de confirmation ») ; panne :
+        # refus `incertain`, rien ne change. Plus aucune ancienne n'est « parquée » pendant qu'une relance part.
+        issue = await _neutraliser(post_id, rec.get("broadcast_id"))
+        if issue == "panne":
+            raise WhatsappRefus("l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est "
+                                "relancé, réessayez dans un instant", "incertain")
+        if issue == "partie":
+            _modifier(eid, post_id, lambda r: {**r, "attente_confirmation": False, "vidage_refuse": True})
+            try:
+                await _relire_sous_verrou(post_id, eid, cid)
+            except kapso.KapsoErreur as x:
+                logger.warning(f"diffusion post {post_id} : relecture impossible ({x.code})")
+            return _rendu(_rec(post_id, eid))
+        await plafonds.noter_reel_lignes([l["id"] for l in rec.get("lignes") or []], 0.0)   # rien n'est parti
     elif _lancee(rec):
         raise WhatsappRefus("une diffusion de ce post est déjà lancée : elle ne se modifie plus", "deja_lancee")
 
@@ -426,6 +434,7 @@ async def _lancer_sous_verrou(post_id, eid, cid, pid, confirme_incertain) -> dic
     bid = cree["id"]
 
     def preparer(r):
+        r.pop("vidage_refuse", None)
         r.update(broadcast_id=bid, statut="preparation", incertain=False, attente_confirmation=False, n=0, lignes=[],
                  compteurs={}, ecartes=aud["ecartes"], ajout=None, reel_note=False,
                  modele={**modele, "meta_id": plat["meta_id"], "categorie": plat["categorie"]})
@@ -634,7 +643,10 @@ async def _relire_sous_verrou(post_id: str, eid: str, cid: str, complet: bool = 
             r["echecs_404"] = 0
             if sk in KAPSO_TRANCHE:
                 r["incertain"] = False
-            r["attente_confirmation"] = r.get("incertain") is True and sk == "draft"
+                r.pop("vidage_refuse", None)
+            # re-revue N2 : après un vidage refusé (422), Kapso a pris l'envoi : jamais « en attente » (rien n'est parti)
+            r["attente_confirmation"] = (r.get("incertain") is True and sk == "draft"
+                                         and r.get("vidage_refuse") is not True)
             if r.get("incertain") is not True and sk:
                 r["statut"] = sk
         if reel is not None:
