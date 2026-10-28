@@ -151,6 +151,9 @@ if (!window.__dzCapture) {
     const forme = el("select", { style: S.champ, "data-dz-capture-option": "forme", "aria-label": T("capture.camera.forme") },
       ["cercle", "carre", "vif"].map((f) => { const o = el("option", { value: f, texte: T("capture.forme." + f) }); return o; }));
     forme.value = formeLue(memo.forme);
+    // t316 : le groupe « Habillage » (dz-skins.js) : le skin de l'espace pour cette capture ; il propose sa forme d'encart
+    const habillage = window.__dzSkins && typeof window.__dzSkins.groupeCapture === "function"
+      ? window.__dzSkins.groupeCapture({ forme: (f) => { forme.value = formeLue(f); } }) : null;
     const clics = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "clics", "aria-label": T("capture.clics.piste") }),
       memo.clics !== false);
     const halo = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "halo", "aria-label": T("capture.clics.halo") }),
@@ -166,6 +169,7 @@ if (!window.__dzCapture) {
       mode: (boite.querySelector('input[name="dzCapCadre"]:checked') || {}).value === "onglet" ? "onglet" : "app",
       voix: voix.c.checked, son_onglet: son.c.checked, camera: cam.c.checked, forme: forme.value,
       clics: clics.c.checked, halo: halo.c.checked, zoom: zoom.c.checked,
+      skin: habillage ? habillage.valeur() : undefined,
     });
     btnDemarrer.addEventListener("click", async () => {
       const o = lireOptions();
@@ -185,6 +189,7 @@ if (!window.__dzCapture) {
           el("div", { style: S.groupe }, [el("div", { style: S.titreG, texte: T("capture.son.titre") }), voix.ligne, son.ligne]),
           el("div", { style: S.groupe }, [el("div", { style: S.titreG, texte: T("capture.camera.titre") }), cam.ligne,
             el("label", { style: S.ligne }, [el("span", { texte: T("capture.camera.forme") }), forme])]),
+          habillage ? habillage.noeud : null,
           el("div", { style: S.groupe }, [el("div", { style: S.titreG, texte: T("capture.clics.titre") }), clics.ligne,
             halo.ligne, zoom.ligne]),
           el("div", { style: S.note, texte: T("capture.boite.securite") }),
@@ -322,7 +327,8 @@ if (!window.__dzCapture) {
     const secret = estSecret(cible);
     const W = session.scene.largeur, H = session.scene.hauteur, maintenant = performance.now();
     if (session.options.halo) session.scene.etat.clics.push({ x: n.x * W, y: n.y * H, debut: maintenant });
-    if (session.options.zoom) session.scene.etat.zoom = { cx: n.x * W, cy: n.y * H, debut: maintenant };
+    if (session.options.zoom) session.scene.etat.zoom = Object.assign({}, session.scene.etat.styleZoom,     // t316 : style du skin
+      { cx: n.x * W, cy: n.y * H, debut: maintenant });
     if (!session.options.clics) return;
     const e = piste.clic({ x: n.x, y: n.y, bouton: ev.button, ecran: vue(), secret, cible: cibleClic(cible) });
     window.dispatchEvent(new CustomEvent("dz-capture:clic", { detail: { evt: e } }));
@@ -416,7 +422,8 @@ if (!window.__dzCapture) {
       const c = cadreFilme(), b = bornerEncart(x);
       return forme === "cercle" ? bornerEncart({ x: b.x, y: b.y, l: b.l, h: b.l * c.l / (c.h || 1) }) : b;
     };
-    let e = ajuster(memo || { x: 0.76, y: 0.62, l: 0.2, h: 0.32 });
+    // t316 : un skin donne la place de départ de l'encart (on le glisse ensuite) ; sans skin, la dernière place gardée
+    let e = ajuster((session.habit && session.scene.etat.encart) || memo || { x: 0.76, y: 0.62, l: 0.2, h: 0.32 });
     const v = el("video", { style: "width:100%;height:100%;object-fit:cover;display:block;pointer-events:none" });
     v.muted = true; v.playsInline = true; v.srcObject = flux; v.play().catch(() => {});
     const poignee = el("div", { style: S.poignee });
@@ -578,6 +585,15 @@ if (!window.__dzCapture) {
     if (flux.camera) scene.ajouterCalque(calqueEncart());
     scene.etat.forme = o.forme;
     scene.etat.textes.masque = T("capture.masque.ecran");
+    // t316 : le skin habille la scène AVANT la première image (4 s au plus ; en panne ou en retard : sans habillage).
+    // La forme choisie dans la boîte l'emporte sur celle du skin (la boîte la propose déjà d'après le skin).
+    let habit = null;
+    if (window.__dzSkins && typeof window.__dzSkins.habiller === "function") {
+      try { habit = await Promise.race([window.__dzSkins.habiller(scene, { skin: o.skin }), attendreMs(4000).then(() => null)]); }
+      catch (e) { habit = null; }
+      if (!habit) scene.etat.sansSkin = true;               // un habillage arrivé trop tard ne se pose plus
+      scene.etat.forme = o.forme;
+    }
     // 6. le son : voix (+ son de l'app) mêlés dans la scène ; jauge
     let analyseur = null;
     const pistesAudio = [];
@@ -593,7 +609,7 @@ if (!window.__dzCapture) {
     }
     const audio = pistesAudio.length ? new MediaStream(pistesAudio) : null;
     session = { id, scene, options: o, flux, notes, preuve: p, elementCapture, audio, debut: 0, enregistreurs: [],
-      ac, analyseur, minuteries: [], ui: null, encart: null, clics: piste, perdues: [] };
+      ac, analyseur, minuteries: [], ui: null, encart: null, clics: piste, perdues: [], habit };
     // 7. le masque AVANT la première image, puis la scène et les enregistreurs
     ecouter();
     session.minuteries.push(setInterval(ecouter, 1000));            // un lab ouvert pendant la capture
@@ -648,6 +664,11 @@ if (!window.__dzCapture) {
       let resultat = null, message = "";
       try {
         if (s.ui) { s.ui.arret.disabled = true; s.ui.temps.textContent = T("capture.pastille.envoi"); }
+        if (s.habit) {                        // t316 : l'outro du skin entre dans l'enregistrement (9 s au plus)
+          if (s.ui) s.ui.temps.textContent = T("capture.pastille.outro");
+          await Promise.race([s.habit.outro(), attendreMs(9000)]).catch(() => {});
+          if (s.ui) s.ui.temps.textContent = T("capture.pastille.envoi");
+        }
         const dureeMs = Math.round(performance.now() - s.debut);
         s.enregistreurs.forEach((x) => { try { if (x.rec.state !== "inactive") x.rec.stop(); } catch (e) { /* déjà arrêté */ } });
         await Promise.all(s.enregistreurs.map((x) => Promise.race([x.arrete, attendreMs(5000)])));

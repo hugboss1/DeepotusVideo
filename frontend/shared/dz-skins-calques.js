@@ -45,7 +45,8 @@ function forme(ctx, f, x, y, l, h) {
 export function habiller(scene, skin0, env) {
   const E = env || {}, T = typeof E.T === "function" ? E.T : (k) => k;
   let skin = skin0 || {}, pal, pol, txt;
-  const st = { debut: null, outro: null, ecran: null, alertes: [], t: 0 };
+  // apercu (éditeur) : l'intro est déjà passée au départ et le bandeau reste visible (pour le régler et le glisser)
+  const st = { debut: null, outro: null, ecran: null, alertes: [], t: 0, decalage: E.apercu ? 1e7 : 0 };
   const avant = { cadre: scene.etat.cadre, styleZoom: scene.etat.styleZoom, forme: scene.etat.forme, encart: scene.etat.encart };
   const avaitClics = scene.calques().some((c) => c.id === "clics");
   const avaitEncart = scene.calques().some((c) => c.id === "encart");
@@ -66,7 +67,7 @@ export function habiller(scene, skin0, env) {
     }
   }
   appliquer();
-  const temps = (s) => { if (st.debut == null) st.debut = s.t; st.t = s.t - st.debut; return st.t; };
+  const temps = (s) => { if (st.debut == null) st.debut = s.t - st.decalage; st.t = s.t - st.debut; return st.t; };
   const retirerCrochet = scene.surImage((s) => { temps(s); });
 
   // fond (sous l'écran) : visible seulement autour d'un écran réduit
@@ -146,7 +147,7 @@ export function habiller(scene, skin0, env) {
   } });
   // le bandeau titre (lower third)
   scene.ajouterCalque({ id: "skin-bandeau", z: Z.bandeau, dessiner(ctx, s) {
-    const a = bandeau(skin, st.t);
+    const a = E.apercu && skin.bandeau && skin.bandeau.actif ? 1 : bandeau(skin, st.t);
     if (!(a > 0) || carte(skin, st.t, st)) return;
     const r = disposer(skin, s.largeur, s.hauteur).bandeau, b = skin.bandeau, mes = mesureur(ctx);
     const glisse = (1 - a) * -r.l * 0.15;
@@ -240,7 +241,7 @@ export function habiller(scene, skin0, env) {
       const ms = (Number(skin.outro.duree_s) || 3) * 1000 + FONDU;
       return new Promise((ok) => setTimeout(() => ok(true), ms));
     },
-    rejouer() { st.debut = null; st.outro = null; st.ecran = null; st.alertes = []; },
+    rejouer() { st.debut = null; st.decalage = 0; st.outro = null; st.ecran = null; st.alertes = []; },
     retirer() {
       retirerCrochet();
       IDS.forEach((id) => scene.retirerCalque(id));

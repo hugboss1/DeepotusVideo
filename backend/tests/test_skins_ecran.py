@@ -259,7 +259,164 @@ check("C11 retirer : calques du skin partis, clics et encart d'origine rendus, c
 check("C12 aucun calque au-dessus du caviardage (z ≥ 900 refusé par la scène)", C["triche"] == "refus")
 check("C13 sans caméra ni halo : le skin ne pose ni encart ni clics", "encart" not in C["sansCam"] and "clics" not in C["sansCam"], C["sansCam"])
 
-# ── [U] [P] : plus bas (tâche 4) ──
+# ── [U] dz-skins.js et son branchement dans dz-capture.js, sous le faux DOM du banc de t315 ──
+print("[U] dz-skins.js + dz-capture.js")
+import ast                                                            # noqa: E402
+_src = (BACKEND / "tests" / "test_capture_ecran.py").read_text("utf-8")
+_v = {n.targets[0].id: n.value.value for n in ast.parse(_src).body
+      if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name) and n.targets[0].id in ("FAUX", "MD_PANNE")}
+DICO_CAP = json.loads((SH / "i18n" / "capture.json").read_text("utf-8"))
+DICO_TOUT = dict(DICO_CAP, **DICO)
+SID = "0123456789abcdef"
+SKIN_U = dict(SKIN, id=SID, nom="Mon skin", livre=False, espace_id="deepotus", images=[], modifie="x",
+              encart=dict(SKIN["encart"], forme="vif"))
+DECOR = r"""
+const LOG = [];
+const LISTE = {espace: "deepotus", espace_nom: "Deepotus", choisi: "%s", skins: [{id: "%s", nom: "Mon skin", livre: false}],
+  livres: [{id: "livre-neon", nom: "Néon", livre: true}]};
+const DETAIL = {skin: %s, contexte: %s};
+globalThis.fetch = async (u, o) => { const m = (o && o.method) || "GET"; LOG.push(m + " " + u);
+  const rep = (j) => ({ok: true, status: 200, headers: {get: () => "application/json"}, json: async () => j});
+  if (u === "/api/skins") return rep(LISTE);
+  if (u === "/api/skins/%s") return rep(DETAIL);
+  if (u === "/api/capture/sessions") return rep({id: "fedcba9876543210"});
+  if (u.endsWith("/terminer")) return rep({fichier: "capture.mp4", job_id: "j", clics: {clics: 0, reconnus: 0}});
+  return rep({}); };
+globalThis.Image = function(){ const im = this; setTimeout(() => { im.naturalWidth = 64; im.naturalHeight = 64; im.complete = true; if (im.onload) im.onload(); }, 0); };
+globalThis.MediaStream = function(l){ this.l = l || []; this.getTracks = () => this.l; this.getVideoTracks = () => this.l; this.getAudioTracks = () => []; };
+const OPS = [];
+const Ctx = () => new Proxy({}, {get: (t, k) => (k in t ? t[k] : (k === "createLinearGradient" ? () => ({addColorStop(){}}) :
+  (k === "measureText" ? (s) => ({width: String(s).length * 7}) : (...a) => { OPS.push([k, a[0]]); }))), set: (t, k, v) => { t[k] = v; return true; }});
+const creer = document.createElement;
+document.createElement = (t) => { const n = creer(t); if (t === "canvas") { n.getContext = Ctx; n.captureStream = () => new MediaStream([]); }
+  if (t === "video") n.play = () => Promise.resolve(); return n; };
+globalThis.MediaRecorder = function(){ this.state = "inactive"; this.mimeType = "video/webm"; this.ec = {}; };
+MediaRecorder.isTypeSupported = () => true;
+MediaRecorder.prototype.addEventListener = function(t, f){ (this.ec[t] = this.ec[t] || []).push(f); };
+MediaRecorder.prototype.start = function(){ this.state = "recording"; LOG.push("rec:start"); };
+MediaRecorder.prototype.stop = function(){ this.state = "inactive"; LOG.push("rec:stop"); (this.ec.stop || []).forEach(f => f()); };
+globalThis.setInterval = () => 1; globalThis.clearInterval = () => {};
+const pause = (ms) => new Promise(ok => setTimeout(ok, ms || 5));
+""" % (SID, SID, json.dumps(SKIN_U), json.dumps(CTX), SID)
+
+
+def harnais_u(lang, corps):
+    dico = json.dumps(DICO_TOUT)
+    return ((_v["FAUX"] % (dico, lang, _v["MD_PANNE"])) + DECOR
+            + "\nawait import(%s);\nawait import(%s);\n" % (json.dumps(URL("dz-skins.js")), json.dumps(URL("dz-capture.js"))) + corps)
+
+
+U = node(harnais_u("fr", r"""
+const out = {};
+const formes = [];
+const g = window.__dzSkins.groupeCapture({forme: (f) => formes.push(f)});
+out.avant = g.valeur() === undefined ? null : g.valeur();
+await pause(30);
+const sel = g.noeud.querySelector("[data-dz-skins-choix]");
+out.options = sel.enfants.map(o => [o.attrs.value, o.textContent, o.getAttribute("data-dz-brut") !== null]);
+out.valeur = g.valeur(); out.formes = formes;
+// la boîte de départ de l'enregistreur porte le groupe, et sa forme d'encart suit le skin
+window.__dzCapture.ouvrir();
+await pause(30);
+const boite = document.querySelector("[data-dz-capture-boite]");
+out.groupe = !!boite.querySelector("[data-dz-skins-groupe]");
+out.forme = boite.querySelector('[data-dz-capture-option="forme"]').value;
+boite.remove();
+// une capture avec le skin : habillée AVANT la première image, l'outro jouée AVANT l'arrêt des pistes
+const vrai = window.__dzSkins.habiller;
+window.__dzSkins.habiller = async (scene, o) => { LOG.push("habiller:" + o.skin + ":" + OPS.length);
+  const h = await vrai(scene, o); if (h) { const outro = h.outro; h.outro = () => { LOG.push("outro"); outro(); return Promise.resolve(true); }; } return h; };
+const r = await window.__dzCapture.demarrer({skin: "%s", voix: false, camera: false, halo: true, zoom: true});
+out.r = r;
+const s = window.__dzCapture.session();
+out.calques = s ? s.scene.calques().map(c => c.id) : null;
+out.textes = OPS.filter(o => o[0] === "fillText").map(o => o[1]);
+out.styleZoom = s ? s.scene.etat.styleZoom : null;
+await window.__dzCapture.arreter();
+out.log = LOG.filter(x => x === "outro" || x === "rec:stop" || x === "rec:start" || x.startsWith("habiller"));
+console.log(JSON.stringify(out));
+""" % SID))
+check("U1 groupe « Habillage » : rien tant que la liste n'est pas lue (le skin de l'espace sera pris)", U["avant"] is None, U["avant"])
+check("U2 options : sans habillage, skins de l'espace (nom brut), livrés traduits ; choix de l'espace sélectionné",
+      U["options"] == [["", DICO["skins.capture.aucun"]["fr"], False], [SID, "Mon skin", True], ["livre-neon", DICO["skins.livre.neon"]["fr"], False]]
+      and U["valeur"] == SID, U["options"])
+check("U3 la forme d'encart du skin est proposée à la boîte", U["formes"] == ["vif"] and U["groupe"] is True and U["forme"] == "vif", U)
+check("U4 la capture démarre habillée : calques du skin posés, zoom stylé", U["r"]["ok"] is True and U["calques"]
+      and "skin-carte" in U["calques"] and "skin-bandeau" in U["calques"]
+      and U["styleZoom"] == {"k": SKIN["zoom"]["niveau"], "duree": SKIN["zoom"]["duree_ms"]}, U)
+check("U5 habillée AVANT la première image : aucun dessin avant habiller, et la première image est l'intro",
+      U["log"][0] == "habiller:" + SID + ":0" and U["textes"][:1] == ["Deepotus"], (U["log"], U["textes"][:4]))
+log = U["log"]
+check("U6 l'outro est jouée AVANT l'arrêt des pistes", "outro" in log and "rec:stop" in log and log.index("outro") < log.index("rec:stop"), log)
+
+U5 = node(harnais_u("en", r"""
+// un skin qui ne répond pas : la capture part sans habillage (jamais bloquée)
+window.__dzSkins.habiller = () => new Promise(() => {});
+const t0 = Date.now();
+const r = await window.__dzCapture.demarrer({skin: "", voix: false, camera: false, halo: true});
+const s = window.__dzCapture.session();
+const out = {r, ids: s.scene.calques().map(c => c.id), sansSkin: s.scene.etat.sansSkin, ms: Date.now() - t0};
+await window.__dzCapture.arreter();
+console.log(JSON.stringify(out));
+"""))
+check("U7 habillage en panne (jamais résolu) : la capture démarre sans skin après le délai (4 s au plus)",
+      U5["r"]["ok"] is True and U5["ids"] == ["ecran", "clics", "caviardage"] and U5["sansSkin"] is True and U5["ms"] < 6000, U5)
+
+# ── [P] livraison ──
+print("[P] livraison")
+TXT = (SH / "dz-skins.js").read_text("utf-8")
+LOG_ = (SH / "dz-skins-logique.js").read_text("utf-8")
+CAL = (SH / "dz-skins-calques.js").read_text("utf-8")
+check("P1 copies shared == dist (trois modules des skins et ceux de la capture qu'ils touchent)",
+      all((DI / f).is_file() and (DI / f).read_bytes() == (SH / f).read_bytes()
+          for f in FICHIERS + ["dz-capture.js", "dz-capture-logique.js", "dz-capture-scene.js"]))
+idx = (REPO / "frontend" / "dist" / "index.html").read_text("utf-8")
+balise = '<script type="module" src="/shared/dz-skins.js"></script>'
+check("P2 index.html charge dz-skins.js une fois, en module, avant dz-capture.js",
+      idx.count("dz-skins") == 1 and idx.count(balise) == 1 and idx.index(balise) < idx.index("/shared/dz-capture.js"))
+sans_comm = lambda s: re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", s, flags=re.S))   # noqa: E731
+check("P3 ni alert/confirm/prompt natifs, aucun emoji", not any(re.search(r"(?<![\w.$])(?:window\.)?(?:confirm|alert|prompt)\(", sans_comm(x))
+                                                                for x in (TXT, LOG_, CAL))
+      and not any(re.search("[\U0001F300-\U0001FAFF☀-➿]", x) for x in (TXT, LOG_, CAL)))
+check("P4 angles vifs : aucun border-radius non nul dans l'éditeur", not re.findall(r"border-radius:[1-9]", TXT)
+      and "border-radius:0" in TXT)
+check("P5 une seule écoute clavier : le piège Tab/Échap de l'éditeur", len(re.findall(r'addEventListener\("key', sans_comm(TXT))) == 1
+      and 'voile.addEventListener("keydown"' in TXT)
+check("P6 le logo de l'APPLICATION n'est jamais lu (règle du logo figé) : seul le logo de l'espace ou du skin",
+      not any(x in TXT + CAL for x in ("/api/branding", "deepotus-logo", "brand-kits")) and "logo_espace" in TXT)
+# clés employées : littérales + dérivées (livrés, sections, champs, options, lecture)
+cles = set(re.findall(r'"(skins\.[a-z_]+\.[a-z_]+)"', TXT + LOG_ + CAL))
+bloc = TXT[TXT.index("const CHAMPS = ["):TXT.index("const ROLES")]
+sections = re.findall(r'^\s{4}\["(\w+)", \[', bloc, re.M)
+derivees = {"skins.livre." + x.replace("livre-", "") for x in LIVRES} | {"skins.section." + s for s in sections}
+morceaux = re.split(r'^\s{4}\["(\w+)", ', bloc, flags=re.M)
+for sec, corps in zip(morceaux[1::2], morceaux[2::2]):
+    for cle, typ in re.findall(r'\["([\w.@]+)", "(case|plage|texte|choix|police|hex|kit|ref|image)"',
+                               re.sub(r'"choix", \[[^\]]*\]', '"choix"', corps)):
+        derivees.add("skins.couleur." + cle if sec == "couleurs" else "skins.police." + cle if sec == "polices"
+                     else "skins.champ." + cle.replace(".", "_").replace("@", "image_"))
+    for opts in re.findall(r'"choix", \[([^\]]*)\]', corps):
+        derivees |= {"skins.option." + o.replace("-", "_") for o in re.findall(r'"([\w-]+)"', opts)}
+derivees |= {"skins.couleur." + r for r in ("principale", "accent", "texte", "fond")}
+derivees |= {"skins.jouer." + j for j in re.findall(r'lecture\("(\w+)"', TXT)}
+derivees |= {"skins.editeur.image_posee", "skins.editeur.image_otee", "skins.editeur.enregistrer_copie"}
+emploi = cles | derivees
+check("P7 toutes les clés employées existent", not (emploi - set(DICO)), sorted(emploi - set(DICO)))
+check("P8 toutes les clés du fichier sont employées", not (set(DICO) - emploi), sorted(set(DICO) - emploi))
+var = lambda s: sorted(re.findall(r"\{(\w+)\}", s))                  # noqa: E731
+check("P9 FR/EN non vides, mêmes variables, clés à 3 segments au moins",
+      all(v["fr"].strip() and v["en"].strip() and var(v["fr"]) == var(v["en"]) and re.fullmatch(r"[a-z0-9]+(\.[a-z0-9_]+){2,}", k)
+          for k, v in DICO.items()))
+tout = {}
+for f in sorted((SH / "i18n").glob("*.json")):
+    for k, v in json.loads(f.read_text("utf-8")).items():
+        tout.setdefault(v["fr"], set()).add(v["en"])
+check("P10 une phrase FR = une seule traduction dans toute l'interface", not [k for k, v in DICO.items() if len(tout[v["fr"]]) > 1],
+      [k for k, v in DICO.items() if len(tout[v["fr"]]) > 1])
+dico_js = (SH / "dz-i18n-dico.js").read_text("utf-8")
+check("P11 dictionnaire assemblé (shared == dist) avec les clés skins.*",
+      all(json.dumps(k, ensure_ascii=False) in dico_js for k in DICO) and (DI / "dz-i18n-dico.js").read_bytes() == (SH / "dz-i18n-dico.js").read_bytes())
+check("P12 livrés du serveur tous traduits à l'écran", all("skins.livre." + x.replace("livre-", "") in DICO for x in LIVRES))
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

@@ -4,7 +4,7 @@ docs/superpowers/plans/2026-10-28-t316-skins.md, tâche 2 ; spec boîte à outil
 
 Boucle locale SEULEMENT (`routes._require_localhost`). L'espace est celui de la requête (en-tête X-Dz-Espace, sinon
 l'espace actif : `espaces.espace_courant()`).
-- `GET    /`                          {espace, choisi, skins (de l'espace), livres}
+- `GET    /`                          {espace, espace_nom, choisi, skins (de l'espace), livres}
 - `GET    /actif`                     {skin | null, contexte} : le skin de l'espace (défaut livre-deepotus)
 - `PUT    /choix`                     {skin_id | ""} -> {choisi}
 - `POST   /`                          {base?, nom?} -> skin neuf de l'espace (copie d'un livré ou d'un skin)
@@ -75,8 +75,9 @@ async def _faire(f, *args):
 async def lister(request: Request):
     _local(request)
     eid = _espace()
-    return {"espace": eid, "choisi": await _faire(K.choisi, eid), "skins": await _faire(K.lister, eid),
-            "livres": await _faire(K.livres)}
+    cx = await _faire(K.contexte, eid)
+    return {"espace": eid, "espace_nom": cx["espace"]["nom"], "choisi": await _faire(K.choisi, eid),
+            "skins": await _faire(K.lister, eid), "livres": await _faire(K.livres)}
 
 
 @router.get("/actif")

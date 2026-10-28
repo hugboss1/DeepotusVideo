@@ -32,6 +32,7 @@
   "capture.pastille.camera": {"fr": "Caméra allumée", "en": "Camera on"},
   "capture.pastille.arreter": {"fr": "Arrêter", "en": "Stop"},
   "capture.pastille.envoi": {"fr": "Rangement…", "en": "Saving…"},
+  "capture.pastille.outro": {"fr": "Outro du skin…", "en": "Skin outro…"},
   "capture.encart.titre": {"fr": "Encart caméra : glisse pour le déplacer, tire le coin pour l'agrandir", "en": "Camera inset: drag to move it, pull the corner to resize it"},
   "capture.masque.ecran": {"fr": "Masqué pendant l'enregistrement", "en": "Hidden while recording"},
   "capture.note.sans_ec": {"fr": "tout l'onglet", "en": "whole tab"},
