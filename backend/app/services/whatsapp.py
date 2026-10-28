@@ -863,12 +863,16 @@ def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None, heure
         if not heure_sure:
             e["journal"][-1]["heure_sure"] = False
     _noter(cid, geste)
-    if not stop:                          # t357 : la réponse d'un prospect se voit sur sa fiche (un STOP va déjà au registre)
-        _PROSPECT_ENTRANT(cid, ident)
+    groupe = [ident] + ([autre] if autre else [])
+    if stop:                              # t357 (relecture C1) : un STOP tapé vaut pour toute la prospection (registre)
+        for i in groupe:
+            _stop_au_registre(cid, i)
+    else:                                 # t357 : la réponse d'un prospect se voit sur sa fiche (tel et bsuid : I4)
+        _PROSPECT_ENTRANT(cid, groupe)
     return ident
 
 
-def _prospect_entrant(cid: str, ident: str) -> None:
+def _prospect_entrant(cid: str, ident) -> None:
     from app.services import whatsapp_prospection as _wp
     _wp.crochet_entrant(cid, ident)
 

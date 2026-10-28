@@ -10937,6 +10937,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "prospects.seqmotif.echec": {"fr": "Arrêtée : l'envoi a échoué trois fois.", "en": "Stopped: sending failed three times."},
   "prospects.seqmotif.effacee": {"fr": "Arrêtée : la fiche a été effacée.", "en": "Stopped: the record was erased."},
   "prospects.seqmotif.fenetre": {"fr": "Arrêtée : la fenêtre de 24 h était fermée (un texte libre ne part que si le contact a écrit dans les 24 h).", "en": "Stopped: the 24-hour window was closed (free text only goes if the contact wrote within 24 hours)."},
+  "prospects.seqmotif.incertain": {"fr": "Arrêtée : l'envoi WhatsApp a peut-être eu lieu (réponse incertaine du fournisseur) ; vérifiez dans l'onglet WhatsApp avant de relancer.", "en": "Stopped: the WhatsApp message may have gone out (uncertain provider answer); check the WhatsApp tab before following up."},
   "prospects.seqmotif.modele": {"fr": "Arrêtée : modèle WhatsApp inconnu ou non approuvé.", "en": "Stopped: unknown or unapproved WhatsApp template."},
   "prospects.seqmotif.rebond": {"fr": "Arrêtée : l'adresse a rebondi.", "en": "Stopped: the address bounced."},
   "prospects.seqmotif.remplacee": {"fr": "Remplacée par une nouvelle proposition.", "en": "Replaced by a new proposal."},
