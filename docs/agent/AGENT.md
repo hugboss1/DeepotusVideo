@@ -163,6 +163,13 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   de l'espace de la campagne (« Activer l'espace … et ouvrir le calendrier »). Porte 2 : l'utilisateur programme
   lui-même. L'agent ne publie, ne programme, ne supprime rien et ne touche ni clés ni Réglages. Catégorie
   « campagnes ». → [GUIDE:agent-campagnes]
+- **Préparer un modèle 3D pour un jeu** (t342) : dans l'Établi (07 du 3D Studio), ouvrir une version. Onglet
+  Parties › « Pièces mobiles » : « Chercher les pièces · gratuit » propose les îlots nommés (corps, roues, couvercle),
+  on les renomme, puis « Séparer en N pièces » écrit une version où chaque pièce pivote sur son axe ; pièces soudées :
+  « Segmenter par IA » (Tripo sur fal, payant, prix sur le bouton, confirmé, catégorie « moteurs3d », clé fal). Un
+  modèle riggé se découpe AVANT le rig. Onglet Export › « Budgets de triangles » : choisir le rôle (héros 50 k / 8 k /
+  2 k, accessoire, décor, web, Roblox), « Générer les 3 densités » (gratuit) ; le tableau dit triangles, taille et
+  fidélité, les pièces sont gardées. → [ALLER:assets3d] [GUIDE:etabli]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 
