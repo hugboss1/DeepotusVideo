@@ -36,6 +36,7 @@
   "montagecap.coupe.aucune": {"fr": "Aucune attente de génération repérée.", "en": "No generation wait found."},
   "montagecap.coupe.note": {"fr": "Les attentes de génération sont repérées d'après la piste ; un passage accéléré est muet.", "en": "Generation waits are found from the track; a sped-up part is silent."},
   "montagecap.chapitre.titre": {"fr": "Chapitres", "en": "Chapters"},
+  "montagecap.chapitre.nom": {"fr": "Titre du chapitre", "en": "Chapter title"},
   "montagecap.chapitre.ajouter": {"fr": "Chapitre à cet instant", "en": "Chapter at this moment"},
   "montagecap.st.titre": {"fr": "Sous-titres de la voix", "en": "Voice subtitles"},
   "montagecap.st.source": {"fr": "Source des sous-titres", "en": "Subtitle source"},

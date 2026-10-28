@@ -12,7 +12,7 @@
 //   canaux : ceux du projet actif de l'espace, t307). Rien n'est publié.
 // API : window.__dzMontageCapture = {ouvrir(id), liste()}. Banc : backend/tests/test_capture_montage_ecran.py.
 import { FORMATS, VITESSES, K_MIN, K_MAX, segments, versSortie, horloge, fenetre, lecture, ajouterZoom, ajouterChapitre,
-  retirer, modifier, ecranA, clicProche, libelleChapitre, brouillon } from "./dz-montage-capture-logique.js";
+  retirer, modifier, ecranA, clicProche, libelleChapitre, titresRemplis, brouillon } from "./dz-montage-capture-logique.js";
 
 if (!window.__dzMontageCapture) {
   const T = (cle, vars) => (typeof window.dzT === "function" ? window.dzT(cle, vars) : cle);
@@ -22,22 +22,26 @@ if (!window.__dzMontageCapture) {
     s.innerHTML = typeof window.dzIcone === "function" ? window.dzIcone(cle, { taille: 14 }) : "";
     return s;
   };
-  const el = (tag, attrs, enfants) => {
-    const n = document.createElement(tag);
+  const poser = (n, attrs) => {
     for (const [k, v] of Object.entries(attrs || {})) {
       if (k === "on") for (const [e, f] of Object.entries(v)) n.addEventListener(e, f);
       else if (k === "texte") n.textContent = v;
       else if (k === "style") n.style.cssText = v;
       else if (v !== false && v != null) n.setAttribute(k, v === true ? "" : v);
     }
+    return n;
+  };
+  const el = (tag, attrs, enfants) => {
+    const n = poser(document.createElement(tag), attrs);
     for (const c of enfants || []) if (c) n.appendChild(c);
     return n;
   };
-  const bouton = (cle, attrs, icone, principal) => {
-    const b = el("button", Object.assign({ type: "button", class: principal ? "dzMcP" : "dzMcB" }, attrs || {}),
-      [icone ? glyphe(icone) : null, document.createTextNode(T(cle))]);
-    return b;
-  };
+  // un bouton de l'éditeur : libellé T(cle), glyphe devant (forme lue par le catalogue de « Demander »)
+  function bouton(cle, attrs, icone, principal) {
+    const b = el("button", { type: "button", class: principal ? "dzMcP" : "dzMcB", texte: T(cle) });
+    if (icone) b.insertBefore(glyphe(icone), b.firstChild);
+    return poser(b, attrs);
+  }
   const CSS = ".dzMcGl{display:inline-flex;align-items:center;vertical-align:middle;margin-right:5px}.dzMcGl svg{display:block}"
     + ".dzMcV{position:fixed;inset:0;z-index:2147483005;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center}"
     + ".dzMcD{display:flex;flex-direction:column;border-radius:0;background:var(--srf-panel,var(--bg-panel-2,#13171c));border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138));color:var(--txt-base,var(--ink,#cfd6e2));box-shadow:0 18px 50px rgba(0,0,0,.5);font:13px/1.45 system-ui,sans-serif;max-width:96vw;max-height:94vh}"
@@ -54,7 +58,8 @@ if (!window.__dzMontageCapture) {
     + ".dzMcN{font-size:11.5px;color:var(--txt-mid,var(--ink-muted,#9aa4ae))}"
     + ".dzMcE{font-size:12px;color:var(--red,#e5484d)}"
     + ".dzMcI{font:inherit;font-size:12px;padding:3px 6px;border-radius:0;background:var(--srf-raised,var(--bg-panel-3,#1b2028));color:var(--txt-hi,var(--ink-strong,#e6e9ee));border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138))}"
-    + ".dzMcF{position:relative;height:34px;background:var(--srf-raised,#1b2028);border:1px solid var(--brd-hard,#2a3138);cursor:pointer}"
+    + ".dzMcI:disabled{opacity:.45}.dzMcD input[type=range]{accent-color:var(--brand,#f0b429)}"
+    + ".dzMcF{flex:none;position:relative;height:34px;background:var(--srf-raised,#1b2028);border:1px solid var(--brd-hard,#2a3138);cursor:pointer}"
     + ".dzMcF span{position:absolute;top:0;bottom:0}";
   document.head.appendChild(el("style", { "data-dz-montage-ui": true, texte: CSS }));
 
@@ -192,9 +197,9 @@ if (!window.__dzMontageCapture) {
     // listes réglables
     const sec = (cle, icone, attrs, enfants) => el("div", Object.assign({ class: "dzMcS" }, attrs),
       [el("div", { class: "dzMcH" }, [glyphe(icone), document.createTextNode(T(cle))])].concat(enfants));
-    const secondes = (v, surChange, etiquette) => {
+    const secondes = (v, surChange, cle) => {
       const i = el("input", { type: "number", class: "dzMcI", step: "0.1", min: "0", max: String(duree / 1000),
-        value: (v / 1000).toFixed(1), style: "width:64px", "aria-label": etiquette });
+        value: (v / 1000).toFixed(1), style: "width:64px", "aria-label": T(cle) });
       i.addEventListener("change", () => { const n = parseFloat(i.value); if (isFinite(n)) surChange(Math.round(n * 1000)); });
       return i;
     };
@@ -217,8 +222,8 @@ if (!window.__dzMontageCapture) {
         niveau.addEventListener("change", () => { m = modifier(m, "zooms", z.id, { k: Number(niveau.value) }); sale(); tout(); });
         return el("div", { class: "dzMcL", "data-dz-montage-zoom": z.id }, [
           el("span", { texte: T("montagecap.zoom.ligne", { n: i + 1 }) }),
-          secondes(z.t0, (v) => { m = modifier(m, "zooms", z.id, { t0: v }); sale(); tout(); }, T("montagecap.zoom.debut")),
-          secondes(z.t1, (v) => { m = modifier(m, "zooms", z.id, { t1: v }); sale(); tout(); }, T("montagecap.zoom.fin")),
+          secondes(z.t0, (v) => { m = modifier(m, "zooms", z.id, { t0: v }); sale(); tout(); }, "montagecap.zoom.debut"),
+          secondes(z.t1, (v) => { m = modifier(m, "zooms", z.id, { t1: v }); sale(); tout(); }, "montagecap.zoom.fin"),
           niveau, val, supprimer("zooms", z.id)]);
       }) : [el("div", { class: "dzMcN", texte: T("montagecap.zoom.aucun") })]));
       coupes.replaceChildren(...(m.coupes.length ? m.coupes.map((c) => {
@@ -234,8 +239,8 @@ if (!window.__dzMontageCapture) {
           el("span", { "data-dz-brut": true, texte: `${horloge(c.t0)} – ${horloge(c.t1)}` }), mode, vit, supprimer("coupes", c.id)]);
       }) : [el("div", { class: "dzMcN", texte: T("montagecap.coupe.aucune") })]));
       chapitres.replaceChildren(...m.chapitres.map((h, i) => {
-        const titre = el("input", { type: "text", class: "dzMcI", maxlength: "80", value: h.titre, placeholder: libelleChapitre(h, i),
-          "aria-label": T("montagecap.chapitre.titre"), style: "flex:1;min-width:120px" });
+        const titre = el("input", { type: "text", class: "dzMcI", maxlength: "80", value: h.titre, placeholder: libelleChapitre(h, i, T),
+          "aria-label": T("montagecap.chapitre.nom"), style: "flex:1;min-width:120px" });
         titre.addEventListener("change", () => { m = modifier(m, "chapitres", h.id, { titre: titre.value.slice(0, 80) }); sale(); });
         return el("div", { class: "dzMcL", "data-dz-montage-chapitre": h.id }, [
           el("span", { "data-dz-brut": true, texte: horloge(h.t) }), titre, supprimer("chapitres", h.id)]);
@@ -282,7 +287,7 @@ if (!window.__dzMontageCapture) {
       occupe(true);
       try {
         const r = await api(`/api/capture-montage/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ montage: m }) });
+          body: JSON.stringify({ montage: titresRemplis(m, T) }) });
         m = r.j.montage; modifie = false; tout(); etat.textContent = T("montagecap.etat.enregistre");
       } catch (e) { etat.textContent = T("montagecap.erreur.action", { msg: e.message }); }
       occupe(false);
@@ -292,6 +297,7 @@ if (!window.__dzMontageCapture) {
       resultat.style.display = "none";
       etat.textContent = T("montagecap.etat.rendu");
       try {
+        m = titresRemplis(m, T); tout();
         const corps = Object.assign({ montage: m, titre: T("montagecap.rendu.titre_auto", { quand: new Date().toLocaleString() }) },
           confirmation || {});
         const { statut, j } = await api(`/api/capture-montage/${id}/rendre`, json(corps));
@@ -349,8 +355,8 @@ if (!window.__dzMontageCapture) {
       peindreListes(); peindreFrise(); peindreApercu();
     }
 
-    const gauche = el("div", { style: "display:flex;flex-direction:column;gap:8px;width:520px;flex:none" }, [
-      el("div", { style: "display:flex;justify-content:center;background:#000" }, [toile]), video,
+    const gauche = el("div", { style: "display:flex;flex-direction:column;gap:8px;width:520px;flex:none;overflow:auto" }, [
+      el("div", { style: "display:flex;justify-content:center;background:#000;flex:none" }, [toile]), video,
       el("div", { class: "dzMcL" }, [lire, temps]), frise,
       el("div", { class: "dzMcN", texte: T("montagecap.apercu.legende") }),
       el("div", { class: "dzMcH", texte: T("montagecap.format.titre") }), formats,

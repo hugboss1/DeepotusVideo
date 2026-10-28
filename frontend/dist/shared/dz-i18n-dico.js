@@ -8345,6 +8345,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "montagecap.apercu.pause": {"fr": "Mettre l'aperçu en pause", "en": "Pause preview"},
   "montagecap.apercu.temps": {"fr": "{t} / {d} · vidéo montée : {sortie}", "en": "{t} / {d} · edited video: {sortie}"},
   "montagecap.chapitre.ajouter": {"fr": "Chapitre à cet instant", "en": "Chapter at this moment"},
+  "montagecap.chapitre.nom": {"fr": "Titre du chapitre", "en": "Chapter title"},
   "montagecap.chapitre.titre": {"fr": "Chapitres", "en": "Chapters"},
   "montagecap.commun.fermer": {"fr": "Fermer", "en": "Close"},
   "montagecap.commun.supprimer": {"fr": "Retirer du montage", "en": "Remove from the edit"},

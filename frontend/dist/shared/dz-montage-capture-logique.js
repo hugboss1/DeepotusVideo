@@ -126,9 +126,14 @@ export function clicProche(evenements, t) {
   return c ? { x: c.x, y: c.y } : { x: 0.5, y: 0.5 };
 }
 
-// le libellé d'un chapitre : son titre, sinon l'écran (mot capitalisé), sinon son rang
-export function libelleChapitre(h, i) {
+// les écrans dont le nom se traduit (libellés du rail de la coque) ; les autres sont des noms propres (Quick, Studio…)
+export const ECRANS = { library: "coque.rail.bibliotheque", scheduler: "coque.rail.planificateur",
+  episodes: "coque.rail.chapitres", sonvfx: "coque.rail.sonvfx", templates: "coque.rail.modeles" };
+
+// le libellé d'un chapitre : son titre, sinon l'écran (traduit, ou mot capitalisé), sinon son rang
+export function libelleChapitre(h, i, T) {
   if (h.titre) return h.titre;
+  if (T && ECRANS[h.ecran]) return T(ECRANS[h.ecran]);
   const e = (h.ecran || "").replace(/[_-]/g, " ");
   return e ? e.charAt(0).toUpperCase() + e.slice(1) : String(i + 1);
 }
@@ -139,4 +144,10 @@ export function brouillon(rendu, titre, fmt, maintenant) {
   d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0);
   return { title: String(titre || "").slice(0, 200), caption: rendu.chapitres_texte || "", job_id: rendu.job_id,
     run_at: d.toISOString().replace(/\.\d{3}Z$/, ""), status: "draft", format: fmt };
+}
+
+// les chapitres sans titre prennent le libellé de leur écran (dans la langue de l'écran) avant d'être gardés ou rendus
+export function titresRemplis(m, T) {
+  return Object.assign({}, m, { chapitres: (m.chapitres || []).map((h, i) => (h.titre ? h : Object.assign({}, h,
+    { titre: libelleChapitre(h, i, T).slice(0, 80) }))) });
 }

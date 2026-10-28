@@ -47,6 +47,8 @@ PARTAGES = {
     "frontend/shared/dz-capture.js": ("capture.",),
     # t316 (28/10/2026) : les skins de la capture (groupe « Habillage » de la boîte de départ, éditeur de skins)
     "frontend/shared/dz-skins.js": ("skins.",),
+    # t317 (28/10/2026) : le montage après coup des captures (entrées des boîtes de la capture, liste, éditeur)
+    "frontend/shared/dz-montage-capture.js": ("montagecap.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")
