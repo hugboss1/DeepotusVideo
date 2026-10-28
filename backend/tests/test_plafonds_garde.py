@@ -34,6 +34,7 @@ PAYANTES = {
     ("agent", "POST", "/lire"),   # A6 (19/10/2026) : la réponse de l'assistant lue à voix haute (garde « aide »)
     ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
     ("scan", "POST", "/{scan_id}/vision"),   # t312 : le secours Claude vision du Scan (garde « atelier » avant chaque lot)
+    ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
     ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
     ("post", "POST", "/rendre"),   # t277 : maillons IA de la pile de post-traitement (garde « son », avant le job)
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
@@ -160,6 +161,15 @@ _sl = _sv[_sv.find("async def lire("):]
 check("A2i le secours Scan refuse un coût hors accord AVANT la boucle, puis appelle MT.tirer_garde dans chaque lot",
       0 < _sl.find("raise CoutChange(") < _sl.find("for n, k in enumerate(lots)") < _sl.find("MT.tirer_garde(")
       and "MT.tirer(" not in _sl, "")
+# t313 : les deux routes payantes de l'inspiration délèguent leur garde au service — l'accord (CoutChange) avant
+# _appel, qui appelle MT.tirer_garde ; aucun appel nu au modèle
+_ins = (RP.RACINE / "services" / "inspiration.py").read_text(encoding="utf-8")
+_ia = _ins[_ins.find("async def analyser("):_ins.find("# ---- 3. carte de devis")]
+_ir = _ins[_ins.find("async def rediger("):_ins.find("def juger_texte(")]
+_ap = _ins[_ins.find("async def _appel("):_ins.find("def _json(")]
+check("A2j l'inspiration refuse un coût hors accord AVANT d'appeler, et _appel passe par MT.tirer_garde",
+      0 < _ia.find("raise CoutChange(") < _ia.find("await _appel(") and 0 < _ir.find("raise CoutChange(") < _ir.find("await _appel(")
+      and "MT.tirer_garde(" in _ap and "MT.tirer(" not in _ins, "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
@@ -188,6 +198,10 @@ anciens["agent_campagnes"] = _acr.replace("AC.tour(", "_sans_garde(") if "AC.tou
 # t312 : le secours Claude vision du Scan n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
 _scr = (RP.MODULES["scan"]).read_text(encoding="utf-8")
 anciens["scan"] = _scr.replace("SV.lire(", "_sans_garde(") if "SV.lire(" in _scr else None
+# t313 : l'inspiration n'existait pas en bfec23e — même témoin
+_inr = (RP.MODULES["inspiration"]).read_text(encoding="utf-8")
+anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I.rediger(", "_sans_garde(")
+                          if "I.analyser(" in _inr else None)
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

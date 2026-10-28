@@ -543,6 +543,9 @@ app.include_router(post_router, prefix="/api/post")
 # t312 (28/10/2026) : /api/scan — une page (image ou PDF) -> texte (Windows.Media.Ocr, secours Claude payant), local seulement
 from app.api.scan_routes import router as scan_router
 app.include_router(scan_router, prefix="/api/scan")
+# t313 (28/10/2026) : /api/inspiration — d'une inspiration à un contenu NEUF (matière, angles, devis, brouillon), local seulement
+from app.api.inspiration_routes import router as inspiration_router
+app.include_router(inspiration_router, prefix="/api/inspiration")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

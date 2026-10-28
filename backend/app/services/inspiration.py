@@ -85,11 +85,11 @@ M_ESPACE = "L'espace de cette inspiration est inconnu ou archivé."
 RAISONS = {"cle": M_SANS_CLE, "vision": M_SANS_VISION}
 
 
-class Inconnue(KeyError):
+class InspirationInconnue(KeyError):
     pass
 
 
-class Refus(ValueError):
+class RefusInspiration(ValueError):
     """Un refus métier (409 sur la route) : `code` ∈ {copie, interdits, visuel_capte, angle, sans_analyse} ; `garde`."""
     def __init__(self, message: str, code: str = "", garde: dict | None = None):
         super().__init__(message)
@@ -103,8 +103,11 @@ class CoutChange(ValueError):
         self.usd = usd
 
 
-class EnCours(RuntimeError):
+class InspirationEnCours(RuntimeError):
     pass
+
+
+Inconnue, Refus, EnCours = InspirationInconnue, RefusInspiration, InspirationEnCours   # noms courts (routes, bancs)
 
 
 class AppelEchoue(Exception):
@@ -121,7 +124,7 @@ def _racine() -> Path:
 
 def _dossier(iid: str) -> Path:
     if not isinstance(iid, str) or not _ID.match(iid):
-        raise Inconnue(M_INCONNUE)
+        raise InspirationInconnue("Inspiration inconnue.")
     return _racine() / iid
 
 
@@ -130,9 +133,9 @@ def lire(iid: str) -> dict:
     try:
         rec = json.loads(f.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        raise Inconnue(M_INCONNUE) from None
+        raise InspirationInconnue("Inspiration inconnue.") from None
     if not isinstance(rec, dict) or rec.get("id") != iid:
-        raise Inconnue(M_INCONNUE)
+        raise InspirationInconnue("Inspiration inconnue.")
     return rec
 
 
@@ -172,7 +175,7 @@ def lister(espace_id: str) -> list[dict]:
             continue
         try:
             rec = lire(d.name)
-        except Inconnue:
+        except InspirationInconnue:
             continue
         if rec.get("espace_id") != espace_id:
             continue
@@ -215,10 +218,10 @@ def capter(*, image: bytes | None = None, texte: str = "", source_libelle: str =
     from app.services import scan_lecture, scan_ocr, scan_pages
     texte = str(texte or "")
     if len(texte) > MAX_TEXTE:
-        raise Refus(M_TEXTE_LONG, "texte")
+        raise RefusInspiration("Texte trop long : 20 000 caractères au plus.", "texte")
     texte = texte.strip()
     if not image and not texte:
-        raise Refus(M_VIDE, "vide")
+        raise RefusInspiration("Rien à lire : dépose une capture ou colle un texte.", "vide")
     langue = langue if langue in ("fr", "en", "auto") else "fr"
     iid = uuid.uuid4().hex
     src = {"libelle": _texte(source_libelle, MAX_SOURCE), "lien": _texte(source_lien, MAX_SOURCE),
@@ -229,7 +232,7 @@ def capter(*, image: bytes | None = None, texte: str = "", source_libelle: str =
     if image:
         plan = scan_pages.charger([("capture", bytes(image))])   # RefusPages : 400/413/415/422
         if len(plan) != 1 or plan[0].get("genre") != "image":
-            raise Refus(M_UNE_IMAGE, "format")
+            raise RefusInspiration("Une seule image (PNG, JPEG, WEBP, BMP ou TIFF) : pas de PDF ni de pages multiples.", "format")
         octets = plan[0]["octets"]
         src.update(G.empreinte(octets))
         src["octets"] = len(octets)
@@ -310,13 +313,13 @@ def _prompt_analyse(rec: dict, interdits: list[str], langue: str) -> str:
 def _angle(rec: dict, angle) -> dict:
     a = rec.get("analyse") or {}
     if not a:
-        raise Refus(M_SANS_ANALYSE, "sans_analyse")
+        raise RefusInspiration("Il faut d'abord extraire la matière et les angles.", "sans_analyse")
     angles = a.get("angles") or []
     if isinstance(angle, bool) or not isinstance(angle, int) or not 0 <= angle < len(angles):
-        raise Refus(M_ANGLE, "angle")
+        raise RefusInspiration("Angle inconnu : choisis l'un des trois angles proposés.", "angle")
     x = angles[angle]
     if x.get("alertes"):
-        raise Refus(M_ANGLE_FAUTIF, "angle")
+        raise RefusInspiration("Cet angle reprend la capture ou un mot interdit : choisis-en un autre ou relance l'analyse.", "angle")
     return x
 
 
@@ -350,6 +353,14 @@ def _etat(avec_image: bool, modele: str) -> str:
     return ""
 
 
+def _refuser_moteur(code: str) -> None:
+    """RuntimeError littéral (L10) si Claude n'est pas utilisable : 503 sur la route."""
+    if code == "cle":
+        raise RuntimeError("Le moteur Anthropic n'est pas configuré (Réglages › Clés d'API).")
+    if code == "vision":
+        raise RuntimeError("Le modèle Anthropic réglé ne lit pas les images : choisis-en un qui les voit (Réglages › Modèles).")
+
+
 def _op(prompt: str, systeme: str, max_tokens: int, modele: str, images: int = 0) -> dict:
     from app.services import moteurs_texte as MT
     op = MT.estimer(MOTEUR, prompt, systeme, max_tokens, None, modele=modele, images=images)
@@ -363,13 +374,13 @@ def _usd(op: dict) -> float:
 
 def _accord(max_usd) -> float:
     if isinstance(max_usd, bool) or not isinstance(max_usd, (int, float)):
-        raise ValueError(M_ACCORD)
+        raise ValueError("Montant accepté (max_usd) manquant ou invalide.")
     try:
         mx = float(max_usd)
     except (OverflowError, ValueError):
-        raise ValueError(M_ACCORD) from None
+        raise ValueError("Montant accepté (max_usd) manquant ou invalide.") from None
     if not math.isfinite(mx) or mx < 0:
-        raise ValueError(M_ACCORD)
+        raise ValueError("Montant accepté (max_usd) manquant ou invalide.")
     return mx
 
 
@@ -378,7 +389,7 @@ async def devis_analyse(iid: str, avec_image: bool, langue: str = "fr") -> dict:
     from app.services import moteurs_texte as MT
     rec = lire(iid)
     if avec_image and not _capture(rec):
-        raise Refus(M_SANS_IMAGE, "sans_image")
+        raise RefusInspiration("Cette inspiration n'a pas d'image à lire.", "sans_image")
     modele = MT.modele_sain(MOTEUR)
     code = await asyncio.to_thread(_etat, avec_image, modele)
     prompt = _prompt_analyse(rec, await _interdits(rec["espace_id"]), langue)
@@ -390,7 +401,7 @@ async def devis_analyse(iid: str, avec_image: bool, langue: str = "fr") -> dict:
 def _prendre(iid: str) -> None:
     with _VERROU:
         if iid in _EN_COURS:
-            raise EnCours(M_EN_COURS)
+            raise InspirationEnCours("Une demande payante est déjà en cours pour cette inspiration : attends sa réponse.")
         _EN_COURS.add(iid)
 
 
@@ -408,9 +419,9 @@ async def _appel(prompt: str, systeme: str, max_tokens: int, modele: str, delai:
     except Exception as e:  # noqa: BLE001
         import httpx
         if isinstance(e, httpx.TimeoutException):
-            raise AppelEchoue(M_DELAI, 504) from None
+            raise AppelEchoue("Claude n'a pas répondu à temps : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.", 504) from None
         if isinstance(e, httpx.HTTPError):
-            raise AppelEchoue(M_RESEAU, 502) from None
+            raise AppelEchoue("L'appel à Claude a échoué (réseau) : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.", 502) from None
         raise
 
 
@@ -419,9 +430,9 @@ def _json(sortie) -> dict:
     try:
         j = MT.extraire_json(sortie)
     except RuntimeError:
-        raise RuntimeError(M_ILLISIBLE) from None
+        raise RuntimeError("La réponse de Claude est illisible (elle a été facturée) : relance.") from None
     if not isinstance(j, dict):
-        raise RuntimeError(M_ILLISIBLE)
+        raise RuntimeError("La réponse de Claude est illisible (elle a été facturée) : relance.")
     return j
 
 
@@ -441,18 +452,17 @@ async def analyser(iid: str, *, max_usd, avec_image: bool = False, langue: str =
     mx = _accord(max_usd)
     capture = _capture(rec) if avec_image else None
     if avec_image and not capture:
-        raise Refus(M_SANS_IMAGE, "sans_image")
+        raise RefusInspiration("Cette inspiration n'a pas d'image à lire.", "sans_image")
     _prendre(iid)
     try:
         modele = MT.modele_sain(MOTEUR)
         code = await asyncio.to_thread(_etat, bool(avec_image), modele)
-        if code:
-            raise RuntimeError(RAISONS[code])
+        _refuser_moteur(code)
         interdits = await _interdits(rec["espace_id"])
         prompt = _prompt_analyse(rec, interdits, langue)
         usd = _usd(_op(prompt, SYSTEME_ANALYSE, MAX_TOKENS_ANALYSE, modele, 1 if avec_image else 0))
         if usd > mx + EPS_USD:
-            raise CoutChange(M_COUT, usd)
+            raise CoutChange("Le coût a changé : il dépasse le montant accepté.", usd)
         images = [await asyncio.to_thread(SV._reduire, capture)] if capture else None
         sortie = await _appel(prompt, SYSTEME_ANALYSE, MAX_TOKENS_ANALYSE, modele, DELAI_ANALYSE, images)
         j = _json(sortie)
@@ -475,7 +485,7 @@ async def analyser(iid: str, *, max_usd, avec_image: bool = False, langue: str =
             alertes = (["copie"] if not garde["ok"] else []) + (["interdits"] if mots else [])
             angles.append({**a, "garde": garde, "interdits": mots, "alertes": alertes})
         if not angles:
-            raise RuntimeError(M_ILLISIBLE)
+            raise RuntimeError("La réponse de Claude est illisible (elle a été facturée) : relance.")
         analyse = {"matiere": matiere, "angles": angles, "usd": usd, "avec_image": bool(capture), "le": _maintenant(),
                    "langue": langue if langue in _LANGUE else "fr"}
         rec = lire(iid)
@@ -506,7 +516,7 @@ async def devis_contenu(iid: str, angle: int, image: bool = True, langue: str = 
         try:
             route, corps, ops = await AO._devis_image({"prompt": _invite_visuel(rec, a)})
         except AO._Refus as e:
-            raise Refus(str(e), "visuel") from None
+            raise RefusInspiration(str(e), "visuel") from None
         corps["espace_id"] = rec["espace_id"]
         corps["source"] = "scheduler"
         visuel = {"route": route, "corps": corps, "ops": ops,
@@ -535,19 +545,18 @@ async def rediger(iid: str, *, angle: int, max_usd, langue: str = "fr", nouvelle
     try:
         modele = MT.modele_sain(MOTEUR)
         code = await asyncio.to_thread(_etat, False, modele)
-        if code:
-            raise RuntimeError(RAISONS[code])
+        _refuser_moteur(code)
         interdits = await _interdits(rec["espace_id"])
         prompt = _prompt_redaction(rec, a, interdits, langue)
         usd = _usd(_op(prompt, SYSTEME_REDACTION, MAX_TOKENS_REDACTION, modele))
         if usd > mx + EPS_USD:
-            raise CoutChange(M_COUT, usd)
+            raise CoutChange("Le coût a changé : il dépasse le montant accepté.", usd)
         j = _json(await _appel(prompt, SYSTEME_REDACTION, MAX_TOKENS_REDACTION, modele, DELAI_REDACTION))
         tags = [t if t.startswith("#") else "#" + t for t in (re.sub(r"\s+", "", x) for x in _liste(j.get("hashtags"), 6, 40)) if t]
         red = {"angle": angle, "titre": _texte(j.get("titre"), 200) or a["titre"], "accroche": _texte(j.get("accroche"), 400),
                "legende": _texte(j.get("legende"), 3000), "hashtags": tags, "usd": usd, "le": _maintenant()}
         if not red["legende"]:
-            raise RuntimeError(M_ILLISIBLE)
+            raise RuntimeError("La réponse de Claude est illisible (elle a été facturée) : relance.")
         red.update(juger_texte(rec, red["titre"], red["accroche"], red["legende"] + "\n" + " ".join(tags), interdits))
         rec = lire(iid)
         rec["redaction"] = red
@@ -572,19 +581,19 @@ def _visuel(rec: dict, visuel) -> str | None:
     if not nom:
         return None
     if len(nom) > 200 or any(c in nom for c in ("/", "\\", ":")) or ".." in nom or nom != nom.strip(". "):
-        raise Refus(M_VISUEL, "visuel")
+        raise RefusInspiration("Visuel inconnu dans la Bibliothèque.", "visuel")
     racine = config.settings.images_path.resolve()
     f = (racine / nom).resolve()
     if f.parent != racine or not f.is_file():
-        raise Refus(M_VISUEL, "visuel")
+        raise RefusInspiration("Visuel inconnu dans la Bibliothèque.", "visuel")
     src = rec.get("source") or {}
     if src.get("sha256"):
         try:
             e = G.empreinte(f.read_bytes())
         except (OSError, ValueError):
-            raise Refus(M_VISUEL, "visuel") from None
+            raise RefusInspiration("Visuel inconnu dans la Bibliothèque.", "visuel") from None
         if G.meme_image(src, e):
-            raise Refus(M_VISUEL_CAPTE, "visuel_capte")
+            raise RefusInspiration("Ce visuel est l'image captée : elle ne peut jamais être le visuel du post. Génère un visuel neuf.", "visuel_capte")
     return nom
 
 
@@ -620,17 +629,17 @@ async def brouillon(iid: str, *, titre: str, accroche: str = "", legende: str = 
     rec = lire(iid)
     titre, accroche, legende = _texte(titre, 200), _texte(accroche, 1000), str(legende or "").strip()[:5000]
     if not titre:
-        raise Refus(M_TITRE, "titre")
+        raise RefusInspiration("Le titre est vide.", "titre")
     interdits = await _interdits(rec["espace_id"])
     j = juger_texte(rec, titre, accroche, legende, interdits)
     if not j["garde"]["ok"]:
-        raise Refus(M_COPIE, "copie", j)
+        raise RefusInspiration("Trop proche de la capture : une suite de 12 mots ou plus la reprend. Réécris ce passage.", "copie", j)
     if j["interdits"]:
-        raise Refus(M_INTERDITS, "interdits", j)
+        raise RefusInspiration("Mots interdits de l'espace : réécris sans eux.", "interdits", j)
     nom = _visuel(rec, visuel)
     e = espaces.lire()["espaces"].get(rec["espace_id"])
     if not e or e.get("archive"):
-        raise Refus(M_ESPACE, "espace")
+        raise RefusInspiration("L'espace de cette inspiration est inconnu ou archivé.", "espace")
     from app.api import routes as R
     post = await R.create_scheduled_post({"title": titre, "caption": legende, "hook": accroche or None,
                                           "status": "draft", "run_at": _demain(), "espace_id": rec["espace_id"],

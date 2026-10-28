@@ -11533,7 +11533,8 @@
  },
  "Une lecture par Claude de ce scan est déjà en cours : attends sa réponse.": {
   "fr": "Une lecture par Claude de ce scan est déjà en cours : attends sa réponse.",
-  "en": "A Claude reading of this scan is already running: wait for its answer." },
+  "en": "A Claude reading of this scan is already running: wait for its answer."
+ },
  "origine du fichier inconnue (liste_attente ou formulaire)": {
   "fr": "origine du fichier inconnue (liste_attente ou formulaire)",
   "en": "unknown file origin (liste_attente or formulaire)"
@@ -11601,5 +11602,81 @@
  "{fournisseur} injoignable ({name})": {
   "fr": "{fournisseur} injoignable ({name})",
   "en": "{fournisseur} unreachable ({name})"
+ },
+ "Inspiration inconnue.": {
+  "fr": "Inspiration inconnue.",
+  "en": "Unknown inspiration."
+ },
+ "Texte trop long : 20 000 caractères au plus.": {
+  "fr": "Texte trop long : 20 000 caractères au plus.",
+  "en": "Text too long: 20,000 characters at most."
+ },
+ "Rien à lire : dépose une capture ou colle un texte.": {
+  "fr": "Rien à lire : dépose une capture ou colle un texte.",
+  "en": "Nothing to read: drop a capture or paste a text."
+ },
+ "Il faut d'abord extraire la matière et les angles.": {
+  "fr": "Il faut d'abord extraire la matière et les angles.",
+  "en": "Extract the material and the angles first."
+ },
+ "Angle inconnu : choisis l'un des trois angles proposés.": {
+  "fr": "Angle inconnu : choisis l'un des trois angles proposés.",
+  "en": "Unknown angle: pick one of the three proposed angles."
+ },
+ "Cet angle reprend la capture ou un mot interdit : choisis-en un autre ou relance l'analyse.": {
+  "fr": "Cet angle reprend la capture ou un mot interdit : choisis-en un autre ou relance l'analyse.",
+  "en": "This angle reuses the capture or a banned word: pick another one or run the analysis again."
+ },
+ "Cette inspiration n'a pas d'image à lire.": {
+  "fr": "Cette inspiration n'a pas d'image à lire.",
+  "en": "This inspiration has no image to read."
+ },
+ "La réponse de Claude est illisible (elle a été facturée) : relance.": {
+  "fr": "La réponse de Claude est illisible (elle a été facturée) : relance.",
+  "en": "Claude's answer is unreadable (it was billed): try again."
+ },
+ "Visuel inconnu dans la Bibliothèque.": {
+  "fr": "Visuel inconnu dans la Bibliothèque.",
+  "en": "Unknown visual in the Library."
+ },
+ "Le titre est vide.": {
+  "fr": "Le titre est vide.",
+  "en": "The title is empty."
+ },
+ "Trop proche de la capture : une suite de 12 mots ou plus la reprend. Réécris ce passage.": {
+  "fr": "Trop proche de la capture : une suite de 12 mots ou plus la reprend. Réécris ce passage.",
+  "en": "Too close to the capture: a run of 12 words or more repeats it. Rewrite that passage."
+ },
+ "Mots interdits de l'espace : réécris sans eux.": {
+  "fr": "Mots interdits de l'espace : réécris sans eux.",
+  "en": "Banned words of the space: rewrite without them."
+ },
+ "L'espace de cette inspiration est inconnu ou archivé.": {
+  "fr": "L'espace de cette inspiration est inconnu ou archivé.",
+  "en": "This inspiration's space is unknown or archived."
+ },
+ "Une seule image (PNG, JPEG, WEBP, BMP ou TIFF) : pas de PDF ni de pages multiples.": {
+  "fr": "Une seule image (PNG, JPEG, WEBP, BMP ou TIFF) : pas de PDF ni de pages multiples.",
+  "en": "A single image (PNG, JPEG, WEBP, BMP or TIFF): no PDF and no multiple pages."
+ },
+ "Une demande payante est déjà en cours pour cette inspiration : attends sa réponse.": {
+  "fr": "Une demande payante est déjà en cours pour cette inspiration : attends sa réponse.",
+  "en": "A paid request is already running for this inspiration: wait for its answer."
+ },
+ "Ce visuel est l'image captée : elle ne peut jamais être le visuel du post. Génère un visuel neuf.": {
+  "fr": "Ce visuel est l'image captée : elle ne peut jamais être le visuel du post. Génère un visuel neuf.",
+  "en": "This visual is the captured image: it can never be the post's visual. Generate a new visual."
+ },
+ "Claude n'a pas répondu à temps : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.": {
+  "fr": "Claude n'a pas répondu à temps : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.",
+  "en": "Claude did not answer in time: the request may have been billed. Check your spending before trying again."
+ },
+ "L'appel à Claude a échoué (réseau) : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.": {
+  "fr": "L'appel à Claude a échoué (réseau) : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.",
+  "en": "The call to Claude failed (network): the request may have been billed. Check your spending before trying again."
+ },
+ "Image illisible.": {
+  "fr": "Image illisible.",
+  "en": "Unreadable image."
  }
 }

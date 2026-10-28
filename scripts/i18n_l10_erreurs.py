@@ -33,7 +33,8 @@ RACINE = pathlib.Path(__file__).resolve().parent.parent
 APP = RACINE / "backend" / "app"
 SORTIE = APP / "i18n" / "erreurs.json"
 TRADUCTIONS = RACINE / "scripts" / "i18n_l10_traductions.json"
-ERREURS = {"ValueError", "RuntimeError", "FileNotFoundError", "PermissionError", "LookupError", "TimeoutError",
+ERREURS = {"RefusInspiration", "InspirationInconnue", "InspirationEnCours",   # t313 : refus du service inspiration
+           "ValueError", "RuntimeError", "FileNotFoundError", "PermissionError", "LookupError", "TimeoutError",
            "ConflitClient", "FluxCoupe", "CoffreVerrouille", "RefusClient", "WhatsappRefus",
            "RefusValidation", "RefusProspect", "PlafondEspaces", "RegistreIndisponible",   # t353 : refus de la fiche Prospects, plafond d'espaces   # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
            "SansCle", "RechercheEchouee",   # t354 : recherche web de la prospection

@@ -26,6 +26,7 @@ MODULES = {
     "post": RACINE / "api" / "post_routes.py",   # t277 : les générateurs IA de la pile de post-traitement
     "agent_campagnes": RACINE / "api" / "agent_campagnes_routes.py",   # t285a : le message de l'agent Campagnes (Anthropic)
     "scan": RACINE / "api" / "scan_routes.py",   # t312 : le secours Claude vision de la boîte Scan (Anthropic)
+    "inspiration": RACINE / "api" / "inspiration_routes.py",   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
 }
 
 PUITS = {
@@ -55,6 +56,7 @@ PUITS = {
     "AW.envoyer_brouillon",   # t311 : l'envoi d'un brouillon de l'agent (agent_whatsapp.envoyer_brouillon -> WE.envoyer)
     "WV.envoyer_validation",   # t311 : la demande de validation au client (whatsapp_validation.envoyer_validation -> WE.envoyer)
     "SV.lire",   # t312 : le secours Claude vision du Scan (scan_vision.lire -> moteurs_texte.tirer_garde, Anthropic)
+    "I.analyser", "I.rediger",   # t313 : l'inspiration (inspiration.analyser / rediger -> moteurs_texte.tirer_garde, Anthropic)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
     "transcribe",
@@ -86,7 +88,8 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
                           # test_plafonds_garde A2f vérifie dans le source que plafonds.verifier y précède MT.converser
           "AW.envoyer_brouillon",   # t311 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2g le vérifie
           "WV.envoyer_validation",   # t311 tâche 6 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2h le vérifie
-          "SV.lire"}   # t312 : la garde vit DANS scan_vision.lire (tirer_garde avant CHAQUE lot) ; test_plafonds_garde A2i
+          "SV.lire",   # t312 : la garde vit DANS scan_vision.lire (tirer_garde avant CHAQUE lot) ; test_plafonds_garde A2i
+          "I.analyser", "I.rediger"}   # t313 : la garde vit DANS inspiration (tirer_garde après l'accord) ; test_plafonds_garde A2j
 
 
 def _nom_appel(n: ast.Call) -> str:
