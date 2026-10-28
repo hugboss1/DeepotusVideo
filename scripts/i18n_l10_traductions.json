@@ -2803,6 +2803,10 @@
   "fr": "Échec de l'aperçu : {e}",
   "en": "Preview failed: {e}"
  },
+ "Previs → plan": {
+  "fr": "Previs → plan",
+  "en": "Previs → shot"
+ },
  "Prise trop courte ({dur} s).": {
   "fr": "Prise trop courte ({dur} s).",
   "en": "Recording too short ({dur} s)."
@@ -7443,6 +7447,10 @@
   "fr": "typographies : {MAX_TYPOS} au plus",
   "en": "typefaces: {MAX_TYPOS} at most"
  },
+ "tâche « {t} » refusée ({v}).": {
+  "fr": "tâche « {t} » refusée ({v}).",
+  "en": "task \"{t}\" refused ({v})."
+ },
  "téléchargement refusé : plus de {v} Mo ({max_octets} octets au plus)": {
   "fr": "téléchargement refusé : plus de {v} Mo ({max_octets} octets au plus)",
   "en": "download refused: more than {v} MB ({max_octets} bytes at most)"
@@ -8223,6 +8231,10 @@
   "fr": "{label} demande au moins {lo} image(s) de référence ({urls} fournie(s)).",
   "en": "{label} requires at least {lo} reference image(s) ({urls} provided)."
  },
+ "{label} demande au moins {lo} style frame(s) ({urls} fournie(s)).": {
+  "fr": "{label} demande au moins {lo} style frame(s) ({urls} fournie(s)).",
+  "en": "{label} needs at least {lo} style frame(s) ({urls} given)."
+ },
  "{label} demande au moins {lo} élément complet de référence.": {
   "fr": "{label} demande au moins {lo} élément complet de référence.",
   "en": "{label} requires at least {lo} complete reference element."
@@ -8230,6 +8242,10 @@
  "{label} est un détourage LOCAL : aucune requête fal": {
   "fr": "{label} est un détourage LOCAL : aucune requête fal",
   "en": "{label} is a LOCAL cut-out: no fal request"
+ },
+ "{label} exige un clip de previs (@Video1).": {
+  "fr": "{label} exige un clip de previs (@Video1).",
+  "en": "{label} requires a previs clip (@Video1)."
  },
  "{label} exige une image de départ (start_image_url).": {
   "fr": "{label} exige une image de départ (start_image_url).",

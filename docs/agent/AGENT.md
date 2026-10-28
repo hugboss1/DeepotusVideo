@@ -105,6 +105,12 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Scanner une page** (t312) : Atelier de Chapitres, « Scanner une page » ; 1 à 10 images ou PDF, « Lire » (sur le
   PC, gratuit, mots douteux surlignés). « Essayer avec Claude » : devis, confirmation, catégorie « atelier », lecture
   gardée. Envois : Insérer dans le chapitre, Créer les chapitres, Importer comme manuscrit. → [ALLER:episodes] [GUIDE:scan]
+- **Transformer une previs en plan fini** (t335) : Atelier de Chapitres, storyboard, bouton film « Previs → plan » de
+  la carte (après Plateau 3D). Choisir le clip de previs (rendu de la Bibliothèque, MP4/MOV de 1,8 à 30,2 s : le
+  mouvement et la caméra) et 1 à 4 style frames (le look ; l'image de production par défaut). Seedance 2.5 le rend
+  (« Garder le mouvement » ou « S'inspirer du clip ») ; sans clip, Veo 3.1 références (8 s). Payant : devis affiché
+  (clip d'entrée + sortie facturés), confirmation, catégorie « chapitres ». La vidéo devient celle du plan et entre
+  dans la Bibliothèque avec sa recette. → [ALLER:episodes] [GUIDE:chapitres]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
   payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
 - **Filmer l'app, l'habiller, la monter** (t315-t317) : barre du haut, « Filmer l'app » (CET onglet, secrets masqués,

@@ -831,6 +831,8 @@ def estimate(op: dict, p: dict | None = None) -> dict:
       {"kind":"objets3d","modele":"sam-3-3d-objects","n":1}   (t189 : storyboard 3D SAM 3, par requête)
       {"kind":"atelier_ia","modele":"sa3-regenerer","secondes":34}   (t272 : nœud IA de l'Atelier sonore)
       {"kind":"post_ia","modele":"restyle-decart","secondes":5}   (t277 : générateur IA du Post-traitement)
+      {"kind":"video_refs","modele":"seedance-2.5-v2v","secondes_sortie":5,"secondes_entree":5,"resolution":"720p"}
+                                                  (t335 : previs → plan, registre video_refs)
       {"kind":"whatsapp","categorie":"marketing","marche":"33","service_deja_mois":0}   (t310 : message Meta ;
                                                   ValueError si le prix n'est pas dans la grille saisie)
     Returns {breakdown:[line...], total_usd, credits:{provider:n}}.
@@ -1215,6 +1217,9 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         lines.append(_pi.ligne(op))
     elif kind == "vfx_ia":
         lines.append(_ligne_vfx(op, p))   # t188 (G6) : un geste VFX IA (registre vfx_ia)
+    elif kind == "video_refs":
+        from app.services import video_refs as _vr   # t335 : previs → plan (Seedance v2v, Veo références)
+        lines.append(_vr.ligne(op))
     elif kind == "objets3d":
         lines.append(_ligne_objets3d(op, p))   # t189 (G7) : le storyboard 3D (SAM 3 objets / corps)
     elif kind == "sfx_video":

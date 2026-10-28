@@ -48,6 +48,7 @@ PUITS = {
     "generer_sfx",   # t187 : le registre des bruitages (fal) — texte (/audio/sfx avec modele) et vidéo (/audio/sfx-video)
     "appliquer_vfx",   # t188 : le registre des VFX IA (fal) — POST /vfx-ia
     "reconstruire",   # t189 : le storyboard 3D (SAM 3 objets / corps, fal) — POST /shots/{shot_id}/objets3d
+    "tirer_previs",   # t335 : previs → plan (Seedance 2.5 reference-to-video / Veo 3.1 références, fal) — POST /shots/{shot_id}/previs
     "detourer",   # T103 : le matte vidéo BiRefNet (fal)
     "detourer_image",   # t186 : le registre unique du détourage (fal, ou local gratuit ; la vidéo passe par MT.detourer)
     "appliquer_maillon",   # t277 : un maillon IA de la pile de post-traitement (fal, Decart par fal, ElevenLabs)
