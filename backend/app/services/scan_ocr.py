@@ -182,9 +182,11 @@ def _supprimer(chemin: str) -> None:
     logger.warning("scan_ocr : PNG temporaire dzscan non supprimé (fichier tenu par un autre programme)")
 
 
-def lire_page(octets: bytes, langue: str = "fr") -> dict:
+def lire_page(octets: bytes, langue: str = "fr", *, delai: float | None = None) -> dict:
     """Lit une page : {"langue", "angle", "lignes": [{"texte", "mots": [{"texte","x","y","l","h"}]}], "largeur",
-    "hauteur"} (repère de l'image d'origine). ValueError (langue ou image), ScanIndisponible, ScanErreur."""
+    "hauteur"} (repère de l'image d'origine). ValueError (langue ou image), ScanIndisponible, ScanErreur.
+    `delai` (revue finale t312, m1) : le temps qui reste à l'échéance globale de la lecture, s'il est plus court que
+    DELAI (le dépassement lève la même ScanErreur de délai)."""
     tag = LANGUES.get(langue) if isinstance(langue, str) else None
     if tag is None:
         raise ValueError("Langue de lecture inconnue : fr ou en.")
@@ -203,7 +205,8 @@ def lire_page(octets: bytes, langue: str = "fr") -> dict:
         except OSError:
             raise ScanErreur("Impossible d'écrire l'image temporaire de la lecture (disque plein ?).") from None
         try:
-            code, sortie, _err = _executer(_commande("-Image", chemin, "-Langue", tag), DELAI)
+            code, sortie, _err = _executer(_commande("-Image", chemin, "-Langue", tag),
+                                           DELAI if delai is None else max(1.0, min(DELAI, float(delai))))
         except subprocess.TimeoutExpired:
             raise ScanErreur("La lecture de texte de Windows a dépassé le délai d'une minute.") from None
         except OSError:

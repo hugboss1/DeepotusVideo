@@ -345,16 +345,12 @@ def _refus(motif, moteur, deja, devis, plafond, categorie, espace: str = "") -> 
         "devis_usd": round(devis, 4), "plafond_usd": round(plafond, 4), "message": msg}})
 
 
-async def verifier(op: dict, categorie: str = "", ref: str | None = None, confirme: bool | None = None,
-                   espace_id: str | None = None) -> dict:
-    """LA garde, à appeler juste AVANT la dépense. Rend {devis, lignes (ids écrits), etat}. Lève 402 (detail
-    `dz_plafond`) quand le devis ferait passer le mois au-dessus d'un plafond et que l'utilisateur n'a pas confirmé.
-    Un refus n'écrit rien ; un devis nul (local, gratuit) n'encombre pas le registre.
-    t285a : `espace_id` explicite = l'espace à qui la dépense appartient (une campagne de B lancée pendant que A est
-    actif) : son plafond propre est lu pour LUI et la ligne du registre porte son id. Absent = l'espace courant, comme
-    avant (la colonne prend alors son défaut)."""
+async def juger(op: dict, categorie: str = "", confirme: bool | None = None,
+                espace_id: str | None = None) -> tuple[dict, str]:
+    """Le jugement des plafonds SANS rien écrire au registre (revue finale t312, m4) : lève le même 402 `dz_plafond`
+    que `verifier`, rend (devis, mois). Un appelant qui paie en plusieurs tirs (le scan par Claude, lots de 4 pages) le
+    pose d'abord sur l'op TOTALE : le dialogue montre le montant de toute la requête, que la confirmation couvre."""
     from app.services import pricing as _pricing
-    from app.services.storage import Depense
 
     devis = _pricing.estimate(op or {})
     p = charger()
@@ -385,6 +381,20 @@ async def verifier(op: dict, categorie: str = "", ref: str | None = None, confir
             if deja_e + devis["total_usd"] > pe + 1e-9:
                 raise _refus("espace", "", deja_e, devis["total_usd"], pe, categorie, e.get("nom") or eid)
 
+    return devis, mois
+
+
+async def verifier(op: dict, categorie: str = "", ref: str | None = None, confirme: bool | None = None,
+                   espace_id: str | None = None) -> dict:
+    """LA garde, à appeler juste AVANT la dépense. Rend {devis, lignes (ids écrits), etat}. Lève 402 (detail
+    `dz_plafond`) quand le devis ferait passer le mois au-dessus d'un plafond et que l'utilisateur n'a pas confirmé.
+    Un refus n'écrit rien ; un devis nul (local, gratuit) n'encombre pas le registre.
+    t285a : `espace_id` explicite = l'espace à qui la dépense appartient (une campagne de B lancée pendant que A est
+    actif) : son plafond propre est lu pour LUI et la ligne du registre porte son id. Absent = l'espace courant, comme
+    avant (la colonne prend alors son défaut)."""
+    from app.services.storage import Depense
+
+    devis, mois = await juger(op, categorie, confirme=confirme, espace_id=espace_id)
     kind = str((op or {}).get("kind") or "")[:32]
     neuves = []
     async with _registre() as s:

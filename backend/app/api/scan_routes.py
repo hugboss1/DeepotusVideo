@@ -6,11 +6,22 @@ Décision 6 du plan. Boucle locale SEULEMENT (`routes._require_localhost`) ; la 
 - `POST /lire`                     multipart `pages` (1 à 10 fichiers) + `langue` (fr | en | auto) :
                                    {scan_id, moteur, langue, pages, texte, incertains, stats, duree_ms}.
 - `GET  /{scan_id}/devis-vision`   le devis GRATUIT du secours Claude : {usd, moteur, nom, disponible, raison, pages}.
-- `POST /{scan_id}/vision`         {max_usd, langue?} : la lecture PAYANTE par Claude (402 plafond, 409 coût changé,
-                                   503 Claude non configuré ou sans vision ; rendu partiel en 200 si un lot suivant
-                                   échoue : partiel, pages_lues, erreur).
-- `POST /decoupage`                {texte} (≤ 2 Mo) -> {chapitres: [{titre, caracteres, debut}]} par
-                                   `manuscript_agent.segment_chapters` (pur, gratuit).
+- `POST /{scan_id}/vision`         {max_usd, langue?, nouvelle?} : la lecture PAYANTE par Claude (402 plafond, 409 coût
+                                   changé, 503 Claude non configuré ou sans vision ; rendu partiel en 200 si un lot
+                                   suivant échoue : partiel, pages_lues, premiere_page_non_lue, erreur).
+- `GET  /{scan_id}/vision`         la transcription PAYÉE gardée pour ce scan (gratuit) : 200 {…, deja_payee: true},
+                                   409 `vision_en_cours` si la lecture tourne encore, 404 s'il n'y en a pas.
+- `POST /decoupage`                {texte} (≤ 2 Mo) -> {chapitres: [{titre, texte, caracteres, debut}]} par
+                                   `manuscript_agent.segment_chapters` (pur, gratuit) ; `texte` = le texte EXACT du
+                                   chapitre (celui du chemin /atelier/manuscript), à utiliser tel quel.
+
+Revue finale t312 (argent, Important 1) : un seul POST /vision à la fois par scan (drapeau `scan_pages.vision_debut` ;
+le second reçoit 409 {code: "vision_en_cours"} sans aucun appel) ; la transcription payée est gardée
+(`scan_pages.garder_vision`) et un nouveau POST la REND sans payer (`deja_payee: true`) sauf `nouvelle: true` ; le
+devis porte `delai_s` (somme des délais des lots) que l'écran attend (+ 30 s). Une erreur réseau au premier lot -> 502,
+un délai -> 504, message fixe qui dit que la lecture a peut-être été facturée.
+Lecture locale (m1) : échéance globale de ECHEANCE_LIRE s ; passée, les pages restantes ne sont pas lues et le texte
+déjà lu est rendu avec `partiel: true` et `pages_lues` (rien de lu : 504).
 
 Lecture locale (Décision 2) : `fr`/`en` = une passe par page image ; `auto` = deux passes fr-FR et en-US par page
 (celles qui sont installées dans Windows), `scan_nettoyage.nettoyer(…, autre=)` garde la meilleure.
@@ -48,6 +59,8 @@ MAX_TEXTE = 2 * 1024 * 1024                 # octets UTF-8 du texte à découper
 MAX_CORPS_DECOUPAGE = 13 * 1024 * 1024      # le JSON d'un texte de 2 Mo, échappements \uXXXX compris
 MAX_CORPS_VISION = 64 * 1024
 _DELAI_OCR = "La lecture de texte de Windows a dépassé le délai d'une minute."
+_DELAI_TOTAL = "La lecture de texte de Windows a dépassé deux minutes : réessaie avec moins de pages."
+ECHEANCE_LIRE = 120.0                       # secondes, toute la lecture locale (l'écran attend 135 s)
 
 
 def _local(request: Request) -> None:
@@ -123,7 +136,7 @@ async def lire_pages(request: Request, pages: list[UploadFile] = File(...), lang
         raise HTTPException(e.statut, str(e)) from None
     n_images = sum(p["genre"] == "image" for p in plan)
     try:
-        r = await asyncio.to_thread(_lire_ocr, plan, langue)
+        r = await asyncio.to_thread(_lire_ocr, plan, langue, time.monotonic() + ECHEANCE_LIRE)
     except O.ScanIndisponible as e:
         sid = SP.ranger(None, plan)
         logger.warning(f"scan_routes : lecture locale indisponible, {n_images} page(s) image gardée(s) pour le secours")
@@ -131,8 +144,9 @@ async def lire_pages(request: Request, pages: list[UploadFile] = File(...), lang
                                   "en_cache": sid is not None,
                                   "secours_vision": await asyncio.to_thread(_secours, n_images, request)}) from None
     except O.ScanErreur as e:
-        logger.warning(f"scan_routes : lecture locale en échec ({'délai' if str(e) == _DELAI_OCR else 'erreur'})")
-        raise HTTPException(504 if str(e) == _DELAI_OCR else 502, str(e)) from None
+        delai = str(e) in (_DELAI_OCR, _DELAI_TOTAL)
+        logger.warning(f"scan_routes : lecture locale en échec ({'délai' if delai else 'erreur'})")
+        raise HTTPException(504 if delai else 502, str(e)) from None
     except ValueError as e:
         raise HTTPException(422, str(e)) from None
     passes = r.pop("passes")
@@ -140,8 +154,11 @@ async def lire_pages(request: Request, pages: list[UploadFile] = File(...), lang
     ms = int((time.perf_counter() - t0) * 1000)
     logger.info(f"scan_routes : lecture de {len(plan)} page(s) ({n_images} image, {len(plan) - n_images} texte), "
                 f"{passes} passe(s), {r['stats'].get('mots', 0)} mot(s), {len(r['incertains'])} incertain(s), {ms} ms")
-    return {"scan_id": sid, "en_cache": sid is not None, "moteur": r["moteur"], "langue": r["langue"], "pages": len(plan), "texte": r["texte"],
-            "incertains": r["incertains"], "stats": r["stats"], "duree_ms": ms}
+    rep = {"scan_id": sid, "en_cache": sid is not None, "moteur": r["moteur"], "langue": r["langue"], "pages": len(plan),
+           "texte": r["texte"], "incertains": r["incertains"], "stats": r["stats"], "duree_ms": ms}
+    if r.get("partiel"):
+        rep.update(partiel=True, pages_lues=r["pages_lues"])
+    return rep
 
 
 # ------------------------------------------------------------------------------------------------- secours Claude
@@ -162,46 +179,86 @@ async def devis_vision(scan_id: str, request: Request):
     return {**d, "raison": _traduire(d.get("raison") or "", request), "pages": len(images)}
 
 
+@router.get("/{scan_id}/vision", dependencies=[Depends(_local)])
+async def vision_gardee(scan_id: str, request: Request):
+    """La transcription payée gardée (gratuit) : « Relire » la demande d'abord, après un délai de l'écran."""
+    _scan(scan_id)
+    try:
+        SP.vision_libre(scan_id)
+    except SP.VisionEnCours as e:
+        raise HTTPException(409, {"message": str(e), "code": "vision_en_cours"}) from None
+    try:
+        r = SP.vision_gardee(scan_id)
+    except KeyError:
+        r = None
+    if not r:
+        raise HTTPException(404, "Aucune lecture par Claude n'est gardée pour ce scan.")
+    return {**r, "deja_payee": True}
+
+
 @router.post("/{scan_id}/vision", dependencies=[Depends(_local), Depends(_depense_locale)])
 async def relire_vision(scan_id: str, request: Request):
     t0 = time.perf_counter()
     corps = await _corps(request, MAX_CORPS_VISION)
     scan = _scan(scan_id)
     images = _images(scan)
+    if corps.get("nouvelle") is not True:      # déjà payée : rendue, sans nouvel appel
+        try:
+            garde = SP.vision_gardee(scan_id)
+        except KeyError:
+            garde = None
+        if garde:
+            logger.info("scan_routes : secours Claude déjà payé pour ce scan, transcription gardée rendue")
+            return {**garde, "deja_payee": True}
     langue = corps.get("langue")
     if langue not in LANGUES:
         langue = (scan.get("resultat") or {}).get("langue") or "auto"
     try:
-        r = await SV.lire(images, max_usd=corps.get("max_usd"), langue=langue)
-    except SV.CoutChange as e:
-        raise HTTPException(409, {"message": str(e), "usd": e.usd}) from None
-    except ValueError as e:
-        raise HTTPException(400, str(e)) from None
-    except RuntimeError as e:
-        raise HTTPException(503 if str(e) in SV.RAISONS.values() else 502, str(e)) from None
-    # les pages texte reprennent leur place autour de la transcription (voir l'en-tête du module)
-    plan = scan["images"]
-    premiere = next(i for i, p in enumerate(plan) if p.get("genre") == "image")
-    avant = [_page_texte(p["texte"]) for p in plan[:premiere] if p.get("genre") == "texte"]
-    apres = [_page_texte(p["texte"]) for p in plan[premiere:] if p.get("genre") == "texte"]
-    texte, incertains = _joindre([(t, []) for t in avant] + [(r["texte"], r["incertains"])] + [(t, []) for t in apres])
-    stats = dict(r.get("stats") or {})
-    stats["pages_texte"] = len(avant) + len(apres)
-    stats["mots"] = len(texte.split())
-    stats["incertains"] = len(incertains)
-    ms = int((time.perf_counter() - t0) * 1000)
-    resultat = {"moteur": "claude", "langue": r.get("langue"), "texte": texte, "incertains": incertains,
-                "stats": stats, "usd": r.get("usd", 0.0)}
-    for k in ("partiel", "pages_lues", "erreur"):
-        if k in r:
-            resultat[k] = r[k]
-    try:
-        SP.remplacer(scan_id, resultat)
+        SP.vision_debut(scan_id)
     except KeyError:
-        pass                                   # expiré pendant la lecture : la transcription payée est rendue quand même
+        raise HTTPException(404, "Scan inconnu ou expiré (gardé une heure) : relance la lecture.") from None
+    except SP.VisionEnCours as e:
+        raise HTTPException(409, {"message": str(e), "code": "vision_en_cours"}) from None
+    try:
+        try:
+            r = await SV.lire(images, max_usd=corps.get("max_usd"), langue=langue)
+        except SV.CoutChange as e:
+            raise HTTPException(409, {"message": str(e), "usd": e.usd}) from None
+        except SV.AppelEchoue as e:
+            logger.warning(f"scan_routes : secours Claude, premier appel en échec réseau ({e.statut})")
+            raise HTTPException(e.statut, str(e)) from None
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        except RuntimeError as e:
+            raise HTTPException(503 if str(e) in SV.RAISONS.values() else 502, str(e)) from None
+        # les pages texte reprennent leur place autour de la transcription (voir l'en-tête du module)
+        plan = scan["images"]
+        premiere = next(i for i, p in enumerate(plan) if p.get("genre") == "image")
+        avant = [_page_texte(p["texte"]) for p in plan[:premiere] if p.get("genre") == "texte"]
+        apres = [_page_texte(p["texte"]) for p in plan[premiere:] if p.get("genre") == "texte"]
+        texte, incertains = _joindre([(t, []) for t in avant] + [(r["texte"], r["incertains"])]
+                                     + [(t, []) for t in apres])
+        stats = dict(r.get("stats") or {})
+        stats["pages_texte"] = len(avant) + len(apres)
+        stats["mots"] = len(texte.split())
+        stats["incertains"] = len(incertains)
+        ms = int((time.perf_counter() - t0) * 1000)
+        resultat = {"moteur": "claude", "langue": r.get("langue"), "texte": texte, "incertains": incertains,
+                    "stats": stats, "usd": r.get("usd", 0.0)}
+        for k in ("partiel", "pages_lues", "erreur"):
+            if k in r:
+                resultat[k] = r[k]
+        if r.get("partiel"):                   # m5 : le numéro DANS LE DÉPÔT de la première page image non lue
+            idx = [i for i, p in enumerate(plan) if p.get("genre") == "image"]
+            k = int(r.get("pages_lues") or 0)
+            resultat["premiere_page_non_lue"] = idx[k] + 1 if k < len(idx) else len(plan)
+        rep = {"scan_id": scan_id, "pages": len(plan), "duree_ms": ms, **resultat}
+        SP.garder_vision(scan_id, rep)         # gardée : « Relire » après un délai de l'écran la reprend sans payer
+    finally:
+        SP.vision_fin(scan_id)
     logger.info(f"scan_routes : secours Claude, {len(images)} page(s) image, {stats['mots']} mot(s), "
                 f"{resultat['usd']:.4f} USD{' (partiel)' if r.get('partiel') else ''}, {ms} ms")
-    return {"scan_id": scan_id, "pages": len(plan), "duree_ms": ms, **resultat}
+    return rep
 
 
 # ------------------------------------------------------------------------------------------------- découpage
@@ -222,7 +279,7 @@ async def decouper(request: Request):
         pos = texte.find(tete, curseur) if tete else -1     # au mieux : le début du texte du chapitre dans l'entrée
         if pos < 0:
             pos = curseur
-        out.append({"titre": ch.get("title") or "", "caracteres": len(corps_ch), "debut": pos})
+        out.append({"titre": ch.get("title") or "", "texte": corps_ch, "caracteres": len(corps_ch), "debut": pos})
         curseur = pos + len(tete)
     logger.info(f"scan_routes : découpage de {len(texte)} caractère(s) en {len(out)} chapitre(s)")
     return {"chapitres": out}

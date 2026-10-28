@@ -20,6 +20,10 @@ Budget mémoire (revue t312) : 256 Mo d'octets d'image en tout ; au-delà, les p
 plus lourd que le budget à lui seul n'est PAS gardé (`ranger` rend None : la route le dit, scan_id null).
 `images` = la liste de `charger` (pages image ET texte, dans l'ordre) : le secours Claude relit les images et remet
 les pages texte à leur place.
+Lecture Claude (revue finale t312, Important 1) : `vision_debut(scan_id)` pose le drapeau « lecture payante en cours »
+(VisionEnCours s'il l'était déjà : la route rend 409 sans aucun appel), `vision_fin` le lève ; `garder_vision(scan_id, r)` garde
+la transcription PAYÉE à part du résultat local (`vision_gardee` la rend, None sinon) et rajeunit le scan d'une heure.
+Un scan dont la lecture payante est en cours n'est ni purgé ni évincé (sa réponse payée doit trouver sa place).
 Journaux : nombres de pages et tailles seulement, jamais le texte ni les images.
 """
 from __future__ import annotations
@@ -199,7 +203,7 @@ def charger(fichiers: list[tuple[str, bytes]]) -> list[dict]:
 
 # ------------------------------------------------------------------------------------------------- cache
 def _purger(maintenant: float) -> None:
-    for k in [k for k, v in _CACHE.items() if maintenant - v["cree"] > TTL]:
+    for k in [k for k, v in _CACHE.items() if maintenant - v["cree"] > TTL and not v.get("vision_en_cours")]:
         _CACHE.pop(k, None)
 
 
@@ -220,7 +224,10 @@ def ranger(resultat, images: list[dict]) -> str | None:
             logger.warning(f"scan_pages : scan de {poids} octets plus lourd que le cache ({BUDGET}), non gardé")
             return None
         while _CACHE and (len(_CACHE) >= MAX_SCANS or sum(v["poids"] for v in _CACHE.values()) + poids > BUDGET):
-            _CACHE.pop(next(iter(_CACHE)))
+            vieux = next((k for k, v in _CACHE.items() if not v.get("vision_en_cours")), None)
+            if vieux is None:
+                break                              # tous en lecture payante : on dépasse un instant plutôt que de perdre
+            _CACHE.pop(vieux)
         sid = uuid.uuid4().hex
         _CACHE[sid] = {"images": images, "resultat": resultat, "cree": maintenant, "poids": poids}
         return sid
@@ -238,3 +245,61 @@ def remplacer(scan_id: str, resultat) -> None:
     with _VERROU:
         _purger(time.time())
         _CACHE[scan_id]["resultat"] = resultat
+
+
+# ------------------------------------------------------------------------------------------------- lecture Claude
+class VisionEnCours(RuntimeError):
+    """Une lecture payante de ce scan tourne déjà (409 `vision_en_cours` sur la route). Message littéral (L10)."""
+
+
+def _refus_en_cours():
+    raise VisionEnCours("Une lecture par Claude de ce scan est déjà en cours : attends sa réponse.")
+
+
+def vision_debut(scan_id: str) -> bool:
+    """Pose le drapeau « lecture payante en cours » (rend True) ; VisionEnCours s'il était déjà posé. KeyError si le
+    scan est inconnu."""
+    with _VERROU:
+        _purger(time.time())
+        e = _CACHE[scan_id]
+        if e.get("vision_en_cours"):
+            _refus_en_cours()
+        e["vision_en_cours"] = True
+        return True
+
+
+def vision_fin(scan_id: str) -> None:
+    with _VERROU:
+        e = _CACHE.get(scan_id)
+        if e is not None:
+            e.pop("vision_en_cours", None)
+
+
+def vision_en_cours(scan_id: str) -> bool:
+    with _VERROU:
+        return bool((_CACHE.get(scan_id) or {}).get("vision_en_cours"))
+
+
+def vision_libre(scan_id: str) -> None:
+    """VisionEnCours si une lecture payante de ce scan tourne."""
+    if vision_en_cours(scan_id):
+        _refus_en_cours()
+
+
+def garder_vision(scan_id: str, resultat: dict) -> None:
+    """Garde la transcription payée (et en fait le résultat courant) ; le scan vit une heure de plus."""
+    with _VERROU:
+        e = _CACHE.get(scan_id)
+        if e is None:
+            return
+        e["vision"] = resultat
+        e["resultat"] = resultat
+        e["cree"] = time.time()
+        _CACHE[scan_id] = _CACHE.pop(scan_id)      # le plus jeune : évincé en dernier
+
+
+def vision_gardee(scan_id: str) -> dict | None:
+    """La transcription payée gardée pour ce scan, ou None. KeyError si le scan est inconnu ou expiré."""
+    with _VERROU:
+        _purger(time.time())
+        return _CACHE[scan_id].get("vision")

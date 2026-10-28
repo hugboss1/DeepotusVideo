@@ -10,6 +10,10 @@ tirer_garde, modele_sain, configure, nom) et `pricing`.
 Les images sont réduites (≤ 1280 px, JPEG q85), envoyées par lots de 4 au plus ; le devis compte tous les lots.
 La réponse suit la forme de `scan_nettoyage.nettoyer` : {texte, incertains, stats, langue} + moteur "claude" et usd.
 Les mots douteux marqués [[?mot]] par Claude deviennent des positions (`scan_nettoyage.depuis_marques`).
+Revue finale t312 : le devis porte `delai_s` (la somme des délais de ses lots : l'écran attend autant, + 30 s) ;
+une lecture de plusieurs lots juge d'abord les plafonds sur l'op TOTALE (`plafonds.juger`, rien d'écrit) pour que le
+dialogue 402 montre le montant de toute la requête ; une erreur réseau ou un délai au premier lot lève `AppelEchoue`
+(502 / 504, message fixe qui dit que la lecture a peut-être été facturée).
 Journaux : nombres et coût seulement, jamais le texte lu ni les images.
 """
 from __future__ import annotations
@@ -52,6 +56,14 @@ SEUIL_TRONQUE = 0.9               # une sortie qui remplit 90 % du plafond (à 3
 CAR_PAR_JETON = 3
 
 
+class AppelEchoue(Exception):
+    """Le premier appel n'a pas abouti côté réseau (délai : statut 504, autre : 502) ; la lecture a pu être facturée.
+    Levée avec un message littéral (couvert par L10)."""
+    def __init__(self, message: str, statut: int):
+        super().__init__(message)
+        self.statut = statut
+
+
 class CoutChange(ValueError):
     """Le coût réel dépasse le montant accepté : rien n'est envoyé (409 sur la route). Porte `usd` (le coût réel).
     Levée avec un message littéral (couvert par L10) : CoutChange("…", usd)."""
@@ -84,29 +96,40 @@ def _delai(k: int) -> float:
     return float(min(240, 60 + 30 * k))
 
 
-def _couts(n: int, langue: str, modele: str) -> list[float]:
-    """Le coût estimé (USD, 4 décimales) de CHAQUE lot de n pages : le texte, le système et les jetons d'image du pire
-    cas sont les mêmes au devis et à l'envoi, sans qu'aucune image soit lue."""
+def delai_total(n: int) -> int:
+    """Le temps que le serveur peut passer sur n pages (secondes) : la somme des délais de ses lots, appelés à la suite."""
+    return int(sum(_delai(k) for k in _lots(n)))
+
+
+def _ops(n: int, langue: str, modele: str) -> list[dict]:
+    """L'op de pricing de CHAQUE lot de n pages : le texte, le système et les jetons d'image du pire cas sont les mêmes
+    au devis et à l'envoi, sans qu'aucune image soit lue."""
     from app.services import moteurs_texte as MT
-    from app.services import pricing as PR
     out = []
     for k in _lots(n):
         op = MT.estimer(MOTEUR, _prompt(k, langue), SYSTEME, MAX_TOKENS_PAGE * k, None, modele=modele, images=k)
         if modele:          # t312 tâche 4 : `estimer` ne pose pas le modèle dans l'op ; sans lui, pricing chiffre au
             op = {**op, "modele": modele}   # tarif Anthropic par défaut et un changement de modèle passe inaperçu
-        out.append(round(float(PR.estimate(op).get("total_usd") or 0.0), 4))
+        out.append(op)
     return out
 
 
+def _couts(n: int, langue: str, modele: str) -> list[float]:
+    """Le coût estimé (USD, 4 décimales) de CHAQUE lot de n pages."""
+    from app.services import pricing as PR
+    return [round(float(PR.estimate(op).get("total_usd") or 0.0), 4) for op in _ops(n, langue, modele)]
+
+
 def devis(n_pages: int) -> dict:
-    """Le devis GRATUIT : {usd, moteur, nom, disponible, raison}. Aucune image n'est lue ici."""
+    """Le devis GRATUIT : {usd, moteur, nom, disponible, raison, delai_s}. Aucune image n'est lue ici."""
     from app.services import moteurs_texte as MT
     if isinstance(n_pages, bool) or not isinstance(n_pages, int) or not 1 <= n_pages <= MAX_PAGES:
         raise ValueError(f"Nombre de pages invalide (1 à {MAX_PAGES}).")
     modele = MT.modele_sain(MOTEUR)
     code = _etat(modele)
     return {"usd": round(sum(_couts(n_pages, "auto", modele)), 4) if not code else 0.0, "moteur": MOTEUR,
-            "nom": MT.nom(MOTEUR), "disponible": not code, "raison": RAISONS.get(code, "")}
+            "nom": MT.nom(MOTEUR), "disponible": not code, "raison": RAISONS.get(code, ""),
+            "delai_s": delai_total(n_pages)}
 
 
 def _accord(max_usd) -> float:
@@ -167,10 +190,14 @@ async def lire(images: list[bytes], *, max_usd: float, langue: str = "fr") -> di
     cout = round(sum(couts), 4)
     if cout > mx + EPS_USD:
         raise CoutChange("Le coût a changé : il dépasse le montant accepté.", cout)
+    lots = _lots(len(images))
+    if len(lots) > 1:       # m4 : le plafond jugé sur TOUTE la requête (402 au montant total), rien d'écrit ici
+        from app.services import plafonds as PL
+        await PL.juger({"kind": "composition", "parts": await asyncio.to_thread(_ops, len(images), langue, modele)},
+                       CATEGORIE)
     pages = [await asyncio.to_thread(_reduire, o) for o in images]
     morceaux, tronques, payes, i = [], [], 0.0, 0
     erreur = ""
-    lots = _lots(len(pages))
     for n, k in enumerate(lots):
         lot = pages[i:i + k]
         try:
@@ -178,6 +205,13 @@ async def lire(images: list[bytes], *, max_usd: float, langue: str = "fr") -> di
                                           categorie=CATEGORIE, timeout=_delai(k), images=lot)
         except Exception as e:  # noqa: BLE001
             if n == 0:
+                import httpx
+                if isinstance(e, httpx.TimeoutException):
+                    raise AppelEchoue("La lecture par Claude n'a pas répondu à temps : elle a peut-être été facturée. "
+                                      "Vérifie tes dépenses avant de relire.", 504) from None
+                if isinstance(e, httpx.HTTPError):
+                    raise AppelEchoue("La lecture par Claude a échoué (réseau) : elle a peut-être été facturée. "
+                                      "Vérifie tes dépenses avant de relire.", 502) from None
                 raise
             erreur = "plafond" if isinstance(e, HTTPException) and e.status_code == 402 else "appel"
             logger.warning(f"scan_vision : lot {n + 1}/{len(lots)} échoué ({erreur}), {i} page(s) lues, "

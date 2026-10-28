@@ -13,6 +13,10 @@ Sections :
      appel — Review Focus 4), 402 plafond, 503 Claude indisponible, rendu partiel, 404 inconnu / expiré.
   5. découpage : chapitres de segment_chapters, debut, 413, 400.
   6. hors machine locale : 403 partout ; journaux sans texte lu.
+  7. revue finale t312 : échéance globale de la lecture locale (partiel / 504, m1) ; argent (I1) : delai_s au devis,
+     transcription payée gardée (GET /vision, POST sans nouvel appel, nouvelle: true), 409 vision_en_cours, drapeau
+     levé après chaque issue ; erreur réseau au premier lot 502 / délai 504 (m2) ; plafond jugé sur le total (m4) ;
+     premiere_page_non_lue (m5) ; découpage : texte exact de chaque chapitre (I2).
 Run (depuis backend/) : & $PY tests/test_scan_routes.py"""
 import io, json, os, pathlib, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -51,6 +55,9 @@ from app.services import plafonds as PL                             # noqa: E402
 from app.services import scan_ocr as O                              # noqa: E402
 from app.services import scan_pages as SP                           # noqa: E402
 from app.services import scan_vision as V                           # noqa: E402
+from app.api import scan_routes as SR                               # noqa: E402
+import httpx                                                        # noqa: E402
+import time as _time                                                # noqa: E402
 
 settings.ANTHROPIC_API_KEY = "cle-de-banc"
 settings.ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
@@ -510,7 +517,7 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     check("4w scan expiré : devis -> 404", c.get(f"/api/scan/{sx}/devis-vision").status_code == 404)
     check("4x scan inconnu : vision -> 404", c.post("/api/scan/inconnu/vision", json={"max_usd": 1}).status_code == 404)
     settings.ANTHROPIC_API_KEY = ""
-    rp = c.post(f"/api/scan/{SCAN}/vision", json={"max_usd": 1.0}, headers={"Accept-Language": "en"})
+    rp = c.post(f"/api/scan/{SCAN}/vision", json={"max_usd": 1.0, "nouvelle": True}, headers={"Accept-Language": "en"})
     check("4y Claude non configuré -> 503 traduit", rp.status_code == 503
           and rp.json().get("detail") != V.RAISON_SANS_CLE, f"{rp.status_code} {rp.text[:200]}")
     settings.ANTHROPIC_API_KEY = "cle-de-banc"
@@ -533,6 +540,162 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     check("5d texte > 2 Mo -> 413", rp.status_code == 413, rp.status_code)
     check("5e texte vide -> 400", c.post("/api/scan/decoupage", json={"texte": "   "}).status_code == 400)
     check("5f texte absent -> 400", c.post("/api/scan/decoupage", json={}).status_code == 400)
+
+    # ================================================================== 7. revue finale
+    print("\n[7] revue finale : échéance, argent, découpage exact")
+    # m1 — échéance globale de la lecture locale
+    lent = {"s": 0.0}
+    def executer_lent(args, timeout):
+        _time.sleep(lent["s"])
+        return faux_executer(args, timeout)
+    O._executer = executer_lent
+    ech = SR.ECHEANCE_LIRE
+    try:
+        SR.ECHEANCE_LIRE = 0.5
+        rp = c.post("/api/scan/lire", **multipart(("p1.png", img(1300)), ("p2.png", img(1400))))
+        check("7a échéance passée avant toute page -> 504, message du délai total", rp.status_code == 504
+              and "deux minutes" in rp.json().get("detail", ""), f"{rp.status_code} {rp.text[:200]}")
+        SR.ECHEANCE_LIRE = 3.0
+        lent["s"] = 1.2
+        APPELS_OCR.clear()
+        rp = c.post("/api/scan/lire", **multipart(("p1.png", img(1300)), ("p2.png", img(1400)), ("p3.png", img(1500))))
+        d = rp.json() if rp.status_code == 200 else {}
+        check("7b échéance au milieu : 200 partiel, pages_lues 2, la 3e jamais lue", rp.status_code == 200
+              and d.get("partiel") is True and d.get("pages_lues") == 2 and "Deuxième" in d.get("texte", "")
+              and "Page scannée" not in d.get("texte", "") and [w for w, _ in APPELS_OCR] == [1300, 1400],
+              f"{rp.status_code} {rp.text[:200]} {APPELS_OCR}")
+    finally:
+        SR.ECHEANCE_LIRE = ech
+        O._executer = faux_executer
+    rp = c.post("/api/scan/lire", **multipart(("p1.png", img(1300))))
+    check("7c lecture dans les temps : pas de partiel", rp.status_code == 200 and "partiel" not in rp.json())
+
+    # I1 (a) — le devis porte le délai du serveur
+    check("7d devis : delai_s = somme des délais des lots (10 pages = 180 + 180 + 120)",
+          V.devis(10).get("delai_s") == 480 and V.devis(2).get("delai_s") == 120, V.devis(10))
+    rp = c.get(f"/api/scan/{SCAN}/devis-vision")
+    check("7e devis-vision porte delai_s", rp.status_code == 200 and rp.json().get("delai_s") == 120, rp.text[:200])
+
+    # I1 (c)(d) — la transcription payée est gardée et rendue sans payer
+    APPELS_IA.clear()
+    rp = c.post("/api/scan/lire", **multipart(("p1.png", img(1300)), ("p2.png", img(1400))))
+    SV1 = rp.json()["scan_id"]
+    check("7f GET /vision sans lecture payée -> 404", c.get(f"/api/scan/{SV1}/vision").status_code == 404)
+    check("7g GET /vision d'un scan inconnu -> 404", c.get("/api/scan/inconnu/vision").status_code == 404)
+    rp = c.post(f"/api/scan/{SV1}/vision", json={"max_usd": 1.0})
+    paye = rp.json() if rp.status_code == 200 else {}
+    check("7h première lecture payée : un appel", rp.status_code == 200 and len(APPELS_IA) == 1 and not paye.get("deja_payee"),
+          f"{rp.status_code} {len(APPELS_IA)}")
+    check("7i drapeau levé après la lecture", SP.vision_en_cours(SV1) is False)
+    rp = c.get(f"/api/scan/{SV1}/vision")
+    g = rp.json() if rp.status_code == 200 else {}
+    check("7j GET /vision rend la transcription payée (deja_payee), aucun appel", rp.status_code == 200
+          and g.get("deja_payee") is True and g.get("texte") == paye.get("texte") and len(APPELS_IA) == 1, rp.text[:200])
+    rp = c.post(f"/api/scan/{SV1}/vision", json={"max_usd": 1.0})
+    g = rp.json() if rp.status_code == 200 else {}
+    check("7k second POST sans nouvelle : la même transcription, aucun nouvel appel", rp.status_code == 200
+          and g.get("deja_payee") is True and g.get("texte") == paye.get("texte") and len(APPELS_IA) == 1,
+          f"{rp.status_code} {len(APPELS_IA)}")
+    rp = c.post(f"/api/scan/{SV1}/vision", json={"max_usd": 1.0, "nouvelle": True})
+    check("7l nouvelle: true -> une nouvelle lecture payée", rp.status_code == 200 and len(APPELS_IA) == 2
+          and not rp.json().get("deja_payee"), f"{rp.status_code} {len(APPELS_IA)}")
+
+    # I1 (b) — une seule lecture payante à la fois par scan
+    rp = c.post("/api/scan/lire", **multipart(("p1.png", img(1300))))
+    SV2 = rp.json()["scan_id"]
+    APPELS_IA.clear()
+    check("7m drapeau posé une fois seulement", SP.vision_debut(SV2) is True
+          and isinstance(refus(SP.vision_debut, SV2), SP.VisionEnCours))
+    rp = c.post(f"/api/scan/{SV2}/vision", json={"max_usd": 1.0})
+    dd = rp.json().get("detail") if rp.status_code == 409 else {}
+    check("7n POST pendant une lecture en cours -> 409 vision_en_cours, aucun appel", rp.status_code == 409
+          and isinstance(dd, dict) and dd.get("code") == "vision_en_cours" and dd.get("message") and APPELS_IA == [],
+          f"{rp.status_code} {rp.text[:200]}")
+    rp = c.get(f"/api/scan/{SV2}/vision", headers={"Accept-Language": "en"})
+    dd = rp.json().get("detail") if rp.status_code == 409 else {}
+    check("7o GET pendant la lecture -> 409 vision_en_cours (message traduit)", rp.status_code == 409
+          and dd.get("code") == "vision_en_cours" and dd.get("message") and "Claude" in dd["message"] and "déjà" not in dd["message"], rp.text[:200])
+    SP.vision_fin(SV2)
+    rp = c.post(f"/api/scan/{SV2}/vision", json={"max_usd": 0.00001})
+    check("7p drapeau levé aussi après un refus (409 coût)", rp.status_code == 409 and SP.vision_en_cours(SV2) is False)
+
+    # m2 — erreur réseau / délai au premier lot
+    for exc, code, nom in ((httpx.ReadTimeout("lent"), 504, "délai"), (httpx.ConnectError("coupé"), 502, "réseau")):
+        def post_ko(url, headers=None, json=None, timeout=None, verify=None, _e=exc):
+            raise _e
+        MT.httpx.post = post_ko
+        try:
+            rp = c.post(f"/api/scan/{SV2}/vision", json={"max_usd": 1.0})
+        finally:
+            MT.httpx.post = faux_post
+        msg = rp.json().get("detail", "") if rp.status_code == code else ""
+        check(f"7q premier lot en {nom} -> {code}, message « peut-être facturée »", rp.status_code == code
+              and "facturée" in msg, f"{rp.status_code} {rp.text[:200]}")
+        check(f"7r … drapeau levé, rien de gardé ({nom})", SP.vision_en_cours(SV2) is False
+              and c.get(f"/api/scan/{SV2}/vision").status_code == 404)
+    rp = c.post(f"/api/scan/{SV2}/vision", json={"max_usd": 1.0}, headers={"Accept-Language": "en"})
+    check("7s (contrôle) la lecture réussit ensuite", rp.status_code == 200)
+
+    # m4 — plusieurs lots : le plafond est jugé sur le TOTAL de la requête
+    rp = c.post("/api/scan/lire", **multipart(*[(f"{i}.png", img(1300)) for i in range(6)]))
+    SV3 = rp.json()["scan_id"]
+    total = c.get(f"/api/scan/{SV3}/devis-vision").json()["usd"]
+    charger = PL.charger
+    PL.charger = lambda: {"global_usd": 0.000001, "par_moteur": {}}
+    APPELS_IA.clear()
+    try:
+        rp = c.post(f"/api/scan/{SV3}/vision", json={"max_usd": total, "langue": "auto"})
+    finally:
+        PL.charger = charger
+    pz = ((rp.json().get("detail") or {}).get("dz_plafond") or {}) if rp.status_code == 402 else {}
+    un_lot = V._couts(4, "auto", MT.modele_sain("anthropic"))[0]
+    check("7t 402 au montant TOTAL des deux lots (pas d'un seul), aucun appel", rp.status_code == 402
+          and abs(pz.get("devis_usd", 0) - total) < 0.0002 and pz.get("devis_usd", 0) > un_lot + 1e-6 and APPELS_IA == [],
+          f"{rp.status_code} {pz} total={total} lot={un_lot}")
+    check("7u … drapeau levé après le 402", SP.vision_en_cours(SV3) is False)
+    import sqlite3
+    def registre():
+        with sqlite3.connect(str(_tmp / "t.db")) as db:
+            return db.execute("select count(*), coalesce(sum(estime_usd), 0) from depenses").fetchone()
+    n0, u0 = registre()
+    rp = c.post(f"/api/scan/{SV3}/vision", json={"max_usd": total, "langue": "auto"})
+    n1, u1 = registre()
+    # (le montant écrit par lot suit moteurs_texte.estimer, sans le modèle : constat hors lot de la revue finale)
+    check("7z le jugement préalable sur le total n'écrit rien : une ligne de registre par lot (2)",
+          rp.status_code == 200 and n1 - n0 == 2 and u1 > u0, f"{rp.status_code} {n1 - n0} {u1 - u0} {total}")
+
+    # m5 — numéro dans le dépôt de la première page non lue (une page texte devant)
+    rp = c.post("/api/scan/lire", **multipart(("m.pdf", pdf_concat(pdf_texte(TXT1), pdf_images(*[1300] * 6)))))
+    SV4 = rp.json()["scan_id"]
+    n = {"i": 0}
+    def post_partiel2(url, headers=None, json=None, timeout=None, verify=None):
+        n["i"] += 1
+        if n["i"] == 2:
+            raise RuntimeError("réseau coupé")
+        return faux_post(url, headers=headers, json=json, timeout=timeout, verify=verify)
+    MT.httpx.post = post_partiel2
+    try:
+        rp = c.post(f"/api/scan/{SV4}/vision", json={"max_usd": 1.0})
+    finally:
+        MT.httpx.post = faux_post
+    d = rp.json() if rp.status_code == 200 else {}
+    check("7v partiel : pages_lues 4 (images), premiere_page_non_lue 6 (page texte comptée)", rp.status_code == 200
+          and d.get("pages_lues") == 4 and d.get("premiere_page_non_lue") == 6, f"{rp.status_code} {rp.text[:300]}")
+
+    # I2 — le découpage rend le texte EXACT de chaque chapitre
+    corps3 = ("CHAPITRE PREMIER\n\n" + "Il était une fois un long texte. " * 10 + "\n\nCHAPITRE DEUX\n\n"
+              + "La suite arrive enfin, bien plus loin. " * 10 + "\n\nCHAPITRE TROIS\n\n" + "Et voici la fin. " * 12)
+    rp = c.post("/api/scan/decoupage", json={"texte": corps3})
+    ch = rp.json().get("chapitres", []) if rp.status_code == 200 else []
+    attendu = MA.segment_chapters(corps3)
+    check("7w trois chapitres, texte = segment_chapters", len(ch) == 3 and [x.get("texte") for x in ch]
+          == [a["text"] for a in attendu], ch)
+    check("7x aucun chapitre ne contient le titre du suivant", len(ch) == 3 and "CHAPITRE DEUX" not in ch[0]["texte"]
+          and "CHAPITRE TROIS" not in ch[1]["texte"], [x.get("texte", "")[-40:] for x in ch])
+    rp = c.post("/api/scan/decoupage", json={"texte": corps})
+    ch2 = rp.json().get("chapitres", []) if rp.status_code == 200 else []
+    check("7y deux chapitres : texte exact, caracteres = len(texte)", len(ch2) == 2
+          and all(x["caracteres"] == len(x["texte"]) for x in ch2) and "Chapitre 2" not in ch2[0]["texte"], ch2)
 
 # ====================================================================== 6. hors machine locale, journaux
 print("\n[6] hors machine locale, journaux")

@@ -48,20 +48,27 @@ continue sans saut. Césures (fr3, 8 coupures) : 7 recollées, la 8e (« souterr
 
 ### Mode « auto » (deux passes fr-FR + en-US)
 
+Après la revue finale t312 (I4, 28/10) : la passe gardée est celle qui a le meilleur score de **mots outils de sa
+langue** (`scan_nettoyage.score_langue` : le, la, de, et… / the, and, of, to… + un léger bonus aux mots accentués en
+fr ; égalité stricte -> moins d'incertains, puis fr) ; un désaccord entre passes qui ne tient qu'aux accents ou à la
+casse (repli NFKD + casefold) ne marque plus rien. Relance de `scripts/scan_mesure.py` (mêmes 10 pages) :
+
 | Cas | Langue retenue | CER | Marqués | Précision / rappel | s/page |
 |---|---|---|---|---|---|
-| fr1 | fr | 0,00 % | 10 | 0 % / — | 2,24 |
-| fr2 | fr | 0,00 % | 9 | 0 % / — | 2,05 |
-| fr3 | fr | 0,91 % | 12 | 0 % / 0 % | 2,21 |
-| fr4 | fr | 0,55 % | 32 | 3 % / 17 % | 2,21 |
-| fr5 | fr | 0,31 % | 11 | 0 % / 0 % | 2,17 |
-| en1 | **fr** | 0,22 % | 2 | 100 % / 100 % | 2,22 |
-| en2 | **fr** | 0,14 % | 3 | 67 % / 100 % | 2,08 |
-| en3 | **fr** | 0,89 % | 3 | 100 % / 100 % | 2,28 |
-| en4 | **fr** | 0,13 % | 1 | 100 % / 100 % | 2,19 |
-| en5 | **fr** | 1,03 % | 2 | 100 % / 33 % | 2,17 |
+| fr1 | fr | 0,00 % | 2 | 0 % / — | 2,21 |
+| fr2 | fr | 0,00 % | 2 | 0 % / — | 2,01 |
+| fr3 | fr | 0,91 % | 6 | 0 % / 0 % | 2,24 |
+| fr4 | fr | 0,55 % | 26 | 4 % / 17 % | 2,22 |
+| fr5 | fr | 0,31 % | 4 | 0 % / 0 % | 2,18 |
+| en1 | **en** | 0,00 % | 0 | — / — | 2,24 |
+| en2 | **en** | 0,14 % | 2 | 50 % / 100 % | 2,11 |
+| en3 | **en** | 0,56 % | 3 | 0 % / — | 2,44 |
+| en4 | **en** | 0,00 % | 0 | — / — | 2,18 |
+| en5 | **en** | 0,90 % | 2 | 50 % / 20 % | 2,17 |
 
-Moyennes auto : FR CER 0,35 % (74 marqués, 1 juste) ; EN CER 0,48 % (11 marqués, 10 justes) ; ~2,2 s/page.
+Moyennes auto : **langue juste 10 / 10** (avant : 5 / 10, toutes les pages EN étiquetées fr) ; FR CER 0,35 %
+(40 marqués, 1 juste ; avant 74 marqués) ; EN CER **0,32 %** (= la langue choisie ; avant 0,48 %), 7 marqués,
+2 justes ; ~2,2 s/page. Ancienne mesure (avant I4) : FR 74 marqués / 1 juste, EN étiquetée fr, CER 0,48 %.
 
 ## Limites observées
 
@@ -71,14 +78,11 @@ Moyennes auto : FR CER 0,35 % (74 marqués, 1 juste) ; EN CER 0,48 % (11 marqué
    la règle de la Décision 3 (chiffres mêlés aux lettres, signes inhabituels, répétitions) ne peut pas les voir.
    Aucun réglage de seuil n'y change rien : il faudrait un lexique (mot absent du dictionnaire de la langue) — piste
    pour un lot suivant, pas dans t312. L'écran doit donc inviter à relire, pas promettre que tout faux est surligné.
-2. **Mode auto** : (a) la langue retenue est TOUJOURS « fr » sur les pages anglaises — les deux passes ont 0 mot
-   incertain, et l'égalité va au français (Décision 2) ; le texte reste bon (CER 0,48 % contre 0,32 %), seule
-   l'étiquette de langue est fausse. (b) Sur les pages françaises, la passe en-US lit mal les accents et le Garamond
-   (« lumiére », « å », « nviére », « pcnssons ») : chaque désaccord marque un mot JUSTE de la passe gardée
-   (précision 1 sur 74). Sur les pages anglaises, au contraire, les désaccords tombent bien (10 sur 11).
-   Recommandation (non faite ici, c'est une décision de conception) : départager par un score de mots courants de
-   chaque langue plutôt que par le nombre d'incertains, et ne marquer un désaccord que si la passe de l'AUTRE langue
-   que celle retenue lit un mot du lexique. En attendant, le défaut de l'écran (Français) est le bon choix.
+2. **Mode auto** : la langue retenue est juste sur les 10 pages depuis le départage par mots outils (I4). Il reste
+   des faux marqués sur les pages françaises en Garamond (26 sur fr4) : la passe en-US y lit des mots VRAIMENT
+   différents (« å », « nviére », « pcnssons »), pas seulement sans accents — le repli des diacritiques ne les
+   écarte pas. Piste (lot suivant) : ne marquer un désaccord que si le mot de l'autre passe est dans un lexique.
+   L'écran ne promet donc rien : « Aucun mot étrange repéré — relis quand même » et une note toujours visible.
 3. **Mots courts perdus par l'OCR** : « ain. » (fin de « souterrain » coupé, seul sur sa ligne, fr3) et « When »
    (premier mot d'une ligne, page tournée de 1°, en3) ne sont pas rendus par Windows.Media.Ocr (vérifié sur la sortie
    brute de `lire_page`) — ce n'est pas le nettoyage. Effet : une césure qui reste « souterr- » en fin de paragraphe.
@@ -88,7 +92,8 @@ Moyennes auto : FR CER 0,35 % (74 marqués, 1 juste) ; EN CER 0,48 % (11 marqué
 6. Ce qui se lit bien malgré les pièges : faible contraste (gris 168 sur fond 246, grâce à l'`autocontrast`),
    9 pt à 150 dpi, rotation de 1°, justifié, dialogues à tirets cadratins (9 paragraphes sur 9).
 7. Durée : ~1,1 s par page et par passe (le lancement de PowerShell compte pour l'essentiel) ; le mode auto double.
-   Dix pages = ~11 s en langue choisie, ~22 s en auto : sous le délai de 90 s de l'écran.
+   Dix pages = ~11 s en langue choisie, ~22 s en auto : bien sous l'échéance du serveur (120 s, au-delà les pages
+   restantes ne sont pas lues et le texte lu est rendu « partiel ») et le délai de l'écran (135 s).
 
 ## Correctif fait à partir de la mesure
 

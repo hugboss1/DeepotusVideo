@@ -12,6 +12,9 @@ t189.py). Plan docs/superpowers/plans/2026-10-28-t312-scan-texte.md, Décision 7
   scanCreerChapitres (un POST /chapters par chapitre du découpage, série courante, puis loadChapters),
   scanManuscrit (un File « scan.txt » par msRun, le même envoi que le fichier choisi : /atelier/manuscript) ;
 - msRun(impose) accepte ce File imposé ; appelé par son bouton, il reçoit l'évènement et lit #msFile comme avant.
+- revue finale t312 (I3) : msRun rend true quand le job est lancé, false en cas d'échec (la raison dans msRun.erreur) ;
+  le bouton « Lancer » ignore la valeur ; scanManuscrit LÈVE l'erreur quand rien n'est lancé : la boîte Scan reste
+  ouverte avec son texte (parfois payé) et la raison, la modale manuscrit se referme.
 Le secours Claude (devis, confirmation, 409, rendu partiel) et le 402 du plafond (dz-plafonds.js) vivent dans la boîte.
 """
 from outils import S
@@ -28,7 +31,9 @@ MSRUN_AV = C('''async function msRun() {
   const f = $("#msFile").files && $("#msFile").files[0];''')
 
 MSRUN_AP = C('''async function msRun(impose) {
-  // t312 : un File imposé (le texte d'un scan, « scan.txt ») suit le même envoi que le fichier choisi
+  // t312 : un File imposé (le texte d'un scan, « scan.txt ») suit le même envoi que le fichier choisi.
+  // Revue finale t312 (I3) : rend true quand le job est lancé, false sinon (raison dans msRun.erreur).
+  msRun.erreur = "";
   const f = (typeof File === "function" && impose instanceof File) ? impose : ($("#msFile").files && $("#msFile").files[0]);''')
 
 FONCTIONS = C('''/* ═════════ t312 (C1 Scan) — la boîte « Scanner une page » (/shared/dz-scan.js) ═════════
@@ -74,7 +79,11 @@ async function scanManuscrit(texte) {
   if ($("#msRun").disabled || msPolling) throw new Error(dzT("atelier.t312_scan.ms_en_cours"));
   if (!$("#msSeries").value.trim() && $("#chapterSeries").value.trim()) $("#msSeries").value = $("#chapterSeries").value.trim();
   $("#msModal").classList.remove("hidden");
-  await msRun(new File([texte], "scan.txt", { type: "text/plain" }));
+  const lance = await msRun(new File([texte], "scan.txt", { type: "text/plain" }));
+  if (lance !== true) {             // I3 : envoi refusé -> la boîte Scan reste ouverte avec le texte et la raison
+    $("#msModal").classList.add("hidden");
+    throw new Error(msRun.erreur || dzT("atelier.at3_ms.envoi_echoue"));
+  }
   return true;
 }
 
@@ -105,6 +114,20 @@ POLL_AV = '    msPolling = setInterval(async () => {'
 POLL_AP = C('''    if (msPolling) { clearInterval(msPolling); msPolling = null; }   // t312 : jamais deux sondes (la première fuirait)
     msPolling = setInterval(async () => {''')
 
+FIN_AV = C('''    }, 2000);
+  } catch (e) {
+    $("#msRun").disabled = false;''')
+FIN_AP = C('''    }, 2000);
+    return true;                                  // revue finale t312 (I3) : job lancé
+  } catch (e) {
+    $("#msRun").disabled = false;
+    msRun.erreur = (e && e.message) || "";''')
+SORTIE_AV = C('''  }
+}''')
+SORTIE_AP = C('''    return false;
+  }
+}''')
+
 ECOUTE_AV = '  $("#msRun").addEventListener("click", msRun);'
 ECOUTE_AP = C('''  $("#msRun").addEventListener("click", msRun);
   // t312 : « Scanner une page » — près d'« Importer » et dans la barre des chapitres (mêmes envois)
@@ -133,6 +156,8 @@ DICO = {
 ENTREES = [
     S(_AT, 1603, MSRUN_AV, MSRUN_AP, {}),
     S(_AT, 1619, POLL_AV, POLL_AP, {}),
+    S(_AT, 1639, FIN_AV, FIN_AP, {}),
+    S(_AT, 1643, SORTIE_AV, SORTIE_AP, {}),
     S(_AT, 1646, "/* ═════════ utilitaires ═════════ */", FONCTIONS + "/* ═════════ utilitaires ═════════ */", DICO),
     S(_AT, 1898, ECOUTE_AV, ECOUTE_AP, {}),
 ]

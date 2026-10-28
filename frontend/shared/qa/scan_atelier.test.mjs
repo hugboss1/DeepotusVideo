@@ -140,6 +140,24 @@ const leve = async (fn) => { try { await fn(); return null; } catch (e) { return
     m.journal.some((x) => x[0] === "toast" && x[1] === FR("atelier.at3_ms.choisis")) && m.appels.length === 1);
 }
 
+{
+  // revue finale t312 (I3) : un envoi refusé (POST 400) laisse la boîte ouverte avec le texte et la raison
+  const m = monde({ routes: { "POST /api/atelier/manuscript": () => new Response(JSON.stringify({ detail: "manuscrit refusé" }), { status: 400 }) } });
+  const e = await leve(() => m.f.scanManuscrit("Texte scanné. ".repeat(20)));
+  ok("3.8 POST 400 : scanManuscrit lève l'erreur avec son message (la boîte reste ouverte)", e && e.message === "manuscrit refusé", e && e.message);
+  ok("3.9 … modale manuscrit refermée, bouton « Lancer » rendu, aucune sonde", m.els["#msModal"].classList.contains("hidden")
+    && m.els["#msRun"].disabled === false && m.intervalles.length === 0);
+  const r = await m.f.msRun(new File(["x".repeat(300)], "scan.txt", { type: "text/plain" }));
+  ok("3.10 msRun rend false sur échec", r === false && m.ctx.msRun.erreur === "manuscrit refusé");
+}
+{
+  const m = monde({ routes: { "POST /api/atelier/manuscript": () => { throw new TypeError("Failed to fetch"); } } });
+  const e = await leve(() => m.f.scanManuscrit("Texte scanné. ".repeat(20)));
+  ok("3.11 réseau tombé : erreur levée avec la raison", e && e.message === "Failed to fetch", e && e.message);
+  const m2 = monde({ routes: { "POST /api/atelier/manuscript": () => new Response(JSON.stringify({ job_id: "j3", series: "S", chars: 900 }), { status: 200 }) } });
+  ok("3.12 msRun rend true quand le job est lancé", (await m2.f.msRun(new File(["x".repeat(300)], "scan.txt", { type: "text/plain" }))) === true);
+}
+
 // ---- boutons ------------------------------------------------------------------------------------------------------------
 {
   const m = monde();

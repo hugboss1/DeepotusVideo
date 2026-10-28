@@ -2,7 +2,10 @@
 // enveloppe dz-plafonds.js (402) et les vrais FormData / File / Response / AbortController de node.
 // Séries : depot_lecture_apercu, incertains_navigables, astral, ocr_indisponible, claude_devis_confirmation,
 // claude_refus, cout_change_409, plafond_402 (accord, refus), partiel_tronque, sans_cache, decoupage_puis_creation,
-// manuscrit_court, onze_fichiers, refus_type, coller, perimee, delai_90s, inserer, echap, anglais.
+// manuscrit_court, onze_fichiers, refus_type, coller, perimee, delai_135s, inserer, echap, anglais ; revue finale t312 :
+// délai Claude du devis (delai_s + 30 s), « Relire » par GET /vision d'abord (gardée / en cours / rien), deja_payee et
+// « Payer une nouvelle lecture » (nouvelle: true), 409 vision_en_cours, 502/504, « Lire » après Claude confirmé,
+// premiere_page_non_lue, lecture locale partielle, note « relis quand même », découpage par le texte exact.
 // Lancer : node frontend/shared/qa/scan.test.mjs
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
@@ -126,7 +129,7 @@ async function lu(opts = {}, lang = "fr", extra = {}) {
   const b = marque(c, "claude");
   ok("1.7 bouton Claude avec le montant, pas mis en avant", visible(b) && b.textContent === FR("scan.claude.bouton", { usd: "0,0123 $" }) && !b.hasAttribute("data-mis-en-avant"), b.textContent);
   ok("1.8 trois actions d'envoi visibles", ["inserer", "chapitres", "manuscrit"].every((k) => visible(marque(c, k))));
-  ok("1.9 délai de 90 s armé pour la lecture", m.minuteries.some((t) => t.ms === 90000));
+  ok("1.9 délai de 135 s armé pour la lecture (le serveur s'arrête à 120 s)", m.minuteries.some((t) => t.ms === 135000));
 }
 
 // ---- incertains_navigables ----------------------------------------------------------------------------------------------
@@ -304,7 +307,7 @@ for (const accord of [true, false]) {
   const d1 = pyPos(texte, "Chapitre 1").debut, d2 = pyPos(texte, "Chapitre 2").debut;
   let recu = null, corpsDecoupage = null;
   const m = monde({ routes: { "POST /api/scan/lire": () => rep(200, Object.assign({}, LU, { texte, incertains: [] })), "GET /api/scan/s1/devis-vision": () => rep(200, DEVIS),
-    "POST /api/scan/decoupage": (a) => { corpsDecoupage = JSON.parse(a.corps); return rep(200, { chapitres: [{ titre: "Chapitre 1", caracteres: 22, debut: d1 }, { titre: "", caracteres: 23, debut: d2 }] }); } } });
+    "POST /api/scan/decoupage": (a) => { corpsDecoupage = JSON.parse(a.corps); return rep(200, { chapitres: [{ titre: "Chapitre 1", texte: "Prologue 😀.\n\nLe début.", caracteres: 22, debut: d1 }, { titre: "", texte: "La suite 𝒜.", caracteres: 23, debut: d2 }] }); } } });
   const p = m.Scan.ouvrir({ creerChapitres: (l) => { recu = l; return true; } });
   deposer(m, [img("a.png")]);
   marque(m.corps(), "lire").click(); await ticks();
@@ -316,8 +319,9 @@ for (const accord of [true, false]) {
     && lis.join("|") === [FR("scan.decoupage.ligne", { titre: "Chapitre 1", n: 22 }), FR("scan.decoupage.ligne", { titre: FR("scan.decoupage.sans_titre", { n: 2 }), n: 23 })].join("|"), lis);
   ok("10.5 sans série : dit dans l'aperçu du découpage", marque(c, "serie").textContent === FR("scan.decoupage.sans_serie"));
   marque(c, "creer-chapitres").click(); await ticks();
-  ok("10.3 creerChapitres : titres et textes découpés (indices convertis, préambule gardé au 1er)", recu && recu.length === 2
-    && recu[0].titre === "Chapitre 1" && recu[0].texte === "Prologue 😀.\n\nChapitre 1\nLe début." && recu[1].texte === "Chapitre 2\nLa suite 𝒜.", JSON.stringify(recu));
+  ok("10.3 creerChapitres : titres et texte EXACT rendu par le serveur (I2 : jamais le titre du suivant)", recu && recu.length === 2
+    && recu[0].titre === "Chapitre 1" && recu[0].texte === "Prologue 😀.\n\nLe début." && recu[1].texte === "La suite 𝒜."
+    && !recu[0].texte.includes("Chapitre 2"), JSON.stringify(recu));
   ok("10.4 la boîte se ferme, promesse {action: chapitres}", (await p).action === "chapitres" && !marque(m.corps(), "voile"));
 }
 
@@ -388,14 +392,14 @@ for (const accord of [true, false]) {
   ok("14.2 la première requête a été abandonnée (signal)", m.appels[0].signal && m.appels[0].signal.aborted);
 }
 
-// ---- delai_90s ----------------------------------------------------------------------------------------------------------
+// ---- delai_135s ---------------------------------------------------------------------------------------------------------
 {
   const m = monde({ routes: { "POST /api/scan/lire": (a) => new Promise((_, rej) => a.signal.addEventListener("abort", () => rej(new Error("aborted")))) } });
   m.Scan.ouvrir({});
   deposer(m, [img("a.png")]);
   marque(m.corps(), "lire").click(); await tick();
-  m.minuteries.filter((t) => t.ms === 90000 && !t.annulee).pop().f(); await ticks();
-  ok("15.1 délai de 90 s : message clair", marque(m.corps(), "etat").textContent === FR("scan.lecture.delai") && marque(m.corps(), "etat").hasAttribute("data-erreur"));
+  m.minuteries.filter((t) => t.ms === 135000 && !t.annulee).pop().f(); await ticks();
+  ok("15.1 délai de 135 s : message clair", marque(m.corps(), "etat").textContent === FR("scan.lecture.delai") && marque(m.corps(), "etat").hasAttribute("data-erreur"));
 }
 {
   const m = monde({ routes: { "POST /api/scan/lire": () => rep(415, { detail: "Format non pris en charge." }) } });
@@ -595,6 +599,134 @@ for (const accord of [true, false]) {
   ACTIF.el = new Noeud("button");
   v.fire("keydown", { key: "Tab", preventDefault() {} });
   ok("24.5 focus hors de la boîte : ramené dedans", ACTIF.el === marque(c, "choisir"));
+}
+
+// ---- revue finale t312 --------------------------------------------------------------------------------------------------
+const INDISPO_480 = { detail: Object.assign({}, INDISPO.detail, { secours_vision: Object.assign({}, INDISPO.detail.secours_vision, { delai_s: 480, pages: 10 }) }) };
+const RELU = { scan_id: "s2", pages: 1, moteur: "claude", langue: "fr", texte: "Transcription payée gardée.", incertains: [], stats: {}, usd: 0.02 };
+async function claudeQuiTraine(routes, dialogue) {
+  const m = monde({ routes: Object.assign({ "POST /api/scan/lire": () => rep(503, INDISPO_480),
+    "POST /api/scan/s2/vision": (a) => new Promise((_, rej) => a.signal.addEventListener("abort", () => rej(new Error("aborted")))) }, routes), dialogue });
+  m.Scan.ouvrir({});
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "claude").click(); await ticks();
+  return m;
+}
+{
+  let posts = 0;
+  const m = await claudeQuiTraine({ "GET /api/scan/s2/vision": () => rep(200, Object.assign({}, RELU, { deja_payee: true })) });
+  const t = m.minuteries.filter((x) => x.ms === 480000 + 30000 && !x.annulee);
+  ok("30.1 I1a : délai Claude = delai_s du devis + 30 s (510 s pour 10 pages)", t.length === 1, m.minuteries.map((x) => x.ms));
+  t[0].f(); await ticks();
+  const c = m.corps();
+  ok("30.2 délai : « Relire » proposé", visible(marque(c, "relire")) && marque(c, "etat").textContent === FR("scan.claude.delai"));
+  m.ctx.fetch = ((f) => async (u, i) => { if (String(u).endsWith("/vision") && (i || {}).method === "POST") posts++; return f(u, i); })(m.ctx.fetch);
+  marque(c, "relire").click(); await ticks();
+  ok("30.3 I1c : Relire demande d'abord GET /vision (gratuit) : texte gardé, AUCUNE confirmation ni POST", m.appels.some((a) => a.url === "/api/scan/s2/vision" && a.methode === "GET")
+    && m.dialogues.length === 1 && posts === 0 && marque(c, "texte").value === RELU.texte, m.dialogues.length + " " + posts);
+  ok("30.4 « déjà payée » dit, bouton « Payer une nouvelle lecture » offert", marque(c, "etat").textContent === FR("scan.claude.deja_payee")
+    && visible(marque(c, "nouvelle")) && marque(c, "nouvelle").textContent === FR("scan.claude.nouvelle", { usd: "0,02 $" }) && !visible(marque(c, "relire")));
+}
+{
+  let corpsNouvelle = null;
+  const m = monde({ routes: { "POST /api/scan/lire": () => rep(503, INDISPO),
+    "POST /api/scan/s2/vision": (a) => { const b = JSON.parse(a.corps); if (b.nouvelle) { corpsNouvelle = b; return rep(200, Object.assign({}, RELU, { texte: "Nouvelle lecture." })); }
+      return rep(200, Object.assign({}, RELU, { deja_payee: true })); } }, dialogue: (msg, o, k) => k !== 2 || !!m2.oui });
+  const m2 = { oui: false };
+  m.Scan.ouvrir({});
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "claude").click(); await ticks();
+  const c = m.corps();
+  ok("30.5 I1d : POST qui rend une lecture déjà payée : montrée, « déjà payée » dit", marque(c, "texte").value === RELU.texte && visible(marque(c, "nouvelle")));
+  marque(c, "nouvelle").click(); await ticks();
+  ok("30.6 « Payer une nouvelle lecture » : confirmation dédiée ; refusée -> rien n'est envoyé", m.dialogues.length === 2
+    && m.dialogues[1].msg === FR("scan.claude.nouvelle_confirmer", { n: 1, nom: "Claude Sonnet", usd: "0,02 $" }) && corpsNouvelle === null);
+  m2.oui = true;
+  marque(c, "nouvelle").click(); await ticks();
+  ok("30.7 … acceptée : POST avec nouvelle: true", corpsNouvelle && corpsNouvelle.nouvelle === true && marque(c, "texte").value === "Nouvelle lecture.", JSON.stringify(corpsNouvelle));
+}
+{
+  const m = await claudeQuiTraine({ "GET /api/scan/s2/vision": () => rep(409, { detail: { code: "vision_en_cours", message: "en cours" } }) });
+  m.minuteries.filter((x) => x.ms === 510000 && !x.annulee)[0].f(); await ticks();
+  marque(m.corps(), "relire").click(); await ticks();
+  ok("30.8 Relire pendant que le serveur lit encore : « tourne encore », Relire reste, aucun POST de plus",
+    marque(m.corps(), "etat").textContent === FR("scan.claude.encore") && visible(marque(m.corps(), "relire")) && m.dialogues.length === 1
+    && m.appels.filter((a) => a.url === "/api/scan/s2/vision" && a.methode === "POST").length === 1);
+}
+{
+  let k = 0;
+  const m = await claudeQuiTraine({ "GET /api/scan/s2/vision": () => rep(404, { detail: "rien" }),
+    "POST /api/scan/s2/vision": (a) => { k++; return k === 1 ? new Promise((_, rej) => a.signal.addEventListener("abort", () => rej(new Error("aborted")))) : rep(200, RELU); } });
+  m.minuteries.filter((x) => x.ms === 510000 && !x.annulee)[0].f(); await ticks();
+  marque(m.corps(), "relire").click(); await ticks();
+  ok("30.9 Relire sans rien de gardé (404) : nouvelle lecture PAYANTE seulement après confirmation", m.dialogues.length === 2 && k === 2
+    && marque(m.corps(), "texte").value === RELU.texte);
+}
+{
+  const m = monde({ routes: { "POST /api/scan/lire": () => rep(503, INDISPO),
+    "POST /api/scan/s2/vision": () => rep(409, { detail: { code: "vision_en_cours", message: "Une lecture par Claude de ce scan est déjà en cours : attends sa réponse." } }) } });
+  m.Scan.ouvrir({});
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "claude").click(); await ticks();
+  ok("30.10 I1b : 409 vision_en_cours (autre onglet) : dit, « Relire » proposé, pas de boucle de devis", marque(m.corps(), "etat").textContent === FR("scan.claude.encore")
+    && visible(marque(m.corps(), "relire")) && m.dialogues.length === 1);
+}
+for (const code of [504, 502]) {
+  const msg = code === 504 ? "La lecture par Claude n'a pas répondu à temps : elle a peut-être été facturée." : "La lecture par Claude a échoué (réseau) : elle a peut-être été facturée.";
+  const m = monde({ routes: { "POST /api/scan/lire": () => rep(503, INDISPO), "POST /api/scan/s2/vision": () => rep(code, { detail: msg }) } });
+  m.Scan.ouvrir({});
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "claude").click(); await ticks();
+  ok(`30.11 m2 : ${code} : son message (peut-être facturée), « Relire » proposé`, marque(m.corps(), "etat").textContent === FR("scan.claude.echec", { msg })
+    && visible(marque(m.corps(), "relire")) && !visible(marque(m.corps(), "claude")));
+}
+{
+  let lectures = 0;
+  const m = monde({ routes: { "POST /api/scan/lire": () => { lectures++; return rep(200, LU); }, "GET /api/scan/s1/devis-vision": () => rep(200, DEVIS),
+    "POST /api/scan/s1/vision": () => rep(200, Object.assign({}, RELU, { scan_id: "s1" })) }, dialogue: (msg) => msg !== FR("scan.lire.ecraser") || !!etat.oui });
+  const etat = { oui: false };
+  m.Scan.ouvrir({});
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "claude").click(); await ticks();
+  marque(m.corps(), "lire").click(); await ticks();
+  ok("30.12 m3 : « Lire » après une lecture Claude : confirmation ; refusée -> texte payé gardé, aucune lecture", lectures === 1
+    && m.dialogues[m.dialogues.length - 1].msg === FR("scan.lire.ecraser") && marque(m.corps(), "texte").value === RELU.texte
+    && marque(m.corps(), "etat").textContent === FR("scan.lire.garde"));
+  etat.oui = true;
+  marque(m.corps(), "lire").click(); await ticks();
+  ok("30.13 … acceptée : la lecture locale remplace", lectures === 2 && marque(m.corps(), "texte").value === TEXTE);
+  marque(m.corps(), "lire").click(); await ticks();
+  ok("30.14 après une lecture locale : plus de confirmation", lectures === 3 && m.dialogues.filter((d) => d.msg === FR("scan.lire.ecraser")).length === 2);
+}
+{
+  const m = monde({ routes: { "POST /api/scan/lire": () => rep(503, INDISPO),
+    "POST /api/scan/s2/vision": () => rep(200, { moteur: "claude", texte: "Quatre pages.", incertains: [], usd: 0.04, partiel: true, pages_lues: 4, premiere_page_non_lue: 6, erreur: "appel", stats: {} }) } });
+  m.Scan.ouvrir({});
+  deposer(m, [img("a.pdf")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "claude").click(); await ticks();
+  ok("30.15 m5 : bandeau partiel au numéro du dépôt (premiere_page_non_lue)", marque(m.corps(), "bandeau").textContent.includes(FR("scan.bandeau.partiel", { de: 6, raison: FR("scan.partiel.appel"), usd: "0,04 $" })),
+    marque(m.corps(), "bandeau").textContent);
+}
+{
+  const m = monde({ routes: { "POST /api/scan/lire": () => rep(200, Object.assign({}, LU, { incertains: [], partiel: true, pages_lues: 2 })), "GET /api/scan/s1/devis-vision": () => rep(200, DEVIS) } });
+  m.Scan.ouvrir({});
+  deposer(m, [img("a.png"), img("b.png"), img("c.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  const c = m.corps();
+  ok("30.16 m1 : lecture locale arrêtée par le serveur : bandeau « pages 3 et suivantes »", visible(marque(c, "bandeau"))
+    && marque(c, "bandeau").textContent === FR("scan.bandeau.lecture_partielle", { de: 3 }), marque(c, "bandeau").textContent);
+  ok("30.17 I5 : aucun mot étrange : « relis quand même », jamais « aucun mot incertain »", marque(c, "compteur").textContent === FR("scan.incertains.aucun")
+    && /relis quand même/.test(FR("scan.incertains.aucun")) && !/incertain/i.test(FR("scan.incertains.aucun")));
+  ok("30.18 I5 : note TOUJOURS visible sous l'aperçu : les mots faux plausibles ne sont pas surlignés", visible(marque(c, "note-relire"))
+    && marque(c, "note-relire").textContent === FR("scan.apercu.relire_note") && /relis/.test(FR("scan.apercu.relire_note")));
+  ok("30.19 I5 : statistique « mot(s) étrange(s) à vérifier » en FR et EN", FR("scan.stats.incertains", { n: 0 }).includes("étrange") && EN("scan.stats.incertains", { n: 0 }).includes("odd")
+    && EN("scan.incertains.aucun") === "No odd word spotted — proofread anyway.");
 }
 
 // ---- garde-fous de source -----------------------------------------------------------------------------------------------

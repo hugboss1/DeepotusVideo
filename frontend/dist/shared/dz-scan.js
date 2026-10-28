@@ -27,13 +27,20 @@
      (POST /api/scan/decoupage d'abord : titres et tailles montrés, puis creerChapitres([{titre, texte}])),
      « Importer comme manuscrit » (refusé ICI sous 200 caractères, avec la raison, sinon importerManuscrit). Une
      fonction absente de l'hôte : son bouton n'est pas posé. Une fonction qui rend false garde la boîte ouverte.
+   REVUE FINALE t312 : le délai de la lecture Claude vient du devis (`delai_s` du serveur + 30 s) ; « Relire » (après
+     un délai, un 502/504 ou un 409 vision_en_cours) demande d'abord GET /api/scan/{id}/vision (gratuit) et ne
+     propose une nouvelle lecture payante que s'il n'y a rien de gardé ; une réponse `deja_payee` le dit et offre
+     « Payer une nouvelle lecture » (confirmation, puis nouvelle: true) ; « Lire » après une lecture Claude demande
+     confirmation avant d'écraser ; lecture locale : délai 135 s (le serveur s'arrête à 120 s et rend `partiel`) ;
+     découpage : le `texte` exact de chaque chapitre rendu par le serveur ; une note TOUJOURS visible invite à relire
+     (les mots faux plausibles ne sont pas surlignés).
    CHARTE : celle de dialogue.js (aucun arrondi, en-tête IBM Plex Mono en capitales, jetons --srf-* / --brd-* /
    --txt-* avec replis). Textes : clés scan.* (frontend/shared/i18n/scan.json). Vanilla DOM. */
 (function () {
   "use strict";
   if (window.__dzScan) return;
 
-  var MAX_FICHIERS = 10, DELAI_MS = 90000, DELAI_CLAUDE_MS = 180000, MIN_MANUSCRIT = 200;
+  var MAX_FICHIERS = 10, DELAI_MS = 135000, DELAI_CLAUDE_MS = 180000, MARGE_CLAUDE_MS = 30000, MIN_MANUSCRIT = 200;
   var POLICE = "13px/1.5 'IBM Plex Mono',ui-monospace,monospace";
   var S = {
     voile: "position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center",
@@ -185,8 +192,11 @@
     E.noteClaude = el("span", { style: S.note, hidden: "", "data-dz-scan": "note-claude" });
     E.relire = bouton("relire", T("scan.claude.relire"), "");
     montrer(E.relire, false);
-    E.relire.addEventListener("click", function () { claude(E); });
-    secours.appendChild(E.claude); secours.appendChild(E.relire); secours.appendChild(E.noteClaude);
+    E.relire.addEventListener("click", function () { relire(E); });
+    E.nouvelle = bouton("nouvelle", "", "");
+    montrer(E.nouvelle, false);
+    E.nouvelle.addEventListener("click", function () { claude(E, true); });
+    secours.appendChild(E.claude); secours.appendChild(E.relire); secours.appendChild(E.nouvelle); secours.appendChild(E.noteClaude);
     corps.appendChild(secours);
 
     // ── aperçu
@@ -209,6 +219,7 @@
     E.champ.addEventListener("scroll", function () { E.miroir.scrollTop = E.champ.scrollTop; });
     cadre.appendChild(E.miroir); cadre.appendChild(E.champ);
     res.appendChild(cadre);
+    res.appendChild(el("div", { style: S.note, "data-dz-scan": "note-relire" }, T("scan.apercu.relire_note")));
     corps.appendChild(res);
 
     // ── découpage proposé
@@ -271,7 +282,7 @@
   function verrouiller(E, oui) {
     E.occupe = !!oui;
     montrer(E.voileOccupe, !!oui);
-    var boutons = focalisables(E.voile).concat([E.lire, E.claude, E.relire, E.fermer, E.entree], E.envois);
+    var boutons = focalisables(E.voile).concat([E.lire, E.claude, E.relire, E.nouvelle, E.fermer, E.entree], E.envois);
     tous(E.voile).forEach(function (n) { if (String(n.tagName || "").toUpperCase() === "BUTTON") boutons.push(n); });
     boutons.forEach(function (b) { if (b && b.getAttribute("data-dz-scan") !== "prec" && b.getAttribute("data-dz-scan") !== "suiv") griser(b, !!oui); });
     E.champ.readOnly = !!oui;
@@ -349,6 +360,14 @@
   async function lire(E) {
     if (E.occupe) return;
     if (!E.fichiers.length) { dire(E, T("scan.fichiers.aucun"), true); return; }
+    if (E.moteur === "claude" && E.champ.value.trim()) {     // m3 : une transcription PAYÉE ne s'écrase pas sans accord
+      var D = window.__dzDialogue, oui = false;
+      if (D && typeof D.confirmer === "function") {
+        try { oui = !!(await D.confirmer(T("scan.lire.ecraser"), { titre: T("scan.claude.titre"), ok: T("scan.lire.ecraser_ok") })); } catch (e) { oui = false; }
+      }
+      if (!oui) { dire(E, T("scan.lire.garde")); return; }
+      if (E.occupe || E.ferme) return;
+    }
     var jeton = ++E.jeton;
     if (E.ctrl) { try { E.ctrl.abort(); } catch (e) { /* fini */ } }
     if (E.minuterie) clearTimeout(E.minuterie);
@@ -361,7 +380,7 @@
     dire(E, T("scan.lecture.en_cours", { n: E.fichiers.length }));
     banniere(E, []);
     proposerClaude(E, null, false, false);        // le devis de la lecture précédente ne vaut plus
-    montrer(E.relire, false);
+    montrer(E.relire, false); montrer(E.nouvelle, false);
     var R, j;
     try {
       R = await fetch("/api/scan/lire", { method: "POST", body: fd, signal: ctrl ? ctrl.signal : undefined });
@@ -382,6 +401,7 @@
     }
     if (!R.ok) { dire(E, T("scan.lecture.echec", { msg: detail(j, R.status) }), true); return; }
     afficher(E, j);
+    if (j.partiel) banniere(E, [T("scan.bandeau.lecture_partielle", { de: (Number(j.pages_lues) || 0) + 1 })]);
     E.scanId = j.scan_id || null;
     if (j.moteur === "texte") { proposerClaude(E, null, false, false); return; }
     if (!E.scanId || j.en_cache === false) { proposerClaude(E, null, false, true); return; }
@@ -415,6 +435,7 @@
   // ───────────────────────────────────────────── aperçu
   function afficher(E, r) {
     var texte = String((r && r.texte) || "");
+    E.moteur = (r && r.moteur) || "";
     E.champ.value = texte;
     E.base = texte;
     E.marques = versU16(texte, r && r.incertains);
@@ -476,16 +497,18 @@
   }
 
   // ───────────────────────────────────────────── secours Claude
-  async function claude(E) {
+  async function claude(E, nouvelle) {
     if (!E.scanId || !E.devis || E.occupe) return;
     var D = window.__dzDialogue;
     if (!D || typeof D.confirmer !== "function") { dire(E, T("scan.claude.annule"), true); return; }
     var montant = Number(E.devis.usd) || 0;
-    var question = T("scan.claude.confirmer", { n: E.devis.pages || E.fichiers.length || 1, nom: E.devis.nom || "Claude", usd: usd(montant) });
+    var question = T(nouvelle ? "scan.claude.nouvelle_confirmer" : "scan.claude.confirmer",
+                     { n: E.devis.pages || E.fichiers.length || 1, nom: E.devis.nom || "Claude", usd: usd(montant) });
+    var delaiMs = Number(E.devis.delai_s) > 0 ? Number(E.devis.delai_s) * 1000 + MARGE_CLAUDE_MS : DELAI_CLAUDE_MS;
     var jeton = ++E.jetonClaude;                  // son PROPRE jeton : aucune autre action ne périme une lecture payée
     verrouiller(E, true);
     montrer(E.voileOccupe, false);                // le voile « lecture en cours » ne vient qu'avec l'appel
-    montrer(E.relire, false);
+    montrer(E.relire, false); montrer(E.nouvelle, false);
     try {
       for (;;) {
         var oui = false;
@@ -494,12 +517,13 @@
         dire(E, T("scan.claude.en_cours"));
         montrer(E.voileOccupe, true);
         var ctrl = typeof AbortController === "function" ? new AbortController() : null, expire = false;
-        var minut = setTimeout(function () { expire = true; if (ctrl) ctrl.abort(); }, DELAI_CLAUDE_MS);
+        var minut = setTimeout(function () { expire = true; if (ctrl) ctrl.abort(); }, delaiMs);
         var R, j;
         try {
           R = await fetch("/api/scan/" + encodeURIComponent(E.scanId) + "/vision", {
             method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl ? ctrl.signal : undefined,
-            body: JSON.stringify({ max_usd: montant, langue: E.langue.value || "auto" }) });
+            body: JSON.stringify(nouvelle ? { max_usd: montant, langue: E.langue.value || "auto", nouvelle: true }
+                                          : { max_usd: montant, langue: E.langue.value || "auto" }) });
           j = await lireJson(R);
         } catch (e) {
           clearTimeout(minut);
@@ -512,6 +536,11 @@
         clearTimeout(minut);
         montrer(E.voileOccupe, false);
         if (jeton !== E.jetonClaude) return;      // garde de principe : le verrou empêche une seconde lecture
+        if (R.status === 409 && j && j.detail && j.detail.code === "vision_en_cours") {
+          dire(E, T("scan.claude.encore"), true);
+          montrer(E.claude, false); montrer(E.relire, true);
+          return;
+        }
         if (R.status === 409 && j && j.detail && j.detail.usd != null) {
           montant = Number(j.detail.usd) || 0;
           E.devis = Object.assign({}, E.devis, { usd: montant });
@@ -519,21 +548,12 @@
           question = T("scan.claude.cout_change", { usd: usd(montant) });
           continue;
         }
-        if (!R.ok) { dire(E, T("scan.claude.echec", { msg: detail(j, R.status) }), true); return; }
-        E.jeton++;                                // une lecture locale ou un découpage d'avant ne remplaceront pas ce texte
-        afficher(E, j);
-        montrer(E.claude, false); montrer(E.noteClaude, false); montrer(E.relire, false);
-        var lignes = [];
-        if (j.partiel) {
-          lignes.push(T("scan.bandeau.partiel", { de: (Number(j.pages_lues) || 0) + 1,
-            raison: T(j.erreur === "plafond" ? "scan.partiel.plafond" : "scan.partiel.appel"), usd: usd(j.usd) }));
+        if (!R.ok) {
+          dire(E, T("scan.claude.echec", { msg: detail(j, R.status) }), true);
+          if (R.status === 502 || R.status === 504) { montrer(E.claude, false); montrer(E.relire, true); }   // m2 : peut-être facturée
+          return;
         }
-        var st = j.stats || {};
-        if (st.tronque) {
-          var lots = (st.lots_tronques || []).map(function (l) { return l[0] === l[1] ? String(l[0]) : l[0] + "–" + l[1]; }).join(", ");
-          lignes.push(T("scan.bandeau.tronque", { lots: lots || "?" }));
-        }
-        banniere(E, lignes);
+        montrerVision(E, j);
         return;
       }
     } catch (e) {
@@ -542,6 +562,57 @@
       montrer(E.voileOccupe, false);
       verrouiller(E, false);
     }
+  }
+
+  /* une transcription Claude reçue (payée maintenant ou déjà payée et gardée par le serveur) */
+  function montrerVision(E, j) {
+    E.jeton++;                                    // une lecture locale ou un découpage d'avant ne remplaceront pas ce texte
+    afficher(E, j);
+    montrer(E.claude, false); montrer(E.noteClaude, false); montrer(E.relire, false); montrer(E.nouvelle, false);
+    if (j.deja_payee) {
+      dire(E, T("scan.claude.deja_payee"));
+      if (E.devis && E.devis.disponible !== false) {
+        E.nouvelle.textContent = T("scan.claude.nouvelle", { usd: usd(E.devis.usd) });
+        griser(E.nouvelle, false);
+        montrer(E.nouvelle, true);
+      }
+    }
+    var lignes = [];
+    if (j.partiel) {
+      var de = Number(j.premiere_page_non_lue) || ((Number(j.pages_lues) || 0) + 1);   // m5 : numéro dans le dépôt
+      lignes.push(T("scan.bandeau.partiel", { de: de,
+        raison: T(j.erreur === "plafond" ? "scan.partiel.plafond" : "scan.partiel.appel"), usd: usd(j.usd) }));
+    }
+    var st = j.stats || {};
+    if (st.tronque) {
+      var lots = (st.lots_tronques || []).map(function (l) { return l[0] === l[1] ? String(l[0]) : l[0] + "–" + l[1]; }).join(", ");
+      lignes.push(T("scan.bandeau.tronque", { lots: lots || "?" }));
+    }
+    banniere(E, lignes);
+  }
+
+  /* « Relire » : d'abord la transcription PAYÉE gardée par le serveur (gratuit) ; rien de gardé -> lecture payante
+     (avec sa confirmation) ; encore en cours -> on le dit, « Relire » reste */
+  async function relire(E) {
+    if (!E.scanId || E.occupe) return;
+    var jeton = E.jetonClaude;
+    verrouiller(E, true);
+    montrer(E.voileOccupe, false);
+    var R, j;
+    try {
+      R = await fetch("/api/scan/" + encodeURIComponent(E.scanId) + "/vision");
+      j = await lireJson(R);
+    } catch (e) {
+      verrouiller(E, false);
+      dire(E, T("scan.claude.echec", { msg: (e && e.message) || "?" }), true);
+      return;
+    }
+    verrouiller(E, false);
+    if (jeton !== E.jetonClaude || E.ferme) return;
+    if (R.ok && j) { montrerVision(E, j); return; }
+    if (R.status === 409) { dire(E, T("scan.claude.encore"), true); montrer(E.relire, true); return; }
+    if (R.status === 404 && E.devis) { montrer(E.relire, false); dire(E, T("scan.claude.rien_garde")); return claude(E); }
+    dire(E, T("scan.claude.echec", { msg: detail(j, R.status) }), true);
   }
 
   // ───────────────────────────────────────────── envoi
@@ -601,12 +672,9 @@
     if (!R.ok) { dire(E, T("scan.decoupage.echec", { msg: detail(j, R.status) }), true); return; }
     var chap = (j && j.chapitres) || [];
     if (!chap.length) { dire(E, T("scan.decoupage.aucun"), true); return; }
-    var t = tableU16(texte), n16 = t.length - 1;
-    var debuts = chap.map(function (c, i) { return i === 0 ? 0 : t[Math.max(0, Math.min(n16, Number(c.debut) || 0))]; });
-    var liste = chap.map(function (c, i) {
+    var liste = chap.map(function (c, i) {        // I2 : le texte EXACT du découpage serveur, tel quel
       return { titre: String(c.titre || "").trim() || T("scan.decoupage.sans_titre", { n: i + 1 }),
-               texte: texte.slice(debuts[i], i + 1 < chap.length ? debuts[i + 1] : texte.length).trim(),
-               caracteres: Number(c.caracteres) || 0 };
+               texte: String(c.texte || ""), caracteres: Number(c.caracteres) || 0 };
     });
     dire(E, "");
     montrerDecoupage(E, liste);
@@ -644,6 +712,7 @@
     versU16: versU16,
     MAX_FICHIERS: MAX_FICHIERS,
     DELAI_MS: DELAI_MS,
-    DELAI_CLAUDE_MS: DELAI_CLAUDE_MS
+    DELAI_CLAUDE_MS: DELAI_CLAUDE_MS,
+    MARGE_CLAUDE_MS: MARGE_CLAUDE_MS
   };
 })();

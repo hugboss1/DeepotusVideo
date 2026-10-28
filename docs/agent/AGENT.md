@@ -110,7 +110,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   → [POINT:sonvfx.voix] [GUIDE:son-vfx]
 - **Scanner une page** (t312) : Atelier de Chapitres, « Scanner une page » ; 1 à 10 images ou PDF, la langue,
   « Lire ». Lecture sur le PC, gratuite ; colonnes, césures, folios traités ; seuls les mots étranges sont surlignés
-  (relire). « Essayer avec Claude » : devis puis confirmation, payant, catégorie « atelier ». Envois : Insérer dans
+  (relire). « Essayer avec Claude » : devis puis confirmation, payant, catégorie « atelier » ; une lecture payée est
+  gardée (« Relire » la reprend sans frais). Envois : Insérer dans
   le chapitre, Créer les chapitres, Importer comme manuscrit. → [ALLER:episodes] [GUIDE:chapitres]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]

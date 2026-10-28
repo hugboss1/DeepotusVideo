@@ -11514,5 +11514,25 @@
  "PDF trop long : 200 pages au plus.": {
   "fr": "PDF trop long : 200 pages au plus.",
   "en": "PDF too long: 200 pages at most."
+ },
+ "Aucune lecture par Claude n'est gardée pour ce scan.": {
+  "fr": "Aucune lecture par Claude n'est gardée pour ce scan.",
+  "en": "No Claude reading is kept for this scan."
+ },
+ "La lecture de texte de Windows a dépassé deux minutes : réessaie avec moins de pages.": {
+  "fr": "La lecture de texte de Windows a dépassé deux minutes : réessaie avec moins de pages.",
+  "en": "Windows text reading took more than two minutes: try again with fewer pages."
+ },
+ "La lecture par Claude n'a pas répondu à temps : elle a peut-être été facturée. Vérifie tes dépenses avant de relire.": {
+  "fr": "La lecture par Claude n'a pas répondu à temps : elle a peut-être été facturée. Vérifie tes dépenses avant de relire.",
+  "en": "The Claude reading did not answer in time: it may have been billed. Check your spending before reading again."
+ },
+ "La lecture par Claude a échoué (réseau) : elle a peut-être été facturée. Vérifie tes dépenses avant de relire.": {
+  "fr": "La lecture par Claude a échoué (réseau) : elle a peut-être été facturée. Vérifie tes dépenses avant de relire.",
+  "en": "The Claude reading failed (network): it may have been billed. Check your spending before reading again."
+ },
+ "Une lecture par Claude de ce scan est déjà en cours : attends sa réponse.": {
+  "fr": "Une lecture par Claude de ce scan est déjà en cours : attends sa réponse.",
+  "en": "A Claude reading of this scan is already running: wait for its answer."
  }
 }

@@ -199,6 +199,36 @@ def _couper(mots: list[dict], W: float) -> list[dict]:
     return [_ligne(g) for g in groupes]
 
 
+def _replier(t: str) -> str:
+    """Revue finale t312 (I4) : un mot sans diacritiques ni casse (NFKD, marques Mn ôtées, casefold). La passe en-US ne
+    sait pas écrire les accents : « lumière » / « lumiere » ou « été » / « ete » ne sont pas un désaccord."""
+    return "".join(c for c in unicodedata.normalize("NFKD", t) if unicodedata.category(c) != "Mn").casefold()
+
+
+# Mots outils (revue finale t312, I4) : en mode auto, chaque passe est notée par les mots courants de SA langue.
+MOTS_OUTILS = {
+    "fr": frozenset("le la les de des du et est une un que qui dans pour pas au aux ce il elle ne se sur "
+                    "en à son sa ses nous vous ils elles mais ou avec plus par qu l d".split()),
+    "en": frozenset("the and of to in is that it was for with as on be he she his her at by "
+                    "a an are this which from not have had they you were".split()),
+}
+BONUS_ACCENT = 0.25                # par mot accentué de la passe fr : la passe en-US n'en écrit jamais
+
+
+def score_langue(texte: str, langue: str) -> float:
+    """Le score d'une passe : ses mots outils de `langue` (+ un léger bonus pour les mots accentués en fr)."""
+    outils = MOTS_OUTILS.get(langue, frozenset())
+    score = 0.0
+    for mot in (texte or "").split():
+        for morceau in re.split(r"[’']", mot):
+            d, f = _coeur(morceau)
+            if morceau[d:f].casefold() in outils:
+                score += 1
+        if langue == "fr" and any(c in "àâäçéèêëîïôöùûüÿœæÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ" for c in mot):
+            score += BONUS_ACCENT
+    return score
+
+
 def _discorde(m: dict, autres: list[dict]) -> bool:
     a = (m["x1"] - m["x0"]) * (m["y1"] - m["y0"])
     if a <= 0:
@@ -219,7 +249,7 @@ def _discorde(m: dict, autres: list[dict]) -> bool:
     if meilleur < 0.5:
         return True
     d1, f1 = _coeur(m["t"]); d2, f2 = _coeur(texte)
-    return m["t"][d1:f1] != texte[d2:f2]
+    return _replier(m["t"][d1:f1]) != _replier(texte[d2:f2])
 
 
 # ------------------------------------------------------------------------------------------------- folios, titres
@@ -519,14 +549,16 @@ def _nettoyer(pages: list[dict], langue: str, autre: list[dict] | None) -> dict:
 
 def nettoyer(pages: list[dict], *, langue: str = "fr", autre: list[dict] | None = None) -> dict:
     """Pages lues -> {texte, incertains, stats, langue}. `autre` = la passe de l'autre langue (mode auto) : la passe
-    au moins de mots incertains est gardée (égalité -> fr), et les mots que les deux passes lisent autrement sont
-    marqués incertains."""
+    au meilleur score de mots outils de SA langue est gardée (`score_langue`, revue finale t312) ; égalité stricte ->
+    celle qui a le moins de mots incertains ; encore égalité -> fr. Les mots que les deux passes lisent autrement (hors
+    accents et casse) sont marqués incertains."""
     pages = [p if isinstance(p, dict) else {} for p in (pages or [])]
     if not autre:
         return _nettoyer(pages, langue, None)
     autre = [p if isinstance(p, dict) else {} for p in autre]
     a, b = _nettoyer(pages, langue, None), _nettoyer(autre, langue, None)
+    sa, sb = score_langue(a["texte"], a["langue"]), score_langue(b["texte"], b["langue"])
     na, nb = a["stats"]["incertains"], b["stats"]["incertains"]
-    if nb < na or (nb == na and b["langue"] == "fr" and a["langue"] != "fr"):
+    if sb > sa or (sb == sa and (nb < na or (nb == na and b["langue"] == "fr" and a["langue"] != "fr"))):
         pages, autre = autre, pages
     return _nettoyer(pages, langue, autre)

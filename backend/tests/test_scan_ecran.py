@@ -70,9 +70,12 @@ def main():
           "window.__dzScan = {" in S and "ouvrir: ouvrir" in S and "if (window.__dzScan) return;" in S)
     check("1e routes de la Décision 6 employées", all(r in S for r in ('"/api/scan/lire"', '"/devis-vision"', '"/vision"',
                                                                      '"/api/scan/decoupage"')))
-    check("1f délai 90 s (lecture) et 180 s (Claude), dix fichiers, 200 caractères", "DELAI_MS = 90000" in S
-          and "DELAI_CLAUDE_MS = 180000" in S and "MAX_FICHIERS = 10" in S
+    check("1f délai 135 s (lecture, le serveur s'arrête à 120 s), Claude : delai_s du devis + 30 s (180 s à défaut), "
+          "dix fichiers, 200 caractères", "DELAI_MS = 135000" in S and "DELAI_CLAUDE_MS = 180000" in S
+          and "MARGE_CLAUDE_MS = 30000" in S and "E.devis.delai_s" in S and "MAX_FICHIERS = 10" in S
           and "MIN_MANUSCRIT = 200" in S)
+    check("1f2 revue finale : « Relire » par GET /vision d'abord, nouvelle: true, note « relis » toujours posée",
+          'relire(E)' in S and 'nouvelle: true' in S and '"note-relire"' in S and 'T("scan.apercu.relire_note")' in S)
     check("1g accept image/* et PDF, sélection multiple", 'accept: "image/*,application/pdf"' in S and 'multiple: ""' in S)
 
     print("\n[2] le branchement dans l'Atelier")

@@ -1926,7 +1926,9 @@ function msSetProgress(st) {
 }
 
 async function msRun(impose) {
-  // t312 : un File imposé (le texte d'un scan, « scan.txt ») suit le même envoi que le fichier choisi
+  // t312 : un File imposé (le texte d'un scan, « scan.txt ») suit le même envoi que le fichier choisi.
+  // Revue finale t312 (I3) : rend true quand le job est lancé, false sinon (raison dans msRun.erreur).
+  msRun.erreur = "";
   const f = (typeof File === "function" && impose instanceof File) ? impose : ($("#msFile").files && $("#msFile").files[0]);
   if (!f) { toast(dzT("atelier.at3_ms.choisis"), true); return; }
   const fd = new FormData();
@@ -1965,9 +1967,12 @@ async function msRun(impose) {
         }
       } catch (e) { /* poll silencieux */ }
     }, 2000);
+    return true;                                  // revue finale t312 (I3) : job lancé
   } catch (e) {
     $("#msRun").disabled = false;
+    msRun.erreur = (e && e.message) || "";
     toast(dzT("atelier.at3_ms.err", { msg: e.message }), true);
+    return false;
   }
 }
 
@@ -2014,7 +2019,11 @@ async function scanManuscrit(texte) {
   if ($("#msRun").disabled || msPolling) throw new Error(dzT("atelier.t312_scan.ms_en_cours"));
   if (!$("#msSeries").value.trim() && $("#chapterSeries").value.trim()) $("#msSeries").value = $("#chapterSeries").value.trim();
   $("#msModal").classList.remove("hidden");
-  await msRun(new File([texte], "scan.txt", { type: "text/plain" }));
+  const lance = await msRun(new File([texte], "scan.txt", { type: "text/plain" }));
+  if (lance !== true) {             // I3 : envoi refusé -> la boîte Scan reste ouverte avec le texte et la raison
+    $("#msModal").classList.add("hidden");
+    throw new Error(msRun.erreur || dzT("atelier.at3_ms.envoi_echoue"));
+  }
   return true;
 }
 

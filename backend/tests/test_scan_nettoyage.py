@@ -11,7 +11,9 @@ Ce que ce banc garde, par sections numérotées :
      page faite seulement de folios -> texte vide.
   6. Paragraphes : écart vertical, ligne courte finie par une ponctuation, retrait de première ligne ; suite d'une page à l'autre.
   7. Positions des mots incertains : pointent exactement dans le texte final (y compris un mot recollé par césure).
-  8. Mode auto : passe au moins de mots incertains (égalité -> fr), mots lus différemment par les deux passes marqués.
+  8. Mode auto (revue finale t312, I4) : passe au meilleur score de mots outils de SA langue (page EN -> en, page FR
+     -> fr), égalité stricte -> moins d'incertains, puis fr ; désaccord hors accents et casse seulement
+     (« lumière »/« lumiere » non marqué, « mam »/« main » marqué).
   9. Bords : liste vide, page vide, page sans lignes, lignes sans boîtes, clés manquantes ; Unicode gardé ; module pur.
 Aucun réseau, aucun fichier.
 Run (depuis backend/) : & $PY tests/test_scan_nettoyage.py"""
@@ -233,22 +235,53 @@ check("7e stats mots et lignes", r2["stats"]["mots"] == 4 and r2["stats"]["ligne
 
 # ---------------------------------------------------------------------------------------------------------------
 print("[8] mode auto")
-fr = [page([ligne("Le l0rem est ici", 60, 100)], langue="fr")]
-en = [page([ligne("Le lorem est ici", 60, 100)], langue="en")]
+fr = [page([ligne("Lorem l0rem ipsum", 60, 100)], langue="fr")]
+en = [page([ligne("Lorem lorem ipsum", 60, 100)], langue="en")]
 r = N.nettoyer(fr, langue="auto", autre=en)
-check("8a passe au moins d'incertains gardée (en)", r["texte"] == "Le lorem est ici" and r.get("langue") == "en", r)
+check("8a aucun mot outil : la passe au moins d'incertains gardée (en)", r["texte"] == "Lorem lorem ipsum"
+      and r.get("langue") == "en", r)
 fr = [page([ligne("Il a été là hier", 60, 100)], langue="fr")]
 en = [page([ligne("Il a ete la hier", 60, 100)], langue="en")]
 r = N.nettoyer(fr, langue="auto", autre=en)
-check("8b égalité -> fr", r["texte"] == "Il a été là hier" and r.get("langue") == "fr", r)
+check("8b page française : passe fr gardée", r["texte"] == "Il a été là hier" and r.get("langue") == "fr", r)
 vus = [r["texte"][q["debut"]:q["fin"]] for q in r["incertains"]]
-check("8c mots lus différemment par les deux passes marqués", vus == ["été", "là"], vus)
+check("8c désaccord d'accents seulement (été/ete, là/la) : rien de marqué", vus == [], vus)
 r = N.nettoyer(en, langue="auto", autre=fr)
-check("8d égalité -> fr même passée en « autre »", r["texte"] == "Il a été là hier" and r.get("langue") == "fr", r)
-decale = [page([ligne("Il a ete", 60, 100), ligne("la hier", 60, 400)], langue="en")]
+check("8d page française même passée en « autre » : fr", r["texte"] == "Il a été là hier" and r.get("langue") == "fr", r)
+# I4 : une page ANGLAISE dont les deux passes sont propres (0 incertain) retient « en »
+EN_TXT = "The cat was on the mat and it slept in the sun"
+en = [page([ligne(EN_TXT, 60, 100)], langue="en")]
+fr = [page([ligne(EN_TXT, 60, 100)], langue="fr")]
+r = N.nettoyer(fr, langue="auto", autre=en)
+check("8g page anglaise, deux passes propres : en retenue", r.get("langue") == "en" and r["texte"] == EN_TXT, r)
+r = N.nettoyer(en, langue="auto", autre=fr)
+check("8h … quel que soit l'ordre des passes", r.get("langue") == "en", r)
+check("8i score : mots outils de la langue de la passe", N.score_langue(EN_TXT, "en") > N.score_langue(EN_TXT, "fr"),
+      (N.score_langue(EN_TXT, "en"), N.score_langue(EN_TXT, "fr")))
+check("8j score fr : élision l' et d' comptées, bonus d'accent",
+      N.score_langue("l'arbre d'été", "fr") == 2 + N.BONUS_ACCENT, N.score_langue("l'arbre d'été", "fr"))
+fr = [page([ligne("La lumière du jour", 60, 100)], langue="fr")]
+en = [page([ligne("La lumiere du jour", 60, 100)], langue="en")]
+r = N.nettoyer(fr, langue="auto", autre=en)
+vus = [r["texte"][q["debut"]:q["fin"]] for q in r["incertains"]]
+check("8k « lumière » / « lumiere » : pas marqué", r.get("langue") == "fr" and vus == [], (r.get("langue"), vus))
+fr = [page([ligne("La main du jour", 60, 100)], langue="fr")]
+li_en = ligne("La main du jour", 60, 100)
+li_en["mots"][1] = dict(li_en["mots"][1], texte="mam")     # même boîte, lu autrement
+li_en["texte"] = "La mam du jour"
+en = [page([li_en], langue="en")]
+r = N.nettoyer(fr, langue="auto", autre=en)
+vus = [r["texte"][q["debut"]:q["fin"]] for q in r["incertains"]]
+check("8l « main » / « mam » : marqué", vus == ["main"], vus)
+fr = [page([ligne("Le Jour se lève", 60, 100)], langue="fr")]
+en = [page([ligne("Le jour se leve", 60, 100)], langue="en")]
+vus = [x["texte"][q["debut"]:q["fin"]] for x in [N.nettoyer(fr, langue="auto", autre=en)] for q in x["incertains"]]
+check("8m casse seule (Jour/jour) : pas marqué", vus == [], vus)
+fr = [page([ligne("Il a été là hier", 60, 100)], langue="fr")]
+decale = [page([ligne("Il a mam", 60, 100), ligne("la hier", 60, 400)], langue="en")]
 r = N.nettoyer(fr, langue="auto", autre=decale)
 vus = [r["texte"][q["debut"]:q["fin"]] for q in r["incertains"]]
-check("8e mot sans vis-à-vis dans l'autre passe : pas marqué", vus == ["été"], vus)
+check("8e mot sans vis-à-vis dans l'autre passe : pas marqué ; lu autrement : marqué", vus == ["été"], vus)
 r = N.nettoyer(fr, langue="fr")
 check("8f sans autre passe : rien de marqué", r["incertains"] == [] and r.get("langue") == "fr", r)
 

@@ -15,8 +15,9 @@ gratuitement ; Claude ne relit les pages qu'à la demande, après un devis.
   texte va au curseur du chapitre) et à côté du découpage de manuscrit.
 - **La boîte de scan** (`frontend/shared/dz-scan.js`, partagée, prête pour le
   Vectorlab et Quick) : glisser, coller (Ctrl+V) ou choisir de une à dix
-  images ou PDF ; langue Français, English ou Auto ; aperçu modifiable, mots
-  douteux surlignés et parcourus (Précédent / Suivant), statistiques.
+  images ou PDF ; langue Français, English ou Auto (la langue se devine aux
+  mots courants) ; aperçu modifiable, mots étranges surlignés et parcourus
+  (Précédent / Suivant), statistiques.
 - **Lecture locale gratuite** par la reconnaissance de texte de Windows
   (`scan_ocr.py`, sans Tesseract ni téléchargement) ; un PDF qui a déjà du
   texte est repris tel quel, sans lecture d'image.
@@ -25,7 +26,11 @@ gratuitement ; Claude ne relit les pages qu'à la demande, après un devis.
   courants retirés, paragraphes refaits.
 - **Claude en secours, jamais automatique** : « Essayer avec Claude (≈ …) »
   montre le devis, demande confirmation et respecte les plafonds (catégorie
-  « atelier ») ; un coût qui change entre le devis et la lecture est refusé.
+  « atelier », montant de toute la demande) ; un coût qui change entre le
+  devis et la lecture est refusé. Une lecture payée n'est jamais payée deux
+  fois par mégarde : elle est gardée, « Relire » la reprend sans frais, une
+  seconde lecture du même scan attend la première, et une nouvelle lecture
+  payante demande une confirmation à part.
 - **Trois envois** : insérer dans le chapitre, créer les chapitres (découpage
   montré avant), importer comme manuscrit pour l'agent Manuscrit.
 - **Boîte d'agent `scan`** avec l'outil `lire_texte_image` (une image de la
@@ -39,6 +44,11 @@ gratuitement ; Claude ne relit les pages qu'à la demande, après un devis.
   `docs/superpowers/specs/2026-10-28-scan-mesure.md`).
 - Correctif issu de la mesure : une colonne de droite courte dont les lignes
   sont décalées d'une demi-ligne n'est plus lue en travers de la gauche.
+- **Limite à connaître : relisez le texte.** Les mots surlignés sont ceux qui
+  ont l'air étranges (chiffres mêlés aux lettres, signes bizarres) ; un mot mal
+  lu mais plausible (« mam » pour « main ») n'est PAS surligné — sur la mesure,
+  aucune des 16 erreurs réelles ne l'était. L'écran le dit : « Aucun mot étrange
+  repéré — relis quand même ».
 
 ---
 
