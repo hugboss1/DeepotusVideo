@@ -41,7 +41,7 @@
   var FOURNISSEURS = ["anthropic", "tavily", "exa", "serper"];   // t354 : recherche web de la prospection
   var SEQ_STATUTS = ["proposee", "validee", "planifiee", "terminee", "annulee"];   // t355 : séquences
   var ETAPE_STATUTS = ["brouillon", "validee", "planifiee", "envoyee", "annulee"];
-  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee"];   // le motif d'un arrêt ; « fiche:<statut> » à part
+  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee", "canal"];   // le motif d'un arrêt ; « fiche:<statut> » à part
   var SEQ_MANUELS = ["x", "instagram", "linkedin"];    // envoyés à la main : jamais de message automatique
   var SAISIS = ["email", "telephone", "whatsapp", "linkedin"];     // les canaux du formulaire ; les autres sont gardés tels quels
   var JSON_H = { "Content-Type": "application/json" };

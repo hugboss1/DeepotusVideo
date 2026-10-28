@@ -10891,6 +10891,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "prospects.registre.compte": {"fr": "Registre des oppositions (tous les espaces) : {n}", "en": "Objection register (all spaces): {n}"},
   "prospects.registre.illisible": {"fr": "Attention : {n} registre(s) des oppositions illisible(s) mis de côté dans le dossier des espaces ; leurs oppositions ne sont plus appliquées. Restaurez le fichier ou ressaisissez-les.", "en": "Warning: {n} unreadable objection register(s) set aside in the spaces folder; their objections are no longer applied. Restore the file or enter them again."},
   "prospects.seqmotif.annulee": {"fr": "Annulée.", "en": "Cancelled."},
+  "prospects.seqmotif.canal": {"fr": "Arrêtée : ce canal n'est plus possible (consentement ou base légale).", "en": "Stopped: this channel is no longer possible (consent or legal basis)."},
   "prospects.seqmotif.effacee": {"fr": "Arrêtée : la fiche a été effacée.", "en": "Stopped: the record was erased."},
   "prospects.seqmotif.remplacee": {"fr": "Remplacée par une nouvelle proposition.", "en": "Replaced by a new proposal."},
   "prospects.seqstatut.annulee": {"fr": "annulée", "en": "cancelled"},

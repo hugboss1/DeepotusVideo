@@ -4,7 +4,7 @@ Proposer (canal possible, 1 à 3 étapes, délais, objet, longueurs, mots interd
 planifier (consentement revérifié, heures calmes, plafond e-mail 10/20/30), marquer envoyé (canaux manuels seulement),
 arrêt automatique quand la fiche répond ou s'oppose, liens « ouvrir ».
 Data-dir isolé, aucun réseau. Run (depuis backend/) : & $PY tests/test_prospects_sequences.py"""
-import os, pathlib, sys, tempfile
+import json, os, pathlib, sys, tempfile
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -156,6 +156,39 @@ check("6e annuler : étapes non envoyées annulées", a["statut"] == "annulee" a
 check("6f annuler deux fois : refus", refus(lambda: S.annuler(A, sd["id"]), "etat")[0])
 check("6g séquence inconnue : refus inconnu", refus(lambda: S.valider(A, "sq_00000000"), "inconnu")[0])
 check("6h espace inconnu : refus", refus(lambda: S.lister("es_inconnu00"))[0])
+
+print("[8] relecture : RGPD, registre indisponible, consentement retiré")
+def brut():
+    return E.chemin(A, S.FICHIER).read_text(encoding="utf-8")
+e1 = fiche("Efface", [{"type": "email", "valeur": "a@efface.fr"}])
+S.proposer(A, e1, "email", [dict(E1[0], texte="Texte secret EFFACE-1")])
+P.effacer(A, e1)
+check("8a effacement : le texte des étapes quitte le fichier tout de suite", "EFFACE-1" not in brut())
+o1 = fiche("Oppose2", [{"type": "email", "valeur": "a@oppose2.fr"}])
+so1 = S.proposer(A, o1, "email", [dict(E1[0], texte="Texte secret OPPOSE-1", objet="Objet OPPOSE-1")])
+P.opposer(A, o1)
+check("8b opposition : textes et objets effacés", "OPPOSE-1" not in brut())
+x1 = fiche("Export", [{"type": "email", "valeur": "a@export.fr"}])
+S.proposer(A, x1, "email", [dict(E1[0], texte="Texte EXPORT-1")])
+check("8c export (droit d'accès) : les séquences de la fiche y sont", "EXPORT-1" in json.dumps(P.exporter(A, x1), ensure_ascii=False))
+pu = fiche("Purge", [{"type": "email", "valeur": "a@purge.fr"}])
+S.proposer(A, pu, "email", [dict(E1[0], texte="Texte PURGE-1")])
+P.purger(date(2040, 1, 1))
+check("8d purge à 3 ans : textes effacés", "PURGE-1" not in brut() and "EXPORT-1" not in brut())
+c1 = fiche("Consent", [{"type": "email", "valeur": "a@consent.fr"}])
+sc = S.proposer(A, c1, "email", [E1[0]]); S.valider(A, sc["id"]); S.planifier(A, sc["id"])
+P.modifier(A, c1, {"base_legale": "consentement"})
+x = [y for y in S.lister(A, c1) if y["id"] == sc["id"]][0]
+check("8e base légale changée (plus de canal possible) : séquence arrêtée, motif canal", x["statut"] == "annulee" and x["motif"] == "canal", (x["statut"], x["motif"]))
+r1 = fiche("Registre", [{"type": "email", "valeur": "a@registre.fr"}])
+sr = S.proposer(A, r1, "email", [E1[0]]); S.valider(A, sr["id"]); S.planifier(A, sr["id"])
+_opp = P._op.opposes
+def panne(*a):
+    raise P._op.RegistreIndisponible("registre verrouillé")
+P._op.opposes = panne
+r = refus(lambda: S.lister(A, r1), "indisponible")
+P._op.opposes = _opp
+check("8f registre indisponible : refus 503, jamais une étape « due »", r[0], r)
 
 print("[7] fichier illisible")
 f = E.chemin(A, S.FICHIER)

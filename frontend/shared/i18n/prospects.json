@@ -179,5 +179,6 @@
   "prospects.bouton.envoye": {"fr": "Marquer envoyé", "en": "Mark as sent"},
   "prospects.bouton.valider_seq": {"fr": "Valider la séquence", "en": "Approve the sequence"},
   "prospects.bouton.planifier": {"fr": "Planifier", "en": "Schedule"},
-  "prospects.bouton.annuler_seq": {"fr": "Annuler la séquence", "en": "Cancel the sequence"}
+  "prospects.bouton.annuler_seq": {"fr": "Annuler la séquence", "en": "Cancel the sequence"},
+  "prospects.seqmotif.canal": {"fr": "Arrêtée : ce canal n'est plus possible (consentement ou base légale).", "en": "Stopped: this channel is no longer possible (consent or legal basis)."}
 }
