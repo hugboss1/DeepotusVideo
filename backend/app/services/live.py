@@ -144,7 +144,8 @@ def commande(urls: list, fps: int = 30, video_kbps: int = 4500) -> list:
     g = str(2 * fps)
     sorties = "|".join(f"[f=flv:onfail=ignore]{u}" for u in urls)
     return [ffmpeg_bin(), "-hide_banner", "-loglevel", "warning", "-nostats", "-progress", "pipe:1", "-stats_period", "1",
-            "-fflags", "+genpts", "-i", "pipe:0",
+            # un direct n'attend pas 5 s d'analyse : l'en-tête WebM décrit déjà ses pistes
+            "-fflags", "+genpts", "-probesize", "1000000", "-analyzeduration", "1000000", "-i", "pipe:0",
             "-map", "0:v:0", "-map", "0:a:0?",
             "-c:v", "libx264", "-preset", "veryfast", "-tune", "zerolatency",
             "-b:v", f"{video_kbps}k", "-maxrate", f"{video_kbps}k", "-bufsize", f"{2 * video_kbps}k",
@@ -165,6 +166,7 @@ class Diffusion:
         self.octets = 0
         self.debut = time.monotonic()
         self._fenetre = []                     # (instant, octets) des 5 dernières secondes
+        self._histo = []                       # (instant, images, temps de sortie en µs) des 6 dernières secondes
         self._verrou = threading.Lock()
         self.ferme = False
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -181,8 +183,14 @@ class Diffusion:
                 continue
             bloc[k] = v
             if k == "progress":
+                maintenant = time.monotonic()
                 with self._verrou:
                     self.progres = dict(bloc)
+                    try:          # la santé se lit sur les 6 dernières secondes, pas en moyenne depuis le départ
+                        self._histo = [x for x in self._histo if maintenant - x[0] <= 6] + [
+                            (maintenant, int(bloc.get("frame") or 0), int(bloc.get("out_time_us") or 0))]
+                    except ValueError:
+                        pass
                 bloc = {}
 
     def _lire_erreurs(self):
@@ -216,6 +224,7 @@ class Diffusion:
     def etat(self) -> dict:
         with self._verrou:
             p, fen, pannes, err = dict(self.progres), list(self._fenetre), list(self.pannes), list(self.erreurs)
+            histo = list(self._histo)
         duree = max(1.0, min(5.0, time.monotonic() - self.debut))
         debit = round(sum(n for _t, n in fen) * 8 / 1000 / duree)
         vivant = self.vivant() and not self.ferme
@@ -229,8 +238,13 @@ class Diffusion:
         etat = "arrete" if not vivant else ("en_direct" if images else "demarrage")
         if vivant and pannes and all(pannes):
             etat = "en_panne"
-        return {"etat": etat, "images": images, "fps": nombre("fps"), "images_perdues": nombre("drop_frames", int),
-                "vitesse": nombre("speed", lambda v: float(str(v).rstrip("x"))), "debit_kbps": debit,
+        fps, vitesse = nombre("fps"), nombre("speed", lambda v: float(str(v).rstrip("x")))
+        if len(histo) >= 2 and histo[-1][0] - histo[0][0] >= 2:      # fenêtre glissante : l'état d'ICI, pas la moyenne
+            dt = histo[-1][0] - histo[0][0]
+            fps = round((histo[-1][1] - histo[0][1]) / dt, 1)
+            vitesse = round((histo[-1][2] - histo[0][2]) / 1e6 / dt, 2)
+        return {"etat": etat, "images": images, "fps": fps, "images_perdues": nombre("drop_frames", int),
+                "vitesse": vitesse, "debit_kbps": debit,
                 "destinations": ["panne" if x else ("ok" if images else "attente") for x in pannes],
                 "erreur": err[-1] if err else ""}
 
