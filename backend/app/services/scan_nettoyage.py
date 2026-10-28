@@ -7,14 +7,15 @@ Décision 4 du plan, avec les précisions retenues ici :
 - Lignes : les mots d'une ligne séparés par un grand blanc (> 2,5 × leur hauteur et > 3 % de la largeur) forment
   deux lignes (l'OCR fusionne parfois deux colonnes).
 - Folios : ligne extrême (la plus haute dans les 20 % du haut, la plus basse dans les 20 % du bas) faite d'un nombre,
-  d'un nombre romain ou de « — 12 — ». Titres courants : même ligne de tête (casse, chiffres, folio et ponctuation
-  ignorés) sur ≥ 2 pages.
+  d'un nombre romain en majuscules ou de « — 12 — ». Titres courants : même ligne de tête (casse et ponctuation
+  ignorées, chiffres gardés, folio de bord nettement séparé retiré, ≥ 2 mots ou ≥ 8 lettres) sur ≥ 2 pages.
 - Colonnes : histogramme horizontal de couverture des lignes (200 cases) ; une gouttière est une bande vide (au plus
   une ligne sur dix la traverse : un titre) d'au moins 1,5 % de la largeur, avec ≥ 2 lignes de chaque côté dont des
   lignes CÔTE À CÔTE (chevauchement vertical) — c'est ce qui distingue une vraie colonne d'un retrait de première ligne
   ou d'une réplique courte ; chaque colonne garde ≥ 8 % de la largeur. Les lignes qui traversent la gouttière sont
   « pleine largeur » (titres) : elles coupent la page en blocs, chaque bloc est lu colonne par colonne, gauche à droite.
-- Paragraphes : interligne > 1,5 × l'interligne de référence (médian, plafonné à 1,5 × la hauteur médiane de ligne),
+- Paragraphes : interligne > 1,5 × l'interligne de référence de la page (pas médian d'une ligne à la suivante, sans
+  plafond par la hauteur de ligne : un texte à double interligne n'est pas coupé à chaque ligne — décision du contrôleur),
   ou ligne précédente nettement plus courte finie par .!?:»…”", ou première ligne en retrait après une phrase finie ;
   une ligne pleine largeur est toujours un paragraphe à part ; d'une colonne ou d'une page à l'autre, le texte continue
   sauf ligne courte finie ou retrait.
@@ -24,6 +25,7 @@ Décision 4 du plan, avec les précisions retenues ici :
 - Mots incertains : Décision 3 (`incertain`) + jeton d'un seul signe isolé au milieu d'une ligne + (mode auto) mot lu
   autrement par l'autre passe (boîte alignée par recouvrement, IoU ≥ 0,5 ; un recouvrement plus faible = découpage
   différent = incertain ; aucun recouvrement = pas d'avis). Positions sur le CŒUR du mot (ponctuation collée exclue).
+- Positions `incertains` en points de code Python (pas en unités UTF-16 : la tâche 5 / l'écran JS convertit).
 - Mode auto (Décision 2) : la passe au moins de mots incertains est gardée, égalité -> fr.
 """
 from __future__ import annotations
@@ -50,7 +52,7 @@ _MOTIFS = tuple(re.compile(p) for p in (
 ))
 _ROMAIN = r"(?=[MDCLXVI])M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})"
 _BORD = r"[\s\-‐–—.·•]*"
-_FOLIO = re.compile(rf"^{_BORD}(?:\d{{1,4}}|{_ROMAIN}){_BORD}$", re.I)
+_FOLIO = re.compile(rf"^{_BORD}(?:\d{{1,4}}|{_ROMAIN}){_BORD}$")      # romains en MAJUSCULES seulement (« Dix. » gardé)
 _MARQUE = re.compile(r"\[\[\?(.*?)\]\]", re.S)
 
 # composés français dont la seconde partie garde le tiret en fin de ligne
@@ -221,15 +223,22 @@ def _discorde(m: dict, autres: list[dict]) -> bool:
 
 
 # ------------------------------------------------------------------------------------------------- folios, titres
-def _cle_titre(txt: str) -> str:
-    toks = unicodedata.normalize("NFC", txt).casefold().split()
-    while toks and _FOLIO.match(toks[0]):
-        toks.pop(0)
-    while toks and _FOLIO.match(toks[-1]):
-        toks.pop()
-    t = re.sub(r"\d+", " ", " ".join(toks))
-    t = re.sub(r"[^\w\s]|_", " ", t)
-    return " ".join(t.split())
+def _cle_titre(li: dict) -> str:
+    """Clé d'un titre courant : chiffres GARDÉS (« Chapitre 1 » ≠ « Chapitre 2 ») ; seul un folio de bord nettement
+    séparé du titre (blanc > 1,5 × la hauteur de ligne, « Le Rouge et le Noir    17 ») est retiré. Clé vide si le reste
+    n'est pas significatif (< 2 mots et < 8 lettres : « Non. » n'est jamais un titre courant)."""
+    mots = list(li["mots"])
+    ecart = 1.5 * max(_hauteur(li), 0.0)
+    if len(mots) >= 2 and ecart > 0:
+        if _FOLIO.match(mots[0]["t"]) and mots[1]["x0"] - mots[0]["x1"] > ecart:
+            mots = mots[1:]
+        if len(mots) >= 2 and _FOLIO.match(mots[-1]["t"]) and mots[-1]["x0"] - mots[-2]["x1"] > ecart:
+            mots = mots[:-1]
+    t = unicodedata.normalize("NFC", " ".join(m["t"] for m in mots)).casefold()
+    t = " ".join(re.sub(r"[^\w\s]|_", " ", t).split())
+    if len(t.split()) < 2 and sum(c.isalpha() for c in t) < 8:
+        return ""
+    return t
 
 
 def _retirer_folios(lignes: list[dict], Hp: float, haut: bool, bas: bool) -> int:
@@ -415,9 +424,9 @@ def _nettoyer(pages: list[dict], langue: str, autre: list[dict] | None) -> dict:
     vues: dict[str, set] = {}
     for ip, pp in enumerate(par_page):
         t = _tete(pp["lignes"], pp["H"])
-        k = _cle_titre(_texte(t)) if t else ""
+        k = _cle_titre(t) if t else ""
         pp["cle"] = k
-        if len(k) >= 3:
+        if k:
             vues.setdefault(k, set()).add(ip)
     for pp in par_page:
         if len(vues.get(pp["cle"], ())) >= 2:
@@ -437,7 +446,7 @@ def _nettoyer(pages: list[dict], langue: str, autre: list[dict] | None) -> dict:
         hm = _mediane([_hauteur(li) for li in lignes if _hauteur(li) > 0])
         pas = [b["y0"] - a["y0"] for (a, ka), (b, kb) in zip(ordre, ordre[1:]) if ka == kb and b["y0"] > a["y0"]]
         pas_med = _mediane(pas)
-        ref = min(pas_med, 1.5 * hm) if (pas and hm > 0) else (pas_med or 1.2 * hm)
+        ref = pas_med if pas else 1.2 * hm       # interligne de référence de la page (double interligne compris)
         seuil = 1.5 * ref if ref > 0 else math.inf
         retrait = max(0.8 * hm, 0.02 * W)
         par_cle: dict[tuple, list] = {}

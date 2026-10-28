@@ -171,10 +171,14 @@ check("5e ... le récit continue d'une page à l'autre",
       r["texte"] == "Première page du récit qui continue et deuxième page du récit.", r["texte"])
 check("5f stats titres_retires = 2, folios = 2", r["stats"]["titres_retires"] == 2 and r["stats"]["folios_retires"] == 2,
       r["stats"])
-tc1b = page([ligne("12 LE GRAND VOYAGE", 200, 30), ligne("Texte un.", 60, 100)])
-tc2b = page([ligne("LE GRAND VOYAGE 13", 220, 30), ligne("Texte deux.", 60, 100)])
+_t = ligne("LE GRAND VOYAGE", 240, 30)
+_t["mots"].insert(0, {"texte": "12", "x": 180, "y": 30, "l": 20, "h": H}); _t["texte"] = "12    LE GRAND VOYAGE"    # blanc de 40 px > 1,5 × 20 px
+tc1b = page([_t, ligne("Texte un.", 60, 100)])
+_t2 = ligne("LE GRAND VOYAGE", 220, 30)
+_t2["mots"].append({"texte": "13", "x": 410, "y": 30, "l": 20, "h": H}); _t2["texte"] = "LE GRAND VOYAGE    13"
+tc2b = page([_t2, ligne("Texte deux.", 60, 100)])
 r = N.nettoyer([tc1b, tc2b])
-check("5g titre courant portant le folio retiré", r["texte"] == "Texte un. Texte deux.", r["texte"])
+check("5g titre courant portant un folio séparé (gauche ou droite) retiré", r["texte"] == "Texte un. Texte deux.", r["texte"])
 un1 = page([ligne("Préface", 260, 30), ligne("Texte un.", 60, 100)])
 un2 = page([ligne("Chapitre", 260, 30), ligne("Texte deux.", 60, 100)])
 r = N.nettoyer([un1, un2])
@@ -267,6 +271,48 @@ check("9f None -> texte vide", r["texte"] == "", r)
 src = pathlib.Path(N.__file__).read_text(encoding="utf-8")
 check("9g module pur (ni sous-processus, ni fichier, ni réseau)",
       not any(m in src for m in ("subprocess", "open(", "requests", "httpx", "socket", "pathlib", "import os")))
+
+# ---------------------------------------------------------------------------------------------------------------
+print("[10] revue de la tâche 2 : titres courants, double interligne, romains")
+r = N.nettoyer([page([ligne("Chapitre 1", 250, 30), ligne("Texte un.", 60, 100)]),
+                page([ligne("Chapitre 2", 250, 30), ligne("Texte deux.", 60, 100)])])
+check("10a « Chapitre 1 » / « Chapitre 2 » gardés (chiffres dans la clé)",
+      "Chapitre 1" in r["texte"] and "Chapitre 2" in r["texte"] and r["stats"]["titres_retires"] == 0, r)
+r = N.nettoyer([page([ligne("Non.", 60, 30), ligne("Texte un.", 60, 100)]),
+                page([ligne("Non.", 60, 30), ligne("Texte deux.", 60, 100)])])
+check("10b « Non. » en tête de deux pages gardé (trop court pour un titre courant)",
+      r["texte"].count("Non.") == 2 and r["stats"]["titres_retires"] == 0, r)
+
+
+def tete_folio(titre, folio, x=150, y=30, blanc=40):
+    li = ligne(titre, x, y)
+    fin = li["mots"][-1]["x"] + li["mots"][-1]["l"]
+    li["mots"].append({"texte": folio, "x": fin + blanc, "y": y, "l": len(folio) * CW, "h": H})
+    li["texte"] += "    " + folio
+    return li
+
+
+r = N.nettoyer([page([tete_folio("Le Rouge et le Noir", "17"), ligne("Julien entra dans la", 60, 100)]),
+                page([tete_folio("Le Rouge et le Noir", "18"), ligne("chambre sans bruit.", 60, 100)])])
+check("10c titre courant avec folio nettement séparé retiré",
+      r["texte"] == "Julien entra dans la chambre sans bruit." and r["stats"]["titres_retires"] == 2, r)
+r = N.nettoyer([page([tete_folio("Le Rouge et le Noir", "17", blanc=10), ligne("Julien entra.", 60, 100)]),
+                page([tete_folio("Le Rouge et le Noir", "18", blanc=10), ligne("Il sortit.", 60, 100)])])
+check("10d chiffre collé au titre (espace normal) : clés différentes, gardés", r["stats"]["titres_retires"] == 0
+      and "Le Rouge et le Noir 17" in r["texte"], r)
+D1 = "Le soleil se levait sur la ville endormie et"
+dbl = page([ligne(D1, 60, 100), ligne("les rues restaient vides à cette heure recon-", 60, 148),
+            ligne("naissable du matin sous un ciel très clair et", 60, 196), ligne(D1, 60, 244),
+            ligne("plus tard la foule arriva enfin sur la place", 60, 340), ligne(D1, 60, 388)])
+r = N.nettoyer([dbl])
+check("10e double interligne : pas de paragraphe par ligne, césure recollée, vrai blanc = paragraphe",
+      r["texte"] == f"{D1} les rues restaient vides à cette heure reconnaissable du matin sous un ciel très clair et "
+                    f"{D1}\n\nplus tard la foule arriva enfin sur la place {D1}", r["texte"])
+r = N.nettoyer([page([ligne("Le récit se termine ici sans", 60, 100), ligne("Dix.", 60, 760)])])
+check("10f « Dix. » en pied de page gardé (romains en majuscules seulement)", r["texte"].endswith("Dix.")
+      and r["stats"]["folios_retires"] == 0, r)
+r = N.nettoyer([page([ligne("XIV", 280, 40), ligne("Texte.", 60, 100)])])
+check("10g « XIV » en tête toujours retiré", r["texte"] == "Texte." and r["stats"]["folios_retires"] == 1, r)
 
 print(f"\n{ok} PASS, {fail} FAIL")
 if __name__ == "__main__":
