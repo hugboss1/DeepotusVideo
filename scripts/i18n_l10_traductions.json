@@ -11462,5 +11462,117 @@
  "{fournisseur} injoignable ({name})": {
   "fr": "{fournisseur} injoignable ({name})",
   "en": "{fournisseur} unreachable ({name})"
+ },
+ "Séquence introuvable.": {
+  "fr": "Séquence introuvable.",
+  "en": "Sequence not found."
+ },
+ "Séquence {statut} : rien à valider.": {
+  "fr": "Séquence {statut} : rien à valider.",
+  "en": "Sequence {statut}: nothing to approve."
+ },
+ "séquence inconnue": {
+  "fr": "séquence inconnue",
+  "en": "unknown sequence"
+ },
+ "aucun créneau dans les horaires de l'espace (réglages de l'agent WhatsApp)": {
+  "fr": "aucun créneau dans les horaires de l'espace (réglages de l'agent WhatsApp)",
+  "en": "no slot within the workspace's hours (WhatsApp agent settings)"
+ },
+ "prospect au statut « {v} » : seule une fiche qualifiée ou contactée reçoit une séquence": {
+  "fr": "prospect au statut « {v} » : seule une fiche qualifiée ou contactée reçoit une séquence",
+  "en": "prospect with status “{v}”: only a qualified or contacted record gets a sequence"
+ },
+ "canal impossible pour ce prospect : {v} (consentement ou base légale)": {
+  "fr": "canal impossible pour ce prospect : {v} (consentement ou base légale)",
+  "en": "channel not possible for this prospect: {v} (consent or legal basis)"
+ },
+ "une séquence a de 1 à {MAX_ETAPES} étapes (1er message et 2 relances au plus)": {
+  "fr": "une séquence a de 1 à {MAX_ETAPES} étapes (1er message et 2 relances au plus)",
+  "en": "a sequence has 1 to {MAX_ETAPES} steps (first message and 2 follow-ups at most)"
+ },
+ "mots interdits de l'espace : {v} — réécris ces textes sans eux": {
+  "fr": "mots interdits de l'espace : {v} — réécris ces textes sans eux",
+  "en": "forbidden words of the workspace: {v} — rewrite these texts without them"
+ },
+ "canal inconnu : {v}": {
+  "fr": "canal inconnu : {v}",
+  "en": "unknown channel: {v}"
+ },
+ "seul l'utilisateur valide une séquence": {
+  "fr": "seul l'utilisateur valide une séquence",
+  "en": "only the user approves a sequence"
+ },
+ "séquences momentanément illisibles : réessayez dans un instant": {
+  "fr": "séquences momentanément illisibles : réessayez dans un instant",
+  "en": "sequences temporarily unreadable: try again in a moment"
+ },
+ "étape illisible": {
+  "fr": "étape illisible",
+  "en": "unreadable step"
+ },
+ "délai en jours entiers": {
+  "fr": "délai en jours entiers",
+  "en": "delay in whole days"
+ },
+ "étape {v} : texte vide": {
+  "fr": "étape {v} : texte vide",
+  "en": "step {v}: empty text"
+ },
+ "étape {v} : texte trop long ({v2} caractères au plus)": {
+  "fr": "étape {v} : texte trop long ({v2} caractères au plus)",
+  "en": "step {v}: text too long ({v2} characters at most)"
+ },
+ "étape {v} : objet de l'e-mail requis ({MAX_OBJET} caractères au plus)": {
+  "fr": "étape {v} : objet de l'e-mail requis ({MAX_OBJET} caractères au plus)",
+  "en": "step {v}: email subject required ({MAX_OBJET} characters at most)"
+ },
+ "le 1er message part sans délai (0 jour)": {
+  "fr": "le 1er message part sans délai (0 jour)",
+  "en": "the first message goes without delay (0 days)"
+ },
+ "une relance attend de {DELAI_MIN} à {DELAI_MAX} jours": {
+  "fr": "une relance attend de {DELAI_MIN} à {DELAI_MAX} jours",
+  "en": "a follow-up waits {DELAI_MIN} to {DELAI_MAX} days"
+ },
+ "date de départ illisible (ISO 8601)": {
+  "fr": "date de départ illisible (ISO 8601)",
+  "en": "unreadable start date (ISO 8601)"
+ },
+ "séquence « {statut} » : rien à valider": {
+  "fr": "séquence « {statut} » : rien à valider",
+  "en": "sequence “{statut}”: nothing to approve"
+ },
+ "séquence « {statut} » : rien à annuler": {
+  "fr": "séquence « {statut} » : rien à annuler",
+  "en": "sequence “{statut}”: nothing to cancel"
+ },
+ "seule une séquence validée par l'utilisateur se planifie": {
+  "fr": "seule une séquence validée par l'utilisateur se planifie",
+  "en": "only a sequence approved by the user can be scheduled"
+ },
+ "cette étape part par l'envoi automatique du canal, pas à la main": {
+  "fr": "cette étape part par l'envoi automatique du canal, pas à la main",
+  "en": "this step goes through the channel's automatic sending, not by hand"
+ },
+ "séquence « {statut} » : rien à envoyer": {
+  "fr": "séquence « {statut} » : rien à envoyer",
+  "en": "sequence “{statut}”: nothing to send"
+ },
+ "étape inconnue": {
+  "fr": "étape inconnue",
+  "en": "unknown step"
+ },
+ "étape déjà envoyée, annulée, ou une étape précédente n'est pas envoyée": {
+  "fr": "étape déjà envoyée, annulée, ou une étape précédente n'est pas envoyée",
+  "en": "step already sent or cancelled, or a previous step is not sent"
+ },
+ "une séquence est déjà validée sur ce canal pour ce prospect : annulez-la d'abord": {
+  "fr": "une séquence est déjà validée sur ce canal pour ce prospect : annulez-la d'abord",
+  "en": "a sequence is already approved on this channel for this prospect: cancel it first"
+ },
+ "plafond e-mail atteint pour les {JOURS_REPORT} prochains jours": {
+  "fr": "plafond e-mail atteint pour les {JOURS_REPORT} prochains jours",
+  "en": "email cap reached for the next {JOURS_REPORT} days"
  }
 }

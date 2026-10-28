@@ -521,6 +521,10 @@ async def carte(cid: str, n: int, request: Request):
             # sous le verrou, la recherche part APRÈS (jamais le verrou global pendant un appel payant, jamais rejouée)
             recherche = await _reserver_recherche(cid, l, orig)
             extra["statut"] = "en_cours"
+        elif genre == "sequence":
+            # t355 : la porte 2 d'une séquence — EXCEPTION à « la décision d'abord » : le geste d'abord (refus = 409, rien d'écrit) ; acceptée = validée par
+            # l'utilisateur, refusée = annulée ; un geste déjà fait (reprise après panne) passe
+            _decider_sequence(l.get("espace_id"), (orig.get("arguments") or {}).get("sid"), acceptee)
         with _traduire():
             await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n, decision, extra)],
                                                        **_trace(appareil))] + faits)
@@ -532,6 +536,22 @@ async def carte(cid: str, n: int, request: Request):
     if acceptee and genre == "recherche":
         await _executer_recherche(cid, n, orig, recherche, appareil)
     return await ST.lire(cid)
+
+
+def _decider_sequence(eid, sid, acceptee: bool) -> None:
+    from app.services import prospects_sequences as S
+    try:
+        s = [x for x in S.lister(eid) if x["id"] == sid] if eid else []
+        if not s:
+            raise HTTPException(404, "Séquence introuvable.")
+        if acceptee and s[0]["statut"] == "proposee":
+            S.valider(eid, sid, "utilisateur")
+        elif not acceptee and s[0]["statut"] in S.EN_COURS:
+            S.annuler(eid, sid, "utilisateur")
+        elif acceptee and s[0]["statut"] not in ("validee", "planifiee"):
+            raise HTTPException(409, f"Séquence {s[0]['statut']} : rien à valider.")
+    except S.RefusSequence as e:
+        raise HTTPException(e.statut, e.message) from None
 
 
 async def _reserver_recherche(cid: str, l: dict, orig: dict) -> dict:

@@ -459,6 +459,28 @@ for (const lang of ["fr", "en"]) {
     && ![...w.racine.tous()].some((x) => x.tagName === "A" && /javascript/.test(x.attrs.href || "")) && /<b>x<\/b>/.test(texte(w.racine)), texte(w.racine));
   w.c.demonter();
 }
+// ===== 6 quater. t355 : la carte « sequence » (porte 2 d'une séquence de prospection) =====================================
+{
+  const SEQ = carte("sequence", { action: "valider_sequence", arguments: { sid: "sq_00000001", pid: "pr_00000001", canal: "email",
+    etapes: [{ objet: "Vos vidéos", texte: "Bonjour <b>Léa</b>", delai_jours: 0 }, { objet: "Relance", texte: "Je reviens vers vous", delai_jours: 4 }] } });
+  const faits = [];
+  const fait = { type: "carte", genre: "sequence", libelle: "x", etat: "acceptee", action: "valider_sequence", arguments: { carte: 0 } };
+  let apres = false;
+  const routes = avec(() => conv(apres ? [msg("agent", [SEQ]), msg("fait", [fait])] : [msg("agent", [SEQ])]), {
+    "POST /api/agent/campagnes/c1/carte/0": async (c) => { faits.push(c); apres = true; return reponse(200, conv([msg("agent", [SEQ]), msg("fait", [fait])])); }
+  });
+  const w = await monterAvec(routes);
+  ok("6.30 la carte montre les messages, l'objet et le délai, texte jamais interprété", /Bonjour <b>Léa<\/b>/.test(texte(w.racine))
+    && /Objet : Vos vidéos/.test(texte(w.racine)) && /J\+4/.test(texte(w.racine)), texte(w.racine));
+  const [b] = parTexte(w.racine, /Valider la séquence/);
+  ok("6.31 bouton « Valider la séquence » et « Refuser »", !!b && parTexte(w.racine, /Refuser/).length >= 1);
+  b.click();
+  await attendre(() => faits.length);
+  ok("6.32 valider = accepter la carte", faits[0].decision === "acceptee");
+  await attendre(() => /Validée/.test(texte(w.racine)));
+  ok("6.33 validée : dit où la planifier", /onglet Prospects/.test(texte(w.racine)), texte(w.racine));
+  w.c.demonter();
+}
 // ===== 6 bis. t285 T9 (relecture) : les brouillons d'un espace qui n'est pas l'actif ==========================================
 { // espace ACTIF : l'espace en clair, le lien d'avant, aucun bouton d'activation
   const w = await monterAvec(avec(() => conv([msg("agent", [BROUILLONS])])));
@@ -531,7 +553,7 @@ const BROUILLONS_B = carte("brouillons", { action: "ouvrir_planificateur", argum
 ok("6.26 P3 : la racine remplit son hôte (fil au-dessus, champ en bas avant le premier message)",
   /\.dzCamp\{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;height:100%;/.test(SRC));
 ok("6.27 les dix outils d'agent_outils.OUTILS ont un libellé FR et EN", ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur",
-  "lire_document", "ecrire_dossier", "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "entreprises_rechercher"].every((o) => D["campagnes.outil." + o] && D["campagnes.outil." + o].fr && D["campagnes.outil." + o].en));
+  "lire_document", "ecrire_dossier", "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "entreprises_rechercher", "sequence_proposer", "sequence_planifier"].every((o) => D["campagnes.outil." + o] && D["campagnes.outil." + o].fr && D["campagnes.outil." + o].en));
 
 // ===== 7. erreurs HTTP et du flux ========================================================================================================
 {

@@ -145,8 +145,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   (consentement, intérêt légitime B2B à une adresse professionnelle, mesures précontractuelles). Statuts : Proposé,
   Qualifié, Contacté, A répondu, Rendez-vous, Client (signé), Perdu, S'est opposé ; seuls les passages permis sont
   proposés. Rien n'est envoyé d'ici : « Contacté » se pose à la main, et « Noter un contact » garde l'historique. Au
-  Rendez-vous, l'app crée un espace « démonstration » (« Démo · <entreprise> ») qui ne publie JAMAIS (aucun compte,
-  aucun post programmé) ; il est archivé si le prospect est Perdu et devient l'espace client à la signature (ses
+  Rendez-vous, l'app crée un espace « démonstration » qui ne publie JAMAIS ; il est archivé si le prospect est Perdu et devient l'espace client à la signature (ses
   brouillons restent ; les consentements de publication se datent ensuite dans la fiche client). RGPD : « Exporter ses
   données », « Effacer la fiche », « S'oppose à la prospection » (fiche anonymisée, registre des oppositions valable
   pour tous les espaces, un STOP WhatsApp hors espace client y va aussi, et un réabonnement l'en retire), et
@@ -156,7 +155,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   (consentement daté), page d'entreprise collée (e-mail pro présent, robots.txt respecté), registre des entreprises
   (gratuit, cibles sans fiche), recherche web PAYANTE seulement si la carte est acceptée (fournisseur et clé :
   Prospects › « Recherche web »). Signaux de veille : jamais de fiche. Page ou recommandation : « À informer avant
-  le … ». Score = barème (« Recalculer le score ») ± 20 de l'agent, statut inchangé. → [GUIDE:agent-campagnes]
+  le … ». Score = barème (« Recalculer le score ») ± 20 de l'agent, statut inchangé. Séquences (fiche
+  Qualifiée) : l'agent rédige un message + 2 relances ; « Valider la séquence » (carte ou fiche), « Planifier »
+  (heures calmes, plafond) ; X, Instagram, LinkedIn : « Copier et ouvrir », « Marquer envoyé ». → [GUIDE:agent-campagnes]
 - **Mener une campagne avec l'agent Campagnes** (stratégie, calendrier et posts d'un lancement) : onglet « Campagnes »
   de ce tiroir, ou Planificateur › Générer un plan, mode Agent Campagnes ; il faut une clé Anthropic. Choisir
   d'abord l'espace de marque de la campagne dans la liste du haut : vide par défaut, jamais l'espace actif d'office ;

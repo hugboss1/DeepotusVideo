@@ -404,5 +404,82 @@
    "type": "object"
   },
   "name": "prospects_qualifier"
+ },
+ {
+  "description": "Rédige pour un prospect qualifié ou contacté une séquence : 1er message et 2 relances au plus, sur un canal possible de sa fiche, dans la voix de l'espace et sans ses mots interdits. Une carte que l'utilisateur valide ; rien ne part. Jamais un pseudo ni un commentaire vu en ligne repris. Le tour s'arrête.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "canal": {
+     "enum": [
+      "email",
+      "whatsapp",
+      "x",
+      "instagram",
+      "linkedin"
+     ],
+     "type": "string"
+    },
+    "etapes": {
+     "items": {
+      "additionalProperties": false,
+      "properties": {
+       "delai_jours": {
+        "description": "0 pour le 1er message, 2 à 30 ensuite",
+        "maximum": 30,
+        "minimum": 0,
+        "type": "integer"
+       },
+       "objet": {
+        "description": "objet (e-mail seulement)",
+        "maxLength": 150,
+        "type": "string"
+       },
+       "texte": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "texte",
+       "delai_jours"
+      ],
+      "type": "object"
+     },
+     "maxItems": 3,
+     "minItems": 1,
+     "type": "array"
+    },
+    "pid": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "pid",
+    "canal",
+    "etapes"
+   ],
+   "type": "object"
+  },
+  "name": "sequence_proposer"
+ },
+ {
+  "description": "Planifie une séquence déjà VALIDÉE par l'utilisateur : consentement revérifié, heures calmes de l'espace, plafond e-mail du jour. Rien n'est envoyé ici : e-mail et WhatsApp partiront par leur canal ; X, Instagram et LinkedIn restent à envoyer à la main.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "debut": {
+     "description": "départ ISO 8601 (défaut : maintenant)",
+     "type": "string"
+    },
+    "sid": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "sid"
+   ],
+   "type": "object"
+  },
+  "name": "sequence_planifier"
  }
 ]

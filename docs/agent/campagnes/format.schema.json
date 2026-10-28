@@ -30,7 +30,7 @@
       "required": ["type", "genre", "libelle", "etat"],
       "properties": {
         "type": {"const": "carte"},
-        "genre": {"enum": ["porte", "devis", "continuer", "espace", "brouillons", "ouvrir", "reponse_whatsapp", "modele_whatsapp", "humain", "recherche"]},
+        "genre": {"enum": ["porte", "devis", "continuer", "espace", "brouillons", "ouvrir", "reponse_whatsapp", "modele_whatsapp", "humain", "recherche", "sequence"]},
         "libelle": {"type": "string"},
         "etat": {"enum": ["proposee", "acceptee", "refusee", "terminee"]},
         "devis": {"type": ["number", "null"], "minimum": 0},
