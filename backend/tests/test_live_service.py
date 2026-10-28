@@ -239,6 +239,27 @@ L.BLOCAGE_S = 10
 for lid in list(L._SESSIONS):
     L.abandonner(lid)
 
+
+# deux fermetures concurrentes (WebSocket fermé ET « terminer » du bilan) : la seconde attend la première, le bilan est complet
+class ProcLent(FauxProc):
+    def wait(self, timeout=None):
+        time.sleep(1.0); self.code = 0; return 0
+
+
+import threading as _th
+v3 = L.ouvrir(rip, [tw])
+L.brancher(v3["id"], lancer=ProcLent)
+time.sleep(0.3)
+a_ = _th.Thread(target=L.debrancher, args=(v3["id"],)); a_.start()
+time.sleep(0.2)
+cap3 = C.creer({"mode": "app"})["id"]
+fin3 = L.terminer(v3["id"], cap3)
+a_.join()
+check("S21 fermetures concurrentes : terminer attend la fin de la première, bilan avec durée et états",
+      fin3["live"]["duree_ms"] > 0 and fin3["live"]["destinations"][0]["etat"] != "attente", fin3["live"])
+for lid in list(L._SESSIONS):
+    L.abandonner(lid)
+
 print("[F] ffmpeg réel (boucle locale)")
 FF = shutil.which("ffmpeg")
 if not FF:

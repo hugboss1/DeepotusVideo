@@ -339,7 +339,7 @@ def ouvrir(eid: str, ids, titre="") -> dict:
         lid = _secrets.token_hex(8)
         _SESSIONS[lid] = {"id": lid, "espace_id": eid, "titre": (titre.strip() if isinstance(titre, str) else "")[:MAX_TITRE],
                           "etat": "pret", "debut_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                          "t0": time.monotonic(), "destinations": dest, "diffusion": None, "marqueurs": [],
+                          "t0": time.monotonic(), "destinations": dest, "diffusion": None, "marqueurs": [], "clos": threading.Event(),
                           "annonce": None}
         return _publique(_SESSIONS[lid])
 
@@ -374,10 +374,17 @@ def debrancher(lid: str) -> None:
     d'état passent sous _VERROU (revue finale I5) : « fermeture » interdit tout brancher() et tout nouveau direct."""
     with _VERROU:
         s = _SESSIONS.get(lid)
-        if not s or s["etat"] not in ("pret", "en_cours"):
+        if s and s["etat"] == "fermeture":
+            attente = s["clos"]           # une autre fermeture est en cours : on attend sa fin (bilan complet)
+        elif not s or s["etat"] not in ("pret", "en_cours"):
             return
-        d = s.get("diffusion")
-        s["etat"] = "fermeture"
+        else:
+            attente = None
+            d = s.get("diffusion")
+            s["etat"] = "fermeture"
+    if attente is not None:
+        attente.wait(15)
+        return
     if d:
         d.fermer()
     with _VERROU:
@@ -385,6 +392,7 @@ def debrancher(lid: str) -> None:
         s["duree_ms"] = int((time.monotonic() - s["t0"]) * 1000)
         s["etat"] = "fini"
         _oublier_secrets(s)
+        s["clos"].set()
 
 
 def marquer(lid: str, t_ms, libelle="") -> dict:
