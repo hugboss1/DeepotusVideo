@@ -1,0 +1,118 @@
+{
+  "titre": {
+    "fr": "Créer l'espace d'un client",
+    "en": "Create a client's space"
+  },
+  "legende": {
+    "fr": "Réglages › Espaces de marque › Créer l'espace : type Client, fiche du client, puis le récapitulatif.",
+    "en": "Settings › Brand spaces › Create space: Client type, the client sheet, then the summary."
+  },
+  "captures": [
+    {
+      "fr": "type.fr.webp",
+      "en": "type.en.webp"
+    },
+    {
+      "fr": "fiche.fr.webp",
+      "en": "fiche.en.webp"
+    },
+    {
+      "fr": "recap.fr.webp",
+      "en": "recap.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    800
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        473,
+        430,
+        422,
+        42
+      ],
+      "bulle": {
+        "fr": "Type d'espace : Client ajoute une fiche",
+        "en": "Space type: Client adds a sheet"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        473,
+        509,
+        422,
+        42
+      ],
+      "bulle": {
+        "fr": "Le mode de publication fixe les sécurités",
+        "en": "The publishing mode sets the safeguards"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "curseur": [
+        845,
+        545
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Le récapitulatif dit ce qui manque ; Terminer active l'espace",
+        "en": "The summary says what is missing; Finish activates the space"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        473,
+        430,
+        422,
+        42
+      ],
+      "bulle": {
+        "fr": "Type d'espace : Client ajoute une fiche",
+        "en": "Space type: Client adds a sheet"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        473,
+        501,
+        422,
+        42
+      ],
+      "bulle": {
+        "fr": "Le mode de publication fixe les sécurités",
+        "en": "The publishing mode sets the safeguards"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "curseur": [
+        845,
+        545
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Le récapitulatif dit ce qui manque ; Terminer active l'espace",
+        "en": "The summary says what is missing; Finish activates the space"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    800
+  ]
+}

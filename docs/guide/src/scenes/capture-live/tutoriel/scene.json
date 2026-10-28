@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Partager un parcours",
+    "en": "Share a walkthrough"
+  },
+  "legende": {
+    "fr": "Tutoriel… : une étape par geste en FR et EN, Exporter le parcours, puis Rejouer ailleurs : Montrer pointe le vrai bouton.",
+    "en": "Tutorial…: one step per gesture in FR and EN, Export the walkthrough, then Replay elsewhere: Show me points at the real button."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    },
+    {
+      "fr": "c3.fr.webp",
+      "en": "c3.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    755
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Une étape par geste, titres et phrases FR/EN",
+        "en": "One step per gesture, titles and sentences FR/EN"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "bulle": {
+        "fr": "Le parcours .dzparcours, prêt à partager",
+        "en": "The .dzparcours walkthrough, ready to share"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Ailleurs, Montrer pointe le vrai bouton",
+        "en": "Elsewhere, Show me points at the real button"
+      }
+    }
+  ]
+}

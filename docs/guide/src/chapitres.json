@@ -235,6 +235,17 @@
       "etat": "v3"
     },
     {
+      "id": "scan",
+      "famille": "video",
+      "lot": "t320",
+      "icone": "dz-action-capturer",
+      "fr": "Scanner une page, une inspiration, un schéma",
+      "en": "Scan a page, an inspiration, a diagram",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
       "id": "son-vfx",
       "famille": "video",
       "lot": "t173",
@@ -312,6 +323,17 @@
       "etat": "v3"
     },
     {
+      "id": "capture-live",
+      "famille": "video",
+      "lot": "t320",
+      "icone": "dz-media-rec",
+      "fr": "Filmer l'app et passer en direct",
+      "en": "Record the app and go live",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
       "id": "planificateur",
       "famille": "publier",
       "lot": "t175",
@@ -349,6 +371,28 @@
       "anciens": [
         "c12"
       ],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
+      "id": "clients-canaux",
+      "famille": "publier",
+      "lot": "t320",
+      "icone": "dz-media-routage",
+      "fr": "Travailler pour des clients",
+      "en": "Work for clients",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
+      "id": "whatsapp",
+      "famille": "publier",
+      "lot": "t320",
+      "icone": "dz-nav-boite-reception",
+      "fr": "Parler à ses clients sur WhatsApp",
+      "en": "Talk to your clients on WhatsApp",
+      "anciens": [],
       "ecrans": [],
       "etat": "v3"
     },

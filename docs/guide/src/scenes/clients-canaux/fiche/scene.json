@@ -1,0 +1,94 @@
+{
+  "titre": {
+    "fr": "Travailler pour le client",
+    "en": "Work for the client"
+  },
+  "legende": {
+    "fr": "Le bandeau dit pour qui l'on travaille ; « Fiche client » ouvre consentements, posts à valider et journal.",
+    "en": "The banner says who you are working for; Client sheet opens consents, posts awaiting approval and the log."
+  },
+  "captures": [
+    {
+      "fr": "bandeau.fr.webp",
+      "en": "bandeau.en.webp"
+    },
+    {
+      "fr": "boite.fr.webp",
+      "en": "boite.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    800
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        226,
+        50,
+        982,
+        47
+      ],
+      "bulle": {
+        "fr": "Le bandeau rappelle le client et le projet",
+        "en": "The banner recalls the client and the project"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 1.8,
+      "curseur": [
+        599,
+        73
+      ],
+      "clic": true
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Consentements, posts à valider et journal du client",
+        "en": "Consents, posts awaiting approval and the client's log"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        226,
+        50,
+        982,
+        47
+      ],
+      "bulle": {
+        "fr": "Le bandeau rappelle le client et le projet",
+        "en": "The banner recalls the client and the project"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 1.8,
+      "curseur": [
+        597,
+        73
+      ],
+      "clic": true
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Consentements, posts à valider et journal du client",
+        "en": "Consents, posts awaiting approval and the client's log"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    800
+  ]
+}

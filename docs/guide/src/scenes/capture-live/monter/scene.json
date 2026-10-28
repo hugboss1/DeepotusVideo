@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Monter une capture",
+    "en": "Edit a recording"
+  },
+  "legende": {
+    "fr": "Monter la capture : zooms, temps morts et chapitres proposés d'après la piste des clics, puis un brouillon au Planificateur.",
+    "en": "Edit the recording: zooms, dead time and chapters suggested from the click track, then a draft in the Scheduler."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    },
+    {
+      "fr": "c3.fr.webp",
+      "en": "c3.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    755
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "bulle": {
+        "fr": "À la fin : Monter la capture",
+        "en": "At the end: Edit the recording"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.4,
+      "bulle": {
+        "fr": "Zooms, temps morts, chapitres, format",
+        "en": "Zooms, dead time, chapters, format"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 2.8,
+      "bulle": {
+        "fr": "Un brouillon attend dans le Planificateur",
+        "en": "A draft waits in the Scheduler"
+      }
+    }
+  ]
+}

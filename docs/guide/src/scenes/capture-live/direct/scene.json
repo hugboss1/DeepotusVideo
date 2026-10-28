@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Passer en direct",
+    "en": "Go live"
+  },
+  "legende": {
+    "fr": "Direct : des destinations dont la clé est au coffre, une annonce Discord, puis la santé du flux et le bilan.",
+    "en": "Live: destinations whose key is in the vault, a Discord announcement, then stream health and the summary."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    },
+    {
+      "fr": "c3.fr.webp",
+      "en": "c3.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    755
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Destinations, annonce Discord, caméra, skin",
+        "en": "Destinations, Discord announcement, camera, skin"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.0,
+      "bulle": {
+        "fr": "En direct : santé par destination, Pause écran, Marqueur",
+        "en": "Live: health per destination, Break screen, Marker"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 2.6,
+      "bulle": {
+        "fr": "Le bilan ; l'enregistrement est dans la Bibliothèque",
+        "en": "The summary; the recording is in the Library"
+      }
+    }
+  ]
+}

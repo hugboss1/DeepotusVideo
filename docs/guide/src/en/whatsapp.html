@@ -1,0 +1,51 @@
+<p class="chapeau-chap">You will be able to link a space's WhatsApp number, answer your contacts with the help of an agent, have the client approve a post and broadcast a post to your contacts. Linking is free; Meta charges for messages, the agent's drafts are paid, and every send goes through the space's cap.</p>
+
+<h3>Before you start</h3>
+<p>WhatsApp goes through <strong>Kapso</strong>, a layer over Meta's official API that receives messages in place of the PC. Its key, a single one for all spaces, is set in <b class="ui">Settings</b> › <b class="ui">API keys</b>. Each client links their own Meta Business account and number; one number serves one space only.</p>
+
+<h3>Link a space's number</h3>
+<figure class="scene" data-scene="whatsapp/lier"></figure>
+<ol class="etapes">
+<li>In the space wizard (see <a href="#clients-canaux">Work for clients</a>), <strong>Channels</strong> step, tick WhatsApp. It is not added from the list of accounts: it only shows there to be verified or deleted.</li>
+<li>For a client, first record their consent to the link: how and when it was given.</li>
+<li>Choose the <strong>Meta billing</strong>: by default the client pays Meta with their own card; otherwise Kapso pays with your credits (+5 %) and you re-invoice, if partner billing is enabled at Kapso. This choice is final.</li>
+<li><b class="ui">Create the link</b> (free): a Kapso setup link appears, valid for 30 days. <b class="ui">Copy</b> it, then send it to the client your usual way: the app sends nothing. They connect their Facebook account there in a few minutes.</li>
+<li><b class="ui">Verify</b> reads the link again: once the client has finished, the linked number shows.</li>
+</ol>
+
+<h3>Reply on the WhatsApp page</h3>
+<figure class="scene" data-scene="whatsapp/page"></figure>
+<p>The <b class="ui">WhatsApp</b> entry in the rail opens the active space's conversations, with five tabs: <b class="ui">Conversations</b>, <b class="ui">Templates</b>, <b class="ui">Contacts</b>, <b class="ui">Health</b> and <b class="ui">Meta prices</b>.</p>
+<ol class="etapes">
+<li>Pick a conversation. Its badge says whether the 24-hour window is open; once closed, only templates approved by Meta can go out: <b class="ui">Send a template</b>.</li>
+<li>When the agent has drafted, the <strong>Reply proposed by the agent</strong> waits: fix it, then <b class="ui">Send</b> or <b class="ui">Reject</b>. <b class="ui">Draft a reply</b> asks it for one.</li>
+<li><b class="ui">Take over</b> silences the agent on this conversation; <b class="ui">Hand back</b> gives it back.</li>
+</ol>
+
+<h3>Set up the WhatsApp agent</h3>
+<p>In <b class="ui">Settings</b> › <b class="ui">Brand spaces</b>, the <b class="ui">WhatsApp agent</b> button, under the active space's accounts, opens its settings: <b class="ui">Agent on</b>, mode, roles (common questions, appointments, orders with no price or payment, post approval), hours and out-of-hours message, limits per contact and per day, words that call a person, monthly cap. It speaks with the space's persona and respects its banned words.</p>
+<div class="cartes">
+<article><i data-dz="dz-action-modifier"></i><h4>Drafts, by default</h4><p>The agent drafts; you review and send each reply from the WhatsApp page.</p></article>
+<article><i data-dz="dz-media-automation"></i><h4>Automatic</h4><p>Once confirmed, the agent replies on its own, within hours and limits. A reply about money, a negative tone or a request for a person stays a draft to take over.</p></article>
+<article><i data-dz="dz-action-valider"></i><h4>Approval by the client</h4><p>With the approval role ticked, <b class="ui">Send to the client on WhatsApp</b>, in the Client sheet, sends them the post preview with two buttons: approve or ask for changes. Their answer comes back dated in the sheet.</p></article>
+</div>
+
+<h3>Broadcast a post on WhatsApp</h3>
+<figure class="scene" data-scene="whatsapp/diffusion"></figure>
+<ol class="etapes">
+<li>In a post's inspector in the Scheduler, under <b class="ui">Publishing accounts</b>, tick the space's WhatsApp account, one per post. A project's channels never tick it on their own.</li>
+<li>The <b class="ui">WhatsApp broadcast</b> panel asks for a template approved by Meta (no media header nor variable text header, never authentication) and its parameters, the same for everyone.</li>
+<li>It shows the audience, meaning the contacts whose consent is recorded, minus STOP and marketing opt-outs, and the quote. <b class="ui">Save the broadcast</b> spends nothing.</li>
+<li>The broadcast goes out when the post is published, after the cap check; the client's approval applies as for any post. Then the panel tracks sent, delivered, read, failures and actual cost: <b class="ui">Refresh</b>.</li>
+</ol>
+
+<h3>Keep your contacts and prices</h3>
+<div class="cartes">
+<article><i data-dz="dz-etat-dialogue"></i><h4>Consents and STOP</h4><p>Contacts tab: <b class="ui">Record consent</b>, with its source, before any first message. A contact who writes STOP gets nothing more; <b class="ui">Lift the STOP</b> requires the source of the opt-in.</p></article>
+<article><i data-dz="dz-action-cout"></i><h4>Meta prices</h4><p>Meta charges each delivered message by category and country. Enter the grid by market, then <b class="ui">Save the grid</b>: an unknown price makes the send refused.</p></article>
+<article><i data-dz="dz-nav-analytics"></i><h4>Health</h4><p>The month's messages, delivery failures, templates rejected by Meta and the agent's state.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="cout"><i data-dz="dz-action-cout"></i><p>Messages count under the whatsapp category, the agent's drafts under whatsapp_agent. The Kapso plan is shared by all spaces: each agent's monthly message cap keeps one client from eating the others' quota.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>If a broadcast's outcome is uncertain, <b class="ui">Confirm the send</b> retries it after a confirmation box: it is paid, some contacts may receive it twice, and the post also goes out again on its other channels.</p></aside>
