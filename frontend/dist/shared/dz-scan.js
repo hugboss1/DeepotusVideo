@@ -143,6 +143,9 @@
 
   function construire(E) {
     var voile = E.voile = el("div", { style: S.voile, role: "dialog", "aria-modal": "true", "class": "dz-scan", "data-dz-scan": "voile" });
+    // preuve t312 (28/10) : un style `display:flex` en ligne l'emporte sur l'attribut `hidden` → tout élément masqué
+    // de la boîte reste invisible, quel que soit son style
+    voile.appendChild(el("style", {}, ".dz-scan [hidden]{display:none!important}"));
     var boite = el("div", { style: S.boite });
     boite.appendChild(el("div", { style: S.tete }, T("scan.boite.titre")));
     var corps = el("div", { style: S.corps });
@@ -172,7 +175,9 @@
     [["fr", "scan.langue.fr"], ["en", "scan.langue.en"], ["auto", "scan.langue.auto"]].forEach(function (o) {
       choix.appendChild(el("option", { value: o[0] }, T(o[1])));
     });
-    choix.value = langue() === "en" ? "en" : "fr";
+    // preuve t312 (28/10) : la langue du TEXTE n'est pas celle de l'interface (une page française lue en « English »
+    // sort très abîmée) → « Auto » par défaut, qui reconnaît la langue de chaque page
+    choix.value = "auto";
     lab.appendChild(choix); ligne.appendChild(lab);
     E.lire = bouton("lire", T("scan.lecture.lire"), S.ok);
     E.lire.addEventListener("click", function () { lire(E); });
@@ -466,6 +471,10 @@
       k = p.fin;
     });
     m.appendChild(el("span", null, texte.slice(k) + "\n"));
+    // preuve t312 (28/10) : la barre de défilement du champ réduit sa largeur utile ; le miroir garde la même marge à
+    // droite, sinon ses lignes se coupent ailleurs et les surlignages glissent
+    var barre = (E.champ.offsetWidth || 0) - (E.champ.clientWidth || 0) - 2;
+    if (m.style) m.style.paddingRight = (8 + Math.max(0, barre)) + "px";
     var n = E.marques.length;
     E.compteur.textContent = !n ? T("scan.incertains.aucun") : T("scan.incertains.compteur", { i: E.idx >= 0 ? E.idx + 1 : 0, n: n });
     griser(E.prec, !n); griser(E.suiv, !n);

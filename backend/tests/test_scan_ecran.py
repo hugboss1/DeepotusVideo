@@ -60,6 +60,9 @@ def main():
 
     print("\n[1] le script partagé")
     check("1a copie dist octet pour octet", dist.is_file() and dist.read_bytes() == src.read_bytes())
+    # preuve t312 (28/10) : le voile « Lecture par Claude… » s'affichait à l'ouverture (display:flex en ligne > hidden)
+    check("1a2 la boîte force [hidden] à rester invisible malgré les styles en ligne",
+          ".dz-scan [hidden]{display:none!important}" in src.read_text(encoding="utf-8"))
     pos = {k: html.find(f'src="{k}"') for k in ("/shared/dz-i18n-dico.js", "/shared/dz-i18n.js", "/shared/dz-plafonds.js",
                                                 "/shared/dialogue.js", "/shared/dz-scan.js", "atelier.js")}
     check("1b la page de l'Atelier charge /shared/dz-scan.js une fois", html.count('src="/shared/dz-scan.js"') == 1)

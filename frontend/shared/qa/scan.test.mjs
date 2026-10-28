@@ -118,8 +118,8 @@ async function lu(opts = {}, lang = "fr", extra = {}) {
   ok("1.1 la boîte est montée dans le body, titre FR", !!marque(c, "voile") && tous(c, (x) => x.textContent === FR("scan.boite.titre")).length > 0);
   ok("1.2 deux pages déposées listées", tous(c, (x) => x.attrs["data-dz-scan"] === "page").length === 2);
   const lire = m.appels.find((a) => a.url === "/api/scan/lire");
-  ok("1.3 POST /api/scan/lire multipart : 2 pages + langue fr", lire && lire.methode === "POST" && lire.corps instanceof FormData
-    && lire.corps.getAll("pages").length === 2 && lire.corps.get("langue") === "fr", lire && lire.corps);
+  ok("1.3 POST /api/scan/lire multipart : 2 pages + langue auto par défaut", lire && lire.methode === "POST" && lire.corps instanceof FormData
+    && lire.corps.getAll("pages").length === 2 && lire.corps.get("langue") === "auto", lire && lire.corps);
   ok("1.4 aperçu : textarea = texte lu", marque(c, "texte").value === TEXTE && visible(marque(c, "resultat")));
   const st = marque(c, "stats").textContent;
   ok("1.5 statistiques : pages, mots, colonnes, folios, césures, incertains, moteur", [FR("scan.stats.pages", { n: 2 }), FR("scan.stats.mots", { n: 18 }),
@@ -442,7 +442,7 @@ for (const accord of [true, false]) {
   const c = m.corps();
   ok("18.1 EN : titre et boutons", tous(c, (x) => x.textContent === EN("scan.boite.titre")).length > 0 && marque(c, "lire").textContent === "Read"
     && marque(c, "inserer").textContent === EN("scan.envoi.inserer") && EN("scan.envoi.inserer") !== FR("scan.envoi.inserer"));
-  ok("18.2 EN : langue par défaut en", m.appels.find((a) => a.url === "/api/scan/lire").corps.get("langue") === "en");
+  ok("18.2 EN : langue du texte « auto » par défaut, pas celle de l'interface", m.appels.find((a) => a.url === "/api/scan/lire").corps.get("langue") === "auto");
   ok("18.3 EN : montant au format anglais", marque(c, "claude").textContent === EN("scan.claude.bouton", { usd: "$0.0123" }), marque(c, "claude").textContent);
   ok("18.4 EN : statistiques", marque(c, "stats").textContent.includes(EN("scan.stats.colonnes", { n: 2 })) && marque(c, "stats").textContent.includes(EN("scan.moteur.windows")));
   marque(c, "manuscrit").click(); await ticks();
