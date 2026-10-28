@@ -141,5 +141,65 @@ WE.modeles = faux_modeles
 r = asyncio.run(ao.executer("whatsapp_modeles", {}, ao.Ctx(cid="c", espace_id=A)))
 check("4a modèles approuvés positionnels de l'espace", r["ok"] and r["donnees"] == [{"nom": "prospection_relance", "langue": "fr", "categorie": "marketing", "n_parametres": 1}], r)
 
+print("[5] relecture t357")
+HORLOGE[0] = datetime(2026, 11, 16, 10, 0, tzinfo=PARIS).astimezone(timezone.utc)
+ETAT2 = {"etat": {"PIDB": {"accords": {"tel:33677777777": {"date": "2026-10-20", "source": "saisi"}}, "stops": {},
+                           "desinscrits_marketing": {}, "compteur": {}, "alias": {}, "journal": []},
+                  "PIDA": {"accords": {"tel:33677777777": {"date": "2026-10-21", "source": "entrant"}},
+                           "stops": {"tel:33677777777": "2026-10-22"}, "desinscrits_marketing": {}, "compteur": {}, "alias": {}, "journal": []},
+                  "PID1": WA_ETAT["etat"]["PID1"]}}
+ETAT2["etat"]["PID1"]["accords"].update({"tel:33622222200": {"date": "2026-10-20", "source": "saisi"},
+                                         "tel:33688888800": {"date": "2026-10-20", "source": "saisi"},
+                                         "tel:33688888801": {"date": "2026-10-20", "source": "saisi"},
+                                         "tel:33688888802": {"date": "2026-10-20", "source": "saisi"}})
+E.chemin(A, "whatsapp.json").write_text(json.dumps(ETAT2), encoding="utf-8")
+WP._COMPTES = lambda eid: [("cpt_B", "PIDB"), ("cpt_A", "PIDA"), ("cpt_1", "PID1")]
+REPONSE["mode"] = "ok"
+pc = prospect("Deux numéros", "+33677777777"); sc = sequence(pc, [{"texte": "x", "delai_jours": 0}])
+n0 = len(ENVOIS); passe()
+x = [y for y in S.lister(A) if y["id"] == sc][0]
+check("5a STOP sur un autre numéro de l'espace : rien ne part, arrêt « canal »", not any(e[1] == "tel:33677777777" for e in ENVOIS[n0:]) and x["motif"] == "canal", x.get("motif"))
+REGISTRE = []
+_noter_wa, _reg_wa = WA._noter, WA._stop_au_registre
+WA._noter = lambda cid, geste: None
+WA._stop_au_registre = lambda cid, ident: REGISTRE.append(ident)
+WA.noter_entrant("cpt_1", {"from": "33688888888", "type": "text", "text": {"body": "STOP"}, "id": "m1"})
+WA._noter, WA._stop_au_registre = _noter_wa, _reg_wa
+check("5b un STOP tapé sur WhatsApp va au registre global", REGISTRE == ["tel:33688888888"], REGISTRE)
+pl = prospect("Local", "06 22 22 22 00"); sl = sequence(pl, [{"texte": "Bonjour", "delai_jours": 0}])
+n0 = len(ENVOIS); passe()
+check("5c numéro au format local (06…) : reconnu, envoyé", any(e[1] == "tel:33622222200" for e in ENVOIS[n0:]), ENVOIS[n0:])
+check("5d réponse rattachée même si le message porte un BSUID (groupe)", WP.entrant(A, ["bsuid:US.999", "tel:33622222200"]) == pl)
+pm = prospect("Modèle refusé", "+33688888800"); sm = sequence(pm, [{"texte": "x", "delai_jours": 0, "modele": MOD}])
+pn = prospect("Suivant", "+33688888801"); sn = sequence(pn, [{"texte": "Bonjour", "delai_jours": 0}])
+
+
+async def refus_meta(cid, identite, envoi):
+    if identite == "tel:33688888800":
+        raise K.KapsoErreur("paramètres", statut=400, code="132000")
+    ENVOIS.append((cid, identite, envoi))
+    return {"id": "wamid.x"}
+
+
+WP._ENVOYER = refus_meta
+n0 = len(ENVOIS); passe()
+x = [y for y in S.lister(A) if y["id"] == sm][0]
+check("5e refus 4xx de Meta (132000) : arrêt « modele », jamais en boucle", x["statut"] == "annulee" and x["motif"] == "modele", (x["statut"], x.get("motif")))
+check("5f …et le prospect suivant part dans la même passe", any(e[1] == "tel:33688888801" for e in ENVOIS[n0:]))
+pu = prospect("Incertain", "+33688888802"); su = sequence(pu, [{"texte": "x", "delai_jours": 0, "modele": MOD}])
+APPELS_U = []
+
+
+async def incertain(cid, identite, envoi):
+    APPELS_U.append(identite)
+    raise K.KapsoErreur("passerelle", statut=502, code="502")
+
+
+WP._ENVOYER = incertain
+passe(); passe()
+x = [y for y in S.lister(A) if y["id"] == su][0]
+check("5g issue incertaine (5xx après l'appel) : jamais renvoyé, arrêt « incertain »", APPELS_U.count("tel:33688888802") == 1 and x["motif"] == "incertain", (APPELS_U, x.get("motif")))
+WP._ENVOYER = faux_envoyer
+
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

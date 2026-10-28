@@ -41,7 +41,7 @@
   var FOURNISSEURS = ["anthropic", "tavily", "exa", "serper"];   // t354 : recherche web de la prospection
   var SEQ_STATUTS = ["proposee", "validee", "planifiee", "terminee", "annulee"];   // t355 : séquences
   var ETAPE_STATUTS = ["brouillon", "validee", "planifiee", "envoyee", "annulee"];
-  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee", "canal", "rebond", "echec", "fenetre", "modele"];
+  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee", "canal", "rebond", "echec", "fenetre", "modele", "incertain"];
   var MOTIFS_HUMAIN = ["prix", "devis", "plainte", "stop", "autre"];   // t358 : passage à l'humain
   var EMAIL_MODES = ["smtp", "brevo"];   // t356 : canal e-mail
   var EMAIL_MANQUES = ["expediteur", "identite", "smtp", "imap", "mdp", "brevo"];

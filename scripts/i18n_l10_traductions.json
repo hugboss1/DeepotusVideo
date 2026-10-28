@@ -11623,10 +11623,6 @@
   "fr": "clé Brevo refusée : vérifiez-la dans l'onglet Prospects",
   "en": "Brevo key refused: check it in the Prospects tab"
  },
- "Brevo a refusé ce destinataire ou ce message": {
-  "fr": "Brevo a refusé ce destinataire ou ce message",
-  "en": "Brevo refused this recipient or this message"
- },
  "envoi en pause ({motif}) : reprenez-le dans l'onglet Prospects": {
   "fr": "envoi en pause ({motif}) : reprenez-le dans l'onglet Prospects",
   "en": "sending paused ({motif}): resume it in the Prospects tab"
@@ -11678,10 +11674,6 @@
  "plafond : de 1 à {PLAFOND_MAX} e-mails par jour": {
   "fr": "plafond : de 1 à {PLAFOND_MAX} e-mails par jour",
   "en": "cap: 1 to {PLAFOND_MAX} emails per day"
- },
- "envoi refusé par le serveur (code {smtp_code})": {
-  "fr": "envoi refusé par le serveur (code {smtp_code})",
-  "en": "sending refused by the server (code {smtp_code})"
  },
  "registre des oppositions indisponible ({name})": {
   "fr": "registre des oppositions indisponible ({name})",

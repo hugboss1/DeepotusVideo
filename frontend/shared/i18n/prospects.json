@@ -235,5 +235,6 @@
   "prospects.humain.plainte": {"fr": "plainte", "en": "complaint"},
   "prospects.humain.stop": {"fr": "STOP", "en": "STOP"},
   "prospects.humain.autre": {"fr": "autre", "en": "other"},
-  "prospects.histo.a_l_humain": {"fr": "À reprendre par vous", "en": "Handed back to you"}
+  "prospects.histo.a_l_humain": {"fr": "À reprendre par vous", "en": "Handed back to you"},
+  "prospects.seqmotif.incertain": {"fr": "Arrêtée : l'envoi WhatsApp a peut-être eu lieu (réponse incertaine du fournisseur) ; vérifiez dans l'onglet WhatsApp avant de relancer.", "en": "Stopped: the WhatsApp message may have gone out (uncertain provider answer); check the WhatsApp tab before following up."}
 }

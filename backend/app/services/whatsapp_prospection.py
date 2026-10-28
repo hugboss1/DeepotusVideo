@@ -51,32 +51,48 @@ _ENVOYER = _envoyer
 
 
 def identite_de(fiche: dict) -> str | None:
+    """L'identité WhatsApp d'une fiche, normalisée comme le registre (06…, +33 (0)6…, bsuid:… : relecture I3)."""
+    from app.services import oppositions as _op
     for c in fiche.get("canaux") or []:
         if c.get("type") == "whatsapp":
-            chiffres = re.sub(r"\D", "", str(c.get("valeur") or ""))
-            if chiffres:
-                return "tel:" + chiffres
+            n = _op.normaliser_canal("whatsapp", str(c.get("valeur") or ""))
+            if n and (n.startswith("tel:") or n.startswith("bsuid:")):
+                return n
     return None
 
 
 def compte_pour(eid, identite: str) -> str | None:
-    """Le compte de l'espace dont l'état porte un accord de ce contact (alias compris)."""
+    """Le compte de l'espace dont l'état porte un accord de ce contact (alias compris) ; AUCUN si un des numéros de
+    l'espace a reçu un STOP de ce contact (relecture C1 : le STOP vaut pour tous les numéros)."""
     from app.services import whatsapp as WA
     doc = WA._lire_doc(eid)
-    for cid, phone in _COMPTES(eid):
+    comptes, retenu = _COMPTES(eid), None
+    for cid, phone in comptes:
         e = WA._etat_doc(doc, phone)             # copie de lecture : rien n'est écrit
-        if any(i in e["accords"] for i in WA._groupe(e, identite)):
-            return cid
-    return None
+        groupe = WA._groupe(e, identite)
+        if any(i in e["stops"] for i in groupe):
+            return None
+        if retenu is None and any(i in e["accords"] for i in groupe):
+            retenu = cid
+    return retenu
+
+
+CODES_MODELE = ("132000", "132001", "132005", "132007", "132012", "132015", "132016")
 
 
 async def envoyer_dues(eid) -> dict:
+    """Relecture t357 : une étape tentée dont l'issue est incertaine n'est JAMAIS renvoyée (arrêt « incertain ») ; un
+    refus 4xx de Meta arrête la séquence et la passe continue ; seule une panne AVANT l'appel laisse l'étape attendre."""
     from app.services import whatsapp as WA, kapso
     out = {"envoyes": 0, "arretes": 0, "etat": "ok"}
     if not WA.dans_horaires(_sq._agent(eid), _maintenant()):
         out["etat"] = "hors_horaires"
         return out
     for d in _sq.etapes_dues(eid, "whatsapp"):
+        if d.get("tentative"):                   # une tentative précédente sans issue sûre : jamais un second envoi
+            _sq.arreter(eid, d["sid"], "incertain")
+            out["arretes"] += 1
+            continue
         try:
             fiche = _p.lire(eid, d["pid"])
         except _p.RefusProspect:
@@ -92,26 +108,45 @@ async def envoyer_dues(eid) -> dict:
         m = d.get("modele")
         envoi = {"type": "modele", "nom": m["nom"], "langue": m["langue"], "parametres": m["parametres"]} if m \
             else {"type": "texte", "texte": d["texte"]}
+        if not _sq.encore_due(eid, d["sid"], d["rang"]):
+            continue
+        _sq.marquer_tentative(eid, d["sid"], d["rang"])
         try:
             r = await _ENVOYER(cid, ident, envoi)
         except WA.WhatsappRefus as e:
-            if e.code == "plafond":
-                out["etat"] = "plafond"
+            _sq.lever_tentative(eid, d["sid"], d["rang"])
+            if e.code in ("plafond", "prix"):     # réglage ou plafond : l'étape attend
+                out["etat"] = e.code
                 break
             _sq.arreter(eid, d["sid"], "fenetre" if e.code == "fenetre" else "canal")
             out["arretes"] += 1
             continue
         except HTTPException as e:                # 402 : plafond de dépense ; l'étape attend
+            _sq.lever_tentative(eid, d["sid"], d["rang"])
             out["etat"] = "plafond" if e.status_code == 402 else "refus"
             break
-        except ValueError:                        # modèle inconnu, non approuvé, paramètres faux
-            _sq.arreter(eid, d["sid"], "modele")
+        except ValueError as e:                   # avant tout appel : modèle inconnu, paramètres, espace archivé…
+            _sq.lever_tentative(eid, d["sid"], d["rang"])
+            _sq.arreter(eid, d["sid"], "modele" if "modèle" in str(e) or "paramètre" in str(e) else "canal")
             out["arretes"] += 1
             continue
-        except (kapso.KapsoErreur, OSError) as e:      # panne : l'étape attend la passe suivante, rien n'est arrêté
-            logger.warning(f"WhatsApp prospection {eid} : envoi en échec ({type(e).__name__})")
-            out["etat"] = "panne"
-            break
+        except kapso.KapsoErreur as e:
+            if 400 <= e.statut < 500 and e.statut != 429:      # refus définitif (relecture I2) : jamais en boucle
+                _sq.lever_tentative(eid, d["sid"], d["rang"])
+                _sq.arreter(eid, d["sid"], "modele" if e.code in CODES_MODELE else "canal")
+                out["arretes"] += 1
+                continue
+            if e.code in ("reseau", "cle_absente", "hote_refuse") and not e.statut:   # rien n'est parti : l'étape attend
+                _sq.lever_tentative(eid, d["sid"], d["rang"])
+                out["etat"] = "panne"
+                break
+            _sq.arreter(eid, d["sid"], "incertain")        # 5xx, réponse illisible : a pu partir (relecture I1)
+            out["arretes"] += 1
+            continue
+        except OSError:                            # écriture locale après l'appel : a pu partir
+            _sq.arreter(eid, d["sid"], "incertain")
+            out["arretes"] += 1
+            continue
         _sq.noter_envoi(eid, d["sid"], d["rang"], str((r or {}).get("id") or ""))
         try:
             _p.noter_contact(eid, d["pid"], "sortant", f"whatsapp : message {d['rang'] + 1} envoyé", "systeme")
@@ -123,15 +158,17 @@ async def envoyer_dues(eid) -> dict:
     return out
 
 
-def entrant(eid, identite: str) -> str | None:
-    """Un message reçu d'un contact : s'il est le canal WhatsApp d'une fiche de l'espace, contact entrant et Contactée →
-    A répondu. Rend l'id de la fiche, ou None."""
+def entrant(eid, identites) -> str | None:
+    """Un message reçu d'un contact (son groupe d'identités : tel et bsuid, relecture I4) : s'il est le canal WhatsApp
+    d'une fiche de l'espace, contact entrant et Contactée → A répondu. Rend l'id de la (première) fiche, ou None."""
+    groupe = {identites} if isinstance(identites, str) else set(identites or [])
     try:
         fiches = _p.lister(eid)
     except _p.RefusProspect:
         return None
+    trouve = None
     for f in fiches:
-        if f["statut"] == "oppose" or identite_de(f) != identite:
+        if f["statut"] == "oppose" or identite_de(f) not in groupe:
             continue
         try:
             _p.noter_contact(eid, f["id"], "entrant", "whatsapp : message reçu", "systeme")
@@ -139,16 +176,16 @@ def entrant(eid, identite: str) -> str | None:
                 _p.changer_statut(eid, f["id"], "repondu", "réponse WhatsApp", "systeme")
         except _p.RefusProspect as e:
             logger.warning(f"réponse WhatsApp non rattachée à {f['id']} : {e.message}")
-            return None
-        return f["id"]
-    return None
+            continue
+        trouve = trouve or f["id"]
+    return trouve
 
 
-def crochet_entrant(cid: str, identite: str) -> None:
+def crochet_entrant(cid: str, identites) -> None:
     """Le crochet de `whatsapp.noter_entrant` : jamais d'exception (la lecture des messages ne doit pas tomber)."""
     try:
         from app.services import whatsapp as WA
         eid, _ = WA._cle_etat(cid)
-        entrant(eid, identite)
+        entrant(eid, identites)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"réponse WhatsApp non rattachée aux prospects ({type(e).__name__})")

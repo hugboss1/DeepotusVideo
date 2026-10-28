@@ -499,7 +499,8 @@ def etapes_dues(eid, canal: str) -> list:
                 datetime.fromisoformat(avant["envoye_utc"]) + timedelta(days=e["delai_jours"]) > now
             if e["statut"] == "planifiee" and e.get("quand") and datetime.fromisoformat(e["quand"]) <= now and not reel:
                 out.append({"sid": s["id"], "rang": e["rang"], "pid": s["pid"], "objet": e["objet"], "texte": e["texte"],
-                            "modele": e.get("modele"), "reponse": bool(s.get("reponse"))})
+                            "modele": e.get("modele"), "reponse": bool(s.get("reponse")),
+                            "tentative": bool(e.get("tentative_le"))})
             break
     return out
 
@@ -534,6 +535,25 @@ def noter_envoi(eid, sid, rang, message_id: str) -> dict:
         _noter(s, f"envoyee:{rang}", "systeme")
         _poser(eid, doc)
     return s
+
+
+def marquer_tentative(eid, sid, rang) -> None:
+    """t357 (relecture I1) : écrite AVANT l'appel au fournisseur ; une étape qui la garde sans être envoyée a une issue
+    incertaine et ne sera jamais renvoyée d'office."""
+    with _verrou:
+        doc = _lire(eid)
+        _s, e = _etape(doc, sid, rang)
+        e["tentative_le"] = _maintenant().isoformat()
+        _poser(eid, doc)
+
+
+def lever_tentative(eid, sid, rang) -> None:
+    """Le refus est venu AVANT tout envoi : la tentative s'efface."""
+    with _verrou:
+        doc = _lire(eid)
+        _s, e = _etape(doc, sid, rang)
+        if e.pop("tentative_le", None):
+            _poser(eid, doc)
 
 
 def noter_essai(eid, sid, rang) -> int:
