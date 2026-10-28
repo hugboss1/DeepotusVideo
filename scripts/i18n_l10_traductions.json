@@ -11601,5 +11601,61 @@
  "{fournisseur} injoignable ({name})": {
   "fr": "{fournisseur} injoignable ({name})",
   "en": "{fournisseur} unreachable ({name})"
+ },
+ "Corps de requête trop lourd.": {
+  "fr": "Corps de requête trop lourd.",
+  "en": "Request body too large."
+ },
+ "Corps JSON illisible.": {
+  "fr": "Corps JSON illisible.",
+  "en": "Unreadable JSON body."
+ },
+ "Numéro de morceau invalide.": {
+  "fr": "Numéro de morceau invalide.",
+  "en": "Invalid chunk number."
+ },
+ "Cette capture est close.": {
+  "fr": "Cette capture est close.",
+  "en": "This capture is closed."
+ },
+ "Piste absente de cette capture.": {
+  "fr": "Piste absente de cette capture.",
+  "en": "This capture has no such track."
+ },
+ "Morceau trop lourd : 16 Mo au plus.": {
+  "fr": "Morceau trop lourd : 16 Mo au plus.",
+  "en": "Chunk too large: 16 MB at most."
+ },
+ "Identifiant de capture invalide.": {
+  "fr": "Identifiant de capture invalide.",
+  "en": "Invalid capture id."
+ },
+ "Capture introuvable.": {
+  "fr": "Capture introuvable.",
+  "en": "Capture not found."
+ },
+ "Format de piste refusé : vidéo WebM ou MP4, voix WebM, Ogg ou MP4.": {
+  "fr": "Format de piste refusé : vidéo WebM ou MP4, voix WebM, Ogg ou MP4.",
+  "en": "Track format refused: video WebM or MP4, voice WebM, Ogg or MP4."
+ },
+ "Piste inconnue : scene, ecran, camera ou voix.": {
+  "fr": "Piste inconnue : scene, ecran, camera ou voix.",
+  "en": "Unknown track: scene, ecran, camera or voix."
+ },
+ "La capture n'a reçu aucune image.": {
+  "fr": "La capture n'a reçu aucune image.",
+  "en": "The capture received no picture."
+ },
+ "Le format de la piste a changé en cours d'enregistrement.": {
+  "fr": "Le format de la piste a changé en cours d'enregistrement.",
+  "en": "The track format changed during the recording."
+ },
+ "Morceau hors ordre : la piste attend le morceau {attendu}.": {
+  "fr": "Morceau hors ordre : la piste attend le morceau {attendu}.",
+  "en": "Chunk out of order: the track expects chunk {attendu}."
+ },
+ "Piste trop longue : 4 Go au plus.": {
+  "fr": "Piste trop longue : 4 Go au plus.",
+  "en": "Track too long: 4 GB at most."
  }
 }

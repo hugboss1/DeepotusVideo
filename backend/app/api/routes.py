@@ -9850,6 +9850,7 @@ _JOBS_SANS_DEPENSE = {
     "animation":     "Animation (ffmpeg + PIL locaux)",
     "news":          "News reel (ffmpeg local)",
     "ugc":           "Fichier téléversé par l'utilisateur",
+    "capture":       "Capture de l'app (enregistrée dans le navigateur, t315)",
     "animatique":    "Animatique (ffmpeg local ; instantané envoyé au Montage, tâche #66)",
     "card3d":        "Publication d'une carte 3D (rien n'est fabriqué)",
     "template":      "Rendu template (job parent — les sous-jobs paient)",
