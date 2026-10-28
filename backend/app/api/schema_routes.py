@@ -92,7 +92,10 @@ def _lignes_ramenees(lignes: list, fx: float, fy: float) -> list:
         return lignes
     out = []
     for li in lignes:
-        mots = [dict(m, x=m["x"] * fx, y=m["y"] * fy, l=m["l"] * fx, h=m["h"] * fy) for m in li.get("mots") or []]
+        if not isinstance(li, dict):
+            continue
+        mots = [dict(m, x=m["x"] * fx, y=m["y"] * fy, l=m["l"] * fx, h=m["h"] * fy) for m in li.get("mots") or []
+                if isinstance(m, dict) and all(_nb(m.get(k)) for k in ("x", "y", "l", "h"))]
         out.append(dict(li, mots=mots))
     return out
 
@@ -136,19 +139,27 @@ async def analyser(request: Request, image: UploadFile = File(...), detourage: s
     if mid != DEFAUT:
         with tempfile.TemporaryDirectory(prefix="dzschema_") as d:
             src = Path(d) / "source.png"
-            await asyncio.to_thread(lambda: Image.open(io.BytesIO(source)).save(src, format="PNG"))
             try:
+                await asyncio.to_thread(lambda: Image.open(io.BytesIO(source)).convert("RGBA").save(src, format="PNG"))
                 nom = await DT.detourer_image(mid, src, None, dossier=d)
+                travail = (Path(d) / nom).read_bytes()
+            except HTTPException:
+                raise
             except RuntimeError as e:
                 logger.warning(f"schema_routes : détourage {mid} sans image ({type(e).__name__})")
                 raise HTTPException(502, "Le détourage n'a rien rendu : réessaie ou choisis un autre modèle.") from None
-            travail = (Path(d) / nom).read_bytes()
+            except ValueError as e:                    # Refus (rembg absent…), image source : dits tels quels
+                raise HTTPException(400, str(e)) from None
+            except Exception as e:  # noqa: BLE001 — réseau, fournisseur : dit, jamais un 500 muet (après la garde)
+                logger.warning(f"schema_routes : détourage {mid} en échec ({type(e).__name__})")
+                raise HTTPException(502, f"Le détourage par {mid} a échoué ({type(e).__name__}) : il a peut-être été "
+                                         f"facturé ; réessaie ou choisis un autre modèle.") from None
     lg = "en" if langue == "en" else "fr"
     avert = []
     try:
         ocr = await asyncio.to_thread(O.lire_page, source, lg)
         lignes = ocr.get("lignes") or []
-    except (O.ScanIndisponible, O.ScanErreur, ValueError):
+    except Exception:  # noqa: BLE001 — la lecture est un bonus : indisponible, jamais un échec de l'analyse
         lignes = []
         avert.append("ocr_indisponible")
 
@@ -223,7 +234,7 @@ async def animation(request: Request):
     if not isinstance(brut, list) or not 1 <= len(brut) <= MAX_CALQUES:
         raise HTTPException(400, "Il faut de 1 à 60 calques à animer.")
     racine = settings.images_path
-    calques = []
+    calques, poids = [], 0
     for n, k in enumerate(brut, 1):
         k = k if isinstance(k, dict) else {}
         im = str(k.get("image") or "")
@@ -233,6 +244,9 @@ async def animation(request: Request):
         if not all(_nb(b.get(x)) for x in ("x", "y", "w", "h")) or b["w"] <= 0 or b["h"] <= 0:
             raise HTTPException(400, f"Calque {n} : boîte invalide.")
         octets = (racine / im).read_bytes()
+        poids += len(octets)
+        if poids > MC.MAX_PAGE * 3 // 4:                # base64 : ×4/3 ; refusé AVANT de tout lire
+            raise HTTPException(413, "La page motion code du schéma dépasse 10 Mo : anime moins de calques à la fois.")
         try:
             with Image.open(io.BytesIO(octets)) as p:
                 pw, ph = p.size
@@ -252,15 +266,20 @@ async def animation(request: Request):
     (racine / nom_fond).write_bytes(SA.png_fond(aspect, fond))
     els = [SA.element_fond(nom_fond, duree)] + SA.elements(calques, lw, lh, aspect, duree)
     page = SA.page(calques, lw, lh, aspect, duree, fond=fond)
-    if MC.controler(page):
+    refus = MC.controler(page)
+    if "taille" in refus:
         raise HTTPException(413, "La page motion code du schéma dépasse 10 Mo : anime moins de calques à la fois.")
+    if refus:
+        logger.error(f"schema_routes : page du schéma refusée par le bac à sable ({refus})")
+        raise HTTPException(500, "La page motion code du schéma a été refusée par le bac à sable.")
     pid = MC.enregistrer(page)
     graphe = SA.graphe(nom, els, pid, script, aspect, duree)
     gid = "g_schema_" + hashlib.sha256(did.encode("utf-8")).hexdigest()[:8]
     graphe["id"] = gid
     titre = nom + (" — animated diagram" if langue_requete(request) == "en" else " — schéma animé")
-    from datetime import datetime
-    rec = {"id": gid, "name": titre[:120], "graph": graphe, "updated_at": datetime.utcnow().isoformat()}
+    from datetime import datetime, timezone
+    rec = {"id": gid, "name": titre[:120], "graph": graphe,
+           "updated_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}
     (R._studio_graphs_dir() / f"{gid}.json").write_text(json.dumps(rec, ensure_ascii=False), encoding="utf-8")
     logger.info(f"schema_routes : animation de {len(calques)} calque(s), {aspect}, {duree} s, page {len(page)} car.")
     return {"graph": graphe, "graph_id": gid, "nom_graphe": rec["name"], "page_id": pid, "aspect": aspect,

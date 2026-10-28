@@ -174,10 +174,24 @@ check("1h sans flèche : 3 formes, ordre de lecture", len(r["elements"]) == 3 an
 
 print("\n[5] bornes et découpes")
 im, d = fond(1000, 1000)
+lig = [ligne(f"Ligne {k}", 20 + (k % 4) * 240, 20 + (k // 4) * 40, 200, 24) for k in range(80)]
+for l in lig:
+    m_ = l["mots"][0]; d.rectangle((m_["x"], m_["y"], m_["x"] + m_["l"], m_["y"] + m_["h"]), fill=NOIR)
+r = SC.analyser(im, lig)
+E = par_nature(r, "etiquette")
+check("1o 80 lignes libres : au plus 40 éléments, aucune ligne perdue", len(r["elements"]) <= SC.MAX_ELEMENTS
+      and sum(len(e["lignes"]) for e in E) == 80, (len(r["elements"]), sum(len(e["lignes"]) for e in E)))
+im, d = fond()
+d.rectangle((20, 20, 780, 480), outline=NOIR, width=4)
+fleche(d, 20, 250, 300, 250)                                         # une flèche soudée au cadre
+r = SC.analyser(im, [])
+check("1p forme géante (éléments soudés) : avertissement", "elements_soudes" in r["avertissements"], r["avertissements"])
+im, d = fond(1000, 1000)
 for i in range(9):
     for j in range(6):
         d.rectangle((30 + i * 105, 30 + j * 160, 90 + i * 105, 120 + j * 160), fill=(30 + i * 20, 40, 90 + j * 20))
 r = SC.analyser(im, [])
+check("1i schéma de 54 aplats : pas de soudure signalée", "elements_soudes" not in r["avertissements"])
 check("1i au plus 40 éléments dont « details »", len(r["elements"]) <= SC.MAX_ELEMENTS
       and len(par_nature(r, "details")) == 1, (len(r["elements"]), len(par_nature(r, "details"))))
 im, d = fond()
@@ -194,8 +208,19 @@ L = par_nature(r, "fleche")[0]
 q = Image.open(io.BytesIO(L["png"]))
 check("1j la flèche ne porte pas les rectangles", q.size[0] < 400 and q.size[1] < 60, q.size)
 
-m, est = SC.masque_de(Image.new("RGBA", (50, 50), (0, 0, 0, 0)))
-check("1k image transparente : masque lu, non estimé", est is False and m.mode == "L")
+tr = Image.new("RGBA", (50, 50), (0, 0, 0, 0))
+ImageDraw.Draw(tr).rectangle((10, 10, 30, 30), fill=(0, 0, 0, 255))
+m, est = SC.masque_de(tr)
+check("1k image transparente : masque lu, non estimé", est is False and m.mode == "L" and m.getbbox() == (10, 10, 31, 31))
+try:
+    SC.masque_de(Image.new("RGBA", (50, 50), (0, 0, 0, 0))); check("1k toute transparente : image_vide", False)
+except SC.RefusSchema as e:
+    check("1k toute transparente : image_vide", e.code == "image_vide")
+co = Image.new("RGBA", (200, 200), (255, 255, 255, 255))
+ImageDraw.Draw(co).rectangle((60, 60, 140, 140), outline=(0, 0, 0, 255), width=4)
+co.putpixel((0, 0), (255, 255, 255, 40)); co.putpixel((199, 199), (255, 255, 255, 40))   # coins anticrénelés
+m, est = SC.masque_de(co)
+check("1k opaque à coins semi-transparents : fond estimé", est is True and m.getbbox()[0] >= 55, m.getbbox())
 im, d = fond(); boite(d, 60, 200)
 m, est = SC.masque_de(im)
 check("1k opaque fond blanc : estimé", est is True)

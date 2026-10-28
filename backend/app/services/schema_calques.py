@@ -37,7 +37,9 @@ COTE_ANALYSE = 600
 MAX_ELEMENTS = 40
 SEUIL_ALLONGE = 2.5
 SEUIL_POINTE = 1.25
-BRUIT = 0.0002                 # part de l'aire réduite sous laquelle une composante est du bruit
+BRUIT = 0.0002                 # part de l'aire réduite sous laquelle une composante est du bruit…
+BRUIT_MAX = 8                  # … sans dépasser 8 px réduits (un trait fin court reste un élément)
+SOUDE = 0.5                    # une forme qui couvre plus de la moitié de l'image : des éléments s'y touchent ?
 TROU_MIN = 0.02                # part de la boîte : fond enfermé qui fait une forme
 GLYPHE = 0.6                   # part de la boîte d'une composante dans une ligne lue : un glyphe
 TOLERANCE_LIEN = 0.03          # part de la diagonale : marge d'une forme pour accrocher une extrémité de flèche
@@ -102,8 +104,12 @@ def masque_de(img: Image.Image):
     """(masque « L » 0/255, estime). L'alpha s'il y a de la transparence, sinon le fond estimé par le pourtour."""
     rgba = img.convert("RGBA")
     a = rgba.getchannel("A")
-    if a.getextrema()[0] < 255:
-        return a.point(lambda v: 255 if v > 127 else 0), False
+    transparents = sum(a.histogram()[:128])
+    if transparents >= 0.01 * rgba.width * rgba.height:     # une vraie transparence (pas des coins anticrénelés)
+        m = a.point(lambda v: 255 if v > 127 else 0)
+        if m.getbbox() is None:
+            raise RefusSchema("image_vide")
+        return m, False
     rgb = rgba.convert("RGB")
     cle, part = _fond_du_pourtour(rgb)
     if part < 0.6:
@@ -331,7 +337,7 @@ def analyser(img: Image.Image, lignes: list, langue: str = "fr") -> dict:
     petit = masque.resize((sw, sh), Image.BOX).point(lambda v: 255 if v > 40 else 0) if s < 1 else masque
     s_x, s_y = sw / W, sh / H
     s = min(s_x, s_y)
-    comps = [c for c in _composantes(petit) if len(c["pix"]) >= max(4, BRUIT * sw * sh)]
+    comps = [c for c in _composantes(petit) if len(c["pix"]) >= max(4, min(BRUIT_MAX, BRUIT * sw * sh))]
 
     # les lignes lues
     lues = []
@@ -424,6 +430,14 @@ def analyser(img: Image.Image, lignes: list, langue: str = "fr") -> dict:
             etiqs.append({"nature": "etiquette", "lignes": [l], "parent": proche})
     for f, ls in par_forme.values():
         etiqs.append({"nature": "etiquette", "lignes": ls, "parent": f})
+    # au plus MAX_ELEMENTS en tout : les étiquettes libres en trop sont fondues en une seule (lignes gardées)
+    libres = [t for t in etiqs if t["parent"] is None]
+    trop = len(elems) + len(etiqs) + (1 if details else 0) - MAX_ELEMENTS
+    if trop > 0 and len(libres) > 1:
+        garde = libres[:max(0, len(libres) - trop - 1)]
+        fondues = [t for t in libres if t not in garde]
+        etiqs = [t for t in etiqs if t["parent"] is not None] + garde + [
+            {"nature": "etiquette", "lignes": [l for t in fondues for l in t["lignes"]], "parent": None}]
     for e in etiqs:
         e["boite"] = _union([l["boite"] for l in e["lignes"]])
         e["texte"] = "\n".join(l["texte"] for l in e["lignes"])
@@ -520,8 +534,14 @@ def analyser(img: Image.Image, lignes: list, langue: str = "fr") -> dict:
             d["png"] = png
         d["boite"] = {k: round(v, 1) for k, v in e["boite"].items()}
         sortie.append(d)
+    presents = {d["id"] for d in sortie}
     for k, d in enumerate(sortie):
         d["ordre"] = k
+        for ref in ("de", "vers", "parent"):         # un élément sans pixels a été sauté : plus de référence vers lui
+            if d.get(ref) and d[ref] not in presents:
+                d[ref] = None
+    if any(d["nature"] == "forme" and d["boite"]["w"] * d["boite"]["h"] > SOUDE * W * H for d in sortie):
+        avert.append("elements_soudes")
     liens = [{"fleche": d["id"], "de": d["de"], "vers": d["vers"]} for d in sortie
              if d["nature"] == "fleche" and d["de"] and d["vers"]]
     return {"largeur": W, "hauteur": H, "elements": sortie, "liens": liens, "avertissements": avert}

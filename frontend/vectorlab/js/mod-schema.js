@@ -68,6 +68,8 @@ export function doc_depuis_analyse(analyse, traces, nom, mesure) {
 
 const _plein = (c) => c && c.visible !== false && Array.isArray(c.objets) && c.objets.length > 0;
 
+export const MAX_CALQUES = 60;                                    // borne de POST /api/schema/animation
+
 // l'ordre d'envoi : celui du scan (calques encore là, visibles, non vides), puis les autres dans l'empilement
 export function ordre_envoi(doc) {
   const par = new Map((doc.calques || []).map((c) => [c.id, c]));
@@ -165,7 +167,8 @@ export function initSchema(VL) {
       ul.appendChild(li);
     }
     const av = (analyse.avertissements || []).map((a) => a === "ocr_indisponible" ? T("vectorlab.schema.avert_ocr")
-      : a === "fond_estime" ? T("vectorlab.schema.avert_fond") : "").filter(Boolean);
+      : a === "fond_estime" ? T("vectorlab.schema.avert_fond")
+      : a === "elements_soudes" ? T("vectorlab.schema.avert_soudes") : "").filter(Boolean);
     etatTexte(T("vectorlab.schema.bilan", { n: els.length, l: (analyse.liens || []).length }) + (av.length ? " " + av.join(" ") : ""));
   }
 
@@ -194,6 +197,7 @@ export function initSchema(VL) {
       rendreListe();
     } catch (e) {
       analyse = null; rendreListe();
+      if (e.statut === 409 && e.detail && e.detail.usd != null && opt) opt.dataset.usd = String(e.detail.usd);   // le prochain clic confirme le NOUVEAU devis
       etatTexte(e.statut === 409 && e.detail && e.detail.usd != null
         ? T("vectorlab.schema.cout_change", { usd: Number(e.detail.usd).toFixed(3) }) : e.message, true);
     } finally { occupe(false); }
@@ -339,7 +343,7 @@ export function initSchema(VL) {
     const seul = JSON.parse(JSON.stringify(doc));
     delete seul.fond;
     seul.calques = seul.calques.filter((c) => c.id === cid);
-    const k = Math.min(1, 4096 / Math.max(doc.taille.w, doc.taille.h));
+    const k = 2160 / Math.max(doc.taille.w, doc.taille.h);     // la définition du cadre de sortie (4K au plus d'un côté)
     const w = Math.max(1, Math.round(doc.taille.w * k)), h = Math.max(1, Math.round(doc.taille.h * k));
     const ctx = await rasteriser(await VL.svgCourant(true, null, seul), w, h);
     const r = recadrer_alpha(ctx.getImageData(0, 0, w, h).data, w, h);
@@ -356,7 +360,8 @@ export function initSchema(VL) {
 
   VL.schemaAnimation = async () => {
     if (!etat.doc || !etat.docId) { VL.toast(T("vectorlab.schema.sans_doc"), true); return; }
-    const ids = ordre_envoi(etat.doc);
+    const tous = ordre_envoi(etat.doc), ids = tous.slice(0, MAX_CALQUES);
+    if (tous.length > ids.length) VL.toast(T("vectorlab.schema.envoi_tronque", { n: MAX_CALQUES, total: tous.length }), true);
     if (!ids.length) { VL.toast(T("vectorlab.schema.envoi_vide"), true); return; }
     try {
       const rasters = new Map();

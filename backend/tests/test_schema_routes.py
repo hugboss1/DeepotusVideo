@@ -43,6 +43,8 @@ def faux_ocr(octets, langue="fr", **k):
     OCR["appels"] += 1
     if OCR["mode"] == "absent":
         raise O.ScanIndisponible("La lecture de texte locale n'existe que sous Windows.")
+    if OCR["mode"] == "bizarre":
+        raise OSError("disque")
     return {"langue": langue, "angle": 0, "largeur": 800, "hauteur": 500,
             "lignes": [{"texte": SECRET, "mots": [{"texte": SECRET, "x": 95, "y": 232, "l": 90, "h": 26}]}]}
 
@@ -159,6 +161,19 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
           and FAL["sub"] == ["fal-ai/bria/background/remove"] and depenses() == d0 + 1 and j["usd"] > 0
           and "fond_estime" not in j["avertissements"]
           and [e["nature"] for e in j["elements"]].count("forme") == 2, (r.status_code, r.text[:300]))
+    async def _panne(endpoint, arguments):
+        FAL["sub"].append(endpoint)
+        raise ConnectionError("réseau coupé")
+    MT._fal_subscribe = _panne
+    r = envoi(c, schema(), detourage="bria-rmbg", max_usd="1")
+    check("fal en panne réseau : 502 qui nomme le modèle, jamais 500",
+          r.status_code == 502 and "bria-rmbg" in r.text and "ConnectionError" in r.text, (r.status_code, r.text[:200]))
+    MT._fal_subscribe = _sub
+    OCR["mode"] = "bizarre"
+    r = envoi(c, schema())
+    check("OCR en erreur imprévue : 200 + ocr_indisponible", r.status_code == 200
+          and "ocr_indisponible" in r.json()["avertissements"], r.text[:200])
+    OCR["mode"] = "ok"
     settings.FAL_KEY = ""
 
     print("\n[4] animation")

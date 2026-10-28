@@ -11738,5 +11738,13 @@
  "Le fond de l'image n'est pas uni : choisis un détourage par IA, ou dépose une image déjà détourée (PNG transparent).": {
   "fr": "Le fond de l'image n'est pas uni : choisis un détourage par IA, ou dépose une image déjà détourée (PNG transparent).",
   "en": "The image background is not plain: choose an AI background removal, or drop an image already cut out (transparent PNG)."
+ },
+ "La page motion code du schéma a été refusée par le bac à sable.": {
+  "fr": "La page motion code du schéma a été refusée par le bac à sable.",
+  "en": "The diagram's motion code page was refused by the sandbox."
+ },
+ "Le détourage par {mid} a échoué ({name}) : il a peut-être été facturé ; réessaie ou choisis un autre modèle.": {
+  "fr": "Le détourage par {mid} a échoué ({name}) : il a peut-être été facturé ; réessaie ou choisis un autre modèle.",
+  "en": "Background removal by {mid} failed ({name}): it may have been billed; try again or choose another model."
  }
 }
