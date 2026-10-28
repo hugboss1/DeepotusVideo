@@ -26,7 +26,7 @@ t316).
 - Bundle `index-BEOJX8L5.js` jamais touché : AUCUN maillon (l'éditeur vit dans `frontend/shared/dz-montage-capture*.js`
   chargé par `index.html`). `dz-capture.js` et `dz-capture-scene.js` NON modifiés (t318 en parallèle) : entrées par
   l'événement `dz-capture:fin` et par observation de la boîte de départ.
-- Textes visibles : clés `montage_capture.*` (3 segments) dans `frontend/shared/i18n/montage_capture.json`, assemblées ;
+- Textes visibles : clés `montagecap.*` (3 segments) dans `frontend/shared/i18n/montagecap.json`, assemblées ;
   libellés FR uniques face à la surcouche (test_i18n_l0 2.4). Tout `raise`/`HTTPException` neuf → L10.
 - Boucle locale seulement (`routes._require_localhost`) sur toutes les routes neuves.
 - Transcription = PAYANTE : devis (`estimate_transcription`) puis `confirme_cout:true` + `max_usd`, puis
@@ -66,7 +66,7 @@ t316).
   (la voix peut parler : suite).
 - **Chapitres** : premier à 0 (écran du premier événement `ecran`, sinon `""`) ; un par changement d'écran ; un chapitre
   de moins de 3 000 ms est absorbé par le précédent ; `titre` vide = l'écran affiche le libellé de l'écran
-  (`montage_capture.ecran.<id>`, repli id) ; l'éditeur remplit les titres vides avant enregistrement.
+  (mot capitalisé, ex. « Studio ») ; le serveur fait de même au rendu.
 - **Validation serveur** (`valider`) : liste blanche des champs, t bornés à `[0, duree]`, `t1 > t0 + 200`, 200 zooms,
   200 coupes, 100 chapitres, titres ≤ 80 sans contrôle, texte ≤ 20 000, chevauchements de zooms rognés, de coupes
   fusionnés ; une coupe ne peut couvrir toute la durée (refus 400).
@@ -81,7 +81,7 @@ t316).
 - Créer `backend/app/services/capture_montage.py`, `backend/app/api/capture_montage_routes.py` ; modifier
   `backend/app/main.py` (routeur `/api/capture-montage`), `agent_outils.py` + `agent_boites.py` (boîte `capture`).
 - Créer `frontend/shared/dz-montage-capture-logique.js`, `dz-montage-capture.js` (+ copies `frontend/dist/shared`),
-  `frontend/shared/i18n/montage_capture.json` ; modifier `frontend/dist/index.html`, dico assemblé.
+  `frontend/shared/i18n/montagecap.json` ; modifier `frontend/dist/index.html`, dico assemblé.
 - L10 `scripts/i18n_l10_traductions.json` ; catalogue `docs/agent/catalogue/*.json`, `docs/agent/AGENT.md`.
 - Bancs : `test_capture_montage_service.py`, `test_capture_montage_routes.py`, `test_capture_montage_ecran.py` (node),
   `test_agent_capture.py`.
@@ -174,7 +174,7 @@ lien « Monter une capture… » posé dans la boîte de départ (observation, s
 
 ### Tâche 6 — catalogue, L10, preuve, relecture
 
-Fiches `montage_capture.*` (connaissance-agent, `catalogue.py --check`), AGENT.md ; L10 `--check` ; preuve 8797 FR/EN
+Fiches `montagecap.*` (connaissance-agent, `catalogue.py --check`), AGENT.md ; L10 `--check` ; preuve 8797 FR/EN
 (capture factice → éditeur → zooms, coupe, chapitres, 9:16 → rendu → brouillon) dans
 `docs/superpowers/specs/captures/t317/` ; relecture finale indépendante, une vague de corrections ; bancs base/HEAD.
 
