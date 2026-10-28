@@ -552,6 +552,9 @@ app.include_router(skins_router, prefix="/api/skins")
 # t317 (28/10/2026) : /api/capture-montage — le montage après coup des captures (zooms, coupes, chapitres, format), local seulement
 from app.api.capture_montage_routes import router as capture_montage_router
 app.include_router(capture_montage_router, prefix="/api/capture-montage")
+# t318 (28/10/2026) : /api/live — le direct multi-destinations (WebSocket local -> ffmpeg tee -> RTMP(S)), local seulement
+from app.api.live_routes import router as live_router
+app.include_router(live_router, prefix="/api/live")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

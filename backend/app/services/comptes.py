@@ -58,11 +58,24 @@ PLATEFORMES: dict = {
     "whatsapp": ("WhatsApp", [("KAPSO_CUSTOMER_ID", False), ("WHATSAPP_PHONE_ID", False), ("WHATSAPP_NUMERO", False),
                               ("WHATSAPP_WABA_ID", False), ("WHATSAPP_FACTURATION_META", False)],
                  ("WHATSAPP_PHONE_ID",), False),
+    # t318 (28/10/2026) : les DESTINATIONS DU DIRECT (spec boîte à outils §8.6) — une clé de stream par compte, au coffre ;
+    # le serveur RTMP(S) est public (Twitch et YouTube ont une valeur par défaut, live.SERVEURS). Discord n'a pas d'entrée
+    # vidéo publique : son compte ne porte que le webhook de l'annonce (secret : qui le tient poste dans le salon).
+    "twitch": ("Twitch", [("TWITCH_STREAM_KEY", True), ("TWITCH_SERVEUR", False)], ("TWITCH_STREAM_KEY",), False),
+    "youtube_live": ("YouTube Live", [("YOUTUBE_STREAM_KEY", True), ("YOUTUBE_LIVE_SERVEUR", False),
+                                      ("YOUTUBE_LIVE_LIEN", False)], ("YOUTUBE_STREAM_KEY",), False),
+    "kick": ("Kick", [("KICK_STREAM_KEY", True), ("KICK_SERVEUR", False)], ("KICK_STREAM_KEY", "KICK_SERVEUR"), False),
+    "rtmp": ("RTMP personnalisé", [("RTMP_SERVEUR", False), ("RTMP_CLE", True), ("RTMP_LIEN", False)], ("RTMP_SERVEUR",),
+             False),
+    "discord": ("Discord (annonce)", [("DISCORD_WEBHOOK", True)], ("DISCORD_WEBHOOK",), False),
 }
 # t310 (27/10/2026) : les particularités d'une plateforme vivent à part (PLATEFORMES garde 4 positions, décompressées partout)
 CLE_PLATE = {"whatsapp": "KAPSO_API_KEY"}         # plateforme -> clé plate partagée par tous les espaces (jamais par compte)
-SANS_HISTORIQUE = frozenset({"whatsapp"})         # pas de compte virtuel `historique-<p>` (la clé plate n'est pas un compte)
-NON_PUBLIABLES = frozenset({"whatsapp"})          # jamais la cible d'un post du Planificateur
+# t318 (28/10/2026) : les plateformes du DIRECT — jamais listées avec les canaux (lister(live=False), /api/comptes sans
+# ?live=1) : ni l'assistant d'espace, ni le Planificateur, ni les canaux de projet, ni la fiche client ne les voient
+LIVE = frozenset({"twitch", "youtube_live", "kick", "rtmp", "discord"})
+SANS_HISTORIQUE = frozenset({"whatsapp"}) | LIVE  # pas de compte virtuel `historique-<p>` (la clé plate n'est pas un compte)
+NON_PUBLIABLES = frozenset({"whatsapp"}) | LIVE   # jamais la cible d'un post du Planificateur
 _LIES_PAR_SERVEUR = frozenset({"whatsapp"})       # champs publics posés par la liaison, jamais saisis
 _CHAMP_PLAT = {c: p for p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, _s in champs}
 _SECRET = {c: s for _p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, s in champs}
@@ -273,12 +286,14 @@ def _vue(cid: str, e: dict, verifs: dict | None = None) -> dict:
                        for c, s in champs]}
 
 
-def lister(espace_id: str | None = None) -> list:
-    """Les comptes d'un espace (tous sinon), historiques compris (espace Deepotus). Jamais de valeur secrète."""
+def lister(espace_id: str | None = None, live: bool = False) -> list:
+    """Les comptes d'un espace (tous sinon), historiques compris (espace Deepotus). Jamais de valeur secrète.
+    t318 : `live=False` (défaut) rend les canaux SANS les destinations du direct ; `live=True` rend SEULEMENT celles-ci."""
     doc = _lire()
     verifs = doc.get("verifications") or {}
-    out = [_vue(k, v, verifs) for k, v in doc["comptes"].items() if espace_id in (None, v.get("espace_id"))]
-    if espace_id in (None, "deepotus"):
+    out = [_vue(k, v, verifs) for k, v in doc["comptes"].items() if espace_id in (None, v.get("espace_id"))
+           and (v.get("plateforme") in LIVE) == bool(live)]
+    if espace_id in (None, "deepotus") and not live:
         out = _historiques(verifs) + out
     return sorted(out, key=lambda v: (not v["historique"], v["plateforme"], v["libelle"].lower()))
 
@@ -640,6 +655,8 @@ def verifier_cibles(espace_id, ids) -> list:
         if not isinstance(cid, str) or cid in vus:
             continue
         v = obtenir(cid)
+        if v["plateforme"] in LIVE:                # t318 : une destination du direct n'est pas un canal de posts
+            raise ValueError("une destination du direct n'est pas une cible de publication")
         if v["plateforme"] in NON_PUBLIABLES:      # t310 (27/10/2026) : WhatsApp est un canal de messages, pas de posts
             raise ValueError("un compte WhatsApp n'est pas une cible de publication")
         if not de_l_espace(cid, eid):

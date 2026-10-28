@@ -49,6 +49,8 @@ PARTAGES = {
     "frontend/shared/dz-skins.js": ("skins.",),
     # t317 (28/10/2026) : le montage après coup des captures (entrées des boîtes de la capture, liste, éditeur)
     "frontend/shared/dz-montage-capture.js": ("montagecap.",),
+    # t318 (28/10/2026) : le direct (bouton de la barre, boîte « Passer en direct », panneau du direct)
+    "frontend/shared/dz-live.js": ("live.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")
