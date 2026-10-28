@@ -29,7 +29,10 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 - **Espaces** : un espace a un type (`marque`, `produit` ou `client`, dans `services/espaces.py`). Un produit peut avoir
   un parent (une marque ou un client) ; `espaces.client_responsable` remonte au parent pour trouver le client
   responsable. Les règles de publication s'y brancheront en t309 (validation client et sécurités) ; rien ne les
-  applique encore.
+  applique encore. Le type `demonstration` (t353) naît seulement au rendez-vous d'un prospect
+  (`espaces.creer_demonstration`), ne publie JAMAIS (refus dans `comptes.creer`, `whatsapp.creer_lien`,
+  `regles_client.controler` code `demonstration`) et ne devient que `client`, à la signature
+  (`espaces.convertir_demonstration`).
 - **Traduction** : `dzT(clé)` côté écran (`frontend/shared/i18n/*.json`, assemblés par
   `scripts/i18n_assembler.py`) ; côté serveur, `app.i18n`.
 
@@ -43,6 +46,7 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 | `backend/app/services/plafonds.py` | Plafonds de dépense mensuels |
 | `backend/app/services/agent_boites.py` | Boîtes à outils de l'agent par fonctionnalité (`BOITES`, `outils_pour`, `paquet_mobile`) ; hors boîte = refus ; servies au compagnon dans `boites.json` du paquet |
 | `backend/app/services/veille.py` (+ `backend/app/services/veille_collecte.py`, `backend/app/services/veille_grille.py`, `backend/app/api/veille_routes.py`) | Veille concurrentielle par espace (t352 (27/10/2026)) : collecte niveau 1 HN / YouTube (yt-dlp, non embarqué) / App Store en lecture seule, plafonnée, auteurs hachés ; classement par lexique (sans dépense) ou importé ; rapport rangé dans le dossier veille de l'espace, daté ; routes /api/veille ; outils `veille_collecter` / `veille_lire` (boîte « veille ») ; écran `frontend/shared/dz-veille.js`, 3e onglet du tiroir F1 |
+| `backend/app/services/prospects.py` (+ `backend/app/services/oppositions.py`, `backend/app/api/prospects_routes.py`) | Fiche Prospects par espace (t353 (27/10/2026)) : `prospects.json` de l'espace, `source` et `base_legale` exigées, transitions de statut bornées, purge 3 ans après le dernier contact venu du prospect (`purge_loop` dans `lifespan`), opposition = anonymisation, export, effacement ; registre GLOBAL des oppositions haché (DATA_ROOT/espaces/oppositions.json) ; routes /api/prospects (local seulement) ; espace démonstration au rdv ; écran `frontend/shared/dz-prospects.js`, 4e onglet du tiroir F1. Aucun envoi, aucune dépense |
 | `backend/app/services/coffre.py` | Coffre à clés chiffré |
 | `backend/app/services/espaces.py` | Espaces de marque |
 | `backend/app/services/fiche_client.py` | Fiche d'un client (`client.json` par espace) : contact, mode de publication, consentements datés par canal, révocation, journal. Écritures locales seulement (t306 (25/10/2026)), lecture `GET` aussi ouverte aux appareils appairés : `GET/PUT /api/espaces/{id}/client`, `POST …/client/consentements`, `POST …/client/consentements/revoquer` |

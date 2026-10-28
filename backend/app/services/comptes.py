@@ -305,6 +305,8 @@ def creer(champs: dict) -> dict:
     eid = champs.get("espace_id") or espaces.lire()["actif"]
     if eid not in espaces.lire()["espaces"]:
         raise KeyError(eid)
+    if espaces.est_demonstration(eid):     # t353 (27/10/2026) : un espace démonstration ne publie jamais
+        raise ValueError("un espace démonstration ne publie jamais : il n'a aucun compte de diffusion")
     p = champs.get("plateforme")
     if p not in PLATEFORMES:
         raise ValueError(f"plateforme inconnue : {p} — connues : {', '.join(PLATEFORMES)}")

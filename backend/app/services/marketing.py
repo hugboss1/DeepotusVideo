@@ -325,9 +325,12 @@ async def materialize_plan(posts: list[dict], *, start_date: str,
     # t309 (26/10/2026) : un plan matérialisé dans un espace gouverné par un client n'y crée JAMAIS un post programmé : il
     # naît brouillon (a_valider en mode « validé par le client ») et passera les règles du client pour être programmé.
     from app.services import regles_client as _rc
+    from app.services.espaces import est_demonstration as _es_demo
     from app.services.storage import _espace_par_defaut
     espace = _espace_par_defaut()               # le même défaut qu'un post neuf (aucun espace lisible -> vide = Deepotus)
-    statut = "scheduled" if _rc.exigences(espace, []) is None else _rc.statut_initial(espace, "draft")
+    # t353 (27/10/2026) : un espace démonstration ne publie jamais, son plan naît brouillon (la campagne témoin)
+    statut = ("scheduled" if _rc.exigences(espace, []) is None and not _es_demo(espace)
+              else _rc.statut_initial(espace, "draft"))
     async with async_session_factory() as session:
         for p in posts:
             hh, mm = (p.get("time") or "12:00").split(":")[:2]
@@ -940,7 +943,7 @@ async def _controler_client(session, post):
     try:
         return _rc.controler(post, brut=True)
     except _rc.RefusClient as e:
-        if e.code == "confirmation":
+        if e.code in ("confirmation", "demonstration"):      # t353 : un post de démonstration redevient brouillon
             post.status = "draft"
         elif e.code == "a_valider":
             post.status = "a_valider"

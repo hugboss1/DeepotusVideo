@@ -130,7 +130,8 @@ const reponse = (status, json) => ({ ok: status >= 200 && status < 300, status, 
 const appels = [];
 const convEspaces = {};          // cid -> espace_id réglé côté serveur
 let reponseDemander = { texte: "Voilà.", actions: [] };
-const ESPACES = { espaces: [{ id: "e1", nom: "Marque A", archive: false }, { id: "e2", nom: "Marque B", archive: false }, { id: "e3", nom: "Vieille", archive: true }], actif: "e1" };
+const ESPACES = { espaces: [{ id: "e1", nom: "Marque A", archive: false }, { id: "e2", nom: "Marque B", archive: false }, { id: "e3", nom: "Vieille", archive: true },
+  { id: "e4", nom: "Démo · Lune", archive: false, type: "demonstration" }], actif: "e1" };     // t353 : e4 = un espace démonstration
 async function faux(url, init = {}) {
   const u = String(url), m = init.method || "GET";
   appels.push({ url: u, methode: m, corps: init.body ? JSON.parse(init.body) : undefined });
@@ -221,7 +222,7 @@ const { tiroir: T1, bouton: B1 } = await charger(S1, "");
   ok("2.13 les espaces NON archivés sont lus (GET /api/espaces)", appels.filter((a) => a.url.startsWith("/api/espaces")).map((a) => a.url).join() === "/api/espaces",
     appels.filter((a) => a.url.startsWith("/api/espaces")).map((a) => a.url).join());
   const opts = e.sel.children.map((o) => o.attrs.value);
-  ok("2.14 « Aucun espace » d'abord, puis e1, e2 ; l'archivé absent", egal(opts, ["", "e1", "e2"]) && e.sel.children[0].textContent === dzT("agent.campagnes.sans_espace")
+  ok("2.14 « Aucun espace » d'abord, puis e1, e2 (et e4, démonstration : ses brouillons témoins) ; l'archivé absent", egal(opts, ["", "e1", "e2", "e4"]) && e.sel.children[0].textContent === dzT("agent.campagnes.sans_espace")
     && e.sel.children[1].textContent === "Marque A", JSON.stringify(opts));
   ok("2.15 jamais l'espace actif d'office : valeur vide", e.sel.value === "", e.sel.value);
   ok("2.16 le sélecteur est étiqueté", e.sel.attrs["aria-label"] === dzT("agent.campagnes.espace"));
@@ -439,7 +440,7 @@ win.DzCampagnes = fauxDzCampagnes;
   const { tiroir: T4, bouton: B4 } = await charger(S4, "veille");
   const ongV = marque(T4, "onglet-veille"), ongD4 = marque(T4, "onglet-demander"), ongC4 = marque(T4, "onglet-campagnes");
   const liste = T4.querySelector('[role="tablist"]');
-  ok("5c.1 trois onglets, Veille traduit", !!ongV && liste.children.length === 3 && ongV.textContent === dzT("agent.onglet.veille")
+  ok("5c.1 quatre onglets (t353), Veille traduit", !!ongV && liste.children.length === 4 && ongV.textContent === dzT("agent.onglet.veille")
     && ongV.attrs.role === "tab", ongV && ongV.textContent);
   const panV = DOC.getElementById(ongV.attrs["aria-controls"]);
   ok("5c.2 le panneau Veille est caché au départ", !!panV && panV.hasAttribute("hidden"));
@@ -459,10 +460,15 @@ win.DzCampagnes = fauxDzCampagnes;
   const nouvelle = T4.querySelector(`button[aria-label="${dzT("agent.tiroir.nouvelle")}"]`);
   nouvelle.click(); await tick();
   ok("5c.8 ↺ sur Veille relit la veille", veilles[1].recharges === 1 && veilles.length === 2);
+  const ongP4 = marque(T4, "onglet-prospects");
   ongV.fire("keydown", { key: "ArrowRight" });
-  ok("5c.9 flèche droite depuis Veille : retour à Demander (boucle)", ongD4.attrs["aria-selected"] === "true" && DOC.activeElement === ongD4);
+  ok("5c.9 flèche droite depuis Veille : Prospects (t353)", ongP4.attrs["aria-selected"] === "true" && DOC.activeElement === ongP4);
+  ongP4.fire("keydown", { key: "ArrowRight" });
+  ok("5c.9b flèche droite depuis Prospects : retour à Demander (boucle)", ongD4.attrs["aria-selected"] === "true" && DOC.activeElement === ongD4);
   ongD4.fire("keydown", { key: "ArrowLeft" }); await tick(); await tick();
-  ok("5c.10 flèche gauche depuis Demander : Veille", ongV.attrs["aria-selected"] === "true" && DOC.activeElement === ongV);
+  ok("5c.10 flèche gauche depuis Demander : Prospects", ongP4.attrs["aria-selected"] === "true" && DOC.activeElement === ongP4);
+  ongP4.fire("keydown", { key: "ArrowLeft" }); await tick(); await tick();
+  ok("5c.10b flèche gauche depuis Prospects : Veille", ongV.attrs["aria-selected"] === "true" && DOC.activeElement === ongV);
   ongV.fire("keydown", { key: "ArrowLeft" });
   ok("5c.11 flèche gauche depuis Veille : Campagnes", ongC4.attrs["aria-selected"] === "true");
   ok("5c.12 les espaces ne sont lus qu'une fois pour les deux onglets",
@@ -478,6 +484,40 @@ win.DzCampagnes = fauxDzCampagnes;
   B6.click(); await tick(); await tick();
   ok("5c.14 sans dz-veille.js : un message, pas d'erreur", !!marque(T6, "veille-indisponible")
     && marque(T6, "veille-indisponible").textContent === dzT("agent.veille.indisponible"));
+}
+
+// ---- 5d. t353 : l'onglet Prospects monte dz-prospects.js pour l'espace choisi, jamais un espace démonstration ---------
+{
+  const montes = [];
+  win.DzProspects = { monter(hote, opts) {
+    const rec = { opts: { ...opts }, demonte: false, recharges: 0 };
+    const racine = new Noeud("div"); racine.setAttribute("data-dz-prospects", "racine"); hote.appendChild(racine);
+    montes.push(rec);
+    return { recharger() { rec.recharges++; }, demonter() { rec.demonte = true; racine.remove(); } };
+  } };
+  const S7 = stockage();
+  const { tiroir: T7, bouton: B7 } = await charger(S7, "prospects");
+  const ongP = marque(T7, "onglet-prospects");
+  ok("5d.1 onglet Prospects traduit", !!ongP && ongP.textContent === dzT("agent.onglet.prospects") && ongP.attrs.role === "tab");
+  B7.click(); await tick();
+  ongP.click(); await tick(); await tick();
+  const selP = marque(T7, "espace-prospects");
+  ok("5d.2 ouvert, gardé en session, monté sur l'espace actif", ongP.attrs["aria-selected"] === "true" && S7.getItem("dz_agent_onglet") === "prospects"
+    && montes.length === 1 && montes[0].opts.espace_id === "e1" && selP.value === "e1", JSON.stringify(montes.map((v) => v.opts)));
+  const valeurs = Array.from(selP.children).map((o) => o.getAttribute("value"));
+  ok("5d.3 ni l'espace archivé ni l'espace démonstration", !valeurs.includes("e3") && !valeurs.includes("e4") && valeurs.includes("e2"), valeurs.join());
+  ok("5d.4 l'espace démonstration reste proposé à la Veille", Array.from(marque(T7, "espace-veille").children).some((o) => o.getAttribute("value") === "e4"));
+  selP.value = "e2"; selP.fire("change"); await tick();
+  ok("5d.5 changer d'espace démonte puis remonte", montes[0].demonte && montes.length === 2 && montes[1].opts.espace_id === "e2"
+    && S7.getItem("dz_agent_prospects") === "e2");
+  const nouvelle = T7.querySelector(`button[aria-label="${dzT("agent.tiroir.nouvelle")}"]`);
+  nouvelle.click(); await tick();
+  ok("5d.6 ↺ sur Prospects relit la liste", montes[1].recharges === 1 && montes.length === 2);
+  delete win.DzProspects;
+  const { tiroir: T8, bouton: B8 } = await charger(stockage({ dz_agent_onglet: "prospects" }), "prospects2");
+  B8.click(); await tick(); await tick();
+  ok("5d.7 sans dz-prospects.js : un message, pas d'erreur", !!marque(T8, "prospects-indisponible")
+    && marque(T8, "prospects-indisponible").textContent === dzT("agent.prospects.indisponible"));
 }
 
 // ---- 6. copies_dist_identiques ------------------------------------------------------------------------------------------

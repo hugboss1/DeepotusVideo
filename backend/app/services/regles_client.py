@@ -222,8 +222,14 @@ def _nomme(x) -> str:
 def controler(post, confirme=None, brut=False):
     """Les exigences du post si tout va (None sans client) ; sinon RefusClient, dans cet ordre : `consentement` (un canal
     non couvert, ou aucun compte visé), `a_valider` (valide_par_client sans `valide_client_le`), `confirmation`
-    (publie_en_son_nom sans confirmation nominative, ni dans `confirme` ni dans `post.confirme_client`)."""
-    ex = exigences(_champ(post, "espace_id"), _champ(post, "comptes"), brut=brut)
+    (publie_en_son_nom sans confirmation nominative, ni dans `confirme` ni dans `post.confirme_client`).
+    t353 (27/10/2026) : AVANT tout, un post d'un espace démonstration est refusé (`demonstration`) : il ne publie jamais."""
+    eid = _champ(post, "espace_id")
+    if (eid or "deepotus") != "deepotus" and _es.est_demonstration(eid, brut=brut):
+        nom = (_brut_espaces().get(eid) or {}).get("nom") if brut else (_es.lire()["espaces"].get(eid) or {}).get("nom")
+        raise RefusClient("un espace démonstration ne publie jamais : convertissez-le en espace client à la signature",
+                          "demonstration", eid, nom or eid, [])
+    ex = exigences(eid, _champ(post, "comptes"), brut=brut)
     if ex is None:
         return None
     client, nom = ex["client"], ex["nom"]
@@ -262,7 +268,7 @@ def en_pause(post) -> bool:
     try:
         controler(post, brut=True)
     except RefusClient as e:
-        return e.code in ("consentement", "a_valider")
+        return e.code in ("consentement", "a_valider", "demonstration")
     except Exception as e:  # noqa: BLE001 — jamais une boucle arrêtée pour ça ; rien de prouvé = ne part pas
         logger.warning(f"règles client : contrôle impossible ({type(e).__name__}), post en pause")
         return True

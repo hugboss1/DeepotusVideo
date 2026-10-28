@@ -55,5 +55,8 @@
   "agent.boites.veille": {"fr": "Veille", "en": "Watch"},
   "agent.onglet.veille": {"fr": "Veille", "en": "Watch"},
   "agent.veille.espace": {"fr": "Espace de marque de la veille", "en": "Brand space of the watch"},
-  "agent.veille.indisponible": {"fr": "L'écran Veille n'est pas chargé sur cette page.", "en": "The Watch screen is not loaded on this page."}
+  "agent.veille.indisponible": {"fr": "L'écran Veille n'est pas chargé sur cette page.", "en": "The Watch screen is not loaded on this page."},
+  "agent.onglet.prospects": {"fr": "Prospects", "en": "Prospects"},
+  "agent.prospects.espace": {"fr": "Espace de marque des prospects", "en": "Brand space of the prospects"},
+  "agent.prospects.indisponible": {"fr": "L'écran Prospects n'est pas chargé sur cette page.", "en": "The Prospects screen is not loaded on this page."}
 }

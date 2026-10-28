@@ -27,9 +27,13 @@ from catalogue_commun import VIDE, _base, _texte, message
 # l'agent Campagnes (t285b) : le tiroir « Demander » d'avant (envoyer, moteur, dictée…) n'est pas au catalogue.
 PARTAGES = {
     "frontend/shared/dz-campagnes.js": None,
-    "frontend/shared/dz-agent.js": ("agent.onglet.", "agent.campagnes.", "agent.action.campagnes", "agent.veille."),
+    "frontend/shared/dz-agent.js": ("agent.onglet.", "agent.campagnes.", "agent.action.campagnes", "agent.veille.",
+                                    "agent.prospects."),
     # t352 (27/10/2026) : l'écran Veille (3e onglet du tiroir F1) : ses boutons et le champ du dossier importé
     "frontend/shared/dz-veille.js": ("veille.bouton.", "veille.import."),
+    # t353 (27/10/2026) : l'écran Prospects (4e onglet du tiroir F1) : ses boutons, filtres et champs
+    "frontend/shared/dz-prospects.js": ("prospects.bouton.", "prospects.champ.", "prospects.filtre.", "prospects.contact.detail",
+                                        "prospects.opposition.identifiant"),
     # t307 (25/10/2026) : la boîte des canaux d'un projet ; son « Annuler » (commun.action.annuler) n'est pas à elle
     "frontend/shared/dz-projet-canaux.js": ("projets.canaux.",),
     # t308 (26/10/2026) : l'assistant de création d'espace ; ses champs et boutons repris (Annuler, Précédent, Suivant,

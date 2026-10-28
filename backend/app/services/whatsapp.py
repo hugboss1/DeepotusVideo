@@ -209,6 +209,8 @@ async def _creer_lien(cid: str, facturation: str, consentement, langue) -> dict:
     vue, pub = _compte(cid)
     eid = vue["espace_id"]
     espace_actif(eid)
+    if _es.est_demonstration(eid):         # t353 (27/10/2026) : un espace démonstration ne publie jamais
+        raise ValueError("un espace démonstration ne publie jamais : il n'a aucun compte de diffusion")
     if pub.get("WHATSAPP_PHONE_ID"):
         raise ValueError("ce compte WhatsApp est déjà relié à un numéro")
     cons = _consentement(consentement) if _es.client_responsable(eid) else None
@@ -751,6 +753,21 @@ def noter_stop(cid: str, identite_: str, maintenant: datetime | None = None) -> 
     _identite_valide(identite_)
     q = _quand(maintenant)
     _noter(cid, lambda e: e["stops"].__setitem__(identite_, q))
+    _stop_au_registre(cid, identite_)
+
+
+def _stop_au_registre(cid: str, identite_: str) -> None:
+    """t353 (27/10/2026, décision de l'utilisateur) : un STOP reçu dans un espace gouverné par AUCUN client va aussi au
+    registre global des oppositions (un STOP vaut pour toute la prospection) ; le STOP envoyé au numéro d'un client
+    s'adresse à ce client, il n'y va pas. Lecture BRUTE d'espaces.json (la relève tourne en fond) ; un échec est journalisé,
+    jamais remonté (le STOP est déjà rangé dans l'espace)."""
+    try:
+        from app.services import oppositions, regles_client as _rc
+        eid = _compte(cid)[0]["espace_id"]
+        if _rc._brut_responsable(_rc._brut_espaces(), eid) is None:
+            oppositions.inscrire([identite_], "whatsapp")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"whatsapp : STOP non inscrit au registre des oppositions ({type(e).__name__})")
 
 
 def lever_stop(cid: str, identite_: str, source: str, maintenant: datetime | None = None) -> None:
