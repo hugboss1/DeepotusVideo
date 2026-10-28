@@ -18,11 +18,13 @@ import json
 import os
 import re
 import socket
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.robotparser import RobotFileParser
 
 import httpx
 from sqlalchemy import select
@@ -932,6 +934,66 @@ def _creer_propose(eid: str, champs: dict, consentements: list) -> str:
     return "cree"
 
 
+# t354 tâche 5c : le LECTEUR RENFORCÉ d'un site d'entreprise — robots.txt respecté (gardé 24 h), une requête par seconde
+# au plus par hôte, 5 pages au plus du MÊME site (la page donnée, puis contact, mentions légales, à propos…).
+PAGES_SITE = ("contact", "mentions-legales", "a-propos", "nous-contacter", "qui-sommes-nous")
+MAX_PAGES_SITE = 5
+ROBOTS_S = 24 * 3600
+AGENT_HTTP = "DeepotusVideoGen-agent"
+_ROBOTS: dict = {}
+_DERNIERE: dict = {}
+_HORLOGE = time.monotonic             # couture du banc
+_DORMIR = asyncio.sleep               # couture du banc
+
+
+async def _cadence(hote: str) -> None:
+    d = _DERNIERE.get(hote)
+    if d is not None and _HORLOGE() - d < 1.0:
+        await _DORMIR(1.0 - (_HORLOGE() - d))
+    _DERNIERE[hote] = _HORLOGE()
+
+
+async def _robots_permet(url: str) -> bool:
+    u = urlsplit(url)
+    base = f"{u.scheme}://{u.netloc}"
+    e = _ROBOTS.get(base)
+    if e is None or _HORLOGE() - e[0] > ROBOTS_S:
+        await _cadence(u.netloc)
+        try:
+            texte = await _telecharger(base + "/robots.txt")
+        except Exception:  # noqa: BLE001 — pas de robots.txt lisible : rien n'est interdit
+            texte = ""
+        rp = RobotFileParser()
+        rp.parse(str(texte or "").splitlines())
+        e = (_HORLOGE(), rp)
+        _ROBOTS[base] = e
+    return e[1].can_fetch(AGENT_HTTP, url)
+
+
+async def _lire_site(url: str) -> list:
+    """[(url, texte)] : la page donnée (refus si robots.txt l'interdit), puis les pages utiles du même site, 5 lectures
+    au plus en tout ; une page absente ou interdite est sautée."""
+    if not await _robots_permet(url):
+        raise _Refus("le robots.txt du site interdit la lecture de cette page : rien n'est lu")
+    u = urlsplit(url)
+    await _cadence(u.netloc)
+    pages = [(url, await _telecharger(url))]
+    essais, base = 1, f"{u.scheme}://{u.netloc}"
+    for p in PAGES_SITE:
+        if essais >= MAX_PAGES_SITE:
+            break
+        cand = f"{base}/{p}"
+        if _url_normale(cand) == _url_normale(url) or not await _robots_permet(cand):
+            continue
+        essais += 1
+        await _cadence(u.netloc)
+        try:
+            pages.append((cand, await _telecharger(cand)))
+        except Exception:  # noqa: BLE001 — page absente : on passe à la suivante
+            continue
+    return pages
+
+
 async def prospects_chercher(ctx: Ctx, source: str, depot: str | None = None, origine: str | None = None,
                              url: str | None = None, fiche: dict | None = None, max: int = 20) -> dict:  # noqa: A002
     from app.services import prospects as P, prospects_sources as PS
@@ -978,15 +1040,17 @@ async def prospects_chercher(ctx: Ctx, source: str, depot: str | None = None, or
     if not nu or (nu not in _urls_collees(l["messages"]) and nu not in _urls_deposees(l, ctx.cid)):
         raise _Refus("URL refusée : collez l'adresse de la page de l'entreprise, ou lancez une recherche acceptée")
     _url_sure(u)
-    texte = await _telecharger(u)
+    pages = await _lire_site(u)
+    texte = "\n\n".join(f"--- {p} ---\n{t}" for p, t in pages)
     if not fiche:
-        return _res(True, f"page lue ({min(len(texte), MAX_DOC)} caractères), encadrée comme preuve : propose la fiche "
-                          "avec l'e-mail professionnel qui y figure",
-                    {"source": u, "texte": _preuve(f"url:{u}", texte), "tronque": len(texte) > MAX_DOC})
+        return _res(True, f"{len(pages)} page(s) du site lue(s) ({min(len(texte), MAX_DOC)} caractères), encadrées "
+                          "comme preuve : propose la fiche avec l'e-mail professionnel qui y figure",
+                    {"source": u, "pages": [p for p, _ in pages], "texte": _preuve(f"url:{u}", texte),
+                     "tronque": len(texte) > MAX_DOC})
     fi = fiche if isinstance(fiche, dict) else {}
     email = str(fi.get("email") or "").strip().lower()
     if not email or email not in texte.lower():
-        raise _Refus("l'adresse e-mail doit figurer telle quelle sur la page lue")
+        raise _Refus("l'adresse e-mail doit figurer telle quelle sur les pages lues du site")
     champs = {"nom": fi.get("nom") or "", "entreprise": fi.get("entreprise") or "", "role": fi.get("role") or "",
               "signal": fi.get("signal") or "", "base_legale": "interet_legitime_b2b",
               "source": {"type": "web", "url": u, "date": P._aujourdhui().isoformat()},
