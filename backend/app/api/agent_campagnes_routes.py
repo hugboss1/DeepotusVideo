@@ -410,6 +410,9 @@ async def _conversation_temoin(eid: str) -> str | None:
     return r.id if r else None
 
 
+_VERROU_TEMOIN = asyncio.Lock()
+
+
 @router.get("/temoins")
 async def temoins(request: Request):
     """t359 : les espaces démonstration (rendez-vous d'un prospect) et leur conversation « campagne témoin »."""
@@ -428,13 +431,14 @@ async def temoin(request: Request):
     from app.services import espaces as _es
     if not _es.est_demonstration(eid):
         raise HTTPException(409, "Une campagne témoin se prépare dans un espace démonstration.")
-    cid = await _conversation_temoin(eid)
-    if cid is None:
-        nom = _es.lire()["espaces"][eid].get("nom") or eid
-        with _traduire():
-            l = await ST.creer("campagnes", eid, f"Campagne témoin · {nom}"[:200], origine="telephone" if appareil else "pc")
-        cid = l["id"]
-    return await ST.lire(cid)
+    async with _VERROU_TEMOIN:              # relecture t359 (1) : deux ouvertures simultanées → UNE conversation
+        cid = await _conversation_temoin(eid)
+        if cid is None:
+            nom = _es.lire()["espaces"][eid].get("nom") or eid
+            with _traduire():
+                l = await ST.creer("campagnes", eid, f"Campagne témoin · {nom}"[:200], origine="telephone" if appareil else "pc")
+            cid = l["id"]
+    return await _conversation(cid)
 
 
 @router.get("/paquet")
