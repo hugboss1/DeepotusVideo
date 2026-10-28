@@ -13164,7 +13164,7 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
                     choix = None
                 chemin, infos, notes_c = PV.conformer_clip(chemin, infos_previs, mid, float(s.duration_s or 4.0),
                                                            choix=choix)
-                out["notes"] += notes_c
+                out["notes_conform"] = notes_c      # FR, pour la recette : la boîte dit le conform en FR/EN
                 out["clip_chemin"] = chemin
                 out["conform"] = infos.get("conform")
                 out["clip_infos_previs"] = infos_previs
@@ -13406,7 +13406,8 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                                     "tache": calc["tache"], "resolution": calc["resolution"],
                                     "clip": clip.name if clip is not None else None,
                                     "style_frames": [f.name for f in frames], "plan": shot_id,
-                                    "arguments": res["arguments"], "notes": calc["notes"] + res["notes"],
+                                    "arguments": res["arguments"],
+                                    "notes": calc["notes"] + calc.get("notes_conform", []) + res["notes"],
                                     "usd": calc["usd"], "seed": res.get("seed"), "conform": conf,
                                     "recalage": recalage})
         except Exception as e:  # noqa: BLE001 — l'échec reste lisible dans le job, jamais de job fantôme
