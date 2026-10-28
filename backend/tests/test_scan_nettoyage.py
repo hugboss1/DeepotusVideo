@@ -314,6 +314,19 @@ check("10f « Dix. » en pied de page gardé (romains en majuscules seulement)",
 r = N.nettoyer([page([ligne("XIV", 280, 40), ligne("Texte.", 60, 100)])])
 check("10g « XIV » en tête toujours retiré", r["texte"] == "Texte." and r["stats"]["folios_retires"] == 1, r)
 
+# t312 tâche 7 (mesure, page fr2) : colonne de droite COURTE dont les lignes sont décalées d'une demi-ligne par rapport
+# à la gauche (écart de paragraphe) -> recouvrement vertical de 40 % seulement ; c'étaient pourtant deux colonnes, lues
+# ligne à ligne en travers avant le correctif
+longue = colonne(GAUCHE + " " + C1, 60, 100, 38)
+courte = colonne(DROITE, 520, 112, 38)
+r = N.nettoyer([page(sorted(longue + courte, key=lambda li: li["mots"][0]["y"]), W=1000, Hp=1000)])
+check("10h colonne de droite courte, lignes déphasées : gauche puis droite",
+      r["texte"].split() == (GAUCHE + " " + C1 + " " + DROITE).split() and r["stats"]["colonnes"] == 2,
+      (r["stats"], r["texte"][:120]))
+# ... mais des lignes qui alternent sans se recouvrir du tout restent UNE colonne (garde de 3f)
+check("10i rangs alternés sans recouvrement : toujours 1 colonne (3f)",
+      N.nettoyer([page(adv, W=1000, Hp=1000)])["stats"]["colonnes"] == 1)
+
 print(f"\n{ok} PASS, {fail} FAIL")
 if __name__ == "__main__":
     sys.exit(1 if fail else 0)

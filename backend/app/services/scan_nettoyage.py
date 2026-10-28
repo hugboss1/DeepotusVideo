@@ -267,8 +267,11 @@ def _tete(lignes: list[dict], Hp: float):
 
 # ------------------------------------------------------------------------------------------------- colonnes
 def _chevauche(a: dict, b: dict) -> bool:
+    """Lignes côte à côte : elles partagent au moins 15 % de la hauteur de la plus petite. Pas la moitié : deux colonnes
+    dont les lignes sont déphasées (écart de paragraphe d'un seul côté) ne se recouvrent souvent que de 20 à 45 %
+    (mesure t312, page fr2) ; des lignes qui alternent sans se toucher (cas 3f) restent séparées."""
     ov = min(a["y1"], b["y1"]) - max(a["y0"], b["y0"])
-    return ov > 0 and ov >= 0.5 * min(_hauteur(a), _hauteur(b))
+    return ov > 0 and ov >= 0.15 * min(_hauteur(a), _hauteur(b))
 
 
 def _coupe_valide(lignes: list[dict], s: float) -> bool:

@@ -108,6 +108,10 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   préréglage, régler les nœuds, puis Rendre dans la Bibliothèque. → [POINT:sonvfx.atelier] [GUIDE:son-vfx]
 - **Dire une voix off** : Son & VFX › Voix off, choisir une voix, écrire le script, puis Générer la voix.
   → [POINT:sonvfx.voix] [GUIDE:son-vfx]
+- **Scanner une page** (t312) : Atelier de Chapitres, « Scanner une page » ; 1 à 10 images ou PDF, la langue,
+  « Lire ». Lecture sur le PC, gratuite ; colonnes, césures, folios traités ; seuls les mots étranges sont surlignés
+  (relire). « Essayer avec Claude » : devis puis confirmation, payant, catégorie « atelier ». Envois : Insérer dans
+  le chapitre, Créer les chapitres, Importer comme manuscrit. → [ALLER:episodes] [GUIDE:chapitres]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]

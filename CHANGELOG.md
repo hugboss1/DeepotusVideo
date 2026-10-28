@@ -4,6 +4,44 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — à venir : "Scanner une page" (t312)
+
+**Une page de livre, un manuscrit tapé à la machine, un PDF scanné : son
+texte arrive dans l'Atelier sans rien retaper.** La lecture se fait sur le PC,
+gratuitement ; Claude ne relit les pages qu'à la demande, après un devis.
+
+### Scanner une page (Atelier / Chapitres)
+- **Deux boutons « Scanner une page »** : à côté de l'import de fichier (le
+  texte va au curseur du chapitre) et à côté du découpage de manuscrit.
+- **La boîte de scan** (`frontend/shared/dz-scan.js`, partagée, prête pour le
+  Vectorlab et Quick) : glisser, coller (Ctrl+V) ou choisir de une à dix
+  images ou PDF ; langue Français, English ou Auto ; aperçu modifiable, mots
+  douteux surlignés et parcourus (Précédent / Suivant), statistiques.
+- **Lecture locale gratuite** par la reconnaissance de texte de Windows
+  (`scan_ocr.py`, sans Tesseract ni téléchargement) ; un PDF qui a déjà du
+  texte est repris tel quel, sans lecture d'image.
+- **Le nettoyage** (`scan_nettoyage.py`) : deux ou trois colonnes lues dans
+  l'ordre, césures recollées (composés français gardés), folios et titres
+  courants retirés, paragraphes refaits.
+- **Claude en secours, jamais automatique** : « Essayer avec Claude (≈ …) »
+  montre le devis, demande confirmation et respecte les plafonds (catégorie
+  « atelier ») ; un coût qui change entre le devis et la lecture est refusé.
+- **Trois envois** : insérer dans le chapitre, créer les chapitres (découpage
+  montré avant), importer comme manuscrit pour l'agent Manuscrit.
+- **Boîte d'agent `scan`** avec l'outil `lire_texte_image` (une image de la
+  Bibliothèque lue localement, texte encadré comme preuve).
+
+### Mesuré
+- Sur 10 pages test fabriquées (5 FR, 5 EN : colonnes, césures, folios,
+  faible contraste, 9 pt, rotation de 1°, justifié, dialogues, chiffres) :
+  **0,35 % d'erreurs de caractères en français, 0,32 % en anglais, environ
+  1,1 s par page** (`scripts/scan_mesure.py`, rapport
+  `docs/superpowers/specs/2026-10-28-scan-mesure.md`).
+- Correctif issu de la mesure : une colonne de droite courte dont les lignes
+  sont décalées d'une demi-ligne n'est plus lue en travers de la gauche.
+
+---
+
 # 🐙 Deepotus Video Gen v2.8.0 — "Le transfert entre machines"
 
 **Tout ce qu'une installation a créé peut désormais changer de machine — et
