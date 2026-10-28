@@ -1051,3 +1051,27 @@ button.actif, .cb button.actif, .onglet.actif, .outils button.actif, .fo-item.ac
 .infobulle, .infobulle::after { background: var(--bg-panel); }
 /* les champs à formule (X · Y, L · H) restent alignés à gauche comme les autres (la règle « centrés » du 17/09 était plus forte) */
 #panneauCalques .ap-ligne input[type="text"]:not([placeholder]) { text-align: left; }
+
+/* ══ t314 (28/10/2026) : « Scanner un schéma… » (mod-schema.js) — même dessin que le dialogue Vectoriser ══ */
+.sch-boite { width: min(980px, 94vw); }
+.sch-corps { display: flex; gap: 14px; padding: 12px; min-height: 380px; overflow: auto; }
+.sch-gauche { width: 360px; display: flex; flex-direction: column; gap: 10px; }
+.sch-droite { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sch-depot { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px dashed var(--aff-bord);
+  border-radius: 6px; font-size: 12px; color: var(--aff-muet); cursor: pointer; }
+.sch-depot.survol { border-color: var(--aff-sel); color: var(--aff-texte); }
+.sch-apercu { background: #fff; border-radius: 6px; min-height: 160px; display: flex; align-items: center;
+  justify-content: center; overflow: hidden; }
+.sch-apercu img { max-width: 100%; max-height: 240px; }
+.sch-champ { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--aff-muet); }
+.sch-champ select { height: 28px; background: var(--aff-champ); color: var(--aff-texte); border: 1px solid var(--aff-bord);
+  border-radius: 4px; }
+.sch-aide { font-size: 12px; color: var(--aff-muet); margin: 0; }
+.sch-liste { margin: 0; padding-left: 22px; max-height: 340px; overflow: auto; font-size: 13px; line-height: 1.6; }
+.sch-el { display: list-item; }
+.sch-nature { display: inline-block; min-width: 70px; margin-right: 8px; font-size: 11px; color: var(--aff-muet);
+  text-transform: uppercase; letter-spacing: .04em; }
+.sch-fleche .sch-nature { color: var(--aff-cyan); }
+.sch-etiquette .sch-nature { color: #e0b34a; }
+.sch-etat { font-size: 12px; color: var(--aff-muet); margin: 0; }
+.sch-etat.sch-erreur { color: #e06c5a; }

@@ -37,6 +37,8 @@ export function initCharpente(VL) {
     expPng2: { peut: () => !!etat.doc, faire: () => clic("#expPng2") },
     expPrint3d: { peut: () => !!etat.doc, faire: () => clic("#expPrint3d") },
     expBible: { peut: () => !!etat.doc, faire: () => clic("#expBible") },
+    schemaScanner: { peut: () => !!VL.schemaScanner, faire: () => VL.schemaScanner() },   // t314
+    schemaAnimation: { peut: () => !!(etat.doc && VL.schemaAnimation), faire: () => VL.schemaAnimation() },
     configDoc: { peut: () => !!etat.doc, faire: () => VL.configurerDocument ? VL.configurerDocument() : VL.toast(vlT("vectorlab.charpente.config_r5"), true) },
     parametres: { peut: () => true, faire: () => VL.parametresAppli ? VL.parametresAppli() : VL.toast(vlT("vectorlab.charpente.params_r5"), true) },
     annuler: { peut: () => !!etat.doc && etat.histo.peutAnnuler(), faire: () => VL.annuler() },
