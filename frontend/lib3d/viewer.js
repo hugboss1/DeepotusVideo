@@ -1294,3 +1294,5 @@ export async function charger(api, url) {
   });
   return { tris: Math.round(tris), maillages, ...cadre };
 }
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }
