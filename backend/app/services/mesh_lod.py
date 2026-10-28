@@ -50,6 +50,43 @@ BUDGETS = {
                     "facettes, assez bas pour que le slicer ne rame pas.",
     },
 }
+# t342 (lot Scenario B7, 29/10/2026) : budgets par RÔLE et TROIS densités natives. Chez Scenario (quarantine-07),
+# chaque modèle d'un kit sort en 50 k / 8 k / 2 k triangles ; graveyard-waves (Roblox) borne chaque rôle entre 700 et
+# 6 000. Ces nombres-ci sont des POINTS DE DÉPART motivés, comme BUDGETS : la mesure (triangles, octets, perte) est
+# affichée à côté de chaque densité, et c'est elle qui tranche.
+ROLES = {
+    "heros": {
+        "label": "Héros (personnage, véhicule)",
+        "densites": [50_000, 8_000, 2_000],
+        "pourquoi": "Vu de près et longtemps : 50 000 triangles pour le gros plan et la cinématique, 8 000 en jeu, "
+                    "2 000 au loin. Les trois densités natives relevées chez Scenario (50 k / 8 k / 2 k).",
+    },
+    "prop": {
+        "label": "Accessoire (prop)",
+        "densites": [8_000, 2_000, 500],
+        "pourquoi": "Un objet qu'on ramasse ou qui meuble : 8 000 tiennent en main, 2 000 posé dans la scène, 500 "
+                    "au fond. Au-delà, le détail se lit mieux dans la texture que dans la géométrie.",
+    },
+    "decor": {
+        "label": "Décor de jeu",
+        "densites": [20_000, 5_000, 1_000],
+        "pourquoi": "Grand à l'écran mais immobile et répété : 20 000 au premier plan, 5 000 à mi-distance, 1 000 "
+                    "à l'horizon. Multiplié par le nombre d'exemplaires, c'est lui qui pèse le plus.",
+    },
+    "web": {
+        "label": "Décor web (three.js, model-viewer)",
+        "densites": [5_000, 1_500, 400],
+        "pourquoi": "Une page charge tout d'un coup, souvent sur téléphone : chaque triangle coûte du "
+                    "téléchargement avant le premier affichage. 5 000 pour la vitrine, 1 500 en vignette, 400 en icône.",
+    },
+    "roblox": {
+        "label": "Roblox",
+        "densites": [6_000, 2_000, 700],
+        "pourquoi": "Les budgets par rôle relevés chez Scenario pour un jeu Roblox vont de 700 à 6 000 triangles : "
+                    "6 000 pour un héros, 2 000 pour un accessoire, 700 pour le décor répété.",
+    },
+}
+DENSITES = ("haute", "moyenne", "basse")
 MAX_NIVEAUX = 8            # docs.unity3d.com : 8 LOD au plus dans un LOD Group (LOD0 compris)
 MAX_TRIS_SIGNATURE = 400_000
 SIG_BINS = 8
@@ -60,6 +97,11 @@ _VUES = ("face", "profil", "dessus")
 def budgets() -> list[dict]:
     """Les budgets, pour l'écran et pour la route."""
     return [{"id": k, **v} for k, v in BUDGETS.items()]
+
+
+def roles() -> list[dict]:
+    """t342 : les budgets par rôle (trois densités chacun), pour l'écran, la route et l'agent."""
+    return [{"id": k, **v} for k, v in ROLES.items()]
 
 
 def _job_dir(job):
@@ -173,6 +215,40 @@ def _mesurer_perte(dossier: Path, niveau: int, fichier: str, ref_sig=None) -> di
             "ecart_normales": ecart_normales(ref_sig, sig)}
 
 
+# ── la décimation d'un niveau (partagée par la chaîne et les densités) ───────
+
+def _decimer(exe: str, src: Path, out: Path, cible: int, tris_source: int, quoi: str, n: int, bases) -> dict:
+    """gltfpack vers `cible` triangles, seconde passe `-sa` si la cible n'est pas tenue à 15 % près, puis le suffixe
+    `_LOD{n}`. Rend {cible, aggressive, cible_tenue, gltfpack, tris, verts…}."""
+    from app.services import mesh_optimize
+    rapport = out.with_suffix(".rapport.json")
+    ratio = max(0.001, min(1.0, cible / max(1, tris_source)))
+
+    def run(extra):
+        r = subprocess.run([exe, "-i", str(src), "-o", str(out), "-si", f"{ratio:.6f}",
+                            "-noq", "-kn", "-km", "-r", str(rapport)] + extra,
+                           capture_output=True, text=True, timeout=600)
+        if r.returncode != 0 or not out.is_file():
+            raise RuntimeError(f"gltfpack a échoué au {quoi} ({r.returncode}) : "
+                               f"{(r.stderr or r.stdout or '').strip()[:300]}")
+
+    run([])
+    agressif = False
+    if mesh_optimize.glb_stats(out)["tris"] > cible * 1.15:
+        run(["-sa"])                  # même seuil de rattrapage que /optimize
+        agressif = True
+    out.write_bytes(_renommer(out.read_bytes(), n, bases))
+    st = {"cible": cible, "aggressive": agressif, **mesh_optimize.glb_stats(out)}
+    # mesuré sur 8799 le 06/10 : une sphère de 6 240 triangles visée à 200 sort à 334 MÊME après -sa — gltfpack
+    # protège la topologie ; la chaîne le DIT au lieu de laisser croire la cible tenue
+    st["cible_tenue"] = st["tris"] <= cible * 1.15
+    try:
+        st["gltfpack"] = json.loads(rapport.read_text(encoding="utf-8"))
+    except Exception as e:            # rapport absent ou illisible : le dire
+        st["gltfpack"] = {"erreur": str(e)}
+    return st
+
+
 # ── la chaîne ────────────────────────────────────────────────────────────────
 
 def _normaliser_niveaux(tris_source: int, usage: str, niveaux=None) -> list[int]:
@@ -228,32 +304,7 @@ def chaine(job, *, usage: str = "pc", niveaux=None) -> dict:
 
     for i, cible in enumerate(cibles, 1):
         out = dossier / f"lod{i}.glb"
-        rapport = dossier / f"lod{i}.rapport.json"
-        ratio = max(0.001, min(1.0, cible / max(1, base["tris"])))
-
-        def run(extra, _out=out, _rapport=rapport, _ratio=ratio, _i=i):
-            r = subprocess.run([exe, "-i", str(src), "-o", str(_out), "-si", f"{_ratio:.6f}",
-                                "-noq", "-kn", "-km", "-r", str(_rapport)] + extra,
-                               capture_output=True, text=True, timeout=600)
-            if r.returncode != 0 or not _out.is_file():
-                raise RuntimeError(f"gltfpack a échoué au LOD{_i} ({r.returncode}) : "
-                                   f"{(r.stderr or r.stdout or '').strip()[:300]}")
-
-        run([])
-        agressif = False
-        if mesh_optimize.glb_stats(out)["tris"] > cible * 1.15:
-            run(["-sa"])                  # même seuil de rattrapage que /optimize
-            agressif = True
-        out.write_bytes(_renommer(out.read_bytes(), i, bases))
-        st = {"niveau": i, "file": out.name, "cible": cible, "aggressive": agressif,
-              **mesh_optimize.glb_stats(out)}
-        # mesuré sur 8799 le 06/10 : une sphère de 6 240 triangles visée à 200 sort à 334 MÊME après -sa — gltfpack
-        # protège la topologie ; la chaîne le DIT au lieu de laisser croire la cible tenue
-        st["cible_tenue"] = st["tris"] <= cible * 1.15
-        try:
-            st["gltfpack"] = json.loads(rapport.read_text(encoding="utf-8"))
-        except Exception as e:            # rapport absent ou illisible : le dire
-            st["gltfpack"] = {"erreur": str(e)}
+        st = {"niveau": i, "file": out.name, **_decimer(exe, src, out, cible, base["tris"], f"LOD{i}", i, bases)}
         niveaux_out.append(st)
 
     p0 = _mesurer_perte(dossier, 0, "lod0.glb")
@@ -322,3 +373,113 @@ def archive(job) -> tuple[str, bytes]:
         z.writestr("lod.json", json.dumps(info, indent=1, ensure_ascii=False))
         z.writestr("LISEZMOI.txt", _lisezmoi(info))
     return f"{Path(str(job)).name}_LOD.zip", buf.getvalue()
+
+
+# ── t342 : trois densités par rôle ───────────────────────────────────────────
+#
+# Une chaîne de LOD garde la source en LOD0 et descend ; les DENSITÉS sont trois fichiers autonomes, visés chacun à un
+# budget du rôle (haute / moyenne / basse), à livrer tels quels — un kit Scenario sort ainsi en 50 k / 8 k / 2 k. Une
+# source déjà sous un budget n'est PAS gonflée : elle est recopiée et le tableau le dit (« source gardée »). Les nœuds
+# nommés survivent (`-kn`) : un modèle découpé en pièces mobiles garde ses pièces dans les trois densités. Dossier
+# `densites/` DÉRIVÉ, remplacé en entier, refus AVANT effacement — même règle que `lod/`.
+
+def _dossier_densites(job) -> Path:
+    return _job_dir(job) / "densites"
+
+
+def densites(job, *, role: str = "heros", version: int | None = None) -> dict:
+    """Écrit `densites/{haute,moyenne,basse}.glb` + `densites.json` depuis une version du job (le GLB courant du
+    registre par défaut). Synchrone (gltfpack) — la route l'exécute dans un thread."""
+    from app.services import asset3d_service as A3, mesh_optimize
+    if role not in ROLES:
+        raise ValueError(f"rôle inconnu : {role!r} (attendu : {', '.join(ROLES)})")
+    d = _job_dir(job)
+    if not d.is_dir():
+        raise FileNotFoundError(f"job 3D inconnu : {job}")
+    if version is None:
+        nom = A3._glb_courant(job)
+    else:
+        v = int(version)
+        if v < 1:
+            raise ValueError("version : un entier à partir de 1")
+        nom = "model.glb" if v <= 1 else f"model.v{v}.glb"
+    src = d / nom
+    if not src.is_file():
+        raise FileNotFoundError(f"{src.name} introuvable pour ce job")
+    base = mesh_optimize.glb_stats(src)
+    if not base["tris"]:
+        raise ValueError("maillage sans triangle : rien à décliner")
+    exe = mesh_optimize._gltfpack()
+
+    dossier = _dossier_densites(job)
+    if dossier.is_dir():
+        shutil.rmtree(dossier)
+    dossier.mkdir(parents=True)
+    octets_src = src.read_bytes()
+    bases = _bases(octets_src)
+    (dossier / "source.glb").write_bytes(octets_src)
+    p0 = _mesurer_perte(dossier, 0, "source.glb")
+    ref_sig = p0.get("signature")
+
+    out_lignes = []
+    for i, (densite, cible) in enumerate(zip(DENSITES, ROLES[role]["densites"])):
+        out = dossier / f"{densite}.glb"
+        if base["tris"] <= cible:
+            out.write_bytes(_renommer(octets_src, i, bases))
+            st = {"cible": cible, "aggressive": False, **mesh_optimize.glb_stats(out), "cible_tenue": True,
+                  "source_gardee": True}
+        else:
+            st = {**_decimer(exe, src, out, cible, base["tris"], f"palier {densite}", i, bases),
+                  "source_gardee": False}
+            st.pop("gltfpack", None)
+        st["octets"] = out.stat().st_size
+        p = _mesurer_perte(dossier, i + 1, out.name, ref_sig)
+        st["perte"] = {k: v for k, v in p.items() if k != "signature"}
+        out_lignes.append({"densite": densite, "file": out.name, **st})
+    (dossier / "source.glb").unlink()
+    info = {"job": Path(str(job)).name, "source": src.name, "role": role, "label": ROLES[role]["label"],
+            "source_tris": base["tris"], "source_octets": src.stat().st_size, "densites": out_lignes,
+            "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    (dossier / "densites.json").write_text(json.dumps(info, indent=1, ensure_ascii=False), encoding="utf-8")
+    return info
+
+
+def lire_densites(job) -> dict:
+    p = _dossier_densites(job) / "densites.json"
+    if not p.is_file():
+        raise FileNotFoundError("aucune densité pour ce job")
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def fichier_densite(job, densite: str) -> Path:
+    if densite not in DENSITES:
+        raise ValueError(f"densité inconnue : {densite!r} (attendu : {', '.join(DENSITES)})")
+    p = _dossier_densites(job) / f"{densite}.glb"
+    if not p.is_file():
+        raise FileNotFoundError(f"densité {densite} absente : lance d'abord les trois densités")
+    return p
+
+
+def archive_densites(job) -> tuple[str, bytes]:
+    """Le ZIP livré : `<job>_<rôle>_<densité>_<k>k.glb` ×3, densites.json et un LISEZMOI qui dit les chiffres."""
+    info = lire_densites(job)
+    nom_job = Path(str(job)).name
+    buf = io.BytesIO()
+    L = [f"Trois densités — job {nom_job}, rôle {info['label']} (source {info['source']}, "
+         f"{info['source_tris']} triangles, {info['created_at']})", "",
+         "Densité  fichier                         triangles     cible   octets      IoU min"]
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for st in info["densites"]:
+            k = st["cible"] / 1000
+            nom = f"{nom_job}_{info['role']}_{st['densite']}_{k:g}k.glb"
+            z.write(_dossier_densites(job) / st["file"], nom)
+            iou = (st.get("perte") or {}).get("iou_min")
+            L.append(f"{st['densite']:<8} {nom[:32]:<32} {st['tris']:>9} {st['cible']:>9} {st['octets']:>9}   "
+                     + (f"{iou:.4f}" if iou is not None else "non mesuré")
+                     + ("   (source gardée : déjà sous le budget)" if st.get("source_gardee") else "")
+                     + ("   (cible non tenue)" if st.get("cible_tenue") is False else ""))
+        L += ["", "Les noms de mesh portent _LOD0 (haute), _LOD1 (moyenne), _LOD2 (basse) : glissés dans un LOD Group "
+              "Unity, ils se rangent seuls. Les pièces mobiles nommées (nœuds) sont gardées dans les trois fichiers."]
+        z.writestr("densites.json", json.dumps(info, indent=1, ensure_ascii=False))
+        z.writestr("LISEZMOI.txt", "\n".join(L) + "\n")
+    return f"{nom_job}_{info['role']}_densites.zip", buf.getvalue()

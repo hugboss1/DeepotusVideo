@@ -19175,6 +19175,131 @@ async def etabli_decimer(body: dict):
     return _etabli_ecrire(job, octets, "decimer", {"depuis": depuis, **info})
 
 
+# ── t342 (lot Scenario B6 + B7, 29/10/2026) : pièces mobiles et budgets de triangles ────────────────────────────
+# Pièces : la voie LOCALE (îlots du maillage, gratuite) lit puis écrit une version ; la voie IA (Tripo sur fal) est
+# payante : clé fal → devis + `confirme_cout` (409 sinon) → garde des plafonds → appel. Densités : trois fichiers par
+# rôle (mesh_lod.ROLES), locaux et gratuits, dossier `densites/` du job.
+
+def _pieces_langue(v) -> str:
+    return "en" if str(v or "").lower().startswith("en") else "fr"
+
+
+@router.get("/etabli/pieces")
+async def etabli_pieces_analyser(job: str, version: int = 1, langue: str = "fr", min_triangles: int = 8):
+    """LECTURE : les îlots d'une version et les noms proposés. Rien n'est écrit."""
+    from app.services import mesh_pieces
+    job_n, data, depuis = _etabli_glb_cible(job, int(version), "pièces")
+    try:
+        r = await asyncio.to_thread(mesh_pieces.analyser, data, langue=_pieces_langue(langue),
+                                    min_triangles=min_triangles)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"job": job_n, "depuis": depuis, **r, "ia": mesh_pieces.devis_ia(),
+            "cle_fal": bool((settings.FAL_KEY or "").strip())}
+
+
+@router.post("/etabli/pieces")
+async def etabli_pieces_separer(body: dict):
+    """La voie LOCALE et gratuite : chaque îlot devient un nœud nommé, origine au centre de la pièce ; une version de
+    plus. `noms` (liste dans l'ordre de l'analyse) renomme avant d'écrire."""
+    from app.services import mesh_pieces
+    body = body or {}
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "pièces")
+    try:
+        sortie, rapport = await asyncio.to_thread(
+            mesh_pieces.separer, data, par="composantes", noms=body.get("noms"),
+            langue=_pieces_langue(body.get("langue")), min_triangles=body.get("min_triangles", 8))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "pieces", {"depuis": depuis, **rapport})
+
+
+@router.post("/etabli/pieces/ia")
+async def etabli_pieces_ia(body: dict):
+    """La voie IA, PAYANTE : Tripo Segmentation (fal) pour les pièces soudées que les îlots ne séparent pas. Ordre
+    des refus, tous AVANT la dépense : cible (400/404) → clé fal (503) → `confirme_cout` absent (409, avec le devis)
+    → taille (400) → plafonds (402). Le GLB rendu repasse par la découpe « par nœud » : pivots recentrés, noms de
+    Tripo. Une version de plus, dont la fiche porte le modèle et le devis."""
+    from app.services import mesh_pieces
+    body = body or {}
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "pièces IA")
+    if not (settings.FAL_KEY or "").strip():
+        raise HTTPException(503, "Clé fal absente — ajoute-la dans les Réglages : la segmentation IA passe par fal.")
+    devis = mesh_pieces.devis_ia()
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": "Segmentation IA payante : confirme le coût avant de lancer.",
+                                  "devis": devis})
+    if len(data) > mesh_pieces.MAX_OCTETS_IA:
+        raise HTTPException(400, "Maillage trop lourd pour la segmentation IA : 150 Mo au plus.")
+    await _plafond({"kind": "asset3d_segment"}, "moteurs3d")
+    try:
+        r = await mesh_pieces.segmenter_par_ia(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    try:
+        sortie, rapport = await asyncio.to_thread(
+            mesh_pieces.separer, r["glb"], par="noeuds", noms=r["part_names"] or None,
+            langue=_pieces_langue(body.get("langue")))
+    except ValueError as e:
+        raise HTTPException(502, f"GLB segmenté illisible : {e}")
+    return _etabli_ecrire(job, sortie, "pieces_ia", {
+        "depuis": depuis, **rapport, "modele": mesh_pieces.ENDPOINT_IA, "devis_usd": devis["usd"],
+        "part_names": r["part_names"], "apercu": r.get("apercu")})
+
+
+@router.get("/etabli/densites")
+async def etabli_densites_lire(job: str):
+    """Les rôles (budgets motivés) et, s'il existe, le dernier tableau des trois densités du job."""
+    from app.services import mesh_lod
+    try:
+        info = mesh_lod.lire_densites(Path(str(job)).name)
+    except FileNotFoundError:
+        info = None
+    return {"roles": mesh_lod.roles(), "resultat": info}
+
+
+@router.post("/etabli/densites")
+async def etabli_densites(body: dict):
+    """Trois densités (haute / moyenne / basse) d'une version, au budget d'un rôle. Local et gratuit (gltfpack)."""
+    from app.services import mesh_lod
+    body = body or {}
+    job, _data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "densités")
+    try:
+        return await asyncio.to_thread(mesh_lod.densites, job, role=str(body.get("role") or "heros"),
+                                       version=depuis["version"])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/etabli/densites/fichier")
+async def etabli_densites_fichier(job: str, densite: str):
+    from app.services import mesh_lod
+    try:
+        p = mesh_lod.fichier_densite(Path(str(job)).name, densite)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return FileResponse(p, media_type="model/gltf-binary", filename=f"{Path(str(job)).name}_{p.name}")
+
+
+@router.get("/etabli/densites/zip")
+async def etabli_densites_zip(job: str):
+    from app.services import mesh_lod
+    try:
+        nom, octets = await asyncio.to_thread(mesh_lod.archive_densites, Path(str(job)).name)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return Response(content=octets, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
+
+
 @router.post("/etabli/ranger")
 async def etabli_ranger(body: dict):
     """RANGER SUR LE PLATEAU (tâche #89 PR C, plan-etabli T5) : des empreintes {cle, l, p} sur des plateaux (L, P),

@@ -137,6 +137,9 @@ DEFAULTS = {
         "veo-3.1-fast-google": {"*": 0.15},
         "veo-3.1-lite-google": {"*": 0.10},
     },
+    # t342 : Tripo Segmentation (fal tripo3d/tripo/segment) — page fal du 29/10/2026 « $0.01 per units », unité non
+    # dite ; 40 unités d'après l'exemple de la doc Tripo (credits_consumed) : une ESTIMATION, rapprochée par les plafonds
+    "tripo_segment_usd": 0.40,
     "rembg_api_usd": 0.003,           # fal.ai imageutils/rembg, per image (sprite frames)
     "seedream_edit_usd": 0.03,        # fal.ai bytedance/seedream/v4/edit, par vue (T104, plan-moteurs-3d T1)
     "meshy_credit_usd": 0.02,         # valeur $ directionnelle d'un crédit Meshy
@@ -1135,6 +1138,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                                cr * float(p.get("meshy_credit_usd", DEFAULTS["meshy_credit_usd"]))))
         else:
             lines.append(_line("local", "Conversion locale (obj/stl/3mf)", 1, "fichier", 0.0))
+    elif kind == "asset3d_segment":
+        # t342 : segmentation IA en pièces mobiles (Tripo sur fal) ; la voie locale (îlots) est gratuite
+        lines.append(_line("fal", "Segmentation en pièces (Tripo)", 1, "gen",
+                           float(p.get("tripo_segment_usd", DEFAULTS["tripo_segment_usd"]))))
     elif kind in ("asset3d_lod", "asset3d_textures", "asset3d_local"):
         libelle = {"asset3d_lod": "Chaîne LOD (gltfpack)",
                    "asset3d_textures": "Export textures (PIL)",

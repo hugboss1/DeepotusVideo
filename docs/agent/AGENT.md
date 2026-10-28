@@ -173,6 +173,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   de l'espace de la campagne (« Activer l'espace … et ouvrir le calendrier »). Porte 2 : l'utilisateur programme
   lui-même. L'agent ne publie, ne programme, ne supprime rien et ne touche ni clés ni Réglages. Catégorie
   « campagnes ». → [GUIDE:agent-campagnes]
+- **Pièces mobiles et budgets 3D** (t342) : Établi, Parties › « Pièces mobiles » (« Chercher les pièces », gratuit ;
+  IA Tripo payante, catégorie « moteurs3d ») ; Export › « Budgets de triangles » (rôle, 3 densités, gratuit).
+  → [ALLER:assets3d] [GUIDE:etabli]
 - **Sprites d'un personnage en 8 directions** (t339) : Game Assets › Sprite Lab › onglet Bible, choisir le personnage
   puis « 8 » (sélecteur Directions). 5 directions dessinées : S, E et N découpées dans la planche (gratuit), SE et NE
   générées (payant, catégorie « sprites », devis affiché à côté du bouton puis confirmation) ; SO, O et NO en miroir,
