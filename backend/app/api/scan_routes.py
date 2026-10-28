@@ -23,6 +23,8 @@ Secours Claude : il relit TOUTES les pages image d'un coup (un seul devis) ; ses
 donc les pages texte placées avant la première image restent devant, les autres viennent après la transcription.
 OCR indisponible : 503 {message, code: "ocr_indisponible", secours_vision: devis, scan_id} — le scan est gardé pour
 que le secours payant puisse le relire sans nouveau dépôt.
+Cache plein (revue t312) : un scan plus lourd que le budget du cache (256 Mo) n'est pas gardé : `scan_id` null et
+`en_cache` false (le texte lu est rendu quand même ; le secours Claude demandera un nouveau dépôt).
 Journaux : nombres, tailles et durées seulement, jamais le texte lu.
 """
 from __future__ import annotations
@@ -210,6 +212,7 @@ async def lire_pages(request: Request, pages: list[UploadFile] = File(...), lang
         sid = SP.ranger(None, plan)
         logger.warning(f"scan_routes : lecture locale indisponible, {n_images} page(s) image gardée(s) pour le secours")
         raise HTTPException(503, {"message": str(e), "code": "ocr_indisponible", "scan_id": sid,
+                                  "en_cache": sid is not None,
                                   "secours_vision": await asyncio.to_thread(_secours, n_images, request)}) from None
     except O.ScanErreur as e:
         logger.warning(f"scan_routes : lecture locale en échec ({'délai' if str(e) == _DELAI_OCR else 'erreur'})")
@@ -221,7 +224,7 @@ async def lire_pages(request: Request, pages: list[UploadFile] = File(...), lang
     ms = int((time.perf_counter() - t0) * 1000)
     logger.info(f"scan_routes : lecture de {len(plan)} page(s) ({n_images} image, {len(plan) - n_images} texte), "
                 f"{passes} passe(s), {r['stats'].get('mots', 0)} mot(s), {len(r['incertains'])} incertain(s), {ms} ms")
-    return {"scan_id": sid, "moteur": r["moteur"], "langue": r["langue"], "pages": len(plan), "texte": r["texte"],
+    return {"scan_id": sid, "en_cache": sid is not None, "moteur": r["moteur"], "langue": r["langue"], "pages": len(plan), "texte": r["texte"],
             "incertains": r["incertains"], "stats": r["stats"], "duree_ms": ms}
 
 

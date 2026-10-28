@@ -214,6 +214,43 @@ check("1n 6 + 5 pages après dépliage -> refus 400", isinstance(e, SP.RefusPage
 e = refus(SP.charger, [("c.pdf", b"%PDF-1.4 casse")])
 check("1o PDF illisible -> refus 422", isinstance(e, SP.RefusPages) and e.statut == 422, repr(e))
 
+
+def png_mono(w, h):                       # 1 bit par pixel : une très grande image qui pèse peu
+    b = io.BytesIO()
+    Image.new("1", (w, h), 1).save(b, "PNG")
+    return b.getvalue()
+
+
+GRANDE = png_mono(8000, 8000)             # 64 Mpx : au-dessus du plafond de 60 Mpx, sous l'alerte de Pillow
+e = refus(SP.charger, [("g.png", GRANDE)])
+check("1u image de 64 Mpx -> refus 413 (pas 415)", isinstance(e, SP.RefusPages) and e.statut == 413, repr(e))
+e = refus(SP.charger, [("b.png", png_mono(14000, 14000))])
+check("1v bombe de 196 Mpx (refusée par Pillow à l'ouverture) -> 413, pas 415",
+      isinstance(e, SP.RefusPages) and e.statut == 413, repr(e))
+_b = io.BytesIO()
+Image.new("L", (8000, 8000), 250).save(_b, "PDF")
+from pypdf import PageObject                                        # noqa: E402
+_vrai_images, _decode = PageObject.images, []
+PageObject.images = property(lambda self: _decode.append(1) or _vrai_images.fget(self))
+try:
+    e = refus(SP.charger, [("g.pdf", _b.getvalue())])
+finally:
+    PageObject.images = _vrai_images
+check("1w PDF dont l'image incorporée fait 64 Mpx -> refus 413 avant décodage (page.images jamais lu)",
+      isinstance(e, SP.RefusPages) and e.statut == 413 and _decode == [], (repr(e), _decode))
+_w = PdfWriter()
+for _ in range(201):
+    _w.add_blank_page(612, 792)
+_b = io.BytesIO(); _w.write(_b)
+e = refus(SP.charger, [("long.pdf", _b.getvalue())])
+check("1x PDF de 201 pages -> refus 400 sans le parcourir", isinstance(e, SP.RefusPages) and e.statut == 400
+      and "200" in str(e), repr(e))
+SP.MAX_OCTETS_IMAGE = 1000
+e = refus(SP.charger, [("s.pdf", pdf_images(1500))])
+SP.MAX_OCTETS_IMAGE = SP.MAX_OCTETS
+check("1y image de page PDF plus lourde que le plafond -> refus 413", isinstance(e, SP.RefusPages)
+      and e.statut == 413, repr(e))
+
 SP._CACHE.clear()
 sid = SP.ranger({"texte": "x"}, [{"genre": "image", "octets": b"1"}])
 got = SP.obtenir(sid)
@@ -225,6 +262,19 @@ check("1s inconnu -> KeyError", isinstance(refus(SP.obtenir, "inconnu"), KeyErro
 ids = [SP.ranger(None, []) for _ in range(SP.MAX_SCANS + 1)]
 check("1t 20 scans au plus : le plus ancien est évincé",
       len(SP._CACHE) == SP.MAX_SCANS and ids[0] not in SP._CACHE and ids[-1] in SP._CACHE, len(SP._CACHE))
+SP._CACHE.clear()
+check("1t2 budget par défaut : 256 Mo", SP.BUDGET == 256 * 1024 * 1024, SP.BUDGET)
+SP.BUDGET = 5000
+a = SP.ranger(None, [{"genre": "image", "octets": b"a" * 2000}])
+b = SP.ranger(None, [{"genre": "image", "octets": b"b" * 2000}, {"genre": "texte", "texte": "x" * 9000}])
+check("1t3 sous le budget : les deux gardés (le texte ne compte pas)", a in SP._CACHE and b in SP._CACHE)
+c3 = SP.ranger(None, [{"genre": "image", "octets": b"c" * 2000}])
+check("1t4 au-delà du budget : le plus ancien évincé", a not in SP._CACHE and b in SP._CACHE and c3 in SP._CACHE
+      and sum(v["poids"] for v in SP._CACHE.values()) <= SP.BUDGET, list(SP._CACHE))
+d4 = SP.ranger(None, [{"genre": "image", "octets": b"d" * 6000}])
+check("1t5 un scan plus lourd que le budget n'est pas gardé (None), le cache reste intact",
+      d4 is None and b in SP._CACHE and c3 in SP._CACHE, (d4, list(SP._CACHE)))
+SP.BUDGET = 256 * 1024 * 1024
 SP._CACHE.clear()
 
 
@@ -297,7 +347,19 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     check("2u PDF sans texte ni image -> 422 avec message", rp.status_code == 422 and rp.json().get("detail"),
           rp.status_code)
     rp = c.post("/api/scan/lire", data={"langue": "fr"})
-    check("2v aucune page -> 4xx", 400 <= rp.status_code < 500, rp.status_code)
+    check("2v aucune page -> 422 (champ `pages` requis)", rp.status_code == 422, rp.status_code)
+    rp = c.post("/api/scan/lire", **multipart(("g.png", GRANDE)))
+    check("2w image de 64 Mpx -> 413 avec message", rp.status_code == 413 and "60" in str(rp.json().get("detail")),
+          f"{rp.status_code} {rp.text[:200]}")
+    SP.BUDGET = 100
+    APPELS_OCR.clear()
+    rp = c.post("/api/scan/lire", **multipart(("p1.png", img(1300))))
+    d = rp.json() if rp.status_code == 200 else {}
+    check("2x scan plus lourd que le cache : texte rendu, scan_id null, en_cache false", rp.status_code == 200
+          and d.get("scan_id") is None and d.get("en_cache") is False and "Bonjour" in d.get("texte", ""), d)
+    SP.BUDGET = 256 * 1024 * 1024
+    rp = c.post("/api/scan/lire", **multipart(("p1.png", img(1300))))
+    check("2y scan ordinaire : en_cache true", rp.status_code == 200 and rp.json().get("en_cache") is True)
 
     # ================================================================== 3. pont en échec
     print("\n[3] pont absent, bloqué, lent, illisible")

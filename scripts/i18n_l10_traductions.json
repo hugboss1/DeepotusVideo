@@ -11502,5 +11502,17 @@
  "Format non pris en charge : PNG, JPEG, WEBP, BMP, TIFF ou PDF.": {
   "fr": "Format non pris en charge : PNG, JPEG, WEBP, BMP, TIFF ou PDF.",
   "en": "Unsupported format: PNG, JPEG, WEBP, BMP, TIFF or PDF."
+ },
+ "Image trop grande : 60 mégapixels au plus par page.": {
+  "fr": "Image trop grande : 60 mégapixels au plus par page.",
+  "en": "Image too large: 60 megapixels at most per page."
+ },
+ "Image de page PDF trop lourde : 20 Mo au plus.": {
+  "fr": "Image de page PDF trop lourde : 20 Mo au plus.",
+  "en": "PDF page image too large: 20 MB at most."
+ },
+ "PDF trop long : 200 pages au plus.": {
+  "fr": "PDF trop long : 200 pages au plus.",
+  "en": "PDF too long: 200 pages at most."
  }
 }

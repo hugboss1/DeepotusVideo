@@ -7,11 +7,17 @@
 - PDF : chaque page dont le texte sélectionnable (pypdf) compte ≥ 30 caractères hors blancs est une page TEXTE (aucune
   lecture OCR) ; sinon la plus grande image incorporée de la page est lue ; une page sans l'un ni l'autre est sautée ;
   si rien n'en sort -> 422. Pas de rastériseur PDF dans le runtime : c'est la seule voie pour un PDF scanné.
-- 1 à 10 fichiers, ≤ 20 Mo chacun (413), ≤ 10 pages en tout après dépliage des PDF (400).
+- 1 à 10 fichiers, ≤ 20 Mo chacun (413), ≤ 10 pages en tout après dépliage des PDF (400) ; un PDF de plus de 200
+  pages n'est même pas parcouru (400) ;
+- revue t312 : toute image (déposée ou incorporée à un PDF) de plus de 60 mégapixels -> 413, jugée sur sa taille
+  DÉCLARÉE avant tout décodage (en-tête Pillow, /Width × /Height de l'XObject PDF) ; une image de page PDF qui pèse
+  plus de 20 Mo (telle quelle ou ré-encodée) -> 413.
 Refus : `RefusPages(message, statut)` (ValueError ; message littéral couvert par L10, statut HTTP pour la route).
 
 Cache : `ranger(resultat, images) -> scan_id`, `obtenir(scan_id)` -> {"images", "resultat", "cree"} (KeyError si
 inconnu ou plus vieux d'une heure). En mémoire, 20 scans au plus (le plus ancien est évincé), purgé à chaque accès.
+Budget mémoire (revue t312) : 256 Mo d'octets d'image en tout ; au-delà, les plus anciens sont évincés ; un scan
+plus lourd que le budget à lui seul n'est PAS gardé (`ranger` rend None : la route le dit, scan_id null).
 `images` = la liste de `charger` (pages image ET texte, dans l'ordre) : le secours Claude relit les images et remet
 les pages texte à leur place.
 Journaux : nombres de pages et tailles seulement, jamais le texte ni les images.
@@ -29,6 +35,10 @@ from PIL import Image
 MAX_FICHIERS = 10
 MAX_PAGES = 10
 MAX_OCTETS = 20 * 1024 * 1024
+MAX_OCTETS_IMAGE = MAX_OCTETS  # une image de page PDF, telle quelle ou ré-encodée en PNG
+MAX_PIXELS = 60_000_000        # au-delà, le décodage (préparation OCR, réduction Claude) coûterait des centaines de Mo
+MAX_PAGES_PDF = 200            # pages brutes parcourues au plus dans un PDF (pages vides comprises)
+BUDGET = 256 * 1024 * 1024     # octets d'image gardés en cache, tous scans confondus
 MIN_TEXTE = 30                 # caractères hors blancs : en dessous, la page PDF est tenue pour scannée
 TTL = 3600.0                   # secondes
 MAX_SCANS = 20
@@ -45,20 +55,60 @@ class RefusPages(ValueError):
         self.statut = statut
 
 
+def _trop_grande():
+    raise RefusPages("Image trop grande : 60 mégapixels au plus par page.", 413)
+
+
 def _format_image(octets: bytes) -> str | None:
+    """Le format Pillow de l'image, ou None si elle est illisible. RefusPages 413 au-delà de MAX_PIXELS (taille lue
+    dans l'en-tête, avant tout décodage ; une bombe que Pillow refuse dès l'ouverture est aussi un 413)."""
     try:
         with Image.open(io.BytesIO(octets)) as im:
+            if im.size[0] * im.size[1] > MAX_PIXELS:
+                _trop_grande()
             fmt = (im.format or "").upper()
             im.verify()
-    except Exception:  # noqa: BLE001 — illisible, tronqué, bombe de décompression : pas une image acceptée
+    except RefusPages:
+        raise
+    except Image.DecompressionBombError:
+        _trop_grande()
+    except Exception:  # noqa: BLE001 — illisible, tronqué : pas une image acceptée
         return None
     return fmt
+
+
+def _pixels_declares(page) -> int:
+    """Le plus grand /Width × /Height des images XObject de la page (et de ses formulaires), lu SANS décoder."""
+    plus, pile, vus = 0, [page.get("/Resources")], set()
+    while pile:
+        res = pile.pop()
+        try:
+            res = res.get_object() if res is not None else None
+            xobj = res.get("/XObject") if res is not None else None
+            xobj = xobj.get_object() if xobj is not None else None
+        except Exception:  # noqa: BLE001
+            continue
+        for nom in list(xobj or {}):
+            try:
+                o = xobj[nom].get_object()
+                if id(o) in vus:
+                    continue
+                vus.add(id(o))
+                if o.get("/Subtype") == "/Image":
+                    plus = max(plus, int(o.get("/Width", 0)) * int(o.get("/Height", 0)))
+                elif o.get("/Subtype") == "/Form":
+                    pile.append(o.get("/Resources"))
+            except Exception:  # noqa: BLE001
+                continue
+    return plus
 
 
 def _image_de_page(page) -> bytes | None:
     """La plus grande image incorporée de la page PDF, en octets lisibles par Pillow (PNG si son format n'est pas
     accepté tel quel) ; None si la page n'en a pas ou si aucune ne se décode."""
     meilleure, aire = None, -1
+    if _pixels_declares(page) > MAX_PIXELS:     # avant `page.images`, qui décode toutes les images de la page
+        _trop_grande()
     try:
         incorporees = list(page.images)
     except Exception:  # noqa: BLE001 — filtre d'image non pris en charge par pypdf
@@ -76,21 +126,31 @@ def _image_de_page(page) -> bytes | None:
     im, pil = meilleure
     data = bytes(im.data or b"")
     if data and _format_image(data) in FORMATS:
-        return data
-    try:
-        sortie = io.BytesIO()
-        (pil if pil.mode in ("RGB", "L", "RGBA") else pil.convert("RGB")).save(sortie, "PNG")
-        return sortie.getvalue()
-    except Exception:  # noqa: BLE001
-        return None
+        sortie = data
+    else:
+        try:
+            tampon = io.BytesIO()
+            (pil if pil.mode in ("RGB", "L", "RGBA") else pil.convert("RGB")).save(tampon, "PNG")
+            sortie = tampon.getvalue()
+        except Exception:  # noqa: BLE001
+            return None
+    if len(sortie) > MAX_OCTETS_IMAGE:
+        raise RefusPages("Image de page PDF trop lourde : 20 Mo au plus.", 413)
+    return sortie
 
 
 def _pages_pdf(octets: bytes, deja: int) -> list[dict]:
     from pypdf import PdfReader
     try:
         lecteur = PdfReader(io.BytesIO(octets))
-        pages = list(lecteur.pages)
+        nb = len(lecteur.pages)
     except Exception:  # noqa: BLE001 — PDF cassé ou chiffré
+        raise RefusPages("Ce PDF est illisible (abîmé ou protégé par un mot de passe).", 422) from None
+    if nb > MAX_PAGES_PDF:
+        raise RefusPages("PDF trop long : 200 pages au plus.", 400)
+    try:
+        pages = list(lecteur.pages)
+    except Exception:  # noqa: BLE001
         raise RefusPages("Ce PDF est illisible (abîmé ou protégé par un mot de passe).", 422) from None
     out = []
     for page in pages:
@@ -143,15 +203,26 @@ def _purger(maintenant: float) -> None:
         _CACHE.pop(k, None)
 
 
-def ranger(resultat, images: list[dict]) -> str:
-    """Garde un scan 1 h : ses pages (`charger`) et son résultat (None tant qu'il n'est pas lu). Rend son scan_id."""
+def _poids(images: list[dict]) -> int:
+    return sum(len(p.get("octets") or b"") for p in images if isinstance(p, dict))
+
+
+def ranger(resultat, images: list[dict]) -> str | None:
+    """Garde un scan 1 h : ses pages (`charger`) et son résultat (None tant qu'il n'est pas lu). Rend son scan_id,
+    ou None si le scan dépasse à lui seul le BUDGET (il n'est pas gardé). Les plus anciens sont évincés au-delà de
+    MAX_SCANS scans ou du BUDGET d'octets."""
+    images = list(images or [])
+    poids = _poids(images)
     with _VERROU:
         maintenant = time.time()
         _purger(maintenant)
-        while len(_CACHE) >= MAX_SCANS:
+        if poids > BUDGET:
+            logger.warning(f"scan_pages : scan de {poids} octets plus lourd que le cache ({BUDGET}), non gardé")
+            return None
+        while _CACHE and (len(_CACHE) >= MAX_SCANS or sum(v["poids"] for v in _CACHE.values()) + poids > BUDGET):
             _CACHE.pop(next(iter(_CACHE)))
         sid = uuid.uuid4().hex
-        _CACHE[sid] = {"images": list(images or []), "resultat": resultat, "cree": maintenant}
+        _CACHE[sid] = {"images": images, "resultat": resultat, "cree": maintenant, "poids": poids}
         return sid
 
 
