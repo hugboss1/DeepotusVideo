@@ -682,5 +682,8 @@
   "atelier.t312_scan.chapitres": {"fr": "{n} chapitre(s) créé(s) depuis le scan.", "en": "{n} chapter(s) created from the scan."},
   "atelier.t312_scan.insere": {"fr": "{n} caractères insérés depuis le scan.", "en": "{n} characters inserted from the scan."},
   "atelier.t312_scan.lecture_seule": {"fr": "Chapitre emporté par le téléphone : lecture seule, rien n'est inséré.", "en": "Chapter taken by the phone: read-only, nothing is inserted."},
-  "atelier.t312_scan.ms_en_cours": {"fr": "Un manuscrit est déjà en cours d'import : attends sa fin.", "en": "A manuscript is already being imported: wait for it to finish."}
+  "atelier.t312_scan.ms_en_cours": {"fr": "Un manuscrit est déjà en cours d'import : attends sa fin.", "en": "A manuscript is already being imported: wait for it to finish."},
+  "atelier.t335_previs.absent": {"fr": "La boîte Previs → plan n'est pas chargée : recharge la page.", "en": "The Previs → shot box is not loaded: reload the page."},
+  "atelier.t335_previs.bouton": {"fr": "Previs → plan", "en": "Previs → shot"},
+  "atelier.t335_previs.bouton_t": {"fr": "Previs → plan : votre clip de previs (mouvement, caméra) rendu avec le look de style frames — Seedance 2.5 video-to-video, coût affiché et confirmé avant", "en": "Previs → shot: your previs clip (motion, camera) rendered with the look of style frames — Seedance 2.5 video-to-video, cost shown and confirmed first"}
 }

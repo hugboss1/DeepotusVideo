@@ -49,6 +49,7 @@ PAYANTES = {
     ("routes", "POST", "/chapters/{chapter_id}/reecrire"),     # tâche #66 : la réécriture dans le ton de la bible (LLM)
     ("routes", "POST", "/chapters/{chapter_id}/animatique"),   # tâche #63 : la voix témoin de l'animatique (sur demande)
     ("routes", "POST", "/shots/{shot_id}/image"),        # tâche #62 : l'image de production d'un plan (Nano Banana)
+    ("routes", "POST", "/shots/{shot_id}/previs"),       # t335 : previs → plan (Seedance v2v / Veo références, fal)
     ("routes", "POST", "/layout-templates/{template_id}/render"), ("routes", "POST", "/assets/3d"),
     ("routes", "POST", "/assets/3d/{job}/refine"), ("routes", "POST", "/assets/3d/{job}/texturer"),
     ("routes", "POST", "/assets/3d/views"), ("routes", "POST", "/assets/3d/{job}/views/{index}/rejouer"),   # T106

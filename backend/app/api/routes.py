@@ -13105,6 +13105,266 @@ async def shot_video(shot_id: str, body: dict, background_tasks: BackgroundTasks
     return out
 
 
+# ── t335 (A5 du lot Scenario, 28/10/2026) : « Previs → plan » — le clip de previs (@Video1) + des style frames (@Image1…)
+# → la vidéo du plan, par Seedance 2.5 reference-to-video (fal), ou les style frames seules par Veo 3.1 références.
+# Le registre et l'argument viennent de services/video_refs.py (PUR), la sonde, le prompt, le devis et le tir de
+# services/previs_plan.py. Règle de la maison, dans CET ordre : 404 plan / 400 modèle → 503 clé absente (AVANT toute
+# garde) → 400/404 clip, style frames, prompt, tâche, résolution → 409 sans `confirme_cout` (le devis joint) → garde
+# des plafonds « chapitres » (402) → job. Devis gratuit = garde = usd rendu (le même op).
+
+_PREVIS_FRAMES_MAX = 10          # noms acceptés dans le corps (le registre en garde 4, et le DIT dans les notes)
+_PREVIS_CLIPS_MAX = 40           # clips proposés par /previs/sources
+
+
+async def _previs_calc(s, body: dict | None, http=None) -> dict:
+    """t335 — LE calcul de « previs → plan », partagé par le devis GRATUIT (POST /shots/{id}/previs/devis) et la route
+    payante (POST /shots/{id}/previs). Sans réseau ni dépense. Rend aussi le PREMIER refus de la route payante
+    (`refus`, `refus_code`, `refus_etape` « modele » ou « champs ») — sauf la clé absente, rendue à part
+    (`cle_absente`) : un modèle sans clé reste choisissable et son prix se montre."""
+    from app.services import video_refs as VR, previs_plan as PV
+    from app.services.storage import async_session_factory
+    body = body if isinstance(body, dict) else {}
+    mid = str(body.get("modele") or VR.DEFAUT_PREVIS).strip()
+    out = {"modele": mid, "label": None, "endpoint": None, "tache": None, "resolution": None, "clip": None,
+           "clip_chemin": None, "style_frames": [], "prompt": "", "prompt_defaut": "", "notes": [], "usd": None,
+           "op": None, "secondes_entree": None, "secondes_sortie": None, "cle_absente": None, "refus": None,
+           "refus_code": None, "refus_etape": None}
+
+    def _refus(code, msg, etape="champs"):
+        if out["refus"] is None:
+            out.update(refus=msg, refus_code=code, refus_etape=etape)
+
+    m = VR.REGISTRE_REFS.get(mid)
+    if m is None:
+        _refus(400, _msg_g("previs.modele_inconnu", http, modele=mid[:48], ids=", ".join(VR.MODELES_PREVIS)), "modele")
+        return out
+    out.update(label=m["label"], endpoint=m["endpoint"])
+    if mid not in VR.MODELES_PREVIS:
+        _refus(400, _msg_g("previs.prix_non_publie", http, modele=m["label"]), "modele")
+        return out
+    out["cle_absente"] = None if settings.FAL_KEY else "FAL_KEY"
+    video = m["grammaire"] == "video"
+    clip_infos = None
+    if video:
+        if not (body.get("clip_id") or body.get("job_id") or body.get("video_filename")):
+            _refus(400, _msg_g("previs.clip_requis", http))
+        else:
+            try:
+                chemin = await _sfx_video_source(body, "de previs", http)
+            except HTTPException as e:
+                _refus(e.status_code, e.detail)
+            else:
+                infos = await asyncio.to_thread(PV.infos_clip, chemin)
+                chemin, infos, notes_c = PV.conformer_clip(chemin, infos, mid, float(s.duration_s or 4.0))
+                out["notes"] += notes_c
+                out["clip_chemin"] = chemin
+                clip_infos = infos
+                out["clip"] = {"nom": chemin.name, "job_id": str(body.get("clip_id") or body.get("job_id") or "") or None,
+                               **{k: infos.get(k) for k in ("secondes", "largeur", "hauteur", "fps")}}
+                raison = VR.clip_refuse(mid, nom=chemin.name, secondes=infos.get("secondes"),
+                                        largeur=infos.get("largeur"), hauteur=infos.get("hauteur"),
+                                        fps=infos.get("fps"), octets=infos.get("octets"))
+                if raison:
+                    _refus(400, _msg_g("previs.clip_hors_bornes", http, nom=chemin.name, raison=raison))
+    noms = body.get("style_frames")
+    if noms is None:      # par défaut : l'image de PRODUCTION du plan (le look), jamais la capture grise du Plateau
+        noms = [s.image] if getattr(s, "image", None) and (settings.images_path / Path(s.image).name).is_file() else []
+    if not isinstance(noms, list) or len(noms) > _PREVIS_FRAMES_MAX:
+        _refus(400, _msg_g("previs.frames_trop", http, n=len(noms) if isinstance(noms, list) else "?",
+                           max=_PREVIS_FRAMES_MAX))
+        noms = []
+    frames = []
+    for nom in noms:
+        try:
+            f = _nom_nu(str(nom or "").strip(), settings.images_path, PV.EXT_IMAGE, "style_frames", "d'image",
+                        "image", http)
+        except HTTPException as e:
+            _refus(e.status_code, e.detail)
+            continue
+        if f not in frames:
+            frames.append(f)
+    out["style_frames"] = [f.name for f in frames]
+    out["frames_chemins"] = frames
+    if not frames:
+        _refus(400, _msg_g("previs.frames_requises", http))
+    async with async_session_factory() as session:
+        style = await _atelier_setting(session, "global_style")
+    action = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
+    out["prompt_defaut"] = PV.prompt_defaut(mid, action, max(1, min(len(frames), m["refs"][1])), style)
+    prompt = body.get("prompt")
+    prompt = out["prompt_defaut"] if prompt is None or not str(prompt).strip() else " ".join(str(prompt).split())
+    if len(prompt) > PV.PROMPT_MAX:
+        _refus(400, _msg_g("previs.prompt_trop_long", http, n=len(prompt), max=PV.PROMPT_MAX))
+        prompt = prompt[:PV.PROMPT_MAX]
+    out["prompt"] = prompt
+    tache = body.get("tache")
+    if video and tache is not None and tache not in m["taches"]:
+        _refus(400, _msg_g("previs.tache_refusee", http, tache=str(tache)[:20], liste=", ".join(m["taches"])))
+        tache = None
+    res = body.get("resolution")
+    permises = m["resolutions"] or ()
+    if res is not None and res not in permises:
+        _refus(400, _msg_g("previs.resolution_refusee", http, res=str(res)[:12], liste=", ".join(permises)))
+        res = None
+    calc = PV.calculer(mid, clip=clip_infos, n_frames=len(frames), tache=tache, resolution=res,
+                       duree_plan=float(s.duration_s or 4.0))
+    out.update({k: calc[k] for k in ("secondes_entree", "secondes_sortie", "resolution", "tache", "op", "usd")})
+    if frames and (clip_infos or not video):
+        try:
+            _ep, _args, notes = VR.construire(mid, prompt, [{"nom": f.name, "face": f"ref:{f.name}"} for f in frames],
+                                              video_url="ref:clip" if video else None, tache=calc["tache"],
+                                              duree=int(round(calc["secondes_sortie"] or 4)),
+                                              resolution=calc["resolution"], aspect_ratio="9:16")
+            out["notes"] += notes
+        except ValueError as e:
+            _refus(400, _txt_g(e, http))
+    return out
+
+
+def _previs_public(calc: dict) -> dict:
+    return {k: calc[k] for k in ("modele", "label", "endpoint", "tache", "resolution", "clip", "style_frames", "prompt",
+                                 "prompt_defaut", "notes", "usd", "secondes_entree", "secondes_sortie", "cle_absente",
+                                 "refus")}
+
+
+@router.get("/shots/{shot_id}/previs/sources")
+async def shot_previs_sources(shot_id: str):
+    """t335 — ce que la fiche « Previs → plan » propose (lecture seule, gratuit) : les modèles (sans clé : listés,
+    `dispo` False et la clé nommée), les CLIPS de previs (la vidéo du plan d'abord, puis les rendus vidéo finis de la
+    Bibliothèque), les IMAGES du plan (production, croquis, bornes du Plateau) et le prompt proposé."""
+    from sqlalchemy import select as _sel
+    from app.services import video_refs as VR, previs_plan as PV
+    from app.services.storage import Shot, JobRecord, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        jobs = (await session.execute(_sel(JobRecord).where(JobRecord.status == "done")
+                                      .where(JobRecord.final_video_path.is_not(None))
+                                      .order_by(JobRecord.created_at.desc()).limit(_PREVIS_CLIPS_MAX * 2))).scalars().all()
+        style = await _atelier_setting(session, "global_style")
+    clips, vus = [], set()
+    for j in sorted(jobs, key=lambda j: j.id != getattr(s, "video", None)):
+        p = Path(str(j.final_video_path or ""))
+        if j.id in vus or p.suffix.lower() not in PV.EXT_CLIP or not p.is_file():
+            continue
+        vus.add(j.id)
+        clips.append({"job_id": j.id, "nom": p.name, "titre": (j.title or p.stem)[:120], "secondes": j.duration_s,
+                      "origine": "plan" if j.id == getattr(s, "video", None) else "bibliotheque"})
+        if len(clips) >= _PREVIS_CLIPS_MAX:
+            break
+    images = []
+    for origine, nom in (("production", getattr(s, "image", None)), ("croquis", s.sketch_image),
+                         ("plateau_debut", getattr(s, "keyframe_image", None)),
+                         ("plateau_fin", getattr(s, "keyframe_end", None))):
+        if nom and (settings.images_path / Path(nom).name).is_file() and all(i["nom"] != Path(nom).name for i in images):
+            images.append({"nom": Path(nom).name, "origine": origine})
+    action = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
+    modeles = []
+    for mid in VR.MODELES_PREVIS:
+        m = VR.REGISTRE_REFS[mid]
+        modeles.append({"id": mid, "label": m["label"], "endpoint": m["endpoint"], "clip": m["grammaire"] == "video",
+                        "taches": list(m.get("taches") or ()), "resolutions": list(m["resolutions"] or ()),
+                        "refs_max": m["refs"][1], "dispo": bool(settings.FAL_KEY),
+                        "cle": None if settings.FAL_KEY else "FAL_KEY",
+                        "prompt_defaut": PV.prompt_defaut(mid, action, 1, style)})
+    return {"defaut": VR.DEFAUT_PREVIS, "modeles": modeles, "clips": clips, "images": images,
+            "duree_plan": s.duration_s}
+
+
+@router.post("/shots/{shot_id}/previs/devis")
+async def shot_previs_devis(shot_id: str, body: dict | None = None, http: Request = None):
+    """t335 — le devis GRATUIT de « Previs → plan » : exactement ce que POST /shots/{id}/previs facturerait (même
+    calcul, _previs_calc). Aucune garde, aucune dépense, rien d'envoyé. La clé absente ne bloque pas le devis
+    (`cle_absente`) ; `refus` = le message que la route payante rendrait, sinon null.
+    Body : {modele?, clip_id? | video_filename?, style_frames?, prompt?, tache?, resolution?}."""
+    from app.services.storage import Shot, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+    if not s:
+        raise HTTPException(404, "Shot not found")
+    return _previs_public(await _previs_calc(s, body, http))
+
+
+@router.post("/shots/{shot_id}/previs", dependencies=[Depends(_require_local_depense)])
+async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTasks, http: Request = None):
+    """t335 — « Previs → plan » : PAYANT. Body : celui du devis + `confirme_cout: true` (sinon 409 avec le devis).
+    Le job (provider « previs ») est rattaché AU PLAN avant la fin du rendu (`shot.video`, la vignette le suit) ; la
+    vidéo rendue entre dans la Bibliothèque (source « atelier », relation « previs », mère = le clip de previs, ou la
+    1re style frame sans clip ; recette = modèle, endpoint, prompt exact, tâche, résolution, clip, style frames,
+    notes, usd, graine) -> le plan | {job_id, usd}."""
+    from app.services import previs_plan as PV, video_refs as VR
+    from app.services.storage import Shot, JobRecord, async_session_factory
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:     # LECTURE seule, fermée avant les gardes
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        calc = await _previs_calc(s, body, http)
+    mid = calc["modele"]
+    if calc["refus_etape"] == "modele":
+        raise HTTPException(calc["refus_code"], calc["refus"])
+    if calc["cle_absente"]:                            # 503 AVANT toute garde de dépense (zéro ligne `depenses`)
+        raise _refus_cle(calc["cle_absente"], _nom_g(mid, calc["label"]), http)
+    if calc["refus"]:
+        raise HTTPException(calc["refus_code"], calc["refus"])
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": _msg_g("previs.confirmer", http), "usd": calc["usd"],
+                                  "devis": _previs_public(calc)})
+    await _plafond(calc["op"], "chapitres", shot_id)    # avant la dépense
+    job_id = str(uuid4())
+    clip, frames = calc["clip_chemin"], list(calc["frames_chemins"])
+    titre = f"Previs → plan · {(s.action or '').strip()[:60] or shot_id[:8]}"
+    async with async_session_factory() as session:     # le job et shot.video, d'UN seul commit
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        session.add(JobRecord(id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5, title=titre[:120],
+                              image_filename=frames[0].name, final_prompt=calc["prompt"], video_model=mid,
+                              aspect_ratio="9:16", duration_s=int(round(calc["secondes_sortie"] or 0)) or None,
+                              provider="previs", current_step="Previs → plan",
+                              cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid})))
+        s.video = job_id
+        s.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(s)
+        out = _shot_dict(s) | {"job_id": job_id, "usd": calc["usd"]}
+
+    async def _run():
+        try:
+            res = await PV.tirer_previs(mid, clip=clip, frames=frames, prompt=calc["prompt"], tache=calc["tache"],
+                                        resolution=calc["resolution"],
+                                        duree=int(round(calc["secondes_sortie"] or 4)))
+            v = res["video"]
+            dur = await asyncio.to_thread(_probe_seconds, str(v))
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                jr.status, jr.progress, jr.current_step = JobStatus.DONE.value, 100, "Complete"
+                jr.final_video_path = jr.video_path = str(v)
+                jr.seed = res.get("seed")
+                jr.duration_s = int(round(dur)) if dur else jr.duration_s
+                jr.completed_at = datetime.utcnow()
+                await session.commit()
+            await LI.noter([v.name], "atelier", kind="video", job_id=job_id,
+                           parent=clip.name if clip is not None else frames[0].name, relation="previs",
+                           recette={"modele": mid, "endpoint": res["endpoint"], "prompt": calc["prompt"],
+                                    "tache": calc["tache"], "resolution": calc["resolution"],
+                                    "clip": clip.name if clip is not None else None,
+                                    "style_frames": [f.name for f in frames], "plan": shot_id,
+                                    "arguments": res["arguments"], "notes": calc["notes"] + res["notes"],
+                                    "usd": calc["usd"], "seed": res.get("seed")})
+        except Exception as e:  # noqa: BLE001 — l'échec reste lisible dans le job, jamais de job fantôme
+            logger.error(f"previs → plan {shot_id} ({job_id}) : {e}")
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.error, jr.current_step = JobStatus.FAILED.value, str(e)[:500], "Failed"
+                    await session.commit()
+
+    background_tasks.add_task(_run)
+    return out
+
+
 # Tâche #62 (plan chapitres T6, 02/10/2026) : la DÉRIVE de l'image de production, en LECTURE (décision du 02/10) —
 # affichée à côté de l'image, gratuite, elle ne décide rien. Référence : la vue « corps de face » de chaque entité
 # (à défaut la première de _ORDRE_VUES, à défaut la planche) ; l'angle mort (visage, natures différentes) est rendu.

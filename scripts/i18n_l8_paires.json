@@ -1083,6 +1083,12 @@
     "groupe": "at2"
    },
    {
+    "pos": 46918,
+    "avant": "${ico(\"dz-nav-plateau\")}</button>",
+    "apres": "${ico(\"dz-nav-plateau\")}</button>\r\n        <button class=\"btn ghost act-previs\" title=\"${dzT(\"atelier.t335_previs.bouton_t\")}\" aria-label=\"${dzT(\"atelier.t335_previs.bouton\")}\">${ico(\"dz-media-film\")}</button>",
+    "groupe": "t335"
+   },
+   {
     "pos": 47061,
     "avant": "\" alt=\"image de production\"",
     "apres": "\" alt=\"${dzT(\"atelier.at2_sb.prod_alt\")}\"",
@@ -1231,6 +1237,12 @@
     "avant": "// t127 : le Plateau 3D du plan",
     "apres": "// t189 : le storyboard 3D (SAM 3 → Plateau) et la vidéo du plan ; la vignette suit le job de la vidéo\r\n    card.querySelector(\".act-objets3d\").addEventListener(\"click\", () => objets3dPlan(id));\r\n    card.querySelector(\".act-video\").addEventListener(\"click\", () => videoPlan(id));\r\n    suivreVideo(card, sh());\r\n    // t127 : le Plateau 3D du plan",
     "groupe": "t189"
+   },
+   {
+    "pos": 51974,
+    "avant": "    card.querySelector(\".act-plateau\").addEventListener(\"click\", () => { location.href = \"/plateau/?shot=\" + encodeURIComponent(id); });",
+    "apres": "    card.querySelector(\".act-plateau\").addEventListener(\"click\", () => { location.href = \"/plateau/?shot=\" + encodeURIComponent(id); });\r\n    // t335 : « Previs → plan » — clip de previs + style frames → la vidéo du plan (boîte /shared/dz-previs-plan.js)\r\n    card.querySelector(\".act-previs\").addEventListener(\"click\", () => {\r\n      if (!window.__dzPrevisPlan) { toast(dzT(\"atelier.t335_previs.absent\"), true); return; }\r\n      const s = sh();\r\n      window.__dzPrevisPlan.ouvrir({ shot: s, numero: (s.idx || 0) + 1, toast, apres: () => loadShots(true) });\r\n    });",
+    "groupe": "t335"
    },
    {
     "pos": 52636,
