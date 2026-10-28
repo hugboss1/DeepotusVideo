@@ -114,5 +114,9 @@
   "prospects.opposition.identifiant": {"fr": "E-mail, numéro ou profil", "en": "Email, number or profile"},
   "prospects.opposition.aide": {"fr": "Une personne qui refuse d'être démarchée, quel que soit l'espace. Seule une empreinte est gardée, jamais l'adresse en clair.", "en": "Someone who refuses to be prospected, in any space. Only a fingerprint is kept, never the address in clear."},
   "prospects.opposition.inscrite": {"fr": "Opposition inscrite.", "en": "Objection recorded."},
-  "prospects.opposition.deja": {"fr": "Déjà inscrite au registre.", "en": "Already in the register."}
+  "prospects.opposition.deja": {"fr": "Déjà inscrite au registre.", "en": "Already in the register."},
+  "prospects.opposition.retiree": {"fr": "Saisie erronée retirée du registre.", "en": "Mistaken entry removed from the register."},
+  "prospects.opposition.absente": {"fr": "Absente du registre : rien à retirer.", "en": "Not in the register: nothing to remove."},
+  "prospects.bouton.retirer": {"fr": "Retirer", "en": "Remove"},
+  "prospects.erreur.reseau": {"fr": "Serveur injoignable : vérifiez que Deepotus tourne, puis réessayez.", "en": "Server unreachable: check that Deepotus is running, then try again."}
 }

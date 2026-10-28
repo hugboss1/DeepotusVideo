@@ -215,6 +215,9 @@ def _preparer(pris: dict, ignores: list) -> dict:
     type_ = e.get("type") if e.get("type") in espaces.TYPES else "marque"
     if e.get("type") is not None and e.get("type") not in espaces.TYPES:
         ignores.append(_ignore("type d'espace inconnu ({type}) : repris comme marque", type=str(e.get("type"))[:30]))
+    if type_ == "demonstration":     # t353 suite (M2) : une démo naît seulement au rdv d'un prospect de CETTE installation
+        type_ = "marque"
+        ignores.append(_ignore("espace démonstration : importé comme marque (il est lié à un prospect de l'autre installation)"))
     parent = None
     if e.get("parent"):
         try:

@@ -11,6 +11,9 @@
 - `POST   /{eid}/{pid}/opposer`                  anonymise et inscrit au registre
 - `GET    /{eid}/{pid}/export`                   la fiche en pièce jointe `prospect-<pid>.json` (droit d'accès)
 - `POST   /oppositions`                          {identifiant} saisi à la main -> {inscrit: bool} (rien en clair)
+- `POST   /oppositions/retirer`                  {identifiant} : saisie erronée retirée, journalisée -> {retire: bool} ;
+                                                 409 pour une opposition de la personne (t353 suite, M6)
+- la liste porte aussi `espaces_demo` {id: nom} (t353 suite, M8)
 Les messages passent par L10 (le gestionnaire traduit le champ `message` d'un detail dict). Relecture I4 : routes ASYNC,
 sur la boucle comme les autres écrivains d'espaces.json (le geste démonstration y écrit) : jamais depuis un thread.
 """
@@ -22,7 +25,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from app.api.routes import _require_localhost
-from app.services import oppositions as O, prospects as P
+from app.services import espaces as _es, oppositions as O, prospects as P
 
 router = APIRouter()
 
@@ -54,6 +57,23 @@ async def post_opposition(request: Request, body: dict):
         raise HTTPException(503, str(e)) from None
 
 
+@router.post("/oppositions/retirer")
+async def post_retrait(request: Request, body: dict):
+    """t353 suite (M6) : retire une saisie erronée (origine saisie ou effacement), journalisé ; une opposition de la
+    personne (fiche, STOP) ne se retire pas ici : 409. {retire: bool}."""
+    _require_localhost(request)
+    ident = _corps(body).get("identifiant")
+    if O.normaliser(ident) is None:
+        raise HTTPException(422, "identifiant illisible : une adresse e-mail, un numéro ou un profil est attendu")
+    try:
+        r = O.retirer([ident], "saisie_erronee")
+    except O.RegistreIndisponible as e:
+        raise HTTPException(503, str(e)) from None
+    if r["refuse"] and not r["retire"]:
+        raise HTTPException(409, "cette personne s'est opposée elle-même : seul son réabonnement la retire du registre")
+    return {"retire": r["retire"] > 0}
+
+
 @router.get("/{eid}")
 async def get_prospects(request: Request, eid: str, statut: str | None = None):
     def geste():
@@ -61,9 +81,12 @@ async def get_prospects(request: Request, eid: str, statut: str | None = None):
         compte = {}
         for f in tous:
             compte[f["statut"]] = compte.get(f["statut"], 0) + 1
+        espaces = _es.lire()["espaces"]          # t353 suite (M8) : l'écran nomme l'espace démo, jamais son id brut
         return {"prospects": [f for f in tous if not statut or f["statut"] == statut],
                 "compte_par_statut": compte, "oppositions": P._reg(O.compte),
-                "registre_mis_de_cote": O.mis_de_cote()}
+                "registre_mis_de_cote": O.mis_de_cote(),
+                "espaces_demo": {f["espace_demo"]: espaces[f["espace_demo"]].get("nom") or f["espace_demo"]
+                                 for f in tous if f["espace_demo"] and isinstance(espaces.get(f["espace_demo"]), dict)}}
     return _faire(request, geste)
 
 

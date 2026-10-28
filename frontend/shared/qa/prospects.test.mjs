@@ -205,6 +205,43 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
     && m.appels.some((a) => a.url === "/api/prospects/oppositions" && a.corps.identifiant === "paul@agence-m.fr"));
 }
 
+// ---- mineurs (t353 suite, 28/10) : serveur injoignable, nom de la démo, retrait du registre ---------------------------
+{
+  const m = monde({ routes: { "GET /api/prospects/e1": () => { throw new TypeError("Failed to fetch"); } } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  const err = tous(m.hote, (x) => x.attrs.class === "dzProspectsErreur")[0];
+  ok("9.1 serveur injoignable : l'erreur est dite", err && err.textContent === FR("prospects.erreur.reseau"), err && err.textContent);
+}
+{
+  const f = FICHE({ statut: "rdv", espace_demo: "esp_0000abcd" });
+  const m = monde({ routes: { "GET /api/prospects/e1": () => reponse(200, { prospects: [f], compte_par_statut: { rdv: 1 }, oppositions: 0,
+    espaces_demo: { esp_0000abcd: "Démo · Studio Lune" } }) } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  marques(m.hote, "ligne")[0].click(); await tick();
+  const d = marque(m.hote, "espace-demo");
+  ok("9.2 la fiche nomme l'espace démo, pas son id", d && d.textContent.includes("Démo · Studio Lune") && !d.textContent.includes("esp_0000abcd"), d && d.textContent);
+}
+{
+  const m = monde({ routes: { "GET /api/prospects/e1": () => reponse(200, LISTE),
+    "POST /api/prospects/oppositions/retirer": (c) => c.identifiant === "olga@agence-o.fr"
+      ? reponse(409, { detail: "cette personne s'est opposée elle-même" }) : reponse(200, { retire: c.identifiant === "erreur@exemple.fr" }) } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  marque(m.hote, "opposition-saisir").click(); await tick();
+  marque(m.hote, "opposition-identifiant").value = "erreur@exemple.fr";
+  marque(m.hote, "opposition-retirer").click(); await tick();
+  ok("9.3 saisie erronée retirée", marque(m.hote, "opposition-resultat").textContent === FR("prospects.opposition.retiree")
+    && m.appels.some((a) => a.url === "/api/prospects/oppositions/retirer" && a.corps.identifiant === "erreur@exemple.fr"));
+  marque(m.hote, "opposition-identifiant").value = "personne@exemple.fr";
+  marque(m.hote, "opposition-retirer").click(); await tick();
+  ok("9.4 absent du registre : dit", marque(m.hote, "opposition-resultat").textContent === FR("prospects.opposition.absente"));
+  marque(m.hote, "opposition-identifiant").value = "olga@agence-o.fr";
+  marque(m.hote, "opposition-retirer").click(); await tick();
+  ok("9.5 opposition de la personne : le refus est dit", marque(m.hote, "erreur").textContent.includes("opposée elle-même"));
+}
+
 // ---- anglais, demontage -----------------------------------------------------------------------------------------------
 {
   const m = monde({ lang: "en", routes: { "GET /api/prospects/e1": () => reponse(200, LISTE) } });

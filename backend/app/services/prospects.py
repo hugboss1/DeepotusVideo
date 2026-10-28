@@ -284,7 +284,7 @@ def identifiants(fiche: dict) -> list:
     """Les identifiants d'une fiche qui comptent pour le registre et les doublons (formes normalisées)."""
     out = []
     for c in fiche.get("canaux") or []:
-        f = _op.normaliser(c.get("valeur"))
+        f = _op.normaliser_canal(c.get("type"), c.get("valeur"))      # t353 suite (M7) : un pseudo compte aussi
         if f and f not in out:
             out.append(f)
     return out
@@ -472,6 +472,11 @@ def modifier(eid, pid, champs, qui: str = "utilisateur") -> dict:
         _noter(neuf, "modification", ", ".join(k for k in _EDITABLES if k in champs), qui)
         fiches[fiches.index(f)] = neuf
         _poser(eid, fiches)
+    if neuf["espace_demo"] and neuf["entreprise"] != f["entreprise"]:     # t353 suite (M9) : la démo suit l'entreprise
+        try:
+            _es.renommer_demonstration(neuf["espace_demo"], _nom_demo(neuf))
+        except Exception as e:  # noqa: BLE001 — la fiche est enregistrée ; le nom de la démo est un plus
+            logger.warning(f"prospects : espace démonstration {neuf['espace_demo']} non renommé ({type(e).__name__})")
     return neuf
 
 
@@ -488,8 +493,29 @@ def opposer(eid, pid, qui: str = "utilisateur") -> dict:
     return changer_statut(eid, pid, "oppose", qui=qui)["prospect"]
 
 
+def _defaire_demo(statut: str, pid: str, avant: str | None, apres: str | None, archive_avant: bool | None) -> None:
+    """t353 suite (M4) : la fiche n'a pas pu être écrite après le geste sur l'espace démonstration : on le défait, pour
+    qu'un nouvel essai ne crée pas un second espace. `rdv` : la démo NEUVE est neutralisée (renommée, archivée), une démo
+    rouverte est refermée ; `perdu` : la démo archivée est rouverte ; `client` : l'espace client NEUF est archivé (une
+    démo convertie le reste : le nouvel essai la retrouve). `oppose` : rien (le registre a déjà parlé). Jamais remonté."""
+    try:
+        if statut == "rdv":
+            if apres and apres != avant:
+                _es.neutraliser_demonstration(apres, "Démo · " + pid)
+            elif avant and archive_avant:
+                _es.archiver(avant, True)
+        elif statut == "perdu" and avant and archive_avant is False:
+            _es.archiver(avant, False)
+        elif statut == "client" and apres and apres != avant:
+            _es.archiver(apres, True)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"prospects : geste sur l'espace démonstration non défait ({type(e).__name__})")
+
+
 def changer_statut(eid, pid, statut, detail: str = "", qui: str = "utilisateur") -> dict:
     """{prospect, note} ; note ∈ {None, demo_active, plafond_espaces, demo_absente, demo_erreur} (tâche 3)."""
+    if statut not in STATUTS:              # t353 suite (M5) : absent ou inconnu = un champ fautif, pas une transition
+        raise RefusProspect("statut inconnu", "champ")
     _espace(eid, archive_ok=(statut == "oppose"))
     with _verrou:
         fiches = _charger(eid)
@@ -497,22 +523,31 @@ def changer_statut(eid, pid, statut, detail: str = "", qui: str = "utilisateur")
         if statut not in TRANSITIONS.get(f["statut"], ()):
             raise RefusProspect(f"passage impossible de « {f['statut']} » à « {statut} »", "transition")
         avant = f["statut"]
+        demo_avant = f.get("espace_demo")
+        e = _es.lire()["espaces"].get(demo_avant) if demo_avant else None
+        archive_avant = bool(e.get("archive")) if isinstance(e, dict) else None
+        if statut == "oppose":             # t353 suite (M4) : le registre d'abord ; indisponible = rien n'a bougé
+            _reg(_op.inscrire, identifiants(f), "prospect")
         try:
             note = _DEMO(eid, f, statut)
         except Exception as e:  # noqa: BLE001 — le statut passe toujours ; l'espace démonstration est un plus
             logger.warning(f"prospects : geste sur l'espace démonstration en échec ({type(e).__name__}: {e})")
             note = "demo_erreur"
-        if statut == "oppose":
-            _reg(_op.inscrire, identifiants(f), "prospect")
-            f = _anonymiser(f)
-        else:
-            f["statut"] = statut
-            if statut in ("repondu", "rdv"):
-                f["dernier_contact_entrant"] = _aujourdhui().isoformat()
-                f["purge_le"] = purge_le(f)
-            _noter(f, "statut", f"{avant} → {statut}" + (f" · {detail}" if _txt(detail, 200) else ""), qui)
-        fiches = [f if x["id"] == pid else x for x in fiches]
-        _poser(eid, fiches)
+        demo_apres = f.get("espace_demo")
+        try:
+            if statut == "oppose":
+                f = _anonymiser(f)
+            else:
+                f["statut"] = statut
+                if statut in ("repondu", "rdv"):
+                    f["dernier_contact_entrant"] = _aujourdhui().isoformat()
+                    f["purge_le"] = purge_le(f)
+                _noter(f, "statut", f"{avant} → {statut}" + (f" · {detail}" if _txt(detail, 200) else ""), qui)
+            fiches = [f if x["id"] == pid else x for x in fiches]
+            _poser(eid, fiches)
+        except Exception:
+            _defaire_demo(statut, pid, demo_avant, demo_apres, archive_avant)
+            raise
     return {"prospect": f, "note": note}
 
 

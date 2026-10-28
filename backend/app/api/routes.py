@@ -9276,6 +9276,10 @@ def _regles_client_patch(p: ScheduledPost, body: dict, contenu_avant, comptes_av
     from app.services import regles_client as _rc
     ex = _rc.exigences(p.espace_id, [])
     if ex is None:
+        # t353 suite (M1) : sans client, un post qui DEVIENT programmé passe quand même `controler` (un espace
+        # démonstration le refuse : 409, rien d'écrit) ; sans règle, controler ne dit rien
+        if p.status in ("scheduled", "ready") and statut_avant not in ("scheduled", "ready"):
+            _controler_client(p, body.get("confirme_client"))
         return
     a_valider = ex["mode"] == "valide_par_client"
     contenu = contenu_avant != (p.title, p.caption, p.source_image, p.job_id, p.brief)
