@@ -542,6 +542,30 @@ app.include_router(audio_graph_router, prefix="/api/audio/graph")
 # t276 (22/10/2026) : la pile de post-traitement de Son & VFX
 from app.api.post_routes import router as post_router
 app.include_router(post_router, prefix="/api/post")
+# t312 (28/10/2026) : /api/scan — une page (image ou PDF) -> texte (Windows.Media.Ocr, secours Claude payant), local seulement
+from app.api.scan_routes import router as scan_router
+app.include_router(scan_router, prefix="/api/scan")
+# t315 (28/10/2026) : /api/capture — les sessions de capture de l'app (pistes brutes, piste des clics), local seulement
+from app.api.capture_routes import router as capture_router
+app.include_router(capture_router, prefix="/api/capture")
+# t316 (28/10/2026) : /api/skins — les skins qui habillent la scène de la capture (cadre, bandeau, intro, alertes…), local seulement
+from app.api.skins_routes import router as skins_router
+app.include_router(skins_router, prefix="/api/skins")
+# t317 (28/10/2026) : /api/capture-montage — le montage après coup des captures (zooms, coupes, chapitres, format), local seulement
+from app.api.capture_montage_routes import router as capture_montage_router
+app.include_router(capture_montage_router, prefix="/api/capture-montage")
+# t318 (28/10/2026) : /api/live — le direct multi-destinations (WebSocket local -> ffmpeg tee -> RTMP(S)), local seulement
+from app.api.live_routes import router as live_router
+app.include_router(live_router, prefix="/api/live")
+# t313 (28/10/2026) : /api/inspiration — d'une inspiration à un contenu NEUF (matière, angles, devis, brouillon), local seulement
+from app.api.inspiration_routes import router as inspiration_router
+app.include_router(inspiration_router, prefix="/api/inspiration")
+# t314 (28/10/2026) : /api/schema — illustration ou schéma -> calques nommés (Vectorlab) -> base d'animation, local seulement
+from app.api.schema_routes import router as schema_router
+app.include_router(schema_router, prefix="/api/schema")
+# t319 (28/10/2026) : /api/tutoriels — brouillon de tutoriel d'une capture et parcours partagés (.dzparcours), local seulement
+from app.api.tutoriels_routes import router as tutoriels_router
+app.include_router(tutoriels_router, prefix="/api/tutoriels")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

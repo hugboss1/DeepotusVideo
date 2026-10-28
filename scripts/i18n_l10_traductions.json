@@ -10795,10 +10795,6 @@
   "fr": "{c} est posé par la liaison du compte, jamais saisi",
   "en": "{c} is set by the account link, never typed in"
  },
- "un compte WhatsApp n'est pas une cible de publication": {
-  "fr": "un compte WhatsApp n'est pas une cible de publication",
-  "en": "a WhatsApp account is not a publishing target"
- },
  "comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, il ne s'importe pas": {
   "fr": "comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, il ne s'importe pas",
   "en": "comptes.json: account no. {i} ({plateforme}) ignored: it is linked in each space, it is not imported"
@@ -11227,6 +11223,10 @@
   "fr": "ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la conversation, puis confirmez pour le renvoyer",
   "en": "this message may already have been sent (Kapso failed during sending): check the conversation, then confirm to send it again"
  },
+ "Une diffusion Kapso accepte au plus 1 000 destinataires par lot": {
+  "fr": "Une diffusion Kapso accepte au plus 1 000 destinataires par lot",
+  "en": "A Kapso broadcast accepts at most 1,000 recipients per batch"
+ },
  "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu": {
   "fr": "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu",
   "en": "agent: drafts per contact and per day: an integer from 0 to 200 is expected"
@@ -11395,6 +11395,146 @@
   "fr": "espace démonstration : importé comme marque (il est lié à un prospect de l'autre installation)",
   "en": "demo space: imported as a brand (it is tied to a prospect of the other installation)"
  },
+ "Image illisible : formats acceptés PNG, JPEG, WEBP, BMP, TIFF.": {
+  "fr": "Image illisible : formats acceptés PNG, JPEG, WEBP, BMP, TIFF.",
+  "en": "Unreadable image: accepted formats are PNG, JPEG, WEBP, BMP, TIFF."
+ },
+ "Langue de lecture inconnue : fr ou en.": {
+  "fr": "Langue de lecture inconnue : fr ou en.",
+  "en": "Unknown reading language: fr or en."
+ },
+ "La lecture de texte locale n'existe que sous Windows.": {
+  "fr": "La lecture de texte locale n'existe que sous Windows.",
+  "en": "Local text reading is only available on Windows."
+ },
+ "Cette langue de lecture n'est pas installée dans Windows.": {
+  "fr": "Cette langue de lecture n'est pas installée dans Windows.",
+  "en": "This reading language is not installed in Windows."
+ },
+ "La lecture de texte de Windows a échoué.": {
+  "fr": "La lecture de texte de Windows a échoué.",
+  "en": "Windows text reading failed."
+ },
+ "La lecture de texte de Windows a rendu une réponse illisible.": {
+  "fr": "La lecture de texte de Windows a rendu une réponse illisible.",
+  "en": "Windows text reading returned an unreadable response."
+ },
+ "La lecture de texte de Windows a dépassé le délai d'une minute.": {
+  "fr": "La lecture de texte de Windows a dépassé le délai d'une minute.",
+  "en": "Windows text reading exceeded the one-minute time limit."
+ },
+ "La lecture de texte de Windows ne répond pas (PowerShell absent ou bloqué).": {
+  "fr": "La lecture de texte de Windows ne répond pas (PowerShell absent ou bloqué).",
+  "en": "Windows text reading is not responding (PowerShell missing or blocked)."
+ },
+ "Impossible d'écrire l'image temporaire de la lecture (disque plein ?).": {
+  "fr": "Impossible d'écrire l'image temporaire de la lecture (disque plein ?).",
+  "en": "Could not write the temporary image for reading (disk full?)."
+ },
+ "Nombre de pages invalide (1 à {MAX_PAGES}).": {
+  "fr": "Nombre de pages invalide (1 à {MAX_PAGES}).",
+  "en": "Invalid number of pages (1 to {MAX_PAGES})."
+ },
+ "Il faut de 1 à {MAX_PAGES} pages.": {
+  "fr": "Il faut de 1 à {MAX_PAGES} pages.",
+  "en": "From 1 to {MAX_PAGES} pages are required."
+ },
+ "Une page est illisible : image invalide.": {
+  "fr": "Une page est illisible : image invalide.",
+  "en": "A page is unreadable: invalid image."
+ },
+ "Le moteur Anthropic n'est pas configuré (Réglages › Clés d'API).": {
+  "fr": "Le moteur Anthropic n'est pas configuré (Réglages › Clés d'API).",
+  "en": "The Anthropic engine is not configured (Settings › API keys)."
+ },
+ "Le modèle Anthropic réglé ne lit pas les images : choisis-en un qui les voit (Réglages › Modèles).": {
+  "fr": "Le modèle Anthropic réglé ne lit pas les images : choisis-en un qui les voit (Réglages › Modèles).",
+  "en": "The configured Anthropic model cannot read images: choose one that can (Settings › Models)."
+ },
+ "Le coût a changé : il dépasse le montant accepté.": {
+  "fr": "Le coût a changé : il dépasse le montant accepté.",
+  "en": "The cost changed: it exceeds the accepted amount."
+ },
+ "Aucune langue de lecture de texte n'est installée dans Windows.": {
+  "fr": "Aucune langue de lecture de texte n'est installée dans Windows.",
+  "en": "No text-recognition language is installed in Windows."
+ },
+ "Langue de lecture inconnue : fr, en ou auto.": {
+  "fr": "Langue de lecture inconnue : fr, en ou auto.",
+  "en": "Unknown reading language: fr, en or auto."
+ },
+ "Il faut de 1 à 10 pages à lire.": {
+  "fr": "Il faut de 1 à 10 pages à lire.",
+  "en": "Provide 1 to 10 pages to read."
+ },
+ "Ce scan n'a aucune page en image à relire : son texte a été lu directement.": {
+  "fr": "Ce scan n'a aucune page en image à relire : son texte a été lu directement.",
+  "en": "This scan has no image page to re-read: its text was read directly."
+ },
+ "Aucun texte à découper.": {
+  "fr": "Aucun texte à découper.",
+  "en": "No text to split."
+ },
+ "Texte trop long : 2 Mo au plus.": {
+  "fr": "Texte trop long : 2 Mo au plus.",
+  "en": "Text too long: 2 MB at most."
+ },
+ "Scan inconnu ou expiré (gardé une heure) : relance la lecture.": {
+  "fr": "Scan inconnu ou expiré (gardé une heure) : relance la lecture.",
+  "en": "Unknown or expired scan (kept for one hour): run the reading again."
+ },
+ "Rien à lire : ce PDF n'a ni texte sélectionnable ni image de page.": {
+  "fr": "Rien à lire : ce PDF n'a ni texte sélectionnable ni image de page.",
+  "en": "Nothing to read: this PDF has neither selectable text nor page images."
+ },
+ "Ce PDF est illisible (abîmé ou protégé par un mot de passe).": {
+  "fr": "Ce PDF est illisible (abîmé ou protégé par un mot de passe).",
+  "en": "This PDF cannot be read (damaged or password-protected)."
+ },
+ "Trop de pages : 10 au plus par lecture (les pages des PDF comptent).": {
+  "fr": "Trop de pages : 10 au plus par lecture (les pages des PDF comptent).",
+  "en": "Too many pages: 10 at most per reading (PDF pages count)."
+ },
+ "Fichier trop lourd : 20 Mo au plus par page.": {
+  "fr": "Fichier trop lourd : 20 Mo au plus par page.",
+  "en": "File too large: 20 MB at most per page."
+ },
+ "Format non pris en charge : PNG, JPEG, WEBP, BMP, TIFF ou PDF.": {
+  "fr": "Format non pris en charge : PNG, JPEG, WEBP, BMP, TIFF ou PDF.",
+  "en": "Unsupported format: PNG, JPEG, WEBP, BMP, TIFF or PDF."
+ },
+ "Image trop grande : 60 mégapixels au plus par page.": {
+  "fr": "Image trop grande : 60 mégapixels au plus par page.",
+  "en": "Image too large: 60 megapixels at most per page."
+ },
+ "Image de page PDF trop lourde : 20 Mo au plus.": {
+  "fr": "Image de page PDF trop lourde : 20 Mo au plus.",
+  "en": "PDF page image too large: 20 MB at most."
+ },
+ "PDF trop long : 200 pages au plus.": {
+  "fr": "PDF trop long : 200 pages au plus.",
+  "en": "PDF too long: 200 pages at most."
+ },
+ "Aucune lecture par Claude n'est gardée pour ce scan.": {
+  "fr": "Aucune lecture par Claude n'est gardée pour ce scan.",
+  "en": "No Claude reading is kept for this scan."
+ },
+ "La lecture de texte de Windows a dépassé deux minutes : réessaie avec moins de pages.": {
+  "fr": "La lecture de texte de Windows a dépassé deux minutes : réessaie avec moins de pages.",
+  "en": "Windows text reading took more than two minutes: try again with fewer pages."
+ },
+ "La lecture par Claude n'a pas répondu à temps : elle a peut-être été facturée. Vérifie tes dépenses avant de relire.": {
+  "fr": "La lecture par Claude n'a pas répondu à temps : elle a peut-être été facturée. Vérifie tes dépenses avant de relire.",
+  "en": "The Claude reading did not answer in time: it may have been billed. Check your spending before reading again."
+ },
+ "La lecture par Claude a échoué (réseau) : elle a peut-être été facturée. Vérifie tes dépenses avant de relire.": {
+  "fr": "La lecture par Claude a échoué (réseau) : elle a peut-être été facturée. Vérifie tes dépenses avant de relire.",
+  "en": "The Claude reading failed (network): it may have been billed. Check your spending before reading again."
+ },
+ "Une lecture par Claude de ce scan est déjà en cours : attends sa réponse.": {
+  "fr": "Une lecture par Claude de ce scan est déjà en cours : attends sa réponse.",
+  "en": "A Claude reading of this scan is already running: wait for its answer."
+ },
  "origine du fichier inconnue (liste_attente ou formulaire)": {
   "fr": "origine du fichier inconnue (liste_attente ou formulaire)",
   "en": "unknown file origin (liste_attente or formulaire)"
@@ -11462,6 +11602,550 @@
  "{fournisseur} injoignable ({name})": {
   "fr": "{fournisseur} injoignable ({name})",
   "en": "{fournisseur} unreachable ({name})"
+ },
+ "Corps de requête trop lourd.": {
+  "fr": "Corps de requête trop lourd.",
+  "en": "Request body too large."
+ },
+ "Corps JSON illisible.": {
+  "fr": "Corps JSON illisible.",
+  "en": "Unreadable JSON body."
+ },
+ "Numéro de morceau invalide.": {
+  "fr": "Numéro de morceau invalide.",
+  "en": "Invalid chunk number."
+ },
+ "Cette capture est close.": {
+  "fr": "Cette capture est close.",
+  "en": "This capture is closed."
+ },
+ "Piste absente de cette capture.": {
+  "fr": "Piste absente de cette capture.",
+  "en": "This capture has no such track."
+ },
+ "Morceau trop lourd : 16 Mo au plus.": {
+  "fr": "Morceau trop lourd : 16 Mo au plus.",
+  "en": "Chunk too large: 16 MB at most."
+ },
+ "Identifiant de capture invalide.": {
+  "fr": "Identifiant de capture invalide.",
+  "en": "Invalid capture id."
+ },
+ "Capture introuvable.": {
+  "fr": "Capture introuvable.",
+  "en": "Capture not found."
+ },
+ "Format de piste refusé : vidéo WebM ou MP4, voix WebM, Ogg ou MP4.": {
+  "fr": "Format de piste refusé : vidéo WebM ou MP4, voix WebM, Ogg ou MP4.",
+  "en": "Track format refused: video WebM or MP4, voice WebM, Ogg or MP4."
+ },
+ "Piste inconnue : scene, ecran, camera ou voix.": {
+  "fr": "Piste inconnue : scene, ecran, camera ou voix.",
+  "en": "Unknown track: scene, ecran, camera or voix."
+ },
+ "La capture n'a reçu aucune image.": {
+  "fr": "La capture n'a reçu aucune image.",
+  "en": "The capture received no picture."
+ },
+ "Le format de la piste a changé en cours d'enregistrement.": {
+  "fr": "Le format de la piste a changé en cours d'enregistrement.",
+  "en": "The track format changed during the recording."
+ },
+ "Morceau hors ordre : la piste attend le morceau {attendu}.": {
+  "fr": "Morceau hors ordre : la piste attend le morceau {attendu}.",
+  "en": "Chunk out of order: the track expects chunk {attendu}."
+ },
+ "Piste trop longue : 4 Go au plus.": {
+  "fr": "Piste trop longue : 4 Go au plus.",
+  "en": "Track too long: 4 GB at most."
+ },
+ "Identifiant de skin invalide.": {
+  "fr": "Identifiant de skin invalide.",
+  "en": "Invalid skin identifier."
+ },
+ "Skin illisible : un objet JSON est attendu.": {
+  "fr": "Skin illisible : un objet JSON est attendu.",
+  "en": "Unreadable skin: a JSON object is expected."
+ },
+ "Skin illisible.": {
+  "fr": "Skin illisible.",
+  "en": "Unreadable skin."
+ },
+ "Skin introuvable.": {
+  "fr": "Skin introuvable.",
+  "en": "Skin not found."
+ },
+ "Un skin livré ne se modifie pas : dupliquez-le d'abord.": {
+  "fr": "Un skin livré ne se modifie pas : dupliquez-le d'abord.",
+  "en": "A built-in skin cannot be changed: duplicate it first."
+ },
+ "Un skin livré ne se supprime pas.": {
+  "fr": "Un skin livré ne se supprime pas.",
+  "en": "A built-in skin cannot be deleted."
+ },
+ "Image trop lourde : 5 Mo au plus.": {
+  "fr": "Image trop lourde : 5 Mo au plus.",
+  "en": "Image too heavy: 5 MB at most."
+ },
+ "Image inconnue : logo ou fond.": {
+  "fr": "Image inconnue : logo ou fond.",
+  "en": "Unknown image: logo or background."
+ },
+ "Image introuvable.": {
+  "fr": "Image introuvable.",
+  "en": "Image not found."
+ },
+ "Paquet trop lourd : 12 Mo au plus.": {
+  "fr": "Paquet trop lourd : 12 Mo au plus.",
+  "en": "Package too heavy: 12 MB at most."
+ },
+ "Paquet refusé : trop d'entrées.": {
+  "fr": "Paquet refusé : trop d'entrées.",
+  "en": "Package refused: too many entries."
+ },
+ "Paquet refusé : skin.json manquant.": {
+  "fr": "Paquet refusé : skin.json manquant.",
+  "en": "Package refused: skin.json missing."
+ },
+ "Paquet refusé : ce n'est pas un skin DeepotusVideo de version 1.": {
+  "fr": "Paquet refusé : ce n'est pas un skin DeepotusVideo de version 1.",
+  "en": "Package refused: this is not a version 1 DeepotusVideo skin."
+ },
+ "Trop de skins : supprimez-en un d'abord.": {
+  "fr": "Trop de skins : supprimez-en un d'abord.",
+  "en": "Too many skins: delete one first."
+ },
+ "Ce fichier n'est pas une image lisible (PNG, JPEG ou WebP).": {
+  "fr": "Ce fichier n'est pas une image lisible (PNG, JPEG ou WebP).",
+  "en": "This file is not a readable image (PNG, JPEG or WebP)."
+ },
+ "Ce fichier n'est pas un paquet de skin (.zip) lisible.": {
+  "fr": "Ce fichier n'est pas un paquet de skin (.zip) lisible.",
+  "en": "This file is not a readable skin package (.zip)."
+ },
+ "Paquet refusé : contenu décompressé trop lourd.": {
+  "fr": "Paquet refusé : contenu décompressé trop lourd.",
+  "en": "Package refused: unpacked content too heavy."
+ },
+ "Paquet refusé : skin.json illisible.": {
+  "fr": "Paquet refusé : skin.json illisible.",
+  "en": "Package refused: unreadable skin.json."
+ },
+ "Ce skin appartient à un autre espace : dupliquez-le d'abord.": {
+  "fr": "Ce skin appartient à un autre espace : dupliquez-le d'abord.",
+  "en": "This skin belongs to another space: duplicate it first."
+ },
+ "Image trop grande.": {
+  "fr": "Image trop grande.",
+  "en": "Image too large."
+ },
+ "Cette capture n'est pas terminée.": {
+  "fr": "Cette capture n'est pas terminée.",
+  "en": "This recording is not finished."
+ },
+ "Un rendu de cette capture est déjà en cours.": {
+  "fr": "Un rendu de cette capture est déjà en cours.",
+  "en": "A render of this recording is already running."
+ },
+ "La confirmation exige le coût accepté (max_usd).": {
+  "fr": "La confirmation exige le coût accepté (max_usd).",
+  "en": "The confirmation needs the accepted cost (max_usd)."
+ },
+ "Montage illisible.": {
+  "fr": "Montage illisible.",
+  "en": "Unreadable edit."
+ },
+ "Les coupes retirent toute la vidéo.": {
+  "fr": "Les coupes retirent toute la vidéo.",
+  "en": "The cuts remove the whole video."
+ },
+ "La piste de la capture est illisible.": {
+  "fr": "La piste de la capture est illisible.",
+  "en": "The recording track is unreadable."
+ },
+ "Le rendu du montage a échoué.": {
+  "fr": "Le rendu du montage a échoué.",
+  "en": "The edit render failed."
+ },
+ "une destination du direct n'est pas une cible de publication": {
+  "fr": "une destination du direct n'est pas une cible de publication",
+  "en": "a live destination is not a publishing target"
+ },
+ "Serveur du direct invalide : une adresse rtmp:// ou rtmps:// sans espace ni | [ ] est attendue.": {
+  "fr": "Serveur du direct invalide : une adresse rtmp:// ou rtmps:// sans espace ni | [ ] est attendue.",
+  "en": "Invalid live server: an rtmp:// or rtmps:// address without spaces or | [ ] is expected."
+ },
+ "Clé de stream invalide (espace, barre ou caractère interdit).": {
+  "fr": "Clé de stream invalide (espace, barre ou caractère interdit).",
+  "en": "Invalid stream key (space, slash or forbidden character)."
+ },
+ "Choisis au moins une destination du direct.": {
+  "fr": "Choisis au moins une destination du direct.",
+  "en": "Choose at least one live destination."
+ },
+ "Six destinations au plus.": {
+  "fr": "Six destinations au plus.",
+  "en": "Six destinations at most."
+ },
+ "Direct inconnu.": {
+  "fr": "Direct inconnu.",
+  "en": "Unknown live stream."
+ },
+ "Ce direct est terminé.": {
+  "fr": "Ce direct est terminé.",
+  "en": "This live stream has ended."
+ },
+ "Deux cents marqueurs au plus.": {
+  "fr": "Deux cents marqueurs au plus.",
+  "en": "Two hundred markers at most."
+ },
+ "Instant du marqueur invalide.": {
+  "fr": "Instant du marqueur invalide.",
+  "en": "Invalid marker time."
+ },
+ "Ce compte n'est pas un compte Discord.": {
+  "fr": "Ce compte n'est pas un compte Discord.",
+  "en": "This account is not a Discord account."
+ },
+ "Ce compte Discord appartient à un autre espace.": {
+  "fr": "Ce compte Discord appartient à un autre espace.",
+  "en": "This Discord account belongs to another space."
+ },
+ "Webhook Discord invalide : une adresse https://discord.com/api/webhooks/… est attendue.": {
+  "fr": "Webhook Discord invalide : une adresse https://discord.com/api/webhooks/… est attendue.",
+  "en": "Invalid Discord webhook: an https://discord.com/api/webhooks/… address is expected."
+ },
+ "Ce compte n'est pas une destination du direct.": {
+  "fr": "Ce compte n'est pas une destination du direct.",
+  "en": "This account is not a live destination."
+ },
+ "Cette destination appartient à un autre espace.": {
+  "fr": "Cette destination appartient à un autre espace.",
+  "en": "This destination belongs to another space."
+ },
+ "Clé de stream absente pour {libelle} : colle-la d'abord.": {
+  "fr": "Clé de stream absente pour {libelle} : colle-la d'abord.",
+  "en": "Stream key missing for {libelle}: paste it first."
+ },
+ "Un direct est déjà en cours.": {
+  "fr": "Un direct est déjà en cours.",
+  "en": "A live stream is already running."
+ },
+ "Ce direct est déjà branché ou terminé.": {
+  "fr": "Ce direct est déjà branché ou terminé.",
+  "en": "This live stream is already connected or has ended."
+ },
+ "Compte Discord inconnu.": {
+  "fr": "Compte Discord inconnu.",
+  "en": "Unknown Discord account."
+ },
+ "Capture inconnue.": {
+  "fr": "Capture inconnue.",
+  "en": "Unknown recording."
+ },
+ "Destination du direct inconnue.": {
+  "fr": "Destination du direct inconnue.",
+  "en": "Unknown live destination."
+ },
+ "Ce direct a déjà été annoncé.": {
+  "fr": "Ce direct a déjà été annoncé.",
+  "en": "This live stream has already been announced."
+ },
+ "ffmpeg introuvable : le direct ne peut pas partir.": {
+  "fr": "ffmpeg introuvable : le direct ne peut pas partir.",
+  "en": "ffmpeg not found: the live stream cannot start."
+ },
+ "Inspiration inconnue.": {
+  "fr": "Inspiration inconnue.",
+  "en": "Unknown inspiration."
+ },
+ "Texte trop long : 20 000 caractères au plus.": {
+  "fr": "Texte trop long : 20 000 caractères au plus.",
+  "en": "Text too long: 20,000 characters at most."
+ },
+ "Rien à lire : dépose une capture ou colle un texte.": {
+  "fr": "Rien à lire : dépose une capture ou colle un texte.",
+  "en": "Nothing to read: drop a capture or paste a text."
+ },
+ "Il faut d'abord extraire la matière et les angles.": {
+  "fr": "Il faut d'abord extraire la matière et les angles.",
+  "en": "Extract the material and the angles first."
+ },
+ "Angle inconnu : choisis l'un des trois angles proposés.": {
+  "fr": "Angle inconnu : choisis l'un des trois angles proposés.",
+  "en": "Unknown angle: pick one of the three proposed angles."
+ },
+ "Cet angle reprend la capture ou un mot interdit : choisis-en un autre ou relance l'analyse.": {
+  "fr": "Cet angle reprend la capture ou un mot interdit : choisis-en un autre ou relance l'analyse.",
+  "en": "This angle reuses the capture or a banned word: pick another one or run the analysis again."
+ },
+ "Cette inspiration n'a pas d'image à lire.": {
+  "fr": "Cette inspiration n'a pas d'image à lire.",
+  "en": "This inspiration has no image to read."
+ },
+ "La réponse de Claude est illisible (elle a été facturée) : relance.": {
+  "fr": "La réponse de Claude est illisible (elle a été facturée) : relance.",
+  "en": "Claude's answer is unreadable (it was billed): try again."
+ },
+ "Visuel inconnu dans la Bibliothèque.": {
+  "fr": "Visuel inconnu dans la Bibliothèque.",
+  "en": "Unknown visual in the Library."
+ },
+ "Le titre est vide.": {
+  "fr": "Le titre est vide.",
+  "en": "The title is empty."
+ },
+ "Trop proche de la capture : une suite de 12 mots ou plus la reprend. Réécris ce passage.": {
+  "fr": "Trop proche de la capture : une suite de 12 mots ou plus la reprend. Réécris ce passage.",
+  "en": "Too close to the capture: a run of 12 words or more repeats it. Rewrite that passage."
+ },
+ "Mots interdits de l'espace : réécris sans eux.": {
+  "fr": "Mots interdits de l'espace : réécris sans eux.",
+  "en": "Banned words of the space: rewrite without them."
+ },
+ "L'espace de cette inspiration est inconnu ou archivé.": {
+  "fr": "L'espace de cette inspiration est inconnu ou archivé.",
+  "en": "This inspiration's space is unknown or archived."
+ },
+ "Une seule image (PNG, JPEG, WEBP, BMP ou TIFF) : pas de PDF ni de pages multiples.": {
+  "fr": "Une seule image (PNG, JPEG, WEBP, BMP ou TIFF) : pas de PDF ni de pages multiples.",
+  "en": "A single image (PNG, JPEG, WEBP, BMP or TIFF): no PDF and no multiple pages."
+ },
+ "Une demande payante est déjà en cours pour cette inspiration : attends sa réponse.": {
+  "fr": "Une demande payante est déjà en cours pour cette inspiration : attends sa réponse.",
+  "en": "A paid request is already running for this inspiration: wait for its answer."
+ },
+ "Ce visuel est l'image captée : elle ne peut jamais être le visuel du post. Génère un visuel neuf.": {
+  "fr": "Ce visuel est l'image captée : elle ne peut jamais être le visuel du post. Génère un visuel neuf.",
+  "en": "This visual is the captured image: it can never be the post's visual. Generate a new visual."
+ },
+ "Claude n'a pas répondu à temps : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.": {
+  "fr": "Claude n'a pas répondu à temps : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.",
+  "en": "Claude did not answer in time: the request may have been billed. Check your spending before trying again."
+ },
+ "L'appel à Claude a échoué (réseau) : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.": {
+  "fr": "L'appel à Claude a échoué (réseau) : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.",
+  "en": "The call to Claude failed (network): the request may have been billed. Check your spending before trying again."
+ },
+ "Image illisible.": {
+  "fr": "Image illisible.",
+  "en": "Unreadable image."
+ },
+ "La source de l'inspiration (lien ou compte) ne se publie pas : retire-la du texte.": {
+  "fr": "La source de l'inspiration (lien ou compte) ne se publie pas : retire-la du texte.",
+  "en": "The inspiration's source (link or account) is never published: remove it from the text."
+ },
+ "Ce détourage n'est pas proposé pour un schéma : choisis-en un autre.": {
+  "fr": "Ce détourage n'est pas proposé pour un schéma : choisis-en un autre.",
+  "en": "This background removal is not offered for a diagram: choose another one."
+ },
+ "Aucune image dans ce fichier : dépose une photo ou un dessin.": {
+  "fr": "Aucune image dans ce fichier : dépose une photo ou un dessin.",
+  "en": "No image in this file: drop a photo or a drawing."
+ },
+ "Identifiant de document invalide.": {
+  "fr": "Identifiant de document invalide.",
+  "en": "Invalid document identifier."
+ },
+ "Taille du document invalide.": {
+  "fr": "Taille du document invalide.",
+  "en": "Invalid document size."
+ },
+ "Il faut de 1 à 60 calques à animer.": {
+  "fr": "Il faut de 1 à 60 calques à animer.",
+  "en": "Between 1 and 60 layers are needed to animate."
+ },
+ "La page motion code du schéma dépasse 10 Mo : anime moins de calques à la fois.": {
+  "fr": "La page motion code du schéma dépasse 10 Mo : anime moins de calques à la fois.",
+  "en": "The diagram's motion code page is larger than 10 MB: animate fewer layers at a time."
+ },
+ "L'image est vide : rien à séparer.": {
+  "fr": "L'image est vide : rien à séparer.",
+  "en": "The image is empty: nothing to separate."
+ },
+ "Calque {n} : image « {v} » absente de la Bibliothèque.": {
+  "fr": "Calque {n} : image « {v} » absente de la Bibliothèque.",
+  "en": "Layer {n}: image “{v}” is not in the Library."
+ },
+ "Calque {n} : boîte invalide.": {
+  "fr": "Calque {n} : boîte invalide.",
+  "en": "Layer {n}: invalid box."
+ },
+ "Calque {n} : image « {v} » illisible.": {
+  "fr": "Calque {n} : image « {v} » illisible.",
+  "en": "Layer {n}: image “{v}” is unreadable."
+ },
+ "Le détourage n'a rien rendu : réessaie ou choisis un autre modèle.": {
+  "fr": "Le détourage n'a rien rendu : réessaie ou choisis un autre modèle.",
+  "en": "The background removal returned nothing: try again or choose another model."
+ },
+ "aucun calque à animer": {
+  "fr": "aucun calque à animer",
+  "en": "no layer to animate"
+ },
+ "Le coût du détourage a changé ou n'a pas été accepté : confirme le nouveau devis.": {
+  "fr": "Le coût du détourage a changé ou n'a pas été accepté : confirme le nouveau devis.",
+  "en": "The background removal cost changed or was not accepted: confirm the new quote."
+ },
+ "Le fond de l'image n'est pas uni : choisis un détourage par IA, ou dépose une image déjà détourée (PNG transparent).": {
+  "fr": "Le fond de l'image n'est pas uni : choisis un détourage par IA, ou dépose une image déjà détourée (PNG transparent).",
+  "en": "The image background is not plain: choose an AI background removal, or drop an image already cut out (transparent PNG)."
+ },
+ "La page motion code du schéma a été refusée par le bac à sable.": {
+  "fr": "La page motion code du schéma a été refusée par le bac à sable.",
+  "en": "The diagram's motion code page was refused by the sandbox."
+ },
+ "Le détourage par {mid} a échoué ({name}) : il a peut-être été facturé ; réessaie ou choisis un autre modèle.": {
+  "fr": "Le détourage par {mid} a échoué ({name}) : il a peut-être été facturé ; réessaie ou choisis un autre modèle.",
+  "en": "Background removal by {mid} failed ({name}): it may have been billed; try again or choose another model."
+ },
+ "quantité WhatsApp invalide : un entier >= 1 est attendu": {
+  "fr": "quantité WhatsApp invalide : un entier >= 1 est attendu",
+  "en": "invalid WhatsApp quantity: an integer >= 1 is expected"
+ },
+ "aucun destinataire n'a donné un accord permettant cette diffusion": {
+  "fr": "aucun destinataire n'a donné un accord permettant cette diffusion",
+  "en": "no recipient has given consent allowing this broadcast"
+ },
+ "quantité de messages invalide : un entier >= 1 est attendu": {
+  "fr": "quantité de messages invalide : un entier >= 1 est attendu",
+  "en": "invalid message quantity: an integer >= 1 is expected"
+ },
+ "ce modèle n'a pas d'identifiant Meta : il ne peut pas partir en diffusion": {
+  "fr": "ce modèle n'a pas d'identifiant Meta : il ne peut pas partir en diffusion",
+  "en": "this template has no Meta ID: it cannot be used for a broadcast"
+ },
+ "identités : une liste est attendue": {
+  "fr": "identités : une liste est attendue",
+  "en": "identities: a list is expected"
+ },
+ "une diffusion de ce post est déjà lancée : elle ne se modifie plus": {
+  "fr": "une diffusion de ce post est déjà lancée : elle ne se modifie plus",
+  "en": "a broadcast of this post has already been launched: it can no longer be changed"
+ },
+ "aucune diffusion WhatsApp n'est configurée pour ce post": {
+  "fr": "aucune diffusion WhatsApp n'est configurée pour ce post",
+  "en": "no WhatsApp broadcast is set up for this post"
+ },
+ "le compte WhatsApp de cette diffusion n'appartient pas à l'espace du post": {
+  "fr": "le compte WhatsApp de cette diffusion n'appartient pas à l'espace du post",
+  "en": "the WhatsApp account of this broadcast does not belong to the post's workspace"
+ },
+ "Kapso n'a accepté aucun destinataire de cette diffusion": {
+  "fr": "Kapso n'a accepté aucun destinataire de cette diffusion",
+  "en": "Kapso accepted no recipient for this broadcast"
+ },
+ "cette diffusion est peut-être déjà partie (panne de Kapso pendant l'envoi) : vérifiez-la, puis confirmez pour la relancer": {
+  "fr": "cette diffusion est peut-être déjà partie (panne de Kapso pendant l'envoi) : vérifiez-la, puis confirmez pour la relancer",
+  "en": "this broadcast may already have gone out (Kapso failed during sending): check it, then confirm to launch it again"
+ },
+ "le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute diffusion": {
+  "fr": "le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute diffusion",
+  "en": "this workspace's WhatsApp broadcasts file is unreadable: repair it before any broadcast"
+ },
+ "ce post doit viser un et un seul compte WhatsApp de son espace pour une diffusion": {
+  "fr": "ce post doit viser un et un seul compte WhatsApp de son espace pour une diffusion",
+  "en": "this post must target exactly one WhatsApp account of its workspace for a broadcast"
+ },
+ "confirmation attendue : confirme_incertain doit valoir true": {
+  "fr": "confirmation attendue : confirme_incertain doit valoir true",
+  "en": "confirmation expected: confirme_incertain must be true"
+ },
+ "la diffusion de ce post n'est pas configurée sur son compte WhatsApp": {
+  "fr": "la diffusion de ce post n'est pas configurée sur son compte WhatsApp",
+  "en": "this post's broadcast is not set up on its WhatsApp account"
+ },
+ "compte WhatsApp refusé : {e}": {
+  "fr": "compte WhatsApp refusé : {e}",
+  "en": "WhatsApp account refused: {e}"
+ },
+ "ce post est en cours de publication ou confié à un appareil": {
+  "fr": "ce post est en cours de publication ou confié à un appareil",
+  "en": "this post is being published or has been handed to a device"
+ },
+ "aucune diffusion à l'issue incertaine à confirmer pour ce post : publiez-le normalement": {
+  "fr": "aucune diffusion à l'issue incertaine à confirmer pour ce post : publiez-le normalement",
+  "en": "no broadcast with an uncertain outcome to confirm for this post: publish it normally"
+ },
+ "un modèle d'authentification (code à usage unique) ne peut pas partir en diffusion": {
+  "fr": "un modèle d'authentification (code à usage unique) ne peut pas partir en diffusion",
+  "en": "an authentication template (one-time code) cannot be sent as a broadcast"
+ },
+ "un modèle à en-tête texte variable ne peut pas partir en diffusion (v1 : corps seulement)": {
+  "fr": "un modèle à en-tête texte variable ne peut pas partir en diffusion (v1 : corps seulement)",
+  "en": "a template with a variable text header cannot be sent as a broadcast (v1: body only)"
+ },
+ "l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est relancé, réessayez dans un instant": {
+  "fr": "l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est relancé, réessayez dans un instant",
+  "en": "the previous broadcast could not be neutralised at Kapso (outage): nothing was relaunched, try again in a moment"
+ },
+ "Une fabrication de ce tutoriel est déjà en cours.": {
+  "fr": "Une fabrication de ce tutoriel est déjà en cours.",
+  "en": "This tutorial is already being built."
+ },
+ "Parcours illisible.": {
+  "fr": "Parcours illisible.",
+  "en": "Unreadable walkthrough."
+ },
+ "Parcours trop lourd.": {
+  "fr": "Parcours trop lourd.",
+  "en": "Walkthrough too large."
+ },
+ "La vidéo de la capture est illisible.": {
+  "fr": "La vidéo de la capture est illisible.",
+  "en": "The recording's video is unreadable."
+ },
+ "Parcours introuvable.": {
+  "fr": "Parcours introuvable.",
+  "en": "Walkthrough not found."
+ },
+ "Brouillon de tutoriel illisible.": {
+  "fr": "Brouillon de tutoriel illisible.",
+  "en": "Unreadable tutorial draft."
+ },
+ "Brouillon de tutoriel trop long.": {
+  "fr": "Brouillon de tutoriel trop long.",
+  "en": "Tutorial draft too long."
+ },
+ "Aucune étape gardée dans ce brouillon.": {
+  "fr": "Aucune étape gardée dans ce brouillon.",
+  "en": "No step is kept in this draft."
+ },
+ "Vidéo trop lourde pour un parcours.": {
+  "fr": "Vidéo trop lourde pour un parcours.",
+  "en": "Video too large for a walkthrough."
+ },
+ "Identifiant de parcours invalide.": {
+  "fr": "Identifiant de parcours invalide.",
+  "en": "Invalid walkthrough identifier."
+ },
+ "Parcours refusé : entrée inattendue dans l'archive.": {
+  "fr": "Parcours refusé : entrée inattendue dans l'archive.",
+  "en": "Walkthrough refused: unexpected entry in the archive."
+ },
+ "Parcours refusé : il faut parcours.json et une seule vidéo.": {
+  "fr": "Parcours refusé : il faut parcours.json et une seule vidéo.",
+  "en": "Walkthrough refused: it needs parcours.json and a single video."
+ },
+ "Parcours refusé : la vidéo n'est pas une vidéo WebM ou MP4.": {
+  "fr": "Parcours refusé : la vidéo n'est pas une vidéo WebM ou MP4.",
+  "en": "Walkthrough refused: the video is not a WebM or MP4 video."
+ },
+ "Un export de ce parcours est déjà en cours.": {
+  "fr": "Un export de ce parcours est déjà en cours.",
+  "en": "An export of this walkthrough is already running."
+ },
+ "Trop de parcours importés : retirez-en avant d'importer.": {
+  "fr": "Trop de parcours importés : retirez-en avant d'importer.",
+  "en": "Too many imported walkthroughs: remove some before importing."
+ },
+ "Export du parcours impossible pour l'instant : réessayez.": {
+  "fr": "Export du parcours impossible pour l'instant : réessayez.",
+  "en": "The walkthrough cannot be exported right now: try again."
+ },
+ "Ce parcours est en cours de lecture : fermez-le avant de le retirer.": {
+  "fr": "Ce parcours est en cours de lecture : fermez-le avant de le retirer.",
+  "en": "This walkthrough is playing: close it before removing it."
  },
  "Séquence introuvable.": {
   "fr": "Séquence introuvable.",

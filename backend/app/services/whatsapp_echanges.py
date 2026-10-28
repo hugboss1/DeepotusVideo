@@ -355,7 +355,7 @@ def _modele_plat(m: dict) -> dict:
     jalons = list(dict.fromkeys(_JALON.findall(str(corps.get("text") or ""))))
     ex = corps.get("example") if isinstance(corps.get("example"), dict) else {}
     nommes = bool(ex.get("body_text_named_params")) or any(not j.isdigit() for j in jalons)
-    return {"nom": m.get("name"), "langue": m.get("language"), "categorie": str(m.get("category") or "").lower(),
+    return {"nom": m.get("name"), "meta_id": str(m.get("id") or ""), "langue": m.get("language"), "categorie": str(m.get("category") or "").lower(),
             "parametres": "nommes" if nommes else "positionnels", "n_parametres": len(jalons),
             # t311 tâche 7 : les noms des jalons du corps, dans l'ordre, ENTIERS (les champs nommés de la page WhatsApp ;
             # un modèle à nom trop long est écarté de la liste par `modeles`, jamais tronqué)

@@ -312,7 +312,9 @@ MOTS_STOP = ("stop", "arret", "arrêt", "arreter", "arrêter", "arrêtez", "arre
              "desabonner", "désabonner", "désinscrire", "desinscrire", "stopper", "cancel", "quit", "end", "opt out",
              "optout", "opt-out")
 POLITESSE = ("svp", "stp", "please", "merci", "thanks")
-CODES_REFUS = ("accord", "stop", "fenetre", "marketing", "plafond", "consentement", "prix", "bsuid_authentification")
+CODES_REFUS = ("accord", "stop", "fenetre", "marketing", "plafond", "consentement", "prix", "bsuid_authentification",
+               "incertain", "deja_lancee",   # t328 : diffusion à l'issue incertaine / déjà lancée (whatsapp_diffusions)
+               "pas_incertaine")   # t328 tâche 4 : relance confirmée d'une diffusion qui n'est pas incertaine
 TYPES_ENVOI = ("texte", "boutons", "modele", "image")        # t311 : `image` (fenêtre de 24 h comme le texte)
 PLAFOND_DEFAUT = 1000
 MARCHE_DEFAUT = "33"
@@ -325,10 +327,11 @@ LIMITE_CHAMP = 80
 class WhatsappRefus(PermissionError):
     """Un envoi refusé par les règles. `code` ∈ CODES_REFUS ; `message` : le texte (traduit à la sortie par L10)."""
 
-    def __init__(self, message, code):
+    def __init__(self, message, code, ecartes=None):
         super().__init__(message)
         self.message = message
         self.code = code
+        self.ecartes = ecartes           # t328 : refus "accord" d'une audience de diffusion vide : les écartés comptés
 
 
 def identite(msg: dict) -> str:
@@ -897,6 +900,16 @@ def noter_envoi(cid: str, identite_: str, *, type: str, categorie: str | None, s
     _noter(cid, geste)
 
 
+def _exiger_consentement_client(eid: str, pid: str) -> None:
+    """Le consentement du client responsable de l'espace sur ce numéro est en cours (sinon `WhatsappRefus` « consentement »).
+    Sans client responsable : rien à vérifier. Partagé par `controler` et `audience_diffusion`."""
+    client = _es.client_responsable(eid)
+    if client:
+        from app.services import fiche_client
+        if not fiche_client.consentement_en_cours(client, f"whatsapp:{pid}"):
+            raise WhatsappRefus("aucun consentement en cours du client sur ce numéro WhatsApp", "consentement")
+
+
 def controler(cid: str, identite_: str, *, type: str, categorie: str | None, dernier_entrant: datetime | None,
               maintenant: datetime) -> None:
     """Lève `WhatsappRefus` si l'envoi n'est pas permis. Ordre : consentement, stop, accord, fenetre, marketing
@@ -908,11 +921,7 @@ def controler(cid: str, identite_: str, *, type: str, categorie: str | None, der
     if type not in TYPES_ENVOI:
         raise ValueError("type d'envoi inconnu (texte, boutons, modele ou image)")
     eid, pid = _cle_etat(cid)
-    client = _es.client_responsable(eid)
-    if client:
-        from app.services import fiche_client
-        if not fiche_client.consentement_en_cours(client, f"whatsapp:{pid}"):
-            raise WhatsappRefus("aucun consentement en cours du client sur ce numéro WhatsApp", "consentement")
+    _exiger_consentement_client(eid, pid)
     doc = _lire_doc(eid)
     e = _etat_doc(doc, pid)
     groupe = _groupe(e, identite_)
@@ -932,4 +941,64 @@ def controler(cid: str, identite_: str, *, type: str, categorie: str | None, der
     if type == "modele" and cat == "AUTHENTICATION" and identite_.startswith("bsuid:"):
         raise WhatsappRefus("un modèle d'authentification ne part pas vers un identifiant BSUID", "bsuid_authentification")
     if _total_mois(doc, _mois(maintenant)) >= _reglages_doc(doc)["plafond_mois"]:
+        raise WhatsappRefus("plafond mensuel d'envois atteint", "plafond")
+
+
+def audience_diffusion(cid: str, *, categorie: str, identites: list[str] | None = None) -> dict:
+    """t328 : les destinataires d'une DIFFUSION (modèle de `categorie`) sous les mêmes règles que `controler`, mais en
+    lisant le fichier d'état et la fiche client UNE seule fois pour toute la liste. Candidats : `identites` (liste
+    explicite) sinon toutes les identités à accord du numéro. Écartés et comptés : `bsuid` (Kapso ne les confirme pas pour
+    une diffusion), `stop`, `accord` (aucun accord, ou seulement un accord né d'un entrant : revue finale t328 M8, Décision
+    1 — toute diffusion, QUELLE QUE SOIT sa catégorie, exige un accord SAISI ; un message entrant ouvre une conversation,
+    ce n'est pas un accord de diffusion), `marketing` (désinscrit, marketing seulement). Une diffusion part toujours par modèle : la fenêtre de 24 h
+    ne joue pas. Aucune écriture, aucun réseau. `WhatsappRefus` : `consentement` (client), `accord` (aucun retenu)."""
+    marketing = str(categorie or "").upper() == "MARKETING"
+    eid, pid = _cle_etat(cid)
+    _exiger_consentement_client(eid, pid)
+    e = _etat_doc(_lire_doc(eid), pid)
+    if identites is None:
+        candidats = list(e["accords"])
+    else:
+        candidats = []
+        for i in identites:
+            _identite_valide(i)
+            if i not in candidats:
+                candidats.append(i)
+    ecartes = {"bsuid": 0, "stop": 0, "accord": 0, "marketing": 0}
+    retenus, vus = [], set()
+    for ident in candidats:
+        groupe = _groupe(e, ident)
+        if ident.startswith("bsuid:"):
+            tel = next((i for i in groupe if i.startswith("tel:")), None)
+            if tel is None:                                           # BSUID sans numéro relié : écarté et compté
+                ecartes["bsuid"] += 1
+                continue
+            ident = tel                                               # relié : le contact est jugé par son numéro
+        if any(i in vus for i in groupe):
+            continue
+        vus.update(groupe)
+        if any(i in e["stops"] for i in groupe):
+            ecartes["stop"] += 1
+        elif not any(i in e["accords"] for i in groupe):
+            ecartes["accord"] += 1
+        elif marketing and any(i in e["desinscrits_marketing"] for i in groupe):
+            ecartes["marketing"] += 1
+        elif not any(isinstance(e["accords"].get(i), dict) and e["accords"][i].get("source") != "entrant"
+                     for i in groupe):
+            ecartes["accord"] += 1
+        else:
+            retenus.append(ident)
+    if not retenus:
+        raise WhatsappRefus("aucun destinataire n'a donné un accord permettant cette diffusion", "accord", ecartes=ecartes)
+    return {"retenus": retenus, "ecartes": ecartes}
+
+
+def verifier_plafond_mois(cid: str, n: int, maintenant: datetime | None = None) -> None:
+    """t328 : `n` messages de plus tiennent-ils dans le plafond mensuel de l'espace (mêmes `_total_mois` et `plafond_mois`
+    que `controler`) ? À appeler JUSTE AVANT de créer la diffusion chez Kapso. `maintenant` : l'horloge (défaut : l'heure UTC). Sinon `WhatsappRefus` « plafond ». ValueError : `n` n'est pas un entier >= 1. Aucune écriture."""
+    if isinstance(n, bool) or not isinstance(n, int) or n < 1:
+        raise ValueError("quantité de messages invalide : un entier >= 1 est attendu")
+    eid, _pid = _cle_etat(cid)
+    doc = _lire_doc(eid)
+    if _total_mois(doc, _mois(maintenant or datetime.now(timezone.utc))) + n > _reglages_doc(doc)["plafond_mois"]:
         raise WhatsappRefus("plafond mensuel d'envois atteint", "plafond")

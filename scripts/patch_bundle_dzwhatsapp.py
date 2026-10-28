@@ -2,8 +2,8 @@
 # scripts/patch_bundle_dzwhatsapp.py
 """Maillon de queue : WhatsApp par Kapso dans le bundle (t310 tâche 7, 27/10/2026, plan
 docs/superpowers/plans/2026-10-27-t310-whatsapp-kapso.md, spec docs/superpowers/specs/2026-10-25-boite-a-outils-design.md
-§5.3 et §6.1). WhatsApp est un canal de CONVERSATION d'espace, jamais une cible de publication : rien ne s'ajoute à la
-table des canaux `_t` ni à `Bu` du Planificateur. Ce maillon porte ses paires, toutes HORS de tout bloc de couche
+§5.3 et §6.1). WhatsApp est un canal de CONVERSATION d'espace, jamais une cible de publication (jusqu'à t328, voir
+patch_bundle_dzdiffusion) : rien ne s'ajoute à la table des canaux `_t` ni à `Bu` du Planificateur. Ce maillon porte ses paires, toutes HORS de tout bloc de couche
 __DZ_*_BEGIN__ (vérifié à l'écriture par `hors_couche`) :
   P1 Réglages › Clés d'API : `dzFuNeuves()` (les lignes neuves de t221, précédent DECART_API_KEY) reçoit la ligne de la
      clé plate partagée KAPSO_API_KEY, libellé dzT("reglages.cles.kapso"), aide dzT("reglages.cles.kapso_why") ; le
@@ -85,7 +85,8 @@ PAIRES = [
      'c.plateforme==="whatsapp"&&r.jsx("div",{"data-dz-compte-whatsapp":c.id,style:{fontSize:11,color:"var(--ink-muted)"},'
      'children:dzT("espaces.comptes.whatsapp_assistant")}),'),
     # P3d (preuve à l'écran P2, 27/10/2026) : le badge de disponibilité d'un compte whatsapp ne dit jamais « prêt à
-    # publier » (ce n'est pas une cible de publication) : « relié » quand il est disponible, le badge « incomplet » sinon.
+    # publier » (ce n'était pas une cible de publication jusqu'à t328, voir patch_bundle_dzdiffusion) : « relié » quand
+    # il est disponible, le badge « incomplet » sinon.
     # Le badge d'origine (`_DISPO`, remplacement de dzassistant P4 que son banc défait tel quel) reste INTACT à l'octet : on
     # pose devant lui la branche whatsapp d'un ternaire dont il est la branche « sinon ».
     ('c.handle&&r.jsx("span",{"data-dz-brut":"1",style:{fontSize:11.5,color:"var(--ink-soft)"},children:c.handle}),',

@@ -434,21 +434,30 @@ def _ligne_whatsapp(op: dict, p: dict) -> dict:
         pour le seuil atteint : le devis se trompe vers le haut, jamais vers le gratuit."""
     cat = str(op.get("categorie") or "")
     marche = _marche_whatsapp(op.get("marche"))
+    n = op.get("n", 1)
+    if isinstance(n, bool) or not isinstance(n, int) or n < 1:
+        raise ValueError("quantité WhatsApp invalide : un entier >= 1 est attendu")
     grille = p.get("whatsapp_meta_usd")
     tarif = ((grille.get(marche) or {}).get(cat) if isinstance(grille, dict) and isinstance(grille.get(marche), dict)
              else None) if cat in WHATSAPP_CATEGORIES else None
     if not _taux_valide(tarif):
         raise ValueError(f"prix WhatsApp inconnu pour {marche} / {cat} : saisissez la grille de Meta")
+    facturables = n
     if cat == "service":
         seuil = _reglage_fini(p, "whatsapp_service_gratuits_mois")
         try:
             deja = max(0, int(op.get("service_deja_mois") or 0))
         except (TypeError, ValueError):
             deja = int(seuil)
-        if deja < seuil:
-            return _line("meta", f"WhatsApp service ({marche}) — dans les {int(seuil):,} gratuits".replace(",", " "),
-                         1, "msg", 0.0)
-    return _line("meta", f"WhatsApp {cat} ({marche})", 1, "msg", float(tarif))
+        gratuits = int(max(0, min(n, seuil - deja)))               # la part gratuite du mois, message par message
+        facturables = n - gratuits
+        if facturables == 0:
+            return _line("meta", f"WhatsApp service ({marche}) — dans les {int(seuil):,} gratuits".replace(",", " ")
+                         + (f" × {n}" if n > 1 else ""), n, "msg", 0.0)
+    etiquette = f"WhatsApp {cat} ({marche})" + (f" × {n}" if n > 1 else "")
+    if cat == "service" and facturables < n:
+        etiquette += f" dont {n - facturables} gratuits"                # le libellé dit la part gratuite : il colle à `usd`
+    return _line("meta", etiquette, n, "msg", facturables * float(tarif))
 
 
 def _line(provider, label, units, unit, usd):

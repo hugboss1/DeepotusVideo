@@ -674,5 +674,13 @@
   "atelier.plan.reconstruire3d": {"fr": "Reconstruire en 3D (SAM 3)", "en": "Rebuild in 3D (SAM 3)"},
   "atelier.plan.video": {"fr": "Générer le plan (vidéo)", "en": "Generate the shot (video)"},
   "atelier.plan.video_fin": {"fr": "Fin : borne de fin du Plateau", "en": "End: the Stage's last frame"},
-  "atelier.t183_da.cle_a_ajouter": {"fr": "clé {cle} à ajouter dans Réglages", "en": "add the {cle} key in Settings"}
+  "atelier.t183_da.cle_a_ajouter": {"fr": "clé {cle} à ajouter dans Réglages", "en": "add the {cle} key in Settings"},
+  "atelier.t312_scan.absent": {"fr": "La boîte Scan n'est pas chargée : recharge la page.", "en": "The Scan box is not loaded: reload the page."},
+  "atelier.t312_scan.bouton": {"fr": "Scanner une page", "en": "Scan a page"},
+  "atelier.t312_scan.bouton_t": {"fr": "Lire le texte d'une à dix pages scannées (image ou PDF) et l'insérer au curseur — lecture locale gratuite, Claude en secours payant après devis", "en": "Read the text of one to ten scanned pages (image or PDF) and insert it at the cursor — free local reading, Claude as a paid fallback after a quote"},
+  "atelier.t312_scan.chap_t": {"fr": "Scanner des pages : en faire de nouveaux chapitres de la série, ou un manuscrit pour l'agent Manuscrit", "en": "Scan pages: turn them into new chapters of the series, or a manuscript for the Manuscript agent"},
+  "atelier.t312_scan.chapitres": {"fr": "{n} chapitre(s) créé(s) depuis le scan.", "en": "{n} chapter(s) created from the scan."},
+  "atelier.t312_scan.insere": {"fr": "{n} caractères insérés depuis le scan.", "en": "{n} characters inserted from the scan."},
+  "atelier.t312_scan.lecture_seule": {"fr": "Chapitre emporté par le téléphone : lecture seule, rien n'est inséré.", "en": "Chapter taken by the phone: read-only, nothing is inserted."},
+  "atelier.t312_scan.ms_en_cours": {"fr": "Un manuscrit est déjà en cours d'import : attends sa fin.", "en": "A manuscript is already being imported: wait for it to finish."}
 }

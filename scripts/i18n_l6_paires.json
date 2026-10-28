@@ -21,6 +21,12 @@
     "groupe": "panneaux"
    },
    {
+    "pos": 2238,
+    "avant": "import { initExport } from \"./mod-export.js\";",
+    "apres": "import { initExport } from \"./mod-export.js\";\r\nimport { initSchema } from \"./mod-schema.js\";",
+    "groupe": "t314"
+   },
+   {
     "pos": 15459,
     "avant": "\"Grille d'aimantation et repère visuel (G) — \"",
     "apres": "T(\"vectorlab.core.grille_titre\")",
@@ -127,6 +133,12 @@
     "avant": "initCalques(VL);",
     "apres": "// t146 : les <option> statiques de index.html (rôles…) — la surcouche n'entre pas dans un <select>\r\nfor (const o of document.querySelectorAll(\"select option\")) { const t = window.__dzI18n && window.__dzI18n.traduire(o.textContent); if (t) o.textContent = t; }\r\ninitCalques(VL);",
     "groupe": "integration"
+   },
+   {
+    "pos": 34568,
+    "avant": "initExport(VL);",
+    "apres": "initExport(VL);\r\ninitSchema(VL);    // t314 : Scanner un schéma…, Envoyer vers › Animation — après initExport (VL.svgCourant)",
+    "groupe": "t314"
    }
   ],
   "js/mod-apparence2.js": [
@@ -1325,6 +1337,12 @@
     "avant": "",
     "apres": "import { T as vlT } from \"./mod-i18n.js\";\r\n",
     "groupe": "import"
+   },
+   {
+    "pos": 3013,
+    "avant": "faire: () => clic(\"#expBible\") },",
+    "apres": "faire: () => clic(\"#expBible\") },\r\n    schemaScanner: { peut: () => !!VL.schemaScanner, faire: () => VL.schemaScanner() },   // t314\r\n    schemaAnimation: { peut: () => !!(etat.doc && VL.schemaAnimation), faire: () => VL.schemaAnimation() },",
+    "groupe": "t314"
    },
    {
     "pos": 3161,
@@ -6221,6 +6239,12 @@
     "groupe": "menus"
    },
    {
+    "pos": 1128,
+    "avant": "\"imageGenerer\"), ",
+    "apres": "\"imageGenerer\"), e(\"schema\", T(\"vectorlab.menus.schema\"), \"schemaScanner\"), ",
+    "groupe": "t314"
+   },
+   {
     "pos": 1154,
     "avant": "\"Importer un GPX…\"",
     "apres": "T(\"vectorlab.menus.gpx\")",
@@ -6255,6 +6279,12 @@
     "avant": "\"Vers la Bible…\"",
     "apres": "T(\"vectorlab.menus.bible\")",
     "groupe": "menus"
+   },
+   {
+    "pos": 1466,
+    "avant": "\"expBible\"), \"-\",",
+    "apres": "\"expBible\"), e(\"schemaAnimation\", T(\"vectorlab.menus.schema_animation\"), \"schemaAnimation\"), \"-\",",
+    "groupe": "t314"
    },
    {
     "pos": 1506,

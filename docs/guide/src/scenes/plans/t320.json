@@ -1,0 +1,182 @@
+{
+ "base": "http://127.0.0.1:8795",
+ "scenes": [
+  {
+   "scene": "clients-canaux/assistant",
+   "taille": [
+    1208,
+    800
+   ],
+   "titre": {
+    "fr": "Créer l'espace d'un client",
+    "en": "Create a client's space"
+   },
+   "legende": {
+    "fr": "Réglages › Espaces de marque › Créer l'espace : type Client, fiche du client, puis le récapitulatif.",
+    "en": "Settings › Brand spaces › Create space: Client type, the client sheet, then the summary."
+   },
+   "avant": [
+    {
+     "js": "window.dispatchEvent(new CustomEvent('deepotus:navigate',{detail:{view:'settings'}}))",
+     "attente": 1500
+    },
+    {
+     "clic": {
+      "fr": "texte:Espaces",
+      "en": "texte:Brand spaces"
+     },
+     "apres": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "type",
+     "etapes": [
+      {
+       "js": "window.__dzEspaceAssistant.ouvrir({nom: 'Boulangerie Démo', couleur: '#c2410c'}); 0"
+      },
+      {
+       "attente": 900
+      },
+      {
+       "js": "var s=document.querySelector('[data-dz-assistant-champ=type]'); s.value='client'; s.dispatchEvent(new Event('change'))"
+      },
+      {
+       "attente": 400
+      }
+     ]
+    },
+    {
+     "nom": "fiche",
+     "etapes": [
+      {
+       "clic": "css:[data-dz-assistant-suivant]",
+       "apres": 1800
+      },
+      {
+       "js": "[['societe','Boulangerie Démo SARL'],['contact_nom','Camille Exemple'],['contact_email','contact@exemple.test'],['pays','FR']].forEach(function(p){var n=document.querySelector('[data-dz-assistant-champ='+p[0]+']'); n.value=p[1]; n.dispatchEvent(new Event('input'))})"
+      },
+      {
+       "attente": 300
+      }
+     ]
+    },
+    {
+     "nom": "recap",
+     "etapes": [
+      {
+       "clic": "css:[data-dz-assistant-suivant]",
+       "apres": 2200
+      },
+      {
+       "clic": "css:[data-dz-assistant-suivant]",
+       "apres": 2200
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:[data-dz-assistant-champ=type]",
+     "bulle": {
+      "fr": "Type d'espace : Client ajoute une fiche",
+      "en": "Space type: Client adds a sheet"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "surligne": "css:[data-dz-assistant-champ=mode]",
+     "bulle": {
+      "fr": "Le mode de publication fixe les sécurités",
+      "en": "The publishing mode sets the safeguards"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "curseur": "css:[data-dz-assistant-terminer]",
+     "clic": true,
+     "bulle": {
+      "fr": "Le récapitulatif dit ce qui manque ; Terminer active l'espace",
+      "en": "The summary says what is missing; Finish activates the space"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "clients-canaux/fiche",
+   "taille": [
+    1208,
+    800
+   ],
+   "titre": {
+    "fr": "Travailler pour le client",
+    "en": "Work for the client"
+   },
+   "legende": {
+    "fr": "Le bandeau dit pour qui l'on travaille ; « Fiche client » ouvre consentements, posts à valider et journal.",
+    "en": "The banner says who you are working for; Client sheet opens consents, posts awaiting approval and the log."
+   },
+   "avant": [
+    {
+     "js": "fetch('/api/espaces',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nom:'Boulangerie Démo',couleur:'#c2410c',type:'client'})}).then(function(r){return r.json()}).then(function(j){var id=j.espace.id;return fetch('/api/espaces/'+id+'/client',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({societe:'Boulangerie Démo SARL',contact:{nom:'Camille Exemple',email:'contact@exemple.test',whatsapp:''},pays:'FR',langue:'fr',mode_publication:'valide_par_client'})}).then(function(){return fetch('/api/espaces/'+id+'/activate',{method:'POST'})})})"
+    },
+    {
+     "attente": 1200
+    },
+    {
+     "aller": "/"
+    },
+    {
+     "attente": 6000
+    },
+    {
+     "js": "window.dispatchEvent(new CustomEvent('deepotus:navigate',{detail:{view:'scheduler'}}))",
+     "attente": 1500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "bandeau"
+    },
+    {
+     "nom": "boite",
+     "etapes": [
+      {
+       "clic": "css:[data-dz-pq-fiche]",
+       "apres": 1800
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:[data-dz-pour-qui]",
+     "bulle": {
+      "fr": "Le bandeau rappelle le client et le projet",
+      "en": "The banner recalls the client and the project"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 1.8,
+     "curseur": "css:[data-dz-pq-fiche]",
+     "clic": true
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "bulle": {
+      "fr": "Consentements, posts à valider et journal du client",
+      "en": "Consents, posts awaiting approval and the client's log"
+     }
+    }
+   ]
+  }
+ ]
+}

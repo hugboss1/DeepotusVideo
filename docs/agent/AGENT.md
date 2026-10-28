@@ -20,7 +20,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Montage** — poser ses plans sur une timeline multipiste, les couper, les enchaîner, étalonner, titrer, soigner le
   son, puis rendre et livrer. → [ALLER:montage] [GUIDE:montage]
 - **Planificateur** — remplir la semaine de posts, les relire, les valider d'un coup et les laisser partir à l'heure
-  sur Telegram, X, YouTube, Instagram et TikTok. « Générer un plan » propose deux modes : Rapide, ou
+  sur Telegram, X, YouTube, Instagram et TikTok, ou en diffusion WhatsApp (voir « Diffuser un post sur WhatsApp »).
+  « Générer un plan » propose deux modes : Rapide, ou
   Agent Campagnes (le même agent que l'onglet Campagnes du tiroir F1, voir le parcours « Mener une campagne avec
   l'agent Campagnes »). → [ALLER:scheduler] [GUIDE:planificateur] [GUIDE:agent-campagnes]
 - **Modèles** — partir d'une mise en page toute prête, la retoucher (cases, masques, textes, animations), la décliner
@@ -39,7 +40,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   ou se filmer à la webcam transformé en direct avec sa voix. Payant à la seconde. → [ALLER:avatarlive] [GUIDE:avatar-live]
 - **WhatsApp** — les conversations WhatsApp de l'espace actif (numéro relié par Kapso) : lire, répondre, relire et
   envoyer les brouillons de l'agent WhatsApp, prendre ou rendre la main, modèles, contacts (accords, STOP), santé du
-  numéro et grille Prix Meta. → [ALLER:whatsapp] [GUIDE:marques]
+  numéro et grille Prix Meta. → [ALLER:whatsapp] [GUIDE:whatsapp]
 - **Réglages** — clés des fournisseurs, comptes connectés, personas, espaces de marque, kits de marque, modèles et langue
   par défaut, tarifs et budget, diagnostic, appareils. → [ALLER:settings] [GUIDE:reglages]
 
@@ -66,35 +67,28 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Lire une liste de modèles** (quelle clé sert, quel prix). → [GUIDE:modeles-et-cles]
 - **Changer d'espace de marque** : Réglages › Espaces de marque. → [POINT:reglages.espaces] [GUIDE:marques]
 - **Créer un espace (marque, produit ou client) avec ses canaux** : Réglages › Espaces de marque › Créer l'espace
-  ouvre l'assistant en quatre temps (type et identité, fiche client pour un client, canaux, récapitulatif). « Vérifier »
-  teste chaque canal sans rien publier ; un canal non vérifié reste enregistré. Pour un client, le récapitulatif dit les
-  consentements manquants ; « Terminer » active l'espace. → [POINT:reglages.espaces] [POINT:reglages.nouvel_espace] [GUIDE:marques]
-- **Revérifier un canal plus tard** : Réglages › Espaces de marque, sous la liste, chaque compte porte sa pastille
-  (vérifié, indéterminé, refusé, non vérifié) et « Vérifier », sans rien publier. Dans l'éditeur de post du
-  Planificateur, un compte coché qui n'est pas vérifié le dit ; la programmation n'est pas bloquée (sauf pour un
-  client, voir ci-dessous). → [POINT:reglages.espaces] [GUIDE:comptes]
-- **Relier le WhatsApp d'un espace** (t310) : WhatsApp est un canal de CONVERSATION de l'espace, jamais une cible de
-  post : il n'apparaît pas dans l'éditeur de post du Planificateur, et on ne l'ajoute pas depuis Réglages › Espaces (il
-  y apparaît pour être vérifié ou supprimé).
-  Il se relie dans l'assistant d'espace, étape Canaux : cocher WhatsApp, choisir la facturation Meta (définitive),
-  puis « Créer le lien » crée chez Kapso un lien d'installation, gratuit. Pour un client, le consentement daté est demandé avant.
-  L'application n'envoie rien : copier le lien et l'envoyer au client ; « Vérifier » relit la liaison, et le numéro
-  relié s'affiche. La clé Kapso, une seule pour tous les espaces, se pose dans Réglages › Clés d'API.
-  → [POINT:reglages.nouvel_espace] [POINT:reglages.cles] [GUIDE:marques]
-- **Répondre sur WhatsApp avec l'agent** (t311) : l'agent WhatsApp d'un espace se règle dans Réglages › Espaces de
-  marque, bouton « Agent WhatsApp » sous les comptes de l'espace actif : Agent actif, mode, rôles (questions courantes,
-  rendez-vous, commandes, validation des posts), horaires et message hors horaires, réponses automatiques par contact et
-  par jour, mots qui appellent un humain, modèle de validation, plafond mensuel. En mode Brouillons (par défaut), il
-  rédige et l'utilisateur envoie depuis la page WhatsApp ; « Rédiger » en demande un à la main. Le mode Automatique se
-  confirme : l'agent répond seul dans les horaires et plafonds, mais une réponse qui parle d'argent ou une demande
-  d'humain reste un brouillon. Ses rédactions sont payantes, comptées sous la catégorie « whatsapp_agent » ; les
-  messages Meta sous « whatsapp ». « Prendre la main » le fait taire sur une conversation. → [POINT:rail.whatsapp] [POINT:reglages.espaces] [GUIDE:marques]
-- **Publier pour un client** : le bandeau sous l'en-tête (Quick, Studio, Planificateur, Bibliothèque) dit pour qui l'on
-  travaille ; dans un espace client, « Fiche client » ouvre consentements, posts à valider et journal. Chaque canal
-  (compte vérifié) demande un consentement en cours (« Ajouter ») ; « Révoquer » met en pause les posts programmés qui
-  le visent. En mode « validé par le client », un post naît « À valider » et ne se programme qu'après « Validé par le
-  client » ; changer son texte ou son média annule la validation. En mode « publié en son nom », programmer ou
-  « Envoyer maintenant » demande une confirmation qui nomme le client. Un refus du serveur dit lequel manque. → [ALLER:scheduler] [GUIDE:planificateur]
+  ouvre l'assistant en quatre temps (type et identité, fiche client, canaux, récapitulatif). « Vérifier » teste un
+  canal sans rien publier ; « Terminer » active l'espace. → [POINT:reglages.espaces] [POINT:reglages.nouvel_espace] [GUIDE:clients-canaux]
+- **Revérifier un canal plus tard** : Réglages › Espaces de marque, chaque compte porte sa pastille et « Vérifier ».
+  Un compte non vérifié se dit dans l'éditeur de post sans bloquer (sauf client). → [POINT:reglages.espaces] [GUIDE:comptes]
+- **Relier le WhatsApp d'un espace** (t310) : canal de CONVERSATION ; dans l'assistant d'espace, étape Canaux, cocher
+  WhatsApp, choisir la facturation Meta (définitive), « Créer le lien » (Kapso, gratuit ; consentement daté d'abord pour
+  un client), envoyer soi-même le lien au client, puis « Vérifier ». Clé Kapso unique : Réglages › Clés d'API.
+  → [POINT:reglages.nouvel_espace] [POINT:reglages.cles] [GUIDE:whatsapp]
+- **Diffuser un post sur WhatsApp** (t328) : inspecteur du post au Planificateur, cocher le compte WhatsApp de
+  l'espace (un seul, jamais précoché), panneau « Diffusion WhatsApp » : modèle approuvé par Meta sans en-tête média,
+  paramètres, audience (contacts avec accord, hors STOP), devis ; « Enregistrer la diffusion » ne dépense rien. Elle
+  part avec le post après le plafond mensuel et la validation client ; suivi par « Relire » ; « Confirmer l'envoi »
+  relance une issue incertaine (payant, doublons possibles). → [ALLER:scheduler] [GUIDE:whatsapp]
+- **Répondre sur WhatsApp avec l'agent** (t311) : Réglages › Espaces de marque, « Agent WhatsApp » (Agent actif,
+  mode, rôles, horaires, limites, modèle de validation, plafond mensuel). Mode Brouillons par défaut (on envoie
+  depuis la page WhatsApp, « Faire rédiger » en demande un) ; Automatique se confirme, argent et demande d'humain
+  restent en brouillon. Payant, catégorie « whatsapp_agent » (messages Meta : « whatsapp ») ; « Prendre la main »
+  le fait taire. → [POINT:rail.whatsapp] [POINT:reglages.espaces] [GUIDE:whatsapp]
+- **Publier pour un client** : le bandeau « pour qui » (Quick, Studio, Planificateur, Bibliothèque) ; « Fiche client »
+  (consentements, posts à valider, journal) ; chaque canal veut un consentement (« Ajouter », « Révoquer » met en
+  pause). En mode « validé par le client », un post naît « À valider » et ne se programme qu'après « Validé par le
+  client » ; en « publié en son nom », une confirmation nomme le client. → [ALLER:scheduler] [GUIDE:clients-canaux]
 - **Kits de marque** (nom, logo, couleurs de l'application) : Réglages › Identité visuelle.
   → [POINT:reglages.marque] [GUIDE:reglages]
 - **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés, puis programmer dans le
@@ -108,6 +102,20 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   préréglage, régler les nœuds, puis Rendre dans la Bibliothèque. → [POINT:sonvfx.atelier] [GUIDE:son-vfx]
 - **Dire une voix off** : Son & VFX › Voix off, choisir une voix, écrire le script, puis Générer la voix.
   → [POINT:sonvfx.voix] [GUIDE:son-vfx]
+- **Scanner une page** (t312) : Atelier de Chapitres, « Scanner une page » ; 1 à 10 images ou PDF, « Lire » (sur le
+  PC, gratuit, mots douteux surlignés). « Essayer avec Claude » : devis, confirmation, catégorie « atelier », lecture
+  gardée. Envois : Insérer dans le chapitre, Créer les chapitres, Importer comme manuscrit. → [ALLER:episodes] [GUIDE:scan]
+- **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
+  payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
+- **Filmer l'app, l'habiller, la monter** (t315-t317) : barre du haut, « Filmer l'app » (CET onglet, secrets masqués,
+  gratuit, vidéo dans la Bibliothèque) ; Habillage › « Modifier les skins » (un skin par espace) ; « Monter une
+  capture… » (zooms sur clics, temps morts, chapitres, formats, sous-titres ; transcription payante sur devis), puis
+  « Rendre la vidéo » et « Planifier un brouillon ». → [GUIDE:capture-live]
+- **Passer en direct** (t318) : barre du haut, « Direct » ; Twitch, YouTube Live, Kick, RTMP (clé au coffre) ;
+  Discord = annonce seulement ; Pause écran, Marqueur, Arrêter ; enregistré dans la Bibliothèque. → [GUIDE:capture-live]
+- **Tutoriel et parcours d'une capture** (t319) : éditeur de montage › « Tutoriel… » (étapes par geste, « Fabriquer
+  les brouillons » sans publier, « Exporter le parcours ») ; « Filmer l'app » › « Parcours… » importe et rejoue :
+  « Montrer » pointe le vrai bouton sans cliquer. → [GUIDE:capture-live]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]
@@ -129,48 +137,32 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Mettre à jour l'application** : Réglages › Diagnostic, bouton Vérifier. → [POINT:reglages.diagnostic] [GUIDE:installer]
 - **Utiliser le téléphone** : Réglages › Appareils. → [POINT:reglages.appareils] [GUIDE:mobile]
 - **Dessiner en vectoriel** : ouvrir le Vectorlab, nommer le document puis Créer. → [POINT:vectorlab.creer] [GUIDE:vectorlab]
+- **Animer un schéma ou une illustration photographiés** (t314) : Vectorlab › Fichier › « Scanner un schéma… »
+  (calques nommés ; détourage IA payant après devis), puis « Envoyer vers › Animation » (Studio). → [GUIDE:scan]
 - **Retoucher au pixel dans le Vectorlab** : basculer en mode Pixel. → [POINT:vectorlab.mode_pixel] [GUIDE:vectorlab-pixel]
 - **Raccourcis du Vectorlab** : bouton Raccourcis clavier de sa barre. → [POINT:vectorlab.raccourcis] [GUIDE:raccourcis]
 - **Retoucher une photo** : Photolab, outil Pinceau ; Recadrage pour couper ; menu Filtre pour les effets.
   → [POINT:photolab.pinceau] [POINT:photolab.recadrage] [GUIDE:photolab]
 - **Appliquer un filtre** : Photolab › menu Filtre. → [POINT:photolab.menu_filtre] [GUIDE:photolab-avance]
 - **Changer de PC** : Réglages › Transfert entre machines (pas d'ancre pour cette section). → [GUIDE:transfert]
-- **Se faire aider** : F1 ou le bouton « Demander » ouvre ce tiroir ; la réponse peut montrer le bouton, ouvrir l'écran
-  ou le guide ; si aucun bouton connu ne convient, proposer de regarder l'écran (accord et coût d'abord). Le tiroir a
-  quatre onglets en haut : « Demander » (toi), « Campagnes » (l'agent Campagnes), « Veille » (les avis publics sur les
-  concurrents) et « Prospects » (le CRM léger, voir plus bas). Tu ne peux pas pointer ce qui est dans le tiroir : nomme
-  l'onglet en clair. → [GUIDE:demander]
-- **Suivre ses prospects** (t353) : onglet « Prospects » du tiroir, pour l'espace choisi dans sa liste (l'actif par
-  défaut). « Ajouter un prospect » exige la source (type, date, l'adresse pour une page web) et la base légale
-  (consentement, intérêt légitime B2B à une adresse professionnelle, mesures précontractuelles). Statuts : Proposé,
-  Qualifié, Contacté, A répondu, Rendez-vous, Client (signé), Perdu, S'est opposé ; seuls les passages permis sont
-  proposés. Rien n'est envoyé d'ici : « Contacté » se pose à la main, et « Noter un contact » garde l'historique. Au
-  Rendez-vous, l'app crée un espace « démonstration » qui ne publie JAMAIS ; il est archivé si le prospect est Perdu et devient l'espace client à la signature (ses
-  brouillons restent ; les consentements de publication se datent ensuite dans la fiche client). RGPD : « Exporter ses
-  données », « Effacer la fiche », « S'oppose à la prospection » (fiche anonymisée, registre des oppositions valable
-  pour tous les espaces, un STOP WhatsApp hors espace client y va aussi, et un réabonnement l'en retire), et
-  l'effacement automatique 3 ans après le dernier contact VENU du prospect. Une saisie erronée au registre se retire
-  par « Saisir une opposition » › Retirer ; une opposition de la personne, jamais. Gratuit.
-  L'agent peut PROPOSER des prospects (t354, « proposé par l'agent ») : WhatsApp entrant avec accord, CSV déposé
-  (consentement daté), page d'entreprise collée (e-mail pro présent, robots.txt respecté), registre des entreprises
-  (gratuit, cibles sans fiche), recherche web PAYANTE seulement si la carte est acceptée (fournisseur et clé :
-  Prospects › « Recherche web »). Signaux de veille : jamais de fiche. Page ou recommandation : « À informer avant
-  le … ». Score = barème ± 20 de l'agent, statut inchangé. Séquences (fiche
-  Qualifiée) : l'agent rédige un message + 2 relances ; « Valider la séquence » (carte ou fiche), « Planifier » ; X, Instagram, LinkedIn : « Copier et ouvrir », « Marquer envoyé » ; e-mail : Prospects › « E-mail » ; « Tableau » : le
-  pipeline. → [GUIDE:prospection]
-- **Mener une campagne avec l'agent Campagnes** (stratégie, calendrier et posts d'un lancement) : onglet « Campagnes »
-  de ce tiroir, ou Planificateur › Générer un plan, mode Agent Campagnes ; il faut une clé Anthropic. Choisir
-  d'abord l'espace de marque de la campagne dans la liste du haut : vide par défaut, jamais l'espace actif d'office ;
-  sans espace, l'agent oriente seulement ; une fois choisi, il ne change plus. Le circuit : le brief, puis un devis
-  par message (le plafond « ≤ X $ » s'affiche sous le champ, Envoyer vaut accord, l'agent s'arrête net au plafond et
-  propose « Continuer » avec un nouveau plafond), puis la porte 1 (Valider ou Modifier la stratégie et le
-  calendrier), puis les textes et, sur devis, images, vidéos ou voix générées seulement au clic sur « Générer », enfin
-  les brouillons au Planificateur, dans l'espace de la campagne (« Ouvrir le calendrier du Planificateur », ou
-  « Activer l'espace … et ouvrir le calendrier » s'il n'est pas l'actif). La porte 2, c'est le Planificateur :
-  l'utilisateur relit et programme chaque brouillon lui-même. L'agent ne publie ni ne programme jamais rien, ne
-  change pas l'espace actif, ne touche ni aux clés, ni aux Réglages, ni aux comptes, et ne supprime rien. Ses
-  messages sont comptés sous la catégorie « campagnes ». Le téléphone appairé mène les mêmes conversations ; le
-  travail se fait sur le PC. → [GUIDE:agent-campagnes]
+- **Se faire aider** : F1 ou « Demander » ouvre ce tiroir (onglets « Demander », « Campagnes », « Veille »,
+  « Prospects ») ; la réponse peut montrer un bouton, ouvrir l'écran ou le guide, ou proposer de regarder l'écran
+  (accord et coût d'abord). Ce qui est dans le tiroir ne se pointe pas : nomme l'onglet. → [GUIDE:demander]
+- **Suivre ses prospects** (t353-t360) : onglet « Prospects » du tiroir, pour l'espace choisi. « Ajouter un
+  prospect » exige la source et la base légale ; seuls les passages de statut permis sont proposés ; rien n'est
+  envoyé d'ici (« Noter un contact »). Au Rendez-vous, un espace « Démo · <entreprise> » qui ne publie JAMAIS, devenu
+  l'espace client à la signature. RGPD : exporter, effacer, « S'oppose à la prospection » (registre commun),
+  effacement 3 ans après le dernier contact venu du prospect. L'agent peut PROPOSER des prospects (recherche web
+  payante seulement sur carte acceptée) ; score = barème ± 20. Séquences (fiche Qualifiée) : un message + 2
+  relances, « Valider la séquence », « Planifier » ; X, Instagram, LinkedIn : « Copier et ouvrir », « Marquer
+  envoyé » ; e-mail : Prospects › « E-mail » ; « Tableau » : le pipeline. → [GUIDE:prospection]
+- **Mener une campagne avec l'agent Campagnes** : onglet « Campagnes » du tiroir, ou Planificateur › Générer un
+  plan, mode Agent Campagnes (clé Anthropic). Choisir d'abord l'espace de la campagne (jamais l'actif d'office, figé
+  ensuite) ; un devis par message (Envoyer vaut accord, arrêt net au plafond, « Continuer ») ; porte 1 : Valider ou
+  Modifier stratégie et calendrier ; médias générés seulement au clic sur « Générer » ; brouillons au Planificateur
+  de l'espace de la campagne (« Activer l'espace … et ouvrir le calendrier »). Porte 2 : l'utilisateur programme
+  lui-même. L'agent ne publie, ne programme, ne supprime rien et ne touche ni clés ni Réglages. Catégorie
+  « campagnes ». → [GUIDE:agent-campagnes]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 
@@ -183,9 +175,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **« Compté sous la catégorie X »** (dans une fiche) : c'est l'étiquette de la dépense — l'écran d'où elle part,
   visible dans le tableau des dépenses et dans le message d'un refus. Ce n'est PAS un plafond qui se règle : seuls le
   plafond global, ceux par moteur et celui de chaque espace de marque se règlent. → [POINT:reglages.budget]
-- **WhatsApp absent d'un post ou des réseaux d'un compte** : c'est voulu, WhatsApp n'est jamais une cible de post.
-  Il se relie par un lien d'installation Kapso dans l'assistant d'espace (étape Canaux). « Clé Kapso à saisir » :
-  la poser dans Réglages › Clés d'API, ligne Kapso (WhatsApp). → [POINT:reglages.cles] [GUIDE:marques]
+- **WhatsApp absent des réseaux d'un compte ou des canaux d'un projet** : voulu, jamais précoché ; un post le vise en
+  DIFFUSION si le WhatsApp de l'espace est relié (assistant d'espace, étape Canaux). « Clé Kapso à saisir » :
+  Réglages › Clés d'API, ligne Kapso. → [POINT:reglages.cles] [GUIDE:whatsapp]
 - **L'agent WhatsApp ne répond pas** : il doit être allumé (« Agent actif » dans Agent WhatsApp), le message doit
   arriver dans ses horaires, la clé Anthropic posée et le plafond non atteint ; un contact en STOP ou repris en main
   n'a pas de réponse. En mode Brouillons, la réponse attend dans la page WhatsApp. → [POINT:reglages.espaces] [ALLER:whatsapp]

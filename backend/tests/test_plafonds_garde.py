@@ -33,6 +33,9 @@ PAYANTES = {
     ("routes", "POST", "/espaces/{espace_id}/contenus/generer"),       # t207 : contenus de départ par LLM (sur demande)
     ("agent", "POST", "/lire"),   # A6 (19/10/2026) : la réponse de l'assistant lue à voix haute (garde « aide »)
     ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
+    ("scan", "POST", "/{scan_id}/vision"),   # t312 : le secours Claude vision du Scan (garde « atelier » avant chaque lot)
+    ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
+    ("schema", "POST", "/analyser"),   # t314 : détourage fal d'un schéma (garde « vectorlab » avant l'envoi)
     ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
     ("post", "POST", "/rendre"),   # t277 : maillons IA de la pile de post-traitement (garde « son », avant le job)
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
@@ -41,6 +44,7 @@ PAYANTES = {
     ("routes", "POST", "/whatsapp/{cid}/brouillons/rediger"),   # t311 : l'agent WhatsApp (garde « whatsapp_agent » à chaque appel)
     ("routes", "POST", "/whatsapp/{cid}/brouillons/decider"),   # t311 : l'envoi d'un brouillon (AW.envoyer_brouillon -> WE.envoyer, garde « whatsapp »)
     ("routes", "POST", "/schedule/{post_id}/validation-whatsapp"),   # t311 : la demande de validation au client (WV.envoyer_validation -> WE.envoyer, garde « whatsapp »)
+    ("routes", "POST", "/schedule/{post_id}/diffusion/confirmer"),   # t328 : relance confirmée d'une diffusion (WD.lancer ; garde dans _lancer_sous_verrou, A2i)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer
     ("routes", "POST", "/chapters/{chapter_id}/reecrire"),     # tâche #66 : la réécriture dans le ton de la bible (LLM)
     ("routes", "POST", "/chapters/{chapter_id}/animatique"),   # tâche #63 : la voix témoin de l'animatique (sur demande)
@@ -152,6 +156,36 @@ _ev = _wv[_wv.find("async def envoyer_validation("):]
 _ev = _ev[:_ev.find("# ---- les réponses")]
 check("A2h la demande de validation au client passe par WE.envoyer (gardé), et par aucun autre envoi",
       0 < _ev.find("WE.envoyer(") and "kapso.envoyer(" not in _ev, "")
+# t312 : la route vision délègue sa garde à scan_vision.lire — l'accord (CoutChange) puis tirer_garde avant CHAQUE lot,
+# et aucun appel nu au modèle (MT.tirer sans garde)
+_sv = (RP.RACINE / "services" / "scan_vision.py").read_text(encoding="utf-8")
+_sl = _sv[_sv.find("async def lire("):]
+check("A2i le secours Scan refuse un coût hors accord AVANT la boucle, puis appelle MT.tirer_garde dans chaque lot",
+      0 < _sl.find("raise CoutChange(") < _sl.find("for n, k in enumerate(lots)") < _sl.find("MT.tirer_garde(")
+      and "MT.tirer(" not in _sl, "")
+# t313 : les deux routes payantes de l'inspiration délèguent leur garde au service — l'accord (CoutChange) avant
+# _appel, qui appelle MT.tirer_garde ; aucun appel nu au modèle
+_ins = (RP.RACINE / "services" / "inspiration.py").read_text(encoding="utf-8")
+_ia = _ins[_ins.find("async def analyser("):_ins.find("# ---- 3. carte de devis")]
+_ir = _ins[_ins.find("async def rediger("):_ins.find("def juger_texte(")]
+_ap = _ins[_ins.find("async def _appel("):_ins.find("def _json(")]
+check("A2j l'inspiration refuse un coût hors accord AVANT d'appeler, et _appel passe par MT.tirer_garde",
+      0 < _ia.find("raise CoutChange(") < _ia.find("await _appel(") and 0 < _ir.find("raise CoutChange(") < _ir.find("await _appel(")
+      and "MT.tirer_garde(" in _ap and "MT.tirer(" not in _ins, "")
+# t328 tâche 3 : une diffusion WhatsApp réserve son devis (plafonds.verifier) AVANT le send Kapso, dans `lancer`
+_wd = (RP.RACINE / "services" / "whatsapp_diffusions.py").read_text(encoding="utf-8")
+_ld = _wd[_wd.find("async def _lancer_sous_verrou("):]
+_ld = _ld[:_ld.find("# ---- relire")]
+check("A2k la diffusion WhatsApp appelle plafonds.verifier AVANT kapso.envoyer_broadcast, et un seul send",
+      0 < _ld.find("plafonds.verifier(") < _ld.find("kapso.envoyer_broadcast(") and _ld.count("kapso.envoyer_broadcast(") == 1
+      and "kapso.envoyer(" not in _wd, "")
+# t328 tâche 4 : `lancer` (route confirmer, adaptateur du Planificateur) passe par _lancer_sous_verrou (gardé A2k), et
+# kapso.envoyer_broadcast n'est appelé nulle part ailleurs dans le service
+_la = _wd[_wd.find("async def lancer("):_wd.find("async def _lancer_sous_verrou(")]
+_ad = _wd[_wd.find("async def _publier("):]
+check("A2l lancer mène à _lancer_sous_verrou ; l'adaptateur « whatsapp » ne dépense que par lancer",
+      "_lancer_sous_verrou(" in _la and _wd.count("kapso.envoyer_broadcast(") == 1 and "await lancer(" in _ad
+      and "kapso." not in _ad.replace("kapso.KapsoErreur", ""), "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
@@ -177,6 +211,16 @@ anciens["post"] = _pst.replace("_PLAF.verifier(", "_sans_garde(") if "_PLAF.veri
 # t285a : les routes de l'agent Campagnes n'existaient pas en bfec23e — même témoin : le source actuel privé de sa garde
 _acr = (RP.MODULES["agent_campagnes"]).read_text(encoding="utf-8")
 anciens["agent_campagnes"] = _acr.replace("AC.tour(", "_sans_garde(") if "AC.tour(" in _acr else None
+# t312 : le secours Claude vision du Scan n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
+_scr = (RP.MODULES["scan"]).read_text(encoding="utf-8")
+anciens["scan"] = _scr.replace("SV.lire(", "_sans_garde(") if "SV.lire(" in _scr else None
+# t313 : l'inspiration n'existait pas en bfec23e — même témoin
+_inr = (RP.MODULES["inspiration"]).read_text(encoding="utf-8")
+anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I.rediger(", "_sans_garde(")
+                          if "I.analyser(" in _inr else None)
+# t314 : la boîte « schéma » n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
+_shr = (RP.MODULES["schema"]).read_text(encoding="utf-8")
+anciens["schema"] = _shr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _shr else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

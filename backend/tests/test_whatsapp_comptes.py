@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 """t310 tâche 1 (27/10/2026) — B1 WhatsApp via Kapso : la plateforme d'espace `whatsapp` et la clé Kapso PLATE.
 Plan docs/superpowers/plans/2026-10-27-t310-whatsapp-kapso.md, spec §6.1 (une seule KAPSO_API_KEY partagée par tous les
-espaces ; des champs publics par espace, posés par la liaison ; WhatsApp n'est jamais une cible de publication).
+espaces ; des champs publics par espace, posés par la liaison). t328 (27/10/2026) : WhatsApp DEVIENT une cible du
+Planificateur (diffusions) : W5 garde la cible permise, le refus d'un compte d'un autre espace,
+et CIBLES_EXPLICITES (jamais un canal par défaut).
 Ce que ce banc garde (routes réelles, TestClient, data-dir et sqlite temporaires, aucun réseau) :
   W1 (a) GET /api/comptes : 200, `whatsapp` décrit avec ses 5 champs publics, aucun champ KAPSO_API_KEY.
   W2 (b) clé plate posée, aucun compte : aucun compte `historique-whatsapp`.
   W3 (c) `disponible` : faux sans WHATSAPP_PHONE_ID, faux sans clé, vrai avec les deux.
   W4 (d) POST /api/comptes/{id} avec un champ whatsapp ou KAPSO_API_KEY dans `valeurs` : 400, rien d'écrit.
-  W5 (e) verifier_cibles refuse un compte whatsapp (ValueError), et R._poser_comptes de même (400).
+  W5 (e) t328 : verifier_cibles accepte un compte whatsapp de l'espace (R._poser_comptes aussi), refuse celui d'un autre.
   W6 (f) la vue ne porte jamais la valeur de la clé.
   W7 (g) coffre posé et fermé : GET /api/comptes 200, `cle_plate.posee` faux, sans exception.
   W8 (h) export d'un paquet d'espace : aucun champ whatsapp ; import d'un paquet qui en porte : ignoré.
@@ -100,9 +102,9 @@ check("W1.7 plateformes.whatsapp.cle_plate = {nom: KAPSO_API_KEY, posee: faux} s
       lambda: pw["cle_plate"] == {"nom": "KAPSO_API_KEY", "posee": False}
       and not any("cle_plate" in v for k, v in g.json()["plateformes"].items() if k != "whatsapp"), repr(pw))
 check("W1.4 PLATEFORMES garde 4 positions par entrée", all(len(v) == 4 for v in CP.PLATEFORMES.values()))
-check("W1.5 constantes : CLE_PLATE, SANS_HISTORIQUE, NON_PUBLIABLES",
-      lambda: CP.CLE_PLATE == {"whatsapp": "KAPSO_API_KEY"} and CP.SANS_HISTORIQUE == frozenset({"whatsapp"})
-      and CP.NON_PUBLIABLES == frozenset({"whatsapp"}))
+check("W1.5 constantes : CLE_PLATE, SANS_HISTORIQUE, CIBLES_EXPLICITES ; NON_PUBLIABLES retiré (t328)",
+      lambda: CP.CLE_PLATE == {"whatsapp": "KAPSO_API_KEY"} and CP.SANS_HISTORIQUE == frozenset({"whatsapp"}) | CP.LIVE
+      and CP.CIBLES_EXPLICITES == frozenset({"whatsapp"}) and not hasattr(CP, "NON_PUBLIABLES"))   # t318 : + comptes.LIVE (fusion t320)
 check("W1.6 champs_poses_par_serveur(whatsapp) = tous ses champs publics",
       lambda: tuple(CP.champs_poses_par_serveur("whatsapp")) == tuple(WA_PUBLICS) and CP.champs_poses_par_serveur("x") == ())
 
@@ -153,19 +155,21 @@ r = c.post("/api/comptes", json={"espace_id": rip, "plateforme": "whatsapp", "va
 check("W4.2 créer avec un champ posé par le serveur : 400, aucun compte créé", r.status_code == 400 and len(CP.lister(rip)) == n0,
       f"{r.status_code} {r.text[:160]}")
 
-print("\n[e] jamais une cible de publication")
-try:
-    CP.verifier_cibles(rip, [wid]); msg = None
-except ValueError as e:
-    msg = str(e)
-check("W5.1 verifier_cibles : ValueError « un compte WhatsApp n'est pas une cible de publication »",
-      msg == "un compte WhatsApp n'est pas une cible de publication", repr(msg))
+print("\n[e] t328 : une cible de publication (diffusion), de son espace seulement")
+vues = CP.verifier_cibles(rip, [wid])
+check("W5.1 verifier_cibles accepte le compte whatsapp de l'espace", len(vues) == 1 and vues[0]["plateforme"] == "whatsapp")
 p = storage.ScheduledPost(title="t", channels="x", espace_id=rip)
 try:
     R._poser_comptes(p, [wid]); code = None
 except HTTPException as e:
     code = e.status_code
-check("W5.2 R._poser_comptes : 400, le post ne prend pas le compte", code == 400 and not getattr(p, "comptes", None), repr(code))
+check("W5.2 R._poser_comptes : le post prend le compte, canal whatsapp",
+      code is None and json.loads(p.comptes) == [wid] and p.channels == "whatsapp", repr((code, p.comptes, p.channels)))
+try:
+    CP.verifier_cibles(autre, [wid]); refuse = False
+except PermissionError:
+    refuse = True
+check("W5.3 verifier_cibles refuse le compte whatsapp d'un autre espace (PermissionError)", refuse)
 
 print("\n[f] jamais la valeur de la clé")
 tout = json.dumps([c.get(f"/api/comptes?espace={rip}").json(), c.get("/api/comptes?espace=*").json(), CP.obtenir(wid)])

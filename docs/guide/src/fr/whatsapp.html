@@ -1,0 +1,51 @@
+<p class="chapeau-chap">Vous saurez relier le numéro WhatsApp d'un espace, répondre à vos contacts avec l'aide d'un agent, faire valider un post par le client et diffuser un post à vos contacts. La liaison est gratuite ; Meta facture les messages, les rédactions de l'agent sont payantes, et chaque envoi passe par le plafond de l'espace.</p>
+
+<h3>Avant de commencer</h3>
+<p>WhatsApp passe par <strong>Kapso</strong>, une surcouche de l'API officielle de Meta qui reçoit les messages à la place du PC. Sa clé, une seule pour tous les espaces, se pose dans <b class="ui">Réglages</b> › <b class="ui">Clés d'API</b>. Chaque client relie son propre compte Meta Business et son numéro ; un numéro sert un seul espace.</p>
+
+<h3>Relier le numéro d'un espace</h3>
+<figure class="scene" data-scene="whatsapp/lier"></figure>
+<ol class="etapes">
+<li>Dans l'assistant d'espace (voir <a href="#clients-canaux">Travailler pour des clients</a>), étape <strong>Canaux</strong>, cochez WhatsApp. Il ne s'ajoute pas depuis la liste des comptes : il n'y apparaît que pour être vérifié ou supprimé.</li>
+<li>Pour un client, notez d'abord son consentement à la liaison : le moyen et la date.</li>
+<li>Choisissez la <strong>Facturation Meta</strong> : par défaut, le client paie Meta sur sa propre carte ; sinon Kapso paie sur vos crédits (+5 %) et vous refacturez, si la facturation partenaire est activée chez Kapso. Ce choix est définitif.</li>
+<li><b class="ui">Créer le lien</b> (gratuit) : un lien d'installation Kapso s'affiche, valable 30 jours. <b class="ui">Copier</b>, puis envoyez-le au client par votre moyen habituel : l'application n'envoie rien. Il y connecte son compte Facebook en quelques minutes.</li>
+<li><b class="ui">Vérifier</b> relit la liaison : quand le client a terminé, le numéro relié s'affiche.</li>
+</ol>
+
+<h3>Répondre sur la page WhatsApp</h3>
+<figure class="scene" data-scene="whatsapp/page"></figure>
+<p>L'entrée <b class="ui">WhatsApp</b> du rail ouvre les conversations de l'espace actif, avec cinq onglets : <b class="ui">Conversations</b>, <b class="ui">Modèles</b>, <b class="ui">Contacts</b>, <b class="ui">Santé</b> et <b class="ui">Prix Meta</b>.</p>
+<ol class="etapes">
+<li>Choisissez une conversation. Sa pastille dit si la fenêtre de 24 h est ouverte ; fermée, seuls les modèles approuvés par Meta partent : <b class="ui">Envoyer un modèle</b>.</li>
+<li>Quand l'agent a rédigé, la <strong>Réponse proposée par l'agent</strong> attend : corrigez-la, puis <b class="ui">Envoyer</b> ou <b class="ui">Rejeter</b>. <b class="ui">Faire rédiger</b> lui en demande une.</li>
+<li><b class="ui">Prendre le fil</b> fait taire l'agent sur cette conversation ; <b class="ui">Rendre le fil</b> la lui rend.</li>
+</ol>
+
+<h3>Régler l'agent WhatsApp</h3>
+<p>Dans <b class="ui">Réglages</b> › <b class="ui">Espaces de marque</b>, le bouton <b class="ui">Agent WhatsApp</b>, sous les comptes de l'espace actif, ouvre ses réglages : <b class="ui">Agent actif</b>, mode, rôles (questions courantes, rendez-vous, commandes sans prix ni paiement, validation des posts), horaires et message hors horaires, limites par contact et par jour, mots qui appellent un humain, plafond mensuel. Il parle avec le persona de l'espace et respecte ses mots interdits.</p>
+<div class="cartes">
+<article><i data-dz="dz-action-modifier"></i><h4>Brouillons, par défaut</h4><p>L'agent rédige ; vous relisez et envoyez chaque réponse depuis la page WhatsApp.</p></article>
+<article><i data-dz="dz-media-automation"></i><h4>Automatique</h4><p>Après confirmation, l'agent répond seul, dans les horaires et les limites. Une réponse qui parle d'argent, un ton négatif ou une demande d'humain reste un brouillon à reprendre.</p></article>
+<article><i data-dz="dz-action-valider"></i><h4>Validation par le client</h4><p>Avec le rôle de validation coché, <b class="ui">Envoyer au client par WhatsApp</b>, dans la Fiche client, lui envoie l'aperçu du post avec deux boutons : valider ou corriger. Sa réponse revient datée dans la fiche.</p></article>
+</div>
+
+<h3>Diffuser un post sur WhatsApp</h3>
+<figure class="scene" data-scene="whatsapp/diffusion"></figure>
+<ol class="etapes">
+<li>Dans l'inspecteur d'un post du Planificateur, sous <b class="ui">Comptes de diffusion</b>, cochez le compte WhatsApp de l'espace, un seul par post. Les canaux d'un projet ne le cochent jamais d'eux-mêmes.</li>
+<li>Le panneau <b class="ui">Diffusion WhatsApp</b> demande un modèle approuvé par Meta (sans en-tête média ni texte variable, jamais d'authentification) et ses paramètres, les mêmes pour tous.</li>
+<li>Il montre l'audience, c'est-à-dire les contacts dont l'accord est noté, hors STOP et désinscrits du marketing, et le devis. <b class="ui">Enregistrer la diffusion</b> ne dépense rien.</li>
+<li>La diffusion part avec la publication du post, après le contrôle du plafond ; la validation du client s'applique comme pour tout post. Ensuite le panneau suit envoyés, livrés, lus, échecs et coût réel : <b class="ui">Relire</b>.</li>
+</ol>
+
+<h3>Tenir ses contacts et ses prix</h3>
+<div class="cartes">
+<article><i data-dz="dz-etat-dialogue"></i><h4>Accords et STOP</h4><p>Onglet Contacts : <b class="ui">Noter l'accord</b>, avec sa source, avant tout premier message. Un contact qui écrit STOP ne reçoit plus rien ; <b class="ui">Lever le STOP</b> exige la source du réabonnement.</p></article>
+<article><i data-dz="dz-action-cout"></i><h4>Prix Meta</h4><p>Meta facture chaque message livré selon la catégorie et le pays. Saisissez la grille par marché, puis <b class="ui">Enregistrer la grille</b> : un prix inconnu fait refuser l'envoi.</p></article>
+<article><i data-dz="dz-nav-analytics"></i><h4>Santé</h4><p>Les messages du mois, les échecs de livraison, les modèles refusés par Meta et l'état de l'agent.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-action-cout"></i><p>Les messages comptent sous la catégorie whatsapp, les rédactions de l'agent sous whatsapp_agent. Le forfait Kapso est partagé par tous les espaces : le plafond mensuel de messages de chaque agent évite qu'un client mange le quota des autres.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Si l'issue d'une diffusion est incertaine, <b class="ui">Confirmer l'envoi</b> la relance après une boîte de confirmation : c'est payant, certains contacts peuvent la recevoir deux fois, et le post repart aussi sur ses autres canaux.</p></aside>

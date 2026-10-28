@@ -4,7 +4,7 @@
 Plan docs/superpowers/plans/2026-10-28-veille-apify-t364-socle.md, décision 6 (« comme les autres clés »).
 [1] le maillon      scripts/patch_bundle_dzapify.py : marqueur x1, aucun .bak_dzapify, --check « déjà appliqué », ancre
                     unique (vue d'avant), hors couche, aller-retour exact, épingles intouchées, node --check ;
-[2] réversible      avant_dzapify == defaire, appelé EN TÊTE de avant_whatsapppage ;
+[2] réversible      avant_dzapify == defaire, appelé EN TÊTE de avant_dzdiffusion (fusion #473) ;
 [3] la ligne        dzFuNeuves porte la ligne APIFY_TOKEN (texte exact) en tête, la fin du tableau (dzwhatsapp) intacte ;
 [4] textes          reglages.cles.apify et apify_why existent en FR et en EN ; l'assemblé est à jour.
 Run : & $PY tests/test_apify_ecran.py   (depuis backend/)
@@ -63,8 +63,8 @@ if NODE:
 
 print("[2] réversible")
 src = (BACKEND / "tests" / "_i18n_l1_aide.py").read_text("utf-8")
-i = src.index("def avant_whatsapppage(")
-check("2.1 avant_dzapify appelé en tête de avant_whatsapppage", "avant_dzapify(bundle)" in src[i:src.index("def ", i + 10)])
+i = src.index("def avant_dzdiffusion(")   # fusion #473 : dzapify rejoué APRÈS dzdiffusion (queue de la chaîne)
+check("2.1 avant_dzapify appelé en tête de avant_dzdiffusion", "avant_dzapify(bundle)" in src[i:src.index("def ", i + 10)])
 check("2.2 la vue d'avant n'a plus le marqueur", M.MARKER not in AVANT)
 check("2.3 la chaîne d'avant défait aussi WhatsApp", "/*whatsapppage*/" not in AIDE.avant_whatsapppage(B))
 
