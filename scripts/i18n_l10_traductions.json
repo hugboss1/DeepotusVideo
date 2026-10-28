@@ -11574,5 +11574,117 @@
  "plafond e-mail atteint pour les {JOURS_REPORT} prochains jours": {
   "fr": "plafond e-mail atteint pour les {JOURS_REPORT} prochains jours",
   "en": "email cap reached for the next {JOURS_REPORT} days"
+ },
+ "Brevo indisponible (HTTP {statut}) : nouvel essai plus tard": {
+  "fr": "Brevo indisponible (HTTP {statut}) : nouvel essai plus tard",
+  "en": "Brevo unavailable (HTTP {statut}): will retry later"
+ },
+ "espace inconnu, archivé ou de démonstration": {
+  "fr": "espace inconnu, archivé ou de démonstration",
+  "en": "unknown, archived or demo workspace"
+ },
+ "{champ} : une ligne de {n} caractères au plus": {
+  "fr": "{champ} : une ligne de {n} caractères au plus",
+  "en": "{champ}: one line of {n} characters at most"
+ },
+ "{champ} : adresse e-mail illisible": {
+  "fr": "{champ} : adresse e-mail illisible",
+  "en": "{champ}: unreadable email address"
+ },
+ "port : un entier de 1 à 65535": {
+  "fr": "port : un entier de 1 à 65535",
+  "en": "port: a whole number from 1 to 65535"
+ },
+ "serveur : un nom d'hôte, sans https:// ni chemin": {
+  "fr": "serveur : un nom d'hôte, sans https:// ni chemin",
+  "en": "server: a host name, without https:// or a path"
+ },
+ "réglages illisibles": {
+  "fr": "réglages illisibles",
+  "en": "unreadable settings"
+ },
+ "réglage inconnu : {v}": {
+  "fr": "réglage inconnu : {v}",
+  "en": "unknown setting: {v}"
+ },
+ "secret inconnu (mdp ou brevo)": {
+  "fr": "secret inconnu (mdp ou brevo)",
+  "en": "unknown secret (mdp or brevo)"
+ },
+ "secret illisible": {
+  "fr": "secret illisible",
+  "en": "unreadable secret"
+ },
+ "statut de journal inconnu": {
+  "fr": "statut de journal inconnu",
+  "en": "unknown log status"
+ },
+ "clé Brevo refusée : vérifiez-la dans l'onglet Prospects": {
+  "fr": "clé Brevo refusée : vérifiez-la dans l'onglet Prospects",
+  "en": "Brevo key refused: check it in the Prospects tab"
+ },
+ "Brevo a refusé ce destinataire ou ce message": {
+  "fr": "Brevo a refusé ce destinataire ou ce message",
+  "en": "Brevo refused this recipient or this message"
+ },
+ "envoi en pause ({motif}) : reprenez-le dans l'onglet Prospects": {
+  "fr": "envoi en pause ({motif}) : reprenez-le dans l'onglet Prospects",
+  "en": "sending paused ({motif}): resume it in the Prospects tab"
+ },
+ "réglages e-mail incomplets : {v}": {
+  "fr": "réglages e-mail incomplets : {v}",
+  "en": "incomplete email settings: {v}"
+ },
+ "réglages e-mail momentanément illisibles : réessayez dans un instant": {
+  "fr": "réglages e-mail momentanément illisibles : réessayez dans un instant",
+  "en": "email settings temporarily unreadable: try again in a moment"
+ },
+ "forme": {
+  "fr": "forme",
+  "en": "shape"
+ },
+ "destinataire refusé par le serveur": {
+  "fr": "destinataire refusé par le serveur",
+  "en": "recipient refused by the server"
+ },
+ "identifiants SMTP refusés : vérifiez l'utilisateur et le mot de passe": {
+  "fr": "identifiants SMTP refusés : vérifiez l'utilisateur et le mot de passe",
+  "en": "SMTP credentials refused: check the user and the password"
+ },
+ "serveur SMTP occupé (code {smtp_code}) : nouvel essai plus tard": {
+  "fr": "serveur SMTP occupé (code {smtp_code}) : nouvel essai plus tard",
+  "en": "SMTP server busy (code {smtp_code}): will retry later"
+ },
+ "serveur SMTP injoignable ({name}) : nouvel essai plus tard": {
+  "fr": "serveur SMTP injoignable ({name}) : nouvel essai plus tard",
+  "en": "SMTP server unreachable ({name}): will retry later"
+ },
+ "Brevo injoignable ({name}) : nouvel essai plus tard": {
+  "fr": "Brevo injoignable ({name}) : nouvel essai plus tard",
+  "en": "Brevo unreachable ({name}): will retry later"
+ },
+ "mode d'envoi inconnu (smtp ou brevo)": {
+  "fr": "mode d'envoi inconnu (smtp ou brevo)",
+  "en": "unknown sending mode (smtp or brevo)"
+ },
+ "adresse postale : 300 caractères au plus": {
+  "fr": "adresse postale : 300 caractères au plus",
+  "en": "postal address: 300 characters at most"
+ },
+ "sécurité SMTP : ssl ou starttls": {
+  "fr": "sécurité SMTP : ssl ou starttls",
+  "en": "SMTP security: ssl or starttls"
+ },
+ "plafond : de 1 à {PLAFOND_MAX} e-mails par jour": {
+  "fr": "plafond : de 1 à {PLAFOND_MAX} e-mails par jour",
+  "en": "cap: 1 to {PLAFOND_MAX} emails per day"
+ },
+ "envoi refusé par le serveur (code {smtp_code})": {
+  "fr": "envoi refusé par le serveur (code {smtp_code})",
+  "en": "sending refused by the server (code {smtp_code})"
+ },
+ "registre des oppositions indisponible ({name})": {
+  "fr": "registre des oppositions indisponible ({name})",
+  "en": "opposition register unavailable ({name})"
  }
 }

@@ -71,7 +71,7 @@ def _vierge() -> dict:
             "smtp": {"hote": "", "port": 465, "securite": "ssl", "utilisateur": ""},
             "imap": {"hote": "", "port": 993, "utilisateur": ""}, "plafond_jour": PLAFOND_MAX,
             "secrets": {}, "pause": {"active": False, "motif": "", "depuis": None}, "reprise_le": None,
-            "premier_envoi": None, "journal": [], "imap_etat": {"uidvalidity": None, "dernier": 0, "lu_le": None},
+            "premier_envoi": None, "erreur": None, "journal": [], "imap_etat": {"uidvalidity": None, "dernier": 0, "lu_le": None},
             "reponses": []}
 
 
@@ -249,7 +249,7 @@ def lire(eid, maintenant: datetime | None = None) -> dict:
             "imap": doc["imap"], "plafond_jour": doc["plafond_jour"], "mdp_pose": bool(doc["secrets"].get("mdp")),
             "brevo_pose": bool(doc["secrets"].get("brevo")), "manques": m, "pret": not m, "pause": doc["pause"],
             "plafond_du_jour": _plafond(doc, jour), "envoyes_du_jour": _envoyes(doc, jour, _fuseau(eid)),
-            "taux_rebond": _taux(doc, now)[0], "imap_lu_le": doc["imap_etat"].get("lu_le")}
+            "taux_rebond": _taux(doc, now)[0], "imap_lu_le": doc["imap_etat"].get("lu_le"), "erreur": doc.get("erreur")}
 
 
 # ---- plafond, journal, pause --------------------------------------------------------------------------------------------
@@ -312,6 +312,33 @@ def noter(eid, statut: str, adresse: str, message_id, detail: str = "", quand: d
                     doc["pause"] = {"active": True, "motif": "rebonds", "depuis": q.isoformat()}
         if doc["pause"]["active"] and doc["pause"]["depuis"] == q.isoformat():
             logger.warning(f"e-mail de l'espace {eid} mis en pause ({doc['pause']['motif']})")
+        _poser(eid, doc)
+
+
+def noter_erreur(eid, message) -> None:
+    """La dernière erreur de réglage (identifiants, serveur) pour l'écran ; None l'efface."""
+    with _verrou:
+        doc = _doc(eid)
+        nouveau = {"message": str(message)[:300], "le": _maintenant().isoformat()} if message else None
+        if (doc.get("erreur") or {}).get("message") == (nouveau or {}).get("message"):
+            return
+        doc["erreur"] = nouveau
+        _poser(eid, doc)
+
+
+def ajouter_reponse(eid, r: dict) -> None:
+    """Le résumé d'une réponse lue (pour l'agent, P7) : prospect, objet, 500 premiers caractères, STOP."""
+    with _verrou:
+        doc = _doc(eid)
+        doc["reponses"].append(dict(r, quand=_maintenant().isoformat()))
+        _poser(eid, doc)
+
+
+def poser_imap(eid, etat: dict) -> None:
+    with _verrou:
+        doc = _doc(eid)
+        doc["imap_etat"] = {"uidvalidity": etat.get("uidvalidity"), "dernier": int(etat.get("dernier") or 0),
+                            "lu_le": _maintenant().isoformat()}
         _poser(eid, doc)
 
 

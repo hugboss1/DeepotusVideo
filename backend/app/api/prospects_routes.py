@@ -15,6 +15,7 @@
                                                  409 pour une opposition de la personne (t353 suite, M6)
 - la liste porte aussi `espaces_demo` {id: nom} (t353 suite, M8)
 - `GET    /{eid}/sequences?pid=`                 t355 : {sequences} (étapes « due », lien « ouvrir » d'un canal manuel)
+- `GET·POST /{eid}/email`, `POST …/email/secret|reprendre|test` t356 : le canal e-mail (jamais un secret rendu)
 - `POST   /{eid}/sequences/{sid}/valider|planifier|annuler` ({debut?} pour planifier) ; `…/etapes/{rang}/envoye` (manuel)
 Les messages passent par L10 (le gestionnaire traduit le champ `message` d'un detail dict). Relecture I4 : routes ASYNC,
 sur la boucle comme les autres écrivains d'espaces.json (le geste démonstration y écrit) : jamais depuis un thread.
@@ -28,6 +29,7 @@ from fastapi.responses import Response
 
 from app.api.routes import _require_localhost
 from app.services import espaces as _es, oppositions as O, prospects as P, prospects_sequences as SQ
+from app.services import email_canal as EM
 
 router = APIRouter()
 
@@ -138,6 +140,56 @@ def _seq(request: Request, geste):
     try:
         return geste()
     except SQ.RefusSequence as e:
+        raise HTTPException(e.statut, {"code": e.code, "message": e.message}) from None
+
+
+def _mail(request: Request, geste):
+    """t356 : le canal e-mail de l'espace ; refus {code, message}. Jamais un secret dans une réponse."""
+    _require_localhost(request)
+    try:
+        return geste()
+    except EM.RefusEmail as e:
+        raise HTTPException(e.statut, {"code": e.code, "message": e.message}) from None
+
+
+@router.get("/{eid}/email")
+async def get_email(request: Request, eid: str):
+    return _mail(request, lambda: EM.lire(eid))
+
+
+@router.post("/{eid}/email")
+async def post_email(request: Request, eid: str, body: dict):
+    return _mail(request, lambda: EM.regler(eid, _corps(body)))
+
+
+@router.post("/{eid}/email/secret")
+async def post_email_secret(request: Request, eid: str, body: dict):
+    b = _corps(body)
+    return _mail(request, lambda: EM.poser_secret(eid, b.get("quoi"), b.get("valeur")))
+
+
+@router.post("/{eid}/email/reprendre")
+async def post_email_reprendre(request: Request, eid: str):
+    return _mail(request, lambda: EM.reprendre(eid))
+
+
+@router.post("/{eid}/email/test")
+async def post_email_test(request: Request, eid: str):
+    """Un message d'essai à l'adresse de l'EXPÉDITEUR lui-même (jamais à un prospect), hors journal et hors plafond."""
+    import asyncio
+
+    def essai():
+        doc = EM._doc(eid)
+        a = doc["expediteur"]["adresse"]
+        msg = EM.composer(doc, a, "Deepotus : essai du canal e-mail", "Ce message vérifie l'envoi depuis Deepotus.",
+                          EM.nouvel_id(doc))
+        EM.envoyer(eid, msg)
+        EM.noter_erreur(eid, None)
+        return {"envoye_a": a}
+    _require_localhost(request)
+    try:
+        return await asyncio.to_thread(essai)
+    except EM.RefusEmail as e:
         raise HTTPException(e.statut, {"code": e.code, "message": e.message}) from None
 
 

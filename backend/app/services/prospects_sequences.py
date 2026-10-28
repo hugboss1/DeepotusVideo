@@ -447,6 +447,66 @@ def planifier(eid, sid, debut=None, qui: str = "utilisateur") -> dict:
     return s
 
 
+# ---- t356 : ce que lisent les envois automatiques (e-mail P5, WhatsApp P6) --------------------------------------------
+
+def etapes_dues(eid, canal: str) -> list:
+    """Les étapes à envoyer maintenant sur `canal` : séquence planifiée, étape planifiée à l'heure, les précédentes
+    envoyées. L'arrêt automatique (fiche, canal, registre) s'applique d'abord ; registre indisponible : 503."""
+    _espace(eid)
+    now = _maintenant()
+    with _verrou:
+        doc = _charger(eid)
+    out = []
+    for s in doc["sequences"]:
+        if s["canal"] != canal or s["statut"] != "planifiee":
+            continue
+        for e in s["etapes"]:
+            if e["statut"] == "envoyee":
+                continue
+            if e["statut"] == "planifiee" and e.get("quand") and datetime.fromisoformat(e["quand"]) <= now:
+                out.append({"sid": s["id"], "rang": e["rang"], "pid": s["pid"], "objet": e["objet"], "texte": e["texte"]})
+            break
+    return out
+
+
+def _etape(doc: dict, sid, rang) -> tuple:
+    s = _trouver(doc, sid)
+    if not isinstance(rang, int) or not 0 <= rang < len(s["etapes"]):
+        raise RefusSequence("étape inconnue", "inconnu")
+    return s, s["etapes"][rang]
+
+
+def noter_envoi(eid, sid, rang, message_id: str) -> dict:
+    """Un envoi automatique réussi : l'étape passe « envoyée » avec son Message-ID ; la dernière termine la séquence."""
+    with _verrou:
+        doc = _lire(eid)
+        s, e = _etape(doc, sid, rang)
+        e["statut"], e["envoye_le"], e["message_id"] = "envoyee", _es._maintenant(), str(message_id or "")[:300]
+        if all(x["statut"] == "envoyee" for x in s["etapes"]):
+            s["statut"] = "terminee"
+        _noter(s, f"envoyee:{rang}", "systeme")
+        _poser(eid, doc)
+    return s
+
+
+def noter_essai(eid, sid, rang) -> int:
+    """Un échec passager : rend le nombre d'essais de l'étape."""
+    with _verrou:
+        doc = _lire(eid)
+        s, e = _etape(doc, sid, rang)
+        e["essais"] = int(e.get("essais") or 0) + 1
+        _poser(eid, doc)
+    return e["essais"]
+
+
+def arreter(eid, sid, motif: str) -> None:
+    """Arrêt par le canal (rebond, échec répété) : étapes non envoyées annulées."""
+    with _verrou:
+        doc = _lire(eid)
+        _stopper(_trouver(doc, sid), motif)
+        _poser(eid, doc)
+
+
 def marquer_envoye(eid, sid, rang, qui: str = "utilisateur") -> dict:
     """Un envoi MANUEL fait par l'utilisateur (X, Instagram, LinkedIn) : l'étape passe « envoyée », la fiche note un
     contact sortant et passe « contacté » si elle était « qualifié »."""
