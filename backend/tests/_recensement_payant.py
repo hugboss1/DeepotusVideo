@@ -58,6 +58,7 @@ PUITS = {
     "WV.envoyer_validation",   # t311 : la demande de validation au client (whatsapp_validation.envoyer_validation -> WE.envoyer)
     "SV.lire",   # t312 : le secours Claude vision du Scan (scan_vision.lire -> moteurs_texte.tirer_garde, Anthropic)
     "I.analyser", "I.rediger",   # t313 : l'inspiration (inspiration.analyser / rediger -> moteurs_texte.tirer_garde, Anthropic)
+    "WD.lancer",   # t328 : le lancement d'une diffusion WhatsApp (whatsapp_diffusions.lancer -> kapso.envoyer_broadcast)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
     "transcribe",
@@ -90,7 +91,9 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
           "AW.envoyer_brouillon",   # t311 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2g le vérifie
           "WV.envoyer_validation",   # t311 tâche 6 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2h le vérifie
           "SV.lire",   # t312 : la garde vit DANS scan_vision.lire (tirer_garde avant CHAQUE lot) ; test_plafonds_garde A2i
-          "I.analyser", "I.rediger"}   # t313 : la garde vit DANS inspiration (tirer_garde après l'accord) ; test_plafonds_garde A2j
+          "I.analyser", "I.rediger",   # t313 : la garde vit DANS inspiration (tirer_garde après l'accord) ; test_plafonds_garde A2j
+          "WD.lancer"}   # t328 : la garde vit DANS whatsapp_diffusions._lancer_sous_verrou (plafonds.verifier avant le send) ;
+                         # test_plafonds_garde A2k le vérifie, A2l que lancer y mène (A2i/A2j de t328 renommés à la fusion t320)
 
 
 def _nom_appel(n: ast.Call) -> str:

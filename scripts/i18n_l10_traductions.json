@@ -10795,10 +10795,6 @@
   "fr": "{c} est posé par la liaison du compte, jamais saisi",
   "en": "{c} is set by the account link, never typed in"
  },
- "un compte WhatsApp n'est pas une cible de publication": {
-  "fr": "un compte WhatsApp n'est pas une cible de publication",
-  "en": "a WhatsApp account is not a publishing target"
- },
  "comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, il ne s'importe pas": {
   "fr": "comptes.json : compte n°{i} ({plateforme}) ignoré : il se relie dans chaque espace, il ne s'importe pas",
   "en": "comptes.json: account no. {i} ({plateforme}) ignored: it is linked in each space, it is not imported"
@@ -11226,6 +11222,10 @@
  "ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la conversation, puis confirmez pour le renvoyer": {
   "fr": "ce message est peut-être déjà parti (panne de Kapso pendant l'envoi) : vérifiez la conversation, puis confirmez pour le renvoyer",
   "en": "this message may already have been sent (Kapso failed during sending): check the conversation, then confirm to send it again"
+ },
+ "Une diffusion Kapso accepte au plus 1 000 destinataires par lot": {
+  "fr": "Une diffusion Kapso accepte au plus 1 000 destinataires par lot",
+  "en": "A Kapso broadcast accepts at most 1,000 recipients per batch"
  },
  "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu": {
   "fr": "agent : rédactions par contact et par jour : un entier de 0 à 200 est attendu",
@@ -11998,5 +11998,85 @@
  "Le détourage par {mid} a échoué ({name}) : il a peut-être été facturé ; réessaie ou choisis un autre modèle.": {
   "fr": "Le détourage par {mid} a échoué ({name}) : il a peut-être été facturé ; réessaie ou choisis un autre modèle.",
   "en": "Background removal by {mid} failed ({name}): it may have been billed; try again or choose another model."
+ },
+ "quantité WhatsApp invalide : un entier >= 1 est attendu": {
+  "fr": "quantité WhatsApp invalide : un entier >= 1 est attendu",
+  "en": "invalid WhatsApp quantity: an integer >= 1 is expected"
+ },
+ "aucun destinataire n'a donné un accord permettant cette diffusion": {
+  "fr": "aucun destinataire n'a donné un accord permettant cette diffusion",
+  "en": "no recipient has given consent allowing this broadcast"
+ },
+ "quantité de messages invalide : un entier >= 1 est attendu": {
+  "fr": "quantité de messages invalide : un entier >= 1 est attendu",
+  "en": "invalid message quantity: an integer >= 1 is expected"
+ },
+ "ce modèle n'a pas d'identifiant Meta : il ne peut pas partir en diffusion": {
+  "fr": "ce modèle n'a pas d'identifiant Meta : il ne peut pas partir en diffusion",
+  "en": "this template has no Meta ID: it cannot be used for a broadcast"
+ },
+ "identités : une liste est attendue": {
+  "fr": "identités : une liste est attendue",
+  "en": "identities: a list is expected"
+ },
+ "une diffusion de ce post est déjà lancée : elle ne se modifie plus": {
+  "fr": "une diffusion de ce post est déjà lancée : elle ne se modifie plus",
+  "en": "a broadcast of this post has already been launched: it can no longer be changed"
+ },
+ "aucune diffusion WhatsApp n'est configurée pour ce post": {
+  "fr": "aucune diffusion WhatsApp n'est configurée pour ce post",
+  "en": "no WhatsApp broadcast is set up for this post"
+ },
+ "le compte WhatsApp de cette diffusion n'appartient pas à l'espace du post": {
+  "fr": "le compte WhatsApp de cette diffusion n'appartient pas à l'espace du post",
+  "en": "the WhatsApp account of this broadcast does not belong to the post's workspace"
+ },
+ "Kapso n'a accepté aucun destinataire de cette diffusion": {
+  "fr": "Kapso n'a accepté aucun destinataire de cette diffusion",
+  "en": "Kapso accepted no recipient for this broadcast"
+ },
+ "cette diffusion est peut-être déjà partie (panne de Kapso pendant l'envoi) : vérifiez-la, puis confirmez pour la relancer": {
+  "fr": "cette diffusion est peut-être déjà partie (panne de Kapso pendant l'envoi) : vérifiez-la, puis confirmez pour la relancer",
+  "en": "this broadcast may already have gone out (Kapso failed during sending): check it, then confirm to launch it again"
+ },
+ "le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute diffusion": {
+  "fr": "le fichier des diffusions WhatsApp de cet espace est illisible : réparez-le avant toute diffusion",
+  "en": "this workspace's WhatsApp broadcasts file is unreadable: repair it before any broadcast"
+ },
+ "ce post doit viser un et un seul compte WhatsApp de son espace pour une diffusion": {
+  "fr": "ce post doit viser un et un seul compte WhatsApp de son espace pour une diffusion",
+  "en": "this post must target exactly one WhatsApp account of its workspace for a broadcast"
+ },
+ "confirmation attendue : confirme_incertain doit valoir true": {
+  "fr": "confirmation attendue : confirme_incertain doit valoir true",
+  "en": "confirmation expected: confirme_incertain must be true"
+ },
+ "la diffusion de ce post n'est pas configurée sur son compte WhatsApp": {
+  "fr": "la diffusion de ce post n'est pas configurée sur son compte WhatsApp",
+  "en": "this post's broadcast is not set up on its WhatsApp account"
+ },
+ "compte WhatsApp refusé : {e}": {
+  "fr": "compte WhatsApp refusé : {e}",
+  "en": "WhatsApp account refused: {e}"
+ },
+ "ce post est en cours de publication ou confié à un appareil": {
+  "fr": "ce post est en cours de publication ou confié à un appareil",
+  "en": "this post is being published or has been handed to a device"
+ },
+ "aucune diffusion à l'issue incertaine à confirmer pour ce post : publiez-le normalement": {
+  "fr": "aucune diffusion à l'issue incertaine à confirmer pour ce post : publiez-le normalement",
+  "en": "no broadcast with an uncertain outcome to confirm for this post: publish it normally"
+ },
+ "un modèle d'authentification (code à usage unique) ne peut pas partir en diffusion": {
+  "fr": "un modèle d'authentification (code à usage unique) ne peut pas partir en diffusion",
+  "en": "an authentication template (one-time code) cannot be sent as a broadcast"
+ },
+ "un modèle à en-tête texte variable ne peut pas partir en diffusion (v1 : corps seulement)": {
+  "fr": "un modèle à en-tête texte variable ne peut pas partir en diffusion (v1 : corps seulement)",
+  "en": "a template with a variable text header cannot be sent as a broadcast (v1: body only)"
+ },
+ "l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est relancé, réessayez dans un instant": {
+  "fr": "l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est relancé, réessayez dans un instant",
+  "en": "the previous broadcast could not be neutralised at Kapso (outage): nothing was relaunched, try again in a moment"
  }
 }

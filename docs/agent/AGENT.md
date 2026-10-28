@@ -20,7 +20,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Montage** — poser ses plans sur une timeline multipiste, les couper, les enchaîner, étalonner, titrer, soigner le
   son, puis rendre et livrer. → [ALLER:montage] [GUIDE:montage]
 - **Planificateur** — remplir la semaine de posts, les relire, les valider d'un coup et les laisser partir à l'heure
-  sur Telegram, X, YouTube, Instagram et TikTok. « Générer un plan » propose deux modes : Rapide, ou
+  sur Telegram, X, YouTube, Instagram et TikTok, ou en diffusion WhatsApp (voir « Diffuser un post sur WhatsApp »).
+  « Générer un plan » propose deux modes : Rapide, ou
   Agent Campagnes (le même agent que l'onglet Campagnes du tiroir F1, voir le parcours « Mener une campagne avec
   l'agent Campagnes »). → [ALLER:scheduler] [GUIDE:planificateur] [GUIDE:agent-campagnes]
 - **Modèles** — partir d'une mise en page toute prête, la retoucher (cases, masques, textes, animations), la décliner
@@ -73,14 +74,27 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   (vérifié, indéterminé, refusé, non vérifié) et « Vérifier », sans rien publier. Dans l'éditeur de post du
   Planificateur, un compte coché qui n'est pas vérifié le dit ; la programmation n'est pas bloquée (sauf pour un
   client, voir ci-dessous). → [POINT:reglages.espaces] [GUIDE:comptes]
-- **Relier le WhatsApp d'un espace** (t310) : WhatsApp est un canal de CONVERSATION de l'espace, jamais une cible de
-  post : il n'apparaît pas dans l'éditeur de post du Planificateur, et on ne l'ajoute pas depuis Réglages › Espaces (il
-  y apparaît pour être vérifié ou supprimé).
+- **Relier le WhatsApp d'un espace** (t310) : WhatsApp est d'abord un canal de CONVERSATION de l'espace ; une fois
+  relié, son compte peut aussi être la cible d'un post, mais seulement en DIFFUSION (voir « Diffuser un post sur
+  WhatsApp »). On ne l'ajoute pas depuis Réglages › Espaces (il y apparaît pour être vérifié ou supprimé).
   Il se relie dans l'assistant d'espace, étape Canaux : cocher WhatsApp, choisir la facturation Meta (définitive),
   puis « Créer le lien » crée chez Kapso un lien d'installation, gratuit. Pour un client, le consentement daté est demandé avant.
   L'application n'envoie rien : copier le lien et l'envoyer au client ; « Vérifier » relit la liaison, et le numéro
   relié s'affiche. La clé Kapso, une seule pour tous les espaces, se pose dans Réglages › Clés d'API.
   → [POINT:reglages.nouvel_espace] [POINT:reglages.cles] [GUIDE:marques]
+- **Diffuser un post sur WhatsApp** (t328) : dans l'inspecteur d'un post du Planificateur, le compte WhatsApp de
+  l'espace se coche comme un réseau (un seul compte WhatsApp par post), jamais précoché dans les canaux par défaut d'un
+  projet. Le panneau « Diffusion WhatsApp » demande un modèle approuvé par Meta (sans en-tête média ni en-tête texte
+  variable, jamais un modèle d'authentification), ses paramètres (le
+  même texte pour tous les contacts), puis montre l'audience (les contacts de l'espace dont l'accord a été saisi, hors
+  STOP et désinscrits du marketing) et le devis ; « Enregistrer la diffusion » ne dépense rien et efface la validation
+  client du post. La diffusion part avec la publication du post, par Kapso, après le contrôle du plafond mensuel : la
+  validation du client est respectée comme pour tout post, et sans accord saisi rien ne part. Ensuite le panneau suit
+  statut, envoyés, livrés, lus, échecs et coût réel (« Relire »). Si l'issue est incertaine, « Confirmer l'envoi »
+  la relance après une boîte de confirmation : payant, certains contacts peuvent la recevoir deux fois, et le post
+  part aussi sur ses autres canaux. Avant de relancer, l'ancien brouillon est vidé chez Kapso ; s'il était déjà parti,
+  rien n'est relancé et la diffusion est simplement suivie. Un échec de Kapso prouvé sans aucun envoi rend le panneau
+  modifiable pour une nouvelle tentative. → [ALLER:scheduler] [GUIDE:planificateur]
 - **Répondre sur WhatsApp avec l'agent** (t311) : l'agent WhatsApp d'un espace se règle dans Réglages › Espaces de
   marque, bouton « Agent WhatsApp » sous les comptes de l'espace actif : Agent actif, mode, rôles (questions courantes,
   rendez-vous, commandes, validation des posts), horaires et message hors horaires, réponses automatiques par contact et
@@ -203,8 +217,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **« Compté sous la catégorie X »** (dans une fiche) : c'est l'étiquette de la dépense — l'écran d'où elle part,
   visible dans le tableau des dépenses et dans le message d'un refus. Ce n'est PAS un plafond qui se règle : seuls le
   plafond global, ceux par moteur et celui de chaque espace de marque se règlent. → [POINT:reglages.budget]
-- **WhatsApp absent d'un post ou des réseaux d'un compte** : c'est voulu, WhatsApp n'est jamais une cible de post.
-  Il se relie par un lien d'installation Kapso dans l'assistant d'espace (étape Canaux). « Clé Kapso à saisir » :
+- **WhatsApp absent des réseaux d'un compte ou des canaux par défaut d'un projet** : c'est voulu, WhatsApp n'y est jamais
+  précoché ; un post peut le viser comme DIFFUSION (voir « Diffuser un post sur WhatsApp »), à condition que le WhatsApp
+  de l'espace soit relié. Il se relie par un lien d'installation Kapso dans l'assistant d'espace (étape Canaux). « Clé Kapso à saisir » :
   la poser dans Réglages › Clés d'API, ligne Kapso (WhatsApp). → [POINT:reglages.cles] [GUIDE:marques]
 - **L'agent WhatsApp ne répond pas** : il doit être allumé (« Agent actif » dans Agent WhatsApp), le message doit
   arriver dans ses horaires, la clé Anthropic posée et le plafond non atteint ; un contact en STOP ou repris en main

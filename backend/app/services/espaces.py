@@ -30,7 +30,7 @@ from app.services import brand_kits
 MAX = 60
 MAX_ESPACES = 50
 FICHIERS = ("persona.json", "contenus.json", "client.json", "whatsapp.json", "whatsapp_brouillons.json",
-            "prospects.json")   # t353 : prospects.json = la fiche Prospects de l'espace ; t311 : whatsapp_brouillons.json = les brouillons de l'agent WhatsApp ; t306 : client.json = la fiche d'un espace client ; t310 : whatsapp.json = le canal WhatsApp
+            "prospects.json", "whatsapp_diffusions.json")   # t328 : whatsapp_diffusions.json = les diffusions WhatsApp des posts ; t353 : prospects.json = la fiche Prospects de l'espace ; t311 : whatsapp_brouillons.json = les brouillons de l'agent WhatsApp ; t306 : client.json = la fiche d'un espace client ; t310 : whatsapp.json = le canal WhatsApp
 _ICI = Path(__file__).resolve().parent.parent
 PERSONA_LIVRE = _ICI / "personas" / "deepotus.json"
 GRAINE_DEEPOTUS = _ICI / "espaces" / "deepotus_contenus.json"

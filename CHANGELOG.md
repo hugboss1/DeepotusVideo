@@ -132,6 +132,23 @@ avancement, fichier par fichier.
 - **Un paquet illisible se refuse en le disant** : manifeste absent, format
   inconnu, base manquante — chaque refus nomme sa cause.
 
+### Diffusions WhatsApp depuis le Planificateur
+- **Un post peut viser le WhatsApp de l'espace** — le compte se coche dans
+  l'inspecteur du post comme un réseau (un seul compte WhatsApp par post) ; il
+  n'est jamais précoché dans les canaux par défaut d'un projet.
+- **Le panneau « Diffusion WhatsApp »** : modèle approuvé, paramètres (le même
+  texte pour tous), audience (les contacts dont l'accord a été saisi, hors STOP
+  et désinscrits du marketing) et devis en dollars avant tout envoi.
+  « Enregistrer la diffusion » ne dépense rien.
+- **Elle part avec le post**, par Kapso, après le plafond mensuel ; la validation
+  du client est respectée. Un envoi jamais renvoyé sans relecture : au moindre
+  doute le panneau dit « incertain » et demande « Confirmer l'envoi ».
+- **Le suivi** : statut, envoyés, livrés, lus, échecs, coût réel, « Relire ».
+- **Relance sans doublon** : avant de relancer une diffusion incertaine, l'ancien
+  brouillon est vidé chez Kapso ; s'il était déjà parti, rien n'est relancé. La
+  demande de validation envoyée au client montre le modèle et son texte rempli,
+  et un client « publié en son nom » se confirme depuis le panneau.
+
 ### Sous le capot
 - Cinq routes locales (`/api/transfer/destinations`, `export`, `inspect`,
   `import`, `jobs/{id}`), toutes réservées à la machine elle-même.

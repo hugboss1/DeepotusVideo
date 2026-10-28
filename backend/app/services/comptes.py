@@ -23,7 +23,9 @@ ne lit alors ni secret ni réseau, elle reprend la déclaration de l'appareil.
 t310 (27/10/2026) — WhatsApp par Kapso (spec §6.1). La plateforme `whatsapp` garde la forme à 4 positions, mais elle n'a
 AUCUN secret par compte : la clé Kapso est PLATE et partagée par tous les espaces (`CLE_PLATE`, lue par `cle_kapso`), et
 ses champs publics (client Kapso, numéro…) sont posés par la liaison (`poser_publics_serveur`), jamais saisis. Elle n'a
-pas de compte historique (`SANS_HISTORIQUE`) et n'est jamais une cible de publication (`NON_PUBLIABLES`).
+pas de compte historique (`SANS_HISTORIQUE`). t328 (27/10/2026) : elle EST une cible du Planificateur, publiée en
+DIFFUSION (`whatsapp_diffusions`, adaptateur « whatsapp »), mais seulement EXPLICITE, post par post : jamais un canal par
+défaut d'un projet (`CIBLES_EXPLICITES`).
 """
 from __future__ import annotations
 
@@ -72,10 +74,11 @@ PLATEFORMES: dict = {
 # t310 (27/10/2026) : les particularités d'une plateforme vivent à part (PLATEFORMES garde 4 positions, décompressées partout)
 CLE_PLATE = {"whatsapp": "KAPSO_API_KEY"}         # plateforme -> clé plate partagée par tous les espaces (jamais par compte)
 # t318 (28/10/2026) : les plateformes du DIRECT — jamais listées avec les canaux (lister(live=False), /api/comptes sans
-# ?live=1) : ni l'assistant d'espace, ni le Planificateur, ni les canaux de projet, ni la fiche client ne les voient
+# ?live=1) : ni l'assistant d'espace, ni le Planificateur, ni les canaux de projet, ni la fiche client ne les voient ;
+# jamais la cible d'un post (verifier_cibles les refuse). Fusion t320 : NON_PUBLIABLES, retiré par t328, n'est pas rétabli.
 LIVE = frozenset({"twitch", "youtube_live", "kick", "rtmp", "discord"})
 SANS_HISTORIQUE = frozenset({"whatsapp"}) | LIVE  # pas de compte virtuel `historique-<p>` (la clé plate n'est pas un compte)
-NON_PUBLIABLES = frozenset({"whatsapp"}) | LIVE   # jamais la cible d'un post du Planificateur
+CIBLES_EXPLICITES = frozenset({"whatsapp"})       # t328 : cible d'un post choisie post par post, jamais un canal par défaut
 _LIES_PAR_SERVEUR = frozenset({"whatsapp"})       # champs publics posés par la liaison, jamais saisis
 _CHAMP_PLAT = {c: p for p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, _s in champs}
 _SECRET = {c: s for _p, (_l, champs, _r, _o) in PLATEFORMES.items() for c, s in champs}
@@ -657,8 +660,6 @@ def verifier_cibles(espace_id, ids) -> list:
         v = obtenir(cid)
         if v["plateforme"] in LIVE:                # t318 : une destination du direct n'est pas un canal de posts
             raise ValueError("une destination du direct n'est pas une cible de publication")
-        if v["plateforme"] in NON_PUBLIABLES:      # t310 (27/10/2026) : WhatsApp est un canal de messages, pas de posts
-            raise ValueError("un compte WhatsApp n'est pas une cible de publication")
         if not de_l_espace(cid, eid):
             raise PermissionError(f"le compte {v['libelle']} ({cid}) n'appartient pas à l'espace de ce post")
         out.append(v)

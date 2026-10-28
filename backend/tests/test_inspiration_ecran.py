@@ -76,7 +76,9 @@ r = subprocess.run([PY, str(REPO / "scripts" / "patch_bundle_dzinspiration.py"),
                    encoding="utf-8")
 check("3h --check : déjà appliqué", r.returncode == 0 and "déjà appliqué" in r.stdout, r.stdout + r.stderr)
 check("3i aucun .bak laissé", not (BUNDLE.parent / (BUNDLE.name + ".bak_dzinspiration")).exists())
-check("3j inverse : avant_dzinspiration défait le maillon", AIDE.avant_dzinspiration(B) == avant)
+# fusion t320 : dzdiffusion (t328) est rejoué APRÈS dzinspiration ; avant_dzinspiration le défait d'abord
+_sans_diff = AIDE.avant_dzdiffusion(B) if hasattr(AIDE, "avant_dzdiffusion") else B
+check("3j inverse : avant_dzinspiration défait le maillon (après la queue)", AIDE.avant_dzinspiration(B) == M.defaire(_sans_diff))
 check("3k inverse en tête de avant_whatsapppage", M.MARKER not in AIDE.avant_whatsapppage(B)
       and "/*whatsapppage*/" not in AIDE.avant_whatsapppage(B))
 src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")

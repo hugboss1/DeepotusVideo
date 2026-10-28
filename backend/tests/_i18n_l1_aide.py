@@ -334,11 +334,23 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzdiffusion(bundle: str) -> str:
+    """Le bundle d'avant la diffusion WhatsApp au Planificateur (maillon de queue patch_bundle_dzdiffusion, t328 tâche 5,
+    27/10/2026 ; écrit APRÈS whatsapppage, rejoué APRÈS dzinspiration à la fusion t320 : c'est la queue de la chaîne :
+    DzPostComptes range les comptes whatsapp et monte le panneau de diffusion, la table des canaux _t connaît whatsapp) :
+    ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzdiffusion as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzinspiration(bundle: str) -> str:
     """Le bundle d'avant le bouton « Depuis une inspiration » du Planificateur (maillon de queue
-    patch_bundle_dzinspiration, t313, 28/10/2026 ; écrit APRÈS whatsapppage, rejoué APRÈS dzcapture à la fusion t320 :
-    c'est la queue de la chaîne) : sa paire défaite, lue dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    patch_bundle_dzinspiration, t313, 28/10/2026 ; écrit APRÈS whatsapppage, rejoué APRÈS dzcapture à la fusion t320) :
+    sa paire défaite, lue dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzinspiration as _m
+    bundle = avant_dzdiffusion(bundle)           # 27/10 (t328, fusion t320) : le maillon posé APRÈS dzinspiration, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

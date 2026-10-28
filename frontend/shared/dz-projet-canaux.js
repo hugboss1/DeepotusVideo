@@ -65,7 +65,8 @@
       return R.json();
     }).then(function (j) {
       // le serveur filtre déjà par espace ; on refiltre : la boîte ne propose JAMAIS le compte d'un autre espace.
-      // t310 (27/10/2026) : ni un compte whatsapp (canal de conversation, jamais une cible de post : comptes.NON_PUBLIABLES)
+      // t310 (27/10/2026) : ni un compte whatsapp — t328 : une diffusion se choisit post par post dans le Planificateur,
+      // jamais comme canal par défaut d'un projet (comptes.CIBLES_EXPLICITES)
       entree.liste = ((j && j.comptes) || []).filter(function (c) {
         return c && c.espace_id === esp && c.plateforme !== "whatsapp";
       });

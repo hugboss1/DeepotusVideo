@@ -43,7 +43,9 @@ ERREURS = {"RefusInspiration", "InspirationInconnue", "InspirationEnCours",   # 
            "RefusSkin", "RefusMontage",   # t317 : refus du montage des captures ; t316 : refus des skins de capture (400/404/409/413/415)
            "RefusLive",   # t318 : refus du direct multi-destinations (400/404/409)
            "RefusPages", "AppelEchoue", "VisionEnCours",
-           "RefusAccord"}   # t314 : devis du détourage d'un schéma non accepté (409 {message, usd})   # revue finale t312 : AppelEchoue = premier appel Claude en échec réseau   # t312 tâche 4 : dépôt refusé par scan_pages.charger (400/413/415/422)
+           "RefusAccord",   # t314 : devis du détourage d'un schéma non accepté (409 {message, usd})   # revue finale t312 : AppelEchoue = premier appel Claude en échec réseau   # t312 tâche 4 : dépôt refusé par scan_pages.charger (400/413/415/422)
+           "FichierIllisible"}   # t328 : FichierIllisible = ValueError de whatsapp_diffusions (fichier illisible)
+                                       # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
                                        # L4.1 T3 : FluxCoupe = RuntimeError (flux Anthropic coupé)
                                        # t309 : RefusClient = PermissionError (409 structuré des règles d'un client)
                                        # t310 : WhatsappRefus = PermissionError (envoi WhatsApp refusé par les règles)

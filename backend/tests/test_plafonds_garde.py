@@ -44,6 +44,7 @@ PAYANTES = {
     ("routes", "POST", "/whatsapp/{cid}/brouillons/rediger"),   # t311 : l'agent WhatsApp (garde « whatsapp_agent » à chaque appel)
     ("routes", "POST", "/whatsapp/{cid}/brouillons/decider"),   # t311 : l'envoi d'un brouillon (AW.envoyer_brouillon -> WE.envoyer, garde « whatsapp »)
     ("routes", "POST", "/schedule/{post_id}/validation-whatsapp"),   # t311 : la demande de validation au client (WV.envoyer_validation -> WE.envoyer, garde « whatsapp »)
+    ("routes", "POST", "/schedule/{post_id}/diffusion/confirmer"),   # t328 : relance confirmée d'une diffusion (WD.lancer ; garde dans _lancer_sous_verrou, A2i)
     ("routes", "POST", "/matte"),   # T103 : le matte vidéo BiRefNet (fal), prix à mesurer
     ("routes", "POST", "/chapters/{chapter_id}/reecrire"),     # tâche #66 : la réécriture dans le ton de la bible (LLM)
     ("routes", "POST", "/chapters/{chapter_id}/animatique"),   # tâche #63 : la voix témoin de l'animatique (sur demande)
@@ -171,6 +172,20 @@ _ap = _ins[_ins.find("async def _appel("):_ins.find("def _json(")]
 check("A2j l'inspiration refuse un coût hors accord AVANT d'appeler, et _appel passe par MT.tirer_garde",
       0 < _ia.find("raise CoutChange(") < _ia.find("await _appel(") and 0 < _ir.find("raise CoutChange(") < _ir.find("await _appel(")
       and "MT.tirer_garde(" in _ap and "MT.tirer(" not in _ins, "")
+# t328 tâche 3 : une diffusion WhatsApp réserve son devis (plafonds.verifier) AVANT le send Kapso, dans `lancer`
+_wd = (RP.RACINE / "services" / "whatsapp_diffusions.py").read_text(encoding="utf-8")
+_ld = _wd[_wd.find("async def _lancer_sous_verrou("):]
+_ld = _ld[:_ld.find("# ---- relire")]
+check("A2k la diffusion WhatsApp appelle plafonds.verifier AVANT kapso.envoyer_broadcast, et un seul send",
+      0 < _ld.find("plafonds.verifier(") < _ld.find("kapso.envoyer_broadcast(") and _ld.count("kapso.envoyer_broadcast(") == 1
+      and "kapso.envoyer(" not in _wd, "")
+# t328 tâche 4 : `lancer` (route confirmer, adaptateur du Planificateur) passe par _lancer_sous_verrou (gardé A2k), et
+# kapso.envoyer_broadcast n'est appelé nulle part ailleurs dans le service
+_la = _wd[_wd.find("async def lancer("):_wd.find("async def _lancer_sous_verrou(")]
+_ad = _wd[_wd.find("async def _publier("):]
+check("A2l lancer mène à _lancer_sous_verrou ; l'adaptateur « whatsapp » ne dépense que par lancer",
+      "_lancer_sous_verrou(" in _la and _wd.count("kapso.envoyer_broadcast(") == 1 and "await lancer(" in _ad
+      and "kapso." not in _ad.replace("kapso.KapsoErreur", ""), "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes

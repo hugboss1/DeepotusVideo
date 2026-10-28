@@ -62,7 +62,9 @@ check("P2 clés de stream et webhook SECRETS, serveurs et liens publics",
       dict(CP.PLATEFORMES["twitch"][1]) == {"TWITCH_STREAM_KEY": True, "TWITCH_SERVEUR": False}
       and dict(CP.PLATEFORMES["discord"][1]) == {"DISCORD_WEBHOOK": True}
       and dict(CP.PLATEFORMES["rtmp"][1])["RTMP_CLE"] is True and dict(CP.PLATEFORMES["kick"][1])["KICK_STREAM_KEY"] is True)
-check("P3 aucune historique ni publication pour LIVE", CP.LIVE <= CP.SANS_HISTORIQUE and CP.LIVE <= CP.NON_PUBLIABLES)
+# fusion t320 : NON_PUBLIABLES est retiré par t328 (WhatsApp devient une cible explicite) ; le refus d'un compte LIVE
+# comme cible d'un post vit dans comptes.verifier_cibles (P5 ci-dessous)
+check("P3 aucune historique ni publication pour LIVE", CP.LIVE <= CP.SANS_HISTORIQUE and not (CP.LIVE & CP.CIBLES_EXPLICITES))
 tw = CP.creer({"espace_id": rip, "plateforme": "twitch", "libelle": "Ma chaîne", "handle": "rippled_tv",
                "valeurs": {"TWITCH_STREAM_KEY": CLE_T}})["id"]
 x = CP.creer({"espace_id": rip, "plateforme": "x", "libelle": "X"})["id"]

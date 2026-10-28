@@ -201,14 +201,17 @@ async def modifier(pid: str, champs: dict) -> dict:
 async def poser_canaux(pid: str, ids) -> dict:
     """t307 (25/10/2026) : fixe les canaux du projet (comptes de SON espace, ceux de Deepotus pour un projet d'avant les espaces).
     KeyError si le projet est inconnu ; les erreurs de `comptes.verifier_cibles` (KeyError compte inconnu,
-    PermissionError autre espace, ValueError forme) remontent telles quelles, sans rien écrire. Vue RELUE."""
+    PermissionError autre espace, ValueError forme) remontent telles quelles, sans rien écrire. Vue RELUE.
+    t328 (27/10/2026) : un compte WhatsApp n'est jamais un canal par défaut (une diffusion se configure post par post,
+    `comptes.CIBLES_EXPLICITES`) : il est écarté."""
     from app.services import comptes
     _A, P, _I, S = _t()
     async with S() as s:
         p = await s.get(P, pid)
         if p is None:
             raise KeyError(pid)
-        vues = comptes.verifier_cibles(p.espace_id or "deepotus", ids)
+        vues = [v for v in comptes.verifier_cibles(p.espace_id or "deepotus", ids)
+                if v["plateforme"] not in comptes.CIBLES_EXPLICITES]
         p.canaux = json.dumps([v["id"] for v in vues]) if vues else None
         await s.commit()
         await s.refresh(p)
@@ -217,13 +220,21 @@ async def poser_canaux(pid: str, ids) -> dict:
 
 async def canaux_par_defaut(eid: str) -> list[str]:
     """t307 (25/10/2026) : les canaux du projet ACTIF de l'espace `eid` (clé `cle_actif(eid)`, pas l'espace courant) ; aucun projet
-    actif, ou projet disparu -> []."""
+    actif, ou projet disparu -> []. t328 : jamais un compte de `comptes.CIBLES_EXPLICITES` (WhatsApp), même rangé avant."""
+    from app.services import comptes
     A, P, _I, S = _t()
     async with S() as s:
         row = await s.get(A, cle_actif(eid))
         pid = (row.value or "") if row is not None else ""
         p = await s.get(P, pid) if pid else None
-        return _canaux_lus(p) if p is not None else []
+        ids = _canaux_lus(p) if p is not None else []
+
+    def explicite(cid):
+        try:
+            return comptes.obtenir(cid)["plateforme"] in comptes.CIBLES_EXPLICITES
+        except KeyError:
+            return False                         # inconnu : la garde de l'appelant le dit, comme avant
+    return [c for c in ids if not explicite(c)]
 
 
 async def supprimer(pid: str) -> None:
