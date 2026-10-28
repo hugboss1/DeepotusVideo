@@ -11533,7 +11533,8 @@
  },
  "Une lecture par Claude de ce scan est déjà en cours : attends sa réponse.": {
   "fr": "Une lecture par Claude de ce scan est déjà en cours : attends sa réponse.",
-  "en": "A Claude reading of this scan is already running: wait for its answer." },
+  "en": "A Claude reading of this scan is already running: wait for its answer."
+ },
  "origine du fichier inconnue (liste_attente ou formulaire)": {
   "fr": "origine du fichier inconnue (liste_attente ou formulaire)",
   "en": "unknown file origin (liste_attente or formulaire)"
@@ -11737,5 +11738,85 @@
  "Image trop grande.": {
   "fr": "Image trop grande.",
   "en": "Image too large."
+ },
+ "une destination du direct n'est pas une cible de publication": {
+  "fr": "une destination du direct n'est pas une cible de publication",
+  "en": "a live destination is not a publishing target"
+ },
+ "Serveur du direct invalide : une adresse rtmp:// ou rtmps:// sans espace ni | [ ] est attendue.": {
+  "fr": "Serveur du direct invalide : une adresse rtmp:// ou rtmps:// sans espace ni | [ ] est attendue.",
+  "en": "Invalid live server: an rtmp:// or rtmps:// address without spaces or | [ ] is expected."
+ },
+ "Clé de stream invalide (espace, barre ou caractère interdit).": {
+  "fr": "Clé de stream invalide (espace, barre ou caractère interdit).",
+  "en": "Invalid stream key (space, slash or forbidden character)."
+ },
+ "Choisis au moins une destination du direct.": {
+  "fr": "Choisis au moins une destination du direct.",
+  "en": "Choose at least one live destination."
+ },
+ "Six destinations au plus.": {
+  "fr": "Six destinations au plus.",
+  "en": "Six destinations at most."
+ },
+ "Direct inconnu.": {
+  "fr": "Direct inconnu.",
+  "en": "Unknown live stream."
+ },
+ "Ce direct est terminé.": {
+  "fr": "Ce direct est terminé.",
+  "en": "This live stream has ended."
+ },
+ "Deux cents marqueurs au plus.": {
+  "fr": "Deux cents marqueurs au plus.",
+  "en": "Two hundred markers at most."
+ },
+ "Instant du marqueur invalide.": {
+  "fr": "Instant du marqueur invalide.",
+  "en": "Invalid marker time."
+ },
+ "Ce compte n'est pas un compte Discord.": {
+  "fr": "Ce compte n'est pas un compte Discord.",
+  "en": "This account is not a Discord account."
+ },
+ "Ce compte Discord appartient à un autre espace.": {
+  "fr": "Ce compte Discord appartient à un autre espace.",
+  "en": "This Discord account belongs to another space."
+ },
+ "Webhook Discord invalide : une adresse https://discord.com/api/webhooks/… est attendue.": {
+  "fr": "Webhook Discord invalide : une adresse https://discord.com/api/webhooks/… est attendue.",
+  "en": "Invalid Discord webhook: an https://discord.com/api/webhooks/… address is expected."
+ },
+ "Ce compte n'est pas une destination du direct.": {
+  "fr": "Ce compte n'est pas une destination du direct.",
+  "en": "This account is not a live destination."
+ },
+ "Cette destination appartient à un autre espace.": {
+  "fr": "Cette destination appartient à un autre espace.",
+  "en": "This destination belongs to another space."
+ },
+ "Clé de stream absente pour {libelle} : colle-la d'abord.": {
+  "fr": "Clé de stream absente pour {libelle} : colle-la d'abord.",
+  "en": "Stream key missing for {libelle}: paste it first."
+ },
+ "Un direct est déjà en cours.": {
+  "fr": "Un direct est déjà en cours.",
+  "en": "A live stream is already running."
+ },
+ "Ce direct est déjà branché ou terminé.": {
+  "fr": "Ce direct est déjà branché ou terminé.",
+  "en": "This live stream is already connected or has ended."
+ },
+ "Compte Discord inconnu.": {
+  "fr": "Compte Discord inconnu.",
+  "en": "Unknown Discord account."
+ },
+ "Capture inconnue.": {
+  "fr": "Capture inconnue.",
+  "en": "Unknown recording."
+ },
+ "Destination du direct inconnue.": {
+  "fr": "Destination du direct inconnue.",
+  "en": "Unknown live destination."
  }
 }

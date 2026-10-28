@@ -549,6 +549,9 @@ app.include_router(capture_router, prefix="/api/capture")
 # t316 (28/10/2026) : /api/skins — les skins qui habillent la scène de la capture (cadre, bandeau, intro, alertes…), local seulement
 from app.api.skins_routes import router as skins_router
 app.include_router(skins_router, prefix="/api/skins")
+# t318 (28/10/2026) : /api/live — le direct multi-destinations (WebSocket local -> ffmpeg tee -> RTMP(S)), local seulement
+from app.api.live_routes import router as live_router
+app.include_router(live_router, prefix="/api/live")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

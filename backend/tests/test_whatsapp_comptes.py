@@ -101,8 +101,8 @@ check("W1.7 plateformes.whatsapp.cle_plate = {nom: KAPSO_API_KEY, posee: faux} s
       and not any("cle_plate" in v for k, v in g.json()["plateformes"].items() if k != "whatsapp"), repr(pw))
 check("W1.4 PLATEFORMES garde 4 positions par entrée", all(len(v) == 4 for v in CP.PLATEFORMES.values()))
 check("W1.5 constantes : CLE_PLATE, SANS_HISTORIQUE, NON_PUBLIABLES",
-      lambda: CP.CLE_PLATE == {"whatsapp": "KAPSO_API_KEY"} and CP.SANS_HISTORIQUE == frozenset({"whatsapp"})
-      and CP.NON_PUBLIABLES == frozenset({"whatsapp"}))
+      lambda: CP.CLE_PLATE == {"whatsapp": "KAPSO_API_KEY"} and CP.SANS_HISTORIQUE == frozenset({"whatsapp"}) | CP.LIVE
+      and CP.NON_PUBLIABLES == frozenset({"whatsapp"}) | CP.LIVE)   # t318 : + les destinations du direct (comptes.LIVE)
 check("W1.6 champs_poses_par_serveur(whatsapp) = tous ses champs publics",
       lambda: tuple(CP.champs_poses_par_serveur("whatsapp")) == tuple(WA_PUBLICS) and CP.champs_poses_par_serveur("x") == ())
 
