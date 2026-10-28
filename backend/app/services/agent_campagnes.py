@@ -106,6 +106,13 @@ def _partie_espace(eid) -> str:
             f"{', '.join(mots) if mots else 'aucun'}.\nPersona :\n{persona}")
 
 
+TEMOIN = ("## Campagne TÉMOIN (espace démonstration)\n"
+          "Cet espace est celui d'un PROSPECT, créé au rendez-vous : la campagne que tu prépares est un témoin pour le "
+          "convaincre, montré pendant ou après le rendez-vous. Rien n'y est jamais publié (aucun compte, aucun canal) : "
+          "brouillons, visuels et calendrier seulement. Pars de sa persona (marque, produits, ton) ; reste sobre sur les "
+          "coûts : propose peu de rendus payants, chacun par sa carte de devis. Ne promets ni prix ni délai de prestation.")
+
+
 def systeme_pour(role, espace_id, langue: str) -> str:
     """CAMPAGNES.md + le rôle + l'espace (persona, mots interdits) + conformite-crypto.md pour l'espace du jeton
     SEULEMENT + la langue de réponse. Pure : la boucle (`systeme`) et le paquet du téléphone (L4.1) l'appellent, le
@@ -117,6 +124,8 @@ def systeme_pour(role, espace_id, langue: str) -> str:
         if modele:
             parts.append("## dossier-modele.md\n" + modele)
     parts.append(_partie_espace(espace_id))
+    if espaces.est_demonstration(espace_id):
+        parts.append(TEMOIN)
     if espace_jeton(espace_id):
         parts.append(_doc("conformite-crypto.md"))
     parts.append("## Langue\n" + ("Answer in English." if langue == "en" else "Réponds en français."))
