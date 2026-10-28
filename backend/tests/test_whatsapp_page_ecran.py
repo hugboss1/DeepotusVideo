@@ -137,7 +137,8 @@ if NODE:
 
 # ── [2] réversible ──────────────────────────────────────────────────────────────────────────────────────────────────
 print("\n[2] la chaîne inverse")
-# t315 (28/10/2026) : le maillon dzcapture est posé APRÈS celui-ci : defaire se lit sur le livré vu d'avant dzcapture
+# t315 (28/10/2026) : le maillon dzcapture est posé APRÈS celui-ci (et dzinspiration, t313, après dzcapture depuis la
+# fusion t320) : defaire se lit sur le livré vu d'avant dzcapture, qui défait d'abord dzinspiration
 BW = AIDE.avant_dzcapture(B) if hasattr(AIDE, "avant_dzcapture") else B
 check("2.1 avant_whatsapppage existe et rend defaire(B)",
       lambda: PM is not None and AIDE.avant_whatsapppage(B) == PM.defaire(BW))

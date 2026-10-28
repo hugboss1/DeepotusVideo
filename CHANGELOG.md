@@ -4,6 +4,53 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — à venir : "Scanner un schéma" (t314)
+
+**Une photo de schéma ou d'illustration devient un document du Vectorlab aux
+calques nommés, puis une base d'animation dans le Studio.**
+
+### Vectorlab › Fichier › Scanner un schéma…
+- **Détourage** : fond uni ou image transparente en local, gratuit ; un modèle
+  IA (fal) sur devis confirmé, catégorie « vectorlab ».
+- **Calques nommés** : chaque forme, flèche et étiquette séparée ; les formes et
+  flèches vectorisées par le moteur du Vectorlab, les étiquettes lues sur le PC
+  deviennent des textes ; les flèches relient les formes (« Flèche 1 : Client →
+  Serveur ») et l'ordre de révélation SUIT les flèches.
+- **Envoyer vers › Animation** (tout document) : chaque calque visible devient
+  un élément du nœud Animation, révélé dans cet ordre, prêt pour
+  « Chorégraphier » ; un nœud « Rendu motion code » porte une page locale
+  (flèches qui se dessinent de la queue vers la pointe). Le graphe est aussi
+  rangé dans « Ouvrir un graphe ».
+- Limites : un trait sans pointe ou à deux pointes n'oriente rien ; un texte
+  collé à une forme peut rester dans la forme ; les petits éléments au-delà de
+  40 sont regroupés en « Détails ».
+
+---
+
+# 🐙 Deepotus Video Gen — à venir : "Depuis une inspiration" (t313)
+
+**Un post vous inspire ? L'application en refabrique un contenu NEUF, dans la
+voix de votre espace — elle ne republie jamais l'original.**
+
+### Planificateur › Depuis une inspiration
+- **La capture** : glisser, coller ou choisir une image, ou coller le texte du
+  post ; dire d'où elle vient (gardé dans la fiche, jamais publié). Lecture du
+  texte sur le PC, gratuite ; palette relevée.
+- **Matière et trois angles** (Claude, sur devis confirmé, catégorie
+  « scheduler ») : le texte capté n'entre dans la demande qu'encadré comme une
+  preuve ; un angle qui reprend la capture ou un mot interdit est grisé.
+- **Devis puis génération** : texte rédigé sans l'original, visuel fal neuf ;
+  l'image captée n'est jamais envoyée comme visuel.
+- **Brouillon** dans le projet actif de l'espace, sur ses canaux, « À valider »
+  chez un client qui valide. Refusé si 12 mots de suite reprennent la capture,
+  si un mot interdit ou la source (lien, @compte) s'y trouvent, ou si le visuel
+  est l'image captée. La source est notée dans la recette du visuel.
+- Limites : la garde ne joue qu'à la création du brouillon (une modification
+  ultérieure au Planificateur n'est pas rejugée) ; l'animation passe par
+  « Produire » sur le brouillon.
+
+---
+
 # 🐙 Deepotus Video Gen — à venir : "Scanner une page" (t312)
 
 **Une page de livre, un manuscrit tapé à la machine, un PDF scanné : son

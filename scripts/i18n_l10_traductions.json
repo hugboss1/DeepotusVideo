@@ -11854,5 +11854,149 @@
  "ffmpeg introuvable : le direct ne peut pas partir.": {
   "fr": "ffmpeg introuvable : le direct ne peut pas partir.",
   "en": "ffmpeg not found: the live stream cannot start."
+ },
+ "Inspiration inconnue.": {
+  "fr": "Inspiration inconnue.",
+  "en": "Unknown inspiration."
+ },
+ "Texte trop long : 20 000 caractères au plus.": {
+  "fr": "Texte trop long : 20 000 caractères au plus.",
+  "en": "Text too long: 20,000 characters at most."
+ },
+ "Rien à lire : dépose une capture ou colle un texte.": {
+  "fr": "Rien à lire : dépose une capture ou colle un texte.",
+  "en": "Nothing to read: drop a capture or paste a text."
+ },
+ "Il faut d'abord extraire la matière et les angles.": {
+  "fr": "Il faut d'abord extraire la matière et les angles.",
+  "en": "Extract the material and the angles first."
+ },
+ "Angle inconnu : choisis l'un des trois angles proposés.": {
+  "fr": "Angle inconnu : choisis l'un des trois angles proposés.",
+  "en": "Unknown angle: pick one of the three proposed angles."
+ },
+ "Cet angle reprend la capture ou un mot interdit : choisis-en un autre ou relance l'analyse.": {
+  "fr": "Cet angle reprend la capture ou un mot interdit : choisis-en un autre ou relance l'analyse.",
+  "en": "This angle reuses the capture or a banned word: pick another one or run the analysis again."
+ },
+ "Cette inspiration n'a pas d'image à lire.": {
+  "fr": "Cette inspiration n'a pas d'image à lire.",
+  "en": "This inspiration has no image to read."
+ },
+ "La réponse de Claude est illisible (elle a été facturée) : relance.": {
+  "fr": "La réponse de Claude est illisible (elle a été facturée) : relance.",
+  "en": "Claude's answer is unreadable (it was billed): try again."
+ },
+ "Visuel inconnu dans la Bibliothèque.": {
+  "fr": "Visuel inconnu dans la Bibliothèque.",
+  "en": "Unknown visual in the Library."
+ },
+ "Le titre est vide.": {
+  "fr": "Le titre est vide.",
+  "en": "The title is empty."
+ },
+ "Trop proche de la capture : une suite de 12 mots ou plus la reprend. Réécris ce passage.": {
+  "fr": "Trop proche de la capture : une suite de 12 mots ou plus la reprend. Réécris ce passage.",
+  "en": "Too close to the capture: a run of 12 words or more repeats it. Rewrite that passage."
+ },
+ "Mots interdits de l'espace : réécris sans eux.": {
+  "fr": "Mots interdits de l'espace : réécris sans eux.",
+  "en": "Banned words of the space: rewrite without them."
+ },
+ "L'espace de cette inspiration est inconnu ou archivé.": {
+  "fr": "L'espace de cette inspiration est inconnu ou archivé.",
+  "en": "This inspiration's space is unknown or archived."
+ },
+ "Une seule image (PNG, JPEG, WEBP, BMP ou TIFF) : pas de PDF ni de pages multiples.": {
+  "fr": "Une seule image (PNG, JPEG, WEBP, BMP ou TIFF) : pas de PDF ni de pages multiples.",
+  "en": "A single image (PNG, JPEG, WEBP, BMP or TIFF): no PDF and no multiple pages."
+ },
+ "Une demande payante est déjà en cours pour cette inspiration : attends sa réponse.": {
+  "fr": "Une demande payante est déjà en cours pour cette inspiration : attends sa réponse.",
+  "en": "A paid request is already running for this inspiration: wait for its answer."
+ },
+ "Ce visuel est l'image captée : elle ne peut jamais être le visuel du post. Génère un visuel neuf.": {
+  "fr": "Ce visuel est l'image captée : elle ne peut jamais être le visuel du post. Génère un visuel neuf.",
+  "en": "This visual is the captured image: it can never be the post's visual. Generate a new visual."
+ },
+ "Claude n'a pas répondu à temps : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.": {
+  "fr": "Claude n'a pas répondu à temps : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.",
+  "en": "Claude did not answer in time: the request may have been billed. Check your spending before trying again."
+ },
+ "L'appel à Claude a échoué (réseau) : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.": {
+  "fr": "L'appel à Claude a échoué (réseau) : la demande a peut-être été facturée. Vérifie tes dépenses avant de relancer.",
+  "en": "The call to Claude failed (network): the request may have been billed. Check your spending before trying again."
+ },
+ "Image illisible.": {
+  "fr": "Image illisible.",
+  "en": "Unreadable image."
+ },
+ "La source de l'inspiration (lien ou compte) ne se publie pas : retire-la du texte.": {
+  "fr": "La source de l'inspiration (lien ou compte) ne se publie pas : retire-la du texte.",
+  "en": "The inspiration's source (link or account) is never published: remove it from the text."
+ },
+ "Ce détourage n'est pas proposé pour un schéma : choisis-en un autre.": {
+  "fr": "Ce détourage n'est pas proposé pour un schéma : choisis-en un autre.",
+  "en": "This background removal is not offered for a diagram: choose another one."
+ },
+ "Aucune image dans ce fichier : dépose une photo ou un dessin.": {
+  "fr": "Aucune image dans ce fichier : dépose une photo ou un dessin.",
+  "en": "No image in this file: drop a photo or a drawing."
+ },
+ "Identifiant de document invalide.": {
+  "fr": "Identifiant de document invalide.",
+  "en": "Invalid document identifier."
+ },
+ "Taille du document invalide.": {
+  "fr": "Taille du document invalide.",
+  "en": "Invalid document size."
+ },
+ "Il faut de 1 à 60 calques à animer.": {
+  "fr": "Il faut de 1 à 60 calques à animer.",
+  "en": "Between 1 and 60 layers are needed to animate."
+ },
+ "La page motion code du schéma dépasse 10 Mo : anime moins de calques à la fois.": {
+  "fr": "La page motion code du schéma dépasse 10 Mo : anime moins de calques à la fois.",
+  "en": "The diagram's motion code page is larger than 10 MB: animate fewer layers at a time."
+ },
+ "L'image est vide : rien à séparer.": {
+  "fr": "L'image est vide : rien à séparer.",
+  "en": "The image is empty: nothing to separate."
+ },
+ "Calque {n} : image « {v} » absente de la Bibliothèque.": {
+  "fr": "Calque {n} : image « {v} » absente de la Bibliothèque.",
+  "en": "Layer {n}: image “{v}” is not in the Library."
+ },
+ "Calque {n} : boîte invalide.": {
+  "fr": "Calque {n} : boîte invalide.",
+  "en": "Layer {n}: invalid box."
+ },
+ "Calque {n} : image « {v} » illisible.": {
+  "fr": "Calque {n} : image « {v} » illisible.",
+  "en": "Layer {n}: image “{v}” is unreadable."
+ },
+ "Le détourage n'a rien rendu : réessaie ou choisis un autre modèle.": {
+  "fr": "Le détourage n'a rien rendu : réessaie ou choisis un autre modèle.",
+  "en": "The background removal returned nothing: try again or choose another model."
+ },
+ "aucun calque à animer": {
+  "fr": "aucun calque à animer",
+  "en": "no layer to animate"
+ },
+ "Le coût du détourage a changé ou n'a pas été accepté : confirme le nouveau devis.": {
+  "fr": "Le coût du détourage a changé ou n'a pas été accepté : confirme le nouveau devis.",
+  "en": "The background removal cost changed or was not accepted: confirm the new quote."
+ },
+ "Le fond de l'image n'est pas uni : choisis un détourage par IA, ou dépose une image déjà détourée (PNG transparent).": {
+  "fr": "Le fond de l'image n'est pas uni : choisis un détourage par IA, ou dépose une image déjà détourée (PNG transparent).",
+  "en": "The image background is not plain: choose an AI background removal, or drop an image already cut out (transparent PNG)."
+ },
+ "La page motion code du schéma a été refusée par le bac à sable.": {
+  "fr": "La page motion code du schéma a été refusée par le bac à sable.",
+  "en": "The diagram's motion code page was refused by the sandbox."
+ },
+ "Le détourage par {mid} a échoué ({name}) : il a peut-être été facturé ; réessaie ou choisis un autre modèle.": {
+  "fr": "Le détourage par {mid} a échoué ({name}) : il a peut-être été facturé ; réessaie ou choisis un autre modèle.",
+  "en": "Background removal by {mid} failed ({name}): it may have been billed; try again or choose another model."
  }
 }

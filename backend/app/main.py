@@ -555,6 +555,12 @@ app.include_router(capture_montage_router, prefix="/api/capture-montage")
 # t318 (28/10/2026) : /api/live — le direct multi-destinations (WebSocket local -> ffmpeg tee -> RTMP(S)), local seulement
 from app.api.live_routes import router as live_router
 app.include_router(live_router, prefix="/api/live")
+# t313 (28/10/2026) : /api/inspiration — d'une inspiration à un contenu NEUF (matière, angles, devis, brouillon), local seulement
+from app.api.inspiration_routes import router as inspiration_router
+app.include_router(inspiration_router, prefix="/api/inspiration")
+# t314 (28/10/2026) : /api/schema — illustration ou schéma -> calques nommés (Vectorlab) -> base d'animation, local seulement
+from app.api.schema_routes import router as schema_router
+app.include_router(schema_router, prefix="/api/schema")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

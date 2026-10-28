@@ -46,8 +46,10 @@ print("[M] maillon dzcapture")
 check("M1 marqueur une fois", B.count(M.MARKER) == 1)
 avant = M.defaire(B) if M.MARKER in B else ""
 check("M2 aller-retour exact : défaire puis réappliquer rend le livré", avant and M.appliquer(avant) == B)
-check("M3 avant_dzcapture = défaire ; avant_whatsapppage passe d'abord par lui",
-      AIDE.avant_dzcapture(B) == avant and M.MARKER not in AIDE.avant_whatsapppage(B))
+# fusion t320 : dzinspiration (t313) est rejoué APRÈS dzcapture ; avant_dzcapture le défait d'abord
+_sans_insp = AIDE.avant_dzinspiration(B) if hasattr(AIDE, "avant_dzinspiration") else B
+check("M3 avant_dzcapture = défaire (après la queue) ; avant_whatsapppage passe d'abord par lui",
+      AIDE.avant_dzcapture(B) == M.defaire(_sans_insp) and M.MARKER not in AIDE.avant_whatsapppage(B))
 check("M4 hors de tout bloc de couche, sans fin de ligne", all(M.hors_couche(B, z) and "\n" not in z for _a, z in M.PAIRES))
 check("M5 épingles intactes (useState 731, v2.8.0 x4, DzTracks 181, confirmations 30)",
       (B.count("x.useState("), B.count("v2.8.0"), B.count("DzTracks"), B.count(M.CONFIRMER)) == (731, 4, 181, 30))

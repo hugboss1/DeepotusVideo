@@ -125,6 +125,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Passer en direct** (t318) : barre du haut, « Direct » ; destinations Twitch, YouTube Live, Kick, RTMP (clé au
   coffre) ; Discord = annonce par webhook, pas de vidéo ; panneau : santé, Pause écran, Marqueur, Arrêter ; le direct
   est aussi enregistré dans la Bibliothèque. → [GUIDE:bibliotheque]
+- **S'inspirer d'un post sans le republier** : Planificateur › « Depuis une inspiration » (capture, angles, devis,
+  brouillon du projet ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:planificateur]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]
@@ -146,6 +148,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Mettre à jour l'application** : Réglages › Diagnostic, bouton Vérifier. → [POINT:reglages.diagnostic] [GUIDE:installer]
 - **Utiliser le téléphone** : Réglages › Appareils. → [POINT:reglages.appareils] [GUIDE:mobile]
 - **Dessiner en vectoriel** : ouvrir le Vectorlab, nommer le document puis Créer. → [POINT:vectorlab.creer] [GUIDE:vectorlab]
+- **Animer un schéma ou une illustration photographiés** : Vectorlab › Fichier › « Scanner un schéma… » (calques nommés,
+  ordre qui suit les flèches ; détourage IA payant après devis), puis « Envoyer vers › Animation » (Studio). → [GUIDE:vectorlab]
 - **Retoucher au pixel dans le Vectorlab** : basculer en mode Pixel. → [POINT:vectorlab.mode_pixel] [GUIDE:vectorlab-pixel]
 - **Raccourcis du Vectorlab** : bouton Raccourcis clavier de sa barre. → [POINT:vectorlab.raccourcis] [GUIDE:raccourcis]
 - **Retoucher une photo** : Photolab, outil Pinceau ; Recadrage pour couper ; menu Filtre pour les effets.
