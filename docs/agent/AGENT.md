@@ -163,6 +163,11 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   de l'espace de la campagne (« Activer l'espace … et ouvrir le calendrier »). Porte 2 : l'utilisateur programme
   lui-même. L'agent ne publie, ne programme, ne supprime rien et ne touche ni clés ni Réglages. Catégorie
   « campagnes ». → [GUIDE:agent-campagnes]
+- **Sprites d'un personnage en 8 directions** (t339) : Game Assets › Sprite Lab › onglet Bible, choisir le personnage
+  puis « 8 » (sélecteur Directions). 5 directions dessinées : S, E et N découpées dans la planche (gratuit), SE et NE
+  générées (payant, catégorie « sprites », devis affiché à côté du bouton puis confirmation) ; SO, O et NO en miroir,
+  cochés par défaut — décocher un miroir génère la vraie vue (O se découpe, gratuit). « 4 » découpe seulement la
+  planche, gratuit ; « 8 directions (modèle 3D) » rend le modèle 3D, gratuit. → [ALLER:assets3d] [GUIDE:spritelab]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 
@@ -195,6 +200,10 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Les brouillons de la campagne ne sont pas au calendrier** : ils sont rangés dans l'espace de la campagne, et le
   calendrier ne montre que l'espace actif. Sur la carte des brouillons, « Activer l'espace … et ouvrir le
   calendrier » l'active (sur ce clic seulement). → [GUIDE:agent-campagnes]
+- **Personnage qui tient une épée, un bouclier, un sac en bandoulière** (sprites en 8 directions) : ne jamais
+  miroiter — un miroir changerait l'objet de main. Cocher « Le personnage tient un objet asymétrique » : les miroirs
+  se décochent, et SO, O, NO et l'est sont générés (l'est de la planche est lui-même le miroir du profil gauche) :
+  5 générations au lieu de 2. → [GUIDE:spritelab]
 
 ## Comment répondre
 1. Réponds dans la langue de la question, en 5 étapes au plus, phrases courtes, sans jargon technique.
