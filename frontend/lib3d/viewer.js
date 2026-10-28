@@ -607,6 +607,28 @@ const ROTATION_TRAME = {
    rien à faire. Une vue oubliée n'y retient rien. */
 const _reperes = new WeakMap();
 
+/* LA VUE D'AXE TENUE, par vue : la direction (unitaire, de la cible vers la
+   caméra) posée par orienter() pour « face » et « profil », et RIEN d'autre.
+
+   LE DÉFAUT QUE CETTE TABLE CORRIGE, VU PAR L'UTILISATEUR LE 29/10 : en orbite
+   libre, une caméra amenée près de l'horizon — ou juste dessous — passait sous
+   le seuil de planDeTrame et la trame se redressait en mur VERTICAL derrière
+   le modèle. Le redressement n'a de sens que dans les vues d'axe, où le sol
+   est vu exactement par la tranche ; en orbite ou en iso, le sol reste le sol,
+   même rasant.
+
+   UNE DIRECTION ET NON UN DRAPEAU : la molette et le panoramique gardent la vue
+   d'axe (le regard ne tourne pas), une orbite la quitte (il tourne). Écouter
+   l'évènement « start » des contrôles aurait confondu les deux — la molette
+   l'émet aussi. Une WeakMap pour la même raison que `_reperes` : le contrat de
+   forme d'`api` n'a pas à porter un état de dessin. */
+const _vueAxiale = new WeakMap();
+const VUES_AXIALES = new Set(["face", "profil"]);
+/* cos(2,6°) : la tolérance d'un regard « toujours dans l'axe ». Un cadrage
+   recalculé ou un arrondi flottant reste dedans ; un geste d'orbite délibéré
+   en sort dès les premiers pixels. */
+const COS_AXE_TENU = 0.999;
+
 function libererLigne(o) {
   if (!o) return;
   if (o.parent) o.parent.remove(o);
@@ -683,7 +705,16 @@ export function majRepere(api) {
      APRÈS nous dans la boucle. Sans cette ligne, la trame choisirait son plan
      sur le point de vue de l'image précédente. */
   api.camera.updateMatrixWorld();
-  const plan = planDeTrame(axeDeVue(api.camera.matrixWorld.elements), e.plan);
+  const avant = axeDeVue(api.camera.matrixWorld.elements);
+  /* HORS VUE D'AXE, LE SOL : voir `_vueAxiale`. `avant` regarde VERS la cible,
+     la direction tenue part de la cible : d'où le signe. */
+  let plan = "y";
+  const tenue = _vueAxiale.get(api);
+  if (tenue) {
+    if (-(avant.x * tenue.x + avant.y * tenue.y + avant.z * tenue.z)
+        >= COS_AXE_TENU) plan = planDeTrame(avant, e.plan);
+    else _vueAxiale.delete(api);
+  }
   if (e.pas === pas && e.cases === cases && e.plan === plan) return e;
   e.pas = pas;
   e.cases = cases;
@@ -1217,6 +1248,10 @@ export function projeter(api, mode) {
 export function orienter(api, nom) {
   if (!ORIENTATIONS[nom]) return null;
   api.vueCadrage = nom;
+  if (VUES_AXIALES.has(nom)) {
+    const d = ORIENTATIONS[nom].dir, n = Math.hypot(d.x, d.y, d.z);
+    _vueAxiale.set(api, { x: d.x / n, y: d.y / n, z: d.z / n });
+  } else _vueAxiale.delete(api);
   if (api.racine) { cadrer(api); return nom; }
   /* Pas de modèle : rien à cadrer, mais l'orientation se pose quand même, à la
      distance courante — sinon le premier chargement arriverait sur la vue

@@ -5323,10 +5323,6 @@
   "fr": "gltfpack a échoué ({returncode}): {v}",
   "en": "gltfpack failed ({returncode}): {v}"
  },
- "gltfpack a échoué au LOD{i} ({returncode}) : {v}": {
-  "fr": "gltfpack a échoué au LOD{i} ({returncode}) : {v}",
-  "en": "gltfpack failed at LOD{i} ({returncode}): {v}"
- },
  "gltfpack n'a pas pu lire ce {ext} ({returncode}) : {v}": {
   "fr": "gltfpack n'a pas pu lire ce {ext} ({returncode}) : {v}",
   "en": "gltfpack could not read this {ext} ({returncode}): {v}"
@@ -12482,5 +12478,169 @@
  "L'avis du directeur artistique a échoué (réseau) : il a peut-être été facturé. Vérifie tes dépenses avant de relancer.": {
   "fr": "L'avis du directeur artistique a échoué (réseau) : il a peut-être été facturé. Vérifie tes dépenses avant de relancer.",
   "en": "The art director's review failed (network): it may have been charged. Check your spending before running it again."
+ },
+ "image_filename : un nom NU d'image de la Library est attendu, reçu {pose}": {
+  "fr": "image_filename : un nom NU d'image de la Library est attendu, reçu {pose}",
+  "en": "image_filename: a BARE Library image name is expected, got {pose}"
+ },
+ "Start image not found: {pose}": {
+  "fr": "Image de départ introuvable : {pose}",
+  "en": "Start image not found: {pose}"
+ },
+ "video_model inconnu : {mid}": {
+  "fr": "video_model inconnu : {mid}",
+  "en": "unknown video_model: {mid}"
+ },
+ "duration_s : un entier de 3 à 10 s est attendu": {
+  "fr": "duration_s : un entier de 3 à 10 s est attendu",
+  "en": "duration_s: an integer from 3 to 10 s is expected"
+ },
+ "aspect_ratio : 1:1, 9:16 ou 16:9": {
+  "fr": "aspect_ratio : 1:1, 9:16 ou 16:9",
+  "en": "aspect_ratio: 1:1, 9:16 or 16:9"
+ },
+ "prompt : décris le mouvement à boucler (ex : walks in place)": {
+  "fr": "prompt : décris le mouvement à boucler (ex : walks in place)",
+  "en": "prompt: describe the motion to loop (e.g. walks in place)"
+ },
+ "palette_hex must be a list of #RRGGBB colours": {
+  "fr": "palette_hex doit être une liste de couleurs #RRGGBB",
+  "en": "palette_hex must be a list of #RRGGBB colours"
+ },
+ "palette_hex must hold between 2 and {MAX_PALETTE} distinct colours": {
+  "fr": "palette_hex doit contenir de 2 à {MAX_PALETTE} couleurs distinctes",
+  "en": "palette_hex must hold between 2 and {MAX_PALETTE} distinct colours"
+ },
+ "the sprite has no visible pixel": {
+  "fr": "le sprite n'a aucun pixel visible",
+  "en": "the sprite has no visible pixel"
+ },
+ "palette_hex excludes palette and colors — give only one": {
+  "fr": "palette_hex exclut palette et colors — n'en donnez qu'un",
+  "en": "palette_hex excludes palette and colors — give only one"
+ },
+ "palette_hex: {c} is not a #RRGGBB colour": {
+  "fr": "palette_hex : {c} n'est pas une couleur #RRGGBB",
+  "en": "palette_hex: {c} is not a #RRGGBB colour"
+ },
+ "more than {MAX_PALETTE} colours: this sprite is not pixel art — turn Pixel art on before approving it": {
+  "fr": "plus de {MAX_PALETTE} couleurs : ce sprite n'est pas du pixel-art — activez Pixel-art avant de l'approuver",
+  "en": "more than {MAX_PALETTE} colours: this sprite is not pixel art — turn Pixel art on before approving it"
+ },
+ "pixel_verrou: the 8-character id of an approved sprite is expected": {
+  "fr": "pixel_verrou : l'identifiant à 8 caractères d'un sprite approuvé est attendu",
+  "en": "pixel_verrou: the 8-character id of an approved sprite is expected"
+ },
+ "sprite {v} is not approved: approve it first (Pixel art on)": {
+  "fr": "le sprite {v} n'est pas approuvé : approuvez-le d'abord (Pixel-art activé)",
+  "en": "sprite {v} is not approved: approve it first (Pixel art on)"
+ },
+ "only a pixel-art sprite can be approved: turn Pixel art on, generate the sheet, then approve it": {
+  "fr": "seul un sprite en pixel-art s'approuve : activez Pixel-art, générez la feuille, puis approuvez-la",
+  "en": "only a pixel-art sprite can be approved: turn Pixel art on, generate the sheet, then approve it"
+ },
+ "boucle must be an object {une_sur: 1-3}": {
+  "fr": "boucle doit être un objet {une_sur: 1-3}",
+  "en": "boucle must be an object {une_sur: 1-3}"
+ },
+ "boucle.une_sur must be 1, 2 or 3": {
+  "fr": "boucle.une_sur doit valoir 1, 2 ou 3",
+  "en": "boucle.une_sur must be 1, 2 or 3"
+ },
+ "Clé fal absente — ajoute-la dans les Réglages : la segmentation IA passe par fal.": {
+  "fr": "Clé fal absente — ajoute-la dans les Réglages : la segmentation IA passe par fal.",
+  "en": "fal key missing — add it in Settings: AI segmentation goes through fal."
+ },
+ "Maillage trop lourd pour la segmentation IA : 150 Mo au plus.": {
+  "fr": "Maillage trop lourd pour la segmentation IA : 150 Mo au plus.",
+  "en": "Mesh too heavy for AI segmentation: 150 MB at most."
+ },
+ "GLB segmenté illisible : {e}": {
+  "fr": "GLB segmenté illisible : {e}",
+  "en": "Unreadable segmented GLB: {e}"
+ },
+ "rôle inconnu : {role} (attendu : {v})": {
+  "fr": "rôle inconnu : {role} (attendu : {v})",
+  "en": "unknown role: {role} (expected: {v})"
+ },
+ "maillage sans triangle : rien à décliner": {
+  "fr": "maillage sans triangle : rien à décliner",
+  "en": "mesh without triangles: nothing to derive"
+ },
+ "aucune densité pour ce job": {
+  "fr": "aucune densité pour ce job",
+  "en": "no density for this job"
+ },
+ "densité inconnue : {densite} (attendu : {v})": {
+  "fr": "densité inconnue : {densite} (attendu : {v})",
+  "en": "unknown density: {densite} (expected: {v})"
+ },
+ "densité {densite} absente : lance d'abord les trois densités": {
+  "fr": "densité {densite} absente : lance d'abord les trois densités",
+  "en": "density {densite} missing: run the three densities first"
+ },
+ "gltfpack a échoué au {quoi} ({returncode}) : {v}": {
+  "fr": "gltfpack a échoué au {quoi} ({returncode}) : {v}",
+  "en": "gltfpack failed at {quoi} ({returncode}): {v}"
+ },
+ "version : un entier à partir de 1": {
+  "fr": "version : un entier à partir de 1",
+  "en": "version: an integer from 1"
+ },
+ "maillage riggé (squelette) : découpe les pièces AVANT le rig, sinon les poids des os ne suivraient pas": {
+  "fr": "maillage riggé (squelette) : découpe les pièces AVANT le rig, sinon les poids des os ne suivraient pas",
+  "en": "rigged mesh (skeleton): split the parts BEFORE rigging, otherwise the bone weights would not follow"
+ },
+ "découpe « {par} » — composantes ou noeuds": {
+  "fr": "découpe « {par} » — composantes ou noeuds",
+  "en": "split \"{par}\" — composantes or noeuds"
+ },
+ "aucun triangle à découper": {
+  "fr": "aucun triangle à découper",
+  "en": "no triangle to split"
+ },
+ "min_triangles entre 1 et 10 000": {
+  "fr": "min_triangles entre 1 et 10 000",
+  "en": "min_triangles between 1 and 10,000"
+ },
+ "maillage de {v} Mo : Tripo en accepte 150 au plus": {
+  "fr": "maillage de {v} Mo : Tripo en accepte 150 au plus",
+  "en": "{v} MB mesh: Tripo accepts 150 at most"
+ },
+ "Tripo n'a rendu aucun GLB (FBX seul ?) : la découpe n'a pas pu être relue": {
+  "fr": "Tripo n'a rendu aucun GLB (FBX seul ?) : la découpe n'a pas pu être relue",
+  "en": "Tripo returned no GLB (FBX only?): the split could not be read back"
+ },
+ "graphe de nœuds cyclique": {
+  "fr": "graphe de nœuds cyclique",
+  "en": "cyclic node graph"
+ },
+ "POSITION hors flottants VEC3 : le pivot ne peut pas être recentré": {
+  "fr": "POSITION hors flottants VEC3 : le pivot ne peut pas être recentré",
+  "en": "POSITION is not float VEC3: the pivot cannot be recentered"
+ },
+ "min_triangles « {v} » — un entier": {
+  "fr": "min_triangles « {v} » — un entier",
+  "en": "min_triangles \"{v}\" — an integer"
+ },
+ "noms : une liste de {pieces} noms au plus, dans l'ordre de l'analyse": {
+  "fr": "noms : une liste de {pieces} noms au plus, dans l'ordre de l'analyse",
+  "en": "names: a list of at most {pieces} names, in the order of the analysis"
+ },
+ "cibles de morphose (blend shapes) : hors périmètre de la découpe en pièces": {
+  "fr": "cibles de morphose (blend shapes) : hors périmètre de la découpe en pièces",
+  "en": "morph targets (blend shapes): outside the scope of part splitting"
+ },
+ "primitive en mode {v} : seuls les TRIANGLES se découpent": {
+  "fr": "primitive en mode {v} : seuls les TRIANGLES se découpent",
+  "en": "primitive in mode {v}: only TRIANGLES can be split"
+ },
+ "primitive sans POSITION": {
+  "fr": "primitive sans POSITION",
+  "en": "primitive without POSITION"
+ },
+ "fal.ai : {e}": {
+  "fr": "fal.ai : {e}",
+  "en": "fal.ai: {e}"
  }
 }

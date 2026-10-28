@@ -56,6 +56,7 @@ PAYANTES = {
     ("routes", "POST", "/assets/3d/views"), ("routes", "POST", "/assets/3d/{job}/views/{index}/rejouer"),   # T106
     ("routes", "POST", "/assets/3d/{job}/views/{index}/detourer"), ("routes", "POST", "/assets/3d/{job}/tirer"),
     ("routes", "POST", "/assets/3d/{job}/qc"), ("routes", "ROUTE", "/meshy/{meshy_path:path}"),
+    ("routes", "POST", "/assets/sprite/boucle"),   # t340 (B2) : la vidéo de la boucle (pipeline.run, garde « sprites »)
     ("routes", "POST", "/assets/sprite"), ("routes", "POST", "/news/script"), ("routes", "POST", "/audio/sfx"),
     ("routes", "POST", "/audio/music"), ("routes", "POST", "/audio/voiceover"), ("routes", "POST", "/episodes/scenes"),
     ("routes", "POST", "/episodes/render"), ("routes", "POST", "/episodes/{ep_id}/narrate"),
@@ -86,6 +87,7 @@ PAYANTES = {
     # gratuite en pratique, mais le chemin atteint le puits FLUX et la garde de generate_material est sur sa route
     ("routes", "POST", "/materials/from-photo"),
     ("routes", "POST", "/assets/3d/{job}/rig"),
+    ("routes", "POST", "/etabli/pieces/ia"),   # t342 : Tripo Segmentation (fal), garde « moteurs3d » après confirme_cout
     ("routes", "POST", "/assets/3d/{job}/convert"),   # T105 : fbx/usdz/blend par Meshy convert   # T104 : rig + animations Meshy d'un job fal (crédits)
     ("routes", "POST", "/audio/sfx-video"),   # t187 (G5) : le bruitage d'une vidéo (Sonilo, Mirelo, Kling, Hunyuan, ThinkSound)
     ("routes", "POST", "/vfx-ia"),   # t188 (G6) : les 12 VFX IA vidéo -> vidéo (MiniMax H3, LTX 2.3, VOID, Kling O3, FLUX 3, Topaz, PixVerse)
