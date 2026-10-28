@@ -992,6 +992,12 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         lines.append(_line("elevenlabs", "Isolation de voix", chars, "chars", chars * elevenlabs_rate(None, p)))
     elif kind == "detourage":
         lines.append(_ligne_detourage(op, p))
+    elif kind == "recherche_web":
+        # t354 (28/10/2026) : une recherche web de la prospection, au prix unitaire du fournisseur (recherche_web.PRIX)
+        from app.services.recherche_web import PRIX as _prix_rw
+        f = str(op.get("fournisseur") or "")
+        n = max(1, int(op.get("requetes") or 1))
+        lines.append(_line(f, f"Recherche web ({f})", n, "requete", round(n * float(_prix_rw.get(f, max(_prix_rw.values()))), 6)))
     elif kind == "whatsapp":
         lines.append(_ligne_whatsapp(op, p))   # t310 : un message livré par Meta (grille saisie, ValueError si inconnu)
     elif kind == "llm":

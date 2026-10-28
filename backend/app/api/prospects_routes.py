@@ -74,6 +74,41 @@ async def post_retrait(request: Request, body: dict):
     return {"retire": r["retire"] > 0}
 
 
+@router.get("/recherche")
+async def get_recherche(request: Request):
+    """t354 : le fournisseur de recherche web choisi, et pour chacun : configuré (clé posée) et prix. Jamais une clé."""
+    _require_localhost(request)
+    from app.services import recherche_web as RW
+    return RW.etat()
+
+
+@router.post("/recherche/fournisseur")
+async def post_recherche_fournisseur(request: Request, body: dict):
+    _require_localhost(request)
+    from app.services import recherche_web as RW
+    try:
+        RW.choisir(_corps(body).get("fournisseur"))
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from None
+    return RW.etat()
+
+
+@router.post("/recherche/cle")
+async def post_recherche_cle(request: Request, body: dict):
+    """t354 : pose la clé d'un fournisseur de recherche (Tavily, Exa, Serper) là où vivent les clés (coffre ouvert, sinon
+    .env ; coffre fermé : en mémoire), appliquée à chaud. La clé Anthropic se règle dans Réglages › Clés d'API."""
+    _require_localhost(request)
+    from app.services import coffre as CF, recherche_web as RW
+    b = _corps(body)
+    f, v = b.get("fournisseur"), str(b.get("valeur") or "").strip()
+    if f not in RW.FOURNISSEURS or f == "anthropic":
+        raise HTTPException(422, "fournisseur à clé inconnu : tavily, exa ou serper")
+    if not v or len(v) > 300 or any(ch.isspace() for ch in v):
+        raise HTTPException(422, "clé illisible : une seule chaîne, sans espace")
+    ou = CF.enregistrer_cle(RW.CLES[f], v)
+    return dict(RW.etat(), ou=ou)
+
+
 @router.get("/{eid}")
 async def get_prospects(request: Request, eid: str, statut: str | None = None):
     def geste():

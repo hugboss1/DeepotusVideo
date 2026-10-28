@@ -11430,5 +11430,37 @@
  "registre des entreprises injoignable ({name}) : réessayez plus tard": {
   "fr": "registre des entreprises injoignable ({name}) : réessayez plus tard",
   "en": "business registry unreachable ({name}): try again later"
+ },
+ "fournisseur à clé inconnu : tavily, exa ou serper": {
+  "fr": "fournisseur à clé inconnu : tavily, exa ou serper",
+  "en": "unknown keyed provider: tavily, exa or serper"
+ },
+ "clé illisible : une seule chaîne, sans espace": {
+  "fr": "clé illisible : une seule chaîne, sans espace",
+  "en": "unreadable key: a single string, without spaces"
+ },
+ "fournisseur de recherche inconnu : {v}": {
+  "fr": "fournisseur de recherche inconnu : {v}",
+  "en": "unknown search provider: {v}"
+ },
+ "{fournisseur} a refusé la recherche (HTTP {statut})": {
+  "fr": "{fournisseur} a refusé la recherche (HTTP {statut})",
+  "en": "{fournisseur} refused the search (HTTP {statut})"
+ },
+ "requête de recherche vide": {
+  "fr": "requête de recherche vide",
+  "en": "empty search query"
+ },
+ "aucune clé pour la recherche {f} : posez-la dans l'onglet Prospects": {
+  "fr": "aucune clé pour la recherche {f} : posez-la dans l'onglet Prospects",
+  "en": "no key for the {f} search: set it in the Prospects tab"
+ },
+ "anthropic : recherche en erreur ({erreur})": {
+  "fr": "anthropic : recherche en erreur ({erreur})",
+  "en": "anthropic: search error ({erreur})"
+ },
+ "{fournisseur} injoignable ({name})": {
+  "fr": "{fournisseur} injoignable ({name})",
+  "en": "{fournisseur} unreachable ({name})"
  }
 }
