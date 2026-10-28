@@ -122,6 +122,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   capture… » ; zooms sur les clics, temps morts accélérés ou coupés, chapitres par écran, 16:9, 9:16 ou 1:1,
   sous-titres (texte connu gratuit, transcription payante sur devis) ; « Rendre la vidéo » (Bibliothèque), puis
   « Planifier un brouillon » sur les canaux du projet actif. → [GUIDE:bibliotheque]
+- **Tutoriel et parcours d'une capture** (t319) : éditeur de montage › « Tutoriel… » (une étape par geste, titres et
+  phrases FR/EN, « Fabriquer les brouillons » sans rien publier, « Exporter le parcours » .dzparcours) ; « Filmer
+  l'app » › « Parcours… » importe et rejoue : « Montrer » pointe le vrai bouton, sans cliquer. → [GUIDE:bibliotheque]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]
