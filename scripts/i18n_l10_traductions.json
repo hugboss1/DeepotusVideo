@@ -2767,6 +2767,34 @@
   "fr": "Planche inconnue : {sheet}. Valeurs admises : {v}",
   "en": "Unknown sheet: {sheet}. Allowed values: {v}"
  },
+ "directions : 4 ou 8, reçu {n}": {
+  "fr": "directions : 4 ou 8, reçu {n}",
+  "en": "directions: 4 or 8, got {n}"
+ },
+ "objet_asymetrique : vrai ou faux attendu": {
+  "fr": "objet_asymetrique : vrai ou faux attendu",
+  "en": "objet_asymetrique: true or false expected"
+ },
+ "miroirs : une liste de directions attendue (southwest, west, northwest)": {
+  "fr": "miroirs : une liste de directions attendue (southwest, west, northwest)",
+  "en": "miroirs: a list of directions expected (southwest, west, northwest)"
+ },
+ "{provider} rend du SVG : une vue de sprite est une image raster. Choisissez un autre générateur dans la direction artistique.": {
+  "fr": "{provider} rend du SVG : une vue de sprite est une image raster. Choisissez un autre générateur dans la direction artistique.",
+  "en": "{provider} renders SVG: a sprite view is a raster image. Choose another generator in the art direction."
+ },
+ "miroirs : {v} — seules {v2} se tirent en miroir (les 5 autres directions sont dessinées)": {
+  "fr": "miroirs : {v} — seules {v2} se tirent en miroir (les 5 autres directions sont dessinées)",
+  "en": "miroirs: {v} — only {v2} can be mirrored (the other 5 directions are drawn)"
+ },
+ "objet tenu asymétrique : ne jamais miroiter — décoche les miroirs ({v}), ils seront générés": {
+  "fr": "objet tenu asymétrique : ne jamais miroiter — décoche les miroirs ({v}), ils seront générés",
+  "en": "asymmetric held object: never mirror — untick the mirrors ({v}), they will be generated"
+ },
+ "{direction} : cette direction ne se génère pas (découpée dans la planche)": {
+  "fr": "{direction} : cette direction ne se génère pas (découpée dans la planche)",
+  "en": "{direction}: this direction is not generated (cut from the board)"
+ },
  "Planche introuvable dans la Library : {planche}": {
   "fr": "Planche introuvable dans la Library : {planche}",
   "en": "Board not found in the Library: {planche}"
