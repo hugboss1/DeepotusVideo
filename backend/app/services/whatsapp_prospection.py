@@ -9,7 +9,7 @@ marketing, plafond du mois, devis et plafond de dépense). Ici seulement :
   - les étapes dues (`prospects_sequences.etapes_dues`), dans les heures calmes, fiche toujours éligible ;
   - refus des règles → séquence arrêtée (« fenetre » pour un texte hors fenêtre, « modele » pour un modèle inconnu,
     « canal » sinon) ; plafond (402 de dépense, plafond du mois) → l'étape attend, la passe s'arrête ; panne de Kapso →
-    3 essais puis « echec » ;
+    l'étape attend (jamais arrêtée par une panne) ;
   - `entrant(eid, identite)` : appelé par `whatsapp.noter_entrant` pour un message reçu (hors STOP, déjà au registre) :
     contact entrant sur la fiche, Contactée → A répondu. Le texte n'est jamais rangé (règle t310).
 """
@@ -23,7 +23,6 @@ from loguru import logger
 
 from app.services import prospects as _p, prospects_score as _sc, prospects_sequences as _sq
 
-MAX_ESSAIS = 3
 
 
 def _maintenant() -> datetime:          # couture de banc
@@ -109,9 +108,7 @@ async def envoyer_dues(eid) -> dict:
             _sq.arreter(eid, d["sid"], "modele")
             out["arretes"] += 1
             continue
-        except (kapso.KapsoErreur, OSError) as e:
-            if _sq.noter_essai(eid, d["sid"], d["rang"]) >= MAX_ESSAIS:
-                _sq.arreter(eid, d["sid"], "echec")
+        except (kapso.KapsoErreur, OSError) as e:      # panne : l'étape attend la passe suivante, rien n'est arrêté
             logger.warning(f"WhatsApp prospection {eid} : envoi en échec ({type(e).__name__})")
             out["etat"] = "panne"
             break

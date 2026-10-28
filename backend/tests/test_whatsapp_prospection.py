@@ -110,11 +110,11 @@ REPONSE["mode"] = "panne"
 for _ in range(3):
     passe()
 x = [y for y in S.lister(A) if y["id"] == s4][0]
-check("2d panne Kapso : 3 essais puis arrêt « echec »", x["statut"] == "annulee" and x["motif"] == "echec", (x["statut"], x["motif"], x["etapes"][0].get("essais")))
+check("2d panne Kapso (leçon t356 I3) : après 3 pannes, l'étape attend toujours", x["statut"] == "planifiee" and not x.get("motif"), (x["statut"], x.get("motif")))
 p5 = prospect("Sans accord", "+33655555555"); s5 = sequence(p5, [{"texte": "x", "delai_jours": 0}])
 REPONSE["mode"] = "ok"; n0 = len(ENVOIS); passe()
 x = [y for y in S.lister(A) if y["id"] == s5][0]
-check("2e aucun numéro de l'espace n'a l'accord : rien ne part, arrêt « canal »", len(ENVOIS) == n0 and x["motif"] == "canal", x["motif"])
+check("2e aucun numéro de l'espace n'a l'accord : rien ne part, arrêt « canal »", not any(e[1] == "tel:33655555555" for e in ENVOIS[n0:]) and x["motif"] == "canal", x["motif"])
 HORLOGE[0] = datetime(2026, 11, 7, 10, 0, tzinfo=PARIS).astimezone(timezone.utc)
 p6 = prospect("Samedi", "+33611111111".replace("1111111", "1111112"))
 check("2f hors des heures calmes : rien", passe()["etat"] == "hors_horaires")
