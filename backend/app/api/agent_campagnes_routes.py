@@ -522,7 +522,7 @@ async def carte(cid: str, n: int, request: Request):
             recherche = await _reserver_recherche(cid, l, orig)
             extra["statut"] = "en_cours"
         elif genre == "sequence":
-            # t355 : la porte 2 d'une séquence — le geste d'abord (refus = 409, rien d'écrit) ; acceptée = validée par
+            # t355 : la porte 2 d'une séquence — EXCEPTION à « la décision d'abord » : le geste d'abord (refus = 409, rien d'écrit) ; acceptée = validée par
             # l'utilisateur, refusée = annulée ; un geste déjà fait (reprise après panne) passe
             _decider_sequence(l.get("espace_id"), (orig.get("arguments") or {}).get("sid"), acceptee)
         with _traduire():

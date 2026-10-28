@@ -129,28 +129,73 @@ def _noter(s: dict, quoi: str, qui: str) -> None:
     del s["historique"][:-50]
 
 
-def _arreter(eid, doc: dict) -> bool:
-    """Arrêt automatique : une séquence en cours dont la fiche a répondu, est passée plus loin ou a disparu."""
-    en_cours = [s for s in doc["sequences"] if s.get("statut") in EN_COURS]
-    if not en_cours:
-        return False
-    try:
-        statuts = {f["id"]: f["statut"] for f in _p.lister(eid)}
-    except _p.RefusProspect:
-        return False
-    change = False
-    for s in en_cours:
-        st = statuts.get(s.get("pid"))
-        if st is not None and st not in ARRET:
-            continue
-        s["statut"] = "annulee"
-        s["motif"] = f"fiche:{st}" if st else "effacee"
+def _stopper(s: dict, motif: str, effacer: bool = False) -> None:
+    """Arrête une séquence (étapes non envoyées annulées) ; `effacer` (RGPD) vide aussi les textes et objets."""
+    if s.get("statut") in EN_COURS:
+        s["statut"], s["motif"] = "annulee", motif
         for e in s["etapes"]:
             if e["statut"] != "envoyee":
                 e["statut"] = "annulee"
-        _noter(s, "arret:" + s["motif"], "systeme")
+        _noter(s, "arret:" + motif, "systeme")
+    if effacer:
+        for e in s["etapes"]:
+            e["texte"], e["objet"] = "", ""
+
+
+def _fiches(eid) -> dict:
+    """Les fiches de l'espace ; t355 (relecture I2) : registre ou fiche illisible = refus 503, jamais « rien à arrêter »."""
+    try:
+        return {f["id"]: f for f in _p.lister(eid)}
+    except _p.RefusProspect as e:
+        raise RefusSequence(e.message, "indisponible" if e.code == "indisponible" else "inconnu") from None
+
+
+def _arreter(eid, doc: dict) -> bool:
+    """Arrêt automatique : la fiche a répondu, est passée plus loin, a disparu, ou son canal n'est plus possible
+    (consentement retiré, base légale changée : relecture I3). Fiche effacée ou opposée : textes vidés (I1)."""
+    if not doc["sequences"]:
+        return False
+    fiches = _fiches(eid)
+    change = False
+    for s in doc["sequences"]:
+        f = fiches.get(s.get("pid"))
+        st = f["statut"] if f else None
+        a_vider = (f is None or st == "oppose") and any(e.get("texte") or e.get("objet") for e in s["etapes"])
+        if s.get("statut") not in EN_COURS and not a_vider:
+            continue
+        if f is None or st in ARRET:
+            _stopper(s, f"fiche:{st}" if st else "effacee", effacer=(f is None or st == "oppose"))
+        elif s["canal"] not in [c["canal"] for c in _sc.canaux_possibles(f)]:
+            _stopper(s, "canal")
+        else:
+            continue
         change = True
     return change
+
+
+def pour_export(eid, pid) -> list:
+    """Les séquences d'une fiche, telles quelles (droit d'accès ; espace archivé compris) : lecture seule."""
+    with _verrou:
+        try:
+            return [json.loads(json.dumps(s)) for s in _lire(eid)["sequences"] if s.get("pid") == pid]
+        except RefusSequence:
+            return []
+
+
+def oublier(eid, pid) -> None:
+    """RGPD (relecture I1) : la fiche est effacée, opposée ou purgée — ses séquences s'arrêtent et perdent leurs textes
+    TOUT DE SUITE. Appelé par `prospects` hors de son verrou ; n'appelle jamais `prospects`."""
+    with _verrou:
+        try:
+            doc = _lire(eid)
+        except RefusSequence:
+            logger.warning(f"séquences de {eid} illisibles : textes de {pid} non vidés (le seront à la lecture)")
+            return
+        touchees = [s for s in doc["sequences"] if s.get("pid") == pid]
+        for s in touchees:
+            _stopper(s, "effacee", effacer=True)
+        if touchees:
+            _poser(eid, doc)
 
 
 def _charger(eid) -> dict:
@@ -273,12 +318,7 @@ def lister(eid, pid=None) -> list:
     with _verrou:
         doc = _charger(eid)
     seqs = [s for s in doc["sequences"] if pid in (None, "") or s.get("pid") == pid]
-    fiches = {}
-    if any(s.get("canal") in CANAUX_MANUELS for s in seqs):
-        try:
-            fiches = {f["id"]: f for f in _p.lister(eid)}
-        except _p.RefusProspect:
-            fiches = {}
+    fiches = _fiches(eid) if any(s.get("canal") in CANAUX_MANUELS for s in seqs) else {}
     now = _maintenant()
     out = []
     for s in sorted(seqs, key=lambda x: x.get("cree_le") or "", reverse=True):

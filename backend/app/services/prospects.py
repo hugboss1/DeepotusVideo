@@ -581,6 +581,8 @@ def changer_statut(eid, pid, statut, detail: str = "", qui: str = "utilisateur")
         except Exception:
             _defaire_demo(statut, pid, demo_avant, demo_apres, archive_avant)
             raise
+    if statut == "oppose":
+        _OUBLIER(eid, pid)                 # t355 (relecture I1) : hors du verrou des fiches
     return {"prospect": f, "note": note}
 
 
@@ -673,7 +675,20 @@ def qualifier(eid, pid, offre, ajustement=0, raison: str = "", qui: str = "utili
 def exporter(eid, pid) -> dict:
     """La fiche entière (droit d'accès), avec la date d'export, l'espace et l'état au registre."""
     f = lire(eid, pid)
-    return dict(f, exporte_le=_es._maintenant(), espace=eid, oppose=_reg(_op.oppose, identifiants(f)))
+    from app.services import prospects_sequences as _sq      # t355 (relecture I1) : les messages préparés aussi
+    return dict(f, exporte_le=_es._maintenant(), espace=eid, oppose=_reg(_op.oppose, identifiants(f)),
+                sequences=_sq.pour_export(eid, pid))
+
+
+def _oublier_sequences(eid, pid) -> None:
+    try:
+        from app.services import prospects_sequences as _sq
+        _sq.oublier(eid, pid)
+    except Exception as e:  # noqa: BLE001 — la fiche est déjà effacée ; la lecture des séquences finira le travail
+        logger.warning(f"séquences de {pid} non vidées tout de suite ({type(e).__name__})")
+
+
+_OUBLIER = _oublier_sequences
 
 
 def effacer(eid, pid, inscrire_opposition: bool = True) -> None:
@@ -685,6 +700,7 @@ def effacer(eid, pid, inscrire_opposition: bool = True) -> None:
             _reg(_op.inscrire, identifiants(f), "effacement")
         _poser(eid, [x for x in fiches if x["id"] != pid])
     neutraliser_demo(f)
+    _OUBLIER(eid, pid)                     # t355 (relecture I1) : les séquences perdent leurs textes, hors du verrou
 
 
 def purger(maintenant: date, demos: list | None = None) -> dict:
@@ -692,7 +708,7 @@ def purger(maintenant: date, demos: list | None = None) -> dict:
     un fichier illisible est sauté (il sera mis de côté à la prochaine lecture de l'écran). Rend {espace: nombre}."""
     racine = DATA_ROOT / "espaces"
     jour = maintenant.isoformat()
-    out = {}
+    out, parties = {}, []
     try:
         dossiers = [d for d in racine.iterdir() if d.is_dir() and _es.id_valide(d.name)]
     except OSError:
@@ -714,6 +730,9 @@ def purger(maintenant: date, demos: list | None = None) -> dict:
             if len(gardees) != len(fiches):
                 _es._ecrire_json(f, {"version": 1, "prospects": gardees})
                 out[d.name] = len(fiches) - len(gardees)
+                parties.extend((d.name, x["id"]) for x in fiches if x["purge_le"] <= jour)
+    for eid_, pid_ in parties:             # t355 (relecture I1) : hors du verrou des fiches
+        _OUBLIER(eid_, pid_)
     if out:
         logger.info(f"prospects : purge à 3 ans, {sum(out.values())} fiche(s) retirée(s)")
     return out
