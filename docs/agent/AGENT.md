@@ -157,7 +157,11 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   pour tous les espaces, un STOP WhatsApp hors espace client y va aussi, et un réabonnement l'en retire), et
   l'effacement automatique 3 ans après le dernier contact VENU du prospect. Une saisie erronée au registre se retire
   par « Saisir une opposition » › Retirer (noté au journal) ; une opposition de la personne, jamais. Gratuit.
-  → [GUIDE:agent-campagnes]
+  L'agent peut PROPOSER des prospects (t354, « proposé par l'agent ») : WhatsApp entrant avec accord, CSV déposé
+  (consentement daté), page d'entreprise collée (e-mail pro présent, robots.txt respecté), registre des entreprises
+  (gratuit, cibles sans fiche), recherche web PAYANTE seulement si la carte est acceptée (fournisseur et clé :
+  Prospects › « Recherche web »). Signaux de veille : jamais de fiche. Page ou recommandation : « À informer avant
+  le … ». Score = barème (« Recalculer le score ») ± 20 de l'agent, statut inchangé. → [GUIDE:agent-campagnes]
 - **Mener une campagne avec l'agent Campagnes** (stratégie, calendrier et posts d'un lancement) : onglet « Campagnes »
   de ce tiroir, ou Planificateur › Générer un plan, mode Agent Campagnes ; il faut une clé Anthropic. Choisir
   d'abord l'espace de marque de la campagne dans la liste du haut : vide par défaut, jamais l'espace actif d'office ;

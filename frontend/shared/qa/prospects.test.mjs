@@ -242,6 +242,47 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
   ok("9.5 opposition de la personne : le refus est dit", marque(m.hote, "erreur").textContent.includes("opposée elle-même"));
 }
 
+// ---- t354 : origine agent, information art. 14, qualification, recherche web -------------------------------------------
+{
+  const Q = { base: 45, ajustement: 10, raison: "studio actif", qui: "agent", le: "2026-10-28T10:00:00",
+    details: [{ critere: "source_web", points: 15 }, { critere: "adresse_pro", points: 10 }],
+    canaux_possibles: [{ canal: "email", mode: "auto_apres_porte", raison: "x" }, { canal: "x", mode: "manuel", raison: "y" }] };
+  let fiche = FICHE({ statut: "propose", par_agent: true, informer_avant: "2026-01-01", score: 55, qualification: Q });
+  const appels = [];
+  const m = monde({ routes: {
+    "GET /api/prospects/e1": () => reponse(200, { prospects: [fiche], compte_par_statut: { propose: 1 }, oppositions: 0 }),
+    "POST /api/prospects/e1/pr_00000001/qualifier": (c) => { appels.push(c); fiche = { ...fiche, score: 45, qualification: { ...Q, ajustement: 0, raison: "", qui: "utilisateur" } }; return reponse(200, fiche); },
+    "GET /api/prospects/recherche": () => reponse(200, { fournisseur: "anthropic", fournisseurs: [
+      { id: "anthropic", configure: true, prix_usd: 0.01 }, { id: "tavily", configure: false, prix_usd: 0.008 },
+      { id: "exa", configure: false, prix_usd: 0.007 }, { id: "serper", configure: false, prix_usd: 0.001 }] }),
+    "POST /api/prospects/recherche/fournisseur": (c) => { appels.push(c); return reponse(200, { fournisseur: c.fournisseur, fournisseurs: [] }); },
+    "POST /api/prospects/recherche/cle": (c) => { appels.push(c); return reponse(200, { fournisseur: "tavily", fournisseurs: [], ou: "coffre" }); },
+  } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  ok("10.1 la ligne dit « proposé par l'agent »", marques(m.hote, "ligne")[0].textContent.includes(FR("prospects.liste.par_agent")));
+  marques(m.hote, "ligne")[0].click(); await tick();
+  const inf = marque(m.hote, "informer");
+  ok("10.2 information art. 14 : date dite, en alerte une fois passée", inf && inf.textContent === FR("prospects.fiche.informer", { le: "2026-01-01" })
+    && inf.attrs.class === "dzProspectsErreur", inf && inf.textContent);
+  const q = marque(m.hote, "qualification");
+  ok("10.3 qualification : score, barème, ajustement, raison, critères traduits", q && q.textContent.includes(FR("prospects.qualif.score", { score: 55, base: 45, ajustement: "+10" }))
+    && q.textContent.includes("studio actif") && q.textContent.includes(FR("prospects.critere.source_web")), q && q.textContent);
+  ok("10.4 canaux possibles : X en envoi manuel", q && q.textContent.includes(FR("prospects.qualif.manuel")));
+  marque(m.hote, "qualifier").click(); await tick(); await tick();
+  ok("10.5 recalculer : offre courante, sans ajustement", appels[0] && appels[0].offre === "prestation" && appels[0].ajustement === 0, JSON.stringify(appels));
+  marque(m.hote, "retour").click(); await tick();
+  marque(m.hote, "recherche").click(); await tick(); await tick();
+  const sel = marque(m.hote, "recherche-fournisseur");
+  ok("10.6 recherche web : fournisseur choisi, quatre au choix", sel && sel.value === "anthropic" && sel.children.length === 4);
+  sel.value = "tavily"; sel.fire("change"); await tick();
+  ok("10.7 choisir Tavily", appels.some((a) => a.fournisseur === "tavily" && !("valeur" in a)));
+  marque(m.hote, "recherche-cle").value = "tvly-abc";
+  marque(m.hote, "recherche-cle-enregistrer").click(); await tick();
+  ok("10.8 poser la clé : envoyée, champ vidé, jamais affichée", appels.some((a) => a.valeur === "tvly-abc") && marque(m.hote, "recherche-cle").value === ""
+    && !m.hote.textContent.includes("tvly-abc"));
+}
+
 // ---- anglais, demontage -----------------------------------------------------------------------------------------------
 {
   const m = monde({ lang: "en", routes: { "GET /api/prospects/e1": () => reponse(200, LISTE) } });

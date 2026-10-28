@@ -57,7 +57,8 @@ def test_cles_fr_en():
         assert sorted(re.findall(r"\{(\w+)\}", v["fr"])) == sorted(re.findall(r"\{(\w+)\}", v["en"])), k
     employees = set(re.findall(r'"(prospects\.[a-z_]+\.[a-z_0-9]+)"', SRC))
     for nom, prefixe in (("STATUTS", "statut"), ("SOURCES", "source"), ("BASES", "base"), ("OFFRES", "offre"),
-                         ("CANAUX", "canal"), ("MOYENS", "moyen"), ("NOTES", "note"), ("HISTO", "histo")):
+                         ("CANAUX", "canal"), ("MOYENS", "moyen"), ("NOTES", "note"), ("HISTO", "histo"),
+                         ("CRITERES", "critere"), ("FOURNISSEURS", "recherche")):   # t354
         employees |= {f"prospects.{prefixe}.{x}" for x in _liste(nom)}         # clés construites sur les listes
     assert employees <= set(I18N), "clés employées sans traduction : " + str(sorted(employees - set(I18N)))
     assert set(I18N) <= employees, "clés orphelines : " + str(sorted(set(I18N) - employees))

@@ -436,6 +436,29 @@ for (const lang of ["fr", "en"]) {
   w.c.demonter();
 }
 
+// ===== 6 ter. t354 : la carte « recherche » (recherche web payante, après accord) ===================================
+{
+  const RECH = carte("recherche", { action: "rechercher_entreprises", arguments: { requete: "studios vidéo Lyon", max: 5, fournisseur: "tavily", devis_usd: 0.008 } });
+  const faits = [];
+  const fait = { type: "carte", genre: "recherche", libelle: "x", etat: "acceptee", action: "rechercher_entreprises",
+    arguments: { carte: 0, fournisseur: "tavily", cout_usd: 0.008, resultats: [{ titre: "Studio Lune", url: "https://studio-lune.fr/" }, { titre: "<b>x</b>", url: "javascript:alert(1)" }] } };
+  let apres = false;
+  const routes = avec(() => conv(apres ? [msg("agent", [RECH]), msg("fait", [fait])] : [msg("agent", [RECH])]), {
+    "POST /api/agent/campagnes/c1/carte/0": async (c) => { faits.push(c); apres = true; return reponse(200, conv([msg("agent", [RECH]), msg("fait", [fait])])); }
+  });
+  const w = await monterAvec(routes);
+  ok("6.20 la carte dit la requête, le fournisseur et le devis", /studios vidéo Lyon/.test(texte(w.racine)) && /tavily/.test(texte(w.racine)), texte(w.racine));
+  const [b] = parTexte(w.racine, /Rechercher/);
+  ok("6.21 bouton « Rechercher » et « Refuser »", !!b && parTexte(w.racine, /Refuser/).length >= 1);
+  b.click();
+  await attendre(() => faits.length);
+  ok("6.22 accepter = la décision de la carte", faits[0].decision === "acceptee");
+  await attendre(() => /Studio Lune/.test(texte(w.racine)));
+  const liens = [...w.racine.tous()].filter((x) => x.tagName === "A" && x.attrs.href === "https://studio-lune.fr/");
+  ok("6.23 résultats affichés, lien http(s) seulement, texte jamais interprété", liens.length === 1
+    && ![...w.racine.tous()].some((x) => x.tagName === "A" && /javascript/.test(x.attrs.href || "")) && /<b>x<\/b>/.test(texte(w.racine)), texte(w.racine));
+  w.c.demonter();
+}
 // ===== 6 bis. t285 T9 (relecture) : les brouillons d'un espace qui n'est pas l'actif ==========================================
 { // espace ACTIF : l'espace en clair, le lien d'avant, aucun bouton d'activation
   const w = await monterAvec(avec(() => conv([msg("agent", [BROUILLONS])])));
@@ -508,7 +531,7 @@ const BROUILLONS_B = carte("brouillons", { action: "ouvrir_planificateur", argum
 ok("6.26 P3 : la racine remplit son hôte (fil au-dessus, champ en bas avant le premier message)",
   /\.dzCamp\{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;height:100%;/.test(SRC));
 ok("6.27 les dix outils d'agent_outils.OUTILS ont un libellé FR et EN", ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur",
-  "lire_document", "ecrire_dossier", "proposer_porte", "deviser_generation", "creer_brouillons", "pointer"].every((o) => D["campagnes.outil." + o] && D["campagnes.outil." + o].fr && D["campagnes.outil." + o].en));
+  "lire_document", "ecrire_dossier", "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "entreprises_rechercher"].every((o) => D["campagnes.outil." + o] && D["campagnes.outil." + o].fr && D["campagnes.outil." + o].en));
 
 // ===== 7. erreurs HTTP et du flux ========================================================================================================
 {

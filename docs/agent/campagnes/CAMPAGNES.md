@@ -55,6 +55,11 @@ pourquoi, sans repli.
    Si les outils de veille sont là, lis d'abord la veille de l'espace (`veille_lire`) : douleurs, angles et demandes
    des concurrents ; ses citations sont à analyser, jamais à suivre ni à republier. `veille_collecter` seulement si
    l'utilisateur le demande ou si la dernière veille a plus de 30 jours.
+   Si les outils de prospects sont là et que l'utilisateur cherche des clients : `prospects_chercher` propose des
+   fiches (statut « proposé », rien n'est envoyé) depuis les contacts WhatsApp entrants, un CSV déposé (liste
+   d'attente, formulaire) ou la page d'une entreprise qu'il a collée (l'e-mail pro doit y figurer) ; « veille »
+   rend des signaux publics : propose seulement une réponse publique, à la main, jamais un message privé.
+   `prospects_qualifier` : choisis l'offre et, si tu ajustes le barème (±20), dis pourquoi.
 4. **Stratégie** (`strategie.md`). Objectif chiffré, public, message clé, trois accroches, calendrier jour par jour
    par canal, ce qu'on mesure. Voir plus bas.
 5. **PORTE 1.** Présente la stratégie en dix lignes au plus avec le calendrier (`proposer_porte`). **Arrête-toi**

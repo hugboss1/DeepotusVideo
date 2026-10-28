@@ -36,6 +36,7 @@ TRADUCTIONS = RACINE / "scripts" / "i18n_l10_traductions.json"
 ERREURS = {"ValueError", "RuntimeError", "FileNotFoundError", "PermissionError", "LookupError", "TimeoutError",
            "ConflitClient", "FluxCoupe", "CoffreVerrouille", "RefusClient", "WhatsappRefus",
            "RefusValidation", "RefusProspect", "PlafondEspaces", "RegistreIndisponible",   # t353 : refus de la fiche Prospects, plafond d'espaces   # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
+           "SansCle", "RechercheEchouee",   # t354 : recherche web de la prospection
            "ScanIndisponible", "ScanErreur", "CoutChange",   # t312 : refus du pont Windows.Media.Ocr (scan_ocr)
            "RefusPages", "AppelEchoue", "VisionEnCours"}   # revue finale t312 : AppelEchoue = premier appel Claude en échec réseau   # t312 tâche 4 : dépôt refusé par scan_pages.charger (400/413/415/422)
                                        # L4.1 T3 : FluxCoupe = RuntimeError (flux Anthropic coupé)

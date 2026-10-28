@@ -96,7 +96,8 @@ ao._GETADDRINFO = faux_getaddrinfo
 
 DIX = {"chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document", "ecrire_dossier",
        "proposer_porte", "deviser_generation", "creer_brouillons", "pointer",
-       "veille_collecter", "veille_lire"}   # t352 (27/10/2026) : + les deux outils de la veille (boîte « veille »)
+       "veille_collecter", "veille_lire",   # t352 (27/10/2026) : + les deux outils de la veille (boîte « veille »)
+       "prospects_chercher", "prospects_qualifier", "entreprises_rechercher", "entreprises_registre"}   # t354 (28/10/2026) : boîte « prospects »
 
 
 def sans_accents(t: str) -> str:
@@ -134,7 +135,7 @@ async def main():
           - set(_B.BOITES["scan"]["outils"]) == DIX
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()
-    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 12)
+    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 16)
     check("definitions : forme de l'API", all(set(d) == {"name", "description", "input_schema"}
                                               and d["input_schema"].get("type") == "object" for d in defs))
     check("OUTILS : nature connue, fn appelable", all(o["nature"] in ("lecture", "ecriture", "carte")
