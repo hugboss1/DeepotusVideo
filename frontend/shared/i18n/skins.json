@@ -28,7 +28,7 @@
   "skins.editeur.defaut": {"fr": "Texte par défaut", "en": "Default text"},
   "skins.editeur.identite": {"fr": "Celle de l'identité de l'espace", "en": "The space identity's font"},
   "skins.editeur.kit": {"fr": "Kit de l'espace", "en": "Space kit"},
-  "skins.editeur.image_choisir": {"fr": "Choisir une image…", "en": "Pick an image…"},
+  "skins.editeur.image_choisir": {"fr": "Choisir une image…", "en": "Choose an image…"},
   "skins.editeur.image_retirer": {"fr": "Retirer l'image", "en": "Remove the image"},
   "skins.editeur.image_posee": {"fr": "Image enregistrée dans le skin.", "en": "Image saved in the skin."},
   "skins.editeur.image_otee": {"fr": "Image retirée du skin.", "en": "Image removed from the skin."},

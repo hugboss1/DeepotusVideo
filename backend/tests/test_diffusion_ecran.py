@@ -122,8 +122,11 @@ if PM:
     if GIT:
         g = subprocess.run([GIT, "show", f"{BASE}:frontend/dist/assets/index-BEOJX8L5.js"], capture_output=True, cwd=str(REPO))
         base = g.stdout if g.returncode == 0 else b""
+        # fusion t320 : dzcapture (t315) et dzinspiration (t313) sont posés entre whatsapppage et ce maillon ; la vue
+        # d'avant les trois (avant_dzcapture, qui défait d'abord dzdiffusion puis dzinspiration) est le bundle d'origine
+        _vue = AIDE.avant_dzcapture(B) if hasattr(AIDE, "avant_dzcapture") else PM.defaire(B)
         check("1.12 defaire(livré) == le bundle d'origine (827b35d1), OCTET POUR OCTET aux CRLF d'extraction près",
-              lambda: bool(base) and PM.defaire(B).encode("utf-8").replace(b"\r\n", b"\n") == base.replace(b"\r\n", b"\n"))
+              lambda: bool(base) and _vue.encode("utf-8").replace(b"\r\n", b"\n") == base.replace(b"\r\n", b"\n"))
     if avant:
         import importlib
         mordus = []

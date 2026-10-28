@@ -12748,7 +12748,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "skins.editeur.fermer_perdre": {"fr": "Fermer sans enregistrer", "en": "Close without saving"},
   "skins.editeur.identite": {"fr": "Celle de l'identité de l'espace", "en": "The space identity's font"},
   "skins.editeur.ignores": {"fr": "Fichiers ignorés : {liste}.", "en": "Ignored files: {liste}."},
-  "skins.editeur.image_choisir": {"fr": "Choisir une image…", "en": "Pick an image…"},
+  "skins.editeur.image_choisir": {"fr": "Choisir une image…", "en": "Choose an image…"},
   "skins.editeur.image_otee": {"fr": "Image retirée du skin.", "en": "Image removed from the skin."},
   "skins.editeur.image_posee": {"fr": "Image enregistrée dans le skin.", "en": "Image saved in the skin."},
   "skins.editeur.image_retirer": {"fr": "Retirer l'image", "en": "Remove the image"},
