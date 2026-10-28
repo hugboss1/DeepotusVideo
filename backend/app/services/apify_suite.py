@@ -79,6 +79,21 @@ def _date(v) -> str:
     return s[:10] if len(s) >= 10 and s[4] == "-" else s[:40]
 
 
+_LIEN_X = re.compile(r"^https?://(?:www\.)?(?:x|twitter)\.com/[^/?#]+/status/(\d+)", re.I)
+_LIEN_TIKTOK = re.compile(r"^https?://(?:www\.|m\.)?tiktok\.com/@[^/?#]+/video/(\d+)", re.I)
+
+
+def _lien_sans_pseudo(url: str) -> str:
+    """Relecture I1 : un lien X ou TikTok porte le pseudo de l'auteur ; il est refait sans lui (même publication)."""
+    m = _LIEN_X.match(url)
+    if m:
+        return f"https://x.com/i/status/{m.group(1)}"
+    m = _LIEN_TIKTOK.match(url)
+    if m:
+        return f"https://m.tiktok.com/v/{m.group(1)}.html"
+    return url
+
+
 def lignes_veille(source: str, concurrent: str, items: list, requete: str = "") -> list[dict]:
     """Les éléments d'un dataset en lignes de veille (format de veille_collecte) ; un élément sans texte est écarté."""
     from app.services import veille_collecte as VC
@@ -94,7 +109,8 @@ def lignes_veille(source: str, concurrent: str, items: list, requete: str = "") 
             texte = titre.strip() + " — " + texte
         score = _champ(it, c["score"])
         auteur = _champ(it, c["auteur"])
-        out.append(VC._ligne(concurrent, source, str(_champ(it, c["url"]) or "")[:500], _date(_champ(it, c["date"])),
+        out.append(VC._ligne(concurrent, source, _lien_sans_pseudo(str(_champ(it, c["url"]) or ""))[:500],
+                             _date(_champ(it, c["date"])),
                              str(auteur) if auteur else None, texte.strip()[:MAX_TEXTE_VEILLE],
                              score if isinstance(score, (int, float)) and not isinstance(score, bool) else None, requete))
     return out
@@ -103,8 +119,9 @@ def lignes_veille(source: str, concurrent: str, items: list, requete: str = "") 
 async def _veille(args: dict, items: list) -> dict:
     import asyncio
     from app.services import veille as V
+    from app.services import veille_collecte as VC
     source, conc = args.get("acteur"), str(args.get("concurrent") or "")
-    if source not in CHAMPS or not conc or not args.get("espace_id"):
+    if source not in CHAMPS or not VC._ID.match(conc) or not args.get("espace_id"):
         return {}
     ent = args.get("entree") or {}
     requete = " | ".join(str(x) for x in (ent.get(ENTREES_VEILLE[source][0]) or []) if isinstance(x, str))[:300]
@@ -203,6 +220,24 @@ async def _signaux(args: dict, items: list) -> dict:
     return {"signaux": len(ajoutes)}
 
 
+def depot(but, args: dict, items: list, suite: dict):
+    """Relecture C1 : ce qui est DÉPOSÉ (relisible par l'agent via lire_document) selon le but. Sans but (socle t364) :
+    le dataset tel quel ; leads : les cibles (ni téléphone ni avis) ; veille et signaux : les lignes de veille (auteur
+    haché, lien sans pseudo) ; pubs et serp : leur résumé."""
+    if but == "leads":
+        return suite.get("cibles") or []
+    if but == "veille" and args.get("acteur") in CHAMPS:
+        return lignes_veille(args["acteur"], str(args.get("concurrent") or ""), items)
+    if but == "signaux":
+        return [dict(l, texte=l["texte"][:EXTRAIT]) for l in lignes_veille("reddit", "", items)
+                if BESOIN_REDDIT.search(str(l.get("texte") or ""))]
+    if but in ("pubs", "serp") and args.get("espace_id"):
+        from app.services import veille_concurrents as VK
+        k = VK.lire(args["espace_id"])
+        return k["serp"] if but == "serp" else k["pubs"].get(str(args.get("concurrent") or ""), [])
+    return items
+
+
 async def traiter(but, cid: str, args: dict, items: list) -> dict:
     """Ce que le fait « terminee » de la carte porte en plus ; {} pour un but inconnu ou absent."""
     if but == "leads":
@@ -215,7 +250,8 @@ async def traiter(but, cid: str, args: dict, items: list) -> dict:
         import asyncio
         from app.services import veille_concurrents as VK
         if but == "pubs":
+            from app.services import veille_collecte as VC
             conc = str(args.get("concurrent") or "")
-            return {"pubs": await asyncio.to_thread(VK.noter_pubs, args["espace_id"], conc, items)} if conc else {}
+            return {"pubs": await asyncio.to_thread(VK.noter_pubs, args["espace_id"], conc, items)} if VC._ID.match(conc) else {}
         return {"mots_cles": await asyncio.to_thread(VK.noter_serp, args["espace_id"], items)}
     return {}

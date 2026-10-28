@@ -366,6 +366,7 @@
           else if (fc.statut === "done") {
             c.appendChild(etat(T("campagnes.collecte.faite", { n: Number(fc.resultats) || 0, usd: usd(fc.cout_usd || 0) }), "ok"));
             if (fc.partiel) c.appendChild(etat(T("campagnes.collecte.partielle")));
+            if (fc.suite_erreur) c.appendChild(etat(T("campagnes.collecte.suite_erreur", { erreur: String(fc.suite_erreur) })));   // relecture M5
             if (typeof fc.pubs === "number") c.appendChild(etat(T("campagnes.collecte.pubs", { n: fc.pubs }), "ok"));   // t368
             if (typeof fc.mots_cles === "number") c.appendChild(etat(T("campagnes.collecte.mots_cles", { n: fc.mots_cles }), "ok"));
             if (typeof fc.signaux === "number") c.appendChild(etat(T("campagnes.collecte.signaux", { n: fc.signaux }), "ok"));   // t367

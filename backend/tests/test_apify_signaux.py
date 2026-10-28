@@ -104,6 +104,14 @@ check("3.1 les signaux Reddit sont rendus, sans auteur, avec la règle de répon
       r["ok"] and sum(1 for x in s if x.get("source") == "reddit") == 3 and not any("auteur" in "".join(x) for x in s)
       and "message privé" in (r.get("donnees") or {}).get("regle", ""), r)
 
+print("[4] relecture")
+dep = ao._dossier_conversation(asyncio.run(st.lire(cid))) / "depots"
+brut_depot = "".join(f.read_text("utf-8") for f in dep.glob("apify-*.txt"))
+check("4.1 C1 : le dépôt lisible par l'agent ne garde aucun pseudo en clair", brut_depot and "secret" not in brut_depot, brut_depot[:200])
+r = asyncio.run(ao.executer("prospects_chercher", {"source": "veille"}, ctx))
+s = (r.get("donnees") or {}).get("signaux") or []
+check("4.2 I2 : chaque texte de signal revient ENCADRÉ comme preuve", s and all("<<<PREUVE" in str(x.get("texte")) for x in s), s[:1])
+
 settings.APIFY_TOKEN = ""
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

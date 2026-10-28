@@ -114,7 +114,9 @@ def _http(u) -> str:
 
 
 def noter_pubs(eid: str, concurrent: str, items: list) -> int:
-    from app.services import apify_suite as SU
+    from app.services import apify_suite as SU, veille_collecte as VC
+    if not VC._ID.match(str(concurrent or "")):
+        raise ValueError("concurrent illisible")
     pubs = []
     for it in (items if isinstance(items, list) else [])[:MAX_PUBS]:
         if not isinstance(it, dict):

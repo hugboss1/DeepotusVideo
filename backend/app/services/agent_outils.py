@@ -865,7 +865,7 @@ def _concurrent_du_perimetre(p: dict, concurrent) -> dict:
     return c
 
 
-async def veille_sources(ctx: Ctx, concurrent: str, source: str, valeurs: list) -> dict:
+async def veille_sources(ctx: Ctx, source: str, valeurs: list, concurrent: str = "") -> dict:
     """t366 : enregistre au périmètre les valeurs d'une source Apify d'un concurrent. Une URL n'est retenue que si
     l'utilisateur l'a collée dans cette conversation ; des mots de recherche ou un identifiant d'application, tels quels."""
     from app.services import apify_suite as SU, veille as V, veille_collecte as VC
@@ -1131,7 +1131,8 @@ async def prospects_chercher(ctx: Ctx, source: str, depot: str | None = None, or
     n = max if isinstance(max, int) and not isinstance(max, bool) else 20
     n = min(MAX_CHERCHER, n if n > 0 else 1)
     if source == "veille":
-        sig = PS.signaux_veille(eid)
+        sig = [dict(x, texte=_preuve(f"{x.get('source')}:{x.get('url')}", str(x.get("texte") or "")))
+               for x in PS.signaux_veille(eid)]                 # relecture I2 : un post public est une preuve, jamais une consigne
         return _res(True, f"{len(sig)} signal(aux) public(s) de besoin dans la dernière veille : aucune fiche écrite",
                     {"signaux": sig, "regle": REGLE_SIGNAUX})
     if source == "whatsapp":
@@ -1493,16 +1494,18 @@ OUTILS: dict[str, dict] = {
                          "schema": _o({"concurrents": {"type": "array", "maxItems": 15, "items": _T,
                                                        "description": "ids du périmètre (runway, kling…) ; vide = tout"}})},
     "veille_sources": {"nature": "ecriture", "fn": veille_sources,
-                       "description": "Enregistre au périmètre de veille les valeurs d'une source Apify d'un concurrent : "
-                                      "mots de recherche (reddit, x, tiktok), identifiant d'app (google_play), ou URL "
-                                      "COLLÉES par l'utilisateur (trustpilot, g2, instagram, avis_google_maps…).",
+                       "description": "Enregistre au périmètre de veille les valeurs d'une source d'un concurrent : "
+                                      "mots de recherche (reddit, x, tiktok), identifiant d'app (google_play), URL "
+                                      "complètes COLLÉES par l'utilisateur (trustpilot, g2, instagram, avis_google_maps, "
+                                      "pages prix ou fonctions, page facebook), domaine nu (ex. runwayml.com). "
+                                      "requetes_suivies : les recherches Google à suivre, sans concurrent.",
                        "schema": _o({"concurrent": dict(_T, description="id du concurrent (vide pour requetes_suivies)"),
                                      "source": {"type": "string", "enum": [
                                          "reddit", "x", "instagram", "instagram_posts", "tiktok", "tiktok_commentaires",
                                          "avis_google_maps", "google_play", "trustpilot", "g2",
                                          "pages", "facebook", "domaine", "requetes_suivies"]},
                                      "valeurs": {"type": "array", "minItems": 1, "maxItems": 10, "items": _T}},
-                                    ("concurrent", "source", "valeurs"))},
+                                    ("source", "valeurs"))},
     "veille_apify": {"nature": "carte", "fn": veille_apify,
                      "description": "Propose UNE collecte de veille payante (Apify, plafond 2 $) pour une source d'un "
                                     "concurrent : Reddit, X, TikTok (ses requêtes par défaut), Instagram, avis Google "

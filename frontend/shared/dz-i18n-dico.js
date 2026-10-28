@@ -1385,6 +1385,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "campagnes.collecte.partielle": {"fr": "Collecte partielle : le run a été arrêté avant la fin.", "en": "Partial collection: the run was stopped before the end."},
   "campagnes.collecte.pubs": {"fr": "{n} pub(s) active(s) relevée(s) : voir Veille › Ce que font les concurrents.", "en": "{n} active ad(s) recorded: see Watch › What competitors are doing."},
   "campagnes.collecte.signaux": {"fr": "{n} signal(aux) de besoin gardé(s) : réponse publique, à la main, jamais en privé.", "en": "{n} need signal(s) kept: reply publicly, by hand, never in private."},
+  "campagnes.collecte.suite_erreur": {"fr": "Collecte payée, mais son traitement a échoué : {erreur}", "en": "Collection paid for, but processing it failed: {erreur}"},
   "campagnes.collecte.verbatims": {"fr": "{n} verbatim(s) ajouté(s) à la dernière veille.", "en": "{n} quote(s) added to the latest competitor watch."},
   "campagnes.devis.calcul": {"fr": "Calcul du plafond…", "en": "Working out the cap…"},
   "campagnes.devis.explication": {"fr": "{plafond} — plafond de cette réponse : l'envoi vaut accord, l'agent s'arrête net à ce montant.", "en": "{plafond} — cap for this reply: sending means you agree, and the agent stops dead at this amount."},

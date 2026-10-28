@@ -29,6 +29,7 @@
   "campagnes.collecte.signaux": {"fr":"{n} signal(aux) de besoin gardé(s) : réponse publique, à la main, jamais en privé.","en":"{n} need signal(s) kept: reply publicly, by hand, never in private."},
   "campagnes.collecte.pubs": {"fr":"{n} pub(s) active(s) relevée(s) : voir Veille › Ce que font les concurrents.","en":"{n} active ad(s) recorded: see Watch › What competitors are doing."},
   "campagnes.collecte.mots_cles": {"fr":"{n} mot(s)-clé(s) relevé(s) : voir Veille › Ce que font les concurrents.","en":"{n} keyword(s) checked: see Watch › What competitors are doing."},
+  "campagnes.collecte.suite_erreur": {"fr":"Collecte payée, mais son traitement a échoué : {erreur}","en":"Collection paid for, but processing it failed: {erreur}"},
   "campagnes.collecte.note": {"fr":"note {note}/5","en":"rated {note}/5"},
   "campagnes.recherche.trouves": {"fr":"{n} site(s) trouvé(s) : l'agent peut maintenant les lire.","en":"{n} site(s) found: the agent can now read them."},
   "campagnes.genre.image": {"fr":"image","en":"image","contexte":true},

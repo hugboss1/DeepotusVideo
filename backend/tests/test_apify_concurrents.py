@@ -162,6 +162,13 @@ check("5.2 serp : rang du domaine d'un concurrent connu", {"rang": 3, "domaine":
 check("5.3 pages : le dernier changement", j["pages"] and j["pages"][0]["concurrent"] == "runway" and j["pages"][0]["change"] is True, j.get("pages"))
 check("5.4 espace inconnu : 404", c.get("/api/veille/inconnu/concurrents").status_code == 404)
 
+print("[6] relecture")
+MOTS = [f"generateur video ia numero {i:02d} pour studio" for i in range(10)]
+r = asyncio.run(ao.executer("veille_sources", {"source": "requetes_suivies", "valeurs": MOTS}, ctx))
+check("6.1 M9 : requetes_suivies sans concurrent", r["ok"], r)
+r = asyncio.run(ao.executer("concurrents_serp", {}, ctx))
+check("6.2 I5 : dix recherches de 40 caractères passent (plus de 300 au total)", r["ok"] and (r["carte"] or {}).get("arguments", {}).get("max") == 10, r)
+
 settings.APIFY_TOKEN = ""
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

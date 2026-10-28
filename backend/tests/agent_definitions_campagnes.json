@@ -255,7 +255,7 @@
   "name": "veille_collecter"
  },
  {
-  "description": "Enregistre au périmètre de veille les valeurs d'une source Apify d'un concurrent : mots de recherche (reddit, x, tiktok), identifiant d'app (google_play), ou URL COLLÉES par l'utilisateur (trustpilot, g2, instagram, avis_google_maps…).",
+  "description": "Enregistre au périmètre de veille les valeurs d'une source d'un concurrent : mots de recherche (reddit, x, tiktok), identifiant d'app (google_play), URL complètes COLLÉES par l'utilisateur (trustpilot, g2, instagram, avis_google_maps, pages prix ou fonctions, page facebook), domaine nu (ex. runwayml.com). requetes_suivies : les recherches Google à suivre, sans concurrent.",
   "input_schema": {
    "additionalProperties": false,
    "properties": {
@@ -292,7 +292,6 @@
     }
    },
    "required": [
-    "concurrent",
     "source",
     "valeurs"
    ],

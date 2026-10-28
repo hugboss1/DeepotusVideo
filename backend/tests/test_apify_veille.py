@@ -143,6 +143,35 @@ r6 = V.ajouter_brut(A, "reddit", "kling", [VC._ligne("kling", "reddit", "https:/
                                                      "Kling is great value", 5, "kling ai")])
 check("5.2 relancé : aucun doublon", r6["ajoutes"] == 0, r6)
 
+print("[6] relecture")
+dep = ao._dossier_conversation(asyncio.run(st.lire(cid))) / "depots"
+brut_depot = "".join(f.read_text("utf-8") for f in dep.glob("apify-*.txt"))
+check("6.1 C1 : le dépôt lisible par l'agent ne garde aucun pseudo en clair", brut_depot and "secret" not in brut_depot, brut_depot[:200])
+from app.services import apify_suite as SU
+lx = SU.lignes_veille("x", "runway", [{"text": "Runway pricing is wild", "url": "https://x.com/alice_secret/status/1234567890",
+                                       "author": {"userName": "alice_secret"}}])
+lt = SU.lignes_veille("tiktok", "runway", [{"text": "trying runway", "webVideoUrl": "https://www.tiktok.com/@bob_secret/video/987654321",
+                                            "authorMeta": {"name": "bob_secret"}}])
+check("6.2 I1 : le lien X ou TikTok ne porte plus le pseudo", lx and lt and "secret" not in lx[0]["url"] + lt[0]["url"]
+      and "1234567890" in lx[0]["url"] and "987654321" in lt[0]["url"], (lx, lt))
+d = V.dossier(A, V._dates(A)[0])
+rap = json.loads((d / "rapport.json").read_text("utf-8"))
+rap["limites"] = ["YouTube indisponible (yt-dlp absent)"]
+(d / "rapport.json").write_text(json.dumps(rap), encoding="utf-8")
+V.ajouter_brut(A, "reddit", "runway", [VC._ligne("runway", "reddit", "https://reddit.com/z", "2026-10-04", "zed", "Runway credits are pricey", 1, "q")])
+check("6.3 I3 : les limites de la veille survivent à un ajout Apify", "YouTube indisponible (yt-dlp absent)" in (V.dernier(A) or {}).get("limites", []),
+      (V.dernier(A) or {}).get("limites"))
+V._IMPORTS.add(A)
+r7 = V.ajouter_brut(A, "reddit", "runway", [VC._ligne("runway", "reddit", "https://reddit.com/y", "2026-10-04", "yan", "Runway support is slow", 1, "q")])
+V._IMPORTS.discard(A)
+check("6.4 I4 : un import en cours : brut écrit, pas de consolidation concurrente", r7 == {"ajoutes": 1, "consolide": False}, r7)
+e = None
+try:
+    V.ajouter_brut(A, "reddit", "../../evil", [])
+except ValueError as x:
+    e = x
+check("6.5 M1 : un id de concurrent illisible n'atteint jamais un nom de fichier", e is not None)
+
 settings.APIFY_TOKEN = ""
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

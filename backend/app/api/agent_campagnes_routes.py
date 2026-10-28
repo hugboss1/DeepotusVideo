@@ -688,13 +688,18 @@ async def _executer_collecte(cid: str, n_carte: int, orig: dict, c0: dict, appar
                 "statut": "failed", "erreur": msg[:300]})], **_trace(appareil))])
         raise HTTPException(502, msg) from None
     await plafonds.noter_reel_lignes(c0["lignes"], float(r["cout_usd"]))
-    depot = await AO.enregistrer_depot(cid, f"apify-{c0['cle']}", json.dumps(r["items"], ensure_ascii=False))
     from app.services import apify_suite as SU
     a = orig.get("arguments") or {}
+    args = dict(a, espace_id=c0.get("espace_id"))
     try:                                                # t365-t368 : ce que devient la collecte, selon son but
-        suite = await SU.traiter(a.get("but"), cid, dict(a, espace_id=c0.get("espace_id")), r["items"])
+        suite = await SU.traiter(a.get("but"), cid, args, r["items"])
     except Exception as e:  # noqa: BLE001 — la collecte est payée : le fait l'écrit quand même, la suite dit son échec
         suite = {"suite_erreur": f"{type(e).__name__} : {str(e)[:200]}"}
+    try:                                                # relecture C1 : jamais un pseudo en clair dans le dépôt
+        a_deposer = SU.depot(a.get("but"), args, r["items"], suite)
+    except Exception:  # noqa: BLE001
+        a_deposer = []
+    depot = await AO.enregistrer_depot(cid, f"apify-{c0['cle']}", json.dumps(a_deposer, ensure_ascii=False))
     with _traduire():
         await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n_carte, "terminee", dict(suite, **{
             "resultats": len(r["items"]), "cout_usd": r["cout_usd"], "partiel": bool(r["partiel"]), "statut": "done",

@@ -109,6 +109,12 @@ check("3.1 prospects_chercher lit le site déposé (preuve encadrée)", r["ok"] 
 r = asyncio.run(ao.executer("prospects_chercher", {"source": "entreprise", "url": "https://autre-site.fr/"}, ctx))
 check("3.2 un site non déposé reste refusé", not r["ok"], r)
 
+print("[4] relecture")
+dep = ao._dossier_conversation(asyncio.run(st.lire(cid))) / "depots"
+brut_depot = "".join(f.read_text("utf-8") for f in dep.glob("apify-*.txt"))
+check("4.1 C1 : le dépôt garde les cibles, ni téléphone ni avis", brut_depot and "+33" not in brut_depot
+      and "reviews" not in brut_depot and "Studio Lune" in brut_depot, brut_depot[:200])
+
 settings.APIFY_TOKEN = ""
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

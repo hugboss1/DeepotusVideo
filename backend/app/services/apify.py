@@ -102,6 +102,7 @@ ACTEURS = {
                       "evenements": {"apify-default-dataset-item"}},
     "serp": {"acteur": "apify~google-search-scraper", "build": "0.0.474", "usage": "veille",
              "max": "maxPagesPerQuery", "par": ("queries",), "champs": {"queries", "countryCode", "languageCode"},
+             "longueurs": {"queries": 10 * 121},       # relecture I5 : dix recherches de 120 caractères, une par ligne
              "impose": {"aiOverview": {"scrapeFullAiOverview": False}, "aiModeSearch": {"enableAiMode": False},
                         "geminiSearch": {"enableGemini": False}, "perplexitySearch": {"enablePerplexity": False},
                         "chatGptSearch": {"enableChatGpt": False}, "copilotSearch": {"enableCopilot": False},
@@ -274,11 +275,11 @@ async def op(cle: str, n: int, entree=None) -> dict:
     return {"kind": "apify", "acteur": _acteur(cle)["acteur"], "usd": await devis(cle, n, entree)}
 
 
-def _valeur_sure(v) -> bool:
+def _valeur_sure(v, maxi: int = MAX_TEXTE) -> bool:
     if isinstance(v, bool) or isinstance(v, int):
         return True
     if isinstance(v, str):
-        return len(v) <= MAX_TEXTE
+        return len(v) <= maxi
     if isinstance(v, list):
         return len(v) <= MAX_LISTE and all(_valeur_sure(x) for x in v)
     if isinstance(v, dict):                         # startUrls : [{"url": ...}]
@@ -294,7 +295,7 @@ def filtrer(cle: str, entree: dict, n: int) -> dict:
     if hors:
         raise ApifyRefus(f"champ(s) d'entrée non autorisé(s) pour {cle} : {', '.join(hors)[:120]}", 422)
     for k, v in entree.items():
-        if not _valeur_sure(v):
+        if not _valeur_sure(v, (a.get("longueurs") or {}).get(k, MAX_TEXTE)):
             raise ApifyRefus(f"valeur illisible ou trop longue pour {k}", 422)
     propre = dict(entree)
     propre.update(a["impose"])
