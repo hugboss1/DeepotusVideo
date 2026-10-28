@@ -11430,5 +11430,17 @@
  "Impossible d'écrire l'image temporaire de la lecture (disque plein ?).": {
   "fr": "Impossible d'écrire l'image temporaire de la lecture (disque plein ?).",
   "en": "Could not write the temporary image for reading (disk full?)."
+ },
+ "Nombre de pages invalide (1 à {MAX_PAGES}).": {
+  "fr": "Nombre de pages invalide (1 à {MAX_PAGES}).",
+  "en": "Invalid number of pages (1 to {MAX_PAGES})."
+ },
+ "Il faut de 1 à {MAX_PAGES} pages.": {
+  "fr": "Il faut de 1 à {MAX_PAGES} pages.",
+  "en": "From 1 to {MAX_PAGES} pages are required."
+ },
+ "Une page est illisible : image invalide.": {
+  "fr": "Une page est illisible : image invalide.",
+  "en": "A page is unreadable: invalid image."
  }
 }
