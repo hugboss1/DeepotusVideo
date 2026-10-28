@@ -227,5 +227,19 @@
   "prospects.sequence.modele": {"fr": "Modèle WhatsApp : {nom} ({langue})", "en": "WhatsApp template: {nom} ({langue})"},
   "prospects.seqmotif.fenetre": {"fr": "Arrêtée : la fenêtre de 24 h était fermée (un texte libre ne part que si le contact a écrit dans les 24 h).", "en": "Stopped: the 24-hour window was closed (free text only goes if the contact wrote within 24 hours)."},
   "prospects.seqmotif.modele": {"fr": "Arrêtée : modèle WhatsApp inconnu ou non approuvé.", "en": "Stopped: unknown or unapproved WhatsApp template."},
-  "prospects.seqmotif.incertain": {"fr": "Arrêtée : l'envoi WhatsApp a peut-être eu lieu (réponse incertaine du fournisseur) ; vérifiez dans l'onglet WhatsApp avant de relancer.", "en": "Stopped: the WhatsApp message may have gone out (uncertain provider answer); check the WhatsApp tab before following up."}
+  "prospects.bouton.tableau": {"fr": "Tableau", "en": "Board"},
+  "prospects.liste.a_reprendre": {"fr": "À reprendre ({motif})", "en": "To take back ({motif})"},
+  "prospects.fiche.a_reprendre": {"fr": "À reprendre par vous ({motif}) : {raison}. L'agent ne répond pas à ce prospect ; noter un contact ou changer le statut retire ce drapeau.", "en": "For you to take back ({motif}): {raison}. The agent does not answer this prospect; noting a contact or changing the status clears this flag."},
+  "prospects.humain.prix": {"fr": "prix", "en": "price"},
+  "prospects.humain.devis": {"fr": "devis", "en": "quote"},
+  "prospects.humain.plainte": {"fr": "plainte", "en": "complaint"},
+  "prospects.humain.stop": {"fr": "STOP", "en": "STOP"},
+  "prospects.humain.autre": {"fr": "autre", "en": "other"},
+  "prospects.histo.a_l_humain": {"fr": "À reprendre par vous", "en": "Handed back to you"},
+  "prospects.seqmotif.incertain": {"fr": "Arrêtée : l'envoi WhatsApp a peut-être eu lieu (réponse incertaine du fournisseur) ; vérifiez dans l'onglet WhatsApp avant de relancer.", "en": "Stopped: the WhatsApp message may have gone out (uncertain provider answer); check the WhatsApp tab before following up."},
+  "prospects.humain.refus": {"fr": "refus", "en": "declined"},
+  "prospects.humain.engagement": {"fr": "délai ou contrat", "en": "deadline or contract"},
+  "prospects.humain.illisible": {"fr": "réponse WhatsApp à lire", "en": "WhatsApp reply to read"},
+  "prospects.seqmotif.nouvelle_reponse": {"fr": "Arrêtée : le prospect a écrit à nouveau, la réponse préparée était périmée.", "en": "Stopped: the prospect wrote again; the prepared reply was out of date."},
+  "prospects.seqmotif.humain": {"fr": "Arrêtée : la fiche vous a été rendue.", "en": "Stopped: the record was handed back to you."}
 }

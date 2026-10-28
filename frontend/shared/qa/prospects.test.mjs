@@ -69,6 +69,7 @@ function monde({ lang = "fr", routes = {} } = {}) {
   return { win, appels, DzProspects: win.DzProspects, hote: new Noeud("div") };
 }
 
+const STATUTS_TEST = ["propose", "qualifie", "contacte", "repondu", "rdv", "client", "perdu", "oppose"];
 const FICHE = (o = {}) => ({ id: "pr_00000001", nom: "Léa Martin", entreprise: "Studio Lune", role: "gérante", statut: "repondu",
   offre: "prestation", score: 70, base_legale: "interet_legitime_b2b", purge_le: "2029-10-27", signal: "veut des clips",
   source: { type: "web", url: "https://studio-lune.fr/contact", date: "2026-10-20", detail: "" },
@@ -380,6 +381,22 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
   marques(m.hote, "ligne")[0].click(); await tick(); await tick();
   ok("13.1 le modèle WhatsApp de l'étape est nommé", marque(m.hote, "etape-modele").textContent === FR("prospects.sequence.modele", { nom: "prospection_relance", langue: "fr" }));
   ok("13.2 arrêt « fenêtre de 24 h » expliqué", marque(m.hote, "seq-motif").textContent === FR("prospects.seqmotif.fenetre"));
+}
+
+// ---- t358 : tableau du pipeline, fiche « à reprendre » -------------------------------------------------------------------
+{
+  const H = FICHE({ statut: "repondu", a_l_humain: { motif: "prix", raison: "veut un tarif", le: "2026-10-28" } });
+  const m = monde({ routes: { "GET /api/prospects/e1": () => reponse(200, { prospects: [H, FICHE({ id: "pr_00000002", statut: "qualifie", entreprise: "Studio Deux" })],
+    compte_par_statut: { repondu: 1, qualifie: 1 }, oppositions: 0 }) } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  ok("14.1 liste : « À reprendre (prix) »", marques(m.hote, "ligne")[0].textContent.includes(FR("prospects.liste.a_reprendre", { motif: FR("prospects.humain.prix") })));
+  marque(m.hote, "vue-tableau").click(); await tick();
+  ok("14.2 tableau : huit colonnes, chaque fiche dans la sienne", marques(m.hote, "carte").length === 2
+    && marque(m.hote, "colonne-repondu").textContent.includes("Studio Lune") && marque(m.hote, "colonne-qualifie").textContent.includes("Studio Deux")
+    && STATUTS_TEST.every((s) => marque(m.hote, "colonne-" + s)));
+  marque(m.hote, "colonne-repondu").children[1].click(); await tick();
+  ok("14.3 clic sur la carte : la fiche, avec le bandeau « à reprendre »", marque(m.hote, "fiche") && marque(m.hote, "a-reprendre").textContent.includes("veut un tarif"));
 }
 
 // ---- anglais, demontage -----------------------------------------------------------------------------------------------

@@ -61,7 +61,8 @@ def test_cles_fr_en():
                          ("CRITERES", "critere"), ("FOURNISSEURS", "recherche"),   # t354
                          ("SEQ_STATUTS", "seqstatut"), ("ETAPE_STATUTS", "etapestatut"), ("SEQ_MOTIFS", "seqmotif"),   # t355
                          ("EMAIL_MODES", "emailmode"), ("EMAIL_MANQUES", "emailmanque"), ("EMAIL_PAUSES", "emailpause"),
-                         ("EMAIL_CHAMPS", "email")):   # t356
+                         ("EMAIL_CHAMPS", "email"),   # t356
+                         ("MOTIFS_HUMAIN", "humain")):   # t358
         employees |= {f"prospects.{prefixe}.{x}" for x in _liste(nom)}         # clés construites sur les listes
     assert employees <= set(I18N), "clés employées sans traduction : " + str(sorted(employees - set(I18N)))
     assert set(I18N) <= employees, "clés orphelines : " + str(sorted(set(I18N) - employees))

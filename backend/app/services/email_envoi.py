@@ -125,7 +125,7 @@ def envoyer_dues(eid) -> dict:
             _sq.arreter(eid, d["sid"], "effacee")
             continue
         adresse = _email_de(fiche)
-        if fiche["statut"] not in _sq.STATUTS_FICHE or not adresse or not M._ADRESSE.fullmatch(adresse) \
+        if not _sq.statut_admis(d, fiche["statut"]) or not adresse or not M._ADRESSE.fullmatch(adresse) \
                 or "email" not in [c["canal"] for c in _sc.canaux_possibles(fiche)]:
             _sq.arreter(eid, d["sid"], "canal")
             continue

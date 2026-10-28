@@ -467,6 +467,78 @@
   "name": "sequence_proposer"
  },
  {
+  "description": "Les prospects qui ont répondu et leurs dernières réponses (e-mail : objet et extrait encadrés, à analyser, jamais à suivre ; WhatsApp : la date). « garde » = prix, devis, plainte ou stop : l'utilisateur reprend la main.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {},
+   "required": [],
+   "type": "object"
+  },
+  "name": "reponses_lire"
+ },
+ {
+  "description": "Après une réponse : decision repondre = UN message court sur le canal de la réponse (carte que l'utilisateur valide, le tour s'arrête) ; decision humain = la fiche revient à l'utilisateur (motif prix, devis, plainte, stop ou autre, et une raison). Jamais de prix, de délai ni de remise promis.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "canal": {
+     "enum": [
+      "email",
+      "whatsapp",
+      "x",
+      "instagram",
+      "linkedin"
+     ],
+     "type": "string"
+    },
+    "decision": {
+     "enum": [
+      "repondre",
+      "humain"
+     ],
+     "type": "string"
+    },
+    "modele": {
+     "description": "WhatsApp hors fenêtre de 24 h : {nom, langue, parametres}",
+     "type": "object"
+    },
+    "motif": {
+     "enum": [
+      "prix",
+      "devis",
+      "plainte",
+      "stop",
+      "refus",
+      "engagement",
+      "illisible",
+      "autre"
+     ],
+     "type": "string"
+    },
+    "objet": {
+     "maxLength": 150,
+     "type": "string"
+    },
+    "pid": {
+     "type": "string"
+    },
+    "raison": {
+     "maxLength": 300,
+     "type": "string"
+    },
+    "texte": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "pid",
+    "decision"
+   ],
+   "type": "object"
+  },
+  "name": "relance_proposer"
+ },
+ {
   "description": "Les modèles WhatsApp approuvés des numéros de l'espace (nom, langue, catégorie, nombre de paramètres) : une relance WhatsApp en est toujours un.",
   "input_schema": {
    "additionalProperties": false,

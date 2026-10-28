@@ -100,12 +100,14 @@ async def envoyer_dues(eid) -> dict:
             continue
         ident = identite_de(fiche)
         cid = compte_pour(eid, ident) if ident else None
-        if fiche["statut"] not in _sq.STATUTS_FICHE or not cid                 or "whatsapp" not in [c["canal"] for c in _sc.canaux_possibles(fiche)]:
+        if not _sq.statut_admis(d, fiche["statut"]) or not cid \
+                or "whatsapp" not in [c["canal"] for c in _sc.canaux_possibles(fiche)]:
             _sq.arreter(eid, d["sid"], "canal")
             out["arretes"] += 1
             continue
         m = d.get("modele")
-        envoi = {"type": "modele", "nom": m["nom"], "langue": m["langue"], "parametres": m["parametres"]} if m             else {"type": "texte", "texte": d["texte"]}
+        envoi = {"type": "modele", "nom": m["nom"], "langue": m["langue"], "parametres": m["parametres"]} if m \
+            else {"type": "texte", "texte": d["texte"]}
         if not _sq.encore_due(eid, d["sid"], d["rang"]):
             continue
         _sq.marquer_tentative(eid, d["sid"], d["rang"])
