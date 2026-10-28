@@ -564,6 +564,7 @@ if (!window.__dzCapture) {
       }
       nePlusEcouter();
       toutCouper();
+      if (window.__dzSkins && typeof window.__dzSkins.oublier === "function") window.__dzSkins.oublier();   // t316
       if (id) await fetch(`/api/capture/sessions/${id}`, { method: "DELETE" }).catch(() => {});
       peindreBouton();
       return { ok: false, message: T("capture.erreur.session", { msg: (e && e.message) || "—" }) };
@@ -632,7 +633,7 @@ if (!window.__dzCapture) {
     const tampon = new Uint8Array(128);
     session.minuteries.push(setInterval(() => {
       if (!session || !session.ui) return;
-      session.ui.temps.textContent = duree(performance.now() - session.debut);
+      if (!arret) session.ui.temps.textContent = duree(performance.now() - session.debut);   // t316 : « Outro… » reste lisible
       if (analyseur) {
         analyseur.getByteTimeDomainData(tampon);
         let m = 0; for (const v of tampon) m = Math.max(m, Math.abs(v - 128));
@@ -666,7 +667,7 @@ if (!window.__dzCapture) {
         if (s.ui) { s.ui.arret.disabled = true; s.ui.temps.textContent = T("capture.pastille.envoi"); }
         if (s.habit) {                        // t316 : l'outro du skin entre dans l'enregistrement (9 s au plus)
           if (s.ui) s.ui.temps.textContent = T("capture.pastille.outro");
-          await Promise.race([s.habit.outro(), attendreMs(9000)]).catch(() => {});
+          await Promise.race([Promise.resolve().then(() => s.habit.outro()), attendreMs(9000)]).catch(() => {});
           if (s.ui) s.ui.temps.textContent = T("capture.pastille.envoi");
         }
         const dureeMs = Math.round(performance.now() - s.debut);

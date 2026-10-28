@@ -144,6 +144,9 @@ check("5.3 pas une image -> 415 ; trop lourde -> 413 ; nom inconnu -> 400 ; rien
       refus(lambda: K.poser_image(b["id"], "logo", b"%PDF-1.4 pas une image"), 415)
       and refus(lambda: K.poser_image(b["id"], "logo", b"\x89PNG" + b"0" * (K.MAX_IMAGE + 1)), 413)
       and refus(lambda: K.poser_image(b["id"], "../etc", png()), 400) and fichiers() == avant)
+check("5.3b format hors liste (BMP, EPS…) -> 415 : Pillow n'ouvre que PNG, JPEG, WebP",
+      refus(lambda: K.poser_image(b["id"], "logo", png(fmt="BMP")), 415)
+      and refus(lambda: K.poser_image(b["id"], "logo", b"%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 10 10\n"), 415) and fichiers() == avant)
 d = K.creer(b["id"], None, "client-a")
 check("5.4 la copie d'un skin emporte ses images", sorted(d["images"]) == ["fond", "logo"] and d["espace_id"] == "client-a")
 g = K.retirer_image(b["id"], "logo")
@@ -199,6 +202,16 @@ check("6.8 un skin qui réclame des images absentes retombe sur le logo de l'esp
       r4["logo"]["source"] == "espace" and r4["cadre"]["fond"]["type"] == "degrade")
 nom_l, zl = K.exporter("livre-presse")
 check("6.9 un livré s'exporte (et se réimporte comme skin de l'espace)", K.importer(zl, "client-a")["base"] is None and "presse" in nom_l)
+
+zc = bytearray(zip_de({"skin.json": SJ, "images/logo.png": png(200, 200, (1, 2, 3, 255))}))
+i = zc.find(b"images/logo.png") + len("images/logo.png") + 20
+zc[i] ^= 0xFF; zc[i + 1] ^= 0xFF                                     # données compressées abîmées (CRC faux)
+avant = fichiers()
+check("6.10 entrée abîmée (CRC faux, flux illisible) -> 400, jamais 500, rien d'écrit",
+      refus(lambda: K.importer(bytes(zc), "deepotus"), 400) and fichiers() == avant)
+check("6.11 du_meme_espace : livré ou skin de l'espace lu ; skin d'un autre espace -> 409",
+      K.du_meme_espace("livre-jeu", "x")["id"] == "livre-jeu" and K.du_meme_espace(d["id"], "client-a")["id"] == d["id"]
+      and refus(lambda: K.du_meme_espace(d["id"], "deepotus"), 409))
 
 print("[7] contexte")
 from app.services import espaces, identite                          # noqa: E402

@@ -70,7 +70,7 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
           and c.delete("/api/skins/livre-neon").status_code == 409)
     check("2.5 id hostile -> 400 (ou 404 si la route ne le reçoit pas), introuvable -> 404",
           c.get("/api/skins/ABC").status_code == 400 and c.get("/api/skins/0123456789abcdef").status_code == 404
-          and c.put("/api/skins/..%2F..%2Fx", json={}).status_code in (400, 404, 405))
+          and c.get("/api/skins/0123456789abcde%2E").status_code in (400, 404) and c.put("/api/skins/x..y", json={}).status_code == 400)
     check("2.6 corps illisible -> 400 ; base non textuelle -> 400",
           c.post("/api/skins", content=b"[1,", headers={"Content-Type": "application/json"}).status_code == 400
           and c.post("/api/skins", json={"base": 3}).status_code == 400)
@@ -83,6 +83,13 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
           and c.get("/api/skins/actif").json()["skin"] is None)
     r = c.put("/api/skins/choix", json={"skin_id": s["id"]}, headers={"X-Dz-Espace": autre})
     check("3.3 un skin d'un autre espace -> 409 (X-Dz-Espace)", r.status_code == 409, r.text)
+    h = {"X-Dz-Espace": autre}
+    codes = [c.get(f"/api/skins/{s['id']}", headers=h).status_code, c.put(f"/api/skins/{s['id']}", json={}, headers=h).status_code,
+             c.delete(f"/api/skins/{s['id']}", headers=h).status_code, c.get(f"/api/skins/{s['id']}/export", headers=h).status_code,
+             c.put(f"/api/skins/{s['id']}/images/logo", content=png(), headers=h).status_code,
+             c.delete(f"/api/skins/{s['id']}/images/logo", headers=h).status_code]
+    check("3.3b un skin d'un autre espace : lire, modifier, supprimer, exporter, images -> 409 (il reste intact)",
+          codes == [409] * 6 and c.get(f"/api/skins/{s['id']}").status_code == 200, codes)
     j = c.get("/api/skins", headers={"X-Dz-Espace": autre}).json()
     check("3.4 l'autre espace a son propre choix (défaut) et aucun skin", j["espace"] == autre and j["choisi"] == "livre-deepotus" and j["skins"] == [], j)
 
@@ -115,8 +122,9 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
           r2.status_code == 200 and j["espace_id"] == autre and j["images"] == ["fond"] and j["ignores"] == ["../hors.txt"]
           and noms == ["images/fond.png", "skin.json"], (r2.text, noms))
     check("5.3 import d'un non-zip -> 400", c.post("/api/skins/import", content=b"pas un zip").status_code == 400)
-    check("5.4 DELETE d'un skin -> supprimé, 404 ensuite", c.delete(f"/api/skins/{j['id']}").json() == {"supprime": j["id"]}
-          and c.get(f"/api/skins/{j['id']}").status_code == 404)
+    check("5.4 DELETE d'un skin (dans son espace) -> supprimé, 404 ensuite",
+          c.delete(f"/api/skins/{j['id']}", headers={"X-Dz-Espace": autre}).json() == {"supprime": j["id"]}
+          and c.get(f"/api/skins/{j['id']}", headers={"X-Dz-Espace": autre}).status_code == 404)
 
 sys.path.insert(0, str(_ICI))
 import _jeton_appareil as _JA                                       # noqa: E402
@@ -128,8 +136,9 @@ with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) a
              c.post("/api/skins", json={}).status_code, c.post("/api/skins/import", content=b"x").status_code,
              c.get(f"/api/skins/{s['id']}").status_code, c.put(f"/api/skins/{s['id']}", json={}).status_code,
              c.delete(f"/api/skins/{s['id']}").status_code, c.get(f"/api/skins/{s['id']}/export").status_code,
-             c.put(f"/api/skins/{s['id']}/images/logo", content=png()).status_code]
-    check("6.1 403 partout, rien d'écrit", codes == [403] * 10 and sorted(str(p) for p in K.racine().rglob("*")) == avant, codes)
+             c.put(f"/api/skins/{s['id']}/images/logo", content=png()).status_code,
+             c.get(f"/api/skins/{s['id']}/images/fond").status_code, c.delete(f"/api/skins/{s['id']}/images/fond").status_code]
+    check("6.1 403 partout, rien d'écrit", codes == [403] * 12 and sorted(str(p) for p in K.racine().rglob("*")) == avant, codes)
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

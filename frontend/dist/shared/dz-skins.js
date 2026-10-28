@@ -9,7 +9,8 @@
 // API (contrat t317-t319) : window.__dzSkins = {
 //   charger() -> {espace, choisi, skins, livres}      la liste de l'espace courant (GET /api/skins)
 //   groupeCapture({forme}) -> {noeud, valeur()}         le groupe de la boîte de départ ; valeur() = id | "" | undefined
-//   habiller(scene, {skin, camera, halo}) -> habit|null  habille une scène (2 s au plus) ; skin absent = celui de l'espace
+//   habiller(scene, {skin}) -> habit|null      habille une scène (3,5 s au plus ; l'enregistreur coupe à 4 s) ; skin
+//                                             absent = celui de l'espace ; oublier() : l'habit courant est oublié
 //   actuel() -> habit|null ; alerte({type, nom, texte}) ; ecran("pause" | "fin" | null)   (pour le live, t318)
 //   ouvrirEditeur({apres}) }
 // Un habit (dz-skins-calques.js) : {skin(), maj(skin), alerte(), ecran(), outro() -> Promise, rejouer(), retirer()}.
@@ -82,8 +83,12 @@ if (!window.__dzSkins) {
 
   // ── données ──
   let liste = null;
-  async function charger() { liste = await api("GET", "/api/skins"); return liste; }
   const details = new Map();
+  async function charger() {
+    liste = await api("GET", "/api/skins");
+    if (details.espace !== liste.espace) { details.clear(); details.espace = liste.espace; }   // revue t316 : kit, logo
+    return liste;
+  }
   function chargerImage(url) {
     return new Promise((ok) => {
       if (!url) { ok(null); return; }
@@ -230,7 +235,13 @@ if (!window.__dzSkins) {
   async function ouvrirEditeur(opts) {
     if (editeur) return;
     const W = 1280, H = 720;
-    const ed = { courant: null, skin: null, contexte: null, images: {}, sale: false, habit: null, livre: false };
+    const ed = { courant: null, skin: null, contexte: null, images: {}, sale: false, habit: null, livre: false, occupe: false };
+    // une action serveur à la fois (revue t316 : un double clic faisait deux copies) ; boutons grisés pendant ce temps
+    const seule = (f) => async (...a) => {
+      if (ed.occupe) return false;
+      ed.occupe = true; peindreBoutons();
+      try { return await f(...a); } finally { ed.occupe = false; peindreBoutons(); }
+    };
     editeur = ed;
     const statut = el("div", { style: S.note + ";flex:1", role: "status", "aria-live": "polite", "data-dz-skins-statut": true });
     const dire = (m, err) => { statut.textContent = m || ""; statut.style.color = err ? "var(--red,#e5484d)" : ""; };
@@ -412,8 +423,8 @@ if (!window.__dzSkins) {
           texte: T("skins.editeur.image_choisir"), disabled: ed.livre, on: { click: () => fichier.click() } });
         const oter = el("button", { type: "button", style: S.bouton + ";padding:3px 8px", "data-dz-skins-image-oter": nom,
           texte: T("skins.editeur.image_retirer"), disabled: ed.livre || !(ed.skin.images || []).includes(nom),
-          on: { click: () => image(nom, null) } });
-        fichier.addEventListener("change", () => { const f = fichier.files && fichier.files[0]; if (f) image(nom, f); fichier.value = ""; });
+          on: { click: () => seule(image)(nom, null) } });
+        fichier.addEventListener("change", () => { const f = fichier.files && fichier.files[0]; if (f) seule(image)(nom, f); fichier.value = ""; });
         return el("div", { style: S.ligne }, [libelle, poserImg, oter, fichier]);
       }
       return null;
@@ -516,7 +527,7 @@ if (!window.__dzSkins) {
       } catch (e) { dire(T("skins.erreur.export", { msg: e.message || "—" }), true); }
     }
     const fichierZip = el("input", { type: "file", accept: ".zip,application/zip", style: "display:none", "data-dz-skins-fichier": true });
-    fichierZip.addEventListener("change", async () => {
+    fichierZip.addEventListener("change", seule(async () => {
       const f = fichierZip.files && fichierZip.files[0];
       fichierZip.value = "";
       if (!f) return;
@@ -526,7 +537,7 @@ if (!window.__dzSkins) {
         await choisir(v.id, true);
         dire(T("skins.editeur.importe", { nom: v.nom }) + (v.ignores && v.ignores.length ? " " + T("skins.editeur.ignores", { liste: v.ignores.join(", ") }) : ""));
       } catch (e) { dire(T("skins.erreur.import", { msg: e.message || "—" }), true); }
-    });
+    }));
     const btnImporter = el("button", { type: "button", style: S.bouton, "data-dz-skins-importer": true, texte: T("skins.editeur.importer"),
       on: { click: () => fichierZip.click() } });
 
@@ -543,13 +554,15 @@ if (!window.__dzSkins) {
     ]);
 
     // ── pied ──
-    const btnEnregistrer = el("button", { type: "button", style: S.principal, "data-dz-skins-enregistrer": true, texte: T("skins.editeur.enregistrer"), on: { click: enregistrer } });
-    const btnDupliquer = el("button", { type: "button", style: S.bouton, "data-dz-skins-dupliquer": true, texte: T("skins.editeur.dupliquer"), on: { click: dupliquer } });
-    const btnSupprimer = el("button", { type: "button", style: S.bouton, "data-dz-skins-supprimer": true, texte: T("skins.editeur.supprimer"), on: { click: supprimer } });
-    const btnExporter = el("button", { type: "button", style: S.bouton, "data-dz-skins-exporter": true, texte: T("skins.editeur.exporter"), on: { click: exporter } });
-    const btnUtiliser = el("button", { type: "button", style: S.bouton, "data-dz-skins-utiliser": true, texte: T("skins.editeur.utiliser"), on: { click: utiliser } });
+    const btnEnregistrer = el("button", { type: "button", style: S.principal, "data-dz-skins-enregistrer": true, texte: T("skins.editeur.enregistrer"), on: { click: seule(enregistrer) } });
+    const btnDupliquer = el("button", { type: "button", style: S.bouton, "data-dz-skins-dupliquer": true, texte: T("skins.editeur.dupliquer"), on: { click: seule(dupliquer) } });
+    const btnSupprimer = el("button", { type: "button", style: S.bouton, "data-dz-skins-supprimer": true, texte: T("skins.editeur.supprimer"), on: { click: seule(supprimer) } });
+    const btnExporter = el("button", { type: "button", style: S.bouton, "data-dz-skins-exporter": true, texte: T("skins.editeur.exporter"), on: { click: seule(exporter) } });
+    const btnUtiliser = el("button", { type: "button", style: S.bouton, "data-dz-skins-utiliser": true, texte: T("skins.editeur.utiliser"), on: { click: seule(utiliser) } });
     const btnFermer = el("button", { type: "button", style: S.bouton, "data-dz-skins-fermer": true, texte: T("skins.editeur.fermer"), on: { click: () => fermer() } });
     function peindreBoutons() {
+      if (ed.occupe) { [btnEnregistrer, btnDupliquer, btnSupprimer, btnExporter, btnUtiliser, btnImporter].forEach((b) => { b.disabled = true; }); return; }
+      btnImporter.disabled = false;
       btnEnregistrer.disabled = !ed.skin || !ed.sale;
       btnEnregistrer.textContent = T(ed.livre ? "skins.editeur.enregistrer_copie" : "skins.editeur.enregistrer");
       btnDupliquer.disabled = !ed.courant;
@@ -611,6 +624,7 @@ if (!window.__dzSkins) {
   window.__dzSkins = {
     charger, habiller, groupeCapture, ouvrirEditeur,
     actuel: () => habit,
+    oublier: () => { habit = null; },
     alerte: (a) => (habit ? habit.alerte(a) : false),
     ecran: (n) => (habit ? habit.ecran(n) : null),
   };

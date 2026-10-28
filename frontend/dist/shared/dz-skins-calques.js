@@ -15,7 +15,7 @@
 // source « ecran » : il pose `etat.cadre`, que la scène applique à l'écran, aux clics et au caviardage.
 import { Z, FONDU, borne, palette, couleur, rgba, polices, police, textes, remplir, disposer, carte, bandeau, alertes,
   ajuster } from "./dz-skins-logique.js";
-import { calqueClics, calqueEncart, DUREE_HALO } from "./dz-capture-scene.js";
+import { calqueClics, calqueEncart, rogner, DUREE_HALO } from "./dz-capture-scene.js";
 
 const IDS = ["skin-fond", "skin-cadre", "skin-logo", "skin-bandeau", "skin-signature", "skin-alertes", "skin-carte"];
 
@@ -105,6 +105,7 @@ export function habiller(scene, skin0, env) {
         return;
       }
       s.etat.clics = s.etat.clics.filter((c) => s.t - c.debut <= DUREE_HALO);
+      rogner(ctx, s);
       ctx.setTransform(s.vue.k, 0, 0, s.vue.k, s.vue.ox, s.vue.oy);
       const r0 = Math.max(6, s.largeur / 160) * (Number(cu.taille) || 1);
       for (const c of s.etat.clics) {

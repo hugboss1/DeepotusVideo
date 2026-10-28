@@ -26,6 +26,7 @@ import re
 import secrets
 import threading
 import zipfile
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,6 +41,7 @@ LIVRES_FICHIER = Path(__file__).resolve().parent.parent / "skins" / "livres.json
 IMAGES = ("logo", "fond")
 MAX_IMAGE = 5 * 1024 * 1024
 MAX_COTE = 2048
+FORMATS_IMAGE = ["PNG", "JPEG", "WEBP"]
 MAX_SKINS = 60
 MAX_ZIP = 12 * 1024 * 1024
 MAX_ENTREES = 8
@@ -226,7 +228,37 @@ def _ecrire_json(f: Path, doc) -> None:
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_name(f.name + ".tmp")
     tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=1), "utf-8")
-    tmp.replace(f)
+    _remplacer(tmp, f)
+
+
+def _remplacer(tmp: Path, f: Path) -> None:
+    """tmp -> f ; sous Windows, une lecture concurrente peut tenir f ouvert un instant : deux reprises."""
+    import time
+    for essai in range(3):
+        try:
+            tmp.replace(f)
+            return
+        except PermissionError:
+            if essai == 2:
+                raise
+            time.sleep(0.05 * (essai + 1))
+
+
+def _ecrire_octets(f: Path, octets: bytes) -> None:
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f.name + ".tmp")
+    tmp.write_bytes(octets)
+    _remplacer(tmp, f)
+
+
+def _effacer(sid: str) -> None:
+    """Retour arrière : le skin et ses images disparaissent."""
+    (racine() / f"{sid}.json").unlink(missing_ok=True)
+    d = racine() / sid
+    if d.is_dir():
+        for x in d.iterdir():
+            x.unlink()
+        d.rmdir()
 
 
 def _lire_brut(sid: str) -> dict:
@@ -263,6 +295,14 @@ def _tous() -> list:
     return out
 
 
+def du_meme_espace(sid: str, eid: str) -> dict:
+    """Le skin, s'il est livré ou de l'espace `eid` ; un skin d'un autre espace est refusé (revue t316)."""
+    v = lire(sid)
+    if not v["livre"] and v["espace_id"] != eid:
+        raise RefusSkin("Ce skin appartient à un autre espace : dupliquez-le d'abord.", 409)
+    return v
+
+
 def lister(eid: str) -> list:
     return [v for v in _tous() if v["espace_id"] == eid]
 
@@ -294,12 +334,15 @@ def creer(base: str | None, nom: str | None, eid: str) -> dict:
         src = lire(base) if base else None
         n = _texte(nom, "", MAX_NOM) or (src["nom"] if src else "Skin")
         sid = secrets.token_hex(8)
-        v = _enregistrer_brut(sid, src or {}, eid, _nom_libre(n, eid), base if src else None)
-        if src and not src["livre"]:
-            for im in src["images"]:
-                (racine() / sid).mkdir(parents=True, exist_ok=True)
-                (racine() / sid / f"{im}.png").write_bytes((racine() / src["id"] / f"{im}.png").read_bytes())
-            v = lire(sid)
+        try:
+            v = _enregistrer_brut(sid, src or {}, eid, _nom_libre(n, eid), base if src else None)
+            if src and not src["livre"]:
+                for im in src["images"]:
+                    _ecrire_octets(racine() / sid / f"{im}.png", (racine() / src["id"] / f"{im}.png").read_bytes())
+                v = lire(sid)
+        except Exception:
+            _effacer(sid)
+            raise
         return v
 
 
@@ -406,9 +449,10 @@ def _png(octets: bytes) -> bytes:
         raise RefusSkin("Image trop lourde : 5 Mo au plus.", 413)
     from PIL import Image
     try:
-        with Image.open(io.BytesIO(octets)) as im:
+        # formats FERMÉS (revue t316) : jamais EPS & co, que Pillow confierait à Ghostscript
+        with Image.open(io.BytesIO(octets), formats=FORMATS_IMAGE) as im:
             im.verify()
-        with Image.open(io.BytesIO(octets)) as im:
+        with Image.open(io.BytesIO(octets), formats=FORMATS_IMAGE) as im:
             if im.width * im.height > 40_000_000:
                 raise RefusSkin("Image trop grande.", 413)
             im = im.convert("RGBA")
@@ -435,8 +479,7 @@ def poser_image(sid: str, nom: str, octets: bytes) -> dict:
     png = _png(octets)
     with _VERROU:
         d = _lire_brut(sid)
-        (racine() / sid).mkdir(parents=True, exist_ok=True)
-        (racine() / sid / f"{nom}.png").write_bytes(png)
+        _ecrire_octets(racine() / sid / f"{nom}.png", png)
         if nom == "logo":
             d.setdefault("logo", {})["source"] = "image"
         else:
@@ -507,8 +550,11 @@ def importer(octets: bytes, eid: str) -> dict:
         total += i.file_size
         if i.file_size > MAX_ZIP or total > MAX_ZIP:
             raise RefusSkin("Paquet refusé : contenu décompressé trop lourd.", 413)
-        with z.open(i) as f:
-            data = f.read(MAX_ZIP + 1)
+        try:
+            with z.open(i) as f:
+                data = f.read(MAX_ZIP + 1)
+        except (RuntimeError, NotImplementedError, zipfile.BadZipFile, zlib.error, OSError, EOFError, ValueError):
+            raise RefusSkin("Ce fichier n'est pas un paquet de skin (.zip) lisible.", 400) from None   # chiffré, CRC faux…
         if len(data) > MAX_ZIP:
             raise RefusSkin("Paquet refusé : contenu décompressé trop lourd.", 413)
         lus[i.filename] = data
@@ -533,16 +579,10 @@ def importer(octets: bytes, eid: str) -> dict:
         try:
             v = _enregistrer_brut(sid, propre, eid, _nom_libre(_texte(doc.get("nom"), "", MAX_NOM) or "Skin", eid), None)
             for nom, png in images.items():
-                (racine() / sid).mkdir(parents=True, exist_ok=True)
-                (racine() / sid / f"{nom}.png").write_bytes(png)
+                _ecrire_octets(racine() / sid / f"{nom}.png", png)
             v = lire(sid)
         except Exception:
-            _fichier(sid).unlink(missing_ok=True)       # retour arrière : rien de l'import ne reste
-            d = racine() / sid
-            if d.is_dir():
-                for x in d.iterdir():
-                    x.unlink()
-                d.rmdir()
+            _effacer(sid)                               # retour arrière : rien de l'import ne reste
             raise
     v["ignores"] = ignores
     return v

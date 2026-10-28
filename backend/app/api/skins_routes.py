@@ -122,7 +122,7 @@ async def importer(request: Request):
 @router.get("/{sid}")
 async def lire(sid: str, request: Request):
     _local(request)
-    v = await _faire(K.lire, sid)
+    v = await _faire(K.du_meme_espace, sid, _espace())
     return {"skin": v, "contexte": await _faire(K.contexte, v["espace_id"] or _espace())}
 
 
@@ -130,12 +130,14 @@ async def lire(sid: str, request: Request):
 async def enregistrer(sid: str, request: Request):
     _local(request)
     d = await _json(request)
+    await _faire(K.du_meme_espace, sid, _espace())
     return await _faire(K.enregistrer, sid, d)
 
 
 @router.delete("/{sid}")
 async def supprimer(sid: str, request: Request):
     _local(request)
+    await _faire(K.du_meme_espace, sid, _espace())
     await _faire(K.supprimer, sid)
     logger.info(f"skins : {sid} supprimé")
     return {"supprime": sid}
@@ -144,6 +146,7 @@ async def supprimer(sid: str, request: Request):
 @router.get("/{sid}/images/{nom}")
 async def image(sid: str, nom: str, request: Request):
     _local(request)
+    await _faire(K.du_meme_espace, sid, _espace())
     p = await _faire(K.chemin_image, sid, nom)
     return FileResponse(str(p), media_type="image/png", headers={"Cache-Control": "no-cache"})
 
@@ -152,18 +155,21 @@ async def image(sid: str, nom: str, request: Request):
 async def poser_image(sid: str, nom: str, request: Request):
     _local(request)
     octets = await _corps(request, K.MAX_IMAGE + 1)
+    await _faire(K.du_meme_espace, sid, _espace())
     return await _faire(K.poser_image, sid, nom, octets)
 
 
 @router.delete("/{sid}/images/{nom}")
 async def retirer_image(sid: str, nom: str, request: Request):
     _local(request)
+    await _faire(K.du_meme_espace, sid, _espace())
     return await _faire(K.retirer_image, sid, nom)
 
 
 @router.get("/{sid}/export")
 async def exporter(sid: str, request: Request):
     _local(request)
+    await _faire(K.du_meme_espace, sid, _espace())
     nom, octets = await _faire(K.exporter, sid)
     return Response(octets, media_type="application/zip",
                     headers={"Content-Disposition": f'attachment; filename="{nom}"', "Cache-Control": "no-store"})
